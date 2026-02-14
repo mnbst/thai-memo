@@ -4,9 +4,10 @@ import 'package:workmanager/workmanager.dart';
 import '../core/config/app_config.dart';
 import '../data/datasources/local/database_helper.dart';
 import '../data/datasources/local/secure_storage_service.dart';
-import '../data/datasources/remote/gemini_api_service.dart';
+import '../data/datasources/remote/backend_api_service.dart';
 import '../data/repositories/sentence_repository.dart';
 import '../domain/usecases/generate_sentence_usecase.dart';
+import 'firebase_auth_service.dart';
 import 'notification_service.dart';
 
 /// Background service for periodic sentence generation
@@ -32,10 +33,8 @@ class BackgroundService {
       );
 
       _initialized = true;
-      debugPrint('Background service initialized');
       return true;
     } catch (e) {
-      debugPrint('Failed to initialize background service: $e');
       return false;
     }
   }
@@ -59,10 +58,7 @@ class BackgroundService {
         ),
         existingWorkPolicy: ExistingWorkPolicy.keep,
       );
-
-      debugPrint('Daily task registered');
     } catch (e) {
-      debugPrint('Failed to register daily task: $e');
       rethrow;
     }
   }
@@ -82,10 +78,7 @@ class BackgroundService {
           networkType: NetworkType.connected,
         ),
       );
-
-      debugPrint('Immediate task registered');
     } catch (e) {
-      debugPrint('Failed to register immediate task: $e');
       rethrow;
     }
   }
@@ -94,9 +87,8 @@ class BackgroundService {
   Future<void> cancelAllTasks() async {
     try {
       await Workmanager().cancelAll();
-      debugPrint('All background tasks cancelled');
     } catch (e) {
-      debugPrint('Failed to cancel tasks: $e');
+      // Silently ignore errors
     }
   }
 
@@ -104,9 +96,8 @@ class BackgroundService {
   Future<void> cancelTask(String taskName) async {
     try {
       await Workmanager().cancelByUniqueName(taskName);
-      debugPrint('Task cancelled: $taskName');
     } catch (e) {
-      debugPrint('Failed to cancel task: $e');
+      // Silently ignore errors
     }
   }
 }
@@ -117,17 +108,12 @@ class BackgroundService {
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    debugPrint('Background task started: $task');
-
     try {
       // Execute the sentence generation
       await _executeSentenceGeneration();
 
-      debugPrint('Background task completed successfully');
       return Future.value(true);
     } catch (e) {
-      debugPrint('Background task failed: $e');
-
       // Show error notification
       try {
         await NotificationService.instance.initialize();
@@ -135,7 +121,7 @@ void callbackDispatcher() {
           '例文の自動生成に失敗しました',
         );
       } catch (notifError) {
-        debugPrint('Failed to show error notification: $notifError');
+        // Silently ignore notification errors
       }
 
       return Future.value(false);
@@ -147,17 +133,16 @@ void callbackDispatcher() {
 ///
 /// This is the main logic executed by the background task
 Future<void> _executeSentenceGeneration() async {
-  debugPrint('Executing sentence generation...');
-
   // Initialize services
   final secureStorage = SecureStorageService.instance;
   final databaseHelper = DatabaseHelper.instance;
-  final apiService = GeminiApiService();
+  final apiService = BackendApiService();
+  final authService = FirebaseAuthService.instance;
 
-  // Check if API key is configured
-  final hasApiKey = await secureStorage.hasApiKey();
-  if (!hasApiKey) {
-    debugPrint('API key not configured, skipping generation');
+  // Ensure user is authenticated
+  try {
+    await authService.ensureAuthenticated();
+  } catch (e) {
     return;
   }
 
@@ -171,9 +156,6 @@ Future<void> _executeSentenceGeneration() async {
 
     // Skip if last generation was less than 23 hours ago
     if (timeSinceLastGeneration.inHours < 23) {
-      debugPrint(
-        'Last generation was ${timeSinceLastGeneration.inHours} hours ago, skipping',
-      );
       return;
     }
   }
@@ -183,6 +165,7 @@ Future<void> _executeSentenceGeneration() async {
     databaseHelper: databaseHelper,
     apiService: apiService,
     secureStorage: secureStorage,
+    authService: authService,
   );
 
   // Create use case
@@ -190,7 +173,6 @@ Future<void> _executeSentenceGeneration() async {
 
   // Generate and save sentence
   final sentence = await generateUseCase.execute();
-  debugPrint('Sentence generated: ${sentence.id}');
 
   // Update last generation timestamp
   await secureStorage.saveLastGenerationTimestamp(DateTime.now());
@@ -198,6 +180,4 @@ Future<void> _executeSentenceGeneration() async {
   // Show notification
   await NotificationService.instance.initialize();
   await NotificationService.instance.showNewSentenceNotification(sentence);
-
-  debugPrint('Notification shown');
 }

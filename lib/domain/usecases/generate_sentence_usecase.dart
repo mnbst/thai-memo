@@ -1,7 +1,8 @@
+import '../../data/datasources/remote/backend_api_service.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/repositories/sentence_repository.dart';
 
-/// Use case for generating a new Thai sentence from Gemini API
+/// Use case for generating a new Thai sentence from backend API
 class GenerateSentenceUseCase {
   final SentenceRepository _repository;
 
@@ -13,23 +14,18 @@ class GenerateSentenceUseCase {
   /// Throws [GenerateSentenceException] if generation fails
   Future<ThaiSentence> execute() async {
     try {
-      // Check if API key is configured
-      final hasApiKey = await _repository.hasApiKey();
-      if (!hasApiKey) {
-        throw GenerateSentenceException(
-          'API key not configured',
-          type: GenerateSentenceErrorType.missingApiKey,
-        );
-      }
-
-      // Generate and save sentence
+      // No need to check API key - authentication handled by Firebase
       final sentence = await _repository.generateAndSaveSentence();
-
       return sentence;
     } on RepositoryException catch (e) {
       throw GenerateSentenceException(
         e.message,
         type: _mapRepositoryException(e),
+      );
+    } on BackendApiException catch (e) {
+      throw GenerateSentenceException(
+        e.message,
+        type: _mapBackendApiException(e),
       );
     } catch (e) {
       throw GenerateSentenceException(
@@ -76,14 +72,32 @@ class GenerateSentenceUseCase {
       return GenerateSentenceErrorType.unknown;
     }
   }
+
+  /// Map backend API exception to use case error type
+  GenerateSentenceErrorType _mapBackendApiException(BackendApiException e) {
+    if (e is BackendApiUnauthenticatedException) {
+      return GenerateSentenceErrorType.authenticationError;
+    } else if (e is BackendApiRateLimitException) {
+      return GenerateSentenceErrorType.rateLimitExceeded;
+    } else if (e is BackendApiTimeoutException) {
+      return GenerateSentenceErrorType.timeout;
+    } else if (e is BackendApiServerException) {
+      return GenerateSentenceErrorType.serverError;
+    } else {
+      return GenerateSentenceErrorType.unknown;
+    }
+  }
 }
 
 /// Types of errors that can occur during sentence generation
 enum GenerateSentenceErrorType {
-  /// API key is missing
+  /// Authentication error
+  authenticationError,
+
+  /// API key is missing (deprecated - kept for backward compatibility)
   missingApiKey,
 
-  /// API key is invalid
+  /// API key is invalid (deprecated)
   invalidApiKey,
 
   /// Network connection error
@@ -115,6 +129,8 @@ class GenerateSentenceException implements Exception {
   /// Get user-friendly error message
   String getUserMessage() {
     switch (type) {
+      case GenerateSentenceErrorType.authenticationError:
+        return '認証エラーが発生しました。アプリを再起動してください。';
       case GenerateSentenceErrorType.missingApiKey:
         return 'APIキーが設定されていません。設定画面でAPIキーを入力してください。';
       case GenerateSentenceErrorType.invalidApiKey:

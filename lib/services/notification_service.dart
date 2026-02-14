@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../core/config/app_config.dart';
@@ -57,7 +56,6 @@ class NotificationService {
 
       return _initialized;
     } catch (e) {
-      debugPrint('Failed to initialize notifications: $e');
       return false;
     }
   }
@@ -81,7 +79,6 @@ class NotificationService {
 
   /// Handle notification tap
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('Notification tapped: ${response.payload}');
     // TODO: Navigate to the sentence detail screen
     // This will be implemented when we create the navigation system
   }
@@ -112,7 +109,6 @@ class NotificationService {
     if (!_initialized) {
       final success = await initialize();
       if (!success) {
-        debugPrint('Cannot show notification: service not initialized');
         return;
       }
     }
@@ -157,10 +153,8 @@ class NotificationService {
         notificationDetails,
         payload: sentence.id,
       );
-
-      debugPrint('Notification shown for sentence: ${sentence.id}');
     } catch (e) {
-      debugPrint('Failed to show notification: $e');
+      // Silently ignore notification errors
     }
   }
 
@@ -199,10 +193,8 @@ class NotificationService {
         message,
         notificationDetails,
       );
-
-      debugPrint('Error notification shown: $message');
     } catch (e) {
-      debugPrint('Failed to show error notification: $e');
+      // Silently ignore notification errors
     }
   }
 

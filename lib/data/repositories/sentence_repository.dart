@@ -1,40 +1,41 @@
 import 'package:uuid/uuid.dart';
 
+import '../../services/firebase_auth_service.dart';
 import '../datasources/local/database_helper.dart';
 import '../datasources/local/secure_storage_service.dart';
-import '../datasources/remote/gemini_api_service.dart';
+import '../datasources/remote/backend_api_service.dart';
 import '../models/thai_sentence.dart';
 import '../models/word_breakdown.dart';
 
 /// Repository for managing Thai sentences
-/// Coordinates between local database and remote API
+/// Coordinates between local database and remote backend API
 class SentenceRepository {
   final DatabaseHelper _databaseHelper;
-  final GeminiApiService _apiService;
+  final BackendApiService _apiService;
   final SecureStorageService _secureStorage;
+  final FirebaseAuthService _authService;
   final Uuid _uuid = const Uuid();
 
   SentenceRepository({
     DatabaseHelper? databaseHelper,
-    GeminiApiService? apiService,
+    BackendApiService? apiService,
     SecureStorageService? secureStorage,
+    FirebaseAuthService? authService,
   })  : _databaseHelper = databaseHelper ?? DatabaseHelper.instance,
-        _apiService = apiService ?? GeminiApiService(),
-        _secureStorage = secureStorage ?? SecureStorageService.instance;
+        _apiService = apiService ?? BackendApiService(),
+        _secureStorage = secureStorage ?? SecureStorageService.instance,
+        _authService = authService ?? FirebaseAuthService.instance;
 
   // ==================== Remote Operations ====================
 
-  /// Generate a new sentence from Gemini API and save it to database
+  /// Generate a new sentence from backend API and save it to database
   Future<ThaiSentence> generateAndSaveSentence() async {
-    // Get API key
-    final apiKey = await _secureStorage.getApiKey();
-    if (apiKey == null || apiKey.isEmpty) {
-      throw RepositoryException('API key not found. Please configure it in settings.');
-    }
-
     try {
-      // Generate sentence from API
-      final sentence = await _apiService.generateSentence(apiKey);
+      // Ensure user is authenticated
+      await _authService.ensureAuthenticated();
+
+      // Generate sentence from backend API (no API key needed)
+      final sentence = await _apiService.generateSentence();
 
       // Add ID and assign sentence IDs to word breakdowns
       final sentenceId = _uuid.v4();
@@ -61,7 +62,7 @@ class SentenceRepository {
       await _logGeneration(success: true, tokensUsed: null);
 
       return finalSentence;
-    } on ApiException catch (e) {
+    } on BackendApiException catch (e) {
       // Log failed generation
       await _logGeneration(
         success: false,

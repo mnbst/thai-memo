@@ -1,0 +1,4 @@
+project_id     = "thai-memo-backend"
+region         = "asia-northeast1"
+gemini_api_key = "YOUR_GEMINI_API_KEY_HERE"
+firebase_project_display_name = "Thai Memo"

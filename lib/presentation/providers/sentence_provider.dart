@@ -2,13 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/datasources/local/secure_storage_service.dart';
-import '../../data/datasources/remote/gemini_api_service.dart';
+import '../../data/datasources/remote/backend_api_service.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/repositories/sentence_repository.dart';
 import '../../domain/usecases/delete_sentence_usecase.dart';
 import '../../domain/usecases/generate_sentence_usecase.dart';
 import '../../domain/usecases/get_sentences_usecase.dart';
 import '../../domain/usecases/save_sentence_usecase.dart';
+import '../../services/firebase_auth_service.dart';
 
 // ==================== Repository Provider ====================
 
@@ -16,8 +17,9 @@ import '../../domain/usecases/save_sentence_usecase.dart';
 final sentenceRepositoryProvider = Provider<SentenceRepository>((ref) {
   return SentenceRepository(
     databaseHelper: DatabaseHelper.instance,
-    apiService: GeminiApiService(),
+    apiService: BackendApiService(),
     secureStorage: SecureStorageService.instance,
+    authService: FirebaseAuthService.instance,
   );
 });
 

@@ -1,0 +1,23 @@
+variable "project_id" {
+  description = "GCP Project ID"
+  type        = string
+  default     = "thai-memo-backend"
+}
+
+variable "region" {
+  description = "GCP region for resources"
+  type        = string
+  default     = "asia-northeast1"
+}
+
+variable "gemini_api_key" {
+  description = "Gemini API Key (sensitive)"
+  type        = string
+  sensitive   = true
+}
+
+variable "firebase_project_display_name" {
+  description = "Firebase project display name"
+  type        = string
+  default     = "Thai Memo"
+}

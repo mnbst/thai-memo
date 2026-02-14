@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 import '../../../core/config/app_config.dart';
@@ -20,9 +19,6 @@ class GeminiApiService {
       // Randomly select a situation from the list
       final randomSituation = ApiConstants
           .situations[_random.nextInt(ApiConstants.situations.length)];
-      debugPrint('🎲 Randomly selected situation: $randomSituation');
-
-      debugPrint('🔧 Initializing Gemini API with model: ${AppConfig.geminiModel}');
 
       // Initialize model with API key and JSON schema for structured output
       _model = GenerativeModel(
@@ -102,8 +98,6 @@ class GeminiApiService {
         ),
       );
 
-      debugPrint('📤 Sending request to Gemini API...');
-
       // Generate content with randomly selected situation
       final response = await _model!
           .generateContent([
@@ -112,19 +106,13 @@ class GeminiApiService {
           .timeout(
             const Duration(seconds: AppConfig.apiTimeoutSeconds),
             onTimeout: () {
-              debugPrint('⏰ Request timed out');
               throw ApiTimeoutException(ApiConstants.errorTimeout);
             },
           );
 
-      debugPrint('📥 Received response from Gemini API');
-
       // Handle response
       return _handleResponse(response);
     } on GenerativeAIException catch (e) {
-      debugPrint('❌ Gemini API error: ${e.message}');
-      debugPrint('   Error details: $e');
-
       // Handle Gemini-specific errors
       if (e.message.contains('API_KEY_INVALID') ||
           e.message.contains('invalid api key')) {
@@ -140,9 +128,7 @@ class GeminiApiService {
       }
     } on ApiException {
       rethrow;
-    } catch (e, stackTrace) {
-      debugPrint('❌ Unexpected error: $e');
-      debugPrint('   Stack trace: $stackTrace');
+    } catch (e) {
       throw ApiException(ApiConstants.errorUnknown, originalError: e);
     }
   }
@@ -152,26 +138,19 @@ class GeminiApiService {
     try {
       // Check if response has text
       final text = response.text;
-      debugPrint('📝 Response text length: ${text?.length ?? 0}');
 
       if (text == null || text.isEmpty) {
-        debugPrint('❌ Empty response from Gemini API');
         throw ApiInvalidResponseException('Empty response from Gemini API');
       }
 
-      debugPrint('📄 Raw response: $text');
-
       // Parse JSON response (structured output ensures pure JSON)
       final sentenceJson = json.decode(text);
-      debugPrint('✅ JSON parsed successfully');
 
       // Create ThaiSentence from JSON
       return _createThaiSentence(sentenceJson);
     } on ApiException {
       rethrow;
-    } catch (e, stackTrace) {
-      debugPrint('❌ Response handling error: $e');
-      debugPrint('   Stack trace: $stackTrace');
+    } catch (e) {
       throw ApiInvalidResponseException(
           '${ApiConstants.errorInvalidResponse}: $e');
     }
@@ -180,8 +159,6 @@ class GeminiApiService {
   /// Create ThaiSentence object from parsed JSON
   ThaiSentence _createThaiSentence(Map<String, dynamic> json) {
     try {
-      debugPrint('🔨 Creating ThaiSentence from JSON...');
-
       // Parse word breakdowns
       final wordBreakdownsJson = json['word_breakdown'] as List<dynamic>?;
       final wordBreakdowns = <WordBreakdown>[];
@@ -223,12 +200,8 @@ class GeminiApiService {
         isFavorite: false,
       );
 
-      debugPrint('✅ ThaiSentence created successfully: ${sentence.thaiText}');
       return sentence;
-    } catch (e, stackTrace) {
-      debugPrint('❌ Failed to create ThaiSentence: $e');
-      debugPrint('   Stack trace: $stackTrace');
-      debugPrint('   JSON: $json');
+    } catch (e) {
       throw ApiInvalidResponseException('Failed to create ThaiSentence: $e');
     }
   }

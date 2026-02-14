@@ -1,0 +1,31 @@
+# Compiled JavaScript files
+lib/
+**/*.js
+**/*.js.map
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Node modules
+node_modules/
+
+# Firebase cache
+.firebase/
+
+# Firebase config (auto-generated)
+.runtimeconfig.json
+
+# Logs
+*.log
+npm-debug.log*
+firebase-debug.log*
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
