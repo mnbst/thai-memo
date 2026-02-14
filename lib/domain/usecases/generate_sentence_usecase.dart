@@ -1,7 +1,7 @@
 import '../../data/models/thai_sentence.dart';
 import '../../data/repositories/sentence_repository.dart';
 
-/// Use case for generating a new Thai sentence from OpenAI API
+/// Use case for generating a new Thai sentence from Gemini API
 class GenerateSentenceUseCase {
   final SentenceRepository _repository;
 

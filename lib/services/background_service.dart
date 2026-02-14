@@ -4,7 +4,7 @@ import 'package:workmanager/workmanager.dart';
 import '../core/config/app_config.dart';
 import '../data/datasources/local/database_helper.dart';
 import '../data/datasources/local/secure_storage_service.dart';
-import '../data/datasources/remote/openai_api_service.dart';
+import '../data/datasources/remote/gemini_api_service.dart';
 import '../data/repositories/sentence_repository.dart';
 import '../domain/usecases/generate_sentence_usecase.dart';
 import 'notification_service.dart';
@@ -152,7 +152,7 @@ Future<void> _executeSentenceGeneration() async {
   // Initialize services
   final secureStorage = SecureStorageService.instance;
   final databaseHelper = DatabaseHelper.instance;
-  final apiService = OpenAiApiService();
+  final apiService = GeminiApiService();
 
   // Check if API key is configured
   final hasApiKey = await secureStorage.hasApiKey();

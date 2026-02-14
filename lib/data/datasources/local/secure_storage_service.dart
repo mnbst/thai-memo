@@ -20,7 +20,7 @@ class SecureStorageService {
 
   // ==================== API Key Management ====================
 
-  /// Save OpenAI API key securely
+  /// Save Gemini API key securely
   Future<void> saveApiKey(String apiKey) async {
     try {
       await _storage.write(
@@ -32,7 +32,7 @@ class SecureStorageService {
     }
   }
 
-  /// Get OpenAI API key
+  /// Get Gemini API key
   Future<String?> getApiKey() async {
     try {
       return await _storage.read(key: AppConfig.secureStorageApiKey);
@@ -167,8 +167,8 @@ class SecureStorageService {
 
   /// Validate API key format (basic validation)
   bool isValidApiKeyFormat(String apiKey) {
-    // OpenAI API keys typically start with "sk-" and are at least 20 characters
-    return apiKey.startsWith('sk-') && apiKey.length >= 20;
+    // Gemini API keys typically start with "AI" and are at least 20 characters
+    return apiKey.startsWith('AI') && apiKey.length >= 20;
   }
 }
 

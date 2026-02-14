@@ -2,7 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../datasources/local/database_helper.dart';
 import '../datasources/local/secure_storage_service.dart';
-import '../datasources/remote/openai_api_service.dart';
+import '../datasources/remote/gemini_api_service.dart';
 import '../models/thai_sentence.dart';
 import '../models/word_breakdown.dart';
 
@@ -10,21 +10,21 @@ import '../models/word_breakdown.dart';
 /// Coordinates between local database and remote API
 class SentenceRepository {
   final DatabaseHelper _databaseHelper;
-  final OpenAiApiService _apiService;
+  final GeminiApiService _apiService;
   final SecureStorageService _secureStorage;
   final Uuid _uuid = const Uuid();
 
   SentenceRepository({
     DatabaseHelper? databaseHelper,
-    OpenAiApiService? apiService,
+    GeminiApiService? apiService,
     SecureStorageService? secureStorage,
   })  : _databaseHelper = databaseHelper ?? DatabaseHelper.instance,
-        _apiService = apiService ?? OpenAiApiService(),
+        _apiService = apiService ?? GeminiApiService(),
         _secureStorage = secureStorage ?? SecureStorageService.instance;
 
   // ==================== Remote Operations ====================
 
-  /// Generate a new sentence from OpenAI API and save it to database
+  /// Generate a new sentence from Gemini API and save it to database
   Future<ThaiSentence> generateAndSaveSentence() async {
     // Get API key
     final apiKey = await _secureStorage.getApiKey();
@@ -195,6 +195,15 @@ class SentenceRepository {
       await _databaseHelper.deleteSentence(id);
     } catch (e) {
       throw RepositoryException('Failed to delete sentence: $e');
+    }
+  }
+
+  /// Delete all sentences
+  Future<void> deleteAllSentences() async {
+    try {
+      await _databaseHelper.deleteAllSentences();
+    } catch (e) {
+      throw RepositoryException('Failed to delete all sentences: $e');
     }
   }
 

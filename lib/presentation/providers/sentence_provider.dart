@@ -2,9 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/datasources/local/secure_storage_service.dart';
-import '../../data/datasources/remote/openai_api_service.dart';
+import '../../data/datasources/remote/gemini_api_service.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/repositories/sentence_repository.dart';
+import '../../domain/usecases/delete_sentence_usecase.dart';
 import '../../domain/usecases/generate_sentence_usecase.dart';
 import '../../domain/usecases/get_sentences_usecase.dart';
 import '../../domain/usecases/save_sentence_usecase.dart';
@@ -15,7 +16,7 @@ import '../../domain/usecases/save_sentence_usecase.dart';
 final sentenceRepositoryProvider = Provider<SentenceRepository>((ref) {
   return SentenceRepository(
     databaseHelper: DatabaseHelper.instance,
-    apiService: OpenAiApiService(),
+    apiService: GeminiApiService(),
     secureStorage: SecureStorageService.instance,
   );
 });
@@ -39,6 +40,12 @@ final getSentencesUseCaseProvider = Provider<GetSentencesUseCase>((ref) {
 final saveSentenceUseCaseProvider = Provider<SaveSentenceUseCase>((ref) {
   final repository = ref.watch(sentenceRepositoryProvider);
   return SaveSentenceUseCase(repository);
+});
+
+/// Provider for delete sentence use case
+final deleteSentenceUseCaseProvider = Provider<DeleteSentenceUseCase>((ref) {
+  final repository = ref.watch(sentenceRepositoryProvider);
+  return DeleteSentenceUseCase(repository);
 });
 
 // ==================== State Providers ====================
@@ -80,10 +87,12 @@ final hasSentencesProvider = FutureProvider<bool>((ref) async {
 class SentenceController extends StateNotifier<SentenceState> {
   final GenerateSentenceUseCase _generateUseCase;
   final GetSentencesUseCase _getUseCase;
+  final DeleteSentenceUseCase _deleteUseCase;
 
   SentenceController(
     this._generateUseCase,
     this._getUseCase,
+    this._deleteUseCase,
   ) : super(const SentenceStateInitial());
 
   /// Generate a new sentence
@@ -134,6 +143,32 @@ class SentenceController extends StateNotifier<SentenceState> {
     }
   }
 
+  /// Delete a sentence
+  Future<void> deleteSentence(String id) async {
+    try {
+      await _deleteUseCase.execute(id);
+      // If the deleted sentence is the current one, clear the state
+      if (state is SentenceStateSuccess) {
+        final current = (state as SentenceStateSuccess).sentence;
+        if (current.id == id) {
+          state = const SentenceStateEmpty();
+        }
+      }
+    } on DeleteSentenceException catch (e) {
+      throw Exception(e.message);
+    }
+  }
+
+  /// Delete all sentences
+  Future<void> deleteAllSentences() async {
+    try {
+      await _deleteUseCase.deleteAll();
+      state = const SentenceStateEmpty();
+    } on DeleteSentenceException catch (e) {
+      throw Exception(e.message);
+    }
+  }
+
   /// Reset state
   void reset() {
     state = const SentenceStateInitial();
@@ -145,8 +180,9 @@ final sentenceControllerProvider =
     StateNotifierProvider<SentenceController, SentenceState>((ref) {
   final generateUseCase = ref.watch(generateSentenceUseCaseProvider);
   final getUseCase = ref.watch(getSentencesUseCaseProvider);
+  final deleteUseCase = ref.watch(deleteSentenceUseCaseProvider);
 
-  return SentenceController(generateUseCase, getUseCase);
+  return SentenceController(generateUseCase, getUseCase, deleteUseCase);
 });
 
 // ==================== Sentence State ====================

@@ -49,9 +49,8 @@ dependencies:
   flutter_local_notifications: ^14.1.0
   timezone: ^0.9.2
 
-  # HTTP & API
-  http: ^1.6.0
-  dio: ^5.1.2
+  # Google Generative AI (Gemini)
+  google_generative_ai: ^0.4.0
 
   # Secure Storage
   flutter_secure_storage: ^8.0.0

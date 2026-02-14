@@ -145,6 +145,12 @@ class DatabaseHelper {
     );
   }
 
+  /// Delete all sentences (and their word breakdowns due to CASCADE)
+  Future<int> deleteAllSentences() async {
+    final db = await database;
+    return await db.delete(DatabaseConstants.tableSentences);
+  }
+
   /// Get total sentence count
   Future<int> getSentenceCount() async {
     final db = await database;

@@ -25,7 +25,7 @@ class SaveSentenceUseCase {
 
   /// Save API key to secure storage
   ///
-  /// [apiKey] is the OpenAI API key
+  /// [apiKey] is the Gemini API key
   /// Throws [SaveSentenceException] if save fails or key is invalid
   Future<void> saveApiKey(String apiKey) async {
     // Validate API key
@@ -34,9 +34,9 @@ class SaveSentenceUseCase {
     }
 
     // Basic format validation
-    if (!apiKey.trim().startsWith('sk-')) {
+    if (!apiKey.trim().startsWith('AI')) {
       throw SaveSentenceException(
-        'Invalid API key format. OpenAI API keys start with "sk-"',
+        'Invalid API key format. Gemini API keys start with "AI"',
       );
     }
 
@@ -87,7 +87,7 @@ class SaveSentenceUseCase {
     }
   }
 
-  /// Get masked API key for display (e.g., "sk-***...***abc")
+  /// Get masked API key for display (e.g., "AI***...***abc")
   ///
   /// Returns masked version of the API key
   Future<String?> getMaskedApiKey() async {
@@ -122,7 +122,7 @@ class SaveSentenceException implements Exception {
     } else if (message.contains('empty')) {
       return 'APIキーが空です。有効なAPIキーを入力してください。';
     } else if (message.contains('format')) {
-      return 'APIキーの形式が正しくありません。OpenAIのAPIキーは"sk-"で始まります。';
+      return 'APIキーの形式が正しくありません。GeminiのAPIキーは"AI"で始まります。';
     } else {
       return 'データの保存に失敗しました。もう一度お試しください。';
     }

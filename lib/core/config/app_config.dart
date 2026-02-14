@@ -13,13 +13,9 @@ class AppConfig {
   static const int databaseVersion = 1;
 
   /// API configuration
-  static const String openAiApiUrl =
-      'https://api.openai.com/v1/chat/completions';
-  static const String openAiModel = 'gpt-4o-mini';
-  static const int apiMaxTokens = 1000;
+  static const String geminiModel = 'gemini-2.5-flash';
+  static const int apiMaxTokens = 6144;
   static const double apiTemperature = 0.8;
-  static const double apiFrequencyPenalty = 0.3;
-  static const double apiPresencePenalty = 0.3;
   static const int apiTimeoutSeconds = 30;
 
   /// Background task configuration
@@ -40,7 +36,7 @@ class AppConfig {
   static const double cardBorderRadius = 12.0;
 
   /// Secure storage keys
-  static const String secureStorageApiKey = 'openai_api_key';
+  static const String secureStorageApiKey = 'gemini_api_key';
   static const String secureStorageLastGeneration = 'last_generation_timestamp';
 
   /// Shared preferences keys

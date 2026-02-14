@@ -139,7 +139,7 @@ class TodayScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              '設定画面でOpenAI APIキーを入力してください',
+              '設定画面でGemini APIキーを入力してください',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(
                   context,

@@ -2,29 +2,6 @@
 class ApiConstants {
   ApiConstants._();
 
-  /// HTTP headers
-  static const String headerContentType = 'Content-Type';
-  static const String headerAuthorization = 'Authorization';
-  static const String contentTypeJson = 'application/json';
-
-  /// HTTP methods
-  static const String methodPost = 'POST';
-  static const String methodGet = 'GET';
-
-  /// API response keys
-  static const String keyChoices = 'choices';
-  static const String keyMessage = 'message';
-  static const String keyContent = 'content';
-  static const String keyUsage = 'usage';
-  static const String keyTotalTokens = 'total_tokens';
-  static const String keyError = 'error';
-  static const String keyErrorMessage = 'message';
-
-  /// OpenAI roles
-  static const String roleSystem = 'system';
-  static const String roleUser = 'user';
-  static const String roleAssistant = 'assistant';
-
   /// Error messages
   static const String errorNetworkFailure = 'Network connection failed';
   static const String errorInvalidApiKey = 'Invalid API key';
@@ -34,8 +11,24 @@ class ApiConstants {
   static const String errorTimeout = 'Request timeout';
   static const String errorUnknown = 'An unknown error occurred';
 
-  /// Thai sentence generation prompt
-  static String get sentenceGenerationPrompt => '''
+  /// List of situations for sentence generation
+  static const List<String> situations = [
+    'あいさつ（朝、昼、夜のあいさつ、初対面、久しぶりの再会など）',
+    '食べ物（レストランでの注文、料理の感想、食材の購入など）',
+    '旅行（ホテル予約、道案内、観光地での会話など）',
+    '感情（喜び、悲しみ、驚き、不安などの表現）',
+    '仕事（職場での会話、ビジネスマナー、打ち合わせなど）',
+    '家族（家族の紹介、日常会話、家族行事など）',
+    '買い物（値段交渉、商品の質問、支払いなど）',
+    '交通（タクシー、電車、バスでの会話）',
+    '健康（病院、薬局、体調不良の説明など）',
+    '天気（天気の話題、季節の挨拶など）',
+    '趣味（スポーツ、音楽、映画などの趣味について）',
+    '学校（授業、宿題、学校生活について）',
+  ];
+
+  /// Thai sentence generation prompt with specific situation
+  static String getSentenceGenerationPrompt(String situation) => '''
 あなたは日本語話者向けに日々の練習文を作るタイ語教師です。
 
 学習に必要な情報を含むタイ語の新しい文を1つ、JSON形式で生成してください。
@@ -44,18 +37,18 @@ class ApiConstants {
 1. 文は日常会話で実用的な内容にする
 2. 難易度は中級（簡単すぎず難しすぎない）
 3. 必要に応じて文化的背景も含める
-4. 話題はあいさつ、食べ物、旅行、感情、仕事、家族などを幅広くする
+4. 今回の話題・シチュエーション: $situation
 
 次の形式の有効なJSONのみを返してください:
 
 {
   "thai_text": "タイ語の文",
-  "pronunciation": "発音（ローマ字）(e.g., ไม่รู้สิ = mâi rúu sì, เหมือนกัน = mʉ̌ʉan kan, แหละ = lɛ̀)"",
+  "pronunciation": "拼音風のローマ字発音（声調記号付き）(e.g., ไม่รู้สิ = mâi rúu sì, เหมือนกัน = mʉ̌ʉan kan, สุดท้าย = sùt-tháai, คำตอบ = kham-tɔ̀ɔp, ใช้ชีวิต = chái-chii-wít, ให้รู้ตัว = hâi rúu tua, ไม่ค่อย = mâi khâui, ก็ = kô, แหละ = lɛ̀)",
   "japanese_translation": "日本語訳",
   "word_breakdown": [
     {
       "word": "タイ語の単語",
-      "pronunciation": "単語の発音（ローマ字）",
+      "pronunciation": "単語の拼音風発音（声調記号付きローマ字）",
       "meaning": "単語の日本語の意味",
       "grammatical_role": "品詞（例: 名詞, 動詞, 形容詞, 助詞）"
     }

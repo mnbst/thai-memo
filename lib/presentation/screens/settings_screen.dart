@@ -64,7 +64,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Icon(Icons.key, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 12),
                 Text(
-                  'OpenAI API キー',
+                  'Gemini API キー',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -122,7 +122,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               TextField(
                 controller: _apiKeyController,
                 decoration: InputDecoration(
-                  hintText: 'sk-...',
+                  hintText: 'AI...',
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -151,7 +151,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'OpenAI APIキーは https://platform.openai.com/api-keys で取得できます',
+                'Gemini APIキーは https://aistudio.google.com/app/apikey で取得できます',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(
                     context,

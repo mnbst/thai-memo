@@ -46,6 +46,9 @@ ios/Runner/GoogleService-Info.plist
 *.p12
 *.mobileprovision
 
+# Dev Container
+# .devcontainer/ は共有するためコミット対象
+
 # Symbolication related
 app.*.symbols
 

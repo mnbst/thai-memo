@@ -42,6 +42,26 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             },
             tooltip: 'お気に入りのみ表示',
           ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'delete_all') {
+                _showDeleteAllConfirmation();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'delete_all',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('すべて削除', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: Column(
@@ -203,6 +223,59 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
+  /// Show delete all confirmation dialog
+  Future<void> _showDeleteAllConfirmation() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('すべて削除'),
+        content: const Text('すべての例文履歴を削除しますか？この操作は取り消せません。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('削除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ref
+            .read(sentenceControllerProvider.notifier)
+            .deleteAllSentences();
+        // Refresh the list
+        ref.invalidate(allSentencesProvider);
+        ref.invalidate(favoriteSentencesProvider);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('すべての例文を削除しました'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('削除に失敗しました: $e'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   /// Build sentence card
   Widget _buildSentenceCard(ThaiSentence sentence) {
     final createdAt = sentence.createdAt;
@@ -210,99 +283,171 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ? '${createdAt.year}/${createdAt.month}/${createdAt.day}'
         : '不明';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppConfig.defaultPadding),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => DetailScreen(sentence: sentence),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConfig.defaultPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with date and favorite icon
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      formattedDate,
+    return Dismissible(
+      key: Key(sentence.id ?? ''),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: AppConfig.defaultPadding),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.error,
+          borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      confirmDismiss: (direction) async {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('削除の確認'),
+            content: const Text('この例文を削除しますか？'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('キャンセル'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                ),
+                child: const Text('削除'),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmed == true) {
+          try {
+            await ref
+                .read(sentenceControllerProvider.notifier)
+                .deleteSentence(sentence.id!);
+            // Refresh the list
+            ref.invalidate(allSentencesProvider);
+            ref.invalidate(favoriteSentencesProvider);
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('例文を削除しました'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+            return true;
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('削除に失敗しました: $e'),
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                ),
+              );
+            }
+            return false;
+          }
+        }
+
+        return false;
+      },
+      onDismissed: (direction) {
+        // Deletion is handled in confirmDismiss
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: AppConfig.defaultPadding),
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DetailScreen(sentence: sentence),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with date and favorite icon
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        formattedDate,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+                    if (sentence.isFavorite)
+                      Icon(
+                        Icons.favorite,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Thai text
+                Text(
+                  sentence.thaiText,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                // Pronunciation
+                Text(
+                  sentence.pronunciation,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.7),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                // Japanese translation
+                Text(
+                  sentence.japaneseTranslation,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                // Word count
+                Row(
+                  children: [
+                    Icon(
+                      Icons.list_alt,
+                      size: 14,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${sentence.wordBreakdowns.length} 単語',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(
                           context,
                         ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
-                  ),
-                  if (sentence.isFavorite)
-                    Icon(
-                      Icons.favorite,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Thai text
-              Text(
-                sentence.thaiText,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  height: 1.4,
+                  ],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              // Pronunciation
-              Text(
-                sentence.pronunciation,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.7),
-                  fontStyle: FontStyle.italic,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              // Japanese translation
-              Text(
-                sentence.japaneseTranslation,
-                style: Theme.of(context).textTheme.bodyMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 12),
-              // Word count
-              Row(
-                children: [
-                  Icon(
-                    Icons.list_alt,
-                    size: 14,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${sentence.wordBreakdowns.length} 単語',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
