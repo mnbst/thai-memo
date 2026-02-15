@@ -43,12 +43,16 @@ class ThaiToneAnalyzer {
     'ภ',
     'ง',
     'ญ',
+    'ฑ', // ทะหานมนโท
+    'ฒ', // ผู้เฒ่า
     'ณ',
     'น',
     'ม',
     'ย',
     'ร',
+    'ฤ', // รึ (low consonant / special vowel)
     'ล',
+    'ฦ', // ลึ (low consonant / special vowel, rarely used)
     'ว',
     'ฬ',
     'ฮ',
@@ -506,7 +510,7 @@ enum ConsonantClass {
       case ConsonantClass.middle:
         return 'ก จ ด ต บ ป อ';
       case ConsonantClass.low:
-        return 'ค ง ช ซ ท น พ ฟ ม ย ร ล ว ฮ';
+        return 'ค ง ช ซ ฑ ฒ ท น พ ฟ ม ย ร ฤ ล ฦ ว ฮ';
       case ConsonantClass.unknown:
         return '';
     }
