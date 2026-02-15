@@ -57,6 +57,25 @@ class DatabaseHelper {
         ADD COLUMN ${DatabaseConstants.columnSyllablesJson} TEXT
       ''');
     }
+
+    // Migrate from version 2 to 3: Rebuild database (maiTri/maiChattawa cleanup)
+    if (oldVersion < 3) {
+      // Drop all tables (in reverse order due to foreign keys)
+      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableWordBreakdowns}');
+      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableSentences}');
+      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableGenerationLogs}');
+      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableAppSettings}');
+
+      // Recreate all tables
+      for (String statement in DatabaseConstants.createTableStatements) {
+        await db.execute(statement);
+      }
+
+      // Recreate all indexes
+      for (String statement in DatabaseConstants.createIndexStatements) {
+        await db.execute(statement);
+      }
+    }
   }
 
   // ==================== Sentences CRUD Operations ====================

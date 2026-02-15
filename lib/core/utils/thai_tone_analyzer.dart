@@ -78,7 +78,25 @@ class ThaiToneAnalyzer {
   ];
 
   // 死音節の末子音（-p, -t, -k）
-  static const deadEndConsonants = ['ป', 'บ', 'พ', 'ภ', 'ฟ', 'ต', 'ด', 'ท', 'ธ', 'ฏ', 'ฎ', 'จ', 'ช', 'ซ', 'ก', 'ข', 'ค'];
+  static const deadEndConsonants = [
+    'ป',
+    'บ',
+    'พ',
+    'ภ',
+    'ฟ',
+    'ต',
+    'ด',
+    'ท',
+    'ธ',
+    'ฏ',
+    'ฎ',
+    'จ',
+    'ช',
+    'ซ',
+    'ก',
+    'ข',
+    'ค'
+  ];
 
   // 生音節の末子音（-m, -n, -ng, -y, -w）
   static const liveEndConsonants = ['ม', 'น', 'ง', 'ญ', 'ย', 'ว'];
@@ -180,7 +198,9 @@ class ThaiToneAnalyzer {
     final lastChar = word[word.length - 1];
 
     // 死音節の条件：短母音 + 末子音なし、または -p, -t, -k で終わる
-    if (hasShortVowel && !liveEndConsonants.contains(lastChar) && !deadEndConsonants.contains(lastChar)) {
+    if (hasShortVowel &&
+        !liveEndConsonants.contains(lastChar) &&
+        !deadEndConsonants.contains(lastChar)) {
       return SyllableType.dead; // 短母音で末子音なし
     }
 
@@ -217,7 +237,8 @@ class ThaiToneAnalyzer {
   }
 
   /// 中子音の声調決定
-  static ThaiTone _determineMiddleClassTone(ToneMark toneMark, SyllableType syllableType) {
+  static ThaiTone _determineMiddleClassTone(
+      ToneMark toneMark, SyllableType syllableType) {
     switch (toneMark) {
       case ToneMark.none:
         return syllableType == SyllableType.dead ? ThaiTone.low : ThaiTone.mid;
@@ -233,18 +254,25 @@ class ThaiToneAnalyzer {
   }
 
   /// 高子音の声調決定
-  static ThaiTone _determineHighClassTone(ToneMark toneMark, SyllableType syllableType) {
+  static ThaiTone _determineHighClassTone(
+      ToneMark toneMark, SyllableType syllableType) {
     switch (toneMark) {
       case ToneMark.none:
-        return syllableType == SyllableType.dead ? ThaiTone.low : ThaiTone.rising;
+        return syllableType == SyllableType.dead
+            ? ThaiTone.low
+            : ThaiTone.rising;
       case ToneMark.maiEk:
         return ThaiTone.low;
       case ToneMark.maiTho:
         return ThaiTone.falling;
       case ToneMark.maiTri:
-        return ThaiTone.high; // 高子音ではไม้ตรีは使われない
+        // 注意: 高子音ではไม้ตรี（マイトリー）は例外的な使用です
+        // 通常の現代タイ語では使われません
+        return ThaiTone.high;
       case ToneMark.maiChattawa:
-        return ThaiTone.rising; // 高子音ではไม้จัตวาは使われない
+        // 注意: 高子音ではไม้จัตวา（マイチャッタワー）は例外的な使用です
+        // 通常の現代タイ語では使われません
+        return ThaiTone.rising;
     }
   }
 
@@ -268,8 +296,12 @@ class ThaiToneAnalyzer {
       case ToneMark.maiTho:
         return ThaiTone.high;
       case ToneMark.maiTri:
+        // 注意: 低子音でไม้ตรี（マイトリー）は例外的な使用です
+        // 主にไม้โทと同じ高声になりますが、現代では稀です
         return ThaiTone.high;
       case ToneMark.maiChattawa:
+        // 注意: 低子音でไม้จัตวา（マイチャッタワー）は例外的な使用です
+        // サンスクリット由来の単語などで稀に見られます
         return ThaiTone.rising;
     }
   }
@@ -327,8 +359,10 @@ class ThaiToneAnalyzer {
   static List<ToneRule> _getLowClassToneTable() {
     return [
       ToneRule(ToneMark.none, SyllableType.live, ThaiTone.mid),
-      ToneRule(ToneMark.none, SyllableType.dead, ThaiTone.high, isShortVowel: true),
-      ToneRule(ToneMark.none, SyllableType.dead, ThaiTone.falling, isShortVowel: false),
+      ToneRule(ToneMark.none, SyllableType.dead, ThaiTone.high,
+          isShortVowel: true),
+      ToneRule(ToneMark.none, SyllableType.dead, ThaiTone.falling,
+          isShortVowel: false),
       ToneRule(ToneMark.maiEk, SyllableType.live, ThaiTone.falling),
       ToneRule(ToneMark.maiTho, SyllableType.live, ThaiTone.high),
       ToneRule(ToneMark.maiTri, SyllableType.live, ThaiTone.high),
@@ -492,13 +526,13 @@ enum ToneMark {
       case ToneMark.none:
         return '声調記号なし';
       case ToneMark.maiEk:
-        return 'ไม้เอก (่)';
+        return 'マイエーク';
       case ToneMark.maiTho:
-        return 'ไม้โท (้)';
+        return 'マイトー';
       case ToneMark.maiTri:
-        return 'ไม้ตรี (๊)';
+        return 'マイトリー';
       case ToneMark.maiChattawa:
-        return 'ไม้จัตวา (๋)';
+        return 'マイチャッタワー';
     }
   }
 
@@ -533,6 +567,14 @@ enum SyllableType {
       case SyllableType.unknown:
         return '不明';
     }
+  }
+
+  /// 母音の長短を含む表示名（低子音の死音節で使用）
+  String getDisplayNameWithVowel({bool? hasShortVowel}) {
+    if (this == SyllableType.dead && hasShortVowel != null) {
+      return hasShortVowel ? '死音節（短母音）' : '死音節（長母音・複合母音）';
+    }
+    return displayName;
   }
 
   String get description {

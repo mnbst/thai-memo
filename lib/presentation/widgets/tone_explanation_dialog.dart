@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/utils/thai_tone_analyzer.dart';
 import '../../data/models/word_breakdown.dart';
+import '../screens/tone_guide_screen.dart';
 
 /// 声調解説を表示するダイアログ
 class ToneExplanationDialog extends StatelessWidget {
@@ -22,41 +23,53 @@ class ToneExplanationDialog extends StatelessWidget {
     final hasSyllables = syllables != null && syllables.isNotEmpty;
 
     return Dialog(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(context),
-              const SizedBox(height: 20),
-              if (hasSyllables) ...[
-                // 音節分解サマリー
-                _buildSyllableBreakdown(context),
-                const SizedBox(height: 20),
-                // 各音節の詳細分析
-                ...syllables.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final syllable = entry.value;
-                  return Column(
-                    children: [
-                      _buildSyllableDetailCard(context, syllable, index + 1),
-                      const SizedBox(height: 16),
-                    ],
-                  );
-                }),
-              ] else ...[
-                // 音節情報がない場合は単語全体の分析
-                _buildWordInfo(context),
-                const SizedBox(height: 20),
-                _buildToneTable(context),
-                const SizedBox(height: 20),
-              ],
-              _buildCloseButton(context),
-            ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 固定ヘッダー（スクロールしない）
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: _buildHeader(context),
           ),
-        ),
+          const SizedBox(height: 20),
+          // スクロール可能なコンテンツ
+          Flexible(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (hasSyllables) ...[
+                      // 音節分解サマリー
+                      _buildSyllableBreakdown(context),
+                      const SizedBox(height: 20),
+                      // 各音節の詳細分析
+                      ...syllables.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final syllable = entry.value;
+                        return Column(
+                          children: [
+                            _buildSyllableDetailCard(context, syllable, index + 1),
+                            const SizedBox(height: 16),
+                          ],
+                        );
+                      }),
+                    ] else ...[
+                      // 音節情報がない場合は単語全体の分析
+                      _buildWordInfo(context),
+                      const SizedBox(height: 20),
+                      _buildToneTable(context),
+                      const SizedBox(height: 20),
+                    ],
+                    _buildActionButtons(context),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -90,6 +103,7 @@ class ToneExplanationDialog extends StatelessWidget {
   /// 音節分解表示
   Widget _buildSyllableBreakdown(BuildContext context) {
     final syllables = wordBreakdown!.syllables!;
+    final pronunciation = wordBreakdown!.pronunciation;
 
     return Card(
       color: Theme.of(context).colorScheme.tertiaryContainer,
@@ -122,6 +136,16 @@ class ToneExplanationDialog extends StatelessWidget {
               children: syllables.map((syllable) {
                 return _buildSyllableChip(context, syllable);
               }).toList(),
+            ),
+            const SizedBox(height: 12),
+            // ローマ字表記（拼音風）
+            Text(
+              pronunciation,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onTertiaryContainer,
+                    letterSpacing: 0.5,
+                  ),
             ),
           ],
         ),
@@ -189,7 +213,7 @@ class ToneExplanationDialog extends StatelessWidget {
             _buildInfoRow(
               context,
               '音節タイプ',
-              syllableType.displayName,
+              syllableType.getDisplayNameWithVowel(hasShortVowel: syllable.hasShortVowel),
               Icons.waves,
             ),
             const SizedBox(height: 12),
@@ -251,6 +275,12 @@ class ToneExplanationDialog extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    // 高子音・低子音でmaiTri/maiChattawaの場合は注釈を表示
+    final showExceptionalNote = (consonantClass == ConsonantClass.high ||
+                                  consonantClass == ConsonantClass.low) &&
+                                 (toneMark == ToneMark.maiTri ||
+                                  toneMark == ToneMark.maiChattawa);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -260,6 +290,33 @@ class ToneExplanationDialog extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
         ),
+        if (showExceptionalNote) ...[
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade100,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.orange.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.orange.shade900),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    '例外的な使用（現代では稀）',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.orange.shade900,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         Card(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -414,7 +471,7 @@ class ToneExplanationDialog extends StatelessWidget {
             _buildInfoRow(
               context,
               '音節タイプ',
-              analysis.syllableType.displayName,
+              analysis.syllableType.getDisplayNameWithVowel(hasShortVowel: analysis.hasShortVowel),
               Icons.waves,
             ),
             const SizedBox(height: 12),
@@ -518,24 +575,40 @@ class ToneExplanationDialog extends StatelessWidget {
                     .withValues(alpha: 0.8),
               ),
         ),
-        if (toneMark != ToneMark.none) ...[
-          Text(
-            toneMark.symbol,
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  height: 1.0,
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
         Expanded(
-          child: Text(
-            toneMark.displayName,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+          child: Row(
+            children: [
+              Text(
+                toneMark.displayName,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+              ),
+              if (toneMark != ToneMark.none) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '(',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
                 ),
+                Text(
+                  toneMark.symbol,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        height: 1.0,
+                      ),
+                ),
+                Text(
+                  ')',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -657,6 +730,14 @@ class ToneExplanationDialog extends StatelessWidget {
         ? Theme.of(context).colorScheme.primaryContainer
         : Colors.transparent;
 
+    // 低子音の死音節の場合は母音の長短を表示
+    String syllableTypeDisplay;
+    if (rule.syllableType == SyllableType.dead && rule.isShortVowel != null) {
+      syllableTypeDisplay = rule.syllableType.getDisplayNameWithVowel(hasShortVowel: rule.isShortVowel);
+    } else {
+      syllableTypeDisplay = rule.syllableType.displayName;
+    }
+
     return TableRow(
       decoration: BoxDecoration(color: backgroundColor),
       children: [
@@ -667,14 +748,13 @@ class ToneExplanationDialog extends StatelessWidget {
         ),
         _buildTableCell(
           context,
-          rule.syllableType.displayName,
+          syllableTypeDisplay,
           isHighlighted: isHighlighted,
         ),
-        _buildTableCell(
+        _buildToneResultCell(
           context,
-          '${rule.resultingTone.displayName} ${rule.resultingTone.symbol}',
+          rule.resultingTone,
           isHighlighted: isHighlighted,
-          isToneResult: true,
         ),
       ],
     );
@@ -729,6 +809,47 @@ class ToneExplanationDialog extends StatelessWidget {
     );
   }
 
+  /// 声調結果セル（声調名と記号を縦に表示）
+  Widget _buildToneResultCell(
+    BuildContext context,
+    ThaiTone tone, {
+    bool isHighlighted = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            tone.displayName,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 14,
+                  color: isHighlighted
+                      ? Theme.of(context).colorScheme.onPrimaryContainer
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            tone.symbol,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 20,
+                  color: isHighlighted
+                      ? Theme.of(context).colorScheme.onPrimaryContainer
+                      : Theme.of(context).colorScheme.onSurface,
+                  fontFamily: 'monospace',
+                  height: 1.2,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 凡例
   Widget _buildLegend(BuildContext context) {
     return Row(
@@ -757,11 +878,30 @@ class ToneExplanationDialog extends StatelessWidget {
     );
   }
 
-  /// 閉じるボタン
-  Widget _buildCloseButton(BuildContext context) {
-    return FilledButton(
-      onPressed: () => Navigator.of(context).pop(),
-      child: const Text('閉じる'),
+  /// アクションボタン
+  Widget _buildActionButtons(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () {
+            Navigator.of(context).pop();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ToneGuideScreen(),
+              ),
+            );
+          },
+          icon: const Icon(Icons.school),
+          label: const Text('声調について詳しく学ぶ'),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('閉じる'),
+        ),
+      ],
     );
   }
 

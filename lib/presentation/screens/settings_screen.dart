@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
+import 'tone_guide_screen.dart';
 
 /// Settings screen
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -22,64 +23,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppConfig.defaultPadding),
         children: [
-          _buildNotificationSection(),
-          const SizedBox(height: 24),
           _buildThemeSection(),
+          const SizedBox(height: 24),
+          _buildLearningSection(),
           const SizedBox(height: 24),
           _buildStatisticsSection(),
           const SizedBox(height: 24),
           _buildAboutSection(),
         ],
-      ),
-    );
-  }
-
-  /// Build notification section
-  Widget _buildNotificationSection() {
-    final notificationsEnabled = ref.watch(notificationsEnabledProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.notifications,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '通知',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Switch(
-                  value: notificationsEnabled,
-                  onChanged: (value) {
-                    ref
-                        .read(settingsControllerProvider.notifier)
-                        .toggleNotifications(value);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '新しい例文が生成されたときに通知を受け取ります',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -133,6 +84,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ref
                     .read(settingsControllerProvider.notifier)
                     .setThemeMode(newSelection.first);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build learning section
+  Widget _buildLearningSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.school,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '学習',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.graphic_eq,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text('声調ガイド'),
+              subtitle: const Text('タイ語の声調ルールを学ぶ'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ToneGuideScreen(),
+                  ),
+                );
               },
             ),
           ],
