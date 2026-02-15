@@ -17,9 +17,9 @@ export const SITUATIONS = [
   '礼儀作法（ワイ（合掌）、年長者への敬意、タブー、社会的マナーなど）',
 ];
 
-export const GEMINI_MODEL = 'gemini-2.0-flash-exp';
+export const GEMINI_MODEL = 'gemini-2.5-flash';
 export const API_TEMPERATURE = 0.8;
-export const API_MAX_TOKENS = 6144;
+export const API_MAX_TOKENS = 8192; // Increased from 6144 to handle longer responses
 
 export function getSentenceGenerationPrompt(situation: string): string {
   return `あなたは日本語話者向けに日々の練習文を作るタイ語教師です。
@@ -29,8 +29,23 @@ export function getSentenceGenerationPrompt(situation: string): string {
 要件:
 1. 文は日常会話で実用的な内容にする
 2. 難易度は中級（簡単すぎず難しすぎない）
-3. 必要に応じて文化的背景も含める
-4. 今回の話題・シチュエーション: ${situation}
+3. タイ語の文は10〜15単語以内に収める（長文は避ける）
+4. 単語分解は最大15単語まで
+5. contextの各フィールドは簡潔に（各50文字以内）
+6. 今回の話題・シチュエーション: ${situation}
+
+重要：音節分割について
+- 各単語を正しくタイ語の音節に分割してください
+- 音節は必ず頭子音から始まります（母音のみの音節の場合、อが黙字の頭子音）
+- 例: สวัสดี → [สวัส, ดี]（2音節）
+- 例: คำตอบ → [คำ, ตอบ]（2音節）
+- 例: ใช้ชีวิต → [ใช้, ชี, วิต]（3音節）
+
+各音節について以下を必ず含めてください：
+1. tone_mark（声調記号）: 音節に付いている声調記号を確認し、none/maiEk/maiTho/maiTri/maiChattawaのいずれかを指定（記号がない場合はnone）
+2. syllable_type（音節タイプ）:
+   - live（生音節）: 長母音、または-m,-n,-ng,-y,-wで終わる
+   - dead（死音節）: 短母音で末子音なし、または-p,-t,-kで終わる
 
 次の形式の有効なJSONのみを返してください:
 
@@ -43,7 +58,17 @@ export function getSentenceGenerationPrompt(situation: string): string {
       "word": "タイ語の単語",
       "pronunciation": "単語の拼音風発音（声調記号付きローマ字）",
       "meaning": "単語の日本語の意味",
-      "grammatical_role": "品詞（例: 名詞, 動詞, 形容詞, 助詞）"
+      "grammatical_role": "品詞（例: 名詞, 動詞, 形容詞, 助詞）",
+      "syllables": [
+        {
+          "text": "音節テキスト",
+          "initial_consonant": "頭子音",
+          "consonant_class": "high | middle | low",
+          "tone": "mid | low | falling | high | rising",
+          "tone_mark": "none | maiEk | maiTho | maiTri | maiChattawa",
+          "syllable_type": "live | dead"
+        }
+      ]
     }
   ],
   "context": {

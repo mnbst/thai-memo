@@ -10,7 +10,7 @@ class AppConfig {
 
   /// Database configuration
   static const String databaseName = 'thai_memo.db';
-  static const int databaseVersion = 1;
+  static const int databaseVersion = 2;
 
   /// API configuration
   static const String geminiModel = 'gemini-2.5-flash';

@@ -1,3 +1,8 @@
+# Get project information
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
 # Enable required APIs
 resource "google_project_service" "required_apis" {
   for_each = toset([
@@ -8,7 +13,7 @@ resource "google_project_service" "required_apis" {
     "identitytoolkit.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "logging.googleapis.com",
-    "bigquery.googleapis.com",
+    "cloudscheduler.googleapis.com",
   ])
 
   project = var.project_id
@@ -22,6 +27,7 @@ module "secret_manager" {
   source = "./modules/secret-manager"
 
   project_id     = var.project_id
+  project_number = data.google_project.project.number
   gemini_api_key = var.gemini_api_key
 
   depends_on = [google_project_service.required_apis]
@@ -47,6 +53,18 @@ module "logging" {
 
   depends_on = [google_project_service.required_apis]
 }
+
+# Cloud Scheduler module is not needed
+# Firebase automatically creates a scheduler job when using functions.scheduler.onSchedule
+# Job name: firebase-schedule-scheduledDailyGeneration-asia-northeast1
+# module "cloud_scheduler" {
+#   source = "./modules/cloud-scheduler"
+#
+#   project_id = var.project_id
+#   region     = var.region
+#
+#   depends_on = [google_project_service.required_apis]
+# }
 
 # Cloud Functions module will be added after Functions code is ready
 # module "cloud_functions" {

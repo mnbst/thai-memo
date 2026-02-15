@@ -28,6 +28,7 @@ class DatabaseConstants {
   static const String columnWordMeaning = 'meaning';
   static const String columnGrammaticalRole = 'grammatical_role';
   static const String columnWordOrder = 'word_order';
+  static const String columnSyllablesJson = 'syllables_json';
 
   // ==================== Generation Logs Table ====================
   static const String columnLogId = 'id';
@@ -69,6 +70,7 @@ class DatabaseConstants {
       $columnWordMeaning TEXT NOT NULL,
       $columnGrammaticalRole TEXT,
       $columnWordOrder INTEGER NOT NULL,
+      $columnSyllablesJson TEXT,
       FOREIGN KEY ($columnWordSentenceId)
         REFERENCES $tableSentences($columnSentenceId)
         ON DELETE CASCADE

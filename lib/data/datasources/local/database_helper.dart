@@ -50,10 +50,12 @@ class DatabaseHelper {
 
   /// Handle database upgrades
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Handle migrations here when database version changes
-    // For now, we'll just recreate the tables
-    if (oldVersion < newVersion) {
-      // Add migration logic here in the future
+    // Migrate from version 1 to 2: Add syllables_json column
+    if (oldVersion < 2) {
+      await db.execute('''
+        ALTER TABLE ${DatabaseConstants.tableWordBreakdowns}
+        ADD COLUMN ${DatabaseConstants.columnSyllablesJson} TEXT
+      ''');
     }
   }
 

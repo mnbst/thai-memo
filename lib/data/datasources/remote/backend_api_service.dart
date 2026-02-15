@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/config/firebase_config.dart';
+import '../../models/syllable.dart';
 import '../../models/thai_sentence.dart';
 import '../../models/word_breakdown.dart';
 
@@ -25,11 +26,7 @@ class BackendApiService {
       // Ensure user is authenticated
       final user = _auth.currentUser;
       if (user == null) {
-        final exception = BackendApiException('User not authenticated');
-        await _logError('AUTH_ERROR', exception.message, {
-          'situation': situation,
-        });
-        throw exception;
+        throw BackendApiException('User not authenticated');
       }
 
       // Call Cloud Function
@@ -45,49 +42,28 @@ class BackendApiService {
       });
 
       // Parse response
-      final data = result.data as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(result.data as Map);
 
       if (data['success'] != true) {
-        final error = data['error'] as Map<String, dynamic>?;
+        final error = data['error'] != null
+            ? Map<String, dynamic>.from(data['error'] as Map)
+            : null;
         final errorCode = error?['code'] as String? ?? 'UNKNOWN';
         final errorMessage =
             error?['message'] as String? ?? 'Unknown error';
 
-        final exception = _mapBackendError(errorCode, errorMessage);
-        await _logError(errorCode, errorMessage, {
-          'situation': situation,
-          'response_data': data,
-        });
-        throw exception;
+        throw _mapBackendError(errorCode, errorMessage);
       }
 
       // Extract sentence data
-      final sentenceData = data['data'] as Map<String, dynamic>;
+      final sentenceData = Map<String, dynamic>.from(data['data'] as Map);
 
       return _createThaiSentence(sentenceData);
     } on FirebaseFunctionsException catch (e) {
-      await _logError(
-        'FIREBASE_FUNCTIONS_ERROR',
-        e.message ?? 'Firebase Functions error',
-        {
-          'code': e.code,
-          'details': e.details,
-          'situation': situation,
-        },
-      );
       throw _mapFirebaseFunctionsException(e);
     } on BackendApiException {
-      // Already logged, just rethrow
       rethrow;
     } catch (e) {
-      await _logError(
-        'UNKNOWN_ERROR',
-        e.toString(),
-        {
-          'situation': situation,
-          'error_type': e.runtimeType.toString(),
-        },
-      );
       throw BackendApiException('Failed to generate sentence: $e');
     }
   }
@@ -101,7 +77,19 @@ class BackendApiService {
 
       if (wordBreakdownsJson != null) {
         for (var i = 0; i < wordBreakdownsJson.length; i++) {
-          final wordJson = wordBreakdownsJson[i] as Map<String, dynamic>;
+          final wordJson =
+              Map<String, dynamic>.from(wordBreakdownsJson[i] as Map);
+
+          // Parse syllables if present
+          List<Syllable>? syllables;
+          final syllablesJson = wordJson['syllables'] as List<dynamic>?;
+          if (syllablesJson != null) {
+            syllables = syllablesJson
+                .map((s) =>
+                    Syllable.fromJson(Map<String, dynamic>.from(s as Map)))
+                .toList();
+          }
+
           wordBreakdowns.add(
             WordBreakdown(
               wordText: wordJson['word'] as String? ?? '',
@@ -109,13 +97,16 @@ class BackendApiService {
               meaning: wordJson['meaning'] as String? ?? '',
               grammaticalRole: wordJson['grammatical_role'] as String?,
               wordOrder: i,
+              syllables: syllables,
             ),
           );
         }
       }
 
       // Parse context
-      final contextJson = json['context'] as Map<String, dynamic>?;
+      final contextJson = json['context'] != null
+          ? Map<String, dynamic>.from(json['context'] as Map)
+          : null;
       final context = contextJson != null
           ? SentenceContext(
               situation: contextJson['situation'] as String?,
@@ -177,29 +168,6 @@ class BackendApiService {
         return BackendApiServerException(message);
       default:
         return BackendApiException(message);
-    }
-  }
-
-  /// Log error to Cloud Functions
-  Future<void> _logError(
-    String errorCode,
-    String errorMessage,
-    Map<String, dynamic>? metadata,
-  ) async {
-    try {
-      final callable = _functions.httpsCallable('logAppEvent');
-      await callable.call(<String, dynamic>{
-        'eventType': 'error_occurred',
-        'metadata': {
-          'error_code': errorCode,
-          'error_message': errorMessage,
-          'source': 'backend_api_service',
-          ...?metadata,
-        },
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-    } catch (e) {
-      // Silently ignore logging errors to prevent cascading failures
     }
   }
 

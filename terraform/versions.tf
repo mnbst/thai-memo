@@ -12,11 +12,11 @@ terraform {
     }
   }
 
-  # Optional: リモートバックエンド（推奨）
-  # backend "gcs" {
-  #   bucket = "thai-memo-terraform-state"
-  #   prefix = "terraform/state"
-  # }
+  # Remote backend for state management
+  backend "gcs" {
+    bucket = "thai-memo-67139-terraform-state"
+    prefix = "terraform/state"
+  }
 }
 
 provider "google" {

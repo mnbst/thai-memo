@@ -79,6 +79,47 @@ export class GeminiService {
                       description: 'Grammatical role of the word',
                       nullable: true,
                     },
+                    syllables: {
+                      type: SchemaType.ARRAY,
+                      items: {
+                        type: SchemaType.OBJECT,
+                        properties: {
+                          text: {
+                            type: SchemaType.STRING,
+                            description: 'Syllable text',
+                            nullable: false,
+                          },
+                          initial_consonant: {
+                            type: SchemaType.STRING,
+                            description: 'Initial consonant',
+                            nullable: false,
+                          },
+                          consonant_class: {
+                            type: SchemaType.STRING,
+                            description: 'Consonant class (high/middle/low)',
+                            nullable: false,
+                          },
+                          tone: {
+                            type: SchemaType.STRING,
+                            description: 'Resulting tone (mid/low/falling/high/rising)',
+                            nullable: false,
+                          },
+                          tone_mark: {
+                            type: SchemaType.STRING,
+                            description: 'Tone mark (none/maiEk/maiTho/maiTri/maiChattawa)',
+                            nullable: false,
+                          },
+                          syllable_type: {
+                            type: SchemaType.STRING,
+                            description: 'Syllable type (live/dead)',
+                            nullable: false,
+                          },
+                        },
+                        required: ['text', 'initial_consonant', 'consonant_class', 'tone', 'tone_mark', 'syllable_type'],
+                      },
+                      description: 'Syllable breakdown for tone analysis',
+                      nullable: true,
+                    },
                   },
                   required: ['word', 'pronunciation', 'meaning'],
                 },
@@ -134,8 +175,24 @@ export class GeminiService {
         responseLength: text.length,
       });
 
-      // Parse JSON response
-      const sentence: ThaiSentence = JSON.parse(text);
+      // Validate response before parsing
+      if (!text || text.trim().length === 0) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      // Parse JSON response with better error handling
+      let sentence: ThaiSentence;
+      try {
+        sentence = JSON.parse(text);
+      } catch (parseError) {
+        console.error('JSON parse failed', {
+          responsePreview: text.substring(0, 500),
+          responseSuffix: text.substring(Math.max(0, text.length - 200)),
+          fullResponseLength: text.length,
+          parseError: parseError instanceof Error ? parseError.message : 'Unknown',
+        });
+        throw new Error(`Invalid JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown'}`);
+      }
 
       return sentence;
     } catch (error) {

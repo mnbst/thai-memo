@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
-  default     = "thai-memo-backend"
+  default     = "thai-memo-67139"
 }
 
 variable "region" {

@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:json_annotation/json_annotation.dart';
+
+import '../../core/constants/database_constants.dart';
+import 'syllable.dart';
 
 part 'word_breakdown.g.dart';
 
@@ -30,6 +35,9 @@ class WordBreakdown {
   @JsonKey(name: 'word_order')
   final int? wordOrder;
 
+  /// Syllable breakdown for tone analysis
+  final List<Syllable>? syllables;
+
   WordBreakdown({
     this.id,
     this.sentenceId,
@@ -38,6 +46,7 @@ class WordBreakdown {
     required this.meaning,
     this.grammaticalRole,
     this.wordOrder,
+    this.syllables,
   });
 
   /// Create a WordBreakdown from JSON
@@ -49,27 +58,46 @@ class WordBreakdown {
 
   /// Create a WordBreakdown from database map
   factory WordBreakdown.fromDatabase(Map<String, dynamic> map) {
+    List<Syllable>? syllables;
+    final syllablesJson = map[DatabaseConstants.columnSyllablesJson] as String?;
+    if (syllablesJson != null && syllablesJson.isNotEmpty) {
+      try {
+        final List<dynamic> syllablesList = jsonDecode(syllablesJson);
+        syllables = syllablesList
+            .map((json) => Syllable.fromJson(json as Map<String, dynamic>))
+            .toList();
+      } catch (e) {
+        // Silently ignore JSON parse errors
+        syllables = null;
+      }
+    }
+
     return WordBreakdown(
-      id: map['id'] as String?,
-      sentenceId: map['sentence_id'] as String?,
-      wordText: map['word_text'] as String,
-      pronunciation: map['pronunciation'] as String,
-      meaning: map['meaning'] as String,
-      grammaticalRole: map['grammatical_role'] as String?,
-      wordOrder: map['word_order'] as int?,
+      id: map[DatabaseConstants.columnWordId] as String?,
+      sentenceId: map[DatabaseConstants.columnWordSentenceId] as String?,
+      wordText: map[DatabaseConstants.columnWordText] as String,
+      pronunciation: map[DatabaseConstants.columnWordPronunciation] as String,
+      meaning: map[DatabaseConstants.columnWordMeaning] as String,
+      grammaticalRole: map[DatabaseConstants.columnGrammaticalRole] as String?,
+      wordOrder: map[DatabaseConstants.columnWordOrder] as int?,
+      syllables: syllables,
     );
   }
 
   /// Convert WordBreakdown to database map
   Map<String, dynamic> toDatabase() {
     return {
-      if (id != null) 'id': id,
-      if (sentenceId != null) 'sentence_id': sentenceId,
-      'word_text': wordText,
-      'pronunciation': pronunciation,
-      'meaning': meaning,
-      if (grammaticalRole != null) 'grammatical_role': grammaticalRole,
-      if (wordOrder != null) 'word_order': wordOrder,
+      if (id != null) DatabaseConstants.columnWordId: id,
+      if (sentenceId != null) DatabaseConstants.columnWordSentenceId: sentenceId,
+      DatabaseConstants.columnWordText: wordText,
+      DatabaseConstants.columnWordPronunciation: pronunciation,
+      DatabaseConstants.columnWordMeaning: meaning,
+      if (grammaticalRole != null)
+        DatabaseConstants.columnGrammaticalRole: grammaticalRole,
+      if (wordOrder != null) DatabaseConstants.columnWordOrder: wordOrder,
+      if (syllables != null)
+        DatabaseConstants.columnSyllablesJson:
+            jsonEncode(syllables!.map((s) => s.toJson()).toList()),
     };
   }
 
@@ -82,6 +110,7 @@ class WordBreakdown {
     String? meaning,
     String? grammaticalRole,
     int? wordOrder,
+    List<Syllable>? syllables,
   }) {
     return WordBreakdown(
       id: id ?? this.id,
@@ -91,6 +120,7 @@ class WordBreakdown {
       meaning: meaning ?? this.meaning,
       grammaticalRole: grammaticalRole ?? this.grammaticalRole,
       wordOrder: wordOrder ?? this.wordOrder,
+      syllables: syllables ?? this.syllables,
     );
   }
 

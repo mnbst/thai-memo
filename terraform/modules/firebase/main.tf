@@ -13,22 +13,25 @@ resource "google_firebase_web_app" "thai_memo_web" {
   depends_on = [google_firebase_project.default]
 }
 
-# Enable Firebase Authentication
-resource "google_identity_platform_config" "auth_config" {
-  provider = google-beta
-  project  = var.project_id
+# NOTE: Identity Platform Config disabled due to ADC auth issue
+# Enable anonymous authentication manually in Firebase Console:
+# https://console.firebase.google.com/project/thai-memo-67139/authentication/providers
+# Or uncomment below and use service account credentials instead of ADC
+#
+# resource "google_identity_platform_config" "auth_config" {
+#   provider = google-beta
+#   project  = var.project_id
 
-  # Enable anonymous authentication
-  sign_in {
-    allow_duplicate_emails = false
+#   sign_in {
+#     allow_duplicate_emails = false
 
-    anonymous {
-      enabled = true
-    }
-  }
+#     anonymous {
+#       enabled = true
+#     }
+#   }
 
-  depends_on = [google_firebase_project.default]
-}
+#   depends_on = [google_firebase_project.default]
+# }
 
 # Get Firebase Web App config
 data "google_firebase_web_app_config" "thai_memo_web_config" {

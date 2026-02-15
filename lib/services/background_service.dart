@@ -8,7 +8,6 @@ import '../data/datasources/remote/backend_api_service.dart';
 import '../data/repositories/sentence_repository.dart';
 import '../domain/usecases/generate_sentence_usecase.dart';
 import 'firebase_auth_service.dart';
-import 'notification_service.dart';
 
 /// Background service for periodic sentence generation
 class BackgroundService {
@@ -114,16 +113,6 @@ void callbackDispatcher() {
 
       return Future.value(true);
     } catch (e) {
-      // Show error notification
-      try {
-        await NotificationService.instance.initialize();
-        await NotificationService.instance.showErrorNotification(
-          '例文の自動生成に失敗しました',
-        );
-      } catch (notifError) {
-        // Silently ignore notification errors
-      }
-
       return Future.value(false);
     }
   });
@@ -172,12 +161,8 @@ Future<void> _executeSentenceGeneration() async {
   final generateUseCase = GenerateSentenceUseCase(repository);
 
   // Generate and save sentence
-  final sentence = await generateUseCase.execute();
+  await generateUseCase.execute();
 
   // Update last generation timestamp
   await secureStorage.saveLastGenerationTimestamp(DateTime.now());
-
-  // Show notification
-  await NotificationService.instance.initialize();
-  await NotificationService.instance.showNewSentenceNotification(sentence);
 }

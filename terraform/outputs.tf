@@ -23,13 +23,3 @@ output "firebase_config" {
   value       = module.firebase.web_app_config
   sensitive   = true
 }
-
-output "bigquery_dataset_id" {
-  description = "BigQuery dataset ID for logs analysis"
-  value       = module.logging.bigquery_dataset_id
-}
-
-output "log_sink_name" {
-  description = "Log sink name for Cloud Functions"
-  value       = module.logging.log_sink_name
-}

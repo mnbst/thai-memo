@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../data/models/thai_sentence.dart';
+import '../../data/models/word_breakdown.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import 'detail_screen.dart';
@@ -31,10 +33,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Check if first launch and load sentence
   Future<void> _checkFirstLaunchAndLoadSentence() async {
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
-    final hasApiKey = ref.read(hasApiKeyProvider);
 
-    if (isFirstLaunch || !hasApiKey) {
-      // Navigate to settings to configure API key
+    if (isFirstLaunch) {
+      // Navigate to settings on first launch
       setState(() {
         _currentIndex = 2; // Settings tab
       });
@@ -42,7 +43,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('まず、APIキーを設定してください'),
+            content: Text('Thai Memoへようこそ！'),
             duration: Duration(seconds: 3),
           ),
         );
@@ -96,59 +97,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
+  /// デフォルトの挨拶例文（サンプル、履歴には保存されない）
+  static final ThaiSentence _defaultGreetingSentence = ThaiSentence(
+    id: null, // idがnullなのでDBには保存されない
+    thaiText: 'สวัสดีครับ',
+    pronunciation: 'sawatdii khrap',
+    japaneseTranslation: 'こんにちは（男性の場合）',
+    wordBreakdowns: [
+      WordBreakdown(
+        wordText: 'สวัสดี',
+        pronunciation: 'sà-wàt-dii',
+        meaning: 'こんにちは、さようなら',
+        grammaticalRole: '挨拶語',
+        wordOrder: 0,
+      ),
+      WordBreakdown(
+        wordText: 'ครับ',
+        pronunciation: 'khráp',
+        meaning: '〜です（男性の丁寧な語尾）',
+        grammaticalRole: '語尾詞',
+        wordOrder: 1,
+      ),
+    ],
+    context: SentenceContext(
+      situation: '日常的な挨拶',
+      emotion: '丁寧、フォーマル',
+      usageScenarios: '朝昼晩いつでも使える基本的な挨拶。女性の場合は「ค่ะ」を使います。',
+    ),
+    createdAt: null,
+    isFavorite: false,
+  );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sentenceState = ref.watch(sentenceControllerProvider);
-    final hasApiKey = ref.watch(hasApiKeyProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('今日の例文')),
-      body: !hasApiKey
-          ? _buildNoApiKeyMessage(context)
-          : _buildSentenceContent(context, ref, sentenceState),
-      floatingActionButton: hasApiKey
-          ? FloatingActionButton.extended(
-              onPressed: () => _generateNewSentence(context, ref),
-              icon: const Icon(Icons.refresh),
-              label: const Text('新しい例文を生成'),
-            )
-          : null,
-    );
-  }
-
-  /// Build message when API key is not configured
-  Widget _buildNoApiKeyMessage(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.key_off_outlined,
-              size: 64,
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'APIキーが設定されていません',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '設定画面でGemini APIキーを入力してください',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+      body: _buildSentenceContent(context, ref, sentenceState),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _generateNewSentence(context, ref),
+        icon: const Icon(Icons.refresh),
+        label: const Text('新しい例文を生成'),
       ),
     );
   }
@@ -213,7 +203,9 @@ class TodayScreen extends ConsumerWidget {
                     // Thai text
                     Text(
                       sentence.thaiText,
-                      style: Theme.of(context).textTheme.headlineMedium
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
                           ?.copyWith(fontWeight: FontWeight.w500, height: 1.5),
                     ),
                     const SizedBox(height: 12),
@@ -221,11 +213,11 @@ class TodayScreen extends ConsumerWidget {
                     Text(
                       sentence.pronunciation,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.8),
-                        fontStyle: FontStyle.italic,
-                      ),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.8),
+                            fontStyle: FontStyle.italic,
+                          ),
                     ),
                     const SizedBox(height: 16),
                     // Japanese translation
@@ -248,7 +240,9 @@ class TodayScreen extends ConsumerWidget {
                         const SizedBox(width: 4),
                         Text(
                           'タップして詳細を見る',
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(
                                 color: Theme.of(
                                   context,
@@ -325,34 +319,139 @@ class TodayScreen extends ConsumerWidget {
     );
   }
 
-  /// Build empty state
+  /// Build empty state with default greeting sentence
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.article_outlined,
-              size: 64,
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.5),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppConfig.defaultPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // サンプル例文のラベル
+          Card(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(AppConfig.defaultPadding),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'サンプル例文（履歴には保存されません）',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSecondaryContainer,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'まだ例文がありません',
-              style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 16),
+          // デフォルトの挨拶例文を表示
+          Card(
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        DetailScreen(sentence: _defaultGreetingSentence),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+              child: Padding(
+                padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Thai text
+                    Text(
+                      _defaultGreetingSentence.thaiText,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w500, height: 1.5),
+                    ),
+                    const SizedBox(height: 12),
+                    // Pronunciation
+                    Text(
+                      _defaultGreetingSentence.pronunciation,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.8),
+                            fontStyle: FontStyle.italic,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Japanese translation
+                    Text(
+                      _defaultGreetingSentence.japaneseTranslation,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    // Tap hint
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'タップして詳細を見る',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.6),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              '下のボタンを押して新しい例文を生成してください',
-              style: Theme.of(context).textTheme.bodyLarge,
-              textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          // Quick info
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppConfig.defaultPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '単語数: ${_defaultGreetingSentence.wordBreakdowns.length}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  if (_defaultGreetingSentence.context?.situation != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '場面: ${_defaultGreetingSentence.context!.situation}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -392,6 +491,10 @@ class TodayScreen extends ConsumerWidget {
     final state = ref.read(sentenceControllerProvider);
     if (context.mounted) {
       if (state is SentenceStateSuccess) {
+        // Refresh history providers to show the new sentence
+        ref.invalidate(allSentencesProvider);
+        ref.invalidate(favoriteSentencesProvider);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('新しい例文を生成しました！'),

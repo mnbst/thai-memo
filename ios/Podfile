@@ -29,7 +29,6 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
-  use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -40,5 +39,21 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      # Ensure SDKROOT is set for all targets including native_assets
+      if config.build_settings['SDKROOT'].nil?
+        config.build_settings['SDKROOT'] = 'iphoneos'
+      end
+    end
+  end
+
+  # Also apply to project-level build configurations
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+    if config.build_settings['SDKROOT'].nil?
+      config.build_settings['SDKROOT'] = 'iphoneos'
+    end
   end
 end
