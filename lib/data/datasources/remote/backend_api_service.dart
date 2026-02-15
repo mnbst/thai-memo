@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/config/firebase_config.dart';
+import '../../../core/utils/thai_tone_analyzer.dart';
 import '../../models/syllable.dart';
 import '../../models/thai_sentence.dart';
 import '../../models/word_breakdown.dart';
@@ -84,10 +85,23 @@ class BackendApiService {
           List<Syllable>? syllables;
           final syllablesJson = wordJson['syllables'] as List<dynamic>?;
           if (syllablesJson != null) {
-            syllables = syllablesJson
-                .map((s) =>
-                    Syllable.fromJson(Map<String, dynamic>.from(s as Map)))
-                .toList();
+            syllables = syllablesJson.map((s) {
+              final syllableMap = Map<String, dynamic>.from(s as Map);
+              final syllableText = syllableMap['text'] as String;
+
+              // Analyze tone using rule-based analyzer
+              final analysis = ThaiToneAnalyzer.analyzeTone(syllableText);
+
+              // Create Syllable with analyzed tone information
+              return Syllable.fromMinimalJson(
+                syllableMap,
+                consonantClass: _consonantClassToString(analysis.consonantClass),
+                tone: _toneToString(analysis.resultingTone),
+                toneMark: _toneMarkToString(analysis.toneMark),
+                syllableType: _syllableTypeToString(analysis.syllableType),
+                hasShortVowel: analysis.hasShortVowel,
+              );
+            }).toList();
           }
 
           wordBreakdowns.add(
@@ -168,6 +182,66 @@ class BackendApiService {
         return BackendApiServerException(message);
       default:
         return BackendApiException(message);
+    }
+  }
+
+  /// Convert ConsonantClass enum to string
+  String _consonantClassToString(ConsonantClass consonantClass) {
+    switch (consonantClass) {
+      case ConsonantClass.high:
+        return 'high';
+      case ConsonantClass.middle:
+        return 'middle';
+      case ConsonantClass.low:
+        return 'low';
+      case ConsonantClass.unknown:
+        return 'unknown';
+    }
+  }
+
+  /// Convert ThaiTone enum to string
+  String _toneToString(ThaiTone tone) {
+    switch (tone) {
+      case ThaiTone.mid:
+        return 'mid';
+      case ThaiTone.low:
+        return 'low';
+      case ThaiTone.falling:
+        return 'falling';
+      case ThaiTone.high:
+        return 'high';
+      case ThaiTone.rising:
+        return 'rising';
+      case ThaiTone.unknown:
+        return 'unknown';
+    }
+  }
+
+  /// Convert ToneMark enum to string
+  String _toneMarkToString(ToneMark toneMark) {
+    switch (toneMark) {
+      case ToneMark.none:
+        return 'none';
+      case ToneMark.maiEk:
+        return 'maiEk';
+      case ToneMark.maiTho:
+        return 'maiTho';
+      case ToneMark.maiTri:
+        return 'maiTri';
+      case ToneMark.maiChattawa:
+        return 'maiChattawa';
+    }
+  }
+
+  /// Convert SyllableType enum to string
+  String _syllableTypeToString(SyllableType syllableType) {
+    switch (syllableType) {
+      case SyllableType.live:
+        return 'live';
+      case SyllableType.dead:
+        return 'dead';
+      case SyllableType.unknown:
+        return 'unknown';
     }
   }
 

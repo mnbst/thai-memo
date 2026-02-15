@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
 import '../providers/sentence_provider.dart';
@@ -110,6 +111,24 @@ class TodayScreen extends ConsumerWidget {
         meaning: 'こんにちは、さようなら',
         grammaticalRole: '挨拶語',
         wordOrder: 0,
+        syllables: [
+          Syllable(
+            text: 'สวัส',
+            initialConsonant: 'สว',
+            consonantClass: 'high',
+            tone: 'low',
+            toneMark: 'none',
+            syllableType: 'dead',
+          ),
+          Syllable(
+            text: 'ดี',
+            initialConsonant: 'ด',
+            consonantClass: 'middle',
+            tone: 'mid',
+            toneMark: 'none',
+            syllableType: 'live',
+          ),
+        ],
       ),
       WordBreakdown(
         wordText: 'ครับ',
@@ -117,6 +136,17 @@ class TodayScreen extends ConsumerWidget {
         meaning: '〜です（男性の丁寧な語尾）',
         grammaticalRole: '語尾詞',
         wordOrder: 1,
+        syllables: [
+          Syllable(
+            text: 'ครับ',
+            initialConsonant: 'คร',
+            consonantClass: 'low',
+            tone: 'high',
+            toneMark: 'none',
+            syllableType: 'dead',
+            hasShortVowel: true,
+          ),
+        ],
       ),
     ],
     context: SentenceContext(

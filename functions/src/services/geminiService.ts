@@ -86,38 +86,18 @@ export class GeminiService {
                         properties: {
                           text: {
                             type: SchemaType.STRING,
-                            description: 'Syllable text',
+                            description: 'Syllable text (e.g., "สวัส")',
                             nullable: false,
                           },
                           initial_consonant: {
                             type: SchemaType.STRING,
-                            description: 'Initial consonant',
-                            nullable: false,
-                          },
-                          consonant_class: {
-                            type: SchemaType.STRING,
-                            description: 'Consonant class (high/middle/low)',
-                            nullable: false,
-                          },
-                          tone: {
-                            type: SchemaType.STRING,
-                            description: 'Resulting tone (mid/low/falling/high/rising)',
-                            nullable: false,
-                          },
-                          tone_mark: {
-                            type: SchemaType.STRING,
-                            description: 'Tone mark (none/maiEk/maiTho/maiTri/maiChattawa)',
-                            nullable: false,
-                          },
-                          syllable_type: {
-                            type: SchemaType.STRING,
-                            description: 'Syllable type (live/dead)',
+                            description: 'Initial consonant (e.g., "ส")',
                             nullable: false,
                           },
                         },
-                        required: ['text', 'initial_consonant', 'consonant_class', 'tone', 'tone_mark', 'syllable_type'],
+                        required: ['text', 'initial_consonant'],
                       },
-                      description: 'Syllable breakdown for tone analysis',
+                      description: 'Syllable breakdown (tone analysis will be done on app side)',
                       nullable: true,
                     },
                   },

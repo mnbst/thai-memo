@@ -45,6 +45,26 @@ class Syllable {
   factory Syllable.fromJson(Map<String, dynamic> json) =>
       _$SyllableFromJson(json);
 
+  /// Factory constructor that creates a Syllable with tone analysis
+  /// from minimal data (text and initial_consonant only)
+  factory Syllable.fromMinimalJson(Map<String, dynamic> json, {
+    required String consonantClass,
+    required String tone,
+    required String toneMark,
+    required String syllableType,
+    bool? hasShortVowel,
+  }) {
+    return Syllable(
+      text: json['text'] as String,
+      initialConsonant: json['initial_consonant'] as String,
+      consonantClass: consonantClass,
+      tone: tone,
+      toneMark: toneMark,
+      syllableType: syllableType,
+      hasShortVowel: hasShortVowel,
+    );
+  }
+
   /// Convert Syllable to JSON
   Map<String, dynamic> toJson() => _$SyllableToJson(this);
 

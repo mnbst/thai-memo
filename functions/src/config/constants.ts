@@ -41,16 +41,11 @@ export function getSentenceGenerationPrompt(situation: string): string {
 - 例: คำตอบ → [คำ, ตอบ]（2音節）
 - 例: ใช้ชีวิต → [ใช้, ชี, วิต]（3音節）
 
-各音節について以下を必ず含めてください：
-1. tone_mark（声調記号）: 音節に付いている声調記号を確認し、none/maiEk/maiTho/maiTri/maiChattawaのいずれかを指定（記号がない場合はnone）
-   ※ 注意: maiTri（ไม้ตรี）とmaiChattawa（ไม้จัตวา）は中子音で主に使用され、高子音・低子音では例外的です
-2. syllable_type（音節タイプ）:
-   - live（生音節）: 長母音、または-m,-n,-ng,-y,-wで終わる
-   - dead（死音節）: 短母音で末子音なし、または-p,-t,-kで終わる
-3. has_short_vowel（短母音の有無）: 音節が短母音を含む場合はtrue、長母音・複合母音の場合はfalse
-   - 重要：低子音の死音節では、短母音→高声、長母音・複合母音→下降声と声調が変わるため必須
-   - 短母音の例: ะ, ิ, ึ, ุ, เอะ, แอะ, โอะ, เออะ, เอาะ
-   - 長母音・複合母音の例: า, ี, ื, ู, เ, แ, โ, ใ, ไ, เอีย, เือ, อัว など
+各音節について以下を含めてください：
+1. text: 音節のテキスト（例: "สวัส"）
+2. initial_consonant: 頭子音（例: "ส"）
+
+注意：声調情報（consonant_class, tone, tone_mark, syllable_type）はアプリ側で自動判定されるため不要です。
 
 次の形式の有効なJSONのみを返してください:
 
@@ -67,12 +62,7 @@ export function getSentenceGenerationPrompt(situation: string): string {
       "syllables": [
         {
           "text": "音節テキスト",
-          "initial_consonant": "頭子音",
-          "consonant_class": "high | middle | low",
-          "tone": "mid | low | falling | high | rising",
-          "tone_mark": "none | maiEk | maiTho | maiTri | maiChattawa",
-          "syllable_type": "live | dead",
-          "has_short_vowel": true
+          "initial_consonant": "頭子音"
         }
       ]
     }
