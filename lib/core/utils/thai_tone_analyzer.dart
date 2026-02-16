@@ -105,6 +105,15 @@ class ThaiToneAnalyzer {
   // 生音節の末子音（-m, -n, -ng, -y, -w）
   static const liveEndConsonants = ['ม', 'น', 'ง', 'ญ', 'ย', 'ว'];
 
+  // 前置母音（leading vowels）
+  static const leadingVowels = [
+    'เ', // e
+    'แ', // ae
+    'โ', // o
+    'ใ', // ai (mai malai)
+    'ไ', // ai (mai muan)
+  ];
+
   /// タイ語の単語を分析して声調情報を返す
   static ToneAnalysis analyzeTone(String thaiWord) {
     if (thaiWord.isEmpty) {
@@ -118,8 +127,8 @@ class ThaiToneAnalyzer {
       );
     }
 
-    // 最初の子音を取得
-    final firstChar = thaiWord[0];
+    // 頭子音を取得（前置母音を考慮）
+    final firstChar = _getInitialConsonant(thaiWord);
     final consonantClass = _getConsonantClass(firstChar);
 
     // 声調記号を検出
@@ -157,6 +166,24 @@ class ThaiToneAnalyzer {
       initialConsonant: firstChar,
       hasShortVowel: hasShortVowel,
     );
+  }
+
+  /// 頭子音を取得（前置母音を考慮）
+  static String _getInitialConsonant(String word) {
+    if (word.isEmpty) return '';
+
+    // 前置母音をチェック
+    final firstChar = word[0];
+    if (leadingVowels.contains(firstChar)) {
+      // 前置母音がある場合、次の文字が頭子音
+      if (word.length > 1) {
+        return word[1];
+      }
+      return '';
+    }
+
+    // 前置母音がない場合、最初の文字が頭子音
+    return firstChar;
   }
 
   /// 子音のクラスを判定

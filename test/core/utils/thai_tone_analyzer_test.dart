@@ -166,6 +166,46 @@ void main() {
     });
   });
 
+  group('ThaiToneAnalyzer - Leading Vowels', () {
+    test('should detect consonant after leading vowel เ', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('เรา');
+      expect(analysis.consonantClass, equals(ConsonantClass.low));
+      expect(analysis.initialConsonant, equals('ร'));
+    });
+
+    test('should detect consonant after leading vowel แ', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('แม่');
+      expect(analysis.consonantClass, equals(ConsonantClass.low));
+      expect(analysis.initialConsonant, equals('ม'));
+    });
+
+    test('should detect consonant after leading vowel โ', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('โต๊ะ');
+      expect(analysis.consonantClass, equals(ConsonantClass.middle));
+      expect(analysis.initialConsonant, equals('ต'));
+    });
+
+    test('should detect consonant after leading vowel ใ', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ใจ');
+      expect(analysis.consonantClass, equals(ConsonantClass.middle));
+      expect(analysis.initialConsonant, equals('จ'));
+    });
+
+    test('should detect consonant after leading vowel ไ', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ไป');
+      expect(analysis.consonantClass, equals(ConsonantClass.middle));
+      expect(analysis.initialConsonant, equals('ป'));
+    });
+
+    test('เก้า should be analyzed with correct consonant class', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('เก้า');
+      expect(analysis.consonantClass, equals(ConsonantClass.middle));
+      expect(analysis.initialConsonant, equals('ก'));
+      expect(analysis.toneMark, equals(ToneMark.maiTho));
+      expect(analysis.resultingTone, equals(ThaiTone.falling));
+    });
+  });
+
   group('ThaiToneAnalyzer - Real Word Examples', () {
     test('สวัส - should analyze correctly', () {
       final analysis = ThaiToneAnalyzer.analyzeTone('สวัส');
