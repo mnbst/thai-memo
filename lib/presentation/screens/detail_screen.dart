@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/thai_sentence.dart';
 import '../providers/sentence_provider.dart';
-import '../widgets/tone_explanation_dialog.dart';
+import '../tone_explanation_dialog.dart';
 
 /// Detail screen for displaying full sentence information
 class DetailScreen extends ConsumerStatefulWidget {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/config/app_config.dart';
-import '../../core/utils/thai_tone_analyzer.dart';
+import '../../core/thai_tone_analyzer.dart';
 
 /// タイ語の声調ガイド画面
 class ToneGuideScreen extends StatefulWidget {
@@ -73,7 +73,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、頭子音のクラス、声調記号、音節タイプによって決まります。',
+              'タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、主子音（声調を決める子音）のクラス、声調記号、音節タイプによって決まります。',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),

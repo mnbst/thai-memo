@@ -8,7 +8,7 @@ class Syllable {
   /// 音節のテキスト（例: "สวัส"）
   final String text;
 
-  /// 頭子音（例: "ส"）
+  /// 主子音（声調を決める子音）（例: "ส"）
   @JsonKey(name: 'initial_consonant')
   final String initialConsonant;
 

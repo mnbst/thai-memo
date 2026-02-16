@@ -36,14 +36,14 @@ export function getSentenceGenerationPrompt(situation: string): string {
 
 重要：音節分割について
 - 各単語を正しくタイ語の音節に分割してください
-- 音節は必ず頭子音から始まります（母音のみの音節の場合、อが黙字の頭子音）
+- 音節は必ず主子音（声調を決める子音）から始まります（母音のみの音節の場合、อが黙字の主子音）
 - 例: สวัสดี → [สวัส, ดี]（2音節）
 - 例: คำตอบ → [คำ, ตอบ]（2音節）
 - 例: ใช้ชีวิต → [ใช้, ชี, วิต]（3音節）
 
 各音節について以下を含めてください：
 1. text: 音節のテキスト（例: "สวัส"）
-2. initial_consonant: 頭子音（例: "ส"）
+2. initial_consonant: 主子音（声調を決める子音）（例: "ส"）
 
 注意：声調情報（consonant_class, tone, tone_mark, syllable_type）はアプリ側で自動判定されるため不要です。
 
@@ -62,7 +62,7 @@ export function getSentenceGenerationPrompt(situation: string): string {
       "syllables": [
         {
           "text": "音節テキスト",
-          "initial_consonant": "頭子音"
+          "initial_consonant": "主子音"
         }
       ]
     }

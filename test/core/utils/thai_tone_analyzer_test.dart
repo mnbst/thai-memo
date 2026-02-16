@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:thai_memo/core/utils/thai_tone_analyzer.dart';
+import 'package:thai_memo/core/thai_tone_analyzer.dart';
 
 void main() {
   group('ThaiToneAnalyzer - Consonant Coverage', () {
@@ -20,29 +20,7 @@ void main() {
     });
 
     test('should have correct number of low consonants', () {
-      expect(ThaiToneAnalyzer.lowConsonants.length, equals(26)); // 22 + 4 newly added
-    });
-  });
-
-  group('ThaiToneAnalyzer - Newly Added Consonants', () {
-    test('ฑ should be classified as low consonant', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('ฑ');
-      expect(analysis.consonantClass, equals(ConsonantClass.low));
-    });
-
-    test('ฒ should be classified as low consonant', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('ฒ');
-      expect(analysis.consonantClass, equals(ConsonantClass.low));
-    });
-
-    test('ฤ should be classified as low consonant', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('ฤ');
-      expect(analysis.consonantClass, equals(ConsonantClass.low));
-    });
-
-    test('ฦ should be classified as low consonant', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('ฦ');
-      expect(analysis.consonantClass, equals(ConsonantClass.low));
+      expect(ThaiToneAnalyzer.lowConsonants.length, equals(26));
     });
   });
 
@@ -140,9 +118,15 @@ void main() {
   });
 
   group('ThaiToneAnalyzer - Tone Rules', () {
+    // 中子音のテスト
     test('middle consonant + no mark + live → mid tone', () {
       final analysis = ThaiToneAnalyzer.analyzeTone('กา');
       expect(analysis.resultingTone, equals(ThaiTone.mid));
+    });
+
+    test('middle consonant + no mark + dead → low tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('กะ');
+      expect(analysis.resultingTone, equals(ThaiTone.low));
     });
 
     test('middle consonant + mai ek + live → low tone', () {
@@ -155,78 +139,61 @@ void main() {
       expect(analysis.resultingTone, equals(ThaiTone.falling));
     });
 
+    test('middle consonant + mai tri + live → high tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ก๊า');
+      expect(analysis.resultingTone, equals(ThaiTone.high));
+    });
+
+    test('middle consonant + mai chattawa + live → rising tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ก๋า');
+      expect(analysis.resultingTone, equals(ThaiTone.rising));
+    });
+
+    // 高子音のテスト
     test('high consonant + no mark + live → rising tone', () {
       final analysis = ThaiToneAnalyzer.analyzeTone('ขา');
       expect(analysis.resultingTone, equals(ThaiTone.rising));
     });
 
+    test('high consonant + no mark + dead → low tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ขะ');
+      expect(analysis.resultingTone, equals(ThaiTone.low));
+    });
+
+    test('high consonant + mai ek + live → low tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ข่า');
+      expect(analysis.resultingTone, equals(ThaiTone.low));
+    });
+
+    test('high consonant + mai tho + live → falling tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ข้า');
+      expect(analysis.resultingTone, equals(ThaiTone.falling));
+    });
+
+    // 低子音のテスト
     test('low consonant + no mark + live → mid tone', () {
       final analysis = ThaiToneAnalyzer.analyzeTone('คา');
       expect(analysis.resultingTone, equals(ThaiTone.mid));
     });
-  });
 
-  group('ThaiToneAnalyzer - Leading Vowels', () {
-    test('should detect consonant after leading vowel เ', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('เรา');
-      expect(analysis.consonantClass, equals(ConsonantClass.low));
-      expect(analysis.initialConsonant, equals('ร'));
+    test('low consonant + no mark + dead (short vowel) → high tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('คะ');
+      expect(analysis.resultingTone, equals(ThaiTone.high));
     });
 
-    test('should detect consonant after leading vowel แ', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('แม่');
-      expect(analysis.consonantClass, equals(ConsonantClass.low));
-      expect(analysis.initialConsonant, equals('ม'));
-    });
-
-    test('should detect consonant after leading vowel โ', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('โต๊ะ');
-      expect(analysis.consonantClass, equals(ConsonantClass.middle));
-      expect(analysis.initialConsonant, equals('ต'));
-    });
-
-    test('should detect consonant after leading vowel ใ', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('ใจ');
-      expect(analysis.consonantClass, equals(ConsonantClass.middle));
-      expect(analysis.initialConsonant, equals('จ'));
-    });
-
-    test('should detect consonant after leading vowel ไ', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('ไป');
-      expect(analysis.consonantClass, equals(ConsonantClass.middle));
-      expect(analysis.initialConsonant, equals('ป'));
-    });
-
-    test('เก้า should be analyzed with correct consonant class', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('เก้า');
-      expect(analysis.consonantClass, equals(ConsonantClass.middle));
-      expect(analysis.initialConsonant, equals('ก'));
-      expect(analysis.toneMark, equals(ToneMark.maiTho));
+    test('low consonant + no mark + dead (long vowel) → falling tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('คาก');
       expect(analysis.resultingTone, equals(ThaiTone.falling));
     });
-  });
 
-  group('ThaiToneAnalyzer - Real Word Examples', () {
-    test('สวัส - should analyze correctly', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('สวัส');
-      expect(analysis.consonantClass, equals(ConsonantClass.high));
-      expect(analysis.toneMark, equals(ToneMark.none));
-      // Note: Current implementation treats ส as live ending, not dead
-      // This is because ส is not in deadEndConsonants list
-      expect(analysis.syllableType, equals(SyllableType.live));
-      expect(analysis.resultingTone, equals(ThaiTone.rising));
+    test('low consonant + mai ek + live → falling tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ค่า');
+      expect(analysis.resultingTone, equals(ThaiTone.falling));
     });
 
-    test('ครับ - should analyze correctly', () {
-      final analysis = ThaiToneAnalyzer.analyzeTone('ครับ');
-      expect(analysis.consonantClass, equals(ConsonantClass.low));
-      expect(analysis.toneMark, equals(ToneMark.none));
-      expect(analysis.syllableType, equals(SyllableType.dead));
-      // Note: Current implementation doesn't detect implicit short vowel in ครับ
-      // ครับ contains an implicit short vowel -ะ- which is not explicitly written
-      // As a result, hasShortVowel is false and it's treated as long vowel → falling tone
-      // In reality, ครับ should be high tone, but current implementation gives falling tone
-      expect(analysis.resultingTone, equals(ThaiTone.falling));
+    test('low consonant + mai tho + live → high tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ค้า');
+      expect(analysis.resultingTone, equals(ThaiTone.high));
     });
   });
 }

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:json_annotation/json_annotation.dart';
 
-import '../../core/constants/database_constants.dart';
+import '../../core/database_constants.dart';
 import 'syllable.dart';
 
 part 'word_breakdown.g.dart';

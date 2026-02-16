@@ -1,11 +1,11 @@
 import 'package:uuid/uuid.dart';
 
 import '../../services/firebase_auth_service.dart';
-import '../datasources/local/database_helper.dart';
-import '../datasources/local/secure_storage_service.dart';
-import '../datasources/remote/backend_api_service.dart';
-import '../models/thai_sentence.dart';
-import '../models/word_breakdown.dart';
+import 'datasources/local/database_helper.dart';
+import 'datasources/local/secure_storage_service.dart';
+import 'datasources/backend_api_service.dart';
+import 'models/thai_sentence.dart';
+import 'models/word_breakdown.dart';
 
 /// Repository for managing Thai sentences
 /// Coordinates between local database and remote backend API

@@ -1,4 +1,4 @@
-import '../../data/repositories/sentence_repository.dart';
+import '../data/sentence_repository.dart';
 
 /// Use case for deleting sentences
 class DeleteSentenceUseCase {

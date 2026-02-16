@@ -127,9 +127,12 @@ class ThaiToneAnalyzer {
       );
     }
 
-    // 頭子音を取得（前置母音を考慮）
+    // 主子音を取得（前置母音を考慮）
     final firstChar = _getInitialConsonant(thaiWord);
-    final consonantClass = _getConsonantClass(firstChar);
+
+    // 声調計算用の子音を取得（ห+低子音、子音クラスター対応）
+    final consonantForTone = _getConsonantForTone(thaiWord);
+    final consonantClass = _getConsonantClass(consonantForTone);
 
     // 声調記号を検出
     final toneMark = _detectToneMark(thaiWord);
@@ -168,22 +171,129 @@ class ThaiToneAnalyzer {
     );
   }
 
-  /// 頭子音を取得（前置母音を考慮）
+  /// 主子音を取得（前置母音を考慮）
   static String _getInitialConsonant(String word) {
     if (word.isEmpty) return '';
 
     // 前置母音をチェック
     final firstChar = word[0];
     if (leadingVowels.contains(firstChar)) {
-      // 前置母音がある場合、次の文字が頭子音
+      // 前置母音がある場合、次の文字が主子音
       if (word.length > 1) {
         return word[1];
       }
       return '';
     }
 
-    // 前置母音がない場合、最初の文字が頭子音
+    // 前置母音がない場合、最初の文字が主子音
     return firstChar;
+  }
+
+  /// 声調計算用の子音を取得（ห+低子音、子音クラスター対応）
+  static String _getConsonantForTone(String word) {
+    if (word.isEmpty) return '';
+
+    // 前置母音をスキップして、実際の子音部分を取得
+    int startIndex = 0;
+    if (word.isNotEmpty && leadingVowels.contains(word[0])) {
+      startIndex = 1;
+    }
+
+    if (startIndex >= word.length) return '';
+
+    final firstConsonant = word[startIndex];
+
+    // อ + 子音の処理（อ は声調に関与しない）
+    // 例: อยาก → ย、อ้วน → ว
+    // ただし、อา など อ + 母音のみの場合は อ を使う
+    if (firstConsonant == 'อ' && startIndex + 1 < word.length) {
+      // 声調記号をスキップして次の文字を探す
+      int nextIndex = startIndex + 1;
+      while (nextIndex < word.length && _isToneMark(word[nextIndex])) {
+        nextIndex++;
+      }
+
+      if (nextIndex < word.length) {
+        final nextChar = word[nextIndex];
+        // 次の文字が子音の場合、その子音を使う（อ を無視）
+        if (_isConsonant(nextChar)) {
+          // startIndexを更新して、以降の処理で正しい位置から開始
+          return _getConsonantForTone(word.substring(nextIndex));
+        }
+      }
+      // 次が母音の場合は อ を使う
+      return 'อ';
+    }
+
+    // 特殊な発音変化の組み合わせ（優先処理）
+    if (startIndex + 1 < word.length) {
+      final secondChar = word[startIndex + 1];
+
+      // ทร → ซ (ソー) の音に変化、声調も ซ（低子音）で計算
+      if (firstConsonant == 'ท' && secondChar == 'ร') {
+        return 'ซ';
+      }
+
+      // ศร → ส (スー) の音に変化、声調も ส（高子音）で計算
+      if (firstConsonant == 'ศ' && secondChar == 'ร') {
+        return 'ส';
+      }
+
+      // จร → จ（中子音）として計算（クラスター扱いしない）
+      if (firstConsonant == 'จ' && secondChar == 'ร') {
+        return 'จ';
+      }
+    }
+
+    // ห + 低子音の特別処理
+    // หม, หน, หง, หญ, หย, หร, หล, หว, หฬ など
+    if (firstConsonant == 'ห' && startIndex + 1 < word.length) {
+      final secondChar = word[startIndex + 1];
+      // 次の文字が子音で、かつ低子音の場合
+      if (_isConsonant(secondChar) && lowConsonants.contains(secondChar)) {
+        // 声調計算には ห（高子音）を使用
+        return 'ห';
+      }
+    }
+
+    // 子音クラスターの処理（母音に近い子音を使用）
+    // 例: ครับ → ร、กรุง → ร、ปลา → ล
+    if (startIndex + 1 < word.length) {
+      final secondChar = word[startIndex + 1];
+      // 2文字目が ร, ล, ว の場合、子音クラスターの可能性をチェック
+      if (secondChar == 'ร' || secondChar == 'ล' || secondChar == 'ว') {
+        // 第1子音がクラスターを形成できる子音か確認
+        // ก, ข, ค, ต, ท, ด, ป, พ, ผ, ฟ, ภ, บ など
+        final clusterFormingConsonants = [
+          'ก', 'ข', 'ค', 'ฅ', 'ฆ', // ก系
+          'ต', 'ท', 'ธ', 'ด', // ต系
+          'ป', 'พ', 'ผ', 'ฟ', 'ภ', 'บ', // ป系
+        ];
+
+        if (clusterFormingConsonants.contains(firstConsonant)) {
+          // 母音に近い方（2番目の子音）を返す
+          return secondChar;
+        }
+      }
+    }
+
+    // 通常の場合は最初の子音を返す
+    return firstConsonant;
+  }
+
+  /// 文字が子音かどうかを判定
+  static bool _isConsonant(String char) {
+    return highConsonants.contains(char) ||
+        middleConsonants.contains(char) ||
+        lowConsonants.contains(char);
+  }
+
+  /// 文字が声調記号かどうかを判定
+  static bool _isToneMark(String char) {
+    return char == toneMark1 ||
+        char == toneMark2 ||
+        char == toneMark3 ||
+        char == toneMark4;
   }
 
   /// 子音のクラスを判定

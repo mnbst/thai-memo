@@ -2,7 +2,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/config/app_config.dart';
-import '../../../core/constants/database_constants.dart';
+import '../../../core/database_constants.dart';
 
 /// Database helper class for managing SQLite database operations
 class DatabaseHelper {

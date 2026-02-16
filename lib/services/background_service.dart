@@ -4,9 +4,9 @@ import 'package:workmanager/workmanager.dart';
 import '../core/config/app_config.dart';
 import '../data/datasources/local/database_helper.dart';
 import '../data/datasources/local/secure_storage_service.dart';
-import '../data/datasources/remote/backend_api_service.dart';
-import '../data/repositories/sentence_repository.dart';
-import '../domain/usecases/generate_sentence_usecase.dart';
+import '../data/datasources/backend_api_service.dart';
+import '../data/sentence_repository.dart';
+import '../domain/generate_sentence_usecase.dart';
 import 'firebase_auth_service.dart';
 
 /// Background service for periodic sentence generation

@@ -2,10 +2,10 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/config/firebase_config.dart';
-import '../../../core/utils/thai_tone_analyzer.dart';
-import '../../models/syllable.dart';
-import '../../models/thai_sentence.dart';
-import '../../models/word_breakdown.dart';
+import '../../../core/thai_tone_analyzer.dart';
+import '../models/syllable.dart';
+import '../models/thai_sentence.dart';
+import '../models/word_breakdown.dart';
 
 /// Service for communicating with backend Cloud Functions
 class BackendApiService {
@@ -50,8 +50,7 @@ class BackendApiService {
             ? Map<String, dynamic>.from(data['error'] as Map)
             : null;
         final errorCode = error?['code'] as String? ?? 'UNKNOWN';
-        final errorMessage =
-            error?['message'] as String? ?? 'Unknown error';
+        final errorMessage = error?['message'] as String? ?? 'Unknown error';
 
         throw _mapBackendError(errorCode, errorMessage);
       }
@@ -95,7 +94,8 @@ class BackendApiService {
               // Create Syllable with analyzed tone information
               return Syllable.fromMinimalJson(
                 syllableMap,
-                consonantClass: _consonantClassToString(analysis.consonantClass),
+                consonantClass:
+                    _consonantClassToString(analysis.consonantClass),
                 tone: _toneToString(analysis.resultingTone),
                 toneMark: _toneMarkToString(analysis.toneMark),
                 syllableType: _syllableTypeToString(analysis.syllableType),
@@ -159,8 +159,7 @@ class BackendApiService {
         return BackendApiPermissionDeniedException(
             'Permission denied. Please check your account.');
       case 'deadline-exceeded':
-        return BackendApiTimeoutException(
-            'Request timeout. Please try again.');
+        return BackendApiTimeoutException('Request timeout. Please try again.');
       case 'unavailable':
         return BackendApiServerException('Service temporarily unavailable.');
       case 'resource-exhausted':

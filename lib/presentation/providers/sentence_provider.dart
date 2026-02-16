@@ -2,13 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/datasources/local/secure_storage_service.dart';
-import '../../data/datasources/remote/backend_api_service.dart';
+import '../../data/datasources/backend_api_service.dart';
 import '../../data/models/thai_sentence.dart';
-import '../../data/repositories/sentence_repository.dart';
-import '../../domain/usecases/delete_sentence_usecase.dart';
-import '../../domain/usecases/generate_sentence_usecase.dart';
-import '../../domain/usecases/get_sentences_usecase.dart';
-import '../../domain/usecases/save_sentence_usecase.dart';
+import '../../data/sentence_repository.dart';
+import '../../domain/delete_sentence_usecase.dart';
+import '../../domain/generate_sentence_usecase.dart';
+import '../../domain/get_sentences_usecase.dart';
+import '../../domain/save_sentence_usecase.dart';
 import '../../services/firebase_auth_service.dart';
 
 // ==================== Repository Provider ====================

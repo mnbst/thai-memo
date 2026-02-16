@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../core/utils/thai_tone_analyzer.dart';
+import '../../core/thai_tone_analyzer.dart';
 import '../../data/models/word_breakdown.dart';
-import '../screens/tone_guide_screen.dart';
+import 'screens/tone_guide_screen.dart';
 
 /// 声調解説を表示するダイアログ
 class ToneExplanationDialog extends StatelessWidget {
@@ -203,7 +203,7 @@ class ToneExplanationDialog extends StatelessWidget {
             // 分析情報
             _buildInfoRow(
               context,
-              '頭子音',
+              '主子音',
               '${syllable.initialConsonant} (${consonantClass.displayName})',
               Icons.abc,
             ),
@@ -461,7 +461,7 @@ class ToneExplanationDialog extends StatelessWidget {
             // 分析結果
             _buildInfoRow(
               context,
-              '頭子音',
+              '主子音',
               '${analysis.initialConsonant ?? "?"} (${analysis.consonantClass.displayName})',
               Icons.abc,
             ),

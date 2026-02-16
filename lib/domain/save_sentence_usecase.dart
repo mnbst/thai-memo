@@ -1,5 +1,5 @@
-import '../../data/models/thai_sentence.dart';
-import '../../data/repositories/sentence_repository.dart';
+import '../data/models/thai_sentence.dart';
+import '../data/sentence_repository.dart';
 
 /// Use case for saving Thai sentences and managing API keys
 class SaveSentenceUseCase {

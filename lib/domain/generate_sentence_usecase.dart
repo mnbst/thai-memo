@@ -1,6 +1,6 @@
-import '../../data/datasources/remote/backend_api_service.dart';
-import '../../data/models/thai_sentence.dart';
-import '../../data/repositories/sentence_repository.dart';
+import '../data/datasources/backend_api_service.dart';
+import '../data/models/thai_sentence.dart';
+import '../data/sentence_repository.dart';
 
 /// Use case for generating a new Thai sentence from backend API
 class GenerateSentenceUseCase {
