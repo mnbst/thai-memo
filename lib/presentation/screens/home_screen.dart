@@ -150,7 +150,8 @@ class TodayScreen extends ConsumerWidget {
       ),
     ],
     context: SentenceContext(
-      situation: '日常的な挨拶',
+      topic: '日常的な挨拶',
+      style: '口語体',
       emotion: '丁寧、フォーマル',
       usageScenarios: '朝昼晩いつでも使える基本的な挨拶。女性の場合は「ค่ะ」を使います。',
     ),
@@ -306,10 +307,10 @@ class TodayScreen extends ConsumerWidget {
               '単語数: ${sentence.wordBreakdowns.length}',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            if (sentence.context?.situation != null) ...[
+            if (sentence.context?.topic != null) ...[
               const SizedBox(height: 8),
               Text(
-                '場面: ${sentence.context!.situation}',
+                '場面: ${sentence.context!.topic}',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ],
@@ -470,10 +471,10 @@ class TodayScreen extends ConsumerWidget {
                     '単語数: ${_defaultGreetingSentence.wordBreakdowns.length}',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  if (_defaultGreetingSentence.context?.situation != null) ...[
+                  if (_defaultGreetingSentence.context?.topic != null) ...[
                     const SizedBox(height: 8),
                     Text(
-                      '場面: ${_defaultGreetingSentence.context!.situation}',
+                      '場面: ${_defaultGreetingSentence.context!.topic}',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],

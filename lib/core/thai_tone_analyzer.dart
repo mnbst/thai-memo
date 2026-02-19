@@ -76,6 +76,7 @@ class ThaiToneAnalyzer {
     'เออะ',
     'เอาะ',
     '\u0E30', // ะ
+    '\u0E31', // ั (mai han akat = 短母音 อะ の閉音節形)
     '\u0E34', // ิ
     '\u0E36', // ึ
     '\u0E38', // ุ
@@ -83,23 +84,13 @@ class ThaiToneAnalyzer {
 
   // 死音節の末子音（-p, -t, -k）
   static const deadEndConsonants = [
-    'ป',
-    'บ',
-    'พ',
-    'ภ',
-    'ฟ',
-    'ต',
-    'ด',
-    'ท',
-    'ธ',
-    'ฏ',
-    'ฎ',
-    'จ',
-    'ช',
-    'ซ',
-    'ก',
-    'ข',
-    'ค'
+    // -p音（唇を閉じて止める）
+    'บ', 'ป', 'พ', 'ฟ', 'ภ',
+    // -t音（舌の先で止める）
+    'ด', 'ต', 'ถ', 'ท', 'ธ', 'จ', 'ช', 'ซ', 'ฌ', 'ศ', 'ษ', 'ส', 'ฎ', 'ฏ', 'ฑ',
+    'ฒ',
+    // -k音（喉の奥で止める）
+    'ก', 'ข', 'ค', 'ฅ', 'ฆ',
   ];
 
   // 生音節の末子音（-m, -n, -ng, -y, -w）
@@ -107,11 +98,131 @@ class ThaiToneAnalyzer {
 
   // 前置母音（leading vowels）
   static const leadingVowels = [
-    'เ', // e
+    'เ', // ed
     'แ', // ae
     'โ', // o
     'ใ', // ai (mai malai)
     'ไ', // ai (mai muan)
+  ];
+
+  /// 音節を1回パースして全要素を抽出
+  static _SyllableComponents _parseSyllable(String word) {
+    if (word.isEmpty) return _SyllableComponents.empty();
+
+    // 1. 前置母音をスキップして頭子音位置を特定
+    int pos = 0;
+    if (leadingVowels.contains(word[0])) pos = 1;
+    if (pos >= word.length) return _SyllableComponents.empty();
+
+    // 2. 頭子音を取得
+    final firstConsonant = word[pos];
+    String initialConsonant = firstConsonant;
+    String consonantForTone = firstConsonant;
+
+    // 例外: อ + ย/ร/ล/ว → อは無音、次の子音を使用
+    if (firstConsonant == 'อ' && pos + 1 < word.length) {
+      int nextPos = pos + 1;
+      while (nextPos < word.length && _isToneMark(word[nextPos])) nextPos++;
+      if (nextPos < word.length &&
+          const ['ย', 'ร', 'ล', 'ว'].contains(word[nextPos])) {
+        initialConsonant = word[nextPos];
+        consonantForTone = word[nextPos];
+      }
+    }
+
+    // 3. 声調記号を検出
+    ToneMark toneMark = ToneMark.none;
+    if (word.contains(toneMark1)) {
+      toneMark = ToneMark.maiEk;
+    } else if (word.contains(toneMark2)) {
+      toneMark = ToneMark.maiTho;
+    } else if (word.contains(toneMark3)) {
+      toneMark = ToneMark.maiTri;
+    } else if (word.contains(toneMark4)) {
+      toneMark = ToneMark.maiChattawa;
+    }
+
+    // 4. 最後の文字 → 末子音・音節タイプ判定
+    final lastChar = word[word.length - 1];
+    SyllableType syllableType;
+    if (deadEndConsonants.contains(lastChar)) {
+      syllableType = SyllableType.dead;
+    } else if (liveEndConsonants.contains(lastChar)) {
+      syllableType = SyllableType.live;
+    } else {
+      syllableType = SyllableType.live; // デフォルト、短母音で上書き
+    }
+
+    // 5. 母音の長短を判定
+    bool hasShortVowel = false;
+    if (shortVowels.any((v) => word.contains(v))) {
+      hasShortVowel = true;
+    } else if (!_allVowelChars.any((v) => word.contains(v))) {
+      // 明示的な母音なし → 頭子音の後にอがあれば母音ออ（長母音）、なければ暗黙の短母音
+      int i = pos + 1;
+      if (i < word.length && _isClusterSecondConsonant(word[i])) i++;
+      while (i < word.length && _isToneMark(word[i])) i++;
+      hasShortVowel = !(i < word.length && word[i] == 'อ');
+    }
+
+    // 短母音 + 末子音なし → 死音節
+    if (hasShortVowel &&
+        !deadEndConsonants.contains(lastChar) &&
+        !liveEndConsonants.contains(lastChar)) {
+      syllableType = SyllableType.dead;
+    }
+
+    // 6. 子音クラスを判定
+    ConsonantClass consonantClass;
+    if (highConsonants.contains(consonantForTone)) {
+      consonantClass = ConsonantClass.high;
+    } else if (middleConsonants.contains(consonantForTone)) {
+      consonantClass = ConsonantClass.middle;
+    } else if (lowConsonants.contains(consonantForTone)) {
+      consonantClass = ConsonantClass.low;
+    } else {
+      consonantClass = ConsonantClass.unknown;
+    }
+
+    return _SyllableComponents(
+      initialConsonant: initialConsonant,
+      consonantClass: consonantClass,
+      toneMark: toneMark,
+      syllableType: syllableType,
+      hasShortVowel: hasShortVowel,
+    );
+  }
+
+  /// 文字が声調記号かどうかを判定
+  static bool _isToneMark(String char) {
+    return char == toneMark1 ||
+        char == toneMark2 ||
+        char == toneMark3 ||
+        char == toneMark4;
+  }
+
+  /// 二重子音クラスターの2番目になりうる子音か判定
+  static bool _isClusterSecondConsonant(String char) {
+    return char == 'ร' || char == 'ล' || char == 'ว';
+  }
+
+  // 母音文字（明示的に書かれる母音すべて）
+  static const _allVowelChars = [
+    '\u0E30', // ะ
+    '\u0E31', // ั (mai han akat)
+    '\u0E32', // า
+    '\u0E33', // ำ
+    '\u0E34', // ิ
+    '\u0E35', // ี
+    '\u0E36', // ึ
+    '\u0E37', // ื
+    '\u0E38', // ุ
+    '\u0E39', // ู
+    'เ',
+    'แ',
+    'โ',
+    'ใ',
+    'ไ',
   ];
 
   /// タイ語の単語を分析して声調情報を返す
@@ -127,235 +238,32 @@ class ThaiToneAnalyzer {
       );
     }
 
-    // 主子音を取得（前置母音を考慮）
-    final firstChar = _getInitialConsonant(thaiWord);
+    final c = _parseSyllable(thaiWord);
 
-    // 声調計算用の子音を取得（ห+低子音、子音クラスター対応）
-    final consonantForTone = _getConsonantForTone(thaiWord);
-    final consonantClass = _getConsonantClass(consonantForTone);
-
-    // 声調記号を検出
-    final toneMark = _detectToneMark(thaiWord);
-
-    // 母音の長短を判定
-    final hasShortVowel = _hasShortVowel(thaiWord);
-
-    // 音節タイプを判定（生音節/死音節）
-    final syllableType = _analyzeSyllableType(thaiWord);
-
-    // 声調を決定
     final resultingTone = _determineTone(
-      consonantClass,
-      toneMark,
-      syllableType,
-      hasShortVowel,
+      c.consonantClass,
+      c.toneMark,
+      c.syllableType,
+      c.hasShortVowel,
     );
 
-    // 解説文を生成
     final explanation = _generateExplanation(
       thaiWord,
-      consonantClass,
-      toneMark,
-      syllableType,
+      c.consonantClass,
+      c.toneMark,
+      c.syllableType,
       resultingTone,
     );
 
     return ToneAnalysis(
-      consonantClass: consonantClass,
-      toneMark: toneMark,
-      syllableType: syllableType,
+      consonantClass: c.consonantClass,
+      toneMark: c.toneMark,
+      syllableType: c.syllableType,
       resultingTone: resultingTone,
       explanation: explanation,
-      initialConsonant: firstChar,
-      hasShortVowel: hasShortVowel,
+      initialConsonant: c.initialConsonant,
+      hasShortVowel: c.hasShortVowel,
     );
-  }
-
-  /// 主子音を取得（前置母音を考慮）
-  static String _getInitialConsonant(String word) {
-    if (word.isEmpty) return '';
-
-    // 前置母音をチェック
-    final firstChar = word[0];
-    if (leadingVowels.contains(firstChar)) {
-      // 前置母音がある場合、次の文字が主子音
-      if (word.length > 1) {
-        return word[1];
-      }
-      return '';
-    }
-
-    // 前置母音がない場合、最初の文字が主子音
-    return firstChar;
-  }
-
-  /// 声調計算用の子音を取得（ห+低子音、子音クラスター対応）
-  static String _getConsonantForTone(String word) {
-    if (word.isEmpty) return '';
-
-    // 前置母音をスキップして、実際の子音部分を取得
-    int startIndex = 0;
-    if (word.isNotEmpty && leadingVowels.contains(word[0])) {
-      startIndex = 1;
-    }
-
-    if (startIndex >= word.length) return '';
-
-    final firstConsonant = word[startIndex];
-
-    // อ + 子音の処理（อ は声調に関与しない）
-    // 例: อยาก → ย、อ้วน → ว
-    // ただし、อา など อ + 母音のみの場合は อ を使う
-    if (firstConsonant == 'อ' && startIndex + 1 < word.length) {
-      // 声調記号をスキップして次の文字を探す
-      int nextIndex = startIndex + 1;
-      while (nextIndex < word.length && _isToneMark(word[nextIndex])) {
-        nextIndex++;
-      }
-
-      if (nextIndex < word.length) {
-        final nextChar = word[nextIndex];
-        // 次の文字が子音の場合、その子音を使う（อ を無視）
-        if (_isConsonant(nextChar)) {
-          // startIndexを更新して、以降の処理で正しい位置から開始
-          return _getConsonantForTone(word.substring(nextIndex));
-        }
-      }
-      // 次が母音の場合は อ を使う
-      return 'อ';
-    }
-
-    // 特殊な発音変化の組み合わせ（優先処理）
-    if (startIndex + 1 < word.length) {
-      final secondChar = word[startIndex + 1];
-
-      // ทร → ซ (ソー) の音に変化、声調も ซ（低子音）で計算
-      if (firstConsonant == 'ท' && secondChar == 'ร') {
-        return 'ซ';
-      }
-
-      // ศร → ส (スー) の音に変化、声調も ส（高子音）で計算
-      if (firstConsonant == 'ศ' && secondChar == 'ร') {
-        return 'ส';
-      }
-
-      // จร → จ（中子音）として計算（クラスター扱いしない）
-      if (firstConsonant == 'จ' && secondChar == 'ร') {
-        return 'จ';
-      }
-    }
-
-    // ห + 低子音の特別処理
-    // หม, หน, หง, หญ, หย, หร, หล, หว, หฬ など
-    if (firstConsonant == 'ห' && startIndex + 1 < word.length) {
-      final secondChar = word[startIndex + 1];
-      // 次の文字が子音で、かつ低子音の場合
-      if (_isConsonant(secondChar) && lowConsonants.contains(secondChar)) {
-        // 声調計算には ห（高子音）を使用
-        return 'ห';
-      }
-    }
-
-    // 子音クラスターの処理（母音に近い子音を使用）
-    // 例: ครับ → ร、กรุง → ร、ปลา → ล
-    if (startIndex + 1 < word.length) {
-      final secondChar = word[startIndex + 1];
-      // 2文字目が ร, ล, ว の場合、子音クラスターの可能性をチェック
-      if (secondChar == 'ร' || secondChar == 'ล' || secondChar == 'ว') {
-        // 第1子音がクラスターを形成できる子音か確認
-        // ก, ข, ค, ต, ท, ด, ป, พ, ผ, ฟ, ภ, บ など
-        final clusterFormingConsonants = [
-          'ก', 'ข', 'ค', 'ฅ', 'ฆ', // ก系
-          'ต', 'ท', 'ธ', 'ด', // ต系
-          'ป', 'พ', 'ผ', 'ฟ', 'ภ', 'บ', // ป系
-        ];
-
-        if (clusterFormingConsonants.contains(firstConsonant)) {
-          // 母音に近い方（2番目の子音）を返す
-          return secondChar;
-        }
-      }
-    }
-
-    // 通常の場合は最初の子音を返す
-    return firstConsonant;
-  }
-
-  /// 文字が子音かどうかを判定
-  static bool _isConsonant(String char) {
-    return highConsonants.contains(char) ||
-        middleConsonants.contains(char) ||
-        lowConsonants.contains(char);
-  }
-
-  /// 文字が声調記号かどうかを判定
-  static bool _isToneMark(String char) {
-    return char == toneMark1 ||
-        char == toneMark2 ||
-        char == toneMark3 ||
-        char == toneMark4;
-  }
-
-  /// 子音のクラスを判定
-  static ConsonantClass _getConsonantClass(String consonant) {
-    if (highConsonants.contains(consonant)) {
-      return ConsonantClass.high;
-    } else if (middleConsonants.contains(consonant)) {
-      return ConsonantClass.middle;
-    } else if (lowConsonants.contains(consonant)) {
-      return ConsonantClass.low;
-    }
-    return ConsonantClass.unknown;
-  }
-
-  /// 声調記号を検出
-  static ToneMark _detectToneMark(String word) {
-    if (word.contains(toneMark1)) return ToneMark.maiEk;
-    if (word.contains(toneMark2)) return ToneMark.maiTho;
-    if (word.contains(toneMark3)) return ToneMark.maiTri;
-    if (word.contains(toneMark4)) return ToneMark.maiChattawa;
-    return ToneMark.none;
-  }
-
-  /// 短母音を含むかチェック
-  static bool _hasShortVowel(String word) {
-    if (word.isEmpty) return false;
-    for (final vowel in shortVowels) {
-      if (word.contains(vowel)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// 音節タイプを分析（生音節/死音節）
-  static SyllableType _analyzeSyllableType(String word) {
-    if (word.isEmpty) return SyllableType.unknown;
-
-    // 短母音を含むかチェック
-    final hasShortVowel = shortVowels.any((v) => word.contains(v));
-
-    // 最後の文字を確認
-    final lastChar = word[word.length - 1];
-
-    // 死音節の条件：短母音 + 末子音なし、または -p, -t, -k で終わる
-    if (hasShortVowel &&
-        !liveEndConsonants.contains(lastChar) &&
-        !deadEndConsonants.contains(lastChar)) {
-      return SyllableType.dead; // 短母音で末子音なし
-    }
-
-    if (deadEndConsonants.contains(lastChar)) {
-      return SyllableType.dead; // -p, -t, -k で終わる
-    }
-
-    // 生音節の条件：長母音、または -m, -n, -ng, -y, -w で終わる
-    if (liveEndConsonants.contains(lastChar)) {
-      return SyllableType.live;
-    }
-
-    // デフォルトは生音節
-    return SyllableType.live;
   }
 
   /// 声調を決定
@@ -772,4 +680,29 @@ enum ThaiTone {
         return '?';
     }
   }
+}
+
+/// 音節パース結果（内部用）
+class _SyllableComponents {
+  final String initialConsonant;
+  final ConsonantClass consonantClass;
+  final ToneMark toneMark;
+  final SyllableType syllableType;
+  final bool hasShortVowel;
+
+  _SyllableComponents({
+    required this.initialConsonant,
+    required this.consonantClass,
+    required this.toneMark,
+    required this.syllableType,
+    required this.hasShortVowel,
+  });
+
+  factory _SyllableComponents.empty() => _SyllableComponents(
+        initialConsonant: '',
+        consonantClass: ConsonantClass.unknown,
+        toneMark: ToneMark.none,
+        syllableType: SyllableType.unknown,
+        hasShortVowel: false,
+      );
 }

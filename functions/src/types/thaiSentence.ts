@@ -1,12 +1,18 @@
+export interface Syllable {
+  text: string;
+}
+
 export interface WordBreakdown {
   word: string;
   pronunciation: string;
   meaning: string;
   grammatical_role?: string;
+  syllables?: Syllable[];
 }
 
 export interface SentenceContext {
-  situation?: string;
+  topic?: string;
+  style?: string;
   emotion?: string;
   usage_scenarios?: string;
   cultural_notes?: string;
@@ -21,7 +27,7 @@ export interface ThaiSentence {
 }
 
 export interface GenerateSentenceRequest {
-  situation?: string;
+  topic?: string;
 }
 
 export interface GenerateSentenceResponse {

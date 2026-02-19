@@ -76,6 +76,18 @@ class DatabaseHelper {
         await db.execute(statement);
       }
     }
+
+    // Migrate from version 3 to 4: Rename situation→topic, add style column
+    if (oldVersion < 4) {
+      await db.execute('''
+        ALTER TABLE ${DatabaseConstants.tableSentences}
+        RENAME COLUMN situation TO ${DatabaseConstants.columnTopic}
+      ''');
+      await db.execute('''
+        ALTER TABLE ${DatabaseConstants.tableSentences}
+        ADD COLUMN ${DatabaseConstants.columnStyle} TEXT
+      ''');
+    }
   }
 
   // ==================== Sentences CRUD Operations ====================

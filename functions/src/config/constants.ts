@@ -1,5 +1,13 @@
 // ApiConstants.dart から移植
-export const SITUATIONS = [
+export const STYLES = [
+  'ニュース記事体（客観的・フォーマルな報道文体）',
+  '口語体（友達同士のカジュアルな話し言葉）',
+  '丁寧語（フォーマルな敬語・丁寧な表現）',
+  'SNS・テキストメッセージ（略語・絵文字・短い表現）',
+  '物語・文学体（描写的・書き言葉的な表現）',
+];
+
+export const TOPICS = [
   'あいさつ（朝、昼、夜のあいさつ、初対面、久しぶりの再会など）',
   '食べ物（レストランでの注文、料理の感想、食材の購入など）',
   '旅行（ホテル予約、道案内、観光地での会話など）',
@@ -21,31 +29,28 @@ export const GEMINI_MODEL = 'gemini-2.5-flash';
 export const API_TEMPERATURE = 0.8;
 export const API_MAX_TOKENS = 8192; // Increased from 6144 to handle longer responses
 
-export function getSentenceGenerationPrompt(situation: string): string {
+export function getSentenceGenerationPrompt(topic: string, style: string): string {
   return `あなたは日本語話者向けに日々の練習文を作るタイ語教師です。
 
 学習に必要な情報を含むタイ語の新しい文を1つ、JSON形式で生成してください。
 
 要件:
-1. 文は日常会話で実用的な内容にする
+1. 文は実用的な内容にする
 2. 難易度は中級（簡単すぎず難しすぎない）
 3. タイ語の文は10〜15単語以内に収める（長文は避ける）
 4. 単語分解は最大15単語まで
 5. contextの各フィールドは簡潔に（各50文字以内）
-6. 今回の話題・シチュエーション: ${situation}
+6. 今回のトピック: ${topic}
+7. 文体スタイル: ${style}
 
 重要：音節分割について
 - 各単語を正しくタイ語の音節に分割してください
-- 音節は必ず主子音（声調を決める子音）から始まります（母音のみの音節の場合、อが黙字の主子音）
 - 例: สวัสดี → [สวัส, ดี]（2音節）
 - 例: คำตอบ → [คำ, ตอบ]（2音節）
 - 例: ใช้ชีวิต → [ใช้, ชี, วิต]（3音節）
 
 各音節について以下を含めてください：
 1. text: 音節のテキスト（例: "สวัส"）
-2. initial_consonant: 主子音（声調を決める子音）（例: "ส"）
-
-注意：声調情報（consonant_class, tone, tone_mark, syllable_type）はアプリ側で自動判定されるため不要です。
 
 次の形式の有効なJSONのみを返してください:
 
@@ -61,14 +66,14 @@ export function getSentenceGenerationPrompt(situation: string): string {
       "grammatical_role": "品詞（例: 名詞, 動詞, 形容詞, 助詞）",
       "syllables": [
         {
-          "text": "音節テキスト",
-          "initial_consonant": "主子音"
+          "text": "音節テキスト"
         }
       ]
     }
   ],
   "context": {
-    "situation": "この表現を使う場面・場所",
+    "topic": "この表現を使う場面・場所",
+    "style": "実際に使用した文体スタイル（例: ニュース記事体、口語体など）",
     "emotion": "感情・トーン（フォーマル/カジュアル/丁寧/親しみ）",
     "usage_scenarios": "具体的に使えるシチュエーション",
     "cultural_notes": "文化的背景やニュアンス"

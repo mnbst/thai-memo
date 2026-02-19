@@ -80,7 +80,8 @@ class ThaiSentence {
       'pronunciation': pronunciation,
       'japanese_translation': japaneseTranslation,
       'context_explanation': context?.getFullExplanation() ?? '',
-      'situation': context?.situation,
+      'topic': context?.topic,
+      'style': context?.style,
       'emotion': context?.emotion,
       'usage_scenarios': context?.usageScenarios,
       if (createdAt != null) 'created_at': createdAt!.millisecondsSinceEpoch,
@@ -123,7 +124,10 @@ class ThaiSentence {
 @JsonSerializable()
 class SentenceContext {
   /// この表現を使う場面・場所
-  final String? situation;
+  final String? topic;
+
+  /// 文体スタイル
+  final String? style;
 
   /// 感情・トーン（フォーマル/カジュアル/丁寧/親しみ）
   final String? emotion;
@@ -137,7 +141,8 @@ class SentenceContext {
   final String? culturalNotes;
 
   SentenceContext({
-    this.situation,
+    this.topic,
+    this.style,
     this.emotion,
     this.usageScenarios,
     this.culturalNotes,
@@ -153,7 +158,8 @@ class SentenceContext {
   /// データベースのMapからSentenceContextを生成
   factory SentenceContext.fromDatabase(Map<String, dynamic> map) {
     return SentenceContext(
-      situation: map['situation'] as String?,
+      topic: map['topic'] as String?,
+      style: map['style'] as String?,
       emotion: map['emotion'] as String?,
       usageScenarios: map['usage_scenarios'] as String?,
       // culturalNotesはcontext_explanationに統合して保存する
@@ -165,8 +171,11 @@ class SentenceContext {
   String getFullExplanation() {
     final parts = <String>[];
 
-    if (situation != null && situation!.isNotEmpty) {
-      parts.add('【場面】$situation');
+    if (topic != null && topic!.isNotEmpty) {
+      parts.add('【場面】$topic');
+    }
+    if (style != null && style!.isNotEmpty) {
+      parts.add('【文体】$style');
     }
     if (emotion != null && emotion!.isNotEmpty) {
       parts.add('【トーン】$emotion');
@@ -183,13 +192,15 @@ class SentenceContext {
 
   /// 指定値を上書きしたコピーを生成
   SentenceContext copyWith({
-    String? situation,
+    String? topic,
+    String? style,
     String? emotion,
     String? usageScenarios,
     String? culturalNotes,
   }) {
     return SentenceContext(
-      situation: situation ?? this.situation,
+      topic: topic ?? this.topic,
+      style: style ?? this.style,
       emotion: emotion ?? this.emotion,
       usageScenarios: usageScenarios ?? this.usageScenarios,
       culturalNotes: culturalNotes ?? this.culturalNotes,
@@ -198,7 +209,7 @@ class SentenceContext {
 
   @override
   String toString() {
-    return 'SentenceContext(situation: $situation, emotion: $emotion, '
+    return 'SentenceContext(topic: $topic, style: $style, emotion: $emotion, '
         'usageScenarios: $usageScenarios, culturalNotes: $culturalNotes)';
   }
 }

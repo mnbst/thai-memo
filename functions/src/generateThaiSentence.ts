@@ -42,7 +42,7 @@ export const generateThaiSentence = functions.https.onCall(
     const logData: Record<string, any> = {
       timestamp: new Date().toISOString(),
       userId: request.auth?.uid || 'anonymous',
-      requestedSituation: request.data.situation || 'random',
+      requestedTopic: request.data.topic || 'random',
     };
 
     try {
@@ -68,14 +68,14 @@ export const generateThaiSentence = functions.https.onCall(
       const geminiService = new GeminiService(apiKey);
 
       // Generate sentence
-      const sentence = await geminiService.generateSentence(request.data.situation);
+      const sentence = await geminiService.generateSentence(request.data.topic);
 
       // Calculate processing time
       const processingTime = Date.now() - startTime;
 
       logData.success = true;
       logData.processingTimeMs = processingTime;
-      logData.generatedSituation = sentence.context?.situation || 'unknown';
+      logData.generatedTopic = sentence.context?.topic || 'unknown';
       logData.sentenceLength = sentence.thai_text.length;
       logData.wordCount = sentence.word_breakdown.length;
 

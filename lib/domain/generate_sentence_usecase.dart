@@ -58,9 +58,7 @@ class GenerateSentenceUseCase {
   GenerateSentenceErrorType _mapRepositoryException(RepositoryException e) {
     final message = e.message.toLowerCase();
 
-    if (message.contains('api key')) {
-      return GenerateSentenceErrorType.invalidApiKey;
-    } else if (message.contains('network') || message.contains('connection')) {
+    if (message.contains('network') || message.contains('connection')) {
       return GenerateSentenceErrorType.networkError;
     } else if (message.contains('rate limit')) {
       return GenerateSentenceErrorType.rateLimitExceeded;
@@ -94,12 +92,6 @@ enum GenerateSentenceErrorType {
   /// Authentication error
   authenticationError,
 
-  /// API key is missing (deprecated - kept for backward compatibility)
-  missingApiKey,
-
-  /// API key is invalid (deprecated)
-  invalidApiKey,
-
   /// Network connection error
   networkError,
 
@@ -131,10 +123,6 @@ class GenerateSentenceException implements Exception {
     switch (type) {
       case GenerateSentenceErrorType.authenticationError:
         return '認証エラーが発生しました。アプリを再起動してください。';
-      case GenerateSentenceErrorType.missingApiKey:
-        return 'APIキーが設定されていません。設定画面でAPIキーを入力してください。';
-      case GenerateSentenceErrorType.invalidApiKey:
-        return 'APIキーが無効です。正しいAPIキーを入力してください。';
       case GenerateSentenceErrorType.networkError:
         return 'ネットワーク接続エラーが発生しました。インターネット接続を確認してください。';
       case GenerateSentenceErrorType.rateLimitExceeded:

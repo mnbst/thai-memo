@@ -349,11 +349,19 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (sentenceContext.situation != null) ...[
+                  if (sentenceContext.topic != null) ...[
                     _buildContextItem(
                       Icons.location_on_outlined,
                       '場面',
-                      sentenceContext.situation!,
+                      sentenceContext.topic!,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (sentenceContext.style != null) ...[
+                    _buildContextItem(
+                      Icons.text_fields_outlined,
+                      '文体',
+                      sentenceContext.style!,
                     ),
                     const SizedBox(height: 12),
                   ],

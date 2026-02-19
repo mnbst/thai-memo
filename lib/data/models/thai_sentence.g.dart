@@ -37,7 +37,8 @@ Map<String, dynamic> _$ThaiSentenceToJson(ThaiSentence instance) =>
 
 SentenceContext _$SentenceContextFromJson(Map<String, dynamic> json) =>
     SentenceContext(
-      situation: json['situation'] as String?,
+      topic: json['topic'] as String?,
+      style: json['style'] as String?,
       emotion: json['emotion'] as String?,
       usageScenarios: json['usage_scenarios'] as String?,
       culturalNotes: json['cultural_notes'] as String?,
@@ -45,7 +46,8 @@ SentenceContext _$SentenceContextFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$SentenceContextToJson(SentenceContext instance) =>
     <String, dynamic>{
-      'situation': instance.situation,
+      'topic': instance.topic,
+      'style': instance.style,
       'emotion': instance.emotion,
       'usage_scenarios': instance.usageScenarios,
       'cultural_notes': instance.culturalNotes,

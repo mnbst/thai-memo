@@ -4,7 +4,8 @@ import {
   GEMINI_MODEL,
   API_TEMPERATURE,
   API_MAX_TOKENS,
-  SITUATIONS,
+  TOPICS,
+  STYLES,
   getSentenceGenerationPrompt,
 } from '../config/constants';
 
@@ -15,18 +16,17 @@ export class GeminiService {
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
-  async generateSentence(situationOverride?: string): Promise<ThaiSentence> {
+  async generateSentence(topicOverride?: string): Promise<ThaiSentence> {
     const apiStartTime = Date.now();
 
     try {
-      // Select situation
-      const situation =
-        situationOverride ||
-        SITUATIONS[Math.floor(Math.random() * SITUATIONS.length)];
+      const topic = topicOverride || TOPICS[Math.floor(Math.random() * TOPICS.length)];
+      const style = STYLES[Math.floor(Math.random() * STYLES.length)];
 
       console.log('Gemini API call started', {
-        situation,
-        isRandomSelection: !situationOverride,
+        topic,
+        style,
+        isRandomSelection: !topicOverride,
       });
 
       // Initialize model with JSON schema
@@ -89,13 +89,8 @@ export class GeminiService {
                             description: 'Syllable text (e.g., "สวัส")',
                             nullable: false,
                           },
-                          initial_consonant: {
-                            type: SchemaType.STRING,
-                            description: 'Initial consonant (e.g., "ส")',
-                            nullable: false,
-                          },
                         },
-                        required: ['text', 'initial_consonant'],
+                        required: ['text'],
                       },
                       description: 'Syllable breakdown (tone analysis will be done on app side)',
                       nullable: true,
@@ -109,9 +104,14 @@ export class GeminiService {
               context: {
                 type: SchemaType.OBJECT,
                 properties: {
-                  situation: {
+                  topic: {
                     type: SchemaType.STRING,
-                    description: 'Situation where this sentence is used',
+                    description: 'Topic of this sentence',
+                    nullable: true,
+                  },
+                  style: {
+                    type: SchemaType.STRING,
+                    description: 'Writing style used (e.g. news, colloquial)',
                     nullable: true,
                   },
                   emotion: {
@@ -143,7 +143,7 @@ export class GeminiService {
       });
 
       // Generate content
-      const prompt = getSentenceGenerationPrompt(situation);
+      const prompt = getSentenceGenerationPrompt(topic, style);
       const result = await model.generateContent(prompt);
       const response = result.response;
       const text = response.text();

@@ -46,8 +46,9 @@ class Syllable {
       _$SyllableFromJson(json);
 
   /// Factory constructor that creates a Syllable with tone analysis
-  /// from minimal data (text and initial_consonant only)
+  /// from minimal data (text only; all tone info is rule-based)
   factory Syllable.fromMinimalJson(Map<String, dynamic> json, {
+    required String initialConsonant,
     required String consonantClass,
     required String tone,
     required String toneMark,
@@ -56,7 +57,7 @@ class Syllable {
   }) {
     return Syllable(
       text: json['text'] as String,
-      initialConsonant: json['initial_consonant'] as String,
+      initialConsonant: initialConsonant,
       consonantClass: consonantClass,
       tone: tone,
       toneMark: toneMark,

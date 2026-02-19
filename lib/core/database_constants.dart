@@ -14,7 +14,8 @@ class DatabaseConstants {
   static const String columnPronunciation = 'pronunciation';
   static const String columnJapaneseTranslation = 'japanese_translation';
   static const String columnContextExplanation = 'context_explanation';
-  static const String columnSituation = 'situation';
+  static const String columnTopic = 'topic';
+  static const String columnStyle = 'style';
   static const String columnEmotion = 'emotion';
   static const String columnUsageScenarios = 'usage_scenarios';
   static const String columnCreatedAt = 'created_at';
@@ -52,7 +53,8 @@ class DatabaseConstants {
       $columnPronunciation TEXT NOT NULL,
       $columnJapaneseTranslation TEXT NOT NULL,
       $columnContextExplanation TEXT NOT NULL,
-      $columnSituation TEXT,
+      $columnTopic TEXT,
+      $columnStyle TEXT,
       $columnEmotion TEXT,
       $columnUsageScenarios TEXT,
       $columnCreatedAt INTEGER NOT NULL,

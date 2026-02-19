@@ -22,7 +22,7 @@ class BackendApiService {
         _auth = auth ?? FirebaseAuth.instance;
 
   /// Generate a new Thai sentence using backend API
-  Future<ThaiSentence> generateSentence({String? situation}) async {
+  Future<ThaiSentence> generateSentence({String? topic}) async {
     try {
       // Ensure user is authenticated
       final user = _auth.currentUser;
@@ -39,7 +39,7 @@ class BackendApiService {
       );
 
       final result = await callable.call(<String, dynamic>{
-        if (situation != null) 'situation': situation,
+        if (topic != null) 'topic': topic,
       });
 
       // Parse response
@@ -94,6 +94,7 @@ class BackendApiService {
               // Create Syllable with analyzed tone information
               return Syllable.fromMinimalJson(
                 syllableMap,
+                initialConsonant: analysis.initialConsonant ?? '',
                 consonantClass:
                     _consonantClassToString(analysis.consonantClass),
                 tone: _toneToString(analysis.resultingTone),
@@ -123,7 +124,8 @@ class BackendApiService {
           : null;
       final context = contextJson != null
           ? SentenceContext(
-              situation: contextJson['situation'] as String?,
+              topic: contextJson['topic'] as String?,
+              style: contextJson['style'] as String?,
               emotion: contextJson['emotion'] as String?,
               usageScenarios: contextJson['usage_scenarios'] as String?,
               culturalNotes: contextJson['cultural_notes'] as String?,
