@@ -70,14 +70,31 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thai text
-            SelectableText(
-              widget.sentence.thaiText,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                height: 1.5,
-                fontSize: 32,
-              ),
+            // Thai text with play button
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: SelectableText(
+                    widget.sentence.thaiText,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      height: 1.5,
+                      fontSize: 32,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.volume_up,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  onPressed: () {
+                    ref.read(ttsServiceProvider).speak(widget.sentence.thaiText);
+                  },
+                  tooltip: '全文を再生',
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             // Pronunciation
@@ -232,13 +249,22 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.graphic_eq,
-                            size: 16,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.5),
+                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.volume_up,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+                              ),
+                              padding: EdgeInsets.zero,
+                              onPressed: () {
+                                ref.read(ttsServiceProvider).speak(word.wordText, slow: true);
+                              },
+                              tooltip: '単語を再生',
+                            ),
                           ),
                         ],
                       ),

@@ -105,15 +105,7 @@ export class GeminiService {
                     syllables: {
                       type: SchemaType.ARRAY,
                       items: {
-                        type: SchemaType.OBJECT,
-                        properties: {
-                          text: {
-                            type: SchemaType.STRING,
-                            description: 'Syllable text (e.g., "สวัส")',
-                            nullable: false,
-                          },
-                        },
-                        required: ['text'],
+                        type: SchemaType.STRING,
                       },
                       description: 'Syllable breakdown (tone analysis will be done on app side)',
                       nullable: true,

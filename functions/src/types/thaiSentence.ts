@@ -1,13 +1,9 @@
-export interface Syllable {
-  text: string;
-}
-
 export interface WordBreakdown {
   word: string;
   pronunciation: string;
   meaning: string;
   grammatical_role?: string;
-  syllables?: Syllable[];
+  syllables?: string[];
 }
 
 export interface SentenceContext {

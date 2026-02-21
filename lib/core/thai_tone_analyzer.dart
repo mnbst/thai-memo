@@ -137,6 +137,8 @@ class ThaiToneAnalyzer {
   // 語彙固有の声調例外（規則では導出できない単語）
   static const Map<String, ThaiTone> _toneExceptions = {
     'เยอะ': ThaiTone.high, // yə́ — 短母音死音節だが前置母音で長母音判定される例外
+    'สบาย':
+        ThaiTone.mid, // sa-baai — 語彙例外。สบาย は低子音+長母音+生音節で規則的には高声だが、実際は平声で発音される
   };
 
   // 前置母音（leading vowels）
@@ -162,22 +164,6 @@ class ThaiToneAnalyzer {
     String initialConsonant = firstConsonant;
     String consonantForTone = firstConsonant;
 
-    // 例外: อ + ย/ร/ล/ว → อは無音、次の子音を使用
-    if (firstConsonant == 'อ' && pos + 1 < word.length) {
-      int nextPos = pos + 1;
-      while (nextPos < word.length && _isToneMark(word[nextPos])) {
-        nextPos++;
-      }
-      if (nextPos < word.length &&
-          const ['ย', 'ร', 'ล', 'ว'].contains(word[nextPos])) {
-        initialConsonant = word[nextPos];
-        // อย + 母音 (+ 終子音) は声調を อ（中子音）で決定
-        if (word[nextPos] != 'ย') {
-          consonantForTone = word[nextPos];
-        }
-      }
-    }
-
     // 3. 声調記号を検出
     ToneMark toneMark = ToneMark.none;
     if (word.contains(toneMark1)) {
@@ -191,10 +177,15 @@ class ThaiToneAnalyzer {
     }
 
     // 4. 最後の文字 → 末子音・音節タイプ判定
-    final lastChar = word[word.length - 1];
+    // 末子音につく ิ をスキップ（例: ชาติ の ติ → 末子音は ต）
+    int lastConsonantPos = word.length - 1;
+    if (lastConsonantPos > pos && word[lastConsonantPos] == '\u0E34') {
+      lastConsonantPos--;
+    }
+    final lastChar = word[lastConsonantPos];
     // 頭子音の後に文字がない（= 頭子音が末字）場合は末子音なし（開音節）
     // 例: ไป (ไ+ป) → ป は頭子音のみ、末子音なし
-    final hasNoFinalConsonant = (word.length - 1 <= pos);
+    final hasNoFinalConsonant = (lastConsonantPos <= pos);
     SyllableType syllableType;
     if (!hasNoFinalConsonant && deadEndConsonants.contains(lastChar)) {
       syllableType = SyllableType.dead;
@@ -204,10 +195,13 @@ class ThaiToneAnalyzer {
       syllableType = SyllableType.live; // デフォルト、短母音で上書き
     }
 
-    // 5. 母音の長短を判定（優先順位: ็短化 > 複合母音/長母音 > 短母音 > 暗黙判定）
+    // 5. 母音の長短を判定（優先順位: ็短化 > ะ終止 > 複合母音/長母音 > 短母音 > 暗黙判定）
     bool hasShortVowel;
     if (word.contains('\u0E47')) {
       // ็ (mai taikhu) は長母音を短母音化する（เ็ก, แ็ว 等）→ 最優先で短母音
+      hasShortVowel = true;
+    } else if (word.endsWith('\u0E30')) {
+      // ะ で終わる → 短母音（แ◌ะ / เ◌ะ パターン含む）
       hasShortVowel = true;
     } else if (compoundVowelPatterns.any((v) => word.contains(v)) ||
         longVowelChars.any((v) => word.contains(v)) ||

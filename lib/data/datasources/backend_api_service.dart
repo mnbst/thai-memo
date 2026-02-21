@@ -80,20 +80,18 @@ class BackendApiService {
           final wordJson =
               Map<String, dynamic>.from(wordBreakdownsJson[i] as Map);
 
-          // Parse syllables if present
+          // Parse syllables if present (string array from API)
           List<Syllable>? syllables;
           final syllablesJson = wordJson['syllables'] as List<dynamic>?;
           if (syllablesJson != null) {
             syllables = syllablesJson.map((s) {
-              final syllableMap = Map<String, dynamic>.from(s as Map);
-              final syllableText = syllableMap['text'] as String;
+              final syllableText = s as String;
 
               // Analyze tone using rule-based analyzer
               final analysis = ThaiToneAnalyzer.analyzeTone(syllableText);
 
-              // Create Syllable with analyzed tone information
-              return Syllable.fromMinimalJson(
-                syllableMap,
+              return Syllable(
+                text: syllableText,
                 initialConsonant: analysis.initialConsonant ?? '',
                 consonantClass:
                     _consonantClassToString(analysis.consonantClass),

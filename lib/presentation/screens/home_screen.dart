@@ -7,6 +7,7 @@ import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/tts_provider.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
@@ -187,9 +188,9 @@ class TodayScreen extends ConsumerWidget {
     } else if (state is SentenceStateError) {
       return _buildErrorState(context, state.message);
     } else if (state is SentenceStateEmpty) {
-      return _buildEmptyState(context);
+      return _buildEmptyState(context, ref);
     } else {
-      return _buildEmptyState(context);
+      return _buildEmptyState(context, ref);
     }
   }
 
@@ -231,13 +232,30 @@ class TodayScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Thai text
-                    Text(
-                      sentence.thaiText,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 32),
+                    // Thai text with play button
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            sentence.thaiText,
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 32),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.volume_up,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          onPressed: () {
+                            ref.read(ttsServiceProvider).speak(sentence.thaiText);
+                          },
+                          tooltip: '全文を再生',
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     // Pronunciation
@@ -351,7 +369,7 @@ class TodayScreen extends ConsumerWidget {
   }
 
   /// Build empty state with default greeting sentence
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppConfig.defaultPadding),
       child: Column(
@@ -403,13 +421,30 @@ class TodayScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Thai text
-                    Text(
-                      _defaultGreetingSentence.thaiText,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 32),
+                    // Thai text with play button
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _defaultGreetingSentence.thaiText,
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 32),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.volume_up,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          onPressed: () {
+                            ref.read(ttsServiceProvider).speak(_defaultGreetingSentence.thaiText);
+                          },
+                          tooltip: '全文を再生',
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     // Pronunciation
