@@ -12,10 +12,14 @@ class GenerateSentenceUseCase {
   ///
   /// Returns the generated [ThaiSentence]
   /// Throws [GenerateSentenceException] if generation fails
-  Future<ThaiSentence> execute() async {
+  Future<ThaiSentence> execute({
+    Map<String, String?> generationParams = const {},
+  }) async {
     try {
       // No need to check API key - authentication handled by Firebase
-      final sentence = await _repository.generateAndSaveSentence();
+      final sentence = await _repository.generateAndSaveSentence(
+        generationParams: generationParams,
+      );
       return sentence;
     } on RepositoryException catch (e) {
       throw GenerateSentenceException(

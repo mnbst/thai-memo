@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../core/config/app_config.dart';
@@ -157,11 +158,22 @@ Future<void> _executeSentenceGeneration() async {
     authService: authService,
   );
 
+  // Load generation params from SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+  const paramKeys = [
+    'style', 'topic', 'politeness', 'grammarFocus',
+    'vocabLevel', 'sentenceLength', 'emotion', 'learningPurpose', 'toneDensity',
+  ];
+  final generationParams = <String, String?>{};
+  for (final key in paramKeys) {
+    generationParams[key] = prefs.getString('pref_$key');
+  }
+
   // Create use case
   final generateUseCase = GenerateSentenceUseCase(repository);
 
   // Generate and save sentence
-  await generateUseCase.execute();
+  await generateUseCase.execute(generationParams: generationParams);
 
   // Update last generation timestamp
   await secureStorage.saveLastGenerationTimestamp(DateTime.now());

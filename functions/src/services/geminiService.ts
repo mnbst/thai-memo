@@ -23,21 +23,31 @@ export class GeminiService {
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
-  async generateSentence(topicOverride?: string): Promise<ThaiSentence> {
+  async generateSentence(params: {
+    topic?: string;
+    style?: string;
+    politeness?: string;
+    grammarFocus?: string;
+    vocabLevel?: string;
+    sentenceLength?: string;
+    emotion?: string;
+    learningPurpose?: string;
+    toneDensity?: string;
+  } = {}): Promise<ThaiSentence> {
     const apiStartTime = Date.now();
 
     try {
       const rand = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
-      const topic = topicOverride || rand(TOPICS);
-      const style = rand(STYLES);
-      const politeness = rand(POLITENESS_LEVELS);
-      const grammarFocus = rand(GRAMMAR_FOCUSES);
-      const vocabLevel = rand(VOCAB_LEVELS);
-      const sentenceLength = rand(SENTENCE_LENGTHS);
-      const emotion = rand(EMOTIONS);
-      const learningPurpose = rand(LEARNING_PURPOSES);
-      const toneDensity = rand(TONE_DENSITIES);
+      const topic = params.topic || rand(TOPICS);
+      const style = params.style || rand(STYLES);
+      const politeness = params.politeness || rand(POLITENESS_LEVELS);
+      const grammarFocus = params.grammarFocus || rand(GRAMMAR_FOCUSES);
+      const vocabLevel = params.vocabLevel || rand(VOCAB_LEVELS);
+      const sentenceLength = params.sentenceLength || rand(SENTENCE_LENGTHS);
+      const emotion = params.emotion || rand(EMOTIONS);
+      const learningPurpose = params.learningPurpose || rand(LEARNING_PURPOSES);
+      const toneDensity = params.toneDensity || rand(TONE_DENSITIES);
 
       console.log('Gemini API call started', {
         topic,
@@ -49,7 +59,6 @@ export class GeminiService {
         emotion,
         learningPurpose,
         toneDensity,
-        isRandomSelection: !topicOverride,
       });
 
       // Initialize model with JSON schema

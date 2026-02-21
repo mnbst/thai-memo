@@ -68,7 +68,17 @@ export const generateThaiSentence = functions.https.onCall(
       const geminiService = new GeminiService(apiKey);
 
       // Generate sentence
-      const sentence = await geminiService.generateSentence(request.data.topic);
+      const sentence = await geminiService.generateSentence({
+        topic: request.data.topic,
+        style: request.data.style,
+        politeness: request.data.politeness,
+        grammarFocus: request.data.grammarFocus,
+        vocabLevel: request.data.vocabLevel,
+        sentenceLength: request.data.sentenceLength,
+        emotion: request.data.emotion,
+        learningPurpose: request.data.learningPurpose,
+        toneDensity: request.data.toneDensity,
+      });
 
       // Calculate processing time
       const processingTime = Date.now() - startTime;

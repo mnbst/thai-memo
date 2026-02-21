@@ -29,13 +29,17 @@ class SentenceRepository {
   // ==================== Remote Operations ====================
 
   /// Generate a new sentence from backend API and save it to database
-  Future<ThaiSentence> generateAndSaveSentence() async {
+  Future<ThaiSentence> generateAndSaveSentence({
+    Map<String, String?> generationParams = const {},
+  }) async {
     try {
       // Ensure user is authenticated
       await _authService.ensureAuthenticated();
 
       // Generate sentence from backend API (no API key needed)
-      final sentence = await _apiService.generateSentence();
+      final sentence = await _apiService.generateSentence(
+        generationParams: generationParams,
+      );
 
       // Add ID and assign sentence IDs to word breakdowns
       final sentenceId = _uuid.v4();

@@ -24,6 +24,14 @@ export interface ThaiSentence {
 
 export interface GenerateSentenceRequest {
   topic?: string;
+  style?: string;
+  politeness?: string;
+  grammarFocus?: string;
+  vocabLevel?: string;
+  sentenceLength?: string;
+  emotion?: string;
+  learningPurpose?: string;
+  toneDensity?: string;
 }
 
 export interface GenerateSentenceResponse {

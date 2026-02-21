@@ -546,7 +546,10 @@ class TodayScreen extends ConsumerWidget {
     );
 
     // Generate sentence
-    await ref.read(sentenceControllerProvider.notifier).generateSentence();
+    final generationParams = ref.read(generationParamsProvider);
+    await ref.read(sentenceControllerProvider.notifier).generateSentence(
+          generationParams: generationParams,
+        );
 
     // Close loading dialog
     if (context.mounted) {

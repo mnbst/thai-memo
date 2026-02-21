@@ -12,12 +12,14 @@ class SettingsState {
   final bool notificationsEnabled;
   final ThemeMode themeMode;
   final TimeOfDay? preferredGenerationTime;
+  final Map<String, String?> generationParams;
 
   const SettingsState({
     required this.isFirstLaunch,
     required this.notificationsEnabled,
     required this.themeMode,
     this.preferredGenerationTime,
+    this.generationParams = const {},
   });
 
   factory SettingsState.initial() {
@@ -26,6 +28,7 @@ class SettingsState {
       notificationsEnabled: true,
       themeMode: ThemeMode.system,
       preferredGenerationTime: null,
+      generationParams: {},
     );
   }
 
@@ -34,6 +37,7 @@ class SettingsState {
     bool? notificationsEnabled,
     ThemeMode? themeMode,
     TimeOfDay? preferredGenerationTime,
+    Map<String, String?>? generationParams,
   }) {
     return SettingsState(
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
@@ -41,6 +45,7 @@ class SettingsState {
       themeMode: themeMode ?? this.themeMode,
       preferredGenerationTime:
           preferredGenerationTime ?? this.preferredGenerationTime,
+      generationParams: generationParams ?? this.generationParams,
     );
   }
 }
@@ -61,6 +66,20 @@ class SettingsController extends StateNotifier<SettingsState> {
     await _loadSettings();
   }
 
+  static const _generationParamKeys = [
+    'style',
+    'topic',
+    'politeness',
+    'grammarFocus',
+    'vocabLevel',
+    'sentenceLength',
+    'emotion',
+    'learningPurpose',
+    'toneDensity',
+  ];
+
+  static String _prefKey(String param) => 'pref_$param';
+
   /// Load settings from storage
   Future<void> _loadSettings() async {
     if (_prefs == null) return;
@@ -78,11 +97,18 @@ class SettingsController extends StateNotifier<SettingsState> {
         _prefs!.getString(AppConfig.prefKeyPreferredGenerationTime);
     final preferredTime = timeString != null ? _parseTime(timeString) : null;
 
+    // Load generation params
+    final params = <String, String?>{};
+    for (final key in _generationParamKeys) {
+      params[key] = _prefs!.getString(_prefKey(key));
+    }
+
     state = SettingsState(
       isFirstLaunch: isFirstLaunch,
       notificationsEnabled: notificationsEnabled,
       themeMode: themeMode,
       preferredGenerationTime: preferredTime,
+      generationParams: params,
     );
   }
 
@@ -117,6 +143,18 @@ class SettingsController extends StateNotifier<SettingsState> {
       timeString,
     );
     state = state.copyWith(preferredGenerationTime: time);
+  }
+
+  /// Set a generation parameter (null = random)
+  Future<void> setGenerationParam(String key, String? value) async {
+    if (value == null) {
+      await _prefs?.remove(_prefKey(key));
+    } else {
+      await _prefs?.setString(_prefKey(key), value);
+    }
+    final updatedParams = Map<String, String?>.from(state.generationParams);
+    updatedParams[key] = value;
+    state = state.copyWith(generationParams: updatedParams);
   }
 
   // ==================== Helper Methods ====================
@@ -170,4 +208,9 @@ final notificationsEnabledProvider = Provider<bool>((ref) {
 /// Provider for theme mode
 final themeModeProvider = Provider<ThemeMode>((ref) {
   return ref.watch(settingsControllerProvider).themeMode;
+});
+
+/// Provider for generation params
+final generationParamsProvider = Provider<Map<String, String?>>((ref) {
+  return ref.watch(settingsControllerProvider).generationParams;
 });

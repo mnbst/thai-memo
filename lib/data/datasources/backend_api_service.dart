@@ -22,7 +22,9 @@ class BackendApiService {
         _auth = auth ?? FirebaseAuth.instance;
 
   /// Generate a new Thai sentence using backend API
-  Future<ThaiSentence> generateSentence({String? topic}) async {
+  Future<ThaiSentence> generateSentence({
+    Map<String, String?> generationParams = const {},
+  }) async {
     try {
       // Ensure user is authenticated
       final user = _auth.currentUser;
@@ -38,9 +40,14 @@ class BackendApiService {
         ),
       );
 
-      final result = await callable.call(<String, dynamic>{
-        if (topic != null) 'topic': topic,
-      });
+      final params = <String, dynamic>{};
+      for (final entry in generationParams.entries) {
+        if (entry.value != null) {
+          params[entry.key] = entry.value;
+        }
+      }
+
+      final result = await callable.call(params);
 
       // Parse response
       final data = Map<String, dynamic>.from(result.data as Map);

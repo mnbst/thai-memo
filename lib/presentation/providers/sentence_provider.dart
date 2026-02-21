@@ -98,11 +98,15 @@ class SentenceController extends StateNotifier<SentenceState> {
   ) : super(const SentenceStateInitial());
 
   /// Generate a new sentence
-  Future<void> generateSentence() async {
+  Future<void> generateSentence({
+    Map<String, String?> generationParams = const {},
+  }) async {
     state = const SentenceStateLoading();
 
     try {
-      final sentence = await _generateUseCase.execute();
+      final sentence = await _generateUseCase.execute(
+        generationParams: generationParams,
+      );
       state = SentenceStateSuccess(sentence);
     } on GenerateSentenceException catch (e) {
       state = SentenceStateError(e.getUserMessage());

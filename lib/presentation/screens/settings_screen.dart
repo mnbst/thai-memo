@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/generation_constants.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import 'tone_guide_screen.dart';
@@ -26,6 +27,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildThemeSection(),
           const SizedBox(height: 24),
           _buildLearningSection(),
+          const SizedBox(height: 24),
+          _buildGenerationSettingsSection(),
           const SizedBox(height: 24),
           _buildStatisticsSection(),
           const SizedBox(height: 24),
@@ -137,6 +140,85 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Build generation settings section
+  Widget _buildGenerationSettingsSection() {
+    final params = ref.watch(generationParamsProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.tune,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '例文生成設定',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...GenerationConstants.parameterLabels.entries.map((entry) {
+              final key = entry.key;
+              final label = entry.value;
+              final options = GenerationConstants.parameterOptions[key]!;
+              final currentValue = params[key];
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _buildParamDropdown(key, label, options, currentValue),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildParamDropdown(
+    String key,
+    String label,
+    List<String> options,
+    String? currentValue,
+  ) {
+    return DropdownButtonFormField<String>(
+      // ignore: deprecated_member_use
+      value: currentValue,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: label,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        border: const OutlineInputBorder(),
+      ),
+      items: [
+        const DropdownMenuItem<String>(
+          value: null,
+          child: Text('ランダム'),
+        ),
+        ...options.map((option) => DropdownMenuItem<String>(
+              value: option,
+              child: Text(
+                option,
+                overflow: TextOverflow.ellipsis,
+              ),
+            )),
+      ],
+      onChanged: (value) {
+        ref
+            .read(settingsControllerProvider.notifier)
+            .setGenerationParam(key, value);
+      },
     );
   }
 
