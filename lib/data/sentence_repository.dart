@@ -124,24 +124,6 @@ class SentenceRepository {
     }
   }
 
-  /// Get a sentence by ID
-  Future<ThaiSentence?> getSentenceById(String id) async {
-    try {
-      final sentenceMap = await _databaseHelper.getSentenceById(id);
-      if (sentenceMap == null) return null;
-
-      final wordBreakdownMaps =
-          await _databaseHelper.getWordBreakdownsBySentenceId(id);
-      final wordBreakdowns = wordBreakdownMaps
-          .map((map) => WordBreakdown.fromDatabase(map))
-          .toList();
-
-      return ThaiSentence.fromDatabase(sentenceMap, wordBreakdowns);
-    } catch (e) {
-      throw RepositoryException('Failed to get sentence: $e');
-    }
-  }
-
   /// Get the most recent sentence
   Future<ThaiSentence?> getMostRecentSentence() async {
     try {
@@ -221,27 +203,6 @@ class SentenceRepository {
     }
   }
 
-  // ==================== Generation Management ====================
-
-  /// Check if a new generation is due
-  Future<bool> isGenerationDue() async {
-    try {
-      return await _secureStorage.isGenerationDue();
-    } catch (e) {
-      // If there's an error, assume generation is due
-      return true;
-    }
-  }
-
-  /// Get the timestamp of the last generation
-  Future<DateTime?> getLastGenerationTimestamp() async {
-    try {
-      return await _secureStorage.getLastGenerationTimestamp();
-    } catch (e) {
-      return null;
-    }
-  }
-
   /// Log a generation attempt
   Future<void> _logGeneration({
     required bool success,
@@ -259,73 +220,6 @@ class SentenceRepository {
       await _databaseHelper.insertGenerationLog(log);
     } catch (e) {
       // Ignore logging errors
-    }
-  }
-
-  // ==================== API Key Management ====================
-
-  /// Check if API key is configured
-  Future<bool> hasApiKey() async {
-    try {
-      return await _secureStorage.hasApiKey();
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Save API key
-  Future<void> saveApiKey(String apiKey) async {
-    try {
-      // Validate API key format
-      if (!_secureStorage.isValidApiKeyFormat(apiKey)) {
-        throw RepositoryException('Invalid API key format');
-      }
-
-      await _secureStorage.saveApiKey(apiKey);
-    } catch (e) {
-      if (e is RepositoryException) rethrow;
-      throw RepositoryException('Failed to save API key: $e');
-    }
-  }
-
-  /// Get API key
-  Future<String?> getApiKey() async {
-    try {
-      return await _secureStorage.getApiKey();
-    } catch (e) {
-      throw RepositoryException('Failed to get API key: $e');
-    }
-  }
-
-  /// Delete API key
-  Future<void> deleteApiKey() async {
-    try {
-      await _secureStorage.deleteApiKey();
-    } catch (e) {
-      throw RepositoryException('Failed to delete API key: $e');
-    }
-  }
-
-  // ==================== Statistics ====================
-
-  /// Get database statistics
-  Future<Map<String, dynamic>> getDatabaseStats() async {
-    try {
-      return await _databaseHelper.getDatabaseStats();
-    } catch (e) {
-      throw RepositoryException('Failed to get database stats: $e');
-    }
-  }
-
-  /// Get generation logs with pagination
-  Future<List<Map<String, dynamic>>> getGenerationLogs({
-    int limit = 20,
-    int offset = 0,
-  }) async {
-    try {
-      return await _databaseHelper.getGenerationLogs(limit, offset);
-    } catch (e) {
-      throw RepositoryException('Failed to get generation logs: $e');
     }
   }
 

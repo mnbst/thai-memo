@@ -8,7 +8,6 @@ import '../../data/sentence_repository.dart';
 import '../../domain/delete_sentence_usecase.dart';
 import '../../domain/generate_sentence_usecase.dart';
 import '../../domain/get_sentences_usecase.dart';
-import '../../domain/save_sentence_usecase.dart';
 import '../../services/firebase_auth_service.dart';
 
 // ==================== Repository Provider ====================
@@ -38,12 +37,6 @@ final getSentencesUseCaseProvider = Provider<GetSentencesUseCase>((ref) {
   return GetSentencesUseCase(repository);
 });
 
-/// Provider for save sentence use case
-final saveSentenceUseCaseProvider = Provider<SaveSentenceUseCase>((ref) {
-  final repository = ref.watch(sentenceRepositoryProvider);
-  return SaveSentenceUseCase(repository);
-});
-
 /// Provider for delete sentence use case
 final deleteSentenceUseCaseProvider = Provider<DeleteSentenceUseCase>((ref) {
   final repository = ref.watch(sentenceRepositoryProvider);
@@ -58,12 +51,6 @@ final allSentencesProvider = FutureProvider<List<ThaiSentence>>((ref) async {
   return await useCase.execute();
 });
 
-/// Provider for most recent sentence
-final mostRecentSentenceProvider = FutureProvider<ThaiSentence?>((ref) async {
-  final useCase = ref.watch(getSentencesUseCaseProvider);
-  return await useCase.getMostRecent();
-});
-
 /// Provider for favorite sentences
 final favoriteSentencesProvider =
     FutureProvider<List<ThaiSentence>>((ref) async {
@@ -75,12 +62,6 @@ final favoriteSentencesProvider =
 final sentenceCountProvider = FutureProvider<int>((ref) async {
   final useCase = ref.watch(getSentencesUseCaseProvider);
   return await useCase.getCount();
-});
-
-/// Provider for checking if sentences exist
-final hasSentencesProvider = FutureProvider<bool>((ref) async {
-  final useCase = ref.watch(getSentencesUseCaseProvider);
-  return await useCase.hasSentences();
 });
 
 // ==================== Sentence Controller ====================

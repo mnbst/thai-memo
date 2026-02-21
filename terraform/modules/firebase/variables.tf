@@ -7,8 +7,3 @@ variable "display_name" {
   description = "Firebase project display name"
   type        = string
 }
-
-variable "region" {
-  description = "Firebase project region"
-  type        = string
-}

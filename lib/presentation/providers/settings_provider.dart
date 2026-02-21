@@ -114,18 +114,6 @@ class SettingsController extends StateNotifier<SettingsState> {
 
   // ==================== Preferences Management ====================
 
-  /// Set first launch flag
-  Future<void> setFirstLaunchCompleted() async {
-    await _prefs?.setBool(AppConfig.prefKeyFirstLaunch, false);
-    state = state.copyWith(isFirstLaunch: false);
-  }
-
-  /// Toggle notifications
-  Future<void> toggleNotifications(bool enabled) async {
-    await _prefs?.setBool(AppConfig.prefKeyNotificationsEnabled, enabled);
-    state = state.copyWith(notificationsEnabled: enabled);
-  }
-
   /// Set theme mode
   Future<void> setThemeMode(ThemeMode mode) async {
     await _prefs?.setString(
@@ -133,16 +121,6 @@ class SettingsController extends StateNotifier<SettingsState> {
       mode.toString().split('.').last,
     );
     state = state.copyWith(themeMode: mode);
-  }
-
-  /// Set preferred generation time
-  Future<void> setPreferredGenerationTime(TimeOfDay time) async {
-    final timeString = '${time.hour}:${time.minute}';
-    await _prefs?.setString(
-      AppConfig.prefKeyPreferredGenerationTime,
-      timeString,
-    );
-    state = state.copyWith(preferredGenerationTime: time);
   }
 
   /// Set a generation parameter (null = random)
@@ -198,11 +176,6 @@ final settingsControllerProvider =
 /// Provider for checking if it's first launch
 final isFirstLaunchProvider = Provider<bool>((ref) {
   return ref.watch(settingsControllerProvider).isFirstLaunch;
-});
-
-/// Provider for notifications enabled status
-final notificationsEnabledProvider = Provider<bool>((ref) {
-  return ref.watch(settingsControllerProvider).notificationsEnabled;
 });
 
 /// Provider for theme mode

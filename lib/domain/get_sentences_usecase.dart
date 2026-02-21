@@ -21,20 +21,6 @@ class GetSentencesUseCase {
     }
   }
 
-  /// Get a specific sentence by ID
-  ///
-  /// Returns the [ThaiSentence] if found, null otherwise
-  /// Throws [GetSentencesException] if retrieval fails
-  Future<ThaiSentence?> getById(String id) async {
-    try {
-      return await _repository.getSentenceById(id);
-    } on RepositoryException catch (e) {
-      throw GetSentencesException('Failed to get sentence: ${e.message}');
-    } catch (e) {
-      throw GetSentencesException('Failed to get sentence: $e');
-    }
-  }
-
   /// Get the most recent sentence
   ///
   /// Returns the most recent [ThaiSentence] if available, null otherwise
@@ -77,20 +63,6 @@ class GetSentencesUseCase {
       throw GetSentencesException('Failed to toggle favorite: ${e.message}');
     } catch (e) {
       throw GetSentencesException('Failed to toggle favorite: $e');
-    }
-  }
-
-  /// Delete a sentence
-  ///
-  /// [id] is the sentence ID to delete
-  /// Throws [GetSentencesException] if deletion fails
-  Future<void> delete(String id) async {
-    try {
-      await _repository.deleteSentence(id);
-    } on RepositoryException catch (e) {
-      throw GetSentencesException('Failed to delete sentence: ${e.message}');
-    } catch (e) {
-      throw GetSentencesException('Failed to delete sentence: $e');
     }
   }
 

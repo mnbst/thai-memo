@@ -82,7 +82,7 @@ export const GEMINI_MODEL = 'gemini-2.5-flash';
 export const API_TEMPERATURE = 0.8;
 export const API_MAX_TOKENS = 8192; // Increased from 6144 to handle longer responses
 
-export interface SentenceGenerationParams {
+interface SentenceGenerationParams {
   topic: string;
   style: string;
   politeness: string;

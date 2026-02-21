@@ -39,25 +39,6 @@ class GenerateSentenceUseCase {
     }
   }
 
-  /// Check if a new generation is due based on the configured frequency
-  Future<bool> isGenerationDue() async {
-    try {
-      return await _repository.isGenerationDue();
-    } catch (e) {
-      // If there's an error checking, assume generation is due
-      return true;
-    }
-  }
-
-  /// Get the timestamp of the last generation
-  Future<DateTime?> getLastGenerationTimestamp() async {
-    try {
-      return await _repository.getLastGenerationTimestamp();
-    } catch (e) {
-      return null;
-    }
-  }
-
   /// Map repository exception to use case error type
   GenerateSentenceErrorType _mapRepositoryException(RepositoryException e) {
     final message = e.message.toLowerCase();

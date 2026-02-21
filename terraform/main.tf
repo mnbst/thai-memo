@@ -39,7 +39,6 @@ module "firebase" {
 
   project_id   = var.project_id
   display_name = var.firebase_project_display_name
-  region       = var.region
 
   depends_on = [google_project_service.required_apis]
 }
@@ -53,18 +52,6 @@ module "logging" {
 
   depends_on = [google_project_service.required_apis]
 }
-
-# Cloud Scheduler module is not needed
-# Firebase automatically creates a scheduler job when using functions.scheduler.onSchedule
-# Job name: firebase-schedule-scheduledDailyGeneration-asia-northeast1
-# module "cloud_scheduler" {
-#   source = "./modules/cloud-scheduler"
-#
-#   project_id = var.project_id
-#   region     = var.region
-#
-#   depends_on = [google_project_service.required_apis]
-# }
 
 # Cloud Functions module will be added after Functions code is ready
 # module "cloud_functions" {
