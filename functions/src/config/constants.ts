@@ -25,23 +25,103 @@ export const TOPICS = [
   '礼儀作法（ワイ（合掌）、年長者への敬意、タブー、社会的マナーなど）',
 ];
 
+export const POLITENESS_LEVELS = [
+  'フォーマル（丁寧語・敬語を使用）',
+  'カジュアル（くだけた友達同士の表現）',
+  '中立（一般的な日常表現）',
+];
+
+export const GRAMMAR_FOCUSES = [
+  '疑問文（〜ไหม？〜มั้ย？など）',
+  '否定文（ไม่〜、ไม่ได้〜など）',
+  '条件文（ถ้า〜、หาก〜など）',
+  '比較表現（กว่า、เหมือนなど）',
+  '命令・依頼（〜นะ、〜ด้วยなど）',
+  '可能表現（ได้、เป็นなど）',
+  '過去・完了（แล้ว、เคยなど）',
+  '助詞・接続詞（แต่、และ、หรือなど）',
+];
+
+export const VOCAB_LEVELS = [
+  '初級（基本的な日常語彙のみ）',
+  '中級（日常会話レベルの語彙）',
+  '上級（やや専門的・慣用的な語彙）',
+];
+
+export const SENTENCE_LENGTHS = [
+  '短文（5〜8単語）',
+  '中文（9〜12単語）',
+  '長文（13〜18単語）',
+];
+
+export const EMOTIONS = [
+  '喜び・嬉しさ',
+  '悲しみ・落ち込み',
+  '驚き',
+  '不安・心配',
+  '感謝',
+  '期待・楽しみ',
+  '中立・平静',
+];
+
+export const LEARNING_PURPOSES = [
+  '会話練習（実際に話せる表現の習得）',
+  '語彙習得（新しい単語の導入）',
+  '文法理解（文法パターンの習得）',
+  '文化理解（タイ文化・習慣の学習）',
+];
+
+export const TONE_DENSITIES = [
+  '低（同じ声調が多め・声調バリエーション少なめ）',
+  '中（複数の声調をバランスよく含む）',
+  '高（5種類の声調をまんべんなく含む・声調練習向け）',
+];
+
 export const GEMINI_MODEL = 'gemini-2.5-flash';
 export const API_TEMPERATURE = 0.8;
 export const API_MAX_TOKENS = 8192; // Increased from 6144 to handle longer responses
 
-export function getSentenceGenerationPrompt(topic: string, style: string): string {
+export interface SentenceGenerationParams {
+  topic: string;
+  style: string;
+  politeness: string;
+  grammarFocus: string;
+  vocabLevel: string;
+  sentenceLength: string;
+  emotion: string;
+  learningPurpose: string;
+  toneDensity: string;
+}
+
+export function getSentenceGenerationPrompt(params: SentenceGenerationParams): string {
+  const {
+    topic,
+    style,
+    politeness,
+    grammarFocus,
+    vocabLevel,
+    sentenceLength,
+    emotion,
+    learningPurpose,
+    toneDensity,
+  } = params;
   return `あなたは日本語話者向けに日々の練習文を作るタイ語教師です。
 
 学習に必要な情報を含むタイ語の新しい文を1つ、JSON形式で生成してください。
 
 要件:
 1. 文は実用的な内容にする
-2. 難易度は中級（簡単すぎず難しすぎない）
-3. タイ語の文は10〜15単語以内に収める（長文は避ける）
-4. 単語分解は最大15単語まで
-5. contextの各フィールドは簡潔に（各50文字以内）
-6. 今回のトピック: ${topic}
-7. 文体スタイル: ${style}
+2. 今回のトピック: ${topic}
+3. 文体スタイル: ${style}
+4. 丁寧さのレベル: ${politeness}
+5. 文法フォーカス: ${grammarFocus}
+6. 語彙レベル: ${vocabLevel}
+7. 文の長さ: ${sentenceLength}
+8. 感情・トーン: ${emotion}
+9. 学習目的: ${learningPurpose}
+10. 声調密度: ${toneDensity}
+11. 単語分解は最大15単語まで
+12. contextの各フィールドは簡潔に（各50文字以内）
 
 重要：音節分割について
 - 各単語を正しくタイ語の音節に分割してください

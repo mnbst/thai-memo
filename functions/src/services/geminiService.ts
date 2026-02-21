@@ -6,6 +6,13 @@ import {
   API_MAX_TOKENS,
   TOPICS,
   STYLES,
+  POLITENESS_LEVELS,
+  GRAMMAR_FOCUSES,
+  VOCAB_LEVELS,
+  SENTENCE_LENGTHS,
+  EMOTIONS,
+  LEARNING_PURPOSES,
+  TONE_DENSITIES,
   getSentenceGenerationPrompt,
 } from '../config/constants';
 
@@ -20,12 +27,28 @@ export class GeminiService {
     const apiStartTime = Date.now();
 
     try {
-      const topic = topicOverride || TOPICS[Math.floor(Math.random() * TOPICS.length)];
-      const style = STYLES[Math.floor(Math.random() * STYLES.length)];
+      const rand = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+      const topic = topicOverride || rand(TOPICS);
+      const style = rand(STYLES);
+      const politeness = rand(POLITENESS_LEVELS);
+      const grammarFocus = rand(GRAMMAR_FOCUSES);
+      const vocabLevel = rand(VOCAB_LEVELS);
+      const sentenceLength = rand(SENTENCE_LENGTHS);
+      const emotion = rand(EMOTIONS);
+      const learningPurpose = rand(LEARNING_PURPOSES);
+      const toneDensity = rand(TONE_DENSITIES);
 
       console.log('Gemini API call started', {
         topic,
         style,
+        politeness,
+        grammarFocus,
+        vocabLevel,
+        sentenceLength,
+        emotion,
+        learningPurpose,
+        toneDensity,
         isRandomSelection: !topicOverride,
       });
 
@@ -143,7 +166,17 @@ export class GeminiService {
       });
 
       // Generate content
-      const prompt = getSentenceGenerationPrompt(topic, style);
+      const prompt = getSentenceGenerationPrompt({
+        topic,
+        style,
+        politeness,
+        grammarFocus,
+        vocabLevel,
+        sentenceLength,
+        emotion,
+        learningPurpose,
+        toneDensity,
+      });
       const result = await model.generateContent(prompt);
       const response = result.response;
       const text = response.text();

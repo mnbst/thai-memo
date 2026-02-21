@@ -399,6 +399,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     height: 1.4,
+                    fontSize: 18,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

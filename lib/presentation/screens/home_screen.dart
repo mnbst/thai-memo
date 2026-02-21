@@ -237,7 +237,7 @@ class TodayScreen extends ConsumerWidget {
                       style: Theme.of(context)
                           .textTheme
                           .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w500, height: 1.5),
+                          ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 32),
                     ),
                     const SizedBox(height: 12),
                     // Pronunciation
@@ -409,7 +409,7 @@ class TodayScreen extends ConsumerWidget {
                       style: Theme.of(context)
                           .textTheme
                           .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w500, height: 1.5),
+                          ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 32),
                     ),
                     const SizedBox(height: 12),
                     // Pronunciation

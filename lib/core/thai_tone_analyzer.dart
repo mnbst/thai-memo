@@ -64,22 +64,48 @@ class ThaiToneAnalyzer {
   static const toneMark3 = '\u0E4A'; // ไม้ตรี (๊)
   static const toneMark4 = '\u0E4B'; // ไม้จัตวา (๋)
 
-  // 短母音
+  // 短母音（ダイアクリティカル + รร）
+  // ※ เ◌ะ / แ◌ะ 等は ะ (\u0E30) が含まれるため個別パターン不要
   static const shortVowels = [
-    'อะ',
-    'อิ',
-    'อึ',
-    'อุ',
-    'เอะ',
-    'แอะ',
-    'โอะ',
-    'เออะ',
-    'เอาะ',
     '\u0E30', // ะ
     '\u0E31', // ั (mai han akat = 短母音 อะ の閉音節形)
     '\u0E34', // ิ
     '\u0E36', // ึ
     '\u0E38', // ุ
+    '\u0E47', // ็ (mai taikhu = 母音短化マーク、เ็/แ็ 等で長母音→短母音)
+    'รร', // สระ รร = 短母音 /a/（末子音の前）または /an/（語末）
+  ];
+
+  // 長母音を示す文字
+  // | 表記  | 音価 | 例    |
+  // | า    | aː   | มา    |
+  // | ี    | iː   | ดี    |
+  // | ื    | ɯː   | มือ   |
+  // | ู    | uː   | ดู    |
+  // | ำ    | am   | ทำ    |（鼻音を含む複合母音、長母音相当）
+  // ※ เ◌ / แ◌ / โ◌ は leadingVowels で管理
+  static const longVowelChars = [
+    '\u0E32', // า (aː)
+    '\u0E35', // ี (iː)
+    '\u0E37', // ื (ɯː)
+    '\u0E39', // ู (uː)
+    '\u0E33', // ำ (am)
+  ];
+
+  // 複合母音パターン（長母音として扱う / hasShortVowel = false）
+  // | 表記    | 音価  | 検出方法                | 例     |
+  // | เ◌า   | aw    | า → longVowelChars      | เข้า   |
+  // | เ◌ีย  | iaː   | ี → longVowelChars      | เมีย   |
+  // | เ◌ือ  | ɯaː   | ื → longVowelChars      | เสื้อ  |
+  // | ◌ัว   | uaː   | 'ัว' パターン            | ตัว    |
+  // | ◌ว    | uaː   | ว＋末子音（暗黙形）      | ควร    |
+  // | ไ◌    | ai    | ไ 文字                   | ไป     |
+  // | ใ◌    | ai    | ใ 文字                   | ใจ     |
+  // ※ ไ / ใ は leadingVowels にも含まれる（位置検出用）
+  static const compoundVowelPatterns = [
+    'ัว', // อัว (uaː) の明示的表記（ั 単独は短母音だが ัว は長複合母音）
+    'ไ', // ไ◌ (ai) 二重母音
+    'ใ', // ใ◌ (ai) 二重母音
   ];
 
   // 死音節の末子音（-p, -t, -k）
@@ -93,8 +119,25 @@ class ThaiToneAnalyzer {
     'ก', 'ข', 'ค', 'ฅ', 'ฆ',
   ];
 
-  // 生音節の末子音（-m, -n, -ng, -y, -w）
-  static const liveEndConsonants = ['ม', 'น', 'ง', 'ญ', 'ย', 'ว'];
+  // 生音節の末子音（-m, -n, -ng, -y, -w, -r(=n)）
+  // ณ ล ฬ は末子音として /n/ の音を持つ（น と同等）
+  static const liveEndConsonants = [
+    'ม',
+    'น',
+    'ณ',
+    'ง',
+    'ญ',
+    'ย',
+    'ว',
+    'ร',
+    'ล',
+    'ฬ'
+  ];
+
+  // 語彙固有の声調例外（規則では導出できない単語）
+  static const Map<String, ThaiTone> _toneExceptions = {
+    'เยอะ': ThaiTone.high, // yə́ — 短母音死音節だが前置母音で長母音判定される例外
+  };
 
   // 前置母音（leading vowels）
   static const leadingVowels = [
@@ -122,11 +165,16 @@ class ThaiToneAnalyzer {
     // 例外: อ + ย/ร/ล/ว → อは無音、次の子音を使用
     if (firstConsonant == 'อ' && pos + 1 < word.length) {
       int nextPos = pos + 1;
-      while (nextPos < word.length && _isToneMark(word[nextPos])) nextPos++;
+      while (nextPos < word.length && _isToneMark(word[nextPos])) {
+        nextPos++;
+      }
       if (nextPos < word.length &&
           const ['ย', 'ร', 'ล', 'ว'].contains(word[nextPos])) {
         initialConsonant = word[nextPos];
-        consonantForTone = word[nextPos];
+        // อย + 母音 (+ 終子音) は声調を อ（中子音）で決定
+        if (word[nextPos] != 'ย') {
+          consonantForTone = word[nextPos];
+        }
       }
     }
 
@@ -144,31 +192,40 @@ class ThaiToneAnalyzer {
 
     // 4. 最後の文字 → 末子音・音節タイプ判定
     final lastChar = word[word.length - 1];
+    // 頭子音の後に文字がない（= 頭子音が末字）場合は末子音なし（開音節）
+    // 例: ไป (ไ+ป) → ป は頭子音のみ、末子音なし
+    final hasNoFinalConsonant = (word.length - 1 <= pos);
     SyllableType syllableType;
-    if (deadEndConsonants.contains(lastChar)) {
+    if (!hasNoFinalConsonant && deadEndConsonants.contains(lastChar)) {
       syllableType = SyllableType.dead;
-    } else if (liveEndConsonants.contains(lastChar)) {
+    } else if (!hasNoFinalConsonant && liveEndConsonants.contains(lastChar)) {
       syllableType = SyllableType.live;
     } else {
       syllableType = SyllableType.live; // デフォルト、短母音で上書き
     }
 
-    // 5. 母音の長短を判定
-    bool hasShortVowel = false;
-    if (shortVowels.any((v) => word.contains(v))) {
+    // 5. 母音の長短を判定（優先順位: ็短化 > 複合母音/長母音 > 短母音 > 暗黙判定）
+    bool hasShortVowel;
+    if (word.contains('\u0E47')) {
+      // ็ (mai taikhu) は長母音を短母音化する（เ็ก, แ็ว 等）→ 最優先で短母音
       hasShortVowel = true;
-    } else if (!_allVowelChars.any((v) => word.contains(v))) {
-      // 明示的な母音なし → 頭子音の後にอがあれば母音ออ（長母音）、なければ暗黙の短母音
-      int i = pos + 1;
-      if (i < word.length && _isClusterSecondConsonant(word[i])) i++;
-      while (i < word.length && _isToneMark(word[i])) i++;
-      hasShortVowel = !(i < word.length && word[i] == 'อ');
+    } else if (compoundVowelPatterns.any((v) => word.contains(v)) ||
+        longVowelChars.any((v) => word.contains(v)) ||
+        leadingVowels.any((v) => word.contains(v))) {
+      // 複合母音（◌ัว / ไ / ใ）または長母音（า ี ื ู ำ / เ แ โ）
+      hasShortVowel = false;
+    } else if (shortVowels.any((v) => word.contains(v))) {
+      hasShortVowel = true;
+    } else {
+      // 明示的母音なし → 暗黙の母音を音節構造から判定
+      hasShortVowel = _hasImplicitShortVowel(word, pos);
     }
 
     // 短母音 + 末子音なし → 死音節
     if (hasShortVowel &&
-        !deadEndConsonants.contains(lastChar) &&
-        !liveEndConsonants.contains(lastChar)) {
+        (hasNoFinalConsonant ||
+            (!deadEndConsonants.contains(lastChar) &&
+                !liveEndConsonants.contains(lastChar)))) {
       syllableType = SyllableType.dead;
     }
 
@@ -206,10 +263,37 @@ class ThaiToneAnalyzer {
     return char == 'ร' || char == 'ล' || char == 'ว';
   }
 
-  // 母音文字（明示的に書かれる母音すべて）
-  static const _allVowelChars = [
+  /// 明示的母音がない場合に暗黙の短母音かどうかを音節構造から判定
+  static bool _hasImplicitShortVowel(String word, int pos) {
+    int i = pos + 1;
+
+    // ว の次が子音なら暗黙の複合母音 อัว（長母音）
+    if (i < word.length && word[i] == 'ว') {
+      int nextI = i + 1;
+      while (nextI < word.length && _isToneMark(word[nextI])) {
+        nextI++;
+      }
+      if (nextI < word.length && !_vowelDiacritics.contains(word[nextI])) {
+        return false; // 複合母音 อัว（暗黙形）
+      }
+      i++; // ว はクラスター子音かソノラント末子音としてスキップ
+    } else if (i < word.length && _isClusterSecondConsonant(word[i])) {
+      i++; // クラスター子音をスキップ
+    }
+
+    // 声調記号をスキップ
+    while (i < word.length && _isToneMark(word[i])) {
+      i++;
+    }
+
+    // อ があれば長母音（暗黙の อ◌อ）
+    return !(i < word.length && word[i] == 'อ');
+  }
+
+  // 後置母音ダイアクリティカル（子音かどうかの判定用、前置母音は除く）
+  static const _vowelDiacritics = [
     '\u0E30', // ะ
-    '\u0E31', // ั (mai han akat)
+    '\u0E31', // ั
     '\u0E32', // า
     '\u0E33', // ำ
     '\u0E34', // ิ
@@ -218,11 +302,7 @@ class ThaiToneAnalyzer {
     '\u0E37', // ื
     '\u0E38', // ุ
     '\u0E39', // ู
-    'เ',
-    'แ',
-    'โ',
-    'ใ',
-    'ไ',
+    '\u0E47', // ็
   ];
 
   /// タイ語の単語を分析して声調情報を返す
@@ -240,12 +320,16 @@ class ThaiToneAnalyzer {
 
     final c = _parseSyllable(thaiWord);
 
-    final resultingTone = _determineTone(
-      c.consonantClass,
-      c.toneMark,
-      c.syllableType,
-      c.hasShortVowel,
-    );
+    // 語彙固有の例外を優先
+    final exceptionTone = _toneExceptions[thaiWord];
+
+    final resultingTone = exceptionTone ??
+        _determineTone(
+          c.consonantClass,
+          c.toneMark,
+          c.syllableType,
+          c.hasShortVowel,
+        );
 
     final explanation = _generateExplanation(
       thaiWord,

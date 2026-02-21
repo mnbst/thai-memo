@@ -6,6 +6,32 @@ import 'core/config/app_config.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/screens/home_screen.dart';
 
+TextTheme _scaleTextTheme(TextTheme base, double delta) {
+  TextStyle scale(TextStyle? style) {
+    if (style == null) return const TextStyle();
+    final size = style.fontSize ?? 14.0;
+    return style.copyWith(fontSize: size + delta);
+  }
+
+  return TextTheme(
+    displayLarge: scale(base.displayLarge),
+    displayMedium: scale(base.displayMedium),
+    displaySmall: scale(base.displaySmall),
+    headlineLarge: scale(base.headlineLarge),
+    headlineMedium: scale(base.headlineMedium),
+    headlineSmall: scale(base.headlineSmall),
+    titleLarge: scale(base.titleLarge),
+    titleMedium: scale(base.titleMedium),
+    titleSmall: scale(base.titleSmall),
+    bodyLarge: scale(base.bodyLarge),
+    bodyMedium: scale(base.bodyMedium),
+    bodySmall: scale(base.bodySmall),
+    labelLarge: scale(base.labelLarge),
+    labelMedium: scale(base.labelMedium),
+    labelSmall: scale(base.labelSmall),
+  );
+}
+
 /// Main application widget
 class ThaiMemoApp extends ConsumerWidget {
   const ThaiMemoApp({super.key});
@@ -34,8 +60,9 @@ class ThaiMemoApp extends ConsumerWidget {
         seedColor: const Color(0xFF6366F1), // Indigo
         brightness: Brightness.light,
       ),
-      textTheme: GoogleFonts.notoSansThaiTextTheme(
-        ThemeData.light().textTheme,
+      textTheme: _scaleTextTheme(
+        GoogleFonts.notoSansThaiTextTheme(ThemeData.light().textTheme),
+        1.5,
       ),
       cardTheme: CardThemeData(
         elevation: 2,
@@ -80,8 +107,9 @@ class ThaiMemoApp extends ConsumerWidget {
         seedColor: const Color(0xFF6366F1), // Indigo
         brightness: Brightness.dark,
       ),
-      textTheme: GoogleFonts.notoSansThaiTextTheme(
-        ThemeData.dark().textTheme,
+      textTheme: _scaleTextTheme(
+        GoogleFonts.notoSansThaiTextTheme(ThemeData.dark().textTheme),
+        1.5,
       ),
       cardTheme: CardThemeData(
         elevation: 2,

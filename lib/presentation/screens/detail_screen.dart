@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/thai_sentence.dart';
 import '../providers/sentence_provider.dart';
+import '../providers/tts_provider.dart';
 import '../tone_explanation_dialog.dart';
 
 /// Detail screen for displaying full sentence information
@@ -75,6 +76,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w500,
                 height: 1.5,
+                fontSize: 32,
               ),
             ),
             const SizedBox(height: 12),

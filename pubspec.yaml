@@ -63,6 +63,9 @@ dependencies:
   intl: ^0.18.1
   google_fonts: ^6.0.0
 
+  # Text-to-Speech
+  flutter_tts: ^4.2.0
+
   # Utilities
   shared_preferences: ^2.1.1
   uuid: ^3.0.7

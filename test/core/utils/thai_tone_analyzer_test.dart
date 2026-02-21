@@ -196,4 +196,95 @@ void main() {
       expect(analysis.resultingTone, equals(ThaiTone.high));
     });
   });
+
+  group('ThaiToneAnalyzer - ณ ล ฬ as Live End Consonants (/n/ sound)', () {
+    test('คุณ: low class + short vowel + ณ(live) → mid tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('คุณ');
+      expect(analysis.syllableType, equals(SyllableType.live),
+          reason: 'ณ は末子音として /n/ の音 → 生音節');
+      expect(analysis.resultingTone, equals(ThaiTone.mid));
+    });
+
+    test('ศาล: high class + long vowel + ล(live) → rising tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ศาล');
+      expect(analysis.syllableType, equals(SyllableType.live),
+          reason: 'ล は末子音として /n/ の音 → 生音節');
+      expect(analysis.resultingTone, equals(ThaiTone.rising));
+    });
+  });
+
+  group('ThaiToneAnalyzer - ว as Compound Vowel อัว', () {
+    test('ควร: low class + live (ว=อัว, ร=final) → mid tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ควร');
+      expect(analysis.syllableType, equals(SyllableType.live),
+          reason: 'ร は生音節末子音');
+      expect(analysis.hasShortVowel, isFalse,
+          reason: 'อัว は長複合母音');
+      expect(analysis.resultingTone, equals(ThaiTone.mid));
+    });
+
+    test('ควบ: low class + dead (ว=อัว long) → falling tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ควบ');
+      expect(analysis.syllableType, equals(SyllableType.dead));
+      expect(analysis.hasShortVowel, isFalse,
+          reason: 'อัว は長複合母音のため下降声');
+      expect(analysis.resultingTone, equals(ThaiTone.falling));
+    });
+
+    test('กวน: middle class + live (ว=อัว) → mid tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('กวน');
+      expect(analysis.syllableType, equals(SyllableType.live));
+      expect(analysis.resultingTone, equals(ThaiTone.mid));
+    });
+  });
+
+  group('ThaiToneAnalyzer - รร as Short Vowel /a/', () {
+    test('กรรม: middle class + live (รร=short /a/, ม=final) → mid tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('กรรม');
+      expect(analysis.syllableType, equals(SyllableType.live));
+      expect(analysis.hasShortVowel, isTrue, reason: 'รร は短母音 /a/');
+      expect(analysis.resultingTone, equals(ThaiTone.mid));
+    });
+
+    test('พรรค: low class + dead (รร=short /a/, ค=final) → high tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('พรรค');
+      expect(analysis.syllableType, equals(SyllableType.dead));
+      expect(analysis.hasShortVowel, isTrue);
+      expect(analysis.resultingTone, equals(ThaiTone.high));
+    });
+
+    test('สรร: high class + live (ร=final) → rising tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('สรร');
+      expect(analysis.syllableType, equals(SyllableType.live),
+          reason: 'ร は生音節末子音（/n/音）');
+      expect(analysis.resultingTone, equals(ThaiTone.rising));
+    });
+  });
+
+  group('ThaiToneAnalyzer - Compound Vowel Constants', () {
+    test('ตัว: explicit ัว = long compound vowel → hasShortVowel=false', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ตัว');
+      expect(analysis.hasShortVowel, isFalse,
+          reason: 'ัว は長複合母音（ั 単独は短母音だが ัว は長い）');
+      expect(analysis.syllableType, equals(SyllableType.live));
+    });
+
+    test('ไป: ไ = /ai/ compound vowel → hasShortVowel=false, mid tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ไป');
+      expect(analysis.hasShortVowel, isFalse);
+      expect(analysis.resultingTone, equals(ThaiTone.mid));
+    });
+
+    test('ใจ: ใ = /ai/ compound vowel → hasShortVowel=false', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('ใจ');
+      expect(analysis.hasShortVowel, isFalse);
+    });
+  });
+
+  group('ThaiToneAnalyzer - Tone Exceptions', () {
+    test('เยอะ: exception → high tone', () {
+      final analysis = ThaiToneAnalyzer.analyzeTone('เยอะ');
+      expect(analysis.resultingTone, equals(ThaiTone.high));
+    });
+  });
 }
