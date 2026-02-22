@@ -240,23 +240,30 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildConsonantClassExpansion(
-              ConsonantClass.high,
-              Colors.red.shade100,
-              ThaiToneAnalyzer.highConsonants,
-            ),
-            const SizedBox(height: 12),
-            _buildConsonantClassExpansion(
-              ConsonantClass.middle,
-              Colors.blue.shade100,
-              ThaiToneAnalyzer.middleConsonants,
-            ),
-            const SizedBox(height: 12),
-            _buildConsonantClassExpansion(
-              ConsonantClass.low,
-              Colors.green.shade100,
-              ThaiToneAnalyzer.lowConsonants,
-            ),
+            Builder(builder: (context) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return Column(
+                children: [
+                  _buildConsonantClassExpansion(
+                    ConsonantClass.high,
+                    isDark ? Colors.red.shade900 : Colors.red.shade100,
+                    ThaiToneAnalyzer.highConsonants,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildConsonantClassExpansion(
+                    ConsonantClass.middle,
+                    isDark ? Colors.blue.shade900 : Colors.blue.shade100,
+                    ThaiToneAnalyzer.middleConsonants,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildConsonantClassExpansion(
+                    ConsonantClass.low,
+                    isDark ? Colors.green.shade900 : Colors.green.shade100,
+                    ThaiToneAnalyzer.lowConsonants,
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ),
@@ -316,7 +323,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                       color: color,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: Colors.grey.shade400,
+                        color: Theme.of(context).dividerColor,
                         width: 1,
                       ),
                     ),
@@ -499,13 +506,13 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
             _buildSyllableTypeCard(
               SyllableType.live,
               Icons.radio_button_checked,
-              Colors.green,
+              Theme.of(context).brightness == Brightness.dark ? Colors.green.shade300 : Colors.green,
             ),
             const SizedBox(height: 12),
             _buildSyllableTypeCard(
               SyllableType.dead,
               Icons.stop_circle,
-              Colors.orange,
+              Theme.of(context).brightness == Brightness.dark ? Colors.orange.shade300 : Colors.orange,
             ),
           ],
         ),

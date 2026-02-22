@@ -103,6 +103,69 @@
   - 無料トライアル提供
 - [ ] プレミアム機能のプレビュー
 
+## 復習通知機能
+
+### 概要
+生成した例文の要約をFirestoreに保存し、バッチ処理でcreated_at（JST）から利用時間帯を推定して復習通知を配信。
+
+### Firestoreデータ設計
+
+```
+users/{uid}/
+  ├── fcm_token: string            // FCMトークン
+  ├── notification_enabled: boolean // 通知ON/OFF
+  ├── updated_at: timestamp
+
+users/{uid}/sentences/{sentenceId}
+  ├── thai_text: string            // タイ語本文
+  ├── pronunciation: string        // 発音
+  ├── japanese_translation: string  // 日本語訳
+  ├── created_at: timestamp        // 生成日時（利用時間帯の推定にも使用）
+```
+
+### バッチ通知ロジック
+1. **深夜バッチ（JST 3:00）**:
+   - notification_queueを全削除（洗い替え）
+   - sentences.created_at（直近7日分）からユーザーごとの利用時間帯を推定→送信時刻を決定
+   - 復習内容は前日生成分の例文のみ対象→notification_queueに新規書き込み
+   - ※sentences自体は削除しない（利用時間帯推定用に7日分保持、7日超過分のみ削除）
+2. **毎時配信（JST 6:00〜18:00、1時間ごと）**: Cloud Runで通知キューから該当時刻分を取得しFCM送信
+
+### Firestoreデータ設計（通知キュー追加）
+
+```
+notification_queue/{docId}
+  ├── uid: string                  // 対象ユーザー
+  ├── scheduled_hour: number       // 送信予定時刻（JST、6-18）
+  ├── scheduled_date: string       // 送信予定日（"2026-02-22"）
+  ├── title: string                // 通知タイトル
+  ├── body: string                 // 通知本文（タイ語+日本語訳）
+  ├── sentence_id: string          // 対象例文ID
+  ├── sent: boolean                // 送信済みフラグ
+  └── created_at: timestamp
+```
+
+### 実装タスク
+
+#### Phase A: Firestore保存（Cloud Functions側）
+- [ ] generateThaiSentence完了時にFirestoreへ要約データを保存
+- [ ] Firestoreセキュリティルール設定
+
+#### Phase B: FCMトークン管理
+- [ ] Flutter側でFCMトークン取得・Firestoreに保存
+
+#### Phase C: 深夜バッチ（Cloud Functions - Scheduled）
+- [ ] sentences.created_atからユーザーごとの利用時間帯を推定
+- [ ] 復習内容を作成し送信時刻を決定→notification_queueに書き込み
+
+#### Phase D: 毎時配信（Cloud Run、JST 6:00〜18:00）
+- [ ] scheduled_date+scheduled_hourが現在時刻に合致するキューを取得
+- [ ] FCM送信→sentフラグ更新
+
+#### Phase E: Flutter側通知受信
+- [ ] 通知タップ時に該当例文の詳細画面を開く
+- [ ] 設定画面に通知ON/OFF追加
+
 ## マイルストーン
 
 - **v1.0** (現在): Freeプランのみ、基本機能

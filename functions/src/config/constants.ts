@@ -92,6 +92,7 @@ interface SentenceGenerationParams {
   emotion: string;
   learningPurpose: string;
   toneDensity: string;
+  customPrompt?: string;
 }
 
 export function getSentenceGenerationPrompt(params: SentenceGenerationParams): string {
@@ -105,7 +106,11 @@ export function getSentenceGenerationPrompt(params: SentenceGenerationParams): s
     emotion,
     learningPurpose,
     toneDensity,
+    customPrompt,
   } = params;
+  const customPromptSection = customPrompt
+    ? `\n13. ユーザーからの追加の指示: ${customPrompt}`
+    : '';
   return `あなたは日本語話者向けに日々の練習文を作るタイ語教師です。
 
 学習に必要な情報を含むタイ語の新しい文を1つ、JSON形式で生成してください。
@@ -122,7 +127,7 @@ export function getSentenceGenerationPrompt(params: SentenceGenerationParams): s
 9. 学習目的: ${learningPurpose}
 10. 声調密度: ${toneDensity}
 11. 単語分解は最大15単語まで
-12. contextの各フィールドは簡潔に（各50文字以内）
+12. contextの各フィールドは簡潔に（各50文字以内）${customPromptSection}
 
 重要：音節分割について
 - 各単語を声調ルールが適用される語のまとまり単位で分割してください

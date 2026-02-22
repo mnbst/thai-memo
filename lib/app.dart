@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/config/app_config.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/screens/home_screen.dart';
+import 'services/fcm_service.dart';
 
 TextTheme _scaleTextTheme(TextTheme base, double delta) {
   TextStyle scale(TextStyle? style) {
@@ -42,6 +43,7 @@ class ThaiMemoApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
+      navigatorKey: FcmService.navigatorKey,
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,

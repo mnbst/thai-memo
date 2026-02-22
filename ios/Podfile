@@ -39,17 +39,27 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # Remove unsupported '-G' flag from BoringSSL-GRPC source file compiler flags
+    if target.name == 'BoringSSL-GRPC'
+      target.source_build_phase.files.each do |file|
+        if file.settings && file.settings['COMPILER_FLAGS']
+          flags = file.settings['COMPILER_FLAGS'].gsub('-GCC_WARN_INHIBIT_ALL_WARNINGS', '')
+          flags = flags.gsub(/ -G /, ' ').gsub(/^-G /, '').gsub(/ -G$/, '')
+          file.settings['COMPILER_FLAGS'] = flags
+        end
+      end
+    end
+
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      # Ensure SDKROOT is set for all targets including native_assets
       if config.build_settings['SDKROOT'].nil?
         config.build_settings['SDKROOT'] = 'iphoneos'
       end
     end
   end
 
-  # Also apply to project-level build configurations
   installer.pods_project.build_configurations.each do |config|
     config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     if config.build_settings['SDKROOT'].nil?

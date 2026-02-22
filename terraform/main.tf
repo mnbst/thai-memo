@@ -14,6 +14,8 @@ resource "google_project_service" "required_apis" {
     "cloudresourcemanager.googleapis.com",
     "logging.googleapis.com",
     "cloudscheduler.googleapis.com",
+    "firestore.googleapis.com",
+    "fcm.googleapis.com",
   ])
 
   project = var.project_id

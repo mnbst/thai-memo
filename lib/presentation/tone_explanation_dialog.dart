@@ -292,30 +292,33 @@ class ToneExplanationDialog extends StatelessWidget {
         ),
         if (showExceptionalNote) ...[
           const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade100,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.orange.shade300),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.info_outline, size: 14, color: Colors.orange.shade900),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    '例外的な使用（現代では稀）',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.orange.shade900,
-                          fontWeight: FontWeight.w600,
-                        ),
+          Builder(builder: (context) {
+            final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.orange.shade900.withValues(alpha: 0.3) : Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: isDarkMode ? Colors.orange.shade700 : Colors.orange.shade300),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade900),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      '例外的な使用（現代では稀）',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade900,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          }),
         ],
         const SizedBox(height: 8),
         Card(
@@ -353,20 +356,21 @@ class ToneExplanationDialog extends StatelessWidget {
 
   /// 音節チップ
   Widget _buildSyllableChip(BuildContext context, syllable) {
-    // 子音クラスに応じた色
+    // 子音クラスに応じた色（ダークモード対応）
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     Color chipColor;
     switch (syllable.consonantClass.toLowerCase()) {
       case 'high':
-        chipColor = Colors.red.shade100;
+        chipColor = isDark ? Colors.red.shade900 : Colors.red.shade100;
         break;
       case 'middle':
-        chipColor = Colors.blue.shade100;
+        chipColor = isDark ? Colors.blue.shade900 : Colors.blue.shade100;
         break;
       case 'low':
-        chipColor = Colors.green.shade100;
+        chipColor = isDark ? Colors.green.shade900 : Colors.green.shade100;
         break;
       default:
-        chipColor = Colors.grey.shade100;
+        chipColor = isDark ? Colors.grey.shade800 : Colors.grey.shade100;
     }
 
     // 声調記号
@@ -397,7 +401,7 @@ class ToneExplanationDialog extends StatelessWidget {
         color: chipColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.grey.shade400,
+          color: Theme.of(context).dividerColor,
           width: 1,
         ),
       ),

@@ -50,13 +50,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete_all',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_sweep, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('すべて削除', style: TextStyle(color: Colors.red)),
+                    Icon(Icons.delete_sweep, color: Theme.of(context).colorScheme.error),
+                    const SizedBox(width: 8),
+                    Text('すべて削除', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   ],
                 ),
               ),
@@ -294,7 +294,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
       ),
       confirmDismiss: (direction) async {
         final confirmed = await showDialog<bool>(

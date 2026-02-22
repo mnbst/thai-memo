@@ -1,34 +1,12 @@
 import * as functions from 'firebase-functions/v2';
 import { CallableRequest } from 'firebase-functions/v2/https';
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import * as admin from 'firebase-admin';
 import { GeminiService } from './services/geminiService';
+import { getGeminiApiKey } from './services/secretManager';
 import {
   GenerateSentenceRequest,
   GenerateSentenceResponse,
 } from './types/thaiSentence';
-
-const secretClient = new SecretManagerServiceClient();
-
-async function getGeminiApiKey(): Promise<string> {
-  try {
-    const projectId = process.env.GCLOUD_PROJECT;
-    const secretName = `projects/${projectId}/secrets/gemini-api-key/versions/latest`;
-
-    const [version] = await secretClient.accessSecretVersion({
-      name: secretName,
-    });
-
-    const apiKey = version.payload?.data?.toString();
-    if (!apiKey) {
-      throw new Error('API key is empty');
-    }
-
-    return apiKey;
-  } catch (error) {
-    console.error('Failed to retrieve API key from Secret Manager:', error);
-    throw new Error('SECRET_MANAGER_ERROR');
-  }
-}
 
 export const generateThaiSentence = functions.https.onCall(
   { region: 'asia-northeast1' }, // Tokyo region for low latency
@@ -67,6 +45,11 @@ export const generateThaiSentence = functions.https.onCall(
       // Initialize Gemini service
       const geminiService = new GeminiService(apiKey);
 
+      // Truncate customPrompt to 20 characters
+      const customPrompt = request.data.customPrompt
+        ? request.data.customPrompt.substring(0, 20)
+        : undefined;
+
       // Generate sentence
       const sentence = await geminiService.generateSentence({
         topic: request.data.topic,
@@ -78,6 +61,7 @@ export const generateThaiSentence = functions.https.onCall(
         emotion: request.data.emotion,
         learningPurpose: request.data.learningPurpose,
         toneDensity: request.data.toneDensity,
+        customPrompt,
       });
 
       // Calculate processing time
@@ -91,6 +75,24 @@ export const generateThaiSentence = functions.https.onCall(
 
       response.success = true;
       response.data = sentence;
+
+      // Save sentence summary to Firestore for review notifications
+      try {
+        const db = admin.firestore();
+        await db.collection('users').doc(request.auth.uid)
+          .collection('sentences').add({
+            thai_text: sentence.thai_text,
+            pronunciation: sentence.pronunciation,
+            japanese_translation: sentence.japanese_translation,
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+          });
+      } catch (firestoreError) {
+        // Log but don't fail the request
+        console.error('Failed to save sentence to Firestore', {
+          userId: request.auth.uid,
+          error: firestoreError instanceof Error ? firestoreError.message : 'Unknown',
+        });
+      }
 
       console.log('Request completed successfully', logData);
       return response;

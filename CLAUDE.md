@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Thai Memo is a Flutter app for learning Thai language. It generates daily Thai sentences with word-by-word breakdowns, pronunciation, and Japanese translations using Google Gemini AI via Firebase Cloud Functions. UI text and error messages are in Japanese.
+「まいにちタイ語」はタイ語学習Flutterアプリ。Google Gemini AIとFirebase Cloud Functionsで毎日タイ語例文を生成し、単語分解・発音・日本語訳を提供する。UIとエラーメッセージは日本語。
 
 ## Build & Development Commands
 
@@ -71,3 +71,4 @@ SQLite (`thai_memo.db`) with tables: `sentences`, `word_breakdowns`, `generation
 - Cloud Functions in `functions/src/` (TypeScript, Node.js 18)
 - Terraform IaC in `terraform/` for GCP resources
 - Region: asia-northeast1 (Tokyo)
+- **Cloud Functions を修正したら必ず `cd functions && npm run build && npm run deploy` を実行すること**

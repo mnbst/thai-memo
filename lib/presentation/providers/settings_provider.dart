@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
+import '../../services/fcm_service.dart';
 
 // ==================== Settings State ====================
 
@@ -76,6 +77,7 @@ class SettingsController extends StateNotifier<SettingsState> {
     'emotion',
     'learningPurpose',
     'toneDensity',
+    'customPrompt',
   ];
 
   static String _prefKey(String param) => 'pref_$param';
@@ -121,6 +123,13 @@ class SettingsController extends StateNotifier<SettingsState> {
       mode.toString().split('.').last,
     );
     state = state.copyWith(themeMode: mode);
+  }
+
+  /// Set notification enabled/disabled
+  Future<void> setNotificationEnabled(bool enabled) async {
+    await _prefs?.setBool(AppConfig.prefKeyNotificationsEnabled, enabled);
+    await FcmService.instance.setNotificationEnabled(enabled);
+    state = state.copyWith(notificationsEnabled: enabled);
   }
 
   /// Set a generation parameter (null = random)
@@ -181,6 +190,11 @@ final isFirstLaunchProvider = Provider<bool>((ref) {
 /// Provider for theme mode
 final themeModeProvider = Provider<ThemeMode>((ref) {
   return ref.watch(settingsControllerProvider).themeMode;
+});
+
+/// Provider for notifications enabled
+final notificationsEnabledProvider = Provider<bool>((ref) {
+  return ref.watch(settingsControllerProvider).notificationsEnabled;
 });
 
 /// Provider for generation params

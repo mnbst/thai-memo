@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "thai-memo-67139"
+    "default": "thai-memo-67139",
+    "tester": "thai-memo-67139",
+    "prod": "thai-memo-prod",
+    "dev": "thai-memo-dev"
   }
 }

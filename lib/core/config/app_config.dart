@@ -2,8 +2,13 @@
 class AppConfig {
   AppConfig._();
 
+  /// 環境判定（--dart-define=ENV=prod で本番）
+  static const String env = String.fromEnvironment('ENV', defaultValue: 'dev');
+  static bool get isProd => env == 'prod';
+  static bool get isDev => env == 'dev';
+
   /// App name
-  static const String appName = 'Thai Memo';
+  static const String appName = 'まいにちタイ語';
 
   /// App version
   static const String appVersion = '1.0.0';

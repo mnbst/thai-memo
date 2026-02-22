@@ -33,6 +33,7 @@ export class GeminiService {
     emotion?: string;
     learningPurpose?: string;
     toneDensity?: string;
+    customPrompt?: string;
   } = {}): Promise<ThaiSentence> {
     const apiStartTime = Date.now();
 
@@ -177,6 +178,7 @@ export class GeminiService {
         emotion,
         learningPurpose,
         toneDensity,
+        customPrompt: params.customPrompt,
       });
       const result = await model.generateContent(prompt);
       const response = result.response;
@@ -221,6 +223,56 @@ export class GeminiService {
         throw new Error(`GEMINI_API_ERROR: ${error.message}`);
       }
       throw new Error('GEMINI_API_ERROR: Unknown error');
+    }
+  }
+
+  async generateReviewNotes(sentence: {
+    thai_text: string;
+    pronunciation: string;
+    japanese_translation: string;
+  }): Promise<string> {
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: GEMINI_MODEL,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1024,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: SchemaType.OBJECT,
+            properties: {
+              review_notes: {
+                type: SchemaType.STRING,
+                description: 'Review notes in Japanese',
+                nullable: false,
+              },
+            },
+            required: ['review_notes'],
+          },
+        },
+      });
+
+      const prompt = `以下のタイ語例文について、学習者向けの復習用補足解説を日本語で作成してください。
+
+例文: ${sentence.thai_text}
+発音: ${sentence.pronunciation}
+日本語訳: ${sentence.japanese_translation}
+
+以下の観点から200文字程度で簡潔にまとめてください:
+- この表現に含まれる慣用句やイディオムがあれば解説
+- 発音や声調の注意点・例外規則
+- 類似表現や言い換え
+- タイ語特有の文法ポイント`;
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const parsed = JSON.parse(text);
+      return parsed.review_notes;
+    } catch (error) {
+      console.error('Failed to generate review notes', {
+        error: error instanceof Error ? error.message : 'Unknown',
+      });
+      return '';
     }
   }
 }

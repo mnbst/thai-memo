@@ -22,6 +22,13 @@ export interface ThaiSentence {
   context?: SentenceContext;
 }
 
+export interface ReviewContent {
+  thai_text: string;
+  pronunciation: string;
+  japanese_translation: string;
+  review_notes: string;
+}
+
 export interface GenerateSentenceRequest {
   topic?: string;
   style?: string;
@@ -32,6 +39,7 @@ export interface GenerateSentenceRequest {
   emotion?: string;
   learningPurpose?: string;
   toneDensity?: string;
+  customPrompt?: string;
 }
 
 export interface GenerateSentenceResponse {

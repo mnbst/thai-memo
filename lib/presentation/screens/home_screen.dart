@@ -5,11 +5,13 @@ import '../../core/config/app_config.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
+import '../../services/fcm_service.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
+import 'review_screen.dart';
 import 'settings_screen.dart';
 
 /// Home screen with bottom navigation
@@ -26,10 +28,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Load the most recent sentence on startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkFirstLaunchAndLoadSentence();
     });
+    // 通知タップ時に復習タブへ切り替え
+    FcmService.instance.onReviewDataReceived = () {
+      if (mounted) {
+        setState(() {
+          _currentIndex = 1; // 復習タブ
+        });
+      }
+    };
   }
 
   /// Check if first launch and load sentence
@@ -39,13 +48,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (isFirstLaunch) {
       // Navigate to settings on first launch
       setState(() {
-        _currentIndex = 2; // Settings tab
+        _currentIndex = 3; // Settings tab
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Thai Memoへようこそ！'),
+            content: Text('まいにちタイ語へようこそ！'),
             duration: Duration(seconds: 3),
           ),
         );
@@ -60,6 +69,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final screens = [
       const TodayScreen(),
+      const ReviewScreen(),
       const HistoryScreen(),
       const SettingsScreen(),
     ];
@@ -78,6 +88,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icon(Icons.today_outlined),
             selectedIcon: Icon(Icons.today),
             label: '例文生成',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.lightbulb_outline),
+            selectedIcon: Icon(Icons.lightbulb),
+            label: '復習',
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined),
@@ -565,14 +580,14 @@ class TodayScreen extends ConsumerWidget {
         ref.invalidate(favoriteSentencesProvider);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('新しい例文を生成しました！'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('新しい例文を生成しました！'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
       } else if (state is SentenceStateError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+          SnackBar(content: Text(state.message), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     }

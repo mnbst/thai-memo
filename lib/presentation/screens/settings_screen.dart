@@ -26,6 +26,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           _buildThemeSection(),
           const SizedBox(height: 24),
+          _buildNotificationSection(),
+          const SizedBox(height: 24),
           _buildLearningSection(),
           const SizedBox(height: 24),
           _buildGenerationSettingsSection(),
@@ -87,6 +89,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ref
                     .read(settingsControllerProvider.notifier)
                     .setThemeMode(newSelection.first);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build notification section
+  Widget _buildNotificationSection() {
+    final notificationsEnabled = ref.watch(notificationsEnabledProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.notifications,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '通知',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('復習通知'),
+              subtitle: const Text('生成した例文の復習リマインダーを受け取る'),
+              value: notificationsEnabled,
+              onChanged: (value) {
+                ref
+                    .read(settingsControllerProvider.notifier)
+                    .setNotificationEnabled(value);
               },
             ),
           ],
@@ -180,6 +224,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: _buildParamDropdown(key, label, options, currentValue),
               );
             }),
+            const SizedBox(height: 8),
+            _buildCustomPromptField(params[GenerationConstants.customPromptKey]),
           ],
         ),
       ),
@@ -218,6 +264,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ref
             .read(settingsControllerProvider.notifier)
             .setGenerationParam(key, value);
+      },
+    );
+  }
+
+  Widget _buildCustomPromptField(String? currentValue) {
+    return TextFormField(
+      initialValue: currentValue,
+      maxLength: GenerationConstants.customPromptMaxLength,
+      decoration: const InputDecoration(
+        labelText: '自由メモ（例文に反映されます）',
+        hintText: '例: レストランでの会話',
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        border: OutlineInputBorder(),
+      ),
+      onChanged: (value) {
+        ref
+            .read(settingsControllerProvider.notifier)
+            .setGenerationParam(
+              GenerationConstants.customPromptKey,
+              value.isEmpty ? null : value,
+            );
       },
     );
   }

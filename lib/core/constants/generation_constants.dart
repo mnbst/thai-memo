@@ -81,6 +81,12 @@ class GenerationConstants {
     '高（5種類の声調をまんべんなく含む・声調練習向け）',
   ];
 
+  /// 自由入力パラメータのキー
+  static const customPromptKey = 'customPrompt';
+
+  /// 自由入力の最大文字数
+  static const customPromptMaxLength = 20;
+
   /// パラメータ名とラベルの定義
   static const parameterLabels = {
     'style': 'スタイル',
