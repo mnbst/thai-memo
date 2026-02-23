@@ -46,10 +46,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
 
     if (isFirstLaunch) {
-      // Navigate to settings on first launch
-      setState(() {
-        _currentIndex = 3; // Settings tab
-      });
+      // 初回起動完了を記録
+      ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -59,10 +57,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         );
       }
-    } else {
-      // Load most recent sentence
-      ref.read(sentenceControllerProvider.notifier).loadMostRecent();
     }
+
+    // 今日未生成なら自動生成、済みなら最新を表示
+    final generationParams = ref.read(generationParamsProvider);
+    await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
+          generationParams: generationParams,
+        );
+
+    // 履歴を更新
+    ref.invalidate(allSentencesProvider);
+    ref.invalidate(favoriteSentencesProvider);
   }
 
   @override

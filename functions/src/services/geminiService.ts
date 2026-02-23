@@ -16,6 +16,12 @@ import {
   getSentenceGenerationPrompt,
 } from '../config/constants';
 
+export interface ReviewNotes {
+  grammar_points: { label: string; detail: string }[];
+  pronunciation_tips: { thai: string; roman: string; tip: string }[];
+  related_expressions: { thai: string; roman: string; meaning: string }[];
+}
+
 export class GeminiService {
   private genAI: GoogleGenerativeAI;
 
@@ -230,49 +236,81 @@ export class GeminiService {
     thai_text: string;
     pronunciation: string;
     japanese_translation: string;
-  }): Promise<string> {
+  }): Promise<ReviewNotes> {
     try {
       const model = this.genAI.getGenerativeModel({
         model: GEMINI_MODEL,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 4096,
           responseMimeType: 'application/json',
           responseSchema: {
             type: SchemaType.OBJECT,
             properties: {
-              review_notes: {
-                type: SchemaType.STRING,
-                description: 'Review notes in Japanese',
-                nullable: false,
+              grammar_points: {
+                type: SchemaType.ARRAY,
+                description: 'Key grammar points (1-2 items)',
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    label: { type: SchemaType.STRING, description: 'Short label e.g. 語順, 助詞' },
+                    detail: { type: SchemaType.STRING, description: 'Explanation in Japanese, Thai words with romanization in parentheses e.g. ไม่(mâi)' },
+                  },
+                  required: ['label', 'detail'],
+                },
+              },
+              pronunciation_tips: {
+                type: SchemaType.ARRAY,
+                description: 'Pronunciation/tone tips (1-2 items)',
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    thai: { type: SchemaType.STRING, description: 'Thai word/phrase being discussed' },
+                    roman: { type: SchemaType.STRING, description: 'Romanized pronunciation' },
+                    tip: { type: SchemaType.STRING, description: 'Pronunciation tip in Japanese' },
+                  },
+                  required: ['thai', 'roman', 'tip'],
+                },
+              },
+              related_expressions: {
+                type: SchemaType.ARRAY,
+                description: 'Related/alternative expressions (1-2 items)',
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    thai: { type: SchemaType.STRING, description: 'Thai expression' },
+                    roman: { type: SchemaType.STRING, description: 'Romanized pronunciation' },
+                    meaning: { type: SchemaType.STRING, description: 'Japanese meaning' },
+                  },
+                  required: ['thai', 'roman', 'meaning'],
+                },
               },
             },
-            required: ['review_notes'],
+            required: ['grammar_points', 'pronunciation_tips', 'related_expressions'],
           },
         },
       });
 
-      const prompt = `以下のタイ語例文について、学習者向けの復習用補足解説を日本語で作成してください。
+      const prompt = `以下のタイ語例文について、学習者向けの復習ポイントを作成してください。
 
 例文: ${sentence.thai_text}
 発音: ${sentence.pronunciation}
 日本語訳: ${sentence.japanese_translation}
 
-以下の観点から200文字程度で簡潔にまとめてください:
-- この表現に含まれる慣用句やイディオムがあれば解説
-- 発音や声調の注意点・例外規則
-- 類似表現や言い換え
-- タイ語特有の文法ポイント`;
+【重要なルール】
+- 例文そのものは再掲しない。ポイントだけに絞る
+- タイ語を出す場合は必ずローマ字読みを添える（例: ไม่(mâi)）
+- 各カテゴリ1〜2項目、簡潔に`;
 
       const result = await model.generateContent(prompt);
       const text = result.response.text();
       const parsed = JSON.parse(text);
-      return parsed.review_notes;
+      return parsed as ReviewNotes;
     } catch (error) {
       console.error('Failed to generate review notes', {
         error: error instanceof Error ? error.message : 'Unknown',
       });
-      return '';
+      return { grammar_points: [], pronunciation_tips: [], related_expressions: [] };
     }
   }
 }

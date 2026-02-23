@@ -28,9 +28,7 @@ void main() async {
     await FirebaseAuthService.instance.ensureAuthenticated();
     // Initialize FCM after authentication
     await FcmService.instance.initialize();
-  } catch (e) {
-    // Continue anyway - will retry on first generation attempt
-  }
+  } catch (_) {}
 
   // ProviderContainerを共有してFCMハンドラからもproviderにアクセス可能にする
   final container = ProviderContainer();

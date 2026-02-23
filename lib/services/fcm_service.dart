@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../presentation/providers/review_provider.dart';
 
@@ -17,11 +18,13 @@ class FcmService {
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   /// 通知タップ時に復習タブへ切り替えるコールバック
   VoidCallback? onReviewDataReceived;
 
-  /// FCM初期化: 権限リクエスト + トークン保存
+  /// FCM初期化: 権限リクエスト + トークン保存 + ローカル通知セットアップ
   Future<void> initialize() async {
     // 通知権限をリクエスト
     await _messaging.requestPermission(
@@ -30,14 +33,51 @@ class FcmService {
       sound: true,
     );
 
-    // トークン取得・保存
-    final token = await _messaging.getToken();
-    if (token != null) {
-      await _saveToken(token);
-    }
+    // iOSフォアグラウンド通知表示設定
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
-    // トークンリフレッシュ時の自動更新
-    _messaging.onTokenRefresh.listen(_saveToken);
+    // ローカル通知の初期化（フォアグラウンド表示用）
+    await _initLocalNotifications();
+
+    // トークンリフレッシュ時の自動更新（APNSが後から準備できた場合もここで保存される）
+    _messaging.onTokenRefresh.listen((token) {
+      _saveToken(token);
+    });
+
+    // トークン取得・保存（iOS: APNSが未準備なら例外になるのでcatchして待つ）
+    try {
+      final token = await _messaging.getToken();
+      if (token != null) {
+        await _saveToken(token);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _initLocalNotifications() async {
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings();
+    const settings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+    await _localNotifications.initialize(settings);
+
+    // Android通知チャンネル作成
+    const channel = AndroidNotificationChannel(
+      'review_notifications',
+      '復習通知',
+      description: 'タイ語復習のリマインダー通知',
+      importance: Importance.high,
+    );
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
   }
 
   /// 通知タップハンドラのセットアップ
@@ -54,10 +94,36 @@ class FcmService {
       }
     });
 
-    // フォアグラウンドでデータ受信時も保存
+    // フォアグラウンドでメッセージ受信時: バナー表示 + データ保存
     FirebaseMessaging.onMessage.listen((message) {
+      _showForegroundNotification(message);
       _saveReviewData(message, reviewNotifier);
     });
+  }
+
+  /// フォアグラウンド時にローカル通知でバナー表示
+  Future<void> _showForegroundNotification(RemoteMessage message) async {
+    final notification = message.notification;
+    if (notification == null) return;
+
+    const androidDetails = AndroidNotificationDetails(
+      'review_notifications',
+      '復習通知',
+      channelDescription: 'タイ語復習のリマインダー通知',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: DarwinNotificationDetails(),
+    );
+
+    await _localNotifications.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
+      details,
+    );
   }
 
   void _handleNotificationTap(
@@ -74,11 +140,11 @@ class FcmService {
     final thaiText = data['thai_text'] ?? '';
     if (thaiText.isEmpty) return;
 
-    reviewNotifier.save(ReviewData(
+    reviewNotifier.addItem(ReviewData(
       thaiText: thaiText,
       pronunciation: data['pronunciation'] ?? '',
       japaneseTranslation: data['japanese_translation'] ?? '',
-      reviewNotes: data['review_notes'] ?? '',
+      reviewNotesRaw: data['review_notes'] ?? '',
     ));
   }
 

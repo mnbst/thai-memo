@@ -6,8 +6,6 @@ class DatabaseConstants {
   static const String tableSentences = 'sentences';
   static const String tableWordBreakdowns = 'word_breakdowns';
   static const String tableGenerationLogs = 'generation_logs';
-  static const String tableAppSettings = 'app_settings';
-
   // ==================== Sentences Table ====================
   static const String columnSentenceId = 'id';
   static const String columnThaiText = 'thai_text';
@@ -37,11 +35,6 @@ class DatabaseConstants {
   static const String columnSuccess = 'success';
   static const String columnErrorMessage = 'error_message';
   static const String columnApiTokensUsed = 'api_tokens_used';
-
-  // ==================== App Settings Table ====================
-  static const String columnSettingKey = 'key';
-  static const String columnSettingValue = 'value';
-  static const String columnUpdatedAt = 'updated_at';
 
   // ==================== SQL Statements ====================
 
@@ -90,15 +83,6 @@ class DatabaseConstants {
     )
   ''';
 
-  /// Create app_settings table
-  static const String createAppSettingsTable = '''
-    CREATE TABLE $tableAppSettings (
-      $columnSettingKey TEXT PRIMARY KEY,
-      $columnSettingValue TEXT NOT NULL,
-      $columnUpdatedAt INTEGER NOT NULL
-    )
-  ''';
-
   /// Create index for sentences by created_at
   static const String createIndexSentencesCreatedAt = '''
     CREATE INDEX idx_sentences_created_at
@@ -122,7 +106,6 @@ class DatabaseConstants {
     createSentencesTable,
     createWordBreakdownsTable,
     createGenerationLogsTable,
-    createAppSettingsTable,
   ];
 
   /// List of all create index statements

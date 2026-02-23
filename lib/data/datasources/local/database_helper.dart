@@ -64,7 +64,7 @@ class DatabaseHelper {
       await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableWordBreakdowns}');
       await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableSentences}');
       await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableGenerationLogs}');
-      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableAppSettings}');
+      await db.execute('DROP TABLE IF EXISTS app_settings');
 
       // Recreate all tables
       for (String statement in DatabaseConstants.createTableStatements) {
@@ -304,47 +304,6 @@ class DatabaseHelper {
       'FROM ${DatabaseConstants.tableGenerationLogs}',
     );
     return Sqflite.firstIntValue(result) ?? 0;
-  }
-
-  // ==================== App Settings CRUD Operations ====================
-
-  /// Set an app setting
-  Future<int> setSetting(String key, String value) async {
-    final db = await database;
-    return await db.insert(
-      DatabaseConstants.tableAppSettings,
-      {
-        DatabaseConstants.columnSettingKey: key,
-        DatabaseConstants.columnSettingValue: value,
-        DatabaseConstants.columnUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-  /// Get an app setting
-  Future<String?> getSetting(String key) async {
-    final db = await database;
-    final results = await db.query(
-      DatabaseConstants.tableAppSettings,
-      where: '${DatabaseConstants.columnSettingKey} = ?',
-      whereArgs: [key],
-      limit: 1,
-    );
-    if (results.isNotEmpty) {
-      return results.first[DatabaseConstants.columnSettingValue] as String?;
-    }
-    return null;
-  }
-
-  /// Delete a setting
-  Future<int> deleteSetting(String key) async {
-    final db = await database;
-    return await db.delete(
-      DatabaseConstants.tableAppSettings,
-      where: '${DatabaseConstants.columnSettingKey} = ?',
-      whereArgs: [key],
-    );
   }
 
   // ==================== Transaction Support ====================

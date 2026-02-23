@@ -16,6 +16,7 @@ resource "google_project_service" "required_apis" {
     "cloudscheduler.googleapis.com",
     "firestore.googleapis.com",
     "fcm.googleapis.com",
+    "artifactregistry.googleapis.com",
   ])
 
   project = var.project_id
@@ -51,6 +52,32 @@ module "logging" {
 
   project_id = var.project_id
   region     = var.region
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Artifact Registry cleanup policy for Cloud Functions container images
+resource "google_artifact_registry_repository" "gcf_artifacts" {
+  project       = var.project_id
+  location      = var.region
+  repository_id = "gcf-artifacts"
+  format        = "DOCKER"
+
+  cleanup_policies {
+    id     = "keep-latest"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 1
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-old"
+    action = "DELETE"
+    condition {
+      older_than = "86400s"
+    }
+  }
 
   depends_on = [google_project_service.required_apis]
 }

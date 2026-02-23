@@ -57,6 +57,9 @@ dependencies:
   # Text-to-Speech
   flutter_tts: ^4.2.0
 
+  # Local Notifications
+  flutter_local_notifications: ^18.0.1
+
   # Utilities
   shared_preferences: ^2.1.1
   uuid: ^3.0.7

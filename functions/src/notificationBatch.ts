@@ -63,7 +63,7 @@ async function notificationBatchHandler() {
         if (sentencesSnapshot.empty) continue;
 
         // 利用時間帯を推定
-        const scheduledHour = estimateActiveHour(sentencesSnapshot.docs);
+        const { hour: scheduledHour, minute: scheduledMinute } = estimateActiveTime(sentencesSnapshot.docs);
 
         // 前日生成分の例文をフィルタ
         const yesterdaySentences = sentencesSnapshot.docs.filter(doc => {
@@ -76,32 +76,38 @@ async function notificationBatchHandler() {
         // 前日の例文がなければスキップ
         if (yesterdaySentences.length === 0) continue;
 
-        // 通知キューに書き込み（最大3件）
-        const targets = yesterdaySentences.slice(0, 3);
+        // 前日分からランダムに最大3件を選択
+        const shuffled = yesterdaySentences.sort(() => Math.random() - 0.5);
+        const targets = shuffled.slice(0, 3);
         const batch = db.batch();
 
-        for (const sentenceDoc of targets) {
-          const data = sentenceDoc.data();
+        // LLMで補足解説を並列生成
+        const reviewNotesResults = await Promise.all(
+          targets.map(doc => {
+            const d = doc.data();
+            return geminiService.generateReviewNotes({
+              thai_text: d.thai_text,
+              pronunciation: d.pronunciation,
+              japanese_translation: d.japanese_translation,
+            });
+          })
+        );
 
-          // LLMで補足解説を生成
-          const reviewNotes = await geminiService.generateReviewNotes({
-            thai_text: data.thai_text,
-            pronunciation: data.pronunciation,
-            japanese_translation: data.japanese_translation,
-          });
-
+        for (let i = 0; i < targets.length; i++) {
+          const data = targets[i].data();
           const queueRef = db.collection('notification_queue').doc();
           batch.set(queueRef, {
             uid,
             scheduled_hour: scheduledHour,
+            scheduled_minute: scheduledMinute,
             scheduled_date: today,
-            title: '復習タイム',
+            title: '昨日の復習',
             body: `${data.thai_text}\n${data.japanese_translation}`,
             thai_text: data.thai_text,
             pronunciation: data.pronunciation,
             japanese_translation: data.japanese_translation,
-            review_notes: reviewNotes,
-            sentence_id: sentenceDoc.id,
+            review_notes: JSON.stringify(reviewNotesResults[i]),
+            sentence_id: targets[i].id,
             sent: false,
             created_at: admin.firestore.FieldValue.serverTimestamp(),
           });
@@ -136,36 +142,45 @@ async function notificationBatchHandler() {
 }
 
 /**
- * created_at の JST 時刻を集計し、最頻時間帯の2時間後を送信時刻として返す
- * 6-18の範囲に丸め、データ不足時はデフォルト12:00
+ * created_at の JST 時刻を集計し、最頻時間帯を30分単位に丸めて返す
+ * 例: 17:40 → { hour: 17, minute: 30 }
+ * 6:00-22:00の範囲に丸め、データ不足時はデフォルト12:00
  */
-function estimateActiveHour(
+function estimateActiveTime(
   docs: FirebaseFirestore.QueryDocumentSnapshot[]
-): number {
-  const hourCounts = new Map<number, number>();
+): { hour: number; minute: number } {
+  // 30分スロット（0=0:00, 1=0:30, 2=1:00, ...）ごとにカウント
+  const slotCounts = new Map<number, number>();
 
   for (const doc of docs) {
     const createdAt = doc.data().created_at?.toDate();
     if (!createdAt) continue;
     const jstHour = (createdAt.getUTCHours() + 9) % 24;
-    hourCounts.set(jstHour, (hourCounts.get(jstHour) || 0) + 1);
+    const jstMinute = createdAt.getUTCMinutes();
+    const slot = jstHour * 2 + (jstMinute >= 30 ? 1 : 0);
+    slotCounts.set(slot, (slotCounts.get(slot) || 0) + 1);
   }
 
-  if (hourCounts.size === 0) return 12;
+  if (slotCounts.size === 0) return { hour: 12, minute: 0 };
 
-  // 最頻時間帯を取得
-  let maxHour = 12;
+  // 最頻スロットを取得
+  let maxSlot = 24; // 12:00
   let maxCount = 0;
-  for (const [hour, count] of hourCounts) {
+  for (const [slot, count] of slotCounts) {
     if (count > maxCount) {
       maxCount = count;
-      maxHour = hour;
+      maxSlot = slot;
     }
   }
 
-  // 2時間後を送信時刻に（6-18の範囲に丸め）
-  const sendHour = maxHour + 2;
-  return Math.max(6, Math.min(18, sendHour));
+  let hour = Math.floor(maxSlot / 2);
+  const minute = (maxSlot % 2) * 30;
+
+  // 6:00-20:00の範囲に丸め
+  if (hour < 6) { hour = 6; return { hour, minute: 0 }; }
+  if (hour >= 20) { hour = 20; return { hour, minute: 0 }; }
+
+  return { hour, minute };
 }
 
 function formatDate(date: Date): string {

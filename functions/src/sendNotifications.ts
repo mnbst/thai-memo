@@ -12,10 +12,12 @@ const db = admin.firestore();
 async function sendNotificationsHandler() {
     const now = new Date();
     const jstHour = (now.getUTCHours() + 9) % 24;
+    const jstMinute = now.getUTCMinutes();
+    const scheduledMinute = jstMinute >= 30 ? 30 : 0;
     const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const today = formatDate(jstNow);
 
-    console.log(`sendNotifications started: date=${today}, hour=${jstHour}`);
+    console.log(`sendNotifications started: date=${today}, hour=${jstHour}, minute=${scheduledMinute}`);
 
     // dev: 未送信キューをすべて取得（即時送信）/ 他環境: 該当時刻分のみ
     let query = db.collection('notification_queue')
@@ -23,7 +25,8 @@ async function sendNotificationsHandler() {
     if (!isDev()) {
       query = query
         .where('scheduled_date', '==', today)
-        .where('scheduled_hour', '==', jstHour);
+        .where('scheduled_hour', '==', jstHour)
+        .where('scheduled_minute', '==', scheduledMinute);
     }
     const queueSnapshot = await query.get();
 
@@ -43,41 +46,53 @@ async function sendNotificationsHandler() {
         const userDoc = await db.collection('users').doc(data.uid).get();
         const userData = userDoc.data();
 
-        if (!userData?.fcm_token || !userData?.notification_enabled) {
-          await queueDoc.ref.update({ sent: true });
+        if (!userData?.fcm_token) {
+          console.log(`Skipped: uid=${data.uid} has no fcm_token`);
+          await queueDoc.ref.update({ sent: true, skipped: true });
           continue;
         }
 
-        // dev環境ではFCM実送信をスキップ
-        if (isDev()) {
-          console.log(`[DEV] Skipping FCM send to ${data.uid}: ${data.title} - ${data.body}`);
-        } else {
-          await admin.messaging().send({
-            token: userData.fcm_token,
+        const messageData: admin.messaging.Message = {
+          token: userData.fcm_token,
+          data: {
+            type: 'review',
+            thai_text: data.thai_text || '',
+            pronunciation: data.pronunciation || '',
+            japanese_translation: data.japanese_translation || '',
+            review_notes: data.review_notes || '',
+          },
+        };
+
+        // 通知ONの場合のみ表示通知を付与
+        if (userData.notification_enabled) {
+          messageData.notification = {
+            title: data.title,
+            body: data.body,
+          };
+          messageData.apns = {
+            payload: {
+              aps: { sound: 'default' },
+            },
+          };
+          messageData.android = {
             notification: {
-              title: data.title,
-              body: data.body,
+              sound: 'default',
+              channelId: 'review_notifications',
             },
-            data: {
-              type: 'review',
-              thai_text: data.thai_text || '',
-              pronunciation: data.pronunciation || '',
-              japanese_translation: data.japanese_translation || '',
-              review_notes: data.review_notes || '',
+          };
+        } else {
+          // 通知OFF: サイレントでデータのみ配信
+          messageData.apns = {
+            payload: {
+              aps: { 'content-available': 1 },
             },
-            apns: {
-              payload: {
-                aps: { sound: 'default' },
-              },
-            },
-            android: {
-              notification: {
-                sound: 'default',
-                channelId: 'review_notifications',
-              },
-            },
-          });
+          };
+          messageData.android = {
+            priority: 'high' as any,
+          };
         }
+
+        await admin.messaging().send(messageData);
 
         await queueDoc.ref.update({ sent: true });
         sentCount++;
@@ -109,7 +124,7 @@ export const sendNotifications = isDevOnly()
     })
   : functions.scheduler.onSchedule(
       {
-        schedule: '0 8-18 * * *', // JST 8:00-18:00（毎時）
+        schedule: '0,30 6-20 * * *', // JST 6:00-20:00（30分ごと）
         region: 'asia-northeast1',
         timeZone: 'Asia/Tokyo',
       },
