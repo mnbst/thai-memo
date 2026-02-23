@@ -2,25 +2,17 @@ import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { GeminiService } from './services/geminiService';
 import { getGeminiApiKey } from './services/secretManager';
+import { isDevOnly } from './config/environment';
 
 const db = admin.firestore();
 
 /**
- * 深夜バッチ（JST 3:00）: 復習通知キューを生成
- * 1. notification_queue を全削除（洗い替え）
- * 2. 各ユーザーの直近7日分の sentences.created_at から利用時間帯を推定
- * 3. 前日生成分の例文を対象に通知内容を作成
- * 4. notification_queue に書き込み
- * 5. 7日超過の sentences ドキュメントを削除
+ * 深夜バッチ: 復習通知キューを生成
+ * dev環境: onRequest（HTTP）で手動実行
+ * tester/prod環境: onSchedule（Cloud Scheduler）で定期実行（JST 0:00）
  */
-export const notificationBatch = functions.scheduler.onSchedule(
-  {
-    schedule: '0 15 * * *', // UTC 15:00 = JST 0:00
-    region: 'asia-northeast1',
-    timeZone: 'Asia/Tokyo',
-  },
-  async () => {
-    console.log('notificationBatch started');
+async function notificationBatchHandler() {
+  console.log('notificationBatch started');
 
     // 1. notification_queue を全削除
     await deleteCollection('notification_queue');
@@ -141,8 +133,7 @@ export const notificationBatch = functions.scheduler.onSchedule(
     }
 
     console.log(`notificationBatch completed: queued=${totalQueued}, cleaned=${totalCleaned}`);
-  }
-);
+}
 
 /**
  * created_at の JST 時刻を集計し、最頻時間帯の2時間後を送信時刻として返す
@@ -183,6 +174,23 @@ function formatDate(date: Date): string {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
+
+// dev: HTTP手動実行 / tester・prod: Cloud Scheduler定期実行
+export const notificationBatch = isDevOnly()
+  ? functions.https.onRequest({ region: 'asia-northeast1' }, async (_req, res) => {
+      await notificationBatchHandler();
+      res.status(200).send('ok');
+    })
+  : functions.scheduler.onSchedule(
+      {
+        schedule: '0 15 * * *', // UTC 15:00 = JST 0:00
+        region: 'asia-northeast1',
+        timeZone: 'Asia/Tokyo',
+      },
+      async () => {
+        await notificationBatchHandler();
+      }
+    );
 
 async function deleteCollection(collectionPath: string): Promise<void> {
   const snapshot = await db.collection(collectionPath).get();

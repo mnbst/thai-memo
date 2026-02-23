@@ -19,5 +19,5 @@ variable "gemini_api_key" {
 variable "firebase_project_display_name" {
   description = "Firebase project display name"
   type        = string
-  default     = "Thai Memo"
+  default     = "Thai Memo (Tester)"
 }

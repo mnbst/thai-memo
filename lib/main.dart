@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
-import 'firebase_options.dart';
+import 'firebase_options_dev.dart';
 import 'firebase_options_prod.dart';
+import 'firebase_options_tester.dart';
 import 'presentation/providers/review_provider.dart';
 import 'services/fcm_service.dart';
 import 'services/firebase_auth_service.dart';
@@ -15,11 +16,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase（環境に応じて設定を切替）
-  await Firebase.initializeApp(
-    options: AppConfig.isProd
-        ? ProdFirebaseOptions.currentPlatform
-        : DefaultFirebaseOptions.currentPlatform,
-  );
+  final firebaseOptions = AppConfig.isProd
+      ? ProdFirebaseOptions.currentPlatform
+      : AppConfig.isTester
+          ? TesterFirebaseOptions.currentPlatform
+          : DefaultFirebaseOptions.currentPlatform;
+  await Firebase.initializeApp(options: firebaseOptions);
 
   // Authenticate user anonymously on startup
   try {

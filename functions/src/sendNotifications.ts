@@ -1,19 +1,15 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
-import { isDev } from './config/environment';
+import { isDev, isDevOnly } from './config/environment';
 
 const db = admin.firestore();
 
 /**
- * 毎時配信（JST 8:00〜18:00）: notification_queue から該当時刻分を取得しFCM送信
+ * 通知配信: notification_queue から該当時刻分を取得しFCM送信
+ * dev環境: onRequest（HTTP）で手動実行
+ * tester/prod環境: onSchedule（Cloud Scheduler）で毎時実行（JST 8:00〜18:00）
  */
-export const sendNotifications = functions.scheduler.onSchedule(
-  {
-    schedule: '0 8-18 * * *', // JST 8:00-18:00（毎時）
-    region: 'asia-northeast1',
-    timeZone: 'Asia/Tokyo',
-  },
-  async () => {
+async function sendNotificationsHandler() {
     const now = new Date();
     const jstHour = (now.getUTCHours() + 9) % 24;
     const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -21,12 +17,15 @@ export const sendNotifications = functions.scheduler.onSchedule(
 
     console.log(`sendNotifications started: date=${today}, hour=${jstHour}`);
 
-    // 該当時刻の未送信キューを取得
-    const queueSnapshot = await db.collection('notification_queue')
-      .where('scheduled_date', '==', today)
-      .where('scheduled_hour', '==', jstHour)
-      .where('sent', '==', false)
-      .get();
+    // dev: 未送信キューをすべて取得（即時送信）/ 他環境: 該当時刻分のみ
+    let query = db.collection('notification_queue')
+      .where('sent', '==', false);
+    if (!isDev()) {
+      query = query
+        .where('scheduled_date', '==', today)
+        .where('scheduled_hour', '==', jstHour);
+    }
+    const queueSnapshot = await query.get();
 
     if (queueSnapshot.empty) {
       console.log('No notifications to send');
@@ -100,8 +99,24 @@ export const sendNotifications = functions.scheduler.onSchedule(
     }
 
     console.log(`sendNotifications completed: sent=${sentCount}, failed=${failCount}`);
-  }
-);
+}
+
+// dev: HTTP手動実行 / tester・prod: Cloud Scheduler定期実行
+export const sendNotifications = isDevOnly()
+  ? functions.https.onRequest({ region: 'asia-northeast1' }, async (_req, res) => {
+      await sendNotificationsHandler();
+      res.status(200).send('ok');
+    })
+  : functions.scheduler.onSchedule(
+      {
+        schedule: '0 8-18 * * *', // JST 8:00-18:00（毎時）
+        region: 'asia-northeast1',
+        timeZone: 'Asia/Tokyo',
+      },
+      async () => {
+        await sendNotificationsHandler();
+      }
+    );
 
 function formatDate(date: Date): string {
   const y = date.getFullYear();
