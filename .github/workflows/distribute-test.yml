@@ -23,7 +23,11 @@ jobs:
         run: cd functions/javascript && npm ci && npm run build
 
       - name: Install Python functions dependencies
-        run: cd functions/python && pip install -r requirements.txt
+        run: |
+          cd functions/python
+          python3 -m venv venv
+          . venv/bin/activate
+          pip install -r requirements.txt
 
       - name: Deploy Cloud Functions
         uses: w9jds/firebase-action@master
