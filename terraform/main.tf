@@ -83,11 +83,18 @@ resource "google_artifact_registry_repository" "gcf_artifacts" {
 }
 
 # CI/CD service account IAM bindings
-resource "google_project_iam_member" "ci_service_account_user" {
-  count   = var.ci_service_account_email != "" ? 1 : 0
-  project = var.project_id
-  role    = "roles/iam.serviceAccountUser"
-  member  = "serviceAccount:${var.ci_service_account_email}"
+locals {
+  ci_sa_roles = var.ci_service_account_email != "" ? [
+    "roles/iam.serviceAccountUser",
+    "roles/serviceusage.serviceUsageConsumer",
+  ] : []
+}
+
+resource "google_project_iam_member" "ci_service_account" {
+  for_each = toset(local.ci_sa_roles)
+  project  = var.project_id
+  role     = each.value
+  member   = "serviceAccount:${var.ci_service_account_email}"
 }
 
 # Cloud Functions module will be added after Functions code is ready
