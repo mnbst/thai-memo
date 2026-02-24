@@ -17,6 +17,7 @@ resource "google_project_service" "required_apis" {
     "firestore.googleapis.com",
     "fcm.googleapis.com",
     "artifactregistry.googleapis.com",
+    "cloudbilling.googleapis.com",
   ])
 
   project = var.project_id
@@ -87,6 +88,7 @@ locals {
   ci_sa_roles = var.ci_service_account_email != "" ? [
     "roles/iam.serviceAccountUser",
     "roles/serviceusage.serviceUsageConsumer",
+    "roles/cloudscheduler.admin",
   ] : []
 }
 

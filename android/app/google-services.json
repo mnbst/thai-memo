@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "147810088545",
+    "project_id": "thai-memo-dev",
+    "storage_bucket": "thai-memo-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:147810088545:android:880d5b4669246accc09c20",
+        "android_client_info": {
+          "package_name": "com.thaimemo.thai_memo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvVZhSI7joKl8DbVaN45A9krcoCCsLuAM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

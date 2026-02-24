@@ -42,7 +42,6 @@ migrate_working_dir/
 *.db
 *.sqlite
 coverage/
-android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 *.p12
 *.mobileprovision
