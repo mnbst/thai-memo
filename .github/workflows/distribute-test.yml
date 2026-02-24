@@ -22,19 +22,22 @@ jobs:
       - name: Install and build JS functions
         run: cd functions/javascript && npm ci && npm run build
 
-      - name: Install Python functions dependencies
+      - name: Setup Python venv for Firebase
         run: |
           cd functions/python
           python3 -m venv venv
           . venv/bin/activate
           pip install -r requirements.txt
 
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
       - name: Deploy Cloud Functions
-        uses: w9jds/firebase-action@master
-        with:
-          args: deploy --only functions --project tester
-        env:
-          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/gcp_key.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_key.json
+          firebase deploy --only functions --project tester
+          rm /tmp/gcp_key.json
 
   build-and-distribute-android:
     runs-on: ubuntu-latest
