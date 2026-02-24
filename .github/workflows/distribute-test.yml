@@ -4,6 +4,23 @@ on:
   push:
     branches:
       - test
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+      - '.github/**'
+      - '.claude/**'
+      - '.vscode/**'
+      - 'reports/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'test/**'
+      - 'web/**'
+      - 'linux/**'
+      - 'macos/**'
+      - 'windows/**'
+      - 'analysis_options.yaml'
+      - '.gitignore'
+      - '.metadata'
 
 permissions:
   contents: read
