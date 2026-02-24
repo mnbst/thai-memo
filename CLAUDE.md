@@ -38,6 +38,9 @@ cd functions/python && uv export --no-hashes > requirements.txt  # デプロイ�
 # Cloud Functions - 全関数デプロイ
 firebase deploy --only functions
 
+# Firestore Rules デプロイ
+firebase deploy --only firestore:rules
+
 # Infrastructure (in terraform/ directory)
 # 環境: dev, tester, prod
 cd terraform
