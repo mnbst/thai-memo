@@ -80,7 +80,7 @@ jobs:
       - name: Get PR release notes
         id: pr_info
         run: |
-          NOTES=$(gh pr list --state merged --base test --limit 1 --json title,body --jq '(.title) + "\n" + (.body // "")')
+          NOTES=$(gh pr list --state merged --base test --limit 1 --json title,body --jq '.[0] | (.title) + "\n" + (.body // "")')
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
