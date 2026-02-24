@@ -1,0 +1,2 @@
+bucket = "thai-memo-dev-terraform-state"
+prefix = "terraform/state"

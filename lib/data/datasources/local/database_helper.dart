@@ -77,6 +77,17 @@ class DatabaseHelper {
       }
     }
 
+    // Migrate from version 4 to 5: Add quiz_results table
+    if (oldVersion < 5) {
+      await db.execute(DatabaseConstants.createQuizResultsTable);
+      await db.execute(DatabaseConstants.createIndexQuizResultsAnsweredAt);
+    }
+
+    // Migrate from version 5 to 6: Add quiz_stats table
+    if (oldVersion < 6) {
+      await db.execute(DatabaseConstants.createQuizStatsTable);
+    }
+
     // Migrate from version 3 to 4: Rename situation→topic, add style column
     if (oldVersion < 4) {
       await db.execute('''
@@ -304,6 +315,131 @@ class DatabaseHelper {
       'FROM ${DatabaseConstants.tableGenerationLogs}',
     );
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // ==================== Quiz Results CRUD Operations ====================
+
+  /// Insert a quiz result
+  Future<int> insertQuizResult(Map<String, dynamic> result) async {
+    final db = await database;
+    return await db.insert(
+      DatabaseConstants.tableQuizResults,
+      result,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Get quiz stats (total answers and correct count)
+  Future<Map<String, int>> getQuizStats() async {
+    final db = await database;
+    final total = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM ${DatabaseConstants.tableQuizResults}',
+    );
+    final correct = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM ${DatabaseConstants.tableQuizResults} '
+      'WHERE ${DatabaseConstants.columnQuizIsCorrect} = 1',
+    );
+    return {
+      'total': Sqflite.firstIntValue(total) ?? 0,
+      'correct': Sqflite.firstIntValue(correct) ?? 0,
+    };
+  }
+
+  /// Get recent quiz results
+  Future<List<Map<String, dynamic>>> getRecentQuizResults(int limit) async {
+    final db = await database;
+    return await db.query(
+      DatabaseConstants.tableQuizResults,
+      orderBy: '${DatabaseConstants.columnQuizAnsweredAt} DESC',
+      limit: limit,
+    );
+  }
+
+  // ==================== Quiz Stats CRUD Operations ====================
+
+  /// Get cached quiz stats (single row)
+  Future<Map<String, dynamic>?> getCachedQuizStats() async {
+    final db = await database;
+    final results = await db.query(
+      DatabaseConstants.tableQuizStats,
+      where: '${DatabaseConstants.columnStatsId} = ?',
+      whereArgs: [1],
+      limit: 1,
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  /// Update quiz stats cache after a quiz session
+  Future<void> updateQuizStats({
+    required int sessionCorrect,
+    required int sessionTotal,
+    required String quizDate,
+  }) async {
+    final db = await database;
+    final existing = await getCachedQuizStats();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    if (existing == null) {
+      // First entry
+      await db.insert(DatabaseConstants.tableQuizStats, {
+        DatabaseConstants.columnStatsId: 1,
+        DatabaseConstants.columnStatsTotalAnswered: sessionTotal,
+        DatabaseConstants.columnStatsTotalCorrect: sessionCorrect,
+        DatabaseConstants.columnStatsCurrentStreak: 1,
+        DatabaseConstants.columnStatsBestStreak: 1,
+        DatabaseConstants.columnStatsLastQuizDate: quizDate,
+        DatabaseConstants.columnStatsUpdatedAt: now,
+      });
+      return;
+    }
+
+    final prevDate = existing[DatabaseConstants.columnStatsLastQuizDate] as String?;
+    final prevStreak = existing[DatabaseConstants.columnStatsCurrentStreak] as int? ?? 0;
+    final prevBest = existing[DatabaseConstants.columnStatsBestStreak] as int? ?? 0;
+
+    // Calculate streak
+    int newStreak;
+    if (prevDate == null) {
+      newStreak = 1;
+    } else if (_isConsecutiveDay(prevDate, quizDate)) {
+      newStreak = prevStreak + 1;
+    } else if (prevDate == quizDate) {
+      newStreak = prevStreak; // Same day, don't increment
+    } else {
+      newStreak = 1; // Streak broken
+    }
+
+    final newBest = newStreak > prevBest ? newStreak : prevBest;
+
+    await db.update(
+      DatabaseConstants.tableQuizStats,
+      {
+        DatabaseConstants.columnStatsTotalAnswered:
+            (existing[DatabaseConstants.columnStatsTotalAnswered] as int? ?? 0) +
+                sessionTotal,
+        DatabaseConstants.columnStatsTotalCorrect:
+            (existing[DatabaseConstants.columnStatsTotalCorrect] as int? ?? 0) +
+                sessionCorrect,
+        DatabaseConstants.columnStatsCurrentStreak: newStreak,
+        DatabaseConstants.columnStatsBestStreak: newBest,
+        DatabaseConstants.columnStatsLastQuizDate: quizDate,
+        DatabaseConstants.columnStatsUpdatedAt: now,
+      },
+      where: '${DatabaseConstants.columnStatsId} = ?',
+      whereArgs: [1],
+    );
+  }
+
+  /// Check if two date strings (yyyy-MM-dd) are consecutive days
+  bool _isConsecutiveDay(String prev, String current) {
+    try {
+      final prevDate = DateTime.parse(prev);
+      final currDate = DateTime.parse(current);
+      final diff = currDate.difference(prevDate).inDays;
+      return diff == 1;
+    } catch (_) {
+      return false;
+    }
   }
 
   // ==================== Transaction Support ====================

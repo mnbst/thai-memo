@@ -3,8 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
-import '../presentation/providers/review_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FcmService {
   static final FcmService instance = FcmService._internal();
@@ -21,8 +20,10 @@ class FcmService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
-  /// 通知タップ時に復習タブへ切り替えるコールバック
-  VoidCallback? onReviewDataReceived;
+  static const _quizKey = 'quiz_questions';
+
+  /// 通知タップ時にクイズタブへ切り替えるコールバック
+  VoidCallback? onQuizDataReceived;
 
   /// FCM初期化: 権限リクエスト + トークン保存 + ローカル通知セットアップ
   Future<void> initialize() async {
@@ -81,23 +82,23 @@ class FcmService {
   }
 
   /// 通知タップハンドラのセットアップ
-  void setupNotificationHandlers(ReviewNotifier reviewNotifier) {
+  void setupNotificationHandlers() {
     // バックグラウンドから復帰時
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      _handleNotificationTap(message, reviewNotifier);
+      _handleNotificationTap(message);
     });
 
     // 終了状態から起動時
     _messaging.getInitialMessage().then((message) {
       if (message != null) {
-        _handleNotificationTap(message, reviewNotifier);
+        _handleNotificationTap(message);
       }
     });
 
     // フォアグラウンドでメッセージ受信時: バナー表示 + データ保存
     FirebaseMessaging.onMessage.listen((message) {
       _showForegroundNotification(message);
-      _saveReviewData(message, reviewNotifier);
+      _saveQuizData(message);
     });
   }
 
@@ -126,26 +127,24 @@ class FcmService {
     );
   }
 
-  void _handleNotificationTap(
-      RemoteMessage message, ReviewNotifier reviewNotifier) {
-    _saveReviewData(message, reviewNotifier);
-    onReviewDataReceived?.call();
+  void _handleNotificationTap(RemoteMessage message) {
+    _saveQuizData(message);
+    onQuizDataReceived?.call();
   }
 
-  void _saveReviewData(
-      RemoteMessage message, ReviewNotifier reviewNotifier) {
+  Future<void> _saveQuizData(RemoteMessage message) async {
     final data = message.data;
-    if (data['type'] != 'review') return;
+    if (data['type'] != 'quiz') return;
 
-    final thaiText = data['thai_text'] ?? '';
-    if (thaiText.isEmpty) return;
+    final questions = data['questions'];
+    if (questions == null || questions.isEmpty) return;
 
-    reviewNotifier.addItem(ReviewData(
-      thaiText: thaiText,
-      pronunciation: data['pronunciation'] ?? '',
-      japaneseTranslation: data['japanese_translation'] ?? '',
-      reviewNotesRaw: data['review_notes'] ?? '',
-    ));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_quizKey, questions);
+
+    if (data['quiz_queue_id'] != null) {
+      await prefs.setString('quiz_queue_id', data['quiz_queue_id']);
+    }
   }
 
   Future<void> _saveToken(String token) async {

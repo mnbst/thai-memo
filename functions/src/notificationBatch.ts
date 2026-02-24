@@ -1,186 +1,209 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
-import { GeminiService } from './services/geminiService';
+import { GeminiService, QuizQuestion } from './services/geminiService';
 import { getGeminiApiKey } from './services/secretManager';
 import { isDevOnly } from './config/environment';
 
 const db = admin.firestore();
 
+const SRS_INTERVALS = [
+  { days: 1, tolerance: 0, priority: 1 },
+  { days: 3, tolerance: 1, priority: 2 },
+  { days: 7, tolerance: 1, priority: 3 },
+  { days: 30, tolerance: 1, priority: 4 },
+];
+
+const MAX_QUESTIONS = 5;
+
 /**
- * 深夜バッチ: 復習通知キューを生成
- * dev環境: onRequest（HTTP）で手動実行
- * tester/prod環境: onSchedule（Cloud Scheduler）で定期実行（JST 0:00）
+ * 深夜バッチ（JST 0:00）: SRS例文選出 → Gemini穴埋め生成 → quiz_queue保存
  */
 async function notificationBatchHandler() {
-  console.log('notificationBatch started');
+  console.log('quizBatch started');
 
-    // 1. notification_queue を全削除
-    await deleteCollection('notification_queue');
+  await deleteCollection('quiz_queue');
 
-    // 2. 通知有効ユーザーを取得
-    const usersSnapshot = await db.collection('users')
-      .where('notification_enabled', '==', true)
-      .get();
+  const usersSnapshot = await db.collection('users')
+    .where('notification_enabled', '==', true)
+    .get();
 
-    if (usersSnapshot.empty) {
-      console.log('No users with notifications enabled');
-      return;
-    }
+  if (usersSnapshot.empty) {
+    console.log('No users with notifications enabled');
+    return;
+  }
 
-    const now = new Date();
-    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-    const today = formatDate(jstNow);
+  const now = new Date();
+  const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const today = formatDate(jstNow);
 
-    // 前日（JST）
-    const yesterday = new Date(jstNow);
-    yesterday.setDate(yesterday.getDate() - 1);
+  const apiKey = await getGeminiApiKey();
+  const geminiService = new GeminiService(apiKey);
 
-    // 7日前（JST）
-    const sevenDaysAgo = new Date(jstNow);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  let totalQueued = 0;
 
-    // Gemini API初期化
-    const apiKey = await getGeminiApiKey();
-    const geminiService = new GeminiService(apiKey);
+  for (const userDoc of usersSnapshot.docs) {
+    const uid = userDoc.id;
 
-    let totalQueued = 0;
-    let totalCleaned = 0;
+    try {
+      const selectedSentences = await selectSentencesBySRS(uid, jstNow);
+      if (selectedSentences.length === 0) continue;
 
-    for (const userDoc of usersSnapshot.docs) {
-      const uid = userDoc.id;
+      const quizResult = await geminiService.generateQuizQuestions(
+        selectedSentences.map(s => ({
+          thai_text: s.data.thai_text,
+          pronunciation: s.data.pronunciation,
+          japanese_translation: s.data.japanese_translation,
+          word_breakdown: s.data.word_breakdown || [],
+        }))
+      );
 
-      try {
-        // 直近7日分の sentences を取得（利用時間帯推定用）
-        const sentencesSnapshot = await db
-          .collection('users').doc(uid)
-          .collection('sentences')
-          .where('created_at', '>=', admin.firestore.Timestamp.fromDate(
-            new Date(sevenDaysAgo.getTime() - 9 * 60 * 60 * 1000) // UTC に戻す
-          ))
-          .orderBy('created_at', 'desc')
-          .get();
-
-        if (sentencesSnapshot.empty) continue;
-
-        // 利用時間帯を推定
-        const { hour: scheduledHour, minute: scheduledMinute } = estimateActiveTime(sentencesSnapshot.docs);
-
-        // 前日生成分の例文をフィルタ
-        const yesterdaySentences = sentencesSnapshot.docs.filter(doc => {
-          const createdAt = doc.data().created_at?.toDate();
-          if (!createdAt) return false;
-          const jstCreated = new Date(createdAt.getTime() + 9 * 60 * 60 * 1000);
-          return formatDate(jstCreated) === formatDate(yesterday);
-        });
-
-        // 前日の例文がなければスキップ
-        if (yesterdaySentences.length === 0) continue;
-
-        // 前日分からランダムに最大3件を選択
-        const shuffled = yesterdaySentences.sort(() => Math.random() - 0.5);
-        const targets = shuffled.slice(0, 3);
-        const batch = db.batch();
-
-        // LLMで補足解説を並列生成
-        const reviewNotesResults = await Promise.all(
-          targets.map(doc => {
-            const d = doc.data();
-            return geminiService.generateReviewNotes({
-              thai_text: d.thai_text,
-              pronunciation: d.pronunciation,
-              japanese_translation: d.japanese_translation,
-            });
-          })
-        );
-
-        for (let i = 0; i < targets.length; i++) {
-          const data = targets[i].data();
-          const queueRef = db.collection('notification_queue').doc();
-          batch.set(queueRef, {
-            uid,
-            scheduled_hour: scheduledHour,
-            scheduled_minute: scheduledMinute,
-            scheduled_date: today,
-            title: '昨日の復習',
-            body: `${data.thai_text}\n${data.japanese_translation}`,
-            thai_text: data.thai_text,
-            pronunciation: data.pronunciation,
-            japanese_translation: data.japanese_translation,
-            review_notes: JSON.stringify(reviewNotesResults[i]),
-            sentence_id: targets[i].id,
-            sent: false,
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
-          });
-          totalQueued++;
-        }
-
-        await batch.commit();
-
-        // 7日超過の sentences を削除
-        const oldSentences = await db
-          .collection('users').doc(uid)
-          .collection('sentences')
-          .where('created_at', '<', admin.firestore.Timestamp.fromDate(
-            new Date(sevenDaysAgo.getTime() - 9 * 60 * 60 * 1000)
-          ))
-          .get();
-
-        if (!oldSentences.empty) {
-          const deleteBatch = db.batch();
-          for (const doc of oldSentences.docs) {
-            deleteBatch.delete(doc.ref);
-            totalCleaned++;
-          }
-          await deleteBatch.commit();
-        }
-      } catch (error) {
-        console.error(`Error processing user ${uid}:`, error);
+      if (quizResult.questions.length === 0) {
+        console.log(`No quiz generated for uid=${uid}`);
+        continue;
       }
-    }
 
-    console.log(`notificationBatch completed: queued=${totalQueued}, cleaned=${totalCleaned}`);
+      const questions: QuizQuestion[] = quizResult.questions.map((q, i) => ({
+        ...q,
+        sentence_id: selectedSentences[i]?.id || '',
+        srs_interval: selectedSentences[i]?.srsInterval || 0,
+      }));
+
+      await db.collection('quiz_queue').doc().set({
+        uid,
+        scheduled_date: today,
+        questions,
+        sent: false,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      totalQueued++;
+    } catch (error) {
+      console.error(`Error processing user ${uid}:`, error);
+    }
+  }
+
+  // 30日超過の sentences を削除
+  await cleanOldSentences(jstNow);
+
+  console.log(`quizBatch completed: users_queued=${totalQueued}`);
 }
 
-/**
- * created_at の JST 時刻を集計し、最頻時間帯を30分単位に丸めて返す
- * 例: 17:40 → { hour: 17, minute: 30 }
- * 6:00-22:00の範囲に丸め、データ不足時はデフォルト12:00
- */
-function estimateActiveTime(
-  docs: FirebaseFirestore.QueryDocumentSnapshot[]
-): { hour: number; minute: number } {
-  // 30分スロット（0=0:00, 1=0:30, 2=1:00, ...）ごとにカウント
-  const slotCounts = new Map<number, number>();
+// --- SRS選出ロジック ---
 
-  for (const doc of docs) {
-    const createdAt = doc.data().created_at?.toDate();
-    if (!createdAt) continue;
-    const jstHour = (createdAt.getUTCHours() + 9) % 24;
-    const jstMinute = createdAt.getUTCMinutes();
-    const slot = jstHour * 2 + (jstMinute >= 30 ? 1 : 0);
-    slotCounts.set(slot, (slotCounts.get(slot) || 0) + 1);
+interface SelectedSentence {
+  id: string;
+  data: FirebaseFirestore.DocumentData;
+  srsInterval: number;
+}
+
+async function selectSentencesBySRS(
+  uid: string,
+  jstNow: Date
+): Promise<SelectedSentence[]> {
+  const selected: SelectedSentence[] = [];
+  const usedIds = new Set<string>();
+
+  const allSentencesSnapshot = await db
+    .collection('users').doc(uid)
+    .collection('sentences')
+    .orderBy('created_at', 'desc')
+    .get();
+
+  if (allSentencesSnapshot.empty) return [];
+
+  // 不正解履歴
+  const wrongAnswers = await db
+    .collection('users').doc(uid)
+    .collection('quiz_answers')
+    .where('is_correct', '==', false)
+    .orderBy('answered_at', 'desc')
+    .limit(50)
+    .get();
+
+  const wrongCounts = new Map<string, number>();
+  for (const doc of wrongAnswers.docs) {
+    const sid = doc.data().sentence_id;
+    wrongCounts.set(sid, (wrongCounts.get(sid) || 0) + 1);
   }
 
-  if (slotCounts.size === 0) return { hour: 12, minute: 0 };
+  // 優先度1-4: SRS間隔
+  for (const interval of SRS_INTERVALS) {
+    if (selected.length >= MAX_QUESTIONS) break;
 
-  // 最頻スロットを取得
-  let maxSlot = 24; // 12:00
-  let maxCount = 0;
-  for (const [slot, count] of slotCounts) {
-    if (count > maxCount) {
-      maxCount = count;
-      maxSlot = slot;
+    const candidates = allSentencesSnapshot.docs.filter(doc => {
+      if (usedIds.has(doc.id)) return false;
+      const createdAt = doc.data().created_at?.toDate();
+      if (!createdAt) return false;
+      const jstCreated = new Date(createdAt.getTime() + 9 * 60 * 60 * 1000);
+      const diffDays = Math.floor(
+        (jstNow.getTime() - jstCreated.getTime()) / (24 * 60 * 60 * 1000)
+      );
+      return diffDays >= interval.days - interval.tolerance &&
+             diffDays <= interval.days + interval.tolerance;
+    });
+
+    const shuffled = candidates.sort(() => Math.random() - 0.5);
+    const take = interval.priority === 1
+      ? Math.max(Math.min(1, shuffled.length), Math.min(shuffled.length, MAX_QUESTIONS - selected.length))
+      : Math.min(shuffled.length, MAX_QUESTIONS - selected.length);
+
+    for (let i = 0; i < take && selected.length < MAX_QUESTIONS; i++) {
+      selected.push({ id: shuffled[i].id, data: shuffled[i].data(), srsInterval: interval.days });
+      usedIds.add(shuffled[i].id);
     }
   }
 
-  let hour = Math.floor(maxSlot / 2);
-  const minute = (maxSlot % 2) * 30;
+  // 優先度5: 不正解が多い例文
+  if (selected.length < MAX_QUESTIONS) {
+    const wrongCandidates = allSentencesSnapshot.docs
+      .filter(doc => !usedIds.has(doc.id) && wrongCounts.has(doc.id))
+      .sort((a, b) => (wrongCounts.get(b.id) || 0) - (wrongCounts.get(a.id) || 0));
 
-  // 6:00-20:00の範囲に丸め
-  if (hour < 6) { hour = 6; return { hour, minute: 0 }; }
-  if (hour >= 20) { hour = 20; return { hour, minute: 0 }; }
+    for (const doc of wrongCandidates) {
+      if (selected.length >= MAX_QUESTIONS) break;
+      selected.push({ id: doc.id, data: doc.data(), srsInterval: 0 });
+      usedIds.add(doc.id);
+    }
+  }
 
-  return { hour, minute };
+  // 優先度6: ランダム補充
+  if (selected.length < MAX_QUESTIONS) {
+    const remaining = allSentencesSnapshot.docs
+      .filter(doc => !usedIds.has(doc.id))
+      .sort(() => Math.random() - 0.5);
+
+    for (const doc of remaining) {
+      if (selected.length >= MAX_QUESTIONS) break;
+      selected.push({ id: doc.id, data: doc.data(), srsInterval: -1 });
+      usedIds.add(doc.id);
+    }
+  }
+
+  return selected;
+}
+
+async function cleanOldSentences(jstNow: Date): Promise<void> {
+  const thirtyDaysAgo = new Date(jstNow);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const cutoffUtc = new Date(thirtyDaysAgo.getTime() - 9 * 60 * 60 * 1000);
+
+  const usersSnapshot = await db.collection('users').get();
+
+  for (const userDoc of usersSnapshot.docs) {
+    const oldSentences = await db
+      .collection('users').doc(userDoc.id)
+      .collection('sentences')
+      .where('created_at', '<', admin.firestore.Timestamp.fromDate(cutoffUtc))
+      .get();
+
+    if (oldSentences.empty) continue;
+
+    const batch = db.batch();
+    for (const doc of oldSentences.docs) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+  }
 }
 
 function formatDate(date: Date): string {
@@ -190,9 +213,11 @@ function formatDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-// dev: HTTP手動実行 / tester・prod: Cloud Scheduler定期実行
 export const notificationBatch = isDevOnly()
-  ? functions.https.onRequest({ region: 'asia-northeast1' }, async (_req, res) => {
+  ? functions.https.onRequest({
+      region: 'asia-northeast1',
+      timeoutSeconds: 1800,
+    }, async (_req, res) => {
       await notificationBatchHandler();
       res.status(200).send('ok');
     })
@@ -201,6 +226,7 @@ export const notificationBatch = isDevOnly()
         schedule: '0 15 * * *', // UTC 15:00 = JST 0:00
         region: 'asia-northeast1',
         timeZone: 'Asia/Tokyo',
+        timeoutSeconds: 1800, // 30分
       },
       async () => {
         await notificationBatchHandler();
@@ -211,7 +237,6 @@ async function deleteCollection(collectionPath: string): Promise<void> {
   const snapshot = await db.collection(collectionPath).get();
   if (snapshot.empty) return;
 
-  // Firestore batch は最大500件
   const batchSize = 500;
   const docs = snapshot.docs;
 

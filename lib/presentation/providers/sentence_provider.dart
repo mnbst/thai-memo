@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/local/database_helper.dart';
@@ -118,27 +117,21 @@ class SentenceController extends StateNotifier<SentenceState> {
     Map<String, String?> generationParams = const {},
   }) async {
     state = const SentenceStateLoading();
-    developer.log('loadOrGenerateToday: start');
 
     try {
       final recent = await _getUseCase.getMostRecent();
-      developer.log(
-          'loadOrGenerateToday: recent=${recent?.id}, createdAt=${recent?.createdAt}');
       if (recent != null && _isToday(recent.createdAt)) {
-        developer.log('loadOrGenerateToday: already generated today');
         state = SentenceStateSuccess(recent);
         return;
       }
 
       // 今日未生成 → 自動生成
-      developer.log('loadOrGenerateToday: generating new sentence');
       try {
         final sentence = await _generateUseCase.execute(
           generationParams: generationParams,
         );
         state = SentenceStateSuccess(sentence);
       } catch (e) {
-        developer.log('loadOrGenerateToday: generation failed: $e');
         // 生成失敗時は既存の最新例文を表示、なければサンプル表示
         if (recent != null) {
           state = SentenceStateSuccess(recent);
@@ -147,7 +140,6 @@ class SentenceController extends StateNotifier<SentenceState> {
         }
       }
     } catch (e) {
-      developer.log('loadOrGenerateToday: error: $e');
       state = const SentenceStateError('データの読み込みに失敗しました');
     }
   }

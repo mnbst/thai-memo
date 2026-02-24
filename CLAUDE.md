@@ -33,8 +33,11 @@ cd functions && npm run serve   # local emulator
 cd functions && npm run deploy  # deploy to Firebase
 
 # Infrastructure (in terraform/ directory)
-cd terraform && terraform plan
-cd terraform && terraform apply
+# 環境: dev, tester, prod
+cd terraform
+terraform init -backend-config=backends/<env>.tfbackend -reconfigure
+terraform plan -var-file=<env>.tfvars
+terraform apply -var-file=<env>.tfvars
 ```
 
 ## Architecture
@@ -69,6 +72,6 @@ SQLite (`thai_memo.db`) with tables: `sentences`, `word_breakdowns`, `generation
 ## Backend
 
 - Cloud Functions in `functions/src/` (TypeScript, Node.js 18)
-- Terraform IaC in `terraform/` for GCP resources
+- Terraform IaC in `terraform/` for GCP resources (3環境: dev/tester/prod、backend configで切り替え)
 - Region: asia-northeast1 (Tokyo)
 - **Cloud Functions を修正したら必ず `cd functions && npm run build && npm run deploy` を実行すること**

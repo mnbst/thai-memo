@@ -7,11 +7,12 @@ import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
 import '../../services/fcm_service.dart';
 import '../providers/sentence_provider.dart';
+import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
-import 'review_screen.dart';
+import 'quiz_screen.dart';
 import 'settings_screen.dart';
 
 /// Home screen with bottom navigation
@@ -31,11 +32,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkFirstLaunchAndLoadSentence();
     });
-    // 通知タップ時に復習タブへ切り替え
-    FcmService.instance.onReviewDataReceived = () {
+    // 通知タップ時にクイズタブへ切り替え
+    FcmService.instance.onQuizDataReceived = () {
       if (mounted) {
+        ref.read(quizControllerProvider.notifier).loadQuiz();
         setState(() {
-          _currentIndex = 1; // 復習タブ
+          _currentIndex = 1; // クイズタブ
         });
       }
     };
@@ -74,7 +76,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final screens = [
       const TodayScreen(),
-      const ReviewScreen(),
+      const QuizScreen(),
       const HistoryScreen(),
       const SettingsScreen(),
     ];
@@ -95,9 +97,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             label: '例文生成',
           ),
           NavigationDestination(
-            icon: Icon(Icons.lightbulb_outline),
-            selectedIcon: Icon(Icons.lightbulb),
-            label: '復習',
+            icon: Icon(Icons.quiz_outlined),
+            selectedIcon: Icon(Icons.quiz),
+            label: 'クイズ',
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined),

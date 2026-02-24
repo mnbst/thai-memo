@@ -7,7 +7,6 @@ import 'core/config/app_config.dart';
 import 'firebase_options_dev.dart';
 import 'firebase_options_prod.dart';
 import 'firebase_options_tester.dart';
-import 'presentation/providers/review_provider.dart';
 import 'services/fcm_service.dart';
 import 'services/firebase_auth_service.dart';
 
@@ -43,7 +42,6 @@ void main() async {
 
   // navigatorKeyが有効になった後に通知ハンドラをセットアップ
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    final reviewNotifier = container.read(reviewProvider.notifier);
-    FcmService.instance.setupNotificationHandlers(reviewNotifier);
+    FcmService.instance.setupNotificationHandlers();
   });
 }
