@@ -13,10 +13,8 @@ terraform {
   }
 
   # Remote backend for state management
-  backend "gcs" {
-    bucket = "thai-memo-67139-terraform-state"
-    prefix = "terraform/state"
-  }
+  # Use: terraform init -backend-config=backends/<env>.tfbackend
+  backend "gcs" {}
 }
 
 provider "google" {

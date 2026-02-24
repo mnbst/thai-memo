@@ -7,11 +7,12 @@ import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
 import '../../services/fcm_service.dart';
 import '../providers/sentence_provider.dart';
+import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
-import 'review_screen.dart';
+import 'quiz_screen.dart';
 import 'settings_screen.dart';
 
 /// Home screen with bottom navigation
@@ -31,11 +32,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkFirstLaunchAndLoadSentence();
     });
-    // 通知タップ時に復習タブへ切り替え
-    FcmService.instance.onReviewDataReceived = () {
+    // 通知タップ時にクイズタブへ切り替え
+    FcmService.instance.onQuizDataReceived = () {
       if (mounted) {
+        ref.read(quizControllerProvider.notifier).loadQuiz();
         setState(() {
-          _currentIndex = 1; // 復習タブ
+          _currentIndex = 1; // クイズタブ
         });
       }
     };
@@ -46,10 +48,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
 
     if (isFirstLaunch) {
-      // Navigate to settings on first launch
-      setState(() {
-        _currentIndex = 3; // Settings tab
-      });
+      // 初回起動完了を記録
+      ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -59,17 +59,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         );
       }
-    } else {
-      // Load most recent sentence
-      ref.read(sentenceControllerProvider.notifier).loadMostRecent();
     }
+
+    // 今日未生成なら自動生成、済みなら最新を表示
+    final generationParams = ref.read(generationParamsProvider);
+    await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
+          generationParams: generationParams,
+        );
+
+    // 履歴を更新
+    ref.invalidate(allSentencesProvider);
+    ref.invalidate(favoriteSentencesProvider);
   }
 
   @override
   Widget build(BuildContext context) {
     final screens = [
       const TodayScreen(),
-      const ReviewScreen(),
+      const QuizScreen(),
       const HistoryScreen(),
       const SettingsScreen(),
     ];
@@ -87,12 +94,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.today_outlined),
             selectedIcon: Icon(Icons.today),
-            label: '例文生成',
+            label: '例文',
           ),
           NavigationDestination(
-            icon: Icon(Icons.lightbulb_outline),
-            selectedIcon: Icon(Icons.lightbulb),
-            label: '復習',
+            icon: Icon(Icons.quiz_outlined),
+            selectedIcon: Icon(Icons.quiz),
+            label: 'クイズ',
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined),
@@ -180,7 +187,7 @@ class TodayScreen extends ConsumerWidget {
     final sentenceState = ref.watch(sentenceControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('例文生成')),
+      appBar: AppBar(title: const Text('今日のタイ語')),
       body: _buildSentenceContent(context, ref, sentenceState),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _generateNewSentence(context, ref),

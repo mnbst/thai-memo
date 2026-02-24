@@ -59,7 +59,7 @@ class ThaiMemoApp extends ConsumerWidget {
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6366F1), // Indigo
+        seedColor: const Color(0xFF1E3A8A), // Royal Blue (Thai flag)
         brightness: Brightness.light,
       ),
       textTheme: _scaleTextTheme(
@@ -106,7 +106,7 @@ class ThaiMemoApp extends ConsumerWidget {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6366F1), // Indigo
+        seedColor: const Color(0xFF1E3A8A), // Royal Blue (Thai flag)
         brightness: Brightness.dark,
       ),
       textTheme: _scaleTextTheme(

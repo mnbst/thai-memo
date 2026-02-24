@@ -16,6 +16,29 @@ import {
   getSentenceGenerationPrompt,
 } from '../config/constants';
 
+export interface ReviewNotes {
+  grammar_points: { label: string; detail: string }[];
+  pronunciation_tips: { thai: string; roman: string; tip: string }[];
+  related_expressions: { thai: string; roman: string; meaning: string }[];
+}
+
+export interface QuizQuestion {
+  sentence_id: string;
+  thai_text: string;
+  blank_text: string;
+  correct_answer: string;
+  choices: string[];
+  pronunciation: string;
+  explanation: string;
+  srs_interval: number;
+  japanese_translation: string;
+  sentence_pronunciation: string;
+}
+
+export interface QuizQuestionsResponse {
+  questions: Omit<QuizQuestion, 'sentence_id' | 'srs_interval'>[];
+}
+
 export class GeminiService {
   private genAI: GoogleGenerativeAI;
 
@@ -230,49 +253,165 @@ export class GeminiService {
     thai_text: string;
     pronunciation: string;
     japanese_translation: string;
-  }): Promise<string> {
+  }): Promise<ReviewNotes> {
     try {
       const model = this.genAI.getGenerativeModel({
         model: GEMINI_MODEL,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 4096,
           responseMimeType: 'application/json',
           responseSchema: {
             type: SchemaType.OBJECT,
             properties: {
-              review_notes: {
-                type: SchemaType.STRING,
-                description: 'Review notes in Japanese',
-                nullable: false,
+              grammar_points: {
+                type: SchemaType.ARRAY,
+                description: 'Key grammar points (1-2 items)',
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    label: { type: SchemaType.STRING, description: 'Short label e.g. 語順, 助詞' },
+                    detail: { type: SchemaType.STRING, description: 'Explanation in Japanese, Thai words with romanization in parentheses e.g. ไม่(mâi)' },
+                  },
+                  required: ['label', 'detail'],
+                },
+              },
+              pronunciation_tips: {
+                type: SchemaType.ARRAY,
+                description: 'Pronunciation/tone tips (1-2 items)',
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    thai: { type: SchemaType.STRING, description: 'Thai word/phrase being discussed' },
+                    roman: { type: SchemaType.STRING, description: 'Romanized pronunciation' },
+                    tip: { type: SchemaType.STRING, description: 'Pronunciation tip in Japanese' },
+                  },
+                  required: ['thai', 'roman', 'tip'],
+                },
+              },
+              related_expressions: {
+                type: SchemaType.ARRAY,
+                description: 'Related/alternative expressions (1-2 items)',
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    thai: { type: SchemaType.STRING, description: 'Thai expression' },
+                    roman: { type: SchemaType.STRING, description: 'Romanized pronunciation' },
+                    meaning: { type: SchemaType.STRING, description: 'Japanese meaning' },
+                  },
+                  required: ['thai', 'roman', 'meaning'],
+                },
               },
             },
-            required: ['review_notes'],
+            required: ['grammar_points', 'pronunciation_tips', 'related_expressions'],
           },
         },
       });
 
-      const prompt = `以下のタイ語例文について、学習者向けの復習用補足解説を日本語で作成してください。
+      const prompt = `以下のタイ語例文について、学習者向けの復習ポイントを作成してください。
 
 例文: ${sentence.thai_text}
 発音: ${sentence.pronunciation}
 日本語訳: ${sentence.japanese_translation}
 
-以下の観点から200文字程度で簡潔にまとめてください:
-- この表現に含まれる慣用句やイディオムがあれば解説
-- 発音や声調の注意点・例外規則
-- 類似表現や言い換え
-- タイ語特有の文法ポイント`;
+【重要なルール】
+- 例文そのものは再掲しない。ポイントだけに絞る
+- タイ語を出す場合は必ずローマ字読みを添える（例: ไม่(mâi)）
+- 各カテゴリ1〜2項目、簡潔に`;
 
       const result = await model.generateContent(prompt);
       const text = result.response.text();
       const parsed = JSON.parse(text);
-      return parsed.review_notes;
+      return parsed as ReviewNotes;
     } catch (error) {
       console.error('Failed to generate review notes', {
         error: error instanceof Error ? error.message : 'Unknown',
       });
-      return '';
+      return { grammar_points: [], pronunciation_tips: [], related_expressions: [] };
+    }
+  }
+
+  async generateQuizQuestions(sentences: {
+    thai_text: string;
+    pronunciation: string;
+    japanese_translation: string;
+    word_breakdown: { word: string; pronunciation: string; meaning: string }[];
+  }[]): Promise<QuizQuestionsResponse> {
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: GEMINI_MODEL,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: SchemaType.OBJECT,
+            properties: {
+              questions: {
+                type: SchemaType.ARRAY,
+                description: 'Quiz questions array, one per input sentence',
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    thai_text: {
+                      type: SchemaType.STRING,
+                      description: 'Original Thai sentence',
+                    },
+                    blank_text: {
+                      type: SchemaType.STRING,
+                      description: 'Thai sentence with one word replaced by ___',
+                    },
+                    correct_answer: {
+                      type: SchemaType.STRING,
+                      description: 'The correct word that fills the blank',
+                    },
+                    choices: {
+                      type: SchemaType.ARRAY,
+                      items: { type: SchemaType.STRING },
+                      description: '4 choices including the correct answer, shuffled',
+                    },
+                    pronunciation: {
+                      type: SchemaType.STRING,
+                      description: 'Pronunciation of the correct answer word',
+                    },
+                    explanation: {
+                      type: SchemaType.STRING,
+                      description: 'Brief explanation in Japanese of why this word fits',
+                    },
+                  },
+                  required: ['thai_text', 'blank_text', 'correct_answer', 'choices', 'pronunciation', 'explanation'],
+                },
+              },
+            },
+            required: ['questions'],
+          },
+        },
+      });
+
+      const sentenceList = sentences.map((s, i) =>
+        `${i + 1}. 例文: ${s.thai_text}\n   発音: ${s.pronunciation}\n   日本語訳: ${s.japanese_translation}\n   単語: ${s.word_breakdown.map(w => `${w.word}(${w.meaning})`).join(', ')}`
+      ).join('\n\n');
+
+      const prompt = `以下のタイ語例文それぞれについて、穴埋めクイズ問題を1問ずつ作成してください。
+
+${sentenceList}
+
+【ルール】
+- 各例文から意味のある単語（名詞・動詞・形容詞など）を1つ選び、___に置き換える
+- 助詞や冠詞など簡単すぎる単語は避ける
+- 4択の選択肢を作成（正解1つ＋紛らわしいダミー3つ）
+- ダミーは文法的には入りうるが意味が異なる単語にする
+- 選択肢はシャッフルする
+- explanationは日本語で簡潔に（なぜその単語が正解か）`;
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      return JSON.parse(text) as QuizQuestionsResponse;
+    } catch (error) {
+      console.error('Failed to generate quiz questions', {
+        error: error instanceof Error ? error.message : 'Unknown',
+      });
+      return { questions: [] };
     }
   }
 }

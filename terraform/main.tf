@@ -16,6 +16,8 @@ resource "google_project_service" "required_apis" {
     "cloudscheduler.googleapis.com",
     "firestore.googleapis.com",
     "fcm.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "cloudbilling.googleapis.com",
   ])
 
   project = var.project_id
@@ -41,6 +43,7 @@ module "firebase" {
 
   project_id   = var.project_id
   display_name = var.firebase_project_display_name
+  region       = var.region
 
   depends_on = [google_project_service.required_apis]
 }
@@ -53,6 +56,48 @@ module "logging" {
   region     = var.region
 
   depends_on = [google_project_service.required_apis]
+}
+
+# Artifact Registry cleanup policy for Cloud Functions container images
+resource "google_artifact_registry_repository" "gcf_artifacts" {
+  project       = var.project_id
+  location      = var.region
+  repository_id = "gcf-artifacts"
+  format        = "DOCKER"
+
+  cleanup_policies {
+    id     = "keep-latest"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 1
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-old"
+    action = "DELETE"
+    condition {
+      older_than = "86400s"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# CI/CD service account IAM bindings
+locals {
+  ci_sa_roles = var.ci_service_account_email != "" ? [
+    "roles/iam.serviceAccountUser",
+    "roles/serviceusage.serviceUsageConsumer",
+    "roles/cloudscheduler.admin",
+  ] : []
+}
+
+resource "google_project_iam_member" "ci_service_account" {
+  for_each = toset(local.ci_sa_roles)
+  project  = var.project_id
+  role     = each.value
+  member   = "serviceAccount:${var.ci_service_account_email}"
 }
 
 # Cloud Functions module will be added after Functions code is ready

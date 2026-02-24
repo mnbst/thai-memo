@@ -3,6 +3,7 @@
 ## 機能
 
 - 声調指定で例文生成
+- 1日1件の例文生成を自動化（通知トリガーで自動生成）
 
 ## 会員ランク機能の実装計画
 
@@ -103,68 +104,96 @@
   - 無料トライアル提供
 - [ ] プレミアム機能のプレビュー
 
-## 復習通知機能
+## 穴埋めクイズ機能
 
 ### 概要
-生成した例文の要約をFirestoreに保存し、バッチ処理でcreated_at（JST）から利用時間帯を推定して復習通知を配信。
+過去に生成した例文から毎日5問の穴埋め問題を自動生成。間隔反復（SRS）で記憶定着を最大化し、通算正答率を表示してゲーム感覚で復習できる。
+現在の復習機能を完全に入れ替え
 
-### Firestoreデータ設計
+### 仕様
+- 深夜バッチで過去の例文から5件を選び、Geminiで穴埋め問題を生成
+- 例文中の1単語を空欄にし、4択の選択肢を提示
+- 正解時にはアニメーション表示、不正解時には正解と解説（簡潔に）を表示
+- 通算正答率をクイズ画面上部に表示
+
+### SRS（間隔反復）による出題ロジック
+
+5問の内訳を以下の優先順で選出:
+
+| 優先度 | 対象 | 説明 |
+|--------|------|------|
+| 1 | 1日前の例文 | 新規学習の初回復習（必ず1問以上） |
+| 2 | 3日前の例文 | 2回目の復習 |
+| 3 | 7日前の例文 | 3回目の復習 |
+| 4 | 30日前の例文 | 長期記憶の確認 |
+| 5 | 過去に不正解だった例文 | 弱点補強（正答率が低い順） |
+| 6 | ランダム | 上記で5問に満たない場合に補充 |
+
+- 各間隔の対象日は±1日の幅を持たせる（例: 3日前 = 2〜4日前）
+- 同じ例文が同日に重複出題されないようにする
+- 例文のストックが少ない初期段階ではランダム補充で5問を確保
+- 生成した例文が5問以下なら生成した分だけ
+
+### データ設計
 
 ```
-users/{uid}/
-  ├── fcm_token: string            // FCMトークン
-  ├── notification_enabled: boolean // 通知ON/OFF
-  ├── updated_at: timestamp
+// Firestore（バッチ生成）
+quiz_queue/{docId}
+  ├── uid: string
+  ├── scheduled_date: string         // 配信日
+  ├── questions: array               // 5問分
+  │   ├── sentence_id: string        // 元の例文ID
+  │   ├── thai_text: string          // 元の完全な例文
+  │   ├── blank_text: string         // 空欄入り例文（___で表示）
+  │   ├── correct_answer: string     // 正解の単語
+  │   ├── choices: string[]          // 4択（正解含む、シャッフル済み）
+  │   ├── pronunciation: string      // 正解単語の発音
+  │   ├── explanation: string        // 解説（なぜその単語が入るか）
+  │   └── srs_interval: number       // この問題のSRS間隔（1/3/7/30/0=弱点/random）
+  └── sent: boolean
 
-users/{uid}/sentences/{sentenceId}
-  ├── thai_text: string            // タイ語本文
-  ├── pronunciation: string        // 発音
-  ├── japanese_translation: string  // 日本語訳
-  ├── created_at: timestamp        // 生成日時（利用時間帯の推定にも使用）
-```
+// Firestore（回答結果をサーバー側にも保存 → SRS選出に使用）
+users/{uid}/quiz_answers/{docId}
+  ├── sentence_id: string
+  ├── is_correct: boolean
+  ├── answered_at: timestamp
 
-### バッチ通知ロジック
-1. **深夜バッチ（JST 3:00）**:
-   - notification_queueを全削除（洗い替え）
-   - sentences.created_at（直近7日分）からユーザーごとの利用時間帯を推定→送信時刻を決定
-   - 復習内容は前日生成分の例文のみ対象→notification_queueに新規書き込み
-   - ※sentences自体は削除しない（利用時間帯推定用に7日分保持、7日超過分のみ削除）
-2. **毎時配信（JST 6:00〜18:00、1時間ごと）**: Cloud Runで通知キューから該当時刻分を取得しFCM送信
+// SQLite（ローカル）
+quiz_results テーブル
+  ├── id: INTEGER PRIMARY KEY
+  ├── sentence_id: TEXT
+  ├── question_date: TEXT            // 出題日
+  ├── is_correct: INTEGER            // 0 or 1
+  ├── selected_answer: TEXT
+  ├── correct_answer: TEXT
+  └── answered_at: TEXT
 
-### Firestoreデータ設計（通知キュー追加）
-
-```
-notification_queue/{docId}
-  ├── uid: string                  // 対象ユーザー
-  ├── scheduled_hour: number       // 送信予定時刻（JST、6-18）
-  ├── scheduled_date: string       // 送信予定日（"2026-02-22"）
-  ├── title: string                // 通知タイトル
-  ├── body: string                 // 通知本文（タイ語+日本語訳）
-  ├── sentence_id: string          // 対象例文ID
-  ├── sent: boolean                // 送信済みフラグ
-  └── created_at: timestamp
+quiz_stats テーブル（集計キャッシュ）
+  ├── total_answered: INTEGER
+  ├── total_correct: INTEGER
+  ├── current_streak: INTEGER        // 連続正解数
+  ├── best_streak: INTEGER           // 最高連続正解数
+  └── updated_at: TEXT
 ```
 
 ### 実装タスク
 
-#### Phase A: Firestore保存（Cloud Functions側）
-- [ ] generateThaiSentence完了時にFirestoreへ要約データを保存
-- [ ] Firestoreセキュリティルール設定
+#### Phase Q1: バッチ問題生成（Cloud Functions）
+- [ ] SRS間隔（1/3/7/30日前）に基づく例文選出ロジック
+- [ ] 不正解履歴（quiz_answers）から弱点例文を優先選出
+- [ ] Geminiで穴埋め問題（空欄・4択・解説）を生成
+- [ ] quiz_queueに保存、復習通知と同時に配信
 
-#### Phase B: FCMトークン管理
-- [ ] Flutter側でFCMトークン取得・Firestoreに保存
+#### Phase Q2: Flutter側クイズUI
+- [ ] クイズ画面（1問ずつ表示、4択ボタン、正解/不正解フィードバック）
+- [ ] 結果サマリー画面（5問終了後に正答数・通算正答率を表示）
+- [ ] ボトムナビにクイズタブ追加 or 復習タブ内にクイズセクション追加
 
-#### Phase C: 深夜バッチ（Cloud Functions - Scheduled）
-- [ ] sentences.created_atからユーザーごとの利用時間帯を推定
-- [ ] 復習内容を作成し送信時刻を決定→notification_queueに書き込み
-
-#### Phase D: 毎時配信（Cloud Run、JST 6:00〜18:00）
-- [ ] scheduled_date+scheduled_hourが現在時刻に合致するキューを取得
-- [ ] FCM送信→sentフラグ更新
-
-#### Phase E: Flutter側通知受信
-- [ ] 通知タップ時に該当例文の詳細画面を開く
-- [ ] 設定画面に通知ON/OFF追加
+#### Phase Q3: 成績管理・回答同期
+- [ ] quiz_results / quiz_stats テーブル作成（SQLite）
+- [ ] 正答率・連続正解数の計算ロジック
+- [ ] 回答結果をFirestore（quiz_answers）に同期（SRSバッチ用）
+- [ ] 成績表示UI（通算正答率、連続正解数、最高記録）
 
 ## マイルストーン
 

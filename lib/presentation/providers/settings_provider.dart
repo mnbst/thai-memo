@@ -114,6 +114,12 @@ class SettingsController extends StateNotifier<SettingsState> {
     );
   }
 
+  /// 初回起動完了を記録
+  Future<void> completeFirstLaunch() async {
+    await _prefs?.setBool(AppConfig.prefKeyFirstLaunch, false);
+    state = state.copyWith(isFirstLaunch: false);
+  }
+
   // ==================== Preferences Management ====================
 
   /// Set theme mode

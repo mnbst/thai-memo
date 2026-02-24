@@ -137,8 +137,6 @@ class ThaiToneAnalyzer {
   // 語彙固有の声調例外（規則では導出できない単語）
   static const Map<String, ThaiTone> _toneExceptions = {
     'เยอะ': ThaiTone.high, // yə́ — 短母音死音節だが前置母音で長母音判定される例外
-    'สบาย':
-        ThaiTone.mid, // sa-baai — 語彙例外。สบาย は低子音+長母音+生音節で規則的には高声だが、実際は平声で発音される
   };
 
   // 前置母音（leading vowels）

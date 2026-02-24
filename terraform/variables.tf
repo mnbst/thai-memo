@@ -19,5 +19,11 @@ variable "gemini_api_key" {
 variable "firebase_project_display_name" {
   description = "Firebase project display name"
   type        = string
-  default     = "Thai Memo"
+  default     = "Thai Memo (Tester)"
+}
+
+variable "ci_service_account_email" {
+  description = "CI/CD用サービスアカウントのメールアドレス"
+  type        = string
+  default     = ""
 }
