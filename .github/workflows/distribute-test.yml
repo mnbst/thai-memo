@@ -92,7 +92,7 @@ jobs:
         with:
           appId: ${{ secrets.FIREBASE_APP_ID_TESTER }}
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          groups: testers
+          groups: group1
           file: build/app/outputs/flutter-apk/app-release.apk
           releaseNotes: ${{ steps.pr_info.outputs.notes }}
 
@@ -142,7 +142,7 @@ jobs:
   #       with:
   #         appId: ${{ secrets.FIREBASE_APP_ID_IOS_TESTER }}
   #         serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-  #         groups: testers
+  #         groups: group1
   #         file: build/ios/ipa/*.ipa
   #
   #     - name: Clean up keychain
