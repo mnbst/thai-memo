@@ -1,0 +1,12 @@
+[project]
+name = "thai-memo-functions"
+version = "1.0.0"
+description = "Cloud Functions for Thai Memo - generateThaiSentence"
+requires-python = ">=3.11"
+dependencies = [
+    "firebase-functions>=0.4.0",
+    "firebase-admin>=6.0.0",
+    "google-genai>=1.0.0",
+    "google-cloud-secret-manager>=2.0.0",
+    "pythainlp>=5.0.0",
+]

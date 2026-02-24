@@ -5,7 +5,8 @@ class AppConfig {
   /// 環境判定（--dart-define=ENV=prod で本番）
   static const String env = String.fromEnvironment('ENV', defaultValue: 'dev');
   static bool get isProd => env == 'prod';
-  static bool get isDev => env == 'dev';
+  static bool get isTester => env == 'tester';
+  static bool get isDev => env != 'prod' && env != 'tester';
 
   /// App name
   static const String appName = 'まいにちタイ語';
@@ -15,7 +16,7 @@ class AppConfig {
 
   /// Database configuration
   static const String databaseName = 'thai_memo.db';
-  static const int databaseVersion = 4;
+  static const int databaseVersion = 6;
 
   /// Background task configuration
   static const Duration backgroundTaskFrequency = Duration(hours: 24);

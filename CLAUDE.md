@@ -27,14 +27,23 @@ flutter test test/widget_test.dart  # single test
 # Static analysis
 flutter analyze
 
-# Cloud Functions (in functions/ directory)
-cd functions && npm install && npm run build
-cd functions && npm run serve   # local emulator
-cd functions && npm run deploy  # deploy to Firebase
+# Cloud Functions - JavaScript (notifications)
+cd functions/javascript && npm install && npm run build
+cd functions/javascript && npm run deploy
+
+# Cloud Functions - Python (generateThaiSentence)
+cd functions/python && uv sync
+cd functions/python && uv export --no-hashes > requirements.txt  # デプロイ前に実行
+
+# Cloud Functions - 全関数デプロイ
+firebase deploy --only functions
 
 # Infrastructure (in terraform/ directory)
-cd terraform && terraform plan
-cd terraform && terraform apply
+# 環境: dev, tester, prod
+cd terraform
+terraform init -backend-config=backends/<env>.tfbackend -reconfigure
+terraform plan -var-file=<env>.tfvars
+terraform apply -var-file=<env>.tfvars
 ```
 
 ## Architecture
@@ -68,7 +77,10 @@ SQLite (`thai_memo.db`) with tables: `sentences`, `word_breakdowns`, `generation
 
 ## Backend
 
-- Cloud Functions in `functions/src/` (TypeScript, Node.js 18)
-- Terraform IaC in `terraform/` for GCP resources
+- Cloud Functions (2 codebase構成):
+  - `functions/javascript/` — TypeScript (Node.js 22): notificationBatch, sendNotifications
+  - `functions/python/` — Python 3.11+ (uv管理): generateThaiSentence（PyThaiNLPで音節分割）
+- Terraform IaC in `terraform/` for GCP resources (3環境: dev/tester/prod、backend configで切り替え)
 - Region: asia-northeast1 (Tokyo)
-- **Cloud Functions を修正したら必ず `cd functions && npm run build && npm run deploy` を実行すること**
+- **Cloud Functions を修正したら必ず `firebase deploy --only functions` を実行すること**
+- **Python側の依存追加時は `cd functions/python && uv add <pkg> && uv export --no-hashes > requirements.txt`**

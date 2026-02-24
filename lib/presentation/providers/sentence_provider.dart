@@ -112,6 +112,46 @@ class SentenceController extends StateNotifier<SentenceState> {
     }
   }
 
+  /// 今日まだ生成していなければ自動生成、済みなら最新を表示
+  Future<void> loadOrGenerateToday({
+    Map<String, String?> generationParams = const {},
+  }) async {
+    state = const SentenceStateLoading();
+
+    try {
+      final recent = await _getUseCase.getMostRecent();
+      if (recent != null && _isToday(recent.createdAt)) {
+        state = SentenceStateSuccess(recent);
+        return;
+      }
+
+      // 今日未生成 → 自動生成
+      try {
+        final sentence = await _generateUseCase.execute(
+          generationParams: generationParams,
+        );
+        state = SentenceStateSuccess(sentence);
+      } catch (e) {
+        // 生成失敗時は既存の最新例文を表示、なければサンプル表示
+        if (recent != null) {
+          state = SentenceStateSuccess(recent);
+        } else {
+          state = const SentenceStateEmpty();
+        }
+      }
+    } catch (e) {
+      state = const SentenceStateError('データの読み込みに失敗しました');
+    }
+  }
+
+  bool _isToday(DateTime? date) {
+    if (date == null) return false;
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
   /// Toggle favorite status
   Future<void> toggleFavorite(String id, bool isFavorite) async {
     try {

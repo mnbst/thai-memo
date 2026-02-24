@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
-import 'firebase_options.dart';
+import 'firebase_options_dev.dart';
 import 'firebase_options_prod.dart';
-import 'presentation/providers/review_provider.dart';
+import 'firebase_options_tester.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/fcm_service.dart';
 import 'services/firebase_auth_service.dart';
 
@@ -15,20 +16,22 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase（環境に応じて設定を切替）
-  await Firebase.initializeApp(
-    options: AppConfig.isProd
-        ? ProdFirebaseOptions.currentPlatform
-        : DefaultFirebaseOptions.currentPlatform,
-  );
+  final firebaseOptions = AppConfig.isProd
+      ? ProdFirebaseOptions.currentPlatform
+      : AppConfig.isTester
+          ? TesterFirebaseOptions.currentPlatform
+          : DefaultFirebaseOptions.currentPlatform;
+  await Firebase.initializeApp(options: firebaseOptions);
+
+  // バックグラウンドFCMハンドラ登録（Firebase初期化直後に設定）
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Authenticate user anonymously on startup
   try {
     await FirebaseAuthService.instance.ensureAuthenticated();
     // Initialize FCM after authentication
     await FcmService.instance.initialize();
-  } catch (e) {
-    // Continue anyway - will retry on first generation attempt
-  }
+  } catch (_) {}
 
   // ProviderContainerを共有してFCMハンドラからもproviderにアクセス可能にする
   final container = ProviderContainer();
@@ -43,7 +46,6 @@ void main() async {
 
   // navigatorKeyが有効になった後に通知ハンドラをセットアップ
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    final reviewNotifier = container.read(reviewProvider.notifier);
-    FcmService.instance.setupNotificationHandlers(reviewNotifier);
+    FcmService.instance.setupNotificationHandlers();
   });
 }

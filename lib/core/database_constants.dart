@@ -6,7 +6,8 @@ class DatabaseConstants {
   static const String tableSentences = 'sentences';
   static const String tableWordBreakdowns = 'word_breakdowns';
   static const String tableGenerationLogs = 'generation_logs';
-  static const String tableAppSettings = 'app_settings';
+  static const String tableQuizResults = 'quiz_results';
+  static const String tableQuizStats = 'quiz_stats';
 
   // ==================== Sentences Table ====================
   static const String columnSentenceId = 'id';
@@ -38,10 +39,23 @@ class DatabaseConstants {
   static const String columnErrorMessage = 'error_message';
   static const String columnApiTokensUsed = 'api_tokens_used';
 
-  // ==================== App Settings Table ====================
-  static const String columnSettingKey = 'key';
-  static const String columnSettingValue = 'value';
-  static const String columnUpdatedAt = 'updated_at';
+  // ==================== Quiz Results Table ====================
+  static const String columnQuizResultId = 'id';
+  static const String columnQuizSentenceId = 'sentence_id';
+  static const String columnQuizQuestionText = 'question_text';
+  static const String columnQuizCorrectAnswer = 'correct_answer';
+  static const String columnQuizUserAnswer = 'user_answer';
+  static const String columnQuizIsCorrect = 'is_correct';
+  static const String columnQuizAnsweredAt = 'answered_at';
+
+  // ==================== Quiz Stats Table ====================
+  static const String columnStatsId = 'id';
+  static const String columnStatsTotalAnswered = 'total_answered';
+  static const String columnStatsTotalCorrect = 'total_correct';
+  static const String columnStatsCurrentStreak = 'current_streak';
+  static const String columnStatsBestStreak = 'best_streak';
+  static const String columnStatsLastQuizDate = 'last_quiz_date';
+  static const String columnStatsUpdatedAt = 'updated_at';
 
   // ==================== SQL Statements ====================
 
@@ -90,15 +104,6 @@ class DatabaseConstants {
     )
   ''';
 
-  /// Create app_settings table
-  static const String createAppSettingsTable = '''
-    CREATE TABLE $tableAppSettings (
-      $columnSettingKey TEXT PRIMARY KEY,
-      $columnSettingValue TEXT NOT NULL,
-      $columnUpdatedAt INTEGER NOT NULL
-    )
-  ''';
-
   /// Create index for sentences by created_at
   static const String createIndexSentencesCreatedAt = '''
     CREATE INDEX idx_sentences_created_at
@@ -117,12 +122,45 @@ class DatabaseConstants {
     ON $tableGenerationLogs($columnGeneratedAt DESC)
   ''';
 
+  /// Create quiz_results table
+  static const String createQuizResultsTable = '''
+    CREATE TABLE $tableQuizResults (
+      $columnQuizResultId TEXT PRIMARY KEY,
+      $columnQuizSentenceId TEXT NOT NULL,
+      $columnQuizQuestionText TEXT NOT NULL,
+      $columnQuizCorrectAnswer TEXT NOT NULL,
+      $columnQuizUserAnswer TEXT NOT NULL,
+      $columnQuizIsCorrect INTEGER NOT NULL,
+      $columnQuizAnsweredAt INTEGER NOT NULL
+    )
+  ''';
+
+  /// Create index for quiz_results by answered_at
+  static const String createIndexQuizResultsAnsweredAt = '''
+    CREATE INDEX idx_quiz_results_answered_at
+    ON $tableQuizResults($columnQuizAnsweredAt DESC)
+  ''';
+
+  /// Create quiz_stats table (single row cache)
+  static const String createQuizStatsTable = '''
+    CREATE TABLE $tableQuizStats (
+      $columnStatsId INTEGER PRIMARY KEY DEFAULT 1,
+      $columnStatsTotalAnswered INTEGER NOT NULL DEFAULT 0,
+      $columnStatsTotalCorrect INTEGER NOT NULL DEFAULT 0,
+      $columnStatsCurrentStreak INTEGER NOT NULL DEFAULT 0,
+      $columnStatsBestStreak INTEGER NOT NULL DEFAULT 0,
+      $columnStatsLastQuizDate TEXT,
+      $columnStatsUpdatedAt INTEGER NOT NULL
+    )
+  ''';
+
   /// List of all create table statements
   static const List<String> createTableStatements = [
     createSentencesTable,
     createWordBreakdownsTable,
     createGenerationLogsTable,
-    createAppSettingsTable,
+    createQuizResultsTable,
+    createQuizStatsTable,
   ];
 
   /// List of all create index statements
@@ -130,5 +168,6 @@ class DatabaseConstants {
     createIndexSentencesCreatedAt,
     createIndexWordBreakdownsSentenceId,
     createIndexGenerationLogsGeneratedAt,
+    createIndexQuizResultsAnsweredAt,
   ];
 }

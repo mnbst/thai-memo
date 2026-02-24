@@ -39,3 +39,21 @@ data "google_firebase_web_app_config" "thai_memo_web_config" {
   project    = var.project_id
   web_app_id = google_firebase_web_app.thai_memo_web.app_id
 }
+
+# Firestore composite indexes
+resource "google_firestore_index" "quiz_answers_is_correct_answered_at" {
+  project    = var.project_id
+  database   = "(default)"
+  collection = "quiz_answers"
+
+  fields {
+    field_path = "is_correct"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "answered_at"
+    order      = "DESCENDING"
+  }
+
+  depends_on = [google_firebase_project.default]
+}
