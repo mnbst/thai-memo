@@ -82,6 +82,14 @@ resource "google_artifact_registry_repository" "gcf_artifacts" {
   depends_on = [google_project_service.required_apis]
 }
 
+# CI/CD service account IAM bindings
+resource "google_project_iam_member" "ci_service_account_user" {
+  count   = var.ci_service_account_email != "" ? 1 : 0
+  project = var.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${var.ci_service_account_email}"
+}
+
 # Cloud Functions module will be added after Functions code is ready
 # module "cloud_functions" {
 #   source = "./modules/cloud-functions"

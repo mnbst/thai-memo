@@ -21,3 +21,9 @@ variable "firebase_project_display_name" {
   type        = string
   default     = "Thai Memo (Tester)"
 }
+
+variable "ci_service_account_email" {
+  description = "CI/CD用サービスアカウントのメールアドレス"
+  type        = string
+  default     = ""
+}
