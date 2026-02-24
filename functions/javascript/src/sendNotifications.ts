@@ -108,7 +108,7 @@ export const sendNotifications = isDevOnly()
     })
   : functions.scheduler.onSchedule(
       {
-        schedule: '0 6 * * *', // JST 6:00（1日1回一律配信）
+        schedule: '*/30 8-20 * * *', // JST 8:00〜20:00 の間30分ごとに配信
         region: 'asia-northeast1',
         timeZone: 'Asia/Tokyo',
       },

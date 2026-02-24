@@ -43,6 +43,7 @@ module "firebase" {
 
   project_id   = var.project_id
   display_name = var.firebase_project_display_name
+  region       = var.region
 
   depends_on = [google_project_service.required_apis]
 }

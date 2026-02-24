@@ -40,6 +40,16 @@ data "google_firebase_web_app_config" "thai_memo_web_config" {
   web_app_id = google_firebase_web_app.thai_memo_web.app_id
 }
 
+# Firestore database
+resource "google_firestore_database" "default" {
+  project     = var.project_id
+  name        = "(default)"
+  location_id = var.region
+  type        = "FIRESTORE_NATIVE"
+
+  depends_on = [google_firebase_project.default]
+}
+
 # Firestore composite indexes
 resource "google_firestore_index" "quiz_answers_is_correct_answered_at" {
   project    = var.project_id
@@ -55,5 +65,5 @@ resource "google_firestore_index" "quiz_answers_is_correct_answered_at" {
     order      = "DESCENDING"
   }
 
-  depends_on = [google_firebase_project.default]
+  depends_on = [google_firestore_database.default]
 }

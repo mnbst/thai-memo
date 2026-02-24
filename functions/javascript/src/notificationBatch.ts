@@ -195,7 +195,7 @@ export const notificationBatch = isDevOnly()
     })
   : functions.scheduler.onSchedule(
       {
-        schedule: '0 15 * * *', // UTC 15:00 = JST 0:00
+        schedule: '0 0 * * *', // JST 0:00
         region: 'asia-northeast1',
         timeZone: 'Asia/Tokyo',
         timeoutSeconds: 1800, // 30分
