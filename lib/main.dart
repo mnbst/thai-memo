@@ -7,6 +7,7 @@ import 'core/config/app_config.dart';
 import 'firebase_options_dev.dart';
 import 'firebase_options_prod.dart';
 import 'firebase_options_tester.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/fcm_service.dart';
 import 'services/firebase_auth_service.dart';
 
@@ -21,6 +22,9 @@ void main() async {
           ? TesterFirebaseOptions.currentPlatform
           : DefaultFirebaseOptions.currentPlatform;
   await Firebase.initializeApp(options: firebaseOptions);
+
+  // バックグラウンドFCMハンドラ登録（Firebase初期化直後に設定）
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Authenticate user anonymously on startup
   try {

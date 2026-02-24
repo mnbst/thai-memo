@@ -23,12 +23,10 @@ async function notificationBatchHandler() {
 
   await deleteCollection('quiz_queue');
 
-  const usersSnapshot = await db.collection('users')
-    .where('notification_enabled', '==', true)
-    .get();
+  const usersSnapshot = await db.collection('users').get();
 
   if (usersSnapshot.empty) {
-    console.log('No users with notifications enabled');
+    console.log('No users found');
     return;
   }
 
@@ -66,6 +64,8 @@ async function notificationBatchHandler() {
         ...q,
         sentence_id: selectedSentences[i]?.id || '',
         srs_interval: selectedSentences[i]?.srsInterval || 0,
+        japanese_translation: selectedSentences[i]?.data.japanese_translation || '',
+        sentence_pronunciation: selectedSentences[i]?.data.pronunciation || '',
       }));
 
       await db.collection('quiz_queue').doc().set({
@@ -111,21 +111,6 @@ async function selectSentencesBySRS(
 
   if (allSentencesSnapshot.empty) return [];
 
-  // 不正解履歴
-  const wrongAnswers = await db
-    .collection('users').doc(uid)
-    .collection('quiz_answers')
-    .where('is_correct', '==', false)
-    .orderBy('answered_at', 'desc')
-    .limit(50)
-    .get();
-
-  const wrongCounts = new Map<string, number>();
-  for (const doc of wrongAnswers.docs) {
-    const sid = doc.data().sentence_id;
-    wrongCounts.set(sid, (wrongCounts.get(sid) || 0) + 1);
-  }
-
   // 優先度1-4: SRS間隔
   for (const interval of SRS_INTERVALS) {
     if (selected.length >= MAX_QUESTIONS) break;
@@ -153,20 +138,7 @@ async function selectSentencesBySRS(
     }
   }
 
-  // 優先度5: 不正解が多い例文
-  if (selected.length < MAX_QUESTIONS) {
-    const wrongCandidates = allSentencesSnapshot.docs
-      .filter(doc => !usedIds.has(doc.id) && wrongCounts.has(doc.id))
-      .sort((a, b) => (wrongCounts.get(b.id) || 0) - (wrongCounts.get(a.id) || 0));
-
-    for (const doc of wrongCandidates) {
-      if (selected.length >= MAX_QUESTIONS) break;
-      selected.push({ id: doc.id, data: doc.data(), srsInterval: 0 });
-      usedIds.add(doc.id);
-    }
-  }
-
-  // 優先度6: ランダム補充
+  // 優先度5: ランダム補充
   if (selected.length < MAX_QUESTIONS) {
     const remaining = allSentencesSnapshot.docs
       .filter(doc => !usedIds.has(doc.id))

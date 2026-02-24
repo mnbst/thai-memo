@@ -31,6 +31,8 @@ export interface QuizQuestion {
   pronunciation: string;
   explanation: string;
   srs_interval: number;
+  japanese_translation: string;
+  sentence_pronunciation: string;
 }
 
 export interface QuizQuestionsResponse {

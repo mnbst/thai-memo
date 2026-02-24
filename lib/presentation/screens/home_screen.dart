@@ -94,7 +94,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.today_outlined),
             selectedIcon: Icon(Icons.today),
-            label: '例文生成',
+            label: '例文',
           ),
           NavigationDestination(
             icon: Icon(Icons.quiz_outlined),
@@ -187,7 +187,7 @@ class TodayScreen extends ConsumerWidget {
     final sentenceState = ref.watch(sentenceControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('例文生成')),
+      appBar: AppBar(title: const Text('今日のタイ語')),
       body: _buildSentenceContent(context, ref, sentenceState),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _generateNewSentence(context, ref),

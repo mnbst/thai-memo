@@ -124,8 +124,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('復習通知'),
-              subtitle: const Text('生成した例文の復習リマインダーを受け取る'),
+              title: const Text('クイズ通知'),
+              subtitle: const Text('クイズのリマインダーを受け取る'),
               value: notificationsEnabled,
               onChanged: (value) {
                 ref
@@ -205,7 +205,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '例文生成設定',
+                  '今日のタイ語設定',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),

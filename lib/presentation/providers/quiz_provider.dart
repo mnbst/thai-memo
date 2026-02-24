@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/datasources/local/database_helper.dart';
-import '../../data/datasources/quiz_api_service.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
 
@@ -31,7 +30,8 @@ class QuizAnswering extends QuizState {
   final List<QuizQuestion> questions;
   final int index;
   final List<bool> answers;
-  const QuizAnswering(this.questions, this.index, this.answers);
+  final List<int> selectedIndices;
+  const QuizAnswering(this.questions, this.index, this.answers, [this.selectedIndices = const []]);
 }
 
 class QuizShowResult extends QuizState {
@@ -40,8 +40,10 @@ class QuizShowResult extends QuizState {
   final List<bool> answers;
   final int selectedIndex;
   final bool isCorrect;
+  final List<int> selectedIndices;
   const QuizShowResult(
-      this.questions, this.index, this.answers, this.selectedIndex, this.isCorrect);
+      this.questions, this.index, this.answers, this.selectedIndex, this.isCorrect,
+      [this.selectedIndices = const []]);
 }
 
 class QuizSummary extends QuizState {
@@ -49,7 +51,9 @@ class QuizSummary extends QuizState {
   final List<bool> answers;
   final int totalCorrect;
   final Map<String, dynamic> stats;
-  const QuizSummary(this.questions, this.answers, this.totalCorrect, this.stats);
+  final List<int> selectedIndices;
+  const QuizSummary(this.questions, this.answers, this.totalCorrect, this.stats,
+      [this.selectedIndices = const []]);
 }
 
 // ==================== Stats Model ====================
@@ -87,9 +91,10 @@ class QuizStatsData {
 
 class QuizController extends StateNotifier<QuizState> {
   static const _quizKey = 'quiz_questions';
-  static const _queueIdKey = 'quiz_queue_id';
+  static const _quizCompletedKey = 'quiz_completed';
+  static const _quizAnswersKey = 'quiz_answers';
+  static const _quizSelectedIndicesKey = 'quiz_selected_indices';
   final DatabaseHelper _db = DatabaseHelper.instance;
-  final QuizApiService _api = QuizApiService();
 
   QuizController() : super(const QuizInitial());
 
@@ -113,6 +118,30 @@ class QuizController extends StateNotifier<QuizState> {
         state = const QuizInitial();
         return;
       }
+
+      // 完了済みならサマリーを復元
+      if (prefs.getBool(_quizCompletedKey) == true) {
+        final answersJson = prefs.getString(_quizAnswersKey);
+        final answers = answersJson != null
+            ? (jsonDecode(answersJson) as List<dynamic>).cast<bool>()
+            : <bool>[];
+        final selectedIndicesJson = prefs.getString(_quizSelectedIndicesKey);
+        List<int> selectedIndices;
+        try {
+          selectedIndices = selectedIndicesJson != null
+              ? (jsonDecode(selectedIndicesJson) as List<dynamic>)
+                  .map((e) => (e as num).toInt())
+                  .toList()
+              : <int>[];
+        } catch (_) {
+          selectedIndices = <int>[];
+        }
+        final totalCorrect = answers.where((a) => a).length;
+        final cachedStats = await _db.getCachedQuizStats();
+        state = QuizSummary(questions, answers, totalCorrect, cachedStats ?? {}, selectedIndices);
+        return;
+      }
+
       state = QuizReady(questions);
     } catch (_) {
       state = const QuizInitial();
@@ -133,6 +162,7 @@ class QuizController extends StateNotifier<QuizState> {
     final question = s.questions[s.index];
     final isCorrect = question.choices[choiceIndex] == question.correctAnswer;
     final newAnswers = [...s.answers, isCorrect];
+    final newSelectedIndices = [...s.selectedIndices, choiceIndex];
 
     // DBに保存
     final result = QuizResult(
@@ -146,10 +176,8 @@ class QuizController extends StateNotifier<QuizState> {
     );
     await _db.insertQuizResult(result.toDatabase());
 
-    // Firestoreに非同期送信（SRS用）
-    _api.submitAnswer(sentenceId: question.sentenceId, isCorrect: isCorrect).catchError((_) {});
 
-    state = QuizShowResult(s.questions, s.index, newAnswers, choiceIndex, isCorrect);
+    state = QuizShowResult(s.questions, s.index, newAnswers, choiceIndex, isCorrect, newSelectedIndices);
   }
 
   /// 次の問題へ or サマリーへ
@@ -171,30 +199,30 @@ class QuizController extends StateNotifier<QuizState> {
 
       final cachedStats = await _db.getCachedQuizStats();
 
-      // Firestoreにセッション結果を非同期送信
       final prefs = await SharedPreferences.getInstance();
-      final queueId = prefs.getString(_queueIdKey) ?? '';
-      _api
-          .submitSessionResult(
-            totalQuestions: s.questions.length,
-            correctCount: totalCorrect,
-            quizQueueId: queueId,
-          )
-          .catchError((_) {});
 
       state = QuizSummary(
         s.questions,
         s.answers,
         totalCorrect,
         cachedStats ?? {},
+        s.selectedIndices,
       );
 
-      // SharedPrefsからクイズデータを削除
-      await prefs.remove(_quizKey);
-      await prefs.remove(_queueIdKey);
+      // 完了フラグと回答結果を保存（次回配信まで表示し続ける）
+      await prefs.setBool(_quizCompletedKey, true);
+      await prefs.setString(_quizAnswersKey, jsonEncode(s.answers));
+      await prefs.setString(_quizSelectedIndicesKey, jsonEncode(s.selectedIndices));
     } else {
-      state = QuizAnswering(s.questions, nextIndex, s.answers);
+      state = QuizAnswering(s.questions, nextIndex, s.answers, s.selectedIndices);
     }
+  }
+
+  /// 同じ問題でやり直し
+  void retryQuiz() {
+    if (state is! QuizSummary) return;
+    final questions = (state as QuizSummary).questions;
+    state = QuizAnswering(questions, 0, []);
   }
 
   String _todayString() {

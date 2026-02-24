@@ -5,6 +5,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// バックグラウンドFCMハンドラ（トップレベル関数）
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  final data = message.data;
+  if (data['type'] != 'quiz') return;
+
+  final questions = data['questions'];
+  if (questions == null || (questions as String).isEmpty) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('quiz_questions', questions);
+  // 前回の完了フラグをクリア（洗い替え）
+  await prefs.remove('quiz_completed');
+  await prefs.remove('quiz_answers');
+
+  if (data['quiz_queue_id'] != null) {
+    await prefs.setString('quiz_queue_id', data['quiz_queue_id']);
+  }
+}
+
 class FcmService {
   static final FcmService instance = FcmService._internal();
 
@@ -19,8 +39,6 @@ class FcmService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-
-  static const _quizKey = 'quiz_questions';
 
   /// 通知タップ時にクイズタブへ切り替えるコールバック
   VoidCallback? onQuizDataReceived;
@@ -71,8 +89,8 @@ class FcmService {
     // Android通知チャンネル作成
     const channel = AndroidNotificationChannel(
       'review_notifications',
-      '復習通知',
-      description: 'タイ語復習のリマインダー通知',
+      'クイズ通知',
+      description: 'クイズのリマインダー通知',
       importance: Importance.high,
     );
     await _localNotifications
@@ -98,7 +116,11 @@ class FcmService {
     // フォアグラウンドでメッセージ受信時: バナー表示 + データ保存
     FirebaseMessaging.onMessage.listen((message) {
       _showForegroundNotification(message);
-      _saveQuizData(message);
+      _saveQuizData(message).then((_) {
+        if (message.data['type'] == 'quiz') {
+          onQuizDataReceived?.call();
+        }
+      });
     });
   }
 
@@ -109,8 +131,8 @@ class FcmService {
 
     const androidDetails = AndroidNotificationDetails(
       'review_notifications',
-      '復習通知',
-      channelDescription: 'タイ語復習のリマインダー通知',
+      'クイズ通知',
+      channelDescription: 'クイズのリマインダー通知',
       importance: Importance.high,
       priority: Priority.high,
     );
@@ -132,20 +154,8 @@ class FcmService {
     onQuizDataReceived?.call();
   }
 
-  Future<void> _saveQuizData(RemoteMessage message) async {
-    final data = message.data;
-    if (data['type'] != 'quiz') return;
-
-    final questions = data['questions'];
-    if (questions == null || questions.isEmpty) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_quizKey, questions);
-
-    if (data['quiz_queue_id'] != null) {
-      await prefs.setString('quiz_queue_id', data['quiz_queue_id']);
-    }
-  }
+  Future<void> _saveQuizData(RemoteMessage message) =>
+      firebaseMessagingBackgroundHandler(message);
 
   Future<void> _saveToken(String token) async {
     final user = FirebaseAuth.instance.currentUser;

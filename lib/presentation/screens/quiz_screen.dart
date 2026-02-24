@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
 import '../providers/quiz_provider.dart';
+import '../providers/tts_provider.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key});
@@ -241,6 +242,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           ...List.generate(state.questions.length, (i) {
             final q = state.questions[i];
             final ok = state.answers[i];
+            final selectedIdx = i < state.selectedIndices.length ? state.selectedIndices[i] : 0;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Card(
@@ -263,10 +265,41 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   title: Text(q.thaiText,
                       style: const TextStyle(fontSize: 16)),
                   subtitle: Text(q.correctAnswer),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      builder: (_) => DraggableScrollableSheet(
+                        initialChildSize: 0.85,
+                        minChildSize: 0.5,
+                        maxChildSize: 0.95,
+                        expand: false,
+                        builder: (context, scrollController) => _QuizResultDetail(
+                          question: q,
+                          selectedIndex: selectedIdx,
+                          isCorrect: ok,
+                          scrollController: scrollController,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             );
           }),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () {
+              ref.read(quizControllerProvider.notifier).retryQuiz();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('もう一度挑戦する'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
         ],
       ),
     );
@@ -311,6 +344,14 @@ class _QuizQuestionView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
+          // 指示文
+          Text(
+            '___に入る適切な単語を選んでください',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 12),
           // 穴埋め例文
           Card(
             child: Padding(
@@ -355,7 +396,7 @@ class _QuizQuestionView extends StatelessWidget {
 
 // ==================== 結果表示ビュー ====================
 
-class _QuizResultView extends StatelessWidget {
+class _QuizResultView extends ConsumerWidget {
   final QuizQuestion question;
   final int questionIndex;
   final int totalQuestions;
@@ -373,7 +414,7 @@ class _QuizResultView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppConfig.defaultPadding),
       child: Column(
@@ -438,11 +479,42 @@ class _QuizResultView extends StatelessWidget {
                           .textTheme
                           .headlineMedium
                           ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 28)),
-                  const SizedBox(height: 8),
-                  Text('正解: ${question.correctAnswer}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                          )),
+                  if (question.sentencePronunciation.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(question.sentencePronunciation,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            )),
+                  ],
+                  if (question.japaneseTranslation.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(question.japaneseTranslation,
+                        style: Theme.of(context).textTheme.bodyLarge),
+                  ],
+                  const Divider(height: 24),
+                  Row(
+                    children: [
+                      Text('正解: ${question.correctAnswer}',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                              )),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: Icon(Icons.volume_up,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.primary),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          ref.read(ttsServiceProvider).speak(question.correctAnswer);
+                        },
+                        tooltip: '発音を再生',
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text('発音: ${question.pronunciation}',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -533,6 +605,187 @@ class _QuizResultView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ==================== 結果詳細ボトムシート ====================
+
+class _QuizResultDetail extends ConsumerWidget {
+  final QuizQuestion question;
+  final int selectedIndex;
+  final bool isCorrect;
+  final ScrollController scrollController;
+
+  const _QuizResultDetail({
+    required this.question,
+    required this.selectedIndex,
+    required this.isCorrect,
+    required this.scrollController,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListView(
+      controller: scrollController,
+      padding: const EdgeInsets.all(AppConfig.defaultPadding),
+      children: [
+        // ドラッグハンドル
+        Center(
+          child: Container(
+            width: 32,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        // 正誤バナー
+        Card(
+          color: isCorrect
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.errorContainer,
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding),
+            child: Row(
+              children: [
+                Icon(
+                  isCorrect ? Icons.check_circle : Icons.cancel,
+                  color: isCorrect
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.error,
+                  size: 32,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  isCorrect ? '正解！' : '不正解',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: isCorrect
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.error,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 例文カード
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(question.thaiText,
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 28)),
+                if (question.sentencePronunciation.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(question.sentencePronunciation,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          )),
+                ],
+                if (question.japaneseTranslation.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(question.japaneseTranslation,
+                      style: Theme.of(context).textTheme.bodyLarge),
+                ],
+                const Divider(height: 24),
+                Row(
+                  children: [
+                    Text('正解: ${question.correctAnswer}',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                            )),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: Icon(Icons.volume_up,
+                          size: 20, color: Theme.of(context).colorScheme.primary),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        ref.read(ttsServiceProvider).speak(question.correctAnswer);
+                      },
+                      tooltip: '発音を再生',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('発音: ${question.pronunciation}',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+                        )),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // 解説
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('解説',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(question.explanation,
+                    style: Theme.of(context).textTheme.bodyLarge),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 4択（正誤ハイライト付き）
+        ...List.generate(question.choices.length, (i) {
+          final isSelected = i == selectedIndex;
+          final isCorrectChoice = question.choices[i] == question.correctAnswer;
+          Color? bgColor;
+          Color? borderColor;
+          if (isCorrectChoice) {
+            bgColor = Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5);
+            borderColor = Theme.of(context).colorScheme.primary;
+          } else if (isSelected && !isCorrect) {
+            bgColor = Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.5);
+            borderColor = Theme.of(context).colorScheme.error;
+          }
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              height: 56,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+                border: borderColor != null
+                    ? Border.all(color: borderColor, width: 2)
+                    : Border.all(
+                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                question.choices[i],
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: isCorrectChoice ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 }

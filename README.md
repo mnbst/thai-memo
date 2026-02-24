@@ -32,3 +32,24 @@ flutter run --dart-define=ENV=prod
   - dev → `DefaultFirebaseOptions`（`firebase_options_dev.dart`）
   - tester → `TesterFirebaseOptions`（`firebase_options_tester.dart`）
   - prod → `ProdFirebaseOptions`（`firebase_options_prod.dart`）
+
+## Firebaseデータのライフサイクル
+
+### Firestore コレクション
+
+| パス | 内容 | 作成 | 削除 |
+|------|------|------|------|
+| `/users/{uid}` | FCMトークン・通知設定 | アプリ起動時（merge upsert） | なし（永続） |
+| `/users/{uid}/sentences/{id}` | タイ語例文 | `generateThaiSentence` Cloud Function | **30日経過で自動削除**（`notificationBatch`が毎日0:00 JSTに実行） |
+| `/users/{uid}/quiz_answers/{id}` | クイズ回答履歴 | クイズ回答時にアプリから書き込み | なし（永続蓄積） |
+| `/users/{uid}/quiz_sessions/{id}` | クイズセッション結果 | クイズ完了時にアプリから書き込み | なし（永続蓄積） |
+| `/quiz_queue/{id}` | 通知用クイズキュー | `notificationBatch`が毎日0:00 JSTに生成 | **毎日全削除して再生成**（実質TTL 24時間） |
+
+### Firebase Auth
+
+- **匿名認証**: アプリ初回起動時に自動作成。明示的な削除処理なし（Firebaseデフォルトの30日未使用で自動削除に依存）。
+
+### FCM トークン
+
+- `/users/{uid}.fcm_token` に保存。`onTokenRefresh`で自動更新。
+- 送信エラー（`registration-token-not-registered`）発生時に`sendNotifications`がフィールドを削除。
