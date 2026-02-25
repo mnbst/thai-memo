@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>method</key>
-	<string>app-store</string>
+	<string>ad-hoc</string>
 	<key>teamID</key>
 	<string>5KTT2C466P</string>
 	<key>stripSwiftSymbols</key>
