@@ -7,7 +7,6 @@ on:
     paths-ignore:
       - '*.md'
       - 'LICENSE'
-      - '.github/**'
       - '.claude/**'
       - '.vscode/**'
       - 'reports/**'
@@ -152,6 +151,12 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Override signing for CI
+        run: |
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "iPhone Developer"/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution"/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "Thai Memo Ad Hoc";/g' ios/Runner.xcodeproj/project.pbxproj
 
       - name: Build IPA
         run: flutter build ipa --dart-define=ENV=tester --export-options-plist=ios/ExportOptions-adhoc.plist
