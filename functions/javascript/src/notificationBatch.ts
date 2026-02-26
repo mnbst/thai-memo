@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { GeminiService, QuizQuestion } from './services/geminiService';
 import { getGeminiApiKey } from './services/secretManager';
 import { isDevOnly } from './config/environment';
+import { formatDate } from './utils/formatDate';
 
 const db = admin.firestore();
 
@@ -176,13 +177,6 @@ async function cleanOldSentences(jstNow: Date): Promise<void> {
     }
     await batch.commit();
   }
-}
-
-function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
 }
 
 export const notificationBatch = isDevOnly()

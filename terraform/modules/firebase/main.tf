@@ -67,3 +67,37 @@ resource "google_firestore_index" "quiz_answers_is_correct_answered_at" {
 
   depends_on = [google_firestore_database.default]
 }
+
+# Cloud Functions (2nd gen) のサービスアカウントに FCM 送信権限を付与
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
+resource "google_project_iam_member" "functions_fcm_admin" {
+  project = var.project_id
+  role    = "roles/firebasecloudmessaging.admin"
+  member  = "serviceAccount:${data.google_project.current.number}-compute@developer.gserviceaccount.com"
+
+  depends_on = [google_firebase_project.default]
+}
+
+resource "google_firestore_index" "quiz_queue_uid_sent_created_at" {
+  project    = var.project_id
+  database   = "(default)"
+  collection = "quiz_queue"
+
+  fields {
+    field_path = "uid"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "sent"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "created_at"
+    order      = "DESCENDING"
+  }
+
+  depends_on = [google_firestore_database.default]
+}

@@ -82,13 +82,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ];
 
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: screens),
+      body: Stack(
+        children: [
+          IndexedStack(index: _currentIndex, children: screens),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 12,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset('static/appicon.png', width: 40, height: 40),
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
+          if (index == 1) {
+            ref.read(quizControllerProvider.notifier).loadQuiz();
+          }
         },
         destinations: const [
           NavigationDestination(

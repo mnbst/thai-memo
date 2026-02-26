@@ -1,8 +1,12 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/constants/default_quiz.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
@@ -94,28 +98,98 @@ class QuizController extends StateNotifier<QuizState> {
   static const _quizCompletedKey = 'quiz_completed';
   static const _quizAnswersKey = 'quiz_answers';
   static const _quizSelectedIndicesKey = 'quiz_selected_indices';
+  static const _maxQuestions = 5;
   final DatabaseHelper _db = DatabaseHelper.instance;
 
   QuizController() : super(const QuizInitial());
 
-  /// SharedPrefsからクイズデータを読み込み
+  /// 5問未満の場合、デフォルトクイズから補填して5問にする
+  List<QuizQuestion> _fillWithDefaults(List<QuizQuestion> questions) {
+    if (questions.length >= _maxQuestions) return questions;
+    final usedIds = questions.map((q) => q.sentenceId).toSet();
+    final defaults = defaultQuizQuestions
+        .where((q) => !usedIds.contains(q.sentenceId))
+        .toList()
+      ..shuffle();
+    return [
+      ...questions,
+      ...defaults.take(_maxQuestions - questions.length),
+    ];
+  }
+
+  /// クイズデータを読み込み（Firestore優先 → SharedPreferencesフォールバック）
   Future<void> loadQuiz() async {
     state = const QuizLoading();
 
+    try {
+      // Firestoreから未配信のクイズを取得
+      final fetched = await _fetchFromFirestore();
+      if (fetched) return;
+
+      // Firestoreに新規がなければSharedPreferencesの既存データを表示
+      await _loadFromPrefs();
+    } catch (e) {
+      debugPrint('クイズ読み込みエラー: $e');
+      await _loadFromPrefs();
+    }
+  }
+
+  /// Firestoreのquiz_queueからsent:falseのクイズを取得・洗い替え
+  Future<bool> _fetchFromFirestore() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('quiz_queue')
+        .where('uid', isEqualTo: user.uid)
+        .where('sent', isEqualTo: false)
+        .orderBy('created_at', descending: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return false;
+
+    final doc = snapshot.docs.first;
+    final data = doc.data();
+    final questionsList = data['questions'] as List<dynamic>? ?? [];
+    if (questionsList.isEmpty) return false;
+
+    final questions = _fillWithDefaults(
+      questionsList
+          .map((e) => QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+    );
+
+    // sent: trueに更新（sendNotificationsでスキップされる）
+    await doc.reference.update({'sent': true});
+
+    // SharedPreferencesに洗い替え保存（補填後のデータを保存）
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_quizKey, jsonEncode(questions.map((q) => q.toJson()).toList()));
+    await prefs.remove(_quizCompletedKey);
+    await prefs.remove(_quizAnswersKey);
+    await prefs.remove(_quizSelectedIndicesKey);
+
+    state = QuizReady(questions);
+    return true;
+  }
+
+  /// SharedPreferencesから既存クイズを復元
+  Future<void> _loadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final json = prefs.getString(_quizKey);
 
     if (json == null || json.isEmpty) {
-      state = const QuizInitial();
+      state = QuizReady(List<QuizQuestion>.from(defaultQuizQuestions));
       return;
     }
 
     try {
       final list = jsonDecode(json) as List<dynamic>;
-      final questions =
-          list.map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>)).toList();
+      final questions = _fillWithDefaults(
+          list.map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>)).toList());
       if (questions.isEmpty) {
-        state = const QuizInitial();
+        state = QuizReady(List<QuizQuestion>.from(defaultQuizQuestions));
         return;
       }
 
