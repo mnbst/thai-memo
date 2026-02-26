@@ -11,16 +11,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final data = message.data;
   if (data['type'] != 'quiz') return;
 
-  final questions = data['questions'];
-  if (questions == null || (questions as String).isEmpty) return;
-
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString('quiz_questions', questions);
-  // 前回の完了フラグをクリア（洗い替え）
-  await prefs.remove('quiz_completed');
-  await prefs.remove('quiz_answers');
-
+  // quiz_queue_idのみ保存（クイズデータはクイズページ表示時にFirestoreから取得）
   if (data['quiz_queue_id'] != null) {
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setString('quiz_queue_id', data['quiz_queue_id']);
   }
 }
@@ -67,13 +60,15 @@ class FcmService {
       _saveToken(token);
     });
 
-    // トークン取得・保存（iOS: APNSが未準備なら例外になるのでcatchして待つ）
+    // FCMトークン取得・保存
     try {
       final token = await _messaging.getToken();
       if (token != null) {
         await _saveToken(token);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('FCMトークン取得失敗: $e');
+    }
   }
 
   Future<void> _initLocalNotifications() async {
@@ -84,7 +79,12 @@ class FcmService {
       android: androidSettings,
       iOS: iosSettings,
     );
-    await _localNotifications.initialize(settings);
+    await _localNotifications.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (_) {
+        onQuizDataReceived?.call();
+      },
+    );
 
     // Android通知チャンネル作成
     const channel = AndroidNotificationChannel(

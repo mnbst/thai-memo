@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { isDev, isDevOnly } from './config/environment';
+import { formatDate } from './utils/formatDate';
 
 const db = admin.firestore();
 
@@ -45,21 +46,18 @@ async function sendNotificationsHandler() {
         continue;
       }
 
-      const questions = data.questions || [];
-
       const messageData: admin.messaging.Message = {
         token: userData.fcm_token,
         data: {
           type: 'quiz',
           quiz_queue_id: queueDoc.id,
-          questions: JSON.stringify(questions),
         },
       };
 
       if (userData.notification_enabled) {
         messageData.notification = {
           title: '今日のクイズ',
-          body: `${questions.length}問の穴埋めクイズが届きました`,
+          body: '穴埋めクイズが届きました',
         };
         messageData.apns = {
           payload: { aps: { sound: 'default' } },
@@ -75,7 +73,7 @@ async function sendNotificationsHandler() {
           payload: { aps: { 'content-available': 1 } },
         };
         messageData.android = {
-          priority: 'high' as any,
+          priority: 'high',
         };
       }
 
@@ -116,10 +114,3 @@ export const sendNotifications = isDevOnly()
         await sendNotificationsHandler();
       }
     );
-
-function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}

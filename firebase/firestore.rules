@@ -16,10 +16,12 @@ service cloud.firestore {
       }
     }
 
-    // Quiz queue: users can read their own data, writes by Cloud Functions only
+    // Quiz queue: users can read their own data, update sent field only
     match /quiz_queue/{docId} {
       allow read: if request.auth != null && resource.data.uid == request.auth.uid;
-      allow write: if false;
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sent']);
     }
 
     // Legacy: notification_queue managed by Cloud Functions only
