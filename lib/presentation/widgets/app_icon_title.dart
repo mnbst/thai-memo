@@ -13,7 +13,7 @@ class AppIconTitle extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
-          child: Image.asset('static/appicon.png', width: 28, height: 28),
+          child: Image.asset('assets/appicon.png', width: 28, height: 28),
         ),
         const SizedBox(width: 8),
         Text(title),

@@ -75,7 +75,7 @@ class _SplashScreenState extends State<SplashScreen>
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(36),
                       child: Image.asset(
-                        'static/appicon.png',
+                        'assets/appicon.png',
                         width: 160,
                         height: 160,
                       ),
