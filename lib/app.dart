@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/config/app_config.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/screens/home_screen.dart';
+import 'presentation/screens/splash_screen.dart';
 import 'services/fcm_service.dart';
 
 TextTheme _scaleTextTheme(TextTheme base, double delta) {
@@ -49,7 +50,7 @@ class ThaiMemoApp extends ConsumerWidget {
       themeMode: themeMode,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
-      home: const HomeScreen(),
+      home: const SplashScreen(child: HomeScreen()),
     );
   }
 

@@ -16,6 +16,31 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _customPromptFocusNode = FocusNode();
+  String? _pendingCustomPrompt;
+
+  @override
+  void initState() {
+    super.initState();
+    _customPromptFocusNode.addListener(_onCustomPromptFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _customPromptFocusNode.removeListener(_onCustomPromptFocusChange);
+    _customPromptFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _onCustomPromptFocusChange() {
+    if (!_customPromptFocusNode.hasFocus && _pendingCustomPrompt != null) {
+      ref.read(settingsControllerProvider.notifier).setGenerationParam(
+            GenerationConstants.customPromptKey,
+            _pendingCustomPrompt!.isEmpty ? null : _pendingCustomPrompt,
+          );
+      _pendingCustomPrompt = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -272,6 +297,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return TextFormField(
       key: ValueKey(currentValue),
       initialValue: currentValue,
+      focusNode: _customPromptFocusNode,
       maxLength: GenerationConstants.customPromptMaxLength,
       decoration: const InputDecoration(
         labelText: '自由メモ（例文に反映されます）',
@@ -280,12 +306,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         border: OutlineInputBorder(),
       ),
       onChanged: (value) {
-        ref
-            .read(settingsControllerProvider.notifier)
-            .setGenerationParam(
-              GenerationConstants.customPromptKey,
-              value.isEmpty ? null : value,
-            );
+        _pendingCustomPrompt = value;
       },
     );
   }
