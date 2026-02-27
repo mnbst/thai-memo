@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -162,7 +163,7 @@ class QuizController extends StateNotifier<QuizState> {
     final json = prefs.getString(_quizKey);
 
     if (json == null || json.isEmpty) {
-      state = const QuizInitial();
+      await _loadDefaultQuiz();
       return;
     }
 
@@ -171,7 +172,7 @@ class QuizController extends StateNotifier<QuizState> {
       final questions =
           list.map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>)).toList();
       if (questions.isEmpty) {
-        state = const QuizInitial();
+        await _loadDefaultQuiz();
         return;
       }
 
@@ -200,8 +201,25 @@ class QuizController extends StateNotifier<QuizState> {
 
       state = QuizReady(questions);
     } catch (_) {
-      state = const QuizInitial();
+      await _loadDefaultQuiz();
     }
+  }
+
+  /// assetsからデフォルトクイズを読み込み
+  Future<void> _loadDefaultQuiz() async {
+    try {
+      final jsonStr = await rootBundle.loadString('assets/default_quiz.json');
+      final list = jsonDecode(jsonStr) as List<dynamic>;
+      final questions =
+          list.map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>)).toList();
+      if (questions.isNotEmpty) {
+        state = QuizReady(questions);
+        return;
+      }
+    } catch (e) {
+      debugPrint('デフォルトクイズ読み込みエラー: $e');
+    }
+    state = const QuizInitial();
   }
 
   /// クイズ開始

@@ -91,7 +91,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             left: 12,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset('static/appicon.png', width: 40, height: 40),
+              child: Image.asset('assets/appicon.png', width: 40, height: 40),
             ),
           ),
         ],
@@ -235,15 +235,20 @@ class TodayScreen extends ConsumerWidget {
   /// Build loading state
   Widget _buildLoadingState() {
     return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('例文を生成中...'),
-          SizedBox(height: 24),
-          LoadingTipCarousel(),
-        ],
+      child: Card(
+        child: Padding(
+          padding: EdgeInsets.all(AppConfig.defaultPadding * 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('例文を生成中...'),
+              SizedBox(height: 24),
+              LoadingTipCarousel(),
+            ],
+          ),
+        ),
       ),
     );
   }
