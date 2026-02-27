@@ -270,6 +270,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildCustomPromptField(String? currentValue) {
     return TextFormField(
+      key: ValueKey(currentValue),
       initialValue: currentValue,
       maxLength: GenerationConstants.customPromptMaxLength,
       decoration: const InputDecoration(

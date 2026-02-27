@@ -251,7 +251,12 @@ class TodayScreen extends ConsumerWidget {
   /// Build success state with sentence
   Widget _buildSuccessState(BuildContext context, WidgetRef ref, sentence) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppConfig.defaultPadding),
+      padding: const EdgeInsets.fromLTRB(
+        AppConfig.defaultPadding,
+        AppConfig.defaultPadding,
+        AppConfig.defaultPadding,
+        AppConfig.defaultPadding + 80,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
