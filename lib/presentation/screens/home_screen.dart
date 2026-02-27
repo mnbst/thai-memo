@@ -10,6 +10,7 @@ import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
+import '../widgets/loading_tip_carousel.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
 import 'quiz_screen.dart';
@@ -240,6 +241,8 @@ class TodayScreen extends ConsumerWidget {
           CircularProgressIndicator(),
           SizedBox(height: 16),
           Text('例文を生成中...'),
+          SizedBox(height: 24),
+          LoadingTipCarousel(),
         ],
       ),
     );
@@ -575,6 +578,8 @@ class TodayScreen extends ConsumerWidget {
                 CircularProgressIndicator(),
                 SizedBox(height: 16),
                 Text('例文を生成中...'),
+                SizedBox(height: 24),
+                LoadingTipCarousel(),
               ],
             ),
           ),

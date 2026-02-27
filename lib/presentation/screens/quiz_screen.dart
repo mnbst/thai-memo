@@ -16,12 +16,23 @@ class QuizScreen extends ConsumerStatefulWidget {
 
 class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
+  void initState() {
+    super.initState();
+    // クイズ完了時にstatsを再取得
+    ref.listenManual(quizControllerProvider, (prev, next) {
+      if (next is QuizSummary) {
+        ref.invalidate(quizStatsProvider);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final quizState = ref.watch(quizControllerProvider);
     final statsAsync = ref.watch(quizStatsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('クイズ')),
+      appBar: AppBar(title: const Text('今日のクイズ')),
       body: Column(
         children: [
           // 通算正答率バー

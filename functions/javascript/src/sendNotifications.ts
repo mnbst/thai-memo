@@ -42,40 +42,36 @@ async function sendNotificationsHandler() {
 
       if (!userData?.fcm_token) {
         console.log(`Skipped: uid=${data.uid} has no fcm_token`);
-        await queueDoc.ref.update({ sent: true, skipped: true });
+        await queueDoc.ref.update({ sent: true });
+        continue;
+      }
+
+      if (!userData.notification_enabled) {
+        console.log(`Skipped: uid=${data.uid} has notifications disabled`);
+        await queueDoc.ref.update({ sent: true });
         continue;
       }
 
       const messageData: admin.messaging.Message = {
         token: userData.fcm_token,
+        notification: {
+          title: '今日のクイズ',
+          body: '穴埋めクイズが届きました',
+        },
         data: {
           type: 'quiz',
           quiz_queue_id: queueDoc.id,
         },
-      };
-
-      if (userData.notification_enabled) {
-        messageData.notification = {
-          title: '今日のクイズ',
-          body: '穴埋めクイズが届きました',
-        };
-        messageData.apns = {
+        apns: {
           payload: { aps: { sound: 'default' } },
-        };
-        messageData.android = {
+        },
+        android: {
           notification: {
             sound: 'default',
             channelId: 'review_notifications',
           },
-        };
-      } else {
-        messageData.apns = {
-          payload: { aps: { 'content-available': 1 } },
-        };
-        messageData.android = {
-          priority: 'high',
-        };
-      }
+        },
+      };
 
       await admin.messaging().send(messageData);
       await queueDoc.ref.update({ sent: true });
