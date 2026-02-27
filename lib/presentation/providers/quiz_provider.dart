@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/constants/default_quiz.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
@@ -98,24 +97,9 @@ class QuizController extends StateNotifier<QuizState> {
   static const _quizCompletedKey = 'quiz_completed';
   static const _quizAnswersKey = 'quiz_answers';
   static const _quizSelectedIndicesKey = 'quiz_selected_indices';
-  static const _maxQuestions = 5;
   final DatabaseHelper _db = DatabaseHelper.instance;
 
   QuizController() : super(const QuizInitial());
-
-  /// 5問未満の場合、デフォルトクイズから補填して5問にする
-  List<QuizQuestion> _fillWithDefaults(List<QuizQuestion> questions) {
-    if (questions.length >= _maxQuestions) return questions;
-    final usedIds = questions.map((q) => q.sentenceId).toSet();
-    final defaults = defaultQuizQuestions
-        .where((q) => !usedIds.contains(q.sentenceId))
-        .toList()
-      ..shuffle();
-    return [
-      ...questions,
-      ...defaults.take(_maxQuestions - questions.length),
-    ];
-  }
 
   /// クイズデータを読み込み（Firestore優先 → SharedPreferencesフォールバック）
   Future<void> loadQuiz() async {
@@ -154,11 +138,9 @@ class QuizController extends StateNotifier<QuizState> {
     final questionsList = data['questions'] as List<dynamic>? ?? [];
     if (questionsList.isEmpty) return false;
 
-    final questions = _fillWithDefaults(
-      questionsList
-          .map((e) => QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList(),
-    );
+    final questions = questionsList
+        .map((e) => QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
 
     // sent: trueに更新（sendNotificationsでスキップされる）
     await doc.reference.update({'sent': true});
@@ -180,16 +162,16 @@ class QuizController extends StateNotifier<QuizState> {
     final json = prefs.getString(_quizKey);
 
     if (json == null || json.isEmpty) {
-      state = QuizReady(List<QuizQuestion>.from(defaultQuizQuestions));
+      state = const QuizInitial();
       return;
     }
 
     try {
       final list = jsonDecode(json) as List<dynamic>;
-      final questions = _fillWithDefaults(
-          list.map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>)).toList());
+      final questions =
+          list.map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>)).toList();
       if (questions.isEmpty) {
-        state = QuizReady(List<QuizQuestion>.from(defaultQuizQuestions));
+        state = const QuizInitial();
         return;
       }
 

@@ -1,6 +1,6 @@
 {
   "name": "thai-memo-functions",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Cloud Functions for Thai Memo app",
   "engines": {
     "node": "22"
@@ -14,6 +14,8 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
+    "dev:batch": "curl -s https://asia-northeast1-thai-memo-dev.cloudfunctions.net/notificationBatch",
+    "dev:notify": "curl -s https://asia-northeast1-thai-memo-dev.cloudfunctions.net/sendNotifications",
     "lint": "eslint --ext .js,.ts .",
     "lint:fix": "eslint --ext .js,.ts . --fix"
   },
