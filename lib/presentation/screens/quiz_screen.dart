@@ -5,6 +5,7 @@ import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/tts_provider.dart';
+import '../widgets/loading_tip_carousel.dart';
 
 
 class QuizScreen extends ConsumerStatefulWidget {
@@ -84,6 +85,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (state is QuizLoading) {
       return const Center(child: CircularProgressIndicator());
     }
+    if (state is QuizPending) {
+      return _buildPendingState(context, state.questionCount);
+    }
+    if (state is QuizGenerating) {
+      return _buildGeneratingState(context);
+    }
+    if (state is QuizError) {
+      return _buildErrorState(context, state.message);
+    }
     if (state is QuizInitial) {
       return _buildEmptyState(context);
     }
@@ -100,6 +110,92 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       return _buildSummaryState(context, state);
     }
     return _buildEmptyState(context);
+  }
+
+  Widget _buildPendingState(BuildContext context, int questionCount) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.quiz,
+                size: 64, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 24),
+            Text(
+              questionCount > 0 ? '今日の復習' : 'クイズに挑戦',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              questionCount > 0
+                  ? '$questionCount問の復習があります'
+                  : 'タイ語クイズに挑戦しましょう',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: () {
+                ref.read(quizControllerProvider.notifier).generateAndStartQuiz();
+              },
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('クイズを始める'),
+              style: FilledButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGeneratingState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 24),
+            Text('クイズを生成中...',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 32),
+            const LoadingTipCarousel(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline,
+                size: 64,
+                color: Theme.of(context).colorScheme.error),
+            const SizedBox(height: 24),
+            Text(message,
+                style: Theme.of(context).textTheme.bodyLarge,
+                textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () {
+                ref.read(quizControllerProvider.notifier).generateAndStartQuiz();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('もう一度試す'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -298,6 +394,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             );
           }),
           const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () {
+              ref.read(quizControllerProvider.notifier).generateAndStartQuiz();
+            },
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('新しいクイズ'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () {
               ref.read(quizControllerProvider.notifier).retryQuiz();

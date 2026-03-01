@@ -9,11 +9,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final data = message.data;
-  if (data['type'] != 'quiz') return;
+  final type = data['type'];
+  if (type != 'quiz' && type != 'review') return;
 
-  // quiz_queue_idのみ保存（クイズデータはクイズページ表示時にFirestoreから取得）
-  if (data['quiz_queue_id'] != null) {
-    final prefs = await SharedPreferences.getInstance();
+  final prefs = await SharedPreferences.getInstance();
+  if (type == 'review' && data['question_count'] != null) {
+    await prefs.setInt(
+        'review_question_count', int.tryParse(data['question_count'] ?? '0') ?? 0);
+  } else if (data['quiz_queue_id'] != null) {
     await prefs.setString('quiz_queue_id', data['quiz_queue_id']);
   }
 }
@@ -117,7 +120,8 @@ class FcmService {
     FirebaseMessaging.onMessage.listen((message) {
       _showForegroundNotification(message);
       _saveQuizData(message).then((_) {
-        if (message.data['type'] == 'quiz') {
+        final type = message.data['type'];
+        if (type == 'quiz' || type == 'review') {
           onQuizDataReceived?.call();
         }
       });

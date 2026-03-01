@@ -1,12 +1,10 @@
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../data/datasources/backend_api_service.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
@@ -23,6 +21,17 @@ class QuizInitial extends QuizState {
 
 class QuizLoading extends QuizState {
   const QuizLoading();
+}
+
+/// 復習対象があることを表示する状態
+class QuizPending extends QuizState {
+  final int questionCount;
+  const QuizPending(this.questionCount);
+}
+
+/// クイズ生成中（Gemini API呼び出し中）
+class QuizGenerating extends QuizState {
+  const QuizGenerating();
 }
 
 class QuizReady extends QuizState {
@@ -58,6 +67,12 @@ class QuizSummary extends QuizState {
   final List<int> selectedIndices;
   const QuizSummary(this.questions, this.answers, this.totalCorrect, this.stats,
       [this.selectedIndices = const []]);
+}
+
+/// クイズ生成エラー
+class QuizError extends QuizState {
+  final String message;
+  const QuizError(this.message);
 }
 
 // ==================== Stats Model ====================
@@ -99,62 +114,58 @@ class QuizController extends StateNotifier<QuizState> {
   static const _quizAnswersKey = 'quiz_answers';
   static const _quizSelectedIndicesKey = 'quiz_selected_indices';
   final DatabaseHelper _db = DatabaseHelper.instance;
+  final BackendApiService _apiService;
 
-  QuizController() : super(const QuizInitial());
+  QuizController(this._apiService) : super(const QuizInitial());
 
-  /// クイズデータを読み込み（Firestore優先 → SharedPreferencesフォールバック）
+  /// クイズデータを読み込み（SharedPreferences → review_queue確認）
   Future<void> loadQuiz() async {
     state = const QuizLoading();
 
     try {
-      // Firestoreから未配信のクイズを取得
-      final fetched = await _fetchFromFirestore();
-      if (fetched) return;
+      final prefs = await SharedPreferences.getInstance();
+      final existingJson = prefs.getString(_quizKey);
 
-      // Firestoreに新規がなければSharedPreferencesの既存データを表示
-      await _loadFromPrefs();
+      // 端末にデータがあればそれを使用
+      if (existingJson != null && existingJson.isNotEmpty) {
+        await _loadFromPrefs();
+        return;
+      }
+
+      // 端末にデータがない → review_queue確認してPending表示
+      final reviewCount = await _apiService.getReviewCount();
+      state = QuizPending(reviewCount);
     } catch (e) {
       debugPrint('クイズ読み込みエラー: $e');
-      await _loadFromPrefs();
+      // エラー時もgenerateQuizで取得できるようPendingに
+      state = const QuizPending(0);
     }
   }
 
-  /// Firestoreのquiz_queueからsent:falseのクイズを取得・洗い替え
-  Future<bool> _fetchFromFirestore() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
+  /// クイズをオンデマンド生成して開始準備
+  Future<void> generateAndStartQuiz() async {
+    state = const QuizGenerating();
 
-    final snapshot = await FirebaseFirestore.instance
-        .collection('quiz_queue')
-        .where('uid', isEqualTo: user.uid)
-        .where('sent', isEqualTo: false)
-        .orderBy('created_at', descending: true)
-        .limit(1)
-        .get();
+    try {
+      final questions = await _apiService.generateQuiz();
+      if (questions.isEmpty) {
+        state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
+        return;
+      }
 
-    if (snapshot.docs.isEmpty) return false;
+      // SharedPreferencesに保存
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _quizKey, jsonEncode(questions.map((q) => q.toJson()).toList()));
+      await prefs.remove(_quizCompletedKey);
+      await prefs.remove(_quizAnswersKey);
+      await prefs.remove(_quizSelectedIndicesKey);
 
-    final doc = snapshot.docs.first;
-    final data = doc.data();
-    final questionsList = data['questions'] as List<dynamic>? ?? [];
-    if (questionsList.isEmpty) return false;
-
-    final questions = questionsList
-        .map((e) => QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
-
-    // sent: trueに更新（sendNotificationsでスキップされる）
-    await doc.reference.update({'sent': true});
-
-    // SharedPreferencesに洗い替え保存（補填後のデータを保存）
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_quizKey, jsonEncode(questions.map((q) => q.toJson()).toList()));
-    await prefs.remove(_quizCompletedKey);
-    await prefs.remove(_quizAnswersKey);
-    await prefs.remove(_quizSelectedIndicesKey);
-
-    state = QuizReady(questions);
-    return true;
+      state = QuizReady(questions);
+    } catch (e) {
+      debugPrint('クイズ生成エラー: $e');
+      state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
+    }
   }
 
   /// SharedPreferencesから既存クイズを復元
@@ -163,7 +174,7 @@ class QuizController extends StateNotifier<QuizState> {
     final json = prefs.getString(_quizKey);
 
     if (json == null || json.isEmpty) {
-      await _loadDefaultQuiz();
+      state = const QuizPending(0);
       return;
     }
 
@@ -172,7 +183,7 @@ class QuizController extends StateNotifier<QuizState> {
       final questions =
           list.map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>)).toList();
       if (questions.isEmpty) {
-        await _loadDefaultQuiz();
+        state = const QuizPending(0);
         return;
       }
 
@@ -201,25 +212,8 @@ class QuizController extends StateNotifier<QuizState> {
 
       state = QuizReady(questions);
     } catch (_) {
-      await _loadDefaultQuiz();
+      state = const QuizPending(0);
     }
-  }
-
-  /// assetsからデフォルトクイズを読み込み
-  Future<void> _loadDefaultQuiz() async {
-    try {
-      final jsonStr = await rootBundle.loadString('assets/default_quiz.json');
-      final list = jsonDecode(jsonStr) as List<dynamic>;
-      final questions =
-          list.map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>)).toList();
-      if (questions.isNotEmpty) {
-        state = QuizReady(questions);
-        return;
-      }
-    } catch (e) {
-      debugPrint('デフォルトクイズ読み込みエラー: $e');
-    }
-    state = const QuizInitial();
   }
 
   /// クイズ開始
@@ -309,7 +303,7 @@ class QuizController extends StateNotifier<QuizState> {
 
 final quizControllerProvider =
     StateNotifierProvider<QuizController, QuizState>((ref) {
-  return QuizController();
+  return QuizController(BackendApiService());
 });
 
 final quizStatsProvider = FutureProvider<QuizStatsData>((ref) async {

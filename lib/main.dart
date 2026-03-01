@@ -26,11 +26,11 @@ void main() async {
   // バックグラウンドFCMハンドラ登録（Firebase初期化直後に設定）
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  // Authenticate user anonymously on startup
+  // Initialize FCM (auth is now handled by login screen)
   try {
-    await FirebaseAuthService.instance.ensureAuthenticated();
-    // Initialize FCM after authentication
-    await FcmService.instance.initialize();
+    if (FirebaseAuthService.instance.isAuthenticated) {
+      await FcmService.instance.initialize();
+    }
   } catch (_) {}
 
   // ProviderContainerを共有してFCMハンドラからもproviderにアクセス可能にする

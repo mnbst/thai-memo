@@ -14,7 +14,7 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "dev:batch": "curl -s https://asia-northeast1-thai-memo-dev.cloudfunctions.net/notificationBatch",
+    "dev:batch": "curl -s https://notificationbatch-2yumhjrd2q-an.a.run.app",
     "dev:notify": "curl -s https://asia-northeast1-thai-memo-dev.cloudfunctions.net/sendNotifications",
     "lint": "eslint --ext .js,.ts .",
     "lint:fix": "eslint --ext .js,.ts . --fix"

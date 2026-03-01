@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/config/firebase_config.dart';
 import '../../../core/thai_tone_analyzer.dart';
+import '../models/quiz_question.dart';
 import '../models/syllable.dart';
 import '../models/thai_sentence.dart';
 import '../models/word_breakdown.dart';
@@ -249,6 +251,54 @@ class BackendApiService {
       case SyllableType.unknown:
         return 'unknown';
     }
+  }
+
+  /// クイズをオンデマンド生成（generateQuiz Cloud Function呼び出し）
+  Future<List<QuizQuestion>> generateQuiz() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw BackendApiUnauthenticatedException('User not authenticated');
+      }
+
+      final callable = _functions.httpsCallable(
+        FirebaseConfig.generateQuizFunctionName,
+        options: HttpsCallableOptions(
+          timeout: const Duration(seconds: 60),
+        ),
+      );
+
+      final result = await callable.call();
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final questionsList = data['questions'] as List<dynamic>? ?? [];
+
+      return questionsList
+          .map((e) =>
+              QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } on FirebaseFunctionsException catch (e) {
+      throw _mapFirebaseFunctionsException(e);
+    } on BackendApiException {
+      rethrow;
+    } catch (e) {
+      throw BackendApiException('Failed to generate quiz: $e');
+    }
+  }
+
+  /// review_queueから復習対象の問題数を取得
+  Future<int> getReviewCount() async {
+    final user = _auth.currentUser;
+    if (user == null) return 0;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('review_queue')
+        .where('uid', isEqualTo: user.uid)
+        .orderBy('created_at', descending: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return 0;
+    return snapshot.docs.first.data()['question_count'] as int? ?? 0;
   }
 
   /// Dispose resources

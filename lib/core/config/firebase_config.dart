@@ -7,6 +7,7 @@ class FirebaseConfig {
 
   /// Function names
   static const String generateSentenceFunctionName = 'generateThaiSentence';
+  static const String generateQuizFunctionName = 'generateQuiz';
 
   /// Timeout for Cloud Functions calls
   static const Duration functionTimeout = Duration(seconds: 45);

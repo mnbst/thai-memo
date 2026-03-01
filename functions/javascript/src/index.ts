@@ -10,3 +10,5 @@ admin.initializeApp({
 // Export Cloud Functions
 export { notificationBatch } from './notificationBatch';
 export { sendNotifications } from './sendNotifications';
+export { deleteUserData } from './deleteUserData';
+export { generateQuiz } from './generateQuiz';

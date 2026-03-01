@@ -1,13 +1,18 @@
 import json
 import random
+import re
 import time
+import unicodedata
 from datetime import datetime, timezone
 
 from google import genai
 from firebase_admin import firestore, initialize_app
 from firebase_functions import https_fn
 from google.cloud import secretmanager
+from pythainlp.tag import pos_tag
 from pythainlp.tokenize import subword_tokenize
+
+import tltk.nlp
 
 initialize_app()
 
@@ -117,6 +122,114 @@ def _segment_syllables(word: str) -> list[str]:
     return subword_tokenize(word, engine="dict")
 
 
+# --- Pronunciation (tltk IPA → romanization + tone diacritics) ---
+
+_TONE_MARKS = {
+    "1": "",  # mid (สามัญ)
+    "2": "\u0300",  # low (เอก): à
+    "3": "\u0302",  # falling (โท): â
+    "4": "\u0301",  # high (ตรี): á
+    "5": "\u030c",  # rising (จัตวา): ǎ
+}
+
+_IPA_TO_ROMAN: list[tuple[str, str]] = [
+    # プレースホルダ退避: ช(cʰ)→CH, จ(tɕ/c)→J（後で j→i と衝突しないように）
+    ("tɕʰ", "CH"),
+    ("cʰ", "CH"),
+    ("tɕ", "J"),
+    ("c", "J"),
+    ("kʰ", "kh"),
+    ("tʰ", "th"),
+    ("pʰ", "ph"),
+    ("ŋ", "ng"),
+    ("ɲ", "ny"),
+    ("ʔ", ""),
+    ("ɯː", "ʉʉ"),
+    ("ɯ", "ʉ"),
+    ("ɛː", "ɛɛ"),
+    ("ɛ", "ɛ"),
+    ("ᴐː", "ɔɔ"),
+    ("ᴐ", "ɔ"),
+    ("ɤː", "əə"),
+    ("ɤ", "ə"),
+    ("aː", "aa"),
+    ("iː", "ii"),
+    ("uː", "uu"),
+    ("eː", "ee"),
+    ("oː", "oo"),
+    # j は _convert_syllable 内で処理（母音後→i、それ以外→y）
+    # CH, J のプレースホルダ復元も _convert_syllable 内で実行
+]
+
+_VOWELS = set("aeiouɔɛəʉ")
+
+
+def _add_tone(syllable: str, tone: str) -> str:
+    mark = _TONE_MARKS.get(tone, "")
+    if not mark:
+        return syllable
+    for i, ch in enumerate(syllable):
+        if ch in _VOWELS:
+            return syllable[: i + 1] + mark + syllable[i + 1 :]
+    return syllable
+
+
+def _convert_syllable(ipa_syl: str) -> str:
+    tone = "1"
+    if ipa_syl and ipa_syl[-1].isdigit():
+        tone = ipa_syl[-1]
+        ipa_syl = ipa_syl[:-1]
+    result = ipa_syl
+    for ipa, roman in _IPA_TO_ROMAN:
+        result = result.replace(ipa, roman)
+    # 母音後の j → i（二重母音: aj→ai 等）、それ以外の j → y（子音ย）
+    result = re.sub(r"(?<=[aeiouɔɛəʉ])j", "i", result)
+    result = result.replace("j", "y")
+    # プレースホルダ復元: CH→ch（ช）、J→j（จ）
+    result = result.replace("CH", "ch").replace("J", "j")
+    return _add_tone(result, tone)
+
+
+def _thai_to_pronunciation(thai_text: str) -> str:
+    """タイ語テキスト → 声調記号付きローマ字 (e.g. 'ไม่รู้' → 'mâi-rúu')"""
+    ipa = tltk.nlp.th2ipa(thai_text).replace("<s/>", "").strip()
+    syllables = [s.strip() for s in ipa.split(".") if s.strip()]
+    return unicodedata.normalize(
+        "NFC", "-".join(_convert_syllable(s) for s in syllables)
+    )
+
+
+# --- POS tagging ---
+
+_POS_TAG_MAP = {
+    "NOUN": "名詞",
+    "VERB": "動詞",
+    "ADJ": "形容詞",
+    "ADV": "副詞",
+    "PRON": "代名詞",
+    "DET": "限定詞",
+    "ADP": "前置詞",
+    "AUX": "助動詞",
+    "CCONJ": "接続詞",
+    "SCONJ": "接続詞",
+    "PART": "助詞",
+    "INTJ": "感嘆詞",
+    "NUM": "数詞",
+    "PROPN": "固有名詞",
+    "PUNCT": "句読点",
+    "CLF": "類別詞",
+    "NEG": "否定詞",
+}
+
+
+def _get_pos_japanese(word: str) -> str:
+    """単語の品詞を日本語で返す"""
+    tags = pos_tag([word], engine="perceptron", corpus="orchid_ud")
+    if tags and len(tags[0]) >= 2:
+        return _POS_TAG_MAP.get(tags[0][1], tags[0][1])
+    return "その他"
+
+
 def _build_prompt(params: dict) -> str:
     topic = params.get("topic") or random.choice(TOPICS)
     style = params.get("style") or random.choice(STYLES)
@@ -157,14 +270,11 @@ def _build_prompt(params: dict) -> str:
 
 {{
   "thai_text": "タイ語の文",
-  "pronunciation": "拼音風のローマ字発音（声調記号付き）(e.g., ไม่รู้สิ = mâi rúu sì, เหมือนกัน = mʉ̌ʉan kan, สุดท้าย = sùt-tháai, คำตอบ = kham-tɔ̀ɔp, ใช้ชีวิต = chái-chii-wít, ให้รู้ตัว = hâi rúu tua, ไม่ค่อย = mâi khâui, ก็ = kô, แหละ = lɛ̀)",
   "japanese_translation": "日本語訳",
   "word_breakdown": [
     {{
       "word": "タイ語の単語",
-      "pronunciation": "単語の拼音風発音（声調記号付きローマ字）",
-      "meaning": "単語の日本語の意味",
-      "grammatical_role": "品詞（例: 名詞, 動詞, 形容詞, 助詞）"
+      "meaning": "単語の日本語の意味"
     }}
   ],
   "context": {{
@@ -180,7 +290,7 @@ def _build_prompt(params: dict) -> str:
 # --- Cloud Function ---
 
 
-@https_fn.on_call(region="asia-northeast1", memory=512)
+@https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=120)
 def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
     start_time = time.time()
     response = {"success": False}
@@ -227,9 +337,26 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
 
         sentence = json.loads(text)
 
-        # PyThaiNLP syllable segmentation
+        # NLP post-processing: syllables, pronunciation, POS
+        word_pronunciations = []
         for wb in sentence.get("word_breakdown", []):
-            wb["syllables"] = _segment_syllables(wb.get("word", ""))
+            word = wb.get("word", "")
+            try:
+                wb["syllables"] = _segment_syllables(word)
+            except Exception as e:
+                print(f"NLP syllables failed for '{word}': {e}")
+            try:
+                pron = _thai_to_pronunciation(word)
+                wb["pronunciation"] = pron
+                word_pronunciations.append(pron)
+            except Exception as e:
+                print(f"NLP pronunciation failed for '{word}': {e}")
+            try:
+                wb["grammatical_role"] = _get_pos_japanese(word)
+            except Exception as e:
+                print(f"NLP POS failed for '{word}': {e}")
+        if word_pronunciations:
+            sentence["pronunciation"] = " ".join(word_pronunciations)
 
         processing_time = int((time.time() - start_time) * 1000)
         log_data["success"] = True

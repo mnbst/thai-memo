@@ -9,4 +9,10 @@ dependencies = [
     "google-genai>=1.0.0",
     "google-cloud-secret-manager>=2.0.0",
     "pythainlp>=5.0.0",
+    "tltk>=1.10",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
 ]

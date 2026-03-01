@@ -24,6 +24,14 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sent']);
     }
 
+    // Review queue: users can read their own data, update sent field only
+    match /review_queue/{docId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sent']);
+    }
+
     // Legacy: notification_queue managed by Cloud Functions only
     match /notification_queue/{docId} {
       allow read, write: if false;

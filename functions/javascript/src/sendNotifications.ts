@@ -6,9 +6,9 @@ import { formatDate } from './utils/formatDate';
 const db = admin.firestore();
 
 /**
- * クイズ配信: quiz_queue から未送信分を取得しFCM一括送信
+ * 復習通知配信: review_queue から未送信分を取得しFCM一括送信
  * dev環境: onRequest（HTTP）で手動実行
- * tester/prod環境: onSchedule（JST 6:00 に1回）
+ * tester/prod環境: onSchedule（JST 8:00〜20:00 の間30分ごと）
  */
 async function sendNotificationsHandler() {
   const now = new Date();
@@ -18,7 +18,7 @@ async function sendNotificationsHandler() {
   console.log(`sendNotifications started: date=${today}`);
 
   // dev: 未送信すべて / 他環境: 当日分のみ
-  let query = db.collection('quiz_queue')
+  let query = db.collection('review_queue')
     .where('sent', '==', false);
   if (!isDev()) {
     query = query.where('scheduled_date', '==', today);
@@ -26,7 +26,7 @@ async function sendNotificationsHandler() {
   const queueSnapshot = await query.get();
 
   if (queueSnapshot.empty) {
-    console.log('No quiz to send');
+    console.log('No reviews to notify');
     return;
   }
 
@@ -52,15 +52,17 @@ async function sendNotificationsHandler() {
         continue;
       }
 
+      const questionCount = data.question_count || 0;
+
       const messageData: admin.messaging.Message = {
         token: userData.fcm_token,
         notification: {
           title: '今日のクイズ',
-          body: '穴埋めクイズが届きました',
+          body: `今日は${questionCount}問の復習があります`,
         },
         data: {
-          type: 'quiz',
-          quiz_queue_id: queueDoc.id,
+          type: 'review',
+          question_count: String(questionCount),
         },
         apns: {
           payload: { aps: { sound: 'default' } },
