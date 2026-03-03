@@ -45,6 +45,13 @@ module "firebase" {
   display_name = var.firebase_project_display_name
   region       = var.region
 
+  google_client_id     = var.google_client_id
+  google_client_secret = var.google_client_secret
+  apple_client_id      = var.apple_client_id
+  apple_team_id        = var.apple_team_id
+  apple_key_id         = var.apple_key_id
+  apple_private_key    = var.apple_private_key
+
   depends_on = [google_project_service.required_apis]
 }
 

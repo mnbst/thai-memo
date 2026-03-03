@@ -173,7 +173,7 @@ class BackendApiService {
         return BackendApiServerException('Service temporarily unavailable.');
       case 'resource-exhausted':
         return BackendApiRateLimitException(
-            'Rate limit exceeded. Please try again later.');
+            e.message ?? '本日の生成上限に達しました。');
       default:
         return BackendApiException('${e.code}: ${e.message}');
     }
@@ -188,6 +188,8 @@ class BackendApiService {
         return BackendApiServerException(message);
       case 'INTERNAL':
         return BackendApiServerException(message);
+      case 'QUOTA_EXCEEDED':
+        return BackendApiQuotaExceededException(message);
       default:
         return BackendApiException(message);
     }
@@ -367,4 +369,12 @@ class BackendApiTimeoutException extends BackendApiException {
 
   @override
   String toString() => 'BackendApiTimeoutException: $message';
+}
+
+/// Exception for quota exceeded (freemium limit reached)
+class BackendApiQuotaExceededException extends BackendApiException {
+  BackendApiQuotaExceededException(String message) : super(message);
+
+  @override
+  String toString() => 'BackendApiQuotaExceededException: $message';
 }

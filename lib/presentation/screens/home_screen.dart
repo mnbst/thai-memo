@@ -13,6 +13,8 @@ import '../providers/tts_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
+import '../providers/subscription_provider.dart';
+import 'paywall_screen.dart';
 import 'quiz_screen.dart';
 import 'settings_screen.dart';
 
@@ -224,7 +226,7 @@ class TodayScreen extends ConsumerWidget {
     } else if (state is SentenceStateSuccess) {
       return _buildSuccessState(context, ref, state.sentence);
     } else if (state is SentenceStateError) {
-      return _buildErrorState(context, state.message);
+      return _buildErrorState(context, ref, state.message);
     } else if (state is SentenceStateEmpty) {
       return _buildEmptyState(context, ref);
     } else {
@@ -389,7 +391,8 @@ class TodayScreen extends ConsumerWidget {
   }
 
   /// Build error state
-  Widget _buildErrorState(BuildContext context, String message) {
+  Widget _buildErrorState(BuildContext context, WidgetRef ref, String message) {
+    final isQuotaError = message.contains('上限');
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
@@ -397,21 +400,36 @@ class TodayScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.error_outline,
+              isQuotaError ? Icons.lock_outline : Icons.error_outline,
               size: 64,
-              color: Theme.of(context).colorScheme.error,
+              color: isQuotaError
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.error,
             ),
             const SizedBox(height: 24),
-            Text(
-              'エラーが発生しました',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 24),
+            if (isQuotaError && !ref.watch(isPremiumProvider))
+              FilledButton.icon(
+                onPressed: () => PaywallBottomSheet.show(context),
+                icon: const Icon(Icons.star),
+                label: const Text('プレミアムにアップグレード'),
+              ),
+            if (isQuotaError && ref.watch(isPremiumProvider))
+              FilledButton.icon(
+                onPressed: () {
+                  final params = ref.read(generationParamsProvider);
+                  ref
+                      .read(sentenceControllerProvider.notifier)
+                      .generateSentence(generationParams: params);
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('もう一度試す'),
+              ),
           ],
         ),
       ),

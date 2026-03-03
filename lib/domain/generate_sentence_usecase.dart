@@ -60,6 +60,8 @@ class GenerateSentenceUseCase {
   GenerateSentenceErrorType _mapBackendApiException(BackendApiException e) {
     if (e is BackendApiUnauthenticatedException) {
       return GenerateSentenceErrorType.authenticationError;
+    } else if (e is BackendApiQuotaExceededException) {
+      return GenerateSentenceErrorType.quotaExceeded;
     } else if (e is BackendApiRateLimitException) {
       return GenerateSentenceErrorType.rateLimitExceeded;
     } else if (e is BackendApiTimeoutException) {
@@ -82,6 +84,9 @@ enum GenerateSentenceErrorType {
 
   /// API rate limit exceeded
   rateLimitExceeded,
+
+  /// Quota exceeded (subscription required)
+  quotaExceeded,
 
   /// Request timeout
   timeout,
@@ -111,7 +116,9 @@ class GenerateSentenceException implements Exception {
       case GenerateSentenceErrorType.networkError:
         return 'ネットワーク接続エラーが発生しました。インターネット接続を確認してください。';
       case GenerateSentenceErrorType.rateLimitExceeded:
-        return 'APIの利用制限に達しました。しばらく待ってから再試行してください。';
+        return '本日の例文生成上限に達しました。';
+      case GenerateSentenceErrorType.quotaExceeded:
+        return '本日の例文生成上限に達しました。';
       case GenerateSentenceErrorType.timeout:
         return 'リクエストがタイムアウトしました。もう一度お試しください。';
       case GenerateSentenceErrorType.serverError:

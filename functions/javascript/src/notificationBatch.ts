@@ -1,22 +1,27 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { isDevOnly } from './config/environment';
-import { formatDate } from './utils/formatDate';
+import { formatDate, nowJST } from './utils/formatDate';
+import { DEFAULT_SENTENCES } from './constants/defaultQuizQuestions';
 
 const db = admin.firestore();
 
-const SRS_INTERVALS = [
-  { days: 1, tolerance: 0, priority: 1 },
-  { days: 3, tolerance: 1, priority: 2 },
-  { days: 7, tolerance: 1, priority: 3 },
-  { days: 30, tolerance: 1, priority: 4 },
-];
+const SRS_DAYS = [1, 3, 7, 30];
 
-const MAX_REVIEW_SENTENCES = 5;
+const MAX_REVIEW_SENTENCES = 20;
+const MAX_PER_INTERVAL = 5;
 const CONCURRENCY = 5;
 
 /**
- * 深夜バッチ（JST 0:00）: SRS例文選出 → review_queue保存
+ * notificationBatchHandler - 深夜バッチ（JST 0:00）
+ *
+ * 全ユーザーのreview_queueを再生成する。
+ * 1. review_queueコレクションを全削除
+ * 2. 全ユーザーを5件ずつ並行処理（processUser）
+ * 3. 30日以上前の例文をFirestoreから削除（cleanOldSentences）
+ *
+ * スケジュール: JST 0:00（prod/tester） / HTTP手動実行（dev）
+ * タイムアウト: 1800秒
  */
 async function notificationBatchHandler() {
   console.log('notificationBatch started');
@@ -30,8 +35,7 @@ async function notificationBatchHandler() {
     return;
   }
 
-  const now = new Date();
-  const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const jstNow = nowJST();
   const today = formatDate(jstNow);
 
   let totalQueued = 0;
@@ -47,11 +51,17 @@ async function notificationBatchHandler() {
     }
   }
 
-  await cleanOldSentences(jstNow);
+  await cleanOldSentences();
 
   console.log(`notificationBatch completed: users_queued=${totalQueued}`);
 }
 
+/**
+ * processUser - ユーザー単位のreview_queue生成
+ *
+ * selectSentencesBySRSで例文を選出し、review_queueに1ドキュメント保存。
+ * 選出0件の場合はスキップ（false返却）。
+ */
 async function processUser(
   uid: string,
   jstNow: Date,
@@ -87,7 +97,17 @@ async function processUser(
   }
 }
 
-// --- SRS選出ロジック ---
+/**
+ * selectSentencesBySRS - SRSベースの例文選出（最大20件）
+ *
+ * ユーザーの全例文を取得し、以下のロジックで最大20件を選出:
+ *   SRS各間隔（1,3,7,30日）ごとに:
+ *     1. ジャスト該当日（±0日）から最大5件取得
+ *     2. 5件未満なら±1日の範囲からランダム補填して5件にする
+ *   全間隔合計で20件未満なら:
+ *     3. 上記に該当しないユーザー例文からランダム補充
+ *     4. デフォルト例文（21件）からランダム補充
+ */
 
 interface SelectedSentence {
   id: string;
@@ -110,34 +130,46 @@ async function selectSentencesBySRS(
 
   if (allSentencesSnapshot.empty) return [];
 
-  // 優先度1-4: SRS間隔
-  for (const interval of SRS_INTERVALS) {
+  // 各経過日数を事前計算（JST基準）
+  const jstNowMs = jstNow.getTime();
+  const docsWithDays = allSentencesSnapshot.docs.map(doc => {
+    const createdAt = doc.data().created_at?.toDate();
+    let diffDays = -1;
+    if (createdAt) {
+      const jstCreated = new Date(createdAt.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+      diffDays = Math.floor((jstNowMs - jstCreated.getTime()) / (24 * 60 * 60 * 1000));
+    }
+    return { doc, diffDays };
+  });
+
+  // SRS各間隔: ジャスト該当日から最大5件 → 不足分は±1日からランダム補填
+  for (const days of SRS_DAYS) {
     if (selected.length >= MAX_REVIEW_SENTENCES) break;
 
-    const candidates = allSentencesSnapshot.docs.filter(doc => {
-      if (usedIds.has(doc.id)) return false;
-      const createdAt = doc.data().created_at?.toDate();
-      if (!createdAt) return false;
-      const jstCreated = new Date(createdAt.getTime() + 9 * 60 * 60 * 1000);
-      const diffDays = Math.floor(
-        (jstNow.getTime() - jstCreated.getTime()) / (24 * 60 * 60 * 1000)
-      );
-      return diffDays >= interval.days - interval.tolerance &&
-             diffDays <= interval.days + interval.tolerance;
-    });
+    // ジャスト該当日（±0日）
+    const exact = docsWithDays.filter(d =>
+      !usedIds.has(d.doc.id) && d.diffDays === days
+    );
+    const take = Math.min(MAX_PER_INTERVAL, exact.length, MAX_REVIEW_SENTENCES - selected.length);
+    for (let i = 0; i < take; i++) {
+      selected.push({ id: exact[i].doc.id, data: exact[i].doc.data(), srsInterval: days });
+      usedIds.add(exact[i].doc.id);
+    }
 
-    const shuffled = candidates.sort(() => Math.random() - 0.5);
-    const take = interval.priority === 1
-      ? Math.max(Math.min(1, shuffled.length), Math.min(shuffled.length, MAX_REVIEW_SENTENCES - selected.length))
-      : Math.min(shuffled.length, MAX_REVIEW_SENTENCES - selected.length);
-
-    for (let i = 0; i < take && selected.length < MAX_REVIEW_SENTENCES; i++) {
-      selected.push({ id: shuffled[i].id, data: shuffled[i].data(), srsInterval: interval.days });
-      usedIds.add(shuffled[i].id);
+    // 5件未満なら±1日の範囲からランダム補填
+    const needed = Math.min(MAX_PER_INTERVAL - take, MAX_REVIEW_SENTENCES - selected.length);
+    if (needed > 0) {
+      const nearby = docsWithDays
+        .filter(d => !usedIds.has(d.doc.id) && d.diffDays >= days - 1 && d.diffDays <= days + 1)
+        .sort(() => Math.random() - 0.5);
+      for (let i = 0; i < Math.min(needed, nearby.length); i++) {
+        selected.push({ id: nearby[i].doc.id, data: nearby[i].doc.data(), srsInterval: days });
+        usedIds.add(nearby[i].doc.id);
+      }
     }
   }
 
-  // 優先度5: ランダム補充
+  // 優先度5: ユーザー例文からランダム補充
   if (selected.length < MAX_REVIEW_SENTENCES) {
     const remaining = allSentencesSnapshot.docs
       .filter(doc => !usedIds.has(doc.id))
@@ -150,12 +182,41 @@ async function selectSentencesBySRS(
     }
   }
 
+  // 優先度6: デフォルト例文から補充
+  if (selected.length < MAX_REVIEW_SENTENCES) {
+    const defaults = [...DEFAULT_SENTENCES]
+      .sort(() => Math.random() - 0.5);
+
+    for (const s of defaults) {
+      if (selected.length >= MAX_REVIEW_SENTENCES) break;
+      if (usedIds.has(s.sentence_id)) continue;
+      selected.push({
+        id: s.sentence_id,
+        data: {
+          thai_text: s.thai_text,
+          pronunciation: s.pronunciation,
+          japanese_translation: s.japanese_translation,
+          word_breakdown: [],
+        },
+        srsInterval: 0,
+      });
+      usedIds.add(s.sentence_id);
+    }
+  }
+
   return selected;
 }
 
-async function cleanOldSentences(jstNow: Date): Promise<void> {
+/**
+ * cleanOldSentences - 30日以上前の例文をFirestoreから一括削除
+ */
+async function cleanOldSentences(): Promise<void> {
+  // JST基準で30日前の0:00をUTCに変換してFirestoreクエリ
+  const jstNow = nowJST();
   const thirtyDaysAgo = new Date(jstNow);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  // JST 0:00 = UTC前日15:00 なのでUTCに変換
   const cutoffUtc = new Date(thirtyDaysAgo.getTime() - 9 * 60 * 60 * 1000);
 
   const usersSnapshot = await db.collection('users').get();

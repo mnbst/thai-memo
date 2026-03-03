@@ -1,9 +1,11 @@
 import json
+import os
 import random
 import re
 import time
 import unicodedata
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from google import genai
 from firebase_admin import firestore, initialize_app
@@ -16,9 +18,12 @@ import tltk.nlp
 
 initialize_app()
 
+_IS_DEV = os.environ.get("GCLOUD_PROJECT", "") == "thai-memo-dev"
+
 # --- Constants ---
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-2.5-flash-lite"
+GEMINI_MODEL_PREMIUM = "gemini-2.5-flash"
 API_TEMPERATURE = 0.8
 API_MAX_TOKENS = 8192
 
@@ -48,6 +53,15 @@ TOPICS = [
     "礼儀作法（ワイ（合掌）、年長者への敬意、タブー、社会的マナーなど）",
     "恋愛・男女関係（告白、デート、口説き文句、恋人同士の会話、別れなど）",
 ]
+
+# 無料ティア用サブセット
+FREE_TOPICS = [
+    TOPICS[0],
+    TOPICS[1],
+    TOPICS[2],
+    TOPICS[6],
+]  # あいさつ、食べ物、旅行、買い物
+FREE_STYLES = STYLES[1:3]  # 口語体、丁寧語
 
 POLITENESS_LEVELS = [
     "フォーマル（丁寧語・敬語を使用）",
@@ -106,8 +120,6 @@ TONE_DENSITIES = [
 
 
 def _get_gemini_api_key() -> str:
-    import os
-
     client = secretmanager.SecretManagerServiceClient()
     project_id = os.environ.get("GCLOUD_PROJECT", "")
     name = f"projects/{project_id}/secrets/gemini-api-key/versions/latest"
@@ -230,7 +242,48 @@ def _get_pos_japanese(word: str) -> str:
     return "その他"
 
 
-def _build_prompt(params: dict) -> str:
+def _build_free_prompt(params: dict) -> str:
+    """無料ティア用プロンプト: トピック・文体のみ選択可、短文固定"""
+    topic = params.get("topic") or random.choice(FREE_TOPICS)
+    style = params.get("style") or random.choice(FREE_STYLES)
+
+    return f"""あなたは日本語話者向けに日々の練習文を作るタイ語教師です。
+
+初心者向けの短いタイ語の文を1つ、JSON形式で生成してください。
+
+要件:
+1. 文は実用的で覚えやすい内容にする
+2. トピック: {topic}
+3. 文体スタイル: {style}
+4. 丁寧さ: 中立（一般的な日常表現）
+5. 語彙レベル: 初級（基本的な日常語彙のみ）
+6. 文の長さ: 短文（3〜6単語）
+7. 単語分解は最大8単語まで
+8. contextの各フィールドは簡潔に（各50文字以内）
+
+次の形式の有効なJSONのみを返してください:
+
+{{
+  "thai_text": "タイ語の文",
+  "japanese_translation": "日本語訳",
+  "word_breakdown": [
+    {{
+      "word": "タイ語の単語",
+      "meaning": "単語の日本語の意味"
+    }}
+  ],
+  "context": {{
+    "topic": "この表現を使う場面・場所",
+    "style": "実際に使用した文体スタイル（例: ニュース記事体、口語体など）",
+    "emotion": "感情・トーン（フォーマル/カジュアル/丁寧/親しみ）",
+    "usage_scenarios": "具体的に使えるシチュエーション",
+    "cultural_notes": "文化的背景やニュアンス"
+  }}
+}}"""
+
+
+def _build_premium_prompt(params: dict) -> str:
+    """有料ティア用プロンプト: 全パラメータ利用可"""
     topic = params.get("topic") or random.choice(TOPICS)
     style = params.get("style") or random.choice(STYLES)
     politeness = params.get("politeness") or random.choice(POLITENESS_LEVELS)
@@ -287,13 +340,37 @@ def _build_prompt(params: dict) -> str:
 }}"""
 
 
+def _enrich_with_nlp(sentence: dict) -> dict:
+    """NLP後処理: 音節分割・発音・品詞タグ付けを追加"""
+    word_pronunciations = []
+    for wb in sentence.get("word_breakdown", []):
+        word = wb.get("word", "")
+        try:
+            wb["syllables"] = _segment_syllables(word)
+        except Exception as e:
+            print(f"NLP syllables failed for '{word}': {e}")
+        try:
+            pron = _thai_to_pronunciation(word)
+            wb["pronunciation"] = pron
+            word_pronunciations.append(pron)
+        except Exception as e:
+            print(f"NLP pronunciation failed for '{word}': {e}")
+        try:
+            wb["grammatical_role"] = _get_pos_japanese(word)
+        except Exception as e:
+            print(f"NLP POS failed for '{word}': {e}")
+    if word_pronunciations:
+        sentence["pronunciation"] = " ".join(word_pronunciations)
+    return sentence
+
+
 # --- Cloud Function ---
 
 
 @https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=120)
 def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
     start_time = time.time()
-    response = {"success": False}
+    response: dict = {"success": False}
 
     log_data = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -314,49 +391,69 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
 
         print(f"Request started: {log_data}")
 
-        # Get API key & init Gemini
-        api_key = _get_gemini_api_key()
-        client = genai.Client(api_key=api_key)
+        # Quota check: Firestoreからtierと日次カウントを取得
+        db = firestore.client()
+        user_ref = db.collection("users").document(req.auth.uid)
+        user_doc = user_ref.get()
+        user_data = user_doc.to_dict() if user_doc.exists else {}
 
-        # Generate
+        tier = user_data.get("tier", "free")
+        is_premium = tier == "premium"
+
+        today = datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y-%m-%d")
+        last_date = user_data.get("last_generation_date", "")
+        daily_count = user_data.get("daily_generation_count", 0)
+        if last_date != today:
+            daily_count = 0
+
+        max_count = 5 if is_premium else 1
+        if daily_count >= max_count:
+            response["error"] = {
+                "code": "QUOTA_EXCEEDED",
+                "message": "本日の例文生成上限（5回）に達しました",
+            }
+            return response
+
         params = req.data or {}
-        prompt = _build_prompt(params)
-        result = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=genai.types.GenerateContentConfig(
-                temperature=API_TEMPERATURE,
-                max_output_tokens=API_MAX_TOKENS,
-                response_mime_type="application/json",
-            ),
-        )
-        text = result.text
 
-        if not text or not text.strip():
-            raise RuntimeError("Empty response from Gemini API")
-
-        sentence = json.loads(text)
-
-        # NLP post-processing: syllables, pronunciation, POS
-        word_pronunciations = []
-        for wb in sentence.get("word_breakdown", []):
-            word = wb.get("word", "")
-            try:
-                wb["syllables"] = _segment_syllables(word)
-            except Exception as e:
-                print(f"NLP syllables failed for '{word}': {e}")
-            try:
-                pron = _thai_to_pronunciation(word)
-                wb["pronunciation"] = pron
-                word_pronunciations.append(pron)
-            except Exception as e:
-                print(f"NLP pronunciation failed for '{word}': {e}")
-            try:
-                wb["grammatical_role"] = _get_pos_japanese(word)
-            except Exception as e:
-                print(f"NLP POS failed for '{word}': {e}")
-        if word_pronunciations:
-            sentence["pronunciation"] = " ".join(word_pronunciations)
+        if is_premium:
+            # プレミアム: リアルタイムGemini生成
+            api_key = _get_gemini_api_key()
+            client = genai.Client(api_key=api_key)
+            prompt = _build_premium_prompt(params)
+            result = client.models.generate_content(
+                model=GEMINI_MODEL_PREMIUM,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    temperature=API_TEMPERATURE,
+                    max_output_tokens=API_MAX_TOKENS,
+                    response_mime_type="application/json",
+                ),
+            )
+            text = result.text
+            if not text or not text.strip():
+                raise RuntimeError("Empty response from Gemini API")
+            sentence = json.loads(text)
+            _enrich_with_nlp(sentence)
+        else:
+            # 無料: リアルタイム生成
+            api_key = _get_gemini_api_key()
+            client = genai.Client(api_key=api_key)
+            prompt = _build_free_prompt(params)
+            result = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    temperature=API_TEMPERATURE,
+                    max_output_tokens=API_MAX_TOKENS,
+                    response_mime_type="application/json",
+                ),
+            )
+            text = result.text
+            if not text or not text.strip():
+                raise RuntimeError("Empty response from Gemini API")
+            sentence = json.loads(text)
+            _enrich_with_nlp(sentence)
 
         processing_time = int((time.time() - start_time) * 1000)
         log_data["success"] = True
@@ -365,9 +462,8 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         response["success"] = True
         response["data"] = sentence
 
-        # Save to Firestore
+        # Save to Firestore + update quota
         try:
-            db = firestore.client()
             db.collection("users").document(req.auth.uid).collection("sentences").add(
                 {
                     "thai_text": sentence["thai_text"],
@@ -375,6 +471,13 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
                     "japanese_translation": sentence["japanese_translation"],
                     "created_at": firestore.SERVER_TIMESTAMP,
                 }
+            )
+            user_ref.set(
+                {
+                    "daily_generation_count": daily_count + 1,
+                    "last_generation_date": today,
+                },
+                merge=True,
             )
         except Exception as e:
             print(f"Failed to save sentence to Firestore: {e}")

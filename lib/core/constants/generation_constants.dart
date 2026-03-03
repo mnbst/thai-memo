@@ -81,6 +81,21 @@ class GenerationConstants {
     '高（5種類の声調をまんべんなく含む・声調練習向け）',
   ];
 
+  /// 無料ティア用トピック（あいさつ、食べ物、旅行、買い物）
+  static final freeTopics = [topics[0], topics[1], topics[2], topics[6]];
+
+  /// 無料ティア用文体（口語体、丁寧語）
+  static final freeStyles = [styles[1], styles[2]];
+
+  /// 無料ティアで使えるパラメータキー
+  static const freeParameterKeys = {'style', 'topic'};
+
+  /// プレミアム専用パラメータキー
+  static const premiumOnlyParameterKeys = {
+    'politeness', 'grammarFocus', 'vocabLevel', 'sentenceLength',
+    'emotion', 'learningPurpose', 'toneDensity',
+  };
+
   /// 自由入力パラメータのキー
   static const customPromptKey = 'customPrompt';
 

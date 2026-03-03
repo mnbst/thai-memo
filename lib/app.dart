@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'core/config/app_config.dart';
 import 'presentation/providers/settings_provider.dart';
+import 'presentation/providers/subscription_provider.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/splash_screen.dart';
@@ -37,11 +38,36 @@ TextTheme _scaleTextTheme(TextTheme base, double delta) {
 }
 
 /// Main application widget
-class ThaiMemoApp extends ConsumerWidget {
+class ThaiMemoApp extends ConsumerStatefulWidget {
   const ThaiMemoApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ThaiMemoApp> createState() => _ThaiMemoAppState();
+}
+
+class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(subscriptionControllerProvider.notifier).refreshTier();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Watch theme mode from settings
     final themeMode = ref.watch(themeModeProvider);
 
@@ -59,6 +85,8 @@ class ThaiMemoApp extends ConsumerWidget {
           if (user == null || user.isAnonymous) {
             return const LoginScreen();
           }
+          // ログイン後にサブスクリプション状態をFirestoreから取得
+          ref.read(subscriptionControllerProvider.notifier).initialize();
           return const SplashScreen(child: HomeScreen());
         },
       ),

@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../data/datasources/backend_api_service.dart';
+import '../../data/datasources/backend_api_service.dart' show BackendApiService, BackendApiRateLimitException;
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
@@ -162,6 +162,8 @@ class QuizController extends StateNotifier<QuizState> {
       await prefs.remove(_quizSelectedIndicesKey);
 
       state = QuizReady(questions);
+    } on BackendApiRateLimitException {
+      state = const QuizError('本日のクイズ生成上限に達しました。');
     } catch (e) {
       debugPrint('クイズ生成エラー: $e');
       state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');

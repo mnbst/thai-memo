@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
 import '../providers/quiz_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
+import 'paywall_screen.dart';
 
 
 class QuizScreen extends ConsumerStatefulWidget {
@@ -133,6 +135,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   : 'タイ語クイズに挑戦しましょう',
               style: Theme.of(context).textTheme.bodyLarge,
             ),
+            const SizedBox(height: 8),
+            Text(
+              '過去に学習した例文から出題されます',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
             const SizedBox(height: 32),
             FilledButton.icon(
               onPressed: () {
@@ -171,27 +180,42 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Widget _buildErrorState(BuildContext context, String message) {
+    final isQuotaError = message.contains('上限');
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline,
-                size: 64,
-                color: Theme.of(context).colorScheme.error),
+            Icon(
+              isQuotaError ? Icons.lock_outline : Icons.error_outline,
+              size: 64,
+              color: isQuotaError
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 24),
             Text(message,
                 style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center),
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () {
-                ref.read(quizControllerProvider.notifier).generateAndStartQuiz();
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('もう一度試す'),
-            ),
+            if (isQuotaError && !ref.watch(isPremiumProvider)) ...[
+              FilledButton.icon(
+                onPressed: () => PaywallBottomSheet.show(context),
+                icon: const Icon(Icons.star),
+                label: const Text('プレミアムにアップグレード'),
+              ),
+            ] else ...[
+              FilledButton.icon(
+                onPressed: () {
+                  ref
+                      .read(quizControllerProvider.notifier)
+                      .generateAndStartQuiz();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('もう一度試す'),
+              ),
+            ],
           ],
         ),
       ),

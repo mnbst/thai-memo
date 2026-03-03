@@ -6,6 +6,8 @@ import '../../core/constants/generation_constants.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/subscription_provider.dart';
+import 'paywall_screen.dart';
 import 'tone_guide_screen.dart';
 
 /// Settings screen
@@ -357,6 +359,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Build generation settings section
   Widget _buildGenerationSettingsSection() {
     final params = ref.watch(generationParamsProvider);
+    final isPremium = ref.watch(isPremiumProvider);
 
     return Card(
       child: Padding(
@@ -383,16 +386,98 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ...GenerationConstants.parameterLabels.entries.map((entry) {
               final key = entry.key;
               final label = entry.value;
-              final options = GenerationConstants.parameterOptions[key]!;
               final currentValue = params[key];
+
+              // プレミアム専用パラメータはロック表示
+              if (!isPremium &&
+                  GenerationConstants.premiumOnlyParameterKeys.contains(key)) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildLockedParamRow(label),
+                );
+              }
+
+              // 無料ユーザーはトピック・文体の選択肢を制限
+              final List<String> options;
+              if (!isPremium && key == 'topic') {
+                options = GenerationConstants.freeTopics;
+              } else if (!isPremium && key == 'style') {
+                options = GenerationConstants.freeStyles;
+              } else {
+                options = GenerationConstants.parameterOptions[key]!;
+              }
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _buildParamDropdown(key, label, options, currentValue),
               );
             }),
-            const SizedBox(height: 8),
-            _buildCustomPromptField(params[GenerationConstants.customPromptKey]),
+            if (isPremium) ...[
+              const SizedBox(height: 8),
+              _buildCustomPromptField(
+                  params[GenerationConstants.customPromptKey]),
+            ],
+            if (!isPremium) ...[
+              const SizedBox(height: 12),
+              _buildUpgradeBanner(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLockedParamRow(String label) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      leading: Icon(
+        Icons.lock_outline,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        size: 20,
+      ),
+      title: Text(label),
+      subtitle: Text(
+        'プレミアム限定',
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontSize: 12,
+        ),
+      ),
+      dense: true,
+      onTap: () => PaywallBottomSheet.show(context),
+    );
+  }
+
+  Widget _buildUpgradeBanner() {
+    return InkWell(
+      onTap: () => PaywallBottomSheet.show(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.workspace_premium,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'プレミアムで全パラメータを解放',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
           ],
         ),
       ),

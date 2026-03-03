@@ -12,3 +12,7 @@ export { notificationBatch } from './notificationBatch';
 export { sendNotifications } from './sendNotifications';
 export { deleteUserData } from './deleteUserData';
 export { generateQuiz } from './generateQuiz';
+export { verifySubscription } from './verifySubscription';
+export { subscriptionStatus } from './subscriptionStatus';
+export { handlePlayNotification } from './handlePlayNotification';
+export { handleAppStoreNotification } from './handleAppStoreNotification';

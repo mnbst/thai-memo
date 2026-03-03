@@ -8,6 +8,8 @@ import 'firebase_options_dev.dart';
 import 'firebase_options_prod.dart';
 import 'firebase_options_tester.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'presentation/providers/subscription_provider.dart';
+import 'services/admob_service.dart';
 import 'services/fcm_service.dart';
 import 'services/firebase_auth_service.dart';
 
@@ -26,6 +28,9 @@ void main() async {
   // バックグラウンドFCMハンドラ登録（Firebase初期化直後に設定）
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
+  // Initialize AdMob
+  await AdMobService.instance.initialize();
+
   // Initialize FCM (auth is now handled by login screen)
   try {
     if (FirebaseAuthService.instance.isAuthenticated) {
@@ -35,6 +40,13 @@ void main() async {
 
   // ProviderContainerを共有してFCMハンドラからもproviderにアクセス可能にする
   final container = ProviderContainer();
+
+  // PurchaseServiceを初期化し、SubscriptionControllerに接続
+  final purchaseService = container.read(purchaseServiceProvider);
+  await purchaseService.initialize();
+  container
+      .read(subscriptionControllerProvider.notifier)
+      .setPurchaseService(purchaseService);
 
   // Run app with Riverpod
   runApp(
