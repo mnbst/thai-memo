@@ -18,6 +18,7 @@ resource "google_project_service" "required_apis" {
     "fcm.googleapis.com",
     "artifactregistry.googleapis.com",
     "cloudbilling.googleapis.com",
+    "pubsub.googleapis.com",
   ])
 
   project = var.project_id
@@ -33,6 +34,11 @@ module "secret_manager" {
   project_id     = var.project_id
   project_number = data.google_project.project.number
   gemini_api_key = var.gemini_api_key
+
+  play_service_account_key = var.play_service_account_key
+  appstore_connect_key     = var.appstore_connect_key
+  appstore_key_id          = var.appstore_key_id
+  appstore_issuer_id       = var.appstore_issuer_id
 
   depends_on = [google_project_service.required_apis]
 }
@@ -61,6 +67,14 @@ module "logging" {
 
   project_id = var.project_id
   region     = var.region
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Pub/Sub topic for Google Play Real-Time Developer Notifications
+resource "google_pubsub_topic" "play_subscription_notifications" {
+  name    = "play-subscription-notifications"
+  project = var.project_id
 
   depends_on = [google_project_service.required_apis]
 }

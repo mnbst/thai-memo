@@ -1,3 +1,17 @@
+// =============================================================================
+// sentence_repository.dart
+// 例文リポジトリ。
+// ローカルDB（SQLite）とリモートAPI（Cloud Functions）の間を仲介するリポジトリ層。
+// Clean Architectureにおけるデータ層の中心。
+//
+// 主な責務:
+//   - バックエンドAPIから例文を生成し、ローカルDBに保存
+//   - ローカルDBからの例文取得（全件、最新、お気に入り）
+//   - お気に入りのトグル、例文の削除
+//   - 生成ログの記録（成功/失敗）
+//   - 最終生成タイムスタンプの更新
+// =============================================================================
+
 import 'package:uuid/uuid.dart';
 
 import '../../services/firebase_auth_service.dart';
@@ -7,8 +21,10 @@ import 'datasources/backend_api_service.dart';
 import 'models/thai_sentence.dart';
 import 'models/word_breakdown.dart';
 
-/// Repository for managing Thai sentences
-/// Coordinates between local database and remote backend API
+/// タイ語例文のリポジトリ
+///
+/// ローカルDB（SQLite）とリモートAPI（Cloud Functions）を統合的に管理する。
+/// UUIDを生成して例文・単語分解にIDを付与する。
 class SentenceRepository {
   final DatabaseHelper _databaseHelper;
   final BackendApiService _apiService;

@@ -1,3 +1,11 @@
+// =============================================================================
+// history_screen.dart
+// 過去に生成されたタイ語例文の一覧（履歴）画面。
+// 全件表示とお気に入りフィルタの切り替え、テキスト検索、個別/一括削除に対応。
+// 各例文カードをタップすると詳細画面（DetailScreen）へ遷移する。
+// スワイプ操作で個別削除も可能。
+// =============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,7 +14,11 @@ import '../../data/models/thai_sentence.dart';
 import '../providers/sentence_provider.dart';
 import 'detail_screen.dart';
 
-/// History screen for viewing past sentences
+/// 過去の例文一覧（履歴）画面。
+///
+/// SQLiteデータベースに保存された例文をリスト表示する。
+/// お気に入りフィルタ・テキスト検索・個別削除（スワイプ）・全件削除に対応。
+/// プルダウンリフレッシュで一覧を更新できる。
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
@@ -14,9 +26,15 @@ class HistoryScreen extends ConsumerStatefulWidget {
   ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
+/// [HistoryScreen] のステート。
+///
+/// お気に入りフィルタの状態、検索クエリ、検索バーのテキストコントローラを管理する。
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
+  /// お気に入りのみ表示するかどうかのフラグ
   bool _showFavoritesOnly = false;
+  /// 検索クエリ（小文字正規化済み）
   String _searchQuery = '';
+  /// 検索バーのテキストコントローラ
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -31,6 +49,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       appBar: AppBar(
         title: const Text('履歴'),
         actions: [
+          // お気に入りフィルタトグルボタン
           IconButton(
             icon: Icon(
               _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
@@ -42,6 +61,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             },
             tooltip: 'お気に入りのみ表示',
           ),
+          // メニューボタン（全件削除）
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
@@ -66,14 +86,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
       body: Column(
         children: [
+          // 検索バー
           _buildSearchBar(),
+          // 例文リスト
           Expanded(child: _buildSentenceList()),
         ],
       ),
     );
   }
 
-  /// Build search bar
+  /// 検索バーを構築する。
+  ///
+  /// タイ語・日本語・ローマ字発音で例文を絞り込み検索できる。
+  /// テキスト入力中はクリアボタンが表示される。
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.all(AppConfig.defaultPadding),
@@ -82,6 +107,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         decoration: InputDecoration(
           hintText: 'タイ語または日本語で検索',
           prefixIcon: const Icon(Icons.search),
+          // 入力中のみクリアボタンを表示
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear),
@@ -107,15 +133,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  /// Build sentence list
+  /// 例文リストを構築する。
+  ///
+  /// お気に入りフィルタの状態に応じて全件/お気に入りのみを取得し、
+  /// さらに検索クエリでフィルタリングして表示する。
+  /// Riverpodの非同期プロバイダを監視し、loading/error/data状態を処理する。
   Widget _buildSentenceList() {
+    // お気に入りフィルタに応じたプロバイダを監視
     final sentencesAsync = _showFavoritesOnly
         ? ref.watch(favoriteSentencesProvider)
         : ref.watch(allSentencesProvider);
 
     return sentencesAsync.when(
       data: (sentences) {
-        // Filter by search query
+        // 検索クエリによるフィルタリング（タイ語・日本語・発音で絞り込み）
         final filteredSentences = _searchQuery.isEmpty
             ? sentences
             : sentences.where((sentence) {
@@ -130,6 +161,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           return _buildEmptyState();
         }
 
+        // プルダウンリフレッシュ対応のリスト表示
         return RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(allSentencesProvider);
@@ -149,7 +181,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  /// Build empty state
+  /// 例文が0件の場合の空状態表示を構築する。
+  ///
+  /// お気に入りフィルタ中/検索中/初期状態で異なるメッセージを表示する。
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -196,7 +230,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  /// Build error state
+  /// エラー状態の表示を構築する。
   Widget _buildErrorState(String error) {
     return Center(
       child: Padding(
@@ -223,7 +257,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  /// Show delete all confirmation dialog
+  /// 全件削除の確認ダイアログを表示する。
+  ///
+  /// ユーザーが「削除」を選択した場合、DBから全例文を削除し、
+  /// 履歴プロバイダを再取得して一覧を更新する。
   Future<void> _showDeleteAllConfirmation() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -251,7 +288,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         await ref
             .read(sentenceControllerProvider.notifier)
             .deleteAllSentences();
-        // Refresh the list
+        // 一覧を再取得して更新
         ref.invalidate(allSentencesProvider);
         ref.invalidate(favoriteSentencesProvider);
 
@@ -276,7 +313,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
   }
 
-  /// Build sentence card
+  /// 個別の例文カードを構築する。
+  ///
+  /// 作成日・タイ語テキスト・発音・日本語訳・単語数を表示する。
+  /// タップで詳細画面へ遷移、左スワイプで個別削除が可能。
+  /// お気に入り登録されている場合はハートアイコンを表示する。
   Widget _buildSentenceCard(ThaiSentence sentence) {
     final createdAt = sentence.createdAt;
     final formattedDate = createdAt != null
@@ -285,7 +326,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     return Dismissible(
       key: Key(sentence.id ?? ''),
-      direction: DismissDirection.endToStart,
+      direction: DismissDirection.endToStart, // 左スワイプのみ
+      // スワイプ時に表示される赤い削除背景
       background: Container(
         margin: const EdgeInsets.only(bottom: AppConfig.defaultPadding),
         decoration: BoxDecoration(
@@ -296,6 +338,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         padding: const EdgeInsets.only(right: 20),
         child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
       ),
+      // スワイプ時の確認ダイアログ
       confirmDismiss: (direction) async {
         final confirmed = await showDialog<bool>(
           context: context,
@@ -323,7 +366,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             await ref
                 .read(sentenceControllerProvider.notifier)
                 .deleteSentence(sentence.id!);
-            // Refresh the list
+            // 一覧を再取得して更新
             ref.invalidate(allSentencesProvider);
             ref.invalidate(favoriteSentencesProvider);
 
@@ -354,9 +397,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       onDismissed: (direction) {
         // Deletion is handled in confirmDismiss
       },
+      // 例文カードの本体
       child: Card(
         margin: const EdgeInsets.only(bottom: AppConfig.defaultPadding),
         child: InkWell(
+          // タップで詳細画面へ遷移
           onTap: () {
             Navigator.push(
               context,
@@ -371,7 +416,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with date and favorite icon
+                // ヘッダー行: 作成日とお気に入りアイコン
                 Row(
                   children: [
                     Expanded(
@@ -384,6 +429,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         ),
                       ),
                     ),
+                    // お気に入り登録済みの場合のみハートアイコンを表示
                     if (sentence.isFavorite)
                       Icon(
                         Icons.favorite,
@@ -393,7 +439,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Thai text
+                // タイ語テキスト（最大2行で省略）
                 Text(
                   sentence.thaiText,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -405,7 +451,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
-                // Pronunciation
+                // ローマ字発音（1行で省略）
                 Text(
                   sentence.pronunciation,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -418,7 +464,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
-                // Japanese translation
+                // 日本語訳（最大2行で省略）
                 Text(
                   sentence.japaneseTranslation,
                   style: Theme.of(context).textTheme.bodyMedium,
@@ -426,7 +472,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
-                // Word count
+                // 単語数の表示
                 Row(
                   children: [
                     Icon(

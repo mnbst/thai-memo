@@ -1,10 +1,32 @@
+/// subscription_provider.dart — サブスクリプション状態管理
+///
+/// 「まいにちタイ語」アプリの課金状態（Free / Premium）を Riverpod で管理する。
+/// アプリ全体で参照され、機能制限（例文生成回数、クイズ回数、広告表示等）の判定に使用される。
+///
+/// 【状態の信頼元（Source of Truth）】
+/// - prod/tester環境: Firestore の users/{uid}.tier フィールド
+///   - 購入時: verifySubscription Cloud Function がストア API で検証後に 'premium' に更新
+///   - 解約/期限切れ時: handleAppStoreNotification / handlePlayNotification が 'free' に更新
+///   - クライアントはアプリ起動時・フォアグラウンド復帰時に Firestore から最新 tier を取得
+/// - dev環境: Firestore（ストア接続なしでテスト可能、toggleTierで手動切替）
+///
+/// 【Free / Premium の機能差分】
+/// - 例文生成: Free=1日1回 / Premium=1日5回
+/// - クイズ: Free=不可 / Premium=1日10回
+/// - トピック: Free=4種 / Premium=16種
+/// - 文体: Free=2種 / Premium=5種
+/// - 広告: Free=あり / Premium=なし
+///
+/// 【関連ファイル】
+/// - purchase_service.dart: ストア決済処理（購入・復元・検証依頼）
+/// - paywall_screen.dart: プレミアムプラン購入 UI
+/// - generation_constants.dart: Free/Premium のパラメータ制限値
+/// - ad_provider.dart: Premium 時の広告非表示制御
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../core/config/app_config.dart';
 import '../../core/config/firebase_config.dart';
 import '../../services/firebase_auth_service.dart';
@@ -12,11 +34,15 @@ import '../../services/purchase_service.dart';
 
 // ==================== Subscription State ====================
 
-/// dev環境でのデフォルトティア
-const _devDefaultTier = UserTier.free;
-
+/// ユーザーの課金ティア（無料 or プレミアム）
 enum UserTier { free, premium }
 
+/// サブスクリプション画面の状態
+///
+/// tier: 現在の課金ティア（アプリ全体の機能制限判定に使用）
+/// isLoading: 購入/復元処理中かどうか（ボタンの無効化やローディング表示に使用）
+/// product: ストアから取得した商品情報（価格表示に使用、取得前は null）
+/// errorMessage: 直近のエラーメッセージ（購入失敗時に UI に表示）
 class SubscriptionState {
   final UserTier tier;
   final bool isLoading;
@@ -49,11 +75,15 @@ class SubscriptionState {
 
 // ==================== Subscription Controller ====================
 
+/// サブスクリプション状態を管理するコントローラ
+///
+/// PurchaseService（ストア決済）と Firestore（状態保存）を橋渡しする。
+/// 購入完了時のコールバックで Firestore から最新 tier を再取得し、UI を更新する。
 class SubscriptionController extends StateNotifier<SubscriptionState> {
   SubscriptionController({PurchaseService? purchaseService})
       : _purchaseService = purchaseService,
-        super(SubscriptionState(
-          tier: AppConfig.isDev ? _devDefaultTier : UserTier.free,
+        super(const SubscriptionState(
+          tier: UserTier.free,
         ));
 
   PurchaseService? _purchaseService;
@@ -65,25 +95,18 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     _purchaseService!.onPurchaseError = _onPurchaseError;
   }
 
-  /// Firestoreからティアを取得（dev時はSharedPreferencesから復元）
+  /// 初期化: Firestore から現在のティアを取得し、商品情報をロード
+  ///
+  /// アプリ起動時に main.dart から1回呼び出される。
   Future<void> initialize() async {
-    if (AppConfig.isDev) {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(AppConfig.prefKeyDevTier);
-      state = state.copyWith(
-        tier: saved == 'premium' ? UserTier.premium : UserTier.free,
-      );
-      return;
-    }
-
     await _fetchTierFromFirestore();
-    // 商品情報を取得
-    _loadProduct();
+    if (!AppConfig.isDev) {
+      _loadProduct();
+    }
   }
 
   /// フォアグラウンド復帰時にティアを再取得
   Future<void> refreshTier() async {
-    if (AppConfig.isDev) return;
     await _fetchTierFromFirestore();
   }
 
@@ -98,13 +121,18 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     }
   }
 
-  /// 購入を復元
+  /// 購入を復元（機種変更・再インストール後に過去の有効な購入を復元）
+  ///
+  /// ストアに復元リクエスト → サーバー検証 → Firestore 更新の一連の流れが完了するまで
+  /// 2秒の待機を入れてから Firestore を再読み込みしている。
+  /// （復元イベントは purchaseStream 経由で非同期に届くため、即座に Firestore を
+  ///   読んでも反映されていない可能性がある）
   Future<void> restore() async {
     if (_purchaseService == null) return;
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       await _purchaseService!.restore();
-      // 復元後にFirestoreから最新状態を取得
+      // 復元後にFirestoreから最新状態を取得（サーバー検証完了を待つため遅延）
       await Future.delayed(const Duration(seconds: 2));
       await _fetchTierFromFirestore();
       state = state.copyWith(isLoading: false);
@@ -113,27 +141,33 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     }
   }
 
-  /// [dev] Free ↔ Premium をトグルしSharedPreferencesに永続化
+  /// [dev] Free ↔ Premium をトグルしFirestoreに永続化
   Future<void> toggleTier() async {
     if (!AppConfig.isDev) return;
+    final uid = FirebaseAuthService.instance.currentUser?.uid;
+    if (uid == null) return;
     final newTier = state.isPremium ? UserTier.free : UserTier.premium;
     state = state.copyWith(tier: newTier);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      AppConfig.prefKeyDevTier,
-      newTier == UserTier.premium ? 'premium' : 'free',
+    await FirebaseFirestore.instance.collection('users').doc(uid).set(
+      {'tier': newTier == UserTier.premium ? 'premium' : 'free'},
+      SetOptions(merge: true),
     );
   }
 
+  /// Firestore の users/{uid}.tier フィールドからサブスクリプション状態を取得
+  ///
+  /// tier フィールドは以下のタイミングでサーバー側が更新する:
+  /// - 購入検証時（verifySubscription）: 'premium' に設定
+  /// - ストア通知受信時（handleAppStoreNotification / handlePlayNotification）:
+  ///   更新・解約・期限切れに応じて 'premium' or 'free' に設定
+  /// - 有効期限超過時（subscriptionStatus）: 'free' にフォールバック
   Future<void> _fetchTierFromFirestore() async {
     final uid = FirebaseAuthService.instance.currentUser?.uid;
     if (uid == null) return;
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
       final tier =
           doc.data()?['tier'] == 'premium' ? UserTier.premium : UserTier.free;
       state = state.copyWith(tier: tier);
@@ -164,7 +198,9 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 }
 
 // ==================== Providers ====================
+// Riverpod プロバイダ定義。アプリ内の各画面・プロバイダから参照される。
 
+/// PurchaseService のシングルトンプロバイダ
 final purchaseServiceProvider = Provider<PurchaseService>((ref) {
   final service = PurchaseService(
     functions:
@@ -180,6 +216,9 @@ final subscriptionControllerProvider =
 });
 
 /// プレミアムかどうかを簡単に参照するプロバイダ
+///
+/// 使用例: ref.watch(isPremiumProvider) で bool を取得し、
+/// 機能制限の分岐や広告表示の制御に使用する。
 final isPremiumProvider = Provider<bool>((ref) {
   return ref.watch(subscriptionControllerProvider).isPremium;
 });

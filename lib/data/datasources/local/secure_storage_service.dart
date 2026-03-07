@@ -1,8 +1,20 @@
+// =============================================================================
+// secure_storage_service.dart
+// セキュアストレージサービス。
+// flutter_secure_storageを使い、暗号化されたストレージにデータを保存する。
+// 現在は最終例文生成タイムスタンプの管理に使用。
+// Android: EncryptedSharedPreferences、iOS: Keychain を利用。
+// =============================================================================
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/config/app_config.dart';
 
-/// Service for securely storing sensitive data like API keys
+/// セキュアストレージの操作を管理するサービス（シングルトン）
+///
+/// 主な用途:
+/// - 最終例文生成タイムスタンプの保存・取得
+/// - 生成インターバル（24時間）のチェック
 class SecureStorageService {
   SecureStorageService._privateConstructor();
   static final SecureStorageService instance =

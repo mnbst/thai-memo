@@ -1,9 +1,31 @@
+/**
+ * appStoreServer.ts — App Store Server API クライアント
+ *
+ * Apple の App Store Server API v1 を使用してサブスクリプション購入を検証するサービス。
+ * また、App Store Server Notifications V2 の JWS ペイロードのデコードも担当する。
+ *
+ * 【認証方式】
+ * App Store Server API は JWT（ES256 署名）による認証を使用する。
+ * 認証に必要なシークレット（秘密鍵、Key ID、Issuer ID）は
+ * GCP Secret Manager から取得する。
+ *
+ * 【使用箇所】
+ * - verifySubscription.ts: クライアントからの購入検証リクエスト時に verifyAppStorePurchase() を呼出
+ * - handleAppStoreNotification.ts: Apple からの通知受信時に parseNotificationPayload() を呼出
+ *
+ * 【環境切替】
+ * - 本番: api.storekit.apple.com
+ * - サンドボックス: api.storekit-sandbox.apple.com
+ *   ※ APP_STORE_ENVIRONMENT 環境変数で切替（Cloud Functions の環境設定）
+ */
 import * as jose from 'jose';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
+/** GCP Secret Manager クライアント（API キーやシークレットの取得に使用） */
 const secretClient = new SecretManagerServiceClient();
 const projectId = process.env.GCLOUD_PROJECT;
 
+/** App Store 購入検証の結果 */
 export interface AppStoreVerificationResult {
   valid: boolean;
   originalTransactionId: string;
@@ -12,6 +34,7 @@ export interface AppStoreVerificationResult {
   status: 'active' | 'canceled' | 'expired' | 'grace_period';
 }
 
+/** App Store Server Notifications V2 の通知ペイロード構造 */
 export interface AppStoreNotificationPayload {
   notificationType: string;
   subtype?: string;
@@ -21,6 +44,14 @@ export interface AppStoreNotificationPayload {
   };
 }
 
+/**
+ * Apple のトランザクション情報（JWS デコード後の構造）
+ *
+ * originalTransactionId: サブスクリプションの初回購入時のトランザクションID。
+ *   更新・復元時も同じ値が使われるため、ユーザー検索のキーとして Firestore に保存する。
+ * expiresDate: サブスクリプションの有効期限（ミリ秒タイムスタンプ）
+ * revocationDate: 返金・取消日（存在する場合はサブスクリプション無効）
+ */
 interface TransactionInfo {
   originalTransactionId: string;
   transactionId: string;
@@ -31,6 +62,12 @@ interface TransactionInfo {
   environment: string;
 }
 
+/**
+ * Apple の更新情報（JWS デコード後の構造）
+ *
+ * autoRenewStatus: 自動更新の状態（1=ON, 0=OFF）
+ * expirationIntent: 期限切れの理由（1=ユーザーキャンセル, 2=課金エラー, 3=同意なし, 4=商品変更）
+ */
 interface RenewalInfo {
   autoRenewStatus: number; // 1 = will renew, 0 = turned off
   originalTransactionId: string;
@@ -50,7 +87,13 @@ async function getSecret(secretId: string): Promise<string> {
 }
 
 /**
- * App Store Server APIのJWTトークンを生成
+ * App Store Server API 認証用の JWT トークンを生成
+ *
+ * Apple の App Store Server API は JWT（ES256 アルゴリズム）で認証する。
+ * 必要なシークレットを Secret Manager から取得し、有効期限20分の JWT を生成する。
+ * - appstore-connect-key: App Store Connect で生成した秘密鍵（.p8 ファイルの内容）
+ * - appstore-key-id: API キーの Key ID
+ * - appstore-issuer-id: App Store Connect の Issuer ID
  */
 async function generateAppStoreJWT(): Promise<string> {
   const [privateKeyPem, keyId, issuerId] = await Promise.all([
@@ -74,10 +117,14 @@ async function generateAppStoreJWT(): Promise<string> {
 }
 
 /**
- * JWSペイロードをデコード（App Store Server Notification v2）
+ * JWS（JSON Web Signature）ペイロードをデコード
  *
- * 本番ではApple Root CAによる証明書チェーン検証が必要。
- * ここではペイロードのデコードを行う最小実装。
+ * Apple の App Store Server Notifications V2 では、通知ペイロードが
+ * JWS 形式（ヘッダー.ペイロード.署名 の3パートを . で連結）で送られてくる。
+ * ペイロード部分を Base64URL デコードして JSON パースする。
+ *
+ * 【注意】本番環境では Apple Root CA による証明書チェーン検証を行うべきだが、
+ * 現在は最小実装としてペイロードのデコードのみ行っている（TODO: 署名検証の追加）。
  */
 export function decodeSignedPayload<T>(signedPayload: string): T {
   const parts = signedPayload.split('.');
@@ -91,7 +138,15 @@ export function decodeSignedPayload<T>(signedPayload: string): T {
 }
 
 /**
- * App Store Server API v2でトランザクションを検証
+ * App Store Server API v1 でトランザクションを検証
+ *
+ * transactionId を使って Apple のサーバーにトランザクション情報を問い合わせ、
+ * サブスクリプションの有効性（期限切れ・返金済みかどうか）を判定する。
+ *
+ * クライアント（iOS アプリ）から送られる purchase_token が transactionId として使用される。
+ *
+ * @param transactionId - iOS の購入時に取得したトランザクション ID
+ * @returns 検証結果（有効性、有効期限、自動更新状態、ステータス）
  */
 export async function verifyAppStorePurchase(
   transactionId: string
@@ -134,7 +189,14 @@ export async function verifyAppStorePurchase(
 }
 
 /**
- * App Store Server Notification v2のペイロードをパースし処理結果を返す
+ * App Store Server Notifications V2 のペイロードをパースし、通知タイプとトランザクション情報を返す
+ *
+ * Apple からの通知は二重 JWS 構造になっている:
+ * 1. 外側の JWS: 通知全体（notificationType, data を含む）
+ * 2. 内側の JWS: data.signedTransactionInfo（トランザクション詳細）と
+ *    data.signedRenewalInfo（更新情報、オプション）
+ *
+ * handleAppStoreNotification.ts から呼び出される。
  */
 export function parseNotificationPayload(signedPayload: string): {
   notificationType: string;

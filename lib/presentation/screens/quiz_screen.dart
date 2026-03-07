@@ -31,6 +31,46 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isPremium = ref.watch(isPremiumProvider);
+
+    // Freeユーザーはクイズ利用不可
+    if (!isPremium) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('今日のクイズ')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_outline,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.primary),
+                const SizedBox(height: 24),
+                Text('クイズはプレミアム限定機能です',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                Text('プレミアムにアップグレードすると\nクイズ機能が使えるようになります',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 32),
+                FilledButton.icon(
+                  onPressed: () => PaywallBottomSheet.show(context),
+                  icon: const Icon(Icons.star),
+                  label: const Text('プレミアムにアップグレード'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final quizState = ref.watch(quizControllerProvider);
     final statsAsync = ref.watch(quizStatsProvider);
 

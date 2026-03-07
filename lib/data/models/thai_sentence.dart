@@ -1,9 +1,22 @@
+// =============================================================================
+// thai_sentence.dart
+// タイ語例文のデータモデル。
+// Gemini AIが生成した例文（タイ語本文・発音・日本語訳・単語分解・文脈情報）を保持する。
+// JSON変換（API通信用）とSQLite変換（ローカル保存用）の両方に対応。
+// json_serializableによる自動コード生成を使用（thai_sentence.g.dart）。
+// =============================================================================
+
 import 'package:json_annotation/json_annotation.dart';
 import 'word_breakdown.dart';
 
 part 'thai_sentence.g.dart';
 
 /// 学習情報を含むタイ語例文モデル
+///
+/// Cloud Functionsから返される例文データを表現するメインモデル。
+/// 1つの例文に対して複数のWordBreakdown（単語分解）を持つ。
+/// データフロー:
+///   Cloud Function → JSON → ThaiSentence → SQLite (toDatabase/fromDatabase)
 @JsonSerializable(explicitToJson: true)
 class ThaiSentence {
   /// 一意な識別子

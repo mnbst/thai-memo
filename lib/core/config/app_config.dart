@@ -34,7 +34,4 @@ class AppConfig {
   static const String prefKeyThemeMode = 'theme_mode';
   static const String prefKeyPreferredGenerationTime =
       'preferred_generation_time';
-
-  /// Dev環境用: プレミアムティア永続化キー
-  static const String prefKeyDevTier = 'dev_tier';
 }

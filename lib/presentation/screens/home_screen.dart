@@ -35,14 +35,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkFirstLaunchAndLoadSentence();
     });
-    // 通知タップ時にクイズタブへ切り替え
+    // 通知タップ時にクイズタブへ切り替え（プレミアムのみ）
     FcmService.instance.onQuizDataReceived = () {
-      if (mounted) {
+      if (mounted && ref.read(isPremiumProvider)) {
         ref.read(quizControllerProvider.notifier).loadQuiz();
         setState(() {
           _currentIndex = 1; // クイズタブ
         });
       }
+    };
+
+    // 今日のタイ語通知タップ時にDetailScreenへ遷移
+    FcmService.instance.onDailySentenceReceived = (sentenceData) {
+      if (!mounted) return;
+      final sentence = ThaiSentence(
+        thaiText: sentenceData['thai_text'] ?? '',
+        pronunciation: sentenceData['pronunciation'] ?? '',
+        japaneseTranslation: sentenceData['japanese_translation'] ?? '',
+        wordBreakdowns: [],
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DetailScreen(sentence: sentence),
+        ),
+      );
     };
   }
 
@@ -104,7 +120,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           setState(() {
             _currentIndex = index;
           });
-          if (index == 1) {
+          if (index == 1 && ref.read(isPremiumProvider)) {
             ref.read(quizControllerProvider.notifier).loadQuiz();
           }
         },

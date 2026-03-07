@@ -1,3 +1,22 @@
+/// paywall_screen.dart — プレミアムプラン購入画面（ペイウォール）
+///
+/// Free ユーザーに対してプレミアムプランの特典を提示し、購入・復元を促す画面。
+/// モーダルボトムシートとして表示され、以下の要素で構成される:
+///
+/// 1. Free / Premium の機能比較テーブル（例文生成回数、クイズ、トピック数など）
+/// 2. 月額価格の表示（ストアから動的に取得した実際の価格）
+/// 3. 「プレミアムに登録」ボタン → OS ネイティブの決済シートを起動
+/// 4. 「購入を復元」ボタン → 機種変更・再インストール時の復元用
+/// 5. [DEV] ティア切替ボタン → dev環境でのみ表示、ストア接続なしでテスト可能
+///
+/// 【表示トリガー】
+/// - 設定画面のアップグレードバナータップ
+/// - ホーム画面で例文生成のクォータ超過時
+/// - クイズ画面でクイズ生成のレート制限時
+///
+/// 【関連ファイル】
+/// - subscription_provider.dart: 購入状態管理（SubscriptionController）
+/// - purchase_service.dart: ストア決済処理
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -103,6 +122,10 @@ class PaywallBottomSheet extends ConsumerWidget {
     );
   }
 
+  /// 購入セクション: 価格表示・購入ボタン・復元ボタン・エラー表示
+  ///
+  /// 既にプレミアムの場合は「加入中」メッセージのみ表示。
+  /// product が null（ストアから商品情報を取得できていない）の場合、購入ボタンは無効化される。
   Widget _buildPurchaseSection(BuildContext context, WidgetRef ref) {
     final subState = ref.watch(subscriptionControllerProvider);
     final colorScheme = Theme.of(context).colorScheme;
@@ -190,7 +213,7 @@ class PaywallBottomSheet extends ConsumerWidget {
 
     const features = [
       ('例文生成', '1日1回', '1日5回'),
-      ('クイズ', '1日1回', '1日10回'),
+      ('クイズ', '×', '1日10回'),
       ('トピック', '4種', '16種'),
       ('文体', '2種', '5種'),
       ('例文出力設定', '×', '○'),

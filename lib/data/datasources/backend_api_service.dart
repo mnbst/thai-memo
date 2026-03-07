@@ -1,3 +1,22 @@
+// =============================================================================
+// backend_api_service.dart
+// バックエンドAPI通信サービス。
+// Firebase Cloud Functionsと通信し、以下の機能を提供する:
+//   - generateThaiSentence: Gemini AIによるタイ語例文生成
+//   - generateQuiz: Gemini AIによる穴埋めクイズ生成
+//   - review_queue: Firestoreから復習対象の問題数を取得
+//
+// データフロー（例文生成）:
+//   1. Cloud Function呼び出し（Firebase Auth認証付き）
+//   2. レスポンスJSONをパース
+//   3. 音節データをThaiToneAnalyzerで声調分析
+//   4. ThaiSentence + WordBreakdown + Syllableモデルに変換
+//
+// エラーハンドリング:
+//   Firebase Functions例外を独自例外クラスにマッピングし、
+//   UI層でユーザーフレンドリーなメッセージを表示できるようにする。
+// =============================================================================
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,7 +28,10 @@ import '../models/syllable.dart';
 import '../models/thai_sentence.dart';
 import '../models/word_breakdown.dart';
 
-/// Service for communicating with backend Cloud Functions
+/// Firebase Cloud Functionsと通信するサービスクラス
+///
+/// リージョン: asia-northeast1 (東京)
+/// 認証: Firebase Authのログインユーザーが必要
 class BackendApiService {
   final FirebaseFunctions _functions;
   final FirebaseAuth _auth;

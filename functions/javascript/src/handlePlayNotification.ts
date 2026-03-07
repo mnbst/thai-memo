@@ -1,25 +1,65 @@
+/**
+ * handlePlayNotification.ts — Google Play RTDN（リアルタイム開発者通知）ハンドラ
+ *
+ * Google Play Console で設定した Cloud Pub/Sub トピックに配信される
+ * サブスクリプション通知（RTDN: Real-time Developer Notifications）を受信し、
+ * Google Play Developer API で最新のサブスクリプション状態を再検証したうえで、
+ * Firestore のユーザーデータを更新する Cloud Function。
+ *
+ * 【処理フロー】
+ * 1. Pub/Sub メッセージから RTDN データをデコード
+ * 2. subscriptionNotification が含まれていない場合はスキップ（テスト通知など）
+ * 3. purchaseToken で Firestore からユーザーを検索
+ * 4. Google Play Developer API v3 で購入状態を再検証
+ * 5. 検証結果に基づいて tier と subscription 情報を Firestore に保存
+ *
+ * 【RTDN の notificationType 一覧（一部）】
+ * - 1: 復旧（RECOVERED）
+ * - 2: 更新（RENEWED）
+ * - 3: キャンセル（CANCELED）
+ * - 4: 購入（PURCHASED）
+ * - 12: 失効（EXPIRED）
+ * - 13: 期限切れ（EXPIRED）
+ * ※ 本関数では notificationType に関わらず Play API で再検証するため、
+ *   個別の通知タイプごとの処理は行わない
+ *
+ * Pub/Sub トピック: play-subscription-notifications
+ * リージョン: asia-northeast1（東京）
+ */
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { verifyPlayPurchase } from './services/playBilling';
 
+/** Firestore インスタンス */
 const db = admin.firestore();
 
-
+/**
+ * RTDN（Real-time Developer Notifications）メッセージの型定義
+ *
+ * Google Play から Pub/Sub 経由で送信される通知メッセージの構造。
+ * subscriptionNotification が含まれない場合はテスト通知等のため処理をスキップする。
+ */
 interface RTDNMessage {
+  /** サブスクリプション通知データ（テスト通知の場合は undefined） */
   subscriptionNotification?: {
+    /** RTDN バージョン */
     version: string;
+    /** 通知タイプ（1=復旧, 2=更新, 3=キャンセル, 4=購入, 12=失効, 13=期限切れ など） */
     notificationType: number;
+    /** Google Play の購入トークン（ユーザー検索に使用） */
     purchaseToken: string;
+    /** サブスクリプション ID（商品 ID） */
     subscriptionId: string;
   };
+  /** アプリのパッケージ名 */
   packageName: string;
 }
 
 /**
- * handlePlayNotification - Google Play RTDN Pub/Subハンドラ
+ * handlePlayNotification - Google Play RTDN Pub/Sub ハンドラ
  *
- * Google PlayからPub/Sub経由でサブスクリプション通知を受け取り、
- * Play Developer APIで再検証後、Firestoreを更新する。
+ * Google Play から Pub/Sub 経由でサブスクリプション通知を受け取り、
+ * Play Developer API で再検証後、Firestore を更新する。
  */
 export const handlePlayNotification = functions.pubsub.onMessagePublished(
   {
@@ -27,10 +67,12 @@ export const handlePlayNotification = functions.pubsub.onMessagePublished(
     region: 'asia-northeast1',
   },
   async (event) => {
+    // Pub/Sub メッセージのデータ部分を Base64 デコードして JSON パース
     const messageData = event.data.message.data
       ? JSON.parse(Buffer.from(event.data.message.data, 'base64').toString()) as RTDNMessage
       : null;
 
+    // subscriptionNotification がない場合はテスト通知等のためスキップ
     if (!messageData?.subscriptionNotification) {
       console.log('Non-subscription notification, skipping');
       return;
@@ -44,13 +86,15 @@ export const handlePlayNotification = functions.pubsub.onMessagePublished(
       `RTDN: type=${notificationType}, subscriptionId=${subscriptionId}`
     );
 
-    // purchaseToken でユーザーを検索
+    // purchaseToken で Firestore からユーザーを検索
+    // verifySubscription で保存した purchase_token と照合する
     const usersSnapshot = await db
       .collection('users')
       .where('subscription.purchase_token', '==', purchaseToken)
       .limit(1)
       .get();
 
+    // 該当ユーザーが見つからない場合（初回購入前の通知など）
     if (usersSnapshot.empty) {
       console.warn('No user found for purchaseToken');
       return;
@@ -59,7 +103,7 @@ export const handlePlayNotification = functions.pubsub.onMessagePublished(
     const userDoc = usersSnapshot.docs[0];
     const userRef = userDoc.ref;
 
-    // Google Play API で最新状態を取得
+    // Google Play Developer API v3 で最新のサブスクリプション状態を取得
     try {
       const result = await verifyPlayPurchase(
         packageName,
@@ -67,8 +111,10 @@ export const handlePlayNotification = functions.pubsub.onMessagePublished(
         purchaseToken
       );
 
+      // 検証結果に基づいて tier を決定（expired なら free、それ以外は premium）
       const tier = result.status === 'expired' ? 'free' : 'premium';
 
+      // Firestore のユーザードキュメントを更新
       await userRef.set(
         {
           tier,

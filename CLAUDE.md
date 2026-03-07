@@ -1,12 +1,33 @@
-出力する情報は常に必要最小限ででわかりやすいものにしてください
+- 出力する情報は常に必要最小限ででわかりやすいものにしてください
 
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# Context management
+
+Before writing new code:
+
+- Inspect relevant files.
+- Do not keep investigation logs in context.
+- Run `compact` after analysis.
+- Then start implementation.
+
+Goal: minimize token usage.
+
 ## Project Overview
 
 「まいにちタイ語」はタイ語学習Flutterアプリ。Google Gemini AIとFirebase Cloud Functionsで毎日タイ語例文を生成し、単語分解・発音・日本語訳を提供する。UIとエラーメッセージは日本語。
+
+Main code: lib/
+Backend: Cloud Functions
+Infra: Terraform
+
+Ignore:
+android/
+ios/
+build/
+node_modules/
 
 ## Build & Development Commands
 

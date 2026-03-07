@@ -1,10 +1,32 @@
+// =============================================================================
+// database_helper.dart
+// SQLiteデータベースの管理クラス。
+// アプリのローカルデータ（例文、単語分解、生成ログ、クイズ結果、クイズ統計）を管理する。
+// シングルトンパターンで1つのDBインスタンスを共有。
+// テーブル定義はDatabaseConstantsクラスに集約されている。
+//
+// テーブル構成:
+//   - sentences: タイ語例文
+//   - word_breakdowns: 例文の単語分解（sentencesにFK、CASCADE DELETE）
+//   - generation_logs: 例文生成の成功/失敗ログ
+//   - quiz_results: クイズの回答結果
+//   - quiz_stats: クイズ統計のキャッシュ（1行のみ）
+//
+// マイグレーション履歴:
+//   v1→v2: syllables_jsonカラム追加
+//   v2→v3: DB全体リビルド（声調データ修正）
+//   v3→v4: situation→topicリネーム、styleカラム追加
+//   v4→v5: quiz_resultsテーブル追加
+//   v5→v6: quiz_statsテーブル追加
+// =============================================================================
+
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/database_constants.dart';
 
-/// Database helper class for managing SQLite database operations
+/// SQLiteデータベースのCRUD操作を管理するヘルパークラス（シングルトン）
 class DatabaseHelper {
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();

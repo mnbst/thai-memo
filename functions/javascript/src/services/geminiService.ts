@@ -35,7 +35,7 @@ export class GeminiService {
       const model = this.genAI.getGenerativeModel({
         model: GEMINI_MODEL,
         generationConfig: {
-          temperature: 0.7,
+          temperature: 0.8,
           maxOutputTokens: 4096,
           responseMimeType: 'application/json',
           responseSchema: {
@@ -99,6 +99,14 @@ ${sentenceList}
 - explanationは日本語で簡潔に（なぜその単語が正解か）`;
 
       const result = await model.generateContent(prompt);
+      const usage = result.response.usageMetadata;
+      if (usage) {
+        console.log('Gemini token usage', {
+          inputTokens: usage.promptTokenCount,
+          outputTokens: usage.candidatesTokenCount,
+          totalTokens: usage.totalTokenCount,
+        });
+      }
       const text = result.response.text();
       return JSON.parse(text) as QuizQuestionsResponse;
     } catch (error) {
