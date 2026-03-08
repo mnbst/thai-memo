@@ -21,17 +21,17 @@ import random
 
 # 各種選択肢リストを定数モジュールからインポート
 from constants import (
-    EMOTIONS,           # 感情・トーン（喜び、悲しみ等）
-    FREE_STYLES,        # 無料ティア用の文体サブセット
-    FREE_TOPICS,        # 無料ティア用のトピックサブセット
-    GRAMMAR_FOCUSES,    # 文法フォーカス（疑問文、否定文等）
+    EMOTIONS,  # 感情・トーン（喜び、悲しみ等）
+    FREE_STYLES,  # 無料ティア用の文体サブセット
+    FREE_TOPICS,  # 無料ティア用のトピックサブセット
+    GRAMMAR_FOCUSES,  # 文法フォーカス（疑問文、否定文等）
     LEARNING_PURPOSES,  # 学習目的（会話練習、語彙習得等）
     POLITENESS_LEVELS,  # 丁寧さレベル（フォーマル、カジュアル等）
-    SENTENCE_LENGTHS,   # 文の長さ（短文、中文、長文）
-    STYLES,             # 全文体リスト
-    TONE_DENSITIES,     # 声調密度（声調バリエーションの多さ）
-    TOPICS,             # 全トピックリスト
-    VOCAB_LEVELS,       # 語彙レベル（初級、中級、上級）
+    SENTENCE_LENGTHS,  # 文の長さ（短文、中文、長文）
+    STYLES,  # 全文体リスト
+    TONE_DENSITIES,  # 声調密度（声調バリエーションの多さ）
+    TOPICS,  # 全トピックリスト
+    VOCAB_LEVELS,  # 語彙レベル（初級、中級、上級）
 )
 
 
@@ -62,8 +62,8 @@ def build_free_prompt(params: dict) -> str:
 - 文体: {style}
 - 丁寧さ: 中立（一般的な日常表現）
 - 語彙: 初級（基本的な日常語彙のみ）
-- 長さ: 短文（3〜6単語）
-- 単語分解は最大8単語まで
+- 長さ: 中文（9〜12単語）
+- 単語分解は最大12単語まで
 - contextの各フィールドは簡潔に（各50文字以内）"""
 
 

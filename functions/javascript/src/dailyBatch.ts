@@ -19,10 +19,18 @@ import {
 
 const db = admin.firestore();
 
-/** SRS復習間隔（日数） */
-const SRS_DAYS = [1, 3, 7, 30];
-const MAX_REVIEW_SENTENCES = 20;
-const MAX_PER_INTERVAL = 5;
+/**
+ * SRS（Spaced Repetition System / 間隔反復）の復習間隔（日数）
+ *
+ * 学習した例文を「1日後 → 3日後 → 7日後 → 14日後 → 30日後」に再出題することで
+ * 忘却曲線に沿った効率的な定着を狙う。
+ * 例: 3/1に学習した例文 → 3/2(1日後), 3/4(3日後), 3/8(7日後), 3/15(14日後), 3/31(30日後) に復習対象
+ */
+const SRS_DAYS = [1, 3, 7, 14, 30];
+/** 1日あたりの復習キュー最大例文数 */
+const MAX_REVIEW_SENTENCES = 15;
+/** 各SRS間隔から選出する最大例文数（5間隔 × 3問 = 最大15問） */
+const MAX_PER_INTERVAL = 3;
 const CONCURRENCY = 5;
 const DEFAULT_SCHEDULED_TIME = '08:00';
 /** 配信可能時間帯（JST） */
@@ -105,10 +113,24 @@ async function processUser(
 interface SelectedSentence {
   id: string;
   data: FirebaseFirestore.DocumentData;
-  /** -1: ランダム補充, 0: デフォルト例文, 1/3/7/30: SRS間隔 */
+  /**
+   * この例文がどのSRS間隔で選ばれたかを示す値
+   * -1: SRS対象外（ランダム補充）
+   *  0: デフォルト例文（ユーザー例文が不足する新規ユーザー向け）
+   *  1/3/7/30: 該当するSRS間隔（日数）
+   */
   srsInterval: number;
 }
 
+/**
+ * ユーザーの全例文からSRSアルゴリズムに基づいて復習対象を選出する。
+ *
+ * 選出の優先順位:
+ *  ① SRS間隔にジャスト該当する例文（1日前/3日前/7日前/30日前に学習したもの）
+ *  ② ①で不足する場合、±1日の範囲からランダム補填（学習日のズレを吸収）
+ *  ③ それでも20問に満たない場合、SRS対象外の例文からランダム補充
+ *  ④ ユーザーの例文自体が少ない場合、デフォルト例文で補充
+ */
 async function selectSentencesBySRS(
   uid: string,
   jstNow: Date
@@ -124,7 +146,7 @@ async function selectSentencesBySRS(
 
   if (allSentencesSnapshot.empty) return [];
 
-  // 各例文の経過日数を事前計算
+  // 各例文の作成日からの経過日数を事前計算（SRS間隔との照合に使用）
   const jstNowMs = jstNow.getTime();
   const docsWithDays = allSentencesSnapshot.docs.map(doc => {
     const createdAt = doc.data().created_at?.toDate();
@@ -136,13 +158,13 @@ async function selectSentencesBySRS(
     return { doc, diffDays };
   });
 
-  // SRS各間隔ごとに選出（ジャスト該当日 → ±1日補填）
+  // ① SRS各間隔ごとに選出（ジャスト該当日 → ②±1日補填）
   for (const days of SRS_DAYS) {
     if (selected.length >= MAX_REVIEW_SENTENCES) break;
 
     const exact = docsWithDays.filter(d =>
       !usedIds.has(d.doc.id) && d.diffDays === days
-    );
+    ).sort(() => Math.random() - 0.5);
     const take = Math.min(MAX_PER_INTERVAL, exact.length, MAX_REVIEW_SENTENCES - selected.length);
     for (let i = 0; i < take; i++) {
       selected.push({ id: exact[i].doc.id, data: exact[i].doc.data(), srsInterval: days });
@@ -162,7 +184,7 @@ async function selectSentencesBySRS(
     }
   }
 
-  // SRS対象外のユーザー例文からランダム補充
+  // ③ SRS対象外のユーザー例文からランダム補充
   if (selected.length < MAX_REVIEW_SENTENCES) {
     const remaining = allSentencesSnapshot.docs
       .filter(doc => !usedIds.has(doc.id))
@@ -175,7 +197,7 @@ async function selectSentencesBySRS(
     }
   }
 
-  // デフォルト例文から補充（新規ユーザー等で不足する場合）
+  // ④ デフォルト例文から補充（新規ユーザー等で不足する場合）
   if (selected.length < MAX_REVIEW_SENTENCES) {
     const defaults = [...DEFAULT_SENTENCES]
       .sort(() => Math.random() - 0.5);
@@ -302,23 +324,23 @@ async function cleanOldSentences(): Promise<void> {
 /** dev: HTTPトリガー / tester・prod: Cloud Scheduler (JST 0:00) */
 export const dailyBatch = isDevOnly()
   ? functions.https.onRequest({
-      region: 'asia-northeast1',
-      timeoutSeconds: 1800,
-    }, async (_req, res) => {
-      await dailyBatchHandler();
-      res.status(200).send('ok');
-    })
+    region: 'asia-northeast1',
+    timeoutSeconds: 1800,
+  }, async (_req, res) => {
+    await dailyBatchHandler();
+    res.status(200).send('ok');
+  })
   : functions.scheduler.onSchedule(
-      {
-        schedule: '0 0 * * *', // JST 0:00
-        region: 'asia-northeast1',
-        timeZone: 'Asia/Tokyo',
-        timeoutSeconds: 1800,
-      },
-      async () => {
-        await dailyBatchHandler();
-      }
-    );
+    {
+      schedule: '0 0 * * *', // JST 0:00
+      region: 'asia-northeast1',
+      timeZone: 'Asia/Tokyo',
+      timeoutSeconds: 1800,
+    },
+    async () => {
+      await dailyBatchHandler();
+    }
+  );
 
 /** コレクションの全ドキュメントを500件ずつバッチ削除 */
 async function deleteCollection(collectionPath: string): Promise<void> {

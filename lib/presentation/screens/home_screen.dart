@@ -15,6 +15,7 @@ import 'detail_screen.dart';
 import 'history_screen.dart';
 import '../providers/subscription_provider.dart';
 import 'paywall_screen.dart';
+import 'onboarding_screen.dart';
 import 'quiz_screen.dart';
 import 'settings_screen.dart';
 
@@ -53,18 +54,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
 
     if (isFirstLaunch) {
-      // 初回起動完了を記録
-      ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('まいにちタイ語へようこそ！'),
-            duration: Duration(seconds: 3),
+        // オンボーディング画面を表示し、完了を待つ
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OnboardingScreen(
+              onComplete: () {
+                Navigator.pop(context);
+              },
+            ),
           ),
         );
       }
+      // 初回起動完了を記録
+      ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
     }
+
+    // FCM初期化＋通知権限リクエスト（オンボーディング後 or 既存ユーザー初回表示時）
+    await FcmService.instance.initialize();
+    await FcmService.instance.requestPermissionAndRegisterToken();
 
     // 今日未生成なら自動生成、済みなら最新を表示
     final generationParams = ref.read(generationParamsProvider);

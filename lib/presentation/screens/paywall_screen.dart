@@ -176,9 +176,8 @@ class PaywallBottomSheet extends ConsumerWidget {
         FilledButton(
           onPressed: subState.isLoading || subState.product == null
               ? null
-              : () => ref
-                  .read(subscriptionControllerProvider.notifier)
-                  .purchase(),
+              : () =>
+                  ref.read(subscriptionControllerProvider.notifier).purchase(),
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
             minimumSize: const Size(double.infinity, 0),
@@ -199,9 +198,8 @@ class PaywallBottomSheet extends ConsumerWidget {
         TextButton(
           onPressed: subState.isLoading
               ? null
-              : () => ref
-                  .read(subscriptionControllerProvider.notifier)
-                  .restore(),
+              : () =>
+                  ref.read(subscriptionControllerProvider.notifier).restore(),
           child: const Text('購入を復元'),
         ),
       ],
@@ -212,11 +210,11 @@ class PaywallBottomSheet extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     const features = [
-      ('例文生成', '1日1回', '1日5回'),
-      ('クイズ', '×', '1日10回'),
+      ('例文', '1日1回', '1日5回'),
+      ('クイズ', '1日1回', '1日10回'),
       ('トピック', '4種', '16種'),
       ('文体', '2種', '5種'),
-      ('例文出力設定', '×', '○'),
+      ('その他の設定', '×', '○'),
       ('広告', 'あり', 'なし'),
     ];
 

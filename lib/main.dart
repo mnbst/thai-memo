@@ -30,7 +30,10 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Initialize Google Sign-In
-  await GoogleSignIn.instance.initialize();
+  await GoogleSignIn.instance.initialize(
+    serverClientId:
+        '147810088545-4921rt150m9jtjate82nbol5q8hgoj3l.apps.googleusercontent.com',
+  );
 
   // Initialize AdMob
   await AdMobService.instance.initialize();

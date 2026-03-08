@@ -57,15 +57,8 @@ class FcmService {
     _container = container;
   }
 
-  /// FCM初期化: 権限リクエスト + トークン保存 + ローカル通知セットアップ
+  /// FCM初期化（権限リクエストなし）: ローカル通知セットアップのみ
   Future<void> initialize() async {
-    // 通知権限をリクエスト
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
     // iOS: フォアグラウンドではローカル通知で表示するため、
     // システム通知を無効化して二重表示を防止
     await _messaging.setForegroundNotificationPresentationOptions(
@@ -81,16 +74,33 @@ class FcmService {
     _messaging.onTokenRefresh.listen((token) {
       _saveToken(token);
     });
+  }
 
-    // FCMトークン取得・保存
-    try {
-      final token = await _messaging.getToken();
-      if (token != null) {
-        await _saveToken(token);
+  /// 通知権限をリクエストし、許可されたらFCMトークンを取得・保存
+  Future<bool> requestPermissionAndRegisterToken() async {
+    final settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    final granted = settings.authorizationStatus ==
+        AuthorizationStatus.authorized ||
+        settings.authorizationStatus ==
+            AuthorizationStatus.provisional;
+
+    if (granted) {
+      try {
+        final token = await _messaging.getToken();
+        if (token != null) {
+          await _saveToken(token);
+        }
+      } catch (e) {
+        debugPrint('FCMトークン取得失敗: $e');
       }
-    } catch (e) {
-      debugPrint('FCMトークン取得失敗: $e');
     }
+
+    return granted;
   }
 
   Future<void> _initLocalNotifications() async {

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/local/database_helper.dart';
-import '../../services/fcm_service.dart';
 import '../../services/firebase_auth_service.dart';
 
 // ==================== Auth State ====================
@@ -45,18 +44,11 @@ class AuthController extends StateNotifier<AuthState> {
   AuthController(this._authService)
       : super(AuthState.fromService(_authService));
 
-  Future<void> _initializeFcm() async {
-    try {
-      await FcmService.instance.initialize();
-    } catch (_) {}
-  }
-
   Future<String?> signInWithGoogle() async {
     state = state.copyWith(isLoading: true);
     try {
       await _authService.signInWithGoogle();
       state = AuthState.fromService(_authService);
-      await _initializeFcm();
       return null;
     } on FirebaseAuthServiceException catch (e) {
       state = AuthState.fromService(_authService);
@@ -72,7 +64,6 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       await _authService.signInWithApple();
       state = AuthState.fromService(_authService);
-      await _initializeFcm();
       return null;
     } on FirebaseAuthServiceException catch (e) {
       state = AuthState.fromService(_authService);

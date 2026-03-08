@@ -9,7 +9,6 @@ import '../providers/tts_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
 import 'paywall_screen.dart';
 
-
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key});
 
@@ -124,17 +123,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             Icon(Icons.quiz,
                 size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 24),
-            Text(
-              questionCount > 0 ? '今日の復習' : 'クイズに挑戦',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              questionCount > 0
-                  ? '$questionCount問の復習があります'
-                  : 'タイ語クイズに挑戦しましょう',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
             const SizedBox(height: 8),
             Text(
               '過去に学習した例文から出題されます',
@@ -145,7 +133,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             const SizedBox(height: 32),
             FilledButton.icon(
               onPressed: () {
-                ref.read(quizControllerProvider.notifier).generateAndStartQuiz();
+                ref
+                    .read(quizControllerProvider.notifier)
+                    .generateAndStartQuiz();
               },
               icon: const Icon(Icons.play_arrow),
               label: const Text('クイズを始める'),
@@ -169,8 +159,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           children: [
             const CircularProgressIndicator(),
             const SizedBox(height: 24),
-            Text('クイズを生成中...',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text('クイズを生成中...', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 32),
             const LoadingTipCarousel(),
           ],
