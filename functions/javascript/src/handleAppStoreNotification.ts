@@ -29,6 +29,10 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { parseNotificationPayload } from './services/appStoreServer';
+import {
+  FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES,
+  PREMIUM_DAILY_SENTENCES, PREMIUM_DAILY_QUIZZES,
+} from './constants/quota';
 
 /** Firestore インスタンス */
 const db = admin.firestore();
@@ -162,9 +166,12 @@ export const handleAppStoreNotification = functions.https.onRequest(
       }
 
       // Firestore のユーザードキュメントを更新
+      const isFree = tier === 'free';
       await userRef.set(
         {
           tier,
+          remaining_sentences: isFree ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES,
+          remaining_quizzes: isFree ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES,
           subscription: {
             status,
             expires_at: expiresAt

@@ -35,31 +35,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkFirstLaunchAndLoadSentence();
     });
-    // 通知タップ時にクイズタブへ切り替え（プレミアムのみ）
-    FcmService.instance.onQuizDataReceived = () {
-      if (mounted && ref.read(isPremiumProvider)) {
-        ref.read(quizControllerProvider.notifier).loadQuiz();
+    // 通知タップ時に例文タブへ切り替え
+    FcmService.instance.onSentenceTabRequested = () {
+      if (mounted) {
         setState(() {
-          _currentIndex = 1; // クイズタブ
+          _currentIndex = 0; // 例文タブ
         });
       }
     };
 
-    // 今日のタイ語通知タップ時にDetailScreenへ遷移
-    FcmService.instance.onDailySentenceReceived = (sentenceData) {
-      if (!mounted) return;
-      final sentence = ThaiSentence(
-        thaiText: sentenceData['thai_text'] ?? '',
-        pronunciation: sentenceData['pronunciation'] ?? '',
-        japaneseTranslation: sentenceData['japanese_translation'] ?? '',
-        wordBreakdowns: [],
-      );
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => DetailScreen(sentence: sentence),
-        ),
-      );
-    };
+    // 保留中の通知遷移があれば実行
+    FcmService.instance.markHomeReady();
   }
 
   /// Check if first launch and load sentence
@@ -120,7 +106,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           setState(() {
             _currentIndex = index;
           });
-          if (index == 1 && ref.read(isPremiumProvider)) {
+          if (index == 1) {
             ref.read(quizControllerProvider.notifier).loadQuiz();
           }
         },

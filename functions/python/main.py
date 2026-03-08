@@ -6,10 +6,9 @@ from zoneinfo import ZoneInfo
 
 from google import genai
 from firebase_admin import firestore, initialize_app, messaging
-from firebase_admin.exceptions import FirebaseError
 from google.cloud.firestore_v1.base_document import DocumentSnapshot
 from google.cloud.firestore_v1.client import Client as FirestoreClient
-from firebase_functions import https_fn, scheduler_fn
+from firebase_functions import https_fn, scheduler_fn  # type: ignore[attr-defined]
 from google.cloud import secretmanager
 
 from constants import (
@@ -106,17 +105,12 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         tier = user_data.get("tier", "free")
         is_premium = tier == "premium"
 
-        today = datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y-%m-%d")
-        last_date = user_data.get("last_generation_date", "")
-        daily_count = user_data.get("daily_generation_count", 0)
-        if last_date != today:
-            daily_count = 0
+        remaining = user_data.get("remaining_sentences", 0)
 
-        max_count = 5 if is_premium else 1
-        if daily_count >= max_count:
+        if remaining <= 0:
             response["error"] = {
                 "code": "QUOTA_EXCEEDED",
-                "message": "本日の例文生成上限（5回）に達しました",
+                "message": "本日の例文生成上限に達しました",
             }
             return response
 
@@ -140,10 +134,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
                 }
             )
             user_ref.set(
-                {
-                    "daily_generation_count": daily_count + 1,
-                    "last_generation_date": today,
-                },
+                {"remaining_sentences": remaining - 1},
                 merge=True,
             )
         except Exception as e:
@@ -179,16 +170,53 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         return response
 
 
-def _send_daily_sentence_handler() -> None:
-    """1日1回、全ユーザーにタイ語例文をFCM通知で配信する。
+def _current_slot_jst() -> str:
+    """現在のJST時刻を30分スロット文字列（例: "14:30"）で返す"""
+    now = datetime.now(ZoneInfo("Asia/Tokyo"))
+    minute = 0 if now.minute < 30 else 30
+    return f"{now.hour:02d}:{minute:02d}"
 
-    1. Gemini APIで短文のタイ語例文を1つ生成（全ユーザー共通）
-    2. notification_enabled=true かつ fcm_token を持つユーザーを取得
-    3. 各ユーザーにFCM通知を送信（例文データをペイロードに含む）
+
+def _send_daily_sentence_handler(*, force: bool = False) -> None:
+    """30分ごとに実行し、配信タイミングが合致するユーザーにFCM通知を送信する。
+
+    1. 現在のJST時刻を30分スロットに変換（例: 14:15 → "14:00"）
+    2. scheduled_time が合致するユーザーを取得（force=True時はスキップ）
+    3. Gemini APIで例文を1つ生成（全対象ユーザー共通）
+    4. 各ユーザーにFCM通知を送信
+
+    Args:
+        force: Trueの場合、スケジュール判定をスキップし全対象ユーザーに即時送信する
     """
-    print("sendDailySentence started")
+    db: FirestoreClient = firestore.client()  # type: ignore[assignment]
 
-    # 全ユーザー共通の例文を1つ生成（無料ティアのロジックを使用）
+    if force:
+        print("sendDailySentence started: force=True (skip schedule filter)")
+        users = (
+            db.collection("users").where("notification_enabled", "==", True).stream()
+        )
+    else:
+        current_slot = _current_slot_jst()
+        print(f"sendDailySentence started: slot={current_slot}")
+        users = (
+            db.collection("users")
+            .where("notification_enabled", "==", True)
+            .where("scheduled_time", "==", current_slot)
+            .stream()
+        )
+
+    # fcm_token を持つユーザーのみ抽出
+    target_users = []
+    for user_doc in users:
+        user_data = user_doc.to_dict() or {}
+        if user_data.get("fcm_token"):
+            target_users.append((user_doc, user_data))
+
+    if not target_users:
+        print("No target users found")
+        return
+
+    # 対象ユーザーがいる場合のみ例文を生成（API呼び出し節約）
     sentence = _generate_sentence({}, is_premium=False)
 
     thai_text = sentence.get("thai_text", "")
@@ -197,31 +225,22 @@ def _send_daily_sentence_handler() -> None:
 
     print(f"Generated sentence: {thai_text} / {pronunciation} / {japanese_translation}")
 
-    # notification_enabled=true のユーザーを取得
-    db: FirestoreClient = firestore.client()  # type: ignore[assignment]
-    users = db.collection("users").where("notification_enabled", "==", True).stream()
+    # FCM data に完全な例文JSONを含める（通知タップ時にDetailScreen表示用）
+    sentence_json = json.dumps(sentence, ensure_ascii=False)
 
-    sent_count = 0
-    fail_count = 0
-
-    for user_doc in users:
-        user_data = user_doc.to_dict() or {}
-        fcm_token = user_data.get("fcm_token")
-        if not fcm_token:
-            continue
-
-        try:
-            msg = messaging.Message(
-                token=fcm_token,
+    messages = []
+    user_docs = []
+    for user_doc, user_data in target_users:
+        messages.append(
+            messaging.Message(
+                token=user_data["fcm_token"],
                 notification=messaging.Notification(
                     title="今日のタイ語 🇹🇭",
-                    body=f"{thai_text}\n{pronunciation}\n{japanese_translation}",
+                    body=f"{thai_text}\n{japanese_translation}",
                 ),
                 data={
                     "type": "daily_sentence",
-                    "thai_text": thai_text,
-                    "pronunciation": pronunciation,
-                    "japanese_translation": japanese_translation,
+                    "sentence_json": sentence_json,
                 },
                 apns=messaging.APNSConfig(
                     payload=messaging.APNSPayload(
@@ -235,33 +254,51 @@ def _send_daily_sentence_handler() -> None:
                     ),
                 ),
             )
-            messaging.send(msg)
-            sent_count += 1
-        except messaging.UnregisteredError:
-            # トークン無効（アプリ削除等）→ fcm_token を削除
-            db.collection("users").document(user_doc.id).update({
-                "fcm_token": firestore.firestore.DELETE_FIELD,
-            })
-            fail_count += 1
-        except FirebaseError as e:
-            print(f"FCM send failed for {user_doc.id}: {e}")
-            fail_count += 1
+        )
+        user_docs.append(user_doc)
+
+    sent_count = 0
+    fail_count = 0
+
+    if messages:
+        response = messaging.send_each(messages)
+        for i, send_response in enumerate(response.responses):
+            if send_response.success:
+                sent_count += 1
+            elif isinstance(send_response.exception, messaging.UnregisteredError):
+                db.collection("users").document(user_docs[i].id).update(
+                    {
+                        "fcm_token": firestore.firestore.DELETE_FIELD,
+                    }
+                )
+                fail_count += 1
+            else:
+                print(
+                    f"FCM send failed for {user_docs[i].id}: {send_response.exception}"
+                )
+                fail_count += 1
 
     print(f"sendDailySentence completed: sent={sent_count}, failed={fail_count}")
 
 
 if _IS_DEV:
+
     @https_fn.on_request(region="asia-northeast1", memory=2048, timeout_sec=120)
-    def sendDailySentence(req: https_fn.Request) -> https_fn.Response:
-        _send_daily_sentence_handler()
-        return https_fn.Response("ok")
+    def sendDailySentenceHttp(req: https_fn.Request) -> https_fn.Response:  # type: ignore
+        _send_daily_sentence_handler(force=True)
+        return https_fn.Response("ok")  # type: ignore
+
+    sendDailySentence = sendDailySentenceHttp
 else:
+
     @scheduler_fn.on_schedule(
-        schedule="0 8 * * *",
+        schedule="*/30 8-20 * * *",
         region="asia-northeast1",
-        timezone=scheduler_fn.Timezone("Asia/Tokyo"),
+        timezone=scheduler_fn.Timezone("Asia/Tokyo"),  # type: ignore
         memory=2048,
         timeout_sec=120,
     )
-    def sendDailySentence(event: scheduler_fn.ScheduledEvent) -> None:
+    def sendDailySentenceScheduled(event: scheduler_fn.ScheduledEvent) -> None:
         _send_daily_sentence_handler()
+
+    sendDailySentence = sendDailySentenceScheduled

@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
@@ -27,6 +28,9 @@ void main() async {
 
   // バックグラウンドFCMハンドラ登録（Firebase初期化直後に設定）
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  // Initialize Google Sign-In
+  await GoogleSignIn.instance.initialize();
 
   // Initialize AdMob
   await AdMobService.instance.initialize();
@@ -55,6 +59,9 @@ void main() async {
       child: const ThaiMemoApp(),
     ),
   );
+
+  // FcmServiceにProviderContainerを設定
+  FcmService.instance.setContainer(container);
 
   // navigatorKeyが有効になった後に通知ハンドラをセットアップ
   WidgetsBinding.instance.addPostFrameCallback((_) {

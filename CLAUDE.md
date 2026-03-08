@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Before writing new code:
 
+- Read `docs/code_index.md` to understand the codebase structure and locate relevant files.
 - Inspect relevant files.
 - Do not keep investigation logs in context.
 - Run `compact` after analysis.

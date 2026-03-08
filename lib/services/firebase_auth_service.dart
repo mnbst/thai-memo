@@ -40,16 +40,16 @@ class FirebaseAuthService {
 
   /// Sign in with Google
   Future<User?> signInWithGoogle() async {
-    final googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) return null; // cancelled
-
-    final googleAuth = await googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    return _signInWithCredential(credential);
+    try {
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleUser.authentication.idToken,
+      );
+      return _signInWithCredential(credential);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      rethrow;
+    }
   }
 
   /// Sign in with Apple
@@ -101,7 +101,7 @@ class FirebaseAuthService {
   /// Sign out
   Future<void> signOut() async {
     try {
-      await GoogleSignIn().signOut();
+      await GoogleSignIn.instance.signOut();
       await _auth.signOut();
     } catch (e) {
       throw FirebaseAuthServiceException('Failed to sign out: $e');
@@ -133,17 +133,19 @@ class FirebaseAuthService {
         );
         await user.reauthenticateWithCredential(oauthCredential);
       } else if (providerIds.contains('google.com')) {
-        final googleUser = await GoogleSignIn().signIn();
-        if (googleUser == null) {
-          throw FirebaseAuthServiceException('再認証がキャンセルされました');
+        try {
+          final googleUser = await GoogleSignIn.instance.authenticate();
+          final credential = GoogleAuthProvider.credential(
+            idToken: googleUser.authentication.idToken,
+          );
+          await user.reauthenticateWithCredential(credential);
+          await GoogleSignIn.instance.signOut();
+        } on GoogleSignInException catch (e) {
+          if (e.code == GoogleSignInExceptionCode.canceled) {
+            throw FirebaseAuthServiceException('再認証がキャンセルされました');
+          }
+          rethrow;
         }
-        final googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        await user.reauthenticateWithCredential(credential);
-        await GoogleSignIn().signOut();
       }
 
       await user.delete();

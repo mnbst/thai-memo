@@ -89,7 +89,7 @@ class BackendApiService {
       // Extract sentence data
       final sentenceData = Map<String, dynamic>.from(data['data'] as Map);
 
-      return _createThaiSentence(sentenceData);
+      return createThaiSentenceFromJson(sentenceData);
     } on FirebaseFunctionsException catch (e) {
       throw _mapFirebaseFunctionsException(e);
     } on BackendApiException {
@@ -100,7 +100,7 @@ class BackendApiService {
   }
 
   /// Create ThaiSentence object from parsed JSON
-  ThaiSentence _createThaiSentence(Map<String, dynamic> json) {
+  static ThaiSentence createThaiSentenceFromJson(Map<String, dynamic> json) {
     try {
       // Parse word breakdowns
       final wordBreakdownsJson = json['word_breakdown'] as List<dynamic>?;
@@ -218,7 +218,7 @@ class BackendApiService {
   }
 
   /// Convert ConsonantClass enum to string
-  String _consonantClassToString(ConsonantClass consonantClass) {
+  static String _consonantClassToString(ConsonantClass consonantClass) {
     switch (consonantClass) {
       case ConsonantClass.high:
         return 'high';
@@ -232,7 +232,7 @@ class BackendApiService {
   }
 
   /// Convert ThaiTone enum to string
-  String _toneToString(ThaiTone tone) {
+  static String _toneToString(ThaiTone tone) {
     switch (tone) {
       case ThaiTone.mid:
         return 'mid';
@@ -250,7 +250,7 @@ class BackendApiService {
   }
 
   /// Convert ToneMark enum to string
-  String _toneMarkToString(ToneMark toneMark) {
+  static String _toneMarkToString(ToneMark toneMark) {
     switch (toneMark) {
       case ToneMark.none:
         return 'none';
@@ -266,7 +266,7 @@ class BackendApiService {
   }
 
   /// Convert SyllableType enum to string
-  String _syllableTypeToString(SyllableType syllableType) {
+  static String _syllableTypeToString(SyllableType syllableType) {
     switch (syllableType) {
       case SyllableType.live:
         return 'live';

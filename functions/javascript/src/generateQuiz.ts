@@ -26,7 +26,7 @@ import * as admin from 'firebase-admin';
 import { GeminiService, QuizQuestion } from './services/geminiService';
 import { getGeminiApiKey } from './services/secretManager';
 import { DEFAULT_SENTENCES } from './constants/defaultQuizQuestions';
-import { todayJST } from './utils/formatDate';
+
 
 /** Firestore インスタンス */
 const db = admin.firestore();
@@ -59,23 +59,16 @@ export const generateQuiz = functions.https.onCall(
       throw new functions.https.HttpsError('unauthenticated', '認証が必要です');
     }
 
-    // --- 日次クイズ生成クォータチェック ---
-    // free ユーザー: 1日1回まで / premium ユーザー: 1日10回まで
+    // --- クイズ生成クォータチェック ---
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
     const userData = userDoc.data() || {};
-    const tier: string = userData.tier || 'free';
-    const maxCount = tier === 'premium' ? 10 : 1;
-    const today = todayJST();
-    const lastQuizDate: string = userData.last_quiz_date || '';
-    let dailyQuizCount: number = userData.daily_quiz_count || 0;
-    // 日付が変わっていたらカウントをリセット
-    if (lastQuizDate !== today) {
-      dailyQuizCount = 0;
-    }
+
+    const remainingQuizzes: number = userData.remaining_quizzes ?? 0;
+
     // 上限に達している場合はエラーを返す
-    if (dailyQuizCount >= maxCount) {
-      throw new functions.https.HttpsError('resource-exhausted', `本日のクイズ生成上限（${maxCount}回）に達しました`);
+    if (remainingQuizzes <= 0) {
+      throw new functions.https.HttpsError('resource-exhausted', '本日のクイズ生成上限に達しました');
     }
 
     // GCP Secret Manager から Gemini API キーを取得
@@ -94,7 +87,7 @@ export const generateQuiz = functions.https.onCall(
     // review_queue にデータがない場合（初回登録直後など）→ デフォルト例文からクイズ生成
     if (reviewSnapshot.empty) {
       const result = await generateFromDefaults(geminiService);
-      await userRef.set({ daily_quiz_count: dailyQuizCount + 1, last_quiz_date: today }, { merge: true });
+      await userRef.set({ remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
       return result;
     }
 
@@ -107,7 +100,7 @@ export const generateQuiz = functions.https.onCall(
     // sentences が空の場合もデフォルト例文にフォールバック
     if (sentences.length === 0) {
       const result = await generateFromDefaults(geminiService);
-      await userRef.set({ daily_quiz_count: dailyQuizCount + 1, last_quiz_date: today }, { merge: true });
+      await userRef.set({ remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
       return result;
     }
 
@@ -150,11 +143,8 @@ export const generateQuiz = functions.https.onCall(
         questions = await fillWithDefaults(geminiService, questions);
       }
 
-      // クイズ生成回数を更新
-      await userRef.set({
-        daily_quiz_count: dailyQuizCount + 1,
-        last_quiz_date: today,
-      }, { merge: true });
+      // クイズ生成残回数をデクリメント
+      await userRef.set({ remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
 
       return { questions: questions.slice(0, MAX_QUESTIONS) };
     } catch (error) {

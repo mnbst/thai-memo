@@ -144,6 +144,11 @@ class SentenceController extends StateNotifier<SentenceState> {
     }
   }
 
+  /// 通知から受け取った例文を直接表示する
+  void showSentence(ThaiSentence sentence) {
+    state = SentenceStateSuccess(sentence);
+  }
+
   bool _isToday(DateTime? date) {
     if (date == null) return false;
     final now = DateTime.now();

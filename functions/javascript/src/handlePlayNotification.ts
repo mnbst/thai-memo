@@ -29,6 +29,10 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { verifyPlayPurchase } from './services/playBilling';
+import {
+  FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES,
+  PREMIUM_DAILY_SENTENCES, PREMIUM_DAILY_QUIZZES,
+} from './constants/quota';
 
 /** Firestore インスタンス */
 const db = admin.firestore();
@@ -115,9 +119,12 @@ export const handlePlayNotification = functions.pubsub.onMessagePublished(
       const tier = result.status === 'expired' ? 'free' : 'premium';
 
       // Firestore のユーザードキュメントを更新
+      const isFree = tier === 'free';
       await userRef.set(
         {
           tier,
+          remaining_sentences: isFree ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES,
+          remaining_quizzes: isFree ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES,
           subscription: {
             status: result.status,
             expires_at: result.expiresAt

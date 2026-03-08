@@ -7,6 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../data/datasources/backend_api_service.dart';
+import '../data/models/thai_sentence.dart';
+import '../presentation/providers/sentence_provider.dart';
+
 /// バックグラウンドFCMハンドラ（トップレベル関数）
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -14,23 +20,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final type = data['type'];
 
   if (type == 'daily_sentence') {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('daily_sentence', jsonEncode({
-      'thai_text': data['thai_text'] ?? '',
-      'pronunciation': data['pronunciation'] ?? '',
-      'japanese_translation': data['japanese_translation'] ?? '',
-    }));
-    return;
-  }
-
-  if (type != 'quiz' && type != 'review') return;
-
-  final prefs = await SharedPreferences.getInstance();
-  if (type == 'review' && data['question_count'] != null) {
-    await prefs.setInt(
-        'review_question_count', int.tryParse(data['question_count'] ?? '0') ?? 0);
-  } else if (data['quiz_queue_id'] != null) {
-    await prefs.setString('quiz_queue_id', data['quiz_queue_id']);
+    final sentenceJson = data['sentence_json'];
+    if (sentenceJson != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('daily_sentence', sentenceJson);
+    }
   }
 }
 
@@ -49,11 +43,19 @@ class FcmService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
-  /// 通知タップ時にクイズタブへ切り替えるコールバック
-  VoidCallback? onQuizDataReceived;
+  /// 通知タップ時に例文タブへ切り替えるコールバック
+  VoidCallback? onSentenceTabRequested;
 
-  /// 通知タップ時に例文詳細画面へ遷移するコールバック
-  void Function(Map<String, String> sentenceData)? onDailySentenceReceived;
+  /// Riverpodコンテナ（通知から例文をstateに反映するため）
+  ProviderContainer? _container;
+
+  /// 終了状態から起動時に遷移待ちの例文を保持
+  ThaiSentence? _pendingDailySentence;
+
+  /// main.dartからProviderContainerを設定
+  void setContainer(ProviderContainer container) {
+    _container = container;
+  }
 
   /// FCM初期化: 権限リクエスト + トークン保存 + ローカル通知セットアップ
   Future<void> initialize() async {
@@ -64,11 +66,12 @@ class FcmService {
       sound: true,
     );
 
-    // iOSフォアグラウンド通知表示設定
+    // iOS: フォアグラウンドではローカル通知で表示するため、
+    // システム通知を無効化して二重表示を防止
     await _messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
+      alert: false,
       badge: true,
-      sound: true,
+      sound: false,
     );
 
     // ローカル通知の初期化（フォアグラウンド表示用）
@@ -99,7 +102,7 @@ class FcmService {
       iOS: iosSettings,
     );
     await _localNotifications.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: (_) {
         // ローカル通知タップ時: SharedPreferencesから例文データを復元して遷移
         _handleLocalNotificationTap();
@@ -107,22 +110,15 @@ class FcmService {
     );
 
     // Android通知チャンネル作成
-    const reviewChannel = AndroidNotificationChannel(
-      'review_notifications',
-      'クイズ通知',
-      description: 'クイズのリマインダー通知',
-      importance: Importance.high,
-    );
     const dailyChannel = AndroidNotificationChannel(
       'daily_sentence',
       '今日のタイ語',
       description: '毎日のタイ語例文通知',
       importance: Importance.high,
     );
-    final androidPlugin = _localNotifications
-        .resolvePlatformSpecificImplementation<
+    final androidPlugin =
+        _localNotifications.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.createNotificationChannel(reviewChannel);
     await androidPlugin?.createNotificationChannel(dailyChannel);
   }
 
@@ -142,91 +138,107 @@ class FcmService {
 
     // フォアグラウンドでメッセージ受信時: バナー表示
     FirebaseMessaging.onMessage.listen((message) {
-      final type = message.data['type'];
-      if (type == 'daily_sentence') {
-        _saveDailySentenceData(message.data);
-        _showForegroundNotification(message, channelId: 'daily_sentence', channelName: '今日のタイ語');
-      } else {
-        _showForegroundNotification(message);
-        _saveQuizData(message).then((_) {
-          if (type == 'quiz' || type == 'review') {
-            onQuizDataReceived?.call();
-          }
-        });
-      }
+      _saveDailySentenceData(message.data);
+      _showForegroundNotification(message);
     });
   }
 
   /// フォアグラウンド時にローカル通知でバナー表示
-  Future<void> _showForegroundNotification(
-    RemoteMessage message, {
-    String channelId = 'review_notifications',
-    String channelName = 'クイズ通知',
-  }) async {
+  Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
     if (notification == null) return;
 
-    final androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
+    const androidDetails = AndroidNotificationDetails(
+      'daily_sentence',
+      '今日のタイ語',
       importance: Importance.high,
       priority: Priority.high,
     );
-    final details = NotificationDetails(
+    const details = NotificationDetails(
       android: androidDetails,
-      iOS: const DarwinNotificationDetails(),
+      iOS: DarwinNotificationDetails(),
     );
 
     await _localNotifications.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
-      details,
+      id: notification.hashCode & 0x7FFFFFFF,
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: details,
     );
   }
 
   void _handleNotificationTap(RemoteMessage message) {
-    final type = message.data['type'];
-    if (type == 'daily_sentence') {
-      _saveDailySentenceData(message.data);
-      _navigateToDailySentence(message.data);
-    } else {
-      _saveQuizData(message);
-      onQuizDataReceived?.call();
-    }
+    _saveDailySentenceData(message.data);
+    _navigateToDailySentence(message.data);
   }
 
   /// ローカル通知タップ時の処理
   Future<void> _handleLocalNotificationTap() async {
     final prefs = await SharedPreferences.getInstance();
     final json = prefs.getString('daily_sentence');
-    if (json != null) {
-      final data = Map<String, String>.from(jsonDecode(json) as Map);
-      onDailySentenceReceived?.call(data);
-    } else {
-      onQuizDataReceived?.call();
+    if (json == null) return;
+    final sentence = _parseSentenceJson(json);
+    if (sentence != null) {
+      _navigateToSentenceTab(sentence);
     }
   }
 
   void _saveDailySentenceData(Map<String, dynamic> data) async {
+    final sentenceJson = data['sentence_json'];
+    if (sentenceJson == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('daily_sentence', jsonEncode({
-      'thai_text': data['thai_text'] ?? '',
-      'pronunciation': data['pronunciation'] ?? '',
-      'japanese_translation': data['japanese_translation'] ?? '',
-    }));
+    await prefs.setString('daily_sentence', sentenceJson as String);
   }
 
   void _navigateToDailySentence(Map<String, dynamic> data) {
-    onDailySentenceReceived?.call({
-      'thai_text': data['thai_text']?.toString() ?? '',
-      'pronunciation': data['pronunciation']?.toString() ?? '',
-      'japanese_translation': data['japanese_translation']?.toString() ?? '',
-    });
+    final sentenceJson = data['sentence_json'] as String?;
+    if (sentenceJson == null) return;
+    final sentence = _parseSentenceJson(sentenceJson);
+    if (sentence != null) {
+      _navigateToSentenceTab(sentence);
+    }
   }
 
-  Future<void> _saveQuizData(RemoteMessage message) =>
-      firebaseMessagingBackgroundHandler(message);
+  /// 例文タブのstateに反映し、ホーム画面の例文タブへ遷移
+  void _navigateToSentenceTab(ThaiSentence sentence) {
+    // 例文タブのstateに反映
+    _container
+        ?.read(sentenceControllerProvider.notifier)
+        .showSentence(sentence);
+
+    final navigator = navigatorKey.currentState;
+    if (navigator != null) {
+      // DetailScreenなどが開いていればホームまで戻る
+      navigator.popUntil((route) => route.isFirst);
+      onSentenceTabRequested?.call();
+    } else {
+      // アプリ起動直後でnavigatorがまだ準備できていない場合、保留
+      _pendingDailySentence = sentence;
+    }
+  }
+
+  /// HomeScreenが準備完了時に呼ぶ。保留中の遷移があれば実行する。
+  void markHomeReady() {
+    if (_pendingDailySentence != null) {
+      final sentence = _pendingDailySentence!;
+      _pendingDailySentence = null;
+      // 少し遅延してnavigatorが確実に有効になるのを待つ
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _navigateToSentenceTab(sentence);
+      });
+    }
+  }
+
+  /// sentence_json文字列からThaiSentenceを生成
+  ThaiSentence? _parseSentenceJson(String jsonStr) {
+    try {
+      final map = Map<String, dynamic>.from(jsonDecode(jsonStr) as Map);
+      return BackendApiService.createThaiSentenceFromJson(map);
+    } catch (e) {
+      debugPrint('Failed to parse sentence_json: $e');
+      return null;
+    }
+  }
 
   Future<void> _saveToken(String token) async {
     final user = FirebaseAuth.instance.currentUser;

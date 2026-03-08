@@ -21,6 +21,10 @@ import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { verifyPlayPurchase } from './services/playBilling';
 import { verifyAppStorePurchase } from './services/appStoreServer';
+import {
+  FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES,
+  PREMIUM_DAILY_SENTENCES, PREMIUM_DAILY_QUIZZES,
+} from './constants/quota';
 
 /** Firestore インスタンス */
 const db = admin.firestore();
@@ -82,9 +86,12 @@ export const verifySubscription = functions.https.onCall(
 
         // 検証結果を Firestore に保存
         // status が 'expired' の場合は tier を 'free' に戻す
+        const isExpired = result.status === 'expired';
         await userRef.set(
           {
-            tier: result.status === 'expired' ? 'free' : 'premium',
+            tier: isExpired ? 'free' : 'premium',
+            remaining_sentences: isExpired ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES,
+            remaining_quizzes: isExpired ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES,
             subscription: {
               product_id,
               platform: 'android',
@@ -111,9 +118,12 @@ export const verifySubscription = functions.https.onCall(
         const result = await verifyAppStorePurchase(purchase_token);
 
         // 検証結果を Firestore に保存
+        const isExpiredIos = result.status === 'expired';
         await userRef.set(
           {
-            tier: result.status === 'expired' ? 'free' : 'premium',
+            tier: isExpiredIos ? 'free' : 'premium',
+            remaining_sentences: isExpiredIos ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES,
+            remaining_quizzes: isExpiredIos ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES,
             subscription: {
               product_id,
               platform: 'ios',

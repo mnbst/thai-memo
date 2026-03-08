@@ -24,6 +24,8 @@
 /// - verifySubscription.ts: サーバー側の購入検証 Cloud Function
 /// - handleAppStoreNotification.ts: App Store からの更新/解約通知ハンドラ
 /// - handlePlayNotification.ts: Google Play からの更新/解約通知ハンドラ
+library;
+
 import 'dart:async';
 import 'dart:io';
 
@@ -81,8 +83,7 @@ class PurchaseService {
 
   /// 商品情報を取得
   Future<ProductDetails?> fetchProduct() async {
-    final response =
-        await _iap.queryProductDetails({kProductIdPremiumMonthly});
+    final response = await _iap.queryProductDetails({kProductIdPremiumMonthly});
     if (response.error != null) {
       debugPrint('Product query error: ${response.error}');
       return null;
