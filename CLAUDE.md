@@ -16,6 +16,10 @@ Before writing new code:
 
 Goal: minimize token usage.
 
+## Code index maintenance
+
+ファイルの新規追加・削除・大幅な役割変更を行った場合、`docs/code_index.md` を更新すること。説明は1行で簡潔に。
+
 ## Project Overview
 
 「まいにちタイ語」はタイ語学習Flutterアプリ。Google Gemini AIとFirebase Cloud Functionsで毎日タイ語例文を生成し、単語分解・発音・日本語訳を提供する。UIとエラーメッセージは日本語。

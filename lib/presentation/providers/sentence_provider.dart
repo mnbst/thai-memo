@@ -9,6 +9,7 @@ import '../../domain/delete_sentence_usecase.dart';
 import '../../domain/generate_sentence_usecase.dart';
 import '../../domain/get_sentences_usecase.dart';
 import '../../services/firebase_auth_service.dart';
+import 'streak_provider.dart';
 
 // ==================== Repository Provider ====================
 
@@ -89,6 +90,7 @@ class SentenceController extends StateNotifier<SentenceState> {
         generationParams: generationParams,
       );
       state = SentenceStateSuccess(sentence);
+      await markGenerationDone();
     } on GenerateSentenceException catch (e) {
       state = SentenceStateError(e.getUserMessage());
     } catch (e) {
@@ -122,6 +124,7 @@ class SentenceController extends StateNotifier<SentenceState> {
       final recent = await _getUseCase.getMostRecent();
       if (recent != null && _isToday(recent.createdAt)) {
         state = SentenceStateSuccess(recent);
+        await markGenerationDone(); // 既に今日生成済みでも記録
         return;
       }
 
@@ -131,6 +134,7 @@ class SentenceController extends StateNotifier<SentenceState> {
           generationParams: generationParams,
         );
         state = SentenceStateSuccess(sentence);
+        await markGenerationDone();
       } catch (e) {
         // 生成失敗時は既存の最新例文を表示、なければサンプル表示
         if (recent != null) {

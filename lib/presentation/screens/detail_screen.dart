@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../data/models/thai_sentence.dart';
+import '../../data/models/word_breakdown.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/tts_provider.dart';
 import '../tone_explanation_dialog.dart';
@@ -44,6 +45,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   bool _isWordBreakdownExpanded = true;
   /// 文脈情報セクションの展開/折りたたみ状態
   bool _isContextExpanded = true;
+  /// お気に入り状態（ローカル管理）
+  late bool _isFavorite = widget.sentence.isFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +57,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
           // お気に入りトグルボタン（ハートアイコン）
           IconButton(
             icon: Icon(
-              widget.sentence.isFavorite
+              _isFavorite
                   ? Icons.favorite
                   : Icons.favorite_border,
             ),
@@ -247,7 +250,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// 番号付きの円形バッジ、タイ語テキスト、TTS再生ボタン、発音、
   /// 意味、文法的役割（タグ表示）を含む。
   /// タップすると声調解説ダイアログが開き、その単語の声調分析を確認できる。
-  Widget _buildWordBreakdownItem(word, int index) {
+  Widget _buildWordBreakdownItem(WordBreakdown word, int index) {
     return InkWell(
       // タップで声調解説ダイアログを表示
       onTap: () => ToneExplanationDialog.show(
@@ -557,23 +560,24 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     final sentenceId = widget.sentence.id;
     if (sentenceId == null) return;
 
+    final newValue = !_isFavorite;
     await ref
         .read(sentenceControllerProvider.notifier)
-        .toggleFavorite(sentenceId, !widget.sentence.isFavorite);
+        .toggleFavorite(sentenceId, newValue);
 
     if (mounted) {
+      setState(() {
+        _isFavorite = newValue;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.sentence.isFavorite ? 'お気に入りに追加しました' : 'お気に入りから削除しました',
+            newValue ? 'お気に入りに追加しました' : 'お気に入りから削除しました',
           ),
           duration: const Duration(seconds: 1),
         ),
       );
-
-      setState(() {
-        // Trigger rebuild
-      });
     }
   }
 

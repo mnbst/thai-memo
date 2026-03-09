@@ -9,6 +9,7 @@ import '../../services/fcm_service.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/streak_provider.dart';
 import '../providers/tts_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
 import 'detail_screen.dart';
@@ -75,15 +76,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await FcmService.instance.initialize();
     await FcmService.instance.requestPermissionAndRegisterToken();
 
+    // streak切れチェック
+    await checkStreakOnLaunch();
+
     // 今日未生成なら自動生成、済みなら最新を表示
     final generationParams = ref.read(generationParamsProvider);
     await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
           generationParams: generationParams,
         );
 
-    // 履歴を更新
+    // 履歴・streakを更新
     ref.invalidate(allSentencesProvider);
     ref.invalidate(favoriteSentencesProvider);
+    ref.invalidate(streakStatsProvider);
+    ref.invalidate(todayActivityProvider);
   }
 
   @override
@@ -278,6 +284,9 @@ class TodayScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Streak card
+          _buildStreakCard(context, ref),
+          const SizedBox(height: 16),
           // Sentence card
           Card(
             child: InkWell(
@@ -373,6 +382,88 @@ class TodayScreen extends ConsumerWidget {
           _buildQuickInfo(context, sentence),
         ],
       ),
+    );
+  }
+
+  /// Build streak card
+  Widget _buildStreakCard(BuildContext context, WidgetRef ref) {
+    final streakAsync = ref.watch(streakStatsProvider);
+    final activityAsync = ref.watch(todayActivityProvider);
+
+    return streakAsync.when(
+      data: (streak) {
+        final activity = activityAsync.valueOrNull ?? const DailyActivity();
+        final theme = Theme.of(context);
+
+        return Card(
+          color: activity.allDone
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.local_fire_department,
+                      color: streak.currentStreak > 0
+                          ? theme.colorScheme.tertiary
+                          : theme.colorScheme.onSurfaceVariant,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${streak.currentStreak}日連続',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '最長: ${streak.bestStreak}日',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      activity.generationDone
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      size: 18,
+                      color: activity.generationDone
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text('例文生成', style: theme.textTheme.bodyMedium),
+                    const SizedBox(width: 24),
+                    Icon(
+                      activity.quizDone
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      size: 18,
+                      color: activity.quizDone
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text('クイズ回答', style: theme.textTheme.bodyMedium),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -641,9 +732,11 @@ class TodayScreen extends ConsumerWidget {
     final state = ref.read(sentenceControllerProvider);
     if (context.mounted) {
       if (state is SentenceStateSuccess) {
-        // Refresh history providers to show the new sentence
+        // Refresh history and streak providers
         ref.invalidate(allSentencesProvider);
         ref.invalidate(favoriteSentencesProvider);
+        ref.invalidate(streakStatsProvider);
+        ref.invalidate(todayActivityProvider);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -110,6 +110,12 @@ class DatabaseHelper {
       await db.execute(DatabaseConstants.createQuizStatsTable);
     }
 
+    // Migrate from version 6 to 7: Add daily_activity + streak_stats tables
+    if (oldVersion < 7) {
+      await db.execute(DatabaseConstants.createDailyActivityTable);
+      await db.execute(DatabaseConstants.createStreakStatsTable);
+    }
+
     // Migrate from version 3 to 4: Rename situation→topic, add style column
     if (oldVersion < 4) {
       await db.execute('''
@@ -504,6 +510,144 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), AppConfig.databaseName);
     await databaseFactory.deleteDatabase(path);
     _database = null;
+  }
+
+  // ==================== Streak / Daily Activity ====================
+
+  /// 今日のアクティビティを取得
+  Future<Map<String, dynamic>?> getDailyActivity(String date) async {
+    final db = await database;
+    final results = await db.query(
+      DatabaseConstants.tableDailyActivity,
+      where: '${DatabaseConstants.columnActivityDate} = ?',
+      whereArgs: [date],
+      limit: 1,
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  /// アクティビティを記録（generation or quiz）
+  Future<void> markActivity({
+    required String date,
+    bool? generationDone,
+    bool? quizDone,
+  }) async {
+    final db = await database;
+    final existing = await getDailyActivity(date);
+
+    if (existing == null) {
+      await db.insert(DatabaseConstants.tableDailyActivity, {
+        DatabaseConstants.columnActivityDate: date,
+        DatabaseConstants.columnGenerationDone: generationDone == true ? 1 : 0,
+        DatabaseConstants.columnQuizDone: quizDone == true ? 1 : 0,
+      });
+    } else {
+      final updates = <String, dynamic>{};
+      if (generationDone == true) {
+        updates[DatabaseConstants.columnGenerationDone] = 1;
+      }
+      if (quizDone == true) {
+        updates[DatabaseConstants.columnQuizDone] = 1;
+      }
+      if (updates.isNotEmpty) {
+        await db.update(
+          DatabaseConstants.tableDailyActivity,
+          updates,
+          where: '${DatabaseConstants.columnActivityDate} = ?',
+          whereArgs: [date],
+        );
+      }
+    }
+  }
+
+  /// streak_statsキャッシュを取得
+  Future<Map<String, dynamic>?> getStreakStats() async {
+    final db = await database;
+    final results = await db.query(
+      DatabaseConstants.tableStreakStats,
+      where: '${DatabaseConstants.columnStreakId} = ?',
+      whereArgs: [1],
+      limit: 1,
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  /// 両タスク完了時にstreakを更新
+  Future<void> updateStreakIfCompleted(String date) async {
+    final activity = await getDailyActivity(date);
+    if (activity == null) return;
+
+    final genDone = (activity[DatabaseConstants.columnGenerationDone] as int?) == 1;
+    final quizDone = (activity[DatabaseConstants.columnQuizDone] as int?) == 1;
+
+    if (!genDone || !quizDone) return; // 両方完了していなければ何もしない
+
+    final db = await database;
+    final existing = await getStreakStats();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    if (existing == null) {
+      await db.insert(DatabaseConstants.tableStreakStats, {
+        DatabaseConstants.columnStreakId: 1,
+        DatabaseConstants.columnStreakCurrent: 1,
+        DatabaseConstants.columnStreakBest: 1,
+        DatabaseConstants.columnStreakLastCompletedDate: date,
+        DatabaseConstants.columnStreakUpdatedAt: now,
+      });
+      return;
+    }
+
+    final lastDate = existing[DatabaseConstants.columnStreakLastCompletedDate] as String?;
+    final prevStreak = existing[DatabaseConstants.columnStreakCurrent] as int? ?? 0;
+    final prevBest = existing[DatabaseConstants.columnStreakBest] as int? ?? 0;
+
+    int newStreak;
+    if (lastDate == null) {
+      newStreak = 1;
+    } else if (lastDate == date) {
+      newStreak = prevStreak; // 同日、変更なし
+    } else if (_isConsecutiveDay(lastDate, date)) {
+      newStreak = prevStreak + 1;
+    } else {
+      newStreak = 1; // 途切れた
+    }
+
+    final newBest = newStreak > prevBest ? newStreak : prevBest;
+
+    await db.update(
+      DatabaseConstants.tableStreakStats,
+      {
+        DatabaseConstants.columnStreakCurrent: newStreak,
+        DatabaseConstants.columnStreakBest: newBest,
+        DatabaseConstants.columnStreakLastCompletedDate: date,
+        DatabaseConstants.columnStreakUpdatedAt: now,
+      },
+      where: '${DatabaseConstants.columnStreakId} = ?',
+      whereArgs: [1],
+    );
+  }
+
+  /// アプリ起動時にstreakが途切れていないかチェック
+  Future<void> checkStreakExpiry(String today) async {
+    final existing = await getStreakStats();
+    if (existing == null) return;
+
+    final lastDate = existing[DatabaseConstants.columnStreakLastCompletedDate] as String?;
+    if (lastDate == null) return;
+
+    // 昨日でも今日でもなければstreakリセット
+    if (lastDate != today && !_isConsecutiveDay(lastDate, today)) {
+      final db = await database;
+      await db.update(
+        DatabaseConstants.tableStreakStats,
+        {
+          DatabaseConstants.columnStreakCurrent: 0,
+          DatabaseConstants.columnStreakUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+        },
+        where: '${DatabaseConstants.columnStreakId} = ?',
+        whereArgs: [1],
+      );
+    }
   }
 
   /// Get database statistics

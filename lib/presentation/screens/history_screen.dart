@@ -402,13 +402,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         margin: const EdgeInsets.only(bottom: AppConfig.defaultPadding),
         child: InkWell(
           // タップで詳細画面へ遷移
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => DetailScreen(sentence: sentence),
               ),
             );
+            ref.invalidate(allSentencesProvider);
+            ref.invalidate(favoriteSentencesProvider);
           },
           borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
           child: Padding(

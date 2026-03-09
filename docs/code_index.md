@@ -103,6 +103,9 @@ AdMobバナー/インタースティシャル広告状態（premium時は非表�
 lib/presentation/providers/tts_provider.dart
 タイ語発音再生のText-to-Speechサービス。
 
+lib/presentation/providers/streak_provider.dart
+連続学習ストリーク管理（日次活動記録・streak統計・起動時チェック）。
+
 ## Screens
 
 lib/presentation/screens/splash_screen.dart
@@ -125,6 +128,9 @@ lib/presentation/screens/settings_screen.dart
 
 lib/presentation/screens/paywall_screen.dart
 プレミアム課金UI。
+
+lib/presentation/screens/onboarding_screen.dart
+初回起動時のオンボーディング画面。
 
 lib/presentation/screens/tone_guide_screen.dart
 タイ語声調システムのチュートリアル。

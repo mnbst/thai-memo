@@ -194,8 +194,7 @@ class BackendApiService {
       case 'unavailable':
         return BackendApiServerException('Service temporarily unavailable.');
       case 'resource-exhausted':
-        return BackendApiRateLimitException(
-            e.message ?? '本日の生成上限に達しました。');
+        return BackendApiRateLimitException(e.message ?? '本日の生成上限に達しました。');
       default:
         return BackendApiException('${e.code}: ${e.message}');
     }
@@ -297,8 +296,8 @@ class BackendApiService {
       final questionsList = data['questions'] as List<dynamic>? ?? [];
 
       return questionsList
-          .map((e) =>
-              QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+              (e) => QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
     } on FirebaseFunctionsException catch (e) {
       throw _mapFirebaseFunctionsException(e);
@@ -347,7 +346,7 @@ class BackendApiException implements Exception {
 
 /// Exception for unauthenticated requests
 class BackendApiUnauthenticatedException extends BackendApiException {
-  BackendApiUnauthenticatedException(String message) : super(message);
+  BackendApiUnauthenticatedException(super.message);
 
   @override
   String toString() => 'BackendApiUnauthenticatedException: $message';
@@ -355,7 +354,7 @@ class BackendApiUnauthenticatedException extends BackendApiException {
 
 /// Exception for permission denied
 class BackendApiPermissionDeniedException extends BackendApiException {
-  BackendApiPermissionDeniedException(String message) : super(message);
+  BackendApiPermissionDeniedException(super.message);
 
   @override
   String toString() => 'BackendApiPermissionDeniedException: $message';
@@ -363,7 +362,7 @@ class BackendApiPermissionDeniedException extends BackendApiException {
 
 /// Exception for rate limit exceeded
 class BackendApiRateLimitException extends BackendApiException {
-  BackendApiRateLimitException(String message) : super(message);
+  BackendApiRateLimitException(super.message);
 
   @override
   String toString() => 'BackendApiRateLimitException: $message';
@@ -371,7 +370,7 @@ class BackendApiRateLimitException extends BackendApiException {
 
 /// Exception for server errors
 class BackendApiServerException extends BackendApiException {
-  BackendApiServerException(String message) : super(message);
+  BackendApiServerException(super.message);
 
   @override
   String toString() => 'BackendApiServerException: $message';
@@ -379,7 +378,7 @@ class BackendApiServerException extends BackendApiException {
 
 /// Exception for invalid response format
 class BackendApiInvalidResponseException extends BackendApiException {
-  BackendApiInvalidResponseException(String message) : super(message);
+  BackendApiInvalidResponseException(super.message);
 
   @override
   String toString() => 'BackendApiInvalidResponseException: $message';
@@ -387,7 +386,7 @@ class BackendApiInvalidResponseException extends BackendApiException {
 
 /// Exception for request timeout
 class BackendApiTimeoutException extends BackendApiException {
-  BackendApiTimeoutException(String message) : super(message);
+  BackendApiTimeoutException(super.message);
 
   @override
   String toString() => 'BackendApiTimeoutException: $message';
@@ -395,7 +394,7 @@ class BackendApiTimeoutException extends BackendApiException {
 
 /// Exception for quota exceeded (freemium limit reached)
 class BackendApiQuotaExceededException extends BackendApiException {
-  BackendApiQuotaExceededException(String message) : super(message);
+  BackendApiQuotaExceededException(super.message);
 
   @override
   String toString() => 'BackendApiQuotaExceededException: $message';

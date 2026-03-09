@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
 import '../providers/quiz_provider.dart';
+import '../providers/streak_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
@@ -20,10 +21,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   void initState() {
     super.initState();
-    // クイズ完了時にstatsを再取得
+    // クイズ完了時にstats・streakを再取得
     ref.listenManual(quizControllerProvider, (prev, next) {
       if (next is QuizSummary) {
         ref.invalidate(quizStatsProvider);
+        ref.invalidate(streakStatsProvider);
+        ref.invalidate(todayActivityProvider);
       }
     });
   }
@@ -53,6 +56,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   Widget _buildStatsBar(BuildContext context, QuizStatsData stats) {
     if (stats.totalAnswered == 0) return const SizedBox.shrink();
 
+    final streakAsync = ref.watch(streakStatsProvider);
+    final streak = streakAsync.valueOrNull ?? const StreakData();
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppConfig.defaultPadding,
@@ -74,7 +80,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               size: 18, color: Theme.of(context).colorScheme.tertiary),
           const SizedBox(width: 4),
           Text(
-            '${stats.currentStreak}日連続',
+            '${streak.currentStreak}日連続',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
@@ -297,7 +303,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   Widget _buildSummaryState(BuildContext context, QuizSummary state) {
     final statsData = QuizStatsData.fromDatabase(state.stats);
     final rate = statsData.accuracyPercent;
-    final streak = statsData.currentStreak;
+    final streakAsync = ref.watch(streakStatsProvider);
+    final streak = streakAsync.valueOrNull?.currentStreak ?? 0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),

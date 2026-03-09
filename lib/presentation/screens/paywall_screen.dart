@@ -17,6 +17,8 @@
 /// 【関連ファイル】
 /// - subscription_provider.dart: 購入状態管理（SubscriptionController）
 /// - purchase_service.dart: ストア決済処理
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

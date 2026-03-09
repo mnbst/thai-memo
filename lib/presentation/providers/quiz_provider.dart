@@ -8,6 +8,7 @@ import '../../data/datasources/backend_api_service.dart' show BackendApiService,
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
+import 'streak_provider.dart';
 
 // ==================== State ====================
 
@@ -266,6 +267,9 @@ class QuizController extends StateNotifier<QuizState> {
         sessionTotal: s.questions.length,
         quizDate: today,
       );
+
+      // 統合streak更新
+      await markQuizDone();
 
       final cachedStats = await _db.getCachedQuizStats();
 

@@ -22,6 +22,8 @@
 /// - paywall_screen.dart: プレミアムプラン購入 UI
 /// - generation_constants.dart: Free/Premium のパラメータ制限値
 /// - ad_provider.dart: Premium 時の広告非表示制御
+library;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
