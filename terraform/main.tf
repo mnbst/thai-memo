@@ -71,6 +71,17 @@ module "logging" {
   depends_on = [google_project_service.required_apis]
 }
 
+# UVM data module — GCS bucket for vocabulary embeddings
+module "uvm_data" {
+  source = "./modules/uvm-data"
+
+  project_id     = var.project_id
+  project_number = data.google_project.project.number
+  region         = var.region
+
+  depends_on = [google_project_service.required_apis]
+}
+
 # Pub/Sub topic for Google Play Real-Time Developer Notifications
 resource "google_pubsub_topic" "play_subscription_notifications" {
   name    = "play-subscription-notifications"

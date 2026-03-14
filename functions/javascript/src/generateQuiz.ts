@@ -75,6 +75,19 @@ export const generateQuiz = functions.https.onCall(
     const apiKey = await getGeminiApiKey();
     const geminiService = new GeminiService(apiKey);
 
+    const isPremium = userData.tier === 'premium';
+    // --- UVM連動クイズ: premium ユーザーは空の UVM から開始し、未学習時はフォールバック ---
+    if (isPremium) {
+      try {
+        const result = await generateFromUvm(uid, geminiService);
+        await userRef.set({ remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
+        return result;
+      } catch (error) {
+        console.error('UVM quiz generation failed, falling back to review_queue:', error);
+        // フォールバック: 通常の review_queue パスに進む
+      }
+    }
+
     // --- review_queue からユーザーの最新エントリを取得 ---
     // dailyBatch で生成されたキューから最新のものを1件取得
     const reviewSnapshot = await db
@@ -252,4 +265,66 @@ async function fillWithDefaults(
     console.error('Failed to generate filler quiz:', error);
     return existing;
   }
+}
+
+/**
+ * generateFromUvm - UVM から priority 順で単語を選定しクイズを生成
+ *
+ * premium ユーザー向け。
+ * UVM サブコレクションから next_review <= now の単語を priority 降順で取得し、
+ * Gemini API で穴埋めクイズを生成する。
+ */
+async function generateFromUvm(
+  uid: string,
+  geminiService: GeminiService
+): Promise<{ questions: QuizQuestion[] }> {
+  const now = Date.now() / 1000; // Unix timestamp in seconds
+  const TAU = 86400;
+
+  // next_review <= now の単語を取得（多めに取得して priority でソート）
+  const uvmSnapshot = await db
+    .collection('users').doc(uid).collection('uvm')
+    .where('next_review', '<=', now)
+    .orderBy('next_review')
+    .limit(MAX_QUESTIONS * 3)
+    .get();
+
+  const candidates: { word: string; priority: number }[] = [];
+  for (const doc of uvmSnapshot.docs) {
+    const data = doc.data();
+    const p = data.p ?? 0.2;
+    const lastSeen = data.last_seen ?? 0;
+    const uncertainty = p * (1 - p);
+    const timeDecay = (now - lastSeen) / TAU;
+    candidates.push({
+      word: doc.id,
+      priority: uncertainty + timeDecay,
+    });
+  }
+
+  // priority 降順でソートして上位 MAX_QUESTIONS 件
+  candidates.sort((a, b) => b.priority - a.priority);
+  const selected = candidates.slice(0, MAX_QUESTIONS);
+
+  if (selected.length === 0) {
+    throw new Error('No UVM words available for review');
+  }
+
+  const words = selected.map(s => s.word);
+  const quizResult = await geminiService.generateQuizFromWords(words);
+
+  const questions: QuizQuestion[] = quizResult.questions.map((q) => ({
+    ...q,
+    sentence_id: '',
+    srs_interval: 0,
+    japanese_translation: (q as unknown as Record<string, string>).japanese_translation || '',
+    sentence_pronunciation: (q as unknown as Record<string, string>).sentence_pronunciation || '',
+  }));
+
+  // 5問未満ならデフォルト例文で補填
+  if (questions.length < MAX_QUESTIONS) {
+    return { questions: await fillWithDefaults(geminiService, questions) };
+  }
+
+  return { questions };
 }

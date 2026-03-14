@@ -18,6 +18,12 @@ service cloud.firestore {
       match /quiz_answers/{answerId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      // UVM (User Vocabulary Model): read only, writes by Cloud Functions only
+      match /uvm/{word} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
     }
 
     // Quiz queue: users can read their own data, update sent field only

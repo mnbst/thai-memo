@@ -19,7 +19,10 @@ from pythainlp.tag import pos_tag
 from pythainlp.tokenize import subword_tokenize
 
 # 発音変換モジュール（タイ文字→声調記号付きローマ字）
-from pronunciation import thai_to_pronunciation
+try:
+    from .pronunciation import thai_to_pronunciation
+except ImportError:
+    from pronunciation import thai_to_pronunciation
 
 # ─── 品詞タグの英語→日本語マッピング辞書 ───
 # PyThaiNLP が返す Universal Dependencies 準拠の品詞タグ（英語）を

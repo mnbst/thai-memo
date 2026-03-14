@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -57,6 +59,12 @@ class SettingsState {
 class SettingsController extends StateNotifier<SettingsState> {
   SharedPreferences? _prefs;
 
+  /// 初期化完了を待つための Completer
+  final Completer<void> _initialized = Completer<void>();
+
+  /// 初期化完了を待つ Future
+  Future<void> get initialized => _initialized.future;
+
   SettingsController() : super(SettingsState.initial()) {
     _initialize();
   }
@@ -65,6 +73,7 @@ class SettingsController extends StateNotifier<SettingsState> {
   Future<void> _initialize() async {
     _prefs = await SharedPreferences.getInstance();
     await _loadSettings();
+    _initialized.complete();
   }
 
   static const _generationParamKeys = [
@@ -72,11 +81,7 @@ class SettingsController extends StateNotifier<SettingsState> {
     'topic',
     'politeness',
     'grammarFocus',
-    'vocabLevel',
-    'sentenceLength',
     'emotion',
-    'learningPurpose',
-    'toneDensity',
     'customPrompt',
   ];
 

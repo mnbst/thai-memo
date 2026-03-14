@@ -116,4 +116,93 @@ ${sentenceList}
       return { questions: [] };
     }
   }
+
+  /**
+   * UVM単語リストから穴埋めクイズを生成する。
+   * 各単語を含む短い例文を生成し、その単語を穴埋めにする。
+   */
+  async generateQuizFromWords(words: string[]): Promise<QuizQuestionsResponse> {
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: GEMINI_MODEL,
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: SchemaType.OBJECT,
+            properties: {
+              questions: {
+                type: SchemaType.ARRAY,
+                description: 'Quiz questions array, one per input word',
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    thai_text: {
+                      type: SchemaType.STRING,
+                      description: 'Thai sentence containing the target word',
+                    },
+                    blank_text: {
+                      type: SchemaType.STRING,
+                      description: 'Thai sentence with the target word replaced by ___',
+                    },
+                    correct_answer: {
+                      type: SchemaType.STRING,
+                      description: 'The target word (correct answer)',
+                    },
+                    choices: {
+                      type: SchemaType.ARRAY,
+                      items: { type: SchemaType.STRING },
+                      description: '4 choices including the correct answer, shuffled',
+                    },
+                    pronunciation: {
+                      type: SchemaType.STRING,
+                      description: 'Pronunciation of the correct answer',
+                    },
+                    explanation: {
+                      type: SchemaType.STRING,
+                      description: 'Brief explanation in Japanese',
+                    },
+                    japanese_translation: {
+                      type: SchemaType.STRING,
+                      description: 'Japanese translation of the full sentence',
+                    },
+                    sentence_pronunciation: {
+                      type: SchemaType.STRING,
+                      description: 'Pronunciation of the full sentence',
+                    },
+                  },
+                  required: ['thai_text', 'blank_text', 'correct_answer', 'choices', 'pronunciation', 'explanation', 'japanese_translation', 'sentence_pronunciation'],
+                },
+              },
+            },
+            required: ['questions'],
+          },
+        },
+      });
+
+      const wordList = words.map((w, i) => `${i + 1}. ${w}`).join('\n');
+
+      const prompt = `以下のタイ語単語それぞれについて、その単語を含む自然な短い例文（8〜12語）を作り、穴埋めクイズ問題を1問ずつ作成してください。
+
+${wordList}
+
+【ルール】
+- 各単語を含む自然なタイ語の例文を作成する
+- その単語を___に置き換えた穴埋め問題にする
+- 4択の選択肢を作成（正解1つ＋紛らわしいダミー3つ）
+- ダミーは文法的には入りうるが意味が異なる単語にする
+- 選択肢はシャッフルする
+- japanese_translationは例文の日本語訳
+- sentence_pronunciationは例文全体の発音
+- explanationは日本語で簡潔に`;
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      return JSON.parse(text) as QuizQuestionsResponse;
+    } catch (error) {
+      console.error('Failed to generate UVM quiz:', error);
+      return { questions: [] };
+    }
+  }
 }

@@ -8,7 +8,6 @@ import '../../data/datasources/backend_api_service.dart' show BackendApiService,
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
-import 'streak_provider.dart';
 
 // ==================== State ====================
 
@@ -268,9 +267,6 @@ class QuizController extends StateNotifier<QuizState> {
         quizDate: today,
       );
 
-      // 統合streak更新
-      await markQuizDone();
-
       final cachedStats = await _db.getCachedQuizStats();
 
       final prefs = await SharedPreferences.getInstance();
@@ -287,6 +283,9 @@ class QuizController extends StateNotifier<QuizState> {
       await prefs.setBool(_quizCompletedKey, true);
       await prefs.setString(_quizAnswersKey, jsonEncode(s.answers));
       await prefs.setString(_quizSelectedIndicesKey, jsonEncode(s.selectedIndices));
+
+      // UVM更新: 単語レベルの正誤結果を送信（fire-and-forget）
+      _sendUvmUpdate(s.questions, s.answers);
     } else {
       state = QuizAnswering(s.questions, nextIndex, s.answers, s.selectedIndices);
     }
@@ -297,6 +296,20 @@ class QuizController extends StateNotifier<QuizState> {
     if (state is! QuizSummary) return;
     final questions = (state as QuizSummary).questions;
     state = QuizAnswering(questions, 0, []);
+  }
+
+  /// UVM更新をfire-and-forgetで送信
+  void _sendUvmUpdate(List<QuizQuestion> questions, List<bool> answers) {
+    final results = <Map<String, dynamic>>[];
+    for (var i = 0; i < questions.length && i < answers.length; i++) {
+      final word = questions[i].correctAnswer;
+      if (word.isNotEmpty) {
+        results.add({'word': word, 'is_correct': answers[i]});
+      }
+    }
+    if (results.isNotEmpty) {
+      _apiService.updateUvm(results: results);
+    }
   }
 
   String _todayString() {

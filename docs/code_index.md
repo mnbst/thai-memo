@@ -103,6 +103,9 @@ AdMobバナー/インタースティシャル広告状態（premium時は非表�
 lib/presentation/providers/tts_provider.dart
 タイ語発音再生のText-to-Speechサービス。
 
+lib/presentation/providers/vocab_stats_provider.dart
+Firestoreから推定語彙数・学習済み単語数をリアルタイム取得（Premium限定）。
+
 lib/presentation/providers/streak_provider.dart
 連続学習ストリーク管理（日次活動記録・streak統計・起動時チェック）。
 
@@ -136,9 +139,6 @@ lib/presentation/screens/tone_guide_screen.dart
 タイ語声調システムのチュートリアル。
 
 ## Widgets
-
-lib/presentation/widgets/app_icon_title.dart
-アプリヘッダー/ロゴウィジェット。
 
 lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセル。
@@ -247,7 +247,34 @@ functions/python/pronunciation.py
 タイ文字→ローマ字発音変換（声調記号付き）。
 
 functions/python/prompts.py
-Gemini APIプロンプト構築（free/premium別パラメータ）。
+Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。
 
 functions/python/constants.py
 Geminiモデル名、APIパラメータ、トピック/スタイル/文法/感情リスト、レスポンスJSONスキーマ。
+
+functions/python/uvm.py
+UVMコアロジック（トピック×語彙レベルによるセッション単語選定、P(know)更新、バッチ更新）。
+
+functions/python/embeddings.py
+GCSからembedding/トピックembeddingをlazy-load、コサイン類似度でトピック関連単語検索・セマンティック重複除去。
+
+---
+
+## Infrastructure
+
+terraform/modules/uvm-data/
+GCSバケット（vocab_embeddings.npy, vocab_words.json, topic_embeddings.json格納）+ CF SA権限。
+
+## Scripts
+
+scripts/build_freq_rank.py
+タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。
+
+scripts/build_embeddings.py
+freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。
+
+scripts/build_topic_embeddings.py
+16トピック文字列のembeddingを事前計算しGCSにアップロード。
+
+scripts/upload_corpus.sh
+UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSにアップロード。

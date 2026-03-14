@@ -20,6 +20,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/config/firebase_config.dart';
 import '../../../core/thai_tone_analyzer.dart';
@@ -305,6 +306,28 @@ class BackendApiService {
       rethrow;
     } catch (e) {
       throw BackendApiException('Failed to generate quiz: $e');
+    }
+  }
+
+  /// クイズ結果からUVMを更新
+  Future<void> updateUvm({
+    required List<Map<String, dynamic>> results,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final callable = _functions.httpsCallable(
+        FirebaseConfig.updateUvmFunctionName,
+        options: HttpsCallableOptions(
+          timeout: const Duration(seconds: 30),
+        ),
+      );
+
+      await callable.call({'results': results});
+    } catch (e) {
+      // fire-and-forget: UVM更新失敗はログのみ
+      debugPrint('Failed to update UVM: $e');
     }
   }
 

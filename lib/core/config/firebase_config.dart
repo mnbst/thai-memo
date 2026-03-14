@@ -10,6 +10,7 @@ class FirebaseConfig {
   static const String generateQuizFunctionName = 'generateQuiz';
   static const String verifySubscriptionFunctionName = 'verifySubscription';
   static const String subscriptionStatusFunctionName = 'subscriptionStatus';
+  static const String updateUvmFunctionName = 'updateUvm';
 
   /// Timeout for Cloud Functions calls
   static const Duration functionTimeout = Duration(seconds: 45);

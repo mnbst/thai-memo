@@ -184,18 +184,6 @@ class DatabaseHelper {
     );
   }
 
-  /// Update a sentence
-  Future<int> updateSentence(
-      String id, Map<String, dynamic> sentence) async {
-    final db = await database;
-    return await db.update(
-      DatabaseConstants.tableSentences,
-      sentence,
-      where: '${DatabaseConstants.columnSentenceId} = ?',
-      whereArgs: [id],
-    );
-  }
-
   /// Toggle favorite status of a sentence
   Future<int> toggleFavorite(String id, bool isFavorite) async {
     final db = await database;
@@ -271,16 +259,6 @@ class DatabaseHelper {
     );
   }
 
-  /// Delete all word breakdowns for a sentence
-  Future<int> deleteWordBreakdownsBySentenceId(String sentenceId) async {
-    final db = await database;
-    return await db.delete(
-      DatabaseConstants.tableWordBreakdowns,
-      where: '${DatabaseConstants.columnWordSentenceId} = ?',
-      whereArgs: [sentenceId],
-    );
-  }
-
   // ==================== Generation Logs CRUD Operations ====================
 
   /// Insert a new generation log
@@ -291,58 +269,6 @@ class DatabaseHelper {
       log,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-  }
-
-  /// Get all generation logs
-  Future<List<Map<String, dynamic>>> getAllGenerationLogs() async {
-    final db = await database;
-    return await db.query(
-      DatabaseConstants.tableGenerationLogs,
-      orderBy: '${DatabaseConstants.columnGeneratedAt} DESC',
-    );
-  }
-
-  /// Get generation logs with pagination
-  Future<List<Map<String, dynamic>>> getGenerationLogs(
-      int limit, int offset) async {
-    final db = await database;
-    return await db.query(
-      DatabaseConstants.tableGenerationLogs,
-      orderBy: '${DatabaseConstants.columnGeneratedAt} DESC',
-      limit: limit,
-      offset: offset,
-    );
-  }
-
-  /// Get the most recent generation log
-  Future<Map<String, dynamic>?> getMostRecentGenerationLog() async {
-    final db = await database;
-    final results = await db.query(
-      DatabaseConstants.tableGenerationLogs,
-      orderBy: '${DatabaseConstants.columnGeneratedAt} DESC',
-      limit: 1,
-    );
-    return results.isNotEmpty ? results.first : null;
-  }
-
-  /// Get total number of successful generations
-  Future<int> getSuccessfulGenerationCount() async {
-    final db = await database;
-    final result = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM ${DatabaseConstants.tableGenerationLogs} '
-      'WHERE ${DatabaseConstants.columnSuccess} = 1',
-    );
-    return Sqflite.firstIntValue(result) ?? 0;
-  }
-
-  /// Get total tokens used
-  Future<int> getTotalTokensUsed() async {
-    final db = await database;
-    final result = await db.rawQuery(
-      'SELECT SUM(${DatabaseConstants.columnApiTokensUsed}) as total '
-      'FROM ${DatabaseConstants.tableGenerationLogs}',
-    );
-    return Sqflite.firstIntValue(result) ?? 0;
   }
 
   // ==================== Quiz Results CRUD Operations ====================
@@ -371,16 +297,6 @@ class DatabaseHelper {
       'total': Sqflite.firstIntValue(total) ?? 0,
       'correct': Sqflite.firstIntValue(correct) ?? 0,
     };
-  }
-
-  /// Get recent quiz results
-  Future<List<Map<String, dynamic>>> getRecentQuizResults(int limit) async {
-    final db = await database;
-    return await db.query(
-      DatabaseConstants.tableQuizResults,
-      orderBy: '${DatabaseConstants.columnQuizAnsweredAt} DESC',
-      limit: limit,
-    );
   }
 
   // ==================== Quiz Stats CRUD Operations ====================
@@ -499,12 +415,6 @@ class DatabaseHelper {
 
   // ==================== Utility Methods ====================
 
-  /// Close the database
-  Future<void> close() async {
-    final db = await database;
-    await db.close();
-  }
-
   /// Delete the entire database (for testing or reset)
   Future<void> deleteDatabase() async {
     String path = join(await getDatabasesPath(), AppConfig.databaseName);
@@ -512,154 +422,4 @@ class DatabaseHelper {
     _database = null;
   }
 
-  // ==================== Streak / Daily Activity ====================
-
-  /// 今日のアクティビティを取得
-  Future<Map<String, dynamic>?> getDailyActivity(String date) async {
-    final db = await database;
-    final results = await db.query(
-      DatabaseConstants.tableDailyActivity,
-      where: '${DatabaseConstants.columnActivityDate} = ?',
-      whereArgs: [date],
-      limit: 1,
-    );
-    return results.isNotEmpty ? results.first : null;
-  }
-
-  /// アクティビティを記録（generation or quiz）
-  Future<void> markActivity({
-    required String date,
-    bool? generationDone,
-    bool? quizDone,
-  }) async {
-    final db = await database;
-    final existing = await getDailyActivity(date);
-
-    if (existing == null) {
-      await db.insert(DatabaseConstants.tableDailyActivity, {
-        DatabaseConstants.columnActivityDate: date,
-        DatabaseConstants.columnGenerationDone: generationDone == true ? 1 : 0,
-        DatabaseConstants.columnQuizDone: quizDone == true ? 1 : 0,
-      });
-    } else {
-      final updates = <String, dynamic>{};
-      if (generationDone == true) {
-        updates[DatabaseConstants.columnGenerationDone] = 1;
-      }
-      if (quizDone == true) {
-        updates[DatabaseConstants.columnQuizDone] = 1;
-      }
-      if (updates.isNotEmpty) {
-        await db.update(
-          DatabaseConstants.tableDailyActivity,
-          updates,
-          where: '${DatabaseConstants.columnActivityDate} = ?',
-          whereArgs: [date],
-        );
-      }
-    }
-  }
-
-  /// streak_statsキャッシュを取得
-  Future<Map<String, dynamic>?> getStreakStats() async {
-    final db = await database;
-    final results = await db.query(
-      DatabaseConstants.tableStreakStats,
-      where: '${DatabaseConstants.columnStreakId} = ?',
-      whereArgs: [1],
-      limit: 1,
-    );
-    return results.isNotEmpty ? results.first : null;
-  }
-
-  /// 両タスク完了時にstreakを更新
-  Future<void> updateStreakIfCompleted(String date) async {
-    final activity = await getDailyActivity(date);
-    if (activity == null) return;
-
-    final genDone = (activity[DatabaseConstants.columnGenerationDone] as int?) == 1;
-    final quizDone = (activity[DatabaseConstants.columnQuizDone] as int?) == 1;
-
-    if (!genDone || !quizDone) return; // 両方完了していなければ何もしない
-
-    final db = await database;
-    final existing = await getStreakStats();
-    final now = DateTime.now().millisecondsSinceEpoch;
-
-    if (existing == null) {
-      await db.insert(DatabaseConstants.tableStreakStats, {
-        DatabaseConstants.columnStreakId: 1,
-        DatabaseConstants.columnStreakCurrent: 1,
-        DatabaseConstants.columnStreakBest: 1,
-        DatabaseConstants.columnStreakLastCompletedDate: date,
-        DatabaseConstants.columnStreakUpdatedAt: now,
-      });
-      return;
-    }
-
-    final lastDate = existing[DatabaseConstants.columnStreakLastCompletedDate] as String?;
-    final prevStreak = existing[DatabaseConstants.columnStreakCurrent] as int? ?? 0;
-    final prevBest = existing[DatabaseConstants.columnStreakBest] as int? ?? 0;
-
-    int newStreak;
-    if (lastDate == null) {
-      newStreak = 1;
-    } else if (lastDate == date) {
-      newStreak = prevStreak; // 同日、変更なし
-    } else if (_isConsecutiveDay(lastDate, date)) {
-      newStreak = prevStreak + 1;
-    } else {
-      newStreak = 1; // 途切れた
-    }
-
-    final newBest = newStreak > prevBest ? newStreak : prevBest;
-
-    await db.update(
-      DatabaseConstants.tableStreakStats,
-      {
-        DatabaseConstants.columnStreakCurrent: newStreak,
-        DatabaseConstants.columnStreakBest: newBest,
-        DatabaseConstants.columnStreakLastCompletedDate: date,
-        DatabaseConstants.columnStreakUpdatedAt: now,
-      },
-      where: '${DatabaseConstants.columnStreakId} = ?',
-      whereArgs: [1],
-    );
-  }
-
-  /// アプリ起動時にstreakが途切れていないかチェック
-  Future<void> checkStreakExpiry(String today) async {
-    final existing = await getStreakStats();
-    if (existing == null) return;
-
-    final lastDate = existing[DatabaseConstants.columnStreakLastCompletedDate] as String?;
-    if (lastDate == null) return;
-
-    // 昨日でも今日でもなければstreakリセット
-    if (lastDate != today && !_isConsecutiveDay(lastDate, today)) {
-      final db = await database;
-      await db.update(
-        DatabaseConstants.tableStreakStats,
-        {
-          DatabaseConstants.columnStreakCurrent: 0,
-          DatabaseConstants.columnStreakUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-        },
-        where: '${DatabaseConstants.columnStreakId} = ?',
-        whereArgs: [1],
-      );
-    }
-  }
-
-  /// Get database statistics
-  Future<Map<String, dynamic>> getDatabaseStats() async {
-    final sentenceCount = await getSentenceCount();
-    final successfulGenerations = await getSuccessfulGenerationCount();
-    final totalTokens = await getTotalTokensUsed();
-
-    return {
-      'sentence_count': sentenceCount,
-      'successful_generations': successfulGenerations,
-      'total_tokens_used': totalTokens,
-    };
-  }
 }
