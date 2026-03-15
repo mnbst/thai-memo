@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/firebase_auth_service.dart';
+import 'remaining_quota_provider.dart';
 
 /// 推定語彙数の状態
 class VocabStats {
@@ -11,9 +11,9 @@ class VocabStats {
   const VocabStats({this.estimatedVocab = 0, this.vocabCount = 0});
 }
 
-/// Firestore users/{uid} から推定語彙数をリアルタイム取得（Premium限定機能）
+/// Firestore users/{uid} から語彙統計をリアルタイム取得
 final vocabStatsProvider = StreamProvider<VocabStats>((ref) {
-  final uid = FirebaseAuthService.instance.currentUser?.uid;
+  final uid = ref.watch(authUidProvider).valueOrNull;
   if (uid == null) return Stream.value(const VocabStats());
 
   return FirebaseFirestore.instance

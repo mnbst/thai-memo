@@ -99,6 +99,7 @@ def get_session_words(
     topic: str,
     count: int = 1,
     api_key: str | None = None,
+    max_vocab: int | None = None,
 ) -> list[str]:
     """トピック×語彙レベルに基づいてセッション単語を選定する。
 
@@ -115,6 +116,7 @@ def get_session_words(
         topic: トピック文字列
         count: 選定する単語数（デフォルト 1）
         api_key: カスタムトピック時の Gemini API キー
+        max_vocab: 語彙帯域の上限（free ティアでは 300）。None なら制限なし。
 
     Returns:
         選定された単語のリスト
@@ -122,19 +124,29 @@ def get_session_words(
     # 1. トピック関連上位500語を取得
     similar_words = get_topic_similar_words(topic, top_k=500, api_key=api_key)
 
+    # max_vocab 制限がある場合、候補をその範囲内に絞る
+    if max_vocab is not None:
+        similar_words = [w for w in similar_words if w["rank"] <= max_vocab]
+
     # 2. ユーザーの推定語彙数を取得
     user_doc = db.collection("users").document(uid).get()
     user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}  # type: ignore
     estimated_vocab = user_data.get("estimated_vocab", 0)
+    if max_vocab is not None:
+        estimated_vocab = min(estimated_vocab, max_vocab)
 
     # 3. estimated_vocab より少し難しい帯域でフィルタ
     band_low = estimated_vocab
     band_high = estimated_vocab + FREQ_BAND_DEFAULT
+    if max_vocab is not None:
+        band_high = min(band_high, max_vocab)
     candidates = [w for w in similar_words if band_low <= w["rank"] <= band_high]
 
     # 候補不足時は帯域を広げる
     if len(candidates) < count:
         band_high = estimated_vocab + FREQ_BAND_FALLBACK
+        if max_vocab is not None:
+            band_high = min(band_high, max_vocab)
         candidates = [w for w in similar_words if band_low <= w["rank"] <= band_high]
 
     # それでも足りなければ類似度上位からそのまま使う

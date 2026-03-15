@@ -214,7 +214,8 @@ class PaywallBottomSheet extends ConsumerWidget {
     const features = [
       ('例文', '1日1回', '1日10回'),
       ('クイズ', '1日1回', '1日10回'),
-      ('難易度', '初級のみ', '語彙数に応じて自動調整'),
+      ('学べる単語', '300語まで', '無制限'),
+      ('例文のバリエーション', '少なめ', '豊富'),
     ];
 
     return Container(

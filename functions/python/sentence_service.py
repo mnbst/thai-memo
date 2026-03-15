@@ -14,7 +14,7 @@ from constants import (
     RESPONSE_SCHEMA,
 )
 from nlp import enrich_with_nlp
-from prompts import build_free_prompt, build_uvm_prompt
+from prompts import build_uvm_prompt
 from uvm import get_session_words
 
 _freq_rank: dict[str, int] | None = None
@@ -46,13 +46,22 @@ def get_gemini_api_key() -> str:
 
 
 def select_uvm_target_words(
-    db: FirestoreClient, uid: str, params: dict, api_key: str | None = None
+    db: FirestoreClient,
+    uid: str,
+    params: dict,
+    api_key: str | None = None,
+    max_vocab: int | None = None,
 ) -> list[str]:
-    """UVMから例文生成用のターゲット単語を選定する。"""
+    """UVMから例文生成用のターゲット単語を選定する。
+
+    Args:
+        max_vocab: 語彙帯域の上限。free ティアでは 300 に制限。
+    """
     freq_rank = get_freq_rank()
     topic = params.get("topic", "")
     return get_session_words(
-        db, uid, freq_rank, topic=topic, count=1, api_key=api_key
+        db, uid, freq_rank, topic=topic, count=1, api_key=api_key,
+        max_vocab=max_vocab,
     )
 
 
@@ -68,12 +77,8 @@ def generate_sentence(
     client = genai.Client(api_key=api_key)
 
     model = GEMINI_MODEL_PREMIUM if is_premium else GEMINI_MODEL
-    if is_premium:
-        prompt = build_uvm_prompt(params, target_words, estimated_vocab=estimated_vocab)
-        tier_label = "premium"
-    else:
-        prompt = build_free_prompt(params)
-        tier_label = "free"
+    tier_label = "premium" if is_premium else "free"
+    prompt = build_uvm_prompt(params, target_words, estimated_vocab=estimated_vocab, is_premium=is_premium)
 
     result = client.models.generate_content(
         model=model,

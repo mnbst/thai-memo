@@ -1,11 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/firebase_auth_service.dart';
+/// Firebase Auth の uid をリアクティブに提供
+final authUidProvider = StreamProvider<String?>((ref) {
+  return FirebaseAuth.instance.authStateChanges().map((user) => user?.uid);
+});
 
 /// Firestore users/{uid}.remaining_sentences をリアルタイム取得
 final remainingSentencesProvider = StreamProvider<int>((ref) {
-  final uid = FirebaseAuthService.instance.currentUser?.uid;
+  final uidAsync = ref.watch(authUidProvider);
+  final uid = uidAsync.valueOrNull;
   if (uid == null) return Stream.value(0);
 
   return FirebaseFirestore.instance
@@ -20,7 +25,8 @@ final remainingSentencesProvider = StreamProvider<int>((ref) {
 
 /// Firestore users/{uid}.remaining_quizzes をリアルタイム取得
 final remainingQuizzesProvider = StreamProvider<int>((ref) {
-  final uid = FirebaseAuthService.instance.currentUser?.uid;
+  final uidAsync = ref.watch(authUidProvider);
+  final uid = uidAsync.valueOrNull;
   if (uid == null) return Stream.value(0);
 
   return FirebaseFirestore.instance

@@ -37,6 +37,19 @@ const db = admin.firestore();
 /** 1回のクイズ生成で出題する最大問題数 */
 const MAX_QUESTIONS = 5;
 
+/** free ティアで使用可能なデフォルト例文の key_word（頻度順位 300 位以内） */
+const FREE_KEY_WORDS = new Set([
+  'ทำ', 'คิด', 'เห็น', 'ช่วย', 'ชอบ',
+  'บ้าน', 'กิน', 'เพื่อน', 'ห้อง', 'เงิน',
+  'ครอบครัว', 'ซื้อ',
+]);
+
+/** free ティア用にデフォルト例文を語彙上限でフィルタする */
+function filterDefaultsForTier(sentences: DefaultSentence[], isPremium: boolean): DefaultSentence[] {
+  if (isPremium) return sentences;
+  return sentences.filter(s => FREE_KEY_WORDS.has(s.key_word));
+}
+
 /**
  * SRS（Spaced Repetition System / 間隔反復）の復習間隔（日数）
  *
@@ -95,11 +108,11 @@ export const generateQuiz = functions.https.onCall(
     const geminiService = new GeminiService(apiKey, geminiModel);
 
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
-    const selectedSentences = await selectSentencesBySRS(uid, nowJST());
+    const selectedSentences = await selectSentencesBySRS(uid, nowJST(), isPremium);
 
     // ユーザー例文がない場合（初回登録直後など）→ デフォルト例文からクイズ生成
     if (selectedSentences.length === 0) {
-      const result = await generateFromDefaults(geminiService, uid);
+      const result = await generateFromDefaults(geminiService, uid, isPremium);
       await userRef.set({ remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
       return result;
     }
@@ -131,7 +144,7 @@ export const generateQuiz = functions.https.onCall(
 
       // 5問未満ならデフォルト例文からGemini生成して補填
       if (questions.length < MAX_QUESTIONS) {
-        questions = await fillWithDefaults(geminiService, questions, uid);
+        questions = await fillWithDefaults(geminiService, questions, uid, isPremium);
       }
 
       // クイズ生成残回数をデクリメント
@@ -154,9 +167,10 @@ export const generateQuiz = functions.https.onCall(
  * @param uid - ユーザーID（UVM P値取得用）
  * @returns クイズ問題の配列を含むオブジェクト
  */
-async function generateFromDefaults(geminiService: GeminiService, uid: string): Promise<{ questions: QuizQuestion[] }> {
-  // デフォルト例文から「UVM未登録 → 低P」順に5問選出
-  const sorted = await sortDefaultsByPriority(uid, DEFAULT_SENTENCES);
+async function generateFromDefaults(geminiService: GeminiService, uid: string, isPremium: boolean): Promise<{ questions: QuizQuestion[] }> {
+  // デフォルト例文から「UVM未登録 → 低P」順に5問選出（freeは300語以内に制限）
+  const defaults = filterDefaultsForTier(DEFAULT_SENTENCES, isPremium);
+  const sorted = await sortDefaultsByPriority(uid, defaults);
   const selected = sorted.slice(0, MAX_QUESTIONS);
 
   try {
@@ -204,13 +218,15 @@ async function fillWithDefaults(
   geminiService: GeminiService,
   existing: QuizQuestion[],
   uid: string,
+  isPremium: boolean,
 ): Promise<QuizQuestion[]> {
   const needed = MAX_QUESTIONS - existing.length;
   if (needed <= 0) return existing;
 
-  // 既出の sentence_id を除外してデフォルト例文から「UVM未登録 → 低P」順に候補を選出
+  // 既出の sentence_id を除外してデフォルト例文から「UVM未登録 → 低P」順に候補を選出（freeは300語以内に制限）
   const usedIds = new Set(existing.map(q => q.sentence_id));
-  const available = DEFAULT_SENTENCES.filter(s => !usedIds.has(s.sentence_id));
+  const defaults = filterDefaultsForTier(DEFAULT_SENTENCES, isPremium);
+  const available = defaults.filter(s => !usedIds.has(s.sentence_id));
   const sorted = await sortDefaultsByPriority(uid, available);
   const candidates = sorted.slice(0, needed);
 
@@ -270,7 +286,8 @@ interface SelectedSentence {
  */
 async function selectSentencesBySRS(
   uid: string,
-  jstNow: Date
+  jstNow: Date,
+  isPremium: boolean = true,
 ): Promise<SelectedSentence[]> {
   const selected: SelectedSentence[] = [];
   const usedIds = new Set<string>();
@@ -290,7 +307,8 @@ async function selectSentencesBySRS(
     if (kw && typeof kw === 'string') userKeyWords.add(kw);
   }
   // デフォルト例文の key_word も含めて一括取得（④で再利用）
-  for (const s of DEFAULT_SENTENCES) userKeyWords.add(s.key_word);
+  const tierDefaults = filterDefaultsForTier(DEFAULT_SENTENCES, isPremium);
+  for (const s of tierDefaults) userKeyWords.add(s.key_word);
   const pMap = await fetchUvmPValues(uid, userKeyWords);
 
   // 各例文の作成日からの経過日数を事前計算（SRS間隔との照合に使用）
@@ -367,7 +385,7 @@ async function selectSentencesBySRS(
 
   // ④ デフォルト例文から5問まで補充（UVM未登録 → 低P順、新規ユーザー等で不足する場合）
   if (selected.length < MAX_REVIEW_SENTENCES) {
-    const defaults = await sortDefaultsByPriority(uid, DEFAULT_SENTENCES, pMap);
+    const defaults = await sortDefaultsByPriority(uid, tierDefaults, pMap);
 
     for (const s of defaults) {
       if (selected.length >= MAX_REVIEW_SENTENCES) break;

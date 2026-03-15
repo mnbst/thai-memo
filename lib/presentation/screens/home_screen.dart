@@ -274,9 +274,8 @@ class TodayScreen extends ConsumerWidget {
   Widget _buildSuccessState(BuildContext context, WidgetRef ref, sentence) {
     return Column(
       children: [
-        // Vocab stats (Premium only) — 上部固定表示
-        if (ref.watch(isPremiumProvider))
-          Padding(
+        // Vocab stats — 上部固定表示
+        Padding(
             padding: const EdgeInsets.fromLTRB(
               AppConfig.defaultPadding,
               AppConfig.defaultPadding,
@@ -397,7 +396,7 @@ class TodayScreen extends ConsumerWidget {
     );
   }
 
-  /// Build vocab stats card (Premium only)
+  /// Build vocab stats card
   Widget _buildVocabStats(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(vocabStatsProvider);
     return statsAsync.when(
@@ -480,7 +479,7 @@ class TodayScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (isQuotaError && ref.watch(isPremiumProvider))
+            if (isQuotaError)
               _buildVocabStats(context, ref),
             Icon(
               isQuotaError ? Icons.lock_outline : Icons.error_outline,
