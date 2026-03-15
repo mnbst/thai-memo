@@ -1,0 +1,246 @@
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from uvm import ALPHA_EXPOSURE, NEW_WORD_P, P_MAX, batch_update_uvm, get_exposed_words, register_exposure
+
+
+class FakeDocSnapshot:
+    def __init__(self, doc_id: str, data: dict | None) -> None:
+        self.id = doc_id
+        self._data = data
+
+    @property
+    def exists(self) -> bool:
+        return self._data is not None
+
+    def to_dict(self) -> dict | None:
+        return None if self._data is None else dict(self._data)
+
+
+class FakeDocRef:
+    def __init__(self, store: dict[str, dict], doc_id: str) -> None:
+        self.store = store
+        self.doc_id = doc_id
+
+    def get(self) -> FakeDocSnapshot:
+        return FakeDocSnapshot(self.doc_id, self.store.get(self.doc_id))
+
+
+class FakeWordCollection:
+    def __init__(self, store: dict[str, dict]) -> None:
+        self.store = store
+
+    def document(self, doc_id: str) -> FakeDocRef:
+        return FakeDocRef(self.store, doc_id)
+
+    def select(self, fields: list[str]) -> "FakeSelectedWordCollection":
+        return FakeSelectedWordCollection(self.store, fields)
+
+
+class FakeSelectedWordCollection:
+    def __init__(self, store: dict[str, dict], fields: list[str]) -> None:
+        self.store = store
+        self.fields = fields
+
+    def get(self) -> list[FakeDocSnapshot]:
+        return [
+            FakeDocSnapshot(
+                doc_id,
+                {field: data[field] for field in self.fields if field in data},
+            )
+            for doc_id, data in self.store.items()
+        ]
+
+
+class FakeUserDoc:
+    def __init__(
+        self,
+        user_store: dict[str, dict],
+        user_docs: dict[str, dict],
+        uid: str,
+    ) -> None:
+        self.user_store = user_store
+        self.user_docs = user_docs
+        self.uid = uid
+
+    def collection(self, name: str) -> FakeWordCollection:
+        assert name == "uvm"
+        return FakeWordCollection(self.user_store)
+
+    def set(self, data: dict, merge: bool = False) -> None:
+        if merge:
+            self.user_docs.setdefault(self.uid, {}).update(data)
+            return
+        self.user_docs[self.uid] = dict(data)
+
+    def get(self) -> FakeDocSnapshot:
+        return FakeDocSnapshot(self.uid, self.user_docs.get(self.uid))
+
+
+class FakeUsersCollection:
+    def __init__(
+        self,
+        store: dict[str, dict[str, dict]],
+        user_docs: dict[str, dict],
+    ) -> None:
+        self.store = store
+        self.user_docs = user_docs
+
+    def document(self, uid: str) -> FakeUserDoc:
+        return FakeUserDoc(self.store.setdefault(uid, {}), self.user_docs, uid)
+
+
+class FakeBatch:
+    def __init__(self) -> None:
+        self.operations: list[tuple[str, FakeDocRef, dict]] = []
+
+    def update(self, doc_ref: FakeDocRef, data: dict) -> None:
+        self.operations.append(("update", doc_ref, data))
+
+    def set(self, doc_ref: FakeDocRef, data: dict) -> None:
+        self.operations.append(("set", doc_ref, data))
+
+    def commit(self) -> None:
+        for op, doc_ref, data in self.operations:
+            if op == "set":
+                doc_ref.store[doc_ref.doc_id] = dict(data)
+            else:
+                doc_ref.store[doc_ref.doc_id].update(data)
+
+
+class FakeDb:
+    def __init__(
+        self,
+        store: dict[str, dict[str, dict]] | None = None,
+        user_docs: dict[str, dict] | None = None,
+    ) -> None:
+        self.store = store or {}
+        self.user_docs = user_docs or {}
+
+    def collection(self, name: str) -> FakeUsersCollection:
+        assert name == "users"
+        return FakeUsersCollection(self.store, self.user_docs)
+
+    def batch(self) -> FakeBatch:
+        return FakeBatch()
+
+
+def test_get_exposed_words_filters_to_actual_sentence_words() -> None:
+    sentence = {
+        "word_breakdown": [
+            {"word": "กิน"},
+            {"word": "ข้าว"},
+        ]
+    }
+
+    assert get_exposed_words(sentence, ["กิน", "น้ำ"]) == ["กิน"]
+
+
+def test_get_exposed_words_counts_duplicate_occurrences_once_per_sentence() -> None:
+    sentence = {
+        "word_breakdown": [
+            {"word": "กิน"},
+            {"word": "ข้าว"},
+            {"word": "กิน"},
+        ]
+    }
+
+    assert get_exposed_words(sentence, ["กิน", "น้ำ"]) == ["กิน"]
+
+
+def test_register_exposure_adds_alpha_for_existing_single_occurrence() -> None:
+    db = FakeDb(
+        {
+            "user-1": {
+                "กิน": {
+                    "word": "กิน",
+                    "p": 0.6,
+                    "exposures": 2,
+                    "correct": 1,
+                    "last_seen": 123.0,
+                    "last_result": True,
+                }
+            }
+        }
+    )
+
+    register_exposure(db, "user-1", ["กิน"])
+
+    doc = db.store["user-1"]["กิน"]
+    assert doc["p"] == 0.6 + ALPHA_EXPOSURE
+    assert doc["exposures"] == 3
+
+
+def test_register_exposure_skips_unknown_word() -> None:
+    db = FakeDb()
+
+    register_exposure(db, "user-1", ["น้ำ"])
+
+    assert "น้ำ" not in db.store.get("user-1", {})
+
+
+def test_register_exposure_adds_alpha_for_duplicate_occurrences() -> None:
+    db = FakeDb(
+        {
+            "user-1": {
+                "กิน": {
+                    "word": "กิน",
+                    "p": 0.6,
+                    "exposures": 2,
+                    "correct": 1,
+                    "last_seen": 123.0,
+                    "last_result": True,
+                }
+            }
+        }
+    )
+
+    register_exposure(db, "user-1", ["กิน", "กิน"])
+
+    doc = db.store["user-1"]["กิน"]
+    assert doc["p"] == 0.6 + ALPHA_EXPOSURE * 2
+    assert doc["exposures"] == 4
+
+
+def test_register_exposure_skips_unknown_on_second_call() -> None:
+    db = FakeDb()
+
+    register_exposure(db, "user-1", ["น้ำ"])
+    register_exposure(db, "user-1", ["น้ำ"])
+
+    assert "น้ำ" not in db.store.get("user-1", {})
+
+
+def test_batch_update_uvm_syncs_counts_for_existing_word_updates() -> None:
+    db = FakeDb(
+        {
+            "user-1": {
+                "กิน": {
+                    "word": "กิน",
+                    "p": 0.65,
+                    "exposures": 2,
+                    "correct": 1,
+                    "last_seen": 123.0,
+                    "last_result": True,
+                }
+            }
+        },
+        {
+            "user-1": {
+                "vocab_count": 0,
+                "estimated_vocab": 0,
+            }
+        },
+    )
+
+    batch_update_uvm(
+        db,
+        "user-1",
+        [{"word": "กิน", "is_correct": True}],
+        freq_rank={"กิน": 12},
+    )
+
+    assert db.user_docs["user-1"]["vocab_count"] == 1
+    assert db.user_docs["user-1"]["estimated_vocab"] == 12
