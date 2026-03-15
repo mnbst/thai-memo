@@ -5,6 +5,7 @@ import '../../core/config/app_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/subscription_provider.dart';
 import 'tone_guide_screen.dart';
 
 /// Settings screen
@@ -71,6 +72,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: Text(authState.displayName ?? 'ユーザー'),
               subtitle:
                   authState.email != null ? Text(authState.email!) : null,
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.workspace_premium),
+              title: const Text('プラン'),
+              trailing: Consumer(
+                builder: (context, ref, _) {
+                  final isPremium = ref.watch(isPremiumProvider);
+                  return Chip(
+                    label: Text(isPremium ? 'Premium' : 'Free'),
+                    backgroundColor: isPremium
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : null,
+                    labelStyle: TextStyle(
+                      color: isPremium
+                          ? Theme.of(context).colorScheme.onPrimaryContainer
+                          : null,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  );
+                },
+              ),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

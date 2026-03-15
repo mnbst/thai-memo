@@ -153,6 +153,7 @@ ${sentenceList}
       const usage = result.response.usageMetadata;
       if (usage) {
         console.log('Gemini token usage', {
+          keyWord: sentences[0]?.key_word ?? null,
           inputTokens: usage.promptTokenCount,
           outputTokens: usage.candidatesTokenCount,
           totalTokens: usage.totalTokenCount,

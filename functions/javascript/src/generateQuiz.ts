@@ -24,7 +24,7 @@
  */
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
-import { GeminiService, QuizQuestion } from './services/geminiService';
+import { GeminiService, QuizQuestion, QuizQuestionsResponse } from './services/geminiService';
 import { getGeminiApiKey } from './services/secretManager';
 import { DEFAULT_SENTENCES, DefaultSentence } from './constants/defaultQuizQuestions';
 import { GEMINI_MODEL_FREE, GEMINI_MODEL_PREMIUM } from './config/constants';
@@ -122,25 +122,27 @@ export const generateQuiz = functions.https.onCall(
     const picked = shuffled.slice(0, MAX_QUESTIONS);
 
     try {
-      // Gemini API で穴埋めクイズ問題を生成
-      const quizResult = await geminiService.generateQuizQuestions(
-        picked.map(s => ({
-          thai_text: s.data.thai_text,
-          pronunciation: s.data.pronunciation,
-          japanese_translation: s.data.japanese_translation,
-          word_breakdown: s.data.word_breakdown || [],
-          key_word: s.data.key_word,
-        }))
+      // 各例文を1問ずつ並列で Gemini API に投げてクイズ生成（key_word 不一致時はエラー）
+      const results = await Promise.all(
+        picked.map(async (s) => {
+          const q = await generateSingleQuiz(geminiService, {
+            thai_text: s.data.thai_text,
+            pronunciation: s.data.pronunciation,
+            japanese_translation: s.data.japanese_translation,
+            word_breakdown: s.data.word_breakdown || [],
+            key_word: s.data.key_word,
+          });
+          if (!q) return null;
+          return {
+            ...q,
+            sentence_id: s.id,
+            srs_interval: s.srsInterval,
+            japanese_translation: s.data.japanese_translation || '',
+            sentence_pronunciation: s.data.pronunciation || '',
+          } as QuizQuestion;
+        })
       );
-
-      // Gemini の生成結果に sentence_id や srs_interval などのメタデータを付与
-      let questions: QuizQuestion[] = quizResult.questions.map((q, i) => ({
-        ...q,
-        sentence_id: picked[i]?.id || '',
-        srs_interval: picked[i]?.srsInterval || 0,
-        japanese_translation: picked[i]?.data.japanese_translation || '',
-        sentence_pronunciation: picked[i]?.data.pronunciation || '',
-      }));
+      let questions = results.filter((q): q is QuizQuestion => q !== null);
 
       // 5問未満ならデフォルト例文からGemini生成して補填
       if (questions.length < MAX_QUESTIONS) {
@@ -174,25 +176,26 @@ async function generateFromDefaults(geminiService: GeminiService, uid: string, i
   const selected = sorted.slice(0, MAX_QUESTIONS);
 
   try {
-    // Gemini API で穴埋めクイズを生成
-    const quizResult = await geminiService.generateQuizQuestions(
-      selected.map((s: DefaultSentence) => ({
-        thai_text: s.thai_text,
-        pronunciation: s.pronunciation,
-        japanese_translation: s.japanese_translation,
-        word_breakdown: [],
-        key_word: s.key_word,
-      }))
+    const results = await Promise.all(
+      selected.map(async (s) => {
+        const q = await generateSingleQuiz(geminiService, {
+          thai_text: s.thai_text,
+          pronunciation: s.pronunciation,
+          japanese_translation: s.japanese_translation,
+          word_breakdown: [],
+          key_word: s.key_word,
+        });
+        if (!q) return null;
+        return {
+          ...q,
+          sentence_id: s.sentence_id || '',
+          srs_interval: 0,
+          japanese_translation: s.japanese_translation || '',
+          sentence_pronunciation: s.pronunciation || '',
+        } as QuizQuestion;
+      })
     );
-
-    // 生成結果にデフォルト例文のメタデータを付与
-    const questions: QuizQuestion[] = quizResult.questions.map((q, i) => ({
-      ...q,
-      sentence_id: selected[i]?.sentence_id || '',
-      srs_interval: 0,  // デフォルト例文は SRS 対象外
-      japanese_translation: selected[i]?.japanese_translation || '',
-      sentence_pronunciation: selected[i]?.pronunciation || '',
-    }));
+    const questions = results.filter((q): q is QuizQuestion => q !== null);
 
     return { questions };
   } catch (error) {
@@ -233,32 +236,82 @@ async function fillWithDefaults(
   if (candidates.length === 0) return existing;
 
   try {
-    // Gemini API で補填用のクイズ問題を生成
-    const quizResult = await geminiService.generateQuizQuestions(
-      candidates.map((s: DefaultSentence) => ({
-        thai_text: s.thai_text,
-        pronunciation: s.pronunciation,
-        japanese_translation: s.japanese_translation,
-        word_breakdown: [],
-        key_word: s.key_word,
-      }))
+    const results = await Promise.all(
+      candidates.map(async (s) => {
+        const q = await generateSingleQuiz(geminiService, {
+          thai_text: s.thai_text,
+          pronunciation: s.pronunciation,
+          japanese_translation: s.japanese_translation,
+          word_breakdown: [],
+          key_word: s.key_word,
+        });
+        if (!q) return null;
+        return {
+          ...q,
+          sentence_id: s.sentence_id || '',
+          srs_interval: 0,
+          japanese_translation: s.japanese_translation || '',
+          sentence_pronunciation: s.pronunciation || '',
+        } as QuizQuestion;
+      })
     );
+    const fillerQuestions = results.filter((q): q is QuizQuestion => q !== null);
 
-    const fillerQuestions: QuizQuestion[] = quizResult.questions.map((q, i) => ({
-      ...q,
-      sentence_id: candidates[i]?.sentence_id || '',
-      srs_interval: 0,  // デフォルト例文は SRS 対象外
-      japanese_translation: candidates[i]?.japanese_translation || '',
-      sentence_pronunciation: candidates[i]?.pronunciation || '',
-    }));
-
-    // 既存の問題と補填問題を結合して返す
     return [...existing, ...fillerQuestions];
   } catch (error) {
     // 補填用の生成が失敗しても、既存の問題だけで返す（部分的成功を許容）
     console.error('Failed to generate filler quiz:', error);
     return existing;
   }
+}
+
+// ==================== 単問生成 + key_word バリデーション ====================
+
+interface QuizSeed {
+  thai_text: string;
+  pronunciation: string;
+  japanese_translation: string;
+  word_breakdown: { word: string; pronunciation: string; meaning: string }[];
+  key_word?: string;
+}
+
+/**
+ * 1つの例文に対して Gemini でクイズ1問を生成し、key_word 一致を検証する。
+ *
+ * - 生成失敗やサニタイズで除外された場合は null を返す
+ * - key_word 不一致時は1回リトライし、それでも不一致ならエラーを throw
+ */
+async function generateSingleQuiz(
+  geminiService: GeminiService,
+  seed: QuizSeed,
+): Promise<QuizQuestionsResponse['questions'][number] | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await geminiService.generateQuizQuestions([seed]);
+    const q = result.questions[0];
+    if (!q) return null;
+
+    if (!seed.key_word || q.correct_answer.trim() === seed.key_word.trim()) {
+      return q;
+    }
+
+    // 1回目の不一致はリトライ
+    if (attempt === 0) {
+      console.warn('key_word mismatch, retrying', {
+        expected: seed.key_word,
+        got: q.correct_answer,
+      });
+      continue;
+    }
+
+    // 2回目も不一致 → この問題はスキップ（他の問題に影響させない）
+    console.error('key_word mismatch after retry, skipping', {
+      expected: seed.key_word,
+      got: q.correct_answer,
+    });
+    return null;
+  }
+
+  return null;
 }
 
 // ==================== SRS 例文選出 ====================

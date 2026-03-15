@@ -32,14 +32,14 @@ from embeddings import get_topic_similar_words
 # ---------------------------------------------------------------------------
 ALPHA_CORRECT = 0.001  # クイズ正解時の P(know) 上昇率
 ALPHA_INCORRECT = 0.0005  # クイズ不正解時の P(know) 下降率
-P_MIN = 0.0001  # P の下限
+P_MIN = 0.0  # P の下限
 P_MAX = 0.99  # P の上限
 NEW_WORD_P = 0.0001  # 新規単語の初期 P 値
 ALPHA_EXPOSURE = 0.0001  # 例文露出時の P 微増率
 
 # get_session_words 用: estimated_vocab 基準の頻度帯フィルタ幅
-FREQ_BAND_DEFAULT = 200  # 初期帯域: estimated_vocab 〜 +200
-FREQ_BAND_FALLBACK = 500  # 候補不足時の拡大帯域
+FREQ_BAND_HALF = 50  # 初期帯域: estimated_vocab ± 50
+FREQ_BAND_FALLBACK_HALF = 100  # 候補不足時: estimated_vocab ± 100
 
 
 def estimate_vocab(docs: list, freq_rank: dict[str, int]) -> int:
@@ -135,16 +135,17 @@ def get_session_words(
     if max_vocab is not None:
         estimated_vocab = min(estimated_vocab, max_vocab)
 
-    # 3. estimated_vocab より少し難しい帯域でフィルタ
-    band_low = estimated_vocab
-    band_high = estimated_vocab + FREQ_BAND_DEFAULT
+    # 3. estimated_vocab ± FREQ_BAND_HALF の帯域でフィルタ
+    band_low = max(0, estimated_vocab - FREQ_BAND_HALF)
+    band_high = estimated_vocab + FREQ_BAND_HALF
     if max_vocab is not None:
         band_high = min(band_high, max_vocab)
     candidates = [w for w in similar_words if band_low <= w["rank"] <= band_high]
 
     # 候補不足時は帯域を広げる
     if len(candidates) < count:
-        band_high = estimated_vocab + FREQ_BAND_FALLBACK
+        band_low = max(0, estimated_vocab - FREQ_BAND_FALLBACK_HALF)
+        band_high = estimated_vocab + FREQ_BAND_FALLBACK_HALF
         if max_vocab is not None:
             band_high = min(band_high, max_vocab)
         candidates = [w for w in similar_words if band_low <= w["rank"] <= band_high]
@@ -227,12 +228,11 @@ def register_exposure(
             )
             wrote += count
         elif create_new:
-            exposure_bonus = ALPHA_EXPOSURE * count
             batch.set(
                 doc_ref,
                 {
                     "word": word,
-                    "p": max(P_MIN, min(P_MAX, NEW_WORD_P + exposure_bonus)),
+                    "p": NEW_WORD_P,
                     "exposures": count,
                     "correct": 0,
                     "last_seen": now,

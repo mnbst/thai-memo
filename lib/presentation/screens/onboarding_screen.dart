@@ -18,21 +18,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _OnboardingPage(
       icon: Icons.auto_awesome,
       colorType: _ColorType.primary,
-      title: 'タイ語例文が毎日届く',
+      title: 'AIがタイ語例文を毎日生成',
       description:
-          'AIが毎日新しいタイ語例文を生成。\n発音（ローマ字）と日本語訳付きで\n無理なく学習できます。\n設定画面でレベルやテーマも調整可能。',
+          'AIが毎日新しいタイ語例文を生成。\n発音（ローマ字）と日本語訳付きで\n無理なく学習できます。',
     ),
     _OnboardingPage(
       icon: Icons.menu_book,
       colorType: _ColorType.secondary,
       title: '発音・単語を詳しく解説',
-      description: '例文の単語ひとつひとつの発音・意味・\n文法的役割を詳しく解説。\nタイ語の仕組みが自然に身につきます。',
+      description: '単語ごとの発音・意味・文法的役割に加え\n声調ルールも解説。音声再生で\n正しい発音を確認できます。',
     ),
     _OnboardingPage(
       icon: Icons.quiz,
       colorType: _ColorType.tertiary,
       title: 'クイズで定着',
-      description: '学んだ例文からクイズを出題。\n忘れそうなタイミングで自動的に\n復習が出てくるので効率的に定着できます。',
+      description: '学んだ例文からクイズを出題。\n忘れかけた頃に復習できるので\n効率的に語彙が定着します。',
     ),
   ];
 

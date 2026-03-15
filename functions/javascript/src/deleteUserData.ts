@@ -9,6 +9,7 @@
  * 以下の Firestore データを一括削除する:
  *   - users/{uid}/sentences（学習した例文データ）
  *   - users/{uid}/quiz_answers（クイズの回答履歴）
+ *   - users/{uid}/uvm（語彙習得モデル）
  *   - users/{uid}（ユーザードキュメント本体）
  *   - quiz_queue 内の該当ユーザーのドキュメント
  *
@@ -24,7 +25,7 @@ const db = admin.firestore();
  * deleteUserData - Firebase Auth ユーザー削除時に Firestore のユーザーデータを自動削除
  *
  * Firebase Auth の onDelete イベントトリガーにより自動実行される。
- * バッチ書き込みを使って関連する全データを1回のトランザクションで削除する。
+ * バッチ書き込み（500件制限）を分割しながら関連する全データを削除する。
  *
  * @param user - 削除されたユーザーの情報（uid を含む）
  */
@@ -32,32 +33,42 @@ export const deleteUserData = auth.user().onDelete(async (user) => {
   const uid = user.uid;
   console.log(`Deleting data for user: ${uid}`);
 
-  const batch = db.batch();
+  // 削除対象の DocumentReference を収集
+  const refs: admin.firestore.DocumentReference[] = [];
 
-  // users/{uid}/sentences サブコレクション削除（学習した例文データ）
+  // users/{uid}/sentences サブコレクション（学習した例文データ）
   const sentences = await db.collection(`users/${uid}/sentences`).listDocuments();
-  for (const doc of sentences) {
-    batch.delete(doc);
-  }
+  refs.push(...sentences);
 
-  // users/{uid}/quiz_answers サブコレクション削除（クイズの回答履歴）
+  // users/{uid}/quiz_answers サブコレクション（クイズの回答履歴）
   const quizAnswers = await db.collection(`users/${uid}/quiz_answers`).listDocuments();
-  for (const doc of quizAnswers) {
-    batch.delete(doc);
-  }
+  refs.push(...quizAnswers);
 
-  // users/{uid} ドキュメント削除（ユーザーの設定・サブスクリプション情報など）
-  batch.delete(db.doc(`users/${uid}`));
+  // users/{uid}/uvm サブコレクション（語彙習得モデル）
+  const uvm = await db.collection(`users/${uid}/uvm`).listDocuments();
+  refs.push(...uvm);
 
-  // quiz_queue 内の該当ユーザーのドキュメント削除
+  // users/{uid} ドキュメント本体
+  refs.push(db.doc(`users/${uid}`));
+
+  // quiz_queue 内の該当ユーザーのドキュメント
   const quizQueue = await db.collection('quiz_queue')
     .where('uid', '==', uid)
     .get();
   for (const doc of quizQueue.docs) {
-    batch.delete(doc.ref);
+    refs.push(doc.ref);
   }
 
-  // バッチ書き込みで一括削除を実行
-  await batch.commit();
-  console.log(`Deleted all data for user: ${uid}`);
+  // 500件ずつバッチ分割して削除
+  const BATCH_LIMIT = 500;
+  for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
+    const batch = db.batch();
+    const chunk = refs.slice(i, i + BATCH_LIMIT);
+    for (const ref of chunk) {
+      batch.delete(ref);
+    }
+    await batch.commit();
+  }
+
+  console.log(`Deleted ${refs.length} document(s) for user: ${uid}`);
 });

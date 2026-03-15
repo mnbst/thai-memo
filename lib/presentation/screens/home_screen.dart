@@ -441,7 +441,10 @@ class TodayScreen extends ConsumerWidget {
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (e, st) {
+        debugPrint('vocabStatsProvider error: $e\n$st');
+        return Text('vocabStats error: $e', style: const TextStyle(color: Colors.red, fontSize: 12));
+      },
     );
   }
 
