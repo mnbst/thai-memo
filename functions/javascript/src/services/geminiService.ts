@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-import { GEMINI_MODEL } from '../config/constants';
 
 const THAI_SCRIPT_REGEX = /[\u0E00-\u0E7F]/;
 const JAPANESE_SCRIPT_REGEX = /[\u3040-\u30FF\u31F0-\u31FF\u4E00-\u9FFF]/;
@@ -62,15 +61,17 @@ function uniqueTexts(values: string[]): string[] {
 
 export class GeminiService {
   private genAI: GoogleGenerativeAI;
+  private modelName: string;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, modelName: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
+    this.modelName = modelName;
   }
 
   async generateQuizQuestions(sentences: QuizSentenceSeed[]): Promise<QuizQuestionsResponse> {
     try {
       const model = this.genAI.getGenerativeModel({
-        model: GEMINI_MODEL,
+        model: this.modelName,
         generationConfig: {
           temperature: 0.8,
           maxOutputTokens: 4096,

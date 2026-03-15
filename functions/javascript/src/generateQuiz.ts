@@ -27,6 +27,7 @@ import * as admin from 'firebase-admin';
 import { GeminiService, QuizQuestion } from './services/geminiService';
 import { getGeminiApiKey } from './services/secretManager';
 import { DEFAULT_SENTENCES, DefaultSentence } from './constants/defaultQuizQuestions';
+import { GEMINI_MODEL_FREE, GEMINI_MODEL_PREMIUM } from './config/constants';
 import { nowJST } from './utils/formatDate';
 
 
@@ -89,7 +90,9 @@ export const generateQuiz = functions.https.onCall(
 
     // GCP Secret Manager から Gemini API キーを取得
     const apiKey = await getGeminiApiKey();
-    const geminiService = new GeminiService(apiKey);
+    const isPremium = userData.tier === 'premium';
+    const geminiModel = isPremium ? GEMINI_MODEL_PREMIUM : GEMINI_MODEL_FREE;
+    const geminiService = new GeminiService(apiKey, geminiModel);
 
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
     const selectedSentences = await selectSentencesBySRS(uid, nowJST());
