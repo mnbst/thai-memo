@@ -212,12 +212,9 @@ class PaywallBottomSheet extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     const features = [
-      ('例文', '1日1回', '1日5回'),
+      ('例文', '1日1回', '1日10回'),
       ('クイズ', '1日1回', '1日10回'),
-      ('トピック', '4種', '16種'),
-      ('文体', '2種', '5種'),
-      ('その他の設定', '×', '○'),
-      ('広告', 'あり', 'なし'),
+      ('難易度', '初級のみ', '語彙数に応じて自動調整'),
     ];
 
     return Container(

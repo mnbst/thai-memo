@@ -14,14 +14,18 @@ build_freq_rank.py で生成した全語彙の freq_rank.json から
 """
 
 import json
+from pathlib import Path
 
-with open("corpus/freq_rank.json") as f:
+INPUT = Path("corpus/freq_rank.json")
+OUTPUT = Path("corpus/freq_rank_top10000.json")
+
+with INPUT.open(encoding="utf-8") as f:
     freq_rank = json.load(f)
 
 # rank <= 10000 の単語のみ抽出
 top10000 = {w: rank for w, rank in freq_rank.items() if rank <= 10000}
 
-with open("corpus/freq_rank_top10000.json", "w") as f:
+with OUTPUT.open("w", encoding="utf-8") as f:
     json.dump(top10000, f, ensure_ascii=False)
 
-print(f"freq_rank_top10000.json saved. {len(top10000)} words.")
+print(f"{OUTPUT} saved. {len(top10000)} words.")

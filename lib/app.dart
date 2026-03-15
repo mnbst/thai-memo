@@ -104,7 +104,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
       ),
       textTheme: _scaleTextTheme(
         GoogleFonts.notoSansThaiTextTheme(ThemeData.light().textTheme),
-        1.5,
+        2.5,
       ),
       cardTheme: CardThemeData(
         elevation: 2,
@@ -151,7 +151,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
       ),
       textTheme: _scaleTextTheme(
         GoogleFonts.notoSansThaiTextTheme(ThemeData.dark().textTheme),
-        1.5,
+        2.5,
       ),
       cardTheme: CardThemeData(
         elevation: 2,

@@ -4,10 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../data/datasources/backend_api_service.dart' show BackendApiService, BackendApiRateLimitException;
+import '../../data/datasources/backend_api_service.dart'
+    show BackendApiRateLimitException, BackendApiService;
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
+
+final RegExp _thaiScriptRegex = RegExp(r'[\u0E00-\u0E7F]');
+final RegExp _nonThaiChoiceRegex =
+    RegExp(r'[A-Za-z\u3040-\u30FF\u31F0-\u31FF\u4E00-\u9FFF]');
 
 // ==================== State ====================
 
@@ -44,7 +49,13 @@ class QuizAnswering extends QuizState {
   final int index;
   final List<bool> answers;
   final List<int> selectedIndices;
-  const QuizAnswering(this.questions, this.index, this.answers, [this.selectedIndices = const []]);
+
+  const QuizAnswering(
+    this.questions,
+    this.index,
+    this.answers, [
+    this.selectedIndices = const [],
+  ]);
 }
 
 class QuizShowResult extends QuizState {
@@ -54,9 +65,15 @@ class QuizShowResult extends QuizState {
   final int selectedIndex;
   final bool isCorrect;
   final List<int> selectedIndices;
+
   const QuizShowResult(
-      this.questions, this.index, this.answers, this.selectedIndex, this.isCorrect,
-      [this.selectedIndices = const []]);
+    this.questions,
+    this.index,
+    this.answers,
+    this.selectedIndex,
+    this.isCorrect, [
+    this.selectedIndices = const [],
+  ]);
 }
 
 class QuizSummary extends QuizState {
@@ -65,8 +82,14 @@ class QuizSummary extends QuizState {
   final int totalCorrect;
   final Map<String, dynamic> stats;
   final List<int> selectedIndices;
-  const QuizSummary(this.questions, this.answers, this.totalCorrect, this.stats,
-      [this.selectedIndices = const []]);
+
+  const QuizSummary(
+    this.questions,
+    this.answers,
+    this.totalCorrect,
+    this.stats, [
+    this.selectedIndices = const [],
+  ]);
 }
 
 /// クイズ生成エラー
@@ -118,7 +141,7 @@ class QuizController extends StateNotifier<QuizState> {
 
   QuizController(this._apiService) : super(const QuizInitial());
 
-  /// クイズデータを読み込み（SharedPreferences → review_queue確認）
+  /// クイズデータを読み込み（SharedPreferencesから復元 or Pending表示）
   Future<void> loadQuiz() async {
     state = const QuizLoading();
 
@@ -132,12 +155,10 @@ class QuizController extends StateNotifier<QuizState> {
         return;
       }
 
-      // 端末にデータがない → review_queue確認してPending表示
-      final reviewCount = await _apiService.getReviewCount();
-      state = QuizPending(reviewCount);
+      // 端末にデータがない → Pending表示（SRS選出はgenerateQuiz時にリアルタイム実行）
+      state = const QuizPending(0);
     } catch (e) {
       debugPrint('クイズ読み込みエラー: $e');
-      // エラー時もgenerateQuizで取得できるようPendingに
       state = const QuizPending(0);
     }
   }
@@ -148,7 +169,7 @@ class QuizController extends StateNotifier<QuizState> {
 
     try {
       final questions = await _apiService.generateQuiz();
-      if (questions.isEmpty) {
+      if (questions.isEmpty || _hasInvalidQuizChoices(questions)) {
         state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
         return;
       }
@@ -156,7 +177,9 @@ class QuizController extends StateNotifier<QuizState> {
       // SharedPreferencesに保存
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-          _quizKey, jsonEncode(questions.map((q) => q.toJson()).toList()));
+        _quizKey,
+        jsonEncode(questions.map((q) => q.toJson()).toList()),
+      );
       await prefs.remove(_quizCompletedKey);
       await prefs.remove(_quizAnswersKey);
       await prefs.remove(_quizSelectedIndicesKey);
@@ -182,9 +205,15 @@ class QuizController extends StateNotifier<QuizState> {
 
     try {
       final list = jsonDecode(json) as List<dynamic>;
-      final questions =
-          list.map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>)).toList();
+      final questions = list
+          .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
+          .toList();
       if (questions.isEmpty) {
+        state = const QuizPending(0);
+        return;
+      }
+      if (_hasInvalidQuizChoices(questions)) {
+        await _clearStoredQuiz();
         state = const QuizPending(0);
         return;
       }
@@ -208,14 +237,51 @@ class QuizController extends StateNotifier<QuizState> {
         }
         final totalCorrect = answers.where((a) => a).length;
         final cachedStats = await _db.getCachedQuizStats();
-        state = QuizSummary(questions, answers, totalCorrect, cachedStats ?? {}, selectedIndices);
+        state = QuizSummary(
+          questions,
+          answers,
+          totalCorrect,
+          cachedStats ?? {},
+          selectedIndices,
+        );
         return;
       }
 
       state = QuizReady(questions);
     } catch (_) {
+      await _clearStoredQuiz();
       state = const QuizPending(0);
     }
+  }
+
+  bool _hasInvalidQuizChoices(List<QuizQuestion> questions) {
+    return questions.any((question) {
+      if (question.choices.length != 4) {
+        return true;
+      }
+      if (!_isThaiChoice(question.correctAnswer)) {
+        return true;
+      }
+      if (!question.choices.contains(question.correctAnswer)) {
+        return true;
+      }
+      return question.choices.any((choice) => !_isThaiChoice(choice));
+    });
+  }
+
+  bool _isThaiChoice(String text) {
+    final normalized = text.trim();
+    return normalized.isNotEmpty &&
+        _thaiScriptRegex.hasMatch(normalized) &&
+        !_nonThaiChoiceRegex.hasMatch(normalized);
+  }
+
+  Future<void> _clearStoredQuiz() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_quizKey);
+    await prefs.remove(_quizCompletedKey);
+    await prefs.remove(_quizAnswersKey);
+    await prefs.remove(_quizSelectedIndicesKey);
   }
 
   /// クイズ開始
@@ -246,8 +312,14 @@ class QuizController extends StateNotifier<QuizState> {
     );
     await _db.insertQuizResult(result.toDatabase());
 
-
-    state = QuizShowResult(s.questions, s.index, newAnswers, choiceIndex, isCorrect, newSelectedIndices);
+    state = QuizShowResult(
+      s.questions,
+      s.index,
+      newAnswers,
+      choiceIndex,
+      isCorrect,
+      newSelectedIndices,
+    );
   }
 
   /// 次の問題へ or サマリーへ

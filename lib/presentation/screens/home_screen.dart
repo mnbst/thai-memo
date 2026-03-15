@@ -11,6 +11,7 @@ import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
+import '../providers/remaining_quota_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
 import 'detail_screen.dart';
@@ -225,11 +226,7 @@ class TodayScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('今日のタイ語')),
       body: _buildSentenceContent(context, ref, sentenceState),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _generateNewSentence(context, ref),
-        icon: const Icon(Icons.refresh),
-        label: const Text('新しい例文を生成'),
-      ),
+      floatingActionButton: _buildGenerateButton(context, ref),
     );
   }
 
@@ -275,16 +272,30 @@ class TodayScreen extends ConsumerWidget {
 
   /// Build success state with sentence
   Widget _buildSuccessState(BuildContext context, WidgetRef ref, sentence) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        AppConfig.defaultPadding,
-        AppConfig.defaultPadding,
-        AppConfig.defaultPadding,
-        AppConfig.defaultPadding + 80,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    return Column(
+      children: [
+        // Vocab stats (Premium only) — 上部固定表示
+        if (ref.watch(isPremiumProvider))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConfig.defaultPadding,
+              AppConfig.defaultPadding,
+              AppConfig.defaultPadding,
+              0,
+            ),
+            child: _buildVocabStats(context, ref),
+          ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppConfig.defaultPadding,
+              AppConfig.defaultPadding,
+              AppConfig.defaultPadding,
+              AppConfig.defaultPadding + 80,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
           // Sentence card
           Card(
             child: InkWell(
@@ -376,12 +387,13 @@ class TodayScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          // Vocab stats (Premium only)
-          if (ref.watch(isPremiumProvider)) _buildVocabStats(context, ref),
           // Quick info
           _buildQuickInfo(context, sentence),
-        ],
-      ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -390,66 +402,41 @@ class TodayScreen extends ConsumerWidget {
     final statsAsync = ref.watch(vocabStatsProvider);
     return statsAsync.when(
       data: (stats) {
-        if (stats.estimatedVocab == 0 && stats.vocabCount == 0) {
-          return const SizedBox.shrink();
-        }
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Card(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(AppConfig.defaultPadding),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.auto_graph,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '推定語彙数',
-                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                              ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${stats.estimatedVocab} 語',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '学習済み',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer
-                                  .withValues(alpha: 0.7),
-                            ),
+        final onContainer = Theme.of(context).colorScheme.onPrimaryContainer;
+        return Card(
+          color: Theme.of(context).colorScheme.primaryContainer,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConfig.defaultPadding * 1.5,
+              vertical: AppConfig.defaultPadding,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.auto_graph, size: 16, color: onContainer),
+                const SizedBox(width: 4),
+                Text(
+                  '推定語彙数',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: onContainer,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${stats.vocabCount} 語',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
-                            ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '${stats.estimatedVocab}',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: onContainer,
+                        fontWeight: FontWeight.bold,
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '語',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: onContainer.withValues(alpha: 0.7),
+                      ),
+                ),
+              ],
             ),
           ),
         );
@@ -493,6 +480,8 @@ class TodayScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (isQuotaError && ref.watch(isPremiumProvider))
+              _buildVocabStats(context, ref),
             Icon(
               isQuotaError ? Icons.lock_outline : Icons.error_outline,
               size: 64,
@@ -512,17 +501,6 @@ class TodayScreen extends ConsumerWidget {
                 onPressed: () => PaywallBottomSheet.show(context),
                 icon: const Icon(Icons.star),
                 label: const Text('プレミアムにアップグレード'),
-              ),
-            if (isQuotaError && ref.watch(isPremiumProvider))
-              FilledButton.icon(
-                onPressed: () {
-                  final params = ref.read(generationParamsProvider);
-                  ref
-                      .read(sentenceControllerProvider.notifier)
-                      .generateSentence(generationParams: params);
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('もう一度試す'),
               ),
           ],
         ),
@@ -681,6 +659,20 @@ class TodayScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// Build generate button with remaining quota badge
+  Widget _buildGenerateButton(BuildContext context, WidgetRef ref) {
+    final remainingAsync = ref.watch(remainingSentencesProvider);
+    final remaining = remainingAsync.valueOrNull;
+
+    return FloatingActionButton.extended(
+      onPressed: () => _generateNewSentence(context, ref),
+      icon: const Icon(Icons.refresh),
+      label: remaining != null
+          ? Text('新しい例文を生成（残り$remaining回）')
+          : const Text('新しい例文を生成'),
     );
   }
 

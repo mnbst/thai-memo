@@ -57,7 +57,11 @@ def select_uvm_target_words(
 
 
 def generate_sentence(
-    params: dict, is_premium: bool, *, target_words: list[str] | None = None
+    params: dict,
+    is_premium: bool,
+    *,
+    target_words: list[str] | None = None,
+    estimated_vocab: int = 0,
 ) -> dict:
     """Gemini APIで例文を生成し、NLP後処理を適用する。"""
     api_key = get_gemini_api_key()
@@ -65,7 +69,7 @@ def generate_sentence(
 
     model = GEMINI_MODEL_PREMIUM if is_premium else GEMINI_MODEL
     if is_premium:
-        prompt = build_uvm_prompt(params, target_words)
+        prompt = build_uvm_prompt(params, target_words, estimated_vocab=estimated_vocab)
         tier_label = "premium"
     else:
         prompt = build_free_prompt(params)

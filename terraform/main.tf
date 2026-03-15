@@ -19,6 +19,7 @@ resource "google_project_service" "required_apis" {
     "artifactregistry.googleapis.com",
     "cloudbilling.googleapis.com",
     "pubsub.googleapis.com",
+    "run.googleapis.com",
   ])
 
   project = var.project_id
@@ -130,6 +131,31 @@ resource "google_project_iam_member" "ci_service_account" {
   project  = var.project_id
   role     = each.value
   member   = "serviceAccount:${var.ci_service_account_email}"
+}
+
+# Cloud Run IAM: callable な Cloud Functions (v2) に allUsers invoker を付与
+# Firebase callable 関数は Cloud Run 上で動作するため、
+# Cloud Run レベルで allUsers に invoker 権限がないとリクエストが到達できない。
+# 関数内の req.auth チェックで Firebase Auth 認証は別途行われる。
+locals {
+  callable_functions = [
+    "assessvocab",
+    "generatequiz",
+    "generatethaisentence",
+    "subscriptionstatus",
+    "updateuvm",
+    "verifysubscription",
+  ]
+}
+
+resource "google_cloud_run_service_iam_member" "callable_invoker" {
+  for_each = toset(local.callable_functions)
+
+  project  = var.project_id
+  location = var.region
+  service  = each.key
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
 # Cloud Functions module will be added after Functions code is ready

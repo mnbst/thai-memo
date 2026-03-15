@@ -9,6 +9,7 @@ GCSからembeddingデータをlazy-loadし、コサイン類似度で
   - topic_embeddings.json: {"トピック文字列": [float, ...], ...} — 事前計算済み
 """
 
+import io
 import json
 import os
 from typing import Any
@@ -50,7 +51,7 @@ def _load_data() -> None:
     emb_blob = bucket.blob(EMB_BLOB)
     emb_bytes = emb_blob.download_as_bytes()
     _embeddings = np.load(
-        np.lib.npyio.BytesIO(emb_bytes),  # type: ignore[attr-defined]
+        io.BytesIO(emb_bytes),
         allow_pickle=False,
     )
 

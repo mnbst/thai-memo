@@ -20,52 +20,48 @@ Firestore の users/{uid}/uvm/{word} コレクションに対して読み書き�
 
 import random
 import time
+from collections import Counter
 from typing import Any
 
 from google.cloud.firestore_v1.client import Client as FirestoreClient
+
 from embeddings import get_topic_similar_words
 
 # ---------------------------------------------------------------------------
 # 定数
 # ---------------------------------------------------------------------------
-ALPHA = 0.2  # P(know) 更新時の学習率
-P_MIN = 0.01  # P の下限
+ALPHA_CORRECT = 0.001  # クイズ正解時の P(know) 上昇率
+ALPHA_INCORRECT = 0.0005  # クイズ不正解時の P(know) 下降率
+P_MIN = 0.0001  # P の下限
 P_MAX = 0.99  # P の上限
-NEW_WORD_P = 0.2  # 新規単語の初期 P 値
+NEW_WORD_P = 0.0001  # 新規単語の初期 P 値
+ALPHA_EXPOSURE = 0.0001  # 例文露出時の P 微増率
 
 # get_session_words 用: estimated_vocab 基準の頻度帯フィルタ幅
 FREQ_BAND_DEFAULT = 200  # 初期帯域: estimated_vocab 〜 +200
 FREQ_BAND_FALLBACK = 500  # 候補不足時の拡大帯域
 
 
-def estimate_vocab(
-    docs: list,
-    freq_rank: dict[str, int],
-    p_threshold: float = 0.7,
-) -> int:
+def estimate_vocab(docs: list, freq_rank: dict[str, int]) -> int:
     """UVM ドキュメント群から推定習得語数を算出する。
 
-    p >= p_threshold の単語の freq_rank を集め、90 パーセンタイルを返す。
-    「頻度順位 N の単語を知っていれば、それより頻出な単語もほぼ知っている」
-    という仮定に基づく。
+    全単語の freq_rank を P(know) で加重平均して返す。
+    p が高い単語の rank ほど強く反映される。
     """
-    known_ranks: list[int] = []
+    weighted_ranks: list[tuple[float, int]] = []
     for doc in docs:
         p = (doc.to_dict() or {}).get("p", NEW_WORD_P)
-        if p >= p_threshold:
-            rank = freq_rank.get(doc.id)
-            if rank is not None:
-                known_ranks.append(rank)
+        rank = freq_rank.get(doc.id)
+        if rank is not None:
+            weighted_ranks.append((p, rank))
 
-    if not known_ranks:
+    if not weighted_ranks:
         return 0
 
-    # 頻度順位を昇順ソート（例: [12, 45, 120, 500, 1300]）
-    known_ranks.sort()
-    # 90パーセンタイルの位置を算出（配列末尾を超えないよう clamp）
-    # → 「既知単語のうち上位90%がカバーする頻度順位」＝推定語彙数
-    idx = min(int(len(known_ranks) * 0.9), len(known_ranks) - 1)
-    return known_ranks[idx]
+    total_p = sum(p for p, _ in weighted_ranks)
+    if total_p <= 0:
+        return 0
+    return int(sum(p * rank for p, rank in weighted_ranks) / total_p)
 
 
 def sync_vocab_count(db: FirestoreClient, uid: str, freq_rank: dict[str, int]) -> None:
@@ -84,15 +80,15 @@ def update_p(p: float, correct: bool) -> float:
     """P(know) を正誤に基づいて更新する。
 
     【更新式】
-      正解時: p_new = p + α(1 - p)  — 1.0 に近づくほど変化量が小さくなる
-      不正解: p_new = p - α * p     — 0.0 に近づくほど変化量が小さくなる
+      正解時: p_new = p + α_correct(1 - p)  — 1.0 に近づくほど変化量が小さくなる
+      不正解: p_new = p - α_incorrect * p   — 0.0 に近づくほど変化量が小さくなる
 
     結果は [P_MIN, P_MAX] にクリッピングして返す。
     """
     if correct:
-        p = p + ALPHA * (1 - p)
+        p = p + ALPHA_CORRECT * (1 - p)
     else:
-        p = p - ALPHA * p
+        p = p - ALPHA_INCORRECT * p
     return max(P_MIN, min(P_MAX, p))
 
 
@@ -147,7 +143,95 @@ def get_session_words(
 
     # 4. ランダムに count 語選出
     selected = random.sample(candidates, min(count, len(candidates)))
-    return [w["word"] for w in selected]
+    words = [w["word"] for w in selected]
+
+    print(
+        f"get_session_words: topic={topic}, estimated_vocab={estimated_vocab}, "
+        f"similar_words={len(similar_words)}, candidates={len(candidates)}, "
+        f"selected={words}"
+    )
+
+    return words
+
+
+def get_sentence_words(sentence: dict[str, Any]) -> list[str]:
+    """例文の word_breakdown から全単語を重複なしで返す。"""
+    seen: set[str] = set()
+    words: list[str] = []
+    for wb in sentence.get("word_breakdown", []):
+        if not isinstance(wb, dict):
+            continue
+        w = str(wb.get("word", "")).strip()
+        if w and w not in seen:
+            seen.add(w)
+            words.append(w)
+    return words
+
+
+def get_exposed_words(
+    sentence: dict[str, Any],
+    target_words: list[str] | None,
+) -> list[str]:
+    """例文内に実際に出現したターゲット語を単語ごとに1回だけ返す。"""
+    if not target_words:
+        return []
+
+    target_word_set = set(target_words)
+    return [w for w in get_sentence_words(sentence) if w in target_word_set]
+
+
+def register_exposure(
+    db: FirestoreClient,
+    uid: str,
+    words: list[str],
+    *,
+    create_new: bool = False,
+) -> None:
+    """露出による P 微増を適用する。
+
+    Args:
+        create_new: True なら UVM 未登録の単語も新規作成する（key_word 用）。
+                    False なら既存単語のみ更新する。
+    """
+    now = time.time()
+    batch = db.batch()
+    uvm_ref = db.collection("users").document(uid).collection("uvm")
+    wrote = 0
+
+    for word, count in Counter(words).items():
+        doc_ref = uvm_ref.document(word)
+        doc = doc_ref.get()
+        if doc.exists:
+            data = doc.to_dict() or {}
+            old_p = data.get("p", NEW_WORD_P)
+            exposure_bonus = ALPHA_EXPOSURE * count
+            batch.update(
+                doc_ref,
+                {
+                    "p": max(P_MIN, min(P_MAX, old_p + exposure_bonus)),
+                    "exposures": data.get("exposures", 0) + count,
+                    "last_seen": now,
+                },
+            )
+            wrote += count
+        elif create_new:
+            exposure_bonus = ALPHA_EXPOSURE * count
+            batch.set(
+                doc_ref,
+                {
+                    "word": word,
+                    "p": max(P_MIN, min(P_MAX, NEW_WORD_P + exposure_bonus)),
+                    "exposures": count,
+                    "correct": 0,
+                    "last_seen": now,
+                    "last_result": None,
+                },
+            )
+            wrote += count
+
+    if wrote:
+        batch.commit()
+        print(f"register_exposure: uid={uid}, updated {wrote} word(s)")
 
 
 def batch_update_uvm(
@@ -168,8 +252,6 @@ def batch_update_uvm(
     now = time.time()
     batch = db.batch()
     uvm_ref = db.collection("users").document(uid).collection("uvm")
-    new_words_count = 0
-
     for r in results:
         word = r["word"]
         is_correct = r["is_correct"]
@@ -205,9 +287,7 @@ def batch_update_uvm(
                     "last_result": is_correct,
                 },
             )
-            new_words_count += 1
-
     batch.commit()
 
-    if new_words_count > 0 and freq_rank is not None:
+    if freq_rank is not None:
         sync_vocab_count(db, uid, freq_rank)

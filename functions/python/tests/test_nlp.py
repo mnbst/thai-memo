@@ -1,7 +1,14 @@
 """pronunciation変換とPOSタグのテスト"""
 
+from pathlib import Path
+import sys
+
 import pytest
-from main import _thai_to_pronunciation, _get_pos_japanese
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from nlp import get_pos_japanese
+from pronunciation import thai_to_pronunciation
 
 
 class TestPronunciation:
@@ -22,7 +29,7 @@ class TestPronunciation:
         ],
     )
     def test_single_word(self, thai: str, expected: str) -> None:
-        assert _thai_to_pronunciation(thai) == expected
+        assert thai_to_pronunciation(thai) == expected
 
     @pytest.mark.parametrize(
         "thai, expected",
@@ -35,7 +42,7 @@ class TestPronunciation:
         ],
     )
     def test_multi_syllable(self, thai: str, expected: str) -> None:
-        assert _thai_to_pronunciation(thai) == expected
+        assert thai_to_pronunciation(thai) == expected
 
     @pytest.mark.parametrize(
         "thai, expected",
@@ -55,10 +62,10 @@ class TestPronunciation:
         ],
     )
     def test_phrase(self, thai: str, expected: str) -> None:
-        assert _thai_to_pronunciation(thai) == expected
+        assert thai_to_pronunciation(thai) == expected
 
     def test_empty_string(self) -> None:
-        result = _thai_to_pronunciation("")
+        result = thai_to_pronunciation("")
         assert result == ""
 
 
@@ -75,6 +82,6 @@ class TestPosTagging:
         ],
     )
     def test_pos_returns_japanese(self, word: str, expected_pos: str) -> None:
-        result = _get_pos_japanese(word)
+        result = get_pos_japanese(word)
         # POSタグは日本語であること（英語タグではない）
         assert result == expected_pos

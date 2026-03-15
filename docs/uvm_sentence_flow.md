@@ -69,7 +69,7 @@ get_diverse_new_words()   # 新規候補内でも類義語を排除（貪欲法�
 
 クイズ回答後 → `updateUvm` Cloud Function → `batch_update_uvm()`
 
-- 正解: `p = p + 0.2(1-p)` — 1.0に漸近
+- 正解: `p = p + 0.25(1-p)` — 1.0に漸近
 - 不正解: `p = p - 0.2p` — 0.0に漸近
 - `next_review` を再計算（pが高いほど間隔が長い）
 

@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
-import '../../core/constants/generation_constants.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/subscription_provider.dart';
-import 'paywall_screen.dart';
 import 'tone_guide_screen.dart';
 
 /// Settings screen
@@ -19,32 +16,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _customPromptFocusNode = FocusNode();
-  String? _pendingCustomPrompt;
-
-  @override
-  void initState() {
-    super.initState();
-    _customPromptFocusNode.addListener(_onCustomPromptFocusChange);
-  }
-
-  @override
-  void dispose() {
-    _customPromptFocusNode.removeListener(_onCustomPromptFocusChange);
-    _customPromptFocusNode.dispose();
-    super.dispose();
-  }
-
-  void _onCustomPromptFocusChange() {
-    if (!_customPromptFocusNode.hasFocus && _pendingCustomPrompt != null) {
-      ref.read(settingsControllerProvider.notifier).setGenerationParam(
-            GenerationConstants.customPromptKey,
-            _pendingCustomPrompt!.isEmpty ? null : _pendingCustomPrompt,
-          );
-      _pendingCustomPrompt = null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,8 +30,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildNotificationSection(),
           const SizedBox(height: 24),
           _buildLearningSection(),
-          const SizedBox(height: 24),
-          _buildGenerationSettingsSection(),
           const SizedBox(height: 24),
           _buildStatisticsSection(),
           const SizedBox(height: 24),
@@ -353,188 +322,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  /// Build generation settings section
-  Widget _buildGenerationSettingsSection() {
-    final params = ref.watch(generationParamsProvider);
-    final isPremium = ref.watch(isPremiumProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.tune,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '今日のタイ語設定',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...GenerationConstants.parameterLabels.entries.map((entry) {
-              final key = entry.key;
-              final label = entry.value;
-              final currentValue = params[key];
-
-              // プレミアム専用パラメータはロック表示
-              if (!isPremium &&
-                  GenerationConstants.premiumOnlyParameterKeys.contains(key)) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _buildLockedParamRow(label),
-                );
-              }
-
-              // 無料ユーザーはトピック・文体の選択肢を制限
-              final List<String> options;
-              if (!isPremium && key == 'topic') {
-                options = GenerationConstants.freeTopics;
-              } else if (!isPremium && key == 'style') {
-                options = GenerationConstants.freeStyles;
-              } else {
-                options = GenerationConstants.parameterOptions[key]!;
-              }
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _buildParamDropdown(key, label, options, currentValue),
-              );
-            }),
-            if (isPremium) ...[
-              const SizedBox(height: 8),
-              _buildCustomPromptField(
-                  params[GenerationConstants.customPromptKey]),
-            ],
-            if (!isPremium) ...[
-              const SizedBox(height: 12),
-              _buildUpgradeBanner(),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLockedParamRow(String label) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-      leading: Icon(
-        Icons.lock_outline,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-        size: 20,
-      ),
-      title: Text(label),
-      subtitle: Text(
-        'プレミアム限定',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontSize: 12,
-        ),
-      ),
-      dense: true,
-      onTap: () => PaywallBottomSheet.show(context),
-    );
-  }
-
-  Widget _buildUpgradeBanner() {
-    return InkWell(
-      onTap: () => PaywallBottomSheet.show(context),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.workspace_premium,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'プレミアムで全パラメータを解放',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildParamDropdown(
-    String key,
-    String label,
-    List<String> options,
-    String? currentValue,
-  ) {
-    return DropdownButtonFormField<String>(
-      // ignore: deprecated_member_use
-      value: currentValue,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: const OutlineInputBorder(),
-      ),
-      items: [
-        const DropdownMenuItem<String>(
-          value: null,
-          child: Text('ランダム'),
-        ),
-        ...options.map((option) => DropdownMenuItem<String>(
-              value: option,
-              child: Text(
-                option,
-                overflow: TextOverflow.ellipsis,
-              ),
-            )),
-      ],
-      onChanged: (value) {
-        ref
-            .read(settingsControllerProvider.notifier)
-            .setGenerationParam(key, value);
-      },
-    );
-  }
-
-  Widget _buildCustomPromptField(String? currentValue) {
-    return TextFormField(
-      key: ValueKey(currentValue),
-      initialValue: currentValue,
-      focusNode: _customPromptFocusNode,
-      maxLength: GenerationConstants.customPromptMaxLength,
-      decoration: const InputDecoration(
-        labelText: '自由メモ（例文に反映されます）',
-        hintText: '例: レストランでの会話',
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(),
-      ),
-      onChanged: (value) {
-        _pendingCustomPrompt = value;
-      },
     );
   }
 

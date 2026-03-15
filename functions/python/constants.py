@@ -19,7 +19,7 @@ from google.genai import types
 # 無料ティア用: 軽量・高速な lite モデル
 GEMINI_MODEL = "gemini-2.5-flash-lite"
 # 有料ティア用: 高品質な標準モデル
-GEMINI_MODEL_PREMIUM = "gemini-2.5-flash"
+GEMINI_MODEL_PREMIUM = "gemini-2.5-pro"
 
 # ─── API パラメータ ───
 # 温度（0.0〜1.0）: 高いほど多様な出力が得られる。0.8は創造的な例文生成に適した値
@@ -123,7 +123,10 @@ RESPONSE_SCHEMA = types.Schema(
                     # タイ語の単語（例: "สวัสดี"）
                     "word": types.Schema(type=types.Type.STRING),
                     # 単語の日本語の意味（例: "こんにちは、さようなら"）
-                    "meaning": types.Schema(type=types.Type.STRING),
+                    "meaning": types.Schema(
+                        type=types.Type.STRING,
+                        description="単語の意味を必ず日本語で記述すること（英語不可）",
+                    ),
                 },
                 required=["word", "meaning"],
             ),

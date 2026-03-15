@@ -82,7 +82,6 @@ class SettingsController extends StateNotifier<SettingsState> {
     'politeness',
     'grammarFocus',
     'emotion',
-    'customPrompt',
   ];
 
   static String _prefKey(String param) => 'pref_$param';

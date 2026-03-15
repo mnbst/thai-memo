@@ -17,7 +17,6 @@
 //   UI層でユーザーフレンドリーなメッセージを表示できるようにする。
 // =============================================================================
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -331,21 +330,7 @@ class BackendApiService {
     }
   }
 
-  /// review_queueから復習対象の問題数を取得
-  Future<int> getReviewCount() async {
-    final user = _auth.currentUser;
-    if (user == null) return 0;
 
-    final snapshot = await FirebaseFirestore.instance
-        .collection('review_queue')
-        .where('uid', isEqualTo: user.uid)
-        .orderBy('created_at', descending: true)
-        .limit(1)
-        .get();
-
-    if (snapshot.docs.isEmpty) return 0;
-    return snapshot.docs.first.data()['question_count'] as int? ?? 0;
-  }
 
   /// Dispose resources
   void dispose() {

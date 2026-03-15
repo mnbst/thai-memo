@@ -6,10 +6,15 @@ from firebase_functions import https_fn  # type: ignore[attr-defined]
 
 try:
     from .runtime import initialize_firebase_app
-    from .sentence_service import generate_sentence, select_uvm_target_words
+    from .sentence_service import (
+        generate_sentence,
+        select_uvm_target_words,
+    )
+    from .uvm import get_exposed_words, get_sentence_words, register_exposure
 except ImportError:
     from runtime import initialize_firebase_app
     from sentence_service import generate_sentence, select_uvm_target_words
+    from uvm import get_exposed_words, get_sentence_words, register_exposure
 
 initialize_firebase_app()
 
@@ -62,7 +67,10 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             except Exception as exc:
                 print(f"UVM word selection failed, falling back to standard: {exc}")
 
-        sentence = generate_sentence(params, is_premium, target_words=target_words)
+        estimated_vocab = user_data.get("estimated_vocab", 0)
+        sentence = generate_sentence(
+            params, is_premium, target_words=target_words, estimated_vocab=estimated_vocab
+        )
 
         processing_time = int((time.time() - start_time) * 1000)
         log_data["success"] = True
@@ -71,15 +79,36 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         response["success"] = True
         response["data"] = sentence
 
+        if target_words:
+            exposed_words = get_exposed_words(sentence, target_words)
+            log_data["uvmMatchedWords"] = len(exposed_words)
+            if exposed_words:
+                register_exposure(
+                    db,
+                    req.auth.uid,  # type: ignore[union-attr]
+                    exposed_words,
+                    create_new=True,
+                )
+            # key_word 以外の既存UVM単語も露出更新
+            all_words = get_sentence_words(sentence)
+            other_words = [w for w in all_words if w not in set(target_words)]
+            if other_words:
+                register_exposure(
+                    db,
+                    req.auth.uid,  # type: ignore[union-attr]
+                    other_words,
+                )
+
         try:
-            db.collection("users").document(req.auth.uid).collection("sentences").add(
-                {
+            sentence_data = {
                     "thai_text": sentence["thai_text"],
                     "pronunciation": sentence["pronunciation"],
                     "japanese_translation": sentence["japanese_translation"],
                     "created_at": firestore.firestore.SERVER_TIMESTAMP,
                 }
-            )
+            if target_words:
+                sentence_data["key_word"] = target_words[0]
+            db.collection("users").document(req.auth.uid).collection("sentences").add(sentence_data)
             user_ref.set(
                 {"remaining_sentences": remaining - 1},
                 merge=True,

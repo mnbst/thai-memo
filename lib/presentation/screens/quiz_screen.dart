@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
 import '../providers/quiz_provider.dart';
+import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
@@ -136,9 +137,25 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
             ),
+            const SizedBox(height: 12),
+            _buildRemainingQuizzes(context),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRemainingQuizzes(BuildContext context) {
+    final remaining = ref.watch(remainingQuizzesProvider);
+    return remaining.when(
+      data: (count) => Text(
+        '残り $count 回',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+      ),
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -180,12 +197,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center),
             const SizedBox(height: 24),
-            if (isQuotaError && !ref.watch(isPremiumProvider)) ...[
-              FilledButton.icon(
-                onPressed: () => PaywallBottomSheet.show(context),
-                icon: const Icon(Icons.star),
-                label: const Text('プレミアムにアップグレード'),
-              ),
+            if (isQuotaError) ...[
+              if (!ref.watch(isPremiumProvider))
+                FilledButton.icon(
+                  onPressed: () => PaywallBottomSheet.show(context),
+                  icon: const Icon(Icons.star),
+                  label: const Text('プレミアムにアップグレード'),
+                ),
             ] else ...[
               FilledButton.icon(
                 onPressed: () {
@@ -381,17 +399,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             );
           }),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () {
-              ref.read(quizControllerProvider.notifier).generateAndStartQuiz();
-            },
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('新しいクイズ'),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-          ),
-          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () {
               ref.read(quizControllerProvider.notifier).retryQuiz();
@@ -402,6 +409,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
           ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () {
+              ref.read(quizControllerProvider.notifier).generateAndStartQuiz();
+            },
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('新しいクイズ'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildRemainingQuizzes(context),
         ],
       ),
     );
