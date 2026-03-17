@@ -143,6 +143,13 @@ class QuizController extends StateNotifier<QuizState> {
 
   /// クイズデータを読み込み（SharedPreferencesから復元 or Pending表示）
   Future<void> loadQuiz() async {
+    // クイズ進行中・結果表示中はリロードしない
+    if (state is QuizAnswering ||
+        state is QuizShowResult ||
+        state is QuizGenerating ||
+        state is QuizSummary) {
+      return;
+    }
     state = const QuizLoading();
 
     try {
@@ -312,6 +319,14 @@ class QuizController extends StateNotifier<QuizState> {
     );
     await _db.insertQuizResult(result.toDatabase());
 
+    // UVM更新: 1問ごとにfire-and-forgetで送信
+    final word = question.correctAnswer;
+    if (word.isNotEmpty) {
+      _apiService.updateUvm(results: [
+        {'word': word, 'is_correct': isCorrect},
+      ]);
+    }
+
     state = QuizShowResult(
       s.questions,
       s.index,
@@ -356,8 +371,6 @@ class QuizController extends StateNotifier<QuizState> {
       await prefs.setString(_quizAnswersKey, jsonEncode(s.answers));
       await prefs.setString(_quizSelectedIndicesKey, jsonEncode(s.selectedIndices));
 
-      // UVM更新: 単語レベルの正誤結果を送信（fire-and-forget）
-      _sendUvmUpdate(s.questions, s.answers);
     } else {
       state = QuizAnswering(s.questions, nextIndex, s.answers, s.selectedIndices);
     }
@@ -368,20 +381,6 @@ class QuizController extends StateNotifier<QuizState> {
     if (state is! QuizSummary) return;
     final questions = (state as QuizSummary).questions;
     state = QuizAnswering(questions, 0, []);
-  }
-
-  /// UVM更新をfire-and-forgetで送信
-  void _sendUvmUpdate(List<QuizQuestion> questions, List<bool> answers) {
-    final results = <Map<String, dynamic>>[];
-    for (var i = 0; i < questions.length && i < answers.length; i++) {
-      final word = questions[i].correctAnswer;
-      if (word.isNotEmpty) {
-        results.add({'word': word, 'is_correct': answers[i]});
-      }
-    }
-    if (results.isNotEmpty) {
-      _apiService.updateUvm(results: results);
-    }
   }
 
   String _todayString() {

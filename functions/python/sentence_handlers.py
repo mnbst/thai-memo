@@ -4,13 +4,17 @@ from datetime import datetime, timezone
 
 from firebase_admin import firestore
 from firebase_functions import https_fn  # type: ignore[attr-defined]
+from google.cloud.firestore_v1.client import Client as FirestoreClient
+from google.cloud.firestore_v1 import transactional
 
 try:
     from .constants import FREE_TIER_MAX_VOCAB
     from .runtime import initialize_firebase_app
     from .sentence_service import (
         generate_sentence,
+        generate_sentences_batch,
         get_freq_rank,
+        require_target_words,
         select_uvm_target_words,
     )
     from .uvm import (
@@ -24,7 +28,9 @@ except ImportError:
     from runtime import initialize_firebase_app
     from sentence_service import (
         generate_sentence,
+        generate_sentences_batch,
         get_freq_rank,
+        require_target_words,
         select_uvm_target_words,
     )
     from uvm import (
@@ -35,6 +41,98 @@ except ImportError:
     )
 
 initialize_firebase_app()
+
+
+def _get_capped_estimated_vocab(user_data: dict, is_premium: bool) -> int:
+    estimated_vocab = user_data.get("estimated_vocab", 0)
+    if not is_premium:
+        estimated_vocab = min(estimated_vocab, FREE_TIER_MAX_VOCAB)
+    return estimated_vocab
+
+
+def _select_target_words_with_topic(
+    db: FirestoreClient,
+    uid: str,
+    params: dict,
+    *,
+    is_premium: bool,
+    estimated_vocab: int,
+    count: int = 1,
+) -> tuple[list[str], str]:
+    max_vocab = None if is_premium else FREE_TIER_MAX_VOCAB
+    return require_target_words(
+        select_uvm_target_words(
+            db,
+            uid,
+            params,
+            max_vocab=max_vocab,
+            count=count,
+            is_premium=is_premium,
+            estimated_vocab=estimated_vocab,
+        )
+    )
+
+
+def _register_sentence_exposure(
+    db: FirestoreClient,
+    uid: str,
+    sentence: dict,
+    target_words: list[str],
+) -> int:
+    all_words = get_sentence_words(sentence)
+    exposed_words = get_exposed_words(sentence, target_words)
+    if exposed_words:
+        register_exposure(
+            db,
+            uid,
+            exposed_words,
+            create_new=True,
+        )
+
+    other_words = [w for w in all_words if w not in set(target_words)]
+    if other_words:
+        register_exposure(
+            db,
+            uid,
+            other_words,
+        )
+
+    return len(exposed_words)
+
+
+def _build_sentence_data(sentence: dict, key_word: str) -> dict:
+    return {
+        "thai_text": sentence["thai_text"],
+        "pronunciation": sentence.get("pronunciation", ""),
+        "japanese_translation": sentence["japanese_translation"],
+        "created_at": firestore.firestore.SERVER_TIMESTAMP,
+        "key_word": key_word,
+    }
+
+
+@transactional
+def _commit_sentences_transaction(
+    transaction,
+    user_ref,
+    sentence_writes: list[tuple],
+    decrement_count: int,
+) -> None:
+    user_snapshot = user_ref.get(transaction=transaction)
+    user_data = (user_snapshot.to_dict() or {}) if user_snapshot.exists else {}
+    remaining = user_data.get("remaining_sentences", 0)
+    if remaining < decrement_count:
+        raise RuntimeError("QUOTA_EXCEEDED")
+
+    for sentence_ref, sentence_data in sentence_writes:
+        transaction.set(sentence_ref, sentence_data)
+
+    transaction.update(
+        user_ref,
+        {
+            "remaining_sentences": firestore.firestore.Increment(-decrement_count),
+            "daily_sentence_generated": True,
+        },
+    )
 
 
 @https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=120)
@@ -58,10 +156,12 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             }
             return response
 
+        assert req.auth.uid is not None
+        uid: str = req.auth.uid
         print(f"Request started: {log_data}")
 
         db = firestore.client()
-        user_ref = db.collection("users").document(req.auth.uid)  # type: ignore[union-attr]
+        user_ref = db.collection("users").document(uid)
         user_doc = user_ref.get()  # type: ignore[union-attr]
         user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}  # type: ignore[union-attr]
 
@@ -77,18 +177,18 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             return response
 
         params = req.data or {}
-        target_words: list[str] | None = None
-        try:
-            target_words = select_uvm_target_words(
-                db, req.auth.uid, params, max_vocab=None if is_premium else FREE_TIER_MAX_VOCAB,  # type: ignore[union-attr]
-            )
-            log_data["uvmWords"] = len(target_words) if target_words else 0
-        except Exception as exc:
-            print(f"UVM word selection failed, falling back to standard: {exc}")
+        estimated_vocab = _get_capped_estimated_vocab(user_data, is_premium)
+        target_words, chosen_topic = _select_target_words_with_topic(
+            db,
+            uid,
+            params,
+            is_premium=is_premium,
+            estimated_vocab=estimated_vocab,
+        )
+        params["topic"] = chosen_topic
+        log_data["uvmWords"] = len(target_words)
+        log_data["chosenTopic"] = chosen_topic
 
-        estimated_vocab = user_data.get("estimated_vocab", 0)
-        if not is_premium:
-            estimated_vocab = min(estimated_vocab, FREE_TIER_MAX_VOCAB)
         sentence = generate_sentence(
             params,
             is_premium,
@@ -100,64 +200,38 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         log_data["success"] = True
         log_data["processingTimeMs"] = processing_time
 
+        try:
+            sentence_data = _build_sentence_data(sentence, target_words[0])
+            sentence_ref = (
+                db.collection("users").document(uid).collection("sentences").document()
+            )
+            transaction = db.transaction()
+            _commit_sentences_transaction(
+                transaction,
+                user_ref,
+                [(sentence_ref, sentence_data)],
+                1,
+            )
+        except Exception as exc:
+            print(f"Failed to save sentence to Firestore: {exc}")
+            raise
+
         response["success"] = True
         response["data"] = sentence
 
         # UVM 露出登録（free/premium 共通）
-        all_words = get_sentence_words(sentence)
-        if target_words:
-            exposed_words = get_exposed_words(sentence, target_words)
-            log_data["uvmMatchedWords"] = len(exposed_words)
-            if exposed_words:
-                register_exposure(
-                    db,
-                    req.auth.uid,  # type: ignore[union-attr]
-                    exposed_words,
-                    create_new=True,
-                )
-            # key_word 以外の既存UVM単語も露出更新
-            other_words = [w for w in all_words if w not in set(target_words)]
-            if other_words:
-                register_exposure(
-                    db,
-                    req.auth.uid,  # type: ignore[union-attr]
-                    other_words,
-                )
-        else:
-            # target_words なしの場合も全単語の露出を登録
-            if all_words:
-                register_exposure(
-                    db,
-                    req.auth.uid,  # type: ignore[union-attr]
-                    all_words,
-                    create_new=True,
-                )
+        log_data["uvmMatchedWords"] = _register_sentence_exposure(
+            db,
+            uid,
+            sentence,
+            target_words,
+        )
         # vocab_count / estimated_vocab を同期
         try:
             freq_rank = get_freq_rank()
-            sync_vocab_count(db, req.auth.uid, freq_rank)  # type: ignore[union-attr]
+            sync_vocab_count(db, uid, freq_rank)
         except Exception as exc:
             print(f"sync_vocab_count failed: {exc}")
-
-        try:
-            sentence_data = {
-                "thai_text": sentence["thai_text"],
-                "pronunciation": sentence["pronunciation"],
-                "japanese_translation": sentence["japanese_translation"],
-                "created_at": firestore.firestore.SERVER_TIMESTAMP,
-            }
-            if target_words:
-                sentence_data["key_word"] = target_words[0]
-            elif all_words:
-                sentence_data["key_word"] = random.choice(all_words)
-            db.collection("users").document(req.auth.uid).collection("sentences").add(
-                sentence_data
-            )
-            user_ref.update(
-                {"remaining_sentences": firestore.firestore.Increment(-1)},
-            )
-        except Exception as exc:
-            print(f"Failed to save sentence to Firestore: {exc}")
 
         print(f"Request completed successfully: {log_data}")
         return response
@@ -169,7 +243,12 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         error_msg = str(exc)
         log_data["errorMessage"] = error_msg
 
-        if "SECRET_MANAGER_ERROR" in error_msg:
+        if "QUOTA_EXCEEDED" in error_msg:
+            response["error"] = {
+                "code": "QUOTA_EXCEEDED",
+                "message": "本日の例文生成上限に達しました",
+            }
+        elif "SECRET_MANAGER_ERROR" in error_msg:
             response["error"] = {
                 "code": "INTERNAL",
                 "message": "Failed to retrieve API configuration",
@@ -186,4 +265,146 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             }
 
         print(f"Request failed: {log_data}")
+        return response
+
+
+@https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=300)
+def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
+    """残りクォータ分の例文を一括並列生成する。"""
+    start_time = time.time()
+    response: dict = {"success": False}
+    log_data = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "userId": req.auth.uid if req.auth else "anonymous",
+    }
+
+    try:
+        if not req.auth:
+            response["error"] = {
+                "code": "UNAUTHENTICATED",
+                "message": "User must be authenticated",
+            }
+            return response
+
+        assert req.auth.uid is not None
+        uid: str = req.auth.uid
+        db = firestore.client()
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()  # type: ignore[union-attr]
+        user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}  # type: ignore[union-attr]
+
+        tier = user_data.get("tier", "free")
+        is_premium = tier == "premium"
+
+        remaining = user_data.get("remaining_sentences", 0)
+        if remaining <= 0:
+            response["error"] = {
+                "code": "QUOTA_EXCEEDED",
+                "message": "本日の例文生成上限に達しました",
+            }
+            return response
+
+        count = remaining
+        estimated_vocab = _get_capped_estimated_vocab(user_data, is_premium)
+        log_data["batchCount"] = count
+
+        # 表示件数に応じて必要数ぶんの key_word を一括選定し、表示順はシャッフルする
+        selected_words, chosen_topic = _select_target_words_with_topic(
+            db,
+            uid,
+            {},
+            is_premium=is_premium,
+            estimated_vocab=estimated_vocab,
+            count=count,
+        )
+        random.shuffle(selected_words)
+        all_target_words = [[word] for word in selected_words]
+        all_topics = [chosen_topic] * len(all_target_words)
+        count = len(all_target_words)
+        log_data["uvmWords"] = sum(len(tw) for tw in all_target_words)
+        log_data["chosenTopic"] = chosen_topic
+
+        # 並列生成
+        sentences = generate_sentences_batch(
+            count,
+            is_premium=is_premium,
+            all_target_words=all_target_words,
+            all_topics=all_topics,
+            estimated_vocab=estimated_vocab,
+        )
+
+        generated_count = len(sentences)
+        log_data["generatedCount"] = generated_count
+
+        if generated_count == 0:
+            response["error"] = {
+                "code": "API_ERROR",
+                "message": "Failed to generate sentences",
+            }
+            return response
+
+        sentence_writes: list[tuple] = []
+        for i, sentence in enumerate(sentences):
+            tw = all_target_words[i]
+            sentence_data = _build_sentence_data(sentence, tw[0])
+            sentence_ref = (
+                db.collection("users").document(uid).collection("sentences").document()
+            )
+            sentence_writes.append((sentence_ref, sentence_data))
+
+        transaction = db.transaction()
+        _commit_sentences_transaction(
+            transaction,
+            user_ref,
+            sentence_writes,
+            generated_count,
+        )
+
+        # UVM 露出登録
+        for i, sentence in enumerate(sentences):
+            tw = all_target_words[i]
+            _register_sentence_exposure(db, uid, sentence, tw)
+
+        # vocab_count 同期
+        try:
+            freq_rank = get_freq_rank()
+            sync_vocab_count(db, uid, freq_rank)
+        except Exception as exc:
+            print(f"sync_vocab_count failed: {exc}")
+
+        processing_time = int((time.time() - start_time) * 1000)
+        log_data["processingTimeMs"] = processing_time
+        print(f"Batch generation completed: {log_data}")
+
+        response["success"] = True
+        response["data"] = {"sentences": sentences, "generated_count": generated_count}
+        return response
+
+    except Exception as exc:
+        processing_time = int((time.time() - start_time) * 1000)
+        log_data["processingTimeMs"] = processing_time
+        log_data["errorMessage"] = str(exc)
+        print(f"Batch generation failed: {log_data}")
+
+        error_msg = str(exc)
+        if "QUOTA_EXCEEDED" in error_msg:
+            response["error"] = {
+                "code": "QUOTA_EXCEEDED",
+                "message": "本日の例文生成上限に達しました",
+            }
+        elif "SECRET_MANAGER_ERROR" in error_msg:
+            response["error"] = {
+                "code": "INTERNAL",
+                "message": "Failed to retrieve API configuration",
+            }
+        elif "GEMINI_API_ERROR" in error_msg:
+            response["error"] = {
+                "code": "API_ERROR",
+                "message": "Failed to generate sentences",
+            }
+        else:
+            response["error"] = {
+                "code": "UNKNOWN",
+                "message": "An unexpected error occurred",
+            }
         return response

@@ -5,11 +5,10 @@ Firestore の users/{uid}/uvm/{word} コレクションに対して読み書き�
 
 【Firestore ドキュメント構造】
   users/{uid}/uvm/{word}:
-    - p: float           — P(know) 確率 (0.01〜0.99)
-    - exposures: int     — この単語を見た総回数
-    - correct: int       — 正解した回数
-    - last_seen: float   — 最終閲覧 Unix timestamp
-    - last_result: bool  — 直近の正誤
+    - p: float              — P(know) 確率 (0.01〜0.99)
+    - quiz_attempts: int    — クイズ回答回数（α減衰に使用）
+    - last_seen: float      — 最終閲覧 Unix timestamp
+    - last_result: bool     — 直近の正誤
 
 【主な機能】
   - トピック×語彙レベルに基づくセッション単語の選定 (get_session_words)
@@ -18,6 +17,7 @@ Firestore の users/{uid}/uvm/{word} コレクションに対して読み書き�
   - 推定語彙数の算出 (estimate_vocab, sync_vocab_count)
 """
 
+import math
 import random
 import time
 from collections import Counter
@@ -25,43 +25,81 @@ from typing import Any
 
 from google.cloud.firestore_v1.client import Client as FirestoreClient
 
-from embeddings import get_topic_similar_words
+from embeddings import find_best_topic
 
 # ---------------------------------------------------------------------------
 # 定数
 # ---------------------------------------------------------------------------
-ALPHA_CORRECT = 0.001  # クイズ正解時の P(know) 上昇率
-ALPHA_INCORRECT = 0.0005  # クイズ不正解時の P(know) 下降率
+ALPHA_CORRECT_MAX = 0.35  # 正解時 α の初期値（quiz_attempts=0 時）
+ALPHA_CORRECT_MIN = 0.02  # 正解時 α の下限
+ALPHA_INCORRECT_MAX = 0.18  # 不正解時 α の初期値
+ALPHA_INCORRECT_MIN = 0.02  # 不正解時 α の下限
+ALPHA_DECAY_K = 0.08  # α 減衰係数
 P_MIN = 0.0  # P の下限
 P_MAX = 0.99  # P の上限
-NEW_WORD_P = 0.0001  # 新規単語の初期 P 値
-ALPHA_EXPOSURE = 0.0001  # 例文露出時の P 微増率
+NEW_WORD_P = 0.02  # 新規単語の初期 P 値
+ALPHA_EXPOSURE = 0.015  # 例文露出時の P 微増率
+UNKNOWN_WORD_P = 0.3  # UVM 未登録語の prior P
 
 # get_session_words 用: estimated_vocab 基準の頻度帯フィルタ幅
-FREQ_BAND_HALF = 50  # 初期帯域: estimated_vocab ± 50
-FREQ_BAND_FALLBACK_HALF = 100  # 候補不足時: estimated_vocab ± 100
+FREQ_BAND_HALF = 10  # 帯域: estimated_vocab ± 10
+MAX_TOPIC_RETRY = 3  # 候補不足時のトピック再試行回数
+
+
+def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 50) -> float:
+    """rank 周辺の平均習熟度を計算する（語彙境界推定用）。
+
+    window = ±50 の範囲で P の平均を取る。
+    UVM 未登録語には UNKNOWN_WORD_P を使用する。
+    """
+    total = 0.0
+    for r in range(center - window, center + window + 1):
+        total += words_by_rank.get(r, UNKNOWN_WORD_P)
+    return total / (2 * window + 1)
 
 
 def estimate_vocab(docs: list, freq_rank: dict[str, int]) -> int:
-    """UVM ドキュメント群から推定習得語数を算出する。
+    """語彙境界（P ≈ 0.5 となる rank）を推定する。
 
-    全単語の freq_rank を P(know) で加重平均して返す。
-    p が高い単語の rank ほど強く反映される。
+    UVM ドキュメント群を rank でインデックスし、
+    moving_avg が 0.5 を下回る最初の rank を返す。
+    探索範囲は加重平均 rank ± 200。
+
+    データがスパース（moving_avg が機能しにくい）場合は、
+    P > 0.5 の語の最大 rank をフォールバックとして使う。
     """
+    # docs から {rank: p} のマップを構築
+    words_by_rank: dict[int, float] = {}
     weighted_ranks: list[tuple[float, int]] = []
     for doc in docs:
         p = (doc.to_dict() or {}).get("p", NEW_WORD_P)
         rank = freq_rank.get(doc.id)
         if rank is not None:
+            words_by_rank[rank] = p
             weighted_ranks.append((p, rank))
 
     if not weighted_ranks:
         return 0
 
+    # スパースデータ用フォールバック: P > 0.5 の語の最大 rank
+    known_max_rank = max(
+        (rank for p, rank in weighted_ranks if p > 0.5),
+        default=0,
+    )
+
+    # 探索中心: 加重平均 rank
     total_p = sum(p for p, _ in weighted_ranks)
     if total_p <= 0:
-        return 0
-    return int(sum(p * rank for p, rank in weighted_ranks) / total_p)
+        return known_max_rank
+    estimate = int(sum(p * rank for p, rank in weighted_ranks) / total_p)
+
+    # estimate ± 200 の範囲で P < 0.5 となる rank を探索
+    for r in range(estimate - 200, estimate + 201):
+        avg = moving_avg(words_by_rank, r)
+        if avg < 0.5:
+            return max(known_max_rank, r, 0)
+
+    return max(known_max_rank, estimate, 0)
 
 
 def sync_vocab_count(db: FirestoreClient, uid: str, freq_rank: dict[str, int]) -> None:
@@ -76,19 +114,28 @@ def sync_vocab_count(db: FirestoreClient, uid: str, freq_rank: dict[str, int]) -
     )
 
 
-def update_p(p: float, correct: bool) -> float:
+def update_p(p: float, correct: bool, quiz_attempts: int = 0) -> float:
     """P(know) を正誤に基づいて更新する。
 
     【更新式】
-      正解時: p_new = p + α_correct(1 - p)  — 1.0 に近づくほど変化量が小さくなる
-      不正解: p_new = p - α_incorrect * p   — 0.0 に近づくほど変化量が小さくなる
+      正解時: α = ALPHA_CORRECT_MIN + (ALPHA_CORRECT_MAX - ALPHA_CORRECT_MIN) * exp(-k * quiz_attempts)
+              p_new = p + α(1 - p)
+      不正解: α = ALPHA_INCORRECT_MIN + (ALPHA_INCORRECT_MAX - ALPHA_INCORRECT_MIN) * exp(-k * quiz_attempts)
+              p_new = p - α * p
 
+    quiz_attempts が多いほど α が小さくなり、P 変化量が小さくなる（収束挙動）。
     結果は [P_MIN, P_MAX] にクリッピングして返す。
     """
     if correct:
-        p = p + ALPHA_CORRECT * (1 - p)
+        alpha = ALPHA_CORRECT_MIN + (ALPHA_CORRECT_MAX - ALPHA_CORRECT_MIN) * math.exp(
+            -ALPHA_DECAY_K * quiz_attempts
+        )
+        p = p + alpha * (1 - p)
     else:
-        p = p - ALPHA_INCORRECT * p
+        alpha = ALPHA_INCORRECT_MIN + (
+            ALPHA_INCORRECT_MAX - ALPHA_INCORRECT_MIN
+        ) * math.exp(-ALPHA_DECAY_K * quiz_attempts)
+        p = p - alpha * p
     return max(P_MIN, min(P_MAX, p))
 
 
@@ -98,73 +145,97 @@ def get_session_words(
     freq_rank: dict[str, int],
     topic: str,
     count: int = 1,
-    api_key: str | None = None,
     max_vocab: int | None = None,
-) -> list[str]:
-    """トピック×語彙レベルに基づいてセッション単語を選定する。
+    topics_pool: list[str] | None = None,
+    estimated_vocab: int | None = None,
+) -> tuple[list[str], str]:
+    """key_word先行方式でセッション単語を選定する。
 
     【選定ロジック】
-    1. トピックのembeddingで語彙10000語との類似度を計算 → 上位500語
-    2. ユーザーの estimated_vocab を Firestore から取得
-    3. 500語のうち freq_rank が estimated_vocab 付近（少し難しい帯域）の単語をフィルタ
-    4. フィルタ結果からランダムに count 語選出
+    1. freq_rank から estimated_vocab ± 10 の帯域内の単語を抽出
+    2. 帯域内候補を priority 順に並べ、先頭から count 語を選出
+    3. 選出した key_word の embedding と topic_embeddings のコサイン類似度で最適トピックを決定
+    4. トピック指定がある場合はそのまま使用
 
     Args:
         db: Firestore クライアント
         uid: ユーザー UID
         freq_rank: {word: rank} — 頻出順位辞書
-        topic: トピック文字列
+        topic: トピック文字列（空ならembeddingで自動選択）
         count: 選定する単語数（デフォルト 1）
-        api_key: カスタムトピック時の Gemini API キー
         max_vocab: 語彙帯域の上限（free ティアでは 300）。None なら制限なし。
+        topics_pool: トピック候補リスト（embedding でのトピック選択に使用）。
+        estimated_vocab: 呼び出し元で取得済みの推定語彙数。省略時は Firestore から読む。
 
     Returns:
-        選定された単語のリスト
+        (選定された単語のリスト, 使用されたトピック)
     """
-    # 1. トピック関連上位500語を取得
-    similar_words = get_topic_similar_words(topic, top_k=500, api_key=api_key)
-
-    # max_vocab 制限がある場合、候補をその範囲内に絞る
-    if max_vocab is not None:
-        similar_words = [w for w in similar_words if w["rank"] <= max_vocab]
-
-    # 2. ユーザーの推定語彙数を取得
-    user_doc = db.collection("users").document(uid).get()
-    user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}  # type: ignore
-    estimated_vocab = user_data.get("estimated_vocab", 0)
-    if max_vocab is not None:
+    # ユーザーの推定語彙数を取得
+    if estimated_vocab is None:
+        user_doc = db.collection("users").document(uid).get()
+        user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}  # type: ignore
+        estimated_vocab = user_data.get("estimated_vocab", 0)
+    if max_vocab is not None and isinstance(estimated_vocab, int):
         estimated_vocab = min(estimated_vocab, max_vocab)
 
-    # 3. estimated_vocab ± FREQ_BAND_HALF の帯域でフィルタ
-    band_low = max(0, estimated_vocab - FREQ_BAND_HALF)
-    band_high = estimated_vocab + FREQ_BAND_HALF
+    # 帯域を計算
+    band_low = max(0, estimated_vocab - FREQ_BAND_HALF)  # type: ignore
+    band_high = estimated_vocab + FREQ_BAND_HALF  # type: ignore
     if max_vocab is not None:
         band_high = min(band_high, max_vocab)
-    candidates = [w for w in similar_words if band_low <= w["rank"] <= band_high]
 
-    # 候補不足時は帯域を広げる
-    if len(candidates) < count:
-        band_low = max(0, estimated_vocab - FREQ_BAND_FALLBACK_HALF)
-        band_high = estimated_vocab + FREQ_BAND_FALLBACK_HALF
-        if max_vocab is not None:
-            band_high = min(band_high, max_vocab)
-        candidates = [w for w in similar_words if band_low <= w["rank"] <= band_high]
+    # --- Step 1: 帯域内の単語を抽出 ---
+    band_words = [
+        {"word": word, "rank": rank}
+        for word, rank in freq_rank.items()
+        if band_low <= rank <= band_high
+    ]
 
-    # それでも足りなければ類似度上位からそのまま使う
-    if len(candidates) < count:
-        candidates = similar_words
+    if not band_words:
+        # 帯域内に候補がない場合は空を返す
+        print(
+            f"get_session_words: no band_words, estimated_vocab={estimated_vocab}, "
+            f"band=[{band_low}, {band_high}]"
+        )
+        return [], topic or ""
 
-    # 4. ランダムに count 語選出
-    selected = random.sample(candidates, min(count, len(candidates)))
+    # --- Step 2: UVM の P 値を取得し、priority 順に count 語を選出 ---
+    band_word_set = {w["word"] for w in band_words}
+    uvm_ref = db.collection("users").document(uid).collection("uvm")
+    refs = [uvm_ref.document(w) for w in band_word_set]
+    p_map: dict[str, float] = {}
+    if refs:
+        snapshots = db.getAll(*refs) if hasattr(db, 'getAll') else [r.get() for r in refs]  # type: ignore
+        for snap in snapshots:
+            if snap.exists:
+                p_val = (snap.to_dict() or {}).get("p")
+                if isinstance(p_val, (int, float)):
+                    p_map[snap.id] = float(p_val)
+
+    def priority_key(candidate: dict[str, Any]) -> tuple[float, int, float]:
+        effective_p = p_map.get(candidate["word"], UNKNOWN_WORD_P)
+        distance = abs(candidate["rank"] - estimated_vocab)
+        return (effective_p, distance, random.random())
+
+    band_words.sort(key=priority_key)
+    selected = band_words[:count]
     words = [w["word"] for w in selected]
 
+    # --- Step 3: key_word の embedding からトピックを選択 ---
+    if topic:
+        chosen_topic = topic
+    else:
+        # 最初の key_word で最適トピックを決定
+        chosen_topic = find_best_topic(words[0], topics_pool) or ""
+        if not chosen_topic and topics_pool:
+            chosen_topic = random.choice(topics_pool)
+
     print(
-        f"get_session_words: topic={topic}, estimated_vocab={estimated_vocab}, "
-        f"similar_words={len(similar_words)}, candidates={len(candidates)}, "
-        f"selected={words}"
+        f"get_session_words: topic={chosen_topic}, estimated_vocab={estimated_vocab}, "
+        f"band_words={len(band_words)}, selected={words}"
     )
 
-    return words
+    return words, chosen_topic
 
 
 def get_sentence_words(sentence: dict[str, Any]) -> list[str]:
@@ -217,12 +288,13 @@ def register_exposure(
         if doc.exists:
             data = doc.to_dict() or {}
             old_p = data.get("p", NEW_WORD_P)
-            exposure_bonus = ALPHA_EXPOSURE * count
+            new_p = old_p
+            for _ in range(count):
+                new_p = new_p + ALPHA_EXPOSURE * (1 - new_p)
             batch.update(
                 doc_ref,
                 {
-                    "p": max(P_MIN, min(P_MAX, old_p + exposure_bonus)),
-                    "exposures": data.get("exposures", 0) + count,
+                    "p": max(P_MIN, min(P_MAX, new_p)),
                     "last_seen": now,
                 },
             )
@@ -233,8 +305,7 @@ def register_exposure(
                 {
                     "word": word,
                     "p": NEW_WORD_P,
-                    "exposures": count,
-                    "correct": 0,
+                    "quiz_attempts": 0,
                     "last_seen": now,
                     "last_result": None,
                 },
@@ -274,27 +345,26 @@ def batch_update_uvm(
             # --- 既存単語の更新 ---
             data = doc.to_dict() or {}
             old_p = data.get("p", NEW_WORD_P)
-            new_p = update_p(old_p, is_correct)
+            quiz_attempts = data.get("quiz_attempts", 0)
+            new_p = update_p(old_p, is_correct, quiz_attempts)
             batch.update(
                 doc_ref,
                 {
                     "p": new_p,
-                    "exposures": data.get("exposures", 0) + 1,
-                    "correct": data.get("correct", 0) + (1 if is_correct else 0),
+                    "quiz_attempts": quiz_attempts + 1,
                     "last_seen": now,
                     "last_result": is_correct,
                 },
             )
         else:
             # --- 新規単語の作成（初めて見た単語） ---
-            new_p = update_p(NEW_WORD_P, is_correct)
+            new_p = update_p(NEW_WORD_P, is_correct, 0)
             batch.set(
                 doc_ref,
                 {
                     "word": word,
                     "p": new_p,
-                    "exposures": 1,
-                    "correct": 1 if is_correct else 0,
+                    "quiz_attempts": 1,
                     "last_seen": now,
                     "last_result": is_correct,
                 },

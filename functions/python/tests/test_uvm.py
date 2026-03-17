@@ -1,9 +1,10 @@
 from pathlib import Path
 import sys
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from uvm import ALPHA_EXPOSURE, NEW_WORD_P, P_MAX, batch_update_uvm, get_exposed_words, register_exposure
+from uvm import ALPHA_EXPOSURE, NEW_WORD_P, P_MAX, batch_update_uvm, get_exposed_words, get_session_words, register_exposure, update_p
 
 
 class FakeDocSnapshot:
@@ -157,8 +158,7 @@ def test_register_exposure_adds_alpha_for_existing_single_occurrence() -> None:
                 "กิน": {
                     "word": "กิน",
                     "p": 0.6,
-                    "exposures": 2,
-                    "correct": 1,
+                    "quiz_attempts": 1,
                     "last_seen": 123.0,
                     "last_result": True,
                 }
@@ -169,8 +169,9 @@ def test_register_exposure_adds_alpha_for_existing_single_occurrence() -> None:
     register_exposure(db, "user-1", ["กิน"])
 
     doc = db.store["user-1"]["กิน"]
-    assert doc["p"] == 0.6 + ALPHA_EXPOSURE
-    assert doc["exposures"] == 3
+    # p = p + ALPHA_EXPOSURE * (1 - p)
+    assert doc["p"] == 0.6 + ALPHA_EXPOSURE * (1 - 0.6)
+    assert doc["last_seen"] > 123.0
 
 
 def test_register_exposure_skips_unknown_word() -> None:
@@ -188,8 +189,7 @@ def test_register_exposure_adds_alpha_for_duplicate_occurrences() -> None:
                 "กิน": {
                     "word": "กิน",
                     "p": 0.6,
-                    "exposures": 2,
-                    "correct": 1,
+                    "quiz_attempts": 1,
                     "last_seen": 123.0,
                     "last_result": True,
                 }
@@ -200,8 +200,11 @@ def test_register_exposure_adds_alpha_for_duplicate_occurrences() -> None:
     register_exposure(db, "user-1", ["กิน", "กิน"])
 
     doc = db.store["user-1"]["กิน"]
-    assert doc["p"] == 0.6 + ALPHA_EXPOSURE * 2
-    assert doc["exposures"] == 4
+    # p = p + ALPHA_EXPOSURE * (1 - p) を2回適用
+    p1 = 0.6 + ALPHA_EXPOSURE * (1 - 0.6)
+    expected_p = p1 + ALPHA_EXPOSURE * (1 - p1)
+    assert doc["p"] == expected_p
+    assert doc["last_seen"] > 123.0
 
 
 def test_register_exposure_skips_unknown_on_second_call() -> None:
@@ -213,6 +216,124 @@ def test_register_exposure_skips_unknown_on_second_call() -> None:
     assert "น้ำ" not in db.store.get("user-1", {})
 
 
+def test_update_p_alpha_decays_with_quiz_attempts() -> None:
+    """quiz_attempts が増えるほど P の変化量が小さくなる"""
+    base_p = 0.5
+
+    # 正解: quiz_attempts=0 vs 20
+    delta_first = update_p(base_p, True, 0) - base_p
+    delta_many = update_p(base_p, True, 20) - base_p
+    assert delta_first > delta_many > 0
+
+    # 不正解: quiz_attempts=0 vs 20
+    drop_first = base_p - update_p(base_p, False, 0)
+    drop_many = base_p - update_p(base_p, False, 20)
+    assert drop_first > drop_many > 0
+
+
+def test_get_session_words_excludes_out_of_band_candidates() -> None:
+    db = FakeDb(
+        {
+            "user-1": {
+                "in-band-low": {"p": 0.8},
+                "in-band-high": {"p": 0.9},
+                "out-band": {"p": 0.01},
+            }
+        }
+    )
+
+    words, chosen_topic = get_session_words(
+        db,
+        "user-1",
+        {
+            "in-band-low": 10,
+            "in-band-high": 20,
+            "out-band": 21,
+        },
+        topic="fixed-topic",
+        count=2,
+        estimated_vocab=10,
+    )
+
+    assert words == ["in-band-low", "in-band-high"]
+    assert chosen_topic == "fixed-topic"
+
+
+def test_get_session_words_prioritizes_lower_p_within_band() -> None:
+    db = FakeDb(
+        {
+            "user-1": {
+                "low-p": {"p": 0.1},
+                "high-p": {"p": 0.9},
+            }
+        }
+    )
+
+    words, _ = get_session_words(
+        db,
+        "user-1",
+        {
+            "low-p": 10,
+            "high-p": 11,
+        },
+        topic="fixed-topic",
+        count=2,
+        estimated_vocab=10,
+    )
+
+    assert words == ["low-p", "high-p"]
+
+
+def test_get_session_words_prioritizes_unknown_before_high_p_known_word() -> None:
+    db = FakeDb(
+        {
+            "user-1": {
+                "known": {"p": 0.8},
+            }
+        }
+    )
+
+    words, _ = get_session_words(
+        db,
+        "user-1",
+        {
+            "unknown": 10,
+            "known": 11,
+        },
+        topic="fixed-topic",
+        count=2,
+        estimated_vocab=10,
+    )
+
+    assert words == ["unknown", "known"]
+
+
+def test_get_session_words_uses_random_only_for_full_ties() -> None:
+    db = FakeDb(
+        {
+            "user-1": {
+                "left": {"p": 0.4},
+                "right": {"p": 0.4},
+            }
+        }
+    )
+
+    with patch("uvm.random.random", side_effect=[0.9, 0.1]):
+        words, _ = get_session_words(
+            db,
+            "user-1",
+            {
+                "left": 9,
+                "right": 11,
+            },
+            topic="fixed-topic",
+            count=2,
+            estimated_vocab=10,
+        )
+
+    assert words == ["right", "left"]
+
+
 def test_batch_update_uvm_syncs_counts_for_existing_word_updates() -> None:
     db = FakeDb(
         {
@@ -220,8 +341,7 @@ def test_batch_update_uvm_syncs_counts_for_existing_word_updates() -> None:
                 "กิน": {
                     "word": "กิน",
                     "p": 0.65,
-                    "exposures": 2,
-                    "correct": 1,
+                    "quiz_attempts": 1,
                     "last_seen": 123.0,
                     "last_result": True,
                 }
@@ -243,4 +363,5 @@ def test_batch_update_uvm_syncs_counts_for_existing_word_updates() -> None:
     )
 
     assert db.user_docs["user-1"]["vocab_count"] == 1
+    # 1語(rank=12, p>0.5)→ スパースフォールバックで known_max_rank=12
     assert db.user_docs["user-1"]["estimated_vocab"] == 12

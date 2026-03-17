@@ -17,7 +17,7 @@ from google.genai import types
 
 # ─── Gemini AI モデル設定 ───
 # 無料ティア用: 軽量・高速な lite モデル
-GEMINI_MODEL = "gemini-2.5-flash-lite"
+GEMINI_MODEL = "gemini-2.5-flash"
 # 有料ティア用: 高品質な標準モデル
 GEMINI_MODEL_PREMIUM = "gemini-2.5-pro"
 

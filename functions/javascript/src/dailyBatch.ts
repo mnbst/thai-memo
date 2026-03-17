@@ -64,6 +64,7 @@ async function resetQuota(
     {
       remaining_sentences: isPremium ? PREMIUM_DAILY_SENTENCES : FREE_DAILY_SENTENCES,
       remaining_quizzes: isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES,
+      daily_sentence_generated: false,
     },
     { merge: true }
   );

@@ -11,9 +11,13 @@ class FirebaseConfig {
   static const String verifySubscriptionFunctionName = 'verifySubscription';
   static const String subscriptionStatusFunctionName = 'subscriptionStatus';
   static const String updateUvmFunctionName = 'updateUvm';
+  static const String generateBatchSentencesFunctionName = 'generateBatchSentences';
 
   /// Timeout for Cloud Functions calls
   static const Duration functionTimeout = Duration(seconds: 45);
+
+  /// Timeout for batch generation (longer due to parallel processing)
+  static const Duration batchFunctionTimeout = Duration(seconds: 300);
 
   // AdMob test IDs
   static const String admobBannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111';

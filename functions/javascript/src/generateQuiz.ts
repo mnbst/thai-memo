@@ -36,19 +36,11 @@ const db = admin.firestore();
 
 /** 1回のクイズ生成で出題する最大問題数 */
 const MAX_QUESTIONS = 5;
+/** UVM 未登録語に使う既定の P 値。Python 側の UNKNOWN_WORD_P と揃える。 */
+const UNKNOWN_WORD_P = 0.3;
 
-/** free ティアで使用可能なデフォルト例文の key_word（頻度順位 300 位以内） */
-const FREE_KEY_WORDS = new Set([
-  'ทำ', 'คิด', 'เห็น', 'ช่วย', 'ชอบ',
-  'บ้าน', 'กิน', 'เพื่อน', 'ห้อง', 'เงิน',
-  'ครอบครัว', 'ซื้อ',
-]);
-
-/** free ティア用にデフォルト例文を語彙上限でフィルタする */
-function filterDefaultsForTier(sentences: DefaultSentence[], isPremium: boolean): DefaultSentence[] {
-  if (isPremium) return sentences;
-  return sentences.filter(s => FREE_KEY_WORDS.has(s.key_word));
-}
+/** estimated_vocab 基準の帯域フィルタ幅（Python 側の FREQ_BAND_HALF と同値） */
+const FREQ_BAND_HALF = 10;
 
 /**
  * SRS（Spaced Repetition System / 間隔反復）の復習間隔（日数）
@@ -59,10 +51,20 @@ function filterDefaultsForTier(sentences: DefaultSentence[], isPremium: boolean)
 const SRS_DAYS = [1, 3, 7, 14, 30];
 /** SRS 選出で確保する最大例文数 */
 const MAX_REVIEW_SENTENCES = 5;
-/** ①+②の後にユーザー例文として最低限確保したい例文数 */
-const MIN_USER_REVIEW_SENTENCES = 3;
-/** 各SRS間隔から選出する最大例文数 */
-const MAX_PER_INTERVAL = 1;
+
+async function consumeQuizQuota(userRef: FirebaseFirestore.DocumentReference): Promise<void> {
+  await db.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    const userData = userSnapshot.data() || {};
+    const remainingQuizzes = userData.remaining_quizzes ?? 0;
+
+    if (remainingQuizzes <= 0) {
+      throw new functions.https.HttpsError('resource-exhausted', '本日のクイズ生成上限に達しました');
+    }
+
+    transaction.set(userRef, { remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
+  });
+}
 
 /**
  * generateQuiz - クイズ生成（onCall、オンデマンド）
@@ -106,14 +108,15 @@ export const generateQuiz = functions.https.onCall(
     const isPremium = userData.tier === 'premium';
     const geminiModel = isPremium ? GEMINI_MODEL_PREMIUM : GEMINI_MODEL_FREE;
     const geminiService = new GeminiService(apiKey, geminiModel);
+    const estimatedVocab: number = userData.estimated_vocab ?? 0;
 
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
-    const selectedSentences = await selectSentencesBySRS(uid, nowJST(), isPremium);
+    const selectedSentences = await selectSentencesBySRS(uid, nowJST(), estimatedVocab);
 
     // ユーザー例文がない場合（初回登録直後など）→ デフォルト例文からクイズ生成
     if (selectedSentences.length === 0) {
-      const result = await generateFromDefaults(geminiService, uid, isPremium);
-      await userRef.set({ remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
+      const result = await generateFromDefaults(geminiService, uid, estimatedVocab);
+      await consumeQuizQuota(userRef);
       return result;
     }
 
@@ -146,14 +149,17 @@ export const generateQuiz = functions.https.onCall(
 
       // 5問未満ならデフォルト例文からGemini生成して補填
       if (questions.length < MAX_QUESTIONS) {
-        questions = await fillWithDefaults(geminiService, questions, uid, isPremium);
+        questions = await fillWithDefaults(geminiService, questions, uid, estimatedVocab);
       }
 
-      // クイズ生成残回数をデクリメント
-      await userRef.set({ remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
+      // クイズ生成残回数をアトミックにデクリメント
+      await consumeQuizQuota(userRef);
 
       return { questions: questions.slice(0, MAX_QUESTIONS) };
     } catch (error) {
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
       console.error('Failed to generate quiz:', error);
       throw new functions.https.HttpsError('internal', 'クイズの生成に失敗しました');
     }
@@ -161,7 +167,7 @@ export const generateQuiz = functions.https.onCall(
 );
 
 /**
- * generateFromDefaults - デフォルト例文（32件）から「UVM未登録 → 低P」順に5問を Gemini で生成
+ * generateFromDefaults - デフォルト例文から effective P の低い順に5問を Gemini で生成
  *
  * ユーザー例文がない場合（初回登録直後など）のフォールバック処理。
  *
@@ -169,35 +175,30 @@ export const generateQuiz = functions.https.onCall(
  * @param uid - ユーザーID（UVM P値取得用）
  * @returns クイズ問題の配列を含むオブジェクト
  */
-async function generateFromDefaults(geminiService: GeminiService, uid: string, isPremium: boolean): Promise<{ questions: QuizQuestion[] }> {
-  // デフォルト例文から「UVM未登録 → 低P」順に5問選出（freeは300語以内に制限）
-  const defaults = filterDefaultsForTier(DEFAULT_SENTENCES, isPremium);
-  const sorted = await sortDefaultsByPriority(uid, defaults);
-  const selected = sorted.slice(0, MAX_QUESTIONS);
+async function generateFromDefaults(geminiService: GeminiService, uid: string, estimatedVocab: number): Promise<{ questions: QuizQuestion[] }> {
+  // デフォルト例文から「帯域内 → effective P 昇順 → estimated_vocab 近傍」順に5問選出
+  const sorted = await sortDefaultsByPriority(uid, DEFAULT_SENTENCES, undefined, estimatedVocab);
+  const selected = shuffleTopCandidates(sorted, MAX_QUESTIONS);
 
   try {
-    const results = await Promise.all(
-      selected.map(async (s) => {
-        const q = await generateSingleQuiz(geminiService, {
-          thai_text: s.thai_text,
-          pronunciation: s.pronunciation,
-          japanese_translation: s.japanese_translation,
-          word_breakdown: [],
-          key_word: s.key_word,
-        });
-        if (!q) return null;
-        return {
-          ...q,
-          sentence_id: s.sentence_id || '',
-          srs_interval: 0,
-          japanese_translation: s.japanese_translation || '',
-          sentence_pronunciation: s.pronunciation || '',
-        } as QuizQuestion;
-      })
-    );
-    const questions = results.filter((q): q is QuizQuestion => q !== null);
-
-    return { questions };
+    return {
+      questions: await generateQuestionsFromSources(
+        geminiService,
+        selected.map((sentence) => ({
+          seed: {
+            thai_text: sentence.thai_text,
+            pronunciation: sentence.pronunciation,
+            japanese_translation: sentence.japanese_translation,
+            word_breakdown: [],
+            key_word: sentence.key_word,
+          },
+          sentenceId: sentence.sentence_id,
+          srsInterval: 0,
+          japaneseTranslation: sentence.japanese_translation,
+          sentencePronunciation: sentence.pronunciation,
+        }))
+      ),
+    };
   } catch (error) {
     console.error('Failed to generate default quiz:', error);
     throw new functions.https.HttpsError('internal', 'クイズの生成に失敗しました');
@@ -208,7 +209,7 @@ async function generateFromDefaults(geminiService: GeminiService, uid: string, i
  * fillWithDefaults - 5問未満の場合にデフォルト例文から Gemini 生成して補填
  *
  * SRS選出した例文からの生成で5問に満たなかった場合、
- * 既出の sentence_id を除外したうえでデフォルト例文から「UVM未登録 → 低P」順に選出し、
+ * 既出の sentence_id を除外したうえでデフォルト例文から effective P の低い順に選出し、
  * Gemini API で追加のクイズ問題を生成する。
  *
  * Gemini 生成が失敗した場合は既存の問題のみで返却する（部分的成功を許容）。
@@ -221,41 +222,36 @@ async function fillWithDefaults(
   geminiService: GeminiService,
   existing: QuizQuestion[],
   uid: string,
-  isPremium: boolean,
+  estimatedVocab: number,
 ): Promise<QuizQuestion[]> {
   const needed = MAX_QUESTIONS - existing.length;
   if (needed <= 0) return existing;
 
-  // 既出の sentence_id を除外してデフォルト例文から「UVM未登録 → 低P」順に候補を選出（freeは300語以内に制限）
+  // 既出の sentence_id を除外してデフォルト例文から「帯域内 → effective P 昇順 → estimated_vocab 近傍」順に候補を選出
   const usedIds = new Set(existing.map(q => q.sentence_id));
-  const defaults = filterDefaultsForTier(DEFAULT_SENTENCES, isPremium);
-  const available = defaults.filter(s => !usedIds.has(s.sentence_id));
-  const sorted = await sortDefaultsByPriority(uid, available);
-  const candidates = sorted.slice(0, needed);
+  const available = DEFAULT_SENTENCES.filter(s => !usedIds.has(s.sentence_id));
+  const sorted = await sortDefaultsByPriority(uid, available, undefined, estimatedVocab);
+  const candidates = shuffleTopCandidates(sorted, needed);
 
   if (candidates.length === 0) return existing;
 
   try {
-    const results = await Promise.all(
-      candidates.map(async (s) => {
-        const q = await generateSingleQuiz(geminiService, {
-          thai_text: s.thai_text,
-          pronunciation: s.pronunciation,
-          japanese_translation: s.japanese_translation,
+    const fillerQuestions = await generateQuestionsFromSources(
+      geminiService,
+      candidates.map((sentence) => ({
+        seed: {
+          thai_text: sentence.thai_text,
+          pronunciation: sentence.pronunciation,
+          japanese_translation: sentence.japanese_translation,
           word_breakdown: [],
-          key_word: s.key_word,
-        });
-        if (!q) return null;
-        return {
-          ...q,
-          sentence_id: s.sentence_id || '',
-          srs_interval: 0,
-          japanese_translation: s.japanese_translation || '',
-          sentence_pronunciation: s.pronunciation || '',
-        } as QuizQuestion;
-      })
+          key_word: sentence.key_word,
+        },
+        sentenceId: sentence.sentence_id,
+        srsInterval: 0,
+        japaneseTranslation: sentence.japanese_translation,
+        sentencePronunciation: sentence.pronunciation,
+      }))
     );
-    const fillerQuestions = results.filter((q): q is QuizQuestion => q !== null);
 
     return [...existing, ...fillerQuestions];
   } catch (error) {
@@ -273,6 +269,50 @@ interface QuizSeed {
   japanese_translation: string;
   word_breakdown: { word: string; pronunciation: string; meaning: string }[];
   key_word?: string;
+}
+
+interface QuizSeedSource {
+  seed: QuizSeed;
+  sentenceId: string;
+  srsInterval: number;
+  japaneseTranslation: string;
+  sentencePronunciation: string;
+}
+
+interface SentenceWithDays {
+  doc: FirebaseFirestore.QueryDocumentSnapshot;
+  diffDays: number;
+}
+
+function shuffleTopCandidates<T>(candidates: T[], count: number): T[] {
+  return [...candidates.slice(0, count)].sort(() => Math.random() - 0.5);
+}
+
+function toQuizQuestion(
+  question: QuizQuestionsResponse['questions'][number],
+  source: QuizSeedSource,
+): QuizQuestion {
+  return {
+    ...question,
+    sentence_id: source.sentenceId,
+    srs_interval: source.srsInterval,
+    japanese_translation: source.japaneseTranslation,
+    sentence_pronunciation: source.sentencePronunciation,
+  };
+}
+
+async function generateQuestionsFromSources(
+  geminiService: GeminiService,
+  sources: QuizSeedSource[],
+): Promise<QuizQuestion[]> {
+  const results = await Promise.all(
+    sources.map(async (source) => {
+      const question = await generateSingleQuiz(geminiService, source.seed);
+      return question ? toQuizQuestion(question, source) : null;
+    })
+  );
+
+  return results.filter((question): question is QuizQuestion => question !== null);
 }
 
 /**
@@ -328,19 +368,77 @@ interface SelectedSentence {
   srsInterval: number;
 }
 
+function buildSortByP(
+  pMap: Map<string, number>,
+): (a: SentenceWithDays, b: SentenceWithDays) => number {
+  return (a, b) => {
+    const pA = pMap.get(a.doc.data().key_word) ?? 1;
+    const pB = pMap.get(b.doc.data().key_word) ?? 1;
+    return pA - pB;
+  };
+}
+
+function toSelectedUserSentence(
+  doc: FirebaseFirestore.QueryDocumentSnapshot,
+  srsInterval: number,
+): SelectedSentence {
+  return {
+    id: doc.id,
+    data: doc.data(),
+    srsInterval,
+  };
+}
+
+function toSelectedDefaultSentence(sentence: DefaultSentence): SelectedSentence {
+  return {
+    id: sentence.sentence_id,
+    data: {
+      thai_text: sentence.thai_text,
+      pronunciation: sentence.pronunciation,
+      japanese_translation: sentence.japanese_translation,
+      word_breakdown: [],
+      key_word: sentence.key_word,
+    },
+    srsInterval: 0,
+  };
+}
+
+function collectCandidatesByIntervals(
+  docsWithDays: SentenceWithDays[],
+  intervals: number[],
+  matcher: (diffDays: number, interval: number) => boolean,
+  sortByP: (a: SentenceWithDays, b: SentenceWithDays) => number,
+  usedIds: Set<string>,
+  seenIds?: Set<string>,
+): SelectedSentence[] {
+  return intervals.flatMap((interval) =>
+    docsWithDays
+      .filter(({ doc, diffDays }) =>
+        !usedIds.has(doc.id) &&
+        !(seenIds?.has(doc.id) ?? false) &&
+        matcher(diffDays, interval)
+      )
+      .sort(sortByP)
+      .map(({ doc }) => {
+        seenIds?.add(doc.id);
+        return toSelectedUserSentence(doc, interval);
+      })
+  );
+}
+
 /**
  * ユーザーの全例文からSRSアルゴリズムに基づいて復習対象を選出する。
  *
  * 選出の優先順位:
- *  ① SRS間隔にジャスト該当する例文（1日前/3日前/7日前/14日前/30日前に学習したもの）
- *  ② ①で不足する場合、±1日の範囲からランダム補填（学習日のズレを吸収）
- *  ③ ①+②で3問に満たない場合、SRS対象外の例文からランダム補充
- *  ④ ユーザーの例文自体が少ない場合、5問になるまでデフォルト例文で補充
+ *  ① SRS間隔にジャスト該当する例文
+ *  ② ①で不足する場合、±1日の範囲から補填
+ *  ③ ①+②で不足する場合、SRS対象外の例文から補充
+ *  ④ それでも不足する場合、デフォルト例文で補充
  */
 async function selectSentencesBySRS(
   uid: string,
   jstNow: Date,
-  isPremium: boolean = true,
+  estimatedVocab: number = 0,
 ): Promise<SelectedSentence[]> {
   const selected: SelectedSentence[] = [];
   const usedIds = new Set<string>();
@@ -360,8 +458,7 @@ async function selectSentencesBySRS(
     if (kw && typeof kw === 'string') userKeyWords.add(kw);
   }
   // デフォルト例文の key_word も含めて一括取得（④で再利用）
-  const tierDefaults = filterDefaultsForTier(DEFAULT_SENTENCES, isPremium);
-  for (const s of tierDefaults) userKeyWords.add(s.key_word);
+  for (const s of DEFAULT_SENTENCES) userKeyWords.add(s.key_word);
   const pMap = await fetchUvmPValues(uid, userKeyWords);
 
   // 各例文の作成日からの経過日数を事前計算（SRS間隔との照合に使用）
@@ -376,117 +473,97 @@ async function selectSentencesBySRS(
     return { doc, diffDays };
   });
 
-  /** P値昇順でソート（低P＝苦手な単語を優先） */
-  const sortByP = (a: { doc: FirebaseFirestore.QueryDocumentSnapshot }, b: { doc: FirebaseFirestore.QueryDocumentSnapshot }) => {
-    const pA = pMap.get(a.doc.data().key_word) ?? 1;
-    const pB = pMap.get(b.doc.data().key_word) ?? 1;
-    return pA - pB;
+  const sortByP = buildSortByP(pMap);
+
+  const remainingSlots = () => MAX_REVIEW_SENTENCES - selected.length;
+
+  const appendTopCandidates = (candidates: SelectedSentence[]): void => {
+    const take = Math.min(candidates.length, remainingSlots());
+    for (const candidate of candidates.slice(0, take)) {
+      selected.push(candidate);
+      usedIds.add(candidate.id);
+    }
   };
 
-  // ① SRS各間隔ごとにジャスト該当日を最大1問選出（P値が低い文を優先）
-  for (const days of SRS_DAYS) {
-    if (selected.length >= MAX_REVIEW_SENTENCES) break;
+  // ① SRSジャスト該当日から、各間隔の上位候補を必要件数ぶん取得
+  const exactCandidates = collectCandidatesByIntervals(
+    docsWithDays,
+    SRS_DAYS,
+    (diffDays, interval) => diffDays === interval,
+    sortByP,
+    usedIds,
+  );
+  appendTopCandidates(exactCandidates);
 
-    const exact = docsWithDays.filter(d =>
-      !usedIds.has(d.doc.id) && d.diffDays === days
-    ).sort(sortByP);
-    const take = Math.min(MAX_PER_INTERVAL, exact.length, MAX_REVIEW_SENTENCES - selected.length);
-    for (let i = 0; i < take; i++) {
-      selected.push({ id: exact[i].doc.id, data: exact[i].doc.data(), srsInterval: days });
-      usedIds.add(exact[i].doc.id);
-    }
+  // ② ±1日の近傍候補から、各間隔の上位候補を必要件数ぶん取得
+  if (remainingSlots() > 0) {
+    const nearbySeenIds = new Set<string>();
+    const nearbyCandidates = collectCandidatesByIntervals(
+      docsWithDays,
+      SRS_DAYS,
+      (diffDays, interval) => diffDays >= interval - 1 && diffDays <= interval + 1,
+      sortByP,
+      usedIds,
+      nearbySeenIds,
+    );
+    appendTopCandidates(nearbyCandidates);
   }
 
-  // ② ①で不足したSRS間隔を±1日の範囲から補填（P値が低い文を優先）
-  for (const days of SRS_DAYS) {
-    if (selected.length >= MAX_REVIEW_SENTENCES) break;
-
-    const alreadySelectedForInterval = selected.some(sentence => sentence.srsInterval === days);
-    if (alreadySelectedForInterval) continue;
-
-    const nearby = docsWithDays
-      .filter(d =>
-        !usedIds.has(d.doc.id) &&
-        d.diffDays >= days - 1 &&
-        d.diffDays <= days + 1
-      )
-      .sort(sortByP);
-
-    const candidate = nearby[0];
-    if (!candidate) continue;
-
-    selected.push({ id: candidate.doc.id, data: candidate.doc.data(), srsInterval: days });
-    usedIds.add(candidate.doc.id);
-  }
-
-  // ③ ①+②で3問に満たない場合、SRS対象外の例文からP値が低い順に補充
-  if (selected.length < MIN_USER_REVIEW_SENTENCES) {
+  // ③ ①+②で不足する場合、残りユーザー例文からP値が低い順に補充
+  if (remainingSlots() > 0) {
     const remaining = allSentencesSnapshot.docs
       .filter(doc => !usedIds.has(doc.id))
       .sort((a, b) => {
         const pA = pMap.get(a.data().key_word) ?? 1;
         const pB = pMap.get(b.data().key_word) ?? 1;
         return pA - pB;
-      });
-
-    for (const doc of remaining) {
-      if (selected.length >= MIN_USER_REVIEW_SENTENCES) break;
-      selected.push({ id: doc.id, data: doc.data(), srsInterval: -1 });
-      usedIds.add(doc.id);
-    }
+      })
+      .map((doc) => toSelectedUserSentence(doc, -1));
+    appendTopCandidates(remaining);
   }
 
-  // ④ デフォルト例文から5問まで補充（UVM未登録 → 低P順、新規ユーザー等で不足する場合）
-  if (selected.length < MAX_REVIEW_SENTENCES) {
-    const defaults = await sortDefaultsByPriority(uid, tierDefaults, pMap);
-
-    for (const s of defaults) {
-      if (selected.length >= MAX_REVIEW_SENTENCES) break;
-      if (usedIds.has(s.sentence_id)) continue;
-      selected.push({
-        id: s.sentence_id,
-        data: {
-          thai_text: s.thai_text,
-          pronunciation: s.pronunciation,
-          japanese_translation: s.japanese_translation,
-          word_breakdown: [],
-          key_word: s.key_word,
-        },
-        srsInterval: 0,
-      });
-      usedIds.add(s.sentence_id);
-    }
+  // ④ デフォルト例文から不足分を補充
+  if (remainingSlots() > 0) {
+    const defaults = await sortDefaultsByPriority(uid, DEFAULT_SENTENCES, pMap, estimatedVocab);
+    const defaultCandidates = defaults
+      .filter((s) => !usedIds.has(s.sentence_id))
+      .map((s) => toSelectedDefaultSentence(s));
+    appendTopCandidates(defaultCandidates);
   }
 
   return selected;
 }
 
 /**
- * デフォルト例文を「UVM未登録 → UVM低P」の順にソートして返す。
- * UVM未登録の単語を優先し、未知語に触れる機会を増やす。
- * 同グループ内はランダム順。
+ * デフォルト例文を estimated_vocab ± 10 帯域内に絞り、effective P の低い順に返す。
+ * 帯域外の例文は一切含まない。
  *
  * pMap を渡す場合は Firestore 読み取りをスキップして再利用する。
  */
 async function sortDefaultsByPriority(
   uid: string,
   sentences: DefaultSentence[],
-  existingPMap?: Map<string, number>
+  existingPMap?: Map<string, number>,
+  estimatedVocab: number = 0,
 ): Promise<DefaultSentence[]> {
-  const pMap = existingPMap ?? await fetchUvmPValues(uid, new Set(sentences.map(s => s.key_word)));
+  const bandLow = Math.max(0, estimatedVocab - FREQ_BAND_HALF);
+  const bandHigh = estimatedVocab + FREQ_BAND_HALF;
 
-  return [...sentences].sort((a, b) => {
-    const hasA = pMap.has(a.key_word);
-    const hasB = pMap.has(b.key_word);
-    // UVM未登録を先に（未登録 < 登録済み）
-    if (!hasA && hasB) return -1;
-    if (hasA && !hasB) return 1;
-    // 両方未登録 → ランダム
-    if (!hasA && !hasB) return Math.random() - 0.5;
-    // 両方登録済み → 低P優先
-    const pA = pMap.get(a.key_word)!;
-    const pB = pMap.get(b.key_word)!;
+  // 帯域内のみに絞る
+  const inBand = sentences.filter(s => s.rank >= bandLow && s.rank <= bandHigh);
+  if (inBand.length === 0) return [];
+
+  const pMap = existingPMap ?? await fetchUvmPValues(uid, new Set(inBand.map(s => s.key_word)));
+
+  return [...inBand].sort((a, b) => {
+    const pA = pMap.get(a.key_word) ?? UNKNOWN_WORD_P;
+    const pB = pMap.get(b.key_word) ?? UNKNOWN_WORD_P;
     if (pA !== pB) return pA - pB;
+
+    const distanceA = Math.abs(a.rank - estimatedVocab);
+    const distanceB = Math.abs(b.rank - estimatedVocab);
+    if (distanceA !== distanceB) return distanceA - distanceB;
+
     return Math.random() - 0.5;
   });
 }
@@ -515,4 +592,3 @@ async function fetchUvmPValues(
 
   return pMap;
 }
-

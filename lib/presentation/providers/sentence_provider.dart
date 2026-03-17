@@ -112,27 +112,37 @@ class SentenceController extends StateNotifier<SentenceState> {
     }
   }
 
-  /// 今日まだ生成していなければ自動生成、済みなら最新を表示
+  /// Firestoreフラグに基づき、未生成なら自動生成、済みなら最新を表示
   Future<void> loadOrGenerateToday({
-    Map<String, String?> generationParams = const {},
+    required bool dailySentenceGenerated,
   }) async {
     state = const SentenceStateLoading();
 
     try {
-      final recent = await _getUseCase.getMostRecent();
-      if (recent != null && _isToday(recent.createdAt)) {
-        state = SentenceStateSuccess(recent);
+      if (dailySentenceGenerated) {
+        // 今日生成済み → 最新を表示
+        final recent = await _getUseCase.getMostRecent();
+        if (recent != null) {
+          state = SentenceStateSuccess(recent);
+        } else {
+          state = const SentenceStateEmpty();
+        }
         return;
       }
 
-      // 今日未生成 → 自動生成
+      // 未生成 → バッチ生成（free/premium共通）
       try {
-        final sentence = await _generateUseCase.execute(
-          generationParams: generationParams,
-        );
-        state = SentenceStateSuccess(sentence);
+        final sentences = await _generateUseCase.executeBatch();
+        if (sentences.isEmpty) {
+          state = const SentenceStateError('例文の生成に失敗しました。もう一度お試しください。');
+        } else {
+          state = SentenceStateBatchSuccess(sentences);
+        }
+      } on GenerateSentenceException catch (e) {
+        state = SentenceStateError(e.getUserMessage());
       } catch (e) {
         // 生成失敗時は既存の最新例文を表示、なければサンプル表示
+        final recent = await _getUseCase.getMostRecent();
         if (recent != null) {
           state = SentenceStateSuccess(recent);
         } else {
@@ -149,12 +159,22 @@ class SentenceController extends StateNotifier<SentenceState> {
     state = SentenceStateSuccess(sentence);
   }
 
-  bool _isToday(DateTime? date) {
-    if (date == null) return false;
-    final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+  /// 残りクォータ分を一括生成
+  Future<void> generateBatchSentences() async {
+    state = const SentenceStateBatchLoading();
+
+    try {
+      final sentences = await _generateUseCase.executeBatch();
+      if (sentences.isEmpty) {
+        state = const SentenceStateError('例文の生成に失敗しました。もう一度お試しください。');
+      } else {
+        state = SentenceStateBatchSuccess(sentences);
+      }
+    } on GenerateSentenceException catch (e) {
+      state = SentenceStateError(e.getUserMessage());
+    } catch (e) {
+      state = SentenceStateError('予期しないエラーが発生しました: $e');
+    }
   }
 
   /// Toggle favorite status
@@ -251,4 +271,16 @@ class SentenceStateError extends SentenceState {
 /// Empty state (no sentences)
 class SentenceStateEmpty extends SentenceState {
   const SentenceStateEmpty();
+}
+
+/// Batch loading state
+class SentenceStateBatchLoading extends SentenceState {
+  const SentenceStateBatchLoading();
+}
+
+/// Batch success state with multiple sentences
+class SentenceStateBatchSuccess extends SentenceState {
+  final List<ThaiSentence> sentences;
+
+  const SentenceStateBatchSuccess(this.sentences);
 }

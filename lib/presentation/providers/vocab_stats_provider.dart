@@ -24,7 +24,8 @@ final vocabStatsProvider = StreamProvider<VocabStats>((ref) {
     final data = doc.data();
     if (data == null) return const VocabStats();
     return VocabStats(
-      estimatedVocab: (data['estimated_vocab'] as num?)?.toInt() ?? 0,
+      estimatedVocab:
+          ((data['estimated_vocab'] as num?)?.toInt() ?? 0).clamp(0, 1 << 31),
       vocabCount: (data['vocab_count'] as num?)?.toInt() ?? 0,
     );
   });

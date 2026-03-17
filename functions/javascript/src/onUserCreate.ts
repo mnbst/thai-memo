@@ -20,6 +20,7 @@ export const onUserCreate = functions
           remaining_quizzes: INITIAL_QUIZZES,
           uvm_initialized: true,
           vocab_count: 0,
+          daily_sentence_generated: false,
         },
         { merge: true },
       );

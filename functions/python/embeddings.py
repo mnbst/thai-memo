@@ -149,6 +149,37 @@ def get_topic_similar_words(
     return results
 
 
+def find_best_topic(word: str, topics: list[str] | None = None) -> str | None:
+    """key_word の embedding と各トピック embedding のコサイン類似度から最適トピックを返す。
+
+    Args:
+        word: key_word（タイ語単語）
+        topics: 候補トピックリスト。None なら事前計算済み全トピックから選択。
+
+    Returns:
+        最も類似度が高いトピック文字列。embedding が取得できない場合は None。
+    """
+    _load_data()
+    _load_topic_embeddings()
+    assert _topic_embeddings is not None
+
+    word_emb = get_embedding(word)
+    if word_emb is None:
+        return None
+
+    best_topic: str | None = None
+    best_sim = -1.0
+    for topic_str, emb_list in _topic_embeddings.items():
+        if topics is not None and not any(t in topic_str or topic_str in t for t in topics):
+            continue
+        topic_emb = np.array(emb_list, dtype=np.float32)
+        sim = cosine_similarity(word_emb, topic_emb)
+        if sim > best_sim:
+            best_sim = sim
+            best_topic = topic_str
+    return best_topic
+
+
 def get_embedding(word: str) -> np.ndarray | None:
     """指定した単語の embedding ベクトル (768次元) を返す。
 
