@@ -205,7 +205,7 @@ def get_session_words(
     refs = [uvm_ref.document(w) for w in band_word_set]
     p_map: dict[str, float] = {}
     if refs:
-        snapshots = db.getAll(*refs) if hasattr(db, 'getAll') else [r.get() for r in refs]  # type: ignore
+        snapshots = [ref.get() for ref in refs]
         for snap in snapshots:
             if snap.exists:
                 p_val = (snap.to_dict() or {}).get("p")
