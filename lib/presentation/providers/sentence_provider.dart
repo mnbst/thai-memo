@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/local/database_helper.dart';
@@ -8,7 +10,11 @@ import '../../data/sentence_repository.dart';
 import '../../domain/delete_sentence_usecase.dart';
 import '../../domain/generate_sentence_usecase.dart';
 import '../../domain/get_sentences_usecase.dart';
+import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
+import 'analytics_provider.dart';
+import 'settings_provider.dart';
+import 'subscription_provider.dart';
 
 // ==================== Repository Provider ====================
 
@@ -51,13 +57,6 @@ final allSentencesProvider = FutureProvider<List<ThaiSentence>>((ref) async {
   return await useCase.execute();
 });
 
-/// Provider for favorite sentences
-final favoriteSentencesProvider =
-    FutureProvider<List<ThaiSentence>>((ref) async {
-  final useCase = ref.watch(getSentencesUseCaseProvider);
-  return await useCase.getFavorites();
-});
-
 /// Provider for sentence count
 final sentenceCountProvider = FutureProvider<int>((ref) async {
   final useCase = ref.watch(getSentencesUseCaseProvider);
@@ -71,11 +70,17 @@ class SentenceController extends StateNotifier<SentenceState> {
   final GenerateSentenceUseCase _generateUseCase;
   final GetSentencesUseCase _getUseCase;
   final DeleteSentenceUseCase _deleteUseCase;
+  final AnalyticsService _analytics;
+  final String Function() _currentTier;
+  final String? Function() _currentTopic;
 
   SentenceController(
     this._generateUseCase,
     this._getUseCase,
     this._deleteUseCase,
+    this._analytics,
+    this._currentTier,
+    this._currentTopic,
   ) : super(const SentenceStateInitial());
 
   /// Generate a new sentence
@@ -89,6 +94,7 @@ class SentenceController extends StateNotifier<SentenceState> {
         generationParams: generationParams,
       );
       state = SentenceStateSuccess(sentence);
+      _logGenerateSentence(count: 1, source: 'manual_single');
     } on GenerateSentenceException catch (e) {
       state = SentenceStateError(e.getUserMessage());
     } catch (e) {
@@ -137,6 +143,7 @@ class SentenceController extends StateNotifier<SentenceState> {
           state = const SentenceStateError('例文の生成に失敗しました。もう一度お試しください。');
         } else {
           state = SentenceStateBatchSuccess(sentences);
+          _logGenerateSentence(count: sentences.length, source: 'daily_auto');
         }
       } on GenerateSentenceException catch (e) {
         state = SentenceStateError(e.getUserMessage());
@@ -169,29 +176,12 @@ class SentenceController extends StateNotifier<SentenceState> {
         state = const SentenceStateError('例文の生成に失敗しました。もう一度お試しください。');
       } else {
         state = SentenceStateBatchSuccess(sentences);
+        _logGenerateSentence(count: sentences.length, source: 'manual_batch');
       }
     } on GenerateSentenceException catch (e) {
       state = SentenceStateError(e.getUserMessage());
     } catch (e) {
       state = SentenceStateError('予期しないエラーが発生しました: $e');
-    }
-  }
-
-  /// Toggle favorite status
-  Future<void> toggleFavorite(String id, bool isFavorite) async {
-    try {
-      await _getUseCase.toggleFavorite(id, isFavorite);
-      // Reload current sentence if needed
-      if (state is SentenceStateSuccess) {
-        final current = (state as SentenceStateSuccess).sentence;
-        if (current.id == id) {
-          state = SentenceStateSuccess(
-            current.copyWith(isFavorite: isFavorite),
-          );
-        }
-      }
-    } catch (e) {
-      // Handle error silently or show snackbar
     }
   }
 
@@ -225,6 +215,21 @@ class SentenceController extends StateNotifier<SentenceState> {
   void reset() {
     state = const SentenceStateInitial();
   }
+
+  void _logGenerateSentence({
+    required int count,
+    required String source,
+  }) {
+    // provider 側で tier/topic を読むことで、UI からイベント文脈を組み立てなくて済む。
+    unawaited(
+      _analytics.logGenerateSentence(
+        tier: _currentTier(),
+        topic: _currentTopic(),
+        source: source,
+        count: count,
+      ),
+    );
+  }
 }
 
 /// Provider for sentence controller
@@ -233,8 +238,16 @@ final sentenceControllerProvider =
   final generateUseCase = ref.watch(generateSentenceUseCaseProvider);
   final getUseCase = ref.watch(getSentencesUseCaseProvider);
   final deleteUseCase = ref.watch(deleteSentenceUseCaseProvider);
+  final analytics = ref.watch(analyticsServiceProvider);
 
-  return SentenceController(generateUseCase, getUseCase, deleteUseCase);
+  return SentenceController(
+    generateUseCase,
+    getUseCase,
+    deleteUseCase,
+    analytics,
+    () => ref.read(isPremiumProvider) ? 'premium' : 'free',
+    () => ref.read(generationParamsProvider)['topic'],
+  );
 });
 
 // ==================== Sentence State ====================

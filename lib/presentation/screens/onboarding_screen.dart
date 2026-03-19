@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
+  static const routeName = 'onboarding';
+
   const OnboardingScreen({super.key, required this.onComplete});
 
   final VoidCallback onComplete;
@@ -19,8 +21,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Icons.auto_awesome,
       colorType: _ColorType.primary,
       title: 'AIがタイ語例文を毎日生成',
-      description:
-          'AIが毎日新しいタイ語例文を生成。\n発音（ローマ字）と日本語訳付きで\n無理なく学習できます。',
+      description: 'AIが毎日新しいタイ語例文を生成。\n発音（ローマ字）と日本語訳付きで\n無理なく学習できます。',
     ),
     _OnboardingPage(
       icon: Icons.menu_book,

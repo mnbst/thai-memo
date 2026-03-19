@@ -1,7 +1,7 @@
 // =============================================================================
 // history_screen.dart
 // 過去に生成されたタイ語例文の一覧（履歴）画面。
-// 全件表示とお気に入りフィルタの切り替え、テキスト検索、個別/一括削除に対応。
+// テキスト検索、個別/一括削除に対応。
 // 各例文カードをタップすると詳細画面（DetailScreen）へ遷移する。
 // スワイプ操作で個別削除も可能。
 // =============================================================================
@@ -17,9 +17,11 @@ import 'detail_screen.dart';
 /// 過去の例文一覧（履歴）画面。
 ///
 /// SQLiteデータベースに保存された例文をリスト表示する。
-/// お気に入りフィルタ・テキスト検索・個別削除（スワイプ）・全件削除に対応。
+/// テキスト検索・個別削除（スワイプ）・全件削除に対応。
 /// プルダウンリフレッシュで一覧を更新できる。
 class HistoryScreen extends ConsumerStatefulWidget {
+  static const routeName = 'history';
+
   const HistoryScreen({super.key});
 
   @override
@@ -28,12 +30,11 @@ class HistoryScreen extends ConsumerStatefulWidget {
 
 /// [HistoryScreen] のステート。
 ///
-/// お気に入りフィルタの状態、検索クエリ、検索バーのテキストコントローラを管理する。
+/// 検索クエリ、検索バーのテキストコントローラを管理する。
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  /// お気に入りのみ表示するかどうかのフラグ
-  bool _showFavoritesOnly = false;
   /// 検索クエリ（小文字正規化済み）
   String _searchQuery = '';
+
   /// 検索バーのテキストコントローラ
   final TextEditingController _searchController = TextEditingController();
 
@@ -49,18 +50,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       appBar: AppBar(
         title: const Text('履歴'),
         actions: [
-          // お気に入りフィルタトグルボタン
-          IconButton(
-            icon: Icon(
-              _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
-            ),
-            onPressed: () {
-              setState(() {
-                _showFavoritesOnly = !_showFavoritesOnly;
-              });
-            },
-            tooltip: 'お気に入りのみ表示',
-          ),
           // メニューボタン（全件削除）
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
@@ -74,9 +63,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 value: 'delete_all',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_sweep, color: Theme.of(context).colorScheme.error),
+                    Icon(Icons.delete_sweep,
+                        color: Theme.of(context).colorScheme.error),
                     const SizedBox(width: 8),
-                    Text('すべて削除', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    Text('すべて削除',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
                   ],
                 ),
               ),
@@ -139,10 +131,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// さらに検索クエリでフィルタリングして表示する。
   /// Riverpodの非同期プロバイダを監視し、loading/error/data状態を処理する。
   Widget _buildSentenceList() {
-    // お気に入りフィルタに応じたプロバイダを監視
-    final sentencesAsync = _showFavoritesOnly
-        ? ref.watch(favoriteSentencesProvider)
-        : ref.watch(allSentencesProvider);
+    final sentencesAsync = ref.watch(allSentencesProvider);
 
     return sentencesAsync.when(
       data: (sentences) {
@@ -152,8 +141,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             : sentences.where((sentence) {
                 return sentence.thaiText.toLowerCase().contains(_searchQuery) ||
                     sentence.japaneseTranslation.toLowerCase().contains(
-                      _searchQuery,
-                    ) ||
+                          _searchQuery,
+                        ) ||
                     sentence.pronunciation.toLowerCase().contains(_searchQuery);
               }).toList();
 
@@ -165,7 +154,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         return RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(allSentencesProvider);
-            ref.invalidate(favoriteSentencesProvider);
           },
           child: ListView.builder(
             padding: const EdgeInsets.all(AppConfig.defaultPadding),
@@ -192,9 +180,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              _showFavoritesOnly
-                  ? Icons.favorite_border
-                  : Icons.search_off_outlined,
+              Icons.search_off_outlined,
               size: 64,
               color: Theme.of(
                 context,
@@ -202,26 +188,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              _showFavoritesOnly
-                  ? 'お気に入りの例文がありません'
-                  : _searchQuery.isNotEmpty
-                  ? '検索結果が見つかりませんでした'
-                  : 'まだ例文がありません',
+              _searchQuery.isNotEmpty ? '検索結果が見つかりませんでした' : 'まだ例文がありません',
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
-              _showFavoritesOnly
-                  ? '詳細画面でハートアイコンをタップしてお気に入りに追加できます'
-                  : _searchQuery.isNotEmpty
+              _searchQuery.isNotEmpty
                   ? '別のキーワードで検索してみてください'
                   : '新しい例文を生成してみましょう',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -290,7 +270,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             .deleteAllSentences();
         // 一覧を再取得して更新
         ref.invalidate(allSentencesProvider);
-        ref.invalidate(favoriteSentencesProvider);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -368,7 +347,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 .deleteSentence(sentence.id!);
             // 一覧を再取得して更新
             ref.invalidate(allSentencesProvider);
-            ref.invalidate(favoriteSentencesProvider);
 
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -406,11 +384,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => DetailScreen(sentence: sentence),
+                settings: const RouteSettings(name: DetailScreen.routeName),
+                builder: (context) => DetailScreen(
+                  sentence: sentence,
+                  source: 'history',
+                ),
               ),
             );
             ref.invalidate(allSentencesProvider);
-            ref.invalidate(favoriteSentencesProvider);
           },
           borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
           child: Padding(
@@ -425,19 +406,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       child: Text(
                         formattedDate,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
                       ),
                     ),
-                    // お気に入り登録済みの場合のみハートアイコンを表示
-                    if (sentence.isFavorite)
-                      Icon(
-                        Icons.favorite,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -445,10 +419,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 Text(
                   sentence.thaiText,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
-                    fontSize: 18,
-                  ),
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                        fontSize: 18,
+                      ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -457,11 +431,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 Text(
                   sentence.pronunciation,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.7),
-                    fontStyle: FontStyle.italic,
-                  ),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.7),
+                        fontStyle: FontStyle.italic,
+                      ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -488,10 +462,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     Text(
                       '${sentence.wordBreakdowns.length} 単語',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
                     ),
                   ],
                 ),

@@ -7,6 +7,8 @@
 // TTS（テキスト読み上げ）で全文・個別単語の発音を再生できる。
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,24 +16,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
-import '../providers/sentence_provider.dart';
+import '../providers/analytics_provider.dart';
 import '../providers/tts_provider.dart';
 import '../tone_explanation_dialog.dart';
 
 /// 例文の詳細表示画面。
 ///
 /// [sentence] に渡されたタイ語例文の全情報をカード形式で表示する。
-/// AppBarに「お気に入り」トグルと「共有（クリップボードコピー）」ボタンを配置。
+/// AppBarに「共有（クリップボードコピー）」ボタンを配置。
 /// 画面は以下の4つのセクションで構成される:
 /// 1. メイン例文カード（タイ語・発音・日本語訳・TTS再生）
 /// 2. 単語分解カード（各単語の意味・文法的役割・声調情報）
 /// 3. 文脈カード（場面・文体・感情・使用シーン・文化的背景）
 /// 4. メタデータカード（作成日）
 class DetailScreen extends ConsumerStatefulWidget {
+  static const routeName = 'detail';
+
   /// 表示対象のタイ語例文データ
   final ThaiSentence sentence;
+  final String source;
 
-  const DetailScreen({super.key, required this.sentence});
+  const DetailScreen({
+    super.key,
+    required this.sentence,
+    this.source = 'unknown',
+  });
 
   @override
   ConsumerState<DetailScreen> createState() => _DetailScreenState();
@@ -43,10 +52,20 @@ class DetailScreen extends ConsumerStatefulWidget {
 class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// 単語分解セクションの展開/折りたたみ状態
   bool _isWordBreakdownExpanded = true;
+
   /// 文脈情報セクションの展開/折りたたみ状態
   bool _isContextExpanded = true;
-  /// お気に入り状態（ローカル管理）
-  late bool _isFavorite = widget.sentence.isFavorite;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      ref.read(analyticsServiceProvider).logViewDetail(
+            sentenceId: widget.sentence.id,
+            source: widget.source,
+          ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,16 +73,6 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
       appBar: AppBar(
         title: const Text('例文の詳細'),
         actions: [
-          // お気に入りトグルボタン（ハートアイコン）
-          IconButton(
-            icon: Icon(
-              _isFavorite
-                  ? Icons.favorite
-                  : Icons.favorite_border,
-            ),
-            onPressed: _toggleFavorite,
-            tooltip: 'お気に入り',
-          ),
           // クリップボードにコピーするボタン
           IconButton(
             icon: const Icon(Icons.share),
@@ -113,10 +122,10 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   child: SelectableText(
                     widget.sentence.thaiText,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      height: 1.5,
-                      fontSize: 32,
-                    ),
+                          fontWeight: FontWeight.w500,
+                          height: 1.5,
+                          fontSize: 32,
+                        ),
                   ),
                 ),
                 // TTSで全文を音声再生するボタン
@@ -126,7 +135,17 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   onPressed: () {
-                    ref.read(ttsServiceProvider).speak(widget.sentence.thaiText);
+                    unawaited(
+                      ref.read(analyticsServiceProvider).logPlayTts(
+                            contentType: 'sentence',
+                            text: widget.sentence.thaiText,
+                            sentenceId: widget.sentence.id,
+                            source: 'detail_sentence',
+                          ),
+                    );
+                    ref
+                        .read(ttsServiceProvider)
+                        .speak(widget.sentence.thaiText);
                   },
                   tooltip: '全文を再生',
                 ),
@@ -146,11 +165,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   child: SelectableText(
                     widget.sentence.pronunciation,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.8),
-                      fontStyle: FontStyle.italic,
-                    ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.8),
+                          fontStyle: FontStyle.italic,
+                        ),
                   ),
                 ),
               ],
@@ -212,8 +231,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                     child: Text(
                       '単語の分解 (${widget.sentence.wordBreakdowns.length})',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                   // 展開/折りたたみアイコン
@@ -296,9 +315,12 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                           // タイ語の単語テキスト
                           Text(
                             word.wordText,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
                           const SizedBox(width: 4),
                           // 個別単語のTTS再生ボタン（ゆっくり再生）
@@ -309,11 +331,24 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                               icon: Icon(
                                 Icons.volume_up,
                                 size: 16,
-                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.7),
                               ),
                               padding: EdgeInsets.zero,
                               onPressed: () {
-                                ref.read(ttsServiceProvider).speak(word.wordText, slow: true);
+                                unawaited(
+                                  ref.read(analyticsServiceProvider).logPlayTts(
+                                        contentType: 'word',
+                                        text: word.wordText,
+                                        sentenceId: widget.sentence.id,
+                                        source: 'detail_word',
+                                      ),
+                                );
+                                ref
+                                    .read(ttsServiceProvider)
+                                    .speak(word.wordText, slow: true);
                               },
                               tooltip: '単語を再生',
                             ),
@@ -325,11 +360,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                       Text(
                         word.pronunciation,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.7),
-                          fontStyle: FontStyle.italic,
-                        ),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.7),
+                              fontStyle: FontStyle.italic,
+                            ),
                       ),
                     ],
                   ),
@@ -353,9 +388,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                 child: Text(
                   word.grammaticalRole!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.secondary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                        color: Theme.of(context).colorScheme.secondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
               ),
             ],
@@ -374,11 +409,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                 Text(
                   'タップして声調を確認',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.5),
-                    fontSize: 11,
-                  ),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.5),
+                        fontSize: 11,
+                      ),
                 ),
               ],
             ),
@@ -420,8 +455,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                     child: Text(
                       '文脈・使い方',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                   Icon(
@@ -541,10 +576,10 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             Text(
               '作成日: $formattedDate',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
             ),
           ],
         ),
@@ -552,42 +587,12 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     );
   }
 
-  /// お気に入り状態をトグルする。
-  ///
-  /// DBに保存された例文（idがnullでない）に対してのみ動作する。
-  /// 状態変更後にスナックバーでフィードバックを表示する。
-  Future<void> _toggleFavorite() async {
-    final sentenceId = widget.sentence.id;
-    if (sentenceId == null) return;
-
-    final newValue = !_isFavorite;
-    await ref
-        .read(sentenceControllerProvider.notifier)
-        .toggleFavorite(sentenceId, newValue);
-
-    if (mounted) {
-      setState(() {
-        _isFavorite = newValue;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            newValue ? 'お気に入りに追加しました' : 'お気に入りから削除しました',
-          ),
-          duration: const Duration(seconds: 1),
-        ),
-      );
-    }
-  }
-
   /// 例文をクリップボードにコピーする。
   ///
   /// タイ語テキスト・発音・日本語訳をフォーマットしてクリップボードに設定し、
   /// コピー完了をスナックバーで通知する。
   void _shareSentence() {
-    final text =
-        '''
+    final text = '''
 ${widget.sentence.thaiText}
 ${widget.sentence.pronunciation}
 

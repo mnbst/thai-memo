@@ -20,8 +20,6 @@ class DatabaseConstants {
   static const String columnEmotion = 'emotion';
   static const String columnUsageScenarios = 'usage_scenarios';
   static const String columnCreatedAt = 'created_at';
-  static const String columnIsFavorite = 'is_favorite';
-
   // ==================== Word Breakdowns Table ====================
   static const String columnWordId = 'id';
   static const String columnWordSentenceId = 'sentence_id';
@@ -85,8 +83,7 @@ class DatabaseConstants {
       $columnStyle TEXT,
       $columnEmotion TEXT,
       $columnUsageScenarios TEXT,
-      $columnCreatedAt INTEGER NOT NULL,
-      $columnIsFavorite INTEGER DEFAULT 0
+      $columnCreatedAt INTEGER NOT NULL
     )
   ''';
 

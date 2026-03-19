@@ -6,8 +6,8 @@
 //
 // 主な責務:
 //   - バックエンドAPIから例文を生成し、ローカルDBに保存
-//   - ローカルDBからの例文取得（全件、最新、お気に入り）
-//   - お気に入りのトグル、例文の削除
+//   - ローカルDBからの例文取得（全件、最新）
+//   - 例文の削除
 //   - 生成ログの記録（成功/失敗）
 //   - 最終生成タイムスタンプの更新
 // =============================================================================
@@ -190,39 +190,6 @@ class SentenceRepository {
       return ThaiSentence.fromDatabase(sentenceMap, wordBreakdowns);
     } catch (e) {
       throw RepositoryException('Failed to get most recent sentence: $e');
-    }
-  }
-
-  /// Get favorite sentences
-  Future<List<ThaiSentence>> getFavoriteSentences() async {
-    try {
-      final sentenceMaps = await _databaseHelper.getFavoriteSentences();
-      final sentences = <ThaiSentence>[];
-
-      for (var sentenceMap in sentenceMaps) {
-        final sentenceId = sentenceMap['id'] as String;
-        final wordBreakdownMaps =
-            await _databaseHelper.getWordBreakdownsBySentenceId(sentenceId);
-
-        final wordBreakdowns = wordBreakdownMaps
-            .map((map) => WordBreakdown.fromDatabase(map))
-            .toList();
-
-        sentences.add(ThaiSentence.fromDatabase(sentenceMap, wordBreakdowns));
-      }
-
-      return sentences;
-    } catch (e) {
-      throw RepositoryException('Failed to get favorite sentences: $e');
-    }
-  }
-
-  /// Toggle favorite status of a sentence
-  Future<void> toggleFavorite(String id, bool isFavorite) async {
-    try {
-      await _databaseHelper.toggleFavorite(id, isFavorite);
-    } catch (e) {
-      throw RepositoryException('Failed to toggle favorite: $e');
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,8 @@ import '../../data/datasources/backend_api_service.dart'
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
+import '../../services/analytics_service.dart';
+import 'analytics_provider.dart';
 
 final RegExp _thaiScriptRegex = RegExp(r'[\u0E00-\u0E7F]');
 final RegExp _nonThaiChoiceRegex =
@@ -138,8 +141,10 @@ class QuizController extends StateNotifier<QuizState> {
   static const _quizSelectedIndicesKey = 'quiz_selected_indices';
   final DatabaseHelper _db = DatabaseHelper.instance;
   final BackendApiService _apiService;
+  final AnalyticsService _analytics;
 
-  QuizController(this._apiService) : super(const QuizInitial());
+  QuizController(this._apiService, this._analytics)
+      : super(const QuizInitial());
 
   /// クイズデータを読み込み（SharedPreferencesから復元 or Pending表示）
   Future<void> loadQuiz() async {
@@ -296,6 +301,13 @@ class QuizController extends StateNotifier<QuizState> {
     if (state is! QuizReady) return;
     final questions = (state as QuizReady).questions;
     state = QuizAnswering(questions, 0, []);
+    // 実際に回答フローへ入ったタイミングだけを quiz_start として記録する。
+    unawaited(
+      _analytics.logQuizStart(
+        category: 'sentence_review',
+        questionCount: questions.length,
+      ),
+    );
   }
 
   /// 回答を選択
@@ -335,6 +347,14 @@ class QuizController extends StateNotifier<QuizState> {
       isCorrect,
       newSelectedIndices,
     );
+    // DB 保存と同じタイミングで送ることで、集計と UI の見え方を揃える。
+    unawaited(
+      _analytics.logQuizAnswer(
+        correct: isCorrect,
+        category: 'sentence_review',
+        questionIndex: s.index + 1,
+      ),
+    );
   }
 
   /// 次の問題へ or サマリーへ
@@ -369,10 +389,11 @@ class QuizController extends StateNotifier<QuizState> {
       // 完了フラグと回答結果を保存（次回配信まで表示し続ける）
       await prefs.setBool(_quizCompletedKey, true);
       await prefs.setString(_quizAnswersKey, jsonEncode(s.answers));
-      await prefs.setString(_quizSelectedIndicesKey, jsonEncode(s.selectedIndices));
-
+      await prefs.setString(
+          _quizSelectedIndicesKey, jsonEncode(s.selectedIndices));
     } else {
-      state = QuizAnswering(s.questions, nextIndex, s.answers, s.selectedIndices);
+      state =
+          QuizAnswering(s.questions, nextIndex, s.answers, s.selectedIndices);
     }
   }
 
@@ -393,7 +414,10 @@ class QuizController extends StateNotifier<QuizState> {
 
 final quizControllerProvider =
     StateNotifierProvider<QuizController, QuizState>((ref) {
-  return QuizController(BackendApiService());
+  return QuizController(
+    BackendApiService(),
+    ref.watch(analyticsServiceProvider),
+  );
 });
 
 final quizStatsProvider = FutureProvider<QuizStatsData>((ref) async {

@@ -21,6 +21,7 @@ export const onUserCreate = functions
           uvm_initialized: true,
           vocab_count: 0,
           daily_sentence_generated: false,
+          is_first_generation: true,
         },
         { merge: true },
       );

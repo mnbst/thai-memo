@@ -33,7 +33,7 @@ class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
 
   void _startTimer() {
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 14), (_) {
       _swipingRight = true;
       setState(() => _currentTip = _randomTip());
     });
@@ -78,42 +78,17 @@ class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.lightbulb_outline,
-                    size: 14,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Tips - ${_currentTip.category}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
               Text(
                 _currentTip.title,
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text(
-                _currentTip.content,
+                _currentTip.example != null
+                    ? '${_currentTip.content}\n例: ${_currentTip.example}'
+                    : _currentTip.content,
                 style: theme.textTheme.bodySmall,
               ),
-              if (_currentTip.example != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  '例: ${_currentTip.example}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
             ],
           ),
         ),

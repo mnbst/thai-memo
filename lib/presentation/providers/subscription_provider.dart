@@ -8,7 +8,7 @@
 ///   - 購入時: verifySubscription Cloud Function がストア API で検証後に 'premium' に更新
 ///   - 解約/期限切れ時: handleAppStoreNotification / handlePlayNotification が 'free' に更新
 ///   - クライアントはアプリ起動時・フォアグラウンド復帰時に Firestore から最新 tier を取得
-/// - dev環境: Firestore（ストア接続なしでテスト可能、toggleTierで手動切替）
+/// - dev環境: Firestore（ストア接続なしでテスト可能）
 ///
 /// 【Free / Premium の機能差分】
 /// - 例文生成: Free=1日1回 / Premium=1日10回
@@ -25,6 +25,8 @@
 /// - ad_provider.dart: Premium 時の広告非表示制御
 library;
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
@@ -32,8 +34,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../core/config/app_config.dart';
 import '../../core/config/firebase_config.dart';
+import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
 import '../../services/purchase_service.dart';
+import 'analytics_provider.dart';
 
 // ==================== Subscription State ====================
 
@@ -83,12 +87,16 @@ class SubscriptionState {
 /// PurchaseService（ストア決済）と Firestore（状態保存）を橋渡しする。
 /// 購入完了時のコールバックで Firestore から最新 tier を再取得し、UI を更新する。
 class SubscriptionController extends StateNotifier<SubscriptionState> {
-  SubscriptionController({PurchaseService? purchaseService})
-      : _purchaseService = purchaseService,
+  SubscriptionController({
+    required AnalyticsService analytics,
+    PurchaseService? purchaseService,
+  })  : _analytics = analytics,
+        _purchaseService = purchaseService,
         super(const SubscriptionState(
           tier: UserTier.free,
         ));
 
+  final AnalyticsService _analytics;
   PurchaseService? _purchaseService;
 
   /// PurchaseServiceを設定（main.dartから呼び出し）
@@ -144,19 +152,6 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     }
   }
 
-  /// [dev] Free ↔ Premium をトグルしFirestoreに永続化
-  Future<void> toggleTier() async {
-    if (!AppConfig.isDev) return;
-    final uid = FirebaseAuthService.instance.currentUser?.uid;
-    if (uid == null) return;
-    final newTier = state.isPremium ? UserTier.free : UserTier.premium;
-    state = state.copyWith(tier: newTier);
-    await FirebaseFirestore.instance.collection('users').doc(uid).set(
-      {'tier': newTier == UserTier.premium ? 'premium' : 'free'},
-      SetOptions(merge: true),
-    );
-  }
-
   /// Firestore の users/{uid}.tier フィールドからサブスクリプション状態を取得
   ///
   /// tier フィールドは以下のタイミングでサーバー側が更新する:
@@ -174,6 +169,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       final tier =
           doc.data()?['tier'] == 'premium' ? UserTier.premium : UserTier.free;
       state = state.copyWith(tier: tier);
+      unawaited(_analytics.setUserTier(tier.name));
     } catch (_) {
       // Firestore通信エラー時はデフォルト状態を維持
     }
@@ -215,7 +211,9 @@ final purchaseServiceProvider = Provider<PurchaseService>((ref) {
 
 final subscriptionControllerProvider =
     StateNotifierProvider<SubscriptionController, SubscriptionState>((ref) {
-  return SubscriptionController();
+  return SubscriptionController(
+    analytics: ref.watch(analyticsServiceProvider),
+  );
 });
 
 /// プレミアムかどうかを簡単に参照するプロバイダ

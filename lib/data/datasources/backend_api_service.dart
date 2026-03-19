@@ -169,7 +169,6 @@ class BackendApiService {
         wordBreakdowns: wordBreakdowns,
         context: context,
         createdAt: DateTime.now(),
-        isFavorite: false,
       );
 
       return sentence;

@@ -30,7 +30,6 @@ class AppConfig {
 
   /// Shared preferences keys
   static const String prefKeyFirstLaunch = 'is_first_launch';
-  static const String prefKeyNotificationsEnabled = 'notifications_enabled';
   static const String prefKeyThemeMode = 'theme_mode';
   static const String prefKeyPreferredGenerationTime =
       'preferred_generation_time';

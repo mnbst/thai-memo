@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
-import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
+import 'paywall_screen.dart';
 import 'tone_guide_screen.dart';
 
 /// Settings screen
 class SettingsScreen extends ConsumerStatefulWidget {
+  static const routeName = 'settings';
+
   const SettingsScreen({super.key});
 
   @override
@@ -26,13 +28,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           _buildAccountSection(),
           const SizedBox(height: 24),
-          _buildThemeSection(),
-          const SizedBox(height: 24),
-          _buildNotificationSection(),
-          const SizedBox(height: 24),
           _buildLearningSection(),
-          const SizedBox(height: 24),
-          _buildStatisticsSection(),
           const SizedBox(height: 24),
           _buildAboutSection(),
         ],
@@ -70,30 +66,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.person),
               title: Text(authState.displayName ?? 'ユーザー'),
-              subtitle:
-                  authState.email != null ? Text(authState.email!) : null,
+              subtitle: authState.email != null ? Text(authState.email!) : null,
             ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.workspace_premium),
-              title: const Text('プラン'),
-              trailing: Consumer(
-                builder: (context, ref, _) {
-                  final isPremium = ref.watch(isPremiumProvider);
-                  return Chip(
-                    label: Text(isPremium ? 'Premium' : 'Free'),
-                    backgroundColor: isPremium
-                        ? Theme.of(context).colorScheme.primaryContainer
-                        : null,
-                    labelStyle: TextStyle(
-                      color: isPremium
-                          ? Theme.of(context).colorScheme.onPrimaryContainer
-                          : null,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  );
-                },
-              ),
+            Consumer(
+              builder: (context, ref, _) {
+                final isPremium = ref.watch(isPremiumProvider);
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.workspace_premium),
+                  title: const Text('プラン'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Chip(
+                        label: Text(isPremium ? 'Premium' : 'Free'),
+                        backgroundColor: isPremium
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : null,
+                        labelStyle: TextStyle(
+                          color: isPremium
+                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                              : null,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: () => PaywallBottomSheet.show(
+                    context,
+                    source: 'settings_plan',
+                  ),
+                );
+              },
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -142,8 +147,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (confirmed != true) return;
 
-    final error =
-        await ref.read(authControllerProvider.notifier).signOut();
+    final error = await ref.read(authControllerProvider.notifier).signOut();
     if (error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -159,7 +163,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('アカウント削除'),
-        content: const Text('アカウントを削除すると、サーバーおよび端末のすべての学習データが完全に削除されます。この操作は元に戻せません。'),
+        content: const Text(
+            'アカウントを削除すると、サーバーおよび端末のすべての学習データが完全に削除されます。この操作は元に戻せません。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -190,7 +195,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       } else {
         ref.invalidate(allSentencesProvider);
-        ref.invalidate(favoriteSentencesProvider);
         ref.invalidate(sentenceCountProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -199,105 +203,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       }
     }
-  }
-
-  /// Build theme section
-  Widget _buildThemeSection() {
-    final themeMode = ref.watch(themeModeProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.palette,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'テーマ',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text('システム'),
-                  icon: Icon(Icons.brightness_auto),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text('ライト'),
-                  icon: Icon(Icons.light_mode),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text('ダーク'),
-                  icon: Icon(Icons.dark_mode),
-                ),
-              ],
-              selected: {themeMode},
-              onSelectionChanged: (Set<ThemeMode> newSelection) {
-                ref
-                    .read(settingsControllerProvider.notifier)
-                    .setThemeMode(newSelection.first);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build notification section
-  Widget _buildNotificationSection() {
-    final notificationsEnabled = ref.watch(notificationsEnabledProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.notifications,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '通知',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('クイズ通知'),
-              subtitle: const Text('クイズのリマインダーを受け取る'),
-              value: notificationsEnabled,
-              onChanged: (value) {
-                ref
-                    .read(settingsControllerProvider.notifier)
-                    .setNotificationEnabled(value);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   /// Build learning section
@@ -337,6 +242,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
+                    settings:
+                        const RouteSettings(name: ToneGuideScreen.routeName),
                     builder: (context) => const ToneGuideScreen(),
                   ),
                 );
@@ -344,95 +251,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  /// Build statistics section
-  Widget _buildStatisticsSection() {
-    final sentenceCountAsync = ref.watch(sentenceCountProvider);
-    final favoriteCountAsync = ref.watch(favoriteSentencesProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.analytics,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '統計',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    '合計例文数',
-                    sentenceCountAsync.when(
-                      data: (count) => '$count',
-                      loading: () => '...',
-                      error: (_, __) => 'エラー',
-                    ),
-                    Icons.article,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatItem(
-                    'お気に入り',
-                    favoriteCountAsync.when(
-                      data: (favorites) => '${favorites.length}',
-                      loading: () => '...',
-                      error: (_, __) => 'エラー',
-                    ),
-                    Icons.favorite,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build stat item
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
       ),
     );
   }
@@ -452,8 +270,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text(
                   'アプリについて',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ],
             ),
@@ -466,15 +284,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text(
               '毎日タイ語を学習しましょう',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
             ),
           ],
         ),
       ),
     );
   }
-
 }

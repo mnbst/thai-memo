@@ -7,7 +7,6 @@
 /// 2. 月額価格の表示（ストアから動的に取得した実際の価格）
 /// 3. 「プレミアムに登録」ボタン → OS ネイティブの決済シートを起動
 /// 4. 「購入を復元」ボタン → 機種変更・再インストール時の復元用
-/// 5. [DEV] ティア切替ボタン → dev環境でのみ表示、ストア接続なしでテスト可能
 ///
 /// 【表示トリガー】
 /// - 設定画面のアップグレードバナータップ
@@ -19,25 +18,48 @@
 /// - purchase_service.dart: ストア決済処理
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/config/app_config.dart';
+import '../providers/analytics_provider.dart';
 import '../providers/subscription_provider.dart';
 
 /// プレミアムプランの説明を表示するモーダルボトムシート
 class PaywallBottomSheet extends ConsumerWidget {
-  const PaywallBottomSheet({super.key});
+  static const routeName = 'paywall';
+
+  const PaywallBottomSheet({
+    super.key,
+    required this.source,
+  });
+
+  final String source;
 
   /// ボトムシートを表示する
-  static void show(BuildContext context) {
-    showModalBottomSheet(
+  static Future<void> show(
+    BuildContext context, {
+    String source = 'unknown',
+  }) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final analytics = container.read(analyticsServiceProvider);
+    // 呼び出し元の source を失わないよう、表示前にイベントを確定させる。
+    unawaited(analytics.logTapPaywall(source: source));
+    unawaited(
+      analytics.logScreenView(
+        screenName: routeName,
+        screenClass: 'PaywallBottomSheet',
+      ),
+    );
+
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => const PaywallBottomSheet(),
+      builder: (context) => PaywallBottomSheet(source: source),
     );
   }
 
@@ -94,28 +116,6 @@ class PaywallBottomSheet extends ConsumerWidget {
                 const SizedBox(height: 32),
                 // 購入ボタン
                 _buildPurchaseSection(context, ref),
-                // dev環境のみ: ティアトグルボタン
-                if (AppConfig.isDev) ...[
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: () async {
-                      await ref
-                          .read(subscriptionControllerProvider.notifier)
-                          .toggleTier();
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text(
-                      '[DEV] ティアを切り替え',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -178,8 +178,14 @@ class PaywallBottomSheet extends ConsumerWidget {
         FilledButton(
           onPressed: subState.isLoading || subState.product == null
               ? null
-              : () =>
-                  ref.read(subscriptionControllerProvider.notifier).purchase(),
+              : () {
+                  unawaited(
+                    ref.read(analyticsServiceProvider).logSubscribe(
+                          source: source,
+                        ),
+                  );
+                  ref.read(subscriptionControllerProvider.notifier).purchase();
+                },
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
             minimumSize: const Size(double.infinity, 0),
@@ -212,7 +218,7 @@ class PaywallBottomSheet extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     const features = [
-      ('例文', '1日1回', '1日10回'),
+      ('例文', '1日1件', '1日10件'),
       ('クイズ', '1日1回', '1日10回'),
       ('学べる単語', '300語まで', '最大1万語'),
       ('例文のバリエーション', '少なめ', '豊富'),

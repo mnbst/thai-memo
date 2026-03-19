@@ -3,8 +3,7 @@
  *
  * 毎日 JST 0:00 に実行され、以下を行う:
  *   1. ユーザーごとの日次クォータをリセット
- *   2. ユーザーの利用時間帯を分析して scheduled_time を更新
- *   3. 30日以上前の古い例文を削除
+ *   2. 30日以上前の古い例文を削除
  *
  * ※ SRSベースの復習例文選出は generateQuiz でリアルタイムに実行される
  *
@@ -22,10 +21,6 @@ import {
 const db = admin.firestore();
 
 const CONCURRENCY = 5;
-const DEFAULT_SCHEDULED_TIME = '08:00';
-/** 配信可能時間帯（JST） */
-const MIN_HOUR = 8;
-const MAX_HOUR = 20;
 
 async function dailyBatchHandler() {
   console.log('dailyBatch started');
@@ -42,7 +37,6 @@ async function dailyBatchHandler() {
     const chunk = users.slice(i, i + CONCURRENCY);
     await Promise.allSettled(
       chunk.map(async (userDoc) => {
-        await updateScheduledTime(userDoc.id);
         await resetQuota(userDoc);
       })
     );
@@ -66,60 +60,6 @@ async function resetQuota(
       remaining_quizzes: isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES,
       daily_sentence_generated: false,
     },
-    { merge: true }
-  );
-}
-
-/** 例文生成履歴から最頻利用時間帯を30分単位で算出し scheduled_time に保存 */
-async function updateScheduledTime(uid: string): Promise<void> {
-  const sentencesSnapshot = await db
-    .collection('users').doc(uid)
-    .collection('sentences')
-    .orderBy('created_at', 'desc')
-    .limit(50)
-    .get();
-
-  let scheduledTime = DEFAULT_SCHEDULED_TIME;
-
-  if (!sentencesSnapshot.empty) {
-    const slotCounts = new Map<string, number>();
-
-    for (const doc of sentencesSnapshot.docs) {
-      const createdAt = doc.data().created_at?.toDate();
-      if (!createdAt) continue;
-
-      const jstStr = createdAt.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' });
-      const jstDate = new Date(jstStr);
-      const hour = jstDate.getHours();
-      const minute = jstDate.getMinutes() < 30 ? 0 : 30;
-
-      const slot = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-      slotCounts.set(slot, (slotCounts.get(slot) || 0) + 1);
-    }
-
-    if (slotCounts.size > 0) {
-      let maxSlot = DEFAULT_SCHEDULED_TIME;
-      let maxCount = 0;
-      for (const [slot, count] of slotCounts) {
-        if (count > maxCount) {
-          maxCount = count;
-          maxSlot = slot;
-        }
-      }
-
-      const slotHour = parseInt(maxSlot.split(':')[0], 10);
-      if (slotHour < MIN_HOUR) {
-        scheduledTime = `${String(MIN_HOUR).padStart(2, '0')}:00`;
-      } else if (slotHour >= MAX_HOUR) {
-        scheduledTime = `${String(MAX_HOUR).padStart(2, '0')}:00`;
-      } else {
-        scheduledTime = maxSlot;
-      }
-    }
-  }
-
-  await db.collection('users').doc(uid).set(
-    { scheduled_time: scheduledTime },
     { merge: true }
   );
 }

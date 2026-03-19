@@ -8,7 +8,8 @@ from google.cloud.firestore_v1.client import Client as FirestoreClient
 from google.cloud.firestore_v1 import transactional
 
 try:
-    from .constants import FREE_TIER_MAX_VOCAB
+    from .constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
+    from .embeddings import find_best_topic
     from .runtime import initialize_firebase_app
     from .sentence_service import (
         generate_sentence,
@@ -24,7 +25,8 @@ try:
         sync_vocab_count,
     )
 except ImportError:
-    from constants import FREE_TIER_MAX_VOCAB
+    from constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
+    from embeddings import find_best_topic
     from runtime import initialize_firebase_app
     from sentence_service import (
         generate_sentence,
@@ -296,6 +298,12 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
         tier = user_data.get("tier", "free")
         is_premium = tier == "premium"
 
+        # 初回生成はpremium相当のスペックで出力
+        is_first_generation = user_data.get("is_first_generation", False) is True
+        use_premium_spec = is_premium or is_first_generation
+        if is_first_generation:
+            log_data["firstGeneration"] = True
+
         remaining = user_data.get("remaining_sentences", 0)
         if remaining <= 0:
             response["error"] = {
@@ -305,7 +313,7 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
             return response
 
         count = remaining
-        estimated_vocab = _get_capped_estimated_vocab(user_data, is_premium)
+        estimated_vocab = _get_capped_estimated_vocab(user_data, use_premium_spec)
         log_data["batchCount"] = count
 
         # 表示件数に応じて必要数ぶんの key_word を一括選定し、表示順はシャッフルする
@@ -313,21 +321,36 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
             db,
             uid,
             {},
-            is_premium=is_premium,
+            is_premium=use_premium_spec,
             estimated_vocab=estimated_vocab,
             count=count,
         )
         random.shuffle(selected_words)
         all_target_words = [[word] for word in selected_words]
-        all_topics = [chosen_topic] * len(all_target_words)
+
+        # 各単語ごとにトピックを選定（embedding → ランダムフォールバック）
+        # 重複トピックは別のトピックに差し替えて多様性を確保
+        topics_pool = TOPICS if use_premium_spec else FREE_TOPICS
+        all_topics = []
+        used_topics: set[str] = set()
+        for word in selected_words:
+            topic = find_best_topic(word, topics_pool)
+            if not topic or topic in used_topics:
+                available = [t for t in topics_pool if t not in used_topics]
+                if not available:
+                    available = topics_pool
+                topic = random.choice(available)
+            all_topics.append(topic)
+            used_topics.add(topic)
+
         count = len(all_target_words)
         log_data["uvmWords"] = sum(len(tw) for tw in all_target_words)
-        log_data["chosenTopic"] = chosen_topic
+        log_data["chosenTopics"] = all_topics
 
         # 並列生成
         sentences = generate_sentences_batch(
             count,
-            is_premium=is_premium,
+            is_premium=use_premium_spec,
             all_target_words=all_target_words,
             all_topics=all_topics,
             estimated_vocab=estimated_vocab,
@@ -359,6 +382,10 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
             sentence_writes,
             generated_count,
         )
+
+        # 初回生成フラグをクリア
+        if is_first_generation:
+            user_ref.update({"is_first_generation": firestore.DELETE_FIELD})
 
         # UVM 露出登録
         for i, sentence in enumerate(sentences):

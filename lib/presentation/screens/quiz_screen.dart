@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
+import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
@@ -11,6 +14,8 @@ import '../widgets/loading_tip_carousel.dart';
 import 'paywall_screen.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
+  static const routeName = 'quiz';
+
   const QuizScreen({super.key});
 
   @override
@@ -200,7 +205,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             if (isQuotaError) ...[
               if (!ref.watch(isPremiumProvider))
                 FilledButton.icon(
-                  onPressed: () => PaywallBottomSheet.show(context),
+                  onPressed: () => PaywallBottomSheet.show(
+                    context,
+                    source: 'quiz_quota_error',
+                  ),
                   icon: const Icon(Icons.star),
                   label: const Text('プレミアムにアップグレード'),
                 ),
@@ -636,6 +644,14 @@ class _QuizResultView extends ConsumerWidget {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () {
+                          unawaited(
+                            ref.read(analyticsServiceProvider).logPlayTts(
+                                  contentType: 'word',
+                                  text: question.correctAnswer,
+                                  sentenceId: question.sentenceId,
+                                  source: 'quiz_result',
+                                ),
+                          );
                           ref
                               .read(ttsServiceProvider)
                               .speak(question.correctAnswer);
@@ -852,6 +868,14 @@ class _QuizResultDetail extends ConsumerWidget {
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       onPressed: () {
+                        unawaited(
+                          ref.read(analyticsServiceProvider).logPlayTts(
+                                contentType: 'word',
+                                text: question.correctAnswer,
+                                sentenceId: question.sentenceId,
+                                source: 'quiz_result_detail',
+                              ),
+                        );
                         ref
                             .read(ttsServiceProvider)
                             .speak(question.correctAnswer);

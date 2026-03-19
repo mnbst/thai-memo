@@ -44,10 +44,6 @@ class ThaiSentence {
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
 
-  /// お気に入り登録済みかどうか
-  @JsonKey(name: 'is_favorite')
-  final bool isFavorite;
-
   ThaiSentence({
     this.id,
     required this.thaiText,
@@ -56,7 +52,6 @@ class ThaiSentence {
     required this.wordBreakdowns,
     this.context,
     this.createdAt,
-    this.isFavorite = false,
   });
 
   /// JSONからThaiSentenceを生成
@@ -81,7 +76,6 @@ class ThaiSentence {
       createdAt: map['created_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int)
           : null,
-      isFavorite: (map['is_favorite'] as int?) == 1,
     );
   }
 
@@ -98,7 +92,6 @@ class ThaiSentence {
       'emotion': context?.emotion,
       'usage_scenarios': context?.usageScenarios,
       if (createdAt != null) 'created_at': createdAt!.millisecondsSinceEpoch,
-      'is_favorite': isFavorite ? 1 : 0,
     };
   }
 
@@ -111,7 +104,6 @@ class ThaiSentence {
     List<WordBreakdown>? wordBreakdowns,
     SentenceContext? context,
     DateTime? createdAt,
-    bool? isFavorite,
   }) {
     return ThaiSentence(
       id: id ?? this.id,
@@ -121,7 +113,6 @@ class ThaiSentence {
       wordBreakdowns: wordBreakdowns ?? this.wordBreakdowns,
       context: context ?? this.context,
       createdAt: createdAt ?? this.createdAt,
-      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
 
@@ -129,7 +120,7 @@ class ThaiSentence {
   String toString() {
     return 'ThaiSentence(id: $id, thaiText: $thaiText, '
         'wordBreakdowns: ${wordBreakdowns.length}, '
-        'createdAt: $createdAt, isFavorite: $isFavorite)';
+        'createdAt: $createdAt)';
   }
 }
 

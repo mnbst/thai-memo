@@ -173,28 +173,6 @@ class DatabaseHelper {
     return results.isNotEmpty ? results.first : null;
   }
 
-  /// Get favorite sentences
-  Future<List<Map<String, dynamic>>> getFavoriteSentences() async {
-    final db = await database;
-    return await db.query(
-      DatabaseConstants.tableSentences,
-      where: '${DatabaseConstants.columnIsFavorite} = ?',
-      whereArgs: [1],
-      orderBy: '${DatabaseConstants.columnCreatedAt} DESC',
-    );
-  }
-
-  /// Toggle favorite status of a sentence
-  Future<int> toggleFavorite(String id, bool isFavorite) async {
-    final db = await database;
-    return await db.update(
-      DatabaseConstants.tableSentences,
-      {DatabaseConstants.columnIsFavorite: isFavorite ? 1 : 0},
-      where: '${DatabaseConstants.columnSentenceId} = ?',
-      whereArgs: [id],
-    );
-  }
-
   /// Delete a sentence (and its word breakdowns due to CASCADE)
   Future<int> deleteSentence(String id) async {
     final db = await database;

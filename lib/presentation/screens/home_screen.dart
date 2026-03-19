@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,15 +7,17 @@ import '../../core/config/app_config.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
-import '../../services/fcm_service.dart';
+import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
 import 'detail_screen.dart';
+import 'paywall_screen.dart';
 import 'history_screen.dart';
 import 'onboarding_screen.dart';
 import 'quiz_screen.dart';
@@ -21,6 +25,8 @@ import 'settings_screen.dart';
 
 /// Home screen with bottom navigation
 class HomeScreen extends ConsumerStatefulWidget {
+  static const routeName = 'home';
+
   const HomeScreen({super.key});
 
   @override
@@ -36,19 +42,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _logCurrentTabScreen();
       _checkFirstLaunchAndLoadSentence();
+      // Firestoreフラグ監視: true→false（dailyBatchリセット）で自動読み込み
+      ref.listenManual(dailySentenceGeneratedProvider, (prev, next) {
+        final wasTrue = prev?.valueOrNull == true;
+        final nowFalse = next.valueOrNull == false;
+        if (wasTrue && nowFalse) {
+          // dailyBatchリセット時は表示中でも新日の例文を生成
+          ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
+                dailySentenceGenerated: false,
+              );
+          ref.invalidate(allSentencesProvider);
+        }
+      });
     });
-    // 通知タップ時に例文タブへ切り替え
-    FcmService.instance.onSentenceTabRequested = () {
-      if (mounted) {
-        setState(() {
-          _currentIndex = 0; // 例文タブ
-        });
-      }
-    };
-
-    // 保留中の通知遷移があれば実行
-    FcmService.instance.markHomeReady();
   }
 
   @override
@@ -66,7 +74,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
   Future<void> _checkAndReloadIfNeeded() async {
-    // バッチ生成中・ローディング中なら二重生成を防ぐためスキップ
+    // 生成中ならスキップ
     final currentState = ref.read(sentenceControllerProvider);
     if (currentState is SentenceStateBatchLoading ||
         currentState is SentenceStateLoading) {
@@ -75,12 +83,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final data = await ref.read(userDocProvider.future);
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
+
+    // 今日の生成済みフラグが立っていて表示成功状態なら、そのまま維持する
+    if (isGenerated &&
+        (currentState is SentenceStateBatchSuccess ||
+            currentState is SentenceStateSuccess)) {
+      return;
+    }
+
     if (!isGenerated) {
       ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
             dailySentenceGenerated: false,
           );
       ref.invalidate(allSentencesProvider);
-      ref.invalidate(favoriteSentencesProvider);
     }
   }
 
@@ -96,6 +111,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         await Navigator.push<void>(
           context,
           MaterialPageRoute(
+            settings: const RouteSettings(name: OnboardingScreen.routeName),
             builder: (context) => OnboardingScreen(
               onComplete: () {
                 Navigator.pop(context);
@@ -107,10 +123,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
     }
-
-    // FCM初期化＋通知権限リクエスト（オンボーディング後 or 既存ユーザー初回表示時）
-    await FcmService.instance.initialize();
-    await FcmService.instance.requestPermissionAndRegisterToken();
 
     if (!mounted) return;
 
@@ -125,7 +137,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // 履歴を更新
     ref.invalidate(allSentencesProvider);
-    ref.invalidate(favoriteSentencesProvider);
   }
 
   @override
@@ -157,6 +168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           setState(() {
             _currentIndex = index;
           });
+          _logCurrentTabScreen(index: index);
           if (index == 1) {
             ref.read(quizControllerProvider.notifier).loadQuiz();
           }
@@ -184,6 +196,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ],
       ),
+    );
+  }
+
+  void _logCurrentTabScreen({int? index}) {
+    final currentIndex = index ?? _currentIndex;
+    final screenName = switch (currentIndex) {
+      0 => 'today',
+      1 => 'quiz',
+      2 => 'history',
+      3 => 'settings',
+      _ => 'home',
+    };
+
+    // IndexedStack は route が増えないため、タブ切り替えは手動で screen_view を送る。
+    unawaited(
+      ref.read(analyticsServiceProvider).logScreenView(
+            screenName: screenName,
+            screenClass: 'HomeTab',
+          ),
     );
   }
 }
@@ -250,7 +281,6 @@ class TodayScreen extends ConsumerStatefulWidget {
       usageScenarios: '朝昼晩いつでも使える基本的な挨拶。女性の場合は「ค่ะ」を使います。',
     ),
     createdAt: null,
-    isFavorite: false,
   );
 
   @override
@@ -349,6 +379,13 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     BuildContext context,
     List<ThaiSentence> sentences,
   ) {
+    final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
+            ref.watch(isPremiumProvider)) ==
+        true;
+    final remainingAsync = ref.watch(remainingSentencesProvider);
+    final remaining = remainingAsync.valueOrNull;
+    final showUpgrade = !isPremium && remaining != null && remaining <= 0;
+
     return Column(
       children: [
         // Vocab stats
@@ -370,6 +407,25 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              GestureDetector(
+                onTap: _currentPage > 0
+                    ? () => _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        )
+                    : null,
+                child: Icon(
+                  Icons.chevron_left,
+                  size: 20,
+                  color: _currentPage > 0
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.2),
+                ),
+              ),
+              const SizedBox(width: 4),
               Text(
                 '${_currentPage + 1} / ${sentences.length}',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -377,26 +433,49 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                       fontWeight: FontWeight.bold,
                     ),
               ),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: _currentPage < sentences.length - 1
+                    ? () => _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        )
+                    : null,
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: _currentPage < sentences.length - 1
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.2),
+                ),
+              ),
             ],
           ),
         ),
-        // Dot indicators
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(sentences.length, (i) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: i == _currentPage ? 20 : 8,
-              height: 8,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                color: i == _currentPage
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.25),
+        // Progress bar
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConfig.defaultPadding * 2,
+          ),
+          child: Builder(builder: (context) {
+            final progress = sentences.length > 1
+                ? (_currentPage + 1) / sentences.length
+                : 1.0;
+            final barColor = Color.lerp(
+              const Color(0xFF0033A0), // タイ国旗の青
+              const Color(0xFFE4002B), // タイ国旗の赤
+              progress,
+            )!;
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: barColor.withValues(alpha: 0.15),
+                valueColor: AlwaysStoppedAnimation<Color>(barColor),
               ),
             );
           }),
@@ -425,6 +504,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     _buildSentenceCard(context, sentence),
                     const SizedBox(height: 16),
                     _buildQuickInfo(context, sentence),
+                    if (showUpgrade) ...[
+                      const SizedBox(height: 16),
+                      _buildUpgradeBanner(context),
+                    ],
                   ],
                 ),
               );
@@ -437,6 +520,13 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// Build success state with single sentence
   Widget _buildSuccessState(BuildContext context, ThaiSentence sentence) {
+    final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
+            ref.watch(isPremiumProvider)) ==
+        true;
+    final remainingAsync = ref.watch(remainingSentencesProvider);
+    final remaining = remainingAsync.valueOrNull;
+    final showUpgrade = !isPremium && remaining != null && remaining <= 0;
+
     return Column(
       children: [
         // Vocab stats — 上部固定表示
@@ -463,6 +553,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 _buildSentenceCard(context, sentence),
                 const SizedBox(height: 16),
                 _buildQuickInfo(context, sentence),
+                if (showUpgrade) ...[
+                  const SizedBox(height: 16),
+                  _buildUpgradeBanner(context),
+                ],
               ],
             ),
           ),
@@ -479,7 +573,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DetailScreen(sentence: sentence),
+              settings: const RouteSettings(name: DetailScreen.routeName),
+              builder: (context) => DetailScreen(
+                sentence: sentence,
+                source: 'today',
+              ),
             ),
           );
         },
@@ -511,6 +609,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     onPressed: () {
+                      unawaited(
+                        ref.read(analyticsServiceProvider).logPlayTts(
+                              contentType: 'sentence',
+                              text: sentence.thaiText,
+                              sentenceId: sentence.id,
+                              source: 'today_sentence',
+                            ),
+                      );
                       ref.read(ttsServiceProvider).speak(sentence.thaiText);
                     },
                     tooltip: '全文を再生',
@@ -645,6 +751,55 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
+  /// Build upgrade banner for free users
+  Widget _buildUpgradeBanner(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      color: colorScheme.primaryContainer,
+      child: InkWell(
+        onTap: () => PaywallBottomSheet.show(
+          context,
+          source: 'today_upgrade_banner',
+        ),
+        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+        child: Padding(
+          padding: const EdgeInsets.all(AppConfig.defaultPadding),
+          child: Row(
+            children: [
+              Icon(Icons.workspace_premium,
+                  color: colorScheme.onPrimaryContainer),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'もっと例文を学びたいですか？',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'プレミアムなら1日10件まで生成できます',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onPrimaryContainer
+                                .withValues(alpha: 0.8),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios,
+                  size: 16, color: colorScheme.onPrimaryContainer),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Build error state
   Widget _buildErrorState(BuildContext context, String message) {
     final isQuotaError = message.contains('上限');
@@ -752,7 +907,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     if (context.mounted) {
       if (state is SentenceStateBatchSuccess) {
         ref.invalidate(allSentencesProvider);
-        ref.invalidate(favoriteSentencesProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${state.sentences.length}件の例文を生成しました！'),

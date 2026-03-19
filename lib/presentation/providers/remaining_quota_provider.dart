@@ -41,3 +41,10 @@ final remainingQuizzesProvider = Provider<AsyncValue<int>>((ref) {
       .watch(userDocProvider)
       .whenData((data) => (data?['remaining_quizzes'] as num?)?.toInt() ?? 0);
 });
+
+/// users/{uid}.tier — Firestoreストリームからリアルタイムにプレミアム判定
+final isPremiumRealtimeProvider = Provider<AsyncValue<bool>>((ref) {
+  return ref
+      .watch(userDocProvider)
+      .whenData((data) => data?['tier'] == 'premium');
+});
