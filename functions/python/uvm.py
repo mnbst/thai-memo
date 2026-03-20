@@ -58,15 +58,20 @@ def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 10) -
     return total / (2 * window + 1)
 
 
-def estimate_vocab(docs: list, freq_rank: dict[str, int]) -> int:
+def estimate_vocab(
+    docs: list, freq_rank: dict[str, int], center: int = 0
+) -> int:
     """語彙境界（P ≈ 0.5 となる rank）を推定する。
 
     UVM ドキュメント群を rank でインデックスし、
     moving_avg が 0.5 を下回る最初の rank を返す。
-    探索範囲は加重平均 rank ± 200。
+    探索範囲は center ± 200。
 
     データがスパース（moving_avg が機能しにくい）場合は、
     P > 0.5 の語の最大 rank をフォールバックとして使う。
+
+    Args:
+        center: 探索中心（通常は現在の estimated_vocab）。
     """
     # docs から {rank: p} のマップを構築
     words_by_rank: dict[int, float] = {}
@@ -87,31 +92,50 @@ def estimate_vocab(docs: list, freq_rank: dict[str, int]) -> int:
         default=0,
     )
 
-    # 探索中心: 加重平均 rank
-    total_p = sum(p for p, _ in weighted_ranks)
-    if total_p <= 0:
-        return known_max_rank
-    estimate = int(sum(p * rank for p, rank in weighted_ranks) / total_p)
+    # center が未指定 (0) の場合は加重平均を使用
+    if center <= 0:
+        total_p = sum(p for p, _ in weighted_ranks)
+        if total_p <= 0:
+            return known_max_rank
+        center = int(sum(p * rank for p, rank in weighted_ranks) / total_p)
 
-    # estimate ± 200 の範囲で P < 0.5 となる rank を探索
-    for r in range(estimate - 200, estimate + 201):
+    # center ± 200 の範囲で P < 0.5 となる rank を探索
+    for r in range(center - 200, center + 201):
         avg = moving_avg(words_by_rank, r)
         if avg < 0.5:
             return max(known_max_rank, r, 0)
 
-    return max(known_max_rank, estimate, 0)
+    return max(known_max_rank, center, 0)
 
 
-def sync_vocab_count(db: FirestoreClient, uid: str, freq_rank: dict[str, int]) -> None:
-    """users/{uid} の vocab_count と estimated_vocab を同期する。"""
-    uvm_ref = db.collection("users").document(uid).collection("uvm")
-    docs = list(uvm_ref.select(["p"]).get())
-    vocab_count = len(docs)
-    estimated = estimate_vocab(docs, freq_rank)
-    db.collection("users").document(uid).set(
-        {"vocab_count": vocab_count, "estimated_vocab": estimated},
-        merge=True,
-    )
+def sync_estimated_vocab(
+    db: FirestoreClient, uid: str, freq_rank: dict[str, int]
+) -> None:
+    """users/{uid} の estimated_vocab を効率的に更新する。
+
+    現在の estimated_vocab を中心に ±200 の freq_rank 範囲の単語だけ
+    UVM から取得して再計算する（全件取得を回避）。
+    """
+    user_ref = db.collection("users").document(uid)
+    user_doc = user_ref.get()
+    current_estimate = 0
+    if user_doc.exists:
+        current_estimate = (user_doc.to_dict() or {}).get("estimated_vocab", 0)
+
+    # freq_rank から探索範囲内の単語を抽出
+    scan_low = max(0, current_estimate - 200)
+    scan_high = current_estimate + 201
+    target_words = [
+        word for word, rank in freq_rank.items() if scan_low <= rank < scan_high
+    ]
+
+    # 対象単語の UVM ドキュメントだけ取得
+    uvm_ref = user_ref.collection("uvm")
+    refs = [uvm_ref.document(word) for word in target_words]
+    docs = [snap for snap in db.get_all(refs) if snap.exists] if refs else []
+
+    estimated = estimate_vocab(docs, freq_rank, center=current_estimate)
+    user_ref.set({"estimated_vocab": estimated}, merge=True)
 
 
 def update_p(p: float, correct: bool, quiz_attempts: int = 0) -> float:
@@ -372,4 +396,4 @@ def batch_update_uvm(
     batch.commit()
 
     if freq_rank is not None:
-        sync_vocab_count(db, uid, freq_rank)
+        sync_estimated_vocab(db, uid, freq_rank)

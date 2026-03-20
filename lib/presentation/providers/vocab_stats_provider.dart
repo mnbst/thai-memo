@@ -6,9 +6,8 @@ import 'remaining_quota_provider.dart';
 /// 推定語彙数の状態
 class VocabStats {
   final int estimatedVocab;
-  final int vocabCount;
 
-  const VocabStats({this.estimatedVocab = 0, this.vocabCount = 0});
+  const VocabStats({this.estimatedVocab = 0});
 }
 
 /// Firestore users/{uid} から語彙統計をリアルタイム取得
@@ -26,7 +25,6 @@ final vocabStatsProvider = StreamProvider<VocabStats>((ref) {
     return VocabStats(
       estimatedVocab:
           ((data['estimated_vocab'] as num?)?.toInt() ?? 0).clamp(0, 1 << 31),
-      vocabCount: (data['vocab_count'] as num?)?.toInt() ?? 0,
     );
   });
 });

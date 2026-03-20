@@ -19,7 +19,6 @@ export const onUserCreate = functions
           remaining_sentences: INITIAL_SENTENCES,
           remaining_quizzes: INITIAL_QUIZZES,
           uvm_initialized: true,
-          vocab_count: 0,
           daily_sentence_generated: false,
           is_first_generation: true,
         },

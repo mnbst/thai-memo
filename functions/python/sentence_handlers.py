@@ -22,7 +22,7 @@ try:
         get_exposed_words,
         get_sentence_words,
         register_exposure,
-        sync_vocab_count,
+        sync_estimated_vocab,
     )
 except ImportError:
     from constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
@@ -39,7 +39,7 @@ except ImportError:
         get_exposed_words,
         get_sentence_words,
         register_exposure,
-        sync_vocab_count,
+        sync_estimated_vocab,
     )
 
 initialize_firebase_app()
@@ -241,9 +241,9 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         # vocab_count / estimated_vocab を同期
         try:
             freq_rank = get_freq_rank()
-            sync_vocab_count(db, uid, freq_rank)
+            sync_estimated_vocab(db, uid, freq_rank)
         except Exception as exc:
-            print(f"sync_vocab_count failed: {exc}")
+            print(f"sync_estimated_vocab failed: {exc}")
 
         print(f"Request completed successfully: {log_data}")
         return response
@@ -405,9 +405,9 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
         # vocab_count 同期
         try:
             freq_rank = get_freq_rank()
-            sync_vocab_count(db, uid, freq_rank)
+            sync_estimated_vocab(db, uid, freq_rank)
         except Exception as exc:
-            print(f"sync_vocab_count failed: {exc}")
+            print(f"sync_estimated_vocab failed: {exc}")
 
         processing_time = int((time.time() - start_time) * 1000)
         log_data["processingTimeMs"] = processing_time

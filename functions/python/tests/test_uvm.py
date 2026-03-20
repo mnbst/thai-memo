@@ -124,6 +124,12 @@ class FakeDb:
         assert name == "users"
         return FakeUsersCollection(self.store, self.user_docs)
 
+    def get_all(self, refs: list[FakeDocRef]) -> list[FakeDocSnapshot]:
+        return [
+            FakeDocSnapshot(ref.doc_id, ref.store.get(ref.doc_id))
+            for ref in refs
+        ]
+
     def batch(self) -> FakeBatch:
         return FakeBatch()
 
@@ -349,7 +355,6 @@ def test_batch_update_uvm_syncs_counts_for_existing_word_updates() -> None:
         },
         {
             "user-1": {
-                "vocab_count": 0,
                 "estimated_vocab": 0,
             }
         },
@@ -362,6 +367,5 @@ def test_batch_update_uvm_syncs_counts_for_existing_word_updates() -> None:
         freq_rank={"กิน": 12},
     )
 
-    assert db.user_docs["user-1"]["vocab_count"] == 1
     # 1語(rank=12, p>0.5)→ スパースフォールバックで known_max_rank=12
     assert db.user_docs["user-1"]["estimated_vocab"] == 12
