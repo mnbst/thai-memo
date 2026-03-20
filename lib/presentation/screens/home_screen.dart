@@ -76,8 +76,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _checkAndReloadIfNeeded() async {
     // 生成中ならスキップ
     final currentState = ref.read(sentenceControllerProvider);
-    if (currentState is SentenceStateBatchLoading ||
-        currentState is SentenceStateLoading) {
+    if (currentState is SentenceStateLoading) {
       return;
     }
 
@@ -85,9 +84,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
 
     // 今日の生成済みフラグが立っていて表示成功状態なら、そのまま維持する
-    if (isGenerated &&
-        (currentState is SentenceStateBatchSuccess ||
-            currentState is SentenceStateSuccess)) {
+    if (isGenerated && currentState is SentenceStateSuccess) {
       return;
     }
 
@@ -288,15 +285,6 @@ class TodayScreen extends ConsumerStatefulWidget {
 }
 
 class _TodayScreenState extends ConsumerState<TodayScreen> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final sentenceState = ref.watch(sentenceControllerProvider);
@@ -312,10 +300,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   Widget _buildSentenceContent(BuildContext context, SentenceState state) {
     if (state is SentenceStateLoading) {
       return _buildLoadingState();
-    } else if (state is SentenceStateBatchLoading) {
-      return _buildBatchLoadingState();
-    } else if (state is SentenceStateBatchSuccess) {
-      return _buildBatchSuccessState(context, state.sentences);
     } else if (state is SentenceStateSuccess) {
       return _buildSuccessState(context, state.sentence);
     } else if (state is SentenceStateError) {
@@ -345,176 +329,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  /// Batch loading state
-  Widget _buildBatchLoadingState() {
-    return const Center(
-      child: Card(
-        child: Padding(
-          padding: EdgeInsets.all(AppConfig.defaultPadding * 2),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('例文を生成中...'),
-              SizedBox(height: 8),
-              Text(
-                'しばらくお待ちください',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              SizedBox(height: 24),
-              LoadingTipCarousel(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Build batch success state with PageView
-  Widget _buildBatchSuccessState(
-    BuildContext context,
-    List<ThaiSentence> sentences,
-  ) {
-    final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
-            ref.watch(isPremiumProvider)) ==
-        true;
-    final remainingAsync = ref.watch(remainingSentencesProvider);
-    final remaining = remainingAsync.valueOrNull;
-    final showUpgrade = !isPremium && remaining != null && remaining <= 0;
-
-    return Column(
-      children: [
-        // Vocab stats
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppConfig.defaultPadding,
-            AppConfig.defaultPadding,
-            AppConfig.defaultPadding,
-            0,
-          ),
-          child: _buildVocabStats(context),
-        ),
-        // Page indicator
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppConfig.defaultPadding,
-            vertical: 8,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: _currentPage > 0
-                    ? () => _pageController.previousPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        )
-                    : null,
-                child: Icon(
-                  Icons.chevron_left,
-                  size: 20,
-                  color: _currentPage > 0
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.2),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${_currentPage + 1} / ${sentences.length}',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(width: 4),
-              GestureDetector(
-                onTap: _currentPage < sentences.length - 1
-                    ? () => _pageController.nextPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        )
-                    : null,
-                child: Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: _currentPage < sentences.length - 1
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.2),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Progress bar
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppConfig.defaultPadding * 2,
-          ),
-          child: Builder(builder: (context) {
-            final progress = sentences.length > 1
-                ? (_currentPage + 1) / sentences.length
-                : 1.0;
-            final barColor = Color.lerp(
-              const Color(0xFF0033A0), // タイ国旗の青
-              const Color(0xFFE4002B), // タイ国旗の赤
-              progress,
-            )!;
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 6,
-                backgroundColor: barColor.withValues(alpha: 0.15),
-                valueColor: AlwaysStoppedAnimation<Color>(barColor),
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 8),
-        // PageView of sentences
-        Expanded(
-          child: PageView.builder(
-            controller: _pageController,
-            itemCount: sentences.length,
-            onPageChanged: (index) {
-              setState(() => _currentPage = index);
-            },
-            itemBuilder: (context, index) {
-              final sentence = sentences[index];
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppConfig.defaultPadding,
-                  4,
-                  AppConfig.defaultPadding,
-                  AppConfig.defaultPadding + 20,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildSentenceCard(context, sentence),
-                    const SizedBox(height: 16),
-                    _buildQuickInfo(context, sentence),
-                    if (showUpgrade) ...[
-                      const SizedBox(height: 16),
-                      _buildUpgradeBanner(context),
-                    ],
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 
@@ -873,46 +687,35 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
-  /// Build generate button — hidden when remaining=0
+  /// Build generate button — hidden when remaining=0 or loading
   Widget? _buildGenerateButton(BuildContext context) {
     final sentenceState = ref.watch(sentenceControllerProvider);
-    // バッチ生成完了後・ローディング中はFAB非表示
-    if (sentenceState is SentenceStateBatchSuccess ||
-        sentenceState is SentenceStateBatchLoading ||
-        sentenceState is SentenceStateLoading) {
-      return null;
-    }
+    if (sentenceState is SentenceStateLoading) return null;
 
     final remainingAsync = ref.watch(remainingSentencesProvider);
     final remaining = remainingAsync.valueOrNull;
 
-    // remaining=0 → FAB非表示
     if (remaining != null && remaining <= 0) return null;
 
+    final remainingText = remaining != null ? '（残り$remaining回）' : '';
+
     return FloatingActionButton.extended(
-      onPressed: () => _generateBatch(context),
+      onPressed: () => _generateSingle(context),
       icon: const Icon(Icons.auto_awesome),
-      label: remaining != null ? Text('例文生成（$remaining件）') : const Text('例文生成'),
+      label: Text('例文生成$remainingText'),
     );
   }
 
-  /// Premium: batch generate all remaining sentences
-  Future<void> _generateBatch(BuildContext context) async {
-    _currentPage = 0;
+  /// Generate a single sentence
+  Future<void> _generateSingle(BuildContext context) async {
     await ref
         .read(sentenceControllerProvider.notifier)
-        .generateBatchSentences();
+        .generateSentence();
 
     final state = ref.read(sentenceControllerProvider);
     if (context.mounted) {
-      if (state is SentenceStateBatchSuccess) {
+      if (state is SentenceStateSuccess) {
         ref.invalidate(allSentencesProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${state.sentences.length}件の例文を生成しました！'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
-        );
       } else if (state is SentenceStateError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

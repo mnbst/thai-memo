@@ -118,7 +118,7 @@ class SentenceController extends StateNotifier<SentenceState> {
     }
   }
 
-  /// Firestoreフラグに基づき、未生成なら自動生成、済みなら最新を表示
+  /// Firestoreフラグに基づき、未生成なら1件自動生成、済みなら最新を表示
   Future<void> loadOrGenerateToday({
     required bool dailySentenceGenerated,
   }) async {
@@ -136,15 +136,11 @@ class SentenceController extends StateNotifier<SentenceState> {
         return;
       }
 
-      // 未生成 → バッチ生成（free/premium共通）
+      // 未生成 → 1件生成
       try {
-        final sentences = await _generateUseCase.executeBatch();
-        if (sentences.isEmpty) {
-          state = const SentenceStateError('例文の生成に失敗しました。もう一度お試しください。');
-        } else {
-          state = SentenceStateBatchSuccess(sentences);
-          _logGenerateSentence(count: sentences.length, source: 'daily_auto');
-        }
+        final sentence = await _generateUseCase.execute();
+        state = SentenceStateSuccess(sentence);
+        _logGenerateSentence(count: 1, source: 'daily_auto');
       } on GenerateSentenceException catch (e) {
         state = SentenceStateError(e.getUserMessage());
       } catch (e) {

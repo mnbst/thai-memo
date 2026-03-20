@@ -170,6 +170,12 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         tier = user_data.get("tier", "free")
         is_premium = tier == "premium"
 
+        # 初回生成はpremium相当のスペックで出力
+        is_first_generation = user_data.get("is_first_generation", False) is True
+        use_premium_spec = is_premium or is_first_generation
+        if is_first_generation:
+            log_data["firstGeneration"] = True
+
         remaining = user_data.get("remaining_sentences", 0)
         if remaining <= 0:
             response["error"] = {
@@ -179,12 +185,12 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             return response
 
         params = req.data or {}
-        estimated_vocab = _get_capped_estimated_vocab(user_data, is_premium)
+        estimated_vocab = _get_capped_estimated_vocab(user_data, use_premium_spec)
         target_words, chosen_topic = _select_target_words_with_topic(
             db,
             uid,
             params,
-            is_premium=is_premium,
+            is_premium=use_premium_spec,
             estimated_vocab=estimated_vocab,
         )
         params["topic"] = chosen_topic
@@ -193,7 +199,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
 
         sentence = generate_sentence(
             params,
-            is_premium,
+            use_premium_spec,
             target_words=target_words,
             estimated_vocab=estimated_vocab,
         )
@@ -220,6 +226,10 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
 
         response["success"] = True
         response["data"] = sentence
+
+        # 初回生成フラグをクリア（残クォータが0になった時点）
+        if is_first_generation and remaining <= 1:
+            user_ref.update({"is_first_generation": firestore.DELETE_FIELD})
 
         # UVM 露出登録（free/premium 共通）
         log_data["uvmMatchedWords"] = _register_sentence_exposure(

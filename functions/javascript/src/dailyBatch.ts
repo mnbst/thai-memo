@@ -1,11 +1,10 @@
 /**
- * dailyBatch.ts — 深夜バッチ処理（クォータリセット + 古い例文削除）
+ * dailyBatch.ts — 深夜バッチ処理
  *
  * 毎日 JST 0:00 に実行され、以下を行う:
  *   1. ユーザーごとの日次クォータをリセット
- *   2. 30日以上前の古い例文を削除
- *
- * ※ SRSベースの復習例文選出は generateQuiz でリアルタイムに実行される
+ *   2. UVM の P 値を減衰（estimated_vocab ± 20 帯域内のみ）
+ *   3. 30日以上前の古い例文を削除
  *
  * dev環境: HTTPトリガー / tester・prod環境: Cloud Scheduler
  */
@@ -22,6 +21,44 @@ const db = admin.firestore();
 
 const CONCURRENCY = 5;
 
+/**
+ * UVM P値減衰の定数
+ *
+ * 例文選定では estimated_vocab ± 10 帯域内で P が最も低い語を選出する。
+ * 新規（未登録）語は P=0.02 で扱うため、露出済みだが復習されていない語の
+ * P を毎日 0.01 ずつ減衰させることで、放置された語が新語より優先されるようにする。
+ * 減衰対象は estimated_vocab ± 20 に絞り、帯域外の語には影響しない。
+ */
+const DECAY_BAND_HALF = 20;
+const P_DECAY_PER_DAY = 0.01;
+const P_DECAY_MIN = 0.0;
+
+/** GCSからfreq_rankを読み込みキャッシュする */
+let freqRankCache: Record<string, number> | null = null;
+async function getFreqRank(): Promise<Record<string, number>> {
+  if (freqRankCache) return freqRankCache;
+  const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '';
+  const bucket = admin.storage().bucket(`${projectId}-uvm-data`);
+  const [content] = await bucket.file('freq_rank_top10000.json').download();
+  freqRankCache = JSON.parse(content.toString());
+  return freqRankCache!;
+}
+
+/** freq_rank の逆引き (rank → word) を帯域内で生成 */
+function getRankToWords(
+  freqRank: Record<string, number>,
+  bandLow: number,
+  bandHigh: number,
+): Set<string> {
+  const words = new Set<string>();
+  for (const [word, rank] of Object.entries(freqRank)) {
+    if (rank >= bandLow && rank <= bandHigh) {
+      words.add(word);
+    }
+  }
+  return words;
+}
+
 async function dailyBatchHandler() {
   console.log('dailyBatch started');
 
@@ -31,6 +68,8 @@ async function dailyBatchHandler() {
     return;
   }
 
+  const freqRank = await getFreqRank();
+
   // CONCURRENCY件ずつ並行処理。allSettledで一部失敗しても継続
   const users = usersSnapshot.docs;
   for (let i = 0; i < users.length; i += CONCURRENCY) {
@@ -38,6 +77,7 @@ async function dailyBatchHandler() {
     await Promise.allSettled(
       chunk.map(async (userDoc) => {
         await resetQuota(userDoc);
+        await decayUvmP(userDoc, freqRank);
       })
     );
   }
@@ -62,6 +102,44 @@ async function resetQuota(
     },
     { merge: true }
   );
+}
+
+/** estimated_vocab ± 20 帯域内の UVM 語に対し、経過日数 × 0.01 の P 減衰を適用 */
+async function decayUvmP(
+  userDoc: FirebaseFirestore.QueryDocumentSnapshot,
+  freqRank: Record<string, number>,
+): Promise<void> {
+  const userData = userDoc.data() || {};
+  const estimatedVocab: number = userData.estimated_vocab ?? 0;
+
+  const bandLow = Math.max(0, estimatedVocab - DECAY_BAND_HALF);
+  const bandHigh = estimatedVocab + DECAY_BAND_HALF;
+  const bandWords = getRankToWords(freqRank, bandLow, bandHigh);
+
+  if (bandWords.size === 0) return;
+
+  const uvmRef = db.collection('users').doc(userDoc.id).collection('uvm');
+
+  const batch = db.batch();
+  let writeCount = 0;
+
+  for (const word of bandWords) {
+    const docRef = uvmRef.doc(word);
+    const snap = await docRef.get();
+    if (!snap.exists) continue;
+
+    const p: number = (snap.data() || {}).p ?? 0;
+    if (p <= P_DECAY_MIN) continue;
+
+    const newP = Math.max(P_DECAY_MIN, p - P_DECAY_PER_DAY);
+    batch.update(docRef, { p: newP });
+    writeCount++;
+  }
+
+  if (writeCount > 0) {
+    await batch.commit();
+    console.log(`decayUvmP: uid=${userDoc.id}, updated ${writeCount} word(s), band=[${bandLow},${bandHigh}]`);
+  }
 }
 
 /** 30日以上前の例文を全ユーザーからバッチ削除 */

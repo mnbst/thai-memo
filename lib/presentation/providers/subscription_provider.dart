@@ -12,7 +12,7 @@
 ///
 /// 【Free / Premium の機能差分】
 /// - 例文生成: Free=1日1回 / Premium=1日10回
-/// - クイズ: Free=1日1回 / Premium=1日10回
+/// - クイズ: Free=1日2回 / Premium=1日10回
 /// - 選べる単語: Free=300語まで / Premium=無制限
 /// - トピック: Free=4種 / Premium=16種
 /// - 文体: Free=2種 / Premium=5種

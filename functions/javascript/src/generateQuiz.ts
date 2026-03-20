@@ -8,7 +8,7 @@
  *
  * 【処理フロー】
  * 1. Firebase Auth 認証チェック
- * 2. 日次クイズ生成クォータチェック（free: 1回/日, premium: 10回/日、JST基準）
+ * 2. 日次クイズ生成クォータチェック（free: 2回/日, premium: 10回/日、JST基準）
  * 3. ユーザーの例文からSRSベースでリアルタイムに復習対象を選出（最大5文）
  * 4. ランダムに5問を抽出し、Gemini API で穴埋め問題を生成
  * 5. 5問未満ならデフォルト例文（DEFAULT_SENTENCES）から Gemini 生成して補填
@@ -70,7 +70,7 @@ async function consumeQuizQuota(userRef: FirebaseFirestore.DocumentReference): P
  * generateQuiz - クイズ生成（onCall、オンデマンド）
  *
  * クライアントからの呼び出しで穴埋めクイズを生成して返却する。
- * 1. 認証チェック + 日次クイズ生成クォータチェック（free: 1回/日, premium: 10回/日、JST基準）
+ * 1. 認証チェック + 日次クイズ生成クォータチェック（free: 2回/日, premium: 10回/日、JST基準）
  * 2. ユーザー例文をSRSルールでリアルタイム選出（最大5文）
  * 3. 選出結果からランダムに5問を抽出し、Gemini APIで穴埋め問題を生成
  * 4. 5問未満ならデフォルト例文からGemini生成して補填

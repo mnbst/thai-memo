@@ -46,10 +46,10 @@ FREQ_BAND_HALF = 10  # 帯域: estimated_vocab ± 10
 MAX_TOPIC_RETRY = 3  # 候補不足時のトピック再試行回数
 
 
-def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 50) -> float:
+def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 10) -> float:
     """rank 周辺の平均習熟度を計算する（語彙境界推定用）。
 
-    window = ±50 の範囲で P の平均を取る。
+    window = ±10 の範囲で P の平均を取る。
     UVM 未登録語には UNKNOWN_WORD_P を使用する。
     """
     total = 0.0
@@ -213,7 +213,7 @@ def get_session_words(
                     p_map[snap.id] = float(p_val)
 
     def priority_key(candidate: dict[str, Any]) -> tuple[float, int, float]:
-        effective_p = p_map.get(candidate["word"], UNKNOWN_WORD_P)
+        effective_p = p_map.get(candidate["word"], NEW_WORD_P)
         distance = abs(candidate["rank"] - estimated_vocab)
         return (effective_p, distance, random.random())
 

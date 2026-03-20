@@ -11,7 +11,7 @@ export const INITIAL_QUIZZES = 3;
 
 /** free ユーザーの日次リセット値 */
 export const FREE_DAILY_SENTENCES = 1;
-export const FREE_DAILY_QUIZZES = 1;
+export const FREE_DAILY_QUIZZES = 2;
 
 /** premium ユーザーの日次リセット値 */
 export const PREMIUM_DAILY_SENTENCES = 10;

@@ -603,14 +603,39 @@ class _QuizResultView extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(question.thaiText,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(
-                              fontWeight: FontWeight.w500,
-                              height: 1.5,
-                              fontSize: 28)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(question.thaiText,
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.5,
+                                    fontSize: 28)),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.volume_up,
+                            color: Theme.of(context).colorScheme.primary),
+                        onPressed: () {
+                          unawaited(
+                            ref.read(analyticsServiceProvider).logPlayTts(
+                                  contentType: 'sentence',
+                                  text: question.thaiText,
+                                  sentenceId: question.sentenceId,
+                                  source: 'quiz_result',
+                                ),
+                          );
+                          ref
+                              .read(ttsServiceProvider)
+                              .speak(question.thaiText);
+                        },
+                        tooltip: '例文を読み上げ',
+                      ),
+                    ],
+                  ),
                   if (question.sentencePronunciation.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(question.sentencePronunciation,
@@ -833,11 +858,39 @@ class _QuizResultDetail extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(question.thaiText,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        height: 1.5,
-                        fontSize: 28)),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(question.thaiText,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.5,
+                                  fontSize: 28)),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.volume_up,
+                          color: Theme.of(context).colorScheme.primary),
+                      onPressed: () {
+                        unawaited(
+                          ref.read(analyticsServiceProvider).logPlayTts(
+                                contentType: 'sentence',
+                                text: question.thaiText,
+                                sentenceId: question.sentenceId,
+                                source: 'quiz_result_detail',
+                              ),
+                        );
+                        ref
+                            .read(ttsServiceProvider)
+                            .speak(question.thaiText);
+                      },
+                      tooltip: '例文を読み上げ',
+                    ),
+                  ],
+                ),
                 if (question.sentencePronunciation.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(question.sentencePronunciation,
