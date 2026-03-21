@@ -180,12 +180,14 @@ def test_register_exposure_adds_alpha_for_existing_single_occurrence() -> None:
     assert doc["last_seen"] > 123.0
 
 
-def test_register_exposure_skips_unknown_word() -> None:
+def test_register_exposure_creates_unknown_word() -> None:
     db = FakeDb()
 
     register_exposure(db, "user-1", ["น้ำ"])
 
-    assert "น้ำ" not in db.store.get("user-1", {})
+    doc = db.store["user-1"]["น้ำ"]
+    assert doc["p"] == NEW_WORD_P
+    assert doc["quiz_attempts"] == 0
 
 
 def test_register_exposure_adds_alpha_for_duplicate_occurrences() -> None:
@@ -213,13 +215,16 @@ def test_register_exposure_adds_alpha_for_duplicate_occurrences() -> None:
     assert doc["last_seen"] > 123.0
 
 
-def test_register_exposure_skips_unknown_on_second_call() -> None:
+def test_register_exposure_updates_p_on_second_call() -> None:
     db = FakeDb()
 
     register_exposure(db, "user-1", ["น้ำ"])
     register_exposure(db, "user-1", ["น้ำ"])
 
-    assert "น้ำ" not in db.store.get("user-1", {})
+    doc = db.store["user-1"]["น้ำ"]
+    # 1回目: 新規作成 (p=NEW_WORD_P), 2回目: p + ALPHA_EXPOSURE * (1 - p)
+    expected_p = NEW_WORD_P + ALPHA_EXPOSURE * (1 - NEW_WORD_P)
+    assert doc["p"] == expected_p
 
 
 def test_update_p_alpha_decays_with_quiz_attempts() -> None:

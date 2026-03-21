@@ -84,20 +84,11 @@ def _register_sentence_exposure(
     all_words = get_sentence_words(sentence)
     exposed_words = get_exposed_words(sentence, target_words)
     if exposed_words:
-        register_exposure(
-            db,
-            uid,
-            exposed_words,
-            create_new=True,
-        )
+        register_exposure(db, uid, exposed_words)
 
     other_words = [w for w in all_words if w not in set(target_words)]
     if other_words:
-        register_exposure(
-            db,
-            uid,
-            other_words,
-        )
+        register_exposure(db, uid, other_words)
 
     return len(exposed_words)
 
@@ -229,7 +220,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
 
         # 初回生成フラグをクリア（残クォータが0になった時点）
         if is_first_generation and remaining <= 1:
-            user_ref.update({"is_first_generation": firestore.DELETE_FIELD})
+            user_ref.update({"is_first_generation": firestore.firestore.DELETE_FIELD})
 
         # UVM 露出登録（free/premium 共通）
         log_data["uvmMatchedWords"] = _register_sentence_exposure(
@@ -395,7 +386,7 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
 
         # 初回生成フラグをクリア
         if is_first_generation:
-            user_ref.update({"is_first_generation": firestore.DELETE_FIELD})
+            user_ref.update({"is_first_generation": firestore.firestore.DELETE_FIELD})
 
         # UVM 露出登録
         for i, sentence in enumerate(sentences):

@@ -27,37 +27,11 @@ const CONCURRENCY = 5;
  * 例文選定では estimated_vocab ± 10 帯域内で P が最も低い語を選出する。
  * 新規（未登録）語は P=0.02 で扱うため、露出済みだが復習されていない語の
  * P を毎日 0.01 ずつ減衰させることで、放置された語が新語より優先されるようにする。
- * 減衰対象は estimated_vocab ± 20 に絞り、帯域外の語には影響しない。
+ * 全登録単語に適用する。
  */
-const DECAY_BAND_HALF = 20;
 const P_DECAY_PER_DAY = 0.01;
 const P_DECAY_MIN = 0.0;
-
-/** GCSからfreq_rankを読み込みキャッシュする */
-let freqRankCache: Record<string, number> | null = null;
-async function getFreqRank(): Promise<Record<string, number>> {
-  if (freqRankCache) return freqRankCache;
-  const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || '';
-  const bucket = admin.storage().bucket(`${projectId}-uvm-data`);
-  const [content] = await bucket.file('freq_rank_top10000.json').download();
-  freqRankCache = JSON.parse(content.toString());
-  return freqRankCache!;
-}
-
-/** freq_rank の逆引き (rank → word) を帯域内で生成 */
-function getRankToWords(
-  freqRank: Record<string, number>,
-  bandLow: number,
-  bandHigh: number,
-): Set<string> {
-  const words = new Set<string>();
-  for (const [word, rank] of Object.entries(freqRank)) {
-    if (rank >= bandLow && rank <= bandHigh) {
-      words.add(word);
-    }
-  }
-  return words;
-}
+const BATCH_LIMIT = 500;
 
 async function dailyBatchHandler() {
   console.log('dailyBatch started');
@@ -68,8 +42,6 @@ async function dailyBatchHandler() {
     return;
   }
 
-  const freqRank = await getFreqRank();
-
   // CONCURRENCY件ずつ並行処理。allSettledで一部失敗しても継続
   const users = usersSnapshot.docs;
   for (let i = 0; i < users.length; i += CONCURRENCY) {
@@ -77,7 +49,7 @@ async function dailyBatchHandler() {
     await Promise.allSettled(
       chunk.map(async (userDoc) => {
         await resetQuota(userDoc);
-        await decayUvmP(userDoc, freqRank);
+        await decayUvmP(userDoc);
       })
     );
   }
@@ -104,41 +76,40 @@ async function resetQuota(
   );
 }
 
-/** estimated_vocab ± 20 帯域内の UVM 語に対し、経過日数 × 0.01 の P 減衰を適用 */
+/** 全登録 UVM 語に対し P 減衰を適用（batch上限500件ずつcommit） */
 async function decayUvmP(
   userDoc: FirebaseFirestore.QueryDocumentSnapshot,
-  freqRank: Record<string, number>,
 ): Promise<void> {
-  const userData = userDoc.data() || {};
-  const estimatedVocab: number = userData.estimated_vocab ?? 0;
-
-  const bandLow = Math.max(0, estimatedVocab - DECAY_BAND_HALF);
-  const bandHigh = estimatedVocab + DECAY_BAND_HALF;
-  const bandWords = getRankToWords(freqRank, bandLow, bandHigh);
-
-  if (bandWords.size === 0) return;
-
   const uvmRef = db.collection('users').doc(userDoc.id).collection('uvm');
+  const uvmSnapshot = await uvmRef.get();
+  if (uvmSnapshot.empty) return;
 
-  const batch = db.batch();
+  let batch = db.batch();
   let writeCount = 0;
+  let totalCount = 0;
 
-  for (const word of bandWords) {
-    const docRef = uvmRef.doc(word);
-    const snap = await docRef.get();
-    if (!snap.exists) continue;
-
-    const p: number = (snap.data() || {}).p ?? 0;
+  for (const doc of uvmSnapshot.docs) {
+    const p: number = (doc.data() || {}).p ?? 0;
     if (p <= P_DECAY_MIN) continue;
 
     const newP = Math.max(P_DECAY_MIN, p - P_DECAY_PER_DAY);
-    batch.update(docRef, { p: newP });
+    batch.update(doc.ref, { p: newP });
     writeCount++;
+    totalCount++;
+
+    if (writeCount >= BATCH_LIMIT) {
+      await batch.commit();
+      batch = db.batch();
+      writeCount = 0;
+    }
   }
 
   if (writeCount > 0) {
     await batch.commit();
-    console.log(`decayUvmP: uid=${userDoc.id}, updated ${writeCount} word(s), band=[${bandLow},${bandHigh}]`);
+  }
+
+  if (totalCount > 0) {
+    console.log(`decayUvmP: uid=${userDoc.id}, updated ${totalCount} word(s)`);
   }
 }
 

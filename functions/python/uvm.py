@@ -21,8 +21,9 @@ import math
 import random
 import time
 from collections import Counter
-from typing import Any
+from typing import Any, cast
 
+from google.cloud.firestore_v1.base_document import DocumentSnapshot
 from google.cloud.firestore_v1.client import Client as FirestoreClient
 
 from embeddings import find_best_topic
@@ -58,9 +59,7 @@ def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 10) -
     return total / (2 * window + 1)
 
 
-def estimate_vocab(
-    docs: list, freq_rank: dict[str, int], center: int = 0
-) -> int:
+def estimate_vocab(docs: list, freq_rank: dict[str, int], center: int = 0) -> int:
     """語彙境界（P ≈ 0.5 となる rank）を推定する。
 
     UVM ドキュメント群を rank でインデックスし、
@@ -117,7 +116,7 @@ def sync_estimated_vocab(
     UVM から取得して再計算する（全件取得を回避）。
     """
     user_ref = db.collection("users").document(uid)
-    user_doc = user_ref.get()
+    user_doc = cast("DocumentSnapshot", user_ref.get())
     current_estimate = 0
     if user_doc.exists:
         current_estimate = (user_doc.to_dict() or {}).get("estimated_vocab", 0)
@@ -292,15 +291,8 @@ def register_exposure(
     db: FirestoreClient,
     uid: str,
     words: list[str],
-    *,
-    create_new: bool = False,
 ) -> None:
-    """露出による P 微増を適用する。
-
-    Args:
-        create_new: True なら UVM 未登録の単語も新規作成する（key_word 用）。
-                    False なら既存単語のみ更新する。
-    """
+    """露出による P 微増を適用する。未登録語は新規作成する。"""
     now = time.time()
     batch = db.batch()
     uvm_ref = db.collection("users").document(uid).collection("uvm")
@@ -323,7 +315,7 @@ def register_exposure(
                 },
             )
             wrote += count
-        elif create_new:
+        else:
             batch.set(
                 doc_ref,
                 {
