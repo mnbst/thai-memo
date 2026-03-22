@@ -38,12 +38,15 @@ ALPHA_INCORRECT_MIN = 0.02  # 不正解時 α の下限
 ALPHA_DECAY_K = 0.08  # α 減衰係数
 P_MIN = 0.0  # P の下限
 P_MAX = 0.99  # P の上限
-NEW_WORD_P = 0.02  # 新規単語の初期 P 値
-ALPHA_EXPOSURE = 0.015  # 例文露出時の P 微増率
+NEW_WORD_P = 0.1  # 新規単語の初期 P 値
+ALPHA_EXPOSURE = 0.03  # 例文露出時の P 微増率
 UNKNOWN_WORD_P = 0.3  # UVM 未登録語の prior P
 
 # get_session_words 用: estimated_vocab 基準の頻度帯フィルタ幅
-FREQ_BAND_HALF = 10  # 帯域: estimated_vocab ± 10
+FREQ_BAND_FORWARD = 10  # 前方帯域幅: estimated_vocab + FREQ_BAND_FORWARD まで
+FREQ_BAND_LOOKBACK = (
+    10  # 後方帯域幅: estimated_vocab - FREQ_BAND_LOOKBACK まで（前進重視）
+)
 MAX_TOPIC_RETRY = 3  # 候補不足時のトピック再試行回数
 
 
@@ -202,8 +205,8 @@ def get_session_words(
         estimated_vocab = min(estimated_vocab, max_vocab)
 
     # 帯域を計算
-    band_low = max(0, estimated_vocab - FREQ_BAND_HALF)  # type: ignore
-    band_high = estimated_vocab + FREQ_BAND_HALF  # type: ignore
+    band_low = max(0, estimated_vocab - FREQ_BAND_LOOKBACK)  # type: ignore
+    band_high = estimated_vocab + FREQ_BAND_FORWARD  # type: ignore
     if max_vocab is not None:
         band_high = min(band_high, max_vocab)
 

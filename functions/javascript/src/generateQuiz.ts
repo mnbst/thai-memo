@@ -50,7 +50,7 @@ const FREQ_BAND_HALF = 10;
  */
 const SRS_DAYS = [1, 3, 7, 14, 30];
 /** SRS 選出で確保する最大例文数 */
-const MAX_REVIEW_SENTENCES = 5;
+const MAX_REVIEW_SENTENCES = 3;
 
 async function consumeQuizQuota(userRef: FirebaseFirestore.DocumentReference): Promise<void> {
   await db.runTransaction(async (transaction) => {
@@ -403,37 +403,14 @@ function toSelectedDefaultSentence(sentence: DefaultSentence): SelectedSentence 
   };
 }
 
-function collectCandidatesByIntervals(
-  docsWithDays: SentenceWithDays[],
-  intervals: number[],
-  matcher: (diffDays: number, interval: number) => boolean,
-  sortByP: (a: SentenceWithDays, b: SentenceWithDays) => number,
-  usedIds: Set<string>,
-  seenIds?: Set<string>,
-): SelectedSentence[] {
-  return intervals.flatMap((interval) =>
-    docsWithDays
-      .filter(({ doc, diffDays }) =>
-        !usedIds.has(doc.id) &&
-        !(seenIds?.has(doc.id) ?? false) &&
-        matcher(diffDays, interval)
-      )
-      .sort(sortByP)
-      .map(({ doc }) => {
-        seenIds?.add(doc.id);
-        return toSelectedUserSentence(doc, interval);
-      })
-  );
-}
 
 /**
  * ユーザーの全例文からSRSアルゴリズムに基づいて復習対象を選出する。
  *
  * 選出の優先順位:
- *  ① SRS間隔にジャスト該当する例文
- *  ② ①で不足する場合、±1日の範囲から補填
- *  ③ ①+②で不足する場合、SRS対象外の例文から補充
- *  ④ それでも不足する場合、デフォルト例文で補充
+ *  ① SRS_DAYSからランダムに3間隔を選び、各間隔1文を選出（exact → ±1日の順）
+ *  ② ①で埋まらなかった枠を、SRS対象外のユーザー例文（P値低い順）で補充
+ *  ③ それでも不足する場合、デフォルト例文で補充
  */
 async function selectSentencesBySRS(
   uid: string,
@@ -457,7 +434,7 @@ async function selectSentencesBySRS(
     const kw = doc.data().key_word;
     if (kw && typeof kw === 'string') userKeyWords.add(kw);
   }
-  // デフォルト例文の key_word も含めて一括取得（④で再利用）
+  // デフォルト例文の key_word も含めて一括取得（③で再利用）
   for (const s of DEFAULT_SENTENCES) userKeyWords.add(s.key_word);
   const pMap = await fetchUvmPValues(uid, userKeyWords);
 
@@ -477,39 +454,25 @@ async function selectSentencesBySRS(
 
   const remainingSlots = () => MAX_REVIEW_SENTENCES - selected.length;
 
-  const appendTopCandidates = (candidates: SelectedSentence[]): void => {
-    const take = Math.min(candidates.length, remainingSlots());
-    for (const candidate of candidates.slice(0, take)) {
-      selected.push(candidate);
-      usedIds.add(candidate.id);
-    }
+  const addCandidate = (candidate: SelectedSentence): void => {
+    selected.push(candidate);
+    usedIds.add(candidate.id);
   };
 
-  // ① SRSジャスト該当日から、各間隔の上位候補を必要件数ぶん取得
-  const exactCandidates = collectCandidatesByIntervals(
-    docsWithDays,
-    SRS_DAYS,
-    (diffDays, interval) => diffDays === interval,
-    sortByP,
-    usedIds,
-  );
-  appendTopCandidates(exactCandidates);
+  // ① SRS_DAYSからランダムに3間隔を選び、各間隔1文を選出（当日±1日の中でP値が最低の文）
+  const shuffledIntervals = [...SRS_DAYS].sort(() => Math.random() - 0.5).slice(0, MAX_REVIEW_SENTENCES);
+  for (const interval of shuffledIntervals) {
+    if (remainingSlots() <= 0) break;
 
-  // ② ±1日の近傍候補から、各間隔の上位候補を必要件数ぶん取得
-  if (remainingSlots() > 0) {
-    const nearbySeenIds = new Set<string>();
-    const nearbyCandidates = collectCandidatesByIntervals(
-      docsWithDays,
-      SRS_DAYS,
-      (diffDays, interval) => diffDays >= interval - 1 && diffDays <= interval + 1,
-      sortByP,
-      usedIds,
-      nearbySeenIds,
-    );
-    appendTopCandidates(nearbyCandidates);
+    const candidates = docsWithDays
+      .filter(({ doc, diffDays }) => !usedIds.has(doc.id) && diffDays >= interval - 1 && diffDays <= interval + 1)
+      .sort(sortByP);
+    if (candidates.length > 0) {
+      addCandidate(toSelectedUserSentence(candidates[0].doc, interval));
+    }
   }
 
-  // ③ ①+②で不足する場合、残りユーザー例文からP値が低い順に補充
+  // ② SRSで埋まらなかった枠を、残りユーザー例文からP値が低い順に補充
   if (remainingSlots() > 0) {
     const remaining = allSentencesSnapshot.docs
       .filter(doc => !usedIds.has(doc.id))
@@ -519,16 +482,18 @@ async function selectSentencesBySRS(
         return pA - pB;
       })
       .map((doc) => toSelectedUserSentence(doc, -1));
-    appendTopCandidates(remaining);
+    const take = Math.min(remaining.length, remainingSlots());
+    for (const candidate of remaining.slice(0, take)) addCandidate(candidate);
   }
 
-  // ④ デフォルト例文から不足分を補充
+  // ③ デフォルト例文から不足分を補充
   if (remainingSlots() > 0) {
     const defaults = await sortDefaultsByPriority(uid, DEFAULT_SENTENCES, pMap, estimatedVocab);
     const defaultCandidates = defaults
       .filter((s) => !usedIds.has(s.sentence_id))
       .map((s) => toSelectedDefaultSentence(s));
-    appendTopCandidates(defaultCandidates);
+    const take = Math.min(defaultCandidates.length, remainingSlots());
+    for (const candidate of defaultCandidates.slice(0, take)) addCandidate(candidate);
   }
 
   return selected;

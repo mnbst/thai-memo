@@ -29,7 +29,7 @@ const CONCURRENCY = 5;
  * P を毎日 0.01 ずつ減衰させることで、放置された語が新語より優先されるようにする。
  * 全登録単語に適用する。
  */
-const P_DECAY_PER_DAY = 0.01;
+const P_DECAY_PER_DAY = 0.001;
 const P_DECAY_MIN = 0.0;
 const BATCH_LIMIT = 500;
 
