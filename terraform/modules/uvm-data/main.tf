@@ -9,6 +9,7 @@ resource "google_storage_bucket" "uvm_data" {
   location = var.region
 
   uniform_bucket_level_access = true
+  force_destroy               = true
 
   lifecycle_rule {
     condition {

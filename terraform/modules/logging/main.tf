@@ -4,8 +4,8 @@ resource "google_logging_metric" "successful_generations" {
   project = var.project_id
 
   filter = <<-EOT
-    resource.type="cloud_function"
-    resource.labels.function_name="generateThaiSentence"
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="generatethaisentence"
     jsonPayload.success=true
   EOT
 
@@ -32,8 +32,8 @@ resource "google_logging_metric" "failed_generations" {
   project = var.project_id
 
   filter = <<-EOT
-    resource.type="cloud_function"
-    resource.labels.function_name="generateThaiSentence"
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="generatethaisentence"
     jsonPayload.success=false
   EOT
 
@@ -60,8 +60,8 @@ resource "google_logging_metric" "processing_time" {
   project = var.project_id
 
   filter = <<-EOT
-    resource.type="cloud_function"
-    resource.labels.function_name="generateThaiSentence"
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="generatethaisentence"
     jsonPayload.processingTimeMs!=""
   EOT
 

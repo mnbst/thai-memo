@@ -85,6 +85,11 @@ export const generateQuiz = functions.https.onCall(
     memory: '512MiB',
   },
   async (request) => {
+    // App Check 検証（dev環境はスキップ）
+    if (process.env.GCLOUD_PROJECT !== 'thai-memo-dev' && !request.app) {
+      throw new functions.https.HttpsError('unauthenticated', 'App Checkの検証に失敗しました');
+    }
+
     // Firebase Auth 認証チェック（匿名認証を含む）
     const uid = request.auth?.uid;
     if (!uid) {

@@ -3,11 +3,11 @@ from firebase_functions import https_fn  # type: ignore[attr-defined]
 from google.cloud.firestore_v1.client import Client as FirestoreClient
 
 try:
-    from .runtime import initialize_firebase_app
+    from .runtime import initialize_firebase_app, verify_app_check
     from .sentence_service import get_freq_rank
     from .uvm import batch_update_uvm
 except ImportError:
-    from runtime import initialize_firebase_app
+    from runtime import initialize_firebase_app, verify_app_check
     from sentence_service import get_freq_rank
     from uvm import batch_update_uvm
 
@@ -17,6 +17,8 @@ initialize_firebase_app()
 @https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=30)
 def updateUvm(req: https_fn.CallableRequest) -> dict:
     """クイズ結果からUVMを更新する。"""
+    verify_app_check(req)
+
     if not req.auth:
         raise https_fn.HttpsError(
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
