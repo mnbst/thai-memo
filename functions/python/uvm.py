@@ -45,7 +45,7 @@ UNKNOWN_WORD_P = 0.3  # UVM 未登録語の prior P
 # get_session_words 用: estimated_vocab 基準の頻度帯フィルタ幅
 FREQ_BAND_FORWARD = 10  # 前方帯域幅: estimated_vocab + FREQ_BAND_FORWARD まで
 FREQ_BAND_LOOKBACK = (
-    20  # 後方帯域幅: estimated_vocab - FREQ_BAND_LOOKBACK まで（前進重視）
+    50  # 後方帯域幅: estimated_vocab - FREQ_BAND_LOOKBACK まで（前進重視）
 )
 MAX_TOPIC_RETRY = 3  # 候補不足時のトピック再試行回数
 
