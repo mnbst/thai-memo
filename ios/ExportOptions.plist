@@ -13,7 +13,7 @@
 	<key>provisioningProfiles</key>
 	<dict>
 		<key>com.thaimemo.thaiMemo</key>
-		<string>Thai Memo App Store</string>
+		<string>ThaiMemo AppStore Distribution</string>
 	</dict>
 	<key>stripSwiftSymbols</key>
 	<true/>

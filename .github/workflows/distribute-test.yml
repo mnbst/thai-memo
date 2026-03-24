@@ -155,7 +155,7 @@ jobs:
         run: |
           sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "iPhone Developer"/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution"/g' ios/Runner.xcodeproj/project.pbxproj
-          perl -i '' -pe 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "Thai Memo App Store";/g' ios/Runner.xcodeproj/project.pbxproj
+          perl -i '' -pe 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "ThaiMemo AppStore Distribution";/g' ios/Runner.xcodeproj/project.pbxproj
 
       - name: Build IPA
         run: flutter build ipa --dart-define=ENV=tester --export-options-plist=ios/ExportOptions.plist
