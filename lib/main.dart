@@ -1,15 +1,16 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
 import 'firebase_options_dev.dart';
 import 'firebase_options_prod.dart';
 import 'firebase_options_tester.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'services/fcm_service.dart';
-import 'services/firebase_auth_service.dart';
+import 'presentation/providers/subscription_provider.dart';
+import 'services/admob_service.dart';
 
 void main() async {
   // Ensure Flutter binding is initialized
@@ -21,20 +22,39 @@ void main() async {
       : AppConfig.isTester
           ? TesterFirebaseOptions.currentPlatform
           : DefaultFirebaseOptions.currentPlatform;
-  await Firebase.initializeApp(options: firebaseOptions);
-
-  // バックグラウンドFCMハンドラ登録（Firebase初期化直後に設定）
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-  // Authenticate user anonymously on startup
   try {
-    await FirebaseAuthService.instance.ensureAuthenticated();
-    // Initialize FCM after authentication
-    await FcmService.instance.initialize();
-  } catch (_) {}
+    await Firebase.initializeApp(options: firebaseOptions);
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') rethrow;
+  }
 
-  // ProviderContainerを共有してFCMハンドラからもproviderにアクセス可能にする
+  // Initialize App Check（dev=debug、tester/prod=本番provider）
+  await FirebaseAppCheck.instance.activate(
+    providerAndroid: AppConfig.isDev
+        ? const AndroidDebugProvider()
+        : const AndroidPlayIntegrityProvider(),
+    providerApple: AppConfig.isProd
+        ? const AppleAppAttestProvider()
+        : const AppleDebugProvider(),
+  );
+
+  // Initialize Google Sign-In
+  await GoogleSignIn.instance.initialize(
+    serverClientId:
+        '147810088545-4921rt150m9jtjate82nbol5q8hgoj3l.apps.googleusercontent.com',
+  );
+
+  // Initialize AdMob
+  await AdMobService.instance.initialize();
+
   final container = ProviderContainer();
+
+  // PurchaseServiceを初期化し、SubscriptionControllerに接続
+  final purchaseService = container.read(purchaseServiceProvider);
+  await purchaseService.initialize();
+  container
+      .read(subscriptionControllerProvider.notifier)
+      .setPurchaseService(purchaseService);
 
   // Run app with Riverpod
   runApp(
@@ -43,9 +63,4 @@ void main() async {
       child: const ThaiMemoApp(),
     ),
   );
-
-  // navigatorKeyが有効になった後に通知ハンドラをセットアップ
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    FcmService.instance.setupNotificationHandlers();
-  });
 }

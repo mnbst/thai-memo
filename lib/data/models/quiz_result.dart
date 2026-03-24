@@ -1,6 +1,19 @@
+// =============================================================================
+// quiz_result.dart
+// クイズの回答結果モデル。
+// ユーザーがクイズに回答するたびにSQLiteのquiz_resultsテーブルに保存される。
+// 正答率の集計やクイズ統計の算出に使用する。
+// =============================================================================
+
 import '../../core/database_constants.dart';
 
 /// クイズ回答結果モデル
+///
+/// 1問ごとの回答記録を保持する。
+/// questionText: 出題された穴埋め文
+/// correctAnswer: 正解
+/// userAnswer: ユーザーの選んだ回答
+/// isCorrect: 正解かどうか
 class QuizResult {
   final String id;
   final String sentenceId;

@@ -56,6 +56,7 @@ jobs:
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/gcp_key.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_key.json
+          export FUNCTIONS_DISCOVERY_TIMEOUT=60000
           firebase deploy --only functions,firestore:rules,firestore:indexes --project tester
           rm /tmp/gcp_key.json
 

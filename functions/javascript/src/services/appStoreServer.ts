@@ -1,0 +1,233 @@
+/**
+ * appStoreServer.ts — App Store Server API クライアント
+ *
+ * Apple の App Store Server API v1 を使用してサブスクリプション購入を検証するサービス。
+ * また、App Store Server Notifications V2 の JWS ペイロードのデコードも担当する。
+ *
+ * 【認証方式】
+ * App Store Server API は JWT（ES256 署名）による認証を使用する。
+ * 認証に必要なシークレット（秘密鍵、Key ID、Issuer ID）は
+ * GCP Secret Manager から取得する。
+ *
+ * 【使用箇所】
+ * - verifySubscription.ts: クライアントからの購入検証リクエスト時に verifyAppStorePurchase() を呼出
+ * - handleAppStoreNotification.ts: Apple からの通知受信時に parseNotificationPayload() を呼出
+ *
+ * 【環境切替】
+ * - 本番: api.storekit.apple.com
+ * - サンドボックス: api.storekit-sandbox.apple.com
+ *   ※ APP_STORE_ENVIRONMENT 環境変数で切替（Cloud Functions の環境設定）
+ */
+import * as jose from 'jose';
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+
+/** GCP Secret Manager クライアント（API キーやシークレットの取得に使用） */
+const secretClient = new SecretManagerServiceClient();
+const projectId = process.env.GCLOUD_PROJECT;
+
+/** App Store 購入検証の結果 */
+export interface AppStoreVerificationResult {
+  valid: boolean;
+  originalTransactionId: string;
+  expiresAt: Date | null;
+  autoRenewing: boolean;
+  status: 'active' | 'canceled' | 'expired' | 'grace_period';
+}
+
+/** App Store Server Notifications V2 の通知ペイロード構造 */
+export interface AppStoreNotificationPayload {
+  notificationType: string;
+  subtype?: string;
+  data: {
+    signedTransactionInfo: string;
+    signedRenewalInfo?: string;
+  };
+}
+
+/**
+ * Apple のトランザクション情報（JWS デコード後の構造）
+ *
+ * originalTransactionId: サブスクリプションの初回購入時のトランザクションID。
+ *   更新・復元時も同じ値が使われるため、ユーザー検索のキーとして Firestore に保存する。
+ * expiresDate: サブスクリプションの有効期限（ミリ秒タイムスタンプ）
+ * revocationDate: 返金・取消日（存在する場合はサブスクリプション無効）
+ */
+interface TransactionInfo {
+  originalTransactionId: string;
+  transactionId: string;
+  productId: string;
+  expiresDate?: number;
+  revocationDate?: number;
+  type: string;
+  environment: string;
+}
+
+/**
+ * Apple の更新情報（JWS デコード後の構造）
+ *
+ * autoRenewStatus: 自動更新の状態（1=ON, 0=OFF）
+ * expirationIntent: 期限切れの理由（1=ユーザーキャンセル, 2=課金エラー, 3=同意なし, 4=商品変更）
+ */
+interface RenewalInfo {
+  autoRenewStatus: number; // 1 = will renew, 0 = turned off
+  originalTransactionId: string;
+  productId: string;
+  expirationIntent?: number;
+}
+
+/**
+ * Secret Managerからシークレットを取得
+ */
+async function getSecret(secretId: string): Promise<string> {
+  const name = `projects/${projectId}/secrets/${secretId}/versions/latest`;
+  const [version] = await secretClient.accessSecretVersion({ name });
+  const value = version.payload?.data?.toString();
+  if (!value) throw new Error(`Secret ${secretId} is empty`);
+  return value;
+}
+
+/**
+ * App Store Server API 認証用の JWT トークンを生成
+ *
+ * Apple の App Store Server API は JWT（ES256 アルゴリズム）で認証する。
+ * 必要なシークレットを Secret Manager から取得し、有効期限20分の JWT を生成する。
+ * - appstore-connect-key: App Store Connect で生成した秘密鍵（.p8 ファイルの内容）
+ * - appstore-key-id: API キーの Key ID
+ * - appstore-issuer-id: App Store Connect の Issuer ID
+ */
+async function generateAppStoreJWT(): Promise<string> {
+  const [privateKeyPem, keyId, issuerId] = await Promise.all([
+    getSecret('appstore-connect-key'),
+    getSecret('appstore-key-id'),
+    getSecret('appstore-issuer-id'),
+  ]);
+
+  const privateKey = await jose.importPKCS8(privateKeyPem, 'ES256');
+
+  const jwt = await new jose.SignJWT({})
+    .setProtectedHeader({ alg: 'ES256', kid: keyId, typ: 'JWT' })
+    .setIssuer(issuerId)
+    .setIssuedAt()
+    .setExpirationTime('20m')
+    .setAudience('appstoreconnect-v1')
+    .setSubject('com.gaku.thaimemo') // Bundle ID
+    .sign(privateKey);
+
+  return jwt;
+}
+
+/**
+ * JWS（JSON Web Signature）ペイロードをデコード
+ *
+ * Apple の App Store Server Notifications V2 では、通知ペイロードが
+ * JWS 形式（ヘッダー.ペイロード.署名 の3パートを . で連結）で送られてくる。
+ * ペイロード部分を Base64URL デコードして JSON パースする。
+ *
+ * 【注意】本番環境では Apple Root CA による証明書チェーン検証を行うべきだが、
+ * 現在は最小実装としてペイロードのデコードのみ行っている（TODO: 署名検証の追加）。
+ */
+export function decodeSignedPayload<T>(signedPayload: string): T {
+  const parts = signedPayload.split('.');
+  if (parts.length !== 3) {
+    throw new Error('Invalid JWS format');
+  }
+  const payload = JSON.parse(
+    Buffer.from(parts[1], 'base64url').toString('utf-8')
+  );
+  return payload as T;
+}
+
+/**
+ * App Store Server API v1 でトランザクションを検証
+ *
+ * transactionId を使って Apple のサーバーにトランザクション情報を問い合わせ、
+ * サブスクリプションの有効性（期限切れ・返金済みかどうか）を判定する。
+ *
+ * クライアント（iOS アプリ）から送られる purchase_token が transactionId として使用される。
+ *
+ * @param transactionId - iOS の購入時に取得したトランザクション ID
+ * @returns 検証結果（有効性、有効期限、自動更新状態、ステータス）
+ */
+export async function verifyAppStorePurchase(
+  transactionId: string
+): Promise<AppStoreVerificationResult> {
+  const jwt = await generateAppStoreJWT();
+  const environment = process.env.APP_STORE_ENVIRONMENT === 'production'
+    ? 'api.storekit' : 'api.storekit-sandbox';
+
+  const url = `https://${environment}.apple.com/inApps/v1/transactions/${transactionId}`;
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(`App Store API error: ${response.status}`);
+  }
+
+  const body = await response.json() as { signedTransactionInfo: string };
+  const txInfo = decodeSignedPayload<TransactionInfo>(body.signedTransactionInfo);
+
+  const expiresAt = txInfo.expiresDate ? new Date(txInfo.expiresDate) : null;
+  const isExpired = expiresAt ? expiresAt < new Date() : false;
+  const isRevoked = !!txInfo.revocationDate;
+
+  let status: AppStoreVerificationResult['status'];
+  if (isRevoked || isExpired) {
+    status = 'expired';
+  } else {
+    status = 'active';
+  }
+
+  return {
+    valid: !isRevoked,
+    originalTransactionId: txInfo.originalTransactionId,
+    expiresAt,
+    autoRenewing: true, // Will be updated by renewal info notifications
+    status,
+  };
+}
+
+/**
+ * App Store Server Notifications V2 のペイロードをパースし、通知タイプとトランザクション情報を返す
+ *
+ * Apple からの通知は二重 JWS 構造になっている:
+ * 1. 外側の JWS: 通知全体（notificationType, data を含む）
+ * 2. 内側の JWS: data.signedTransactionInfo（トランザクション詳細）と
+ *    data.signedRenewalInfo（更新情報、オプション）
+ *
+ * handleAppStoreNotification.ts から呼び出される。
+ */
+export function parseNotificationPayload(signedPayload: string): {
+  notificationType: string;
+  subtype?: string;
+  transactionInfo: TransactionInfo;
+  renewalInfo?: RenewalInfo;
+} {
+  const notification = decodeSignedPayload<{
+    notificationType: string;
+    subtype?: string;
+    data: {
+      signedTransactionInfo: string;
+      signedRenewalInfo?: string;
+    };
+  }>(signedPayload);
+
+  const transactionInfo = decodeSignedPayload<TransactionInfo>(
+    notification.data.signedTransactionInfo
+  );
+
+  let renewalInfo: RenewalInfo | undefined;
+  if (notification.data.signedRenewalInfo) {
+    renewalInfo = decodeSignedPayload<RenewalInfo>(
+      notification.data.signedRenewalInfo
+    );
+  }
+
+  return {
+    notificationType: notification.notificationType,
+    subtype: notification.subtype,
+    transactionInfo,
+    renewalInfo,
+  };
+}

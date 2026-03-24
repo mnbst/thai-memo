@@ -2,3 +2,17 @@ project_id                    = "thai-memo-dev"
 region                        = "asia-northeast1"
 gemini_api_key                = "AIzaSyAclzCd2WYwhpRhI_RTRPWLpL1hoJ4BtPA"
 firebase_project_display_name = "Thai Memo Dev"
+google_client_id              = "147810088545-4921rt150m9jtjate82nbol5q8hgoj3l.apps.googleusercontent.com"
+google_client_secret          = "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"
+apple_client_id               = "com.thaimemo.thaiMemo"
+apple_team_id                 = "5KTT2C466P"
+apple_key_id                  = "5LU78HU4GU"
+apple_private_key             = "-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgep6VkVwPouCDHREX\nbIncMaWqZxJ0Mkrtc0uDWeS/bbGgCgYIKoZIzj0DAQehRANCAASe+vlmy1qlFe9+\nayv9ObGgoLJP73YC+eeVdFPrRLyJvTvyspuwD+DazUpYNYq3SW8i5xiLADECNtKN\nz73qt2GT\n-----END PRIVATE KEY-----"
+
+# App Check
+ios_app_id                    = "1:147810088545:ios:c023f84f36af09f6c09c20"
+android_app_id                = "1:147810088545:android:880d5b4669246accc09c20"
+app_check_ios_provider        = "debug"
+app_check_android_provider    = "debug"
+app_check_debug_token_ios     = ""  # TODO: Xcodeコンソールから取得してここに設定（UUID形式）
+app_check_debug_token_android = ""  # TODO: Logcatから取得してここに設定（UUID形式）

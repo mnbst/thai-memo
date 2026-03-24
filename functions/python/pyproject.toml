@@ -2,11 +2,20 @@
 name = "thai-memo-functions"
 version = "1.1.0"
 description = "Cloud Functions for Thai Memo - generateThaiSentence"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "firebase-functions>=0.4.0",
     "firebase-admin>=6.0.0",
     "google-genai>=1.0.0",
     "google-cloud-secret-manager>=2.0.0",
     "pythainlp>=5.0.0",
+    "tltk>=1.10",
+    "google-cloud-aiplatform>=1.141.0",
+    "numpy>=1.26.0",
+    "google-cloud-storage>=2.14.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
 ]

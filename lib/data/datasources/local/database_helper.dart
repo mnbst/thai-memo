@@ -1,10 +1,32 @@
+// =============================================================================
+// database_helper.dart
+// SQLiteデータベースの管理クラス。
+// アプリのローカルデータ（例文、単語分解、生成ログ、クイズ結果、クイズ統計）を管理する。
+// シングルトンパターンで1つのDBインスタンスを共有。
+// テーブル定義はDatabaseConstantsクラスに集約されている。
+//
+// テーブル構成:
+//   - sentences: タイ語例文
+//   - word_breakdowns: 例文の単語分解（sentencesにFK、CASCADE DELETE）
+//   - generation_logs: 例文生成の成功/失敗ログ
+//   - quiz_results: クイズの回答結果
+//   - quiz_stats: クイズ統計のキャッシュ（1行のみ）
+//
+// マイグレーション履歴:
+//   v1→v2: syllables_jsonカラム追加
+//   v2→v3: DB全体リビルド（声調データ修正）
+//   v3→v4: situation→topicリネーム、styleカラム追加
+//   v4→v5: quiz_resultsテーブル追加
+//   v5→v6: quiz_statsテーブル追加
+// =============================================================================
+
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/database_constants.dart';
 
-/// Database helper class for managing SQLite database operations
+/// SQLiteデータベースのCRUD操作を管理するヘルパークラス（シングルトン）
 class DatabaseHelper {
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -88,6 +110,12 @@ class DatabaseHelper {
       await db.execute(DatabaseConstants.createQuizStatsTable);
     }
 
+    // Migrate from version 6 to 7: Add daily_activity + streak_stats tables
+    if (oldVersion < 7) {
+      await db.execute(DatabaseConstants.createDailyActivityTable);
+      await db.execute(DatabaseConstants.createStreakStatsTable);
+    }
+
     // Migrate from version 3 to 4: Rename situation→topic, add style column
     if (oldVersion < 4) {
       await db.execute('''
@@ -143,40 +171,6 @@ class DatabaseHelper {
       limit: 1,
     );
     return results.isNotEmpty ? results.first : null;
-  }
-
-  /// Get favorite sentences
-  Future<List<Map<String, dynamic>>> getFavoriteSentences() async {
-    final db = await database;
-    return await db.query(
-      DatabaseConstants.tableSentences,
-      where: '${DatabaseConstants.columnIsFavorite} = ?',
-      whereArgs: [1],
-      orderBy: '${DatabaseConstants.columnCreatedAt} DESC',
-    );
-  }
-
-  /// Update a sentence
-  Future<int> updateSentence(
-      String id, Map<String, dynamic> sentence) async {
-    final db = await database;
-    return await db.update(
-      DatabaseConstants.tableSentences,
-      sentence,
-      where: '${DatabaseConstants.columnSentenceId} = ?',
-      whereArgs: [id],
-    );
-  }
-
-  /// Toggle favorite status of a sentence
-  Future<int> toggleFavorite(String id, bool isFavorite) async {
-    final db = await database;
-    return await db.update(
-      DatabaseConstants.tableSentences,
-      {DatabaseConstants.columnIsFavorite: isFavorite ? 1 : 0},
-      where: '${DatabaseConstants.columnSentenceId} = ?',
-      whereArgs: [id],
-    );
   }
 
   /// Delete a sentence (and its word breakdowns due to CASCADE)
@@ -243,16 +237,6 @@ class DatabaseHelper {
     );
   }
 
-  /// Delete all word breakdowns for a sentence
-  Future<int> deleteWordBreakdownsBySentenceId(String sentenceId) async {
-    final db = await database;
-    return await db.delete(
-      DatabaseConstants.tableWordBreakdowns,
-      where: '${DatabaseConstants.columnWordSentenceId} = ?',
-      whereArgs: [sentenceId],
-    );
-  }
-
   // ==================== Generation Logs CRUD Operations ====================
 
   /// Insert a new generation log
@@ -263,58 +247,6 @@ class DatabaseHelper {
       log,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-  }
-
-  /// Get all generation logs
-  Future<List<Map<String, dynamic>>> getAllGenerationLogs() async {
-    final db = await database;
-    return await db.query(
-      DatabaseConstants.tableGenerationLogs,
-      orderBy: '${DatabaseConstants.columnGeneratedAt} DESC',
-    );
-  }
-
-  /// Get generation logs with pagination
-  Future<List<Map<String, dynamic>>> getGenerationLogs(
-      int limit, int offset) async {
-    final db = await database;
-    return await db.query(
-      DatabaseConstants.tableGenerationLogs,
-      orderBy: '${DatabaseConstants.columnGeneratedAt} DESC',
-      limit: limit,
-      offset: offset,
-    );
-  }
-
-  /// Get the most recent generation log
-  Future<Map<String, dynamic>?> getMostRecentGenerationLog() async {
-    final db = await database;
-    final results = await db.query(
-      DatabaseConstants.tableGenerationLogs,
-      orderBy: '${DatabaseConstants.columnGeneratedAt} DESC',
-      limit: 1,
-    );
-    return results.isNotEmpty ? results.first : null;
-  }
-
-  /// Get total number of successful generations
-  Future<int> getSuccessfulGenerationCount() async {
-    final db = await database;
-    final result = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM ${DatabaseConstants.tableGenerationLogs} '
-      'WHERE ${DatabaseConstants.columnSuccess} = 1',
-    );
-    return Sqflite.firstIntValue(result) ?? 0;
-  }
-
-  /// Get total tokens used
-  Future<int> getTotalTokensUsed() async {
-    final db = await database;
-    final result = await db.rawQuery(
-      'SELECT SUM(${DatabaseConstants.columnApiTokensUsed}) as total '
-      'FROM ${DatabaseConstants.tableGenerationLogs}',
-    );
-    return Sqflite.firstIntValue(result) ?? 0;
   }
 
   // ==================== Quiz Results CRUD Operations ====================
@@ -343,16 +275,6 @@ class DatabaseHelper {
       'total': Sqflite.firstIntValue(total) ?? 0,
       'correct': Sqflite.firstIntValue(correct) ?? 0,
     };
-  }
-
-  /// Get recent quiz results
-  Future<List<Map<String, dynamic>>> getRecentQuizResults(int limit) async {
-    final db = await database;
-    return await db.query(
-      DatabaseConstants.tableQuizResults,
-      orderBy: '${DatabaseConstants.columnQuizAnsweredAt} DESC',
-      limit: limit,
-    );
   }
 
   // ==================== Quiz Stats CRUD Operations ====================
@@ -471,12 +393,6 @@ class DatabaseHelper {
 
   // ==================== Utility Methods ====================
 
-  /// Close the database
-  Future<void> close() async {
-    final db = await database;
-    await db.close();
-  }
-
   /// Delete the entire database (for testing or reset)
   Future<void> deleteDatabase() async {
     String path = join(await getDatabasesPath(), AppConfig.databaseName);
@@ -484,16 +400,4 @@ class DatabaseHelper {
     _database = null;
   }
 
-  /// Get database statistics
-  Future<Map<String, dynamic>> getDatabaseStats() async {
-    final sentenceCount = await getSentenceCount();
-    final successfulGenerations = await getSuccessfulGenerationCount();
-    final totalTokens = await getTotalTokensUsed();
-
-    return {
-      'sentence_count': sentenceCount,
-      'successful_generations': successfulGenerations,
-      'total_tokens_used': totalTokens,
-    };
-  }
 }

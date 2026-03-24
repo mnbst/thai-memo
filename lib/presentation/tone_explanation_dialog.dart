@@ -51,7 +51,8 @@ class ToneExplanationDialog extends StatelessWidget {
                         final syllable = entry.value;
                         return Column(
                           children: [
-                            _buildSyllableDetailCard(context, syllable, index + 1),
+                            _buildSyllableDetailCard(
+                                context, syllable, index + 1),
                             const SizedBox(height: 16),
                           ],
                         );
@@ -124,7 +125,8 @@ class ToneExplanationDialog extends StatelessWidget {
                   '音節分解',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onTertiaryContainer,
+                        color:
+                            Theme.of(context).colorScheme.onTertiaryContainer,
                       ),
                 ),
               ],
@@ -160,9 +162,11 @@ class ToneExplanationDialog extends StatelessWidget {
     int syllableNumber,
   ) {
     // SyllableデータからEnumに変換
-    final consonantClass = ThaiToneAnalyzer.parseConsonantClass(syllable.consonantClass);
+    final consonantClass =
+        ThaiToneAnalyzer.parseConsonantClass(syllable.consonantClass);
     final toneMark = ThaiToneAnalyzer.parseToneMark(syllable.toneMark);
-    final syllableType = ThaiToneAnalyzer.parseSyllableType(syllable.syllableType);
+    final syllableType =
+        ThaiToneAnalyzer.parseSyllableType(syllable.syllableType);
     final resultingTone = ThaiToneAnalyzer.parseTone(syllable.tone);
 
     return Card(
@@ -175,7 +179,8 @@ class ToneExplanationDialog extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primary,
                     borderRadius: BorderRadius.circular(12),
@@ -213,7 +218,8 @@ class ToneExplanationDialog extends StatelessWidget {
             _buildInfoRow(
               context,
               '音節タイプ',
-              syllableType.getDisplayNameWithVowel(hasShortVowel: syllable.hasShortVowel),
+              syllableType.getDisplayNameWithVowel(
+                  hasShortVowel: syllable.hasShortVowel),
               Icons.waves,
             ),
             const SizedBox(height: 12),
@@ -254,7 +260,8 @@ class ToneExplanationDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             // 声調テーブル
-            _buildCompactToneTable(context, consonantClass, toneMark, syllableType, syllable.hasShortVowel),
+            _buildCompactToneTable(context, consonantClass, toneMark,
+                syllableType, syllable.hasShortVowel),
           ],
         ),
       ),
@@ -277,9 +284,8 @@ class ToneExplanationDialog extends StatelessWidget {
 
     // 高子音・低子音でmaiTri/maiChattawaの場合は注釈を表示
     final showExceptionalNote = (consonantClass == ConsonantClass.high ||
-                                  consonantClass == ConsonantClass.low) &&
-                                 (toneMark == ToneMark.maiTri ||
-                                  toneMark == ToneMark.maiChattawa);
+            consonantClass == ConsonantClass.low) &&
+        (toneMark == ToneMark.maiTri || toneMark == ToneMark.maiChattawa);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,20 +303,31 @@ class ToneExplanationDialog extends StatelessWidget {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: isDarkMode ? Colors.orange.shade900.withValues(alpha: 0.3) : Colors.orange.shade100,
+                color: isDarkMode
+                    ? Colors.orange.shade900.withValues(alpha: 0.3)
+                    : Colors.orange.shade100,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: isDarkMode ? Colors.orange.shade700 : Colors.orange.shade300),
+                border: Border.all(
+                    color: isDarkMode
+                        ? Colors.orange.shade700
+                        : Colors.orange.shade300),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.info_outline, size: 14, color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade900),
+                  Icon(Icons.info_outline,
+                      size: 14,
+                      color: isDarkMode
+                          ? Colors.orange.shade300
+                          : Colors.orange.shade900),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
                       '例外的な使用（現代では稀）',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade900,
+                            color: isDarkMode
+                                ? Colors.orange.shade300
+                                : Colors.orange.shade900,
                             fontWeight: FontWeight.w600,
                           ),
                     ),
@@ -475,7 +492,8 @@ class ToneExplanationDialog extends StatelessWidget {
             _buildInfoRow(
               context,
               '音節タイプ',
-              analysis.syllableType.getDisplayNameWithVowel(hasShortVowel: analysis.hasShortVowel),
+              analysis.syllableType.getDisplayNameWithVowel(
+                  hasShortVowel: analysis.hasShortVowel),
               Icons.waves,
             ),
             const SizedBox(height: 12),
@@ -533,8 +551,10 @@ class ToneExplanationDialog extends StatelessWidget {
         Icon(
           icon,
           size: 16,
-          color:
-              Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+          color: Theme.of(context)
+              .colorScheme
+              .onPrimaryContainer
+              .withValues(alpha: 0.7),
         ),
         const SizedBox(width: 8),
         Text(
@@ -566,8 +586,10 @@ class ToneExplanationDialog extends StatelessWidget {
         Icon(
           Icons.music_note,
           size: 16,
-          color:
-              Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+          color: Theme.of(context)
+              .colorScheme
+              .onPrimaryContainer
+              .withValues(alpha: 0.7),
         ),
         const SizedBox(width: 8),
         Text(
@@ -674,7 +696,8 @@ class ToneExplanationDialog extends StatelessWidget {
                 // ヘッダー行
                 _buildTableHeaderRow(context),
                 // データ行
-                ...toneRules.map((rule) => _buildTableDataRow(context, rule, null, null, null)),
+                ...toneRules.map((rule) =>
+                    _buildTableDataRow(context, rule, null, null, null)),
               ],
             ),
           ),
@@ -737,7 +760,8 @@ class ToneExplanationDialog extends StatelessWidget {
     // 低子音の死音節の場合は母音の長短を表示
     String syllableTypeDisplay;
     if (rule.syllableType == SyllableType.dead && rule.isShortVowel != null) {
-      syllableTypeDisplay = rule.syllableType.getDisplayNameWithVowel(hasShortVowel: rule.isShortVowel);
+      syllableTypeDisplay = rule.syllableType
+          .getDisplayNameWithVowel(hasShortVowel: rule.isShortVowel);
     } else {
       syllableTypeDisplay = rule.syllableType.displayName;
     }
@@ -778,7 +802,9 @@ class ToneExplanationDialog extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: isHeader || isHighlighted ? FontWeight.bold : FontWeight.normal,
+              fontWeight: isHeader || isHighlighted
+                  ? FontWeight.bold
+                  : FontWeight.normal,
               fontSize: isToneResult ? 16 : 14,
               color: isHighlighted
                   ? Theme.of(context).colorScheme.onPrimaryContainer
@@ -828,7 +854,8 @@ class ToneExplanationDialog extends StatelessWidget {
             tone.displayName,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
+                  fontWeight:
+                      isHighlighted ? FontWeight.bold : FontWeight.normal,
                   fontSize: 14,
                   color: isHighlighted
                       ? Theme.of(context).colorScheme.onPrimaryContainer
@@ -840,7 +867,8 @@ class ToneExplanationDialog extends StatelessWidget {
             tone.symbol,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
+                  fontWeight:
+                      isHighlighted ? FontWeight.bold : FontWeight.normal,
                   fontSize: 20,
                   color: isHighlighted
                       ? Theme.of(context).colorScheme.onPrimaryContainer
@@ -893,6 +921,7 @@ class ToneExplanationDialog extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
+                settings: const RouteSettings(name: ToneGuideScreen.routeName),
                 builder: (context) => const ToneGuideScreen(),
               ),
             );
@@ -910,7 +939,8 @@ class ToneExplanationDialog extends StatelessWidget {
   }
 
   /// ダイアログを表示
-  static void show(BuildContext context, String thaiWord, {WordBreakdown? wordBreakdown}) {
+  static void show(BuildContext context, String thaiWord,
+      {WordBreakdown? wordBreakdown}) {
     final analysis = ThaiToneAnalyzer.analyzeTone(thaiWord);
 
     showDialog(

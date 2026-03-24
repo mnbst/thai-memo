@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
-import '../../core/constants/generation_constants.dart';
+import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
-import '../providers/settings_provider.dart';
+import '../providers/subscription_provider.dart';
+import 'paywall_screen.dart';
 import 'tone_guide_screen.dart';
 
 /// Settings screen
 class SettingsScreen extends ConsumerStatefulWidget {
+  static const routeName = 'settings';
+
   const SettingsScreen({super.key});
 
   @override
@@ -16,32 +19,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _customPromptFocusNode = FocusNode();
-  String? _pendingCustomPrompt;
-
-  @override
-  void initState() {
-    super.initState();
-    _customPromptFocusNode.addListener(_onCustomPromptFocusChange);
-  }
-
-  @override
-  void dispose() {
-    _customPromptFocusNode.removeListener(_onCustomPromptFocusChange);
-    _customPromptFocusNode.dispose();
-    super.dispose();
-  }
-
-  void _onCustomPromptFocusChange() {
-    if (!_customPromptFocusNode.hasFocus && _pendingCustomPrompt != null) {
-      ref.read(settingsControllerProvider.notifier).setGenerationParam(
-            GenerationConstants.customPromptKey,
-            _pendingCustomPrompt!.isEmpty ? null : _pendingCustomPrompt,
-          );
-      _pendingCustomPrompt = null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,15 +26,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppConfig.defaultPadding),
         children: [
-          _buildThemeSection(),
-          const SizedBox(height: 24),
-          _buildNotificationSection(),
+          _buildAccountSection(),
           const SizedBox(height: 24),
           _buildLearningSection(),
-          const SizedBox(height: 24),
-          _buildGenerationSettingsSection(),
-          const SizedBox(height: 24),
-          _buildStatisticsSection(),
           const SizedBox(height: 24),
           _buildAboutSection(),
         ],
@@ -65,9 +36,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// Build theme section
-  Widget _buildThemeSection() {
-    final themeMode = ref.watch(themeModeProvider);
+  /// Build account section
+  Widget _buildAccountSection() {
+    final authState = ref.watch(authControllerProvider);
 
     return Card(
       child: Padding(
@@ -78,90 +49,160 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Row(
               children: [
                 Icon(
-                  Icons.palette,
+                  Icons.account_circle,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'テーマ',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text('システム'),
-                  icon: Icon(Icons.brightness_auto),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text('ライト'),
-                  icon: Icon(Icons.light_mode),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text('ダーク'),
-                  icon: Icon(Icons.dark_mode),
-                ),
-              ],
-              selected: {themeMode},
-              onSelectionChanged: (Set<ThemeMode> newSelection) {
-                ref
-                    .read(settingsControllerProvider.notifier)
-                    .setThemeMode(newSelection.first);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build notification section
-  Widget _buildNotificationSection() {
-    final notificationsEnabled = ref.watch(notificationsEnabledProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.notifications,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '通知',
+                  'アカウント',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                 ),
               ],
             ),
-            SwitchListTile(
+            const SizedBox(height: 12),
+            ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('クイズ通知'),
-              subtitle: const Text('クイズのリマインダーを受け取る'),
-              value: notificationsEnabled,
-              onChanged: (value) {
-                ref
-                    .read(settingsControllerProvider.notifier)
-                    .setNotificationEnabled(value);
+              leading: const Icon(Icons.person),
+              title: Text(authState.displayName ?? 'ユーザー'),
+              subtitle: authState.email != null ? Text(authState.email!) : null,
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final isPremium = ref.watch(isPremiumProvider);
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.workspace_premium),
+                  title: const Text('プラン'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Chip(
+                        label: Text(isPremium ? 'Premium' : 'Free'),
+                        backgroundColor: isPremium
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : null,
+                        labelStyle: TextStyle(
+                          color: isPremium
+                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                              : null,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: () => PaywallBottomSheet.show(
+                    context,
+                    source: 'settings_plan',
+                  ),
+                );
               },
             ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: authState.isLoading ? null : _deleteAccount,
+                  child: Text(
+                    'アカウントを削除',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: authState.isLoading ? null : _signOut,
+                  child: const Text('サインアウト'),
+                ),
+              ],
+            ),
+            if (authState.isLoading) const LinearProgressIndicator(),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _signOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('サインアウト'),
+        content: const Text('サインアウトしますか？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('サインアウト'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final error = await ref.read(authControllerProvider.notifier).signOut();
+    if (error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('アカウント削除'),
+        content: const Text(
+            'アカウントを削除すると、サーバーおよび端末のすべての学習データが完全に削除されます。この操作は元に戻せません。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              '削除',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final error =
+        await ref.read(authControllerProvider.notifier).deleteAccount();
+    if (mounted) {
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      } else {
+        ref.invalidate(allSentencesProvider);
+        ref.invalidate(sentenceCountProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('アカウントとすべてのデータを削除しました'),
+          ),
+        );
+      }
+    }
   }
 
   /// Build learning section
@@ -201,6 +242,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
+                    settings:
+                        const RouteSettings(name: ToneGuideScreen.routeName),
                     builder: (context) => const ToneGuideScreen(),
                   ),
                 );
@@ -208,194 +251,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  /// Build generation settings section
-  Widget _buildGenerationSettingsSection() {
-    final params = ref.watch(generationParamsProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.tune,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '今日のタイ語設定',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...GenerationConstants.parameterLabels.entries.map((entry) {
-              final key = entry.key;
-              final label = entry.value;
-              final options = GenerationConstants.parameterOptions[key]!;
-              final currentValue = params[key];
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _buildParamDropdown(key, label, options, currentValue),
-              );
-            }),
-            const SizedBox(height: 8),
-            _buildCustomPromptField(params[GenerationConstants.customPromptKey]),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildParamDropdown(
-    String key,
-    String label,
-    List<String> options,
-    String? currentValue,
-  ) {
-    return DropdownButtonFormField<String>(
-      // ignore: deprecated_member_use
-      value: currentValue,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: const OutlineInputBorder(),
-      ),
-      items: [
-        const DropdownMenuItem<String>(
-          value: null,
-          child: Text('ランダム'),
-        ),
-        ...options.map((option) => DropdownMenuItem<String>(
-              value: option,
-              child: Text(
-                option,
-                overflow: TextOverflow.ellipsis,
-              ),
-            )),
-      ],
-      onChanged: (value) {
-        ref
-            .read(settingsControllerProvider.notifier)
-            .setGenerationParam(key, value);
-      },
-    );
-  }
-
-  Widget _buildCustomPromptField(String? currentValue) {
-    return TextFormField(
-      key: ValueKey(currentValue),
-      initialValue: currentValue,
-      focusNode: _customPromptFocusNode,
-      maxLength: GenerationConstants.customPromptMaxLength,
-      decoration: const InputDecoration(
-        labelText: '自由メモ（例文に反映されます）',
-        hintText: '例: レストランでの会話',
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(),
-      ),
-      onChanged: (value) {
-        _pendingCustomPrompt = value;
-      },
-    );
-  }
-
-  /// Build statistics section
-  Widget _buildStatisticsSection() {
-    final sentenceCountAsync = ref.watch(sentenceCountProvider);
-    final favoriteCountAsync = ref.watch(favoriteSentencesProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.analytics,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '統計',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    '合計例文数',
-                    sentenceCountAsync.when(
-                      data: (count) => '$count',
-                      loading: () => '...',
-                      error: (_, __) => 'エラー',
-                    ),
-                    Icons.article,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatItem(
-                    'お気に入り',
-                    favoriteCountAsync.when(
-                      data: (favorites) => '${favorites.length}',
-                      loading: () => '...',
-                      error: (_, __) => 'エラー',
-                    ),
-                    Icons.favorite,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build stat item
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
       ),
     );
   }
@@ -415,8 +270,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text(
                   'アプリについて',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ],
             ),
@@ -429,15 +284,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text(
               '毎日タイ語を学習しましょう',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
             ),
           ],
         ),
       ),
     );
   }
-
 }

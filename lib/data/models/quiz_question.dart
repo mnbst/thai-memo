@@ -1,4 +1,17 @@
-/// FCMから届く穴埋めクイズ問題モデル
+// =============================================================================
+// quiz_question.dart
+// 穴埋めクイズの問題モデル。
+// Cloud Functions (generateQuiz) がGemini AIで生成したクイズ問題を表現する。
+// 例文の一部を空欄にし、4択から正解を選ぶ形式。
+// SRS（間隔反復）による復習間隔(srsInterval)も保持。
+// =============================================================================
+
+/// 穴埋めクイズ問題モデル
+///
+/// blankText: 空欄部分を _____ に置換した文
+/// choices: 4つの選択肢（正解を含む）
+/// correctAnswer: 正解のタイ語テキスト
+/// srsInterval: SRS復習間隔（日数）
 class QuizQuestion {
   final String sentenceId;
   final String thaiText;

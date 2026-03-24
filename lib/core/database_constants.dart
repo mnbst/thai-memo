@@ -20,8 +20,6 @@ class DatabaseConstants {
   static const String columnEmotion = 'emotion';
   static const String columnUsageScenarios = 'usage_scenarios';
   static const String columnCreatedAt = 'created_at';
-  static const String columnIsFavorite = 'is_favorite';
-
   // ==================== Word Breakdowns Table ====================
   static const String columnWordId = 'id';
   static const String columnWordSentenceId = 'sentence_id';
@@ -57,6 +55,20 @@ class DatabaseConstants {
   static const String columnStatsLastQuizDate = 'last_quiz_date';
   static const String columnStatsUpdatedAt = 'updated_at';
 
+  // ==================== Daily Activity Table ====================
+  static const String tableDailyActivity = 'daily_activity';
+  static const String columnActivityDate = 'date';
+  static const String columnGenerationDone = 'generation_done';
+  static const String columnQuizDone = 'quiz_done';
+
+  // ==================== Streak Stats Table ====================
+  static const String tableStreakStats = 'streak_stats';
+  static const String columnStreakId = 'id';
+  static const String columnStreakCurrent = 'current_streak';
+  static const String columnStreakBest = 'best_streak';
+  static const String columnStreakLastCompletedDate = 'last_completed_date';
+  static const String columnStreakUpdatedAt = 'updated_at';
+
   // ==================== SQL Statements ====================
 
   /// Create sentences table
@@ -71,8 +83,7 @@ class DatabaseConstants {
       $columnStyle TEXT,
       $columnEmotion TEXT,
       $columnUsageScenarios TEXT,
-      $columnCreatedAt INTEGER NOT NULL,
-      $columnIsFavorite INTEGER DEFAULT 0
+      $columnCreatedAt INTEGER NOT NULL
     )
   ''';
 
@@ -154,6 +165,26 @@ class DatabaseConstants {
     )
   ''';
 
+  /// Create daily_activity table
+  static const String createDailyActivityTable = '''
+    CREATE TABLE $tableDailyActivity (
+      $columnActivityDate TEXT PRIMARY KEY,
+      $columnGenerationDone INTEGER NOT NULL DEFAULT 0,
+      $columnQuizDone INTEGER NOT NULL DEFAULT 0
+    )
+  ''';
+
+  /// Create streak_stats table (single row cache)
+  static const String createStreakStatsTable = '''
+    CREATE TABLE $tableStreakStats (
+      $columnStreakId INTEGER PRIMARY KEY DEFAULT 1,
+      $columnStreakCurrent INTEGER NOT NULL DEFAULT 0,
+      $columnStreakBest INTEGER NOT NULL DEFAULT 0,
+      $columnStreakLastCompletedDate TEXT,
+      $columnStreakUpdatedAt INTEGER NOT NULL
+    )
+  ''';
+
   /// List of all create table statements
   static const List<String> createTableStatements = [
     createSentencesTable,
@@ -161,6 +192,8 @@ class DatabaseConstants {
     createGenerationLogsTable,
     createQuizResultsTable,
     createQuizStatsTable,
+    createDailyActivityTable,
+    createStreakStatsTable,
   ];
 
   /// List of all create index statements

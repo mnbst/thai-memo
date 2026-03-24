@@ -8,5 +8,11 @@ admin.initializeApp({
 });
 
 // Export Cloud Functions
-export { notificationBatch } from './notificationBatch';
-export { sendNotifications } from './sendNotifications';
+export { dailyBatch } from './dailyBatch';
+export { deleteUserData } from './deleteUserData';
+export { generateQuiz } from './generateQuiz';
+export { onUserCreate } from './onUserCreate';
+export { verifySubscription } from './verifySubscription';
+export { subscriptionStatus } from './subscriptionStatus';
+export { handlePlayNotification } from './handlePlayNotification';
+export { handleAppStoreNotification } from './handleAppStoreNotification';
