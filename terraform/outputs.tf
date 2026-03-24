@@ -23,3 +23,9 @@ output "firebase_config" {
   value       = module.firebase.web_app_config
   sensitive   = true
 }
+
+output "github_actions_play_upload_key" {
+  description = "GitHub Actions Play アップロード用サービスアカウントキー (JSON) — GitHub Secret GOOGLE_PLAY_SERVICE_ACCOUNT_JSON にそのまま貼り付ける"
+  value       = base64decode(google_service_account_key.github_actions_play_upload.private_key)
+  sensitive   = true
+}

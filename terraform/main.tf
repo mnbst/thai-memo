@@ -167,6 +167,17 @@ resource "google_cloud_run_service_iam_member" "callable_invoker" {
   member   = "allUsers"
 }
 
+# GitHub Actions 用 Google Play アップロードサービスアカウント
+resource "google_service_account" "github_actions_play_upload" {
+  account_id   = "github-actions-play-upload"
+  display_name = "GitHub Actions - Google Play Upload"
+  project      = var.project_id
+}
+
+resource "google_service_account_key" "github_actions_play_upload" {
+  service_account_id = google_service_account.github_actions_play_upload.name
+}
+
 # Cloud Functions module will be added after Functions code is ready
 # module "cloud_functions" {
 #   source = "./modules/cloud-functions"
