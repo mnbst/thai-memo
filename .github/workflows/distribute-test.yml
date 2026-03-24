@@ -80,11 +80,11 @@ jobs:
 
       - name: Restore keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/thai-memo-upload.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/thai-memo-release.jks
           cat <<EOF > android/app/key.properties
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
-          storeFile=thai-memo-upload.keystore
+          storeFile=thai-memo-release.jks
           storePassword=${{ secrets.STORE_PASSWORD }}
           EOF
 
