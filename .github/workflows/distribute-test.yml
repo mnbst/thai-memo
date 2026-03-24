@@ -91,24 +91,17 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --dart-define=ENV=tester
+      - name: Build AAB
+        run: flutter build appbundle --dart-define=ENV=tester
 
-      - name: Get PR release notes
-        id: pr_info
-        run: |
-          NOTES=$(gh pr list --state merged --base test --limit 1 --json title,body --jq '.[0] | (.title) + "\n" + (.body // "")')
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload APK as artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload to Google Play Internal Testing
+        uses: r0adkll/upload-google-play@v1
         with:
-          name: app-release.apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.thaimemo.thai_memo
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
 
   build-and-distribute-ios:
     runs-on: macos-latest
