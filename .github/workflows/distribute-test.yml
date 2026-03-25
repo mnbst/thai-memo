@@ -162,6 +162,15 @@ jobs:
           perl -i '' -pe "s/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_NAME\";/g" ios/Runner.xcodeproj/project.pbxproj
           /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:com.thaimemo.thaiMemo $PROFILE_NAME" ios/ExportOptions.plist
 
+      - name: Debug signing settings
+        run: |
+          echo "=== PROVISIONING_PROFILE_SPECIFIER ==="
+          grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj || echo "NOT FOUND"
+          echo "=== CODE_SIGN_STYLE ==="
+          grep "CODE_SIGN_STYLE" ios/Runner.xcodeproj/project.pbxproj
+          echo "=== ExportOptions.plist ==="
+          cat ios/ExportOptions.plist
+
       - name: Build IPA
         run: flutter build ipa --dart-define=ENV=tester --export-options-plist=ios/ExportOptions.plist
 
