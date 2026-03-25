@@ -159,7 +159,20 @@ jobs:
           sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "iPhone Developer"/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution"/g' ios/Runner.xcodeproj/project.pbxproj
           PROFILE_NAME=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | plutil -extract Name raw -)
           echo "Profile Name: $PROFILE_NAME"
-          perl -i '' -pe "s/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_NAME\";/g" ios/Runner.xcodeproj/project.pbxproj
+          python3 << 'PYEOF'
+          import os
+          profile_name = os.environ['PROFILE_NAME']
+          path = 'ios/Runner.xcodeproj/project.pbxproj'
+          with open(path) as f:
+              content = f.read()
+          content = content.replace(
+              'CODE_SIGN_STYLE = Manual;',
+              'CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "' + profile_name + '";'
+          )
+          with open(path, 'w') as f:
+              f.write(content)
+          print('Replaced with:', profile_name)
+          PYEOF
           /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:com.thaimemo.thaiMemo $PROFILE_NAME" ios/ExportOptions.plist
 
       - name: Debug signing settings
