@@ -32,13 +32,13 @@ jobs:
   deploy-functions:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -66,9 +66,9 @@ jobs:
   build-and-distribute-android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
@@ -95,7 +95,7 @@ jobs:
         run: flutter pub get
 
       - name: Build AAB
-        run: flutter build appbundle --dart-define=ENV=tester
+        run: flutter build appbundle --dart-define=ENV=tester --build-number=${{ github.run_number }}
 
       - name: Upload to Google Play Internal Testing
         uses: r0adkll/upload-google-play@v1
@@ -107,9 +107,9 @@ jobs:
           status: draft
 
   build-and-distribute-ios:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@v2
         with:
@@ -186,7 +186,7 @@ jobs:
           cat ios/ExportOptions.plist
 
       - name: Build IPA
-        run: flutter build ipa --dart-define=ENV=tester --export-options-plist=ios/ExportOptions.plist
+        run: flutter build ipa --dart-define=ENV=tester --build-number=${{ github.run_number }} --export-options-plist=ios/ExportOptions.plist
 
       - name: Get PR release notes
         id: pr_info
