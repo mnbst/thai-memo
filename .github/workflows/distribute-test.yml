@@ -101,7 +101,7 @@ jobs:
           packageName: com.thaimemo.thai_memo
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           track: internal
-          status: completed
+          status: draft
 
   build-and-distribute-ios:
     runs-on: macos-latest
@@ -139,16 +139,13 @@ jobs:
 
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
+          if [ -z "$UUID" ]; then
+            echo "ERROR: Failed to extract UUID from provisioning profile"
+            exit 1
+          fi
+          echo "Profile UUID: $UUID"
           cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision
-
-      - name: Verify provisioning profile installed
-        run: |
-          echo "=== Installed profiles ==="
-          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ || echo "No profiles found"
-          for f in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
-            echo "--- $f ---"
-            security cms -D -i "$f" | plutil -extract Name raw - 2>/dev/null || echo "Failed to read"
-          done
+          echo "PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: flutter pub get
@@ -157,7 +154,8 @@ jobs:
         run: |
           sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "iPhone Developer"/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution"/g' ios/Runner.xcodeproj/project.pbxproj
-          perl -i '' -pe 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "ThaiMemo AppStore Distribution";/g' ios/Runner.xcodeproj/project.pbxproj
+          perl -i '' -pe "s/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\";/g" ios/Runner.xcodeproj/project.pbxproj
+          /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:com.thaimemo.thaiMemo $PROFILE_UUID" ios/ExportOptions.plist
 
       - name: Build IPA
         run: flutter build ipa --dart-define=ENV=tester --export-options-plist=ios/ExportOptions.plist
