@@ -91,6 +91,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>FIRAAppCheckDebugToken</key>
+	<string>$(APP_CHECK_DEBUG_TOKEN)</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>SKAdNetworkItems</key>
