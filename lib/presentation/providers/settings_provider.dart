@@ -27,7 +27,7 @@ class SettingsState {
   factory SettingsState.initial() {
     return const SettingsState(
       isFirstLaunch: true,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       preferredGenerationTime: null,
       generationParams: {},
     );
@@ -89,7 +89,7 @@ class SettingsController extends StateNotifier<SettingsState> {
 
     final isFirstLaunch = _prefs!.getBool(AppConfig.prefKeyFirstLaunch) ?? true;
     final themeModeString =
-        _prefs!.getString(AppConfig.prefKeyThemeMode) ?? 'system';
+        _prefs!.getString(AppConfig.prefKeyThemeMode) ?? 'light';
     final themeMode = _parseThemeMode(themeModeString);
 
     // Load preferred generation time

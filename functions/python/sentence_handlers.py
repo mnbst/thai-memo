@@ -223,12 +223,15 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             user_ref.update({"is_first_generation": firestore.firestore.DELETE_FIELD})
 
         # UVM 露出登録（free/premium 共通）
-        log_data["uvmMatchedWords"] = _register_sentence_exposure(
-            db,
-            uid,
-            sentence,
-            target_words,
-        )
+        try:
+            log_data["uvmMatchedWords"] = _register_sentence_exposure(
+                db,
+                uid,
+                sentence,
+                target_words,
+            )
+        except Exception as exc:
+            print(f"register_sentence_exposure failed: {exc}")
         # vocab_count / estimated_vocab を同期
         try:
             freq_rank = get_freq_rank()
@@ -389,9 +392,12 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
             user_ref.update({"is_first_generation": firestore.firestore.DELETE_FIELD})
 
         # UVM 露出登録
-        for i, sentence in enumerate(sentences):
-            tw = all_target_words[i]
-            _register_sentence_exposure(db, uid, sentence, tw)
+        try:
+            for i, sentence in enumerate(sentences):
+                tw = all_target_words[i]
+                _register_sentence_exposure(db, uid, sentence, tw)
+        except Exception as exc:
+            print(f"register_sentence_exposure failed: {exc}")
 
         # vocab_count 同期
         try:

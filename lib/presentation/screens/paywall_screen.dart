@@ -176,7 +176,7 @@ class PaywallBottomSheet extends ConsumerWidget {
           ),
         // 購入ボタン
         FilledButton(
-          onPressed: subState.isLoading || subState.product == null
+          onPressed: subState.isLoading
               ? null
               : () {
                   unawaited(
