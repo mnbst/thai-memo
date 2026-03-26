@@ -46,11 +46,6 @@ export const verifySubscription = functions.https.onCall(
     timeoutSeconds: 30,
   },
   async (request) => {
-    // App Check 検証（dev環境はスキップ）
-    if (process.env.GCLOUD_PROJECT !== 'thai-memo-dev' && !request.app) {
-      throw new functions.https.HttpsError('unauthenticated', 'App Checkの検証に失敗しました');
-    }
-
     // Firebase Auth 認証チェック
     const uid = request.auth?.uid;
     if (!uid) {

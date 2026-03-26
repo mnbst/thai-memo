@@ -31,11 +31,14 @@ from embeddings import find_best_topic
 # ---------------------------------------------------------------------------
 # 定数
 # ---------------------------------------------------------------------------
-ALPHA_CORRECT_MAX = 0.35  # 正解時 α の初期値（quiz_attempts=0 時）
-ALPHA_CORRECT_MIN = 0.02  # 正解時 α の下限
-ALPHA_INCORRECT_MAX = 0.18  # 不正解時 α の初期値
+ALPHA_CORRECT_MAX_TOP = 0.50  # rank≈1（高頻度語）の正解α上限: 1問正解でP=0.1→0.55
+ALPHA_CORRECT_MAX_LOW = 0.20  # 高rank（低頻度語）の正解α下限: 3問正解でP>0.5
+ALPHA_CORRECT_MIN = 0.02  # 正解時 α の下限（quiz_attempts 大時の収束値）
+ALPHA_INCORRECT_MAX_TOP = 0.28  # rank≈1 の不正解α上限
+ALPHA_INCORRECT_MAX_LOW = 0.08  # 高rank の不正解α下限
 ALPHA_INCORRECT_MIN = 0.02  # 不正解時 α の下限
-ALPHA_DECAY_K = 0.08  # α 減衰係数
+ALPHA_DECAY_K = 0.08  # α 減衰係数（quiz_attempts による α 減衰速度）
+RANK_SCALE_REF = 600  # このrankでalpha_maxが上限・下限の中間値になる（rank>3000で3問正解挙動）
 P_MIN = 0.0  # P の下限
 P_MAX = 0.99  # P の上限
 NEW_WORD_P = 0.1  # 新規単語の初期 P 値
@@ -140,27 +143,39 @@ def sync_estimated_vocab(
     user_ref.set({"estimated_vocab": estimated}, merge=True)
 
 
-def update_p(p: float, correct: bool, quiz_attempts: int = 0) -> float:
+def update_p(p: float, correct: bool, quiz_attempts: int = 0, rank: int | None = None) -> float:
     """P(know) を正誤に基づいて更新する。
 
     【更新式】
-      正解時: α = ALPHA_CORRECT_MIN + (ALPHA_CORRECT_MAX - ALPHA_CORRECT_MIN) * exp(-k * quiz_attempts)
+      rank に応じて alpha_max をスケーリングする。
+        scale = RANK_SCALE_REF / (rank + RANK_SCALE_REF)  ← rank が低いほど 1 に近い
+        alpha_max = ALPHA_*_MAX_LOW + (ALPHA_*_MAX_TOP - ALPHA_*_MAX_LOW) * scale
+      正解時: α = ALPHA_CORRECT_MIN + (alpha_max - ALPHA_CORRECT_MIN) * exp(-k * quiz_attempts)
               p_new = p + α(1 - p)
-      不正解: α = ALPHA_INCORRECT_MIN + (ALPHA_INCORRECT_MAX - ALPHA_INCORRECT_MIN) * exp(-k * quiz_attempts)
+      不正解: α = ALPHA_INCORRECT_MIN + (alpha_max - ALPHA_INCORRECT_MIN) * exp(-k * quiz_attempts)
               p_new = p - α * p
 
+    【rank による挙動（quiz_attempts=0, p=0.1 から）】
+      rank ≈ 1  (scale≈1, α≈0.50): 正解1問で P > 0.5
+      rank ≈ 600 (scale=0.5, α=0.35): 正解2問で P > 0.5
+      rank > 3000 (scale<0.17, α<0.25): 正解3問で P > 0.5
+
+    rank=None の場合は scale=0.5（中間値）を使用する。
     quiz_attempts が多いほど α が小さくなり、P 変化量が小さくなる（収束挙動）。
     結果は [P_MIN, P_MAX] にクリッピングして返す。
     """
+    scale = RANK_SCALE_REF / (rank + RANK_SCALE_REF) if rank is not None else 0.5
     if correct:
-        alpha = ALPHA_CORRECT_MIN + (ALPHA_CORRECT_MAX - ALPHA_CORRECT_MIN) * math.exp(
+        alpha_max = ALPHA_CORRECT_MAX_LOW + (ALPHA_CORRECT_MAX_TOP - ALPHA_CORRECT_MAX_LOW) * scale
+        alpha = ALPHA_CORRECT_MIN + (alpha_max - ALPHA_CORRECT_MIN) * math.exp(
             -ALPHA_DECAY_K * quiz_attempts
         )
         p = p + alpha * (1 - p)
     else:
-        alpha = ALPHA_INCORRECT_MIN + (
-            ALPHA_INCORRECT_MAX - ALPHA_INCORRECT_MIN
-        ) * math.exp(-ALPHA_DECAY_K * quiz_attempts)
+        alpha_max = ALPHA_INCORRECT_MAX_LOW + (ALPHA_INCORRECT_MAX_TOP - ALPHA_INCORRECT_MAX_LOW) * scale
+        alpha = ALPHA_INCORRECT_MIN + (alpha_max - ALPHA_INCORRECT_MIN) * math.exp(
+            -ALPHA_DECAY_K * quiz_attempts
+        )
         p = p - alpha * p
     return max(P_MIN, min(P_MAX, p))
 
@@ -360,12 +375,13 @@ def batch_update_uvm(
         doc_ref = uvm_ref.document(word)
         doc = doc_ref.get()
 
+        rank = freq_rank.get(word) if freq_rank else None
         if doc.exists:
             # --- 既存単語の更新 ---
             data = doc.to_dict() or {}
             old_p = data.get("p", NEW_WORD_P)
             quiz_attempts = data.get("quiz_attempts", 0)
-            new_p = update_p(old_p, is_correct, quiz_attempts)
+            new_p = update_p(old_p, is_correct, quiz_attempts, rank)
             batch.update(
                 doc_ref,
                 {
@@ -377,7 +393,7 @@ def batch_update_uvm(
             )
         else:
             # --- 新規単語の作成（初めて見た単語） ---
-            new_p = update_p(NEW_WORD_P, is_correct, 0)
+            new_p = update_p(NEW_WORD_P, is_correct, 0, rank)
             batch.set(
                 doc_ref,
                 {
