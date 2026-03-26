@@ -8,9 +8,3 @@ apple_client_id               = "com.thaimemo.thaiMemo"
 apple_team_id                 = "5KTT2C466P"
 apple_key_id                  = "5LU78HU4GU"
 apple_private_key             = "-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgep6VkVwPouCDHREX\nbIncMaWqZxJ0Mkrtc0uDWeS/bbGgCgYIKoZIzj0DAQehRANCAASe+vlmy1qlFe9+\nayv9ObGgoLJP73YC+eeVdFPrRLyJvTvyspuwD+DazUpYNYq3SW8i5xiLADECNtKN\nz73qt2GT\n-----END PRIVATE KEY-----"
-
-# App Check
-ios_app_id                 = "1:219961294368:ios:88e70ed652a72f10b70645"
-android_app_id             = "1:219961294368:android:e0e4885ac250ce66b70645"
-app_check_ios_provider     = "attest"
-app_check_android_provider = "play_integrity"

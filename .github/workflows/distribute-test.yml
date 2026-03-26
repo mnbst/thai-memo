@@ -185,9 +185,6 @@ jobs:
           echo "=== ExportOptions.plist ==="
           cat ios/ExportOptions.plist
 
-      - name: Inject App Check debug token
-        run: echo "APP_CHECK_DEBUG_TOKEN=${{ secrets.APP_CHECK_DEBUG_TOKEN_TESTER }}" >> ios/Flutter/Release.xcconfig
-
       - name: Build IPA
         run: flutter build ipa --dart-define=ENV=tester --build-number=${{ github.run_number }} --export-options-plist=ios/ExportOptions.plist
 

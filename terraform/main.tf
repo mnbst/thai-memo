@@ -20,7 +20,6 @@ resource "google_project_service" "required_apis" {
     "cloudbilling.googleapis.com",
     "pubsub.googleapis.com",
     "run.googleapis.com",
-    "firebaseappcheck.googleapis.com",
   ])
 
   project = var.project_id
@@ -59,14 +58,6 @@ module "firebase" {
   apple_team_id        = var.apple_team_id
   apple_key_id         = var.apple_key_id
   apple_private_key    = var.apple_private_key
-
-  ios_app_id     = var.ios_app_id
-  android_app_id = var.android_app_id
-
-  app_check_ios_provider      = var.app_check_ios_provider
-  app_check_android_provider  = var.app_check_android_provider
-  app_check_debug_token_ios   = var.app_check_debug_token_ios
-  app_check_debug_token_android = var.app_check_debug_token_android
 
   depends_on = [google_project_service.required_apis]
 }

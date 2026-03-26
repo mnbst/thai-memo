@@ -1,4 +1,3 @@
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,16 +26,6 @@ void main() async {
   } on FirebaseException catch (e) {
     if (e.code != 'duplicate-app') rethrow;
   }
-
-  // Initialize App Check（dev=debug、tester/prod=本番provider）
-  await FirebaseAppCheck.instance.activate(
-    providerAndroid: AppConfig.isDev
-        ? const AndroidDebugProvider()
-        : const AndroidPlayIntegrityProvider(),
-    providerApple: AppConfig.isProd
-        ? const AppleAppAttestProvider()
-        : const AppleDebugProvider(),
-  );
 
   // Initialize Google Sign-In
   await GoogleSignIn.instance.initialize(
