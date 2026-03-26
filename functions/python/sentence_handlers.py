@@ -10,7 +10,7 @@ from google.cloud.firestore_v1 import transactional
 try:
     from .constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
     from .embeddings import find_best_topic
-    from .runtime import initialize_firebase_app, verify_app_check
+    from .runtime import initialize_firebase_app
     from .sentence_service import (
         generate_sentence,
         generate_sentences_batch,
@@ -27,7 +27,7 @@ try:
 except ImportError:
     from constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
     from embeddings import find_best_topic
-    from runtime import initialize_firebase_app, verify_app_check
+    from runtime import initialize_firebase_app
     from sentence_service import (
         generate_sentence,
         generate_sentences_batch,
@@ -140,8 +140,6 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
     }
 
     try:
-        verify_app_check(req)
-
         if not req.auth:
             log_data["error"] = "UNAUTHENTICATED"
             print(f"Authentication failed: {log_data}")
@@ -284,8 +282,6 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
     }
 
     try:
-        verify_app_check(req)
-
         if not req.auth:
             response["error"] = {
                 "code": "UNAUTHENTICATED",
