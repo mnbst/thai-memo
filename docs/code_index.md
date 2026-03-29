@@ -106,9 +106,6 @@ lib/presentation/providers/tts_provider.dart
 lib/presentation/providers/vocab_stats_provider.dart
 Firestoreから推定語彙数・学習済み単語数をリアルタイム取得（Premium限定）。
 
-lib/presentation/providers/streak_provider.dart
-連続学習ストリーク管理（日次活動記録・streak統計・起動時チェック）。
-
 ## Screens
 
 lib/presentation/screens/splash_screen.dart
@@ -147,9 +144,6 @@ lib/presentation/tone_explanation_dialog.dart
 タイ語声調の解説ダイアログ。
 
 ## Services
-
-lib/services/fcm_service.dart
-FCMトークン管理、通知ルーティング。
 
 lib/services/purchase_service.dart
 アプリ内課金（iOS/Android）とサブスクリプション検証。
