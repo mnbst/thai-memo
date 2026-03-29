@@ -224,7 +224,7 @@ def simulate(
             default=0,
         )
         new_estimated = estimated_vocab
-        for r in range(estimated_vocab - 200, estimated_vocab + 201):
+        for r in range(estimated_vocab - 50, estimated_vocab + 51):
             if r < 0:
                 continue
             avg = moving_avg(words_by_rank, r, moving_avg_window, unknown_word_p)

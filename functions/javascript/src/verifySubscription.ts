@@ -28,6 +28,7 @@ import {
 
 /** Firestore インスタンス */
 const db = admin.firestore();
+const defaultAndroidPackageName = 'com.thaimemo.thai_memo';
 
 /**
  * verifySubscription - サブスクリプション購入の検証
@@ -80,7 +81,8 @@ export const verifySubscription = functions.https.onCall(
 
       if (platform === 'android') {
         // --- Android（Google Play）の購入検証 ---
-        const packageName = process.env.ANDROID_PACKAGE_NAME || 'com.gaku.thaimemo';
+        const packageName =
+          process.env.ANDROID_PACKAGE_NAME || defaultAndroidPackageName;
         // Google Play Developer API v3 で購入トークンを検証
         const result = await verifyPlayPurchase(packageName, product_id, purchase_token);
 

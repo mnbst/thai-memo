@@ -15,11 +15,12 @@ resource "google_project_service" "required_apis" {
     "logging.googleapis.com",
     "cloudscheduler.googleapis.com",
     "firestore.googleapis.com",
-    "fcm.googleapis.com",
     "artifactregistry.googleapis.com",
     "cloudbilling.googleapis.com",
     "pubsub.googleapis.com",
     "run.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "iam.googleapis.com",
   ])
 
   project = var.project_id
@@ -35,11 +36,6 @@ module "secret_manager" {
   project_id     = var.project_id
   project_number = data.google_project.project.number
   gemini_api_key = var.gemini_api_key
-
-  play_service_account_key = var.play_service_account_key
-  appstore_connect_key     = var.appstore_connect_key
-  appstore_key_id          = var.appstore_key_id
-  appstore_issuer_id       = var.appstore_issuer_id
 
   depends_on = [google_project_service.required_apis]
 }
@@ -123,6 +119,8 @@ locals {
     "roles/iam.serviceAccountUser",
     "roles/serviceusage.serviceUsageConsumer",
     "roles/cloudscheduler.admin",
+    "roles/firebase.admin",
+    "roles/secretmanager.secretAccessor",
   ] : []
 }
 
@@ -131,6 +129,42 @@ resource "google_project_iam_member" "ci_service_account" {
   project  = var.project_id
   role     = each.value
   member   = "serviceAccount:${var.ci_service_account_email}"
+}
+
+# Workload Identity Federation for GitHub Actions
+resource "google_iam_workload_identity_pool" "github_actions" {
+  count                     = var.github_repo != "" ? 1 : 0
+  project                   = var.project_id
+  workload_identity_pool_id = "github-actions-pool"
+  display_name              = "GitHub Actions Pool"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_iam_workload_identity_pool_provider" "github" {
+  count                              = var.github_repo != "" ? 1 : 0
+  project                            = var.project_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_actions[0].workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-oidc-provider"
+  display_name                       = "GitHub OIDC Provider"
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+  }
+
+  attribute_condition = "assertion.repository == '${var.github_repo}'"
+}
+
+resource "google_service_account_iam_member" "github_actions_wif" {
+  count              = var.github_repo != "" && var.ci_service_account_email != "" ? 1 : 0
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${var.ci_service_account_email}"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_actions[0].name}/attribute.repository/${var.github_repo}"
 }
 
 # Cloud Run IAM: callable な Cloud Functions (v2) に allUsers invoker を付与

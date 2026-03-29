@@ -255,6 +255,9 @@ Geminiモデル名、APIパラメータ、トピック/スタイル/文法/感�
 functions/python/uvm.py
 UVMコアロジック（トピック×語彙レベルによるセッション単語選定、P(know)更新、バッチ更新）。
 
+docs/estimated_vocab_logic.md
+estimated_vocab算出ロジックの詳細ドキュメント（estimate_vocab・moving_avg・sync_estimated_vocab）。
+
 functions/python/embeddings.py
 GCSからembedding/トピックembeddingをlazy-load、コサイン類似度でトピック関連単語検索・セマンティック重複除去。
 
