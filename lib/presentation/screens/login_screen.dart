@@ -46,7 +46,9 @@ class LoginScreen extends ConsumerWidget {
                             .withValues(alpha: 0.6),
                       ),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 32),
+                _FeatureList(),
+                const SizedBox(height: 32),
                 if (authState.isLoading)
                   const CircularProgressIndicator()
                 else ...[
@@ -104,5 +106,56 @@ class LoginScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+}
+
+class _FeatureList extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _FeatureItem(
+          icon: Icons.auto_awesome,
+          text: 'AIがあなたのレベルに合った例文を毎日生成',
+          color: color,
+        ),
+        const SizedBox(height: 12),
+        _FeatureItem(
+          icon: Icons.history,
+          text: '学習履歴・クイズ結果をずっと保存',
+          color: color,
+        ),
+      ],
+    );
+  }
+}
+
+class _FeatureItem extends StatelessWidget {
+  const _FeatureItem({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(width: 12),
+        Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+        ),
+      ],
+    );
   }
 }

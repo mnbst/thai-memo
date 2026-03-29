@@ -70,7 +70,6 @@ dependencies:
 
   # In-App Purchase
   in_app_purchase: ^3.2.0
-  firebase_messaging: ^16.1.2
 
 
 

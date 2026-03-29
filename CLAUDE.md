@@ -84,7 +84,6 @@ Clean Architecture with three layers:
 - **presentation/** — Riverpod providers (`StateNotifierProvider` for sentence state), screens (Home with 4 tabs: 例文/クイズ/履歴/設定), widgets
 
 Key services outside the layers:
-- `FcmService` — FCMトークン管理・ローカル通知（FlutterLocalNotificationsPlugin）
 - `FirebaseAuthService` — Google/Appleサインイン（匿名認証は非対応）
 - `PurchaseService` — アプリ内課金・サブスクリプション検証
 - `AdmobService` — 広告管理（Premium時は非表示）

@@ -44,6 +44,11 @@ class PaywallBottomSheet extends ConsumerWidget {
   }) async {
     final container = ProviderScope.containerOf(context, listen: false);
     final analytics = container.read(analyticsServiceProvider);
+    unawaited(
+      container
+          .read(subscriptionControllerProvider.notifier)
+          .ensureStoreReady(),
+    );
     // 呼び出し元の source を失わないよう、表示前にイベントを確定させる。
     unawaited(analytics.logTapPaywall(source: source));
     unawaited(
@@ -176,7 +181,7 @@ class PaywallBottomSheet extends ConsumerWidget {
           ),
         // 購入ボタン
         FilledButton(
-          onPressed: subState.isLoading
+          onPressed: subState.isLoading || subState.product == null
               ? null
               : () {
                   unawaited(

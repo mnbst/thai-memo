@@ -22,6 +22,38 @@
 - [ ] 内部テストトラックにAABをアップロード（※課金商品登録にはAABが1回以上アップロード済みである必要あり）
 - [ ] テスターのメールアドレスを追加・招待
 
+## CI/CD シークレット設定
+
+### GCP Secret Manager に登録が必要なもの（`thai-memo-67139` プロジェクト）
+
+```
+gcloud secrets versions add <name> --project=thai-memo-67139 --data-file=-
+```
+
+- [ ] `ci-app-specific-password` — Apple ID のアプリ用パスワード
+- [ ] `ci-google-play-service-account` — Google Play サービスアカウント JSON（秘密鍵含む）
+- [ ] `ci-keystore` — Android 署名鍵（.jks を base64 エンコード）
+- [ ] `ci-key-password` — キーストアのキーパスワード
+- [ ] `ci-store-password` — キーストアのストアパスワード
+- [ ] `ci-p12-cert` — iOS 配布証明書（.p12 を base64 エンコード）
+- [ ] `ci-p12-password` — .p12 証明書のパスワード
+- [ ] `ci-provisioning-profile` — iOS プロビジョニングプロファイル（.mobileprovision を base64 エンコード）
+
+### プロジェクト内管理に移行するもの（Secret Manager 不要）
+
+- [ ] `ci-apple-id` → ワークフローの env にハードコード
+- [ ] `ci-key-alias` → ワークフローの env にハードコード
+- [ ] `ci-google-services-json` → `android/app/google-services.json` としてリポジトリにコミット
+- [ ] `ci-google-service-info-plist` → `ios/Runner/GoogleService-Info.plist` としてリポジトリにコミット
+- [ ] `ci-app-check-debug-token` → 使用しないため削除
+
+## 将来対応
+
+- [ ] ユーザーごとの推定語彙数（estimated_vocab）の日次推移を記録・可視化
+  - `dailyBatch` で各ユーザーの `estimated_vocab` を `users/{uid}/vocab_history/{YYYY-MM-DD}` に書き込む
+  - または BigQuery Export（Firestore → BigQuery）でまとめて集計
+  - ユーザー数が増えてから対応
+
 ## 共通
 
 - [ ] アプリのバージョン番号・ビルド番号を確認・設定

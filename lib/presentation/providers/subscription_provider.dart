@@ -32,7 +32,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import '../../core/config/app_config.dart';
 import '../../core/config/firebase_config.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
@@ -89,31 +88,18 @@ class SubscriptionState {
 class SubscriptionController extends StateNotifier<SubscriptionState> {
   SubscriptionController({
     required AnalyticsService analytics,
-    PurchaseService? purchaseService,
   })  : _analytics = analytics,
-        _purchaseService = purchaseService,
-        super(const SubscriptionState(
-          tier: UserTier.free,
-        ));
+        super(const SubscriptionState(tier: UserTier.free));
 
   final AnalyticsService _analytics;
   PurchaseService? _purchaseService;
-
-  /// PurchaseServiceを設定（main.dartから呼び出し）
-  void setPurchaseService(PurchaseService service) {
-    _purchaseService = service;
-    _purchaseService!.onPurchaseCompleted = _onPurchaseCompleted;
-    _purchaseService!.onPurchaseError = _onPurchaseError;
-  }
+  Future<void>? _storeReadyFuture;
 
   /// 初期化: Firestore から現在のティアを取得し、商品情報をロード
   ///
   /// アプリ起動時に main.dart から1回呼び出される。
   Future<void> initialize() async {
     await _fetchTierFromFirestore();
-    if (!AppConfig.isDev) {
-      _loadProduct();
-    }
   }
 
   /// フォアグラウンド復帰時にティアを再取得
@@ -123,7 +109,11 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
   /// 購入を開始
   Future<void> purchase() async {
-    if (_purchaseService == null || state.product == null) return;
+    await ensureStoreReady();
+    if (_purchaseService == null || state.product == null) {
+      state = state.copyWith(errorMessage: '課金商品を取得できませんでした');
+      return;
+    }
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       await _purchaseService!.buy(state.product!);
@@ -139,6 +129,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   /// （復元イベントは purchaseStream 経由で非同期に届くため、即座に Firestore を
   ///   読んでも反映されていない可能性がある）
   Future<void> restore() async {
+    await ensureStoreReady();
     if (_purchaseService == null) return;
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -175,14 +166,29 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     }
   }
 
+  Future<void> ensureStoreReady() {
+    final existing = _storeReadyFuture;
+    if (existing != null) return existing;
+
+    final future = _initializeStore();
+    _storeReadyFuture = future;
+    return future;
+  }
+
   Future<void> _loadProduct() async {
     try {
       final product = await _purchaseService?.fetchProduct();
       if (product != null) {
-        state = state.copyWith(product: product);
+        state = state.copyWith(product: product, errorMessage: null);
+      } else {
+        state = state.copyWith(errorMessage: '課金商品を取得できませんでした');
       }
+    } on PurchaseProductLoadException catch (e) {
+      debugPrint('Failed to load product: $e');
+      state = state.copyWith(errorMessage: e.message);
     } catch (e) {
       debugPrint('Failed to load product: $e');
+      state = state.copyWith(errorMessage: '課金商品を取得できませんでした');
     }
   }
 
@@ -193,6 +199,35 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
   void _onPurchaseError(String message) {
     state = state.copyWith(isLoading: false, errorMessage: message);
+  }
+
+  Future<void> _initializeStore() async {
+    try {
+      final service = _purchaseService ??= PurchaseService(
+        functions: FirebaseFunctions.instanceFor(
+          region: FirebaseConfig.functionsRegion,
+        ),
+      );
+
+      service.onPurchaseCompleted = _onPurchaseCompleted;
+      service.onPurchaseError = _onPurchaseError;
+
+      final available = await service.initialize();
+      if (!available) {
+        state = state.copyWith(errorMessage: 'App Storeに接続できませんでした');
+        return;
+      }
+      await _loadProduct();
+    } catch (_) {
+      _storeReadyFuture = null;
+      rethrow;
+    }
+  }
+
+  @override
+  void dispose() {
+    _purchaseService?.dispose();
+    super.dispose();
   }
 }
 

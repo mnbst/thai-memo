@@ -104,8 +104,8 @@ def estimate_vocab(docs: list, freq_rank: dict[str, int], center: int = 0) -> in
             return known_max_rank
         center = int(sum(p * rank for p, rank in weighted_ranks) / total_p)
 
-    # center ± 200 の範囲で P < 0.5 となる rank を探索
-    for r in range(center - 200, center + 201):
+    # center ± 50 の範囲で P < 0.5 となる rank を探索
+    for r in range(center - 50, center + 51):
         avg = moving_avg(words_by_rank, r)
         if avg < 0.5:
             return max(known_max_rank, r, 0)
@@ -118,7 +118,7 @@ def sync_estimated_vocab(
 ) -> None:
     """users/{uid} の estimated_vocab を効率的に更新する。
 
-    現在の estimated_vocab を中心に ±200 の freq_rank 範囲の単語だけ
+    現在の estimated_vocab を中心に ±50 の freq_rank 範囲の単語だけ
     UVM から取得して再計算する（全件取得を回避）。
     """
     user_ref = db.collection("users").document(uid)
@@ -128,8 +128,8 @@ def sync_estimated_vocab(
         current_estimate = (user_doc.to_dict() or {}).get("estimated_vocab", 0)
 
     # freq_rank から探索範囲内の単語を抽出
-    scan_low = max(0, current_estimate - 200)
-    scan_high = current_estimate + 201
+    scan_low = max(0, current_estimate - 50)
+    scan_high = current_estimate + 51
     target_words = [
         word for word, rank in freq_rank.items() if scan_low <= rank < scan_high
     ]

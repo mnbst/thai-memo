@@ -24,6 +24,7 @@ import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 /** GCP Secret Manager クライアント（API キーやシークレットの取得に使用） */
 const secretClient = new SecretManagerServiceClient();
 const projectId = process.env.GCLOUD_PROJECT;
+const defaultAppStoreBundleId = 'com.thaimemo.thaiMemo';
 
 /** App Store 購入検証の結果 */
 export interface AppStoreVerificationResult {
@@ -94,6 +95,7 @@ async function getSecret(secretId: string): Promise<string> {
  * - appstore-connect-key: App Store Connect で生成した秘密鍵（.p8 ファイルの内容）
  * - appstore-key-id: API キーの Key ID
  * - appstore-issuer-id: App Store Connect の Issuer ID
+ * - APP_STORE_BUNDLE_ID: 検証対象アプリの Bundle ID（未設定時は現行本番ID）
  */
 async function generateAppStoreJWT(): Promise<string> {
   const [privateKeyPem, keyId, issuerId] = await Promise.all([
@@ -101,16 +103,16 @@ async function generateAppStoreJWT(): Promise<string> {
     getSecret('appstore-key-id'),
     getSecret('appstore-issuer-id'),
   ]);
+  const bundleId = process.env.APP_STORE_BUNDLE_ID || defaultAppStoreBundleId;
 
   const privateKey = await jose.importPKCS8(privateKeyPem, 'ES256');
 
-  const jwt = await new jose.SignJWT({})
+  const jwt = await new jose.SignJWT({ bid: bundleId })
     .setProtectedHeader({ alg: 'ES256', kid: keyId, typ: 'JWT' })
     .setIssuer(issuerId)
     .setIssuedAt()
     .setExpirationTime('20m')
     .setAudience('appstoreconnect-v1')
-    .setSubject('com.gaku.thaimemo') // Bundle ID
     .sign(privateKey);
 
   return jwt;
@@ -151,6 +153,20 @@ export function decodeSignedPayload<T>(signedPayload: string): T {
 export async function verifyAppStorePurchase(
   transactionId: string
 ): Promise<AppStoreVerificationResult> {
+  // StoreKit 2 の場合、serverVerificationData は JWS 形式（eyJ...）で届く
+  // JWS をデコードして実際の transactionId を取り出す
+  const parts = transactionId.split('.');
+  if (parts.length === 3) {
+    try {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+      if (payload.transactionId) {
+        transactionId = payload.transactionId;
+      }
+    } catch {
+      // デコード失敗時はそのまま使用
+    }
+  }
+
   const jwt = await generateAppStoreJWT();
   const environment = process.env.APP_STORE_ENVIRONMENT === 'production'
     ? 'api.storekit' : 'api.storekit-sandbox';
@@ -162,6 +178,8 @@ export async function verifyAppStorePurchase(
   });
 
   if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`App Store API error: ${response.status}`, { transactionId, errorBody });
     throw new Error(`App Store API error: ${response.status}`);
   }
 

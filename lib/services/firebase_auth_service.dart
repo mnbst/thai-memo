@@ -9,12 +9,15 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 /// Service for managing Firebase Authentication
 class FirebaseAuthService {
   static final FirebaseAuthService instance = FirebaseAuthService._internal();
+  static const String _googleServerClientId =
+      '147810088545-4921rt150m9jtjate82nbol5q8hgoj3l.apps.googleusercontent.com';
 
   factory FirebaseAuthService() => instance;
 
   FirebaseAuthService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _googleSignInInitialized = false;
 
   /// Get current user
   User? get currentUser => _auth.currentUser;
@@ -41,6 +44,7 @@ class FirebaseAuthService {
   /// Sign in with Google
   Future<User?> signInWithGoogle() async {
     try {
+      await _ensureGoogleSignInInitialized();
       final googleUser = await GoogleSignIn.instance.authenticate();
       final credential = GoogleAuthProvider.credential(
         idToken: googleUser.authentication.idToken,
@@ -93,15 +97,16 @@ class FirebaseAuthService {
       final result = await _auth.signInWithCredential(credential);
       return result.user;
     } on FirebaseAuthException catch (e) {
-      throw FirebaseAuthServiceException(
-          'サインインに失敗しました: ${e.message}');
+      throw FirebaseAuthServiceException('サインインに失敗しました: ${e.message}');
     }
   }
 
   /// Sign out
   Future<void> signOut() async {
     try {
-      await GoogleSignIn.instance.signOut();
+      if (_googleSignInInitialized) {
+        await GoogleSignIn.instance.signOut();
+      }
       await _auth.signOut();
     } catch (e) {
       throw FirebaseAuthServiceException('Failed to sign out: $e');
@@ -134,6 +139,7 @@ class FirebaseAuthService {
         await user.reauthenticateWithCredential(oauthCredential);
       } else if (providerIds.contains('google.com')) {
         try {
+          await _ensureGoogleSignInInitialized();
           final googleUser = await GoogleSignIn.instance.authenticate();
           final credential = GoogleAuthProvider.credential(
             idToken: googleUser.authentication.idToken,
@@ -158,6 +164,14 @@ class FirebaseAuthService {
   /// Listen to auth state changes
   Stream<User?> authStateChanges() {
     return _auth.authStateChanges();
+  }
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+    await GoogleSignIn.instance.initialize(
+      serverClientId: _googleServerClientId,
+    );
+    _googleSignInInitialized = true;
   }
 
   /// Generate a random nonce for Apple Sign-in

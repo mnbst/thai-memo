@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -25,6 +26,7 @@ class AdMobService {
   }
 
   BannerAd createBannerAd() {
+    unawaited(initialize());
     return BannerAd(
       adUnitId: bannerAdUnitId,
       size: AdSize.banner,

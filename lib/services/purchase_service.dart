@@ -34,12 +34,23 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../core/config/firebase_config.dart';
+import 'firebase_auth_service.dart';
 
 /// アプリ内課金の商品ID（App Store Connect / Google Play Console で登録した ID と一致させる）
 const String kProductIdPremiumMonthly = 'premium_monthly';
 
 /// 購入状態の変化を通知するコールバック型
 typedef PurchaseCallback = void Function();
+
+/// 課金商品の取得失敗時に、UIへ表示するための説明付き例外
+class PurchaseProductLoadException implements Exception {
+  PurchaseProductLoadException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 /// in_app_purchase パッケージのラッパーサービス
 ///
@@ -86,9 +97,21 @@ class PurchaseService {
     final response = await _iap.queryProductDetails({kProductIdPremiumMonthly});
     if (response.error != null) {
       debugPrint('Product query error: ${response.error}');
-      return null;
+      throw PurchaseProductLoadException(
+        response.error!.message,
+      );
     }
-    if (response.productDetails.isEmpty) return null;
+
+    if (response.notFoundIDs.contains(kProductIdPremiumMonthly)) {
+      throw PurchaseProductLoadException(
+        'App Storeで課金商品 premium_monthly が見つかりませんでした',
+      );
+    }
+
+    if (response.productDetails.isEmpty) {
+      throw PurchaseProductLoadException('App Storeから商品情報を取得できませんでした');
+    }
+
     return response.productDetails.first;
   }
 
@@ -124,10 +147,10 @@ class PurchaseService {
           break;
         case PurchaseStatus.error:
           onPurchaseError?.call(purchase.error?.message ?? '購入エラーが発生しました');
-          _completePurchaseIfNeeded(purchase);
+          unawaited(_completePurchaseIfNeeded(purchase));
           break;
         case PurchaseStatus.canceled:
-          _completePurchaseIfNeeded(purchase);
+          unawaited(_completePurchaseIfNeeded(purchase));
           break;
         case PurchaseStatus.pending:
           // 処理待ち - 何もしない
@@ -146,6 +169,14 @@ class PurchaseService {
   /// - iOS: transactionId（App Store Server API で検証に使用）
   /// - Android: purchaseToken（Google Play Developer API で検証に使用）
   Future<void> _verifyAndComplete(PurchaseDetails purchase) async {
+    // 未ログイン時はCloud Functionを呼べない
+    if (!FirebaseAuthService.instance.isAuthenticated) {
+      debugPrint('Verification skipped: user not authenticated');
+      onPurchaseError?.call('ログインしてから購入してください');
+      _completePurchaseIfNeeded(purchase);
+      return;
+    }
+
     try {
       final callable = _functions.httpsCallable(
         FirebaseConfig.verifySubscriptionFunctionName,
@@ -165,7 +196,7 @@ class PurchaseService {
       debugPrint('Verification failed: $e');
       onPurchaseError?.call('購入の検証に失敗しました');
     } finally {
-      _completePurchaseIfNeeded(purchase);
+      await _completePurchaseIfNeeded(purchase);
     }
   }
 
@@ -174,9 +205,13 @@ class PurchaseService {
   /// completePurchase を呼ばないと、ストア側でトランザクションが未完了のまま残り、
   /// 次回アプリ起動時に再度 purchaseStream にイベントが届いてしまう。
   /// 検証の成否に関わらず、必ず呼び出す必要がある。
-  void _completePurchaseIfNeeded(PurchaseDetails purchase) {
+  Future<void> _completePurchaseIfNeeded(PurchaseDetails purchase) async {
     if (purchase.pendingCompletePurchase) {
-      _iap.completePurchase(purchase);
+      try {
+        await _iap.completePurchase(purchase);
+      } catch (e) {
+        debugPrint('completePurchase error: $e');
+      }
     }
   }
 

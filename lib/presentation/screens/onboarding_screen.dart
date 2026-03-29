@@ -35,6 +35,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       title: 'クイズで定着',
       description: '学んだ例文からクイズを出題。\n忘れかけた頃に復習できるので\n効率的に語彙が定着します。',
     ),
+    _OnboardingPage(
+      icon: Icons.trending_up,
+      colorType: _ColorType.primary,
+      title: 'レベルが自動で上がります',
+      description: '例文を読んでクイズに正解するほど\n推定語彙数が増え、例文・クイズの\n難易度も自動で上がっていきます。',
+    ),
   ];
 
   @override

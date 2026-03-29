@@ -14,28 +14,3 @@ variable "gemini_api_key" {
   sensitive   = true
 }
 
-variable "play_service_account_key" {
-  description = "Google Play Developer API サービスアカウントJSON"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "appstore_connect_key" {
-  description = "App Store Connect API Key (p8)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "appstore_key_id" {
-  description = "App Store Connect Key ID"
-  type        = string
-  default     = ""
-}
-
-variable "appstore_issuer_id" {
-  description = "App Store Connect Issuer ID"
-  type        = string
-  default     = ""
-}
