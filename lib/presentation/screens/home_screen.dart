@@ -596,7 +596,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'プレミアムなら1日10件まで生成できます',
+                      'プレミアムなら1日5件まで生成できます',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: colorScheme.onPrimaryContainer
                                 .withValues(alpha: 0.8),

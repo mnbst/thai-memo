@@ -109,6 +109,16 @@ def require_target_words(result: tuple[list[str], str]) -> tuple[list[str], str]
 MAX_RETRY = 1
 
 
+def _make_generation_config(model: str) -> genai.types.GenerateContentConfig:
+    """GenerateContentConfig を返す。"""
+    return genai.types.GenerateContentConfig(
+        temperature=API_TEMPERATURE,
+        max_output_tokens=API_MAX_TOKENS,
+        response_mime_type="application/json",
+        response_schema=RESPONSE_SCHEMA,
+    )
+
+
 def validate_target_words(sentence: dict, target_words: list[str] | None) -> list[str]:
     """生成された例文にtarget_wordsが含まれているか検証する。
 
@@ -150,12 +160,7 @@ def _call_gemini_with_retry_sync(
             result = client.models.generate_content(
                 model=model,
                 contents=prompt,
-                config=genai.types.GenerateContentConfig(
-                    temperature=API_TEMPERATURE,
-                    max_output_tokens=API_MAX_TOKENS,
-                    response_mime_type="application/json",
-                    response_schema=RESPONSE_SCHEMA,
-                ),
+                config=_make_generation_config(model),
             )
             return result
         except Exception as e:
@@ -240,12 +245,7 @@ async def _call_gemini_with_retry(
             result = await client.aio.models.generate_content(
                 model=model,
                 contents=prompt,
-                config=genai.types.GenerateContentConfig(
-                    temperature=API_TEMPERATURE,
-                    max_output_tokens=API_MAX_TOKENS,
-                    response_mime_type="application/json",
-                    response_schema=RESPONSE_SCHEMA,
-                ),
+                config=_make_generation_config(model),
             )
             return result
         except Exception as e:

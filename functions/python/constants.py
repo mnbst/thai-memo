@@ -19,7 +19,7 @@ from google.genai import types
 # 無料ティア用: 軽量・高速な lite モデル
 GEMINI_MODEL = "gemini-2.5-flash"
 # 有料ティア用: 高品質な標準モデル
-GEMINI_MODEL_PREMIUM = "gemini-2.5-pro"
+GEMINI_MODEL_PREMIUM = "gemini-2.5-flash"
 
 # ─── API パラメータ ───
 # 温度（0.0〜1.0）: 高いほど多様な出力が得られる。0.8は創造的な例文生成に適した値

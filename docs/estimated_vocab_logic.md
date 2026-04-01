@@ -12,7 +12,7 @@ UVMドキュメント群（対象範囲のみ取得）
     ↓
 {rank: p} マップを構築
     ↓
-moving_avg(rank) を center ± 200 の範囲でスキャン
+moving_avg(rank) を center ± 50 の範囲でスキャン
     ↓
 moving_avg < 0.5 となる最初の rank = estimated_vocab
 ```
@@ -52,14 +52,14 @@ max(known_max_rank, 最初にmoving_avg<0.5となるrank, 0)
 
 Firestoreの `users/{uid}.estimated_vocab` を効率的に更新する。
 
-- 全UVMドキュメントを取得せず、`current_estimate ± 200` の範囲の単語のみ取得
+- 全UVMドキュメントを取得せず、`current_estimate ± 50` の範囲の単語のみ取得
 - `estimate_vocab()` で再計算後、`merge=True` で書き込み
 
 #### 呼び出しタイミング
 
 | イベント | 呼び出し元 |
 |---------|-----------|
-| 例文生成後（exposure更新後） | `sentence_service.py` |
+| 例文生成後（exposure更新後） | `sentence_handlers.py` |
 | クイズ結果更新後 | `uvm.py:batch_update_uvm()` |
 
 ## 定数

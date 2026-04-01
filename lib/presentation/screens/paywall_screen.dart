@@ -162,7 +162,7 @@ class PaywallBottomSheet extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              '${subState.product!.price} / 月',
+              _formatPrice(subState.product!.rawPrice, subState.product!.currencyCode),
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -219,11 +219,19 @@ class PaywallBottomSheet extends ConsumerWidget {
     );
   }
 
+  String _formatPrice(double rawPrice, String currencyCode) {
+    if (currencyCode == 'JPY') {
+      return '¥${rawPrice.toInt()} / 月';
+    }
+    final formatted = rawPrice.toStringAsFixed(2);
+    return '$currencyCode $formatted / 月';
+  }
+
   Widget _buildComparisonTable(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     const features = [
-      ('例文', '1日1件', '1日10件'),
+      ('例文', '1日1件', '1日5件'),
       ('クイズ', '1日2回', '1日10回'),
       ('学べる単語', '300語まで', '最大1万語'),
       ('例文のバリエーション', '少なめ', '豊富'),

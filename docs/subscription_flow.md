@@ -30,7 +30,7 @@ sequenceDiagram
         CF->>CF: JWSデコード<br/>→ expiresDate, revocationDate確認
     end
 
-    CF->>FS: users/{uid} を更新<br/>tier: 'premium'<br/>remaining_sentences: 10<br/>subscription.status: 'active'
+    CF->>FS: users/{uid} を更新<br/>tier: 'premium'<br/>remaining_sentences: 5<br/>subscription.status: 'active'
 
     CF-->>App: { plan: 'premium', status: 'active' }
 
@@ -68,3 +68,4 @@ purchase_token (JWS: eyJ...) を受信
 | `lib/presentation/providers/subscription_provider.dart` | 状態管理（SubscriptionController） |
 | `functions/javascript/src/verifySubscription.ts` | Cloud Function本体 |
 | `functions/javascript/src/services/appStoreServer.ts` | Apple API検証・JWSデコード |
+| `functions/javascript/src/handleAppStoreNotification.ts` | Apple Server Notifications V2 ハンドラ（更新・解約・失効） → `docs/appstore_notification_flow.md` |
