@@ -201,6 +201,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             Text(message,
                 style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center),
+            if (isQuotaError) ...[
+              const SizedBox(height: 8),
+              Text(
+                nextResetText(),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
             const SizedBox(height: 24),
             if (isQuotaError) ...[
               if (!ref.watch(isPremiumProvider))

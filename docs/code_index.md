@@ -252,6 +252,12 @@ UVMコアロジック（トピック×語彙レベルによるセッション単
 docs/estimated_vocab_logic.md
 estimated_vocab算出ロジックの詳細ドキュメント（estimate_vocab・moving_avg・sync_estimated_vocab）。
 
+docs/sentence_generation_logic.md
+例文生成ロジック（UVM単語選定→プロンプト構築→Gemini呼び出し→NLP後処理→Firestore保存）。
+
+docs/quiz_generation_logic.md
+クイズ生成ロジック（SRS例文選出→Gemini穴埋め生成→サニタイズ→デフォルト補填）。
+
 functions/python/embeddings.py
 GCSからembedding/トピックembeddingをlazy-load、コサイン類似度でトピック関連単語検索・セマンティック重複除去。
 

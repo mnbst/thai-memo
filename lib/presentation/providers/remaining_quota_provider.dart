@@ -48,3 +48,19 @@ final isPremiumRealtimeProvider = Provider<AsyncValue<bool>>((ref) {
       .watch(userDocProvider)
       .whenData((data) => data?['tier'] == 'premium');
 });
+
+/// 次のリセット（0時/12時 JST）までの残り時間テキストを返す
+String nextResetText() {
+  final nowJst = DateTime.now().toUtc().add(const Duration(hours: 9));
+  final DateTime nextResetJst;
+  if (nowJst.hour < 12) {
+    nextResetJst = DateTime.utc(nowJst.year, nowJst.month, nowJst.day, 12);
+  } else {
+    nextResetJst = DateTime.utc(nowJst.year, nowJst.month, nowJst.day + 1);
+  }
+  final diff = nextResetJst.difference(nowJst);
+  final hours = diff.inHours;
+  final minutes = diff.inMinutes % 60;
+  if (hours > 0) return '次のリセットまで $hours時間$minutes分';
+  return '次のリセットまで $minutes分';
+}

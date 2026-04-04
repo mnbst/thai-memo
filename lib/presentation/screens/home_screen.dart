@@ -596,7 +596,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'プレミアムなら1日10件まで生成できます',
+                      'プレミアムなら最大10回/日まで生成できます',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: colorScheme.onPrimaryContainer
                                 .withValues(alpha: 0.8),
@@ -695,7 +695,15 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final remainingAsync = ref.watch(remainingSentencesProvider);
     final remaining = remainingAsync.valueOrNull;
 
-    if (remaining != null && remaining <= 0) return null;
+    if (remaining != null && remaining <= 0) {
+      return FloatingActionButton.extended(
+        onPressed: null,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+        icon: const Icon(Icons.schedule),
+        label: Text(nextResetText()),
+      );
+    }
 
     final remainingText = remaining != null ? '（残り$remaining回）' : '';
 

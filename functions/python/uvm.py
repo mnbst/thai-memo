@@ -46,7 +46,7 @@ ALPHA_EXPOSURE = 0.03  # 例文露出時の P 微増率
 UNKNOWN_WORD_P = 0.3  # UVM 未登録語の prior P
 
 # get_session_words 用: estimated_vocab 基準の頻度帯フィルタ幅
-FREQ_BAND_FORWARD = 10  # 前方帯域幅: estimated_vocab + FREQ_BAND_FORWARD まで
+FREQ_BAND_FORWARD = 30  # 前方帯域幅: estimated_vocab + FREQ_BAND_FORWARD まで
 FREQ_BAND_LOOKBACK = (
     100  # 後方帯域幅: estimated_vocab - FREQ_BAND_LOOKBACK まで（前進重視）
 )
@@ -253,10 +253,9 @@ def get_session_words(
                 if isinstance(p_val, (int, float)):
                     p_map[snap.id] = float(p_val)
 
-    def priority_key(candidate: dict[str, Any]) -> tuple[float, int, float]:
+    def priority_key(candidate: dict[str, Any]) -> tuple[float, float]:
         effective_p = p_map.get(candidate["word"], NEW_WORD_P)
-        distance = abs(candidate["rank"] - estimated_vocab)
-        return (effective_p, distance, random.random())
+        return (effective_p, random.random())
 
     band_words.sort(key=priority_key)
     selected = band_words[:count]
@@ -267,7 +266,7 @@ def get_session_words(
         chosen_topic = topic
     else:
         # 最初の key_word で最適トピックを決定
-        chosen_topic = find_best_topic(words[0], topics_pool) or ""
+        chosen_topic = find_best_topic(words[0], topics_pool, top_k=5, threshold=0.545) or ""
         if not chosen_topic and topics_pool:
             chosen_topic = random.choice(topics_pool)
 

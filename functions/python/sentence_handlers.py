@@ -171,7 +171,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         if remaining <= 0:
             response["error"] = {
                 "code": "QUOTA_EXCEEDED",
-                "message": "本日の例文生成上限に達しました",
+                "message": "この時間帯の例文生成上限に達しました",
             }
             return response
 
@@ -252,7 +252,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         if "QUOTA_EXCEEDED" in error_msg:
             response["error"] = {
                 "code": "QUOTA_EXCEEDED",
-                "message": "本日の例文生成上限に達しました",
+                "message": "この時間帯の例文生成上限に達しました",
             }
         elif "SECRET_MANAGER_ERROR" in error_msg:
             response["error"] = {
@@ -312,7 +312,7 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
         if remaining <= 0:
             response["error"] = {
                 "code": "QUOTA_EXCEEDED",
-                "message": "本日の例文生成上限に達しました",
+                "message": "この時間帯の例文生成上限に達しました",
             }
             return response
 
@@ -424,7 +424,7 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
         if "QUOTA_EXCEEDED" in error_msg:
             response["error"] = {
                 "code": "QUOTA_EXCEEDED",
-                "message": "本日の例文生成上限に達しました",
+                "message": "この時間帯の例文生成上限に達しました",
             }
         elif "SECRET_MANAGER_ERROR" in error_msg:
             response["error"] = {

@@ -12,6 +12,7 @@ GCSからembeddingデータをlazy-loadし、コサイン類似度で
 import io
 import json
 import os
+import random
 from typing import Any
 
 import numpy as np
@@ -149,15 +150,25 @@ def get_topic_similar_words(
     return results
 
 
-def find_best_topic(word: str, topics: list[str] | None = None) -> str | None:
-    """key_word の embedding と各トピック embedding のコサイン類似度から最適トピックを返す。
+def find_best_topic(
+    word: str,
+    topics: list[str] | None = None,
+    top_k: int = 5,
+    threshold: float = 0.0,
+) -> str | None:
+    """key_word の embedding と各トピック embedding のコサイン類似度からトピックを返す。
+
+    閾値以上の候補を類似度順に並べ、上位 top_k 件からランダムに1件選択する。
+    閾値を満たす候補がない場合は最高類似度のトピックを返す。
 
     Args:
         word: key_word（タイ語単語）
         topics: 候補トピックリスト。None なら事前計算済み全トピックから選択。
+        top_k: ランダム選択するプール上限（デフォルト 5）
+        threshold: コサイン類似度の下限（デフォルト 0.0）
 
     Returns:
-        最も類似度が高いトピック文字列。embedding が取得できない場合は None。
+        選択されたトピック文字列。embedding が取得できない場合は None。
     """
     _load_data()
     _load_topic_embeddings()
@@ -167,17 +178,21 @@ def find_best_topic(word: str, topics: list[str] | None = None) -> str | None:
     if word_emb is None:
         return None
 
-    best_topic: str | None = None
-    best_sim = -1.0
+    scored: list[tuple[float, str]] = []
     for topic_str, emb_list in _topic_embeddings.items():
         if topics is not None and not any(t in topic_str or topic_str in t for t in topics):
             continue
         topic_emb = np.array(emb_list, dtype=np.float32)
         sim = cosine_similarity(word_emb, topic_emb)
-        if sim > best_sim:
-            best_sim = sim
-            best_topic = topic_str
-    return best_topic
+        scored.append((sim, topic_str))
+
+    if not scored:
+        return None
+
+    scored.sort(reverse=True)
+    candidates = [t for sim, t in scored if sim >= threshold]
+    pool = (candidates or [scored[0][1]])[:top_k]
+    return random.choice(pool)
 
 
 def get_embedding(word: str) -> np.ndarray | None:
