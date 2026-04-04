@@ -70,3 +70,5 @@ scripts/corpus/
 
 android/app/key.properties
 android/app/*.jks
+
+.firebase/

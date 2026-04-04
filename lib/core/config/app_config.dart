@@ -12,7 +12,7 @@ class AppConfig {
   static const String appName = 'まいにちタイ語';
 
   /// App version
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.2.0';
 
   /// Database configuration
   static const String databaseName = 'thai_memo.db';
@@ -27,6 +27,12 @@ class AppConfig {
 
   /// Secure storage keys
   static const String secureStorageLastGeneration = 'last_generation_timestamp';
+
+  /// Legal URLs
+  static const String privacyPolicyUrl =
+      'https://thai-memo-prod.web.app/privacy-policy.html';
+  static const String termsOfServiceUrl =
+      'https://thai-memo-prod.web.app/terms.html';
 
   /// Shared preferences keys
   static const String prefKeyFirstLaunch = 'is_first_launch';

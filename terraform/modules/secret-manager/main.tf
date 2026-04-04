@@ -50,6 +50,26 @@ resource "google_secret_manager_secret_iam_member" "appstore_secrets_accessor" {
   member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
 }
 
+# Gmail App Password for sendContactEmail Cloud Function
+resource "google_secret_manager_secret" "gmail_app_password" {
+  secret_id = "gmail-app-password"
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+
+  lifecycle {
+    ignore_changes = [labels]
+  }
+}
+
+resource "google_secret_manager_secret_iam_member" "gmail_app_password_accessor" {
+  secret_id = google_secret_manager_secret.gmail_app_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
+}
+
 # --- CI/CD secrets (GitHub Actions 用) ---
 # 値は terraform 管理外: gcloud secrets versions add <name> --data-file=- で手動設定
 

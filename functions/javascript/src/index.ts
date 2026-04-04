@@ -16,3 +16,4 @@ export { verifySubscription } from './verifySubscription';
 export { subscriptionStatus } from './subscriptionStatus';
 export { handlePlayNotification } from './handlePlayNotification';
 export { handleAppStoreNotification } from './handleAppStoreNotification';
+export { sendContactEmail } from './sendContactEmail';
