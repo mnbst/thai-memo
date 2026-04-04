@@ -20,9 +20,12 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/config/app_config.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/subscription_provider.dart';
 
@@ -215,6 +218,68 @@ class PaywallBottomSheet extends ConsumerWidget {
               : () =>
                   ref.read(subscriptionControllerProvider.notifier).restore(),
           child: const Text('購入を復元'),
+        ),
+        // 自動更新サブスクリプション開示文（iOS: Apple ガイドライン 3.1.2 準拠）
+        if (defaultTargetPlatform == TargetPlatform.iOS) ...[
+          const SizedBox(height: 12),
+          Text(
+            'サブスクリプションは、現在の期間終了の24時間前までにキャンセルしない限り自動更新されます。'
+            '更新料金は期間終了の24時間以内に請求されます。'
+            'App Storeのアカウント設定からサブスクリプションの管理・キャンセルができます。',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
+            textAlign: TextAlign.left,
+          ),
+        ],
+        // 利用規約・プライバシーポリシーリンク（Apple ガイドライン 3.1.2 準拠）
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton(
+              onPressed: () =>
+                  launchUrl(Uri.parse(AppConfig.termsOfServiceUrl)),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                '利用規約',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      decoration: TextDecoration.underline,
+                    ),
+              ),
+            ),
+            Text(
+              '|',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.4),
+                  ),
+            ),
+            TextButton(
+              onPressed: () =>
+                  launchUrl(Uri.parse(AppConfig.privacyPolicyUrl)),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'プライバシーポリシー',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      decoration: TextDecoration.underline,
+                    ),
+              ),
+            ),
+          ],
         ),
       ],
     );

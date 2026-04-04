@@ -2,13 +2,23 @@ import 'dart:async';
 import 'dart:io';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../core/config/app_config.dart';
+
 class AdMobService {
   static final AdMobService instance = AdMobService._internal();
   factory AdMobService() => instance;
   AdMobService._internal();
 
-  // Test ad unit IDs
   static String get bannerAdUnitId {
+    if (AppConfig.isProd) {
+      // TODO: 本番AdMobバナー広告ユニットIDに差し替え
+      if (Platform.isAndroid) {
+        return 'ca-app-pub-XXXXXXXXXX/XXXXXXXXXX'; // Android本番ID
+      } else {
+        return 'ca-app-pub-XXXXXXXXXX/XXXXXXXXXX'; // iOS本番ID
+      }
+    }
+    // テスト用ID（dev/tester環境）
     if (Platform.isAndroid) {
       return 'ca-app-pub-3940256099942544/6300978111';
     } else {

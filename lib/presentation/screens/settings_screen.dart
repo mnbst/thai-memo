@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/subscription_provider.dart';
+import 'contact_form_screen.dart';
 import 'paywall_screen.dart';
 import 'tone_guide_screen.dart';
 
@@ -255,6 +257,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('URLを開けませんでした')),
+        );
+      }
+    }
+  }
+
   /// Build about section
   Widget _buildAboutSection() {
     return Card(
@@ -288,6 +301,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       context,
                     ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
+            ),
+            const Divider(height: 24),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.lock_outline),
+              title: const Text('プライバシーポリシー'),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () => _launchUrl(AppConfig.privacyPolicyUrl),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.description_outlined),
+              title: const Text('利用規約'),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () => _launchUrl(AppConfig.termsOfServiceUrl),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.mail_outline),
+              title: const Text('お問い合わせ'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  settings: const RouteSettings(
+                    name: ContactFormScreen.routeName,
+                  ),
+                  builder: (_) => const ContactFormScreen(),
+                ),
+              ),
             ),
           ],
         ),
