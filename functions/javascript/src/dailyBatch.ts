@@ -161,3 +161,43 @@ export const dailyBatch = isDevOnly()
       await dailyBatchHandler();
     }
   );
+
+/** JST 12:00 にクォータのみリセット（P減衰・古い例文削除はなし） */
+async function noonResetHandler() {
+  console.log('noonReset started');
+
+  const usersSnapshot = await db.collection('users').get();
+  if (usersSnapshot.empty) {
+    console.log('No users found');
+    return;
+  }
+
+  const users = usersSnapshot.docs;
+  for (let i = 0; i < users.length; i += CONCURRENCY) {
+    const chunk = users.slice(i, i + CONCURRENCY);
+    await Promise.allSettled(chunk.map((userDoc) => resetQuota(userDoc)));
+  }
+
+  console.log('noonReset completed');
+}
+
+/** dev: HTTPトリガー / tester・prod: Cloud Scheduler (JST 12:00) */
+export const noonReset = isDevOnly()
+  ? functions.https.onRequest({
+    region: 'asia-northeast1',
+    timeoutSeconds: 300,
+  }, async (_req, res) => {
+    await noonResetHandler();
+    res.status(200).send('ok');
+  })
+  : functions.scheduler.onSchedule(
+    {
+      schedule: '0 12 * * *', // JST 12:00
+      region: 'asia-northeast1',
+      timeZone: 'Asia/Tokyo',
+      timeoutSeconds: 300,
+    },
+    async () => {
+      await noonResetHandler();
+    }
+  );

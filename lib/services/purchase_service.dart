@@ -37,7 +37,11 @@ import '../core/config/firebase_config.dart';
 import 'firebase_auth_service.dart';
 
 /// アプリ内課金の商品ID（App Store Connect / Google Play Console で登録した ID と一致させる）
-const String kProductIdPremiumMonthly = 'premium_monthly';
+/// tester環境では premium_monthly_test、それ以外は premium_monthly を使用
+const String kProductIdPremiumMonthly =
+    String.fromEnvironment('ENV') == 'tester'
+        ? 'premium_monthly_test'
+        : 'premium_monthly';
 
 /// 購入状態の変化を通知するコールバック型
 typedef PurchaseCallback = void Function();

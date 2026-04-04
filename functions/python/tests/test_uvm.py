@@ -259,7 +259,7 @@ def test_get_session_words_excludes_out_of_band_candidates() -> None:
         {
             "in-band-low": 10,
             "in-band-high": 20,
-            "out-band": 21,
+            "out-band": 41,
         },
         topic="fixed-topic",
         count=2,

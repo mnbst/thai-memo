@@ -107,10 +107,23 @@ def enrich_with_nlp(sentence: dict) -> dict:
     Returns:
         dict: NLP情報が追加された例文データ（引数と同じオブジェクトを返す）
     """
+    word_breakdowns = sentence.get("word_breakdown", [])
+    words = [wb.get("word", "") for wb in word_breakdowns]
+
+    # 品詞タグ付け: 全単語を一括で渡し文脈を考慮した判定を行う
+    pos_map: dict[int, str] = {}
+    try:
+        tags = pos_tag(words, engine="perceptron", corpus="orchid_ud")
+        for i, tag_pair in enumerate(tags):
+            if len(tag_pair) >= 2:
+                pos_map[i] = _POS_TAG_MAP.get(tag_pair[1], tag_pair[1])
+    except Exception as e:
+        print(f"NLP POS (context) failed: {e}")
+
     # 各単語の発音を蓄積し、最後に文全体の発音を構築する
     word_pronunciations = []
 
-    for wb in sentence.get("word_breakdown", []):
+    for i, wb in enumerate(word_breakdowns):
         word = wb.get("word", "")
 
         # 音節分割: 単語を音節のリストに分解
@@ -127,11 +140,14 @@ def enrich_with_nlp(sentence: dict) -> dict:
         except Exception as e:
             print(f"NLP pronunciation failed for '{word}': {e}")
 
-        # 品詞タグ付け: 単語の文法的役割を日本語で付与
-        try:
-            wb["grammatical_role"] = get_pos_japanese(word)
-        except Exception as e:
-            print(f"NLP POS failed for '{word}': {e}")
+        # 品詞: 一括タグ付けの結果を適用（失敗時はフォールバック）
+        if i in pos_map:
+            wb["grammatical_role"] = pos_map[i]
+        else:
+            try:
+                wb["grammatical_role"] = get_pos_japanese(word)
+            except Exception as e:
+                print(f"NLP POS (fallback) failed for '{word}': {e}")
 
     # 各単語の発音をスペースで結合して文全体の発音を生成
     if word_pronunciations:

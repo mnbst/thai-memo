@@ -162,7 +162,8 @@ class PaywallBottomSheet extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              _formatPrice(subState.product!.rawPrice, subState.product!.currencyCode),
+              _formatPrice(
+                  subState.product!.rawPrice, subState.product!.currencyCode),
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -230,11 +231,12 @@ class PaywallBottomSheet extends ConsumerWidget {
   Widget _buildComparisonTable(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
+    // (機能名, 無料, プレミアム, 注記)
     const features = [
-      ('例文', '1日1件', '1日5件'),
-      ('クイズ', '1日2回', '1日10回'),
-      ('学べる単語', '300語まで', '最大1万語'),
-      ('例文のバリエーション', '少なめ', '豊富'),
+      ('例文生成', '最大2回/日', '最大10回/日', '0時・12時にリセット'),
+      ('クイズ', '最大2回/日', '最大10回/日', '0時・12時にリセット'),
+      ('学べる単語', '300語まで', '最大1万語', ''),
+      ('例文のバリエーション', '少なめ', '豊富', ''),
     ];
 
     return Container(
@@ -255,7 +257,7 @@ class PaywallBottomSheet extends ConsumerWidget {
               children: [
                 const Expanded(flex: 3, child: SizedBox()),
                 Expanded(
-                  flex: 2,
+                  flex: 3,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(
@@ -268,7 +270,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                   ),
                 ),
                 Expanded(
-                  flex: 2,
+                  flex: 3,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(
@@ -298,6 +300,9 @@ class PaywallBottomSheet extends ConsumerWidget {
                     : Border(
                         bottom: BorderSide(color: colorScheme.outlineVariant),
                       ),
+                borderRadius: isLast
+                    ? const BorderRadius.vertical(bottom: Radius.circular(12))
+                    : null,
               ),
               child: Row(
                 children: [
@@ -315,28 +320,40 @@ class PaywallBottomSheet extends ConsumerWidget {
                     ),
                   ),
                   Expanded(
-                    flex: 2,
-                    child: Text(
-                      feature.$2,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                      textAlign: TextAlign.center,
+                    flex: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
+                      child: Text(
+                        feature.$2,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                   Expanded(
-                    flex: 2,
-                    child: Text(
-                      feature.$3,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isPremiumBetter
-                                ? colorScheme.primary
-                                : colorScheme.onSurface,
-                            fontWeight: isPremiumBetter
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                      textAlign: TextAlign.center,
+                    flex: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
+                      child: Text(
+                        feature.$3,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isPremiumBetter
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurface,
+                              fontWeight: isPremiumBetter
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                 ],

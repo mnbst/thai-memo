@@ -8,7 +8,7 @@
  *
  * 【処理フロー】
  * 1. Firebase Auth 認証チェック
- * 2. 日次クイズ生成クォータチェック（free: 2回/日, premium: 10回/日、JST基準）
+ * 2. クイズ生成クォータチェック（5回/12時間、JST 0:00/12:00リセット）
  * 3. ユーザーの例文からSRSベースでリアルタイムに復習対象を選出（最大5文）
  * 4. ランダムに5問を抽出し、Gemini API で穴埋め問題を生成
  * 5. 5問未満ならデフォルト例文（DEFAULT_SENTENCES）から Gemini 生成して補填
@@ -59,7 +59,7 @@ async function consumeQuizQuota(userRef: FirebaseFirestore.DocumentReference): P
     const remainingQuizzes = userData.remaining_quizzes ?? 0;
 
     if (remainingQuizzes <= 0) {
-      throw new functions.https.HttpsError('resource-exhausted', '本日のクイズ生成上限に達しました');
+      throw new functions.https.HttpsError('resource-exhausted', 'この時間帯のクイズ生成上限に達しました');
     }
 
     transaction.set(userRef, { remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
@@ -70,7 +70,7 @@ async function consumeQuizQuota(userRef: FirebaseFirestore.DocumentReference): P
  * generateQuiz - クイズ生成（onCall、オンデマンド）
  *
  * クライアントからの呼び出しで穴埋めクイズを生成して返却する。
- * 1. 認証チェック + 日次クイズ生成クォータチェック（free: 2回/日, premium: 10回/日、JST基準）
+ * 1. 認証チェック + クイズ生成クォータチェック（5回/12時間、JST 0:00/12:00リセット）
  * 2. ユーザー例文をSRSルールでリアルタイム選出（最大5文）
  * 3. 選出結果からランダムに5問を抽出し、Gemini APIで穴埋め問題を生成
  * 4. 5問未満ならデフォルト例文からGemini生成して補填
@@ -100,7 +100,7 @@ export const generateQuiz = functions.https.onCall(
 
     // 上限に達している場合はエラーを返す
     if (remainingQuizzes <= 0) {
-      throw new functions.https.HttpsError('resource-exhausted', '本日のクイズ生成上限に達しました');
+      throw new functions.https.HttpsError('resource-exhausted', 'この時間帯のクイズ生成上限に達しました');
     }
 
     // GCP Secret Manager から Gemini API キーを取得

@@ -1,9 +1,9 @@
-name: Distribute to Testers
+name: Distribute to Production
 
 on:
   push:
     branches:
-      - test
+      - main
     paths-ignore:
       - '*.md'
       - 'LICENSE'
@@ -28,9 +28,9 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  WIF_PROVIDER: projects/763566155520/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc-provider
-  CI_SERVICE_ACCOUNT: github-actions-deployer@thai-memo-67139.iam.gserviceaccount.com
-  GCP_PROJECT: thai-memo-67139
+  WIF_PROVIDER: projects/219961294368/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc-provider
+  CI_SERVICE_ACCOUNT: github-actions-deployer@thai-memo-prod.iam.gserviceaccount.com
+  GCP_PROJECT: thai-memo-prod
 
 jobs:
   deploy-functions:
@@ -68,68 +68,7 @@ jobs:
       - name: Deploy Cloud Functions
         run: |
           export FUNCTIONS_DISCOVERY_TIMEOUT=60000
-          firebase deploy --only functions,firestore:rules,firestore:indexes --project tester
-
-  # build-and-distribute-android:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #
-  #     - uses: actions/setup-java@v5
-  #       with:
-  #         distribution: temurin
-  #         java-version: 17
-  #
-  #     - uses: subosito/flutter-action@v2
-  #       with:
-  #         flutter-version: "3.x"
-  #         channel: stable
-  #
-  #     - name: Authenticate to GCP
-  #       uses: google-github-actions/auth@v2
-  #       with:
-  #         workload_identity_provider: ${{ env.WIF_PROVIDER }}
-  #         service_account: ${{ env.CI_SERVICE_ACCOUNT }}
-  #
-  #     - name: Fetch secrets from Secret Manager
-  #       uses: google-github-actions/get-secretmanager-secrets@v2
-  #       id: secrets
-  #       with:
-  #         secrets: |-
-  #           GOOGLE_SERVICES_JSON:${{ env.GCP_PROJECT }}/ci-google-services-json
-  #           KEYSTORE_BASE64:${{ env.GCP_PROJECT }}/ci-keystore
-  #           KEY_ALIAS:${{ env.GCP_PROJECT }}/ci-key-alias
-  #           KEY_PASSWORD:${{ env.GCP_PROJECT }}/ci-key-password
-  #           STORE_PASSWORD:${{ env.GCP_PROJECT }}/ci-store-password
-  #           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:${{ env.GCP_PROJECT }}/ci-google-play-service-account
-  #
-  #     - name: Restore google-services.json
-  #       run: echo '${{ steps.secrets.outputs.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-  #
-  #     - name: Restore keystore
-  #       run: |
-  #         echo "${{ steps.secrets.outputs.KEYSTORE_BASE64 }}" | base64 --decode > android/app/thai-memo-release.jks
-  #         cat <<EOF > android/app/key.properties
-  #         keyAlias=${{ steps.secrets.outputs.KEY_ALIAS }}
-  #         keyPassword=${{ steps.secrets.outputs.KEY_PASSWORD }}
-  #         storeFile=thai-memo-release.jks
-  #         storePassword=${{ steps.secrets.outputs.STORE_PASSWORD }}
-  #         EOF
-  #
-  #     - name: Install dependencies
-  #       run: flutter pub get
-  #
-  #     - name: Build AAB
-  #       run: flutter build appbundle --dart-define=ENV=tester --build-number=${{ github.run_number }}
-  #
-  #     - name: Upload to Google Play Internal Testing
-  #       uses: r0adkll/upload-google-play@v1
-  #       with:
-  #         serviceAccountJsonPlainText: ${{ steps.secrets.outputs.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-  #         packageName: com.thaimemo.thai_memo
-  #         releaseFiles: build/app/outputs/bundle/release/app-release.aab
-  #         track: internal
-  #         status: draft
+          firebase deploy --only functions,firestore:rules,firestore:indexes --project prod
 
   build-and-distribute-ios:
     runs-on: macos-26
@@ -198,7 +137,6 @@ jobs:
 
       - name: Override signing for CI
         run: |
-          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = com.thaimemo.thaiMemo;/PRODUCT_BUNDLE_IDENTIFIER = com.thaimemo.Test;/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "iPhone Developer"/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution"/g' ios/Runner.xcodeproj/project.pbxproj
           PROFILE_NAME=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | plutil -extract Name raw -)
@@ -218,7 +156,7 @@ jobs:
               f.write(content)
           print('Replaced with:', profile_name)
           PYEOF
-          /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:com.thaimemo.Test $PROFILE_NAME" ios/ExportOptions.tester.plist
+          /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:com.thaimemo.thaiMemo $PROFILE_NAME" ios/ExportOptions.plist
 
       - name: Debug signing settings
         run: |
@@ -226,23 +164,13 @@ jobs:
           grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj || echo "NOT FOUND"
           echo "=== CODE_SIGN_STYLE ==="
           grep "CODE_SIGN_STYLE" ios/Runner.xcodeproj/project.pbxproj
-          echo "=== ExportOptions.tester.plist ==="
-          cat ios/ExportOptions.tester.plist
+          echo "=== ExportOptions.plist ==="
+          cat ios/ExportOptions.plist
 
       - name: Build IPA
-        run: flutter build ipa --dart-define=ENV=tester --build-number=${{ github.run_number }} --export-options-plist=ios/ExportOptions.tester.plist
+        run: flutter build ipa --dart-define=ENV=prod --build-number=${{ github.run_number }} --export-options-plist=ios/ExportOptions.plist
 
-      - name: Get PR release notes
-        id: pr_info
-        run: |
-          NOTES=$(gh pr list --state merged --base test --limit 1 --json title,body --jq '.[0] | (.title) + "\n" + (.body // "")')
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload to TestFlight
+      - name: Upload to App Store Connect
         env:
           APPLE_ID: ${{ steps.secrets.outputs.APPLE_ID }}
           APP_SPECIFIC_PASSWORD: ${{ steps.secrets.outputs.APP_SPECIFIC_PASSWORD }}
