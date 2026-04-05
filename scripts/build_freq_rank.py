@@ -70,6 +70,9 @@ THAI_RE = re.compile(r"[\u0E01-\u0E5B]")
 def should_keep_word(word: str, tag: str) -> bool:
     if not word or not THAI_RE.search(word):
         return False
+    # 単一文字はトークナイザーの分割ミスまたは略語のため除外
+    if len(word) < 2:
+        return False
     if word in DENYLIST:
         return False
     if tag in DROP_TAGS:

@@ -78,6 +78,8 @@ export const verifySubscription = functions.https.onCall(
 
     try {
       const userRef = db.collection('users').doc(uid);
+      const userDoc = await userRef.get();
+      const currentTier: string = userDoc.data()?.tier ?? 'free';
 
       if (platform === 'android') {
         // --- Android（Google Play）の購入検証 ---
@@ -86,14 +88,20 @@ export const verifySubscription = functions.https.onCall(
         // Google Play Developer API v3 で購入トークンを検証
         const result = await verifyPlayPurchase(packageName, product_id, purchase_token);
 
-        // 検証結果を Firestore に保存
-        // status が 'expired' の場合は tier を 'free' に戻す
         const isExpired = result.status === 'expired';
+        const newTier = isExpired ? 'free' : 'premium';
+        const tierChanged = currentTier !== newTier;
+
+        // クォータはティアが変わる時のみリセット（復元検証で誤リセットしない）
+        const quotaUpdate = tierChanged ? {
+          remaining_sentences: newTier === 'premium' ? PREMIUM_DAILY_SENTENCES : FREE_DAILY_SENTENCES,
+          remaining_quizzes: newTier === 'premium' ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES,
+        } : {};
+
         await userRef.set(
           {
-            tier: isExpired ? 'free' : 'premium',
-            remaining_sentences: isExpired ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES,
-            remaining_quizzes: isExpired ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES,
+            tier: newTier,
+            ...quotaUpdate,
             subscription: {
               product_id,
               platform: 'android',
@@ -110,7 +118,7 @@ export const verifySubscription = functions.https.onCall(
         );
 
         return {
-          plan: result.status === 'expired' ? 'free' : 'premium',
+          plan: newTier,
           expires_at: result.expiresAt?.toISOString() ?? null,
           status: result.status,
         };
@@ -119,13 +127,20 @@ export const verifySubscription = functions.https.onCall(
         // purchase_token は iOS では transactionId として扱う
         const result = await verifyAppStorePurchase(purchase_token);
 
-        // 検証結果を Firestore に保存
         const isExpiredIos = result.status === 'expired';
+        const newTierIos = isExpiredIos ? 'free' : 'premium';
+        const tierChangedIos = currentTier !== newTierIos;
+
+        // クォータはティアが変わる時のみリセット（復元検証で誤リセットしない）
+        const quotaUpdateIos = tierChangedIos ? {
+          remaining_sentences: newTierIos === 'premium' ? PREMIUM_DAILY_SENTENCES : FREE_DAILY_SENTENCES,
+          remaining_quizzes: newTierIos === 'premium' ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES,
+        } : {};
+
         await userRef.set(
           {
-            tier: isExpiredIos ? 'free' : 'premium',
-            remaining_sentences: isExpiredIos ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES,
-            remaining_quizzes: isExpiredIos ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES,
+            tier: newTierIos,
+            ...quotaUpdateIos,
             subscription: {
               product_id,
               platform: 'ios',
@@ -142,7 +157,7 @@ export const verifySubscription = functions.https.onCall(
         );
 
         return {
-          plan: result.status === 'expired' ? 'free' : 'premium',
+          plan: newTierIos,
           expires_at: result.expiresAt?.toISOString() ?? null,
           status: result.status,
         };

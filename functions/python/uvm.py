@@ -225,11 +225,11 @@ def get_session_words(
     if max_vocab is not None:
         band_high = min(band_high, max_vocab)
 
-    # --- Step 1: 帯域内の単語を抽出 ---
+    # --- Step 1: 帯域内の単語を抽出（単一文字はトークナイザーの分割ミスのため除外）---
     band_words = [
         {"word": word, "rank": rank}
         for word, rank in freq_rank.items()
-        if band_low <= rank <= band_high
+        if band_low <= rank <= band_high and len(word) >= 2
     ]
 
     if not band_words:
