@@ -15,9 +15,12 @@ resource "google_project_service" "required_apis" {
     "logging.googleapis.com",
     "cloudscheduler.googleapis.com",
     "firestore.googleapis.com",
-    "fcm.googleapis.com",
     "artifactregistry.googleapis.com",
     "cloudbilling.googleapis.com",
+    "pubsub.googleapis.com",
+    "run.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "iam.googleapis.com",
   ])
 
   project = var.project_id
@@ -45,6 +48,13 @@ module "firebase" {
   display_name = var.firebase_project_display_name
   region       = var.region
 
+  google_client_id     = var.google_client_id
+  google_client_secret = var.google_client_secret
+  apple_client_id      = var.apple_client_id
+  apple_team_id        = var.apple_team_id
+  apple_key_id         = var.apple_key_id
+  apple_private_key    = var.apple_private_key
+
   depends_on = [google_project_service.required_apis]
 }
 
@@ -54,6 +64,25 @@ module "logging" {
 
   project_id = var.project_id
   region     = var.region
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# UVM data module — GCS bucket for vocabulary embeddings
+module "uvm_data" {
+  source = "./modules/uvm-data"
+
+  project_id     = var.project_id
+  project_number = data.google_project.project.number
+  region         = var.region
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Pub/Sub topic for Google Play Real-Time Developer Notifications
+resource "google_pubsub_topic" "play_subscription_notifications" {
+  name    = "play-subscription-notifications"
+  project = var.project_id
 
   depends_on = [google_project_service.required_apis]
 }
@@ -90,6 +119,8 @@ locals {
     "roles/iam.serviceAccountUser",
     "roles/serviceusage.serviceUsageConsumer",
     "roles/cloudscheduler.admin",
+    "roles/firebase.admin",
+    "roles/secretmanager.secretAccessor",
   ] : []
 }
 
@@ -98,6 +129,78 @@ resource "google_project_iam_member" "ci_service_account" {
   project  = var.project_id
   role     = each.value
   member   = "serviceAccount:${var.ci_service_account_email}"
+}
+
+# Workload Identity Federation for GitHub Actions
+resource "google_iam_workload_identity_pool" "github_actions" {
+  count                     = var.github_repo != "" ? 1 : 0
+  project                   = var.project_id
+  workload_identity_pool_id = "github-actions-pool"
+  display_name              = "GitHub Actions Pool"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_iam_workload_identity_pool_provider" "github" {
+  count                              = var.github_repo != "" ? 1 : 0
+  project                            = var.project_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_actions[0].workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-oidc-provider"
+  display_name                       = "GitHub OIDC Provider"
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+  }
+
+  attribute_condition = "assertion.repository == '${var.github_repo}'"
+}
+
+resource "google_service_account_iam_member" "github_actions_wif" {
+  count              = var.github_repo != "" && var.ci_service_account_email != "" ? 1 : 0
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${var.ci_service_account_email}"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_actions[0].name}/attribute.repository/${var.github_repo}"
+}
+
+# Cloud Run IAM: callable な Cloud Functions (v2) に allUsers invoker を付与
+# Firebase callable 関数は Cloud Run 上で動作するため、
+# Cloud Run レベルで allUsers に invoker 権限がないとリクエストが到達できない。
+# 関数内の req.auth チェックで Firebase Auth 認証は別途行われる。
+locals {
+  callable_functions = [
+    # "generatebatchsentences",  # Cloud Run service が存在する場合のみ有効化
+    "generatequiz",
+    "generatethaisentence",
+    "subscriptionstatus",
+    "updateuvm",
+    "verifysubscription",
+  ]
+}
+
+resource "google_cloud_run_service_iam_member" "callable_invoker" {
+  for_each = toset(local.callable_functions)
+
+  project  = var.project_id
+  location = var.region
+  service  = each.key
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# GitHub Actions 用 Google Play アップロードサービスアカウント
+resource "google_service_account" "github_actions_play_upload" {
+  account_id   = "github-actions-play-upload"
+  display_name = "GitHub Actions - Google Play Upload"
+  project      = var.project_id
+}
+
+resource "google_service_account_key" "github_actions_play_upload" {
+  service_account_id = google_service_account.github_actions_play_upload.name
 }
 
 # Cloud Functions module will be added after Functions code is ready

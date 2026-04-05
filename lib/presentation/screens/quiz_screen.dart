@@ -1,12 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
+import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
+import '../providers/remaining_quota_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
+import '../widgets/loading_tip_carousel.dart';
+import 'paywall_screen.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
+  static const routeName = 'quiz';
+
   const QuizScreen({super.key});
 
   @override
@@ -17,8 +26,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(quizControllerProvider.notifier).loadQuiz();
+    // クイズ完了時にstatsを再取得
+    ref.listenManual(quizControllerProvider, (prev, next) {
+      if (next is QuizSummary) {
+        ref.invalidate(quizStatsProvider);
+      }
     });
   }
 
@@ -28,7 +40,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final statsAsync = ref.watch(quizStatsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('クイズ')),
+      appBar: AppBar(title: const Text('今日のクイズ')),
       body: Column(
         children: [
           // 通算正答率バー
@@ -52,7 +64,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         horizontal: AppConfig.defaultPadding,
         vertical: 8,
       ),
-      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+      color:
+          Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
       child: Row(
         children: [
           Icon(Icons.emoji_events,
@@ -60,14 +73,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           const SizedBox(width: 8),
           Text(
             '正答率: ${stats.accuracyPercent}%',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(width: 16),
-          Icon(Icons.local_fire_department,
-              size: 18, color: Theme.of(context).colorScheme.tertiary),
-          const SizedBox(width: 4),
-          Text(
-            '${stats.currentStreak}日連続',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
@@ -78,6 +83,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   Widget _buildContent(BuildContext context, QuizState state) {
     if (state is QuizLoading) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (state is QuizPending) {
+      return _buildPendingState(context, state.questionCount);
+    }
+    if (state is QuizGenerating) {
+      return _buildGeneratingState(context);
+    }
+    if (state is QuizError) {
+      return _buildErrorState(context, state.message);
     }
     if (state is QuizInitial) {
       return _buildEmptyState(context);
@@ -97,6 +111,133 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     return _buildEmptyState(context);
   }
 
+  Widget _buildPendingState(BuildContext context, int questionCount) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.quiz,
+                size: 64, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 24),
+            const SizedBox(height: 8),
+            Text(
+              '過去に学習した例文から出題されます',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: () {
+                ref
+                    .read(quizControllerProvider.notifier)
+                    .generateAndStartQuiz();
+              },
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('クイズを始める'),
+              style: FilledButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildRemainingQuizzes(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRemainingQuizzes(BuildContext context) {
+    final remaining = ref.watch(remainingQuizzesProvider);
+    return remaining.when(
+      data: (count) => Text(
+        '残り $count 回',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+      ),
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildGeneratingState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 24),
+            Text('クイズを生成中...', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 32),
+            const LoadingTipCarousel(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, String message) {
+    final isQuotaError = message.contains('上限');
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isQuotaError ? Icons.lock_outline : Icons.error_outline,
+              size: 64,
+              color: isQuotaError
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: 24),
+            Text(message,
+                style: Theme.of(context).textTheme.bodyLarge,
+                textAlign: TextAlign.center),
+            if (isQuotaError) ...[
+              const SizedBox(height: 8),
+              Text(
+                nextResetText(),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            if (isQuotaError) ...[
+              if (!ref.watch(isPremiumProvider))
+                FilledButton.icon(
+                  onPressed: () => PaywallBottomSheet.show(
+                    context,
+                    source: 'quiz_quota_error',
+                  ),
+                  icon: const Icon(Icons.star),
+                  label: const Text('プレミアムにアップグレード'),
+                ),
+            ] else ...[
+              FilledButton.icon(
+                onPressed: () {
+                  ref
+                      .read(quizControllerProvider.notifier)
+                      .generateAndStartQuiz();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('もう一度試す'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Padding(
@@ -106,10 +247,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           children: [
             Icon(Icons.quiz_outlined,
                 size: 64,
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.5)),
             const SizedBox(height: 24),
-            Text('クイズがありません',
-                style: Theme.of(context).textTheme.headlineSmall),
+            Text('クイズがありません', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 12),
             Text('通知が届くとクイズが出題されます',
                 style: Theme.of(context).textTheme.bodyLarge,
@@ -130,8 +273,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             Icon(Icons.quiz,
                 size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 24),
-            Text('今日のクイズ',
-                style: Theme.of(context).textTheme.headlineSmall),
+            Text('今日のクイズ', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text('${questions.length}問の穴埋めクイズ',
                 style: Theme.of(context).textTheme.bodyLarge),
@@ -143,7 +285,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               icon: const Icon(Icons.play_arrow),
               label: const Text('クイズを始める'),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
             ),
           ],
@@ -181,8 +324,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   Widget _buildSummaryState(BuildContext context, QuizSummary state) {
     final statsData = QuizStatsData.fromDatabase(state.stats);
     final rate = statsData.accuracyPercent;
-    final streak = statsData.currentStreak;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
       child: Column(
@@ -217,22 +358,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     '通算正答率: $rate%',
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
-                  if (streak > 0) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.local_fire_department,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.tertiary),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$streak日連続',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -242,7 +367,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           ...List.generate(state.questions.length, (i) {
             final q = state.questions[i];
             final ok = state.answers[i];
-            final selectedIdx = i < state.selectedIndices.length ? state.selectedIndices[i] : 0;
+            final selectedIdx =
+                i < state.selectedIndices.length ? state.selectedIndices[i] : 0;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Card(
@@ -262,8 +388,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.error,
                   ),
-                  title: Text(q.thaiText,
-                      style: const TextStyle(fontSize: 16)),
+                  title: Text(q.thaiText, style: const TextStyle(fontSize: 16)),
                   subtitle: Text(q.correctAnswer),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
@@ -276,7 +401,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         minChildSize: 0.5,
                         maxChildSize: 0.95,
                         expand: false,
-                        builder: (context, scrollController) => _QuizResultDetail(
+                        builder: (context, scrollController) =>
+                            _QuizResultDetail(
                           question: q,
                           selectedIndex: selectedIdx,
                           isCorrect: ok,
@@ -300,6 +426,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
           ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () {
+              ref.read(quizControllerProvider.notifier).generateAndStartQuiz();
+            },
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('新しいクイズ'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildRemainingQuizzes(context),
         ],
       ),
     );
@@ -358,10 +497,8 @@ class _QuizQuestionView extends StatelessWidget {
               padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
               child: Text(
                 question.blankText,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 28),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w500, height: 1.5, fontSize: 28),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -377,7 +514,8 @@ class _QuizQuestionView extends StatelessWidget {
                   onPressed: () => onAnswer(i),
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppConfig.cardBorderRadius),
                     ),
                   ),
                   child: Text(
@@ -474,11 +612,39 @@ class _QuizResultView extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(question.thaiText,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 28)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(question.thaiText,
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.5,
+                                    fontSize: 28)),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.volume_up,
+                            color: Theme.of(context).colorScheme.primary),
+                        onPressed: () {
+                          unawaited(
+                            ref.read(analyticsServiceProvider).logPlayTts(
+                                  contentType: 'sentence',
+                                  text: question.thaiText,
+                                  sentenceId: question.sentenceId,
+                                  source: 'quiz_result',
+                                ),
+                          );
+                          ref
+                              .read(ttsServiceProvider)
+                              .speak(question.thaiText);
+                        },
+                        tooltip: '例文を読み上げ',
+                      ),
+                    ],
+                  ),
                   if (question.sentencePronunciation.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(question.sentencePronunciation,
@@ -498,7 +664,10 @@ class _QuizResultView extends ConsumerWidget {
                   Row(
                     children: [
                       Text('正解: ${question.correctAnswer}',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
                                 color: Theme.of(context).colorScheme.primary,
                               )),
                       const SizedBox(width: 4),
@@ -509,7 +678,17 @@ class _QuizResultView extends ConsumerWidget {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () {
-                          ref.read(ttsServiceProvider).speak(question.correctAnswer);
+                          unawaited(
+                            ref.read(analyticsServiceProvider).logPlayTts(
+                                  contentType: 'word',
+                                  text: question.correctAnswer,
+                                  sentenceId: question.sentenceId,
+                                  source: 'quiz_result',
+                                ),
+                          );
+                          ref
+                              .read(ttsServiceProvider)
+                              .speak(question.correctAnswer);
                         },
                         tooltip: '発音を再生',
                       ),
@@ -552,7 +731,8 @@ class _QuizResultView extends ConsumerWidget {
           // 4択（正誤ハイライト付き）
           ...List.generate(question.choices.length, (i) {
             final isSelected = i == selectedIndex;
-            final isCorrectChoice = question.choices[i] == question.correctAnswer;
+            final isCorrectChoice =
+                question.choices[i] == question.correctAnswer;
             Color? bgColor;
             Color? borderColor;
             if (isCorrectChoice) {
@@ -574,11 +754,15 @@ class _QuizResultView extends ConsumerWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   color: bgColor,
-                  borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+                  borderRadius:
+                      BorderRadius.circular(AppConfig.cardBorderRadius),
                   border: borderColor != null
                       ? Border.all(color: borderColor, width: 2)
                       : Border.all(
-                          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outline
+                              .withValues(alpha: 0.3)),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -637,7 +821,10 @@ class _QuizResultDetail extends ConsumerWidget {
             height: 4,
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurfaceVariant
+                  .withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -680,17 +867,46 @@ class _QuizResultDetail extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(question.thaiText,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.w500, height: 1.5, fontSize: 28)),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(question.thaiText,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.5,
+                                  fontSize: 28)),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.volume_up,
+                          color: Theme.of(context).colorScheme.primary),
+                      onPressed: () {
+                        unawaited(
+                          ref.read(analyticsServiceProvider).logPlayTts(
+                                contentType: 'sentence',
+                                text: question.thaiText,
+                                sentenceId: question.sentenceId,
+                                source: 'quiz_result_detail',
+                              ),
+                        );
+                        ref
+                            .read(ttsServiceProvider)
+                            .speak(question.thaiText);
+                      },
+                      tooltip: '例文を読み上げ',
+                    ),
+                  ],
+                ),
                 if (question.sentencePronunciation.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(question.sentencePronunciation,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontStyle: FontStyle.italic,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           )),
                 ],
                 if (question.japaneseTranslation.isNotEmpty) ...[
@@ -702,17 +918,29 @@ class _QuizResultDetail extends ConsumerWidget {
                 Row(
                   children: [
                     Text('正解: ${question.correctAnswer}',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                            )),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                )),
                     const SizedBox(width: 4),
                     IconButton(
                       icon: Icon(Icons.volume_up,
-                          size: 20, color: Theme.of(context).colorScheme.primary),
+                          size: 20,
+                          color: Theme.of(context).colorScheme.primary),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       onPressed: () {
-                        ref.read(ttsServiceProvider).speak(question.correctAnswer);
+                        unawaited(
+                          ref.read(analyticsServiceProvider).logPlayTts(
+                                contentType: 'word',
+                                text: question.correctAnswer,
+                                sentenceId: question.sentenceId,
+                                source: 'quiz_result_detail',
+                              ),
+                        );
+                        ref
+                            .read(ttsServiceProvider)
+                            .speak(question.correctAnswer);
                       },
                       tooltip: '発音を再生',
                     ),
@@ -722,7 +950,10 @@ class _QuizResultDetail extends ConsumerWidget {
                 Text('発音: ${question.pronunciation}',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontStyle: FontStyle.italic,
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.8),
                         )),
               ],
             ),
@@ -756,10 +987,16 @@ class _QuizResultDetail extends ConsumerWidget {
           Color? bgColor;
           Color? borderColor;
           if (isCorrectChoice) {
-            bgColor = Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5);
+            bgColor = Theme.of(context)
+                .colorScheme
+                .primaryContainer
+                .withValues(alpha: 0.5);
             borderColor = Theme.of(context).colorScheme.primary;
           } else if (isSelected && !isCorrect) {
-            bgColor = Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.5);
+            bgColor = Theme.of(context)
+                .colorScheme
+                .errorContainer
+                .withValues(alpha: 0.5);
             borderColor = Theme.of(context).colorScheme.error;
           }
           return Padding(
@@ -772,14 +1009,18 @@ class _QuizResultDetail extends ConsumerWidget {
                 border: borderColor != null
                     ? Border.all(color: borderColor, width: 2)
                     : Border.all(
-                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withValues(alpha: 0.3)),
               ),
               alignment: Alignment.center,
               child: Text(
                 question.choices[i],
                 style: TextStyle(
                   fontSize: 20,
-                  fontWeight: isCorrectChoice ? FontWeight.bold : FontWeight.normal,
+                  fontWeight:
+                      isCorrectChoice ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ),

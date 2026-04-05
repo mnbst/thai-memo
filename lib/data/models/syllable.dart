@@ -1,8 +1,19 @@
+// =============================================================================
+// syllable.dart
+// タイ語の音節モデル。
+// 各単語をさらに音節単位に分解し、声調分析情報を保持する。
+// PyThaiNLP（Python側）で音節分割 → ThaiToneAnalyzer（Flutter側）で声調判定。
+// 声調は5種類: 平声(mid)、低声(low)、下降声(falling)、高声(high)、上昇声(rising)
+// =============================================================================
+
 import 'package:json_annotation/json_annotation.dart';
 
 part 'syllable.g.dart';
 
 /// タイ語の音節情報
+///
+/// 例: "สวัส" → text: "สวัส", initialConsonant: "ส", consonantClass: "high",
+///     tone: "rising", toneMark: "none", syllableType: "dead"
 @JsonSerializable()
 class Syllable {
   /// 音節のテキスト（例: "สวัส"）

@@ -1,11 +1,17 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'core/config/app_config.dart';
+import 'presentation/providers/analytics_provider.dart';
 import 'presentation/providers/settings_provider.dart';
+import 'presentation/providers/subscription_provider.dart';
 import 'presentation/screens/home_screen.dart';
-import 'services/fcm_service.dart';
+import 'presentation/screens/login_screen.dart';
+import 'presentation/screens/splash_screen.dart';
 
 TextTheme _scaleTextTheme(TextTheme base, double delta) {
   TextStyle scale(TextStyle? style) {
@@ -34,22 +40,67 @@ TextTheme _scaleTextTheme(TextTheme base, double delta) {
 }
 
 /// Main application widget
-class ThaiMemoApp extends ConsumerWidget {
+class ThaiMemoApp extends ConsumerStatefulWidget {
   const ThaiMemoApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ThaiMemoApp> createState() => _ThaiMemoAppState();
+}
+
+class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
+    with WidgetsBindingObserver {
+  StreamSubscription<User?>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Analytics の userId を認証状態に追従させる。
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      unawaited(ref.read(analyticsServiceProvider).setUserId(user?.uid));
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(subscriptionControllerProvider.notifier).refreshTier();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Watch theme mode from settings
     final themeMode = ref.watch(themeModeProvider);
+    final analytics = ref.watch(analyticsServiceProvider);
 
     return MaterialApp(
-      navigatorKey: FcmService.navigatorKey,
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
+      // 通常の route 遷移は observer 側で screen_view を自動送信する。
+      navigatorObservers: [analytics.observer],
       themeMode: themeMode,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
-      home: const HomeScreen(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          final user = snapshot.data;
+          if (user == null || user.isAnonymous) {
+            return const LoginScreen();
+          }
+          // ログイン後にサブスクリプション状態をFirestoreから取得
+          ref.read(subscriptionControllerProvider.notifier).initialize();
+          return const SplashScreen(child: HomeScreen());
+        },
+      ),
     );
   }
 
@@ -64,7 +115,7 @@ class ThaiMemoApp extends ConsumerWidget {
       ),
       textTheme: _scaleTextTheme(
         GoogleFonts.notoSansThaiTextTheme(ThemeData.light().textTheme),
-        1.5,
+        2.5,
       ),
       cardTheme: CardThemeData(
         elevation: 2,
@@ -111,7 +162,7 @@ class ThaiMemoApp extends ConsumerWidget {
       ),
       textTheme: _scaleTextTheme(
         GoogleFonts.notoSansThaiTextTheme(ThemeData.dark().textTheme),
-        1.5,
+        2.5,
       ),
       cardTheme: CardThemeData(
         elevation: 2,

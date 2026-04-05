@@ -1,0 +1,198 @@
+name: Distribute to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+      - '.claude/**'
+      - '.vscode/**'
+      - 'reports/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'test/**'
+      - 'web/**'
+      - 'linux/**'
+      - 'macos/**'
+      - 'windows/**'
+      - 'analysis_options.yaml'
+      - '.gitignore'
+      - '.metadata'
+
+permissions:
+  contents: read
+  pull-requests: read
+  id-token: write  # WIF認証に必要
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  WIF_PROVIDER: projects/219961294368/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc-provider
+  CI_SERVICE_ACCOUNT: github-actions-deployer@thai-memo-prod.iam.gserviceaccount.com
+  GCP_PROJECT: thai-memo-prod
+
+jobs:
+  deploy-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/javascript/package-lock.json
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: functions/python/requirements.txt
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.CI_SERVICE_ACCOUNT }}
+
+      - name: Install and build JS functions
+        run: cd functions/javascript && npm ci && npm run build
+
+      - name: Setup Python venv for Firebase
+        run: |
+          cd functions/python
+          python3 -m venv venv
+          . venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy Cloud Functions
+        run: |
+          export FUNCTIONS_DISCOVERY_TIMEOUT=60000
+          firebase deploy --only functions,firestore:rules,firestore:indexes --project prod
+
+  build-and-distribute-ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: pods-
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.CI_SERVICE_ACCOUNT }}
+
+      - name: Fetch secrets from Secret Manager
+        uses: google-github-actions/get-secretmanager-secrets@v2
+        id: secrets
+        with:
+          secrets: |-
+            GOOGLE_SERVICE_INFO_PLIST_BASE64:${{ env.GCP_PROJECT }}/ci-google-service-info-plist
+            P12_BASE64:${{ env.GCP_PROJECT }}/ci-p12-cert
+            P12_PASSWORD:${{ env.GCP_PROJECT }}/ci-p12-password
+            PROVISIONING_PROFILE_BASE64:${{ env.GCP_PROJECT }}/ci-provisioning-profile
+            APPLE_ID:${{ env.GCP_PROJECT }}/ci-apple-id
+            APP_SPECIFIC_PASSWORD:${{ env.GCP_PROJECT }}/ci-app-specific-password
+
+      - name: Restore GoogleService-Info.plist
+        run: echo '${{ steps.secrets.outputs.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}' | base64 --decode > ios/Runner/GoogleService-Info.plist
+
+      - name: Install Apple certificate and provisioning profile
+        env:
+          P12_BASE64: ${{ steps.secrets.outputs.P12_BASE64 }}
+          P12_PASSWORD: ${{ steps.secrets.outputs.P12_PASSWORD }}
+          PROVISIONING_PROFILE_BASE64: ${{ steps.secrets.outputs.PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          PROFILE_PATH=$RUNNER_TEMP/profile.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          echo "$P12_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
+          if [ -z "$UUID" ]; then
+            echo "ERROR: Failed to extract UUID from provisioning profile"
+            exit 1
+          fi
+          echo "Profile UUID: $UUID"
+          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision
+          echo "PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Override signing for CI
+        run: |
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "iPhone Developer"/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution"/g' ios/Runner.xcodeproj/project.pbxproj
+          PROFILE_NAME=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | plutil -extract Name raw -)
+          export PROFILE_NAME
+          echo "Profile Name: $PROFILE_NAME"
+          python3 << 'PYEOF'
+          import os
+          profile_name = os.environ['PROFILE_NAME']
+          path = 'ios/Runner.xcodeproj/project.pbxproj'
+          with open(path) as f:
+              content = f.read()
+          content = content.replace(
+              'CODE_SIGN_STYLE = Manual;',
+              'CODE_SIGN_STYLE = Manual;\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "' + profile_name + '";'
+          )
+          with open(path, 'w') as f:
+              f.write(content)
+          print('Replaced with:', profile_name)
+          PYEOF
+          /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:com.thaimemo.thaiMemo $PROFILE_NAME" ios/ExportOptions.plist
+
+      - name: Debug signing settings
+        run: |
+          echo "=== PROVISIONING_PROFILE_SPECIFIER ==="
+          grep "PROVISIONING_PROFILE_SPECIFIER" ios/Runner.xcodeproj/project.pbxproj || echo "NOT FOUND"
+          echo "=== CODE_SIGN_STYLE ==="
+          grep "CODE_SIGN_STYLE" ios/Runner.xcodeproj/project.pbxproj
+          echo "=== ExportOptions.plist ==="
+          cat ios/ExportOptions.plist
+
+      - name: Build IPA
+        run: flutter build ipa --dart-define=ENV=prod --build-number=${{ github.run_number }} --export-options-plist=ios/ExportOptions.plist
+
+      - name: Upload to App Store Connect
+        env:
+          APPLE_ID: ${{ steps.secrets.outputs.APPLE_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ steps.secrets.outputs.APP_SPECIFIC_PASSWORD }}
+        run: |
+          xcrun altool --upload-app \
+            --type ios \
+            --file build/ios/ipa/*.ipa \
+            --username "$APPLE_ID" \
+            --password "$APP_SPECIFIC_PASSWORD"
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true

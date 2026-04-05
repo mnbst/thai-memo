@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.2.0+0
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -39,30 +39,38 @@ dependencies:
   path: ^1.8.3
 
   # Firebase
-  firebase_core: ^3.12.1
-  firebase_auth: ^5.5.1
-  cloud_functions: ^5.3.1
-  firebase_messaging: ^15.2.5
-  cloud_firestore: ^5.6.8
-
+  firebase_core: ^4.5.0
+  firebase_auth: ^6.2.0
+  cloud_functions: ^6.0.7
+  cloud_firestore: ^6.1.3
+  firebase_analytics: ^12.0.4
   # Secure Storage
-  flutter_secure_storage: ^8.0.0
+  flutter_secure_storage: ^10.0.0
 
   # JSON Parsing
   json_annotation: ^4.8.1
 
   # UI Components
-  google_fonts: ^6.0.0
+  google_fonts: ^8.0.2
 
   # Text-to-Speech
   flutter_tts: ^4.2.0
 
-  # Local Notifications
-  flutter_local_notifications: ^18.0.1
+  # Authentication
+  google_sign_in: ^7.2.0
+  sign_in_with_apple: ^7.0.1
+  crypto: ^3.0.3
 
   # Utilities
   shared_preferences: ^2.1.1
-  uuid: ^3.0.7
+  uuid: ^4.5.3
+
+  # Monetization
+  google_mobile_ads: ^7.0.0
+
+  # In-App Purchase
+  in_app_purchase: ^3.2.0
+  url_launcher: ^6.3.2
 
 
 
@@ -75,11 +83,18 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^2.0.0
+  flutter_lints: ^6.0.0
 
   # Code Generation
   build_runner: ^2.3.3
   json_serializable: ^6.6.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/appicon.png"
+  remove_alpha_ios: true
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -92,10 +107,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

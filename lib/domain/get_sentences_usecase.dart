@@ -36,36 +36,6 @@ class GetSentencesUseCase {
     }
   }
 
-  /// Get favorite sentences
-  ///
-  /// Returns a list of favorite [ThaiSentence]s
-  /// Throws [GetSentencesException] if retrieval fails
-  Future<List<ThaiSentence>> getFavorites() async {
-    try {
-      return await _repository.getFavoriteSentences();
-    } on RepositoryException catch (e) {
-      throw GetSentencesException(
-          'Failed to get favorite sentences: ${e.message}');
-    } catch (e) {
-      throw GetSentencesException('Failed to get favorite sentences: $e');
-    }
-  }
-
-  /// Toggle favorite status of a sentence
-  ///
-  /// [id] is the sentence ID
-  /// [isFavorite] is the new favorite status
-  /// Throws [GetSentencesException] if update fails
-  Future<void> toggleFavorite(String id, bool isFavorite) async {
-    try {
-      await _repository.toggleFavorite(id, isFavorite);
-    } on RepositoryException catch (e) {
-      throw GetSentencesException('Failed to toggle favorite: ${e.message}');
-    } catch (e) {
-      throw GetSentencesException('Failed to toggle favorite: $e');
-    }
-  }
-
   /// Get total sentence count
   ///
   /// Returns the total number of sentences in the database

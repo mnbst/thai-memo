@@ -13,25 +13,67 @@ resource "google_firebase_web_app" "thai_memo_web" {
   depends_on = [google_firebase_project.default]
 }
 
-# NOTE: Identity Platform Config disabled due to ADC auth issue
-# Enable anonymous authentication manually in Firebase Console:
-# https://console.firebase.google.com/project/thai-memo-67139/authentication/providers
-# Or uncomment below and use service account credentials instead of ADC
-#
-# resource "google_identity_platform_config" "auth_config" {
-#   provider = google-beta
-#   project  = var.project_id
+# Identity Platform Config
+resource "google_identity_platform_config" "auth_config" {
+  provider = google-beta
+  project  = var.project_id
 
-#   sign_in {
-#     allow_duplicate_emails = false
+  sign_in {
+    allow_duplicate_emails = false
 
-#     anonymous {
-#       enabled = true
-#     }
-#   }
+    anonymous {
+      enabled = true
+    }
+  }
 
-#   depends_on = [google_firebase_project.default]
-# }
+  depends_on = [google_firebase_project.default]
+}
+
+# Google Sign-In provider
+resource "google_identity_platform_default_supported_idp_config" "google" {
+  provider = google-beta
+  project  = var.project_id
+  idp_id   = "google.com"
+
+  client_id     = var.google_client_id
+  client_secret = var.google_client_secret
+
+  enabled = true
+
+  depends_on = [google_identity_platform_config.auth_config]
+}
+
+# Apple Sign-In provider (REST API経由 — Terraformリソースがteam_id/key_id/private_keyに未対応のため)
+resource "null_resource" "apple_sign_in" {
+  triggers = {
+    apple_client_id = var.apple_client_id
+    apple_team_id   = var.apple_team_id
+    apple_key_id    = var.apple_key_id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      curl -s -X PATCH \
+        -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+        -H "x-goog-user-project: ${var.project_id}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "enabled": true,
+          "clientId": "${var.apple_client_id}",
+          "appleSignInConfig": {
+            "codeFlowConfig": {
+              "teamId": "${var.apple_team_id}",
+              "keyId": "${var.apple_key_id}",
+              "privateKey": ${jsonencode(var.apple_private_key)}
+            }
+          }
+        }' \
+        "https://identitytoolkit.googleapis.com/admin/v2/projects/${var.project_id}/defaultSupportedIdpConfigs/apple.com?updateMask=enabled,clientId,appleSignInConfig"
+    EOT
+  }
+
+  depends_on = [google_identity_platform_config.auth_config]
+}
 
 # Get Firebase Web App config
 data "google_firebase_web_app_config" "thai_memo_web_config" {
@@ -62,6 +104,27 @@ resource "google_firestore_index" "quiz_answers_is_correct_answered_at" {
   }
   fields {
     field_path = "answered_at"
+    order      = "DESCENDING"
+  }
+
+  depends_on = [google_firestore_database.default]
+}
+
+resource "google_firestore_index" "quiz_queue_uid_sent_created_at" {
+  project    = var.project_id
+  database   = "(default)"
+  collection = "quiz_queue"
+
+  fields {
+    field_path = "uid"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "sent"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "created_at"
     order      = "DESCENDING"
   }
 

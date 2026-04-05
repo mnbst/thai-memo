@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/local/database_helper.dart';
@@ -8,7 +10,11 @@ import '../../data/sentence_repository.dart';
 import '../../domain/delete_sentence_usecase.dart';
 import '../../domain/generate_sentence_usecase.dart';
 import '../../domain/get_sentences_usecase.dart';
+import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
+import 'analytics_provider.dart';
+import 'settings_provider.dart';
+import 'subscription_provider.dart';
 
 // ==================== Repository Provider ====================
 
@@ -51,13 +57,6 @@ final allSentencesProvider = FutureProvider<List<ThaiSentence>>((ref) async {
   return await useCase.execute();
 });
 
-/// Provider for favorite sentences
-final favoriteSentencesProvider =
-    FutureProvider<List<ThaiSentence>>((ref) async {
-  final useCase = ref.watch(getSentencesUseCaseProvider);
-  return await useCase.getFavorites();
-});
-
 /// Provider for sentence count
 final sentenceCountProvider = FutureProvider<int>((ref) async {
   final useCase = ref.watch(getSentencesUseCaseProvider);
@@ -71,11 +70,17 @@ class SentenceController extends StateNotifier<SentenceState> {
   final GenerateSentenceUseCase _generateUseCase;
   final GetSentencesUseCase _getUseCase;
   final DeleteSentenceUseCase _deleteUseCase;
+  final AnalyticsService _analytics;
+  final String Function() _currentTier;
+  final String? Function() _currentTopic;
 
   SentenceController(
     this._generateUseCase,
     this._getUseCase,
     this._deleteUseCase,
+    this._analytics,
+    this._currentTier,
+    this._currentTopic,
   ) : super(const SentenceStateInitial());
 
   /// Generate a new sentence
@@ -89,6 +94,7 @@ class SentenceController extends StateNotifier<SentenceState> {
         generationParams: generationParams,
       );
       state = SentenceStateSuccess(sentence);
+      _logGenerateSentence(count: 1, source: 'manual_single');
     } on GenerateSentenceException catch (e) {
       state = SentenceStateError(e.getUserMessage());
     } catch (e) {
@@ -112,27 +118,34 @@ class SentenceController extends StateNotifier<SentenceState> {
     }
   }
 
-  /// 今日まだ生成していなければ自動生成、済みなら最新を表示
+  /// Firestoreフラグに基づき、未生成なら1件自動生成、済みなら最新を表示
   Future<void> loadOrGenerateToday({
-    Map<String, String?> generationParams = const {},
+    required bool dailySentenceGenerated,
   }) async {
     state = const SentenceStateLoading();
 
     try {
-      final recent = await _getUseCase.getMostRecent();
-      if (recent != null && _isToday(recent.createdAt)) {
-        state = SentenceStateSuccess(recent);
+      if (dailySentenceGenerated) {
+        // 今日生成済み → 最新を表示
+        final recent = await _getUseCase.getMostRecent();
+        if (recent != null) {
+          state = SentenceStateSuccess(recent);
+        } else {
+          state = const SentenceStateEmpty();
+        }
         return;
       }
 
-      // 今日未生成 → 自動生成
+      // 未生成 → 1件生成
       try {
-        final sentence = await _generateUseCase.execute(
-          generationParams: generationParams,
-        );
+        final sentence = await _generateUseCase.execute();
         state = SentenceStateSuccess(sentence);
+        _logGenerateSentence(count: 1, source: 'daily_auto');
+      } on GenerateSentenceException catch (e) {
+        state = SentenceStateError(e.getUserMessage());
       } catch (e) {
         // 生成失敗時は既存の最新例文を表示、なければサンプル表示
+        final recent = await _getUseCase.getMostRecent();
         if (recent != null) {
           state = SentenceStateSuccess(recent);
         } else {
@@ -144,29 +157,27 @@ class SentenceController extends StateNotifier<SentenceState> {
     }
   }
 
-  bool _isToday(DateTime? date) {
-    if (date == null) return false;
-    final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+  /// 通知から受け取った例文を直接表示する
+  void showSentence(ThaiSentence sentence) {
+    state = SentenceStateSuccess(sentence);
   }
 
-  /// Toggle favorite status
-  Future<void> toggleFavorite(String id, bool isFavorite) async {
+  /// 残りクォータ分を一括生成
+  Future<void> generateBatchSentences() async {
+    state = const SentenceStateBatchLoading();
+
     try {
-      await _getUseCase.toggleFavorite(id, isFavorite);
-      // Reload current sentence if needed
-      if (state is SentenceStateSuccess) {
-        final current = (state as SentenceStateSuccess).sentence;
-        if (current.id == id) {
-          state = SentenceStateSuccess(
-            current.copyWith(isFavorite: isFavorite),
-          );
-        }
+      final sentences = await _generateUseCase.executeBatch();
+      if (sentences.isEmpty) {
+        state = const SentenceStateError('例文の生成に失敗しました。もう一度お試しください。');
+      } else {
+        state = SentenceStateBatchSuccess(sentences);
+        _logGenerateSentence(count: sentences.length, source: 'manual_batch');
       }
+    } on GenerateSentenceException catch (e) {
+      state = SentenceStateError(e.getUserMessage());
     } catch (e) {
-      // Handle error silently or show snackbar
+      state = SentenceStateError('予期しないエラーが発生しました: $e');
     }
   }
 
@@ -200,6 +211,21 @@ class SentenceController extends StateNotifier<SentenceState> {
   void reset() {
     state = const SentenceStateInitial();
   }
+
+  void _logGenerateSentence({
+    required int count,
+    required String source,
+  }) {
+    // provider 側で tier/topic を読むことで、UI からイベント文脈を組み立てなくて済む。
+    unawaited(
+      _analytics.logGenerateSentence(
+        tier: _currentTier(),
+        topic: _currentTopic(),
+        source: source,
+        count: count,
+      ),
+    );
+  }
 }
 
 /// Provider for sentence controller
@@ -208,8 +234,16 @@ final sentenceControllerProvider =
   final generateUseCase = ref.watch(generateSentenceUseCaseProvider);
   final getUseCase = ref.watch(getSentencesUseCaseProvider);
   final deleteUseCase = ref.watch(deleteSentenceUseCaseProvider);
+  final analytics = ref.watch(analyticsServiceProvider);
 
-  return SentenceController(generateUseCase, getUseCase, deleteUseCase);
+  return SentenceController(
+    generateUseCase,
+    getUseCase,
+    deleteUseCase,
+    analytics,
+    () => ref.read(isPremiumProvider) ? 'premium' : 'free',
+    () => ref.read(generationParamsProvider)['topic'],
+  );
 });
 
 // ==================== Sentence State ====================
@@ -246,4 +280,16 @@ class SentenceStateError extends SentenceState {
 /// Empty state (no sentences)
 class SentenceStateEmpty extends SentenceState {
   const SentenceStateEmpty();
+}
+
+/// Batch loading state
+class SentenceStateBatchLoading extends SentenceState {
+  const SentenceStateBatchLoading();
+}
+
+/// Batch success state with multiple sentences
+class SentenceStateBatchSuccess extends SentenceState {
+  final List<ThaiSentence> sentences;
+
+  const SentenceStateBatchSuccess(this.sentences);
 }

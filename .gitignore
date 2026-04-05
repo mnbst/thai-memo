@@ -35,6 +35,9 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Cloud Functions build output
+functions/javascript/build/
+
 # Local settings and secrets
 .claude/
 .env
@@ -61,3 +64,11 @@ app.*.map.json
 /android/app/release
 
 .starship.toml
+.envrc
+
+scripts/corpus/
+
+android/app/key.properties
+android/app/*.jks
+
+.firebase/

@@ -1,23 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
-import '../../services/fcm_service.dart';
+import '../../services/analytics_service.dart';
+import 'analytics_provider.dart';
 
 // ==================== Settings State ====================
 
 /// Settings state class
 class SettingsState {
   final bool isFirstLaunch;
-  final bool notificationsEnabled;
   final ThemeMode themeMode;
   final TimeOfDay? preferredGenerationTime;
   final Map<String, String?> generationParams;
 
   const SettingsState({
     required this.isFirstLaunch,
-    required this.notificationsEnabled,
     required this.themeMode,
     this.preferredGenerationTime,
     this.generationParams = const {},
@@ -26,8 +27,7 @@ class SettingsState {
   factory SettingsState.initial() {
     return const SettingsState(
       isFirstLaunch: true,
-      notificationsEnabled: true,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       preferredGenerationTime: null,
       generationParams: {},
     );
@@ -35,14 +35,12 @@ class SettingsState {
 
   SettingsState copyWith({
     bool? isFirstLaunch,
-    bool? notificationsEnabled,
     ThemeMode? themeMode,
     TimeOfDay? preferredGenerationTime,
     Map<String, String?>? generationParams,
   }) {
     return SettingsState(
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
-      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       themeMode: themeMode ?? this.themeMode,
       preferredGenerationTime:
           preferredGenerationTime ?? this.preferredGenerationTime,
@@ -55,16 +53,24 @@ class SettingsState {
 
 /// Controller for managing app settings
 class SettingsController extends StateNotifier<SettingsState> {
-  SharedPreferences? _prefs;
-
-  SettingsController() : super(SettingsState.initial()) {
+  SettingsController(this._analytics) : super(SettingsState.initial()) {
     _initialize();
   }
+
+  final AnalyticsService _analytics;
+  SharedPreferences? _prefs;
+
+  /// 初期化完了を待つための Completer
+  final Completer<void> _initialized = Completer<void>();
+
+  /// 初期化完了を待つ Future
+  Future<void> get initialized => _initialized.future;
 
   /// Initialize settings from storage
   Future<void> _initialize() async {
     _prefs = await SharedPreferences.getInstance();
     await _loadSettings();
+    _initialized.complete();
   }
 
   static const _generationParamKeys = [
@@ -72,12 +78,7 @@ class SettingsController extends StateNotifier<SettingsState> {
     'topic',
     'politeness',
     'grammarFocus',
-    'vocabLevel',
-    'sentenceLength',
     'emotion',
-    'learningPurpose',
-    'toneDensity',
-    'customPrompt',
   ];
 
   static String _prefKey(String param) => 'pref_$param';
@@ -86,12 +87,9 @@ class SettingsController extends StateNotifier<SettingsState> {
   Future<void> _loadSettings() async {
     if (_prefs == null) return;
 
-    final isFirstLaunch =
-        _prefs!.getBool(AppConfig.prefKeyFirstLaunch) ?? true;
-    final notificationsEnabled =
-        _prefs!.getBool(AppConfig.prefKeyNotificationsEnabled) ?? true;
+    final isFirstLaunch = _prefs!.getBool(AppConfig.prefKeyFirstLaunch) ?? true;
     final themeModeString =
-        _prefs!.getString(AppConfig.prefKeyThemeMode) ?? 'system';
+        _prefs!.getString(AppConfig.prefKeyThemeMode) ?? 'light';
     final themeMode = _parseThemeMode(themeModeString);
 
     // Load preferred generation time
@@ -107,7 +105,6 @@ class SettingsController extends StateNotifier<SettingsState> {
 
     state = SettingsState(
       isFirstLaunch: isFirstLaunch,
-      notificationsEnabled: notificationsEnabled,
       themeMode: themeMode,
       preferredGenerationTime: preferredTime,
       generationParams: params,
@@ -118,6 +115,9 @@ class SettingsController extends StateNotifier<SettingsState> {
   Future<void> completeFirstLaunch() async {
     await _prefs?.setBool(AppConfig.prefKeyFirstLaunch, false);
     state = state.copyWith(isFirstLaunch: false);
+    unawaited(
+      _analytics.logChangeSetting(key: 'first_launch_completed', value: 'true'),
+    );
   }
 
   // ==================== Preferences Management ====================
@@ -129,13 +129,12 @@ class SettingsController extends StateNotifier<SettingsState> {
       mode.toString().split('.').last,
     );
     state = state.copyWith(themeMode: mode);
-  }
-
-  /// Set notification enabled/disabled
-  Future<void> setNotificationEnabled(bool enabled) async {
-    await _prefs?.setBool(AppConfig.prefKeyNotificationsEnabled, enabled);
-    await FcmService.instance.setNotificationEnabled(enabled);
-    state = state.copyWith(notificationsEnabled: enabled);
+    unawaited(
+      _analytics.logChangeSetting(
+        key: 'theme_mode',
+        value: mode.toString().split('.').last,
+      ),
+    );
   }
 
   /// Set a generation parameter (null = random)
@@ -148,6 +147,7 @@ class SettingsController extends StateNotifier<SettingsState> {
     final updatedParams = Map<String, String?>.from(state.generationParams);
     updatedParams[key] = value;
     state = state.copyWith(generationParams: updatedParams);
+    unawaited(_analytics.logChangeSetting(key: key, value: value ?? 'random'));
   }
 
   // ==================== Helper Methods ====================
@@ -183,7 +183,7 @@ class SettingsController extends StateNotifier<SettingsState> {
 /// Provider for settings controller
 final settingsControllerProvider =
     StateNotifierProvider<SettingsController, SettingsState>((ref) {
-  return SettingsController();
+  return SettingsController(ref.watch(analyticsServiceProvider));
 });
 
 // ==================== Individual Setting Providers ====================
@@ -196,11 +196,6 @@ final isFirstLaunchProvider = Provider<bool>((ref) {
 /// Provider for theme mode
 final themeModeProvider = Provider<ThemeMode>((ref) {
   return ref.watch(settingsControllerProvider).themeMode;
-});
-
-/// Provider for notifications enabled
-final notificationsEnabledProvider = Provider<bool>((ref) {
-  return ref.watch(settingsControllerProvider).notificationsEnabled;
 });
 
 /// Provider for generation params

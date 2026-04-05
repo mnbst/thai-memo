@@ -1,3 +1,11 @@
+// =============================================================================
+// word_breakdown.dart
+// タイ語例文の単語分解モデル。
+// 1つのThaiSentenceに含まれる各単語の情報（タイ語テキスト、発音、意味、
+// 文法的役割、音節分解データ）を保持する。
+// 音節データ(syllables)はJSON文字列としてSQLiteに保存される。
+// =============================================================================
+
 import 'dart:convert';
 
 import 'package:json_annotation/json_annotation.dart';
@@ -7,7 +15,11 @@ import 'syllable.dart';
 
 part 'word_breakdown.g.dart';
 
-/// Model for individual word breakdown in a Thai sentence
+/// タイ語例文の個々の単語を分解したモデル
+///
+/// 例: "สวัสดี" → wordText: "สวัสดี", pronunciation: "sà-wàt-dii",
+///     meaning: "こんにちは", grammaticalRole: "挨拶表現"
+/// 各単語はさらに音節(Syllable)に分解され、声調分析に使用される。
 @JsonSerializable()
 class WordBreakdown {
   /// Unique identifier for the word breakdown

@@ -1,9 +1,22 @@
+// =============================================================================
+// thai_sentence.dart
+// タイ語例文のデータモデル。
+// Gemini AIが生成した例文（タイ語本文・発音・日本語訳・単語分解・文脈情報）を保持する。
+// JSON変換（API通信用）とSQLite変換（ローカル保存用）の両方に対応。
+// json_serializableによる自動コード生成を使用（thai_sentence.g.dart）。
+// =============================================================================
+
 import 'package:json_annotation/json_annotation.dart';
 import 'word_breakdown.dart';
 
 part 'thai_sentence.g.dart';
 
 /// 学習情報を含むタイ語例文モデル
+///
+/// Cloud Functionsから返される例文データを表現するメインモデル。
+/// 1つの例文に対して複数のWordBreakdown（単語分解）を持つ。
+/// データフロー:
+///   Cloud Function → JSON → ThaiSentence → SQLite (toDatabase/fromDatabase)
 @JsonSerializable(explicitToJson: true)
 class ThaiSentence {
   /// 一意な識別子
@@ -31,10 +44,6 @@ class ThaiSentence {
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
 
-  /// お気に入り登録済みかどうか
-  @JsonKey(name: 'is_favorite')
-  final bool isFavorite;
-
   ThaiSentence({
     this.id,
     required this.thaiText,
@@ -43,7 +52,6 @@ class ThaiSentence {
     required this.wordBreakdowns,
     this.context,
     this.createdAt,
-    this.isFavorite = false,
   });
 
   /// JSONからThaiSentenceを生成
@@ -68,7 +76,6 @@ class ThaiSentence {
       createdAt: map['created_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int)
           : null,
-      isFavorite: (map['is_favorite'] as int?) == 1,
     );
   }
 
@@ -85,7 +92,6 @@ class ThaiSentence {
       'emotion': context?.emotion,
       'usage_scenarios': context?.usageScenarios,
       if (createdAt != null) 'created_at': createdAt!.millisecondsSinceEpoch,
-      'is_favorite': isFavorite ? 1 : 0,
     };
   }
 
@@ -98,7 +104,6 @@ class ThaiSentence {
     List<WordBreakdown>? wordBreakdowns,
     SentenceContext? context,
     DateTime? createdAt,
-    bool? isFavorite,
   }) {
     return ThaiSentence(
       id: id ?? this.id,
@@ -108,7 +113,6 @@ class ThaiSentence {
       wordBreakdowns: wordBreakdowns ?? this.wordBreakdowns,
       context: context ?? this.context,
       createdAt: createdAt ?? this.createdAt,
-      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
 
@@ -116,7 +120,7 @@ class ThaiSentence {
   String toString() {
     return 'ThaiSentence(id: $id, thaiText: $thaiText, '
         'wordBreakdowns: ${wordBreakdowns.length}, '
-        'createdAt: $createdAt, isFavorite: $isFavorite)';
+        'createdAt: $createdAt)';
   }
 }
 

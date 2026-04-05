@@ -1,0 +1,55 @@
+from sentence_service import validate_target_words
+
+
+class TestValidateTargetWords:
+    def test_none_target_words(self):
+        assert validate_target_words({"thai_text": "สวัสดี"}, None) == []
+
+    def test_empty_target_words(self):
+        assert validate_target_words({"thai_text": "สวัสดี"}, []) == []
+
+    def test_all_in_word_breakdown(self):
+        sentence = {
+            "thai_text": "ฉันกินข้าว",
+            "word_breakdown": [
+                {"word": "ฉัน", "meaning": "私"},
+                {"word": "กิน", "meaning": "食べる"},
+                {"word": "ข้าว", "meaning": "ご飯"},
+            ],
+        }
+        assert validate_target_words(sentence, ["ฉัน", "กิน"]) == []
+
+    def test_in_thai_text_but_not_breakdown(self):
+        sentence = {
+            "thai_text": "ฉันกินข้าว",
+            "word_breakdown": [
+                {"word": "ฉัน", "meaning": "私"},
+            ],
+        }
+        assert validate_target_words(sentence, ["กิน"]) == []
+
+    def test_missing_words(self):
+        sentence = {
+            "thai_text": "สวัสดีครับ",
+            "word_breakdown": [
+                {"word": "สวัสดี", "meaning": "こんにちは"},
+                {"word": "ครับ", "meaning": "丁寧語"},
+            ],
+        }
+        missing = validate_target_words(sentence, ["ฉัน", "สวัสดี"])
+        assert missing == ["ฉัน"]
+
+    def test_empty_sentence(self):
+        assert validate_target_words({}, ["กิน"]) == ["กิน"]
+
+    def test_partial_match(self):
+        sentence = {
+            "thai_text": "ฉันไปทำงาน",
+            "word_breakdown": [
+                {"word": "ฉัน", "meaning": "私"},
+                {"word": "ไป", "meaning": "行く"},
+                {"word": "ทำงาน", "meaning": "仕事する"},
+            ],
+        }
+        missing = validate_target_words(sentence, ["ฉัน", "กิน", "ทำงาน"])
+        assert missing == ["กิน"]

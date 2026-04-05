@@ -1,4 +1,12 @@
 project_id                    = "thai-memo-prod"
 region                        = "asia-northeast1"
 gemini_api_key                = "AIzaSyAclzCd2WYwhpRhI_RTRPWLpL1hoJ4BtPA"
-firebase_project_display_name = "Thai Memo"
+firebase_project_display_name = "Thai Memo Prod"
+google_client_id              = "219961294368-6lf7vceshitof77mflvjm0jujcbok68j.apps.googleusercontent.com" # TODO: GCP Console > APIs & Services > Credentials から取得
+google_client_secret          = "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"                                      # TODO: 同上
+apple_client_id               = "com.thaimemo.thaiMemo"
+apple_team_id                 = "5KTT2C466P"
+apple_key_id                  = "5LU78HU4GU"
+apple_private_key             = "-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgep6VkVwPouCDHREX\nbIncMaWqZxJ0Mkrtc0uDWeS/bbGgCgYIKoZIzj0DAQehRANCAASe+vlmy1qlFe9+\nayv9ObGgoLJP73YC+eeVdFPrRLyJvTvyspuwD+DazUpYNYq3SW8i5xiLADECNtKN\nz73qt2GT\n-----END PRIVATE KEY-----"
+ci_service_account_email      = "github-actions-deployer@thai-memo-prod.iam.gserviceaccount.com"
+github_repo                   = "mnbst/thai-memo"

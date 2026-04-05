@@ -5,6 +5,8 @@ import '../../core/thai_tone_analyzer.dart';
 
 /// タイ語の声調ガイド画面
 class ToneGuideScreen extends StatefulWidget {
+  static const routeName = 'tone_guide';
+
   const ToneGuideScreen({super.key});
 
   @override
@@ -65,7 +67,8 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                     'タイ語の声調について',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
                         ),
                   ),
                 ),
@@ -506,13 +509,17 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
             _buildSyllableTypeCard(
               SyllableType.live,
               Icons.radio_button_checked,
-              Theme.of(context).brightness == Brightness.dark ? Colors.green.shade300 : Colors.green,
+              Theme.of(context).brightness == Brightness.dark
+                  ? Colors.green.shade300
+                  : Colors.green,
             ),
             const SizedBox(height: 12),
             _buildSyllableTypeCard(
               SyllableType.dead,
               Icons.stop_circle,
-              Theme.of(context).brightness == Brightness.dark ? Colors.orange.shade300 : Colors.orange,
+              Theme.of(context).brightness == Brightness.dark
+                  ? Colors.orange.shade300
+                  : Colors.orange,
             ),
           ],
         ),
@@ -673,8 +680,8 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
     // 音節タイプの表示（低子音の死音節は母音の長短を表示）
     String syllableTypeDisplay;
     if (rule.syllableType == SyllableType.dead && rule.isShortVowel != null) {
-      syllableTypeDisplay =
-          rule.syllableType.getDisplayNameWithVowel(hasShortVowel: rule.isShortVowel);
+      syllableTypeDisplay = rule.syllableType
+          .getDisplayNameWithVowel(hasShortVowel: rule.isShortVowel);
     } else {
       syllableTypeDisplay = rule.syllableType.displayName;
     }

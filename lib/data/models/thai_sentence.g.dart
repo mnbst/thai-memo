@@ -20,7 +20,6 @@ ThaiSentence _$ThaiSentenceFromJson(Map<String, dynamic> json) => ThaiSentence(
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
-      isFavorite: json['is_favorite'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$ThaiSentenceToJson(ThaiSentence instance) =>
@@ -32,7 +31,6 @@ Map<String, dynamic> _$ThaiSentenceToJson(ThaiSentence instance) =>
       'word_breakdown': instance.wordBreakdowns.map((e) => e.toJson()).toList(),
       'context': instance.context?.toJson(),
       'created_at': instance.createdAt?.toIso8601String(),
-      'is_favorite': instance.isFavorite,
     };
 
 SentenceContext _$SentenceContextFromJson(Map<String, dynamic> json) =>
