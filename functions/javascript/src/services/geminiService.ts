@@ -72,10 +72,12 @@ export class GeminiService {
     try {
       const model = this.genAI.getGenerativeModel({
         model: this.modelName,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         generationConfig: {
           temperature: 0.8,
           maxOutputTokens: 4096,
           responseMimeType: 'application/json',
+          thinkingConfig: { thinkingBudget: 0 },
           responseSchema: {
             type: SchemaType.OBJECT,
             properties: {
@@ -117,7 +119,7 @@ export class GeminiService {
             },
             required: ['questions'],
           },
-        },
+        } as any,
       });
 
       const sentenceList = sentences.map((s, i) => {
@@ -153,11 +155,20 @@ ${sentenceList}
       const result = await model.generateContent(prompt);
       const usage = result.response.usageMetadata;
       if (usage) {
+        const inputTokens = usage.promptTokenCount ?? 0;
+        const outputTokens = usage.candidatesTokenCount ?? 0;
+        const totalTokens = usage.totalTokenCount ?? 0;
+        const thoughtsTokens = totalTokens - inputTokens - outputTokens;
+        const billedOutput = outputTokens + thoughtsTokens;
+        const costUsd = (inputTokens * 0.30 + billedOutput * 2.50) / 1_000_000;
         console.log('Gemini token usage', {
           keyWord: sentences[0]?.key_word ?? null,
-          inputTokens: usage.promptTokenCount,
-          outputTokens: usage.candidatesTokenCount,
-          totalTokens: usage.totalTokenCount,
+          inputTokens,
+          outputTokens,
+          thoughtsTokens,
+          billedOutput,
+          totalTokens,
+          costUsd: costUsd.toFixed(6),
         });
       }
       const text = result.response.text();

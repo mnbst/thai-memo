@@ -1,0 +1,50 @@
+[
+  {
+    "label": "Flutter: Run on iPhone 17 Pro (iOS 26.4)",
+    "command": "xcrun simctl boot 51C23BA3-8EC7-4364-BE29-AD23DC7B4800 2>/dev/null; open -a Simulator; flutter run -d 51C23BA3-8EC7-4364-BE29-AD23DC7B4800",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "allow_concurrent_runs": false,
+    "use_new_terminal": true,
+    "reveal": "always"
+  },
+  {
+    "label": "Flutter: Run on iPhone 17 Pro Max",
+    "command": "xcrun simctl boot F3B29DEF-203C-4405-906B-0C48EB004D11 2>/dev/null; open -a Simulator; flutter run -d F3B29DEF-203C-4405-906B-0C48EB004D11",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "allow_concurrent_runs": false,
+    "use_new_terminal": true,
+    "reveal": "always"
+  },
+  {
+    "label": "Flutter: Run on iPhone 17e",
+    "command": "xcrun simctl boot E28D89A1-FC16-42B8-AEF9-AAA8433FA915 2>/dev/null; open -a Simulator; flutter run -d E28D89A1-FC16-42B8-AEF9-AAA8433FA915",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "allow_concurrent_runs": false,
+    "use_new_terminal": true,
+    "reveal": "always"
+  },
+  {
+    "label": "Flutter: Run on iPhone 17",
+    "command": "xcrun simctl boot 90E6154A-D8D4-461C-80FC-2123959BB8AC 2>/dev/null; open -a Simulator; flutter run -d 90E6154A-D8D4-461C-80FC-2123959BB8AC",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "allow_concurrent_runs": false,
+    "use_new_terminal": true,
+    "reveal": "always"
+  },
+  {
+    "label": "Flutter: Run on iPhone 11 Pro Max",
+    "command": "xcrun simctl boot 411A0ECA-D4D2-4E2F-84A9-611E6263985E 2>/dev/null; open -a Simulator; flutter run -d 411A0ECA-D4D2-4E2F-84A9-611E6263985E",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "allow_concurrent_runs": false,
+    "use_new_terminal": true,
+    "reveal": "always"
+  },
+  {
+    "label": "Flutter: Run on iPad Pro 13-inch (M5)",
+    "command": "xcrun simctl boot 178AA14E-679C-4E3D-ADB1-C2D2D53248DE 2>/dev/null; open -a Simulator; flutter run -d 178AA14E-679C-4E3D-ADB1-C2D2D53248DE",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "allow_concurrent_runs": false,
+    "use_new_terminal": true,
+    "reveal": "always"
+  }
+]

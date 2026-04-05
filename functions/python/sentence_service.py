@@ -116,6 +116,7 @@ def _make_generation_config(model: str) -> genai.types.GenerateContentConfig:
         max_output_tokens=API_MAX_TOKENS,
         response_mime_type="application/json",
         response_schema=RESPONSE_SCHEMA,
+        thinking_config=genai.types.ThinkingConfig(thinking_budget=0),
     )
 
 
@@ -179,6 +180,29 @@ def _call_gemini_with_retry_sync(
     raise RuntimeError("Unreachable")
 
 
+def _log_token_usage(usage_metadata: genai.types.GenerateContentResponseUsageMetadata, tier_label: str) -> None:
+    """Gemini APIのトークン使用量とコストをログ出力する。
+
+    課金計算式 (gemini-2.5-flash):
+      input:   $0.30 / 1M tokens
+      output:  $2.50 / 1M tokens (candidates + thoughts 両方)
+    """
+    input_tokens = usage_metadata.prompt_token_count or 0
+    output_tokens = usage_metadata.candidates_token_count or 0
+    thoughts_tokens = usage_metadata.thoughts_token_count or 0
+    total_tokens = usage_metadata.total_token_count or 0
+
+    billed_output = output_tokens + thoughts_tokens
+    cost_usd = (input_tokens * 0.30 + billed_output * 2.50) / 1_000_000
+
+    print(
+        f"Gemini token usage ({tier_label}): "
+        f"input={input_tokens}, output={output_tokens}, thoughts={thoughts_tokens}, "
+        f"billed_output={billed_output}, total={total_tokens}, "
+        f"cost=${cost_usd:.6f}"
+    )
+
+
 def _generate_single(
     client: genai.Client,
     model: str,
@@ -196,12 +220,7 @@ def _generate_single(
     for attempt in range(1 + MAX_RETRY):
         result = _call_gemini_with_retry_sync(client, model, current_prompt, tier_label)
         if result.usage_metadata:
-            print(
-                f"Gemini token usage ({tier_label}): "
-                f"input={result.usage_metadata.prompt_token_count}, "
-                f"output={result.usage_metadata.candidates_token_count}, "
-                f"total={result.usage_metadata.total_token_count}"
-            )
+            _log_token_usage(result.usage_metadata, tier_label)
         text = result.text
         if not text or not text.strip():
             raise RuntimeError("Empty response from Gemini API")
@@ -277,12 +296,7 @@ async def _generate_single_async(
     for attempt in range(1 + MAX_RETRY):
         result = await _call_gemini_with_retry(client, model, current_prompt, tier_label)
         if result.usage_metadata:
-            print(
-                f"Gemini token usage ({tier_label}): "
-                f"input={result.usage_metadata.prompt_token_count}, "
-                f"output={result.usage_metadata.candidates_token_count}, "
-                f"total={result.usage_metadata.total_token_count}"
-            )
+            _log_token_usage(result.usage_metadata, tier_label)
         text = result.text
         if not text or not text.strip():
             raise RuntimeError("Empty response from Gemini API")
