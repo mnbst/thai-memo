@@ -19,41 +19,48 @@ from constants import (
     TOPICS,  # 全トピックリスト
 )
 
-
 DIFFICULTY_LEVELS = [
     {
         "max_vocab": 300,
         "label": "初級",
         "vocab_hint": "基本的な日常語彙のみ",
-        "length": "短文（5〜8単語）",
     },
     {
         "max_vocab": 1000,
         "label": "中級",
         "vocab_hint": "日常〜やや応用的な語彙",
-        "length": "中文（8〜12単語）",
     },
     {
         "max_vocab": 3000,
         "label": "上級",
         "vocab_hint": "自然な表現・慣用句を含めてよい",
-        "length": "10〜15単語",
     },
     {
         "max_vocab": float("inf"),
         "label": "上級+",
         "vocab_hint": "制限なし。ネイティブに近い自然な表現",
-        "length": "自然な長さ",
     },
 ]
+
+
+def _compute_length_hint(estimated_vocab: int) -> str:
+    """estimated_vocab から文の長さヒントを線形補間で返す。
+    300以下: 〜8単語、3000以上: 自然な長さ、その間は比例。
+    """
+    if estimated_vocab >= 3000:
+        return "自然な長さ"
+    if estimated_vocab <= 300:
+        return "〜8単語"
+    words = round(8 + (estimated_vocab - 300) / 2700 * 7)
+    return f"〜{words}単語"
 
 
 def get_difficulty(estimated_vocab: int) -> dict:
     """estimated_vocab から難易度レベルを返す。"""
     for level in DIFFICULTY_LEVELS:
         if estimated_vocab <= level["max_vocab"]:
-            return level
-    return DIFFICULTY_LEVELS[-1]
+            return {**level, "length": _compute_length_hint(estimated_vocab)}
+    return {**DIFFICULTY_LEVELS[-1], "length": _compute_length_hint(estimated_vocab)}
 
 
 def build_uvm_prompt(
@@ -85,11 +92,16 @@ def build_uvm_prompt(
     topic = params.get("topic") or random.choice(topics_pool)
     style = params.get("style") or random.choice(styles_pool)
     politeness = params.get("politeness") or random.choice(POLITENESS_LEVELS)
-    grammar_focus = params.get("grammarFocus") or random.choice(GRAMMAR_FOCUSES)
+    grammar_focus = (
+        (params.get("grammarFocus") or random.choice(GRAMMAR_FOCUSES))
+        if is_premium
+        else None
+    )
     emotion = params.get("emotion") or random.choice(EMOTIONS)
 
     if target_words:
         words_str = ", ".join(target_words)
+        grammar_line = f"- 文法フォーカス: {grammar_focus}\n" if grammar_focus else ""
         return f"""日本語話者向けのタイ語練習文を1つ生成してください。
 
 【最優先】以下のタイ語単語を必ず含めてください:
@@ -103,7 +115,7 @@ def build_uvm_prompt(
 - トピック: {topic}
 - 文体: {style}
 - 丁寧さ: {politeness}
-- 文法フォーカス: {grammar_focus}
+{grammar_line}
 - 感情・トーン: {emotion}
 
 - 単語分解は最大15単語まで
@@ -119,7 +131,6 @@ def build_uvm_prompt(
 - トピック: {topic}
 - 文体: {style}
 - 丁寧さ: {politeness}
-- 文法フォーカス: {grammar_focus}
 - 感情・トーン: {emotion}
 - 単語分解は最大15単語まで
 - 同じ単語が文中に複数回出現する場合は、出現順にすべてword_breakdownに含めてください

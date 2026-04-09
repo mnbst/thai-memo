@@ -14,7 +14,8 @@ class TestMakeGenerationConfig:
         assert config.response_mime_type == "application/json"
 
     @pytest.mark.parametrize("model", [GEMINI_MODEL, GEMINI_MODEL_PREMIUM])
-    def test_no_thinking_config(self, model):
-        """thinking_config はデフォルト（未設定）のまま。"""
+    def test_thinking_config(self, model):
+        """thinking_budget=256 が設定されていること。"""
         config = _make_generation_config(model)
-        assert config.thinking_config is None
+        assert config.thinking_config is not None
+        assert config.thinking_config.thinking_budget == 256

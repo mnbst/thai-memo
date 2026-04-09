@@ -84,7 +84,7 @@ def _register_sentence_exposure(
     all_words = get_sentence_words(sentence)
     exposed_words = get_exposed_words(sentence, target_words)
     if exposed_words:
-        register_exposure(db, uid, exposed_words)
+        register_exposure(db, uid, exposed_words, target_words=target_words)
 
     other_words = [w for w in all_words if w not in set(target_words)]
     if other_words:

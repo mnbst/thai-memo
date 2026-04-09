@@ -1,81 +1,98 @@
 /**
- * subscriptionStatus.ts — サブスクリプション状態の取得
+ * subscriptionStatus.ts — サブスクリプション期限切れバッチ
  *
- * 「まいにちタイ語」アプリのクライアントから呼び出され、
- * ユーザーの現在のサブスクリプション状態（free/premium）を返却する。
+ * 1日1回実行し、有効期限が過ぎた premium ユーザーを free に更新する。
+ * Apple / Google Play の通知が遅延・未着だった場合のフォールバック処理。
  *
- * Firestore に保存されたサブスクリプション情報を読み取り、
- * 有効期限が過ぎている場合は自動的に 'expired' に更新してから結果を返す。
- * これにより、ストア通知が遅延した場合でもアプリ側で正確な状態を取得できる。
+ * 対象: tier='premium' かつ subscription.expires_at < now
+ *       かつ subscription.status が 'active' または 'canceled'
  *
+ * dev環境: HTTPトリガー / tester・prod環境: Cloud Scheduler (毎日0時0分)
  * リージョン: asia-northeast1（東京）
  */
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
+import { isDevOnly } from './config/environment';
 
-/** Firestore インスタンス */
 const db = admin.firestore();
 
-/**
- * subscriptionStatus - サブスクリプション状態の取得
- *
- * Firestoreからサブスク状態を読み取り、有効期限チェック後に返却する。
- * 期限切れの場合はFirestoreも自動更新する。
- *
- * @returns plan（'premium' | 'free'）、expires_at（有効期限のISO文字列 or null）
- */
-export const subscriptionStatus = functions.https.onCall(
-  {
-    region: 'asia-northeast1',
-  },
-  async (request) => {
-    // Firebase Auth 認証チェック
-    const uid = request.auth?.uid;
-    if (!uid) {
-      throw new functions.https.HttpsError('unauthenticated', '認証が必要です');
-    }
+const CONCURRENCY = 5;
 
-    // Firestore からユーザーのサブスクリプション情報を取得
-    const userRef = db.collection('users').doc(uid);
-    const userDoc = await userRef.get();
-    const userData = userDoc.data();
+async function subscriptionStatusHandler() {
+  console.log('subscriptionStatus started');
 
-    // サブスクリプション情報が存在しない場合は free として返却
-    if (!userData?.subscription) {
-      return { plan: 'free', expires_at: null };
-    }
+  const now = admin.firestore.Timestamp.now();
 
-    const subscription = userData.subscription;
-    const expiresAt = subscription.expires_at?.toDate() as Date | undefined;
-    const now = new Date();
+  // 期限切れ対象: premium かつ expires_at が過去
+  const snapshot = await db
+    .collection('users')
+    .where('tier', '==', 'premium')
+    .where('subscription.expires_at', '<', now)
+    .get();
 
-    // 期限切れチェック: status が 'active' だが有効期限が過ぎている場合
-    // ストア通知（App Store / Google Play）が遅延した場合のフォールバック処理
-    // Firestore の status を 'expired'、tier を 'free' に自動更新する
-    if (
-      expiresAt &&
-      expiresAt < now &&
-      subscription.status === 'active'
-    ) {
-      await userRef.set(
-        {
-          tier: 'free',
-          subscription: {
-            status: 'expired',
-            updated_at: admin.firestore.FieldValue.serverTimestamp(),
-          },
-        },
-        { merge: true }
-      );
-
-      return { plan: 'free', expires_at: expiresAt.toISOString() };
-    }
-
-    // 通常の状態返却
-    const plan = userData.tier === 'premium' ? 'premium' : 'free';
-    return {
-      plan,
-      expires_at: expiresAt?.toISOString() ?? null,
-    };
+  if (snapshot.empty) {
+    console.log('No expired subscriptions found');
+    return;
   }
-);
+
+  console.log(`Found ${snapshot.size} expired users`);
+
+  const users = snapshot.docs;
+  let updatedCount = 0;
+
+  for (let i = 0; i < users.length; i += CONCURRENCY) {
+    const chunk = users.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      chunk.map(async (userDoc) => {
+        const status = userDoc.data()?.subscription?.status;
+        // active / canceled のみ対象（grace_period は対象外）
+        if (status !== 'active' && status !== 'canceled') return;
+
+        await userDoc.ref.set(
+          {
+            tier: 'free',
+            subscription: {
+              status: 'expired',
+              updated_at: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          { merge: true }
+        );
+        updatedCount++;
+        console.log(`Expired: uid=${userDoc.id}, status=${status}`);
+      })
+    );
+
+    results.forEach((r, idx) => {
+      if (r.status === 'rejected') {
+        console.error(`Failed to update uid=${chunk[idx].id}:`, r.reason);
+      }
+    });
+  }
+
+  console.log(`subscriptionStatus completed: updated=${updatedCount}`);
+}
+
+/** dev: HTTPトリガー / tester・prod: Cloud Scheduler (毎日0時0分) */
+export const subscriptionStatus = isDevOnly()
+  ? functions.https.onRequest(
+    {
+      region: 'asia-northeast1',
+      timeoutSeconds: 300,
+    },
+    async (_req, res) => {
+      await subscriptionStatusHandler();
+      res.status(200).send('ok');
+    }
+  )
+  : functions.scheduler.onSchedule(
+    {
+      schedule: '0 0 * * *', // 毎日0時0分
+      region: 'asia-northeast1',
+      timeZone: 'Asia/Tokyo',
+      timeoutSeconds: 300,
+    },
+    async () => {
+      await subscriptionStatusHandler();
+    }
+  );

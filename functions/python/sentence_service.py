@@ -116,7 +116,7 @@ def _make_generation_config(model: str) -> genai.types.GenerateContentConfig:
         max_output_tokens=API_MAX_TOKENS,
         response_mime_type="application/json",
         response_schema=RESPONSE_SCHEMA,
-        thinking_config=genai.types.ThinkingConfig(thinking_budget=0),
+        thinking_config=genai.types.ThinkingConfig(thinking_budget=256),
     )
 
 
