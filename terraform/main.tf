@@ -176,6 +176,7 @@ locals {
     # "generatebatchsentences",  # Cloud Run service が存在する場合のみ有効化
     "generatequiz",
     "generatethaisentence",
+    "handleappstorenotification",
     "subscriptionstatus",
     "updateuvm",
     "verifysubscription",
