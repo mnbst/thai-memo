@@ -136,7 +136,7 @@ function makeUserSnapshot(userId = 'user123', currentTier?: string) {
     empty: false,
     docs: [{
       id: userId,
-      ref: { set: mockFirestoreSet },
+      ref: { update: mockFirestoreSet },
       data: jest.fn(() => ({ tier: currentTier })),
     }],
   };
@@ -144,6 +144,21 @@ function makeUserSnapshot(userId = 'user123', currentTier?: string) {
 
 /** Firestore スナップショット（ユーザーなし） */
 const EMPTY_SNAPSHOT = { empty: true, docs: [] };
+
+/**
+ * subscription フィールドを取得するヘルパー
+ * 実装は userRef.update() + ドット記法キー（'subscription.status' 等）を使うため、
+ * ここでドット記法キーからネストオブジェクト形式に変換する
+ */
+function getSubscription(data: Record<string, unknown> | null) {
+  if (!data) return null;
+  return {
+    status: data['subscription.status'],
+    expires_at: data['subscription.expires_at'],
+    auto_renewing: data['subscription.auto_renewing'],
+    updated_at: data['subscription.updated_at'],
+  };
+}
 
 // テスト共通のトランザクション情報（Apple JWS デコード後の構造）
 const FUTURE_TIMESTAMP = Date.now() + 86_400_000; // 24時間後（有効なサブスク）
@@ -321,11 +336,6 @@ describe('handleAppStoreNotification', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       // Firestore.set() に渡された第1引数（書き込みデータ）を返す
       return (mockFirestoreSet.mock.calls[0]?.[0] ?? null) as Record<string, unknown> | null;
-    }
-
-    /** subscription フィールドを取得するヘルパー */
-    function getSubscription(data: Record<string, unknown> | null) {
-      return data?.subscription as Record<string, unknown>;
     }
 
     test('DID_RENEW → tier=premium / status=active（定期購読の自動更新成功）', async () => {
@@ -528,8 +538,8 @@ describe('handleAppStoreNotification', () => {
       const res = makeRes();
       await handler(req, res);
 
-      const sub = (mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>).subscription as Record<string, unknown>;
-      expect(sub.auto_renewing).toBe(true);
+      const data = mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>;
+      expect(getSubscription(data)?.auto_renewing).toBe(true);
     });
 
     test('renewalInfo.autoRenewStatus=0 の場合 auto_renewing=false が保存される', async () => {
@@ -543,8 +553,8 @@ describe('handleAppStoreNotification', () => {
       const res = makeRes();
       await handler(req, res);
 
-      const sub = (mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>).subscription as Record<string, unknown>;
-      expect(sub.auto_renewing).toBe(false);
+      const data = mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>;
+      expect(getSubscription(data)?.auto_renewing).toBe(false);
     });
 
     test('expiresDate が存在する場合は Timestamp に変換して expires_at に保存される', async () => {
@@ -559,10 +569,10 @@ describe('handleAppStoreNotification', () => {
       const res = makeRes();
       await handler(req, res);
 
-      const sub = (mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>).subscription as Record<string, unknown>;
       // Timestamp.fromDate が呼ばれた結果（モック実装: _seconds フィールドを持つオブジェクト）
-      expect(sub.expires_at).not.toBeNull();
-      expect(sub.expires_at).toHaveProperty('_seconds');
+      const data = mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>;
+      expect(getSubscription(data)?.expires_at).not.toBeNull();
+      expect(getSubscription(data)?.expires_at).toHaveProperty('_seconds');
     });
 
     test('expiresDate が存在しない場合は expires_at=null が保存される', async () => {
@@ -576,13 +586,13 @@ describe('handleAppStoreNotification', () => {
       const res = makeRes();
       await handler(req, res);
 
-      const sub = (mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>).subscription as Record<string, unknown>;
-      expect(sub.expires_at).toBeNull();
+      const data = mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>;
+      expect(getSubscription(data)?.expires_at).toBeNull();
     });
 
-    test('Firestore.set() は merge:true で呼ばれる（他フィールドを保持）', async () => {
-      // merge:true により original_transaction_id, product_id など
-      // この通知で更新しないフィールドが削除されないことを保証する
+    test('Firestore.update() が呼ばれる（ドット記法で他フィールドを保持）', async () => {
+      // update() + ドット記法キー（'subscription.status' 等）により
+      // original_transaction_id, product_id など通知で更新しないフィールドが削除されないことを保証する
       mockParseNotificationPayload.mockResolvedValueOnce({
         notificationType: 'DID_RENEW',
         transactionInfo: BASE_TX_INFO,
@@ -592,10 +602,7 @@ describe('handleAppStoreNotification', () => {
       const res = makeRes();
       await handler(req, res);
 
-      expect(mockFirestoreSet).toHaveBeenCalledWith(
-        expect.any(Object),
-        { merge: true } // この引数が必須
-      );
+      expect(mockFirestoreSet).toHaveBeenCalledWith(expect.any(Object));
     });
 
     test('updated_at に serverTimestamp が設定される', async () => {
@@ -609,8 +616,8 @@ describe('handleAppStoreNotification', () => {
       const res = makeRes();
       await handler(req, res);
 
-      const sub = (mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>).subscription as Record<string, unknown>;
-      expect(sub.updated_at).toBe('SERVER_TIMESTAMP');
+      const data = mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>;
+      expect(getSubscription(data)?.updated_at).toBe('SERVER_TIMESTAMP');
     });
   });
 });
