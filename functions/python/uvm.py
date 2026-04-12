@@ -251,7 +251,8 @@ def get_session_words(
             if zero_p_candidates:
                 selected = random.sample(zero_p_candidates, min(count, len(zero_p_candidates)))
 
-    # --- Step 2: ギャップなし → ±FREQ_BAND_HALF 帯域からランダム選出 ---
+    # --- Step 2: ギャップなし → ±FREQ_BAND_HALF 帯域から優先選出 ---
+    # 優先順位: UVM未登録 > P最小 > ランダム
     if not selected:
         band_words = [
             {"word": word, "rank": rank}
@@ -264,7 +265,27 @@ def get_session_words(
                 f"band=[{band_boundary}, {band_high}]"
             )
             return [], topic or ""
-        selected = random.sample(band_words, min(count, len(band_words)))
+
+        # 帯域単語の UVM を一括取得
+        band_word_set = {w["word"] for w in band_words}
+        uvm_ref = db.collection("users").document(uid).collection("uvm")
+        refs = [uvm_ref.document(w) for w in band_word_set]
+        band_p_map: dict[str, float] = {}
+        for snap in [ref.get() for ref in refs]:
+            if snap.exists:
+                p_val = (snap.to_dict() or {}).get("p")
+                if isinstance(p_val, (int, float)):
+                    band_p_map[snap.id] = float(p_val)
+
+        # 未登録語を優先、次にP値昇順でソート
+        def band_sort_key(w: dict[str, Any]) -> tuple[int, float]:
+            word = w["word"]
+            if word not in band_p_map:
+                return (0, 0.0)  # 未登録が最優先
+            return (1, band_p_map[word])
+
+        band_words.sort(key=band_sort_key)
+        selected = band_words[:count]
 
     words = [w["word"] for w in selected]
 
