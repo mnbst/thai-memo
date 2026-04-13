@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import 'contact_form_screen.dart';
 import 'paywall_screen.dart';
@@ -29,6 +31,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         padding: const EdgeInsets.all(AppConfig.defaultPadding),
         children: [
           _buildAccountSection(),
+          const SizedBox(height: 24),
+          _buildDisplaySection(),
           const SizedBox(height: 24),
           _buildLearningSection(),
           const SizedBox(height: 24),
@@ -205,6 +209,122 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       }
     }
+  }
+
+  /// Build display section
+  Widget _buildDisplaySection() {
+    final currentFont = ref.watch(fontFamilyProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.text_fields,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '表示',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.font_download_outlined),
+              title: const Text('フォント'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    currentFont.displayName,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+              onTap: () => _showFontPicker(currentFont),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  TextStyle _thaiFontStyle(ThaiFont font) {
+    const size = 20.0;
+    switch (font) {
+      case ThaiFont.notoSansThai:
+        return GoogleFonts.notoSansThai(fontSize: size);
+      case ThaiFont.mitr:
+        return GoogleFonts.mitr(fontSize: size);
+      case ThaiFont.sarabun:
+        return GoogleFonts.sarabun(fontSize: size);
+      case ThaiFont.krub:
+        return GoogleFonts.krub(fontSize: size);
+    }
+  }
+
+  void _showFontPicker(ThaiFont current) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('フォントを選択'),
+        content: RadioGroup<ThaiFont>(
+          groupValue: current,
+          onChanged: (value) {
+            if (value != null) {
+              ref
+                  .read(settingsControllerProvider.notifier)
+                  .setFontFamily(value);
+              Navigator.pop(context);
+            }
+          },
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: ThaiFont.values
+                  .map(
+                    (font) => RadioListTile<ThaiFont>(
+                      value: font,
+                      title: Text(font.displayName),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('例文', style: TextStyle(fontSize: 10)),
+                          Text(
+                            'สวัสดีครับ ฉันเรียนภาษาไทย',
+                            style: _thaiFontStyle(font),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Build learning section

@@ -148,8 +148,10 @@ export const generateQuiz = functions.https.onCall(
       let questions = results.filter((q): q is QuizQuestion => q !== null);
 
       // 5問未満ならデフォルト例文からGemini生成して補填
+      // picked の全 ID（失敗分含む）を除外リストとして渡す（再選出を防ぐ）
       if (questions.length < MAX_QUESTIONS) {
-        questions = await fillWithDefaults(geminiService, questions, uid, estimatedVocab);
+        const attemptedIds = new Set(picked.map(s => s.id));
+        questions = await fillWithDefaults(geminiService, questions, uid, estimatedVocab, attemptedIds);
       }
 
       // クイズ生成残回数をアトミックにデクリメント
@@ -208,55 +210,121 @@ async function generateFromDefaults(geminiService: GeminiService, uid: string, e
 /**
  * fillWithDefaults - 5問未満の場合にデフォルト例文から Gemini 生成して補填
  *
- * SRS選出した例文からの生成で5問に満たなかった場合、
- * 既出の sentence_id を除外したうえでデフォルト例文から effective P の低い順に選出し、
- * Gemini API で追加のクイズ問題を生成する。
- *
+ * デフォルト例文の帯域内候補が不足する場合は、ユーザー例文を UVM P値昇順で補填する。
  * Gemini 生成が失敗した場合は既存の問題のみで返却する（部分的成功を許容）。
- *
- * @param geminiService - Gemini API を呼び出すサービスインスタンス
- * @param existing - 既に生成済みのクイズ問題の配列
- * @returns 補填後のクイズ問題の配列
  */
 async function fillWithDefaults(
   geminiService: GeminiService,
   existing: QuizQuestion[],
   uid: string,
   estimatedVocab: number,
+  excludeIds: Set<string> = new Set(),
 ): Promise<QuizQuestion[]> {
   const needed = MAX_QUESTIONS - existing.length;
   if (needed <= 0) return existing;
 
-  // 既出の sentence_id を除外してデフォルト例文から「帯域内 → effective P 昇順 → estimated_vocab 近傍」順に候補を選出
-  const usedIds = new Set(existing.map(q => q.sentence_id));
+  const usedIds = new Set([...existing.map(q => q.sentence_id), ...excludeIds]);
   const available = DEFAULT_SENTENCES.filter(s => !usedIds.has(s.sentence_id));
   const sorted = await sortDefaultsByPriority(uid, available, undefined, estimatedVocab);
   const candidates = shuffleTopCandidates(sorted, needed);
+
+  let questions = existing;
+
+  if (candidates.length > 0) {
+    try {
+      const fillerQuestions = await generateQuestionsFromSources(
+        geminiService,
+        candidates.map((sentence) => ({
+          seed: {
+            thai_text: sentence.thai_text,
+            pronunciation: sentence.pronunciation,
+            japanese_translation: sentence.japanese_translation,
+            word_breakdown: [],
+            key_word: sentence.key_word,
+          },
+          sentenceId: sentence.sentence_id,
+          srsInterval: 0,
+          japaneseTranslation: sentence.japanese_translation,
+          sentencePronunciation: sentence.pronunciation,
+        }))
+      );
+      questions = [...existing, ...fillerQuestions];
+    } catch (error) {
+      console.error('Failed to generate filler quiz from defaults:', error);
+    }
+  }
+
+  // デフォルト例文で不足する場合はユーザー例文（UVM P値昇順）で補填
+  if (questions.length < MAX_QUESTIONS) {
+    questions = await fillWithUserSentencesByP(geminiService, questions, uid, needed - (questions.length - existing.length), usedIds);
+  }
+
+  return questions;
+}
+
+/**
+ * fillWithUserSentencesByP - ユーザー例文を UVM P値昇順で補填
+ *
+ * デフォルト例文の帯域内候補が不足した場合のフォールバック。
+ * UVM P値が最も低い（最も苦手な）ユーザー例文を優先して出題する。
+ */
+async function fillWithUserSentencesByP(
+  geminiService: GeminiService,
+  existing: QuizQuestion[],
+  uid: string,
+  needed: number,
+  excludeIds: Set<string> = new Set(),
+): Promise<QuizQuestion[]> {
+  if (needed <= 0) return existing;
+
+  const usedIds = new Set([...existing.map(q => q.sentence_id), ...excludeIds]);
+
+  const snapshot = await db
+    .collection('users').doc(uid)
+    .collection('sentences')
+    .orderBy('created_at', 'desc')
+    .get();
+
+  if (snapshot.empty) return existing;
+
+  const keyWords = new Set<string>();
+  for (const doc of snapshot.docs) {
+    const kw = doc.data().key_word;
+    if (kw) keyWords.add(kw);
+  }
+  const pMap = await fetchUvmPValues(uid, keyWords);
+
+  const candidates = snapshot.docs
+    .filter(doc => !usedIds.has(doc.id))
+    .sort((a, b) => {
+      const pA = pMap.get(a.data().key_word) ?? UNKNOWN_WORD_P;
+      const pB = pMap.get(b.data().key_word) ?? UNKNOWN_WORD_P;
+      return pA - pB;
+    })
+    .slice(0, needed);
 
   if (candidates.length === 0) return existing;
 
   try {
     const fillerQuestions = await generateQuestionsFromSources(
       geminiService,
-      candidates.map((sentence) => ({
+      candidates.map(doc => ({
         seed: {
-          thai_text: sentence.thai_text,
-          pronunciation: sentence.pronunciation,
-          japanese_translation: sentence.japanese_translation,
-          word_breakdown: [],
-          key_word: sentence.key_word,
+          thai_text: doc.data().thai_text,
+          pronunciation: doc.data().pronunciation,
+          japanese_translation: doc.data().japanese_translation,
+          word_breakdown: doc.data().word_breakdown || [],
+          key_word: doc.data().key_word,
         },
-        sentenceId: sentence.sentence_id,
-        srsInterval: 0,
-        japaneseTranslation: sentence.japanese_translation,
-        sentencePronunciation: sentence.pronunciation,
+        sentenceId: doc.id,
+        srsInterval: -1,
+        japaneseTranslation: doc.data().japanese_translation || '',
+        sentencePronunciation: doc.data().pronunciation || '',
       }))
     );
-
     return [...existing, ...fillerQuestions];
   } catch (error) {
-    // 補填用の生成が失敗しても、既存の問題だけで返す（部分的成功を許容）
-    console.error('Failed to generate filler quiz:', error);
+    console.error('Failed to generate filler quiz from user sentences:', error);
     return existing;
   }
 }

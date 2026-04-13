@@ -17,6 +17,7 @@ Firestore の users/{uid}/uvm/{word} コレクションに対して読み書き�
   - 推定語彙数の算出 (estimate_vocab, sync_vocab_count)
 """
 
+import json
 import math
 import random
 import time
@@ -45,12 +46,9 @@ NEW_WORD_P = 0.1  # 新規単語の初期 P 値
 ALPHA_EXPOSURE = 0.03  # 例文露出時の P 微増率
 UNKNOWN_WORD_P = 0.3  # UVM 未登録語の prior P
 
-# get_session_words 用: estimated_vocab 基準の頻度帯フィルタ幅
-FREQ_BAND_FORWARD = 30  # 前方帯域幅: estimated_vocab + FREQ_BAND_FORWARD まで
-FREQ_BAND_LOOKBACK = (
-    100  # 後方帯域幅: estimated_vocab - FREQ_BAND_LOOKBACK まで（前進重視）
-)
-MAX_TOPIC_RETRY = 3  # 候補不足時のトピック再試行回数
+# get_session_words 用: estimated_vocab 基準の頻度帯
+FREQ_BAND_HALF = 30    # 通常帯域の半幅: estimated_vocab ± FREQ_BAND_HALF
+GAP_SCAN_DEPTH = 100   # ギャップスキャン深度: band_boundary からさらに後方へのスキャン幅
 
 
 def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 10) -> float:
@@ -190,13 +188,14 @@ def get_session_words(
     topics_pool: list[str] | None = None,
     estimated_vocab: int | None = None,
 ) -> tuple[list[str], str]:
-    """key_word先行方式でセッション単語を選定する。
+    """ギャップ優先方式でセッション単語を選定する。
 
     【選定ロジック】
-    1. freq_rank から estimated_vocab ± 10 の帯域内の単語を抽出
-    2. 帯域内候補を priority 順に並べ、先頭から count 語を選出
-    3. 選出した key_word の embedding と topic_embeddings のコサイン類似度で最適トピックを決定
-    4. トピック指定がある場合はそのまま使用
+    1. rank < (estimated_vocab - FREQ_BAND_HALF) の範囲で UVM未登録 or P=0 の語（ギャップ語）を探す
+       → あれば：そこからランダム選出（高頻度の語彙ギャップを優先的に埋める）
+       → なければ：estimated_vocab ± FREQ_BAND_HALF の帯域からランダム選出
+    2. 選出した key_word の embedding と topic_embeddings のコサイン類似度で最適トピックを決定
+    3. トピック指定がある場合はそのまま使用
 
     Args:
         db: Firestore クライアント
@@ -219,61 +218,93 @@ def get_session_words(
     if max_vocab is not None and isinstance(estimated_vocab, int):
         estimated_vocab = min(estimated_vocab, max_vocab)
 
-    # 帯域を計算
-    band_low = max(0, estimated_vocab - FREQ_BAND_LOOKBACK)  # type: ignore
-    band_high = estimated_vocab + FREQ_BAND_FORWARD  # type: ignore
+    band_boundary = max(0, estimated_vocab - FREQ_BAND_HALF)  # type: ignore
+    band_high = estimated_vocab + FREQ_BAND_HALF  # type: ignore
     if max_vocab is not None:
         band_high = min(band_high, max_vocab)
 
-    # --- Step 1: 帯域内の単語を抽出 ---
-    band_words = [
-        {"word": word, "rank": rank}
-        for word, rank in freq_rank.items()
-        if band_low <= rank <= band_high
-    ]
+    selected: list[dict[str, Any]] = []
 
-    if not band_words:
-        # 帯域内に候補がない場合は空を返す
-        print(
-            f"get_session_words: no band_words, estimated_vocab={estimated_vocab}, "
-            f"band=[{band_low}, {band_high}]"
-        )
-        return [], topic or ""
+    # --- Step 1: ギャップスキャン (rank < band_boundary で未登録 or P=0) ---
+    gap_scan_low = max(0, band_boundary - GAP_SCAN_DEPTH)
+    if gap_scan_low < band_boundary:
+        gap_candidates = [
+            {"word": word, "rank": rank}
+            for word, rank in freq_rank.items()
+            if gap_scan_low <= rank < band_boundary and len(word) >= 2
+        ]
+        if gap_candidates:
+            gap_word_set = {w["word"] for w in gap_candidates}
+            uvm_ref = db.collection("users").document(uid).collection("uvm")
+            refs = [uvm_ref.document(w) for w in gap_word_set]
+            gap_p_map: dict[str, float] = {}
+            for snap in [ref.get() for ref in refs]:
+                if snap.exists:
+                    p_val = (snap.to_dict() or {}).get("p")
+                    if isinstance(p_val, (int, float)):
+                        gap_p_map[snap.id] = float(p_val)
 
-    # --- Step 2: UVM の P 値を取得し、priority 順に count 語を選出 ---
-    band_word_set = {w["word"] for w in band_words}
-    uvm_ref = db.collection("users").document(uid).collection("uvm")
-    refs = [uvm_ref.document(w) for w in band_word_set]
-    p_map: dict[str, float] = {}
-    if refs:
-        snapshots = [ref.get() for ref in refs]
-        for snap in snapshots:
+            zero_p_candidates = [
+                w for w in gap_candidates
+                if w["word"] not in gap_p_map or gap_p_map[w["word"]] == 0.0
+            ]
+            if zero_p_candidates:
+                selected = random.sample(zero_p_candidates, min(count, len(zero_p_candidates)))
+
+    # --- Step 2: ギャップなし → ±FREQ_BAND_HALF 帯域から優先選出 ---
+    # 優先順位: UVM未登録 > P最小 > ランダム
+    if not selected:
+        band_words = [
+            {"word": word, "rank": rank}
+            for word, rank in freq_rank.items()
+            if band_boundary <= rank <= band_high and len(word) >= 2
+        ]
+        if not band_words:
+            print(
+                f"get_session_words: no band_words, estimated_vocab={estimated_vocab}, "
+                f"band=[{band_boundary}, {band_high}]"
+            )
+            return [], topic or ""
+
+        # 帯域単語の UVM を一括取得
+        band_word_set = {w["word"] for w in band_words}
+        uvm_ref = db.collection("users").document(uid).collection("uvm")
+        refs = [uvm_ref.document(w) for w in band_word_set]
+        band_p_map: dict[str, float] = {}
+        for snap in [ref.get() for ref in refs]:
             if snap.exists:
                 p_val = (snap.to_dict() or {}).get("p")
                 if isinstance(p_val, (int, float)):
-                    p_map[snap.id] = float(p_val)
+                    band_p_map[snap.id] = float(p_val)
 
-    def priority_key(candidate: dict[str, Any]) -> tuple[float, float]:
-        effective_p = p_map.get(candidate["word"], NEW_WORD_P)
-        return (effective_p, random.random())
+        # 未登録語を優先、次にP値昇順でソート
+        def band_sort_key(w: dict[str, Any]) -> tuple[int, float]:
+            word = w["word"]
+            if word not in band_p_map:
+                return (0, 0.0)  # 未登録が最優先
+            return (1, band_p_map[word])
 
-    band_words.sort(key=priority_key)
-    selected = band_words[:count]
+        band_words.sort(key=band_sort_key)
+        selected = band_words[:count]
+
     words = [w["word"] for w in selected]
 
     # --- Step 3: key_word の embedding からトピックを選択 ---
     if topic:
         chosen_topic = topic
     else:
-        # 最初の key_word で最適トピックを決定
         chosen_topic = find_best_topic(words[0], topics_pool, top_k=5, threshold=0.545) or ""
         if not chosen_topic and topics_pool:
             chosen_topic = random.choice(topics_pool)
 
-    print(
-        f"get_session_words: topic={chosen_topic}, estimated_vocab={estimated_vocab}, "
-        f"band_words={len(band_words)}, selected={words}"
-    )
+    print(json.dumps({
+        "message": "get_session_words",
+        "topic": chosen_topic,
+        "estimated_vocab": estimated_vocab,
+        "gap_scan": [gap_scan_low, band_boundary],
+        "band": [band_boundary, band_high],
+        "selected": words,
+    }))
 
     return words, chosen_topic
 
@@ -308,11 +339,17 @@ def register_exposure(
     db: FirestoreClient,
     uid: str,
     words: list[str],
+    target_words: list[str] | None = None,
 ) -> None:
-    """露出による P 微増を適用する。未登録語は新規作成する。"""
+    """露出による P 微増を適用する。
+
+    - 登録済み語: P を ALPHA_EXPOSURE 分微増
+    - 未登録語: target_words に含まれる場合のみ新規作成（P=NEW_WORD_P で登録）
+    """
     now = time.time()
     batch = db.batch()
     uvm_ref = db.collection("users").document(uid).collection("uvm")
+    target_word_set = set(target_words) if target_words else set()
     wrote = 0
 
     for word, count in Counter(words).items():
@@ -332,7 +369,8 @@ def register_exposure(
                 },
             )
             wrote += count
-        else:
+        elif word in target_word_set:
+            # key_word として選出された未登録語は新規作成
             batch.set(
                 doc_ref,
                 {
@@ -343,7 +381,7 @@ def register_exposure(
                     "last_result": None,
                 },
             )
-            wrote += count
+            wrote += 1
 
     if wrote:
         batch.commit()

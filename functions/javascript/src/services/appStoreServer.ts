@@ -17,7 +17,13 @@
  * - 本番: api.storekit.apple.com
  * - サンドボックス: api.storekit-sandbox.apple.com
  *   ※ APP_STORE_ENVIRONMENT 環境変数で切替（Cloud Functions の環境設定）
+ *
+ * 【署名検証】
+ * parseNotificationPayload() は JWS の x5c 証明書チェーンを検証し、
+ * リーフ証明書の公開鍵で署名を確認する。
+ * チェーンのルートが "Apple Root CA" であることをサブジェクト名で確認している。
  */
+import * as crypto from 'crypto';
 import * as jose from 'jose';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
@@ -119,16 +125,12 @@ async function generateAppStoreJWT(): Promise<string> {
 }
 
 /**
- * JWS（JSON Web Signature）ペイロードをデコード
+ * JWS（JSON Web Signature）ペイロードをデコード（署名検証なし）
  *
- * Apple の App Store Server Notifications V2 では、通知ペイロードが
- * JWS 形式（ヘッダー.ペイロード.署名 の3パートを . で連結）で送られてくる。
- * ペイロード部分を Base64URL デコードして JSON パースする。
- *
- * 【注意】本番環境では Apple Root CA による証明書チェーン検証を行うべきだが、
- * 現在は最小実装としてペイロードのデコードのみ行っている（TODO: 署名検証の追加）。
+ * verifyAppStorePurchase 内でトランザクション情報を取り出す用途に使用。
+ * 通知ペイロードには parseNotificationPayload（署名検証あり）を使用すること。
  */
-export function decodeSignedPayload<T>(signedPayload: string): T {
+function decodeSignedPayload<T>(signedPayload: string): T {
   const parts = signedPayload.split('.');
   if (parts.length !== 3) {
     throw new Error('Invalid JWS format');
@@ -137,6 +139,51 @@ export function decodeSignedPayload<T>(signedPayload: string): T {
     Buffer.from(parts[1], 'base64url').toString('utf-8')
   );
   return payload as T;
+}
+
+/**
+ * Apple からの JWS 通知ペイロードの署名を検証する
+ *
+ * x5c ヘッダーの証明書チェーンを検証し、リーフ証明書の公開鍵で JWS 署名を確認する。
+ *
+ * 検証内容:
+ * 1. x5c チェーン内の各証明書が次の証明書で署名されていること
+ * 2. ルート証明書のサブジェクトに "Apple Root CA" が含まれること
+ * 3. リーフ証明書の公開鍵で JWS 署名が正当であること
+ *
+ * @throws 検証失敗時は Error をスロー
+ */
+async function verifyAppleJwsSignature(signedPayload: string): Promise<void> {
+  const parts = signedPayload.split('.');
+  if (parts.length !== 3) throw new Error('Invalid JWS format');
+
+  const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf-8'));
+  const x5c: string[] | undefined = header.x5c;
+
+  if (!x5c || x5c.length < 2) {
+    throw new Error('Missing or incomplete x5c certificate chain in JWS header');
+  }
+
+  // base64 DER → X509Certificate
+  const certs = x5c.map(b64 => new crypto.X509Certificate(Buffer.from(b64, 'base64')));
+
+  // 証明書チェーンの署名を検証（leaf → ... → root）
+  for (let i = 0; i < certs.length - 1; i++) {
+    if (!certs[i].verify(certs[i + 1].publicKey)) {
+      throw new Error(`Certificate chain verification failed at index ${i}`);
+    }
+  }
+
+  // ルート証明書が Apple CA であることを確認
+  const rootSubject = certs[certs.length - 1].subject;
+  if (!rootSubject.includes('Apple Root CA')) {
+    throw new Error(`Untrusted root CA: ${rootSubject}`);
+  }
+
+  // リーフ証明書の公開鍵で JWS 署名を検証
+  const leafPem = certs[0].publicKey.export({ type: 'spki', format: 'pem' }) as string;
+  const publicKey = await jose.importSPKI(leafPem, 'ES256');
+  await jose.compactVerify(signedPayload, publicKey);
 }
 
 /**
@@ -207,21 +254,25 @@ export async function verifyAppStorePurchase(
 }
 
 /**
- * App Store Server Notifications V2 のペイロードをパースし、通知タイプとトランザクション情報を返す
+ * App Store Server Notifications V2 のペイロードを署名検証してパースする
  *
  * Apple からの通知は二重 JWS 構造になっている:
- * 1. 外側の JWS: 通知全体（notificationType, data を含む）
+ * 1. 外側の JWS: 通知全体（notificationType, data を含む）← 署名検証する
  * 2. 内側の JWS: data.signedTransactionInfo（トランザクション詳細）と
- *    data.signedRenewalInfo（更新情報、オプション）
+ *    data.signedRenewalInfo（更新情報、オプション）← デコードのみ
  *
+ * 署名検証に失敗した場合は Error をスローする。
  * handleAppStoreNotification.ts から呼び出される。
  */
-export function parseNotificationPayload(signedPayload: string): {
+export async function parseNotificationPayload(signedPayload: string): Promise<{
   notificationType: string;
   subtype?: string;
   transactionInfo: TransactionInfo;
   renewalInfo?: RenewalInfo;
-} {
+}> {
+  // 外側 JWS の署名を検証（x5c チェーン + Apple Root CA 確認）
+  await verifyAppleJwsSignature(signedPayload);
+
   const notification = decodeSignedPayload<{
     notificationType: string;
     subtype?: string;

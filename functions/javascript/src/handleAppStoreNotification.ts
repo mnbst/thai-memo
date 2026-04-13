@@ -10,12 +10,14 @@
  * 【対応する通知タイプ】
  * - SUBSCRIBED              : 新規サブスクリプション登録 → premium / active
  * - DID_RENEW               : 自動更新成功 → premium / active
+ * - BILLING_RECOVERY        : 猶予期間後の課金回復 → premium / active
  * - DID_CHANGE_RENEWAL_INFO : 更新情報変更 → premium / active
  * - DID_CHANGE_RENEWAL_STATUS: 自動更新ステータス変更
  *   - autoRenewStatus=0 → premium / canceled（期限まで premium 維持）
  *   - autoRenewStatus=1 → premium / active
  * - EXPIRED                 : サブスクリプション期限切れ → free / expired
- * - REVOKE                  : 返金・取消 → free / expired
+ * - REVOKE                  : 取消（ファミリー共有取消など） → free / expired
+ * - REFUND                  : 返金 → free / expired
  * - DID_FAIL_TO_RENEW       : 更新失敗
  *   - GRACE_PERIOD → premium / grace_period
  *   - その他 → free / expired
@@ -63,9 +65,9 @@ export const handleAppStoreNotification = functions.https.onRequest(
         return;
       }
 
-      // JWS ペイロードをデコードして通知タイプとトランザクション情報を取得
+      // JWS ペイロードの署名を検証してデコード（検証失敗時は例外）
       const { notificationType, subtype, transactionInfo, renewalInfo } =
-        parseNotificationPayload(signedPayload);
+        await parseNotificationPayload(signedPayload);
 
       console.log(
         `App Store Notification: type=${notificationType}, subtype=${subtype ?? 'none'}, ` +
@@ -105,15 +107,17 @@ export const handleAppStoreNotification = functions.https.onRequest(
         : null;
 
       switch (notificationType) {
-        // 自動更新成功 → premium を継続
+        // 自動更新成功 / 猶予期間後の課金回復 → premium を継続
         case 'DID_RENEW':
+        case 'BILLING_RECOVERY':
           tier = 'premium';
           status = 'active';
           break;
 
-        // 期限切れまたは返金・取消 → free に戻す
+        // 期限切れ・取消・返金 → free に戻す
         case 'EXPIRED':
         case 'REVOKE':
+        case 'REFUND':
           tier = 'free';
           status = 'expired';
           break;
@@ -166,23 +170,27 @@ export const handleAppStoreNotification = functions.https.onRequest(
       }
 
       // Firestore のユーザードキュメントを更新
+      // quota は tier が変わる場合のみリセット（同一 tier の更新通知でリセットしない）
       const isFree = tier === 'free';
-      await userRef.set(
-        {
-          tier,
-          remaining_sentences: isFree ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES,
-          remaining_quizzes: isFree ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES,
-          subscription: {
-            status,
-            expires_at: expiresAt
-              ? admin.firestore.Timestamp.fromDate(expiresAt)
-              : null,
-            auto_renewing: autoRenewing,
-            updated_at: admin.firestore.FieldValue.serverTimestamp(),
-          },
-        },
-        { merge: true }
-      );
+      const currentTier = userDoc.data()?.tier;
+      const tierChanged = currentTier !== tier;
+
+      const updateData: Record<string, unknown> = {
+        tier,
+        'subscription.status': status,
+        'subscription.expires_at': expiresAt
+          ? admin.firestore.Timestamp.fromDate(expiresAt)
+          : null,
+        'subscription.auto_renewing': autoRenewing,
+        'subscription.updated_at': admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      if (tierChanged) {
+        updateData.remaining_sentences = isFree ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES;
+        updateData.remaining_quizzes = isFree ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES;
+      }
+
+      await userRef.update(updateData);
 
       console.log(
         `Updated user ${userDoc.id}: tier=${tier}, status=${status}`

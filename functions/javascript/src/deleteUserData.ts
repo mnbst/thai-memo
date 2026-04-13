@@ -15,7 +15,7 @@
  *
  * 注意: Cloud Functions v1 の auth トリガーを使用（v2 ではまだ非サポート）
  */
-import { auth } from 'firebase-functions/v1';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 /** Firestore インスタンス */
@@ -29,7 +29,7 @@ const db = admin.firestore();
  *
  * @param user - 削除されたユーザーの情報（uid を含む）
  */
-export const deleteUserData = auth.user().onDelete(async (user) => {
+export const deleteUserData = functions.region('asia-northeast1').auth.user().onDelete(async (user) => {
   const uid = user.uid;
   console.log(`Deleting data for user: ${uid}`);
 

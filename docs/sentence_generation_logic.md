@@ -24,7 +24,7 @@
     ↓
 ⑦ Firestore 保存 + クォータデクリメント（トランザクション）
     ↓
-⑧ UVM 露出登録 + estimated_vocab 同期
+⑧ UVM 露出登録（キーワード=新規作成あり、非キーワード未登録=スキップ）+ estimated_vocab 同期
 ```
 
 ## ① クォータチェック
@@ -97,8 +97,19 @@ thai_text, pronunciation, japanese_translation, created_at, key_word
 
 ## ⑧ UVM 更新
 
-1. **露出登録** `register_exposure`: ターゲット単語と文中の他単語をUVMに記録し P(know) を更新
-2. **estimated_vocab 同期** `sync_estimated_vocab`: P値分布から語彙境界 rank を再計算し `users/{uid}.estimated_vocab` を更新（詳細は `docs/estimated_vocab_logic.md`）
+`_register_sentence_exposure` (`sentence_handlers.py:78`) が以下の2段階で `register_exposure` を呼ぶ:
+
+1. **キーワード** (`exposed_words`): `target_words=target_words` 付きで呼ぶ
+   - UVM登録済み → P を ALPHA_EXPOSURE(0.03) 分微増
+   - UVM未登録 → 新規ドキュメントを作成（P=NEW_WORD_P=0.1）
+2. **キーワード以外** (`other_words`): `target_words` なしで呼ぶ
+   - UVM登録済み → P を ALPHA_EXPOSURE(0.03) 分微増
+   - UVM未登録 → **スキップ**（新規作成しない）
+
+未登録の非キーワード語をスキップするのは意図的な設計（`target_words=None` を渡すことで制御）。
+そのため、非キーワード語として例文に何度登場しても UVM に記録されず、ギャップスキャンで「未習得」と判定され続ける場合がある。
+
+3. **estimated_vocab 同期** `sync_estimated_vocab`: P値分布から語彙境界 rank を再計算し `users/{uid}.estimated_vocab` を更新（詳細は `docs/estimated_vocab_logic.md`）
 
 ## バッチ生成の特記事項
 

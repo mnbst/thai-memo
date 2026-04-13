@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tier", "order": "ASCENDING" },
+        { "fieldPath": "subscription.expires_at", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "quiz_queue",
       "queryScope": "COLLECTION",
       "fields": [
