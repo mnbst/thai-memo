@@ -247,8 +247,7 @@ class PaywallBottomSheet extends ConsumerWidget {
               onPressed: () =>
                   launchUrl(Uri.parse(AppConfig.termsOfServiceUrl)),
               style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
@@ -268,11 +267,9 @@ class PaywallBottomSheet extends ConsumerWidget {
                   ),
             ),
             TextButton(
-              onPressed: () =>
-                  launchUrl(Uri.parse(AppConfig.privacyPolicyUrl)),
+              onPressed: () => launchUrl(Uri.parse(AppConfig.privacyPolicyUrl)),
               style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
@@ -301,8 +298,18 @@ class PaywallBottomSheet extends ConsumerWidget {
 
     const freeTopics = ['あいさつ', '食べ物', '旅行', '買い物'];
     const premiumTopics = [
-      '仕事', '恋愛', '感情', '家族', '交通', '健康',
-      '天気', '趣味', '学校', '宗教・信仰', '伝統・祭り', '礼儀作法',
+      '仕事',
+      '恋愛',
+      '感情',
+      '家族',
+      '交通',
+      '健康',
+      '天気',
+      '趣味',
+      '学校',
+      '宗教・信仰',
+      '伝統・祭り',
+      '礼儀作法',
     ];
 
     Widget chipWrap(List<String> labels, Color bg, Color fg) => Wrap(
