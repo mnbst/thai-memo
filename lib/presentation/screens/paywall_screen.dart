@@ -112,7 +112,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'より豊かなタイ語学習体験を',
+                  '仕事も恋愛も、タイ語で話せるように',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
