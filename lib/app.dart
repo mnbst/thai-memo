@@ -13,6 +13,21 @@ import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/splash_screen.dart';
 
+TextTheme _buildThaiTextTheme(ThaiFont font, TextTheme base) {
+  TextTheme themed;
+  switch (font) {
+    case ThaiFont.notoSansThai:
+      themed = GoogleFonts.notoSansThaiTextTheme(base);
+    case ThaiFont.mitr:
+      themed = GoogleFonts.mitrTextTheme(base);
+    case ThaiFont.sarabun:
+      themed = GoogleFonts.sarabunTextTheme(base);
+    case ThaiFont.krub:
+      themed = GoogleFonts.krubTextTheme(base);
+  }
+  return _scaleTextTheme(themed, 2.5);
+}
+
 TextTheme _scaleTextTheme(TextTheme base, double delta) {
   TextStyle scale(TextStyle? style) {
     if (style == null) return const TextStyle();
@@ -77,8 +92,9 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
 
   @override
   Widget build(BuildContext context) {
-    // Watch theme mode from settings
+    // Watch theme mode and font family from settings
     final themeMode = ref.watch(themeModeProvider);
+    final fontFamily = ref.watch(fontFamilyProvider);
     final analytics = ref.watch(analyticsServiceProvider);
 
     return MaterialApp(
@@ -87,8 +103,8 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
       // 通常の route 遷移は observer 側で screen_view を自動送信する。
       navigatorObservers: [analytics.observer],
       themeMode: themeMode,
-      theme: _buildLightTheme(),
-      darkTheme: _buildDarkTheme(),
+      theme: _buildLightTheme(fontFamily),
+      darkTheme: _buildDarkTheme(fontFamily),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
@@ -105,7 +121,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
   }
 
   /// Build light theme
-  ThemeData _buildLightTheme() {
+  ThemeData _buildLightTheme(ThaiFont fontFamily) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -113,10 +129,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
         seedColor: const Color(0xFF1E3A8A), // Royal Blue (Thai flag)
         brightness: Brightness.light,
       ),
-      textTheme: _scaleTextTheme(
-        GoogleFonts.notoSansThaiTextTheme(ThemeData.light().textTheme),
-        2.5,
-      ),
+      textTheme: _buildThaiTextTheme(fontFamily, ThemeData.light().textTheme),
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
@@ -152,7 +165,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
   }
 
   /// Build dark theme
-  ThemeData _buildDarkTheme() {
+  ThemeData _buildDarkTheme(ThaiFont fontFamily) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -160,10 +173,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
         seedColor: const Color(0xFF1E3A8A), // Royal Blue (Thai flag)
         brightness: Brightness.dark,
       ),
-      textTheme: _scaleTextTheme(
-        GoogleFonts.notoSansThaiTextTheme(ThemeData.dark().textTheme),
-        2.5,
-      ),
+      textTheme: _buildThaiTextTheme(fontFamily, ThemeData.dark().textTheme),
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(

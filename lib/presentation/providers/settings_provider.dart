@@ -8,6 +8,34 @@ import '../../core/config/app_config.dart';
 import '../../services/analytics_service.dart';
 import 'analytics_provider.dart';
 
+// ==================== Font Family ====================
+
+enum ThaiFont { notoSansThai, mitr, sarabun, krub }
+
+extension ThaiFontExtension on ThaiFont {
+  String get displayName {
+    switch (this) {
+      case ThaiFont.notoSansThai:
+        return 'Noto Sans Thai';
+      case ThaiFont.mitr:
+        return 'Mitr';
+      case ThaiFont.sarabun:
+        return 'Sarabun';
+      case ThaiFont.krub:
+        return 'Krub';
+    }
+  }
+
+  String get prefValue => name;
+
+  static ThaiFont fromPrefValue(String value) {
+    return ThaiFont.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => ThaiFont.notoSansThai,
+    );
+  }
+}
+
 // ==================== Settings State ====================
 
 /// Settings state class
@@ -16,12 +44,14 @@ class SettingsState {
   final ThemeMode themeMode;
   final TimeOfDay? preferredGenerationTime;
   final Map<String, String?> generationParams;
+  final ThaiFont fontFamily;
 
   const SettingsState({
     required this.isFirstLaunch,
     required this.themeMode,
     this.preferredGenerationTime,
     this.generationParams = const {},
+    this.fontFamily = ThaiFont.notoSansThai,
   });
 
   factory SettingsState.initial() {
@@ -30,6 +60,7 @@ class SettingsState {
       themeMode: ThemeMode.light,
       preferredGenerationTime: null,
       generationParams: {},
+      fontFamily: ThaiFont.notoSansThai,
     );
   }
 
@@ -38,6 +69,7 @@ class SettingsState {
     ThemeMode? themeMode,
     TimeOfDay? preferredGenerationTime,
     Map<String, String?>? generationParams,
+    ThaiFont? fontFamily,
   }) {
     return SettingsState(
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
@@ -45,6 +77,7 @@ class SettingsState {
       preferredGenerationTime:
           preferredGenerationTime ?? this.preferredGenerationTime,
       generationParams: generationParams ?? this.generationParams,
+      fontFamily: fontFamily ?? this.fontFamily,
     );
   }
 }
@@ -72,6 +105,8 @@ class SettingsController extends StateNotifier<SettingsState> {
     await _loadSettings();
     _initialized.complete();
   }
+
+  static const _prefKeyFontFamily = 'pref_font_family';
 
   static const _generationParamKeys = [
     'style',
@@ -103,11 +138,18 @@ class SettingsController extends StateNotifier<SettingsState> {
       params[key] = _prefs!.getString(_prefKey(key));
     }
 
+    // Load font family
+    final fontValue = _prefs!.getString(_prefKeyFontFamily);
+    final fontFamily = fontValue != null
+        ? ThaiFontExtension.fromPrefValue(fontValue)
+        : ThaiFont.notoSansThai;
+
     state = SettingsState(
       isFirstLaunch: isFirstLaunch,
       themeMode: themeMode,
       preferredGenerationTime: preferredTime,
       generationParams: params,
+      fontFamily: fontFamily,
     );
   }
 
@@ -134,6 +176,15 @@ class SettingsController extends StateNotifier<SettingsState> {
         key: 'theme_mode',
         value: mode.toString().split('.').last,
       ),
+    );
+  }
+
+  /// Set font family
+  Future<void> setFontFamily(ThaiFont font) async {
+    await _prefs?.setString(_prefKeyFontFamily, font.prefValue);
+    state = state.copyWith(fontFamily: font);
+    unawaited(
+      _analytics.logChangeSetting(key: 'font_family', value: font.prefValue),
     );
   }
 
@@ -201,4 +252,9 @@ final themeModeProvider = Provider<ThemeMode>((ref) {
 /// Provider for generation params
 final generationParamsProvider = Provider<Map<String, String?>>((ref) {
   return ref.watch(settingsControllerProvider).generationParams;
+});
+
+/// Provider for font family
+final fontFamilyProvider = Provider<ThaiFont>((ref) {
+  return ref.watch(settingsControllerProvider).fontFamily;
 });
