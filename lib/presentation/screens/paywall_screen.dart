@@ -121,6 +121,9 @@ class PaywallBottomSheet extends ConsumerWidget {
                 const SizedBox(height: 24),
                 // 比較テーブル
                 _buildComparisonTable(context),
+                const SizedBox(height: 20),
+                // トピック一覧
+                _buildTopicSection(context),
                 const SizedBox(height: 32),
                 // 購入ボタン
                 _buildPurchaseSection(context, ref),
@@ -244,8 +247,7 @@ class PaywallBottomSheet extends ConsumerWidget {
               onPressed: () =>
                   launchUrl(Uri.parse(AppConfig.termsOfServiceUrl)),
               style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
@@ -265,11 +267,9 @@ class PaywallBottomSheet extends ConsumerWidget {
                   ),
             ),
             TextButton(
-              onPressed: () =>
-                  launchUrl(Uri.parse(AppConfig.privacyPolicyUrl)),
+              onPressed: () => launchUrl(Uri.parse(AppConfig.privacyPolicyUrl)),
               style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
@@ -293,15 +293,84 @@ class PaywallBottomSheet extends ConsumerWidget {
     return '$currencyCode $formatted / 月';
   }
 
+  Widget _buildTopicSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    const freeTopics = ['あいさつ', '食べ物', '旅行', '買い物'];
+    const premiumTopics = [
+      '仕事',
+      '恋愛',
+      '感情',
+      '家族',
+      '交通',
+      '健康',
+      '天気',
+      '趣味',
+      '学校',
+      '宗教・信仰',
+      '伝統・祭り',
+      '礼儀作法',
+    ];
+
+    Widget chipWrap(List<String> labels, Color bg, Color fg) => Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: labels
+              .map((label) => Chip(
+                    label: Text(label,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: fg)),
+                    backgroundColor: bg,
+                    side: BorderSide.none,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ))
+              .toList(),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('例文のテーマ',
+            style: Theme.of(context)
+                .textTheme
+                .labelLarge
+                ?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        chipWrap(freeTopics, colorScheme.surfaceContainerHighest,
+            colorScheme.onSurfaceVariant),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(child: Divider(color: colorScheme.outlineVariant)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text('プレミアムで追加',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      )),
+            ),
+            Expanded(child: Divider(color: colorScheme.outlineVariant)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        chipWrap(premiumTopics, colorScheme.primaryContainer,
+            colorScheme.onPrimaryContainer),
+      ],
+    );
+  }
+
   Widget _buildComparisonTable(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    // (機能名, 無料, プレミアム, 注記)
+    // (機能名, 無料, プレミアム)
     const features = [
-      ('例文生成', '最大2回/日', '最大10回/日', '0時・12時にリセット'),
-      ('クイズ', '最大2回/日', '最大10回/日', '0時・12時にリセット'),
-      ('学べる単語', '300語まで', '最大1万語', ''),
-      ('例文のバリエーション', '少なめ', '豊富', ''),
+      ('例文生成 / クイズ', '最大2回/日', '最大10回/日'),
+      ('学べる単語', '300語まで', '最大1万語'),
     ];
 
     return Container(
@@ -354,9 +423,8 @@ class PaywallBottomSheet extends ConsumerWidget {
           // 機能行
           ...features.asMap().entries.map((entry) {
             final i = entry.key;
-            final feature = entry.value;
+            final f = entry.value;
             final isLast = i == features.length - 1;
-            final isPremiumBetter = feature.$3 != feature.$2;
 
             return Container(
               decoration: BoxDecoration(
@@ -375,24 +443,18 @@ class PaywallBottomSheet extends ConsumerWidget {
                     flex: 3,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        feature.$1,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
+                          horizontal: 16, vertical: 12),
+                      child: Text(f.$1,
+                          style: Theme.of(context).textTheme.bodyMedium),
                     ),
                   ),
                   Expanded(
                     flex: 3,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
+                          horizontal: 4, vertical: 12),
                       child: Text(
-                        feature.$2,
+                        f.$2,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -404,18 +466,12 @@ class PaywallBottomSheet extends ConsumerWidget {
                     flex: 3,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
+                          horizontal: 4, vertical: 12),
                       child: Text(
-                        feature.$3,
+                        f.$3,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: isPremiumBetter
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurface,
-                              fontWeight: isPremiumBetter
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.bold,
                             ),
                         textAlign: TextAlign.center,
                       ),
