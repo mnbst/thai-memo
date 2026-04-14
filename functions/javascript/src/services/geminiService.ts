@@ -15,6 +15,7 @@ export interface QuizQuestion {
   srs_interval: number;
   japanese_translation: string;
   sentence_pronunciation: string;
+  dummy_reasons: string[];
 }
 
 type GeneratedQuizQuestion = Omit<QuizQuestion, 'sentence_id' | 'srs_interval'>;
@@ -74,7 +75,7 @@ export class GeminiService {
         model: this.modelName,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         generationConfig: {
-          temperature: 0.8,
+          temperature: 0.4,
           maxOutputTokens: 4096,
           responseMimeType: 'application/json',
           thinkingConfig: { thinkingBudget: 0 },
@@ -112,8 +113,13 @@ export class GeminiService {
                       type: SchemaType.STRING,
                       description: 'Brief explanation in Japanese of why this word fits',
                     },
+                    dummy_reasons: {
+                      type: SchemaType.ARRAY,
+                      items: { type: SchemaType.STRING },
+                      description: '3 dummies in choices と正解以外の各単語が不正解である理由（例: "เร็ว は副詞のため名詞位置に代入不可"）',
+                    },
                   },
-                  required: ['thai_text', 'blank_text', 'correct_answer', 'choices', 'pronunciation', 'explanation'],
+                  required: ['thai_text', 'blank_text', 'correct_answer', 'choices', 'pronunciation', 'explanation', 'dummy_reasons'],
                 },
               },
             },
@@ -142,15 +148,32 @@ ${sentenceList}
 
 【ルール】
 - 【穴埋め対象】が指定されている場合、必ずその単語を___に置き換える
-- 指定がない場合は、意味のある単語（名詞・動詞・形容詞など）を1つ選び、___に置き換える
-- 助詞や冠詞など簡単すぎる単語は避ける
-- 4択の選択肢を作成（正解1つ＋紛らわしいダミー3つ）
+- 指定がない場合は、意味が特定的な単語（固有の名詞・動詞・形容詞など）を1つ選び、___に置き換える。汎用的な動詞（มี, เป็น, ได้など）は避ける
+- 4択の選択肢を作成（正解1つ＋ダミー3つ）
 - correct_answer と choices は必ずタイ語表記の単語だけにする
 - choices に日本語訳、英語、ローマ字発音、説明文を混ぜない
-- ダミーは空欄に入れると文法的・意味的に明らかに不自然になる単語にする（品詞が違う、意味カテゴリが全く異なるなど）
-- ダミーは正解と文法的に置き換え可能な単語にしてはいけない
+- 選択肢4つの中で正解になりうる単語は厳密に1つだけであること
 - 選択肢はシャッフルする
-- explanationは日本語で簡潔に（なぜその単語が正解か）`;
+- explanationは日本語で簡潔に（なぜその単語が正解か）。他の選択肢への言及は一切しない
+- dummy_reasonsには正解以外の3単語それぞれについて「文法または意味の観点から空欄に代入できない理由」を1行ずつ書く（例: "เร็ว は副詞のため名詞位置に代入不可"）。
+
+【ダミー選択のNG例と対処法】
+NG1 — 主語・人称代名詞の交換
+  例文: ___ กินข้าวอยู่ / 正解: ผม
+  NG: ฉัน, คุณ, เขา（どれも主語として成立するため不可）
+  OK: เร็ว（副詞）, มาก（副詞）, สวย（形容詞）
+
+NG2 — 同カテゴリの食べ物・物・場所
+  例文: เขาชอบกิน___ / 正解: ข้าว
+  NG: ผัก, เนื้อ, ขนม（どれも「食べる」目的語として成立するため不可）
+  OK: เร็ว（副詞）, บ้าน（場所）, สวย（形容詞）
+
+NG3 — 類義語・言い換え可能な動詞
+  例文: เธอ___หนังสือ / 正解: อ่าน
+  NG: ดู（内容によっては成立）, ซื้อ（文脈によっては成立）
+  OK: กิน（食べる）, นอน（寝る）, วิ่ง（走る）
+
+対処法: 正解と同じ品詞でも、意味カテゴリを大きく変える（人→物、食べ物→場所、移動動詞→感情動詞など）`;
 
       const result = await model.generateContent(prompt);
       const usage = result.response.usageMetadata;

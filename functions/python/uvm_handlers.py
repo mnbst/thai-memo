@@ -32,6 +32,7 @@ def updateUvm(req: https_fn.CallableRequest) -> dict:
         return {"success": True, "updated": 0}
 
     freq_rank = get_freq_rank()
+    print(f"updateUvm: uid={uid}, results={results}")
     batch_update_uvm(db, uid, results, freq_rank=freq_rank)  # type: ignore
 
     print(f"updateUvm completed: uid={uid}, updated={len(results)}")

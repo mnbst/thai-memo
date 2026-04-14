@@ -14,7 +14,7 @@ Firestore の users/{uid}/uvm/{word} コレクションに対して読み書き�
   - トピック×語彙レベルに基づくセッション単語の選定 (get_session_words)
   - P(know) 確率の更新 (update_p)
   - クイズ結果からの一括更新 (batch_update_uvm)
-  - 推定語彙数の算出 (estimate_vocab, sync_vocab_count)
+  - 語彙スコアの算出 (estimate_vocab, sync_vocab_count)
 """
 
 import json
@@ -141,7 +141,13 @@ def sync_estimated_vocab(
     user_ref.set({"estimated_vocab": estimated}, merge=True)
 
 
-def update_p(p: float, correct: bool, quiz_attempts: int = 0, rank: int | None = None) -> float:
+def update_p(
+    p: float,
+    correct: bool,
+    quiz_attempts: int = 0,
+    rank: int | None = None,
+    hint_multiplier: float = 1.0,
+) -> float:
     """P(know) を正誤に基づいて更新する。
 
     【更新式】
@@ -168,13 +174,13 @@ def update_p(p: float, correct: bool, quiz_attempts: int = 0, rank: int | None =
         alpha = ALPHA_CORRECT_MIN + (alpha_max - ALPHA_CORRECT_MIN) * math.exp(
             -ALPHA_DECAY_K * quiz_attempts
         )
-        p = p + alpha * (1 - p)
+        p = p + alpha * hint_multiplier * (1 - p)
     else:
         alpha_max = ALPHA_INCORRECT_MAX_LOW + (ALPHA_INCORRECT_MAX_TOP - ALPHA_INCORRECT_MAX_LOW) * scale
         alpha = ALPHA_INCORRECT_MIN + (alpha_max - ALPHA_INCORRECT_MIN) * math.exp(
             -ALPHA_DECAY_K * quiz_attempts
         )
-        p = p - alpha * p
+        p = p - alpha * hint_multiplier * p
     return max(P_MIN, min(P_MAX, p))
 
 
@@ -205,12 +211,12 @@ def get_session_words(
         count: 選定する単語数（デフォルト 1）
         max_vocab: 語彙帯域の上限（free ティアでは 300）。None なら制限なし。
         topics_pool: トピック候補リスト（embedding でのトピック選択に使用）。
-        estimated_vocab: 呼び出し元で取得済みの推定語彙数。省略時は Firestore から読む。
+        estimated_vocab: 呼び出し元で取得済みの語彙スコア。省略時は Firestore から読む。
 
     Returns:
         (選定された単語のリスト, 使用されたトピック)
     """
-    # ユーザーの推定語彙数を取得
+    # ユーザーの語彙スコアを取得
     if estimated_vocab is None:
         user_doc = db.collection("users").document(uid).get()
         user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}  # type: ignore
@@ -413,12 +419,15 @@ def batch_update_uvm(
         doc = doc_ref.get()
 
         rank = freq_rank.get(word) if freq_rank else None
+        hint_level_raw = r.get("hint_level")
+        hint_level = int(hint_level_raw) if isinstance(hint_level_raw, (int, float)) else 0
+        hint_multiplier = 1.0 if hint_level == 0 else (0.5 if hint_level == 1 else 0.25)
         if doc.exists:
             # --- 既存単語の更新 ---
             data = doc.to_dict() or {}
             old_p = data.get("p", NEW_WORD_P)
             quiz_attempts = data.get("quiz_attempts", 0)
-            new_p = update_p(old_p, is_correct, quiz_attempts, rank)
+            new_p = update_p(old_p, is_correct, quiz_attempts, rank, hint_multiplier)
             batch.update(
                 doc_ref,
                 {
@@ -430,7 +439,7 @@ def batch_update_uvm(
             )
         else:
             # --- 新規単語の作成（初めて見た単語） ---
-            new_p = update_p(NEW_WORD_P, is_correct, 0, rank)
+            new_p = update_p(NEW_WORD_P, is_correct, 0, rank, hint_multiplier)
             batch.set(
                 doc_ref,
                 {

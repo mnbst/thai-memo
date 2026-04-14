@@ -104,7 +104,7 @@ lib/presentation/providers/tts_provider.dart
 タイ語発音再生のText-to-Speechサービス。
 
 lib/presentation/providers/vocab_stats_provider.dart
-Firestoreから推定語彙数・学習済み単語数をリアルタイム取得（Premium限定）。
+Firestoreから語彙スコア・学習済み単語数をリアルタイム取得（Premium限定）。
 
 ## Screens
 

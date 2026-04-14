@@ -506,7 +506,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 Icon(Icons.auto_graph, size: 16, color: onContainer),
                 const SizedBox(width: 4),
                 Text(
-                  'あなたの推定語彙数',
+                  '語彙スコア',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: onContainer,
                       ),
@@ -716,9 +716,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// Generate a single sentence
   Future<void> _generateSingle(BuildContext context) async {
-    await ref
-        .read(sentenceControllerProvider.notifier)
-        .generateSentence();
+    await ref.read(sentenceControllerProvider.notifier).generateSentence();
 
     final state = ref.read(sentenceControllerProvider);
     if (context.mounted) {

@@ -8,7 +8,7 @@
 
 ## 分析 / 可視化
 
-- [ ] ユーザーごとの推定語彙数（estimated_vocab）の日次推移を記録・可視化
+- [ ] ユーザーごとの語彙スコア（estimated_vocab）の日次推移を記録・可視化
   - `dailyBatch` で各ユーザーの `estimated_vocab` を `users/{uid}/vocab_history/{YYYY-MM-DD}` に書き込む
   - または BigQuery Export（Firestore → BigQuery）でまとめて集計
   - ユーザー数が増えてから対応
