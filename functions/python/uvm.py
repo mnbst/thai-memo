@@ -244,7 +244,7 @@ def get_session_words(
             uvm_ref = db.collection("users").document(uid).collection("uvm")
             refs = [uvm_ref.document(w) for w in gap_word_set]
             gap_p_map: dict[str, float] = {}
-            for snap in [ref.get() for ref in refs]:
+            for snap in db.get_all(refs):
                 if snap.exists:
                     p_val = (snap.to_dict() or {}).get("p")
                     if isinstance(p_val, (int, float)):
@@ -277,7 +277,7 @@ def get_session_words(
         uvm_ref = db.collection("users").document(uid).collection("uvm")
         refs = [uvm_ref.document(w) for w in band_word_set]
         band_p_map: dict[str, float] = {}
-        for snap in [ref.get() for ref in refs]:
+        for snap in db.get_all(refs):
             if snap.exists:
                 p_val = (snap.to_dict() or {}).get("p")
                 if isinstance(p_val, (int, float)):
@@ -412,19 +412,27 @@ def batch_update_uvm(
     now = time.time()
     batch = db.batch()
     uvm_ref = db.collection("users").document(uid).collection("uvm")
+
+    # 全単語のドキュメントを一括取得
+    words = [r["word"] for r in results]
+    refs = [uvm_ref.document(word) for word in words]
+    docs_map: dict[str, Any] = {}
+    for snap in db.get_all(refs):
+        if snap.exists:
+            docs_map[snap.id] = snap.to_dict() or {}
+
     for r in results:
         word = r["word"]
         is_correct = r["is_correct"]
         doc_ref = uvm_ref.document(word)
-        doc = doc_ref.get()
 
         rank = freq_rank.get(word) if freq_rank else None
         hint_level_raw = r.get("hint_level")
         hint_level = int(hint_level_raw) if isinstance(hint_level_raw, (int, float)) else 0
         hint_multiplier = 1.0 if hint_level == 0 else (0.5 if hint_level == 1 else 0.25)
-        if doc.exists:
+        if word in docs_map:
             # --- 既存単語の更新 ---
-            data = doc.to_dict() or {}
+            data = docs_map[word]
             old_p = data.get("p", NEW_WORD_P)
             quiz_attempts = data.get("quiz_attempts", 0)
             new_p = update_p(old_p, is_correct, quiz_attempts, rank, hint_multiplier)
