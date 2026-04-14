@@ -52,12 +52,14 @@ class QuizAnswering extends QuizState {
   final int index;
   final List<bool> answers;
   final List<int> selectedIndices;
+  final List<int>? hintLevels;
 
   const QuizAnswering(
     this.questions,
     this.index,
     this.answers, [
     this.selectedIndices = const [],
+    this.hintLevels = const [],
   ]);
 }
 
@@ -68,6 +70,7 @@ class QuizShowResult extends QuizState {
   final int selectedIndex;
   final bool isCorrect;
   final List<int> selectedIndices;
+  final List<int>? hintLevels;
 
   const QuizShowResult(
     this.questions,
@@ -76,6 +79,7 @@ class QuizShowResult extends QuizState {
     this.selectedIndex,
     this.isCorrect, [
     this.selectedIndices = const [],
+    this.hintLevels = const [],
   ]);
 }
 
@@ -85,6 +89,7 @@ class QuizSummary extends QuizState {
   final int totalCorrect;
   final Map<String, dynamic> stats;
   final List<int> selectedIndices;
+  final List<int>? hintLevels;
 
   const QuizSummary(
     this.questions,
@@ -92,6 +97,7 @@ class QuizSummary extends QuizState {
     this.totalCorrect,
     this.stats, [
     this.selectedIndices = const [],
+    this.hintLevels = const [],
   ]);
 }
 
@@ -311,13 +317,14 @@ class QuizController extends StateNotifier<QuizState> {
   }
 
   /// 回答を選択
-  Future<void> answerQuestion(int choiceIndex) async {
+  Future<void> answerQuestion(int choiceIndex, {int hintLevel = 0}) async {
     if (state is! QuizAnswering) return;
     final s = state as QuizAnswering;
     final question = s.questions[s.index];
     final isCorrect = question.choices[choiceIndex] == question.correctAnswer;
     final newAnswers = [...s.answers, isCorrect];
     final newSelectedIndices = [...s.selectedIndices, choiceIndex];
+    final newHintLevels = <int>[...s.hintLevels ?? const [], hintLevel];
 
     // DBに保存
     final result = QuizResult(
@@ -335,7 +342,7 @@ class QuizController extends StateNotifier<QuizState> {
     final word = question.correctAnswer;
     if (word.isNotEmpty) {
       _apiService.updateUvm(results: [
-        {'word': word, 'is_correct': isCorrect},
+        {'word': word, 'is_correct': isCorrect, 'hint_level': hintLevel},
       ]);
     }
 
@@ -346,6 +353,7 @@ class QuizController extends StateNotifier<QuizState> {
       choiceIndex,
       isCorrect,
       newSelectedIndices,
+      newHintLevels,
     );
     // DB 保存と同じタイミングで送ることで、集計と UI の見え方を揃える。
     unawaited(
@@ -384,6 +392,7 @@ class QuizController extends StateNotifier<QuizState> {
         totalCorrect,
         cachedStats ?? {},
         s.selectedIndices,
+        s.hintLevels,
       );
 
       // 完了フラグと回答結果を保存（次回配信まで表示し続ける）
@@ -392,8 +401,8 @@ class QuizController extends StateNotifier<QuizState> {
       await prefs.setString(
           _quizSelectedIndicesKey, jsonEncode(s.selectedIndices));
     } else {
-      state =
-          QuizAnswering(s.questions, nextIndex, s.answers, s.selectedIndices);
+      state = QuizAnswering(
+          s.questions, nextIndex, s.answers, s.selectedIndices, s.hintLevels ?? const []);
     }
   }
 

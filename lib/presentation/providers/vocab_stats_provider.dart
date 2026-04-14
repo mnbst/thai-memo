@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'remaining_quota_provider.dart';
 
-/// 推定語彙数の状態
+/// 語彙スコアの状態
 class VocabStats {
   final int estimatedVocab;
 

@@ -1,6 +1,6 @@
 """UVM 語彙成長シミュレーター
 
-推定語彙数(estimated_vocab)の日次推移をシミュレートし、
+語彙スコア(estimated_vocab)の日次推移をシミュレートし、
 定数チューニングの最適解を探るための Streamlit アプリ。
 
 Usage:

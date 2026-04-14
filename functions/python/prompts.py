@@ -78,7 +78,7 @@ def build_uvm_prompt(
     Args:
         params: クライアントから渡されたパラメータ辞書
         target_words: UVMから選定されたターゲット単語リスト（省略可）
-        estimated_vocab: ユーザーの推定語彙数（デフォルト0=初級）
+        estimated_vocab: ユーザーの語彙スコア（デフォルト0=初級）
         is_premium: プレミアムティアかどうか（free時はトピック・スタイルが制限される）
 
     Returns:

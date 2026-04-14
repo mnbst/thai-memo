@@ -78,7 +78,7 @@ def select_uvm_target_words(
         max_vocab: 語彙帯域の上限。free ティアでは 300 に制限。
         count: 選定する単語数。
         is_premium: プレミアムティアかどうか。
-        estimated_vocab: 呼び出し元で取得済みの推定語彙数。省略時は Firestore から読む。
+        estimated_vocab: 呼び出し元で取得済みの語彙スコア。省略時は Firestore から読む。
 
     Returns:
         (選定された単語リスト, 使用されたトピック)
@@ -395,7 +395,7 @@ def generate_sentences_batch(
         is_premium: プレミアムティアか
         all_target_words: 各例文用のターゲット単語リスト（len == count）
         all_topics: 各例文用のトピック（len == count）
-        estimated_vocab: ユーザーの推定語彙数
+        estimated_vocab: ユーザーの語彙スコア
 
     Returns:
         成功した例文のリスト

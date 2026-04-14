@@ -23,6 +23,7 @@ class QuizQuestion {
   final int srsInterval;
   final String japaneseTranslation;
   final String sentencePronunciation;
+  final List<String> dummyReasons;
 
   const QuizQuestion({
     required this.sentenceId,
@@ -35,6 +36,7 @@ class QuizQuestion {
     this.srsInterval = 0,
     this.japaneseTranslation = '',
     this.sentencePronunciation = '',
+    this.dummyReasons = const [],
   });
 
   factory QuizQuestion.fromJson(Map<String, dynamic> json) => QuizQuestion(
@@ -51,6 +53,10 @@ class QuizQuestion {
         srsInterval: json['srs_interval'] ?? 0,
         japaneseTranslation: json['japanese_translation'] ?? '',
         sentencePronunciation: json['sentence_pronunciation'] ?? '',
+        dummyReasons: (json['dummy_reasons'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
       );
 
   Map<String, dynamic> toJson() => {
@@ -64,5 +70,6 @@ class QuizQuestion {
         'srs_interval': srsInterval,
         'japanese_translation': japaneseTranslation,
         'sentence_pronunciation': sentencePronunciation,
+        'dummy_reasons': dummyReasons,
       };
 }

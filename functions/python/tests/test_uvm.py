@@ -508,3 +508,80 @@ def test_get_session_words_estimated_vocab_31_gap_known_falls_back_to_band() -> 
     words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=1, estimated_vocab=ev)
 
     assert words == ["band-word"]
+
+
+# ---------------------------------------------------------------------------
+# hint_level 後方互換性
+# ---------------------------------------------------------------------------
+
+def test_batch_update_uvm_without_hint_level_uses_full_multiplier() -> None:
+    """旧クライアント: hint_level キーなし → multiplier=1.0 でP更新される"""
+    p0 = 0.1
+    db = FakeDb(
+        {"user-1": {"ไป": {"word": "ไป", "p": p0, "quiz_attempts": 0, "last_seen": 0.0, "last_result": False}}},
+        {"user-1": {"estimated_vocab": 0}},
+    )
+
+    batch_update_uvm(
+        db, "user-1",
+        [{"word": "ไป", "is_correct": True}],  # hint_level なし
+        freq_rank={"ไป": 1},
+    )
+
+    p_new = db.store["user-1"]["ไป"]["p"]
+    p_expected = update_p(p0, True, 0, rank=1, hint_multiplier=1.0)
+    assert abs(p_new - p_expected) < 1e-9
+
+
+def test_batch_update_uvm_hint_level_null_uses_full_multiplier() -> None:
+    """旧クライアント: hint_level=null → multiplier=1.0 でP更新される"""
+    p0 = 0.1
+    db = FakeDb(
+        {"user-1": {"ไป": {"word": "ไป", "p": p0, "quiz_attempts": 0, "last_seen": 0.0, "last_result": False}}},
+        {"user-1": {"estimated_vocab": 0}},
+    )
+
+    batch_update_uvm(
+        db, "user-1",
+        [{"word": "ไป", "is_correct": True, "hint_level": None}],
+        freq_rank={"ไป": 1},
+    )
+
+    p_new = db.store["user-1"]["ไป"]["p"]
+    p_expected = update_p(p0, True, 0, rank=1, hint_multiplier=1.0)
+    assert abs(p_new - p_expected) < 1e-9
+
+
+def test_batch_update_uvm_hint_level_1_reduces_p_change() -> None:
+    """hint_level=1 → multiplier=0.5 でP増分がヒントなしの半分になる"""
+    p0 = 0.1
+    rank = 600
+
+    p_no_hint = update_p(p0, True, 0, rank=rank, hint_multiplier=1.0)
+    p_hint1   = update_p(p0, True, 0, rank=rank, hint_multiplier=0.5)
+
+    delta_no_hint = p_no_hint - p0
+    delta_hint1   = p_hint1   - p0
+
+    assert abs(delta_hint1 - delta_no_hint * 0.5) < 1e-9
+
+
+def test_batch_update_uvm_hint_level_2_reduces_p_change() -> None:
+    """hint_level=2 → multiplier=0.25 でP増分がヒントなしの1/4になる"""
+    p0 = 0.1
+    rank = 600
+
+    p_no_hint = update_p(p0, True, 0, rank=rank, hint_multiplier=1.0)
+    p_hint2   = update_p(p0, True, 0, rank=rank, hint_multiplier=0.25)
+
+    delta_no_hint = p_no_hint - p0
+    delta_hint2   = p_hint2   - p0
+
+    assert abs(delta_hint2 - delta_no_hint * 0.25) < 1e-9
+
+
+def test_update_p_hint_multiplier_default_matches_explicit_1() -> None:
+    """hint_multiplier省略 == hint_multiplier=1.0（デフォルト値の後方互換確認）"""
+    p = 0.3
+    assert update_p(p, True, 3, rank=500) == update_p(p, True, 3, rank=500, hint_multiplier=1.0)
+    assert update_p(p, False, 3, rank=500) == update_p(p, False, 3, rank=500, hint_multiplier=1.0)
