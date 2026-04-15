@@ -340,6 +340,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final remainingAsync = ref.watch(remainingSentencesProvider);
     final remaining = remainingAsync.valueOrNull;
     final showUpgrade = !isPremium && remaining != null && remaining <= 0;
+    final vocab =
+        ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+    final showVocabUpgrade = !isPremium && vocab >= 100;
 
     return Column(
       children: [
@@ -367,7 +370,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 _buildSentenceCard(context, sentence),
                 const SizedBox(height: 16),
                 _buildQuickInfo(context, sentence),
-                if (showUpgrade) ...[
+                if (showVocabUpgrade) ...[
+                  const SizedBox(height: 16),
+                  _buildVocabUpgradeBanner(context),
+                ] else if (showUpgrade) ...[
                   const SizedBox(height: 16),
                   _buildUpgradeBanner(context),
                 ],
@@ -493,40 +499,61 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     return statsAsync.when(
       data: (stats) {
         final onContainer = Theme.of(context).colorScheme.onPrimaryContainer;
+        final level = _vocabLevel(stats.estimatedVocab);
         return Card(
           color: Theme.of(context).colorScheme.primaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConfig.defaultPadding * 1.5,
-              vertical: AppConfig.defaultPadding,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.auto_graph, size: 16, color: onContainer),
-                const SizedBox(width: 4),
-                Text(
-                  '語彙スコア',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: onContainer,
-                      ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '${stats.estimatedVocab}',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: onContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '語',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: onContainer.withValues(alpha: 0.7),
-                      ),
-                ),
-              ],
+          child: InkWell(
+            onTap: () => _showVocabScoreInfo(context),
+            borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConfig.defaultPadding * 1.5,
+                vertical: AppConfig.defaultPadding,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.auto_graph, size: 16, color: onContainer),
+                  const SizedBox(width: 4),
+                  Text(
+                    '語彙スコア',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: onContainer,
+                        ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${stats.estimatedVocab}',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: onContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '語',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: onContainer.withValues(alpha: 0.7),
+                        ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: onContainer.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      level,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: onContainer,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -537,6 +564,55 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         return Text('vocabStats error: $e',
             style: const TextStyle(color: Colors.red, fontSize: 12));
       },
+    );
+  }
+
+  /// estimated_vocab からレベルラベルを返す
+  String _vocabLevel(int vocab) {
+    if (vocab < 100) return '入門';
+    if (vocab < 300) return '初級';
+    if (vocab < 600) return '初中級';
+    if (vocab < 1500) return '中級';
+    return '上級';
+  }
+
+  /// 語彙スコアの説明ダイアログを表示する
+  void _showVocabScoreInfo(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('語彙スコアとは？'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'タイ語の頻出単語のうち、あなたが習得済みと推定される語彙数です。',
+            ),
+            const SizedBox(height: 12),
+            const Text('レベルの目安', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            const _LevelGuideRow(label: '入門', range: '〜100語'),
+            const _LevelGuideRow(label: '初級', range: '100〜300語 ★'),
+            const _LevelGuideRow(label: '初中級', range: '300〜600語 ★'),
+            const _LevelGuideRow(label: '中級', range: '600〜1500語 ★'),
+            const _LevelGuideRow(label: '上級', range: '1500語〜 ★'),
+            const SizedBox(height: 4),
+            const Text('★ Premiumプランで解放', style: TextStyle(fontSize: 11)),
+            const SizedBox(height: 12),
+            const Text(
+              'クイズに答えると更新され、スコアに合った単語が例文に登場するようになります。',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -560,6 +636,54 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 語彙スコアが上限に近づいた際のPremium誘導バナー
+  Widget _buildVocabUpgradeBanner(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      color: colorScheme.secondaryContainer,
+      child: InkWell(
+        onTap: () => PaywallBottomSheet.show(
+          context,
+          source: 'today_vocab_upgrade_banner',
+        ),
+        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+        child: Padding(
+          padding: const EdgeInsets.all(AppConfig.defaultPadding),
+          child: Row(
+            children: [
+              Icon(Icons.emoji_events, color: colorScheme.onSecondaryContainer),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '初級レベルまであと少し！',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSecondaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Premiumにアップグレードして初級以上の単語を学びましょう',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSecondaryContainer
+                                .withValues(alpha: 0.8),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios,
+                  size: 16, color: colorScheme.onSecondaryContainer),
+            ],
+          ),
         ),
       ),
     );
@@ -730,5 +854,32 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         );
       }
     }
+  }
+}
+
+/// レベル目安の1行（ラベル＋範囲）
+class _LevelGuideRow extends StatelessWidget {
+  final String label;
+  final String range;
+
+  const _LevelGuideRow({required this.label, required this.range});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Text(range, style: const TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
   }
 }

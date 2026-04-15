@@ -370,7 +370,7 @@ class PaywallBottomSheet extends ConsumerWidget {
     // (機能名, 無料, プレミアム)
     const features = [
       ('例文生成 / クイズ', '最大2回/日', '最大10回/日'),
-      ('学べる単語', '300語まで', '最大1万語'),
+      ('学べる単語', '100語まで', '最大1万語'),
     ];
 
     return Container(
