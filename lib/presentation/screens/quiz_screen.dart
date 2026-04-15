@@ -86,6 +86,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             '正答率: ${stats.accuracyPercent}%',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
+          const SizedBox(width: 16),
+          Icon(Icons.local_fire_department,
+              size: 18, color: const Color(0xFF7F0000)),
+          const SizedBox(width: 4),
+          Text(
+            '${stats.currentStreak}日継続',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
         ],
       ),
     );
