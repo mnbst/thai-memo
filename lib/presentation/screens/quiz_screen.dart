@@ -38,9 +38,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       if (next is QuizAnswering && next.index == 0 && prev is! QuizAnswering) {
         final vocab =
             ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
-        if (vocab > 0) {
-          setState(() => _vocabBeforeQuiz = vocab);
-        }
+        setState(() => _vocabBeforeQuiz = vocab);
       }
     });
   }
@@ -582,7 +580,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           ),
         );
       },
-      loading: () => const SizedBox.shrink(),
+      loading: () => Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '語彙スコアを計算中...',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
