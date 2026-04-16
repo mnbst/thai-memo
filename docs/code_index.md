@@ -97,9 +97,6 @@ lib/presentation/providers/subscription_provider.dart
 lib/presentation/providers/settings_provider.dart
 ユーザー設定（テーマ、生成パラメータ、通知設定）。
 
-lib/presentation/providers/ad_provider.dart
-AdMobバナー/インタースティシャル広告状態（premium時は非表示）。
-
 lib/presentation/providers/tts_provider.dart
 タイ語発音再生のText-to-Speechサービス。
 
@@ -147,9 +144,6 @@ lib/presentation/tone_explanation_dialog.dart
 
 lib/services/purchase_service.dart
 アプリ内課金（iOS/Android）とサブスクリプション検証。
-
-lib/services/admob_service.dart
-AdMob広告管理（サブスク状態に応じた表示制御）。
 
 lib/services/tts_service.dart
 タイ語発音のText-to-Speechエンジン。
