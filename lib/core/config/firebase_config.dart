@@ -19,6 +19,4 @@ class FirebaseConfig {
   /// Timeout for batch generation (longer due to parallel processing)
   static const Duration batchFunctionTimeout = Duration(seconds: 300);
 
-  // AdMob test IDs
-  static const String admobBannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111';
 }
