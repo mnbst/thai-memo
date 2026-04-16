@@ -65,9 +65,6 @@ dependencies:
   shared_preferences: ^2.1.1
   uuid: ^4.5.3
 
-  # Monetization
-  google_mobile_ads: ^7.0.0
-
   # In-App Purchase
   in_app_purchase: ^3.2.0
   url_launcher: ^6.3.2

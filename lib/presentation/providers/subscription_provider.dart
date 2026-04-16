@@ -22,7 +22,6 @@
 /// - purchase_service.dart: ストア決済処理（購入・復元・検証依頼）
 /// - paywall_screen.dart: プレミアムプラン購入 UI
 /// - generation_constants.dart: Free/Premium のパラメータ制限値
-/// - ad_provider.dart: Premium 時の広告非表示制御
 library;
 
 import 'dart:async';
