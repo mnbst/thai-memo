@@ -79,6 +79,7 @@ _IPA_TO_ROMAN: list[tuple[str, str]] = [
 # ─── 母音文字の集合 ───
 # 声調記号を付加する位置（最初の母音）を特定するために使用
 _VOWELS = set("aeiouɔɛəʉ")
+_SILENT_THAI_MARKS = "\u0e2f"  # ฯ (paiyannoi): abbreviation mark, not pronounced in words like กรุงเทพฯ
 
 
 def _add_tone(syllable: str, tone: str) -> str:
@@ -169,15 +170,24 @@ def thai_to_pronunciation(thai_text: str) -> str:
         str: 声調記号付きのローマ字表記。音節はハイフンで区切られる。
              Unicode NFC 正規化済み。
     """
-    # TLTK でタイ文字を IPA に変換し、文区切り記号を除去
-    ipa = tltk.nlp.th2ipa(thai_text).replace("<s/>", "").strip()
+    # TLTK treats the Thai abbreviation mark ฯ as the word "paiyannoi".
+    # In learner-facing pronunciations like กรุงเทพฯ, it should stay silent.
+    normalized_text = thai_text.translate(str.maketrans("", "", _SILENT_THAI_MARKS))
+
+    # TLTK でタイ文字を IPA に変換し、文区切り記号ごとに分割
+    ipa = tltk.nlp.th2ipa(normalized_text).strip()
 
     # IPA をピリオドで音節に分割（TLTK の出力形式）
-    syllables = [s.strip() for s in ipa.split(".") if s.strip()]
+    segments = []
+    for raw_segment in ipa.split("<s/>"):
+        syllables = [s.strip() for s in raw_segment.split(".") if s.strip()]
+        if not syllables:
+            continue
+        segments.append("-".join(_convert_syllable(s) for s in syllables))
 
-    # 各音節をローマ字に変換し、ハイフンで結合
+    # 各音節をローマ字に変換し、同一セグメント内はハイフン、文区切りはスペースで結合
     # Unicode NFC 正規化: 結合文字（声調記号）と基底文字を正規化して
     # 文字列の一貫性を保証する
     return unicodedata.normalize(
-        "NFC", "-".join(_convert_syllable(s) for s in syllables)
+        "NFC", " ".join(segments)
     )

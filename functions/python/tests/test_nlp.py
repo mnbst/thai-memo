@@ -39,6 +39,7 @@ class TestPronunciation:
             ("เหมือน", "mʉ̌ʉan"),
             ("สุดท้าย", "sùt-tháai"),
             ("คำตอบ", "kham-tɔ̀ɔp"),
+            ("กรุงเทพฯ", "krung-thêep"),
         ],
     )
     def test_multi_syllable(self, thai: str, expected: str) -> None:
@@ -59,10 +60,18 @@ class TestPronunciation:
             ("ยา", "yaa"),
             ("อยู่", "yùu"),
             ("อย่าง", "yàang"),
+            ("ชีวิตในกรุงเทพฯ", "chii-wít-nai-krung-thêep"),
+            ("ชีวิตในกรุงเทพฯ สนุกมาก", "chii-wít-nai-krung-thêep sà-nùk-mâak"),
         ],
     )
     def test_phrase(self, thai: str, expected: str) -> None:
         assert thai_to_pronunciation(thai) == expected
+
+    def test_thai_abbreviation_mark_is_silent(self) -> None:
+        assert thai_to_pronunciation("ฯ") == ""
+
+    def test_tltk_sentence_boundary_is_preserved_as_space(self) -> None:
+        assert thai_to_pronunciation("กรุงเทพ สนุกมาก") == "krung-thêep sà-nùk-mâak"
 
     def test_empty_string(self) -> None:
         result = thai_to_pronunciation("")

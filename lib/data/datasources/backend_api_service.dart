@@ -3,7 +3,7 @@
 // バックエンドAPI通信サービス。
 // Firebase Cloud Functionsと通信し、以下の機能を提供する:
 //   - generateThaiSentence: Gemini AIによるタイ語例文生成
-//   - generateQuiz: Gemini AIによる穴埋めクイズ生成
+//   - generateQuiz: OpenAIによる穴埋めクイズ生成
 //   - review_queue: Firestoreから復習対象の問題数を取得
 //
 // データフロー（例文生成）:

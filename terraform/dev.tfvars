@@ -1,6 +1,7 @@
 project_id                    = "thai-memo-dev"
 region                        = "asia-northeast1"
 gemini_api_key                = "AIzaSyAclzCd2WYwhpRhI_RTRPWLpL1hoJ4BtPA"
+openai_api_key                = "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"
 firebase_project_display_name = "Thai Memo Dev"
 google_client_id              = "147810088545-4921rt150m9jtjate82nbol5q8hgoj3l.apps.googleusercontent.com"
 google_client_secret          = "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"

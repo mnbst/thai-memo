@@ -4,26 +4,21 @@
 このファイルでは、タイ語例文生成に使用する各種定数を定義しています。
 
 定義内容:
-  - Gemini AI モデル名とAPIパラメータ（温度、最大トークン数）
+  - OpenAI モデル名とAPIパラメータ（最大トークン数）
   - 例文生成に使用する選択肢リスト（トピック、文体、丁寧さ、文法、感情等）
   - 無料/有料ティアごとの選択肢サブセット
-  - Gemini API レスポンスの JSON スキーマ定義
+  - OpenAI Responses API レスポンスの JSON Schema 定義
 
 例文生成時、これらのリストからランダムに選択するか、
 ユーザーが指定したパラメータを使用してプロンプトを構築します。
 """
 
-from google.genai import types
-
-# ─── Gemini AI モデル設定 ───
-# 無料ティア用: 軽量・高速な lite モデル
-GEMINI_MODEL = "gemini-2.5-flash"
-# 有料ティア用: 高品質な標準モデル
-GEMINI_MODEL_PREMIUM = "gemini-2.5-flash"
+# ─── OpenAI モデル設定 ───
+# クイズ生成側と同じモデルを使う。
+OPENAI_MODEL = "gpt-5.4-mini"
+OPENAI_MODEL_PREMIUM = "gpt-5.4-mini"
 
 # ─── API パラメータ ───
-# 温度（0.0〜1.0）: 高いほど多様な出力が得られる。0.8は創造的な例文生成に適した値
-API_TEMPERATURE = 0.8
 # 最大出力トークン数: JSON形式のレスポンス（例文＋単語分解＋コンテキスト）に十分な量
 API_MAX_TOKENS = 8192
 
@@ -108,50 +103,73 @@ EMOTIONS = [
 ]
 
 
-# ─── Gemini API レスポンススキーマ ───
-# Gemini API のレスポンスが準拠すべき JSON スキーマを定義する。
+# ─── OpenAI Responses API レスポンススキーマ ───
+# OpenAI の structured outputs が準拠すべき JSON Schema を定義する。
 # これにより、構造化されたタイ語例文データが確実に返却される。
-RESPONSE_SCHEMA = types.Schema(
-    type=types.Type.OBJECT,
-    properties={
-        # タイ語の例文テキスト（例: "สวัสดีครับ"）
-        "thai_text": types.Schema(type=types.Type.STRING),
-        # 日本語訳（例: "こんにちは"）
-        "japanese_translation": types.Schema(type=types.Type.STRING),
-        # 単語分解: 例文を構成する各単語とその意味のリスト
-        "word_breakdown": types.Schema(
-            type=types.Type.ARRAY,
-            items=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    # タイ語の単語（例: "สวัสดี"）
-                    "word": types.Schema(type=types.Type.STRING),
-                    # 単語の日本語の意味（例: "こんにちは、さようなら"）
-                    "meaning": types.Schema(
-                        type=types.Type.STRING,
-                        description="単語の意味を必ず日本語で記述すること（英語不可）",
-                    ),
+RESPONSE_JSON_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "thai_text": {
+            "type": "string",
+            "description": "タイ語の例文テキスト（例: สวัสดีครับ）",
+        },
+        "japanese_translation": {
+            "type": "string",
+            "description": "日本語訳（例: こんにちは）",
+        },
+        "word_breakdown": {
+            "type": "array",
+            "description": "例文を構成する各単語と日本語の意味。最大15件。",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "word": {
+                        "type": "string",
+                        "description": "タイ語の単語（例: สวัสดี）",
+                    },
+                    "meaning": {
+                        "type": "string",
+                        "description": "単語の意味を必ず日本語で記述すること（英語不可）",
+                    },
                 },
-                required=["word", "meaning"],
-            ),
-        ),
-        # コンテキスト情報: 例文の使用場面や文化的背景
-        "context": types.Schema(
-            type=types.Type.OBJECT,
-            properties={
-                # トピック（例: "あいさつ"）
-                "topic": types.Schema(type=types.Type.STRING),
-                # 文体（例: "丁寧語"）
-                "style": types.Schema(type=types.Type.STRING),
-                # 感情（例: "中立"）
-                "emotion": types.Schema(type=types.Type.STRING),
-                # 使用場面の説明（例: "初対面の挨拶で使用"）
-                "usage_scenarios": types.Schema(type=types.Type.STRING),
-                # 文化的な補足情報（例: "タイでは年長者にはครับ/ค่ะをつける"）
-                "cultural_notes": types.Schema(type=types.Type.STRING),
+                "required": ["word", "meaning"],
             },
-            required=["topic", "style", "emotion", "usage_scenarios", "cultural_notes"],
-        ),
+        },
+        "context": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "トピック（例: あいさつ）",
+                },
+                "style": {
+                    "type": "string",
+                    "description": "文体（例: 丁寧語）",
+                },
+                "emotion": {
+                    "type": "string",
+                    "description": "感情・トーン（例: 中立）",
+                },
+                "usage_scenarios": {
+                    "type": "string",
+                    "description": "使用場面の説明。50文字以内。",
+                },
+                "cultural_notes": {
+                    "type": "string",
+                    "description": "文化的な補足情報。50文字以内。",
+                },
+            },
+            "required": [
+                "topic",
+                "style",
+                "emotion",
+                "usage_scenarios",
+                "cultural_notes",
+            ],
+        },
     },
-    required=["thai_text", "japanese_translation", "word_breakdown", "context"],
-)
+    "required": ["thai_text", "japanese_translation", "word_breakdown", "context"],
+}

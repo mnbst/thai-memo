@@ -36,6 +36,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
+  bool _initialLoadCompleted = false;
 
   @override
   void initState() {
@@ -74,6 +75,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
   Future<void> _checkAndReloadIfNeeded() async {
+    // 初回ロードが完了する前はスキップ（_checkFirstLaunchAndLoadSentenceとの二重生成を防ぐ）
+    if (!_initialLoadCompleted) return;
+
     // 生成中ならスキップ
     final currentState = ref.read(sentenceControllerProvider);
     if (currentState is SentenceStateLoading) {
@@ -129,6 +133,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
           dailySentenceGenerated: isGenerated,
         );
+
+    _initialLoadCompleted = true;
 
     if (!mounted) return;
 
@@ -496,9 +502,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   /// Build vocab stats card
   Widget _buildVocabStats(BuildContext context) {
     final statsAsync = ref.watch(vocabStatsProvider);
+    final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
+            ref.watch(isPremiumProvider)) ==
+        true;
     return statsAsync.when(
       data: (stats) {
         final onContainer = Theme.of(context).colorScheme.onPrimaryContainer;
+        final displayVocab =
+            isPremium ? stats.estimatedVocab : stats.estimatedVocab.clamp(0, 100);
         final level = _vocabLevel(stats.estimatedVocab);
         return Card(
           color: Theme.of(context).colorScheme.primaryContainer,
@@ -523,7 +534,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '${stats.estimatedVocab}',
+                    '$displayVocab',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           color: onContainer,
                           fontWeight: FontWeight.bold,

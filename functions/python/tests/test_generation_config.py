@@ -1,21 +1,32 @@
-"""_make_generation_config のテスト。"""
+"""OpenAI Responses API payload のテスト。"""
 
 import pytest
-from sentence_service import _make_generation_config
-from constants import GEMINI_MODEL, GEMINI_MODEL_PREMIUM, API_TEMPERATURE, API_MAX_TOKENS
+
+from constants import API_MAX_TOKENS, OPENAI_MODEL, OPENAI_MODEL_PREMIUM
+from sentence_service import _make_generation_payload
 
 
-class TestMakeGenerationConfig:
-    @pytest.mark.parametrize("model", [GEMINI_MODEL, GEMINI_MODEL_PREMIUM])
+class TestMakeGenerationPayload:
+    @pytest.mark.parametrize("model", [OPENAI_MODEL, OPENAI_MODEL_PREMIUM])
     def test_common_params(self, model):
-        config = _make_generation_config(model)
-        assert config.temperature == API_TEMPERATURE
-        assert config.max_output_tokens == API_MAX_TOKENS
-        assert config.response_mime_type == "application/json"
+        payload = _make_generation_payload(model, "prompt")
 
-    @pytest.mark.parametrize("model", [GEMINI_MODEL, GEMINI_MODEL_PREMIUM])
-    def test_thinking_config(self, model):
-        """thinking_budget=256 が設定されていること。"""
-        config = _make_generation_config(model)
-        assert config.thinking_config is not None
-        assert config.thinking_config.thinking_budget == 256
+        assert payload["model"] == model
+        assert payload["input"] == [{"role": "user", "content": "prompt"}]
+        assert payload["max_output_tokens"] == API_MAX_TOKENS
+        assert payload["reasoning"]["effort"] == "low"
+
+    @pytest.mark.parametrize("model", [OPENAI_MODEL, OPENAI_MODEL_PREMIUM])
+    def test_json_schema_format(self, model):
+        payload = _make_generation_payload(model, "prompt")
+        fmt = payload["text"]["format"]
+
+        assert fmt["type"] == "json_schema"
+        assert fmt["name"] == "thai_sentence_response"
+        assert fmt["strict"] is True
+        assert fmt["schema"]["required"] == [
+            "thai_text",
+            "japanese_translation",
+            "word_breakdown",
+            "context",
+        ]

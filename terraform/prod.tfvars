@@ -1,6 +1,7 @@
 project_id                    = "thai-memo-prod"
 region                        = "asia-northeast1"
 gemini_api_key                = "AIzaSyAclzCd2WYwhpRhI_RTRPWLpL1hoJ4BtPA"
+openai_api_key                = "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"
 firebase_project_display_name = "Thai Memo Prod"
 google_client_id              = "219961294368-6lf7vceshitof77mflvjm0jujcbok68j.apps.googleusercontent.com" # TODO: GCP Console > APIs & Services > Credentials から取得
 google_client_secret          = "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"                                      # TODO: 同上

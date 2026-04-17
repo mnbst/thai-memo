@@ -38,9 +38,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       if (next is QuizAnswering && next.index == 0 && prev is! QuizAnswering) {
         final vocab =
             ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
-        if (vocab > 0) {
-          setState(() => _vocabBeforeQuiz = vocab);
-        }
+        setState(() => _vocabBeforeQuiz = vocab);
       }
     });
   }
@@ -528,11 +526,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   Widget _buildVocabTransitionCard(BuildContext context, int before) {
     final vocabAsync = ref.watch(vocabStatsProvider);
+    final isPremium = ref.watch(isPremiumProvider);
     return vocabAsync.when(
       data: (vocab) {
-        final after = vocab.estimatedVocab;
+        final cap = isPremium ? (1 << 31) : 100;
+        final after = vocab.estimatedVocab.clamp(0, cap);
+        final displayBefore = before.clamp(0, cap);
         if (after == 0) return const SizedBox.shrink();
-        final diff = after - before;
+        final diff = after - displayBefore;
         return Card(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -544,7 +545,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      '$before語',
+                      '$displayBefore語',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color:
                                 Theme.of(context).colorScheme.onSurfaceVariant,
@@ -577,12 +578,78 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         ),
                   ),
                 ],
+                if (!isPremium && after >= 100) ...[
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () => PaywallBottomSheet.show(
+                      context,
+                      source: 'quiz_vocab_cap_banner',
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.emoji_events,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '語彙スコアが上限に達しました',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                'Premiumで続きの成長を記録しよう',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         );
       },
-      loading: () => const SizedBox.shrink(),
+      loading: () => Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '語彙スコアを計算中...',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
