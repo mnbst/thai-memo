@@ -37,7 +37,7 @@ class QuizPending extends QuizState {
   const QuizPending(this.questionCount);
 }
 
-/// クイズ生成中（Gemini API呼び出し中）
+/// クイズ生成中（OpenAI呼び出し中）
 class QuizGenerating extends QuizState {
   const QuizGenerating();
 }

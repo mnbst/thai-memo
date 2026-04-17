@@ -1,17 +1,17 @@
 /**
- * generateQuiz.ts — Gemini AI によるタイ語穴埋めクイズ生成
+ * generateQuiz.ts — OpenAI によるタイ語穴埋めクイズ生成
  *
  * 「まいにちタイ語」アプリのクイズ機能のバックエンド。
  * クライアントから onCall で呼び出され、ユーザーの学習済み例文から
  * SRS（間隔反復）アルゴリズムでリアルタイムに復習対象を選出し、
- * Google Gemini AI で穴埋め形式のクイズ問題を生成して返却する。
+ * OpenAI で穴埋め形式のクイズ問題を生成して返却する。
  *
  * 【処理フロー】
  * 1. Firebase Auth 認証チェック
  * 2. クイズ生成クォータチェック（5回/12時間、JST 0:00/12:00リセット）
  * 3. ユーザーの例文からSRSベースでリアルタイムに復習対象を選出（最大5文）
- * 4. ランダムに5問を抽出し、Gemini API で穴埋め問題を生成
- * 5. 5問未満ならデフォルト例文（DEFAULT_SENTENCES）から Gemini 生成して補填
+ * 4. 5問分の生成元を先に揃え、OpenAI で穴埋め問題を一括生成
+ * 5. 生成失敗分のみ OpenAI で一括リトライ
  * 6. ユーザー例文がない場合はデフォルト例文のみで5問生成
  *
  * 【穴埋めクイズの形式】
@@ -23,11 +23,16 @@
  * タイムアウト: 90秒 / メモリ: 512MiB
  */
 import * as functions from 'firebase-functions/v2';
+import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { GeminiService, QuizQuestion, QuizQuestionsResponse } from './services/geminiService';
-import { getGeminiApiKey } from './services/secretManager';
+import { OpenAiQuizService } from './services/openAiQuizService';
+import { getOpenAiApiKey } from './services/secretManager';
+import { QuizGenerationService, QuizQuestion, QuizQuestionsResponse } from './services/quizGenerationService';
 import { DEFAULT_SENTENCES, DefaultSentence } from './constants/defaultQuizQuestions';
-import { GEMINI_MODEL_FREE, GEMINI_MODEL_PREMIUM } from './config/constants';
+import {
+  OPENAI_MODEL_FREE,
+  OPENAI_MODEL_PREMIUM,
+} from './config/constants';
 import { nowJST } from './utils/formatDate';
 
 
@@ -36,6 +41,10 @@ const db = admin.firestore();
 
 /** 1回のクイズ生成で出題する最大問題数 */
 const MAX_QUESTIONS = 5;
+/** JST オフセット（ms） */
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+/** Firestore から取得するユーザー例文の上限数 */
+const MAX_USER_SENTENCES_FETCH = 50;
 /** UVM 未登録語に使う既定の P 値。Python 側の UNKNOWN_WORD_P と揃える。 */
 const UNKNOWN_WORD_P = 0.3;
 
@@ -72,8 +81,8 @@ async function consumeQuizQuota(userRef: FirebaseFirestore.DocumentReference): P
  * クライアントからの呼び出しで穴埋めクイズを生成して返却する。
  * 1. 認証チェック + クイズ生成クォータチェック（5回/12時間、JST 0:00/12:00リセット）
  * 2. ユーザー例文をSRSルールでリアルタイム選出（最大5文）
- * 3. 選出結果からランダムに5問を抽出し、Gemini APIで穴埋め問題を生成
- * 4. 5問未満ならデフォルト例文からGemini生成して補填
+ * 3. 選出結果と補填候補から最大5問分の生成元を作成
+ * 4. OpenAIで穴埋め問題を一括生成
  * 5. ユーザー例文がない場合はデフォルト例文のみで5問生成
  *
  * リージョン: asia-northeast1 / タイムアウト: 90秒 / メモリ: 512MiB
@@ -103,11 +112,8 @@ export const generateQuiz = functions.https.onCall(
       throw new functions.https.HttpsError('resource-exhausted', 'この時間帯のクイズ生成上限に達しました');
     }
 
-    // GCP Secret Manager から Gemini API キーを取得
-    const apiKey = await getGeminiApiKey();
     const isPremium = userData.tier === 'premium';
-    const geminiModel = isPremium ? GEMINI_MODEL_PREMIUM : GEMINI_MODEL_FREE;
-    const geminiService = new GeminiService(apiKey, geminiModel);
+    const quizGenerationService = await createQuizGenerationService(isPremium);
     const estimatedVocab: number = userData.estimated_vocab ?? 0;
 
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
@@ -115,44 +121,14 @@ export const generateQuiz = functions.https.onCall(
 
     // ユーザー例文がない場合（初回登録直後など）→ デフォルト例文からクイズ生成
     if (selectedSentences.length === 0) {
-      const result = await generateFromDefaults(geminiService, uid, estimatedVocab);
+      const result = await generateFromDefaults(quizGenerationService, uid, estimatedVocab);
       await consumeQuizQuota(userRef);
       return result;
     }
 
-    // 選出された例文からランダム5問を抽出
-    const shuffled = [...selectedSentences].sort(() => Math.random() - 0.5);
-    const picked = shuffled.slice(0, MAX_QUESTIONS);
-
     try {
-      // 各例文を1問ずつ並列で Gemini API に投げてクイズ生成（key_word 不一致時はエラー）
-      const results = await Promise.all(
-        picked.map(async (s) => {
-          const q = await generateSingleQuiz(geminiService, {
-            thai_text: s.data.thai_text,
-            pronunciation: s.data.pronunciation,
-            japanese_translation: s.data.japanese_translation,
-            word_breakdown: s.data.word_breakdown || [],
-            key_word: s.data.key_word,
-          });
-          if (!q) return null;
-          return {
-            ...q,
-            sentence_id: s.id,
-            srs_interval: s.srsInterval,
-            japanese_translation: s.data.japanese_translation || '',
-            sentence_pronunciation: s.data.pronunciation || '',
-          } as QuizQuestion;
-        })
-      );
-      let questions = results.filter((q): q is QuizQuestion => q !== null);
-
-      // 5問未満ならデフォルト例文からGemini生成して補填
-      // picked の全 ID（失敗分含む）を除外リストとして渡す（再選出を防ぐ）
-      if (questions.length < MAX_QUESTIONS) {
-        const attemptedIds = new Set(picked.map(s => s.id));
-        questions = await fillWithDefaults(geminiService, questions, uid, estimatedVocab, attemptedIds);
-      }
+      const sources = await buildQuizSourcesForGeneration(selectedSentences, uid, estimatedVocab);
+      const questions = await generateQuestionsFromSources(quizGenerationService, sources);
 
       // クイズ生成残回数をアトミックにデクリメント
       await consumeQuizQuota(userRef);
@@ -168,16 +144,26 @@ export const generateQuiz = functions.https.onCall(
   }
 );
 
+async function createQuizGenerationService(isPremium: boolean): Promise<QuizGenerationService> {
+  const apiKey = await getOpenAiApiKey();
+  const model = isPremium ? OPENAI_MODEL_PREMIUM : OPENAI_MODEL_FREE;
+  return new OpenAiQuizService(apiKey, model);
+}
+
 /**
- * generateFromDefaults - デフォルト例文から effective P の低い順に5問を Gemini で生成
+ * generateFromDefaults - デフォルト例文から effective P の低い順に5問を生成
  *
  * ユーザー例文がない場合（初回登録直後など）のフォールバック処理。
  *
- * @param geminiService - Gemini API を呼び出すサービスインスタンス
+ * @param quizGenerationService - クイズ生成AIサービスインスタンス
  * @param uid - ユーザーID（UVM P値取得用）
  * @returns クイズ問題の配列を含むオブジェクト
  */
-async function generateFromDefaults(geminiService: GeminiService, uid: string, estimatedVocab: number): Promise<{ questions: QuizQuestion[] }> {
+async function generateFromDefaults(
+  quizGenerationService: QuizGenerationService,
+  uid: string,
+  estimatedVocab: number,
+): Promise<{ questions: QuizQuestion[] }> {
   // デフォルト例文から「帯域内 → effective P 昇順 → estimated_vocab 近傍」順に5問選出
   const sorted = await sortDefaultsByPriority(uid, DEFAULT_SENTENCES, undefined, estimatedVocab);
   const selected = shuffleTopCandidates(sorted, MAX_QUESTIONS);
@@ -185,7 +171,7 @@ async function generateFromDefaults(geminiService: GeminiService, uid: string, e
   try {
     return {
       questions: await generateQuestionsFromSources(
-        geminiService,
+        quizGenerationService,
         selected.map((sentence) => ({
           seed: {
             thai_text: sentence.thai_text,
@@ -208,84 +194,75 @@ async function generateFromDefaults(geminiService: GeminiService, uid: string, e
 }
 
 /**
- * fillWithDefaults - 5問未満の場合にデフォルト例文から Gemini 生成して補填
+ * buildQuizSourcesForGeneration - 生成前に最大5問分の元例文を揃える
  *
- * デフォルト例文の帯域内候補が不足する場合は、ユーザー例文を UVM P値昇順で補填する。
- * Gemini 生成が失敗した場合は既存の問題のみで返却する（部分的成功を許容）。
+ * LLM呼び出しを1回にまとめるため、SRS選出分と不足補填分を先に結合する。
  */
-async function fillWithDefaults(
-  geminiService: GeminiService,
-  existing: QuizQuestion[],
+async function buildQuizSourcesForGeneration(
+  selectedSentences: SelectedSentence[],
   uid: string,
   estimatedVocab: number,
-  excludeIds: Set<string> = new Set(),
-): Promise<QuizQuestion[]> {
-  const needed = MAX_QUESTIONS - existing.length;
-  if (needed <= 0) return existing;
+): Promise<QuizSeedSource[]> {
+  const selectedSources = [...selectedSentences]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, MAX_QUESTIONS)
+    .map(toQuizSeedSourceFromSelected);
 
-  const usedIds = new Set([...existing.map(q => q.sentence_id), ...excludeIds]);
+  return fillQuizSourcesBeforeGeneration(selectedSources, uid, estimatedVocab);
+}
+
+async function fillQuizSourcesBeforeGeneration(
+  existingSources: QuizSeedSource[],
+  uid: string,
+  estimatedVocab: number,
+): Promise<QuizSeedSource[]> {
+  const needed = MAX_QUESTIONS - existingSources.length;
+  if (needed <= 0) return existingSources.slice(0, MAX_QUESTIONS);
+
+  const usedIds = new Set(existingSources.map(source => source.sentenceId));
   const available = DEFAULT_SENTENCES.filter(s => !usedIds.has(s.sentence_id));
   const sorted = await sortDefaultsByPriority(uid, available, undefined, estimatedVocab);
   const candidates = shuffleTopCandidates(sorted, needed);
 
-  let questions = existing;
+  let sources = [
+    ...existingSources,
+    ...candidates.map(toQuizSeedSourceFromDefault),
+  ];
 
-  if (candidates.length > 0) {
-    try {
-      const fillerQuestions = await generateQuestionsFromSources(
-        geminiService,
-        candidates.map((sentence) => ({
-          seed: {
-            thai_text: sentence.thai_text,
-            pronunciation: sentence.pronunciation,
-            japanese_translation: sentence.japanese_translation,
-            word_breakdown: [],
-            key_word: sentence.key_word,
-          },
-          sentenceId: sentence.sentence_id,
-          srsInterval: 0,
-          japaneseTranslation: sentence.japanese_translation,
-          sentencePronunciation: sentence.pronunciation,
-        }))
-      );
-      questions = [...existing, ...fillerQuestions];
-    } catch (error) {
-      console.error('Failed to generate filler quiz from defaults:', error);
-    }
+  if (sources.length < MAX_QUESTIONS) {
+    sources = await fillQuizSourcesWithUserSentencesByP(
+      sources,
+      uid,
+      MAX_QUESTIONS - sources.length,
+    );
   }
 
-  // デフォルト例文で不足する場合はユーザー例文（UVM P値昇順）で補填
-  if (questions.length < MAX_QUESTIONS) {
-    questions = await fillWithUserSentencesByP(geminiService, questions, uid, needed - (questions.length - existing.length), usedIds);
-  }
-
-  return questions;
+  return sources.slice(0, MAX_QUESTIONS);
 }
 
 /**
- * fillWithUserSentencesByP - ユーザー例文を UVM P値昇順で補填
+ * fillQuizSourcesWithUserSentencesByP - ユーザー例文を UVM P値昇順で補填
  *
  * デフォルト例文の帯域内候補が不足した場合のフォールバック。
  * UVM P値が最も低い（最も苦手な）ユーザー例文を優先して出題する。
  */
-async function fillWithUserSentencesByP(
-  geminiService: GeminiService,
-  existing: QuizQuestion[],
+async function fillQuizSourcesWithUserSentencesByP(
+  existingSources: QuizSeedSource[],
   uid: string,
   needed: number,
-  excludeIds: Set<string> = new Set(),
-): Promise<QuizQuestion[]> {
-  if (needed <= 0) return existing;
+): Promise<QuizSeedSource[]> {
+  if (needed <= 0) return existingSources;
 
-  const usedIds = new Set([...existing.map(q => q.sentence_id), ...excludeIds]);
+  const usedIds = new Set(existingSources.map(source => source.sentenceId));
 
   const snapshot = await db
     .collection('users').doc(uid)
     .collection('sentences')
     .orderBy('created_at', 'desc')
+    .limit(MAX_USER_SENTENCES_FETCH)
     .get();
 
-  if (snapshot.empty) return existing;
+  if (snapshot.empty) return existingSources;
 
   const keyWords = new Set<string>();
   for (const doc of snapshot.docs) {
@@ -303,33 +280,15 @@ async function fillWithUserSentencesByP(
     })
     .slice(0, needed);
 
-  if (candidates.length === 0) return existing;
+  if (candidates.length === 0) return existingSources;
 
-  try {
-    const fillerQuestions = await generateQuestionsFromSources(
-      geminiService,
-      candidates.map(doc => ({
-        seed: {
-          thai_text: doc.data().thai_text,
-          pronunciation: doc.data().pronunciation,
-          japanese_translation: doc.data().japanese_translation,
-          word_breakdown: doc.data().word_breakdown || [],
-          key_word: doc.data().key_word,
-        },
-        sentenceId: doc.id,
-        srsInterval: -1,
-        japaneseTranslation: doc.data().japanese_translation || '',
-        sentencePronunciation: doc.data().pronunciation || '',
-      }))
-    );
-    return [...existing, ...fillerQuestions];
-  } catch (error) {
-    console.error('Failed to generate filler quiz from user sentences:', error);
-    return existing;
-  }
+  return [
+    ...existingSources,
+    ...candidates.map(toQuizSeedSourceFromUserDoc),
+  ];
 }
 
-// ==================== 単問生成 + key_word バリデーション ====================
+// ==================== 一括生成 + key_word バリデーション ====================
 
 interface QuizSeed {
   thai_text: string;
@@ -352,6 +311,57 @@ interface SentenceWithDays {
   diffDays: number;
 }
 
+function toQuizSeedSourceFromSelected(sentence: SelectedSentence): QuizSeedSource {
+  return {
+    seed: {
+      thai_text: sentence.data.thai_text,
+      pronunciation: sentence.data.pronunciation,
+      japanese_translation: sentence.data.japanese_translation,
+      word_breakdown: sentence.data.word_breakdown || [],
+      key_word: sentence.data.key_word,
+    },
+    sentenceId: sentence.id,
+    srsInterval: sentence.srsInterval,
+    japaneseTranslation: sentence.data.japanese_translation || '',
+    sentencePronunciation: sentence.data.pronunciation || '',
+  };
+}
+
+function toQuizSeedSourceFromDefault(sentence: DefaultSentence): QuizSeedSource {
+  return {
+    seed: {
+      thai_text: sentence.thai_text,
+      pronunciation: sentence.pronunciation,
+      japanese_translation: sentence.japanese_translation,
+      word_breakdown: [],
+      key_word: sentence.key_word,
+    },
+    sentenceId: sentence.sentence_id,
+    srsInterval: 0,
+    japaneseTranslation: sentence.japanese_translation,
+    sentencePronunciation: sentence.pronunciation,
+  };
+}
+
+function toQuizSeedSourceFromUserDoc(
+  doc: FirebaseFirestore.QueryDocumentSnapshot,
+): QuizSeedSource {
+  const data = doc.data();
+  return {
+    seed: {
+      thai_text: data.thai_text,
+      pronunciation: data.pronunciation,
+      japanese_translation: data.japanese_translation,
+      word_breakdown: data.word_breakdown || [],
+      key_word: data.key_word,
+    },
+    sentenceId: doc.id,
+    srsInterval: -1,
+    japaneseTranslation: data.japanese_translation || '',
+    sentencePronunciation: data.pronunciation || '',
+  };
+}
+
 function shuffleTopCandidates<T>(candidates: T[], count: number): T[] {
   return [...candidates.slice(0, count)].sort(() => Math.random() - 0.5);
 }
@@ -360,8 +370,11 @@ function toQuizQuestion(
   question: QuizQuestionsResponse['questions'][number],
   source: QuizSeedSource,
 ): QuizQuestion {
+  const clientQuestion = { ...question };
+  delete clientQuestion.source_index;
+
   return {
-    ...question,
+    ...clientQuestion,
     sentence_id: source.sentenceId,
     srs_interval: source.srsInterval,
     japanese_translation: source.japaneseTranslation,
@@ -370,56 +383,141 @@ function toQuizQuestion(
 }
 
 async function generateQuestionsFromSources(
-  geminiService: GeminiService,
+  quizGenerationService: QuizGenerationService,
   sources: QuizSeedSource[],
 ): Promise<QuizQuestion[]> {
-  const results = await Promise.all(
-    sources.map(async (source) => {
-      const question = await generateSingleQuiz(geminiService, source.seed);
-      return question ? toQuizQuestion(question, source) : null;
-    })
-  );
+  if (sources.length === 0) return [];
 
-  return results.filter((question): question is QuizQuestion => question !== null);
+  const questionsBySource: Array<QuizQuestion | null> = Array(sources.length).fill(null);
+  const firstAttempt = await generateBatchQuizQuestions(quizGenerationService, sources, 0);
+  for (const result of firstAttempt) {
+    questionsBySource[result.sourcePosition] = result.question;
+  }
+
+  const retrySourcePositions = questionsBySource
+    .map((question, sourcePosition) => question ? null : sourcePosition)
+    .filter((sourcePosition): sourcePosition is number => sourcePosition !== null);
+
+  if (retrySourcePositions.length > 0) {
+    logger.warn('Batch quiz generation retrying failed sources', {
+      event: 'batch_quiz_generation_retrying_failed_sources',
+      requested: sources.length,
+      failed: retrySourcePositions.length,
+    });
+
+    const retrySources = retrySourcePositions.map((sourcePosition) => sources[sourcePosition]);
+    const retryAttempt = await generateBatchQuizQuestions(quizGenerationService, retrySources, 1);
+    for (const result of retryAttempt) {
+      const originalSourcePosition = retrySourcePositions[result.sourcePosition];
+      questionsBySource[originalSourcePosition] = result.question;
+    }
+  }
+
+  const skipped = questionsBySource.filter((question) => question === null).length;
+  if (skipped > 0) {
+    logger.error('Batch quiz generation skipped sources after retry', {
+      event: 'batch_quiz_generation_skipped_sources_after_retry',
+      requested: sources.length,
+      skipped,
+    });
+  }
+
+  return questionsBySource.filter((question): question is QuizQuestion => question !== null);
 }
 
 /**
- * 1つの例文に対して Gemini でクイズ1問を生成し、key_word 一致を検証する。
+ * 複数の例文に対してAIでクイズをまとめて生成し、source_index と key_word 一致を検証する。
  *
- * - 生成失敗やサニタイズで除外された場合は null を返す
- * - key_word 不一致時は1回リトライし、それでも不一致ならエラーを throw
+ * - 生成失敗やサニタイズで除外された問題は戻り値に含めない
+ * - key_word 不一致時は呼び出し側で1回だけリトライする
  */
-async function generateSingleQuiz(
-  geminiService: GeminiService,
-  seed: QuizSeed,
-): Promise<QuizQuestionsResponse['questions'][number] | null> {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const result = await geminiService.generateQuizQuestions([seed]);
-    const q = result.questions[0];
-    if (!q) return null;
+async function generateBatchQuizQuestions(
+  quizGenerationService: QuizGenerationService,
+  sources: QuizSeedSource[],
+  attempt: number,
+): Promise<Array<{ sourcePosition: number; question: QuizQuestion }>> {
+  const result = await quizGenerationService.generateQuizQuestions(sources.map((source) => source.seed));
+  const usedSourcePositions = new Set<number>();
+  const questions: Array<{ sourcePosition: number; question: QuizQuestion }> = [];
 
-    if (!seed.key_word || q.correct_answer.trim() === seed.key_word.trim()) {
-      return q;
+  result.questions.forEach((question, responseIndex) => {
+    const sourcePosition = resolveSourcePosition(
+      question,
+      responseIndex,
+      sources.length,
+      usedSourcePositions,
+    );
+    if (sourcePosition === null) return;
+
+    const source = sources[sourcePosition];
+    if (!matchesKeyWord(question, source.seed)) {
+      const details = {
+        expected: source.seed.key_word,
+        got: question.correct_answer,
+        sourcePosition,
+        attempt,
+      };
+      if (attempt === 0) {
+        logger.warn('key_word mismatch, will retry', {
+          event: 'quiz_key_word_mismatch_retrying',
+          ...details,
+        });
+      } else {
+        logger.error('key_word mismatch after retry, skipping', {
+          event: 'quiz_key_word_mismatch_after_retry',
+          ...details,
+        });
+      }
+      return;
     }
 
-    // 1回目の不一致はリトライ
-    if (attempt === 0) {
-      console.warn('key_word mismatch, retrying', {
-        expected: seed.key_word,
-        got: q.correct_answer,
-      });
-      continue;
-    }
+    usedSourcePositions.add(sourcePosition);
+    questions.push({
+      sourcePosition,
+      question: toQuizQuestion(question, source),
+    });
+  });
 
-    // 2回目も不一致 → この問題はスキップ（他の問題に影響させない）
-    console.error('key_word mismatch after retry, skipping', {
-      expected: seed.key_word,
-      got: q.correct_answer,
+  return questions;
+}
+
+function resolveSourcePosition(
+  question: QuizQuestionsResponse['questions'][number],
+  responseIndex: number,
+  sourceCount: number,
+  usedSourcePositions: Set<number>,
+): number | null {
+  const sourcePosition = Number.isInteger(question.source_index) ?
+    question.source_index as number :
+    responseIndex;
+
+  if (sourcePosition < 0 || sourcePosition >= sourceCount) {
+    logger.warn('Dropping quiz question due to invalid source_index', {
+      event: 'quiz_question_dropped_invalid_source_index',
+      sourceIndex: question.source_index,
+      responseIndex,
+      sourceCount,
     });
     return null;
   }
 
-  return null;
+  if (usedSourcePositions.has(sourcePosition)) {
+    logger.warn('Dropping quiz question due to duplicate source_index', {
+      event: 'quiz_question_dropped_duplicate_source_index',
+      sourceIndex: sourcePosition,
+      responseIndex,
+    });
+    return null;
+  }
+
+  return sourcePosition;
+}
+
+function matchesKeyWord(
+  question: QuizQuestionsResponse['questions'][number],
+  seed: QuizSeed,
+): boolean {
+  return !seed.key_word || question.correct_answer.trim() === seed.key_word.trim();
 }
 
 // ==================== SRS 例文選出 ====================
@@ -492,6 +590,7 @@ async function selectSentencesBySRS(
     .collection('users').doc(uid)
     .collection('sentences')
     .orderBy('created_at', 'desc')
+    .limit(MAX_USER_SENTENCES_FETCH)
     .get();
 
   if (allSentencesSnapshot.empty) return [];
@@ -512,8 +611,8 @@ async function selectSentencesBySRS(
     const createdAt = doc.data().created_at?.toDate();
     let diffDays = -1;
     if (createdAt) {
-      const jstCreated = new Date(createdAt.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-      diffDays = Math.floor((jstNowMs - jstCreated.getTime()) / (24 * 60 * 60 * 1000));
+        const jstCreatedMs = createdAt.getTime() + JST_OFFSET_MS;
+      diffDays = Math.floor((jstNowMs - jstCreatedMs) / (24 * 60 * 60 * 1000));
     }
     return { doc, diffDays };
   });

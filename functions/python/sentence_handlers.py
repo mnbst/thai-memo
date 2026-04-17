@@ -259,7 +259,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
                 "code": "INTERNAL",
                 "message": "Failed to retrieve API configuration",
             }
-        elif "GEMINI_API_ERROR" in error_msg:
+        elif "OPENAI_API_ERROR" in error_msg:
             response["error"] = {
                 "code": "API_ERROR",
                 "message": "Failed to generate sentence",
@@ -431,7 +431,7 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
                 "code": "INTERNAL",
                 "message": "Failed to retrieve API configuration",
             }
-        elif "GEMINI_API_ERROR" in error_msg:
+        elif "OPENAI_API_ERROR" in error_msg:
             response["error"] = {
                 "code": "API_ERROR",
                 "message": "Failed to generate sentences",

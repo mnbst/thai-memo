@@ -1,7 +1,7 @@
 """
 「まいにちタイ語」アプリ — プロンプト構築モジュール
 
-Gemini AI に送信するプロンプト（指示文）を構築する。
+OpenAI に送信するプロンプト（指示文）を構築する。
 free / premium ともに build_uvm_prompt を使用する。
 free ティアは estimated_vocab が 300 以下にキャップされ、
 パラメータの選択肢が制限される（トピック4種、文体2種のみ）。
@@ -82,7 +82,7 @@ def build_uvm_prompt(
         is_premium: プレミアムティアかどうか（free時はトピック・スタイルが制限される）
 
     Returns:
-        str: Gemini AI に送信するプロンプト文字列
+        str: OpenAI に送信するプロンプト文字列
     """
     diff = get_difficulty(estimated_vocab)
 
@@ -118,6 +118,8 @@ def build_uvm_prompt(
 {grammar_line}
 - 感情・トーン: {emotion}
 
+- thai_textはタイ語の自然な本文表記にし、単語ごとの分かち書きスペースを入れないでください（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）
+- 単語単位の区切りはword_breakdownで表現し、thai_text内では文末・節区切りなどタイ語として自然な空白だけを使ってください
 - 単語分解は最大15単語まで
 - 同じ単語が文中に複数回出現する場合は、出現順にすべてword_breakdownに含めてください
 - contextの各フィールドは簡潔に（各50文字以内）
@@ -132,6 +134,8 @@ def build_uvm_prompt(
 - 文体: {style}
 - 丁寧さ: {politeness}
 - 感情・トーン: {emotion}
+- thai_textはタイ語の自然な本文表記にし、単語ごとの分かち書きスペースを入れないでください（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）
+- 単語単位の区切りはword_breakdownで表現し、thai_text内では文末・節区切りなどタイ語として自然な空白だけを使ってください
 - 単語分解は最大15単語まで
 - 同じ単語が文中に複数回出現する場合は、出現順にすべてword_breakdownに含めてください
 - contextの各フィールドは簡潔に（各50文字以内）

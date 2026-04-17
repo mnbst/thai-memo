@@ -2,10 +2,16 @@ import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
 const secretClient = new SecretManagerServiceClient();
 
-export async function getGeminiApiKey(): Promise<string> {
+async function getSecretValue(secretId: string): Promise<string> {
+  const envName = secretId.toUpperCase().replace(/-/g, '_');
+  const envValue = process.env[envName]?.trim();
+  if (envValue) {
+    return envValue;
+  }
+
   try {
     const projectId = process.env.GCLOUD_PROJECT;
-    const secretName = `projects/${projectId}/secrets/gemini-api-key/versions/latest`;
+    const secretName = `projects/${projectId}/secrets/${secretId}/versions/latest`;
 
     const [version] = await secretClient.accessSecretVersion({
       name: secretName,
@@ -18,7 +24,11 @@ export async function getGeminiApiKey(): Promise<string> {
 
     return apiKey;
   } catch (error) {
-    console.error('Failed to retrieve API key from Secret Manager:', error);
+    console.error(`Failed to retrieve ${secretId} from Secret Manager:`, error);
     throw new Error('SECRET_MANAGER_ERROR');
   }
+}
+
+export async function getOpenAiApiKey(): Promise<string> {
+  return getSecretValue('openai-api-key');
 }

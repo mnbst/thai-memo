@@ -3,7 +3,7 @@
 ## 概要
 
 ユーザーの学習済み例文からSRS（間隔反復）アルゴリズムで復習対象を選出し、
-Gemini AIで穴埋め4択クイズを生成する（`generateQuiz` Cloud Function）。
+OpenAIで穴埋め4択クイズを生成する（`generateQuiz` Cloud Function）。
 
 ## 処理フロー
 
@@ -14,11 +14,11 @@ Gemini AIで穴埋め4択クイズを生成する（`generateQuiz` Cloud Functio
     ↓
 ② SRS に基づく復習対象例文の選出（最大3文）
     ↓
-③ ランダムシャッフルして最大5問抽出
+③ デフォルト例文やユーザー例文で補填し、最大5問分の生成元を確定
     ↓
-④ 各例文を並列で Gemini API に投げてクイズ1問ずつ生成
+④ 最大5問分の生成元をまとめて OpenAI に投げてクイズ生成
     ↓
-⑤ 5問未満の場合はデフォルト例文で補填
+⑤ 生成失敗分だけまとめて1回リトライ
     ↓
 ⑥ クォータデクリメント（トランザクション）
 ```
@@ -32,7 +32,7 @@ Gemini AIで穴埋め4択クイズを生成する（`generateQuiz` Cloud Functio
 
 `dailyBatch`（JS側）が毎晩 JST 基準でリセット。
 
-## ② SRS 例文選出 — `selectSentencesBySRS` (`generateQuiz.ts:415`)
+## ② SRS 例文選出 — `selectSentencesBySRS`
 
 選出の優先順位:
 
@@ -53,6 +53,7 @@ UVM P値が最低の文を1つ選出する。
 ### ③ デフォルト例文で不足分を補充
 
 それでも不足する場合、`DEFAULT_SENTENCES` から `estimated_vocab ± FREQ_BAND_HALF(10)` 帯域内に絞り、effective P が低い順に補充する。
+この段階の選出は復習枠の最大3文までで、残りは OpenAI 呼び出し前の生成元補填で追加する。
 
 ### UVM P値の取得
 
@@ -64,38 +65,53 @@ UVM P値が最低の文を1つ選出する。
 初回登録直後などユーザー例文がない場合は `generateFromDefaults` へ分岐。
 `DEFAULT_SENTENCES` を帯域フィルタ → effective P 昇順 → `estimated_vocab` 近傍の順に5問選出。
 
-## ④ クイズ1問生成 — `generateSingleQuiz` (`generateQuiz.ts:324`)
+## ④ クイズ一括生成 — `generateQuestionsFromSources`
 
-各例文に対して `GeminiService.generateQuizQuestions()` を呼び出し1問生成。
+SRS選出分にデフォルト例文、必要に応じてユーザー例文を補填し、最大5問分の生成元を先に確定する。
+確定した複数例文をまとめて `OpenAiQuizService.generateQuizQuestions()` に渡し、JSON の `questions` 配列として受け取る。
+各問題には内部対応付け用の `source_index` を出力させ、元例文の `sentence_id` / `srs_interval` を付与してからクライアントへ返す。
 
-**key_word バリデーション**:
+**source_index / key_word バリデーション**:
+`source_index` が範囲外または重複している問題はドロップする。
 `key_word` が指定されている場合、`correct_answer` が `key_word` と一致するか確認。
-不一致時は1回リトライ。それでも不一致なら null を返してスキップ。
+欠落・サニタイズ除外・`key_word` 不一致の例文だけをまとめて1回リトライし、それでも失敗したものはスキップする。
 
-### Gemini プロンプト (`geminiService.ts:137`)
+**コスト検証ログ**:
+OpenAI の `usage` が返る場合、`OpenAI token usage` ログに `requestMode`、`sentenceCount`、`inputTokens`、`outputTokens`、`reasoningTokens`、`costUsd` を出力する。
+一括生成の検証では `requestMode: "batch"` のログを見る。
+
+### OpenAI プロンプト — `quizGenerationService.ts`
 
 ```
+- source_index には入力IDを入れる
+- ヒントなし画面では `blank_text` と `choices` のタイ語だけが表示される前提で、周辺タイ語だけから正解が一意に判断できる問題にする
 - 【穴埋め対象】が指定されている場合、必ずその単語を___ に置き換える
 - 4択（正解1つ＋紛らわしいダミー3つ）
 - choices・correct_answer はタイ語表記の単語のみ
+- 「俺/私」「あなた/君」「彼/彼女」などの訳語・話者性別・敬意・人称知識だけで区別する選択肢は、周辺タイ語に明確な手がかりがない限り使わない
 - explanation は日本語で簡潔に
+- ダミーは空欄に入れた完成文が、前後語・文法・品詞・項構造のどれかで明確に破綻する語だけを使う
+- 位置詞・方位詞・前置詞などの機能語が正解の場合、同じ文法枠で自然な別解になる語をダミーにしない
+- 「元の文と合わない」「日本語訳と違う」「文脈に合わない」「意味が変わる」だけを不正解理由にするのは禁止
 ```
 
-- temperature: 0.8、maxOutputTokens: 4096
-- `responseSchema` で JSON 形式を強制
+- max_output_tokens: 4096
+- Structured Outputs の JSON Schema で JSON 形式を強制
 
-### サニタイズ — `sanitizeQuizQuestion` (`geminiService.ts:196`)
+### サニタイズ — `sanitizeQuizQuestion`
 
 1. `correct_answer` がタイ語文字（`\u0E00-\u0E7F`）でなければ問題をドロップ
 2. `choices` からタイ語以外（日本語・英語・ラテン文字）を除外
-3. 不足分をシード単語プール（`word_breakdown` の単語群）から補充
-4. 4択に満たなければ問題をドロップ
+3. 4択に満たなければ問題をドロップ（未検証の単語プールから補充しない）
+4. `dummy_reasons` が3つの不正解選択肢それぞれに対応しているか確認
+5. 不正解理由が元文・日本語訳・文脈差分だけに依存している場合、問題をドロップしてリトライ対象にする
 
-## ⑤ デフォルト例文による補填 — `fillWithDefaults` (`generateQuiz.ts:221`)
+## ⑤ 生成元の事前補填 — `buildQuizSourcesForGeneration`
 
-生成済み問題の `sentence_id` を除外したうえで、帯域内デフォルト例文から
-effective P 昇順に選出し、Gemini で追加生成する。
-補填生成が失敗しても既存の問題のみで返す（部分的成功を許容）。
+SRS選出分の `sentence_id` を除外したうえで、帯域内デフォルト例文から
+effective P 昇順に最大5問まで補填する。
+デフォルト例文で足りない場合のみ、ユーザー例文を UVM P値昇順で追加する。
+補填は OpenAI 呼び出し前に完了するため、通常時の LLM 呼び出しは `sentenceCount: 5` の1回になる。
 
 ## ⑥ クォータデクリメント
 

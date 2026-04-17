@@ -1,7 +1,7 @@
 """
 「まいにちタイ語」アプリ — 自然言語処理（NLP）モジュール
 
-このファイルでは、Gemini AI が生成したタイ語例文に対して、
+このファイルでは、OpenAI が生成したタイ語例文に対して、
 PyThaiNLP を使用した後処理（エンリッチメント）を行います。
 
 主な処理:
@@ -88,7 +88,7 @@ def get_pos_japanese(word: str) -> str:
 
 
 def enrich_with_nlp(sentence: dict) -> dict:
-    """Gemini が生成した例文データに NLP 後処理を適用する。
+    """AI が生成した例文データに NLP 後処理を適用する。
 
     word_breakdown 内の各単語に対して以下の情報を追加する:
       - syllables: 音節分割結果のリスト
@@ -101,7 +101,7 @@ def enrich_with_nlp(sentence: dict) -> dict:
     エラーはログに出力されるが、例外は再送出しない。
 
     Args:
-        sentence: Gemini API から返された例文データの辞書。
+        sentence: AI から返された例文データの辞書。
                   "word_breakdown" キーに単語リストを含む。
 
     Returns:
