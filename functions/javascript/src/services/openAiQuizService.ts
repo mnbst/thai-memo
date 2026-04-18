@@ -75,6 +75,8 @@ export class OpenAiQuizService implements QuizGenerationService {
   constructor(
     private readonly apiKey: string,
     private readonly modelName: string,
+    private readonly uid: string,
+    private readonly tier: 'free' | 'premium',
   ) {}
 
   async generateQuizQuestions(
@@ -157,6 +159,8 @@ export class OpenAiQuizService implements QuizGenerationService {
 
     logger.info('OpenAI token usage', {
       event: 'openai_token_usage',
+      uid: this.uid,
+      tier: this.tier,
       requestMode: sentences.length > 1 ? 'batch' : 'single',
       sentenceCount: sentences.length,
       keyWords: sentences.map((sentence) => sentence.key_word ?? null),

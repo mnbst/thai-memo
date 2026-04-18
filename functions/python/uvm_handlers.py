@@ -35,6 +35,20 @@ def updateUvm(req: https_fn.CallableRequest) -> dict:
     print(f"updateUvm: uid={uid}, results={results}")
     batch_update_uvm(db, uid, results, freq_rank=freq_rank)  # type: ignore
 
+    try:
+        correct_count = sum(1 for r in results if r.get("is_correct") is True)
+        db.collection("users").document(uid).set(
+            {
+                "last_active_at": firestore.firestore.SERVER_TIMESTAMP,
+                "last_quiz_answered_at": firestore.firestore.SERVER_TIMESTAMP,
+                "quiz_answer_count": firestore.firestore.Increment(len(results)),
+                "quiz_correct_count": firestore.firestore.Increment(correct_count),
+            },
+            merge=True,
+        )
+    except Exception as exc:
+        print(f"updateUvm metrics update failed: uid={uid}, error={exc}")
+
     print(f"updateUvm completed: uid={uid}, updated={len(results)}")
 
     return {"success": True, "updated": len(results)}

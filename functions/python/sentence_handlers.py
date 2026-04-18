@@ -124,6 +124,14 @@ def _commit_sentences_transaction(
         {
             "remaining_sentences": firestore.firestore.Increment(-decrement_count),
             "daily_sentence_generated": True,
+            "last_active_at": firestore.firestore.SERVER_TIMESTAMP,
+            "last_sentence_generated_at": firestore.firestore.SERVER_TIMESTAMP,
+            "sentence_generated_count": firestore.firestore.Increment(decrement_count),
+            **(
+                {"first_generated_at": firestore.firestore.SERVER_TIMESTAMP}
+                if "first_generated_at" not in user_data
+                else {}
+            ),
         },
     )
 

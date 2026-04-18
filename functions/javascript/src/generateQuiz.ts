@@ -61,7 +61,10 @@ const SRS_DAYS = [1, 3, 7, 14, 30];
 /** SRS 選出で確保する最大例文数 */
 const MAX_REVIEW_SENTENCES = 3;
 
-async function consumeQuizQuota(userRef: FirebaseFirestore.DocumentReference): Promise<void> {
+async function consumeQuizQuota(
+  userRef: FirebaseFirestore.DocumentReference,
+  questionCount: number,
+): Promise<void> {
   await db.runTransaction(async (transaction) => {
     const userSnapshot = await transaction.get(userRef);
     const userData = userSnapshot.data() || {};
@@ -71,7 +74,17 @@ async function consumeQuizQuota(userRef: FirebaseFirestore.DocumentReference): P
       throw new functions.https.HttpsError('resource-exhausted', 'この時間帯のクイズ生成上限に達しました');
     }
 
-    transaction.set(userRef, { remaining_quizzes: remainingQuizzes - 1 }, { merge: true });
+    transaction.set(
+      userRef,
+      {
+        remaining_quizzes: remainingQuizzes - 1,
+        last_active_at: admin.firestore.FieldValue.serverTimestamp(),
+        last_quiz_generated_at: admin.firestore.FieldValue.serverTimestamp(),
+        quiz_generated_count: admin.firestore.FieldValue.increment(1),
+        quiz_question_generated_count: admin.firestore.FieldValue.increment(questionCount),
+      },
+      { merge: true },
+    );
   });
 }
 
@@ -113,7 +126,7 @@ export const generateQuiz = functions.https.onCall(
     }
 
     const isPremium = userData.tier === 'premium';
-    const quizGenerationService = await createQuizGenerationService(isPremium);
+    const quizGenerationService = await createQuizGenerationService(isPremium, uid);
     const estimatedVocab: number = userData.estimated_vocab ?? 0;
 
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
@@ -122,7 +135,7 @@ export const generateQuiz = functions.https.onCall(
     // ユーザー例文がない場合（初回登録直後など）→ デフォルト例文からクイズ生成
     if (selectedSentences.length === 0) {
       const result = await generateFromDefaults(quizGenerationService, uid, estimatedVocab);
-      await consumeQuizQuota(userRef);
+      await consumeQuizQuota(userRef, result.questions.length);
       return result;
     }
 
@@ -131,7 +144,7 @@ export const generateQuiz = functions.https.onCall(
       const questions = await generateQuestionsFromSources(quizGenerationService, sources);
 
       // クイズ生成残回数をアトミックにデクリメント
-      await consumeQuizQuota(userRef);
+      await consumeQuizQuota(userRef, questions.length);
 
       return { questions: questions.slice(0, MAX_QUESTIONS) };
     } catch (error) {
@@ -144,10 +157,10 @@ export const generateQuiz = functions.https.onCall(
   }
 );
 
-async function createQuizGenerationService(isPremium: boolean): Promise<QuizGenerationService> {
+async function createQuizGenerationService(isPremium: boolean, uid: string): Promise<QuizGenerationService> {
   const apiKey = await getOpenAiApiKey();
   const model = isPremium ? OPENAI_MODEL_PREMIUM : OPENAI_MODEL_FREE;
-  return new OpenAiQuizService(apiKey, model);
+  return new OpenAiQuizService(apiKey, model, uid, isPremium ? 'premium' : 'free');
 }
 
 /**
