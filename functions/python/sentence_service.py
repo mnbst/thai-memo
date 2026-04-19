@@ -2,11 +2,12 @@ import asyncio
 import json
 import os
 import random
+import threading
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 from google.cloud import secretmanager
 from google.cloud import storage as gcs
@@ -20,7 +21,6 @@ from constants import (
     RESPONSE_JSON_SCHEMA,
     TOPICS,
 )
-from nlp import enrich_with_nlp
 from prompts import build_uvm_prompt
 from uvm import get_session_words
 
@@ -29,6 +29,50 @@ _openai_api_key: str | None = None
 _openai_api_key_fetched_at: float = 0.0
 _OPENAI_KEY_TTL_SECONDS: float = 3600.0  # 1時間
 _OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+_nlp_enrich_with_nlp: Callable[[dict], dict] | None = None
+_nlp_import_lock = threading.Lock()
+_nlp_prewarm_lock = threading.Lock()
+_nlp_prewarm_thread: threading.Thread | None = None
+
+
+def _get_enrich_with_nlp() -> Callable[[dict], dict]:
+    """NLPの重い依存を必要になるまで読み込まない。"""
+    global _nlp_enrich_with_nlp
+    if _nlp_enrich_with_nlp is not None:
+        return _nlp_enrich_with_nlp
+
+    with _nlp_import_lock:
+        if _nlp_enrich_with_nlp is None:
+            from nlp import enrich_with_nlp
+
+            _nlp_enrich_with_nlp = enrich_with_nlp
+        return _nlp_enrich_with_nlp
+
+
+def _prewarm_nlp_async() -> None:
+    """OpenAIの応答待ち中にNLP importを先に開始する。"""
+    global _nlp_prewarm_thread
+    if _nlp_enrich_with_nlp is not None:
+        return
+
+    with _nlp_prewarm_lock:
+        if _nlp_enrich_with_nlp is not None:
+            return
+        if _nlp_prewarm_thread is not None and _nlp_prewarm_thread.is_alive():
+            return
+
+        def prewarm() -> None:
+            try:
+                _get_enrich_with_nlp()
+            except Exception as exc:
+                print(f"NLP prewarm failed: {exc}")
+
+        _nlp_prewarm_thread = threading.Thread(
+            target=prewarm,
+            name="nlp-prewarm",
+            daemon=True,
+        )
+        _nlp_prewarm_thread.start()
 
 
 @dataclass
@@ -214,9 +258,8 @@ def _extract_output_text(response_body: dict[str, Any]) -> str | None:
             if not isinstance(content, list):
                 continue
             for content_item in content:
-                if (
-                    isinstance(content_item, dict)
-                    and isinstance(content_item.get("text"), str)
+                if isinstance(content_item, dict) and isinstance(
+                    content_item.get("text"), str
                 ):
                     parts.append(content_item["text"])
 
@@ -290,7 +333,8 @@ def _post_openai_response(api_key: str, payload: dict[str, Any]) -> dict[str, An
             response_body = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         body = _read_http_error_body(exc)
-        error = body.get("error") if isinstance(body.get("error"), dict) else {}
+        raw_error = body.get("error")
+        error = raw_error if isinstance(raw_error, dict) else {}
         raise OpenAiApiError(
             status_code=exc.code,
             message=str(error.get("message") or "Request failed"),
@@ -327,7 +371,7 @@ def _call_openai_with_retry_sync(
         except OpenAiApiError as exc:
             if not exc.is_transient or attempt == max_retries:
                 raise RuntimeError(f"OPENAI_API_ERROR: {exc}") from exc
-            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            delay = base_delay * (2**attempt) + random.uniform(0, 1)
             print(
                 f"OpenAI API transient error "
                 f"({tier_label}, attempt {attempt + 1}/{max_retries}): "
@@ -367,7 +411,7 @@ def _parse_sentence_response(
         raise RuntimeError("OPENAI_API_ERROR: invalid structured output") from exc
     if not isinstance(sentence, dict):
         raise RuntimeError("OPENAI_API_ERROR: unexpected structured output")
-    enrich_with_nlp(sentence)
+    _get_enrich_with_nlp()(sentence)
     return sentence
 
 
@@ -388,10 +432,13 @@ def _generate_single(
     target_words: list[str] | None = None,
 ) -> dict:
     """OpenAI で1文を同期生成し NLP 後処理を適用する。"""
+    _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
     for attempt in range(1 + MAX_RETRY):
-        result = _call_openai_with_retry_sync(api_key, model, current_prompt, tier_label)
+        result = _call_openai_with_retry_sync(
+            api_key, model, current_prompt, tier_label
+        )
         sentence = _parse_sentence_response(result, tier_label, model)
 
         missing = validate_target_words(sentence, target_words)
@@ -399,8 +446,7 @@ def _generate_single(
             return sentence
 
         print(
-            f"Target word validation failed (attempt {attempt + 1}): "
-            f"missing={missing}"
+            f"Target word validation failed (attempt {attempt + 1}): missing={missing}"
         )
         current_prompt = _build_retry_prompt(prompt, missing)
 
@@ -420,10 +466,13 @@ async def _generate_single_async(
     target_words: list[str] | None = None,
 ) -> dict:
     """OpenAI で1文を非同期生成し NLP 後処理を適用する（バッチ並列用）。"""
+    _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
     for attempt in range(1 + MAX_RETRY):
-        result = await _call_openai_with_retry(api_key, model, current_prompt, tier_label)
+        result = await _call_openai_with_retry(
+            api_key, model, current_prompt, tier_label
+        )
         sentence = _parse_sentence_response(result, tier_label, model)
 
         missing = validate_target_words(sentence, target_words)
@@ -431,8 +480,7 @@ async def _generate_single_async(
             return sentence
 
         print(
-            f"Target word validation failed (attempt {attempt + 1}): "
-            f"missing={missing}"
+            f"Target word validation failed (attempt {attempt + 1}): missing={missing}"
         )
         current_prompt = _build_retry_prompt(prompt, missing)
 
