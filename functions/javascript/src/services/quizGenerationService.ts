@@ -3,6 +3,7 @@ import * as logger from 'firebase-functions/logger';
 const THAI_SCRIPT_REGEX = /[\u0E00-\u0E7F]/;
 const JAPANESE_SCRIPT_REGEX = /[\u3040-\u30FF\u31F0-\u31FF\u4E00-\u9FFF]/;
 const LATIN_SCRIPT_REGEX = /[A-Za-z]/;
+const BLANK_TEXT = '___';
 
 export interface QuizQuestion {
   sentence_id: string;
@@ -35,12 +36,34 @@ export interface QuizQuestionsResponse {
   questions: GeneratedQuizQuestion[];
 }
 
+export interface GeneratedQuizQuestionDraft {
+  dummies: string[];
+  explanation: string;
+  dummy_reasons: string[];
+  correct_answer_pronunciation: string;
+}
+
+export interface QuizGenerationModelResponse {
+  questions: GeneratedQuizQuestionDraft[];
+}
+
 export interface QuizSentenceSeed {
   thai_text: string;
   pronunciation: string;
   japanese_translation: string;
   word_breakdown: { word: string; pronunciation: string; meaning: string }[];
   key_word?: string;
+}
+
+export interface PreparedQuizSentenceSeed {
+  source_index: number;
+  thai_text: string;
+  blank_text: string;
+  correct_answer: string;
+  pronunciation: string;
+  correct_answer_meaning: string;
+  japanese_translation: string;
+  word_breakdown: { word: string; pronunciation: string; meaning: string }[];
 }
 
 export interface QuizGenerationService {
@@ -57,30 +80,10 @@ export const QUIZ_RESPONSE_JSON_SCHEMA = {
         type: 'object',
         additionalProperties: false,
         properties: {
-          source_index: {
-            type: 'integer',
-            description: 'Zero-based index of the input sentence this question was generated from',
-          },
-          thai_text: {
-            type: 'string',
-            description: 'Original Thai sentence',
-          },
-          blank_text: {
-            type: 'string',
-            description: 'Thai sentence with one word replaced by ___',
-          },
-          correct_answer: {
-            type: 'string',
-            description: 'The correct word that fills the blank',
-          },
-          choices: {
+          dummies: {
             type: 'array',
             items: { type: 'string' },
-            description: '4 choices including the correct answer, shuffled',
-          },
-          pronunciation: {
-            type: 'string',
-            description: 'Pronunciation of the correct answer word',
+            description: 'Exactly 3 Thai dummy choices that do not include the correct answer',
           },
           explanation: {
             type: 'string',
@@ -91,16 +94,16 @@ export const QUIZ_RESPONSE_JSON_SCHEMA = {
             items: { type: 'string' },
             description: '不正解の3単語それぞれについて入らない理由を日本語で1行ずつ',
           },
+          correct_answer_pronunciation: {
+            type: 'string',
+            description: 'correct_answer のローマ字発音（声調記号付き）',
+          },
         },
         required: [
-          'source_index',
-          'thai_text',
-          'blank_text',
-          'correct_answer',
-          'choices',
-          'pronunciation',
+          'dummies',
           'explanation',
           'dummy_reasons',
+          'correct_answer_pronunciation',
         ],
       },
     },
@@ -108,34 +111,55 @@ export const QUIZ_RESPONSE_JSON_SCHEMA = {
   required: ['questions'],
 } as const;
 
-export function buildQuizGenerationPrompt(sentences: QuizSentenceSeed[]): string {
-  const sentenceList = sentences.map((sentence, index) => {
-    let entry = `${index + 1}. 入力ID: ${index}\n   例文: ${sentence.thai_text}\n   日本語訳: ${sentence.japanese_translation}`;
+function buildPreparedSentenceList(sentences: QuizSentenceSeed[]): string {
+  const preparedSentences = prepareQuizGenerationInputs(sentences);
+  return preparedSentences.map((sentence, index) => {
+    let entry = `${index + 1}. thai_text: ${sentence.thai_text}` +
+      `\n   blank_text: ${sentence.blank_text}` +
+      `\n   correct_answer: ${sentence.correct_answer}` +
+      `\n   correct_answer_pronunciation: ${sentence.pronunciation}` +
+      `\n   correct_answer_meaning: ${sentence.correct_answer_meaning || '未指定'}` +
+      `\n   日本語訳: ${sentence.japanese_translation}`;
     if (sentence.word_breakdown.length > 0) {
-      entry += `\n   語句: ${sentence.word_breakdown.map((word) => `${word.word}=${word.meaning}`).join(' / ')}`;
-    }
-    if (sentence.key_word) {
-      entry += `\n   【穴埋め対象】: ${sentence.key_word}`;
+      entry += `\n   語句: ${sentence.word_breakdown.map((word) => {
+        const details = [word.pronunciation, word.meaning].filter(Boolean).join(' / ');
+        return details ? `${word.word}=(${details})` : word.word;
+      }).join(' / ')}`;
     }
     return entry;
   }).join('\n\n');
+}
 
-  return `タイ語例文ごとに穴埋め4択を1問ずつ作成してください。
+export function buildQuizGenerationPrompt(sentences: QuizSentenceSeed[]): string {
+  const sentenceList = buildPreparedSentenceList(sentences);
+
+  return `タイ語例文ごとに、確定済みの穴埋め問題へダミー選択肢と解説だけを作成してください。
 
 ${sentenceList}
 
+【あなたの主作業】
+- correct_answer 以外のダミー選択肢を3件作る
+- 各ダミーが blank_text に入らない理由を dummy_reasons に書く
+- explanation は correct_answer が入る理由だけを日本語で簡潔に書く
+- correct_answer_pronunciation に correct_answer のローマ字発音（声調記号付き）を出力する
+
+【出力形式】
+- questions は入力と同じ件数・同じ順番で出力する
+- 各 question は dummies / explanation / dummy_reasons / correct_answer_pronunciation の4項目だけを出力する
+- source_index / thai_text / blank_text / correct_answer / choices は出力しない
+- correct_answer_pronunciation は入力の correct_answer_pronunciation が空でも必ず自力で出力する
+
 【ルール】
-- ユーザーにはヒント表示前は blank_text と choices のタイ語だけが見える。日本語訳・語句・発音・解説は見えない前提で、周辺タイ語だけから正解が一意に判断できる問題にする
-- source_index=入力ID
-- 【穴埋め対象】があれば必ず___化。なければ特定的な名詞・動詞・形容詞を選ぶ（除外: 助動詞 จะ/อยาก/ต้อง、コピュラ เป็น/คือ、数詞、程度副詞 มาก/ค่อนข้าง、疑問詞、汎用動詞 มี/ได้）
+- 空欄位置や正解語を変更しない。blank_text と correct_answer は入力値を前提にする
+- 正解が機能語・代名詞でも、空欄位置はアプリ側で確定済みなので変更しない
+- ユーザーにはヒント表示前は blank_text と「correct_answer + dummies」のタイ語だけが見える。日本語訳・語句・発音・解説は見えない前提で、周辺タイ語だけでダミー3件が除外できる問題にする
 - 「俺/私」「あなた/君」「彼/彼女」など、日本語訳・話者性別・敬意・一人称/二人称/三人称の知識だけで区別する語は、周辺タイ語に明確な手がかりがない限り空欄対象やダミーにしない
-- choices=タイ語4択（正解1＋ダミー3、シャッフル）。correct_answerもタイ語のみ
-- pronunciation=正解語の発音（例: สวย → sǔay）
-- explanation=日本語で正解理由のみ簡潔に
+- dummies=タイ語のみ3件。correct_answer を含めない
+- explanation=日本語で正解理由のみ簡潔に。ダミー選択肢には触れない
 - dummy_reasons=各ダミーを「単語（発音 / 日本語の意味）：<破綻箇所>」で1行ずつ
 
 【ダミー生成手順】
-1. 空欄位置を内部分析: 品詞、役割、直前直後語、意味カテゴリ、項構造
+1. 確定済みの空欄位置を内部分析: 品詞、役割、直前直後語、意味カテゴリ、項構造
 2. ダミーは品詞不一致・項構造不一致・対象カテゴリ不一致で局所破綻する語にする
 3. 各候補を blank_text に代入。文法上または意味上入りうる語、意味違いだけ、同カテゴリ置換ならNG
 4. NG候補や破綻を短く説明できない候補は、理由を工夫せず必ず別語に差し替える
@@ -156,9 +180,117 @@ ${sentenceList}
 - กิน（kin / 食べる）：目的語の位置に動詞が入り文法上不自然
 
 【最終確認】
-- choicesは4件、correct_answerは1件だけ
+- questions は入力と同じ件数・同じ順番
+- 各 question のキーは dummies / explanation / dummy_reasons / correct_answer_pronunciation だけ
+- dummiesは3件、correct_answerは含めない
 - 3つのダミーは全て、代入時の局所破綻を説明できる
-- dummy_reasonsは3件で、不正解選択肢それぞれのタイ語単語を含む`;
+- dummy_reasonsは3件で、不正解選択肢それぞれのタイ語単語を含む
+- correct_answer_pronunciation は必ず非空で出力する`;
+}
+
+export function prepareQuizGenerationInputs(
+  sentences: QuizSentenceSeed[],
+): PreparedQuizSentenceSeed[] {
+  return sentences.map((sentence, sourceIndex) => {
+    const target = resolveBlankTarget(sentence);
+    const thaiText = normalizeText(sentence.thai_text);
+    const correctAnswer = target?.word ?? normalizeText(sentence.key_word);
+
+    return {
+      source_index: sourceIndex,
+      thai_text: thaiText,
+      blank_text: buildBlankText(thaiText, correctAnswer) ?? thaiText,
+      correct_answer: correctAnswer,
+      pronunciation: target?.pronunciation ?? '',
+      correct_answer_meaning: target?.meaning ?? '',
+      japanese_translation: normalizeText(sentence.japanese_translation),
+      word_breakdown: sentence.word_breakdown,
+    };
+  });
+}
+
+export function isQuizSentenceSeedReady(sentence: QuizSentenceSeed): boolean {
+  const [prepared] = prepareQuizGenerationInputs([sentence]);
+  return Boolean(
+    prepared?.correct_answer &&
+    prepared.blank_text.includes(BLANK_TEXT),
+  );
+}
+
+export function applyRuleBasedQuizFields(
+  response: QuizGenerationModelResponse,
+  sentences: QuizSentenceSeed[],
+): QuizQuestionsResponse {
+  const preparedSentences = prepareQuizGenerationInputs(sentences);
+
+  return {
+    questions: response.questions.map((question, responseIndex) => {
+      const prepared = preparedSentences[responseIndex];
+
+      const modelPronunciation = normalizeText(question.correct_answer_pronunciation);
+
+      if (!prepared?.correct_answer || !prepared.blank_text.includes(BLANK_TEXT)) {
+        return {
+          source_index: responseIndex,
+          thai_text: prepared?.thai_text ?? '',
+          blank_text: prepared?.blank_text ?? '',
+          correct_answer: prepared?.correct_answer ?? '',
+          choices: question.dummies,
+          pronunciation: prepared?.pronunciation || modelPronunciation,
+          explanation: question.explanation,
+          dummy_reasons: question.dummy_reasons,
+        };
+      }
+
+      return {
+        source_index: responseIndex,
+        thai_text: prepared.thai_text,
+        blank_text: prepared.blank_text,
+        correct_answer: prepared.correct_answer,
+        choices: [prepared.correct_answer, ...question.dummies],
+        pronunciation: prepared.pronunciation || modelPronunciation,
+        explanation: question.explanation,
+        dummy_reasons: question.dummy_reasons,
+      };
+    }),
+  };
+}
+
+function resolveBlankTarget(
+  sentence: QuizSentenceSeed,
+): { word: string; pronunciation: string; meaning: string } | null {
+  const thaiText = normalizeText(sentence.thai_text);
+  const keyWord = normalizeText(sentence.key_word);
+
+  if (!keyWord) return null;
+  if (!buildBlankText(thaiText, keyWord)) return null;
+
+  const breakdown = findWordBreakdown(sentence.word_breakdown, keyWord);
+  return {
+    word: keyWord,
+    pronunciation: normalizeText(breakdown?.pronunciation),
+    meaning: breakdown?.meaning ?? '',
+  };
+}
+
+function findWordBreakdown(
+  wordBreakdown: { word: string; pronunciation: string; meaning: string }[],
+  target: string,
+): { word: string; pronunciation: string; meaning: string } | null {
+  return wordBreakdown.find((word) => normalizeText(word.word) === target) ?? null;
+}
+
+function buildBlankText(thaiText: string, answer: string): string | null {
+  if (!thaiText || !answer) return null;
+
+  const answerIndex = thaiText.indexOf(answer);
+  if (answerIndex === -1) return null;
+
+  return [
+    thaiText.slice(0, answerIndex),
+    BLANK_TEXT,
+    thaiText.slice(answerIndex + answer.length),
+  ].join('');
 }
 
 function normalizeText(value: string | null | undefined): string {

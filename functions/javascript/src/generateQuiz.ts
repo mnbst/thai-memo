@@ -27,7 +27,12 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { OpenAiQuizService } from './services/openAiQuizService';
 import { getOpenAiApiKey } from './services/secretManager';
-import { QuizGenerationService, QuizQuestion, QuizQuestionsResponse } from './services/quizGenerationService';
+import {
+  isQuizSentenceSeedReady,
+  QuizGenerationService,
+  QuizQuestion,
+  QuizQuestionsResponse,
+} from './services/quizGenerationService';
 import { DEFAULT_SENTENCES, DefaultSentence } from './constants/defaultQuizQuestions';
 import {
   OPENAI_MODEL_FREE,
@@ -179,25 +184,16 @@ async function generateFromDefaults(
 ): Promise<{ questions: QuizQuestion[] }> {
   // デフォルト例文から「帯域内 → effective P 昇順 → estimated_vocab 近傍」順に5問選出
   const sorted = await sortDefaultsByPriority(uid, DEFAULT_SENTENCES, undefined, estimatedVocab);
-  const selected = shuffleTopCandidates(sorted, MAX_QUESTIONS);
+  const selectedSources = shuffleTopCandidates(
+    sorted.map(toQuizSeedSourceFromDefault).filter(isQuizSeedSourceReady),
+    MAX_QUESTIONS,
+  );
 
   try {
     return {
       questions: await generateQuestionsFromSources(
         quizGenerationService,
-        selected.map((sentence) => ({
-          seed: {
-            thai_text: sentence.thai_text,
-            pronunciation: sentence.pronunciation,
-            japanese_translation: sentence.japanese_translation,
-            word_breakdown: [],
-            key_word: sentence.key_word,
-          },
-          sentenceId: sentence.sentence_id,
-          srsInterval: 0,
-          japaneseTranslation: sentence.japanese_translation,
-          sentencePronunciation: sentence.pronunciation,
-        }))
+        selectedSources,
       ),
     };
   } catch (error) {
@@ -219,27 +215,36 @@ async function buildQuizSourcesForGeneration(
   const selectedSources = [...selectedSentences]
     .sort(() => Math.random() - 0.5)
     .slice(0, MAX_QUESTIONS)
-    .map(toQuizSeedSourceFromSelected);
+    .map(toQuizSeedSourceFromSelected)
+    .filter(isQuizSeedSourceReady);
 
-  return fillQuizSourcesBeforeGeneration(selectedSources, uid, estimatedVocab);
+  const excludedIds = new Set(selectedSentences.map((sentence) => sentence.id));
+  return fillQuizSourcesBeforeGeneration(selectedSources, uid, estimatedVocab, excludedIds);
 }
 
 async function fillQuizSourcesBeforeGeneration(
   existingSources: QuizSeedSource[],
   uid: string,
   estimatedVocab: number,
+  excludedIds: Set<string> = new Set(),
 ): Promise<QuizSeedSource[]> {
   const needed = MAX_QUESTIONS - existingSources.length;
   if (needed <= 0) return existingSources.slice(0, MAX_QUESTIONS);
 
-  const usedIds = new Set(existingSources.map(source => source.sentenceId));
-  const available = DEFAULT_SENTENCES.filter(s => !usedIds.has(s.sentence_id));
+  const usedIds = new Set([
+    ...excludedIds,
+    ...existingSources.map((source) => source.sentenceId),
+  ]);
+  const available = DEFAULT_SENTENCES.filter((s) => !usedIds.has(s.sentence_id));
   const sorted = await sortDefaultsByPriority(uid, available, undefined, estimatedVocab);
-  const candidates = shuffleTopCandidates(sorted, needed);
+  const candidates = shuffleTopCandidates(
+    sorted.map(toQuizSeedSourceFromDefault).filter(isQuizSeedSourceReady),
+    needed,
+  );
 
   let sources = [
     ...existingSources,
-    ...candidates.map(toQuizSeedSourceFromDefault),
+    ...candidates,
   ];
 
   if (sources.length < MAX_QUESTIONS) {
@@ -247,6 +252,7 @@ async function fillQuizSourcesBeforeGeneration(
       sources,
       uid,
       MAX_QUESTIONS - sources.length,
+      usedIds,
     );
   }
 
@@ -263,10 +269,14 @@ async function fillQuizSourcesWithUserSentencesByP(
   existingSources: QuizSeedSource[],
   uid: string,
   needed: number,
+  excludedIds: Set<string> = new Set(),
 ): Promise<QuizSeedSource[]> {
   if (needed <= 0) return existingSources;
 
-  const usedIds = new Set(existingSources.map(source => source.sentenceId));
+  const usedIds = new Set([
+    ...excludedIds,
+    ...existingSources.map((source) => source.sentenceId),
+  ]);
 
   const snapshot = await db
     .collection('users').doc(uid)
@@ -285,19 +295,21 @@ async function fillQuizSourcesWithUserSentencesByP(
   const pMap = await fetchUvmPValues(uid, keyWords);
 
   const candidates = snapshot.docs
-    .filter(doc => !usedIds.has(doc.id))
+    .filter((doc) => !usedIds.has(doc.id))
     .sort((a, b) => {
       const pA = pMap.get(a.data().key_word) ?? UNKNOWN_WORD_P;
       const pB = pMap.get(b.data().key_word) ?? UNKNOWN_WORD_P;
       return pA - pB;
     })
+    .map(toQuizSeedSourceFromUserDoc)
+    .filter(isQuizSeedSourceReady)
     .slice(0, needed);
 
   if (candidates.length === 0) return existingSources;
 
   return [
     ...existingSources,
-    ...candidates.map(toQuizSeedSourceFromUserDoc),
+    ...candidates,
   ];
 }
 
@@ -346,7 +358,13 @@ function toQuizSeedSourceFromDefault(sentence: DefaultSentence): QuizSeedSource 
       thai_text: sentence.thai_text,
       pronunciation: sentence.pronunciation,
       japanese_translation: sentence.japanese_translation,
-      word_breakdown: [],
+      word_breakdown: [
+        {
+          word: sentence.key_word,
+          pronunciation: sentence.key_word_pronunciation,
+          meaning: '',
+        },
+      ],
       key_word: sentence.key_word,
     },
     sentenceId: sentence.sentence_id,
@@ -395,14 +413,27 @@ function toQuizQuestion(
   };
 }
 
+function isQuizSeedSourceReady(source: QuizSeedSource): boolean {
+  const ready = isQuizSentenceSeedReady(source.seed);
+  if (!ready) {
+    logger.warn('Skipping quiz seed due to unresolved key_word', {
+      event: 'quiz_seed_skipped_unresolved_key_word',
+      sentenceId: source.sentenceId,
+      keyWord: source.seed.key_word ?? null,
+    });
+  }
+  return ready;
+}
+
 async function generateQuestionsFromSources(
   quizGenerationService: QuizGenerationService,
   sources: QuizSeedSource[],
 ): Promise<QuizQuestion[]> {
-  if (sources.length === 0) return [];
+  const readySources = sources.filter(isQuizSeedSourceReady);
+  if (readySources.length === 0) return [];
 
-  const questionsBySource: Array<QuizQuestion | null> = Array(sources.length).fill(null);
-  const firstAttempt = await generateBatchQuizQuestions(quizGenerationService, sources, 0);
+  const questionsBySource: Array<QuizQuestion | null> = Array(readySources.length).fill(null);
+  const firstAttempt = await generateBatchQuizQuestions(quizGenerationService, readySources, 0);
   for (const result of firstAttempt) {
     questionsBySource[result.sourcePosition] = result.question;
   }
@@ -418,7 +449,7 @@ async function generateQuestionsFromSources(
       failed: retrySourcePositions.length,
     });
 
-    const retrySources = retrySourcePositions.map((sourcePosition) => sources[sourcePosition]);
+    const retrySources = retrySourcePositions.map((sourcePosition) => readySources[sourcePosition]);
     const retryAttempt = await generateBatchQuizQuestions(quizGenerationService, retrySources, 1);
     for (const result of retryAttempt) {
       const originalSourcePosition = retrySourcePositions[result.sourcePosition];
@@ -430,7 +461,7 @@ async function generateQuestionsFromSources(
   if (skipped > 0) {
     logger.error('Batch quiz generation skipped sources after retry', {
       event: 'batch_quiz_generation_skipped_sources_after_retry',
-      requested: sources.length,
+      requested: readySources.length,
       skipped,
     });
   }

@@ -1,6 +1,8 @@
 import * as logger from 'firebase-functions/logger';
 import {
+  applyRuleBasedQuizFields,
   buildQuizGenerationPrompt,
+  QuizGenerationModelResponse,
   QUIZ_RESPONSE_JSON_SCHEMA,
   QuizGenerationService,
   QuizQuestionsResponse,
@@ -82,6 +84,29 @@ export class OpenAiQuizService implements QuizGenerationService {
   async generateQuizQuestions(
     sentences: QuizSentenceSeed[],
   ): Promise<QuizQuestionsResponse> {
+    const response = await this.fetchStructuredResponse<QuizGenerationModelResponse>(
+      buildQuizGenerationPrompt(sentences),
+      'quiz_questions_response',
+      QUIZ_RESPONSE_JSON_SCHEMA,
+      4096,
+      sentences,
+    );
+
+    if (!response) {
+      return { questions: [] };
+    }
+
+    const merged = applyRuleBasedQuizFields(response, sentences);
+    return sanitizeQuizQuestions(merged);
+  }
+
+  private async fetchStructuredResponse<T>(
+    prompt: string,
+    schemaName: string,
+    schema: unknown,
+    maxOutputTokens: number,
+    sentences: QuizSentenceSeed[],
+  ): Promise<T | null> {
     try {
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
@@ -94,19 +119,19 @@ export class OpenAiQuizService implements QuizGenerationService {
           input: [
             {
               role: 'user',
-              content: buildQuizGenerationPrompt(sentences),
+              content: prompt,
             },
           ],
-          max_output_tokens: 4096,
+          max_output_tokens: maxOutputTokens,
           reasoning: {
             effort: getReasoningEffort(this.modelName),
           },
           text: {
             format: {
               type: 'json_schema',
-              name: 'quiz_questions_response',
+              name: schemaName,
               strict: true,
-              schema: QUIZ_RESPONSE_JSON_SCHEMA,
+              schema,
             },
           },
         }),
@@ -122,7 +147,7 @@ export class OpenAiQuizService implements QuizGenerationService {
           errorCode: responseBody.error?.code,
           errorMessage: responseBody.error?.message,
         });
-        return { questions: [] };
+        return null;
       }
 
       this.logUsage(sentences, responseBody.usage);
@@ -132,22 +157,24 @@ export class OpenAiQuizService implements QuizGenerationService {
           event: 'openai_quiz_generation_empty_output',
           model: this.modelName,
         });
-        return { questions: [] };
+        return null;
       }
 
-      const parsed = JSON.parse(text) as QuizQuestionsResponse;
-      return sanitizeQuizQuestions(parsed);
+      return JSON.parse(text) as T;
     } catch (error) {
       logger.error('Failed to generate quiz questions with OpenAI', {
         event: 'openai_quiz_generation_failed',
         model: this.modelName,
         error: error instanceof Error ? error.message : 'Unknown',
       });
-      return { questions: [] };
+      return null;
     }
   }
 
-  private logUsage(sentences: QuizSentenceSeed[], usage: OpenAiUsage | undefined): void {
+  private logUsage(
+    sentences: QuizSentenceSeed[],
+    usage: OpenAiUsage | undefined,
+  ): void {
     if (!usage) return;
 
     const inputTokens = usage.input_tokens ?? 0;
