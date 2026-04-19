@@ -14,7 +14,7 @@ except ImportError:
 initialize_firebase_app()
 
 
-@https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=30)
+@https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=30, concurrency=20)
 def updateUvm(req: https_fn.CallableRequest) -> dict:
     """クイズ結果からUVMを更新する。"""
     if not req.auth:

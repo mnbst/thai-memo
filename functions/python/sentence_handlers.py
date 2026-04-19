@@ -136,7 +136,7 @@ def _commit_sentences_transaction(
     )
 
 
-@https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=120)
+@https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=120, concurrency=10)
 def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
     start_time = time.time()
     response: dict = {"success": False}

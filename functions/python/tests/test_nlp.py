@@ -70,6 +70,18 @@ class TestPronunciation:
     def test_thai_abbreviation_mark_is_silent(self) -> None:
         assert thai_to_pronunciation("ฯ") == ""
 
+    @pytest.mark.parametrize(
+        "thai, expected",
+        [
+            ("ไปๆมาๆ", "pai-pai maa-maa"),
+            ("เรื่อยๆ", "rʉ̂ʉai-rʉ̂ʉai"),
+            ("บ่อยๆ", "bɔ̀ɔi-bɔ̀ɔi"),
+            ("ช้าๆ", "cháa-cháa"),
+        ],
+    )
+    def test_mai_yamok_repetition(self, thai: str, expected: str) -> None:
+        assert thai_to_pronunciation(thai) == expected
+
     def test_tltk_sentence_boundary_is_preserved_as_space(self) -> None:
         assert thai_to_pronunciation("กรุงเทพ สนุกมาก") == "krung-thêep sà-nùk-mâak"
 
