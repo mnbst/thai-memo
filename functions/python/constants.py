@@ -4,19 +4,28 @@
 このファイルでは、タイ語例文生成に使用する各種定数を定義しています。
 
 定義内容:
-  - OpenAI モデル名とAPIパラメータ（最大トークン数）
+  - LLM プロバイダー切替 / モデル名 / APIパラメータ
   - 例文生成に使用する選択肢リスト（テーマ、文体、丁寧さ、文法、感情等）
   - 無料/有料ティアごとの選択肢サブセット
-  - OpenAI Responses API レスポンスの JSON Schema 定義
+  - レスポンスの JSON Schema 定義（OpenAI/Gemini 共通で使用）
 
 例文生成時、これらのリストからランダムに選択するか、
 ユーザーが指定したパラメータを使用してプロンプトを構築します。
 """
 
+import os
+
+# ─── LLM プロバイダー切替 ───
+# "openai" または "gemini"。環境変数 SENTENCE_PROVIDER で上書き可。
+SENTENCE_PROVIDER = os.environ.get("SENTENCE_PROVIDER", "gemini").lower()
+
 # ─── OpenAI モデル設定 ───
-# クイズ生成側と同じモデルを使う。
 OPENAI_MODEL = "gpt-5.4-mini"
 OPENAI_MODEL_PREMIUM = "gpt-5.4-mini"
+
+# ─── Gemini モデル設定 ───
+GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL_PREMIUM = "gemini-2.5-flash"
 
 # ─── API パラメータ ───
 # 最大出力トークン数: JSON形式のレスポンス（例文＋単語分解＋コンテキスト）に十分な量
@@ -115,7 +124,9 @@ RESPONSE_JSON_SCHEMA = {
         },
         "japanese_translation": {
             "type": "string",
-            "description": "日本語訳（例: こんにちは）",
+            "description": (
+                "自然な日本語訳。主語・話者の違いが意味に関わる場合だけ訳に残す"
+            ),
         },
         "word_breakdown": {
             "type": "array",

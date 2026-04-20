@@ -1,34 +1,34 @@
 import asyncio
 import json
 import os
-import random
 import threading
-import time
-import urllib.error
-import urllib.request
-from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Callable
 
-from google.cloud import secretmanager
 from google.cloud import storage as gcs
 from google.cloud.firestore_v1.client import Client as FirestoreClient
 
-from constants import (
-    API_MAX_TOKENS,
-    FREE_TOPICS,
-    OPENAI_MODEL,
-    OPENAI_MODEL_PREMIUM,
-    RESPONSE_JSON_SCHEMA,
-    TOPICS,
-)
-from prompts import build_uvm_prompt, gate_topics_for_vocab
-from uvm import get_session_words
+try:
+    from .constants import FREE_TOPICS, TOPICS
+    from .llm_providers import (
+        generate_sentence_async as _llm_generate_async,
+    )
+    from .llm_providers import (
+        generate_sentence_sync as _llm_generate_sync,
+    )
+    from .prompts import SYSTEM_PROMPT, build_uvm_prompt, gate_topics_for_vocab
+    from .uvm import get_session_words
+except ImportError:
+    from constants import FREE_TOPICS, TOPICS
+    from llm_providers import (
+        generate_sentence_async as _llm_generate_async,
+    )
+    from llm_providers import (
+        generate_sentence_sync as _llm_generate_sync,
+    )
+    from prompts import SYSTEM_PROMPT, build_uvm_prompt, gate_topics_for_vocab
+    from uvm import get_session_words
 
 _freq_rank: dict[str, int] | None = None
-_openai_api_key: str | None = None
-_openai_api_key_fetched_at: float = 0.0
-_OPENAI_KEY_TTL_SECONDS: float = 3600.0  # 1時間
-_OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 _nlp_enrich_with_nlp: Callable[[dict], dict] | None = None
 _nlp_import_lock = threading.Lock()
 _nlp_prewarm_lock = threading.Lock()
@@ -50,7 +50,7 @@ def _get_enrich_with_nlp() -> Callable[[dict], dict]:
 
 
 def _prewarm_nlp_async() -> None:
-    """OpenAIの応答待ち中にNLP importを先に開始する。"""
+    """LLM の応答待ち中に NLP import を先に開始する。"""
     global _nlp_prewarm_thread
     if _nlp_enrich_with_nlp is not None:
         return
@@ -75,27 +75,6 @@ def _prewarm_nlp_async() -> None:
         _nlp_prewarm_thread.start()
 
 
-@dataclass
-class OpenAiApiError(Exception):
-    status_code: int | None
-    message: str
-    error_type: str | None = None
-    error_code: str | None = None
-
-    @property
-    def is_transient(self) -> bool:
-        return self.status_code is None or self.status_code in {429, 500, 502, 503, 504}
-
-    def __str__(self) -> str:
-        status = self.status_code if self.status_code is not None else "network"
-        detail = f"OpenAI API error status={status}: {self.message}"
-        if self.error_type:
-            detail += f" type={self.error_type}"
-        if self.error_code:
-            detail += f" code={self.error_code}"
-        return detail
-
-
 def get_freq_rank() -> dict[str, int]:
     """GCS から freq_rank_top10000.json を読み込みキャッシュする。"""
     global _freq_rank
@@ -110,37 +89,10 @@ def get_freq_rank() -> dict[str, int]:
     return _freq_rank  # type: ignore
 
 
-def get_openai_api_key() -> str:
-    global _openai_api_key, _openai_api_key_fetched_at
-    if (
-        _openai_api_key is not None
-        and (time.monotonic() - _openai_api_key_fetched_at) < _OPENAI_KEY_TTL_SECONDS
-    ):
-        return _openai_api_key
-
-    env_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if env_key:
-        _openai_api_key = env_key
-        _openai_api_key_fetched_at = time.monotonic()
-        return env_key
-
-    client = secretmanager.SecretManagerServiceClient()
-    project_id = os.environ.get("GCLOUD_PROJECT", "")
-    name = f"projects/{project_id}/secrets/openai-api-key/versions/latest"
-    response = client.access_secret_version(request={"name": name})
-    api_key = response.payload.data.decode("UTF-8")
-    if not api_key:
-        raise RuntimeError("SECRET_MANAGER_ERROR")
-    _openai_api_key = api_key
-    _openai_api_key_fetched_at = time.monotonic()
-    return api_key
-
-
 def select_uvm_target_words(
     db: FirestoreClient,
     uid: str,
     params: dict,
-    api_key: str | None = None,
     max_vocab: int | None = None,
     count: int = 1,
     is_premium: bool = True,
@@ -150,15 +102,6 @@ def select_uvm_target_words(
 
     key_word先行方式: 帯域内からkey_wordを選出し、embeddingで最適テーマを決定する。
     テーマが明示指定されている場合はそのまま使用する。
-
-    Args:
-        max_vocab: 語彙帯域の上限。free ティアでは 300 に制限。
-        count: 選定する単語数。
-        is_premium: プレミアムティアかどうか。
-        estimated_vocab: 呼び出し元で取得済みの語彙スコア。省略時は Firestore から読む。
-
-    Returns:
-        (選定された単語リスト, 使用されたテーマ)
     """
     freq_rank = get_freq_rank()
     topic = params.get("topic", "")
@@ -190,37 +133,6 @@ def require_target_words(result: tuple[list[str], str]) -> tuple[list[str], str]
 MAX_RETRY = 1
 
 
-def _get_reasoning_effort(model: str) -> str:
-    if model.startswith("gpt-5.4-") or model.startswith("gpt-5-"):
-        return "low"
-    return "none"
-
-
-def _make_generation_payload(model: str, prompt: str) -> dict[str, Any]:
-    """OpenAI Responses API に送る payload を返す。"""
-    return {
-        "model": model,
-        "input": [
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ],
-        "max_output_tokens": API_MAX_TOKENS,
-        "reasoning": {
-            "effort": _get_reasoning_effort(model),
-        },
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "thai_sentence_response",
-                "strict": True,
-                "schema": RESPONSE_JSON_SCHEMA,
-            },
-        },
-    }
-
-
 def validate_target_words(sentence: dict, target_words: list[str] | None) -> list[str]:
     """生成された例文にtarget_wordsが含まれているか検証する。
 
@@ -247,188 +159,6 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
     return missing
 
 
-def _extract_output_text(response_body: dict[str, Any]) -> str | None:
-    output_text = response_body.get("output_text")
-    if isinstance(output_text, str) and output_text.strip():
-        return output_text.strip()
-
-    parts: list[str] = []
-    output = response_body.get("output")
-    if isinstance(output, list):
-        for item in output:
-            if not isinstance(item, dict):
-                continue
-            content = item.get("content")
-            if not isinstance(content, list):
-                continue
-            for content_item in content:
-                if isinstance(content_item, dict) and isinstance(
-                    content_item.get("text"), str
-                ):
-                    parts.append(content_item["text"])
-
-    text = "".join(parts).strip()
-    return text or None
-
-
-OPENAI_TOKEN_PRICING_PER_MILLION: dict[str, dict[str, float]] = {
-    "gpt-5.4-mini": {"input": 0.75, "cached_input": 0.075, "output": 4.50},
-    "gpt-5.4-nano": {"input": 0.20, "cached_input": 0.02, "output": 1.25},
-    "gpt-5-mini": {"input": 0.25, "cached_input": 0.025, "output": 2.00},
-    "gpt-5-nano": {"input": 0.05, "cached_input": 0.005, "output": 0.40},
-}
-DEFAULT_OPENAI_TOKEN_PRICING_PER_MILLION = OPENAI_TOKEN_PRICING_PER_MILLION[
-    "gpt-5.4-nano"
-]
-
-
-def _log_token_usage(usage: dict[str, Any] | None, tier_label: str, model: str) -> None:
-    if not usage:
-        return
-
-    input_tokens = int(usage.get("input_tokens") or 0)
-    output_tokens = int(usage.get("output_tokens") or 0)
-    input_details = usage.get("input_tokens_details")
-    cached_tokens = (
-        int(input_details.get("cached_tokens") or 0)
-        if isinstance(input_details, dict)
-        else 0
-    )
-    output_details = usage.get("output_tokens_details")
-    reasoning_tokens = (
-        int(output_details.get("reasoning_tokens") or 0)
-        if isinstance(output_details, dict)
-        else 0
-    )
-    total_tokens = int(usage.get("total_tokens") or input_tokens + output_tokens)
-    pricing = OPENAI_TOKEN_PRICING_PER_MILLION.get(
-        model,
-        DEFAULT_OPENAI_TOKEN_PRICING_PER_MILLION,
-    )
-    cached_input_price = pricing.get("cached_input", pricing["input"] * 0.1)
-    uncached_input_tokens = max(input_tokens - cached_tokens, 0)
-    cost_usd = (
-        uncached_input_tokens * pricing["input"]
-        + cached_tokens * cached_input_price
-        + output_tokens * pricing["output"]
-    ) / 1_000_000
-
-    print(
-        f"OpenAI token usage ({tier_label}): "
-        f"model={model}, input={input_tokens} (cached={cached_tokens}), "
-        f"output={output_tokens}, reasoning={reasoning_tokens}, "
-        f"total={total_tokens}, cost=${cost_usd:.6f}"
-    )
-
-
-def _read_http_error_body(error: urllib.error.HTTPError) -> dict[str, Any]:
-    body = error.read().decode("utf-8", errors="replace")
-    try:
-        parsed = json.loads(body)
-        return parsed if isinstance(parsed, dict) else {}
-    except json.JSONDecodeError:
-        return {"error": {"message": body}}
-
-
-def _post_openai_response(api_key: str, payload: dict[str, Any]) -> dict[str, Any]:
-    data = json.dumps(payload).encode("utf-8")
-    request = urllib.request.Request(
-        _OPENAI_RESPONSES_URL,
-        data=data,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(request, timeout=90) as response:
-            response_body = response.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        body = _read_http_error_body(exc)
-        raw_error = body.get("error")
-        error = raw_error if isinstance(raw_error, dict) else {}
-        raise OpenAiApiError(
-            status_code=exc.code,
-            message=str(error.get("message") or "Request failed"),
-            error_type=error.get("type"),
-            error_code=error.get("code"),
-        ) from exc
-    except (TimeoutError, urllib.error.URLError) as exc:
-        raise OpenAiApiError(status_code=None, message=str(exc)) from exc
-
-    try:
-        parsed = json.loads(response_body)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("OPENAI_API_ERROR: invalid JSON response") from exc
-
-    if not isinstance(parsed, dict):
-        raise RuntimeError("OPENAI_API_ERROR: unexpected response shape")
-    return parsed
-
-
-def _call_openai_with_retry_sync(
-    api_key: str,
-    model: str,
-    prompt: str,
-    tier_label: str,
-    *,
-    max_retries: int = 3,
-    base_delay: float = 2.0,
-) -> dict[str, Any]:
-    """OpenAI Responses API を同期呼び出しし、一時的エラー時はリトライする。"""
-    payload = _make_generation_payload(model, prompt)
-    for attempt in range(1 + max_retries):
-        try:
-            return _post_openai_response(api_key, payload)
-        except OpenAiApiError as exc:
-            if not exc.is_transient or attempt == max_retries:
-                raise RuntimeError(f"OPENAI_API_ERROR: {exc}") from exc
-            delay = base_delay * (2**attempt) + random.uniform(0, 1)
-            print(
-                f"OpenAI API transient error "
-                f"({tier_label}, attempt {attempt + 1}/{max_retries}): "
-                f"{exc}. Retrying in {delay:.1f}s..."
-            )
-            time.sleep(delay)
-    raise RuntimeError("Unreachable")
-
-
-async def _call_openai_with_retry(
-    api_key: str,
-    model: str,
-    prompt: str,
-    tier_label: str,
-) -> dict[str, Any]:
-    return await asyncio.to_thread(
-        _call_openai_with_retry_sync,
-        api_key,
-        model,
-        prompt,
-        tier_label,
-    )
-
-
-def _parse_sentence_response(
-    response_body: dict[str, Any],
-    tier_label: str,
-    model: str,
-) -> dict:
-    _log_token_usage(response_body.get("usage"), tier_label, model)
-    text = _extract_output_text(response_body)
-    if not text:
-        raise RuntimeError("OPENAI_API_ERROR: empty output")
-    try:
-        sentence = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("OPENAI_API_ERROR: invalid structured output") from exc
-    if not isinstance(sentence, dict):
-        raise RuntimeError("OPENAI_API_ERROR: unexpected structured output")
-    _get_enrich_with_nlp()(sentence)
-    return sentence
-
-
 def _build_retry_prompt(prompt: str, missing: list[str]) -> str:
     missing_str = ", ".join(missing)
     return (
@@ -439,21 +169,20 @@ def _build_retry_prompt(prompt: str, missing: list[str]) -> str:
 
 
 def _generate_single(
-    api_key: str,
-    model: str,
     prompt: str,
+    is_premium: bool,
     tier_label: str,
     target_words: list[str] | None = None,
 ) -> dict:
-    """OpenAI で1文を同期生成し NLP 後処理を適用する。"""
+    """LLM で1文を同期生成し NLP 後処理を適用する。"""
     _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
     for attempt in range(1 + MAX_RETRY):
-        result = _call_openai_with_retry_sync(
-            api_key, model, current_prompt, tier_label
+        sentence = _llm_generate_sync(
+            SYSTEM_PROMPT, current_prompt, is_premium, tier_label
         )
-        sentence = _parse_sentence_response(result, tier_label, model)
+        _get_enrich_with_nlp()(sentence)
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
@@ -464,7 +193,6 @@ def _generate_single(
         )
         current_prompt = _build_retry_prompt(prompt, missing)
 
-    # リトライ上限到達 — 生成自体は成功しているのでそのまま返す
     print(
         f"Returning sentence despite missing target words after "
         f"{1 + MAX_RETRY} attempts"
@@ -473,21 +201,20 @@ def _generate_single(
 
 
 async def _generate_single_async(
-    api_key: str,
-    model: str,
     prompt: str,
+    is_premium: bool,
     tier_label: str,
     target_words: list[str] | None = None,
 ) -> dict:
-    """OpenAI で1文を非同期生成し NLP 後処理を適用する（バッチ並列用）。"""
+    """LLM で1文を非同期生成し NLP 後処理を適用する（バッチ並列用）。"""
     _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
     for attempt in range(1 + MAX_RETRY):
-        result = await _call_openai_with_retry(
-            api_key, model, current_prompt, tier_label
+        sentence = await _llm_generate_async(
+            SYSTEM_PROMPT, current_prompt, is_premium, tier_label
         )
-        sentence = _parse_sentence_response(result, tier_label, model)
+        _get_enrich_with_nlp()(sentence)
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
@@ -498,7 +225,6 @@ async def _generate_single_async(
         )
         current_prompt = _build_retry_prompt(prompt, missing)
 
-    # リトライ上限到達 — 生成自体は成功しているのでそのまま返す
     print(
         f"Returning sentence despite missing target words after "
         f"{1 + MAX_RETRY} attempts"
@@ -513,9 +239,7 @@ def generate_sentence(
     target_words: list[str] | None = None,
     estimated_vocab: int = 0,
 ) -> dict:
-    """OpenAI で例文を生成し、NLP後処理を適用する。"""
-    api_key = get_openai_api_key()
-    model = OPENAI_MODEL_PREMIUM if is_premium else OPENAI_MODEL
+    """LLM で例文を生成し、NLP後処理を適用する。"""
     tier_label = "premium" if is_premium else "free"
     prompt = build_uvm_prompt(
         params,
@@ -523,7 +247,7 @@ def generate_sentence(
         estimated_vocab=estimated_vocab,
         is_premium=is_premium,
     )
-    return _generate_single(api_key, model, prompt, tier_label, target_words)
+    return _generate_single(prompt, is_premium, tier_label, target_words)
 
 
 async def _generate_batch_async(
@@ -535,8 +259,6 @@ async def _generate_batch_async(
     estimated_vocab: int = 0,
 ) -> list[dict]:
     """複数の例文を asyncio.gather で並列生成する。"""
-    api_key = get_openai_api_key()
-    model = OPENAI_MODEL_PREMIUM if is_premium else OPENAI_MODEL
     tier_label = "premium" if is_premium else "free"
     tasks = []
     for i in range(count):
@@ -548,7 +270,7 @@ async def _generate_batch_async(
             estimated_vocab=estimated_vocab,
             is_premium=is_premium,
         )
-        tasks.append(_generate_single_async(api_key, model, prompt, tier_label, tw))
+        tasks.append(_generate_single_async(prompt, is_premium, tier_label, tw))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -569,18 +291,7 @@ def generate_sentences_batch(
     all_topics: list[str],
     estimated_vocab: int = 0,
 ) -> list[dict]:
-    """複数の例文を並列で生成する（sync ラッパー）。
-
-    Args:
-        count: 生成する例文数
-        is_premium: プレミアムティアか
-        all_target_words: 各例文用のターゲット単語リスト（len == count）
-        all_topics: 各例文用のテーマ（len == count）
-        estimated_vocab: ユーザーの語彙スコア
-
-    Returns:
-        成功した例文のリスト
-    """
+    """複数の例文を並列で生成する（sync ラッパー）。"""
     return asyncio.run(
         _generate_batch_async(
             count,

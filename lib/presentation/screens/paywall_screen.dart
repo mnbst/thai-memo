@@ -118,7 +118,32 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_awesome,
+                          color: colorScheme.primary, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'AIがより深く考えて、自然で実践的な例文を生成します',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onPrimaryContainer,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
                 // 比較テーブル
                 _buildComparisonTable(context),
                 const SizedBox(height: 20),
@@ -368,6 +393,7 @@ class PaywallBottomSheet extends ConsumerWidget {
 
     // (機能名, 無料, プレミアム)
     const features = [
+      ('例文の質', 'ベーシック', 'AI高精度モード'),
       ('例文生成 / クイズ', '最大2回/日', '最大10回/日'),
       ('学べる単語', '100語まで', '最大1万語'),
     ];

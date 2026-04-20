@@ -238,7 +238,10 @@ functions/python/prompts.py
 Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。
 
 functions/python/constants.py
-Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ。
+LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ。
+
+functions/python/llm_providers.py
+LLMプロバイダー抽象レイヤ（OpenAI/Gemini切替、API呼び出し、リトライ、トークン使用量ログ）。
 
 functions/python/uvm.py
 UVMコアロジック（テーマ×語彙レベルによるセッション単語選定、P(know)更新、バッチ更新）。

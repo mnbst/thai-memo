@@ -56,31 +56,37 @@ def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
     }
 
 
-def test_resolve_generation_params_weights_style_and_politeness_by_topic() -> None:
+def test_resolve_generation_params_weights_style_by_target_words() -> None:
     def choose_highest_weight(population, weights, k):
         return [population[weights.index(max(weights))]]
 
-    def option_weights(topic, options, kind):
+    style_weights = [0.0] * len(STYLES)
+    style_weights[STYLES.index(STYLES[2])] = 1.0
+
+    def politeness_weights(topic, options, kind):
         weights = [0.0] * len(options)
-        if kind == "style":
-            weights[options.index(STYLES[2])] = 1.0
-        else:
-            weights[options.index(POLITENESS_LEVELS[0])] = 1.0
+        weights[options.index(POLITENESS_LEVELS[0])] = 1.0
         return weights
 
     with (
         patch("prompts.random.choices", side_effect=choose_highest_weight),
         patch(
-            "prompts.get_topic_option_similarity_weights",
-            side_effect=option_weights,
+            "prompts.get_style_similarity_weights",
+            return_value=style_weights,
         ),
+        patch(
+            "prompts.get_topic_option_similarity_weights",
+            side_effect=politeness_weights,
+        ),
+        patch("prompts.get_emotion_similarity_weights", return_value=None),
     ):
         resolved = resolve_generation_params(
             {"topic": "仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）"},
             is_premium=True,
+            target_words=["งาน"],
         )
 
-    assert resolved["style"] == "丁寧語（フォーマルな敬語・丁寧な表現）"
+    assert resolved["style"] == STYLES[2]
     assert resolved["politeness"] == "フォーマル（丁寧語・敬語を使用）"
 
 
@@ -93,6 +99,7 @@ def test_resolve_generation_params_weights_emotion_by_embedding() -> None:
 
     with patch("prompts.random.choices", side_effect=choose_highest_weight):
         with (
+            patch("prompts.get_style_similarity_weights", return_value=None),
             patch("prompts.get_topic_option_similarity_weights", return_value=None),
             patch(
                 "prompts.get_emotion_similarity_weights",
@@ -117,6 +124,7 @@ def test_style_gate_at_intro_opens_all_premium_styles() -> None:
         return [population[0]]
 
     with (
+        patch("prompts.get_style_similarity_weights", return_value=None),
         patch("prompts.get_topic_option_similarity_weights", return_value=None),
         patch("prompts.get_emotion_similarity_weights", return_value=None),
         patch("prompts.random.choice", side_effect=lambda values: values[0]),
@@ -136,6 +144,7 @@ def test_style_gate_at_beginner_keeps_all_premium_styles() -> None:
         return [population[0]]
 
     with (
+        patch("prompts.get_style_similarity_weights", return_value=None),
         patch("prompts.get_topic_option_similarity_weights", return_value=None),
         patch("prompts.get_emotion_similarity_weights", return_value=None),
         patch("prompts.random.choice", side_effect=lambda values: values[0]),
@@ -155,6 +164,7 @@ def test_style_gate_at_pre_intermediate_opens_all() -> None:
         return [population[0]]
 
     with (
+        patch("prompts.get_style_similarity_weights", return_value=None),
         patch("prompts.get_topic_option_similarity_weights", return_value=None),
         patch("prompts.get_emotion_similarity_weights", return_value=None),
         patch("prompts.random.choice", side_effect=lambda values: values[0]),
@@ -336,6 +346,46 @@ def test_build_uvm_prompt_includes_all_resolved_target_word_conditions() -> None
     assert "- 丁寧さ: politeness-a" in prompt
     assert "- 文法フォーカス: grammar-a" in prompt
     assert "- 感情・トーン: emotion-a" in prompt
+
+
+def test_build_uvm_prompt_with_target_words_includes_target_section() -> None:
+    prompt = build_uvm_prompt(
+        {
+            "topic": "topic-a",
+            "style": "style-a",
+            "politeness": "politeness-a",
+            "grammarFocus": "grammar-a",
+            "emotion": "emotion-a",
+        },
+        target_words=["เข"],
+        is_premium=True,
+    )
+
+    assert "以下のタイ語単語を必ず含めてください" in prompt
+    # 出力ルールは system prompt 側に移動しているため user prompt には含まれない
+    assert "word_breakdownのmeaningは必ず日本語で記述してください" not in prompt
+    assert "ผม=僕/私（男性）" not in prompt
+
+
+def test_build_uvm_prompt_excludes_fixed_output_rules() -> None:
+    """固定の出力ルールは SYSTEM_PROMPT に集約し、user prompt からは除かれる。"""
+    from prompts import SYSTEM_PROMPT
+
+    prompt = build_uvm_prompt(
+        {
+            "topic": "topic-a",
+            "style": "style-a",
+            "politeness": "politeness-a",
+            "grammarFocus": "grammar-a",
+            "emotion": "emotion-a",
+        },
+        is_premium=True,
+    )
+
+    assert "thai_textはタイ語の自然な本文表記" not in prompt
+    assert "日本語話者向けのタイ語練習文を1つ生成" not in prompt
+    assert "thai_textはタイ語の自然な本文表記" in SYSTEM_PROMPT
+    assert "word_breakdownのmeaningは必ず日本語で記述してください" in SYSTEM_PROMPT
 
 
 def test_build_uvm_prompt_includes_grammar_focus_without_target_words() -> None:

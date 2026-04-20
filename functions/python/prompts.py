@@ -20,6 +20,7 @@ from constants import (
 )
 from embeddings import (
     get_emotion_similarity_weights,
+    get_style_similarity_weights,
     get_topic_option_similarity_weights,
 )
 
@@ -97,6 +98,21 @@ _style_embedding_enabled = True
 _politeness_embedding_enabled = True
 
 
+# ─── システムプロンプト（固定・プロバイダー共通） ───
+# プロンプトキャッシュを効かせるため、呼び出しごとに変化しない指示は
+# ここに集約して prefix として送る（OpenAI=instructions / Gemini=system_instruction）。
+SYSTEM_PROMPT = """あなたは日本語話者向けのタイ語練習文を生成するアシスタントです。ユーザーから指定される要件に従って、タイ語例文を1つ生成し、以下の出力ルールに厳密に従ってください。
+
+出力ルール:
+- thai_textはタイ語の自然な本文表記にし、単語ごとの分かち書きスペースを入れないでください（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）
+- 単語単位の区切りはword_breakdownで表現し、thai_text内では文末・節区切りなどタイ語として自然な空白だけを使ってください
+- 単語分解は最大20単語まで
+- 同じ単語が文中に複数回出現する場合は、出現順にすべてword_breakdownに含めてください
+- contextの各フィールドは簡潔に（各50文字以内）
+- word_breakdownのmeaningは必ず日本語で記述してください（英語不可）
+- 人称代名詞（ผม, ฉัน, ดิฉัน, คุณ, เธอ, หนู, กู, มึง 等）のmeaningには、性別・丁寧度を括弧で注記してください（例: ผม→「私（男性・丁寧）」、ดิฉัน→「私（女性・フォーマル）」、กู→「俺/私（男女・ぞんざい）」）"""
+
+
 def _gate_pool(
     pool: list[str],
     estimated_vocab: int,
@@ -132,6 +148,22 @@ def _topic_option_weights(topic: str, options: list[str], kind: str) -> list[flo
         print(f"{kind} embedding weights unavailable: {exc}")
         weights = None
     return weights or [1.0] * len(options)
+
+
+def _style_weights(
+    target_words: list[str] | None, styles_pool: list[str]
+) -> list[float]:
+    global _style_embedding_enabled
+    if not _style_embedding_enabled:
+        return [1.0] * len(styles_pool)
+
+    try:
+        weights = get_style_similarity_weights(target_words, styles_pool)
+    except Exception as exc:
+        _style_embedding_enabled = False
+        print(f"style embedding weights unavailable: {exc}")
+        weights = None
+    return weights or [1.0] * len(styles_pool)
 
 
 def _emotion_weights(target_words: list[str] | None) -> list[float]:
@@ -174,7 +206,7 @@ def resolve_generation_params(
     if not style:
         style = _weighted_choice(
             styles_pool,
-            _topic_option_weights(topic, styles_pool, "style"),
+            _style_weights(target_words, styles_pool),
         )
 
     politeness = params.get("politeness")
@@ -263,9 +295,7 @@ def build_uvm_prompt(
 
     if target_words:
         words_str = ", ".join(target_words)
-        return f"""日本語話者向けのタイ語練習文を1つ生成してください。
-
-【最優先】以下のタイ語単語を必ず含めてください:
+        return f"""【最優先】以下のタイ語単語を必ず含めてください:
 {words_str}
 
 【必須】難易度:
@@ -276,27 +306,12 @@ def build_uvm_prompt(
 - テーマ: {topic}
 - 文体: {style}
 - 丁寧さ: {politeness}
-{grammar_line}- 感情・トーン: {emotion}
+{grammar_line}- 感情・トーン: {emotion}"""
 
-- thai_textはタイ語の自然な本文表記にし、単語ごとの分かち書きスペースを入れないでください（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）
-- 単語単位の区切りはword_breakdownで表現し、thai_text内では文末・節区切りなどタイ語として自然な空白だけを使ってください
-- 単語分解は最大20単語まで
-- 同じ単語が文中に複数回出現する場合は、出現順にすべてword_breakdownに含めてください
-- contextの各フィールドは簡潔に（各50文字以内）
-- word_breakdownのmeaningは必ず日本語で記述してください（英語不可）"""
-
-    return f"""日本語話者向けのタイ語練習文を1つ生成してください。
-
-要件:
+    return f"""要件:
 - 語彙レベル: {diff["label"]}（{diff["vocab_hint"]}）
 - 長さ: {diff["length"]}
 - テーマ: {topic}
 - 文体: {style}
 - 丁寧さ: {politeness}
-{grammar_line}- 感情・トーン: {emotion}
-- thai_textはタイ語の自然な本文表記にし、単語ごとの分かち書きスペースを入れないでください（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）
-- 単語単位の区切りはword_breakdownで表現し、thai_text内では文末・節区切りなどタイ語として自然な空白だけを使ってください
-- 単語分解は最大20単語まで
-- 同じ単語が文中に複数回出現する場合は、出現順にすべてword_breakdownに含めてください
-- contextの各フィールドは簡潔に（各50文字以内）
-- word_breakdownのmeaningは必ず日本語で記述してください（英語不可）"""
+{grammar_line}- 感情・トーン: {emotion}"""

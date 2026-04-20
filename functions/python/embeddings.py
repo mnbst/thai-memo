@@ -303,6 +303,50 @@ def get_topic_option_similarity_weights(
     return weights
 
 
+def get_style_similarity_weights(
+    target_words: list[str] | None,
+    styles: list[str],
+    top_k: int = 3,
+) -> list[float] | None:
+    """target_words に近い文体ラベルだけを選びやすくする重みを返す。
+
+    語彙 embedding と事前計算済み style_embeddings.json を比較し、
+    類似度上位 top_k の文体だけをランダム選択候補に残す。
+    embedding が取得できない場合は None を返し、呼び出し側で通常ランダムに戻す。
+    """
+    if not target_words:
+        return None
+
+    _load_data()
+    _load_style_embeddings()
+    assert _style_embeddings is not None
+
+    target_embs = [
+        emb for word in target_words if (emb := get_embedding(word)) is not None
+    ]
+    if not target_embs:
+        return None
+
+    target_emb = np.mean(np.stack(target_embs), axis=0)
+    scored: list[tuple[float, int]] = []
+    for i, style in enumerate(styles):
+        style_emb = _find_embedding(style, _style_embeddings)
+        if style_emb is None:
+            continue
+        scored.append((cosine_similarity(target_emb, style_emb), i))
+
+    if not scored:
+        return None
+
+    scored.sort(reverse=True)
+    top = scored[: max(1, min(top_k, len(scored)))]
+    min_similarity = min(sim for sim, _ in top)
+    weights = [0.0] * len(styles)
+    for similarity, i in top:
+        weights[i] = 1.0 + max(0.0, similarity - min_similarity) * 20.0
+    return weights
+
+
 def get_emotion_similarity_weights(
     target_words: list[str] | None,
     emotions: list[str],

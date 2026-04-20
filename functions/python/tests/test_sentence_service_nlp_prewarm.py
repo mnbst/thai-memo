@@ -1,25 +1,19 @@
-import json
-
 import sentence_service
 
 
-def test_generate_single_starts_nlp_prewarm_before_openai(monkeypatch):
+def test_generate_single_starts_nlp_prewarm_before_llm(monkeypatch):
     events: list[str] = []
 
     def fake_prewarm() -> None:
         events.append("prewarm")
 
-    def fake_openai(*args, **kwargs):
-        events.append("openai")
+    def fake_llm(system_prompt, user_prompt, is_premium, tier_label):
+        events.append("llm")
         return {
-            "output_text": json.dumps(
-                {
-                    "thai_text": "ฉันกินข้าว",
-                    "japanese_translation": "私はご飯を食べます。",
-                    "word_breakdown": [{"word": "กิน", "meaning": "食べる"}],
-                    "context": "daily",
-                }
-            )
+            "thai_text": "ฉันกินข้าว",
+            "japanese_translation": "私はご飯を食べます。",
+            "word_breakdown": [{"word": "กิน", "meaning": "食べる"}],
+            "context": "daily",
         }
 
     def fake_get_enrich_with_nlp():
@@ -30,11 +24,7 @@ def test_generate_single_starts_nlp_prewarm_before_openai(monkeypatch):
         return enrich
 
     monkeypatch.setattr(sentence_service, "_prewarm_nlp_async", fake_prewarm)
-    monkeypatch.setattr(
-        sentence_service,
-        "_call_openai_with_retry_sync",
-        fake_openai,
-    )
+    monkeypatch.setattr(sentence_service, "_llm_generate_sync", fake_llm)
     monkeypatch.setattr(
         sentence_service,
         "_get_enrich_with_nlp",
@@ -42,12 +32,11 @@ def test_generate_single_starts_nlp_prewarm_before_openai(monkeypatch):
     )
 
     result = sentence_service._generate_single(
-        "api-key",
-        "gpt-5.4-nano",
         "prompt",
+        False,
         "free",
         target_words=["กิน"],
     )
 
     assert result["thai_text"] == "ฉันกินข้าว"
-    assert events == ["prewarm", "openai", "nlp"]
+    assert events == ["prewarm", "llm", "nlp"]
