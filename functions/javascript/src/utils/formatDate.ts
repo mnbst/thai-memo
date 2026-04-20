@@ -15,9 +15,9 @@ export function todayJST(): string {
   }).replace(/\//g, '-');
 }
 
-/** JST現在日時のDateオブジェクトを返す（内部的にAsia/Tokyoオフセット適用） */
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/** JST現在日時のDateオブジェクトを返す */
 export function nowJST(): Date {
-  const now = new Date();
-  const jstString = now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' });
-  return new Date(jstString);
+  return new Date(Date.now() + JST_OFFSET_MS);
 }

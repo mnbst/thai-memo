@@ -36,6 +36,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
+  bool _initialLoadCompleted = false;
 
   @override
   void initState() {
@@ -74,6 +75,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
   Future<void> _checkAndReloadIfNeeded() async {
+    // 初回ロードが完了する前はスキップ（_checkFirstLaunchAndLoadSentenceとの二重生成を防ぐ）
+    if (!_initialLoadCompleted) return;
+
     // 生成中ならスキップ
     final currentState = ref.read(sentenceControllerProvider);
     if (currentState is SentenceStateLoading) {
@@ -129,6 +133,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
           dailySentenceGenerated: isGenerated,
         );
+
+    _initialLoadCompleted = true;
 
     if (!mounted) return;
 
@@ -285,6 +291,14 @@ class TodayScreen extends ConsumerStatefulWidget {
 }
 
 class _TodayScreenState extends ConsumerState<TodayScreen> {
+  static const int _freeVocabScoreLimit = 100;
+  static const String _freeTopics = 'あいさつ、食べ物、旅行、買い物';
+  static const String _freeStyles = '口語体、丁寧語';
+  static const String _premiumTopicUnlockPreview =
+      '仕事、恋愛、家族、天気、交通、健康、趣味、学校、宗教・信仰、伝統・祭り、礼儀作法';
+  static const String _premiumStyleUnlockPreview =
+      'SNS・テキストメッセージ、ニュース記事体、物語・文学体';
+
   @override
   Widget build(BuildContext context) {
     final sentenceState = ref.watch(sentenceControllerProvider);
@@ -340,6 +354,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final remainingAsync = ref.watch(remainingSentencesProvider);
     final remaining = remainingAsync.valueOrNull;
     final showUpgrade = !isPremium && remaining != null && remaining <= 0;
+    final vocab =
+        ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+    final showVocabUpgrade = !isPremium && vocab >= 100;
 
     return Column(
       children: [
@@ -367,7 +384,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 _buildSentenceCard(context, sentence),
                 const SizedBox(height: 16),
                 _buildQuickInfo(context, sentence),
-                if (showUpgrade) ...[
+                if (showVocabUpgrade) ...[
+                  const SizedBox(height: 16),
+                  _buildVocabUpgradeBanner(context),
+                ] else if (showUpgrade) ...[
                   const SizedBox(height: 16),
                   _buildUpgradeBanner(context),
                 ],
@@ -490,43 +510,74 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   /// Build vocab stats card
   Widget _buildVocabStats(BuildContext context) {
     final statsAsync = ref.watch(vocabStatsProvider);
+    final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
+            ref.watch(isPremiumProvider)) ==
+        true;
     return statsAsync.when(
       data: (stats) {
         final onContainer = Theme.of(context).colorScheme.onPrimaryContainer;
+        final displayVocab = isPremium
+            ? stats.estimatedVocab
+            : stats.estimatedVocab.clamp(0, _freeVocabScoreLimit).toInt();
+        final level = _vocabLevel(displayVocab);
         return Card(
           color: Theme.of(context).colorScheme.primaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConfig.defaultPadding * 1.5,
-              vertical: AppConfig.defaultPadding,
+          child: InkWell(
+            onTap: () => _showVocabScoreInfo(
+              context,
+              stats.estimatedVocab,
+              isPremium: isPremium,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.auto_graph, size: 16, color: onContainer),
-                const SizedBox(width: 4),
-                Text(
-                  'あなたの推定語彙数',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: onContainer,
-                      ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '${stats.estimatedVocab}',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: onContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '語',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: onContainer.withValues(alpha: 0.7),
-                      ),
-                ),
-              ],
+            borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConfig.defaultPadding * 1.5,
+                vertical: AppConfig.defaultPadding,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.auto_graph, size: 16, color: onContainer),
+                  const SizedBox(width: 4),
+                  Text(
+                    '語彙スコア',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: onContainer,
+                        ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '$displayVocab',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: onContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '語',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: onContainer.withValues(alpha: 0.7),
+                        ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: onContainer.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      level,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: onContainer,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -537,6 +588,358 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         return Text('vocabStats error: $e',
             style: const TextStyle(color: Colors.red, fontSize: 12));
       },
+    );
+  }
+
+  /// estimated_vocab からレベルラベルを返す
+  String _vocabLevel(int vocab) {
+    if (vocab < 100) return '入門';
+    if (vocab < 300) return '初級';
+    if (vocab < 600) return '初中級';
+    if (vocab < 1500) return '中級';
+    return '上級';
+  }
+
+  /// 語彙スコアの説明ダイアログを表示する
+  void _showVocabScoreInfo(
+    BuildContext context,
+    int vocab, {
+    required bool isPremium,
+  }) {
+    final displayVocab =
+        isPremium ? vocab : vocab.clamp(0, _freeVocabScoreLimit).toInt();
+    final level = _vocabLevel(displayVocab);
+    final nextUnlock = isPremium ? _nextUnlock(displayVocab) : null;
+    final threshold =
+        isPremium ? _nextThreshold(displayVocab) : _freeVocabScoreLimit;
+    final currentTopics =
+        isPremium ? _topicsForLevel(displayVocab) : _freeTopics;
+    final currentTopicCount = _topicCount(currentTopics);
+    final nextTopicCount =
+        nextUnlock == null ? 0 : _topicCount(nextUnlock.addedTopics);
+    final progressValue = threshold == null
+        ? 0.0
+        : (displayVocab / threshold).clamp(0.0, 1.0).toDouble();
+    final remainingText = threshold == null
+        ? null
+        : !isPremium && displayVocab >= threshold
+            ? 'Free上限'
+            : '残り${threshold - displayVocab}語';
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        return AlertDialog(
+          title: Text(isPremium ? '語彙スコア（$level）' : '語彙スコア（Free・$level）'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (threshold != null) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('$displayVocab / $threshold 語',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(remainingText!,
+                          style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progressValue,
+                      minHeight: 8,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                _buildTopicUnlockSummary(
+                  dialogContext,
+                  isPremium: isPremium,
+                  currentCount: currentTopicCount,
+                  nextCount: nextTopicCount,
+                ),
+                const SizedBox(height: 16),
+                _buildCategoryBlock(
+                  dialogContext,
+                  title: isPremium
+                      ? '現在のテーマ数（$currentTopicCount件）'
+                      : 'Freeのテーマ候補（$currentTopicCount件）',
+                  topics: currentTopics,
+                ),
+                if (!isPremium) ...[
+                  const SizedBox(height: 16),
+                  _buildCategoryBlock(
+                    dialogContext,
+                    title: 'Freeの文体候補（2件）',
+                    topics: _freeStyles,
+                  ),
+                  const SizedBox(height: 16),
+                  Divider(
+                    height: 1,
+                    color: theme.colorScheme.outlineVariant,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCategoryBlock(
+                    dialogContext,
+                    title: 'Premiumで追加されるテーマ',
+                    topics: _premiumTopicUnlockPreview,
+                    addition: true,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCategoryBlock(
+                    dialogContext,
+                    title: 'Premiumで追加される文体',
+                    topics: _premiumStyleUnlockPreview,
+                    addition: true,
+                  ),
+                ],
+                if (nextUnlock != null) ...[
+                  const SizedBox(height: 16),
+                  Divider(
+                    height: 1,
+                    color: theme.colorScheme.outlineVariant,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCategoryBlock(
+                    dialogContext,
+                    title: '次の解放:（+$nextTopicCount件）',
+                    topics: nextUnlock.addedTopics,
+                    addition: true,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            if (!isPremium)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  PaywallBottomSheet.show(
+                    context,
+                    source: 'vocab_score_dialog',
+                  );
+                },
+                child: const Text('Premiumを見る'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('閉じる'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 次の解放までの閾値（100, 300, 600）。それ以降はnull
+  int? _nextThreshold(int vocab) {
+    if (vocab < 100) return 100;
+    if (vocab < 300) return 300;
+    if (vocab < 600) return 600;
+    return null;
+  }
+
+  /// 現在レベルで使えるテーマ一覧
+  String _topicsForLevel(int vocab) {
+    if (vocab < 100) {
+      return 'あいさつ、食べ物、旅行、家族、買い物、天気';
+    }
+    if (vocab < 300) {
+      return 'あいさつ、食べ物、旅行、家族、買い物、天気、仕事、交通、健康、趣味、恋愛';
+    }
+    if (vocab < 600) {
+      return 'あいさつ、食べ物、旅行、家族、買い物、天気、仕事、交通、健康、趣味、恋愛、学校';
+    }
+    return 'あいさつ、食べ物、旅行、家族、買い物、天気、仕事、交通、健康、趣味、恋愛、学校、宗教・信仰、伝統・祭り、礼儀作法';
+  }
+
+  /// 次レベルで解放される内容。なければ null
+  ({String label, String addedTopics})? _nextUnlock(
+    int vocab,
+  ) {
+    if (vocab < 100) {
+      return (
+        label: '初級',
+        addedTopics: '仕事、交通、健康、趣味、恋愛',
+      );
+    }
+    if (vocab < 300) {
+      return (
+        label: '初中級',
+        addedTopics: '学校',
+      );
+    }
+    if (vocab < 600) {
+      return (
+        label: '中級',
+        addedTopics: '宗教・信仰、伝統・祭り、礼儀作法',
+      );
+    }
+    return null;
+  }
+
+  int _topicCount(String topics) {
+    return topics
+        .split('、')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .length;
+  }
+
+  Widget _buildTopicUnlockSummary(
+    BuildContext context, {
+    required bool isPremium,
+    required int currentCount,
+    required int nextCount,
+  }) {
+    final theme = Theme.of(context);
+    final message = isPremium
+        ? nextCount > 0
+            ? '語彙スコアが上がると、例文のテーマが増えます。\n現在$currentCount件 / 次で+$nextCount件'
+            : '例文テーマ候補は現在$currentCount件です。'
+        : 'Freeでは例文テーマは$currentCount件、文体は2件です。\n語彙スコアは$_freeVocabScoreLimit語まで表示されます。';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.auto_stories_outlined,
+            size: 18,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// テーマブロック（現在 or 次の解放）
+  Widget _buildCategoryBlock(
+    BuildContext context, {
+    required String title,
+    required String topics,
+    bool addition = false,
+  }) {
+    final theme = Theme.of(context);
+    final titleColor = addition ? theme.colorScheme.primary : null;
+    final rowBorderColor = theme.colorScheme.outlineVariant;
+    final block = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (addition) ...[
+              Icon(
+                Icons.lock,
+                size: 16,
+                color: titleColor,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Flexible(
+              child: Text(
+                title,
+                style:
+                    TextStyle(fontWeight: FontWeight.bold, color: titleColor),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: rowBorderColor),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              if (topics.isNotEmpty)
+                _topicListRow(
+                  value: topics,
+                  borderColor: rowBorderColor,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (!addition) {
+      return block;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.28),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.18),
+        ),
+        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+      ),
+      child: block,
+    );
+  }
+
+  Widget _topicListRow({
+    required String value,
+    required Color borderColor,
+    bool showBottomBorder = false,
+  }) {
+    final items = value
+        .split('、')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        border: showBottomBorder
+            ? Border(bottom: BorderSide(color: borderColor))
+            : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            for (var i = 0; i < items.length; i++)
+              Text(
+                i == items.length - 1 ? items[i] : '${items[i]}、',
+                maxLines: 1,
+                softWrap: false,
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -560,6 +963,54 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 語彙スコアが上限に近づいた際のPremium誘導バナー
+  Widget _buildVocabUpgradeBanner(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      color: colorScheme.secondaryContainer,
+      child: InkWell(
+        onTap: () => PaywallBottomSheet.show(
+          context,
+          source: 'today_vocab_upgrade_banner',
+        ),
+        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+        child: Padding(
+          padding: const EdgeInsets.all(AppConfig.defaultPadding),
+          child: Row(
+            children: [
+              Icon(Icons.emoji_events, color: colorScheme.onSecondaryContainer),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '初級レベルまであと少し！',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSecondaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Premiumにアップグレードして初級以上の単語を学びましょう',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSecondaryContainer
+                                .withValues(alpha: 0.8),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios,
+                  size: 16, color: colorScheme.onSecondaryContainer),
+            ],
+          ),
         ),
       ),
     );
@@ -716,9 +1167,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// Generate a single sentence
   Future<void> _generateSingle(BuildContext context) async {
-    await ref
-        .read(sentenceControllerProvider.notifier)
-        .generateSentence();
+    await ref.read(sentenceControllerProvider.notifier).generateSentence();
 
     final state = ref.read(sentenceControllerProvider);
     if (context.mounted) {

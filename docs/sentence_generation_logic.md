@@ -41,26 +41,31 @@
 1. GCSから `freq_rank_top10000.json` を読み込み（メモリキャッシュ済み）
 2. `get_session_words(db, uid, freq_rank, ...)` (uvm.py) でUVMから単語を選定
    - `estimated_vocab ± FREQ_BAND_HALF` の帯域内から P(know) が低い単語を優先
-   - topicが未指定の場合はembeddingで最適トピックを選択
+   - topicが未指定の場合はembeddingで最適テーマを選択
 3. free ティアは `max_vocab = FREE_TIER_MAX_VOCAB (300)` にキャップ
 
-バッチ生成では `count` 分の単語を一括選定し、各単語に embedding でトピックを割り当て。
-重複トピックが出た場合は別トピックに差し替えて多様性を確保する。
+バッチ生成では `count` 分の単語を一括選定し、各単語に embedding でテーマを割り当て。
+重複テーマが出た場合は別テーマに差し替えて多様性を確保する。
 
-## ③ プロンプト構築 — `build_uvm_prompt` (`prompts.py:59`)
+## ③ プロンプト構築 — `build_uvm_prompt` (`prompts.py`)
 
 `estimated_vocab` から難易度ラベルを決定:
 
 | estimated_vocab | ラベル | 文長 |
 |-----------------|--------|------|
-| ≤ 300 | 初級 | 5〜8単語 |
-| ≤ 1000 | 中級 | 8〜12単語 |
-| ≤ 3000 | 上級 | 10〜15単語 |
-| > 3000 | 上級+ | 自然な長さ |
+| 0-99 | 入門 | 〜7単語 |
+| 100-299 | 初級 | 〜7-8単語 |
+| 300-599 | 初中級 | 〜8-10単語 |
+| 600-1499 | 中級 | 〜10-16単語 |
+| 1500以上 | 上級 | 自然な長さ |
 
-ターゲット単語がある場合は「最優先で含めること」として指示し、トピック/文体/文法などは「できれば反映」の補助扱いにする。
+ターゲット単語がある場合は「最優先で含めること」として指示し、テーマ/文体/文法などは「できれば反映」の補助扱いにする。
 
-free ティアはトピック・スタイルの選択肢を制限（`FREE_TOPICS`, `FREE_STYLES`）。
+free ティアはテーマ・スタイルの選択肢を制限（`FREE_TOPICS`, `FREE_STYLES`）し、`grammarFocus` は使わない。
+語彙スコアごとの topic / style / grammarFocus 解禁仕様は `docs/vocab_unlock_parameters.md` を参照。
+
+プロンプトでは `word_breakdown` を最大20単語までに制限する。
+`context.usage_scenarios` と `context.cultural_notes` は各50文字以内の簡潔な補足にする。
 
 ## ④ Gemini API 呼び出し
 

@@ -1,4 +1,4 @@
-# 推定語彙数（estimated_vocab）算出ロジック
+# 語彙スコア（estimated_vocab）算出ロジック
 
 ## 概要
 

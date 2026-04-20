@@ -49,12 +49,22 @@ class TtsService {
     await _tts.setVoice({'name': voice['name']!, 'locale': voice['locale']!});
   }
 
+  static final RegExp _emojiRegex = RegExp(
+    r'[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{200D}]',
+    unicode: true,
+  );
+
+  String _stripEmoji(String text) =>
+      text.replaceAll(_emojiRegex, '').replaceAll(RegExp(r'\s+'), ' ').trim();
+
   Future<void> speak(String text, {bool slow = false}) async {
     await _init();
     await _pickRandomVoice();
     await _tts.setSpeechRate(slow ? 0.3 : 0.5);
     await _tts.stop();
-    await _tts.speak(text);
+    final sanitized = _stripEmoji(text);
+    if (sanitized.isEmpty) return;
+    await _tts.speak(sanitized);
   }
 
   Future<void> stop() async {

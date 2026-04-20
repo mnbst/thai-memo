@@ -8,14 +8,14 @@
  * 1. SRSベースのリアルタイム選出（優先）
  *    - generateQuiz Cloud Function呼び出し時に、ユーザーの学習履歴から
  *      SRS（間隔反復）で復習すべき例文をリアルタイムに選出する
- *    - 最大15問から5問をランダム抽出し、Gemini APIで穴埋め問題・選択肢・解説を動的生成
+ *    - 最大15問から5問をランダム抽出し、OpenAIで穴埋め問題・選択肢・解説を動的生成
  *
  * 2. デフォルト例文（フォールバック）
  *    - ユーザー例文がない（新規ユーザー等）または例文数が不足する場合に使用
  *    - 下記の汎用タイ語例文から不足分を補填する
  *    - ユーザーの estimated_vocab ± 10 の帯域内の単語を優先選出する
  *
- * ※ 選択肢・穴埋め箇所・解説文はここには含まれず、Geminiが毎回生成する
+ * ※ 穴埋め箇所は key_word からルールベースで生成し、選択肢・解説文は OpenAI が毎回生成する
  */
 export interface DefaultSentence {
   sentence_id: string;
@@ -23,16 +23,75 @@ export interface DefaultSentence {
   /** 発音記号（ローマ字表記） */
   pronunciation: string;
   japanese_translation: string;
+  /** pronunciation の空白区切りで数えた単語数 */
+  word_count: number;
   /** 穴埋め対象として優先したい単語 */
   key_word: string;
+  /** key_word 単体の発音記号（クイズ正解音声表示用） */
+  key_word_pronunciation: string;
   /** 出現頻度順位（freq_rank_top10000.json 準拠） */
   rank: number;
 }
 
-type DefaultSentenceTemplate = Omit<DefaultSentence, 'sentence_id' | 'key_word' | 'rank'>;
+export interface DefaultQuizDifficulty {
+  maxVocab: number;
+  label: string;
+}
+
+// prompts.py の DIFFICULTY_LEVELS / _compute_length_hint と揃える。
+// デフォルトクイズは LLM 生成文ではないため、同じ基準で候補を事前フィルタする。
+export const DEFAULT_QUIZ_DIFFICULTY_LEVELS: DefaultQuizDifficulty[] = [
+  { maxVocab: 100, label: '入門' },
+  { maxVocab: 300, label: '初級' },
+  { maxVocab: 600, label: '初中級' },
+  { maxVocab: 1500, label: '中級' },
+  { maxVocab: Number.POSITIVE_INFINITY, label: '上級' },
+];
+
+export function getDefaultQuizDifficulty(
+  estimatedVocab: number,
+): DefaultQuizDifficulty {
+  return DEFAULT_QUIZ_DIFFICULTY_LEVELS.find(
+    (level) => estimatedVocab <= level.maxVocab,
+  ) ?? DEFAULT_QUIZ_DIFFICULTY_LEVELS[DEFAULT_QUIZ_DIFFICULTY_LEVELS.length - 1];
+}
+
+export function computeDefaultSentenceWordLimit(
+  estimatedVocab: number,
+): number | null {
+  if (estimatedVocab >= 1500) return null;
+  if (estimatedVocab <= 100) return 5;
+  return Math.round(5 + (estimatedVocab - 100) / 1400 * 7);
+}
+
+export function isDefaultSentenceMatchingDifficulty(
+  sentence: DefaultSentence,
+  estimatedVocab: number,
+): boolean {
+  const difficulty = getDefaultQuizDifficulty(estimatedVocab);
+  if (sentence.rank > difficulty.maxVocab) return false;
+
+  const wordLimit = computeDefaultSentenceWordLimit(estimatedVocab);
+  return wordLimit === null || sentence.word_count <= wordLimit;
+}
+
+function countWordsFromPronunciation(pronunciation: string): number {
+  return pronunciation.trim().split(/\s+/).filter(Boolean).length;
+}
+
+type DefaultSentenceTemplate = Omit<
+  DefaultSentence,
+  | 'sentence_id'
+  | 'word_count'
+  | 'key_word'
+  | 'key_word_pronunciation'
+  | 'rank'
+>;
 
 interface DefaultSentenceGroup {
   key_word: string;
+  /** key_word 単体の発音記号 */
+  key_word_pronunciation: string;
   /** 出現頻度順位 */
   rank: number;
   sentences: DefaultSentenceTemplate[];
@@ -50,6 +109,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   // ============================================================
   {
     key_word: 'ฉัน',
+    key_word_pronunciation: 'chǎn',
     rank: 1,
     sentences: [
       {
@@ -61,6 +121,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ไม่',
+    key_word_pronunciation: 'mâi',
     rank: 2,
     sentences: [
       {
@@ -72,6 +133,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'จะ',
+    key_word_pronunciation: 'jà',
     rank: 3,
     sentences: [
       {
@@ -83,6 +145,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'คุณ',
+    key_word_pronunciation: 'khun',
     rank: 4,
     sentences: [
       {
@@ -94,6 +157,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ที่',
+    key_word_pronunciation: 'thîi',
     rank: 5,
     sentences: [
       {
@@ -105,6 +169,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ได้',
+    key_word_pronunciation: 'dâai',
     rank: 6,
     sentences: [
       {
@@ -116,6 +181,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ไป',
+    key_word_pronunciation: 'pai',
     rank: 7,
     sentences: [
       {
@@ -127,6 +193,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เธอ',
+    key_word_pronunciation: 'thəə',
     rank: 8,
     sentences: [
       {
@@ -138,6 +205,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'มัน',
+    key_word_pronunciation: 'man',
     rank: 9,
     sentences: [
       {
@@ -149,6 +217,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ผม',
+    key_word_pronunciation: 'phǒm',
     rank: 10,
     sentences: [
       {
@@ -160,6 +229,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ของ',
+    key_word_pronunciation: 'khɔ̌ɔng',
     rank: 11,
     sentences: [
       {
@@ -171,6 +241,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ว่า',
+    key_word_pronunciation: 'wâa',
     rank: 12,
     sentences: [
       {
@@ -182,6 +253,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'แล้ว',
+    key_word_pronunciation: 'lɛ́ɛw',
     rank: 13,
     sentences: [
       {
@@ -193,6 +265,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เป็น',
+    key_word_pronunciation: 'pen',
     rank: 14,
     sentences: [
       {
@@ -204,6 +277,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'อะไร',
+    key_word_pronunciation: 'à-rai',
     rank: 15,
     sentences: [
       {
@@ -215,6 +289,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ก็',
+    key_word_pronunciation: 'kɔ̂ɔ',
     rank: 16,
     sentences: [
       {
@@ -226,6 +301,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เรา',
+    key_word_pronunciation: 'raw',
     rank: 17,
     sentences: [
       {
@@ -237,6 +313,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'มี',
+    key_word_pronunciation: 'mii',
     rank: 18,
     sentences: [
       {
@@ -248,6 +325,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เขา',
+    key_word_pronunciation: 'khǎw',
     rank: 19,
     sentences: [
       {
@@ -259,6 +337,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'มา',
+    key_word_pronunciation: 'maa',
     rank: 20,
     sentences: [
       {
@@ -270,6 +349,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ให้',
+    key_word_pronunciation: 'hâi',
     rank: 21,
     sentences: [
       {
@@ -281,6 +361,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'อยู่',
+    key_word_pronunciation: 'yùu',
     rank: 22,
     sentences: [
       {
@@ -292,6 +373,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'กับ',
+    key_word_pronunciation: 'kàp',
     rank: 23,
     sentences: [
       {
@@ -303,6 +385,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'นี่',
+    key_word_pronunciation: 'nîi',
     rank: 24,
     sentences: [
       {
@@ -314,6 +397,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เลย',
+    key_word_pronunciation: 'ləəi',
     rank: 25,
     sentences: [
       {
@@ -325,6 +409,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ใน',
+    key_word_pronunciation: 'nai',
     rank: 26,
     sentences: [
       {
@@ -336,6 +421,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ทำ',
+    key_word_pronunciation: 'tham',
     rank: 27,
     sentences: [
       {
@@ -347,6 +433,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ใช่',
+    key_word_pronunciation: 'châi',
     rank: 28,
     sentences: [
       {
@@ -358,6 +445,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'และ',
+    key_word_pronunciation: 'lɛ́',
     rank: 29,
     sentences: [
       {
@@ -369,6 +457,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ต้อง',
+    key_word_pronunciation: 'tɔ̂ɔng',
     rank: 30,
     sentences: [
       {
@@ -380,6 +469,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ด้วย',
+    key_word_pronunciation: 'dûuai',
     rank: 38,
     sentences: [
       {
@@ -391,6 +481,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'นั้น',
+    key_word_pronunciation: 'nán',
     rank: 41,
     sentences: [
       {
@@ -402,6 +493,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เรื่อง',
+    key_word_pronunciation: 'rʉ̂ʉang',
     rank: 45,
     sentences: [
       {
@@ -413,6 +505,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ทำไม',
+    key_word_pronunciation: 'tham-mai',
     rank: 46,
     sentences: [
       {
@@ -424,6 +517,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'อยาก',
+    key_word_pronunciation: 'yàak',
     rank: 47,
     sentences: [
       {
@@ -435,6 +529,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'นั่น',
+    key_word_pronunciation: 'nân',
     rank: 49,
     sentences: [
       {
@@ -446,6 +541,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เจ้า',
+    key_word_pronunciation: 'jâaw',
     rank: 58,
     sentences: [
       {
@@ -457,6 +553,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'อย่าง',
+    key_word_pronunciation: 'yàang',
     rank: 60,
     sentences: [
       {
@@ -468,6 +565,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ท่าน',
+    key_word_pronunciation: 'thân',
     rank: 65,
     sentences: [
       {
@@ -479,6 +577,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'หรือ',
+    key_word_pronunciation: 'rʉ̌ʉ',
     rank: 67,
     sentences: [
       {
@@ -490,6 +589,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'งั้น',
+    key_word_pronunciation: 'ngán',
     rank: 69,
     sentences: [
       {
@@ -501,6 +601,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'กำลัง',
+    key_word_pronunciation: 'kam-lang',
     rank: 70,
     sentences: [
       {
@@ -512,6 +613,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'พวกเขา',
+    key_word_pronunciation: 'phûuak-khǎw',
     rank: 71,
     sentences: [
       {
@@ -523,6 +625,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ที่นี่',
+    key_word_pronunciation: 'thîi-nîi',
     rank: 72,
     sentences: [
       {
@@ -534,6 +637,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ยังไง',
+    key_word_pronunciation: 'yang-ngai',
     rank: 73,
     sentences: [
       {
@@ -545,6 +649,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เห็น',
+    key_word_pronunciation: 'hěn',
     rank: 75,
     sentences: [
       {
@@ -556,6 +661,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'กว่า',
+    key_word_pronunciation: 'kwàa',
     rank: 76,
     sentences: [
       {
@@ -567,6 +673,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ทำให้',
+    key_word_pronunciation: 'tham-hâi',
     rank: 77,
     sentences: [
       {
@@ -578,6 +685,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'อย่า',
+    key_word_pronunciation: 'yàa',
     rank: 79,
     sentences: [
       {
@@ -589,6 +697,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ที่จะ',
+    key_word_pronunciation: 'thîi-jà',
     rank: 80,
     sentences: [
       {
@@ -600,6 +709,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ตอนนี้',
+    key_word_pronunciation: 'tɔɔn-níi',
     rank: 82,
     sentences: [
       {
@@ -611,6 +721,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เพราะ',
+    key_word_pronunciation: 'phrɔ́',
     rank: 83,
     sentences: [
       {
@@ -622,6 +733,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'หรอก',
+    key_word_pronunciation: 'rɔ̀ɔk',
     rank: 84,
     sentences: [
       {
@@ -633,6 +745,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'สิ่ง',
+    key_word_pronunciation: 'sìng',
     rank: 85,
     sentences: [
       {
@@ -644,6 +757,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ช่วย',
+    key_word_pronunciation: 'chûuai',
     rank: 87,
     sentences: [
       {
@@ -655,6 +769,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'จริงๆ',
+    key_word_pronunciation: 'jing-jing',
     rank: 88,
     sentences: [
       {
@@ -666,6 +781,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ต้องการ',
+    key_word_pronunciation: 'tɔ̂ɔng-kaan',
     rank: 89,
     sentences: [
       {
@@ -677,6 +793,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ก่อน',
+    key_word_pronunciation: 'kɔ̀ɔn',
     rank: 95,
     sentences: [
       {
@@ -688,6 +805,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ชั้น',
+    key_word_pronunciation: 'chán',
     rank: 96,
     sentences: [
       {
@@ -699,6 +817,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เพื่อ',
+    key_word_pronunciation: 'phʉ̂ʉa',
     rank: 97,
     sentences: [
       {
@@ -710,6 +829,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ขึ้น',
+    key_word_pronunciation: 'khʉ̂n',
     rank: 98,
     sentences: [
       {
@@ -721,6 +841,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'พวกเรา',
+    key_word_pronunciation: 'phûuak-raw',
     rank: 99,
     sentences: [
       {
@@ -732,6 +853,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'หน่อย',
+    key_word_pronunciation: 'nɔ̀ɔi',
     rank: 107,
     sentences: [
       {
@@ -743,6 +865,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ขอโทษ',
+    key_word_pronunciation: 'khɔ̌ɔ-thôot',
     rank: 108,
     sentences: [
       {
@@ -754,6 +877,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'สามารถ',
+    key_word_pronunciation: 'sǎa-mâat',
     rank: 109,
     sentences: [
       {
@@ -765,6 +889,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ขอบคุณ',
+    key_word_pronunciation: 'khɔ̀ɔp-khun',
     rank: 110,
     sentences: [
       {
@@ -776,6 +901,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เหมือน',
+    key_word_pronunciation: 'mʉ̌ʉan',
     rank: 114,
     sentences: [
       {
@@ -787,6 +913,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'สำหรับ',
+    key_word_pronunciation: 'sǎm-ràp',
     rank: 117,
     sentences: [
       {
@@ -798,6 +925,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'แบบนี้',
+    key_word_pronunciation: 'bɛ̀ɛp-níi',
     rank: 120,
     sentences: [
       {
@@ -809,6 +937,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เกิด',
+    key_word_pronunciation: 'kə̀ət',
     rank: 122,
     sentences: [
       {
@@ -820,6 +949,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'รู้สึก',
+    key_word_pronunciation: 'rúu-sʉ̀k',
     rank: 124,
     sentences: [
       {
@@ -831,6 +961,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เข้าใจ',
+    key_word_pronunciation: 'khâw-jai',
     rank: 126,
     sentences: [
       {
@@ -842,6 +973,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เมื่อ',
+    key_word_pronunciation: 'mʉ̂ʉa',
     rank: 128,
     sentences: [
       {
@@ -853,6 +985,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'กลับ',
+    key_word_pronunciation: 'klàp',
     rank: 129,
     sentences: [
       {
@@ -864,6 +997,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เด็ก',
+    key_word_pronunciation: 'dèk',
     rank: 131,
     sentences: [
       {
@@ -875,6 +1009,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'จริง',
+    key_word_pronunciation: 'jing',
     rank: 132,
     sentences: [
       {
@@ -886,6 +1021,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'บ้าง',
+    key_word_pronunciation: 'bâang',
     rank: 133,
     sentences: [
       {
@@ -897,6 +1033,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เร็ว',
+    key_word_pronunciation: 'rew',
     rank: 134,
     sentences: [
       {
@@ -908,6 +1045,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เวลา',
+    key_word_pronunciation: 'wee-laa',
     rank: 135,
     sentences: [
       {
@@ -919,6 +1057,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'บ้าน',
+    key_word_pronunciation: 'bâan',
     rank: 136,
     sentences: [
       {
@@ -930,6 +1069,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ใช่ไหม',
+    key_word_pronunciation: 'châi-mǎi',
     rank: 140,
     sentences: [
       {
@@ -941,6 +1081,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'หยุด',
+    key_word_pronunciation: 'yùt',
     rank: 141,
     sentences: [
       {
@@ -952,6 +1093,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เข้า',
+    key_word_pronunciation: 'khâw',
     rank: 144,
     sentences: [
       {
@@ -963,6 +1105,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'กลับมา',
+    key_word_pronunciation: 'klàp-maa',
     rank: 145,
     sentences: [
       {
@@ -974,6 +1117,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ทั้งหมด',
+    key_word_pronunciation: 'tháng-mòt',
     rank: 150,
     sentences: [
       {
@@ -985,6 +1129,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ที่สุด',
+    key_word_pronunciation: 'thîi-sùt',
     rank: 153,
     sentences: [
       {
@@ -996,6 +1141,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'อย่างนั้น',
+    key_word_pronunciation: 'yàang-nán',
     rank: 156,
     sentences: [
       {
@@ -1007,6 +1153,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ทุกคน',
+    key_word_pronunciation: 'thúk-khon',
     rank: 157,
     sentences: [
       {
@@ -1018,6 +1165,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ไม่ต้อง',
+    key_word_pronunciation: 'mâi-tɔ̂ɔng',
     rank: 158,
     sentences: [
       {
@@ -1029,6 +1177,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ทำงาน',
+    key_word_pronunciation: 'tham-ngaan',
     rank: 160,
     sentences: [
       {
@@ -1040,6 +1189,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ได้ยิน',
+    key_word_pronunciation: 'dâai-yin',
     rank: 161,
     sentences: [
       {
@@ -1051,6 +1201,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เกี่ยวกับ',
+    key_word_pronunciation: 'kìiaw-kàp',
     rank: 162,
     sentences: [
       {
@@ -1062,6 +1213,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ก็ได้',
+    key_word_pronunciation: 'kɔ̂ɔ-dâai',
     rank: 168,
     sentences: [
       {
@@ -1073,6 +1225,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ผู้หญิง',
+    key_word_pronunciation: 'phûu-yǐng',
     rank: 171,
     sentences: [
       {
@@ -1084,6 +1237,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'วันนี้',
+    key_word_pronunciation: 'wan-níi',
     rank: 172,
     sentences: [
       {
@@ -1095,6 +1249,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'พยายาม',
+    key_word_pronunciation: 'phá-yaa-yaam',
     rank: 174,
     sentences: [
       {
@@ -1106,6 +1261,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เริ่ม',
+    key_word_pronunciation: 'rə̂əm',
     rank: 176,
     sentences: [
       {
@@ -1117,6 +1273,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'หนึ่ง',
+    key_word_pronunciation: 'nʉ̀ng',
     rank: 178,
     sentences: [
       {
@@ -1128,6 +1285,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เหมือนกัน',
+    key_word_pronunciation: 'mʉ̌ʉan-kan',
     rank: 179,
     sentences: [
       {
@@ -1139,6 +1297,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ตัวเอง',
+    key_word_pronunciation: 'tuua-eeng',
     rank: 182,
     sentences: [
       {
@@ -1150,6 +1309,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ทุกอย่าง',
+    key_word_pronunciation: 'thúk-yàang',
     rank: 183,
     sentences: [
       {
@@ -1161,6 +1321,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เชื่อ',
+    key_word_pronunciation: 'chʉ̂ʉa',
     rank: 184,
     sentences: [
       {
@@ -1172,6 +1333,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ไม่เป็นไร',
+    key_word_pronunciation: 'mâi-pen-rai',
     rank: 185,
     sentences: [
       {
@@ -1183,6 +1345,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เดี๋ยว',
+    key_word_pronunciation: 'dǐiaw',
     rank: 188,
     sentences: [
       {
@@ -1194,6 +1357,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ใหม่',
+    key_word_pronunciation: 'mài',
     rank: 190,
     sentences: [
       {
@@ -1205,6 +1369,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เพื่อน',
+    key_word_pronunciation: 'phʉ̂ʉan',
     rank: 191,
     sentences: [
       {
@@ -1216,6 +1381,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ปล่อย',
+    key_word_pronunciation: 'plɔ̀ɔi',
     rank: 194,
     sentences: [
       {
@@ -1227,6 +1393,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ชื่อ',
+    key_word_pronunciation: 'chʉ̂ʉ',
     rank: 199,
     sentences: [
       {
@@ -1238,6 +1405,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เล่น',
+    key_word_pronunciation: 'lêen',
     rank: 201,
     sentences: [
       {
@@ -1249,6 +1417,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'นะคะ',
+    key_word_pronunciation: 'ná-khá',
     rank: 202,
     sentences: [
       {
@@ -1260,6 +1429,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ที่ไหน',
+    key_word_pronunciation: 'thîi-nǎi',
     rank: 204,
     sentences: [
       {
@@ -1271,6 +1441,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ออกมา',
+    key_word_pronunciation: 'ɔ̀ɔk-maa',
     rank: 207,
     sentences: [
       {
@@ -1282,6 +1453,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เรียก',
+    key_word_pronunciation: 'rîiak',
     rank: 208,
     sentences: [
       {
@@ -1293,6 +1465,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'โปรด',
+    key_word_pronunciation: 'pròot',
     rank: 209,
     sentences: [
       {
@@ -1304,6 +1477,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'น่าจะ',
+    key_word_pronunciation: 'nâa-jà',
     rank: 211,
     sentences: [
       {
@@ -1315,6 +1489,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ได้รับ',
+    key_word_pronunciation: 'dâai-ráp',
     rank: 213,
     sentences: [
       {
@@ -1326,6 +1501,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ชีวิต',
+    key_word_pronunciation: 'chii-wít',
     rank: 214,
     sentences: [
       {
@@ -1337,6 +1513,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'แล้วก็',
+    key_word_pronunciation: 'lɛ́ɛw-kɔ̂ɔ',
     rank: 216,
     sentences: [
       {
@@ -1348,6 +1525,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'รู้จัก',
+    key_word_pronunciation: 'rúu-jàk',
     rank: 218,
     sentences: [
       {
@@ -1359,6 +1537,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'แน่นอน',
+    key_word_pronunciation: 'nɛ̂ɛ-nɔɔn',
     rank: 219,
     sentences: [
       {
@@ -1370,6 +1549,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เข้าไป',
+    key_word_pronunciation: 'khâw-pai',
     rank: 220,
     sentences: [
       {
@@ -1381,6 +1561,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'กำลังจะ',
+    key_word_pronunciation: 'kam-lang-jà',
     rank: 221,
     sentences: [
       {
@@ -1392,6 +1573,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'เกิดขึ้น',
+    key_word_pronunciation: 'kə̀ət-khʉ̂n',
     rank: 224,
     sentences: [
       {
@@ -1403,6 +1585,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ห้อง',
+    key_word_pronunciation: 'hɔ̂ɔng',
     rank: 225,
     sentences: [
       {
@@ -1414,6 +1597,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
   },
   {
     key_word: 'ตอนที่',
+    key_word_pronunciation: 'tɔɔn-thîi',
     rank: 227,
     sentences: [
       {
@@ -1431,7 +1615,9 @@ export const DEFAULT_SENTENCES: DefaultSentence[] = DEFAULT_SENTENCE_GROUPS.flat
   group.sentences.map((sentence, sentenceIndex) => ({
     sentence_id: `default_${groupIndex + 1}_${sentenceIndex + 1}`,
     key_word: group.key_word,
+    key_word_pronunciation: group.key_word_pronunciation,
     rank: group.rank,
+    word_count: countWordsFromPronunciation(sentence.pronunciation),
     ...sentence,
   }))
 );

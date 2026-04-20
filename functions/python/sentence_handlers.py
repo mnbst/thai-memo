@@ -10,6 +10,7 @@ from google.cloud.firestore_v1 import transactional
 try:
     from .constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
     from .embeddings import find_best_topic
+    from .prompts import gate_topics_for_vocab
     from .runtime import initialize_firebase_app
     from .sentence_service import (
         generate_sentence,
@@ -27,6 +28,7 @@ try:
 except ImportError:
     from constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
     from embeddings import find_best_topic
+    from prompts import gate_topics_for_vocab
     from runtime import initialize_firebase_app
     from sentence_service import (
         generate_sentence,
@@ -124,11 +126,21 @@ def _commit_sentences_transaction(
         {
             "remaining_sentences": firestore.firestore.Increment(-decrement_count),
             "daily_sentence_generated": True,
+            "last_active_at": firestore.firestore.SERVER_TIMESTAMP,
+            "last_sentence_generated_at": firestore.firestore.SERVER_TIMESTAMP,
+            "sentence_generated_count": firestore.firestore.Increment(decrement_count),
+            **(
+                {"first_generated_at": firestore.firestore.SERVER_TIMESTAMP}
+                if "first_generated_at" not in user_data
+                else {}
+            ),
         },
     )
 
 
-@https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=120)
+@https_fn.on_call(
+    region="asia-northeast1", memory=2048, timeout_sec=120, concurrency=10
+)
 def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
     start_time = time.time()
     response: dict = {"success": False}
@@ -259,7 +271,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
                 "code": "INTERNAL",
                 "message": "Failed to retrieve API configuration",
             }
-        elif "GEMINI_API_ERROR" in error_msg:
+        elif "LLM_API_ERROR" in error_msg:
             response["error"] = {
                 "code": "API_ERROR",
                 "message": "Failed to generate sentence",
@@ -332,9 +344,10 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
         random.shuffle(selected_words)
         all_target_words = [[word] for word in selected_words]
 
-        # 各単語ごとにトピックを選定（embedding → ランダムフォールバック）
-        # 重複トピックは別のトピックに差し替えて多様性を確保
-        topics_pool = TOPICS if use_premium_spec else FREE_TOPICS
+        # 各単語ごとにテーマを選定（embedding → ランダムフォールバック）
+        # 重複テーマは別のテーマに差し替えて多様性を確保
+        topic_candidates = TOPICS if use_premium_spec else FREE_TOPICS
+        topics_pool = gate_topics_for_vocab(topic_candidates, estimated_vocab)
         all_topics = []
         used_topics: set[str] = set()
         for word in selected_words:
@@ -431,7 +444,7 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
                 "code": "INTERNAL",
                 "message": "Failed to retrieve API configuration",
             }
-        elif "GEMINI_API_ERROR" in error_msg:
+        elif "LLM_API_ERROR" in error_msg:
             response["error"] = {
                 "code": "API_ERROR",
                 "message": "Failed to generate sentences",

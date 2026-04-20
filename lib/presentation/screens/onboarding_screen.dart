@@ -39,7 +39,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Icons.trending_up,
       colorType: _ColorType.primary,
       title: 'レベルが自動で上がります',
-      description: '例文を読んでクイズに正解するほど\n推定語彙数が増え、例文・クイズの\n難易度も自動で上がっていきます。',
+      description: '例文を読んでクイズに正解するほど\n語彙スコアが増え、例文・クイズの\n難易度も自動で上がっていきます。',
     ),
   ];
 

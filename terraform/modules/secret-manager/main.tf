@@ -1,3 +1,23 @@
+resource "google_secret_manager_secret" "openai_api_key" {
+  secret_id = "openai-api-key"
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "openai_api_key_version" {
+  secret      = google_secret_manager_secret.openai_api_key.id
+  secret_data = var.openai_api_key
+}
+
+resource "google_secret_manager_secret_iam_member" "openai_api_key_accessor" {
+  secret_id = google_secret_manager_secret.openai_api_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
+}
+
 resource "google_secret_manager_secret" "gemini_api_key" {
   secret_id = "gemini-api-key"
   project   = var.project_id

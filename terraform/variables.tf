@@ -16,6 +16,12 @@ variable "gemini_api_key" {
   sensitive   = true
 }
 
+variable "openai_api_key" {
+  description = "OpenAI API Key (sensitive)"
+  type        = string
+  sensitive   = true
+}
+
 variable "firebase_project_display_name" {
   description = "Firebase project display name"
   type        = string

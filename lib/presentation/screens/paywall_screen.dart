@@ -3,7 +3,7 @@
 /// Free ユーザーに対してプレミアムプランの特典を提示し、購入・復元を促す画面。
 /// モーダルボトムシートとして表示され、以下の要素で構成される:
 ///
-/// 1. Free / Premium の機能比較テーブル（例文生成回数、クイズ、トピック数など）
+/// 1. Free / Premium の機能比較テーブル（例文生成回数、クイズ、テーマ数など）
 /// 2. 月額価格の表示（ストアから動的に取得した実際の価格）
 /// 3. 「プレミアムに登録」ボタン → OS ネイティブの決済シートを起動
 /// 4. 「購入を復元」ボタン → 機種変更・再インストール時の復元用
@@ -118,11 +118,36 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_awesome,
+                          color: colorScheme.primary, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'AIがより深く考えて、自然で実践的な例文を生成します',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onPrimaryContainer,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
                 // 比較テーブル
                 _buildComparisonTable(context),
                 const SizedBox(height: 20),
-                // トピック一覧
+                // テーマ一覧
                 _buildTopicSection(context),
                 const SizedBox(height: 32),
                 // 購入ボタン
@@ -300,7 +325,6 @@ class PaywallBottomSheet extends ConsumerWidget {
     const premiumTopics = [
       '仕事',
       '恋愛',
-      '感情',
       '家族',
       '交通',
       '健康',
@@ -369,8 +393,9 @@ class PaywallBottomSheet extends ConsumerWidget {
 
     // (機能名, 無料, プレミアム)
     const features = [
+      ('例文の質', 'ベーシック', 'AI高精度モード'),
       ('例文生成 / クイズ', '最大2回/日', '最大10回/日'),
-      ('学べる単語', '300語まで', '最大1万語'),
+      ('学べる単語', '100語まで', '最大1万語'),
     ];
 
     return Container(

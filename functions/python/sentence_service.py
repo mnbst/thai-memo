@@ -1,31 +1,78 @@
 import asyncio
 import json
 import os
-import random
-import time
+import threading
+from typing import Callable
 
-from google import genai
-from google.cloud import secretmanager
 from google.cloud import storage as gcs
 from google.cloud.firestore_v1.client import Client as FirestoreClient
 
-from constants import (
-    API_MAX_TOKENS,
-    API_TEMPERATURE,
-    FREE_TOPICS,
-    GEMINI_MODEL,
-    GEMINI_MODEL_PREMIUM,
-    RESPONSE_SCHEMA,
-    TOPICS,
-)
-from nlp import enrich_with_nlp
-from prompts import build_uvm_prompt
-from uvm import get_session_words
+try:
+    from .constants import FREE_TOPICS, TOPICS
+    from .llm_providers import (
+        generate_sentence_async as _llm_generate_async,
+    )
+    from .llm_providers import (
+        generate_sentence_sync as _llm_generate_sync,
+    )
+    from .prompts import SYSTEM_PROMPT, build_uvm_prompt, gate_topics_for_vocab
+    from .uvm import get_session_words
+except ImportError:
+    from constants import FREE_TOPICS, TOPICS
+    from llm_providers import (
+        generate_sentence_async as _llm_generate_async,
+    )
+    from llm_providers import (
+        generate_sentence_sync as _llm_generate_sync,
+    )
+    from prompts import SYSTEM_PROMPT, build_uvm_prompt, gate_topics_for_vocab
+    from uvm import get_session_words
 
 _freq_rank: dict[str, int] | None = None
-_gemini_api_key: str | None = None
-_gemini_api_key_fetched_at: float = 0.0
-_GEMINI_KEY_TTL_SECONDS: float = 3600.0  # 1時間
+_nlp_enrich_with_nlp: Callable[[dict], dict] | None = None
+_nlp_import_lock = threading.Lock()
+_nlp_prewarm_lock = threading.Lock()
+_nlp_prewarm_thread: threading.Thread | None = None
+
+
+def _get_enrich_with_nlp() -> Callable[[dict], dict]:
+    """NLPの重い依存を必要になるまで読み込まない。"""
+    global _nlp_enrich_with_nlp
+    if _nlp_enrich_with_nlp is not None:
+        return _nlp_enrich_with_nlp
+
+    with _nlp_import_lock:
+        if _nlp_enrich_with_nlp is None:
+            from nlp import enrich_with_nlp
+
+            _nlp_enrich_with_nlp = enrich_with_nlp
+        return _nlp_enrich_with_nlp
+
+
+def _prewarm_nlp_async() -> None:
+    """LLM の応答待ち中に NLP import を先に開始する。"""
+    global _nlp_prewarm_thread
+    if _nlp_enrich_with_nlp is not None:
+        return
+
+    with _nlp_prewarm_lock:
+        if _nlp_enrich_with_nlp is not None:
+            return
+        if _nlp_prewarm_thread is not None and _nlp_prewarm_thread.is_alive():
+            return
+
+        def prewarm() -> None:
+            try:
+                _get_enrich_with_nlp()
+            except Exception as exc:
+                print(f"NLP prewarm failed: {exc}")
+
+        _nlp_prewarm_thread = threading.Thread(
+            target=prewarm,
+            name="nlp-prewarm",
+            daemon=True,
+        )
+        _nlp_prewarm_thread.start()
 
 
 def get_freq_rank() -> dict[str, int]:
@@ -42,28 +89,10 @@ def get_freq_rank() -> dict[str, int]:
     return _freq_rank  # type: ignore
 
 
-def get_gemini_api_key() -> str:
-    global _gemini_api_key, _gemini_api_key_fetched_at
-    if _gemini_api_key is not None and (time.monotonic() - _gemini_api_key_fetched_at) < _GEMINI_KEY_TTL_SECONDS:
-        return _gemini_api_key
-
-    client = secretmanager.SecretManagerServiceClient()
-    project_id = os.environ.get("GCLOUD_PROJECT", "")
-    name = f"projects/{project_id}/secrets/gemini-api-key/versions/latest"
-    response = client.access_secret_version(request={"name": name})
-    api_key = response.payload.data.decode("UTF-8")
-    if not api_key:
-        raise RuntimeError("SECRET_MANAGER_ERROR")
-    _gemini_api_key = api_key
-    _gemini_api_key_fetched_at = time.monotonic()
-    return api_key
-
-
 def select_uvm_target_words(
     db: FirestoreClient,
     uid: str,
     params: dict,
-    api_key: str | None = None,
     max_vocab: int | None = None,
     count: int = 1,
     is_premium: bool = True,
@@ -71,21 +100,16 @@ def select_uvm_target_words(
 ) -> tuple[list[str], str]:
     """UVMから例文生成用のターゲット単語を選定する。
 
-    key_word先行方式: 帯域内からkey_wordを選出し、embeddingで最適トピックを決定する。
-    トピックが明示指定されている場合はそのまま使用する。
-
-    Args:
-        max_vocab: 語彙帯域の上限。free ティアでは 300 に制限。
-        count: 選定する単語数。
-        is_premium: プレミアムティアかどうか。
-        estimated_vocab: 呼び出し元で取得済みの推定語彙数。省略時は Firestore から読む。
-
-    Returns:
-        (選定された単語リスト, 使用されたトピック)
+    key_word先行方式: 帯域内からkey_wordを選出し、embeddingで最適テーマを決定する。
+    テーマが明示指定されている場合はそのまま使用する。
     """
     freq_rank = get_freq_rank()
     topic = params.get("topic", "")
-    topics_pool = None if topic else (TOPICS if is_premium else FREE_TOPICS)
+    if topic:
+        topics_pool = None
+    else:
+        topic_candidates = TOPICS if is_premium else FREE_TOPICS
+        topics_pool = gate_topics_for_vocab(topic_candidates, estimated_vocab or 0)
     return get_session_words(
         db,
         uid,
@@ -107,17 +131,6 @@ def require_target_words(result: tuple[list[str], str]) -> tuple[list[str], str]
 
 
 MAX_RETRY = 1
-
-
-def _make_generation_config(model: str) -> genai.types.GenerateContentConfig:
-    """GenerateContentConfig を返す。"""
-    return genai.types.GenerateContentConfig(
-        temperature=API_TEMPERATURE,
-        max_output_tokens=API_MAX_TOKENS,
-        response_mime_type="application/json",
-        response_schema=RESPONSE_SCHEMA,
-        thinking_config=genai.types.ThinkingConfig(thinking_budget=256),
-    )
 
 
 def validate_target_words(sentence: dict, target_words: list[str] | None) -> list[str]:
@@ -146,182 +159,76 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
     return missing
 
 
-def _call_gemini_with_retry_sync(
-    client: genai.Client,
-    model: str,
-    prompt: str,
-    tier_label: str,
-    *,
-    max_retries: int = 3,
-    base_delay: float = 2.0,
-) -> genai.types.GenerateContentResponse:
-    """Gemini API を同期呼び出しし、一時的エラー (503等) 時はexponential backoffでリトライする。"""
-    for attempt in range(1 + max_retries):
-        try:
-            result = client.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=_make_generation_config(model),
-            )
-            return result
-        except Exception as e:
-            error_str = str(e)
-            is_transient = any(
-                code in error_str for code in ("503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED")
-            )
-            if not is_transient or attempt == max_retries:
-                raise
-            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-            print(
-                f"Gemini API transient error ({tier_label}, attempt {attempt + 1}/{max_retries}): "
-                f"{e}. Retrying in {delay:.1f}s..."
-            )
-            time.sleep(delay)
-    raise RuntimeError("Unreachable")
-
-
-def _log_token_usage(usage_metadata: genai.types.GenerateContentResponseUsageMetadata, tier_label: str) -> None:
-    """Gemini APIのトークン使用量とコストをログ出力する。
-
-    課金計算式 (gemini-2.5-flash):
-      input:   $0.30 / 1M tokens
-      output:  $2.50 / 1M tokens (candidates + thoughts 両方)
-    """
-    input_tokens = usage_metadata.prompt_token_count or 0
-    output_tokens = usage_metadata.candidates_token_count or 0
-    thoughts_tokens = usage_metadata.thoughts_token_count or 0
-    total_tokens = usage_metadata.total_token_count or 0
-
-    billed_output = output_tokens + thoughts_tokens
-    cost_usd = (input_tokens * 0.30 + billed_output * 2.50) / 1_000_000
-
-    print(
-        f"Gemini token usage ({tier_label}): "
-        f"input={input_tokens}, output={output_tokens}, thoughts={thoughts_tokens}, "
-        f"billed_output={billed_output}, total={total_tokens}, "
-        f"cost=${cost_usd:.6f}"
+def _build_retry_prompt(prompt: str, missing: list[str]) -> str:
+    missing_str = ", ".join(missing)
+    return (
+        f"{prompt}\n\n"
+        f"【再生成指示】前回の生成では次の単語が含まれていませんでした: {missing_str}\n"
+        f"これらの単語を必ず文中に含めてください。"
     )
 
 
 def _generate_single(
-    client: genai.Client,
-    model: str,
     prompt: str,
+    is_premium: bool,
     tier_label: str,
     target_words: list[str] | None = None,
 ) -> dict:
-    """Gemini API で1文を同期生成し NLP 後処理を適用する。
-
-    target_words が指定されている場合、生成結果にそれらが含まれているか検証し、
-    不足があれば最大 MAX_RETRY 回リトライする。
-    """
+    """LLM で1文を同期生成し NLP 後処理を適用する。"""
+    _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
     for attempt in range(1 + MAX_RETRY):
-        result = _call_gemini_with_retry_sync(client, model, current_prompt, tier_label)
-        if result.usage_metadata:
-            _log_token_usage(result.usage_metadata, tier_label)
-        text = result.text
-        if not text or not text.strip():
-            raise RuntimeError("Empty response from Gemini API")
-        sentence = json.loads(text)
-        enrich_with_nlp(sentence)
+        sentence = _llm_generate_sync(
+            SYSTEM_PROMPT, current_prompt, is_premium, tier_label
+        )
+        _get_enrich_with_nlp()(sentence)
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
             return sentence
 
         print(
-            f"Target word validation failed (attempt {attempt + 1}): "
-            f"missing={missing}"
+            f"Target word validation failed (attempt {attempt + 1}): missing={missing}"
         )
+        current_prompt = _build_retry_prompt(prompt, missing)
 
-        # リトライ時は不足単語を明示したプロンプトに差し替え
-        missing_str = ", ".join(missing)
-        current_prompt = (
-            f"{prompt}\n\n"
-            f"【再生成指示】前回の生成では次の単語が含まれていませんでした: {missing_str}\n"
-            f"これらの単語を必ず文中に含めてください。"
-        )
-
-    # リトライ上限到達 — 生成自体は成功しているのでそのまま返す
-    print(f"Returning sentence despite missing target words after {1 + MAX_RETRY} attempts")
+    print(
+        f"Returning sentence despite missing target words after "
+        f"{1 + MAX_RETRY} attempts"
+    )
     return sentence
 
 
-async def _call_gemini_with_retry(
-    client: genai.Client,
-    model: str,
-    prompt: str,
-    tier_label: str,
-    *,
-    max_retries: int = 3,
-    base_delay: float = 2.0,
-) -> genai.types.GenerateContentResponse:
-    """Gemini API を呼び出し、一時的エラー (503等) 時はexponential backoffでリトライする。"""
-    for attempt in range(1 + max_retries):
-        try:
-            result = await client.aio.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=_make_generation_config(model),
-            )
-            return result
-        except Exception as e:
-            error_str = str(e)
-            is_transient = any(
-                code in error_str for code in ("503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED")
-            )
-            if not is_transient or attempt == max_retries:
-                raise
-            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-            print(
-                f"Gemini API transient error ({tier_label}, attempt {attempt + 1}/{max_retries}): "
-                f"{e}. Retrying in {delay:.1f}s..."
-            )
-            await asyncio.sleep(delay)
-    raise RuntimeError("Unreachable")
-
-
 async def _generate_single_async(
-    client: genai.Client,
-    model: str,
     prompt: str,
+    is_premium: bool,
     tier_label: str,
     target_words: list[str] | None = None,
 ) -> dict:
-    """Gemini API で1文を非同期生成し NLP 後処理を適用する（バッチ並列用）。"""
+    """LLM で1文を非同期生成し NLP 後処理を適用する（バッチ並列用）。"""
+    _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
     for attempt in range(1 + MAX_RETRY):
-        result = await _call_gemini_with_retry(client, model, current_prompt, tier_label)
-        if result.usage_metadata:
-            _log_token_usage(result.usage_metadata, tier_label)
-        text = result.text
-        if not text or not text.strip():
-            raise RuntimeError("Empty response from Gemini API")
-        sentence = json.loads(text)
-        enrich_with_nlp(sentence)
+        sentence = await _llm_generate_async(
+            SYSTEM_PROMPT, current_prompt, is_premium, tier_label
+        )
+        _get_enrich_with_nlp()(sentence)
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
             return sentence
 
         print(
-            f"Target word validation failed (attempt {attempt + 1}): "
-            f"missing={missing}"
+            f"Target word validation failed (attempt {attempt + 1}): missing={missing}"
         )
+        current_prompt = _build_retry_prompt(prompt, missing)
 
-        # リトライ時は不足単語を明示したプロンプトに差し替え
-        missing_str = ", ".join(missing)
-        current_prompt = (
-            f"{prompt}\n\n"
-            f"【再生成指示】前回の生成では次の単語が含まれていませんでした: {missing_str}\n"
-            f"これらの単語を必ず文中に含めてください。"
-        )
-
-    # リトライ上限到達 — 生成自体は成功しているのでそのまま返す
-    print(f"Returning sentence despite missing target words after {1 + MAX_RETRY} attempts")
+    print(
+        f"Returning sentence despite missing target words after "
+        f"{1 + MAX_RETRY} attempts"
+    )
     return sentence
 
 
@@ -332,15 +239,15 @@ def generate_sentence(
     target_words: list[str] | None = None,
     estimated_vocab: int = 0,
 ) -> dict:
-    """Gemini APIで例文を生成し、NLP後処理を適用する。"""
-    api_key = get_gemini_api_key()
-    client = genai.Client(api_key=api_key)
-    model = GEMINI_MODEL_PREMIUM if is_premium else GEMINI_MODEL
+    """LLM で例文を生成し、NLP後処理を適用する。"""
     tier_label = "premium" if is_premium else "free"
     prompt = build_uvm_prompt(
-        params, target_words, estimated_vocab=estimated_vocab, is_premium=is_premium
+        params,
+        target_words,
+        estimated_vocab=estimated_vocab,
+        is_premium=is_premium,
     )
-    return _generate_single(client, model, prompt, tier_label, target_words)
+    return _generate_single(prompt, is_premium, tier_label, target_words)
 
 
 async def _generate_batch_async(
@@ -352,11 +259,7 @@ async def _generate_batch_async(
     estimated_vocab: int = 0,
 ) -> list[dict]:
     """複数の例文を asyncio.gather で並列生成する。"""
-    api_key = get_gemini_api_key()
-    client = genai.Client(api_key=api_key)
-    model = GEMINI_MODEL_PREMIUM if is_premium else GEMINI_MODEL
     tier_label = "premium" if is_premium else "free"
-
     tasks = []
     for i in range(count):
         tw = all_target_words[i] if i < len(all_target_words) else None
@@ -367,7 +270,7 @@ async def _generate_batch_async(
             estimated_vocab=estimated_vocab,
             is_premium=is_premium,
         )
-        tasks.append(_generate_single_async(client, model, prompt, tier_label, tw))
+        tasks.append(_generate_single_async(prompt, is_premium, tier_label, tw))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -388,18 +291,7 @@ def generate_sentences_batch(
     all_topics: list[str],
     estimated_vocab: int = 0,
 ) -> list[dict]:
-    """複数の例文を並列で生成する（sync ラッパー）。
-
-    Args:
-        count: 生成する例文数
-        is_premium: プレミアムティアか
-        all_target_words: 各例文用のターゲット単語リスト（len == count）
-        all_topics: 各例文用のトピック（len == count）
-        estimated_vocab: ユーザーの推定語彙数
-
-    Returns:
-        成功した例文のリスト
-    """
+    """複数の例文を並列で生成する（sync ラッパー）。"""
     return asyncio.run(
         _generate_batch_async(
             count,

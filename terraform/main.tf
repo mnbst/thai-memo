@@ -36,6 +36,7 @@ module "secret_manager" {
   project_id     = var.project_id
   project_number = data.google_project.project.number
   gemini_api_key = var.gemini_api_key
+  openai_api_key = var.openai_api_key
 
   depends_on = [google_project_service.required_apis]
 }
