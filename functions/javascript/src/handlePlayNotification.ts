@@ -1,7 +1,7 @@
 /**
  * handlePlayNotification.ts — Google Play RTDN（リアルタイム開発者通知）ハンドラ
  *
- * Google Play Console で設定した Cloud Pub/Sub トピックに配信される
+ * Google Play Console で設定した Cloud Pub/Sub テーマに配信される
  * サブスクリプション通知（RTDN: Real-time Developer Notifications）を受信し、
  * Google Play Developer API で最新のサブスクリプション状態を再検証したうえで、
  * Firestore のユーザーデータを更新する Cloud Function。
@@ -23,7 +23,7 @@
  * ※ 本関数では notificationType に関わらず Play API で再検証するため、
  *   個別の通知タイプごとの処理は行わない
  *
- * Pub/Sub トピック: play-subscription-notifications
+ * Pub/Sub テーマ: play-subscription-notifications
  * リージョン: asia-northeast1（東京）
  */
 import * as functions from 'firebase-functions/v2';

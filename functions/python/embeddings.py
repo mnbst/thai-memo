@@ -1,12 +1,15 @@
 """Embedding モジュール — 語彙のセマンティック類似度フィルタリング
 
 GCSからembeddingデータをlazy-loadし、コサイン類似度で
-セマンティック重複除去やトピック関連単語の検索を行う。
+セマンティック重複除去やテーマ関連単語の検索を行う。
 
 【データ形式】
   - vocab_embeddings.npy: (10000, 768) float32 — Gemini Embedding モデルの出力
   - vocab_words.json: [{"word": "ฉัน", "rank": 1}, ...] — npy の行番号と対応
-  - topic_embeddings.json: {"トピック文字列": [float, ...], ...} — 事前計算済み
+  - topic_embeddings.json: {"テーマ文字列": [float, ...], ...} — 事前計算済み
+  - emotion_embeddings.json: {"感情ラベル": [float, ...], ...} — 事前計算済み
+  - style_embeddings.json: {"文体ラベル": [float, ...], ...} — 事前計算済み
+  - politeness_embeddings.json: {"丁寧さラベル": [float, ...], ...} — 事前計算済み
 """
 
 import io
@@ -26,12 +29,18 @@ from google.cloud import storage
 _embeddings: np.ndarray | None = None  # (10000, 768) の embedding 行列
 _word_to_idx: dict[str, int] | None = None  # 単語 → _embeddings の行インデックス
 _words: list[dict[str, Any]] | None = None  # vocab_words.json の中身
-_topic_embeddings: dict[str, list[float]] | None = None  # トピック→embedding
+_topic_embeddings: dict[str, list[float]] | None = None  # テーマ→embedding
+_emotion_embeddings: dict[str, list[float]] | None = None  # 感情→embedding
+_style_embeddings: dict[str, list[float]] | None = None  # 文体→embedding
+_politeness_embeddings: dict[str, list[float]] | None = None  # 丁寧さ→embedding
 
 GCS_BUCKET = os.environ.get("UVM_DATA_BUCKET", "")
 EMB_BLOB = "vocab_embeddings.npy"
 WORDS_BLOB = "vocab_words.json"
 TOPIC_EMB_BLOB = "topic_embeddings.json"
+EMOTION_EMB_BLOB = "emotion_embeddings.json"
+STYLE_EMB_BLOB = "style_embeddings.json"
+POLITENESS_EMB_BLOB = "politeness_embeddings.json"
 
 
 def _load_data() -> None:
@@ -89,14 +98,57 @@ def _load_topic_embeddings() -> None:
     _topic_embeddings = json.loads(blob.download_as_text())
 
 
+def _load_emotion_embeddings() -> None:
+    """GCS から emotion_embeddings.json をロードしキャッシュする。"""
+    global _emotion_embeddings
+    if _emotion_embeddings is not None:
+        return
+
+    bucket = _get_bucket()
+    blob = bucket.blob(EMOTION_EMB_BLOB)
+    _emotion_embeddings = json.loads(blob.download_as_text())
+
+
+def _load_style_embeddings() -> None:
+    """GCS から style_embeddings.json をロードしキャッシュする。"""
+    global _style_embeddings
+    if _style_embeddings is not None:
+        return
+
+    bucket = _get_bucket()
+    blob = bucket.blob(STYLE_EMB_BLOB)
+    _style_embeddings = json.loads(blob.download_as_text())
+
+
+def _load_politeness_embeddings() -> None:
+    """GCS から politeness_embeddings.json をロードしキャッシュする。"""
+    global _politeness_embeddings
+    if _politeness_embeddings is not None:
+        return
+
+    bucket = _get_bucket()
+    blob = bucket.blob(POLITENESS_EMB_BLOB)
+    _politeness_embeddings = json.loads(blob.download_as_text())
+
+
+def _find_embedding(
+    label: str,
+    embeddings: dict[str, list[float]],
+) -> np.ndarray | None:
+    for key, emb_list in embeddings.items():
+        if label == key or label in key or key in label:
+            return np.array(emb_list, dtype=np.float32)
+    return None
+
+
 def get_topic_similar_words(
     topic: str,
     top_k: int = 500,
     api_key: str | None = None,
 ) -> list[dict[str, Any]]:
-    """トピックに関連する上位 top_k 語を返す。
+    """テーマに関連する上位 top_k 語を返す。
 
-    事前計算済みトピックembeddingと一致する場合はそれを使い、
+    事前計算済みテーマembeddingと一致する場合はそれを使い、
     カスタム入力の場合は Gemini Embedding API でリアルタイム変換する。
 
     Returns:
@@ -108,7 +160,7 @@ def get_topic_similar_words(
     assert _embeddings is not None and _words is not None
     assert _topic_embeddings is not None
 
-    # 事前計算済みトピックから検索（完全一致 or 部分一致）
+    # 事前計算済みテーマから検索（完全一致 or 部分一致）
     topic_emb: np.ndarray | None = None
     for key, emb_list in _topic_embeddings.items():
         if topic == key or topic in key or key in topic:
@@ -156,19 +208,19 @@ def find_best_topic(
     top_k: int = 5,
     threshold: float = 0.0,
 ) -> str | None:
-    """key_word の embedding と各トピック embedding のコサイン類似度からトピックを返す。
+    """key_word の embedding と各テーマ embedding のコサイン類似度からテーマを返す。
 
     閾値以上の候補を類似度順に並べ、上位 top_k 件からランダムに1件選択する。
-    閾値を満たす候補がない場合は最高類似度のトピックを返す。
+    閾値を満たす候補がない場合は最高類似度のテーマを返す。
 
     Args:
         word: key_word（タイ語単語）
-        topics: 候補トピックリスト。None なら事前計算済み全トピックから選択。
+        topics: 候補テーマリスト。None なら事前計算済み全テーマから選択。
         top_k: ランダム選択するプール上限（デフォルト 5）
         threshold: コサイン類似度の下限（デフォルト 0.0）
 
     Returns:
-        選択されたトピック文字列。embedding が取得できない場合は None。
+        選択されたテーマ文字列。embedding が取得できない場合は None。
     """
     _load_data()
     _load_topic_embeddings()
@@ -180,7 +232,9 @@ def find_best_topic(
 
     scored: list[tuple[float, str]] = []
     for topic_str, emb_list in _topic_embeddings.items():
-        if topics is not None and not any(t in topic_str or topic_str in t for t in topics):
+        if topics is not None and not any(
+            t in topic_str or topic_str in t for t in topics
+        ):
             continue
         topic_emb = np.array(emb_list, dtype=np.float32)
         sim = cosine_similarity(word_emb, topic_emb)
@@ -193,6 +247,104 @@ def find_best_topic(
     candidates = [t for sim, t in scored if sim >= threshold]
     pool = (candidates or [scored[0][1]])[:top_k]
     return random.choice(pool)
+
+
+def get_topic_option_similarity_weights(
+    topic: str,
+    options: list[str],
+    kind: str,
+    scale: float = 3.0,
+) -> list[float] | None:
+    """topic に近い style / politeness 候補を選びやすくする重みを返す。
+
+    全候補を残しつつ、topic embedding と option embedding の類似度差で
+    1.0〜(1.0 + scale) の範囲に正規化する。
+    """
+    if not topic or not options:
+        return None
+
+    _load_topic_embeddings()
+    assert _topic_embeddings is not None
+
+    if kind == "style":
+        _load_style_embeddings()
+        option_embeddings = _style_embeddings
+    elif kind == "politeness":
+        _load_politeness_embeddings()
+        option_embeddings = _politeness_embeddings
+    else:
+        raise ValueError(f"Unsupported option embedding kind: {kind}")
+
+    assert option_embeddings is not None
+
+    topic_emb = _find_embedding(topic, _topic_embeddings)
+    if topic_emb is None:
+        return None
+
+    scored: list[tuple[float, int]] = []
+    for i, option in enumerate(options):
+        option_emb = _find_embedding(option, option_embeddings)
+        if option_emb is None:
+            continue
+        scored.append((cosine_similarity(topic_emb, option_emb), i))
+
+    if not scored:
+        return None
+
+    min_similarity = min(sim for sim, _ in scored)
+    max_similarity = max(sim for sim, _ in scored)
+    if max_similarity == min_similarity:
+        return [1.0] * len(options)
+
+    weights = [1.0] * len(options)
+    for similarity, i in scored:
+        normalized = (similarity - min_similarity) / (max_similarity - min_similarity)
+        weights[i] = 1.0 + normalized * scale
+    return weights
+
+
+def get_emotion_similarity_weights(
+    target_words: list[str] | None,
+    emotions: list[str],
+    top_k: int = 3,
+) -> list[float] | None:
+    """target_words に近い感情ラベルだけを選びやすくする重みを返す。
+
+    語彙 embedding と事前計算済み emotion_embeddings.json を比較し、
+    類似度上位 top_k の感情だけをランダム選択候補に残す。
+    embedding が取得できない場合は None を返し、呼び出し側で通常ランダムに戻す。
+    """
+    if not target_words:
+        return None
+
+    _load_data()
+    _load_emotion_embeddings()
+    assert _emotion_embeddings is not None
+
+    target_embs = [
+        emb for word in target_words if (emb := get_embedding(word)) is not None
+    ]
+    if not target_embs:
+        return None
+
+    target_emb = np.mean(np.stack(target_embs), axis=0)
+    scored: list[tuple[float, int]] = []
+    for i, emotion in enumerate(emotions):
+        emotion_emb = _find_embedding(emotion, _emotion_embeddings)
+        if emotion_emb is None:
+            continue
+        scored.append((cosine_similarity(target_emb, emotion_emb), i))
+
+    if not scored:
+        return None
+
+    scored.sort(reverse=True)
+    top = scored[: max(1, min(top_k, len(scored)))]
+    min_similarity = min(sim for sim, _ in top)
+    weights = [0.0] * len(emotions)
+    for similarity, i in top:
+        weights[i] = 1.0 + max(0.0, similarity - min_similarity) * 20.0
+    return weights
 
 
 def get_embedding(word: str) -> np.ndarray | None:

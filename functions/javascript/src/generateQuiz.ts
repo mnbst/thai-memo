@@ -33,7 +33,11 @@ import {
   QuizQuestion,
   QuizQuestionsResponse,
 } from './services/quizGenerationService';
-import { DEFAULT_SENTENCES, DefaultSentence } from './constants/defaultQuizQuestions';
+import {
+  DEFAULT_SENTENCES,
+  DefaultSentence,
+  isDefaultSentenceMatchingDifficulty,
+} from './constants/defaultQuizQuestions';
 import {
   OPENAI_MODEL_FREE,
   OPENAI_MODEL_PREMIUM,
@@ -711,10 +715,17 @@ async function selectSentencesBySRS(
 }
 
 /**
- * デフォルト例文を estimated_vocab ± 10 帯域内に絞り、effective P の低い順に返す。
- * 帯域外の例文は一切含まない。
+ * デフォルト例文を estimated_vocab ± 10 帯域、prompts.py と同じ語彙レベル、
+ * および単語数上限に絞り、effective P の低い順に返す。
+ * 条件外の例文は一切含まない。
  *
  * pMap を渡す場合は Firestore 読み取りをスキップして再利用する。
+ *
+ * @param {string} uid - ユーザーID（UVM P値取得用）
+ * @param {DefaultSentence[]} sentences - フィルタ対象のデフォルト例文
+ * @param {Map<string, number>} existingPMap - 取得済みのUVM P値
+ * @param {number} estimatedVocab - ユーザーの推定語彙数
+ * @return {Promise<DefaultSentence[]>} 条件に合うデフォルト例文
  */
 async function sortDefaultsByPriority(
   uid: string,
@@ -725,11 +736,18 @@ async function sortDefaultsByPriority(
   const bandLow = Math.max(0, estimatedVocab - FREQ_BAND_HALF);
   const bandHigh = estimatedVocab + FREQ_BAND_HALF;
 
-  // 帯域内のみに絞る
-  const inBand = sentences.filter(s => s.rank >= bandLow && s.rank <= bandHigh);
+  // 帯域内、かつ prompts.py の難易度条件に合うものだけに絞る
+  const inBand = sentences.filter((s) => (
+    s.rank >= bandLow &&
+    s.rank <= bandHigh &&
+    isDefaultSentenceMatchingDifficulty(s, estimatedVocab)
+  ));
   if (inBand.length === 0) return [];
 
-  const pMap = existingPMap ?? await fetchUvmPValues(uid, new Set(inBand.map(s => s.key_word)));
+  const pMap = existingPMap ?? await fetchUvmPValues(
+    uid,
+    new Set(inBand.map((s) => s.key_word)),
+  );
 
   return [...inBand].sort((a, b) => {
     const pA = pMap.get(a.key_word) ?? UNKNOWN_WORD_P;

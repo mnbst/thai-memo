@@ -21,7 +21,7 @@ from constants import (
     RESPONSE_JSON_SCHEMA,
     TOPICS,
 )
-from prompts import build_uvm_prompt
+from prompts import build_uvm_prompt, gate_topics_for_vocab
 from uvm import get_session_words
 
 _freq_rank: dict[str, int] | None = None
@@ -148,8 +148,8 @@ def select_uvm_target_words(
 ) -> tuple[list[str], str]:
     """UVMから例文生成用のターゲット単語を選定する。
 
-    key_word先行方式: 帯域内からkey_wordを選出し、embeddingで最適トピックを決定する。
-    トピックが明示指定されている場合はそのまま使用する。
+    key_word先行方式: 帯域内からkey_wordを選出し、embeddingで最適テーマを決定する。
+    テーマが明示指定されている場合はそのまま使用する。
 
     Args:
         max_vocab: 語彙帯域の上限。free ティアでは 300 に制限。
@@ -158,11 +158,15 @@ def select_uvm_target_words(
         estimated_vocab: 呼び出し元で取得済みの語彙スコア。省略時は Firestore から読む。
 
     Returns:
-        (選定された単語リスト, 使用されたトピック)
+        (選定された単語リスト, 使用されたテーマ)
     """
     freq_rank = get_freq_rank()
     topic = params.get("topic", "")
-    topics_pool = None if topic else (TOPICS if is_premium else FREE_TOPICS)
+    if topic:
+        topics_pool = None
+    else:
+        topic_candidates = TOPICS if is_premium else FREE_TOPICS
+        topics_pool = gate_topics_for_vocab(topic_candidates, estimated_vocab or 0)
     return get_session_words(
         db,
         uid,
@@ -268,10 +272,10 @@ def _extract_output_text(response_body: dict[str, Any]) -> str | None:
 
 
 OPENAI_TOKEN_PRICING_PER_MILLION: dict[str, dict[str, float]] = {
-    "gpt-5.4-mini": {"input": 0.75, "output": 4.50},
-    "gpt-5.4-nano": {"input": 0.20, "output": 1.25},
-    "gpt-5-mini": {"input": 0.25, "output": 2.00},
-    "gpt-5-nano": {"input": 0.05, "output": 0.40},
+    "gpt-5.4-mini": {"input": 0.75, "cached_input": 0.075, "output": 4.50},
+    "gpt-5.4-nano": {"input": 0.20, "cached_input": 0.02, "output": 1.25},
+    "gpt-5-mini": {"input": 0.25, "cached_input": 0.025, "output": 2.00},
+    "gpt-5-nano": {"input": 0.05, "cached_input": 0.005, "output": 0.40},
 }
 DEFAULT_OPENAI_TOKEN_PRICING_PER_MILLION = OPENAI_TOKEN_PRICING_PER_MILLION[
     "gpt-5.4-nano"
@@ -284,6 +288,12 @@ def _log_token_usage(usage: dict[str, Any] | None, tier_label: str, model: str) 
 
     input_tokens = int(usage.get("input_tokens") or 0)
     output_tokens = int(usage.get("output_tokens") or 0)
+    input_details = usage.get("input_tokens_details")
+    cached_tokens = (
+        int(input_details.get("cached_tokens") or 0)
+        if isinstance(input_details, dict)
+        else 0
+    )
     output_details = usage.get("output_tokens_details")
     reasoning_tokens = (
         int(output_details.get("reasoning_tokens") or 0)
@@ -295,15 +305,19 @@ def _log_token_usage(usage: dict[str, Any] | None, tier_label: str, model: str) 
         model,
         DEFAULT_OPENAI_TOKEN_PRICING_PER_MILLION,
     )
+    cached_input_price = pricing.get("cached_input", pricing["input"] * 0.1)
+    uncached_input_tokens = max(input_tokens - cached_tokens, 0)
     cost_usd = (
-        input_tokens * pricing["input"] + output_tokens * pricing["output"]
+        uncached_input_tokens * pricing["input"]
+        + cached_tokens * cached_input_price
+        + output_tokens * pricing["output"]
     ) / 1_000_000
 
     print(
         f"OpenAI token usage ({tier_label}): "
-        f"model={model}, input={input_tokens}, output={output_tokens}, "
-        f"reasoning={reasoning_tokens}, total={total_tokens}, "
-        f"cost=${cost_usd:.6f}"
+        f"model={model}, input={input_tokens} (cached={cached_tokens}), "
+        f"output={output_tokens}, reasoning={reasoning_tokens}, "
+        f"total={total_tokens}, cost=${cost_usd:.6f}"
     )
 
 
@@ -504,7 +518,10 @@ def generate_sentence(
     model = OPENAI_MODEL_PREMIUM if is_premium else OPENAI_MODEL
     tier_label = "premium" if is_premium else "free"
     prompt = build_uvm_prompt(
-        params, target_words, estimated_vocab=estimated_vocab, is_premium=is_premium
+        params,
+        target_words,
+        estimated_vocab=estimated_vocab,
+        is_premium=is_premium,
     )
     return _generate_single(api_key, model, prompt, tier_label, target_words)
 
@@ -521,7 +538,6 @@ async def _generate_batch_async(
     api_key = get_openai_api_key()
     model = OPENAI_MODEL_PREMIUM if is_premium else OPENAI_MODEL
     tier_label = "premium" if is_premium else "free"
-
     tasks = []
     for i in range(count):
         tw = all_target_words[i] if i < len(all_target_words) else None
@@ -559,7 +575,7 @@ def generate_sentences_batch(
         count: 生成する例文数
         is_premium: プレミアムティアか
         all_target_words: 各例文用のターゲット単語リスト（len == count）
-        all_topics: 各例文用のトピック（len == count）
+        all_topics: 各例文用のテーマ（len == count）
         estimated_vocab: ユーザーの語彙スコア
 
     Returns:

@@ -8,6 +8,7 @@ import '../../data/models/quiz_question.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/remaining_quota_provider.dart';
+import '../providers/review_prompt_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../providers/tts_provider.dart';
@@ -33,6 +34,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       // クイズ完了時にstatsを再取得
       if (next is QuizSummary) {
         ref.invalidate(quizStatsProvider);
+        if (prev is QuizShowResult) {
+          unawaited(_requestReviewAfterQuizCompletion(next));
+        }
       }
       // クイズ開始時の語彙スコアを記録
       if (next is QuizAnswering && next.index == 0 && prev is! QuizAnswering) {
@@ -41,6 +45,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         setState(() => _vocabBeforeQuiz = vocab);
       }
     });
+  }
+
+  Future<void> _requestReviewAfterQuizCompletion(QuizSummary summary) async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted || ref.read(quizControllerProvider) is! QuizSummary) {
+      return;
+    }
+
+    final statsData = QuizStatsData.fromDatabase(summary.stats);
+    await ref.read(reviewPromptServiceProvider).maybeRequestAfterQuizCompleted(
+          sessionCorrect: summary.totalCorrect,
+          sessionTotal: summary.questions.length,
+          totalAnswered: statsData.totalAnswered,
+        );
   }
 
   @override

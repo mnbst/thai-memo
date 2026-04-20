@@ -32,7 +32,7 @@ UVMのP値を参照し priority 順にソート
     ↓
 先頭から count 語を選出（generateThaiSentence はデフォルト count=1）
     ↓
-key_word のembeddingからトピックを自動選択（topic未指定時）
+key_word のembeddingからテーマを自動選択（topic未指定時）
 ```
 
 #### 帯域フィルタの詳細
@@ -56,7 +56,7 @@ P値が同値の場合は `estimated_vocab` に rank が近い単語（習熟境
 
 ### 1c. プロンプト構築（`build_uvm_prompt`）
 
-通常のpremiumパラメータ（トピック・文体等）に加え、ターゲット単語を指示に含める：
+通常のpremiumパラメータ（テーマ・文体等）に加え、ターゲット単語を指示に含める：
 
 ```
 【重要】以下のタイ語単語をできるだけ多く自然に含む例文にしてください:

@@ -3,7 +3,7 @@
 /// Free ユーザーに対してプレミアムプランの特典を提示し、購入・復元を促す画面。
 /// モーダルボトムシートとして表示され、以下の要素で構成される:
 ///
-/// 1. Free / Premium の機能比較テーブル（例文生成回数、クイズ、トピック数など）
+/// 1. Free / Premium の機能比較テーブル（例文生成回数、クイズ、テーマ数など）
 /// 2. 月額価格の表示（ストアから動的に取得した実際の価格）
 /// 3. 「プレミアムに登録」ボタン → OS ネイティブの決済シートを起動
 /// 4. 「購入を復元」ボタン → 機種変更・再インストール時の復元用
@@ -122,7 +122,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                 // 比較テーブル
                 _buildComparisonTable(context),
                 const SizedBox(height: 20),
-                // トピック一覧
+                // テーマ一覧
                 _buildTopicSection(context),
                 const SizedBox(height: 32),
                 // 購入ボタン
@@ -300,7 +300,6 @@ class PaywallBottomSheet extends ConsumerWidget {
     const premiumTopics = [
       '仕事',
       '恋愛',
-      '感情',
       '家族',
       '交通',
       '健康',

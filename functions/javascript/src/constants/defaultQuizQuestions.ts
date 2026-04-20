@@ -23,6 +23,8 @@ export interface DefaultSentence {
   /** 発音記号（ローマ字表記） */
   pronunciation: string;
   japanese_translation: string;
+  /** pronunciation の空白区切りで数えた単語数 */
+  word_count: number;
   /** 穴埋め対象として優先したい単語 */
   key_word: string;
   /** key_word 単体の発音記号（クイズ正解音声表示用） */
@@ -31,9 +33,59 @@ export interface DefaultSentence {
   rank: number;
 }
 
+export interface DefaultQuizDifficulty {
+  maxVocab: number;
+  label: string;
+}
+
+// prompts.py の DIFFICULTY_LEVELS / _compute_length_hint と揃える。
+// デフォルトクイズは LLM 生成文ではないため、同じ基準で候補を事前フィルタする。
+export const DEFAULT_QUIZ_DIFFICULTY_LEVELS: DefaultQuizDifficulty[] = [
+  { maxVocab: 100, label: '入門' },
+  { maxVocab: 300, label: '初級' },
+  { maxVocab: 600, label: '初中級' },
+  { maxVocab: 1500, label: '中級' },
+  { maxVocab: Number.POSITIVE_INFINITY, label: '上級' },
+];
+
+export function getDefaultQuizDifficulty(
+  estimatedVocab: number,
+): DefaultQuizDifficulty {
+  return DEFAULT_QUIZ_DIFFICULTY_LEVELS.find(
+    (level) => estimatedVocab <= level.maxVocab,
+  ) ?? DEFAULT_QUIZ_DIFFICULTY_LEVELS[DEFAULT_QUIZ_DIFFICULTY_LEVELS.length - 1];
+}
+
+export function computeDefaultSentenceWordLimit(
+  estimatedVocab: number,
+): number | null {
+  if (estimatedVocab >= 1500) return null;
+  if (estimatedVocab <= 100) return 5;
+  return Math.round(5 + (estimatedVocab - 100) / 1400 * 7);
+}
+
+export function isDefaultSentenceMatchingDifficulty(
+  sentence: DefaultSentence,
+  estimatedVocab: number,
+): boolean {
+  const difficulty = getDefaultQuizDifficulty(estimatedVocab);
+  if (sentence.rank > difficulty.maxVocab) return false;
+
+  const wordLimit = computeDefaultSentenceWordLimit(estimatedVocab);
+  return wordLimit === null || sentence.word_count <= wordLimit;
+}
+
+function countWordsFromPronunciation(pronunciation: string): number {
+  return pronunciation.trim().split(/\s+/).filter(Boolean).length;
+}
+
 type DefaultSentenceTemplate = Omit<
   DefaultSentence,
-  'sentence_id' | 'key_word' | 'key_word_pronunciation' | 'rank'
+  | 'sentence_id'
+  | 'word_count'
+  | 'key_word'
+  | 'key_word_pronunciation'
+  | 'rank'
 >;
 
 interface DefaultSentenceGroup {
@@ -1565,6 +1617,7 @@ export const DEFAULT_SENTENCES: DefaultSentence[] = DEFAULT_SENTENCE_GROUPS.flat
     key_word: group.key_word,
     key_word_pronunciation: group.key_word_pronunciation,
     rank: group.rank,
+    word_count: countWordsFromPronunciation(sentence.pronunciation),
     ...sentence,
   }))
 );

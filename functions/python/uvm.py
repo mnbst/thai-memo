@@ -11,7 +11,7 @@ Firestore の users/{uid}/uvm/{word} コレクションに対して読み書き�
     - last_result: bool     — 直近の正誤
 
 【主な機能】
-  - トピック×語彙レベルに基づくセッション単語の選定 (get_session_words)
+  - テーマ×語彙レベルに基づくセッション単語の選定 (get_session_words)
   - P(know) 確率の更新 (update_p)
   - クイズ結果からの一括更新 (batch_update_uvm)
   - 語彙スコアの算出 (estimate_vocab, sync_vocab_count)
@@ -39,7 +39,9 @@ ALPHA_INCORRECT_MAX_TOP = 0.28  # rank≈1 の不正解α上限
 ALPHA_INCORRECT_MAX_LOW = 0.08  # 高rank の不正解α下限
 ALPHA_INCORRECT_MIN = 0.02  # 不正解時 α の下限
 ALPHA_DECAY_K = 0.08  # α 減衰係数（quiz_attempts による α 減衰速度）
-RANK_SCALE_REF = 600  # このrankでalpha_maxが上限・下限の中間値になる（rank>3000で3問正解挙動）
+RANK_SCALE_REF = (
+    600  # このrankでalpha_maxが上限・下限の中間値になる（rank>3000で3問正解挙動）
+)
 P_MIN = 0.0  # P の下限
 P_MAX = 0.99  # P の上限
 NEW_WORD_P = 0.1  # 新規単語の初期 P 値
@@ -47,8 +49,8 @@ ALPHA_EXPOSURE = 0.03  # 例文露出時の P 微増率
 UNKNOWN_WORD_P = 0.3  # UVM 未登録語の prior P
 
 # get_session_words 用: estimated_vocab 基準の頻度帯
-FREQ_BAND_HALF = 30    # 通常帯域の半幅: estimated_vocab ± FREQ_BAND_HALF
-GAP_SCAN_DEPTH = 100   # ギャップスキャン深度: band_boundary からさらに後方へのスキャン幅
+FREQ_BAND_HALF = 30  # 通常帯域の半幅: estimated_vocab ± FREQ_BAND_HALF
+GAP_SCAN_DEPTH = 100  # ギャップスキャン深度: band_boundary からさらに後方へのスキャン幅
 
 
 def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 10) -> float:
@@ -170,13 +172,19 @@ def update_p(
     """
     scale = RANK_SCALE_REF / (rank + RANK_SCALE_REF) if rank is not None else 0.5
     if correct:
-        alpha_max = ALPHA_CORRECT_MAX_LOW + (ALPHA_CORRECT_MAX_TOP - ALPHA_CORRECT_MAX_LOW) * scale
+        alpha_max = (
+            ALPHA_CORRECT_MAX_LOW
+            + (ALPHA_CORRECT_MAX_TOP - ALPHA_CORRECT_MAX_LOW) * scale
+        )
         alpha = ALPHA_CORRECT_MIN + (alpha_max - ALPHA_CORRECT_MIN) * math.exp(
             -ALPHA_DECAY_K * quiz_attempts
         )
         p = p + alpha * hint_multiplier * (1 - p)
     else:
-        alpha_max = ALPHA_INCORRECT_MAX_LOW + (ALPHA_INCORRECT_MAX_TOP - ALPHA_INCORRECT_MAX_LOW) * scale
+        alpha_max = (
+            ALPHA_INCORRECT_MAX_LOW
+            + (ALPHA_INCORRECT_MAX_TOP - ALPHA_INCORRECT_MAX_LOW) * scale
+        )
         alpha = ALPHA_INCORRECT_MIN + (alpha_max - ALPHA_INCORRECT_MIN) * math.exp(
             -ALPHA_DECAY_K * quiz_attempts
         )
@@ -200,21 +208,21 @@ def get_session_words(
     1. rank < (estimated_vocab - FREQ_BAND_HALF) の範囲で UVM未登録 or P=0 の語（ギャップ語）を探す
        → あれば：そこからランダム選出（高頻度の語彙ギャップを優先的に埋める）
        → なければ：estimated_vocab ± FREQ_BAND_HALF の帯域からランダム選出
-    2. 選出した key_word の embedding と topic_embeddings のコサイン類似度で最適トピックを決定
-    3. トピック指定がある場合はそのまま使用
+    2. 選出した key_word の embedding と topic_embeddings のコサイン類似度で最適テーマを決定
+    3. テーマ指定がある場合はそのまま使用
 
     Args:
         db: Firestore クライアント
         uid: ユーザー UID
         freq_rank: {word: rank} — 頻出順位辞書
-        topic: トピック文字列（空ならembeddingで自動選択）
+        topic: テーマ文字列（空ならembeddingで自動選択）
         count: 選定する単語数（デフォルト 1）
         max_vocab: 語彙帯域の上限（free ティアでは 300）。None なら制限なし。
-        topics_pool: トピック候補リスト（embedding でのトピック選択に使用）。
+        topics_pool: テーマ候補リスト（embedding でのテーマ選択に使用）。
         estimated_vocab: 呼び出し元で取得済みの語彙スコア。省略時は Firestore から読む。
 
     Returns:
-        (選定された単語のリスト, 使用されたトピック)
+        (選定された単語のリスト, 使用されたテーマ)
     """
     # ユーザーの語彙スコアを取得
     if estimated_vocab is None:
@@ -251,11 +259,14 @@ def get_session_words(
                         gap_p_map[snap.id] = float(p_val)
 
             zero_p_candidates = [
-                w for w in gap_candidates
+                w
+                for w in gap_candidates
                 if w["word"] not in gap_p_map or gap_p_map[w["word"]] == 0.0
             ]
             if zero_p_candidates:
-                selected = random.sample(zero_p_candidates, min(count, len(zero_p_candidates)))
+                selected = random.sample(
+                    zero_p_candidates, min(count, len(zero_p_candidates))
+                )
 
     # --- Step 2: ギャップなし → ±FREQ_BAND_HALF 帯域から優先選出 ---
     # 優先順位: UVM未登録 > P最小 > ランダム
@@ -295,22 +306,28 @@ def get_session_words(
 
     words = [w["word"] for w in selected]
 
-    # --- Step 3: key_word の embedding からトピックを選択 ---
+    # --- Step 3: key_word の embedding からテーマを選択 ---
     if topic:
         chosen_topic = topic
     else:
-        chosen_topic = find_best_topic(words[0], topics_pool, top_k=5, threshold=0.545) or ""
+        chosen_topic = (
+            find_best_topic(words[0], topics_pool, top_k=5, threshold=0.545) or ""
+        )
         if not chosen_topic and topics_pool:
             chosen_topic = random.choice(topics_pool)
 
-    print(json.dumps({
-        "message": "get_session_words",
-        "topic": chosen_topic,
-        "estimated_vocab": estimated_vocab,
-        "gap_scan": [gap_scan_low, band_boundary],
-        "band": [band_boundary, band_high],
-        "selected": words,
-    }))
+    print(
+        json.dumps(
+            {
+                "message": "get_session_words",
+                "topic": chosen_topic,
+                "estimated_vocab": estimated_vocab,
+                "gap_scan": [gap_scan_low, band_boundary],
+                "band": [band_boundary, band_high],
+                "selected": words,
+            }
+        )
+    )
 
     return words, chosen_topic
 
@@ -428,7 +445,9 @@ def batch_update_uvm(
 
         rank = freq_rank.get(word) if freq_rank else None
         hint_level_raw = r.get("hint_level")
-        hint_level = int(hint_level_raw) if isinstance(hint_level_raw, (int, float)) else 0
+        hint_level = (
+            int(hint_level_raw) if isinstance(hint_level_raw, (int, float)) else 0
+        )
         hint_multiplier = 1.0 if hint_level == 0 else (0.5 if hint_level == 1 else 0.25)
         if word in docs_map:
             # --- 既存単語の更新 ---

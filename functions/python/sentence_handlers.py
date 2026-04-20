@@ -10,6 +10,7 @@ from google.cloud.firestore_v1 import transactional
 try:
     from .constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
     from .embeddings import find_best_topic
+    from .prompts import gate_topics_for_vocab
     from .runtime import initialize_firebase_app
     from .sentence_service import (
         generate_sentence,
@@ -27,6 +28,7 @@ try:
 except ImportError:
     from constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
     from embeddings import find_best_topic
+    from prompts import gate_topics_for_vocab
     from runtime import initialize_firebase_app
     from sentence_service import (
         generate_sentence,
@@ -136,7 +138,9 @@ def _commit_sentences_transaction(
     )
 
 
-@https_fn.on_call(region="asia-northeast1", memory=2048, timeout_sec=120, concurrency=10)
+@https_fn.on_call(
+    region="asia-northeast1", memory=2048, timeout_sec=120, concurrency=10
+)
 def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
     start_time = time.time()
     response: dict = {"success": False}
@@ -340,9 +344,10 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
         random.shuffle(selected_words)
         all_target_words = [[word] for word in selected_words]
 
-        # 各単語ごとにトピックを選定（embedding → ランダムフォールバック）
-        # 重複トピックは別のトピックに差し替えて多様性を確保
-        topics_pool = TOPICS if use_premium_spec else FREE_TOPICS
+        # 各単語ごとにテーマを選定（embedding → ランダムフォールバック）
+        # 重複テーマは別のテーマに差し替えて多様性を確保
+        topic_candidates = TOPICS if use_premium_spec else FREE_TOPICS
+        topics_pool = gate_topics_for_vocab(topic_candidates, estimated_vocab)
         all_topics = []
         used_topics: set[str] = set()
         for word in selected_words:
