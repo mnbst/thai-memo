@@ -294,15 +294,13 @@ def get_session_words(
                 if isinstance(p_val, (int, float)):
                     band_p_map[snap.id] = float(p_val)
 
-        # 未登録語を優先、次にP値昇順でソート
-        def band_sort_key(w: dict[str, Any]) -> tuple[int, float]:
-            word = w["word"]
-            if word not in band_p_map:
-                return (0, 0.0)  # 未登録が最優先
-            return (1, band_p_map[word])
-
-        band_words.sort(key=band_sort_key)
-        selected = band_words[:count]
+        # 未登録 or P=0 を最優先、なければ P が低いほど選ばれやすい重み付きランダム
+        zero_p = [w for w in band_words if w["word"] not in band_p_map or band_p_map[w["word"]] == 0.0]
+        if zero_p:
+            selected = random.sample(zero_p, min(count, len(zero_p)))
+        else:
+            weights = [1.0 - band_p_map.get(w["word"], 0.0) for w in band_words]
+            selected = random.choices(band_words, weights=weights, k=count)
 
     words = [w["word"] for w in selected]
 
