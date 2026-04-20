@@ -1,8 +1,8 @@
-"""トピック文字列の embedding を事前計算するビルドスクリプト。
+"""テーマ文字列の embedding を事前計算するビルドスクリプト。
 
 【目的】
-UVM 単語選定時にトピックと語彙の類似度を計算するための
-トピック embedding を事前生成し、ローカルに保存する。
+UVM 単語選定時にテーマと語彙の類似度を計算するための
+テーマ embedding を事前生成し、ローカルに保存する。
 生成後は upload_corpus.sh で GCS にアップロードする。
 
 【使い方】
@@ -11,7 +11,7 @@ UVM 単語選定時にトピックと語彙の類似度を計算するための
     # → corpus/topic_embeddings.json が生成される
 
 【出力ファイル】
-    corpus/topic_embeddings.json — {"トピック文字列": [float, ...], ...}
+    corpus/topic_embeddings.json — {"テーマ文字列": [float, ...], ...}
 """
 
 import json

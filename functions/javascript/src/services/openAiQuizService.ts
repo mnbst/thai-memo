@@ -1,6 +1,8 @@
 import * as logger from 'firebase-functions/logger';
 import {
+  applyRuleBasedQuizFields,
   buildQuizGenerationPrompt,
+  QuizGenerationModelResponse,
   QUIZ_RESPONSE_JSON_SCHEMA,
   QuizGenerationService,
   QuizQuestionsResponse,
@@ -14,6 +16,9 @@ interface OpenAiUsage {
   input_tokens?: number;
   output_tokens?: number;
   total_tokens?: number;
+  input_tokens_details?: {
+    cached_tokens?: number;
+  };
   output_tokens_details?: {
     reasoning_tokens?: number;
   };
@@ -39,11 +44,11 @@ interface OpenAiResponsesApiResponse {
   };
 }
 
-const OPENAI_TOKEN_PRICING_PER_MILLION: Record<string, { input: number; output: number }> = {
-  'gpt-5.4-mini': { input: 0.75, output: 4.50 },
-  'gpt-5.4-nano': { input: 0.20, output: 1.25 },
-  'gpt-5-mini': { input: 0.25, output: 2.00 },
-  'gpt-5-nano': { input: 0.05, output: 0.40 },
+const OPENAI_TOKEN_PRICING_PER_MILLION: Record<string, { input: number; cachedInput: number; output: number }> = {
+  'gpt-5.4-mini': { input: 0.75, cachedInput: 0.075, output: 4.50 },
+  'gpt-5.4-nano': { input: 0.20, cachedInput: 0.02, output: 1.25 },
+  'gpt-5-mini': { input: 0.25, cachedInput: 0.025, output: 2.00 },
+  'gpt-5-nano': { input: 0.05, cachedInput: 0.005, output: 0.40 },
 };
 const DEFAULT_OPENAI_TOKEN_PRICING_PER_MILLION = OPENAI_TOKEN_PRICING_PER_MILLION['gpt-5.4-nano'];
 
@@ -75,11 +80,36 @@ export class OpenAiQuizService implements QuizGenerationService {
   constructor(
     private readonly apiKey: string,
     private readonly modelName: string,
+    private readonly uid: string,
+    private readonly tier: 'free' | 'premium',
   ) {}
 
   async generateQuizQuestions(
     sentences: QuizSentenceSeed[],
   ): Promise<QuizQuestionsResponse> {
+    const response = await this.fetchStructuredResponse<QuizGenerationModelResponse>(
+      buildQuizGenerationPrompt(sentences),
+      'quiz_questions_response',
+      QUIZ_RESPONSE_JSON_SCHEMA,
+      4096,
+      sentences,
+    );
+
+    if (!response) {
+      return { questions: [] };
+    }
+
+    const merged = applyRuleBasedQuizFields(response, sentences);
+    return sanitizeQuizQuestions(merged);
+  }
+
+  private async fetchStructuredResponse<T>(
+    prompt: string,
+    schemaName: string,
+    schema: unknown,
+    maxOutputTokens: number,
+    sentences: QuizSentenceSeed[],
+  ): Promise<T | null> {
     try {
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
@@ -92,19 +122,19 @@ export class OpenAiQuizService implements QuizGenerationService {
           input: [
             {
               role: 'user',
-              content: buildQuizGenerationPrompt(sentences),
+              content: prompt,
             },
           ],
-          max_output_tokens: 4096,
+          max_output_tokens: maxOutputTokens,
           reasoning: {
             effort: getReasoningEffort(this.modelName),
           },
           text: {
             format: {
               type: 'json_schema',
-              name: 'quiz_questions_response',
+              name: schemaName,
               strict: true,
-              schema: QUIZ_RESPONSE_JSON_SCHEMA,
+              schema,
             },
           },
         }),
@@ -120,7 +150,7 @@ export class OpenAiQuizService implements QuizGenerationService {
           errorCode: responseBody.error?.code,
           errorMessage: responseBody.error?.message,
         });
-        return { questions: [] };
+        return null;
       }
 
       this.logUsage(sentences, responseBody.usage);
@@ -130,42 +160,54 @@ export class OpenAiQuizService implements QuizGenerationService {
           event: 'openai_quiz_generation_empty_output',
           model: this.modelName,
         });
-        return { questions: [] };
+        return null;
       }
 
-      const parsed = JSON.parse(text) as QuizQuestionsResponse;
-      return sanitizeQuizQuestions(parsed);
+      return JSON.parse(text) as T;
     } catch (error) {
       logger.error('Failed to generate quiz questions with OpenAI', {
         event: 'openai_quiz_generation_failed',
         model: this.modelName,
         error: error instanceof Error ? error.message : 'Unknown',
       });
-      return { questions: [] };
+      return null;
     }
   }
 
-  private logUsage(sentences: QuizSentenceSeed[], usage: OpenAiUsage | undefined): void {
+  private logUsage(
+    sentences: QuizSentenceSeed[],
+    usage: OpenAiUsage | undefined,
+  ): void {
     if (!usage) return;
 
     const inputTokens = usage.input_tokens ?? 0;
     const outputTokens = usage.output_tokens ?? 0;
+    const cachedTokens = usage.input_tokens_details?.cached_tokens ?? 0;
     const reasoningTokens = usage.output_tokens_details?.reasoning_tokens ?? 0;
     const totalTokens = usage.total_tokens ?? inputTokens + outputTokens;
     const pricing = OPENAI_TOKEN_PRICING_PER_MILLION[this.modelName] ?? DEFAULT_OPENAI_TOKEN_PRICING_PER_MILLION;
-    const costUsd = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+    const uncachedInputTokens = Math.max(inputTokens - cachedTokens, 0);
+    const costUsd = (
+      uncachedInputTokens * pricing.input
+      + cachedTokens * pricing.cachedInput
+      + outputTokens * pricing.output
+    ) / 1_000_000;
 
     logger.info('OpenAI token usage', {
       event: 'openai_token_usage',
+      uid: this.uid,
+      tier: this.tier,
       requestMode: sentences.length > 1 ? 'batch' : 'single',
       sentenceCount: sentences.length,
       keyWords: sentences.map((sentence) => sentence.key_word ?? null),
       model: this.modelName,
       inputTokens,
+      cachedInputTokens: cachedTokens,
       outputTokens,
       reasoningTokens,
       totalTokens,
       inputUsdPerMillion: pricing.input,
+      cachedInputUsdPerMillion: pricing.cachedInput,
       outputUsdPerMillion: pricing.output,
       costUsd: Number(costUsd.toFixed(6)),
       costUsdMicros: Math.round(costUsd * 1_000_000),

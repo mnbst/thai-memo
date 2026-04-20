@@ -8,6 +8,7 @@ import '../../data/models/quiz_question.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/remaining_quota_provider.dart';
+import '../providers/review_prompt_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../providers/tts_provider.dart';
@@ -33,6 +34,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       // クイズ完了時にstatsを再取得
       if (next is QuizSummary) {
         ref.invalidate(quizStatsProvider);
+        if (prev is QuizShowResult) {
+          unawaited(_requestReviewAfterQuizCompletion(next));
+        }
       }
       // クイズ開始時の語彙スコアを記録
       if (next is QuizAnswering && next.index == 0 && prev is! QuizAnswering) {
@@ -41,6 +45,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         setState(() => _vocabBeforeQuiz = vocab);
       }
     });
+  }
+
+  Future<void> _requestReviewAfterQuizCompletion(QuizSummary summary) async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted || ref.read(quizControllerProvider) is! QuizSummary) {
+      return;
+    }
+
+    final statsData = QuizStatsData.fromDatabase(summary.stats);
+    await ref.read(reviewPromptServiceProvider).maybeRequestAfterQuizCompleted(
+          sessionCorrect: summary.totalCorrect,
+          sessionTotal: summary.questions.length,
+          totalAnswered: statsData.totalAnswered,
+        );
   }
 
   @override
@@ -422,9 +440,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             final ok = state.answers[i];
             final selectedIdx =
                 i < state.selectedIndices.length ? state.selectedIndices[i] : 0;
-            final hintLevel = i < (state.hintLevels?.length ?? 0)
-                ? state.hintLevels![i]
-                : 0;
+            final hintLevel =
+                i < (state.hintLevels?.length ?? 0) ? state.hintLevels![i] : 0;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Card(
@@ -458,14 +475,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         const SizedBox(height: 6),
                         Text(
                           'ヒント $hintLevel/2',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                         ),
                       ],
                     ],
@@ -826,6 +841,52 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
 
 // ==================== 結果表示ビュー ====================
 
+class _QuizExplanationCard extends StatelessWidget {
+  final QuizQuestion question;
+
+  const _QuizExplanationCard({
+    required this.question,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('解説',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(question.explanation,
+                style: Theme.of(context).textTheme.bodyLarge),
+            if (question.dummyReasons.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('不正解の理由',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              ...question.dummyReasons.map(
+                (reason) => Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text('・$reason',
+                      style: Theme.of(context).textTheme.bodyMedium),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _QuizResultView extends ConsumerWidget {
   final QuizQuestion question;
   final int questionIndex;
@@ -999,40 +1060,7 @@ class _QuizResultView extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           // 解説
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppConfig.defaultPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('解説',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(question.explanation,
-                      style: Theme.of(context).textTheme.bodyLarge),
-                  if (question.dummyReasons.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text('不正解の理由',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    ...question.dummyReasons.map(
-                      (r) => Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text('・$r',
-                            style: Theme.of(context).textTheme.bodyMedium),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
+          _QuizExplanationCard(question: question),
           const SizedBox(height: 16),
           // 4択（正誤ハイライト付き）
           ...List.generate(question.choices.length, (i) {
@@ -1265,24 +1293,7 @@ class _QuizResultDetail extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         // 解説
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(AppConfig.defaultPadding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('解説',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(question.explanation,
-                    style: Theme.of(context).textTheme.bodyLarge),
-              ],
-            ),
-          ),
-        ),
+        _QuizExplanationCard(question: question),
         const SizedBox(height: 16),
         // 4択（正誤ハイライト付き）
         ...List.generate(question.choices.length, (i) {

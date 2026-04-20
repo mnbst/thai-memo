@@ -238,10 +238,13 @@ functions/python/prompts.py
 Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。
 
 functions/python/constants.py
-Geminiモデル名、APIパラメータ、トピック/スタイル/文法/感情リスト、レスポンスJSONスキーマ。
+LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ。
+
+functions/python/llm_providers.py
+LLMプロバイダー抽象レイヤ（OpenAI/Gemini切替、API呼び出し、リトライ、トークン使用量ログ）。
 
 functions/python/uvm.py
-UVMコアロジック（トピック×語彙レベルによるセッション単語選定、P(know)更新、バッチ更新）。
+UVMコアロジック（テーマ×語彙レベルによるセッション単語選定、P(know)更新、バッチ更新）。
 
 docs/estimated_vocab_logic.md
 estimated_vocab算出ロジックの詳細ドキュメント（estimate_vocab・moving_avg・sync_estimated_vocab）。
@@ -253,7 +256,7 @@ docs/quiz_generation_logic.md
 クイズ生成ロジック（SRS例文選出→Gemini穴埋め生成→サニタイズ→デフォルト補填）。
 
 functions/python/embeddings.py
-GCSからembedding/トピックembeddingをlazy-load、コサイン類似度でトピック関連単語検索・セマンティック重複除去。
+GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテーマ関連単語検索・セマンティック重複除去。
 
 ---
 
@@ -271,7 +274,7 @@ scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。
 
 scripts/build_topic_embeddings.py
-16トピック文字列のembeddingを事前計算しGCSにアップロード。
+16テーマ文字列のembeddingを事前計算しGCSにアップロード。
 
 scripts/upload_corpus.sh
 UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSにアップロード。

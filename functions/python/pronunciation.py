@@ -177,10 +177,16 @@ def thai_to_pronunciation(thai_text: str) -> str:
     # TLTK でタイ文字を IPA に変換し、文区切り記号ごとに分割
     ipa = tltk.nlp.th2ipa(normalized_text).strip()
 
-    # IPA をピリオドで音節に分割（TLTK の出力形式）
+    # IPA を音節に分割（TLTK の出力形式）
+    # - "<s/>": 文/語群の区切り（スペースに変換）
+    # - ".": 語内の音節区切り
+    # - "+": サブ形態素の区切り（ฯ の読み下しなどで使用）
+    # - 半角スペース: ๆ (mai yamok) で繰り返される語の境界
+    # "+" や繰り返しの " " が残ると声調番号 "1" などが出力に混入するため、
+    # 音節境界としてまとめて分割する。
     segments = []
     for raw_segment in ipa.split("<s/>"):
-        syllables = [s.strip() for s in raw_segment.split(".") if s.strip()]
+        syllables = [s for s in re.split(r"[.+\s]+", raw_segment) if s]
         if not syllables:
             continue
         segments.append("-".join(_convert_syllable(s) for s in syllables))

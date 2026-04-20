@@ -16,5 +16,20 @@ gsutil cp "${CORPUS_DIR}/vocab_embeddings.npy" "gs://${BUCKET}/vocab_embeddings.
 gsutil cp "${CORPUS_DIR}/vocab_words.json" "gs://${BUCKET}/vocab_words.json"
 gsutil cp "${CORPUS_DIR}/freq_rank_top10000.json" "gs://${BUCKET}/freq_rank_top10000.json"
 gsutil cp "${CORPUS_DIR}/topic_embeddings.json" "gs://${BUCKET}/topic_embeddings.json"
+if [[ -f "${CORPUS_DIR}/emotion_embeddings.json" ]]; then
+  gsutil cp "${CORPUS_DIR}/emotion_embeddings.json" "gs://${BUCKET}/emotion_embeddings.json"
+else
+  echo "Skipping emotion_embeddings.json (not found)"
+fi
+if [[ -f "${CORPUS_DIR}/style_embeddings.json" ]]; then
+  gsutil cp "${CORPUS_DIR}/style_embeddings.json" "gs://${BUCKET}/style_embeddings.json"
+else
+  echo "Skipping style_embeddings.json (not found)"
+fi
+if [[ -f "${CORPUS_DIR}/politeness_embeddings.json" ]]; then
+  gsutil cp "${CORPUS_DIR}/politeness_embeddings.json" "gs://${BUCKET}/politeness_embeddings.json"
+else
+  echo "Skipping politeness_embeddings.json (not found)"
+fi
 
 echo "Done."

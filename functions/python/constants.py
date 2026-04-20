@@ -4,19 +4,28 @@
 このファイルでは、タイ語例文生成に使用する各種定数を定義しています。
 
 定義内容:
-  - OpenAI モデル名とAPIパラメータ（最大トークン数）
-  - 例文生成に使用する選択肢リスト（トピック、文体、丁寧さ、文法、感情等）
+  - LLM プロバイダー切替 / モデル名 / APIパラメータ
+  - 例文生成に使用する選択肢リスト（テーマ、文体、丁寧さ、文法、感情等）
   - 無料/有料ティアごとの選択肢サブセット
-  - OpenAI Responses API レスポンスの JSON Schema 定義
+  - レスポンスの JSON Schema 定義（OpenAI/Gemini 共通で使用）
 
 例文生成時、これらのリストからランダムに選択するか、
 ユーザーが指定したパラメータを使用してプロンプトを構築します。
 """
 
+import os
+
+# ─── LLM プロバイダー切替 ───
+# "openai" または "gemini"。環境変数 SENTENCE_PROVIDER で上書き可。
+SENTENCE_PROVIDER = os.environ.get("SENTENCE_PROVIDER", "gemini").lower()
+
 # ─── OpenAI モデル設定 ───
-# クイズ生成側と同じモデルを使う。
 OPENAI_MODEL = "gpt-5.4-mini"
 OPENAI_MODEL_PREMIUM = "gpt-5.4-mini"
+
+# ─── Gemini モデル設定 ───
+GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL_PREMIUM = "gemini-2.5-flash"
 
 # ─── API パラメータ ───
 # 最大出力トークン数: JSON形式のレスポンス（例文＋単語分解＋コンテキスト）に十分な量
@@ -36,13 +45,12 @@ STYLES = [
     "物語・文学体（描写的・書き言葉的な表現）",
 ]
 
-# ─── トピックリスト ───
+# ─── テーマリスト ───
 # 例文のテーマ。日常会話からタイ文化まで幅広いシーンをカバー
 TOPICS = [
     "あいさつ（朝・昼・夜、初対面、再会、別れ、電話）",
     "食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
     "旅行（ホテル、道案内、観光地、空港、ツアー）",
-    "感情（喜び、悲しみ、驚き、不安、怒り、照れ）",
     "仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）",
     "家族（家族紹介、子育て、親への感謝、兄弟、家族行事）",
     "買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
@@ -58,13 +66,13 @@ TOPICS = [
 ]
 
 # ─── 無料ティア用サブセット ───
-# 無料ユーザーは基本的なトピックと文体のみ利用可能
+# 無料ユーザーは基本的なテーマと文体のみ利用可能
 # 無料ティア用サブセット
 FREE_TOPICS = [
     TOPICS[0],
     TOPICS[1],
     TOPICS[2],
-    TOPICS[6],
+    TOPICS[5],
 ]  # あいさつ、食べ物、旅行、買い物
 FREE_STYLES = STYLES[1:3]  # 口語体、丁寧語
 
@@ -79,6 +87,7 @@ POLITENESS_LEVELS = [
 # ─── 文法フォーカス ───
 # 特定の文法パターンを含む例文を生成するための選択肢（有料ティア限定）
 GRAMMAR_FOCUSES = [
+    "平叙文（基本の肯定文）",
     "疑問文（〜ไหม？〜มั้ย？など）",
     "否定文（ไม่〜、ไม่ได้〜など）",
     "条件文（ถ้า〜、หาก〜など）",
@@ -97,7 +106,6 @@ EMOTIONS = [
     "悲しみ・落ち込み",
     "驚き",
     "不安・心配",
-    "感謝",
     "期待・楽しみ",
     "中立・平静",
 ]
@@ -116,11 +124,13 @@ RESPONSE_JSON_SCHEMA = {
         },
         "japanese_translation": {
             "type": "string",
-            "description": "日本語訳（例: こんにちは）",
+            "description": (
+                "自然な日本語訳。主語・話者の違いが意味に関わる場合だけ訳に残す"
+            ),
         },
         "word_breakdown": {
             "type": "array",
-            "description": "例文を構成する各単語と日本語の意味。最大15件。",
+            "description": "例文を構成する各単語と日本語の意味。最大20件。",
             "items": {
                 "type": "object",
                 "additionalProperties": False,
@@ -143,7 +153,7 @@ RESPONSE_JSON_SCHEMA = {
             "properties": {
                 "topic": {
                     "type": "string",
-                    "description": "トピック（例: あいさつ）",
+                    "description": "テーマ（例: あいさつ）",
                 },
                 "style": {
                     "type": "string",
