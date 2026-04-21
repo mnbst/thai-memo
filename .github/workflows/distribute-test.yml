@@ -62,7 +62,7 @@ jobs:
       - name: Setup Python venv for Firebase
         run: |
           cd functions/python
-          python3 -m venv venv
+          python -m venv venv
           . venv/bin/activate
           pip install -r requirements.txt
 

@@ -59,17 +59,40 @@ async function dailyBatchHandler() {
 }
 
 /** tierに応じて remaining_sentences / remaining_quizzes を日次リセット */
-async function resetQuota(
+export async function resetQuota(
   userDoc: FirebaseFirestore.QueryDocumentSnapshot
 ): Promise<void> {
   const userData = userDoc.data() || {};
   const tier: string = userData.tier || 'free';
   const isPremium = tier === 'premium';
+  const sentenceResetValue = isPremium ?
+    PREMIUM_DAILY_SENTENCES :
+    FREE_DAILY_SENTENCES;
+  const quizResetValue = isPremium ?
+    PREMIUM_DAILY_QUIZZES :
+    FREE_DAILY_QUIZZES;
+  const currentRemainingSentences =
+    typeof userData.remaining_sentences === 'number' ?
+      userData.remaining_sentences :
+      0;
+  const currentRemainingQuizzes =
+    typeof userData.remaining_quizzes === 'number' ?
+      userData.remaining_quizzes :
+      0;
+  const shouldPreserveInitialBonus = userData.is_first_generation === true;
+  const shouldPreserveInitialQuizBonus =
+    userData.is_first_quiz_generation === true;
+  const remainingSentences = shouldPreserveInitialBonus ?
+    Math.max(currentRemainingSentences, sentenceResetValue) :
+    sentenceResetValue;
+  const remainingQuizzes = shouldPreserveInitialQuizBonus ?
+    Math.max(currentRemainingQuizzes, quizResetValue) :
+    quizResetValue;
 
   await db.collection('users').doc(userDoc.id).set(
     {
-      remaining_sentences: isPremium ? PREMIUM_DAILY_SENTENCES : FREE_DAILY_SENTENCES,
-      remaining_quizzes: isPremium ? PREMIUM_DAILY_QUIZZES : FREE_DAILY_QUIZZES,
+      remaining_sentences: remainingSentences,
+      remaining_quizzes: remainingQuizzes,
       daily_sentence_generated: false,
     },
     { merge: true }

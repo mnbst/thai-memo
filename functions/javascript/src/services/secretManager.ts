@@ -32,3 +32,7 @@ async function getSecretValue(secretId: string): Promise<string> {
 export async function getOpenAiApiKey(): Promise<string> {
   return getSecretValue('openai-api-key');
 }
+
+export async function getGeminiApiKey(): Promise<string> {
+  return getSecretValue('gemini-api-key');
+}

@@ -91,6 +91,9 @@ async function consumeQuizQuota(
         last_quiz_generated_at: admin.firestore.FieldValue.serverTimestamp(),
         quiz_generated_count: admin.firestore.FieldValue.increment(1),
         quiz_question_generated_count: admin.firestore.FieldValue.increment(questionCount),
+        ...(userData.is_first_quiz_generation === true && remainingQuizzes <= 1 ?
+          {is_first_quiz_generation: admin.firestore.FieldValue.delete()} :
+          {}),
       },
       { merge: true },
     );

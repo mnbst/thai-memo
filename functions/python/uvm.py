@@ -295,12 +295,30 @@ def get_session_words(
                     band_p_map[snap.id] = float(p_val)
 
         # 未登録 or P=0 を最優先、なければ P が低いほど選ばれやすい重み付きランダム
-        zero_p = [w for w in band_words if w["word"] not in band_p_map or band_p_map[w["word"]] == 0.0]
+        zero_p = [
+            w
+            for w in band_words
+            if w["word"] not in band_p_map or band_p_map[w["word"]] == 0.0
+        ]
         if zero_p:
             selected = random.sample(zero_p, min(count, len(zero_p)))
         else:
-            weights = [1.0 - band_p_map.get(w["word"], 0.0) for w in band_words]
-            selected = random.choices(band_words, weights=weights, k=count)
+            remaining = list(band_words)
+            remaining_weights = [
+                max(0.0, 1.0 - band_p_map.get(w["word"], 0.0))
+                for w in remaining
+            ]
+            for _ in range(min(count, len(remaining))):
+                if sum(remaining_weights) <= 0:
+                    index = random.randrange(len(remaining))
+                else:
+                    index = random.choices(
+                        range(len(remaining)),
+                        weights=remaining_weights,
+                        k=1,
+                    )[0]
+                selected.append(remaining.pop(index))
+                remaining_weights.pop(index)
 
     words = [w["word"] for w in selected]
 
