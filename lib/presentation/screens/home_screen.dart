@@ -293,11 +293,6 @@ class TodayScreen extends ConsumerStatefulWidget {
 class _TodayScreenState extends ConsumerState<TodayScreen> {
   static const int _freeVocabScoreLimit = 100;
   static const String _freeTopics = 'あいさつ、食べ物、旅行、買い物';
-  static const String _freeStyles = '口語体、丁寧語';
-  static const String _premiumTopicUnlockPreview =
-      '仕事、恋愛、家族、天気、交通、健康、趣味、学校、宗教・信仰、伝統・祭り、礼儀作法';
-  static const String _premiumStyleUnlockPreview =
-      'SNS・テキストメッセージ、ニュース記事体、物語・文学体';
 
   @override
   Widget build(BuildContext context) {
@@ -630,6 +625,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       context: context,
       builder: (dialogContext) {
         final theme = Theme.of(dialogContext);
+        void openPaywall() {
+          Navigator.pop(dialogContext);
+          PaywallBottomSheet.show(
+            context,
+            source: 'vocab_score_dialog',
+          );
+        }
+
         return AlertDialog(
           title: Text(isPremium ? '語彙スコア（$level）' : '語彙スコア（Free・$level）'),
           content: SingleChildScrollView(
@@ -660,46 +663,34 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                _buildTopicUnlockSummary(
-                  dialogContext,
-                  isPremium: isPremium,
-                  currentCount: currentTopicCount,
-                  nextCount: nextTopicCount,
-                ),
-                const SizedBox(height: 16),
+                if (!isPremium) ...[
+                  _buildFreeVocabLimitCallout(dialogContext),
+                  const SizedBox(height: 16),
+                ],
+                if (isPremium) ...[
+                  _buildTopicUnlockSummary(
+                    dialogContext,
+                    currentCount: currentTopicCount,
+                    nextThreshold: threshold,
+                    nextCount: nextTopicCount,
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 _buildCategoryBlock(
                   dialogContext,
                   title: isPremium
                       ? '現在のテーマ数（$currentTopicCount件）'
-                      : 'Freeのテーマ候補（$currentTopicCount件）',
+                      : 'Freeのテーマ数（$currentTopicCount件）',
                   topics: currentTopics,
                 ),
                 if (!isPremium) ...[
-                  const SizedBox(height: 16),
-                  _buildCategoryBlock(
-                    dialogContext,
-                    title: 'Freeの文体候補（2件）',
-                    topics: _freeStyles,
-                  ),
                   const SizedBox(height: 16),
                   Divider(
                     height: 1,
                     color: theme.colorScheme.outlineVariant,
                   ),
                   const SizedBox(height: 16),
-                  _buildCategoryBlock(
-                    dialogContext,
-                    title: 'Premiumで追加されるテーマ',
-                    topics: _premiumTopicUnlockPreview,
-                    addition: true,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildCategoryBlock(
-                    dialogContext,
-                    title: 'Premiumで追加される文体',
-                    topics: _premiumStyleUnlockPreview,
-                    addition: true,
-                  ),
+                  _buildScoreUnlockPreview(dialogContext),
                 ],
                 if (nextUnlock != null) ...[
                   const SizedBox(height: 16),
@@ -710,7 +701,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   const SizedBox(height: 16),
                   _buildCategoryBlock(
                     dialogContext,
-                    title: '次の解放:（+$nextTopicCount件）',
+                    title: threshold == null
+                        ? '次の開放（+$nextTopicCount件）'
+                        : 'あと$threshold語で開放（+$nextTopicCount件）',
                     topics: nextUnlock.addedTopics,
                     addition: true,
                   ),
@@ -720,15 +713,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           ),
           actions: [
             if (!isPremium)
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  PaywallBottomSheet.show(
-                    context,
-                    source: 'vocab_score_dialog',
-                  );
-                },
-                child: const Text('Premiumを見る'),
+              FilledButton.icon(
+                onPressed: openPaywall,
+                icon: const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('Premiumを見る'),
               ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -795,18 +783,67 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         .length;
   }
 
+  Widget _buildFreeVocabLimitCallout(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.55),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.35),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.lock_outline,
+            size: 22,
+            color: colorScheme.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Freeは100語が上限です',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Premiumでは100語以上学べます。また例文のテーマが増え、よりリアルなタイ語が学べます。',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color:
+                        colorScheme.onPrimaryContainer.withValues(alpha: 0.85),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTopicUnlockSummary(
     BuildContext context, {
-    required bool isPremium,
     required int currentCount,
+    required int? nextThreshold,
     required int nextCount,
   }) {
     final theme = Theme.of(context);
-    final message = isPremium
-        ? nextCount > 0
-            ? '語彙スコアが上がると、例文のテーマが増えます。\n現在$currentCount件 / 次で+$nextCount件'
-            : '例文テーマ候補は現在$currentCount件です。'
-        : 'Freeでは例文テーマは$currentCount件、文体は2件です。\n語彙スコアは$_freeVocabScoreLimit語まで表示されます。';
+    final message = nextCount > 0 && nextThreshold != null
+        ? '語彙スコアが増えると次の例文テーマが開放されます。'
+        : '例文テーマ候補は現在$currentCount件です。';
 
     return Container(
       width: double.infinity,
@@ -831,6 +868,47 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 color: theme.colorScheme.onSecondaryContainer,
                 height: 1.35,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoreUnlockPreview(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    const addedTopics = '仕事、恋愛、家族、天気、交通、健康、趣味、学校、宗教・信仰、伝統・祭り、礼儀作法';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.28),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.18),
+        ),
+        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Premiumで追加されるテーマ数（12件）',
+            style: TextStyle(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border.all(color: colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: _topicListRow(
+              value: addedTopics,
+              borderColor: colorScheme.outlineVariant,
             ),
           ),
         ],

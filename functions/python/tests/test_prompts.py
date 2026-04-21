@@ -17,9 +17,12 @@ from prompts import (
     GRAMMAR_MIN_VOCAB,
     INTRO_TOPICS,
     STYLE_MIN_VOCAB,
+    SYSTEM_PROMPT_FREE,
+    SYSTEM_PROMPT_PREMIUM,
     TOPIC_MIN_VOCAB,
     build_uvm_prompt,
     gate_topics_for_vocab,
+    get_system_prompt,
     resolve_generation_params,
 )
 
@@ -368,8 +371,7 @@ def test_build_uvm_prompt_with_target_words_includes_target_section() -> None:
 
 
 def test_build_uvm_prompt_excludes_fixed_output_rules() -> None:
-    """固定の出力ルールは SYSTEM_PROMPT に集約し、user prompt からは除かれる。"""
-    from prompts import SYSTEM_PROMPT
+    """固定の出力ルールは system prompt に集約し、user prompt からは除かれる。"""
 
     prompt = build_uvm_prompt(
         {
@@ -384,8 +386,15 @@ def test_build_uvm_prompt_excludes_fixed_output_rules() -> None:
 
     assert "thai_textはタイ語の自然な本文表記" not in prompt
     assert "日本語話者向けのタイ語練習文を1つ生成" not in prompt
-    assert "thai_textはタイ語の自然な本文表記" in SYSTEM_PROMPT
-    assert "word_breakdownのmeaningは必ず日本語で記述してください" in SYSTEM_PROMPT
+    assert "thai_textはタイ語の自然な本文表記" in SYSTEM_PROMPT_FREE
+    assert "word_breakdownのmeaningは必ず日本語で記述してください" in SYSTEM_PROMPT_FREE
+    assert "構文・表現ルール" in SYSTEM_PROMPT_PREMIUM
+    assert "直訳構文は禁止" in SYSTEM_PROMPT_PREMIUM
+
+
+def test_get_system_prompt_selects_tier_prompt() -> None:
+    assert get_system_prompt(False) == SYSTEM_PROMPT_FREE
+    assert get_system_prompt(True) == SYSTEM_PROMPT_PREMIUM
 
 
 def test_build_uvm_prompt_includes_grammar_focus_without_target_words() -> None:

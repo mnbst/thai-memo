@@ -77,12 +77,20 @@ class PurchaseService {
   /// 購入エラー時のコールバック
   void Function(String message)? onPurchaseError;
 
+  /// 購入キャンセル時のコールバック
+  PurchaseCallback? onPurchaseCanceled;
+
+  /// 購入が承認待ちになった時のコールバック
+  void Function(String message)? onPurchasePending;
+
   /// サービスを初期化し、購入ストリームの監視を開始
   ///
   /// purchaseStream はアプリ起動中の全購入イベント（新規購入・復元・エラー・キャンセル）を
   /// リアルタイムで配信するストリーム。OS 側の決済処理完了後に自動的にイベントが届く。
   /// アプリ起動時に1回だけ呼び出す（main.dart で実行）。
   Future<bool> initialize() async {
+    if (_subscription != null) return true;
+
     final available = await _iap.isAvailable();
     if (!available) return false;
 
@@ -91,6 +99,7 @@ class PurchaseService {
       onDone: () => _subscription?.cancel(),
       onError: (Object error) {
         debugPrint('Purchase stream error: $error');
+        onPurchaseError?.call('購入状態の取得に失敗しました');
       },
     );
     return true;
@@ -147,17 +156,18 @@ class PurchaseService {
       switch (purchase.status) {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
-          _verifyAndComplete(purchase);
+          unawaited(_verifyAndComplete(purchase));
           break;
         case PurchaseStatus.error:
           onPurchaseError?.call(purchase.error?.message ?? '購入エラーが発生しました');
           unawaited(_completePurchaseIfNeeded(purchase));
           break;
         case PurchaseStatus.canceled:
+          onPurchaseCanceled?.call();
           unawaited(_completePurchaseIfNeeded(purchase));
           break;
         case PurchaseStatus.pending:
-          // 処理待ち - 何もしない
+          onPurchasePending?.call('購入の承認待ちです。承認後に反映されます');
           break;
       }
     }
@@ -177,7 +187,7 @@ class PurchaseService {
     if (!FirebaseAuthService.instance.isAuthenticated) {
       debugPrint('Verification skipped: user not authenticated');
       onPurchaseError?.call('ログインしてから購入してください');
-      _completePurchaseIfNeeded(purchase);
+      await _completePurchaseIfNeeded(purchase);
       return;
     }
 

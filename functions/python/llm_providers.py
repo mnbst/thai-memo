@@ -115,21 +115,21 @@ def _get_openai_api_key() -> str:
     return api_key
 
 
-def _openai_reasoning_effort(model: str) -> str:
+def _openai_reasoning_effort(model: str, is_premium: bool = False) -> str:
     if model.startswith("gpt-5.4-") or model.startswith("gpt-5-"):
-        return "medium"
+        return "high" if is_premium else "medium"
     return "none"
 
 
 def _openai_payload(
-    model: str, system_prompt: str, user_prompt: str
+    model: str, system_prompt: str, user_prompt: str, is_premium: bool = False
 ) -> dict[str, Any]:
     return {
         "model": model,
         "instructions": system_prompt,
         "input": [{"role": "user", "content": user_prompt}],
         "max_output_tokens": API_MAX_TOKENS,
-        "reasoning": {"effort": _openai_reasoning_effort(model)},
+        "reasoning": {"effort": _openai_reasoning_effort(model, is_premium)},
         "text": {
             "format": {
                 "type": "json_schema",
@@ -256,7 +256,7 @@ def _openai_generate_sync(
 ) -> dict[str, Any]:
     api_key = _get_openai_api_key()
     model = OPENAI_MODEL_PREMIUM if is_premium else OPENAI_MODEL
-    payload = _openai_payload(model, system_prompt, user_prompt)
+    payload = _openai_payload(model, system_prompt, user_prompt, is_premium)
 
     response_body = _call_with_retry(
         lambda: _openai_post(api_key, payload),
@@ -451,8 +451,10 @@ def _call_with_retry(
 def generate_sentence_sync(
     system_prompt: str, user_prompt: str, is_premium: bool, tier_label: str
 ) -> dict[str, Any]:
-    """設定されたプロバイダーで同期的に例文を生成し、構造化 dict を返す。"""
-    if SENTENCE_PROVIDER == "gemini":
+    """設定されたプロバイダーで同期的に例文を生成し、構造化 dict を返す。
+    Free ティアは常に Gemini 2.5 Flash（thinking 256）を使用する。
+    """
+    if not is_premium or SENTENCE_PROVIDER == "gemini":
         return _gemini_generate_sync(
             system_prompt, user_prompt, is_premium, tier_label
         )
