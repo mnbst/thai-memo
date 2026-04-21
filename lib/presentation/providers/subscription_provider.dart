@@ -108,15 +108,19 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
   /// 購入を開始
   Future<void> purchase() async {
-    await ensureStoreReady();
-    if (_purchaseService == null || state.product == null) {
-      state = state.copyWith(errorMessage: '課金商品を取得できませんでした');
-      return;
-    }
-    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
+      await ensureStoreReady();
+      if (_purchaseService == null || state.product == null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '課金商品を取得できませんでした',
+        );
+        return;
+      }
+      state = state.copyWith(isLoading: true, errorMessage: null);
       await _purchaseService!.buy(state.product!);
     } catch (e) {
+      debugPrint('Failed to start purchase: $e');
       state = state.copyWith(isLoading: false, errorMessage: '購入を開始できませんでした');
     }
   }
@@ -128,16 +132,26 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   /// （復元イベントは purchaseStream 経由で非同期に届くため、即座に Firestore を
   ///   読んでも反映されていない可能性がある）
   Future<void> restore() async {
-    await ensureStoreReady();
-    if (_purchaseService == null) return;
-    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
+      await ensureStoreReady();
+      if (_purchaseService == null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'App Storeに接続できませんでした',
+        );
+        return;
+      }
+      state = state.copyWith(isLoading: true, errorMessage: null);
       await _purchaseService!.restore();
       // 復元後にFirestoreから最新状態を取得（サーバー検証完了を待つため遅延）
       await Future.delayed(const Duration(seconds: 2));
       await _fetchTierFromFirestore();
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: state.isPremium ? null : '復元できる購入が見つかりませんでした',
+      );
     } catch (e) {
+      debugPrint('Failed to restore purchase: $e');
       state = state.copyWith(isLoading: false, errorMessage: '復元に失敗しました');
     }
   }
@@ -192,11 +206,19 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   }
 
   void _onPurchaseCompleted() {
-    refreshTier();
+    unawaited(refreshTier());
     state = state.copyWith(isLoading: false);
   }
 
+  void _onPurchaseCanceled() {
+    state = state.copyWith(isLoading: false, errorMessage: null);
+  }
+
   void _onPurchaseError(String message) {
+    state = state.copyWith(isLoading: false, errorMessage: message);
+  }
+
+  void _onPurchasePending(String message) {
     state = state.copyWith(isLoading: false, errorMessage: message);
   }
 
@@ -210,10 +232,15 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
       service.onPurchaseCompleted = _onPurchaseCompleted;
       service.onPurchaseError = _onPurchaseError;
+      service.onPurchaseCanceled = _onPurchaseCanceled;
+      service.onPurchasePending = _onPurchasePending;
 
       final available = await service.initialize();
       if (!available) {
-        state = state.copyWith(errorMessage: 'App Storeに接続できませんでした');
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'App Storeに接続できませんでした',
+        );
         return;
       }
       await _loadProduct();

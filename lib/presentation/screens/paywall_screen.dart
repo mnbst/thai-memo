@@ -50,7 +50,10 @@ class PaywallBottomSheet extends ConsumerWidget {
     unawaited(
       container
           .read(subscriptionControllerProvider.notifier)
-          .ensureStoreReady(),
+          .ensureStoreReady()
+          .catchError((Object error, StackTrace stackTrace) {
+        debugPrint('Failed to warm up store: $error');
+      }),
     );
     // 呼び出し元の source を失わないよう、表示前にイベントを確定させる。
     unawaited(analytics.logTapPaywall(source: source));
@@ -81,232 +84,247 @@ class PaywallBottomSheet extends ConsumerWidget {
       maxChildSize: 0.95,
       expand: false,
       builder: (context, scrollController) {
-        return SingleChildScrollView(
-          controller: scrollController,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ドラッグハンドル
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color:
-                          colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // タイトル
-                Text(
-                  'プレミアムプラン',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '仕事も恋愛も、タイ語で話せるように',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Icon(Icons.auto_awesome,
-                          color: colorScheme.primary, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'AIがより深く考えて、自然で実践的な例文を生成します',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onPrimaryContainer,
-                                  ),
+                      // ドラッグハンドル
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 24),
+                      // タイトル
+                      Text(
+                        'プレミアムプラン',
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '100語の先へ。リアルなタイ語例文を',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildMainBenefits(context),
+                      const SizedBox(height: 18),
+                      // テーマ一覧
+                      _buildTopicSection(context),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                // 比較テーブル
-                _buildComparisonTable(context),
-                const SizedBox(height: 20),
-                // テーマ一覧
-                _buildTopicSection(context),
-                const SizedBox(height: 32),
-                // 購入ボタン
-                _buildPurchaseSection(context, ref),
-              ],
+              ),
             ),
-          ),
+            _buildPurchaseBar(context, ref),
+          ],
         );
       },
     );
   }
 
-  /// 購入セクション: 価格表示・購入ボタン・復元ボタン・エラー表示
+  /// 固定購入バー: 価格表示・購入ボタン・復元ボタン・エラー表示
   ///
   /// 既にプレミアムの場合は「加入中」メッセージのみ表示。
   /// product が null（ストアから商品情報を取得できていない）の場合、購入ボタンは無効化される。
-  Widget _buildPurchaseSection(BuildContext context, WidgetRef ref) {
+  Widget _buildPurchaseBar(BuildContext context, WidgetRef ref) {
     final subState = ref.watch(subscriptionControllerProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
 
     if (subState.isPremium) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(24, 14, 24, 14 + bottomSafeArea),
         decoration: BoxDecoration(
-          color: colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(12),
+          color: colorScheme.surface,
+          border: Border(
+            top: BorderSide(color: colorScheme.outlineVariant),
+          ),
         ),
-        child: Text(
-          'プレミアムプランに加入中です',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.bold,
-              ),
-          textAlign: TextAlign.center,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            'プレミアムプランに加入中です',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.bold,
+                ),
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
 
-    return Column(
-      children: [
-        // 価格表示
-        if (subState.product != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              _formatPrice(
-                  subState.product!.rawPrice, subState.product!.currencyCode),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        // エラーメッセージ
-        if (subState.errorMessage != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              subState.errorMessage!,
-              style: TextStyle(color: colorScheme.error),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        // 購入ボタン
-        FilledButton(
-          onPressed: subState.isLoading || subState.product == null
-              ? null
-              : () {
-                  unawaited(
-                    ref.read(analyticsServiceProvider).logSubscribe(
-                          source: source,
-                        ),
-                  );
-                  ref.read(subscriptionControllerProvider.notifier).purchase();
-                },
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            minimumSize: const Size(double.infinity, 0),
-          ),
-          child: subState.isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text(
-                  'プレミアムに登録',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+    Widget legalLink({
+      required String label,
+      required VoidCallback? onPressed,
+    }) {
+      return TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: Size.zero,
         ),
-        const SizedBox(height: 8),
-        // 復元ボタン
-        TextButton(
-          onPressed: subState.isLoading
-              ? null
-              : () =>
-                  ref.read(subscriptionControllerProvider.notifier).restore(),
-          child: const Text('購入を復元'),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                decoration: TextDecoration.underline,
+              ),
         ),
-        // 自動更新サブスクリプション開示文（iOS: Apple ガイドライン 3.1.2 準拠）
-        if (defaultTargetPlatform == TargetPlatform.iOS) ...[
-          const SizedBox(height: 12),
-          Text(
-            'サブスクリプションは、現在の期間終了の24時間前までにキャンセルしない限り自動更新されます。'
-            '更新料金は期間終了の24時間以内に請求されます。'
-            'App Storeのアカウント設定からサブスクリプションの管理・キャンセルができます。',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                ),
-            textAlign: TextAlign.left,
+      );
+    }
+
+    Widget separator() {
+      return Text(
+        '|',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.4),
+            ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(24, 10, 24, 10 + bottomSafeArea),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border(
+          top: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
           ),
         ],
-        // 利用規約・プライバシーポリシーリンク（Apple ガイドライン 3.1.2 準拠）
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextButton(
-              onPressed: () =>
-                  launchUrl(Uri.parse(AppConfig.termsOfServiceUrl)),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 価格表示
+          if (subState.product != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
               child: Text(
-                '利用規約',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      decoration: TextDecoration.underline,
+                _formatPrice(
+                    subState.product!.rawPrice, subState.product!.currencyCode),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
+                textAlign: TextAlign.center,
               ),
             ),
-            Text(
-              '|',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.4),
+          // エラーメッセージ
+          if (subState.errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                subState.errorMessage!,
+                style: TextStyle(color: colorScheme.error),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          // 購入ボタン
+          FilledButton(
+            onPressed: subState.isLoading || subState.product == null
+                ? null
+                : () {
+                    unawaited(
+                      ref.read(analyticsServiceProvider).logSubscribe(
+                            source: source,
+                          ),
+                    );
+                    ref
+                        .read(subscriptionControllerProvider.notifier)
+                        .purchase();
+                  },
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              minimumSize: const Size(double.infinity, 0),
+            ),
+            child: subState.isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'プレミアムに加入',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-            ),
-            TextButton(
-              onPressed: () => launchUrl(Uri.parse(AppConfig.privacyPolicyUrl)),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+          ),
+          // 自動更新サブスクリプション開示文（iOS: Apple ガイドライン 3.1.2 準拠）
+          if (defaultTargetPlatform == TargetPlatform.iOS) ...[
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
               child: Text(
-                'プライバシーポリシー',
+                'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。'
+                '更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      decoration: TextDecoration.underline,
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                      height: 1.25,
                     ),
+                textAlign: TextAlign.left,
               ),
             ),
           ],
-        ),
-      ],
+          const SizedBox(height: 2),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 2,
+            children: [
+              legalLink(
+                label: '購入を復元',
+                onPressed: subState.isLoading
+                    ? null
+                    : () => ref
+                        .read(subscriptionControllerProvider.notifier)
+                        .restore(),
+              ),
+              separator(),
+              legalLink(
+                label: '利用規約',
+                onPressed: () =>
+                    launchUrl(Uri.parse(AppConfig.termsOfServiceUrl)),
+              ),
+              separator(),
+              legalLink(
+                label: 'プライバシーポリシー',
+                onPressed: () =>
+                    launchUrl(Uri.parse(AppConfig.privacyPolicyUrl)),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -318,6 +336,85 @@ class PaywallBottomSheet extends ConsumerWidget {
     return '$currencyCode $formatted / 月';
   }
 
+  Widget _buildMainBenefits(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    Widget benefitRow({
+      required IconData icon,
+      required String title,
+      required String freeText,
+      required String premiumText,
+    }) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: colorScheme.primary, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: freeText),
+                      const TextSpan(text: ' → '),
+                      TextSpan(
+                        text: premiumText,
+                        style: TextStyle(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          benefitRow(
+            icon: Icons.school,
+            title: '学べる単語',
+            freeText: '無料は100語まで',
+            premiumText: '100語の先まで',
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: colorScheme.outlineVariant),
+          ),
+          benefitRow(
+            icon: Icons.auto_awesome,
+            title: 'よりリアルな例文',
+            freeText: '基本テーマ中心',
+            premiumText: '仕事・恋愛・文化',
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTopicSection(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -325,15 +422,10 @@ class PaywallBottomSheet extends ConsumerWidget {
     const premiumTopics = [
       '仕事',
       '恋愛',
-      '家族',
       '交通',
       '健康',
-      '天気',
-      '趣味',
       '学校',
-      '宗教・信仰',
-      '伝統・祭り',
-      '礼儀作法',
+      '文化・礼儀',
     ];
 
     Widget chipWrap(List<String> labels, Color bg, Color fg) => Wrap(
@@ -355,157 +447,49 @@ class PaywallBottomSheet extends ConsumerWidget {
               .toList(),
         );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('例文のテーマ',
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        chipWrap(freeTopics, colorScheme.surfaceContainerHighest,
-            colorScheme.onSurfaceVariant),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(child: Divider(color: colorScheme.outlineVariant)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text('プレミアムで追加',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      )),
-            ),
-            Expanded(child: Divider(color: colorScheme.outlineVariant)),
-          ],
-        ),
-        const SizedBox(height: 6),
-        chipWrap(premiumTopics, colorScheme.primaryContainer,
-            colorScheme.onPrimaryContainer),
-      ],
-    );
-  }
-
-  Widget _buildComparisonTable(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    // (機能名, 無料, プレミアム)
-    const features = [
-      ('例文の質', 'ベーシック', 'AI高精度モード'),
-      ('例文生成 / クイズ', '最大2回/日', '最大10回/日'),
-      ('学べる単語', '100語まで', '最大1万語'),
-    ];
-
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ヘッダー行
-          Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
-            ),
-            child: Row(
-              children: [
-                const Expanded(flex: 3, child: SizedBox()),
-                Expanded(
-                  flex: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      '無料',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+          Text('例文のテーマ',
+              style: Theme.of(context)
+                  .textTheme
+                  .labelLarge
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Text(
+            '無料',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.bold,
                 ),
-                Expanded(
-                  flex: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      'プレミアム',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
-          // 機能行
-          ...features.asMap().entries.map((entry) {
-            final i = entry.key;
-            final f = entry.value;
-            final isLast = i == features.length - 1;
-
-            return Container(
-              decoration: BoxDecoration(
-                border: isLast
-                    ? null
-                    : Border(
-                        bottom: BorderSide(color: colorScheme.outlineVariant),
-                      ),
-                borderRadius: isLast
-                    ? const BorderRadius.vertical(bottom: Radius.circular(12))
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      child: Text(f.$1,
-                          style: Theme.of(context).textTheme.bodyMedium),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 12),
-                      child: Text(
-                        f.$2,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 12),
-                      child: Text(
-                        f.$3,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          const SizedBox(height: 6),
+          chipWrap(freeTopics, colorScheme.surfaceContainerHighest,
+              colorScheme.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text(
+            'プレミアムで追加（一例）',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 6),
+          chipWrap(premiumTopics, colorScheme.primaryContainer,
+              colorScheme.onPrimaryContainer),
+          const SizedBox(height: 6),
+          Text(
+            'ほかにも、家族・天気・趣味・伝統行事など全15テーマ。',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+          ),
         ],
       ),
     );

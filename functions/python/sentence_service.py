@@ -15,7 +15,7 @@ try:
     from .llm_providers import (
         generate_sentence_sync as _llm_generate_sync,
     )
-    from .prompts import SYSTEM_PROMPT, build_uvm_prompt, gate_topics_for_vocab
+    from .prompts import build_uvm_prompt, gate_topics_for_vocab, get_system_prompt
     from .uvm import get_session_words
 except ImportError:
     from constants import FREE_TOPICS, TOPICS
@@ -25,7 +25,7 @@ except ImportError:
     from llm_providers import (
         generate_sentence_sync as _llm_generate_sync,
     )
-    from prompts import SYSTEM_PROMPT, build_uvm_prompt, gate_topics_for_vocab
+    from prompts import build_uvm_prompt, gate_topics_for_vocab, get_system_prompt
     from uvm import get_session_words
 
 _freq_rank: dict[str, int] | None = None
@@ -180,7 +180,7 @@ def _generate_single(
     current_prompt = prompt
     for attempt in range(1 + MAX_RETRY):
         sentence = _llm_generate_sync(
-            SYSTEM_PROMPT, current_prompt, is_premium, tier_label
+            get_system_prompt(is_premium), current_prompt, is_premium, tier_label
         )
         _get_enrich_with_nlp()(sentence)
 
@@ -212,7 +212,7 @@ async def _generate_single_async(
     current_prompt = prompt
     for attempt in range(1 + MAX_RETRY):
         sentence = await _llm_generate_async(
-            SYSTEM_PROMPT, current_prompt, is_premium, tier_label
+            get_system_prompt(is_premium), current_prompt, is_premium, tier_label
         )
         _get_enrich_with_nlp()(sentence)
 

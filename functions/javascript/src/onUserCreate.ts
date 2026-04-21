@@ -21,6 +21,7 @@ export const onUserCreate = functions
           uvm_initialized: true,
           daily_sentence_generated: false,
           is_first_generation: true,
+          is_first_quiz_generation: true,
         },
         { merge: true },
       );
