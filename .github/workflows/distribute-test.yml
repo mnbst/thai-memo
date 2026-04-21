@@ -69,10 +69,18 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: Deploy Cloud Functions
+      - name: Deploy Firestore
+        run: |
+          firebase deploy --only firestore:rules,firestore:indexes --project tester
+
+      - name: Deploy JS functions
+        run: |
+          firebase deploy --only functions:js-functions --project tester
+
+      - name: Deploy Python functions
         run: |
           export FUNCTIONS_DISCOVERY_TIMEOUT=60000
-          firebase deploy --only functions,firestore:rules,firestore:indexes --project tester
+          firebase deploy --only functions:py-functions --project tester
 
   # build-and-distribute-android:
   #   runs-on: ubuntu-latest
