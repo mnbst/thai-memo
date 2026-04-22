@@ -24,8 +24,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       description: 'AIが毎日新しいタイ語例文を生成。\n発音（ローマ字）と日本語訳付きで\n無理なく学習できます。',
     ),
     _OnboardingPage(
-      icon: Icons.menu_book,
+      icon: Icons.workspace_premium,
       colorType: _ColorType.secondary,
+      title: '初回5回はPremium体験',
+      description: '初回5回は、Premium相当の\n幅広いテーマ・文体で例文が\n生成されます。',
+    ),
+    _OnboardingPage(
+      icon: Icons.menu_book,
+      colorType: _ColorType.tertiary,
       title: '発音・単語を詳しく解説',
       description: '単語ごとの発音・意味・文法的役割に加え\n声調ルールも解説。音声再生で\n正しい発音を確認できます。',
     ),
