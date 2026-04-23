@@ -148,7 +148,7 @@ source_index / thai_text / blank_text / correct_answer / choices は出力しな
 - 日本語訳、話者性別、敬意、人称だけで区別する語は、周辺タイ語に明確な手がかりがない限りダミーにしない
 - dummies はタイ語のみ3件。correct_answer を含めない
 - explanation は正解理由だけ。ダミーには触れない
-- dummy_reasons は各ダミーを「単語（拼音風ローマ字 / 日本語の意味）：不正解理由」で1行ずつ書く
+- dummy_reasons は各ダミーを「単語（拼音風ローマ字 / 日本語の意味）：不正解理由」の形式で1行ずつ書く
 
 【ダミー生成手順】
 1. blank_text の品詞、役割、直前直後語、意味カテゴリ、項構造を内部分析

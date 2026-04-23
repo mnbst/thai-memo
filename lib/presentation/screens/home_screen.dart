@@ -703,7 +703,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     dialogContext,
                     title: threshold == null
                         ? '次の開放（+$nextTopicCount件）'
-                        : 'あと$threshold語で開放（+$nextTopicCount件）',
+                        : 'あと${threshold - displayVocab}語で開放（+$nextTopicCount件）',
                     topics: nextUnlock.addedTopics,
                     addition: true,
                   ),
