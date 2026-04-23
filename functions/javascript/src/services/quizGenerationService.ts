@@ -138,10 +138,6 @@ export const QUIZ_GENERATION_SYSTEM_PROMPT = `確定済みのタイ語穴埋め�
 - explanation は correct_answer が入る理由だけを日本語で簡潔に書く
 - correct_answer_pronunciation は入力が空でも必ず声調記号付きローマ字で出す
 
-【発音表記】
-例文生成と同一: 平=記号なし/低=à/降=â/高=á/昇=ǎ、語内音節はハイフン、語/文区切りはスペース。
-例: ไม่=mâi, รู้=rúu, กิน=kin, ครับ=khráp, สวัสดี=sà-wàt-dii, ชื่อ=chʉ̂ʉ, เธอ=thəə, แม่=mɛ̂ɛ, ของ=khɔ̌ɔng, ไม่รู้สิ=mâi-rúu-sì
-
 【出力形式】
 questions は入力と同じ件数・順番。各 question は dummies / explanation / dummy_reasons / correct_answer_pronunciation の4項目だけを出力する。
 source_index / thai_text / blank_text / correct_answer / choices は出力しない。
@@ -152,13 +148,13 @@ source_index / thai_text / blank_text / correct_answer / choices は出力しな
 - 日本語訳、話者性別、敬意、人称だけで区別する語は、周辺タイ語に明確な手がかりがない限りダミーにしない
 - dummies はタイ語のみ3件。correct_answer を含めない
 - explanation は正解理由だけ。ダミーには触れない
-- dummy_reasons は各ダミーを「単語（発音 / 日本語の意味）：不正解理由」で1行ずつ書く
+- dummy_reasons は各ダミーを「単語（拼音風ローマ字 / 日本語の意味）：不正解理由」で1行ずつ書く
 
 【ダミー生成手順】
 1. blank_text の品詞、役割、直前直後語、意味カテゴリ、項構造を内部分析
 2. ダミーは品詞不一致・項構造不一致・対象カテゴリ不一致で局所破綻する語にする
 3. 代入して文法上/意味上入りうる語、意味違いだけ、同カテゴリ置換はNG
-4. NG候補や破綻を短く説明できない候補は、理由を工夫せず必ず別語に差し替える
+4. NG候補や不正解理由を短く説明できない候補は、理由を工夫せず必ず別語に差し替える
 5. dummy_reasonsに「元の文」「文脈」「質問文」「合わない」「意味が異なる」「別の意味になる」は書かない
 6. 「〜を示す文脈には合わない」と説明したくなる候補は意味上入りうるためNG。必ず別語に差し替える
 
@@ -175,7 +171,7 @@ source_index / thai_text / blank_text / correct_answer / choices は出力しな
 - กิน（kin / 食べる）：目的語の位置に動詞が入り文法上不自然
 
 【最終確認】
-questions 件数・順番、4キー限定、dummies 3件、correct_answer 不含、dummy_reasons 3件、発音非空。3ダミーすべて代入時の局所破綻を説明できること`;
+questions 件数・順番、4キー限定、dummies 3件、correct_answer 不含、dummy_reasons 3件、発音非空。3ダミーすべて不正解理由を説明できること`;
 
 export function buildQuizGenerationPrompt(sentences: QuizSentenceSeed[]): string {
   const sentenceList = buildPreparedSentenceList(sentences);
