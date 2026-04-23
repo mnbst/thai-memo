@@ -6,10 +6,12 @@ jest.mock('firebase-functions/logger', () => ({
 
 import {
   applyRuleBasedQuizFields,
+  buildQuizGenerationPrompt,
   GeneratedQuizQuestion,
   GeneratedQuizQuestionDraft,
   isQuizSentenceSeedReady,
   prepareQuizGenerationInputs,
+  QUIZ_GENERATION_SYSTEM_PROMPT,
   sanitizeQuizQuestion,
 } from '../services/quizGenerationService';
 
@@ -57,6 +59,42 @@ function makeDraft(
 }
 
 describe('quiz generation sanitization', () => {
+  test('keeps fixed quiz instructions in the system prompt and sentence data in the user prompt', () => {
+    const prompt = buildQuizGenerationPrompt([
+      {
+        thai_text: 'ฉันกินข้าว',
+        pronunciation: 'chǎn kin khâao',
+        japanese_translation: '私はご飯を食べます',
+        word_breakdown: [
+          { word: 'ฉัน', pronunciation: 'chǎn', meaning: '私' },
+          { word: 'กิน', pronunciation: 'kin', meaning: '食べる' },
+          { word: 'ข้าว', pronunciation: 'khâao', meaning: 'ご飯' },
+        ],
+        key_word: 'ข้าว',
+      },
+    ]);
+
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【あなたの主作業】');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【発音表記】');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('平=記号なし/低=à/降=â/高=á/昇=ǎ');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('ไม่=mâi');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('สวัสดี=sà-wàt-dii');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('ชื่อ=chʉ̂ʉ');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('เธอ=thəə');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('แม่=mɛ̂ɛ');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('ของ=khɔ̌ɔng');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【ダミー生成手順】');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【ダミーNG例（文として成立するため不可）】');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('กิน___ → ข้าว/ผัก/เนื้อ');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('สวย（sǔay / 美しい）：目的語に形容詞が入り不自然');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).not.toContain('thai_text: ฉันกินข้าว');
+    expect(prompt).toContain('thai_text: ฉันกินข้าว');
+    expect(prompt).toContain('blank_text: ฉันกิน___');
+    expect(prompt).toContain('correct_answer: ข้าว');
+    expect(prompt).not.toContain('【あなたの主作業】');
+    expect(prompt).not.toContain('【ダミー生成手順】');
+  });
+
   test('prepares blank text and correct answer from the key word before model generation', () => {
     const [prepared] = prepareQuizGenerationInputs([
       {
