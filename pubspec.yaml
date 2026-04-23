@@ -87,6 +87,11 @@ dev_dependencies:
   json_serializable: ^6.6.0
   flutter_launcher_icons: ^0.14.4
 
+dependency_overrides:
+  # Temporary iOS workaround: 2.6.0 uses native assets via package:objective_c
+  # and can fail to load objective_c.framework in the simulator.
+  path_provider_foundation: 2.5.1
+
 flutter_launcher_icons:
   android: true
   ios: true

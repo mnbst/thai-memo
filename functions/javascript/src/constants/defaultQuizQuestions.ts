@@ -197,9 +197,9 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     rank: 8,
     sentences: [
       {
-        thai_text: 'เธอเรียนภาษาไทย',
-        pronunciation: 'thəə rian phaasǎa thai',
-        japanese_translation: '彼女はタイ語を勉強しています',
+        thai_text: 'เธอชอบกินมะม่วง',
+        pronunciation: 'thəə chɔ̂ɔp kin má-mûang',
+        japanese_translation: '彼女はマンゴーを食べるのが好きです',
       },
     ],
   },
@@ -269,9 +269,9 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     rank: 14,
     sentences: [
       {
-        thai_text: 'พี่ชายเป็นหมอ',
-        pronunciation: 'phîi-chaai pen mǎaw',
-        japanese_translation: '兄は医者です',
+        thai_text: 'พี่ชายเป็นคนใจดี',
+        pronunciation: 'phîi-chaai pen khon jai-dii',
+        japanese_translation: '兄は親切な人です',
       },
     ],
   },
@@ -318,20 +318,20 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     sentences: [
       {
         thai_text: 'ห้องนี้มีโต๊ะหนึ่งตัว',
-        pronunciation: 'hɔ̂ng níi mii tó núng tua',
+        pronunciation: 'hɔ̂ng níi mii tó nʉ̀ng tua',
         japanese_translation: 'この部屋には机が一つあります',
       },
     ],
   },
   {
     key_word: 'เขา',
-    key_word_pronunciation: 'khǎw',
+    key_word_pronunciation: 'khǎo',
     rank: 19,
     sentences: [
       {
-        thai_text: 'เขามาทำงานแต่เช้า',
-        pronunciation: 'khǎo maa tham-ngaan tɛ̀ɛ cháao',
-        japanese_translation: '彼は朝早くから仕事に来ました',
+        thai_text: 'เขามาจากเชียงใหม่',
+        pronunciation: 'khǎo maa jàak chiang-mài',
+        japanese_translation: '彼はチェンマイから来ました',
       },
     ],
   },
@@ -462,7 +462,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     sentences: [
       {
         thai_text: 'เราต้องไปตอนเช้า',
-        pronunciation: 'rao tɔ̂ng pai tɔɔn cháaw',
+        pronunciation: 'rao tɔ̂ɔng pai tɔɔn cháao',
         japanese_translation: '私たちは朝に行かなければなりません',
       },
     ],
@@ -474,7 +474,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     sentences: [
       {
         thai_text: 'ฉันอยากไปด้วย',
-        pronunciation: 'chǎn yàak pai dûai',
+        pronunciation: 'chǎn yàak pai dûuai',
         japanese_translation: '私も一緒に行きたいです',
       },
     ],
@@ -498,7 +498,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     sentences: [
       {
         thai_text: 'เรื่องนี้สำคัญมาก',
-        pronunciation: 'rʉ̂ang níi sǎm-khan mâak',
+        pronunciation: 'rʉ̂ʉang níi sǎm-khan mâak',
         japanese_translation: 'この件はとても重要です',
       },
     ],
@@ -521,9 +521,9 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     rank: 47,
     sentences: [
       {
-        thai_text: 'ฉันอยากเรียนภาษาไทย',
-        pronunciation: 'chǎn yàak rian phaa-sǎa thai',
-        japanese_translation: '私はタイ語を勉強したいです',
+        thai_text: 'ฉันอยากกินมะม่วง',
+        pronunciation: 'chǎn yàak kin má-mûang',
+        japanese_translation: '私はマンゴーを食べたいです',
       },
     ],
   },
@@ -533,20 +533,20 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     rank: 49,
     sentences: [
       {
-        thai_text: 'นั่นคือวัดอะไร',
-        pronunciation: 'nân khʉʉ wát à-rai',
-        japanese_translation: 'あれは何というお寺ですか',
+        thai_text: 'นั่นคือร้านอะไร',
+        pronunciation: 'nân khʉʉ ráan à-rai',
+        japanese_translation: 'あれは何のお店ですか',
       },
     ],
   },
   {
     key_word: 'เจ้า',
-    key_word_pronunciation: 'jâaw',
+    key_word_pronunciation: 'jâo',
     rank: 58,
     sentences: [
       {
         thai_text: 'เจ้าของร้านใจดีมาก',
-        pronunciation: 'jâo-khɔ̌ɔng ráan jai-dii mâak',
+        pronunciation: 'jâo khɔ̌ɔng ráan jai-dii mâak',
         japanese_translation: 'お店のオーナーはとても親切です',
       },
     ],
@@ -570,7 +570,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     sentences: [
       {
         thai_text: 'ท่านต้องการอะไรครับ',
-        pronunciation: 'thân tɔ̂ng-kaan à-rai khráp',
+        pronunciation: 'thân tɔ̂ɔng-kaan à-rai khráp',
         japanese_translation: '何をお求めですか',
       },
     ],
@@ -605,9 +605,9 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     rank: 70,
     sentences: [
       {
-        thai_text: 'เขากำลังอ่านหนังสือ',
-        pronunciation: 'khǎo kam-lang àan nǎng-sʉ̌ʉ',
-        japanese_translation: '彼は本を読んでいるところです',
+        thai_text: 'เขากำลังกินข้าว',
+        pronunciation: 'khǎo kam-lang kin khâao',
+        japanese_translation: '彼はご飯を食べているところです',
       },
     ],
   },
@@ -725,9 +725,9 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     rank: 83,
     sentences: [
       {
-        thai_text: 'ฉันไม่ไปเพราะไม่สบาย',
-        pronunciation: 'chǎn mâi pai phrɔ́ mâi sà-baai',
-        japanese_translation: '体調が悪いので行きません',
+        thai_text: 'ฉันไม่ไปเพราะฝนตก',
+        pronunciation: 'chǎn mâi pai phrɔ́ fǒn tòk',
+        japanese_translation: '雨が降っているので行きません',
       },
     ],
   },
@@ -738,7 +738,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     sentences: [
       {
         thai_text: 'ไม่เป็นไรหรอก',
-        pronunciation: 'mâi pen rai ràwk',
+        pronunciation: 'mâi pen rai rɔ̀ɔk',
         japanese_translation: '大丈夫だよ、気にしないで',
       },
     ],
@@ -749,9 +749,9 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     rank: 85,
     sentences: [
       {
-        thai_text: 'สิ่งที่สำคัญคือสุขภาพ',
-        pronunciation: 'sìng thîi sǎm-khan khʉʉ sùk-khà-phâap',
-        japanese_translation: '大切なものは健康です',
+        thai_text: 'สิ่งที่สำคัญคือครอบครัว',
+        pronunciation: 'sìng thîi sǎm-khan khʉʉ khrɔ̂ɔp-khrua',
+        japanese_translation: '大切なものは家族です',
       },
     ],
   },
@@ -786,7 +786,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     sentences: [
       {
         thai_text: 'คุณต้องการความช่วยเหลือไหม',
-        pronunciation: 'khun tɔ̂ng-kaan khwaam-chûai-lʉ̌a mǎi',
+        pronunciation: 'khun tɔ̂ɔng-kaan khwaam-chûai-lʉ̌a mǎi',
         japanese_translation: '助けが必要ですか',
       },
     ],
@@ -821,9 +821,9 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     rank: 97,
     sentences: [
       {
-        thai_text: 'เขาออกกำลังกายเพื่อสุขภาพ',
-        pronunciation: 'khǎo ɔ̀ɔk-kam-lang-kaai phʉ̂a sùk-khà-phâap',
-        japanese_translation: '彼は健康のために運動しています',
+        thai_text: 'ฉันมาเพื่อกินข้าว',
+        pronunciation: 'chǎn maa phʉ̂a kin khâao',
+        japanese_translation: '私はご飯を食べるために来ました',
       },
     ],
   },
@@ -833,9 +833,9 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
     rank: 98,
     sentences: [
       {
-        thai_text: 'ราคาน้ำมันขึ้นอีกแล้ว',
-        pronunciation: 'raa-khaa nám-man khʉ̂n ìik lɛ́ɛo',
-        japanese_translation: 'ガソリンの値段がまた上がりました',
+        thai_text: 'ราคาข้าวขึ้นอีกแล้ว',
+        pronunciation: 'raa-khaa khâao khʉ̂n ìik lɛ́ɛo',
+        japanese_translation: 'お米の値段がまた上がりました',
       },
     ],
   },
@@ -874,741 +874,7 @@ const DEFAULT_SENTENCE_GROUPS: DefaultSentenceGroup[] = [
         japanese_translation: '遅れてすみません',
       },
     ],
-  },
-  {
-    key_word: 'สามารถ',
-    key_word_pronunciation: 'sǎa-mâat',
-    rank: 109,
-    sentences: [
-      {
-        thai_text: 'คุณสามารถพูดไทยได้ไหม',
-        pronunciation: 'khun sǎa-mâat phûut thai dâi mǎi',
-        japanese_translation: 'タイ語を話せますか',
-      },
-    ],
-  },
-  {
-    key_word: 'ขอบคุณ',
-    key_word_pronunciation: 'khɔ̀ɔp-khun',
-    rank: 110,
-    sentences: [
-      {
-        thai_text: 'ขอบคุณมากสำหรับของขวัญ',
-        pronunciation: 'khɔ̀ɔp-khun mâak sǎm-ràp khɔ̌ɔng-khwǎn',
-        japanese_translation: 'プレゼントをどうもありがとう',
-      },
-    ],
-  },
-  {
-    key_word: 'เหมือน',
-    key_word_pronunciation: 'mʉ̌ʉan',
-    rank: 114,
-    sentences: [
-      {
-        thai_text: 'ลูกสาวหน้าเหมือนแม่',
-        pronunciation: 'lûuk-sǎao nâa mʉ̌an mɛ̂ɛ',
-        japanese_translation: '娘は母親に顔が似ています',
-      },
-    ],
-  },
-  {
-    key_word: 'สำหรับ',
-    key_word_pronunciation: 'sǎm-ràp',
-    rank: 117,
-    sentences: [
-      {
-        thai_text: 'ที่นั่งนี้สำหรับผู้สูงอายุ',
-        pronunciation: 'thîi-nâng níi sǎm-ràp phûu-sǔung-aa-yú',
-        japanese_translation: 'この席はお年寄り用です',
-      },
-    ],
-  },
-  {
-    key_word: 'แบบนี้',
-    key_word_pronunciation: 'bɛ̀ɛp-níi',
-    rank: 120,
-    sentences: [
-      {
-        thai_text: 'ฉันชอบอากาศแบบนี้',
-        pronunciation: 'chǎn chɔ̂ɔp aa-kàat bɛ̀ɛp-níi',
-        japanese_translation: '私はこういう天気が好きです',
-      },
-    ],
-  },
-  {
-    key_word: 'เกิด',
-    key_word_pronunciation: 'kə̀ət',
-    rank: 122,
-    sentences: [
-      {
-        thai_text: 'เธอเกิดที่เชียงใหม่',
-        pronunciation: 'thəə kə̀ət thîi chiang-mài',
-        japanese_translation: '彼女はチェンマイで生まれました',
-      },
-    ],
-  },
-  {
-    key_word: 'รู้สึก',
-    key_word_pronunciation: 'rúu-sʉ̀k',
-    rank: 124,
-    sentences: [
-      {
-        thai_text: 'วันนี้ฉันรู้สึกดีมาก',
-        pronunciation: 'wan-níi chǎn rúu-sʉ̀k dii mâak',
-        japanese_translation: '今日はとても気分がいいです',
-      },
-    ],
-  },
-  {
-    key_word: 'เข้าใจ',
-    key_word_pronunciation: 'khâw-jai',
-    rank: 126,
-    sentences: [
-      {
-        thai_text: 'คุณเข้าใจที่ฉันพูดไหม',
-        pronunciation: 'khun khâo-jai thîi chǎn phûut mǎi',
-        japanese_translation: '私の言ったことが分かりますか',
-      },
-    ],
-  },
-  {
-    key_word: 'เมื่อ',
-    key_word_pronunciation: 'mʉ̂ʉa',
-    rank: 128,
-    sentences: [
-      {
-        thai_text: 'เมื่อวานฉันไปหาหมอ',
-        pronunciation: 'mʉ̂a-waan chǎn pai hǎa mǎaw',
-        japanese_translation: '昨日、私は病院に行きました',
-      },
-    ],
-  },
-  {
-    key_word: 'กลับ',
-    key_word_pronunciation: 'klàp',
-    rank: 129,
-    sentences: [
-      {
-        thai_text: 'เขากลับบ้านดึกทุกวัน',
-        pronunciation: 'khǎo klàp bâan dʉ̀k thúk wan',
-        japanese_translation: '彼は毎日遅くに帰宅します',
-      },
-    ],
-  },
-  {
-    key_word: 'เด็ก',
-    key_word_pronunciation: 'dèk',
-    rank: 131,
-    sentences: [
-      {
-        thai_text: 'เด็กๆ เล่นอยู่ในสวน',
-        pronunciation: 'dèk-dèk lên yùu nai sǔan',
-        japanese_translation: '子供たちは庭で遊んでいます',
-      },
-    ],
-  },
-  {
-    key_word: 'จริง',
-    key_word_pronunciation: 'jing',
-    rank: 132,
-    sentences: [
-      {
-        thai_text: 'เรื่องนี้เป็นเรื่องจริง',
-        pronunciation: 'rʉ̂ang níi pen rʉ̂ang jing',
-        japanese_translation: 'この話は本当の話です',
-      },
-    ],
-  },
-  {
-    key_word: 'บ้าง',
-    key_word_pronunciation: 'bâang',
-    rank: 133,
-    sentences: [
-      {
-        thai_text: 'มีอะไรน่ากินบ้าง',
-        pronunciation: 'mii à-rai nâa-kin bâang',
-        japanese_translation: '何かおいしそうなものはありますか',
-      },
-    ],
-  },
-  {
-    key_word: 'เร็ว',
-    key_word_pronunciation: 'rew',
-    rank: 134,
-    sentences: [
-      {
-        thai_text: 'รถไฟฟ้าเร็วกว่ารถเมล์',
-        pronunciation: 'rót-fai-fáa rew kwàa rót-mee',
-        japanese_translation: '電車はバスより速いです',
-      },
-    ],
-  },
-  {
-    key_word: 'เวลา',
-    key_word_pronunciation: 'wee-laa',
-    rank: 135,
-    sentences: [
-      {
-        thai_text: 'ไม่มีเวลาทำอาหาร',
-        pronunciation: 'mâi mii wee-laa tham aa-hǎan',
-        japanese_translation: '料理をする時間がありません',
-      },
-    ],
-  },
-  {
-    key_word: 'บ้าน',
-    key_word_pronunciation: 'bâan',
-    rank: 136,
-    sentences: [
-      {
-        thai_text: 'บ้านของฉันอยู่ใกล้สถานี',
-        pronunciation: 'bâan khɔ̌ɔng chǎn yùu klâi sà-thǎa-nii',
-        japanese_translation: '私の家は駅の近くにあります',
-      },
-    ],
-  },
-  {
-    key_word: 'ใช่ไหม',
-    key_word_pronunciation: 'châi-mǎi',
-    rank: 140,
-    sentences: [
-      {
-        thai_text: 'คุณเป็นคนญี่ปุ่นใช่ไหม',
-        pronunciation: 'khun pen khon yîi-pùn châi mǎi',
-        japanese_translation: 'あなたは日本人ですよね',
-      },
-    ],
-  },
-  {
-    key_word: 'หยุด',
-    key_word_pronunciation: 'yùt',
-    rank: 141,
-    sentences: [
-      {
-        thai_text: 'วันเสาร์ฉันหยุดงาน',
-        pronunciation: 'wan sǎo chǎn yùt ngaan',
-        japanese_translation: '土曜日は仕事が休みです',
-      },
-    ],
-  },
-  {
-    key_word: 'เข้า',
-    key_word_pronunciation: 'khâw',
-    rank: 144,
-    sentences: [
-      {
-        thai_text: 'เชิญเข้ามาข้างในเลย',
-        pronunciation: 'chəən khâo maa khâang-nai ləəi',
-        japanese_translation: 'どうぞ中にお入りください',
-      },
-    ],
-  },
-  {
-    key_word: 'กลับมา',
-    key_word_pronunciation: 'klàp-maa',
-    rank: 145,
-    sentences: [
-      {
-        thai_text: 'เขากลับมาจากต่างประเทศ',
-        pronunciation: 'khǎo klàp-maa jàak tàang-prà-thêet',
-        japanese_translation: '彼は海外から帰ってきました',
-      },
-    ],
-  },
-  {
-    key_word: 'ทั้งหมด',
-    key_word_pronunciation: 'tháng-mòt',
-    rank: 150,
-    sentences: [
-      {
-        thai_text: 'ทั้งหมดราคาเท่าไหร่',
-        pronunciation: 'tháng-mòt raa-khaa thâo-rài',
-        japanese_translation: '全部でいくらですか',
-      },
-    ],
-  },
-  {
-    key_word: 'ที่สุด',
-    key_word_pronunciation: 'thîi-sùt',
-    rank: 153,
-    sentences: [
-      {
-        thai_text: 'ส้มตำเป็นอาหารที่ชอบที่สุด',
-        pronunciation: 'sôm-tam pen aa-hǎan thîi chɔ̂ɔp thîi-sùt',
-        japanese_translation: 'ソムタムは一番好きな料理です',
-      },
-    ],
-  },
-  {
-    key_word: 'อย่างนั้น',
-    key_word_pronunciation: 'yàang-nán',
-    rank: 156,
-    sentences: [
-      {
-        thai_text: 'ไม่ควรพูดอย่างนั้น',
-        pronunciation: 'mâi khuan phûut yàang-nán',
-        japanese_translation: 'そんなふうに言うべきではありません',
-      },
-    ],
-  },
-  {
-    key_word: 'ทุกคน',
-    key_word_pronunciation: 'thúk-khon',
-    rank: 157,
-    sentences: [
-      {
-        thai_text: 'ทุกคนพร้อมแล้วหรือยัง',
-        pronunciation: 'thúk-khon phrɔ́ɔm lɛ́ɛo rʉ̌ʉ yang',
-        japanese_translation: 'みんな準備はできましたか',
-      },
-    ],
-  },
-  {
-    key_word: 'ไม่ต้อง',
-    key_word_pronunciation: 'mâi-tɔ̂ɔng',
-    rank: 158,
-    sentences: [
-      {
-        thai_text: 'วันนี้ไม่ต้องใส่ชุดยูนิฟอร์ม',
-        pronunciation: 'wan-níi mâi-tɔ̂ng sài chút yuu-ní-fɔɔm',
-        japanese_translation: '今日は制服を着なくていいです',
-      },
-    ],
-  },
-  {
-    key_word: 'ทำงาน',
-    key_word_pronunciation: 'tham-ngaan',
-    rank: 160,
-    sentences: [
-      {
-        thai_text: 'ฉันทำงานวันจันทร์ถึงศุกร์',
-        pronunciation: 'chǎn tham-ngaan wan-jan thʉ̌ng wan-sùk',
-        japanese_translation: '私は月曜から金曜まで働いています',
-      },
-    ],
-  },
-  {
-    key_word: 'ได้ยิน',
-    key_word_pronunciation: 'dâai-yin',
-    rank: 161,
-    sentences: [
-      {
-        thai_text: 'คุณได้ยินเสียงนั้นไหม',
-        pronunciation: 'khun dâi-yin sǐang nán mǎi',
-        japanese_translation: 'あの音が聞こえますか',
-      },
-    ],
-  },
-  {
-    key_word: 'เกี่ยวกับ',
-    key_word_pronunciation: 'kìiaw-kàp',
-    rank: 162,
-    sentences: [
-      {
-        thai_text: 'ฉันอ่านข่าวเกี่ยวกับเศรษฐกิจ',
-        pronunciation: 'chǎn àan khàaw kìaw-kàp sèet-thà-kìt',
-        japanese_translation: '私は経済に関するニュースを読みました',
-      },
-    ],
-  },
-  {
-    key_word: 'ก็ได้',
-    key_word_pronunciation: 'kɔ̂ɔ-dâai',
-    rank: 168,
-    sentences: [
-      {
-        thai_text: 'ไปวันไหนก็ได้',
-        pronunciation: 'pai wan nǎi kɔ̂ɔ dâi',
-        japanese_translation: 'いつ行ってもいいですよ',
-      },
-    ],
-  },
-  {
-    key_word: 'ผู้หญิง',
-    key_word_pronunciation: 'phûu-yǐng',
-    rank: 171,
-    sentences: [
-      {
-        thai_text: 'ผู้หญิงคนนั้นสวยมาก',
-        pronunciation: 'phûu-yǐng khon nán sǔai mâak',
-        japanese_translation: 'あの女性はとてもきれいです',
-      },
-    ],
-  },
-  {
-    key_word: 'วันนี้',
-    key_word_pronunciation: 'wan-níi',
-    rank: 172,
-    sentences: [
-      {
-        thai_text: 'วันนี้อากาศดีมาก',
-        pronunciation: 'wan-níi aa-kàat dii mâak',
-        japanese_translation: '今日はとてもいい天気です',
-      },
-    ],
-  },
-  {
-    key_word: 'พยายาม',
-    key_word_pronunciation: 'phá-yaa-yaam',
-    rank: 174,
-    sentences: [
-      {
-        thai_text: 'ฉันพยายามตื่นเช้าทุกวัน',
-        pronunciation: 'chǎn phá-yaa-yaam tʉ̀ʉn cháao thúk wan',
-        japanese_translation: '私は毎日早起きするよう努力しています',
-      },
-    ],
-  },
-  {
-    key_word: 'เริ่ม',
-    key_word_pronunciation: 'rə̂əm',
-    rank: 176,
-    sentences: [
-      {
-        thai_text: 'ประชุมเริ่มตอนเก้าโมง',
-        pronunciation: 'prà-chum rə̂əm tɔɔn kâo moong',
-        japanese_translation: '会議は9時に始まります',
-      },
-    ],
-  },
-  {
-    key_word: 'หนึ่ง',
-    key_word_pronunciation: 'nʉ̀ng',
-    rank: 178,
-    sentences: [
-      {
-        thai_text: 'ขอน้ำเปล่าหนึ่งขวด',
-        pronunciation: 'khɔ̌ɔ náam-plàao nʉ̀ng khùat',
-        japanese_translation: '水を一本ください',
-      },
-    ],
-  },
-  {
-    key_word: 'เหมือนกัน',
-    key_word_pronunciation: 'mʉ̌ʉan-kan',
-    rank: 179,
-    sentences: [
-      {
-        thai_text: 'ฉันคิดเหมือนกัน',
-        pronunciation: 'chǎn khít mʉ̌an-kan',
-        japanese_translation: '私も同じことを思います',
-      },
-    ],
-  },
-  {
-    key_word: 'ตัวเอง',
-    key_word_pronunciation: 'tuua-eeng',
-    rank: 182,
-    sentences: [
-      {
-        thai_text: 'เขาทำอาหารกินเองตัวเอง',
-        pronunciation: 'khǎo tham aa-hǎan kin eeng tua-eeng',
-        japanese_translation: '彼は自分で料理を作って食べます',
-      },
-    ],
-  },
-  {
-    key_word: 'ทุกอย่าง',
-    key_word_pronunciation: 'thúk-yàang',
-    rank: 183,
-    sentences: [
-      {
-        thai_text: 'ทุกอย่างเรียบร้อยแล้ว',
-        pronunciation: 'thúk-yàang rîap-rɔ́ɔi lɛ́ɛo',
-        japanese_translation: 'すべて準備が整いました',
-      },
-    ],
-  },
-  {
-    key_word: 'เชื่อ',
-    key_word_pronunciation: 'chʉ̂ʉa',
-    rank: 184,
-    sentences: [
-      {
-        thai_text: 'ฉันเชื่อว่าเขาพูดจริง',
-        pronunciation: 'chǎn chʉ̂a wâa khǎo phûut jing',
-        japanese_translation: '彼が本当のことを言っていると信じます',
-      },
-    ],
-  },
-  {
-    key_word: 'ไม่เป็นไร',
-    key_word_pronunciation: 'mâi-pen-rai',
-    rank: 185,
-    sentences: [
-      {
-        thai_text: 'ไม่เป็นไรครับ ไม่ต้องกังวล',
-        pronunciation: 'mâi-pen-rai khráp mâi tɔ̂ng kang-won',
-        japanese_translation: '大丈夫ですよ、心配しないでください',
-      },
-    ],
-  },
-  {
-    key_word: 'เดี๋ยว',
-    key_word_pronunciation: 'dǐiaw',
-    rank: 188,
-    sentences: [
-      {
-        thai_text: 'เดี๋ยวฉันโทรกลับนะ',
-        pronunciation: 'dǐaw chǎn thoo klàp ná',
-        japanese_translation: 'あとで折り返し電話しますね',
-      },
-    ],
-  },
-  {
-    key_word: 'ใหม่',
-    key_word_pronunciation: 'mài',
-    rank: 190,
-    sentences: [
-      {
-        thai_text: 'ฉันซื้อโทรศัพท์ใหม่',
-        pronunciation: 'chǎn sʉ́ʉ thoo-rá-sàp mài',
-        japanese_translation: '私は新しい携帯電話を買いました',
-      },
-    ],
-  },
-  {
-    key_word: 'เพื่อน',
-    key_word_pronunciation: 'phʉ̂ʉan',
-    rank: 191,
-    sentences: [
-      {
-        thai_text: 'เพื่อนชวนฉันไปดูหนัง',
-        pronunciation: 'phʉ̂an chuan chǎn pai duu nǎng',
-        japanese_translation: '友達が映画を見に行こうと誘ってくれました',
-      },
-    ],
-  },
-  {
-    key_word: 'ปล่อย',
-    key_word_pronunciation: 'plɔ̀ɔi',
-    rank: 194,
-    sentences: [
-      {
-        thai_text: 'ปล่อยให้เด็กเล่นเถอะ',
-        pronunciation: 'plɔ̀i hâi dèk lên thə̀',
-        japanese_translation: '子供に遊ばせてあげなよ',
-      },
-    ],
-  },
-  {
-    key_word: 'ชื่อ',
-    key_word_pronunciation: 'chʉ̂ʉ',
-    rank: 199,
-    sentences: [
-      {
-        thai_text: 'คุณชื่ออะไรครับ',
-        pronunciation: 'khun chʉ̂ʉ à-rai khráp',
-        japanese_translation: 'お名前は何ですか',
-      },
-    ],
-  },
-  {
-    key_word: 'เล่น',
-    key_word_pronunciation: 'lêen',
-    rank: 201,
-    sentences: [
-      {
-        thai_text: 'น้องชายชอบเล่นฟุตบอล',
-        pronunciation: 'nɔ́ɔng-chaai chɔ̂ɔp lên fút-bɔɔn',
-        japanese_translation: '弟はサッカーをするのが好きです',
-      },
-    ],
-  },
-  {
-    key_word: 'นะคะ',
-    key_word_pronunciation: 'ná-khá',
-    rank: 202,
-    sentences: [
-      {
-        thai_text: 'ระวังด้วยนะคะ',
-        pronunciation: 'rá-wang dûai ná khá',
-        japanese_translation: '気をつけてくださいね',
-      },
-    ],
-  },
-  {
-    key_word: 'ที่ไหน',
-    key_word_pronunciation: 'thîi-nǎi',
-    rank: 204,
-    sentences: [
-      {
-        thai_text: 'ห้องน้ำอยู่ที่ไหนครับ',
-        pronunciation: 'hɔ̂ng-náam yùu thîi-nǎi khráp',
-        japanese_translation: 'トイレはどこですか',
-      },
-    ],
-  },
-  {
-    key_word: 'ออกมา',
-    key_word_pronunciation: 'ɔ̀ɔk-maa',
-    rank: 207,
-    sentences: [
-      {
-        thai_text: 'แมวออกมาจากใต้โต๊ะ',
-        pronunciation: 'mɛɛo ɔ̀ɔk-maa jàak tâi tó',
-        japanese_translation: '猫がテーブルの下から出てきました',
-      },
-    ],
-  },
-  {
-    key_word: 'เรียก',
-    key_word_pronunciation: 'rîiak',
-    rank: 208,
-    sentences: [
-      {
-        thai_text: 'ช่วยเรียกแท็กซี่ให้หน่อย',
-        pronunciation: 'chûai rîak thɛ́k-sîi hâi nɔ̀i',
-        japanese_translation: 'タクシーを呼んでもらえますか',
-      },
-    ],
-  },
-  {
-    key_word: 'โปรด',
-    key_word_pronunciation: 'pròot',
-    rank: 209,
-    sentences: [
-      {
-        thai_text: 'สีโปรดของฉันคือสีฟ้า',
-        pronunciation: 'sǐi pròot khɔ̌ɔng chǎn khʉʉ sǐi fáa',
-        japanese_translation: '私のお気に入りの色は水色です',
-      },
-    ],
-  },
-  {
-    key_word: 'น่าจะ',
-    key_word_pronunciation: 'nâa-jà',
-    rank: 211,
-    sentences: [
-      {
-        thai_text: 'วันนี้น่าจะฝนตก',
-        pronunciation: 'wan-níi nâa-jà fǒn tòk',
-        japanese_translation: '今日は雨が降りそうです',
-      },
-    ],
-  },
-  {
-    key_word: 'ได้รับ',
-    key_word_pronunciation: 'dâai-ráp',
-    rank: 213,
-    sentences: [
-      {
-        thai_text: 'ฉันได้รับอีเมลจากบริษัท',
-        pronunciation: 'chǎn dâi-ráp ii-meo jàak bɔɔ-rí-sàt',
-        japanese_translation: '会社からメールを受け取りました',
-      },
-    ],
-  },
-  {
-    key_word: 'ชีวิต',
-    key_word_pronunciation: 'chii-wít',
-    rank: 214,
-    sentences: [
-      {
-        thai_text: 'ชีวิตในกรุงเทพฯ สนุกมาก',
-        pronunciation: 'chii-wít nai krung-thêep sà-nùk mâak',
-        japanese_translation: 'バンコクでの生活はとても楽しいです',
-      },
-    ],
-  },
-  {
-    key_word: 'แล้วก็',
-    key_word_pronunciation: 'lɛ́ɛw-kɔ̂ɔ',
-    rank: 216,
-    sentences: [
-      {
-        thai_text: 'ฉันซื้อผักแล้วก็ผลไม้',
-        pronunciation: 'chǎn sʉ́ʉ phàk lɛ́ɛo-kɔ̂ɔ phǒn-lá-máai',
-        japanese_translation: '私は野菜と果物を買いました',
-      },
-    ],
-  },
-  {
-    key_word: 'รู้จัก',
-    key_word_pronunciation: 'rúu-jàk',
-    rank: 218,
-    sentences: [
-      {
-        thai_text: 'คุณรู้จักร้านนี้ไหม',
-        pronunciation: 'khun rúu-jàk ráan níi mǎi',
-        japanese_translation: 'このお店を知っていますか',
-      },
-    ],
-  },
-  {
-    key_word: 'แน่นอน',
-    key_word_pronunciation: 'nɛ̂ɛ-nɔɔn',
-    rank: 219,
-    sentences: [
-      {
-        thai_text: 'แน่นอนว่าฉันจะไป',
-        pronunciation: 'nɛ̂ɛ-nɔɔn wâa chǎn jà pai',
-        japanese_translation: 'もちろん私は行きます',
-      },
-    ],
-  },
-  {
-    key_word: 'เข้าไป',
-    key_word_pronunciation: 'khâw-pai',
-    rank: 220,
-    sentences: [
-      {
-        thai_text: 'อย่าเข้าไปในห้องนั้น',
-        pronunciation: 'yàa khâo-pai nai hɔ̂ng nán',
-        japanese_translation: 'あの部屋に入らないでください',
-      },
-    ],
-  },
-  {
-    key_word: 'กำลังจะ',
-    key_word_pronunciation: 'kam-lang-jà',
-    rank: 221,
-    sentences: [
-      {
-        thai_text: 'ฉันกำลังจะออกจากบ้าน',
-        pronunciation: 'chǎn kam-lang-jà ɔ̀ɔk jàak bâan',
-        japanese_translation: '私はちょうど家を出るところです',
-      },
-    ],
-  },
-  {
-    key_word: 'เกิดขึ้น',
-    key_word_pronunciation: 'kə̀ət-khʉ̂n',
-    rank: 224,
-    sentences: [
-      {
-        thai_text: 'เกิดอะไรขึ้นที่นี่',
-        pronunciation: 'kə̀ət à-rai khʉ̂n thîi-nîi',
-        japanese_translation: 'ここで何が起きたんですか',
-      },
-    ],
-  },
-  {
-    key_word: 'ห้อง',
-    key_word_pronunciation: 'hɔ̂ɔng',
-    rank: 225,
-    sentences: [
-      {
-        thai_text: 'ห้องนี้กว้างและสะอาด',
-        pronunciation: 'hɔ̂ng níi kwâang lɛ́ sà-àat',
-        japanese_translation: 'この部屋は広くて清潔です',
-      },
-    ],
-  },
-  {
-    key_word: 'ตอนที่',
-    key_word_pronunciation: 'tɔɔn-thîi',
-    rank: 227,
-    sentences: [
-      {
-        thai_text: 'ตอนที่ฉันมาถึงฝนตกพอดี',
-        pronunciation: 'tɔɔn-thîi chǎn maa thʉ̌ng fǒn tòk phɔɔ-dii',
-        japanese_translation: '私が着いたとき、ちょうど雨が降っていました',
-      },
-    ],
-  },
-
-
+  }
 ];
 
 export const DEFAULT_SENTENCES: DefaultSentence[] = DEFAULT_SENTENCE_GROUPS.flatMap((group, groupIndex) =>

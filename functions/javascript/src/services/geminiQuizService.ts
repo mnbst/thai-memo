@@ -2,6 +2,7 @@ import * as logger from 'firebase-functions/logger';
 import {
   applyRuleBasedQuizFields,
   buildQuizGenerationPrompt,
+  QUIZ_GENERATION_SYSTEM_PROMPT,
   QuizGenerationModelResponse,
   QUIZ_RESPONSE_JSON_SCHEMA,
   QuizGenerationService,
@@ -63,6 +64,7 @@ export class GeminiQuizService implements QuizGenerationService {
     sentences: QuizSentenceSeed[],
   ): Promise<QuizQuestionsResponse> {
     const response = await this.fetchStructuredResponse<QuizGenerationModelResponse>(
+      QUIZ_GENERATION_SYSTEM_PROMPT,
       buildQuizGenerationPrompt(sentences),
       sentences,
     );
@@ -76,16 +78,19 @@ export class GeminiQuizService implements QuizGenerationService {
   }
 
   private async fetchStructuredResponse<T>(
+    systemPrompt: string,
     prompt: string,
     sentences: QuizSentenceSeed[],
   ): Promise<T | null> {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${this.apiKey}`;
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
+        `${GEMINI_MODEL}:generateContent?key=${this.apiKey}`;
 
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
@@ -145,8 +150,8 @@ export class GeminiQuizService implements QuizGenerationService {
     const billedOutputTokens = candidatesTokens + thoughtsTokens;
     const totalTokens = usage.totalTokenCount ?? (promptTokens + billedOutputTokens);
     const costUsd = (
-      promptTokens * GEMINI_PRICING_PER_MILLION.input
-      + billedOutputTokens * GEMINI_PRICING_PER_MILLION.output
+      promptTokens * GEMINI_PRICING_PER_MILLION.input +
+      billedOutputTokens * GEMINI_PRICING_PER_MILLION.output
     ) / 1_000_000;
 
     logger.info('Gemini token usage', {

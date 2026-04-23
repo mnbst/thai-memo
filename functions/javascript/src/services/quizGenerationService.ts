@@ -130,42 +130,37 @@ function buildPreparedSentenceList(sentences: QuizSentenceSeed[]): string {
   }).join('\n\n');
 }
 
-export function buildQuizGenerationPrompt(sentences: QuizSentenceSeed[]): string {
-  const sentenceList = buildPreparedSentenceList(sentences);
-
-  return `タイ語例文ごとに、確定済みの穴埋め問題へダミー選択肢と解説だけを作成してください。
-
-${sentenceList}
+export const QUIZ_GENERATION_SYSTEM_PROMPT = `確定済みのタイ語穴埋め問題について、ダミー選択肢・理由・解説だけを作成してください。blank_text と correct_answer は変更しません。
 
 【あなたの主作業】
-- correct_answer 以外のダミー選択肢を3件作る
-- 各ダミーが blank_text に入らない理由を dummy_reasons に書く
+- correct_answer 以外のタイ語ダミーを3件作る
+- dummy_reasons に各ダミーが blank_text に入らない局所破綻を書く
 - explanation は correct_answer が入る理由だけを日本語で簡潔に書く
-- correct_answer_pronunciation に correct_answer のローマ字発音（声調記号付き）を出力する
+- correct_answer_pronunciation は入力が空でも必ず声調記号付きローマ字で出す
+
+【発音表記】
+例文生成と同一: 平=記号なし/低=à/降=â/高=á/昇=ǎ、語内音節はハイフン、語/文区切りはスペース。
+例: ไม่=mâi, รู้=rúu, กิน=kin, ครับ=khráp, สวัสดี=sà-wàt-dii, ชื่อ=chʉ̂ʉ, เธอ=thəə, แม่=mɛ̂ɛ, ของ=khɔ̌ɔng, ไม่รู้สิ=mâi-rúu-sì
 
 【出力形式】
-- questions は入力と同じ件数・同じ順番で出力する
-- 各 question は dummies / explanation / dummy_reasons / correct_answer_pronunciation の4項目だけを出力する
-- source_index / thai_text / blank_text / correct_answer / choices は出力しない
-- correct_answer_pronunciation は入力の correct_answer_pronunciation が空でも必ず自力で出力する
+questions は入力と同じ件数・順番。各 question は dummies / explanation / dummy_reasons / correct_answer_pronunciation の4項目だけを出力する。
+source_index / thai_text / blank_text / correct_answer / choices は出力しない。
 
 【ルール】
-- 空欄位置や正解語を変更しない。blank_text と correct_answer は入力値を前提にする
-- 正解が機能語・代名詞でも、空欄位置はアプリ側で確定済みなので変更しない
-- ユーザーにはヒント表示前は blank_text と「correct_answer + dummies」のタイ語だけが見える。日本語訳・語句・発音・解説は見えない前提で、周辺タイ語だけでダミー3件が除外できる問題にする
-- 「俺/私」「あなた/君」「彼/彼女」など、日本語訳・話者性別・敬意・一人称/二人称/三人称の知識だけで区別する語は、周辺タイ語に明確な手がかりがない限り空欄対象やダミーにしない
-- dummies=タイ語のみ3件。correct_answer を含めない
-- explanation=日本語で正解理由のみ簡潔に。ダミー選択肢には触れない
-- dummy_reasons=各ダミーを「単語（発音 / 日本語の意味）：<破綻箇所>」で1行ずつ
+- 空欄位置・正解語はアプリ側で確定済み。正解が機能語・代名詞でも変えない
+- ヒント表示前に見えるのは blank_text と「correct_answer + dummies」のタイ語だけ。日本語訳・語句・発音・解説なしでも周辺タイ語だけで3ダミーを除外できるようにする
+- 日本語訳、話者性別、敬意、人称だけで区別する語は、周辺タイ語に明確な手がかりがない限りダミーにしない
+- dummies はタイ語のみ3件。correct_answer を含めない
+- explanation は正解理由だけ。ダミーには触れない
+- dummy_reasons は各ダミーを「単語（発音 / 日本語の意味）：不正解理由」で1行ずつ書く
 
 【ダミー生成手順】
-1. 確定済みの空欄位置を内部分析: 品詞、役割、直前直後語、意味カテゴリ、項構造
+1. blank_text の品詞、役割、直前直後語、意味カテゴリ、項構造を内部分析
 2. ダミーは品詞不一致・項構造不一致・対象カテゴリ不一致で局所破綻する語にする
-3. 各候補を blank_text に代入。文法上または意味上入りうる語、意味違いだけ、同カテゴリ置換ならNG
+3. 代入して文法上/意味上入りうる語、意味違いだけ、同カテゴリ置換はNG
 4. NG候補や破綻を短く説明できない候補は、理由を工夫せず必ず別語に差し替える
 5. dummy_reasonsに「元の文」「文脈」「質問文」「合わない」「意味が異なる」「別の意味になる」は書かない
 6. 「〜を示す文脈には合わない」と説明したくなる候補は意味上入りうるためNG。必ず別語に差し替える
-7. 日本語訳や語句ヒントを見れば選べるだけのダミーはNG。ヒントなし画面のタイ語だけで局所破綻が分かる語に差し替える
 
 【ダミーNG例（文として成立するため不可）】
 - กิน___ → ข้าว/ผัก/เนื้อ は全て目的語として成立
@@ -180,12 +175,14 @@ ${sentenceList}
 - กิน（kin / 食べる）：目的語の位置に動詞が入り文法上不自然
 
 【最終確認】
-- questions は入力と同じ件数・同じ順番
-- 各 question のキーは dummies / explanation / dummy_reasons / correct_answer_pronunciation だけ
-- dummiesは3件、correct_answerは含めない
-- 3つのダミーは全て、代入時の局所破綻を説明できる
-- dummy_reasonsは3件で、不正解選択肢それぞれのタイ語単語を含む
-- correct_answer_pronunciation は必ず非空で出力する`;
+questions 件数・順番、4キー限定、dummies 3件、correct_answer 不含、dummy_reasons 3件、発音非空。3ダミーすべて代入時の局所破綻を説明できること`;
+
+export function buildQuizGenerationPrompt(sentences: QuizSentenceSeed[]): string {
+  const sentenceList = buildPreparedSentenceList(sentences);
+
+  return `以下のタイ語例文について、システム指示に従って questions を生成してください。
+
+${sentenceList}`;
 }
 
 export function prepareQuizGenerationInputs(
