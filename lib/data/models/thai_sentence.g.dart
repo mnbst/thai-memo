@@ -20,6 +20,10 @@ ThaiSentence _$ThaiSentenceFromJson(Map<String, dynamic> json) => ThaiSentence(
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
+      generationTier: json['generation_tier'] as String?,
+      targetWords: (json['target_words'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
     );
 
 Map<String, dynamic> _$ThaiSentenceToJson(ThaiSentence instance) =>
@@ -31,6 +35,8 @@ Map<String, dynamic> _$ThaiSentenceToJson(ThaiSentence instance) =>
       'word_breakdown': instance.wordBreakdowns.map((e) => e.toJson()).toList(),
       'context': instance.context?.toJson(),
       'created_at': instance.createdAt?.toIso8601String(),
+      'generation_tier': instance.generationTier,
+      'target_words': instance.targetWords,
     };
 
 SentenceContext _$SentenceContextFromJson(Map<String, dynamic> json) =>

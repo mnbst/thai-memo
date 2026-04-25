@@ -71,9 +71,8 @@ TOPICS = [
 FREE_TOPICS = [
     TOPICS[0],
     TOPICS[1],
-    TOPICS[2],
     TOPICS[5],
-]  # あいさつ、食べ物、旅行、買い物
+]  # あいさつ、食べ物、買い物
 FREE_STYLES = STYLES[1:3]  # 口語体、丁寧語
 
 # ─── 丁寧さレベル ───
@@ -143,8 +142,12 @@ RESPONSE_JSON_SCHEMA = {
                         "type": "string",
                         "description": "単語の意味を必ず日本語で記述すること（英語不可）",
                     },
+                    "notes": {
+                        "type": "string",
+                        "description": "ターゲット単語の用法・ニュアンス・類語との違いなどの補足（日本語、50文字以内）。ターゲット単語以外は空文字",
+                    },
                 },
-                "required": ["word", "meaning"],
+                "required": ["word", "meaning", "notes"],
             },
         },
         "context": {

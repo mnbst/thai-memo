@@ -33,6 +33,8 @@ class TestOpenAIPayload:
             "word_breakdown",
             "context",
         ]
+        word_schema = fmt["schema"]["properties"]["word_breakdown"]["items"]
+        assert word_schema["required"] == ["word", "meaning", "notes"]
 
 
 class TestGeminiSchema:
@@ -47,6 +49,8 @@ class TestGeminiSchema:
             "word_breakdown",
             "context",
         ]
+        word_schema = schema["properties"]["word_breakdown"]["items"]
+        assert word_schema["required"] == ["word", "meaning", "notes"]
 
 
 class TestGeminiTokenUsage:

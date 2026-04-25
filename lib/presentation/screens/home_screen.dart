@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../core/config/app_config.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
@@ -284,6 +283,7 @@ class TodayScreen extends ConsumerStatefulWidget {
       usageScenarios: '朝昼晩いつでも使える基本的な挨拶。女性の場合は「ค่ะ」を使います。',
     ),
     createdAt: null,
+    generationTier: 'free',
   );
 
   @override
@@ -292,7 +292,7 @@ class TodayScreen extends ConsumerStatefulWidget {
 
 class _TodayScreenState extends ConsumerState<TodayScreen> {
   static const int _freeVocabScoreLimit = 100;
-  static const String _freeTopics = 'あいさつ、食べ物、旅行、買い物';
+  static const String _freeTopics = 'あいさつ、食べ物、買い物';
 
   @override
   Widget build(BuildContext context) {
@@ -377,7 +377,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildSentenceCard(context, sentence),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 _buildQuickInfo(context, sentence),
                 if (showVocabUpgrade) ...[
                   const SizedBox(height: 16),
@@ -396,110 +396,178 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// Build a sentence card (shared between single and batch views)
   Widget _buildSentenceCard(BuildContext context, ThaiSentence sentence) {
+    final borderRadius = BorderRadius.circular(AppConfig.cardBorderRadius);
     return Card(
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              settings: const RouteSettings(name: DetailScreen.routeName),
-              builder: (context) => DetailScreen(
-                sentence: sentence,
-                source: 'today',
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  settings: const RouteSettings(name: DetailScreen.routeName),
+                  builder: (context) => DetailScreen(
+                    sentence: sentence,
+                    source: 'today',
+                  ),
+                ),
+              );
+            },
+            borderRadius: borderRadius,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppConfig.defaultPadding * 1.5,
+                AppConfig.defaultPadding * 2.5,
+                AppConfig.defaultPadding * 1.5,
+                AppConfig.defaultPadding * 1.5,
               ),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Thai text with play button
-              Row(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      sentence.thaiText,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(
-                              fontWeight: FontWeight.w500,
-                              height: 1.5,
-                              fontSize: 32),
-                    ),
+                  // Thai text with play button
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          sentence.thaiText,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.5,
+                                  fontSize: 32),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.volume_up,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        onPressed: () {
+                          unawaited(
+                            ref.read(analyticsServiceProvider).logPlayTts(
+                                  contentType: 'sentence',
+                                  text: sentence.thaiText,
+                                  sentenceId: sentence.id,
+                                  source: 'today_sentence',
+                                ),
+                          );
+                          ref.read(ttsServiceProvider).speak(sentence.thaiText);
+                        },
+                        tooltip: '全文を再生',
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.volume_up,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    onPressed: () {
-                      unawaited(
-                        ref.read(analyticsServiceProvider).logPlayTts(
-                              contentType: 'sentence',
-                              text: sentence.thaiText,
-                              sentenceId: sentence.id,
-                              source: 'today_sentence',
-                            ),
-                      );
-                      ref.read(ttsServiceProvider).speak(sentence.thaiText);
-                    },
-                    tooltip: '全文を再生',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Pronunciation
-              Text(
-                sentence.pronunciation,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.8),
-                      fontStyle: FontStyle.italic,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              // Japanese translation
-              Text(
-                sentence.japaneseTranslation,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 16),
-              // Tap hint
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.6),
-                  ),
-                  const SizedBox(width: 4),
+                  const SizedBox(height: 12),
+                  // Pronunciation
                   Text(
-                    'タップして詳細を見る',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    sentence.pronunciation,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context)
                               .colorScheme
                               .primary
-                              .withValues(alpha: 0.6),
+                              .withValues(alpha: 0.8),
+                          fontStyle: FontStyle.italic,
                         ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Japanese translation
+                  Text(
+                    sentence.japaneseTranslation,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  // Tap hint
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.6),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'タップして詳細を見る',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.6),
+                            ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: _buildSentenceTierBadge(context, sentence),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSentenceTierBadge(
+    BuildContext context,
+    ThaiSentence sentence,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    final hasStoredTier = sentence.generationTier != null;
+    final showPremium = hasStoredTier
+        ? sentence.wasGeneratedWithPremiumSpec
+        : _legacySentenceLooksPremium();
+    final foreground = cs.onSurfaceVariant;
+
+    return Tooltip(
+      message: showPremium ? 'Premium例文' : 'Free例文',
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 5, 12, 5),
+        decoration: BoxDecoration(
+          color: showPremium
+              ? cs.primaryContainer.withValues(alpha: 0.72)
+              : cs.surfaceContainerHighest.withValues(alpha: 0.86),
+          border: Border(
+            left: BorderSide(
+              color: cs.outlineVariant.withValues(alpha: 0.55),
+            ),
+            bottom: BorderSide(
+              color: cs.outlineVariant.withValues(alpha: 0.55),
+            ),
+          ),
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(8),
+          ),
+        ),
+        child: Text(
+          showPremium ? 'Premium' : 'Free',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontSize: 11,
+                color: foreground.withValues(alpha: 0.82),
+                fontWeight: FontWeight.w400,
+              ),
         ),
       ),
     );
+  }
+
+  bool _legacySentenceLooksPremium() {
+    final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
+            ref.watch(isPremiumProvider)) ==
+        true;
+    final isInitialPremiumTrial =
+        ref.watch(isInitialPremiumSentenceTrialProvider).valueOrNull ?? false;
+    return isPremium || isInitialPremiumTrial;
   }
 
   /// Build vocab stats card
@@ -518,11 +586,20 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         return Card(
           color: Theme.of(context).colorScheme.primaryContainer,
           child: InkWell(
-            onTap: () => _showVocabScoreInfo(
-              context,
-              stats.estimatedVocab,
-              isPremium: isPremium,
-            ),
+            onTap: () {
+              unawaited(
+                ref.read(analyticsServiceProvider).logTapVocabScore(
+                      source: 'home_vocab_score_card',
+                      vocab: stats.estimatedVocab,
+                      isPremium: isPremium,
+                    ),
+              );
+              _showVocabScoreInfo(
+                context,
+                stats.estimatedVocab,
+                isPremium: isPremium,
+              );
+            },
             borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -586,7 +663,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
-  /// estimated_vocab からレベルラベルを返す
   String _vocabLevel(int vocab) {
     if (vocab < 100) return '入門';
     if (vocab < 300) return '初級';
@@ -877,7 +953,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   Widget _buildScoreUnlockPreview(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    const addedTopics = '仕事、恋愛、家族、天気、交通、健康、趣味、学校、宗教・信仰、伝統・祭り、礼儀作法';
+    const addedTopics = '旅行、仕事、恋愛、家族、天気、交通、健康、趣味、学校、宗教・信仰、伝統・祭り、礼儀作法';
 
     return Container(
       width: double.infinity,
@@ -893,7 +969,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Premiumで追加されるテーマ数（12件）',
+            'Premiumで追加されるテーマ数（13件）',
             style: TextStyle(
               color: colorScheme.primary,
               fontWeight: FontWeight.bold,
@@ -1023,26 +1099,97 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// Build quick info section
   Widget _buildQuickInfo(BuildContext context, ThaiSentence sentence) {
+    final cs = Theme.of(context).colorScheme;
+    final iconColor = cs.onSurfaceVariant;
+    final textStyle = Theme.of(context).textTheme.bodyMedium;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConfig.defaultPadding,
+          vertical: AppConfig.defaultPadding * 0.75,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '単語数: ${sentence.wordBreakdowns.length}',
-              style: Theme.of(context).textTheme.bodyMedium,
+            _quickInfoRow(
+              icon: Icons.text_fields,
+              iconColor: iconColor,
+              child: Text('単語数：${sentence.wordBreakdowns.length}',
+                  style: textStyle),
             ),
             if (sentence.context?.topic != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                '場面: ${sentence.context!.topic}',
-                style: Theme.of(context).textTheme.bodyMedium,
+              const SizedBox(height: 6),
+              _quickInfoRow(
+                icon: Icons.place,
+                iconColor: iconColor,
+                child: Expanded(
+                  child: Text('場面：${sentence.context!.topic}',
+                      style: textStyle, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
+            if (sentence.targetWords != null &&
+                sentence.targetWords!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _quickInfoRow(
+                icon: Icons.auto_awesome,
+                iconColor: iconColor,
+                child: Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text('キーワード：', style: textStyle),
+                      ...sentence.targetWords!.map((word) {
+                        final wb = sentence.wordBreakdowns
+                            .where((wb) => wb.wordText == word)
+                            .firstOrNull;
+                        final label = wb != null
+                            ? '$word (${wb.pronunciation} / ${wb.meaning})'
+                            : word;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: cs.tertiaryContainer.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: cs.tertiary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            label,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: cs.onTertiaryContainer,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               ),
             ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _quickInfoRow({
+    required IconData icon,
+    required Color iconColor,
+    required Widget child,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: iconColor),
+        const SizedBox(width: 6),
+        child,
+      ],
     );
   }
 

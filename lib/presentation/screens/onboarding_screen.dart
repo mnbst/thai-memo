@@ -21,31 +21,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Icons.auto_awesome,
       colorType: _ColorType.primary,
       title: 'AIがタイ語例文を毎日生成',
-      description: 'AIが毎日新しいタイ語例文を生成。\n発音（ローマ字）と日本語訳付きで\n無理なく学習できます。',
+      description: 'AIが毎日新しいタイ語例文を生成。\n単語ごとの発音・意味の解説や\n音声再生で無理なく学習できます。',
     ),
     _OnboardingPage(
       icon: Icons.workspace_premium,
       colorType: _ColorType.secondary,
-      title: '初回5回はPremium体験',
-      description: '初回5回は、Premium相当の\n幅広いテーマ・文体で例文が\n生成されます。',
-    ),
-    _OnboardingPage(
-      icon: Icons.menu_book,
-      colorType: _ColorType.tertiary,
-      title: '発音・単語を詳しく解説',
-      description: '単語ごとの発音・意味・文法的役割に加え\n声調ルールも解説。音声再生で\n正しい発音を確認できます。',
+      title: '初回3回はPremium（有料）体験',
+      description: 'Free（無料）は基礎練習に集中。\n初回3回は、自然で豊かな\nPremium例文を体験できます。',
     ),
     _OnboardingPage(
       icon: Icons.quiz,
       colorType: _ColorType.tertiary,
-      title: 'クイズで定着',
-      description: '学んだ例文からクイズを出題。\n忘れかけた頃に復習できるので\n効率的に語彙が定着します。',
+      title: 'クイズは間違えてOK！',
+      description: '間違えた単語は何度も出題。\nくり返し触れるうちに\n自然と覚えられます。',
     ),
     _OnboardingPage(
       icon: Icons.trending_up,
       colorType: _ColorType.primary,
-      title: 'レベルが自動で上がります',
-      description: '例文を読んでクイズに正解するほど\n語彙スコアが増え、例文・クイズの\n難易度も自動で上がっていきます。',
+      title: '語彙スコアで実力を見える化',
+      description: '学習するほど語彙スコアが上がり\nそれに合わせて例文やクイズも\n自動でレベルアップしていきます。',
     ),
   ];
 

@@ -18,6 +18,7 @@ WordBreakdown _$WordBreakdownFromJson(Map<String, dynamic> json) =>
       syllables: (json['syllables'] as List<dynamic>?)
           ?.map((e) => Syllable.fromJson(e as Map<String, dynamic>))
           .toList(),
+      notes: json['notes'] as String?,
     );
 
 Map<String, dynamic> _$WordBreakdownToJson(WordBreakdown instance) =>
@@ -30,4 +31,5 @@ Map<String, dynamic> _$WordBreakdownToJson(WordBreakdown instance) =>
       'grammatical_role': instance.grammaticalRole,
       'word_order': instance.wordOrder,
       'syllables': instance.syllables,
+      'notes': instance.notes,
     };

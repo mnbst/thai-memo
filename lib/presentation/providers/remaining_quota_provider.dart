@@ -8,8 +8,7 @@ final authUidProvider = StreamProvider<String?>((ref) {
 });
 
 /// Firestore users/{uid} ドキュメント全体を1つのリスナーで監視
-final userDocProvider =
-    StreamProvider<Map<String, dynamic>?>((ref) {
+final userDocProvider = StreamProvider<Map<String, dynamic>?>((ref) {
   final uidAsync = ref.watch(authUidProvider);
   final uid = uidAsync.valueOrNull;
   if (uid == null) return Stream.value(null);
@@ -30,9 +29,8 @@ final remainingSentencesProvider = Provider<AsyncValue<int>>((ref) {
 
 /// users/{uid}.daily_sentence_generated
 final dailySentenceGeneratedProvider = Provider<AsyncValue<bool>>((ref) {
-  return ref
-      .watch(userDocProvider)
-      .whenData((data) => (data?['daily_sentence_generated'] as bool?) ?? false);
+  return ref.watch(userDocProvider).whenData(
+      (data) => (data?['daily_sentence_generated'] as bool?) ?? false);
 });
 
 /// users/{uid}.remaining_quizzes
@@ -49,16 +47,26 @@ final isPremiumRealtimeProvider = Provider<AsyncValue<bool>>((ref) {
       .whenData((data) => data?['tier'] == 'premium');
 });
 
-/// 次のリセット（0時/12時 JST）までの残り時間テキストを返す
+/// users/{uid} の初回3回Premium体験中かどうか
+final isInitialPremiumSentenceTrialProvider = Provider<AsyncValue<bool>>((ref) {
+  return ref.watch(userDocProvider).whenData((data) {
+    if (data == null || data['tier'] == 'premium') return false;
+
+    final generatedCount = (data['sentence_generated_count'] as num?)?.toInt();
+    final isInitialGeneration = data['is_first_generation'] == true;
+    return isInitialGeneration ||
+        (generatedCount != null && generatedCount <= 3);
+  });
+});
+
+/// 次のリセット（JST 0:00 / 12:00）までの残り時間テキストを返す
 String nextResetText() {
   final nowJst = DateTime.now().toUtc().add(const Duration(hours: 9));
-  final DateTime nextResetJst;
-  if (nowJst.hour < 12) {
-    nextResetJst = DateTime.utc(nowJst.year, nowJst.month, nowJst.day, 12);
-  } else {
-    nextResetJst = DateTime.utc(nowJst.year, nowJst.month, nowJst.day + 1);
-  }
-  final diff = nextResetJst.difference(nowJst);
+  final todayNoon = DateTime.utc(nowJst.year, nowJst.month, nowJst.day, 12);
+  final nextMidnight =
+      DateTime.utc(nowJst.year, nowJst.month, nowJst.day + 1);
+  final nextReset = nowJst.isBefore(todayNoon) ? todayNoon : nextMidnight;
+  final diff = nextReset.difference(nowJst);
   final hours = diff.inHours;
   final minutes = diff.inMinutes % 60;
   if (hours > 0) return '次のリセットまで $hours時間$minutes分';

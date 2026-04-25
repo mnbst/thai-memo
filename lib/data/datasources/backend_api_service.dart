@@ -142,6 +142,7 @@ class BackendApiService {
               grammaticalRole: wordJson['grammatical_role'] as String?,
               wordOrder: i,
               syllables: syllables,
+              notes: wordJson['notes'] as String?,
             ),
           );
         }
@@ -161,6 +162,10 @@ class BackendApiService {
             )
           : null;
 
+      // Parse target words
+      final targetWordsJson = json['target_words'] as List<dynamic>?;
+      final targetWords = targetWordsJson?.map((e) => e as String).toList();
+
       // Create ThaiSentence
       final sentence = ThaiSentence(
         thaiText: json['thai_text'] as String? ?? '',
@@ -169,6 +174,8 @@ class BackendApiService {
         wordBreakdowns: wordBreakdowns,
         context: context,
         createdAt: DateTime.now(),
+        generationTier: json['generation_tier'] as String?,
+        targetWords: targetWords,
       );
 
       return sentence;
@@ -371,8 +378,6 @@ class BackendApiService {
       debugPrint('Failed to update UVM: $e');
     }
   }
-
-
 
   /// Dispose resources
   void dispose() {

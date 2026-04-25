@@ -59,6 +59,15 @@ def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
     }
 
 
+def test_free_topics_exclude_travel() -> None:
+    assert FREE_TOPICS == [
+        TOPICS[0],
+        TOPICS[1],
+        TOPICS[5],
+    ]
+    assert TOPICS[2] not in FREE_TOPICS
+
+
 def test_resolve_generation_params_weights_style_by_target_words() -> None:
     def choose_highest_weight(population, weights, k):
         return [population[weights.index(max(weights))]]

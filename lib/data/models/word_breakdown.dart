@@ -50,6 +50,9 @@ class WordBreakdown {
   /// Syllable breakdown for tone analysis
   final List<Syllable>? syllables;
 
+  /// Usage notes / nuance explanation for target words
+  final String? notes;
+
   WordBreakdown({
     this.id,
     this.sentenceId,
@@ -59,6 +62,7 @@ class WordBreakdown {
     this.grammaticalRole,
     this.wordOrder,
     this.syllables,
+    this.notes,
   });
 
   /// Create a WordBreakdown from JSON
@@ -93,6 +97,7 @@ class WordBreakdown {
       grammaticalRole: map[DatabaseConstants.columnGrammaticalRole] as String?,
       wordOrder: map[DatabaseConstants.columnWordOrder] as int?,
       syllables: syllables,
+      notes: map[DatabaseConstants.columnWordNotes] as String?,
     );
   }
 
@@ -100,7 +105,8 @@ class WordBreakdown {
   Map<String, dynamic> toDatabase() {
     return {
       if (id != null) DatabaseConstants.columnWordId: id,
-      if (sentenceId != null) DatabaseConstants.columnWordSentenceId: sentenceId,
+      if (sentenceId != null)
+        DatabaseConstants.columnWordSentenceId: sentenceId,
       DatabaseConstants.columnWordText: wordText,
       DatabaseConstants.columnWordPronunciation: pronunciation,
       DatabaseConstants.columnWordMeaning: meaning,
@@ -110,6 +116,7 @@ class WordBreakdown {
       if (syllables != null)
         DatabaseConstants.columnSyllablesJson:
             jsonEncode(syllables!.map((s) => s.toJson()).toList()),
+      if (notes != null) DatabaseConstants.columnWordNotes: notes,
     };
   }
 
@@ -123,6 +130,7 @@ class WordBreakdown {
     String? grammaticalRole,
     int? wordOrder,
     List<Syllable>? syllables,
+    String? notes,
   }) {
     return WordBreakdown(
       id: id ?? this.id,
@@ -133,6 +141,7 @@ class WordBreakdown {
       grammaticalRole: grammaticalRole ?? this.grammaticalRole,
       wordOrder: wordOrder ?? this.wordOrder,
       syllables: syllables ?? this.syllables,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -140,7 +149,8 @@ class WordBreakdown {
   String toString() {
     return 'WordBreakdown(id: $id, wordText: $wordText, '
         'pronunciation: $pronunciation, meaning: $meaning, '
-        'grammaticalRole: $grammaticalRole, wordOrder: $wordOrder)';
+        'grammaticalRole: $grammaticalRole, wordOrder: $wordOrder, '
+        'notes: $notes)';
   }
 
   @override
@@ -154,7 +164,8 @@ class WordBreakdown {
         other.pronunciation == pronunciation &&
         other.meaning == meaning &&
         other.grammaticalRole == grammaticalRole &&
-        other.wordOrder == wordOrder;
+        other.wordOrder == wordOrder &&
+        other.notes == notes;
   }
 
   @override
@@ -165,6 +176,7 @@ class WordBreakdown {
         pronunciation.hashCode ^
         meaning.hashCode ^
         grammaticalRole.hashCode ^
-        wordOrder.hashCode;
+        wordOrder.hashCode ^
+        notes.hashCode;
   }
 }

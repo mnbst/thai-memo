@@ -13,8 +13,8 @@
 /// 【Free / Premium の機能差分】
 /// - 例文生成: Free=1日最大2回 / Premium=1日最大10回（0時・12時リセット）
 /// - クイズ: Free=1日最大2回 / Premium=1日最大10回（0時・12時リセット）
-/// - 選べる単語: Free=300語まで / Premium=無制限
-/// - テーマ: Free=4種 / Premium=16種
+/// - 選べる単語: Free=100語まで / Premium=無制限
+/// - テーマ: Free=3種 / Premium=15種
 /// - 文体: Free=2種 / Premium=5種
 /// - 広告: Free=あり / Premium=なし
 ///
@@ -94,7 +94,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   PurchaseService? _purchaseService;
   Future<void>? _storeReadyFuture;
 
-  /// 初期化: Firestore から現在のティアを取得し、商品情報をロード
+  /// 初期化: Firestore から現在のティアを取得
   ///
   /// アプリ起動時に main.dart から1回呼び出される。
   Future<void> initialize() async {
@@ -168,10 +168,11 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     if (uid == null) return;
 
     try {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final ref = FirebaseFirestore.instance.collection('users').doc(uid);
+      final doc = await ref.get();
+      final data = doc.data();
       final tier =
-          doc.data()?['tier'] == 'premium' ? UserTier.premium : UserTier.free;
+          data?['tier'] == 'premium' ? UserTier.premium : UserTier.free;
       state = state.copyWith(tier: tier);
       unawaited(_analytics.setUserTier(tier.name));
     } catch (_) {
