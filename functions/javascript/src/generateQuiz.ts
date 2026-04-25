@@ -8,7 +8,7 @@
  *
  * 【処理フロー】
  * 1. Firebase Auth 認証チェック
- * 2. クイズ生成クォータチェック（5回/12時間、JST 0:00/12:00リセット）
+ * 2. クイズ生成クォータチェック（free=1回/日、premium=5回/日、JST 0:00リセット）
  * 3. ユーザーの例文からSRSベースでリアルタイムに復習対象を選出（最大5文）
  * 4. 5問分の生成元を先に揃え、OpenAI で穴埋め問題を一括生成
  * 5. 生成失敗分のみ OpenAI で一括リトライ
@@ -25,8 +25,8 @@
 import * as functions from 'firebase-functions/v2';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { OpenAiQuizService } from './services/openAiQuizService';
-import { getOpenAiApiKey } from './services/secretManager';
+import { GeminiQuizService } from './services/geminiQuizService';
+import { getGeminiApiKey } from './services/secretManager';
 import {
   isQuizSentenceSeedReady,
   QuizGenerationService,
@@ -38,10 +38,6 @@ import {
   DefaultSentence,
   isDefaultSentenceMatchingDifficulty,
 } from './constants/defaultQuizQuestions';
-import {
-  OPENAI_MODEL_FREE,
-  OPENAI_MODEL_PREMIUM,
-} from './config/constants';
 import { nowJST } from './utils/formatDate';
 
 
@@ -104,7 +100,7 @@ async function consumeQuizQuota(
  * generateQuiz - クイズ生成（onCall、オンデマンド）
  *
  * クライアントからの呼び出しで穴埋めクイズを生成して返却する。
- * 1. 認証チェック + クイズ生成クォータチェック（5回/12時間、JST 0:00/12:00リセット）
+ * 1. 認証チェック + クイズ生成クォータチェック（free=1回/日、premium=5回/日、JST 0:00リセット）
  * 2. ユーザー例文をSRSルールでリアルタイム選出（最大5文）
  * 3. 選出結果と補填候補から最大5問分の生成元を作成
  * 4. OpenAIで穴埋め問題を一括生成
@@ -138,7 +134,9 @@ export const generateQuiz = functions.https.onCall(
     }
 
     const isPremium = userData.tier === 'premium';
-    const quizGenerationService = await createQuizGenerationService(isPremium, uid);
+    const isFirstGeneration = userData.is_first_generation === true;
+    const usePremiumModel = isPremium || isFirstGeneration;
+    const quizGenerationService = await createQuizGenerationService(usePremiumModel, uid);
     const estimatedVocab: number = userData.estimated_vocab ?? 0;
 
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
@@ -170,9 +168,8 @@ export const generateQuiz = functions.https.onCall(
 );
 
 async function createQuizGenerationService(isPremium: boolean, uid: string): Promise<QuizGenerationService> {
-  const apiKey = await getOpenAiApiKey();
-  const model = isPremium ? OPENAI_MODEL_PREMIUM : OPENAI_MODEL_FREE;
-  return new OpenAiQuizService(apiKey, model, uid, isPremium ? 'premium' : 'free');
+  const apiKey = await getGeminiApiKey();
+  return new GeminiQuizService(apiKey, uid, isPremium ? 'premium' : 'free');
 }
 
 /**

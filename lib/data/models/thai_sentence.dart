@@ -44,6 +44,16 @@ class ThaiSentence {
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
 
+  /// 生成時に使われた仕様（free / premium）
+  @JsonKey(name: 'generation_tier')
+  final String? generationTier;
+
+  /// 生成時に選定されたターゲット単語
+  @JsonKey(name: 'target_words')
+  final List<String>? targetWords;
+
+  bool get wasGeneratedWithPremiumSpec => generationTier == 'premium';
+
   ThaiSentence({
     this.id,
     required this.thaiText,
@@ -52,6 +62,8 @@ class ThaiSentence {
     required this.wordBreakdowns,
     this.context,
     this.createdAt,
+    this.generationTier,
+    this.targetWords,
   });
 
   /// JSONからThaiSentenceを生成
@@ -66,6 +78,12 @@ class ThaiSentence {
     Map<String, dynamic> map,
     List<WordBreakdown> wordBreakdowns,
   ) {
+    final targetWordsRaw = map['target_words'] as String?;
+    List<String>? targetWords;
+    if (targetWordsRaw != null && targetWordsRaw.isNotEmpty) {
+      targetWords = targetWordsRaw.split(',');
+    }
+
     return ThaiSentence(
       id: map['id'] as String?,
       thaiText: map['thai_text'] as String,
@@ -76,6 +94,8 @@ class ThaiSentence {
       createdAt: map['created_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int)
           : null,
+      generationTier: map['generation_tier'] as String?,
+      targetWords: targetWords,
     );
   }
 
@@ -92,6 +112,8 @@ class ThaiSentence {
       'emotion': context?.emotion,
       'usage_scenarios': context?.usageScenarios,
       if (createdAt != null) 'created_at': createdAt!.millisecondsSinceEpoch,
+      'generation_tier': generationTier,
+      'target_words': targetWords?.join(','),
     };
   }
 
@@ -104,6 +126,8 @@ class ThaiSentence {
     List<WordBreakdown>? wordBreakdowns,
     SentenceContext? context,
     DateTime? createdAt,
+    String? generationTier,
+    List<String>? targetWords,
   }) {
     return ThaiSentence(
       id: id ?? this.id,
@@ -113,6 +137,8 @@ class ThaiSentence {
       wordBreakdowns: wordBreakdowns ?? this.wordBreakdowns,
       context: context ?? this.context,
       createdAt: createdAt ?? this.createdAt,
+      generationTier: generationTier ?? this.generationTier,
+      targetWords: targetWords ?? this.targetWords,
     );
   }
 
@@ -120,6 +146,7 @@ class ThaiSentence {
   String toString() {
     return 'ThaiSentence(id: $id, thaiText: $thaiText, '
         'wordBreakdowns: ${wordBreakdowns.length}, '
+        'generationTier: $generationTier, '
         'createdAt: $createdAt)';
   }
 }

@@ -123,6 +123,18 @@ class AnalyticsService {
     await _logEvent('tap_paywall', {'source': source});
   }
 
+  Future<void> logTapVocabScore({
+    required String source,
+    required int vocab,
+    required bool isPremium,
+  }) async {
+    await _logEvent('tap_vocab_score', {
+      'source': source,
+      'vocab': vocab,
+      'is_premium': isPremium ? 1 : 0,
+    });
+  }
+
   Future<void> logSubscribe({required String source}) async {
     await _logEvent('subscribe', {'source': source});
   }

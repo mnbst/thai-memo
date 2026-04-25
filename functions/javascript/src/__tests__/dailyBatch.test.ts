@@ -64,7 +64,7 @@ describe('resetQuota', () => {
     mockUserDocSet.mockResolvedValue(undefined);
   });
 
-  test('初回例文ボーナス中のfreeユーザーは残り例文回数を5から1へ削らない', async () => {
+  test('初回例文ボーナス中のfreeユーザーは残り例文回数を3から1へ削らない', async () => {
     await resetQuota(makeUserDoc({
       tier: 'free',
       is_first_generation: true,
@@ -85,12 +85,12 @@ describe('resetQuota', () => {
     await resetQuota(makeUserDoc({
       tier: 'free',
       is_first_generation: true,
-      remaining_sentences: 3,
+      remaining_sentences: 2,
     }));
 
     expect(mockUserDocSet).toHaveBeenCalledWith(
       expect.objectContaining({
-        remaining_sentences: 3,
+        remaining_sentences: 2,
         remaining_quizzes: FREE_DAILY_QUIZZES,
         daily_sentence_generated: false,
       }),
@@ -98,7 +98,7 @@ describe('resetQuota', () => {
     );
   });
 
-  test('初回クイズボーナス中のfreeユーザーは残りクイズ回数を5から1へ削らない', async () => {
+  test('初回クイズボーナス中のfreeユーザーは残りクイズ回数を3から1へ削らない', async () => {
     await resetQuota(makeUserDoc({
       tier: 'free',
       is_first_quiz_generation: true,
@@ -119,13 +119,13 @@ describe('resetQuota', () => {
     await resetQuota(makeUserDoc({
       tier: 'free',
       is_first_quiz_generation: true,
-      remaining_quizzes: 3,
+      remaining_quizzes: 2,
     }));
 
     expect(mockUserDocSet).toHaveBeenCalledWith(
       expect.objectContaining({
         remaining_sentences: FREE_DAILY_SENTENCES,
-        remaining_quizzes: 3,
+        remaining_quizzes: 2,
         daily_sentence_generated: false,
       }),
       { merge: true }

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
 import '../providers/analytics_provider.dart';
@@ -158,7 +157,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             const SizedBox(height: 24),
             const SizedBox(height: 8),
             Text(
-              '過去に学習した例文から出題されます',
+              '過去に学習した例文から出題されます\n間違えてOK！気軽に挑戦しよう',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -465,6 +465,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        '今回の復習単語: ${q.correctAnswer}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
                       if (q.japaneseTranslation.isNotEmpty)
                         Text(
                           q.japaneseTranslation,
@@ -887,6 +894,69 @@ class _QuizExplanationCard extends StatelessWidget {
   }
 }
 
+class _QuizAnswerWordRow extends ConsumerWidget {
+  final QuizQuestion question;
+  final String analyticsSource;
+
+  const _QuizAnswerWordRow({
+    required this.question,
+    required this.analyticsSource,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('今回の復習単語',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.bold,
+                )),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Flexible(
+              child: Text('正解: ${question.correctAnswer}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: colorScheme.primary,
+                      )),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: Icon(Icons.volume_up, size: 20, color: colorScheme.primary),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () {
+                unawaited(
+                  ref.read(analyticsServiceProvider).logPlayTts(
+                        contentType: 'word',
+                        text: question.correctAnswer,
+                        sentenceId: question.sentenceId,
+                        source: analyticsSource,
+                      ),
+                );
+                ref.read(ttsServiceProvider).speak(question.correctAnswer);
+              },
+              tooltip: '発音を再生',
+            ),
+          ],
+        ),
+        if (question.pronunciation.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text('発音: ${question.pronunciation}',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontStyle: FontStyle.italic,
+                    color: colorScheme.primary.withValues(alpha: 0.8),
+                  )),
+        ],
+      ],
+    );
+  }
+}
+
 class _QuizResultView extends ConsumerWidget {
   final QuizQuestion question;
   final int questionIndex;
@@ -1012,48 +1082,10 @@ class _QuizResultView extends ConsumerWidget {
                         style: Theme.of(context).textTheme.bodyLarge),
                   ],
                   const Divider(height: 24),
-                  Row(
-                    children: [
-                      Text('正解: ${question.correctAnswer}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                              )),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: Icon(Icons.volume_up,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.primary),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () {
-                          unawaited(
-                            ref.read(analyticsServiceProvider).logPlayTts(
-                                  contentType: 'word',
-                                  text: question.correctAnswer,
-                                  sentenceId: question.sentenceId,
-                                  source: 'quiz_result',
-                                ),
-                          );
-                          ref
-                              .read(ttsServiceProvider)
-                              .speak(question.correctAnswer);
-                        },
-                        tooltip: '発音を再生',
-                      ),
-                    ],
+                  _QuizAnswerWordRow(
+                    question: question,
+                    analyticsSource: 'quiz_result',
                   ),
-                  const SizedBox(height: 4),
-                  Text('発音: ${question.pronunciation}',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontStyle: FontStyle.italic,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.8),
-                          )),
                 ],
               ),
             ),
@@ -1247,46 +1279,10 @@ class _QuizResultDetail extends ConsumerWidget {
                       style: Theme.of(context).textTheme.bodyLarge),
                 ],
                 const Divider(height: 24),
-                Row(
-                  children: [
-                    Text('正解: ${question.correctAnswer}',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                )),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: Icon(Icons.volume_up,
-                          size: 20,
-                          color: Theme.of(context).colorScheme.primary),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () {
-                        unawaited(
-                          ref.read(analyticsServiceProvider).logPlayTts(
-                                contentType: 'word',
-                                text: question.correctAnswer,
-                                sentenceId: question.sentenceId,
-                                source: 'quiz_result_detail',
-                              ),
-                        );
-                        ref
-                            .read(ttsServiceProvider)
-                            .speak(question.correctAnswer);
-                      },
-                      tooltip: '発音を再生',
-                    ),
-                  ],
+                _QuizAnswerWordRow(
+                  question: question,
+                  analyticsSource: 'quiz_result_detail',
                 ),
-                const SizedBox(height: 4),
-                Text('発音: ${question.pronunciation}',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontStyle: FontStyle.italic,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.8),
-                        )),
               ],
             ),
           ),

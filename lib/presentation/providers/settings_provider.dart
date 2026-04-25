@@ -10,7 +10,7 @@ import 'analytics_provider.dart';
 
 // ==================== Font Family ====================
 
-enum ThaiFont { notoSansThai, mitr, sarabun, krub }
+enum ThaiFont { sarabun, krub, notoSansThai, mitr }
 
 extension ThaiFontExtension on ThaiFont {
   String get displayName {
@@ -31,7 +31,7 @@ extension ThaiFontExtension on ThaiFont {
   static ThaiFont fromPrefValue(String value) {
     return ThaiFont.values.firstWhere(
       (e) => e.name == value,
-      orElse: () => ThaiFont.notoSansThai,
+      orElse: () => ThaiFont.sarabun,
     );
   }
 }
@@ -51,7 +51,7 @@ class SettingsState {
     required this.themeMode,
     this.preferredGenerationTime,
     this.generationParams = const {},
-    this.fontFamily = ThaiFont.notoSansThai,
+    this.fontFamily = ThaiFont.sarabun,
   });
 
   factory SettingsState.initial() {
@@ -60,7 +60,7 @@ class SettingsState {
       themeMode: ThemeMode.light,
       preferredGenerationTime: null,
       generationParams: {},
-      fontFamily: ThaiFont.notoSansThai,
+      fontFamily: ThaiFont.sarabun,
     );
   }
 
@@ -142,7 +142,7 @@ class SettingsController extends StateNotifier<SettingsState> {
     final fontValue = _prefs!.getString(_prefKeyFontFamily);
     final fontFamily = fontValue != null
         ? ThaiFontExtension.fromPrefValue(fontValue)
-        : ThaiFont.notoSansThai;
+        : ThaiFont.sarabun;
 
     state = SettingsState(
       isFirstLaunch: isFirstLaunch,

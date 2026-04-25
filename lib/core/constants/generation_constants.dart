@@ -108,8 +108,8 @@ class GenerationConstants {
   // ---------------------------------------------------------------------------
 
   /// 無料ティアで選択可能なテーマ。
-  /// topics配列のインデックス 0（あいさつ）、1（食べ物）、2（旅行）、5（買い物）に制限。
-  static final freeTopics = [topics[0], topics[1], topics[2], topics[5]];
+  /// topics配列のインデックス 0（あいさつ）、1（食べ物）、5（買い物）に制限。
+  static final freeTopics = [topics[0], topics[1], topics[5]];
 
   /// 無料ティアで選択可能なスタイル。
   /// styles配列のインデックス 1（口語体）、2（丁寧語）に制限。

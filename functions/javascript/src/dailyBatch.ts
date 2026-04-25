@@ -185,7 +185,7 @@ export const dailyBatch = isDevOnly()
     }
   );
 
-/** JST 12:00 にクォータのみリセット（P減衰・古い例文削除はなし） */
+/** JST 12:00 にクォータのみリセット */
 async function noonResetHandler() {
   console.log('noonReset started');
 
@@ -196,6 +196,8 @@ async function noonResetHandler() {
   }
 
   const users = usersSnapshot.docs;
+  console.log(`noonReset: ${users.length} users`);
+
   for (let i = 0; i < users.length; i += CONCURRENCY) {
     const chunk = users.slice(i, i + CONCURRENCY);
     await Promise.allSettled(chunk.map((userDoc) => resetQuota(userDoc)));

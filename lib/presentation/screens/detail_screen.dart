@@ -195,11 +195,16 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                 ),
               ],
             ),
+            if (widget.sentence.targetWords != null &&
+                widget.sentence.targetWords!.isNotEmpty)
+              const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
+
+  Set<String> get _targetWordSet => widget.sentence.targetWords?.toSet() ?? {};
 
   /// 単語分解カードを構築する。
   ///
@@ -270,8 +275,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// 意味、文法的役割（タグ表示）を含む。
   /// タップすると声調解説ダイアログが開き、その単語の声調分析を確認できる。
   Widget _buildWordBreakdownItem(WordBreakdown word, int index) {
+    final isTarget = _targetWordSet.contains(word.wordText);
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
-      // タップで声調解説ダイアログを表示
       onTap: () => ToneExplanationDialog.show(
         context,
         word.wordText,
@@ -284,26 +290,40 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
           children: [
             Row(
               children: [
-                // 単語番号を示す円形バッジ
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${index + 1}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: isTarget
+                            ? cs.tertiary.withValues(alpha: 0.15)
+                            : cs.primary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isTarget ? cs.tertiary : cs.primary,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    if (isTarget)
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: Icon(
+                          Icons.auto_awesome,
+                          size: 12,
+                          color: cs.tertiary,
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -374,6 +394,27 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             const SizedBox(height: 8),
             // 日本語での意味
             Text(word.meaning, style: Theme.of(context).textTheme.bodyMedium),
+            if (word.notes != null && word.notes!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: cs.tertiaryContainer.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: cs.tertiary.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Text(
+                  word.notes!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: cs.onTertiaryContainer,
+                      ),
+                ),
+              ),
+            ],
             // 文法的役割のタグ表示（存在する場合のみ）
             if (word.grammaticalRole != null) ...[
               const SizedBox(height: 4),

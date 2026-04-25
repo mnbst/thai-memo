@@ -20,6 +20,8 @@ class DatabaseConstants {
   static const String columnEmotion = 'emotion';
   static const String columnUsageScenarios = 'usage_scenarios';
   static const String columnCreatedAt = 'created_at';
+  static const String columnGenerationTier = 'generation_tier';
+  static const String columnTargetWords = 'target_words';
   // ==================== Word Breakdowns Table ====================
   static const String columnWordId = 'id';
   static const String columnWordSentenceId = 'sentence_id';
@@ -29,6 +31,7 @@ class DatabaseConstants {
   static const String columnGrammaticalRole = 'grammatical_role';
   static const String columnWordOrder = 'word_order';
   static const String columnSyllablesJson = 'syllables_json';
+  static const String columnWordNotes = 'notes';
 
   // ==================== Generation Logs Table ====================
   static const String columnLogId = 'id';
@@ -83,6 +86,8 @@ class DatabaseConstants {
       $columnStyle TEXT,
       $columnEmotion TEXT,
       $columnUsageScenarios TEXT,
+      $columnGenerationTier TEXT,
+      $columnTargetWords TEXT,
       $columnCreatedAt INTEGER NOT NULL
     )
   ''';
@@ -98,6 +103,7 @@ class DatabaseConstants {
       $columnGrammaticalRole TEXT,
       $columnWordOrder INTEGER NOT NULL,
       $columnSyllablesJson TEXT,
+      $columnWordNotes TEXT,
       FOREIGN KEY ($columnWordSentenceId)
         REFERENCES $tableSentences($columnSentenceId)
         ON DELETE CASCADE

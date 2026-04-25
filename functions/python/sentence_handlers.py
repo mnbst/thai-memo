@@ -95,13 +95,30 @@ def _register_sentence_exposure(
     return len(exposed_words)
 
 
-def _build_sentence_data(sentence: dict, key_word: str) -> dict:
+def _generation_tier(use_premium_spec: bool) -> str:
+    return "premium" if use_premium_spec else "free"
+
+
+def _attach_generation_tier(sentence: dict, use_premium_spec: bool) -> dict:
+    return {
+        **sentence,
+        "generation_tier": _generation_tier(use_premium_spec),
+    }
+
+
+def _build_sentence_data(
+    sentence: dict,
+    key_word: str,
+    *,
+    use_premium_spec: bool,
+) -> dict:
     return {
         "thai_text": sentence["thai_text"],
         "pronunciation": sentence.get("pronunciation", ""),
         "japanese_translation": sentence["japanese_translation"],
         "created_at": firestore.firestore.SERVER_TIMESTAMP,
         "key_word": key_word,
+        "generation_tier": _generation_tier(use_premium_spec),
     }
 
 
@@ -206,13 +223,18 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             target_words=target_words,
             estimated_vocab=estimated_vocab,
         )
+        sentence = _attach_generation_tier(sentence, use_premium_spec)
 
         processing_time = int((time.time() - start_time) * 1000)
         log_data["success"] = True
         log_data["processingTimeMs"] = processing_time
 
         try:
-            sentence_data = _build_sentence_data(sentence, target_words[0])
+            sentence_data = _build_sentence_data(
+                sentence,
+                target_words[0],
+                use_premium_spec=use_premium_spec,
+            )
             sentence_ref = (
                 db.collection("users").document(uid).collection("sentences").document()
             )
@@ -228,6 +250,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             raise
 
         response["success"] = True
+        sentence["target_words"] = target_words
         response["data"] = sentence
 
         # 初回生成フラグをクリア（残クォータが0になった時点）
@@ -372,6 +395,12 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
             all_topics=all_topics,
             estimated_vocab=estimated_vocab,
         )
+        for i, sentence in enumerate(sentences):
+            sentence["target_words"] = all_target_words[i]
+        sentences = [
+            _attach_generation_tier(sentence, use_premium_spec)
+            for sentence in sentences
+        ]
 
         generated_count = len(sentences)
         log_data["generatedCount"] = generated_count
@@ -386,7 +415,11 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
         sentence_writes: list[tuple] = []
         for i, sentence in enumerate(sentences):
             tw = all_target_words[i]
-            sentence_data = _build_sentence_data(sentence, tw[0])
+            sentence_data = _build_sentence_data(
+                sentence,
+                tw[0],
+                use_premium_spec=use_premium_spec,
+            )
             sentence_ref = (
                 db.collection("users").document(uid).collection("sentences").document()
             )

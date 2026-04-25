@@ -405,6 +405,16 @@ class PaywallBottomSheet extends ConsumerWidget {
             child: Divider(height: 1, color: colorScheme.outlineVariant),
           ),
           benefitRow(
+            icon: Icons.bolt,
+            title: '1日の利用回数',
+            freeText: '例文・クイズ 各2回/日',
+            premiumText: '各10回/日',
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: colorScheme.outlineVariant),
+          ),
+          benefitRow(
             icon: Icons.auto_awesome,
             title: 'よりリアルな例文',
             freeText: '基本テーマ中心',
@@ -418,13 +428,13 @@ class PaywallBottomSheet extends ConsumerWidget {
   Widget _buildTopicSection(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    const freeTopics = ['あいさつ', '食べ物', '旅行', '買い物'];
+    const freeTopics = ['あいさつ', '食べ物', '買い物'];
     const premiumTopics = [
+      '旅行',
       '仕事',
       '恋愛',
       '交通',
       '健康',
-      '学校',
       '文化・礼儀',
     ];
 
