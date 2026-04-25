@@ -79,7 +79,7 @@ class PaywallBottomSheet extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.85,
+      initialChildSize: 0.72,
       minChildSize: 0.5,
       maxChildSize: 0.95,
       expand: false,
@@ -127,9 +127,6 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       _buildMainBenefits(context),
-                      const SizedBox(height: 18),
-                      // テーマ一覧
-                      _buildTopicSection(context),
                     ],
                   ),
                 ),
@@ -418,87 +415,7 @@ class PaywallBottomSheet extends ConsumerWidget {
             icon: Icons.auto_awesome,
             title: 'よりリアルな例文',
             freeText: '基本テーマ中心',
-            premiumText: '仕事・恋愛・文化',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopicSection(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    const freeTopics = ['あいさつ', '食べ物', '買い物'];
-    const premiumTopics = [
-      '旅行',
-      '仕事',
-      '恋愛',
-      '交通',
-      '健康',
-      '文化・礼儀',
-    ];
-
-    Widget chipWrap(List<String> labels, Color bg, Color fg) => Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: labels
-              .map((label) => Chip(
-                    label: Text(label,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: fg)),
-                    backgroundColor: bg,
-                    side: BorderSide.none,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ))
-              .toList(),
-        );
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('例文のテーマ',
-              style: Theme.of(context)
-                  .textTheme
-                  .labelLarge
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Text(
-            '無料',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 6),
-          chipWrap(freeTopics, colorScheme.surfaceContainerHighest,
-              colorScheme.onSurfaceVariant),
-          const SizedBox(height: 12),
-          Text(
-            'プレミアムで追加（一例）',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 6),
-          chipWrap(premiumTopics, colorScheme.primaryContainer,
-              colorScheme.onPrimaryContainer),
-          const SizedBox(height: 6),
-          Text(
-            'ほかにも、家族・天気・趣味・伝統行事など全15テーマ。',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+            premiumText: '仕事・恋愛...etc',
           ),
         ],
       ),

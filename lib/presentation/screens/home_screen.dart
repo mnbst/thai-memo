@@ -613,18 +613,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   const SizedBox(width: 4),
                   Text(
                     '語彙スコア',
-                    style:
-                        Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: onContainer,
-                            ),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: onContainer,
+                        ),
                   ),
                   const SizedBox(width: 12),
                   Text(
                     '$displayVocab',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           color: onContainer,
                           fontWeight: FontWeight.bold,
                         ),
@@ -632,25 +628,21 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   const SizedBox(width: 4),
                   Text(
                     '語',
-                    style:
-                        Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: onContainer.withValues(alpha: 0.7),
-                            ),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: onContainer.withValues(alpha: 0.7),
+                        ),
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: onContainer.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       level,
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: onContainer,
                             fontWeight: FontWeight.w600,
                           ),
@@ -977,7 +969,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Premiumで追加されるテーマ数（12件）',
+            'Premiumで追加されるテーマ数（13件）',
             style: TextStyle(
               color: colorScheme.primary,
               fontWeight: FontWeight.bold,

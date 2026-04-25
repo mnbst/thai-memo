@@ -466,7 +466,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '今回の復習単語: ${q.correctAnswer}',
+                        'キーワード: ${q.correctAnswer}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context).colorScheme.primary,
                               fontWeight: FontWeight.w600,
@@ -910,7 +910,7 @@ class _QuizAnswerWordRow extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('今回の復習単語',
+        Text('今回のキーワード',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.bold,
