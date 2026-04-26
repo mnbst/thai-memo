@@ -137,6 +137,9 @@ lib/presentation/screens/tone_guide_screen.dart
 lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセル。
 
+lib/presentation/widgets/level_up_dialog.dart
+語彙レベルアップ時のお祝いアニメーションダイアログ。
+
 lib/presentation/tone_explanation_dialog.dart
 タイ語声調の解説ダイアログ。
 

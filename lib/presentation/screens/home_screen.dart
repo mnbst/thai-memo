@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
@@ -15,6 +16,7 @@ import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
+import '../widgets/level_up_dialog.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
 import 'history_screen.dart';
@@ -150,6 +152,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       const SettingsScreen(),
     ];
 
+    final hasSentenceToday =
+        ref.watch(dailySentenceGeneratedProvider).valueOrNull == true;
+    final quizState = ref.watch(quizControllerProvider);
+    final showQuizBadge = hasSentenceToday && quizState is! QuizSummary;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -175,23 +182,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ref.read(quizControllerProvider.notifier).loadQuiz();
           }
         },
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.today_outlined),
             selectedIcon: Icon(Icons.today),
             label: '例文',
           ),
           NavigationDestination(
-            icon: Icon(Icons.quiz_outlined),
-            selectedIcon: Icon(Icons.quiz),
+            icon: Badge(
+              isLabelVisible: showQuizBadge,
+              smallSize: 10,
+              child: const Icon(Icons.quiz_outlined),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: showQuizBadge,
+              smallSize: 10,
+              child: const Icon(Icons.quiz),
+            ),
             label: 'クイズ',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
             label: '履歴',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: '設定',
@@ -293,9 +308,15 @@ class TodayScreen extends ConsumerStatefulWidget {
 class _TodayScreenState extends ConsumerState<TodayScreen> {
   static const int _freeVocabScoreLimit = 100;
   static const String _freeTopics = 'あいさつ、食べ物、買い物';
-
   @override
   Widget build(BuildContext context) {
+    ref.listen(vocabStatsProvider, (prev, next) {
+      final prevVocab = prev?.valueOrNull?.estimatedVocab ?? 0;
+      final nextVocab = next.valueOrNull?.estimatedVocab ?? 0;
+      if (nextVocab > prevVocab) {
+        _checkLevelUp(nextVocab);
+      }
+    });
     final sentenceState = ref.watch(sentenceControllerProvider);
 
     return Scaffold(
@@ -430,15 +451,20 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Text(
-                          sentence.thaiText,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.5,
-                                  fontSize: 32),
+                        child: Text.rich(
+                          _buildHighlightedThaiText(
+                            sentence.thaiText,
+                            sentence.targetWords ?? [],
+                            Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.5,
+                                    fontSize: 32) ??
+                              const TextStyle(fontSize: 32),
+                            Theme.of(context).colorScheme.primary,
+                          ),
                         ),
                       ),
                       IconButton(
@@ -663,12 +689,78 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
+  static const _levelThresholds = [100, 300, 600, 1500];
+  static const _prefKeyLastLevel = 'last_vocab_level';
+
   String _vocabLevel(int vocab) {
     if (vocab < 100) return '入門';
     if (vocab < 300) return '初級';
     if (vocab < 600) return '初中級';
     if (vocab < 1500) return '中級';
     return '上級';
+  }
+
+  Future<void> _checkLevelUp(int vocab) async {
+    final crossedThreshold =
+        _levelThresholds.any((t) => vocab >= t);
+    if (!crossedThreshold) return;
+
+    final level = _vocabLevel(vocab);
+    final prefs = await SharedPreferences.getInstance();
+    final lastLevel = prefs.getString(_prefKeyLastLevel) ?? '入門';
+
+    if (level == lastLevel) return;
+
+    // レベルが上がった場合のみ（下がった場合は無視）
+    final lastIndex =
+        _levelThresholds.indexWhere((t) => t > (_thresholdForLevel(lastLevel)));
+    final newIndex =
+        _levelThresholds.indexWhere((t) => t > (_thresholdForLevel(level)));
+    final effectiveLastIndex =
+        lastIndex == -1 ? _levelThresholds.length : lastIndex;
+    final effectiveNewIndex =
+        newIndex == -1 ? _levelThresholds.length : newIndex;
+    if (effectiveNewIndex <= effectiveLastIndex) return;
+
+    await prefs.setString(_prefKeyLastLevel, level);
+    if (mounted) {
+      await LevelUpDialog.show(
+        context,
+        newLevel: level,
+        vocab: vocab,
+        unlockedTopics: _unlockedTopicsForLevel(level),
+      );
+    }
+  }
+
+  String? _unlockedTopicsForLevel(String level) {
+    switch (level) {
+      case '初級':
+        return '仕事、交通、健康、趣味、恋愛';
+      case '初中級':
+        return '学校';
+      case '中級':
+        return '宗教・信仰、伝統・祭り、礼儀作法';
+      default:
+        return null;
+    }
+  }
+
+  int _thresholdForLevel(String level) {
+    switch (level) {
+      case '入門':
+        return 0;
+      case '初級':
+        return 100;
+      case '初中級':
+        return 300;
+      case '中級':
+        return 600;
+      case '上級':
+        return 1500;
+      default:
+        return 0;
+    }
   }
 
   /// 語彙スコアの説明ダイアログを表示する
@@ -1128,51 +1220,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 ),
               ),
             ],
-            if (sentence.targetWords != null &&
-                sentence.targetWords!.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              _quickInfoRow(
-                icon: Icons.auto_awesome,
-                iconColor: iconColor,
-                child: Expanded(
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text('キーワード：', style: textStyle),
-                      ...sentence.targetWords!.map((word) {
-                        final wb = sentence.wordBreakdowns
-                            .where((wb) => wb.wordText == word)
-                            .firstOrNull;
-                        final label = wb != null
-                            ? '$word (${wb.pronunciation} / ${wb.meaning})'
-                            : word;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: cs.tertiaryContainer.withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: cs.tertiary.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Text(
-                            label,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: cs.onTertiaryContainer,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -1191,6 +1238,39 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         child,
       ],
     );
+  }
+
+  TextSpan _buildHighlightedThaiText(
+    String text,
+    List<String> targetWords,
+    TextStyle baseStyle,
+    Color highlightColor,
+  ) {
+    if (targetWords.isEmpty) {
+      return TextSpan(text: text, style: baseStyle);
+    }
+    final sorted = [...targetWords]
+      ..sort((a, b) => b.length.compareTo(a.length));
+    final pattern = sorted.map(RegExp.escape).join('|');
+    final regex = RegExp(pattern);
+    final spans = <TextSpan>[];
+    var lastEnd = 0;
+    final highlightStyle = baseStyle.copyWith(
+      color: highlightColor,
+      fontWeight: FontWeight.bold,
+      backgroundColor: highlightColor.withValues(alpha: 0.2),
+    );
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+      }
+      spans.add(TextSpan(text: match.group(0), style: highlightStyle));
+      lastEnd = match.end;
+    }
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+    return TextSpan(style: baseStyle, children: spans);
   }
 
   /// 語彙スコアが上限に近づいた際のPremium誘導バナー
@@ -1272,7 +1352,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'プレミアムなら最大10回/日まで生成できます',
+                      'プレミアムなら最大5回/日まで生成できます',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: colorScheme.onPrimaryContainer
                                 .withValues(alpha: 0.8),

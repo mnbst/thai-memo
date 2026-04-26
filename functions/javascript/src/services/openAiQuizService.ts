@@ -101,7 +101,7 @@ export class OpenAiQuizService implements QuizGenerationService {
       return { questions: [] };
     }
 
-    const merged = applyRuleBasedQuizFields(response, sentences);
+    const merged = applyRuleBasedQuizFields({ questions: [response] }, sentences);
     return sanitizeQuizQuestions(merged);
   }
 

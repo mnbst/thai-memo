@@ -136,7 +136,8 @@ MAX_RETRY = 1
 def validate_target_words(sentence: dict, target_words: list[str] | None) -> list[str]:
     """生成された例文にtarget_wordsが含まれているか検証する。
 
-    thai_text またはword_breakdown内のwordフィールドに含まれていればOK。
+    word_breakdown内のwordフィールドに完全一致している場合のみOK。
+    thai_text の部分一致は、単語境界をまたぐ誤一致を生むため使わない。
 
     Returns:
         含まれていなかった単語のリスト（空なら全て含まれている）
@@ -144,7 +145,6 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
     if not target_words:
         return []
 
-    thai_text = sentence.get("thai_text", "")
     wb_words = {
         str(wb.get("word", "")).strip()
         for wb in sentence.get("word_breakdown", [])
@@ -153,7 +153,7 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
 
     missing: list[str] = []
     for tw in target_words:
-        if tw in wb_words or tw in thai_text:
+        if tw in wb_words:
             continue
         missing.append(tw)
     return missing
@@ -178,6 +178,7 @@ def _generate_single(
     _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
+    missing: list[str] = []
     for attempt in range(1 + MAX_RETRY):
         sentence = _llm_generate_sync(
             get_system_prompt(is_premium), current_prompt, is_premium, tier_label
@@ -193,11 +194,10 @@ def _generate_single(
         )
         current_prompt = _build_retry_prompt(prompt, missing)
 
-    print(
-        f"Returning sentence despite missing target words after "
-        f"{1 + MAX_RETRY} attempts"
+    raise RuntimeError(
+        "LLM_API_ERROR: target words missing after retries: "
+        f"{', '.join(missing)}"
     )
-    return sentence
 
 
 async def _generate_single_async(
@@ -210,6 +210,7 @@ async def _generate_single_async(
     _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
+    missing: list[str] = []
     for attempt in range(1 + MAX_RETRY):
         sentence = await _llm_generate_async(
             get_system_prompt(is_premium), current_prompt, is_premium, tier_label
@@ -225,11 +226,10 @@ async def _generate_single_async(
         )
         current_prompt = _build_retry_prompt(prompt, missing)
 
-    print(
-        f"Returning sentence despite missing target words after "
-        f"{1 + MAX_RETRY} attempts"
+    raise RuntimeError(
+        "LLM_API_ERROR: target words missing after retries: "
+        f"{', '.join(missing)}"
     )
-    return sentence
 
 
 def generate_sentence(
@@ -277,9 +277,8 @@ async def _generate_batch_async(
     sentences: list[dict] = []
     for idx, r in enumerate(results):
         if isinstance(r, BaseException):
-            print(f"Batch generation failed for index {idx}: {r}")
-        else:
-            sentences.append(r)
+            raise RuntimeError(f"LLM_API_ERROR: batch generation failed: {r}") from r
+        sentences.append(r)
     return sentences
 
 

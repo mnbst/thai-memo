@@ -106,6 +106,13 @@ def _attach_generation_tier(sentence: dict, use_premium_spec: bool) -> dict:
     }
 
 
+def _get_key_word_pronunciation(sentence: dict, key_word: str) -> str:
+    for word in sentence.get("word_breakdown", []):
+        if word.get("word", "").strip() == key_word.strip():
+            return word.get("pronunciation", "").strip()
+    return ""
+
+
 def _build_sentence_data(
     sentence: dict,
     key_word: str,
@@ -118,6 +125,7 @@ def _build_sentence_data(
         "japanese_translation": sentence["japanese_translation"],
         "created_at": firestore.firestore.SERVER_TIMESTAMP,
         "key_word": key_word,
+        "key_word_pronunciation": _get_key_word_pronunciation(sentence, key_word),
         "generation_tier": _generation_tier(use_premium_spec),
     }
 

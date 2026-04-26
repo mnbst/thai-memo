@@ -28,6 +28,7 @@ import * as admin from 'firebase-admin';
 import { GeminiQuizService } from './services/geminiQuizService';
 import { getGeminiApiKey } from './services/secretManager';
 import {
+  buildBlankSentencePronunciation,
   isQuizSentenceSeedReady,
   QuizGenerationService,
   QuizQuestion,
@@ -323,8 +324,8 @@ interface QuizSeed {
   thai_text: string;
   pronunciation: string;
   japanese_translation: string;
-  word_breakdown: { word: string; pronunciation: string; meaning: string }[];
   key_word?: string;
+  key_word_pronunciation?: string;
 }
 
 interface QuizSeedSource {
@@ -346,8 +347,8 @@ function toQuizSeedSourceFromSelected(sentence: SelectedSentence): QuizSeedSourc
       thai_text: sentence.data.thai_text,
       pronunciation: sentence.data.pronunciation,
       japanese_translation: sentence.data.japanese_translation,
-      word_breakdown: sentence.data.word_breakdown || [],
       key_word: sentence.data.key_word,
+      key_word_pronunciation: sentence.data.key_word_pronunciation,
     },
     sentenceId: sentence.id,
     srsInterval: sentence.srsInterval,
@@ -362,14 +363,8 @@ function toQuizSeedSourceFromDefault(sentence: DefaultSentence): QuizSeedSource 
       thai_text: sentence.thai_text,
       pronunciation: sentence.pronunciation,
       japanese_translation: sentence.japanese_translation,
-      word_breakdown: [
-        {
-          word: sentence.key_word,
-          pronunciation: sentence.key_word_pronunciation,
-          meaning: '',
-        },
-      ],
       key_word: sentence.key_word,
+      key_word_pronunciation: sentence.key_word_pronunciation,
     },
     sentenceId: sentence.sentence_id,
     srsInterval: 0,
@@ -387,8 +382,8 @@ function toQuizSeedSourceFromUserDoc(
       thai_text: data.thai_text,
       pronunciation: data.pronunciation,
       japanese_translation: data.japanese_translation,
-      word_breakdown: data.word_breakdown || [],
       key_word: data.key_word,
+      key_word_pronunciation: data.key_word_pronunciation,
     },
     sentenceId: doc.id,
     srsInterval: -1,
@@ -414,6 +409,10 @@ function toQuizQuestion(
     srs_interval: source.srsInterval,
     japanese_translation: source.japaneseTranslation,
     sentence_pronunciation: source.sentencePronunciation,
+    blank_sentence_pronunciation: buildBlankSentencePronunciation(
+      source.sentencePronunciation,
+      source.seed.key_word_pronunciation,
+    ),
   };
 }
 
@@ -436,129 +435,73 @@ async function generateQuestionsFromSources(
   const readySources = sources.filter(isQuizSeedSourceReady);
   if (readySources.length === 0) return [];
 
-  const questionsBySource: Array<QuizQuestion | null> = Array(readySources.length).fill(null);
-  const firstAttempt = await generateBatchQuizQuestions(quizGenerationService, readySources, 0);
-  for (const result of firstAttempt) {
-    questionsBySource[result.sourcePosition] = result.question;
-  }
+  const firstResults = await Promise.all(
+    readySources.map((source) => generateSingleQuizQuestion(quizGenerationService, source, 0)),
+  );
 
-  const retrySourcePositions = questionsBySource
-    .map((question, sourcePosition) => question ? null : sourcePosition)
-    .filter((sourcePosition): sourcePosition is number => sourcePosition !== null);
+  const questions: Array<QuizQuestion | null> = [...firstResults];
 
-  if (retrySourcePositions.length > 0) {
-    logger.warn('Batch quiz generation retrying failed sources', {
-      event: 'batch_quiz_generation_retrying_failed_sources',
-      requested: sources.length,
-      failed: retrySourcePositions.length,
+  const retryIndices = questions
+    .map((q, i) => q ? null : i)
+    .filter((i): i is number => i !== null);
+
+  if (retryIndices.length > 0) {
+    logger.warn('Quiz generation retrying failed sources', {
+      event: 'quiz_generation_retrying_failed_sources',
+      requested: readySources.length,
+      failed: retryIndices.length,
     });
 
-    const retrySources = retrySourcePositions.map((sourcePosition) => readySources[sourcePosition]);
-    const retryAttempt = await generateBatchQuizQuestions(quizGenerationService, retrySources, 1);
-    for (const result of retryAttempt) {
-      const originalSourcePosition = retrySourcePositions[result.sourcePosition];
-      questionsBySource[originalSourcePosition] = result.question;
-    }
+    const retryResults = await Promise.all(
+      retryIndices.map((i) => generateSingleQuizQuestion(quizGenerationService, readySources[i], 1)),
+    );
+    retryIndices.forEach((originalIndex, i) => {
+      questions[originalIndex] = retryResults[i];
+    });
   }
 
-  const skipped = questionsBySource.filter((question) => question === null).length;
+  const skipped = questions.filter((q) => q === null).length;
   if (skipped > 0) {
-    logger.error('Batch quiz generation skipped sources after retry', {
-      event: 'batch_quiz_generation_skipped_sources_after_retry',
+    logger.error('Quiz generation skipped sources after retry', {
+      event: 'quiz_generation_skipped_sources_after_retry',
       requested: readySources.length,
       skipped,
     });
   }
 
-  return questionsBySource.filter((question): question is QuizQuestion => question !== null);
+  return questions.filter((q): q is QuizQuestion => q !== null);
 }
 
-/**
- * 複数の例文に対してAIでクイズをまとめて生成し、source_index と key_word 一致を検証する。
- *
- * - 生成失敗やサニタイズで除外された問題は戻り値に含めない
- * - key_word 不一致時は呼び出し側で1回だけリトライする
- */
-async function generateBatchQuizQuestions(
+async function generateSingleQuizQuestion(
   quizGenerationService: QuizGenerationService,
-  sources: QuizSeedSource[],
+  source: QuizSeedSource,
   attempt: number,
-): Promise<Array<{ sourcePosition: number; question: QuizQuestion }>> {
-  const result = await quizGenerationService.generateQuizQuestions(sources.map((source) => source.seed));
-  const usedSourcePositions = new Set<number>();
-  const questions: Array<{ sourcePosition: number; question: QuizQuestion }> = [];
+): Promise<QuizQuestion | null> {
+  const result = await quizGenerationService.generateQuizQuestions([source.seed]);
+  if (result.questions.length === 0) return null;
 
-  result.questions.forEach((question, responseIndex) => {
-    const sourcePosition = resolveSourcePosition(
-      question,
-      responseIndex,
-      sources.length,
-      usedSourcePositions,
-    );
-    if (sourcePosition === null) return;
-
-    const source = sources[sourcePosition];
-    if (!matchesKeyWord(question, source.seed)) {
-      const details = {
-        expected: source.seed.key_word,
-        got: question.correct_answer,
-        sourcePosition,
-        attempt,
-      };
-      if (attempt === 0) {
-        logger.warn('key_word mismatch, will retry', {
-          event: 'quiz_key_word_mismatch_retrying',
-          ...details,
-        });
-      } else {
-        logger.error('key_word mismatch after retry, skipping', {
-          event: 'quiz_key_word_mismatch_after_retry',
-          ...details,
-        });
-      }
-      return;
+  const question = result.questions[0];
+  if (!matchesKeyWord(question, source.seed)) {
+    const details = {
+      expected: source.seed.key_word,
+      got: question.correct_answer,
+      attempt,
+    };
+    if (attempt === 0) {
+      logger.warn('key_word mismatch, will retry', {
+        event: 'quiz_key_word_mismatch_retrying',
+        ...details,
+      });
+    } else {
+      logger.error('key_word mismatch after retry, skipping', {
+        event: 'quiz_key_word_mismatch_after_retry',
+        ...details,
+      });
     }
-
-    usedSourcePositions.add(sourcePosition);
-    questions.push({
-      sourcePosition,
-      question: toQuizQuestion(question, source),
-    });
-  });
-
-  return questions;
-}
-
-function resolveSourcePosition(
-  question: QuizQuestionsResponse['questions'][number],
-  responseIndex: number,
-  sourceCount: number,
-  usedSourcePositions: Set<number>,
-): number | null {
-  const sourcePosition = Number.isInteger(question.source_index) ?
-    question.source_index as number :
-    responseIndex;
-
-  if (sourcePosition < 0 || sourcePosition >= sourceCount) {
-    logger.warn('Dropping quiz question due to invalid source_index', {
-      event: 'quiz_question_dropped_invalid_source_index',
-      sourceIndex: question.source_index,
-      responseIndex,
-      sourceCount,
-    });
     return null;
   }
 
-  if (usedSourcePositions.has(sourcePosition)) {
-    logger.warn('Dropping quiz question due to duplicate source_index', {
-      event: 'quiz_question_dropped_duplicate_source_index',
-      sourceIndex: sourcePosition,
-      responseIndex,
-    });
-    return null;
-  }
-
-  return sourcePosition;
+  return toQuizQuestion(question, source);
 }
 
 function matchesKeyWord(
@@ -610,13 +553,12 @@ function toSelectedDefaultSentence(sentence: DefaultSentence): SelectedSentence 
       thai_text: sentence.thai_text,
       pronunciation: sentence.pronunciation,
       japanese_translation: sentence.japanese_translation,
-      word_breakdown: [],
       key_word: sentence.key_word,
+      key_word_pronunciation: sentence.key_word_pronunciation,
     },
     srsInterval: 0,
   };
 }
-
 
 /**
  * ユーザーの全例文からSRSアルゴリズムに基づいて復習対象を選出する。

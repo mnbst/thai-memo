@@ -1,4 +1,5 @@
 import sentence_service
+import pytest
 from prompts import SYSTEM_PROMPT_FREE
 
 
@@ -44,3 +45,40 @@ def test_generate_single_starts_nlp_prewarm_before_llm(monkeypatch):
     assert result["thai_text"] == "ฉันกินข้าว"
     assert events == ["prewarm", "llm", "nlp"]
     assert captured["system_prompt"] == SYSTEM_PROMPT_FREE
+
+
+def test_generate_single_raises_when_target_missing_after_retries(monkeypatch):
+    calls = 0
+
+    def fake_prewarm() -> None:
+        return None
+
+    def fake_llm(system_prompt, user_prompt, is_premium, tier_label):
+        nonlocal calls
+        calls += 1
+        return {
+            "thai_text": "นี่คืออะไรกันนะ",
+            "japanese_translation": "これ、何だろうね？",
+            "word_breakdown": [{"word": "นี่", "meaning": "これ"}],
+        }
+
+    def fake_get_enrich_with_nlp():
+        return lambda sentence: sentence
+
+    monkeypatch.setattr(sentence_service, "_prewarm_nlp_async", fake_prewarm)
+    monkeypatch.setattr(sentence_service, "_llm_generate_sync", fake_llm)
+    monkeypatch.setattr(
+        sentence_service,
+        "_get_enrich_with_nlp",
+        fake_get_enrich_with_nlp,
+    )
+
+    with pytest.raises(RuntimeError, match="target words missing after retries"):
+        sentence_service._generate_single(
+            "prompt",
+            False,
+            "free",
+            target_words=["นี้"],
+        )
+
+    assert calls == sentence_service.MAX_RETRY + 1

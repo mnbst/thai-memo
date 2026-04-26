@@ -8,7 +8,7 @@ admin.initializeApp({
 });
 
 // Export Cloud Functions
-export { dailyBatch, noonReset } from './dailyBatch';
+export { dailyBatch } from './dailyBatch';
 export { deleteUserData } from './deleteUserData';
 export { generateQuiz } from './generateQuiz';
 export { onUserCreate } from './onUserCreate';

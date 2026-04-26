@@ -376,8 +376,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             color: Theme.of(context).colorScheme.primary,
           ),
           const SizedBox(height: 24),
-          Text('結果', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 16),
+          if (_vocabBeforeQuiz != null)
+            _buildVocabTransitionCard(context, _vocabBeforeQuiz!),
+          if (_vocabBeforeQuiz != null) const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
@@ -402,9 +403,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          if (_vocabBeforeQuiz != null)
-            _buildVocabTransitionCard(context, _vocabBeforeQuiz!),
-          if (_vocabBeforeQuiz != null) const SizedBox(height: 16),
           if (hintUsedCount > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -557,12 +555,36 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         if (after == 0) return const SizedBox.shrink();
         final diff = after - displayBefore;
         return Card(
+          color: diff > 0
+              ? Theme.of(context).colorScheme.primaryContainer
+              : null,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
             child: Column(
               children: [
-                Text('語彙スコア', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 12),
+                if (diff > 0) ...[
+                  Text(
+                    '+$diff語',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '語彙スコアアップ！',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onPrimaryContainer,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  Text('語彙スコア',
+                      style: Theme.of(context).textTheme.titleSmall),
+                  const SizedBox(height: 12),
+                ],
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -589,14 +611,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     ),
                   ],
                 ),
-                if (diff != 0) ...[
+                if (diff < 0) ...[
                   const SizedBox(height: 6),
                   Text(
-                    diff > 0 ? '+$diff語' : '$diff語',
+                    '$diff語',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: diff > 0
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 ],
@@ -755,17 +776,30 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
               ),
             ),
           ),
-          // ヒント1: ローマ字読み（問題文の下）
+          // ヒント1: ローマ字読み（問題文の下、正解部分を空欄に）
           if (_hintLevel >= 1 && hasPronunciation) ...[
             const SizedBox(height: 8),
-            Text(
-              question.sentencePronunciation,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontStyle: FontStyle.italic,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-              textAlign: TextAlign.center,
-            ),
+            Builder(builder: (context) {
+              final blanked =
+                  question.blankSentencePronunciation.isNotEmpty
+                      ? question.blankSentencePronunciation
+                      : question.pronunciation.isNotEmpty
+                          ? question.sentencePronunciation
+                              .replaceFirst(question.pronunciation, '___')
+                          : '';
+              if (blanked.isEmpty ||
+                  blanked == question.sentencePronunciation) {
+                return const SizedBox.shrink();
+              }
+              return Text(
+                blanked,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                textAlign: TextAlign.center,
+              );
+            }),
           ],
           // ヒント2: 日本語訳（ローマ字の下）
           if (_hintLevel >= 2 && hasTranslation) ...[
