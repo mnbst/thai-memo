@@ -28,6 +28,7 @@ import * as admin from 'firebase-admin';
 import { GeminiQuizService } from './services/geminiQuizService';
 import { getGeminiApiKey } from './services/secretManager';
 import {
+  buildBlankSentencePronunciation,
   isQuizSentenceSeedReady,
   QuizGenerationService,
   QuizQuestion,
@@ -323,8 +324,8 @@ interface QuizSeed {
   thai_text: string;
   pronunciation: string;
   japanese_translation: string;
-  word_breakdown: { word: string; pronunciation: string; meaning: string }[];
   key_word?: string;
+  key_word_pronunciation?: string;
 }
 
 interface QuizSeedSource {
@@ -346,8 +347,8 @@ function toQuizSeedSourceFromSelected(sentence: SelectedSentence): QuizSeedSourc
       thai_text: sentence.data.thai_text,
       pronunciation: sentence.data.pronunciation,
       japanese_translation: sentence.data.japanese_translation,
-      word_breakdown: sentence.data.word_breakdown || [],
       key_word: sentence.data.key_word,
+      key_word_pronunciation: sentence.data.key_word_pronunciation,
     },
     sentenceId: sentence.id,
     srsInterval: sentence.srsInterval,
@@ -362,8 +363,8 @@ function toQuizSeedSourceFromDefault(sentence: DefaultSentence): QuizSeedSource 
       thai_text: sentence.thai_text,
       pronunciation: sentence.pronunciation,
       japanese_translation: sentence.japanese_translation,
-      word_breakdown: buildDefaultQuizWordBreakdown(sentence),
       key_word: sentence.key_word,
+      key_word_pronunciation: sentence.key_word_pronunciation,
     },
     sentenceId: sentence.sentence_id,
     srsInterval: 0,
@@ -381,8 +382,8 @@ function toQuizSeedSourceFromUserDoc(
       thai_text: data.thai_text,
       pronunciation: data.pronunciation,
       japanese_translation: data.japanese_translation,
-      word_breakdown: data.word_breakdown || [],
       key_word: data.key_word,
+      key_word_pronunciation: data.key_word_pronunciation,
     },
     sentenceId: doc.id,
     srsInterval: -1,
@@ -393,22 +394,6 @@ function toQuizSeedSourceFromUserDoc(
 
 function shuffleTopCandidates<T>(candidates: T[], count: number): T[] {
   return [...candidates.slice(0, count)].sort(() => Math.random() - 0.5);
-}
-
-function buildBlankSentencePronunciation(
-  sentencePronunciation: string,
-  wordBreakdown: { word: string; pronunciation: string }[],
-  keyWord?: string,
-  fallbackPronunciation?: string,
-): string {
-  if (!sentencePronunciation || !keyWord) return '';
-  const entry = wordBreakdown.find(
-    (w) => w.word?.trim() === keyWord.trim(),
-  );
-  const wordPron = (entry?.pronunciation || fallbackPronunciation || '').trim();
-  if (!wordPron) return '';
-  if (!sentencePronunciation.includes(wordPron)) return '';
-  return sentencePronunciation.replace(wordPron, '___');
 }
 
 function toQuizQuestion(
@@ -426,9 +411,7 @@ function toQuizQuestion(
     sentence_pronunciation: source.sentencePronunciation,
     blank_sentence_pronunciation: buildBlankSentencePronunciation(
       source.sentencePronunciation,
-      source.seed.word_breakdown,
-      source.seed.key_word,
-      question.pronunciation,
+      source.seed.key_word_pronunciation,
     ),
   };
 }
@@ -570,25 +553,12 @@ function toSelectedDefaultSentence(sentence: DefaultSentence): SelectedSentence 
       thai_text: sentence.thai_text,
       pronunciation: sentence.pronunciation,
       japanese_translation: sentence.japanese_translation,
-      word_breakdown: buildDefaultQuizWordBreakdown(sentence),
       key_word: sentence.key_word,
+      key_word_pronunciation: sentence.key_word_pronunciation,
     },
     srsInterval: 0,
   };
 }
-
-function buildDefaultQuizWordBreakdown(
-  sentence: DefaultSentence,
-): { word: string; pronunciation: string; meaning: string }[] {
-  return [
-    {
-      word: sentence.key_word,
-      pronunciation: sentence.key_word_pronunciation,
-      meaning: '',
-    },
-  ];
-}
-
 
 /**
  * ユーザーの全例文からSRSアルゴリズムに基づいて復習対象を選出する。

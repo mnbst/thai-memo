@@ -19,14 +19,14 @@ class TestValidateTargetWords:
         }
         assert validate_target_words(sentence, ["ฉัน", "กิน"]) == []
 
-    def test_in_thai_text_but_not_breakdown(self):
+    def test_in_thai_text_but_not_breakdown_is_missing(self):
         sentence = {
             "thai_text": "ฉันกินข้าว",
             "word_breakdown": [
                 {"word": "ฉัน", "meaning": "私"},
             ],
         }
-        assert validate_target_words(sentence, ["กิน"]) == []
+        assert validate_target_words(sentence, ["กิน"]) == ["กิน"]
 
     def test_missing_words(self):
         sentence = {
@@ -44,12 +44,12 @@ class TestValidateTargetWords:
 
     def test_partial_match(self):
         sentence = {
-            "thai_text": "ฉันไปทำงาน",
+            "thai_text": "ของานนี้เสร็จแล้วนะครับ",
             "word_breakdown": [
-                {"word": "ฉัน", "meaning": "私"},
-                {"word": "ไป", "meaning": "行く"},
-                {"word": "ทำงาน", "meaning": "仕事する"},
+                {"word": "ขอ", "meaning": "お願いする"},
+                {"word": "งาน", "meaning": "仕事"},
+                {"word": "นี้", "meaning": "この"},
             ],
         }
-        missing = validate_target_words(sentence, ["ฉัน", "กิน", "ทำงาน"])
-        assert missing == ["กิน"]
+        missing = validate_target_words(sentence, ["ของ", "งาน"])
+        assert missing == ["ของ"]
