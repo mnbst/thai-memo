@@ -217,6 +217,25 @@ describe('quiz generation sanitization', () => {
     ]);
   });
 
+  test('builds choice pronunciations using Firestore pronunciation for the correct answer', () => {
+    const sanitized = sanitizeQuizQuestion(makeQuestion({
+      pronunciation: 'firestore-khâao',
+    }));
+
+    expect(sanitized).not.toBeNull();
+    const choicePronunciations = sanitized!.choice_pronunciations ?? [];
+    const pronunciationsByChoice = new Map(
+      sanitized!.choices.map((choice, index) => [
+        choice,
+        choicePronunciations[index],
+      ]),
+    );
+    expect(pronunciationsByChoice.get('ข้าว')).toBe('firestore-khâao');
+    expect(pronunciationsByChoice.get('สวย')).toBe('sǔay');
+    expect(pronunciationsByChoice.get('บ้าน')).toBe('bâan');
+    expect(pronunciationsByChoice.get('กิน')).toBe('gin');
+  });
+
   test('accepts dummy reasons even when they only say the answer does not match the source sentence', () => {
     const sanitized = sanitizeQuizQuestion(makeQuestion({
       dummy_reasons: [

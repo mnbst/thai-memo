@@ -118,6 +118,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (state is QuizLoading) {
       return const Center(child: CircularProgressIndicator());
     }
+    if (state is QuizNoSentences) {
+      return _buildNoSentencesState(context);
+    }
     if (state is QuizPending) {
       return _buildPendingState(context, state.questionCount);
     }
@@ -143,6 +146,34 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       return _buildSummaryState(context, state);
     }
     return _buildEmptyState(context);
+  }
+
+  Widget _buildNoSentencesState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.menu_book,
+                size: 64, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 24),
+            Text(
+              'まず例文を生成しましょう',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'クイズは生成した例文から出題されます\n「例文」タブで例文を生成してください',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildPendingState(BuildContext context, int questionCount) {
@@ -555,9 +586,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         if (after == 0) return const SizedBox.shrink();
         final diff = after - displayBefore;
         return Card(
-          color: diff > 0
-              ? Theme.of(context).colorScheme.primaryContainer
-              : null,
+          color:
+              diff > 0 ? Theme.of(context).colorScheme.primaryContainer : null,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
             child: Column(
@@ -574,15 +604,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   Text(
                     '語彙スコアアップ！',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onPrimaryContainer,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
                         ),
                   ),
                   const SizedBox(height: 12),
                 ] else ...[
-                  Text('語彙スコア',
-                      style: Theme.of(context).textTheme.titleSmall),
+                  Text('語彙スコア', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: 12),
                 ],
                 Row(
@@ -616,8 +644,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   Text(
                     '$diff語',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 ],
@@ -780,13 +807,12 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
           if (_hintLevel >= 1 && hasPronunciation) ...[
             const SizedBox(height: 8),
             Builder(builder: (context) {
-              final blanked =
-                  question.blankSentencePronunciation.isNotEmpty
-                      ? question.blankSentencePronunciation
-                      : question.pronunciation.isNotEmpty
-                          ? question.sentencePronunciation
-                              .replaceFirst(question.pronunciation, '___')
-                          : '';
+              final blanked = question.blankSentencePronunciation.isNotEmpty
+                  ? question.blankSentencePronunciation
+                  : question.pronunciation.isNotEmpty
+                      ? question.sentencePronunciation
+                          .replaceFirst(question.pronunciation, '___')
+                      : '';
               if (blanked.isEmpty ||
                   blanked == question.sentencePronunciation) {
                 return const SizedBox.shrink();
@@ -854,21 +880,47 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
           ],
           // 4択
           ...List.generate(question.choices.length, (i) {
+            final choicePronunciation = i < question.choicePronunciations.length
+                ? question.choicePronunciations[i]
+                : '';
+            final showChoicePronunciation =
+                _hintLevel >= 1 && choicePronunciation.isNotEmpty;
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: SizedBox(
-                height: 56,
+                height: showChoicePronunciation ? 84 : 56,
                 child: ElevatedButton(
                   onPressed: () => widget.onAnswer(i, _hintLevel),
                   style: ElevatedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(AppConfig.cardBorderRadius),
                     ),
                   ),
-                  child: Text(
-                    question.choices[i],
-                    style: const TextStyle(fontSize: 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        question.choices[i],
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      if (showChoicePronunciation) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          choicePronunciation,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontStyle: FontStyle.italic,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.75),
+                                  ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
