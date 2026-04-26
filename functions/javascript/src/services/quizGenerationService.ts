@@ -11,6 +11,7 @@ export interface QuizQuestion {
   blank_text: string;
   correct_answer: string;
   choices: string[];
+  choice_pronunciations: string[];
   pronunciation: string;
   explanation: string;
   srs_interval: number;
@@ -26,6 +27,7 @@ export interface GeneratedQuizQuestion {
   blank_text: string;
   correct_answer: string;
   choices: string[];
+  choice_pronunciations?: string[];
   pronunciation: string;
   explanation: string;
   japanese_translation?: string;
@@ -203,6 +205,7 @@ export function applyRuleBasedQuizFields(
           blank_text: prepared?.blank_text ?? '',
           correct_answer: prepared?.correct_answer ?? '',
           choices: question.dummies,
+          choice_pronunciations: [],
           pronunciation: prepared?.pronunciation ?? '',
           explanation: question.explanation,
           dummy_reasons: question.dummy_reasons,
@@ -215,6 +218,7 @@ export function applyRuleBasedQuizFields(
         blank_text: prepared.blank_text,
         correct_answer: prepared.correct_answer,
         choices: [prepared.correct_answer, ...question.dummies],
+        choice_pronunciations: [],
         pronunciation: prepared.pronunciation,
         explanation: question.explanation,
         dummy_reasons: question.dummy_reasons,
@@ -337,13 +341,21 @@ export function sanitizeQuizQuestion(
     return null;
   }
 
+  const shuffledChoices = shuffleChoices(choices);
+
   return {
     ...question,
     source_index: Number.isInteger(question.source_index) ? question.source_index : undefined,
     thai_text: normalizeText(question.thai_text),
     blank_text: normalizeText(question.blank_text),
     correct_answer: correctAnswer,
-    choices: shuffleChoices(choices),
+    choices: shuffledChoices,
+    choice_pronunciations: buildChoicePronunciations(
+      shuffledChoices,
+      correctAnswer,
+      question.pronunciation,
+      dummyReasons,
+    ),
     pronunciation: normalizeText(question.pronunciation),
     explanation: normalizeText(question.explanation),
     japanese_translation: normalizeText(question.japanese_translation),
@@ -377,6 +389,34 @@ function sanitizeDummyReasons(
   }
 
   return matchedReasons as string[];
+}
+
+function buildChoicePronunciations(
+  choices: string[],
+  correctAnswer: string,
+  correctAnswerPronunciation: string,
+  dummyReasons: string[],
+): string[] {
+  const normalizedCorrectAnswerPronunciation = normalizeText(correctAnswerPronunciation);
+
+  return choices.map((choice) => {
+    if (choice === correctAnswer) {
+      return normalizedCorrectAnswerPronunciation;
+    }
+
+    const reason = dummyReasons.find((candidate) => candidate.includes(choice));
+    return reason ? extractDummyPronunciation(reason, choice) : '';
+  });
+}
+
+function extractDummyPronunciation(reason: string, choice: string): string {
+  const escapedChoice = escapeRegExp(choice);
+  const match = reason.match(new RegExp(`${escapedChoice}\\s*[（(]\\s*([^/）)]+?)\\s*/`));
+  return normalizeText(match?.[1]);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function shuffleChoices(choices: string[]): string[] {

@@ -299,6 +299,11 @@ class BackendApiService {
 
       final result = await callable.call();
       final data = Map<String, dynamic>.from(result.data as Map);
+
+      if (data['no_user_sentences'] == true) {
+        throw BackendApiNoUserSentencesException();
+      }
+
       final questionsList = data['questions'] as List<dynamic>? ?? [];
 
       return questionsList
@@ -453,4 +458,11 @@ class BackendApiQuotaExceededException extends BackendApiException {
 
   @override
   String toString() => 'BackendApiQuotaExceededException: $message';
+}
+
+class BackendApiNoUserSentencesException extends BackendApiException {
+  BackendApiNoUserSentencesException() : super('No user sentences');
+
+  @override
+  String toString() => 'BackendApiNoUserSentencesException';
 }

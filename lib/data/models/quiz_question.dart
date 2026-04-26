@@ -18,6 +18,7 @@ class QuizQuestion {
   final String blankText;
   final String correctAnswer;
   final List<String> choices;
+  final List<String> choicePronunciations;
   final String pronunciation;
   final String explanation;
   final int srsInterval;
@@ -32,6 +33,7 @@ class QuizQuestion {
     required this.blankText,
     required this.correctAnswer,
     required this.choices,
+    this.choicePronunciations = const [],
     required this.pronunciation,
     required this.explanation,
     this.srsInterval = 0,
@@ -50,13 +52,16 @@ class QuizQuestion {
                 ?.map((e) => e.toString())
                 .toList() ??
             [],
+        choicePronunciations: (json['choice_pronunciations'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
         pronunciation: json['pronunciation'] ?? '',
         explanation: json['explanation'] ?? '',
         srsInterval: json['srs_interval'] ?? 0,
         japaneseTranslation: json['japanese_translation'] ?? '',
         sentencePronunciation: json['sentence_pronunciation'] ?? '',
-        blankSentencePronunciation:
-            json['blank_sentence_pronunciation'] ?? '',
+        blankSentencePronunciation: json['blank_sentence_pronunciation'] ?? '',
         dummyReasons: (json['dummy_reasons'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
@@ -69,6 +74,7 @@ class QuizQuestion {
         'blank_text': blankText,
         'correct_answer': correctAnswer,
         'choices': choices,
+        'choice_pronunciations': choicePronunciations,
         'pronunciation': pronunciation,
         'explanation': explanation,
         'srs_interval': srsInterval,
