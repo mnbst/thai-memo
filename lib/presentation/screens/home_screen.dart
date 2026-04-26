@@ -150,6 +150,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       const SettingsScreen(),
     ];
 
+    final hasSentenceToday =
+        ref.watch(dailySentenceGeneratedProvider).valueOrNull == true;
+    final quizState = ref.watch(quizControllerProvider);
+    final showQuizBadge = hasSentenceToday && quizState is! QuizSummary;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -175,23 +180,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ref.read(quizControllerProvider.notifier).loadQuiz();
           }
         },
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.today_outlined),
             selectedIcon: Icon(Icons.today),
             label: '例文',
           ),
           NavigationDestination(
-            icon: Icon(Icons.quiz_outlined),
-            selectedIcon: Icon(Icons.quiz),
+            icon: Badge(
+              isLabelVisible: showQuizBadge,
+              smallSize: 10,
+              child: const Icon(Icons.quiz_outlined),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: showQuizBadge,
+              smallSize: 10,
+              child: const Icon(Icons.quiz),
+            ),
             label: 'クイズ',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
             label: '履歴',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: '設定',
@@ -430,15 +443,20 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Text(
-                          sentence.thaiText,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.5,
-                                  fontSize: 32),
+                        child: Text.rich(
+                          _buildHighlightedThaiText(
+                            sentence.thaiText,
+                            sentence.targetWords ?? [],
+                            Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.5,
+                                    fontSize: 32) ??
+                              const TextStyle(fontSize: 32),
+                            Theme.of(context).colorScheme.primary,
+                          ),
                         ),
                       ),
                       IconButton(
@@ -1128,51 +1146,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 ),
               ),
             ],
-            if (sentence.targetWords != null &&
-                sentence.targetWords!.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              _quickInfoRow(
-                icon: Icons.auto_awesome,
-                iconColor: iconColor,
-                child: Expanded(
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text('キーワード：', style: textStyle),
-                      ...sentence.targetWords!.map((word) {
-                        final wb = sentence.wordBreakdowns
-                            .where((wb) => wb.wordText == word)
-                            .firstOrNull;
-                        final label = wb != null
-                            ? '$word (${wb.pronunciation} / ${wb.meaning})'
-                            : word;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: cs.tertiaryContainer.withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: cs.tertiary.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Text(
-                            label,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: cs.onTertiaryContainer,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -1191,6 +1164,39 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         child,
       ],
     );
+  }
+
+  TextSpan _buildHighlightedThaiText(
+    String text,
+    List<String> targetWords,
+    TextStyle baseStyle,
+    Color highlightColor,
+  ) {
+    if (targetWords.isEmpty) {
+      return TextSpan(text: text, style: baseStyle);
+    }
+    final sorted = [...targetWords]
+      ..sort((a, b) => b.length.compareTo(a.length));
+    final pattern = sorted.map(RegExp.escape).join('|');
+    final regex = RegExp(pattern);
+    final spans = <TextSpan>[];
+    var lastEnd = 0;
+    final highlightStyle = baseStyle.copyWith(
+      color: highlightColor,
+      fontWeight: FontWeight.bold,
+      backgroundColor: highlightColor.withValues(alpha: 0.2),
+    );
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+      }
+      spans.add(TextSpan(text: match.group(0), style: highlightStyle));
+      lastEnd = match.end;
+    }
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+    return TextSpan(style: baseStyle, children: spans);
   }
 
   /// 語彙スコアが上限に近づいた際のPremium誘導バナー
@@ -1272,7 +1278,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'プレミアムなら最大10回/日まで生成できます',
+                      'プレミアムなら最大5回/日まで生成できます',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: colorScheme.onPrimaryContainer
                                 .withValues(alpha: 0.8),

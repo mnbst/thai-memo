@@ -407,11 +407,23 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                     color: cs.tertiary.withValues(alpha: 0.25),
                   ),
                 ),
-                child: Text(
-                  word.notes!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: cs.onTertiaryContainer,
-                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      word.notes!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: cs.onTertiaryContainer,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '→ クイズで出題',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: cs.onTertiaryContainer.withValues(alpha: 0.6),
+                          ),
+                    ),
+                  ],
                 ),
               ),
             ],

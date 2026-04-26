@@ -59,14 +59,12 @@ final isInitialPremiumSentenceTrialProvider = Provider<AsyncValue<bool>>((ref) {
   });
 });
 
-/// 次のリセット（JST 0:00 / 12:00）までの残り時間テキストを返す
+/// 次のリセット（JST 0:00）までの残り時間テキストを返す
 String nextResetText() {
   final nowJst = DateTime.now().toUtc().add(const Duration(hours: 9));
-  final todayNoon = DateTime.utc(nowJst.year, nowJst.month, nowJst.day, 12);
   final nextMidnight =
       DateTime.utc(nowJst.year, nowJst.month, nowJst.day + 1);
-  final nextReset = nowJst.isBefore(todayNoon) ? todayNoon : nextMidnight;
-  final diff = nextReset.difference(nowJst);
+  final diff = nextMidnight.difference(nowJst);
   final hours = diff.inHours;
   final minutes = diff.inMinutes % 60;
   if (hours > 0) return '次のリセットまで $hours時間$minutes分';

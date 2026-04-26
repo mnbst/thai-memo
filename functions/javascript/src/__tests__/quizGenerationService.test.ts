@@ -53,7 +53,6 @@ function makeDraft(
       'บ้าน（bâan / 家）：食べる対象に場所を表す名詞が入り不自然',
       'กิน（gin / 食べる）：目的語の位置に動詞が入り文法上不自然',
     ],
-    correct_answer_pronunciation: 'khâao',
     ...overrides,
   };
 }
@@ -75,18 +74,10 @@ describe('quiz generation sanitization', () => {
     ]);
 
     expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【あなたの主作業】');
-    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【発音表記】');
-    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('平=記号なし/低=à/降=â/高=á/昇=ǎ');
-    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('ไม่=mâi');
-    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('สวัสดี=sà-wàt-dii');
-    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('ชื่อ=chʉ̂ʉ');
-    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('เธอ=thəə');
-    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('แม่=mɛ̂ɛ');
-    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('ของ=khɔ̌ɔng');
     expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【ダミー生成手順】');
     expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【ダミーNG例（文として成立するため不可）】');
     expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('กิน___ → ข้าว/ผัก/เนื้อ');
-    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('สวย（sǔay / 美しい）：目的語に形容詞が入り不自然');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('แกง（kɛɛng / カレー）：動詞の位置に名詞が入り文法上不自然');
     expect(QUIZ_GENERATION_SYSTEM_PROMPT).not.toContain('thai_text: ฉันกินข้าว');
     expect(prompt).toContain('thai_text: ฉันกินข้าว');
     expect(prompt).toContain('blank_text: ฉันกิน___');
@@ -175,7 +166,7 @@ describe('quiz generation sanitization', () => {
   test('applies rule-based pronunciation from the prepared input', () => {
     const response = applyRuleBasedQuizFields({
       questions: [
-        makeDraft({ correct_answer_pronunciation: 'wrong' }),
+        makeDraft(),
       ],
     }, [
       {
@@ -194,10 +185,10 @@ describe('quiz generation sanitization', () => {
     expect(response.questions[0].pronunciation).toBe('khâao');
   });
 
-  test('falls back to the model-provided pronunciation when word_breakdown is empty', () => {
+  test('returns empty pronunciation when word_breakdown is empty', () => {
     const response = applyRuleBasedQuizFields({
       questions: [
-        makeDraft({ correct_answer_pronunciation: 'khâao' }),
+        makeDraft(),
       ],
     }, [
       {
@@ -209,7 +200,7 @@ describe('quiz generation sanitization', () => {
       },
     ]);
 
-    expect(response.questions[0].pronunciation).toBe('khâao');
+    expect(response.questions[0].pronunciation).toBe('');
   });
 
   test('accepts dummy reasons that explain local grammar or word-class mismatch', () => {

@@ -23,6 +23,7 @@ class QuizQuestion {
   final int srsInterval;
   final String japaneseTranslation;
   final String sentencePronunciation;
+  final String blankSentencePronunciation;
   final List<String> dummyReasons;
 
   const QuizQuestion({
@@ -36,6 +37,7 @@ class QuizQuestion {
     this.srsInterval = 0,
     this.japaneseTranslation = '',
     this.sentencePronunciation = '',
+    this.blankSentencePronunciation = '',
     this.dummyReasons = const [],
   });
 
@@ -53,6 +55,8 @@ class QuizQuestion {
         srsInterval: json['srs_interval'] ?? 0,
         japaneseTranslation: json['japanese_translation'] ?? '',
         sentencePronunciation: json['sentence_pronunciation'] ?? '',
+        blankSentencePronunciation:
+            json['blank_sentence_pronunciation'] ?? '',
         dummyReasons: (json['dummy_reasons'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
@@ -70,6 +74,7 @@ class QuizQuestion {
         'srs_interval': srsInterval,
         'japanese_translation': japaneseTranslation,
         'sentence_pronunciation': sentencePronunciation,
+        'blank_sentence_pronunciation': blankSentencePronunciation,
         'dummy_reasons': dummyReasons,
       };
 }

@@ -63,17 +63,17 @@ export class GeminiQuizService implements QuizGenerationService {
   async generateQuizQuestions(
     sentences: QuizSentenceSeed[],
   ): Promise<QuizQuestionsResponse> {
-    const response = await this.fetchStructuredResponse<QuizGenerationModelResponse>(
+    const draft = await this.fetchStructuredResponse<QuizGenerationModelResponse>(
       QUIZ_GENERATION_SYSTEM_PROMPT,
       buildQuizGenerationPrompt(sentences),
       sentences,
     );
 
-    if (!response) {
+    if (!draft) {
       return { questions: [] };
     }
 
-    const merged = applyRuleBasedQuizFields(response, sentences);
+    const merged = applyRuleBasedQuizFields({ questions: [draft] }, sentences);
     return sanitizeQuizQuestions(merged);
   }
 

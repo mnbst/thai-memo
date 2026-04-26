@@ -16,6 +16,7 @@ export interface QuizQuestion {
   srs_interval: number;
   japanese_translation: string;
   sentence_pronunciation: string;
+  blank_sentence_pronunciation: string;
   dummy_reasons: string[];
 }
 
@@ -40,12 +41,9 @@ export interface GeneratedQuizQuestionDraft {
   dummies: string[];
   explanation: string;
   dummy_reasons: string[];
-  correct_answer_pronunciation: string;
 }
 
-export interface QuizGenerationModelResponse {
-  questions: GeneratedQuizQuestionDraft[];
-}
+export type QuizGenerationModelResponse = GeneratedQuizQuestionDraft;
 
 export interface QuizSentenceSeed {
   thai_text: string;
@@ -74,41 +72,26 @@ export const QUIZ_RESPONSE_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    questions: {
+    dummies: {
       type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          dummies: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Exactly 3 Thai dummy choices that do not include the correct answer',
-          },
-          explanation: {
-            type: 'string',
-            description: 'Brief explanation in Japanese of why this word fits',
-          },
-          dummy_reasons: {
-            type: 'array',
-            items: { type: 'string' },
-            description: '不正解の3単語それぞれについて入らない理由を日本語で1行ずつ',
-          },
-          correct_answer_pronunciation: {
-            type: 'string',
-            description: 'correct_answer のローマ字発音（声調記号付き）',
-          },
-        },
-        required: [
-          'dummies',
-          'explanation',
-          'dummy_reasons',
-          'correct_answer_pronunciation',
-        ],
-      },
+      items: { type: 'string' },
+      description: 'Exactly 3 Thai dummy choices that do not include the correct answer',
+    },
+    explanation: {
+      type: 'string',
+      description: 'Brief explanation in Japanese of why this word fits',
+    },
+    dummy_reasons: {
+      type: 'array',
+      items: { type: 'string' },
+      description: '不正解の3単語それぞれについて入らない理由を日本語で1行ずつ',
     },
   },
-  required: ['questions'],
+  required: [
+    'dummies',
+    'explanation',
+    'dummy_reasons',
+  ],
 } as const;
 
 function buildPreparedSentenceList(sentences: QuizSentenceSeed[]): string {
@@ -130,17 +113,14 @@ function buildPreparedSentenceList(sentences: QuizSentenceSeed[]): string {
   }).join('\n\n');
 }
 
-export const QUIZ_GENERATION_SYSTEM_PROMPT = `確定済みのタイ語穴埋め問題について、ダミー選択肢・理由・解説だけを作成してください。blank_text と correct_answer は変更しません。
+export const QUIZ_GENERATION_SYSTEM_PROMPT = `確定済みのタイ語穴埋め問題1問について、ダミー選択肢・理由・解説だけを作成してください。blank_text と correct_answer は変更しません。
 
 【あなたの主作業】
 - correct_answer 以外のタイ語ダミーを3件作る
 - dummy_reasons に各ダミーが blank_text に入らない局所破綻を書く
 - explanation は correct_answer が入る理由だけを日本語で簡潔に書く
-- correct_answer_pronunciation は入力が空でも必ず声調記号付きローマ字で出す
-
 【出力形式】
-questions は入力と同じ件数・順番。各 question は dummies / explanation / dummy_reasons / correct_answer_pronunciation の4項目だけを出力する。
-source_index / thai_text / blank_text / correct_answer / choices は出力しない。
+dummies / explanation / dummy_reasons の3項目だけを出力する。
 
 【ルール】
 - 空欄位置・正解語はアプリ側で確定済み。正解が機能語・代名詞でも変えない
@@ -165,6 +145,7 @@ source_index / thai_text / blank_text / correct_answer / choices は出力しな
 - ฉัน___ที่บ้าน → กิน/อ่าน/นอน/ทำงาน は全て自然な文
 - เขาซื้อ___ → หนังสือ/เสื้อ/ข้าว/ยา は全て目的語として成立
 - ___ไปตลาด → ผม/ฉัน/เรา/เขา は日本語訳や話者情報なしでは一意に選べない
+- โรงแรม___ดีนะ → นี้/นั้น/นั่น は全て指示詞として成立し一意に選べない
 
 【良いダミー理由例】
 - แกง（kɛɛng / カレー）：動詞の位置に名詞が入り文法上不自然
@@ -174,12 +155,12 @@ source_index / thai_text / blank_text / correct_answer / choices は出力しな
 - สอง（sɔ̌ɔng / 二）：場所を示す前置詞句に数詞が入り不自然
 
 【最終確認】
-questions 件数・順番、4キー限定、dummies 3件、correct_answer 不含、dummy_reasons 3件、発音非空。3ダミーすべて不正解理由を説明できること`;
+dummies 3件、correct_answer 不含、dummy_reasons 3件。3ダミーすべて不正解理由を説明できること`;
 
 export function buildQuizGenerationPrompt(sentences: QuizSentenceSeed[]): string {
   const sentenceList = buildPreparedSentenceList(sentences);
 
-  return `以下のタイ語例文について、システム指示に従って questions を生成してください。
+  return `以下のタイ語穴埋め問題について、システム指示に従って出力してください。
 
 ${sentenceList}`;
 }
@@ -214,7 +195,7 @@ export function isQuizSentenceSeedReady(sentence: QuizSentenceSeed): boolean {
 }
 
 export function applyRuleBasedQuizFields(
-  response: QuizGenerationModelResponse,
+  response: { questions: GeneratedQuizQuestionDraft[] },
   sentences: QuizSentenceSeed[],
 ): QuizQuestionsResponse {
   const preparedSentences = prepareQuizGenerationInputs(sentences);
@@ -223,8 +204,6 @@ export function applyRuleBasedQuizFields(
     questions: response.questions.map((question, responseIndex) => {
       const prepared = preparedSentences[responseIndex];
 
-      const modelPronunciation = normalizeText(question.correct_answer_pronunciation);
-
       if (!prepared?.correct_answer || !prepared.blank_text.includes(BLANK_TEXT)) {
         return {
           source_index: responseIndex,
@@ -232,7 +211,7 @@ export function applyRuleBasedQuizFields(
           blank_text: prepared?.blank_text ?? '',
           correct_answer: prepared?.correct_answer ?? '',
           choices: question.dummies,
-          pronunciation: prepared?.pronunciation || modelPronunciation,
+          pronunciation: prepared?.pronunciation ?? '',
           explanation: question.explanation,
           dummy_reasons: question.dummy_reasons,
         };
@@ -244,7 +223,7 @@ export function applyRuleBasedQuizFields(
         blank_text: prepared.blank_text,
         correct_answer: prepared.correct_answer,
         choices: [prepared.correct_answer, ...question.dummies],
-        pronunciation: prepared.pronunciation || modelPronunciation,
+        pronunciation: prepared.pronunciation,
         explanation: question.explanation,
         dummy_reasons: question.dummy_reasons,
       };
