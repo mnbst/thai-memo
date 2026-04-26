@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
@@ -15,6 +16,7 @@ import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
+import '../widgets/level_up_dialog.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
 import 'history_screen.dart';
@@ -306,9 +308,15 @@ class TodayScreen extends ConsumerStatefulWidget {
 class _TodayScreenState extends ConsumerState<TodayScreen> {
   static const int _freeVocabScoreLimit = 100;
   static const String _freeTopics = 'あいさつ、食べ物、買い物';
-
   @override
   Widget build(BuildContext context) {
+    ref.listen(vocabStatsProvider, (prev, next) {
+      final prevVocab = prev?.valueOrNull?.estimatedVocab ?? 0;
+      final nextVocab = next.valueOrNull?.estimatedVocab ?? 0;
+      if (nextVocab > prevVocab) {
+        _checkLevelUp(nextVocab);
+      }
+    });
     final sentenceState = ref.watch(sentenceControllerProvider);
 
     return Scaffold(
@@ -681,12 +689,78 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
+  static const _levelThresholds = [100, 300, 600, 1500];
+  static const _prefKeyLastLevel = 'last_vocab_level';
+
   String _vocabLevel(int vocab) {
     if (vocab < 100) return '入門';
     if (vocab < 300) return '初級';
     if (vocab < 600) return '初中級';
     if (vocab < 1500) return '中級';
     return '上級';
+  }
+
+  Future<void> _checkLevelUp(int vocab) async {
+    final crossedThreshold =
+        _levelThresholds.any((t) => vocab >= t);
+    if (!crossedThreshold) return;
+
+    final level = _vocabLevel(vocab);
+    final prefs = await SharedPreferences.getInstance();
+    final lastLevel = prefs.getString(_prefKeyLastLevel) ?? '入門';
+
+    if (level == lastLevel) return;
+
+    // レベルが上がった場合のみ（下がった場合は無視）
+    final lastIndex =
+        _levelThresholds.indexWhere((t) => t > (_thresholdForLevel(lastLevel)));
+    final newIndex =
+        _levelThresholds.indexWhere((t) => t > (_thresholdForLevel(level)));
+    final effectiveLastIndex =
+        lastIndex == -1 ? _levelThresholds.length : lastIndex;
+    final effectiveNewIndex =
+        newIndex == -1 ? _levelThresholds.length : newIndex;
+    if (effectiveNewIndex <= effectiveLastIndex) return;
+
+    await prefs.setString(_prefKeyLastLevel, level);
+    if (mounted) {
+      await LevelUpDialog.show(
+        context,
+        newLevel: level,
+        vocab: vocab,
+        unlockedTopics: _unlockedTopicsForLevel(level),
+      );
+    }
+  }
+
+  String? _unlockedTopicsForLevel(String level) {
+    switch (level) {
+      case '初級':
+        return '仕事、交通、健康、趣味、恋愛';
+      case '初中級':
+        return '学校';
+      case '中級':
+        return '宗教・信仰、伝統・祭り、礼儀作法';
+      default:
+        return null;
+    }
+  }
+
+  int _thresholdForLevel(String level) {
+    switch (level) {
+      case '入門':
+        return 0;
+      case '初級':
+        return 100;
+      case '初中級':
+        return 300;
+      case '中級':
+        return 600;
+      case '上級':
+        return 1500;
+      default:
+        return 0;
+    }
   }
 
   /// 語彙スコアの説明ダイアログを表示する
