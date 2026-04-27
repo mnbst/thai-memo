@@ -1214,7 +1214,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Premiumでは100語以上学べます。また例文のテーマが増え、よりリアルなタイ語が学べます。',
+                  'Premiumでは100語以上学べます。また例文のテーマが増え、より多様なタイ語が学べます。',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color:
                         colorScheme.onPrimaryContainer.withValues(alpha: 0.85),

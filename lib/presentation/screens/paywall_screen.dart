@@ -119,7 +119,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '100語の先へ。リアルなタイ語例文を',
+                        '100語の先へ。多様なタイ語例文を',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -413,7 +413,7 @@ class PaywallBottomSheet extends ConsumerWidget {
           ),
           benefitRow(
             icon: Icons.auto_awesome,
-            title: 'よりリアルな例文',
+            title: 'より多様な例文',
             freeText: '基本テーマ中心',
             premiumText: '仕事・恋愛...etc',
           ),
