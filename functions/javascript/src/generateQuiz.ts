@@ -60,7 +60,6 @@ const KEYWORD_IN_QUERY_LIMIT = 10;
 
 async function consumeQuizQuota(
   userRef: FirebaseFirestore.DocumentReference,
-  questionCount: number,
 ): Promise<void> {
   await db.runTransaction(async (transaction) => {
     const userSnapshot = await transaction.get(userRef);
@@ -75,10 +74,6 @@ async function consumeQuizQuota(
       userRef,
       {
         remaining_quizzes: remainingQuizzes - 1,
-        last_active_at: admin.firestore.FieldValue.serverTimestamp(),
-        last_quiz_generated_at: admin.firestore.FieldValue.serverTimestamp(),
-        quiz_generated_count: admin.firestore.FieldValue.increment(1),
-        quiz_question_generated_count: admin.firestore.FieldValue.increment(questionCount),
         ...(userData.is_first_quiz_generation === true && remainingQuizzes <= 1 ?
           {is_first_quiz_generation: admin.firestore.FieldValue.delete()} :
           {}),
@@ -86,6 +81,29 @@ async function consumeQuizQuota(
       { merge: true },
     );
   });
+}
+
+async function restoreQuizQuota(
+  userRef: FirebaseFirestore.DocumentReference,
+): Promise<void> {
+  await userRef.update({
+    remaining_quizzes: admin.firestore.FieldValue.increment(1),
+  });
+}
+
+async function updateQuizStats(
+  userRef: FirebaseFirestore.DocumentReference,
+  questionCount: number,
+): Promise<void> {
+  await userRef.set(
+    {
+      last_active_at: admin.firestore.FieldValue.serverTimestamp(),
+      last_quiz_generated_at: admin.firestore.FieldValue.serverTimestamp(),
+      quiz_generated_count: admin.firestore.FieldValue.increment(1),
+      quiz_question_generated_count: admin.firestore.FieldValue.increment(questionCount),
+    },
+    { merge: true },
+  );
 }
 
 /**
@@ -124,7 +142,7 @@ export const generateQuiz = functions.https.onCall(
     }
 
     const isPremium = userData.tier === 'premium';
-    const isFirstGeneration = userData.is_first_generation === true;
+    const isFirstGeneration = userData.is_first_quiz_generation === true;
     const usePremiumModel = isPremium || isFirstGeneration;
     const quizGenerationService = await createQuizGenerationService(usePremiumModel, uid);
 
@@ -136,15 +154,18 @@ export const generateQuiz = functions.https.onCall(
       return { questions: [], no_user_sentences: true };
     }
 
+    // クォータをGemini呼び出し前にアトミックに消費（並行リクエストによるAPI浪費を防止）
+    await consumeQuizQuota(userRef);
+
     try {
       const sources = buildQuizSources(selectedSentences);
       const questions = await generateQuestionsFromSources(quizGenerationService, sources);
       if (questions.length === 0) {
+        await restoreQuizQuota(userRef);
         throw new functions.https.HttpsError('internal', 'クイズの生成に失敗しました');
       }
 
-      // クイズ生成残回数をアトミックにデクリメント
-      await consumeQuizQuota(userRef, questions.length);
+      await updateQuizStats(userRef, questions.length);
 
       return { questions: questions.slice(0, MAX_QUESTIONS) };
     } catch (error) {
@@ -152,6 +173,9 @@ export const generateQuiz = functions.https.onCall(
         throw error;
       }
       console.error('Failed to generate quiz:', error);
+      await restoreQuizQuota(userRef).catch((e) =>
+        logger.error('Failed to restore quiz quota', { uid, error: e }),
+      );
       throw new functions.https.HttpsError('internal', 'クイズの生成に失敗しました');
     }
   }
@@ -364,7 +388,12 @@ function isUserSentenceDocReady(
 }
 
 function shuffleArray<T>(values: T[]): T[] {
-  return [...values].sort(() => Math.random() - 0.5);
+  const arr = [...values];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 /**
