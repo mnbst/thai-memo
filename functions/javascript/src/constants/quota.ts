@@ -6,8 +6,8 @@
  */
 
 /** 初回ユーザー（フィールド未存在時）のボーナス回数 */
-export const INITIAL_SENTENCES = 3;
-export const INITIAL_QUIZZES = 3;
+export const INITIAL_SENTENCES = 5;
+export const INITIAL_QUIZZES = 5;
 
 /** free ユーザーの日次リセット値（JST 0:00） */
 export const FREE_DAILY_SENTENCES = 1;

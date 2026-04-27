@@ -47,7 +47,7 @@ final isPremiumRealtimeProvider = Provider<AsyncValue<bool>>((ref) {
       .whenData((data) => data?['tier'] == 'premium');
 });
 
-/// users/{uid} の初回3回Premium体験中かどうか
+/// users/{uid} の初回5回Premium体験中かどうか
 final isInitialPremiumSentenceTrialProvider = Provider<AsyncValue<bool>>((ref) {
   return ref.watch(userDocProvider).whenData((data) {
     if (data == null || data['tier'] == 'premium') return false;
@@ -55,7 +55,7 @@ final isInitialPremiumSentenceTrialProvider = Provider<AsyncValue<bool>>((ref) {
     final generatedCount = (data['sentence_generated_count'] as num?)?.toInt();
     final isInitialGeneration = data['is_first_generation'] == true;
     return isInitialGeneration ||
-        (generatedCount != null && generatedCount <= 3);
+        (generatedCount != null && generatedCount <= 5);
   });
 });
 

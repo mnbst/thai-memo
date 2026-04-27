@@ -10,7 +10,7 @@ admin.initializeApp({
 // Export Cloud Functions
 export { dailyBatch } from './dailyBatch';
 export { deleteUserData } from './deleteUserData';
-export { generateQuiz } from './generateQuiz';
+export { generateLearningQuiz, generateQuiz } from './generateQuiz';
 export { onUserCreate } from './onUserCreate';
 export { verifySubscription } from './verifySubscription';
 export { subscriptionStatus } from './subscriptionStatus';

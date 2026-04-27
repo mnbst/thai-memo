@@ -319,6 +319,64 @@ class BackendApiService {
     }
   }
 
+  /// 学習中の例文から1問だけクイズを生成
+  Future<List<QuizQuestion>> generateLearningQuiz(ThaiSentence sentence) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw BackendApiUnauthenticatedException('User not authenticated');
+      }
+      await user.getIdToken(true);
+
+      final sentenceId = sentence.id;
+      final targetWords = sentence.targetWords ?? const <String>[];
+      final keyWord = targetWords.isNotEmpty ? targetWords.first : null;
+      if (sentenceId == null || sentenceId.isEmpty || keyWord == null) {
+        throw BackendApiException('クイズに使える例文データがありません。');
+      }
+
+      final callable = _functions.httpsCallable(
+        FirebaseConfig.generateLearningQuizFunctionName,
+        options: HttpsCallableOptions(
+          timeout: const Duration(seconds: 60),
+        ),
+      );
+
+      final result = await callable.call({
+        'sentence': {
+          'sentence_id': sentenceId,
+          'thai_text': sentence.thaiText,
+          'pronunciation': sentence.pronunciation,
+          'japanese_translation': sentence.japaneseTranslation,
+          'key_word': keyWord,
+          'key_word_pronunciation': _findWordPronunciation(sentence, keyWord),
+        },
+      });
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final questionsList = data['questions'] as List<dynamic>? ?? [];
+
+      return questionsList
+          .map(
+              (e) => QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } on FirebaseFunctionsException catch (e) {
+      throw _mapFirebaseFunctionsException(e);
+    } on BackendApiException {
+      rethrow;
+    } catch (e) {
+      throw BackendApiException('Failed to generate learning quiz: $e');
+    }
+  }
+
+  String _findWordPronunciation(ThaiSentence sentence, String word) {
+    for (final breakdown in sentence.wordBreakdowns) {
+      if (breakdown.wordText.trim() == word.trim()) {
+        return breakdown.pronunciation;
+      }
+    }
+    return '';
+  }
+
   /// 残りクォータ分の例文を一括並列生成
   Future<List<ThaiSentence>> generateBatchSentences() async {
     try {
@@ -365,6 +423,7 @@ class BackendApiService {
   /// クイズ結果からUVMを更新
   Future<void> updateUvm({
     required List<Map<String, dynamic>> results,
+    String? quizType,
   }) async {
     try {
       final user = _auth.currentUser;
@@ -377,7 +436,9 @@ class BackendApiService {
         ),
       );
 
-      await callable.call({'results': results});
+      final payload = <String, dynamic>{'results': results};
+      if (quizType != null) payload['quiz_type'] = quizType;
+      await callable.call(payload);
     } catch (e) {
       // fire-and-forget: UVM更新失敗はログのみ
       debugPrint('Failed to update UVM: $e');

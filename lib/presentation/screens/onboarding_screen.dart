@@ -26,8 +26,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _OnboardingPage(
       icon: Icons.workspace_premium,
       colorType: _ColorType.secondary,
-      title: '初回3回はPremium（有料）体験',
-      description: 'Free（無料）は基礎練習に集中。\n初回3回は、自然で豊かな\nPremium例文を体験できます。',
+      title: '初回5回はPremium（有料）体験',
+      description: 'Free（無料）は基礎練習に集中。\n初回5回は、自然で豊かな\nPremium例文を体験できます。',
     ),
     _OnboardingPage(
       icon: Icons.quiz,
