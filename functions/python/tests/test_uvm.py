@@ -10,6 +10,7 @@ from uvm import (
     ALPHA_INCORRECT_MIN,
     ALPHA_EXPOSURE,
     FREQ_BAND_HALF,
+    LEARNING_CORRECT_MULTIPLIER,
     NEW_WORD_P,
     P_MAX,
     P_MIN,
@@ -585,3 +586,86 @@ def test_update_p_hint_multiplier_default_matches_explicit_1() -> None:
     p = 0.3
     assert update_p(p, True, 3, rank=500) == update_p(p, True, 3, rank=500, hint_multiplier=1.0)
     assert update_p(p, False, 3, rank=500) == update_p(p, False, 3, rank=500, hint_multiplier=1.0)
+
+
+# ==================== quiz_type="learning" テスト ====================
+
+
+def test_batch_update_uvm_learning_correct_reduces_p_increase() -> None:
+    """quiz_type='learning' + 正解 → P増分が通常の LEARNING_CORRECT_MULTIPLIER 倍になる"""
+    p0 = 0.1
+    db = FakeDb(
+        {"user-1": {"ไป": {"word": "ไป", "p": p0, "quiz_attempts": 0, "last_seen": 0.0, "last_result": False}}},
+        {"user-1": {"estimated_vocab": 0}},
+    )
+
+    batch_update_uvm(
+        db, "user-1",
+        [{"word": "ไป", "is_correct": True}],
+        freq_rank={"ไป": 300},
+        quiz_type="learning",
+    )
+
+    p_new = db.store["user-1"]["ไป"]["p"]
+    p_expected = update_p(p0, True, 0, rank=300, hint_multiplier=LEARNING_CORRECT_MULTIPLIER)
+    assert abs(p_new - p_expected) < 1e-9
+
+
+def test_batch_update_uvm_learning_incorrect_unchanged() -> None:
+    """quiz_type='learning' + 不正解 → 通常と同じP減少（learning減衰なし）"""
+    p0 = 0.5
+    db = FakeDb(
+        {"user-1": {"ไป": {"word": "ไป", "p": p0, "quiz_attempts": 2, "last_seen": 0.0, "last_result": True}}},
+        {"user-1": {"estimated_vocab": 0}},
+    )
+
+    batch_update_uvm(
+        db, "user-1",
+        [{"word": "ไป", "is_correct": False}],
+        freq_rank={"ไป": 300},
+        quiz_type="learning",
+    )
+
+    p_new = db.store["user-1"]["ไป"]["p"]
+    p_expected = update_p(p0, False, 2, rank=300, hint_multiplier=1.0)
+    assert abs(p_new - p_expected) < 1e-9
+
+
+def test_batch_update_uvm_no_quiz_type_backward_compat() -> None:
+    """quiz_type未指定（旧クライアント） → 通常のP更新"""
+    p0 = 0.1
+    db = FakeDb(
+        {"user-1": {"ไป": {"word": "ไป", "p": p0, "quiz_attempts": 0, "last_seen": 0.0, "last_result": False}}},
+        {"user-1": {"estimated_vocab": 0}},
+    )
+
+    batch_update_uvm(
+        db, "user-1",
+        [{"word": "ไป", "is_correct": True}],
+        freq_rank={"ไป": 300},
+    )
+
+    p_new = db.store["user-1"]["ไป"]["p"]
+    p_expected = update_p(p0, True, 0, rank=300, hint_multiplier=1.0)
+    assert abs(p_new - p_expected) < 1e-9
+
+
+def test_batch_update_uvm_learning_with_hint_stacks() -> None:
+    """quiz_type='learning' + hint_level=1 → 両方の乗数が掛け合わされる"""
+    p0 = 0.1
+    db = FakeDb(
+        {"user-1": {"ไป": {"word": "ไป", "p": p0, "quiz_attempts": 0, "last_seen": 0.0, "last_result": False}}},
+        {"user-1": {"estimated_vocab": 0}},
+    )
+
+    batch_update_uvm(
+        db, "user-1",
+        [{"word": "ไป", "is_correct": True, "hint_level": 1}],
+        freq_rank={"ไป": 300},
+        quiz_type="learning",
+    )
+
+    p_new = db.store["user-1"]["ไป"]["p"]
+    # hint_level=1 → 0.5, learning → ×0.5, 合計 0.25
+    p_expected = update_p(p0, True, 0, rank=300, hint_multiplier=0.5 * LEARNING_CORRECT_MULTIPLIER)
+    assert abs(p_new - p_expected) < 1e-9

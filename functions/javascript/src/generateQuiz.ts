@@ -181,6 +181,58 @@ export const generateQuiz = functions.https.onCall(
   }
 );
 
+/**
+ * generateLearningQuiz - 学習フロー専用の1問クイズ生成（onCall）
+ *
+ * クライアントで表示中の例文から、穴埋めクイズを1問だけ生成する。
+ * SRS選出や補充は行わず、学習直後の確認問題として使う。
+ * 学習フローの一部なので、通常クイズ用の生成クォータは消費しない。
+ */
+export const generateLearningQuiz = functions.https.onCall(
+  {
+    region: 'asia-northeast1',
+    timeoutSeconds: 90,
+    memory: '512MiB',
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new functions.https.HttpsError('unauthenticated', '認証が必要です');
+    }
+
+    const payload = request.data?.sentence;
+    const source = buildLearningQuizSource(payload);
+    if (!source || !isQuizSeedSourceReady(source)) {
+      throw new functions.https.HttpsError('invalid-argument', 'クイズに使える例文データがありません');
+    }
+
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+    const userData = userDoc.data() || {};
+    const isPremium = userData.tier === 'premium';
+    const isFirstGeneration = userData.is_first_quiz_generation === true;
+    const usePremiumModel = isPremium || isFirstGeneration;
+    const quizGenerationService = await createQuizGenerationService(usePremiumModel, uid);
+
+    try {
+      const questions = await generateQuestionsFromSources(quizGenerationService, [source]);
+      if (questions.length === 0) {
+        throw new functions.https.HttpsError('internal', 'クイズの生成に失敗しました');
+      }
+
+      const [question] = questions;
+
+      return { questions: [question] };
+    } catch (error) {
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      console.error('Failed to generate learning quiz:', error);
+      throw new functions.https.HttpsError('internal', 'クイズの生成に失敗しました');
+    }
+  }
+);
+
 async function createQuizGenerationService(isPremium: boolean, uid: string): Promise<QuizGenerationService> {
   const apiKey = await getGeminiApiKey();
   return new GeminiQuizService(apiKey, uid, isPremium ? 'premium' : 'free');
@@ -211,6 +263,37 @@ interface QuizSeedSource {
   srsInterval: number;
   japaneseTranslation: string;
   sentencePronunciation: string;
+}
+
+function buildLearningQuizSource(payload: unknown): QuizSeedSource | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const data = payload as Record<string, unknown>;
+  const sentenceId = normalizeTextValue(data.sentence_id);
+  const thaiText = normalizeTextValue(data.thai_text);
+  const pronunciation = normalizeTextValue(data.pronunciation);
+  const japaneseTranslation = normalizeTextValue(data.japanese_translation);
+  const keyWord = normalizeTextValue(data.key_word);
+  const keyWordPronunciation = normalizeTextValue(data.key_word_pronunciation);
+
+  if (!sentenceId || !thaiText || !keyWord) return null;
+
+  return {
+    seed: {
+      thai_text: thaiText,
+      pronunciation,
+      japanese_translation: japaneseTranslation,
+      key_word: keyWord,
+      key_word_pronunciation: keyWordPronunciation,
+    },
+    sentenceId,
+    srsInterval: 0,
+    japaneseTranslation,
+    sentencePronunciation: pronunciation,
+  };
+}
+
+function normalizeTextValue(value: unknown): string {
+  return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
 }
 
 function toQuizSeedSourceFromSelected(sentence: SelectedSentence): QuizSeedSource {

@@ -64,7 +64,7 @@ describe('resetQuota', () => {
     mockUserDocSet.mockResolvedValue(undefined);
   });
 
-  test('初回例文ボーナス中のfreeユーザーは残り例文回数を3から1へ削らない', async () => {
+  test('初回例文ボーナス中のfreeユーザーは残り例文回数を5から1へ削らない', async () => {
     await resetQuota(makeUserDoc({
       tier: 'free',
       is_first_generation: true,
@@ -98,7 +98,7 @@ describe('resetQuota', () => {
     );
   });
 
-  test('初回クイズボーナス中のfreeユーザーは残りクイズ回数を3から1へ削らない', async () => {
+  test('初回クイズボーナス中のfreeユーザーは残りクイズ回数を5から1へ削らない', async () => {
     await resetQuota(makeUserDoc({
       tier: 'free',
       is_first_quiz_generation: true,

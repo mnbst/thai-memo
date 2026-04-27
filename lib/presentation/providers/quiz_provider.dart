@@ -6,10 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/datasources/backend_api_service.dart'
-    show BackendApiNoUserSentencesException, BackendApiRateLimitException, BackendApiService;
+    show
+        BackendApiNoUserSentencesException,
+        BackendApiRateLimitException,
+        BackendApiService;
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
+import '../../data/models/thai_sentence.dart';
 import '../../services/analytics_service.dart';
 import 'analytics_provider.dart';
 
@@ -153,6 +157,7 @@ class QuizController extends StateNotifier<QuizState> {
   final DatabaseHelper _db = DatabaseHelper.instance;
   final BackendApiService _apiService;
   final AnalyticsService _analytics;
+  bool _isLearningQuiz = false;
 
   QuizController(this._apiService, this._analytics)
       : super(const QuizInitial());
@@ -186,8 +191,24 @@ class QuizController extends StateNotifier<QuizState> {
     }
   }
 
+  /// 学習フロー用: 表示中の例文の保存済みクイズがあれば復元し、なければ生成待ちにする
+  Future<void> loadLearningQuiz(ThaiSentence sentence) async {
+    if (state is QuizAnswering ||
+        state is QuizShowResult ||
+        state is QuizGenerating ||
+        state is QuizSummary) {
+      return;
+    }
+
+    final restored = await _loadStoredLearningQuiz(sentence);
+    if (restored) return;
+
+    state = const QuizPending(1);
+  }
+
   /// クイズをオンデマンド生成して開始準備
   Future<void> generateAndStartQuiz() async {
+    _isLearningQuiz = false;
     state = const QuizGenerating();
 
     try {
@@ -197,16 +218,7 @@ class QuizController extends StateNotifier<QuizState> {
         return;
       }
 
-      // SharedPreferencesに保存
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _quizKey,
-        jsonEncode(questions.map((q) => q.toJson()).toList()),
-      );
-      await prefs.remove(_quizCompletedKey);
-      await prefs.remove(_quizAnswersKey);
-      await prefs.remove(_quizSelectedIndicesKey);
-
+      await _saveQuestions(questions);
       state = QuizReady(questions);
     } on BackendApiNoUserSentencesException {
       state = const QuizNoSentences();
@@ -215,6 +227,67 @@ class QuizController extends StateNotifier<QuizState> {
     } catch (e) {
       debugPrint('クイズ生成エラー: $e');
       state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
+    }
+  }
+
+  /// 学習中の例文から1問だけクイズを生成して開始準備
+  Future<void> generateAndStartLearningQuiz(ThaiSentence sentence) async {
+    _isLearningQuiz = true;
+    state = const QuizGenerating();
+
+    try {
+      final questions = await _apiService.generateLearningQuiz(sentence);
+      if (questions.length != 1 || _hasInvalidQuizChoices(questions)) {
+        state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
+        return;
+      }
+
+      await _saveQuestions(questions);
+      state = QuizReady(questions);
+    } on BackendApiRateLimitException {
+      state = const QuizError('本日のクイズ生成上限に達しました。');
+    } catch (e) {
+      debugPrint('学習クイズ生成エラー: $e');
+      state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
+    }
+  }
+
+  Future<void> _saveQuestions(List<QuizQuestion> questions) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _quizKey,
+      jsonEncode(questions.map((q) => q.toJson()).toList()),
+    );
+    await prefs.remove(_quizCompletedKey);
+    await prefs.remove(_quizAnswersKey);
+    await prefs.remove(_quizSelectedIndicesKey);
+  }
+
+  Future<bool> _loadStoredLearningQuiz(ThaiSentence sentence) async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_quizKey);
+    if (json == null || json.isEmpty) {
+      return false;
+    }
+
+    try {
+      final list = jsonDecode(json) as List<dynamic>;
+      final questions = list
+          .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final sentenceId = sentence.id;
+      final matchesSentence = questions.length == 1 &&
+          sentenceId != null &&
+          sentenceId.isNotEmpty &&
+          questions.first.sentenceId == sentenceId;
+      if (!matchesSentence || _hasInvalidQuizChoices(questions)) {
+        return false;
+      }
+
+      await _loadFromPrefs();
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -309,6 +382,11 @@ class QuizController extends StateNotifier<QuizState> {
     await prefs.remove(_quizSelectedIndicesKey);
   }
 
+  Future<void> resetStoredQuiz() async {
+    await _clearStoredQuiz();
+    state = const QuizInitial();
+  }
+
   /// クイズ開始
   void startQuiz() {
     if (state is! QuizReady) return;
@@ -348,9 +426,12 @@ class QuizController extends StateNotifier<QuizState> {
     // UVM更新: 1問ごとにfire-and-forgetで送信
     final word = question.correctAnswer;
     if (word.isNotEmpty) {
-      _apiService.updateUvm(results: [
-        {'word': word, 'is_correct': isCorrect, 'hint_level': hintLevel},
-      ]);
+      _apiService.updateUvm(
+        results: [
+          {'word': word, 'is_correct': isCorrect, 'hint_level': hintLevel},
+        ],
+        quizType: _isLearningQuiz ? 'learning' : null,
+      );
     }
 
     state = QuizShowResult(
@@ -408,8 +489,8 @@ class QuizController extends StateNotifier<QuizState> {
       await prefs.setString(
           _quizSelectedIndicesKey, jsonEncode(s.selectedIndices));
     } else {
-      state = QuizAnswering(
-          s.questions, nextIndex, s.answers, s.selectedIndices, s.hintLevels ?? const []);
+      state = QuizAnswering(s.questions, nextIndex, s.answers,
+          s.selectedIndices, s.hintLevels ?? const []);
     }
   }
 

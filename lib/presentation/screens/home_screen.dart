@@ -38,6 +38,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _initialLoadCompleted = false;
+  final _showAppIcon = ValueNotifier<bool>(true);
 
   @override
   void initState() {
@@ -46,11 +47,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _logCurrentTabScreen();
       _checkFirstLaunchAndLoadSentence();
-      // Firestoreフラグ監視: true→false（dailyBatchリセット）で自動読み込み
-      ref.listenManual(dailySentenceGeneratedProvider, (prev, next) {
-        final wasTrue = prev?.valueOrNull == true;
-        final nowFalse = next.valueOrNull == false;
-        if (wasTrue && nowFalse) {
+      // remaining_sentences監視: 0→正数（dailyBatchリセット）で自動読み込み
+      ref.listenManual(remainingSentencesProvider, (prev, next) {
+        if (!_initialLoadCompleted) return;
+        if (_changedFromNoRemainingToAvailable(prev, next)) {
           // dailyBatchリセット時は表示中でも新日の例文を生成
           ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
                 dailySentenceGenerated: false,
@@ -63,6 +63,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void dispose() {
+    _showAppIcon.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -146,27 +147,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final screens = [
-      const TodayScreen(),
-      const QuizScreen(),
+      LearningScreen(showAppIconNotifier: _showAppIcon),
       const HistoryScreen(),
       const SettingsScreen(),
     ];
-
-    final hasSentenceToday =
-        ref.watch(dailySentenceGeneratedProvider).valueOrNull == true;
-    final quizState = ref.watch(quizControllerProvider);
-    final showQuizBadge = hasSentenceToday && quizState is! QuizSummary;
 
     return Scaffold(
       body: Stack(
         children: [
           IndexedStack(index: _currentIndex, children: screens),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 12,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset('assets/appicon.png', width: 40, height: 40),
+          ValueListenableBuilder<bool>(
+            valueListenable: _showAppIcon,
+            builder: (context, show, child) {
+              if (!show) return const SizedBox.shrink();
+              return child!;
+            },
+            child: Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 12,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child:
+                    Image.asset('assets/appicon.png', width: 40, height: 40),
+              ),
             ),
           ),
         ],
@@ -178,28 +181,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             _currentIndex = index;
           });
           _logCurrentTabScreen(index: index);
-          if (index == 1) {
-            ref.read(quizControllerProvider.notifier).loadQuiz();
-          }
         },
         destinations: [
           const NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today),
-            label: '例文',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: showQuizBadge,
-              smallSize: 10,
-              child: const Icon(Icons.quiz_outlined),
-            ),
-            selectedIcon: Badge(
-              isLabelVisible: showQuizBadge,
-              smallSize: 10,
-              child: const Icon(Icons.quiz),
-            ),
-            label: 'クイズ',
+            icon: Icon(Icons.school_outlined),
+            selectedIcon: Icon(Icons.school),
+            label: '学習',
           ),
           const NavigationDestination(
             icon: Icon(Icons.history_outlined),
@@ -219,10 +206,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _logCurrentTabScreen({int? index}) {
     final currentIndex = index ?? _currentIndex;
     final screenName = switch (currentIndex) {
-      0 => 'today',
-      1 => 'quiz',
-      2 => 'history',
-      3 => 'settings',
+      0 => 'learning',
+      1 => 'history',
+      2 => 'settings',
       _ => 'home',
     };
 
@@ -236,9 +222,186 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
+enum _LearningStage { sentence, quiz, summaryQuiz }
+
+bool _changedFromNoRemainingToAvailable(
+  AsyncValue<int>? previous,
+  AsyncValue<int> next,
+) {
+  final previousRemaining = previous?.valueOrNull;
+  final nextRemaining = next.valueOrNull;
+  return previousRemaining != null &&
+      nextRemaining != null &&
+      previousRemaining <= 0 &&
+      nextRemaining > 0;
+}
+
+class LearningScreen extends ConsumerStatefulWidget {
+  final ValueNotifier<bool> showAppIconNotifier;
+
+  const LearningScreen({super.key, required this.showAppIconNotifier});
+
+  @override
+  ConsumerState<LearningScreen> createState() => _LearningScreenState();
+}
+
+class _LearningScreenState extends ConsumerState<LearningScreen> {
+  static const int _summaryQuizThreshold = 5;
+  static const String _completedCountKey = 'learning_completed_count';
+  _LearningStage _stage = _LearningStage.sentence;
+  ThaiSentence? _quizSentence;
+  int _completedCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCompletedCount();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.listenManual(sentenceControllerProvider, (prev, next) {
+        if (next is SentenceStateSuccess &&
+            prev is! SentenceStateSuccess &&
+            _stage == _LearningStage.sentence &&
+            _completedCount < _summaryQuizThreshold) {
+          ref
+              .read(quizControllerProvider.notifier)
+              .generateAndStartLearningQuiz(next.sentence);
+        }
+      });
+    });
+  }
+
+  Future<void> _loadCompletedCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final count = prefs.getInt(_completedCountKey) ?? 0;
+    if (mounted && count != _completedCount) {
+      setState(() => _completedCount = count);
+    }
+  }
+
+  Future<void> _setCompletedCount(int count) async {
+    _completedCount = count;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_completedCountKey, count);
+  }
+
+  void _setStage(_LearningStage newStage) {
+    setState(() => _stage = newStage);
+    widget.showAppIconNotifier.value = newStage == _LearningStage.sentence;
+  }
+
+  void _returnToLearningTop() {
+    final sentence = _quizSentence;
+    if (sentence != null) {
+      ref.read(sentenceControllerProvider.notifier).showSentence(sentence);
+    }
+    _setStage(_LearningStage.sentence);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(remainingSentencesProvider, (prev, next) {
+      if (_changedFromNoRemainingToAvailable(prev, next) &&
+          mounted &&
+          _stage != _LearningStage.sentence) {
+        _setStage(_LearningStage.sentence);
+      }
+    });
+
+    return switch (_stage) {
+      _LearningStage.sentence => TodayScreen(
+          onStartQuiz: (sentence) {
+            _quizSentence = sentence;
+            final quizNotifier = ref.read(quizControllerProvider.notifier);
+            final quizState = ref.read(quizControllerProvider);
+            if (quizState is QuizReady ||
+                quizState is QuizAnswering ||
+                quizState is QuizGenerating) {
+              // 事前生成済み/生成中/回答中ならそのまま
+            } else {
+              quizNotifier.generateAndStartLearningQuiz(sentence);
+            }
+            _setStage(_LearningStage.quiz);
+          },
+        ),
+      _LearningStage.quiz => Scaffold(
+          appBar: AppBar(
+            title: const Text('学習'),
+            automaticallyImplyLeading: false,
+            leading: ref.watch(quizControllerProvider)
+                    is! QuizAnswering &&
+                ref.watch(quizControllerProvider) is! QuizShowResult &&
+                ref.watch(quizControllerProvider) is! QuizSummary
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: '例文に戻る',
+                    onPressed: _returnToLearningTop,
+                  )
+                : null,
+          ),
+          body: QuizScreen(
+            showAppBar: false,
+            title: 'クイズ',
+            learningSentence: _quizSentence,
+            onBackToLearningStart: _returnToLearningTop,
+            nextButtonLabel:
+                _completedCount + 1 >= _summaryQuizThreshold
+                    ? 'まとめクイズへ'
+                    : '次の例文へ',
+            onNextSentence: () async {
+              await _setCompletedCount(_completedCount + 1);
+              await ref.read(quizControllerProvider.notifier).resetStoredQuiz();
+              if (_completedCount >= _summaryQuizThreshold) {
+                ref
+                    .read(quizControllerProvider.notifier)
+                    .generateAndStartQuiz();
+                _setStage(_LearningStage.summaryQuiz);
+              } else {
+                _setStage(_LearningStage.sentence);
+                await ref
+                    .read(sentenceControllerProvider.notifier)
+                    .generateSentence();
+                final sentenceState = ref.read(sentenceControllerProvider);
+                if (sentenceState is SentenceStateSuccess) {
+                  ref.invalidate(allSentencesProvider);
+                }
+              }
+            },
+          ),
+        ),
+      _LearningStage.summaryQuiz => Scaffold(
+          appBar: AppBar(
+            title: const Text('まとめクイズ'),
+            automaticallyImplyLeading: false,
+          ),
+          body: QuizScreen(
+            showAppBar: false,
+            title: 'まとめクイズ',
+            onNextSentence: () async {
+              await _setCompletedCount(0);
+              _setStage(_LearningStage.sentence);
+              await ref.read(quizControllerProvider.notifier).resetStoredQuiz();
+              await ref
+                  .read(sentenceControllerProvider.notifier)
+                  .generateSentence();
+              final sentenceState = ref.read(sentenceControllerProvider);
+              if (sentenceState is SentenceStateSuccess) {
+                ref.invalidate(allSentencesProvider);
+              }
+            },
+          ),
+        ),
+    };
+  }
+}
+
 /// Today's sentence screen
 class TodayScreen extends ConsumerStatefulWidget {
-  const TodayScreen({super.key});
+  final ValueChanged<ThaiSentence>? onStartQuiz;
+
+  const TodayScreen({
+    super.key,
+    this.onStartQuiz,
+  });
 
   /// デフォルトの挨拶例文（サンプル、履歴には保存されない）
   static final ThaiSentence _defaultGreetingSentence = ThaiSentence(
@@ -320,9 +483,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final sentenceState = ref.watch(sentenceControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('今日のタイ語')),
+      appBar: AppBar(title: const Text('学習')),
       body: _buildSentenceContent(context, sentenceState),
-      floatingActionButton: _buildGenerateButton(context),
     );
   }
 
@@ -352,7 +514,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('例文を生成中...'),
+              Text('次の例文を準備中...'),
               SizedBox(height: 24),
               LoadingTipCarousel(),
             ],
@@ -367,12 +529,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
             ref.watch(isPremiumProvider)) ==
         true;
-    final remainingAsync = ref.watch(remainingSentencesProvider);
-    final remaining = remainingAsync.valueOrNull;
-    final showUpgrade = !isPremium && remaining != null && remaining <= 0;
     final vocab =
         ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
-    final showVocabUpgrade = !isPremium && vocab >= 100;
+    final showUpgrade = !isPremium && vocab >= _freeVocabScoreLimit;
 
     return Column(
       children: [
@@ -392,7 +551,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               AppConfig.defaultPadding,
               AppConfig.defaultPadding,
               AppConfig.defaultPadding,
-              AppConfig.defaultPadding + 80,
+              AppConfig.defaultPadding,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -400,10 +559,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 _buildSentenceCard(context, sentence),
                 const SizedBox(height: 8),
                 _buildQuickInfo(context, sentence),
-                if (showVocabUpgrade) ...[
-                  const SizedBox(height: 16),
-                  _buildVocabUpgradeBanner(context),
-                ] else if (showUpgrade) ...[
+                if (showUpgrade) ...[
                   const SizedBox(height: 16),
                   _buildUpgradeBanner(context),
                 ],
@@ -411,7 +567,80 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ),
           ),
         ),
+        // 学習フロー — 下部固定
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppConfig.defaultPadding,
+            0,
+            AppConfig.defaultPadding,
+            AppConfig.defaultPadding,
+          ),
+          child: _buildLearningFlowActions(context, sentence),
+        ),
       ],
+    );
+  }
+
+  Widget _buildLearningFlowActions(
+    BuildContext context,
+    ThaiSentence sentence,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.route_outlined,
+                  color: colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '学習フロー',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    settings:
+                        const RouteSettings(name: DetailScreen.routeName),
+                    builder: (context) => DetailScreen(
+                      sentence: sentence,
+                      source: 'learning_flow',
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.search, size: 20),
+              label: const Text('例文の詳細を見る'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 4),
+            FilledButton.icon(
+              onPressed: () => widget.onStartQuiz?.call(sentence),
+              icon: const Icon(Icons.quiz),
+              label: const Text('確認クイズへ'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -456,13 +685,13 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                             sentence.thaiText,
                             sentence.targetWords ?? [],
                             Theme.of(context)
-                                .textTheme
-                                .headlineMedium
-                                ?.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.5,
-                                    fontSize: 32) ??
-                              const TextStyle(fontSize: 32),
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.5,
+                                        fontSize: 32) ??
+                                const TextStyle(fontSize: 32),
                             Theme.of(context).colorScheme.primary,
                           ),
                         ),
@@ -506,7 +735,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 16),
-                  // Tap hint
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -701,8 +929,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   }
 
   Future<void> _checkLevelUp(int vocab) async {
-    final crossedThreshold =
-        _levelThresholds.any((t) => vocab >= t);
+    final crossedThreshold = _levelThresholds.any((t) => vocab >= t);
     if (!crossedThreshold) return;
 
     final level = _vocabLevel(vocab);
@@ -987,7 +1214,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Premiumでは100語以上学べます。また例文のテーマが増え、よりリアルなタイ語が学べます。',
+                  'Premiumでは100語以上学べます。また例文のテーマが増え、より多様なタイ語が学べます。',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color:
                         colorScheme.onPrimaryContainer.withValues(alpha: 0.85),
@@ -1240,88 +1467,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
-  TextSpan _buildHighlightedThaiText(
-    String text,
-    List<String> targetWords,
-    TextStyle baseStyle,
-    Color highlightColor,
-  ) {
-    if (targetWords.isEmpty) {
-      return TextSpan(text: text, style: baseStyle);
-    }
-    final sorted = [...targetWords]
-      ..sort((a, b) => b.length.compareTo(a.length));
-    final pattern = sorted.map(RegExp.escape).join('|');
-    final regex = RegExp(pattern);
-    final spans = <TextSpan>[];
-    var lastEnd = 0;
-    final highlightStyle = baseStyle.copyWith(
-      color: highlightColor,
-      fontWeight: FontWeight.bold,
-      backgroundColor: highlightColor.withValues(alpha: 0.2),
-    );
-    for (final match in regex.allMatches(text)) {
-      if (match.start > lastEnd) {
-        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
-      }
-      spans.add(TextSpan(text: match.group(0), style: highlightStyle));
-      lastEnd = match.end;
-    }
-    if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd)));
-    }
-    return TextSpan(style: baseStyle, children: spans);
-  }
-
-  /// 語彙スコアが上限に近づいた際のPremium誘導バナー
-  Widget _buildVocabUpgradeBanner(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      color: colorScheme.secondaryContainer,
-      child: InkWell(
-        onTap: () => PaywallBottomSheet.show(
-          context,
-          source: 'today_vocab_upgrade_banner',
-        ),
-        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConfig.defaultPadding),
-          child: Row(
-            children: [
-              Icon(Icons.emoji_events, color: colorScheme.onSecondaryContainer),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '初級レベルまであと少し！',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSecondaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Premiumにアップグレードして初級以上の単語を学びましょう',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSecondaryContainer
-                                .withValues(alpha: 0.8),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios,
-                  size: 16, color: colorScheme.onSecondaryContainer),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Build upgrade banner for free users
+  /// Build upgrade banner for free users at the vocab cap.
   Widget _buildUpgradeBanner(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Card(
@@ -1352,7 +1498,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'プレミアムなら最大5回/日まで生成できます',
+                      'Freeは推定スコア100語が上限です。Premiumで100語の先へ進めます',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: colorScheme.onPrimaryContainer
                                 .withValues(alpha: 0.8),
@@ -1393,6 +1539,19 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),
+            if (isQuotaError) ...[
+              const SizedBox(height: 12),
+              Text(
+                nextResetText(),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.64),
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ],
             const SizedBox(height: 24),
           ],
         ),
@@ -1443,48 +1602,36 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
-  /// Build generate button — hidden when remaining=0 or loading
-  Widget? _buildGenerateButton(BuildContext context) {
-    final sentenceState = ref.watch(sentenceControllerProvider);
-    if (sentenceState is SentenceStateLoading) return null;
-
-    final remainingAsync = ref.watch(remainingSentencesProvider);
-    final remaining = remainingAsync.valueOrNull;
-
-    if (remaining != null && remaining <= 0) {
-      return FloatingActionButton.extended(
-        onPressed: null,
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-        foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-        icon: const Icon(Icons.schedule),
-        label: Text(nextResetText()),
-      );
+  TextSpan _buildHighlightedThaiText(
+    String text,
+    List<String> targetWords,
+    TextStyle baseStyle,
+    Color highlightColor,
+  ) {
+    if (targetWords.isEmpty) {
+      return TextSpan(text: text, style: baseStyle);
     }
-
-    final remainingText = remaining != null ? '（残り$remaining回）' : '';
-
-    return FloatingActionButton.extended(
-      onPressed: () => _generateSingle(context),
-      icon: const Icon(Icons.auto_awesome),
-      label: Text('例文生成$remainingText'),
+    final sorted = [...targetWords]
+      ..sort((a, b) => b.length.compareTo(a.length));
+    final pattern = sorted.map(RegExp.escape).join('|');
+    final regex = RegExp(pattern);
+    final spans = <TextSpan>[];
+    var lastEnd = 0;
+    final highlightStyle = baseStyle.copyWith(
+      color: highlightColor,
+      fontWeight: FontWeight.bold,
+      backgroundColor: highlightColor.withValues(alpha: 0.2),
     );
-  }
-
-  /// Generate a single sentence
-  Future<void> _generateSingle(BuildContext context) async {
-    await ref.read(sentenceControllerProvider.notifier).generateSentence();
-
-    final state = ref.read(sentenceControllerProvider);
-    if (context.mounted) {
-      if (state is SentenceStateSuccess) {
-        ref.invalidate(allSentencesProvider);
-      } else if (state is SentenceStateError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(state.message),
-              backgroundColor: Theme.of(context).colorScheme.error),
-        );
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
       }
+      spans.add(TextSpan(text: match.group(0), style: highlightStyle));
+      lastEnd = match.end;
     }
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+    return TextSpan(style: baseStyle, children: spans);
   }
 }

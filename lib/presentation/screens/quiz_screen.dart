@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
+import '../../data/models/thai_sentence.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/remaining_quota_provider.dart';
@@ -17,7 +18,22 @@ import 'paywall_screen.dart';
 class QuizScreen extends ConsumerStatefulWidget {
   static const routeName = 'quiz';
 
-  const QuizScreen({super.key});
+  final bool showAppBar;
+  final String title;
+  final ThaiSentence? learningSentence;
+  final VoidCallback? onBackToLearningStart;
+  final Future<void> Function()? onNextSentence;
+  final String nextButtonLabel;
+
+  const QuizScreen({
+    super.key,
+    this.showAppBar = true,
+    this.title = '今日のクイズ',
+    this.learningSentence,
+    this.onBackToLearningStart,
+    this.onNextSentence,
+    this.nextButtonLabel = '次の例文へ',
+  });
 
   @override
   ConsumerState<QuizScreen> createState() => _QuizScreenState();
@@ -65,20 +81,26 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final quizState = ref.watch(quizControllerProvider);
     final statsAsync = ref.watch(quizStatsProvider);
 
+    final body = Column(
+      children: [
+        // 通算正答率バー
+        statsAsync.when(
+          data: (stats) => _buildStatsBar(context, stats),
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
+        // メインコンテンツ
+        Expanded(child: _buildContent(context, quizState)),
+      ],
+    );
+
+    if (!widget.showAppBar) {
+      return body;
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('今日のクイズ')),
-      body: Column(
-        children: [
-          // 通算正答率バー
-          statsAsync.when(
-            data: (stats) => _buildStatsBar(context, stats),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-          // メインコンテンツ
-          Expanded(child: _buildContent(context, quizState)),
-        ],
-      ),
+      appBar: AppBar(title: Text(widget.title)),
+      body: body,
     );
   }
 
@@ -159,12 +181,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 24),
             Text(
-              'まず例文を生成しましょう',
+              'まず例文を開きましょう',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              'クイズは生成した例文から出題されます\n「例文」タブで例文を生成してください',
+              'クイズは学習中の例文から出題されます',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -188,7 +210,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             const SizedBox(height: 24),
             const SizedBox(height: 8),
             Text(
-              '過去に学習した例文から出題されます\n間違えてOK！気軽に挑戦しよう',
+              'さっきの例文を思い出しながら\n穴埋めで確認しましょう',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -197,36 +219,27 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             const SizedBox(height: 32),
             FilledButton.icon(
               onPressed: () {
-                ref
-                    .read(quizControllerProvider.notifier)
-                    .generateAndStartQuiz();
+                final sentence = widget.learningSentence;
+                if (sentence != null) {
+                  ref
+                      .read(quizControllerProvider.notifier)
+                      .generateAndStartLearningQuiz(sentence);
+                } else {
+                  ref
+                      .read(quizControllerProvider.notifier)
+                      .generateAndStartQuiz();
+                }
               },
               icon: const Icon(Icons.play_arrow),
-              label: const Text('クイズを始める'),
+              label: const Text('確認クイズへ'),
               style: FilledButton.styleFrom(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
             ),
-            const SizedBox(height: 12),
-            _buildRemainingQuizzes(context),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildRemainingQuizzes(BuildContext context) {
-    final remaining = ref.watch(remainingQuizzesProvider);
-    return remaining.when(
-      data: (count) => Text(
-        '残り $count 回',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-      ),
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -290,9 +303,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             ] else ...[
               FilledButton.icon(
                 onPressed: () {
-                  ref
-                      .read(quizControllerProvider.notifier)
-                      .generateAndStartQuiz();
+                  final sentence = widget.learningSentence;
+                  if (sentence != null) {
+                    ref
+                        .read(quizControllerProvider.notifier)
+                        .generateAndStartLearningQuiz(sentence);
+                  } else {
+                    ref
+                        .read(quizControllerProvider.notifier)
+                        .generateAndStartQuiz();
+                  }
                 },
                 icon: const Icon(Icons.refresh),
                 label: const Text('もう一度試す'),
@@ -339,9 +359,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             Icon(Icons.quiz,
                 size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 24),
-            Text('今日のクイズ', style: Theme.of(context).textTheme.headlineSmall),
+            Text(
+              widget.learningSentence != null ? '確認クイズ' : widget.title,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 8),
-            Text('${questions.length}問の穴埋めクイズ',
+            Text(
+                questions.length == 1
+                    ? 'この例文の穴埋めクイズ'
+                    : '${questions.length}問の穴埋めクイズ',
                 style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 32),
             FilledButton.icon(
@@ -349,12 +375,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 ref.read(quizControllerProvider.notifier).startQuiz();
               },
               icon: const Icon(Icons.play_arrow),
-              label: const Text('クイズを始める'),
+              label: Text(widget.learningSentence != null ? '始める' : 'クイズを始める'),
               style: FilledButton.styleFrom(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
             ),
+            if (widget.onBackToLearningStart != null) ...[
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: widget.onBackToLearningStart,
+                child: const Text('例文に戻る'),
+              ),
+            ],
           ],
         ),
       ),
@@ -547,29 +580,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             );
           }),
           const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () {
-              ref.read(quizControllerProvider.notifier).retryQuiz();
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text('もう一度挑戦する'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-          ),
-          const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: () {
-              ref.read(quizControllerProvider.notifier).generateAndStartQuiz();
+            onPressed: () async {
+              if (widget.onNextSentence != null) {
+                await widget.onNextSentence!();
+              } else if (widget.onBackToLearningStart != null) {
+                widget.onBackToLearningStart!();
+              } else {
+                ref.read(quizControllerProvider.notifier).loadQuiz();
+                Navigator.maybePop(context);
+              }
             },
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('新しいクイズ'),
+            icon: const Icon(Icons.arrow_forward),
+            label: Text(widget.nextButtonLabel),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
           ),
-          const SizedBox(height: 8),
-          _buildRemainingQuizzes(context),
         ],
       ),
     );
@@ -767,22 +794,24 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 進捗
-          Row(
-            children: [
-              Text('問題 ${widget.questionIndex + 1} / ${widget.totalQuestions}',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              SizedBox(
-                width: 100,
-                child: LinearProgressIndicator(
-                  value: (widget.questionIndex + 1) / widget.totalQuestions,
-                  borderRadius: BorderRadius.circular(4),
+          if (widget.totalQuestions > 1) ...[
+            // 進捗
+            Row(
+              children: [
+                Text('問題 ${widget.questionIndex + 1} / ${widget.totalQuestions}',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                SizedBox(
+                  width: 100,
+                  child: LinearProgressIndicator(
+                    value: (widget.questionIndex + 1) / widget.totalQuestions,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
           // 指示文
           Text(
             '___に入る適切な単語を選んでください',
@@ -1067,22 +1096,24 @@ class _QuizResultView extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 進捗
-          Row(
-            children: [
-              Text('問題 ${questionIndex + 1} / $totalQuestions',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              SizedBox(
-                width: 100,
-                child: LinearProgressIndicator(
-                  value: (questionIndex + 1) / totalQuestions,
-                  borderRadius: BorderRadius.circular(4),
+          if (totalQuestions > 1) ...[
+            // 進捗
+            Row(
+              children: [
+                Text('問題 ${questionIndex + 1} / $totalQuestions',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                SizedBox(
+                  width: 100,
+                  child: LinearProgressIndicator(
+                    value: (questionIndex + 1) / totalQuestions,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
           // 正誤バナー
           Card(
             color: isCorrect

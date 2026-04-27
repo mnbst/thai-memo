@@ -427,11 +427,15 @@ def register_exposure(
         print(f"register_exposure: uid={uid}, updated {wrote} word(s)")
 
 
+LEARNING_CORRECT_MULTIPLIER = 0.5
+
+
 def batch_update_uvm(
     db: FirestoreClient,
     uid: str,
     results: list[dict[str, Any]],
     freq_rank: dict[str, int] | None = None,
+    quiz_type: str = "",
 ) -> None:
     """クイズ/例文の正誤結果をもとに UVM を一括更新する。
 
@@ -441,6 +445,7 @@ def batch_update_uvm(
         db: Firestore クライアント
         uid: ユーザー UID
         results: [{"word": str, "is_correct": bool}, ...] — 各単語の正誤
+        quiz_type: "learning" の場合、正解時の α を LEARNING_CORRECT_MULTIPLIER で減衰
     """
     now = time.time()
     batch = db.batch()
@@ -465,6 +470,8 @@ def batch_update_uvm(
             int(hint_level_raw) if isinstance(hint_level_raw, (int, float)) else 0
         )
         hint_multiplier = 1.0 if hint_level == 0 else (0.5 if hint_level == 1 else 0.25)
+        if quiz_type == "learning" and is_correct:
+            hint_multiplier *= LEARNING_CORRECT_MULTIPLIER
         if word in docs_map:
             # --- 既存単語の更新 ---
             data = docs_map[word]
