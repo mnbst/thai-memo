@@ -106,6 +106,24 @@ describe('quiz generation sanitization', () => {
     });
   });
 
+  test('prepares correct answer meaning from the key word meaning', () => {
+    const [prepared] = prepareQuizGenerationInputs([
+      {
+        thai_text: 'ฉันกินข้าว',
+        pronunciation: 'chǎn kin khâao',
+        japanese_translation: '私はご飯を食べます',
+        key_word: 'ข้าว',
+        key_word_pronunciation: 'khâao',
+        key_word_meaning: 'ご飯',
+      },
+    ]);
+
+    expect(prepared).toMatchObject({
+      correct_answer: 'ข้าว',
+      correct_answer_meaning: 'ご飯',
+    });
+  });
+
   test('marks a sentence as ready even when the key word pronunciation is missing', () => {
     expect(isQuizSentenceSeedReady({
       thai_text: 'ฉันกินข้าว',

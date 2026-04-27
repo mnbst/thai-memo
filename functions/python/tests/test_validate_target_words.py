@@ -28,6 +28,16 @@ class TestValidateTargetWords:
         }
         assert validate_target_words(sentence, ["กิน"]) == ["กิน"]
 
+    def test_in_thai_text_compound_breakdown_is_valid(self):
+        sentence = {
+            "thai_text": "ใช่ไหมครับ",
+            "word_breakdown": [
+                {"word": "ใช่ไหม", "meaning": "そうですか"},
+                {"word": "ครับ", "meaning": "丁寧語"},
+            ],
+        }
+        assert validate_target_words(sentence, ["ใช่"]) == []
+
     def test_missing_words(self):
         sentence = {
             "thai_text": "สวัสดีครับ",

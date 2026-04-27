@@ -592,7 +592,7 @@ def test_update_p_hint_multiplier_default_matches_explicit_1() -> None:
 
 
 def test_batch_update_uvm_learning_correct_reduces_p_increase() -> None:
-    """quiz_type='learning' + 正解 → P増分が通常の LEARNING_CORRECT_MULTIPLIER 倍になる"""
+    """quiz_type='learning' + 正解 → P増分は通常の30%程度に抑える"""
     p0 = 0.1
     db = FakeDb(
         {"user-1": {"ไป": {"word": "ไป", "p": p0, "quiz_attempts": 0, "last_seen": 0.0, "last_result": False}}},
@@ -609,6 +609,8 @@ def test_batch_update_uvm_learning_correct_reduces_p_increase() -> None:
     p_new = db.store["user-1"]["ไป"]["p"]
     p_expected = update_p(p0, True, 0, rank=300, hint_multiplier=LEARNING_CORRECT_MULTIPLIER)
     assert abs(p_new - p_expected) < 1e-9
+    p_normal = update_p(p0, True, 0, rank=300, hint_multiplier=1.0)
+    assert abs((p_new - p0) - (p_normal - p0) * 0.3) < 1e-9
 
 
 def test_batch_update_uvm_learning_incorrect_unchanged() -> None:
@@ -666,6 +668,6 @@ def test_batch_update_uvm_learning_with_hint_stacks() -> None:
     )
 
     p_new = db.store["user-1"]["ไป"]["p"]
-    # hint_level=1 → 0.5, learning → ×0.5, 合計 0.25
+    # hint_level=1 → 0.5, learning → ×0.3, 合計 0.15
     p_expected = update_p(p0, True, 0, rank=300, hint_multiplier=0.5 * LEARNING_CORRECT_MULTIPLIER)
     assert abs(p_new - p_expected) < 1e-9

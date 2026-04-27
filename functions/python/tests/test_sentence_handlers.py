@@ -7,9 +7,9 @@ def test_build_sentence_data_includes_key_word_pronunciation():
         "pronunciation": "chǎn kin khâao",
         "japanese_translation": "私はご飯を食べます。",
         "word_breakdown": [
-            {"word": "ฉัน", "pronunciation": "chǎn"},
-            {"word": "กิน", "pronunciation": "kin"},
-            {"word": "ข้าว", "pronunciation": "khâao"},
+            {"word": "ฉัน", "pronunciation": "chǎn", "meaning": "私"},
+            {"word": "กิน", "pronunciation": "kin", "meaning": "食べる"},
+            {"word": "ข้าว", "pronunciation": "khâao", "meaning": "ご飯"},
         ],
     }
 
@@ -21,6 +21,7 @@ def test_build_sentence_data_includes_key_word_pronunciation():
 
     assert sentence_data["key_word"] == "ข้าว"
     assert sentence_data["key_word_pronunciation"] == "khâao"
+    assert sentence_data["key_word_meaning"] == "ご飯"
 
 
 def test_build_sentence_data_uses_empty_key_word_pronunciation_when_missing():
@@ -41,3 +42,4 @@ def test_build_sentence_data_uses_empty_key_word_pronunciation_when_missing():
     )
 
     assert sentence_data["key_word_pronunciation"] == ""
+    assert sentence_data["key_word_meaning"] == ""

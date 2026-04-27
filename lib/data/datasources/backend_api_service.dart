@@ -350,6 +350,7 @@ class BackendApiService {
           'japanese_translation': sentence.japaneseTranslation,
           'key_word': keyWord,
           'key_word_pronunciation': _findWordPronunciation(sentence, keyWord),
+          'key_word_meaning': _findWordMeaning(sentence, keyWord),
         },
       });
       final data = Map<String, dynamic>.from(result.data as Map);
@@ -372,6 +373,15 @@ class BackendApiService {
     for (final breakdown in sentence.wordBreakdowns) {
       if (breakdown.wordText.trim() == word.trim()) {
         return breakdown.pronunciation;
+      }
+    }
+    return '';
+  }
+
+  String _findWordMeaning(ThaiSentence sentence, String word) {
+    for (final breakdown in sentence.wordBreakdowns) {
+      if (breakdown.wordText.trim() == word.trim()) {
+        return breakdown.meaning;
       }
     }
     return '';

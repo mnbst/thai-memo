@@ -255,6 +255,7 @@ interface QuizSeed {
   japanese_translation: string;
   key_word?: string;
   key_word_pronunciation?: string;
+  key_word_meaning?: string;
 }
 
 interface QuizSeedSource {
@@ -274,6 +275,7 @@ function buildLearningQuizSource(payload: unknown): QuizSeedSource | null {
   const japaneseTranslation = normalizeTextValue(data.japanese_translation);
   const keyWord = normalizeTextValue(data.key_word);
   const keyWordPronunciation = normalizeTextValue(data.key_word_pronunciation);
+  const keyWordMeaning = normalizeTextValue(data.key_word_meaning);
 
   if (!sentenceId || !thaiText || !keyWord) return null;
 
@@ -284,6 +286,7 @@ function buildLearningQuizSource(payload: unknown): QuizSeedSource | null {
       japanese_translation: japaneseTranslation,
       key_word: keyWord,
       key_word_pronunciation: keyWordPronunciation,
+      key_word_meaning: keyWordMeaning,
     },
     sentenceId,
     srsInterval: 0,
@@ -304,6 +307,7 @@ function toQuizSeedSourceFromSelected(sentence: SelectedSentence): QuizSeedSourc
       japanese_translation: sentence.data.japanese_translation,
       key_word: sentence.data.key_word,
       key_word_pronunciation: sentence.data.key_word_pronunciation,
+      key_word_meaning: resolveKeyWordMeaning(sentence.data),
     },
     sentenceId: sentence.id,
     srsInterval: sentence.srsInterval,
@@ -322,6 +326,7 @@ function toQuizQuestion(
   return {
     ...clientQuestion,
     choice_pronunciations: clientQuestion.choice_pronunciations ?? [],
+    correct_answer_meaning: clientQuestion.correct_answer_meaning ?? '',
     sentence_id: source.sentenceId,
     srs_interval: source.srsInterval,
     japanese_translation: source.japaneseTranslation,
@@ -467,7 +472,22 @@ function isUserSentenceDocReady(
     japanese_translation: data.japanese_translation,
     key_word: data.key_word,
     key_word_pronunciation: data.key_word_pronunciation,
+    key_word_meaning: resolveKeyWordMeaning(data),
   });
+}
+
+function resolveKeyWordMeaning(data: Record<string, unknown>): string {
+  const keyWord = normalizeTextValue(data.key_word);
+  const storedMeaning = normalizeTextValue(data.key_word_meaning);
+  if (storedMeaning) return storedMeaning;
+
+  const wordBreakdown = Array.isArray(data.word_breakdown) ? data.word_breakdown : [];
+  const match = wordBreakdown.find((item) => {
+    if (!item || typeof item !== 'object') return false;
+    return normalizeTextValue((item as Record<string, unknown>).word) === keyWord;
+  });
+  if (!match || typeof match !== 'object') return '';
+  return normalizeTextValue((match as Record<string, unknown>).meaning);
 }
 
 function shuffleArray<T>(values: T[]): T[] {

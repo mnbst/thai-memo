@@ -133,11 +133,42 @@ def require_target_words(result: tuple[list[str], str]) -> tuple[list[str], str]
 MAX_RETRY = 1
 
 
+def _tokenize_thai_text(text: str) -> set[str]:
+    if not text:
+        return set()
+
+    try:
+        from pythainlp.tokenize import word_tokenize
+
+        return {
+            word.strip()
+            for word in word_tokenize(text, engine="newmm")
+            if word.strip()
+        }
+    except Exception as exc:
+        print(f"Target word tokenization failed: {exc}")
+        return set()
+
+
+def _has_target_in_breakdown_compound(
+    target_word: str,
+    wb_words: set[str],
+    text_words: set[str],
+) -> bool:
+    """Allow target words inside compounds that the tokenizer keeps together."""
+    return any(
+        target_word in word and word in text_words
+        for word in wb_words
+        if word != target_word
+    )
+
+
 def validate_target_words(sentence: dict, target_words: list[str] | None) -> list[str]:
     """生成された例文にtarget_wordsが含まれているか検証する。
 
-    word_breakdown内のwordフィールドに完全一致している場合のみOK。
-    thai_text の部分一致は、単語境界をまたぐ誤一致を生むため使わない。
+    word_breakdown内のwordフィールドに完全一致している場合を優先する。
+    LLM が word_breakdown を複合語として返すことがあるため、必要な場合のみ
+    thai_text を PyThaiNLP で分かち書きして確認する。
 
     Returns:
         含まれていなかった単語のリスト（空なら全て含まれている）
@@ -150,12 +181,20 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
         for wb in sentence.get("word_breakdown", [])
         if isinstance(wb, dict)
     }
+    text_words = _tokenize_thai_text(str(sentence.get("thai_text", "")).strip())
 
     missing: list[str] = []
     for tw in target_words:
-        if tw in wb_words:
+        target_word = str(tw).strip()
+        if not target_word:
             continue
-        missing.append(tw)
+        if (
+            target_word in wb_words
+            or target_word in text_words
+            or _has_target_in_breakdown_compound(target_word, wb_words, text_words)
+        ):
+            continue
+        missing.append(target_word)
     return missing
 
 

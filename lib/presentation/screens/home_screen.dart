@@ -17,6 +17,7 @@ import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/level_up_dialog.dart';
+import '../widgets/vocab_score_dialog.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
 import 'history_screen.dart';
@@ -167,8 +168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               left: 12,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child:
-                    Image.asset('assets/appicon.png', width: 40, height: 40),
+                child: Image.asset('assets/appicon.png', width: 40, height: 40),
               ),
             ),
           ),
@@ -258,13 +258,12 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     _loadCompletedCount();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.listenManual(sentenceControllerProvider, (prev, next) {
-        if (next is SentenceStateSuccess &&
-            prev is! SentenceStateSuccess &&
+        if (prev is SentenceStateLoading &&
+            next is SentenceStateSuccess &&
+            next.generated &&
             _stage == _LearningStage.sentence &&
             _completedCount < _summaryQuizThreshold) {
-          ref
-              .read(quizControllerProvider.notifier)
-              .generateAndStartLearningQuiz(next.sentence);
+          ref.read(quizControllerProvider.notifier).prepareQuiz(next.sentence);
         }
       });
     });
@@ -297,6 +296,16 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     _setStage(_LearningStage.sentence);
   }
 
+  Future<void> _generateNextLearningSentence() async {
+    _setStage(_LearningStage.sentence);
+    await ref.read(sentenceControllerProvider.notifier).generateSentence();
+    final sentenceState = ref.read(sentenceControllerProvider);
+    if (sentenceState is SentenceStateSuccess) {
+      ref.read(quizControllerProvider.notifier).prepareQuiz(sentenceState.sentence);
+      ref.invalidate(allSentencesProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(remainingSentencesProvider, (prev, next) {
@@ -313,12 +322,12 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             _quizSentence = sentence;
             final quizNotifier = ref.read(quizControllerProvider.notifier);
             final quizState = ref.read(quizControllerProvider);
-            if (quizState is QuizReady ||
-                quizState is QuizAnswering ||
-                quizState is QuizGenerating) {
-              // 事前生成済み/生成中/回答中ならそのまま
+
+            // 既に回答中/結果表示中ならそのまま再表示
+            if (quizState is QuizAnswering || quizState is QuizShowResult || quizState is QuizSummary) {
+              // nothing
             } else {
-              quizNotifier.generateAndStartLearningQuiz(sentence);
+              quizNotifier.startLearningQuiz(sentence);
             }
             _setStage(_LearningStage.quiz);
           },
@@ -327,44 +336,30 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
           appBar: AppBar(
             title: const Text('学習'),
             automaticallyImplyLeading: false,
-            leading: ref.watch(quizControllerProvider)
-                    is! QuizAnswering &&
-                ref.watch(quizControllerProvider) is! QuizShowResult &&
-                ref.watch(quizControllerProvider) is! QuizSummary
-                ? IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    tooltip: '例文に戻る',
-                    onPressed: _returnToLearningTop,
-                  )
-                : null,
           ),
           body: QuizScreen(
             showAppBar: false,
             title: 'クイズ',
             learningSentence: _quizSentence,
             onBackToLearningStart: _returnToLearningTop,
-            nextButtonLabel:
-                _completedCount + 1 >= _summaryQuizThreshold
-                    ? 'まとめクイズへ'
-                    : '次の例文へ',
+            nextButtonLabel: '次の例文へ',
+            onOptionalChallenge: _completedCount + 1 >= _summaryQuizThreshold
+                ? () async {
+                    await _setCompletedCount(0);
+                    ref.read(quizControllerProvider.notifier).reset();
+                    ref
+                        .read(quizControllerProvider.notifier)
+                        .generateAndStartQuiz();
+                    _setStage(_LearningStage.summaryQuiz);
+                  }
+                : null,
             onNextSentence: () async {
               await _setCompletedCount(_completedCount + 1);
-              await ref.read(quizControllerProvider.notifier).resetStoredQuiz();
+              ref.read(quizControllerProvider.notifier).reset();
               if (_completedCount >= _summaryQuizThreshold) {
-                ref
-                    .read(quizControllerProvider.notifier)
-                    .generateAndStartQuiz();
-                _setStage(_LearningStage.summaryQuiz);
-              } else {
-                _setStage(_LearningStage.sentence);
-                await ref
-                    .read(sentenceControllerProvider.notifier)
-                    .generateSentence();
-                final sentenceState = ref.read(sentenceControllerProvider);
-                if (sentenceState is SentenceStateSuccess) {
-                  ref.invalidate(allSentencesProvider);
-                }
+                await _setCompletedCount(0);
               }
+              await _generateNextLearningSentence();
             },
           ),
         ),
@@ -376,17 +371,11 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
           body: QuizScreen(
             showAppBar: false,
             title: 'まとめクイズ',
+            showVocabScoreTransition: true,
             onNextSentence: () async {
               await _setCompletedCount(0);
-              _setStage(_LearningStage.sentence);
-              await ref.read(quizControllerProvider.notifier).resetStoredQuiz();
-              await ref
-                  .read(sentenceControllerProvider.notifier)
-                  .generateSentence();
-              final sentenceState = ref.read(sentenceControllerProvider);
-              if (sentenceState is SentenceStateSuccess) {
-                ref.invalidate(allSentencesProvider);
-              }
+              ref.read(quizControllerProvider.notifier).reset();
+              await _generateNextLearningSentence();
             },
           ),
         ),
@@ -469,8 +458,7 @@ class TodayScreen extends ConsumerStatefulWidget {
 }
 
 class _TodayScreenState extends ConsumerState<TodayScreen> {
-  static const int _freeVocabScoreLimit = 100;
-  static const String _freeTopics = 'あいさつ、食べ物、買い物';
+  static const int _freeVocabScoreLimit = freeVocabScoreLimit;
   @override
   Widget build(BuildContext context) {
     ref.listen(vocabStatsProvider, (prev, next) {
@@ -535,16 +523,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
     return Column(
       children: [
-        // Vocab stats — 上部固定表示
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppConfig.defaultPadding,
-            AppConfig.defaultPadding,
-            AppConfig.defaultPadding,
-            0,
-          ),
-          child: _buildVocabStats(context),
-        ),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
@@ -556,9 +534,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _buildTargetWordsSection(context, sentence),
+                const SizedBox(height: 12),
                 _buildSentenceCard(context, sentence),
-                const SizedBox(height: 8),
-                _buildQuickInfo(context, sentence),
                 if (showUpgrade) ...[
                   const SizedBox(height: 16),
                   _buildUpgradeBanner(context),
@@ -567,7 +545,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ),
           ),
         ),
-        // 学習フロー — 下部固定
+        // 確認クイズ — 下部固定
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppConfig.defaultPadding,
@@ -581,65 +559,144 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
+  Widget _buildTargetWordsSection(
+    BuildContext context,
+    ThaiSentence sentence,
+  ) {
+    final targetWords = sentence.targetWords;
+    if (targetWords == null || targetWords.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final breakdownMap = {
+      for (final wb in sentence.wordBreakdowns) wb.wordText: wb,
+    };
+
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            '今日の学習単語',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        ...targetWords.map((word) {
+          final wb = breakdownMap[word];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Card(
+              color: cs.secondaryContainer.withValues(alpha: 0.5),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: cs.outline.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                word,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (wb != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  wb.pronunciation,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: cs.primary.withValues(alpha: 0.8),
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (wb != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              wb.meaning,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: cs.onSecondaryContainer,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (wb != null)
+                      IconButton(
+                        icon: Icon(
+                          Icons.volume_up_outlined,
+                          size: 20,
+                          color: cs.primary,
+                        ),
+                        onPressed: () {
+                          ref.read(ttsServiceProvider).speak(word);
+                        },
+                        visualDensity: VisualDensity.compact,
+                        tooltip: '発音を再生',
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, top: 4, bottom: 4),
+          child: Row(
+            children: [
+              Icon(
+                Icons.arrow_downward_rounded,
+                size: 16,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'この単語を使った例文',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildLearningFlowActions(
     BuildContext context,
     ThaiSentence sentence,
   ) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.route_outlined,
-                  color: colorScheme.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '学習フロー',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    settings:
-                        const RouteSettings(name: DetailScreen.routeName),
-                    builder: (context) => DetailScreen(
-                      sentence: sentence,
-                      source: 'learning_flow',
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.search, size: 20),
-              label: const Text('例文の詳細を見る'),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-            const SizedBox(height: 4),
-            FilledButton.icon(
-              onPressed: () => widget.onStartQuiz?.call(sentence),
-              icon: const Icon(Icons.quiz),
-              label: const Text('確認クイズへ'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ],
-        ),
+    return FilledButton.icon(
+      onPressed: () => widget.onStartQuiz?.call(sentence),
+      icon: const Icon(Icons.quiz),
+      label: const Text('確認クイズへ'),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        minimumSize: const Size.fromHeight(56),
       ),
     );
   }
@@ -729,34 +786,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         ),
                   ),
                   const SizedBox(height: 16),
-                  // Japanese translation
                   Text(
                     sentence.japaneseTranslation,
                     style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 16,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.6),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'タップして詳細を見る',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withValues(alpha: 0.6),
-                            ),
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -824,109 +856,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     return isPremium || isInitialPremiumTrial;
   }
 
-  /// Build vocab stats card
-  Widget _buildVocabStats(BuildContext context) {
-    final statsAsync = ref.watch(vocabStatsProvider);
-    final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
-            ref.watch(isPremiumProvider)) ==
-        true;
-    return statsAsync.when(
-      data: (stats) {
-        final onContainer = Theme.of(context).colorScheme.onPrimaryContainer;
-        final displayVocab = isPremium
-            ? stats.estimatedVocab
-            : stats.estimatedVocab.clamp(0, _freeVocabScoreLimit).toInt();
-        final level = _vocabLevel(displayVocab);
-        return Card(
-          color: Theme.of(context).colorScheme.primaryContainer,
-          child: InkWell(
-            onTap: () {
-              unawaited(
-                ref.read(analyticsServiceProvider).logTapVocabScore(
-                      source: 'home_vocab_score_card',
-                      vocab: stats.estimatedVocab,
-                      isPremium: isPremium,
-                    ),
-              );
-              _showVocabScoreInfo(
-                context,
-                stats.estimatedVocab,
-                isPremium: isPremium,
-              );
-            },
-            borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConfig.defaultPadding * 1.5,
-                vertical: AppConfig.defaultPadding,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.auto_graph, size: 16, color: onContainer),
-                  const SizedBox(width: 4),
-                  Text(
-                    '語彙スコア',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: onContainer,
-                        ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '$displayVocab',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: onContainer,
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '語',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: onContainer.withValues(alpha: 0.7),
-                        ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: onContainer.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      level,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: onContainer,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (e, st) {
-        debugPrint('vocabStatsProvider error: $e\n$st');
-        return Text('vocabStats error: $e',
-            style: const TextStyle(color: Colors.red, fontSize: 12));
-      },
-    );
-  }
-
   static const _levelThresholds = [100, 300, 600, 1500];
   static const _prefKeyLastLevel = 'last_vocab_level';
 
-  String _vocabLevel(int vocab) {
-    if (vocab < 100) return '入門';
-    if (vocab < 300) return '初級';
-    if (vocab < 600) return '初中級';
-    if (vocab < 1500) return '中級';
-    return '上級';
-  }
+  String _vocabLevel(int vocab) => vocabLevel(vocab);
 
   Future<void> _checkLevelUp(int vocab) async {
     final crossedThreshold = _levelThresholds.any((t) => vocab >= t);
@@ -990,482 +923,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     }
   }
 
-  /// 語彙スコアの説明ダイアログを表示する
-  void _showVocabScoreInfo(
-    BuildContext context,
-    int vocab, {
-    required bool isPremium,
-  }) {
-    final displayVocab =
-        isPremium ? vocab : vocab.clamp(0, _freeVocabScoreLimit).toInt();
-    final level = _vocabLevel(displayVocab);
-    final nextUnlock = isPremium ? _nextUnlock(displayVocab) : null;
-    final threshold =
-        isPremium ? _nextThreshold(displayVocab) : _freeVocabScoreLimit;
-    final currentTopics =
-        isPremium ? _topicsForLevel(displayVocab) : _freeTopics;
-    final currentTopicCount = _topicCount(currentTopics);
-    final nextTopicCount =
-        nextUnlock == null ? 0 : _topicCount(nextUnlock.addedTopics);
-    final progressValue = threshold == null
-        ? 0.0
-        : (displayVocab / threshold).clamp(0.0, 1.0).toDouble();
-    final remainingText = threshold == null
-        ? null
-        : !isPremium && displayVocab >= threshold
-            ? 'Free上限'
-            : '残り${threshold - displayVocab}語';
-
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        final theme = Theme.of(dialogContext);
-        void openPaywall() {
-          Navigator.pop(dialogContext);
-          PaywallBottomSheet.show(
-            context,
-            source: 'vocab_score_dialog',
-          );
-        }
-
-        return AlertDialog(
-          title: Text(isPremium ? '語彙スコア（$level）' : '語彙スコア（Free・$level）'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (threshold != null) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('$displayVocab / $threshold 語',
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                      Text(remainingText!,
-                          style: TextStyle(
-                              color: theme.colorScheme.onSurfaceVariant)),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progressValue,
-                      minHeight: 8,
-                      backgroundColor:
-                          theme.colorScheme.surfaceContainerHighest,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                if (!isPremium) ...[
-                  _buildFreeVocabLimitCallout(dialogContext),
-                  const SizedBox(height: 16),
-                ],
-                if (isPremium) ...[
-                  _buildTopicUnlockSummary(
-                    dialogContext,
-                    currentCount: currentTopicCount,
-                    nextThreshold: threshold,
-                    nextCount: nextTopicCount,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                _buildCategoryBlock(
-                  dialogContext,
-                  title: isPremium
-                      ? '現在のテーマ数（$currentTopicCount件）'
-                      : 'Freeのテーマ数（$currentTopicCount件）',
-                  topics: currentTopics,
-                ),
-                if (!isPremium) ...[
-                  const SizedBox(height: 16),
-                  Divider(
-                    height: 1,
-                    color: theme.colorScheme.outlineVariant,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildScoreUnlockPreview(dialogContext),
-                ],
-                if (nextUnlock != null) ...[
-                  const SizedBox(height: 16),
-                  Divider(
-                    height: 1,
-                    color: theme.colorScheme.outlineVariant,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildCategoryBlock(
-                    dialogContext,
-                    title: threshold == null
-                        ? '次の開放（+$nextTopicCount件）'
-                        : 'あと${threshold - displayVocab}語で開放（+$nextTopicCount件）',
-                    topics: nextUnlock.addedTopics,
-                    addition: true,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            if (!isPremium)
-              FilledButton.icon(
-                onPressed: openPaywall,
-                icon: const Icon(Icons.auto_awesome, size: 18),
-                label: const Text('Premiumを見る'),
-              ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('閉じる'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  /// 次の解放までの閾値（100, 300, 600）。それ以降はnull
-  int? _nextThreshold(int vocab) {
-    if (vocab < 100) return 100;
-    if (vocab < 300) return 300;
-    if (vocab < 600) return 600;
-    return null;
-  }
-
-  /// 現在レベルで使えるテーマ一覧
-  String _topicsForLevel(int vocab) {
-    if (vocab < 100) {
-      return 'あいさつ、食べ物、旅行、家族、買い物、天気';
-    }
-    if (vocab < 300) {
-      return 'あいさつ、食べ物、旅行、家族、買い物、天気、仕事、交通、健康、趣味、恋愛';
-    }
-    if (vocab < 600) {
-      return 'あいさつ、食べ物、旅行、家族、買い物、天気、仕事、交通、健康、趣味、恋愛、学校';
-    }
-    return 'あいさつ、食べ物、旅行、家族、買い物、天気、仕事、交通、健康、趣味、恋愛、学校、宗教・信仰、伝統・祭り、礼儀作法';
-  }
-
-  /// 次レベルで解放される内容。なければ null
-  ({String label, String addedTopics})? _nextUnlock(
-    int vocab,
-  ) {
-    if (vocab < 100) {
-      return (
-        label: '初級',
-        addedTopics: '仕事、交通、健康、趣味、恋愛',
-      );
-    }
-    if (vocab < 300) {
-      return (
-        label: '初中級',
-        addedTopics: '学校',
-      );
-    }
-    if (vocab < 600) {
-      return (
-        label: '中級',
-        addedTopics: '宗教・信仰、伝統・祭り、礼儀作法',
-      );
-    }
-    return null;
-  }
-
-  int _topicCount(String topics) {
-    return topics
-        .split('、')
-        .map((item) => item.trim())
-        .where((item) => item.isNotEmpty)
-        .length;
-  }
-
-  Widget _buildFreeVocabLimitCallout(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(alpha: 0.55),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.35),
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.lock_outline,
-            size: 22,
-            color: colorScheme.primary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Freeは100語が上限です',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Premiumでは100語以上学べます。また例文のテーマが増え、より多様なタイ語が学べます。',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color:
-                        colorScheme.onPrimaryContainer.withValues(alpha: 0.85),
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopicUnlockSummary(
-    BuildContext context, {
-    required int currentCount,
-    required int? nextThreshold,
-    required int nextCount,
-  }) {
-    final theme = Theme.of(context);
-    final message = nextCount > 0 && nextThreshold != null
-        ? '語彙スコアが増えると次の例文テーマが開放されます。'
-        : '例文テーマ候補は現在$currentCount件です。';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.auto_stories_outlined,
-            size: 18,
-            color: theme.colorScheme.onSecondaryContainer,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSecondaryContainer,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScoreUnlockPreview(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    const addedTopics = '旅行、仕事、恋愛、家族、天気、交通、健康、趣味、学校、宗教・信仰、伝統・祭り、礼儀作法';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(alpha: 0.28),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.18),
-        ),
-        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Premiumで追加されるテーマ数（13件）',
-            style: TextStyle(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              border: Border.all(color: colorScheme.outlineVariant),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: _topicListRow(
-              value: addedTopics,
-              borderColor: colorScheme.outlineVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// テーマブロック（現在 or 次の解放）
-  Widget _buildCategoryBlock(
-    BuildContext context, {
-    required String title,
-    required String topics,
-    bool addition = false,
-  }) {
-    final theme = Theme.of(context);
-    final titleColor = addition ? theme.colorScheme.primary : null;
-    final rowBorderColor = theme.colorScheme.outlineVariant;
-    final block = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            if (addition) ...[
-              Icon(
-                Icons.lock,
-                size: 16,
-                color: titleColor,
-              ),
-              const SizedBox(width: 4),
-            ],
-            Flexible(
-              child: Text(
-                title,
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, color: titleColor),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border.all(color: rowBorderColor),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            children: [
-              if (topics.isNotEmpty)
-                _topicListRow(
-                  value: topics,
-                  borderColor: rowBorderColor,
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-
-    if (!addition) {
-      return block;
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.28),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.18),
-        ),
-        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-      ),
-      child: block,
-    );
-  }
-
-  Widget _topicListRow({
-    required String value,
-    required Color borderColor,
-    bool showBottomBorder = false,
-  }) {
-    final items = value
-        .split('、')
-        .map((item) => item.trim())
-        .where((item) => item.isNotEmpty)
-        .toList();
-
-    return Container(
-      decoration: BoxDecoration(
-        border: showBottomBorder
-            ? Border(bottom: BorderSide(color: borderColor))
-            : null,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 6,
-          children: [
-            for (var i = 0; i < items.length; i++)
-              Text(
-                i == items.length - 1 ? items[i] : '${items[i]}、',
-                maxLines: 1,
-                softWrap: false,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build quick info section
-  Widget _buildQuickInfo(BuildContext context, ThaiSentence sentence) {
-    final cs = Theme.of(context).colorScheme;
-    final iconColor = cs.onSurfaceVariant;
-    final textStyle = Theme.of(context).textTheme.bodyMedium;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppConfig.defaultPadding,
-          vertical: AppConfig.defaultPadding * 0.75,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _quickInfoRow(
-              icon: Icons.text_fields,
-              iconColor: iconColor,
-              child: Text('単語数：${sentence.wordBreakdowns.length}',
-                  style: textStyle),
-            ),
-            if (sentence.context?.topic != null) ...[
-              const SizedBox(height: 6),
-              _quickInfoRow(
-                icon: Icons.place,
-                iconColor: iconColor,
-                child: Expanded(
-                  child: Text('場面：${sentence.context!.topic}',
-                      style: textStyle, overflow: TextOverflow.ellipsis),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _quickInfoRow({
-    required IconData icon,
-    required Color iconColor,
-    required Widget child,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, size: 15, color: iconColor),
-        const SizedBox(width: 6),
-        child,
-      ],
-    );
-  }
 
   /// Build upgrade banner for free users at the vocab cap.
   Widget _buildUpgradeBanner(BuildContext context) {
@@ -1525,7 +982,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (isQuotaError) _buildVocabStats(context),
             Icon(
               isQuotaError ? Icons.lock_outline : Icons.error_outline,
               size: 64,
@@ -1553,6 +1009,16 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
             ],
             const SizedBox(height: 24),
+            if (!isQuotaError)
+              FilledButton.icon(
+                onPressed: () {
+                  ref
+                      .read(sentenceControllerProvider.notifier)
+                      .generateSentence();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('再試行'),
+              ),
           ],
         ),
       ),
@@ -1595,8 +1061,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           ),
           const SizedBox(height: 16),
           _buildSentenceCard(context, TodayScreen._defaultGreetingSentence),
-          const SizedBox(height: 16),
-          _buildQuickInfo(context, TodayScreen._defaultGreetingSentence),
         ],
       ),
     );

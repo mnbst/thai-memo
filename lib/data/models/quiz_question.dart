@@ -11,12 +11,14 @@
 /// blankText: 空欄部分を _____ に置換した文
 /// choices: 4つの選択肢（正解を含む）
 /// correctAnswer: 正解のタイ語テキスト
+/// correctAnswerMeaning: 正解単語の日本語の意味
 /// srsInterval: SRS復習間隔（日数）
 class QuizQuestion {
   final String sentenceId;
   final String thaiText;
   final String blankText;
   final String correctAnswer;
+  final String correctAnswerMeaning;
   final List<String> choices;
   final List<String> choicePronunciations;
   final String pronunciation;
@@ -32,6 +34,7 @@ class QuizQuestion {
     required this.thaiText,
     required this.blankText,
     required this.correctAnswer,
+    this.correctAnswerMeaning = '',
     required this.choices,
     this.choicePronunciations = const [],
     required this.pronunciation,
@@ -48,6 +51,7 @@ class QuizQuestion {
         thaiText: json['thai_text'] ?? '',
         blankText: json['blank_text'] ?? '',
         correctAnswer: json['correct_answer'] ?? '',
+        correctAnswerMeaning: json['correct_answer_meaning'] ?? '',
         choices: (json['choices'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
@@ -73,6 +77,7 @@ class QuizQuestion {
         'thai_text': thaiText,
         'blank_text': blankText,
         'correct_answer': correctAnswer,
+        'correct_answer_meaning': correctAnswerMeaning,
         'choices': choices,
         'choice_pronunciations': choicePronunciations,
         'pronunciation': pronunciation,

@@ -427,7 +427,7 @@ def register_exposure(
         print(f"register_exposure: uid={uid}, updated {wrote} word(s)")
 
 
-LEARNING_CORRECT_MULTIPLIER = 0.5
+LEARNING_CORRECT_MULTIPLIER = 0.3
 
 
 def batch_update_uvm(
