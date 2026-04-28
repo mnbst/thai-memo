@@ -10,7 +10,7 @@ from google.cloud.firestore_v1 import transactional
 try:
     from .constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
     from .embeddings import find_best_topic
-    from .prompts import gate_topics_for_vocab
+    from .prompts import gate_topics_for_vocab, use_premium_prompt_for_vocab
     from .runtime import initialize_firebase_app
     from .sentence_service import (
         generate_sentence,
@@ -28,7 +28,7 @@ try:
 except ImportError:
     from constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
     from embeddings import find_best_topic
-    from prompts import gate_topics_for_vocab
+    from prompts import gate_topics_for_vocab, use_premium_prompt_for_vocab
     from runtime import initialize_firebase_app
     from sentence_service import (
         generate_sentence,
@@ -224,11 +224,15 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
 
         params = req.data or {}
         estimated_vocab = _get_capped_estimated_vocab(user_data, use_premium_spec)
+        use_premium_prompt = use_premium_prompt_for_vocab(
+            use_premium_spec,
+            estimated_vocab,
+        )
         target_words, chosen_topic = _select_target_words_with_topic(
             db,
             uid,
             params,
-            is_premium=use_premium_spec,
+            is_premium=use_premium_prompt,
             estimated_vocab=estimated_vocab,
         )
         params["topic"] = chosen_topic
@@ -371,6 +375,10 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
 
         count = remaining
         estimated_vocab = _get_capped_estimated_vocab(user_data, use_premium_spec)
+        use_premium_prompt = use_premium_prompt_for_vocab(
+            use_premium_spec,
+            estimated_vocab,
+        )
         log_data["batchCount"] = count
 
         # 表示件数に応じて必要数ぶんの key_word を一括選定し、表示順はシャッフルする
@@ -378,7 +386,7 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
             db,
             uid,
             {},
-            is_premium=use_premium_spec,
+            is_premium=use_premium_prompt,
             estimated_vocab=estimated_vocab,
             count=count,
         )
@@ -387,7 +395,7 @@ def generateBatchSentences(req: https_fn.CallableRequest) -> dict:
 
         # 各単語ごとにテーマを選定（embedding → ランダムフォールバック）
         # 重複テーマは別のテーマに差し替えて多様性を確保
-        topic_candidates = TOPICS if use_premium_spec else FREE_TOPICS
+        topic_candidates = TOPICS if use_premium_prompt else FREE_TOPICS
         topics_pool = gate_topics_for_vocab(topic_candidates, estimated_vocab)
         all_topics = []
         used_topics: set[str] = set()

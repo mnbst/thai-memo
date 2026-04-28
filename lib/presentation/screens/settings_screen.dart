@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'dart:async';
 
 import '../../core/config/app_config.dart';
+import '../../data/datasources/backend_api_service.dart';
+import '../../data/datasources/local/database_helper.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
@@ -377,10 +380,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 );
               },
             ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.restart_alt,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                '学習データをリセット',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              subtitle: const Text('端末の例文・クイズ履歴を削除'),
+              onTap: _resetLearningData,
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _resetLearningData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('学習データのリセット'),
+        content: const Text(
+            '端末に保存されている例文・クイズ履歴・学習進捗がすべて削除されます。アカウントは維持されます。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'リセット',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await BackendApiService().resetLearningData();
+      await DatabaseHelper.instance.deleteDatabase();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (mounted) {
+        ref.invalidate(allSentencesProvider);
+        ref.invalidate(sentenceCountProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('学習データをリセットしました')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('リセットに失敗しました'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildVocabScoreTile() {
