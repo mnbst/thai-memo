@@ -10,7 +10,7 @@ export const INITIAL_SENTENCES = 5;
 export const INITIAL_QUIZZES = 5;
 
 /** free ユーザーの日次リセット値（JST 0:00） */
-export const FREE_DAILY_SENTENCES = 1;
+export const FREE_DAILY_SENTENCES = 2;
 export const FREE_DAILY_QUIZZES = 1;
 
 /** premium ユーザーの日次リセット値（JST 0:00） */

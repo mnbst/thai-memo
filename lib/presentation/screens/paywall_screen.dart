@@ -404,7 +404,7 @@ class PaywallBottomSheet extends ConsumerWidget {
           benefitRow(
             icon: Icons.bolt,
             title: '1日の利用回数',
-            freeText: '例文・クイズ 各1回/日',
+            freeText: '例文2回/日',
             premiumText: '各5回/日',
           ),
           Padding(

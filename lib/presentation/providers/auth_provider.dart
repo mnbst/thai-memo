@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/datasources/local/database_helper.dart';
 import '../../services/firebase_auth_service.dart';
@@ -90,6 +91,8 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       await DatabaseHelper.instance.deleteDatabase();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
       await _authService.deleteAccount();
       state = AuthState.fromService(_authService);
       return null;

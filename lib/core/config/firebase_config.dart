@@ -14,6 +14,7 @@ class FirebaseConfig {
   static const String updateUvmFunctionName = 'updateUvm';
   static const String generateBatchSentencesFunctionName =
       'generateBatchSentences';
+  static const String resetLearningDataFunctionName = 'resetLearningData';
 
   /// Timeout for Cloud Functions calls
   static const Duration functionTimeout = Duration(seconds: 90);

@@ -24,6 +24,7 @@ from prompts import (
     gate_topics_for_vocab,
     get_system_prompt,
     resolve_generation_params,
+    use_premium_prompt_for_vocab,
 )
 
 
@@ -256,29 +257,44 @@ def test_topic_gate_at_intermediate_opens_all() -> None:
     assert gate_topics_for_vocab(TOPICS, 600) == TOPICS
 
 
-def test_grammar_gate_at_intro_limits_to_intro_grammars() -> None:
-    """入門では grammarFocus の候補が 4 つ (平叙文/疑問文/否定文/命令・依頼) に絞られる。"""
+def test_intro_premium_uses_free_prompt_params() -> None:
+    """語彙100以下では premium でも free と同じプロンプトパラメータを使う。"""
     captured: dict = {}
 
-    def capture_choice(values):
-        if values and values[0] in GRAMMAR_FOCUSES:
-            captured["grammar_pool"] = list(values)
+    def capture_topic(values):
+        captured.setdefault("topic_pool", list(values))
         return values[0]
 
     with (
         patch("prompts.get_topic_option_similarity_weights", return_value=None),
         patch("prompts.get_emotion_similarity_weights", return_value=None),
-        patch("prompts.random.choice", side_effect=capture_choice),
+        patch("prompts.random.choice", side_effect=capture_topic),
         patch(
             "prompts.random.choices",
             side_effect=lambda population, weights, k: [population[0]],
         ),
     ):
-        resolve_generation_params({}, is_premium=True, estimated_vocab=0)
+        prompt = build_uvm_prompt({}, is_premium=True, estimated_vocab=100)
 
-    intro_grammars = [g for g in GRAMMAR_FOCUSES if GRAMMAR_MIN_VOCAB.get(g, 0) == 0]
-    assert captured["grammar_pool"] == intro_grammars
-    assert len(intro_grammars) == 4
+    assert captured["topic_pool"] == FREE_TOPICS
+    assert f"- 文体: {FREE_STYLES[0]}" in prompt
+    assert "- 文法フォーカス:" not in prompt
+
+
+def test_build_uvm_prompt_premium_vocab_100_matches_free_prompt_shape() -> None:
+    prompt = build_uvm_prompt(
+        {
+            "topic": "topic-a",
+            "style": "style-a",
+            "politeness": "politeness-a",
+            "grammarFocus": "grammar-a",
+            "emotion": "emotion-a",
+        },
+        is_premium=True,
+        estimated_vocab=100,
+    )
+
+    assert "- 文法フォーカス: grammar-a" not in prompt
 
 
 def test_grammar_gate_at_intermediate_includes_conditional() -> None:
@@ -304,8 +320,8 @@ def test_grammar_gate_at_intermediate_includes_conditional() -> None:
     assert captured["grammar_pool"] == GRAMMAR_FOCUSES
 
 
-def test_explicit_values_override_gates() -> None:
-    """入門レベルでもユーザーが明示した値は維持される。"""
+def test_explicit_values_override_gates_after_common_prompt_vocab() -> None:
+    """共通プロンプト帯を超えた premium では明示値を維持する。"""
     params = {
         "topic": TOPICS[3],  # 仕事 (入門では本来除外)
         "style": STYLES[0],  # ニュース記事体
@@ -314,7 +330,7 @@ def test_explicit_values_override_gates() -> None:
         "emotion": EMOTIONS[0],
     }
 
-    resolved = resolve_generation_params(params, is_premium=True, estimated_vocab=0)
+    resolved = resolve_generation_params(params, is_premium=True, estimated_vocab=101)
 
     assert resolved == params
 
@@ -351,6 +367,7 @@ def test_build_uvm_prompt_includes_all_resolved_target_word_conditions() -> None
         },
         target_words=["กิน"],
         is_premium=True,
+        estimated_vocab=101,
     )
 
     assert "- テーマ: topic-a" in prompt
@@ -391,6 +408,7 @@ def test_build_uvm_prompt_excludes_fixed_output_rules() -> None:
             "emotion": "emotion-a",
         },
         is_premium=True,
+        estimated_vocab=101,
     )
 
     assert "thai_textはタイ語の自然な本文表記" not in prompt
@@ -406,6 +424,13 @@ def test_get_system_prompt_selects_tier_prompt() -> None:
     assert get_system_prompt(True) == SYSTEM_PROMPT_PREMIUM
 
 
+def test_get_system_prompt_uses_common_prompt_until_vocab_100() -> None:
+    assert use_premium_prompt_for_vocab(True, 100) is False
+    assert use_premium_prompt_for_vocab(True, 101) is True
+    assert get_system_prompt(True, estimated_vocab=100) == SYSTEM_PROMPT_FREE
+    assert get_system_prompt(True, estimated_vocab=101) == SYSTEM_PROMPT_PREMIUM
+
+
 def test_build_uvm_prompt_includes_grammar_focus_without_target_words() -> None:
     prompt = build_uvm_prompt(
         {
@@ -416,6 +441,7 @@ def test_build_uvm_prompt_includes_grammar_focus_without_target_words() -> None:
             "emotion": "emotion-a",
         },
         is_premium=True,
+        estimated_vocab=101,
     )
 
     assert "- 文法フォーカス: grammar-a" in prompt
