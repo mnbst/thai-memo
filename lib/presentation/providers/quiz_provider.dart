@@ -16,8 +16,7 @@ import '../../services/analytics_service.dart';
 import 'analytics_provider.dart';
 
 final RegExp _thaiScriptRegex = RegExp(r'[฀-๿]');
-final RegExp _nonThaiChoiceRegex =
-    RegExp(r'[A-Za-z぀-ヿㇰ-ㇿ一-鿿]');
+final RegExp _nonThaiChoiceRegex = RegExp(r'[A-Za-z぀-ヿㇰ-ㇿ一-鿿]');
 
 // ==================== State ====================
 
@@ -40,6 +39,7 @@ class QuizAnswering extends QuizState {
   final List<bool> answers;
   final List<int> selectedIndices;
   final List<int>? hintLevels;
+  final List<bool>? sentenceReviewFlags;
 
   const QuizAnswering(
     this.questions,
@@ -47,6 +47,7 @@ class QuizAnswering extends QuizState {
     this.answers, [
     this.selectedIndices = const [],
     this.hintLevels = const [],
+    this.sentenceReviewFlags = const [],
   ]);
 }
 
@@ -58,6 +59,7 @@ class QuizShowResult extends QuizState {
   final bool isCorrect;
   final List<int> selectedIndices;
   final List<int>? hintLevels;
+  final List<bool>? sentenceReviewFlags;
 
   const QuizShowResult(
     this.questions,
@@ -67,6 +69,7 @@ class QuizShowResult extends QuizState {
     this.isCorrect, [
     this.selectedIndices = const [],
     this.hintLevels = const [],
+    this.sentenceReviewFlags = const [],
   ]);
 }
 
@@ -77,6 +80,7 @@ class QuizSummary extends QuizState {
   final Map<String, dynamic> stats;
   final List<int> selectedIndices;
   final List<int>? hintLevels;
+  final List<bool>? sentenceReviewFlags;
 
   const QuizSummary(
     this.questions,
@@ -85,6 +89,7 @@ class QuizSummary extends QuizState {
     this.stats, [
     this.selectedIndices = const [],
     this.hintLevels = const [],
+    this.sentenceReviewFlags = const [],
   ]);
 }
 
@@ -275,7 +280,11 @@ class QuizController extends StateNotifier<QuizState> {
   }
 
   /// 回答を選択
-  Future<void> answerQuestion(int choiceIndex, {int hintLevel = 0}) async {
+  Future<void> answerQuestion(
+    int choiceIndex, {
+    int hintLevel = 0,
+    bool reviewedSentence = false,
+  }) async {
     if (state is! QuizAnswering) return;
     final s = state as QuizAnswering;
     final question = s.questions[s.index];
@@ -283,6 +292,10 @@ class QuizController extends StateNotifier<QuizState> {
     final newAnswers = [...s.answers, isCorrect];
     final newSelectedIndices = [...s.selectedIndices, choiceIndex];
     final newHintLevels = <int>[...s.hintLevels ?? const [], hintLevel];
+    final newSentenceReviewFlags = <bool>[
+      ...s.sentenceReviewFlags ?? const [],
+      reviewedSentence,
+    ];
 
     final result = QuizResult(
       id: '${question.sentenceId}_${DateTime.now().millisecondsSinceEpoch}',
@@ -299,13 +312,18 @@ class QuizController extends StateNotifier<QuizState> {
     if (word.isNotEmpty) {
       _apiService.updateUvm(
         results: [
-          {'word': word, 'is_correct': isCorrect, 'hint_level': hintLevel},
+          {
+            'word': word,
+            'is_correct': isCorrect,
+            'hint_level': hintLevel,
+            if (reviewedSentence) 'sentence_reviewed': true,
+          },
         ],
         quizType: _isLearningQuiz ? 'learning' : null,
       );
     }
 
-    state = QuizShowResult(
+    final resultState = QuizShowResult(
       s.questions,
       s.index,
       newAnswers,
@@ -313,7 +331,15 @@ class QuizController extends StateNotifier<QuizState> {
       isCorrect,
       newSelectedIndices,
       newHintLevels,
+      newSentenceReviewFlags,
     );
+
+    if (_isLearningQuiz && s.questions.length == 1) {
+      await _showSummary(resultState);
+    } else {
+      state = resultState;
+    }
+
     unawaited(
       _analytics.logQuizAnswer(
         correct: isCorrect,
@@ -330,29 +356,40 @@ class QuizController extends StateNotifier<QuizState> {
     final nextIndex = s.index + 1;
 
     if (nextIndex >= s.questions.length) {
-      final totalCorrect = s.answers.where((a) => a).length;
-      final today = _todayString();
-
-      await _db.updateQuizStats(
-        sessionCorrect: totalCorrect,
-        sessionTotal: s.questions.length,
-        quizDate: today,
-      );
-
-      final cachedStats = await _db.getCachedQuizStats();
-
-      state = QuizSummary(
-        s.questions,
-        s.answers,
-        totalCorrect,
-        cachedStats ?? {},
-        s.selectedIndices,
-        s.hintLevels,
-      );
+      await _showSummary(s);
     } else {
-      state = QuizAnswering(s.questions, nextIndex, s.answers,
-          s.selectedIndices, s.hintLevels ?? const []);
+      state = QuizAnswering(
+        s.questions,
+        nextIndex,
+        s.answers,
+        s.selectedIndices,
+        s.hintLevels ?? const [],
+        s.sentenceReviewFlags ?? const [],
+      );
     }
+  }
+
+  Future<void> _showSummary(QuizShowResult s) async {
+    final totalCorrect = s.answers.where((a) => a).length;
+    final today = _todayString();
+
+    await _db.updateQuizStats(
+      sessionCorrect: totalCorrect,
+      sessionTotal: s.questions.length,
+      quizDate: today,
+    );
+
+    final cachedStats = await _db.getCachedQuizStats();
+
+    state = QuizSummary(
+      s.questions,
+      s.answers,
+      totalCorrect,
+      cachedStats ?? {},
+      s.selectedIndices,
+      s.hintLevels,
+      s.sentenceReviewFlags,
+    );
   }
 
   /// 同じ問題でやり直し

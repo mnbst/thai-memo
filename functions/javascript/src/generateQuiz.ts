@@ -52,7 +52,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 const SRS_DAYS = [1, 3, 7, 14, 30];
 /** SRSから選ぶ最大例文数 */
-const MAX_SRS_SENTENCES = 3;
+const MAX_SRS_SENTENCES = 2;
 /** 補充用に一度に確認するUVM語数 */
 const UVM_FILLER_PAGE_SIZE = 50;
 /** Firestore の in query に渡すキーワード数 */
@@ -264,6 +264,7 @@ interface QuizSeedSource {
   srsInterval: number;
   japaneseTranslation: string;
   sentencePronunciation: string;
+  sentenceDetail?: Record<string, unknown>;
 }
 
 function buildLearningQuizSource(payload: unknown): QuizSeedSource | null {
@@ -276,6 +277,11 @@ function buildLearningQuizSource(payload: unknown): QuizSeedSource | null {
   const keyWord = normalizeTextValue(data.key_word);
   const keyWordPronunciation = normalizeTextValue(data.key_word_pronunciation);
   const keyWordMeaning = normalizeTextValue(data.key_word_meaning);
+  const sentenceDetail = buildSentenceDetail(data, sentenceId, {
+    thaiText,
+    pronunciation,
+    japaneseTranslation,
+  });
 
   if (!sentenceId || !thaiText || !keyWord) return null;
 
@@ -292,6 +298,7 @@ function buildLearningQuizSource(payload: unknown): QuizSeedSource | null {
     srsInterval: 0,
     japaneseTranslation,
     sentencePronunciation: pronunciation,
+    sentenceDetail,
   };
 }
 
@@ -313,6 +320,37 @@ function toQuizSeedSourceFromSelected(sentence: SelectedSentence): QuizSeedSourc
     srsInterval: sentence.srsInterval,
     japaneseTranslation: sentence.data.japanese_translation || '',
     sentencePronunciation: sentence.data.pronunciation || '',
+    sentenceDetail: buildSentenceDetail(sentence.data, sentence.id),
+  };
+}
+
+function buildSentenceDetail(
+  data: Record<string, unknown>,
+  sentenceId: string,
+  fallback?: {
+    thaiText: string;
+    pronunciation: string;
+    japaneseTranslation: string;
+  },
+): Record<string, unknown> | undefined {
+  const wordBreakdown = Array.isArray(data.word_breakdown) ? data.word_breakdown : [];
+  const context =
+    data.context && typeof data.context === 'object' && !Array.isArray(data.context) ?
+      data.context as Record<string, unknown> :
+      undefined;
+
+  if (wordBreakdown.length === 0 && !context) return undefined;
+
+  return {
+    id: sentenceId,
+    thai_text: normalizeTextValue(data.thai_text) || fallback?.thaiText || '',
+    pronunciation: normalizeTextValue(data.pronunciation) || fallback?.pronunciation || '',
+    japanese_translation:
+      normalizeTextValue(data.japanese_translation) || fallback?.japaneseTranslation || '',
+    word_breakdown: wordBreakdown,
+    ...(context ? { context } : {}),
+    ...(typeof data.generation_tier === 'string' ? { generation_tier: data.generation_tier } : {}),
+    ...(typeof data.key_word === 'string' ? { target_words: [data.key_word] } : {}),
   };
 }
 
@@ -335,6 +373,7 @@ function toQuizQuestion(
       source.sentencePronunciation,
       source.seed.key_word_pronunciation,
     ),
+    ...(source.sentenceDetail ? { sentence_detail: source.sentenceDetail } : {}),
   };
 }
 

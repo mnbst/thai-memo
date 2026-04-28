@@ -15,6 +15,7 @@ import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
+import 'detail_screen.dart';
 import 'paywall_screen.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
@@ -127,20 +128,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   @override
   Widget build(BuildContext context) {
     final quizState = ref.watch(quizControllerProvider);
-    final statsAsync = ref.watch(quizStatsProvider);
 
-    final body = Column(
-      children: [
-        // 通算正答率バー
-        statsAsync.when(
-          data: (stats) => _buildStatsBar(context, stats),
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
-        ),
-        // メインコンテンツ
-        Expanded(child: _buildContent(context, quizState)),
-      ],
-    );
+    final body = _buildContent(context, quizState);
 
     if (!widget.showAppBar) {
       return body;
@@ -149,40 +138,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       body: body,
-    );
-  }
-
-  Widget _buildStatsBar(BuildContext context, QuizStatsData stats) {
-    if (stats.totalAnswered == 0) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConfig.defaultPadding,
-        vertical: 8,
-      ),
-      color:
-          Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-      child: Row(
-        children: [
-          Icon(Icons.celebration,
-              size: 18, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            '正答率: ${stats.accuracyPercent}%',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          if (stats.currentStreak >= 2) ...[
-            const SizedBox(width: 16),
-            Icon(Icons.local_fire_department,
-                size: 18, color: const Color(0xFF7F0000)),
-            const SizedBox(width: 4),
-            Text(
-              '${stats.currentStreak}日継続',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ],
-      ),
     );
   }
 
@@ -331,10 +286,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       questionIndex: state.index,
       totalQuestions: state.questions.length,
       onShowSentence: widget.onBackToLearningStart,
-      onAnswer: (choiceIndex, hintLevel) {
-        ref
-            .read(quizControllerProvider.notifier)
-            .answerQuestion(choiceIndex, hintLevel: hintLevel);
+      onAnswer: (choiceIndex, hintLevel, reviewedSentence) {
+        ref.read(quizControllerProvider.notifier).answerQuestion(
+              choiceIndex,
+              hintLevel: hintLevel,
+              reviewedSentence: reviewedSentence,
+            );
       },
       showHint: widget.learningSentence == null,
     );
@@ -349,6 +306,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       selectedIndex: state.selectedIndex,
       isCorrect: state.isCorrect,
       showExplanations: widget.learningSentence == null,
+      learningNextLabel: widget.nextButtonLabel,
+      onLearningNext: widget.onNextSentence,
       onNext: () {
         ref.read(quizControllerProvider.notifier).nextQuestion();
       },
@@ -356,6 +315,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   Widget _buildSummaryState(BuildContext context, QuizSummary state) {
+    final isConfirmationQuiz =
+        widget.learningSentence != null && state.questions.length == 1;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
       child: Column(
@@ -376,90 +338,129 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             _buildVocabTransitionCard(context, _vocabBeforeQuiz!),
             const SizedBox(height: 16),
           ],
-          // 各問題の結果一覧
-          ...List.generate(state.questions.length, (i) {
-            final q = state.questions[i];
-            final ok = state.answers[i];
-            final selectedIdx =
-                i < state.selectedIndices.length ? state.selectedIndices[i] : 0;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Card(
-                color: ok
-                    ? Theme.of(context)
-                        .colorScheme
-                        .primaryContainer
-                        .withValues(alpha: 0.3)
-                    : Theme.of(context)
-                        .colorScheme
-                        .errorContainer
-                        .withValues(alpha: 0.3),
-                child: ListTile(
-                  leading: Icon(
-                    ok ? Icons.check_circle : Icons.cancel,
-                    color: ok
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.error,
-                  ),
-                  title: Text(
-                    q.correctAnswer,
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (q.correctAnswerMeaning.isNotEmpty)
-                        Text(
-                          q.correctAnswerMeaning,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      useSafeArea: true,
-                      builder: (_) => DraggableScrollableSheet(
-                        initialChildSize: 0.85,
-                        minChildSize: 0.5,
-                        maxChildSize: 0.95,
-                        expand: false,
-                        builder: (context, scrollController) =>
-                            _QuizResultDetail(
-                          question: q,
-                          selectedIndex: selectedIdx,
-                          isCorrect: ok,
-                          showExplanations: widget.learningSentence == null,
-                          scrollController: scrollController,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            );
-          }),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () async {
-              if (widget.onNextSentence != null) {
-                await widget.onNextSentence!();
-              } else if (widget.onBackToLearningStart != null) {
-                widget.onBackToLearningStart!();
-              } else {
-                ref.read(quizControllerProvider.notifier).reset();
-                Navigator.maybePop(context);
-              }
-            },
-            icon: const Icon(Icons.arrow_forward),
-            label: Text(widget.nextButtonLabel),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          if (isConfirmationQuiz) ...[
+            _buildConfirmationSummaryResult(
+              context,
+              question: state.questions.first,
+              isCorrect: state.answers.first,
             ),
-          ),
+          ] else ...[
+            // 各問題の結果一覧
+            ...List.generate(state.questions.length, (i) {
+              final q = state.questions[i];
+              final ok = state.answers[i];
+              final selectedIdx = i < state.selectedIndices.length
+                  ? state.selectedIndices[i]
+                  : 0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Card(
+                  color: ok
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withValues(alpha: 0.3)
+                      : Theme.of(context)
+                          .colorScheme
+                          .errorContainer
+                          .withValues(alpha: 0.3),
+                  child: ListTile(
+                    leading: Icon(
+                      ok ? Icons.check_circle : Icons.cancel,
+                      color: ok
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.error,
+                    ),
+                    title: Text(
+                      q.correctAnswer,
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (q.correctAnswerMeaning.isNotEmpty)
+                          Text(
+                            q.correctAnswerMeaning,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        useSafeArea: true,
+                        builder: (_) => DraggableScrollableSheet(
+                          initialChildSize: 0.85,
+                          minChildSize: 0.5,
+                          maxChildSize: 0.95,
+                          expand: false,
+                          builder: (context, scrollController) =>
+                              _QuizResultDetail(
+                            question: q,
+                            selectedIndex: selectedIdx,
+                            isCorrect: ok,
+                            showExplanations: widget.learningSentence == null,
+                            scrollController: scrollController,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            }),
+          ],
+          const SizedBox(height: 16),
+          if (widget.onBackToLearningStart != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onBackToLearningStart,
+                    icon: const Icon(Icons.arrow_back, size: 18),
+                    label: const Text('例文に戻る'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      if (widget.onNextSentence != null) {
+                        await widget.onNextSentence!();
+                      }
+                    },
+                    icon: const Icon(Icons.arrow_forward),
+                    label: Text(widget.nextButtonLabel),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            FilledButton.icon(
+              onPressed: () async {
+                if (widget.onNextSentence != null) {
+                  await widget.onNextSentence!();
+                } else {
+                  ref.read(quizControllerProvider.notifier).reset();
+                  Navigator.maybePop(context);
+                }
+              },
+              icon: const Icon(Icons.arrow_forward),
+              label: Text(widget.nextButtonLabel),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ],
           if (widget.onOptionalChallenge != null) ...[
             const SizedBox(height: 12),
             Align(
@@ -480,6 +481,57 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildConfirmationSummaryResult(
+    BuildContext context, {
+    required QuizQuestion question,
+    required bool isCorrect,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          color: isCorrect
+              ? colorScheme.primaryContainer
+              : colorScheme.errorContainer,
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding),
+            child: Row(
+              children: [
+                Icon(
+                  isCorrect ? Icons.check_circle : Icons.cancel,
+                  color: isCorrect ? colorScheme.primary : colorScheme.error,
+                  size: 32,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  isCorrect ? '正解！' : '不正解',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color:
+                            isCorrect ? colorScheme.primary : colorScheme.error,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+            child: _QuizAnswerWordRow(
+              question: question,
+              analyticsSource: 'quiz_summary_confirmation',
+              showSentenceContext: false,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -928,7 +980,11 @@ class _QuizQuestionView extends StatefulWidget {
   final int questionIndex;
   final int totalQuestions;
   final VoidCallback? onShowSentence;
-  final void Function(int choiceIndex, int hintLevel) onAnswer;
+  final void Function(
+    int choiceIndex,
+    int hintLevel,
+    bool reviewedSentence,
+  ) onAnswer;
   final bool showHint;
 
   const _QuizQuestionView({
@@ -946,13 +1002,27 @@ class _QuizQuestionView extends StatefulWidget {
 
 class _QuizQuestionViewState extends State<_QuizQuestionView> {
   int _hintLevel = 0;
+  bool _reviewedSentence = false;
 
   @override
   void didUpdateWidget(_QuizQuestionView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.questionIndex != widget.questionIndex) {
       _hintLevel = 0;
+      _reviewedSentence = false;
     }
+  }
+
+  Future<void> _showSentenceDetail(ThaiSentence sentence) async {
+    setState(() => _reviewedSentence = true);
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DetailScreen(
+          sentence: sentence,
+          source: 'quiz_review_button',
+        ),
+      ),
+    );
   }
 
   @override
@@ -961,6 +1031,9 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
     final hasPronunciation = question.sentencePronunciation.isNotEmpty;
     final hasTranslation = question.japaneseTranslation.isNotEmpty;
     final maxHintLevel = (hasPronunciation ? 1 : 0) + (hasTranslation ? 1 : 0);
+    final sentenceDetail = question.sentenceDetail;
+    final canReviewSentence =
+        widget.totalQuestions > 1 && sentenceDetail != null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppConfig.defaultPadding),
@@ -1042,35 +1115,7 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
               textAlign: TextAlign.center,
             ),
           ],
-          // ヒントボタン
-          if (widget.showHint && _hintLevel < maxHintLevel) ...[
-            const SizedBox(height: 4),
-            Center(
-              child: IconButton(
-                onPressed: () => setState(() => _hintLevel++),
-                icon: const Icon(Icons.lightbulb_outline),
-                iconSize: 20,
-                visualDensity: VisualDensity.compact,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
-                    .withValues(alpha: 0.7),
-                tooltip: 'ヒント',
-                style: IconButton.styleFrom(
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  minimumSize: const Size(36, 36),
-                  side: BorderSide(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withValues(alpha: 0.35),
-                  ),
-                ),
-              ),
-            ),
-          ] else ...[
-            const SizedBox(height: 16),
-          ],
+          const SizedBox(height: 16),
           // 4択
           ...List.generate(question.choices.length, (i) {
             final choicePronunciation = i < question.choicePronunciations.length
@@ -1083,7 +1128,8 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
               child: SizedBox(
                 height: showChoicePronunciation ? 84 : 56,
                 child: ElevatedButton(
-                  onPressed: () => widget.onAnswer(i, _hintLevel),
+                  onPressed: () =>
+                      widget.onAnswer(i, _hintLevel, _reviewedSentence),
                   style: ElevatedButton.styleFrom(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1119,6 +1165,27 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
               ),
             );
           }),
+          if (canReviewSentence) ...[
+            const SizedBox(height: 4),
+            FilledButton.tonalIcon(
+              onPressed: () => _showSentenceDetail(sentenceDetail),
+              icon: const Icon(Icons.menu_book_outlined),
+              label: Text(_reviewedSentence ? '例文を復習済み' : '例文を復習する'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ] else if (widget.showHint && _hintLevel < maxHintLevel) ...[
+            const SizedBox(height: 4),
+            FilledButton.tonalIcon(
+              onPressed: () => setState(() => _hintLevel = maxHintLevel),
+              icon: const Icon(Icons.lightbulb_outline),
+              label: const Text('ヒント'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ],
           if (widget.onShowSentence != null) ...[
             const SizedBox(height: 4),
             FilledButton.tonalIcon(
@@ -1141,10 +1208,12 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
 class _QuizAnswerWordRow extends ConsumerWidget {
   final QuizQuestion question;
   final String analyticsSource;
+  final bool showSentenceContext;
 
   const _QuizAnswerWordRow({
     required this.question,
     required this.analyticsSource,
+    this.showSentenceContext = true,
   });
 
   @override
@@ -1154,55 +1223,58 @@ class _QuizAnswerWordRow extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Flexible(
-              child: Text(
-                question.thaiText,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      height: 1.45,
-                    ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(Icons.volume_up, size: 20, color: colorScheme.primary),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: () {
-                unawaited(
-                  ref.read(analyticsServiceProvider).logPlayTts(
-                        contentType: 'sentence',
-                        text: question.thaiText,
-                        sentenceId: question.sentenceId,
-                        source: analyticsSource,
+        if (showSentenceContext) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: Text(
+                  question.thaiText,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        height: 1.45,
                       ),
-                );
-                ref.read(ttsServiceProvider).speak(question.thaiText);
-              },
-              tooltip: '例文を再生',
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon:
+                    Icon(Icons.volume_up, size: 20, color: colorScheme.primary),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {
+                  unawaited(
+                    ref.read(analyticsServiceProvider).logPlayTts(
+                          contentType: 'sentence',
+                          text: question.thaiText,
+                          sentenceId: question.sentenceId,
+                          source: analyticsSource,
+                        ),
+                  );
+                  ref.read(ttsServiceProvider).speak(question.thaiText);
+                },
+                tooltip: '例文を再生',
+              ),
+            ],
+          ),
+          if (question.sentencePronunciation.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              question.sentencePronunciation,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
             ),
           ],
-        ),
-        if (question.sentencePronunciation.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            question.sentencePronunciation,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-          ),
+          if (question.japaneseTranslation.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              question.japaneseTranslation,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ],
+          const Divider(height: 28),
         ],
-        if (question.japaneseTranslation.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(
-            question.japaneseTranslation,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-        ],
-        const Divider(height: 28),
         Row(
           children: [
             Flexible(
@@ -1375,6 +1447,8 @@ class _QuizResultView extends StatelessWidget {
   final int selectedIndex;
   final bool isCorrect;
   final bool showExplanations;
+  final String learningNextLabel;
+  final Future<void> Function()? onLearningNext;
   final VoidCallback onNext;
 
   const _QuizResultView({
@@ -1384,6 +1458,8 @@ class _QuizResultView extends StatelessWidget {
     required this.selectedIndex,
     required this.isCorrect,
     required this.showExplanations,
+    required this.learningNextLabel,
+    this.onLearningNext,
     required this.onNext,
   });
 
@@ -1451,6 +1527,7 @@ class _QuizResultView extends StatelessWidget {
                 child: _QuizAnswerWordRow(
                   question: question,
                   analyticsSource: 'quiz_result',
+                  showSentenceContext: showExplanations,
                 ),
               ),
             ),
@@ -1460,65 +1537,84 @@ class _QuizResultView extends StatelessWidget {
             _QuizExplanationSection(question: question),
             const SizedBox(height: 16),
           ],
-          // 4択（正誤ハイライト付き）
-          ...List.generate(question.choices.length, (i) {
-            final isSelected = i == selectedIndex;
-            final isCorrectChoice =
-                question.choices[i] == question.correctAnswer;
-            Color? bgColor;
-            Color? borderColor;
-            if (isCorrectChoice) {
-              bgColor = Theme.of(context)
-                  .colorScheme
-                  .primaryContainer
-                  .withValues(alpha: 0.5);
-              borderColor = Theme.of(context).colorScheme.primary;
-            } else if (isSelected && !isCorrect) {
-              bgColor = Theme.of(context)
-                  .colorScheme
-                  .errorContainer
-                  .withValues(alpha: 0.5);
-              borderColor = Theme.of(context).colorScheme.error;
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Container(
-                height: 56,
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius:
-                      BorderRadius.circular(AppConfig.cardBorderRadius),
-                  border: borderColor != null
-                      ? Border.all(color: borderColor, width: 2)
-                      : Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outline
-                              .withValues(alpha: 0.3)),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  question.choices[i],
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight:
-                        isCorrectChoice ? FontWeight.bold : FontWeight.normal,
+          if (showExplanations) ...[
+            // 4択（正誤ハイライト付き）
+            ...List.generate(question.choices.length, (i) {
+              final isSelected = i == selectedIndex;
+              final isCorrectChoice =
+                  question.choices[i] == question.correctAnswer;
+              Color? bgColor;
+              Color? borderColor;
+              if (isCorrectChoice) {
+                bgColor = Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withValues(alpha: 0.5);
+                borderColor = Theme.of(context).colorScheme.primary;
+              } else if (isSelected && !isCorrect) {
+                bgColor = Theme.of(context)
+                    .colorScheme
+                    .errorContainer
+                    .withValues(alpha: 0.5);
+                borderColor = Theme.of(context).colorScheme.error;
+              }
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius:
+                        BorderRadius.circular(AppConfig.cardBorderRadius),
+                    border: borderColor != null
+                        ? Border.all(color: borderColor, width: 2)
+                        : Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withValues(alpha: 0.3)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    question.choices[i],
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight:
+                          isCorrectChoice ? FontWeight.bold : FontWeight.normal,
+                    ),
                   ),
                 ),
+              );
+            }),
+            const SizedBox(height: 16),
+            // 次へボタン
+            FilledButton(
+              onPressed: onNext,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-            );
-          }),
-          const SizedBox(height: 16),
-          // 次へボタン
-          FilledButton(
-            onPressed: onNext,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                questionIndex + 1 >= totalQuestions ? '結果を見る' : '次の問題へ',
+              ),
             ),
-            child: Text(
-              questionIndex + 1 >= totalQuestions ? '結果を見る' : '次の問題へ',
+          ],
+          if (!showExplanations) ...[
+            FilledButton.icon(
+              onPressed: () async {
+                final next = onLearningNext;
+                if (next != null) {
+                  await next();
+                } else {
+                  onNext();
+                }
+              },
+              icon: const Icon(Icons.arrow_forward),
+              label: Text(learningNextLabel),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1602,6 +1698,7 @@ class _QuizResultDetail extends StatelessWidget {
               child: _QuizAnswerWordRow(
                 question: question,
                 analyticsSource: 'quiz_result_detail',
+                showSentenceContext: showExplanations,
               ),
             ),
           ),
@@ -1611,52 +1708,55 @@ class _QuizResultDetail extends StatelessWidget {
           _QuizExplanationSection(question: question),
           const SizedBox(height: 16),
         ],
-        // 4択（正誤ハイライト付き）
-        ...List.generate(question.choices.length, (i) {
-          final isSelected = i == selectedIndex;
-          final isCorrectChoice = question.choices[i] == question.correctAnswer;
-          Color? bgColor;
-          Color? borderColor;
-          if (isCorrectChoice) {
-            bgColor = Theme.of(context)
-                .colorScheme
-                .primaryContainer
-                .withValues(alpha: 0.5);
-            borderColor = Theme.of(context).colorScheme.primary;
-          } else if (isSelected && !isCorrect) {
-            bgColor = Theme.of(context)
-                .colorScheme
-                .errorContainer
-                .withValues(alpha: 0.5);
-            borderColor = Theme.of(context).colorScheme.error;
-          }
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Container(
-              height: 56,
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-                border: borderColor != null
-                    ? Border.all(color: borderColor, width: 2)
-                    : Border.all(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outline
-                            .withValues(alpha: 0.3)),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                question.choices[i],
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight:
-                      isCorrectChoice ? FontWeight.bold : FontWeight.normal,
+        if (showExplanations)
+          // 4択（正誤ハイライト付き）
+          ...List.generate(question.choices.length, (i) {
+            final isSelected = i == selectedIndex;
+            final isCorrectChoice =
+                question.choices[i] == question.correctAnswer;
+            Color? bgColor;
+            Color? borderColor;
+            if (isCorrectChoice) {
+              bgColor = Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withValues(alpha: 0.5);
+              borderColor = Theme.of(context).colorScheme.primary;
+            } else if (isSelected && !isCorrect) {
+              bgColor = Theme.of(context)
+                  .colorScheme
+                  .errorContainer
+                  .withValues(alpha: 0.5);
+              borderColor = Theme.of(context).colorScheme.error;
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius:
+                      BorderRadius.circular(AppConfig.cardBorderRadius),
+                  border: borderColor != null
+                      ? Border.all(color: borderColor, width: 2)
+                      : Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outline
+                              .withValues(alpha: 0.3)),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  question.choices[i],
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight:
+                        isCorrectChoice ? FontWeight.bold : FontWeight.normal,
+                  ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
       ],
     );
   }

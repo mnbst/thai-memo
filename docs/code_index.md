@@ -201,8 +201,11 @@ functions/javascript/src/dailyBatch.ts
 
 ### Services
 
-functions/javascript/src/services/geminiService.ts
-Gemini APIクイズ生成ラッパー。
+functions/javascript/src/services/quizGenerationService.ts
+クイズ生成のプロンプト構築・サニタイズ・ルールベース変換。QuizGenerationServiceインターフェース定義。
+
+functions/javascript/src/services/geminiQuizService.ts
+Gemini API呼び出しによるQuizGenerationService実装。
 
 functions/javascript/src/services/secretManager.ts
 GCP Secret ManagerクライアントでAPIキー取得。

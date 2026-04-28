@@ -20,6 +20,7 @@ export interface QuizQuestion {
   sentence_pronunciation: string;
   blank_sentence_pronunciation: string;
   dummy_reasons: string[];
+  sentence_detail?: Record<string, unknown>;
 }
 
 export interface GeneratedQuizQuestion {

@@ -16,7 +16,6 @@ import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
-import '../widgets/level_up_dialog.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
@@ -301,7 +300,9 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     await ref.read(sentenceControllerProvider.notifier).generateSentence();
     final sentenceState = ref.read(sentenceControllerProvider);
     if (sentenceState is SentenceStateSuccess) {
-      ref.read(quizControllerProvider.notifier).prepareQuiz(sentenceState.sentence);
+      ref
+          .read(quizControllerProvider.notifier)
+          .prepareQuiz(sentenceState.sentence);
       ref.invalidate(allSentencesProvider);
     }
   }
@@ -324,7 +325,9 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             final quizState = ref.read(quizControllerProvider);
 
             // 既に回答中/結果表示中ならそのまま再表示
-            if (quizState is QuizAnswering || quizState is QuizShowResult || quizState is QuizSummary) {
+            if (quizState is QuizAnswering ||
+                quizState is QuizShowResult ||
+                quizState is QuizSummary) {
               // nothing
             } else {
               quizNotifier.startLearningQuiz(sentence);
@@ -790,6 +793,18 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     sentence.japaneseTranslation,
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withValues(alpha: 0.45),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -883,27 +898,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     if (effectiveNewIndex <= effectiveLastIndex) return;
 
     await prefs.setString(_prefKeyLastLevel, level);
-    if (mounted) {
-      await LevelUpDialog.show(
-        context,
-        newLevel: level,
-        vocab: vocab,
-        unlockedTopics: _unlockedTopicsForLevel(level),
-      );
-    }
-  }
-
-  String? _unlockedTopicsForLevel(String level) {
-    switch (level) {
-      case '初級':
-        return '仕事、交通、健康、趣味、恋愛';
-      case '初中級':
-        return '学校';
-      case '中級':
-        return '宗教・信仰、伝統・祭り、礼儀作法';
-      default:
-        return null;
-    }
   }
 
   int _thresholdForLevel(String level) {
@@ -922,7 +916,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         return 0;
     }
   }
-
 
   /// Build upgrade banner for free users at the vocab cap.
   Widget _buildUpgradeBanner(BuildContext context) {

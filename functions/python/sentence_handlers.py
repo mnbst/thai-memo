@@ -130,6 +130,8 @@ def _build_sentence_data(
         "thai_text": sentence["thai_text"],
         "pronunciation": sentence.get("pronunciation", ""),
         "japanese_translation": sentence["japanese_translation"],
+        "word_breakdown": sentence.get("word_breakdown", []),
+        "context": sentence.get("context", {}),
         "created_at": firestore.firestore.SERVER_TIMESTAMP,
         "key_word": key_word,
         "key_word_pronunciation": _get_key_word_pronunciation(sentence, key_word),

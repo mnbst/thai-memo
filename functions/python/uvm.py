@@ -49,7 +49,8 @@ ALPHA_EXPOSURE = 0.03  # 例文露出時の P 微増率
 UNKNOWN_WORD_P = 0.3  # UVM 未登録語の prior P
 
 # get_session_words 用: estimated_vocab 基準の頻度帯
-FREQ_BAND_HALF = 30  # 通常帯域の半幅: estimated_vocab ± FREQ_BAND_HALF
+FREQ_BAND_HALF = 15  # 通常帯域の半幅: estimated_vocab ± FREQ_BAND_HALF
+VOCAB_MAX_DELTA = 10  # 1回の sync で estimated_vocab が動ける最大幅
 GAP_SCAN_DEPTH = 100  # ギャップスキャン深度: band_boundary からさらに後方へのスキャン幅
 
 
@@ -139,7 +140,10 @@ def sync_estimated_vocab(
     refs = [uvm_ref.document(word) for word in target_words]
     docs = [snap for snap in db.get_all(refs) if snap.exists] if refs else []
 
-    estimated = estimate_vocab(docs, freq_rank, center=current_estimate)
+    raw = estimate_vocab(docs, freq_rank, center=current_estimate)
+    delta = raw - current_estimate
+    clamped_delta = max(-VOCAB_MAX_DELTA, min(VOCAB_MAX_DELTA, delta))
+    estimated = max(0, current_estimate + clamped_delta)
     user_ref.set({"estimated_vocab": estimated}, merge=True)
 
 
@@ -427,7 +431,8 @@ def register_exposure(
         print(f"register_exposure: uid={uid}, updated {wrote} word(s)")
 
 
-LEARNING_CORRECT_MULTIPLIER = 0.3
+LEARNING_CORRECT_MULTIPLIER = 0.1
+SENTENCE_REVIEW_CORRECT_MULTIPLIER = 0.1
 
 
 def batch_update_uvm(
@@ -472,6 +477,8 @@ def batch_update_uvm(
         hint_multiplier = 1.0 if hint_level == 0 else (0.5 if hint_level == 1 else 0.25)
         if quiz_type == "learning" and is_correct:
             hint_multiplier *= LEARNING_CORRECT_MULTIPLIER
+        if r.get("sentence_reviewed") is True and is_correct:
+            hint_multiplier *= SENTENCE_REVIEW_CORRECT_MULTIPLIER
         if word in docs_map:
             # --- 既存単語の更新 ---
             data = docs_map[word]
