@@ -93,7 +93,7 @@ class SentenceController extends StateNotifier<SentenceState> {
       final sentence = await _generateUseCase.execute(
         generationParams: generationParams,
       );
-      state = SentenceStateSuccess(sentence);
+      state = SentenceStateSuccess(sentence, generated: true);
       _logGenerateSentence(count: 1, source: 'manual_single');
     } on GenerateSentenceException catch (e) {
       state = SentenceStateError(e.getUserMessage());
@@ -139,7 +139,7 @@ class SentenceController extends StateNotifier<SentenceState> {
       // 未生成 → 1件生成
       try {
         final sentence = await _generateUseCase.execute();
-        state = SentenceStateSuccess(sentence);
+        state = SentenceStateSuccess(sentence, generated: true);
         _logGenerateSentence(count: 1, source: 'daily_auto');
       } on GenerateSentenceException catch (e) {
         state = SentenceStateError(e.getUserMessage());
@@ -266,8 +266,9 @@ class SentenceStateLoading extends SentenceState {
 /// Success state with sentence
 class SentenceStateSuccess extends SentenceState {
   final ThaiSentence sentence;
+  final bool generated;
 
-  const SentenceStateSuccess(this.sentence);
+  const SentenceStateSuccess(this.sentence, {this.generated = false});
 }
 
 /// Error state

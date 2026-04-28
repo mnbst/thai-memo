@@ -3,7 +3,7 @@
 // バックエンドAPI通信サービス。
 // Firebase Cloud Functionsと通信し、以下の機能を提供する:
 //   - generateThaiSentence: Gemini AIによるタイ語例文生成
-//   - generateQuiz: OpenAIによる穴埋めクイズ生成
+//   - generateQuiz: Geminiによる穴埋めクイズ生成
 //   - review_queue: Firestoreから復習対象の問題数を取得
 //
 // データフロー（例文生成）:
@@ -298,7 +298,7 @@ class BackendApiService {
       );
 
       final result = await callable.call();
-      final data = Map<String, dynamic>.from(result.data as Map);
+      final data = _deepCast(result.data) as Map<String, dynamic>;
 
       if (data['no_user_sentences'] == true) {
         throw BackendApiNoUserSentencesException();
@@ -307,8 +307,7 @@ class BackendApiService {
       final questionsList = data['questions'] as List<dynamic>? ?? [];
 
       return questionsList
-          .map(
-              (e) => QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
           .toList();
     } on FirebaseFunctionsException catch (e) {
       throw _mapFirebaseFunctionsException(e);
@@ -330,7 +329,11 @@ class BackendApiService {
 
       final sentenceId = sentence.id;
       final targetWords = sentence.targetWords ?? const <String>[];
-      final keyWord = targetWords.isNotEmpty ? targetWords.first : null;
+      final keyWord = targetWords.isNotEmpty
+          ? targetWords.first
+          : sentence.wordBreakdowns.isNotEmpty
+              ? sentence.wordBreakdowns.first.wordText
+              : null;
       if (sentenceId == null || sentenceId.isEmpty || keyWord == null) {
         throw BackendApiException('クイズに使える例文データがありません。');
       }
@@ -350,14 +353,25 @@ class BackendApiService {
           'japanese_translation': sentence.japaneseTranslation,
           'key_word': keyWord,
           'key_word_pronunciation': _findWordPronunciation(sentence, keyWord),
+          'key_word_meaning': _findWordMeaning(sentence, keyWord),
+          'word_breakdown': sentence.wordBreakdowns
+              .map((word) => {
+                    'word': word.wordText,
+                    'pronunciation': word.pronunciation,
+                    'meaning': word.meaning,
+                    if (word.grammaticalRole != null)
+                      'grammatical_role': word.grammaticalRole,
+                  })
+              .toList(),
+          if (sentence.generationTier != null)
+            'generation_tier': sentence.generationTier,
         },
       });
-      final data = Map<String, dynamic>.from(result.data as Map);
+      final data = _deepCast(result.data) as Map<String, dynamic>;
       final questionsList = data['questions'] as List<dynamic>? ?? [];
 
       return questionsList
-          .map(
-              (e) => QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
           .toList();
     } on FirebaseFunctionsException catch (e) {
       throw _mapFirebaseFunctionsException(e);
@@ -372,6 +386,15 @@ class BackendApiService {
     for (final breakdown in sentence.wordBreakdowns) {
       if (breakdown.wordText.trim() == word.trim()) {
         return breakdown.pronunciation;
+      }
+    }
+    return '';
+  }
+
+  String _findWordMeaning(ThaiSentence sentence, String word) {
+    for (final breakdown in sentence.wordBreakdowns) {
+      if (breakdown.wordText.trim() == word.trim()) {
+        return breakdown.meaning;
       }
     }
     return '';
@@ -526,4 +549,16 @@ class BackendApiNoUserSentencesException extends BackendApiException {
 
   @override
   String toString() => 'BackendApiNoUserSentencesException';
+}
+
+dynamic _deepCast(dynamic value) {
+  if (value is Map) {
+    return Map<String, dynamic>.fromEntries(
+      value.entries.map((e) => MapEntry(e.key.toString(), _deepCast(e.value))),
+    );
+  }
+  if (value is List) {
+    return value.map(_deepCast).toList();
+  }
+  return value;
 }

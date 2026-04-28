@@ -52,7 +52,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 const SRS_DAYS = [1, 3, 7, 14, 30];
 /** SRSから選ぶ最大例文数 */
-const MAX_SRS_SENTENCES = 3;
+const MAX_SRS_SENTENCES = 2;
 /** 補充用に一度に確認するUVM語数 */
 const UVM_FILLER_PAGE_SIZE = 50;
 /** Firestore の in query に渡すキーワード数 */
@@ -255,6 +255,7 @@ interface QuizSeed {
   japanese_translation: string;
   key_word?: string;
   key_word_pronunciation?: string;
+  key_word_meaning?: string;
 }
 
 interface QuizSeedSource {
@@ -263,6 +264,7 @@ interface QuizSeedSource {
   srsInterval: number;
   japaneseTranslation: string;
   sentencePronunciation: string;
+  sentenceDetail?: Record<string, unknown>;
 }
 
 function buildLearningQuizSource(payload: unknown): QuizSeedSource | null {
@@ -274,6 +276,12 @@ function buildLearningQuizSource(payload: unknown): QuizSeedSource | null {
   const japaneseTranslation = normalizeTextValue(data.japanese_translation);
   const keyWord = normalizeTextValue(data.key_word);
   const keyWordPronunciation = normalizeTextValue(data.key_word_pronunciation);
+  const keyWordMeaning = normalizeTextValue(data.key_word_meaning);
+  const sentenceDetail = buildSentenceDetail(data, sentenceId, {
+    thaiText,
+    pronunciation,
+    japaneseTranslation,
+  });
 
   if (!sentenceId || !thaiText || !keyWord) return null;
 
@@ -284,11 +292,13 @@ function buildLearningQuizSource(payload: unknown): QuizSeedSource | null {
       japanese_translation: japaneseTranslation,
       key_word: keyWord,
       key_word_pronunciation: keyWordPronunciation,
+      key_word_meaning: keyWordMeaning,
     },
     sentenceId,
     srsInterval: 0,
     japaneseTranslation,
     sentencePronunciation: pronunciation,
+    sentenceDetail,
   };
 }
 
@@ -304,11 +314,43 @@ function toQuizSeedSourceFromSelected(sentence: SelectedSentence): QuizSeedSourc
       japanese_translation: sentence.data.japanese_translation,
       key_word: sentence.data.key_word,
       key_word_pronunciation: sentence.data.key_word_pronunciation,
+      key_word_meaning: resolveKeyWordMeaning(sentence.data),
     },
     sentenceId: sentence.id,
     srsInterval: sentence.srsInterval,
     japaneseTranslation: sentence.data.japanese_translation || '',
     sentencePronunciation: sentence.data.pronunciation || '',
+    sentenceDetail: buildSentenceDetail(sentence.data, sentence.id),
+  };
+}
+
+function buildSentenceDetail(
+  data: Record<string, unknown>,
+  sentenceId: string,
+  fallback?: {
+    thaiText: string;
+    pronunciation: string;
+    japaneseTranslation: string;
+  },
+): Record<string, unknown> | undefined {
+  const wordBreakdown = Array.isArray(data.word_breakdown) ? data.word_breakdown : [];
+  const context =
+    data.context && typeof data.context === 'object' && !Array.isArray(data.context) ?
+      data.context as Record<string, unknown> :
+      undefined;
+
+  if (wordBreakdown.length === 0 && !context) return undefined;
+
+  return {
+    id: sentenceId,
+    thai_text: normalizeTextValue(data.thai_text) || fallback?.thaiText || '',
+    pronunciation: normalizeTextValue(data.pronunciation) || fallback?.pronunciation || '',
+    japanese_translation:
+      normalizeTextValue(data.japanese_translation) || fallback?.japaneseTranslation || '',
+    word_breakdown: wordBreakdown,
+    ...(context ? { context } : {}),
+    ...(typeof data.generation_tier === 'string' ? { generation_tier: data.generation_tier } : {}),
+    ...(typeof data.key_word === 'string' ? { target_words: [data.key_word] } : {}),
   };
 }
 
@@ -322,6 +364,7 @@ function toQuizQuestion(
   return {
     ...clientQuestion,
     choice_pronunciations: clientQuestion.choice_pronunciations ?? [],
+    correct_answer_meaning: clientQuestion.correct_answer_meaning ?? '',
     sentence_id: source.sentenceId,
     srs_interval: source.srsInterval,
     japanese_translation: source.japaneseTranslation,
@@ -330,6 +373,7 @@ function toQuizQuestion(
       source.sentencePronunciation,
       source.seed.key_word_pronunciation,
     ),
+    ...(source.sentenceDetail ? { sentence_detail: source.sentenceDetail } : {}),
   };
 }
 
@@ -467,7 +511,22 @@ function isUserSentenceDocReady(
     japanese_translation: data.japanese_translation,
     key_word: data.key_word,
     key_word_pronunciation: data.key_word_pronunciation,
+    key_word_meaning: resolveKeyWordMeaning(data),
   });
+}
+
+function resolveKeyWordMeaning(data: Record<string, unknown>): string {
+  const keyWord = normalizeTextValue(data.key_word);
+  const storedMeaning = normalizeTextValue(data.key_word_meaning);
+  if (storedMeaning) return storedMeaning;
+
+  const wordBreakdown = Array.isArray(data.word_breakdown) ? data.word_breakdown : [];
+  const match = wordBreakdown.find((item) => {
+    if (!item || typeof item !== 'object') return false;
+    return normalizeTextValue((item as Record<string, unknown>).word) === keyWord;
+  });
+  if (!match || typeof match !== 'object') return '';
+  return normalizeTextValue((match as Record<string, unknown>).meaning);
 }
 
 function shuffleArray<T>(values: T[]): T[] {

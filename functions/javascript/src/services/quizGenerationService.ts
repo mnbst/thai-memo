@@ -10,6 +10,7 @@ export interface QuizQuestion {
   thai_text: string;
   blank_text: string;
   correct_answer: string;
+  correct_answer_meaning: string;
   choices: string[];
   choice_pronunciations: string[];
   pronunciation: string;
@@ -19,6 +20,7 @@ export interface QuizQuestion {
   sentence_pronunciation: string;
   blank_sentence_pronunciation: string;
   dummy_reasons: string[];
+  sentence_detail?: Record<string, unknown>;
 }
 
 export interface GeneratedQuizQuestion {
@@ -26,6 +28,7 @@ export interface GeneratedQuizQuestion {
   thai_text: string;
   blank_text: string;
   correct_answer: string;
+  correct_answer_meaning?: string;
   choices: string[];
   choice_pronunciations?: string[];
   pronunciation: string;
@@ -53,6 +56,7 @@ export interface QuizSentenceSeed {
   japanese_translation: string;
   key_word?: string;
   key_word_pronunciation?: string;
+  key_word_meaning?: string;
 }
 
 export interface PreparedQuizSentenceSeed {
@@ -204,6 +208,7 @@ export function applyRuleBasedQuizFields(
           thai_text: prepared?.thai_text ?? '',
           blank_text: prepared?.blank_text ?? '',
           correct_answer: prepared?.correct_answer ?? '',
+          correct_answer_meaning: prepared?.correct_answer_meaning ?? '',
           choices: question.dummies,
           choice_pronunciations: [],
           pronunciation: prepared?.pronunciation ?? '',
@@ -217,6 +222,7 @@ export function applyRuleBasedQuizFields(
         thai_text: prepared.thai_text,
         blank_text: prepared.blank_text,
         correct_answer: prepared.correct_answer,
+        correct_answer_meaning: prepared.correct_answer_meaning,
         choices: [prepared.correct_answer, ...question.dummies],
         choice_pronunciations: [],
         pronunciation: prepared.pronunciation,
@@ -239,7 +245,7 @@ function resolveBlankTarget(
   return {
     word: keyWord,
     pronunciation: normalizeText(sentence.key_word_pronunciation),
-    meaning: '',
+    meaning: normalizeText(sentence.key_word_meaning),
   };
 }
 
@@ -349,6 +355,7 @@ export function sanitizeQuizQuestion(
     thai_text: normalizeText(question.thai_text),
     blank_text: normalizeText(question.blank_text),
     correct_answer: correctAnswer,
+    correct_answer_meaning: normalizeText(question.correct_answer_meaning),
     choices: shuffledChoices,
     choice_pronunciations: buildChoicePronunciations(
       shuffledChoices,

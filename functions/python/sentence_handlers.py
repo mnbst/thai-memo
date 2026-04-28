@@ -113,6 +113,13 @@ def _get_key_word_pronunciation(sentence: dict, key_word: str) -> str:
     return ""
 
 
+def _get_key_word_meaning(sentence: dict, key_word: str) -> str:
+    for word in sentence.get("word_breakdown", []):
+        if word.get("word", "").strip() == key_word.strip():
+            return word.get("meaning", "").strip()
+    return ""
+
+
 def _build_sentence_data(
     sentence: dict,
     key_word: str,
@@ -123,9 +130,12 @@ def _build_sentence_data(
         "thai_text": sentence["thai_text"],
         "pronunciation": sentence.get("pronunciation", ""),
         "japanese_translation": sentence["japanese_translation"],
+        "word_breakdown": sentence.get("word_breakdown", []),
+        "context": sentence.get("context", {}),
         "created_at": firestore.firestore.SERVER_TIMESTAMP,
         "key_word": key_word,
         "key_word_pronunciation": _get_key_word_pronunciation(sentence, key_word),
+        "key_word_meaning": _get_key_word_meaning(sentence, key_word),
         "generation_tier": _generation_tier(use_premium_spec),
     }
 

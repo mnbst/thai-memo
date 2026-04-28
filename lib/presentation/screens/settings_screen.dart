@@ -3,11 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'dart:async';
+
 import '../../core/config/app_config.dart';
+import '../providers/analytics_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
+import '../providers/vocab_stats_provider.dart';
+import '../widgets/vocab_score_dialog.dart';
 import 'contact_form_screen.dart';
 import 'paywall_screen.dart';
 import 'tone_guide_screen.dart';
@@ -351,6 +356,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            _buildVocabScoreTile(),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
@@ -374,6 +380,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildVocabScoreTile() {
+    final statsAsync = ref.watch(vocabStatsProvider);
+    final isPremium = ref.watch(isPremiumProvider);
+
+    return statsAsync.when(
+      data: (stats) {
+        final displayVocab = isPremium
+            ? stats.estimatedVocab
+            : stats.estimatedVocab.clamp(0, freeVocabScoreLimit).toInt();
+        final level = vocabLevel(displayVocab);
+
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            Icons.auto_graph,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          title: const Text('語彙スコア'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$displayVocab語',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+              ),
+              const SizedBox(width: 6),
+              Chip(
+                label: Text(level),
+                visualDensity: VisualDensity.compact,
+                labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                padding: EdgeInsets.zero,
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+          onTap: () {
+            unawaited(
+              ref.read(analyticsServiceProvider).logTapVocabScore(
+                    source: 'settings_vocab_score',
+                    vocab: stats.estimatedVocab,
+                    isPremium: isPremium,
+                  ),
+            );
+            showVocabScoreInfo(
+              context,
+              stats.estimatedVocab,
+              isPremium: isPremium,
+            );
+          },
+        );
+      },
+      loading: () => const ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.auto_graph),
+        title: Text('語彙スコア'),
+        trailing: SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 

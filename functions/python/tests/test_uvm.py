@@ -15,10 +15,12 @@ from uvm import (
     P_MAX,
     P_MIN,
     RANK_SCALE_REF,
+    VOCAB_MAX_DELTA,
     batch_update_uvm,
     get_exposed_words,
     get_session_words,
     register_exposure,
+    sync_estimated_vocab,
     update_p,
 )
 
@@ -250,7 +252,7 @@ def test_update_p_alpha_decays_with_quiz_attempts() -> None:
 
 
 def test_get_session_words_excludes_out_of_band_candidates() -> None:
-    # estimated_vocab=50: band=[20, 80], gap_scan=[0, 20)
+    # estimated_vocab=50: band=[35, 65], gap_scan=[0, 35)
     # 全語P>0 → ギャップなし → band内からランダム選出
     db = FakeDb(
         {
@@ -266,9 +268,9 @@ def test_get_session_words_excludes_out_of_band_candidates() -> None:
         db,
         "user-1",
         {
-            "in-band-low": 20,
+            "in-band-low": 35,
             "in-band-high": 50,
-            "out-band": 81,
+            "out-band": 66,
         },
         topic="fixed-topic",
         count=2,
@@ -332,7 +334,7 @@ def test_get_session_words_prioritizes_p_zero_gap_candidate() -> None:
 
 
 def test_get_session_words_falls_back_to_band_when_no_gap() -> None:
-    # estimated_vocab=100: gap zone 内は全語P>0 → band内からランダム選出
+    # estimated_vocab=100: band=[85, 115], gap zone 内は全語P>0 → band内からランダム選出
     db = FakeDb(
         {
             "user-1": {
@@ -347,7 +349,7 @@ def test_get_session_words_falls_back_to_band_when_no_gap() -> None:
         "user-1",
         {
             "gap-known": 50,
-            "band-word": 80,
+            "band-word": 90,
         },
         topic="fixed-topic",
         count=1,
@@ -384,8 +386,8 @@ def test_batch_update_uvm_syncs_counts_for_existing_word_updates() -> None:
         freq_rank={"กิน": 12},
     )
 
-    # 1語(rank=12, p>0.5)→ スパースフォールバックで known_max_rank=12
-    assert db.user_docs["user-1"]["estimated_vocab"] == 12
+    # raw=12 だが current=0 → ダンパーで VOCAB_MAX_DELTA に制限
+    assert db.user_docs["user-1"]["estimated_vocab"] == VOCAB_MAX_DELTA
 
 
 # ---------------------------------------------------------------------------
@@ -592,7 +594,7 @@ def test_update_p_hint_multiplier_default_matches_explicit_1() -> None:
 
 
 def test_batch_update_uvm_learning_correct_reduces_p_increase() -> None:
-    """quiz_type='learning' + 正解 → P増分が通常の LEARNING_CORRECT_MULTIPLIER 倍になる"""
+    """quiz_type='learning' + 正解 → P増分は通常の10%程度に抑える"""
     p0 = 0.1
     db = FakeDb(
         {"user-1": {"ไป": {"word": "ไป", "p": p0, "quiz_attempts": 0, "last_seen": 0.0, "last_result": False}}},
@@ -609,6 +611,8 @@ def test_batch_update_uvm_learning_correct_reduces_p_increase() -> None:
     p_new = db.store["user-1"]["ไป"]["p"]
     p_expected = update_p(p0, True, 0, rank=300, hint_multiplier=LEARNING_CORRECT_MULTIPLIER)
     assert abs(p_new - p_expected) < 1e-9
+    p_normal = update_p(p0, True, 0, rank=300, hint_multiplier=1.0)
+    assert abs((p_new - p0) - (p_normal - p0) * 0.1) < 1e-9
 
 
 def test_batch_update_uvm_learning_incorrect_unchanged() -> None:
@@ -666,6 +670,54 @@ def test_batch_update_uvm_learning_with_hint_stacks() -> None:
     )
 
     p_new = db.store["user-1"]["ไป"]["p"]
-    # hint_level=1 → 0.5, learning → ×0.5, 合計 0.25
+    # hint_level=1 → 0.5, learning → ×0.1, 合計 0.05
     p_expected = update_p(p0, True, 0, rank=300, hint_multiplier=0.5 * LEARNING_CORRECT_MULTIPLIER)
     assert abs(p_new - p_expected) < 1e-9
+
+
+# ---------------------------------------------------------------------------
+# sync_estimated_vocab ダンパー
+# ---------------------------------------------------------------------------
+
+def test_sync_estimated_vocab_clamps_large_increase() -> None:
+    """raw が current+30 でも VOCAB_MAX_DELTA に制限される"""
+    current = 50
+    # rank 70〜80 に P=0.9 の語を大量に配置 → estimate_vocab が大幅に上がる
+    uvm_store: dict[str, dict] = {}
+    freq_rank: dict[str, int] = {}
+    for i in range(current + 20, current + 40):
+        word = f"w{i}"
+        freq_rank[word] = i
+        uvm_store[word] = {"p": 0.95}
+
+    db = FakeDb(
+        {"user-1": uvm_store},
+        {"user-1": {"estimated_vocab": current}},
+    )
+
+    sync_estimated_vocab(db, "user-1", freq_rank)
+
+    new_ev = db.user_docs["user-1"]["estimated_vocab"]
+    assert new_ev <= current + VOCAB_MAX_DELTA
+
+
+def test_sync_estimated_vocab_clamps_large_decrease() -> None:
+    """raw が current-30 でも -VOCAB_MAX_DELTA に制限される"""
+    current = 100
+    # rank 50〜60 に P=0.01 の語 → estimate_vocab が大幅に下がる
+    uvm_store: dict[str, dict] = {}
+    freq_rank: dict[str, int] = {}
+    for i in range(current - 50, current - 30):
+        word = f"w{i}"
+        freq_rank[word] = i
+        uvm_store[word] = {"p": 0.01}
+
+    db = FakeDb(
+        {"user-1": uvm_store},
+        {"user-1": {"estimated_vocab": current}},
+    )
+
+    sync_estimated_vocab(db, "user-1", freq_rank)
+
+    new_ev = db.user_docs["user-1"]["estimated_vocab"]
+    assert new_ev >= current - VOCAB_MAX_DELTA

@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/datasources/backend_api_service.dart'
     show
@@ -17,9 +15,8 @@ import '../../data/models/thai_sentence.dart';
 import '../../services/analytics_service.dart';
 import 'analytics_provider.dart';
 
-final RegExp _thaiScriptRegex = RegExp(r'[\u0E00-\u0E7F]');
-final RegExp _nonThaiChoiceRegex =
-    RegExp(r'[A-Za-z\u3040-\u30FF\u31F0-\u31FF\u4E00-\u9FFF]');
+final RegExp _thaiScriptRegex = RegExp(r'[฀-๿]');
+final RegExp _nonThaiChoiceRegex = RegExp(r'[A-Za-z぀-ヿㇰ-ㇿ一-鿿]');
 
 // ==================== State ====================
 
@@ -31,24 +28,9 @@ class QuizInitial extends QuizState {
   const QuizInitial();
 }
 
-class QuizLoading extends QuizState {
-  const QuizLoading();
-}
-
-/// 復習対象があることを表示する状態
-class QuizPending extends QuizState {
-  final int questionCount;
-  const QuizPending(this.questionCount);
-}
-
-/// クイズ生成中（OpenAI呼び出し中）
+/// クイズ生成中（API呼び出し中）
 class QuizGenerating extends QuizState {
   const QuizGenerating();
-}
-
-class QuizReady extends QuizState {
-  final List<QuizQuestion> questions;
-  const QuizReady(this.questions);
 }
 
 class QuizAnswering extends QuizState {
@@ -57,6 +39,7 @@ class QuizAnswering extends QuizState {
   final List<bool> answers;
   final List<int> selectedIndices;
   final List<int>? hintLevels;
+  final List<bool>? sentenceReviewFlags;
 
   const QuizAnswering(
     this.questions,
@@ -64,6 +47,7 @@ class QuizAnswering extends QuizState {
     this.answers, [
     this.selectedIndices = const [],
     this.hintLevels = const [],
+    this.sentenceReviewFlags = const [],
   ]);
 }
 
@@ -75,6 +59,7 @@ class QuizShowResult extends QuizState {
   final bool isCorrect;
   final List<int> selectedIndices;
   final List<int>? hintLevels;
+  final List<bool>? sentenceReviewFlags;
 
   const QuizShowResult(
     this.questions,
@@ -84,6 +69,7 @@ class QuizShowResult extends QuizState {
     this.isCorrect, [
     this.selectedIndices = const [],
     this.hintLevels = const [],
+    this.sentenceReviewFlags = const [],
   ]);
 }
 
@@ -94,6 +80,7 @@ class QuizSummary extends QuizState {
   final Map<String, dynamic> stats;
   final List<int> selectedIndices;
   final List<int>? hintLevels;
+  final List<bool>? sentenceReviewFlags;
 
   const QuizSummary(
     this.questions,
@@ -102,6 +89,7 @@ class QuizSummary extends QuizState {
     this.stats, [
     this.selectedIndices = const [],
     this.hintLevels = const [],
+    this.sentenceReviewFlags = const [],
   ]);
 }
 
@@ -150,63 +138,86 @@ class QuizStatsData {
 // ==================== Controller ====================
 
 class QuizController extends StateNotifier<QuizState> {
-  static const _quizKey = 'quiz_questions';
-  static const _quizCompletedKey = 'quiz_completed';
-  static const _quizAnswersKey = 'quiz_answers';
-  static const _quizSelectedIndicesKey = 'quiz_selected_indices';
   final DatabaseHelper _db = DatabaseHelper.instance;
   final BackendApiService _apiService;
   final AnalyticsService _analytics;
   bool _isLearningQuiz = false;
 
+  // バックグラウンド事前生成用
+  List<QuizQuestion>? _preparedQuestions;
+  String? _preparedSentenceId;
+
   QuizController(this._apiService, this._analytics)
       : super(const QuizInitial());
 
-  /// クイズデータを読み込み（SharedPreferencesから復元 or Pending表示）
-  Future<void> loadQuiz() async {
-    // クイズ進行中・結果表示中はリロードしない
-    if (state is QuizAnswering ||
-        state is QuizShowResult ||
-        state is QuizGenerating ||
-        state is QuizSummary) {
-      return;
-    }
-    state = const QuizLoading();
+  /// 例文生成直後にバックグラウンドでクイズを事前生成する（状態遷移なし）
+  Future<void> prepareQuiz(ThaiSentence sentence) async {
+    final sentenceId = sentence.id;
+    if (sentenceId == null || sentenceId.isEmpty) return;
+    if (sentenceId == _preparedSentenceId) return;
+
+    _preparedSentenceId = sentenceId;
+    _preparedQuestions = null;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final existingJson = prefs.getString(_quizKey);
+      final questions = await _apiService.generateLearningQuiz(sentence);
+      if (questions.length == 1 &&
+          !_hasInvalidQuizChoices(questions) &&
+          _preparedSentenceId == sentenceId) {
+        _preparedQuestions = questions;
+      }
+    } catch (e) {
+      debugPrint('クイズ事前生成エラー: $e');
+    }
+  }
 
-      // 端末にデータがあればそれを使用
-      if (existingJson != null && existingJson.isNotEmpty) {
-        await _loadFromPrefs();
+  /// 事前生成済みのクイズがあるか確認
+  bool hasQuizFor(String? sentenceId) {
+    return sentenceId != null &&
+        sentenceId == _preparedSentenceId &&
+        _preparedQuestions != null;
+  }
+
+  /// 事前生成中かどうか（APIコール中）
+  bool isPreparingFor(String? sentenceId) {
+    return sentenceId != null &&
+        sentenceId == _preparedSentenceId &&
+        _preparedQuestions == null;
+  }
+
+  /// 学習クイズを開始（事前生成済みなら即開始、なければ生成して開始）
+  Future<void> startLearningQuiz(ThaiSentence sentence) async {
+    _isLearningQuiz = true;
+    final sentenceId = sentence.id;
+
+    // 事前生成済みならそのまま開始
+    if (hasQuizFor(sentenceId)) {
+      _enterAnswering(_preparedQuestions!);
+      return;
+    }
+
+    // 事前生成中 or 未開始 → 生成して開始
+    state = const QuizGenerating();
+
+    try {
+      final questions = await _apiService.generateLearningQuiz(sentence);
+      if (questions.length != 1 || _hasInvalidQuizChoices(questions)) {
+        state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
         return;
       }
 
-      // 端末にデータがない → Pending表示（SRS選出はgenerateQuiz時にリアルタイム実行）
-      state = const QuizPending(0);
+      _preparedSentenceId = sentenceId;
+      _preparedQuestions = questions;
+      _enterAnswering(questions);
+    } on BackendApiRateLimitException {
+      state = const QuizError('本日のクイズ生成上限に達しました。');
     } catch (e) {
-      debugPrint('クイズ読み込みエラー: $e');
-      state = const QuizPending(0);
+      debugPrint('学習クイズ生成エラー: $e');
+      state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
     }
   }
 
-  /// 学習フロー用: 表示中の例文の保存済みクイズがあれば復元し、なければ生成待ちにする
-  Future<void> loadLearningQuiz(ThaiSentence sentence) async {
-    if (state is QuizAnswering ||
-        state is QuizShowResult ||
-        state is QuizGenerating ||
-        state is QuizSummary) {
-      return;
-    }
-
-    final restored = await _loadStoredLearningQuiz(sentence);
-    if (restored) return;
-
-    state = const QuizPending(1);
-  }
-
-  /// クイズをオンデマンド生成して開始準備
+  /// まとめクイズ（5問）を生成して開始
   Future<void> generateAndStartQuiz() async {
     _isLearningQuiz = false;
     state = const QuizGenerating();
@@ -218,8 +229,7 @@ class QuizController extends StateNotifier<QuizState> {
         return;
       }
 
-      await _saveQuestions(questions);
-      state = QuizReady(questions);
+      _enterAnswering(questions);
     } on BackendApiNoUserSentencesException {
       state = const QuizNoSentences();
     } on BackendApiRateLimitException {
@@ -230,126 +240,11 @@ class QuizController extends StateNotifier<QuizState> {
     }
   }
 
-  /// 学習中の例文から1問だけクイズを生成して開始準備
-  Future<void> generateAndStartLearningQuiz(ThaiSentence sentence) async {
-    _isLearningQuiz = true;
-    state = const QuizGenerating();
-
-    try {
-      final questions = await _apiService.generateLearningQuiz(sentence);
-      if (questions.length != 1 || _hasInvalidQuizChoices(questions)) {
-        state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
-        return;
-      }
-
-      await _saveQuestions(questions);
-      state = QuizReady(questions);
-    } on BackendApiRateLimitException {
-      state = const QuizError('本日のクイズ生成上限に達しました。');
-    } catch (e) {
-      debugPrint('学習クイズ生成エラー: $e');
-      state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
-    }
-  }
-
-  Future<void> _saveQuestions(List<QuizQuestion> questions) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _quizKey,
-      jsonEncode(questions.map((q) => q.toJson()).toList()),
-    );
-    await prefs.remove(_quizCompletedKey);
-    await prefs.remove(_quizAnswersKey);
-    await prefs.remove(_quizSelectedIndicesKey);
-  }
-
-  Future<bool> _loadStoredLearningQuiz(ThaiSentence sentence) async {
-    final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString(_quizKey);
-    if (json == null || json.isEmpty) {
-      return false;
-    }
-
-    try {
-      final list = jsonDecode(json) as List<dynamic>;
-      final questions = list
-          .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
-          .toList();
-      final sentenceId = sentence.id;
-      final matchesSentence = questions.length == 1 &&
-          sentenceId != null &&
-          sentenceId.isNotEmpty &&
-          questions.first.sentenceId == sentenceId;
-      if (!matchesSentence || _hasInvalidQuizChoices(questions)) {
-        return false;
-      }
-
-      await _loadFromPrefs();
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// SharedPreferencesから既存クイズを復元
-  Future<void> _loadFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString(_quizKey);
-
-    if (json == null || json.isEmpty) {
-      state = const QuizPending(0);
-      return;
-    }
-
-    try {
-      final list = jsonDecode(json) as List<dynamic>;
-      final questions = list
-          .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
-          .toList();
-      if (questions.isEmpty) {
-        state = const QuizPending(0);
-        return;
-      }
-      if (_hasInvalidQuizChoices(questions)) {
-        await _clearStoredQuiz();
-        state = const QuizPending(0);
-        return;
-      }
-
-      // 完了済みならサマリーを復元
-      if (prefs.getBool(_quizCompletedKey) == true) {
-        final answersJson = prefs.getString(_quizAnswersKey);
-        final answers = answersJson != null
-            ? (jsonDecode(answersJson) as List<dynamic>).cast<bool>()
-            : <bool>[];
-        final selectedIndicesJson = prefs.getString(_quizSelectedIndicesKey);
-        List<int> selectedIndices;
-        try {
-          selectedIndices = selectedIndicesJson != null
-              ? (jsonDecode(selectedIndicesJson) as List<dynamic>)
-                  .map((e) => (e as num).toInt())
-                  .toList()
-              : <int>[];
-        } catch (_) {
-          selectedIndices = <int>[];
-        }
-        final totalCorrect = answers.where((a) => a).length;
-        final cachedStats = await _db.getCachedQuizStats();
-        state = QuizSummary(
-          questions,
-          answers,
-          totalCorrect,
-          cachedStats ?? {},
-          selectedIndices,
-        );
-        return;
-      }
-
-      state = QuizReady(questions);
-    } catch (_) {
-      await _clearStoredQuiz();
-      state = const QuizPending(0);
-    }
+  /// 状態をリセット
+  void reset() {
+    _preparedQuestions = null;
+    _preparedSentenceId = null;
+    state = const QuizInitial();
   }
 
   bool _hasInvalidQuizChoices(List<QuizQuestion> questions) {
@@ -374,25 +269,8 @@ class QuizController extends StateNotifier<QuizState> {
         !_nonThaiChoiceRegex.hasMatch(normalized);
   }
 
-  Future<void> _clearStoredQuiz() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_quizKey);
-    await prefs.remove(_quizCompletedKey);
-    await prefs.remove(_quizAnswersKey);
-    await prefs.remove(_quizSelectedIndicesKey);
-  }
-
-  Future<void> resetStoredQuiz() async {
-    await _clearStoredQuiz();
-    state = const QuizInitial();
-  }
-
-  /// クイズ開始
-  void startQuiz() {
-    if (state is! QuizReady) return;
-    final questions = (state as QuizReady).questions;
+  void _enterAnswering(List<QuizQuestion> questions) {
     state = QuizAnswering(questions, 0, []);
-    // 実際に回答フローへ入ったタイミングだけを quiz_start として記録する。
     unawaited(
       _analytics.logQuizStart(
         category: 'sentence_review',
@@ -402,7 +280,11 @@ class QuizController extends StateNotifier<QuizState> {
   }
 
   /// 回答を選択
-  Future<void> answerQuestion(int choiceIndex, {int hintLevel = 0}) async {
+  Future<void> answerQuestion(
+    int choiceIndex, {
+    int hintLevel = 0,
+    bool reviewedSentence = false,
+  }) async {
     if (state is! QuizAnswering) return;
     final s = state as QuizAnswering;
     final question = s.questions[s.index];
@@ -410,8 +292,11 @@ class QuizController extends StateNotifier<QuizState> {
     final newAnswers = [...s.answers, isCorrect];
     final newSelectedIndices = [...s.selectedIndices, choiceIndex];
     final newHintLevels = <int>[...s.hintLevels ?? const [], hintLevel];
+    final newSentenceReviewFlags = <bool>[
+      ...s.sentenceReviewFlags ?? const [],
+      reviewedSentence,
+    ];
 
-    // DBに保存
     final result = QuizResult(
       id: '${question.sentenceId}_${DateTime.now().millisecondsSinceEpoch}',
       sentenceId: question.sentenceId,
@@ -423,18 +308,22 @@ class QuizController extends StateNotifier<QuizState> {
     );
     await _db.insertQuizResult(result.toDatabase());
 
-    // UVM更新: 1問ごとにfire-and-forgetで送信
     final word = question.correctAnswer;
     if (word.isNotEmpty) {
       _apiService.updateUvm(
         results: [
-          {'word': word, 'is_correct': isCorrect, 'hint_level': hintLevel},
+          {
+            'word': word,
+            'is_correct': isCorrect,
+            'hint_level': hintLevel,
+            if (reviewedSentence) 'sentence_reviewed': true,
+          },
         ],
         quizType: _isLearningQuiz ? 'learning' : null,
       );
     }
 
-    state = QuizShowResult(
+    final resultState = QuizShowResult(
       s.questions,
       s.index,
       newAnswers,
@@ -442,8 +331,15 @@ class QuizController extends StateNotifier<QuizState> {
       isCorrect,
       newSelectedIndices,
       newHintLevels,
+      newSentenceReviewFlags,
     );
-    // DB 保存と同じタイミングで送ることで、集計と UI の見え方を揃える。
+
+    if (_isLearningQuiz && s.questions.length == 1) {
+      await _showSummary(resultState);
+    } else {
+      state = resultState;
+    }
+
     unawaited(
       _analytics.logQuizAnswer(
         correct: isCorrect,
@@ -460,45 +356,47 @@ class QuizController extends StateNotifier<QuizState> {
     final nextIndex = s.index + 1;
 
     if (nextIndex >= s.questions.length) {
-      final totalCorrect = s.answers.where((a) => a).length;
-      final today = _todayString();
-
-      // quiz_stats キャッシュを更新
-      await _db.updateQuizStats(
-        sessionCorrect: totalCorrect,
-        sessionTotal: s.questions.length,
-        quizDate: today,
-      );
-
-      final cachedStats = await _db.getCachedQuizStats();
-
-      final prefs = await SharedPreferences.getInstance();
-
-      state = QuizSummary(
-        s.questions,
-        s.answers,
-        totalCorrect,
-        cachedStats ?? {},
-        s.selectedIndices,
-        s.hintLevels,
-      );
-
-      // 完了フラグと回答結果を保存（次回配信まで表示し続ける）
-      await prefs.setBool(_quizCompletedKey, true);
-      await prefs.setString(_quizAnswersKey, jsonEncode(s.answers));
-      await prefs.setString(
-          _quizSelectedIndicesKey, jsonEncode(s.selectedIndices));
+      await _showSummary(s);
     } else {
-      state = QuizAnswering(s.questions, nextIndex, s.answers,
-          s.selectedIndices, s.hintLevels ?? const []);
+      state = QuizAnswering(
+        s.questions,
+        nextIndex,
+        s.answers,
+        s.selectedIndices,
+        s.hintLevels ?? const [],
+        s.sentenceReviewFlags ?? const [],
+      );
     }
+  }
+
+  Future<void> _showSummary(QuizShowResult s) async {
+    final totalCorrect = s.answers.where((a) => a).length;
+    final today = _todayString();
+
+    await _db.updateQuizStats(
+      sessionCorrect: totalCorrect,
+      sessionTotal: s.questions.length,
+      quizDate: today,
+    );
+
+    final cachedStats = await _db.getCachedQuizStats();
+
+    state = QuizSummary(
+      s.questions,
+      s.answers,
+      totalCorrect,
+      cachedStats ?? {},
+      s.selectedIndices,
+      s.hintLevels,
+      s.sentenceReviewFlags,
+    );
   }
 
   /// 同じ問題でやり直し
   void retryQuiz() {
     if (state is! QuizSummary) return;
     final questions = (state as QuizSummary).questions;
-    state = QuizAnswering(questions, 0, []);
+    _enterAnswering(questions);
   }
 
   String _todayString() {
