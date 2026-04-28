@@ -3,8 +3,8 @@
 
 OpenAI に送信するプロンプト（指示文）を構築する。
 free / premium ともに build_uvm_prompt を使用する。
-free ティアは estimated_vocab が 100 以下にキャップされ、
-パラメータの選択肢が制限される（テーマ3種、文体2種のみ）。
+estimated_vocab が 100 以下の間は free / premium 共通の入門プロンプトを使う。
+free ティアは estimated_vocab が 100 以下にキャップされる。
 """
 
 import random
@@ -23,6 +23,8 @@ from embeddings import (
     get_style_similarity_weights,
     get_topic_option_similarity_weights,
 )
+
+COMMON_PROMPT_MAX_VOCAB = 100
 
 # 文の長さ指定はレベル定義には持たせず、estimated_vocab から
 # _compute_length_hint() で補間して get_difficulty() が length を追加する。
@@ -160,8 +162,18 @@ OK: คุณทำให้ฉันมีความสุขมาก / ค�
 SYSTEM_PROMPT = SYSTEM_PROMPT_PREMIUM
 
 
-def get_system_prompt(is_premium: bool) -> str:
-    """tier に応じた固定システムプロンプトを返す。"""
+def use_premium_prompt_for_vocab(is_premium: bool, estimated_vocab: int) -> bool:
+    """語彙100以下では tier に関係なく共通の入門プロンプトを使う。"""
+    return is_premium and estimated_vocab > COMMON_PROMPT_MAX_VOCAB
+
+
+def get_system_prompt(
+    is_premium: bool,
+    estimated_vocab: int | None = None,
+) -> str:
+    """tier と語彙スコアに応じた固定システムプロンプトを返す。"""
+    if estimated_vocab is not None:
+        is_premium = use_premium_prompt_for_vocab(is_premium, estimated_vocab)
     return SYSTEM_PROMPT_PREMIUM if is_premium else SYSTEM_PROMPT_FREE
 
 
@@ -331,10 +343,11 @@ def build_uvm_prompt(
         str: OpenAI に送信するプロンプト文字列
     """
     diff = get_difficulty(estimated_vocab)
+    prompt_is_premium = use_premium_prompt_for_vocab(is_premium, estimated_vocab)
 
     resolved = resolve_generation_params(
         params,
-        is_premium=is_premium,
+        is_premium=prompt_is_premium,
         target_words=target_words,
         estimated_vocab=estimated_vocab,
     )

@@ -208,6 +208,7 @@ def _build_retry_prompt(prompt: str, missing: list[str]) -> str:
 
 
 def _generate_single(
+    system_prompt: str,
     prompt: str,
     is_premium: bool,
     tier_label: str,
@@ -220,7 +221,10 @@ def _generate_single(
     missing: list[str] = []
     for attempt in range(1 + MAX_RETRY):
         sentence = _llm_generate_sync(
-            get_system_prompt(is_premium), current_prompt, is_premium, tier_label
+            system_prompt,
+            current_prompt,
+            is_premium,
+            tier_label,
         )
         _get_enrich_with_nlp()(sentence)
 
@@ -240,6 +244,7 @@ def _generate_single(
 
 
 async def _generate_single_async(
+    system_prompt: str,
     prompt: str,
     is_premium: bool,
     tier_label: str,
@@ -252,7 +257,10 @@ async def _generate_single_async(
     missing: list[str] = []
     for attempt in range(1 + MAX_RETRY):
         sentence = await _llm_generate_async(
-            get_system_prompt(is_premium), current_prompt, is_premium, tier_label
+            system_prompt,
+            current_prompt,
+            is_premium,
+            tier_label,
         )
         _get_enrich_with_nlp()(sentence)
 
@@ -286,7 +294,14 @@ def generate_sentence(
         estimated_vocab=estimated_vocab,
         is_premium=is_premium,
     )
-    return _generate_single(prompt, is_premium, tier_label, target_words)
+    system_prompt = get_system_prompt(is_premium, estimated_vocab)
+    return _generate_single(
+        system_prompt,
+        prompt,
+        is_premium,
+        tier_label,
+        target_words,
+    )
 
 
 async def _generate_batch_async(
@@ -309,7 +324,10 @@ async def _generate_batch_async(
             estimated_vocab=estimated_vocab,
             is_premium=is_premium,
         )
-        tasks.append(_generate_single_async(prompt, is_premium, tier_label, tw))
+        system_prompt = get_system_prompt(is_premium, estimated_vocab)
+        tasks.append(
+            _generate_single_async(system_prompt, prompt, is_premium, tier_label, tw)
+        )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 

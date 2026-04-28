@@ -468,6 +468,30 @@ class BackendApiService {
     }
   }
 
+  Future<void> resetLearningData() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw BackendApiUnauthenticatedException('User not authenticated');
+      }
+
+      final callable = _functions.httpsCallable(
+        FirebaseConfig.resetLearningDataFunctionName,
+        options: HttpsCallableOptions(
+          timeout: const Duration(seconds: 60),
+        ),
+      );
+
+      await callable.call();
+    } on FirebaseFunctionsException catch (e) {
+      throw _mapFirebaseFunctionsException(e);
+    } on BackendApiException {
+      rethrow;
+    } catch (e) {
+      throw BackendApiException('学習データのリセットに失敗しました: $e');
+    }
+  }
+
   /// Dispose resources
   void dispose() {
     // Nothing to dispose for Cloud Functions
