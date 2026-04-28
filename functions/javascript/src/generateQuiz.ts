@@ -648,8 +648,16 @@ async function selectFillerSentencesByUvm(
     .limit(UVM_FILLER_PAGE_SIZE)
     .get();
 
-  for (let i = 0; i < uvmSnapshot.docs.length && selected.length < needed; i += KEYWORD_IN_QUERY_LIMIT) {
-    const keyWords = uvmSnapshot.docs
+  const WEAK_P_THRESHOLD = 0.3;
+  const sortedDocs = [...uvmSnapshot.docs].sort((a, b) => {
+    const aWeak = (a.data().quiz_attempts ?? 0) >= 2 && (a.data().p ?? 0) < WEAK_P_THRESHOLD;
+    const bWeak = (b.data().quiz_attempts ?? 0) >= 2 && (b.data().p ?? 0) < WEAK_P_THRESHOLD;
+    if (aWeak !== bWeak) return aWeak ? -1 : 1;
+    return (a.data().p ?? 0) - (b.data().p ?? 0);
+  });
+
+  for (let i = 0; i < sortedDocs.length && selected.length < needed; i += KEYWORD_IN_QUERY_LIMIT) {
+    const keyWords = sortedDocs
       .slice(i, i + KEYWORD_IN_QUERY_LIMIT)
       .map((doc) => doc.id)
       .filter((keyWord) => !usedKeyWords.has(keyWord));
