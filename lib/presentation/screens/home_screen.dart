@@ -592,7 +592,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           ),
         ),
         ...targetWords.map((word) {
-          final wb = breakdownMap[word];
+          final wb = breakdownMap[word] ??
+              breakdownMap['$wordๆ'] ??
+              (word.endsWith('ๆ')
+                  ? breakdownMap[word.replaceAll('ๆ', '')]
+                  : null);
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Card(

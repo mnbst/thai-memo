@@ -106,16 +106,22 @@ def _attach_generation_tier(sentence: dict, use_premium_spec: bool) -> dict:
     }
 
 
+def _match_key_word(word_text: str, key_word: str) -> bool:
+    w = word_text.strip()
+    k = key_word.strip()
+    return w == k or w == k + "ๆ" or w + "ๆ" == k
+
+
 def _get_key_word_pronunciation(sentence: dict, key_word: str) -> str:
     for word in sentence.get("word_breakdown", []):
-        if word.get("word", "").strip() == key_word.strip():
+        if _match_key_word(word.get("word", ""), key_word):
             return word.get("pronunciation", "").strip()
     return ""
 
 
 def _get_key_word_meaning(sentence: dict, key_word: str) -> str:
     for word in sentence.get("word_breakdown", []):
-        if word.get("word", "").strip() == key_word.strip():
+        if _match_key_word(word.get("word", ""), key_word):
             return word.get("meaning", "").strip()
     return ""
 

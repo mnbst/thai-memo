@@ -523,7 +523,8 @@ function resolveKeyWordMeaning(data: Record<string, unknown>): string {
   const wordBreakdown = Array.isArray(data.word_breakdown) ? data.word_breakdown : [];
   const match = wordBreakdown.find((item) => {
     if (!item || typeof item !== 'object') return false;
-    return normalizeTextValue((item as Record<string, unknown>).word) === keyWord;
+    const word = normalizeTextValue((item as Record<string, unknown>).word);
+    return word === keyWord || word === keyWord + 'ๆ' || word + 'ๆ' === keyWord;
   });
   if (!match || typeof match !== 'object') return '';
   return normalizeTextValue((match as Record<string, unknown>).meaning);
