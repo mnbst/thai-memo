@@ -32,8 +32,8 @@ from embeddings import find_best_topic
 # ---------------------------------------------------------------------------
 # 定数
 # ---------------------------------------------------------------------------
-ALPHA_CORRECT_MAX_TOP = 0.50  # rank≈1（高頻度語）の正解α上限: 1問正解でP=0.1→0.55
-ALPHA_CORRECT_MAX_LOW = 0.20  # 高rank（低頻度語）の正解α下限: 3問正解でP>0.5
+ALPHA_CORRECT_MAX_TOP = 0.60  # rank≈1（高頻度語）の正解α上限: 1問正解でP=0.1→0.64
+ALPHA_CORRECT_MAX_LOW = 0.30  # 高rank（低頻度語）の正解α下限: 2問正解でP>0.5
 ALPHA_CORRECT_MIN = 0.02  # 正解時 α の下限（quiz_attempts 大時の収束値）
 ALPHA_INCORRECT_MAX_TOP = 0.28  # rank≈1 の不正解α上限
 ALPHA_INCORRECT_MAX_LOW = 0.08  # 高rank の不正解α下限
@@ -45,8 +45,8 @@ RANK_SCALE_REF = (
 P_MIN = 0.0  # P の下限
 P_MAX = 0.99  # P の上限
 NEW_WORD_P = 0.1  # 新規単語の初期 P 値
-ALPHA_EXPOSURE = 0.03  # 例文露出時の P 微増率
-UNKNOWN_WORD_P = 0.3  # UVM 未登録語の prior P
+ALPHA_EXPOSURE = 0.10  # 例文露出時の P 微増率
+UNKNOWN_WORD_P = 0.4  # UVM 未登録語の prior P
 
 # get_session_words 用: estimated_vocab 基準の頻度帯
 FREQ_BAND_HALF = 15  # 通常帯域の半幅: estimated_vocab ± FREQ_BAND_HALF
@@ -108,7 +108,7 @@ def estimate_vocab(docs: list, freq_rank: dict[str, int], center: int = 0) -> in
     # center ± 50 の範囲で P < 0.5 となる rank を探索
     for r in range(center - 50, center + 51):
         avg = moving_avg(words_by_rank, r)
-        if avg < 0.5:
+        if avg < 0.42:
             return max(known_max_rank, r, 0)
 
     return max(known_max_rank, center, 0)
