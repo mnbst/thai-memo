@@ -256,6 +256,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     super.initState();
     _loadCompletedCount();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreSavedSummaryQuizIfNeeded();
       ref.listenManual(sentenceControllerProvider, (prev, next) {
         if (prev is SentenceStateLoading &&
             next is SentenceStateSuccess &&
@@ -266,6 +267,17 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
         }
       });
     });
+  }
+
+  Future<void> _restoreSavedSummaryQuizIfNeeded() async {
+    final quizNotifier = ref.read(quizControllerProvider.notifier);
+    final hasSavedSummaryQuiz = await quizNotifier.hasSavedSummaryQuiz();
+    if (!mounted || !hasSavedSummaryQuiz || _stage != _LearningStage.sentence) {
+      return;
+    }
+
+    _setStage(_LearningStage.summaryQuiz);
+    await quizNotifier.generateAndStartQuiz();
   }
 
   Future<void> _loadCompletedCount() async {

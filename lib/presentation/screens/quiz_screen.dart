@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/thai_sentence.dart';
@@ -17,6 +18,9 @@ import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
+
+const String _summaryQuizVocabBeforeKey = 'summary_quiz_vocab_before';
+const int _maxSummaryQuizVocabIncrease = 50;
 
 class QuizScreen extends ConsumerStatefulWidget {
   static const routeName = 'quiz';
@@ -98,11 +102,39 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         _captureVocabBeforeQuiz();
       }
     });
+    unawaited(_restoreVocabBeforeQuiz());
   }
 
-  void _captureVocabBeforeQuiz() {
-    _vocabBeforeQuiz ??=
-        ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+  Future<void> _captureVocabBeforeQuiz() async {
+    if (_vocabBeforeQuiz != null) return;
+    final vocab =
+        ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ??
+            (await ref.read(vocabStatsProvider.future)).estimatedVocab;
+    if (!mounted || _vocabBeforeQuiz != null) return;
+    _vocabBeforeQuiz = vocab;
+    if (widget.showVocabScoreTransition) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_summaryQuizVocabBeforeKey, vocab);
+    }
+  }
+
+  Future<void> _restoreVocabBeforeQuiz() async {
+    if (!widget.showVocabScoreTransition || _vocabBeforeQuiz != null) return;
+    final quizState = ref.read(quizControllerProvider);
+    final shouldRestore = quizState is QuizSummary ||
+        (quizState is QuizAnswering && quizState.index > 0);
+    if (!shouldRestore) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final vocab = prefs.getInt(_summaryQuizVocabBeforeKey);
+    if (!mounted || vocab == null || _vocabBeforeQuiz != null) return;
+    setState(() => _vocabBeforeQuiz = vocab);
+  }
+
+  Future<void> _clearVocabBeforeQuiz() async {
+    if (!widget.showVocabScoreTransition) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_summaryQuizVocabBeforeKey);
   }
 
   @override
@@ -432,6 +464,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   child: FilledButton.icon(
                     onPressed: () async {
                       if (widget.onNextSentence != null) {
+                        unawaited(_clearVocabBeforeQuiz());
                         await widget.onNextSentence!();
                       }
                     },
@@ -448,8 +481,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             FilledButton.icon(
               onPressed: () async {
                 if (widget.onNextSentence != null) {
+                  unawaited(_clearVocabBeforeQuiz());
                   await widget.onNextSentence!();
                 } else {
+                  unawaited(_clearVocabBeforeQuiz());
                   ref.read(quizControllerProvider.notifier).reset();
                   Navigator.maybePop(context);
                 }
@@ -542,8 +577,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       data: (vocab) {
         final cap = isPremium ? (1 << 31) : 100;
         final after = vocab.estimatedVocab.clamp(0, cap);
-        final displayBefore = before.clamp(0, cap);
-        if (after == 0) return const SizedBox.shrink();
+        final savedBefore = before.clamp(0, cap);
+        final displayBefore =
+            savedBefore == 0 && after > _maxSummaryQuizVocabIncrease
+                ? after
+                : savedBefore;
         final diff = after - displayBefore;
         return Card(
           color:

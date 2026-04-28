@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/datasources/backend_api_service.dart'
     show
@@ -17,6 +19,8 @@ import 'analytics_provider.dart';
 
 final RegExp _thaiScriptRegex = RegExp(r'[฀-๿]');
 final RegExp _nonThaiChoiceRegex = RegExp(r'[A-Za-z぀-ヿㇰ-ㇿ一-鿿]');
+const String _savedConfirmationQuizKey = 'saved_confirmation_quiz';
+const String _savedSummaryQuizKey = 'saved_summary_quiz';
 
 // ==================== State ====================
 
@@ -142,6 +146,7 @@ class QuizController extends StateNotifier<QuizState> {
   final BackendApiService _apiService;
   final AnalyticsService _analytics;
   bool _isLearningQuiz = false;
+  final List<Future<void>> _pendingUvmUpdates = [];
 
   // バックグラウンド事前生成用
   List<QuizQuestion>? _preparedQuestions;
@@ -165,6 +170,7 @@ class QuizController extends StateNotifier<QuizState> {
           !_hasInvalidQuizChoices(questions) &&
           _preparedSentenceId == sentenceId) {
         _preparedQuestions = questions;
+        await _saveConfirmationQuiz(sentenceId, questions);
       }
     } catch (e) {
       debugPrint('クイズ事前生成エラー: $e');
@@ -188,11 +194,20 @@ class QuizController extends StateNotifier<QuizState> {
   /// 学習クイズを開始（事前生成済みなら即開始、なければ生成して開始）
   Future<void> startLearningQuiz(ThaiSentence sentence) async {
     _isLearningQuiz = true;
+    unawaited(_clearSavedSummaryQuiz());
     final sentenceId = sentence.id;
 
     // 事前生成済みならそのまま開始
     if (hasQuizFor(sentenceId)) {
       _enterAnswering(_preparedQuestions!);
+      return;
+    }
+
+    final savedQuestions = await _loadConfirmationQuiz(sentenceId);
+    if (savedQuestions != null) {
+      _preparedSentenceId = sentenceId;
+      _preparedQuestions = savedQuestions;
+      _enterAnswering(savedQuestions);
       return;
     }
 
@@ -208,6 +223,9 @@ class QuizController extends StateNotifier<QuizState> {
 
       _preparedSentenceId = sentenceId;
       _preparedQuestions = questions;
+      if (sentenceId != null && sentenceId.isNotEmpty) {
+        await _saveConfirmationQuiz(sentenceId, questions);
+      }
       _enterAnswering(questions);
     } on BackendApiRateLimitException {
       state = const QuizError('本日のクイズ生成上限に達しました。');
@@ -220,9 +238,15 @@ class QuizController extends StateNotifier<QuizState> {
   /// まとめクイズ（5問）を生成して開始
   Future<void> generateAndStartQuiz() async {
     _isLearningQuiz = false;
-    state = const QuizGenerating();
+
+    final savedState = await _loadSummaryQuizState();
+    if (savedState != null) {
+      state = savedState;
+      return;
+    }
 
     try {
+      state = const QuizGenerating();
       final questions = await _apiService.generateQuiz();
       if (questions.isEmpty || _hasInvalidQuizChoices(questions)) {
         state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
@@ -240,11 +264,29 @@ class QuizController extends StateNotifier<QuizState> {
     }
   }
 
+  /// アプリ再起動後に復元できる未完了のまとめクイズがあるか確認する。
+  Future<bool> hasSavedSummaryQuiz() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_savedSummaryQuizKey);
+  }
+
   /// 状態をリセット
   void reset() {
     _preparedQuestions = null;
     _preparedSentenceId = null;
+    _pendingUvmUpdates.clear();
+    unawaited(_clearSavedConfirmationQuiz());
+    unawaited(_clearSavedSummaryQuiz());
     state = const QuizInitial();
+  }
+
+  /// 新しい例文生成時に、古い生成済みクイズを洗い替え対象として破棄する。
+  Future<void> clearSavedGeneratedQuizzes() async {
+    _preparedQuestions = null;
+    _preparedSentenceId = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_savedConfirmationQuizKey);
+    await prefs.remove(_savedSummaryQuizKey);
   }
 
   bool _hasInvalidQuizChoices(List<QuizQuestion> questions) {
@@ -270,7 +312,11 @@ class QuizController extends StateNotifier<QuizState> {
   }
 
   void _enterAnswering(List<QuizQuestion> questions) {
-    state = QuizAnswering(questions, 0, []);
+    final answeringState = QuizAnswering(questions, 0, []);
+    state = answeringState;
+    if (!_isLearningQuiz) {
+      unawaited(_saveSummaryQuizState(answeringState));
+    }
     unawaited(
       _analytics.logQuizStart(
         category: 'sentence_review',
@@ -310,7 +356,7 @@ class QuizController extends StateNotifier<QuizState> {
 
     final word = question.correctAnswer;
     if (word.isNotEmpty) {
-      _apiService.updateUvm(
+      final uvmUpdate = _apiService.updateUvm(
         results: [
           {
             'word': word,
@@ -321,6 +367,10 @@ class QuizController extends StateNotifier<QuizState> {
         ],
         quizType: _isLearningQuiz ? 'learning' : null,
       );
+      _pendingUvmUpdates.add(uvmUpdate);
+      unawaited(uvmUpdate.whenComplete(() {
+        _pendingUvmUpdates.remove(uvmUpdate);
+      }));
     }
 
     final resultState = QuizShowResult(
@@ -338,6 +388,9 @@ class QuizController extends StateNotifier<QuizState> {
       await _showSummary(resultState);
     } else {
       state = resultState;
+      if (!_isLearningQuiz) {
+        unawaited(_saveSummaryQuizState(resultState));
+      }
     }
 
     unawaited(
@@ -358,7 +411,7 @@ class QuizController extends StateNotifier<QuizState> {
     if (nextIndex >= s.questions.length) {
       await _showSummary(s);
     } else {
-      state = QuizAnswering(
+      final answeringState = QuizAnswering(
         s.questions,
         nextIndex,
         s.answers,
@@ -366,10 +419,18 @@ class QuizController extends StateNotifier<QuizState> {
         s.hintLevels ?? const [],
         s.sentenceReviewFlags ?? const [],
       );
+      state = answeringState;
+      if (!_isLearningQuiz) {
+        unawaited(_saveSummaryQuizState(answeringState));
+      }
     }
   }
 
   Future<void> _showSummary(QuizShowResult s) async {
+    if (!_isLearningQuiz && _pendingUvmUpdates.isNotEmpty) {
+      await Future.wait(List<Future<void>>.of(_pendingUvmUpdates));
+    }
+
     final totalCorrect = s.answers.where((a) => a).length;
     final today = _todayString();
 
@@ -381,7 +442,7 @@ class QuizController extends StateNotifier<QuizState> {
 
     final cachedStats = await _db.getCachedQuizStats();
 
-    state = QuizSummary(
+    final summaryState = QuizSummary(
       s.questions,
       s.answers,
       totalCorrect,
@@ -390,6 +451,15 @@ class QuizController extends StateNotifier<QuizState> {
       s.hintLevels,
       s.sentenceReviewFlags,
     );
+
+    if (_isLearningQuiz) {
+      unawaited(_clearSavedConfirmationQuiz());
+      unawaited(_clearSavedSummaryQuiz());
+    } else {
+      unawaited(_saveSummaryQuizState(summaryState));
+    }
+
+    state = summaryState;
   }
 
   /// 同じ問題でやり直し
@@ -402,6 +472,203 @@ class QuizController extends StateNotifier<QuizState> {
   String _todayString() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _saveConfirmationQuiz(
+    String sentenceId,
+    List<QuizQuestion> questions,
+  ) async {
+    if (sentenceId.isEmpty || questions.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _savedConfirmationQuizKey,
+      jsonEncode({
+        'sentence_id': sentenceId,
+        'questions': questions.map((question) => question.toJson()).toList(),
+      }),
+    );
+  }
+
+  Future<void> _clearSavedConfirmationQuiz() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_savedConfirmationQuizKey);
+  }
+
+  Future<void> _saveSummaryQuizState(QuizState summaryState) async {
+    final snapshot = switch (summaryState) {
+      QuizAnswering s => {
+          'phase': 'answering',
+          'questions':
+              s.questions.map((question) => question.toJson()).toList(),
+          'index': s.index,
+          'answers': s.answers,
+          'selected_indices': s.selectedIndices,
+          'hint_levels': s.hintLevels ?? const <int>[],
+          'sentence_review_flags': s.sentenceReviewFlags ?? const <bool>[],
+        },
+      QuizShowResult s => {
+          'phase': 'result',
+          'questions':
+              s.questions.map((question) => question.toJson()).toList(),
+          'index': s.index,
+          'answers': s.answers,
+          'selected_indices': s.selectedIndices,
+          'hint_levels': s.hintLevels ?? const <int>[],
+          'sentence_review_flags': s.sentenceReviewFlags ?? const <bool>[],
+        },
+      QuizSummary s => {
+          'phase': 'summary',
+          'questions':
+              s.questions.map((question) => question.toJson()).toList(),
+          'answers': s.answers,
+          'total_correct': s.totalCorrect,
+          'stats': s.stats,
+          'selected_indices': s.selectedIndices,
+          'hint_levels': s.hintLevels ?? const <int>[],
+          'sentence_review_flags': s.sentenceReviewFlags ?? const <bool>[],
+        },
+      _ => null,
+    };
+    if (snapshot == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_savedSummaryQuizKey, jsonEncode(snapshot));
+  }
+
+  Future<void> _clearSavedSummaryQuiz() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_savedSummaryQuizKey);
+  }
+
+  Future<QuizState?> _loadSummaryQuizState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_savedSummaryQuizKey);
+      if (saved == null || saved.isEmpty) return null;
+
+      final data = jsonDecode(saved);
+      if (data is! Map) return null;
+
+      final rawQuestions = data['questions'];
+      if (rawQuestions is! List) return null;
+
+      final questions = rawQuestions
+          .whereType<Map>()
+          .map((json) => QuizQuestion.fromJson(Map<String, dynamic>.from(json)))
+          .toList();
+      if (questions.isEmpty || _hasInvalidQuizChoices(questions)) {
+        return null;
+      }
+
+      final index = data['index'] is int ? data['index'] as int : 0;
+      if (index < 0 || index >= questions.length) return null;
+
+      final answers = _toBoolList(data['answers']);
+      final selectedIndices = _toIntList(data['selected_indices']);
+      final hintLevels = _toIntList(data['hint_levels']);
+      final sentenceReviewFlags = _toBoolList(data['sentence_review_flags']);
+
+      if (data['phase'] == 'result') {
+        // 結果画面で終了 → 次の問題 or サマリーから再開
+        final resumeIndex = index + 1;
+        if (answers.length != resumeIndex) return null;
+        if (resumeIndex >= questions.length) {
+          final totalCorrect = answers.where((a) => a).length;
+          final cachedStats =
+              await DatabaseHelper.instance.getCachedQuizStats();
+          return QuizSummary(
+            questions,
+            answers,
+            totalCorrect,
+            cachedStats ?? {},
+            selectedIndices,
+            hintLevels,
+            sentenceReviewFlags,
+          );
+        }
+        return QuizAnswering(
+          questions,
+          resumeIndex,
+          answers,
+          selectedIndices,
+          hintLevels,
+          sentenceReviewFlags,
+        );
+      }
+
+      if (data['phase'] == 'summary') {
+        if (answers.length != questions.length) return null;
+        final totalCorrect =
+            data['total_correct'] is int ? data['total_correct'] as int : 0;
+        final stats = data['stats'] is Map
+            ? Map<String, dynamic>.from(data['stats'] as Map)
+            : <String, dynamic>{};
+        return QuizSummary(
+          questions,
+          answers,
+          totalCorrect,
+          stats,
+          selectedIndices,
+          hintLevels,
+          sentenceReviewFlags,
+        );
+      }
+
+      if (answers.length != index) return null;
+      return QuizAnswering(
+        questions,
+        index,
+        answers,
+        selectedIndices,
+        hintLevels,
+        sentenceReviewFlags,
+      );
+    } catch (e) {
+      debugPrint('保存済みまとめクイズの読み込みエラー: $e');
+      return null;
+    }
+  }
+
+  Future<List<QuizQuestion>?> _loadConfirmationQuiz(String? sentenceId) async {
+    if (sentenceId == null || sentenceId.isEmpty) return null;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_savedConfirmationQuizKey);
+      if (saved == null || saved.isEmpty) return null;
+
+      final data = jsonDecode(saved);
+      if (data is! Map || data['sentence_id'] != sentenceId) {
+        return null;
+      }
+
+      final rawQuestions = data['questions'];
+      if (rawQuestions is! List) return null;
+
+      final questions = rawQuestions
+          .whereType<Map>()
+          .map((json) => QuizQuestion.fromJson(Map<String, dynamic>.from(json)))
+          .toList();
+      if (questions.length != 1 || _hasInvalidQuizChoices(questions)) {
+        return null;
+      }
+
+      return questions;
+    } catch (e) {
+      debugPrint('保存済み確認クイズの読み込みエラー: $e');
+      return null;
+    }
+  }
+
+  List<int> _toIntList(dynamic value) {
+    if (value is! List) return const [];
+    return value.whereType<int>().toList();
+  }
+
+  List<bool> _toBoolList(dynamic value) {
+    if (value is! List) return const [];
+    return value.whereType<bool>().toList();
   }
 }
 
