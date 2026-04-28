@@ -462,6 +462,7 @@ class TodayScreen extends ConsumerStatefulWidget {
 
 class _TodayScreenState extends ConsumerState<TodayScreen> {
   static const int _freeVocabScoreLimit = freeVocabScoreLimit;
+
   @override
   Widget build(BuildContext context) {
     ref.listen(vocabStatsProvider, (prev, next) {
@@ -1006,7 +1007,17 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            if (!isQuotaError)
+            if (isQuotaError) ...[
+              if (!ref.watch(isPremiumProvider))
+                FilledButton.icon(
+                  onPressed: () => PaywallBottomSheet.show(
+                    context,
+                    source: 'sentence_quota_error',
+                  ),
+                  icon: const Icon(Icons.star),
+                  label: const Text('プレミアムにアップグレード'),
+                ),
+            ] else ...[
               FilledButton.icon(
                 onPressed: () {
                   ref
@@ -1016,6 +1027,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 icon: const Icon(Icons.refresh),
                 label: const Text('再試行'),
               ),
+            ],
           ],
         ),
       ),
