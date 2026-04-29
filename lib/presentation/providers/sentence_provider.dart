@@ -167,26 +167,6 @@ class SentenceController extends StateNotifier<SentenceState> {
     state = SentenceStateSuccess(sentence);
   }
 
-  /// 残りクォータ分を一括生成
-  Future<void> generateBatchSentences() async {
-    state = const SentenceStateBatchLoading();
-
-    try {
-      final sentences = await _generateUseCase.executeBatch();
-      if (sentences.isEmpty) {
-        state = const SentenceStateError('例文の生成に失敗しました。もう一度お試しください。');
-      } else {
-        await _clearSavedGeneratedQuizzes();
-        state = SentenceStateBatchSuccess(sentences);
-        _logGenerateSentence(count: sentences.length, source: 'manual_batch');
-      }
-    } on GenerateSentenceException catch (e) {
-      state = SentenceStateError(e.getUserMessage());
-    } catch (e) {
-      state = SentenceStateError('予期しないエラーが発生しました: $e');
-    }
-  }
-
   /// Delete a sentence
   Future<void> deleteSentence(String id) async {
     try {
@@ -291,14 +271,3 @@ class SentenceStateEmpty extends SentenceState {
   const SentenceStateEmpty();
 }
 
-/// Batch loading state
-class SentenceStateBatchLoading extends SentenceState {
-  const SentenceStateBatchLoading();
-}
-
-/// Batch success state with multiple sentences
-class SentenceStateBatchSuccess extends SentenceState {
-  final List<ThaiSentence> sentences;
-
-  const SentenceStateBatchSuccess(this.sentences);
-}

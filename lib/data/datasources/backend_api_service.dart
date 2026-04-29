@@ -400,49 +400,6 @@ class BackendApiService {
     return '';
   }
 
-  /// 残りクォータ分の例文を一括並列生成
-  Future<List<ThaiSentence>> generateBatchSentences() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw BackendApiUnauthenticatedException('User not authenticated');
-      }
-
-      final callable = _functions.httpsCallable(
-        FirebaseConfig.generateBatchSentencesFunctionName,
-        options: HttpsCallableOptions(
-          timeout: FirebaseConfig.batchFunctionTimeout,
-        ),
-      );
-
-      final result = await callable.call();
-      final data = Map<String, dynamic>.from(result.data as Map);
-
-      if (data['success'] != true) {
-        final error = data['error'] != null
-            ? Map<String, dynamic>.from(data['error'] as Map)
-            : null;
-        final errorCode = error?['code'] as String? ?? 'UNKNOWN';
-        final errorMessage = error?['message'] as String? ?? 'Unknown error';
-        throw _mapBackendError(errorCode, errorMessage);
-      }
-
-      final batchData = Map<String, dynamic>.from(data['data'] as Map);
-      final sentencesList = batchData['sentences'] as List<dynamic>;
-
-      return sentencesList.map((s) {
-        final sentenceJson = Map<String, dynamic>.from(s as Map);
-        return createThaiSentenceFromJson(sentenceJson);
-      }).toList();
-    } on FirebaseFunctionsException catch (e) {
-      throw _mapFirebaseFunctionsException(e);
-    } on BackendApiException {
-      rethrow;
-    } catch (e) {
-      throw BackendApiException('Failed to generate batch sentences: $e');
-    }
-  }
-
   /// クイズ結果からUVMを更新
   Future<void> updateUvm({
     required List<Map<String, dynamic>> results,

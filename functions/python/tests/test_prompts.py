@@ -411,12 +411,12 @@ def test_build_uvm_prompt_excludes_fixed_output_rules() -> None:
         estimated_vocab=101,
     )
 
-    assert "thai_textはタイ語の自然な本文表記" not in prompt
-    assert "日本語話者向けのタイ語練習文を1つ生成" not in prompt
-    assert "thai_textはタイ語の自然な本文表記" in SYSTEM_PROMPT_FREE
-    assert "word_breakdownのmeaningは必ず日本語で記述してください" in SYSTEM_PROMPT_FREE
-    assert "構文・表現ルール" in SYSTEM_PROMPT_PREMIUM
-    assert "直訳構文は禁止" in SYSTEM_PROMPT_PREMIUM
+    assert "分かち書き禁止" not in prompt
+    assert "タイ語練習文を1つ生成" not in prompt
+    assert "分かち書き禁止" in SYSTEM_PROMPT_FREE
+    assert "meaningは日本語のみ" in SYSTEM_PROMPT_FREE
+    assert "構文ルール" in SYSTEM_PROMPT_PREMIUM
+    assert "直訳構文禁止" in SYSTEM_PROMPT_PREMIUM
 
 
 def test_get_system_prompt_selects_tier_prompt() -> None:

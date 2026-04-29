@@ -39,28 +39,6 @@ class GenerateSentenceUseCase {
     }
   }
 
-  /// 残りクォータ分を一括生成
-  Future<List<ThaiSentence>> executeBatch() async {
-    try {
-      return await _repository.generateAndSaveBatchSentences();
-    } on RepositoryException catch (e) {
-      throw GenerateSentenceException(
-        e.message,
-        type: _mapRepositoryException(e),
-      );
-    } on BackendApiException catch (e) {
-      throw GenerateSentenceException(
-        e.message,
-        type: _mapBackendApiException(e),
-      );
-    } catch (e) {
-      throw GenerateSentenceException(
-        'Failed to generate sentences: $e',
-        type: GenerateSentenceErrorType.unknown,
-      );
-    }
-  }
-
   /// Map repository exception to use case error type
   GenerateSentenceErrorType _mapRepositoryException(RepositoryException e) {
     final message = e.message.toLowerCase();
