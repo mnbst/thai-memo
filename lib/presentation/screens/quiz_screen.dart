@@ -469,7 +469,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       }
                     },
                     icon: const Icon(Icons.arrow_forward),
-                    label: Text(widget.nextButtonLabel),
+                    label: () {
+                      final remaining =
+                          ref.watch(remainingSentencesProvider);
+                      final count = remaining.valueOrNull;
+                      final isPremium = ref
+                          .watch(isPremiumRealtimeProvider)
+                          .valueOrNull ?? false;
+                      final total = isPremium ? 5 : 2;
+                      if (count != null) {
+                        final used = total - count;
+                        return Text(
+                            '${widget.nextButtonLabel}  $used/$total');
+                      }
+                      return Text(widget.nextButtonLabel);
+                    }(),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
