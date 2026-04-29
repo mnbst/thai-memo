@@ -94,6 +94,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (prev is QuizShowResult) {
           unawaited(_requestReviewAfterQuizCompletion(next));
         }
+        if (widget.showVocabScoreTransition) {
+          _logSummaryQuizComplete(next);
+        }
       }
       if (widget.showVocabScoreTransition &&
           next is QuizAnswering &&
@@ -129,6 +132,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final vocab = prefs.getInt(_summaryQuizVocabBeforeKey);
     if (!mounted || vocab == null || _vocabBeforeQuiz != null) return;
     setState(() => _vocabBeforeQuiz = vocab);
+  }
+
+  void _logSummaryQuizComplete(QuizSummary summary) {
+    final vocabAfter =
+        ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab;
+    unawaited(
+      ref.read(analyticsServiceProvider).logSummaryQuizComplete(
+            score: summary.totalCorrect,
+            questionCount: summary.questions.length,
+            vocabBefore: _vocabBeforeQuiz,
+            vocabAfter: vocabAfter,
+          ),
+    );
   }
 
   Future<void> _clearVocabBeforeQuiz() async {

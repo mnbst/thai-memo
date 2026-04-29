@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers/analytics_provider.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   static const routeName = 'onboarding';
@@ -26,27 +30,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _OnboardingPage(
       icon: Icons.workspace_premium,
       colorType: _ColorType.secondary,
-      title: '初回5回はPremium（有料）体験',
-      description: 'Free（無料）は基礎練習に集中。\n初回5回は、自然で豊かな\nPremium例文を体験できます。',
-    ),
-    _OnboardingPage(
-      icon: Icons.quiz,
-      colorType: _ColorType.tertiary,
-      title: 'クイズは間違えてOK！',
-      description: '間違えた単語は何度も出題。\nくり返し触れるうちに\n自然と覚えられます。',
+      title: '初回5例文+クイズを体験',
+      description: '初回5例文＋まとめクイズまで\n全学習サイクルを体験できます。\n以降 Free: 例文2回/日 ｜ Premium: 例文5回/日',
     ),
     _OnboardingPage(
       icon: Icons.trending_up,
-      colorType: _ColorType.primary,
-      title: '語彙スコアで実力を見える化',
-      description: '学習するほど語彙スコアが上がり\nそれに合わせて例文やクイズも\n自動でレベルアップしていきます。',
+      colorType: _ColorType.tertiary,
+      title: 'クイズで語彙スコアUP',
+      description: '間違えた単語は何度も出題されるので\n自然と覚えられます。\n語彙スコアに合わせて例文の難易度も変化。',
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(ref.read(analyticsServiceProvider).logOnboardingStart());
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _complete({required bool skipped}) {
+    unawaited(
+      ref.read(analyticsServiceProvider).logOnboardingComplete(skipped: skipped),
+    );
+    widget.onComplete();
   }
 
   void _nextPage() {
@@ -56,7 +67,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      widget.onComplete();
+      _complete(skipped: false);
     }
   }
 
@@ -71,7 +82,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         actions: [
           if (!isLastPage)
             TextButton(
-              onPressed: widget.onComplete,
+              onPressed: () => _complete(skipped: true),
               child: const Text('スキップ'),
             ),
         ],

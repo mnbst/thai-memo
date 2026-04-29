@@ -139,6 +139,28 @@ class AnalyticsService {
     await _logEvent('subscribe', {'source': source});
   }
 
+  Future<void> logOnboardingStart() async {
+    await _logEvent('onboarding_start', {});
+  }
+
+  Future<void> logOnboardingComplete({required bool skipped}) async {
+    await _logEvent('onboarding_complete', {'skipped': skipped ? 1 : 0});
+  }
+
+  Future<void> logSummaryQuizComplete({
+    required int score,
+    required int questionCount,
+    int? vocabBefore,
+    int? vocabAfter,
+  }) async {
+    await _logEvent('summary_quiz_complete', {
+      'score': score,
+      'question_count': questionCount,
+      'vocab_before': vocabBefore,
+      'vocab_after': vocabAfter,
+    });
+  }
+
   Future<void> logChangeSetting({
     required String key,
     String? value,

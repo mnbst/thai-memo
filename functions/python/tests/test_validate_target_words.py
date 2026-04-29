@@ -28,7 +28,7 @@ class TestValidateTargetWords:
         }
         assert validate_target_words(sentence, ["กิน"]) == ["กิน"]
 
-    def test_in_thai_text_compound_breakdown_is_valid(self):
+    def test_compound_only_is_missing(self):
         sentence = {
             "thai_text": "ใช่ไหมครับ",
             "word_breakdown": [
@@ -36,7 +36,15 @@ class TestValidateTargetWords:
                 {"word": "ครับ", "meaning": "丁寧語"},
             ],
         }
-        assert validate_target_words(sentence, ["ใช่"]) == []
+        assert validate_target_words(sentence, ["ใช่"]) == ["ใช่"]
+
+    def test_reduplication_match(self):
+        sentence = {
+            "word_breakdown": [
+                {"word": "เด็กๆ", "meaning": "子供たち"},
+            ],
+        }
+        assert validate_target_words(sentence, ["เด็ก"]) == []
 
     def test_missing_words(self):
         sentence = {

@@ -133,42 +133,17 @@ def require_target_words(result: tuple[list[str], str]) -> tuple[list[str], str]
 MAX_RETRY = 1
 
 
-def _tokenize_thai_text(text: str) -> set[str]:
-    if not text:
-        return set()
 
-    try:
-        from pythainlp.tokenize import word_tokenize
-
-        return {
-            word.strip()
-            for word in word_tokenize(text, engine="newmm")
-            if word.strip()
-        }
-    except Exception as exc:
-        print(f"Target word tokenization failed: {exc}")
-        return set()
-
-
-def _has_target_in_breakdown_compound(
-    target_word: str,
-    wb_words: set[str],
-    text_words: set[str],
-) -> bool:
-    """Allow target words inside compounds that the tokenizer keeps together."""
-    return any(
-        target_word in word and word in text_words
-        for word in wb_words
-        if word != target_word
-    )
+def _match_word(word_text: str, target: str) -> bool:
+    w = word_text.strip()
+    return w == target or w == target + "ๆ" or w + "ๆ" == target
 
 
 def validate_target_words(sentence: dict, target_words: list[str] | None) -> list[str]:
-    """生成された例文にtarget_wordsが含まれているか検証する。
+    """word_breakdownにtarget_wordが独立エントリとして存在するか検証する。
 
-    word_breakdown内のwordフィールドに完全一致している場合を優先する。
-    LLM が word_breakdown を複合語として返すことがあるため、必要な場合のみ
-    thai_text を PyThaiNLP で分かち書きして確認する。
+    複合語の一部としてのみ含まれるケースはmissingとして扱い、リトライで
+    独立した形での使用を強制する。
 
     Returns:
         含まれていなかった単語のリスト（空なら全て含まれている）
@@ -181,18 +156,13 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
         for wb in sentence.get("word_breakdown", [])
         if isinstance(wb, dict)
     }
-    text_words = _tokenize_thai_text(str(sentence.get("thai_text", "")).strip())
 
     missing: list[str] = []
     for tw in target_words:
         target_word = str(tw).strip()
         if not target_word:
             continue
-        if (
-            target_word in wb_words
-            or target_word in text_words
-            or _has_target_in_breakdown_compound(target_word, wb_words, text_words)
-        ):
+        if any(_match_word(w, target_word) for w in wb_words):
             continue
         missing.append(target_word)
     return missing
@@ -202,8 +172,8 @@ def _build_retry_prompt(prompt: str, missing: list[str]) -> str:
     missing_str = ", ".join(missing)
     return (
         f"{prompt}\n\n"
-        f"【再生成指示】前回の生成では次の単語が含まれていませんでした: {missing_str}\n"
-        f"これらの単語を必ず文中に含めてください。"
+        f"【再生成指示】前回の生成では次の単語がword_breakdownに独立エントリとして含まれていませんでした: {missing_str}\n"
+        f"これらの単語を複合語の一部ではなく、単独で意味が成り立つ形で文中に使い、word_breakdownにも独立した項目として含めてください。"
     )
 
 

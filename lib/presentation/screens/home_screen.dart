@@ -473,7 +473,6 @@ class TodayScreen extends ConsumerStatefulWidget {
 }
 
 class _TodayScreenState extends ConsumerState<TodayScreen> {
-  static const int _freeVocabScoreLimit = freeVocabScoreLimit;
 
   @override
   Widget build(BuildContext context) {
@@ -530,13 +529,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// Build success state with single sentence
   Widget _buildSuccessState(BuildContext context, ThaiSentence sentence) {
-    final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
-            ref.watch(isPremiumProvider)) ==
-        true;
-    final vocab =
-        ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
-    final showUpgrade = !isPremium && vocab >= _freeVocabScoreLimit;
-
     return Column(
       children: [
         Expanded(
@@ -553,10 +545,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 _buildTargetWordsSection(context, sentence),
                 const SizedBox(height: 12),
                 _buildSentenceCard(context, sentence),
-                if (showUpgrade) ...[
-                  const SizedBox(height: 16),
-                  _buildUpgradeBanner(context),
-                ],
               ],
             ),
           ),
@@ -932,55 +920,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       default:
         return 0;
     }
-  }
-
-  /// Build upgrade banner for free users at the vocab cap.
-  Widget _buildUpgradeBanner(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      color: colorScheme.primaryContainer,
-      child: InkWell(
-        onTap: () => PaywallBottomSheet.show(
-          context,
-          source: 'today_upgrade_banner',
-        ),
-        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConfig.defaultPadding),
-          child: Row(
-            children: [
-              Icon(Icons.workspace_premium,
-                  color: colorScheme.onPrimaryContainer),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'もっと例文を学びたいですか？',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Freeは推定スコア100語が上限です。Premiumで100語の先へ進めます',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onPrimaryContainer
-                                .withValues(alpha: 0.8),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios,
-                  size: 16, color: colorScheme.onPrimaryContainer),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   /// Build error state
