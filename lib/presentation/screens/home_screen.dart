@@ -338,8 +338,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
 
             // 既に回答中/結果表示中ならそのまま再表示
             if (quizState is QuizAnswering ||
-                quizState is QuizShowResult ||
-                quizState is QuizSummary) {
+                quizState is QuizShowResult) {
               // nothing
             } else {
               quizNotifier.startLearningQuiz(sentence);
