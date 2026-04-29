@@ -378,16 +378,6 @@ class QuizController extends StateNotifier<QuizState> {
     state = const QuizInitial();
   }
 
-  /// 新しい例文が生成されたときに呼ばれ、古いクイズデータを破棄する。
-  /// 例文が更新されると既存のクイズは無効になるため、メモリとSP両方をクリアする。
-  Future<void> clearSavedGeneratedQuizzes() async {
-    _preparedQuestions = null;
-    _preparedSentenceId = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_savedConfirmationQuizKey);
-    await prefs.remove(_savedSummaryQuizKey);
-  }
-
   /// クイズ問題の選択肢が有効かを検証する。
   ///
   /// 以下のいずれかに該当する場合、不正と判定:

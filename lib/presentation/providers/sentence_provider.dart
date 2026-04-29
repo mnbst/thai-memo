@@ -13,7 +13,6 @@ import '../../domain/get_sentences_usecase.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
 import 'analytics_provider.dart';
-import 'quiz_provider.dart';
 import 'settings_provider.dart';
 import 'subscription_provider.dart';
 
@@ -74,7 +73,6 @@ class SentenceController extends StateNotifier<SentenceState> {
   final AnalyticsService _analytics;
   final String Function() _currentTier;
   final String? Function() _currentTopic;
-  final Future<void> Function() _clearSavedGeneratedQuizzes;
 
   SentenceController(
     this._generateUseCase,
@@ -83,7 +81,6 @@ class SentenceController extends StateNotifier<SentenceState> {
     this._analytics,
     this._currentTier,
     this._currentTopic,
-    this._clearSavedGeneratedQuizzes,
   ) : super(const SentenceStateInitial());
 
   /// Generate a new sentence
@@ -96,7 +93,6 @@ class SentenceController extends StateNotifier<SentenceState> {
       final sentence = await _generateUseCase.execute(
         generationParams: generationParams,
       );
-      await _clearSavedGeneratedQuizzes();
       state = SentenceStateSuccess(sentence, generated: true);
       _logGenerateSentence(count: 1, source: 'manual_single');
     } on GenerateSentenceException catch (e) {
@@ -143,7 +139,6 @@ class SentenceController extends StateNotifier<SentenceState> {
       // 未生成 → 1件生成
       try {
         final sentence = await _generateUseCase.execute();
-        await _clearSavedGeneratedQuizzes();
         state = SentenceStateSuccess(sentence, generated: true);
         _logGenerateSentence(count: 1, source: 'daily_auto');
       } on GenerateSentenceException catch (e) {
@@ -229,8 +224,6 @@ final sentenceControllerProvider =
     analytics,
     () => ref.read(isPremiumProvider) ? 'premium' : 'free',
     () => ref.read(generationParamsProvider)['topic'],
-    () =>
-        ref.read(quizControllerProvider.notifier).clearSavedGeneratedQuizzes(),
   );
 });
 

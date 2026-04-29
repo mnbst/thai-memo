@@ -370,7 +370,6 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
                 : null,
             onNextSentence: () async {
               await _setCompletedCount(_completedCount + 1);
-              ref.read(quizControllerProvider.notifier).reset();
               if (_completedCount >= _summaryQuizThreshold) {
                 await _setCompletedCount(0);
               }
@@ -389,7 +388,6 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             showVocabScoreTransition: true,
             onNextSentence: () async {
               await _setCompletedCount(0);
-              ref.read(quizControllerProvider.notifier).reset();
               await _generateNextLearningSentence();
             },
           ),
