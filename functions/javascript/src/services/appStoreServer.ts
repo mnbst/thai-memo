@@ -21,11 +21,16 @@
  * 【署名検証】
  * parseNotificationPayload() は JWS の x5c 証明書チェーンを検証し、
  * リーフ証明書の公開鍵で署名を確認する。
- * チェーンのルートが "Apple Root CA" であることをサブジェクト名で確認している。
+ * チェーンのルートが Apple Root CA G3 であることをフィンガープリントで確認している。
  */
 import * as crypto from 'crypto';
 import * as jose from 'jose';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+
+// Apple Root CA G3 の SHA-256 フィンガープリント（証明書ピン留め用）
+// https://www.apple.com/certificateauthority/ から取得した公式ルート証明書に基づく
+const APPLE_ROOT_CA_G3_FINGERPRINT =
+  '63:34:3A:BF:B8:9A:6A:03:EB:B5:7E:9B:3F:5F:A7:BE:7C:4F:5C:75:6F:30:17:B3:A8:C4:88:C3:65:3E:91:79';
 
 /** GCP Secret Manager クライアント（API キーやシークレットの取得に使用） */
 const secretClient = new SecretManagerServiceClient();
@@ -127,8 +132,8 @@ async function generateAppStoreJWT(): Promise<string> {
 /**
  * JWS（JSON Web Signature）ペイロードをデコード（署名検証なし）
  *
- * verifyAppStorePurchase 内でトランザクション情報を取り出す用途に使用。
- * 通知ペイロードには parseNotificationPayload（署名検証あり）を使用すること。
+ * 署名検証済みの JWS からペイロードを取り出す用途に使用。
+ * 呼び出し前に verifyAppleJwsSignature() で署名検証を行うこと。
  */
 function decodeSignedPayload<T>(signedPayload: string): T {
   const parts = signedPayload.split('.');
@@ -148,7 +153,7 @@ function decodeSignedPayload<T>(signedPayload: string): T {
  *
  * 検証内容:
  * 1. x5c チェーン内の各証明書が次の証明書で署名されていること
- * 2. ルート証明書のサブジェクトに "Apple Root CA" が含まれること
+ * 2. ルート証明書のフィンガープリントが Apple Root CA G3 と一致すること
  * 3. リーフ証明書の公開鍵で JWS 署名が正当であること
  *
  * @throws 検証失敗時は Error をスロー
@@ -174,10 +179,11 @@ async function verifyAppleJwsSignature(signedPayload: string): Promise<void> {
     }
   }
 
-  // ルート証明書が Apple CA であることを確認
-  const rootSubject = certs[certs.length - 1].subject;
-  if (!rootSubject.includes('Apple Root CA')) {
-    throw new Error(`Untrusted root CA: ${rootSubject}`);
+  // ルート証明書が Apple CA であることをフィンガープリントで確認
+  const rootCert = certs[certs.length - 1];
+  const rootFingerprint = rootCert.fingerprint256;
+  if (rootFingerprint !== APPLE_ROOT_CA_G3_FINGERPRINT) {
+    throw new Error(`Untrusted root CA fingerprint: ${rootFingerprint}`);
   }
 
   // リーフ証明書の公開鍵で JWS 署名を検証
@@ -231,6 +237,7 @@ export async function verifyAppStorePurchase(
   }
 
   const body = await response.json() as { signedTransactionInfo: string };
+  await verifyAppleJwsSignature(body.signedTransactionInfo);
   const txInfo = decodeSignedPayload<TransactionInfo>(body.signedTransactionInfo);
 
   const expiresAt = txInfo.expiresDate ? new Date(txInfo.expiresDate) : null;

@@ -1,4 +1,5 @@
 import random
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -247,6 +248,8 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         log_data["uvmWords"] = len(target_words)
         log_data["chosenTopic"] = chosen_topic
 
+        freq_rank = get_freq_rank()
+
         if not use_premium_spec:
             cached = pick_free_sentence(target_words[0])
         else:
@@ -264,14 +267,32 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             )
         sentence = _attach_generation_tier(sentence, use_premium_spec)
 
-        if not is_premium:
-            elapsed = time.time() - start_time
-            if elapsed < 7:
-                time.sleep(7 - elapsed)
-
         processing_time = int((time.time() - start_time) * 1000)
         log_data["success"] = True
         log_data["processingTimeMs"] = processing_time
+
+        def _uvm_work() -> None:
+            try:
+                if is_first_generation and remaining <= 1:
+                    user_ref.update(
+                        {"is_first_generation": firestore.firestore.DELETE_FIELD}
+                    )
+            except Exception as exc:
+                print(f"clear first_generation flag failed: {exc}")
+
+            try:
+                _register_sentence_exposure(db, uid, sentence, target_words)
+            except Exception as exc:
+                print(f"register_sentence_exposure failed: {exc}")
+
+            try:
+                max_vocab = None if is_premium else FREE_TIER_MAX_VOCAB
+                sync_estimated_vocab(db, uid, freq_rank, max_vocab=max_vocab)
+            except Exception as exc:
+                print(f"sync_estimated_vocab failed: {exc}")
+
+        uvm_thread = threading.Thread(target=_uvm_work, name="uvm-post")
+        uvm_thread.start()
 
         try:
             sentence_data = _build_sentence_data(
@@ -291,32 +312,19 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             )
         except Exception as exc:
             print(f"Failed to save sentence to Firestore: {exc}")
+            uvm_thread.join()
             raise
 
         response["success"] = True
         sentence["target_words"] = target_words
         response["data"] = sentence
 
-        # 初回生成フラグをクリア（残クォータが0になった時点）
-        if is_first_generation and remaining <= 1:
-            user_ref.update({"is_first_generation": firestore.firestore.DELETE_FIELD})
+        if not is_premium:
+            elapsed = time.time() - start_time
+            if elapsed < 7:
+                time.sleep(7 - elapsed)
 
-        # UVM 露出登録（free/premium 共通）
-        try:
-            log_data["uvmMatchedWords"] = _register_sentence_exposure(
-                db,
-                uid,
-                sentence,
-                target_words,
-            )
-        except Exception as exc:
-            print(f"register_sentence_exposure failed: {exc}")
-        # vocab_count / estimated_vocab を同期
-        try:
-            freq_rank = get_freq_rank()
-            sync_estimated_vocab(db, uid, freq_rank)
-        except Exception as exc:
-            print(f"sync_estimated_vocab failed: {exc}")
+        uvm_thread.join()
 
         print(f"Request completed successfully: {log_data}")
         return response

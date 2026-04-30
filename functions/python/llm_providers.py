@@ -369,7 +369,7 @@ def _gemini_call(
         "max_output_tokens": API_MAX_TOKENS,
     }
     config_kwargs["thinking_config"] = genai_types.ThinkingConfig(
-        thinking_budget=-1 if is_premium else 256
+        thinking_budget=1024 if is_premium else 256
     )
 
     try:

@@ -1221,12 +1221,16 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
           }),
           if (canReviewSentence) ...[
             const SizedBox(height: 4),
-            FilledButton.tonalIcon(
+            TextButton(
               onPressed: () => _showSentenceDetail(sentenceDetail),
-              icon: const Icon(Icons.menu_book_outlined),
-              label: Text(_reviewedSentence ? '例文を復習済み' : '例文を復習する'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Text(
+                _reviewedSentence ? '例文を復習済み' : '例文を復習する',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outline,
+                ),
               ),
             ),
           ] else if (widget.showHint && _hintLevel < maxHintLevel) ...[
