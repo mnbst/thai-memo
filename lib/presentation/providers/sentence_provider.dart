@@ -130,10 +130,9 @@ class SentenceController extends StateNotifier<SentenceState> {
         final recent = await _getUseCase.getMostRecent();
         if (recent != null) {
           state = SentenceStateSuccess(recent);
-        } else {
-          state = const SentenceStateEmpty();
+          return;
         }
-        return;
+        // ローカルDBが空（再インストール等） → フラグを無視して生成を試みる
       }
 
       // 未生成 → 1件生成

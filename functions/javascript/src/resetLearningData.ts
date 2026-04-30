@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
-import { INITIAL_SENTENCES, INITIAL_QUIZZES } from './constants/quota';
+import { FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES } from './constants/quota';
 
 const db = admin.firestore();
 
@@ -46,13 +46,12 @@ export const resetLearningData = functions.https.onCall(
 
     await db.collection('users').doc(uid).set(
       {
-        remaining_sentences: INITIAL_SENTENCES,
-        remaining_quizzes: INITIAL_QUIZZES,
+        remaining_sentences: FREE_DAILY_SENTENCES,
+        remaining_quizzes: FREE_DAILY_QUIZZES,
         uvm_initialized: true,
         daily_sentence_generated: false,
-        is_first_generation: true,
-        is_first_quiz_generation: true,
         sentence_generated_count: 0,
+        estimated_vocab: 0,
       },
       { merge: true },
     );

@@ -28,10 +28,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       description: 'AIが毎日新しいタイ語例文を生成。\n単語ごとの発音・意味の解説や\n音声再生で無理なく学習できます。',
     ),
     _OnboardingPage(
-      icon: Icons.workspace_premium,
+      icon: Icons.edit_note,
       colorType: _ColorType.secondary,
-      title: '初回5例文+クイズを体験',
-      description: '初回5例文＋まとめクイズまで\n全学習サイクルを体験できます。\n以降 Free: 例文2回/日 ｜ Premium: 例文5回/日',
+      title: '毎日5例文+クイズで学習',
+      description: '1日5回まで例文を生成でき\nまとめクイズで定着を確認。\n毎日の学習サイクルで着実にレベルアップ。',
     ),
     _OnboardingPage(
       icon: Icons.trending_up,
@@ -55,7 +55,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   void _complete({required bool skipped}) {
     unawaited(
-      ref.read(analyticsServiceProvider).logOnboardingComplete(skipped: skipped),
+      ref
+          .read(analyticsServiceProvider)
+          .logOnboardingComplete(skipped: skipped),
     );
     widget.onComplete();
   }

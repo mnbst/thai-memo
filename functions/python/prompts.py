@@ -24,7 +24,6 @@ from embeddings import (
     get_topic_option_similarity_weights,
 )
 
-COMMON_PROMPT_MAX_VOCAB = 100
 
 # 文の長さ指定はレベル定義には持たせず、estimated_vocab から
 # _compute_length_hint() で補間して get_difficulty() が length を追加する。
@@ -151,8 +150,8 @@ SYSTEM_PROMPT = SYSTEM_PROMPT_PREMIUM
 
 
 def use_premium_prompt_for_vocab(is_premium: bool, estimated_vocab: int) -> bool:
-    """語彙100以下では tier に関係なく共通の入門プロンプトを使う。"""
-    return is_premium and estimated_vocab > COMMON_PROMPT_MAX_VOCAB
+    """Premium ユーザーは常に Premium プロンプトを使う。"""
+    return is_premium
 
 
 def get_system_prompt(

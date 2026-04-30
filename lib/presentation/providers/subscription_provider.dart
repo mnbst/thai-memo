@@ -11,7 +11,7 @@
 /// - dev環境: Firestore（ストア接続なしでテスト可能）
 ///
 /// 【Free / Premium の機能差分】
-/// - 例文生成: Free=2回/日 / Premium=5回/日（0時リセット）
+/// - 例文生成: Free=5回/日 / Premium=5回/日（0時リセット）
 /// - クイズ: Free=1回/日 / Premium=5回/日（0時リセット）
 /// - 選べる単語: Free=100語まで / Premium=無制限
 /// - テーマ: Free=3種 / Premium=15種

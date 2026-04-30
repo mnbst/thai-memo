@@ -73,12 +73,12 @@ class LoadingTips {
       category: '母音',
       title: 'อุ / อู （u / uu）',
       content: '短母音 อุ は短い「u」、長母音 อู は長い「uu」。',
-      example: 'รุ่น（rùn＝世代） / รู้（rúu＝知る）',
+      example: 'รุ่น（rûn＝世代） / รู้（rúu＝知る）',
     ),
     LoadingTip(
       category: '母音',
-      title: 'เอ / แอ （ee / ae）',
-      content: 'เอ は「ee」、แอ は口を大きく開けた「ae」。',
+      title: 'เอ / แอ （ee / ɛɛ）',
+      content: 'เอ は「ee」、แอ は口を大きく開けた「ɛɛ」。',
       example: 'เก่ง（kèeng＝上手） / แก่（kɛ̀ɛ＝老いた）',
     ),
     LoadingTip(
@@ -131,9 +131,9 @@ class LoadingTips {
     ),
     LoadingTip(
       category: '母音',
-      title: 'แอ็（短母音 ae）',
-      content: '短い「ae」（口を大きく開ける）。แ〜็ の形。',
-      example: 'แบ็ก（báek＝バッグ）',
+      title: 'แอ็（短母音 ɛ）',
+      content: '短い「ɛ」（口を大きく開ける）。แ〜็ の形。',
+      example: 'แบ็ก（bɛ̀k＝バッグ）',
     ),
     LoadingTip(
       category: '母音',
@@ -222,7 +222,7 @@ class LoadingTips {
     LoadingTip(
       category: '声調',
       title: '声調を間違えると…',
-      content: 'สวย（sǔuai＝美しい）と ซวย（suai＝ついてない）のように声調で意味が激変。',
+      content: 'สวย（sǔuai＝美しい）と ซวย（suuai＝ついてない）のように声調で意味が激変。',
     ),
     LoadingTip(
       category: '声調',
@@ -235,6 +235,11 @@ class LoadingTips {
       title: '上声（jàttawaa）',
       content: '低い音から高い音へ上がる声調。日本語の疑問文の語尾上げに少し似ています。',
       example: 'สวย（sǔuai＝美しい）、หนาว（nǎaw＝寒い）',
+    ),
+    LoadingTip(
+      category: '声調',
+      title: '声調は相対的な高さ',
+      content: '声調の高さは前の音節で変わります。フレーズごと覚えるのが効果的。',
     ),
 
     // =========================================================================
@@ -376,6 +381,15 @@ class LoadingTips {
       title: '人称代名詞の使い分け',
       content: 'phǒm（僕）は男性、dì-chǎn（私）は女性のフォーマルな一人称。',
       example: 'カジュアルでは rao や chǎn も使います',
+    ),
+
+    // =========================================================================
+    // 学習のコツ
+    // =========================================================================
+    LoadingTip(
+      category: '学習のコツ',
+      title: 'タイ語だけでクイズに挑戦',
+      content: '例文や解説を見ずにタイ語だけで意味が分かるか、クイズで挑戦してみよう！',
     ),
   ];
 }
