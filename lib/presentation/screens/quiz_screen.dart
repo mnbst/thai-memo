@@ -1197,7 +1197,7 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
                     children: [
                       Text(
                         question.choices[i],
-                        style: const TextStyle(fontSize: 20),
+                        style: const TextStyle(fontSize: 24),
                       ),
                       if (showChoicePronunciation) ...[
                         const SizedBox(height: 2),
@@ -1226,7 +1226,7 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
               child: Text(
                 _reviewedSentence ? '例文を復習済み' : '例文を復習する',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 15,
                   color: Theme.of(context)
                       .colorScheme
                       .outline,
