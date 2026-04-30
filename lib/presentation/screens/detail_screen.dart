@@ -394,7 +394,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             const SizedBox(height: 8),
             // 日本語での意味
             Text(word.meaning, style: Theme.of(context).textTheme.bodyMedium),
-            if (word.notes != null && word.notes!.trim().isNotEmpty) ...[
+            if (word.notes != null && word.notes!.trim().isNotEmpty || isTarget) ...[
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
@@ -410,19 +410,23 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      word.notes!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: cs.onTertiaryContainer,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '→ クイズで出題',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: cs.onTertiaryContainer.withValues(alpha: 0.6),
-                          ),
-                    ),
+                    if (word.notes != null && word.notes!.trim().isNotEmpty)
+                      Text(
+                        word.notes!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: cs.onTertiaryContainer,
+                            ),
+                      ),
+                    if (isTarget) ...[
+                      if (word.notes != null && word.notes!.trim().isNotEmpty)
+                        const SizedBox(height: 4),
+                      Text(
+                        '→ クイズで出題',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: cs.onTertiaryContainer.withValues(alpha: 0.6),
+                            ),
+                      ),
+                    ],
                   ],
                 ),
               ),

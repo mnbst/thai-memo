@@ -17,6 +17,10 @@ async function getGmailAppPassword(): Promise<string> {
 export const sendContactEmail = functions.https.onCall(
   { region: 'asia-northeast1' },
   async (request) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError('unauthenticated', '認証が必要です');
+    }
+
     const { name, email, message } = request.data as {
       name: string;
       email: string;

@@ -115,7 +115,10 @@ def estimate_vocab(docs: list, freq_rank: dict[str, int], center: int = 0) -> in
 
 
 def sync_estimated_vocab(
-    db: FirestoreClient, uid: str, freq_rank: dict[str, int]
+    db: FirestoreClient,
+    uid: str,
+    freq_rank: dict[str, int],
+    max_vocab: int | None = None,
 ) -> None:
     """users/{uid} の estimated_vocab を効率的に更新する。
 
@@ -144,6 +147,8 @@ def sync_estimated_vocab(
     delta = raw - current_estimate
     clamped_delta = max(-VOCAB_MAX_DELTA, min(VOCAB_MAX_DELTA, delta))
     estimated = max(0, current_estimate + clamped_delta)
+    if max_vocab is not None:
+        estimated = min(estimated, max_vocab)
     user_ref.set({"estimated_vocab": estimated}, merge=True)
 
 
@@ -441,6 +446,7 @@ def batch_update_uvm(
     results: list[dict[str, Any]],
     freq_rank: dict[str, int] | None = None,
     quiz_type: str = "",
+    is_premium: bool = True,
 ) -> None:
     """クイズ/例文の正誤結果をもとに UVM を一括更新する。
 
@@ -510,4 +516,7 @@ def batch_update_uvm(
     batch.commit()
 
     if freq_rank is not None:
-        sync_estimated_vocab(db, uid, freq_rank)
+        from constants import FREE_TIER_MAX_VOCAB
+
+        max_vocab = None if is_premium else FREE_TIER_MAX_VOCAB
+        sync_estimated_vocab(db, uid, freq_rank, max_vocab=max_vocab)
