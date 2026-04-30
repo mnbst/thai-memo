@@ -257,31 +257,8 @@ def test_topic_gate_at_intermediate_opens_all() -> None:
     assert gate_topics_for_vocab(TOPICS, 600) == TOPICS
 
 
-def test_intro_premium_uses_free_prompt_params() -> None:
-    """語彙100以下では premium でも free と同じプロンプトパラメータを使う。"""
-    captured: dict = {}
-
-    def capture_topic(values):
-        captured.setdefault("topic_pool", list(values))
-        return values[0]
-
-    with (
-        patch("prompts.get_topic_option_similarity_weights", return_value=None),
-        patch("prompts.get_emotion_similarity_weights", return_value=None),
-        patch("prompts.random.choice", side_effect=capture_topic),
-        patch(
-            "prompts.random.choices",
-            side_effect=lambda population, weights, k: [population[0]],
-        ),
-    ):
-        prompt = build_uvm_prompt({}, is_premium=True, estimated_vocab=100)
-
-    assert captured["topic_pool"] == FREE_TOPICS
-    assert f"- 文体: {FREE_STYLES[0]}" in prompt
-    assert "- 文法フォーカス:" not in prompt
-
-
-def test_build_uvm_prompt_premium_vocab_100_matches_free_prompt_shape() -> None:
+def test_premium_low_vocab_uses_premium_prompt_params() -> None:
+    """語彙100以下でも premium は premium プロンプトパラメータを使う。"""
     prompt = build_uvm_prompt(
         {
             "topic": "topic-a",
@@ -294,7 +271,7 @@ def test_build_uvm_prompt_premium_vocab_100_matches_free_prompt_shape() -> None:
         estimated_vocab=100,
     )
 
-    assert "- 文法フォーカス: grammar-a" not in prompt
+    assert "- 文法フォーカス: grammar-a" in prompt
 
 
 def test_grammar_gate_at_intermediate_includes_conditional() -> None:
@@ -424,11 +401,13 @@ def test_get_system_prompt_selects_tier_prompt() -> None:
     assert get_system_prompt(True) == SYSTEM_PROMPT_PREMIUM
 
 
-def test_get_system_prompt_uses_common_prompt_until_vocab_100() -> None:
-    assert use_premium_prompt_for_vocab(True, 100) is False
-    assert use_premium_prompt_for_vocab(True, 101) is True
-    assert get_system_prompt(True, estimated_vocab=100) == SYSTEM_PROMPT_FREE
-    assert get_system_prompt(True, estimated_vocab=101) == SYSTEM_PROMPT_PREMIUM
+def test_premium_always_uses_premium_prompt() -> None:
+    assert use_premium_prompt_for_vocab(True, 0) is True
+    assert use_premium_prompt_for_vocab(True, 100) is True
+    assert use_premium_prompt_for_vocab(False, 200) is False
+    assert get_system_prompt(True, estimated_vocab=0) == SYSTEM_PROMPT_PREMIUM
+    assert get_system_prompt(True, estimated_vocab=100) == SYSTEM_PROMPT_PREMIUM
+    assert get_system_prompt(False, estimated_vocab=200) == SYSTEM_PROMPT_FREE
 
 
 def test_build_uvm_prompt_includes_grammar_focus_without_target_words() -> None:

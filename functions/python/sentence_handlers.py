@@ -16,6 +16,7 @@ try:
         generate_sentence,
         generate_sentences_batch,
         get_freq_rank,
+        pick_free_sentence,
         require_target_words,
         select_uvm_target_words,
     )
@@ -34,6 +35,7 @@ except ImportError:
         generate_sentence,
         generate_sentences_batch,
         get_freq_rank,
+        pick_free_sentence,
         require_target_words,
         select_uvm_target_words,
     )
@@ -245,13 +247,27 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         log_data["uvmWords"] = len(target_words)
         log_data["chosenTopic"] = chosen_topic
 
-        sentence = generate_sentence(
-            params,
-            use_premium_spec,
-            target_words=target_words,
-            estimated_vocab=estimated_vocab,
-        )
+        if not use_premium_spec:
+            cached = pick_free_sentence(target_words[0])
+        else:
+            cached = None
+
+        if cached is not None:
+            sentence = cached
+            log_data["source"] = "cached"
+        else:
+            sentence = generate_sentence(
+                params,
+                use_premium_spec,
+                target_words=target_words,
+                estimated_vocab=estimated_vocab,
+            )
         sentence = _attach_generation_tier(sentence, use_premium_spec)
+
+        if not is_premium:
+            elapsed = time.time() - start_time
+            if elapsed < 7:
+                time.sleep(7 - elapsed)
 
         processing_time = int((time.time() - start_time) * 1000)
         log_data["success"] = True

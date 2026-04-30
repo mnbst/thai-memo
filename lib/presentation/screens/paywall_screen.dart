@@ -417,16 +417,6 @@ class PaywallBottomSheet extends ConsumerWidget {
             child: Divider(height: 1, color: colorScheme.outlineVariant),
           ),
           benefitRow(
-            icon: Icons.bolt,
-            title: '1日の利用回数',
-            freeText: '1日2回では物足りなくなったら',
-            premiumText: '1日5回、毎日もっと学べる',
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: colorScheme.outlineVariant),
-          ),
-          benefitRow(
             icon: Icons.school,
             title: '学べる単語',
             freeText: '100語はあっという間',

@@ -89,6 +89,33 @@ def get_freq_rank() -> dict[str, int]:
     return _freq_rank  # type: ignore
 
 
+_free_sentences: list[dict] | None = None
+
+
+def get_free_sentences() -> list[dict]:
+    """GCS から free_sentences.json を読み込みキャッシュする。"""
+    global _free_sentences
+    if _free_sentences is not None:
+        return _free_sentences
+
+    project_id = os.environ.get("GCLOUD_PROJECT", "")
+    bucket_name = f"{project_id}-uvm-data"
+    client = gcs.Client()
+    blob = client.bucket(bucket_name).blob("free_sentences.json")
+    _free_sentences = json.loads(blob.download_as_text())
+    return _free_sentences  # type: ignore
+
+
+def pick_free_sentence(target_word: str) -> dict | None:
+    """事前生成済みの free 例文から target_word に一致するものをランダムに返す。"""
+    sentences = get_free_sentences()
+    candidates = [s for s in sentences if s.get("key_word") == target_word]
+    if not candidates:
+        return None
+    import random
+    return random.choice(candidates)
+
+
 def select_uvm_target_words(
     db: FirestoreClient,
     uid: str,

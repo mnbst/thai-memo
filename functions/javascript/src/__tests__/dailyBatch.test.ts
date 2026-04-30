@@ -42,11 +42,12 @@ import { resetQuota } from '../dailyBatch';
 import {
   FREE_DAILY_QUIZZES,
   FREE_DAILY_SENTENCES,
-  INITIAL_QUIZZES,
-  INITIAL_SENTENCES,
   PREMIUM_DAILY_QUIZZES,
   PREMIUM_DAILY_SENTENCES,
 } from '../constants/quota';
+
+const INITIAL_SENTENCES = 5;
+const INITIAL_QUIZZES = 5;
 
 function makeUserDoc(
   data: Record<string, unknown>,

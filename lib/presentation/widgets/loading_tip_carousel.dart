@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:thai_memo/core/constants/loading_tips.dart';
 
@@ -13,7 +11,9 @@ class LoadingTipCarousel extends StatefulWidget {
 }
 
 class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
-  final _random = Random();
+  static List<LoadingTip> _shuffled = List.of(LoadingTips.all)..shuffle();
+  static int _index = 0;
+
   late LoadingTip _currentTip;
   Timer? _timer;
   bool _swipingRight = true;
@@ -21,7 +21,7 @@ class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
   @override
   void initState() {
     super.initState();
-    _currentTip = _randomTip();
+    _currentTip = _nextTip();
     _startTimer();
   }
 
@@ -35,18 +35,22 @@ class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 14), (_) {
       _swipingRight = true;
-      setState(() => _currentTip = _randomTip());
+      setState(() => _currentTip = _nextTip());
     });
   }
 
   void _switchTip({required bool swipeRight}) {
     _swipingRight = swipeRight;
-    setState(() => _currentTip = _randomTip());
+    setState(() => _currentTip = _nextTip());
     _startTimer();
   }
 
-  LoadingTip _randomTip() {
-    return LoadingTips.all[_random.nextInt(LoadingTips.all.length)];
+  LoadingTip _nextTip() {
+    if (_index >= _shuffled.length) {
+      _shuffled = List.of(LoadingTips.all)..shuffle();
+      _index = 0;
+    }
+    return _shuffled[_index++];
   }
 
   @override
