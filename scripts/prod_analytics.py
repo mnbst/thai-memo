@@ -163,5 +163,67 @@ if uvm_totals:
     print(f"  P>0.5 words per user: avg={sum(p_above_05_counts)/len(p_above_05_counts):.1f}")
     print(f"  0.3<P≤0.5 words per user: avg={sum(p_in_mid_counts)/len(p_in_mid_counts):.1f}")
 
+# -------------------------
+# リテンション分析（users ドキュメントの timestamp フィールドで集計）
+# -------------------------
+print("\n=== Retention Analysis ===")
+
+from collections import defaultdict
+
+cohorts = defaultdict(lambda: {'total': 0, 'd1': 0, 'd7': 0, 'd30': 0})
+dau = 0
+wau = 0
+mau = 0
+
+for user_doc in user_docs:
+    d = user_doc.to_dict() or {}
+    first = d.get('first_generated_at')
+    last = d.get('last_active_at')
+    if not first:
+        continue
+
+    first_dt = first.replace(tzinfo=timezone.utc).astimezone(JST)
+    age_days = (NOW - first_dt).days
+
+    # WAU / MAU
+    if last:
+        last_dt = last.replace(tzinfo=timezone.utc).astimezone(JST)
+        inactive_days = (NOW - last_dt).days
+        if inactive_days <= 0:
+            dau += 1
+        if inactive_days <= 7:
+            wau += 1
+        if inactive_days <= 30:
+            mau += 1
+
+        # コホート（登録週）ごとのリテンション
+        cohort_key = first_dt.strftime('%Y-W%W')
+        cohorts[cohort_key]['total'] += 1
+        active_span = (last_dt - first_dt).days
+        if active_span >= 1:
+            cohorts[cohort_key]['d1'] += 1
+        if active_span >= 7:
+            cohorts[cohort_key]['d7'] += 1
+        if active_span >= 30:
+            cohorts[cohort_key]['d30'] += 1
+
+users_with_activity = sum(1 for u in user_docs if (u.to_dict() or {}).get('first_generated_at'))
+print(f"  Users with activity: {users_with_activity}")
+print(f"  DAU (today): {dau}")
+print(f"  WAU (7d):  {wau}")
+print(f"  MAU (30d): {mau}")
+
+print("\n=== Cohort Retention (by signup week) ===")
+print(f"  {'Cohort':>10s}  {'N':>4s}  {'D1':>6s}  {'D7':>6s}  {'D30':>6s}")
+for cohort_key in sorted(cohorts.keys()):
+    c = cohorts[cohort_key]
+    n = c['total']
+    if n < 2:
+        continue
+    d1 = f"{c['d1']/n*100:.0f}%" if (NOW - datetime.strptime(cohort_key + '-1', '%Y-W%W-%w').replace(tzinfo=JST)).days >= 1 else '-'
+    d7 = f"{c['d7']/n*100:.0f}%" if (NOW - datetime.strptime(cohort_key + '-1', '%Y-W%W-%w').replace(tzinfo=JST)).days >= 7 else '-'
+    d30 = f"{c['d30']/n*100:.0f}%" if (NOW - datetime.strptime(cohort_key + '-1', '%Y-W%W-%w').replace(tzinfo=JST)).days >= 30 else '-'
+    print(f"  {cohort_key:>10s}  {n:4d}  {d1:>6s}  {d7:>6s}  {d30:>6s}")
+
 firebase_admin.delete_app(app)
 print("\nDone.")

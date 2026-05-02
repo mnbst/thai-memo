@@ -10,15 +10,19 @@ free ティアは estimated_vocab が 100 以下にキャップされる。
 import random
 
 from constants import (
-    EMOTIONS,  # 感情・トーン（喜び、悲しみ等）
-    FREE_STYLES,  # 無料ティア用の文体サブセット
-    FREE_TOPICS,  # 無料ティア用のテーマサブセット
-    GRAMMAR_FOCUSES,  # 文法フォーカス（疑問文、否定文等）
-    POLITENESS_LEVELS,  # 丁寧さレベル（フォーマル、カジュアル等）
-    STYLES,  # 全文体リスト
-    TOPICS,  # 全テーマリスト
+    BL_DRAMA_SETTINGS,
+    EMOTIONS,
+    FREE_STYLES,
+    FREE_TOPICS,
+    GRAMMAR_FOCUSES,
+    POLITENESS_LEVELS,
+    STYLES,
+    TOPICS,
+    TOPIC_SUB_THEMES,
 )
 from embeddings import (
+    find_best_drama_scene,
+    find_best_sub_theme,
     get_emotion_similarity_weights,
     get_style_similarity_weights,
     get_topic_option_similarity_weights,
@@ -67,6 +71,7 @@ TOPIC_MIN_VOCAB: dict[str, int] = {
     TOPICS[7]: 100,  # 健康
     TOPICS[9]: 100,  # 趣味
     TOPICS[14]: 100,  # 恋愛・男女関係
+    TOPICS[15]: 100,  # タイドラマ
     TOPICS[10]: 300,  # 学校
     TOPICS[11]: 600,  # 宗教・信仰
     TOPICS[12]: 600,  # 伝統・祭り
@@ -279,8 +284,14 @@ def resolve_generation_params(
     if not emotion:
         emotion = _weighted_choice(EMOTIONS, _emotion_weights(target_words))
 
+    sub_theme = None
+    sub_themes = TOPIC_SUB_THEMES.get(topic)
+    if sub_themes and target_words:
+        sub_theme = find_best_sub_theme(target_words[0], sub_themes)
+
     return {
         "topic": topic,
+        "subTheme": sub_theme,
         "style": style,
         "politeness": politeness,
         "grammarFocus": grammar_focus,
@@ -339,11 +350,41 @@ def build_uvm_prompt(
         estimated_vocab=estimated_vocab,
     )
     topic = resolved["topic"]
+    sub_theme = resolved["subTheme"]
     style = resolved["style"]
     politeness = resolved["politeness"]
     grammar_focus = resolved["grammarFocus"]
     emotion = resolved["emotion"]
     grammar_line = f"- 文法フォーカス: {grammar_focus}\n" if grammar_focus else ""
+    sub_theme_line = f"- サブテーマ: {sub_theme}\n" if sub_theme else ""
+
+    drama_line = ""
+    is_drama = topic == TOPICS[15]
+    if is_drama:
+        if target_words:
+            pick = find_best_drama_scene(target_words[0], BL_DRAMA_SETTINGS)
+        else:
+            setting = random.choice(BL_DRAMA_SETTINGS)
+            pick = {**setting, "scene": random.choice(setting["scenes"])}
+        drama_line = (
+            f"- BL（ボーイズラブ）ドラマです。登場人物は男性同士にしてください\n"
+            f"- 以下のドラマの雰囲気を参考に、オリジナルの例文を作ってください（ドラマのセリフや文章をそのまま引用しないこと）\n"
+            f"- 参考ドラマ: 「{pick['drama']}」風（{pick['context']}）\n"
+            f"- 場面の雰囲気: {pick['scene']}\n"
+            f"- thai_textは上記の雰囲気が伝わるオリジナルのタイ語文にしてください（セリフ風または状況描写）\n"
+            f"- japanese_translationは通常通りthai_textの日本語訳のみにしてください\n"
+            f"- usage_scenariosには「{pick['drama']}」風のどんな場面かわかる説明を書いてください\n"
+        )
+    if is_drama:
+        style_line = ""
+        politeness_line = ""
+        grammar_line = ""
+        emotion_line = ""
+    else:
+        style_line = f"- 文体: {style}\n"
+        politeness_line = f"- 丁寧さ: {politeness}\n"
+        emotion_line = f"- 感情・トーン: {emotion}"
+        # grammar_line is already set above
 
     if target_words:
         words_str = ", ".join(target_words)
@@ -361,14 +402,10 @@ def build_uvm_prompt(
 
 【可能な限り反映】以下の要素を、自然なタイ語になる範囲で取り入れてください。
 - テーマ: {topic}
-- 文体: {style}
-- 丁寧さ: {politeness}
-{grammar_line}- 感情・トーン: {emotion}"""
+{sub_theme_line}{drama_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""
 
     return f"""要件:
 - 語彙レベル: {diff["label"]}（{diff["vocab_hint"]}）
 - 長さ: {diff["length"]}
 - テーマ: {topic}
-- 文体: {style}
-- 丁寧さ: {politeness}
-{grammar_line}- 感情・トーン: {emotion}"""
+{sub_theme_line}{drama_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""

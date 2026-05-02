@@ -1,61 +1,72 @@
-"""テーマ文字列の embedding を事前計算するビルドスクリプト。
-
-【目的】
-UVM 単語選定時にテーマと語彙の類似度を計算するための
-テーマ embedding を事前生成し、ローカルに保存する。
-生成後は upload_corpus.sh で GCS にアップロードする。
+"""テーマ・サブテーマの embedding を事前計算するビルドスクリプト。
 
 【使い方】
     cd scripts
     python build_topic_embeddings.py
-    # → corpus/topic_embeddings.json が生成される
+    # → corpus/topic_embeddings.json, corpus/sub_theme_embeddings.json が生成される
 
-【出力ファイル】
-    corpus/topic_embeddings.json — {"テーマ文字列": [float, ...], ...}
+生成後は upload_corpus.sh で GCS にアップロードする。
 """
 
 import json
+import sys
 from pathlib import Path
 
-from vertexai.language_models import TextEmbeddingModel
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "functions" / "python"))
+from constants import BL_DRAMA_SETTINGS, TOPICS, TOPIC_SUB_THEMES  # noqa: E402
 
-OUTPUT = Path("corpus/topic_embeddings.json")
+from vertexai.language_models import TextEmbeddingModel  # noqa: E402
+
+TOPIC_OUTPUT = Path("corpus/topic_embeddings.json")
+SUB_THEME_OUTPUT = Path("corpus/sub_theme_embeddings.json")
+SCENE_OUTPUT = Path("corpus/scene_embeddings.json")
 DIM = 768
-
-# functions/python/constants.py の TOPICS と同一（変更時は両方更新すること）
-TOPICS = [
-    "あいさつ（朝・昼・夜、初対面、再会、別れ、電話）",
-    "食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
-    "旅行（ホテル、道案内、観光地、空港、ツアー）",
-    "感情（喜び、悲しみ、驚き、不安、怒り、照れ）",
-    "仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）",
-    "家族（家族紹介、子育て、親への感謝、兄弟、家族行事）",
-    "買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
-    "交通（Grab、BTS、バイタク、ソンテウ、渋滞）",
-    "健康（症状説明、薬局、マッサージ、健康診断）",
-    "天気（暑さ、雨季、台風、日焼け対策）",
-    "趣味（ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム）",
-    "学校（授業中、宿題、試験、放課後、語学学校）",
-    "宗教・信仰（寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事）",
-    "伝統・祭り（ソンクラーン、ロイクラトン、王室行事、地域の伝統料理）",
-    "礼儀作法（ワイの使い分け、敬語、タブー、食事マナー、贈り物）",
-    "恋愛・男女関係（告白、デート、甘い言葉、遠距離、別れ、仲直り）",
-]
 
 
 def main():
     model = TextEmbeddingModel.from_pretrained("gemini-embedding-001")
 
+    # --- テーマ embedding ---
     embeddings = model.get_embeddings(TOPICS, output_dimensionality=DIM)  # type: ignore
-
-    result = {}
+    topic_result = {}
     for topic, emb in zip(TOPICS, embeddings):
-        result[topic] = emb.values
+        topic_result[topic] = emb.values
 
-    with open(OUTPUT, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False)
+    with open(TOPIC_OUTPUT, "w", encoding="utf-8") as f:
+        json.dump(topic_result, f, ensure_ascii=False)
+    print(f"Topics: {len(topic_result)} -> {TOPIC_OUTPUT}")
 
-    print(f"Done: {len(result)} topics -> {OUTPUT}")
+    # --- サブテーマ embedding ---
+    all_subs: list[str] = []
+    for subs in TOPIC_SUB_THEMES.values():
+        for s in subs:
+            if s not in all_subs:
+                all_subs.append(s)
+
+    sub_embeddings = model.get_embeddings(all_subs, output_dimensionality=DIM)  # type: ignore
+    sub_result = {}
+    for label, emb in zip(all_subs, sub_embeddings):
+        sub_result[label] = emb.values
+
+    with open(SUB_THEME_OUTPUT, "w", encoding="utf-8") as f:
+        json.dump(sub_result, f, ensure_ascii=False)
+    print(f"Sub-themes: {len(sub_result)} -> {SUB_THEME_OUTPUT}")
+
+    # --- BLドラマ シーン embedding ---
+    all_scenes: list[str] = []
+    for setting in BL_DRAMA_SETTINGS:
+        for s in setting["scenes"]:
+            if s not in all_scenes:
+                all_scenes.append(s)
+
+    scene_embeddings = model.get_embeddings(all_scenes, output_dimensionality=DIM)  # type: ignore
+    scene_result = {}
+    for label, emb in zip(all_scenes, scene_embeddings):
+        scene_result[label] = emb.values
+
+    with open(SCENE_OUTPUT, "w", encoding="utf-8") as f:
+        json.dump(scene_result, f, ensure_ascii=False)
+    print(f"Scenes: {len(scene_result)} -> {SCENE_OUTPUT}")
 
 
 if __name__ == "__main__":

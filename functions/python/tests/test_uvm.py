@@ -1,15 +1,23 @@
 from pathlib import Path
 import sys
 from unittest.mock import patch
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+
+@pytest.fixture(autouse=True)
+def _mock_topic_embedding():
+    with patch("uvm.get_topic_embedding", return_value=None):
+        yield
 
 from uvm import (
     ALPHA_CORRECT_MAX_TOP,
     ALPHA_CORRECT_MIN,
     ALPHA_INCORRECT_MIN,
     ALPHA_EXPOSURE,
-    FREQ_BAND_HALF,
+    GAP_SCAN_DEPTH,
+    SCAN_AHEAD,
     LEARNING_CORRECT_MULTIPLIER,
     NEW_WORD_P,
     P_MAX,
@@ -251,15 +259,15 @@ def test_update_p_alpha_decays_with_quiz_attempts() -> None:
     assert drop_first > drop_many > 0
 
 
-def test_get_session_words_excludes_out_of_band_candidates() -> None:
-    # estimated_vocab=50: band=[35, 65], gap_scan=[0, 35)
-    # 全語P>0 → ギャップなし → band内からランダム選出
+def test_get_session_words_excludes_out_of_scan_candidates() -> None:
+    # estimated_vocab=50: scan=[35, 55]
+    # scan外の語は選出されない
     db = FakeDb(
         {
             "user-1": {
-                "in-band-low": {"p": 0.8},
-                "in-band-high": {"p": 0.9},
-                "out-band": {"p": 0.01},
+                "in-scan-low": {"p": 0.8},
+                "in-scan-high": {"p": 0.9},
+                "out-scan": {"p": 0.01},
             }
         }
     )
@@ -268,26 +276,26 @@ def test_get_session_words_excludes_out_of_band_candidates() -> None:
         db,
         "user-1",
         {
-            "in-band-low": 35,
-            "in-band-high": 50,
-            "out-band": 66,
+            "in-scan-low": 40,
+            "in-scan-high": 50,
+            "out-scan": 56,
         },
         topic="fixed-topic",
         count=2,
         estimated_vocab=50,
     )
 
-    assert set(words) == {"in-band-low", "in-band-high"}
+    assert set(words) == {"in-scan-low", "in-scan-high"}
     assert chosen_topic == "fixed-topic"
 
 
-def test_get_session_words_prioritizes_gap_unregistered_word() -> None:
-    # estimated_vocab=100: band_boundary=70, gap_scan=[0, 70)
-    # rank=50 は gap zone 内かつ UVM未登録 → 優先選出
+def test_get_session_words_selects_unregistered_word() -> None:
+    # estimated_vocab=100: scan=[85, 105]
+    # rank=90 は scan 内かつ UVM未登録 → P=0として選出
     db = FakeDb(
         {
             "user-1": {
-                "band-word": {"p": 0.3},
+                "known-word": {"p": 0.3},
             }
         }
     )
@@ -296,24 +304,24 @@ def test_get_session_words_prioritizes_gap_unregistered_word() -> None:
         db,
         "user-1",
         {
-            "gap-unregistered": 50,
-            "band-word": 80,
+            "unregistered": 90,
+            "known-word": 95,
         },
         topic="fixed-topic",
         count=1,
         estimated_vocab=100,
     )
 
-    assert words == ["gap-unregistered"]
+    assert words == ["unregistered"]
 
 
-def test_get_session_words_prioritizes_p_zero_gap_candidate() -> None:
-    # estimated_vocab=100: gap zone に P=0 の語 → 優先選出
+def test_get_session_words_selects_p_zero_word() -> None:
+    # estimated_vocab=100: scan=[85, 105], scan内に P=0 の語 → 選出
     db = FakeDb(
         {
             "user-1": {
-                "gap-zero": {"p": 0.0},
-                "band-word": {"p": 0.1},
+                "zero-p": {"p": 0.0},
+                "known-word": {"p": 0.1},
             }
         }
     )
@@ -322,24 +330,24 @@ def test_get_session_words_prioritizes_p_zero_gap_candidate() -> None:
         db,
         "user-1",
         {
-            "gap-zero": 50,
-            "band-word": 80,
+            "zero-p": 90,
+            "known-word": 95,
         },
         topic="fixed-topic",
         count=1,
         estimated_vocab=100,
     )
 
-    assert words == ["gap-zero"]
+    assert words == ["zero-p"]
 
 
-def test_get_session_words_falls_back_to_band_when_no_gap() -> None:
-    # estimated_vocab=100: band=[85, 115], gap zone 内は全語P>0 → band内からランダム選出
+def test_get_session_words_falls_back_to_weighted_when_all_known() -> None:
+    # estimated_vocab=100: scan内の全語がP>0 → P低いほど選ばれやすい重み付き選出
     db = FakeDb(
         {
             "user-1": {
-                "gap-known": {"p": 0.8},
-                "band-word": {"p": 0.3},
+                "low-p": {"p": 0.1},
+                "high-p": {"p": 0.9},
             }
         }
     )
@@ -348,15 +356,15 @@ def test_get_session_words_falls_back_to_band_when_no_gap() -> None:
         db,
         "user-1",
         {
-            "gap-known": 50,
-            "band-word": 90,
+            "low-p": 70,
+            "high-p": 90,
         },
         topic="fixed-topic",
         count=1,
         estimated_vocab=100,
     )
 
-    assert words == ["band-word"]
+    assert words[0] in {"low-p", "high-p"}
 
 
 def test_batch_update_uvm_syncs_counts_for_existing_word_updates() -> None:
@@ -449,68 +457,52 @@ def test_update_p_correct_delta_larger_than_incorrect_delta() -> None:
 # 境界値分析: get_session_words × estimated_vocab
 # ---------------------------------------------------------------------------
 
-def test_get_session_words_estimated_vocab_0_no_gap_scan() -> None:
-    """estimated_vocab=0: band_boundary=0 → ギャップスキャンなし, band=[0, FREQ_BAND_HALF]"""
+def test_get_session_words_estimated_vocab_0() -> None:
+    """estimated_vocab=0: scan=[0, SCAN_AHEAD]"""
     db = FakeDb()
-    in_band = "word-aa"    # rank=5  (band内)
-    out_band = "word-bb"   # rank=FREQ_BAND_HALF+1 (band外)
-    freq_rank = {in_band: 5, out_band: FREQ_BAND_HALF + 1}
+    in_scan = "word-aa"     # rank=3 (scan内)
+    out_scan = "word-bb"    # rank=SCAN_AHEAD+1 (scan外)
+    freq_rank = {in_scan: 3, out_scan: SCAN_AHEAD + 1}
 
     words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=1, estimated_vocab=0)
 
-    assert words == [in_band]
+    assert words == [in_scan]
 
 
-def test_get_session_words_estimated_vocab_29_no_gap_scan() -> None:
-    """estimated_vocab=29(=FREQ_BAND_HALF-1): band_boundary=0 → ギャップスキャンなし"""
+def test_get_session_words_estimated_vocab_small() -> None:
+    """estimated_vocab=10: scan=[0, 15] — 両語ともscan内"""
     db = FakeDb()
-    ev = FREQ_BAND_HALF - 1  # 29
-    freq_rank = {"word-aa": 0, "word-bb": ev}
+    freq_rank = {"word-aa": 0, "word-bb": 10}
 
-    words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=2, estimated_vocab=ev)
-
-    # ギャップスキャンなし → どちらもバンド内（band=[0, 59]）
-    assert set(words) == {"word-aa", "word-bb"}
-
-
-def test_get_session_words_estimated_vocab_30_no_gap_scan() -> None:
-    """estimated_vocab=30(=FREQ_BAND_HALF): band_boundary=max(0,0)=0 → ギャップスキャンなし"""
-    db = FakeDb()
-    ev = FREQ_BAND_HALF  # 30
-    freq_rank = {"word-aa": 0, "word-bb": ev}
-
-    words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=2, estimated_vocab=ev)
+    words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=2, estimated_vocab=10)
 
     assert set(words) == {"word-aa", "word-bb"}
 
 
-def test_get_session_words_estimated_vocab_31_gap_scan_starts() -> None:
-    """estimated_vocab=31(=FREQ_BAND_HALF+1): band_boundary=1 → ギャップスキャン=[0,1)が有効"""
-    db = FakeDb()  # UVM空 → rank=0語が未登録ギャップ候補
-    ev = FREQ_BAND_HALF + 1  # 31
-    freq_rank = {
-        "gap-word": 0,    # ギャップスキャン範囲 [0,1) に該当
-        "band-word": 10,  # バンド内
-    }
+def test_get_session_words_scan_high_boundary() -> None:
+    """scan上限ちょうどの語は選出される"""
+    db = FakeDb()
+    ev = 50
+    freq_rank = {"word-at-high": ev + SCAN_AHEAD, "word-over": ev + SCAN_AHEAD + 1}
 
     words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=1, estimated_vocab=ev)
 
-    # rank=0の未登録語がギャップとして優先選出される
-    assert words == ["gap-word"]
+    assert words == ["word-at-high"]
 
 
-def test_get_session_words_estimated_vocab_31_gap_known_falls_back_to_band() -> None:
-    """estimated_vocab=31: ギャップ候補(rank=0)がP>0なら→バンドへフォールバック"""
-    db = FakeDb({"user-1": {"gap-word": {"p": 0.8}}})
-    ev = FREQ_BAND_HALF + 1  # 31
-    freq_rank = {
-        "gap-word": 0,
-        "band-word": 10,
-    }
+def test_get_session_words_rank_weighting_favors_higher_rank() -> None:
+    """P=0の候補が複数ある場合、rankが高い語ほど選ばれやすい"""
+    db = FakeDb()
+    ev = 100
+    freq_rank = {"low-rank": 66, "high-rank": 104}
 
-    words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=1, estimated_vocab=ev)
+    high_count = 0
+    for _ in range(200):
+        words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=1, estimated_vocab=ev)
+        if words == ["high-rank"]:
+            high_count += 1
 
-    assert words == ["band-word"]
+    assert high_count > 100  # high-rank(104) が low-rank(66) より多く選ばれる
 
 
 # ---------------------------------------------------------------------------

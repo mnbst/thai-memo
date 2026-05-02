@@ -309,7 +309,10 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
 
   Future<void> _generateNextLearningSentence() async {
     _setStage(_LearningStage.sentence);
-    await ref.read(sentenceControllerProvider.notifier).generateSentence();
+    final genParams = ref.read(generationParamsProvider);
+    await ref
+        .read(sentenceControllerProvider.notifier)
+        .generateSentence(generationParams: genParams);
     final sentenceState = ref.read(sentenceControllerProvider);
     if (sentenceState is SentenceStateSuccess) {
       ref
@@ -968,9 +971,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ] else ...[
               FilledButton.icon(
                 onPressed: () {
+                  final genParams = ref.read(generationParamsProvider);
                   ref
                       .read(sentenceControllerProvider.notifier)
-                      .generateSentence();
+                      .generateSentence(generationParams: genParams);
                 },
                 icon: const Icon(Icons.refresh),
                 label: const Text('再試行'),
