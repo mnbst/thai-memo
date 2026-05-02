@@ -261,8 +261,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
         if (prev is SentenceStateLoading &&
             next is SentenceStateSuccess &&
             next.generated &&
-            _stage == _LearningStage.sentence &&
-            _completedCount < _summaryQuizThreshold) {
+            _stage == _LearningStage.sentence) {
           ref.read(quizControllerProvider.notifier).prepareQuiz(next.sentence);
         }
       });
@@ -369,9 +368,6 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
                 : null,
             onNextSentence: () async {
               await _setCompletedCount(_completedCount + 1);
-              if (_completedCount >= _summaryQuizThreshold) {
-                await _setCompletedCount(0);
-              }
               await _generateNextLearningSentence();
             },
           ),
