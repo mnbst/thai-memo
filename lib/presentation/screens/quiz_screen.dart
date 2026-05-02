@@ -477,19 +477,34 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      if (widget.onNextSentence != null) {
-                        unawaited(_clearVocabBeforeQuiz());
-                        await widget.onNextSentence!();
-                      }
-                    },
-                    icon: const Icon(Icons.arrow_forward),
-                    label: Text(widget.nextButtonLabel),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
+                  child: widget.onOptionalChallenge != null
+                      ? OutlinedButton.icon(
+                          onPressed: () async {
+                            if (widget.onNextSentence != null) {
+                              unawaited(_clearVocabBeforeQuiz());
+                              await widget.onNextSentence!();
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_forward, size: 18),
+                          label: Text(widget.nextButtonLabel),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEAF2FF),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        )
+                      : FilledButton.icon(
+                          onPressed: () async {
+                            if (widget.onNextSentence != null) {
+                              unawaited(_clearVocabBeforeQuiz());
+                              await widget.onNextSentence!();
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_forward),
+                          label: Text(widget.nextButtonLabel),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -513,20 +528,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ),
           ],
           if (widget.onOptionalChallenge != null) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.center,
-              child: OutlinedButton.icon(
-                onPressed: widget.onOptionalChallenge,
-                icon: const Icon(Icons.arrow_forward, size: 18),
-                label: Text(widget.optionalChallengeLabel),
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEAF2FF),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  textStyle: Theme.of(context).textTheme.labelLarge,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: widget.onOptionalChallenge,
+              icon: const Icon(Icons.emoji_events),
+              label: Text(widget.optionalChallengeLabel),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                minimumSize: const Size.fromHeight(52),
               ),
             ),
           ],
