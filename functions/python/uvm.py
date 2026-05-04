@@ -284,7 +284,7 @@ def get_session_words(
         freq_rank: {word: rank} — 頻出順位辞書
         topic: テーマ文字列（空ならembeddingで自動選択）
         count: 選定する単語数（デフォルト 1）
-        max_vocab: 語彙帯域の上限（free ティアでは 300）。None なら制限なし。
+        max_vocab: 語彙帯域の上限（free ティアでは 100）。None なら制限なし。
         topics_pool: テーマ候補リスト（embedding でのテーマ選択に使用）。
         estimated_vocab: 呼び出し元で取得済みの語彙スコア。省略時は Firestore から読む。
 

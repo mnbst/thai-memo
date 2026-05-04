@@ -108,25 +108,9 @@ class GenerationConstants {
   // 無料ティア / プレミアムティアの制限設定
   // ---------------------------------------------------------------------------
 
-  /// 無料ティアで選択可能なテーマ。
-  /// topics配列のインデックス 0（あいさつ）、1（食べ物）、5（買い物）に制限。
-  static final freeTopics = [topics[0], topics[1], topics[5]];
-
   /// 無料ティアで選択可能なスタイル。
   /// styles配列のインデックス 1（口語体）、2（丁寧語）に制限。
   static final freeStyles = [styles[1], styles[2]];
-
-  /// 無料ティアで使用可能なパラメータキーのセット。
-  /// 無料ユーザーはスタイルとテーマのみ選択可能。
-  static const freeParameterKeys = {'style', 'topic'};
-
-  /// プレミアム専用パラメータキーのセット。
-  /// これらのパラメータはプレミアムサブスクリプション加入者のみ利用可能。
-  static const premiumOnlyParameterKeys = {
-    'politeness',
-    'grammarFocus',
-    'emotion',
-  };
 
   // ---------------------------------------------------------------------------
   // パラメータ定義のメタ情報

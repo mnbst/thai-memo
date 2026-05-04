@@ -255,7 +255,8 @@ def resolve_generation_params(
     """
     topics_pool = TOPICS if is_premium else FREE_TOPICS
     styles_pool = STYLES if is_premium else FREE_STYLES
-    topics_pool = _gate_topics(topics_pool, estimated_vocab)
+    if is_premium:
+        topics_pool = _gate_topics(topics_pool, estimated_vocab)
     styles_pool = _gate_pool(styles_pool, estimated_vocab, STYLE_MIN_VOCAB)
 
     topic = params.get("topic") or random.choice(topics_pool)

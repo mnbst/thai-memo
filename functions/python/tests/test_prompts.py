@@ -68,8 +68,31 @@ def test_free_topics_exclude_travel() -> None:
         TOPICS[0],
         TOPICS[1],
         TOPICS[5],
+        TOPICS[15],
     ]
     assert TOPICS[2] not in FREE_TOPICS
+
+
+def test_free_topic_pool_is_not_vocab_gated() -> None:
+    selected_topics: list[str] = []
+
+    def capture_choice(values):
+        selected_topics.append(list(values))
+        return values[-1]
+
+    with (
+        patch("prompts.get_topic_option_similarity_weights", return_value=None),
+        patch("prompts.get_emotion_similarity_weights", return_value=None),
+        patch("prompts.random.choice", side_effect=capture_choice),
+        patch(
+            "prompts.random.choices",
+            side_effect=lambda population, weights, k: [population[0]],
+        ),
+    ):
+        resolved = resolve_generation_params({}, is_premium=False, estimated_vocab=0)
+
+    assert selected_topics[0] == FREE_TOPICS
+    assert resolved["topic"] == TOPICS[15]
 
 
 def test_resolve_generation_params_weights_style_by_target_words() -> None:

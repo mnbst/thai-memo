@@ -74,9 +74,6 @@ async function consumeQuizQuota(
       userRef,
       {
         remaining_quizzes: remainingQuizzes - 1,
-        ...(userData.is_first_quiz_generation === true && remainingQuizzes <= 1 ?
-          {is_first_quiz_generation: admin.firestore.FieldValue.delete()} :
-          {}),
       },
       { merge: true },
     );
@@ -142,9 +139,7 @@ export const generateQuiz = functions.https.onCall(
     }
 
     const isPremium = userData.tier === 'premium';
-    const isFirstGeneration = userData.is_first_quiz_generation === true;
-    const usePremiumModel = isPremium || isFirstGeneration;
-    const quizGenerationService = await createQuizGenerationService(usePremiumModel, uid);
+    const quizGenerationService = await createQuizGenerationService(isPremium, uid);
 
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
     const selectedSentences = await selectSentencesBySRS(uid, nowJST());
@@ -210,9 +205,7 @@ export const generateLearningQuiz = functions.https.onCall(
     const userDoc = await userRef.get();
     const userData = userDoc.data() || {};
     const isPremium = userData.tier === 'premium';
-    const isFirstGeneration = userData.is_first_quiz_generation === true;
-    const usePremiumModel = isPremium || isFirstGeneration;
-    const quizGenerationService = await createQuizGenerationService(usePremiumModel, uid);
+    const quizGenerationService = await createQuizGenerationService(isPremium, uid);
 
     try {
       const questions = await generateQuestionsFromSources(quizGenerationService, [source]);

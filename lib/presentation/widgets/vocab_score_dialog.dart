@@ -4,7 +4,7 @@ import '../../core/config/app_config.dart';
 import '../screens/paywall_screen.dart';
 
 const int freeVocabScoreLimit = 100;
-const String _freeTopics = 'あいさつ、食べ物、買い物';
+const String _freeTopics = 'あいさつ、食べ物、買い物、タイBLドラマ';
 
 String vocabLevel(int vocab) {
   if (vocab < 100) return '入門';

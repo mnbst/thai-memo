@@ -361,13 +361,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             _buildVocabScoreInline(),
             const SizedBox(height: 16),
-            Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+            Divider(
+                height: 1, color: Theme.of(context).colorScheme.outlineVariant),
             const SizedBox(height: 12),
             Text(
               '学習設定',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.7),
                   ),
             ),
             _buildTopicSelectTile(),
@@ -415,11 +419,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final currentTopic = ref.watch(generationParamsProvider)['topic'];
 
     String displayLabel;
-    if (currentTopic != null) {
+    if (!isPremium) {
+      displayLabel = 'おまかせ';
+    } else if (currentTopic != null) {
       final parenIdx = currentTopic.indexOf('（');
-      displayLabel = parenIdx > 0
-          ? currentTopic.substring(0, parenIdx)
-          : currentTopic;
+      displayLabel =
+          parenIdx > 0 ? currentTopic.substring(0, parenIdx) : currentTopic;
     } else {
       displayLabel = 'おまかせ';
     }
@@ -482,8 +487,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ...GenerationConstants.topics.map((topic) {
               final isSelected = topic == currentTopic;
               final parenIdx = topic.indexOf('（');
-              final name =
-                  parenIdx > 0 ? topic.substring(0, parenIdx) : topic;
+              final name = parenIdx > 0 ? topic.substring(0, parenIdx) : topic;
               final sub = parenIdx > 0
                   ? topic.substring(parenIdx + 1, topic.length - 1)
                   : '';
@@ -530,8 +534,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('学習データのリセット'),
-        content: const Text(
-            '端末に保存されている例文・クイズ履歴・学習進捗がすべて削除されます。アカウントは維持されます。'),
+        content: const Text('端末に保存されている例文・クイズ履歴・学習進捗がすべて削除されます。アカウントは維持されます。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -588,11 +591,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ? stats.estimatedVocab
             : stats.estimatedVocab.clamp(0, freeVocabScoreLimit).toInt();
         final level = vocabLevel(displayVocab);
-        final threshold = isPremium
-            ? _nextVocabThreshold(displayVocab)
-            : freeVocabScoreLimit;
-        final progress =
-            (displayVocab / threshold).clamp(0.0, 1.0).toDouble();
+        final threshold =
+            isPremium ? _nextVocabThreshold(displayVocab) : freeVocabScoreLimit;
+        final progress = (displayVocab / threshold).clamp(0.0, 1.0).toDouble();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
