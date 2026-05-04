@@ -10,7 +10,6 @@ import '../../core/config/app_config.dart';
 import '../../core/constants/generation_constants.dart';
 import '../../data/datasources/backend_api_service.dart';
 import '../../data/datasources/local/database_helper.dart';
-import '../providers/analytics_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
@@ -347,12 +346,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Row(
               children: [
                 Icon(
-                  Icons.school,
+                  Icons.bar_chart,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '学習',
+                  '学習状況',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -360,8 +359,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            _buildVocabScoreInline(),
+            const SizedBox(height: 16),
+            Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+            const SizedBox(height: 12),
+            Text(
+              '学習設定',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
+            ),
             _buildTopicSelectTile(),
-            _buildVocabScoreTile(),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
@@ -566,9 +575,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Widget _buildVocabScoreTile() {
+  Widget _buildVocabScoreInline() {
     final statsAsync = ref.watch(vocabStatsProvider);
     final isPremium = ref.watch(isPremiumProvider);
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return statsAsync.when(
       data: (stats) {
@@ -576,64 +588,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ? stats.estimatedVocab
             : stats.estimatedVocab.clamp(0, freeVocabScoreLimit).toInt();
         final level = vocabLevel(displayVocab);
+        final threshold = isPremium
+            ? _nextVocabThreshold(displayVocab)
+            : freeVocabScoreLimit;
+        final progress =
+            (displayVocab / threshold).clamp(0.0, 1.0).toDouble();
 
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(
-            Icons.auto_graph,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          title: const Text('語彙スコア'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '$displayVocab語',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-              ),
-              const SizedBox(width: 6),
-              Chip(
-                label: Text(level),
-                visualDensity: VisualDensity.compact,
-                labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                padding: EdgeInsets.zero,
-              ),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
-          onTap: () {
-            unawaited(
-              ref.read(analyticsServiceProvider).logTapVocabScore(
-                    source: 'settings_vocab_score',
-                    vocab: stats.estimatedVocab,
-                    isPremium: isPremium,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '$displayVocab語',
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
                   ),
-            );
-            showVocabScoreInfo(
-              context,
-              stats.estimatedVocab,
-              isPremium: isPremium,
-            );
-          },
+                ),
+                const SizedBox(width: 8),
+                Chip(
+                  label: Text(level),
+                  visualDensity: VisualDensity.compact,
+                  labelStyle: textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isPremium
+                  ? '次のレベルまで あと${threshold - displayVocab}語'
+                  : 'Freeプランは$freeVocabScoreLimit語が上限です',
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         );
       },
-      loading: () => const ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(Icons.auto_graph),
-        title: Text('語彙スコア'),
-        trailing: SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
+      loading: () => const SizedBox(
+        height: 48,
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         ),
       ),
       error: (_, __) => const SizedBox.shrink(),
     );
+  }
+
+  int _nextVocabThreshold(int vocab) {
+    if (vocab < 100) return 100;
+    if (vocab < 300) return 300;
+    if (vocab < 600) return 600;
+    if (vocab < 1500) return 1500;
+    return 3000;
   }
 
   Future<void> _launchUrl(String url) async {
