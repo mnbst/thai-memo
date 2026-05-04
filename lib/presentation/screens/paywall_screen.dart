@@ -138,7 +138,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'タイ語を、もっと好きになる。',
+                        '好きなテーマで、タイ語が続く。',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -408,9 +408,9 @@ class PaywallBottomSheet extends ConsumerWidget {
         children: [
           benefitRow(
             icon: Icons.auto_awesome,
-            title: 'より多様な例文',
-            freeText: 'あいさつ・食べ物だけじゃない',
-            premiumText: '恋愛・仕事・旅行テーマで学べる',
+            title: '恋愛・仕事・旅行・タイドラマなど',
+            freeText: '好きなテーマで学べる',
+            premiumText: '全テーマ使い放題',
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -418,9 +418,9 @@ class PaywallBottomSheet extends ConsumerWidget {
           ),
           benefitRow(
             icon: Icons.school,
-            title: '学べる単語',
-            freeText: '100語はあっという間',
-            premiumText: '上限なしで語彙をどんどん増やせる',
+            title: '学べる単語数が無制限',
+            freeText: '100語を超えて、気になる表現をどんどん追加',
+            premiumText: '語彙を制限なく増やせる',
           ),
         ],
       ),

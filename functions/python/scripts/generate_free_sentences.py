@@ -18,11 +18,16 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from constants import FREE_STYLES, FREE_TOPICS, RESPONSE_JSON_SCHEMA
+import random
+
+from constants import FREE_STYLES, FREE_TOPICS, RESPONSE_JSON_SCHEMA, TOPICS
 from llm_providers import generate_sentence_sync
 from nlp import enrich_with_nlp
 from prompts import SYSTEM_PROMPT_FREE, build_uvm_prompt, gate_topics_for_vocab
 from sentence_service import validate_target_words
+
+BL_DRAMA_TOPIC = TOPICS[15]
+BL_DRAMA_RATIO = 0.35
 
 SENTENCES_PER_WORD = 2
 MAX_FREQ_RANK = 115
@@ -54,10 +59,11 @@ def generate_one(
     estimated_vocab: int,
     sentence_index: int,
 ) -> dict:
-    topic_candidates = gate_topics_for_vocab(FREE_TOPICS, estimated_vocab)
-    import random
-
-    topic = topic_candidates[sentence_index % len(topic_candidates)]
+    if random.random() < BL_DRAMA_RATIO:
+        topic = BL_DRAMA_TOPIC
+    else:
+        topic_candidates = gate_topics_for_vocab(FREE_TOPICS, estimated_vocab)
+        topic = random.choice(topic_candidates)
 
     params = {"topic": topic}
     target_words = [word]

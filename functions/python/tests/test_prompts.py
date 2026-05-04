@@ -37,7 +37,9 @@ def test_resolve_generation_params_prefers_explicit_values() -> None:
         "emotion": "custom-emotion",
     }
 
-    assert resolve_generation_params(params, is_premium=True) == params
+    result = resolve_generation_params(params, is_premium=True)
+    assert result.pop("subTheme") is None
+    assert result == params
 
 
 def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
@@ -51,6 +53,7 @@ def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
     ):
         resolved = resolve_generation_params({}, is_premium=False)
 
+    assert resolved.pop("subTheme") is None
     assert resolved == {
         "topic": FREE_TOPICS[0],
         "style": FREE_STYLES[0],
@@ -92,6 +95,7 @@ def test_resolve_generation_params_weights_style_by_target_words() -> None:
             side_effect=politeness_weights,
         ),
         patch("prompts.get_emotion_similarity_weights", return_value=None),
+        patch("prompts.find_best_sub_theme", return_value="打ち合わせ"),
     ):
         resolved = resolve_generation_params(
             {"topic": "仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）"},
@@ -101,6 +105,26 @@ def test_resolve_generation_params_weights_style_by_target_words() -> None:
 
     assert resolved["style"] == STYLES[2]
     assert resolved["politeness"] == "フォーマル（丁寧語・敬語を使用）"
+    assert resolved["subTheme"] == "打ち合わせ"
+
+
+def test_bl_drama_forces_casual_politeness() -> None:
+    """BLドラマテーマでは politeness が常にカジュアルに固定される。"""
+    with (
+        patch("prompts.get_style_similarity_weights", return_value=None),
+        patch("prompts.get_topic_option_similarity_weights", return_value=None),
+        patch("prompts.get_emotion_similarity_weights", return_value=None),
+        patch("prompts.find_best_sub_theme", return_value="告白"),
+        patch("prompts.random.choice", side_effect=lambda values: values[0]),
+        patch("prompts.random.choices", side_effect=lambda pop, weights, k: [pop[0]]),
+    ):
+        resolved = resolve_generation_params(
+            {"topic": TOPICS[15]},
+            is_premium=True,
+            target_words=["รัก"],
+        )
+
+    assert resolved["politeness"] == POLITENESS_LEVELS[1]
 
 
 def test_resolve_generation_params_weights_emotion_by_embedding() -> None:
@@ -118,6 +142,7 @@ def test_resolve_generation_params_weights_emotion_by_embedding() -> None:
                 "prompts.get_emotion_similarity_weights",
                 return_value=emotion_weights,
             ),
+            patch("prompts.find_best_sub_theme", return_value="ホテル"),
         ):
             resolved = resolve_generation_params(
                 {"topic": "旅行（ホテル、道案内、観光地、空港、ツアー）"},
@@ -309,6 +334,7 @@ def test_explicit_values_override_gates_after_common_prompt_vocab() -> None:
 
     resolved = resolve_generation_params(params, is_premium=True, estimated_vocab=101)
 
+    resolved.pop("subTheme")
     assert resolved == params
 
 

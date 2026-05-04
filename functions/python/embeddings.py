@@ -141,6 +141,13 @@ def _find_embedding(
     return None
 
 
+def get_topic_embedding(topic: str) -> np.ndarray | None:
+    """テーマ文字列のembeddingベクトルを返す。"""
+    _load_topic_embeddings()
+    assert _topic_embeddings is not None
+    return _find_embedding(topic, _topic_embeddings)
+
+
 def get_topic_similar_words(
     topic: str,
     top_k: int = 500,
@@ -247,6 +254,111 @@ def find_best_topic(
     candidates = [t for sim, t in scored if sim >= threshold]
     pool = (candidates or [scored[0][1]])[:top_k]
     return random.choice(pool)
+
+
+_sub_theme_embeddings: dict[str, list[float]] | None = None
+SUB_THEME_EMB_BLOB = "sub_theme_embeddings.json"
+_scene_embeddings: dict[str, list[float]] | None = None
+SCENE_EMB_BLOB = "scene_embeddings.json"
+
+
+def _load_sub_theme_embeddings() -> None:
+    global _sub_theme_embeddings
+    if _sub_theme_embeddings is not None:
+        return
+    bucket = _get_bucket()
+    blob = bucket.blob(SUB_THEME_EMB_BLOB)
+    _sub_theme_embeddings = json.loads(blob.download_as_text())
+
+
+def _load_scene_embeddings() -> None:
+    global _scene_embeddings
+    if _scene_embeddings is not None:
+        return
+    bucket = _get_bucket()
+    blob = bucket.blob(SCENE_EMB_BLOB)
+    _scene_embeddings = json.loads(blob.download_as_text())
+
+
+
+def find_best_drama_scene(
+    word: str,
+    drama_settings: list[dict],
+) -> dict:
+    """単語embeddingとシーンembeddingの類似度で最適なドラマ+シーンを選出する。
+
+    全ドラマの全シーンをフラットに比較し、重みつきランダムで1つ選ぶ。
+    返り値は {"drama", "context", "scene", "shots"}。
+    """
+    _load_data()
+    _load_scene_embeddings()
+    assert _scene_embeddings is not None
+
+    word_emb = get_embedding(word)
+    if word_emb is None:
+        setting = random.choice(drama_settings)
+        scene = random.choice(setting["scenes"])
+        return {**setting, "scene": scene["text"], "shots": scene["shots"]}
+
+    scored: list[tuple[float, dict]] = []
+    for setting in drama_settings:
+        for scene in setting["scenes"]:
+            emb_list = _scene_embeddings.get(scene["text"])
+            if emb_list is None:
+                continue
+            scene_emb = np.array(emb_list, dtype=np.float32)
+            sim = cosine_similarity(word_emb, scene_emb)
+            scored.append(
+                (sim, {**setting, "scene": scene["text"], "shots": scene["shots"]})
+            )
+
+    if not scored:
+        setting = random.choice(drama_settings)
+        scene = random.choice(setting["scenes"])
+        return {**setting, "scene": scene["text"], "shots": scene["shots"]}
+
+    min_sim = min(s for s, _ in scored)
+    max_sim = max(s for s, _ in scored)
+    if max_sim == min_sim:
+        _, pick = random.choice(scored)
+        return pick
+
+    weights = [(sim - min_sim) / (max_sim - min_sim) + 0.1 for sim, _ in scored]
+    return random.choices([item for _, item in scored], weights=weights, k=1)[0]
+
+
+def find_best_sub_theme(
+    word: str,
+    sub_themes: list[str],
+) -> str:
+    """単語embeddingとサブテーマ群のコサイン類似度で重みつきランダム選出する。"""
+    _load_data()
+    _load_sub_theme_embeddings()
+    assert _sub_theme_embeddings is not None
+
+    word_emb = get_embedding(word)
+    if word_emb is None:
+        return random.choice(sub_themes)
+
+    scored: list[tuple[float, str]] = []
+    for st in sub_themes:
+        emb_list = _sub_theme_embeddings.get(st)
+        if emb_list is None:
+            continue
+        st_emb = np.array(emb_list, dtype=np.float32)
+        sim = cosine_similarity(word_emb, st_emb)
+        scored.append((sim, st))
+
+    if not scored:
+        return random.choice(sub_themes)
+
+    min_sim = min(s for s, _ in scored)
+    max_sim = max(s for s, _ in scored)
+    if max_sim == min_sim:
+        return random.choice(sub_themes)
+
+    weights = [(sim - min_sim) / (max_sim - min_sim) + 0.1 for sim, _ in scored]
+    return random.choices([st for _, st in scored], weights=weights, k=1)[0]
 
 
 def get_topic_option_similarity_weights(

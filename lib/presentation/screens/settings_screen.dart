@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/generation_constants.dart';
 import '../../data/datasources/backend_api_service.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../providers/analytics_provider.dart';
@@ -40,9 +41,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           _buildAccountSection(),
           const SizedBox(height: 24),
-          _buildDisplaySection(),
-          const SizedBox(height: 24),
           _buildLearningSection(),
+          const SizedBox(height: 24),
+          _buildDisplaySection(),
           const SizedBox(height: 24),
           _buildAboutSection(),
         ],
@@ -359,6 +360,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            _buildTopicSelectTile(),
             _buildVocabScoreTile(),
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -397,6 +399,121 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildTopicSelectTile() {
+    final isPremium = ref.watch(isPremiumProvider);
+    final currentTopic = ref.watch(generationParamsProvider)['topic'];
+
+    String displayLabel;
+    if (currentTopic != null) {
+      final parenIdx = currentTopic.indexOf('（');
+      displayLabel = parenIdx > 0
+          ? currentTopic.substring(0, parenIdx)
+          : currentTopic;
+    } else {
+      displayLabel = 'おまかせ';
+    }
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        Icons.category,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: const Text('テーマ'),
+      subtitle: Text(displayLabel),
+      trailing: isPremium
+          ? const Icon(Icons.chevron_right)
+          : Icon(Icons.lock, color: Theme.of(context).colorScheme.outline),
+      onTap: isPremium ? _showTopicPicker : null,
+    );
+  }
+
+  Future<void> _showTopicPicker() async {
+    final currentTopic = ref.read(generationParamsProvider)['topic'];
+
+    final selected = await showDialog<String?>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('テーマを選択'),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          children: [
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, ''),
+              child: ListTile(
+                leading: Icon(
+                  Icons.shuffle,
+                  color: currentTopic == null
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+                title: Text(
+                  'おまかせ',
+                  style: currentTopic == null
+                      ? TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            ...GenerationConstants.topics.map((topic) {
+              final isSelected = topic == currentTopic;
+              final parenIdx = topic.indexOf('（');
+              final name =
+                  parenIdx > 0 ? topic.substring(0, parenIdx) : topic;
+              final sub = parenIdx > 0
+                  ? topic.substring(parenIdx + 1, topic.length - 1)
+                  : '';
+
+              return SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, topic),
+                child: ListTile(
+                  leading: Icon(
+                    Icons.circle,
+                    size: 12,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.transparent,
+                  ),
+                  title: Text(
+                    name,
+                    style: isSelected
+                        ? TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          )
+                        : null,
+                  ),
+                  subtitle: sub.isNotEmpty ? Text(sub) : null,
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+
+    if (selected != null) {
+      final settings = ref.read(settingsControllerProvider.notifier);
+      await settings.setGenerationParam(
+        'topic',
+        selected.isEmpty ? null : selected,
+      );
+    }
   }
 
   Future<void> _resetLearningData() async {
