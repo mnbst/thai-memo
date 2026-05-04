@@ -72,3 +72,10 @@ android/app/key.properties
 android/app/*.jks
 
 .firebase/
+
+tmp_subs/
+
+functions/python/scripts/
+functions/python/scripts/generate_free_sentences.py
+functions/python/scripts/output/free_sentences.json
+functions/python/scripts/output/progress.json

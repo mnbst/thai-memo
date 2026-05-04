@@ -108,6 +108,25 @@ def test_resolve_generation_params_weights_style_by_target_words() -> None:
     assert resolved["subTheme"] == "打ち合わせ"
 
 
+def test_bl_drama_forces_casual_politeness() -> None:
+    """BLドラマテーマでは politeness が常にカジュアルに固定される。"""
+    with (
+        patch("prompts.get_style_similarity_weights", return_value=None),
+        patch("prompts.get_topic_option_similarity_weights", return_value=None),
+        patch("prompts.get_emotion_similarity_weights", return_value=None),
+        patch("prompts.find_best_sub_theme", return_value="告白"),
+        patch("prompts.random.choice", side_effect=lambda values: values[0]),
+        patch("prompts.random.choices", side_effect=lambda pop, weights, k: [pop[0]]),
+    ):
+        resolved = resolve_generation_params(
+            {"topic": TOPICS[15]},
+            is_premium=True,
+            target_words=["รัก"],
+        )
+
+    assert resolved["politeness"] == POLITENESS_LEVELS[1]
+
+
 def test_resolve_generation_params_weights_emotion_by_embedding() -> None:
     def choose_highest_weight(population, weights, k):
         return [population[weights.index(max(weights))]]

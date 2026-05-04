@@ -280,6 +280,7 @@ def _load_scene_embeddings() -> None:
     _scene_embeddings = json.loads(blob.download_as_text())
 
 
+
 def find_best_drama_scene(
     word: str,
     drama_settings: list[dict],
@@ -287,7 +288,7 @@ def find_best_drama_scene(
     """単語embeddingとシーンembeddingの類似度で最適なドラマ+シーンを選出する。
 
     全ドラマの全シーンをフラットに比較し、重みつきランダムで1つ選ぶ。
-    返り値は {"drama": ..., "characters": ..., "context": ..., "scene": ...}。
+    返り値は {"drama", "context", "scene", "shots"}。
     """
     _load_data()
     _load_scene_embeddings()
@@ -296,21 +297,25 @@ def find_best_drama_scene(
     word_emb = get_embedding(word)
     if word_emb is None:
         setting = random.choice(drama_settings)
-        return {**setting, "scene": random.choice(setting["scenes"])}
+        scene = random.choice(setting["scenes"])
+        return {**setting, "scene": scene["text"], "shots": scene["shots"]}
 
     scored: list[tuple[float, dict]] = []
     for setting in drama_settings:
         for scene in setting["scenes"]:
-            emb_list = _scene_embeddings.get(scene)
+            emb_list = _scene_embeddings.get(scene["text"])
             if emb_list is None:
                 continue
             scene_emb = np.array(emb_list, dtype=np.float32)
             sim = cosine_similarity(word_emb, scene_emb)
-            scored.append((sim, {**setting, "scene": scene}))
+            scored.append(
+                (sim, {**setting, "scene": scene["text"], "shots": scene["shots"]})
+            )
 
     if not scored:
         setting = random.choice(drama_settings)
-        return {**setting, "scene": random.choice(setting["scenes"])}
+        scene = random.choice(setting["scenes"])
+        return {**setting, "scene": scene["text"], "shots": scene["shots"]}
 
     min_sim = min(s for s, _ in scored)
     max_sim = max(s for s, _ in scored)

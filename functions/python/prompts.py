@@ -10,7 +10,6 @@ free ティアは estimated_vocab が 100 以下にキャップされる。
 import random
 
 from constants import (
-    BL_DRAMA_SETTINGS,
     EMOTIONS,
     FREE_STYLES,
     FREE_TOPICS,
@@ -21,12 +20,12 @@ from constants import (
     TOPIC_SUB_THEMES,
 )
 from embeddings import (
-    find_best_drama_scene,
     find_best_sub_theme,
     get_emotion_similarity_weights,
     get_style_similarity_weights,
     get_topic_option_similarity_weights,
 )
+from themes.bl_drama import build_drama_prompt_section
 
 
 # 文の長さ指定はレベル定義には持たせず、estimated_vocab から
@@ -116,11 +115,12 @@ SYSTEM_PROMPT_FREE = """タイ語基礎練習文を1つ生成。以下を厳守�
 - word_breakdown: 最大20単語、出現順にすべて含める。meaningは日本語のみ
 - 人称代名詞のmeaningに性別・丁寧度注記（例: ผม→「私（男性・丁寧）」、กู→「俺/私（男女・ぞんざい）」）
 - context各フィールド50文字以内
-- japanese_translation: 自然な日本語（×説明的な訳→○日本語として自然な形）
+- japanese_translation: 自然な日本語。主語・目的語の対応を崩さない（誰が・誰を・何をの関係を正確に）（×説明的な訳→○日本語として自然な形）
 - notesにターゲット単語の用法・類語との違いを50文字以内で記述。非ターゲットは空文字
 - スペルミス厳禁: เธอをเธと書かない。母音-อを落とさない
 - ターゲット単語は独立した意味で使用（慣用句・複合語の一部のみはNG。畳語は除く）
-- ターゲット単語はword_breakdownに独立エントリとして含める"""
+- ターゲット単語はword_breakdownに独立エントリとして含める
+- 性的表現・露骨な恋愛描写は禁止。恋愛テーマでも健全な範囲に留める"""
 
 
 SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
@@ -130,7 +130,7 @@ SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
 - word_breakdown: 最大20単語、出現順にすべて含める。meaningは日本語のみ
 - 人称代名詞のmeaningに性別・丁寧度注記（例: ผม→「私（男性・丁寧）」）
 - context各フィールド50文字以内
-- japanese_translation: 自然で簡潔な日本語。時制はタイ語文と一致（×説明的な訳→○自然な日本語）
+- japanese_translation: 自然で簡潔な日本語。時制はタイ語文と一致。主語・目的語の対応を崩さない（誰が・誰を・何をの関係を正確に）（×説明的な訳→○自然な日本語）
 - notesにターゲット単語の用法・類語との違いを50文字以内。非ターゲットは空文字
 
 # 構文ルール（最重要）
@@ -146,6 +146,7 @@ SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
 - 指示・依頼はช่วย〜หน่อย/รบกวน〜หน่อย優先
 - ターゲット単語は独立した意味で使用（複合語の一部のみはNG。畳語は除く）
 - ターゲット単語はword_breakdownに独立エントリとして含める
+- 性的表現・露骨な恋愛描写は禁止。恋愛テーマでも健全な範囲に留める
 
 出力前確認: 自然なタイ語か？直訳でないか？スペルミスはないか？"""
 
@@ -267,10 +268,13 @@ def resolve_generation_params(
 
     politeness = params.get("politeness")
     if not politeness:
-        politeness = _weighted_choice(
-            POLITENESS_LEVELS,
-            _topic_option_weights(topic, POLITENESS_LEVELS, "politeness"),
-        )
+        if topic == TOPICS[15]:
+            politeness = POLITENESS_LEVELS[1]
+        else:
+            politeness = _weighted_choice(
+                POLITENESS_LEVELS,
+                _topic_option_weights(topic, POLITENESS_LEVELS, "politeness"),
+            )
     grammar_focus = None
     if is_premium:
         if params.get("grammarFocus"):
@@ -358,29 +362,22 @@ def build_uvm_prompt(
     grammar_line = f"- 文法フォーカス: {grammar_focus}\n" if grammar_focus else ""
     sub_theme_line = f"- サブテーマ: {sub_theme}\n" if sub_theme else ""
 
-    drama_line = ""
+    drama_context = ""
+    drama_required = ""
     is_drama = topic == TOPICS[15]
     if is_drama:
-        if target_words:
-            pick = find_best_drama_scene(target_words[0], BL_DRAMA_SETTINGS)
-        else:
-            setting = random.choice(BL_DRAMA_SETTINGS)
-            pick = {**setting, "scene": random.choice(setting["scenes"])}
-        drama_line = (
-            f"- BL（ボーイズラブ）ドラマです。登場人物は男性同士にしてください\n"
-            f"- 以下のドラマの雰囲気を参考に、オリジナルの例文を作ってください（ドラマのセリフや文章をそのまま引用しないこと）\n"
-            f"- 参考ドラマ: 「{pick['drama']}」風（{pick['context']}）\n"
-            f"- 場面の雰囲気: {pick['scene']}\n"
-            f"- thai_textは上記の雰囲気が伝わるオリジナルのタイ語文にしてください（セリフ風または状況描写）\n"
-            f"- japanese_translationは通常通りthai_textの日本語訳のみにしてください\n"
-            f"- usage_scenariosには「{pick['drama']}」風のどんな場面かわかる説明を書いてください\n"
-        )
+        drama = build_drama_prompt_section(target_words)
+        drama_context = drama["context"]
+        drama_required = drama["required"]
     if is_drama:
+        topic_line = ""
+        sub_theme_line = ""
         style_line = ""
         politeness_line = ""
         grammar_line = ""
         emotion_line = ""
     else:
+        topic_line = f"- テーマ: {topic}\n"
         style_line = f"- 文体: {style}\n"
         politeness_line = f"- 丁寧さ: {politeness}\n"
         emotion_line = f"- 感情・トーン: {emotion}"
@@ -394,18 +391,22 @@ def build_uvm_prompt(
 - 例外: 畳語・繰り返し表現（เด็กๆ, ช้าๆ 等）は許可します
 - word_breakdownには各ターゲット単語を独立したエントリとして必ず含めてください。複合語にまとめず、単語単位で分解してください
 
+{drama_context}
 【必須】難易度:
 - 語彙レベル: {diff["label"]}（{diff["vocab_hint"]}）
 - 長さ: {diff["length"]}
-
+{drama_required}
 【キーワード補足】上記のターゲット単語には、word_breakdownのnotesフィールドで用法・ニュアンス・類語との違いを簡潔に補足してください。
 
-【可能な限り反映】以下の要素を、自然なタイ語になる範囲で取り入れてください。
-- テーマ: {topic}
-{sub_theme_line}{drama_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""
 
-    return f"""要件:
+【可能な限り反映】以下の要素を、自然なタイ語になる範囲で取り入れてください。
+{topic_line}{sub_theme_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""
+
+    return f"""
+{drama_context}
+【必須】難易度:
 - 語彙レベル: {diff["label"]}（{diff["vocab_hint"]}）
 - 長さ: {diff["length"]}
-- テーマ: {topic}
-{sub_theme_line}{drama_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""
+{drama_required}
+【可能な限り反映】以下の要素を、自然なタイ語になる範囲で取り入れてください。
+{topic_line}{sub_theme_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""
