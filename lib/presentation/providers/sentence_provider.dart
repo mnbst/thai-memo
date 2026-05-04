@@ -91,7 +91,7 @@ class SentenceController extends StateNotifier<SentenceState> {
 
     try {
       final sentence = await _generateUseCase.execute(
-        generationParams: generationParams,
+        generationParams: _effectiveGenerationParams(generationParams),
       );
       state = SentenceStateSuccess(sentence, generated: true);
       _logGenerateSentence(count: 1, source: 'manual_single');
@@ -100,6 +100,18 @@ class SentenceController extends StateNotifier<SentenceState> {
     } catch (e) {
       state = SentenceStateError('予期しないエラーが発生しました: $e');
     }
+  }
+
+  // サーバー側 (_effective_generation_params) でも同じフィルタあり
+  Map<String, String?> _effectiveGenerationParams(
+    Map<String, String?> generationParams,
+  ) {
+    if (_currentTier() == 'premium') {
+      return generationParams;
+    }
+    final effectiveParams = Map<String, String?>.from(generationParams);
+    effectiveParams.remove('topic');
+    return effectiveParams;
   }
 
   /// Load the most recent sentence
@@ -200,7 +212,7 @@ class SentenceController extends StateNotifier<SentenceState> {
     unawaited(
       _analytics.logGenerateSentence(
         tier: _currentTier(),
-        topic: _currentTopic(),
+        topic: _currentTier() == 'premium' ? _currentTopic() : null,
         source: source,
         count: count,
       ),
@@ -262,4 +274,3 @@ class SentenceStateError extends SentenceState {
 class SentenceStateEmpty extends SentenceState {
   const SentenceStateEmpty();
 }
-

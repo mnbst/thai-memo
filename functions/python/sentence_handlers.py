@@ -80,6 +80,14 @@ def _select_target_words_with_topic(
     )
 
 
+def _effective_generation_params(params: dict, *, is_premium: bool) -> dict:
+    """Free users always use automatic topic selection."""
+    effective = dict(params)
+    if not is_premium:
+        effective.pop("topic", None)
+    return effective
+
+
 def _register_sentence_exposure(
     db: FirestoreClient,
     uid: str,
@@ -217,11 +225,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         tier = user_data.get("tier", "free")
         is_premium = tier == "premium"
 
-        # 初回生成はpremium相当のスペックで出力
-        is_first_generation = user_data.get("is_first_generation", False) is True
-        use_premium_spec = is_premium or is_first_generation
-        if is_first_generation:
-            log_data["firstGeneration"] = True
+        use_premium_spec = is_premium
 
         remaining = user_data.get("remaining_sentences", 0)
         if remaining <= 0:
@@ -231,7 +235,10 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             }
             return response
 
-        params = req.data or {}
+        params = _effective_generation_params(
+            req.data or {},
+            is_premium=is_premium,
+        )
         estimated_vocab = _get_capped_estimated_vocab(user_data, use_premium_spec)
         use_premium_prompt = use_premium_prompt_for_vocab(
             use_premium_spec,
@@ -272,14 +279,6 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         log_data["processingTimeMs"] = processing_time
 
         def _uvm_work() -> None:
-            try:
-                if is_first_generation and remaining <= 1:
-                    user_ref.update(
-                        {"is_first_generation": firestore.firestore.DELETE_FIELD}
-                    )
-            except Exception as exc:
-                print(f"clear first_generation flag failed: {exc}")
-
             try:
                 _register_sentence_exposure(db, uid, sentence, target_words)
             except Exception as exc:
@@ -359,5 +358,3 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
 
         print(f"Request failed: {log_data}")
         return response
-
-

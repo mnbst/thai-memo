@@ -71,28 +71,11 @@ export async function resetQuota(
   const quizResetValue = isPremium ?
     PREMIUM_DAILY_QUIZZES :
     FREE_DAILY_QUIZZES;
-  const currentRemainingSentences =
-    typeof userData.remaining_sentences === 'number' ?
-      userData.remaining_sentences :
-      0;
-  const currentRemainingQuizzes =
-    typeof userData.remaining_quizzes === 'number' ?
-      userData.remaining_quizzes :
-      0;
-  const shouldPreserveInitialBonus = userData.is_first_generation === true;
-  const shouldPreserveInitialQuizBonus =
-    userData.is_first_quiz_generation === true;
-  const remainingSentences = shouldPreserveInitialBonus ?
-    Math.max(currentRemainingSentences, sentenceResetValue) :
-    sentenceResetValue;
-  const remainingQuizzes = shouldPreserveInitialQuizBonus ?
-    Math.max(currentRemainingQuizzes, quizResetValue) :
-    quizResetValue;
-
+  // TODO: is_first_generation / is_first_quiz_generation フラグが旧ユーザーに残存。十分行き渡ったら一括削除する
   await db.collection('users').doc(userDoc.id).set(
     {
-      remaining_sentences: remainingSentences,
-      remaining_quizzes: remainingQuizzes,
+      remaining_sentences: sentenceResetValue,
+      remaining_quizzes: quizResetValue,
       daily_sentence_generated: false,
     },
     { merge: true }
@@ -184,4 +167,3 @@ export const dailyBatch = isDevOnly()
       await dailyBatchHandler();
     }
   );
-

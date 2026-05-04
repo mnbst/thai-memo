@@ -94,7 +94,8 @@ FREE_TOPICS = [
     TOPICS[0],
     TOPICS[1],
     TOPICS[5],
-]  # あいさつ、食べ物、買い物
+    TOPICS[15],
+]  # あいさつ、食べ物、買い物、タイBLドラマ
 FREE_STYLES = STYLES[1:3]  # 口語体、丁寧語
 
 # ─── 丁寧さレベル ───

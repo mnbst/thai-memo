@@ -15,8 +15,8 @@ premiumユーザーのUVMは初期状態0単語で作成され、クイズ結果
 ### 1a. UVM連動の判定
 
 ```
-premium（または初回生成） → UVM連動モード（premium spec）
-それ以外 → free spec（語彙帯域を FREE_TIER_MAX_VOCAB で上限）
+premium → premium spec
+free → free spec（語彙帯域を FREE_TIER_MAX_VOCAB で上限）
 ```
 
 ### 1b. ターゲット単語の選定（`select_uvm_target_words` → `get_session_words`）

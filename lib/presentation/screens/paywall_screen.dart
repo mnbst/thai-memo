@@ -138,7 +138,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '好きなテーマで、タイ語が続く。',
+                        '推しの言葉が、わかる日が来る。',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -408,8 +408,8 @@ class PaywallBottomSheet extends ConsumerWidget {
         children: [
           benefitRow(
             icon: Icons.auto_awesome,
-            title: '恋愛・仕事・旅行・タイドラマなど',
-            freeText: '好きなテーマで学べる',
+            title: 'タイドラマ・恋愛・旅行など',
+            freeText: '好きなシーン・テーマで学べる',
             premiumText: '全テーマ使い放題',
           ),
           Padding(

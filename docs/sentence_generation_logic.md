@@ -34,7 +34,7 @@
 | free   | `remaining_sentences` フィールドで管理（`dailyBatch` が毎晩リセット） |
 | premium | 同上（上限値が異なる） |
 
-初回生成（`is_first_generation = true`）はfreeユーザーでもpremiumスペックで生成する。
+freeユーザーは初回からfreeスペックで生成する。過去の `is_first_generation` フラグが残っていてもpremiumスペックにはしない。
 
 ## ② ターゲット単語選定 — `select_uvm_target_words` (`sentence_service.py:62`)
 
@@ -42,7 +42,7 @@
 2. `get_session_words(db, uid, freq_rank, ...)` (uvm.py) でUVMから単語を選定
    - `estimated_vocab ± FREQ_BAND_HALF` の帯域内から P(know) が低い単語を優先
    - topicが未指定の場合はembeddingで最適テーマを選択
-3. free ティアは `max_vocab = FREE_TIER_MAX_VOCAB (300)` にキャップ
+3. free ティアは `max_vocab = FREE_TIER_MAX_VOCAB (100)` にキャップ
 
 バッチ生成では `count` 分の単語を一括選定し、各単語に embedding でテーマを割り当て。
 重複テーマが出た場合は別テーマに差し替えて多様性を確保する。
@@ -61,7 +61,7 @@
 
 ターゲット単語がある場合は「最優先で含めること」として指示し、テーマ/文体/文法などは「できれば反映」の補助扱いにする。
 
-free ティアはテーマ・スタイルの選択肢を制限（`FREE_TOPICS`, `FREE_STYLES`）し、`grammarFocus` は使わない。
+free ティアはユーザー指定のテーマを使わず、`FREE_TOPICS` からおまかせ選択する。スタイルは `FREE_STYLES` に制限し、`grammarFocus` は使わない。
 語彙スコアごとの topic / style / grammarFocus 解禁仕様は `docs/vocab_unlock_parameters.md` を参照。
 
 プロンプトでは `word_breakdown` を最大20単語までに制限する。

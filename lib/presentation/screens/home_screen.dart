@@ -339,8 +339,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             final quizState = ref.read(quizControllerProvider);
 
             // 既に回答中/結果表示中ならそのまま再表示
-            if (quizState is QuizAnswering ||
-                quizState is QuizShowResult) {
+            if (quizState is QuizAnswering || quizState is QuizShowResult) {
               // nothing
             } else {
               quizNotifier.startLearningQuiz(sentence);
@@ -469,7 +468,6 @@ class TodayScreen extends ConsumerStatefulWidget {
 }
 
 class _TodayScreenState extends ConsumerState<TodayScreen> {
-
   @override
   Widget build(BuildContext context) {
     ref.listen(vocabStatsProvider, (prev, next) {
@@ -864,12 +862,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   }
 
   bool _legacySentenceLooksPremium() {
-    final isPremium = (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
+    return (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
             ref.watch(isPremiumProvider)) ==
         true;
-    final isInitialPremiumTrial =
-        ref.watch(isInitialPremiumSentenceTrialProvider).valueOrNull ?? false;
-    return isPremium || isInitialPremiumTrial;
   }
 
   static const _levelThresholds = [100, 300, 600, 1500];

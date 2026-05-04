@@ -137,7 +137,11 @@ def select_uvm_target_words(
         topics_pool = None
     else:
         topic_candidates = TOPICS if is_premium else FREE_TOPICS
-        topics_pool = gate_topics_for_vocab(topic_candidates, estimated_vocab or 0)
+        topics_pool = (
+            gate_topics_for_vocab(topic_candidates, estimated_vocab or 0)
+            if is_premium
+            else topic_candidates
+        )
     return get_session_words(
         db,
         uid,
