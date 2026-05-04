@@ -123,8 +123,42 @@ class AnalyticsService {
     await _logEvent('tap_paywall', {'source': source});
   }
 
+  Future<void> logTapVocabScore({
+    required String source,
+    required int vocab,
+    required bool isPremium,
+  }) async {
+    await _logEvent('tap_vocab_score', {
+      'source': source,
+      'vocab': vocab,
+      'is_premium': isPremium ? 1 : 0,
+    });
+  }
+
   Future<void> logSubscribe({required String source}) async {
     await _logEvent('subscribe', {'source': source});
+  }
+
+  Future<void> logOnboardingStart() async {
+    await _logEvent('onboarding_start', {});
+  }
+
+  Future<void> logOnboardingComplete({required bool skipped}) async {
+    await _logEvent('onboarding_complete', {'skipped': skipped ? 1 : 0});
+  }
+
+  Future<void> logSummaryQuizComplete({
+    required int score,
+    required int questionCount,
+    int? vocabBefore,
+    int? vocabAfter,
+  }) async {
+    await _logEvent('summary_quiz_complete', {
+      'score': score,
+      'question_count': questionCount,
+      'vocab_before': vocabBefore,
+      'vocab_after': vocabAfter,
+    });
   }
 
   Future<void> logChangeSetting({

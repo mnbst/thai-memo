@@ -10,13 +10,17 @@ export interface QuizQuestion {
   thai_text: string;
   blank_text: string;
   correct_answer: string;
+  correct_answer_meaning: string;
   choices: string[];
+  choice_pronunciations: string[];
   pronunciation: string;
   explanation: string;
   srs_interval: number;
   japanese_translation: string;
   sentence_pronunciation: string;
+  blank_sentence_pronunciation: string;
   dummy_reasons: string[];
+  sentence_detail?: Record<string, unknown>;
 }
 
 export interface GeneratedQuizQuestion {
@@ -24,7 +28,9 @@ export interface GeneratedQuizQuestion {
   thai_text: string;
   blank_text: string;
   correct_answer: string;
+  correct_answer_meaning?: string;
   choices: string[];
+  choice_pronunciations?: string[];
   pronunciation: string;
   explanation: string;
   japanese_translation?: string;
@@ -40,19 +46,17 @@ export interface GeneratedQuizQuestionDraft {
   dummies: string[];
   explanation: string;
   dummy_reasons: string[];
-  correct_answer_pronunciation: string;
 }
 
-export interface QuizGenerationModelResponse {
-  questions: GeneratedQuizQuestionDraft[];
-}
+export type QuizGenerationModelResponse = GeneratedQuizQuestionDraft;
 
 export interface QuizSentenceSeed {
   thai_text: string;
   pronunciation: string;
   japanese_translation: string;
-  word_breakdown: { word: string; pronunciation: string; meaning: string }[];
   key_word?: string;
+  key_word_pronunciation?: string;
+  key_word_meaning?: string;
 }
 
 export interface PreparedQuizSentenceSeed {
@@ -63,7 +67,6 @@ export interface PreparedQuizSentenceSeed {
   pronunciation: string;
   correct_answer_meaning: string;
   japanese_translation: string;
-  word_breakdown: { word: string; pronunciation: string; meaning: string }[];
 }
 
 export interface QuizGenerationService {
@@ -74,41 +77,26 @@ export const QUIZ_RESPONSE_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    questions: {
+    dummies: {
       type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          dummies: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Exactly 3 Thai dummy choices that do not include the correct answer',
-          },
-          explanation: {
-            type: 'string',
-            description: 'Brief explanation in Japanese of why this word fits',
-          },
-          dummy_reasons: {
-            type: 'array',
-            items: { type: 'string' },
-            description: '不正解の3単語それぞれについて入らない理由を日本語で1行ずつ',
-          },
-          correct_answer_pronunciation: {
-            type: 'string',
-            description: 'correct_answer のローマ字発音（声調記号付き）',
-          },
-        },
-        required: [
-          'dummies',
-          'explanation',
-          'dummy_reasons',
-          'correct_answer_pronunciation',
-        ],
-      },
+      items: { type: 'string' },
+      description: 'Exactly 3 Thai dummy choices that do not include the correct answer',
+    },
+    explanation: {
+      type: 'string',
+      description: 'Brief explanation in Japanese of why this word fits',
+    },
+    dummy_reasons: {
+      type: 'array',
+      items: { type: 'string' },
+      description: '不正解の3単語それぞれについて入らない理由を日本語で1行ずつ',
     },
   },
-  required: ['questions'],
+  required: [
+    'dummies',
+    'explanation',
+    'dummy_reasons',
+  ],
 } as const;
 
 function buildPreparedSentenceList(sentences: QuizSentenceSeed[]): string {
@@ -120,72 +108,60 @@ function buildPreparedSentenceList(sentences: QuizSentenceSeed[]): string {
       `\n   correct_answer_pronunciation: ${sentence.pronunciation}` +
       `\n   correct_answer_meaning: ${sentence.correct_answer_meaning || '未指定'}` +
       `\n   日本語訳: ${sentence.japanese_translation}`;
-    if (sentence.word_breakdown.length > 0) {
-      entry += `\n   語句: ${sentence.word_breakdown.map((word) => {
-        const details = [word.pronunciation, word.meaning].filter(Boolean).join(' / ');
-        return details ? `${word.word}=(${details})` : word.word;
-      }).join(' / ')}`;
-    }
     return entry;
   }).join('\n\n');
 }
 
+export const QUIZ_GENERATION_SYSTEM_PROMPT = `確定済みのタイ語穴埋め問題1問について、ダミー選択肢・理由・解説だけを作成してください。
+blank_text と correct_answer は変更しません。
+
+【出力】
+dummies / explanation / dummy_reasons の3項目のみ。
+- dummies: correct_answer 以外のタイ語3件
+- explanation: correct_answer が入る理由だけを日本語で簡潔に書く。ダミーには触れない
+- dummy_reasons: 各ダミーを「単語（ローマ字 / 日本語）：不正解理由」の形式で1行ずつ書く
+
+【最重要ルール】
+ヒント表示前に見えるのは blank_text と「correct_answer + dummies」のタイ語だけ。
+日本語訳・語句・発音・解説なしでも、周辺タイ語だけで3ダミーを除外できる必要がある。
+
+【ダミー条件】
+- 品詞不一致、項構造不一致、対象カテゴリ不一致など、局所的に破綻する語を選ぶ
+- 代入して文法上/意味上入りうる語、意味違いだけの語、同カテゴリ置換は不可
+- 日本語訳、話者性別、敬意、人称だけで区別する語は不可
+- 類別詞・指示詞・代名詞・語気助詞・前置詞など、複数候補が成立しやすい機能語同士をダミーにしない
+- 正解が類別詞の場合、他の類別詞ではなく、動詞・形容詞・場所名詞など別品詞を優先する
+- dummy_reasons の3行は互いに異なる理由にする。同じ理由になる候補は差し替える
+
+【理由の禁止表現】
+dummy_reasons に「元の文」「文脈」「質問文」「合わない」「意味が異なる」「別の意味になる」「より一般的」は書かない。
+「〜を示す文脈には合わない」「こちらの方が自然」と説明したくなる候補は、意味上入りうるため不可。
+
+【NG例】
+- กิน___ → ข้าว/ผัก/เนื้อ は全て目的語として成立
+- อยู่___กล่อง → ใน/บน/ใต้/ข้าง は全て位置関係として成立
+- ___ไปตลาด → ผม/ฉัน/เรา/เขา は話者情報なしでは一意に選べない
+- โรงแรม___ดีนะ → นี้/นั้น/นั่น は指示詞として複数成立
+- ___นี้แพงไปไหม → ลูก/อัน/ตัว は類別詞として複数成立
+- ฉันมีแมวสอง___ → ตัว/ตน は分類だけで落とす問題として曖昧
+
+【良い理由例】
+- แกง（kɛɛng / カレー）：動詞の位置に名詞が入り文法上不自然
+- เบื่อ（bʉ̀a / 飽きる）：目的語の位置に動詞が入り文法上不自然
+- เสื้อ（sʉ̂a / 服）：移動動詞の目的語に衣類名詞が入り不自然
+- ช้า（cháa / 遅い）：目的語に形容詞が入り不自然
+- สอง（sɔ̌ɔng / 二）：場所を示す前置詞句に数詞が入り不自然
+
+【最終確認】
+dummies 3件、correct_answer 不含、dummy_reasons 3件。
+3ダミーすべて、周辺タイ語だけで除外できること。`;
+
 export function buildQuizGenerationPrompt(sentences: QuizSentenceSeed[]): string {
   const sentenceList = buildPreparedSentenceList(sentences);
 
-  return `タイ語例文ごとに、確定済みの穴埋め問題へダミー選択肢と解説だけを作成してください。
+  return `以下のタイ語穴埋め問題について、システム指示に従って出力してください。
 
-${sentenceList}
-
-【あなたの主作業】
-- correct_answer 以外のダミー選択肢を3件作る
-- 各ダミーが blank_text に入らない理由を dummy_reasons に書く
-- explanation は correct_answer が入る理由だけを日本語で簡潔に書く
-- correct_answer_pronunciation に correct_answer のローマ字発音（声調記号付き）を出力する
-
-【出力形式】
-- questions は入力と同じ件数・同じ順番で出力する
-- 各 question は dummies / explanation / dummy_reasons / correct_answer_pronunciation の4項目だけを出力する
-- source_index / thai_text / blank_text / correct_answer / choices は出力しない
-- correct_answer_pronunciation は入力の correct_answer_pronunciation が空でも必ず自力で出力する
-
-【ルール】
-- 空欄位置や正解語を変更しない。blank_text と correct_answer は入力値を前提にする
-- 正解が機能語・代名詞でも、空欄位置はアプリ側で確定済みなので変更しない
-- ユーザーにはヒント表示前は blank_text と「correct_answer + dummies」のタイ語だけが見える。日本語訳・語句・発音・解説は見えない前提で、周辺タイ語だけでダミー3件が除外できる問題にする
-- 「俺/私」「あなた/君」「彼/彼女」など、日本語訳・話者性別・敬意・一人称/二人称/三人称の知識だけで区別する語は、周辺タイ語に明確な手がかりがない限り空欄対象やダミーにしない
-- dummies=タイ語のみ3件。correct_answer を含めない
-- explanation=日本語で正解理由のみ簡潔に。ダミー選択肢には触れない
-- dummy_reasons=各ダミーを「単語（発音 / 日本語の意味）：<破綻箇所>」で1行ずつ
-
-【ダミー生成手順】
-1. 確定済みの空欄位置を内部分析: 品詞、役割、直前直後語、意味カテゴリ、項構造
-2. ダミーは品詞不一致・項構造不一致・対象カテゴリ不一致で局所破綻する語にする
-3. 各候補を blank_text に代入。文法上または意味上入りうる語、意味違いだけ、同カテゴリ置換ならNG
-4. NG候補や破綻を短く説明できない候補は、理由を工夫せず必ず別語に差し替える
-5. dummy_reasonsに「元の文」「文脈」「質問文」「合わない」「意味が異なる」「別の意味になる」は書かない
-6. 「〜を示す文脈には合わない」と説明したくなる候補は意味上入りうるためNG。必ず別語に差し替える
-7. 日本語訳や語句ヒントを見れば選べるだけのダミーはNG。ヒントなし画面のタイ語だけで局所破綻が分かる語に差し替える
-
-【ダミーNG例（文として成立するため不可）】
-- กิน___ → ข้าว/ผัก/เนื้อ は全て目的語として成立
-- อยู่___กล่อง → ใน/บน/ใต้/ข้าง は全て位置関係として成立
-- ฉัน___ที่บ้าน → กิน/อ่าน/นอน/ทำงาน は全て自然な文
-- เขาซื้อ___ → หนังสือ/เสื้อ/ข้าว/ยา は全て目的語として成立
-- ___ไปตลาด → ผม/ฉัน/เรา/เขา は日本語訳や話者情報なしでは一意に選べない
-
-【良いダミー理由例】
-- สวย（sǔay / 美しい）：目的語に形容詞が入り不自然
-- โรงเรียน（roong-rian / 学校）：食べる対象に場所名詞が入り不自然
-- กิน（kin / 食べる）：目的語の位置に動詞が入り文法上不自然
-
-【最終確認】
-- questions は入力と同じ件数・同じ順番
-- 各 question のキーは dummies / explanation / dummy_reasons / correct_answer_pronunciation だけ
-- dummiesは3件、correct_answerは含めない
-- 3つのダミーは全て、代入時の局所破綻を説明できる
-- dummy_reasonsは3件で、不正解選択肢それぞれのタイ語単語を含む
-- correct_answer_pronunciation は必ず非空で出力する`;
+${sentenceList}`;
 }
 
 export function prepareQuizGenerationInputs(
@@ -204,7 +180,6 @@ export function prepareQuizGenerationInputs(
       pronunciation: target?.pronunciation ?? '',
       correct_answer_meaning: target?.meaning ?? '',
       japanese_translation: normalizeText(sentence.japanese_translation),
-      word_breakdown: sentence.word_breakdown,
     };
   });
 }
@@ -218,7 +193,7 @@ export function isQuizSentenceSeedReady(sentence: QuizSentenceSeed): boolean {
 }
 
 export function applyRuleBasedQuizFields(
-  response: QuizGenerationModelResponse,
+  response: { questions: GeneratedQuizQuestionDraft[] },
   sentences: QuizSentenceSeed[],
 ): QuizQuestionsResponse {
   const preparedSentences = prepareQuizGenerationInputs(sentences);
@@ -227,16 +202,16 @@ export function applyRuleBasedQuizFields(
     questions: response.questions.map((question, responseIndex) => {
       const prepared = preparedSentences[responseIndex];
 
-      const modelPronunciation = normalizeText(question.correct_answer_pronunciation);
-
       if (!prepared?.correct_answer || !prepared.blank_text.includes(BLANK_TEXT)) {
         return {
           source_index: responseIndex,
           thai_text: prepared?.thai_text ?? '',
           blank_text: prepared?.blank_text ?? '',
           correct_answer: prepared?.correct_answer ?? '',
+          correct_answer_meaning: prepared?.correct_answer_meaning ?? '',
           choices: question.dummies,
-          pronunciation: prepared?.pronunciation || modelPronunciation,
+          choice_pronunciations: [],
+          pronunciation: prepared?.pronunciation ?? '',
           explanation: question.explanation,
           dummy_reasons: question.dummy_reasons,
         };
@@ -247,8 +222,10 @@ export function applyRuleBasedQuizFields(
         thai_text: prepared.thai_text,
         blank_text: prepared.blank_text,
         correct_answer: prepared.correct_answer,
+        correct_answer_meaning: prepared.correct_answer_meaning,
         choices: [prepared.correct_answer, ...question.dummies],
-        pronunciation: prepared.pronunciation || modelPronunciation,
+        choice_pronunciations: [],
+        pronunciation: prepared.pronunciation,
         explanation: question.explanation,
         dummy_reasons: question.dummy_reasons,
       };
@@ -265,19 +242,11 @@ function resolveBlankTarget(
   if (!keyWord) return null;
   if (!buildBlankText(thaiText, keyWord)) return null;
 
-  const breakdown = findWordBreakdown(sentence.word_breakdown, keyWord);
   return {
     word: keyWord,
-    pronunciation: normalizeText(breakdown?.pronunciation),
-    meaning: breakdown?.meaning ?? '',
+    pronunciation: normalizeText(sentence.key_word_pronunciation),
+    meaning: normalizeText(sentence.key_word_meaning),
   };
-}
-
-function findWordBreakdown(
-  wordBreakdown: { word: string; pronunciation: string; meaning: string }[],
-  target: string,
-): { word: string; pronunciation: string; meaning: string } | null {
-  return wordBreakdown.find((word) => normalizeText(word.word) === target) ?? null;
 }
 
 function buildBlankText(thaiText: string, answer: string): string | null {
@@ -330,6 +299,17 @@ export function sanitizeQuizQuestions(response: QuizQuestionsResponse): QuizQues
   };
 }
 
+export function buildBlankSentencePronunciation(
+  sentencePronunciation: string,
+  keyWordPronunciation?: string,
+): string {
+  const normalizedSentencePronunciation = normalizeText(sentencePronunciation);
+  const normalizedKeyWordPronunciation = normalizeText(keyWordPronunciation);
+  if (!normalizedSentencePronunciation || !normalizedKeyWordPronunciation) return '';
+  if (!normalizedSentencePronunciation.includes(normalizedKeyWordPronunciation)) return '';
+  return normalizedSentencePronunciation.replace(normalizedKeyWordPronunciation, BLANK_TEXT);
+}
+
 export function sanitizeQuizQuestion(
   question: GeneratedQuizQuestion,
 ): GeneratedQuizQuestion | null {
@@ -367,13 +347,22 @@ export function sanitizeQuizQuestion(
     return null;
   }
 
+  const shuffledChoices = shuffleChoices(choices);
+
   return {
     ...question,
     source_index: Number.isInteger(question.source_index) ? question.source_index : undefined,
     thai_text: normalizeText(question.thai_text),
     blank_text: normalizeText(question.blank_text),
     correct_answer: correctAnswer,
-    choices: shuffleChoices(choices),
+    correct_answer_meaning: normalizeText(question.correct_answer_meaning),
+    choices: shuffledChoices,
+    choice_pronunciations: buildChoicePronunciations(
+      shuffledChoices,
+      correctAnswer,
+      question.pronunciation,
+      dummyReasons,
+    ),
     pronunciation: normalizeText(question.pronunciation),
     explanation: normalizeText(question.explanation),
     japanese_translation: normalizeText(question.japanese_translation),
@@ -407,6 +396,34 @@ function sanitizeDummyReasons(
   }
 
   return matchedReasons as string[];
+}
+
+function buildChoicePronunciations(
+  choices: string[],
+  correctAnswer: string,
+  correctAnswerPronunciation: string,
+  dummyReasons: string[],
+): string[] {
+  const normalizedCorrectAnswerPronunciation = normalizeText(correctAnswerPronunciation);
+
+  return choices.map((choice) => {
+    if (choice === correctAnswer) {
+      return normalizedCorrectAnswerPronunciation;
+    }
+
+    const reason = dummyReasons.find((candidate) => candidate.includes(choice));
+    return reason ? extractDummyPronunciation(reason, choice) : '';
+  });
+}
+
+function extractDummyPronunciation(reason: string, choice: string): string {
+  const escapedChoice = escapeRegExp(choice);
+  const match = reason.match(new RegExp(`${escapedChoice}\\s*[（(]\\s*([^/）)]+?)\\s*/`));
+  return normalizeText(match?.[1]);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function shuffleChoices(choices: string[]): string[] {

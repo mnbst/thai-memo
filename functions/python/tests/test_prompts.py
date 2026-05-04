@@ -24,6 +24,7 @@ from prompts import (
     gate_topics_for_vocab,
     get_system_prompt,
     resolve_generation_params,
+    use_premium_prompt_for_vocab,
 )
 
 
@@ -36,7 +37,9 @@ def test_resolve_generation_params_prefers_explicit_values() -> None:
         "emotion": "custom-emotion",
     }
 
-    assert resolve_generation_params(params, is_premium=True) == params
+    result = resolve_generation_params(params, is_premium=True)
+    assert result.pop("subTheme") is None
+    assert result == params
 
 
 def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
@@ -50,6 +53,7 @@ def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
     ):
         resolved = resolve_generation_params({}, is_premium=False)
 
+    assert resolved.pop("subTheme") is None
     assert resolved == {
         "topic": FREE_TOPICS[0],
         "style": FREE_STYLES[0],
@@ -57,6 +61,38 @@ def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
         "grammarFocus": None,
         "emotion": "喜び・嬉しさ",
     }
+
+
+def test_free_topics_exclude_travel() -> None:
+    assert FREE_TOPICS == [
+        TOPICS[0],
+        TOPICS[1],
+        TOPICS[5],
+        TOPICS[15],
+    ]
+    assert TOPICS[2] not in FREE_TOPICS
+
+
+def test_free_topic_pool_is_not_vocab_gated() -> None:
+    selected_topics: list[str] = []
+
+    def capture_choice(values):
+        selected_topics.append(list(values))
+        return values[-1]
+
+    with (
+        patch("prompts.get_topic_option_similarity_weights", return_value=None),
+        patch("prompts.get_emotion_similarity_weights", return_value=None),
+        patch("prompts.random.choice", side_effect=capture_choice),
+        patch(
+            "prompts.random.choices",
+            side_effect=lambda population, weights, k: [population[0]],
+        ),
+    ):
+        resolved = resolve_generation_params({}, is_premium=False, estimated_vocab=0)
+
+    assert selected_topics[0] == FREE_TOPICS
+    assert resolved["topic"] == TOPICS[15]
 
 
 def test_resolve_generation_params_weights_style_by_target_words() -> None:
@@ -82,6 +118,7 @@ def test_resolve_generation_params_weights_style_by_target_words() -> None:
             side_effect=politeness_weights,
         ),
         patch("prompts.get_emotion_similarity_weights", return_value=None),
+        patch("prompts.find_best_sub_theme", return_value="打ち合わせ"),
     ):
         resolved = resolve_generation_params(
             {"topic": "仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）"},
@@ -91,6 +128,26 @@ def test_resolve_generation_params_weights_style_by_target_words() -> None:
 
     assert resolved["style"] == STYLES[2]
     assert resolved["politeness"] == "フォーマル（丁寧語・敬語を使用）"
+    assert resolved["subTheme"] == "打ち合わせ"
+
+
+def test_bl_drama_forces_casual_politeness() -> None:
+    """BLドラマテーマでは politeness が常にカジュアルに固定される。"""
+    with (
+        patch("prompts.get_style_similarity_weights", return_value=None),
+        patch("prompts.get_topic_option_similarity_weights", return_value=None),
+        patch("prompts.get_emotion_similarity_weights", return_value=None),
+        patch("prompts.find_best_sub_theme", return_value="告白"),
+        patch("prompts.random.choice", side_effect=lambda values: values[0]),
+        patch("prompts.random.choices", side_effect=lambda pop, weights, k: [pop[0]]),
+    ):
+        resolved = resolve_generation_params(
+            {"topic": TOPICS[15]},
+            is_premium=True,
+            target_words=["รัก"],
+        )
+
+    assert resolved["politeness"] == POLITENESS_LEVELS[1]
 
 
 def test_resolve_generation_params_weights_emotion_by_embedding() -> None:
@@ -108,6 +165,7 @@ def test_resolve_generation_params_weights_emotion_by_embedding() -> None:
                 "prompts.get_emotion_similarity_weights",
                 return_value=emotion_weights,
             ),
+            patch("prompts.find_best_sub_theme", return_value="ホテル"),
         ):
             resolved = resolve_generation_params(
                 {"topic": "旅行（ホテル、道案内、観光地、空港、ツアー）"},
@@ -247,29 +305,21 @@ def test_topic_gate_at_intermediate_opens_all() -> None:
     assert gate_topics_for_vocab(TOPICS, 600) == TOPICS
 
 
-def test_grammar_gate_at_intro_limits_to_intro_grammars() -> None:
-    """入門では grammarFocus の候補が 4 つ (平叙文/疑問文/否定文/命令・依頼) に絞られる。"""
-    captured: dict = {}
+def test_premium_low_vocab_uses_premium_prompt_params() -> None:
+    """語彙100以下でも premium は premium プロンプトパラメータを使う。"""
+    prompt = build_uvm_prompt(
+        {
+            "topic": "topic-a",
+            "style": "style-a",
+            "politeness": "politeness-a",
+            "grammarFocus": "grammar-a",
+            "emotion": "emotion-a",
+        },
+        is_premium=True,
+        estimated_vocab=100,
+    )
 
-    def capture_choice(values):
-        if values and values[0] in GRAMMAR_FOCUSES:
-            captured["grammar_pool"] = list(values)
-        return values[0]
-
-    with (
-        patch("prompts.get_topic_option_similarity_weights", return_value=None),
-        patch("prompts.get_emotion_similarity_weights", return_value=None),
-        patch("prompts.random.choice", side_effect=capture_choice),
-        patch(
-            "prompts.random.choices",
-            side_effect=lambda population, weights, k: [population[0]],
-        ),
-    ):
-        resolve_generation_params({}, is_premium=True, estimated_vocab=0)
-
-    intro_grammars = [g for g in GRAMMAR_FOCUSES if GRAMMAR_MIN_VOCAB.get(g, 0) == 0]
-    assert captured["grammar_pool"] == intro_grammars
-    assert len(intro_grammars) == 4
+    assert "- 文法フォーカス: grammar-a" in prompt
 
 
 def test_grammar_gate_at_intermediate_includes_conditional() -> None:
@@ -295,8 +345,8 @@ def test_grammar_gate_at_intermediate_includes_conditional() -> None:
     assert captured["grammar_pool"] == GRAMMAR_FOCUSES
 
 
-def test_explicit_values_override_gates() -> None:
-    """入門レベルでもユーザーが明示した値は維持される。"""
+def test_explicit_values_override_gates_after_common_prompt_vocab() -> None:
+    """共通プロンプト帯を超えた premium では明示値を維持する。"""
     params = {
         "topic": TOPICS[3],  # 仕事 (入門では本来除外)
         "style": STYLES[0],  # ニュース記事体
@@ -305,8 +355,9 @@ def test_explicit_values_override_gates() -> None:
         "emotion": EMOTIONS[0],
     }
 
-    resolved = resolve_generation_params(params, is_premium=True, estimated_vocab=0)
+    resolved = resolve_generation_params(params, is_premium=True, estimated_vocab=101)
 
+    resolved.pop("subTheme")
     assert resolved == params
 
 
@@ -342,6 +393,7 @@ def test_build_uvm_prompt_includes_all_resolved_target_word_conditions() -> None
         },
         target_words=["กิน"],
         is_premium=True,
+        estimated_vocab=101,
     )
 
     assert "- テーマ: topic-a" in prompt
@@ -382,19 +434,29 @@ def test_build_uvm_prompt_excludes_fixed_output_rules() -> None:
             "emotion": "emotion-a",
         },
         is_premium=True,
+        estimated_vocab=101,
     )
 
-    assert "thai_textはタイ語の自然な本文表記" not in prompt
-    assert "日本語話者向けのタイ語練習文を1つ生成" not in prompt
-    assert "thai_textはタイ語の自然な本文表記" in SYSTEM_PROMPT_FREE
-    assert "word_breakdownのmeaningは必ず日本語で記述してください" in SYSTEM_PROMPT_FREE
-    assert "構文・表現ルール" in SYSTEM_PROMPT_PREMIUM
-    assert "直訳構文は禁止" in SYSTEM_PROMPT_PREMIUM
+    assert "分かち書き禁止" not in prompt
+    assert "タイ語練習文を1つ生成" not in prompt
+    assert "分かち書き禁止" in SYSTEM_PROMPT_FREE
+    assert "meaningは日本語のみ" in SYSTEM_PROMPT_FREE
+    assert "構文ルール" in SYSTEM_PROMPT_PREMIUM
+    assert "直訳構文禁止" in SYSTEM_PROMPT_PREMIUM
 
 
 def test_get_system_prompt_selects_tier_prompt() -> None:
     assert get_system_prompt(False) == SYSTEM_PROMPT_FREE
     assert get_system_prompt(True) == SYSTEM_PROMPT_PREMIUM
+
+
+def test_premium_always_uses_premium_prompt() -> None:
+    assert use_premium_prompt_for_vocab(True, 0) is True
+    assert use_premium_prompt_for_vocab(True, 100) is True
+    assert use_premium_prompt_for_vocab(False, 200) is False
+    assert get_system_prompt(True, estimated_vocab=0) == SYSTEM_PROMPT_PREMIUM
+    assert get_system_prompt(True, estimated_vocab=100) == SYSTEM_PROMPT_PREMIUM
+    assert get_system_prompt(False, estimated_vocab=200) == SYSTEM_PROMPT_FREE
 
 
 def test_build_uvm_prompt_includes_grammar_focus_without_target_words() -> None:
@@ -407,6 +469,7 @@ def test_build_uvm_prompt_includes_grammar_focus_without_target_words() -> None:
             "emotion": "emotion-a",
         },
         is_premium=True,
+        estimated_vocab=101,
     )
 
     assert "- 文法フォーカス: grammar-a" in prompt

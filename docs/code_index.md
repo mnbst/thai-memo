@@ -137,6 +137,9 @@ lib/presentation/screens/tone_guide_screen.dart
 lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセル。
 
+lib/presentation/widgets/level_up_dialog.dart
+語彙レベルアップ時のお祝いアニメーションダイアログ。
+
 lib/presentation/tone_explanation_dialog.dart
 タイ語声調の解説ダイアログ。
 
@@ -198,8 +201,11 @@ functions/javascript/src/dailyBatch.ts
 
 ### Services
 
-functions/javascript/src/services/geminiService.ts
-Gemini APIクイズ生成ラッパー。
+functions/javascript/src/services/quizGenerationService.ts
+クイズ生成のプロンプト構築・サニタイズ・ルールベース変換。QuizGenerationServiceインターフェース定義。
+
+functions/javascript/src/services/geminiQuizService.ts
+Gemini API呼び出しによるQuizGenerationService実装。
 
 functions/javascript/src/services/secretManager.ts
 GCP Secret ManagerクライアントでAPIキー取得。

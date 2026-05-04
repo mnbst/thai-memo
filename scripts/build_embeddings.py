@@ -24,6 +24,7 @@ embedding データを事前計算し、ローカルに保存する。
 """
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -33,9 +34,11 @@ from vertexai.language_models import TextEmbeddingModel
 INPUT = Path("corpus/freq_rank_top10000.json")  # 入力: 頻出順位付き語彙リスト
 OUTPUT_NPY = Path("corpus/vocab_embeddings.npy")  # 出力: embedding 行列
 OUTPUT_WORDS = Path("corpus/vocab_words.json")     # 出力: 単語メタデータ
-BATCH_SIZE = 250  # 1回の API 呼び出しで処理する単語数
-SLEEP = 1         # バッチ間の待機時間（秒）— レート制限回避
+BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE", "250"))
+SLEEP = float(os.environ.get("EMBEDDING_SLEEP", "1"))
 DIM = 768         # embedding の次元数（gemini-embedding-001 の出力次元）
+CHECKPOINT_NPY = Path("corpus/vocab_embeddings.partial.npy")
+CHECKPOINT_META = Path("corpus/vocab_embeddings.partial.json")
 
 
 def main():
@@ -47,16 +50,37 @@ def main():
         freq_rank: dict[str, int] = json.load(f)
 
     words = list(freq_rank.keys())
-    # 全単語分の embedding を格納する配列を事前確保
-    all_embs = np.empty((len(words), DIM), dtype=np.float32)
+    word_meta = [{"word": w, "rank": freq_rank[w]} for w in words]
+
+    start = 0
+    if CHECKPOINT_NPY.exists() and CHECKPOINT_META.exists():
+        with open(CHECKPOINT_META, encoding="utf-8") as f:
+            checkpoint = json.load(f)
+        if checkpoint.get("words") == words and checkpoint.get("dim") == DIM:
+            all_embs = np.load(CHECKPOINT_NPY)
+            start = int(checkpoint.get("done", 0))
+            print(f"Resuming from {start}/{len(words)}")
+        else:
+            print("Ignoring stale checkpoint.")
+            all_embs = np.empty((len(words), DIM), dtype=np.float32)
+    else:
+        # 全単語分の embedding を格納する配列を事前確保
+        all_embs = np.empty((len(words), DIM), dtype=np.float32)
 
     # バッチ単位で Vertex AI API を呼び出し
-    for i in range(0, len(words), BATCH_SIZE):
+    for i in range(start, len(words), BATCH_SIZE):
         batch = words[i : i + BATCH_SIZE]
         embeddings = model.get_embeddings(batch, output_dimensionality=DIM)
         for j, emb in enumerate(embeddings):
             all_embs[i + j] = emb.values  # API レスポンスから float 配列を取得
         done = min(i + BATCH_SIZE, len(words))
+        np.save(CHECKPOINT_NPY, all_embs)
+        with open(CHECKPOINT_META, "w", encoding="utf-8") as f:
+            json.dump(
+                {"done": done, "dim": DIM, "words": words},
+                f,
+                ensure_ascii=False,
+            )
         print(f"{done}/{len(words)}")
         if done < len(words):
             time.sleep(SLEEP)  # レート制限回避
@@ -65,9 +89,10 @@ def main():
     np.save(OUTPUT_NPY, all_embs)
 
     # 単語メタデータを JSON で保存（行番号 ↔ 単語の対応表）
-    word_meta = [{"word": w, "rank": freq_rank[w]} for w in words]
     with open(OUTPUT_WORDS, "w", encoding="utf-8") as f:
         json.dump(word_meta, f, ensure_ascii=False)
+    CHECKPOINT_NPY.unlink(missing_ok=True)
+    CHECKPOINT_META.unlink(missing_ok=True)
 
     print(f"Done: {all_embs.shape} -> {OUTPUT_NPY}")
 

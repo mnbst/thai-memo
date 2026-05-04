@@ -17,6 +17,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "google-cloud-aiplatform>=1.145.0",
     "pytest>=9.0.2",
 ]
 

@@ -101,40 +101,6 @@ class SentenceRepository {
     }
   }
 
-  /// 残りクォータ分の例文を一括生成して保存
-  Future<List<ThaiSentence>> generateAndSaveBatchSentences() async {
-    try {
-      await _authService.ensureAuthenticated();
-
-      final sentences = await _apiService.generateBatchSentences();
-
-      final savedSentences = <ThaiSentence>[];
-      for (final sentence in sentences) {
-        final sentenceId = _uuid.v4();
-        final sentenceWithId = sentence.copyWith(id: sentenceId);
-        final wordBreakdownsWithIds = sentence.wordBreakdowns.map((wb) {
-          return wb.copyWith(id: _uuid.v4(), sentenceId: sentenceId);
-        }).toList();
-        final finalSentence = sentenceWithId.copyWith(
-          wordBreakdowns: wordBreakdownsWithIds,
-        );
-        await saveSentence(finalSentence);
-        savedSentences.add(finalSentence);
-      }
-
-      await _secureStorage.saveLastGenerationTimestamp(DateTime.now());
-      await _logGeneration(success: true, tokensUsed: null);
-
-      return savedSentences;
-    } on BackendApiException catch (e) {
-      await _logGeneration(success: false, errorMessage: e.message, tokensUsed: null);
-      rethrow;
-    } catch (e) {
-      await _logGeneration(success: false, errorMessage: e.toString(), tokensUsed: null);
-      throw RepositoryException('Failed to generate batch sentences: $e');
-    }
-  }
-
   // ==================== Local Database Operations ====================
 
   /// Save a sentence to the database

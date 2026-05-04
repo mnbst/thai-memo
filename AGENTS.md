@@ -5,3 +5,9 @@
 - Python のテスト、lint、スクリプト実行は常に `functions/python/.venv` の環境を優先して使うこと。
 - 特に `functions/python` 配下で検証する場合は、`functions/python/.venv/bin/python` を使ってテストを実行すること。
 - `pytest` を使う場合もグローバル環境や `uv run` より先に `functions/python/.venv/bin/python -m pytest` を試すこと。
+
+## Firebase deploy
+
+- `functions/javascript` の Cloud Functions は `firebase.json` で codebase `js-functions` として定義されている。
+- JS 関数を個別デプロイするときは `functions:<functionName>` ではなく `functions:js-functions:<functionName>` を使うこと。
+- 例: dev の `generateQuiz` は `firebase deploy --only functions:js-functions:generateQuiz --project dev`。

@@ -11,10 +11,10 @@
 /// - dev環境: Firestore（ストア接続なしでテスト可能）
 ///
 /// 【Free / Premium の機能差分】
-/// - 例文生成: Free=1日最大2回 / Premium=1日最大10回（0時・12時リセット）
-/// - クイズ: Free=1日最大2回 / Premium=1日最大10回（0時・12時リセット）
-/// - 選べる単語: Free=300語まで / Premium=無制限
-/// - テーマ: Free=4種 / Premium=16種
+/// - 例文生成: Free=5回/日 / Premium=5回/日（0時リセット）
+/// - クイズ: Free=1回/日 / Premium=5回/日（0時リセット）
+/// - 選べる単語: Free=100語まで / Premium=無制限
+/// - テーマ: Free=3種 / Premium=15種
 /// - 文体: Free=2種 / Premium=5種
 /// - 広告: Free=あり / Premium=なし
 ///
@@ -94,16 +94,34 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   PurchaseService? _purchaseService;
   Future<void>? _storeReadyFuture;
 
-  /// 初期化: Firestore から現在のティアを取得し、商品情報をロード
+  /// 初期化: Firestore から現在のティアを取得
   ///
   /// アプリ起動時に main.dart から1回呼び出される。
+  /// Firestoreにサブスク情報がない場合（新規/再登録ユーザー）は
+  /// バックグラウンドでストアからの購入復元を試みる。
   Future<void> initialize() async {
-    await _fetchTierFromFirestore();
+    final needsRestore = await _fetchTierFromFirestore();
+    if (needsRestore) {
+      unawaited(_silentRestore());
+    }
   }
 
   /// フォアグラウンド復帰時にティアを再取得
   Future<void> refreshTier() async {
     await _fetchTierFromFirestore();
+  }
+
+  /// バックグラウンドでストアから購入を復元（UIブロックしない）
+  Future<void> _silentRestore() async {
+    try {
+      await ensureStoreReady();
+      if (_purchaseService == null) return;
+      await _purchaseService!.restore();
+      await Future.delayed(const Duration(seconds: 2));
+      await _fetchTierFromFirestore();
+    } catch (e) {
+      debugPrint('Silent restore failed: $e');
+    }
   }
 
   /// 購入を開始
@@ -158,24 +176,23 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
   /// Firestore の users/{uid}.tier フィールドからサブスクリプション状態を取得
   ///
-  /// tier フィールドは以下のタイミングでサーバー側が更新する:
-  /// - 購入検証時（verifySubscription）: 'premium' に設定
-  /// - ストア通知受信時（handleAppStoreNotification / handlePlayNotification）:
-  ///   更新・解約・期限切れに応じて 'premium' or 'free' に設定
-  /// - 有効期限超過時（subscriptionStatus）: 'free' にフォールバック
-  Future<void> _fetchTierFromFirestore() async {
+  /// サブスク情報がないユーザー（新規/再登録）の場合 true を返す。
+  Future<bool> _fetchTierFromFirestore() async {
     final uid = FirebaseAuthService.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) return false;
 
     try {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final ref = FirebaseFirestore.instance.collection('users').doc(uid);
+      final doc = await ref.get();
+      final data = doc.data();
       final tier =
-          doc.data()?['tier'] == 'premium' ? UserTier.premium : UserTier.free;
+          data?['tier'] == 'premium' ? UserTier.premium : UserTier.free;
       state = state.copyWith(tier: tier);
       unawaited(_analytics.setUserTier(tier.name));
+      final hasSubscription = data?.containsKey('subscription') ?? false;
+      return !hasSubscription && tier != UserTier.premium;
     } catch (_) {
-      // Firestore通信エラー時はデフォルト状態を維持
+      return false;
     }
   }
 

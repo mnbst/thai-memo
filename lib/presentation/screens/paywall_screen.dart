@@ -79,7 +79,7 @@ class PaywallBottomSheet extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.85,
+      initialChildSize: 0.72,
       minChildSize: 0.5,
       maxChildSize: 0.95,
       expand: false,
@@ -94,19 +94,38 @@ class PaywallBottomSheet extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ドラッグハンドル
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(2),
+                      // ドラッグハンドル + 閉じるボタン
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
-                        ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: IconButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                icon: Icon(
+                                  Icons.close,
+                                  size: 18,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                       // タイトル
                       Text(
                         'プレミアムプラン',
@@ -119,7 +138,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '100語の先へ。リアルなタイ語例文を',
+                        '推しの言葉が、わかる日が来る。',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -127,9 +146,6 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       _buildMainBenefits(context),
-                      const SizedBox(height: 18),
-                      // テーマ一覧
-                      _buildTopicSection(context),
                     ],
                   ),
                 ),
@@ -275,7 +291,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Text(
-                    'プレミアムに加入',
+                    'タイ語をもっと楽しむ →',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
           ),
@@ -361,22 +377,18 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                 ),
                 const SizedBox(height: 4),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: freeText),
-                      const TextSpan(text: ' → '),
-                      TextSpan(
-                        text: premiumText,
-                        style: TextStyle(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+                Text(
+                  freeText,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '→ $premiumText',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
                       ),
                 ),
               ],
@@ -395,100 +407,20 @@ class PaywallBottomSheet extends ConsumerWidget {
       child: Column(
         children: [
           benefitRow(
-            icon: Icons.school,
-            title: '学べる単語',
-            freeText: '無料は100語まで',
-            premiumText: '100語の先まで',
+            icon: Icons.auto_awesome,
+            title: 'タイドラマ・恋愛・旅行など',
+            freeText: '好きなシーン・テーマで学べる',
+            premiumText: '全テーマ使い放題',
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1, color: colorScheme.outlineVariant),
           ),
           benefitRow(
-            icon: Icons.auto_awesome,
-            title: 'よりリアルな例文',
-            freeText: '基本テーマ中心',
-            premiumText: '仕事・恋愛・文化',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopicSection(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    const freeTopics = ['あいさつ', '食べ物', '旅行', '買い物'];
-    const premiumTopics = [
-      '仕事',
-      '恋愛',
-      '交通',
-      '健康',
-      '学校',
-      '文化・礼儀',
-    ];
-
-    Widget chipWrap(List<String> labels, Color bg, Color fg) => Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: labels
-              .map((label) => Chip(
-                    label: Text(label,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: fg)),
-                    backgroundColor: bg,
-                    side: BorderSide.none,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ))
-              .toList(),
-        );
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('例文のテーマ',
-              style: Theme.of(context)
-                  .textTheme
-                  .labelLarge
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Text(
-            '無料',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 6),
-          chipWrap(freeTopics, colorScheme.surfaceContainerHighest,
-              colorScheme.onSurfaceVariant),
-          const SizedBox(height: 12),
-          Text(
-            'プレミアムで追加（一例）',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 6),
-          chipWrap(premiumTopics, colorScheme.primaryContainer,
-              colorScheme.onPrimaryContainer),
-          const SizedBox(height: 6),
-          Text(
-            'ほかにも、家族・天気・趣味・伝統行事など全15テーマ。',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+            icon: Icons.school,
+            title: '学べる単語数が無制限',
+            freeText: '100語を超えて、気になる表現をどんどん追加',
+            premiumText: '語彙を制限なく増やせる',
           ),
         ],
       ),

@@ -91,15 +91,27 @@ class SentenceController extends StateNotifier<SentenceState> {
 
     try {
       final sentence = await _generateUseCase.execute(
-        generationParams: generationParams,
+        generationParams: _effectiveGenerationParams(generationParams),
       );
-      state = SentenceStateSuccess(sentence);
+      state = SentenceStateSuccess(sentence, generated: true);
       _logGenerateSentence(count: 1, source: 'manual_single');
     } on GenerateSentenceException catch (e) {
       state = SentenceStateError(e.getUserMessage());
     } catch (e) {
       state = SentenceStateError('予期しないエラーが発生しました: $e');
     }
+  }
+
+  // サーバー側 (_effective_generation_params) でも同じフィルタあり
+  Map<String, String?> _effectiveGenerationParams(
+    Map<String, String?> generationParams,
+  ) {
+    if (_currentTier() == 'premium') {
+      return generationParams;
+    }
+    final effectiveParams = Map<String, String?>.from(generationParams);
+    effectiveParams.remove('topic');
+    return effectiveParams;
   }
 
   /// Load the most recent sentence
@@ -130,16 +142,15 @@ class SentenceController extends StateNotifier<SentenceState> {
         final recent = await _getUseCase.getMostRecent();
         if (recent != null) {
           state = SentenceStateSuccess(recent);
-        } else {
-          state = const SentenceStateEmpty();
+          return;
         }
-        return;
+        // ローカルDBが空（再インストール等） → フラグを無視して生成を試みる
       }
 
       // 未生成 → 1件生成
       try {
         final sentence = await _generateUseCase.execute();
-        state = SentenceStateSuccess(sentence);
+        state = SentenceStateSuccess(sentence, generated: true);
         _logGenerateSentence(count: 1, source: 'daily_auto');
       } on GenerateSentenceException catch (e) {
         state = SentenceStateError(e.getUserMessage());
@@ -160,25 +171,6 @@ class SentenceController extends StateNotifier<SentenceState> {
   /// 通知から受け取った例文を直接表示する
   void showSentence(ThaiSentence sentence) {
     state = SentenceStateSuccess(sentence);
-  }
-
-  /// 残りクォータ分を一括生成
-  Future<void> generateBatchSentences() async {
-    state = const SentenceStateBatchLoading();
-
-    try {
-      final sentences = await _generateUseCase.executeBatch();
-      if (sentences.isEmpty) {
-        state = const SentenceStateError('例文の生成に失敗しました。もう一度お試しください。');
-      } else {
-        state = SentenceStateBatchSuccess(sentences);
-        _logGenerateSentence(count: sentences.length, source: 'manual_batch');
-      }
-    } on GenerateSentenceException catch (e) {
-      state = SentenceStateError(e.getUserMessage());
-    } catch (e) {
-      state = SentenceStateError('予期しないエラーが発生しました: $e');
-    }
   }
 
   /// Delete a sentence
@@ -220,7 +212,7 @@ class SentenceController extends StateNotifier<SentenceState> {
     unawaited(
       _analytics.logGenerateSentence(
         tier: _currentTier(),
-        topic: _currentTopic(),
+        topic: _currentTier() == 'premium' ? _currentTopic() : null,
         source: source,
         count: count,
       ),
@@ -266,8 +258,9 @@ class SentenceStateLoading extends SentenceState {
 /// Success state with sentence
 class SentenceStateSuccess extends SentenceState {
   final ThaiSentence sentence;
+  final bool generated;
 
-  const SentenceStateSuccess(this.sentence);
+  const SentenceStateSuccess(this.sentence, {this.generated = false});
 }
 
 /// Error state
@@ -280,16 +273,4 @@ class SentenceStateError extends SentenceState {
 /// Empty state (no sentences)
 class SentenceStateEmpty extends SentenceState {
   const SentenceStateEmpty();
-}
-
-/// Batch loading state
-class SentenceStateBatchLoading extends SentenceState {
-  const SentenceStateBatchLoading();
-}
-
-/// Batch success state with multiple sentences
-class SentenceStateBatchSuccess extends SentenceState {
-  final List<ThaiSentence> sentences;
-
-  const SentenceStateBatchSuccess(this.sentences);
 }

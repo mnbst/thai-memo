@@ -18,6 +18,9 @@
 //   v3→v4: situation→topicリネーム、styleカラム追加
 //   v4→v5: quiz_resultsテーブル追加
 //   v5→v6: quiz_statsテーブル追加
+//   v7→v8: generation_tierカラム追加
+//   v8→v9: target_wordsカラム追加
+//   v9→v10: word_breakdowns.notesカラム追加
 // =============================================================================
 
 import 'package:path/path.dart';
@@ -35,8 +38,12 @@ class DatabaseHelper {
 
   /// Get database instance (singleton)
   Future<Database> get database async {
-    if (_database != null) return _database!;
+    if (_database != null) {
+      await _ensureLatestSchema(_database!);
+      return _database!;
+    }
     _database = await _initDatabase();
+    await _ensureLatestSchema(_database!);
     return _database!;
   }
 
@@ -82,21 +89,34 @@ class DatabaseHelper {
 
     // Migrate from version 2 to 3: Rebuild database (maiTri/maiChattawa cleanup)
     if (oldVersion < 3) {
-      // Drop all tables (in reverse order due to foreign keys)
-      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableWordBreakdowns}');
-      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableSentences}');
-      await db.execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableGenerationLogs}');
+      await db.execute(
+          'DROP TABLE IF EXISTS ${DatabaseConstants.tableWordBreakdowns}');
+      await db
+          .execute('DROP TABLE IF EXISTS ${DatabaseConstants.tableSentences}');
+      await db.execute(
+          'DROP TABLE IF EXISTS ${DatabaseConstants.tableGenerationLogs}');
       await db.execute('DROP TABLE IF EXISTS app_settings');
 
-      // Recreate all tables
       for (String statement in DatabaseConstants.createTableStatements) {
         await db.execute(statement);
       }
-
-      // Recreate all indexes
       for (String statement in DatabaseConstants.createIndexStatements) {
         await db.execute(statement);
       }
+      // createTableStatements is always the latest schema — skip all further migrations
+      return;
+    }
+
+    // Migrate from version 3 to 4: Rename situation→topic, add style column
+    if (oldVersion < 4) {
+      await db.execute('''
+        ALTER TABLE ${DatabaseConstants.tableSentences}
+        RENAME COLUMN situation TO ${DatabaseConstants.columnTopic}
+      ''');
+      await db.execute('''
+        ALTER TABLE ${DatabaseConstants.tableSentences}
+        ADD COLUMN ${DatabaseConstants.columnStyle} TEXT
+      ''');
     }
 
     // Migrate from version 4 to 5: Add quiz_results table
@@ -116,20 +136,72 @@ class DatabaseHelper {
       await db.execute(DatabaseConstants.createStreakStatsTable);
     }
 
-    // Migrate from version 3 to 4: Rename situation→topic, add style column
-    if (oldVersion < 4) {
-      await db.execute('''
-        ALTER TABLE ${DatabaseConstants.tableSentences}
-        RENAME COLUMN situation TO ${DatabaseConstants.columnTopic}
-      ''');
-      await db.execute('''
-        ALTER TABLE ${DatabaseConstants.tableSentences}
-        ADD COLUMN ${DatabaseConstants.columnStyle} TEXT
-      ''');
+    // Migrate from version 7 to 8: Add per-sentence generation tier
+    if (oldVersion < 8) {
+      await _addColumnIfMissing(
+        db,
+        DatabaseConstants.tableSentences,
+        DatabaseConstants.columnGenerationTier,
+        'TEXT',
+      );
+    }
+
+    // Migrate from version 8 to 9: Add target_words column
+    if (oldVersion < 9) {
+      await _addColumnIfMissing(
+        db,
+        DatabaseConstants.tableSentences,
+        DatabaseConstants.columnTargetWords,
+        'TEXT',
+      );
+    }
+
+    // Migrate from version 9 to 10: Add notes column for target word explanations
+    if (oldVersion < 10) {
+      await _addColumnIfMissing(
+        db,
+        DatabaseConstants.tableWordBreakdowns,
+        DatabaseConstants.columnWordNotes,
+        'TEXT',
+      );
     }
   }
 
   // ==================== Sentences CRUD Operations ====================
+
+  Future<void> _addColumnIfMissing(
+    Database db,
+    String table,
+    String column,
+    String definition,
+  ) async {
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    final exists = columns.any((row) => row['name'] == column);
+    if (exists) return;
+
+    await db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
+  }
+
+  Future<void> _ensureLatestSchema(Database db) async {
+    await _addColumnIfMissing(
+      db,
+      DatabaseConstants.tableSentences,
+      DatabaseConstants.columnGenerationTier,
+      'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      DatabaseConstants.tableSentences,
+      DatabaseConstants.columnTargetWords,
+      'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      DatabaseConstants.tableWordBreakdowns,
+      DatabaseConstants.columnWordNotes,
+      'TEXT',
+    );
+  }
 
   /// Insert a new sentence
   Future<int> insertSentence(Map<String, dynamic> sentence) async {
@@ -315,9 +387,12 @@ class DatabaseHelper {
       return;
     }
 
-    final prevDate = existing[DatabaseConstants.columnStatsLastQuizDate] as String?;
-    final prevStreak = existing[DatabaseConstants.columnStatsCurrentStreak] as int? ?? 0;
-    final prevBest = existing[DatabaseConstants.columnStatsBestStreak] as int? ?? 0;
+    final prevDate =
+        existing[DatabaseConstants.columnStatsLastQuizDate] as String?;
+    final prevStreak =
+        existing[DatabaseConstants.columnStatsCurrentStreak] as int? ?? 0;
+    final prevBest =
+        existing[DatabaseConstants.columnStatsBestStreak] as int? ?? 0;
 
     // Calculate streak
     int newStreak;
@@ -337,7 +412,8 @@ class DatabaseHelper {
       DatabaseConstants.tableQuizStats,
       {
         DatabaseConstants.columnStatsTotalAnswered:
-            (existing[DatabaseConstants.columnStatsTotalAnswered] as int? ?? 0) +
+            (existing[DatabaseConstants.columnStatsTotalAnswered] as int? ??
+                    0) +
                 sessionTotal,
         DatabaseConstants.columnStatsTotalCorrect:
             (existing[DatabaseConstants.columnStatsTotalCorrect] as int? ?? 0) +
@@ -399,5 +475,4 @@ class DatabaseHelper {
     await databaseFactory.deleteDatabase(path);
     _database = null;
   }
-
 }

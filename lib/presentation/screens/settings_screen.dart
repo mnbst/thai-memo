@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'dart:async';
+
 import '../../core/config/app_config.dart';
+import '../../core/constants/generation_constants.dart';
+import '../../data/datasources/backend_api_service.dart';
+import '../../data/datasources/local/database_helper.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
+import '../providers/vocab_stats_provider.dart';
+import '../widgets/vocab_score_dialog.dart';
 import 'contact_form_screen.dart';
 import 'paywall_screen.dart';
 import 'tone_guide_screen.dart';
@@ -32,9 +40,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           _buildAccountSection(),
           const SizedBox(height: 24),
-          _buildDisplaySection(),
-          const SizedBox(height: 24),
           _buildLearningSection(),
+          const SizedBox(height: 24),
+          _buildDisplaySection(),
           const SizedBox(height: 24),
           _buildAboutSection(),
         ],
@@ -338,12 +346,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Row(
               children: [
                 Icon(
-                  Icons.school,
+                  Icons.bar_chart,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '学習',
+                  '学習状況',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -351,6 +359,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            _buildVocabScoreInline(),
+            const SizedBox(height: 16),
+            Divider(
+                height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+            const SizedBox(height: 12),
+            Text(
+              '学習設定',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.7),
+                  ),
+            ),
+            _buildTopicSelectTile(),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
@@ -371,10 +395,270 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 );
               },
             ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.restart_alt,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                '学習データをリセット',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              subtitle: const Text('端末の例文・クイズ履歴を削除'),
+              onTap: _resetLearningData,
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildTopicSelectTile() {
+    final isPremium = ref.watch(isPremiumProvider);
+    final currentTopic = ref.watch(generationParamsProvider)['topic'];
+
+    String displayLabel;
+    if (!isPremium) {
+      displayLabel = 'おまかせ';
+    } else if (currentTopic != null) {
+      final parenIdx = currentTopic.indexOf('（');
+      displayLabel =
+          parenIdx > 0 ? currentTopic.substring(0, parenIdx) : currentTopic;
+    } else {
+      displayLabel = 'おまかせ';
+    }
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        Icons.category,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: const Text('テーマ'),
+      subtitle: Text(displayLabel),
+      trailing: isPremium
+          ? const Icon(Icons.chevron_right)
+          : Icon(Icons.lock, color: Theme.of(context).colorScheme.outline),
+      onTap: isPremium ? _showTopicPicker : null,
+    );
+  }
+
+  Future<void> _showTopicPicker() async {
+    final currentTopic = ref.read(generationParamsProvider)['topic'];
+
+    final selected = await showDialog<String?>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('テーマを選択'),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          children: [
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, ''),
+              child: ListTile(
+                leading: Icon(
+                  Icons.shuffle,
+                  color: currentTopic == null
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+                title: Text(
+                  'おまかせ',
+                  style: currentTopic == null
+                      ? TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            ...GenerationConstants.topics.map((topic) {
+              final isSelected = topic == currentTopic;
+              final parenIdx = topic.indexOf('（');
+              final name = parenIdx > 0 ? topic.substring(0, parenIdx) : topic;
+              final sub = parenIdx > 0
+                  ? topic.substring(parenIdx + 1, topic.length - 1)
+                  : '';
+
+              return SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, topic),
+                child: ListTile(
+                  leading: Icon(
+                    Icons.circle,
+                    size: 12,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.transparent,
+                  ),
+                  title: Text(
+                    name,
+                    style: isSelected
+                        ? TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          )
+                        : null,
+                  ),
+                  subtitle: sub.isNotEmpty ? Text(sub) : null,
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+
+    if (selected != null) {
+      final settings = ref.read(settingsControllerProvider.notifier);
+      await settings.setGenerationParam(
+        'topic',
+        selected.isEmpty ? null : selected,
+      );
+    }
+  }
+
+  Future<void> _resetLearningData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('学習データのリセット'),
+        content: const Text('端末に保存されている例文・クイズ履歴・学習進捗がすべて削除されます。アカウントは維持されます。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'リセット',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await BackendApiService().resetLearningData();
+      await DatabaseHelper.instance.deleteDatabase();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (mounted) {
+        ref.invalidate(allSentencesProvider);
+        ref.invalidate(sentenceCountProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('学習データをリセットしました')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('リセットに失敗しました'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildVocabScoreInline() {
+    final statsAsync = ref.watch(vocabStatsProvider);
+    final isPremium = ref.watch(isPremiumProvider);
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return statsAsync.when(
+      data: (stats) {
+        final displayVocab = isPremium
+            ? stats.estimatedVocab
+            : stats.estimatedVocab.clamp(0, freeVocabScoreLimit).toInt();
+        final level = vocabLevel(displayVocab);
+        final threshold =
+            isPremium ? _nextVocabThreshold(displayVocab) : freeVocabScoreLimit;
+        final progress = (displayVocab / threshold).clamp(0.0, 1.0).toDouble();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '$displayVocab語',
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Chip(
+                  label: Text(level),
+                  visualDensity: VisualDensity.compact,
+                  labelStyle: textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isPremium
+                  ? '次のレベルまで あと${threshold - displayVocab}語'
+                  : 'Freeプランは$freeVocabScoreLimit語が上限です',
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const SizedBox(
+        height: 48,
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  int _nextVocabThreshold(int vocab) {
+    if (vocab < 100) return 100;
+    if (vocab < 300) return 300;
+    if (vocab < 600) return 600;
+    if (vocab < 1500) return 1500;
+    return 3000;
   }
 
   Future<void> _launchUrl(String url) async {

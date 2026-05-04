@@ -3,26 +3,30 @@
 
 OpenAI に送信するプロンプト（指示文）を構築する。
 free / premium ともに build_uvm_prompt を使用する。
-free ティアは estimated_vocab が 300 以下にキャップされ、
-パラメータの選択肢が制限される（テーマ4種、文体2種のみ）。
+estimated_vocab が 100 以下の間は free / premium 共通の入門プロンプトを使う。
+free ティアは estimated_vocab が 100 以下にキャップされる。
 """
 
 import random
 
 from constants import (
-    EMOTIONS,  # 感情・トーン（喜び、悲しみ等）
-    FREE_STYLES,  # 無料ティア用の文体サブセット
-    FREE_TOPICS,  # 無料ティア用のテーマサブセット
-    GRAMMAR_FOCUSES,  # 文法フォーカス（疑問文、否定文等）
-    POLITENESS_LEVELS,  # 丁寧さレベル（フォーマル、カジュアル等）
-    STYLES,  # 全文体リスト
-    TOPICS,  # 全テーマリスト
+    EMOTIONS,
+    FREE_STYLES,
+    FREE_TOPICS,
+    GRAMMAR_FOCUSES,
+    POLITENESS_LEVELS,
+    STYLES,
+    TOPICS,
+    TOPIC_SUB_THEMES,
 )
 from embeddings import (
+    find_best_sub_theme,
     get_emotion_similarity_weights,
     get_style_similarity_weights,
     get_topic_option_similarity_weights,
 )
+from themes.bl_drama import build_drama_prompt_section
+
 
 # 文の長さ指定はレベル定義には持たせず、estimated_vocab から
 # _compute_length_hint() で補間して get_difficulty() が length を追加する。
@@ -66,6 +70,7 @@ TOPIC_MIN_VOCAB: dict[str, int] = {
     TOPICS[7]: 100,  # 健康
     TOPICS[9]: 100,  # 趣味
     TOPICS[14]: 100,  # 恋愛・男女関係
+    TOPICS[15]: 100,  # タイドラマ
     TOPICS[10]: 300,  # 学校
     TOPICS[11]: 600,  # 宗教・信仰
     TOPICS[12]: 600,  # 伝統・祭り
@@ -101,56 +106,67 @@ _politeness_embedding_enabled = True
 # ─── システムプロンプト（固定・プロバイダー共通） ───
 # プロンプトキャッシュを効かせるため、呼び出しごとに変化しない指示は
 # ここに集約して prefix として送る（OpenAI=instructions / Gemini=system_instruction）。
-SYSTEM_PROMPT_FREE = """あなたは日本語話者向けのタイ語練習文を生成するアシスタントです。ユーザーから指定される要件に従って、タイ語例文を1つ生成し、以下の出力ルールに厳密に従ってください。
+SYSTEM_PROMPT_FREE = """タイ語基礎練習文を1つ生成。以下を厳守。
+
+方針: 短く実用的な入門〜初級文。基本語順・基本動詞・日常名詞中心。複文・慣用表現・強い感情表現は避ける。分かりやすさ優先。contextは一般的な説明に留める。
 
 出力ルール:
-- thai_textはタイ語の自然な本文表記にし、単語ごとの分かち書きスペースを入れないでください（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）
-- 単語単位の区切りはword_breakdownで表現し、thai_text内では文末・節区切りなどタイ語として自然な空白だけを使ってください
-- 単語分解は最大20単語まで
-- 同じ単語が文中に複数回出現する場合は、出現順にすべてword_breakdownに含めてください
-- contextの各フィールドは簡潔に（各50文字以内）
-- word_breakdownのmeaningは必ず日本語で記述してください（英語不可）
-- 人称代名詞（ผม, ฉัน, ดิฉัน, คุณ, เธอ, หนู, กู, มึง 等）のmeaningには、性別・丁寧度を括弧で注記してください（例: ผม→「私（男性・丁寧）」、ดิฉัน→「私（女性・フォーマル）」、กู→「俺/私（男女・ぞんざい）」）"""
+- thai_text: 分かち書き禁止（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）。自然な空白のみ
+- word_breakdown: 最大20単語、出現順にすべて含める。meaningは日本語のみ
+- 人称代名詞のmeaningに性別・丁寧度注記（例: ผม→「私（男性・丁寧）」、กู→「俺/私（男女・ぞんざい）」）
+- context各フィールド50文字以内
+- japanese_translation: 自然な日本語。主語・目的語の対応を崩さない（誰が・誰を・何をの関係を正確に）（×説明的な訳→○日本語として自然な形）
+- notesにターゲット単語の用法・類語との違いを50文字以内で記述。非ターゲットは空文字
+- スペルミス厳禁: เธอをเธと書かない。母音-อを落とさない
+- ターゲット単語は独立した意味で使用（慣用句・複合語の一部のみはNG。畳語は除く）
+- ターゲット単語はword_breakdownに独立エントリとして含める
+- 性的表現・露骨な恋愛描写は禁止。恋愛テーマでも健全な範囲に留める"""
 
 
-SYSTEM_PROMPT_PREMIUM = """あなたは日本語話者向けのタイ語練習文を生成するアシスタントです。指定要件に従いタイ語例文を1つ生成してください。
+SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
 
 # 出力フォーマット
-- thai_text: 分かち書き禁止（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）。文末・節区切りなど自然な空白のみ可
-- word_breakdown: 最大20単語。出現順にすべて含める。meaningは日本語のみ
-- 人称代名詞のmeaningには性別・丁寧度を注記（例: ผม→「私（男性・丁寧）」、กู→「俺/私（男女・ぞんざい）」）
-- contextの各フィールドは50文字以内
-- japanese_translationの時制はタイ語文と一致させる
+- thai_text: 分かち書き禁止（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）。自然な空白のみ
+- word_breakdown: 最大20単語、出現順にすべて含める。meaningは日本語のみ
+- 人称代名詞のmeaningに性別・丁寧度注記（例: ผม→「私（男性・丁寧）」）
+- context各フィールド50文字以内
+- japanese_translation: 自然で簡潔な日本語。時制はタイ語文と一致。主語・目的語の対応を崩さない（誰が・誰を・何をの関係を正確に）（×説明的な訳→○自然な日本語）
+- notesにターゲット単語の用法・類語との違いを50文字以内。非ターゲットは空文字
 
-# 構文・表現ルール（最重要）
-- 動詞中心の自然なタイ語。英語・日本語の直訳構文は禁止
-- 「คุณคือ〜」の多用禁止。「XはYです」をそのままタイ語にしない
-- ความ〜を主語・補語にする硬い表現は避ける（フォーマル・上級では可）
-- 抽象名詞（問題、懸念等）を主語にせず、具体的な現象を主語にする
-- 「ここ/これ」は場所→ที่นี่、状況・抽象→แบบนี้（カジュアルではงี้）
-- 冗長な「เมื่อ〜ก็〜」は避け、過去は「〜แล้ว」「ตอน〜」を優先
-- 会話文では「แล้ว」で断定せず「นะ」「ดู」で柔らかく評価する
-- 複文は意味関係（理由・目的・結果）を明確にし、「เพราะ」「เพื่อ」「แล้ว」等で自然に接続
-- 「ได้ + 動詞」は「できた」ではなく「経験・機会」として自然な動詞と組み合わせてください
-- 英語由来の単語（โอเค）は単体で終わらず、語尾や補足をつけて自然な会話にしてください
-    - 「โอเคแล้วนะ」「ได้ๆ」「รับทราบ」など
-- 指示・依頼は「รีบ〜してください」と直接命令せず、「ช่วย〜หน่อย」「รบกวน〜หน่อย」など依頼表現を優先してください
-    - 緊急性は「ด่วนหน่อย」などで柔らかく補足してください
+# 構文ルール（最重要）
+- 動詞中心の自然なタイ語。直訳構文禁止
+- คุณคือ〜多用禁止→感情はทำให้〜、説明はเป็นคนที่〜で表現
+- ความ〜主語・補語の硬い表現は避ける（フォーマル・上級は可）
+- 抽象名詞を主語にせず具体的現象を主語に
+- 場所→ที่นี่、状況→แบบนี้（カジュアル: งี้）
+- 過去は〜แล้ว/ตอน〜優先。冗長なเมื่อ〜ก็〜は避ける
+- 会話文はนะ/ดูで柔らかく。複文はเพราะ/เพื่อ/แล้วで自然に接続
+- ได้+動詞は経験・機会として使用
+- 英語由来語は語尾・補足をつけて自然に（โอเคแล้วนะ等）
+- 指示・依頼はช่วย〜หน่อย/รบกวน〜หน่อย優先
+- ターゲット単語は独立した意味で使用（複合語の一部のみはNG。畳語は除く）
+- ターゲット単語はword_breakdownに独立エントリとして含める
+- 性的表現・露骨な恋愛描写は禁止。恋愛テーマでも健全な範囲に留める
 
-推奨: 感情→「ทำให้〜」、説明→「เป็นคนที่〜」「เป็นสิ่งที่〜」
-
-NG: คุณคือความสุขของฉัน / คุณคือความประหลาดใจ
-OK: คุณทำให้ฉันมีความสุขมาก / คุณทำให้ฉันแปลกใจมาก
-
-出力前に確認: ネイティブが自然に使う文か？直訳に聞こえないか？"""
+出力前確認: 自然なタイ語か？直訳でないか？スペルミスはないか？"""
 
 
 # 後方互換: 既存 import は premium 用プロンプトを参照する。
 SYSTEM_PROMPT = SYSTEM_PROMPT_PREMIUM
 
 
-def get_system_prompt(is_premium: bool) -> str:
-    """tier に応じた固定システムプロンプトを返す。"""
+def use_premium_prompt_for_vocab(is_premium: bool, estimated_vocab: int) -> bool:
+    """Premium ユーザーは常に Premium プロンプトを使う。"""
+    return is_premium
+
+
+def get_system_prompt(
+    is_premium: bool,
+    estimated_vocab: int | None = None,
+) -> str:
+    """tier と語彙スコアに応じた固定システムプロンプトを返す。"""
+    if estimated_vocab is not None:
+        is_premium = use_premium_prompt_for_vocab(is_premium, estimated_vocab)
     return SYSTEM_PROMPT_PREMIUM if is_premium else SYSTEM_PROMPT_FREE
 
 
@@ -239,7 +255,8 @@ def resolve_generation_params(
     """
     topics_pool = TOPICS if is_premium else FREE_TOPICS
     styles_pool = STYLES if is_premium else FREE_STYLES
-    topics_pool = _gate_topics(topics_pool, estimated_vocab)
+    if is_premium:
+        topics_pool = _gate_topics(topics_pool, estimated_vocab)
     styles_pool = _gate_pool(styles_pool, estimated_vocab, STYLE_MIN_VOCAB)
 
     topic = params.get("topic") or random.choice(topics_pool)
@@ -252,10 +269,13 @@ def resolve_generation_params(
 
     politeness = params.get("politeness")
     if not politeness:
-        politeness = _weighted_choice(
-            POLITENESS_LEVELS,
-            _topic_option_weights(topic, POLITENESS_LEVELS, "politeness"),
-        )
+        if topic == TOPICS[15]:
+            politeness = POLITENESS_LEVELS[1]
+        else:
+            politeness = _weighted_choice(
+                POLITENESS_LEVELS,
+                _topic_option_weights(topic, POLITENESS_LEVELS, "politeness"),
+            )
     grammar_focus = None
     if is_premium:
         if params.get("grammarFocus"):
@@ -269,8 +289,14 @@ def resolve_generation_params(
     if not emotion:
         emotion = _weighted_choice(EMOTIONS, _emotion_weights(target_words))
 
+    sub_theme = None
+    sub_themes = TOPIC_SUB_THEMES.get(topic)
+    if sub_themes and target_words:
+        sub_theme = find_best_sub_theme(target_words[0], sub_themes)
+
     return {
         "topic": topic,
+        "subTheme": sub_theme,
         "style": style,
         "politeness": politeness,
         "grammarFocus": grammar_focus,
@@ -320,39 +346,68 @@ def build_uvm_prompt(
         str: OpenAI に送信するプロンプト文字列
     """
     diff = get_difficulty(estimated_vocab)
+    prompt_is_premium = use_premium_prompt_for_vocab(is_premium, estimated_vocab)
 
     resolved = resolve_generation_params(
         params,
-        is_premium=is_premium,
+        is_premium=prompt_is_premium,
         target_words=target_words,
         estimated_vocab=estimated_vocab,
     )
     topic = resolved["topic"]
+    sub_theme = resolved["subTheme"]
     style = resolved["style"]
     politeness = resolved["politeness"]
     grammar_focus = resolved["grammarFocus"]
     emotion = resolved["emotion"]
     grammar_line = f"- 文法フォーカス: {grammar_focus}\n" if grammar_focus else ""
+    sub_theme_line = f"- サブテーマ: {sub_theme}\n" if sub_theme else ""
+
+    drama_context = ""
+    drama_required = ""
+    is_drama = topic == TOPICS[15]
+    if is_drama:
+        drama = build_drama_prompt_section(target_words)
+        drama_context = drama["context"]
+        drama_required = drama["required"]
+    if is_drama:
+        topic_line = ""
+        sub_theme_line = ""
+        style_line = ""
+        politeness_line = ""
+        grammar_line = ""
+        emotion_line = ""
+    else:
+        topic_line = f"- テーマ: {topic}\n"
+        style_line = f"- 文体: {style}\n"
+        politeness_line = f"- 丁寧さ: {politeness}\n"
+        emotion_line = f"- 感情・トーン: {emotion}"
+        # grammar_line is already set above
 
     if target_words:
         words_str = ", ".join(target_words)
         return f"""【最優先】以下のタイ語単語を必ず含めてください:
 {words_str}
+- 各ターゲット単語はそれ自体で独立した意味を持つ形で使用してください。慣用句・複合語・熟語の一部としてのみ登場させることは禁止です（例: ข้า を ข้าพเจ้า の一部としてだけ使うのはNG。ข้า 単独で意味が成り立つ文にしてください）
+- 例外: 畳語・繰り返し表現（เด็กๆ, ช้าๆ 等）は許可します
+- word_breakdownには各ターゲット単語を独立したエントリとして必ず含めてください。複合語にまとめず、単語単位で分解してください
 
+{drama_context}
 【必須】難易度:
 - 語彙レベル: {diff["label"]}（{diff["vocab_hint"]}）
 - 長さ: {diff["length"]}
+{drama_required}
+【キーワード補足】上記のターゲット単語には、word_breakdownのnotesフィールドで用法・ニュアンス・類語との違いを簡潔に補足してください。
+
 
 【可能な限り反映】以下の要素を、自然なタイ語になる範囲で取り入れてください。
-- テーマ: {topic}
-- 文体: {style}
-- 丁寧さ: {politeness}
-{grammar_line}- 感情・トーン: {emotion}"""
+{topic_line}{sub_theme_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""
 
-    return f"""要件:
+    return f"""
+{drama_context}
+【必須】難易度:
 - 語彙レベル: {diff["label"]}（{diff["vocab_hint"]}）
 - 長さ: {diff["length"]}
-- テーマ: {topic}
-- 文体: {style}
-- 丁寧さ: {politeness}
-{grammar_line}- 感情・トーン: {emotion}"""
+{drama_required}
+【可能な限り反映】以下の要素を、自然なタイ語になる範囲で取り入れてください。
+{topic_line}{sub_theme_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""

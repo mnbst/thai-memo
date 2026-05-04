@@ -22,18 +22,26 @@ import math
 import random
 import time
 from collections import Counter
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    import numpy as np
 
 from google.cloud.firestore_v1.base_document import DocumentSnapshot
 from google.cloud.firestore_v1.client import Client as FirestoreClient
 
-from embeddings import find_best_topic
+from embeddings import (
+    cosine_similarity,
+    find_best_topic,
+    get_embedding,
+    get_topic_embedding,
+)
 
 # ---------------------------------------------------------------------------
 # 定数
 # ---------------------------------------------------------------------------
-ALPHA_CORRECT_MAX_TOP = 0.50  # rank≈1（高頻度語）の正解α上限: 1問正解でP=0.1→0.55
-ALPHA_CORRECT_MAX_LOW = 0.20  # 高rank（低頻度語）の正解α下限: 3問正解でP>0.5
+ALPHA_CORRECT_MAX_TOP = 0.60  # rank≈1（高頻度語）の正解α上限: 1問正解でP=0.1→0.64
+ALPHA_CORRECT_MAX_LOW = 0.30  # 高rank（低頻度語）の正解α下限: 2問正解でP>0.5
 ALPHA_CORRECT_MIN = 0.02  # 正解時 α の下限（quiz_attempts 大時の収束値）
 ALPHA_INCORRECT_MAX_TOP = 0.28  # rank≈1 の不正解α上限
 ALPHA_INCORRECT_MAX_LOW = 0.08  # 高rank の不正解α下限
@@ -45,12 +53,13 @@ RANK_SCALE_REF = (
 P_MIN = 0.0  # P の下限
 P_MAX = 0.99  # P の上限
 NEW_WORD_P = 0.1  # 新規単語の初期 P 値
-ALPHA_EXPOSURE = 0.03  # 例文露出時の P 微増率
-UNKNOWN_WORD_P = 0.3  # UVM 未登録語の prior P
+ALPHA_EXPOSURE = 0.10  # 例文露出時の P 微増率
+UNKNOWN_WORD_P = 0.4  # UVM 未登録語の prior P
 
 # get_session_words 用: estimated_vocab 基準の頻度帯
-FREQ_BAND_HALF = 30  # 通常帯域の半幅: estimated_vocab ± FREQ_BAND_HALF
-GAP_SCAN_DEPTH = 100  # ギャップスキャン深度: band_boundary からさらに後方へのスキャン幅
+VOCAB_MAX_DELTA = 3  # 1回の sync で estimated_vocab が動ける最大幅
+GAP_SCAN_DEPTH = 15  # スキャン下限: estimated_vocab - GAP_SCAN_DEPTH
+SCAN_AHEAD = 5  # スキャン上限: estimated_vocab + SCAN_AHEAD
 
 
 def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 10) -> float:
@@ -107,14 +116,17 @@ def estimate_vocab(docs: list, freq_rank: dict[str, int], center: int = 0) -> in
     # center ± 50 の範囲で P < 0.5 となる rank を探索
     for r in range(center - 50, center + 51):
         avg = moving_avg(words_by_rank, r)
-        if avg < 0.5:
+        if avg < 0.42:
             return max(known_max_rank, r, 0)
 
     return max(known_max_rank, center, 0)
 
 
 def sync_estimated_vocab(
-    db: FirestoreClient, uid: str, freq_rank: dict[str, int]
+    db: FirestoreClient,
+    uid: str,
+    freq_rank: dict[str, int],
+    max_vocab: int | None = None,
 ) -> None:
     """users/{uid} の estimated_vocab を効率的に更新する。
 
@@ -139,7 +151,12 @@ def sync_estimated_vocab(
     refs = [uvm_ref.document(word) for word in target_words]
     docs = [snap for snap in db.get_all(refs) if snap.exists] if refs else []
 
-    estimated = estimate_vocab(docs, freq_rank, center=current_estimate)
+    raw = estimate_vocab(docs, freq_rank, center=current_estimate)
+    delta = raw - current_estimate
+    clamped_delta = max(-VOCAB_MAX_DELTA, min(VOCAB_MAX_DELTA, delta))
+    estimated = max(0, current_estimate + clamped_delta)
+    if max_vocab is not None:
+        estimated = min(estimated, max_vocab)
     user_ref.set({"estimated_vocab": estimated}, merge=True)
 
 
@@ -192,6 +209,56 @@ def update_p(
     return max(P_MIN, min(P_MAX, p))
 
 
+TOPIC_FILTER_THRESHOLD = 0.3
+TOPIC_FILTER_EXPAND_STEP = 50
+
+
+def _filter_candidates_by_topic(
+    candidates: list[dict[str, Any]],
+    topic_emb: "np.ndarray",
+    freq_rank: dict[str, int],
+    scan_low: int,
+) -> list[dict[str, Any]]:
+    """テーマembeddingとの類似度で候補をフィルタする。
+
+    帯域内で閾値以上の候補がなければ、低頻度側へ帯域を広げて探索する。
+    """
+    filtered = []
+    for w in candidates:
+        word_emb = get_embedding(w["word"])
+        if word_emb is None:
+            continue
+        sim = cosine_similarity(word_emb, topic_emb)
+        if sim >= TOPIC_FILTER_THRESHOLD:
+            filtered.append(w)
+
+    if filtered:
+        return filtered
+
+    # 帯域外を低頻度側（rank が大きい方）へ段階的に探索
+    expand_low = scan_low
+    for _ in range(5):
+        expand_high = expand_low
+        expand_low = max(0, expand_low - TOPIC_FILTER_EXPAND_STEP)
+        if expand_low >= expand_high:
+            break
+        extra = [
+            {"word": word, "rank": rank}
+            for word, rank in freq_rank.items()
+            if expand_low <= rank < expand_high and len(word) >= 2
+        ]
+        for w in extra:
+            word_emb = get_embedding(w["word"])
+            if word_emb is None:
+                continue
+            if cosine_similarity(word_emb, topic_emb) >= TOPIC_FILTER_THRESHOLD:
+                filtered.append(w)
+        if filtered:
+            return filtered
+
+    return candidates
+
+
 def get_session_words(
     db: FirestoreClient,
     uid: str,
@@ -202,12 +269,12 @@ def get_session_words(
     topics_pool: list[str] | None = None,
     estimated_vocab: int | None = None,
 ) -> tuple[list[str], str]:
-    """ギャップ優先方式でセッション単語を選定する。
+    """統合スキャン方式でセッション単語を選定する。
 
     【選定ロジック】
-    1. rank < (estimated_vocab - FREQ_BAND_HALF) の範囲で UVM未登録 or P=0 の語（ギャップ語）を探す
-       → あれば：そこからランダム選出（高頻度の語彙ギャップを優先的に埋める）
-       → なければ：estimated_vocab ± FREQ_BAND_HALF の帯域からランダム選出
+    1. estimated_vocab - GAP_SCAN_DEPTH ~ estimated_vocab + SCAN_AHEAD の範囲で
+       UVM未登録 or P=0 の語を、rank が高いほど選ばれやすい重み付きで選出
+       → 取りこぼしを拾いつつ境界付近の語も混ざるためスコアも徐々に上がる
     2. 選出した key_word の embedding と topic_embeddings のコサイン類似度で最適テーマを決定
     3. テーマ指定がある場合はそのまま使用
 
@@ -217,7 +284,7 @@ def get_session_words(
         freq_rank: {word: rank} — 頻出順位辞書
         topic: テーマ文字列（空ならembeddingで自動選択）
         count: 選定する単語数（デフォルト 1）
-        max_vocab: 語彙帯域の上限（free ティアでは 300）。None なら制限なし。
+        max_vocab: 語彙帯域の上限（free ティアでは 100）。None なら制限なし。
         topics_pool: テーマ候補リスト（embedding でのテーマ選択に使用）。
         estimated_vocab: 呼び出し元で取得済みの語彙スコア。省略時は Firestore から読む。
 
@@ -232,97 +299,76 @@ def get_session_words(
     if max_vocab is not None and isinstance(estimated_vocab, int):
         estimated_vocab = min(estimated_vocab, max_vocab)
 
-    band_boundary = max(0, estimated_vocab - FREQ_BAND_HALF)  # type: ignore
-    band_high = estimated_vocab + FREQ_BAND_HALF  # type: ignore
+    scan_low = max(0, estimated_vocab - GAP_SCAN_DEPTH)  # type: ignore
+    scan_high = estimated_vocab + SCAN_AHEAD  # type: ignore
     if max_vocab is not None:
-        band_high = min(band_high, max_vocab)
+        scan_high = min(scan_high, max_vocab)
 
     selected: list[dict[str, Any]] = []
 
-    # --- Step 1: ギャップスキャン (rank < band_boundary で未登録 or P=0) ---
-    gap_scan_low = max(0, band_boundary - GAP_SCAN_DEPTH)
-    if gap_scan_low < band_boundary:
-        gap_candidates = [
-            {"word": word, "rank": rank}
-            for word, rank in freq_rank.items()
-            if gap_scan_low <= rank < band_boundary and len(word) >= 2
+    # --- 統合スキャン: scan_low ~ scan_high で P=0/未登録の語を rank 重み付き選出 ---
+    candidates = [
+        {"word": word, "rank": rank}
+        for word, rank in freq_rank.items()
+        if scan_low <= rank <= scan_high and len(word) >= 2
+    ]
+
+    # --- テーマ指定時: embeddingフィルタで候補を絞り込む ---
+    topic_emb = get_topic_embedding(topic) if topic else None
+    if topic and topic_emb is not None and candidates:
+        candidates = _filter_candidates_by_topic(
+            candidates, topic_emb, freq_rank, scan_low,
+        )
+
+    if not candidates:
+        print(
+            f"get_session_words: no candidates, estimated_vocab={estimated_vocab}, "
+            f"scan=[{scan_low}, {scan_high}], topic={topic}"
+        )
+        return [], topic or ""
+
+    word_set = {w["word"] for w in candidates}
+    uvm_ref = db.collection("users").document(uid).collection("uvm")
+    refs = [uvm_ref.document(w) for w in word_set]
+    p_map: dict[str, float] = {}
+    for snap in db.get_all(refs):
+        if snap.exists:
+            p_val = (snap.to_dict() or {}).get("p")
+            if isinstance(p_val, (int, float)):
+                p_map[snap.id] = float(p_val)
+
+    zero_p = [
+        w for w in candidates
+        if w["word"] not in p_map or p_map[w["word"]] == 0.0
+    ]
+    if zero_p:
+        max_rank = max(w["rank"] for w in zero_p)
+        weights = [math.sqrt(max_rank - w["rank"] + 1) for w in zero_p]
+        for _ in range(min(count, len(zero_p))):
+            index = random.choices(range(len(zero_p)), weights=weights, k=1)[0]
+            selected.append(zero_p.pop(index))
+            weights.pop(index)
+    else:
+        remaining = list(candidates)
+        remaining_weights = [
+            max(0.0, 1.0 - p_map.get(w["word"], 0.0))
+            for w in remaining
         ]
-        if gap_candidates:
-            gap_word_set = {w["word"] for w in gap_candidates}
-            uvm_ref = db.collection("users").document(uid).collection("uvm")
-            refs = [uvm_ref.document(w) for w in gap_word_set]
-            gap_p_map: dict[str, float] = {}
-            for snap in db.get_all(refs):
-                if snap.exists:
-                    p_val = (snap.to_dict() or {}).get("p")
-                    if isinstance(p_val, (int, float)):
-                        gap_p_map[snap.id] = float(p_val)
-
-            zero_p_candidates = [
-                w
-                for w in gap_candidates
-                if w["word"] not in gap_p_map or gap_p_map[w["word"]] == 0.0
-            ]
-            if zero_p_candidates:
-                selected = random.sample(
-                    zero_p_candidates, min(count, len(zero_p_candidates))
-                )
-
-    # --- Step 2: ギャップなし → ±FREQ_BAND_HALF 帯域から優先選出 ---
-    # 優先順位: UVM未登録 > P最小 > ランダム
-    if not selected:
-        band_words = [
-            {"word": word, "rank": rank}
-            for word, rank in freq_rank.items()
-            if band_boundary <= rank <= band_high and len(word) >= 2
-        ]
-        if not band_words:
-            print(
-                f"get_session_words: no band_words, estimated_vocab={estimated_vocab}, "
-                f"band=[{band_boundary}, {band_high}]"
-            )
-            return [], topic or ""
-
-        # 帯域単語の UVM を一括取得
-        band_word_set = {w["word"] for w in band_words}
-        uvm_ref = db.collection("users").document(uid).collection("uvm")
-        refs = [uvm_ref.document(w) for w in band_word_set]
-        band_p_map: dict[str, float] = {}
-        for snap in db.get_all(refs):
-            if snap.exists:
-                p_val = (snap.to_dict() or {}).get("p")
-                if isinstance(p_val, (int, float)):
-                    band_p_map[snap.id] = float(p_val)
-
-        # 未登録 or P=0 を最優先、なければ P が低いほど選ばれやすい重み付きランダム
-        zero_p = [
-            w
-            for w in band_words
-            if w["word"] not in band_p_map or band_p_map[w["word"]] == 0.0
-        ]
-        if zero_p:
-            selected = random.sample(zero_p, min(count, len(zero_p)))
-        else:
-            remaining = list(band_words)
-            remaining_weights = [
-                max(0.0, 1.0 - band_p_map.get(w["word"], 0.0))
-                for w in remaining
-            ]
-            for _ in range(min(count, len(remaining))):
-                if sum(remaining_weights) <= 0:
-                    index = random.randrange(len(remaining))
-                else:
-                    index = random.choices(
-                        range(len(remaining)),
-                        weights=remaining_weights,
-                        k=1,
-                    )[0]
-                selected.append(remaining.pop(index))
-                remaining_weights.pop(index)
+        for _ in range(min(count, len(remaining))):
+            if sum(remaining_weights) <= 0:
+                index = random.randrange(len(remaining))
+            else:
+                index = random.choices(
+                    range(len(remaining)),
+                    weights=remaining_weights,
+                    k=1,
+                )[0]
+            selected.append(remaining.pop(index))
+            remaining_weights.pop(index)
 
     words = [w["word"] for w in selected]
 
-    # --- Step 3: key_word の embedding からテーマを選択 ---
+    # --- テーマ選択: 指定あり→そのまま / なし→embedding自動選択 ---
     if topic:
         chosen_topic = topic
     else:
@@ -338,8 +384,7 @@ def get_session_words(
                 "message": "get_session_words",
                 "topic": chosen_topic,
                 "estimated_vocab": estimated_vocab,
-                "gap_scan": [gap_scan_low, band_boundary],
-                "band": [band_boundary, band_high],
+                "scan": [scan_low, scan_high],
                 "selected": words,
             }
         )
@@ -427,11 +472,17 @@ def register_exposure(
         print(f"register_exposure: uid={uid}, updated {wrote} word(s)")
 
 
+LEARNING_CORRECT_MULTIPLIER = 0.1
+SENTENCE_REVIEW_CORRECT_MULTIPLIER = 0.1
+
+
 def batch_update_uvm(
     db: FirestoreClient,
     uid: str,
     results: list[dict[str, Any]],
     freq_rank: dict[str, int] | None = None,
+    quiz_type: str = "",
+    is_premium: bool = True,
 ) -> None:
     """クイズ/例文の正誤結果をもとに UVM を一括更新する。
 
@@ -441,6 +492,7 @@ def batch_update_uvm(
         db: Firestore クライアント
         uid: ユーザー UID
         results: [{"word": str, "is_correct": bool}, ...] — 各単語の正誤
+        quiz_type: "learning" の場合、正解時の α を LEARNING_CORRECT_MULTIPLIER で減衰
     """
     now = time.time()
     batch = db.batch()
@@ -465,6 +517,10 @@ def batch_update_uvm(
             int(hint_level_raw) if isinstance(hint_level_raw, (int, float)) else 0
         )
         hint_multiplier = 1.0 if hint_level == 0 else (0.5 if hint_level == 1 else 0.25)
+        if quiz_type == "learning" and is_correct:
+            hint_multiplier *= LEARNING_CORRECT_MULTIPLIER
+        if r.get("sentence_reviewed") is True and is_correct:
+            hint_multiplier *= SENTENCE_REVIEW_CORRECT_MULTIPLIER
         if word in docs_map:
             # --- 既存単語の更新 ---
             data = docs_map[word]
@@ -496,4 +552,7 @@ def batch_update_uvm(
     batch.commit()
 
     if freq_rank is not None:
-        sync_estimated_vocab(db, uid, freq_rank)
+        from constants import FREE_TIER_MAX_VOCAB
+
+        max_vocab = None if is_premium else FREE_TIER_MAX_VOCAB
+        sync_estimated_vocab(db, uid, freq_rank, max_vocab=max_vocab)

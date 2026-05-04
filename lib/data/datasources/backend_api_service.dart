@@ -3,7 +3,7 @@
 // バックエンドAPI通信サービス。
 // Firebase Cloud Functionsと通信し、以下の機能を提供する:
 //   - generateThaiSentence: Gemini AIによるタイ語例文生成
-//   - generateQuiz: OpenAIによる穴埋めクイズ生成
+//   - generateQuiz: Geminiによる穴埋めクイズ生成
 //   - review_queue: Firestoreから復習対象の問題数を取得
 //
 // データフロー（例文生成）:
@@ -142,6 +142,7 @@ class BackendApiService {
               grammaticalRole: wordJson['grammatical_role'] as String?,
               wordOrder: i,
               syllables: syllables,
+              notes: wordJson['notes'] as String?,
             ),
           );
         }
@@ -161,6 +162,10 @@ class BackendApiService {
             )
           : null;
 
+      // Parse target words
+      final targetWordsJson = json['target_words'] as List<dynamic>?;
+      final targetWords = targetWordsJson?.map((e) => e as String).toList();
+
       // Create ThaiSentence
       final sentence = ThaiSentence(
         thaiText: json['thai_text'] as String? ?? '',
@@ -169,6 +174,8 @@ class BackendApiService {
         wordBreakdowns: wordBreakdowns,
         context: context,
         createdAt: DateTime.now(),
+        generationTier: json['generation_tier'] as String?,
+        targetWords: targetWords,
       );
 
       return sentence;
@@ -291,12 +298,16 @@ class BackendApiService {
       );
 
       final result = await callable.call();
-      final data = Map<String, dynamic>.from(result.data as Map);
+      final data = _deepCast(result.data) as Map<String, dynamic>;
+
+      if (data['no_user_sentences'] == true) {
+        throw BackendApiNoUserSentencesException();
+      }
+
       final questionsList = data['questions'] as List<dynamic>? ?? [];
 
       return questionsList
-          .map(
-              (e) => QuizQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
           .toList();
     } on FirebaseFunctionsException catch (e) {
       throw _mapFirebaseFunctionsException(e);
@@ -307,52 +318,92 @@ class BackendApiService {
     }
   }
 
-  /// 残りクォータ分の例文を一括並列生成
-  Future<List<ThaiSentence>> generateBatchSentences() async {
+  /// 学習中の例文から1問だけクイズを生成
+  Future<List<QuizQuestion>> generateLearningQuiz(ThaiSentence sentence) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
         throw BackendApiUnauthenticatedException('User not authenticated');
       }
+      await user.getIdToken(true);
+
+      final sentenceId = sentence.id;
+      final targetWords = sentence.targetWords ?? const <String>[];
+      final keyWord = targetWords.isNotEmpty
+          ? targetWords.first
+          : sentence.wordBreakdowns.isNotEmpty
+              ? sentence.wordBreakdowns.first.wordText
+              : null;
+      if (sentenceId == null || sentenceId.isEmpty || keyWord == null) {
+        throw BackendApiException('クイズに使える例文データがありません。');
+      }
 
       final callable = _functions.httpsCallable(
-        FirebaseConfig.generateBatchSentencesFunctionName,
+        FirebaseConfig.generateLearningQuizFunctionName,
         options: HttpsCallableOptions(
-          timeout: FirebaseConfig.batchFunctionTimeout,
+          timeout: const Duration(seconds: 60),
         ),
       );
 
-      final result = await callable.call();
-      final data = Map<String, dynamic>.from(result.data as Map);
+      final result = await callable.call({
+        'sentence': {
+          'sentence_id': sentenceId,
+          'thai_text': sentence.thaiText,
+          'pronunciation': sentence.pronunciation,
+          'japanese_translation': sentence.japaneseTranslation,
+          'key_word': keyWord,
+          'key_word_pronunciation': _findWordPronunciation(sentence, keyWord),
+          'key_word_meaning': _findWordMeaning(sentence, keyWord),
+          'word_breakdown': sentence.wordBreakdowns
+              .map((word) => {
+                    'word': word.wordText,
+                    'pronunciation': word.pronunciation,
+                    'meaning': word.meaning,
+                    if (word.grammaticalRole != null)
+                      'grammatical_role': word.grammaticalRole,
+                  })
+              .toList(),
+          if (sentence.generationTier != null)
+            'generation_tier': sentence.generationTier,
+        },
+      });
+      final data = _deepCast(result.data) as Map<String, dynamic>;
+      final questionsList = data['questions'] as List<dynamic>? ?? [];
 
-      if (data['success'] != true) {
-        final error = data['error'] != null
-            ? Map<String, dynamic>.from(data['error'] as Map)
-            : null;
-        final errorCode = error?['code'] as String? ?? 'UNKNOWN';
-        final errorMessage = error?['message'] as String? ?? 'Unknown error';
-        throw _mapBackendError(errorCode, errorMessage);
-      }
-
-      final batchData = Map<String, dynamic>.from(data['data'] as Map);
-      final sentencesList = batchData['sentences'] as List<dynamic>;
-
-      return sentencesList.map((s) {
-        final sentenceJson = Map<String, dynamic>.from(s as Map);
-        return createThaiSentenceFromJson(sentenceJson);
-      }).toList();
+      return questionsList
+          .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on FirebaseFunctionsException catch (e) {
       throw _mapFirebaseFunctionsException(e);
     } on BackendApiException {
       rethrow;
     } catch (e) {
-      throw BackendApiException('Failed to generate batch sentences: $e');
+      throw BackendApiException('Failed to generate learning quiz: $e');
     }
+  }
+
+  String _findWordPronunciation(ThaiSentence sentence, String word) {
+    for (final breakdown in sentence.wordBreakdowns) {
+      if (breakdown.wordText.trim() == word.trim()) {
+        return breakdown.pronunciation;
+      }
+    }
+    return '';
+  }
+
+  String _findWordMeaning(ThaiSentence sentence, String word) {
+    for (final breakdown in sentence.wordBreakdowns) {
+      if (breakdown.wordText.trim() == word.trim()) {
+        return breakdown.meaning;
+      }
+    }
+    return '';
   }
 
   /// クイズ結果からUVMを更新
   Future<void> updateUvm({
     required List<Map<String, dynamic>> results,
+    String? quizType,
   }) async {
     try {
       final user = _auth.currentUser;
@@ -365,14 +416,38 @@ class BackendApiService {
         ),
       );
 
-      await callable.call({'results': results});
+      final payload = <String, dynamic>{'results': results};
+      if (quizType != null) payload['quiz_type'] = quizType;
+      await callable.call(payload);
     } catch (e) {
       // fire-and-forget: UVM更新失敗はログのみ
       debugPrint('Failed to update UVM: $e');
     }
   }
 
+  Future<void> resetLearningData() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw BackendApiUnauthenticatedException('User not authenticated');
+      }
 
+      final callable = _functions.httpsCallable(
+        FirebaseConfig.resetLearningDataFunctionName,
+        options: HttpsCallableOptions(
+          timeout: const Duration(seconds: 60),
+        ),
+      );
+
+      await callable.call();
+    } on FirebaseFunctionsException catch (e) {
+      throw _mapFirebaseFunctionsException(e);
+    } on BackendApiException {
+      rethrow;
+    } catch (e) {
+      throw BackendApiException('学習データのリセットに失敗しました: $e');
+    }
+  }
 
   /// Dispose resources
   void dispose() {
@@ -448,4 +523,23 @@ class BackendApiQuotaExceededException extends BackendApiException {
 
   @override
   String toString() => 'BackendApiQuotaExceededException: $message';
+}
+
+class BackendApiNoUserSentencesException extends BackendApiException {
+  BackendApiNoUserSentencesException() : super('No user sentences');
+
+  @override
+  String toString() => 'BackendApiNoUserSentencesException';
+}
+
+dynamic _deepCast(dynamic value) {
+  if (value is Map) {
+    return Map<String, dynamic>.fromEntries(
+      value.entries.map((e) => MapEntry(e.key.toString(), _deepCast(e.value))),
+    );
+  }
+  if (value is List) {
+    return value.map(_deepCast).toList();
+  }
+  return value;
 }

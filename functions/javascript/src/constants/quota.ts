@@ -5,14 +5,10 @@
  * dailyBatch, verifySubscription, handlePlayNotification, handleAppStoreNotification で使用。
  */
 
-/** 初回ユーザー（フィールド未存在時）のボーナス回数 */
-export const INITIAL_SENTENCES = 5;
-export const INITIAL_QUIZZES = 5;
+/** free ユーザーの日次リセット値（JST 0:00） */
+export const FREE_DAILY_SENTENCES = 5;
+export const FREE_DAILY_QUIZZES = 5;
 
-/** free ユーザーの12時間ごとのリセット値（JST 0:00 / 12:00） */
-export const FREE_DAILY_SENTENCES = 1;
-export const FREE_DAILY_QUIZZES = 1;
-
-/** premium ユーザーの12時間ごとのリセット値（JST 0:00 / 12:00） */
+/** premium ユーザーの日次リセット値（JST 0:00） */
 export const PREMIUM_DAILY_SENTENCES = 5;
 export const PREMIUM_DAILY_QUIZZES = 5;

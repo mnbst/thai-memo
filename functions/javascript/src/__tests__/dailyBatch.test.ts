@@ -42,11 +42,11 @@ import { resetQuota } from '../dailyBatch';
 import {
   FREE_DAILY_QUIZZES,
   FREE_DAILY_SENTENCES,
-  INITIAL_QUIZZES,
-  INITIAL_SENTENCES,
   PREMIUM_DAILY_QUIZZES,
   PREMIUM_DAILY_SENTENCES,
 } from '../constants/quota';
+
+const LEGACY_BONUS_REMAINING = 10;
 
 function makeUserDoc(
   data: Record<string, unknown>,
@@ -64,16 +64,16 @@ describe('resetQuota', () => {
     mockUserDocSet.mockResolvedValue(undefined);
   });
 
-  test('初回例文ボーナス中のfreeユーザーは残り例文回数を5から1へ削らない', async () => {
+  test('初回例文フラグが残っていてもfree回数へリセットする', async () => {
     await resetQuota(makeUserDoc({
       tier: 'free',
       is_first_generation: true,
-      remaining_sentences: INITIAL_SENTENCES,
+      remaining_sentences: LEGACY_BONUS_REMAINING,
     }));
 
     expect(mockUserDocSet).toHaveBeenCalledWith(
       {
-        remaining_sentences: INITIAL_SENTENCES,
+        remaining_sentences: FREE_DAILY_SENTENCES,
         remaining_quizzes: FREE_DAILY_QUIZZES,
         daily_sentence_generated: false,
       },
@@ -81,51 +81,17 @@ describe('resetQuota', () => {
     );
   });
 
-  test('初回例文ボーナスを途中まで使っていても残り回数を維持する', async () => {
+  test('初回クイズフラグが残っていてもfree回数へリセットする', async () => {
     await resetQuota(makeUserDoc({
       tier: 'free',
-      is_first_generation: true,
-      remaining_sentences: 3,
+      is_first_quiz_generation: true,
+      remaining_quizzes: LEGACY_BONUS_REMAINING,
     }));
 
     expect(mockUserDocSet).toHaveBeenCalledWith(
       expect.objectContaining({
-        remaining_sentences: 3,
+        remaining_sentences: FREE_DAILY_SENTENCES,
         remaining_quizzes: FREE_DAILY_QUIZZES,
-        daily_sentence_generated: false,
-      }),
-      { merge: true }
-    );
-  });
-
-  test('初回クイズボーナス中のfreeユーザーは残りクイズ回数を5から1へ削らない', async () => {
-    await resetQuota(makeUserDoc({
-      tier: 'free',
-      is_first_quiz_generation: true,
-      remaining_quizzes: INITIAL_QUIZZES,
-    }));
-
-    expect(mockUserDocSet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        remaining_sentences: FREE_DAILY_SENTENCES,
-        remaining_quizzes: INITIAL_QUIZZES,
-        daily_sentence_generated: false,
-      }),
-      { merge: true }
-    );
-  });
-
-  test('初回クイズボーナスを途中まで使っていても残り回数を維持する', async () => {
-    await resetQuota(makeUserDoc({
-      tier: 'free',
-      is_first_quiz_generation: true,
-      remaining_quizzes: 3,
-    }));
-
-    expect(mockUserDocSet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        remaining_sentences: FREE_DAILY_SENTENCES,
-        remaining_quizzes: 3,
         daily_sentence_generated: false,
       }),
       { merge: true }
@@ -135,7 +101,7 @@ describe('resetQuota', () => {
   test('初回フラグがないfreeユーザーは通常のfree回数へリセットする', async () => {
     await resetQuota(makeUserDoc({
       tier: 'free',
-      remaining_sentences: INITIAL_SENTENCES,
+      remaining_sentences: LEGACY_BONUS_REMAINING,
     }));
 
     expect(mockUserDocSet).toHaveBeenCalledWith(

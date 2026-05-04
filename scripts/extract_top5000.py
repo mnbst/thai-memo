@@ -16,14 +16,22 @@ build_freq_rank.py で生成した全語彙の freq_rank.json から
 import json
 from pathlib import Path
 
-INPUT = Path("corpus/freq_rank.json")
-OUTPUT = Path("corpus/freq_rank_top10000.json")
+from corpus_word_filter import should_keep_word
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+INPUT = SCRIPT_DIR / "corpus/freq_rank.json"
+OUTPUT = SCRIPT_DIR / "corpus/freq_rank_top10000.json"
+TOP_LIMIT = 10000
 
 with INPUT.open(encoding="utf-8") as f:
     freq_rank = json.load(f)
 
-# rank <= 10000 の単語のみ抽出
-top10000 = {w: rank for w, rank in freq_rank.items() if rank <= 10000}
+top_words = [
+    word
+    for word, _rank in sorted(freq_rank.items(), key=lambda item: item[1])
+    if should_keep_word(word)
+][:TOP_LIMIT]
+top10000 = {word: rank for rank, word in enumerate(top_words, start=1)}
 
 with OUTPUT.open("w", encoding="utf-8") as f:
     json.dump(top10000, f, ensure_ascii=False)

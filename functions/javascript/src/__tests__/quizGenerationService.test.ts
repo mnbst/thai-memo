@@ -6,10 +6,13 @@ jest.mock('firebase-functions/logger', () => ({
 
 import {
   applyRuleBasedQuizFields,
+  buildBlankSentencePronunciation,
+  buildQuizGenerationPrompt,
   GeneratedQuizQuestion,
   GeneratedQuizQuestionDraft,
   isQuizSentenceSeedReady,
   prepareQuizGenerationInputs,
+  QUIZ_GENERATION_SYSTEM_PROMPT,
   sanitizeQuizQuestion,
 } from '../services/quizGenerationService';
 
@@ -51,24 +54,45 @@ function makeDraft(
       'บ้าน（bâan / 家）：食べる対象に場所を表す名詞が入り不自然',
       'กิน（gin / 食べる）：目的語の位置に動詞が入り文法上不自然',
     ],
-    correct_answer_pronunciation: 'khâao',
     ...overrides,
   };
 }
 
 describe('quiz generation sanitization', () => {
+  test('keeps fixed quiz instructions in the system prompt and sentence data in the user prompt', () => {
+    const prompt = buildQuizGenerationPrompt([
+      {
+        thai_text: 'ฉันกินข้าว',
+        pronunciation: 'chǎn kin khâao',
+        japanese_translation: '私はご飯を食べます',
+        key_word: 'ข้าว',
+        key_word_pronunciation: 'khâao',
+      },
+    ]);
+
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【出力】');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【ダミー条件】');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('【NG例】');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('กิน___ → ข้าว/ผัก/เนื้อ');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('類別詞・指示詞・代名詞・語気助詞・前置詞');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('___นี้แพงไปไหม → ลูก/อัน/ตัว');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).toContain('แกง（kɛɛng / カレー）：動詞の位置に名詞が入り文法上不自然');
+    expect(QUIZ_GENERATION_SYSTEM_PROMPT).not.toContain('thai_text: ฉันกินข้าว');
+    expect(prompt).toContain('thai_text: ฉันกินข้าว');
+    expect(prompt).toContain('blank_text: ฉันกิน___');
+    expect(prompt).toContain('correct_answer: ข้าว');
+    expect(prompt).not.toContain('【出力】');
+    expect(prompt).not.toContain('【ダミー条件】');
+  });
+
   test('prepares blank text and correct answer from the key word before model generation', () => {
     const [prepared] = prepareQuizGenerationInputs([
       {
         thai_text: 'ฉันกินข้าว',
         pronunciation: 'chǎn kin khâao',
         japanese_translation: '私はご飯を食べます',
-        word_breakdown: [
-          { word: 'ฉัน', pronunciation: 'chǎn', meaning: '私' },
-          { word: 'กิน', pronunciation: 'kin', meaning: '食べる' },
-          { word: 'ข้าว', pronunciation: 'khâao', meaning: 'ご飯' },
-        ],
         key_word: 'ข้าว',
+        key_word_pronunciation: 'khâao',
       },
     ]);
 
@@ -78,16 +102,33 @@ describe('quiz generation sanitization', () => {
       blank_text: 'ฉันกิน___',
       correct_answer: 'ข้าว',
       pronunciation: 'khâao',
+      correct_answer_meaning: '',
+    });
+  });
+
+  test('prepares correct answer meaning from the key word meaning', () => {
+    const [prepared] = prepareQuizGenerationInputs([
+      {
+        thai_text: 'ฉันกินข้าว',
+        pronunciation: 'chǎn kin khâao',
+        japanese_translation: '私はご飯を食べます',
+        key_word: 'ข้าว',
+        key_word_pronunciation: 'khâao',
+        key_word_meaning: 'ご飯',
+      },
+    ]);
+
+    expect(prepared).toMatchObject({
+      correct_answer: 'ข้าว',
       correct_answer_meaning: 'ご飯',
     });
   });
 
-  test('marks a sentence as ready even when the key word pronunciation is missing (LLM fills it)', () => {
+  test('marks a sentence as ready even when the key word pronunciation is missing', () => {
     expect(isQuizSentenceSeedReady({
       thai_text: 'ฉันกินข้าว',
       pronunciation: 'chǎn kin khâao',
       japanese_translation: '私はご飯を食べます',
-      word_breakdown: [],
       key_word: 'ข้าว',
     })).toBe(true);
   });
@@ -97,10 +138,8 @@ describe('quiz generation sanitization', () => {
       thai_text: 'ฉันกินข้าว',
       pronunciation: 'chǎn kin khâao',
       japanese_translation: '私はご飯を食べます',
-      word_breakdown: [
-        { word: 'ข้าว', pronunciation: 'khâao', meaning: 'ご飯' },
-      ],
       key_word: 'น้ำ',
+      key_word_pronunciation: 'náam',
     })).toBe(false);
   });
 
@@ -114,12 +153,8 @@ describe('quiz generation sanitization', () => {
         thai_text: 'ฉันกินข้าว',
         pronunciation: 'chǎn kin khâao',
         japanese_translation: '私はご飯を食べます',
-        word_breakdown: [
-          { word: 'ฉัน', pronunciation: 'chǎn', meaning: '私' },
-          { word: 'กิน', pronunciation: 'kin', meaning: '食べる' },
-          { word: 'ข้าว', pronunciation: 'khâao', meaning: 'ご飯' },
-        ],
         key_word: 'ข้าว',
+        key_word_pronunciation: 'khâao',
       },
     ]);
     const sanitized = sanitizeQuizQuestion(response.questions[0]);
@@ -137,41 +172,54 @@ describe('quiz generation sanitization', () => {
   test('applies rule-based pronunciation from the prepared input', () => {
     const response = applyRuleBasedQuizFields({
       questions: [
-        makeDraft({ correct_answer_pronunciation: 'wrong' }),
+        makeDraft(),
       ],
     }, [
       {
         thai_text: 'ฉันกินข้าว',
         pronunciation: 'chǎn kin khâao',
         japanese_translation: '私はご飯を食べます',
-        word_breakdown: [
-          { word: 'ฉัน', pronunciation: 'chǎn', meaning: '私' },
-          { word: 'กิน', pronunciation: 'kin', meaning: '食べる' },
-          { word: 'ข้าว', pronunciation: 'khâao', meaning: 'ご飯' },
-        ],
         key_word: 'ข้าว',
+        key_word_pronunciation: 'khâao',
       },
     ]);
 
     expect(response.questions[0].pronunciation).toBe('khâao');
   });
 
-  test('falls back to the model-provided pronunciation when word_breakdown is empty', () => {
+  test('uses key_word_pronunciation for the answer pronunciation', () => {
     const response = applyRuleBasedQuizFields({
       questions: [
-        makeDraft({ correct_answer_pronunciation: 'khâao' }),
+        makeDraft(),
+      ],
+    }, [
+      {
+        thai_text: 'อันนี้ถูกกว่าไหมครับ',
+        pronunciation: 'an-níi thùuk kwàa mǎi khráp',
+        japanese_translation: 'これ、もっと安いですか',
+        key_word: 'กว่า',
+        key_word_pronunciation: 'kwàa',
+      },
+    ]);
+
+    expect(response.questions[0].pronunciation).toBe('kwàa');
+  });
+
+  test('returns empty pronunciation when key_word_pronunciation is empty', () => {
+    const response = applyRuleBasedQuizFields({
+      questions: [
+        makeDraft(),
       ],
     }, [
       {
         thai_text: 'ฉันกินข้าว',
         pronunciation: 'chǎn kin khâao',
         japanese_translation: '私はご飯を食べます',
-        word_breakdown: [],
         key_word: 'ข้าว',
       },
     ]);
 
-    expect(response.questions[0].pronunciation).toBe('khâao');
+    expect(response.questions[0].pronunciation).toBe('');
   });
 
   test('accepts dummy reasons that explain local grammar or word-class mismatch', () => {
@@ -185,6 +233,25 @@ describe('quiz generation sanitization', () => {
       'บ้าน（bâan / 家）：食べる対象に場所を表す名詞が入り不自然',
       'กิน（gin / 食べる）：目的語の位置に動詞が入り文法上不自然',
     ]);
+  });
+
+  test('builds choice pronunciations using Firestore pronunciation for the correct answer', () => {
+    const sanitized = sanitizeQuizQuestion(makeQuestion({
+      pronunciation: 'firestore-khâao',
+    }));
+
+    expect(sanitized).not.toBeNull();
+    const choicePronunciations = sanitized!.choice_pronunciations ?? [];
+    const pronunciationsByChoice = new Map(
+      sanitized!.choices.map((choice, index) => [
+        choice,
+        choicePronunciations[index],
+      ]),
+    );
+    expect(pronunciationsByChoice.get('ข้าว')).toBe('firestore-khâao');
+    expect(pronunciationsByChoice.get('สวย')).toBe('sǔay');
+    expect(pronunciationsByChoice.get('บ้าน')).toBe('bâan');
+    expect(pronunciationsByChoice.get('กิน')).toBe('gin');
   });
 
   test('accepts dummy reasons even when they only say the answer does not match the source sentence', () => {
@@ -239,5 +306,33 @@ describe('quiz generation sanitization', () => {
     }));
 
     expect(sanitized).toBeNull();
+  });
+
+  test('builds a blanked sentence pronunciation by direct word pronunciation replacement', () => {
+    expect(buildBlankSentencePronunciation(
+      'chǎn kin khâao',
+      'khâao',
+    )).toBe('chǎn kin ___');
+  });
+
+  test('builds a blanked sentence pronunciation from key_word_pronunciation', () => {
+    expect(buildBlankSentencePronunciation(
+      'an-níi thùuk kwàa mǎi khráp',
+      'kwàa',
+    )).toBe('an-níi thùuk ___ mǎi khráp');
+  });
+
+  test('returns empty blanked pronunciation when key_word_pronunciation is absent', () => {
+    expect(buildBlankSentencePronunciation(
+      'an-níi thùuk kwàa mǎi khráp',
+      '',
+    )).toBe('');
+  });
+
+  test('returns empty blanked pronunciation when key_word_pronunciation is not in the sentence pronunciation', () => {
+    expect(buildBlankSentencePronunciation(
+      'chan gin khaao',
+      'khâao',
+    )).toBe('');
   });
 });

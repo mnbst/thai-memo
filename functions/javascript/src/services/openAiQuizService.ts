@@ -2,6 +2,7 @@ import * as logger from 'firebase-functions/logger';
 import {
   applyRuleBasedQuizFields,
   buildQuizGenerationPrompt,
+  QUIZ_GENERATION_SYSTEM_PROMPT,
   QuizGenerationModelResponse,
   QUIZ_RESPONSE_JSON_SCHEMA,
   QuizGenerationService,
@@ -82,12 +83,13 @@ export class OpenAiQuizService implements QuizGenerationService {
     private readonly modelName: string,
     private readonly uid: string,
     private readonly tier: 'free' | 'premium',
-  ) {}
+  ) { }
 
   async generateQuizQuestions(
     sentences: QuizSentenceSeed[],
   ): Promise<QuizQuestionsResponse> {
     const response = await this.fetchStructuredResponse<QuizGenerationModelResponse>(
+      QUIZ_GENERATION_SYSTEM_PROMPT,
       buildQuizGenerationPrompt(sentences),
       'quiz_questions_response',
       QUIZ_RESPONSE_JSON_SCHEMA,
@@ -99,11 +101,12 @@ export class OpenAiQuizService implements QuizGenerationService {
       return { questions: [] };
     }
 
-    const merged = applyRuleBasedQuizFields(response, sentences);
+    const merged = applyRuleBasedQuizFields({ questions: [response] }, sentences);
     return sanitizeQuizQuestions(merged);
   }
 
   private async fetchStructuredResponse<T>(
+    systemPrompt: string,
     prompt: string,
     schemaName: string,
     schema: unknown,
@@ -119,6 +122,7 @@ export class OpenAiQuizService implements QuizGenerationService {
         },
         body: JSON.stringify({
           model: this.modelName,
+          instructions: systemPrompt,
           input: [
             {
               role: 'user',
@@ -188,9 +192,9 @@ export class OpenAiQuizService implements QuizGenerationService {
     const pricing = OPENAI_TOKEN_PRICING_PER_MILLION[this.modelName] ?? DEFAULT_OPENAI_TOKEN_PRICING_PER_MILLION;
     const uncachedInputTokens = Math.max(inputTokens - cachedTokens, 0);
     const costUsd = (
-      uncachedInputTokens * pricing.input
-      + cachedTokens * pricing.cachedInput
-      + outputTokens * pricing.output
+      uncachedInputTokens * pricing.input +
+      cachedTokens * pricing.cachedInput +
+      outputTokens * pricing.output
     ) / 1_000_000;
 
     logger.info('OpenAI token usage', {

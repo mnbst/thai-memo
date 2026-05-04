@@ -18,66 +18,20 @@
     corpus/freq_rank.json — {word: rank} 形式。rank=1 が最頻出。
 """
 
-from collections import Counter
 import json
 from pathlib import Path
-import re
+from collections import Counter
 
-from pythainlp.corpus.common import thai_stopwords
 from pythainlp.tag import pos_tag
 from pythainlp.tokenize import word_tokenize
 
-INPUT = Path("corpus/th.txt")
-OUTPUT = Path("corpus/freq_rank.json")
-# `PART` は `ไม่` のような重要語も含むため、会話粒子は denylist で個別に落とす。
-DROP_TAGS = {"INTJ", "PUNCT"}
+from corpus_word_filter import should_keep_word
 
-# 文脈付きPOSでも取りこぼしやすい会話粒子・感嘆詞を補助的に除外する。
-DENYLIST = {
-    "ๆ",
-    "ฯ",
-    "ฯลฯ",
-    "ครับ",
-    "ค่ะ",
-    "คะ",
-    "นะ",
-    "ล่ะ",
-    "ละ",
-    "สิ",
-    "เหรอ",
-    "หรอ",
-    "มั้ย",
-    "ไหม",
-    "จ้ะ",
-    "จ๊ะ",
-    "จ้า",
-    "ฮะ",
-    "โอ๊ย",
-    "อ้าว",
-    "เฮ้ย",
-    "เอ๊ะ",
-    "อ๊ะ",
-    "ฮึ",
-    "เออ",
-    "อืม",
-}
-DENYLIST |= thai_stopwords() & {"ครับ", "ค่ะ", "คะ", "นะ", "มั้ย", "ไหม", "จ้ะ", "จ๊ะ"}
-
-# 数字・記号・英語のみのトークンを避けるため、タイ文字を1字以上含む語のみ残す。
-THAI_RE = re.compile(r"[\u0E01-\u0E5B]")
-
-
-def should_keep_word(word: str, tag: str) -> bool:
-    if not word or not THAI_RE.search(word):
-        return False
-    # 単一文字はトークナイザーの分割ミスまたは略語のため除外
-    if len(word) < 2:
-        return False
-    if word in DENYLIST:
-        return False
-    if tag in DROP_TAGS:
-        return False
-    return True
+SCRIPT_DIR = Path(__file__).resolve().parent
+INPUT = SCRIPT_DIR / "corpus/th.txt"
+OUTPUT = SCRIPT_DIR / "corpus/freq_rank.json"
+TOP_OUTPUT = SCRIPT_DIR / "corpus/freq_rank_top10000.json"
+TOP_LIMIT = 10000
 
 
 def main() -> None:
@@ -105,11 +59,15 @@ def main() -> None:
 
     freq = counter.most_common()
     freq_rank = {word: i + 1 for i, (word, _) in enumerate(freq)}
+    top10000 = {word: i + 1 for i, (word, _) in enumerate(freq[:TOP_LIMIT])}
 
     with OUTPUT.open("w", encoding="utf-8") as f:
         json.dump(freq_rank, f, ensure_ascii=False)
+    with TOP_OUTPUT.open("w", encoding="utf-8") as f:
+        json.dump(top10000, f, ensure_ascii=False)
 
     print(f"{OUTPUT} saved.")
+    print(f"{TOP_OUTPUT} saved. {len(top10000)} words.")
     print(f"Top 10: {freq[:10]}")
 
 

@@ -89,6 +89,34 @@ def get_freq_rank() -> dict[str, int]:
     return _freq_rank  # type: ignore
 
 
+_free_sentences: list[dict] | None = None
+
+
+def get_free_sentences() -> list[dict]:
+    """GCS から free_sentences.json を読み込みキャッシュする。"""
+    global _free_sentences
+    if _free_sentences is not None:
+        return _free_sentences
+
+    project_id = os.environ.get("GCLOUD_PROJECT", "")
+    bucket_name = f"{project_id}-uvm-data"
+    client = gcs.Client()
+    blob = client.bucket(bucket_name).blob("free_sentences.json")
+    _free_sentences = json.loads(blob.download_as_text())
+    return _free_sentences  # type: ignore
+
+
+def pick_free_sentence(target_word: str) -> dict | None:
+    """事前生成済みの free 例文から target_word に一致するものをランダムに返す。"""
+    sentences = get_free_sentences()
+    candidates = [s for s in sentences if s.get("key_word") == target_word]
+    if not candidates:
+        return None
+    import random
+    return random.choice(candidates)
+
+
+
 def select_uvm_target_words(
     db: FirestoreClient,
     uid: str,
@@ -109,7 +137,11 @@ def select_uvm_target_words(
         topics_pool = None
     else:
         topic_candidates = TOPICS if is_premium else FREE_TOPICS
-        topics_pool = gate_topics_for_vocab(topic_candidates, estimated_vocab or 0)
+        topics_pool = (
+            gate_topics_for_vocab(topic_candidates, estimated_vocab or 0)
+            if is_premium
+            else topic_candidates
+        )
     return get_session_words(
         db,
         uid,
@@ -133,10 +165,17 @@ def require_target_words(result: tuple[list[str], str]) -> tuple[list[str], str]
 MAX_RETRY = 1
 
 
-def validate_target_words(sentence: dict, target_words: list[str] | None) -> list[str]:
-    """生成された例文にtarget_wordsが含まれているか検証する。
 
-    thai_text またはword_breakdown内のwordフィールドに含まれていればOK。
+def _match_word(word_text: str, target: str) -> bool:
+    w = word_text.strip()
+    return w == target or w == target + "ๆ" or w + "ๆ" == target
+
+
+def validate_target_words(sentence: dict, target_words: list[str] | None) -> list[str]:
+    """word_breakdownにtarget_wordが独立エントリとして存在するか検証する。
+
+    複合語の一部としてのみ含まれるケースはmissingとして扱い、リトライで
+    独立した形での使用を強制する。
 
     Returns:
         含まれていなかった単語のリスト（空なら全て含まれている）
@@ -144,7 +183,6 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
     if not target_words:
         return []
 
-    thai_text = sentence.get("thai_text", "")
     wb_words = {
         str(wb.get("word", "")).strip()
         for wb in sentence.get("word_breakdown", [])
@@ -153,9 +191,12 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
 
     missing: list[str] = []
     for tw in target_words:
-        if tw in wb_words or tw in thai_text:
+        target_word = str(tw).strip()
+        if not target_word:
             continue
-        missing.append(tw)
+        if any(_match_word(w, target_word) for w in wb_words):
+            continue
+        missing.append(target_word)
     return missing
 
 
@@ -163,12 +204,13 @@ def _build_retry_prompt(prompt: str, missing: list[str]) -> str:
     missing_str = ", ".join(missing)
     return (
         f"{prompt}\n\n"
-        f"【再生成指示】前回の生成では次の単語が含まれていませんでした: {missing_str}\n"
-        f"これらの単語を必ず文中に含めてください。"
+        f"【再生成指示】前回の生成では次の単語がword_breakdownに独立エントリとして含まれていませんでした: {missing_str}\n"
+        f"これらの単語を複合語の一部ではなく、単独で意味が成り立つ形で文中に使い、word_breakdownにも独立した項目として含めてください。"
     )
 
 
 def _generate_single(
+    system_prompt: str,
     prompt: str,
     is_premium: bool,
     tier_label: str,
@@ -178,9 +220,13 @@ def _generate_single(
     _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
+    missing: list[str] = []
     for attempt in range(1 + MAX_RETRY):
         sentence = _llm_generate_sync(
-            get_system_prompt(is_premium), current_prompt, is_premium, tier_label
+            system_prompt,
+            current_prompt,
+            is_premium,
+            tier_label,
         )
         _get_enrich_with_nlp()(sentence)
 
@@ -193,14 +239,14 @@ def _generate_single(
         )
         current_prompt = _build_retry_prompt(prompt, missing)
 
-    print(
-        f"Returning sentence despite missing target words after "
-        f"{1 + MAX_RETRY} attempts"
+    raise RuntimeError(
+        "LLM_API_ERROR: target words missing after retries: "
+        f"{', '.join(missing)}"
     )
-    return sentence
 
 
 async def _generate_single_async(
+    system_prompt: str,
     prompt: str,
     is_premium: bool,
     tier_label: str,
@@ -210,9 +256,13 @@ async def _generate_single_async(
     _prewarm_nlp_async()
     sentence: dict = {}
     current_prompt = prompt
+    missing: list[str] = []
     for attempt in range(1 + MAX_RETRY):
         sentence = await _llm_generate_async(
-            get_system_prompt(is_premium), current_prompt, is_premium, tier_label
+            system_prompt,
+            current_prompt,
+            is_premium,
+            tier_label,
         )
         _get_enrich_with_nlp()(sentence)
 
@@ -225,11 +275,10 @@ async def _generate_single_async(
         )
         current_prompt = _build_retry_prompt(prompt, missing)
 
-    print(
-        f"Returning sentence despite missing target words after "
-        f"{1 + MAX_RETRY} attempts"
+    raise RuntimeError(
+        "LLM_API_ERROR: target words missing after retries: "
+        f"{', '.join(missing)}"
     )
-    return sentence
 
 
 def generate_sentence(
@@ -247,7 +296,14 @@ def generate_sentence(
         estimated_vocab=estimated_vocab,
         is_premium=is_premium,
     )
-    return _generate_single(prompt, is_premium, tier_label, target_words)
+    system_prompt = get_system_prompt(is_premium, estimated_vocab)
+    return _generate_single(
+        system_prompt,
+        prompt,
+        is_premium,
+        tier_label,
+        target_words,
+    )
 
 
 async def _generate_batch_async(
@@ -270,16 +326,18 @@ async def _generate_batch_async(
             estimated_vocab=estimated_vocab,
             is_premium=is_premium,
         )
-        tasks.append(_generate_single_async(prompt, is_premium, tier_label, tw))
+        system_prompt = get_system_prompt(is_premium, estimated_vocab)
+        tasks.append(
+            _generate_single_async(system_prompt, prompt, is_premium, tier_label, tw)
+        )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     sentences: list[dict] = []
     for idx, r in enumerate(results):
         if isinstance(r, BaseException):
-            print(f"Batch generation failed for index {idx}: {r}")
-        else:
-            sentences.append(r)
+            raise RuntimeError(f"LLM_API_ERROR: batch generation failed: {r}") from r
+        sentences.append(r)
     return sentences
 
 

@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers/analytics_provider.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   static const routeName = 'onboarding';
@@ -21,32 +25,41 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Icons.auto_awesome,
       colorType: _ColorType.primary,
       title: 'AIがタイ語例文を毎日生成',
-      description: 'AIが毎日新しいタイ語例文を生成。\n発音（ローマ字）と日本語訳付きで\n無理なく学習できます。',
+      description: 'AIが毎日新しいタイ語例文を生成。\n単語ごとの発音・意味の解説や\n音声再生で無理なく学習できます。',
     ),
     _OnboardingPage(
-      icon: Icons.menu_book,
+      icon: Icons.edit_note,
       colorType: _ColorType.secondary,
-      title: '発音・単語を詳しく解説',
-      description: '単語ごとの発音・意味・文法的役割に加え\n声調ルールも解説。音声再生で\n正しい発音を確認できます。',
-    ),
-    _OnboardingPage(
-      icon: Icons.quiz,
-      colorType: _ColorType.tertiary,
-      title: 'クイズで定着',
-      description: '学んだ例文からクイズを出題。\n忘れかけた頃に復習できるので\n効率的に語彙が定着します。',
+      title: '毎日5例文+クイズで学習',
+      description: '1日5回まで例文を生成でき\nまとめクイズで定着を確認。\n毎日の学習サイクルで着実にレベルアップ。',
     ),
     _OnboardingPage(
       icon: Icons.trending_up,
-      colorType: _ColorType.primary,
-      title: 'レベルが自動で上がります',
-      description: '例文を読んでクイズに正解するほど\n語彙スコアが増え、例文・クイズの\n難易度も自動で上がっていきます。',
+      colorType: _ColorType.tertiary,
+      title: 'クイズで語彙スコアUP',
+      description: '間違えた単語は何度も出題されるので\n自然と覚えられます。\n語彙スコアに合わせて例文の難易度も変化。',
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(ref.read(analyticsServiceProvider).logOnboardingStart());
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _complete({required bool skipped}) {
+    unawaited(
+      ref
+          .read(analyticsServiceProvider)
+          .logOnboardingComplete(skipped: skipped),
+    );
+    widget.onComplete();
   }
 
   void _nextPage() {
@@ -56,7 +69,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      widget.onComplete();
+      _complete(skipped: false);
     }
   }
 
@@ -71,7 +84,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         actions: [
           if (!isLastPage)
             TextButton(
-              onPressed: widget.onComplete,
+              onPressed: () => _complete(skipped: true),
               child: const Text('スキップ'),
             ),
         ],

@@ -31,9 +31,15 @@ def updateUvm(req: https_fn.CallableRequest) -> dict:
     if not results:
         return {"success": True, "updated": 0}
 
+    quiz_type: str = data.get("quiz_type", "")
     freq_rank = get_freq_rank()
-    print(f"updateUvm: uid={uid}, results={results}")
-    batch_update_uvm(db, uid, results, freq_rank=freq_rank)  # type: ignore
+
+    user_doc = db.collection("users").document(uid).get()
+    user_data = user_doc.to_dict() or {} if user_doc.exists else {}
+    is_premium = user_data.get("tier") == "premium"
+
+    print(f"updateUvm: uid={uid}, quiz_type={quiz_type}, results={results}")
+    batch_update_uvm(db, uid, results, freq_rank=freq_rank, quiz_type=quiz_type, is_premium=is_premium)  # type: ignore
 
     try:
         correct_count = sum(1 for r in results if r.get("is_correct") is True)

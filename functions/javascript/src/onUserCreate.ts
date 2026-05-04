@@ -1,10 +1,10 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { INITIAL_SENTENCES, INITIAL_QUIZZES } from './constants/quota';
+import { FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES } from './constants/quota';
 
 /**
  * Firebase Auth の onCreate トリガー
- * 新規ユーザー作成時に初回ボーナスクォータを付与する
+ * 新規ユーザー作成時にクォータを付与する
  */
 export const onUserCreate = functions
   .region('asia-northeast1')
@@ -16,12 +16,10 @@ export const onUserCreate = functions
       .doc(user.uid)
       .set(
         {
-          remaining_sentences: INITIAL_SENTENCES,
-          remaining_quizzes: INITIAL_QUIZZES,
+          remaining_sentences: FREE_DAILY_SENTENCES,
+          remaining_quizzes: FREE_DAILY_QUIZZES,
           uvm_initialized: true,
           daily_sentence_generated: false,
-          is_first_generation: true,
-          is_first_quiz_generation: true,
         },
         { merge: true },
       );
