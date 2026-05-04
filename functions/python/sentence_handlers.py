@@ -1,4 +1,3 @@
-import random
 import threading
 import time
 from datetime import datetime, timezone
@@ -9,13 +8,11 @@ from google.cloud.firestore_v1.client import Client as FirestoreClient
 from google.cloud.firestore_v1 import transactional
 
 try:
-    from .constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
-    from .embeddings import find_best_topic
-    from .prompts import gate_topics_for_vocab, use_premium_prompt_for_vocab
+    from .constants import FREE_TIER_MAX_VOCAB
+    from .prompts import use_premium_prompt_for_vocab
     from .runtime import initialize_firebase_app
     from .sentence_service import (
         generate_sentence,
-        generate_sentences_batch,
         get_freq_rank,
         pick_free_sentence,
         require_target_words,
@@ -28,13 +25,11 @@ try:
         sync_estimated_vocab,
     )
 except ImportError:
-    from constants import FREE_TIER_MAX_VOCAB, FREE_TOPICS, TOPICS
-    from embeddings import find_best_topic
-    from prompts import gate_topics_for_vocab, use_premium_prompt_for_vocab
+    from constants import FREE_TIER_MAX_VOCAB
+    from prompts import use_premium_prompt_for_vocab
     from runtime import initialize_firebase_app
     from sentence_service import (
         generate_sentence,
-        generate_sentences_batch,
         get_freq_rank,
         pick_free_sentence,
         require_target_words,
