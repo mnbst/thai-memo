@@ -125,6 +125,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       }
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
+
+      if (mounted) {
+        _showFirstTimeGuideDialog();
+      }
     }
 
     if (!mounted) return;
@@ -142,6 +146,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // 履歴を更新
     ref.invalidate(allSentencesProvider);
+  }
+
+  void _showFirstTimeGuideDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.school, size: 40),
+        title: const Text('学習の流れ'),
+        content: const Text(
+          'まずは例文を3つ学習しましょう！\n'
+          '3つ完了するとまとめクイズに挑戦できます。\n\n'
+          '次回からは5例文ごとにまとめクイズが出題されます。',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -246,15 +271,21 @@ class LearningScreen extends ConsumerStatefulWidget {
 
 class _LearningScreenState extends ConsumerState<LearningScreen> {
   static const int _summaryQuizThreshold = 5;
+  static const int _firstTimeSummaryQuizThreshold = 3;
   static const String _completedCountKey = 'learning_completed_count';
   _LearningStage _stage = _LearningStage.sentence;
   ThaiSentence? _quizSentence;
   int _completedCount = 0;
+  bool _firstSummaryQuizCompleted = true;
+
+  int get _currentThreshold =>
+      _firstSummaryQuizCompleted ? _summaryQuizThreshold : _firstTimeSummaryQuizThreshold;
 
   @override
   void initState() {
     super.initState();
     _loadCompletedCount();
+    _loadFirstSummaryQuizFlag();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _restoreSavedSummaryQuizIfNeeded();
       ref.listenManual(sentenceControllerProvider, (prev, next) {
@@ -266,6 +297,21 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
         }
       });
     });
+  }
+
+  Future<void> _loadFirstSummaryQuizFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed =
+        prefs.getBool(AppConfig.prefKeyFirstSummaryQuizCompleted) ?? false;
+    if (mounted && completed != _firstSummaryQuizCompleted) {
+      setState(() => _firstSummaryQuizCompleted = completed);
+    }
+  }
+
+  Future<void> _markFirstSummaryQuizCompleted() async {
+    _firstSummaryQuizCompleted = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConfig.prefKeyFirstSummaryQuizCompleted, true);
   }
 
   Future<void> _restoreSavedSummaryQuizIfNeeded() async {
@@ -358,7 +404,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             learningSentence: _quizSentence,
             onBackToLearningStart: _returnToLearningTop,
             nextButtonLabel: '次の例文へ',
-            onOptionalChallenge: _completedCount + 1 >= _summaryQuizThreshold
+            onOptionalChallenge: _completedCount + 1 >= _currentThreshold
                 ? () async {
                     await _setCompletedCount(0);
                     ref.read(quizControllerProvider.notifier).reset();
@@ -384,6 +430,9 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             title: 'まとめクイズ',
             showVocabScoreTransition: true,
             onNextSentence: () async {
+              if (!_firstSummaryQuizCompleted) {
+                await _markFirstSummaryQuizCompleted();
+              }
               await _setCompletedCount(0);
               await _generateNextLearningSentence();
             },
@@ -813,6 +862,33 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             right: 0,
             child: _buildSentenceTierBadge(context, sentence),
           ),
+          if (sentence.id != null)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: GestureDetector(
+                onTap: () async {
+                  await ref
+                      .read(sentenceRepositoryProvider)
+                      .toggleFavorite(sentence.id!, !sentence.isFavorite);
+                  final updated =
+                      sentence.copyWith(isFavorite: !sentence.isFavorite);
+                  ref
+                      .read(sentenceControllerProvider.notifier)
+                      .showSentence(updated);
+                },
+                child: Icon(
+                  sentence.isFavorite ? Icons.favorite : Icons.favorite_border,
+                  size: 24,
+                  color: sentence.isFavorite
+                      ? Colors.red
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.4),
+                ),
+              ),
+            ),
         ],
       ),
     );

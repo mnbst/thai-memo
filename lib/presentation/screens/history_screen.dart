@@ -35,6 +35,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// 検索クエリ（小文字正規化済み）
   String _searchQuery = '';
 
+  /// お気に入りフィルタの状態
+  bool _showFavoritesOnly = false;
+
   /// 検索バーのテキストコントローラ
   final TextEditingController _searchController = TextEditingController();
 
@@ -50,6 +53,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       appBar: AppBar(
         title: const Text('履歴'),
         actions: [
+          IconButton(
+            icon: Icon(
+              _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
+              color: _showFavoritesOnly ? Colors.red : null,
+            ),
+            onPressed: () {
+              setState(() {
+                _showFavoritesOnly = !_showFavoritesOnly;
+              });
+            },
+            tooltip: 'お気に入りのみ表示',
+          ),
           // メニューボタン（全件削除）
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
@@ -135,16 +150,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     return sentencesAsync.when(
       data: (sentences) {
+        var filteredSentences = _showFavoritesOnly
+            ? sentences.where((s) => s.isFavorite).toList()
+            : sentences;
+
         // 検索クエリによるフィルタリング（タイ語・日本語・発音で絞り込み）
-        final filteredSentences = _searchQuery.isEmpty
-            ? sentences
-            : sentences.where((sentence) {
-                return sentence.thaiText.toLowerCase().contains(_searchQuery) ||
-                    sentence.japaneseTranslation.toLowerCase().contains(
-                          _searchQuery,
-                        ) ||
-                    sentence.pronunciation.toLowerCase().contains(_searchQuery);
-              }).toList();
+        if (_searchQuery.isNotEmpty) {
+          filteredSentences = filteredSentences.where((sentence) {
+            return sentence.thaiText.toLowerCase().contains(_searchQuery) ||
+                sentence.japaneseTranslation.toLowerCase().contains(
+                      _searchQuery,
+                    ) ||
+                sentence.pronunciation.toLowerCase().contains(_searchQuery);
+          }).toList();
+        }
 
         if (filteredSentences.isEmpty) {
           return _buildEmptyState();
@@ -180,7 +199,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.search_off_outlined,
+              _showFavoritesOnly
+                  ? Icons.favorite_border
+                  : Icons.search_off_outlined,
               size: 64,
               color: Theme.of(
                 context,
@@ -188,15 +209,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              _searchQuery.isNotEmpty ? '検索結果が見つかりませんでした' : 'まだ例文がありません',
+              _showFavoritesOnly
+                  ? 'お気に入りの例文がありません'
+                  : (_searchQuery.isNotEmpty
+                      ? '検索結果が見つかりませんでした'
+                      : 'まだ例文がありません'),
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
-              _searchQuery.isNotEmpty
-                  ? '別のキーワードで検索してみてください'
-                  : '新しい例文を生成してみましょう',
+              _showFavoritesOnly
+                  ? '例文のハートアイコンをタップしてお気に入りに追加できます'
+                  : (_searchQuery.isNotEmpty
+                      ? '別のキーワードで検索してみてください'
+                      : '新しい例文を生成してみましょう'),
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(
                       context,
@@ -410,6 +437,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 context,
                               ).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () async {
+                        await ref
+                            .read(sentenceRepositoryProvider)
+                            .toggleFavorite(
+                                sentence.id!, !sentence.isFavorite);
+                        ref.invalidate(allSentencesProvider);
+                      },
+                      child: Icon(
+                        sentence.isFavorite
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        size: 20,
+                        color: sentence.isFavorite
+                            ? Colors.red
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.4),
                       ),
                     ),
                   ],

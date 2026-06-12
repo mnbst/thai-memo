@@ -16,7 +16,7 @@ class AppConfig {
 
   /// Database configuration
   static const String databaseName = 'thai_memo.db';
-  static const int databaseVersion = 10;
+  static const int databaseVersion = 11;
 
   /// Background task configuration
   static const Duration backgroundTaskFrequency = Duration(hours: 24);
@@ -39,4 +39,6 @@ class AppConfig {
   static const String prefKeyThemeMode = 'theme_mode';
   static const String prefKeyPreferredGenerationTime =
       'preferred_generation_time';
+  static const String prefKeyFirstSummaryQuizCompleted =
+      'first_summary_quiz_completed';
 }

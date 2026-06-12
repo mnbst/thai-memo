@@ -52,6 +52,10 @@ class ThaiSentence {
   @JsonKey(name: 'target_words')
   final List<String>? targetWords;
 
+  /// お気に入りフラグ（ローカルDB専用）
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool isFavorite;
+
   bool get wasGeneratedWithPremiumSpec => generationTier == 'premium';
 
   ThaiSentence({
@@ -64,6 +68,7 @@ class ThaiSentence {
     this.createdAt,
     this.generationTier,
     this.targetWords,
+    this.isFavorite = false,
   });
 
   /// JSONからThaiSentenceを生成
@@ -96,6 +101,7 @@ class ThaiSentence {
           : null,
       generationTier: map['generation_tier'] as String?,
       targetWords: targetWords,
+      isFavorite: (map['is_favorite'] as int? ?? 0) == 1,
     );
   }
 
@@ -114,6 +120,7 @@ class ThaiSentence {
       if (createdAt != null) 'created_at': createdAt!.millisecondsSinceEpoch,
       'generation_tier': generationTier,
       'target_words': targetWords?.join(','),
+      'is_favorite': isFavorite ? 1 : 0,
     };
   }
 
@@ -128,6 +135,7 @@ class ThaiSentence {
     DateTime? createdAt,
     String? generationTier,
     List<String>? targetWords,
+    bool? isFavorite,
   }) {
     return ThaiSentence(
       id: id ?? this.id,
@@ -139,6 +147,7 @@ class ThaiSentence {
       createdAt: createdAt ?? this.createdAt,
       generationTier: generationTier ?? this.generationTier,
       targetWords: targetWords ?? this.targetWords,
+      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
 
