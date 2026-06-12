@@ -12,3 +12,6 @@ export const FREE_DAILY_QUIZZES = 5;
 /** premium ユーザーの日次リセット値（JST 0:00） */
 export const PREMIUM_DAILY_SENTENCES = 5;
 export const PREMIUM_DAILY_QUIZZES = 5;
+
+/** 新規ユーザーの初回ボーナス（初回まとめクイズ到達用の追加枠） */
+export const FIRST_TIME_BONUS_SENTENCES = 3;
