@@ -22,6 +22,7 @@ class DatabaseConstants {
   static const String columnCreatedAt = 'created_at';
   static const String columnGenerationTier = 'generation_tier';
   static const String columnTargetWords = 'target_words';
+  static const String columnIsFavorite = 'is_favorite';
   // ==================== Word Breakdowns Table ====================
   static const String columnWordId = 'id';
   static const String columnWordSentenceId = 'sentence_id';
@@ -88,6 +89,7 @@ class DatabaseConstants {
       $columnUsageScenarios TEXT,
       $columnGenerationTier TEXT,
       $columnTargetWords TEXT,
+      $columnIsFavorite INTEGER DEFAULT 0,
       $columnCreatedAt INTEGER NOT NULL
     )
   ''';

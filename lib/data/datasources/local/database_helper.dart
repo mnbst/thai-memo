@@ -165,6 +165,16 @@ class DatabaseHelper {
         'TEXT',
       );
     }
+
+    // Migrate from version 10 to 11: Add is_favorite column
+    if (oldVersion < 11) {
+      await _addColumnIfMissing(
+        db,
+        DatabaseConstants.tableSentences,
+        DatabaseConstants.columnIsFavorite,
+        'INTEGER DEFAULT 0',
+      );
+    }
   }
 
   // ==================== Sentences CRUD Operations ====================
@@ -200,6 +210,12 @@ class DatabaseHelper {
       DatabaseConstants.tableWordBreakdowns,
       DatabaseConstants.columnWordNotes,
       'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      DatabaseConstants.tableSentences,
+      DatabaseConstants.columnIsFavorite,
+      'INTEGER DEFAULT 0',
     );
   }
 
@@ -268,6 +284,17 @@ class DatabaseHelper {
       'SELECT COUNT(*) as count FROM ${DatabaseConstants.tableSentences}',
     );
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// Update favorite status for a sentence
+  Future<void> updateSentenceFavorite(String id, bool isFavorite) async {
+    final db = await database;
+    await db.update(
+      DatabaseConstants.tableSentences,
+      {DatabaseConstants.columnIsFavorite: isFavorite ? 1 : 0},
+      where: '${DatabaseConstants.columnSentenceId} = ?',
+      whereArgs: [id],
+    );
   }
 
   // ==================== Word Breakdowns CRUD Operations ====================
