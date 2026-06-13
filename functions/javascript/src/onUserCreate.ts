@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES, FIRST_TIME_BONUS_SENTENCES } from './constants/quota';
+import { FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES, FIRST_TIME_BONUS_SENTENCES, PREMIUM_TRIAL_SENTENCES } from './constants/quota';
 
 /**
  * Firebase Auth の onCreate トリガー
@@ -20,6 +20,7 @@ export const onUserCreate = functions
           remaining_quizzes: FREE_DAILY_QUIZZES,
           uvm_initialized: true,
           daily_sentence_generated: false,
+          premium_trial_remaining: PREMIUM_TRIAL_SENTENCES,
         },
         { merge: true },
       );

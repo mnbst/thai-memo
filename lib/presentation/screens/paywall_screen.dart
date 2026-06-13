@@ -358,7 +358,7 @@ class PaywallBottomSheet extends ConsumerWidget {
     Widget benefitRow({
       required IconData icon,
       required String title,
-      required String freeText,
+      String? freeText,
       required String premiumText,
     }) {
       return Row(
@@ -377,13 +377,15 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  freeText,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                ),
-                const SizedBox(height: 2),
+                if (freeText != null) ...[
+                  Text(
+                    freeText,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
                 Text(
                   '→ $premiumText',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -409,8 +411,7 @@ class PaywallBottomSheet extends ConsumerWidget {
           benefitRow(
             icon: Icons.auto_awesome,
             title: 'タイドラマ・恋愛・旅行など',
-            freeText: '好きなシーン・テーマで学べる',
-            premiumText: '全テーマ使い放題',
+            premiumText: '学びたいテーマを自由に選べる',
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -419,8 +420,7 @@ class PaywallBottomSheet extends ConsumerWidget {
           benefitRow(
             icon: Icons.school,
             title: '学べる単語数が無制限',
-            freeText: '100語を超えて、気になる表現をどんどん追加',
-            premiumText: '語彙を制限なく増やせる',
+            premiumText: '100語の上限を超えて、語彙を無制限に増やせる',
           ),
         ],
       ),
