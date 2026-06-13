@@ -1,4 +1,11 @@
-from sentence_handlers import _build_sentence_data, _effective_generation_params
+import pytest
+
+from sentence_handlers import (
+    _build_sentence_commit_update,
+    _build_sentence_data,
+    _effective_generation_params,
+    _resolve_trial_active,
+)
 
 
 def test_build_sentence_data_includes_key_word_pronunciation():
@@ -58,3 +65,96 @@ def test_effective_generation_params_keeps_topic_for_premium():
     params = {"topic": "タイBLドラマ", "style": "丁寧語"}
 
     assert _effective_generation_params(params, is_premium=True) == params
+
+
+def test_effective_generation_params_strips_premium_trial_flag():
+    params = {"topic": "タイBLドラマ", "premium_trial": "true"}
+
+    # トライアルは effective_premium=True で呼ばれ、topic は維持しフラグは除去する
+    effective = _effective_generation_params(params, is_premium=True)
+
+    assert effective == {"topic": "タイBLドラマ"}
+
+
+# ---- premium ロジック切り替え判定（_resolve_trial_active）----
+
+
+@pytest.mark.parametrize(
+    "is_premium, trial_requested, trial_remaining, expected",
+    [
+        # free＋要求＋残あり → 切り替え
+        (False, True, 5, True),
+        (False, True, 1, True),
+        # 残回数を使い切ったら free のまま
+        (False, True, 0, False),
+        # 要求が無ければ消費しない（自動生成等）
+        (False, False, 5, False),
+        # premium は tier 側で premium 扱い、トライアルは消費しない
+        (True, True, 5, False),
+    ],
+)
+def test_resolve_trial_active(
+    is_premium, trial_requested, trial_remaining, expected
+):
+    assert (
+        _resolve_trial_active(
+            is_premium=is_premium,
+            trial_requested=trial_requested,
+            trial_remaining=trial_remaining,
+        )
+        is expected
+    )
+
+
+# ---- 通常クォータとトライアル枠の独立消費（_build_sentence_commit_update）----
+
+
+def test_commit_update_consumes_normal_quota_without_trial():
+    # トライアル非対象（trial_decrement=0）: 通常クォータのみ消費し trial 枠は触らない
+    update = _build_sentence_commit_update(
+        {"remaining_sentences": 5, "premium_trial_remaining": 5},
+        decrement_count=1,
+        trial_decrement=0,
+    )
+
+    assert update["remaining_sentences"].value == -1
+    assert update["sentence_generated_count"].value == 1
+    assert "premium_trial_remaining" not in update
+
+
+def test_commit_update_consumes_trial_and_normal_independently():
+    # トライアル対象: 通常クォータとトライアル枠を別々に1ずつ消費
+    update = _build_sentence_commit_update(
+        {"remaining_sentences": 5, "premium_trial_remaining": 5},
+        decrement_count=1,
+        trial_decrement=1,
+    )
+
+    assert update["remaining_sentences"].value == -1
+    assert update["premium_trial_remaining"].value == -1
+
+
+def test_commit_update_does_not_decrement_trial_below_zero():
+    # 残回数0のトライアル枠は減算しない（通常クォータは通常どおり消費）
+    update = _build_sentence_commit_update(
+        {"remaining_sentences": 5, "premium_trial_remaining": 0},
+        decrement_count=1,
+        trial_decrement=1,
+    )
+
+    assert update["remaining_sentences"].value == -1
+    assert "premium_trial_remaining" not in update
+
+
+def test_commit_update_sets_first_generated_at_only_once():
+    first = _build_sentence_commit_update(
+        {"remaining_sentences": 5}, decrement_count=1, trial_decrement=0
+    )
+    assert "first_generated_at" in first
+
+    again = _build_sentence_commit_update(
+        {"remaining_sentences": 5, "first_generated_at": "2026-01-01"},
+        decrement_count=1,
+        trial_decrement=0,
+    )
+    assert "first_generated_at" not in again

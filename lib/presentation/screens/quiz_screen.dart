@@ -16,6 +16,7 @@ import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
+import '../widgets/topic_picker.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
 
@@ -35,6 +36,10 @@ class QuizScreen extends ConsumerStatefulWidget {
   final String optionalChallengeLabel;
   final bool showVocabScoreTransition;
 
+  /// true の場合、「次の例文へ」ボタンを非活性化する。
+  /// 初回まとめクイズへ誘導するため、スキップして次の例文を生成する動線を塞ぐ。
+  final bool disableNextSentence;
+
   const QuizScreen({
     super.key,
     this.showAppBar = true,
@@ -46,6 +51,7 @@ class QuizScreen extends ConsumerStatefulWidget {
     this.nextButtonLabel = '次の例文へ',
     this.optionalChallengeLabel = '5問チャレンジする',
     this.showVocabScoreTransition = false,
+    this.disableNextSentence = false,
   });
 
   @override
@@ -292,18 +298,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     ),
               ),
             ],
-            const SizedBox(height: 24),
-            if (isQuotaError) ...[
-              if (!ref.watch(isPremiumProvider))
-                FilledButton.icon(
-                  onPressed: () => PaywallBottomSheet.show(
-                    context,
-                    source: 'quiz_quota_error',
-                  ),
-                  icon: const Icon(Icons.star),
-                  label: const Text('プレミアムにアップグレード'),
-                ),
-            ] else ...[
+            // 上限到達時はアップグレード促しを表示しない
+            // （premium もクイズ上限は同じ 5 回/日のため訴求が噛み合わない）
+            if (!isQuotaError) ...[
+              const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () {
                   final sentence = widget.learningSentence;
@@ -462,6 +460,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             }),
           ],
           const SizedBox(height: 16),
+          // 次の例文のテーマ表示／変更（課金導線）。
+          if (widget.onNextSentence != null) ...[
+            const NextSentenceTopicLabel(paywallSource: 'quiz_next_topic'),
+            const SizedBox(height: 8),
+          ],
           if (widget.onBackToLearningStart != null) ...[
             Row(
               children: [
@@ -479,12 +482,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 Expanded(
                   child: widget.onOptionalChallenge != null
                       ? OutlinedButton.icon(
-                          onPressed: () async {
-                            if (widget.onNextSentence != null) {
-                              unawaited(_clearVocabBeforeQuiz());
-                              await widget.onNextSentence!();
-                            }
-                          },
+                          onPressed: widget.disableNextSentence
+                              ? null
+                              : () async {
+                                  if (widget.onNextSentence != null) {
+                                    unawaited(_clearVocabBeforeQuiz());
+                                    await widget.onNextSentence!();
+                                  }
+                                },
                           icon: const Icon(Icons.arrow_forward, size: 18),
                           label: Text(widget.nextButtonLabel),
                           style: OutlinedButton.styleFrom(
@@ -493,12 +498,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           ),
                         )
                       : FilledButton.icon(
-                          onPressed: () async {
-                            if (widget.onNextSentence != null) {
-                              unawaited(_clearVocabBeforeQuiz());
-                              await widget.onNextSentence!();
-                            }
-                          },
+                          onPressed: widget.disableNextSentence
+                              ? null
+                              : () async {
+                                  if (widget.onNextSentence != null) {
+                                    unawaited(_clearVocabBeforeQuiz());
+                                    await widget.onNextSentence!();
+                                  }
+                                },
                           icon: const Icon(Icons.arrow_forward),
                           label: Text(widget.nextButtonLabel),
                           style: FilledButton.styleFrom(

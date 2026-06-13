@@ -140,6 +140,9 @@ API呼び出し中のヒントカルーセル。
 lib/presentation/widgets/level_up_dialog.dart
 語彙レベルアップ時のお祝いアニメーションダイアログ。
 
+lib/presentation/widgets/topic_picker.dart
+例文テーマ選択ダイアログ（設定・例文画面で共用）とラベル整形ヘルパー。
+
 lib/presentation/tone_explanation_dialog.dart
 タイ語声調の解説ダイアログ。
 

@@ -84,14 +84,19 @@ class SentenceController extends StateNotifier<SentenceState> {
   ) : super(const SentenceStateInitial());
 
   /// Generate a new sentence
+  ///
+  /// [premiumTrial] が true の場合、free ユーザーでもテーマを維持し、
+  /// サーバーへ premium_trial フラグを送って premium ロジックで生成する。
   Future<void> generateSentence({
     Map<String, String?> generationParams = const {},
+    bool premiumTrial = false,
   }) async {
     state = const SentenceStateLoading();
 
     try {
       final sentence = await _generateUseCase.execute(
-        generationParams: _effectiveGenerationParams(generationParams),
+        generationParams:
+            _effectiveGenerationParams(generationParams, premiumTrial),
       );
       state = SentenceStateSuccess(sentence, generated: true);
       _logGenerateSentence(count: 1, source: 'manual_single');
@@ -105,7 +110,14 @@ class SentenceController extends StateNotifier<SentenceState> {
   // サーバー側 (_effective_generation_params) でも同じフィルタあり
   Map<String, String?> _effectiveGenerationParams(
     Map<String, String?> generationParams,
+    bool premiumTrial,
   ) {
+    // トライアル中は premium 相当の扱い（テーマ維持＋フラグ送信）
+    if (premiumTrial) {
+      final trialParams = Map<String, String?>.from(generationParams);
+      trialParams['premium_trial'] = 'true';
+      return trialParams;
+    }
     if (_currentTier() == 'premium') {
       return generationParams;
     }

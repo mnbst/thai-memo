@@ -13,5 +13,8 @@ export const FREE_DAILY_QUIZZES = 5;
 export const PREMIUM_DAILY_SENTENCES = 5;
 export const PREMIUM_DAILY_QUIZZES = 5;
 
-/** 新規ユーザーの初回ボーナス（初回まとめクイズ到達用の追加枠） */
-export const FIRST_TIME_BONUS_SENTENCES = 3;
+/** 新規ユーザーの初回ボーナス（初回まとめクイズ用の1文分。以降は通常の5文/日） */
+export const FIRST_TIME_BONUS_SENTENCES = 1;
+
+/** 新規ユーザーへのプレミアム体験トライアル回数（初回まとめクイズ後の最初の1サイクル分） */
+export const PREMIUM_TRIAL_SENTENCES = 5;

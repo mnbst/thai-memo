@@ -18,7 +18,6 @@ import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'detail_screen.dart';
-import 'paywall_screen.dart';
 import 'history_screen.dart';
 import 'onboarding_screen.dart';
 import 'quiz_screen.dart';
@@ -155,8 +154,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         icon: const Icon(Icons.school, size: 40),
         title: const Text('学習の流れ'),
         content: const Text(
-          'まずは例文を3つ学習しましょう！\n'
-          '3つ完了するとまとめクイズに挑戦できます。\n\n'
+          'まずは最初の例文を学習しましょう！\n'
+          '学習するとすぐにまとめクイズに挑戦できます。\n\n'
           '次回からは5例文ごとにまとめクイズが出題されます。',
         ),
         actions: [
@@ -271,7 +270,7 @@ class LearningScreen extends ConsumerStatefulWidget {
 
 class _LearningScreenState extends ConsumerState<LearningScreen> {
   static const int _summaryQuizThreshold = 5;
-  static const int _firstTimeSummaryQuizThreshold = 3;
+  static const int _firstTimeSummaryQuizThreshold = 1;
   static const String _completedCountKey = 'learning_completed_count';
   _LearningStage _stage = _LearningStage.sentence;
   ThaiSentence? _quizSentence;
@@ -352,12 +351,38 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     _setStage(_LearningStage.sentence);
   }
 
-  Future<void> _generateNextLearningSentence() async {
+  /// 次の例文へ進む。テーマは例文画面のチップ／設定で保持した値をそのまま使う。
+  Future<void> _proceedToNextSentence() async {
+    final isPremium = ref.read(isPremiumProvider);
+    final trialRemaining =
+        ref.read(premiumTrialRemainingProvider).valueOrNull ?? 0;
+    final trialActive = !isPremium && trialRemaining > 0;
+
+    if (trialActive) {
+      await _generateNextLearningSentence(premiumTrial: true);
+      if (!mounted) return;
+      // 今回がトライアル最終回なら、設定のテーマを「おまかせ」に戻す。
+      // 以降はフリーに戻り、テーマ選択（プレミアム機能）が使えないため。
+      if (trialRemaining <= 1) {
+        await ref
+            .read(settingsControllerProvider.notifier)
+            .setGenerationParam('topic', null);
+      }
+    } else {
+      await _generateNextLearningSentence();
+    }
+  }
+
+  Future<void> _generateNextLearningSentence({
+    bool premiumTrial = false,
+  }) async {
     _setStage(_LearningStage.sentence);
+    // トライアル中は設定に保持したテーマ（generationParams）をそのまま使う。
     final genParams = ref.read(generationParamsProvider);
-    await ref
-        .read(sentenceControllerProvider.notifier)
-        .generateSentence(generationParams: genParams);
+    await ref.read(sentenceControllerProvider.notifier).generateSentence(
+          generationParams: genParams,
+          premiumTrial: premiumTrial,
+        );
     final sentenceState = ref.read(sentenceControllerProvider);
     if (sentenceState is SentenceStateSuccess) {
       ref
@@ -404,6 +429,10 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             learningSentence: _quizSentence,
             onBackToLearningStart: _returnToLearningTop,
             nextButtonLabel: '次の例文へ',
+            // 初回まとめクイズ未完了時は、まとめクイズへ誘導するため
+            // 「次の例文へ」での離脱を不可にする。
+            disableNextSentence: !_firstSummaryQuizCompleted &&
+                _completedCount + 1 >= _currentThreshold,
             onOptionalChallenge: _completedCount + 1 >= _currentThreshold
                 ? () async {
                     await _setCompletedCount(0);
@@ -416,7 +445,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
                 : null,
             onNextSentence: () async {
               await _setCompletedCount(_completedCount + 1);
-              await _generateNextLearningSentence();
+              await _proceedToNextSentence();
             },
           ),
         ),
@@ -434,7 +463,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
                 await _markFirstSummaryQuizCompleted();
               }
               await _setCompletedCount(0);
-              await _generateNextLearningSentence();
+              await _proceedToNextSentence();
             },
           ),
         ),
@@ -1024,18 +1053,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 textAlign: TextAlign.center,
               ),
             ],
-            const SizedBox(height: 24),
-            if (isQuotaError) ...[
-              if (!ref.watch(isPremiumProvider))
-                FilledButton.icon(
-                  onPressed: () => PaywallBottomSheet.show(
-                    context,
-                    source: 'sentence_quota_error',
-                  ),
-                  icon: const Icon(Icons.star),
-                  label: const Text('プレミアムにアップグレード'),
-                ),
-            ] else ...[
+            // 例文の上限到達時はアップグレード促しを表示しない
+            // （premium も生成上限は同じ 5 回/日のため訴求が噛み合わない）
+            if (!isQuotaError) ...[
+              const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () {
                   final genParams = ref.read(generationParamsProvider);

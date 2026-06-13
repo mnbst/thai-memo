@@ -95,41 +95,35 @@ if free_vocabs:
     print(f"  free:    avg={avg_f:.0f}, median={med_f}, n={len(free_vocabs)}")
 
 # -------------------------
-# アクティブユーザー（例文数で判断）
+# アクティビティ（ユーザーDocの権威フィールドで判断）
+# 例文はローカルSQLiteに保存されるため、Firestoreのsentencesサブコレクションは
+# 真実のソースではない。CFが加算する sentence_generated_count で判定する。
 # -------------------------
-print("\n=== Activity (sampling up to 200 users) ===")
-sample = user_docs[:200]
+print("\n=== Activity (all users) ===")
 active_7d = 0
 active_30d = 0
 never_generated = 0
 sentence_count_list = []
 
-for user_doc in sample:
-    uid = user_doc.id
-    sentences = list(db.collection('users').document(uid).collection('sentences')
-                     .order_by('created_at', direction=firestore.Query.DESCENDING)
-                     .limit(1).stream())
-    if not sentences:
+for user_doc in user_docs:
+    d = user_doc.to_dict() or {}
+    gen_count = d.get('sentence_generated_count', 0) or 0
+    sentence_count_list.append(gen_count)
+    if gen_count == 0:
         never_generated += 1
-        sentence_count_list.append(0)
         continue
 
-    last = sentences[0].to_dict()
-    created = last.get('created_at')
-    if created:
-        created_dt = created.replace(tzinfo=timezone.utc).astimezone(JST)
-        diff = (NOW - created_dt).days
+    last = d.get('last_sentence_generated_at') or d.get('last_active_at')
+    if last:
+        last_dt = last.replace(tzinfo=timezone.utc).astimezone(JST)
+        diff = (NOW - last_dt).days
         if diff <= 7:
             active_7d += 1
         if diff <= 30:
             active_30d += 1
 
-    # 例文総数
-    total_s = len(list(db.collection('users').document(uid).collection('sentences').stream()))
-    sentence_count_list.append(total_s)
-
-n = len(sample)
-print(f"  Sample size: {n}")
+n = len(user_docs)
+print(f"  Total users: {n}")
 print(f"  Never generated: {never_generated} ({never_generated/n*100:.1f}%)")
 print(f"  Active 7d:  {active_7d} ({active_7d/n*100:.1f}%)")
 print(f"  Active 30d: {active_30d} ({active_30d/n*100:.1f}%)")

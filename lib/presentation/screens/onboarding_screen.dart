@@ -31,7 +31,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Icons.edit_note,
       colorType: _ColorType.secondary,
       title: '例文+クイズで学習',
-      description: 'まずは3例文でまとめクイズに挑戦！\n慣れたら5例文ごとにクイズが出題されます。\n毎日の学習サイクルで着実にレベルアップ。',
+      description: '最初の例文でさっそくまとめクイズに挑戦！\n慣れたら5例文ごとにクイズが出題されます。\n毎日の学習サイクルで着実にレベルアップ。',
     ),
     _OnboardingPage(
       icon: Icons.trending_up,
