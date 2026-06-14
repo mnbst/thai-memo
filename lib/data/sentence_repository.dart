@@ -168,6 +168,15 @@ class SentenceRepository {
     }
   }
 
+  /// Toggle favorite status
+  Future<void> toggleFavorite(String id, bool isFavorite) async {
+    try {
+      await _databaseHelper.updateSentenceFavorite(id, isFavorite);
+    } catch (e) {
+      throw RepositoryException('Failed to toggle favorite: $e');
+    }
+  }
+
   /// Delete all sentences
   Future<void> deleteAllSentences() async {
     try {

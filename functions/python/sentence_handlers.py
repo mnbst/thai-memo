@@ -75,9 +75,24 @@ def _select_target_words_with_topic(
     )
 
 
+def _resolve_trial_active(
+    *,
+    is_premium: bool,
+    trial_requested: bool,
+    trial_remaining: int,
+) -> bool:
+    """この生成を premium ロジックに切り替えるか判定する。
+
+    free ユーザーがトライアル枠を要求し、残回数がある場合のみ True。
+    premium ユーザーは tier 側で premium 扱いになるためトライアルは消費しない。
+    """
+    return (not is_premium) and trial_requested and trial_remaining > 0
+
+
 def _effective_generation_params(params: dict, *, is_premium: bool) -> dict:
     """Free users always use automatic topic selection."""
     effective = dict(params)
+    effective.pop("premium_trial", None)
     if not is_premium:
         effective.pop("topic", None)
     return effective
@@ -152,12 +167,47 @@ def _build_sentence_data(
     }
 
 
+def _build_sentence_commit_update(
+    user_data: dict,
+    decrement_count: int,
+    trial_decrement: int,
+) -> dict:
+    """例文コミット時の users ドキュメント更新内容を組み立てる。
+
+    通常クォータ（remaining_sentences）は常に decrement_count 消費し、
+    プレミアム体験トライアル（premium_trial_remaining）はそれとは独立に
+    残回数を 0 未満にしない範囲でのみ消費する。
+    """
+    # トライアル残回数は0未満にしない（通常クォータ消費とは独立）
+    trial_remaining = user_data.get("premium_trial_remaining", 0)
+    trial_decrement = min(trial_decrement, trial_remaining)
+
+    return {
+        "remaining_sentences": firestore.firestore.Increment(-decrement_count),
+        "daily_sentence_generated": True,
+        "last_active_at": firestore.firestore.SERVER_TIMESTAMP,
+        "last_sentence_generated_at": firestore.firestore.SERVER_TIMESTAMP,
+        "sentence_generated_count": firestore.firestore.Increment(decrement_count),
+        **(
+            {"premium_trial_remaining": firestore.firestore.Increment(-trial_decrement)}
+            if trial_decrement > 0
+            else {}
+        ),
+        **(
+            {"first_generated_at": firestore.firestore.SERVER_TIMESTAMP}
+            if "first_generated_at" not in user_data
+            else {}
+        ),
+    }
+
+
 @transactional
 def _commit_sentences_transaction(
     transaction,
     user_ref,
     sentence_writes: list[tuple],
     decrement_count: int,
+    trial_decrement: int = 0,
 ) -> None:
     user_snapshot = user_ref.get(transaction=transaction)
     user_data = (user_snapshot.to_dict() or {}) if user_snapshot.exists else {}
@@ -170,18 +220,7 @@ def _commit_sentences_transaction(
 
     transaction.update(
         user_ref,
-        {
-            "remaining_sentences": firestore.firestore.Increment(-decrement_count),
-            "daily_sentence_generated": True,
-            "last_active_at": firestore.firestore.SERVER_TIMESTAMP,
-            "last_sentence_generated_at": firestore.firestore.SERVER_TIMESTAMP,
-            "sentence_generated_count": firestore.firestore.Increment(decrement_count),
-            **(
-                {"first_generated_at": firestore.firestore.SERVER_TIMESTAMP}
-                if "first_generated_at" not in user_data
-                else {}
-            ),
-        },
+        _build_sentence_commit_update(user_data, decrement_count, trial_decrement),
     )
 
 
@@ -220,7 +259,19 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         tier = user_data.get("tier", "free")
         is_premium = tier == "premium"
 
-        use_premium_spec = is_premium
+        # プレミアム体験トライアル: free ユーザーがトライアル枠を要求し、残回数があれば
+        # この生成だけ premium ロジック（テーマ選択・premiumプロンプト）で出す。
+        trial_remaining = user_data.get("premium_trial_remaining", 0)
+        trial_requested = bool((req.data or {}).get("premium_trial"))
+        trial_active = _resolve_trial_active(
+            is_premium=is_premium,
+            trial_requested=trial_requested,
+            trial_remaining=trial_remaining,
+        )
+
+        # 生成スペック・テーマ採用は tier または トライアルで premium 相当とする
+        effective_premium = is_premium or trial_active
+        use_premium_spec = effective_premium
 
         remaining = user_data.get("remaining_sentences", 0)
         if remaining <= 0:
@@ -232,7 +283,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
 
         params = _effective_generation_params(
             req.data or {},
-            is_premium=is_premium,
+            is_premium=effective_premium,
         )
         estimated_vocab = _get_capped_estimated_vocab(user_data, use_premium_spec)
         use_premium_prompt = use_premium_prompt_for_vocab(
@@ -303,6 +354,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
                 user_ref,
                 [(sentence_ref, sentence_data)],
                 1,
+                trial_decrement=1 if trial_active else 0,
             )
         except Exception as exc:
             print(f"Failed to save sentence to Firestore: {exc}")
@@ -313,7 +365,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         sentence["target_words"] = target_words
         response["data"] = sentence
 
-        if not is_premium:
+        if not use_premium_spec:
             elapsed = time.time() - start_time
             if elapsed < 7:
                 time.sleep(7 - elapsed)

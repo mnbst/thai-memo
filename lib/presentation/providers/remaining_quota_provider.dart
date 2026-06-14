@@ -40,6 +40,13 @@ final remainingQuizzesProvider = Provider<AsyncValue<int>>((ref) {
       .whenData((data) => (data?['remaining_quizzes'] as num?)?.toInt() ?? 0);
 });
 
+/// users/{uid}.premium_trial_remaining — プレミアム体験トライアルの残回数
+/// 新規ユーザーは初回まとめクイズ後の最初の1サイクル分（5回）テーマ選択＋premium生成を体験できる。
+final premiumTrialRemainingProvider = Provider<AsyncValue<int>>((ref) {
+  return ref.watch(userDocProvider).whenData(
+      (data) => (data?['premium_trial_remaining'] as num?)?.toInt() ?? 0);
+});
+
 /// users/{uid}.tier — Firestoreストリームからリアルタイムにプレミアム判定
 final isPremiumRealtimeProvider = Provider<AsyncValue<bool>>((ref) {
   return ref

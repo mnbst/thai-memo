@@ -40,7 +40,7 @@ jest.mock('@google-cloud/secret-manager', () => ({
 // ============================================================
 import * as crypto from 'crypto';
 import { CompactSign, importPKCS8 } from 'jose';
-import { parseNotificationPayload, verifyAppStorePurchase } from '../services/appStoreServer';
+import { parseNotificationPayload, verifyAppStorePurchase, setAppleRootCaFingerprintForTest, getAppleRootCaFingerprint } from '../services/appStoreServer';
 
 // ──────────────────────────────────────────────────────────
 // テスト用証明書データ（事前生成済み）
@@ -181,9 +181,25 @@ function makeFakeInnerJws(payload: Record<string, unknown>): string {
 /**
  * signedTransactionInfo JWS 内でデコードされる Apple トランザクション情報
  * Apple API レスポンスの signedTransactionInfo ペイロードに対応
+ *
+ * parseNotificationPayload のテストでは外側JWSの署名検証のみが目的のため fakesignature を使用。
+ * verifyAppStorePurchase のテストでは signedTransactionInfo 自体の署名検証も行われるため
+ * createValidJws で正規のJWSを生成する。
  */
 function makeSignedTransactionInfo(overrides: Record<string, unknown> = {}): string {
   return makeFakeInnerJws({
+    originalTransactionId: 'orig_tx_123',
+    transactionId: 'tx_123',
+    productId: 'com.thaimemo.monthly',
+    expiresDate: Date.now() + 86_400_000,
+    type: 'Auto-Renewable Subscription',
+    environment: 'Sandbox',
+    ...overrides,
+  });
+}
+
+async function makeValidSignedTransactionInfo(overrides: Record<string, unknown> = {}): Promise<string> {
+  return createValidJws({
     originalTransactionId: 'orig_tx_123',
     transactionId: 'tx_123',
     productId: 'com.thaimemo.monthly',
@@ -225,7 +241,22 @@ function setupSecretManagerMock() {
 // テストスイート
 // ──────────────────────────────────────────────────────────
 
+// テスト用ルート証明書のSHA-256フィンガープリント
+const TEST_ROOT_FINGERPRINT =
+  '5E:3F:E2:90:32:88:B9:9B:50:3C:8D:BB:CE:A6:5A:4F:74:99:20:C9:C0:0B:52:BA:4C:3F:50:6F:B3:EB:B0:67';
+
 describe('parseNotificationPayload（署名検証含む）', () => {
+  let originalFingerprint: string;
+
+  beforeAll(() => {
+    originalFingerprint = getAppleRootCaFingerprint();
+    setAppleRootCaFingerprintForTest(TEST_ROOT_FINGERPRINT);
+  });
+
+  afterAll(() => {
+    setAppleRootCaFingerprintForTest(originalFingerprint);
+  });
+
   // ────────────────────────────────────────────────
   // 署名検証エラーケース
   // ────────────────────────────────────────────────
@@ -359,18 +390,25 @@ describe('parseNotificationPayload（署名検証含む）', () => {
 // verifyAppStorePurchase テスト
 // ──────────────────────────────────────────────────────────
 describe('verifyAppStorePurchase', () => {
+  let originalFingerprint: string;
+
+  beforeAll(() => {
+    originalFingerprint = getAppleRootCaFingerprint();
+    setAppleRootCaFingerprintForTest(TEST_ROOT_FINGERPRINT);
+  });
+
+  afterAll(() => {
+    setAppleRootCaFingerprintForTest(originalFingerprint);
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
-    // Secret Manager のデフォルトモック設定（JWT 生成に必要）
     setupSecretManagerMock();
-    // fetch のモック（global.fetch を Jest でモック化）
     global.fetch = jest.fn();
-    // デフォルトの環境: sandbox
     delete process.env.APP_STORE_ENVIRONMENT;
   });
 
   afterEach(() => {
-    // fetch モックをリセット
     delete (global as Record<string, unknown>).fetch;
   });
 
@@ -379,11 +417,11 @@ describe('verifyAppStorePurchase', () => {
   // ──────────────────────────────────────────────
   describe('transactionId 処理', () => {
     test('数値文字列の transactionId はそのままリクエスト URL に使用される', async () => {
-      // StoreKit 1 の旧形式または数値 ID の場合
       const numericId = '2000001147800705';
+      const signedTxInfo = await makeValidSignedTransactionInfo({ transactionId: numericId });
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ signedTransactionInfo: makeSignedTransactionInfo({ transactionId: numericId }) }),
+        json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
       });
 
       await verifyAppStorePurchase(numericId);
@@ -393,23 +431,21 @@ describe('verifyAppStorePurchase', () => {
     });
 
     test('JWS 形式の transactionId から内部 transactionId を抽出してリクエストする', async () => {
-      // StoreKit 2 では purchase_token が JWS 形式で届く
-      // JWS のペイロードから transactionId を取り出して API コールする
       const innerTransactionId = '1234567890';
       const innerPayload = { transactionId: innerTransactionId };
       const header = Buffer.from(JSON.stringify({ alg: 'ES256' })).toString('base64url');
       const body = Buffer.from(JSON.stringify(innerPayload)).toString('base64url');
       const jwsToken = `${header}.${body}.fakesig`;
 
+      const signedTxInfo = await makeValidSignedTransactionInfo({ transactionId: innerTransactionId });
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ signedTransactionInfo: makeSignedTransactionInfo({ transactionId: innerTransactionId }) }),
+        json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
       });
 
       await verifyAppStorePurchase(jwsToken);
 
       const calledUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
-      // JWS から抽出した transactionId でリクエストしていること
       expect(calledUrl).toContain(`/inApps/v1/transactions/${innerTransactionId}`);
     });
   });
@@ -419,9 +455,10 @@ describe('verifyAppStorePurchase', () => {
   // ──────────────────────────────────────────────
   describe('エンドポイント切替', () => {
     test('APP_STORE_ENVIRONMENT 未設定の場合はサンドボックスエンドポイントを使用する', async () => {
+      const signedTxInfo = await makeValidSignedTransactionInfo();
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ signedTransactionInfo: makeSignedTransactionInfo() }),
+        json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
       });
 
       await verifyAppStorePurchase('tx_123');
@@ -432,9 +469,10 @@ describe('verifyAppStorePurchase', () => {
 
     test('APP_STORE_ENVIRONMENT=production の場合は本番エンドポイントを使用する', async () => {
       process.env.APP_STORE_ENVIRONMENT = 'production';
+      const signedTxInfo = await makeValidSignedTransactionInfo();
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ signedTransactionInfo: makeSignedTransactionInfo() }),
+        json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
       });
 
       await verifyAppStorePurchase('tx_123');
@@ -481,15 +519,11 @@ describe('verifyAppStorePurchase', () => {
   // ──────────────────────────────────────────────
   describe('サブスクリプションステータス判定', () => {
     test('期限内のサブスクリプション → status=active / valid=true を返す', async () => {
-      const futureExpiry = Date.now() + 86_400_000; // 24時間後
+      const futureExpiry = Date.now() + 86_400_000;
+      const signedTxInfo = await makeValidSignedTransactionInfo({ expiresDate: futureExpiry });
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          signedTransactionInfo: makeSignedTransactionInfo({
-            expiresDate: futureExpiry,
-            // revocationDate: なし（有効）
-          }),
-        }),
+        json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
       });
 
       const result = await verifyAppStorePurchase('tx_123');
@@ -500,13 +534,11 @@ describe('verifyAppStorePurchase', () => {
     });
 
     test('expiresDate が過去の場合 → status=expired を返す', async () => {
-      // 更新失敗や猶予期間終了後に期限切れになったサブスクリプション
-      const pastExpiry = Date.now() - 86_400_000; // 24時間前
+      const pastExpiry = Date.now() - 86_400_000;
+      const signedTxInfo = await makeValidSignedTransactionInfo({ expiresDate: pastExpiry });
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          signedTransactionInfo: makeSignedTransactionInfo({ expiresDate: pastExpiry }),
-        }),
+        json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
       });
 
       const result = await verifyAppStorePurchase('tx_123');
@@ -515,14 +547,10 @@ describe('verifyAppStorePurchase', () => {
     });
 
     test('revocationDate が存在する場合 → status=expired / valid=false を返す', async () => {
-      // 返金・取消により revocationDate が設定されているトランザクション
+      const signedTxInfo = await makeValidSignedTransactionInfo({ revocationDate: Date.now() - 3600_000 });
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          signedTransactionInfo: makeSignedTransactionInfo({
-            revocationDate: Date.now() - 3600_000, // 1時間前に取消
-          }),
-        }),
+        json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
       });
 
       const result = await verifyAppStorePurchase('tx_123');
@@ -532,12 +560,10 @@ describe('verifyAppStorePurchase', () => {
     });
 
     test('expiresDate なしのトランザクション → expiresAt=null / status=active を返す', async () => {
-      // 消費型アプリ内課金など有効期限がないケース
+      const signedTxInfo = await makeValidSignedTransactionInfo({ expiresDate: undefined });
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          signedTransactionInfo: makeSignedTransactionInfo({ expiresDate: undefined }),
-        }),
+        json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
       });
 
       const result = await verifyAppStorePurchase('tx_123');
@@ -547,11 +573,10 @@ describe('verifyAppStorePurchase', () => {
     });
 
     test('リクエストヘッダーに Authorization: Bearer <JWT> が設定される', async () => {
+      const signedTxInfo = await makeValidSignedTransactionInfo();
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          signedTransactionInfo: makeSignedTransactionInfo(),
-        }),
+        json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
       });
 
       await verifyAppStorePurchase('tx_123');

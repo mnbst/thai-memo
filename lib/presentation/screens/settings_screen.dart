@@ -7,14 +7,15 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 
 import '../../core/config/app_config.dart';
-import '../../core/constants/generation_constants.dart';
 import '../../data/datasources/backend_api_service.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../providers/auth_provider.dart';
+import '../providers/remaining_quota_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
+import '../widgets/topic_picker.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'contact_form_screen.dart';
 import 'paywall_screen.dart';
@@ -416,18 +417,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildTopicSelectTile() {
     final isPremium = ref.watch(isPremiumProvider);
+    final trialRemaining =
+        ref.watch(premiumTrialRemainingProvider).valueOrNull ?? 0;
+    // Premium またはトライアル中はテーマ選択可。例文/クイズ画面のチップと判定を揃える。
+    final canSelect = isPremium || trialRemaining > 0;
     final currentTopic = ref.watch(generationParamsProvider)['topic'];
 
-    String displayLabel;
-    if (!isPremium) {
-      displayLabel = 'おまかせ';
-    } else if (currentTopic != null) {
-      final parenIdx = currentTopic.indexOf('（');
-      displayLabel =
-          parenIdx > 0 ? currentTopic.substring(0, parenIdx) : currentTopic;
-    } else {
-      displayLabel = 'おまかせ';
-    }
+    final displayLabel = canSelect ? topicShortLabel(currentTopic) : 'おまかせ';
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -437,97 +433,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
       title: const Text('テーマ'),
       subtitle: Text(displayLabel),
-      trailing: isPremium
+      trailing: canSelect
           ? const Icon(Icons.chevron_right)
           : Icon(Icons.lock, color: Theme.of(context).colorScheme.outline),
-      onTap: isPremium ? _showTopicPicker : null,
+      onTap: canSelect
+          ? _showTopicPicker
+          : () => PaywallBottomSheet.show(context, source: 'settings_topic'),
     );
   }
 
-  Future<void> _showTopicPicker() async {
-    final currentTopic = ref.read(generationParamsProvider)['topic'];
-
-    final selected = await showDialog<String?>(
-      context: context,
-      builder: (context) {
-        return SimpleDialog(
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('テーマを選択'),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-          children: [
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, ''),
-              child: ListTile(
-                leading: Icon(
-                  Icons.shuffle,
-                  color: currentTopic == null
-                      ? Theme.of(context).colorScheme.primary
-                      : null,
-                ),
-                title: Text(
-                  'おまかせ',
-                  style: currentTopic == null
-                      ? TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        )
-                      : null,
-                ),
-              ),
-            ),
-            ...GenerationConstants.topics.map((topic) {
-              final isSelected = topic == currentTopic;
-              final parenIdx = topic.indexOf('（');
-              final name = parenIdx > 0 ? topic.substring(0, parenIdx) : topic;
-              final sub = parenIdx > 0
-                  ? topic.substring(parenIdx + 1, topic.length - 1)
-                  : '';
-
-              return SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, topic),
-                child: ListTile(
-                  leading: Icon(
-                    Icons.circle,
-                    size: 12,
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.transparent,
-                  ),
-                  title: Text(
-                    name,
-                    style: isSelected
-                        ? TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          )
-                        : null,
-                  ),
-                  subtitle: sub.isNotEmpty ? Text(sub) : null,
-                ),
-              );
-            }),
-          ],
-        );
-      },
-    );
-
-    if (selected != null) {
-      final settings = ref.read(settingsControllerProvider.notifier);
-      await settings.setGenerationParam(
-        'topic',
-        selected.isEmpty ? null : selected,
-      );
-    }
-  }
+  Future<void> _showTopicPicker() => showTopicPicker(context, ref);
 
   Future<void> _resetLearningData() async {
     final confirmed = await showDialog<bool>(

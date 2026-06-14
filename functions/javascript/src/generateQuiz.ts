@@ -231,7 +231,7 @@ async function createQuizGenerationService(isPremium: boolean, uid: string): Pro
   return new GeminiQuizService(apiKey, uid, isPremium ? 'premium' : 'free');
 }
 
-function buildQuizSources(
+export function buildQuizSources(
   selectedSentences: SelectedSentence[],
 ): QuizSeedSource[] {
   return [...selectedSentences]
@@ -242,7 +242,7 @@ function buildQuizSources(
 
 // ==================== 一括生成 + key_word バリデーション ====================
 
-interface QuizSeed {
+export interface QuizSeed {
   thai_text: string;
   pronunciation: string;
   japanese_translation: string;
@@ -251,7 +251,7 @@ interface QuizSeed {
   key_word_meaning?: string;
 }
 
-interface QuizSeedSource {
+export interface QuizSeedSource {
   seed: QuizSeed;
   sentenceId: string;
   srsInterval: number;
@@ -467,7 +467,7 @@ function matchesKeyWord(
 
 // ==================== SRS 例文選出 ====================
 
-interface SelectedSentence {
+export interface SelectedSentence {
   id: string;
   data: FirebaseFirestore.DocumentData;
   /**

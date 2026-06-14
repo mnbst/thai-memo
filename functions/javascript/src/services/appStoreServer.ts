@@ -29,8 +29,16 @@ import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
 // Apple Root CA G3 の SHA-256 フィンガープリント（証明書ピン留め用）
 // https://www.apple.com/certificateauthority/ から取得した公式ルート証明書に基づく
-const APPLE_ROOT_CA_G3_FINGERPRINT =
+let _appleRootCaG3Fingerprint =
   '63:34:3A:BF:B8:9A:6A:03:EB:B5:7E:9B:3F:5F:A7:BE:7C:4F:5C:75:6F:30:17:B3:A8:C4:88:C3:65:3E:91:79';
+
+export function getAppleRootCaFingerprint(): string {
+  return _appleRootCaG3Fingerprint;
+}
+
+export function setAppleRootCaFingerprintForTest(fingerprint: string): void {
+  _appleRootCaG3Fingerprint = fingerprint;
+}
 
 /** GCP Secret Manager クライアント（API キーやシークレットの取得に使用） */
 const secretClient = new SecretManagerServiceClient();
@@ -182,7 +190,7 @@ async function verifyAppleJwsSignature(signedPayload: string): Promise<void> {
   // ルート証明書が Apple CA であることをフィンガープリントで確認
   const rootCert = certs[certs.length - 1];
   const rootFingerprint = rootCert.fingerprint256;
-  if (rootFingerprint !== APPLE_ROOT_CA_G3_FINGERPRINT) {
+  if (rootFingerprint !== _appleRootCaG3Fingerprint) {
     throw new Error(`Untrusted root CA fingerprint: ${rootFingerprint}`);
   }
 
