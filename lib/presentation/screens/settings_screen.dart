@@ -15,6 +15,7 @@ import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
+import '../widgets/sign_in_sheet.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'contact_form_screen.dart';
@@ -80,8 +81,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.person),
-              title: Text(authState.displayName ?? 'ユーザー'),
-              subtitle: authState.email != null ? Text(authState.email!) : null,
+              title: Text(
+                authState.isLinked ? (authState.displayName ?? 'ユーザー') : 'ゲスト',
+              ),
+              subtitle: authState.isLinked
+                  ? (authState.email != null ? Text(authState.email!) : null)
+                  : const Text('サインインしていません'),
             ),
             Consumer(
               builder: (context, ref, _) {
@@ -115,30 +120,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 );
               },
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: authState.isLoading ? null : _deleteAccount,
-                  child: Text(
-                    'アカウントを削除',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+            if (authState.isLinked)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: authState.isLoading ? null : _deleteAccount,
+                    child: Text(
+                      'アカウントを削除',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: authState.isLoading ? null : _signOut,
+                    child: const Text('サインアウト'),
+                  ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: authState.isLoading ? null : _signIn,
+                  icon: const Icon(Icons.login),
+                  label: const Text('サインインして進捗を保存'),
                 ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: authState.isLoading ? null : _signOut,
-                  child: const Text('サインアウト'),
-                ),
-              ],
-            ),
+              ),
             if (authState.isLoading) const LinearProgressIndicator(),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _signIn() async {
+    await showSignInSheet(context);
   }
 
   Future<void> _signOut() async {
