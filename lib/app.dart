@@ -10,8 +10,8 @@ import 'presentation/providers/analytics_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/subscription_provider.dart';
 import 'presentation/screens/home_screen.dart';
-import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/splash_screen.dart';
+import 'services/firebase_auth_service.dart';
 
 TextTheme _buildThaiTextTheme(ThaiFont font, TextTheme base) {
   TextTheme themed;
@@ -90,6 +90,16 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
     }
   }
 
+  bool _anonSignInStarted = false;
+
+  /// 未認証時に匿名サインインを一度だけ開始する。
+  void _ensureAnonymousSignIn() {
+    if (_anonSignInStarted) return;
+    if (FirebaseAuth.instance.currentUser != null) return;
+    _anonSignInStarted = true;
+    unawaited(FirebaseAuthService.instance.signInAnonymously());
+  }
+
   @override
   Widget build(BuildContext context) {
     // Watch theme mode and font family from settings
@@ -109,10 +119,13 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
           final user = snapshot.data;
-          if (user == null || user.isAnonymous) {
-            return const LoginScreen();
+          if (user == null) {
+            // 未認証なら匿名サインインを開始し、完了までローディング表示。
+            // 匿名でも HomeScreen に進めるため、ログイン壁は出さない。
+            _ensureAnonymousSignIn();
+            return const _AuthLoadingScreen();
           }
-          // ログイン後にサブスクリプション状態をFirestoreから取得
+          // 認証後にサブスクリプション状態をFirestoreから取得
           ref.read(subscriptionControllerProvider.notifier).initialize();
           return const SplashScreen(child: HomeScreen());
         },
@@ -205,6 +218,18 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 起動時の匿名サインイン完了までの簡易ローディング画面。
+class _AuthLoadingScreen extends StatelessWidget {
+  const _AuthLoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

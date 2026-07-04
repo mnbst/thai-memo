@@ -35,6 +35,15 @@ API_MAX_TOKENS = 8192
 # 無料ティアの語彙上限（頻度順位）
 FREE_TIER_MAX_VOCAB = 100
 
+# ─── 新規ユーザー初期クォータ ───
+# users/{uid} doc が未作成のまま生成された場合の初期値。
+# 主経路は onUserCreate トリガー（functions/javascript/src/constants/quota.ts）。
+# doc 欠損時のフォールバックとしてここでも初期化するため、必ず quota.ts と値を一致させること。
+FREE_DAILY_SENTENCES = 5
+FREE_DAILY_QUIZZES = 5
+FIRST_TIME_BONUS_SENTENCES = 1
+PREMIUM_TRIAL_SENTENCES = 5
+
 # ─── 文体リスト ───
 # 生成する例文の文体バリエーション。タイ語には場面に応じた多様な文体がある
 STYLES = [

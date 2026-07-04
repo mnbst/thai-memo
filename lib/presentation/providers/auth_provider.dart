@@ -11,16 +11,21 @@ class AuthState {
   final String? email;
   final bool isLoading;
 
+  /// 正規アカウント（Google/Apple）でサインイン済みか。匿名・未認証なら false。
+  final bool isLinked;
+
   const AuthState({
     this.displayName,
     this.email,
     this.isLoading = false,
+    this.isLinked = false,
   });
 
   factory AuthState.fromService(FirebaseAuthService service) {
     return AuthState(
       displayName: service.displayName,
       email: service.email,
+      isLinked: service.isLinkedAccount,
     );
   }
 
@@ -28,11 +33,13 @@ class AuthState {
     String? displayName,
     String? email,
     bool? isLoading,
+    bool? isLinked,
   }) {
     return AuthState(
       displayName: displayName ?? this.displayName,
       email: email ?? this.email,
       isLoading: isLoading ?? this.isLoading,
+      isLinked: isLinked ?? this.isLinked,
     );
   }
 }
@@ -64,6 +71,38 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       await _authService.signInWithApple();
+      state = AuthState.fromService(_authService);
+      return null;
+    } on FirebaseAuthServiceException catch (e) {
+      state = AuthState.fromService(_authService);
+      return e.message;
+    } catch (e) {
+      state = AuthState.fromService(_authService);
+      return 'Appleサインインに失敗しました';
+    }
+  }
+
+  /// 匿名ユーザーを Google アカウントに昇格（uid・データ保持）
+  Future<String?> linkWithGoogle() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _authService.linkWithGoogle();
+      state = AuthState.fromService(_authService);
+      return null;
+    } on FirebaseAuthServiceException catch (e) {
+      state = AuthState.fromService(_authService);
+      return e.message;
+    } catch (e) {
+      state = AuthState.fromService(_authService);
+      return 'Googleサインインに失敗しました';
+    }
+  }
+
+  /// 匿名ユーザーを Apple アカウントに昇格（uid・データ保持）
+  Future<String?> linkWithApple() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _authService.linkWithApple();
       state = AuthState.fromService(_authService);
       return null;
     } on FirebaseAuthServiceException catch (e) {

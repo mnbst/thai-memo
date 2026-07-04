@@ -26,8 +26,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
+import '../../services/firebase_auth_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/subscription_provider.dart';
+import '../widgets/sign_in_sheet.dart';
 
 /// プレミアムプランの説明を表示するモーダルボトムシート
 class PaywallBottomSheet extends ConsumerWidget {
@@ -162,6 +164,22 @@ class PaywallBottomSheet extends ConsumerWidget {
   ///
   /// 既にプレミアムの場合は「加入中」メッセージのみ表示。
   /// product が null（ストアから商品情報を取得できていない）の場合、購入ボタンは無効化される。
+  /// 購入を開始する。匿名ユーザーの場合は、復元のため先にサインインを必須とする。
+  Future<void> _startPurchase(BuildContext context, WidgetRef ref) async {
+    if (FirebaseAuthService.instance.currentUser?.isAnonymous ?? true) {
+      final signedIn = await showSignInSheet(
+        context,
+        title: 'サインインが必要です',
+        message: '購入を機種変更後も引き継ぐため、サインインしてください。',
+      );
+      if (!signedIn || !context.mounted) return;
+    }
+    unawaited(
+      ref.read(analyticsServiceProvider).logSubscribe(source: source),
+    );
+    await ref.read(subscriptionControllerProvider.notifier).purchase();
+  }
+
   Widget _buildPurchaseBar(BuildContext context, WidgetRef ref) {
     final subState = ref.watch(subscriptionControllerProvider);
     final colorScheme = Theme.of(context).colorScheme;
@@ -270,16 +288,7 @@ class PaywallBottomSheet extends ConsumerWidget {
           FilledButton(
             onPressed: subState.isLoading || subState.product == null
                 ? null
-                : () {
-                    unawaited(
-                      ref.read(analyticsServiceProvider).logSubscribe(
-                            source: source,
-                          ),
-                    );
-                    ref
-                        .read(subscriptionControllerProvider.notifier)
-                        .purchase();
-                  },
+                : () => _startPurchase(context, ref),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
               minimumSize: const Size(double.infinity, 0),
