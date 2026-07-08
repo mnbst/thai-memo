@@ -137,6 +137,9 @@ lib/presentation/screens/tone_guide_screen.dart
 lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセル。
 
+lib/presentation/widgets/coach_mark_overlay.dart
+指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。
+
 lib/presentation/widgets/level_up_dialog.dart
 語彙レベルアップ時のお祝いアニメーションダイアログ。
 

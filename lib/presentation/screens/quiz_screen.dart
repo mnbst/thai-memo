@@ -15,6 +15,7 @@ import '../providers/review_prompt_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
+import '../widgets/coach_mark_overlay.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/topic_picker.dart';
 import 'detail_screen.dart';
@@ -64,6 +65,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   late final List<_ConfettiParticle> _confettiParticles;
   int? _vocabBeforeQuiz;
 
+  /// 「次のテーマ」チップの位置特定用（初回コーチマーク表示に使用）。
+  final GlobalKey _nextTopicKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -103,6 +107,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (widget.showVocabScoreTransition) {
           _logSummaryQuizComplete(next);
         }
+        _maybeShowNextTopicCoach();
       }
       if (widget.showVocabScoreTransition &&
           next is QuizAnswering &&
@@ -153,6 +158,34 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
   }
 
+  /// 結果画面の「次のテーマ」変更チップを初回だけスポットライトで案内する。
+  /// チップが表示される（＝次の例文へ進める）場合のみ、1回限り。
+  Future<void> _maybeShowNextTopicCoach() async {
+    if (widget.onNextSentence == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyNextTopicCoachShown) ?? false) return;
+
+    // サマリー画面が描画され、チップの位置が確定してから表示する。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          ref.read(quizControllerProvider) is! QuizSummary ||
+          _nextTopicKey.currentContext == null) {
+        return;
+      }
+      CoachMarkOverlay.show(
+        context,
+        targetKey: _nextTopicKey,
+        title: '次の例文のテーマを選べます',
+        message: 'ここをタップすると、次に生成する例文のテーマ（旅行・恋愛など）を変更できます。気分に合わせて学習内容を選びましょう。',
+        onDismiss: () {
+          unawaited(
+            prefs.setBool(AppConfig.prefKeyNextTopicCoachShown, true),
+          );
+        },
+      );
+    });
+  }
+
   Future<void> _clearVocabBeforeQuiz() async {
     if (!widget.showVocabScoreTransition) return;
     final prefs = await SharedPreferences.getInstance();
@@ -161,6 +194,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   void dispose() {
+    CoachMarkOverlay.dismiss();
     _celebrationController.dispose();
     super.dispose();
   }
@@ -462,8 +496,25 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           const SizedBox(height: 16),
           // 次の例文のテーマ表示／変更（課金導線）。
           if (widget.onNextSentence != null) ...[
-            const NextSentenceTopicLabel(paywallSource: 'quiz_next_topic'),
+            KeyedSubtree(
+              key: _nextTopicKey,
+              child: const NextSentenceTopicLabel(
+                paywallSource: 'quiz_next_topic',
+              ),
+            ),
             const SizedBox(height: 8),
+          ],
+          if (widget.onOptionalChallenge != null) ...[
+            FilledButton.icon(
+              onPressed: widget.onOptionalChallenge,
+              icon: const Icon(Icons.emoji_events),
+              label: Text(widget.optionalChallengeLabel),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                minimumSize: const Size.fromHeight(52),
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
           if (widget.onBackToLearningStart != null) ...[
             Row(
@@ -531,18 +582,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               label: Text(widget.nextButtonLabel),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-            ),
-          ],
-          if (widget.onOptionalChallenge != null) ...[
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: widget.onOptionalChallenge,
-              icon: const Icon(Icons.emoji_events),
-              label: Text(widget.optionalChallengeLabel),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                minimumSize: const Size.fromHeight(52),
               ),
             ),
           ],

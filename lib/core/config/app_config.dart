@@ -41,4 +41,6 @@ class AppConfig {
       'preferred_generation_time';
   static const String prefKeyFirstSummaryQuizCompleted =
       'first_summary_quiz_completed';
+  static const String prefKeyNextTopicCoachShown =
+      'next_topic_coach_shown';
 }
