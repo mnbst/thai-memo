@@ -8,7 +8,13 @@ from google.cloud.firestore_v1.client import Client as FirestoreClient
 from google.cloud.firestore_v1 import transactional
 
 try:
-    from .constants import FREE_TIER_MAX_VOCAB
+    from .constants import (
+        FREE_DAILY_QUIZZES,
+        FREE_DAILY_SENTENCES,
+        FREE_TIER_MAX_VOCAB,
+        FIRST_TIME_BONUS_SENTENCES,
+        PREMIUM_TRIAL_SENTENCES,
+    )
     from .prompts import use_premium_prompt_for_vocab
     from .runtime import initialize_firebase_app
     from .sentence_service import (
@@ -25,7 +31,13 @@ try:
         sync_estimated_vocab,
     )
 except ImportError:
-    from constants import FREE_TIER_MAX_VOCAB
+    from constants import (
+        FREE_DAILY_QUIZZES,
+        FREE_DAILY_SENTENCES,
+        FREE_TIER_MAX_VOCAB,
+        FIRST_TIME_BONUS_SENTENCES,
+        PREMIUM_TRIAL_SENTENCES,
+    )
     from prompts import use_premium_prompt_for_vocab
     from runtime import initialize_firebase_app
     from sentence_service import (
@@ -224,6 +236,24 @@ def _commit_sentences_transaction(
     )
 
 
+def _ensure_user_quota(user_ref) -> dict:
+    """users/{uid} doc が無い場合に初期クォータを冪等に付与し、その内容を返す。
+
+    onUserCreate トリガー（JS）と同じ初期値を使う。merge=True なので、万一トリガーと
+    競合しても既存フィールドを壊さない。値は constants.py（= quota.ts）で一元管理。
+    """
+    initial = {
+        "remaining_sentences": FREE_DAILY_SENTENCES + FIRST_TIME_BONUS_SENTENCES,
+        "remaining_quizzes": FREE_DAILY_QUIZZES,
+        "uvm_initialized": True,
+        "daily_sentence_generated": False,
+        "premium_trial_remaining": PREMIUM_TRIAL_SENTENCES,
+    }
+    user_ref.set(initial, merge=True)
+    print(f"Initial quota set (fallback) for user {user_ref.id}")
+    return dict(initial)
+
+
 @https_fn.on_call(
     region="asia-northeast1", memory=2048, timeout_sec=120, concurrency=10
 )
@@ -254,7 +284,13 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         db = firestore.client()
         user_ref = db.collection("users").document(uid)
         user_doc = user_ref.get()  # type: ignore[union-attr]
-        user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}  # type: ignore[union-attr]
+        if user_doc.exists:  # type: ignore[union-attr]
+            user_data = user_doc.to_dict() or {}  # type: ignore[union-attr]
+        else:
+            # 主経路は onUserCreate トリガーだが、doc 欠損（トリガー失敗・削除済み・
+            # トリガー導入前ユーザー）のまま生成されると remaining_sentences=0 で
+            # QUOTA_EXCEEDED になる。ここで冪等に初期クォータを付与して自己回復する。
+            user_data = _ensure_user_quota(user_ref)  # type: ignore[union-attr]
 
         tier = user_data.get("tier", "free")
         is_premium = tier == "premium"

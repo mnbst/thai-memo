@@ -31,33 +31,56 @@ class FirebaseAuthService {
   /// Get email
   String? get email => _auth.currentUser?.email;
 
-  /// Ensure user is authenticated
-  /// Throws if not signed in (anonymous auth is no longer supported)
+  /// 正規アカウント（匿名でない）でサインイン済みか
+  bool get isLinkedAccount =>
+      currentUser != null && !currentUser!.isAnonymous;
+
+  /// Ensure user is authenticated (anonymous も許可)
   Future<User> ensureAuthenticated() async {
     final user = currentUser;
-    if (user == null || user.isAnonymous) {
-      throw FirebaseAuthServiceException('サインインが必要です');
+    if (user == null) {
+      throw FirebaseAuthServiceException('認証が必要です');
     }
     return user;
   }
 
-  /// Sign in with Google
-  Future<User?> signInWithGoogle() async {
+  /// 匿名サインイン（起動時に自動で呼び、即座に利用開始できるようにする）
+  Future<User?> signInAnonymously() async {
+    try {
+      final result = await _auth.signInAnonymously();
+      return result.user;
+    } on FirebaseAuthException catch (e) {
+      throw FirebaseAuthServiceException('認証に失敗しました: ${e.message}');
+    }
+  }
+
+  /// Sign in with Google（既存アカウントへのサインイン）
+  Future<User?> signInWithGoogle() => _googleAuth(link: false);
+
+  /// 匿名ユーザーを Google アカウントに昇格（uid・データを保持）
+  Future<User?> linkWithGoogle() => _googleAuth(link: true);
+
+  Future<User?> _googleAuth({required bool link}) async {
     try {
       await _ensureGoogleSignInInitialized();
       final googleUser = await GoogleSignIn.instance.authenticate();
       final credential = GoogleAuthProvider.credential(
         idToken: googleUser.authentication.idToken,
       );
-      return _signInWithCredential(credential);
+      return _authenticateWithCredential(credential, link: link);
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
       rethrow;
     }
   }
 
-  /// Sign in with Apple
-  Future<User?> signInWithApple() async {
+  /// Sign in with Apple（既存アカウントへのサインイン）
+  Future<User?> signInWithApple() => _appleAuth(link: false);
+
+  /// 匿名ユーザーを Apple アカウントに昇格（uid・データを保持）
+  Future<User?> linkWithApple() => _appleAuth(link: true);
+
+  Future<User?> _appleAuth({required bool link}) async {
     final rawNonce = _generateNonce();
     final nonce = _sha256ofString(rawNonce);
 
@@ -75,7 +98,7 @@ class FirebaseAuthService {
       accessToken: appleCredential.authorizationCode,
     );
 
-    final user = await _signInWithCredential(oauthCredential);
+    final user = await _authenticateWithCredential(oauthCredential, link: link);
 
     // Apple only returns name on first sign-in, so update profile if available
     if (user != null && appleCredential.givenName != null) {
@@ -91,12 +114,27 @@ class FirebaseAuthService {
     return _auth.currentUser;
   }
 
-  /// Sign in with credential
-  Future<User?> _signInWithCredential(AuthCredential credential) async {
+  /// credential でサインイン。link=true かつ現ユーザーが匿名なら昇格(link)する。
+  Future<User?> _authenticateWithCredential(
+    AuthCredential credential, {
+    required bool link,
+  }) async {
     try {
+      final current = _auth.currentUser;
+      if (link && current != null && current.isAnonymous) {
+        final result = await current.linkWithCredential(credential);
+        return result.user;
+      }
       final result = await _auth.signInWithCredential(credential);
       return result.user;
     } on FirebaseAuthException catch (e) {
+      // 既にその Google/Apple アカウントが存在する場合は、そのアカウントでサインイン
+      // （匿名 uid は破棄される）
+      if (e.code == 'credential-already-in-use' ||
+          e.code == 'email-already-in-use') {
+        final result = await _auth.signInWithCredential(credential);
+        return result.user;
+      }
       throw FirebaseAuthServiceException('サインインに失敗しました: ${e.message}');
     }
   }

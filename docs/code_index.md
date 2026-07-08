@@ -36,8 +36,8 @@ Firebase Authシングルトン。ログイン、ログアウト、ユーザー�
 lib/presentation/providers/auth_provider.dart
 Firebase Auth状態のRiverpodプロバイダー。
 
-lib/presentation/screens/login_screen.dart
-ログイン画面（Google/Apple、匿名フォールバック）。
+lib/presentation/widgets/sign_in_sheet.dart
+サインイン促進ボトムシート（匿名→Google/Apple昇格link、課金時/設定から呼ぶ）。
 
 ## Data Models
 
