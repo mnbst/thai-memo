@@ -16,6 +16,7 @@ import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
+import '../widgets/sign_in_reminder_banner.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'detail_screen.dart';
@@ -38,6 +39,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _initialLoadCompleted = false;
+  Future<void>? _initialLoadFuture;
   final _showAppIcon = ValueNotifier<bool>(true);
 
   @override
@@ -109,6 +111,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
 
     if (isFirstLaunch) {
+      // オンボーディングを読んでいる間に初回例文の生成を並行して進めておく
+      _initialLoadFuture = _loadTodaySentence();
       if (mounted) {
         // オンボーディング画面を表示し、完了を待つ
         await Navigator.push<void>(
@@ -127,20 +131,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
 
       if (mounted) {
-        // ダイアログでデモの枠組みを伝えてから例文を読み込む。
-        // 閉じた後に例文が表示され、コーチマークが競合なく出せる。
+        // ダイアログでデモの枠組みを伝える。閉じた後に例文とコーチマークが
+        // 競合なく出せる。
         await _showFirstTimeGuideDialog();
+        _retriggerCoachMarkIfLoaded();
       }
     }
 
     if (!mounted) return;
 
-    // Firestoreフラグを取得し、未生成なら自動生成、済みなら最新を表示
-    final data2 = await ref.read(userDocProvider.future);
-    final isGenerated = (data2?['daily_sentence_generated'] as bool?) ?? false;
-    await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
-          dailySentenceGenerated: isGenerated,
-        );
+    await (_initialLoadFuture ??= _loadTodaySentence());
 
     _initialLoadCompleted = true;
 
@@ -148,6 +148,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // 履歴を更新
     ref.invalidate(allSentencesProvider);
+  }
+
+  /// Firestoreフラグを取得し、未生成なら自動生成、済みなら最新を表示
+  Future<void> _loadTodaySentence() async {
+    final data = await ref.read(userDocProvider.future);
+    final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
+    await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
+          dailySentenceGenerated: isGenerated,
+        );
+  }
+
+  /// オンボーディング中に生成が完了していた場合、コーチマークの表示判定は
+  /// ModalRoute.isCurrent で抑止されたまま再試行されない。状態を再通知して
+  /// 表示判定をやり直させる（表示済みならprefsチェックで何も起きない）。
+  void _retriggerCoachMarkIfLoaded() {
+    final state = ref.read(sentenceControllerProvider);
+    if (state is SentenceStateSuccess) {
+      ref
+          .read(sentenceControllerProvider.notifier)
+          .showSentence(state.sentence);
+    }
   }
 
   Future<void> _showFirstTimeGuideDialog() {
@@ -660,6 +681,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const SignInReminderBanner(),
                 _buildTargetWordsSection(context, sentence),
                 const SizedBox(height: 12),
                 _buildSentenceCard(context, sentence),
