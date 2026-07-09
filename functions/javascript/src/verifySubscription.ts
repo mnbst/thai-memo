@@ -31,6 +31,40 @@ const db = admin.firestore();
 const defaultAndroidPackageName = 'com.thaimemo.thai_memo';
 
 /**
+ * 同一サブスクリプションを保持する他ユーザーの doc から premium を剥奪する。
+ *
+ * 匿名ユーザーの再インストール等で uid が変わると、旧 uid の doc に
+ * premium とサブスク情報が残ったままになる。放置するとストア通知の
+ * ユーザー検索が旧 doc にヒットし、現役 doc の解約処理が漏れて
+ * premium が永久に残る。サブスクは常に最後に検証した uid のみに紐づける。
+ */
+async function releaseSubscriptionFromOtherUsers(
+  identifierField:
+    | 'subscription.original_transaction_id'
+    | 'subscription.purchase_token',
+  identifierValue: string,
+  currentUid: string
+): Promise<void> {
+  const snapshot = await db
+    .collection('users')
+    .where(identifierField, '==', identifierValue)
+    .get();
+
+  for (const doc of snapshot.docs) {
+    if (doc.id === currentUid) continue;
+    await doc.ref.update({
+      tier: 'free',
+      remaining_sentences: FREE_DAILY_SENTENCES,
+      remaining_quizzes: FREE_DAILY_QUIZZES,
+      subscription: admin.firestore.FieldValue.delete(),
+    });
+    console.log(
+      `Released subscription from user ${doc.id} (now owned by ${currentUid})`
+    );
+  }
+}
+
+/**
  * verifySubscription - サブスクリプション購入の検証
  *
  * クライアントから購入トークン/レシートを受け取り、
@@ -51,6 +85,16 @@ export const verifySubscription = functions.https.onCall(
     const uid = request.auth?.uid;
     if (!uid) {
       throw new functions.https.HttpsError('unauthenticated', '認証が必要です');
+    }
+
+    // プレミアムはサインイン（Google/Apple連携済み）時のみ利用可能。
+    // 匿名 uid は再インストールで失われ premium の所有権が迷子になるため、
+    // 匿名ユーザーへの付与自体をサーバー側で拒否する
+    if (request.auth?.token?.firebase?.sign_in_provider === 'anonymous') {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'プレミアムのご利用にはサインインが必要です'
+      );
     }
 
     // リクエストパラメータの取得とバリデーション
@@ -117,6 +161,12 @@ export const verifySubscription = functions.https.onCall(
           { merge: true }
         );
 
+        await releaseSubscriptionFromOtherUsers(
+          'subscription.purchase_token',
+          purchase_token,
+          uid
+        );
+
         return {
           plan: newTier,
           expires_at: result.expiresAt?.toISOString() ?? null,
@@ -154,6 +204,12 @@ export const verifySubscription = functions.https.onCall(
             },
           },
           { merge: true }
+        );
+
+        await releaseSubscriptionFromOtherUsers(
+          'subscription.original_transaction_id',
+          result.originalTransactionId,
+          uid
         );
 
         return {

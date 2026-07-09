@@ -85,14 +85,24 @@ class SubscriptionState {
 /// PurchaseService（ストア決済）と Firestore（状態保存）を橋渡しする。
 /// 購入完了時のコールバックで Firestore から最新 tier を再取得し、UI を更新する。
 class SubscriptionController extends StateNotifier<SubscriptionState> {
+  /// firestore / purchaseService / restoreDelay はテスト時の差し替え用
   SubscriptionController({
     required AnalyticsService analytics,
+    FirebaseFirestore? firestore,
+    PurchaseService? purchaseService,
+    this.restoreDelay = const Duration(seconds: 2),
   })  : _analytics = analytics,
+        _firestore = firestore,
+        _purchaseService = purchaseService,
         super(const SubscriptionState(tier: UserTier.free));
 
   final AnalyticsService _analytics;
+  final FirebaseFirestore? _firestore;
   PurchaseService? _purchaseService;
   Future<void>? _storeReadyFuture;
+
+  /// 復元リクエスト後、サーバー検証完了を待ってから Firestore を再読するまでの待機時間
+  final Duration restoreDelay;
 
   /// 初期化: Firestore から現在のティアを取得
   ///
@@ -101,7 +111,8 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   /// バックグラウンドでストアからの購入復元を試みる。
   Future<void> initialize() async {
     final needsRestore = await _fetchTierFromFirestore();
-    if (needsRestore) {
+    // 匿名ユーザーは自動復元しない（premiumが匿名uidへ移ってしまうため）
+    if (needsRestore && FirebaseAuthService.instance.isLinkedAccount) {
       unawaited(_silentRestore());
     }
   }
@@ -117,7 +128,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       await ensureStoreReady();
       if (_purchaseService == null) return;
       await _purchaseService!.restore();
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(restoreDelay);
       await _fetchTierFromFirestore();
     } catch (e) {
       debugPrint('Silent restore failed: $e');
@@ -126,6 +137,13 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
   /// 購入を開始
   Future<void> purchase() async {
+    if (!FirebaseAuthService.instance.isLinkedAccount) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'プレミアムのご利用にはサインインが必要です',
+      );
+      return;
+    }
     try {
       await ensureStoreReady();
       if (_purchaseService == null || state.product == null) {
@@ -150,6 +168,13 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   /// （復元イベントは purchaseStream 経由で非同期に届くため、即座に Firestore を
   ///   読んでも反映されていない可能性がある）
   Future<void> restore() async {
+    if (!FirebaseAuthService.instance.isLinkedAccount) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'プレミアムのご利用にはサインインが必要です',
+      );
+      return;
+    }
     try {
       await ensureStoreReady();
       if (_purchaseService == null) {
@@ -162,7 +187,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       state = state.copyWith(isLoading: true, errorMessage: null);
       await _purchaseService!.restore();
       // 復元後にFirestoreから最新状態を取得（サーバー検証完了を待つため遅延）
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(restoreDelay);
       await _fetchTierFromFirestore();
       state = state.copyWith(
         isLoading: false,
@@ -181,8 +206,20 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     final uid = FirebaseAuthService.instance.currentUser?.uid;
     if (uid == null) return false;
 
+    // プレミアムはサインイン（正規アカウント）時のみ有効。
+    // 匿名ユーザーはFirestoreの値に関わらずfree扱いとする。
+    // 本メソッドはbuild中から呼ばれるため、同期的なstate更新を避ける
+    if (!FirebaseAuthService.instance.isLinkedAccount) {
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return false;
+      state = state.copyWith(tier: UserTier.free);
+      unawaited(_analytics.setUserTier(UserTier.free.name));
+      return false;
+    }
+
     try {
-      final ref = FirebaseFirestore.instance.collection('users').doc(uid);
+      final ref =
+          (_firestore ?? FirebaseFirestore.instance).collection('users').doc(uid);
       final doc = await ref.get();
       final data = doc.data();
       final tier =

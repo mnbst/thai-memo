@@ -129,4 +129,68 @@ describe('resetQuota', () => {
       { merge: true }
     );
   });
+
+  /** Firestore Timestamp 相当のモック */
+  function makeTimestamp(ms: number) {
+    return { toMillis: () => ms };
+  }
+
+  test('期限を24時間以上過ぎたpremiumはfreeに降格しfree回数へリセットする', async () => {
+    // ストア通知の取りこぼしで premium が残留したケース
+    await resetQuota(makeUserDoc({
+      tier: 'premium',
+      subscription: {
+        status: 'canceled',
+        expires_at: makeTimestamp(Date.now() - 25 * 60 * 60 * 1000),
+      },
+    }));
+
+    expect(mockUserDocSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tier: 'free',
+        remaining_sentences: FREE_DAILY_SENTENCES,
+        remaining_quizzes: FREE_DAILY_QUIZZES,
+        subscription: { status: 'expired' },
+      }),
+      { merge: true }
+    );
+  });
+
+  test('期限切れから24時間以内のpremiumは降格しない（更新通知の遅延を許容）', async () => {
+    await resetQuota(makeUserDoc({
+      tier: 'premium',
+      subscription: {
+        status: 'active',
+        expires_at: makeTimestamp(Date.now() - 60 * 60 * 1000), // 1時間前
+      },
+    }));
+
+    const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(writeData.tier).toBeUndefined();
+    expect(writeData.remaining_sentences).toBe(PREMIUM_DAILY_SENTENCES);
+  });
+
+  test('猶予期間中（grace_period）のpremiumは期限が過ぎていても降格しない', async () => {
+    await resetQuota(makeUserDoc({
+      tier: 'premium',
+      subscription: {
+        status: 'grace_period',
+        expires_at: makeTimestamp(Date.now() - 48 * 60 * 60 * 1000),
+      },
+    }));
+
+    const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(writeData.tier).toBeUndefined();
+    expect(writeData.remaining_sentences).toBe(PREMIUM_DAILY_SENTENCES);
+  });
+
+  test('subscriptionフィールドがないpremium（dev手動設定等）は降格しない', async () => {
+    await resetQuota(makeUserDoc({
+      tier: 'premium',
+    }));
+
+    const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(writeData.tier).toBeUndefined();
+    expect(writeData.remaining_sentences).toBe(PREMIUM_DAILY_SENTENCES);
+  });
 });

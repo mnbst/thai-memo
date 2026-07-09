@@ -28,6 +28,11 @@ const mockDocGet = jest.fn();
  * サブスクリプション情報の書き込みを検証するために使用
  */
 const mockDocSet = jest.fn();
+/**
+ * Firestore collection().where().get() のモック
+ * 同一サブスクを持つ他ユーザーの検索（所有権移転）に使用
+ */
+const mockQueryGet = jest.fn();
 
 /**
  * firebase-functions/v2 モック
@@ -65,6 +70,9 @@ jest.mock('firebase-admin', () => ({
           get: mockDocGet,
           set: mockDocSet,
         })),
+        where: jest.fn(() => ({
+          get: mockQueryGet,
+        })),
       })),
     })),
     {
@@ -76,6 +84,7 @@ jest.mock('firebase-admin', () => ({
       },
       FieldValue: {
         serverTimestamp: jest.fn(() => 'SERVER_TIMESTAMP'),
+        delete: jest.fn(() => 'FIELD_DELETE'),
       },
     }
   ),
@@ -111,10 +120,17 @@ import {
  * onCall リクエストオブジェクトを作成
  * @param data - リクエストデータ（platform, purchase_token, product_id）
  * @param uid - 認証ユーザーID（undefined の場合は未認証）
+ * @param signInProvider - 認証プロバイダ（既定: google.com。'anonymous' で匿名）
  */
-function makeRequest(data: Record<string, unknown>, uid?: string) {
+function makeRequest(
+  data: Record<string, unknown>,
+  uid?: string,
+  signInProvider = 'google.com'
+) {
   return {
-    auth: uid ? { uid } : null,
+    auth: uid
+      ? { uid, token: { firebase: { sign_in_provider: signInProvider } } }
+      : null,
     data,
   };
 }
@@ -172,6 +188,8 @@ describe('verifySubscription', () => {
     mockDocSet.mockResolvedValue(undefined);
     // デフォルト: free ユーザーが存在する状態
     mockDocGet.mockResolvedValue(makeUserDoc('free'));
+    // デフォルト: 同一サブスクを持つ他ユーザーは存在しない
+    mockQueryGet.mockResolvedValue({ empty: true, docs: [] });
   });
 
   // ──────────────────────────────────────────────────────────
@@ -188,6 +206,22 @@ describe('verifySubscription', () => {
         }))
         // uid を渡さない → auth: null
       ).rejects.toMatchObject({ code: 'unauthenticated' });
+    });
+
+    test('匿名ユーザーの場合は failed-precondition エラーをスローする', async () => {
+      // プレミアムはサインイン時のみ利用可能。匿名 uid への付与は拒否する
+      await expect(
+        handler(makeRequest(
+          {
+            platform: 'ios',
+            purchase_token: 'token',
+            product_id: 'prod_id',
+          },
+          'anon-user',
+          'anonymous'
+        ))
+      ).rejects.toMatchObject({ code: 'failed-precondition' });
+      expect(mockDocSet).not.toHaveBeenCalled();
     });
 
     test('platform が欠けている場合は invalid-argument エラーをスローする', async () => {
@@ -293,6 +327,33 @@ describe('verifySubscription', () => {
 
       const writeData = mockDocSet.mock.calls[0][0] as Record<string, unknown>;
       expect(writeData.tier).toBe('free');
+    });
+
+    test('同一サブスクを持つ他ユーザーの doc から premium を剥奪する（所有権移転）', async () => {
+      mockVerifyAppStorePurchase.mockResolvedValueOnce(APPSTORE_ACTIVE_RESULT);
+      // 旧匿名 uid の doc が同じ original_transaction_id で premium を保持している状態
+      const mockOldDocUpdate = jest.fn().mockResolvedValue(undefined);
+      mockQueryGet.mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          { id: 'old_anon_uid', ref: { update: mockOldDocUpdate } },
+          { id: 'user_123', ref: { update: jest.fn() } }, // 自分自身はスキップ
+        ],
+      });
+
+      await handler(makeRequest({
+        platform: 'ios',
+        purchase_token: 'ios_token_abc',
+        product_id: 'com.thaimemo.monthly',
+      }, 'user_123'));
+
+      // 旧 doc は free に落とされ subscription が削除される
+      expect(mockOldDocUpdate).toHaveBeenCalledTimes(1);
+      const updateData = mockOldDocUpdate.mock.calls[0][0] as Record<string, unknown>;
+      expect(updateData.tier).toBe('free');
+      expect(updateData.remaining_sentences).toBe(FREE_DAILY_SENTENCES);
+      expect(updateData.remaining_quizzes).toBe(FREE_DAILY_QUIZZES);
+      expect(updateData.subscription).toBe('FIELD_DELETE');
     });
 
     test('free→premium への tier 変化時はクォータをリセットする', async () => {

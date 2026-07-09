@@ -12,7 +12,6 @@ try:
         FREE_DAILY_QUIZZES,
         FREE_DAILY_SENTENCES,
         FREE_TIER_MAX_VOCAB,
-        FIRST_TIME_BONUS_SENTENCES,
         PREMIUM_TRIAL_SENTENCES,
     )
     from .prompts import use_premium_prompt_for_vocab
@@ -35,7 +34,6 @@ except ImportError:
         FREE_DAILY_QUIZZES,
         FREE_DAILY_SENTENCES,
         FREE_TIER_MAX_VOCAB,
-        FIRST_TIME_BONUS_SENTENCES,
         PREMIUM_TRIAL_SENTENCES,
     )
     from prompts import use_premium_prompt_for_vocab
@@ -243,7 +241,7 @@ def _ensure_user_quota(user_ref) -> dict:
     競合しても既存フィールドを壊さない。値は constants.py（= quota.ts）で一元管理。
     """
     initial = {
-        "remaining_sentences": FREE_DAILY_SENTENCES + FIRST_TIME_BONUS_SENTENCES,
+        "remaining_sentences": FREE_DAILY_SENTENCES,
         "remaining_quizzes": FREE_DAILY_QUIZZES,
         "uvm_initialized": True,
         "daily_sentence_generated": False,

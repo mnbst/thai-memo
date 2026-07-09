@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -16,7 +17,11 @@ class FirebaseAuthService {
 
   FirebaseAuthService._internal();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  /// テスト時に FirebaseAuth を差し替えるためのフック
+  @visibleForTesting
+  static FirebaseAuth? authOverride;
+
+  FirebaseAuth get _auth => authOverride ?? FirebaseAuth.instance;
   bool _googleSignInInitialized = false;
 
   /// Get current user
@@ -67,7 +72,7 @@ class FirebaseAuthService {
       final credential = GoogleAuthProvider.credential(
         idToken: googleUser.authentication.idToken,
       );
-      return _authenticateWithCredential(credential, link: link);
+      return authenticateWithCredential(credential, link: link);
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
       rethrow;
@@ -98,7 +103,7 @@ class FirebaseAuthService {
       accessToken: appleCredential.authorizationCode,
     );
 
-    final user = await _authenticateWithCredential(oauthCredential, link: link);
+    final user = await authenticateWithCredential(oauthCredential, link: link);
 
     // Apple only returns name on first sign-in, so update profile if available
     if (user != null && appleCredential.givenName != null) {
@@ -115,7 +120,8 @@ class FirebaseAuthService {
   }
 
   /// credential でサインイン。link=true かつ現ユーザーが匿名なら昇格(link)する。
-  Future<User?> _authenticateWithCredential(
+  @visibleForTesting
+  Future<User?> authenticateWithCredential(
     AuthCredential credential, {
     required bool link,
   }) async {

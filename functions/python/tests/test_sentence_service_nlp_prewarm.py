@@ -36,6 +36,7 @@ def test_generate_single_starts_nlp_prewarm_before_llm(monkeypatch):
     )
 
     result = sentence_service._generate_single(
+        SYSTEM_PROMPT_FREE,
         "prompt",
         False,
         "free",
@@ -75,6 +76,7 @@ def test_generate_single_raises_when_target_missing_after_retries(monkeypatch):
 
     with pytest.raises(RuntimeError, match="target words missing after retries"):
         sentence_service._generate_single(
+            SYSTEM_PROMPT_FREE,
             "prompt",
             False,
             "free",

@@ -12,6 +12,7 @@ import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { isDevOnly } from './config/environment';
 import { nowJST } from './utils/formatDate';
+import { deleteUserFirestoreData } from './deleteUserData';
 import {
   FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES,
   PREMIUM_DAILY_SENTENCES, PREMIUM_DAILY_QUIZZES,
@@ -20,6 +21,18 @@ import {
 const db = admin.firestore();
 
 const CONCURRENCY = 5;
+
+/**
+ * 匿名ユーザー掃除の定数
+ *
+ * 匿名（Google/Apple未リンク）かつ ANON_INACTIVE_DAYS 日以上非アクティブな
+ * ユーザーを完全削除する。アクティブな匿名ユーザーは残し、UVM・SRS等の
+ * パーソナライズを維持する（link昇格までの体験を壊さない）。
+ */
+/** この日数以上トークン更新がない匿名ユーザーを削除対象とする */
+const ANON_INACTIVE_DAYS = 7;
+/** 1回の実行で削除する匿名ユーザーの上限（負荷平準化） */
+const MAX_ANON_DELETIONS_PER_RUN = 500;
 
 /**
  * UVM P値減衰の定数
@@ -35,6 +48,14 @@ const BATCH_LIMIT = 500;
 
 async function dailyBatchHandler() {
   console.log('dailyBatch started');
+
+  // 本体処理の前に匿名ユーザーを完全削除する。
+  // 掃除の失敗が本体処理を巻き込まないよう try/catch で隔離する。
+  try {
+    await cleanupAnonymousUsers();
+  } catch (e) {
+    console.error('cleanupAnonymousUsers failed', e);
+  }
 
   const usersSnapshot = await db.collection('users').get();
   if (usersSnapshot.empty) {
@@ -58,25 +79,126 @@ async function dailyBatchHandler() {
   console.log('dailyBatch completed');
 }
 
-/** tierに応じて remaining_sentences / remaining_quizzes を日次リセット */
+/**
+ * 非アクティブな匿名ユーザーと、Auth に存在しない孤児 doc を完全削除する。
+ *
+ * 手順:
+ *   1. Auth 全ユーザーを 1000 件ずつページング列挙し、全 uid を authUids に記録
+ *      しつつ、匿名（providerData 空 = Google/Apple 未リンク）かつ最終トークン
+ *      更新が ANON_INACTIVE_DAYS 日以上前のユーザーを削除
+ *   2. Firestore の users を走査し、authUids に無い doc（= 削除済みユーザーの
+ *      キャッシュトークンで復活した孤児 doc）の Firestore データを削除
+ *
+ * 削除は Firestore データ同期削除 → Auth ユーザー削除の順で「完全に消えた状態」を保証。
+ * onDelete トリガー(deleteUserData)任せだと非同期のため本体走査時にdocが残る。
+ * onDelete の再削除は冪等で無害。1回あたり MAX_ANON_DELETIONS_PER_RUN 件で打ち切り。
+ */
+async function cleanupAnonymousUsers(): Promise<void> {
+  const authUids = new Set<string>();
+  const inactiveCutoff =
+    Date.now() - ANON_INACTIVE_DAYS * 24 * 60 * 60 * 1000;
+  let deleted = 0;
+  let capped = false;
+  let pageToken: string | undefined;
+
+  // 1. Auth 全ユーザー列挙 → 非アクティブな匿名を削除、全 uid を記録
+  do {
+    const result = await admin.auth().listUsers(1000, pageToken);
+    pageToken = result.pageToken;
+
+    for (const user of result.users) {
+      authUids.add(user.uid);
+
+      // 匿名判定: 外部プロバイダ（Google/Apple等）が一切紐づいていない
+      if (user.providerData.length > 0) continue;
+
+      // 非アクティブ判定: 最終トークン更新（なければ最終サインイン）が
+      // ANON_INACTIVE_DAYS 日以内ならアクティブとみなし残す
+      const lastActive = Date.parse(
+        user.metadata.lastRefreshTime ??
+          user.metadata.lastSignInTime ??
+          user.metadata.creationTime
+      );
+      if (!Number.isNaN(lastActive) && lastActive > inactiveCutoff) continue;
+      if (capped) continue;
+
+      try {
+        await deleteUserFirestoreData(user.uid);
+        await admin.auth().deleteUser(user.uid);
+        deleted++;
+      } catch (e) {
+        console.error(`Failed to delete anonymous user ${user.uid}`, e);
+      }
+
+      if (deleted >= MAX_ANON_DELETIONS_PER_RUN) capped = true;
+    }
+  } while (pageToken);
+
+  // 2. 孤児 doc 掃除: Auth に存在しない users doc の Firestore データを削除
+  let orphans = 0;
+  const usersSnapshot = await db.collection('users').get();
+  for (const userDoc of usersSnapshot.docs) {
+    if (authUids.has(userDoc.id)) continue;
+    try {
+      await deleteUserFirestoreData(userDoc.id);
+      orphans++;
+    } catch (e) {
+      console.error(`Failed to delete orphan doc ${userDoc.id}`, e);
+    }
+  }
+
+  console.log(
+    `cleanupAnonymousUsers: deleted ${deleted} anonymous user(s), ${orphans} orphan doc(s)`
+  );
+}
+
+/** 期限切れ判定の猶予（更新直後の通知遅延で誤って free に落とさないため） */
+const EXPIRY_DEMOTION_MARGIN_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * tierに応じて remaining_sentences / remaining_quizzes を日次リセット。
+ *
+ * ストア通知の取りこぼし対策として、subscription.expires_at を24時間以上
+ * 過ぎた premium は free に落とす（猶予期間中は維持）。
+ * subscription フィールドがない premium（dev環境の手動設定等）は対象外。
+ */
 export async function resetQuota(
   userDoc: FirebaseFirestore.QueryDocumentSnapshot
 ): Promise<void> {
   const userData = userDoc.data() || {};
   const tier: string = userData.tier || 'free';
-  const isPremium = tier === 'premium';
+  const subscription = userData.subscription ?? {};
+  const expiresAtMs: number | undefined =
+    subscription.expires_at?.toMillis?.();
+
+  const subscriptionLapsed =
+    tier === 'premium' &&
+    typeof expiresAtMs === 'number' &&
+    subscription.status !== 'grace_period' &&
+    Date.now() - expiresAtMs > EXPIRY_DEMOTION_MARGIN_MS;
+
+  const isPremium = tier === 'premium' && !subscriptionLapsed;
   const sentenceResetValue = isPremium ?
     PREMIUM_DAILY_SENTENCES :
     FREE_DAILY_SENTENCES;
   const quizResetValue = isPremium ?
     PREMIUM_DAILY_QUIZZES :
     FREE_DAILY_QUIZZES;
+
+  if (subscriptionLapsed) {
+    console.log(`resetQuota: demoting lapsed premium user ${userDoc.id}`);
+  }
+
   // TODO: is_first_generation / is_first_quiz_generation フラグが旧ユーザーに残存。十分行き渡ったら一括削除する
   await db.collection('users').doc(userDoc.id).set(
     {
       remaining_sentences: sentenceResetValue,
       remaining_quizzes: quizResetValue,
       daily_sentence_generated: false,
+      ...(subscriptionLapsed ? {
+        tier: 'free',
+        subscription: { status: 'expired' },
+      } : {}),
     },
     { merge: true }
   );

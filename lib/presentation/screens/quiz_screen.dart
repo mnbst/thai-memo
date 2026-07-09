@@ -68,6 +68,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// 「次のテーマ」チップの位置特定用（初回コーチマーク表示に使用）。
   final GlobalKey _nextTopicKey = GlobalKey();
 
+  /// まとめクイズ誘導ボタンの位置特定用（初回コーチマーク表示に使用）。
+  final GlobalKey _optionalChallengeKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -107,6 +110,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (widget.showVocabScoreTransition) {
           _logSummaryQuizComplete(next);
         }
+        _maybeShowChallengeCoach();
         _maybeShowNextTopicCoach();
       }
       if (widget.showVocabScoreTransition &&
@@ -158,10 +162,37 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
   }
 
+  /// まとめクイズ誘導ボタンを初回だけスポットライトで案内する。
+  /// 確認クイズのサマリーで誘導ボタンが出る場合のみ、1回限り。
+  Future<void> _maybeShowChallengeCoach() async {
+    if (widget.onOptionalChallenge == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyQuizButtonCoachShown) ?? false) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          ref.read(quizControllerProvider) is! QuizSummary ||
+          _optionalChallengeKey.currentContext == null) {
+        return;
+      }
+      unawaited(prefs.setBool(AppConfig.prefKeyQuizButtonCoachShown, true));
+      CoachMarkOverlay.show(
+        context,
+        targetKey: _optionalChallengeKey,
+        icon: Icons.emoji_events,
+        interactive: true,
+        title: 'まとめクイズに挑戦',
+        message: '学習した内容をまとめてクイズで確認しましょう。',
+      );
+    });
+  }
+
   /// 結果画面の「次のテーマ」変更チップを初回だけスポットライトで案内する。
   /// チップが表示される（＝次の例文へ進める）場合のみ、1回限り。
+  /// 誘導ボタンがある確認クイズのサマリーではコーチが重ならないよう譲る。
   Future<void> _maybeShowNextTopicCoach() async {
     if (widget.onNextSentence == null) return;
+    if (widget.onOptionalChallenge != null) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(AppConfig.prefKeyNextTopicCoachShown) ?? false) return;
 
@@ -172,16 +203,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           _nextTopicKey.currentContext == null) {
         return;
       }
+      // 表示時にフラグを立てる。ボタン／チップタップのどちらで閉じても再表示しない。
+      unawaited(prefs.setBool(AppConfig.prefKeyNextTopicCoachShown, true));
       CoachMarkOverlay.show(
         context,
         targetKey: _nextTopicKey,
+        icon: Icons.palette_outlined,
+        interactive: true,
         title: '次の例文のテーマを選べます',
         message: 'ここをタップすると、次に生成する例文のテーマ（旅行・恋愛など）を変更できます。気分に合わせて学習内容を選びましょう。',
-        onDismiss: () {
-          unawaited(
-            prefs.setBool(AppConfig.prefKeyNextTopicCoachShown, true),
-          );
-        },
       );
     });
   }
@@ -505,13 +535,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             const SizedBox(height: 8),
           ],
           if (widget.onOptionalChallenge != null) ...[
-            FilledButton.icon(
-              onPressed: widget.onOptionalChallenge,
-              icon: const Icon(Icons.emoji_events),
-              label: Text(widget.optionalChallengeLabel),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                minimumSize: const Size.fromHeight(52),
+            KeyedSubtree(
+              key: _optionalChallengeKey,
+              child: FilledButton.icon(
+                onPressed: widget.onOptionalChallenge,
+                icon: const Icon(Icons.emoji_events),
+                label: Text(widget.optionalChallengeLabel),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  minimumSize: const Size.fromHeight(52),
+                ),
               ),
             ),
             const SizedBox(height: 16),

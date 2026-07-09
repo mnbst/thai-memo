@@ -12,12 +12,20 @@ class CoachMarkOverlay {
 
   /// [targetKey] のウィジェットをスポットライト表示する。
   /// 対象が未描画（context/size なし）の場合は何もしない。
+  ///
+  /// [interactive] が true の場合:
+  /// - 全面がタップを無視（下の対象は押せない・背景タップでは閉じない）。
+  ///   閉じる操作は吹き出しの「わかった」ボタンのみ。
+  /// - 縦スクロールは対象のスクロールへ転送し、スポットも一緒に追従する。
   static void show(
     BuildContext context, {
     required GlobalKey targetKey,
     required String title,
     required String message,
     String buttonLabel = 'わかった',
+    IconData icon = Icons.palette_outlined,
+    String? stepLabel,
+    bool interactive = false,
     VoidCallback? onDismiss,
   }) {
     if (_entry != null) return;
@@ -39,10 +47,15 @@ class CoachMarkOverlay {
 
     _entry = OverlayEntry(
       builder: (_) => _CoachMarkContent(
-        targetRect: rect,
+        targetKey: targetKey,
+        overlayState: overlay,
+        initialRect: rect,
         title: title,
         message: message,
         buttonLabel: buttonLabel,
+        icon: icon,
+        stepLabel: stepLabel,
+        interactive: interactive,
         onDismiss: dismiss,
       ),
     );
@@ -57,17 +70,27 @@ class CoachMarkOverlay {
 }
 
 class _CoachMarkContent extends StatefulWidget {
-  final Rect targetRect;
+  final GlobalKey targetKey;
+  final OverlayState overlayState;
+  final Rect initialRect;
   final String title;
   final String message;
   final String buttonLabel;
+  final IconData icon;
+  final String? stepLabel;
+  final bool interactive;
   final VoidCallback onDismiss;
 
   const _CoachMarkContent({
-    required this.targetRect,
+    required this.targetKey,
+    required this.overlayState,
+    required this.initialRect,
     required this.title,
     required this.message,
     required this.buttonLabel,
+    required this.icon,
+    required this.stepLabel,
+    required this.interactive,
     required this.onDismiss,
   });
 
@@ -82,10 +105,53 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
     duration: const Duration(milliseconds: 260),
   )..forward();
 
+  ScrollPosition? _scrollPosition;
+  late Rect _targetRect = widget.initialRect;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.interactive) {
+      final ctx = widget.targetKey.currentContext;
+      if (ctx != null) {
+        _scrollPosition = Scrollable.maybeOf(ctx)?.position;
+        _scrollPosition?.addListener(_onScroll);
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _scrollPosition?.removeListener(_onScroll);
     _controller.dispose();
     super.dispose();
+  }
+
+  /// スクロールに合わせてスポット位置を追従させる。
+  void _onScroll() {
+    if (mounted) setState(() {});
+  }
+
+  /// 対象の現在位置を再計算する。取得できない場合は前回値を維持する。
+  Rect _currentTargetRect() {
+    final targetBox =
+        widget.targetKey.currentContext?.findRenderObject() as RenderBox?;
+    final overlayBox =
+        widget.overlayState.context.findRenderObject() as RenderBox?;
+    if (targetBox == null || !targetBox.hasSize || overlayBox == null) {
+      return _targetRect;
+    }
+    final topLeft = targetBox.localToGlobal(Offset.zero, ancestor: overlayBox);
+    return topLeft & targetBox.size;
+  }
+
+  /// 暗幕上の縦ドラッグを対象のスクロールへ転送する。
+  void _forwardScroll(DragUpdateDetails details) {
+    final position = _scrollPosition;
+    if (position == null) return;
+    final next = (position.pixels - details.delta.dy)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    position.jumpTo(next);
   }
 
   @override
@@ -95,8 +161,12 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
     final media = MediaQuery.of(context);
     final size = media.size;
 
+    if (widget.interactive) {
+      _targetRect = _currentTargetRect();
+    }
+
     // ハイライト枠（少し余白を持たせる）。
-    final hole = widget.targetRect.inflate(8);
+    final hole = _targetRect.inflate(8);
 
     // 吹き出しは対象の下に置き、画面下端に収まらなければ上に置く。
     const bubbleMargin = 16.0;
@@ -106,16 +176,25 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
       opacity: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
       child: Stack(
         children: [
-          // 背景バリア＋くり抜き。タップで閉じる。
+          // 暗幕（描画のみ・当たり判定なし）。スポットはくり抜き。
           Positioned.fill(
-            child: GestureDetector(
-              onTap: widget.onDismiss,
+            child: IgnorePointer(
               child: CustomPaint(
                 painter: _SpotlightPainter(
                   hole: hole,
                   color: Colors.black.withValues(alpha: 0.72),
                 ),
               ),
+            ),
+          ),
+          // 当たり判定レイヤ（全面）。タップは無視し、interactive のときのみ
+          // 縦スクロールを対象へ転送する（スポットは追従するが下の対象は押せない）。
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.interactive ? () {} : widget.onDismiss,
+              onVerticalDragUpdate:
+                  widget.interactive ? _forwardScroll : null,
             ),
           ),
           // ハイライト枠線。
@@ -140,7 +219,8 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
               scale: Tween<double>(begin: 0.94, end: 1.0).animate(
                 CurvedAnimation(parent: _controller, curve: Curves.easeOut),
               ),
-              alignment: placeBelow ? Alignment.topCenter : Alignment.bottomCenter,
+              alignment:
+                  placeBelow ? Alignment.topCenter : Alignment.bottomCenter,
               child: Material(
                 color: cs.surface,
                 elevation: 8,
@@ -151,9 +231,19 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (widget.stepLabel != null) ...[
+                        Text(
+                          widget.stepLabel!,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: cs.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
                       Row(
                         children: [
-                          Icon(Icons.palette_outlined, size: 20, color: cs.primary),
+                          Icon(widget.icon, size: 20, color: cs.primary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -188,6 +278,7 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
       ),
     );
   }
+
 }
 
 /// 半透明バリアに角丸の穴をくり抜くペインター。

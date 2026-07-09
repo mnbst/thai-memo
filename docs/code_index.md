@@ -290,3 +290,14 @@ scripts/build_topic_embeddings.py
 
 scripts/upload_corpus.sh
 UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSにアップロード。
+
+## Tests (Flutter)
+
+test/helpers/fake_firebase.dart
+FirebaseAuth/Firestore/PurchaseService/AnalyticsServiceのテスト用フェイク実装。
+
+test/services/firebase_auth_service_test.dart
+匿名→正規アカウントのリンク（昇格）・既存アカウントフォールバックのテスト。
+
+test/presentation/providers/subscription_provider_test.dart
+premium復帰フロー（Firestore tier反映・自動/手動復元・匿名ガード）のテスト。
