@@ -76,6 +76,8 @@ export const handleAppStoreNotification = functions.https.onRequest(
 
       // originalTransactionId でユーザーを検索
       // verifySubscription で保存した original_transaction_id と照合する
+      // 匿名ユーザーの再インストール等で同一サブスクの doc が複数残る可能性が
+      // あるため limit(1) にせず、該当する全 doc を更新する
       const usersSnapshot = await db
         .collection('users')
         .where(
@@ -83,7 +85,6 @@ export const handleAppStoreNotification = functions.https.onRequest(
           '==',
           transactionInfo.originalTransactionId
         )
-        .limit(1)
         .get();
 
       // 該当ユーザーが見つからない場合（初回購入前の通知など）
@@ -94,9 +95,6 @@ export const handleAppStoreNotification = functions.https.onRequest(
         res.status(200).send('OK');
         return;
       }
-
-      const userDoc = usersSnapshot.docs[0];
-      const userRef = userDoc.ref;
 
       // --- 通知タイプに応じてサブスクリプション状態を決定 ---
       let tier: string;      // 'premium' or 'free'
@@ -172,29 +170,31 @@ export const handleAppStoreNotification = functions.https.onRequest(
       // Firestore のユーザードキュメントを更新
       // quota は tier が変わる場合のみリセット（同一 tier の更新通知でリセットしない）
       const isFree = tier === 'free';
-      const currentTier = userDoc.data()?.tier;
-      const tierChanged = currentTier !== tier;
 
-      const updateData: Record<string, unknown> = {
-        tier,
-        'subscription.status': status,
-        'subscription.expires_at': expiresAt
-          ? admin.firestore.Timestamp.fromDate(expiresAt)
-          : null,
-        'subscription.auto_renewing': autoRenewing,
-        'subscription.updated_at': admin.firestore.FieldValue.serverTimestamp(),
-      };
+      for (const userDoc of usersSnapshot.docs) {
+        const tierChanged = userDoc.data()?.tier !== tier;
 
-      if (tierChanged) {
-        updateData.remaining_sentences = isFree ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES;
-        updateData.remaining_quizzes = isFree ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES;
+        const updateData: Record<string, unknown> = {
+          tier,
+          'subscription.status': status,
+          'subscription.expires_at': expiresAt
+            ? admin.firestore.Timestamp.fromDate(expiresAt)
+            : null,
+          'subscription.auto_renewing': autoRenewing,
+          'subscription.updated_at': admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        if (tierChanged) {
+          updateData.remaining_sentences = isFree ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES;
+          updateData.remaining_quizzes = isFree ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES;
+        }
+
+        await userDoc.ref.update(updateData);
+
+        console.log(
+          `Updated user ${userDoc.id}: tier=${tier}, status=${status}`
+        );
       }
-
-      await userRef.update(updateData);
-
-      console.log(
-        `Updated user ${userDoc.id}: tier=${tier}, status=${status}`
-      );
 
       res.status(200).send('OK');
     } catch (error) {

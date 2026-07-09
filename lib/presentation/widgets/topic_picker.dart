@@ -6,6 +6,7 @@ import '../providers/remaining_quota_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../screens/paywall_screen.dart';
+import 'coach_mark_overlay.dart';
 
 /// テーマ文字列から表示用の短いラベル（括弧前の名称）を返す。null は「おまかせ」。
 String topicShortLabel(String? topic) {
@@ -34,8 +35,15 @@ class NextSentenceTopicLabel extends ConsumerWidget {
     final cs = theme.colorScheme;
 
     final onTap = canSelect
-        ? () => showTopicPicker(context, ref)
-        : () => PaywallBottomSheet.show(context, source: paywallSource);
+        ? () {
+            // ツアー中にスポットしたチップをタップしたらマークを閉じる。
+            CoachMarkOverlay.dismiss();
+            showTopicPicker(context, ref);
+          }
+        : () {
+            CoachMarkOverlay.dismiss();
+            PaywallBottomSheet.show(context, source: paywallSource);
+          };
 
     return Align(
       alignment: Alignment.centerLeft,

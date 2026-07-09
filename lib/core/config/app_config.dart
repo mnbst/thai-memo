@@ -41,6 +41,13 @@ class AppConfig {
       'preferred_generation_time';
   static const String prefKeyFirstSummaryQuizCompleted =
       'first_summary_quiz_completed';
+  /// 「確認クイズへ」ボタンのコーチマーク表示済みフラグ
+  static const String prefKeySentenceCoachShown = 'sentence_coach_shown';
+
+  /// まとめクイズ誘導ボタンのコーチマーク表示済みフラグ
+  static const String prefKeyQuizButtonCoachShown = 'quiz_button_coach_shown';
+
+  /// 「次のテーマ」コーチマークの表示済みフラグ
   static const String prefKeyNextTopicCoachShown =
       'next_topic_coach_shown';
 }
