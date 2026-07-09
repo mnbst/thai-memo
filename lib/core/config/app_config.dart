@@ -50,4 +50,8 @@ class AppConfig {
   /// 「次のテーマ」コーチマークの表示済みフラグ
   static const String prefKeyNextTopicCoachShown =
       'next_topic_coach_shown';
+
+  /// サインイン促進バナーを閉じた日時（epoch ms）
+  static const String prefKeySignInReminderDismissedAt =
+      'sign_in_reminder_dismissed_at';
 }
