@@ -136,9 +136,12 @@ class FirebaseAuthService {
     } on FirebaseAuthException catch (e) {
       // 既にその Google/Apple アカウントが存在する場合は、そのアカウントでサインイン
       // （匿名 uid は破棄される）
+      // Apple の credential は nonce が一回限りで link 試行で消費済みのため、
+      // 例外に含まれる再利用可能な credential を優先して使う
       if (e.code == 'credential-already-in-use' ||
           e.code == 'email-already-in-use') {
-        final result = await _auth.signInWithCredential(credential);
+        final result =
+            await _auth.signInWithCredential(e.credential ?? credential);
         return result.user;
       }
       throw FirebaseAuthServiceException('サインインに失敗しました: ${e.message}');

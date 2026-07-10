@@ -243,7 +243,6 @@ def _ensure_user_quota(user_ref) -> dict:
     initial = {
         "remaining_sentences": FREE_DAILY_SENTENCES,
         "remaining_quizzes": FREE_DAILY_QUIZZES,
-        "uvm_initialized": True,
         "daily_sentence_generated": False,
         "premium_trial_remaining": PREMIUM_TRIAL_SENTENCES,
     }

@@ -18,7 +18,6 @@ export const onUserCreate = functions
         {
           remaining_sentences: FREE_DAILY_SENTENCES,
           remaining_quizzes: FREE_DAILY_QUIZZES,
-          uvm_initialized: true,
           daily_sentence_generated: false,
           premium_trial_remaining: PREMIUM_TRIAL_SENTENCES,
         },

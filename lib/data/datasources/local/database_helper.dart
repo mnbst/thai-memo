@@ -59,6 +59,15 @@ class DatabaseHelper {
     );
   }
 
+  /// 例文が1件でも存在するか（アップデート時の既存ユーザー判定に使用）
+  Future<bool> hasAnySentence() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT EXISTS(SELECT 1 FROM ${DatabaseConstants.tableSentences}) AS e',
+    );
+    return (result.first['e'] as int? ?? 0) == 1;
+  }
+
   /// Configure database (enable foreign keys)
   Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');

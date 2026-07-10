@@ -48,7 +48,6 @@ export const resetLearningData = functions.https.onCall(
       {
         remaining_sentences: FREE_DAILY_SENTENCES,
         remaining_quizzes: FREE_DAILY_QUIZZES,
-        uvm_initialized: true,
         daily_sentence_generated: false,
         sentence_generated_count: 0,
         estimated_vocab: 0,
