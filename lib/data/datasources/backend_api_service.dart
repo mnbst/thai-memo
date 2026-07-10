@@ -55,6 +55,9 @@ class BackendApiService {
       if (user == null) {
         throw BackendApiException('User not authenticated');
       }
+      // 削除済みユーザー検知: トークンを強制更新し、失効/削除済みなら SDK が
+      // 自動サインアウト → アプリ側で匿名再サインインが走るようにする。
+      await user.getIdToken(true);
 
       // Call Cloud Function
       final callable = _functions.httpsCallable(
@@ -289,6 +292,8 @@ class BackendApiService {
       if (user == null) {
         throw BackendApiUnauthenticatedException('User not authenticated');
       }
+      // 削除済みユーザー検知（generateSentence と同様）
+      await user.getIdToken(true);
 
       final callable = _functions.httpsCallable(
         FirebaseConfig.generateQuizFunctionName,

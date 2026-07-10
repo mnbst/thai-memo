@@ -180,6 +180,19 @@ class PaywallBottomSheet extends ConsumerWidget {
     await ref.read(subscriptionControllerProvider.notifier).purchase();
   }
 
+  /// 購入を復元する。匿名ユーザーの場合は先にサインインを必須とする。
+  Future<void> _startRestore(BuildContext context, WidgetRef ref) async {
+    if (FirebaseAuthService.instance.currentUser?.isAnonymous ?? true) {
+      final signedIn = await showSignInSheet(
+        context,
+        title: 'サインインが必要です',
+        message: '購入を復元するには、購入時のアカウントでサインインしてください。',
+      );
+      if (!signedIn || !context.mounted) return;
+    }
+    await ref.read(subscriptionControllerProvider.notifier).restore();
+  }
+
   Widget _buildPurchaseBar(BuildContext context, WidgetRef ref) {
     final subState = ref.watch(subscriptionControllerProvider);
     final colorScheme = Theme.of(context).colorScheme;
@@ -330,9 +343,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                 label: '購入を復元',
                 onPressed: subState.isLoading
                     ? null
-                    : () => ref
-                        .read(subscriptionControllerProvider.notifier)
-                        .restore(),
+                    : () => _startRestore(context, ref),
               ),
               separator(),
               legalLink(

@@ -22,17 +22,16 @@ import * as admin from 'firebase-admin';
 const db = admin.firestore();
 
 /**
- * deleteUserData - Firebase Auth ユーザー削除時に Firestore のユーザーデータを自動削除
+ * 指定ユーザーの Firestore データを同期削除する。
  *
- * Firebase Auth の onDelete イベントトリガーにより自動実行される。
+ * onDelete トリガーと dailyBatch の匿名ユーザー掃除の両方から呼ばれる。
  * バッチ書き込み（500件制限）を分割しながら関連する全データを削除する。
+ * 既に存在しない doc への delete は無害（冪等）。
  *
- * @param user - 削除されたユーザーの情報（uid を含む）
+ * @param uid - 削除対象ユーザーの uid
+ * @returns 削除した DocumentReference 数
  */
-export const deleteUserData = functions.region('asia-northeast1').auth.user().onDelete(async (user) => {
-  const uid = user.uid;
-  console.log(`Deleting data for user: ${uid}`);
-
+export async function deleteUserFirestoreData(uid: string): Promise<number> {
   // 削除対象の DocumentReference を収集
   const refs: admin.firestore.DocumentReference[] = [];
 
@@ -70,5 +69,19 @@ export const deleteUserData = functions.region('asia-northeast1').auth.user().on
     await batch.commit();
   }
 
-  console.log(`Deleted ${refs.length} document(s) for user: ${uid}`);
+  return refs.length;
+}
+
+/**
+ * deleteUserData - Firebase Auth ユーザー削除時に Firestore のユーザーデータを自動削除
+ *
+ * Firebase Auth の onDelete イベントトリガーにより自動実行される。
+ *
+ * @param user - 削除されたユーザーの情報（uid を含む）
+ */
+export const deleteUserData = functions.region('asia-northeast1').auth.user().onDelete(async (user) => {
+  const uid = user.uid;
+  console.log(`Deleting data for user: ${uid}`);
+  const count = await deleteUserFirestoreData(uid);
+  console.log(`Deleted ${count} document(s) for user: ${uid}`);
 });

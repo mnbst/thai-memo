@@ -92,10 +92,11 @@ export const handlePlayNotification = functions.pubsub.onMessagePublished(
 
     // purchaseToken で Firestore からユーザーを検索
     // verifySubscription で保存した purchase_token と照合する
+    // 匿名ユーザーの再インストール等で同一サブスクの doc が複数残る可能性が
+    // あるため limit(1) にせず、該当する全 doc を更新する
     const usersSnapshot = await db
       .collection('users')
       .where('subscription.purchase_token', '==', purchaseToken)
-      .limit(1)
       .get();
 
     // 該当ユーザーが見つからない場合（初回購入前の通知など）
@@ -103,9 +104,6 @@ export const handlePlayNotification = functions.pubsub.onMessagePublished(
       console.warn('No user found for purchaseToken');
       return;
     }
-
-    const userDoc = usersSnapshot.docs[0];
-    const userRef = userDoc.ref;
 
     // Google Play Developer API v3 で最新のサブスクリプション状態を取得
     try {
@@ -118,32 +116,34 @@ export const handlePlayNotification = functions.pubsub.onMessagePublished(
       // 検証結果に基づいて tier を決定（expired なら free、それ以外は premium）
       const tier = result.status === 'expired' ? 'free' : 'premium';
       const isFree = tier === 'free';
-      const currentTier = userDoc.data()?.tier;
-      const tierChanged = currentTier !== tier;
 
-      // Firestore のユーザードキュメントを更新
-      // ドット記法で subscription のサブフィールドのみ更新し、purchase_token 等を保持する
-      const updateData: Record<string, unknown> = {
-        tier,
-        'subscription.status': result.status,
-        'subscription.expires_at': result.expiresAt
-          ? admin.firestore.Timestamp.fromDate(result.expiresAt)
-          : null,
-        'subscription.auto_renewing': result.autoRenewing,
-        'subscription.updated_at': admin.firestore.FieldValue.serverTimestamp(),
-      };
+      for (const userDoc of usersSnapshot.docs) {
+        const tierChanged = userDoc.data()?.tier !== tier;
 
-      // クォータはティアが変わる時のみリセット（更新通知で誤リセットしない）
-      if (tierChanged) {
-        updateData.remaining_sentences = isFree ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES;
-        updateData.remaining_quizzes = isFree ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES;
+        // Firestore のユーザードキュメントを更新
+        // ドット記法で subscription のサブフィールドのみ更新し、purchase_token 等を保持する
+        const updateData: Record<string, unknown> = {
+          tier,
+          'subscription.status': result.status,
+          'subscription.expires_at': result.expiresAt
+            ? admin.firestore.Timestamp.fromDate(result.expiresAt)
+            : null,
+          'subscription.auto_renewing': result.autoRenewing,
+          'subscription.updated_at': admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        // クォータはティアが変わる時のみリセット（更新通知で誤リセットしない）
+        if (tierChanged) {
+          updateData.remaining_sentences = isFree ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES;
+          updateData.remaining_quizzes = isFree ? FREE_DAILY_QUIZZES : PREMIUM_DAILY_QUIZZES;
+        }
+
+        await userDoc.ref.update(updateData);
+
+        console.log(
+          `Updated user ${userDoc.id}: tier=${tier}, status=${result.status}`
+        );
       }
-
-      await userRef.update(updateData);
-
-      console.log(
-        `Updated user ${userDoc.id}: tier=${tier}, status=${result.status}`
-      );
     } catch (error) {
       console.error('Failed to verify Play purchase on RTDN:', error);
     }

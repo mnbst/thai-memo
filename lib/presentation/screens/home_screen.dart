@@ -15,6 +15,8 @@ import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
+import '../widgets/coach_mark_overlay.dart';
+import '../widgets/sign_in_reminder_banner.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'detail_screen.dart';
@@ -37,6 +39,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _initialLoadCompleted = false;
+  Future<void>? _initialLoadFuture;
   final _showAppIcon = ValueNotifier<bool>(true);
 
   @override
@@ -108,6 +111,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
 
     if (isFirstLaunch) {
+      // オンボーディングを読んでいる間に初回例文の生成を並行して進めておく
+      _initialLoadFuture = _loadTodaySentence();
       if (mounted) {
         // オンボーディング画面を表示し、完了を待つ
         await Navigator.push<void>(
@@ -126,18 +131,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
 
       if (mounted) {
-        _showFirstTimeGuideDialog();
+        // ダイアログでデモの枠組みを伝える。閉じた後に例文とコーチマークが
+        // 競合なく出せる。
+        await _showFirstTimeGuideDialog();
+        _retriggerCoachMarkIfLoaded();
       }
     }
 
     if (!mounted) return;
 
-    // Firestoreフラグを取得し、未生成なら自動生成、済みなら最新を表示
-    final data2 = await ref.read(userDocProvider.future);
-    final isGenerated = (data2?['daily_sentence_generated'] as bool?) ?? false;
-    await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
-          dailySentenceGenerated: isGenerated,
-        );
+    await (_initialLoadFuture ??= _loadTodaySentence());
 
     _initialLoadCompleted = true;
 
@@ -147,16 +150,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     ref.invalidate(allSentencesProvider);
   }
 
-  void _showFirstTimeGuideDialog() {
-    showDialog<void>(
+  /// Firestoreフラグを取得し、未生成なら自動生成、済みなら最新を表示
+  Future<void> _loadTodaySentence() async {
+    final data = await ref.read(userDocProvider.future);
+    final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
+    await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
+          dailySentenceGenerated: isGenerated,
+        );
+  }
+
+  /// オンボーディング中に生成が完了していた場合、コーチマークの表示判定は
+  /// ModalRoute.isCurrent で抑止されたまま再試行されない。状態を再通知して
+  /// 表示判定をやり直させる（表示済みならprefsチェックで何も起きない）。
+  void _retriggerCoachMarkIfLoaded() {
+    final state = ref.read(sentenceControllerProvider);
+    if (state is SentenceStateSuccess) {
+      ref
+          .read(sentenceControllerProvider.notifier)
+          .showSentence(state.sentence);
+    }
+  }
+
+  Future<void> _showFirstTimeGuideDialog() {
+    return showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.school, size: 40),
-        title: const Text('学習の流れ'),
+        title: const Text('まずは体験してみましょう'),
         content: const Text(
-          'まずは最初の例文を学習しましょう！\n'
-          '学習するとすぐにまとめクイズに挑戦できます。\n\n'
-          '次回からは5例文ごとにまとめクイズが出題されます。',
+          '実際に1回、例文からクイズまで通して学習します。\n'
+          '押すボタンはこのあと順番にご案内します。',
         ),
         actions: [
           FilledButton(
@@ -546,6 +569,50 @@ class TodayScreen extends ConsumerStatefulWidget {
 }
 
 class _TodayScreenState extends ConsumerState<TodayScreen> {
+  /// 「確認クイズへ」ボタンの位置特定用（初回コーチマーク表示に使用）。
+  final GlobalKey _quizButtonKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowSentenceCoach();
+      ref.listenManual(sentenceControllerProvider, (prev, next) {
+        if (next is SentenceStateSuccess) _maybeShowSentenceCoach();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    CoachMarkOverlay.dismiss();
+    super.dispose();
+  }
+
+  /// 初回だけ「確認クイズへ」ボタンをスポットライトで案内する。
+  /// 例文が表示され（＝ボタンが存在し）、前面にダイアログ等がない場合のみ。
+  Future<void> _maybeShowSentenceCoach() async {
+    if (ref.read(sentenceControllerProvider) is! SentenceStateSuccess) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _quizButtonKey.currentContext == null ||
+          ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
+      unawaited(prefs.setBool(AppConfig.prefKeySentenceCoachShown, true));
+      CoachMarkOverlay.show(
+        context,
+        targetKey: _quizButtonKey,
+        icon: Icons.quiz,
+        title: 'まずはクイズに挑戦',
+        message: '例文を読んだら、このボタンでクイズに挑戦しましょう。',
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(vocabStatsProvider, (prev, next) {
@@ -614,6 +681,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const SignInReminderBanner(),
                 _buildTargetWordsSection(context, sentence),
                 const SizedBox(height: 12),
                 _buildSentenceCard(context, sentence),
@@ -770,13 +838,16 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     BuildContext context,
     ThaiSentence sentence,
   ) {
-    return FilledButton.icon(
-      onPressed: () => widget.onStartQuiz?.call(sentence),
-      icon: const Icon(Icons.quiz),
-      label: const Text('確認クイズへ'),
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        minimumSize: const Size.fromHeight(56),
+    return KeyedSubtree(
+      key: _quizButtonKey,
+      child: FilledButton.icon(
+        onPressed: () => widget.onStartQuiz?.call(sentence),
+        icon: const Icon(Icons.quiz),
+        label: const Text('確認クイズへ'),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          minimumSize: const Size.fromHeight(56),
+        ),
       ),
     );
   }

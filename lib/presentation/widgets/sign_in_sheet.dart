@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../services/firebase_auth_service.dart';
 import '../providers/auth_provider.dart';
+import '../providers/subscription_provider.dart';
 
 /// Google/Apple サインインを促すボトムシート。
 ///
@@ -125,6 +127,10 @@ class _SignInSheet extends ConsumerWidget {
       return;
     }
     if (FirebaseAuthService.instance.isLinkedAccount) {
+      // サインイン後にサブスク状態を再取得（premium復帰・自動復元）
+      unawaited(
+        ref.read(subscriptionControllerProvider.notifier).initialize(),
+      );
       Navigator.pop(context, true);
     }
   }

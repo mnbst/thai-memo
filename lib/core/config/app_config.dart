@@ -41,4 +41,20 @@ class AppConfig {
       'preferred_generation_time';
   static const String prefKeyFirstSummaryQuizCompleted =
       'first_summary_quiz_completed';
+  /// 「確認クイズへ」ボタンのコーチマーク表示済みフラグ
+  static const String prefKeySentenceCoachShown = 'sentence_coach_shown';
+
+  /// まとめクイズ誘導ボタンのコーチマーク表示済みフラグ
+  static const String prefKeyQuizButtonCoachShown = 'quiz_button_coach_shown';
+
+  /// 「次のテーマ」コーチマークの表示済みフラグ
+  static const String prefKeyNextTopicCoachShown =
+      'next_topic_coach_shown';
+
+  /// コーチマーク移行処理の実施済みフラグ（既存ユーザーには表示しない）
+  static const String prefKeyCoachMarksMigrated = 'coach_marks_migrated';
+
+  /// サインイン促進バナーを閉じた日時（epoch ms）
+  static const String prefKeySignInReminderDismissedAt =
+      'sign_in_reminder_dismissed_at';
 }

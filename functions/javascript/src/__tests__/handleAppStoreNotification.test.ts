@@ -49,7 +49,7 @@ jest.mock('firebase-functions/v2', () => ({
  * const db = admin.firestore() がモジュール初期化時に呼ばれるため、
  * モジュールインポート前にモックを定義する必要がある。
  *
- * Firestore チェーン: collection → where → limit → get
+ * Firestore チェーン: collection → where → get
  * ユーザー書き込み:  userRef.set(data, { merge: true })
  */
 jest.mock('firebase-admin', () => ({
@@ -57,10 +57,8 @@ jest.mock('firebase-admin', () => ({
     jest.fn(() => ({
       collection: jest.fn(() => ({
         where: jest.fn(() => ({
-          limit: jest.fn(() => ({
-            // get はテストごとに mockResolvedValueOnce で戻り値を制御する
-            get: mockFirestoreGet,
-          })),
+          // get はテストごとに mockResolvedValueOnce で戻り値を制御する
+          get: mockFirestoreGet,
         })),
       })),
     })),
@@ -337,6 +335,32 @@ describe('handleAppStoreNotification', () => {
       // Firestore.set() に渡された第1引数（書き込みデータ）を返す
       return (mockFirestoreSet.mock.calls[0]?.[0] ?? null) as Record<string, unknown> | null;
     }
+
+    test('同一 original_transaction_id の doc が複数ある場合は全件更新される', async () => {
+      // 匿名ユーザーの再インストール等で同一サブスクの doc が複数残るケース
+      const mockUpdate1 = jest.fn().mockResolvedValue(undefined);
+      const mockUpdate2 = jest.fn().mockResolvedValue(undefined);
+      mockFirestoreGet.mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          { id: 'old_anon_uid', ref: { update: mockUpdate1 }, data: () => ({ tier: 'premium' }) },
+          { id: 'current_uid', ref: { update: mockUpdate2 }, data: () => ({ tier: 'premium' }) },
+        ],
+      });
+      mockParseNotificationPayload.mockResolvedValueOnce({
+        notificationType: 'EXPIRED',
+        transactionInfo: BASE_TX_INFO,
+        renewalInfo: RENEWAL_INFO_OFF,
+      });
+
+      await handler(makeReq({ signedPayload: 'test.jws.sig' }), makeRes());
+
+      // 両方の doc が free に落とされる
+      expect(mockUpdate1).toHaveBeenCalledTimes(1);
+      expect(mockUpdate2).toHaveBeenCalledTimes(1);
+      expect((mockUpdate1.mock.calls[0][0] as Record<string, unknown>).tier).toBe('free');
+      expect((mockUpdate2.mock.calls[0][0] as Record<string, unknown>).tier).toBe('free');
+    });
 
     test('DID_RENEW → tier=premium / status=active（定期購読の自動更新成功）', async () => {
       const data = await processNotification('DID_RENEW');
