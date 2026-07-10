@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
+import '../../data/datasources/local/database_helper.dart';
 import '../../services/analytics_service.dart';
 import 'analytics_provider.dart';
 
@@ -122,6 +123,11 @@ class SettingsController extends StateNotifier<SettingsState> {
   Future<void> _loadSettings() async {
     if (_prefs == null) return;
 
+    await migrateExistingUserFlags(
+      _prefs!,
+      DatabaseHelper.instance.hasAnySentence,
+    );
+    // 移行処理で既存ユーザーには is_first_launch=false を書くため読み直す
     final isFirstLaunch = _prefs!.getBool(AppConfig.prefKeyFirstLaunch) ?? true;
     final themeModeString =
         _prefs!.getString(AppConfig.prefKeyThemeMode) ?? 'light';
@@ -151,6 +157,33 @@ class SettingsController extends StateNotifier<SettingsState> {
       generationParams: params,
       fontFamily: fontFamily,
     );
+  }
+
+  /// コーチマーク・オンボーディング導入前からの既存ユーザーに、アップデート後
+  /// これらが再表示されるのを防ぐ一度きりの移行処理。
+  ///
+  /// 既存ユーザーの判定は「ローカルDBに例文がある」を主条件とする
+  /// （is_first_launch フラグは旧バージョンで保存されていない場合があるため）。
+  /// 既存ユーザーには:
+  /// - is_first_launch=false を書き、オンボーディング・初回ダイアログ・コーチ
+  ///   再トリガー（home_screen の if(isFirstLaunch) ブロック）をスキップさせる
+  /// - コーチマーク各フラグを表示済みにし、通常経路でのコーチ表示も抑止する
+  @visibleForTesting
+  static Future<void> migrateExistingUserFlags(
+    SharedPreferences prefs,
+    Future<bool> Function() hasAnySentence,
+  ) async {
+    if (prefs.getBool(AppConfig.prefKeyCoachMarksMigrated) ?? false) return;
+    final storedFirstLaunch =
+        prefs.getBool(AppConfig.prefKeyFirstLaunch) ?? true;
+    final isExistingUser = !storedFirstLaunch || await hasAnySentence();
+    if (isExistingUser) {
+      await prefs.setBool(AppConfig.prefKeyFirstLaunch, false);
+      await prefs.setBool(AppConfig.prefKeySentenceCoachShown, true);
+      await prefs.setBool(AppConfig.prefKeyQuizButtonCoachShown, true);
+      await prefs.setBool(AppConfig.prefKeyNextTopicCoachShown, true);
+    }
+    await prefs.setBool(AppConfig.prefKeyCoachMarksMigrated, true);
   }
 
   /// 初回起動完了を記録

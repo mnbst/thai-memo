@@ -51,6 +51,9 @@ class AppConfig {
   static const String prefKeyNextTopicCoachShown =
       'next_topic_coach_shown';
 
+  /// コーチマーク移行処理の実施済みフラグ（既存ユーザーには表示しない）
+  static const String prefKeyCoachMarksMigrated = 'coach_marks_migrated';
+
   /// サインイン促進バナーを閉じた日時（epoch ms）
   static const String prefKeySignInReminderDismissedAt =
       'sign_in_reminder_dismissed_at';
