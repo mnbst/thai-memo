@@ -261,9 +261,6 @@ Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。
 functions/python/themes/bl_drama.py
 BLドラマテーマのプロンプト断片構築。参考セリフ（BL_DRAMA_SHOTS）から1文だけをembedding類似度で選び出す。
 
-functions/python/scripts/build_drama_embeddings.py
-BL_DRAMA_SHOTSのembeddingを生成しGCS（shot_embeddings.json）へアップロードするオフラインスクリプト。
-
 functions/python/constants.py
 LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ（build_response_schemaで未確定contextフィールドのみ追加）。
 
@@ -301,7 +298,7 @@ scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。
 
 scripts/build_topic_embeddings.py
-16テーマ文字列のembeddingを事前計算しGCSにアップロード。
+テーマ・サブテーマ・BLドラマ参考セリフ（shot_embeddings.json）のembeddingを768次元で事前計算する。出力はcorpus/配下、アップロードはupload_corpus.sh。
 
 scripts/upload_corpus.sh
 UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSにアップロード。

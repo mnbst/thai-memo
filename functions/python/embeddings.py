@@ -315,7 +315,9 @@ def find_best_drama_shot(word: str, shots: dict[str, str]) -> str | None:
     scored: list[tuple[float, str]] = []
     for shot_id, text in shots.items():
         emb_list = _shot_embeddings.get(text)
-        if emb_list is None:
+        # 次元不一致（生成時の output_dimensionality 違い等）は候補から外す。
+        # 例文生成そのものを落とさず、ランダム選出へ縮退させる。
+        if emb_list is None or len(emb_list) != word_emb.shape[0]:
             continue
         sim = cosine_similarity(word_emb, np.array(emb_list, dtype=np.float32))
         scored.append((sim, shot_id))
