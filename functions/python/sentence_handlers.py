@@ -281,13 +281,21 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         db = firestore.client()
         user_ref = db.collection("users").document(uid)
         user_doc = user_ref.get()  # type: ignore[union-attr]
-        if user_doc.exists:  # type: ignore[union-attr]
-            user_data = user_doc.to_dict() or {}  # type: ignore[union-attr]
-        else:
-            # 主経路は onUserCreate トリガーだが、doc 欠損（トリガー失敗・削除済み・
-            # トリガー導入前ユーザー）のまま生成されると remaining_sentences=0 で
-            # QUOTA_EXCEEDED になる。ここで冪等に初期クォータを付与して自己回復する。
-            user_data = _ensure_user_quota(user_ref)  # type: ignore[union-attr]
+        user_data = (
+            (user_doc.to_dict() or {})  # type: ignore[union-attr]
+            if user_doc.exists  # type: ignore[union-attr]
+            else {}
+        )
+        # 主経路は onUserCreate トリガーだが、doc 欠損（トリガー失敗・削除済み・
+        # トリガー導入前ユーザー）のまま生成されると remaining_sentences=0 で
+        # QUOTA_EXCEEDED になる。ここで冪等に初期クォータを付与して自己回復する。
+        #
+        # doc の有無ではなくクォータフィールドの有無で判定すること。孤児doc掃除
+        # （dailyBatch）で doc が消えた後、updateUvm 等が merge=True でクイズ系
+        # フィールドだけの部分docを作り直すケースがあり、doc は存在するのに
+        # クォータだけ無い状態で永久に QUOTA_EXCEEDED になる。
+        if "remaining_sentences" not in user_data:
+            user_data = {**user_data, **_ensure_user_quota(user_ref)}  # type: ignore[union-attr]
 
         tier = user_data.get("tier", "free")
         is_premium = tier == "premium"
@@ -308,6 +316,9 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
 
         remaining = user_data.get("remaining_sentences", 0)
         if remaining <= 0:
+            log_data["error"] = "QUOTA_EXCEEDED"
+            log_data["remainingSentences"] = remaining
+            print(f"Quota exceeded: {log_data}")
             response["error"] = {
                 "code": "QUOTA_EXCEEDED",
                 "message": "この時間帯の例文生成上限に達しました",

@@ -97,12 +97,46 @@ class TestPosTagging:
         "word, expected_pos",
         [
             ("กิน", "動詞"),
-            ("ดี", "副詞"),
+            # ดี は形容詞辞書で確定させる。旧 perceptron は「副詞」を返していた
+            ("ดี", "形容詞"),
             ("มาก", "副詞"),
-            ("ไม่", "助詞"),
+            # ไม่ は否定詞。旧 perceptron は「助詞」を返していた
+            ("ไม่", "否定詞"),
         ],
     )
     def test_pos_returns_japanese(self, word: str, expected_pos: str) -> None:
         result = get_pos_japanese(word)
         # POSタグは日本語であること（英語タグではない）
         assert result == expected_pos
+
+    @pytest.mark.parametrize(
+        "word, expected_pos",
+        [
+            # 機能語辞書で確定させる語。perceptron は未知語として
+            # すべて「名詞」に誤判定していた
+            ("ครับ", "助詞"),
+            ("นะครับ", "助詞"),
+            ("มึง", "代名詞"),
+            ("อันนี้", "限定詞"),
+            ("โอ้โห", "感嘆詞"),
+            ("หน่อย", "副詞"),
+        ],
+    )
+    def test_function_words_are_not_misjudged_as_noun(
+        self, word: str, expected_pos: str
+    ) -> None:
+        assert get_pos_japanese(word) == expected_pos
+
+    @pytest.mark.parametrize(
+        "word",
+        ["ดี", "สวย", "อร่อย", "แพง", "ใหญ่", "เร็ว", "หิว", "ดีใจ"],
+    )
+    def test_adjectives_are_unified(self, word: str) -> None:
+        """タイ語の形容詞は状態動詞だがコーパスにより ADJ/VERB/ADV に割れるため、
+        辞書で「形容詞」に統一する。"""
+        assert get_pos_japanese(word) == "形容詞"
+
+    @pytest.mark.parametrize("word", ["ชอบ", "กิน", "รู้"])
+    def test_action_verbs_stay_verbs(self, word: str) -> None:
+        """目的語を取る動詞は形容詞辞書に含めない。"""
+        assert get_pos_japanese(word) == "動詞"

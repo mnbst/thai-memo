@@ -52,10 +52,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       // remaining_sentences監視: 0→正数（dailyBatchリセット）で自動読み込み
       ref.listenManual(remainingSentencesProvider, (prev, next) {
         if (!_initialLoadCompleted) return;
-        if (_changedFromNoRemainingToAvailable(prev, next)) {
-          // dailyBatchリセット時は表示中でも新日の例文を生成
+        if (!changedFromNoRemainingToAvailable(prev, next)) return;
+
+        final data = ref.read(userDocProvider).valueOrNull;
+        final isGenerated =
+            (data?['daily_sentence_generated'] as bool?) ?? false;
+        if (shouldAutoLoadAfterSentenceQuotaRefresh(
+          previous: prev,
+          next: next,
+          dailySentenceGenerated: isGenerated,
+        )) {
+          // dailyBatchリセット時は表示中でも新日の例文を生成。
+          // 購入・復元などでquotaだけ戻った場合は当日生成済みフラグを尊重する。
           ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
                 dailySentenceGenerated: false,
+                generationParams: ref.read(generationParamsProvider),
               );
           ref.invalidate(allSentencesProvider);
         }
@@ -99,6 +110,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (!isGenerated) {
       ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
             dailySentenceGenerated: false,
+            generationParams: ref.read(generationParamsProvider),
           );
       ref.invalidate(allSentencesProvider);
     }
@@ -156,6 +168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
     await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
           dailySentenceGenerated: isGenerated,
+          generationParams: ref.read(generationParamsProvider),
         );
   }
 
@@ -270,7 +283,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
 enum _LearningStage { sentence, quiz, summaryQuiz }
 
-bool _changedFromNoRemainingToAvailable(
+@visibleForTesting
+bool changedFromNoRemainingToAvailable(
   AsyncValue<int>? previous,
   AsyncValue<int> next,
 ) {
@@ -280,6 +294,16 @@ bool _changedFromNoRemainingToAvailable(
       nextRemaining != null &&
       previousRemaining <= 0 &&
       nextRemaining > 0;
+}
+
+@visibleForTesting
+bool shouldAutoLoadAfterSentenceQuotaRefresh({
+  required AsyncValue<int>? previous,
+  required AsyncValue<int> next,
+  required bool dailySentenceGenerated,
+}) {
+  return !dailySentenceGenerated &&
+      changedFromNoRemainingToAvailable(previous, next);
 }
 
 class LearningScreen extends ConsumerStatefulWidget {
@@ -300,8 +324,9 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
   int _completedCount = 0;
   bool _firstSummaryQuizCompleted = true;
 
-  int get _currentThreshold =>
-      _firstSummaryQuizCompleted ? _summaryQuizThreshold : _firstTimeSummaryQuizThreshold;
+  int get _currentThreshold => _firstSummaryQuizCompleted
+      ? _summaryQuizThreshold
+      : _firstTimeSummaryQuizThreshold;
 
   @override
   void initState() {
@@ -374,37 +399,16 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     _setStage(_LearningStage.sentence);
   }
 
-  /// 次の例文へ進む。テーマは例文画面のチップ／設定で保持した値をそのまま使う。
+  /// 次の例文へ進む。テーマの適用可否・トライアル消費は controller 側で判定する。
   Future<void> _proceedToNextSentence() async {
-    final isPremium = ref.read(isPremiumProvider);
-    final trialRemaining =
-        ref.read(premiumTrialRemainingProvider).valueOrNull ?? 0;
-    final trialActive = !isPremium && trialRemaining > 0;
-
-    if (trialActive) {
-      await _generateNextLearningSentence(premiumTrial: true);
-      if (!mounted) return;
-      // 今回がトライアル最終回なら、設定のテーマを「おまかせ」に戻す。
-      // 以降はフリーに戻り、テーマ選択（プレミアム機能）が使えないため。
-      if (trialRemaining <= 1) {
-        await ref
-            .read(settingsControllerProvider.notifier)
-            .setGenerationParam('topic', null);
-      }
-    } else {
-      await _generateNextLearningSentence();
-    }
+    await _generateNextLearningSentence();
   }
 
-  Future<void> _generateNextLearningSentence({
-    bool premiumTrial = false,
-  }) async {
+  Future<void> _generateNextLearningSentence() async {
     _setStage(_LearningStage.sentence);
-    // トライアル中は設定に保持したテーマ（generationParams）をそのまま使う。
     final genParams = ref.read(generationParamsProvider);
     await ref.read(sentenceControllerProvider.notifier).generateSentence(
           generationParams: genParams,
-          premiumTrial: premiumTrial,
         );
     final sentenceState = ref.read(sentenceControllerProvider);
     if (sentenceState is SentenceStateSuccess) {
@@ -418,7 +422,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(remainingSentencesProvider, (prev, next) {
-      if (_changedFromNoRemainingToAvailable(prev, next) &&
+      if (changedFromNoRemainingToAvailable(prev, next) &&
           mounted &&
           _stage != _LearningStage.sentence) {
         _setStage(_LearningStage.sentence);

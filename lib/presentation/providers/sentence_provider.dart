@@ -13,8 +13,14 @@ import '../../domain/get_sentences_usecase.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
 import 'analytics_provider.dart';
+import 'remaining_quota_provider.dart';
 import 'settings_provider.dart';
 import 'subscription_provider.dart';
+
+typedef GenerateSentenceCallback = Future<ThaiSentence> Function({
+  Map<String, String?> generationParams,
+});
+typedef GetMostRecentSentenceCallback = Future<ThaiSentence?> Function();
 
 // ==================== Repository Provider ====================
 
@@ -73,6 +79,10 @@ class SentenceController extends StateNotifier<SentenceState> {
   final AnalyticsService _analytics;
   final String Function() _currentTier;
   final String? Function() _currentTopic;
+  final int Function() _trialRemaining;
+  final Future<void> Function() _onTrialExhausted;
+  final GenerateSentenceCallback? _generateSentenceOverride;
+  final GetMostRecentSentenceCallback? _getMostRecentSentenceOverride;
 
   SentenceController(
     this._generateUseCase,
@@ -81,29 +91,76 @@ class SentenceController extends StateNotifier<SentenceState> {
     this._analytics,
     this._currentTier,
     this._currentTopic,
-  ) : super(const SentenceStateInitial());
+    this._trialRemaining,
+    this._onTrialExhausted, {
+    GenerateSentenceCallback? generateSentence,
+    GetMostRecentSentenceCallback? getMostRecentSentence,
+  })  : _generateSentenceOverride = generateSentence,
+        _getMostRecentSentenceOverride = getMostRecentSentence,
+        super(const SentenceStateInitial());
+
+  /// トライアル中（free かつ残回数あり）か
+  bool get _trialActive => _currentTier() != 'premium' && _trialRemaining() > 0;
 
   /// Generate a new sentence
   ///
-  /// [premiumTrial] が true の場合、free ユーザーでもテーマを維持し、
-  /// サーバーへ premium_trial フラグを送って premium ロジックで生成する。
+  /// テーマ（topic）の扱いは tier で決まる:
+  /// free = おまかせ / premium・トライアル中 = ユーザー設定を反映。
+  /// トライアル中はサーバーへ premium_trial フラグを送り、残回数を1消費する。
   Future<void> generateSentence({
     Map<String, String?> generationParams = const {},
-    bool premiumTrial = false,
   }) async {
     state = const SentenceStateLoading();
+    await _generate(
+      generationParams: generationParams,
+      source: 'manual_single',
+    );
+  }
+
+  /// tier 判定・トライアル消費後処理を共通化した生成本体。
+  /// 呼び出し側で Loading 状態にしておくこと。
+  ///
+  /// [fallbackToRecentOnError] が true の場合、想定外エラー時はエラー表示ではなく
+  /// 既存の最新例文（なければ空状態）にフォールバックする。自動生成経路で
+  /// 起動直後にエラー画面を出さないための挙動。
+  Future<void> _generate({
+    required Map<String, String?> generationParams,
+    required String source,
+    bool fallbackToRecentOnError = false,
+  }) async {
+    final trialActive = _trialActive;
+    final wasLastTrial = trialActive && _trialRemaining() <= 1;
 
     try {
-      final sentence = await _generateUseCase.execute(
+      final sentence = await _executeGenerateSentence(
         generationParams:
-            _effectiveGenerationParams(generationParams, premiumTrial),
+            _effectiveGenerationParams(generationParams, trialActive),
       );
       state = SentenceStateSuccess(sentence, generated: true);
-      _logGenerateSentence(count: 1, source: 'manual_single');
+      _logGenerateSentence(
+        count: 1,
+        source: source,
+        topicApplied: trialActive,
+      );
+      // トライアル最終回を使い切ったら、設定のテーマを「おまかせ」に戻す。
+      // 以降はフリーに戻り、テーマ選択（プレミアム機能）が使えないため。
+      if (_shouldClearTopicAfterTrial(wasLastTrial)) {
+        await _onTrialExhausted();
+      }
     } on GenerateSentenceException catch (e) {
       state = SentenceStateError(e.getUserMessage());
     } catch (e) {
-      state = SentenceStateError('予期しないエラーが発生しました: $e');
+      if (!fallbackToRecentOnError) {
+        state = SentenceStateError('予期しないエラーが発生しました: $e');
+        return;
+      }
+      // 生成失敗時は既存の最新例文を表示、なければサンプル表示
+      final recent = await _executeGetMostRecentSentence();
+      if (recent != null) {
+        state = SentenceStateSuccess(recent);
+      } else {
+        state = const SentenceStateEmpty();
+      }
     }
   }
 
@@ -131,7 +188,7 @@ class SentenceController extends StateNotifier<SentenceState> {
     state = const SentenceStateLoading();
 
     try {
-      final sentence = await _getUseCase.getMostRecent();
+      final sentence = await _executeGetMostRecentSentence();
       if (sentence != null) {
         state = SentenceStateSuccess(sentence);
       } else {
@@ -145,13 +202,14 @@ class SentenceController extends StateNotifier<SentenceState> {
   /// Firestoreフラグに基づき、未生成なら1件自動生成、済みなら最新を表示
   Future<void> loadOrGenerateToday({
     required bool dailySentenceGenerated,
+    Map<String, String?> generationParams = const {},
   }) async {
     state = const SentenceStateLoading();
 
     try {
       if (dailySentenceGenerated) {
         // 今日生成済み → 最新を表示
-        final recent = await _getUseCase.getMostRecent();
+        final recent = await _executeGetMostRecentSentence();
         if (recent != null) {
           state = SentenceStateSuccess(recent);
           return;
@@ -160,21 +218,11 @@ class SentenceController extends StateNotifier<SentenceState> {
       }
 
       // 未生成 → 1件生成
-      try {
-        final sentence = await _generateUseCase.execute();
-        state = SentenceStateSuccess(sentence, generated: true);
-        _logGenerateSentence(count: 1, source: 'daily_auto');
-      } on GenerateSentenceException catch (e) {
-        state = SentenceStateError(e.getUserMessage());
-      } catch (e) {
-        // 生成失敗時は既存の最新例文を表示、なければサンプル表示
-        final recent = await _getUseCase.getMostRecent();
-        if (recent != null) {
-          state = SentenceStateSuccess(recent);
-        } else {
-          state = const SentenceStateEmpty();
-        }
-      }
+      await _generate(
+        generationParams: generationParams,
+        source: 'daily_auto',
+        fallbackToRecentOnError: true,
+      );
     } catch (e) {
       state = const SentenceStateError('データの読み込みに失敗しました');
     }
@@ -216,15 +264,36 @@ class SentenceController extends StateNotifier<SentenceState> {
     state = const SentenceStateInitial();
   }
 
+  Future<ThaiSentence> _executeGenerateSentence({
+    Map<String, String?> generationParams = const {},
+  }) {
+    final generate = _generateSentenceOverride ?? _generateUseCase.execute;
+    return generate(generationParams: generationParams);
+  }
+
+  Future<ThaiSentence?> _executeGetMostRecentSentence() {
+    final getMostRecent =
+        _getMostRecentSentenceOverride ?? _getUseCase.getMostRecent;
+    return getMostRecent();
+  }
+
+  bool _shouldClearTopicAfterTrial(bool wasLastTrial) {
+    return wasLastTrial && _currentTier() != 'premium';
+  }
+
+  /// [topicApplied] はトライアル適用で free ユーザーにもテーマが効いたか。
+  /// premium 判定だけで絞るとトライアル分の topic が欠測するため明示的に渡す。
   void _logGenerateSentence({
     required int count,
     required String source,
+    bool topicApplied = false,
   }) {
     // provider 側で tier/topic を読むことで、UI からイベント文脈を組み立てなくて済む。
+    final tier = _currentTier();
     unawaited(
       _analytics.logGenerateSentence(
-        tier: _currentTier(),
-        topic: _currentTier() == 'premium' ? _currentTopic() : null,
+        tier: tier,
+        topic: (tier == 'premium' || topicApplied) ? _currentTopic() : null,
         source: source,
         count: count,
       ),
@@ -245,8 +314,16 @@ final sentenceControllerProvider =
     getUseCase,
     deleteUseCase,
     analytics,
-    () => ref.read(isPremiumProvider) ? 'premium' : 'free',
+    () {
+      final bool isPremium = ref.read(isPremiumRealtimeProvider).valueOrNull ??
+          ref.read(isPremiumProvider);
+      return isPremium ? 'premium' : 'free';
+    },
     () => ref.read(generationParamsProvider)['topic'],
+    () => ref.read(premiumTrialRemainingProvider).valueOrNull ?? 0,
+    () => ref
+        .read(settingsControllerProvider.notifier)
+        .setGenerationParam('topic', null),
   );
 });
 

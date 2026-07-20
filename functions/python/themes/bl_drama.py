@@ -196,41 +196,57 @@ BL_DRAMA_SHOTS = {
 }
 
 
-def _collect_shots(shot_ids: list[str]) -> list[str]:
-    """ショットIDリストからタイ語テキストを取得する。"""
-    return [BL_DRAMA_SHOTS[sid] for sid in shot_ids if sid in BL_DRAMA_SHOTS]
+# ショットID → 所属するドラマ設定・シーン名の逆引き。
+# セリフ単位で選出するため、選ばれたショットからドラマ設定を復元する。
+_SHOT_CONTEXT: dict[str, dict[str, str]] = {
+    sid: {"drama": setting["drama"], "context": setting["context"], "scene": scene["text"]}
+    for setting in BL_DRAMA_SETTINGS
+    for scene in setting["scenes"]
+    for sid in scene["shots"]
+    if sid in BL_DRAMA_SHOTS
+}
+
+
+def pick_drama_shot(target_words: list[str] | None) -> str:
+    """参考にするセリフを1つ選び、そのショットIDを返す。
+
+    ターゲット単語があれば embedding 類似度で全セリフから選出する。
+    単語が無い / embedding が引けない場合はランダム。
+    """
+    if target_words:
+        from embeddings import find_best_drama_shot
+
+        shots = {sid: BL_DRAMA_SHOTS[sid] for sid in _SHOT_CONTEXT}
+        shot_id = find_best_drama_shot(target_words[0], shots)
+        if shot_id:
+            return shot_id
+    return random.choice(list(_SHOT_CONTEXT))
 
 
 def build_drama_prompt_section(
     target_words: list[str] | None,
 ) -> dict[str, str]:
-    """BLドラマ用のプロンプト断片を返す。"""
-    from embeddings import find_best_drama_scene
+    """BLドラマ用のプロンプト断片を返す。
 
-    if target_words:
-        pick = find_best_drama_scene(target_words[0], BL_DRAMA_SETTINGS)
-    else:
-        setting = random.choice(BL_DRAMA_SETTINGS)
-        scene = random.choice(setting["scenes"])
-        pick = {**setting, "scene": scene["text"], "shots": scene["shots"]}
-
-    shot_texts = _collect_shots(pick["shots"])
+    参考セリフは意図的に1文だけ渡す。複数渡すと単語を混ぜて合成した
+    非文が生成されるため、混成の余地を構造的に無くしている。
+    """
+    shot_id = pick_drama_shot(target_words)
+    pick = _SHOT_CONTEXT[shot_id]
+    shot_text = BL_DRAMA_SHOTS[shot_id]
 
     context_lines = [
         "BLドラマ（男性同士）。セリフをそのまま引用せず雰囲気を参考にすること",
         f"ドラマの設定: {pick['context']}",
-    ]
-    if shot_texts:
-        joined = " / ".join(shot_texts)
-        context_lines.append(f"参考タイ語例（雰囲気・口語感の参考）: {joined}")
-    context_lines.append(
+        f"場面: {pick['scene']}",
+        f"参考タイ語例（雰囲気・口語感の参考。この1文のみ）: {shot_text}",
         "usage_scenariosにはどんな場面かわかる説明を書くこと",
-    )
+    ]
 
     required_lines = [
         "話し手・聞き手の人称代名詞は参考タイ語例と同じ丁寧度で統一すること。参考例でกู/มึงが使われていればthai_textでもกู/มึงを使う。ฉัน/คุณ/ผมへの置き換え禁止",
         "相手の呼び方（二人称）も参考タイ語例に合わせること。参考例でพี่/เฮียなどが使われていればคุณに置き換えない",
-        "参考タイ語例から1文を選び、その文の雰囲気・構文を参考にオリジナルのタイ語文を作ること（複数の参考例から単語を混ぜて合成しない）",
+        "参考タイ語例の雰囲気・構文を参考にオリジナルのタイ語文を作ること。単語を部分的に差し替えて別の意味の語を作らない（例: ช่วยดูแล を ช่วยดู にするなど）",
     ]
 
     return {

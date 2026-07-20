@@ -21,10 +21,10 @@ if [[ -f "${CORPUS_DIR}/sub_theme_embeddings.json" ]]; then
 else
   echo "Skipping sub_theme_embeddings.json (not found)"
 fi
-if [[ -f "${CORPUS_DIR}/scene_embeddings.json" ]]; then
-  gsutil cp "${CORPUS_DIR}/scene_embeddings.json" "gs://${BUCKET}/scene_embeddings.json"
+if [[ -f "${CORPUS_DIR}/shot_embeddings.json" ]]; then
+  gsutil cp "${CORPUS_DIR}/shot_embeddings.json" "gs://${BUCKET}/shot_embeddings.json"
 else
-  echo "Skipping scene_embeddings.json (not found)"
+  echo "Skipping shot_embeddings.json (not found)"
 fi
 if [[ -f "${CORPUS_DIR}/emotion_embeddings.json" ]]; then
   gsutil cp "${CORPUS_DIR}/emotion_embeddings.json" "gs://${BUCKET}/emotion_embeddings.json"

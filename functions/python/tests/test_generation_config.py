@@ -31,10 +31,11 @@ class TestOpenAIPayload:
             "thai_text",
             "japanese_translation",
             "word_breakdown",
+            "target_notes",
             "context",
         ]
         word_schema = fmt["schema"]["properties"]["word_breakdown"]["items"]
-        assert word_schema["required"] == ["word", "meaning", "notes"]
+        assert word_schema["required"] == ["word", "meaning"]
 
 
 class TestGeminiSchema:
@@ -47,10 +48,11 @@ class TestGeminiSchema:
             "thai_text",
             "japanese_translation",
             "word_breakdown",
+            "target_notes",
             "context",
         ]
         word_schema = schema["properties"]["word_breakdown"]["items"]
-        assert word_schema["required"] == ["word", "meaning", "notes"]
+        assert word_schema["required"] == ["word", "meaning"]
 
 
 class TestGeminiTokenUsage:
@@ -84,11 +86,11 @@ class TestProviderDispatch:
         monkeypatch.setattr(llm_providers, "SENTENCE_PROVIDER", "gemini")
         called: list[tuple[str, str, str]] = []
 
-        def fake_gemini(system_prompt, user_prompt, is_premium, tier_label):
+        def fake_gemini(system_prompt, user_prompt, is_premium, tier_label, schema=None):
             called.append(("gemini", system_prompt, user_prompt))
             return {"thai_text": "x"}
 
-        def fake_openai(system_prompt, user_prompt, is_premium, tier_label):
+        def fake_openai(system_prompt, user_prompt, is_premium, tier_label, schema=None):
             called.append(("openai", system_prompt, user_prompt))
             return {"thai_text": "y"}
 
@@ -103,11 +105,11 @@ class TestProviderDispatch:
         monkeypatch.setattr(llm_providers, "SENTENCE_PROVIDER", "openai")
         called: list[tuple[str, str, str]] = []
 
-        def fake_gemini(system_prompt, user_prompt, is_premium, tier_label):
+        def fake_gemini(system_prompt, user_prompt, is_premium, tier_label, schema=None):
             called.append(("gemini", system_prompt, user_prompt))
             return {"thai_text": "x"}
 
-        def fake_openai(system_prompt, user_prompt, is_premium, tier_label):
+        def fake_openai(system_prompt, user_prompt, is_premium, tier_label, schema=None):
             called.append(("openai", system_prompt, user_prompt))
             return {"thai_text": "y"}
 

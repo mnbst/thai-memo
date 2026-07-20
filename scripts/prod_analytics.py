@@ -9,12 +9,12 @@ import os
 import sys
 import json
 from datetime import datetime, timezone, timedelta
-from collections import Counter
+from collections import Counter, defaultdict
 
 os.environ['GOOGLE_CLOUD_PROJECT'] = 'thai-memo-prod'
 
 import firebase_admin
-from firebase_admin import firestore
+from firebase_admin import firestore, auth
 from google.cloud import storage
 
 JST = timezone(timedelta(hours=9))
@@ -156,6 +156,46 @@ if uvm_totals:
     print(f"  UVM words per user: avg={sum(uvm_totals)/len(uvm_totals):.1f}, median={sorted(uvm_totals)[len(uvm_totals)//2]}")
     print(f"  P>0.5 words per user: avg={sum(p_above_05_counts)/len(p_above_05_counts):.1f}")
     print(f"  0.3<P≤0.5 words per user: avg={sum(p_in_mid_counts)/len(p_in_mid_counts):.1f}")
+
+# -------------------------
+# サインアップ → 初回生成 到達率（ログイン壁改善の先行指標）
+#   起点: Firebase Auth の creation_timestamp（全ユーザーの権威ソース）
+#   到達: users ドキュメントに first_generated_at がある = 一度でも生成した
+# users doc には signup 日時が無いため Auth 側を起点にする。
+# -------------------------
+print("\n=== Signup→First-Generation Conversion (by signup week) ===")
+
+# uid -> first_generated_at (JST)
+first_gen_by_uid: dict[str, datetime] = {}
+for user_doc in user_docs:
+    fg = (user_doc.to_dict() or {}).get('first_generated_at')
+    if fg:
+        first_gen_by_uid[user_doc.id] = fg.replace(tzinfo=timezone.utc).astimezone(JST)
+
+conv = defaultdict(lambda: {'signups': 0, 'generated': 0, 'hrs': []})
+for u in auth.list_users().iterate_all():
+    ts = u.user_metadata.creation_timestamp
+    if not ts:
+        continue
+    signup_dt = datetime.fromtimestamp(ts / 1000, JST)
+    wk = signup_dt.strftime('%Y-W%W')
+    conv[wk]['signups'] += 1
+    fg = first_gen_by_uid.get(u.uid)
+    if fg:
+        conv[wk]['generated'] += 1
+        conv[wk]['hrs'].append((fg - signup_dt).total_seconds() / 3600)
+
+print(f"  {'Week':>10s}  {'Signups':>7s}  {'Gen':>4s}  {'Conv%':>6s}  {'MedHrsToGen':>11s}")
+tot_s = tot_g = 0
+for wk in sorted(conv.keys()):
+    c = conv[wk]
+    tot_s += c['signups']
+    tot_g += c['generated']
+    pct = f"{c['generated']/c['signups']*100:.0f}%" if c['signups'] else '-'
+    med_h = f"{sorted(c['hrs'])[len(c['hrs'])//2]:.1f}" if c['hrs'] else '-'
+    print(f"  {wk:>10s}  {c['signups']:7d}  {c['generated']:4d}  {pct:>6s}  {med_h:>11s}")
+if tot_s:
+    print(f"  {'TOTAL':>10s}  {tot_s:7d}  {tot_g:4d}  {tot_g/tot_s*100:5.0f}%")
 
 # -------------------------
 # リテンション分析（users ドキュメントの timestamp フィールドで集計）
