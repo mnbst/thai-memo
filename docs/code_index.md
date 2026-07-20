@@ -244,7 +244,13 @@ functions/python/main.py
 `generateThaiSentence`と`sendDailySentence`のエントリーポイント。Gemini API呼び出し、クォータチェック、NLPエンリッチメント。
 
 functions/python/nlp.py
-PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日本語ラベル）。
+PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日本語ラベル）。品詞は機能語辞書→形容詞辞書→unigram→perceptronの順で判定。
+
+functions/python/pos_adjectives.py
+形容詞（状態動詞）辞書。build_adjective_dict.pyが生成する自動生成ファイル。
+
+functions/python/scripts/build_adjective_dict.py
+freq_rank上位語をLLMに分類させpos_adjectives.pyを生成するオフラインスクリプト。
 
 functions/python/pronunciation.py
 タイ文字→ローマ字発音変換（声調記号付き）。
@@ -252,8 +258,14 @@ functions/python/pronunciation.py
 functions/python/prompts.py
 Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。
 
+functions/python/themes/bl_drama.py
+BLドラマテーマのプロンプト断片構築。参考セリフ（BL_DRAMA_SHOTS）から1文だけをembedding類似度で選び出す。
+
+functions/python/scripts/build_drama_embeddings.py
+BL_DRAMA_SHOTSのembeddingを生成しGCS（shot_embeddings.json）へアップロードするオフラインスクリプト。
+
 functions/python/constants.py
-LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ。
+LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ（build_response_schemaで未確定contextフィールドのみ追加）。
 
 functions/python/llm_providers.py
 LLMプロバイダー抽象レイヤ（OpenAI/Gemini切替、API呼び出し、リトライ、トークン使用量ログ）。
@@ -271,7 +283,7 @@ docs/quiz_generation_logic.md
 クイズ生成ロジック（SRS例文選出→Gemini穴埋め生成→サニタイズ→デフォルト補填）。
 
 functions/python/embeddings.py
-GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテーマ関連単語検索・セマンティック重複除去。
+GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテーマ関連単語検索・セマンティック重複除去・ドラマ参考セリフ選出（find_best_drama_shot）。
 
 ---
 

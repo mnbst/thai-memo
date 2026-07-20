@@ -81,8 +81,7 @@ class _FakeCollection extends Fake
       _FakeDoc(_store, path!);
 }
 
-class _FakeDoc extends Fake
-    implements DocumentReference<Map<String, dynamic>> {
+class _FakeDoc extends Fake implements DocumentReference<Map<String, dynamic>> {
   _FakeDoc(this._store, this._id);
 
   final Map<String, Map<String, dynamic>> _store;
@@ -111,10 +110,26 @@ class _FakeSnapshot extends Fake
 
 class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<String> tiers = [];
+  final List<Map<String, Object?>> generateSentenceEvents = [];
 
   @override
   Future<void> setUserTier(String tier) async {
     tiers.add(tier);
+  }
+
+  @override
+  Future<void> logGenerateSentence({
+    required String tier,
+    String? topic,
+    required String source,
+    int? count,
+  }) async {
+    generateSentenceEvents.add({
+      'tier': tier,
+      'topic': topic,
+      'source': source,
+      'count': count,
+    });
   }
 }
 

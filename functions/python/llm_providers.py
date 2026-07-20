@@ -122,7 +122,11 @@ def _openai_reasoning_effort(model: str, is_premium: bool = False) -> str:
 
 
 def _openai_payload(
-    model: str, system_prompt: str, user_prompt: str, is_premium: bool = False
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    is_premium: bool = False,
+    schema: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "model": model,
@@ -135,7 +139,7 @@ def _openai_payload(
                 "type": "json_schema",
                 "name": "thai_sentence_response",
                 "strict": True,
-                "schema": RESPONSE_JSON_SCHEMA,
+                "schema": schema if schema is not None else RESPONSE_JSON_SCHEMA,
             },
         },
     }
@@ -252,11 +256,15 @@ def _openai_post(api_key: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _openai_generate_sync(
-    system_prompt: str, user_prompt: str, is_premium: bool, tier_label: str
+    system_prompt: str,
+    user_prompt: str,
+    is_premium: bool,
+    tier_label: str,
+    schema: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     api_key = _get_openai_api_key()
     model = OPENAI_MODEL_PREMIUM if is_premium else OPENAI_MODEL
-    payload = _openai_payload(model, system_prompt, user_prompt, is_premium)
+    payload = _openai_payload(model, system_prompt, user_prompt, is_premium, schema)
 
     response_body = _call_with_retry(
         lambda: _openai_post(api_key, payload),
@@ -284,6 +292,9 @@ GEMINI_TOKEN_PRICING_PER_MILLION: dict[str, dict[str, float]] = {
     "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
     "gemini-2.5-flash-lite": {"input": 0.10, "output": 0.40},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
+    "gemini-3.1-flash-lite": {"input": 0.25, "output": 1.50},
+    "gemini-3-flash": {"input": 0.50, "output": 3.00},
+    "gemini-3.5-flash": {"input": 1.50, "output": 9.00},
 }
 _DEFAULT_GEMINI_PRICING = GEMINI_TOKEN_PRICING_PER_MILLION["gemini-2.5-flash"]
 
@@ -308,8 +319,8 @@ def _get_gemini_api_key() -> str:
     return api_key
 
 
-def _gemini_schema() -> dict[str, Any]:
-    """Gemini 用に RESPONSE_JSON_SCHEMA を変換する。
+def _gemini_schema(schema: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Gemini 用にレスポンススキーマを変換する。
 
     Gemini は additionalProperties を受け付けないため取り除く。
     """
@@ -321,7 +332,7 @@ def _gemini_schema() -> dict[str, Any]:
             return [strip(v) for v in node]
         return node
 
-    return strip(RESPONSE_JSON_SCHEMA)
+    return strip(schema if schema is not None else RESPONSE_JSON_SCHEMA)
 
 
 def _gemini_log_token_usage(
@@ -355,7 +366,11 @@ def _gemini_log_token_usage(
 
 
 def _gemini_call(
-    model: str, system_prompt: str, user_prompt: str, is_premium: bool
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    is_premium: bool,
+    schema: dict[str, Any] | None = None,
 ) -> Any:
     """google-genai を同期で呼び出す。例外は LLMApiError に正規化する。"""
     from google import genai
@@ -365,7 +380,7 @@ def _gemini_call(
     config_kwargs: dict[str, Any] = {
         "system_instruction": system_prompt,
         "response_mime_type": "application/json",
-        "response_schema": _gemini_schema(),
+        "response_schema": _gemini_schema(schema),
         "max_output_tokens": API_MAX_TOKENS,
     }
     config_kwargs["thinking_config"] = genai_types.ThinkingConfig(
@@ -393,11 +408,15 @@ def _gemini_call(
 
 
 def _gemini_generate_sync(
-    system_prompt: str, user_prompt: str, is_premium: bool, tier_label: str
+    system_prompt: str,
+    user_prompt: str,
+    is_premium: bool,
+    tier_label: str,
+    schema: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     model = GEMINI_MODEL_PREMIUM if is_premium else GEMINI_MODEL
     response = _call_with_retry(
-        lambda: _gemini_call(model, system_prompt, user_prompt, is_premium),
+        lambda: _gemini_call(model, system_prompt, user_prompt, is_premium, schema),
         tier_label=tier_label,
         provider_label="Gemini",
     )
@@ -449,22 +468,39 @@ def _call_with_retry(
 
 
 def generate_sentence_sync(
-    system_prompt: str, user_prompt: str, is_premium: bool, tier_label: str
+    system_prompt: str,
+    user_prompt: str,
+    is_premium: bool,
+    tier_label: str,
+    schema: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """設定されたプロバイダーで同期的に例文を生成し、構造化 dict を返す。
-    Free ティアは常に Gemini 2.5 Flash（thinking 256）を使用する。
+    Free ティアは常に Gemini（thinking 256）を使用する。
+    モデル名は GEMINI_MODEL / GEMINI_MODEL_PREMIUM 環境変数で上書き可。
+    schema を省略すると RESPONSE_JSON_SCHEMA を使う。
     """
     if not is_premium or SENTENCE_PROVIDER == "gemini":
         return _gemini_generate_sync(
-            system_prompt, user_prompt, is_premium, tier_label
+            system_prompt, user_prompt, is_premium, tier_label, schema
         )
-    return _openai_generate_sync(system_prompt, user_prompt, is_premium, tier_label)
+    return _openai_generate_sync(
+        system_prompt, user_prompt, is_premium, tier_label, schema
+    )
 
 
 async def generate_sentence_async(
-    system_prompt: str, user_prompt: str, is_premium: bool, tier_label: str
+    system_prompt: str,
+    user_prompt: str,
+    is_premium: bool,
+    tier_label: str,
+    schema: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """同期版を別スレッドで実行する非同期ラッパー。"""
     return await asyncio.to_thread(
-        generate_sentence_sync, system_prompt, user_prompt, is_premium, tier_label
+        generate_sentence_sync,
+        system_prompt,
+        user_prompt,
+        is_premium,
+        tier_label,
+        schema,
     )
