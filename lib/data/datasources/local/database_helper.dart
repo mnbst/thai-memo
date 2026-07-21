@@ -478,6 +478,19 @@ class DatabaseHelper {
 
   // ==================== Transaction Support ====================
 
+  /// Check whether a sentence with the given id is already stored
+  Future<bool> sentenceExists(String id) async {
+    final db = await database;
+    final rows = await db.query(
+      DatabaseConstants.tableSentences,
+      columns: [DatabaseConstants.columnSentenceId],
+      where: '${DatabaseConstants.columnSentenceId} = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
   /// Insert a complete sentence with word breakdowns in a transaction
   Future<void> insertSentenceWithWordBreakdowns({
     required Map<String, dynamic> sentence,

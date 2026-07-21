@@ -24,7 +24,7 @@
 <main>
   <div class="page-title">
     <h2>プライバシーポリシー</h2>
-    <p class="updated">最終更新日 / Last Updated: 2026-04-04</p>
+    <p class="updated">最終更新日 / Last Updated: 2026-07-21</p>
   </div>
 
   <div class="lang-toggle">
@@ -44,11 +44,20 @@
       <h3>2. 収集する情報</h3>
       <p><strong>アカウント情報</strong><br>
       Google アカウントまたは Apple ID によるサインイン時に、氏名・メールアドレスおよびユーザー識別子（UID）を取得します。</p>
-      <p><strong>学習データ（端末内に保存）</strong></p>
+      <p><strong>学習データ</strong></p>
       <ul>
-        <li>生成されたタイ語例文・単語分解・発音データ</li>
-        <li>クイズの解答履歴・成績</li>
-        <li>学習継続記録（ストリーク）</li>
+        <li>生成されたタイ語例文・単語分解・発音データ（端末内およびサーバー上に保存）</li>
+        <li>クイズの解答履歴・成績（端末内に保存）</li>
+        <li>学習継続記録（ストリーク）（端末内に保存）</li>
+        <li>学習の進み具合を表す推定語彙数などの指標（サーバー上に保存）</li>
+      </ul>
+      <p style="margin-top:10px"><strong>通知に関する情報</strong><br>
+      毎日の例文をプッシュ通知でお届けするため、通知を有効にした場合に以下を取得・保存します。</p>
+      <ul>
+        <li>プッシュ通知の送信先を識別するデバイストークン（Firebase Cloud Messaging）</li>
+        <li>端末のタイムゾーン（IANA形式。例：Asia/Tokyo）</li>
+        <li>お客様が設定した配信希望時刻・例文のテーマ設定</li>
+        <li>通知に対する反応の記録（通知後にアプリを開いたか、例文を読み進めたか、および直近の通知日時）</li>
       </ul>
       <p style="margin-top:10px"><strong>使用状況データ</strong></p>
       <ul>
@@ -67,18 +76,21 @@
           <tr><td>タイ語例文の生成（Google Gemini AI）</td><td>学習レベル・設定情報</td></tr>
           <tr><td>アプリ機能の提供</td><td>アカウント情報・学習データ</td></tr>
           <tr><td>サブスクリプション検証</td><td>購入レシート</td></tr>
-          <tr><td>学習通知の送信</td><td>端末のプッシュ通知権限</td></tr>
+          <tr><td>毎日の例文をご希望の時刻に通知</td><td>デバイストークン・タイムゾーン・配信希望時刻</td></tr>
+          <tr><td>通知の配信頻度の自動調整</td><td>通知への反応の記録</td></tr>
         </tbody>
       </table>
+      <p style="margin-top:10px">通知が続けて読まれない場合、配信の間隔を自動的に広げ、それでも反応がない場合は配信を停止します。この判定は上記の反応記録のみを用い、広告配信や第三者への提供には利用しません。</p>
     </div>
 
     <div class="section">
       <h3>4. データの保存場所</h3>
       <ul>
         <li><strong>端末内</strong>：学習データ（SQLite）・認証トークン（暗号化ストレージ）</li>
-        <li><strong>Firebase（Google LLC）</strong>：アカウント認証情報・クラウド処理</li>
+        <li><strong>Firebase（Google LLC）</strong>：アカウント認証情報・クラウド処理・生成された例文・学習の進み具合の指標・通知に関する情報（デバイストークン、タイムゾーン、配信設定、反応の記録）</li>
         <li><strong>Google AI</strong>：例文生成リクエスト（処理後は保持されません）</li>
       </ul>
+      <p style="margin-top:10px">サーバー上のデータは日本（asia-northeast1）のリージョンに保存されます。</p>
     </div>
 
     <div class="section">
@@ -89,7 +101,7 @@
           <tr><th>サービス</th><th>目的</th><th>プライバシーポリシー</th></tr>
         </thead>
         <tbody>
-          <tr><td>Firebase (Google)</td><td>認証・バックエンド処理</td><td><a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a></td></tr>
+          <tr><td>Firebase (Google)</td><td>認証・バックエンド処理・プッシュ通知の配信（Cloud Messaging）</td><td><a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a></td></tr>
           <tr><td>Google Gemini AI</td><td>タイ語例文生成</td><td><a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a></td></tr>
           <tr><td>Apple App Store</td><td>サブスクリプション検証</td><td>各プラットフォームのポリシーに準拠</td></tr>
         </tbody>
@@ -108,7 +120,7 @@
       <h3>7. ユーザーの権利</h3>
       <ul>
         <li><strong>データの確認・削除</strong>：設定画面からアカウントを削除できます。削除時にはサーバー上のデータもすべて消去されます。</li>
-        <li><strong>通知の停止</strong>：端末の設定からいつでも通知を無効にできます。</li>
+        <li><strong>通知の停止</strong>：アプリの「設定」画面、または端末の設定からいつでも通知を無効にできます。無効にすると、サーバー上のデバイストークンは削除され、以後の配信は行われません。</li>
       </ul>
     </div>
 
@@ -141,11 +153,20 @@
       <h3>2. Information We Collect</h3>
       <p><strong>Account Information</strong><br>
       When you sign in with Google or Apple ID, we collect your name, email address, and user identifier (UID).</p>
-      <p><strong>Learning Data (stored on device)</strong></p>
+      <p><strong>Learning Data</strong></p>
       <ul>
-        <li>Generated Thai sentences, word breakdowns, and pronunciation data</li>
-        <li>Quiz answers and results</li>
-        <li>Learning streak records</li>
+        <li>Generated Thai sentences, word breakdowns, and pronunciation data (stored on your device and on our servers)</li>
+        <li>Quiz answers and results (stored on your device)</li>
+        <li>Learning streak records (stored on your device)</li>
+        <li>Learning progress metrics such as estimated vocabulary size (stored on our servers)</li>
+      </ul>
+      <p style="margin-top:10px"><strong>Notification Information</strong><br>
+      If you enable notifications, we collect and store the following in order to deliver your daily sentence by push notification.</p>
+      <ul>
+        <li>A device token identifying the notification destination (Firebase Cloud Messaging)</li>
+        <li>Your device's time zone (IANA format, e.g. Asia/Tokyo)</li>
+        <li>Your preferred delivery time and sentence topic setting</li>
+        <li>Records of how you respond to notifications (whether you opened the app or continued reading sentences after a notification, and the time of the most recent notification)</li>
       </ul>
       <p style="margin-top:10px"><strong>Usage Data</strong></p>
       <ul>
@@ -164,18 +185,21 @@
           <tr><td>Thai sentence generation (Google Gemini AI)</td><td>Learning level &amp; settings</td></tr>
           <tr><td>App functionality</td><td>Account info &amp; learning data</td></tr>
           <tr><td>Subscription verification</td><td>Purchase receipts</td></tr>
-          <tr><td>Learning notifications</td><td>Device push notification permission</td></tr>
+          <tr><td>Delivering the daily sentence at your preferred time</td><td>Device token, time zone, preferred delivery time</td></tr>
+          <tr><td>Automatically adjusting notification frequency</td><td>Notification response records</td></tr>
         </tbody>
       </table>
+      <p style="margin-top:10px">If notifications go unread, we automatically widen the delivery interval and eventually stop sending them. This decision uses only the response records described above, and is never used for advertising or shared with third parties.</p>
     </div>
 
     <div class="section">
       <h3>4. Data Storage</h3>
       <ul>
         <li><strong>On device</strong>: Learning data (SQLite) &amp; auth tokens (encrypted storage)</li>
-        <li><strong>Firebase (Google LLC)</strong>: Account credentials &amp; cloud processing</li>
+        <li><strong>Firebase (Google LLC)</strong>: Account credentials, cloud processing, generated sentences, learning progress metrics, and notification information (device token, time zone, delivery settings, response records)</li>
         <li><strong>Google AI</strong>: Sentence generation requests (not retained after processing)</li>
       </ul>
+      <p style="margin-top:10px">Server-side data is stored in the Japan region (asia-northeast1).</p>
     </div>
 
     <div class="section">
@@ -186,7 +210,7 @@
           <tr><th>Service</th><th>Purpose</th><th>Privacy Policy</th></tr>
         </thead>
         <tbody>
-          <tr><td>Firebase (Google)</td><td>Authentication &amp; backend</td><td><a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a></td></tr>
+          <tr><td>Firebase (Google)</td><td>Authentication, backend &amp; push notification delivery (Cloud Messaging)</td><td><a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a></td></tr>
           <tr><td>Google Gemini AI</td><td>Thai sentence generation</td><td><a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a></td></tr>
           <tr><td>Apple App Store</td><td>Subscription verification</td><td>Per platform policy</td></tr>
         </tbody>
@@ -205,7 +229,7 @@
       <h3>7. Your Rights</h3>
       <ul>
         <li><strong>Access &amp; Deletion</strong>: You can delete your account from the Settings screen. All server-side data will be erased upon deletion.</li>
-        <li><strong>Notifications</strong>: Disable notifications anytime in your device settings.</li>
+        <li><strong>Notifications</strong>: Disable notifications anytime from the app's Settings screen or your device settings. Once disabled, your device token is deleted from our servers and no further notifications are sent.</li>
       </ul>
     </div>
 

@@ -39,6 +39,8 @@ class AppConfig {
   static const String prefKeyThemeMode = 'theme_mode';
   static const String prefKeyPreferredGenerationTime =
       'preferred_generation_time';
+  /// 毎日例文のプッシュ通知を受け取るか（サーバー側 daily_reminder_enabled のミラー）
+  static const String prefKeyDailyReminderEnabled = 'daily_reminder_enabled';
   static const String prefKeyFirstSummaryQuizCompleted =
       'first_summary_quiz_completed';
   /// 「確認クイズへ」ボタンのコーチマーク表示済みフラグ

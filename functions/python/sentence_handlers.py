@@ -251,8 +251,15 @@ def _ensure_user_quota(user_ref) -> dict:
     return dict(initial)
 
 
+# min_instances=1: PyThaiNLP の遅延インポートがコールドスタート時に
+# レイテンシへはみ出す（p90 26.7秒）のを避けるため常駐させる。
+# 2026-07-22 の1日限定の実験。効果を見て残すか戻すか判断する。
 @https_fn.on_call(
-    region="asia-northeast1", memory=2048, timeout_sec=120, concurrency=10
+    region="asia-northeast1",
+    memory=2048,
+    timeout_sec=120,
+    concurrency=10,
+    min_instances=1,
 )
 def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
     start_time = time.time()

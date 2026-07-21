@@ -7,6 +7,7 @@ import '../../core/config/app_config.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
+import '../../services/daily_sentence_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
@@ -41,6 +42,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _initialLoadCompleted = false;
   Future<void>? _initialLoadFuture;
   final _showAppIcon = ValueNotifier<bool>(true);
+  final _dailySentenceService = DailySentenceService();
 
   @override
   void initState() {
@@ -88,6 +90,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
+  /// 配信された今日の例文があれば表示する。表示したら true。
+  Future<bool> _showDeliveredIfAny() async {
+    final delivered = await _dailySentenceService.sync();
+    if (delivered == null || !mounted) return false;
+
+    final current = ref.read(sentenceControllerProvider);
+    if (current is SentenceStateSuccess && current.sentence.id == delivered.id) {
+      return true;
+    }
+    ref.read(sentenceControllerProvider.notifier).showSentence(delivered);
+    ref.invalidate(allSentencesProvider);
+    return true;
+  }
+
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
   Future<void> _checkAndReloadIfNeeded() async {
     // 初回ロードが完了する前はスキップ（_checkFirstLaunchAndLoadSentenceとの二重生成を防ぐ）
@@ -98,6 +114,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (currentState is SentenceStateLoading) {
       return;
     }
+
+    // 裏に回っている間に配信されていれば、それに差し替える
+    if (await _showDeliveredIfAny()) return;
 
     final data = await ref.read(userDocProvider.future);
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
@@ -164,6 +183,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// Firestoreフラグを取得し、未生成なら自動生成、済みなら最新を表示
   Future<void> _loadTodaySentence() async {
+    // 配信例文の取り込みを先に終わらせる。今日ぶんがあればそれが今日の例文なので、
+    // 生成もローカル読み込みも走らせない（通知タップかどうかの判定は不要）。
+    if (await _showDeliveredIfAny()) return;
+
     final data = await ref.read(userDocProvider.future);
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
     await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
