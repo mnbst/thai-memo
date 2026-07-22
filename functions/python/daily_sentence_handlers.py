@@ -42,27 +42,24 @@ except ImportError:
 
 initialize_firebase_app()
 
-_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
+def _candidate_users(db: FirestoreClient, now: datetime):
+    """この時刻に配信されうるユーザーだけを列挙する。
 
-def _candidate_users(db: FirestoreClient):
-    """生成実績のあるユーザーを列挙する（uid重複は除く）。
+    users 全件を毎時読むと読み取りが 24×N/日 になるため、非正規化した
+    notify_utc_hour（現地の配信希望時刻に対応するUTC時刻）で絞り込む。
+    これで 1日あたり各ユーザー1回しか読まない。
 
-    Firestore は OR 条件で別フィールドの不等号を扱えないため2クエリに分ける。
+    この値はあくまで足切り用で、配信の可否は従来どおり should_deliver 内の
+    ローカル時刻比較が最終判定を行う（値が古くても誤配信にはならない）。
+    フィールドは dailyBatch が毎日全ユーザーに書き直すため、旧クライアントでも
+    1日以内に埋まる。
     """
-    seen: set[str] = set()
-    queries = [
-        db.collection("users").where(
-            filter=FieldFilter("last_sentence_generated_at", ">", _EPOCH)
-        ),
-        db.collection("users").where(filter=FieldFilter("estimated_vocab", ">", 0)),
-    ]
-    for query in queries:
-        for doc in query.stream():
-            if doc.id in seen:
-                continue
-            seen.add(doc.id)
-            yield doc.id, (doc.to_dict() or {})
+    query = db.collection("users").where(
+        filter=FieldFilter("notify_utc_hour", "==", now.astimezone(timezone.utc).hour)
+    )
+    for doc in query.stream():
+        yield doc.id, (doc.to_dict() or {})
 
 
 def _pick_cached_sentence(
@@ -213,13 +210,55 @@ def _commit_daily_sentence_body(
 _commit_daily_sentence = transactional(_commit_daily_sentence_body)
 
 
+def build_notification_text(sentence: dict) -> tuple[str, str]:
+    """通知のタイトルと本文を組み立てる。
+
+    タイ文字だけだと通知一覧で何のアプリか判別しづらいので、タイトルに
+    キーワードとその意味を載せて「今日の学習が届いた」と一目で分かるようにする。
+    本文は タイ文 / 発音 / 訳 の3行。3行は並列な項目ではなく1つの例文の3側面なので、
+    同じ記号を並べず、発音は括弧・訳は矢印で役割を書き分ける。
+    発音が無い例文もあるので行ごとに省く。
+    """
+    key_word = (sentence.get("key_word") or "").strip()
+    key_word_meaning = (sentence.get("key_word_meaning") or "").strip()
+    if key_word and key_word_meaning:
+        title = f"🇹🇭 今日のタイ語 · {key_word}（{key_word_meaning}）"
+    elif key_word:
+        title = f"🇹🇭 今日のタイ語 · {key_word}"
+    else:
+        title = "🇹🇭 今日のタイ語"
+
+    thai_text = (sentence.get("thai_text") or "").strip()
+    pronunciation = (sentence.get("pronunciation") or "").strip()
+    translation = (sentence.get("japanese_translation") or "").strip()
+
+    lines = [
+        thai_text,
+        f"（{pronunciation}）" if pronunciation else "",
+        f"→ {translation}" if translation else "",
+    ]
+    return title, "\n".join(line for line in lines if line)
+
+
 def _send_notification(token: str, sentence_id: str, sentence: dict) -> None:
+    title, body = build_notification_text(sentence)
     messaging.send(
         messaging.Message(
             token=token,
-            notification=messaging.Notification(
-                title=sentence["thai_text"],
-                body=sentence["japanese_translation"],
+            notification=messaging.Notification(title=title, body=body),
+            # 複数行の本文は展開しないと切られるため、Android は BigText 相当の
+            # 表示になるよう優先度を上げ、iOS はロック画面で読み上げ枠を確保する。
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    body=body,
+                    default_sound=True,
+                ),
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(sound="default"),
+                ),
             ),
             data={"type": "daily_sentence", "sentence_id": sentence_id},
         )
@@ -287,7 +326,8 @@ def _deliver_one(
         return False
 
     try:
-        _send_notification(token, sentence_ref.id, sentence)
+        # key_word とその意味を通知に載せるため、整形済みの sentence_data を渡す。
+        _send_notification(token, sentence_ref.id, sentence_data)
     except messaging.UnregisteredError:
         print(f"daily_sentence: token unregistered, rolling back {uid}")
         _rollback_delivery(user_ref, sentence_ref, restore)
@@ -307,7 +347,7 @@ def deliverDailySentence(event: scheduler_fn.ScheduledEvent) -> None:
     delivered = 0
     skipped = 0
 
-    for uid, user_data in _candidate_users(db):
+    for uid, user_data in _candidate_users(db, now):
         if not should_deliver(user_data, now):
             continue
         try:

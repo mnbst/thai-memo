@@ -9,12 +9,14 @@ from daily_sentence import (
     is_due,
     local_date,
     local_hour,
+    notify_utc_hour,
     should_deliver,
 )
 from daily_sentence_handlers import (
     _commit_daily_sentence_body,
     _DeliveryNotDue,
     _DeliveryStopped,
+    build_notification_text,
 )
 
 NOW = datetime(2026, 7, 21, 1, 0, tzinfo=timezone.utc)  # JST 10:00
@@ -29,6 +31,39 @@ def _user(**overrides) -> dict:
     }
     base.update(overrides)
     return base
+
+
+def test_notify_utc_hour_matches_should_deliver_hour():
+    """配信対象クエリの絞り込みが should_deliver のローカル時刻判定と一致すること。
+
+    分単位オフセット（+5:30 / +5:45）でも現地の各時刻はUTCのいずれか1時刻に
+    対応するため、絞り込みで取りこぼしが出ない。
+    """
+    for tz in [
+        None,
+        "Asia/Tokyo",
+        "Asia/Bangkok",
+        "Asia/Kolkata",  # +5:30
+        "Asia/Kathmandu",  # +5:45
+        "America/Los_Angeles",
+        "Pacific/Chatham",  # +12:45
+    ]:
+        for preferred in range(24):
+            user = _user(timezone=tz, preferred_generation_hour=preferred)
+            utc_hour = notify_utc_hour(user, NOW)
+            assert utc_hour is not None, (tz, preferred)
+            assert should_deliver(user, NOW.replace(hour=utc_hour)), (tz, preferred)
+
+
+def test_notify_utc_hour_returns_none_for_dst_gap():
+    """DST春の切り替え日に存在しない現地時刻は None（既存値を維持させる）。"""
+    dst_day = datetime(2026, 3, 8, 0, 0, tzinfo=timezone.utc)
+    user = _user(timezone="America/Los_Angeles", preferred_generation_hour=2)
+    assert notify_utc_hour(user, dst_day) is None
+
+
+def test_notify_utc_hour_defaults():
+    assert notify_utc_hour({}, NOW) == 1  # Asia/Tokyo 10時 = UTC 1時
 
 
 def test_local_hour_falls_back_to_tokyo():
@@ -216,3 +251,33 @@ def test_commit_stopped_writes_nothing_in_transaction():
 
     assert transaction.sets == []
     assert transaction.updates == []
+
+
+def test_notification_text_includes_key_word_and_all_lines():
+    title, body = build_notification_text(
+        {
+            "thai_text": "เขาไม่กินเผ็ดครับ",
+            "pronunciation": "カオ マイ キン ペット クラップ",
+            "japanese_translation": "彼は辛いものが食べられません。",
+            "key_word": "เผ็ด",
+            "key_word_meaning": "辛い",
+        }
+    )
+    assert title == "🇹🇭 今日のタイ語 · เผ็ด（辛い）"
+    assert body.split("\n") == [
+        "เขาไม่กินเผ็ดครับ",
+        "（カオ マイ キン ペット クラップ）",
+        "→ 彼は辛いものが食べられません。",
+    ]
+
+
+def test_notification_text_omits_missing_pronunciation_and_key_word():
+    title, body = build_notification_text(
+        {
+            "thai_text": "สวัสดีครับ",
+            "pronunciation": "",
+            "japanese_translation": "こんにちは。",
+        }
+    )
+    assert title == "🇹🇭 今日のタイ語"
+    assert body == "สวัสดีครับ\n→ こんにちは。"
