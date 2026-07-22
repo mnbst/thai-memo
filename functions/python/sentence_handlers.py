@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 from datetime import datetime, timezone
@@ -251,15 +252,19 @@ def _ensure_user_quota(user_ref) -> dict:
     return dict(initial)
 
 
-# min_instances=1: PyThaiNLP の遅延インポートがコールドスタート時に
-# レイテンシへはみ出す（p90 26.7秒）のを避けるため常駐させる。
-# 2026-07-22 の1日限定の実験。効果を見て残すか戻すか判断する。
+# PyThaiNLP の遅延インポートがコールドスタート時にレイテンシへはみ出す
+# （prod実測でコールド時 p90 26.7秒 / ウォーム時は10秒未満）ため、
+# prod だけインスタンスを常駐させる。dev/tester はトラフィックが無く
+# 体感に影響しないので、常駐アイドル課金（月約1,100円）を払わない。
+_MIN_INSTANCES = 1 if os.environ.get("GCLOUD_PROJECT") == "thai-memo-prod" else 0
+
+
 @https_fn.on_call(
     region="asia-northeast1",
     memory=2048,
     timeout_sec=120,
     concurrency=10,
-    min_instances=1,
+    min_instances=_MIN_INSTANCES,
 )
 def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
     start_time = time.time()

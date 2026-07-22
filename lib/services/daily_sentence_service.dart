@@ -91,7 +91,7 @@ class DailySentenceService {
           // 取り込み済みならスキップするので、お気に入り等のローカル状態を壊さない。
           if (await _repository.sentenceExists(doc.id)) continue;
 
-          final sentence = _toSentence(doc.id, doc.data());
+          final sentence = toSentence(doc.id, doc.data());
           await _repository.saveSentence(sentence);
           final createdAt = sentence.createdAt;
           if (latest == null ||
@@ -111,7 +111,11 @@ class DailySentenceService {
     return imported;
   }
 
-  ThaiSentence _toSentence(String id, Map<String, dynamic> data) {
+  /// Firestore の配信docを ThaiSentence に変換する。
+  ///
+  /// インスタンス状態を持たないので静的にしてある（テストから直接叩けるようにするため）。
+  @visibleForTesting
+  static ThaiSentence toSentence(String id, Map<String, dynamic> data) {
     final createdAt = data['created_at'];
     final rawBreakdowns = (data['word_breakdown'] as List?) ?? const [];
 
