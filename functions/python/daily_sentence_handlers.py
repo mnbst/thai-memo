@@ -213,13 +213,55 @@ def _commit_daily_sentence_body(
 _commit_daily_sentence = transactional(_commit_daily_sentence_body)
 
 
+def build_notification_text(sentence: dict) -> tuple[str, str]:
+    """通知のタイトルと本文を組み立てる。
+
+    タイ文字だけだと通知一覧で何のアプリか判別しづらいので、タイトルに
+    キーワードとその意味を載せて「今日の学習が届いた」と一目で分かるようにする。
+    本文は タイ文 / 発音 / 訳 の3行。3行は並列な項目ではなく1つの例文の3側面なので、
+    同じ記号を並べず、発音は括弧・訳は矢印で役割を書き分ける。
+    発音が無い例文もあるので行ごとに省く。
+    """
+    key_word = (sentence.get("key_word") or "").strip()
+    key_word_meaning = (sentence.get("key_word_meaning") or "").strip()
+    if key_word and key_word_meaning:
+        title = f"🇹🇭 今日のタイ語 · {key_word}（{key_word_meaning}）"
+    elif key_word:
+        title = f"🇹🇭 今日のタイ語 · {key_word}"
+    else:
+        title = "🇹🇭 今日のタイ語"
+
+    thai_text = (sentence.get("thai_text") or "").strip()
+    pronunciation = (sentence.get("pronunciation") or "").strip()
+    translation = (sentence.get("japanese_translation") or "").strip()
+
+    lines = [
+        thai_text,
+        f"（{pronunciation}）" if pronunciation else "",
+        f"→ {translation}" if translation else "",
+    ]
+    return title, "\n".join(line for line in lines if line)
+
+
 def _send_notification(token: str, sentence_id: str, sentence: dict) -> None:
+    title, body = build_notification_text(sentence)
     messaging.send(
         messaging.Message(
             token=token,
-            notification=messaging.Notification(
-                title=sentence["thai_text"],
-                body=sentence["japanese_translation"],
+            notification=messaging.Notification(title=title, body=body),
+            # 複数行の本文は展開しないと切られるため、Android は BigText 相当の
+            # 表示になるよう優先度を上げ、iOS はロック画面で読み上げ枠を確保する。
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    body=body,
+                    default_sound=True,
+                ),
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(sound="default"),
+                ),
             ),
             data={"type": "daily_sentence", "sentence_id": sentence_id},
         )
@@ -287,7 +329,8 @@ def _deliver_one(
         return False
 
     try:
-        _send_notification(token, sentence_ref.id, sentence)
+        # key_word とその意味を通知に載せるため、整形済みの sentence_data を渡す。
+        _send_notification(token, sentence_ref.id, sentence_data)
     except messaging.UnregisteredError:
         print(f"daily_sentence: token unregistered, rolling back {uid}")
         _rollback_delivery(user_ref, sentence_ref, restore)

@@ -10,6 +10,8 @@
 // 使われる副シグナルで、これが動いている限り配信頻度は落ちない。
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -50,11 +52,10 @@ class DailySentenceService {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return null;
 
-    final results = await Future.wait([
-      _touchLastOpenedAt(uid).then((_) => null),
-      _syncDeliveredSentences(uid, sentenceId: sentenceId),
-    ]);
-    return results.last;
+    // last_opened_at は表示に関係しない副シグナルなので待たない。
+    // 待つとサーバー往復ぶんだけ通知タップからの表示が遅れる。
+    unawaited(_touchLastOpenedAt(uid));
+    return _syncDeliveredSentences(uid, sentenceId: sentenceId);
   }
 
   Future<ThaiSentence?> _syncDeliveredSentences(
@@ -67,8 +68,14 @@ class DailySentenceService {
     final byId = (sentenceId != null && sentenceId.isNotEmpty)
         ? await _importDeliveredSentenceById(uid, sentenceId)
         : null;
-    final imported = await _importDeliveredSentences(uid);
-    return byId ?? imported;
+
+    // 表示すべき1件が確定したら、取りこぼし回収の一括取り込みは待たずに返す。
+    // 待つと7日ぶんのクエリが終わるまで画面が切り替わらない。
+    if (byId != null) {
+      unawaited(_importDeliveredSentences(uid));
+      return byId;
+    }
+    return _importDeliveredSentences(uid);
   }
 
   Future<ThaiSentence?> _importDeliveredSentenceById(

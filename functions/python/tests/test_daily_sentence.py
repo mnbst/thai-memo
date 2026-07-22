@@ -15,6 +15,7 @@ from daily_sentence_handlers import (
     _commit_daily_sentence_body,
     _DeliveryNotDue,
     _DeliveryStopped,
+    build_notification_text,
 )
 
 NOW = datetime(2026, 7, 21, 1, 0, tzinfo=timezone.utc)  # JST 10:00
@@ -216,3 +217,33 @@ def test_commit_stopped_writes_nothing_in_transaction():
 
     assert transaction.sets == []
     assert transaction.updates == []
+
+
+def test_notification_text_includes_key_word_and_all_lines():
+    title, body = build_notification_text(
+        {
+            "thai_text": "เขาไม่กินเผ็ดครับ",
+            "pronunciation": "カオ マイ キン ペット クラップ",
+            "japanese_translation": "彼は辛いものが食べられません。",
+            "key_word": "เผ็ด",
+            "key_word_meaning": "辛い",
+        }
+    )
+    assert title == "🇹🇭 今日のタイ語 · เผ็ด（辛い）"
+    assert body.split("\n") == [
+        "เขาไม่กินเผ็ดครับ",
+        "（カオ マイ キン ペット クラップ）",
+        "→ 彼は辛いものが食べられません。",
+    ]
+
+
+def test_notification_text_omits_missing_pronunciation_and_key_word():
+    title, body = build_notification_text(
+        {
+            "thai_text": "สวัสดีครับ",
+            "pronunciation": "",
+            "japanese_translation": "こんにちは。",
+        }
+    )
+    assert title == "🇹🇭 今日のタイ語"
+    assert body == "สวัสดีครับ\n→ こんにちは。"
