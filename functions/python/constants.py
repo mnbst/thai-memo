@@ -13,6 +13,7 @@
 ユーザーが指定したパラメータを使用してプロンプトを構築します。
 """
 
+import copy
 import os
 
 # ─── LLM プロバイダー切替 ───
@@ -24,8 +25,9 @@ OPENAI_MODEL = "gpt-5.4-mini"
 OPENAI_MODEL_PREMIUM = "gpt-5.4-mini"
 
 # ─── Gemini モデル設定 ───
-GEMINI_MODEL = "gemini-2.5-flash"
-GEMINI_MODEL_PREMIUM = "gemini-2.5-flash"
+# 環境変数で上書き可。dev でのモデル検証時に再デプロイのみで切替できるようにしている。
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL_PREMIUM = os.environ.get("GEMINI_MODEL_PREMIUM", "gemini-2.5-flash")
 
 # ─── API パラメータ ───
 # 最大出力トークン数: JSON形式のレスポンス（例文＋単語分解＋コンテキスト）に十分な量
@@ -144,6 +146,8 @@ EMOTIONS = [
 # ─── OpenAI Responses API レスポンススキーマ ───
 # OpenAI の structured outputs が準拠すべき JSON Schema を定義する。
 # これにより、構造化されたタイ語例文データが確実に返却される。
+# context.topic / style / emotion はサーバー側で確定済みのためスキーマから除外し、
+# 生成後に prompts.resolve_generation_params() の結果を注入する（出力トークン削減）。
 RESPONSE_JSON_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -155,7 +159,8 @@ RESPONSE_JSON_SCHEMA = {
         "japanese_translation": {
             "type": "string",
             "description": (
-                "自然な日本語訳。主語・話者の違いが意味に関わる場合だけ訳に残す"
+                "自然な日本語訳。主語・話者の違いが意味に関わる場合だけ訳に残す。"
+                "強調・語調・反語表現は逐語訳せず話し言葉の等価表現にする"
             ),
         },
         "word_breakdown": {
@@ -173,30 +178,33 @@ RESPONSE_JSON_SCHEMA = {
                         "type": "string",
                         "description": "単語の意味を必ず日本語で記述すること（英語不可）",
                     },
-                    "notes": {
+                },
+                "required": ["word", "meaning"],
+            },
+        },
+        "target_notes": {
+            "type": "array",
+            "description": "ターゲット単語のみの補足。ターゲット単語が無ければ空配列。",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "word": {
                         "type": "string",
-                        "description": "ターゲット単語の用法・ニュアンス・類語との違いなどの補足（日本語、50文字以内）。ターゲット単語以外は空文字",
+                        "description": "対象のタイ語単語（word_breakdown の word と一致させる）",
+                    },
+                    "note": {
+                        "type": "string",
+                        "description": "用法・ニュアンス・類語との違い（日本語、50文字以内）",
                     },
                 },
-                "required": ["word", "meaning", "notes"],
+                "required": ["word", "note"],
             },
         },
         "context": {
             "type": "object",
             "additionalProperties": False,
             "properties": {
-                "topic": {
-                    "type": "string",
-                    "description": "テーマ（例: あいさつ）",
-                },
-                "style": {
-                    "type": "string",
-                    "description": "文体（例: 丁寧語）",
-                },
-                "emotion": {
-                    "type": "string",
-                    "description": "感情・トーン（例: 中立）",
-                },
                 "usage_scenarios": {
                     "type": "string",
                     "description": "使用場面の説明。50文字以内。",
@@ -207,13 +215,51 @@ RESPONSE_JSON_SCHEMA = {
                 },
             },
             "required": [
-                "topic",
-                "style",
-                "emotion",
                 "usage_scenarios",
                 "cultural_notes",
             ],
         },
     },
-    "required": ["thai_text", "japanese_translation", "word_breakdown", "context"],
+    "required": [
+        "thai_text",
+        "japanese_translation",
+        "word_breakdown",
+        "target_notes",
+        "context",
+    ],
 }
+
+# ─── context のうち LLM に生成させうるフィールド ───
+# 通常はサーバーがプロンプトで指定するため確定値を注入すればよく、
+# LLM に復唱させない（出力トークン削減）。
+# ただし指定せずに生成させる場合（例: BLドラマ回は文体・トーンを制約しない）は
+# 確定値が存在しないので、そのフィールドだけスキーマに戻して LLM に書かせる。
+_CONTEXT_GENERATABLE_FIELDS = {
+    "topic": {"type": "string", "description": "テーマ（例: あいさつ）"},
+    "style": {"type": "string", "description": "文体（例: 丁寧語）"},
+    "emotion": {"type": "string", "description": "感情・トーン（例: 中立）"},
+}
+
+
+def build_response_schema(ask_context_fields: tuple[str, ...] = ()) -> dict:
+    """リクエストごとのレスポンススキーマを組み立てる。
+
+    Args:
+        ask_context_fields: LLM に生成させる context フィールド名。
+            プロンプトで値を指定しなかったものだけを渡すこと。
+
+    Returns:
+        dict: RESPONSE_JSON_SCHEMA のコピー。指定フィールドを context に追加済み。
+    """
+    if not ask_context_fields:
+        return RESPONSE_JSON_SCHEMA
+
+    schema = copy.deepcopy(RESPONSE_JSON_SCHEMA)
+    context = schema["properties"]["context"]
+    for name in ask_context_fields:
+        field = _CONTEXT_GENERATABLE_FIELDS.get(name)
+        if field is None:
+            continue
+        context["properties"][name] = dict(field)
+        context["required"].append(name)
+    return schema

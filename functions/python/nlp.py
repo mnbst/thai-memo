@@ -48,6 +48,130 @@ _POS_TAG_MAP = {
 }
 
 
+# ─── 形容詞辞書 ───
+# scripts/build_adjective_dict.py が生成する。未生成でも動作するよう
+# import 失敗時は空集合にフォールバックする（タガーの判定に委ねる）。
+try:
+    from pos_adjectives import ADJECTIVES
+except ImportError:  # pragma: no cover - 辞書未生成時のみ
+    try:
+        from .pos_adjectives import ADJECTIVES  # type: ignore[no-redef]
+    except ImportError:
+        ADJECTIVES: frozenset[str] = frozenset()  # type: ignore[misc,no-redef]
+
+
+# ─── 閉じた語クラスの品詞辞書 ───
+# タイ語の機能語（終助詞・代名詞・指示詞など）は有限個だが、
+# PyThaiNLP の perceptron タガーはこれらを未知語として NOUN に誤判定する。
+# 学習アプリでは出現頻度が非常に高いため、辞書で確定させる。
+# 複数の品詞を取りうる語（ได้ / ที่ / ก็ 等）は曖昧なのであえて含めず、
+# タガーの文脈判定に委ねる。
+_POS_OVERRIDE: dict[str, str] = {
+    # 終助詞・文末詞
+    "ครับ": "PART", "ค่ะ": "PART", "คะ": "PART", "ขา": "PART",
+    "นะ": "PART", "น่ะ": "PART", "สิ": "PART", "ซิ": "PART",
+    "ล่ะ": "PART", "เหรอ": "PART", "หรอ": "PART",
+    "จ๊ะ": "PART", "จ้ะ": "PART", "จ้า": "PART",
+    "ไหม": "PART", "มั้ย": "PART",
+    "อ่ะ": "PART", "อะ": "PART", "ฮะ": "PART", "แหละ": "PART",
+    "เถอะ": "PART", "วะ": "PART", "ว่ะ": "PART", "ยัง": "PART",
+    # 疑問詞
+    "เท่าไหร่": "PRON", "เท่าไร": "PRON", "อะไร": "PRON", "ใคร": "PRON",
+    "ยังไง": "ADV", "ไง": "ADV", "ได้ไง": "ADV", "อย่างไร": "ADV",
+    "ทำไม": "ADV", "เมื่อไหร่": "ADV", "ที่ไหน": "ADV",
+    # 相互・共同を表す標識（「一緒に〜する」）
+    "กัน": "ADV",
+    # 終助詞の連結（LLM が1トークンで返すことがある）
+    "นะครับ": "PART", "นะคะ": "PART", "ครับผม": "PART",
+    "ล่ะครับ": "PART", "ล่ะคะ": "PART",
+    # 代名詞
+    "ผม": "PRON", "ฉัน": "PRON", "ดิฉัน": "PRON", "หนู": "PRON",
+    "กู": "PRON", "มึง": "PRON", "คุณ": "PRON", "เธอ": "PRON",
+    "เรา": "PRON", "เขา": "PRON", "มัน": "PRON", "ท่าน": "PRON",
+    "พวกเรา": "PRON", "พวกเขา": "PRON",
+    # 指示詞
+    "นี้": "DET", "นั้น": "DET", "โน้น": "DET",
+    "อันนี้": "DET", "อันนั้น": "DET",
+    "ตัวนี้": "DET", "ตัวนั้น": "DET",
+    "จานนี้": "DET",
+    # 感嘆詞
+    "โอ้โห": "INTJ", "ว้าว": "INTJ", "อุ๊ย": "INTJ",
+    "เฮ้ย": "INTJ", "โอ๊ย": "INTJ", "ว้า": "INTJ", "เอ๊ะ": "INTJ",
+    # 否定
+    "ไม่": "NEG", "ไม่ได้": "NEG", "อย่า": "NEG", "ห้าม": "NEG",
+    # 程度の副詞
+    "มาก": "ADV", "จัง": "ADV", "เลย": "ADV", "จังเลย": "ADV",
+    "หน่อย": "ADV", "นิดหน่อย": "ADV", "ที่สุด": "ADV",
+    # 助動詞
+    "จะ": "AUX", "ต้อง": "AUX", "ควร": "AUX",
+    "อาจ": "AUX", "คง": "AUX", "กำลัง": "AUX", "เคย": "AUX",
+}
+
+
+def _tag_words(words: list[str]) -> dict[int, str]:
+    """単語リストに品詞タグ（UDタグ）を付与する。
+
+    優先順位:
+      1. _POS_OVERRIDE — 機能語の確定辞書
+      2. ADJECTIVES — 形容詞辞書。タイ語の形容詞は文法的には状態動詞だが、
+         コーパスによって ADJ/VERB/ADV に割れるため「形容詞」に統一する
+      3. unigram/tud — 辞書ベース。未知語には空文字を返すため誤判定が少ない
+      4. perceptron/orchid_ud — 上記で埋まらない語のフォールバック
+
+    perceptron を単独で使うと未知語をすべて NOUN と推測してしまうため、
+    精度の高い順に段階的に適用する。
+
+    Returns:
+        dict[int, str]: インデックス → 日本語の品詞名
+    """
+    result: dict[int, str] = {}
+    if not words:
+        return result
+
+    unresolved = {}
+    for i, word in enumerate(words):
+        tag = _POS_OVERRIDE.get(word)
+        if tag:
+            result[i] = _POS_TAG_MAP.get(tag, tag)
+        elif word in ADJECTIVES:
+            result[i] = "形容詞"
+        else:
+            unresolved[i] = word
+
+    if not unresolved:
+        return result
+
+    # 2. unigram: 未知語には空文字が返るので、埋まった分だけ採用する
+    idxs = list(unresolved)
+    targets = [unresolved[i] for i in idxs]
+    still: list[int] = []
+    try:
+        tags = pos_tag(targets, engine="unigram", corpus="tud")
+        for i, tag_pair in zip(idxs, tags):
+            tag = tag_pair[1] if len(tag_pair) >= 2 else ""
+            if tag:
+                result[i] = _POS_TAG_MAP.get(tag, tag)
+            else:
+                still.append(i)
+    except Exception as e:
+        print(f"NLP POS (unigram) failed: {e}")
+        still = idxs
+
+    if not still:
+        return result
+
+    # 3. perceptron: 最後の手段。文脈判定のため全単語を渡す
+    try:
+        tags = pos_tag(words, engine="perceptron", corpus="orchid_ud")
+        for i in still:
+            if i < len(tags) and len(tags[i]) >= 2:
+                result[i] = _POS_TAG_MAP.get(tags[i][1], tags[i][1])
+    except Exception as e:
+        print(f"NLP POS (perceptron) failed: {e}")
+
+    return result
+
+
 def segment_syllables(word: str) -> list[str]:
     """タイ語の単語を音節単位に分割する。
 
@@ -68,8 +192,8 @@ def segment_syllables(word: str) -> list[str]:
 def get_pos_japanese(word: str) -> str:
     """タイ語の単語の品詞を日本語で返す。
 
-    PyThaiNLP の品詞タグ付け機能（perceptron エンジン、orchid_ud コーパス）を
-    使用して品詞を判定し、日本語ラベルに変換する。
+    機能語辞書と PyThaiNLP を組み合わせて品詞を判定し、日本語ラベルに変換する。
+    判定順序は _tag_words を参照。
 
     例: "กิน"（食べる）→ "動詞"
 
@@ -79,12 +203,7 @@ def get_pos_japanese(word: str) -> str:
     Returns:
         str: 日本語の品詞名。マッピングに該当しない場合は "その他" を返す
     """
-    # perceptron エンジンと orchid_ud コーパスで品詞タグ付け
-    tags = pos_tag([word], engine="perceptron", corpus="orchid_ud")
-    if tags and len(tags[0]) >= 2:
-        # 英語タグを日本語に変換（マッピングにない場合は英語タグをそのまま返す）
-        return _POS_TAG_MAP.get(tags[0][1], tags[0][1])
-    return "その他"
+    return _tag_words([word]).get(0, "その他")
 
 
 def enrich_with_nlp(sentence: dict) -> dict:
@@ -110,15 +229,8 @@ def enrich_with_nlp(sentence: dict) -> dict:
     word_breakdowns = sentence.get("word_breakdown", [])
     words = [wb.get("word", "") for wb in word_breakdowns]
 
-    # 品詞タグ付け: 全単語を一括で渡し文脈を考慮した判定を行う
-    pos_map: dict[int, str] = {}
-    try:
-        tags = pos_tag(words, engine="perceptron", corpus="orchid_ud")
-        for i, tag_pair in enumerate(tags):
-            if len(tag_pair) >= 2:
-                pos_map[i] = _POS_TAG_MAP.get(tag_pair[1], tag_pair[1])
-    except Exception as e:
-        print(f"NLP POS (context) failed: {e}")
+    # 品詞タグ付け: 辞書 → unigram → perceptron の順で段階的に判定する
+    pos_map = _tag_words(words)
 
     # 各単語の発音を蓄積し、最後に文全体の発音を構築する
     word_pronunciations = []

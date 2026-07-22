@@ -116,6 +116,15 @@ class SentenceRepository {
     }
   }
 
+  /// Check whether a sentence is already stored locally
+  Future<bool> sentenceExists(String id) async {
+    try {
+      return await _databaseHelper.sentenceExists(id);
+    } catch (e) {
+      throw RepositoryException('Failed to check sentence: $e');
+    }
+  }
+
   /// Get all sentences from the database
   Future<List<ThaiSentence>> getAllSentences() async {
     try {

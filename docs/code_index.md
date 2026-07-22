@@ -3,7 +3,7 @@
 ## App Entry & Configuration
 
 lib/main.dart
-Firebase初期化、Riverpod設定、FCMバックグラウンドハンドラ、AdMob初期化。
+Firebase初期化（環境別オプション切替）、ProviderScopeでアプリ起動。
 
 lib/app.dart
 ルートMaterialApp。テーマ、ナビゲーション、認証状態リスナー。
@@ -95,7 +95,7 @@ lib/presentation/providers/subscription_provider.dart
 ティア状態（free/premium）。Firestoreと同期、課金サービス連携。
 
 lib/presentation/providers/settings_provider.dart
-ユーザー設定（テーマ、生成パラメータ、通知設定）。
+ユーザー設定（初回起動フラグ、テーマ、生成パラメータ、フォント）。
 
 lib/presentation/providers/tts_provider.dart
 タイ語発音再生のText-to-Speechサービス。
@@ -121,7 +121,7 @@ lib/presentation/screens/quiz_screen.dart
 クイズ画面（問題出題、回答、結果確認）。
 
 lib/presentation/screens/settings_screen.dart
-設定画面（テーマ、通知、アカウント、アプリ情報）。
+設定画面（アカウント・プラン、テーマ、フォント、声調ガイド、学習データリセット、アプリ情報）。
 
 lib/presentation/screens/paywall_screen.dart
 プレミアム課金UI。
@@ -159,6 +159,12 @@ lib/services/purchase_service.dart
 
 lib/services/tts_service.dart
 タイ語発音のText-to-Speechエンジン。
+
+lib/services/push_notification_service.dart
+FCMトークン・タイムゾーン・配信希望時刻をusers/{uid}に登録。OSの通知許可とアプリ内設定の突き合わせも行う。
+
+lib/services/daily_sentence_service.dart
+サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、今日ぶんの配信例文を返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
 
 ## Thai Language Processing (Dart)
 
@@ -206,7 +212,7 @@ functions/javascript/src/generateQuiz.ts
 復習キューからクイズ生成（クォータチェック付き）。
 
 functions/javascript/src/dailyBatch.ts
-夜間バッチ：SRSキュー再生成＋30日超過データクリーンアップ。
+日次バッチ（JST 0:00）：日次クォータリセット、UVMのP値減衰、30日超過例文削除、非アクティブ匿名ユーザー削除。
 
 ### Services
 
@@ -241,10 +247,22 @@ JST日付フォーマットユーティリティ。
 ## Cloud Functions — Python
 
 functions/python/main.py
-`generateThaiSentence`と`sendDailySentence`のエントリーポイント。Gemini API呼び出し、クォータチェック、NLPエンリッチメント。
+`generateThaiSentence`・`updateUvm`・`deliverDailySentence`を再エクスポートするエントリーポイント。実処理は各handlers.py。
+
+functions/python/daily_sentence.py
+毎日例文の配信判定ロジック（段階バックオフ・反応評価・ローカル時刻）。副作用なしでテスト可能。
+
+functions/python/daily_sentence_handlers.py
+毎日例文の配信バッチ（毎時起動）。free=キャッシュ／premium=LLM生成（preferred_topic反映）でFirestoreに書きFCM送信。
 
 functions/python/nlp.py
-PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日本語ラベル）。
+PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日本語ラベル）。品詞は機能語辞書→形容詞辞書→unigram→perceptronの順で判定。
+
+functions/python/pos_adjectives.py
+形容詞（状態動詞）辞書。build_adjective_dict.pyが生成する自動生成ファイル。
+
+functions/python/scripts/build_adjective_dict.py
+freq_rank上位語をLLMに分類させpos_adjectives.pyを生成するオフラインスクリプト。
 
 functions/python/pronunciation.py
 タイ文字→ローマ字発音変換（声調記号付き）。
@@ -252,8 +270,11 @@ functions/python/pronunciation.py
 functions/python/prompts.py
 Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。
 
+functions/python/themes/bl_drama.py
+BLドラマテーマのプロンプト断片構築。参考セリフ（BL_DRAMA_SHOTS）から1文だけをembedding類似度で選び出す。
+
 functions/python/constants.py
-LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ。
+LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ（build_response_schemaで未確定contextフィールドのみ追加）。
 
 functions/python/llm_providers.py
 LLMプロバイダー抽象レイヤ（OpenAI/Gemini切替、API呼び出し、リトライ、トークン使用量ログ）。
@@ -267,11 +288,14 @@ estimated_vocab算出ロジックの詳細ドキュメント（estimate_vocab・
 docs/sentence_generation_logic.md
 例文生成ロジック（UVM単語選定→プロンプト構築→Gemini呼び出し→NLP後処理→Firestore保存）。
 
+docs/design_daily_sentence.md
+毎日例文の配信＋プッシュ通知の設計（配信ターゲティング、段階バックオフ、反応シグナル、必要フィールド）。
+
 docs/quiz_generation_logic.md
 クイズ生成ロジック（SRS例文選出→Gemini穴埋め生成→サニタイズ→デフォルト補填）。
 
 functions/python/embeddings.py
-GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテーマ関連単語検索・セマンティック重複除去。
+GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテーマ関連単語検索・セマンティック重複除去・ドラマ参考セリフ選出（find_best_drama_shot）。
 
 ---
 
@@ -289,7 +313,7 @@ scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。
 
 scripts/build_topic_embeddings.py
-16テーマ文字列のembeddingを事前計算しGCSにアップロード。
+テーマ・サブテーマ・BLドラマ参考セリフ（shot_embeddings.json）のembeddingを768次元で事前計算する。出力はcorpus/配下、アップロードはupload_corpus.sh。
 
 scripts/upload_corpus.sh
 UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSにアップロード。

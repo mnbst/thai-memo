@@ -17,13 +17,13 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "functions" / "python"))
 from constants import TOPICS, TOPIC_SUB_THEMES  # noqa: E402
-from themes.bl_drama import BL_DRAMA_SETTINGS, BL_DRAMA_SHOTS  # noqa: E402
+from themes.bl_drama import BL_DRAMA_SHOTS  # noqa: E402
 
 from vertexai.language_models import TextEmbeddingModel  # noqa: E402
 
 TOPIC_OUTPUT = Path("corpus/topic_embeddings.json")
 SUB_THEME_OUTPUT = Path("corpus/sub_theme_embeddings.json")
-SCENE_OUTPUT = Path("corpus/scene_embeddings.json")
+SHOT_OUTPUT = Path("corpus/shot_embeddings.json")
 DIM = 768
 
 BL_DRAMA_TOPIC = "タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）"
@@ -110,22 +110,23 @@ def main():
         json.dump(sub_result, f, ensure_ascii=False)
     print(f"Sub-themes: {len(sub_result)} -> {SUB_THEME_OUTPUT}")
 
-    # --- BLドラマ シーン embedding ---
-    all_scenes: list[str] = []
-    for setting in BL_DRAMA_SETTINGS:
-        for s in setting["scenes"]:
-            text = s["text"]
-            if text not in all_scenes:
-                all_scenes.append(text)
+    # --- BLドラマ 参考セリフ embedding ---
+    # キーはショットIDではなくタイ語本文。本文を書き換えた行は embedding が
+    # 引けなくなり選出候補から外れるため、更新漏れが誤スコアではなく
+    # スキップとして現れる。
+    all_shots: list[str] = []
+    for text in BL_DRAMA_SHOTS.values():
+        if text not in all_shots:
+            all_shots.append(text)
 
-    scene_embeddings = model.get_embeddings(all_scenes, output_dimensionality=DIM)  # type: ignore
-    scene_result = {}
-    for label, emb in zip(all_scenes, scene_embeddings):
-        scene_result[label] = emb.values
+    shot_embeddings = model.get_embeddings(all_shots, output_dimensionality=DIM)  # type: ignore
+    shot_result = {}
+    for label, emb in zip(all_shots, shot_embeddings):
+        shot_result[label] = emb.values
 
-    with open(SCENE_OUTPUT, "w", encoding="utf-8") as f:
-        json.dump(scene_result, f, ensure_ascii=False)
-    print(f"Scenes: {len(scene_result)} -> {SCENE_OUTPUT}")
+    with open(SHOT_OUTPUT, "w", encoding="utf-8") as f:
+        json.dump(shot_result, f, ensure_ascii=False)
+    print(f"Shots: {len(shot_result)} -> {SHOT_OUTPUT}")
 
 
 if __name__ == "__main__":

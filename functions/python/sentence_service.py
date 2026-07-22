@@ -8,24 +8,32 @@ from google.cloud import storage as gcs
 from google.cloud.firestore_v1.client import Client as FirestoreClient
 
 try:
-    from .constants import FREE_TOPICS, TOPICS
+    from .constants import FREE_TOPICS, TOPICS, build_response_schema
     from .llm_providers import (
         generate_sentence_async as _llm_generate_async,
     )
     from .llm_providers import (
         generate_sentence_sync as _llm_generate_sync,
     )
-    from .prompts import build_uvm_prompt, gate_topics_for_vocab, get_system_prompt
+    from .prompts import (
+        build_prompt_with_context,
+        gate_topics_for_vocab,
+        get_system_prompt,
+    )
     from .uvm import get_session_words
 except ImportError:
-    from constants import FREE_TOPICS, TOPICS
+    from constants import FREE_TOPICS, TOPICS, build_response_schema
     from llm_providers import (
         generate_sentence_async as _llm_generate_async,
     )
     from llm_providers import (
         generate_sentence_sync as _llm_generate_sync,
     )
-    from prompts import build_uvm_prompt, gate_topics_for_vocab, get_system_prompt
+    from prompts import (
+        build_prompt_with_context,
+        gate_topics_for_vocab,
+        get_system_prompt,
+    )
     from uvm import get_session_words
 
 _freq_rank: dict[str, int] | None = None
@@ -113,8 +121,8 @@ def pick_free_sentence(target_word: str) -> dict | None:
     if not candidates:
         return None
     import random
-    return random.choice(candidates)
 
+    return random.choice(candidates)
 
 
 def select_uvm_target_words(
@@ -165,7 +173,6 @@ def require_target_words(result: tuple[list[str], str]) -> tuple[list[str], str]
 MAX_RETRY = 1
 
 
-
 def _match_word(word_text: str, target: str) -> bool:
     w = word_text.strip()
     return w == target or w == target + "ๆ" or w + "ๆ" == target
@@ -200,6 +207,49 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
     return missing
 
 
+_CONTEXT_FIELDS = ("topic", "style", "emotion")
+
+
+def _schema_for(resolved_context: dict | None) -> dict:
+    """確定値が無い context フィールドだけ LLM に生成させるスキーマを返す。"""
+    resolved = resolved_context or {}
+    ask = tuple(f for f in _CONTEXT_FIELDS if not resolved.get(f))
+    return build_response_schema(ask)
+
+
+def _apply_response_compat(sentence: dict, resolved_context: dict | None) -> dict:
+    """LLM の省トークン形式を、保存・クライアント互換の形に戻す。
+
+    - target_notes を word_breakdown[].notes に展開する（非対象は空文字）
+    - context.topic / style / emotion にサーバー確定値を注入する
+    """
+    notes_by_word = {
+        str(item.get("word", "")).strip(): str(item.get("note", ""))
+        for item in sentence.pop("target_notes", []) or []
+        if isinstance(item, dict)
+    }
+    for wb in sentence.get("word_breakdown", []):
+        if not isinstance(wb, dict):
+            continue
+        word = str(wb.get("word", "")).strip()
+        note = notes_by_word.get(word, "")
+        if not note:
+            note = next(
+                (n for w, n in notes_by_word.items() if _match_word(word, w)),
+                "",
+            )
+        wb["notes"] = note
+
+    if resolved_context:
+        context = sentence.get("context")
+        sentence["context"] = {
+            **(context if isinstance(context, dict) else {}),
+            **resolved_context,
+        }
+
+    return sentence
+
+
 def _build_retry_prompt(prompt: str, missing: list[str]) -> str:
     missing_str = ", ".join(missing)
     return (
@@ -215,6 +265,7 @@ def _generate_single(
     is_premium: bool,
     tier_label: str,
     target_words: list[str] | None = None,
+    resolved_context: dict | None = None,
 ) -> dict:
     """LLM で1文を同期生成し NLP 後処理を適用する。"""
     _prewarm_nlp_async()
@@ -227,7 +278,9 @@ def _generate_single(
             current_prompt,
             is_premium,
             tier_label,
+            _schema_for(resolved_context),
         )
+        _apply_response_compat(sentence, resolved_context)
         _get_enrich_with_nlp()(sentence)
 
         missing = validate_target_words(sentence, target_words)
@@ -240,8 +293,7 @@ def _generate_single(
         current_prompt = _build_retry_prompt(prompt, missing)
 
     raise RuntimeError(
-        "LLM_API_ERROR: target words missing after retries: "
-        f"{', '.join(missing)}"
+        f"LLM_API_ERROR: target words missing after retries: {', '.join(missing)}"
     )
 
 
@@ -251,6 +303,7 @@ async def _generate_single_async(
     is_premium: bool,
     tier_label: str,
     target_words: list[str] | None = None,
+    resolved_context: dict | None = None,
 ) -> dict:
     """LLM で1文を非同期生成し NLP 後処理を適用する（バッチ並列用）。"""
     _prewarm_nlp_async()
@@ -263,7 +316,9 @@ async def _generate_single_async(
             current_prompt,
             is_premium,
             tier_label,
+            _schema_for(resolved_context),
         )
+        _apply_response_compat(sentence, resolved_context)
         _get_enrich_with_nlp()(sentence)
 
         missing = validate_target_words(sentence, target_words)
@@ -276,8 +331,7 @@ async def _generate_single_async(
         current_prompt = _build_retry_prompt(prompt, missing)
 
     raise RuntimeError(
-        "LLM_API_ERROR: target words missing after retries: "
-        f"{', '.join(missing)}"
+        f"LLM_API_ERROR: target words missing after retries: {', '.join(missing)}"
     )
 
 
@@ -290,7 +344,7 @@ def generate_sentence(
 ) -> dict:
     """LLM で例文を生成し、NLP後処理を適用する。"""
     tier_label = "premium" if is_premium else "free"
-    prompt = build_uvm_prompt(
+    prompt, resolved_context = build_prompt_with_context(
         params,
         target_words,
         estimated_vocab=estimated_vocab,
@@ -303,6 +357,7 @@ def generate_sentence(
         is_premium,
         tier_label,
         target_words,
+        resolved_context,
     )
 
 
@@ -320,7 +375,7 @@ async def _generate_batch_async(
     for i in range(count):
         tw = all_target_words[i] if i < len(all_target_words) else None
         topic = all_topics[i] if i < len(all_topics) else ""
-        prompt = build_uvm_prompt(
+        prompt, resolved_context = build_prompt_with_context(
             {"topic": topic} if topic else {},
             tw,
             estimated_vocab=estimated_vocab,
@@ -328,7 +383,14 @@ async def _generate_batch_async(
         )
         system_prompt = get_system_prompt(is_premium, estimated_vocab)
         tasks.append(
-            _generate_single_async(system_prompt, prompt, is_premium, tier_label, tw)
+            _generate_single_async(
+                system_prompt,
+                prompt,
+                is_premium,
+                tier_label,
+                tw,
+                resolved_context,
+            )
         )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)

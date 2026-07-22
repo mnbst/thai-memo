@@ -116,7 +116,8 @@ SYSTEM_PROMPT_FREE = """タイ語基礎練習文を1つ生成。以下を厳守�
 - 人称代名詞のmeaningに性別・丁寧度注記（例: ผม→「私（男性・丁寧）」、กู→「俺/私（男女・ぞんざい）」）
 - context各フィールド50文字以内
 - japanese_translation: 自然な日本語。主語・目的語の対応を崩さない（誰が・誰を・何をの関係を正確に）（×説明的な訳→○日本語として自然な形）
-- notesにターゲット単語の用法・類語との違いを50文字以内で記述。非ターゲットは空文字
+- 強調・限定・語調の表現は逐語訳せず、日本語の話し言葉としての等価表現に置き換える（例: สำหรับฉัน→×「私については」○「私のこともね」）
+- target_notesにはターゲット単語だけを入れ、用法・類語との違いを50文字以内で記述
 - スペルミス厳禁: เธอをเธと書かない。母音-อを落とさない
 - ターゲット単語は独立した意味で使用（慣用句・複合語の一部のみはNG。畳語は除く）
 - ターゲット単語はword_breakdownに独立エントリとして含める
@@ -131,7 +132,10 @@ SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
 - 人称代名詞のmeaningに性別・丁寧度注記（例: ผม→「私（男性・丁寧）」）
 - context各フィールド50文字以内
 - japanese_translation: 自然で簡潔な日本語。時制はタイ語文と一致。主語・目的語の対応を崩さない（誰が・誰を・何をの関係を正確に）（×説明的な訳→○自然な日本語）
-- notesにターゲット単語の用法・類語との違いを50文字以内。非ターゲットは空文字
+- 強調・限定・語調・反語の表現は逐語訳せず、日本語の話し言葉としての等価表現に置き換える。硬い直訳（「〜については」「何のために」等）は禁止
+  例: สำหรับฉัน คิดถึงฉันบ้างนะ →×「私については、私を少し思い出して」○「私のこともね、たまには思い出してね」
+  例: 〜เพื่ออะไร（反語）→×「何のために」○「わざわざ〜する必要ないよ」「〜しなくていいよ」
+- target_notesにはターゲット単語だけを入れ、用法・類語との違いを50文字以内で記述
 
 # 構文ルール（最重要）
 - 動詞中心の自然なタイ語。直訳構文禁止
@@ -330,6 +334,21 @@ def build_uvm_prompt(
     estimated_vocab: int = 0,
     is_premium: bool = True,
 ) -> str:
+    """プロンプト文字列のみを返す薄いラッパー。"""
+    return build_prompt_with_context(
+        params,
+        target_words,
+        estimated_vocab=estimated_vocab,
+        is_premium=is_premium,
+    )[0]
+
+
+def build_prompt_with_context(
+    params: dict,
+    target_words: list[str] | None = None,
+    estimated_vocab: int = 0,
+    is_premium: bool = True,
+) -> tuple[str, dict]:
     """プロンプトを構築する（free/premium 共通）。
 
     target_wordsが指定された場合はそれらの単語を含む例文を生成するよう指示する。
@@ -343,7 +362,8 @@ def build_uvm_prompt(
         is_premium: プレミアムティアかどうか（free時はテーマ・スタイルが制限される）
 
     Returns:
-        str: OpenAI に送信するプロンプト文字列
+        tuple[str, dict]: プロンプト文字列と、生成後に context へ注入する
+            {"topic", "style", "emotion"}（LLM に復唱させず出力トークンを節約する）
     """
     diff = get_difficulty(estimated_vocab)
     prompt_is_premium = use_premium_prompt_for_vocab(is_premium, estimated_vocab)
@@ -384,6 +404,14 @@ def build_uvm_prompt(
         emotion_line = f"- 感情・トーン: {emotion}"
         # grammar_line is already set above
 
+    # プロンプトで指定した値のみ確定値として記録する。
+    # ドラマ回は文体・トーンを制約しないため確定値が無く、キーごと落とす。
+    # 欠けたキーは呼び出し側が LLM に生成させる（constants.build_response_schema）。
+    context = {"topic": topic}
+    if not is_drama:
+        context["style"] = style
+        context["emotion"] = emotion
+
     if target_words:
         words_str = ", ".join(target_words)
         return f"""【最優先】以下のタイ語単語を必ず含めてください:
@@ -397,11 +425,11 @@ def build_uvm_prompt(
 - 語彙レベル: {diff["label"]}（{diff["vocab_hint"]}）
 - 長さ: {diff["length"]}
 {drama_required}
-【キーワード補足】上記のターゲット単語には、word_breakdownのnotesフィールドで用法・ニュアンス・類語との違いを簡潔に補足してください。
+【キーワード補足】上記のターゲット単語には、target_notesで用法・ニュアンス・類語との違いを簡潔に補足してください。
 
 
 【可能な限り反映】以下の要素を、自然なタイ語になる範囲で取り入れてください。
-{topic_line}{sub_theme_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""
+{topic_line}{sub_theme_line}{style_line}{politeness_line}{grammar_line}{emotion_line}""", context
 
     return f"""
 {drama_context}
@@ -410,4 +438,4 @@ def build_uvm_prompt(
 - 長さ: {diff["length"]}
 {drama_required}
 【可能な限り反映】以下の要素を、自然なタイ語になる範囲で取り入れてください。
-{topic_line}{sub_theme_line}{style_line}{politeness_line}{grammar_line}{emotion_line}"""
+{topic_line}{sub_theme_line}{style_line}{politeness_line}{grammar_line}{emotion_line}""", context
