@@ -213,7 +213,7 @@ def _commit_daily_sentence_body(
 _commit_daily_sentence = transactional(_commit_daily_sentence_body)
 
 
-def _send_notification(token: str, sentence: dict) -> None:
+def _send_notification(token: str, sentence_id: str, sentence: dict) -> None:
     messaging.send(
         messaging.Message(
             token=token,
@@ -221,7 +221,7 @@ def _send_notification(token: str, sentence: dict) -> None:
                 title=sentence["thai_text"],
                 body=sentence["japanese_translation"],
             ),
-            data={"type": "daily_sentence"},
+            data={"type": "daily_sentence", "sentence_id": sentence_id},
         )
     )
 
@@ -287,7 +287,7 @@ def _deliver_one(
         return False
 
     try:
-        _send_notification(token, sentence)
+        _send_notification(token, sentence_ref.id, sentence)
     except messaging.UnregisteredError:
         print(f"daily_sentence: token unregistered, rolling back {uid}")
         _rollback_delivery(user_ref, sentence_ref, restore)
