@@ -46,15 +46,57 @@ class DailySentenceService {
   /// 「今日ぶんか」を日付で判定しない。サーバーはユーザー登録時のタイムゾーンで
   /// 日付を切るため、端末が国をまたぐとクライアントの「今日」とずれる。
   /// 未取り込み＝まだ見せていない配信、という判定なら時差に依存しない。
-  Future<ThaiSentence?> sync() async {
+  Future<ThaiSentence?> sync({String? sentenceId}) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return null;
 
     final results = await Future.wait([
       _touchLastOpenedAt(uid).then((_) => null),
-      _importDeliveredSentences(uid),
+      _syncDeliveredSentences(uid, sentenceId: sentenceId),
     ]);
     return results.last;
+  }
+
+  Future<ThaiSentence?> _syncDeliveredSentences(
+    String uid, {
+    String? sentenceId,
+  }) async {
+    // 指定分を先に取り込んでから一括取り込みを回す。順序を守ると、一括側は
+    // 指定分を「取り込み済み」として飛ばすので、古い未取り込み配信が
+    // 通知で開いた例文を押しのけて表示されることがない。
+    final byId = (sentenceId != null && sentenceId.isNotEmpty)
+        ? await _importDeliveredSentenceById(uid, sentenceId)
+        : null;
+    final imported = await _importDeliveredSentences(uid);
+    return byId ?? imported;
+  }
+
+  Future<ThaiSentence?> _importDeliveredSentenceById(
+    String uid,
+    String sentenceId,
+  ) async {
+    try {
+      final local = await _repository.getSentenceById(sentenceId);
+      if (local != null) return local;
+
+      final doc = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('sentences')
+          .doc(sentenceId)
+          .get();
+      final data = doc.data();
+      if (!doc.exists || data == null || data['daily'] != true) return null;
+
+      final sentence = toSentence(doc.id, data);
+      await _repository.saveSentence(sentence);
+      return sentence;
+    } catch (e) {
+      debugPrint(
+        'DailySentenceService: fetch by ID failed for $sentenceId: $e',
+      );
+      return null;
+    }
   }
 
   Future<void> _touchLastOpenedAt(String uid) async {
@@ -121,23 +163,18 @@ class DailySentenceService {
 
     // syllables はサーバーが文字列配列で返すため、WordBreakdown.fromJson には渡せない。
     // parseSyllables で声調解析を補いつつ Syllable に変換する。
-    final wordBreakdowns = rawBreakdowns
-        .whereType<Map>()
-        .toList()
-        .asMap()
-        .entries
-        .map((entry) {
-          final raw = Map<String, dynamic>.from(entry.value);
-          final syllables = parseSyllables(raw['syllables'] as List<dynamic>?);
-          raw.remove('syllables');
-          return WordBreakdown.fromJson(raw).copyWith(
-            id: _uuid.v4(),
-            sentenceId: id,
-            wordOrder: entry.key,
-            syllables: syllables,
-          );
-        })
-        .toList();
+    final wordBreakdowns =
+        rawBreakdowns.whereType<Map>().toList().asMap().entries.map((entry) {
+      final raw = Map<String, dynamic>.from(entry.value);
+      final syllables = parseSyllables(raw['syllables'] as List<dynamic>?);
+      raw.remove('syllables');
+      return WordBreakdown.fromJson(raw).copyWith(
+        id: _uuid.v4(),
+        sentenceId: id,
+        wordOrder: entry.key,
+        syllables: syllables,
+      );
+    }).toList();
 
     final context = data['context'];
 
