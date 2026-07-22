@@ -12,6 +12,7 @@ import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { isDevOnly } from './config/environment';
 import { nowJST } from './utils/formatDate';
+import { notifyUtcHour } from './utils/notifyUtcHour';
 import { deleteUserFirestoreData } from './deleteUserData';
 import {
   FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES,
@@ -189,12 +190,22 @@ export async function resetQuota(
     console.log(`resetQuota: demoting lapsed premium user ${userDoc.id}`);
   }
 
+  // 配信バッチが時刻でクエリできるよう、毎日ここで作り直す。全ユーザーを
+  // どのみち走査しているので追加の読み取りは発生せず、端末の移動や DST 切り替え、
+  // 旧クライアントからの設定変更にも1日以内に追従する。
+  // 算出不能（DST春の飛び時刻）なら既存値を維持する。
+  const utcHour = notifyUtcHour(
+    userData.timezone,
+    userData.preferred_generation_hour,
+  );
+
   // TODO: is_first_generation / is_first_quiz_generation フラグが旧ユーザーに残存。十分行き渡ったら一括削除する
   await db.collection('users').doc(userDoc.id).set(
     {
       remaining_sentences: sentenceResetValue,
       remaining_quizzes: quizResetValue,
       daily_sentence_generated: false,
+      ...(utcHour !== null ? { notify_utc_hour: utcHour } : {}),
       ...(subscriptionLapsed ? {
         tier: 'free',
         subscription: { status: 'expired' },

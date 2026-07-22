@@ -37,6 +37,27 @@ def local_date(tz_name: str | None, now: datetime) -> str:
     return _local(tz_name, now).strftime("%Y-%m-%d")
 
 
+def notify_utc_hour(user_data: dict, now: datetime) -> int | None:
+    """現地の配信希望時刻が UTC の何時の起動に当たるかを求める。
+
+    users/{uid}.notify_utc_hour に非正規化して配信対象クエリの絞り込みに使う
+    （毎時 users 全件を読むのを避けるため）。値の維持は主に dailyBatch が行うが、
+    クライアントが設定を書いた直後に反映させるためロジックはここにも置く。
+
+    オフセットの引き算ではなく24通りを実際にローカル変換して探す。+5:30 / +5:45 の
+    ような分単位オフセットでも現地の各時刻はUTCのいずれか1時刻と1対1に対応する
+    （配信が現地 10:30 になるズレはあるが、これは従来の挙動と同じ）。
+
+    DST 春の切り替え日はその現地時刻自体が存在しないため None を返す。
+    """
+    preferred = user_data.get("preferred_generation_hour", DEFAULT_GENERATION_HOUR)
+    day = now.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    for hour in range(24):
+        if local_hour(user_data.get("timezone"), day.replace(hour=hour)) == preferred:
+            return hour
+    return None
+
+
 def _as_datetime(value) -> datetime | None:
     """Firestore の timestamp を tz-aware datetime に正規化する。"""
     if value is None:

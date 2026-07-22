@@ -42,27 +42,24 @@ except ImportError:
 
 initialize_firebase_app()
 
-_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
+def _candidate_users(db: FirestoreClient, now: datetime):
+    """この時刻に配信されうるユーザーだけを列挙する。
 
-def _candidate_users(db: FirestoreClient):
-    """生成実績のあるユーザーを列挙する（uid重複は除く）。
+    users 全件を毎時読むと読み取りが 24×N/日 になるため、非正規化した
+    notify_utc_hour（現地の配信希望時刻に対応するUTC時刻）で絞り込む。
+    これで 1日あたり各ユーザー1回しか読まない。
 
-    Firestore は OR 条件で別フィールドの不等号を扱えないため2クエリに分ける。
+    この値はあくまで足切り用で、配信の可否は従来どおり should_deliver 内の
+    ローカル時刻比較が最終判定を行う（値が古くても誤配信にはならない）。
+    フィールドは dailyBatch が毎日全ユーザーに書き直すため、旧クライアントでも
+    1日以内に埋まる。
     """
-    seen: set[str] = set()
-    queries = [
-        db.collection("users").where(
-            filter=FieldFilter("last_sentence_generated_at", ">", _EPOCH)
-        ),
-        db.collection("users").where(filter=FieldFilter("estimated_vocab", ">", 0)),
-    ]
-    for query in queries:
-        for doc in query.stream():
-            if doc.id in seen:
-                continue
-            seen.add(doc.id)
-            yield doc.id, (doc.to_dict() or {})
+    query = db.collection("users").where(
+        filter=FieldFilter("notify_utc_hour", "==", now.astimezone(timezone.utc).hour)
+    )
+    for doc in query.stream():
+        yield doc.id, (doc.to_dict() or {})
 
 
 def _pick_cached_sentence(
@@ -350,7 +347,7 @@ def deliverDailySentence(event: scheduler_fn.ScheduledEvent) -> None:
     delivered = 0
     skipped = 0
 
-    for uid, user_data in _candidate_users(db):
+    for uid, user_data in _candidate_users(db, now):
         if not should_deliver(user_data, now):
             continue
         try:

@@ -2,11 +2,12 @@
 // push_notification_service.dart
 // 毎日例文のプッシュ通知（FCM）まわり。
 //
-// サーバー（deliverDailySentence）が配信対象を選ぶのに必要な3つのフィールドを
+// サーバー（deliverDailySentence）が配信対象を選ぶのに必要なフィールドを
 // users/{uid} に書く役割を持つ:
 //   fcm_token                 … 送信先。これが無いユーザーには配信されない
 //   timezone                  … IANA名。ローカル時刻の判定に使う
 //   preferred_generation_hour … 配信希望時刻（時のみ）
+//   notify_utc_hour           … 上記2つから導く配信対象クエリ用の絞り込みキー
 //
 // 通知本文は例文そのものだが、表示はペイロードではなく Firestore から行う
 // （DailySentenceService）。通知を開かなくても例文が手元に揃うようにするため。
@@ -24,6 +25,25 @@ const int kDefaultGenerationHour = 10;
 
 /// タイムゾーンが取得できなかった場合のフォールバック
 const String kFallbackTimezone = 'Asia/Tokyo';
+
+/// 現地の [preferredHour] が UTC の何時の起動に当たるかを返す。
+///
+/// 配信バッチ（deliverDailySentence）は毎時起動し、users を
+/// notify_utc_hour == 現在のUTC時 で絞り込む。全件走査を避けるための
+/// 非正規化フィールドで、設定変更を即座に反映させるためクライアントでも書く。
+/// （サーバー側は dailyBatch が毎日全ユーザー分を書き直す）
+///
+/// オフセットの引き算ではなく24通りを実際にローカル変換して探すため、
+/// +5:30 / +5:45 のような分単位オフセットや DST でも正しい値になる。
+/// その現地時刻が存在しない日（DST春の切り替え）は null を返す。
+int? notifyUtcHour(int preferredHour, {DateTime? base}) {
+  final now = (base ?? DateTime.now()).toUtc();
+  for (var utcHour = 0; utcHour < 24; utcHour++) {
+    final candidate = DateTime.utc(now.year, now.month, now.day, utcHour);
+    if (candidate.toLocal().hour == preferredHour) return utcHour;
+  }
+  return null;
+}
 
 class PushNotificationService {
   PushNotificationService({
@@ -131,6 +151,11 @@ class PushNotificationService {
       {
         'preferred_generation_hour': hour,
         'timezone': await _resolveTimezone(),
+        // 算出できない日（DST春の飛び時刻）は書かず、既存値を残す。
+        ...(() {
+          final utcHour = notifyUtcHour(hour);
+          return utcHour == null ? {} : {'notify_utc_hour': utcHour};
+        }()),
       },
       SetOptions(merge: true),
     );

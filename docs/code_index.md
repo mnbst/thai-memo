@@ -242,6 +242,9 @@ functions/javascript/src/constants/defaultQuizQuestions.ts
 functions/javascript/src/utils/formatDate.ts
 JST日付フォーマットユーティリティ。
 
+functions/javascript/src/utils/notifyUtcHour.ts
+配信希望時刻（現地）が対応するUTC時刻を算出。users.notify_utc_hourの非正規化に使う。
+
 ---
 
 ## Cloud Functions — Python
