@@ -572,6 +572,91 @@ describe('verifyAppStorePurchase', () => {
       expect(result.status).toBe('active');
     });
 
+    test('renewalInfo の autoRenewStatus=0 → status=canceled / autoRenewing=false を返す', async () => {
+      const signedTxInfo = await makeValidSignedTransactionInfo();
+      const signedRenewalInfo = await createValidJws({
+        autoRenewStatus: 0,
+        originalTransactionId: 'orig_tx_123',
+        productId: 'com.thaimemo.monthly',
+      });
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            data: [{ lastTransactions: [{ originalTransactionId: 'orig_tx_123', signedRenewalInfo }] }],
+          }),
+        });
+
+      const result = await verifyAppStorePurchase('tx_123');
+
+      expect(result.status).toBe('canceled');
+      expect(result.autoRenewing).toBe(false);
+      // 期限内なので valid は true（premium は期限まで維持）
+      expect(result.valid).toBe(true);
+    });
+
+    test('renewalInfo の autoRenewStatus=1 → status=active / autoRenewing=true を返す', async () => {
+      const signedTxInfo = await makeValidSignedTransactionInfo();
+      const signedRenewalInfo = await createValidJws({
+        autoRenewStatus: 1,
+        originalTransactionId: 'orig_tx_123',
+        productId: 'com.thaimemo.monthly',
+      });
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            data: [{ lastTransactions: [{ originalTransactionId: 'orig_tx_123', signedRenewalInfo }] }],
+          }),
+        });
+
+      const result = await verifyAppStorePurchase('tx_123');
+
+      expect(result.status).toBe('active');
+      expect(result.autoRenewing).toBe(true);
+    });
+
+    test('subscriptions API が失敗した場合 → status=active / autoRenewing=true にフォールバックする', async () => {
+      const signedTxInfo = await makeValidSignedTransactionInfo();
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+        });
+
+      const result = await verifyAppStorePurchase('tx_123');
+
+      expect(result.status).toBe('active');
+      expect(result.autoRenewing).toBe(true);
+    });
+
+    test('subscriptions API には originalTransactionId でリクエストされる', async () => {
+      const signedTxInfo = await makeValidSignedTransactionInfo();
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
+        })
+        .mockResolvedValueOnce({ ok: false, status: 404 });
+
+      await verifyAppStorePurchase('tx_123');
+
+      const secondUrl = (global.fetch as jest.Mock).mock.calls[1][0] as string;
+      expect(secondUrl).toContain('/inApps/v1/subscriptions/orig_tx_123');
+    });
+
     test('リクエストヘッダーに Authorization: Bearer <JWT> が設定される', async () => {
       const signedTxInfo = await makeValidSignedTransactionInfo();
       (global.fetch as jest.Mock).mockResolvedValueOnce({

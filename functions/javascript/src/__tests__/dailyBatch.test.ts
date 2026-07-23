@@ -76,6 +76,7 @@ describe('resetQuota', () => {
         remaining_sentences: FREE_DAILY_SENTENCES,
         remaining_quizzes: FREE_DAILY_QUIZZES,
         daily_sentence_generated: false,
+        notify_utc_hour: 1,
       },
       { merge: true }
     );
@@ -93,6 +94,7 @@ describe('resetQuota', () => {
         remaining_sentences: FREE_DAILY_SENTENCES,
         remaining_quizzes: FREE_DAILY_QUIZZES,
         daily_sentence_generated: false,
+        notify_utc_hour: 1,
       }),
       { merge: true }
     );
@@ -109,6 +111,7 @@ describe('resetQuota', () => {
         remaining_sentences: FREE_DAILY_SENTENCES,
         remaining_quizzes: FREE_DAILY_QUIZZES,
         daily_sentence_generated: false,
+        notify_utc_hour: 1,
       }),
       { merge: true }
     );
@@ -125,6 +128,7 @@ describe('resetQuota', () => {
         remaining_sentences: PREMIUM_DAILY_SENTENCES,
         remaining_quizzes: PREMIUM_DAILY_QUIZZES,
         daily_sentence_generated: false,
+        notify_utc_hour: 1,
       }),
       { merge: true }
     );

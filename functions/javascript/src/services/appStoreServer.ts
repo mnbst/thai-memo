@@ -252,9 +252,19 @@ export async function verifyAppStorePurchase(
   const isExpired = expiresAt ? expiresAt < new Date() : false;
   const isRevoked = !!txInfo.revocationDate;
 
+  // 自動更新状態は transaction API には含まれないため、subscriptions API から取得する。
+  // 取得失敗時（null）は従来通り autoRenewing=true / active にフォールバック
+  const renewalInfo = await fetchRenewalInfo(
+    txInfo.originalTransactionId, jwt, environment
+  );
+  const autoRenewing = renewalInfo ? renewalInfo.autoRenewStatus === 1 : true;
+
   let status: AppStoreVerificationResult['status'];
   if (isRevoked || isExpired) {
     status = 'expired';
+  } else if (renewalInfo && renewalInfo.autoRenewStatus === 0) {
+    // 解約済み（自動更新OFF）だが期限内 → premium は期限まで維持
+    status = 'canceled';
   } else {
     status = 'active';
   }
@@ -263,9 +273,54 @@ export async function verifyAppStorePurchase(
     valid: !isRevoked,
     originalTransactionId: txInfo.originalTransactionId,
     expiresAt,
-    autoRenewing: true, // Will be updated by renewal info notifications
+    autoRenewing,
     status,
   };
+}
+
+/**
+ * Get All Subscription Statuses API で最新の更新情報（RenewalInfo）を取得する
+ *
+ * transaction API のレスポンスには autoRenewStatus が含まれないため、
+ * /inApps/v1/subscriptions/{originalTransactionId} から signedRenewalInfo を取得する。
+ * 取得・検証に失敗しても購入検証自体は成立させたいので、失敗時は null を返す。
+ */
+async function fetchRenewalInfo(
+  originalTransactionId: string,
+  jwt: string,
+  environment: string
+): Promise<RenewalInfo | null> {
+  try {
+    const url = `https://${environment}.apple.com/inApps/v1/subscriptions/${originalTransactionId}`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+    if (!response.ok) {
+      console.error(`App Store subscriptions API error: ${response.status}`, {
+        originalTransactionId,
+      });
+      return null;
+    }
+
+    const body = await response.json() as {
+      data?: Array<{
+        lastTransactions?: Array<{
+          originalTransactionId: string;
+          signedRenewalInfo?: string;
+        }>;
+      }>;
+    };
+    const lastTx = body.data
+      ?.flatMap(group => group.lastTransactions ?? [])
+      .find(tx => tx.originalTransactionId === originalTransactionId);
+    if (!lastTx?.signedRenewalInfo) return null;
+
+    await verifyAppleJwsSignature(lastTx.signedRenewalInfo);
+    return decodeSignedPayload<RenewalInfo>(lastTx.signedRenewalInfo);
+  } catch (error) {
+    console.error('Failed to fetch renewal info:', error);
+    return null;
+  }
 }
 
 /**

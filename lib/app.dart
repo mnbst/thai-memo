@@ -73,6 +73,13 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
     // Analytics の userId を認証状態に追従させる。
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       unawaited(ref.read(analyticsServiceProvider).setUserId(user?.uid));
+      // サインイン直後は uid が確定した時点で通知トークンを users/{uid} に登録する。
+      // 毎日例文の取り込みは表示と順序を揃える必要があるため HomeScreen が持つ。
+      if (user != null) {
+        unawaited(
+          ref.read(settingsControllerProvider.notifier).syncPushRegistration(),
+        );
+      }
     });
   }
 

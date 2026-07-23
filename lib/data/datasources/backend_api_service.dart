@@ -22,7 +22,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/config/firebase_config.dart';
-import '../../../core/thai_tone_analyzer.dart';
 import '../models/quiz_question.dart';
 import '../models/syllable.dart';
 import '../models/thai_sentence.dart';
@@ -115,27 +114,8 @@ class BackendApiService {
               Map<String, dynamic>.from(wordBreakdownsJson[i] as Map);
 
           // Parse syllables if present (string array from API)
-          List<Syllable>? syllables;
-          final syllablesJson = wordJson['syllables'] as List<dynamic>?;
-          if (syllablesJson != null) {
-            syllables = syllablesJson.map((s) {
-              final syllableText = s as String;
-
-              // Analyze tone using rule-based analyzer
-              final analysis = ThaiToneAnalyzer.analyzeTone(syllableText);
-
-              return Syllable(
-                text: syllableText,
-                initialConsonant: analysis.initialConsonant ?? '',
-                consonantClass:
-                    _consonantClassToString(analysis.consonantClass),
-                tone: _toneToString(analysis.resultingTone),
-                toneMark: _toneMarkToString(analysis.toneMark),
-                syllableType: _syllableTypeToString(analysis.syllableType),
-                hasShortVowel: analysis.hasShortVowel,
-              );
-            }).toList();
-          }
+          final syllables =
+              parseSyllables(wordJson['syllables'] as List<dynamic>?);
 
           wordBreakdowns.add(
             WordBreakdown(
@@ -225,65 +205,9 @@ class BackendApiService {
     }
   }
 
-  /// Convert ConsonantClass enum to string
-  static String _consonantClassToString(ConsonantClass consonantClass) {
-    switch (consonantClass) {
-      case ConsonantClass.high:
-        return 'high';
-      case ConsonantClass.middle:
-        return 'middle';
-      case ConsonantClass.low:
-        return 'low';
-      case ConsonantClass.unknown:
-        return 'unknown';
-    }
-  }
 
-  /// Convert ThaiTone enum to string
-  static String _toneToString(ThaiTone tone) {
-    switch (tone) {
-      case ThaiTone.mid:
-        return 'mid';
-      case ThaiTone.low:
-        return 'low';
-      case ThaiTone.falling:
-        return 'falling';
-      case ThaiTone.high:
-        return 'high';
-      case ThaiTone.rising:
-        return 'rising';
-      case ThaiTone.unknown:
-        return 'unknown';
-    }
-  }
 
-  /// Convert ToneMark enum to string
-  static String _toneMarkToString(ToneMark toneMark) {
-    switch (toneMark) {
-      case ToneMark.none:
-        return 'none';
-      case ToneMark.maiEk:
-        return 'maiEk';
-      case ToneMark.maiTho:
-        return 'maiTho';
-      case ToneMark.maiTri:
-        return 'maiTri';
-      case ToneMark.maiChattawa:
-        return 'maiChattawa';
-    }
-  }
 
-  /// Convert SyllableType enum to string
-  static String _syllableTypeToString(SyllableType syllableType) {
-    switch (syllableType) {
-      case SyllableType.live:
-        return 'live';
-      case SyllableType.dead:
-        return 'dead';
-      case SyllableType.unknown:
-        return 'unknown';
-    }
-  }
 
   /// クイズをオンデマンド生成（generateQuiz Cloud Function呼び出し）
   Future<List<QuizQuestion>> generateQuiz() async {

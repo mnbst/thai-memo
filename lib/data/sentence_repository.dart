@@ -116,6 +116,33 @@ class SentenceRepository {
     }
   }
 
+  /// Check whether a sentence is already stored locally
+  Future<bool> sentenceExists(String id) async {
+    try {
+      return await _databaseHelper.sentenceExists(id);
+    } catch (e) {
+      throw RepositoryException('Failed to check sentence: $e');
+    }
+  }
+
+  /// Get a sentence by ID from the local database
+  Future<ThaiSentence?> getSentenceById(String id) async {
+    try {
+      final sentenceMap = await _databaseHelper.getSentenceById(id);
+      if (sentenceMap == null) return null;
+
+      final wordBreakdownMaps =
+          await _databaseHelper.getWordBreakdownsBySentenceId(id);
+      final wordBreakdowns = wordBreakdownMaps
+          .map((map) => WordBreakdown.fromDatabase(map))
+          .toList();
+
+      return ThaiSentence.fromDatabase(sentenceMap, wordBreakdowns);
+    } catch (e) {
+      throw RepositoryException('Failed to get sentence by ID: $e');
+    }
+  }
+
   /// Get all sentences from the database
   Future<List<ThaiSentence>> getAllSentences() async {
     try {

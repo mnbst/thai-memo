@@ -5,10 +5,16 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null && request.auth.uid == userId
-        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count']);
+        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining']);
       allow update: if request.auth != null && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription']);
+            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'last_sentence_generated_at', 'last_notified_at'])
+        // notify_tier / notify_tier_misses はサーバー管理だが、通知トグルON時の
+        // バックオフ解除（0へのリセット）に限りクライアントから書ける
+        && (!request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['notify_tier', 'notify_tier_misses'])
+            || (request.resource.data.notify_tier == 0
+                && request.resource.data.notify_tier_misses == 0));
 
       match /sentences/{sentenceId} {
         allow read: if request.auth != null && request.auth.uid == userId;

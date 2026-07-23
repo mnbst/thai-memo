@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
+import '../../services/daily_sentence_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
@@ -41,6 +43,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool _initialLoadCompleted = false;
   Future<void>? _initialLoadFuture;
   final _showAppIcon = ValueNotifier<bool>(true);
+  final _dailySentenceService = DailySentenceService();
+  final _learningKey = GlobalKey<_LearningScreenState>();
+  StreamSubscription<RemoteMessage>? _notificationOpenSubscription;
 
   @override
   void initState() {
@@ -48,7 +53,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _logCurrentTabScreen();
-      _checkFirstLaunchAndLoadSentence();
+      _notificationOpenSubscription =
+          FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
+      _loadInitialSentenceThenHandleNotification();
       // remaining_sentences監視: 0→正数（dailyBatchリセット）で自動読み込み
       ref.listenManual(remainingSentencesProvider, (prev, next) {
         if (!_initialLoadCompleted) return;
@@ -76,6 +83,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void dispose() {
+    _notificationOpenSubscription?.cancel();
     _showAppIcon.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -88,6 +96,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
+  /// 配信された今日の例文があれば表示する。表示したら true。
+  Future<bool> _showDeliveredIfAny({String? sentenceId}) async {
+    final delivered = await _dailySentenceService.sync(sentenceId: sentenceId);
+    if (delivered == null || !mounted) return false;
+
+    final current = ref.read(sentenceControllerProvider);
+    if (current is SentenceStateSuccess &&
+        current.sentence.id == delivered.id) {
+      return true;
+    }
+    ref.read(sentenceControllerProvider.notifier).showSentence(delivered);
+    ref.invalidate(allSentencesProvider);
+    return true;
+  }
+
+  /// 初回ロードと通知タップ処理を直列化する。
+  ///
+  /// 並行させると sync() が二重に走り、通知経由で表示した配信例文を
+  /// 初回ロード側の loadOrGenerateToday が上書きしてしまう。
+  /// 初回起動時は onboarding の push 中に popUntil が走る危険もある。
+  Future<void> _loadInitialSentenceThenHandleNotification() async {
+    try {
+      await _checkFirstLaunchAndLoadSentence();
+    } finally {
+      await _handleInitialNotificationOpen();
+    }
+  }
+
+  Future<void> _handleInitialNotificationOpen() async {
+    final message = await FirebaseMessaging.instance.getInitialMessage();
+    if (message != null) await _handleNotificationOpen(message);
+  }
+
+  /// 通知タップ時は配信例文を取得できた場合だけ画面を切り替える。
+  /// 取得前に切り替えると、オフライン等で失敗したときにクイズの進行だけが失われる。
+  Future<void> _handleNotificationOpen(RemoteMessage message) async {
+    if (!_isDailySentenceNotification(message) || !mounted) return;
+    final sentenceId = message.data['sentence_id']?.toString();
+    final shown = await _showDeliveredIfAny(sentenceId: sentenceId);
+    if (!shown || !mounted) return;
+    _openLearningSentenceStage();
+  }
+
+  bool _isDailySentenceNotification(RemoteMessage message) {
+    return message.data['type'] == 'daily_sentence';
+  }
+
+  void _openLearningSentenceStage() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    if (_currentIndex != 0) {
+      setState(() => _currentIndex = 0);
+      _logCurrentTabScreen(index: 0);
+    }
+    _learningKey.currentState?.showSentenceStage();
+  }
+
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
   Future<void> _checkAndReloadIfNeeded() async {
     // 初回ロードが完了する前はスキップ（_checkFirstLaunchAndLoadSentenceとの二重生成を防ぐ）
@@ -98,6 +162,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (currentState is SentenceStateLoading) {
       return;
     }
+
+    // 裏に回っている間に配信されていれば、それに差し替える
+    if (await _showDeliveredIfAny()) return;
 
     final data = await ref.read(userDocProvider.future);
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
@@ -164,6 +231,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// Firestoreフラグを取得し、未生成なら自動生成、済みなら最新を表示
   Future<void> _loadTodaySentence() async {
+    // 配信例文の取り込みを先に終わらせる。今日ぶんがあればそれが今日の例文なので、
+    // 生成もローカル読み込みも走らせない（通知タップかどうかの判定は不要）。
+    if (await _showDeliveredIfAny()) return;
+
     final data = await ref.read(userDocProvider.future);
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
     await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
@@ -207,7 +278,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final screens = [
-      LearningScreen(showAppIconNotifier: _showAppIcon),
+      LearningScreen(
+        key: _learningKey,
+        showAppIconNotifier: _showAppIcon,
+      ),
       const HistoryScreen(),
       const SettingsScreen(),
     ];
@@ -396,6 +470,12 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     if (sentence != null) {
       ref.read(sentenceControllerProvider.notifier).showSentence(sentence);
     }
+    _setStage(_LearningStage.sentence);
+  }
+
+  void showSentenceStage() {
+    _quizSentence = null;
+    ref.read(quizControllerProvider.notifier).reset();
     _setStage(_LearningStage.sentence);
   }
 

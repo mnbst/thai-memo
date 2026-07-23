@@ -395,6 +395,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
             ),
             _buildTopicSelectTile(),
+            _buildDailyReminderTile(),
+            _buildReminderTimeTile(),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
@@ -430,6 +432,93 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 毎日例文のプッシュ通知トグル。
+  ///
+  /// OSの通知許可が拒否されている場合はアプリ側では有効にできないため、
+  /// 状態をオフのままにして端末設定への案内を出す。
+  Widget _buildDailyReminderTile() {
+    final enabled = ref.watch(dailyReminderEnabledProvider);
+
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: Icon(
+        Icons.notifications_active,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: const Text('毎日の例文通知'),
+      subtitle: const Text('その日の例文をお知らせします'),
+      value: enabled,
+      onChanged: (value) async {
+        final applied = await ref
+            .read(settingsControllerProvider.notifier)
+            .setDailyReminderEnabled(value);
+        if (!applied && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('端末の設定で通知を許可してください'),
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  /// 配信時刻の選択。サーバーは時単位で配信するため分は切り捨てる。
+  Widget _buildReminderTimeTile() {
+    final enabled = ref.watch(dailyReminderEnabledProvider);
+    final hour = ref.watch(settingsControllerProvider).preferredGenerationHour;
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      enabled: enabled,
+      leading: Icon(
+        Icons.schedule,
+        color: enabled
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.outline,
+      ),
+      title: const Text('通知する時刻'),
+      subtitle: Text('${hour.toString().padLeft(2, '0')}:00'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: enabled
+          ? () async {
+              final picked = await _pickReminderHour(hour);
+              if (picked == null) return;
+              await ref
+                  .read(settingsControllerProvider.notifier)
+                  .setPreferredGenerationTime(
+                    TimeOfDay(hour: picked, minute: 0),
+                  );
+            }
+          : null,
+    );
+  }
+
+  /// 配信は時単位なので、分を選ばせずに「時」だけ選ばせる。
+  Future<int?> _pickReminderHour(int current) {
+    return showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('通知する時刻'),
+        children: [
+          SizedBox(
+            width: double.maxFinite,
+            height: 320,
+            child: ListView.builder(
+              itemCount: 24,
+              itemBuilder: (context, hour) => ListTile(
+                selected: hour == current,
+                title: Text('${hour.toString().padLeft(2, '0')}:00'),
+                trailing: hour == current ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(context, hour),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
