@@ -1,8 +1,10 @@
 """毎日例文の配信バッチ。
 
 毎時起動し、ユーザーのローカル時刻が配信希望時刻に一致する対象へ、
-事前生成済みキャッシュから例文を1件作って Firestore に書き、FCMで通知する。
-LLMは呼ばない（キャッシュミス時はターゲット語を引き直す）。
+通常生成と共通の生成コア（produce_sentence）で例文を1件作って Firestore に書き、
+FCMで通知する。free はキャッシュのみでLLMは呼ばない（ミス時はターゲット語を
+引き直す）。premium はLLM生成し、失敗時はキャッシュに退避する。
+通知の送信成功後に露出登録（UVM）を行い、通常生成と語彙状態を揃える。
 """
 
 from datetime import datetime, timezone
@@ -22,10 +24,14 @@ try:
         local_date,
         should_deliver,
     )
-    from .prompts import use_premium_prompt_for_vocab
     from .runtime import initialize_firebase_app
-    from .sentence_handlers import _build_sentence_data, _select_target_words_with_topic
-    from .sentence_service import generate_sentence, pick_free_sentence
+    from .sentence_handlers import (
+        _build_sentence_data,
+        _register_sentence_exposure,
+        produce_sentence,
+    )
+    from .sentence_service import get_freq_rank
+    from .uvm import sync_estimated_vocab
 except ImportError:
     from constants import FREE_TIER_MAX_VOCAB
     from daily_sentence import (
@@ -35,10 +41,14 @@ except ImportError:
         local_date,
         should_deliver,
     )
-    from prompts import use_premium_prompt_for_vocab
     from runtime import initialize_firebase_app
-    from sentence_handlers import _build_sentence_data, _select_target_words_with_topic
-    from sentence_service import generate_sentence, pick_free_sentence
+    from sentence_handlers import (
+        _build_sentence_data,
+        _register_sentence_exposure,
+        produce_sentence,
+    )
+    from sentence_service import get_freq_rank
+    from uvm import sync_estimated_vocab
 
 initialize_firebase_app()
 
@@ -62,85 +72,54 @@ def _candidate_users(db: FirestoreClient, now: datetime):
         yield doc.id, (doc.to_dict() or {})
 
 
-def _pick_cached_sentence(
-    db: FirestoreClient,
-    uid: str,
-    user_data: dict,
-) -> tuple[dict, str] | None:
-    """キャッシュから例文を1件選ぶ。ヒットしなければターゲット語を引き直す。"""
-    estimated_vocab = min(user_data.get("estimated_vocab", 0), FREE_TIER_MAX_VOCAB)
-    for _ in range(MAX_TARGET_WORD_RETRY):
-        target_words, _topic = _select_target_words_with_topic(
-            db,
-            uid,
-            {},
-            is_premium=False,
-            estimated_vocab=estimated_vocab,
-        )
-        cached = pick_free_sentence(target_words[0])
-        if cached is not None:
-            return cached, target_words[0]
-    return None
-
-
-def _generate_premium_sentence(
-    db: FirestoreClient,
-    uid: str,
-    user_data: dict,
-) -> tuple[dict, str] | None:
-    """Premium ユーザー向けにLLMで例文を生成する。
-
-    テーマはクライアントが users/{uid}.preferred_topic にミラーした設定を使う。
-    未設定（おまかせ）なら通常生成と同じくUVMのkey_wordからテーマを決める。
-    """
-    estimated_vocab = user_data.get("estimated_vocab", 0)
-    use_premium_prompt = use_premium_prompt_for_vocab(True, estimated_vocab)
-
-    params: dict = {}
-    preferred_topic = user_data.get("preferred_topic")
-    if preferred_topic:
-        params["topic"] = preferred_topic
-
-    target_words, chosen_topic = _select_target_words_with_topic(
-        db,
-        uid,
-        params,
-        is_premium=use_premium_prompt,
-        estimated_vocab=estimated_vocab,
-    )
-    params["topic"] = chosen_topic
-    sentence = generate_sentence(
-        params,
-        True,
-        target_words=target_words,
-        estimated_vocab=estimated_vocab,
-    )
-    return sentence, target_words[0]
-
-
 def _build_sentence(
     db: FirestoreClient,
     uid: str,
     user_data: dict,
-) -> tuple[dict, str, bool] | None:
-    """配信する例文を作る。戻り値は (例文, key_word, premiumスペックか)。
+) -> tuple[dict, list[str], bool] | None:
+    """配信する例文を作る。戻り値は (例文, target_words, premiumスペックか)。
 
+    生成コアは通常生成と共通の produce_sentence。
     free はトライアル残の有無によらずキャッシュのみ。LLM原価をゼロに保つのと、
     free 側の分岐を増やさないため。premium はLLMで生成し、失敗した場合だけ
     キャッシュに退避して通知そのものは落とさない。
+    premium のテーマはクライアントが users/{uid}.preferred_topic にミラーした
+    設定を使い、未設定（おまかせ）なら通常生成と同じくUVMのkey_wordから決める。
     """
     if user_data.get("tier") == "premium":
+        params: dict = {}
+        preferred_topic = user_data.get("preferred_topic")
+        if preferred_topic:
+            params["topic"] = preferred_topic
         try:
-            generated = _generate_premium_sentence(db, uid, user_data)
-            if generated is not None:
-                return generated[0], generated[1], True
+            produced = produce_sentence(
+                db,
+                uid,
+                params,
+                use_premium_spec=True,
+                estimated_vocab=user_data.get("estimated_vocab", 0),
+            )
+            if produced is not None:
+                sentence, target_words, _topic, _cached = produced
+                return sentence, target_words, True
         except Exception as exc:
             print(f"daily_sentence: premium generation failed for {uid}: {exc}")
 
-    cached = _pick_cached_sentence(db, uid, user_data)
-    if cached is None:
+    produced = produce_sentence(
+        db,
+        uid,
+        {},
+        use_premium_spec=False,
+        estimated_vocab=min(
+            user_data.get("estimated_vocab", 0), FREE_TIER_MAX_VOCAB
+        ),
+        cache_only=True,
+        select_retry=MAX_TARGET_WORD_RETRY,
+    )
+    if produced is None:
         return None
-    return cached[0], cached[1], False
+    sentence, target_words, _topic, _cached = produced
+    return sentence, target_words, False
 
 
 class _DeliveryNotDue(Exception):
@@ -302,10 +281,12 @@ def _deliver_one(
     if picked is None:
         print(f"daily_sentence: no sentence available for {uid}")
         return False
-    sentence, key_word, use_premium_spec = picked
+    sentence, target_words, use_premium_spec = picked
 
     sentence_data = {
-        **_build_sentence_data(sentence, key_word, use_premium_spec=use_premium_spec),
+        **_build_sentence_data(
+            sentence, target_words[0], use_premium_spec=use_premium_spec
+        ),
         "daily": True,
         "daily_date": local_date(user_data.get("timezone"), now),
     }
@@ -332,6 +313,23 @@ def _deliver_one(
         print(f"daily_sentence: token unregistered, rolling back {uid}")
         _rollback_delivery(user_ref, sentence_ref, restore)
         return False
+
+    # 露出登録は通知が届いた後にだけ行う。配信をロールバックしても
+    # UVM の P 微増は巻き戻せないため、送信成功を確認してから登録する。
+    try:
+        _register_sentence_exposure(db, uid, sentence, target_words)
+        sync_estimated_vocab(
+            db,
+            uid,
+            get_freq_rank(),
+            max_vocab=(
+                None
+                if user_data.get("tier") == "premium"
+                else FREE_TIER_MAX_VOCAB
+            ),
+        )
+    except Exception as exc:
+        print(f"daily_sentence: uvm update failed for {uid}: {exc}")
     return True
 
 
