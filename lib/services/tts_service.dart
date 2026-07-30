@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -8,6 +9,7 @@ class TtsService {
   final Random _random = Random();
   bool _isInitialized = false;
   List<Map<String, String>> _thaiVoices = [];
+  Completer<void>? _cancelCompleter;
 
   Future<void> _init() async {
     if (_isInitialized) return;
@@ -29,14 +31,25 @@ class TtsService {
     await _tts.setVolume(1.0);
     await _tts.setPitch(1.0);
 
+    // [speak] を発話完了まで待つようにする。リピート再生の待ち時間を
+    // 「読み終わってから」計るために必要。停止時も future は解決する。
+    await _tts.awaitSpeakCompletion(true);
+    // 発話中の文字範囲。対応していないプラットフォームでは呼ばれない。
+    _tts.setProgressHandler((text, start, end, word) {
+      onProgress?.call(start, end);
+    });
+    _tts.setCancelHandler(() {
+      final completer = _cancelCompleter;
+      if (completer != null && !completer.isCompleted) completer.complete();
+    });
+
     // タイ語の音声一覧を取得
     final voices = await _tts.getVoices;
     if (voices != null) {
       _thaiVoices = (voices as List)
-          .where((v) =>
-              v['locale']?.toString().startsWith('th') == true)
-          .map<Map<String, String>>(
-              (v) => {'name': v['name'].toString(), 'locale': v['locale'].toString()})
+          .where((v) => v['locale']?.toString().startsWith('th') == true)
+          .map<Map<String, String>>((v) =>
+              {'name': v['name'].toString(), 'locale': v['locale'].toString()})
           .toList();
     }
 
@@ -57,9 +70,23 @@ class TtsService {
   String _stripEmoji(String text) =>
       text.replaceAll(_emojiRegex, '').replaceAll(RegExp(r'\s+'), ' ').trim();
 
-  Future<void> speak(String text, {bool slow = false}) async {
+  /// 発話中の位置通知（引数は発話テキスト内の文字オフセット）。
+  ///
+  /// 単語境界ごとに呼ばれる。タイ語は語間に空白が無く、プラットフォームが
+  /// 文全体を1範囲として扱う場合もあるため、届かないことを前提に使う。
+  void Function(int start, int end)? onProgress;
+
+  /// 発話する。完了（または停止）まで待つ。
+  ///
+  /// [keepVoice] が true のときは声を選び直さない。リピート再生の途中で
+  /// 話者が変わらないようにするために使う。
+  Future<void> speak(
+    String text, {
+    bool slow = false,
+    bool keepVoice = false,
+  }) async {
     await _init();
-    await _pickRandomVoice();
+    if (!keepVoice) await _pickRandomVoice();
     await _tts.setSpeechRate(slow ? 0.3 : 0.5);
     await _tts.stop();
     final sanitized = _stripEmoji(text);
@@ -67,8 +94,25 @@ class TtsService {
     await _tts.speak(sanitized);
   }
 
-  Future<void> stop() async {
+  /// 発話を停止する。
+  ///
+  /// iOS のネイティブ実装は stop のメソッド呼び出しを即時に返し、その後で
+  /// didCancel が届く。[waitForCancel] はシーク再開時にその通知を待ち、新しい
+  /// 発話までキャンセルに巻き込まれる競合を防ぐ。
+  Future<void> stop({bool waitForCancel = false}) async {
+    final cancelCompleter = waitForCancel ? Completer<void>() : null;
+    if (cancelCompleter != null) _cancelCompleter = cancelCompleter;
     await _tts.stop();
+    if (cancelCompleter != null) {
+      await Future.any<void>([
+        cancelCompleter.future,
+        // 既に発話が終わっている場合は didCancel が来ないため、上限を設ける。
+        Future<void>.delayed(const Duration(milliseconds: 300)),
+      ]);
+      if (identical(_cancelCompleter, cancelCompleter)) {
+        _cancelCompleter = null;
+      }
+    }
   }
 
   void dispose() {

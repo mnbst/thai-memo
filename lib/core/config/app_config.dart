@@ -59,4 +59,8 @@ class AppConfig {
   /// サインイン促進バナーを閉じた日時（epoch ms）
   static const String prefKeySignInReminderDismissedAt =
       'sign_in_reminder_dismissed_at';
+
+  /// 毎日例文通知のコーチングダイアログ表示済みフラグ（設定画面の初回表示時に出す）
+  static const String prefKeyNotificationCoachShown =
+      'notification_coach_shown';
 }

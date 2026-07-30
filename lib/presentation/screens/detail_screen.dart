@@ -19,6 +19,7 @@ import '../../data/models/word_breakdown.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/tts_provider.dart';
 import '../tone_explanation_dialog.dart';
+import '../widgets/sentence_audio_player.dart';
 
 /// 例文の詳細表示画面。
 ///
@@ -114,44 +115,16 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // タイ語テキスト（長押しでコピー可能）と音声再生ボタン
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: SelectableText(
-                    widget.sentence.thaiText,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          height: 1.5,
-                          fontSize: 32,
-                        ),
+            // タイ語テキスト（長押しでコピー可能）
+            SelectableText(
+              widget.sentence.thaiText,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    height: 1.5,
+                    fontSize: 32,
                   ),
-                ),
-                // TTSで全文を音声再生するボタン
-                IconButton(
-                  icon: Icon(
-                    Icons.volume_up,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  onPressed: () {
-                    unawaited(
-                      ref.read(analyticsServiceProvider).logPlayTts(
-                            contentType: 'sentence',
-                            text: widget.sentence.thaiText,
-                            sentenceId: widget.sentence.id,
-                            source: 'detail_sentence',
-                          ),
-                    );
-                    ref
-                        .read(ttsServiceProvider)
-                        .speak(widget.sentence.thaiText);
-                  },
-                  tooltip: '全文を再生',
-                ),
-              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             // ローマ字による発音表記（アイコン付き）
             Row(
               children: [
@@ -173,6 +146,22 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            // TTSの再生位置とリピート状態が分かる全文再生コントロール
+            SentenceAudioPlayer(
+              text: widget.sentence.thaiText,
+              words: widget.sentence.wordBreakdowns
+                  .map((w) => w.wordText)
+                  .toList(),
+              onPlay: () => unawaited(
+                ref.read(analyticsServiceProvider).logPlayTts(
+                      contentType: 'sentence',
+                      text: widget.sentence.thaiText,
+                      sentenceId: widget.sentence.id,
+                      source: 'detail_sentence',
+                    ),
+              ),
             ),
             const SizedBox(height: 16),
             const Divider(),
@@ -394,7 +383,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             const SizedBox(height: 8),
             // 日本語での意味
             Text(word.meaning, style: Theme.of(context).textTheme.bodyMedium),
-            if (word.notes != null && word.notes!.trim().isNotEmpty || isTarget) ...[
+            if (word.notes != null && word.notes!.trim().isNotEmpty ||
+                isTarget) ...[
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
@@ -423,7 +413,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                       Text(
                         '→ クイズで出題',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: cs.onTertiaryContainer.withValues(alpha: 0.6),
+                              color:
+                                  cs.onTertiaryContainer.withValues(alpha: 0.6),
                             ),
                       ),
                     ],

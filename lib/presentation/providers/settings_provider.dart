@@ -51,6 +51,9 @@ class SettingsState {
   /// 毎日例文のプッシュ通知を受け取るか
   final bool dailyReminderEnabled;
 
+  /// 通知コーチングダイアログを表示済みか（設定画面の初回表示で一度だけ出す）
+  final bool notificationCoachShown;
+
   const SettingsState({
     required this.isFirstLaunch,
     required this.themeMode,
@@ -58,6 +61,7 @@ class SettingsState {
     this.generationParams = const {},
     this.fontFamily = ThaiFont.sarabun,
     this.dailyReminderEnabled = true,
+    this.notificationCoachShown = true,
   });
 
   /// 配信希望時刻の「時」。サーバー側は時単位でしか配信しない。
@@ -81,6 +85,7 @@ class SettingsState {
     Map<String, String?>? generationParams,
     ThaiFont? fontFamily,
     bool? dailyReminderEnabled,
+    bool? notificationCoachShown,
   }) {
     return SettingsState(
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
@@ -90,6 +95,8 @@ class SettingsState {
       generationParams: generationParams ?? this.generationParams,
       fontFamily: fontFamily ?? this.fontFamily,
       dailyReminderEnabled: dailyReminderEnabled ?? this.dailyReminderEnabled,
+      notificationCoachShown:
+          notificationCoachShown ?? this.notificationCoachShown,
     );
   }
 }
@@ -165,9 +172,14 @@ class SettingsController extends StateNotifier<SettingsState> {
         : ThaiFont.sarabun;
 
     // 毎日例文の通知は既定でオン（アプリ内オプトアウト方式）。実際に届くかは
-    // OSの通知許可次第で、拒否されている場合は syncPushRegistration が false に戻す。
+    // OSの通知許可次第で、拒否・未許可の場合は syncPushRegistration が false に戻す。
     final dailyReminderEnabled =
         _prefs!.getBool(AppConfig.prefKeyDailyReminderEnabled) ?? true;
+
+    // 既存ユーザーにも一度は出す（通知導入前のユーザーはトークン未登録のため）。
+    // migrateExistingUserFlags では表示済みにしない。
+    final notificationCoachShown =
+        _prefs!.getBool(AppConfig.prefKeyNotificationCoachShown) ?? false;
 
     state = SettingsState(
       isFirstLaunch: isFirstLaunch,
@@ -176,6 +188,7 @@ class SettingsController extends StateNotifier<SettingsState> {
       generationParams: params,
       fontFamily: fontFamily,
       dailyReminderEnabled: dailyReminderEnabled,
+      notificationCoachShown: notificationCoachShown,
     );
   }
 
@@ -285,6 +298,19 @@ class SettingsController extends StateNotifier<SettingsState> {
     return applied == enabled;
   }
 
+  /// OSの通知許可が既に得られているか。コーチングダイアログの出し分けに使う。
+  Future<bool> hasNotificationPermission() => _push.hasPermission();
+
+  /// 通知コーチングダイアログを表示済みにする。
+  ///
+  /// 出したら結果（オンにした／後回し）に関わらず記録する。断られた直後に
+  /// 出し直すと通知そのものへの印象が悪くなるため、再表示はしない。
+  Future<void> markNotificationCoachShown() async {
+    if (state.notificationCoachShown) return;
+    await _prefs?.setBool(AppConfig.prefKeyNotificationCoachShown, true);
+    state = state.copyWith(notificationCoachShown: true);
+  }
+
   /// 配信希望時刻を設定する。サーバーは時単位でしか配信しないため分は捨てる。
   Future<void> setPreferredGenerationTime(TimeOfDay time) async {
     final hour = time.hour;
@@ -379,4 +405,9 @@ final fontFamilyProvider = Provider<ThaiFont>((ref) {
 /// Provider for daily sentence notification toggle
 final dailyReminderEnabledProvider = Provider<bool>((ref) {
   return ref.watch(settingsControllerProvider).dailyReminderEnabled;
+});
+
+/// Provider for notification coaching dialog shown flag
+final notificationCoachShownProvider = Provider<bool>((ref) {
+  return ref.watch(settingsControllerProvider).notificationCoachShown;
 });

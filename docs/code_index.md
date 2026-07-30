@@ -149,6 +149,12 @@ lib/presentation/widgets/level_up_dialog.dart
 lib/presentation/widgets/topic_picker.dart
 例文テーマ選択ダイアログ（設定・例文画面で共用）とラベル整形ヘルパー。
 
+lib/presentation/widgets/sentence_audio_player.dart
+例文全文の再生／停止＋リピート再生と、単語単位の頭出しバー。
+
+lib/presentation/widgets/notification_coach_dialog.dart
+毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
+
 lib/presentation/tone_explanation_dialog.dart
 タイ語声調の解説ダイアログ。
 
