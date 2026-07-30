@@ -260,7 +260,7 @@ def test_update_p_alpha_decays_with_quiz_attempts() -> None:
 
 
 def test_get_session_words_excludes_out_of_scan_candidates() -> None:
-    # estimated_vocab=50: scan=[35, 55]
+    # estimated_vocab=50: scan=[25, 60]
     # scan外の語は選出されない
     db = FakeDb(
         {
@@ -278,7 +278,7 @@ def test_get_session_words_excludes_out_of_scan_candidates() -> None:
         {
             "in-scan-low": 40,
             "in-scan-high": 50,
-            "out-scan": 56,
+            "out-scan": 65,
         },
         topic="fixed-topic",
         count=2,
@@ -290,7 +290,7 @@ def test_get_session_words_excludes_out_of_scan_candidates() -> None:
 
 
 def test_get_session_words_selects_unregistered_word() -> None:
-    # estimated_vocab=100: scan=[85, 105]
+    # estimated_vocab=100: scan=[75, 110]
     # rank=90 は scan 内かつ UVM未登録 → P=0として選出
     db = FakeDb(
         {
@@ -316,7 +316,7 @@ def test_get_session_words_selects_unregistered_word() -> None:
 
 
 def test_get_session_words_selects_p_zero_word() -> None:
-    # estimated_vocab=100: scan=[85, 105], scan内に P=0 の語 → 選出
+    # estimated_vocab=100: scan=[75, 110], scan内に P=0 の語 → 選出
     db = FakeDb(
         {
             "user-1": {
@@ -470,7 +470,7 @@ def test_get_session_words_estimated_vocab_0() -> None:
 
 
 def test_get_session_words_estimated_vocab_small() -> None:
-    """estimated_vocab=10: scan=[0, 15] — 両語ともscan内"""
+    """estimated_vocab=10: scan=[0, 20] — 両語ともscan内"""
     db = FakeDb()
     freq_rank = {"word-aa": 0, "word-bb": 10}
 

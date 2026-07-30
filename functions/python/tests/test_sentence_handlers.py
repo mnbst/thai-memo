@@ -158,3 +158,97 @@ def test_commit_update_sets_first_generated_at_only_once():
         trial_decrement=0,
     )
     assert "first_generated_at" not in again
+
+
+def test_produce_sentence_free_cache_hit(monkeypatch):
+    import sentence_handlers
+
+    monkeypatch.setattr(
+        sentence_handlers,
+        "_select_target_words_with_topic",
+        lambda db, uid, params, **kw: (["ข้าว"], "食事"),
+    )
+    monkeypatch.setattr(
+        sentence_handlers,
+        "pick_free_sentence",
+        lambda word: {"thai_text": "ฉันกินข้าว"},
+    )
+
+    produced = sentence_handlers.produce_sentence(
+        None,
+        "uid",
+        {},
+        use_premium_spec=False,
+        estimated_vocab=10,
+    )
+
+    assert produced is not None
+    sentence, target_words, topic, from_cache = produced
+    assert sentence["generation_tier"] == "free"
+    assert target_words == ["ข้าว"]
+    assert topic == "食事"
+    assert from_cache is True
+
+
+def test_produce_sentence_cache_only_retries_then_none(monkeypatch):
+    import sentence_handlers
+
+    selected = []
+
+    def _select(db, uid, params, **kw):
+        selected.append(1)
+        return ([f"word{len(selected)}"], "")
+
+    monkeypatch.setattr(
+        sentence_handlers, "_select_target_words_with_topic", _select
+    )
+    monkeypatch.setattr(
+        sentence_handlers, "pick_free_sentence", lambda word: None
+    )
+
+    produced = sentence_handlers.produce_sentence(
+        None,
+        "uid",
+        {},
+        use_premium_spec=False,
+        estimated_vocab=10,
+        cache_only=True,
+        select_retry=3,
+    )
+
+    assert produced is None
+    assert len(selected) == 3
+
+
+def test_produce_sentence_free_cache_miss_falls_back_to_llm(monkeypatch):
+    import sentence_handlers
+
+    monkeypatch.setattr(
+        sentence_handlers,
+        "_select_target_words_with_topic",
+        lambda db, uid, params, **kw: (["ข้าว"], "食事"),
+    )
+    monkeypatch.setattr(
+        sentence_handlers, "pick_free_sentence", lambda word: None
+    )
+    captured = {}
+
+    def _generate(params, use_premium_spec, **kw):
+        captured["topic"] = params.get("topic")
+        return {"thai_text": "ฉันกินข้าว"}
+
+    monkeypatch.setattr(sentence_handlers, "generate_sentence", _generate)
+
+    produced = sentence_handlers.produce_sentence(
+        None,
+        "uid",
+        {},
+        use_premium_spec=False,
+        estimated_vocab=10,
+    )
+
+    assert produced is not None
+    sentence, _words, _topic, from_cache = produced
+    assert from_cache is False
+    assert sentence["generation_tier"] == "free"
+    assert captured["topic"] == "食事"

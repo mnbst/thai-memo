@@ -138,6 +138,66 @@ def _attach_generation_tier(sentence: dict, use_premium_spec: bool) -> dict:
     }
 
 
+def produce_sentence(
+    db: FirestoreClient,
+    uid: str,
+    params: dict,
+    *,
+    use_premium_spec: bool,
+    estimated_vocab: int,
+    cache_only: bool = False,
+    select_retry: int = 1,
+) -> tuple[dict, list[str], str, bool] | None:
+    """単語選定 → キャッシュ/LLM → generation_tier 付与までの生成コア。
+
+    通常生成（generateThaiSentence）と毎日配信（deliverDailySentence）の共通経路。
+    free はキャッシュ優先。cache_only=True（配信のfree経路）ではキャッシュミス時に
+    select_retry 回までターゲット語を引き直し、LLM は呼ばない。
+
+    Returns:
+        (例文, target_words, 採用テーマ, キャッシュ由来か)。
+        cache_only でキャッシュに当たらなければ None。
+    """
+    use_premium_prompt = use_premium_prompt_for_vocab(use_premium_spec, estimated_vocab)
+    target_words: list[str] = []
+    chosen_topic = ""
+    for _ in range(max(1, select_retry)):
+        target_words, chosen_topic = _select_target_words_with_topic(
+            db,
+            uid,
+            params,
+            is_premium=use_premium_prompt,
+            estimated_vocab=estimated_vocab,
+        )
+        if not use_premium_spec:
+            cached = pick_free_sentence(target_words[0])
+            if cached is not None:
+                return (
+                    _attach_generation_tier(cached, use_premium_spec),
+                    target_words,
+                    chosen_topic,
+                    True,
+                )
+        if not cache_only:
+            break
+
+    if cache_only:
+        return None
+
+    sentence = generate_sentence(
+        {**params, "topic": chosen_topic},
+        use_premium_spec,
+        target_words=target_words,
+        estimated_vocab=estimated_vocab,
+    )
+    return (
+        _attach_generation_tier(sentence, use_premium_spec),
+        target_words,
+        chosen_topic,
+        False,
+    )
+
+
 def _match_key_word(word_text: str, key_word: str) -> bool:
     w = word_text.strip()
     k = key_word.strip()
@@ -342,39 +402,22 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             is_premium=effective_premium,
         )
         estimated_vocab = _get_capped_estimated_vocab(user_data, use_premium_spec)
-        use_premium_prompt = use_premium_prompt_for_vocab(
-            use_premium_spec,
-            estimated_vocab,
-        )
-        target_words, chosen_topic = _select_target_words_with_topic(
+        produced = produce_sentence(
             db,
             uid,
             params,
-            is_premium=use_premium_prompt,
+            use_premium_spec=use_premium_spec,
             estimated_vocab=estimated_vocab,
         )
-        params["topic"] = chosen_topic
+        if produced is None:  # cache_only=False では起きない
+            raise RuntimeError("sentence generation returned nothing")
+        sentence, target_words, chosen_topic, from_cache = produced
         log_data["uvmWords"] = len(target_words)
         log_data["chosenTopic"] = chosen_topic
+        if from_cache:
+            log_data["source"] = "cached"
 
         freq_rank = get_freq_rank()
-
-        if not use_premium_spec:
-            cached = pick_free_sentence(target_words[0])
-        else:
-            cached = None
-
-        if cached is not None:
-            sentence = cached
-            log_data["source"] = "cached"
-        else:
-            sentence = generate_sentence(
-                params,
-                use_premium_spec,
-                target_words=target_words,
-                estimated_vocab=estimated_vocab,
-            )
-        sentence = _attach_generation_tier(sentence, use_premium_spec)
 
         processing_time = int((time.time() - start_time) * 1000)
         log_data["success"] = True

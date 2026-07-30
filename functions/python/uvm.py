@@ -58,8 +58,8 @@ UNKNOWN_WORD_P = 0.4  # UVM 未登録語の prior P
 
 # get_session_words 用: estimated_vocab 基準の頻度帯
 VOCAB_MAX_DELTA = 3  # 1回の sync で estimated_vocab が動ける最大幅
-GAP_SCAN_DEPTH = 15  # スキャン下限: estimated_vocab - GAP_SCAN_DEPTH
-SCAN_AHEAD = 5  # スキャン上限: estimated_vocab + SCAN_AHEAD
+GAP_SCAN_DEPTH = 25  # スキャン下限: estimated_vocab - GAP_SCAN_DEPTH
+SCAN_AHEAD = 10  # スキャン上限: estimated_vocab + SCAN_AHEAD
 
 
 def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 10) -> float:

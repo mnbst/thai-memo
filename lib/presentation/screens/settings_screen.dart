@@ -15,6 +15,7 @@ import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
+import '../widgets/coach_mark_overlay.dart';
 import '../widgets/sign_in_sheet.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/vocab_score_dialog.dart';
@@ -29,15 +30,53 @@ class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+class SettingsScreenState extends ConsumerState<SettingsScreen> {
+  /// 毎日例文通知トグルの位置特定用（コーチマーク表示に使用）。
+  final GlobalKey _dailyReminderTileKey = GlobalKey();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    CoachMarkOverlay.dismiss();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// 毎日例文通知のトグルをスポットライトで案内する（HomeScreenから呼ばれる）。
+  ///
+  /// OSの許可要求はここでは出さない。ユーザー自身がトグルを操作したときに
+  /// [SettingsController.setDailyReminderEnabled] 経由で出す。iOSでは一度拒否
+  /// されると二度と要求できないため、何のための通知かを伝えてから聞く。
+  Future<void> showDailyReminderCoach() async {
+    final target = _dailyReminderTileKey.currentContext;
+    if (target == null) return;
+    // 設定画面はスクロールするため、トグルを画面内に入れてから位置を確定させる。
+    await Scrollable.ensureVisible(target, alignment: 0.3);
+    if (!mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _dailyReminderTileKey.currentContext == null) return;
+      CoachMarkOverlay.show(
+        context,
+        targetKey: _dailyReminderTileKey,
+        icon: Icons.notifications_active,
+        interactive: true,
+        title: 'ここで通知をオンにできます',
+        message: 'このスイッチをオンにすると、毎日きまった時刻に例文が届きます。'
+            '通知する時刻はすぐ下の項目で変更できます。',
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('設定')),
       body: ListView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(AppConfig.defaultPadding),
         children: [
           _buildAccountSection(),
@@ -444,6 +483,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final enabled = ref.watch(dailyReminderEnabledProvider);
 
     return SwitchListTile(
+      key: _dailyReminderTileKey,
       contentPadding: EdgeInsets.zero,
       secondary: Icon(
         Icons.notifications_active,

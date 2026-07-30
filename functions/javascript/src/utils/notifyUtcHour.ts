@@ -12,17 +12,29 @@ export const DEFAULT_GENERATION_HOUR = 10;
 /** タイムゾーン未設定・不正時のフォールバック */
 export const DEFAULT_TIMEZONE = 'Asia/Tokyo';
 
-function localHour(timezone: string, date: Date): number | null {
+/**
+ * Intl.DateTimeFormat の生成は重い（1回あたり数十µs）。1ユーザーにつき24回、
+ * 全ユーザー分を dailyBatch で回すため tz ごとに使い回す。
+ * 値は null（不正なtz）も含めてキャッシュし、毎回の例外送出も避ける。
+ */
+const formatterCache = new Map<string, Intl.DateTimeFormat | null>();
+
+function hourFormatter(timezone: string): Intl.DateTimeFormat | null {
+  const cached = formatterCache.get(timezone);
+  if (cached !== undefined) return cached;
+
+  let formatter: Intl.DateTimeFormat | null = null;
   try {
-    const formatted = new Intl.DateTimeFormat('en-US', {
+    formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: timezone,
       hour: 'numeric',
       hourCycle: 'h23',
-    }).format(date);
-    return Number(formatted);
+    });
   } catch {
-    return null;
+    formatter = null;
   }
+  formatterCache.set(timezone, formatter);
+  return formatter;
 }
 
 /**
@@ -47,12 +59,12 @@ export function notifyUtcHour(
   const day = new Date(Date.UTC(
     base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(),
   ));
+  const formatter = hourFormatter(tz) ?? hourFormatter(DEFAULT_TIMEZONE);
+  if (formatter === null) return null;
 
   for (let utcHour = 0; utcHour < 24; utcHour++) {
     const candidate = new Date(day.getTime() + utcHour * 3600_000);
-    const resolved = localHour(tz, candidate) ??
-      localHour(DEFAULT_TIMEZONE, candidate);
-    if (resolved === hour) return utcHour;
+    if (Number(formatter.format(candidate)) === hour) return utcHour;
   }
   return null;
 }

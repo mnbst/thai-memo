@@ -21,12 +21,24 @@ resource "google_project_service" "required_apis" {
     "run.googleapis.com",
     "iamcredentials.googleapis.com",
     "iam.googleapis.com",
+    "fcm.googleapis.com",
   ])
 
   project = var.project_id
   service = each.key
 
   disable_on_destroy = false
+}
+
+# Cloud Functions ランタイムSA（デフォルトcompute SA）のIAM
+# roles/editor には FCM 送信権限（cloudmessaging.messages.create）が含まれないため、
+# deliverDailySentence の通知送信には sdkAdminServiceAgent が必要。
+resource "google_project_iam_member" "functions_runtime_firebase_admin" {
+  project = var.project_id
+  role    = "roles/firebase.sdkAdminServiceAgent"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+
+  depends_on = [google_project_service.required_apis]
 }
 
 # Secret Manager module
