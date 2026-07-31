@@ -69,7 +69,10 @@ class PushNotificationService {
 
   /// アプリ起動時に呼ぶ。アプリ内設定とOSの許可状態を突き合わせて登録を整える。
   ///
-  /// 未許可（notDetermined）で通知がオンなら、この時点で許可ダイアログを出す。
+  /// ここでは許可ダイアログを出さない。iOSの許可ダイアログは一度拒否されると
+  /// アプリからは二度と出せないため、価値が伝わる前に出すと配信対象から恒久的に
+  /// 外れてしまう。要求は設定画面のコーチングダイアログ経由（[enable]）に一本化し、
+  /// 未許可（notDetermined）のままなら通知はオフとして扱う。
   /// OSの設定で後から通知を切られた場合はトークンを消す。
   ///
   /// 実際に通知を受け取れる状態かを返す。false のとき呼び出し側はアプリ内設定を
@@ -83,11 +86,7 @@ class PushNotificationService {
         return false;
       }
 
-      var settings = await _messaging.getNotificationSettings();
-      if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
-        settings = await _messaging.requestPermission();
-      }
-
+      final settings = await _messaging.getNotificationSettings();
       if (_isGranted(settings)) {
         await _enableRegistration();
         return true;
@@ -104,6 +103,18 @@ class PushNotificationService {
   bool _isGranted(NotificationSettings settings) =>
       settings.authorizationStatus == AuthorizationStatus.authorized ||
       settings.authorizationStatus == AuthorizationStatus.provisional;
+
+  /// OSの通知許可が既に得られているか。ダイアログは出さない。
+  ///
+  /// 取得に失敗したときは true を返す。コーチングダイアログの出し分けに使うため、
+  /// 判断できないときは「もう許可済み」側に倒して余計な案内を出さない。
+  Future<bool> hasPermission() async {
+    try {
+      return _isGranted(await _messaging.getNotificationSettings());
+    } catch (_) {
+      return true;
+    }
+  }
 
   void dispose() {
     _tokenRefreshSubscription?.cancel();

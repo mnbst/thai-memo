@@ -7,6 +7,7 @@ FCMで通知する。free はキャッシュのみでLLMは呼ばない（ミス
 通知の送信成功後に露出登録（UVM）を行い、通常生成と語彙状態を揃える。
 """
 
+import traceback
 from datetime import datetime, timezone
 
 from firebase_admin import firestore, messaging
@@ -244,18 +245,28 @@ def _send_notification(token: str, sentence_id: str, sentence: dict) -> None:
     )
 
 
-def _rollback_delivery(user_ref, sentence_ref, restore: dict) -> None:
+def _rollback_delivery(
+    user_ref, sentence_ref, restore: dict, *, delete_token: bool = True
+) -> None:
     """通知が届かなかった場合に配信をなかったことにする。
 
     段階（notify_tier）も配信前に戻す。届いていない通知を無反応として数えると、
     ユーザーが身に覚えのないまま配信停止へ近づいてしまうため。
+
+    delete_token はトークン失効（UnregisteredError）のときだけ True にする。
+    権限不足やFCM障害でトークンまで消すと、原因を直しても配信対象から永久に
+    外れてしまう（再登録はアプリ再起動待ちになる）。
     """
     sentence_ref.delete()
     user_ref.update(
         {
             "remaining_sentences": firestore.firestore.Increment(1),
             "daily_sentence_generated": False,
-            "fcm_token": firestore.firestore.DELETE_FIELD,
+            **(
+                {"fcm_token": firestore.firestore.DELETE_FIELD}
+                if delete_token
+                else {}
+            ),
             **restore,
         }
     )
@@ -313,6 +324,13 @@ def _deliver_one(
         print(f"daily_sentence: token unregistered, rolling back {uid}")
         _rollback_delivery(user_ref, sentence_ref, restore)
         return False
+    except Exception as exc:
+        # トークン失効以外の送信失敗（権限・FCM障害など）。以前はここを素通りして
+        # 上位で握っていたため、通知が飛ばないのにクォータと当日フラグだけ消費されていた。
+        print(f"daily_sentence: send failed for {uid}: {exc!r}")
+        traceback.print_exc()
+        _rollback_delivery(user_ref, sentence_ref, restore, delete_token=False)
+        return False
 
     # 露出登録は通知が届いた後にだけ行う。配信をロールバックしても
     # UVM の P 微増は巻き戻せないため、送信成功を確認してから登録する。
@@ -355,6 +373,7 @@ def deliverDailySentence(event: scheduler_fn.ScheduledEvent) -> None:
                 skipped += 1
         except Exception as exc:
             skipped += 1
-            print(f"daily_sentence: delivery failed for {uid}: {exc}")
+            print(f"daily_sentence: delivery failed for {uid}: {exc!r}")
+            traceback.print_exc()
 
     print(f"daily_sentence: delivered={delivered} skipped={skipped}")

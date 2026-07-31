@@ -149,6 +149,12 @@ lib/presentation/widgets/level_up_dialog.dart
 lib/presentation/widgets/topic_picker.dart
 例文テーマ選択ダイアログ（設定・例文画面で共用）とラベル整形ヘルパー。
 
+lib/presentation/widgets/sentence_audio_player.dart
+例文全文の再生／停止＋リピート再生と、単語単位の頭出しバー。
+
+lib/presentation/widgets/notification_coach_dialog.dart
+毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
+
 lib/presentation/tone_explanation_dialog.dart
 タイ語声調の解説ダイアログ。
 
@@ -261,6 +267,9 @@ functions/python/daily_sentence_handlers.py
 functions/python/nlp.py
 PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日本語ラベル）。品詞は機能語辞書→形容詞辞書→unigram→perceptronの順で判定。
 
+functions/python/nlp_worker.py
+nlp.pyを別プロセスで実行するワーカー。重いimportがGILで親のLLM処理を止めないようstdin/stdoutのJSON Linesで通信する。
+
 functions/python/pos_adjectives.py
 形容詞（状態動詞）辞書。build_adjective_dict.pyが生成する自動生成ファイル。
 
@@ -268,7 +277,7 @@ functions/python/scripts/build_adjective_dict.py
 freq_rank上位語をLLMに分類させpos_adjectives.pyを生成するオフラインスクリプト。
 
 functions/python/pronunciation.py
-タイ文字→ローマ字発音変換（声調記号付き）。
+タイ文字→ローマ字発音変換（声調記号付き）。TLTKはtltk/th2ipa.pyだけをファイル指定で単独ロードし、nltk/scipyの読み込みを回避する。
 
 functions/python/prompts.py
 Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。
@@ -280,7 +289,7 @@ functions/python/constants.py
 LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ（build_response_schemaで未確定contextフィールドのみ追加）。
 
 functions/python/llm_providers.py
-LLMプロバイダー抽象レイヤ（OpenAI/Gemini切替、API呼び出し、リトライ、トークン使用量ログ）。
+LLMプロバイダー抽象レイヤ（OpenAI/Gemini切替、API呼び出し、リトライ、トークン使用量ログ）。両プロバイダーともurllibでREST直叩き（SDKはimportが重くコールドスタートを悪化させるため不使用）。
 
 functions/python/uvm.py
 UVMコアロジック（テーマ×語彙レベルによるセッション単語選定、P(know)更新、バッチ更新）。

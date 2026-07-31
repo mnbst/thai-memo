@@ -18,6 +18,8 @@ import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
+import '../widgets/notification_coach_dialog.dart';
+import '../widgets/sentence_audio_player.dart';
 import '../widgets/sign_in_reminder_banner.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/vocab_score_dialog.dart';
@@ -45,6 +47,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   final _showAppIcon = ValueNotifier<bool>(true);
   final _dailySentenceService = DailySentenceService();
   final _learningKey = GlobalKey<_LearningScreenState>();
+  final _settingsKey = GlobalKey<SettingsScreenState>();
   StreamSubscription<RemoteMessage>? _notificationOpenSubscription;
 
   @override
@@ -121,7 +124,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       await _checkFirstLaunchAndLoadSentence();
     } finally {
       await _handleInitialNotificationOpen();
+      await _retryNotificationCoachIfPending();
     }
+  }
+
+  /// 学習を一巡済みなのに通知の案内をまだ出せていない場合、起動時に出し直す。
+  ///
+  /// 案内はまとめクイズ完了時に出すが、その直前・表示中にアプリを落とすと
+  /// 「初回サイクル」の判定は既に永続化済みで二度と成立しない。表示済みフラグ
+  /// （notification_coach_shown）を条件にして次の起動で拾い直す。
+  Future<void> _retryNotificationCoachIfPending() async {
+    final prefs = await SharedPreferences.getInstance();
+    final firstCycleDone =
+        prefs.getBool(AppConfig.prefKeyFirstSummaryQuizCompleted) ?? false;
+    if (!firstCycleDone || !mounted) return;
+    await _maybeShowNotificationCoach();
   }
 
   Future<void> _handleInitialNotificationOpen() async {
@@ -150,6 +167,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _logCurrentTabScreen(index: 0);
     }
     _learningKey.currentState?.showSentenceStage();
+  }
+
+  /// 初回の学習が一巡した直後に一度だけ、毎日例文通知を継続サポート機能として紹介する。
+  ///
+  /// 例文の価値を体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否
+  /// されると二度と要求できない）ため、インストール直後ではなくここで出す。
+  /// 「わかった」を押したら設定タブへ移り、実際に操作するトグルを明示する。
+  /// 許可要求はユーザーがそのトグルを操作したときに初めて出る。
+  Future<void> _maybeShowNotificationCoach() async {
+    final controller = ref.read(settingsControllerProvider.notifier);
+    await controller.initialized;
+    if (!mounted) return;
+
+    final coachShown =
+        ref.read(settingsControllerProvider).notificationCoachShown;
+    // 既に許可済みのユーザーには紹介する必要がない（表示済みとして記録する）。
+    if (!shouldShowNotificationCoach(
+      coachShown: coachShown,
+      permissionGranted: await controller.hasNotificationPermission(),
+    )) {
+      if (!coachShown) await controller.markNotificationCoachShown();
+      return;
+    }
+    // 他のコーチマークや前面の画面（オンボーディング等）とは重ねない。
+    // ここで出さなくても表示済みフラグは立たないため、次の起動で出し直される。
+    if (!mounted ||
+        CoachMarkOverlay.isVisible ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+
+    final openSettings = await showNotificationCoachDialog(context);
+    // 出したら結果に関わらず記録する。断られた直後の出し直しは印象を悪くする。
+    await controller.markNotificationCoachShown();
+    if (!openSettings || !mounted) return;
+
+    setState(() => _currentIndex = 2);
+    _logCurrentTabScreen(index: 2);
+    // タブ切り替えの描画が済むまでトグルの位置が確定しない。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_settingsKey.currentState?.showDailyReminderCoach() ??
+          Future.value());
+    });
   }
 
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
@@ -281,9 +341,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       LearningScreen(
         key: _learningKey,
         showAppIconNotifier: _showAppIcon,
+        onFirstCycleCompleted: () => unawaited(_maybeShowNotificationCoach()),
       ),
       const HistoryScreen(),
-      const SettingsScreen(),
+      SettingsScreen(key: _settingsKey),
     ];
 
     return Scaffold(
@@ -383,7 +444,14 @@ bool shouldAutoLoadAfterSentenceQuotaRefresh({
 class LearningScreen extends ConsumerStatefulWidget {
   final ValueNotifier<bool> showAppIconNotifier;
 
-  const LearningScreen({super.key, required this.showAppIconNotifier});
+  /// 初回の学習が一巡（まとめクイズ完了）した直後に呼ばれる。
+  final VoidCallback? onFirstCycleCompleted;
+
+  const LearningScreen({
+    super.key,
+    required this.showAppIconNotifier,
+    this.onFirstCycleCompleted,
+  });
 
   @override
   ConsumerState<LearningScreen> createState() => _LearningScreenState();
@@ -566,11 +634,14 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             title: 'まとめクイズ',
             showVocabScoreTransition: true,
             onNextSentence: () async {
-              if (!_firstSummaryQuizCompleted) {
+              final isFirstCycle = !_firstSummaryQuizCompleted;
+              if (isFirstCycle) {
                 await _markFirstSummaryQuizCompleted();
               }
               await _setCompletedCount(0);
               await _proceedToNextSentence();
+              // 例文の価値を体験し終えたこのタイミングで通知の案内を出す。
+              if (isFirstCycle) widget.onFirstCycleCompleted?.call();
             },
           ),
         ),
@@ -967,48 +1038,20 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Thai text with play button
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text.rich(
-                          _buildHighlightedThaiText(
-                            sentence.thaiText,
-                            sentence.targetWords ?? [],
-                            Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                        fontWeight: FontWeight.w500,
-                                        height: 1.5,
-                                        fontSize: 32) ??
-                                const TextStyle(fontSize: 32),
-                            Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.volume_up,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        onPressed: () {
-                          unawaited(
-                            ref.read(analyticsServiceProvider).logPlayTts(
-                                  contentType: 'sentence',
-                                  text: sentence.thaiText,
-                                  sentenceId: sentence.id,
-                                  source: 'today_sentence',
-                                ),
-                          );
-                          ref.read(ttsServiceProvider).speak(sentence.thaiText);
-                        },
-                        tooltip: '全文を再生',
-                      ),
-                    ],
+                  Text.rich(
+                    _buildHighlightedThaiText(
+                      sentence.thaiText,
+                      sentence.targetWords ?? [],
+                      Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                height: 1.5,
+                                fontSize: 32,
+                              ) ??
+                          const TextStyle(fontSize: 32),
+                      Theme.of(context).colorScheme.primary,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   // Pronunciation
                   Text(
                     sentence.pronunciation,
@@ -1019,6 +1062,20 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                               .withValues(alpha: 0.8),
                           fontStyle: FontStyle.italic,
                         ),
+                  ),
+                  const SizedBox(height: 8),
+                  SentenceAudioPlayer(
+                    text: sentence.thaiText,
+                    words:
+                        sentence.wordBreakdowns.map((w) => w.wordText).toList(),
+                    onPlay: () => unawaited(
+                      ref.read(analyticsServiceProvider).logPlayTts(
+                            contentType: 'sentence',
+                            text: sentence.thaiText,
+                            sentenceId: sentence.id,
+                            source: 'today_sentence',
+                          ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -1283,18 +1340,30 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       ..sort((a, b) => b.length.compareTo(a.length));
     final pattern = sorted.map(RegExp.escape).join('|');
     final regex = RegExp(pattern);
-    final spans = <TextSpan>[];
+    final spans = <InlineSpan>[];
     var lastEnd = 0;
     final highlightStyle = baseStyle.copyWith(
       color: highlightColor,
       fontWeight: FontWeight.bold,
-      backgroundColor: highlightColor.withValues(alpha: 0.2),
     );
     for (final match in regex.allMatches(text)) {
       if (match.start > lastEnd) {
         spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
       }
-      spans.add(TextSpan(text: match.group(0), style: highlightStyle));
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              color: highlightColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(match.group(0)!, style: highlightStyle),
+          ),
+        ),
+      );
       lastEnd = match.end;
     }
     if (lastEnd < text.length) {
