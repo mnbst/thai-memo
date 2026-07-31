@@ -13,10 +13,13 @@ PyThaiNLP はタイ語の自然言語処理ライブラリで、形態素解析�
 音節分割など多くの機能を提供します。
 """
 
-# PyThaiNLP の品詞タグ付け機能（Universal Dependencies 準拠のタグセット）
-from pythainlp.tag import pos_tag
-# PyThaiNLP の音節分割機能（辞書ベースのサブワードトークナイザ）
-from pythainlp.tokenize import subword_tokenize
+# PyThaiNLP の品詞タグ付け（pos_tag）と音節分割（subword_tokenize）。
+# pythainlp から直接 import すると使わないサブモジュールまで読み込まれてコールド
+# スタートが伸びるため、必要な分だけロードするラッパを経由する。
+try:
+    from .pythainlp_fast import pos_tag, subword_tokenize
+except ImportError:
+    from pythainlp_fast import pos_tag, subword_tokenize
 
 # 発音変換モジュール（タイ文字→声調記号付きローマ字）
 try:

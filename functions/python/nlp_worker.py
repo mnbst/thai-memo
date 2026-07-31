@@ -16,17 +16,36 @@ GIL はプロセス単位なので、インポートと後処理を子プロセ�
 
 import json
 import sys
+import time
 
 
 def main() -> None:
+    started = time.perf_counter()
     try:
         from nlp import enrich_with_nlp
     except Exception as exc:  # インポート失敗は親にフォールバックさせる
         sys.stdout.write(json.dumps({"ready": False, "error": str(exc)}) + "\n")
         sys.stdout.flush()
         return
+    import_ms = round((time.perf_counter() - started) * 1000)
 
-    sys.stdout.write(json.dumps({"ready": True}) + "\n")
+    # PyThaiNLP を軽量ロードできたか。無言で通常 import に落ちていると
+    # コールドが遅くなるだけで気付けないため、毎回ログに残す。
+    try:
+        from pythainlp_fast import is_fast_path
+
+        fast_path = is_fast_path()
+    except Exception:
+        fast_path = None
+
+    # stdout は親との JSON Lines プロトコルなので、ログは stderr に出す。
+    print(
+        f"nlp_worker import: {import_ms}ms fast_path={fast_path}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+    sys.stdout.write(json.dumps({"ready": True, "importMs": import_ms}) + "\n")
     sys.stdout.flush()
 
     for line in sys.stdin:

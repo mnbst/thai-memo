@@ -270,6 +270,9 @@ PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日�
 functions/python/nlp_worker.py
 nlp.pyを別プロセスで実行するワーカー。重いimportがGILで親のLLM処理を止めないようstdin/stdoutのJSON Linesで通信する。
 
+functions/python/pythainlp_fast.py
+PyThaiNLPの軽量ローダ。sys.modulesにスタブを置きパッケージ__init__を飛ばして使うsubmoduleだけ読む（import 1.32s→0.37s）。失敗時は通常importにフォールバック。
+
 functions/python/pos_adjectives.py
 形容詞（状態動詞）辞書。build_adjective_dict.pyが生成する自動生成ファイル。
 

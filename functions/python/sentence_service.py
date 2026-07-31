@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from typing import Callable
 
 from google.cloud import storage as gcs
@@ -58,8 +59,14 @@ def _get_enrich_with_nlp() -> Callable[[dict], dict]:
 
     with _nlp_import_lock:
         if _nlp_enrich_with_nlp is None:
+            started = time.perf_counter()
             from nlp import enrich_with_nlp
 
+            # このパスの import は丸ごとリクエストの待ち時間になる。
+            print(
+                "NLP in-process import: "
+                f"{round((time.perf_counter() - started) * 1000)}ms"
+            )
             _nlp_enrich_with_nlp = enrich_with_nlp
         return _nlp_enrich_with_nlp
 
@@ -68,7 +75,7 @@ def _spawn_nlp_worker() -> "subprocess.Popen[str] | None":
     """NLP ワーカー子プロセスを起動する。失敗時は None。"""
     here = os.path.dirname(os.path.abspath(__file__))
     try:
-        return subprocess.Popen(
+        proc = subprocess.Popen(
             [sys.executable, "-u", os.path.join(here, "nlp_worker.py")],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -77,6 +84,8 @@ def _spawn_nlp_worker() -> "subprocess.Popen[str] | None":
             text=True,
             bufsize=1,
         )
+        proc._nlp_spawned_at = time.perf_counter()  # type: ignore[attr-defined]
+        return proc
     except Exception as exc:
         print(f"NLP worker spawn failed: {exc}")
         return None
@@ -110,18 +119,40 @@ def _enrich_via_worker(sentence: dict) -> bool:
     ):
         return False
 
+    # 計測: ワーカーの import が LLM 待ちにどれだけ隠れたかを、インスタンスごとに
+    # 1回だけログに残す。値を持つのは ready 行を読む最初の1回だけで、2回目以降は
+    # 常に blocked=0 / import なしになるため出さない。
+    timing: str | None = None
+
     with _nlp_worker_io_lock:
         try:
             # 起動直後の1回だけ ready 行を読み捨てる（インポート完了待ち）。
             if not getattr(proc, "_nlp_ready", False):
+                wait_started = time.perf_counter()
                 ready_line = proc.stdout.readline()
+                blocked_ms = round((time.perf_counter() - wait_started) * 1000)
                 if not ready_line:
                     raise RuntimeError("worker exited before ready")
                 ready = json.loads(ready_line)
                 if not ready.get("ready"):
                     raise RuntimeError(f"worker import failed: {ready.get('error')}")
                 proc._nlp_ready = True  # type: ignore[attr-defined]
+                spawned_at = getattr(proc, "_nlp_spawned_at", None)
+                spawn_to_ready_ms = (
+                    round((time.perf_counter() - spawned_at) * 1000)
+                    if spawned_at is not None
+                    else None
+                )
+                # blocked が 0 に近ければ import は LLM 待ちに隠れている＝ワーカーが
+                # 効いている。child_import に近ければ隠せておらず、子プロセスにする
+                # 意味がない（2026-07-31 のコールド実測では blocked=0）。
+                timing = (
+                    f"NLP timing: blocked={blocked_ms}ms "
+                    f"child_import={ready.get('importMs')}ms "
+                    f"spawn_to_ready={spawn_to_ready_ms}ms"
+                )
 
+            enrich_started = time.perf_counter()
             proc.stdin.write(
                 json.dumps({"sentence": sentence}, ensure_ascii=False) + "\n"
             )
@@ -129,6 +160,7 @@ def _enrich_via_worker(sentence: dict) -> bool:
             line = proc.stdout.readline()
             if not line:
                 raise RuntimeError("worker exited during enrich")
+            enrich_ms = round((time.perf_counter() - enrich_started) * 1000)
             resp = json.loads(line)
             if not resp.get("ok"):
                 raise RuntimeError(resp.get("error", "unknown worker error"))
@@ -140,6 +172,9 @@ def _enrich_via_worker(sentence: dict) -> bool:
                 pass
             _nlp_worker_proc = None
             return False
+
+    if timing is not None:
+        print(f"{timing} enrich={enrich_ms}ms")
 
     sentence.clear()
     sentence.update(resp["sentence"])
