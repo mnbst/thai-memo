@@ -312,16 +312,20 @@ def _ensure_user_quota(user_ref) -> dict:
     return dict(initial)
 
 
-# PyThaiNLP の遅延インポートがコールドスタート時にレイテンシへはみ出す
-# （prod実測でコールド時 p90 26.7秒 / ウォーム時は10秒未満）ため、
-# prod だけインスタンスを常駐させる。dev/tester はトラフィックが無く
-# 体感に影響しないので、常駐アイドル課金（月約1,100円）を払わない。
-_MIN_INSTANCES = 1 if os.environ.get("GCLOUD_PROJECT") == "thai-memo-prod" else 0
+# 全環境で常駐させない。以前は prod のみ min=1 にしてコールドスタート
+# （当時 p90 26.7秒）を隠していたが、2026-07-31 に重い import を排除して
+# コールドが 10.6秒（ウォームは 7〜8秒）まで下がったため不要になった。
+# 常駐アイドル課金は prod 実測で ¥70/日（月約2,100円）かかっていた。
+_MIN_INSTANCES = 0
 
 
 @https_fn.on_call(
     region="asia-northeast1",
     memory=2048,
+    # NLP のインポート・後処理は nlp_worker.py の子プロセスで走る。
+    # 親（LLM 呼び出し）と子を実際に並列で動かすため 2 vCPU が要る。
+    # デフォルトの "gcf_gen1" は 2048MB では 1 vCPU。
+    cpu=2,
     timeout_sec=120,
     concurrency=10,
     min_instances=_MIN_INSTANCES,
