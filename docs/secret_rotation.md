@@ -1,5 +1,12 @@
 # シークレットのローテート手順
 
+> **状態: 2026-08-02 に dev / tester / prod の3環境とも実施完了。**
+> Gemini キー（環境ごとに新規発行）・OpenAI キー・Google OAuth client secret・
+> Apple Sign-in 鍵（Key ID `JGPGZZ5HRP`）を差し替え、動作確認済み。
+> 旧 Gemini キーは削除・失効確認済み。旧 OpenAI キーと旧 Apple 鍵 `5LU78HU4GU` は
+> 手動 revoke が必要（未確認）。
+> 以降は次回ローテート時の手順書として参照する。
+
 `terraform/{dev,tester,prod}.tfvars` に平文でコミットされていたシークレットを無効化し、
 新しい値に差し替えるための手順書。**リポジトリを public 化する前に必ず完了させること。**
 

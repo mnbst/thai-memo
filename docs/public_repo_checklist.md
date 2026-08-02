@@ -40,33 +40,37 @@ git push --force --all && git push --force --tags
   GitHub Support へ削除依頼を出すか、**新規リポジトリとして作り直す**のが確実
 - いずれにせよ**旧キーの失効が本質的な対策**。履歴パージはそれを前提とした後始末
 
-## 2. state バケットの堅牢化
+## 2. state バケットの堅牢化（**完了 — 2026-08-02**）
 
 state にはシークレットが平文で入る。バケット名は public 化で露出する。
+3環境とも versioning / UBLA / public access prevention を有効化し、
+noncurrent version のライフサイクルルール（30日 + 最大10世代）を設定済み。
+
+### ⚠️ UBLA 化の副作用（対処済み）
+
+UBLA を有効にすると per-object ACL が無効になる。dev/prod のバケットには
+オブジェクトレベルの legacy ロールが無く ACL に依存していたため、
+`roles/owner` を持っていても `terraform init` が 403 になった。
+
+各バケットに `roles/storage.objectAdmin` を明示付与して解決済み。
+**新しい人・SA が terraform を実行する場合も同じ付与が必要。**
 
 ```bash
-for P in thai-memo-dev thai-memo-67139 thai-memo-prod; do
-  B=gs://${P}-terraform-state
-  gcloud storage buckets update $B --versioning
-  gcloud storage buckets update $B --uniform-bucket-level-access
-  gcloud storage buckets update $B --public-access-prevention
-done
+gcloud storage buckets add-iam-policy-binding gs://<project>-terraform-state \
+  --member="user:<email>" --role="roles/storage.objectAdmin"
 ```
 
-※ バケット名は `terraform/backends/*.tfbackend` で確認すること（prod は
-`thai-memo-prod-terraform-state`）。現状 prod は versioning 無効・UBLA 無効・PAP 未強制。
+## 3. WIF のブランチ固定（**完了 — 2026-08-02**）
 
-## 3. WIF のブランチ固定（コード変更済み・apply 待ち）
+`terraform/main.tf` の `attribute_condition` に `assertion.ref` の制約を追加し、
+tester / prod に apply 済み（リソース再作成なしの in-place 更新）。
+dev は `github_repo` が空で provider 自体が存在しないため対象外。
 
-`terraform/main.tf` の `attribute_condition` に `assertion.ref` の制約を追加済み。
-各環境で apply して反映する。
-
-```bash
-cd terraform
-terraform apply -var-file=prod.tfvars -var-file=secrets/prod.tfvars
+```
+assertion.repository == 'mnbst/thai-memo' && assertion.ref in ['refs/heads/main', 'refs/heads/test']
 ```
 
-反映後、`main` / `test` 以外のブランチからは OIDC 認証が通らなくなる。
+`main` / `test` 以外のブランチからは OIDC 認証が通らない。
 
 ## 4. 有効期限なし SA キーの廃止（**保留 — Android 対応時に着手**）
 
