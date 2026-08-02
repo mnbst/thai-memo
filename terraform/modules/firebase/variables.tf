@@ -46,3 +46,9 @@ variable "apple_private_key" {
 }
 
 
+
+variable "enable_firestore_protection" {
+  description = "Firestore の PITR・定期バックアップ・削除保護を有効化する（prod のみ想定。追加コストあり）"
+  type        = bool
+  default     = false
+}

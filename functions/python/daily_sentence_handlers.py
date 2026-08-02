@@ -3,11 +3,13 @@
 毎時起動し、ユーザーのローカル時刻が配信希望時刻に一致する対象へ、
 通常生成と共通の生成コア（produce_sentence）で例文を1件作って Firestore に書き、
 FCMで通知する。free はキャッシュのみでLLMは呼ばない（ミス時はターゲット語を
-引き直す）。premium はLLM生成し、失敗時はキャッシュに退避する。
+引き直す）。premium と、プレミアム体験トライアル枠を充てる配信はLLM生成し、
+失敗時はキャッシュに退避する。
 通知の送信成功後に露出登録（UVM）を行い、通常生成と語彙状態を揃える。
 """
 
 import traceback
+from collections import Counter
 from datetime import datetime, timezone
 
 from firebase_admin import firestore, messaging
@@ -21,9 +23,11 @@ try:
     from .daily_sentence import (
         MAX_TARGET_WORD_RETRY,
         TIER_STOPPED,
+        delivery_skip_reason,
         evaluate_response,
         local_date,
         should_deliver,
+        uses_premium_trial,
     )
     from .runtime import initialize_firebase_app
     from .sentence_handlers import (
@@ -38,9 +42,11 @@ except ImportError:
     from daily_sentence import (
         MAX_TARGET_WORD_RETRY,
         TIER_STOPPED,
+        delivery_skip_reason,
         evaluate_response,
         local_date,
         should_deliver,
+        uses_premium_trial,
     )
     from runtime import initialize_firebase_app
     from sentence_handlers import (
@@ -81,13 +87,13 @@ def _build_sentence(
     """配信する例文を作る。戻り値は (例文, target_words, premiumスペックか)。
 
     生成コアは通常生成と共通の produce_sentence。
-    free はトライアル残の有無によらずキャッシュのみ。LLM原価をゼロに保つのと、
-    free 側の分岐を増やさないため。premium はLLMで生成し、失敗した場合だけ
-    キャッシュに退避して通知そのものは落とさない。
+    free はキャッシュのみでLLM原価をゼロに保つ。premium と、トライアル枠を充てる
+    配信（uses_premium_trial）はLLMで生成し、失敗した場合だけキャッシュに退避して
+    通知そのものは落とさない。
     premium のテーマはクライアントが users/{uid}.preferred_topic にミラーした
     設定を使い、未設定（おまかせ）なら通常生成と同じくUVMのkey_wordから決める。
     """
-    if user_data.get("tier") == "premium":
+    if user_data.get("tier") == "premium" or uses_premium_trial(user_data):
         params: dict = {}
         preferred_topic = user_data.get("preferred_topic")
         if preferred_topic:
@@ -145,6 +151,7 @@ def _commit_daily_sentence_body(
     sentence_ref,
     sentence_data: dict,
     now: datetime,
+    consume_trial: bool,
 ) -> tuple[str, dict]:
     """例文docの書き込みとクォータ消費・段階更新を1トランザクションで行う。
 
@@ -152,6 +159,10 @@ def _commit_daily_sentence_body(
 
     last_sentence_generated_at は書かない。あれは「次へ」押下＝反応のシグナルであり、
     配信そのものを反応として数えてはいけない。
+
+    consume_trial は例文生成前の判定なので、ここで最新の残回数を見て0未満にしない。
+    生成後に手動生成で使い切られていた場合は消費せず、premium品質の例文を1回ぶん
+    サービスする（LLM原価は既に払っており、取り返せないため）。
     """
     user_snapshot = user_ref.get(transaction=transaction)
     user_data = (user_snapshot.to_dict() or {}) if user_snapshot.exists else {}
@@ -167,11 +178,22 @@ def _commit_daily_sentence_body(
             {"last_notified_at": firestore.firestore.SERVER_TIMESTAMP, **tier_update}
         )
 
+    trial_decrement = (
+        1
+        if consume_trial and user_data.get("premium_trial_remaining", 0) > 0
+        else 0
+    )
+
     restore = {
         "notify_tier": user_data.get("notify_tier", 0),
         "notify_tier_misses": user_data.get("notify_tier_misses", 0),
         "last_notified_at": user_data.get("last_notified_at")
         or firestore.firestore.DELETE_FIELD,
+        **(
+            {"premium_trial_remaining": firestore.firestore.Increment(trial_decrement)}
+            if trial_decrement
+            else {}
+        ),
     }
 
     transaction.set(sentence_ref, sentence_data)
@@ -181,6 +203,15 @@ def _commit_daily_sentence_body(
             "remaining_sentences": firestore.firestore.Increment(-1),
             "daily_sentence_generated": True,
             "last_notified_at": firestore.firestore.SERVER_TIMESTAMP,
+            **(
+                {
+                    "premium_trial_remaining": firestore.firestore.Increment(
+                        -trial_decrement
+                    )
+                }
+                if trial_decrement
+                else {}
+            ),
             **tier_update,
         },
     )
@@ -277,22 +308,31 @@ def _deliver_one(
     uid: str,
     user_data: dict,
     now: datetime,
-) -> bool:
+) -> str | None:
+    """1件配信する。配信できたら None、できなければ理由を返す（ログ集計用）。"""
     user_ref = db.collection("users").document(uid)
 
-    if user_data.get("tier") == "premium":
+    if user_data.get("tier") == "premium" or uses_premium_trial(user_data):
         # LLM を叩く前に最新状態を読み直す。二重配信自体はトランザクションで
         # 弾けるが、生成コストは commit 前に払ってしまうため窓を狭めておく。
         snapshot = user_ref.get()
         user_data = (snapshot.to_dict() or {}) if snapshot.exists else {}
-        if not should_deliver(user_data, now):
-            return False
+        reason = delivery_skip_reason(user_data, now)
+        if reason:
+            return f"stale:{reason}"
+
+    # 生成前に確定させる。生成後だと produce_sentence の間に手動生成が入った場合に
+    # 「premium品質で作ったのに消費しない」「free品質なのに消費する」がずれる。
+    consume_trial = uses_premium_trial(user_data)
 
     picked = _build_sentence(db, uid, user_data)
     if picked is None:
         print(f"daily_sentence: no sentence available for {uid}")
-        return False
+        return "no_sentence"
     sentence, target_words, use_premium_spec = picked
+
+    # トライアル枠でもキャッシュに退避したなら premium 品質を出せていないので消費しない。
+    consume_trial = consume_trial and use_premium_spec
 
     sentence_data = {
         **_build_sentence_data(
@@ -310,12 +350,13 @@ def _deliver_one(
             sentence_ref,
             sentence_data,
             now,
+            consume_trial,
         )
     except _DeliveryNotDue:
-        return False
+        return "not_due_at_commit"
     except _DeliveryStopped as stopped:
         user_ref.update(stopped.updates)
-        return False
+        return "backoff_stopped_now"
 
     try:
         # key_word とその意味を通知に載せるため、整形済みの sentence_data を渡す。
@@ -323,14 +364,14 @@ def _deliver_one(
     except messaging.UnregisteredError:
         print(f"daily_sentence: token unregistered, rolling back {uid}")
         _rollback_delivery(user_ref, sentence_ref, restore)
-        return False
+        return "token_unregistered"
     except Exception as exc:
         # トークン失効以外の送信失敗（権限・FCM障害など）。以前はここを素通りして
         # 上位で握っていたため、通知が飛ばないのにクォータと当日フラグだけ消費されていた。
         print(f"daily_sentence: send failed for {uid}: {exc!r}")
         traceback.print_exc()
         _rollback_delivery(user_ref, sentence_ref, restore, delete_token=False)
-        return False
+        return "send_failed"
 
     # 露出登録は通知が届いた後にだけ行う。配信をロールバックしても
     # UVM の P 微増は巻き戻せないため、送信成功を確認してから登録する。
@@ -348,7 +389,7 @@ def _deliver_one(
         )
     except Exception as exc:
         print(f"daily_sentence: uvm update failed for {uid}: {exc}")
-    return True
+    return None
 
 
 @scheduler_fn.on_schedule(
@@ -361,19 +402,26 @@ def deliverDailySentence(event: scheduler_fn.ScheduledEvent) -> None:
     db = firestore.client()
     now = datetime.now(timezone.utc)
     delivered = 0
-    skipped = 0
+    reasons: Counter[str] = Counter()
 
     for uid, user_data in _candidate_users(db, now):
-        if not should_deliver(user_data, now):
-            continue
-        try:
-            if _deliver_one(db, uid, user_data, now):
-                delivered += 1
-            else:
-                skipped += 1
-        except Exception as exc:
-            skipped += 1
-            print(f"daily_sentence: delivery failed for {uid}: {exc!r}")
-            traceback.print_exc()
+        reason = delivery_skip_reason(user_data, now)
+        if reason is None:
+            try:
+                reason = _deliver_one(db, uid, user_data, now)
+            except Exception as exc:
+                reason = "error"
+                print(f"daily_sentence: delivery failed for {uid}: {exc!r}")
+                traceback.print_exc()
+        if reason is None:
+            delivered += 1
+        else:
+            reasons[reason] += 1
 
-    print(f"daily_sentence: delivered={delivered} skipped={skipped}")
+    # 内訳は「なぜ通知が届いていないのか」を後から追うための常設ログ。
+    # 候補は notify_utc_hour で絞った後なので、母数はこの時刻の配信希望者だけ。
+    breakdown = " ".join(f"{k}={v}" for k, v in sorted(reasons.items()))
+    print(
+        f"daily_sentence: delivered={delivered} skipped={sum(reasons.values())}"
+        + (f" [{breakdown}]" if breakdown else "")
+    )

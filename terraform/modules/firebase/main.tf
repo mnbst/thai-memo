@@ -89,7 +89,37 @@ resource "google_firestore_database" "default" {
   location_id = var.region
   type        = "FIRESTORE_NATIVE"
 
+  # PITR: 直近7日間の任意の時点に復元できる（誤削除・不正書き込みからの復旧用）
+  point_in_time_recovery_enablement = var.enable_firestore_protection ? "POINT_IN_TIME_RECOVERY_ENABLED" : "POINT_IN_TIME_RECOVERY_DISABLED"
+
+  # 誤 destroy 防止
+  delete_protection_state = var.enable_firestore_protection ? "DELETE_PROTECTION_ENABLED" : "DELETE_PROTECTION_DISABLED"
+
   depends_on = [google_firebase_project.default]
+}
+
+# 日次バックアップ（保持7日）
+resource "google_firestore_backup_schedule" "daily" {
+  count = var.enable_firestore_protection ? 1 : 0
+
+  project   = var.project_id
+  database  = google_firestore_database.default.name
+  retention = "604800s" # 7 days
+
+  daily_recurrence {}
+}
+
+# 週次バックアップ（保持14週）— 発覚が遅れた障害からの復旧用
+resource "google_firestore_backup_schedule" "weekly" {
+  count = var.enable_firestore_protection ? 1 : 0
+
+  project   = var.project_id
+  database  = google_firestore_database.default.name
+  retention = "8467200s" # 14 weeks
+
+  weekly_recurrence {
+    day = "SUNDAY"
+  }
 }
 
 # Firestore composite indexes

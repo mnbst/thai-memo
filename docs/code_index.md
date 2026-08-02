@@ -124,7 +124,7 @@ lib/presentation/screens/settings_screen.dart
 設定画面（アカウント・プラン、テーマ、フォント、声調ガイド、学習データリセット、アプリ情報）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI。
+プレミアム課金UI。タップ起点に加え、まとめクイズ完了のたびに自動表示される（freeのみ）。
 
 lib/presentation/screens/onboarding_screen.dart
 初回起動時のオンボーディング画面。
@@ -270,6 +270,9 @@ PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日�
 functions/python/nlp_worker.py
 nlp.pyを別プロセスで実行するワーカー。重いimportがGILで親のLLM処理を止めないようstdin/stdoutのJSON Linesで通信する。
 
+functions/python/pythainlp_fast.py
+PyThaiNLPの軽量ローダ。sys.modulesにスタブを置きパッケージ__init__を飛ばして使うsubmoduleだけ読む（import 1.32s→0.37s）。失敗時は通常importにフォールバック。
+
 functions/python/pos_adjectives.py
 形容詞（状態動詞）辞書。build_adjective_dict.pyが生成する自動生成ファイル。
 
@@ -306,6 +309,12 @@ docs/design_daily_sentence.md
 docs/quiz_generation_logic.md
 クイズ生成ロジック（SRS例文選出→Gemini穴埋め生成→サニタイズ→デフォルト補填）。
 
+docs/secret_rotation.md
+git履歴に露出したシークレット（Gemini/OpenAIキー、OAuth secret、Apple秘密鍵）のローテート手順。
+
+docs/public_repo_checklist.md
+リポジトリpublic化の前提作業（履歴パージ、stateバケット堅牢化、WIF制約、GitHub設定）。
+
 functions/python/embeddings.py
 GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテーマ関連単語検索・セマンティック重複除去・ドラマ参考セリフ選出（find_best_drama_shot）。
 
@@ -315,6 +324,15 @@ GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテ�
 
 terraform/modules/uvm-data/
 GCSバケット（vocab_embeddings.npy, vocab_words.json, topic_embeddings.json格納）+ CF SA権限。
+
+terraform/modules/monitoring/
+予算アラート（billing budget）+ Cloud Monitoring アラートポリシー（5xx急増・生成失敗・生成数スパイク）。
+
+terraform/modules/app-check/
+Firebase App Check（iOS App Attest）の構成とサービス別適用モード、デバッグトークン。
+
+docs/infra_hardening.md
+予算/監視アラート・App Check・Firestore PITR の設計とロールアウト手順。
 
 ## Scripts
 
@@ -329,6 +347,9 @@ scripts/build_topic_embeddings.py
 
 scripts/upload_corpus.sh
 UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSにアップロード。
+
+scripts/ga4_acquisition.py
+prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン別）。SAインパーソネーションで認証。
 
 ## Tests (Flutter)
 

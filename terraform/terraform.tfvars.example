@@ -1,4 +1,20 @@
-project_id     = "thai-memo-backend"
-region         = "asia-northeast1"
-gemini_api_key = "YOUR_GEMINI_API_KEY_HERE"
-firebase_project_display_name = "Thai Memo"
+# 公開設定のサンプル（環境ごとの実ファイルは dev.tfvars / tester.tfvars / prod.tfvars）
+# シークレットを含む変数はこのファイルに書かず、secrets/<env>.tfvars に置くこと。
+
+project_id                    = "thai-memo-dev"
+region                        = "asia-northeast1"
+firebase_project_display_name = "Thai Memo Dev"
+
+ci_service_account_email = "github-actions-deployer@thai-memo-dev.iam.gserviceaccount.com"
+github_repo              = "mnbst/thai-memo"
+
+google_client_id = "000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
+apple_client_id  = "com.thaimemo.thaiMemo"
+apple_team_id    = "XXXXXXXXXX"
+apple_key_id     = "XXXXXXXXXX"
+
+# --- 以下は secrets/<env>.tfvars に記載（gitignore 済み） ---
+# gemini_api_key       = "..."
+# openai_api_key       = "..."
+# google_client_secret = "..."
+# apple_private_key    = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"

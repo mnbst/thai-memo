@@ -338,6 +338,11 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "userId": req.auth.uid if req.auth else "anonymous",
         "requestedTopic": (req.data or {}).get("topic", "random"),
+        # App Check は現状 UNENFORCED（enforce_app_check=False のまま）。
+        # 未証明リクエストの割合がここで測れるので、十分下がってから
+        # enforce_app_check=True に切り替える。旧クライアントは App Check
+        # トークンを送らないため、先に強制すると弾かれる。
+        "appCheck": bool(req.app),
     }
 
     try:

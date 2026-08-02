@@ -1,1 +1,81 @@
-{"hosting":{"public":"public","ignore":["firebase.json","**/.*"],"rewrites":[{"source":"/","destination":"/privacy-policy.html"}]},"firestore":{"rules":"firebase/firestore.rules","indexes":"firebase/firestore.indexes.json"},"functions":[{"source":"functions/javascript","codebase":"js-functions","ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log"],"predeploy":["npm --prefix \"$RESOURCE_DIR\" run build"]},{"source":"functions/python","codebase":"py-functions","ignore":["venv",".git","firebase-debug.log","firebase-debug.*.log","__pycache__",".venv"]}],"flutter":{"platforms":{"ios":{"default":{"projectId":"thai-memo-dev","appId":"1:147810088545:ios:c023f84f36af09f6c09c20","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"thai-memo-67139","configurations":{"android":"1:763566155520:android:34165e13f45eb11bbeb5e5","ios":"1:763566155520:ios:c538fb97e81d4f32beb5e5"}},"lib/firebase_options_dev.dart":{"projectId":"thai-memo-dev","configurations":{"android":"1:147810088545:android:880d5b4669246accc09c20","ios":"1:147810088545:ios:c023f84f36af09f6c09c20"}}},"android":{"default":{"projectId":"thai-memo-dev","appId":"1:147810088545:android:880d5b4669246accc09c20","fileOutput":"android/app/google-services.json"}}}}}
+{
+    "hosting": {
+        "public": "public",
+        "ignore": [
+            "firebase.json",
+            "**/.*"
+        ],
+        "rewrites": [
+            {
+                "source": "/",
+                "destination": "/privacy-policy.html"
+            }
+        ]
+    },
+    "firestore": {
+        "rules": "firebase/firestore.rules",
+        "indexes": "firebase/firestore.indexes.json"
+    },
+    "functions": [
+        {
+            "source": "functions/javascript",
+            "codebase": "js-functions",
+            "ignore": [
+                "node_modules",
+                ".git",
+                "firebase-debug.log",
+                "firebase-debug.*.log"
+            ],
+            "predeploy": [
+                "npm --prefix \"$RESOURCE_DIR\" run build"
+            ]
+        },
+        {
+            "source": "functions/python",
+            "codebase": "py-functions",
+            "ignore": [
+                "venv",
+                ".git",
+                "firebase-debug.log",
+                "firebase-debug.*.log",
+                "__pycache__",
+                ".venv"
+            ]
+        }
+    ],
+    "flutter": {
+        "platforms": {
+            "ios": {
+                "default": {
+                    "projectId": "thai-memo-dev",
+                    "appId": "1:147810088545:ios:c023f84f36af09f6c09c20",
+                    "uploadDebugSymbols": false,
+                    "fileOutput": "ios/Runner/GoogleService-Info.plist"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "thai-memo-67139",
+                    "configurations": {
+                        "android": "1:763566155520:android:34165e13f45eb11bbeb5e5",
+                        "ios": "1:763566155520:ios:c538fb97e81d4f32beb5e5"
+                    }
+                },
+                "lib/firebase_options_dev.dart": {
+                    "projectId": "thai-memo-dev",
+                    "configurations": {
+                        "android": "1:147810088545:android:880d5b4669246accc09c20",
+                        "ios": "1:147810088545:ios:c023f84f36af09f6c09c20"
+                    }
+                }
+            },
+            "android": {
+                "default": {
+                    "projectId": "thai-memo-dev",
+                    "appId": "1:147810088545:android:880d5b4669246accc09c20",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            }
+        }
+    }
+}
