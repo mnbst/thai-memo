@@ -124,7 +124,7 @@ lib/presentation/screens/settings_screen.dart
 設定画面（アカウント・プラン、テーマ、フォント、声調ガイド、学習データリセット、アプリ情報）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI。
+プレミアム課金UI。タップ起点に加え、まとめクイズ完了のたびに自動表示される（freeのみ）。
 
 lib/presentation/screens/onboarding_screen.dart
 初回起動時のオンボーディング画面。
@@ -324,6 +324,15 @@ GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテ�
 
 terraform/modules/uvm-data/
 GCSバケット（vocab_embeddings.npy, vocab_words.json, topic_embeddings.json格納）+ CF SA権限。
+
+terraform/modules/monitoring/
+予算アラート（billing budget）+ Cloud Monitoring アラートポリシー（5xx急増・生成失敗・生成数スパイク）。
+
+terraform/modules/app-check/
+Firebase App Check（iOS App Attest）の構成とサービス別適用モード、デバッグトークン。
+
+docs/infra_hardening.md
+予算/監視アラート・App Check・Firestore PITR の設計とロールアウト手順。
 
 ## Scripts
 

@@ -22,6 +22,9 @@ resource "google_project_service" "required_apis" {
     "iamcredentials.googleapis.com",
     "iam.googleapis.com",
     "fcm.googleapis.com",
+    "monitoring.googleapis.com",
+    "billingbudgets.googleapis.com",
+    "firebaseappcheck.googleapis.com",
   ])
 
   project = var.project_id
@@ -68,7 +71,39 @@ module "firebase" {
   apple_key_id         = var.apple_key_id
   apple_private_key    = var.apple_private_key
 
+  enable_firestore_protection = var.enable_firestore_protection
+
   depends_on = [google_project_service.required_apis]
+}
+
+# App Check module — iOS (App Attest)
+module "app_check" {
+  source = "./modules/app-check"
+
+  project_id       = var.project_id
+  ios_app_id       = var.ios_app_id
+  enforcement_mode = var.app_check_enforcement_mode
+  debug_token      = var.app_check_debug_token
+
+  depends_on = [
+    google_project_service.required_apis,
+    module.firebase,
+  ]
+}
+
+# Monitoring module — 予算アラート・監視アラート
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  project_id      = var.project_id
+  alert_email     = var.alert_email
+  billing_account = var.billing_account
+  budget_amount   = var.budget_amount
+
+  depends_on = [
+    google_project_service.required_apis,
+    module.logging,
+  ]
 }
 
 # Logging module for Cloud Functions logs and metrics
