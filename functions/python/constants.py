@@ -26,8 +26,10 @@ OPENAI_MODEL_PREMIUM = "gpt-5.4-mini"
 
 # ─── Gemini モデル設定 ───
 # 環境変数で上書き可。dev でのモデル検証時に再デプロイのみで切替できるようにしている。
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_MODEL_PREMIUM = os.environ.get("GEMINI_MODEL_PREMIUM", "gemini-2.5-flash")
+# gemini-2.5 系は 2026-08 時点で新規APIキーからは利用不可（404: no longer available
+# to new users）。キーをローテートすると即座に生成が全停止するため 3.x 系を使う。
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
+GEMINI_MODEL_PREMIUM = os.environ.get("GEMINI_MODEL_PREMIUM", "gemini-3.1-flash-lite")
 
 # ─── API パラメータ ───
 # 最大出力トークン数: JSON形式のレスポンス（例文＋単語分解＋コンテキスト）に十分な量

@@ -12,3 +12,6 @@ override.tf.json
 # Sensitive files
 *.auto.tfvars
 .terraform.lock.hcl
+
+# シークレット値を含む tfvars（絶対にコミットしない）
+secrets/

@@ -34,29 +34,39 @@ gcloud beta billing projects link thai-memo-backend \
 gcloud auth application-default login
 ```
 
-### 4. terraform.tfvarsを作成
+### 4. 変数ファイルを用意
 
-```bash
-cp terraform.tfvars.example terraform.tfvars
-# エディタでgemini_api_keyを設定
+環境ごとに 2 ファイルに分かれている（環境: `dev` / `tester` / `prod`）。
+
+| ファイル | 内容 | git |
+|---|---|---|
+| `<env>.tfvars` | project_id, region, client_id など非機密設定 | 追跡する |
+| `secrets/<env>.tfvars` | APIキー・client secret・Apple 秘密鍵 | **gitignore（絶対にコミットしない）** |
+
+`secrets/<env>.tfvars` に定義する変数:
+
+```hcl
+gemini_api_key       = "..."
+openai_api_key       = "..."
+google_client_secret = "..."
+apple_private_key    = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 ```
+
+各値の取得元とローテート手順は [`../docs/secret_rotation.md`](../docs/secret_rotation.md) を参照。
 
 ### 5. Terraformを初期化
 
 ```bash
-terraform init
+terraform init -backend-config=backends/<env>.tfbackend -reconfigure
 ```
 
-### 6. プランを確認
+### 6. プランを確認 / 適用
+
+**`-var-file` を 2 つ渡すこと。** 片方だけだと変数不足でエラーになる。
 
 ```bash
-terraform plan
-```
-
-### 7. 適用
-
-```bash
-terraform apply
+terraform plan  -var-file=<env>.tfvars -var-file=secrets/<env>.tfvars
+terraform apply -var-file=<env>.tfvars -var-file=secrets/<env>.tfvars
 ```
 
 ## Firebase設定ファイルのダウンロード

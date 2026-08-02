@@ -168,9 +168,14 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   attribute_mapping = {
     "google.subject"       = "assertion.sub"
     "attribute.repository" = "assertion.repository"
+    "attribute.ref"        = "assertion.ref"
   }
 
-  attribute_condition = "assertion.repository == '${var.github_repo}'"
+  # リポジトリに加えてブランチも固定する。
+  # public 化するとフォークから任意のワークフローが読めるようになるため、
+  # デプロイ用ブランチ（distribute-prod: main / distribute-test: test）以外からは
+  # OIDC トークンを受け付けない。
+  attribute_condition = "assertion.repository == '${var.github_repo}' && assertion.ref in ['refs/heads/main', 'refs/heads/test']"
 }
 
 resource "google_service_account_iam_member" "github_actions_wif" {

@@ -1,13 +1,9 @@
 project_id                    = "thai-memo-67139"
 region                        = "asia-northeast1"
-gemini_api_key                = "AIzaSyAclzCd2WYwhpRhI_RTRPWLpL1hoJ4BtPA"
-openai_api_key                = "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"
 firebase_project_display_name = "Thai Memo (Tester)"
 ci_service_account_email      = "github-actions-deployer@thai-memo-67139.iam.gserviceaccount.com"
 google_client_id              = "763566155520-anliuk00tk1fv4d0nou0o48dhroevlfg.apps.googleusercontent.com"
-google_client_secret          = "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" # TODO: GCP Console > APIs & Services > Credentials > Web client から取得
 apple_client_id               = "com.thaimemo.thaiMemo"
 apple_team_id                 = "5KTT2C466P"
-apple_key_id                  = "5LU78HU4GU"
-apple_private_key             = "-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgep6VkVwPouCDHREX\nbIncMaWqZxJ0Mkrtc0uDWeS/bbGgCgYIKoZIzj0DAQehRANCAASe+vlmy1qlFe9+\nayv9ObGgoLJP73YC+eeVdFPrRLyJvTvyspuwD+DazUpYNYq3SW8i5xiLADECNtKN\nz73qt2GT\n-----END PRIVATE KEY-----"
+apple_key_id                  = "JGPGZZ5HRP"
 github_repo                   = "mnbst/thai-memo" # TODO: GitHubのリポジトリ名に変更 (例: gaku0/thai-memo)

@@ -298,7 +298,7 @@ GEMINI_TOKEN_PRICING_PER_MILLION: dict[str, dict[str, float]] = {
     "gemini-3-flash": {"input": 0.50, "output": 3.00},
     "gemini-3.5-flash": {"input": 1.50, "output": 9.00},
 }
-_DEFAULT_GEMINI_PRICING = GEMINI_TOKEN_PRICING_PER_MILLION["gemini-2.5-flash"]
+_DEFAULT_GEMINI_PRICING = GEMINI_TOKEN_PRICING_PER_MILLION["gemini-3.1-flash-lite"]
 
 
 def _get_gemini_api_key() -> str:
