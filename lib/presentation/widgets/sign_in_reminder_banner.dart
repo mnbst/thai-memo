@@ -6,18 +6,21 @@ import '../../core/config/app_config.dart';
 import '../providers/auth_provider.dart';
 import 'sign_in_sheet.dart';
 
-/// 匿名ユーザーへ「7日間未使用で学習の進捗が削除される」ことを知らせ、
+/// 匿名ユーザーへ「3日間未使用で学習の進捗が削除される」ことを知らせ、
 /// サインインを促すバナー。
 ///
 /// 表示条件:
 /// - 未サインイン（匿名）
 /// - 初回まとめクイズ完了済み（＝守りたい進捗ができたタイミング）
-/// - 閉じてから7日以上経過（初回は無条件）
+/// - 閉じてから3日以上経過（初回は無条件）
 class SignInReminderBanner extends ConsumerStatefulWidget {
   const SignInReminderBanner({super.key});
 
-  /// 「閉じる」後に再表示するまでの期間
-  static const Duration reshowInterval = Duration(days: 7);
+  /// 「閉じる」後に再表示するまでの期間。
+  ///
+  /// サーバー側の削除しきい値（ANON_INACTIVE_DAYS=3）と揃える。これより長いと
+  /// 一度閉じたユーザーが警告を再度見ないまま削除されうる。
+  static const Duration reshowInterval = Duration(days: 3);
 
   @override
   ConsumerState<SignInReminderBanner> createState() =>
@@ -66,7 +69,7 @@ class _SignInReminderBannerState extends ConsumerState<SignInReminderBanner> {
       context,
       title: '学習の進捗を保護',
       message: 'サインインすると進捗が保存され、機種変更後も学習を続けられます。'
-          'サインインしない場合、7日間ご利用がないと学習の進捗は削除されます。',
+          'サインインしない場合、3日間ご利用がないと学習の進捗は削除されます。',
     );
     // サインイン成功時は isLinked の watch により自動で非表示になる
   }
@@ -94,7 +97,7 @@ class _SignInReminderBannerState extends ConsumerState<SignInReminderBanner> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '学習データを保護しましょう\nサインインしないと、7日間ご利用がない場合に学習の進捗が削除されます。',
+                    '学習データを保護しましょう\nサインインしないと、3日間ご利用がない場合に学習の進捗が削除されます。',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSecondaryContainer,
                         ),

@@ -38,7 +38,7 @@ jest.mock('firebase-admin', () => ({
   apps: [],
 }));
 
-import { resetQuota } from '../dailyBatch';
+import { duplicateTokenUids, resetQuota } from '../dailyBatch';
 import {
   FREE_DAILY_QUIZZES,
   FREE_DAILY_SENTENCES,
@@ -56,6 +56,11 @@ function makeUserDoc(
     id,
     data: jest.fn(() => data),
   } as unknown as FirebaseFirestore.QueryDocumentSnapshot;
+}
+
+/** Firestore Timestamp 相当のモック */
+function makeTimestamp(ms: number) {
+  return { toMillis: () => ms };
 }
 
 describe('resetQuota', () => {
@@ -134,11 +139,6 @@ describe('resetQuota', () => {
     );
   });
 
-  /** Firestore Timestamp 相当のモック */
-  function makeTimestamp(ms: number) {
-    return { toMillis: () => ms };
-  }
-
   test('期限を24時間以上過ぎたpremiumはfreeに降格しfree回数へリセットする', async () => {
     // ストア通知の取りこぼしで premium が残留したケース
     await resetQuota(makeUserDoc({
@@ -196,5 +196,42 @@ describe('resetQuota', () => {
     const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
     expect(writeData.tier).toBeUndefined();
     expect(writeData.remaining_sentences).toBe(PREMIUM_DAILY_SENTENCES);
+  });
+});
+
+describe('duplicateTokenUids', () => {
+  const user = (
+    id: string,
+    fcm_token?: string,
+    lastActiveMs?: number
+  ) => ({
+    id,
+    data: {
+      ...(fcm_token ? { fcm_token } : {}),
+      ...(lastActiveMs ? { last_active_at: makeTimestamp(lastActiveMs) } : {}),
+    } as Record<string, unknown>,
+  });
+
+  test('同じトークンなら最終アクティブが最新の1件だけ残す', () => {
+    expect(duplicateTokenUids([
+      user('anon-1', 'tok-A', 1000),
+      user('linked', 'tok-A', 3000),
+      user('anon-2', 'tok-A', 2000),
+    ])).toEqual(['anon-2', 'anon-1']);
+  });
+
+  test('トークンが違うユーザー同士は掃除しない', () => {
+    expect(duplicateTokenUids([
+      user('a', 'tok-A', 1000),
+      user('b', 'tok-B', 2000),
+      user('c'),
+    ])).toEqual([]);
+  });
+
+  test('アクティブ日時が無いdocは掃除される側になる', () => {
+    expect(duplicateTokenUids([
+      user('no-activity', 'tok-A'),
+      user('active', 'tok-A', 1000),
+    ])).toEqual(['no-activity']);
   });
 });
