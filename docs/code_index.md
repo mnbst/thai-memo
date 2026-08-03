@@ -141,7 +141,7 @@ lib/presentation/widgets/coach_mark_overlay.dart
 指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。
 
 lib/presentation/widgets/sign_in_reminder_banner.dart
-匿名ユーザーへ7日非アクティブでの進捗削除を警告しサインインを促すバナー（今日タブ）。
+匿名ユーザーへ3日非アクティブでの進捗削除を警告しサインインを促すバナー（今日タブ）。
 
 lib/presentation/widgets/level_up_dialog.dart
 語彙レベルアップ時のお祝いアニメーションダイアログ。

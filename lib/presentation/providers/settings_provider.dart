@@ -298,6 +298,18 @@ class SettingsController extends StateNotifier<SettingsState> {
     return applied == enabled;
   }
 
+  /// サインアウト直前に呼ぶ。いま署名中の uid の通知登録だけを解除する。
+  ///
+  /// fcm_token は端末単位の値なのに users/{uid} に持たせているため、解除せずに
+  /// アカウントを切り替えると旧 doc に生きたトークンが残り、同じ端末に
+  /// 使ったアカウントの数だけ毎日例文が届く。
+  ///
+  /// アプリ内設定（dailyReminderEnabled）は端末の意思なので書き換えない。
+  /// 次のサインインで syncPushRegistration が新しいトークンを登録し直す。
+  Future<void> unregisterPushForSignOut() async {
+    await _push.disable();
+  }
+
   /// OSの通知許可が既に得られているか。コーチングダイアログの出し分けに使う。
   Future<bool> hasNotificationPermission() => _push.hasPermission();
 

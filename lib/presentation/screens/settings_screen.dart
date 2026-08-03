@@ -220,6 +220,10 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (confirmed != true) return;
 
+    // uid が変わる前に通知登録を解除する。旧 doc にトークンが残ると、同じ端末に
+    // 使ったアカウントの数だけ毎日例文が届く。
+    await ref.read(settingsControllerProvider.notifier).unregisterPushForSignOut();
+
     final error = await ref.read(authControllerProvider.notifier).signOut();
     if (error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
