@@ -207,6 +207,29 @@ void main() {
       await tester.pump();
     });
 
+    testWidgets('外から stopAll されるとリピートも止まり再生表示が戻る', (tester) async {
+      final tts = _FakeTtsService();
+      await tester.pumpWidget(_host(
+        tts,
+        child: const SentenceAudioPlayer(
+          text: 'ผมกินข้าว',
+          words: ['ผม', 'กิน', 'ข้าว'],
+          repeatInterval: Duration(milliseconds: 500),
+        ),
+      ));
+
+      await tester.tap(find.byIcon(Icons.play_arrow));
+      await tester.pump();
+
+      // 画面遷移・タブ切り替え相当。
+      await tts.stopAll();
+      await tester.pump();
+      expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(tts.spoken.length, 1, reason: '次の周回を再開しない');
+    });
+
     testWidgets('長押しで1回だけ再生へ切り替えられる', (tester) async {
       final tts = _FakeTtsService();
       await tester.pumpWidget(_host(

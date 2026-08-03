@@ -59,36 +59,23 @@ void main() {
       );
       expect(find.text('通知時刻は設定画面で変更できます。'), findsOneWidget);
       expect(find.textContaining('習慣にできます'), findsNothing);
-      expect(find.widgetWithText(FilledButton, '通知を設定'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'あとで'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'わかった'), findsOneWidget);
+      expect(find.text('あとで'), findsNothing);
       expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);
     });
   });
 
   group('showNotificationCoachDialog', () {
-    testWidgets('「通知を設定」で true', (tester) async {
+    testWidgets('「わかった」で true', (tester) async {
       bool? result;
       await tester.pumpWidget(_host(onResult: (r) => result = r));
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('通知を設定'));
+      await tester.tap(find.text('わかった'));
       await tester.pumpAndSettle();
 
       expect(result, isTrue);
-      expect(find.byType(NotificationCoachDialog), findsNothing);
-    });
-
-    testWidgets('「あとで」で false', (tester) async {
-      bool? result;
-      await tester.pumpWidget(_host(onResult: (r) => result = r));
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('あとで'));
-      await tester.pumpAndSettle();
-
-      expect(result, isFalse);
       expect(find.byType(NotificationCoachDialog), findsNothing);
     });
 

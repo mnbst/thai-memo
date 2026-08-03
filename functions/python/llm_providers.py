@@ -19,6 +19,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any
 
 from google.cloud import secretmanager
@@ -82,6 +83,7 @@ def _get_secret(secret_id: str) -> str:
 
 
 _OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+_GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 _openai_api_key: str | None = None
 _openai_api_key_fetched_at: float = 0.0
 
@@ -296,7 +298,7 @@ GEMINI_TOKEN_PRICING_PER_MILLION: dict[str, dict[str, float]] = {
     "gemini-3-flash": {"input": 0.50, "output": 3.00},
     "gemini-3.5-flash": {"input": 1.50, "output": 9.00},
 }
-_DEFAULT_GEMINI_PRICING = GEMINI_TOKEN_PRICING_PER_MILLION["gemini-2.5-flash"]
+_DEFAULT_GEMINI_PRICING = GEMINI_TOKEN_PRICING_PER_MILLION["gemini-3.1-flash-lite"]
 
 
 def _get_gemini_api_key() -> str:
@@ -365,6 +367,29 @@ def _gemini_log_token_usage(
     )
 
 
+def _gemini_response(body: dict[str, Any]) -> Any:
+    """REST レスポンスを google-genai 互換の形（.text / .usage_metadata）に包む。
+
+    呼び出し側（_gemini_generate_sync / _gemini_log_token_usage）が
+    SDK のオブジェクトを前提にしているため、属性名を snake_case で合わせる。
+    """
+    parts: list[str] = []
+    for candidate in body.get("candidates") or []:
+        for part in (candidate.get("content") or {}).get("parts") or []:
+            text = part.get("text")
+            if isinstance(text, str):
+                parts.append(text)
+
+    raw_usage = body.get("usageMetadata") or {}
+    usage = SimpleNamespace(
+        prompt_token_count=raw_usage.get("promptTokenCount"),
+        candidates_token_count=raw_usage.get("candidatesTokenCount"),
+        thoughts_token_count=raw_usage.get("thoughtsTokenCount"),
+        total_token_count=raw_usage.get("totalTokenCount"),
+    )
+    return SimpleNamespace(text="".join(parts), usage_metadata=usage)
+
+
 def _gemini_call(
     model: str,
     system_prompt: str,
@@ -372,39 +397,58 @@ def _gemini_call(
     is_premium: bool,
     schema: dict[str, Any] | None = None,
 ) -> Any:
-    """google-genai を同期で呼び出す。例外は LLMApiError に正規化する。"""
-    from google import genai
-    from google.genai import errors as genai_errors
-    from google.genai import types as genai_types
+    """Gemini generateContent を REST で同期呼び出しする。
 
-    config_kwargs: dict[str, Any] = {
-        "system_instruction": system_prompt,
-        "response_mime_type": "application/json",
-        "response_schema": _gemini_schema(schema),
-        "max_output_tokens": API_MAX_TOKENS,
+    google-genai SDK は使わない。SDK の import は aiohttp / pydantic まで
+    引き連れており、Cloud Run のイメージ遅延ロードと相まってコールドスタート時に
+    実測9秒かかっていた（2026-07-31 dev計測）。OpenAI 側と同じく urllib で叩く。
+    例外は LLMApiError に正規化する。
+    """
+    payload: dict[str, Any] = {
+        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseSchema": _gemini_schema(schema),
+            "maxOutputTokens": API_MAX_TOKENS,
+            "thinkingConfig": {"thinkingBudget": 1024 if is_premium else 256},
+        },
     }
-    config_kwargs["thinking_config"] = genai_types.ThinkingConfig(
-        thinking_budget=1024 if is_premium else 256
+    request = urllib.request.Request(
+        f"{_GEMINI_API_BASE}/models/{model}:generateContent",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "x-goog-api-key": _get_gemini_api_key(),
+            "Content-Type": "application/json",
+        },
+        method="POST",
     )
 
     try:
-        client = genai.Client(api_key=_get_gemini_api_key())
-        return client.models.generate_content(
-            model=model,
-            contents=user_prompt,
-            config=genai_types.GenerateContentConfig(**config_kwargs),
-        )
-    except genai_errors.APIError as exc:
-        status = getattr(exc, "code", None)
+        with urllib.request.urlopen(request, timeout=90) as response:
+            response_body = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        body = _read_http_error_body(exc)
+        raw_error = body.get("error")
+        error = raw_error if isinstance(raw_error, dict) else {}
         raise LLMApiError(
-            status_code=int(status) if isinstance(status, int) else None,
-            message=str(exc),
+            status_code=exc.code,
+            message=str(error.get("message") or "Request failed"),
             provider="Gemini",
         ) from exc
-    except (TimeoutError, ConnectionError) as exc:
+    except (TimeoutError, urllib.error.URLError) as exc:
         raise LLMApiError(
             status_code=None, message=str(exc), provider="Gemini"
         ) from exc
+
+    try:
+        parsed = json.loads(response_body)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("LLM_API_ERROR: invalid JSON response") from exc
+
+    if not isinstance(parsed, dict):
+        raise RuntimeError("LLM_API_ERROR: unexpected response shape")
+    return _gemini_response(parsed)
 
 
 def _gemini_generate_sync(

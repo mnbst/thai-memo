@@ -94,6 +94,9 @@ def evaluate_response(user_data: dict) -> dict:
 
     「次へ」押下（last_sentence_generated_at）を主シグナル、開封（last_opened_at）を
     副シグナルとする。どちらも動いていない場合だけ段階が進む。
+
+    開封は段階（notify_tier）までは戻さないが、無反応の連続カウントは0に戻す。
+    届いた通知に反応している以上、間隔を広げる方向へ進めるべきではないため。
     """
     tier = user_data.get("notify_tier", 0)
     misses = user_data.get("notify_tier_misses", 0)
@@ -108,7 +111,7 @@ def evaluate_response(user_data: dict) -> dict:
 
     opened_at = _as_datetime(user_data.get("last_opened_at"))
     if opened_at is not None and opened_at > last_notified:
-        return {"notify_tier": tier, "notify_tier_misses": misses}
+        return {"notify_tier": tier, "notify_tier_misses": 0}
 
     misses += 1
     if misses >= TIER_MAX_MISSES:
@@ -117,31 +120,56 @@ def evaluate_response(user_data: dict) -> dict:
     return {"notify_tier": tier, "notify_tier_misses": misses}
 
 
-def should_deliver(user_data: dict, now: datetime) -> bool:
-    """配信対象かどうか。反応評価の前に効く足切り条件をまとめて判定する。"""
+def uses_premium_trial(user_data: dict) -> bool:
+    """この配信をプレミアム体験トライアル枠（premium品質＋残回数1消費）で出すか。
+
+    トライアル残がある free ユーザーを配信対象から外していた頃は、通知を受け取る
+    には先に5回分を自分で使い切る必要があり、習慣化のための通知が習慣化した後に
+    しか始まらなかった。トライアル1回を配信に充てて premium 品質の例文を通知本文
+    ごと届けることで、そのデッドロックを解く。
+
+    ただし消費するのは前回の通知に反応があったときだけにする。無視され続けても
+    消費すると、5回分が「見られなかった通知」で溶け、戻ってきたユーザーに体験枠が
+    残らない。反応の有無は evaluate_response の評価後の連続無反応カウントで見る
+    （保存値は前回通知ぶんの評価が未反映のため、それを見ると降格が1回分ずれる）。
+    """
+    if user_data.get("tier") == "premium":
+        return False
+    if user_data.get("premium_trial_remaining", 0) <= 0:
+        return False
+    return evaluate_response(user_data)["notify_tier_misses"] == 0
+
+
+def delivery_skip_reason(user_data: dict, now: datetime) -> str | None:
+    """配信を見送る理由。配信対象なら None。
+
+    理由を文字列で返すのは、配信バッチのログに内訳を残すため。
+    「通知が届いていない」を調べるたびに Firestore を読んで条件を手で再現するのは
+    非効率なので、判断に使う値は常設ログにしておく。
+    """
     if not has_generation_history(user_data):
-        return False
+        return "no_history"
     if user_data.get("daily_reminder_enabled") is False:
-        return False
+        return "opt_out"
     if not user_data.get("fcm_token"):
-        return False
+        return "no_token"
     if user_data.get("daily_sentence_generated"):
-        return False
+        return "already_generated"
     if user_data.get("remaining_sentences", 0) <= 0:
-        return False
+        return "quota_exhausted"
     if user_data.get("notify_tier", 0) >= TIER_STOPPED:
-        return False
-    # プレミアム体験トライアル中は配信しない。free の配信はキャッシュ品質なので、
-    # premium品質を体験してもらう期間に混ぜると差が伝わらなくなる。
-    # またクォータを1消費するぶんトライアルの消化も遅れる。
-    if (
-        user_data.get("tier") != "premium"
-        and user_data.get("premium_trial_remaining", 0) > 0
-    ):
-        return False
+        return "backoff_stopped"
 
     hour = local_hour(user_data.get("timezone"), now)
     if hour != user_data.get("preferred_generation_hour", DEFAULT_GENERATION_HOUR):
-        return False
+        # notify_utc_hour で絞ってから呼ぶので、これが出るのは非正規化値が古いとき。
+        return "hour_mismatch"
 
-    return is_due(user_data, now)
+    if not is_due(user_data, now):
+        return "not_due"
+    return None
+
+
+def should_deliver(user_data: dict, now: datetime) -> bool:
+    """配信対象かどうか。反応評価の前に効く足切り条件をまとめて判定する。"""
+    return delivery_skip_reason(user_data, now) is None

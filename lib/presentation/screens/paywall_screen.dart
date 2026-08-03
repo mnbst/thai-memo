@@ -313,7 +313,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Text(
-                    'タイ語をもっと楽しむ →',
+                    '推しの言葉に近づく →',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
           ),
@@ -429,8 +429,19 @@ class PaywallBottomSheet extends ConsumerWidget {
       child: Column(
         children: [
           benefitRow(
+            icon: Icons.translate,
+            title: 'ネイティブ品質で例文生成',
+            freeText: '教科書的な基礎文',
+            premiumText: 'ネイティブが使う言い回し',
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: colorScheme.outlineVariant),
+          ),
+          benefitRow(
             icon: Icons.auto_awesome,
             title: 'タイドラマ・恋愛・旅行など',
+            freeText: 'おまかせ出題のみ',
             premiumText: '学びたいテーマを自由に選べる',
           ),
           Padding(
@@ -440,7 +451,8 @@ class PaywallBottomSheet extends ConsumerWidget {
           benefitRow(
             icon: Icons.school,
             title: '学べる単語数が無制限',
-            premiumText: '100語の上限を超えて、語彙を無制限に増やせる',
+            freeText: '基礎100語まで',
+            premiumText: 'ドラマのセリフも理解できる',
           ),
         ],
       ),

@@ -22,11 +22,67 @@
   5. 上昇声（จัตวา） — ˇ（キャロン）
 """
 
+import bz2
+import importlib.util
+import os
 import re
+import sys
 import unicodedata
 
-# TLTK（Thai Language Toolkit）: タイ語テキストを IPA に変換するライブラリ
-import tltk.nlp
+
+def _load_th2ipa():
+    """TLTK の th2ipa を、tltk パッケージを import せずに読み込む。
+
+    `tltk/__init__.py` は `tltk.nlp` を import し、その先で
+    nltk → scipy まで芋づるに読み込む（計141MB）。Cloud Run はイメージ層を
+    遅延ロードするため、この読み込み I/O がコールドスタートを直撃する。
+
+    必要なのは `th2ipa` だけで、`tltk/th2ipa.py` は stdlib しか import しない
+    独立モジュールなので、パッケージを経由せずファイルパスから直接ロードする。
+    これで nltk / scipy / numpy には一切触れずに済む。
+
+    副次的に、`tltk.nlp.th2ipa` が借用語・希少語で音節を落とす不具合も回避できる
+    （例: แพนด้า が 'phɛɛ' になる）。単独版は 'phɛɛn-dâa' を返す。
+
+    失敗した場合は None を返し、呼び出し側が `tltk.nlp` へフォールバックする。
+    """
+    spec = importlib.util.find_spec("tltk")  # __init__.py は実行されない
+    if spec is None or not spec.submodule_search_locations:
+        return None
+    pkg_dir = spec.submodule_search_locations[0]
+
+    # 配布物の不整合: th2ipa.py は sylform_var.pick を読むが、同梱されているのは
+    # bz2 圧縮された .pklz のみ。初回に展開して隣に置く（約250KB）。
+    pick = os.path.join(pkg_dir, "sylform_var.pick")
+    if not os.path.exists(pick):
+        with bz2.BZ2File(os.path.join(pkg_dir, "sylform_var.pklz"), "rb") as src:
+            data = src.read()
+        tmp = pick + f".{os.getpid()}.tmp"  # 同時起動時の半端読みを避ける
+        with open(tmp, "wb") as dst:
+            dst.write(data)
+        os.replace(tmp, pick)
+
+    module_spec = importlib.util.spec_from_file_location(
+        "_tltk_th2ipa", os.path.join(pkg_dir, "th2ipa.py")
+    )
+    if module_spec is None or module_spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(module_spec)
+    sys.modules["_tltk_th2ipa"] = module
+    module_spec.loader.exec_module(module)
+    return module
+
+
+try:
+    _TH2IPA = _load_th2ipa()
+except Exception as _exc:  # pragma: no cover - 配布物の構成が変わった場合のみ
+    print(f"th2ipa standalone load failed, falling back to tltk.nlp: {_exc}")
+    _TH2IPA = None
+
+if _TH2IPA is None:
+    import tltk.nlp
+
+    _TH2IPA = tltk.nlp
 
 # ─── 声調番号から Unicode 結合記号へのマッピング ───
 # TLTK が出力する声調番号（1〜5）を、ローマ字の母音に付加する
@@ -175,7 +231,7 @@ def thai_to_pronunciation(thai_text: str) -> str:
     normalized_text = thai_text.translate(str.maketrans("", "", _SILENT_THAI_MARKS))
 
     # TLTK でタイ文字を IPA に変換し、文区切り記号ごとに分割
-    ipa = tltk.nlp.th2ipa(normalized_text).strip()
+    ipa = _TH2IPA.th2ipa(normalized_text).strip()
 
     # IPA を音節に分割（TLTK の出力形式）
     # - "<s/>": 文/語群の区切り（スペースに変換）

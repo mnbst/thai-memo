@@ -69,10 +69,11 @@ firebase deploy --only firestore:rules
 
 # Infrastructure (in terraform/ directory)
 # 環境: dev, tester, prod
+# シークレットは secrets/<env>.tfvars（gitignore済み）に分離。2つの -var-file が必須。
 cd terraform
 terraform init -backend-config=backends/<env>.tfbackend -reconfigure
-terraform plan -var-file=<env>.tfvars
-terraform apply -var-file=<env>.tfvars
+terraform plan  -var-file=<env>.tfvars -var-file=secrets/<env>.tfvars
+terraform apply -var-file=<env>.tfvars -var-file=secrets/<env>.tfvars
 ```
 
 ## Architecture

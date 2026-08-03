@@ -26,8 +26,10 @@ OPENAI_MODEL_PREMIUM = "gpt-5.4-mini"
 
 # ─── Gemini モデル設定 ───
 # 環境変数で上書き可。dev でのモデル検証時に再デプロイのみで切替できるようにしている。
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_MODEL_PREMIUM = os.environ.get("GEMINI_MODEL_PREMIUM", "gemini-2.5-flash")
+# gemini-2.5 系は 2026-08 時点で新規APIキーからは利用不可（404: no longer available
+# to new users）。キーをローテートすると即座に生成が全停止するため 3.x 系を使う。
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
+GEMINI_MODEL_PREMIUM = os.environ.get("GEMINI_MODEL_PREMIUM", "gemini-3.1-flash-lite")
 
 # ─── API パラメータ ───
 # 最大出力トークン数: JSON形式のレスポンス（例文＋単語分解＋コンテキスト）に十分な量
@@ -143,6 +145,7 @@ EMOTIONS = [
 ]
 
 
+
 # ─── OpenAI Responses API レスポンススキーマ ───
 # OpenAI の structured outputs が準拠すべき JSON Schema を定義する。
 # これにより、構造化されたタイ語例文データが確実に返却される。
@@ -158,10 +161,8 @@ RESPONSE_JSON_SCHEMA = {
         },
         "japanese_translation": {
             "type": "string",
-            "description": (
-                "自然な日本語訳。主語・話者の違いが意味に関わる場合だけ訳に残す。"
-                "強調・語調・反語表現は逐語訳せず話し言葉の等価表現にする"
-            ),
+            # 訳出方針はプロンプト側（訳文ルール）に集約する。
+            "description": "例文の日本語訳",
         },
         "word_breakdown": {
             "type": "array",

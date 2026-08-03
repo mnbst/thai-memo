@@ -173,7 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   ///
   /// 例文の価値を体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否
   /// されると二度と要求できない）ため、インストール直後ではなくここで出す。
-  /// 「通知を設定」を選んだら設定タブへ移り、実際に操作するトグルを明示する。
+  /// 「わかった」を押したら設定タブへ移り、実際に操作するトグルを明示する。
   /// 許可要求はユーザーがそのトグルを操作したときに初めて出る。
   Future<void> _maybeShowNotificationCoach() async {
     final controller = ref.read(settingsControllerProvider.notifier);
@@ -371,6 +371,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
+          // IndexedStack は他タブを破棄しないため、再生中の例文が
+          // 鳴り続けてしまう。タブを離れたら明示的に止める。
+          unawaited(ref.read(ttsServiceProvider).stopAll());
           setState(() {
             _currentIndex = index;
           });
@@ -1016,6 +1019,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         children: [
           InkWell(
             onTap: () {
+              // 遷移してもこのカードは破棄されない。詳細画面のプレイヤーと
+              // TTSを奪い合わないよう、ここで再生を止めておく。
+              unawaited(ref.read(ttsServiceProvider).stopAll());
               Navigator.push(
                 context,
                 MaterialPageRoute(

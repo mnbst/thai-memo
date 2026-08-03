@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// 毎日例文通知を「継続をサポートする機能」として紹介するコーチングダイアログ。
 ///
-/// このダイアログでは通知をオンにしない。「通知を設定」を選ぶと呼び出し側が
+/// このダイアログでは通知をオンにしない。「わかった」を押すと呼び出し側が
 /// 設定画面へ移動し、実際に操作するトグルをコーチマークで示す。OSの許可要求は
 /// ユーザーがそのトグルを自分で操作したときに初めて出る。iOSの許可ダイアログは
 /// 一度拒否されるとアプリからは二度と出せないため、何のための通知かを伝え、
@@ -38,13 +38,9 @@ class NotificationCoachDialog extends StatelessWidget {
       contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
       actionsPadding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('あとで'),
-        ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
-          child: const Text('通知を設定'),
+          child: const Text('わかった'),
         ),
       ],
     );

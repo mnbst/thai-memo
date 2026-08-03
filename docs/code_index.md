@@ -124,7 +124,7 @@ lib/presentation/screens/settings_screen.dart
 設定画面（アカウント・プラン、テーマ、フォント、声調ガイド、学習データリセット、アプリ情報）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI。
+プレミアム課金UI。タップ起点に加え、まとめクイズ完了のたびに自動表示される（freeのみ）。
 
 lib/presentation/screens/onboarding_screen.dart
 初回起動時のオンボーディング画面。
@@ -267,17 +267,32 @@ functions/python/daily_sentence_handlers.py
 functions/python/nlp.py
 PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日本語ラベル）。品詞は機能語辞書→形容詞辞書→unigram→perceptronの順で判定。
 
+functions/python/nlp_worker.py
+nlp.pyを別プロセスで実行するワーカー。重いimportがGILで親のLLM処理を止めないようstdin/stdoutのJSON Linesで通信する。
+
+functions/python/pythainlp_fast.py
+PyThaiNLPの軽量ローダ。sys.modulesにスタブを置きパッケージ__init__を飛ばして使うsubmoduleだけ読む（import 1.32s→0.37s）。失敗時は通常importにフォールバック。
+
 functions/python/pos_adjectives.py
 形容詞（状態動詞）辞書。build_adjective_dict.pyが生成する自動生成ファイル。
 
 functions/python/scripts/build_adjective_dict.py
 freq_rank上位語をLLMに分類させpos_adjectives.pyを生成するオフラインスクリプト。
 
+functions/python/bound_morphemes.py
+拘束形態素（น่า, การ など単独で自立しない語）辞書。freq_rank生成時に除外する語のリスト。build_bound_morpheme_dict.pyが生成する自動生成ファイル。
+
 functions/python/pronunciation.py
-タイ文字→ローマ字発音変換（声調記号付き）。
+タイ文字→ローマ字発音変換（声調記号付き）。TLTKはtltk/th2ipa.pyだけをファイル指定で単独ロードし、nltk/scipyの読み込みを回避する。
 
 functions/python/prompts.py
-Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。
+Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。レジスタ制約・語クラス別ブロックは末尾に置く（system promptでは守られないため）。
+
+functions/python/word_classes.py
+word_classes.json のロードと語→クラス逆引き。pythainlpを引き込まない軽量モジュール。
+
+functions/python/word_classes.json
+key_wordの語クラス（三人称/一・二人称/限定詞/指示代名詞/数詞/数量詞/類別詞/多品詞語/機能語）と、その語がターゲットのときだけプロンプト末尾に足すルール。ルール追加はこのJSONを編集する。分割条件はJSON冒頭の_commentに記載。
 
 functions/python/themes/bl_drama.py
 BLドラマテーマのプロンプト断片構築。参考セリフ（BL_DRAMA_SHOTS）から1文だけをembedding類似度で選び出す。
@@ -286,7 +301,7 @@ functions/python/constants.py
 LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ（build_response_schemaで未確定contextフィールドのみ追加）。
 
 functions/python/llm_providers.py
-LLMプロバイダー抽象レイヤ（OpenAI/Gemini切替、API呼び出し、リトライ、トークン使用量ログ）。
+LLMプロバイダー抽象レイヤ（OpenAI/Gemini切替、API呼び出し、リトライ、トークン使用量ログ）。両プロバイダーともurllibでREST直叩き（SDKはimportが重くコールドスタートを悪化させるため不使用）。
 
 functions/python/uvm.py
 UVMコアロジック（テーマ×語彙レベルによるセッション単語選定、P(know)更新、バッチ更新）。
@@ -303,6 +318,12 @@ docs/design_daily_sentence.md
 docs/quiz_generation_logic.md
 クイズ生成ロジック（SRS例文選出→Gemini穴埋め生成→サニタイズ→デフォルト補填）。
 
+docs/secret_rotation.md
+git履歴に露出したシークレット（Gemini/OpenAIキー、OAuth secret、Apple秘密鍵）のローテート手順。
+
+docs/public_repo_checklist.md
+リポジトリpublic化の前提作業（履歴パージ、stateバケット堅牢化、WIF制約、GitHub設定）。
+
 functions/python/embeddings.py
 GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテーマ関連単語検索・セマンティック重複除去・ドラマ参考セリフ選出（find_best_drama_shot）。
 
@@ -313,10 +334,22 @@ GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテ�
 terraform/modules/uvm-data/
 GCSバケット（vocab_embeddings.npy, vocab_words.json, topic_embeddings.json格納）+ CF SA権限。
 
+terraform/modules/monitoring/
+予算アラート（billing budget）+ Cloud Monitoring アラートポリシー（5xx急増・生成失敗・生成数スパイク）。
+
+terraform/modules/app-check/
+Firebase App Check（iOS App Attest）の構成とサービス別適用モード、デバッグトークン。
+
+docs/infra_hardening.md
+予算/監視アラート・App Check・Firestore PITR の設計とロールアウト手順。
+
 ## Scripts
 
 scripts/build_freq_rank.py
-タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。
+タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。corpus_word_filter.pyのDENYLIST（終助詞・感嘆詞＋拘束形態素）を除外して採番する。
+
+scripts/strip_bound_morphemes.py
+既存freq_rankから拘束形態素を除去しrankを連番で振り直す一度きりの移行スクリプト。
 
 scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。
@@ -326,6 +359,9 @@ scripts/build_topic_embeddings.py
 
 scripts/upload_corpus.sh
 UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSにアップロード。
+
+scripts/ga4_acquisition.py
+prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン別）。SAインパーソネーションで認証。
 
 ## Tests (Flutter)
 

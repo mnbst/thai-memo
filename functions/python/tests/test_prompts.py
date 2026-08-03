@@ -442,7 +442,7 @@ def test_build_uvm_prompt_excludes_fixed_output_rules() -> None:
     assert "分かち書き禁止" in SYSTEM_PROMPT_FREE
     assert "meaningは日本語のみ" in SYSTEM_PROMPT_FREE
     assert "構文ルール" in SYSTEM_PROMPT_PREMIUM
-    assert "直訳構文禁止" in SYSTEM_PROMPT_PREMIUM
+    assert "英語的SVOを避ける" in SYSTEM_PROMPT_PREMIUM
 
 
 def test_get_system_prompt_selects_tier_prompt() -> None:

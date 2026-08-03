@@ -11,9 +11,11 @@ import {
   sanitizeQuizQuestions,
 } from './quizGenerationService';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+// gemini-2.5 系は 2026-08 時点で新規APIキーからは利用不可（404: no longer available
+// to new users）。キーをローテートすると即座に生成が全停止するため 3.x 系を使う。
+const GEMINI_MODEL = 'gemini-3.1-flash-lite';
 
-const GEMINI_PRICING_PER_MILLION = { input: 0.30, output: 2.50 };
+const GEMINI_PRICING_PER_MILLION = { input: 0.25, output: 1.50 };
 
 interface GeminiUsageMetadata {
   promptTokenCount?: number;

@@ -79,3 +79,7 @@ functions/python/scripts/
 functions/python/scripts/generate_free_sentences.py
 functions/python/scripts/output/free_sentences.json
 functions/python/scripts/output/progress.json
+
+
+# App Check デバッグトークン等のローカル dart-define（git 管理外）
+dart_defines.json
