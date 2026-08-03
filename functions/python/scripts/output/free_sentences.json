@@ -6206,187 +6206,9 @@
     "generation_tier": "free"
   },
   {
-    "key_word": "การ",
-    "key_word_rank": 50,
-    "estimated_vocab": 50,
-    "thai_text": "การเดินทางนี้ดีมาก",
-    "pronunciation": "kaan dəən-thaang níi dii mâak",
-    "japanese_translation": "この旅はとても良いです。",
-    "word_breakdown": [
-      {
-        "word": "การ",
-        "meaning": "〜すること/〜なこと",
-        "notes": "動詞を名詞化する接頭語。行為や出来事を指す場合に使う。นามธรรม的な名詞を作る。",
-        "syllables": [
-          "การ"
-        ],
-        "pronunciation": "kaan",
-        "grammatical_role": "名詞"
-      },
-      {
-        "word": "เดินทาง",
-        "meaning": "旅行する/旅をする",
-        "notes": "",
-        "syllables": [
-          "เดิน",
-          "ทาง"
-        ],
-        "pronunciation": "dəən-thaang",
-        "grammatical_role": "動詞"
-      },
-      {
-        "word": "นี้",
-        "meaning": "これ/この",
-        "notes": "",
-        "syllables": [
-          "นี้"
-        ],
-        "pronunciation": "níi",
-        "grammatical_role": "限定詞"
-      },
-      {
-        "word": "ดี",
-        "meaning": "良い",
-        "notes": "",
-        "syllables": [
-          "ดี"
-        ],
-        "pronunciation": "dii",
-        "grammatical_role": "形容詞"
-      },
-      {
-        "word": "มาก",
-        "meaning": "とても/非常に",
-        "notes": "",
-        "syllables": [
-          "มาก"
-        ],
-        "pronunciation": "mâak",
-        "grammatical_role": "副詞"
-      }
-    ],
-    "context": {
-      "topic": "旅行の感想",
-      "style": "口語体",
-      "emotion": "肯定/満足",
-      "usage_scenarios": "旅の状況を説明したり、感想を述べたりする場面。",
-      "cultural_notes": "タイでは「〜とても」の表現で「มาก」をよく使う。"
-    },
-    "generation_tier": "free"
-  },
-  {
-    "key_word": "การ",
-    "key_word_rank": 50,
-    "estimated_vocab": 50,
-    "thai_text": "การกินเผ็ดมากเป็นเรื่องยากสำหรับฉัน",
-    "pronunciation": "kaan kin phèt mâak pen rʉ̂ʉang yâak sǎm-ràp chǎn",
-    "japanese_translation": "辛いものをたくさん食べるのは私にとって難しいことです。",
-    "word_breakdown": [
-      {
-        "word": "การ",
-        "meaning": "〜すること（動詞を名詞化）",
-        "notes": "動詞の前に付けて行為や事柄を名詞化する。文語的な響き。",
-        "syllables": [
-          "การ"
-        ],
-        "pronunciation": "kaan",
-        "grammatical_role": "名詞"
-      },
-      {
-        "word": "กิน",
-        "meaning": "食べる",
-        "notes": "",
-        "syllables": [
-          "กิน"
-        ],
-        "pronunciation": "kin",
-        "grammatical_role": "動詞"
-      },
-      {
-        "word": "เผ็ด",
-        "meaning": "辛い",
-        "notes": "",
-        "syllables": [
-          "เผ็ด"
-        ],
-        "pronunciation": "phèt",
-        "grammatical_role": "名詞"
-      },
-      {
-        "word": "มาก",
-        "meaning": "とても、多く",
-        "notes": "",
-        "syllables": [
-          "มาก"
-        ],
-        "pronunciation": "mâak",
-        "grammatical_role": "副詞"
-      },
-      {
-        "word": "เป็น",
-        "meaning": "〜である",
-        "notes": "",
-        "syllables": [
-          "เป็น"
-        ],
-        "pronunciation": "pen",
-        "grammatical_role": "動詞"
-      },
-      {
-        "word": "เรื่อง",
-        "meaning": "事柄、問題",
-        "notes": "",
-        "syllables": [
-          "เรื่อง"
-        ],
-        "pronunciation": "rʉ̂ʉang",
-        "grammatical_role": "名詞"
-      },
-      {
-        "word": "ยาก",
-        "meaning": "難しい",
-        "notes": "",
-        "syllables": [
-          "ยาก"
-        ],
-        "pronunciation": "yâak",
-        "grammatical_role": "形容詞"
-      },
-      {
-        "word": "สำหรับ",
-        "meaning": "〜にとって、〜のために",
-        "notes": "",
-        "syllables": [
-          "สำ",
-          "หรับ"
-        ],
-        "pronunciation": "sǎm-ràp",
-        "grammatical_role": "前置詞"
-      },
-      {
-        "word": "ฉัน",
-        "meaning": "私（男女・丁寧）",
-        "notes": "",
-        "syllables": [
-          "ฉัน"
-        ],
-        "pronunciation": "chǎn",
-        "grammatical_role": "代名詞"
-      }
-    ],
-    "context": {
-      "topic": "食べ物（辛さ）",
-      "style": "丁寧語",
-      "emotion": "悲しみ・落ち込み",
-      "usage_scenarios": "辛いものが苦手なことを伝える時。悲しみを表す。",
-      "cultural_notes": "タイ料理の辛さへの順応は個人差が大きい。"
-    },
-    "generation_tier": "free"
-  },
-  {
     "key_word": "ยัง",
-    "key_word_rank": 51,
-    "estimated_vocab": 51,
+    "key_word_rank": 50,
+    "estimated_vocab": 50,
     "thai_text": "มึงยังอยู่ตรงนี้ใช่ไหม",
     "pronunciation": "mʉng yang yùu trong-níi châi-mǎi",
     "japanese_translation": "お前はまだここにいるんだよな？",
@@ -6455,8 +6277,8 @@
   },
   {
     "key_word": "ยัง",
-    "key_word_rank": 51,
-    "estimated_vocab": 51,
+    "key_word_rank": 50,
+    "estimated_vocab": 50,
     "thai_text": "ฉันยังไม่ไปตลาด",
     "pronunciation": "chǎn yang mâi pai tà-làat",
     "japanese_translation": "私はまだ市場へ行きません。",
@@ -6523,8 +6345,8 @@
   },
   {
     "key_word": "แค่",
-    "key_word_rank": 52,
-    "estimated_vocab": 52,
+    "key_word_rank": 51,
+    "estimated_vocab": 51,
     "thai_text": "แค่สวัสดีตอนเช้าครับ",
     "pronunciation": "khɛ̂ɛ sà-wàt-dii tɔɔn cháw khráp",
     "japanese_translation": "ただおはようございます、でいいです。",
@@ -6592,8 +6414,8 @@
   },
   {
     "key_word": "แค่",
-    "key_word_rank": 52,
-    "estimated_vocab": 52,
+    "key_word_rank": 51,
+    "estimated_vocab": 51,
     "thai_text": "อันนี้แค่เผ็ดน้อยครับ",
     "pronunciation": "an-níi khɛ̂ɛ phèt nɔ́ɔi khráp",
     "japanese_translation": "これは少しだけ辛いです（辛さ控えめです）。",
@@ -6661,8 +6483,8 @@
   },
   {
     "key_word": "ใคร",
-    "key_word_rank": 53,
-    "estimated_vocab": 53,
+    "key_word_rank": 52,
+    "estimated_vocab": 52,
     "thai_text": "ใครสั่งก๋วยเตี๋ยว",
     "pronunciation": "khrai sàng kǔuai-tǐiaw",
     "japanese_translation": "誰がクイティアオを注文しましたか？",
@@ -6710,8 +6532,8 @@
   },
   {
     "key_word": "ใคร",
-    "key_word_rank": 53,
-    "estimated_vocab": 53,
+    "key_word_rank": 52,
+    "estimated_vocab": 52,
     "thai_text": "ใครกินข้าวหมดแล้ว",
     "pronunciation": "khrai kin khâaw mòt lɛ́ɛw",
     "japanese_translation": "誰がご飯を全部食べちゃったの？",
@@ -6778,8 +6600,8 @@
   },
   {
     "key_word": "พูด",
-    "key_word_rank": 54,
-    "estimated_vocab": 54,
+    "key_word_rank": 53,
+    "estimated_vocab": 53,
     "thai_text": "คุณพูดภาษาไทยได้ไหม",
     "pronunciation": "khun phûut phaa-sǎa-thai dâai-mǎi",
     "japanese_translation": "あなたはタイ語を話せますか？",
@@ -6839,8 +6661,8 @@
   },
   {
     "key_word": "พูด",
-    "key_word_rank": 54,
-    "estimated_vocab": 54,
+    "key_word_rank": 53,
+    "estimated_vocab": 53,
     "thai_text": "เธอพูดได้ไหม",
     "pronunciation": "thəə phûut dâai mǎi",
     "japanese_translation": "あなたは話せますか？",
@@ -6897,8 +6719,8 @@
   },
   {
     "key_word": "เจ้า",
-    "key_word_rank": 55,
-    "estimated_vocab": 55,
+    "key_word_rank": 54,
+    "estimated_vocab": 54,
     "thai_text": "มึงจะเอาเจ้าไหม",
     "pronunciation": "mʉng jà aw jâaw mǎi",
     "japanese_translation": "お前は「เจ้า」が欲しいのか？",
@@ -6965,8 +6787,8 @@
   },
   {
     "key_word": "เจ้า",
-    "key_word_rank": 55,
-    "estimated_vocab": 55,
+    "key_word_rank": 54,
+    "estimated_vocab": 54,
     "thai_text": "เจ้าคิดอะไรอยู่",
     "pronunciation": "jâaw khít à-rai yùu",
     "japanese_translation": "お前、何を考えているんだ？",
@@ -7024,8 +6846,8 @@
   },
   {
     "key_word": "อีก",
-    "key_word_rank": 56,
-    "estimated_vocab": 56,
+    "key_word_rank": 55,
+    "estimated_vocab": 55,
     "thai_text": "ผมจะดูอีกครั้ง",
     "pronunciation": "phǒm jà duu ìik khráng",
     "japanese_translation": "もう一度見てみます。",
@@ -7092,8 +6914,8 @@
   },
   {
     "key_word": "อีก",
-    "key_word_rank": 56,
-    "estimated_vocab": 56,
+    "key_word_rank": 55,
+    "estimated_vocab": 55,
     "thai_text": "ขออีกจานได้ไหมครับ",
     "pronunciation": "khɔ̌ɔ ìik jaan dâai-mǎi khráp",
     "japanese_translation": "もう一皿いただけますか？",
@@ -7161,8 +6983,8 @@
   },
   {
     "key_word": "อย่าง",
-    "key_word_rank": 57,
-    "estimated_vocab": 57,
+    "key_word_rank": 56,
+    "estimated_vocab": 56,
     "thai_text": "ราตรีสวัสดิ์ นอนหลับฝันดีอย่างมีความสุขนะครับ",
     "pronunciation": "raa-trii-sà-wàt nɔɔn làp fǎn dii yàang mii khwaam-sùk ná khráp",
     "japanese_translation": "おやすみなさい、良い夢を見て幸せに眠ってくださいね。",
@@ -7282,8 +7104,8 @@
   },
   {
     "key_word": "อย่าง",
-    "key_word_rank": 57,
-    "estimated_vocab": 57,
+    "key_word_rank": 56,
+    "estimated_vocab": 56,
     "thai_text": "มึงรักกูอย่างจริงจังไหม",
     "pronunciation": "mʉng rák kuu yàang jing-jang mǎi",
     "japanese_translation": "お前は俺を本気で愛しているのか？",
@@ -7361,8 +7183,8 @@
   },
   {
     "key_word": "แม่",
-    "key_word_rank": 58,
-    "estimated_vocab": 58,
+    "key_word_rank": 57,
+    "estimated_vocab": 57,
     "thai_text": "แม่ขา อาหารอร่อยค่ะ",
     "pronunciation": "mɛ̂ɛ khǎa aa-hǎan à-rɔ̀ɔi khâ",
     "japanese_translation": "お母さん、ご飯が美味しいですよ。",
@@ -7430,8 +7252,8 @@
   },
   {
     "key_word": "แม่",
-    "key_word_rank": 58,
-    "estimated_vocab": 58,
+    "key_word_rank": 57,
+    "estimated_vocab": 57,
     "thai_text": "แม่! นี่ฉันแพ้กุ้งเหรอ",
     "pronunciation": "mɛ̂ɛ ! nîi chǎn phɛ́ɛ kûng rə̌ə",
     "japanese_translation": "ママ！私、エビのアレルギーなの？",
@@ -7519,8 +7341,8 @@
   },
   {
     "key_word": "จาก",
-    "key_word_rank": 59,
-    "estimated_vocab": 59,
+    "key_word_rank": 58,
+    "estimated_vocab": 58,
     "thai_text": "เผ็ดมาจากไหนเนี่ย",
     "pronunciation": "phèt maa jàak nǎi nîia",
     "japanese_translation": "どこからこんなに辛いの？",
@@ -7587,8 +7409,8 @@
   },
   {
     "key_word": "จาก",
-    "key_word_rank": 59,
-    "estimated_vocab": 59,
+    "key_word_rank": 58,
+    "estimated_vocab": 58,
     "thai_text": "สวัสดีครับ ผมมาจากญี่ปุ่น",
     "pronunciation": "sà-wàt-dii khráp phǒm maa jàak yîi-pùn",
     "japanese_translation": "こんにちは。私は日本から来ました。",
@@ -7667,8 +7489,8 @@
   },
   {
     "key_word": "ดู",
-    "key_word_rank": 60,
-    "estimated_vocab": 60,
+    "key_word_rank": 59,
+    "estimated_vocab": 59,
     "thai_text": "กูดูพี่",
     "pronunciation": "kuu duu phîi",
     "japanese_translation": "俺は兄貴を見る",
@@ -7715,8 +7537,8 @@
   },
   {
     "key_word": "ดู",
-    "key_word_rank": 60,
-    "estimated_vocab": 60,
+    "key_word_rank": 59,
+    "estimated_vocab": 59,
     "thai_text": "อรุณสวัสดิ์ ดูเธอเศร้า",
     "pronunciation": "à-run-sà-wàt duu thəə sâw",
     "japanese_translation": "おはようございます。あなた、悲しそうに見えます。",
@@ -7774,8 +7596,8 @@
   },
   {
     "key_word": "พ่อ",
-    "key_word_rank": 61,
-    "estimated_vocab": 61,
+    "key_word_rank": 60,
+    "estimated_vocab": 60,
     "thai_text": "พ่อไม่ชอบเผ็ด",
     "pronunciation": "phɔ̂ɔ mâi chɔ̂ɔp phèt",
     "japanese_translation": "父は辛いものが好きではありません。",
@@ -7832,8 +7654,8 @@
   },
   {
     "key_word": "พ่อ",
-    "key_word_rank": 61,
-    "estimated_vocab": 61,
+    "key_word_rank": 60,
+    "estimated_vocab": 60,
     "thai_text": "พ่อไม่มาหรือครับ",
     "pronunciation": "phɔ̂ɔ mâi maa rʉ̌ʉ khráp",
     "japanese_translation": "お父さんは来ないのですか？",
@@ -7900,8 +7722,8 @@
   },
   {
     "key_word": "ท่าน",
-    "key_word_rank": 62,
-    "estimated_vocab": 62,
+    "key_word_rank": 61,
+    "estimated_vocab": 61,
     "thai_text": "ท่านชอบรสเผ็ดไหมครับ",
     "pronunciation": "thân chɔ̂ɔp rót phèt mǎi khráp",
     "japanese_translation": "あなた様は辛い味が好きですか？",
@@ -7978,8 +7800,8 @@
   },
   {
     "key_word": "ท่าน",
-    "key_word_rank": 62,
-    "estimated_vocab": 62,
+    "key_word_rank": 61,
+    "estimated_vocab": 61,
     "thai_text": "ท่านทำอะไรอยู่ครับ",
     "pronunciation": "thân tham à-rai yùu khráp",
     "japanese_translation": "あなた様は何をしていらっしゃるのですか？",
@@ -8047,8 +7869,8 @@
   },
   {
     "key_word": "ถึง",
-    "key_word_rank": 63,
-    "estimated_vocab": 63,
+    "key_word_rank": 62,
+    "estimated_vocab": 62,
     "thai_text": "ข้าวผัดนี้อร่อยถึงพรุ่งนี้เลย",
     "pronunciation": "khâaw-phàt níi à-rɔ̀ɔi thʉ̌ng phrûng-níi ləəi",
     "japanese_translation": "このチャーハンは明日まで美味しいです。",
@@ -8127,8 +7949,8 @@
   },
   {
     "key_word": "ถึง",
-    "key_word_rank": 63,
-    "estimated_vocab": 63,
+    "key_word_rank": 62,
+    "estimated_vocab": 62,
     "thai_text": "กูจะไปถึงไหนวะ",
     "pronunciation": "kuu jà pai thʉ̌ng nǎi wá",
     "japanese_translation": "俺はどこまで行けるんだ？",
@@ -8205,8 +8027,8 @@
   },
   {
     "key_word": "หรือ",
-    "key_word_rank": 64,
-    "estimated_vocab": 64,
+    "key_word_rank": 63,
+    "estimated_vocab": 63,
     "thai_text": "แพ้อะไรไหมครับหรือคะ",
     "pronunciation": "phɛ́ɛ à-rai mǎi khráp rʉ̌ʉ khá",
     "japanese_translation": "何かアレルギーはありますか？",
@@ -8284,8 +8106,8 @@
   },
   {
     "key_word": "หรือ",
-    "key_word_rank": 64,
-    "estimated_vocab": 64,
+    "key_word_rank": 63,
+    "estimated_vocab": 63,
     "thai_text": "มึงชอบกันหรือเปล่า",
     "pronunciation": "mʉng chɔ̂ɔp kan rʉ̌ʉ plàw",
     "japanese_translation": "お前たち、好きなのか？",
@@ -8352,8 +8174,8 @@
   },
   {
     "key_word": "เอา",
-    "key_word_rank": 65,
-    "estimated_vocab": 65,
+    "key_word_rank": 64,
+    "estimated_vocab": 64,
     "thai_text": "ผมเอาเผ็ดน้อยครับ",
     "pronunciation": "phǒm aw phèt nɔ́ɔi khráp",
     "japanese_translation": "私は辛さ控えめにします。",
@@ -8420,8 +8242,8 @@
   },
   {
     "key_word": "เอา",
-    "key_word_rank": 65,
-    "estimated_vocab": 65,
+    "key_word_rank": 64,
+    "estimated_vocab": 64,
     "thai_text": "กูเอาให้นาย",
     "pronunciation": "kuu aw hâi naai",
     "japanese_translation": "俺が君に渡すよ。",
@@ -8478,8 +8300,8 @@
   },
   {
     "key_word": "งั้น",
-    "key_word_rank": 66,
-    "estimated_vocab": 66,
+    "key_word_rank": 65,
+    "estimated_vocab": 65,
     "thai_text": "งั้นมึงไปเลย",
     "pronunciation": "ngán mʉng pai ləəi",
     "japanese_translation": "それなら、お前はもう行け。",
@@ -8536,8 +8358,8 @@
   },
   {
     "key_word": "งั้น",
-    "key_word_rank": 66,
-    "estimated_vocab": 66,
+    "key_word_rank": 65,
+    "estimated_vocab": 65,
     "thai_text": "งั้นเราไปกินข้าวกันไหม",
     "pronunciation": "ngán raw pai kin khâaw kan mǎi",
     "japanese_translation": "じゃあ、僕たちご飯食べに行かない？",
@@ -8624,8 +8446,8 @@
   },
   {
     "key_word": "กำลัง",
-    "key_word_rank": 67,
-    "estimated_vocab": 67,
+    "key_word_rank": 66,
+    "estimated_vocab": 66,
     "thai_text": "กูไม่กำลังทำงานอยู่",
     "pronunciation": "kuu mâi kam-lang tham-ngaan yùu",
     "japanese_translation": "俺は今、仕事をしてない。",
@@ -8694,8 +8516,8 @@
   },
   {
     "key_word": "กำลัง",
-    "key_word_rank": 67,
-    "estimated_vocab": 67,
+    "key_word_rank": 66,
+    "estimated_vocab": 66,
     "thai_text": "ดิฉันกำลังเรียนภาษาไทยค่ะ",
     "pronunciation": "dì-chǎn kam-lang riian phaa-sǎa-thai khâ",
     "japanese_translation": "私はタイ語を勉強しています。",
@@ -8766,8 +8588,8 @@
   },
   {
     "key_word": "พวกเขา",
-    "key_word_rank": 68,
-    "estimated_vocab": 68,
+    "key_word_rank": 67,
+    "estimated_vocab": 67,
     "thai_text": "พวกเขารักกัน",
     "pronunciation": "phûuak-khǎw rák kan",
     "japanese_translation": "彼らは愛し合っている。",
@@ -8815,8 +8637,8 @@
   },
   {
     "key_word": "พวกเขา",
-    "key_word_rank": 68,
-    "estimated_vocab": 68,
+    "key_word_rank": 67,
+    "estimated_vocab": 67,
     "thai_text": "กูเห็นพวกเขาไปแล้ว",
     "pronunciation": "kuu hěn phûuak-khǎw pai lɛ́ɛw",
     "japanese_translation": "俺は彼らが行くのを見た。",
@@ -8884,8 +8706,8 @@
   },
   {
     "key_word": "ที่นี่",
-    "key_word_rank": 69,
-    "estimated_vocab": 69,
+    "key_word_rank": 68,
+    "estimated_vocab": 68,
     "thai_text": "คืนของที่นี่ได้ไหมคะ",
     "pronunciation": "khʉʉn khɔ̌ɔng thîi-nîi dâai-mǎi khá",
     "japanese_translation": "ここで返品できますか？",
@@ -8954,8 +8776,8 @@
   },
   {
     "key_word": "ที่นี่",
-    "key_word_rank": 69,
-    "estimated_vocab": 69,
+    "key_word_rank": 68,
+    "estimated_vocab": 68,
     "thai_text": "พี่แกงอยู่ที่นี่ครับ",
     "pronunciation": "phîi kɛɛng yùu thîi-nîi khráp",
     "japanese_translation": "カン先輩はここにいます。",
@@ -9023,8 +8845,8 @@
   },
   {
     "key_word": "ยังไง",
-    "key_word_rank": 70,
-    "estimated_vocab": 70,
+    "key_word_rank": 69,
+    "estimated_vocab": 69,
     "thai_text": "คืนนี้เป็นยังไงบ้างครับ",
     "pronunciation": "khʉʉn-níi pen yang-ngai bâang khráp",
     "japanese_translation": "今夜はどうですか？",
@@ -9093,8 +8915,8 @@
   },
   {
     "key_word": "ยังไง",
-    "key_word_rank": 70,
-    "estimated_vocab": 70,
+    "key_word_rank": 69,
+    "estimated_vocab": 69,
     "thai_text": "สีแดงสวยจังเลยค่ะ ซักยังไงคะ",
     "pronunciation": "sǐi-dɛɛng sǔuai jang-ləəi khâ sák yang-ngai khá",
     "japanese_translation": "赤色とてもきれいですね。どうやって洗うんですか？",
@@ -9184,8 +9006,8 @@
   },
   {
     "key_word": "ถูก",
-    "key_word_rank": 71,
-    "estimated_vocab": 71,
+    "key_word_rank": 70,
+    "estimated_vocab": 70,
     "thai_text": "ฉันถูกเผ็ดไปหน่อย",
     "pronunciation": "chǎn thùuk phèt pai-nɔ̀ɔi",
     "japanese_translation": "私は少し辛すぎた。",
@@ -9243,8 +9065,8 @@
   },
   {
     "key_word": "ถูก",
-    "key_word_rank": 71,
-    "estimated_vocab": 71,
+    "key_word_rank": 70,
+    "estimated_vocab": 70,
     "thai_text": "นี่ถูกไหม",
     "pronunciation": "nîi thùuk mǎi",
     "japanese_translation": "これは安いですか？",
@@ -9291,8 +9113,8 @@
   },
   {
     "key_word": "เห็น",
-    "key_word_rank": 72,
-    "estimated_vocab": 72,
+    "key_word_rank": 71,
+    "estimated_vocab": 71,
     "thai_text": "เธอเห็นเสื้อตัวนี้ไหม",
     "pronunciation": "thəə hěn sʉ̂ʉa tuua níi mǎi",
     "japanese_translation": "あなたはこの服が見える？",
@@ -9369,8 +9191,8 @@
   },
   {
     "key_word": "เห็น",
-    "key_word_rank": 72,
-    "estimated_vocab": 72,
+    "key_word_rank": 71,
+    "estimated_vocab": 71,
     "thai_text": "กูเห็นมึง",
     "pronunciation": "kuu hěn mʉng",
     "japanese_translation": "俺はお前が見える。",
@@ -9417,8 +9239,8 @@
   },
   {
     "key_word": "กว่า",
-    "key_word_rank": 73,
-    "estimated_vocab": 73,
+    "key_word_rank": 72,
+    "estimated_vocab": 72,
     "thai_text": "พี่แกงเก่งกว่าผม",
     "pronunciation": "phîi kɛɛng kèeng kwàa phǒm",
     "japanese_translation": "カン先輩は僕よりずっと上手です。",
@@ -9485,8 +9307,8 @@
   },
   {
     "key_word": "กว่า",
-    "key_word_rank": 73,
-    "estimated_vocab": 73,
+    "key_word_rank": 72,
+    "estimated_vocab": 72,
     "thai_text": "อันนี้อร่อยกว่า",
     "pronunciation": "an-níi à-rɔ̀ɔi kwàa",
     "japanese_translation": "これの方がおいしい。",
@@ -9534,8 +9356,8 @@
   },
   {
     "key_word": "ทำให้",
-    "key_word_rank": 74,
-    "estimated_vocab": 74,
+    "key_word_rank": 73,
+    "estimated_vocab": 73,
     "thai_text": "ทำให้ไม่เผ็ดได้ไหมคะ",
     "pronunciation": "tham-hâi mâi phèt dâai-mǎi khá",
     "japanese_translation": "辛くなくできますか？",
@@ -9604,8 +9426,8 @@
   },
   {
     "key_word": "ทำให้",
-    "key_word_rank": 74,
-    "estimated_vocab": 74,
+    "key_word_rank": 73,
+    "estimated_vocab": 73,
     "thai_text": "มันทำให้ฉันเสียใจ",
     "pronunciation": "man tham-hâi chǎn sǐia-jai",
     "japanese_translation": "それは私を悲しくさせます。",
@@ -9664,8 +9486,8 @@
   },
   {
     "key_word": "เคย",
-    "key_word_rank": 75,
-    "estimated_vocab": 75,
+    "key_word_rank": 74,
+    "estimated_vocab": 74,
     "thai_text": "เธอเคยกินอาหารไทยไหม",
     "pronunciation": "thəə khəəi kin aa-hǎan thai mǎi",
     "japanese_translation": "あなたはタイ料理を食べたことがありますか？",
@@ -9743,8 +9565,8 @@
   },
   {
     "key_word": "เคย",
-    "key_word_rank": 75,
-    "estimated_vocab": 75,
+    "key_word_rank": 74,
+    "estimated_vocab": 74,
     "thai_text": "กูไม่เคยเห็นผีเลย",
     "pronunciation": "kuu mâi khəəi hěn phǐi ləəi",
     "japanese_translation": "俺は幽霊を全く見たことがない。",
@@ -9821,8 +9643,8 @@
   },
   {
     "key_word": "อย่า",
-    "key_word_rank": 76,
-    "estimated_vocab": 76,
+    "key_word_rank": 75,
+    "estimated_vocab": 75,
     "thai_text": "อย่าลืมนะ",
     "pronunciation": "yàa lʉʉm ná",
     "japanese_translation": "忘れないでね。",
@@ -9869,8 +9691,8 @@
   },
   {
     "key_word": "อย่า",
-    "key_word_rank": 76,
-    "estimated_vocab": 76,
+    "key_word_rank": 75,
+    "estimated_vocab": 75,
     "thai_text": "อย่าลืมปากกา",
     "pronunciation": "yàa lʉʉm pàak-kaa",
     "japanese_translation": "ペンを忘れないでください。",
@@ -9918,8 +9740,8 @@
   },
   {
     "key_word": "ที่จะ",
-    "key_word_rank": 77,
-    "estimated_vocab": 77,
+    "key_word_rank": 76,
+    "estimated_vocab": 76,
     "thai_text": "วันนี้มีอะไรที่จะกินตอนกลางวัน",
     "pronunciation": "wan-níi mii à-rai thîi-jà kin tɔɔn klaang-wan",
     "japanese_translation": "今日、お昼に何か食べられるものはありますか？",
@@ -10010,8 +9832,8 @@
   },
   {
     "key_word": "ไว้",
-    "key_word_rank": 78,
-    "estimated_vocab": 78,
+    "key_word_rank": 77,
+    "estimated_vocab": 77,
     "thai_text": "เดี๋ยวไว้คุยกัน",
     "pronunciation": "dǐiaw wái khui kan",
     "japanese_translation": "また後で話しましょう。",
@@ -10068,8 +9890,8 @@
   },
   {
     "key_word": "ไว้",
-    "key_word_rank": 78,
-    "estimated_vocab": 78,
+    "key_word_rank": 77,
+    "estimated_vocab": 77,
     "thai_text": "โอ้โห! เผ็ดไว้ก่อนนะ",
     "pronunciation": "ôo-hǒo phèt wái kɔ̀ɔn ná",
     "japanese_translation": "うわ！辛いの、まずはそのままでね。",
@@ -10137,8 +9959,8 @@
   },
   {
     "key_word": "ตอนนี้",
-    "key_word_rank": 79,
-    "estimated_vocab": 79,
+    "key_word_rank": 78,
+    "estimated_vocab": 78,
     "thai_text": "สวัสดีตอนค่ำครับ",
     "pronunciation": "sà-wàt-dii tɔɔn-níi khâm khráp",
     "japanese_translation": "こんばんは。",
@@ -10197,8 +10019,8 @@
   },
   {
     "key_word": "ตอนนี้",
-    "key_word_rank": 79,
-    "estimated_vocab": 79,
+    "key_word_rank": 78,
+    "estimated_vocab": 78,
     "thai_text": "กูจะทำยังไงตอนนี้",
     "pronunciation": "kuu jà tham yang-ngai tɔɔn-níi",
     "japanese_translation": "俺、今どうすればいいんだ？",
@@ -10267,8 +10089,8 @@
   },
   {
     "key_word": "เพราะ",
-    "key_word_rank": 80,
-    "estimated_vocab": 80,
+    "key_word_rank": 79,
+    "estimated_vocab": 79,
     "thai_text": "ฉันไม่กินเผ็ดเพราะแพ้กุ้ง",
     "pronunciation": "chǎn mâi kin phèt phrɔ́ phɛ́ɛ kûng",
     "japanese_translation": "私は辛い物を食べません、なぜならエビのアレルギーがあるからです。",
@@ -10355,8 +10177,8 @@
   },
   {
     "key_word": "เพราะ",
-    "key_word_rank": 80,
-    "estimated_vocab": 80,
+    "key_word_rank": 79,
+    "estimated_vocab": 79,
     "thai_text": "มึงชอบกูเพราะอะไร",
     "pronunciation": "mʉng chɔ̂ɔp kuu phrɔ́ à-rai",
     "japanese_translation": "お前は俺の何が好きなんだ？",
@@ -10424,8 +10246,8 @@
   },
   {
     "key_word": "สิ่ง",
-    "key_word_rank": 81,
-    "estimated_vocab": 81,
+    "key_word_rank": 80,
+    "estimated_vocab": 80,
     "thai_text": "สิ่งนี้อร่อยมากครับ",
     "pronunciation": "sìng níi à-rɔ̀ɔi mâak khráp",
     "japanese_translation": "これはとても美味しいです。",
@@ -10492,8 +10314,8 @@
   },
   {
     "key_word": "สิ่ง",
-    "key_word_rank": 81,
-    "estimated_vocab": 81,
+    "key_word_rank": 80,
+    "estimated_vocab": 80,
     "thai_text": "กูชอบสิ่งนี้",
     "pronunciation": "kuu chɔ̂ɔp sìng níi",
     "japanese_translation": "俺はこれが好きだ。",
@@ -10550,8 +10372,8 @@
   },
   {
     "key_word": "ช่วย",
-    "key_word_rank": 82,
-    "estimated_vocab": 82,
+    "key_word_rank": 81,
+    "estimated_vocab": 81,
     "thai_text": "ช่วยทำให้ไม่เผ็ดได้ไหม",
     "pronunciation": "chûuai tham hâi mâi phèt dâai-mǎi",
     "japanese_translation": "辛くなくしてくれますか？",
@@ -10629,8 +10451,8 @@
   },
   {
     "key_word": "ช่วย",
-    "key_word_rank": 82,
-    "estimated_vocab": 82,
+    "key_word_rank": 81,
+    "estimated_vocab": 81,
     "thai_text": "ช่วยสั่งอาหารให้หน่อยครับ",
     "pronunciation": "chûuai sàng aa-hǎan hâi nɔ̀ɔi khráp",
     "japanese_translation": "どうか、料理を注文してください。",
@@ -10708,8 +10530,8 @@
   },
   {
     "key_word": "จริงๆ",
-    "key_word_rank": 83,
-    "estimated_vocab": 83,
+    "key_word_rank": 82,
+    "estimated_vocab": 82,
     "thai_text": "มึงชอบกูจริงๆ หรอ",
     "pronunciation": "mʉng chɔ̂ɔp kuu jing-jing rɔ̌ɔ",
     "japanese_translation": "お前、本当に俺のことが好きなのか？",
@@ -10777,8 +10599,8 @@
   },
   {
     "key_word": "จริงๆ",
-    "key_word_rank": 83,
-    "estimated_vocab": 83,
+    "key_word_rank": 82,
+    "estimated_vocab": 82,
     "thai_text": "พี่ชอบจริงๆ ครับ",
     "pronunciation": "phîi chɔ̂ɔp jing-jing khráp",
     "japanese_translation": "兄貴は本当に好きなんですよ。",
@@ -10836,8 +10658,8 @@
   },
   {
     "key_word": "ต้องการ",
-    "key_word_rank": 84,
-    "estimated_vocab": 84,
+    "key_word_rank": 83,
+    "estimated_vocab": 83,
     "thai_text": "ดิฉันต้องการกาแฟค่ะ",
     "pronunciation": "dì-chǎn tɔ̂ɔng-kaan kaa-fɛɛ khâ",
     "japanese_translation": "私はコーヒーが欲しいです。",
@@ -10897,8 +10719,8 @@
   },
   {
     "key_word": "ต้องการ",
-    "key_word_rank": 84,
-    "estimated_vocab": 84,
+    "key_word_rank": 83,
+    "estimated_vocab": 83,
     "thai_text": "ดิฉันต้องการจะลาพักค่ะ",
     "pronunciation": "dì-chǎn tɔ̂ɔng-kaan jà laa phák khâ",
     "japanese_translation": "私は休暇を取りたいです。",
@@ -10977,8 +10799,8 @@
   },
   {
     "key_word": "เค้า",
-    "key_word_rank": 85,
-    "estimated_vocab": 85,
+    "key_word_rank": 84,
+    "estimated_vocab": 84,
     "thai_text": "เค้าขายอะไรที่นั่น",
     "pronunciation": "kháw khǎai à-rai thîi nân",
     "japanese_translation": "彼らはそこで何を売っていますか？",
@@ -11046,8 +10868,8 @@
   },
   {
     "key_word": "เค้า",
-    "key_word_rank": 85,
-    "estimated_vocab": 85,
+    "key_word_rank": 84,
+    "estimated_vocab": 84,
     "thai_text": "เค้ากินข้าวผัดกุ้ง",
     "pronunciation": "kháw kin khâaw phàt kûng",
     "japanese_translation": "彼/彼女はエビチャーハンを食べます。",
@@ -11114,8 +10936,8 @@
   },
   {
     "key_word": "ออก",
-    "key_word_rank": 86,
-    "estimated_vocab": 86,
+    "key_word_rank": 85,
+    "estimated_vocab": 85,
     "thai_text": "มึงออกไปแล้วใช่ไหม",
     "pronunciation": "mʉng ɔ̀ɔk pai lɛ́ɛw châi-mǎi",
     "japanese_translation": "お前はもう出て行ったのか？",
@@ -11183,8 +11005,8 @@
   },
   {
     "key_word": "ออก",
-    "key_word_rank": 86,
-    "estimated_vocab": 86,
+    "key_word_rank": 85,
+    "estimated_vocab": 85,
     "thai_text": "เขาออกไปข้างนอก",
     "pronunciation": "khǎw ɔ̀ɔk pai khâang-nɔ̂ɔk",
     "japanese_translation": "彼は外に出ました。",
@@ -11242,8 +11064,8 @@
   },
   {
     "key_word": "ไหน",
-    "key_word_rank": 87,
-    "estimated_vocab": 87,
+    "key_word_rank": 86,
+    "estimated_vocab": 86,
     "thai_text": "อันไหนเผ็ดกว่าคะ",
     "pronunciation": "an nǎi phèt kwàa khá",
     "japanese_translation": "どちらがより辛いですか？",
@@ -11310,8 +11132,8 @@
   },
   {
     "key_word": "ไหน",
-    "key_word_rank": 87,
-    "estimated_vocab": 87,
+    "key_word_rank": 86,
+    "estimated_vocab": 86,
     "thai_text": "มึงจะไปไหน",
     "pronunciation": "mʉng jà pai nǎi",
     "japanese_translation": "お前はどこへ行く？",
@@ -11368,8 +11190,8 @@
   },
   {
     "key_word": "แก",
-    "key_word_rank": 88,
-    "estimated_vocab": 88,
+    "key_word_rank": 87,
+    "estimated_vocab": 87,
     "thai_text": "แมวของแกน่ารักดี",
     "pronunciation": "mɛɛw khɔ̌ɔng kɛɛ nâa-rák dii",
     "japanese_translation": "君の猫はかわいいね。",
@@ -11437,8 +11259,8 @@
   },
   {
     "key_word": "แก",
-    "key_word_rank": 88,
-    "estimated_vocab": 88,
+    "key_word_rank": 87,
+    "estimated_vocab": 87,
     "thai_text": "แกชอบกินส้มตำไหม",
     "pronunciation": "kɛɛ chɔ̂ɔp kin sôm-tam mǎi",
     "japanese_translation": "君はソムタム食べるの好き？",
@@ -11506,8 +11328,8 @@
   },
   {
     "key_word": "ก่อน",
-    "key_word_rank": 89,
-    "estimated_vocab": 89,
+    "key_word_rank": 88,
+    "estimated_vocab": 88,
     "thai_text": "เธอเคยไปร้านนี้มาก่อนไหม",
     "pronunciation": "thəə khəəi pai ráan níi maa kɔ̀ɔn mǎi",
     "japanese_translation": "君、この店に前に行ったことある？",
@@ -11604,8 +11426,8 @@
   },
   {
     "key_word": "ก่อน",
-    "key_word_rank": 89,
-    "estimated_vocab": 89,
+    "key_word_rank": 88,
+    "estimated_vocab": 88,
     "thai_text": "กูจะไปก่อนนะ",
     "pronunciation": "kuu jà pai kɔ̀ɔn ná",
     "japanese_translation": "俺は先に行くね。",
@@ -11672,8 +11494,8 @@
   },
   {
     "key_word": "ชั้น",
-    "key_word_rank": 90,
-    "estimated_vocab": 90,
+    "key_word_rank": 89,
+    "estimated_vocab": 89,
     "thai_text": "ชั้นชอบอาหารไทย",
     "pronunciation": "chán chɔ̂ɔp aa-hǎan thai",
     "japanese_translation": "私はタイ料理が好きです。",
@@ -11731,8 +11553,8 @@
   },
   {
     "key_word": "เพื่อ",
-    "key_word_rank": 91,
-    "estimated_vocab": 91,
+    "key_word_rank": 90,
+    "estimated_vocab": 90,
     "thai_text": "สวัสดีตอนบ่ายเพื่อคุณ",
     "pronunciation": "sà-wàt-dii tɔɔn-bàai phʉ̂ʉa khun",
     "japanese_translation": "あなたのために午後の挨拶です。",
@@ -11791,8 +11613,8 @@
   },
   {
     "key_word": "เพื่อ",
-    "key_word_rank": 91,
-    "estimated_vocab": 91,
+    "key_word_rank": 90,
+    "estimated_vocab": 90,
     "thai_text": "ฉันเอาอันนี้เพื่อลอง",
     "pronunciation": "chǎn aw an-níi phʉ̂ʉa lɔɔng",
     "japanese_translation": "これ試着するね。",
@@ -11860,8 +11682,8 @@
   },
   {
     "key_word": "ขึ้น",
-    "key_word_rank": 92,
-    "estimated_vocab": 92,
+    "key_word_rank": 91,
+    "estimated_vocab": 91,
     "thai_text": "กูอยากขึ้นไป",
     "pronunciation": "kuu yàak khʉ̂n pai",
     "japanese_translation": "俺は上に行きたい。",
@@ -11918,8 +11740,8 @@
   },
   {
     "key_word": "ขึ้น",
-    "key_word_rank": 92,
-    "estimated_vocab": 92,
+    "key_word_rank": 91,
+    "estimated_vocab": 91,
     "thai_text": "ราคานี้ขึ้นอีกไหมครับ",
     "pronunciation": "raa-khaa níi khʉ̂n ìik mǎi khráp",
     "japanese_translation": "この値段、上がりますか？",
@@ -11997,8 +11819,8 @@
   },
   {
     "key_word": "พวกเรา",
-    "key_word_rank": 93,
-    "estimated_vocab": 93,
+    "key_word_rank": 92,
+    "estimated_vocab": 92,
     "thai_text": "พวกเราไม่แน่ใจเรื่องขนาด",
     "pronunciation": "phûuak-raw mâi nɛ̂ɛ-jai rʉ̂ʉang khà-nàat",
     "japanese_translation": "私たちはサイズについてよくわかりません。",
@@ -12067,8 +11889,8 @@
   },
   {
     "key_word": "พวกเรา",
-    "key_word_rank": 93,
-    "estimated_vocab": 93,
+    "key_word_rank": 92,
+    "estimated_vocab": 92,
     "thai_text": "พวกเราไปตลาดกันไหม",
     "pronunciation": "phûuak-raw pai tà-làat kan mǎi",
     "japanese_translation": "私たち、市場に行かない？",
@@ -12136,8 +11958,8 @@
   },
   {
     "key_word": "เอง",
-    "key_word_rank": 94,
-    "estimated_vocab": 94,
+    "key_word_rank": 93,
+    "estimated_vocab": 93,
     "thai_text": "มึงทำเอง",
     "pronunciation": "mʉng tham eeng",
     "japanese_translation": "お前が自分でやれ。",
@@ -12184,8 +12006,8 @@
   },
   {
     "key_word": "เอง",
-    "key_word_rank": 94,
-    "estimated_vocab": 94,
+    "key_word_rank": 93,
+    "estimated_vocab": 93,
     "thai_text": "ฉันทำอาหารเองได้",
     "pronunciation": "chǎn tham aa-hǎan eeng dâai",
     "japanese_translation": "私は自分で料理ができます。",
@@ -12253,8 +12075,8 @@
   },
   {
     "key_word": "ลูก",
-    "key_word_rank": 95,
-    "estimated_vocab": 95,
+    "key_word_rank": 94,
+    "estimated_vocab": 94,
     "thai_text": "ลูกแพงไหม",
     "pronunciation": "lûuk phɛɛng mǎi",
     "japanese_translation": "これ、高いですか？",
@@ -12301,8 +12123,8 @@
   },
   {
     "key_word": "ลูก",
-    "key_word_rank": 95,
-    "estimated_vocab": 95,
+    "key_word_rank": 94,
+    "estimated_vocab": 94,
     "thai_text": "ลูกนี้แพงไปหน่อยนะ",
     "pronunciation": "lûuk níi phɛɛng pai nɔ̀ɔi ná",
     "japanese_translation": "これ、ちょっと高すぎるよ。",
@@ -12379,8 +12201,8 @@
   },
   {
     "key_word": "พี่",
-    "key_word_rank": 96,
-    "estimated_vocab": 96,
+    "key_word_rank": 95,
+    "estimated_vocab": 95,
     "thai_text": "พี่ให้ผมเองครับ",
     "pronunciation": "phîi hâi phǒm eeng khráp",
     "japanese_translation": "兄貴（あなた）が私にくれたんです。",
@@ -12447,8 +12269,8 @@
   },
   {
     "key_word": "พี่",
-    "key_word_rank": 96,
-    "estimated_vocab": 96,
+    "key_word_rank": 95,
+    "estimated_vocab": 95,
     "thai_text": "พี่ไม่หิวข้าวเลย",
     "pronunciation": "phîi mâi hǐw khâaw ləəi",
     "japanese_translation": "私（兄・姉）はお腹が空いてないよ。",
@@ -12515,8 +12337,8 @@
   },
   {
     "key_word": "ตาย",
-    "key_word_rank": 97,
-    "estimated_vocab": 97,
+    "key_word_rank": 96,
+    "estimated_vocab": 96,
     "thai_text": "ราคาแพงมาก ตายแล้ว!",
     "pronunciation": "raa-khaa phɛɛng mâak taai lɛ́ɛw",
     "japanese_translation": "値段がとても高い！困ったなあ！",
@@ -12584,8 +12406,8 @@
   },
   {
     "key_word": "ตาย",
-    "key_word_rank": 97,
-    "estimated_vocab": 97,
+    "key_word_rank": 96,
+    "estimated_vocab": 96,
     "thai_text": "กูจะตายเพราะมึง",
     "pronunciation": "kuu jà taai phrɔ́ mʉng",
     "japanese_translation": "俺は君のせいで死にそうだ。",
@@ -12652,8 +12474,8 @@
   },
   {
     "key_word": "คง",
-    "key_word_rank": 98,
-    "estimated_vocab": 98,
+    "key_word_rank": 97,
+    "estimated_vocab": 97,
     "thai_text": "คงจะอรุณสวัสดิ์นะครับ",
     "pronunciation": "khong jà à-run-sà-wàt ná khráp",
     "japanese_translation": "おはようございます。",
@@ -12721,8 +12543,8 @@
   },
   {
     "key_word": "คง",
-    "key_word_rank": 98,
-    "estimated_vocab": 98,
+    "key_word_rank": 97,
+    "estimated_vocab": 97,
     "thai_text": "คงจะแพงไป",
     "pronunciation": "khong jà phɛɛng pai",
     "japanese_translation": "たぶん高すぎるでしょう。",
@@ -12779,8 +12601,8 @@
   },
   {
     "key_word": "แบบ",
-    "key_word_rank": 99,
-    "estimated_vocab": 99,
+    "key_word_rank": 98,
+    "estimated_vocab": 98,
     "thai_text": "ฉันไม่แน่ใจว่ามันใช่แบบนี้ไหมคะ",
     "pronunciation": "chǎn mâi nɛ̂ɛ-jai wâa man châi bɛ̀ɛp níi mǎi khá",
     "japanese_translation": "これってこのやり方で合っているか自信がないです。",
@@ -12898,8 +12720,8 @@
   },
   {
     "key_word": "แบบ",
-    "key_word_rank": 99,
-    "estimated_vocab": 99,
+    "key_word_rank": 98,
+    "estimated_vocab": 98,
     "thai_text": "เธอชอบแมวแบบไหน",
     "pronunciation": "thəə chɔ̂ɔp mɛɛw bɛ̀ɛp nǎi",
     "japanese_translation": "君はどんな猫が好き？",
@@ -12966,8 +12788,8 @@
   },
   {
     "key_word": "ขอโทษ",
-    "key_word_rank": 100,
-    "estimated_vocab": 100,
+    "key_word_rank": 99,
+    "estimated_vocab": 99,
     "thai_text": "ขอโทษครับ ผมแพ้ถั่ว",
     "pronunciation": "khɔ̌ɔ-thôot khráp phǒm phɛ́ɛ thùua",
     "japanese_translation": "すみません、私はピーナッツアレルギーです。",
@@ -13035,8 +12857,8 @@
   },
   {
     "key_word": "ขอโทษ",
-    "key_word_rank": 100,
-    "estimated_vocab": 100,
+    "key_word_rank": 99,
+    "estimated_vocab": 99,
     "thai_text": "ขอโทษครับ ผมสั่งผิด",
     "pronunciation": "khɔ̌ɔ-thôot khráp phǒm sàng phìt",
     "japanese_translation": "すみません、私が間違って注文しました。",
@@ -13104,7 +12926,7 @@
   },
   {
     "key_word": "สามารถ",
-    "key_word_rank": 101,
+    "key_word_rank": 100,
     "estimated_vocab": 100,
     "thai_text": "ดิฉันไม่สามารถไปได้ค่ะ",
     "pronunciation": "dì-chǎn mâi sǎa-mâat pai dâai khâ",
@@ -13184,7 +13006,7 @@
   },
   {
     "key_word": "สามารถ",
-    "key_word_rank": 101,
+    "key_word_rank": 100,
     "estimated_vocab": 100,
     "thai_text": "ฉันสามารถกินได้ไหม",
     "pronunciation": "chǎn sǎa-mâat kin dâai mǎi",
@@ -13253,7 +13075,7 @@
   },
   {
     "key_word": "ขอบคุณ",
-    "key_word_rank": 102,
+    "key_word_rank": 101,
     "estimated_vocab": 100,
     "thai_text": "ขอบคุณครับ สีนี้สวยจัง",
     "pronunciation": "khɔ̀ɔp-khun khráp sǐi níi sǔuai jang",
@@ -13332,7 +13154,7 @@
   },
   {
     "key_word": "ขอบคุณ",
-    "key_word_rank": 102,
+    "key_word_rank": 101,
     "estimated_vocab": 100,
     "thai_text": "กูขอบคุณเฮียนะ",
     "pronunciation": "kuu khɔ̀ɔp-khun hiia ná",
@@ -13391,7 +13213,7 @@
   },
   {
     "key_word": "หนู",
-    "key_word_rank": 103,
+    "key_word_rank": 102,
     "estimated_vocab": 100,
     "thai_text": "กูอยากกินหนู",
     "pronunciation": "kuu yàak kin nǔu",
@@ -13449,7 +13271,7 @@
   },
   {
     "key_word": "หนู",
-    "key_word_rank": 103,
+    "key_word_rank": 102,
     "estimated_vocab": 100,
     "thai_text": "สวัสดีตอนบ่ายค่ะหนู",
     "pronunciation": "sà-wàt-dii tɔɔn bàai khâ nǔu",
@@ -13518,7 +13340,7 @@
   },
   {
     "key_word": "โอเค",
-    "key_word_rank": 104,
+    "key_word_rank": 103,
     "estimated_vocab": 100,
     "thai_text": "โอเค เผ็ดมากเลยนะเนี่ย!",
     "pronunciation": "oo-khee phèt mâak ləəi ná nîia",
@@ -13597,7 +13419,7 @@
   },
   {
     "key_word": "โอเค",
-    "key_word_rank": 104,
+    "key_word_rank": 103,
     "estimated_vocab": 100,
     "thai_text": "อันนี้โอเคไหม",
     "pronunciation": "an-níi oo-khee mǎi",
@@ -13647,7 +13469,7 @@
   },
   {
     "key_word": "ชอบ",
-    "key_word_rank": 105,
+    "key_word_rank": 104,
     "estimated_vocab": 100,
     "thai_text": "ฉันชอบดูดาวตอนกลางคืน",
     "pronunciation": "chǎn chɔ̂ɔp duu daaw tɔɔn klaang-khʉʉn",
@@ -13726,7 +13548,7 @@
   },
   {
     "key_word": "ชอบ",
-    "key_word_rank": 105,
+    "key_word_rank": 104,
     "estimated_vocab": 100,
     "thai_text": "ฉันชอบสีฟ้าค่ะ",
     "pronunciation": "chǎn chɔ̂ɔp sǐi fáa khâ",
@@ -13794,7 +13616,7 @@
   },
   {
     "key_word": "เหมือน",
-    "key_word_rank": 106,
+    "key_word_rank": 105,
     "estimated_vocab": 100,
     "thai_text": "เหมือนกันเลย",
     "pronunciation": "mʉ̌ʉan kan ləəi",
@@ -13842,7 +13664,7 @@
   },
   {
     "key_word": "เหมือน",
-    "key_word_rank": 106,
+    "key_word_rank": 105,
     "estimated_vocab": 100,
     "thai_text": "วันนี้เหมือนไม่ใช่คืนวันศุกร์",
     "pronunciation": "wan níi mʉ̌ʉan mâi châi khʉʉn wan-sùk",
@@ -13931,7 +13753,7 @@
   },
   {
     "key_word": "หา",
-    "key_word_rank": 107,
+    "key_word_rank": 106,
     "estimated_vocab": 100,
     "thai_text": "กูหาเรื่องมึงตลอดเลย",
     "pronunciation": "kuu hǎa rʉ̂ʉang mʉng tà-lɔ̀ɔt ləəi",
@@ -14009,7 +13831,7 @@
   },
   {
     "key_word": "หา",
-    "key_word_rank": 107,
+    "key_word_rank": 106,
     "estimated_vocab": 100,
     "thai_text": "ผมจะหาคุณ",
     "pronunciation": "phǒm jà hǎa khun",
@@ -14067,7 +13889,7 @@
   },
   {
     "key_word": "สำหรับ",
-    "key_word_rank": 108,
+    "key_word_rank": 107,
     "estimated_vocab": 100,
     "thai_text": "อันนี้สำหรับกูเหรอ",
     "pronunciation": "an-níi sǎm-ràp kuu rə̌ə",
@@ -14128,7 +13950,7 @@
   },
   {
     "key_word": "สำหรับ",
-    "key_word_rank": 108,
+    "key_word_rank": 107,
     "estimated_vocab": 100,
     "thai_text": "อันนี้สำหรับคุณนะ",
     "pronunciation": "an-níi sǎm-ràp khun ná",
@@ -14188,7 +14010,7 @@
   },
   {
     "key_word": "ซะ",
-    "key_word_rank": 109,
+    "key_word_rank": 108,
     "estimated_vocab": 100,
     "thai_text": "มึงไปทำซะ",
     "pronunciation": "mʉng pai tham sá",
@@ -14246,7 +14068,7 @@
   },
   {
     "key_word": "ซะ",
-    "key_word_rank": 109,
+    "key_word_rank": 108,
     "estimated_vocab": 100,
     "thai_text": "มึงรีบไปทำซะ",
     "pronunciation": "mʉng rîip pai tham sá",
@@ -14314,7 +14136,7 @@
   },
   {
     "key_word": "แบบนี้",
-    "key_word_rank": 110,
+    "key_word_rank": 109,
     "estimated_vocab": 100,
     "thai_text": "อันนี้กินแบบนี้เหรอ",
     "pronunciation": "an-níi kin bɛ̀ɛp-níi rə̌ə",
@@ -14375,7 +14197,7 @@
   },
   {
     "key_word": "แบบนี้",
-    "key_word_rank": 110,
+    "key_word_rank": 109,
     "estimated_vocab": 100,
     "thai_text": "เอาแบบนี้สองที่ครับ",
     "pronunciation": "aw bɛ̀ɛp-níi sɔ̌ɔng thîi khráp",
@@ -14444,7 +14266,7 @@
   },
   {
     "key_word": "ใช้",
-    "key_word_rank": 111,
+    "key_word_rank": 110,
     "estimated_vocab": 100,
     "thai_text": "ฉันใช้เงินซื้อผลไม้",
     "pronunciation": "chǎn chái ngən sʉ́ʉ phǒn-lá-máai",
@@ -14513,7 +14335,7 @@
   },
   {
     "key_word": "ใช้",
-    "key_word_rank": 111,
+    "key_word_rank": 110,
     "estimated_vocab": 100,
     "thai_text": "ฉันจะใช้บัตรเครดิตค่ะ",
     "pronunciation": "chǎn jà chái bàt-khree-dìt khâ",
@@ -14583,7 +14405,7 @@
   },
   {
     "key_word": "เกิด",
-    "key_word_rank": 112,
+    "key_word_rank": 111,
     "estimated_vocab": 100,
     "thai_text": "เกิดอะไรขึ้นตอนเช้า",
     "pronunciation": "kə̀ət à-rai khʉ̂n tɔɔn-cháw",
@@ -14643,7 +14465,7 @@
   },
   {
     "key_word": "เกิด",
-    "key_word_rank": 112,
+    "key_word_rank": 111,
     "estimated_vocab": 100,
     "thai_text": "ข้าวผัดนี้เกิดอะไรขึ้น",
     "pronunciation": "khâaw-phàt níi kə̀ət à-rai khʉ̂n",
@@ -14713,7 +14535,7 @@
   },
   {
     "key_word": "เจอ",
-    "key_word_rank": 113,
+    "key_word_rank": 112,
     "estimated_vocab": 100,
     "thai_text": "กูเจอมาวิน",
     "pronunciation": "kuu jəə maa-win",
@@ -14762,7 +14584,7 @@
   },
   {
     "key_word": "เจอ",
-    "key_word_rank": 113,
+    "key_word_rank": 112,
     "estimated_vocab": 100,
     "thai_text": "คืนนี้ฉันเจอเธอ",
     "pronunciation": "khʉʉn-níi chǎn jəə thəə",
@@ -14821,7 +14643,7 @@
   },
   {
     "key_word": "รู้สึก",
-    "key_word_rank": 114,
+    "key_word_rank": 113,
     "estimated_vocab": 100,
     "thai_text": "กูรู้สึกดีนะ",
     "pronunciation": "kuu rúu-sʉ̀k dii ná",
@@ -14880,7 +14702,7 @@
   },
   {
     "key_word": "รู้สึก",
-    "key_word_rank": 114,
+    "key_word_rank": 113,
     "estimated_vocab": 100,
     "thai_text": "ฉันรู้สึกอร่อยมากครับ",
     "pronunciation": "chǎn rúu-sʉ̀k à-rɔ̀ɔi mâak khráp",

@@ -160,10 +160,8 @@ RESPONSE_JSON_SCHEMA = {
         },
         "japanese_translation": {
             "type": "string",
-            "description": (
-                "自然な日本語訳。主語・話者の違いが意味に関わる場合だけ訳に残す。"
-                "強調・語調・反語表現は逐語訳せず話し言葉の等価表現にする"
-            ),
+            # 訳出方針はプロンプト側（訳文ルール）に集約する。
+            "description": "例文の日本語訳",
         },
         "word_breakdown": {
             "type": "array",

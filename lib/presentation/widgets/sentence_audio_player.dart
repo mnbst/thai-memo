@@ -94,6 +94,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
     bool notifyPlay = true,
   }) async {
     final generation = ++_generation;
+    final session = _tts.session;
     if (notifyPlay) widget.onPlay?.call();
 
     setState(() {
@@ -103,6 +104,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
 
     var startWord = fromWord;
     while (mounted && generation == _generation) {
+      if (_abortedBySession(session)) return;
       final cycleStartWord = startWord;
       // シーク位置は現在の1周にだけ適用する。次の周回はシーク位置を
       // 引き継がず、必ず全文の先頭から始める。
@@ -119,6 +121,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
         keepVoice: cycleStartWord != 0,
       );
       if (!mounted || generation != _generation) return;
+      if (_abortedBySession(session)) return;
 
       // 読み上げ完了後は、再生モードに関係なく次回に備えて先頭へ戻す。
       setState(() => _progress = 0);
@@ -136,6 +139,22 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
         return;
       }
     }
+  }
+
+  /// 他画面が [TtsService.stopAll] を呼んで再生が打ち切られたかを判定する。
+  ///
+  /// 打ち切られていれば再生表示も落とす（ボタンが「一時停止」のまま
+  /// 残らないようにする）。
+  bool _abortedBySession(int session) {
+    if (session == _tts.session) return false;
+    _tts.onProgress = null;
+    if (mounted) {
+      setState(() {
+        _playing = false;
+        _progress = 0;
+      });
+    }
+    return true;
   }
 
   void _stop({bool resetProgress = true}) {

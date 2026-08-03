@@ -279,6 +279,9 @@ functions/python/pos_adjectives.py
 functions/python/scripts/build_adjective_dict.py
 freq_rank上位語をLLMに分類させpos_adjectives.pyを生成するオフラインスクリプト。
 
+functions/python/bound_morphemes.py
+拘束形態素（น่า, การ など単独で自立しない語）辞書。freq_rank生成時に除外する語のリスト。build_bound_morpheme_dict.pyが生成する自動生成ファイル。
+
 functions/python/pronunciation.py
 タイ文字→ローマ字発音変換（声調記号付き）。TLTKはtltk/th2ipa.pyだけをファイル指定で単独ロードし、nltk/scipyの読み込みを回避する。
 
@@ -337,7 +340,10 @@ docs/infra_hardening.md
 ## Scripts
 
 scripts/build_freq_rank.py
-タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。
+タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。corpus_word_filter.pyのDENYLIST（終助詞・感嘆詞＋拘束形態素）を除外して採番する。
+
+scripts/strip_bound_morphemes.py
+既存freq_rankから拘束形態素を除去しrankを連番で振り直す一度きりの移行スクリプト。
 
 scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。
