@@ -161,6 +161,15 @@ class AnalyticsService {
     });
   }
 
+  /// 通知コーチングの表示と結果。
+  ///
+  /// [action] は shown（表示）/ accepted（わかった）/ dismissed（明示的な選択なし）。
+  /// 実際に通知がオンになったかは change_setting(daily_reminder_enabled) で見る。
+  /// shown を分母に、そこまでの離脱段階を切り分けるために出している。
+  Future<void> logNotificationCoach({required String action}) async {
+    await _logEvent('notification_coach', {'action': action});
+  }
+
   Future<void> logChangeSetting({
     required String key,
     String? value,

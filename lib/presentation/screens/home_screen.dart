@@ -198,7 +198,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
 
+    final analytics = ref.read(analyticsServiceProvider);
+    unawaited(analytics.logNotificationCoach(action: 'shown'));
+
     final openSettings = await showNotificationCoachDialog(context);
+    unawaited(
+      analytics.logNotificationCoach(
+        action: openSettings ? 'accepted' : 'dismissed',
+      ),
+    );
     // 出したら結果に関わらず記録する。断られた直後の出し直しは印象を悪くする。
     await controller.markNotificationCoachShown();
     if (!openSettings || !mounted) return;
