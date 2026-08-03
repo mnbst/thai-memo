@@ -141,7 +141,7 @@ lib/presentation/widgets/coach_mark_overlay.dart
 指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。
 
 lib/presentation/widgets/sign_in_reminder_banner.dart
-匿名ユーザーへ3日非アクティブでの進捗削除を警告しサインインを促すバナー（今日タブ）。
+匿名ユーザーへ3日非アクティブでの進捗削除を警告しサインインを促すバナー（今日タブ）。告知は3日だが実削除は7日（ANON_INACTIVE_DAYS）で意図的にずらしている。
 
 lib/presentation/widgets/level_up_dialog.dart
 語彙レベルアップ時のお祝いアニメーションダイアログ。
@@ -373,3 +373,11 @@ test/services/firebase_auth_service_test.dart
 
 test/presentation/providers/subscription_provider_test.dart
 premium復帰フロー（Firestore tier反映・自動/手動復元・匿名ガード）のテスト。
+
+## E2E (Maestro)
+
+.maestro/smoke.yaml
+起動〜3タブ遷移のスモークフロー。シミュレータ上の実アプリを座標/テキストで操作する。
+
+.maestro/README.md
+Maestroの実行手順（起動コマンド、studio、スクショの出力先）。

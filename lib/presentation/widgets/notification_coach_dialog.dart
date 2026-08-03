@@ -25,16 +25,51 @@ class NotificationCoachDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('あなたの語彙に合う例文を、毎日お届けします。'),
+          // 「時刻を決める→そこに届く→同じ時間に開くから続く」の順で並べる。
+          // 時刻設定の理由と習慣化の理屈が、読まなくても順番で伝わるようにする。
+          const _Step(number: 1, text: '通勤中や寝る前など、学習を続けやすい時刻を決めます'),
+          const SizedBox(height: 6),
+          const _Step(number: 2, text: 'その時刻に、あなた向けの1例文が自動で届きます'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '毎日同じ時間に開くので、習慣になります',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '通知の例）',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 2),
+          const _NotificationPreview(),
           const SizedBox(height: 8),
           Text(
-            '通知時刻は設定画面で変更できます。',
+            '通知をタップで学習画面へ。時刻は設定で変更できます。',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
         ],
       ),
+      // 端末の文字サイズを大きくしている場合でも溢れないようにする。
+      scrollable: true,
       contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
       actionsPadding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
       actions: [
@@ -43,6 +78,119 @@ class NotificationCoachDialog extends StatelessWidget {
           child: const Text('わかった'),
         ),
       ],
+    );
+  }
+}
+
+/// 手順を1行で示す行。番号を付けて順序（時刻を決める→届く）を読ませる。
+class _Step extends StatelessWidget {
+  const _Step({required this.number, required this.text});
+
+  final int number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          margin: const EdgeInsets.only(top: 2),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            '$number',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
+      ],
+    );
+  }
+}
+
+/// 実際に届く通知の見本。
+///
+/// 文面は Cloud Functions の `build_notification_text`（タイトルに
+/// キーワードと意味、本文は タイ文 /（発音）/ → 訳 の3行）と揃えている。
+/// OSごとに実物の見た目は違うため、スクリーンショットではなくアプリのテーマで
+/// 描いて「何が書かれた通知か」だけを伝える。
+class _NotificationPreview extends StatelessWidget {
+  const _NotificationPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // 読ませる要素ではなく「こういう見た目のものが届く」という印象だけを伝える。
+    // 読ませはしないが印象は残す大きさとして、通知本体は12pt相当にする。
+    // タイ文字は声調記号が上下に付くため、行高は詰めすぎない。
+    final line =
+        theme.textTheme.labelSmall?.copyWith(fontSize: 12, height: 1.35);
+    final subdued = line?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: Image.asset(
+                  'assets/appicon.png',
+                  width: 14,
+                  height: 14,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(child: Text('まいにちタイ語', style: subdued)),
+              Text('今', style: subdued),
+            ],
+          ),
+          const SizedBox(height: 3),
+          // 実物の通知も折り返さず省略されるので、見本も1行ずつに収める。
+          Text(
+            '🇹🇭 今日のタイ語 · ขอบคุณ（ありがとう）',
+            style: line?.copyWith(fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            'ขอบคุณสำหรับกาแฟนะครับ',
+            style: line,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            '（khop khun samrap kafae na khrap）',
+            style: subdued,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            '→ コーヒーをありがとうございます',
+            style: line,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 }
