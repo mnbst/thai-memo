@@ -25,7 +25,7 @@ class TesterFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDx77dgIGbYgvcLLR9jGLe_XYFPB48iB10',
-    appId: '1:763566155520:ios:c538fb97e81d4f32beb5e5',
+    appId: '1:763566155520:ios:e67c20712b76f0a0beb5e5',
     messagingSenderId: '763566155520',
     projectId: 'thai-memo-67139',
     storageBucket: 'thai-memo-67139.firebasestorage.app',

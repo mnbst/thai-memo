@@ -286,7 +286,13 @@ functions/python/pronunciation.py
 タイ文字→ローマ字発音変換（声調記号付き）。TLTKはtltk/th2ipa.pyだけをファイル指定で単独ロードし、nltk/scipyの読み込みを回避する。
 
 functions/python/prompts.py
-Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。
+Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。レジスタ制約・語クラス別ブロックは末尾に置く（system promptでは守られないため）。
+
+functions/python/word_classes.py
+word_classes.json のロードと語→クラス逆引き。pythainlpを引き込まない軽量モジュール。
+
+functions/python/word_classes.json
+key_wordの語クラス（三人称/一・二人称/限定詞/指示代名詞/数詞/数量詞/類別詞/多品詞語/機能語）と、その語がターゲットのときだけプロンプト末尾に足すルール。ルール追加はこのJSONを編集する。分割条件はJSON冒頭の_commentに記載。
 
 functions/python/themes/bl_drama.py
 BLドラマテーマのプロンプト断片構築。参考セリフ（BL_DRAMA_SHOTS）から1文だけをembedding類似度で選び出す。

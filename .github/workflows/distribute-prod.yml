@@ -33,7 +33,7 @@ env:
   GCP_PROJECT: thai-memo-prod
 
 jobs:
-  build-and-distribute-ios:
+  build-ios:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
@@ -66,8 +66,6 @@ jobs:
             P12_BASE64:${{ env.GCP_PROJECT }}/ci-p12-cert
             P12_PASSWORD:${{ env.GCP_PROJECT }}/ci-p12-password
             PROVISIONING_PROFILE_BASE64:${{ env.GCP_PROJECT }}/ci-provisioning-profile
-            APPLE_ID:${{ env.GCP_PROJECT }}/ci-apple-id
-            APP_SPECIFIC_PASSWORD:${{ env.GCP_PROJECT }}/ci-app-specific-password
 
       - name: Restore GoogleService-Info.plist
         run: echo '${{ steps.secrets.outputs.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}' | base64 --decode > ios/Runner/GoogleService-Info.plist
@@ -141,6 +139,43 @@ jobs:
       - name: Build IPA
         run: flutter build ipa --dart-define=ENV=prod --build-number=${{ github.run_number }} --export-options-plist=ios/ExportOptions.plist
 
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipa-prod
+          path: build/ios/ipa/*.ipa
+          retention-days: 5
+          if-no-files-found: error
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+
+  # ビルド成功後にここだけ失敗した場合、"Re-run failed jobs" でこのジョブのみ再実行できる
+  upload-ios:
+    needs: build-ios
+    runs-on: macos-26
+    steps:
+      - name: Download IPA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ipa-prod
+          path: ipa
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.CI_SERVICE_ACCOUNT }}
+
+      - name: Fetch secrets from Secret Manager
+        uses: google-github-actions/get-secretmanager-secrets@v2
+        id: secrets
+        with:
+          secrets: |-
+            APPLE_ID:${{ env.GCP_PROJECT }}/ci-apple-id
+            APP_SPECIFIC_PASSWORD:${{ env.GCP_PROJECT }}/ci-app-specific-password
+
       - name: Upload to App Store Connect
         env:
           APPLE_ID: ${{ steps.secrets.outputs.APPLE_ID }}
@@ -148,10 +183,6 @@ jobs:
         run: |
           xcrun altool --upload-app \
             --type ios \
-            --file build/ios/ipa/*.ipa \
+            --file ipa/*.ipa \
             --username "$APPLE_ID" \
             --password "$APP_SPECIFIC_PASSWORD"
-
-      - name: Clean up keychain
-        if: always()
-        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
