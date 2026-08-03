@@ -42,3 +42,15 @@ def classify_all(words: list[str] | None) -> list[str]:
 def is_function_word(word: str) -> bool:
     cid = classify(word)
     return bool(cid and CLASSES[cid].get("function_word"))
+
+
+def requires_formal_politeness(words: list[str] | None) -> bool:
+    """丁寧さをフォーマルに固定すべきターゲット語が含まれるか。
+
+    書き言葉の語がターゲットに来たとき、丁寧さがカジュアルで確定していると
+    「その語が自然な場面を選べ」という指示が実行不能になり、硬語がくだけた
+    会話文へ押し込まれる（2026-08-03 実測: 破綻9件中5件がこの形）。
+    """
+    return any(
+        CLASSES[cid].get("force_politeness") for cid in classify_all(words)
+    )

@@ -67,3 +67,48 @@ def test_constraint_block_merges_multiple_classes() -> None:
     block = build_word_class_constraint(["มัน", "หนึ่ง"])
     assert "【ターゲット語は三人称代名詞・数詞】" in block
     assert block.count("文の主役にならない") == 1
+
+
+def test_formal_words_force_formal_politeness() -> None:
+    from constants import POLITENESS_LEVELS
+    from prompts import resolve_generation_params
+    from word_classes import requires_formal_politeness
+
+    assert requires_formal_politeness(["ท่าน"])
+    assert not requires_formal_politeness(["ทะเล"])
+
+    resolved = resolve_generation_params({}, target_words=["โปรด"])
+    assert resolved["politeness"] == POLITENESS_LEVELS[0]
+
+
+def test_explicit_politeness_still_wins_over_formal_word() -> None:
+    from constants import POLITENESS_LEVELS
+    from prompts import resolve_generation_params
+
+    resolved = resolve_generation_params(
+        {"politeness": POLITENESS_LEVELS[1]}, target_words=["ท่าน"]
+    )
+    assert resolved["politeness"] == POLITENESS_LEVELS[1]
+
+
+def test_register_constraint_drops_casual_rules_when_formal() -> None:
+    from constants import POLITENESS_LEVELS, STYLES, TOPICS
+    from prompts import build_register_constraint
+
+    casual = build_register_constraint(POLITENESS_LEVELS[1], STYLES[1], TOPICS[0])
+    formal = build_register_constraint(POLITENESS_LEVELS[0], STYLES[1], TOPICS[0])
+    assert "สามารถ" in casual
+    assert "สามารถ" not in formal
+    # 常時ルールはどちらにも残る
+    assert "รอเดี๋ยว" in casual and "รอเดี๋ยว" in formal
+
+
+def test_register_constraint_adds_topic_rules() -> None:
+    from constants import POLITENESS_LEVELS, STYLES, TOPICS
+    from prompts import build_register_constraint
+
+    travel = build_register_constraint(POLITENESS_LEVELS[1], STYLES[1], TOPICS[2])
+    food = build_register_constraint(POLITENESS_LEVELS[1], STYLES[1], TOPICS[1])
+    romance = build_register_constraint(POLITENESS_LEVELS[1], STYLES[1], TOPICS[14])
+    assert "移動動詞" in travel and "移動動詞" not in food
+    assert "性的" in romance and "性的" not in food
