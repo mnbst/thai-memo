@@ -58,7 +58,7 @@
                     "projectId": "thai-memo-67139",
                     "configurations": {
                         "android": "1:763566155520:android:34165e13f45eb11bbeb5e5",
-                        "ios": "1:763566155520:ios:c538fb97e81d4f32beb5e5"
+                        "ios": "1:763566155520:ios:e67c20712b76f0a0beb5e5"
                     }
                 },
                 "lib/firebase_options_dev.dart": {

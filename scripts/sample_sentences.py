@@ -75,13 +75,20 @@ def pick_key_word(freq_rank: dict[str, int], vocab: int) -> str:
 
 
 def generate_one(
-    freq_rank: dict[str, int], vocab: int | None, is_premium: bool
+    freq_rank: dict[str, int],
+    vocab: int | None,
+    is_premium: bool,
+    word: str | None = None,
+    topic: str | None = None,
 ) -> dict:
     if vocab is None:
         vocab = sample_vocab()
-    word = pick_key_word(freq_rank, vocab)
+    word = word or pick_key_word(freq_rank, vocab)
     prompt, context = build_prompt_with_context(
-        {}, [word], estimated_vocab=vocab, is_premium=is_premium
+        {"topic": topic} if topic else {},
+        [word],
+        estimated_vocab=vocab,
+        is_premium=is_premium,
     )
     system = get_system_prompt(is_premium, vocab)
     try:
@@ -116,15 +123,40 @@ def main() -> None:
         help="estimated_vocab を固定する。未指定なら prod の実分布から引く",
     )
     p.add_argument("--free", action="store_true", help="free プロンプトを使う")
+    p.add_argument(
+        "--words",
+        default=None,
+        help="key_word をカンマ区切りで固定する（機能語だけを狙って検証するとき用）",
+    )
+    p.add_argument(
+        "--topic",
+        default=None,
+        help="TOPICS の完全一致文字列、または部分一致するテーマ名でトピックを固定する",
+    )
     p.add_argument("--out", default="/tmp/samples.json")
     args = p.parse_args()
 
     freq_rank = load_freq_rank()
     is_premium = not args.free
+    fixed = [w.strip() for w in args.words.split(",")] if args.words else None
+    topic = None
+    if args.topic:
+        from constants import TOPICS
+
+        matched = [t for t in TOPICS if args.topic in t]
+        if not matched:
+            raise SystemExit(f"テーマが見つかりません: {args.topic}")
+        topic = matched[0]
     with ThreadPoolExecutor(max_workers=8) as ex:
         results = list(
             ex.map(
-                lambda _: generate_one(freq_rank, args.vocab, is_premium),
+                lambda i: generate_one(
+                    freq_rank,
+                    args.vocab,
+                    is_premium,
+                    fixed[i % len(fixed)] if fixed else None,
+                    topic,
+                ),
                 range(args.n),
             )
         )

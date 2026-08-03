@@ -145,6 +145,7 @@ EMOTIONS = [
 ]
 
 
+
 # ─── OpenAI Responses API レスポンススキーマ ───
 # OpenAI の structured outputs が準拠すべき JSON Schema を定義する。
 # これにより、構造化されたタイ語例文データが確実に返却される。
