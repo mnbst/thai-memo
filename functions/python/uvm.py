@@ -67,6 +67,8 @@ def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 10) -
 
     window = ±10 の範囲で P の平均を取る。
     UVM 未登録語には UNKNOWN_WORD_P を使用する。
+
+    freq_rank は拘束形態素を除いた連番なので、rank に穴はない。
     """
     total = 0.0
     for r in range(center - window, center + window + 1):

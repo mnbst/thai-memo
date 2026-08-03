@@ -371,6 +371,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
+          // IndexedStack は他タブを破棄しないため、再生中の例文が
+          // 鳴り続けてしまう。タブを離れたら明示的に止める。
+          unawaited(ref.read(ttsServiceProvider).stopAll());
           setState(() {
             _currentIndex = index;
           });
@@ -1016,6 +1019,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         children: [
           InkWell(
             onTap: () {
+              // 遷移してもこのカードは破棄されない。詳細画面のプレイヤーと
+              // TTSを奪い合わないよう、ここで再生を止めておく。
+              unawaited(ref.read(ttsServiceProvider).stopAll());
               Navigator.push(
                 context,
                 MaterialPageRoute(

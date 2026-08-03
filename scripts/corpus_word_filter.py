@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import sys
+from pathlib import Path
 
 from pythainlp.corpus.common import thai_stopwords, thai_words
 
@@ -85,6 +87,14 @@ DENYLIST |= thai_stopwords() & {
     "จ้ะ",
     "จ๊ะ",
 }
+
+# Bound morphemes (น่า, การ, ริ …): tokens that cannot stand alone in a
+# sentence. They are unusable as a learning target word, so drop them at
+# corpus build time — see functions/python/bound_morphemes.py.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "functions" / "python"))
+from bound_morphemes import BOUND_MORPHEMES  # noqa: E402
+
+DENYLIST |= set(BOUND_MORPHEMES)
 
 THAI_RE = re.compile(r"[\u0E01-\u0E5B]")
 THAI_ONLY_RE = re.compile(r"^[\u0E01-\u0E3A\u0E40-\u0E4E]+(?: ๆ)?$")

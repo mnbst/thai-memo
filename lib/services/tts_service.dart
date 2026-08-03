@@ -10,6 +10,13 @@ class TtsService {
   bool _isInitialized = false;
   List<Map<String, String>> _thaiVoices = [];
   Completer<void>? _cancelCompleter;
+  int _session = 0;
+
+  /// 再生セッションの通し番号。[stopAll] のたびに進む。
+  ///
+  /// TTSはインスタンスが1つしかないため、リピート再生のループを回している側は
+  /// この値が変わっていないかを見て、自分の再生が外から打ち切られたかを判断する。
+  int get session => _session;
 
   Future<void> _init() async {
     if (_isInitialized) return;
@@ -115,7 +122,17 @@ class TtsService {
     }
   }
 
+  /// 再生中の発話を止め、リピート再生のループも打ち切る。
+  ///
+  /// 画面遷移・タブ切り替えのように「再生UIの外」から止めるときに使う。
+  /// [stop] だけではループ側が次の周回を再開してしまう。
+  Future<void> stopAll() async {
+    _session++;
+    await stop();
+  }
+
   void dispose() {
+    _session++;
     _tts.stop();
   }
 }
