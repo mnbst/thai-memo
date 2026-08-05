@@ -18,11 +18,14 @@ import os
 
 # ─── LLM プロバイダー切替 ───
 # "openai" または "gemini"。環境変数 SENTENCE_PROVIDER で上書き可。
+# 2026-08-05 に openai(gpt-5.6-luna) へ全面切替したが、同日 gemini へ差し戻した。
+# OpenAI 側のコードは残してあるので SENTENCE_PROVIDER=openai で試せる。
 SENTENCE_PROVIDER = os.environ.get("SENTENCE_PROVIDER", "gemini").lower()
 
 # ─── OpenAI モデル設定 ───
-OPENAI_MODEL = "gpt-5.4-mini"
-OPENAI_MODEL_PREMIUM = "gpt-5.4-mini"
+# 環境変数で上書き可。モデル検証時に再デプロイのみで切替できるようにしている。
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-luna")
+OPENAI_MODEL_PREMIUM = os.environ.get("OPENAI_MODEL_PREMIUM", "gpt-5.6-luna")
 
 # ─── Gemini モデル設定 ───
 # 環境変数で上書き可。dev でのモデル検証時に再デプロイのみで切替できるようにしている。
@@ -145,6 +148,26 @@ EMOTIONS = [
 ]
 
 
+# ─── 時間軸 ───
+# 2026-08-05 追加。grammarFocus / emotion の自動抽選を止めた結果、
+# 組み合わせが topic×subTheme×style×politeness の約400通りまで落ちたため、
+# key_word の意味を制約しない直交軸として足す。
+# いつのことを話しているか。相（กำลัง/แล้ว/จะ/เคย）の多様性を副次的に回収する。
+# どのテーマでもこの4つは全て成立するので、テーマ側の絞り込みが要らない。
+TIME_FRAMES = [
+    "今まさに起きていること",
+    "さっき起きた出来事",
+    "これからの予定",
+    "いつもの習慣",
+]
+
+# ─── 述べ方（モダリティ）は 2026-08-06 に削除 ───
+# 断定/推量/伝聞/確認 の4値を抽選していたが、確定済みの key_word に後付けすると
+# 無理な命題を作った（×ได้ยินว่าโรงแรมจองอีกห้อง ＝「ホテルが予約する」）。
+# 述べ方の行を外して生成すると明らかに自然になる一方、น่าจะ/คง/ได้ยินว่า は
+# 14文中1文まで落ちる。まず単調さの度合いを実測するため外してみる。
+
+
 
 # ─── OpenAI Responses API レスポンススキーマ ───
 # OpenAI の structured outputs が準拠すべき JSON Schema を定義する。
@@ -237,7 +260,14 @@ RESPONSE_JSON_SCHEMA = {
 # 確定値が存在しないので、そのフィールドだけスキーマに戻して LLM に書かせる。
 _CONTEXT_GENERATABLE_FIELDS = {
     "topic": {"type": "string", "description": "テーマ（例: あいさつ）"},
-    "style": {"type": "string", "description": "文体（例: 丁寧語）"},
+    # 2026-08-06: 文体の自動抽選を止めて LLM に選ばせた結果、返る値が
+    # 「丁寧語 / 日常会話 / 中立 / カジュアル / 日常的な話し言葉」と揺れた。
+    # 履歴画面の表示と集計に使うので、既存の STYLES に分類させて表記を揃える。
+    "style": {
+        "type": "string",
+        "enum": STYLES,
+        "description": "実際に書いた文体を最も近いものに分類する",
+    },
     "emotion": {"type": "string", "description": "感情・トーン（例: 中立）"},
 }
 

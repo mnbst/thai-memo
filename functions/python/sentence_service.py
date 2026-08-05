@@ -364,6 +364,62 @@ def _build_retry_prompt(prompt: str, missing: list[str]) -> str:
     )
 
 
+def _build_mismatch_retry_prompt(prompt: str, thai_text: str) -> str:
+    return (
+        f"{prompt}\n\n"
+        "【再生成指示】前回の生成では thai_text と word_breakdown の語が食い違っていました"
+        f"（thai_text: {thai_text}）。多くは thai_text 側の綴り誤りです。"
+        "thai_text を正しい綴りで書き直し、word_breakdown の各語が thai_text に"
+        "そのまま出現する形で出力してください。"
+    )
+
+
+def _has_unrepairable_breakdown(sentence: dict) -> bool:
+    """word_breakdown に thai_text へ出現しない語があるか（綴り不一致）。"""
+    from word_gap import find_gaps
+
+    return any(index < 0 for index, _ in find_gaps(sentence))
+
+
+def _repair_word_breakdown(sentence: dict, is_premium: bool, tier_label: str) -> None:
+    """word_breakdown の欠落を、欠落分だけの補完クエリ1回で埋める。
+
+    文全体は作り直さない（コスト・レイテンシが見合わないため）。補完できなかった
+    場合は文全体の発音だけ thai_text から作り直し、発音が欠けたままにしない。
+    """
+    from word_gap import (
+        GAP_RESPONSE_SCHEMA,
+        GAP_SYSTEM_PROMPT,
+        apply_gap_words,
+        build_gap_prompt,
+        find_gaps,
+        repair_pronunciation,
+    )
+
+    gaps = find_gaps(sentence)
+    if not gaps:
+        return
+    thai_text = sentence.get("thai_text") or ""
+    print(f"word_breakdown gap detected: {[g[1] for g in gaps]} in {thai_text}")
+
+    if all(index >= 0 for index, _ in gaps):
+        try:
+            filled = _llm_generate_sync(
+                GAP_SYSTEM_PROMPT,
+                build_gap_prompt(thai_text, gaps),
+                is_premium,
+                f"{tier_label}-gap",
+                GAP_RESPONSE_SCHEMA,
+            )
+            if apply_gap_words(sentence, gaps, filled.get("words") or []):
+                _enrich_with_nlp(sentence)
+                return
+        except Exception as exc:  # 補完の失敗で生成全体を落とさない
+            print(f"word_breakdown gap fill failed: {exc}")
+
+    repair_pronunciation(sentence)
+
+
 def _generate_single(
     system_prompt: str,
     prompt: str,
@@ -390,6 +446,17 @@ def _generate_single(
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
+            # 綴り不一致は欠落補完では直せないため、1回だけ作り直す。
+            if _has_unrepairable_breakdown(sentence) and attempt < MAX_RETRY:
+                print(
+                    "thai_text/word_breakdown mismatch "
+                    f"(attempt {attempt + 1}): {sentence.get('thai_text')}"
+                )
+                current_prompt = _build_mismatch_retry_prompt(
+                    prompt, sentence.get("thai_text") or ""
+                )
+                continue
+            _repair_word_breakdown(sentence, is_premium, tier_label)
             return sentence
 
         print(
@@ -428,6 +495,17 @@ async def _generate_single_async(
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
+            # 綴り不一致は欠落補完では直せないため、1回だけ作り直す。
+            if _has_unrepairable_breakdown(sentence) and attempt < MAX_RETRY:
+                print(
+                    "thai_text/word_breakdown mismatch "
+                    f"(attempt {attempt + 1}): {sentence.get('thai_text')}"
+                )
+                current_prompt = _build_mismatch_retry_prompt(
+                    prompt, sentence.get("thai_text") or ""
+                )
+                continue
+            _repair_word_breakdown(sentence, is_premium, tier_label)
             return sentence
 
         print(

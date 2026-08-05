@@ -16,7 +16,11 @@ def test_generate_single_starts_nlp_prewarm_before_llm(monkeypatch):
         return {
             "thai_text": "ฉันกินข้าว",
             "japanese_translation": "私はご飯を食べます。",
-            "word_breakdown": [{"word": "กิน", "meaning": "食べる"}],
+            "word_breakdown": [
+                {"word": "ฉัน", "meaning": "私"},
+                {"word": "กิน", "meaning": "食べる"},
+                {"word": "ข้าว", "meaning": "ご飯"},
+            ],
             "context": "daily",
         }
 
@@ -60,7 +64,13 @@ def test_generate_single_raises_when_target_missing_after_retries(monkeypatch):
         return {
             "thai_text": "นี่คืออะไรกันนะ",
             "japanese_translation": "これ、何だろうね？",
-            "word_breakdown": [{"word": "นี่", "meaning": "これ"}],
+            "word_breakdown": [
+                {"word": "นี่", "meaning": "これ"},
+                {"word": "คือ", "meaning": "〜である"},
+                {"word": "อะไร", "meaning": "何"},
+                {"word": "กัน", "meaning": "一緒に"},
+                {"word": "นะ", "meaning": "〜ね"},
+            ],
         }
 
     def fake_get_enrich_with_nlp():

@@ -59,23 +59,25 @@ class TestApplyResponseCompat:
 class TestBuildPromptWithContext:
     def test_returns_resolved_context_matching_prompt(self):
         prompt, context = build_prompt_with_context(
-            {"topic": "食べ物", "style": "口語", "emotion": "うれしい"},
+            {"topic": "食べ物"},
             ["กิน"],
             estimated_vocab=200,
         )
 
         assert context["topic"] == "食べ物"
         assert f"- テーマ: {context['topic']}" in prompt
-        assert f"- 文体: {context['style']}" in prompt
-        assert f"- 感情・トーン: {context['emotion']}" in prompt
+        # 文体・感情はサーバーで決めないので context に入らず、
+        # _schema_for が LLM に生成させる。
+        assert "style" not in context
+        assert "emotion" not in context
+        assert "- 文体:" not in prompt
+        assert "- 感情・トーン:" not in prompt
 
     def test_drama_topic_omits_style_and_emotion(self):
         from constants import TOPICS
 
         with (
-            patch("prompts.get_style_similarity_weights", return_value=None),
             patch("prompts.get_topic_option_similarity_weights", return_value=None),
-            patch("prompts.get_emotion_similarity_weights", return_value=None),
             patch("prompts.find_best_sub_theme", return_value="告白"),
             patch("prompts.build_drama_prompt_section",
                   return_value={"context": "", "required": ""}),

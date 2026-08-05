@@ -124,7 +124,7 @@ lib/presentation/screens/settings_screen.dart
 設定画面（アカウント・プラン、テーマ、フォント、声調ガイド、学習データリセット、アプリ情報）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI。タップ起点に加え、まとめクイズ完了のたびに自動表示される（freeのみ）。
+プレミアム課金UI（ボトムシート）。全てタップ起点で自動表示はしない。導線は例文タブの常設バナー（premium_hint_banner）・設定・クイズ画面配下。
 
 lib/presentation/screens/onboarding_screen.dart
 初回起動時のオンボーディング画面。
@@ -154,6 +154,9 @@ lib/presentation/widgets/sentence_audio_player.dart
 
 lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
+
+lib/presentation/widgets/premium_hint_banner.dart
+例文カード直下に常設するfree向けプレミアム訴求バナー。訴求軸（テーマ/品質/語彙上限）を起動ごとに均等ランダム抽選、×で3日間非表示。お試し期間中は出さない。
 
 lib/presentation/tone_explanation_dialog.dart
 タイ語声調の解説ダイアログ。

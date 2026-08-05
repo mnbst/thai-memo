@@ -313,7 +313,9 @@ class PaywallBottomSheet extends ConsumerWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Text(
-                    '推しの言葉に近づく →',
+                    // 購入を開始するボタンなので、何が起きるか一読で分かる言い方にする
+                    // （情緒的なコピーは上部のタイトル・比較表で担う）。
+                    'プレミアムに登録',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
           ),

@@ -53,12 +53,21 @@ void main() {
       );
 
       expect(find.text('例文を毎日の習慣に'), findsOneWidget);
-      expect(
-        find.text('あなたの語彙に合う例文を、毎日お届けします。'),
-        findsOneWidget,
-      );
-      expect(find.text('通知時刻は設定画面で変更できます。'), findsOneWidget);
-      expect(find.textContaining('習慣にできます'), findsNothing);
+
+      // 「時刻を決める → その時刻に届く」の順序が読める形で並んでいること。
+      // 文言そのものより、この2段構成が崩れていないことを見る。
+      expect(find.text('1'), findsOneWidget);
+      expect(find.textContaining('時刻を決めます'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      expect(find.textContaining('自動で届きます'), findsOneWidget);
+
+      // 習慣化の理由づけと、通知の見た目のプレビュー。
+      expect(find.textContaining('習慣になります'), findsOneWidget);
+      expect(find.text('通知の例）'), findsOneWidget);
+      expect(find.textContaining('時刻は設定で変更できます'), findsOneWidget);
+
+      // このダイアログでは通知をオンにしない。選択肢は「わかった」だけで、
+      // 拒否を確定させる導線（あとで等）は置かない。
       expect(find.widgetWithText(FilledButton, 'わかった'), findsOneWidget);
       expect(find.text('あとで'), findsNothing);
       expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);

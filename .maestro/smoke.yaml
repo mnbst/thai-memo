@@ -1,0 +1,22 @@
+# 起動〜3タブ遷移のスモークフロー。
+# 例文生成のような LLM を叩く導線は含めない（時間とコストがかかるため）。
+appId: com.thaimemo.thaiMemo
+---
+# clearState: true にすると匿名サインインからやり直しになり、
+# オンボーディングも出るので通常は false。
+- launchApp:
+    clearState: false
+
+- assertVisible: "学習"
+- takeScreenshot: build/maestro/01_home
+
+- tapOn: "履歴"
+- assertVisible: "履歴"
+- takeScreenshot: build/maestro/02_history
+
+- tapOn: "設定"
+- assertVisible: "設定"
+- takeScreenshot: build/maestro/03_settings
+
+- tapOn: "学習"
+- takeScreenshot: build/maestro/04_back_to_home

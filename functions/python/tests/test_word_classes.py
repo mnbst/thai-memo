@@ -91,24 +91,24 @@ def test_explicit_politeness_still_wins_over_formal_word() -> None:
     assert resolved["politeness"] == POLITENESS_LEVELS[1]
 
 
-def test_register_constraint_drops_casual_rules_when_formal() -> None:
-    from constants import POLITENESS_LEVELS, STYLES, TOPICS
+def test_register_constraint_always_bans_written_register() -> None:
+    """話し言葉ルールは丁寧さで出し分けない（2026-08-06 に常時ルールへ移行）。"""
+    from constants import TOPICS
     from prompts import build_register_constraint
 
-    casual = build_register_constraint(POLITENESS_LEVELS[1], STYLES[1], TOPICS[0])
-    formal = build_register_constraint(POLITENESS_LEVELS[0], STYLES[1], TOPICS[0])
-    assert "สามารถ" in casual
-    assert "สามารถ" not in formal
-    # 常時ルールはどちらにも残る
-    assert "รอเดี๋ยว" in casual and "รอเดี๋ยว" in formal
+    block = build_register_constraint(TOPICS[0])
+    assert "สามารถ" in block
+    assert "ท่าน" in block
+    assert "รอเดี๋ยว" in block  # 常時ルールも残る
 
 
 def test_register_constraint_adds_topic_rules() -> None:
-    from constants import POLITENESS_LEVELS, STYLES, TOPICS
+    from constants import TOPICS
     from prompts import build_register_constraint
 
-    travel = build_register_constraint(POLITENESS_LEVELS[1], STYLES[1], TOPICS[2])
-    food = build_register_constraint(POLITENESS_LEVELS[1], STYLES[1], TOPICS[1])
-    romance = build_register_constraint(POLITENESS_LEVELS[1], STYLES[1], TOPICS[14])
-    assert "移動動詞" in travel and "移動動詞" not in food
+    travel = build_register_constraint(TOPICS[2])
+    food = build_register_constraint(TOPICS[1])
+    romance = build_register_constraint(TOPICS[14])
+    # 移動動詞の方向は 2026-08-05 にテーマ条件を外して常時ルールへ移した
+    assert "移動動詞" in travel and "移動動詞" in food
     assert "性的" in romance and "性的" not in food
