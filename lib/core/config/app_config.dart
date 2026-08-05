@@ -63,4 +63,8 @@ class AppConfig {
   /// 毎日例文通知のコーチングダイアログ表示済みフラグ（設定画面の初回表示時に出す）
   static const String prefKeyNotificationCoachShown =
       'notification_coach_shown';
+
+  /// 例文タブのプレミアム訴求バナーを閉じた日時（epoch ms）
+  static const String prefKeyPremiumHintDismissedAt =
+      'premium_hint_dismissed_at';
 }

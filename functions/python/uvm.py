@@ -58,8 +58,32 @@ UNKNOWN_WORD_P = 0.4  # UVM 未登録語の prior P
 
 # get_session_words 用: estimated_vocab 基準の頻度帯
 VOCAB_MAX_DELTA = 3  # 1回の sync で estimated_vocab が動ける最大幅
-GAP_SCAN_DEPTH = 25  # スキャン下限: estimated_vocab - GAP_SCAN_DEPTH
-SCAN_AHEAD = 10  # スキャン上限: estimated_vocab + SCAN_AHEAD
+GAP_SCAN_DEPTH = 50  # 後方スキャンの最大深さ: estimated_vocab - GAP_SCAN_DEPTH
+# 前方スキャンの初期幅と、estimated_vocab に対する逓減の緩さ。
+# ahead = max(SCAN_AHEAD_MIN, SCAN_BAND_WIDTH - estimated_vocab / SCAN_BAND_DECAY)
+SCAN_BAND_WIDTH = 50
+SCAN_BAND_DECAY = 2
+SCAN_AHEAD_MIN = 8  # 前方スキャンの下限（未習語が必ず候補に入るようにする）
+
+
+def scan_band(estimated_vocab: int) -> tuple[int, int]:
+    """estimated_vocab から key_word 候補のランク帯 [low, high] を返す。
+
+    後方は GAP_SCAN_DEPTH まで深く取り、前方は estimated_vocab が増えるほど狭める。
+
+    前方が広いほど未習語が候補に多く入り estimated_vocab が速く進むが、
+    その分だけ後方に未提示語（取りこぼし）が残る。初学者は取りこぼしを許容して
+    速く進め、語彙が増えたら後方の穴埋めに寄せる。深い後方が中期に回収する。
+
+    2026-08-05 シミュレーション（1文/日・誤答20%・20シード）:
+    後方25/前方10固定は 2年で estimated_vocab 921 に対し取りこぼし 202。
+    この設定は d30 の estimated_vocab が 43→73 に上がりつつ取りこぼしは 48 に減る。
+    前方下限を 5 まで下げると 3文/日以上で候補が枯渇し、2年の習得語数が
+    1037→778 に落ちるため 8 で止める。
+    """
+    behind = min(max(0, estimated_vocab), GAP_SCAN_DEPTH)
+    ahead = max(SCAN_AHEAD_MIN, SCAN_BAND_WIDTH - estimated_vocab / SCAN_BAND_DECAY)
+    return max(0, estimated_vocab - behind), estimated_vocab + int(ahead)
 
 
 def moving_avg(words_by_rank: dict[int, float], center: int, window: int = 10) -> float:
@@ -274,7 +298,7 @@ def get_session_words(
     """統合スキャン方式でセッション単語を選定する。
 
     【選定ロジック】
-    1. estimated_vocab - GAP_SCAN_DEPTH ~ estimated_vocab + SCAN_AHEAD の範囲で
+    1. scan_band(estimated_vocab) が返すランク帯の範囲で
        UVM未登録 or P=0 の語を、rank が高いほど選ばれやすい重み付きで選出
        → 取りこぼしを拾いつつ境界付近の語も混ざるためスコアも徐々に上がる
     2. 選出した key_word の embedding と topic_embeddings のコサイン類似度で最適テーマを決定
@@ -301,8 +325,7 @@ def get_session_words(
     if max_vocab is not None and isinstance(estimated_vocab, int):
         estimated_vocab = min(estimated_vocab, max_vocab)
 
-    scan_low = max(0, estimated_vocab - GAP_SCAN_DEPTH)  # type: ignore
-    scan_high = estimated_vocab + SCAN_AHEAD  # type: ignore
+    scan_low, scan_high = scan_band(estimated_vocab)  # type: ignore
     if max_vocab is not None:
         scan_high = min(scan_high, max_vocab)
 

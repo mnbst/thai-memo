@@ -19,6 +19,7 @@ import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
 import '../widgets/notification_coach_dialog.dart';
+import '../widgets/premium_hint_banner.dart';
 import '../widgets/sentence_audio_player.dart';
 import '../widgets/sign_in_reminder_banner.dart';
 import '../widgets/loading_tip_carousel.dart';
@@ -851,6 +852,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 _buildTargetWordsSection(context, sentence),
                 const SizedBox(height: 12),
                 _buildSentenceCard(context, sentence),
+                const PremiumHintBanner(),
               ],
             ),
           ),

@@ -17,6 +17,7 @@ class TestOpenAIPayload:
         assert payload["instructions"] == "system"
         assert payload["input"] == [{"role": "user", "content": "user-prompt"}]
         assert payload["max_output_tokens"] == API_MAX_TOKENS
+        # free/premium とも medium 固定（high はレイテンシが暴れる。llm_providers 参照）
         assert payload["reasoning"]["effort"] == "medium"
 
     @pytest.mark.parametrize("model", [OPENAI_MODEL, OPENAI_MODEL_PREMIUM])
@@ -119,3 +120,23 @@ class TestProviderDispatch:
         llm_providers.generate_sentence_sync("sys", "user", True, "premium")
 
         assert called == [("openai", "sys", "user")]
+
+    def test_free_tier_always_uses_gemini(self, monkeypatch):
+        """free は SENTENCE_PROVIDER によらず常に Gemini。"""
+        monkeypatch.setattr(llm_providers, "SENTENCE_PROVIDER", "openai")
+        called: list[str] = []
+
+        monkeypatch.setattr(
+            llm_providers,
+            "_gemini_generate_sync",
+            lambda *a, **k: called.append("gemini") or {"thai_text": "x"},
+        )
+        monkeypatch.setattr(
+            llm_providers,
+            "_openai_generate_sync",
+            lambda *a, **k: called.append("openai") or {"thai_text": "y"},
+        )
+
+        llm_providers.generate_sentence_sync("sys", "user", False, "free")
+
+        assert called == ["gemini"]

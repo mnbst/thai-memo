@@ -170,6 +170,18 @@ class AnalyticsService {
     await _logEvent('notification_coach', {'action': action});
   }
 
+  /// 例文タブの常設プレミアムバナーの表示と結果。
+  ///
+  /// [action] は shown（表示）/ dismissed（×で閉じた）。タップして開いた場合は
+  /// tap_paywall(source: learning_banner_*) 側で拾えるのでここでは出さない。
+  /// shown を分母にして、訴求軸（[source]）ごとの反応率を比較するために出している。
+  Future<void> logPaywallBanner({
+    required String action,
+    required String source,
+  }) async {
+    await _logEvent('paywall_banner', {'action': action, 'source': source});
+  }
+
   Future<void> logChangeSetting({
     required String key,
     String? value,

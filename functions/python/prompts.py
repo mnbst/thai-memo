@@ -10,19 +10,14 @@ free ティアは estimated_vocab が 100 以下にキャップされる。
 import random
 
 from constants import (
-    EMOTIONS,
-    FREE_STYLES,
     FREE_TOPICS,
-    GRAMMAR_FOCUSES,
     POLITENESS_LEVELS,
-    STYLES,
+    TIME_FRAMES,
     TOPIC_SUB_THEMES,
     TOPICS,
 )
 from embeddings import (
     find_best_sub_theme,
-    get_emotion_similarity_weights,
-    get_style_similarity_weights,
     get_topic_option_similarity_weights,
 )
 from themes.bl_drama import build_drama_prompt_section
@@ -35,12 +30,18 @@ DIFFICULTY_LEVELS = [
     {
         "max_vocab": 99,
         "label": "入門",
-        "vocab_hint": "超基本的な挨拶・身近な語彙のみ",
+        # 「基本的な語彙のみ」だけでは硬い名詞・書き言葉が混ざる（2026-08-05 実測:
+        # vocab=0 の30文中4文が โบราณสถาน/งดงาม/จุดหมาย 級）。禁止例で閉じる。
+        "vocab_hint": "超基本的な挨拶・身近な語彙のみ。"
+        "ターゲット単語以外は日常会話の語に置き換える"
+        "（×โบราณสถาน →○ที่เก่า／×งดงาม →○สวย／×จุดหมาย →○ที่ที่จะไป／"
+        "×ทราบ →○รู้／×สถานที่ →○ที่）",
     },
     {
         "max_vocab": 299,
         "label": "初級",
-        "vocab_hint": "基本的な日常語彙のみ",
+        "vocab_hint": "基本的な日常語彙のみ。"
+        "ターゲット単語以外に書き言葉の名詞・文語の副詞を使わない",
     },
     {
         "max_vocab": 599,
@@ -62,8 +63,6 @@ DIFFICULTY_LEVELS = [
 # ─── レベル別解禁ゲート（自動選択時のみ適用。明示指定は維持） ───
 # 各要素に min estimated_vocab を紐づけ、ユーザーのレベルに応じて候補を絞る。
 # 閾値は DIFFICULTY_LEVELS の境界と対応: 0=入門, 100=初級, 300=初中級, 600=中級
-# 文体は語彙スコアでは制限しない。tier による候補制限のみ適用する。
-STYLE_MIN_VOCAB: dict[str, int] = {}
 
 TOPIC_MIN_VOCAB: dict[str, int] = {
     TOPICS[3]: 100,  # 仕事
@@ -76,14 +75,6 @@ TOPIC_MIN_VOCAB: dict[str, int] = {
     TOPICS[11]: 600,  # 宗教・信仰
     TOPICS[12]: 600,  # 伝統・祭り
     TOPICS[13]: 600,  # 礼儀作法
-}
-
-GRAMMAR_MIN_VOCAB: dict[str, int] = {
-    GRAMMAR_FOCUSES[4]: 100,  # 助詞・接続詞 (インデックス変動注意)
-    GRAMMAR_FOCUSES[5]: 100,  # 比較表現
-    GRAMMAR_FOCUSES[7]: 100,  # 可能表現
-    GRAMMAR_FOCUSES[8]: 100,  # 過去・完了
-    GRAMMAR_FOCUSES[3]: 100,  # 条件文
 }
 
 # 入門（vocab < 100）で許可するテーマ。
@@ -99,8 +90,6 @@ INTRO_TOPICS: frozenset[str] = frozenset(
     }
 )
 
-_emotion_embedding_enabled = True
-_style_embedding_enabled = True
 _politeness_embedding_enabled = True
 
 
@@ -112,8 +101,10 @@ SYSTEM_PROMPT_FREE = """タイ語基礎練習文を1つ生成。以下を厳守�
 方針: 短く実用的な入門〜初級文。基本語順・基本動詞・日常名詞中心。複文・慣用表現・強い感情表現は避ける。分かりやすさ優先。contextは一般的な説明に留める。
 
 出力ルール:
-- thai_text: 分かち書き禁止（OK: ฉันกินข้าว / NG: ฉัน กิน ข้าว）。自然な空白のみ
+- thai_textの空白は最大1つ。2節あるときの節の切れ目にだけ置く（OK: ฝนตก ไปดูวัดไม่ได้）。1節の文には入れない（NG: ฉัน กิน ข้าว / NG: โรงแรมนี้ คือ ดีมาก / NG: สนามบินพร้อม สำหรับนักท่องเที่ยว）
 - word_breakdown: 最大20単語、出現順にすべて含める。meaningは日本語のみ
+- word_breakdownは1エントリ1語。指示詞นี้/นั้นは直前の名詞から切る（×วัดนี้ →○วัด/นี้）。終助詞・疑問詞は1つずつ切る（×ได้ไหมคะ →○ได้/ไหม/คะ）。辞書の見出し語になる複合語は切らない（วันนี้/ที่นี่/ห้องพัก）
+- japanese_translationは日本語で書く。タイ語をそのまま入れない。「。」「？」「！」のどれかで終える
 - 人称代名詞のmeaningに性別・丁寧度注記（例: ผม→「私（男性・丁寧）」、กู→「俺/私（男女・ぞんざい）」）
 - context各フィールド50文字以内
 - japanese_translation: 自然な日本語。主語・目的語の対応を崩さない（誰が・誰を・何をの関係を正確に）（×説明的な訳→○日本語として自然な形）
@@ -137,41 +128,115 @@ SYSTEM_PROMPT_FREE = """タイ語基礎練習文を1つ生成。以下を厳守�
 # - 英語由来語は語尾・補足で自然に（โอเคแล้วนะ等）
 # --- 第3次除外（導入後も違反が続き、無効と確認） ---
 # - 動詞+ได้+形容詞と並べない。結果は〜แล้ว+形容詞で表す（×กินได้อร่อย →○กินแล้วอร่อย／×เดินได้สบาย →○เดินแล้วสบาย）
+# --- 出力前確認から移設（2026-08-04、JA_TRANSLATION_STEPS の手順3・4へ） ---
+# - japanese_translation の各文節が thai_text のどの語に対応するか言えるか
+# - japanese_translation をタイ語に戻して同じ意味になるか（特に否定・限定・程度）
+# --- 訳文ルールから移設（2026-08-04、_GRAMMAR_FOCUS_RULES[可能表現] へ） ---
+# - 結果・状態のได้+形容詞を「〜できる」と直訳しない（×ทำได้ดี→「うまくできる」→○「うまくやれている」）
 # --- 第2次除外（発火ゼロの確認のため） ---
 # - 過去は〜แล้ว/ตอน〜優先。冗長なเมื่อ〜ก็〜は避ける
 # - 指示・依頼はช่วย〜หน่อย/รบกวน〜หน่อย優先
-# - 英語直訳の比較・強調構文は禁止（×สวยเกินกว่าอะไรที่เคยพบเห็น →○สวยกว่าที่ไหนที่เคยไปมา／×เงียบอย่างที่ไม่เคยเป็น →○เงียบกว่าปกติมาก）
+# - 英語直訳の比較・強調構文は禁止（×สวยเกินกว่าอะไรที่เคยเจอ →○สวยกว่าที่ไหนที่เคยไปมา／×เงียบอย่างที่ไม่เคยเป็น →○เงียบกว่าปกติมาก）
 
 # ─── 末尾配置の制約（system prompt では守られなかったもの） ───
 # 語彙レベルの禁止は system prompt では守られなかった（sample_sentences.py で複数回確認）。
 # 長い可変コンテキストの後ろに置いた指示のほうが効く、という仮説の検証のため
 # build_prompt_with_context の最終ブロックへ移設している。効果が無ければ元へ戻す。
-# 丁寧さ・テーマが確定しているものは、その条件のときだけ入れる（常時入れると
-# ルール全体が薄まり、フォーマル時は「硬語禁止」自体が矛盾になるため）。
+# 2026-08-06 時点で条件付きなのはテーマ由来の1ブロックだけ。他は全て常時。
 _ALWAYS_RULES = [
     "動詞と目的語・副詞の定型の組み合わせを崩さない"
     "（×รอเดี๋ยว →○รอแป๊บนึง／観光で見る意味の×ไปดูงาน →○ไปดู／×แพ้เกมทุกอย่าง →○แพ้ทุกเกม／"
     "買えない意味の×เอาไม่ได้ →○ซื้อไม่ได้）。"
-    "同じ働きの副詞を重ねない（×ไม่มี…บ้างเลย →○ไม่มี…เลย／×ยัง…อีก →○ยัง…อยู่）",
-    "japanese_translation に thai_text へ無い語句を足さない。推測した理由・感情・評価は書かない"
-    "（×「静かすぎる」→「心配」／×「車が少ない」→「快適」／×「もう前とは違う」→「楽しくない」）",
+    "同じ働きの副詞を重ねない（×ไม่มี…บ้างเลย →○ไม่มี…เลย／×ยัง…อีก →○ยัง…อยู่／×เคยไปแล้ว →○เคยไป（経験）／○ไปมาแล้ว（行って戻った））。"
+    "動詞が要求する目的語を省かない"
+    "（×ลืมไว้ที่บ้าน →○ลืมกุญแจไว้ที่บ้าน／値段を言う意味の×คิดแพง →○คิดราคาแพง）",
+    # --- 訳文の2行は JA_TRANSLATION_STEPS の手順形式へ移行（2026-08-04） ---
+    # 禁止形のフラットなルールでは足し訳・翻訳調が残った（46文中5件）。
+    # 機能語で効いた FUNCTION_WORD_STEPS と同じ「作る順序を指定する」形に変える。
+    # 悪化したらこの2行に戻す。
+    # - japanese_translation に thai_text へ無い語句を足さない。推測した理由・感情・評価は書かない
+    #   （×「静かすぎる」→「心配」／×「車が少ない」→「快適」／×「もう前とは違う」→「楽しくない」）
+    # - japanese_translation は日本語として先に成立させる。タイ語の語順・品詞をなぞった翻訳調にしない
+    #   （×「着用するために購入した服は小さい」→○「買った服、サイズが小さい」）
     "応答・あいさつ表現（ไม่เป็นไร/ขอบคุณ/ขอโทษ/ได้เลย等）は、対応する状況を先に同じ文中へ置いてから使う"
     "（×แดดร้อน กลัวผิวเสีย ไม่เป็นไรค่ะ →○ลืมทาครีมอีกแล้ว ไม่เป็นไร เดี๋ยวซื้อใหม่）",
-]
-
-# 丁寧さがフォーマル、または文体がニュース記事体・物語文学体のときは外す。
-# その場合は硬語こそが正解になり、禁止すると ได้ 落ちなどの非文を招く（実測）。
-_CASUAL_ONLY_RULES = [
-    "สามารถ〜ได้ は使わない。〜ได้ だけで書く（×ทัวร์นี้สามารถเข้าได้ →○ทัวร์นี้เข้าได้）",
-    "書き言葉の硬い語・名詞句・文語の副詞を会話文に使わない"
-    "（×ท่าน →○คุณ／×ต้องการ →○อยาก／×ให้บริการ →○เปิด／×เป็นที่น่าตกใจ →○ตกใจเลย／"
-    "×〜นัก →○〜มาก／×การทัวร์นี้ →○ทัวร์นี้／×พลังของพายุนี้รุนแรงมาก →○พายุนี้แรงมาก）",
-]
-
-# 場所の移動が出るテーマでだけ効く。
-_PLACE_TOPIC_RULES = [
+    # 2026-08-05 実測: 118文中5件。ได้ を含む動詞への重ね掛けと、可能の意味が無い
+    # 位置への付与の2パターン。可能表現の文法フォーカス時に限らず出るのでここに置く。
+    "1節に ได้ は1つまで（2節の文なら節ごとに1つ）。ได้ を含む動詞に可能の ได้ を重ねない"
+    "（×ได้รับส่วนลดได้ →○ได้รับส่วนลด）。実際に起きた出来事に ได้ を足さない"
+    "（×เจอที่สวยขนาดนี้ได้ →○เจอที่สวยขนาดนี้／×โรงแรมบริการพวกเขาได้ →○โรงแรมบริการพวกเขา）。"
+    "経験を問う เคย の疑問は ไหม で終える。可能・許可の ได้ไหม と重ねない"
+    "（×เคยจองโรงแรมนี้ได้ไหมคะ →○เคยจองโรงแรมนี้ไหมคะ）",
+    # system prompt にも同じ規定があるが、語クラスブロックが末尾に付く回で
+    # 分かち書きが再発した（2026-08-05: 語クラス8文中1文）。末尾にも置く。
+    "thai_text の空白は最大1つ。2節あるときの切れ目にだけ置き、1節の文には入れない"
+    "（×ทัวร์ นี้ ถูก จัง →○ทัวร์นี้ถูกจัง／×ที่นี่ คุณทำงานได้ไหม →○ที่นี่คุณทำงานได้ไหม）",
+    # 2026-08-05 実測: 疑問文フォーカス12文中2文。自分が知っている事実を
+    # 一人称主語で問う形になり、問う相手がいない文になる。
+    "主語代名詞は無くても意味が通るなら省く。自分が知っている事実"
+    "（到着・所持・予定）を一人称主語の確認疑問にしない"
+    "（×ผมยังไม่ถึงสนามบินหรือครับ →○ยังไม่ถึงสนามบินหรือครับ）。"
+    "相手の判断を仰ぐ内容（見込み・許可・正誤）なら一人称主語でよい",
+    # 2026-08-05 実測: 634文中4件。当初 ไม่เคย 限定で書いたが ไม่ได้/ไม่ でも起きたため
+    # 否定全般へ広げた。訳側で「〜が」と逆接を足して辻褄を合わせる原因にもなる。
+    "否定した出来事（ไม่/ไม่ได้/ไม่เคย）の後ろに、それが起きた前提の感想を並べない。"
+    "並べるなら แต่ で繋ぐか、これからへの期待に変える"
+    "（×ไม่เคยไปทัวร์นี้ สนุกมาก →○ไม่เคยไปทัวร์นี้ อยากลองดู／"
+    "×พวกเราไม่ได้เที่ยวด้วยกัน น่าตื่นเต้น →○พวกเราจะได้เที่ยวด้วยกัน น่าตื่นเต้น）",
+    # 旅行・交通テーマ限定だったが、他テーマでも ที่นี่/ที่นั่น は出るため常時へ
+    # （2026-08-05）。テーマ別ブロック _PLACE_TOPIC_RULES は廃止。
     "移動動詞の方向を場所と合わせる。ที่นี่＝話者のいる場所→มา、ที่นั่น＝離れた場所→ไป"
     "（×เคยมาที่นี่ไหม ไปได้ง่ายนะ →○เคยมาที่นี่ไหม มาได้ง่ายนะ）",
+    # system prompt 中盤にあったが位置効果で弱かったため末尾へ移設（2026-08-05）。
+    "指示対象が未確立の第三者（เขา/เค้า 等）を主語にしない。先に誰を指すかを同じ文へ置く"
+    "（×คุณจะให้ผมทำ แต่เขาไม่สนใจ →○...แต่ผมไม่สนใจ）",
+    "話者は1人。質問とその返答を同じ文に書かない"
+    "（×หนักไปไหมคะ ไม่เป็นไรค่ะ →○หนักไปหน่อย แต่ไม่เป็นไรค่ะ）",
+]
+
+# 訳文は「確認せよ」形式（system prompt の出力前確認）では守られなかったため、
+# 作る順序の指定に変える。語を1つずつ置き換える手順にすると翻訳調が残るので、
+# 手順2で「場面から書き起こす → 後で対応を検算する」順に固定するのが要点。
+JA_TRANSLATION_STEPS = (
+    "【japanese_translation の作り方】\n"
+    "1. thai_text を読んで場面（誰が誰に、何を言っているか）を決める。"
+    "2節目の主語が省略されていたら1節目の主語と同じ人物として扱い、訳でもその人物を主語にする"
+    "（×พี่ออกไปไม่ได้ เลยเศร้า→「兄が出られなくて、悲しい」→○「兄は出られなくて、悲しんでいる」）\n"
+    "2. 1で決めた場面から日本語の一文を書く。thai_text の語順・品詞をなぞらない"
+    "（×「着用するために購入した服は小さい」→○「買った服、サイズが小さい」）。"
+    "ทำให้ は「〜させる」ではなく、変化した側を主語にして訳す"
+    "（×「このホテルは私を帰りたくなくさせる」→○「このホテル、帰りたくなくなる」）。"
+    "可能の ได้ は動詞の可能形1語にする"
+    "（×「世話することができるようになる」→○「世話できる」）。"
+    "เคย/แล้ว があるときは訳も過去形にする（×「すごく楽しいよ」→○「すごく楽しかったよ」）\n"
+    "3. 2の各文節が thai_text のどの語に対応するか確認する。"
+    "対応する語が無い文節は削る（×「静かすぎる」→「心配」と補う）。"
+    "括弧で語義を補足しない（×「弟（妹）」→○「弟」）。"
+    "人称代名詞は指す人物を変えない。二人称は二人称のまま訳す"
+    "（×นาย→「上司」「彼」→○「君」）。タイ語の人名はカタカナで書く"
+    "（×「นายสมชายはどの道か」→○「ソムチャイさんはどの道か」）。類別詞を具体的な名詞に置き換えない"
+    "（×ราคาตัวนี้→「この服の値段」→○「これの値段」）\n"
+    "4. thai_text にあるのに訳へ出ていない語が無いか確認する。"
+    "特に否定・推量・限定・程度（ไม่/อาจจะ/แค่/มาก）"
+)
+
+# 2026-08-06: 丁寧さフォーマル時に外す条件を削除し、常時ルールへ移した。
+# 文体抽選があった頃は「硬い文体なら硬語こそ正解」という前提が成り立っていたが、
+# 文体を廃止した今、生成するのは全て話し言葉で、フォーマルは ครับ/ค่ะ の丁寧さを
+# 指すだけになった。ท่าน/ต้องการ/ให้บริการ は丁寧さに関係なく学習者向けではない。
+# 実測76文で唯一の ท่าน/สามารถ 違反は、このルールが外れた回に出ている
+# （物語・文学体・vocab=0 の ×ท่านสามารถเช็คอินก่อนได้ ตามตกลงไว้）。
+#
+# ×例に使う語は「出力に現れても許容できる語」だけにする。×ラベルを付けても語トークン
+# 自体は模倣されるため、その例にしか出てこない珍しい語を使うと語彙候補に注入される
+# （2026-08-04: ×เป็นที่น่าตกใจ が原因で สวยน่าตกใจ が生成された。×เป็นที่นิยม に差し替え）。
+_SPOKEN_REGISTER_RULES = [
+    "สามารถ〜ได้ は使わない。〜ได้ だけで書く（×ทัวร์นี้สามารถเข้าได้ →○ทัวร์นี้เข้าได้）",
+    "japanese_translation の副詞・接続表現は会話で使う訳語を選ぶ"
+    "（×「再び」→○「また」／×「〜に対し」→○「〜には」／×「〜も一つの方法だ」→○「〜でいいよ」）",
+    "書き言葉の硬い語・名詞句・文語の副詞を会話文に使わない"
+    "（×ท่าน →○คุณ／×ต้องการ →○อยาก／×ให้บริการ →○เปิด／×เป็นที่นิยม →○ฮิต／"
+    "×〜นัก →○〜มาก／×การทัวร์นี้ →○ทัวร์นี้／×พลังของพายุนี้รุนแรงมาก →○พายุนี้แรงมาก）",
 ]
 
 # 恋愛系テーマでだけ効く。
@@ -179,23 +244,72 @@ _ROMANCE_TOPIC_RULES = [
     "性的・露骨な恋愛描写は禁止。健全な範囲に留める",
 ]
 
-_HARD_REGISTER_STYLES = ("ニュース", "物語", "丁寧語")
+# 2026-08-06 削除: フォーマル時だけ足していた เป็นที่ / เป็นสิ่ง のルール。
+# 32%の回で発火していたが、実測76文で เป็นสิ่ง は0件、เป็นที่ の1件も
+# ルールが狙う น่า〜 の形ではなかった。書き言葉の硬語を常時禁止する今、
+# この構文自体が出ない。再発したらここに戻す。
+# - เป็นที่ を付けるのは เป็นที่รู้จัก/เป็นที่นิยม などの定型だけ。น่า〜 には付けない
+# - เป็นสิ่ง+形容表現 の สิ่ง は形式名詞。japanese_translation では訳出しない
 
 
-def build_register_constraint(politeness: str, style: str, topic: str) -> str:
-    """丁寧さ・文体・テーマで出し分けた【最後に確認】ブロックを返す。"""
-    rules = list(_ALWAYS_RULES)
-    hard_ok = politeness == POLITENESS_LEVELS[0] or style.startswith(
-        _HARD_REGISTER_STYLES
-    )
-    if not hard_ok:
-        rules = _CASUAL_ONLY_RULES + rules
-    if topic in (TOPICS[2], TOPICS[6]):  # 旅行 / 交通
-        rules += _PLACE_TOPIC_RULES
+# ルールが語彙として禁止しているタイ語 → そのルールを一意に指す部分文字列。
+# その語が key_word のときは【最優先】必ず含めよ と正面から矛盾するので、
+# ルールごと落とす。禁止語は freq_rank の上位に実在し、必ず key_word に来る。
+#
+# 2026-08-06 実測: key_word=สามารถ（rank 100）で
+# ×ผู้โดยสารสามารถเช็คอินตอนนี้ใช่ไหมครับ が生成された。LLM は最優先指示に従っただけで
+# 正しい。ท่าน(61) / ต้องการ(83) / สามารถ(100) は入門帯の scan_band に入るため、
+# 学習が進めば全員が必ず当たる。
+#
+# 語自体は実用語（ท่าน は僧侶・目上への呼称、สามารถ は書き言葉で頻出）なので
+# key_word 候補から除外はしない。「普段は使うな、ただし今日の学習語なら主役でよい」
+# が正しい指示になる。
+_RULE_BANNED_WORDS: dict[str, str] = {
+    "สามารถ": "สามารถ〜ได้ は使わない",
+    "ท่าน": "書き言葉の硬い語",
+    "ต้องการ": "書き言葉の硬い語",
+    "ให้บริการ": "書き言葉の硬い語",
+    "เป็นที่นิยม": "書き言葉の硬い語",
+    "รอเดี๋ยว": "動詞と目的語・副詞の定型",
+    "ดูงาน": "動詞と目的語・副詞の定型",
+}
+
+
+def _drop_rules_banning_targets(
+    rules: list[str], target_words: list[str] | None
+) -> list[str]:
+    """ターゲット語を禁止しているルールを落とす。"""
+    if not target_words:
+        return rules
+    markers = {
+        marker
+        for word, marker in _RULE_BANNED_WORDS.items()
+        if word in target_words
+    }
+    if not markers:
+        return rules
+    return [r for r in rules if not any(m in r for m in markers)]
+
+
+def build_register_constraint(
+    topic: str, target_words: list[str] | None = None
+) -> str:
+    """テーマで出し分けた【最後に確認】ブロックを返す。
+
+    2026-08-06: 文体・文法フォーカス・感情・丁寧さによる出し分けを全て削除した。
+    クライアントが送れる生成パラメータはテーマだけで、文体・文法・感情は自動抽選を
+    止めているため発火率0%だった（2000回抽選で実測）。丁寧さによる分岐は
+    _SPOKEN_REGISTER_RULES のコメントを参照。
+
+    残る条件分岐はテーマ由来の1つと、ターゲット語がルールの禁止語と衝突する場合の
+    除去（_RULE_BANNED_WORDS）だけ。
+    """
+    rules = _SPOKEN_REGISTER_RULES + list(_ALWAYS_RULES)
     if topic in (TOPICS[14], TOPICS[15]):  # 恋愛 / タイBLドラマ
         rules += _ROMANCE_TOPIC_RULES
+    rules = _drop_rules_banning_targets(rules, target_words)
     body = "\n".join(f"{i}. {r}" for i, r in enumerate(rules, 1))
-    return f"【最後に確認】\n{body}"
+    return f"【最後に確認】\n{body}\n\n{JA_TRANSLATION_STEPS}"
 
 
 # ─── 語クラス別ブロック（該当時のみ末尾に足す） ───
@@ -255,10 +369,9 @@ SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
 
 ## 人称・指示
 - 人称の一貫性。短い会話でผม/กู・คุณ/มึง・เขาを無根拠に混ぜない
-- 指示対象が未確立の第三者（เขา等）を主語にしない（×มึงจะให้กูทำ แต่เขาไม่สนใจ →○...แต่กูไม่สนใจ）
 
 ## 否定
-- ไม่+กำลังは非文→ไม่ได้〜อยู่（×กูไม่กำลังทำงานอยู่ →○กูไม่ได้ทำงานอยู่）
+- ไม่+กำลังは非文→ไม่ได้〜อยู่（×ผมไม่กำลังทำงานอยู่ →○ผมไม่ได้ทำงานอยู่）
 - ยัง+ไม่+形容詞は非文→ไม่ค่อย〜（×เสื้อยังไม่หนา →○เสื้อไม่ค่อยหนา）
 - ไม่ได้〜แค่นี้は「この程度ではない」。「〜だけではない」はไม่ได้มีดีแค่〜
 - 否定文で形容詞の後ろにดีを付けない。〜ดีは肯定の軽い感嘆専用（×ไม่ได้สะดวกดี →○ไม่ได้สะดวก）
@@ -274,11 +387,13 @@ SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
 - 並置の論理関係は補ってよい。時間の順序→「〜してから」、原因・理由→「〜ので」、逆接→「〜けど」、条件→「〜なら」。どれとも判断できなければ補わず並置のまま訳す
 - 強調・限定・反語は話し言葉の等価表現に。硬い直訳（「〜については」「何のために」）は禁止（×「私については」→○「私のこともね」）
 - 複数語で1つの意味はまとまりで訳す（×เปิดให้บริการ→「サービス提供を開く」→○「営業する」）。word_breakdownは語単位のまま分ける
-- 結果・状態のได้+形容詞を「〜できる」と直訳しない（×ทำได้ดี→「うまくできる」→○「うまくやれている」）。能力・可能のได้は「〜できる」でよい
 
 # 出力ルール
-- thai_text: 語ごとの分かち書きは禁止（NG: ฉัน กิน ข้าว）。節・句の区切りの空白は可
+- thai_text の空白は最大1つ。文が2節あるときの節の切れ目にだけ置く（○ฝนตก ไปดูวัดไม่ได้）。1節の文には空白を入れない。主語と述語の間・名詞と修飾語の間で切らない（×ฉัน กิน ข้าว　×โรงแรมนี้ คือ ดีมาก　×สนามบินพร้อม สำหรับนักท่องเที่ยว）
 - word_breakdown: 出現順に全て。ターゲット単語は独立エントリ。人称代名詞は性別・丁寧度を注記（例: ผม→「私（男性・丁寧）」）
+- word_breakdown は1エントリ1語。指示詞 นี้/นั้น は直前の名詞から切る（×วัดนี้ →○วัด/นี้　×ตัวนี้ →○ตัว/นี้　×ขนาดนี้ →○ขนาด/นี้）。終助詞・疑問詞は1つずつ切る（×ได้ไหมคะ →○ได้/ไหม/คะ　×หรือครับ →○หรือ/ครับ　×นะครับ →○นะ/ครับ）。連続する2動詞も切る（×ทางไป →○ทาง/ไป）
+- 辞書の見出し語になる複合語は切らない（วันนี้/ที่นี่/ตรงนี้/ห้องพัก/นักท่องเที่ยว/เครื่องปรับอากาศ）
+- japanese_translation は日本語で書く。タイ語をそのまま入れない。「。」「？」「！」のどれかで終える
 - target_notes: ターゲット単語のみ。用法・類語との違い
 - スペルミス厳禁: เธอをเธと書かない。母音-อを落とさない
 
@@ -288,9 +403,8 @@ SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
 1. thai_text を語ごとに分かち書きしていないか
 2. ターゲット単語が word_breakdown に独立エントリであるか
 3. 2節を並置したなら、その関係を時間／原因／逆接／条件のどれか1つで言えるか。言えなければ1節に削る
-4. japanese_translation の各文節が thai_text のどの語に対応するか言えるか。対応先の無い語句は削る
-5. japanese_translation をタイ語に戻して同じ意味になるか（特に否定・限定・程度）
-6. 上の例文の焼き直しになっていないか"""
+4. word_breakdown に นี้/นั้น が前の語とくっついたエントリが無いか（あれば2つに割る）
+5. 上の例文の焼き直しになっていないか"""
 
 
 # 後方互換: 既存 import は premium 用プロンプトを参照する。
@@ -330,53 +444,19 @@ def gate_topics_for_vocab(pool: list[str], estimated_vocab: int) -> list[str]:
     return _gate_pool(pool, estimated_vocab, TOPIC_MIN_VOCAB)
 
 
-def _topic_option_weights(topic: str, options: list[str], kind: str) -> list[float]:
-    global _style_embedding_enabled, _politeness_embedding_enabled
-    if kind == "style" and not _style_embedding_enabled:
-        return [1.0] * len(options)
-    if kind == "politeness" and not _politeness_embedding_enabled:
+def _politeness_weights(topic: str, options: list[str]) -> list[float]:
+    """topic に近い丁寧さを選びやすくする重み。embedding が引けなければ一様。"""
+    global _politeness_embedding_enabled
+    if not _politeness_embedding_enabled:
         return [1.0] * len(options)
 
     try:
-        weights = get_topic_option_similarity_weights(topic, options, kind)
+        weights = get_topic_option_similarity_weights(topic, options, "politeness")
     except Exception as exc:
-        if kind == "style":
-            _style_embedding_enabled = False
-        elif kind == "politeness":
-            _politeness_embedding_enabled = False
-        print(f"{kind} embedding weights unavailable: {exc}")
+        _politeness_embedding_enabled = False
+        print(f"politeness embedding weights unavailable: {exc}")
         weights = None
     return weights or [1.0] * len(options)
-
-
-def _style_weights(
-    target_words: list[str] | None, styles_pool: list[str]
-) -> list[float]:
-    global _style_embedding_enabled
-    if not _style_embedding_enabled:
-        return [1.0] * len(styles_pool)
-
-    try:
-        weights = get_style_similarity_weights(target_words, styles_pool)
-    except Exception as exc:
-        _style_embedding_enabled = False
-        print(f"style embedding weights unavailable: {exc}")
-        weights = None
-    return weights or [1.0] * len(styles_pool)
-
-
-def _emotion_weights(target_words: list[str] | None) -> list[float]:
-    global _emotion_embedding_enabled
-    if not _emotion_embedding_enabled:
-        return [1.0] * len(EMOTIONS)
-
-    try:
-        weights = get_emotion_similarity_weights(target_words, EMOTIONS)
-    except Exception as exc:
-        _emotion_embedding_enabled = False
-        print(f"emotion embedding weights unavailable: {exc}")
-        weights = None
-    return weights or [1.0] * len(EMOTIONS)
 
 
 def _weighted_choice(options: list[str], weights: list[float]) -> str:
@@ -392,23 +472,16 @@ def resolve_generation_params(
     """例文生成パラメータを topic と同じ方式で確定する。
 
     クライアント指定値を優先し、未指定ならティアに応じた候補からランダム選択する。
-    style / politeness は topic、emotion は target_words の embedding で重み付けする。
-    自動選択時は estimated_vocab に応じて topic/grammar の候補プールを絞る。
+    politeness は topic の embedding で重み付けする。
+    自動選択時は estimated_vocab に応じて topic の候補プールを絞る。
     """
     topics_pool = TOPICS if is_premium else FREE_TOPICS
-    styles_pool = STYLES if is_premium else FREE_STYLES
     if is_premium:
         topics_pool = _gate_topics(topics_pool, estimated_vocab)
-    styles_pool = _gate_pool(styles_pool, estimated_vocab, STYLE_MIN_VOCAB)
 
     topic = params.get("topic") or random.choice(topics_pool)
-    style = params.get("style")
-    if not style:
-        style = _weighted_choice(
-            styles_pool,
-            _style_weights(target_words, styles_pool),
-        )
 
+    # 丁寧さの確定条件（クライアント指定・語クラス・ドラマ回）を先に見る。
     politeness = params.get("politeness")
     if not politeness:
         if requires_formal_politeness(target_words):
@@ -417,23 +490,16 @@ def resolve_generation_params(
             politeness = POLITENESS_LEVELS[0]
         elif topic == TOPICS[15]:
             politeness = POLITENESS_LEVELS[1]
-        else:
-            politeness = _weighted_choice(
-                POLITENESS_LEVELS,
-                _topic_option_weights(topic, POLITENESS_LEVELS, "politeness"),
-            )
-    grammar_focus = None
-    if is_premium:
-        if params.get("grammarFocus"):
-            grammar_focus = params["grammarFocus"]
-        else:
-            grammar_pool = _gate_pool(
-                GRAMMAR_FOCUSES, estimated_vocab, GRAMMAR_MIN_VOCAB
-            )
-            grammar_focus = random.choice(grammar_pool)
-    emotion = params.get("emotion")
-    if not emotion:
-        emotion = _weighted_choice(EMOTIONS, _emotion_weights(target_words))
+
+    if not politeness:
+        politeness = _weighted_choice(
+            POLITENESS_LEVELS,
+            _politeness_weights(topic, POLITENESS_LEVELS),
+        )
+    # 2026-08-05 追加の直交軸。どちらも「何を言うか」ではなく「いつのことを、
+    # どういう構えで言うか」を決めるだけなので、確定済みの key_word ともテーマとも
+    # 衝突しない。
+    time_frame = params.get("timeFrame") or random.choice(TIME_FRAMES)
 
     sub_theme = None
     sub_themes = TOPIC_SUB_THEMES.get(topic)
@@ -443,10 +509,8 @@ def resolve_generation_params(
     return {
         "topic": topic,
         "subTheme": sub_theme,
-        "style": style,
         "politeness": politeness,
-        "grammarFocus": grammar_focus,
-        "emotion": emotion,
+        "timeFrame": time_frame,
     }
 
 
@@ -501,11 +565,12 @@ def build_prompt_with_context(
         params: クライアントから渡されたパラメータ辞書
         target_words: UVMから選定されたターゲット単語リスト（省略可）
         estimated_vocab: ユーザーの語彙スコア（デフォルト0=入門）
-        is_premium: プレミアムティアかどうか（free時はテーマ・スタイルが制限される）
+        is_premium: プレミアムティアかどうか（free時はテーマが制限される）
 
     Returns:
-        tuple[str, dict]: プロンプト文字列と、生成後に context へ注入する
-            {"topic", "style", "emotion"}（LLM に復唱させず出力トークンを節約する）
+        tuple[str, dict]: プロンプト文字列と、生成後に context へ注入する確定値。
+            文体・感情はサーバーで決めないので入らず、LLM が生成して返す
+            （sentence_service._schema_for が未確定フィールドだけ要求する）。
     """
     diff = get_difficulty(estimated_vocab)
     prompt_is_premium = use_premium_prompt_for_vocab(is_premium, estimated_vocab)
@@ -518,11 +583,9 @@ def build_prompt_with_context(
     )
     topic = resolved["topic"]
     sub_theme = resolved["subTheme"]
-    style = resolved["style"]
     politeness = resolved["politeness"]
-    grammar_focus = resolved["grammarFocus"]
-    emotion = resolved["emotion"]
-    grammar_line = f"- 文法フォーカス: {grammar_focus}\n" if grammar_focus else ""
+    time_frame = resolved["timeFrame"]
+    time_frame_line = f"- 話している時点: {time_frame}\n" if time_frame else ""
     sub_theme_line = f"- サブテーマ: {sub_theme}\n" if sub_theme else ""
 
     drama_context = ""
@@ -535,24 +598,29 @@ def build_prompt_with_context(
     if is_drama:
         topic_line = ""
         sub_theme_line = ""
-        style_line = ""
         politeness_line = ""
-        grammar_line = ""
-        emotion_line = ""
+        # ドラマ回は場面をドラマ側のブロックが決めるため付けない。
+        time_frame_line = ""
+        time_frame = None
     else:
         topic_line = f"- テーマ: {topic}\n"
-        style_line = f"- 文体: {style}\n"
         politeness_line = f"- 丁寧さ: {politeness}\n"
-        emotion_line = f"- 感情・トーン: {emotion}"
-        # grammar_line is already set above
 
     # プロンプトで指定した値のみ確定値として記録する。
-    # ドラマ回は文体・トーンを制約しないため確定値が無く、キーごと落とす。
     # 欠けたキーは呼び出し側が LLM に生成させる（constants.build_response_schema）。
     context = {"topic": topic}
     if not is_drama:
-        context["style"] = style
-        context["emotion"] = emotion
+        # 偏りを後から集計できるように、サーバーが決めた値は全て残す。
+        # ここに無い軸は実ユーザーの生成結果から検査できない（2026-08-06 に
+        # subTheme と politeness を追加。それまではプロンプト文字列を読む
+        # scripts/sample_sentences.py でしか分布を確認できなかった）。
+        # _CONTEXT_FIELDS には含めないので、LLM に生成させるスキーマは変わらない。
+        if sub_theme:
+            context["subTheme"] = sub_theme
+        if politeness:
+            context["politeness"] = politeness
+        if time_frame:
+            context["timeFrame"] = time_frame
 
     # ブロックは "\n\n" で連結する。drama 未適用時に空行だけが残らないよう、
     # 空のブロックはリストに積まない。
@@ -573,8 +641,8 @@ def build_prompt_with_context(
     if drama_required:
         sections.append(drama_required.strip())
     elements = (
-        f"{topic_line}{sub_theme_line}{style_line}{politeness_line}"
-        f"{grammar_line}{emotion_line}"
+        f"{topic_line}{sub_theme_line}{politeness_line}"
+        f"{time_frame_line}"
     )
     if elements.strip():
         sections.append(
@@ -585,7 +653,9 @@ def build_prompt_with_context(
 
     # 語彙レジスタ制約は末尾に置く（system prompt では守られなかったため）。
     if prompt_is_premium:
-        sections.append(build_register_constraint(politeness, style, topic))
+        sections.append(
+            build_register_constraint(topic, target_words)
+        )
 
     # 語クラス別の指示は最末尾（該当するクラスが無ければ付かない）。
     word_class_block = build_word_class_constraint(target_words)

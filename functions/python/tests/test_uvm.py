@@ -17,7 +17,7 @@ from uvm import (
     ALPHA_INCORRECT_MIN,
     ALPHA_EXPOSURE,
     GAP_SCAN_DEPTH,
-    SCAN_AHEAD,
+    scan_band,
     LEARNING_CORRECT_MULTIPLIER,
     NEW_WORD_P,
     P_MAX,
@@ -278,7 +278,7 @@ def test_get_session_words_excludes_out_of_scan_candidates() -> None:
         {
             "in-scan-low": 40,
             "in-scan-high": 50,
-            "out-scan": 65,
+            "out-scan": 100,
         },
         topic="fixed-topic",
         count=2,
@@ -457,12 +457,24 @@ def test_update_p_correct_delta_larger_than_incorrect_delta() -> None:
 # 境界値分析: get_session_words × estimated_vocab
 # ---------------------------------------------------------------------------
 
+def test_scan_band_narrows_forward_as_vocab_grows() -> None:
+    """前方は estimated_vocab に比例して狭まり、後方は GAP_SCAN_DEPTH まで深くなる。"""
+    assert scan_band(0) == (0, 50)
+    assert scan_band(10) == (0, 55)
+    assert scan_band(50) == (0, 75)
+    assert scan_band(60) == (10, 80)
+    # 前方は下限(8)で頭打ちになる
+    assert scan_band(100) == (50, 108)
+    assert scan_band(1000) == (950, 1008)
+
+
 def test_get_session_words_estimated_vocab_0() -> None:
-    """estimated_vocab=0: scan=[0, SCAN_AHEAD]"""
+    """estimated_vocab=0: scan=[0, 50]"""
     db = FakeDb()
+    _, high = scan_band(0)
     in_scan = "word-aa"     # rank=3 (scan内)
-    out_scan = "word-bb"    # rank=SCAN_AHEAD+1 (scan外)
-    freq_rank = {in_scan: 3, out_scan: SCAN_AHEAD + 1}
+    out_scan = "word-bb"    # scan外
+    freq_rank = {in_scan: 3, out_scan: high + 1}
 
     words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=1, estimated_vocab=0)
 
@@ -470,7 +482,7 @@ def test_get_session_words_estimated_vocab_0() -> None:
 
 
 def test_get_session_words_estimated_vocab_small() -> None:
-    """estimated_vocab=10: scan=[0, 20] — 両語ともscan内"""
+    """estimated_vocab=10: scan=[0, 55] — 両語ともscan内"""
     db = FakeDb()
     freq_rank = {"word-aa": 0, "word-bb": 10}
 
@@ -483,26 +495,30 @@ def test_get_session_words_scan_high_boundary() -> None:
     """scan上限ちょうどの語は選出される"""
     db = FakeDb()
     ev = 50
-    freq_rank = {"word-at-high": ev + SCAN_AHEAD, "word-over": ev + SCAN_AHEAD + 1}
+    _, high = scan_band(ev)
+    freq_rank = {"word-at-high": high, "word-over": high + 1}
 
     words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=1, estimated_vocab=ev)
 
     assert words == ["word-at-high"]
 
 
-def test_get_session_words_rank_weighting_favors_higher_rank() -> None:
-    """P=0の候補が複数ある場合、rankが高い語ほど選ばれやすい"""
+def test_get_session_words_rank_weighting_favors_lower_rank() -> None:
+    """P=0の候補が複数ある場合、rankが低い（高頻度な）語ほど選ばれやすい。
+
+    重みは sqrt(max_rank - rank + 1) なので rank が低いほど大きい。
+    """
     db = FakeDb()
     ev = 100
     freq_rank = {"low-rank": 66, "high-rank": 104}
 
-    high_count = 0
+    low_count = 0
     for _ in range(200):
         words, _ = get_session_words(db, "user-1", freq_rank, topic="t", count=1, estimated_vocab=ev)
-        if words == ["high-rank"]:
-            high_count += 1
+        if words == ["low-rank"]:
+            low_count += 1
 
-    assert high_count > 100  # high-rank(104) が low-rank(66) より多く選ばれる
+    assert low_count > 100  # low-rank(66) が high-rank(104) より多く選ばれる
 
 
 # ---------------------------------------------------------------------------

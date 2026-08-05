@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import random
+import time
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
@@ -22,7 +23,7 @@ os.environ.setdefault("SSL_CERT_FILE", certifi.where())
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "functions", "python"))
 
-from constants import RESPONSE_JSON_SCHEMA  # noqa: E402
+from sentence_service import _schema_for  # noqa: E402
 from llm_providers import generate_sentence_sync  # noqa: E402
 from prompts import build_prompt_with_context, get_system_prompt  # noqa: E402
 
@@ -84,27 +85,66 @@ def generate_one(
     if vocab is None:
         vocab = sample_vocab()
     word = word or pick_key_word(freq_rank, vocab)
+    params: dict = {}
+    # 本体（uvm.get_session_words）は key_word の embedding からテーマを選ぶ。
+    # ここでランダムにすると語とテーマが噛み合わない文が人工的に増えるため揃える。
+    if not topic:
+        from constants import TOPICS
+        from embeddings import find_best_topic
+        from prompts import gate_topics_for_vocab
+
+        pool = gate_topics_for_vocab(list(TOPICS), vocab)
+        topic = find_best_topic(word, pool, top_k=5, threshold=0.545) or random.choice(
+            pool
+        )
+    if topic:
+        params["topic"] = topic
     prompt, context = build_prompt_with_context(
-        {"topic": topic} if topic else {},
+        params,
         [word],
         estimated_vocab=vocab,
         is_premium=is_premium,
     )
     system = get_system_prompt(is_premium, vocab)
+    started = time.monotonic()
     try:
         s = generate_sentence_sync(
             system,
             prompt,
             is_premium,
             "premium" if is_premium else "free",
-            RESPONSE_JSON_SCHEMA,
+            # 本番と同じく、サーバーが確定しなかった context だけ LLM に書かせる。
+            _schema_for(context),
         )
     except Exception as exc:  # 1件の失敗で全体を落とさない
-        return {"key_word": word, "error": str(exc)}
+        return {"key_word": word, "error": str(exc), "sec": round(time.monotonic() - started, 2)}
+    register = [
+        line.strip("- ")
+        for line in prompt.splitlines()
+        if line.startswith(("- 文体:", "- 丁寧さ:"))
+    ]
+    # 文法フォーカス・感情も記録する。文体違反の判定にはこの2つが要る
+    # （疑問文フォーカスならニュース体でも疑問文が正解になる等）。
+    extras = {
+        line.split(":", 1)[0].strip("- "): line.split(":", 1)[1].strip()
+        for line in prompt.splitlines()
+        if line.startswith(
+            ("- 話している時点:",)
+        )
+    }
     return {
         "key_word": word,
         "vocab": vocab,
+        # レイテンシは常設で記録する（reasoning effort・並列数を変えたときの比較用）。
+        "sec": round(time.monotonic() - started, 2),
         "topic": context.get("topic"),
+        "register": " / ".join(register),
+        "grammar": extras.get("文法フォーカス"),
+        "emotion": extras.get("感情・トーン"),
+        "time_frame": extras.get("話している時点"),
+        # 文体はサーバーで確定しないので、LLM が実際に書いた文体を受け取る。
+        "style_llm": (s.get("context") or {}).get("style"),
+        "modality": extras.get("述べ方"),
         "thai": s.get("thai_text"),
         "ja": s.get("japanese_translation"),
         "words": [
@@ -134,6 +174,9 @@ def main() -> None:
         help="TOPICS の完全一致文字列、または部分一致するテーマ名でトピックを固定する",
     )
     p.add_argument("--out", default="/tmp/samples.json")
+    p.add_argument(
+        "--workers", type=int, default=8, help="並列数。API 側に切られるときは下げる"
+    )
     args = p.parse_args()
 
     freq_rank = load_freq_rank()
@@ -147,7 +190,7 @@ def main() -> None:
         if not matched:
             raise SystemExit(f"テーマが見つかりません: {args.topic}")
         topic = matched[0]
-    with ThreadPoolExecutor(max_workers=8) as ex:
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
         results = list(
             ex.map(
                 lambda i: generate_one(
@@ -168,7 +211,11 @@ def main() -> None:
         if r.get("error"):
             print(f"{i:3d} ERROR {r['key_word']}: {r['error']}")
             continue
-        print(f"{i:3d} kw={r['key_word']} vocab={r['vocab']} [{(r['topic'] or '')[:8]}]")
+        print(
+            f"{i:3d} kw={r['key_word']} vocab={r['vocab']} "
+            f"[{(r['topic'] or '')[:8]}] {r.get('register', '')}"
+            f" / LLM文体: {r.get('style_llm')}"
+        )
         print(f"    T: {r['thai']}")
         print(f"    J: {r['ja']}")
     print(f"\n-> {args.out}", file=sys.stderr)
