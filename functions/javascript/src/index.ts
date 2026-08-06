@@ -18,3 +18,4 @@ export { handlePlayNotification } from './handlePlayNotification';
 export { handleAppStoreNotification } from './handleAppStoreNotification';
 export { sendContactEmail } from './sendContactEmail';
 export { resetLearningData } from './resetLearningData';
+export { setUserTier } from './setUserTier';

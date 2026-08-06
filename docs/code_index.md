@@ -207,6 +207,12 @@ Firestoreからサブスクリプション状態を照会。
 functions/javascript/src/deleteUserData.ts
 GDPR対応：ユーザーデータ削除。
 
+functions/javascript/src/setUserTier.ts
+管理者用callable：任意ユーザーのtierを手動切り替え（ADMIN_UIDS / custom claim admin で制限）。
+
+functions/javascript/src/services/tierService.ts
+tier付与の中核ロジック（クォータリセット・subscription書き込み・tier_grants監査ログ）。クーポン導線でも再利用する。
+
 ### Notification Handlers
 
 functions/javascript/src/handlePlayNotification.ts

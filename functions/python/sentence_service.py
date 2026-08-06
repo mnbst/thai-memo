@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -279,7 +280,10 @@ MAX_RETRY = 1
 
 
 def _match_word(word_text: str, target: str) -> bool:
-    w = word_text.strip()
+    # ๆ の前の空白は _normalize_thai_spacing で詰めるが、そこを通らない経路
+    # （欠落補完・テスト）からも呼ばれるので照合時にも両表記を同一視する。
+    w = _compact_yamok(word_text.strip())
+    target = _compact_yamok(target)
     return w == target or w == target + "ๆ" or w + "ๆ" == target
 
 
@@ -374,6 +378,63 @@ def _build_mismatch_retry_prompt(prompt: str, thai_text: str) -> str:
     )
 
 
+def _strip_spaces(text: str) -> str:
+    return "".join(text.split())
+
+
+def _compact_yamok(text: str) -> str:
+    """畳語記号 ๆ の前の空白を詰める。
+
+    王立学士院の正式記法は ๆ の前を空けるが、TTS は空白を語境界のポーズとして
+    読むため จริง ๆ が分断されて発音される。表示より発音の自然さを優先する。
+    ๆ の後ろの空白は節の切れ目になりうるので残す。
+    """
+    return re.sub(r"\s+ๆ", "ๆ", text)
+
+
+def _normalize_thai_spacing(sentence: dict) -> None:
+    """thai_text の空白を整える。
+
+    1. 畳語記号 ๆ の前の空白を詰める（TTS 対策。_compact_yamok を参照）
+    2. word_breakdown の分割が thai_text に漏れた文の空白を詰める
+
+    2 は、同じ文の分割版（word_breakdown）を同時に出力させる構造上、プロンプトで
+    何度禁じても残る（2026-08-06 実測 6/548=1.1%。例文の有無・語クラスブロックの
+    有無と相関せず、ルール追加では消えない）。観測された6件はすべて空白位置が
+    word_breakdown の区切りと一致していたので、その一致を条件に詰める。節の
+    切れ目に空白1つの正しい文（トークン2個）と、word_breakdown と連結が一致
+    しない文には触らない。
+    """
+    text = _compact_yamok(sentence.get("thai_text") or "")
+    for wb in sentence.get("word_breakdown") or []:
+        if isinstance(wb, dict) and wb.get("word"):
+            wb["word"] = _compact_yamok(str(wb["word"]))
+    sentence["thai_text"] = text
+
+    tokens = text.split()
+    # 3トークン以下は空白過多ではあっても、どれが節の切れ目か判別できない。
+    # 実測の分かち書き崩壊は全て4トークン以上（2026-08-06）。
+    if len(tokens) < 4:
+        return
+
+    words = [
+        (wb.get("word") or "").strip()
+        for wb in sentence.get("word_breakdown") or []
+        if isinstance(wb, dict)
+    ]
+    if not words or _strip_spaces(text) != _strip_spaces("".join(words)):
+        return
+    # 空白が語の区切りと一致するだけでは足りない（2節の文でも一致する）。
+    # 語数に近い数まで割れているものだけを分かち書きの漏れとみなす。
+    # 実測6件は 0.8〜1.0、正しい2節の文は 0.5 未満（2026-08-06）。
+    if len(tokens) < len(words) * 0.7:
+        return
+
+    fixed = _strip_spaces(text)
+    print(f"thai_text word-split collapsed: {text} -> {fixed}")
+    sentence["thai_text"] = fixed
+
+
 def _has_unrepairable_breakdown(sentence: dict) -> bool:
     """word_breakdown に thai_text へ出現しない語があるか（綴り不一致）。"""
     from word_gap import find_gaps
@@ -442,6 +503,7 @@ def _generate_single(
             _schema_for(resolved_context),
         )
         _apply_response_compat(sentence, resolved_context)
+        _normalize_thai_spacing(sentence)
         _enrich_with_nlp(sentence)
 
         missing = validate_target_words(sentence, target_words)
@@ -491,6 +553,7 @@ async def _generate_single_async(
             _schema_for(resolved_context),
         )
         _apply_response_compat(sentence, resolved_context)
+        _normalize_thai_spacing(sentence)
         _enrich_with_nlp(sentence)
 
         missing = validate_target_words(sentence, target_words)
