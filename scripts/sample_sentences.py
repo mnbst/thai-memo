@@ -94,9 +94,9 @@ def generate_one(
         from prompts import gate_topics_for_vocab
 
         pool = gate_topics_for_vocab(list(TOPICS), vocab)
-        topic = find_best_topic(word, pool, top_k=5, threshold=0.545) or random.choice(
-            pool
-        )
+        # 閾値未達なら埋めずに空のまま通す。本体（uvm.get_session_words）と同じく
+        # テーマは LLM に選ばせる（build_prompt_with_context が候補を列挙する）。
+        topic = find_best_topic(word, pool, top_k=5, threshold=0.545) or ""
     if topic:
         params["topic"] = topic
     prompt, context = build_prompt_with_context(

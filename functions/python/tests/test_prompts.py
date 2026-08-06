@@ -33,6 +33,7 @@ def test_resolve_generation_params_prefers_explicit_values() -> None:
 
     result = resolve_generation_params(params, is_premium=True)
     assert result.pop("subTheme") is None
+    result.pop("topicOptions")
     # 時間軸・述べ方は明示指定が無ければ抽選される（値は非決定的）
     assert result.pop("timeFrame") in TIME_FRAMES
     assert result == params
@@ -50,8 +51,10 @@ def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
         resolved = resolve_generation_params({}, is_premium=False)
 
     assert resolved.pop("subTheme") is None
+    assert resolved.pop("topicOptions") == FREE_TOPICS
     assert resolved == {
-        "topic": FREE_TOPICS[0],
+        # テーマは埋めず LLM に委ねる（候補は topicOptions で渡す）
+        "topic": "",
         # 文体で絞らなくなったので POLITENESS_LEVELS の先頭が選ばれる
         "politeness": POLITENESS_LEVELS[0],
         "timeFrame": TIME_FRAMES[0],
@@ -79,24 +82,19 @@ def test_free_topics_exclude_travel() -> None:
 
 
 def test_free_topic_pool_is_not_vocab_gated() -> None:
-    selected_topics: list[str] = []
-
-    def capture_choice(values):
-        selected_topics.append(list(values))
-        return values[-1]
-
-    with (
-        patch("prompts.get_topic_option_similarity_weights", return_value=None),
-        patch("prompts.random.choice", side_effect=capture_choice),
-        patch(
-            "prompts.random.choices",
-            side_effect=lambda population, weights, k: [population[0]],
-        ),
-    ):
+    with patch("prompts.get_topic_option_similarity_weights", return_value=None):
         resolved = resolve_generation_params({}, is_premium=False, estimated_vocab=0)
 
-    assert selected_topics[0] == FREE_TOPICS
-    assert resolved["topic"] == TOPICS[15]
+    assert resolved["topicOptions"] == FREE_TOPICS
+
+
+def test_unspecified_topic_is_left_to_the_llm() -> None:
+    """テーマ未指定はサーバーで埋めず、候補だけ返す（LLM が選ぶ）。"""
+    with patch("prompts.get_topic_option_similarity_weights", return_value=None):
+        resolved = resolve_generation_params({}, is_premium=True, estimated_vocab=0)
+
+    assert resolved["topic"] == ""
+    assert resolved["topicOptions"]
 
 
 def test_resolve_generation_params_weights_politeness_by_topic() -> None:
@@ -146,24 +144,11 @@ def test_bl_drama_forces_casual_politeness() -> None:
 
 
 def test_topic_gate_at_intro_limits_to_intro_topics() -> None:
-    """入門では自動選択のテーマが INTRO_TOPICS に限定される。"""
-    selected_topics: list[str] = []
+    """入門では LLM に渡すテーマ候補が INTRO_TOPICS に限定される。"""
+    with patch("prompts.get_topic_option_similarity_weights", return_value=None):
+        resolved = resolve_generation_params({}, is_premium=True, estimated_vocab=99)
 
-    def capture_choice(values):
-        selected_topics.append(list(values))
-        return values[0]
-
-    with (
-        patch("prompts.get_topic_option_similarity_weights", return_value=None),
-        patch("prompts.random.choice", side_effect=capture_choice),
-        patch(
-            "prompts.random.choices",
-            side_effect=lambda population, weights, k: [population[0]],
-        ),
-    ):
-        resolve_generation_params({}, is_premium=True, estimated_vocab=99)
-
-    topic_pool = selected_topics[0]
+    topic_pool = resolved["topicOptions"]
     for topic in topic_pool:
         assert topic in INTRO_TOPICS
     assert TOPICS[14] not in topic_pool  # 恋愛・男女関係は初級から
@@ -171,23 +156,10 @@ def test_topic_gate_at_intro_limits_to_intro_topics() -> None:
 
 def test_topic_gate_at_beginner_opens_daily_topics() -> None:
     """初級 (vocab=100) では日常系テーマまで解禁される。"""
-    selected_topics: list[str] = []
+    with patch("prompts.get_topic_option_similarity_weights", return_value=None):
+        resolved = resolve_generation_params({}, is_premium=True, estimated_vocab=100)
 
-    def capture_choice(values):
-        selected_topics.append(list(values))
-        return values[0]
-
-    with (
-        patch("prompts.get_topic_option_similarity_weights", return_value=None),
-        patch("prompts.random.choice", side_effect=capture_choice),
-        patch(
-            "prompts.random.choices",
-            side_effect=lambda population, weights, k: [population[0]],
-        ),
-    ):
-        resolve_generation_params({}, is_premium=True, estimated_vocab=100)
-
-    topic_pool = selected_topics[0]
+    topic_pool = resolved["topicOptions"]
     assert topic_pool == gate_topics_for_vocab(TOPICS, 100)
     assert TOPICS[14] in topic_pool  # 恋愛・男女関係
     assert TOPICS[10] not in topic_pool  # 学校
@@ -236,6 +208,7 @@ def test_explicit_values_override_gates_after_common_prompt_vocab() -> None:
     resolved = resolve_generation_params(params, is_premium=True, estimated_vocab=101)
 
     resolved.pop("subTheme")
+    resolved.pop("topicOptions")
     assert resolved.pop("timeFrame") in TIME_FRAMES
     assert resolved == params
 

@@ -111,7 +111,8 @@ FREE_TOPICS = [
     TOPICS[5],
     TOPICS[15],
 ]  # あいさつ、食べ物、買い物、タイBLドラマ
-FREE_STYLES = STYLES[1:3]  # 口語体、丁寧語
+# 2026-08-06 削除: FREE_STYLES。文体の自動抽選を止めた時点で参照が消えた
+# （prompts.py:build_register_constraint のコメント参照）。
 
 # ─── 丁寧さレベル ───
 # タイ語は丁寧さの使い分けが重要。場面に応じたレベルを選択
@@ -136,16 +137,11 @@ GRAMMAR_FOCUSES = [
 ]
 
 
-# ─── 感情・トーン ───
-# 例文に含める感情表現の種類
-EMOTIONS = [
-    "喜び・嬉しさ",
-    "悲しみ・落ち込み",
-    "驚き",
-    "不安・心配",
-    "期待・楽しみ",
-    "中立・平静",
-]
+# 2026-08-06 削除: EMOTIONS。感情の自動抽選を止めた時点で生成経路から参照が消え、
+# 残っていたのは scripts/build_emotion_embeddings.py → corpus/emotion_embeddings.json
+# → GCS という経路だけだった。この blob をロードするコードは存在しないため、
+# 定数・ビルドスクリプト・upload_corpus.sh の分岐をまとめて削除した。
+# 感情は現在 LLM が生成して context.emotion に返す（自由記述）。
 
 
 # ─── 時間軸 ───

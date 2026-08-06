@@ -190,7 +190,7 @@ def find_best_topic(
     """key_word の embedding と各テーマ embedding のコサイン類似度からテーマを返す。
 
     閾値以上の候補を類似度順に並べ、上位 top_k 件からランダムに1件選択する。
-    閾値を満たす候補がない場合は最高類似度のテーマを返す。
+    閾値を満たす候補がない場合は None を返す（呼び出し側で LLM に委ねる）。
 
     Args:
         word: key_word（タイ語単語）
@@ -224,8 +224,13 @@ def find_best_topic(
 
     scored.sort(reverse=True)
     candidates = [t for sim, t in scored if sim >= threshold]
-    pool = (candidates or [scored[0][1]])[:top_k]
-    return random.choice(pool)
+    # 2026-08-06: 閾値未達時に最高類似度を返すのをやめた。機能語 key_word は
+    # どのテーマとも意味的に無関係なので、argmax はテーマ embedding の重心バイアス
+    # （ラベル文が広いテーマほど全語に近い）を拾うだけで意味を持たない。
+    # None を返して呼び出し側から LLM にテーマを委ねる。
+    if not candidates:
+        return None
+    return random.choice(candidates[:top_k])
 
 
 _sub_theme_embeddings: dict[str, list[float]] | None = None

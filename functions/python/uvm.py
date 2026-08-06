@@ -397,11 +397,11 @@ def get_session_words(
     if topic:
         chosen_topic = topic
     else:
+        # 閾値未達（＝key_word がどのテーマとも結びつかない機能語など）は
+        # "" のまま返し、テーマを LLM に決めさせる。ランダムに埋めない。
         chosen_topic = (
             find_best_topic(words[0], topics_pool, top_k=5, threshold=0.545) or ""
         )
-        if not chosen_topic and topics_pool:
-            chosen_topic = random.choice(topics_pool)
 
     print(
         json.dumps(

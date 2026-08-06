@@ -63,6 +63,15 @@ DIFFICULTY_LEVELS = [
 # ─── レベル別解禁ゲート（自動選択時のみ適用。明示指定は維持） ───
 # 各要素に min estimated_vocab を紐づけ、ユーザーのレベルに応じて候補を絞る。
 # 閾値は DIFFICULTY_LEVELS の境界と対応: 0=入門, 100=初級, 300=初中級, 600=中級
+#
+# 2026-08-06 調査済み・対応不要: 入門帯（vocab<100）はテーマが旅行に強く偏る
+# （オフライン40文中32文＝80%。prod は vocab 帯が混ざるので24%）。
+# 機構は find_best_topic の重心バイアスとこのゲートの相互作用。テーマ embedding は
+# 語彙全体への平均類似度に差があり（高頻度300語に対し BLドラマ0.567 / 恋愛0.563 /
+# 趣味0.557 / 旅行0.556 …）、上位テーマが軒並み min_vocab 100〜600 で除かれるため、
+# 入門帯に残る6テーマの中では旅行が突出して1位になる。機能語 key_word は
+# テーマ的な信号を持たないので、ほぼ常に旅行が argmax。
+# 初心者が旅行から入るのは学習上自然なため仕様として許容する。再調査しないこと。
 
 TOPIC_MIN_VOCAB: dict[str, int] = {
     TOPICS[3]: 100,  # 仕事
@@ -170,7 +179,7 @@ _ALWAYS_RULES = [
     # system prompt にも同じ規定があるが、語クラスブロックが末尾に付く回で
     # 分かち書きが再発した（2026-08-05: 語クラス8文中1文）。末尾にも置く。
     "thai_text の空白は最大1つ。2節あるときの切れ目にだけ置き、1節の文には入れない"
-    "（×ทัวร์ นี้ ถูก จัง →○ทัวร์นี้ถูกจัง／×ที่นี่ คุณทำงานได้ไหม →○ที่นี่คุณทำงานได้ไหม）",
+    "（×ข้าว นี้ เผ็ด จัง →○ข้าวนี้เผ็ดจัง／×ที่นี่ คุณทำงานได้ไหม →○ที่นี่คุณทำงานได้ไหม）",
     # 2026-08-05 実測: 疑問文フォーカス12文中2文。自分が知っている事実を
     # 一人称主語で問う形になり、問う相手がいない文になる。
     "主語代名詞は無くても意味が通るなら省く。自分が知っている事実"
@@ -181,7 +190,7 @@ _ALWAYS_RULES = [
     # 否定全般へ広げた。訳側で「〜が」と逆接を足して辻褄を合わせる原因にもなる。
     "否定した出来事（ไม่/ไม่ได้/ไม่เคย）の後ろに、それが起きた前提の感想を並べない。"
     "並べるなら แต่ で繋ぐか、これからへの期待に変える"
-    "（×ไม่เคยไปทัวร์นี้ สนุกมาก →○ไม่เคยไปทัวร์นี้ อยากลองดู／"
+    "（×ไม่เคยดูหนังเรื่องนี้ สนุกมาก →○ไม่เคยดูหนังเรื่องนี้ อยากลองดู／"
     "×พวกเราไม่ได้เที่ยวด้วยกัน น่าตื่นเต้น →○พวกเราจะได้เที่ยวด้วยกัน น่าตื่นเต้น）",
     # 旅行・交通テーマ限定だったが、他テーマでも ที่นี่/ที่นั่น は出るため常時へ
     # （2026-08-05）。テーマ別ブロック _PLACE_TOPIC_RULES は廃止。
@@ -230,13 +239,23 @@ JA_TRANSLATION_STEPS = (
 # ×例に使う語は「出力に現れても許容できる語」だけにする。×ラベルを付けても語トークン
 # 自体は模倣されるため、その例にしか出てこない珍しい語を使うと語彙候補に注入される
 # （2026-08-04: ×เป็นที่น่าตกใจ が原因で สวยน่าตกใจ が生成された。×เป็นที่นิยม に差し替え）。
+#
+# 同じ語を複数のルールの例に使い回さない（衛生上の方針。効果は未実証）。
+# 2026-08-06: ทัวร์นี้ が4ルール（空白・否定＋感想・สามารถ・การ接頭）の例に重複し、
+# 生成504文中 ทัวร์ が62文（12%）出ていたため例を別テーマの語彙へ散らした。
+# ただし散らした後の40文でも ทัวร์ は17.5%で、模倣が原因ではないと判明している。
+# 真因はテーマ選択（下記）で、ทัวร์ の頻度自体は旅行テーマの正当な語彙として許容。
+#
+# ×ラベル付きの禁止語は実際に抑止できている（504文実測: สามารถ 0% /
+# เป็นที่นิยม 0% / ให้บริการ 0.2%）。模倣が問題になるのは×でも○でもない
+# 足場の語のほうで、そちらは頻度を測ってから判断する。
 _SPOKEN_REGISTER_RULES = [
-    "สามารถ〜ได้ は使わない。〜ได้ だけで書く（×ทัวร์นี้สามารถเข้าได้ →○ทัวร์นี้เข้าได้）",
+    "สามารถ〜ได้ は使わない。〜ได้ だけで書く（×ห้องนี้สามารถจองได้ →○ห้องนี้จองได้）",
     "japanese_translation の副詞・接続表現は会話で使う訳語を選ぶ"
     "（×「再び」→○「また」／×「〜に対し」→○「〜には」／×「〜も一つの方法だ」→○「〜でいいよ」）",
     "書き言葉の硬い語・名詞句・文語の副詞を会話文に使わない"
     "（×ท่าน →○คุณ／×ต้องการ →○อยาก／×ให้บริการ →○เปิด／×เป็นที่นิยม →○ฮิต／"
-    "×〜นัก →○〜มาก／×การทัวร์นี้ →○ทัวร์นี้／×พลังของพายุนี้รุนแรงมาก →○พายุนี้แรงมาก）",
+    "×〜นัก →○〜มาก／×การช้อปปิ้งนี้ →○ช้อปปิ้งนี้／×พลังของพายุนี้รุนแรงมาก →○พายุนี้แรงมาก）",
 ]
 
 # 恋愛系テーマでだけ効く。
@@ -474,12 +493,18 @@ def resolve_generation_params(
     クライアント指定値を優先し、未指定ならティアに応じた候補からランダム選択する。
     politeness は topic の embedding で重み付けする。
     自動選択時は estimated_vocab に応じて topic の候補プールを絞る。
+
+    topic だけは未指定でも埋めず "" を返す。候補は topicOptions に入れて返すので、
+    呼び出し側がプロンプトに列挙して LLM に選ばせる。
     """
     topics_pool = TOPICS if is_premium else FREE_TOPICS
     if is_premium:
         topics_pool = _gate_topics(topics_pool, estimated_vocab)
 
-    topic = params.get("topic") or random.choice(topics_pool)
+    # 2026-08-06: 未指定でもランダムで埋めない。find_best_topic が閾値未達で
+    # 諦めた場合はここも空のまま通し、LLM に選ばせる（候補は topics_pool を
+    # プロンプトに列挙して渡すので、レベル別ゲートは効いたまま）。
+    topic = params.get("topic") or ""
 
     # 丁寧さの確定条件（クライアント指定・語クラス・ドラマ回）を先に見る。
     politeness = params.get("politeness")
@@ -492,10 +517,13 @@ def resolve_generation_params(
             politeness = POLITENESS_LEVELS[1]
 
     if not politeness:
-        politeness = _weighted_choice(
-            POLITENESS_LEVELS,
-            _politeness_weights(topic, POLITENESS_LEVELS),
+        # テーマ未確定なら重み付けの基準が無いので一様抽選にする。
+        weights = (
+            _politeness_weights(topic, POLITENESS_LEVELS)
+            if topic
+            else [1.0] * len(POLITENESS_LEVELS)
         )
+        politeness = _weighted_choice(POLITENESS_LEVELS, weights)
     # 2026-08-05 追加の直交軸。どちらも「何を言うか」ではなく「いつのことを、
     # どういう構えで言うか」を決めるだけなので、確定済みの key_word ともテーマとも
     # 衝突しない。
@@ -508,6 +536,8 @@ def resolve_generation_params(
 
     return {
         "topic": topic,
+        # topic が空のとき LLM に提示する候補。ゲート適用後のプールをそのまま渡す。
+        "topicOptions": topics_pool,
         "subTheme": sub_theme,
         "politeness": politeness,
         "timeFrame": time_frame,
@@ -582,6 +612,7 @@ def build_prompt_with_context(
         estimated_vocab=estimated_vocab,
     )
     topic = resolved["topic"]
+    topic_options = resolved["topicOptions"]
     sub_theme = resolved["subTheme"]
     politeness = resolved["politeness"]
     time_frame = resolved["timeFrame"]
@@ -602,13 +633,24 @@ def build_prompt_with_context(
         # ドラマ回は場面をドラマ側のブロックが決めるため付けない。
         time_frame_line = ""
         time_frame = None
-    else:
+    elif topic:
         topic_line = f"- テーマ: {topic}\n"
+        politeness_line = f"- 丁寧さ: {politeness}\n"
+    else:
+        # テーマ未確定。候補を列挙してターゲット単語に合うものを選ばせる。
+        # 選択肢を閉じることで estimated_vocab のレベル別ゲートは維持される。
+        # BLドラマだけは除く。専用ブロック（build_drama_prompt_section）が
+        # サーバー側の topic 確定を前提にしており、LLM が選んでも発火しない。
+        options = "／".join(t for t in topic_options if t != TOPICS[15])
+        topic_line = (
+            f"- テーマ: 次から1つ選ぶ（ターゲット単語が最も自然に収まるもの）\n"
+            f"  {options}\n"
+        )
         politeness_line = f"- 丁寧さ: {politeness}\n"
 
     # プロンプトで指定した値のみ確定値として記録する。
     # 欠けたキーは呼び出し側が LLM に生成させる（constants.build_response_schema）。
-    context = {"topic": topic}
+    context = {"topic": topic} if topic else {}
     if not is_drama:
         # 偏りを後から集計できるように、サーバーが決めた値は全て残す。
         # ここに無い軸は実ユーザーの生成結果から検査できない（2026-08-06 に
