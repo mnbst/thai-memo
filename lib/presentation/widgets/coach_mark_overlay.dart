@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 
 /// 指定ウィジェットをスポットライトで強調し、吹き出しで機能を教える初回ガイド。
 ///
@@ -13,28 +14,33 @@ class CoachMarkOverlay {
   /// [targetKey] のウィジェットをスポットライト表示する。
   /// 対象が未描画（context/size なし）の場合は何もしない。
   ///
+  /// [emphasis] に [message] 内の部分文字列を渡すと、その箇所を太字にする。
+  ///
   /// [interactive] が true の場合:
   /// - 全面がタップを無視（下の対象は押せない・背景タップでは閉じない）。
   ///   閉じる操作は吹き出しの「わかった」ボタンのみ。
   /// - 縦スクロールは対象のスクロールへ転送し、スポットも一緒に追従する。
-  static void show(
+  static bool show(
     BuildContext context, {
     required GlobalKey targetKey,
     required String title,
     required String message,
-    String buttonLabel = 'わかった',
+    String? emphasis,
+    String? buttonLabel,
     IconData icon = Icons.palette_outlined,
     String? stepLabel,
     bool interactive = false,
     VoidCallback? onDismiss,
   }) {
-    if (_entry != null) return;
+    if (_entry != null) return false;
 
     final overlay = Overlay.of(context);
     final targetCtx = targetKey.currentContext;
     final targetBox = targetCtx?.findRenderObject() as RenderBox?;
     final overlayBox = overlay.context.findRenderObject() as RenderBox?;
-    if (targetBox == null || !targetBox.hasSize || overlayBox == null) return;
+    if (targetBox == null || !targetBox.hasSize || overlayBox == null) {
+      return false;
+    }
 
     final topLeft = targetBox.localToGlobal(Offset.zero, ancestor: overlayBox);
     final rect = topLeft & targetBox.size;
@@ -52,6 +58,7 @@ class CoachMarkOverlay {
         initialRect: rect,
         title: title,
         message: message,
+        emphasis: emphasis,
         buttonLabel: buttonLabel,
         icon: icon,
         stepLabel: stepLabel,
@@ -60,6 +67,7 @@ class CoachMarkOverlay {
       ),
     );
     overlay.insert(_entry!);
+    return true;
   }
 
   /// 表示中のコーチマークを即座に閉じる（onDismiss は呼ばない）。
@@ -75,7 +83,8 @@ class _CoachMarkContent extends StatefulWidget {
   final Rect initialRect;
   final String title;
   final String message;
-  final String buttonLabel;
+  final String? emphasis;
+  final String? buttonLabel;
   final IconData icon;
   final String? stepLabel;
   final bool interactive;
@@ -87,6 +96,7 @@ class _CoachMarkContent extends StatefulWidget {
     required this.initialRect,
     required this.title,
     required this.message,
+    required this.emphasis,
     required this.buttonLabel,
     required this.icon,
     required this.stepLabel,
@@ -145,6 +155,32 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
     return topLeft & targetBox.size;
   }
 
+  /// 本文を組み立てる。emphasis が本文に含まれていればそこだけ太字にする。
+  TextSpan _messageSpan(TextStyle baseStyle) {
+    final emphasis = widget.emphasis;
+    final start =
+        emphasis == null ? -1 : widget.message.indexOf(emphasis);
+    if (emphasis == null || emphasis.isEmpty || start < 0) {
+      return TextSpan(text: widget.message, style: baseStyle);
+    }
+    final end = start + emphasis.length;
+    return TextSpan(
+      style: baseStyle,
+      children: [
+        TextSpan(text: widget.message.substring(0, start)),
+        TextSpan(
+          text: emphasis,
+          // 初回ガイドの体験期間と同じ強調（プライマリ色＋太字）に揃える。
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        TextSpan(text: widget.message.substring(end)),
+      ],
+    );
+  }
+
   /// 暗幕上の縦ドラッグを対象のスクロールへ転送する。
   void _forwardScroll(DragUpdateDetails details) {
     final position = _scrollPosition;
@@ -193,8 +229,7 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: widget.interactive ? () {} : widget.onDismiss,
-              onVerticalDragUpdate:
-                  widget.interactive ? _forwardScroll : null,
+              onVerticalDragUpdate: widget.interactive ? _forwardScroll : null,
             ),
           ),
           // ハイライト枠線。
@@ -255,17 +290,21 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        widget.message,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: cs.onSurfaceVariant),
+                      Text.rich(
+                        _messageSpan(
+                          theme.textTheme.bodyMedium
+                                  ?.copyWith(color: cs.onSurfaceVariant) ??
+                              TextStyle(color: cs.onSurfaceVariant),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Align(
                         alignment: Alignment.centerRight,
                         child: FilledButton(
                           onPressed: widget.onDismiss,
-                          child: Text(widget.buttonLabel),
+                          child: Text(
+                            widget.buttonLabel ?? L10n.of(context).commonGotIt,
+                          ),
                         ),
                       ),
                     ],
@@ -278,7 +317,6 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
       ),
     );
   }
-
 }
 
 /// 半透明バリアに角丸の穴をくり抜くペインター。

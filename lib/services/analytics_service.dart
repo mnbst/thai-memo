@@ -18,6 +18,7 @@ class AnalyticsService {
 
   String? _lastUserId;
   String? _lastTier;
+  String? _lastAppLanguage;
 
   Future<void> setUserId(String? userId) async {
     if (_lastUserId == userId) return;
@@ -100,10 +101,12 @@ class AnalyticsService {
   Future<void> logQuizStart({
     required String category,
     int? questionCount,
+    String? source,
   }) async {
     await _logEvent('quiz_start', {
       'category': category,
       'question_count': questionCount,
+      'source': source,
     });
   }
 
@@ -111,12 +114,26 @@ class AnalyticsService {
     required bool correct,
     required String category,
     int? questionIndex,
+    String? source,
   }) async {
     await _logEvent('quiz_answer', {
       'correct': correct ? 1 : 0,
       'category': category,
       'question_index': questionIndex,
+      'source': source,
     });
+  }
+
+  /// 例文から1問確認クイズへ進む導線A/Bテストのファネル。
+  ///
+  /// [action] は assigned / shown / tapped / started / answered / error。
+  /// [source] は端末に固定した実験群を表す。既存のGA4カスタム
+  /// ディメンションだけで集計できるよう、パラメータはaction/sourceに限定する。
+  Future<void> logQuizOffer({
+    required String action,
+    required String source,
+  }) async {
+    await _logEvent('quiz_offer', {'action': action, 'source': source});
   }
 
   Future<void> logTapPaywall({required String source}) async {
@@ -161,6 +178,34 @@ class AnalyticsService {
     });
   }
 
+  /// アプリ言語をユーザープロパティにする。全指標を言語で割るために使う。
+  Future<void> setUserAppLanguage(String lang) async {
+    if (_lastAppLanguage == lang) return;
+    _lastAppLanguage = lang;
+    try {
+      await _analytics.setUserProperty(name: 'app_language', value: lang);
+    } on PlatformException catch (error, stackTrace) {
+      _logPlatformFailure('setUserProperty', error, stackTrace);
+    } catch (error, stackTrace) {
+      _logPlatformFailure('setUserProperty', error, stackTrace);
+    }
+  }
+
+  /// 初回起動時の言語決定の結果。1ユーザーにつき1回だけ出る。
+  ///
+  /// [storefront] が unknown の割合＝ストア地域の取得失敗率。失敗すると日本の
+  /// ユーザーでも英語で起動してしまうため、無視できない水準なら初期値の
+  /// フォールバック規則を見直す。
+  Future<void> logAppLanguageResolved({
+    required String? storefront,
+    required String lang,
+  }) async {
+    await _logEvent('app_language_resolved', {
+      'storefront': storefront ?? 'unknown',
+      'lang': lang,
+    });
+  }
+
   /// 通知コーチングの表示と結果。
   ///
   /// [action] は shown（表示）/ accepted（わかった）/ dismissed（明示的な選択なし）。
@@ -168,6 +213,15 @@ class AnalyticsService {
   /// shown を分母に、そこまでの離脱段階を切り分けるために出している。
   Future<void> logNotificationCoach({required String action}) async {
     await _logEvent('notification_coach', {'action': action});
+  }
+
+  /// プレミアム体験トライアル終了案内の表示と結果。
+  ///
+  /// [action] は shown（表示）/ accepted（プレミアムを見る）/ dismissed（あとで）。
+  /// shown が「体験を使い切った人数」の分母になる。開いた先の行動は
+  /// tap_paywall(source: trial_ended) と subscribe(source: trial_ended) で追う。
+  Future<void> logPremiumTrialEnded({required String action}) async {
+    await _logEvent('premium_trial_ended', {'action': action});
   }
 
   /// 例文タブの常設プレミアムバナーの表示と結果。

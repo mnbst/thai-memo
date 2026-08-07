@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import random
 
-from constants import FREE_STYLES, FREE_TOPICS, RESPONSE_JSON_SCHEMA, TOPICS
+from constants import FREE_TOPICS, RESPONSE_JSON_SCHEMA, TOPICS
 from llm_providers import generate_sentence_sync
 from nlp import enrich_with_nlp
 from prompts import SYSTEM_PROMPT_FREE, build_uvm_prompt, gate_topics_for_vocab

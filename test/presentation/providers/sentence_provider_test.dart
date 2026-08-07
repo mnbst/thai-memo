@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
+import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/data/sentence_repository.dart';
 import 'package:thai_memo/domain/delete_sentence_usecase.dart';
@@ -38,10 +40,12 @@ void main() {
       analytics,
       () => tier,
       () => '旅行',
+      () => trialRemaining > 0,
       () => trialRemaining,
       () async {
         topicClearedCount += 1;
       },
+      () => lookupL10n(const Locale('ja')),
       generateSentence: generate ??
           ({Map<String, String?> generationParams = const {}}) async {
             capturedParams = generationParams;

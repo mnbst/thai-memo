@@ -69,26 +69,19 @@ def test_constraint_block_merges_multiple_classes() -> None:
     assert block.count("文の主役にならない") == 1
 
 
-def test_formal_words_force_formal_politeness() -> None:
-    from constants import POLITENESS_LEVELS
-    from prompts import resolve_generation_params
-    from word_classes import requires_formal_politeness
-
-    assert requires_formal_politeness(["ท่าน"])
-    assert not requires_formal_politeness(["ทะเล"])
-
-    resolved = resolve_generation_params({}, target_words=["โปรด"])
-    assert resolved["politeness"] == POLITENESS_LEVELS[0]
+# 2026-08-07 削除: test_formal_words_force_formal_politeness /
+# test_explicit_politeness_still_wins_over_formal_word。丁寧さの指定ごと廃止したため
+# （requires_formal_politeness と POLITENESS_LEVELS も削除）。書き言葉18語の扱いは
+# 下の formal クラスのルール検証が引き継ぐ。
 
 
-def test_explicit_politeness_still_wins_over_formal_word() -> None:
-    from constants import POLITENESS_LEVELS
-    from prompts import resolve_generation_params
+def test_formal_words_get_the_formal_class_rule() -> None:
+    """書き言葉の語がターゲットなら、場面を改まった側へ寄せる指示が付く。"""
+    from prompts import build_word_class_constraint
 
-    resolved = resolve_generation_params(
-        {"politeness": POLITENESS_LEVELS[1]}, target_words=["ท่าน"]
-    )
-    assert resolved["politeness"] == POLITENESS_LEVELS[1]
+    block = build_word_class_constraint(["โปรด"])
+    assert "改まった場面" in block
+    assert build_word_class_constraint(["ทะเล"]) == ""
 
 
 def test_register_constraint_always_bans_written_register() -> None:

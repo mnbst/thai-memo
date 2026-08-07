@@ -1,7 +1,7 @@
 import os
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from firebase_admin import firestore
 from firebase_functions import https_fn  # type: ignore[attr-defined]
@@ -13,7 +13,9 @@ try:
         FREE_DAILY_QUIZZES,
         FREE_DAILY_SENTENCES,
         FREE_TIER_MAX_VOCAB,
+        PREMIUM_TRIAL_DAYS,
         PREMIUM_TRIAL_SENTENCES,
+        resolve_lang,
     )
     from .prompts import use_premium_prompt_for_vocab
     from .runtime import initialize_firebase_app
@@ -35,7 +37,9 @@ except ImportError:
         FREE_DAILY_QUIZZES,
         FREE_DAILY_SENTENCES,
         FREE_TIER_MAX_VOCAB,
+        PREMIUM_TRIAL_DAYS,
         PREMIUM_TRIAL_SENTENCES,
+        resolve_lang,
     )
     from prompts import use_premium_prompt_for_vocab
     from runtime import initialize_firebase_app
@@ -86,24 +90,45 @@ def _select_target_words_with_topic(
     )
 
 
+def _trial_expires_at(user_data: dict) -> datetime | None:
+    """トライアル期限を tz-aware な datetime で返す。旧docには無いので None。"""
+    value = user_data.get("premium_trial_expires_at")
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
 def _resolve_trial_active(
     *,
     is_premium: bool,
     trial_requested: bool,
     trial_remaining: int,
+    trial_expires_at: datetime | None,
+    now: datetime,
 ) -> bool:
     """この生成を premium ロジックに切り替えるか判定する。
 
-    free ユーザーがトライアル枠を要求し、残回数がある場合のみ True。
+    free ユーザーがトライアル枠を要求し、トライアルが有効な場合のみ True。
+    有効判定は期限（premium_trial_expires_at）で行う。期限を持たない旧doc
+    のユーザーだけ、従来どおり残回数で判定する。
     premium ユーザーは tier 側で premium 扱いになるためトライアルは消費しない。
     """
-    return (not is_premium) and trial_requested and trial_remaining > 0
+    if is_premium or not trial_requested:
+        return False
+    if trial_expires_at is not None:
+        return now < trial_expires_at
+    return trial_remaining > 0
 
 
 def _effective_generation_params(params: dict, *, is_premium: bool) -> dict:
     """Free users always use automatic topic selection."""
     effective = dict(params)
     effective.pop("premium_trial", None)
+    # lang は生成条件ではなく出力言語の指定。ここに残すとプロンプトの
+    # 「条件」ブロックに未知のキーとして流れ込むので取り除く。
+    effective.pop("lang", None)
     if not is_premium:
         effective.pop("topic", None)
     return effective
@@ -147,6 +172,7 @@ def produce_sentence(
     estimated_vocab: int,
     cache_only: bool = False,
     select_retry: int = 1,
+    lang: str = "ja",
 ) -> tuple[dict, list[str], str, bool] | None:
     """単語選定 → キャッシュ/LLM → generation_tier 付与までの生成コア。
 
@@ -169,7 +195,11 @@ def produce_sentence(
             is_premium=use_premium_prompt,
             estimated_vocab=estimated_vocab,
         )
-        if not use_premium_spec:
+        # free 例文バンク（GCS）は日本語訳込みで事前生成したもの。en で引くと
+        # 英語ユーザーの free 体験がまるごと日本語訳になる（設計 §3.4）。
+        # en バンクを作るまでは en はキャッシュを使わず必ず LLM で生成する。
+        # cache_only（毎日配信の free 経路）で en なら None を返して配信しない。
+        if not use_premium_spec and lang == "ja":
             cached = pick_free_sentence(target_words[0])
             if cached is not None:
                 return (
@@ -189,6 +219,7 @@ def produce_sentence(
         use_premium_spec,
         target_words=target_words,
         estimated_vocab=estimated_vocab,
+        lang=lang,
     )
     return (
         _attach_generation_tier(sentence, use_premium_spec),
@@ -305,6 +336,9 @@ def _ensure_user_quota(user_ref) -> dict:
         "remaining_sentences": FREE_DAILY_SENTENCES,
         "remaining_quizzes": FREE_DAILY_QUIZZES,
         "daily_sentence_generated": False,
+        # 期限が本体。残回数は残回数しか見ない旧クライアント向けに併記する。
+        "premium_trial_expires_at": datetime.now(timezone.utc)
+        + timedelta(days=PREMIUM_TRIAL_DAYS),
         "premium_trial_remaining": PREMIUM_TRIAL_SENTENCES,
     }
     user_ref.set(initial, merge=True)
@@ -338,6 +372,8 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "userId": req.auth.uid if req.auth else "anonymous",
         "requestedTopic": (req.data or {}).get("topic", "random"),
+        # 訳文の言語。旧クライアントは送ってこないので ja に落ちる。
+        "lang": resolve_lang(req.data),
         # App Check は現状 UNENFORCED（enforce_app_check=False のまま）。
         # 未証明リクエストの割合がここで測れるので、十分下がってから
         # enforce_app_check=True に切り替える。旧クライアントは App Check
@@ -384,12 +420,28 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         # プレミアム体験トライアル: free ユーザーがトライアル枠を要求し、残回数があれば
         # この生成だけ premium ロジック（テーマ選択・premiumプロンプト）で出す。
         trial_remaining = user_data.get("premium_trial_remaining", 0)
+        trial_expires_at = _trial_expires_at(user_data)
         trial_requested = bool((req.data or {}).get("premium_trial"))
         trial_active = _resolve_trial_active(
             is_premium=is_premium,
             trial_requested=trial_requested,
             trial_remaining=trial_remaining,
+            trial_expires_at=trial_expires_at,
+            now=datetime.now(timezone.utc),
         )
+        # 期限切れなのに残回数が残っていると、残回数しか見ない旧クライアントが
+        # トライアル中の表示のまま固まる。ここで0を書いて表示を追従させる。
+        if (
+            trial_expires_at is not None
+            and not trial_active
+            and trial_remaining > 0
+            and datetime.now(timezone.utc) >= trial_expires_at
+        ):
+            try:
+                user_ref.update({"premium_trial_remaining": 0})
+                trial_remaining = 0
+            except Exception as exc:  # noqa: BLE001
+                print(f"Failed to clear expired premium trial: {exc}")
 
         # 生成スペック・テーマ採用は tier または トライアルで premium 相当とする
         effective_premium = is_premium or trial_active
@@ -410,6 +462,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             req.data or {},
             is_premium=effective_premium,
         )
+        lang = log_data["lang"]
         estimated_vocab = _get_capped_estimated_vocab(user_data, use_premium_spec)
         produced = produce_sentence(
             db,
@@ -417,6 +470,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
             params,
             use_premium_spec=use_premium_spec,
             estimated_vocab=estimated_vocab,
+            lang=lang,
         )
         if produced is None:  # cache_only=False では起きない
             raise RuntimeError("sentence generation returned nothing")

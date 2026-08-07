@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/l10n/app_language.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../services/analytics_service.dart';
 import '../../services/push_notification_service.dart';
+import '../../services/storefront_service.dart';
 import 'analytics_provider.dart';
 
 // ==================== Font Family ====================
@@ -48,6 +50,9 @@ class SettingsState {
   final Map<String, String?> generationParams;
   final ThaiFont fontFamily;
 
+  /// UI文言と訳文の言語。初回起動時にストア地域から決まる。
+  final AppLanguage appLanguage;
+
   /// 毎日例文のプッシュ通知を受け取るか
   final bool dailyReminderEnabled;
 
@@ -60,6 +65,7 @@ class SettingsState {
     this.preferredGenerationTime,
     this.generationParams = const {},
     this.fontFamily = ThaiFont.sarabun,
+    this.appLanguage = AppLanguage.ja,
     this.dailyReminderEnabled = true,
     this.notificationCoachShown = true,
   });
@@ -84,6 +90,7 @@ class SettingsState {
     TimeOfDay? preferredGenerationTime,
     Map<String, String?>? generationParams,
     ThaiFont? fontFamily,
+    AppLanguage? appLanguage,
     bool? dailyReminderEnabled,
     bool? notificationCoachShown,
   }) {
@@ -94,6 +101,7 @@ class SettingsState {
           preferredGenerationTime ?? this.preferredGenerationTime,
       generationParams: generationParams ?? this.generationParams,
       fontFamily: fontFamily ?? this.fontFamily,
+      appLanguage: appLanguage ?? this.appLanguage,
       dailyReminderEnabled: dailyReminderEnabled ?? this.dailyReminderEnabled,
       notificationCoachShown:
           notificationCoachShown ?? this.notificationCoachShown,
@@ -105,14 +113,19 @@ class SettingsState {
 
 /// Controller for managing app settings
 class SettingsController extends StateNotifier<SettingsState> {
-  SettingsController(this._analytics, {PushNotificationService? push})
-      : _push = push ?? PushNotificationService(),
+  SettingsController(
+    this._analytics, {
+    PushNotificationService? push,
+    StorefrontService? storefront,
+  })  : _push = push ?? PushNotificationService(),
+        _storefront = storefront ?? StorefrontService(),
         super(SettingsState.initial()) {
     _initialize();
   }
 
   final AnalyticsService _analytics;
   final PushNotificationService _push;
+  final StorefrontService _storefront;
   SharedPreferences? _prefs;
 
   /// 初期化完了を待つための Completer
@@ -181,14 +194,64 @@ class SettingsController extends StateNotifier<SettingsState> {
     final notificationCoachShown =
         _prefs!.getBool(AppConfig.prefKeyNotificationCoachShown) ?? false;
 
+    final appLanguage = await _resolveAppLanguage();
+
     state = SettingsState(
       isFirstLaunch: isFirstLaunch,
       themeMode: themeMode,
       preferredGenerationTime: preferredTime,
       generationParams: params,
       fontFamily: fontFamily,
+      appLanguage: appLanguage,
       dailyReminderEnabled: dailyReminderEnabled,
       notificationCoachShown: notificationCoachShown,
+    );
+    unawaited(_analytics.setUserAppLanguage(appLanguage.code));
+  }
+
+  /// アプリ言語を決める。保存済みならそれが真実。未保存（初回起動）のときだけ
+  /// ストア地域を1回読み、日本以外だと確認できた場合に en へ倒す。
+  ///
+  /// ストア接続を伴うので初回起動時のみ最大3秒待つ（splash の初期化待ちに相乗り）。
+  /// 取得できなければ ja のまま＝既存ユーザーの挙動は変わらない。
+  Future<AppLanguage> _resolveAppLanguage() async {
+    final stored = _prefs!.getString(AppConfig.prefKeyAppLanguage);
+    if (stored != null) return AppLanguage.fromCode(stored);
+
+    // dev はストア地域を見ずに ja 固定。開発端末のストアアカウントは日本以外の
+    // ことが多く、毎回 en で立ち上がると日本語UIの確認ができない。
+    // en の確認は設定の言語切替（dev専用）で行う。
+    if (AppConfig.isDev) {
+      await _prefs!.setString(AppConfig.prefKeyAppLanguage, AppLanguage.ja.code);
+      return AppLanguage.ja;
+    }
+
+    final country = await _storefront.countryCode();
+    final resolved = AppLanguage.fromStorefront(country);
+    await _prefs!.setString(AppConfig.prefKeyAppLanguage, resolved.code);
+    unawaited(
+      _analytics.logAppLanguageResolved(
+        storefront: country,
+        lang: resolved.code,
+      ),
+    );
+    unawaited(_push.setAppLanguage(resolved.code));
+    return resolved;
+  }
+
+  /// アプリ言語を切り替える。**dev ビルドの動作確認専用**。
+  ///
+  /// 製品ビルドでは呼ばない（設定画面の導線を AppConfig.isDev で閉じている）。
+  /// 訳文は生成時の言語で保存され、切り替えても履歴は書き換わらないため、
+  /// 実ユーザーに開くと1つの履歴に日英が混在して例文と訳の整合が取れなくなる。
+  Future<void> setAppLanguage(AppLanguage lang) async {
+    if (lang == state.appLanguage) return;
+    await _prefs?.setString(AppConfig.prefKeyAppLanguage, lang.code);
+    state = state.copyWith(appLanguage: lang);
+    unawaited(_push.setAppLanguage(lang.code));
+    unawaited(_analytics.setUserAppLanguage(lang.code));
+    unawaited(
+      _analytics.logChangeSetting(key: 'app_language', value: lang.code),
     );
   }
 
@@ -213,6 +276,7 @@ class SettingsController extends StateNotifier<SettingsState> {
     if (isExistingUser) {
       await prefs.setBool(AppConfig.prefKeyFirstLaunch, false);
       await prefs.setBool(AppConfig.prefKeySentenceCoachShown, true);
+      await prefs.setBool(AppConfig.prefKeyQuizReviewCoachShown, true);
       await prefs.setBool(AppConfig.prefKeyQuizButtonCoachShown, true);
       await prefs.setBool(AppConfig.prefKeyNextTopicCoachShown, true);
     }
@@ -264,6 +328,8 @@ class SettingsController extends StateNotifier<SettingsState> {
     await initialized;
     // 既存ユーザーはテーマを変更するまでサーバー側に設定が無いので、起動時に揃える
     unawaited(_push.setPreferredTopic(state.generationParams['topic']));
+    // 初回起動時の言語決定はサインイン前に走り users doc に書けないため、ここで揃える
+    unawaited(_push.setAppLanguage(state.appLanguage.code));
 
     final enabled = await _push.sync(
       desiredEnabled: state.dailyReminderEnabled,
@@ -412,6 +478,11 @@ final generationParamsProvider = Provider<Map<String, String?>>((ref) {
 /// Provider for font family
 final fontFamilyProvider = Provider<ThaiFont>((ref) {
   return ref.watch(settingsControllerProvider).fontFamily;
+});
+
+/// Provider for app language (UI文言・訳文の言語)
+final appLanguageProvider = Provider<AppLanguage>((ref) {
+  return ref.watch(settingsControllerProvider).appLanguage;
 });
 
 /// Provider for daily sentence notification toggle

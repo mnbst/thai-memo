@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../l10n/app_localizations.dart';
 import '../../data/models/thai_sentence.dart';
 import '../providers/sentence_provider.dart';
 import 'detail_screen.dart';
@@ -51,7 +52,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('履歴'),
+        title: Text(L10n.of(context).historyTitle),
         actions: [
           IconButton(
             icon: Icon(
@@ -63,7 +64,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 _showFavoritesOnly = !_showFavoritesOnly;
               });
             },
-            tooltip: 'お気に入りのみ表示',
+            tooltip: L10n.of(context).historyFavoritesOnly,
           ),
           // メニューボタン（全件削除）
           PopupMenuButton<String>(
@@ -81,7 +82,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     Icon(Icons.delete_sweep,
                         color: Theme.of(context).colorScheme.error),
                     const SizedBox(width: 8),
-                    Text('すべて削除',
+                    Text(L10n.of(context).historyDeleteAll,
                         style: TextStyle(
                             color: Theme.of(context).colorScheme.error)),
                   ],
@@ -112,7 +113,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'タイ語または日本語で検索',
+          hintText: L10n.of(context).historySearchHint,
           prefixIcon: const Icon(Icons.search),
           // 入力中のみクリアボタンを表示
           suffixIcon: _searchQuery.isNotEmpty
@@ -210,20 +211,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             const SizedBox(height: 24),
             Text(
               _showFavoritesOnly
-                  ? 'お気に入りの例文がありません'
+                  ? L10n.of(context).historyEmptyFavorites
                   : (_searchQuery.isNotEmpty
-                      ? '検索結果が見つかりませんでした'
-                      : 'まだ例文がありません'),
+                      ? L10n.of(context).historyEmptySearch
+                      : L10n.of(context).historyEmpty),
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               _showFavoritesOnly
-                  ? '例文のハートアイコンをタップしてお気に入りに追加できます'
+                  ? L10n.of(context).historyEmptyFavoritesHint
                   : (_searchQuery.isNotEmpty
-                      ? '別のキーワードで検索してみてください'
-                      : '新しい例文を生成してみましょう'),
+                      ? L10n.of(context).historyEmptySearchHint
+                      : L10n.of(context).historyEmptyHint),
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(
                       context,
@@ -251,7 +252,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               color: Theme.of(context).colorScheme.error,
             ),
             const SizedBox(height: 24),
-            Text('エラーが発生しました', style: Theme.of(context).textTheme.titleLarge),
+            Text(L10n.of(context).commonError,
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
             Text(
               error,
@@ -272,19 +274,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('すべて削除'),
-        content: const Text('すべての例文履歴を削除しますか？この操作は取り消せません。'),
+        title: Text(L10n.of(context).historyDeleteAll),
+        content: Text(L10n.of(context).historyDeleteAllConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('キャンセル'),
+            child: Text(L10n.of(context).commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('削除'),
+            child: Text(L10n.of(context).commonDelete),
           ),
         ],
       ),
@@ -300,9 +302,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('すべての例文を削除しました'),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text(L10n.of(context).historyDeletedAll),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -310,7 +312,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('削除に失敗しました: $e'),
+              content: Text(L10n.of(context).historyDeleteFailed('$e')),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -328,7 +330,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final createdAt = sentence.createdAt;
     final formattedDate = createdAt != null
         ? '${createdAt.year}/${createdAt.month}/${createdAt.day}'
-        : '不明';
+        : L10n.of(context).commonUnknown;
 
     return Dismissible(
       key: Key(sentence.id ?? ''),
@@ -349,19 +351,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('削除の確認'),
-            content: const Text('この例文を削除しますか？'),
+            title: Text(L10n.of(context).historyDeleteConfirmTitle),
+            content: Text(L10n.of(context).historyDeleteConfirm),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('キャンセル'),
+                child: Text(L10n.of(context).commonCancel),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: TextButton.styleFrom(
                   foregroundColor: Theme.of(context).colorScheme.error,
                 ),
-                child: const Text('削除'),
+                child: Text(L10n.of(context).commonDelete),
               ),
             ],
           ),
@@ -377,9 +379,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('例文を削除しました'),
-                  duration: Duration(seconds: 2),
+                SnackBar(
+                  content: Text(L10n.of(context).historyDeletedOne),
+                  duration: const Duration(seconds: 2),
                 ),
               );
             }
@@ -388,7 +390,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('削除に失敗しました: $e'),
+                  content: Text(L10n.of(context).historyDeleteFailed('$e')),
                   backgroundColor: Theme.of(context).colorScheme.error,
                 ),
               );
@@ -443,8 +445,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       onTap: () async {
                         await ref
                             .read(sentenceRepositoryProvider)
-                            .toggleFavorite(
-                                sentence.id!, !sentence.isFavorite);
+                            .toggleFavorite(sentence.id!, !sentence.isFavorite);
                         ref.invalidate(allSentencesProvider);
                       },
                       child: Icon(
@@ -508,7 +509,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${sentence.wordBreakdowns.length} 単語',
+                      L10n.of(context)
+                          .historyWordCount(sentence.wordBreakdowns.length),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(
                               context,

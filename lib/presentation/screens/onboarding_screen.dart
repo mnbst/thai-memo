@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/analytics_provider.dart';
@@ -24,20 +25,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _OnboardingPage(
       icon: Icons.auto_awesome,
       colorType: _ColorType.primary,
-      title: 'AIがタイ語例文を毎日生成',
-      description: '毎日新しい例文が届きます。\nカードをタップで発音・意味・音声を確認。',
+      titleOf: _p1Title,
+      descriptionOf: _p1Body,
     ),
     _OnboardingPage(
       icon: Icons.edit_note,
       colorType: _ColorType.secondary,
-      title: '例文とクイズで学習',
-      description: '例文を読んだらクイズで確認。\n毎日くり返して着実に定着します。',
+      titleOf: _p2Title,
+      descriptionOf: _p2Body,
     ),
     _OnboardingPage(
       icon: Icons.trending_up,
       colorType: _ColorType.tertiary,
-      title: 'クイズで語彙スコアUP',
-      description: '間違えた単語はくり返し出題。\nスコアに合わせて難易度も変化します。',
+      titleOf: _p3Title,
+      descriptionOf: _p3Body,
     ),
   ];
 
@@ -85,7 +86,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           if (!isLastPage)
             TextButton(
               onPressed: () => _complete(skipped: true),
-              child: const Text('スキップ'),
+              child: Text(L10n.of(context).onboardingSkip),
             ),
         ],
       ),
@@ -117,7 +118,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: _nextPage,
-                      child: Text(isLastPage ? 'はじめる' : '次へ'),
+                      child: Text(isLastPage
+                          ? L10n.of(context).onboardingStart
+                          : L10n.of(context).onboardingNext),
                     ),
                   ),
                 ],
@@ -136,15 +139,24 @@ class _OnboardingPage {
   const _OnboardingPage({
     required this.icon,
     required this.colorType,
-    required this.title,
-    required this.description,
+    required this.titleOf,
+    required this.descriptionOf,
   });
 
   final IconData icon;
   final _ColorType colorType;
-  final String title;
-  final String description;
+
+  /// 文言は言語で変わるので、値ではなく引き方を持つ。
+  final String Function(L10n) titleOf;
+  final String Function(L10n) descriptionOf;
 }
+
+String _p1Title(L10n l10n) => l10n.onboarding1Title;
+String _p1Body(L10n l10n) => l10n.onboarding1Body;
+String _p2Title(L10n l10n) => l10n.onboarding2Title;
+String _p2Body(L10n l10n) => l10n.onboarding2Body;
+String _p3Title(L10n l10n) => l10n.onboarding3Title;
+String _p3Body(L10n l10n) => l10n.onboarding3Body;
 
 class _PageContent extends StatelessWidget {
   const _PageContent({required this.page});
@@ -188,13 +200,13 @@ class _PageContent extends StatelessWidget {
           ),
           const SizedBox(height: 40),
           Text(
-            page.title,
+            page.titleOf(L10n.of(context)),
             style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           Text(
-            page.description,
+            page.descriptionOf(L10n.of(context)),
             style: tt.bodyLarge?.copyWith(
               color: cs.onSurface.withValues(alpha: 0.6),
             ),

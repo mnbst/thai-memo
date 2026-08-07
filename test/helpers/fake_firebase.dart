@@ -111,6 +111,9 @@ class _FakeSnapshot extends Fake
 class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<String> tiers = [];
   final List<Map<String, Object?>> generateSentenceEvents = [];
+  final List<Map<String, Object?>> quizStartEvents = [];
+  final List<Map<String, Object?>> quizAnswerEvents = [];
+  final List<Map<String, String>> quizOfferEvents = [];
 
   @override
   Future<void> setUserTier(String tier) async {
@@ -130,6 +133,42 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
       'source': source,
       'count': count,
     });
+  }
+
+  @override
+  Future<void> logQuizStart({
+    required String category,
+    int? questionCount,
+    String? source,
+  }) async {
+    quizStartEvents.add({
+      'category': category,
+      'question_count': questionCount,
+      'source': source,
+    });
+  }
+
+  @override
+  Future<void> logQuizAnswer({
+    required bool correct,
+    required String category,
+    int? questionIndex,
+    String? source,
+  }) async {
+    quizAnswerEvents.add({
+      'correct': correct,
+      'category': category,
+      'question_index': questionIndex,
+      'source': source,
+    });
+  }
+
+  @override
+  Future<void> logQuizOffer({
+    required String action,
+    required String source,
+  }) async {
+    quizOfferEvents.add({'action': action, 'source': source});
   }
 }
 

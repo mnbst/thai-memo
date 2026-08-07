@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/tts_service.dart';
@@ -236,7 +237,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
             children: [
               _PlaybackModeOption(
                 icon: Icons.repeat,
-                label: 'リピート',
+                label: L10n.of(context).audioRepeat,
                 selected: _repeatEnabled,
                 onTap: () => Navigator.pop(context, true),
               ),
@@ -246,7 +247,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
               ),
               _PlaybackModeOption(
                 icon: Icons.play_arrow,
-                label: '1回だけ',
+                label: L10n.of(context).audioOnce,
                 selected: !_repeatEnabled,
                 onTap: () => Navigator.pop(context, false),
               ),
@@ -265,8 +266,11 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
 
     final playButton = Semantics(
       button: true,
-      label: _playing ? '一時停止' : '再生',
-      hint: '現在は${_repeatEnabled ? 'リピート再生' : '1回だけ再生'}。長押しで再生モードを変更',
+      label:
+          _playing ? L10n.of(context).audioPause : L10n.of(context).audioPlay,
+      hint: L10n.of(context).audioModeHint(_repeatEnabled
+          ? L10n.of(context).audioModeRepeat
+          : L10n.of(context).audioModeOnce),
       child: GestureDetector(
         key: _playButtonKey,
         onLongPress: _choosePlaybackMode,
@@ -296,7 +300,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
         const SizedBox(width: 4),
         Expanded(
           child: Semantics(
-            label: '再生位置',
+            label: L10n.of(context).audioPosition,
             value: '${(progress * 100).round()}%',
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(

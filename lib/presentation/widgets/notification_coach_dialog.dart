@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 
 /// 毎日例文通知を「継続をサポートする機能」として紹介するコーチングダイアログ。
 ///
@@ -19,7 +20,7 @@ class NotificationCoachDialog extends StatelessWidget {
         size: 32,
       ),
       iconPadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-      title: const Text('例文を毎日の習慣に'),
+      title: Text(L10n.of(context).notifCoachTitle),
       titlePadding: const EdgeInsets.symmetric(horizontal: 24),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -27,9 +28,9 @@ class NotificationCoachDialog extends StatelessWidget {
         children: [
           // 「時刻を決める→そこに届く→同じ時間に開くから続く」の順で並べる。
           // 時刻設定の理由と習慣化の理屈が、読まなくても順番で伝わるようにする。
-          const _Step(number: 1, text: '通勤中や寝る前など、学習を続けやすい時刻を決めます'),
+          _Step(number: 1, text: L10n.of(context).notifCoachStep1),
           const SizedBox(height: 6),
-          const _Step(number: 2, text: 'その時刻に、あなた向けの1例文が自動で届きます'),
+          _Step(number: 2, text: L10n.of(context).notifCoachStep2),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -41,7 +42,7 @@ class NotificationCoachDialog extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  '毎日同じ時間に開くので、習慣になります',
+                  L10n.of(context).notifCoachHabit,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w600,
@@ -52,7 +53,7 @@ class NotificationCoachDialog extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '通知の例）',
+            L10n.of(context).notifCoachPreviewLabel,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -61,7 +62,7 @@ class NotificationCoachDialog extends StatelessWidget {
           const _NotificationPreview(),
           const SizedBox(height: 8),
           Text(
-            '通知をタップで学習画面へ。時刻は設定で変更できます。',
+            L10n.of(context).notifCoachFooter,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -75,7 +76,7 @@ class NotificationCoachDialog extends StatelessWidget {
       actions: [
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
-          child: const Text('わかった'),
+          child: Text(L10n.of(context).commonGotIt),
         ),
       ],
     );
@@ -159,14 +160,14 @@ class _NotificationPreview extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Expanded(child: Text('まいにちタイ語', style: subdued)),
-              Text('今', style: subdued),
+              Expanded(child: Text(L10n.of(context).appTitle, style: subdued)),
+              Text(L10n.of(context).notifCoachNow, style: subdued),
             ],
           ),
           const SizedBox(height: 3),
           // 実物の通知も折り返さず省略されるので、見本も1行ずつに収める。
           Text(
-            '🇹🇭 今日のタイ語 · ขอบคุณ（ありがとう）',
+            L10n.of(context).notifCoachSampleTitle,
             style: line?.copyWith(fontWeight: FontWeight.bold),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -184,7 +185,7 @@ class _NotificationPreview extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           Text(
-            '→ コーヒーをありがとうございます',
+            L10n.of(context).notifCoachSampleBody,
             style: line,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

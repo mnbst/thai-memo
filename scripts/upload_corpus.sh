@@ -26,11 +26,6 @@ if [[ -f "${CORPUS_DIR}/shot_embeddings.json" ]]; then
 else
   echo "Skipping shot_embeddings.json (not found)"
 fi
-if [[ -f "${CORPUS_DIR}/emotion_embeddings.json" ]]; then
-  gcloud storage cp "${CORPUS_DIR}/emotion_embeddings.json" "gs://${BUCKET}/emotion_embeddings.json"
-else
-  echo "Skipping emotion_embeddings.json (not found)"
-fi
 if [[ -f "${CORPUS_DIR}/style_embeddings.json" ]]; then
   gcloud storage cp "${CORPUS_DIR}/style_embeddings.json" "gs://${BUCKET}/style_embeddings.json"
 else

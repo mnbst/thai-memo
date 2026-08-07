@@ -24,6 +24,8 @@
 /// - generation_constants.dart: Free/Premium のパラメータ制限値
 library;
 
+import '../../core/l10n/l10n_provider.dart';
+import '../../l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -88,15 +90,20 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   /// firestore / purchaseService / restoreDelay はテスト時の差し替え用
   SubscriptionController({
     required AnalyticsService analytics,
+    required L10n Function() l10n,
     FirebaseFirestore? firestore,
     PurchaseService? purchaseService,
     this.restoreDelay = const Duration(seconds: 2),
   })  : _analytics = analytics,
+        _l10n = l10n,
         _firestore = firestore,
         _purchaseService = purchaseService,
         super(const SubscriptionState(tier: UserTier.free));
 
   final AnalyticsService _analytics;
+
+  /// 文言は言語設定に追従させたいので、値ではなく都度引く関数を持つ。
+  final L10n Function() _l10n;
   final FirebaseFirestore? _firestore;
   PurchaseService? _purchaseService;
   Future<void>? _storeReadyFuture;
@@ -140,7 +147,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     if (!FirebaseAuthService.instance.isLinkedAccount) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'プレミアムのご利用にはサインインが必要です',
+        errorMessage: _l10n().errSignInRequiredForPremium,
       );
       return;
     }
@@ -149,7 +156,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       if (_purchaseService == null || state.product == null) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: '課金商品を取得できませんでした',
+          errorMessage: _l10n().errProductLoadFailed,
         );
         return;
       }
@@ -157,7 +164,8 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       await _purchaseService!.buy(state.product!);
     } catch (e) {
       debugPrint('Failed to start purchase: $e');
-      state = state.copyWith(isLoading: false, errorMessage: '購入を開始できませんでした');
+      state = state.copyWith(
+          isLoading: false, errorMessage: _l10n().errPurchaseStartFailed);
     }
   }
 
@@ -171,7 +179,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     if (!FirebaseAuthService.instance.isLinkedAccount) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'プレミアムのご利用にはサインインが必要です',
+        errorMessage: _l10n().errSignInRequiredForPremium,
       );
       return;
     }
@@ -180,7 +188,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       if (_purchaseService == null) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: 'App Storeに接続できませんでした',
+          errorMessage: _l10n().errStoreUnavailable,
         );
         return;
       }
@@ -191,11 +199,12 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       await _fetchTierFromFirestore();
       state = state.copyWith(
         isLoading: false,
-        errorMessage: state.isPremium ? null : '復元できる購入が見つかりませんでした',
+        errorMessage: state.isPremium ? null : _l10n().errNothingToRestore,
       );
     } catch (e) {
       debugPrint('Failed to restore purchase: $e');
-      state = state.copyWith(isLoading: false, errorMessage: '復元に失敗しました');
+      state = state.copyWith(
+          isLoading: false, errorMessage: _l10n().errRestoreFailed);
     }
   }
 
@@ -218,8 +227,9 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     }
 
     try {
-      final ref =
-          (_firestore ?? FirebaseFirestore.instance).collection('users').doc(uid);
+      final ref = (_firestore ?? FirebaseFirestore.instance)
+          .collection('users')
+          .doc(uid);
       final doc = await ref.get();
       final data = doc.data();
       final tier =
@@ -248,14 +258,14 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       if (product != null) {
         state = state.copyWith(product: product, errorMessage: null);
       } else {
-        state = state.copyWith(errorMessage: '課金商品を取得できませんでした');
+        state = state.copyWith(errorMessage: _l10n().errProductLoadFailed);
       }
     } on PurchaseProductLoadException catch (e) {
       debugPrint('Failed to load product: $e');
       state = state.copyWith(errorMessage: e.message);
     } catch (e) {
       debugPrint('Failed to load product: $e');
-      state = state.copyWith(errorMessage: '課金商品を取得できませんでした');
+      state = state.copyWith(errorMessage: _l10n().errProductLoadFailed);
     }
   }
 
@@ -279,6 +289,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   Future<void> _initializeStore() async {
     try {
       final service = _purchaseService ??= PurchaseService(
+        l10n: _l10n,
         functions: FirebaseFunctions.instanceFor(
           region: FirebaseConfig.functionsRegion,
         ),
@@ -293,7 +304,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       if (!available) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: 'App Storeに接続できませんでした',
+          errorMessage: _l10n().errStoreUnavailable,
         );
         return;
       }
@@ -317,6 +328,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 /// PurchaseService のシングルトンプロバイダ
 final purchaseServiceProvider = Provider<PurchaseService>((ref) {
   final service = PurchaseService(
+    l10n: () => ref.read(l10nProvider),
     functions:
         FirebaseFunctions.instanceFor(region: FirebaseConfig.functionsRegion),
   );
@@ -328,6 +340,7 @@ final subscriptionControllerProvider =
     StateNotifierProvider<SubscriptionController, SubscriptionState>((ref) {
   return SubscriptionController(
     analytics: ref.watch(analyticsServiceProvider),
+    l10n: () => ref.read(l10nProvider),
   );
 });
 

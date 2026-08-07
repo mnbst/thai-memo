@@ -31,7 +31,7 @@ def test_mismatch_triggers_one_regeneration(monkeypatch):
 
     monkeypatch.setattr(sentence_service, "_prewarm_nlp_async", lambda: None)
     monkeypatch.setattr(sentence_service, "_llm_generate_sync", fake_llm)
-    monkeypatch.setattr(sentence_service, "_enrich_with_nlp", lambda s: None)
+    monkeypatch.setattr(sentence_service, "_enrich_with_nlp", lambda s, lang="ja": None)
 
     result = sentence_service._generate_single(
         "system", "prompt", False, "free", target_words=None
@@ -51,7 +51,7 @@ def test_no_regeneration_when_breakdown_matches(monkeypatch):
 
     monkeypatch.setattr(sentence_service, "_prewarm_nlp_async", lambda: None)
     monkeypatch.setattr(sentence_service, "_llm_generate_sync", fake_llm)
-    monkeypatch.setattr(sentence_service, "_enrich_with_nlp", lambda s: None)
+    monkeypatch.setattr(sentence_service, "_enrich_with_nlp", lambda s, lang="ja": None)
 
     sentence_service._generate_single("system", "prompt", False, "free")
 

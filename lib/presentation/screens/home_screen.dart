@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
+import '../../core/quota_error.dart';
+import '../../l10n/app_localizations.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
@@ -12,6 +14,7 @@ import '../../services/daily_sentence_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
+import '../providers/quiz_offer_experiment_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
@@ -20,6 +23,8 @@ import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_hint_banner.dart';
+import '../widgets/premium_trial_ended_dialog.dart';
+import '../widgets/quiz_offer.dart';
 import '../widgets/sentence_audio_player.dart';
 import '../widgets/sign_in_reminder_banner.dart';
 import '../widgets/loading_tip_carousel.dart';
@@ -27,6 +32,7 @@ import '../widgets/vocab_score_dialog.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
 import 'onboarding_screen.dart';
+import 'paywall_screen.dart';
 import 'quiz_screen.dart';
 import 'settings_screen.dart';
 
@@ -126,7 +132,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     } finally {
       await _handleInitialNotificationOpen();
       await _retryNotificationCoachIfPending();
+      await _maybeShowPremiumTrialEnded();
     }
+  }
+
+  /// プレミアム体験が切れていたら、最初の起動で一度だけ知らせて登録へ誘導する。
+  ///
+  /// 黙って機能が減ると不具合に見えるので、終了そのものを伝えることが主目的。
+  /// 表示できなかった場合はフラグを立てないので、次の起動で出し直される。
+  Future<void> _maybeShowPremiumTrialEnded() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyPremiumTrialEndedNotified) ?? false) {
+      return;
+    }
+    // users doc が届く前に読むと常に「判定不能」で素通りしてしまう。
+    await ref.read(userDocProvider.future);
+    if (!mounted) return;
+
+    // 期限を持たない旧ユーザー（回数制のまま）には出さない。
+    final expiresAt = ref.read(premiumTrialExpiresAtProvider).valueOrNull;
+    if (expiresAt == null || DateTime.now().isBefore(expiresAt)) return;
+    if (ref.read(isPremiumRealtimeProvider).valueOrNull ??
+        ref.read(isPremiumProvider)) {
+      return;
+    }
+
+    if (CoachMarkOverlay.isVisible ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+
+    final analytics = ref.read(analyticsServiceProvider);
+    unawaited(analytics.logPremiumTrialEnded(action: 'shown'));
+
+    final openPaywall = await showPremiumTrialEndedDialog(context);
+    unawaited(
+      analytics.logPremiumTrialEnded(
+        action: openPaywall ? 'accepted' : 'dismissed',
+      ),
+    );
+    await prefs.setBool(AppConfig.prefKeyPremiumTrialEndedNotified, true);
+    // 体験中に選んだテーマは free では効かない。表示と実際の生成を揃える。
+    await ref
+        .read(settingsControllerProvider.notifier)
+        .setGenerationParam('topic', null);
+    if (!openPaywall || !mounted) return;
+    await PaywallBottomSheet.show(context, source: 'trial_ended');
   }
 
   /// 学習を一巡済みなのに通知の案内をまだ出せていない場合、起動時に出し直す。
@@ -329,15 +380,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       context: context,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.school, size: 40),
-        title: const Text('まずは体験してみましょう'),
-        content: const Text(
-          '実際に1回、例文からクイズまで通して学習します。\n'
-          '押すボタンはこのあと順番にご案内します。',
+        title: Text(L10n.of(context).firstGuideTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(L10n.of(context).firstGuideBody),
+            const SizedBox(height: 12),
+            // 体験が始まっていることを認識させる。終了時の訴求はここを前提にする。
+            Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    L10n.of(context).firstGuideTrial,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
+        scrollable: true,
         actions: [
           FilledButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text(L10n.of(context).commonOk),
           ),
         ],
       ),
@@ -346,6 +422,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
     final screens = [
       LearningScreen(
         key: _learningKey,
@@ -389,20 +466,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           _logCurrentTabScreen(index: index);
         },
         destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.school_outlined),
-            selectedIcon: Icon(Icons.school),
-            label: '学習',
+          NavigationDestination(
+            icon: const Icon(Icons.school_outlined),
+            selectedIcon: const Icon(Icons.school),
+            label: l10n.navLearn,
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: '履歴',
+          NavigationDestination(
+            icon: const Icon(Icons.history_outlined),
+            selectedIcon: const Icon(Icons.history),
+            label: l10n.navHistory,
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: '設定',
+          NavigationDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings),
+            label: l10n.navSettings,
           ),
         ],
       ),
@@ -581,6 +658,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
     ref.listen(remainingSentencesProvider, (prev, next) {
       if (changedFromNoRemainingToAvailable(prev, next) &&
           mounted &&
@@ -589,9 +667,12 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
       }
     });
 
+    // この確認クイズのサマリーでまとめクイズへ誘導するか。
+    final offerSummaryQuiz = _completedCount + 1 >= _currentThreshold;
+
     return switch (_stage) {
       _LearningStage.sentence => TodayScreen(
-          onStartQuiz: (sentence) {
+          onStartQuiz: (sentence, offerSource) {
             _quizSentence = sentence;
             final quizNotifier = ref.read(quizControllerProvider.notifier);
             final quizState = ref.read(quizControllerProvider);
@@ -600,27 +681,26 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             if (quizState is QuizAnswering || quizState is QuizShowResult) {
               // nothing
             } else {
-              quizNotifier.startLearningQuiz(sentence);
+              quizNotifier.startLearningQuiz(
+                sentence,
+                offerSource: offerSource,
+              );
             }
             _setStage(_LearningStage.quiz);
           },
         ),
       _LearningStage.quiz => Scaffold(
           appBar: AppBar(
-            title: const Text('学習'),
+            title: Text(l10n.navLearn),
             automaticallyImplyLeading: false,
           ),
           body: QuizScreen(
             showAppBar: false,
-            title: 'クイズ',
+            title: l10n.learnQuizTitle,
             learningSentence: _quizSentence,
             onBackToLearningStart: _returnToLearningTop,
-            nextButtonLabel: '次の例文へ',
-            // 初回まとめクイズ未完了時は、まとめクイズへ誘導するため
-            // 「次の例文へ」での離脱を不可にする。
-            disableNextSentence: !_firstSummaryQuizCompleted &&
-                _completedCount + 1 >= _currentThreshold,
-            onOptionalChallenge: _completedCount + 1 >= _currentThreshold
+            nextButtonLabel: l10n.learnNextSentence,
+            onOptionalChallenge: offerSummaryQuiz
                 ? () async {
                     await _setCompletedCount(0);
                     ref.read(quizControllerProvider.notifier).reset();
@@ -631,19 +711,26 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
                   }
                 : null,
             onNextSentence: () async {
+              // まとめクイズをスキップした場合も1周ぶんは体験し終えているので、
+              // 通知の案内はここでも出す（表示済みなら中で抑止される）。
+              final skippedFirstSummaryQuiz =
+                  offerSummaryQuiz && !_firstSummaryQuizCompleted;
               await _setCompletedCount(_completedCount + 1);
               await _proceedToNextSentence();
+              if (skippedFirstSummaryQuiz) {
+                widget.onFirstCycleCompleted?.call();
+              }
             },
           ),
         ),
       _LearningStage.summaryQuiz => Scaffold(
           appBar: AppBar(
-            title: const Text('まとめクイズ'),
+            title: Text(l10n.learnSummaryQuizTitle),
             automaticallyImplyLeading: false,
           ),
           body: QuizScreen(
             showAppBar: false,
-            title: 'まとめクイズ',
+            title: l10n.learnSummaryQuizTitle,
             showVocabScoreTransition: true,
             onNextSentence: () async {
               final isFirstCycle = !_firstSummaryQuizCompleted;
@@ -661,75 +748,81 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
   }
 }
 
+typedef LearningQuizStartCallback = void Function(
+  ThaiSentence sentence,
+  String? offerSource,
+);
+
 /// Today's sentence screen
 class TodayScreen extends ConsumerStatefulWidget {
-  final ValueChanged<ThaiSentence>? onStartQuiz;
+  final LearningQuizStartCallback? onStartQuiz;
 
   const TodayScreen({
     super.key,
     this.onStartQuiz,
   });
 
-  /// デフォルトの挨拶例文（サンプル、履歴には保存されない）
-  static final ThaiSentence _defaultGreetingSentence = ThaiSentence(
-    id: null, // idがnullなのでDBには保存されない
-    thaiText: 'สวัสดีครับ',
-    pronunciation: 'sawatdii khrap',
-    japaneseTranslation: 'こんにちは（男性の場合）',
-    wordBreakdowns: [
-      WordBreakdown(
-        wordText: 'สวัสดี',
-        pronunciation: 'sà-wàt-dii',
-        meaning: 'こんにちは、さようなら',
-        grammaticalRole: '挨拶語',
-        wordOrder: 0,
-        syllables: [
-          Syllable(
-            text: 'สวัส',
-            initialConsonant: 'สว',
-            consonantClass: 'high',
-            tone: 'low',
-            toneMark: 'none',
-            syllableType: 'dead',
+  /// デフォルトの挨拶例文（サンプル、履歴には保存されない）。
+  /// 訳・品詞・文脈は表示用の文言なので言語に追従させる。
+  static ThaiSentence defaultGreetingSentence(L10n l10n) => ThaiSentence(
+        id: null, // idがnullなのでDBには保存されない
+        thaiText: 'สวัสดีครับ',
+        pronunciation: 'sawatdii khrap',
+        japaneseTranslation: l10n.sampleGreetingTranslation,
+        wordBreakdowns: [
+          WordBreakdown(
+            wordText: 'สวัสดี',
+            pronunciation: 'sà-wàt-dii',
+            meaning: l10n.sampleGreetingWord1Meaning,
+            grammaticalRole: l10n.sampleGreetingWord1Role,
+            wordOrder: 0,
+            syllables: [
+              Syllable(
+                text: 'สวัส',
+                initialConsonant: 'สว',
+                consonantClass: 'high',
+                tone: 'low',
+                toneMark: 'none',
+                syllableType: 'dead',
+              ),
+              Syllable(
+                text: 'ดี',
+                initialConsonant: 'ด',
+                consonantClass: 'middle',
+                tone: 'mid',
+                toneMark: 'none',
+                syllableType: 'live',
+              ),
+            ],
           ),
-          Syllable(
-            text: 'ดี',
-            initialConsonant: 'ด',
-            consonantClass: 'middle',
-            tone: 'mid',
-            toneMark: 'none',
-            syllableType: 'live',
+          WordBreakdown(
+            wordText: 'ครับ',
+            pronunciation: 'khráp',
+            meaning: l10n.sampleGreetingWord2Meaning,
+            grammaticalRole: l10n.sampleGreetingWord2Role,
+            wordOrder: 1,
+            syllables: [
+              Syllable(
+                text: 'ครับ',
+                initialConsonant: 'คร',
+                consonantClass: 'low',
+                tone: 'high',
+                toneMark: 'none',
+                syllableType: 'dead',
+                hasShortVowel: true,
+              ),
+            ],
           ),
         ],
-      ),
-      WordBreakdown(
-        wordText: 'ครับ',
-        pronunciation: 'khráp',
-        meaning: '〜です（男性の丁寧な語尾）',
-        grammaticalRole: '語尾詞',
-        wordOrder: 1,
-        syllables: [
-          Syllable(
-            text: 'ครับ',
-            initialConsonant: 'คร',
-            consonantClass: 'low',
-            tone: 'high',
-            toneMark: 'none',
-            syllableType: 'dead',
-            hasShortVowel: true,
-          ),
-        ],
-      ),
-    ],
-    context: SentenceContext(
-      topic: '日常的な挨拶',
-      style: '口語体',
-      emotion: '丁寧、フォーマル',
-      usageScenarios: '朝昼晩いつでも使える基本的な挨拶。女性の場合は「ค่ะ」を使います。',
-    ),
-    createdAt: null,
-    generationTier: 'free',
-  );
+        context: SentenceContext(
+          topic: l10n.sampleGreetingTopic,
+          style: l10n.sampleGreetingStyle,
+          emotion: l10n.sampleGreetingEmotion,
+          usageScenarios: l10n.sampleGreetingUsage,
+        ),
+        createdAt: null,
+        generationTier: 'free',
+      );
 
   @override
   ConsumerState<TodayScreen> createState() => _TodayScreenState();
@@ -739,9 +832,19 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   /// 「確認クイズへ」ボタンの位置特定用（初回コーチマーク表示に使用）。
   final GlobalKey _quizButtonKey = GlobalKey();
 
+  /// 例文カードの位置特定用（初回コーチマーク1段目で使用）。
+  final GlobalKey _sentenceCardKey = GlobalKey();
+  final GlobalKey _sentenceScrollViewportKey = GlobalKey();
+  final ScrollController _sentenceScrollController = ScrollController();
+  final Set<String> _scheduledQuizOfferShown = {};
+  final Set<String> _loggedQuizOfferShown = {};
+  final Set<String> _handledQuizOfferTaps = {};
+  bool _quizOfferAssignmentHandled = false;
+
   @override
   void initState() {
     super.initState();
+    _sentenceScrollController.addListener(_maybeLogVisibleQuizOffer);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowSentenceCoach();
       ref.listenManual(sentenceControllerProvider, (prev, next) {
@@ -753,31 +856,61 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   @override
   void dispose() {
     CoachMarkOverlay.dismiss();
+    _sentenceScrollController
+      ..removeListener(_maybeLogVisibleQuizOffer)
+      ..dispose();
     super.dispose();
   }
 
-  /// 初回だけ「確認クイズへ」ボタンをスポットライトで案内する。
-  /// 例文が表示され（＝ボタンが存在し）、前面にダイアログ等がない場合のみ。
+  /// 初回ガイドを2段階でスポットライト表示する。
+  /// 1段目は例文カード（詳細を開かせる）、詳細から戻ったら2段目で
+  /// 「確認クイズへ」ボタンを案内する。
+  /// 例文が表示され、前面にダイアログ等がない場合のみ。
   Future<void> _maybeShowSentenceCoach() async {
     if (ref.read(sentenceControllerProvider) is! SentenceStateSuccess) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted ||
-          _quizButtonKey.currentContext == null ||
-          ModalRoute.of(context)?.isCurrent != true) {
-        return;
-      }
-      unawaited(prefs.setBool(AppConfig.prefKeySentenceCoachShown, true));
-      CoachMarkOverlay.show(
-        context,
-        targetKey: _quizButtonKey,
-        icon: Icons.quiz,
-        title: 'まずはクイズに挑戦',
-        message: '例文を読んだら、このボタンでクイズに挑戦しましょう。',
+    // 詳細を見せる段が済んでいなければ先に例文カードを案内する。
+    final detailShown =
+        prefs.getBool(AppConfig.prefKeyDetailCoachShown) ?? false;
+    final targetKey = detailShown ? _quizButtonKey : _sentenceCardKey;
+
+    final targetContext = targetKey.currentContext;
+    if (!mounted ||
+        targetContext == null ||
+        !targetContext.mounted ||
+        !TickerMode.getValuesNotifier(targetContext).value.enabled ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+
+    // inline群でも初回ガイドの対象が画面内に入るようにして、ガイド有無が
+    // 実験結果へ混入しないよう両群を同じ条件に揃える。
+    await Scrollable.ensureVisible(
+      targetContext,
+      alignment: detailShown ? 0.72 : 0.1,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+
+    final l10n = L10n.of(context);
+    final shown = CoachMarkOverlay.show(
+      context,
+      targetKey: targetKey,
+      icon: detailShown ? Icons.quiz : Icons.touch_app,
+      title: detailShown ? l10n.coachQuizTitle : l10n.coachDetailTitle,
+      message: detailShown ? l10n.coachQuizMessage : l10n.coachDetailMessage,
+    );
+    if (shown) {
+      await prefs.setBool(
+        detailShown
+            ? AppConfig.prefKeySentenceCoachShown
+            : AppConfig.prefKeyDetailCoachShown,
+        true,
       );
-    });
+    }
   }
 
   @override
@@ -790,19 +923,32 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       }
     });
     final sentenceState = ref.watch(sentenceControllerProvider);
+    final quizOfferVariant = ref.watch(quizOfferVariantProvider).valueOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('学習')),
-      body: _buildSentenceContent(context, sentenceState),
+      appBar: AppBar(title: Text(L10n.of(context).navLearn)),
+      body: _buildSentenceContent(
+        context,
+        sentenceState,
+        quizOfferVariant,
+      ),
     );
   }
 
   /// Build sentence content based on state
-  Widget _buildSentenceContent(BuildContext context, SentenceState state) {
+  Widget _buildSentenceContent(
+    BuildContext context,
+    SentenceState state,
+    QuizOfferVariant? quizOfferVariant,
+  ) {
     if (state is SentenceStateLoading) {
       return _buildLoadingState();
     } else if (state is SentenceStateSuccess) {
-      return _buildSuccessState(context, state.sentence);
+      return _buildSuccessState(
+        context,
+        state.sentence,
+        quizOfferVariant,
+      );
     } else if (state is SentenceStateError) {
       return _buildErrorState(context, state.message);
     } else if (state is SentenceStateEmpty) {
@@ -814,18 +960,18 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// Build loading state
   Widget _buildLoadingState() {
-    return const Center(
+    return Center(
       child: Card(
         child: Padding(
-          padding: EdgeInsets.all(AppConfig.defaultPadding * 2),
+          padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('次の例文を準備中...'),
-              SizedBox(height: 24),
-              LoadingTipCarousel(),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(L10n.of(context).sentencePreparing),
+              const SizedBox(height: 24),
+              const LoadingTipCarousel(),
             ],
           ),
         ),
@@ -834,11 +980,21 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   }
 
   /// Build success state with single sentence
-  Widget _buildSuccessState(BuildContext context, ThaiSentence sentence) {
+  Widget _buildSuccessState(
+    BuildContext context,
+    ThaiSentence sentence,
+    QuizOfferVariant? quizOfferVariant,
+  ) {
+    if (quizOfferVariant != null && quizOfferVariant.participatesInExperiment) {
+      _scheduleQuizOfferShown(sentence, quizOfferVariant);
+    }
+
     return Column(
       children: [
         Expanded(
           child: SingleChildScrollView(
+            key: _sentenceScrollViewportKey,
+            controller: _sentenceScrollController,
             padding: const EdgeInsets.fromLTRB(
               AppConfig.defaultPadding,
               AppConfig.defaultPadding,
@@ -851,23 +1007,191 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 const SignInReminderBanner(),
                 _buildTargetWordsSection(context, sentence),
                 const SizedBox(height: 12),
-                _buildSentenceCard(context, sentence),
+                _buildSentenceCard(context, sentence,
+                    cardKey: _sentenceCardKey),
+                if (quizOfferVariant?.isInline ?? false) ...[
+                  const SizedBox(height: 16),
+                  QuizOffer(
+                    variant: quizOfferVariant!,
+                    targetKey: _quizButtonKey,
+                    onPressed: () =>
+                        _handleQuizOfferTap(sentence, quizOfferVariant),
+                  ),
+                ],
                 const PremiumHintBanner(),
               ],
             ),
           ),
         ),
-        // 確認クイズ — 下部固定
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppConfig.defaultPadding,
-            0,
-            AppConfig.defaultPadding,
-            AppConfig.defaultPadding,
+        if (quizOfferVariant != null && !quizOfferVariant.isInline)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppConfig.defaultPadding,
+              0,
+              AppConfig.defaultPadding,
+              AppConfig.defaultPadding,
+            ),
+            child: QuizOffer(
+              variant: quizOfferVariant,
+              targetKey: _quizButtonKey,
+              onPressed: () => _handleQuizOfferTap(sentence, quizOfferVariant),
+            ),
           ),
-          child: _buildLearningFlowActions(context, sentence),
-        ),
       ],
+    );
+  }
+
+  String _quizOfferEventKey(
+    ThaiSentence sentence,
+    QuizOfferVariant variant,
+  ) {
+    final sentenceKey = sentence.id ??
+        '${sentence.thaiText}|${sentence.createdAt?.millisecondsSinceEpoch}';
+    return '$sentenceKey|${variant.analyticsSource}';
+  }
+
+  void _scheduleQuizOfferShown(
+    ThaiSentence sentence,
+    QuizOfferVariant variant,
+  ) {
+    final eventKey = _quizOfferEventKey(sentence, variant);
+    if (_loggedQuizOfferShown.contains(eventKey) ||
+        !_scheduledQuizOfferShown.add(eventKey)) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _scheduledQuizOfferShown.remove(eventKey);
+      if (!mounted) return;
+
+      final currentState = ref.read(sentenceControllerProvider);
+      final currentVariant = ref.read(quizOfferVariantProvider).valueOrNull;
+      if (currentState is! SentenceStateSuccess ||
+          currentVariant != variant ||
+          _quizOfferEventKey(currentState.sentence, variant) != eventKey) {
+        return;
+      }
+
+      await _logQuizOfferAssignmentOnce(variant);
+      if (!mounted) return;
+
+      // 初回ガイドはinlineが画面外でも先にスクロールして対象を見せる。
+      // ガイドによるスクロール中もvisibility listenerがshownを記録する。
+      unawaited(_maybeShowSentenceCoach());
+      _logQuizOfferShownIfVisible(eventKey, variant);
+    });
+  }
+
+  Future<void> _logQuizOfferAssignmentOnce(QuizOfferVariant variant) async {
+    if (_quizOfferAssignmentHandled) return;
+    _quizOfferAssignmentHandled = true;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final loggedSource =
+          prefs.getString(AppConfig.prefKeyQuizOfferAssignmentLoggedV1);
+      if (loggedSource == variant.analyticsSource) return;
+
+      unawaited(
+        ref.read(analyticsServiceProvider).logQuizOffer(
+              action: 'assigned',
+              source: variant.analyticsSource,
+            ),
+      );
+      unawaited(
+        prefs.setString(
+          AppConfig.prefKeyQuizOfferAssignmentLoggedV1,
+          variant.analyticsSource,
+        ),
+      );
+    } catch (_) {
+      // 保存領域が使えなくても、この画面ライフサイクル中は上のboolで一度に抑える。
+      unawaited(
+        ref.read(analyticsServiceProvider).logQuizOffer(
+              action: 'assigned',
+              source: variant.analyticsSource,
+            ),
+      );
+    }
+  }
+
+  void _maybeLogVisibleQuizOffer() {
+    if (!mounted) return;
+    final sentenceState = ref.read(sentenceControllerProvider);
+    final variant = ref.read(quizOfferVariantProvider).valueOrNull;
+    if (sentenceState is! SentenceStateSuccess || variant == null) return;
+
+    _logQuizOfferShownIfVisible(
+      _quizOfferEventKey(sentenceState.sentence, variant),
+      variant,
+    );
+  }
+
+  void _logQuizOfferShownIfVisible(
+    String eventKey,
+    QuizOfferVariant variant,
+  ) {
+    if (_loggedQuizOfferShown.contains(eventKey) ||
+        !_isQuizOfferVisible(variant)) {
+      return;
+    }
+    _loggedQuizOfferShown.add(eventKey);
+
+    unawaited(
+      ref.read(analyticsServiceProvider).logQuizOffer(
+            action: 'shown',
+            source: variant.analyticsSource,
+          ),
+    );
+  }
+
+  bool _isQuizOfferVisible(QuizOfferVariant variant) {
+    final targetContext = _quizButtonKey.currentContext;
+    final targetBox = targetContext?.findRenderObject() as RenderBox?;
+    if (targetContext == null ||
+        !targetContext.mounted ||
+        !TickerMode.getValuesNotifier(targetContext).value.enabled ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        targetBox == null ||
+        !targetBox.hasSize) {
+      return false;
+    }
+
+    // controlはスクロール領域外の下部固定ボタンなので、描画済みなら可視。
+    if (!variant.isInline) return true;
+
+    final viewportBox = _sentenceScrollViewportKey.currentContext
+        ?.findRenderObject() as RenderBox?;
+    if (viewportBox == null || !viewportBox.hasSize) return false;
+
+    final targetRect = targetBox.localToGlobal(Offset.zero) & targetBox.size;
+    final viewportRect =
+        viewportBox.localToGlobal(Offset.zero) & viewportBox.size;
+    if (!targetRect.overlaps(viewportRect)) return false;
+
+    final visibleRect = targetRect.intersect(viewportRect);
+    return visibleRect.width / targetRect.width >= 0.5 &&
+        visibleRect.height / targetRect.height >= 0.5;
+  }
+
+  void _handleQuizOfferTap(
+    ThaiSentence sentence,
+    QuizOfferVariant variant,
+  ) {
+    if (variant.participatesInExperiment) {
+      final eventKey = _quizOfferEventKey(sentence, variant);
+      if (!_handledQuizOfferTaps.add(eventKey)) return;
+
+      unawaited(
+        ref.read(analyticsServiceProvider).logQuizOffer(
+              action: 'tapped',
+              source: variant.analyticsSource,
+            ),
+      );
+    }
+    widget.onStartQuiz?.call(
+      sentence,
+      variant.participatesInExperiment ? variant.analyticsSource : null,
     );
   }
 
@@ -893,7 +1217,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            '今日の学習単語',
+            L10n.of(context).todaysWords,
             style: theme.textTheme.titleSmall?.copyWith(
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.bold,
@@ -971,7 +1295,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                           ref.read(ttsServiceProvider).speak(word);
                         },
                         visualDensity: VisualDensity.compact,
-                        tooltip: '発音を再生',
+                        tooltip: L10n.of(context).playPronunciation,
                       ),
                   ],
                 ),
@@ -990,7 +1314,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
               const SizedBox(width: 4),
               Text(
-                'この単語を使った例文',
+                L10n.of(context).sentenceUsingWord,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
@@ -1002,37 +1326,24 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
-  Widget _buildLearningFlowActions(
-    BuildContext context,
-    ThaiSentence sentence,
-  ) {
-    return KeyedSubtree(
-      key: _quizButtonKey,
-      child: FilledButton.icon(
-        onPressed: () => widget.onStartQuiz?.call(sentence),
-        icon: const Icon(Icons.quiz),
-        label: const Text('確認クイズへ'),
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          minimumSize: const Size.fromHeight(56),
-        ),
-      ),
-    );
-  }
-
   /// Build a sentence card (shared between single and batch views)
-  Widget _buildSentenceCard(BuildContext context, ThaiSentence sentence) {
+  Widget _buildSentenceCard(
+    BuildContext context,
+    ThaiSentence sentence, {
+    Key? cardKey,
+  }) {
     final borderRadius = BorderRadius.circular(AppConfig.cardBorderRadius);
     return Card(
+      key: cardKey,
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
           InkWell(
-            onTap: () {
+            onTap: () async {
               // 遷移してもこのカードは破棄されない。詳細画面のプレイヤーと
               // TTSを奪い合わないよう、ここで再生を止めておく。
               unawaited(ref.read(ttsServiceProvider).stopAll());
-              Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   settings: const RouteSettings(name: DetailScreen.routeName),
@@ -1042,6 +1353,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   ),
                 ),
               );
+              // 詳細から戻ったタイミングでクイズへの案内を出す。
+              // pop のアニメーション完了を待たないと isCurrent 判定で弾かれる。
+              await Future<void>.delayed(const Duration(milliseconds: 350));
+              if (!mounted) return;
+              unawaited(_maybeShowSentenceCoach());
             },
             borderRadius: borderRadius,
             child: Padding(
@@ -1163,7 +1479,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final foreground = cs.onSurfaceVariant;
 
     return Tooltip(
-      message: showPremium ? 'Premium例文' : 'Free例文',
+      message: showPremium
+          ? L10n.of(context).badgePremiumSentence
+          : L10n.of(context).badgeFreeSentence,
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 5, 12, 5),
         decoration: BoxDecoration(
@@ -1248,7 +1566,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// Build error state
   Widget _buildErrorState(BuildContext context, String message) {
-    final isQuotaError = message.contains('上限');
+    final isQuotaError = isQuotaErrorMessage(message);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
@@ -1271,7 +1589,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             if (isQuotaError) ...[
               const SizedBox(height: 12),
               Text(
-                nextResetText(),
+                nextResetText(L10n.of(context)),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context)
                           .colorScheme
@@ -1293,7 +1611,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                       .generateSentence(generationParams: genParams);
                 },
                 icon: const Icon(Icons.refresh),
-                label: const Text('再試行'),
+                label: Text(L10n.of(context).commonRetry),
               ),
             ],
           ],
@@ -1324,7 +1642,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'サンプル例文（履歴には保存されません）',
+                      L10n.of(context).sampleSentenceNotice,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Theme.of(context)
                                 .colorScheme
@@ -1337,7 +1655,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildSentenceCard(context, TodayScreen._defaultGreetingSentence),
+          _buildSentenceCard(
+            context,
+            TodayScreen.defaultGreetingSentence(L10n.of(context)),
+          ),
         ],
       ),
     );

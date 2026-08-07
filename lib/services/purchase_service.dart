@@ -30,6 +30,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
+
+import '../l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
@@ -62,6 +64,7 @@ class PurchaseProductLoadException implements Exception {
 /// SubscriptionController から呼び出され、購入結果をコールバックで返す。
 class PurchaseService {
   PurchaseService({
+    required this.l10n,
     FirebaseFunctions? functions,
   }) : _functions = functions ??
             FirebaseFunctions.instanceFor(
@@ -75,6 +78,9 @@ class PurchaseService {
   PurchaseCallback? onPurchaseCompleted;
 
   /// 購入エラー時のコールバック
+  /// 文言は言語設定に追従させたいので、値ではなく都度引く関数を持つ。
+  final L10n Function() l10n;
+
   void Function(String message)? onPurchaseError;
 
   /// 購入キャンセル時のコールバック
@@ -99,7 +105,7 @@ class PurchaseService {
       onDone: () => _subscription?.cancel(),
       onError: (Object error) {
         debugPrint('Purchase stream error: $error');
-        onPurchaseError?.call('購入状態の取得に失敗しました');
+        onPurchaseError?.call(l10n().errPurchaseStatusFailed);
       },
     );
     return true;
@@ -122,7 +128,7 @@ class PurchaseService {
     }
 
     if (response.productDetails.isEmpty) {
-      throw PurchaseProductLoadException('App Storeから商品情報を取得できませんでした');
+      throw PurchaseProductLoadException(l10n().errProductLoadFailed);
     }
 
     return response.productDetails.first;
@@ -159,7 +165,7 @@ class PurchaseService {
           unawaited(_verifyAndComplete(purchase));
           break;
         case PurchaseStatus.error:
-          onPurchaseError?.call(purchase.error?.message ?? '購入エラーが発生しました');
+          onPurchaseError?.call(purchase.error?.message ?? l10n().errPurchaseGeneric);
           unawaited(_completePurchaseIfNeeded(purchase));
           break;
         case PurchaseStatus.canceled:
@@ -167,7 +173,7 @@ class PurchaseService {
           unawaited(_completePurchaseIfNeeded(purchase));
           break;
         case PurchaseStatus.pending:
-          onPurchasePending?.call('購入の承認待ちです。承認後に反映されます');
+          onPurchasePending?.call(l10n().purchasePending);
           break;
       }
     }
@@ -186,7 +192,7 @@ class PurchaseService {
     // 未ログイン時はCloud Functionを呼べない
     if (!FirebaseAuthService.instance.isAuthenticated) {
       debugPrint('Verification skipped: user not authenticated');
-      onPurchaseError?.call('ログインしてから購入してください');
+      onPurchaseError?.call(l10n().errSignInBeforePurchase);
       await _completePurchaseIfNeeded(purchase);
       return;
     }
@@ -208,7 +214,7 @@ class PurchaseService {
       onPurchaseCompleted?.call();
     } catch (e) {
       debugPrint('Verification failed: $e');
-      onPurchaseError?.call('購入の検証に失敗しました');
+      onPurchaseError?.call(l10n().errPurchaseVerificationFailed);
     } finally {
       await _completePurchaseIfNeeded(purchase);
     }

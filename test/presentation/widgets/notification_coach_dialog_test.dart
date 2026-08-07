@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/widgets/notification_coach_dialog.dart';
 
 /// ダイアログを開くだけの土台。戻り値を検証するため結果を保持する。
 Widget _host({required void Function(bool) onResult}) {
   return MaterialApp(
+    // テストは日本語の文言を検証する。実行環境のロケール（en）に
+    // 引きずられないよう明示的に ja で描画する。
+    locale: const Locale('ja'),
+    localizationsDelegates: L10n.localizationsDelegates,
+    supportedLocales: L10n.supportedLocales,
     home: Scaffold(
       body: Builder(
         builder: (context) => TextButton(
@@ -49,7 +55,12 @@ void main() {
   group('NotificationCoachDialog', () {
     testWidgets('通知の価値と操作を提示する', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: NotificationCoachDialog())),
+        MaterialApp(
+          locale: const Locale('ja'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: const Scaffold(body: NotificationCoachDialog()),
+        ),
       );
 
       expect(find.text('例文を毎日の習慣に'), findsOneWidget);

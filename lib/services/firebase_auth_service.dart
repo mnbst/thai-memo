@@ -37,8 +37,7 @@ class FirebaseAuthService {
   String? get email => _auth.currentUser?.email;
 
   /// 正規アカウント（匿名でない）でサインイン済みか
-  bool get isLinkedAccount =>
-      currentUser != null && !currentUser!.isAnonymous;
+  bool get isLinkedAccount => currentUser != null && !currentUser!.isAnonymous;
 
   /// Ensure user is authenticated (anonymous も許可)
   Future<User> ensureAuthenticated() async {

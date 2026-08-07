@@ -35,14 +35,23 @@ class BackendApiService {
   final FirebaseFunctions _functions;
   final FirebaseAuth _auth;
 
+  /// リクエストに載せる言語コード。値ではなく供給関数で持つのは、
+  /// 設定画面での言語切替を次のリクエストから即座に反映させるため。
+  /// 既定は 'ja'（言語を供給しない呼び出し元＝現行の挙動を変えない）。
+  final String Function() _lang;
+
   BackendApiService({
     FirebaseFunctions? functions,
     FirebaseAuth? auth,
+    String Function()? lang,
   })  : _functions = functions ??
             FirebaseFunctions.instanceFor(
               region: FirebaseConfig.functionsRegion,
             ),
-        _auth = auth ?? FirebaseAuth.instance;
+        _auth = auth ?? FirebaseAuth.instance,
+        _lang = lang ?? _defaultLang;
+
+  static String _defaultLang() => 'ja';
 
   /// Generate a new Thai sentence using backend API
   Future<ThaiSentence> generateSentence({
@@ -66,7 +75,7 @@ class BackendApiService {
         ),
       );
 
-      final params = <String, dynamic>{};
+      final params = <String, dynamic>{'lang': _lang()};
       for (final entry in generationParams.entries) {
         if (entry.value != null) {
           params[entry.key] = entry.value;
@@ -205,10 +214,6 @@ class BackendApiService {
     }
   }
 
-
-
-
-
   /// クイズをオンデマンド生成（generateQuiz Cloud Function呼び出し）
   Future<List<QuizQuestion>> generateQuiz() async {
     try {
@@ -226,7 +231,7 @@ class BackendApiService {
         ),
       );
 
-      final result = await callable.call();
+      final result = await callable.call({'lang': _lang()});
       final data = _deepCast(result.data) as Map<String, dynamic>;
 
       if (data['no_user_sentences'] == true) {
@@ -275,6 +280,7 @@ class BackendApiService {
       );
 
       final result = await callable.call({
+        'lang': _lang(),
         'sentence': {
           'sentence_id': sentenceId,
           'thai_text': sentence.thaiText,

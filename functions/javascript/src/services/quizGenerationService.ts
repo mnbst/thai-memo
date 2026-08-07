@@ -1,4 +1,5 @@
 import * as logger from 'firebase-functions/logger';
+import { DEFAULT_LANG, Lang } from '../utils/lang';
 
 const THAI_SCRIPT_REGEX = /[\u0E00-\u0E7F]/;
 const JAPANESE_SCRIPT_REGEX = /[\u3040-\u30FF\u31F0-\u31FF\u4E00-\u9FFF]/;
@@ -99,43 +100,133 @@ export const QUIZ_RESPONSE_JSON_SCHEMA = {
   ],
 } as const;
 
-function buildPreparedSentenceList(sentences: QuizSentenceSeed[]): string {
+/**
+ * 英語版のレスポンススキーマ。
+ *
+ * 出力フィールドの言語はスキーマの description で決まる。Python 側の実測
+ * （functions/python/prompts.py の不採用コメント）で、プロンプト本文に言語指定を
+ * 足しても効果が無く、description だけで足りることを確認している。
+ * 構造・フィールド名は ja と同一。
+ */
+const QUIZ_RESPONSE_JSON_SCHEMA_EN = {
+  ...QUIZ_RESPONSE_JSON_SCHEMA,
+  properties: {
+    ...QUIZ_RESPONSE_JSON_SCHEMA.properties,
+    explanation: {
+      type: 'string',
+      description: 'Brief explanation in English of why this word fits',
+    },
+    dummy_reasons: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'One line in English per wrong choice, explaining why it does not fit',
+    },
+  },
+} as const;
+
+export function quizResponseSchema(lang: Lang) {
+  return lang === 'en' ? QUIZ_RESPONSE_JSON_SCHEMA_EN : QUIZ_RESPONSE_JSON_SCHEMA;
+}
+
+function buildPreparedSentenceList(sentences: QuizSentenceSeed[], lang: Lang): string {
   const preparedSentences = prepareQuizGenerationInputs(sentences);
+  // japanese_translation の中身は lang に従った訳文（フィールド名だけが据え置き）。
+  // ラベルまで「日本語訳」のままだと、英訳を日本語だと言って渡すことになる。
+  const translationLabel = lang === 'en' ? 'translation' : '日本語訳';
   return preparedSentences.map((sentence, index) => {
     let entry = `${index + 1}. thai_text: ${sentence.thai_text}` +
       `\n   blank_text: ${sentence.blank_text}` +
       `\n   correct_answer: ${sentence.correct_answer}` +
       `\n   correct_answer_pronunciation: ${sentence.pronunciation}` +
       `\n   correct_answer_meaning: ${sentence.correct_answer_meaning || '未指定'}` +
-      `\n   日本語訳: ${sentence.japanese_translation}`;
+      `\n   ${translationLabel}: ${sentence.japanese_translation}`;
     return entry;
   }).join('\n\n');
 }
 
-export const QUIZ_GENERATION_SYSTEM_PROMPT = `確定済みのタイ語穴埋め問題1問について、ダミー選択肢・理由・解説だけを作成してください。
+/**
+ * ダミー理由の書式。
+ *
+ * 「語（ローマ字 / 意味）：理由」の形は変えられない。extractDummyPronunciation が
+ * この括弧とスラッシュから選択肢の発音を切り出しており、崩すと4択の発音表示が空になる。
+ * en 版も同じ形（半角括弧とスラッシュ）を保つこと。
+ */
+const DUMMY_REASON_FORMAT = {
+  ja: 'dummy_reasons: 各ダミーを「単語（ローマ字 / 日本語）：不正解理由」の形式で1行ずつ書く',
+  en: 'dummy_reasons: 各ダミーを "word (romaji / English meaning): reason" の形式で1行ずつ書く',
+} as const;
+
+const EXPLANATION_RULE = {
+  ja: 'explanation: correct_answer が入る理由だけを日本語で簡潔に書く。ダミーには触れない',
+  en: 'explanation: correct_answer が入る理由だけを英語で簡潔に書く。ダミーには触れない',
+} as const;
+
+// 「訳文を見なくても解ける問題にする」という制約。日本語版の文言は変えない。
+const VISIBILITY_RULE = {
+  ja: `【最重要ルール】
+ヒント表示前に見えるのは blank_text と「correct_answer + dummies」のタイ語だけ。
+日本語訳・語句・発音・解説なしでも、周辺タイ語だけで3ダミーを除外できる必要がある。`,
+  en: `【最重要ルール】
+ヒント表示前に見えるのは blank_text と「correct_answer + dummies」のタイ語だけ。
+訳文・語句・発音・解説なしでも、周辺タイ語だけで3ダミーを除外できる必要がある。`,
+} as const;
+
+const TRANSLATION_ONLY_RULE = {
+  ja: '- 日本語訳、話者性別、敬意、人称だけで区別する語は不可',
+  en: '- 訳文、話者性別、敬意、人称だけで区別する語は不可',
+} as const;
+
+/**
+ * 禁止表現は出力言語の文字列でないと機能しない（生成物に対する検査語なので）。
+ * 日本語ルールの英訳移植ではなく、同じ「逃げ道」を英語で塞いだもの。
+ */
+const BANNED_REASON_PHRASES = {
+  ja: `【理由の禁止表現】
+dummy_reasons に「元の文」「文脈」「質問文」「合わない」「意味が異なる」「別の意味になる」「より一般的」は書かない。
+「〜を示す文脈には合わない」「こちらの方が自然」と説明したくなる候補は、意味上入りうるため不可。`,
+  en: `【理由の禁止表現】
+dummy_reasons に "the original sentence" / "context" / "the question" / "does not fit" /
+"a different meaning" / "means something else" / "more common" / "more natural" は書かない。
+"does not fit the context of ..." や "this one is more natural" と説明したくなる候補は、意味上入りうるため不可。`,
+} as const;
+
+const GOOD_REASON_EXAMPLES = {
+  ja: `【良い理由例】
+- แกง（kɛɛng / カレー）：動詞の位置に名詞が入り文法上不自然
+- เบื่อ（bʉ̀a / 飽きる）：目的語の位置に動詞が入り文法上不自然
+- เสื้อ（sʉ̂a / 服）：移動動詞の目的語に衣類名詞が入り不自然
+- ช้า（cháa / 遅い）：目的語に形容詞が入り不自然
+- สอง（sɔ̌ɔng / 二）：場所を示す前置詞句に数詞が入り不自然`,
+  en: `【良い理由例】
+- แกง (kɛɛng / curry): a noun in a verb slot is ungrammatical
+- เบื่อ (bʉ̀a / to be bored): a verb in an object slot is ungrammatical
+- เสื้อ (sʉ̂a / shirt): a clothing noun cannot be the object of a motion verb
+- ช้า (cháa / slow): an adjective cannot fill an object slot
+- สอง (sɔ̌ɔng / two): a numeral cannot fill a locative prepositional phrase`,
+} as const;
+
+function buildQuizSystemPrompt(lang: Lang): string {
+  return `確定済みのタイ語穴埋め問題1問について、ダミー選択肢・理由・解説だけを作成してください。
 blank_text と correct_answer は変更しません。
 
 【出力】
 dummies / explanation / dummy_reasons の3項目のみ。
 - dummies: correct_answer 以外のタイ語3件
-- explanation: correct_answer が入る理由だけを日本語で簡潔に書く。ダミーには触れない
-- dummy_reasons: 各ダミーを「単語（ローマ字 / 日本語）：不正解理由」の形式で1行ずつ書く
+- ${EXPLANATION_RULE[lang]}
+- ${DUMMY_REASON_FORMAT[lang]}
 
-【最重要ルール】
-ヒント表示前に見えるのは blank_text と「correct_answer + dummies」のタイ語だけ。
-日本語訳・語句・発音・解説なしでも、周辺タイ語だけで3ダミーを除外できる必要がある。
+${VISIBILITY_RULE[lang]}
 
 【ダミー条件】
 - 品詞不一致、項構造不一致、対象カテゴリ不一致など、局所的に破綻する語を選ぶ
 - 代入して文法上/意味上入りうる語、意味違いだけの語、同カテゴリ置換は不可
-- 日本語訳、話者性別、敬意、人称だけで区別する語は不可
+${TRANSLATION_ONLY_RULE[lang]}
 - 類別詞・指示詞・代名詞・語気助詞・前置詞など、複数候補が成立しやすい機能語同士をダミーにしない
 - 正解が類別詞の場合、他の類別詞ではなく、動詞・形容詞・場所名詞など別品詞を優先する
 - dummy_reasons の3行は互いに異なる理由にする。同じ理由になる候補は差し替える
 
-【理由の禁止表現】
-dummy_reasons に「元の文」「文脈」「質問文」「合わない」「意味が異なる」「別の意味になる」「より一般的」は書かない。
-「〜を示す文脈には合わない」「こちらの方が自然」と説明したくなる候補は、意味上入りうるため不可。
+${BANNED_REASON_PHRASES[lang]}
 
 【NG例】
 - กิน___ → ข้าว/ผัก/เนื้อ は全て目的語として成立
@@ -145,19 +236,26 @@ dummy_reasons に「元の文」「文脈」「質問文」「合わない」「
 - ___นี้แพงไปไหม → ลูก/อัน/ตัว は類別詞として複数成立
 - ฉันมีแมวสอง___ → ตัว/ตน は分類だけで落とす問題として曖昧
 
-【良い理由例】
-- แกง（kɛɛng / カレー）：動詞の位置に名詞が入り文法上不自然
-- เบื่อ（bʉ̀a / 飽きる）：目的語の位置に動詞が入り文法上不自然
-- เสื้อ（sʉ̂a / 服）：移動動詞の目的語に衣類名詞が入り不自然
-- ช้า（cháa / 遅い）：目的語に形容詞が入り不自然
-- สอง（sɔ̌ɔng / 二）：場所を示す前置詞句に数詞が入り不自然
+${GOOD_REASON_EXAMPLES[lang]}
 
 【最終確認】
 dummies 3件、correct_answer 不含、dummy_reasons 3件。
 3ダミーすべて、周辺タイ語だけで除外できること。`;
+}
 
-export function buildQuizGenerationPrompt(sentences: QuizSentenceSeed[]): string {
-  const sentenceList = buildPreparedSentenceList(sentences);
+export const QUIZ_GENERATION_SYSTEM_PROMPT = buildQuizSystemPrompt('ja');
+
+const QUIZ_GENERATION_SYSTEM_PROMPT_EN = buildQuizSystemPrompt('en');
+
+export function quizGenerationSystemPrompt(lang: Lang): string {
+  return lang === 'en' ? QUIZ_GENERATION_SYSTEM_PROMPT_EN : QUIZ_GENERATION_SYSTEM_PROMPT;
+}
+
+export function buildQuizGenerationPrompt(
+  sentences: QuizSentenceSeed[],
+  lang: Lang = DEFAULT_LANG,
+): string {
+  const sentenceList = buildPreparedSentenceList(sentences, lang);
 
   return `以下のタイ語穴埋め問題について、システム指示に従って出力してください。
 

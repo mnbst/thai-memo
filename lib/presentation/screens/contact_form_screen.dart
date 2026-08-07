@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 class ContactFormScreen extends StatefulWidget {
@@ -40,7 +41,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('お問い合わせを送信しました。ありがとうございます。')),
+          SnackBar(content: Text(L10n.of(context).contactSent)),
         );
         Navigator.pop(context);
       }
@@ -48,7 +49,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.message ?? '送信に失敗しました。しばらくしてから再度お試しください。'),
+            content: Text(e.message ?? L10n.of(context).contactFailed),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -57,7 +58,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('送信に失敗しました。しばらくしてから再度お試しください。'),
+            content: Text(L10n.of(context).contactFailed),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -70,7 +71,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('お問い合わせ')),
+      appBar: AppBar(title: Text(L10n.of(context).settingsContact)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -80,27 +81,30 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'お名前',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: L10n.of(context).contactName,
+                  border: const OutlineInputBorder(),
                 ),
                 textInputAction: TextInputAction.next,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'お名前を入力してください' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? L10n.of(context).contactNameRequired
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'メールアドレス',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: L10n.of(context).contactEmail,
+                  border: const OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'メールアドレスを入力してください';
+                  if (v == null || v.trim().isEmpty) {
+                    return L10n.of(context).contactEmailRequired;
+                  }
                   if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v.trim())) {
-                    return '正しいメールアドレスを入力してください';
+                    return L10n.of(context).contactEmailInvalid;
                   }
                   return null;
                 },
@@ -108,15 +112,16 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _messageController,
-                decoration: const InputDecoration(
-                  labelText: 'お問い合わせ内容',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: L10n.of(context).contactBody,
+                  border: const OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 8,
                 maxLength: 2000,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'お問い合わせ内容を入力してください' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? L10n.of(context).contactBodyRequired
+                    : null,
               ),
               const SizedBox(height: 24),
               FilledButton(
@@ -130,7 +135,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('送信する'),
+                    : Text(L10n.of(context).contactSubmit),
               ),
             ],
           ),

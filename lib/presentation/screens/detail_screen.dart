@@ -14,10 +14,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/generation_labels.dart';
+import '../../l10n/app_localizations.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/tts_provider.dart';
+import '../widgets/topic_picker.dart';
 import '../tone_explanation_dialog.dart';
 import '../widgets/sentence_audio_player.dart';
 
@@ -72,13 +75,13 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('例文の詳細'),
+        title: Text(L10n.of(context).detailTitle),
         actions: [
           // クリップボードにコピーするボタン
           IconButton(
             icon: const Icon(Icons.share),
             onPressed: _shareSentence,
-            tooltip: '共有',
+            tooltip: L10n.of(context).detailShare,
           ),
         ],
       ),
@@ -223,7 +226,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '単語の分解 (${widget.sentence.wordBreakdowns.length})',
+                      L10n.of(context).detailWordBreakdown(
+                          widget.sentence.wordBreakdowns.length),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -359,7 +363,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                                     .read(ttsServiceProvider)
                                     .speak(word.wordText, slow: true);
                               },
-                              tooltip: '単語を再生',
+                              tooltip: L10n.of(context).quizPlayWord,
                             ),
                           ),
                         ],
@@ -411,7 +415,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                       if (word.notes != null && word.notes!.trim().isNotEmpty)
                         const SizedBox(height: 4),
                       Text(
-                        '→ クイズで出題',
+                        L10n.of(context).detailQuizTarget,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color:
                                   cs.onTertiaryContainer.withValues(alpha: 0.6),
@@ -455,7 +459,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'タップして声調を確認',
+                  L10n.of(context).detailTapForTone,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(
                           context,
@@ -501,7 +505,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '文脈・使い方',
+                      L10n.of(context).detailContextSection,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -526,8 +530,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   if (sentenceContext.topic != null) ...[
                     _buildContextItem(
                       Icons.location_on_outlined,
-                      '場面',
-                      sentenceContext.topic!,
+                      L10n.of(context).detailContextTopic,
+                      // サーバーが決めたテーマ識別子（日本語）。表示だけ訳す。
+                      topicShortLabel(L10n.of(context), sentenceContext.topic),
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -535,8 +540,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   if (sentenceContext.style != null) ...[
                     _buildContextItem(
                       Icons.text_fields_outlined,
-                      '文体',
-                      sentenceContext.style!,
+                      L10n.of(context).detailContextStyle,
+                      // 文体は履歴の集計キーなので日本語のまま返る。表示だけ訳す。
+                      styleLabel(L10n.of(context), sentenceContext.style!),
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -544,7 +550,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   if (sentenceContext.emotion != null) ...[
                     _buildContextItem(
                       Icons.mood_outlined,
-                      '感情・トーン',
+                      L10n.of(context).detailContextEmotion,
                       sentenceContext.emotion!,
                     ),
                     const SizedBox(height: 12),
@@ -553,7 +559,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   if (sentenceContext.usageScenarios != null) ...[
                     _buildContextItem(
                       Icons.tips_and_updates_outlined,
-                      '使用シーン',
+                      L10n.of(context).detailContextUsage,
                       sentenceContext.usageScenarios!,
                     ),
                     const SizedBox(height: 12),
@@ -562,7 +568,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   if (sentenceContext.culturalNotes != null) ...[
                     _buildContextItem(
                       Icons.info_outline,
-                      '文化的背景',
+                      L10n.of(context).detailContextCulture,
                       sentenceContext.culturalNotes!,
                     ),
                   ],
@@ -606,7 +612,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     final createdAt = widget.sentence.createdAt;
     final formattedDate = createdAt != null
         ? '${createdAt.year}/${createdAt.month}/${createdAt.day}'
-        : '不明';
+        : L10n.of(context).commonUnknown;
 
     return Card(
       child: Padding(
@@ -622,7 +628,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              '作成日: $formattedDate',
+              L10n.of(context).detailCreatedAt(formattedDate),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(
                       context,
@@ -650,9 +656,9 @@ ${widget.sentence.japaneseTranslation}
     Clipboard.setData(ClipboardData(text: text));
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('クリップボードにコピーしました'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text(L10n.of(context).detailCopied),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
