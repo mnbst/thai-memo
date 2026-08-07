@@ -38,10 +38,10 @@ class SecureStorageService {
         value: timestamp.millisecondsSinceEpoch.toString(),
       );
     } catch (e) {
-      throw SecureStorageException('Failed to save last generation timestamp: $e');
+      throw SecureStorageException(
+          'Failed to save last generation timestamp: $e');
     }
   }
-
 }
 
 /// Custom exception for secure storage operations

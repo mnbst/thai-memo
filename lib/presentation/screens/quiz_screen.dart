@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
+import '../../core/quota_error.dart';
+import '../../l10n/app_localizations.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/thai_sentence.dart';
 import '../providers/analytics_provider.dart';
@@ -23,36 +25,34 @@ import 'paywall_screen.dart';
 
 const String _summaryQuizVocabBeforeKey = 'summary_quiz_vocab_before';
 const int _maxSummaryQuizVocabIncrease = 50;
+const Duration _correctAnswerAutoAdvanceDelay = Duration(milliseconds: 1200);
 
 class QuizScreen extends ConsumerStatefulWidget {
   static const routeName = 'quiz';
 
   final bool showAppBar;
-  final String title;
+
+  /// null なら「今日のクイズ」。既定値は文言なのでビルド時に解決する。
+  final String? title;
   final ThaiSentence? learningSentence;
   final VoidCallback? onBackToLearningStart;
   final Future<void> Function()? onNextSentence;
   final Future<void> Function()? onOptionalChallenge;
-  final String nextButtonLabel;
-  final String optionalChallengeLabel;
+  final String? nextButtonLabel;
+  final String? optionalChallengeLabel;
   final bool showVocabScoreTransition;
-
-  /// true の場合、「次の例文へ」ボタンを非活性化する。
-  /// 初回まとめクイズへ誘導するため、スキップして次の例文を生成する動線を塞ぐ。
-  final bool disableNextSentence;
 
   const QuizScreen({
     super.key,
     this.showAppBar = true,
-    this.title = '今日のクイズ',
+    this.title,
     this.learningSentence,
     this.onBackToLearningStart,
     this.onNextSentence,
     this.onOptionalChallenge,
-    this.nextButtonLabel = '次の例文へ',
-    this.optionalChallengeLabel = '5問チャレンジする',
+    this.nextButtonLabel,
+    this.optionalChallengeLabel,
     this.showVocabScoreTransition = false,
-    this.disableNextSentence = false,
   });
 
   @override
@@ -125,9 +125,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Future<void> _captureVocabBeforeQuiz() async {
     if (_vocabBeforeQuiz != null) return;
-    final vocab =
-        ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ??
-            (await ref.read(vocabStatsProvider.future)).estimatedVocab;
+    final vocab = ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ??
+        (await ref.read(vocabStatsProvider.future)).estimatedVocab;
     if (!mounted || _vocabBeforeQuiz != null) return;
     _vocabBeforeQuiz = vocab;
     if (widget.showVocabScoreTransition) {
@@ -140,6 +139,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!widget.showVocabScoreTransition || _vocabBeforeQuiz != null) return;
     final quizState = ref.read(quizControllerProvider);
     final shouldRestore = quizState is QuizSummary ||
+        quizState is QuizShowResult ||
         (quizState is QuizAnswering && quizState.index > 0);
     if (!shouldRestore) return;
 
@@ -150,8 +150,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   void _logSummaryQuizComplete(QuizSummary summary) {
-    final vocabAfter =
-        ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab;
+    final vocabAfter = ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab;
     unawaited(
       ref.read(analyticsServiceProvider).logSummaryQuizComplete(
             score: summary.totalCorrect,
@@ -181,8 +180,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         targetKey: _optionalChallengeKey,
         icon: Icons.emoji_events,
         interactive: true,
-        title: 'まとめクイズに挑戦',
-        message: '学習した内容をまとめてクイズで確認しましょう。',
+        title: L10n.of(context).coachSummaryQuizTitle,
+        message: L10n.of(context).coachSummaryQuizMessage,
+        emphasis: L10n.of(context).coachSummaryQuizEmphasis,
       );
     });
   }
@@ -210,8 +210,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         targetKey: _nextTopicKey,
         icon: Icons.palette_outlined,
         interactive: true,
-        title: '次の例文のテーマを選べます',
-        message: 'ここをタップすると、次に生成する例文のテーマ（旅行・恋愛など）を変更できます。気分に合わせて学習内容を選びましょう。',
+        title: L10n.of(context).coachTopicTitle,
+        message: L10n.of(context).coachTopicMessage,
       );
     });
   }
@@ -254,7 +254,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar:
+          AppBar(title: Text(widget.title ?? L10n.of(context).quizTodayTitle)),
       body: body,
     );
   }
@@ -299,12 +300,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 24),
             Text(
-              'まず例文を開きましょう',
+              L10n.of(context).quizOpenSentenceFirst,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              'クイズは学習中の例文から出題されます',
+              L10n.of(context).quizFromLearningSentence,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -325,7 +326,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           children: [
             const CircularProgressIndicator(),
             const SizedBox(height: 24),
-            Text('クイズを生成中...', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              L10n.of(context).quizGenerating,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 32),
             const LoadingTipCarousel(),
           ],
@@ -335,7 +339,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   Widget _buildErrorState(BuildContext context, String message) {
-    final isQuotaError = message.contains('上限');
+    final isQuotaError = isQuotaErrorMessage(message);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
@@ -356,7 +360,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             if (isQuotaError) ...[
               const SizedBox(height: 8),
               Text(
-                nextResetText(),
+                nextResetText(L10n.of(context)),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -372,7 +376,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   if (sentence != null) {
                     ref
                         .read(quizControllerProvider.notifier)
-                        .startLearningQuiz(sentence);
+                        .retryLearningQuiz(sentence);
                   } else {
                     ref
                         .read(quizControllerProvider.notifier)
@@ -380,7 +384,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   }
                 },
                 icon: const Icon(Icons.refresh),
-                label: const Text('もう一度試す'),
+                label: Text(L10n.of(context).commonTryAgain),
               ),
             ],
           ],
@@ -392,12 +396,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Widget _buildAnsweringState(BuildContext context, QuizAnswering state) {
     final question = state.questions[state.index];
     return _QuizQuestionView(
+      key: ValueKey('quiz_question_${state.index}'),
       question: question,
       questionIndex: state.index,
       totalQuestions: state.questions.length,
       onShowSentence: widget.onBackToLearningStart,
-      onAnswer: (choiceIndex, hintLevel, reviewedSentence) {
-        ref.read(quizControllerProvider.notifier).answerQuestion(
+      onAnswer: (choiceIndex, hintLevel, reviewedSentence) async {
+        await ref.read(quizControllerProvider.notifier).answerQuestion(
               choiceIndex,
               hintLevel: hintLevel,
               reviewedSentence: reviewedSentence,
@@ -409,17 +414,38 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Widget _buildShowResultState(BuildContext context, QuizShowResult state) {
     final question = state.questions[state.index];
-    return _QuizResultView(
+    // 1問の学習クイズは従来どおり結果画面を使う。まとめクイズは、正解時は
+    // テンポを優先してインライン表示、不正解時は既存の結果画面で復習する。
+    if (widget.learningSentence != null || !state.isCorrect) {
+      return _QuizResultView(
+        question: question,
+        questionIndex: state.index,
+        totalQuestions: state.questions.length,
+        selectedIndex: state.selectedIndex,
+        isCorrect: state.isCorrect,
+        showExplanations: widget.learningSentence == null,
+        learningNextLabel:
+            widget.nextButtonLabel ?? L10n.of(context).learnNextSentence,
+        onLearningNext: widget.onNextSentence,
+        onNext: () {
+          ref.read(quizControllerProvider.notifier).nextQuestion();
+        },
+      );
+    }
+
+    return _QuizQuestionView(
+      key: ValueKey('quiz_question_${state.index}'),
       question: question,
       questionIndex: state.index,
       totalQuestions: state.questions.length,
       selectedIndex: state.selectedIndex,
       isCorrect: state.isCorrect,
-      showExplanations: widget.learningSentence == null,
-      learningNextLabel: widget.nextButtonLabel,
-      onLearningNext: widget.onNextSentence,
-      onNext: () {
-        ref.read(quizControllerProvider.notifier).nextQuestion();
+      showHint: widget.learningSentence == null,
+      autoAdvanceCorrect: widget.learningSentence == null,
+      onShowSentence: widget.onBackToLearningStart,
+      onAnswer: null,
+      onNext: () async {
+        await ref.read(quizControllerProvider.notifier).nextQuestion();
       },
     );
   }
@@ -461,7 +487,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               final ok = state.answers[i];
               final selectedIdx = i < state.selectedIndices.length
                   ? state.selectedIndices[i]
-                  : 0;
+                  : -1;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Card(
@@ -540,7 +566,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               child: FilledButton.icon(
                 onPressed: widget.onOptionalChallenge,
                 icon: const Icon(Icons.emoji_events),
-                label: Text(widget.optionalChallengeLabel),
+                label: Text(
+                  widget.optionalChallengeLabel ??
+                      L10n.of(context).quizOptionalChallenge,
+                ),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   minimumSize: const Size.fromHeight(52),
@@ -556,7 +585,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   child: OutlinedButton.icon(
                     onPressed: widget.onBackToLearningStart,
                     icon: const Icon(Icons.arrow_back, size: 18),
-                    label: const Text('例文に戻る'),
+                    label: Text(L10n.of(context).quizBackToSentence),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -566,32 +595,34 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 Expanded(
                   child: widget.onOptionalChallenge != null
                       ? OutlinedButton.icon(
-                          onPressed: widget.disableNextSentence
-                              ? null
-                              : () async {
-                                  if (widget.onNextSentence != null) {
-                                    unawaited(_clearVocabBeforeQuiz());
-                                    await widget.onNextSentence!();
-                                  }
-                                },
+                          onPressed: () async {
+                            if (widget.onNextSentence != null) {
+                              unawaited(_clearVocabBeforeQuiz());
+                              await widget.onNextSentence!();
+                            }
+                          },
                           icon: const Icon(Icons.arrow_forward, size: 18),
-                          label: Text(widget.nextButtonLabel),
+                          label: Text(
+                            widget.nextButtonLabel ??
+                                L10n.of(context).learnNextSentence,
+                          ),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: const Color(0xFFEAF2FF),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                         )
                       : FilledButton.icon(
-                          onPressed: widget.disableNextSentence
-                              ? null
-                              : () async {
-                                  if (widget.onNextSentence != null) {
-                                    unawaited(_clearVocabBeforeQuiz());
-                                    await widget.onNextSentence!();
-                                  }
-                                },
+                          onPressed: () async {
+                            if (widget.onNextSentence != null) {
+                              unawaited(_clearVocabBeforeQuiz());
+                              await widget.onNextSentence!();
+                            }
+                          },
                           icon: const Icon(Icons.arrow_forward),
-                          label: Text(widget.nextButtonLabel),
+                          label: Text(
+                            widget.nextButtonLabel ??
+                                L10n.of(context).learnNextSentence,
+                          ),
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -612,7 +643,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 }
               },
               icon: const Icon(Icons.arrow_forward),
-              label: Text(widget.nextButtonLabel),
+              label: Text(
+                widget.nextButtonLabel ?? L10n.of(context).learnNextSentence,
+              ),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
@@ -648,7 +681,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  isCorrect ? '正解！' : '不正解',
+                  isCorrect
+                      ? L10n.of(context).quizCorrect
+                      : L10n.of(context).quizIncorrect,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color:
                             isCorrect ? colorScheme.primary : colorScheme.error,
@@ -698,14 +733,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   _VocabScoreIncreaseHeader(diff: diff),
                   const SizedBox(height: 12),
                 ] else ...[
-                  Text('語彙スコア', style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    L10n.of(context).vocabScore,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                   const SizedBox(height: 12),
                 ],
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      '$displayBefore語',
+                      L10n.of(context).vocabWords(displayBefore),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color:
                                 Theme.of(context).colorScheme.onSurfaceVariant,
@@ -719,7 +757,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       ),
                     ),
                     Text(
-                      '$after語',
+                      L10n.of(context).vocabWords(after),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.bold,
@@ -730,7 +768,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 if (diff < 0) ...[
                   const SizedBox(height: 6),
                   Text(
-                    '$diff語',
+                    L10n.of(context).vocabWordsDelta('$diff'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -759,14 +797,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '語彙スコアが上限に達しました',
+                                L10n.of(context).vocabScoreCapped,
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
                                     ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                               Text(
-                                'Premiumで続きの成長を記録しよう',
+                                L10n.of(context).vocabScorePremiumPitch,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ],
@@ -799,7 +837,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               ),
               const SizedBox(width: 12),
               Text(
-                '語彙スコアを計算中...',
+                L10n.of(context).vocabScoreCalculating,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -913,7 +951,7 @@ class _VocabScoreIncreaseHeaderState extends State<_VocabScoreIncreaseHeader>
                         curve: Curves.easeOutCubic,
                         builder: (context, value, _) {
                           return Text(
-                            '+$value語',
+                            L10n.of(context).vocabWordsDelta('+$value'),
                             style: Theme.of(context)
                                 .textTheme
                                 .displaySmall
@@ -926,7 +964,7 @@ class _VocabScoreIncreaseHeaderState extends State<_VocabScoreIncreaseHeader>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '語彙スコアアップ！',
+                        L10n.of(context).vocabScoreUp,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               color: onContainer,
                             ),
@@ -1122,29 +1160,112 @@ class _QuizQuestionView extends StatefulWidget {
   final int questionIndex;
   final int totalQuestions;
   final VoidCallback? onShowSentence;
-  final void Function(
+  final Future<void> Function(
     int choiceIndex,
     int hintLevel,
     bool reviewedSentence,
-  ) onAnswer;
+  )? onAnswer;
+  final int? selectedIndex;
+  final bool? isCorrect;
+  final Future<void> Function()? onNext;
   final bool showHint;
+  final bool autoAdvanceCorrect;
 
   const _QuizQuestionView({
+    super.key,
     required this.question,
     required this.questionIndex,
     required this.totalQuestions,
     this.onShowSentence,
     required this.onAnswer,
+    this.selectedIndex,
+    this.isCorrect,
+    this.onNext,
     this.showHint = true,
+    this.autoAdvanceCorrect = false,
   });
 
   @override
   State<_QuizQuestionView> createState() => _QuizQuestionViewState();
 }
 
-class _QuizQuestionViewState extends State<_QuizQuestionView> {
+class _QuizQuestionViewState extends State<_QuizQuestionView>
+    with WidgetsBindingObserver {
   int _hintLevel = 0;
   bool _reviewedSentence = false;
+  bool _isSubmitting = false;
+  bool _isContinuing = false;
+  Timer? _autoAdvanceTimer;
+  int _autoAdvanceGeneration = 0;
+
+  /// 「例文を確認」導線の位置特定用（初回コーチマーク表示に使用）。
+  final GlobalKey _checkSentenceKey = GlobalKey();
+
+  /// 「例文を復習する」導線の位置特定用（まとめクイズ側）。
+  final GlobalKey _reviewSentenceKey = GlobalKey();
+
+  /// このビューがコーチマークを出したか（破棄時に閉じるため）。
+  bool _showedReviewCoach = false;
+
+  bool get _hasResult =>
+      widget.selectedIndex != null && widget.isCorrect != null;
+
+  bool get _canAutoAdvance =>
+      _hasResult &&
+      widget.isCorrect == true &&
+      widget.autoAdvanceCorrect &&
+      widget.questionIndex + 1 < widget.totalQuestions &&
+      widget.onNext != null;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleAutoAdvanceIfNeeded();
+    unawaited(_maybeShowReviewCoach());
+  }
+
+  /// 出題中に「例文へ戻って確認できる」ことを初回だけ案内する。
+  /// 例文へ戻る導線が実際に出ている問題でのみ、1回限り。
+  Future<void> _maybeShowReviewCoach() async {
+    if (_hasResult) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyQuizReviewCoachShown) ?? false) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _hasResult) return;
+      // 確認クイズは「例文を確認」、まとめクイズは「例文を復習する」が出る。
+      final targetKey = _checkSentenceKey.currentContext != null
+          ? _checkSentenceKey
+          : (_reviewSentenceKey.currentContext != null
+              ? _reviewSentenceKey
+              : null);
+      if (targetKey == null || ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
+      // 選択肢が多いと導線は画面外にある。先に見せてから強調する。
+      await Scrollable.ensureVisible(
+        targetKey.currentContext!,
+        alignment: 0.8,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+      if (!mounted || _hasResult || ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
+      final shown = CoachMarkOverlay.show(
+        context,
+        targetKey: targetKey,
+        icon: Icons.menu_book_outlined,
+        interactive: true,
+        title: L10n.of(context).coachQuizReviewTitle,
+        message: L10n.of(context).coachQuizReviewMessage,
+      );
+      if (!shown) return;
+      _showedReviewCoach = true;
+      unawaited(prefs.setBool(AppConfig.prefKeyQuizReviewCoachShown, true));
+    });
+  }
 
   @override
   void didUpdateWidget(_QuizQuestionView oldWidget) {
@@ -1152,6 +1273,81 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
     if (oldWidget.questionIndex != widget.questionIndex) {
       _hintLevel = 0;
       _reviewedSentence = false;
+      _isSubmitting = false;
+      _isContinuing = false;
+    }
+    final resultChanged = oldWidget.questionIndex != widget.questionIndex ||
+        oldWidget.selectedIndex != widget.selectedIndex ||
+        oldWidget.isCorrect != widget.isCorrect;
+    if (resultChanged) {
+      _scheduleAutoAdvanceIfNeeded();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      _cancelAutoAdvance();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _cancelAutoAdvance();
+    // 次の問題へ進むとこのビューだけ破棄される。対象を失ったコーチマークが
+    // 残らないよう、自分が出したものはここで閉じる。
+    if (_showedReviewCoach) CoachMarkOverlay.dismiss();
+    super.dispose();
+  }
+
+  void _scheduleAutoAdvanceIfNeeded() {
+    _cancelAutoAdvance();
+    if (!_canAutoAdvance) return;
+
+    final generation = ++_autoAdvanceGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || generation != _autoAdvanceGeneration) return;
+      if (MediaQuery.of(context).accessibleNavigation) return;
+      _autoAdvanceTimer = Timer(
+        _correctAnswerAutoAdvanceDelay,
+        () => unawaited(_continueToNext()),
+      );
+    });
+  }
+
+  void _cancelAutoAdvance() {
+    _autoAdvanceGeneration++;
+    _autoAdvanceTimer?.cancel();
+    _autoAdvanceTimer = null;
+  }
+
+  Future<void> _submitAnswer(int choiceIndex) async {
+    final onAnswer = widget.onAnswer;
+    if (_isSubmitting || _hasResult || onAnswer == null) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      await onAnswer(choiceIndex, _hintLevel, _reviewedSentence);
+    } finally {
+      if (mounted && !_hasResult) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _continueToNext() async {
+    final onNext = widget.onNext;
+    if (_isContinuing || !_hasResult || onNext == null) return;
+
+    _cancelAutoAdvance();
+    setState(() => _isContinuing = true);
+    try {
+      await onNext();
+    } finally {
+      if (mounted && _hasResult) {
+        setState(() => _isContinuing = false);
+      }
     }
   }
 
@@ -1167,6 +1363,113 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
     );
   }
 
+  Widget _buildInlineFeedback(BuildContext context) {
+    final l10n = L10n.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final isCorrect = widget.isCorrect!;
+    final feedbackColor =
+        isCorrect ? colorScheme.primaryContainer : colorScheme.errorContainer;
+    final feedbackForeground = isCorrect
+        ? colorScheme.onPrimaryContainer
+        : colorScheme.onErrorContainer;
+    final accentColor = isCorrect ? colorScheme.primary : colorScheme.error;
+    final meaning = widget.question.correctAnswerMeaning.trim();
+    final pronunciation = widget.question.pronunciation.trim();
+    final answerDetails = [
+      widget.question.correctAnswer,
+      if (meaning.isNotEmpty)
+        meaning
+      else if (pronunciation.isNotEmpty)
+        pronunciation,
+    ].join(' · ');
+    final resultLabel = isCorrect ? l10n.quizCorrect : l10n.quizIncorrect;
+    final nextLabel = widget.questionIndex + 1 >= widget.totalQuestions
+        ? l10n.quizSeeResults
+        : l10n.quizNextQuestion;
+    return SafeArea(
+      key: const ValueKey('quiz_inline_feedback'),
+      top: false,
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: feedbackColor,
+          border: Border(top: BorderSide(color: accentColor, width: 2)),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppConfig.defaultPadding,
+          12,
+          AppConfig.defaultPadding,
+          12,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              container: true,
+              liveRegion: true,
+              label: '$resultLabel $answerDetails',
+              child: ExcludeSemantics(
+                child: Row(
+                  children: [
+                    Icon(
+                      isCorrect ? Icons.check_circle : Icons.cancel,
+                      color: accentColor,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            resultLabel,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  color: accentColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            answerDetails,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: feedbackForeground,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            FilledButton(
+              key: const ValueKey('quiz_next_button'),
+              onPressed: _isContinuing ? null : _continueToNext,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: _isContinuing
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(nextLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final question = widget.question;
@@ -1177,172 +1480,265 @@ class _QuizQuestionViewState extends State<_QuizQuestionView> {
     final canReviewSentence =
         widget.totalQuestions > 1 && sentenceDetail != null;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppConfig.defaultPadding),
+    return Listener(
+      onPointerDown: (_) {
+        if (_autoAdvanceTimer != null) _cancelAutoAdvance();
+      },
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (widget.totalQuestions > 1) ...[
-            // 進捗
-            Row(
-              children: [
-                Text(
-                    '問題 ${widget.questionIndex + 1} / ${widget.totalQuestions}',
-                    style: Theme.of(context).textTheme.titleMedium),
-                const Spacer(),
-                SizedBox(
-                  width: 100,
-                  child: LinearProgressIndicator(
-                    value: (widget.questionIndex + 1) / widget.totalQuestions,
-                    borderRadius: BorderRadius.circular(4),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppConfig.defaultPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.totalQuestions > 1) ...[
+                    // 進捗
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            L10n.of(context).quizProgress(
+                              widget.questionIndex + 1,
+                              widget.totalQuestions,
+                            ),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 100,
+                          child: LinearProgressIndicator(
+                            value: (widget.questionIndex + 1) /
+                                widget.totalQuestions,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ] else ...[
+                    Text(
+                      L10n.of(context).quizPrompt,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  // 穴埋め例文
+                  Card(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+                      child: Text(
+                        question.blankText,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                height: 1.5,
+                                fontSize: 28),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-          ] else ...[
-            Text(
-              '下線部に入る単語を選んでください',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-          ],
-          // 穴埋め例文
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
-              child: Text(
-                question.blankText,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w500, height: 1.5, fontSize: 28),
-                textAlign: TextAlign.center,
+                  // ヒント1: ローマ字読み（問題文の下、正解部分を空欄に）
+                  if (_hintLevel >= 1 && hasPronunciation) ...[
+                    const SizedBox(height: 8),
+                    Builder(builder: (context) {
+                      final blanked = question
+                              .blankSentencePronunciation.isNotEmpty
+                          ? question.blankSentencePronunciation
+                          : question.pronunciation.isNotEmpty
+                              ? question.sentencePronunciation
+                                  .replaceFirst(question.pronunciation, '___')
+                              : '';
+                      if (blanked.isEmpty ||
+                          blanked == question.sentencePronunciation) {
+                        return const SizedBox.shrink();
+                      }
+                      return Text(
+                        blanked,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                        textAlign: TextAlign.center,
+                      );
+                    }),
+                  ],
+                  // ヒント2: 日本語訳（ローマ字の下）
+                  if (_hintLevel >= 2 && hasTranslation) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      question.japaneseTranslation,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  // 4択
+                  ...List.generate(question.choices.length, (i) {
+                    final colorScheme = Theme.of(context).colorScheme;
+                    final choicePronunciation =
+                        i < question.choicePronunciations.length
+                            ? question.choicePronunciations[i]
+                            : '';
+                    final showChoicePronunciation =
+                        _hintLevel >= 1 && choicePronunciation.isNotEmpty;
+                    final isSelected = _hasResult && widget.selectedIndex == i;
+                    final isCorrectChoice = _hasResult &&
+                        question.choices[i] == question.correctAnswer;
+                    final isWrongSelection =
+                        isSelected && widget.isCorrect == false;
+
+                    Color? resultBackground;
+                    Color? resultForeground;
+                    BorderSide? resultSide;
+                    IconData? resultIcon;
+                    if (isCorrectChoice) {
+                      resultBackground = colorScheme.primaryContainer;
+                      resultForeground = colorScheme.onPrimaryContainer;
+                      resultSide =
+                          BorderSide(color: colorScheme.primary, width: 2);
+                      resultIcon = Icons.check_circle;
+                    } else if (isWrongSelection) {
+                      resultBackground = colorScheme.errorContainer;
+                      resultForeground = colorScheme.onErrorContainer;
+                      resultSide =
+                          BorderSide(color: colorScheme.error, width: 2);
+                      resultIcon = Icons.cancel;
+                    }
+
+                    final answerLocked = _isSubmitting || _hasResult;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: showChoicePronunciation ? 84 : 56,
+                        ),
+                        child: ElevatedButton(
+                          key: ValueKey('quiz_choice_$i'),
+                          onPressed:
+                              answerLocked ? null : () => _submitAnswer(i),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: resultBackground,
+                            foregroundColor: resultForeground,
+                            disabledBackgroundColor: resultBackground ??
+                                colorScheme.surfaceContainerHighest,
+                            disabledForegroundColor: resultForeground ??
+                                colorScheme.onSurfaceVariant,
+                            side: resultSide,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                  AppConfig.cardBorderRadius),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      question.choices[i],
+                                      style: const TextStyle(fontSize: 24),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    if (showChoicePronunciation) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        choicePronunciation,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontStyle: FontStyle.italic,
+                                              color: resultForeground ??
+                                                  colorScheme.primary
+                                                      .withValues(alpha: 0.75),
+                                            ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if (resultIcon != null) ...[
+                                const SizedBox(width: 8),
+                                Icon(
+                                  resultIcon,
+                                  color: isWrongSelection
+                                      ? colorScheme.error
+                                      : colorScheme.primary,
+                                  semanticLabel: isWrongSelection
+                                      ? L10n.of(context).quizIncorrect
+                                      : L10n.of(context).quizCorrect,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  if (!_hasResult && canReviewSentence) ...[
+                    const SizedBox(height: 4),
+                    TextButton(
+                      key: _reviewSentenceKey,
+                      onPressed: () => _showSentenceDetail(sentenceDetail),
+                      child: Text(
+                        _reviewedSentence
+                            ? L10n.of(context).quizSentenceReviewed
+                            : L10n.of(context).quizReviewSentence,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                    ),
+                  ] else if (!_hasResult &&
+                      widget.showHint &&
+                      _hintLevel < maxHintLevel) ...[
+                    const SizedBox(height: 4),
+                    FilledButton.tonalIcon(
+                      onPressed: () =>
+                          setState(() => _hintLevel = maxHintLevel),
+                      icon: const Icon(Icons.lightbulb_outline),
+                      label: Text(L10n.of(context).quizHint),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ],
+                  if (!_hasResult && widget.onShowSentence != null) ...[
+                    const SizedBox(height: 4),
+                    FilledButton.tonalIcon(
+                      key: _checkSentenceKey,
+                      onPressed: widget.onShowSentence,
+                      icon: const Icon(Icons.menu_book_outlined),
+                      label: Text(L10n.of(context).quizCheckSentence),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
-          // ヒント1: ローマ字読み（問題文の下、正解部分を空欄に）
-          if (_hintLevel >= 1 && hasPronunciation) ...[
-            const SizedBox(height: 8),
-            Builder(builder: (context) {
-              final blanked = question.blankSentencePronunciation.isNotEmpty
-                  ? question.blankSentencePronunciation
-                  : question.pronunciation.isNotEmpty
-                      ? question.sentencePronunciation
-                          .replaceFirst(question.pronunciation, '___')
-                      : '';
-              if (blanked.isEmpty ||
-                  blanked == question.sentencePronunciation) {
-                return const SizedBox.shrink();
-              }
-              return Text(
-                blanked,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                textAlign: TextAlign.center,
-              );
-            }),
-          ],
-          // ヒント2: 日本語訳（ローマ字の下）
-          if (_hintLevel >= 2 && hasTranslation) ...[
-            const SizedBox(height: 4),
-            Text(
-              question.japaneseTranslation,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-          const SizedBox(height: 16),
-          // 4択
-          ...List.generate(question.choices.length, (i) {
-            final choicePronunciation = i < question.choicePronunciations.length
-                ? question.choicePronunciations[i]
-                : '';
-            final showChoicePronunciation =
-                _hintLevel >= 1 && choicePronunciation.isNotEmpty;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: SizedBox(
-                height: showChoicePronunciation ? 84 : 56,
-                child: ElevatedButton(
-                  onPressed: () =>
-                      widget.onAnswer(i, _hintLevel, _reviewedSentence),
-                  style: ElevatedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppConfig.cardBorderRadius),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        question.choices[i],
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                      if (showChoicePronunciation) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          choicePronunciation,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontStyle: FontStyle.italic,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withValues(alpha: 0.75),
-                                  ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }),
-          if (canReviewSentence) ...[
-            const SizedBox(height: 4),
-            TextButton(
-              onPressed: () => _showSentenceDetail(sentenceDetail),
-              child: Text(
-                _reviewedSentence ? '例文を復習済み' : '例文を復習する',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outline,
-                ),
-              ),
-            ),
-          ] else if (widget.showHint && _hintLevel < maxHintLevel) ...[
-            const SizedBox(height: 4),
-            FilledButton.tonalIcon(
-              onPressed: () => setState(() => _hintLevel = maxHintLevel),
-              icon: const Icon(Icons.lightbulb_outline),
-              label: const Text('ヒント'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ],
-          if (widget.onShowSentence != null) ...[
-            const SizedBox(height: 4),
-            FilledButton.tonalIcon(
-              onPressed: widget.onShowSentence,
-              icon: const Icon(Icons.menu_book_outlined),
-              label: const Text('例文を確認'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ],
+          if (_hasResult) _buildInlineFeedback(context),
         ],
       ),
     );
@@ -1355,11 +1751,13 @@ class _QuizAnswerWordRow extends ConsumerWidget {
   final QuizQuestion question;
   final String analyticsSource;
   final bool showSentenceContext;
+  final bool showCorrectAnswerLabel;
 
   const _QuizAnswerWordRow({
     required this.question,
     required this.analyticsSource,
     this.showSentenceContext = true,
+    this.showCorrectAnswerLabel = false,
   });
 
   @override
@@ -1399,7 +1797,7 @@ class _QuizAnswerWordRow extends ConsumerWidget {
                   );
                   ref.read(ttsServiceProvider).speak(question.thaiText);
                 },
-                tooltip: '例文を再生',
+                tooltip: L10n.of(context).quizPlaySentence,
               ),
             ],
           ),
@@ -1425,7 +1823,11 @@ class _QuizAnswerWordRow extends ConsumerWidget {
           children: [
             Flexible(
               child: Text(
-                question.correctAnswer,
+                showCorrectAnswerLabel
+                    ? L10n.of(context).quizCorrectAnswer(
+                        question.correctAnswer,
+                      )
+                    : question.correctAnswer,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: colorScheme.primary,
                       fontWeight: FontWeight.w600,
@@ -1448,7 +1850,7 @@ class _QuizAnswerWordRow extends ConsumerWidget {
                 );
                 ref.read(ttsServiceProvider).speak(question.correctAnswer);
               },
-              tooltip: '単語を再生',
+              tooltip: L10n.of(context).quizPlayWord,
             ),
           ],
         ),
@@ -1505,7 +1907,7 @@ class _QuizExplanationSection extends StatelessWidget {
             if (hasCorrectReason) ...[
               _QuizReasonHeader(
                 icon: Icons.check_circle,
-                label: '正解理由',
+                label: L10n.of(context).quizWhyCorrect,
                 color: colorScheme.primary,
               ),
               const SizedBox(height: 8),
@@ -1519,7 +1921,7 @@ class _QuizExplanationSection extends StatelessWidget {
             if (hasIncorrectReasons) ...[
               _QuizReasonHeader(
                 icon: Icons.cancel,
-                label: '不正解理由',
+                label: L10n.of(context).quizWhyIncorrect,
                 color: colorScheme.error,
               ),
               const SizedBox(height: 8),
@@ -1620,9 +2022,14 @@ class _QuizResultView extends StatelessWidget {
             // 進捗
             Row(
               children: [
-                Text('問題 ${questionIndex + 1} / $totalQuestions',
-                    style: Theme.of(context).textTheme.titleMedium),
-                const Spacer(),
+                Expanded(
+                  child: Text(
+                    L10n.of(context)
+                        .quizProgress(questionIndex + 1, totalQuestions),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 SizedBox(
                   width: 100,
                   child: LinearProgressIndicator(
@@ -1652,7 +2059,9 @@ class _QuizResultView extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    isCorrect ? '正解！' : '不正解',
+                    isCorrect
+                        ? L10n.of(context).quizCorrect
+                        : L10n.of(context).quizIncorrect,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: isCorrect
                               ? Theme.of(context).colorScheme.primary
@@ -1674,6 +2083,7 @@ class _QuizResultView extends StatelessWidget {
                   question: question,
                   analyticsSource: 'quiz_result',
                   showSentenceContext: showExplanations,
+                  showCorrectAnswerLabel: showExplanations && !isCorrect,
                 ),
               ),
             ),
@@ -1735,12 +2145,15 @@ class _QuizResultView extends StatelessWidget {
             const SizedBox(height: 16),
             // 次へボタン
             FilledButton(
+              key: const ValueKey('quiz_result_next_button'),
               onPressed: onNext,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               child: Text(
-                questionIndex + 1 >= totalQuestions ? '結果を見る' : '次の問題へ',
+                questionIndex + 1 >= totalQuestions
+                    ? L10n.of(context).quizSeeResults
+                    : L10n.of(context).quizNextQuestion,
               ),
             ),
           ],
@@ -1823,7 +2236,9 @@ class _QuizResultDetail extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  isCorrect ? '正解！' : '不正解',
+                  isCorrect
+                      ? L10n.of(context).quizCorrect
+                      : L10n.of(context).quizIncorrect,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: isCorrect
                             ? Theme.of(context).colorScheme.primary

@@ -2,14 +2,15 @@ import * as logger from 'firebase-functions/logger';
 import {
   applyRuleBasedQuizFields,
   buildQuizGenerationPrompt,
-  QUIZ_GENERATION_SYSTEM_PROMPT,
+  quizGenerationSystemPrompt,
+  quizResponseSchema,
   QuizGenerationModelResponse,
-  QUIZ_RESPONSE_JSON_SCHEMA,
   QuizGenerationService,
   QuizQuestionsResponse,
   QuizSentenceSeed,
   sanitizeQuizQuestions,
 } from './quizGenerationService';
+import { DEFAULT_LANG, Lang } from '../utils/lang';
 
 // gemini-2.5 系は 2026-08 時点で新規APIキーからは利用不可（404: no longer available
 // to new users）。キーをローテートすると即座に生成が全停止するため 3.x 系を使う。
@@ -60,14 +61,15 @@ export class GeminiQuizService implements QuizGenerationService {
     private readonly apiKey: string,
     private readonly uid: string,
     private readonly tier: 'free' | 'premium',
+    private readonly lang: Lang = DEFAULT_LANG,
   ) {}
 
   async generateQuizQuestions(
     sentences: QuizSentenceSeed[],
   ): Promise<QuizQuestionsResponse> {
     const draft = await this.fetchStructuredResponse<QuizGenerationModelResponse>(
-      QUIZ_GENERATION_SYSTEM_PROMPT,
-      buildQuizGenerationPrompt(sentences),
+      quizGenerationSystemPrompt(this.lang),
+      buildQuizGenerationPrompt(sentences, this.lang),
       sentences,
     );
 
@@ -96,7 +98,9 @@ export class GeminiQuizService implements QuizGenerationService {
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
-            responseSchema: toGeminiSchema(QUIZ_RESPONSE_JSON_SCHEMA as unknown as Record<string, unknown>),
+            responseSchema: toGeminiSchema(
+              quizResponseSchema(this.lang) as unknown as Record<string, unknown>,
+            ),
             maxOutputTokens: 4096,
             thinkingConfig: {
               thinkingBudget: 256,

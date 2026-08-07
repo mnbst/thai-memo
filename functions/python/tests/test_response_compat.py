@@ -77,7 +77,6 @@ class TestBuildPromptWithContext:
         from constants import TOPICS
 
         with (
-            patch("prompts.get_topic_option_similarity_weights", return_value=None),
             patch("prompts.find_best_sub_theme", return_value="告白"),
             patch("prompts.build_drama_prompt_section",
                   return_value={"context": "", "required": ""}),

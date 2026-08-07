@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import '../data/datasources/backend_api_service.dart';
 import '../data/models/thai_sentence.dart';
 import '../data/sentence_repository.dart';
@@ -109,22 +110,22 @@ class GenerateSentenceException implements Exception {
   });
 
   /// Get user-friendly error message
-  String getUserMessage() {
+  String getUserMessage(L10n l10n) {
     switch (type) {
       case GenerateSentenceErrorType.authenticationError:
-        return '認証エラーが発生しました。アプリを再起動してください。';
+        return l10n.errAuth;
       case GenerateSentenceErrorType.networkError:
-        return 'ネットワーク接続エラーが発生しました。インターネット接続を確認してください。';
+        return l10n.errNetwork;
       case GenerateSentenceErrorType.rateLimitExceeded:
-        return '本日の例文生成上限に達しました。';
+        return l10n.quotaSentenceReached;
       case GenerateSentenceErrorType.quotaExceeded:
-        return '本日の例文生成上限に達しました。';
+        return l10n.quotaSentenceReached;
       case GenerateSentenceErrorType.timeout:
-        return 'リクエストがタイムアウトしました。もう一度お試しください。';
+        return l10n.errTimeout;
       case GenerateSentenceErrorType.serverError:
-        return 'サーバーエラーが発生しました。しばらく待ってから再試行してください。';
+        return l10n.errServer;
       case GenerateSentenceErrorType.unknown:
-        return '例文の生成に失敗しました。もう一度お試しください。';
+        return l10n.errSentenceGenerationFailed;
     }
   }
 

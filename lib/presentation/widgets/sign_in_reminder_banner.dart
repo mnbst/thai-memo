@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -67,9 +68,8 @@ class _SignInReminderBannerState extends ConsumerState<SignInReminderBanner> {
   Future<void> _signIn() async {
     await showSignInSheet(
       context,
-      title: '学習の進捗を保護',
-      message: 'サインインすると進捗が保存され、機種変更後も学習を続けられます。'
-          'サインインしない場合、3日間ご利用がないと学習の進捗は削除されます。',
+      title: L10n.of(context).signInReminderTitle,
+      message: L10n.of(context).signInReminderMessage,
     );
     // サインイン成功時は isLinked の watch により自動で非表示になる
   }
@@ -97,7 +97,7 @@ class _SignInReminderBannerState extends ConsumerState<SignInReminderBanner> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '学習データを保護しましょう\nサインインしないと、3日間ご利用がない場合に学習の進捗が削除されます。',
+                    L10n.of(context).signInReminderBanner,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSecondaryContainer,
                         ),
@@ -110,12 +110,12 @@ class _SignInReminderBannerState extends ConsumerState<SignInReminderBanner> {
               children: [
                 TextButton(
                   onPressed: _dismiss,
-                  child: const Text('あとで'),
+                  child: Text(L10n.of(context).commonLater),
                 ),
                 const SizedBox(width: 4),
                 FilledButton(
                   onPressed: _signIn,
-                  child: const Text('サインイン'),
+                  child: Text(L10n.of(context).signIn),
                 ),
               ],
             ),

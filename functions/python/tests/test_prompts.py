@@ -6,7 +6,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from constants import (
     FREE_TOPICS,
-    POLITENESS_LEVELS,
     TIME_FRAMES,
     TOPIC_SUB_THEMES,
     TOPICS,
@@ -26,27 +25,20 @@ from prompts import (
 
 
 def test_resolve_generation_params_prefers_explicit_values() -> None:
-    params = {
-        "topic": "custom-topic",
-        "politeness": "custom-politeness",
-    }
+    # politeness は 2026-08-07 に廃止。明示指定しても無視される。
+    params = {"topic": "custom-topic", "politeness": "custom-politeness"}
 
     result = resolve_generation_params(params, is_premium=True)
     assert result.pop("subTheme") is None
     result.pop("topicOptions")
-    # 時間軸・述べ方は明示指定が無ければ抽選される（値は非決定的）
+    # 時間軸は明示指定が無ければ抽選される（値は非決定的）
     assert result.pop("timeFrame") in TIME_FRAMES
-    assert result == params
+    assert result == {"topic": "custom-topic"}
 
 
 def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
     with (
         patch("prompts.random.choice", side_effect=lambda values: values[0]),
-        patch("prompts.get_topic_option_similarity_weights", return_value=None),
-        patch(
-            "prompts.random.choices",
-            side_effect=lambda population, weights, k: [population[0]],
-        ),
     ):
         resolved = resolve_generation_params({}, is_premium=False)
 
@@ -55,8 +47,6 @@ def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
     assert resolved == {
         # テーマは埋めず LLM に委ねる（候補は topicOptions で渡す）
         "topic": "",
-        # 文体で絞らなくなったので POLITENESS_LEVELS の先頭が選ばれる
-        "politeness": POLITENESS_LEVELS[0],
         "timeFrame": TIME_FRAMES[0],
     }
 
@@ -82,71 +72,36 @@ def test_free_topics_exclude_travel() -> None:
 
 
 def test_free_topic_pool_is_not_vocab_gated() -> None:
-    with patch("prompts.get_topic_option_similarity_weights", return_value=None):
-        resolved = resolve_generation_params({}, is_premium=False, estimated_vocab=0)
+    resolved = resolve_generation_params({}, is_premium=False, estimated_vocab=0)
 
     assert resolved["topicOptions"] == FREE_TOPICS
 
 
 def test_unspecified_topic_is_left_to_the_llm() -> None:
     """テーマ未指定はサーバーで埋めず、候補だけ返す（LLM が選ぶ）。"""
-    with patch("prompts.get_topic_option_similarity_weights", return_value=None):
-        resolved = resolve_generation_params({}, is_premium=True, estimated_vocab=0)
+    resolved = resolve_generation_params({}, is_premium=True, estimated_vocab=0)
 
     assert resolved["topic"] == ""
     assert resolved["topicOptions"]
 
 
-def test_resolve_generation_params_weights_politeness_by_topic() -> None:
-    def choose_highest_weight(population, weights, k):
-        return [population[weights.index(max(weights))]]
-
-    def politeness_weights(topic, options, kind):
-        weights = [0.0] * len(options)
-        weights[options.index(POLITENESS_LEVELS[0])] = 1.0
-        return weights
-
-    with (
-        patch("prompts.random.choices", side_effect=choose_highest_weight),
-        patch(
-            "prompts.get_topic_option_similarity_weights",
-            side_effect=politeness_weights,
-        ),
-        patch("prompts.find_best_sub_theme", return_value="打ち合わせ"),
-    ):
+def test_resolve_generation_params_picks_sub_theme_by_target_word() -> None:
+    # 2026-08-07: politeness の embedding 重み付けは廃止したため、この経路で
+    # 残っている embedding 依存は subTheme だけ。
+    with patch("prompts.find_best_sub_theme", return_value="打ち合わせ"):
         resolved = resolve_generation_params(
             {"topic": "仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）"},
             is_premium=True,
             target_words=["งาน"],
         )
 
-    assert resolved["politeness"] == "フォーマル（丁寧語・敬語を使用）"
     assert resolved["subTheme"] == "打ち合わせ"
-
-
-def test_bl_drama_forces_casual_politeness() -> None:
-    """BLドラマテーマでは politeness が常にカジュアルに固定される。"""
-    with (
-        patch("prompts.get_topic_option_similarity_weights", return_value=None),
-        patch("prompts.find_best_sub_theme", return_value="告白"),
-        patch("prompts.random.choice", side_effect=lambda values: values[0]),
-        patch("prompts.random.choices", side_effect=lambda pop, weights, k: [pop[0]]),
-    ):
-        resolved = resolve_generation_params(
-            {"topic": TOPICS[15]},
-            is_premium=True,
-            target_words=["รัก"],
-        )
-
-    assert resolved["politeness"] == POLITENESS_LEVELS[1]
-
-
+    assert "politeness" not in resolved
 
 
 def test_topic_gate_at_intro_limits_to_intro_topics() -> None:
     """入門では LLM に渡すテーマ候補が INTRO_TOPICS に限定される。"""
-    with patch("prompts.get_topic_option_similarity_weights", return_value=None):
-        resolved = resolve_generation_params({}, is_premium=True, estimated_vocab=99)
+    resolved = resolve_generation_params({}, is_premium=True, estimated_vocab=99)
 
     topic_pool = resolved["topicOptions"]
     for topic in topic_pool:
@@ -156,8 +111,7 @@ def test_topic_gate_at_intro_limits_to_intro_topics() -> None:
 
 def test_topic_gate_at_beginner_opens_daily_topics() -> None:
     """初級 (vocab=100) では日常系テーマまで解禁される。"""
-    with patch("prompts.get_topic_option_similarity_weights", return_value=None):
-        resolved = resolve_generation_params({}, is_premium=True, estimated_vocab=100)
+    resolved = resolve_generation_params({}, is_premium=True, estimated_vocab=100)
 
     topic_pool = resolved["topicOptions"]
     assert topic_pool == gate_topics_for_vocab(TOPICS, 100)
@@ -200,10 +154,7 @@ def test_premium_low_vocab_uses_premium_prompt_params() -> None:
 
 def test_explicit_values_override_gates_after_common_prompt_vocab() -> None:
     """共通プロンプト帯を超えた premium では明示値を維持する。"""
-    params = {
-        "topic": TOPICS[3],  # 仕事 (入門では本来除外)
-        "politeness": POLITENESS_LEVELS[0],
-    }
+    params = {"topic": TOPICS[3]}  # 仕事 (入門では本来除外)
 
     resolved = resolve_generation_params(params, is_premium=True, estimated_vocab=101)
 
@@ -241,7 +192,10 @@ def test_build_uvm_prompt_includes_all_resolved_target_word_conditions() -> None
     )
 
     assert "- テーマ: topic-a" in prompt
-    assert "- 丁寧さ: politeness-a" in prompt
+    # 2026-08-07: 丁寧さは LLM に渡さない（クライアント指定でも出さない）。
+    # 抽選した register を後付けしても丁寧体率が動かず（120文×2条件で 42%→44%）、
+    # 実質の死にパラメータだった。
+    assert "- 丁寧さ:" not in prompt
 
 
 def test_build_uvm_prompt_with_target_words_includes_target_section() -> None:
@@ -342,8 +296,10 @@ def test_context_records_every_server_decided_axis() -> None:
 
     assert context["topic"] == TOPICS[11]
     assert context["subTheme"] in TOPIC_SUB_THEMES[TOPICS[11]]
-    assert context["politeness"] in POLITENESS_LEVELS
     assert context["timeFrame"] in TIME_FRAMES
+    # politeness はプロンプトに出さないので記録もしない
+    # （生成に影響していない値を残すと偏り集計が誤る）
+    assert "politeness" not in context
     # 文体・感情はサーバーが決めないので入らない（LLM が生成して返す）
     assert "style" not in context
     assert "emotion" not in context

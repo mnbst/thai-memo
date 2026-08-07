@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/generation_constants.dart';
+import '../../core/constants/generation_labels.dart';
+import '../../l10n/app_localizations.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
@@ -9,10 +11,9 @@ import '../screens/paywall_screen.dart';
 import 'coach_mark_overlay.dart';
 
 /// テーマ文字列から表示用の短いラベル（括弧前の名称）を返す。null は「おまかせ」。
-String topicShortLabel(String? topic) {
-  if (topic == null) return 'おまかせ';
-  final parenIdx = topic.indexOf('（');
-  return parenIdx > 0 ? topic.substring(0, parenIdx) : topic;
+String topicShortLabel(L10n l10n, String? topic) {
+  if (topic == null) return l10n.settingsTopicRandom;
+  return topicLabel(l10n, topic).name;
 }
 
 /// 次の例文のテーマを文脈付きで表示し、変更導線を提供する。課金導線として全ユーザーに表示。
@@ -26,11 +27,14 @@ class NextSentenceTopicLabel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isPremium = ref.watch(isPremiumProvider);
-    final trialRemaining =
-        ref.watch(premiumTrialRemainingProvider).valueOrNull ?? 0;
-    final canSelect = isPremium || trialRemaining > 0;
+    final trialActive =
+        ref.watch(premiumTrialActiveProvider).valueOrNull ?? false;
+    final canSelect = isPremium || trialActive;
     final currentTopic = ref.watch(generationParamsProvider)['topic'];
-    final label = canSelect ? topicShortLabel(currentTopic) : 'おまかせ';
+    final l10n = L10n.of(context);
+    final label = canSelect
+        ? topicShortLabel(l10n, currentTopic)
+        : l10n.settingsTopicRandom;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
@@ -58,7 +62,7 @@ class NextSentenceTopicLabel extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '次のテーマ: ',
+              l10n.nextTopicPrefix,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: cs.onSurfaceVariant),
             ),
@@ -95,7 +99,7 @@ Future<void> showTopicPicker(BuildContext context, WidgetRef ref) async {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('テーマを選択'),
+            Text(L10n.of(context).topicPickerTitle),
             IconButton(
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.pop(context),
@@ -113,7 +117,7 @@ Future<void> showTopicPicker(BuildContext context, WidgetRef ref) async {
                 color: currentTopic == null ? cs.primary : null,
               ),
               title: Text(
-                'おまかせ',
+                L10n.of(context).settingsTopicRandom,
                 style: currentTopic == null
                     ? TextStyle(color: cs.primary, fontWeight: FontWeight.bold)
                     : null,
@@ -122,11 +126,9 @@ Future<void> showTopicPicker(BuildContext context, WidgetRef ref) async {
           ),
           ...GenerationConstants.topics.map((topic) {
             final isSelected = topic == currentTopic;
-            final parenIdx = topic.indexOf('（');
-            final name = parenIdx > 0 ? topic.substring(0, parenIdx) : topic;
-            final sub = parenIdx > 0
-                ? topic.substring(parenIdx + 1, topic.length - 1)
-                : '';
+            final label = topicLabel(L10n.of(context), topic);
+            final name = label.name;
+            final sub = label.sub;
 
             return SimpleDialogOption(
               onPressed: () => Navigator.pop(context, topic),

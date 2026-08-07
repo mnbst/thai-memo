@@ -34,6 +34,7 @@ import {
   QuizQuestionsResponse,
 } from './services/quizGenerationService';
 import { nowJST } from './utils/formatDate';
+import { DEFAULT_LANG, Lang, resolveLang } from './utils/lang';
 
 
 /** Firestore インスタンス */
@@ -126,6 +127,10 @@ export const generateQuiz = functions.https.onCall(
       throw new functions.https.HttpsError('unauthenticated', '認証が必要です');
     }
 
+    // 解説の言語。旧クライアントは送ってこないので ja に落ちる。
+    // 生成への反映は Phase 2。現状は英語リクエストの実数を測るために記録だけする。
+    const lang = resolveLang(request.data?.lang);
+
     // --- クイズ生成クォータチェック ---
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
@@ -139,7 +144,7 @@ export const generateQuiz = functions.https.onCall(
     }
 
     const isPremium = userData.tier === 'premium';
-    const quizGenerationService = await createQuizGenerationService(isPremium, uid);
+    const quizGenerationService = await createQuizGenerationService(isPremium, uid, lang);
 
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
     const selectedSentences = await selectSentencesBySRS(uid, nowJST());
@@ -195,6 +200,8 @@ export const generateLearningQuiz = functions.https.onCall(
       throw new functions.https.HttpsError('unauthenticated', '認証が必要です');
     }
 
+    const lang = resolveLang(request.data?.lang);
+
     const payload = request.data?.sentence;
     const source = buildLearningQuizSource(payload);
     if (!source || !isQuizSeedSourceReady(source)) {
@@ -205,7 +212,7 @@ export const generateLearningQuiz = functions.https.onCall(
     const userDoc = await userRef.get();
     const userData = userDoc.data() || {};
     const isPremium = userData.tier === 'premium';
-    const quizGenerationService = await createQuizGenerationService(isPremium, uid);
+    const quizGenerationService = await createQuizGenerationService(isPremium, uid, lang);
 
     try {
       const questions = await generateQuestionsFromSources(quizGenerationService, [source]);
@@ -226,9 +233,13 @@ export const generateLearningQuiz = functions.https.onCall(
   }
 );
 
-async function createQuizGenerationService(isPremium: boolean, uid: string): Promise<QuizGenerationService> {
+async function createQuizGenerationService(
+  isPremium: boolean,
+  uid: string,
+  lang: Lang = DEFAULT_LANG,
+): Promise<QuizGenerationService> {
   const apiKey = await getGeminiApiKey();
-  return new GeminiQuizService(apiKey, uid, isPremium ? 'premium' : 'free');
+  return new GeminiQuizService(apiKey, uid, isPremium ? 'premium' : 'free', lang);
 }
 
 export function buildQuizSources(

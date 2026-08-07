@@ -7,7 +7,6 @@ GCSからembeddingデータをlazy-loadし、コサイン類似度で
   - vocab_embeddings.npy: (10000, 768) float32 — Gemini Embedding モデルの出力
   - vocab_words.json: [{"word": "ฉัน", "rank": 1}, ...] — npy の行番号と対応
   - topic_embeddings.json: {"テーマ文字列": [float, ...], ...} — 事前計算済み
-  - politeness_embeddings.json: {"丁寧さラベル": [float, ...], ...} — 事前計算済み
 """
 
 import io
@@ -28,13 +27,11 @@ _embeddings: np.ndarray | None = None  # (10000, 768) の embedding 行列
 _word_to_idx: dict[str, int] | None = None  # 単語 → _embeddings の行インデックス
 _words: list[dict[str, Any]] | None = None  # vocab_words.json の中身
 _topic_embeddings: dict[str, list[float]] | None = None  # テーマ→embedding
-_politeness_embeddings: dict[str, list[float]] | None = None  # 丁寧さ→embedding
 
 GCS_BUCKET = os.environ.get("UVM_DATA_BUCKET", "")
 EMB_BLOB = "vocab_embeddings.npy"
 WORDS_BLOB = "vocab_words.json"
 TOPIC_EMB_BLOB = "topic_embeddings.json"
-POLITENESS_EMB_BLOB = "politeness_embeddings.json"
 
 
 def _load_data() -> None:
@@ -90,17 +87,6 @@ def _load_topic_embeddings() -> None:
     bucket = _get_bucket()
     blob = bucket.blob(TOPIC_EMB_BLOB)
     _topic_embeddings = json.loads(blob.download_as_text())
-
-
-def _load_politeness_embeddings() -> None:
-    """GCS から politeness_embeddings.json をロードしキャッシュする。"""
-    global _politeness_embeddings
-    if _politeness_embeddings is not None:
-        return
-
-    bucket = _get_bucket()
-    blob = bucket.blob(POLITENESS_EMB_BLOB)
-    _politeness_embeddings = json.loads(blob.download_as_text())
 
 
 def _find_embedding(
@@ -338,57 +324,6 @@ def find_best_sub_theme(
     return random.choices([st for _, st in scored], weights=weights, k=1)[0]
 
 
-def get_topic_option_similarity_weights(
-    topic: str,
-    options: list[str],
-    kind: str,
-    scale: float = 3.0,
-) -> list[float] | None:
-    """topic に近い politeness 候補を選びやすくする重みを返す。
-
-    全候補を残しつつ、topic embedding と option embedding の類似度差で
-    1.0〜(1.0 + scale) の範囲に正規化する。
-    """
-    if not topic or not options:
-        return None
-
-    _load_topic_embeddings()
-    assert _topic_embeddings is not None
-
-    if kind == "politeness":
-        _load_politeness_embeddings()
-        option_embeddings = _politeness_embeddings
-    else:
-        raise ValueError(f"Unsupported option embedding kind: {kind}")
-
-    assert option_embeddings is not None
-
-    topic_emb = _find_embedding(topic, _topic_embeddings)
-    if topic_emb is None:
-        return None
-
-    scored: list[tuple[float, int]] = []
-    for i, option in enumerate(options):
-        option_emb = _find_embedding(option, option_embeddings)
-        if option_emb is None:
-            continue
-        scored.append((cosine_similarity(topic_emb, option_emb), i))
-
-    if not scored:
-        return None
-
-    min_similarity = min(sim for sim, _ in scored)
-    max_similarity = max(sim for sim, _ in scored)
-    if max_similarity == min_similarity:
-        return [1.0] * len(options)
-
-    weights = [1.0] * len(options)
-    for similarity, i in scored:
-        normalized = (similarity - min_similarity) / (max_similarity - min_similarity)
-        weights[i] = 1.0 + normalized * scale
-    return weights
-
-
 def get_embedding(word: str) -> np.ndarray | None:
     """指定した単語の embedding ベクトル (768次元) を返す。
 
@@ -400,6 +335,11 @@ def get_embedding(word: str) -> np.ndarray | None:
     if idx is None:
         return None
     return _embeddings[idx]
+
+
+# 2026-08-07 削除: get_topic_option_similarity_weights（topic に近い丁寧さを
+# 選びやすくする重み）。丁寧さの抽選ごと廃止したため唯一の呼び出し元が消えた。
+# kind は "politeness" しか対応しておらず、他用途は無い。
 
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:

@@ -41,7 +41,7 @@ except ImportError:
     from uvm import get_session_words
 
 _freq_rank: dict[str, int] | None = None
-_nlp_enrich_with_nlp: Callable[[dict], dict] | None = None
+_nlp_enrich_with_nlp: Callable[..., dict] | None = None
 _nlp_import_lock = threading.Lock()
 
 # NLP ワーカー子プロセス（nlp_worker.py 参照）。インスタンス内で1本を共有し、
@@ -52,7 +52,7 @@ _nlp_worker_lock = threading.Lock()  # 起動の排他
 _nlp_worker_io_lock = threading.Lock()  # パイプ入出力の排他
 
 
-def _get_enrich_with_nlp() -> Callable[[dict], dict]:
+def _get_enrich_with_nlp() -> Callable[..., dict]:
     """NLPの重い依存を必要になるまで読み込まない（ワーカー使用不可時のフォールバック）。"""
     global _nlp_enrich_with_nlp
     if _nlp_enrich_with_nlp is not None:
@@ -107,7 +107,7 @@ def _prewarm_nlp_async() -> None:
         _nlp_worker_proc = _spawn_nlp_worker()
 
 
-def _enrich_via_worker(sentence: dict) -> bool:
+def _enrich_via_worker(sentence: dict, lang: str = "ja") -> bool:
     """ワーカーで NLP 後処理を行う。成功したら sentence を書き換えて True。"""
     global _nlp_worker_proc
 
@@ -155,7 +155,7 @@ def _enrich_via_worker(sentence: dict) -> bool:
 
             enrich_started = time.perf_counter()
             proc.stdin.write(
-                json.dumps({"sentence": sentence}, ensure_ascii=False) + "\n"
+                json.dumps({"sentence": sentence, "lang": lang}, ensure_ascii=False) + "\n"
             )
             proc.stdin.flush()
             line = proc.stdout.readline()
@@ -182,11 +182,11 @@ def _enrich_via_worker(sentence: dict) -> bool:
     return True
 
 
-def _enrich_with_nlp(sentence: dict) -> None:
+def _enrich_with_nlp(sentence: dict, lang: str = "ja") -> None:
     """NLP 後処理を適用する。ワーカーが使えなければ同一プロセスで実行する。"""
-    if _enrich_via_worker(sentence):
+    if _enrich_via_worker(sentence, lang):
         return
-    _get_enrich_with_nlp()(sentence)
+    _get_enrich_with_nlp()(sentence, lang)
 
 
 def get_freq_rank() -> dict[str, int]:
@@ -319,11 +319,11 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
 _CONTEXT_FIELDS = ("topic", "style", "emotion")
 
 
-def _schema_for(resolved_context: dict | None) -> dict:
+def _schema_for(resolved_context: dict | None, lang: str = "ja") -> dict:
     """確定値が無い context フィールドだけ LLM に生成させるスキーマを返す。"""
     resolved = resolved_context or {}
     ask = tuple(f for f in _CONTEXT_FIELDS if not resolved.get(f))
-    return build_response_schema(ask)
+    return build_response_schema(ask, lang=lang)
 
 
 def _apply_response_compat(sentence: dict, resolved_context: dict | None) -> dict:
@@ -442,7 +442,9 @@ def _has_unrepairable_breakdown(sentence: dict) -> bool:
     return any(index < 0 for index, _ in find_gaps(sentence))
 
 
-def _repair_word_breakdown(sentence: dict, is_premium: bool, tier_label: str) -> None:
+def _repair_word_breakdown(
+    sentence: dict, is_premium: bool, tier_label: str, lang: str = "ja"
+) -> None:
     """word_breakdown の欠落を、欠落分だけの補完クエリ1回で埋める。
 
     文全体は作り直さない（コスト・レイテンシが見合わないため）。補完できなかった
@@ -473,7 +475,7 @@ def _repair_word_breakdown(sentence: dict, is_premium: bool, tier_label: str) ->
                 GAP_RESPONSE_SCHEMA,
             )
             if apply_gap_words(sentence, gaps, filled.get("words") or []):
-                _enrich_with_nlp(sentence)
+                _enrich_with_nlp(sentence, lang)
                 return
         except Exception as exc:  # 補完の失敗で生成全体を落とさない
             print(f"word_breakdown gap fill failed: {exc}")
@@ -488,6 +490,7 @@ def _generate_single(
     tier_label: str,
     target_words: list[str] | None = None,
     resolved_context: dict | None = None,
+    lang: str = "ja",
 ) -> dict:
     """LLM で1文を同期生成し NLP 後処理を適用する。"""
     _prewarm_nlp_async()
@@ -500,11 +503,11 @@ def _generate_single(
             current_prompt,
             is_premium,
             tier_label,
-            _schema_for(resolved_context),
+            _schema_for(resolved_context, lang),
         )
         _apply_response_compat(sentence, resolved_context)
         _normalize_thai_spacing(sentence)
-        _enrich_with_nlp(sentence)
+        _enrich_with_nlp(sentence, lang)
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
@@ -518,7 +521,7 @@ def _generate_single(
                     prompt, sentence.get("thai_text") or ""
                 )
                 continue
-            _repair_word_breakdown(sentence, is_premium, tier_label)
+            _repair_word_breakdown(sentence, is_premium, tier_label, lang)
             return sentence
 
         print(
@@ -538,6 +541,7 @@ async def _generate_single_async(
     tier_label: str,
     target_words: list[str] | None = None,
     resolved_context: dict | None = None,
+    lang: str = "ja",
 ) -> dict:
     """LLM で1文を非同期生成し NLP 後処理を適用する（バッチ並列用）。"""
     _prewarm_nlp_async()
@@ -550,11 +554,11 @@ async def _generate_single_async(
             current_prompt,
             is_premium,
             tier_label,
-            _schema_for(resolved_context),
+            _schema_for(resolved_context, lang),
         )
         _apply_response_compat(sentence, resolved_context)
         _normalize_thai_spacing(sentence)
-        _enrich_with_nlp(sentence)
+        _enrich_with_nlp(sentence, lang)
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
@@ -568,7 +572,7 @@ async def _generate_single_async(
                     prompt, sentence.get("thai_text") or ""
                 )
                 continue
-            _repair_word_breakdown(sentence, is_premium, tier_label)
+            _repair_word_breakdown(sentence, is_premium, tier_label, lang)
             return sentence
 
         print(
@@ -587,6 +591,7 @@ def generate_sentence(
     *,
     target_words: list[str] | None = None,
     estimated_vocab: int = 0,
+    lang: str = "ja",
 ) -> dict:
     """LLM で例文を生成し、NLP後処理を適用する。"""
     tier_label = "premium" if is_premium else "free"
@@ -595,8 +600,9 @@ def generate_sentence(
         target_words,
         estimated_vocab=estimated_vocab,
         is_premium=is_premium,
+        lang=lang,
     )
-    system_prompt = get_system_prompt(is_premium, estimated_vocab)
+    system_prompt = get_system_prompt(is_premium, estimated_vocab, lang=lang)
     return _generate_single(
         system_prompt,
         prompt,
@@ -604,6 +610,7 @@ def generate_sentence(
         tier_label,
         target_words,
         resolved_context,
+        lang,
     )
 
 

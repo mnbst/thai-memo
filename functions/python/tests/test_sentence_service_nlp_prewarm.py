@@ -25,7 +25,7 @@ def test_generate_single_starts_nlp_prewarm_before_llm(monkeypatch):
         }
 
     def fake_get_enrich_with_nlp():
-        def enrich(sentence: dict) -> dict:
+        def enrich(sentence: dict, lang: str = "ja") -> dict:
             events.append("nlp")
             return sentence
 
@@ -74,7 +74,7 @@ def test_generate_single_raises_when_target_missing_after_retries(monkeypatch):
         }
 
     def fake_get_enrich_with_nlp():
-        return lambda sentence: sentence
+        return lambda sentence, lang="ja": sentence
 
     monkeypatch.setattr(sentence_service, "_prewarm_nlp_async", fake_prewarm)
     monkeypatch.setattr(sentence_service, "_llm_generate_sync", fake_llm)

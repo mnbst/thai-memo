@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
+import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
@@ -49,28 +50,37 @@ class PremiumPitch {
   /// tap_paywall / paywall_banner の source。軸ごとの反応率を比較するために分ける。
   final String source;
   final IconData icon;
-  final String title;
-  final String body;
+
+  /// 文言は言語で変わるので、値ではなく引き方を持つ。
+  final String Function(L10n) title;
+  final String Function(L10n) body;
 }
+
+String _hint1Title(L10n l10n) => l10n.premiumHint1Title;
+String _hint1Body(L10n l10n) => l10n.premiumHint1Body;
+String _hint2Title(L10n l10n) => l10n.premiumHint2Title;
+String _hint2Body(L10n l10n) => l10n.premiumHint2Body;
+String _hint3Title(L10n l10n) => l10n.premiumHint3Title;
+String _hint3Body(L10n l10n) => l10n.premiumHint3Body;
 
 const List<PremiumPitch> _pitches = [
   PremiumPitch(
     source: 'learning_banner_topic',
     icon: Icons.auto_awesome,
-    title: 'タイ例文のテーマを選べます',
-    body: 'タイドラマ・恋愛・旅行など、学びたいテーマから出題',
+    title: _hint1Title,
+    body: _hint1Body,
   ),
   PremiumPitch(
     source: 'learning_banner_quality',
     icon: Icons.record_voice_over,
-    title: 'ネイティブが使う言い回しで学べます',
-    body: '教科書的な基礎文から、実際の会話で使われる表現へ',
+    title: _hint2Title,
+    body: _hint2Body,
   ),
   PremiumPitch(
     source: 'learning_banner_vocab',
     icon: Icons.all_inclusive,
-    title: '学べる単語数が無制限に',
-    body: '基礎100語の先へ。ドラマのセリフも聞き取れるように',
+    title: _hint3Title,
+    body: _hint3Body,
   ),
 ];
 
@@ -79,7 +89,8 @@ const List<PremiumPitch> _pitches = [
 /// 日付や uid から決めると、軸が「その日に来た層」や「特定ユーザー」と結びついて
 /// しまい、軸別の反応率を比べられなくなる。表示ごとに独立に引くことで、
 /// source 別の CTR がそのまま軸の優劣になる。
-PremiumPitch pickPitch(Random random) => _pitches[random.nextInt(_pitches.length)];
+PremiumPitch pickPitch(Random random) =>
+    _pitches[random.nextInt(_pitches.length)];
 
 /// 訴求軸の総数（テストと、配分が均等かの確認用）。
 int get pitchCount => _pitches.length;
@@ -103,8 +114,7 @@ class _PremiumHintBannerState extends ConsumerState<PremiumHintBanner> {
 
   Future<void> _loadEligibility() async {
     final prefs = await SharedPreferences.getInstance();
-    final dismissedAtMs =
-        prefs.getInt(AppConfig.prefKeyPremiumHintDismissedAt);
+    final dismissedAtMs = prefs.getInt(AppConfig.prefKeyPremiumHintDismissedAt);
     if (dismissedAtMs != null) {
       final dismissedAt = DateTime.fromMillisecondsSinceEpoch(dismissedAtMs);
       if (DateTime.now().difference(dismissedAt) <
@@ -139,9 +149,9 @@ class _PremiumHintBannerState extends ConsumerState<PremiumHintBanner> {
     // お試し期間中は topic_picker のロックも外れているため、訴求すると
     // 「もう使える機能」を勧めることになる。判定が付くまでは出さない
     // （読み込み中に一瞬出して消えるより、遅れて出るほうが目障りでない）。
-    final trial = ref.watch(premiumTrialRemainingProvider);
+    final trial = ref.watch(premiumTrialActiveProvider);
     if (trial.isLoading) return const SizedBox.shrink();
-    if ((trial.valueOrNull ?? 0) > 0) return const SizedBox.shrink();
+    if (trial.valueOrNull ?? false) return const SizedBox.shrink();
 
     if (!_impressionLogged) {
       _impressionLogged = true;
@@ -176,7 +186,7 @@ class _PremiumHintBannerState extends ConsumerState<PremiumHintBanner> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _pitch.title,
+                      _pitch.title(L10n.of(context)),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: cs.onPrimaryContainer,
                         fontWeight: FontWeight.bold,
@@ -184,14 +194,14 @@ class _PremiumHintBannerState extends ConsumerState<PremiumHintBanner> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _pitch.body,
+                      _pitch.body(L10n.of(context)),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: cs.onPrimaryContainer.withValues(alpha: 0.8),
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'プレミアムを見る →',
+                      L10n.of(context).premiumHintCta,
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: cs.onPrimaryContainer,
                         fontWeight: FontWeight.bold,
@@ -205,7 +215,7 @@ class _PremiumHintBannerState extends ConsumerState<PremiumHintBanner> {
                 color: cs.onPrimaryContainer.withValues(alpha: 0.7),
                 visualDensity: VisualDensity.compact,
                 onPressed: _dismiss,
-                tooltip: '閉じる',
+                tooltip: L10n.of(context).commonClose,
               ),
             ],
           ),

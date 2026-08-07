@@ -50,6 +50,37 @@ _POS_TAG_MAP = {
     "NEG": "否定詞",         # 否定を表す語（例: ไม่ = 〜ない）
 }
 
+# ─── 品詞ラベルの日本語→英語 ───
+# タグ付けは日本語ラベルで返し、英語版は最後にここで置き換える。
+# _tag_words の3箇所ある変換点を触らずに済み、ja 側の挙動が変わらない。
+# 品詞名は固定語彙なので直訳でよい（設計 §3.3）。
+_POS_LABEL_EN = {
+    "名詞": "noun",
+    "動詞": "verb",
+    "形容詞": "adjective",
+    "副詞": "adverb",
+    "代名詞": "pronoun",
+    "限定詞": "determiner",
+    "前置詞": "preposition",
+    "助動詞": "auxiliary",
+    "接続詞": "conjunction",
+    "助詞": "particle",
+    "感嘆詞": "interjection",
+    "数詞": "numeral",
+    "固有名詞": "proper noun",
+    "句読点": "punctuation",
+    "類別詞": "classifier",
+    "否定詞": "negator",
+    "その他": "other",
+}
+
+
+def localize_pos(label: str, lang: str) -> str:
+    """品詞ラベルを訳文の言語に合わせる。未知のラベルはそのまま返す。"""
+    if lang == "ja":
+        return label
+    return _POS_LABEL_EN.get(label, label)
+
 
 # ─── 形容詞辞書 ───
 # scripts/build_adjective_dict.py が生成する。未生成でも動作するよう
@@ -209,7 +240,7 @@ def get_pos_japanese(word: str) -> str:
     return _tag_words([word]).get(0, "その他")
 
 
-def enrich_with_nlp(sentence: dict) -> dict:
+def enrich_with_nlp(sentence: dict, lang: str = "ja") -> dict:
     """AI が生成した例文データに NLP 後処理を適用する。
 
     word_breakdown 内の各単語に対して以下の情報を追加する:
@@ -257,10 +288,10 @@ def enrich_with_nlp(sentence: dict) -> dict:
 
         # 品詞: 一括タグ付けの結果を適用（失敗時はフォールバック）
         if i in pos_map:
-            wb["grammatical_role"] = pos_map[i]
+            wb["grammatical_role"] = localize_pos(pos_map[i], lang)
         else:
             try:
-                wb["grammatical_role"] = get_pos_japanese(word)
+                wb["grammatical_role"] = localize_pos(get_pos_japanese(word), lang)
             except Exception as e:
                 print(f"NLP POS (fallback) failed for '{word}': {e}")
 

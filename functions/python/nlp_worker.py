@@ -9,7 +9,7 @@ GIL はプロセス単位なので、インポートと後処理を子プロセ�
 `__main__`（Cloud Run では functions-framework）を子で再実行しうるため使わない。
 
 プロトコル:
-    親 → 子: {"sentence": {...}}\\n
+    親 → 子: {"sentence": {...}, "lang": "ja"|"en"}\\n（lang 省略時は ja）
     子 → 親: {"ok": true, "sentence": {...}}\\n / {"ok": false, "error": "..."}\\n
     子は起動直後、インポート完了時点で {"ready": true}\\n を1行出力する。
 """
@@ -53,8 +53,10 @@ def main() -> None:
         if not line:
             continue
         try:
-            sentence = json.loads(line)["sentence"]
-            enrich_with_nlp(sentence)
+            req = json.loads(line)
+            sentence = req["sentence"]
+            # lang を送らない旧プロトコルは ja（品詞ラベルが日本語のまま）。
+            enrich_with_nlp(sentence, req.get("lang", "ja"))
             out = {"ok": True, "sentence": sentence}
         except Exception as exc:
             out = {"ok": False, "error": str(exc)}

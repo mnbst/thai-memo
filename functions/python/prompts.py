@@ -11,18 +11,14 @@ import random
 
 from constants import (
     FREE_TOPICS,
-    POLITENESS_LEVELS,
     TIME_FRAMES,
     TOPIC_SUB_THEMES,
     TOPICS,
 )
-from embeddings import (
-    find_best_sub_theme,
-    get_topic_option_similarity_weights,
-)
+from embeddings import find_best_sub_theme
 from themes.bl_drama import build_drama_prompt_section
 from word_classes import CLASSES as WORD_CLASSES
-from word_classes import classify_all, requires_formal_politeness
+from word_classes import classify_all
 
 # 文の長さ指定はレベル定義には持たせず、estimated_vocab から
 # _compute_length_hint() で補間して get_difficulty() が length を追加する。
@@ -99,30 +95,49 @@ INTRO_TOPICS: frozenset[str] = frozenset(
     }
 )
 
-_politeness_embedding_enabled = True
-
-
 # ─── システムプロンプト（固定・プロバイダー共通） ───
 # プロンプトキャッシュを効かせるため、呼び出しごとに変化しない指示は
 # ここに集約して prefix として送る（OpenAI=instructions / Gemini=system_instruction）。
-SYSTEM_PROMPT_FREE = """タイ語基礎練習文を1つ生成。以下を厳守。
+_SYSTEM_PROMPT_FREE_TEMPLATE = """タイ語基礎練習文を1つ生成。以下を厳守。
 
 方針: 短く実用的な入門〜初級文。基本語順・基本動詞・日常名詞中心。複文・慣用表現・強い感情表現は避ける。分かりやすさ優先。contextは一般的な説明に留める。
 
 出力ルール:
 - thai_textの空白は最大1つ。2節あるときの節の切れ目にだけ置く（OK: ฝนตก ไปดูวัดไม่ได้）。1節の文には入れない（NG: ฉัน กิน ข้าว / NG: โรงแรมนี้ คือ ดีมาก / NG: สนามบินพร้อม สำหรับนักท่องเที่ยว）
-- word_breakdown: 最大20単語、出現順にすべて含める。meaningは日本語のみ
+- word_breakdown: 最大20単語、出現順にすべて含める。{meaning_lang}
 - word_breakdownは1エントリ1語。指示詞นี้/นั้นは直前の名詞から切る（×วัดนี้ →○วัด/นี้）。終助詞・疑問詞は1つずつ切る（×ได้ไหมคะ →○ได้/ไหม/คะ）。辞書の見出し語になる複合語は切らない（วันนี้/ที่นี่/ห้องพัก）
-- japanese_translationは日本語で書く。タイ語をそのまま入れない。「。」「？」「！」のどれかで終える
-- 人称代名詞のmeaningに性別・丁寧度注記（例: ผม→「私（男性・丁寧）」、กู→「俺/私（男女・ぞんざい）」）
+- {translation_output_rule}
+- 人称代名詞のmeaningに性別・丁寧度注記（{pronoun_note}）
 - context各フィールド50文字以内
-- japanese_translation: 自然な日本語。主語・目的語の対応を崩さない（誰が・誰を・何をの関係を正確に）（×説明的な訳→○日本語として自然な形）
-- 強調・限定・語調の表現は逐語訳せず、日本語の話し言葉としての等価表現に置き換える（例: สำหรับฉัน→×「私については」○「私のこともね」）
-- target_notesにはターゲット単語だけを入れ、用法・類語との違いを50文字以内で記述
+{free_translation_rules}
+- {target_notes_rule}
 - スペルミス厳禁: เธอをเธと書かない。母音-อを落とさない
 - ターゲット単語は独立した意味で使用（慣用句・複合語の一部のみはNG。畳語は除く）
 - ターゲット単語はword_breakdownに独立エントリとして含める
 - 性的表現・露骨な恋愛描写は禁止。恋愛テーマでも健全な範囲に留める"""
+
+_FREE_PRONOUN_NOTE = {
+    "ja": "例: ผม→「私（男性・丁寧）」、กู→「俺/私（男女・ぞんざい）」",
+    "en": '例: ผม→"I (male, polite)"、กู→"I (casual, rude)"',
+}
+
+# free は入門帯向けで手順ブロック（末尾配置）を付けないため、訳文の指示は
+# ここに直接置く。en 側の項目は EN_TRANSLATION_STEPS と同じ根拠。
+_FREE_TRANSLATION_RULES = {
+    "ja": (
+        "- japanese_translation: 自然な日本語。主語・目的語の対応を崩さない"
+        "（誰が・誰を・何をの関係を正確に）（×説明的な訳→○日本語として自然な形）\n"
+        "- 強調・限定・語調の表現は逐語訳せず、日本語の話し言葉としての等価表現に"
+        "置き換える（例: สำหรับฉัน→×「私については」○「私のこともね」）"
+    ),
+    "en": (
+        "- japanese_translation: 自然な話し言葉の英語。主語・目的語の対応を崩さない"
+        "（誰が・誰を・何をの関係を正確に）\n"
+        "- ครับ/ค่ะ は訳文に出さない。please や sir で置き換えることもしない\n"
+        "- 性別を決める語が thai_text に無ければ he/she ではなく they/them で訳す。"
+        "พี่/น้อง が話し相手なら you で訳す"
+    ),
+}
 
 
 # ─── 効果測定のため SYSTEM_PROMPT_PREMIUM から除外中（2026-08-03） ───
@@ -170,7 +185,25 @@ _ALWAYS_RULES = [
     #   （×「静かすぎる」→「心配」／×「車が少ない」→「快適」／×「もう前とは違う」→「楽しくない」）
     # - japanese_translation は日本語として先に成立させる。タイ語の語順・品詞をなぞった翻訳調にしない
     #   （×「着用するために購入した服は小さい」→○「買った服、サイズが小さい」）
-    "応答・あいさつ表現（ไม่เป็นไร/ขอบคุณ/ขอโทษ/ได้เลย等）は、対応する状況を先に同じ文中へ置いてから使う",
+    "応答・あいさつ表現（ไม่เป็นไร/ได้เลย等）は、対応する状況を先に同じ文中へ置いてから使う",
+    # 2026-08-07 採用: 上のルールから ขอบคุณ/ขอโทษ を切り出した。「状況を先に置く」を
+    # この2語へ当てると ×เดินชนคุณ ขอโทษครับ の無標並置が量産される（ที่ 節が正しい形）。
+    # 自然発生は 740文中3件と少ないため key_word 固定 ablation（--words ขอบคุณ,ขอโทษ）で測る。
+    # 各20文、無標並置NG / 語ユニーク率 / ที่構文率 / 単独形（ขอโทษนะ＋用件）の数:
+    #   baseline           7件(35%) / 43.6% / 30% / 5
+    #   D 禁止＋ที่の1形だけ  0件 / 32.8% / 95% / 1  … ที่節へ収束。棄却
+    #   E 現行（下記）       0件 / 37.1% / 70% / 5  … 採用
+    # D と E の違いは、残す側（理由を書かない単独形・สำหรับ＋名詞・相手＋ที่）を先に
+    # 選択肢として並べたかどうかだけ。禁止行を先頭に置くと1形へ潰れる。
+    # E では ○例由来の ขอบคุณไกด์สำหรับทัวร์ที่สนุกครับ が出て、形が3種に分かれた。
+    # 語ユニーク率が baseline へ戻らないのは、消した無標並置自体が変異の一部だったため。
+    "ขอบคุณ/ขอโทษ を書くときは先に、その理由・対象を同じ文へ書くかどうかを決める。"
+    "書かないなら単独で置き、用件・依頼・状況を続ける"
+    "（○ขอโทษครับ ขอทางหน่อยครับ／○ขอโทษนะ พรุ่งนี้ไปไม่ได้แล้ว／○ขอบคุณคุณพ่อคุณแม่มากครับ）。"
+    "書くなら ขอบคุณ/ขอโทษ の後ろへ置く。動作なら ที่＋節、物・事なら สำหรับ＋名詞、"
+    "相手を先に言うなら ขอบคุณ＋相手＋ที่＋節"
+    "（○ขอโทษครับที่เดินชนคุณ／○ขอบคุณสำหรับของขวัญนะ／○ขอบคุณแม่ที่ช่วยดูหลาน）。"
+    "理由・対象を前に置いて空白で並べない（×เดินชนคุณ ขอโทษครับ／×ช่วยยกกระเป๋า ขอบคุณนะ）",
     # 2026-08-05 実測: 118文中5件。ได้ を含む動詞への重ね掛けと、可能の意味が無い
     # 位置への付与の2パターン。可能表現の文法フォーカス時に限らず出るのでここに置く。
     "1節に ได้ は1つまで（2節の文なら節ごとに1つ）。ได้ を含む動詞に可能の ได้ を重ねない"
@@ -212,36 +245,63 @@ _ALWAYS_RULES = [
     # 入れても 0/10 のまま改善は無く、○例 เป็นไข้แบบนี้ の模倣が 1/10 出た分だけ悪化する。
 ]
 
+# 2026-08-07 不採用: thai_text の作り方を手順形式で与えるブロック（THAI_TEXT_STEPS）。
+# 訳文（JA_TRANSLATION_STEPS）と機能語（FUNCTION_WORD_STEPS）で効いた形を thai_text へ
+# 広げ、語ごとに列挙できない破綻——意味の重複（×อยากคบมึง เพื่อได้เป็นแฟน。คบ が既に
+# 「恋人として付き合う」を含む）と項の欠落（×คบมึง →○คบกับมึง）——を狙った。
+# 手順は「1.ターゲット語が自然に出てくる場面を決める / 2.最短のタイ語を書く（ターゲット語は
+# 必ず入れる）/ 3.動詞ごとに相手・目的語を示す語が要るか決めて置く / 4.ターゲット語以外を
+# 1つずつ消し、消しても場面が同じなら消す」。
+# ablation 120文×2条件: 2節率 23.3/20.8%、標識 18.3/20.0%、語ユニーク 24.9/25.6%、
+# 語数 7.0/7.2、破綻 7.5/8.3%（目視）と全指標が誤差。決め手は狙ったクラスが直らなかったこと
+# （手順3が拾うはずの ชอบ の項欠落が両条件に同形で出た: ผมจะไปร้านนี้เพราะชอบครับ /
+# ร้านนั้นผมจะไปเพราะชอบครับ）。残った破綻はモデル側の限界と判断した（下記のモデル比較）。
+#
+# 同条件で GEMINI_MODEL_PREMIUM=gemini-3.5-flash を測ると、語ユニーク率 24.9%→30.3%、
+# 破綻の質が「意味が壊れる」から「表記・レジスタの逸脱」へ変わった。ただし2節率は
+# 23.3%→11.7% に半減し、1文あたりコストは $0.00229→$0.00916（4.0倍）。
+#
 # 訳文は「確認せよ」形式（system prompt の出力前確認）では守られなかったため、
 # 作る順序の指定に変える。語を1つずつ置き換える手順にすると翻訳調が残るので、
 # 手順2で「場面から書き起こす → 後で対応を検算する」順に固定するのが要点。
+#
+# 2026-08-07 圧縮: 旧手順1〜4を「話し言葉として訳す＋丁寧さの判断基準」の1行に置換した。
+# 訳を単独クエリに切り出した実験（同一119文で 6手順 vs シンプル2行）で、罠クラスが
+# どちらも0件（血縁0/英字0/タイ文字残留0/終止記号100%）だったのが発端。1段構成のまま
+# 差し替えた120文でも同じ結果で、丁寧体率は 34%→28% と会話寄りに改善した。
+#
+# 2026-08-07 手順2を追加（表記）: 上の圧縮で旧手順3の「タイ語の人名はカタカナで書く」を
+# 巻き添えで削っており、prod で訳にタイ文字が残る報告が出た。下の罠トリガー検証に
+# 人名が入っていなかった検証漏れ。自然発生は 740文中3件（0.4%）で全て人名（แกง/ซู）、
+# ランダム120文では検出できない。あだ名が出るテーマ＋語を固定して再現させる:
+#   --words แกง --topic タイBLドラマ --vocab 60 の16文
+#   手順2なし: タイ文字残留 1/16（訳が丸ごとタイ語 พี่แกงครับ ผมชอบข้าวแกง...）
+#             ローマ字残留 1/16（P'Kang）
+#   手順2あり: どちらも 0/16。人名は「ゲーン」「マウィン」とカタカナ化された
+# 追加による他ルールの希薄化を確認: พี่ の罠は 1/10（圧縮直後 0/10、旧6手順 4/10）。
+# n=10 では誤差だが、次にこのブロックを触るときは同条件で再測すること。
+#
+# 罠トリガーを key_word 固定で直接確認（各10文、旧6手順 vs 1行版）:
+#   ทำให้ 0/10 vs 0/10、เคย 0/10 vs 0/10 … 手順2の該当部分は無くても守られる
+#   類別詞 は 120文中7文で発火し全て正しい訳（手順3の該当部分も不要）
+#   พี่   4/10 vs 8〜9/10 … ここだけ明確に差が出たので手順5・6は残す
+# 手順5・6を1文へ圧縮する案も測ったが 7/10 で戻らなかった。×/○ペアを持つ独立した
+# 手順の形自体が効いている。
+#
+# 最終形（1行＋手順5・6）の พี่ は 0/10 で、旧6手順の 4/10 より良い。手順1〜4を
+# 削ってルールが薄まらなくなった分。丁寧さの1行は、2段構成の実験で訳を別クエリに
+# すると丁寧体が 34%→46% に崩れたことから足した（feedback: ルールを足すと他が薄まる）。
 JA_TRANSLATION_STEPS = (
     "【japanese_translation の作り方】\n"
-    "1. thai_text を読んで場面（誰が誰に、何を言っているか）を決める。"
-    "2節目の主語が省略されていたら1節目の主語と同じ人物として扱い、訳でもその人物を主語にする"
-    "（×เพื่อนออกไปไม่ได้ เลยเศร้า→「友達が出られなくて、悲しい」"
-    "→○「友達は出られなくて、悲しんでいる」）\n"
-    "2. 1で決めた場面から日本語の一文を書く。thai_text の語順・品詞をなぞらない"
-    "（×「着用するために購入した服は小さい」→○「買った服、サイズが小さい」）。"
-    "ทำให้ は「〜させる」ではなく、変化した側を主語にして訳す"
-    "（×「このホテルは私を帰りたくなくさせる」→○「このホテル、帰りたくなくなる」）。"
-    "可能の ได้ は動詞の可能形1語にする"
-    "（×「世話することができるようになる」→○「世話できる」）。"
-    "เคย と、完了を表す แล้ว があるときは訳も過去形にする"
-    "（×「すごく楽しいよ」→○「すごく楽しかったよ」）。"
-    "ただし จะ〜แล้ว はこれから起きることなので過去形にしない"
-    "（×จะไปแล้ว→「行った」→○「もう行くね」）\n"
-    "3. 2の各文節が thai_text のどの語に対応するか確認する。"
-    "対応する語が無い文節は削る（×「静かすぎる」→「心配」と補う）。"
-    "人称代名詞は指す人物を変えない。二人称は二人称のまま訳す"
-    "（×นาย→「上司」「彼」→○「君」）。タイ語の人名はカタカナで書く"
-    "（×「นายสมชายはどの道か」→○「ソムチャイさんはどの道か」）。類別詞を具体的な名詞に置き換えない"
-    "（×ราคาตัวนี้→「この服の値段」→○「これの値段」）\n"
-    "4. thai_text にあるのに訳へ出ていない語が無いか確認する\n"
-    "5. thai_text の กับ/หา の相手が พี่ 単独なら、それは聞き手なので二人称として訳す。"
+    "1. 話し言葉の日本語として自然な一文に訳す。"
+    "ครับ/ค่ะ が付いていれば丁寧体、無ければ友達同士のくだけた口調にする\n"
+    "2. japanese_translation にタイ文字とローマ字を残さない。人名・あだ名はカタカナで書く"
+    "（×「พี่แกงครับ ผมชอบข้าวแกงของพี่มากเลยนะ」／×「P'Kang、僕と一緒にいるとき」"
+    "→○「ゲーン先輩、僕と一緒にいるとき」）\n"
+    "3. thai_text の กับ/หา の相手が พี่ 単独なら、それは聞き手なので二人称として訳す。"
     "「年上の人」「年下の子」とも書かない"
     "（×ผมจะไปตลาดกับพี่→「兄と市場へ行く」「年上の人と市場へ行く」→○「一緒に市場へ行きます」）\n"
-    "6. 訳に性別・血縁を決める語（弟・妹・兄・姉・彼・彼女・息子・娘）を書いたなら、"
+    "4. 訳に性別・血縁を決める語（弟・妹・兄・姉・彼・彼女・息子・娘）を書いたなら、"
     "それを決める語（人名・性別を表す語・関係を述べた語）が thai_text にあるか確認する。"
     "どれも無いなら次で決める。"
     "その人が聞き手なら、日本語は二人称を落とすか「ねえ」にする"
@@ -249,6 +309,55 @@ JA_TRANSLATION_STEPS = (
     "その人が第三者なら「年下の子」「年上の人」「その人」と決めずに訳す"
     "（×「弟が来た」→○「年下の子が来た」）"
 )
+
+# ─── 英訳の手順（2026-08-07 新規） ───
+# 日本語のルールを英訳して移植していない。JA_TRANSLATION_STEPS の手順は日本語に対して
+# 実測で効くと確認したもので（訳の自然率 46%→71%）、前提が英語では成り立たない。
+# 移植しなかったもの:
+#   - カタカナ表記 … 英語はラテン文字なので問題自体が無い
+#   - 丁寧体／くだけた口調の作り分け … 日本語は敬体・常体が文法化されているが英語は違う。
+#     ครับ/ค่ะ を英語に写す先が無いので「出さない」だけでよい
+#   - 二人称を落とす／「ねえ」 … 英語は you が自然なので落とす必要が無い
+#
+# 引き継いだのは「手順形式（作る順序を指定する）」という形だけ。これは言語非依存で
+# 効くと実証済み（prompt-effect-ledger）。
+#
+# 手順4・5はタイ語側の現象（親族名称を人称代名詞として使う）への対処で、日本語版で
+# 実測された過剰特定（性別・血縁で 74%→29%）と同じ原因を持つ。英語では修復先が
+# they / you に変わるだけなので、未観測への予防的ルールではない。
+#
+# 【未検証】このブロックは英語での ablation をまだ回していない。最初に測るのは
+# japanese_translation フィールドに日本語が出ないかどうか（フィールド名が
+# "japanese" なので引きずられる恐れがある）。
+EN_TRANSLATION_STEPS = (
+    "【japanese_translation の作り方】※この欄には英語を書く\n"
+    "1. 話し言葉の英語として自然な一文にする。"
+    "タイ語の語順・品詞をなぞらない\n"
+    "2. japanese_translation に日本語・タイ文字・発音のローマ字を残さない。"
+    "人名・あだ名はラテン文字で書く\n"
+    "3. ครับ/ค่ะ は丁寧さの標識で、英語に対応する語が無い。訳文に出さない。"
+    "代わりに please や sir を足すこともしない\n"
+    "4. 訳に he/she/his/her を書いたなら、性別を決める語（人名・ผู้ชาย/ผู้หญิง・"
+    "関係を述べた語）が thai_text にあるか確認する。無いなら they/them で訳す\n"
+    "5. พี่/น้อง が話し相手を指すなら you で訳す。"
+    "brother/sister や older/younger と書かない"
+)
+
+TRANSLATION_STEPS = {
+    "ja": JA_TRANSLATION_STEPS,
+    "en": EN_TRANSLATION_STEPS,
+}
+
+# 2026-08-07 不採用: 出力言語を末尾ブロックで指定する案。
+# きっかけは en 12文で meaning が 89/99 日本語のままだった観測だが、原因は
+# scripts/sample_sentences.py がスキーマを渡しておらず ja の RESPONSE_JSON_SCHEMA
+# （「必ず日本語で記述すること（英語不可）」）に落ちていたこと。位置効果ではない。
+# スキーマを本番と同じ build_response_schema(lang="en") に直したうえで測った 12文×3条件:
+#   A 末尾ブロック＋system prompt の meaning 行  meaning 0/107 語ユニーク 64.5%
+#   B system prompt の meaning 行のみ            meaning 0/108 語ユニーク 60.2%
+#   C スキーマの description だけ                meaning 0/110 語ユニーク 66.4%
+# どちらの指示も仕事をしていないので両方入れない。出力フィールドの言語は
+# スキーマの description で足りる。
 
 # 2026-08-06: 丁寧さフォーマル時に外す条件を削除し、常時ルールへ移した。
 # 文体抽選があった頃は「硬い文体なら硬語こそ正解」という前提が成り立っていたが、
@@ -272,7 +381,6 @@ JA_TRANSLATION_STEPS = (
 # 足場の語のほうで、そちらは頻度を測ってから判断する。
 _SPOKEN_REGISTER_RULES = [
     "สามารถ〜ได้ は使わない。〜ได้ だけで書く（×ห้องนี้สามารถจองได้ →○ห้องนี้จองได้）",
-    "japanese_translation の副詞・接続表現は会話で使う訳語を選ぶ（×「再び」→○「また」）",
     "書き言葉の硬い語・名詞句・文語の副詞を会話文に使わない"
     "（×ท่าน →○คุณ／×ต้องการ →○อยาก／×ให้บริการ →○เปิด／×เป็นที่นิยม →○ฮิต／"
     "×สิ่งนี้ →○อันนี้／"
@@ -283,6 +391,14 @@ _SPOKEN_REGISTER_RULES = [
     # さらに ○ 例 เรียนภาษาไทยเพื่อทำงานที่ไทย が 5/10 でほぼ逐語模倣され、文脈が潰れた。
     # เพื่อ の誤用が実際に測れる頻度で出たときだけ、○例を置かない形で再検討する。
 ]
+
+# 訳語のレジスタは訳文の言語ごとに違う。共通ルールに置くと片方にしか当たらない。
+# ja の項は _SPOKEN_REGISTER_RULES から 2026-08-07 に移設（内容は不変）。
+# en の項は未検証（英語の硬い訳語がそもそも出るかを測っていない）。
+_TRANSLATION_REGISTER_RULES = {
+    "ja": ["japanese_translation の副詞・接続表現は会話で使う訳語を選ぶ（×「再び」→○「また」）"],
+    "en": [],
+}
 
 # 恋愛系テーマでだけ効く。
 _ROMANCE_TOPIC_RULES = [
@@ -341,7 +457,7 @@ def _drop_rules_banning_targets(
 
 
 def build_register_constraint(
-    topic: str, target_words: list[str] | None = None
+    topic: str, target_words: list[str] | None = None, lang: str = "ja"
 ) -> str:
     """テーマで出し分けた【最後に確認】ブロックを返す。
 
@@ -353,12 +469,17 @@ def build_register_constraint(
     残る条件分岐はテーマ由来の1つと、ターゲット語がルールの禁止語と衝突する場合の
     除去（_RULE_BANNED_WORDS）だけ。
     """
-    rules = _SPOKEN_REGISTER_RULES + list(_ALWAYS_RULES)
+    rules = (
+        _SPOKEN_REGISTER_RULES
+        + _TRANSLATION_REGISTER_RULES.get(lang, [])
+        + list(_ALWAYS_RULES)
+    )
     if topic in (TOPICS[14], TOPICS[15]):  # 恋愛 / タイBLドラマ
         rules += _ROMANCE_TOPIC_RULES
     rules = _drop_rules_banning_targets(rules, target_words)
     body = "\n".join(f"{i}. {r}" for i, r in enumerate(rules, 1))
-    return f"【最後に確認】\n{body}\n\n{JA_TRANSLATION_STEPS}"
+    steps = TRANSLATION_STEPS.get(lang, JA_TRANSLATION_STEPS)
+    return f"【最後に確認】\n{body}\n\n{steps}"
 
 
 # ─── 語クラス別ブロック（該当時のみ末尾に足す） ───
@@ -394,7 +515,7 @@ def build_word_class_constraint(target_words: list[str] | None) -> str:
     return "\n".join(lines)
 
 
-SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
+_SYSTEM_PROMPT_PREMIUM_TEMPLATE = """タイ語練習文を1つ生成。
 
 # 優先順位（衝突したら上を優先、下は落としてよい）
 ターゲット単語 ＞ 自然さ ＞ 難易度 ＞ テーマ・文体・丁寧さ・文法フォーカス・感情
@@ -425,21 +546,14 @@ SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
 - 否定文で形容詞の後ろにดีを付けない。〜ดีは肯定の軽い感嘆専用（×ไม่ได้สะดวกดี →○ไม่ได้สะดวก）
 - นึกไม่ถึง/ไม่คิดว่าの補文はจะ〜ขนาดนี้を伴う（×นึกไม่ถึงเลยว่าหนักมาก →○นึกไม่ถึงเลยว่าจะหนักขนาดนี้）
 
-# 訳文ルール（japanese_translation）
-原則: thai_textにある語だけを訳す。事実・感情・評価・理由・意図を足さない。補ってよいのは接続関係・助詞・語順・訳語の選択のみ。
-
-- 自然で簡潔な日本語。時制はタイ語と一致。主語・目的語の対応を正確に（誰が誰を何を）
-- 指示されたテーマ・サブテーマ・感情の語そのものを訳文に書かない（×ที่นี่ไม่เล็ก→「ここのナイトマーケットは」→○「ここは」）
-- 否定の作用域を変えない（ไม่ได้สวยแค่นี้＝×「良さは美しさだけではない」→○「この程度の美しさじゃない」）
-- 強調・限定・反語は話し言葉の等価表現に。硬い直訳（「〜については」「何のために」）は禁止（×「私については」→○「私のこともね」）
-- 複数語で1つの意味はまとまりで訳す（×เปิดให้บริการ→「サービス提供を開く」→○「営業する」）。word_breakdownは語単位のまま分ける
+{translation_rules}
 
 # 出力ルール
-- word_breakdown: 出現順に全て。ターゲット単語は独立エントリ。人称代名詞は性別・丁寧度を注記（例: ผม→「私（男性・丁寧）」）
+- {word_breakdown_rule}
 - word_breakdown は1エントリ1語。指示詞 นี้/นั้น は直前の名詞から切る（×วัดนี้ →○วัด/นี้）。終助詞・疑問詞は1つずつ切る（×ได้ไหมคะ →○ได้/ไหม/คะ）。連続する2動詞も切る
 - 辞書の見出し語になる複合語は切らない（วันนี้/ที่นี่/ตรงนี้/ห้องพัก/นักท่องเที่ยว/เครื่องปรับอากาศ）
-- japanese_translation は日本語で書く。タイ語をそのまま入れない。「。」「？」「！」のどれかで終える
-- target_notes: ターゲット単語のみ。用法・類語との違い
+- {translation_output_rule}
+- {target_notes_rule}
 - スペルミス厳禁: เธอをเธと書かない。母音-อを落とさない
 
 本プロンプト中の×例・○例は書き方の説明であり出力候補ではない。そのまま／語を1つ替えただけで出さない。
@@ -448,6 +562,107 @@ SYSTEM_PROMPT_PREMIUM = """タイ語練習文を1つ生成。
 1. thai_text を語ごとに分かち書きしていないか
 2. 上の例文の焼き直しになっていないか"""
 
+
+# ─── 訳文ルール（システムプロンプト側・言語別） ───
+# 分岐するのは訳文に面する部分だけ。タイ語の構文ルール（語順・否定・ターゲット語の
+# 入れ方・語クラス・レジスタ）は thai_text 自体の規則なので言語非依存で、共有する。
+# ここを言語ごとに複製すると、片方だけ直して他方が腐る。
+_JA_TRANSLATION_RULES = """# 訳文ルール（japanese_translation）
+原則: thai_textにある語だけを訳す。事実・感情・評価・理由・意図を足さない。補ってよいのは接続関係・助詞・語順・訳語の選択のみ。
+
+- 自然で簡潔な日本語。時制はタイ語と一致。主語・目的語の対応を正確に（誰が誰を何を）
+- 指示されたテーマ・サブテーマ・感情の語そのものを訳文に書かない（×ที่นี่ไม่เล็ก→「ここのナイトマーケットは」→○「ここは」）
+- 否定の作用域を変えない（ไม่ได้สวยแค่นี้＝×「良さは美しさだけではない」→○「この程度の美しさじゃない」）
+- 強調・限定・反語は話し言葉の等価表現に。硬い直訳（「〜については」「何のために」）は禁止（×「私については」→○「私のこともね」）
+- 複数語で1つの意味はまとまりで訳す（×เปิดให้บริการ→「サービス提供を開く」→○「営業する」）。word_breakdownは語単位のまま分ける"""
+
+# 共有した「原則」以外は日本語版の英訳ではない。EN_TRANSLATION_STEPS のコメント参照。
+# 「硬い直訳を話し言葉の等価表現に」は英語版に置いていない。日本語では実測された
+# 違反（「私については」）があるが、英語で同じ違反が出るかは未観測のため。
+_EN_TRANSLATION_RULES = """# 訳文ルール（japanese_translation にはこの言語版では英訳を入れる）
+原則: thai_textにある語だけを訳す。事実・感情・評価・理由・意図を足さない。補ってよいのは接続関係・冠詞・語順・訳語の選択のみ。
+
+- 自然で簡潔な話し言葉の英語。時制はタイ語と一致。主語・目的語の対応を正確に（誰が誰を何を）
+- 指示されたテーマ・サブテーマ・感情の語そのものを訳文に書かない
+- 否定の作用域を変えない
+- 複数語で1つの意味はまとまりで訳す（×เปิดให้บริการ→"open a service"→○"be open"）。word_breakdownは語単位のまま分ける"""
+
+_TRANSLATION_RULES = {"ja": _JA_TRANSLATION_RULES, "en": _EN_TRANSLATION_RULES}
+
+# 訳文が入るフィールドの言語指定。en 側は japanese_translation という
+# フィールド名に引きずられないよう正面から否定する。
+_TRANSLATION_OUTPUT_RULE = {
+    "ja": (
+        "japanese_translation は日本語で書く。タイ語をそのまま入れない。"
+        "「。」「？」「！」のどれかで終える"
+    ),
+    "en": (
+        "japanese_translation は英語で書く。フィールド名に japanese とあるが日本語を入れない。"
+        "タイ文字も入れない。「.」「?」「!」のどれかで終える"
+    ),
+}
+
+# free 側は助詞の前に空白が無い（premium と1文字違う）。ja の文言を変えないため
+# 共通化せずそのまま持つ。
+_TRANSLATION_OUTPUT_RULE_FREE = {
+    "ja": (
+        "japanese_translationは日本語で書く。タイ語をそのまま入れない。"
+        "「。」「？」「！」のどれかで終える"
+    ),
+    "en": _TRANSLATION_OUTPUT_RULE["en"],
+}
+
+# premium の word_breakdown 行。人称代名詞の注記例だけが言語で変わる。
+# meaning の言語はスキーマの description で足りる（上記 ablation 参照）。
+_WORD_BREAKDOWN_RULE = {
+    "ja": (
+        "word_breakdown: 出現順に全て。ターゲット単語は独立エントリ。"
+        "人称代名詞は性別・丁寧度を注記（例: ผม→「私（男性・丁寧）」）"
+    ),
+    "en": (
+        "word_breakdown: 出現順に全て。ターゲット単語は独立エントリ。"
+        "人称代名詞は性別・丁寧度を注記（例: ผม→\"I (male, polite)\"）"
+    ),
+}
+
+_MEANING_LANG = {
+    "ja": "meaningは日本語のみ",
+    "en": "meaningは英語のみ（日本語不可）",
+}
+
+# ja は既存の文言をそのまま保つ（プロンプトを1文字でも変えると ja の出力が動く）。
+_TARGET_NOTES_RULE_PREMIUM = {
+    "ja": "target_notes: ターゲット単語のみ。用法・類語との違い",
+    "en": "target_notes: ターゲット単語のみ。用法・類語との違い。英語で書く（日本語不可）",
+}
+
+_TARGET_NOTES_RULE_FREE = {
+    "ja": "target_notesにはターゲット単語だけを入れ、用法・類語との違いを50文字以内で記述",
+    "en": "target_notesにはターゲット単語だけを入れ、用法・類語との違いを50語以内の英語で記述（日本語不可）",
+}
+
+
+def _build_premium_system_prompt(lang: str) -> str:
+    return _SYSTEM_PROMPT_PREMIUM_TEMPLATE.format(
+        translation_rules=_TRANSLATION_RULES[lang],
+        translation_output_rule=_TRANSLATION_OUTPUT_RULE[lang],
+        word_breakdown_rule=_WORD_BREAKDOWN_RULE[lang],
+        target_notes_rule=_TARGET_NOTES_RULE_PREMIUM[lang],
+    )
+
+
+def _build_free_system_prompt(lang: str) -> str:
+    return _SYSTEM_PROMPT_FREE_TEMPLATE.format(
+        translation_output_rule=_TRANSLATION_OUTPUT_RULE_FREE[lang],
+        pronoun_note=_FREE_PRONOUN_NOTE[lang],
+        meaning_lang=_MEANING_LANG[lang],
+        target_notes_rule=_TARGET_NOTES_RULE_FREE[lang],
+        free_translation_rules=_FREE_TRANSLATION_RULES[lang],
+    )
+
+
+SYSTEM_PROMPT_PREMIUM = _build_premium_system_prompt("ja")
+SYSTEM_PROMPT_FREE = _build_free_system_prompt("ja")
 
 # 後方互換: 既存 import は premium 用プロンプトを参照する。
 SYSTEM_PROMPT = SYSTEM_PROMPT_PREMIUM
@@ -461,11 +676,24 @@ def use_premium_prompt_for_vocab(is_premium: bool, estimated_vocab: int) -> bool
 def get_system_prompt(
     is_premium: bool,
     estimated_vocab: int | None = None,
+    lang: str = "ja",
 ) -> str:
-    """tier と語彙スコアに応じた固定システムプロンプトを返す。"""
+    """tier・語彙スコア・訳文言語に応じた固定システムプロンプトを返す。
+
+    ja は毎回同じ文字列（モジュール定数）を返す。プロンプトキャッシュの
+    prefix を壊さないため、組み立て直さないこと。
+    """
     if estimated_vocab is not None:
         is_premium = use_premium_prompt_for_vocab(is_premium, estimated_vocab)
-    return SYSTEM_PROMPT_PREMIUM if is_premium else SYSTEM_PROMPT_FREE
+    if lang == "ja":
+        return SYSTEM_PROMPT_PREMIUM if is_premium else SYSTEM_PROMPT_FREE
+    return _SYSTEM_PROMPTS_EN["premium" if is_premium else "free"]
+
+
+_SYSTEM_PROMPTS_EN = {
+    "premium": _build_premium_system_prompt("en"),
+    "free": _build_free_system_prompt("en"),
+}
 
 
 def _gate_pool(
@@ -486,25 +714,6 @@ def gate_topics_for_vocab(pool: list[str], estimated_vocab: int) -> list[str]:
     return _gate_pool(pool, estimated_vocab, TOPIC_MIN_VOCAB)
 
 
-def _politeness_weights(topic: str, options: list[str]) -> list[float]:
-    """topic に近い丁寧さを選びやすくする重み。embedding が引けなければ一様。"""
-    global _politeness_embedding_enabled
-    if not _politeness_embedding_enabled:
-        return [1.0] * len(options)
-
-    try:
-        weights = get_topic_option_similarity_weights(topic, options, "politeness")
-    except Exception as exc:
-        _politeness_embedding_enabled = False
-        print(f"politeness embedding weights unavailable: {exc}")
-        weights = None
-    return weights or [1.0] * len(options)
-
-
-def _weighted_choice(options: list[str], weights: list[float]) -> str:
-    return random.choices(options, weights=weights, k=1)[0]
-
-
 def resolve_generation_params(
     params: dict,
     is_premium: bool = True,
@@ -514,8 +723,11 @@ def resolve_generation_params(
     """例文生成パラメータを topic と同じ方式で確定する。
 
     クライアント指定値を優先し、未指定ならティアに応じた候補からランダム選択する。
-    politeness は topic の embedding で重み付けする。
     自動選択時は estimated_vocab に応じて topic の候補プールを絞る。
+
+    2026-08-07: politeness を廃止した（プロンプトに渡しても丁寧体率が動かず、
+    120文×3バッチで 42/44/42%）。抽選・embedding 重み付け・語クラスによる
+    強制（requires_formal_politeness）を全て削除している。
 
     topic だけは未指定でも埋めず "" を返す。候補は topicOptions に入れて返すので、
     呼び出し側がプロンプトに列挙して LLM に選ばせる。
@@ -529,24 +741,6 @@ def resolve_generation_params(
     # プロンプトに列挙して渡すので、レベル別ゲートは効いたまま）。
     topic = params.get("topic") or ""
 
-    # 丁寧さの確定条件（クライアント指定・語クラス・ドラマ回）を先に見る。
-    politeness = params.get("politeness")
-    if not politeness:
-        if requires_formal_politeness(target_words):
-            # 書き言葉の語がターゲットのときは丁寧さを抽選しない。
-            # カジュアルで確定するとその語の置き場所が無くなる。
-            politeness = POLITENESS_LEVELS[0]
-        elif topic == TOPICS[15]:
-            politeness = POLITENESS_LEVELS[1]
-
-    if not politeness:
-        # テーマ未確定なら重み付けの基準が無いので一様抽選にする。
-        weights = (
-            _politeness_weights(topic, POLITENESS_LEVELS)
-            if topic
-            else [1.0] * len(POLITENESS_LEVELS)
-        )
-        politeness = _weighted_choice(POLITENESS_LEVELS, weights)
     # 2026-08-05 追加の直交軸。どちらも「何を言うか」ではなく「いつのことを、
     # どういう構えで言うか」を決めるだけなので、確定済みの key_word ともテーマとも
     # 衝突しない。
@@ -562,7 +756,6 @@ def resolve_generation_params(
         # topic が空のとき LLM に提示する候補。ゲート適用後のプールをそのまま渡す。
         "topicOptions": topics_pool,
         "subTheme": sub_theme,
-        "politeness": politeness,
         "timeFrame": time_frame,
     }
 
@@ -592,6 +785,7 @@ def build_uvm_prompt(
     target_words: list[str] | None = None,
     estimated_vocab: int = 0,
     is_premium: bool = True,
+    lang: str = "ja",
 ) -> str:
     """プロンプト文字列のみを返す薄いラッパー。"""
     return build_prompt_with_context(
@@ -599,6 +793,7 @@ def build_uvm_prompt(
         target_words,
         estimated_vocab=estimated_vocab,
         is_premium=is_premium,
+        lang=lang,
     )[0]
 
 
@@ -607,6 +802,7 @@ def build_prompt_with_context(
     target_words: list[str] | None = None,
     estimated_vocab: int = 0,
     is_premium: bool = True,
+    lang: str = "ja",
 ) -> tuple[str, dict]:
     """プロンプトを構築する（free/premium 共通）。
 
@@ -637,7 +833,6 @@ def build_prompt_with_context(
     topic = resolved["topic"]
     topic_options = resolved["topicOptions"]
     sub_theme = resolved["subTheme"]
-    politeness = resolved["politeness"]
     time_frame = resolved["timeFrame"]
     time_frame_line = f"- 話している時点: {time_frame}\n" if time_frame else ""
     sub_theme_line = f"- サブテーマ: {sub_theme}\n" if sub_theme else ""
@@ -649,16 +844,26 @@ def build_prompt_with_context(
         drama = build_drama_prompt_section(target_words)
         drama_context = drama["context"]
         drama_required = drama["required"]
+    # 2026-08-07: 丁寧さは LLM に渡さない（クライアント指定でも出さない）。
+    # 120文×3バッチで丁寧体率が 42% / 44% / 42% と動かず、3値を抽選して渡しても
+    # 出力の register が変わらないことを確認した。style/grammarFocus/emotion と同じ
+    # 死にパラメータで、【可能な限り反映】の弱い枠にあることと整合する。
+    # 外せる根拠: ドラマ回は元から渡していない。書き言葉の18語（旧 requires_formal_politeness
+    # が丁寧さをフォーマルへ固定していた語）は word_classes.json の formal クラスが
+    # 「改まった場面を選ぶ」と既に指示しており重複。
+    #
+    # 多様性への影響は検出できなかった。1バッチ目で 2節率 26%→20% と出たが、
+    # 同一条件の2バッチ目が 25% で、条件内のブレのほうが大きかった
+    # （条件Bのみ: 2節率 20%/25%、接続標識率 10.8%/7.5%、語ユニーク率 25.6%/24.9%）。
+    # → 120文では 2節率・接続標識率の 3〜5pt 差は判定できない。
     if is_drama:
         topic_line = ""
         sub_theme_line = ""
-        politeness_line = ""
         # ドラマ回は場面をドラマ側のブロックが決めるため付けない。
         time_frame_line = ""
         time_frame = None
     elif topic:
         topic_line = f"- テーマ: {topic}\n"
-        politeness_line = f"- 丁寧さ: {politeness}\n"
     else:
         # テーマ未確定。候補を列挙してターゲット単語に合うものを選ばせる。
         # 選択肢を閉じることで estimated_vocab のレベル別ゲートは維持される。
@@ -669,7 +874,6 @@ def build_prompt_with_context(
             f"- テーマ: 次から1つ選ぶ（ターゲット単語が最も自然に収まるもの）\n"
             f"  {options}\n"
         )
-        politeness_line = f"- 丁寧さ: {politeness}\n"
 
     # プロンプトで指定した値のみ確定値として記録する。
     # 欠けたキーは呼び出し側が LLM に生成させる（constants.build_response_schema）。
@@ -682,8 +886,9 @@ def build_prompt_with_context(
         # _CONTEXT_FIELDS には含めないので、LLM に生成させるスキーマは変わらない。
         if sub_theme:
             context["subTheme"] = sub_theme
-        if politeness:
-            context["politeness"] = politeness
+        # politeness はプロンプトに出さなくなったので記録もしない。
+        # 生成に影響していない値を context に残すと sentence-quality-audit の
+        # 偏り集計が誤る。
         if time_frame:
             context["timeFrame"] = time_frame
 
@@ -706,7 +911,7 @@ def build_prompt_with_context(
     if drama_required:
         sections.append(drama_required.strip())
     elements = (
-        f"{topic_line}{sub_theme_line}{politeness_line}"
+        f"{topic_line}{sub_theme_line}"
         f"{time_frame_line}"
     )
     if elements.strip():
@@ -719,7 +924,7 @@ def build_prompt_with_context(
     # 語彙レジスタ制約は末尾に置く（system prompt では守られなかったため）。
     if prompt_is_premium:
         sections.append(
-            build_register_constraint(topic, target_words)
+            build_register_constraint(topic, target_words, lang=lang)
         )
 
     # 語クラス別の指示は最末尾（該当するクラスが無ければ付かない）。

@@ -190,6 +190,22 @@ class PushNotificationService {
     }
   }
 
+  /// アプリ言語をサーバーへミラーする。
+  ///
+  /// 言語もローカルの SharedPreferences にしか無く配信バッチから見えないため、
+  /// 毎日例文の通知本文を出し分ける目的でこれだけ複製する。
+  /// クライアント起点の callable には引数で渡すので、ここは通知専用。
+  Future<void> setAppLanguage(String lang) async {
+    try {
+      await _userDoc?.set(
+        {'app_language': lang},
+        SetOptions(merge: true),
+      );
+    } catch (_) {
+      // 反映は次回の設定変更・起動時に再試行される
+    }
+  }
+
   /// 通知トグルON＝再開の意思表示として、配信バックオフの段階を0に戻す。
   ///
   /// 停止段階（notify_tier == 4）まで進んだユーザーは自分で例文を生成しない限り

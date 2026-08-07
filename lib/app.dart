@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'core/config/app_config.dart';
+import 'l10n/app_localizations.dart';
 import 'presentation/providers/analytics_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/subscription_provider.dart';
@@ -112,11 +114,21 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
     // Watch theme mode and font family from settings
     final themeMode = ref.watch(themeModeProvider);
     final fontFamily = ref.watch(fontFamilyProvider);
+    final appLanguage = ref.watch(appLanguageProvider);
     final analytics = ref.watch(analyticsServiceProvider);
 
     return MaterialApp(
-      title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
+      // 端末ロケールは見ない。言語はアプリ内設定（初期値はストア地域）だけで決める。
+      locale: appLanguage.locale,
+      localizationsDelegates: const [
+        L10n.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: L10n.supportedLocales,
+      onGenerateTitle: (context) => L10n.of(context).appTitle,
       // 通常の route 遷移は observer 側で screen_view を自動送信する。
       navigatorObservers: [analytics.observer],
       themeMode: themeMode,

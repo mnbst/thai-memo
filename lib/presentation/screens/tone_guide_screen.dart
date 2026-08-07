@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../core/config/app_config.dart';
 import '../../core/thai_tone_analyzer.dart';
 
@@ -18,7 +19,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('タイ語の声調ガイド'),
+        title: Text(L10n.of(context).toneGuideTitle),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -64,7 +65,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'タイ語の声調について',
+                    L10n.of(context).toneGuideHeading,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color:
@@ -76,7 +77,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、主子音（声調を決める子音）のクラス、声調記号、音節タイプによって決まります。',
+              L10n.of(context).toneGuideIntro,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
@@ -92,28 +93,28 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
     final tones = [
       {
         'tone': ThaiTone.mid,
-        'description': '音の高さが平らで変化しない声調です。',
-        'example': 'กา (gaa) カラス'
+        'description': L10n.of(context).toneMidDesc,
+        'example': L10n.of(context).toneMidExample
       },
       {
         'tone': ThaiTone.low,
-        'description': '低い音から始まり、少し下がる声調です。',
-        'example': 'ก่า (gàa) ガランガル'
+        'description': L10n.of(context).toneLowDesc,
+        'example': L10n.of(context).toneLowExample
       },
       {
         'tone': ThaiTone.falling,
-        'description': '高い音から低く落ちる声調です。',
-        'example': 'ก้า (gâa) 歩み'
+        'description': L10n.of(context).toneFallingDesc,
+        'example': L10n.of(context).toneFallingExample
       },
       {
         'tone': ThaiTone.high,
-        'description': '高い音で始まり、さらに上がる声調です。',
-        'example': 'ก๊า (gáa) 〜だよ（語尾）'
+        'description': L10n.of(context).toneHighDesc,
+        'example': L10n.of(context).toneHighExample
       },
       {
         'tone': ThaiTone.rising,
-        'description': '低い音から高く上がる声調です。',
-        'example': 'ก๋า (gǎa) 〜だね（語尾）'
+        'description': L10n.of(context).toneRisingDesc,
+        'example': L10n.of(context).toneRisingExample
       },
     ];
 
@@ -132,7 +133,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '5つの声調',
+                  L10n.of(context).toneGuideFiveTones,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -190,7 +191,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  tone.displayName,
+                  tone.displayName(L10n.of(context)),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -202,7 +203,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '例: $example',
+                  L10n.of(context).toneExamplePrefix(example),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context)
                             .colorScheme
@@ -235,7 +236,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '子音クラス',
+                  L10n.of(context).toneGuideConsonantClasses,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -290,13 +291,13 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
         borderRadius: BorderRadius.circular(8),
       ),
       title: Text(
-        consonantClass.displayName,
+        consonantClass.displayName(L10n.of(context)),
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
       ),
       subtitle: Text(
-        '${consonants.length}文字',
+        L10n.of(context).toneGuideLetterCount(consonants.length),
         style: Theme.of(context).textTheme.bodySmall,
       ),
       children: [
@@ -306,7 +307,8 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '例: ${consonantClass.exampleConsonants}',
+                L10n.of(context)
+                    .toneExamplePrefix(consonantClass.exampleConsonants),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context)
                           .colorScheme
@@ -354,22 +356,22 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
       {
         'mark': ToneMark.maiEk,
         'thaiName': 'ไม้เอก',
-        'description': '第1声調記号。子音クラスによって異なる声調になります。',
+        'description': L10n.of(context).toneMarkMaiEkDesc,
       },
       {
         'mark': ToneMark.maiTho,
         'thaiName': 'ไม้โท',
-        'description': '第2声調記号。子音クラスによって異なる声調になります。',
+        'description': L10n.of(context).toneMarkMaiThoDesc,
       },
       {
         'mark': ToneMark.maiTri,
         'thaiName': 'ไม้ตรี',
-        'description': '第3声調記号。中子音で使用。低子音・高子音では例外的です。',
+        'description': L10n.of(context).toneMarkMaiTriDesc,
       },
       {
         'mark': ToneMark.maiChattawa,
         'thaiName': 'ไม้จัตวา',
-        'description': '第4声調記号。中子音で使用。低子音・高子音では例外的です。',
+        'description': L10n.of(context).toneMarkMaiChattawaDesc,
       },
     ];
 
@@ -388,7 +390,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '声調記号',
+                  L10n.of(context).toneGuideToneMarks,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -434,7 +436,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
             ),
             child: Center(
               child: Text(
-                toneMark.symbol,
+                toneMark.symbol(L10n.of(context)),
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -451,7 +453,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                 Row(
                   children: [
                     Text(
-                      toneMark.displayName,
+                      toneMark.displayName(L10n.of(context)),
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -498,7 +500,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '音節タイプ',
+                  L10n.of(context).toneGuideSyllableTypes,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -551,7 +553,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                syllableType.displayName,
+                syllableType.displayName(L10n.of(context)),
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -560,7 +562,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            syllableType.description,
+            syllableType.description(L10n.of(context)),
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
@@ -585,7 +587,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '声調変化表',
+                  L10n.of(context).toneGuideShiftTable,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -594,7 +596,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              '子音クラスごとに、声調記号と音節タイプの組み合わせで決まる声調を示します。',
+              L10n.of(context).toneGuideShiftTableIntro,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -629,13 +631,14 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
         side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       title: Text(
-        '${consonantClass.displayName}の声調変化',
+        L10n.of(context)
+            .toneShiftFor(consonantClass.displayName(L10n.of(context))),
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
       ),
       subtitle: Text(
-        '例: ${consonantClass.exampleConsonants}',
+        L10n.of(context).toneExamplePrefix(consonantClass.exampleConsonants),
         style: Theme.of(context).textTheme.bodySmall,
       ),
       children: [
@@ -668,9 +671,9 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
         color: Theme.of(context).colorScheme.secondaryContainer,
       ),
       children: [
-        _buildTableCell('声調記号', isHeader: true),
-        _buildTableCell('音節タイプ', isHeader: true),
-        _buildTableCell('結果の声調', isHeader: true),
+        _buildTableCell(L10n.of(context).toneMarkLabel, isHeader: true),
+        _buildTableCell(L10n.of(context).toneSyllableType, isHeader: true),
+        _buildTableCell(L10n.of(context).toneResultTone, isHeader: true),
       ],
     );
   }
@@ -680,10 +683,11 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
     // 音節タイプの表示（低子音の死音節は母音の長短を表示）
     String syllableTypeDisplay;
     if (rule.syllableType == SyllableType.dead && rule.isShortVowel != null) {
-      syllableTypeDisplay = rule.syllableType
-          .getDisplayNameWithVowel(hasShortVowel: rule.isShortVowel);
+      syllableTypeDisplay = rule.syllableType.getDisplayNameWithVowel(
+          L10n.of(context),
+          hasShortVowel: rule.isShortVowel);
     } else {
-      syllableTypeDisplay = rule.syllableType.displayName;
+      syllableTypeDisplay = rule.syllableType.displayName(L10n.of(context));
     }
 
     return TableRow(
@@ -718,7 +722,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Text(
-        toneMark.symbol,
+        toneMark.symbol(L10n.of(context)),
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontSize: toneMark == ToneMark.none ? 14 : 24,
@@ -737,7 +741,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            tone.displayName,
+            tone.displayName(L10n.of(context)),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontSize: 14,

@@ -7,7 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 
 import '../../core/config/app_config.dart';
+import '../../core/l10n/app_language.dart';
 import '../../data/datasources/backend_api_service.dart';
+import '../../l10n/app_localizations.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../providers/auth_provider.dart';
 import '../providers/remaining_quota_provider.dart';
@@ -16,6 +18,7 @@ import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
+import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/sign_in_sheet.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/vocab_score_dialog.dart';
@@ -64,9 +67,8 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         targetKey: _dailyReminderTileKey,
         icon: Icons.notifications_active,
         interactive: true,
-        title: 'ここで通知をオンにできます',
-        message: 'このスイッチをオンにすると、毎日きまった時刻に例文が届きます。'
-            '通知する時刻はすぐ下の項目で変更できます。',
+        title: L10n.of(context).coachNotificationTitle,
+        message: L10n.of(context).coachNotificationMessage,
       );
     });
   }
@@ -74,7 +76,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('設定')),
+      appBar: AppBar(title: Text(L10n.of(context).settingsTitle)),
       body: ListView(
         controller: _scrollController,
         padding: const EdgeInsets.all(AppConfig.defaultPadding),
@@ -109,7 +111,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'アカウント',
+                  L10n.of(context).settingsAccount,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -121,11 +123,13 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.person),
               title: Text(
-                authState.isLinked ? (authState.displayName ?? 'ユーザー') : 'ゲスト',
+                authState.isLinked
+                    ? (authState.displayName ?? L10n.of(context).settingsUser)
+                    : L10n.of(context).settingsGuest,
               ),
               subtitle: authState.isLinked
                   ? (authState.email != null ? Text(authState.email!) : null)
-                  : const Text('サインインしていません'),
+                  : Text(L10n.of(context).settingsNotSignedIn),
             ),
             Consumer(
               builder: (context, ref, _) {
@@ -133,7 +137,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.workspace_premium),
-                  title: const Text('プラン'),
+                  title: Text(L10n.of(context).settingsPlan),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -166,7 +170,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                   TextButton(
                     onPressed: authState.isLoading ? null : _deleteAccount,
                     child: Text(
-                      'アカウントを削除',
+                      L10n.of(context).settingsDeleteAccount,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                       ),
@@ -175,7 +179,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(width: 8),
                   TextButton(
                     onPressed: authState.isLoading ? null : _signOut,
-                    child: const Text('サインアウト'),
+                    child: Text(L10n.of(context).settingsSignOut),
                   ),
                 ],
               )
@@ -185,7 +189,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: FilledButton.icon(
                   onPressed: authState.isLoading ? null : _signIn,
                   icon: const Icon(Icons.login),
-                  label: const Text('サインインして進捗を保存'),
+                  label: Text(L10n.of(context).settingsSignInToSave),
                 ),
               ),
             if (authState.isLoading) const LinearProgressIndicator(),
@@ -203,16 +207,16 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('サインアウト'),
-        content: const Text('サインアウトしますか？'),
+        title: Text(L10n.of(context).settingsSignOut),
+        content: Text(L10n.of(context).settingsSignOutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('キャンセル'),
+            child: Text(L10n.of(context).commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('サインアウト'),
+            child: Text(L10n.of(context).settingsSignOut),
           ),
         ],
       ),
@@ -222,7 +226,9 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     // uid が変わる前に通知登録を解除する。旧 doc にトークンが残ると、同じ端末に
     // 使ったアカウントの数だけ毎日例文が届く。
-    await ref.read(settingsControllerProvider.notifier).unregisterPushForSignOut();
+    await ref
+        .read(settingsControllerProvider.notifier)
+        .unregisterPushForSignOut();
 
     final error = await ref.read(authControllerProvider.notifier).signOut();
     if (error != null && mounted) {
@@ -239,18 +245,17 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('アカウント削除'),
-        content: const Text(
-            'アカウントを削除すると、サーバーおよび端末のすべての学習データが完全に削除されます。この操作は元に戻せません。'),
+        title: Text(L10n.of(context).settingsDeleteAccountTitle),
+        content: Text(L10n.of(context).settingsDeleteAccountConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('キャンセル'),
+            child: Text(L10n.of(context).commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              '削除',
+              L10n.of(context).commonDelete,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
@@ -274,8 +279,8 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         ref.invalidate(allSentencesProvider);
         ref.invalidate(sentenceCountProvider);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('アカウントとすべてのデータを削除しました'),
+          SnackBar(
+            content: Text(L10n.of(context).settingsAccountDeleted),
           ),
         );
       }
@@ -285,6 +290,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Build display section
   Widget _buildDisplaySection() {
     final currentFont = ref.watch(fontFamilyProvider);
+    final l10n = L10n.of(context);
 
     return Card(
       child: Padding(
@@ -300,7 +306,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '表示',
+                  l10n.settingsDisplay,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -308,10 +314,51 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            // 言語切替は dev ビルドの動作確認専用。製品ビルドでは出さない。
+            // 訳文は生成時の言語で保存され、切り替えても履歴は書き換わらないため、
+            // 実ユーザーに開くと1つの履歴に日英が混在する。言語はストア地域で決まる。
+            if (AppConfig.isDev)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.translate),
+                title: Text(l10n.settingsLanguage),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      ref.watch(appLanguageProvider).displayName,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                    ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+                onTap: () =>
+                    _showLanguagePicker(ref.read(appLanguageProvider)),
+              ),
+            // 体験終了ダイアログは期限が来ないと出ないので、見た目の確認用に
+            // dev だけ手動で開けるようにしておく。
+            if (AppConfig.isDev)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.hourglass_bottom_rounded),
+                title: const Text('プレミアム体験終了ダイアログ（dev）'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  final open = await showPremiumTrialEndedDialog(context);
+                  if (!open || !mounted) return;
+                  await PaywallBottomSheet.show(context,
+                      source: 'trial_ended_preview');
+                },
+              ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.font_download_outlined),
-              title: const Text('フォント'),
+              title: Text(l10n.settingsFont),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -349,11 +396,60 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// dev ビルド専用の言語切替。導線は AppConfig.isDev で閉じている。
+  void _showLanguagePicker(AppLanguage current) {
+    final l10n = L10n.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsLanguagePickerTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RadioGroup<AppLanguage>(
+              groupValue: current,
+              onChanged: (value) {
+                if (value == null) return;
+                ref
+                    .read(settingsControllerProvider.notifier)
+                    .setAppLanguage(value);
+                Navigator.pop(context);
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: AppLanguage.values
+                    .map(
+                      (lang) => RadioListTile<AppLanguage>(
+                        value: lang,
+                        // 切替前でも読めるよう、選択肢はそれぞれの言語で表示する
+                        title: Text(lang.displayName),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.settingsLanguageNote,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showFontPicker(ThaiFont current) {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('フォントを選択'),
+        title: Text(L10n.of(context).settingsFontPickerTitle),
         content: RadioGroup<ThaiFont>(
           groupValue: current,
           onChanged: (value) {
@@ -375,7 +471,8 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('例文', style: TextStyle(fontSize: 10)),
+                          Text(L10n.of(context).settingsFontSample,
+                              style: const TextStyle(fontSize: 10)),
                           Text(
                             'สวัสดีครับ ฉันเรียนภาษาไทย',
                             style: _thaiFontStyle(font),
@@ -391,7 +488,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
+            child: Text(L10n.of(context).commonCancel),
           ),
         ],
       ),
@@ -414,7 +511,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '学習状況',
+                  L10n.of(context).settingsLearningStatus,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -428,7 +525,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 height: 1, color: Theme.of(context).colorScheme.outlineVariant),
             const SizedBox(height: 12),
             Text(
-              '学習設定',
+              L10n.of(context).settingsLearningSection,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                     color: Theme.of(context)
@@ -446,8 +543,8 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Icons.graphic_eq,
                 color: Theme.of(context).colorScheme.primary,
               ),
-              title: const Text('声調ガイド'),
-              subtitle: const Text('タイ語の声調ルールを学ぶ'),
+              title: Text(L10n.of(context).settingsToneGuide),
+              subtitle: Text(L10n.of(context).settingsToneGuideSubtitle),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
@@ -467,10 +564,11 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 color: Theme.of(context).colorScheme.error,
               ),
               title: Text(
-                '学習データをリセット',
+                L10n.of(context).settingsResetLearningData,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
-              subtitle: const Text('端末の例文・クイズ履歴を削除'),
+              subtitle:
+                  Text(L10n.of(context).settingsResetLearningDataSubtitle),
               onTap: _resetLearningData,
             ),
           ],
@@ -493,8 +591,8 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         Icons.notifications_active,
         color: Theme.of(context).colorScheme.primary,
       ),
-      title: const Text('毎日の例文通知'),
-      subtitle: const Text('その日の例文をお知らせします'),
+      title: Text(L10n.of(context).settingsDailyNotification),
+      subtitle: Text(L10n.of(context).settingsDailyNotificationSubtitle),
       value: enabled,
       onChanged: (value) async {
         final applied = await ref
@@ -502,8 +600,9 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             .setDailyReminderEnabled(value);
         if (!applied && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('端末の設定で通知を許可してください'),
+            SnackBar(
+              content:
+                  Text(L10n.of(context).settingsAllowNotificationInOsSettings),
             ),
           );
         }
@@ -525,7 +624,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             ? Theme.of(context).colorScheme.primary
             : Theme.of(context).colorScheme.outline,
       ),
-      title: const Text('通知する時刻'),
+      title: Text(L10n.of(context).settingsNotificationTime),
       subtitle: Text('${hour.toString().padLeft(2, '0')}:00'),
       trailing: const Icon(Icons.chevron_right),
       onTap: enabled
@@ -547,7 +646,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     return showDialog<int>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('通知する時刻'),
+        title: Text(L10n.of(context).settingsNotificationTime),
         children: [
           SizedBox(
             width: double.maxFinite,
@@ -569,13 +668,15 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildTopicSelectTile() {
     final isPremium = ref.watch(isPremiumProvider);
-    final trialRemaining =
-        ref.watch(premiumTrialRemainingProvider).valueOrNull ?? 0;
+    final trialActive =
+        ref.watch(premiumTrialActiveProvider).valueOrNull ?? false;
     // Premium またはトライアル中はテーマ選択可。例文/クイズ画面のチップと判定を揃える。
-    final canSelect = isPremium || trialRemaining > 0;
+    final canSelect = isPremium || trialActive;
     final currentTopic = ref.watch(generationParamsProvider)['topic'];
 
-    final displayLabel = canSelect ? topicShortLabel(currentTopic) : 'おまかせ';
+    final displayLabel = canSelect
+        ? topicShortLabel(L10n.of(context), currentTopic)
+        : L10n.of(context).settingsTopicRandom;
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -583,7 +684,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         Icons.category,
         color: Theme.of(context).colorScheme.primary,
       ),
-      title: const Text('テーマ'),
+      title: Text(L10n.of(context).settingsTopic),
       subtitle: Text(displayLabel),
       trailing: canSelect
           ? const Icon(Icons.chevron_right)
@@ -600,17 +701,17 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('学習データのリセット'),
-        content: const Text('端末に保存されている例文・クイズ履歴・学習進捗がすべて削除されます。アカウントは維持されます。'),
+        title: Text(L10n.of(context).settingsResetTitle),
+        content: Text(L10n.of(context).settingsResetConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('キャンセル'),
+            child: Text(L10n.of(context).commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              'リセット',
+              L10n.of(context).commonReset,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
@@ -630,14 +731,14 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         ref.invalidate(allSentencesProvider);
         ref.invalidate(sentenceCountProvider);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('学習データをリセットしました')),
+          SnackBar(content: Text(L10n.of(context).settingsResetDone)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('リセットに失敗しました'),
+            content: Text(L10n.of(context).settingsResetFailed),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -657,7 +758,8 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         final displayVocab = isPremium
             ? stats.estimatedVocab
             : stats.estimatedVocab.clamp(0, freeVocabScoreLimit).toInt();
-        final level = vocabLevel(displayVocab);
+        final level =
+            vocabLevelLabel(L10n.of(context), vocabLevel(displayVocab));
         final threshold =
             isPremium ? _nextVocabThreshold(displayVocab) : freeVocabScoreLimit;
         final progress = (displayVocab / threshold).clamp(0.0, 1.0).toDouble();
@@ -668,7 +770,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             Row(
               children: [
                 Text(
-                  '$displayVocab語',
+                  L10n.of(context).vocabWords(displayVocab),
                   style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.primary,
@@ -697,8 +799,10 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 4),
             Text(
               isPremium
-                  ? '次のレベルまで あと${threshold - displayVocab}語'
-                  : 'Freeプランは$freeVocabScoreLimit語が上限です',
+                  ? L10n.of(context)
+                      .settingsNextLevelIn(threshold - displayVocab)
+                  : L10n.of(context)
+                      .settingsFreeVocabLimit(freeVocabScoreLimit),
               style: textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -733,7 +837,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('URLを開けませんでした')),
+          SnackBar(content: Text(L10n.of(context).settingsCouldNotOpenUrl)),
         );
       }
     }
@@ -752,7 +856,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Icon(Icons.info, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 12),
                 Text(
-                  'アプリについて',
+                  L10n.of(context).settingsAbout,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -761,12 +865,12 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              '${AppConfig.appName} v${AppConfig.appVersion}',
+              '${L10n.of(context).appTitle} v${AppConfig.appVersion}',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              '毎日タイ語を学習しましょう',
+              L10n.of(context).settingsTagline,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(
                       context,
@@ -777,21 +881,21 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.lock_outline),
-              title: const Text('プライバシーポリシー'),
+              title: Text(L10n.of(context).settingsPrivacyPolicy),
               trailing: const Icon(Icons.open_in_new, size: 18),
               onTap: () => _launchUrl(AppConfig.privacyPolicyUrl),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.description_outlined),
-              title: const Text('利用規約'),
+              title: Text(L10n.of(context).settingsTerms),
               trailing: const Icon(Icons.open_in_new, size: 18),
               onTap: () => _launchUrl(AppConfig.termsOfServiceUrl),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.mail_outline),
-              title: const Text('お問い合わせ'),
+              title: Text(L10n.of(context).settingsContact),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,

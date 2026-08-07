@@ -14,6 +14,21 @@ lib/core/config/app_config.dart
 lib/core/config/firebase_config.dart
 Cloud Functionsのリージョン・タイムアウト・関数名定義。
 
+lib/core/l10n/app_language.dart
+アプリ言語（ja/en）の定義と、ストア地域からの初期値決定。端末ロケールは使わない。
+
+lib/core/l10n/l10n_provider.dart
+BuildContext を持たない層（provider・service）から文言を引く Riverpod プロバイダ。
+
+lib/core/constants/generation_labels.dart
+テーマ識別子（日本語のままサーバーへ送る）→表示ラベルの対応。
+
+lib/core/quota_error.dart
+エラーメッセージが生成上限によるものかの判定（「上限」/「limit」）。
+
+lib/l10n/app_ja.arb / app_en.arb / app_localizations*.dart
+UI文言のARBと gen_l10n 生成物（`flutter gen-l10n` で再生成）。
+
 lib/firebase_options_dev.dart / firebase_options_tester.dart / firebase_options_prod.dart
 環境別Firebase設定（dev/tester/prod）。
 
@@ -91,11 +106,14 @@ lib/presentation/providers/sentence_provider.dart
 lib/presentation/providers/quiz_provider.dart
 クイズ状態管理（initial→pending→generating→ready→answering→result→summary）。
 
+lib/presentation/providers/quiz_offer_experiment_provider.dart
+例文→1問確認クイズ導線のvariant定義。v1のA/Bテストはinlineカードで確定済み（全端末inline）。
+
 lib/presentation/providers/subscription_provider.dart
 ティア状態（free/premium）。Firestoreと同期、課金サービス連携。
 
 lib/presentation/providers/settings_provider.dart
-ユーザー設定（初回起動フラグ、テーマ、生成パラメータ、フォント）。
+ユーザー設定（初回起動フラグ、テーマ、生成パラメータ、フォント、アプリ言語）。
 
 lib/presentation/providers/tts_provider.dart
 タイ語発音再生のText-to-Speechサービス。
@@ -124,7 +142,7 @@ lib/presentation/screens/settings_screen.dart
 設定画面（アカウント・プラン、テーマ、フォント、声調ガイド、学習データリセット、アプリ情報）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI（ボトムシート）。全てタップ起点で自動表示はしない。導線は例文タブの常設バナー（premium_hint_banner）・設定・クイズ画面配下。
+プレミアム課金UI（ボトムシート）。導線は例文タブの常設バナー（premium_hint_banner）・設定・クイズ画面配下。自動表示は dev 限定のトライアル終了案内（source=trial_ended）のみで、他は全てタップ起点。
 
 lib/presentation/screens/onboarding_screen.dart
 初回起動時のオンボーディング画面。
@@ -155,8 +173,14 @@ lib/presentation/widgets/sentence_audio_player.dart
 lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
 
+lib/presentation/widgets/premium_trial_ended_dialog.dart
+プレミアム体験トライアル終了を伝えて登録へ誘導するダイアログ。起動時に一度だけ表示（現状 dev のみ）。
+
 lib/presentation/widgets/premium_hint_banner.dart
 例文カード直下に常設するfree向けプレミアム訴求バナー。訴求軸（テーマ/品質/語彙上限）を起動ごとに均等ランダム抽選、×で3日間非表示。お試し期間中は出さない。
+
+lib/presentation/widgets/quiz_offer.dart
+1問確認クイズ導線の表示（現行はinlineカード。controlは実験再開用に残置）。
 
 lib/presentation/tone_explanation_dialog.dart
 タイ語声調の解説ダイアログ。
@@ -165,6 +189,9 @@ lib/presentation/tone_explanation_dialog.dart
 
 lib/services/purchase_service.dart
 アプリ内課金（iOS/Android）とサブスクリプション検証。
+
+lib/services/storefront_service.dart
+ダウンロード元のストア地域取得。初回起動時のアプリ言語決定にだけ使う。
 
 lib/services/tts_service.dart
 タイ語発音のText-to-Speechエンジン。
@@ -232,7 +259,7 @@ functions/javascript/src/dailyBatch.ts
 ### Services
 
 functions/javascript/src/services/quizGenerationService.ts
-クイズ生成のプロンプト構築・サニタイズ・ルールベース変換。QuizGenerationServiceインターフェース定義。
+クイズ生成のプロンプト構築・サニタイズ・ルールベース変換。解説とダミー理由はlangでja/en分岐（NG例・書式は共有）。
 
 functions/javascript/src/services/geminiQuizService.ts
 Gemini API呼び出しによるQuizGenerationService実装。
@@ -260,6 +287,9 @@ JST日付フォーマットユーティリティ。
 functions/javascript/src/utils/notifyUtcHour.ts
 配信希望時刻（現地）が対応するUTC時刻を算出。users.notify_utc_hourの非正規化に使う。
 
+functions/javascript/src/utils/lang.ts
+リクエストのlangをja/enへ正規化。未知・欠落はja。Python側 constants.resolve_lang と同規則。
+
 ---
 
 ## Cloud Functions — Python
@@ -274,7 +304,7 @@ functions/python/daily_sentence_handlers.py
 毎日例文の配信バッチ（毎時起動）。free=キャッシュ／premium=LLM生成（preferred_topic反映）でFirestoreに書きFCM送信。
 
 functions/python/nlp.py
-PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日本語ラベル）。品詞は機能語辞書→形容詞辞書→unigram→perceptronの順で判定。
+PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日本語ラベル）。品詞は機能語辞書→形容詞辞書→unigram→perceptronの順で判定。localize_posでenラベルへ変換。
 
 functions/python/nlp_worker.py
 nlp.pyを別プロセスで実行するワーカー。重いimportがGILで親のLLM処理を止めないようstdin/stdoutのJSON Linesで通信する。
@@ -300,6 +330,9 @@ Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。レジ
 scripts/sample_sentences.py
 ターゲット語を指定して本番と同じ経路で例文をまとめて生成するプロンプト検証スクリプト。デプロイせずルール変更の効果を確認する。
 
+scripts/ga4_quiz_offer_experiment.py
+1問確認クイズ導線A/BテストのGA4ファネルを実験群別に集計する。
+
 functions/python/word_classes.py
 word_classes.json のロードと語→クラス逆引き。pythainlpを引き込まない軽量モジュール。
 
@@ -323,6 +356,9 @@ estimated_vocab算出ロジックの詳細ドキュメント（estimate_vocab・
 
 docs/sentence_generation_logic.md
 例文生成ロジック（UVM単語選定→プロンプト構築→Gemini呼び出し→NLP後処理→Firestore保存）。
+
+docs/design_english_version.md
+英語版（app_language による UI・訳文の同時切替）の設計。l10n・プロンプト・free例文バンク・課金/分析への影響と段階リリース計画。
 
 docs/design_daily_sentence.md
 毎日例文の配信＋プッシュ通知の設計（配信ターゲティング、段階バックオフ、反応シグナル、必要フィールド）。

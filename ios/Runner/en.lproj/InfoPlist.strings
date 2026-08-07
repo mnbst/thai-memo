@@ -1,0 +1,3 @@
+/* Home-screen app name. iOS picks this file by the device language,
+   which is a different axis from the in-app language (decided by storefront). */
+"CFBundleDisplayName" = "Daily Thai";

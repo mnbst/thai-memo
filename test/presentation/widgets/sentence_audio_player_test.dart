@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/tts_provider.dart';
 import 'package:thai_memo/presentation/widgets/sentence_audio_player.dart';
 import 'package:thai_memo/services/tts_service.dart';
@@ -33,7 +34,14 @@ class _FakeTtsService extends TtsService {
 Widget _host(_FakeTtsService tts, {required Widget child}) {
   return ProviderScope(
     overrides: [ttsServiceProvider.overrideWithValue(tts)],
-    child: MaterialApp(home: Scaffold(body: child)),
+    child: MaterialApp(
+      // テストは日本語の文言を検証する。実行環境のロケール（en）に
+      // 引きずられないよう明示的に ja で描画する。
+      locale: const Locale('ja'),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      home: Scaffold(body: child),
+    ),
   );
 }
 

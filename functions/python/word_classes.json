@@ -144,7 +144,6 @@
     "formal": {
       "label": "書き言葉・改まった場の語",
       "function_word": false,
-      "force_politeness": true,
       "rule": "この語が自然に使われる改まった場面（案内・掲示・目上への応対・報告）を選ぶ。友達同士の会話に押し込まない",
       "words": [
         "ท่าน",
