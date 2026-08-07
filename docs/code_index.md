@@ -297,6 +297,9 @@ functions/python/pronunciation.py
 functions/python/prompts.py
 Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。レジスタ制約・語クラス別ブロックは末尾に置く（system promptでは守られないため）。
 
+scripts/sample_sentences.py
+ターゲット語を指定して本番と同じ経路で例文をまとめて生成するプロンプト検証スクリプト。デプロイせずルール変更の効果を確認する。
+
 functions/python/word_classes.py
 word_classes.json のロードと語→クラス逆引き。pythainlpを引き込まない軽量モジュール。
 
