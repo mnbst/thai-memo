@@ -4,20 +4,34 @@ import 'package:thai_memo/data/models/syllable.dart';
 import 'package:thai_memo/data/models/word_breakdown.dart';
 import 'package:thai_memo/domain/sentence_tone_spans.dart';
 
-Syllable _syllable(String tone) => Syllable(
+Syllable _syllable(
+  String tone, {
+  bool? shortVowel,
+  String syllableType = 'live',
+}) =>
+    Syllable(
       text: 'x',
       initialConsonant: 'x',
       consonantClass: 'middle',
       tone: tone,
       toneMark: 'none',
-      syllableType: 'live',
+      syllableType: syllableType,
+      hasShortVowel: shortVowel,
     );
 
 WordBreakdown _word(String text, List<String>? tones) => WordBreakdown(
       wordText: text,
       pronunciation: '',
       meaning: '',
-      syllables: tones?.map(_syllable).toList(),
+      syllables: tones?.map((t) => _syllable(t)).toList(),
+    );
+
+WordBreakdown _wordWith(String text, List<Syllable> syllables) =>
+    WordBreakdown(
+      wordText: text,
+      pronunciation: '',
+      meaning: '',
+      syllables: syllables,
     );
 
 void main() {
@@ -71,6 +85,19 @@ void main() {
     test('音節が1つも無ければ空', () {
       expect(buildSentenceToneSpans([]).isEmpty, isTrue);
       expect(buildSentenceToneSpans([_word('x', null)]).isEmpty, isTrue);
+    });
+
+    test('短母音と死音節に印を付ける', () {
+      // 短い音節は声調の動きを出しきれないので、形ではなく高低差で判断する。
+      final spans = buildSentenceToneSpans([
+        _wordWith('x', [
+          _syllable('mid'),
+          _syllable('rising', shortVowel: true),
+          _syllable('low', syllableType: 'dead'),
+        ]),
+      ]);
+
+      expect(spans.shortSyllables, [false, true, true]);
     });
 
     test('contains は語の音節範囲だけ真になる', () {

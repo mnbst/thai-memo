@@ -98,10 +98,14 @@ class PronunciationResult {
 ///
 /// [f0Hz] はフレームごとのF0。無声・低信頼のフレームは null。
 /// [tones] は例文の音節の声調列（`WordBreakdown.syllables` を語順に連結したもの）。
+/// [shortSyllables] は声調の形を出しきれない音節（短母音・死音節）。
+/// [syllablePoints] は音節ごとの時間の取り分（[syllablePointsFor]）。
 /// [profile] は過去の録音から蓄積した声域。初回は null でよい。
 PronunciationResult analyzePronunciation({
   required List<double?> f0Hz,
   required List<ThaiTone> tones,
+  List<bool>? shortSyllables,
+  List<int>? syllablePoints,
   SpeakerPitchProfile? profile,
   double minVoicedRatio = kMinVoicedRatio,
 }) {
@@ -115,8 +119,11 @@ PronunciationResult analyzePronunciation({
     return PronunciationResult.failed(PronunciationFailure.captureFailed);
   }
 
-  final semitones = preparePitchTrack(f0Hz);
-  if (voicedRatio(semitones) < minVoicedRatio) {
+  // 補間の前後を両方持つ。補間したフレームは時間軸を保つために要るが、
+  // 実際の声ではないので採点には使わない。
+  final measured = medianFilter(toSemitones(f0Hz));
+  final semitones = interpolateShortGaps(measured);
+  if (voicedRatio(measured) < minVoicedRatio) {
     return PronunciationResult.failed(PronunciationFailure.tooQuiet);
   }
 
@@ -126,21 +133,42 @@ PronunciationResult analyzePronunciation({
     return PronunciationResult.failed(PronunciationFailure.noSpeakerRange);
   }
 
-  // 無声フレームは落とす。ピッチを持たず比較できないため。
-  // 前後関係は DTW が単調に保つので、時間軸の情報が失われても対応づけは崩れない。
-  final queryZ = normalizeToSpeakerRange(semitones, range)
-      .whereType<double>()
-      .toList();
+  // 残った無声フレームを落とす前に、前後の無音を切り落とす。
+  //
+  // 短い無声区間は preparePitchTrack で補間済みなので、ここに残るのは発話の
+  // 前後の無音と、語間の長い間だけ。前後の無音は落としても時間軸が歪まないが、
+  // 途中の間を落とすと歪む。**時間軸の比例関係は DTW の帯が前提にしている**ので、
+  // 落とす対象は最小限にする。
+  final normalized = normalizeToSpeakerRange(semitones, range);
+  final first = normalized.indexWhere((v) => v != null);
+  final last = normalized.lastIndexWhere((v) => v != null);
+
+  final queryZ = <double>[];
+  final queryVoiced = <bool>[];
+  if (first >= 0) {
+    for (var i = first; i <= last; i++) {
+      final v = normalized[i];
+      if (v == null) continue;
+      queryZ.add(v);
+      queryVoiced.add(measured[i] != null);
+    }
+  }
   if (queryZ.isEmpty) {
     return PronunciationResult.failed(PronunciationFailure.tooQuiet);
   }
 
-  final reference = ReferenceContour.fromTones(tones);
+  final reference = ReferenceContour.fromTones(
+    tones,
+    shortSyllables: shortSyllables,
+    syllablePoints: syllablePoints,
+  );
   final path = dtwAlign(reference.values, queryZ);
   final scores = scoreSyllables(
     reference: reference,
     queryZ: queryZ,
+    queryVoiced: queryVoiced,
     path: path,
+    shortSyllables: shortSyllables,
   );
 
   return PronunciationResult(

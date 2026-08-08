@@ -67,24 +67,41 @@ Color? _recognitionColor(WordRecognition recognition, ColorScheme scheme) {
   }
 }
 
-/// 語の判定は、その語に含まれる音節のうち最も悪いものに合わせる。
+/// 語に含まれる音節のうち、どれだけ合っていれば語として合格とみなすか。
 ///
-/// 1音節でも外していれば、その語は言い直す価値がある。
-ToneVerdict _worstVerdict(Iterable<SyllableScore> scores) {
-  var worst = ToneVerdict.unscored;
-  for (final score in scores) {
+/// 1音節でも外すと語全体が×になる作りだと、大半が合っている語まで赤くなり、
+/// どこを直せばよいのか分からない。8割ほど合っていれば合格として扱う。
+const double _wordCorrectRatio = 0.75;
+
+/// これを下回ると語として「違う」。
+const double _wordCloseRatio = 0.4;
+
+/// 語の判定を、含まれる音節の合い具合の割合から決める。
+///
+/// 「惜しい」は半分として数える。音節ごとの内訳は語をタップすれば見られるので、
+/// 帯は語として言い直す必要があるかどうかだけを伝える。
+ToneVerdict _wordVerdict(Iterable<SyllableScore> scores) {
+  final scored =
+      scores.where((s) => s.verdict != ToneVerdict.unscored).toList();
+  if (scored.isEmpty) return ToneVerdict.unscored;
+
+  var total = 0.0;
+  for (final score in scored) {
     switch (score.verdict) {
-      case ToneVerdict.wrong:
-        return ToneVerdict.wrong;
-      case ToneVerdict.close:
-        worst = ToneVerdict.close;
       case ToneVerdict.correct:
-        if (worst == ToneVerdict.unscored) worst = ToneVerdict.correct;
+        total += 1;
+      case ToneVerdict.close:
+        total += 0.5;
+      case ToneVerdict.wrong:
       case ToneVerdict.unscored:
         break;
     }
   }
-  return worst;
+
+  final ratio = total / scored.length;
+  if (ratio >= _wordCorrectRatio) return ToneVerdict.correct;
+  if (ratio >= _wordCloseRatio) return ToneVerdict.close;
+  return ToneVerdict.wrong;
 }
 
 class PronunciationPractice extends ConsumerWidget {
@@ -218,7 +235,16 @@ class _PracticeBody extends ConsumerWidget {
           spans: spans,
           selectedWordIndex: state.selectedWordIndex,
           onSelectWord: controller.toggleWord,
-          onRetry: controller.reset,
+          onRetry: () {
+            controller.reset();
+            // 結果を畳むと画面が縮んで、直前まで見ていた位置が例文から
+            // 大きくずれる。言い直すには例文をもう一度見たいので先頭へ戻す。
+            Scrollable.maybeOf(context)?.position.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+          },
           l10n: l10n,
         );
 
@@ -229,6 +255,8 @@ class _PracticeBody extends ConsumerWidget {
           onStart: controller.startRecording,
           onStop: () => controller.stopAndAnalyze(
             tones: spans.tones,
+            shortSyllables: spans.shortSyllables,
+            syllablePoints: spans.syllablePoints,
             expectedWords: spans.words.map((w) => w.wordText).toList(),
           ),
           l10n: l10n,
@@ -473,7 +501,7 @@ class _WordChips extends StatelessWidget {
       runSpacing: 6,
       children: List.generate(spans.words.length, (index) {
         final span = spans.words[index];
-        final verdict = _worstVerdict(_scoresOfWord(result, spans, index));
+        final verdict = _wordVerdict(_scoresOfWord(result, spans, index));
         final toneColor = _verdictColor(verdict, scheme);
         final recognitionColor = index < recognition.length
             ? _recognitionColor(recognition[index], scheme)
