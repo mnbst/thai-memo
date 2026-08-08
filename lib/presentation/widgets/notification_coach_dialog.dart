@@ -3,11 +3,11 @@ import '../../l10n/app_localizations.dart';
 
 /// 毎日例文通知を「継続をサポートする機能」として紹介するコーチングダイアログ。
 ///
-/// このダイアログでは通知をオンにしない。「わかった」を押すと呼び出し側が
-/// 設定画面へ移動し、実際に操作するトグルをコーチマークで示す。OSの許可要求は
-/// ユーザーがそのトグルを自分で操作したときに初めて出る。iOSの許可ダイアログは
-/// 一度拒否されるとアプリからは二度と出せないため、何のための通知かを伝え、
-/// かつ本人の操作を挟んでから聞く。
+/// 「通知をオンにする」を押した時点で呼び出し側がOSの許可要求を出す。以前は
+/// 設定画面のトグルまで自分で辿らせていたが、承諾した人がトグルに到達せず
+/// トークン登録まで届いていなかった（2026-08時点でアクティブの23%しか登録なし）。
+/// iOSの許可ダイアログは一度拒否されると二度と出せないため、何のための通知かを
+/// このダイアログで伝えてから聞く、という順序自体は変えない。
 class NotificationCoachDialog extends StatelessWidget {
   const NotificationCoachDialog({super.key});
 
@@ -74,9 +74,13 @@ class NotificationCoachDialog extends StatelessWidget {
       contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
       actionsPadding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
       actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(L10n.of(context).notifCoachLater),
+        ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
-          child: Text(L10n.of(context).commonGotIt),
+          child: Text(L10n.of(context).notifCoachEnable),
         ),
       ],
     );
@@ -196,9 +200,9 @@ class _NotificationPreview extends StatelessWidget {
   }
 }
 
-/// コーチングダイアログを表示し、設定画面へ案内してよいかを返す。
+/// コーチングダイアログを表示し、通知をオンにしてよいかを返す。
 ///
-/// バリアタップなど明示的な選択なしで閉じた場合は false（案内しない）。
+/// バリアタップなど明示的な選択なしで閉じた場合は false（許可要求を出さない）。
 Future<bool> showNotificationCoachDialog(BuildContext context) async {
   final result = await showDialog<bool>(
     context: context,
@@ -209,13 +213,14 @@ Future<bool> showNotificationCoachDialog(BuildContext context) async {
 
 /// コーチングダイアログを出すべきか。
 ///
-/// [permissionGranted] はOSの通知許可状態。既に許可済みなら紹介する必要がない。
+/// [permissionGranted] はOSの通知許可状態で、null は判定不能（取得失敗）。
+/// 既に許可済みなら紹介する必要がなく、判定不能なら出さずに次の機会へ回す。
 /// アプリ内設定 `dailyReminderEnabled` は既定オンで、OSが未許可でも
 /// syncPushRegistration がオフに倒すまで true のままなので判定には使わない。
 bool shouldShowNotificationCoach({
   required bool coachShown,
-  required bool permissionGranted,
+  required bool? permissionGranted,
 }) {
   if (coachShown) return false;
-  return !permissionGranted;
+  return permissionGranted == false;
 }

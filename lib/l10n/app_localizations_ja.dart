@@ -494,13 +494,6 @@ class L10nJa extends L10n {
   String get trialEndedSeePremium => 'プレミアムを見る';
 
   @override
-  String get coachNotificationTitle => 'ここで通知をオンにできます';
-
-  @override
-  String get coachNotificationMessage =>
-      'このスイッチをオンにすると、毎日きまった時刻に例文が届きます。通知する時刻はすぐ下の項目で変更できます。';
-
-  @override
   String get topicPickerTitle => 'テーマを選択';
 
   @override
@@ -824,6 +817,15 @@ class L10nJa extends L10n {
   String get notifCoachSampleBody => '→ コーヒーをありがとうございます';
 
   @override
+  String get notifCoachEnable => '通知をオンにする';
+
+  @override
+  String get notifCoachLater => 'あとで';
+
+  @override
+  String get notifCoachEnabled => '毎日この時間に例文をお届けします。時刻は設定で変更できます。';
+
+  @override
   String get commonGotIt => 'わかった';
 
   @override
@@ -910,6 +912,87 @@ class L10nJa extends L10n {
 
   @override
   String get audioPosition => '再生位置';
+
+  @override
+  String get pronunciationTitle => '発音してみる';
+
+  @override
+  String get pronunciationHoldToSpeak => '押しながら発声';
+
+  @override
+  String get pronunciationRecording => '録音中… 離すと判定';
+
+  @override
+  String get pronunciationAnalyzing => '判定中…';
+
+  @override
+  String get pronunciationRetry => 'もう一度';
+
+  @override
+  String get pronunciationReference => 'お手本';
+
+  @override
+  String get pronunciationYours => 'あなた';
+
+  @override
+  String get pronunciationTapWordHint => '語をタップすると詳しく見られます';
+
+  @override
+  String pronunciationScore(int score) {
+    return '$score点';
+  }
+
+  @override
+  String get pronunciationVerdictCorrect => '合っています';
+
+  @override
+  String get pronunciationVerdictClose => '惜しい';
+
+  @override
+  String get pronunciationVerdictWrong => '違います';
+
+  @override
+  String get pronunciationVerdictUnscored => '判定対象外';
+
+  @override
+  String get pronunciationTooQuiet => '声が拾えませんでした。静かな場所でもう一度お試しください';
+
+  @override
+  String get pronunciationNoSpeakerRange => '声の高さが読み取れませんでした。もう一度お試しください';
+
+  @override
+  String get pronunciationNoSyllables => 'この例文は発音練習に対応していません';
+
+  @override
+  String get pronunciationMonotone => '抑揚が付いていません。声調を意識してもう一度';
+
+  @override
+  String get pronunciationCaptureFailed => 'マイクから音声を取得できませんでした';
+
+  @override
+  String get pronunciationPermissionTitle => 'マイクの使用を許可してください';
+
+  @override
+  String get pronunciationPermissionBody =>
+      '発音を判定するためにマイクを使います。録音した音声は端末の中だけで処理され、どこにも送信されません。';
+
+  @override
+  String get pronunciationPermissionOpenSettings => '設定を開く';
+
+  @override
+  String get pronunciationBandTone => '上の帯＝声調';
+
+  @override
+  String get pronunciationBandSpeech => '下の帯＝発音（通じたか）';
+
+  @override
+  String get pronunciationSpeechUnavailable => 'この端末では発音の判定に対応していません（声調のみ）';
+
+  @override
+  String get pronunciationPremiumTitle => '発音練習はプレミアム機能です';
+
+  @override
+  String get pronunciationPremiumBody => 'お手本と自分の声調を比べて、音節ごとに確認できます。';
 
   @override
   String tipWithExample(String content, String example) {

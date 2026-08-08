@@ -18,6 +18,9 @@ import {
   FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES,
   PREMIUM_DAILY_SENTENCES, PREMIUM_DAILY_QUIZZES,
 } from './constants/quota';
+import {
+  EXPIRY_DEMOTION_MARGIN_MS, GRACE_PERIOD_MAX_MS, STORE_PLATFORMS,
+} from './constants/subscription';
 
 const db = admin.firestore();
 
@@ -245,14 +248,14 @@ async function clearDuplicateFcmTokens(
   );
 }
 
-/** 期限切れ判定の猶予（更新直後の通知遅延で誤って free に落とさないため） */
-const EXPIRY_DEMOTION_MARGIN_MS = 24 * 60 * 60 * 1000;
-
 /**
  * tierに応じて remaining_sentences / remaining_quizzes を日次リセット。
  *
  * ストア通知の取りこぼし対策として、subscription.expires_at を24時間以上
- * 過ぎた premium は free に落とす（猶予期間中は維持）。
+ * 過ぎた premium は free に落とす。猶予期間中（grace_period）は維持するが、
+ * GRACE_PERIOD_MAX_MS を過ぎたら通知の取りこぼしとみなして落とす。
+ * ストア購入なのに expires_at を持たない premium も、期限判定が効かず
+ * 永久 premium になるため落とす。
  * subscription フィールドがない premium（dev環境の手動設定等）は対象外。
  */
 export async function resetQuota(
@@ -263,12 +266,19 @@ export async function resetQuota(
   const subscription = userData.subscription ?? {};
   const expiresAtMs: number | undefined =
     subscription.expires_at?.toMillis?.();
+  const isStoreSubscription = STORE_PLATFORMS.includes(subscription.platform);
+
+  // 猶予期間中は期限超過が前提なので、通常より長い上限で判定する
+  const margin = subscription.status === 'grace_period' ?
+    GRACE_PERIOD_MAX_MS :
+    EXPIRY_DEMOTION_MARGIN_MS;
 
   const subscriptionLapsed =
     tier === 'premium' &&
-    typeof expiresAtMs === 'number' &&
-    subscription.status !== 'grace_period' &&
-    Date.now() - expiresAtMs > EXPIRY_DEMOTION_MARGIN_MS;
+    (typeof expiresAtMs === 'number' ?
+      Date.now() - expiresAtMs > margin :
+      // ストア購入で expires_at がない = 期限判定が働かないので premium を維持しない
+      isStoreSubscription);
 
   const isPremium = tier === 'premium' && !subscriptionLapsed;
   const sentenceResetValue = isPremium ?

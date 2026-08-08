@@ -377,7 +377,8 @@ class SettingsController extends StateNotifier<SettingsState> {
   }
 
   /// OSの通知許可が既に得られているか。コーチングダイアログの出し分けに使う。
-  Future<bool> hasNotificationPermission() => _push.hasPermission();
+  /// 取得できなかった場合は null（判定不能）。
+  Future<bool?> hasNotificationPermission() => _push.hasPermission();
 
   /// 通知コーチングダイアログを表示済みにする。
   ///

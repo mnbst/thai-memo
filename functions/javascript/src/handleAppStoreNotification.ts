@@ -153,11 +153,17 @@ export const handleAppStoreNotification = functions.https.onRequest(
           }
           break;
 
-        // 新規登録または更新情報変更 → premium / active
+        // 新規登録 → premium / active
         case 'SUBSCRIBED':
-        case 'DID_CHANGE_RENEWAL_INFO':
           tier = 'premium';
           status = 'active';
+          break;
+
+        // 更新情報変更（価格改定の同意、プラン変更予約など）
+        // 解約後にも届くため、autoRenewStatus を見て canceled を維持する
+        case 'DID_CHANGE_RENEWAL_INFO':
+          tier = 'premium';
+          status = renewalInfo?.autoRenewStatus === 0 ? 'canceled' : 'active';
           break;
 
         // 未対応の通知タイプはログに記録してスキップ
@@ -177,12 +183,24 @@ export const handleAppStoreNotification = functions.https.onRequest(
         const updateData: Record<string, unknown> = {
           tier,
           'subscription.status': status,
-          'subscription.expires_at': expiresAt
-            ? admin.firestore.Timestamp.fromDate(expiresAt)
-            : null,
           'subscription.auto_renewing': autoRenewing,
           'subscription.updated_at': admin.firestore.FieldValue.serverTimestamp(),
         };
+
+        // expires_at は premium の期限切れフォールバック（dailyBatch /
+        // subscriptionStatus）の判定材料。premium のまま null で上書きすると
+        // 期限判定が効かなくなるため、値が無い premium 通知では既存値を残す
+        if (expiresAt) {
+          updateData['subscription.expires_at'] =
+            admin.firestore.Timestamp.fromDate(expiresAt);
+        } else if (isFree) {
+          updateData['subscription.expires_at'] = null;
+        } else {
+          console.warn(
+            `No expiresDate in ${notificationType} notification; ` +
+              `keeping existing expires_at for user ${userDoc.id}`
+          );
+        }
 
         if (tierChanged) {
           updateData.remaining_sentences = isFree ? FREE_DAILY_SENTENCES : PREMIUM_DAILY_SENTENCES;

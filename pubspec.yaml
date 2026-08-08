@@ -78,6 +78,7 @@ dependencies:
   firebase_messaging: ^16.4.3
   flutter_timezone: ^5.1.0
   firebase_app_check: ^0.4.5+2
+  pitch_detector_dart: ^0.0.7
 
 
 

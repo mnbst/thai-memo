@@ -528,13 +528,6 @@ class L10nEn extends L10n {
   String get trialEndedSeePremium => 'See Premium';
 
   @override
-  String get coachNotificationTitle => 'Turn notifications on here';
-
-  @override
-  String get coachNotificationMessage =>
-      'Flip this switch and a sentence arrives at the same time every day. You can change the time in the row just below.';
-
-  @override
   String get topicPickerTitle => 'Choose a topic';
 
   @override
@@ -896,6 +889,16 @@ class L10nEn extends L10n {
   String get notifCoachSampleBody => '→ Thank you for the coffee';
 
   @override
+  String get notifCoachEnable => 'Turn on notifications';
+
+  @override
+  String get notifCoachLater => 'Not now';
+
+  @override
+  String get notifCoachEnabled =>
+      'Your daily sentence will arrive at this time. You can change it in Settings.';
+
+  @override
   String get commonGotIt => 'Got it';
 
   @override
@@ -986,6 +989,95 @@ class L10nEn extends L10n {
 
   @override
   String get audioPosition => 'Playback position';
+
+  @override
+  String get pronunciationTitle => 'Try saying it';
+
+  @override
+  String get pronunciationHoldToSpeak => 'Hold and speak';
+
+  @override
+  String get pronunciationRecording => 'Recording… release to check';
+
+  @override
+  String get pronunciationAnalyzing => 'Checking…';
+
+  @override
+  String get pronunciationRetry => 'Try again';
+
+  @override
+  String get pronunciationReference => 'Model';
+
+  @override
+  String get pronunciationYours => 'You';
+
+  @override
+  String get pronunciationTapWordHint => 'Tap a word for details';
+
+  @override
+  String pronunciationScore(int score) {
+    return '$score';
+  }
+
+  @override
+  String get pronunciationVerdictCorrect => 'Correct';
+
+  @override
+  String get pronunciationVerdictClose => 'Close';
+
+  @override
+  String get pronunciationVerdictWrong => 'Off';
+
+  @override
+  String get pronunciationVerdictUnscored => 'Not checked';
+
+  @override
+  String get pronunciationTooQuiet =>
+      'We couldn\'t hear you. Try again somewhere quieter.';
+
+  @override
+  String get pronunciationNoSpeakerRange =>
+      'We couldn\'t read your pitch. Please try again.';
+
+  @override
+  String get pronunciationNoSyllables =>
+      'This sentence doesn\'t support pronunciation practice.';
+
+  @override
+  String get pronunciationMonotone =>
+      'Your pitch stayed flat. Try again, focusing on the tones.';
+
+  @override
+  String get pronunciationCaptureFailed =>
+      'Couldn\'t capture audio from the microphone';
+
+  @override
+  String get pronunciationPermissionTitle => 'Microphone access needed';
+
+  @override
+  String get pronunciationPermissionBody =>
+      'We use the microphone to check your pronunciation. Your audio is processed entirely on this device and is never uploaded.';
+
+  @override
+  String get pronunciationPermissionOpenSettings => 'Open settings';
+
+  @override
+  String get pronunciationBandTone => 'Top bar = tone';
+
+  @override
+  String get pronunciationBandSpeech => 'Bottom bar = sounds (understood)';
+
+  @override
+  String get pronunciationSpeechUnavailable =>
+      'This device can\'t check your sounds (tone only)';
+
+  @override
+  String get pronunciationPremiumTitle =>
+      'Pronunciation practice is a Premium feature';
+
+  @override
+  String get pronunciationPremiumBody =>
+      'Compare your tones with the model, syllable by syllable.';
 
   @override
   String tipWithExample(String content, String example) {

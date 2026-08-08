@@ -33,12 +33,10 @@ class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  ConsumerState<SettingsScreen> createState() => SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class SettingsScreenState extends ConsumerState<SettingsScreen> {
-  /// 毎日例文通知トグルの位置特定用（コーチマーク表示に使用）。
-  final GlobalKey _dailyReminderTileKey = GlobalKey();
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -46,31 +44,6 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     CoachMarkOverlay.dismiss();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  /// 毎日例文通知のトグルをスポットライトで案内する（HomeScreenから呼ばれる）。
-  ///
-  /// OSの許可要求はここでは出さない。ユーザー自身がトグルを操作したときに
-  /// [SettingsController.setDailyReminderEnabled] 経由で出す。iOSでは一度拒否
-  /// されると二度と要求できないため、何のための通知かを伝えてから聞く。
-  Future<void> showDailyReminderCoach() async {
-    final target = _dailyReminderTileKey.currentContext;
-    if (target == null) return;
-    // 設定画面はスクロールするため、トグルを画面内に入れてから位置を確定させる。
-    await Scrollable.ensureVisible(target, alignment: 0.3);
-    if (!mounted) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _dailyReminderTileKey.currentContext == null) return;
-      CoachMarkOverlay.show(
-        context,
-        targetKey: _dailyReminderTileKey,
-        icon: Icons.notifications_active,
-        interactive: true,
-        title: L10n.of(context).coachNotificationTitle,
-        message: L10n.of(context).coachNotificationMessage,
-      );
-    });
   }
 
   @override
@@ -585,7 +558,6 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     final enabled = ref.watch(dailyReminderEnabledProvider);
 
     return SwitchListTile(
-      key: _dailyReminderTileKey,
       contentPadding: EdgeInsets.zero,
       secondary: Icon(
         Icons.notifications_active,

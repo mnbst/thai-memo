@@ -188,6 +188,53 @@ describe('resetQuota', () => {
     expect(writeData.remaining_sentences).toBe(PREMIUM_DAILY_SENTENCES);
   });
 
+  test('猶予期間の上限（30日）を過ぎたgrace_periodは降格する', async () => {
+    // GRACE_PERIOD_EXPIRED / EXPIRED 通知を取りこぼしたケース
+    await resetQuota(makeUserDoc({
+      tier: 'premium',
+      subscription: {
+        status: 'grace_period',
+        platform: 'ios',
+        expires_at: makeTimestamp(Date.now() - 31 * 24 * 60 * 60 * 1000),
+      },
+    }));
+
+    expect(mockUserDocSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tier: 'free',
+        remaining_sentences: FREE_DAILY_SENTENCES,
+        subscription: { status: 'expired' },
+      }),
+      { merge: true }
+    );
+  });
+
+  test('expires_atがないストア購入のpremiumは降格する（期限判定が効かないため）', async () => {
+    await resetQuota(makeUserDoc({
+      tier: 'premium',
+      subscription: { status: 'active', platform: 'android' },
+    }));
+
+    expect(mockUserDocSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tier: 'free',
+        subscription: { status: 'expired' },
+      }),
+      { merge: true }
+    );
+  });
+
+  test('expires_atがない手動付与のpremium（無期限）は降格しない', async () => {
+    await resetQuota(makeUserDoc({
+      tier: 'premium',
+      subscription: { status: 'active', platform: 'manual' },
+    }));
+
+    const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(writeData.tier).toBeUndefined();
+    expect(writeData.remaining_sentences).toBe(PREMIUM_DAILY_SENTENCES);
+  });
+
   test('subscriptionフィールドがないpremium（dev手動設定等）は降格しない', async () => {
     await resetQuota(makeUserDoc({
       tier: 'premium',

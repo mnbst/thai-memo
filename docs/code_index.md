@@ -207,6 +207,44 @@ lib/services/daily_sentence_service.dart
 lib/core/thai_tone_analyzer.dart
 ルールベースのタイ語声調分析（子音クラス、音節タイプ、声調記号）。
 
+## Pronunciation Practice (声調の発音判定)
+
+lib/core/pronunciation/pitch_track.dart
+F0系列の前処理。Hz→セミトーン変換とメディアンフィルタによるオクターブ誤り除去。
+
+lib/core/pronunciation/speaker_range.dart
+話者の声域推定と正規化。録音から自己推定し、不安定なときは蓄積プロファイルで代替する。
+
+lib/core/pronunciation/tone_contour.dart
+5声調の標準ピッチカーブ定数と、音節の声調列からお手本カーブを組み立てる処理。
+
+lib/core/pronunciation/dtw.dart
+DTWでお手本カーブと録音ピッチを対応づける（音節境界の推定を兼ねる）。
+
+lib/core/pronunciation/pronunciation_scorer.dart
+音節ごとの採点。レベル誤差（高さ）と形状誤差（動き）の2軸で ○/惜しい/× を出す。
+
+lib/core/pronunciation/pronunciation_analyzer.dart
+発音判定のパイプライン全体。マイク・UIに依存しない純粋関数で、録音なしでテストできる。
+
+lib/domain/sentence_tone_spans.dart
+単語分解から音節の声調列と語↔音節の対応を作る。判定は音節単位、表示は語単位のため。
+
+lib/core/pronunciation/transcript_match.dart
+音声認識の結果と例文を語単位で照合し「通じたか」を返す。声調とは別軸の検査。
+
+lib/services/speech_capture_service.dart
+ネイティブのマイク収録との橋渡し。マイクは1箇所だけが握り、PCMと音声認識へ分岐する。
+
+lib/services/pitch_recorder_service.dart
+収録からF0抽出まで。YINは重いので抽出は必ず別isolate（compute）で回す。
+
+lib/presentation/providers/pronunciation_provider.dart
+発音練習の状態管理（録音→判定→永続化）と、声調別集計・最弱声調の算出。
+
+lib/presentation/widgets/pronunciation_practice.dart
+例文詳細の発音練習セクション。語ごとの判定色帯と、選択した語のピッチカーブ描画。
+
 ---
 
 ## Cloud Functions — JavaScript/TypeScript
@@ -277,6 +315,9 @@ App Store Server API v1 サブスクリプション検証。
 
 functions/javascript/src/constants/quota.ts
 日次生成上限（free/premium別）。
+
+functions/javascript/src/constants/subscription.ts
+期限切れ降格の猶予・猶予期間上限・ストア platform 値。
 
 functions/javascript/src/constants/defaultQuizQuestions.ts
 クイズ生成フォールバック用デフォルト例文。
@@ -362,6 +403,9 @@ docs/design_english_version.md
 
 docs/design_daily_sentence.md
 毎日例文の配信＋プッシュ通知の設計（配信ターゲティング、段階バックオフ、反応シグナル、必要フィールド）。
+
+docs/design_pronunciation_practice.md
+発音練習（声調）の設計。例文詳細でお手本と自分の声のピッチを比較する。F0抽出・自己正規化・DTW対応づけ・採点。
 
 docs/quiz_generation_logic.md
 クイズ生成ロジック（SRS例文選出→Gemini穴埋め生成→サニタイズ→デフォルト補填）。

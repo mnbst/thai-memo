@@ -23,6 +23,7 @@ import '../providers/tts_provider.dart';
 import '../widgets/topic_picker.dart';
 import '../tone_explanation_dialog.dart';
 import '../widgets/sentence_audio_player.dart';
+import '../widgets/pronunciation_practice.dart';
 
 /// 例文の詳細表示画面。
 ///
@@ -165,6 +166,12 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                       source: 'detail_sentence',
                     ),
               ),
+            ),
+            const SizedBox(height: 12),
+            // お手本を聞いたあとに自分で発声して声調を確かめる
+            PronunciationPractice(
+              sentenceId: widget.sentence.id,
+              words: widget.sentence.wordBreakdowns,
             ),
             const SizedBox(height: 16),
             const Divider(),

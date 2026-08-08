@@ -1015,18 +1015,6 @@ abstract class L10n {
   /// **'プレミアムを見る'**
   String get trialEndedSeePremium;
 
-  /// No description provided for @coachNotificationTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'ここで通知をオンにできます'**
-  String get coachNotificationTitle;
-
-  /// No description provided for @coachNotificationMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'このスイッチをオンにすると、毎日きまった時刻に例文が届きます。通知する時刻はすぐ下の項目で変更できます。'**
-  String get coachNotificationMessage;
-
   /// No description provided for @topicPickerTitle.
   ///
   /// In ja, this message translates to:
@@ -1621,6 +1609,24 @@ abstract class L10n {
   /// **'→ コーヒーをありがとうございます'**
   String get notifCoachSampleBody;
 
+  /// No description provided for @notifCoachEnable.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知をオンにする'**
+  String get notifCoachEnable;
+
+  /// No description provided for @notifCoachLater.
+  ///
+  /// In ja, this message translates to:
+  /// **'あとで'**
+  String get notifCoachLater;
+
+  /// No description provided for @notifCoachEnabled.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎日この時間に例文をお届けします。時刻は設定で変更できます。'**
+  String get notifCoachEnabled;
+
   /// No description provided for @commonGotIt.
   ///
   /// In ja, this message translates to:
@@ -1788,6 +1794,162 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'再生位置'**
   String get audioPosition;
+
+  /// No description provided for @pronunciationTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音してみる'**
+  String get pronunciationTitle;
+
+  /// No description provided for @pronunciationHoldToSpeak.
+  ///
+  /// In ja, this message translates to:
+  /// **'押しながら発声'**
+  String get pronunciationHoldToSpeak;
+
+  /// No description provided for @pronunciationRecording.
+  ///
+  /// In ja, this message translates to:
+  /// **'録音中… 離すと判定'**
+  String get pronunciationRecording;
+
+  /// No description provided for @pronunciationAnalyzing.
+  ///
+  /// In ja, this message translates to:
+  /// **'判定中…'**
+  String get pronunciationAnalyzing;
+
+  /// No description provided for @pronunciationRetry.
+  ///
+  /// In ja, this message translates to:
+  /// **'もう一度'**
+  String get pronunciationRetry;
+
+  /// No description provided for @pronunciationReference.
+  ///
+  /// In ja, this message translates to:
+  /// **'お手本'**
+  String get pronunciationReference;
+
+  /// No description provided for @pronunciationYours.
+  ///
+  /// In ja, this message translates to:
+  /// **'あなた'**
+  String get pronunciationYours;
+
+  /// No description provided for @pronunciationTapWordHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'語をタップすると詳しく見られます'**
+  String get pronunciationTapWordHint;
+
+  /// No description provided for @pronunciationScore.
+  ///
+  /// In ja, this message translates to:
+  /// **'{score}点'**
+  String pronunciationScore(int score);
+
+  /// No description provided for @pronunciationVerdictCorrect.
+  ///
+  /// In ja, this message translates to:
+  /// **'合っています'**
+  String get pronunciationVerdictCorrect;
+
+  /// No description provided for @pronunciationVerdictClose.
+  ///
+  /// In ja, this message translates to:
+  /// **'惜しい'**
+  String get pronunciationVerdictClose;
+
+  /// No description provided for @pronunciationVerdictWrong.
+  ///
+  /// In ja, this message translates to:
+  /// **'違います'**
+  String get pronunciationVerdictWrong;
+
+  /// No description provided for @pronunciationVerdictUnscored.
+  ///
+  /// In ja, this message translates to:
+  /// **'判定対象外'**
+  String get pronunciationVerdictUnscored;
+
+  /// No description provided for @pronunciationTooQuiet.
+  ///
+  /// In ja, this message translates to:
+  /// **'声が拾えませんでした。静かな場所でもう一度お試しください'**
+  String get pronunciationTooQuiet;
+
+  /// No description provided for @pronunciationNoSpeakerRange.
+  ///
+  /// In ja, this message translates to:
+  /// **'声の高さが読み取れませんでした。もう一度お試しください'**
+  String get pronunciationNoSpeakerRange;
+
+  /// No description provided for @pronunciationNoSyllables.
+  ///
+  /// In ja, this message translates to:
+  /// **'この例文は発音練習に対応していません'**
+  String get pronunciationNoSyllables;
+
+  /// No description provided for @pronunciationMonotone.
+  ///
+  /// In ja, this message translates to:
+  /// **'抑揚が付いていません。声調を意識してもう一度'**
+  String get pronunciationMonotone;
+
+  /// No description provided for @pronunciationCaptureFailed.
+  ///
+  /// In ja, this message translates to:
+  /// **'マイクから音声を取得できませんでした'**
+  String get pronunciationCaptureFailed;
+
+  /// No description provided for @pronunciationPermissionTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'マイクの使用を許可してください'**
+  String get pronunciationPermissionTitle;
+
+  /// No description provided for @pronunciationPermissionBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音を判定するためにマイクを使います。録音した音声は端末の中だけで処理され、どこにも送信されません。'**
+  String get pronunciationPermissionBody;
+
+  /// No description provided for @pronunciationPermissionOpenSettings.
+  ///
+  /// In ja, this message translates to:
+  /// **'設定を開く'**
+  String get pronunciationPermissionOpenSettings;
+
+  /// No description provided for @pronunciationBandTone.
+  ///
+  /// In ja, this message translates to:
+  /// **'上の帯＝声調'**
+  String get pronunciationBandTone;
+
+  /// No description provided for @pronunciationBandSpeech.
+  ///
+  /// In ja, this message translates to:
+  /// **'下の帯＝発音（通じたか）'**
+  String get pronunciationBandSpeech;
+
+  /// No description provided for @pronunciationSpeechUnavailable.
+  ///
+  /// In ja, this message translates to:
+  /// **'この端末では発音の判定に対応していません（声調のみ）'**
+  String get pronunciationSpeechUnavailable;
+
+  /// No description provided for @pronunciationPremiumTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音練習はプレミアム機能です'**
+  String get pronunciationPremiumTitle;
+
+  /// No description provided for @pronunciationPremiumBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'お手本と自分の声調を比べて、音節ごとに確認できます。'**
+  String get pronunciationPremiumBody;
 
   /// No description provided for @tipWithExample.
   ///

@@ -54,7 +54,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   final _showAppIcon = ValueNotifier<bool>(true);
   final _dailySentenceService = DailySentenceService();
   final _learningKey = GlobalKey<_LearningScreenState>();
-  final _settingsKey = GlobalKey<SettingsScreenState>();
   StreamSubscription<RemoteMessage>? _notificationOpenSubscription;
 
   @override
@@ -180,16 +179,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await PaywallBottomSheet.show(context, source: 'trial_ended');
   }
 
-  /// 学習を一巡済みなのに通知の案内をまだ出せていない場合、起動時に出し直す。
+  /// 例文の価値を体験済みなのに通知の案内をまだ出せていない場合、起動時に出し直す。
   ///
-  /// 案内はまとめクイズ完了時に出すが、その直前・表示中にアプリを落とすと
-  /// 「初回サイクル」の判定は既に永続化済みで二度と成立しない。表示済みフラグ
-  /// （notification_coach_shown）を条件にして次の起動で拾い直す。
+  /// 案内はまとめクイズ完了時に出すが、その完了を条件にすると取りこぼしが大きい。
+  /// まとめクイズは例文5つごとで、そこに届く前に通知が使えないままのユーザーが
+  /// 残るうえ、案内の直前・表示中にアプリを落とすと「初回サイクル」の判定は
+  /// 既に永続化済みで二度と成立しない。例文を1つでも学習していれば価値は
+  /// 伝わっているので、表示済みフラグ（notification_coach_shown）だけを条件に
+  /// 次の起動で拾い直す。
   Future<void> _retryNotificationCoachIfPending() async {
-    final prefs = await SharedPreferences.getInstance();
-    final firstCycleDone =
-        prefs.getBool(AppConfig.prefKeyFirstSummaryQuizCompleted) ?? false;
-    if (!firstCycleDone || !mounted) return;
+    // 初期化前の state は「表示済み」側の既定値なので、読む前に必ず待つ。
+    await ref.read(settingsControllerProvider.notifier).initialized;
+    if (!mounted ||
+        ref.read(settingsControllerProvider).notificationCoachShown) {
+      return;
+    }
+    final sentences = await ref.read(allSentencesProvider.future);
+    if (sentences.isEmpty || !mounted) return;
     await _maybeShowNotificationCoach();
   }
 
@@ -221,12 +227,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _learningKey.currentState?.showSentenceStage();
   }
 
-  /// 初回の学習が一巡した直後に一度だけ、毎日例文通知を継続サポート機能として紹介する。
+  /// 例文の価値を体験した後に一度だけ、毎日例文通知を継続サポート機能として紹介する。
   ///
-  /// 例文の価値を体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否
-  /// されると二度と要求できない）ため、インストール直後ではなくここで出す。
-  /// 「わかった」を押したら設定タブへ移り、実際に操作するトグルを明示する。
-  /// 許可要求はユーザーがそのトグルを操作したときに初めて出る。
+  /// 体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否されると
+  /// 二度と要求できない）ため、インストール直後には出さない。
+  /// 「通知をオンにする」を押したらその場でOSの許可要求まで出す。設定タブの
+  /// トグルまで自分で辿らせていた頃は、承諾してもトークン登録まで届いていなかった。
   Future<void> _maybeShowNotificationCoach() async {
     final controller = ref.read(settingsControllerProvider.notifier);
     await controller.initialized;
@@ -234,12 +240,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final coachShown =
         ref.read(settingsControllerProvider).notificationCoachShown;
-    // 既に許可済みのユーザーには紹介する必要がない（表示済みとして記録する）。
+    final permissionGranted = await controller.hasNotificationPermission();
     if (!shouldShowNotificationCoach(
       coachShown: coachShown,
-      permissionGranted: await controller.hasNotificationPermission(),
+      permissionGranted: permissionGranted,
     )) {
-      if (!coachShown) await controller.markNotificationCoachShown();
+      // 許可済みだと確認できたときだけ、紹介不要として記録する。判定不能（null）
+      // で記録すると、一度の取得失敗でそのユーザーが恒久的に案内対象から外れる。
+      if (!coachShown && permissionGranted == true) {
+        await controller.markNotificationCoachShown();
+      }
       return;
     }
     // 他のコーチマークや前面の画面（オンボーディング等）とは重ねない。
@@ -253,23 +263,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final analytics = ref.read(analyticsServiceProvider);
     unawaited(analytics.logNotificationCoach(action: 'shown'));
 
-    final openSettings = await showNotificationCoachDialog(context);
+    final accepted = await showNotificationCoachDialog(context);
     unawaited(
       analytics.logNotificationCoach(
-        action: openSettings ? 'accepted' : 'dismissed',
+        action: accepted ? 'accepted' : 'dismissed',
       ),
     );
     // 出したら結果に関わらず記録する。断られた直後の出し直しは印象を悪くする。
     await controller.markNotificationCoachShown();
-    if (!openSettings || !mounted) return;
+    if (!accepted || !mounted) return;
 
-    setState(() => _currentIndex = 2);
-    _logCurrentTabScreen(index: 2);
-    // タブ切り替えの描画が済むまでトグルの位置が確定しない。
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_settingsKey.currentState?.showDailyReminderCoach() ??
-          Future.value());
-    });
+    // ここでOSの許可ダイアログが出る。拒否された場合トグルはオフのままになる。
+    final enabled = await controller.setDailyReminderEnabled(true);
+    unawaited(
+      analytics.logNotificationCoach(action: enabled ? 'enabled' : 'denied'),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(enabled
+            ? L10n.of(context).notifCoachEnabled
+            : L10n.of(context).settingsAllowNotificationInOsSettings),
+      ),
+    );
   }
 
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
@@ -430,7 +446,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         onFirstCycleCompleted: () => unawaited(_maybeShowNotificationCoach()),
       ),
       const HistoryScreen(),
-      SettingsScreen(key: _settingsKey),
+      const SettingsScreen(),
     ];
 
     return Scaffold(
