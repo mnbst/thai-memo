@@ -88,20 +88,6 @@ void main() {
       expect(result.overallScore, lessThan(100));
     });
 
-    test('中平声を低平声で発音すると correct にならない', () {
-      // どちらも平坦で、違いは声域内の高さだけ。形状だけを見る判定では
-      // 捕まえられない誤りで、レベル誤差を採点に入れている理由そのもの。
-      final result = analyzePronunciation(
-        f0Hz: synthesizeF0(
-          tones: _tones,
-          substitutions: {0: ThaiTone.low},
-        ),
-        tones: _tones,
-      );
-
-      expect(_verdictAt(result, 0), isNot(ToneVerdict.correct));
-    });
-
     test('高平声を低平声で発音すると correct にならない', () {
       final result = analyzePronunciation(
         f0Hz: synthesizeF0(

@@ -26,7 +26,9 @@ import '../../core/thai_tone_analyzer.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../services/analytics_service.dart';
 import '../../services/pitch_recorder_service.dart';
+import '../../services/tts_service.dart';
 import 'analytics_provider.dart';
+import 'tts_provider.dart';
 
 /// 発音練習の画面状態。
 enum PronunciationPhase {
@@ -85,8 +87,10 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     PitchRecorderService? recorder,
     required DatabaseHelper database,
     required AnalyticsService analytics,
+    required TtsService tts,
     required this.sentenceId,
   })  : _recorder = recorder ?? PitchRecorderService(),
+        _tts = tts,
         _database = database,
         _analytics = analytics,
         super(const PronunciationState());
@@ -94,6 +98,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
   final PitchRecorderService _recorder;
   final DatabaseHelper _database;
   final AnalyticsService _analytics;
+  final TtsService _tts;
   final String sentenceId;
 
   static const _uuid = Uuid();
@@ -107,6 +112,10 @@ class PronunciationController extends StateNotifier<PronunciationState> {
   /// 録音を開始する。マイクが未許可なら許可を求め、断られたら状態を切り替える。
   Future<void> startRecording() async {
     if (state.phase == PronunciationPhase.recording) return;
+
+    // お手本を再生したまま録音すると、自分の声と混ざって判定できない。
+    // マイクを掴む前に必ず止める。
+    await _tts.stopAll();
 
     if (!await _recorder.hasPermission()) {
       state = const PronunciationState(
@@ -138,6 +147,8 @@ class PronunciationController extends StateNotifier<PronunciationState> {
   /// 混ぜて1つの点数にすると、学習者はどちらを直せばよいか分からなくなる。
   Future<void> stopAndAnalyze({
     required List<ThaiTone> tones,
+    required List<bool> shortSyllables,
+    required List<int> syllablePoints,
     required List<String> expectedWords,
   }) async {
     if (state.phase != PronunciationPhase.recording) return;
@@ -149,8 +160,40 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     final result = analyzePronunciation(
       f0Hz: capture.f0Hz,
       tones: tones,
+      shortSyllables: shortSyllables,
+      syllablePoints: syllablePoints,
       profile: profile,
     );
+    // 高さも形も「どのフレームがどの音節か」の上に乗っている。時間軸が保たれて
+    // いるか（DTWの帯が前提にしている）を追えるよう、まず全体の内訳を出す。
+    final measuredFrames = capture.f0Hz.where((v) => v != null).length;
+    final span = result.syllables.isEmpty
+        ? 0
+        : result.syllables.last.queryEnd - result.syllables.first.queryStart + 1;
+    debugPrint(
+      'pronunciation frames: ${capture.f0Hz.length} total, '
+      '$measuredFrames measured, $span aligned',
+    );
+    // 判定に納得がいかないときに、どの数字でそうなったかを追えるようにする。
+    for (final score in result.syllables) {
+      final correlation = score.shapeCorrelation;
+      debugPrint(
+        'pronunciation syllable ${score.syllableIndex} ${score.tone.name}: '
+        'n=${score.queryValues.length} '
+        'span=${score.queryStart}-${score.queryEnd} '
+        'budget=${score.referencePoints} '
+        'corr=${correlation?.toStringAsFixed(2) ?? '-'} '
+        'slope=${score.shapeError.toStringAsFixed(2)} '
+        'link=${score.transitionError.toStringAsFixed(3)} '
+        // 採点が使った値をそのまま出す。ここで再計算すると、位置で中心を
+        // 決めている採点側とずれた数字が出てログが読めなくなる。
+        'you=${score.queryLevel.toStringAsFixed(2)} '
+        'model=${score.referenceLevel.toStringAsFixed(2)} '
+        'lvl=${score.levelError.toStringAsFixed(2)} '
+        '-> ${score.verdict.name}',
+      );
+    }
+
     if (!capture.transcriptAvailable) {
       // シミュレータでは必ずここに来る（端末内認識のアセットが無い）。
       // 非対応なのか壊れているのかを実機で切り分けられるよう理由を出す。
@@ -291,6 +334,7 @@ final pronunciationControllerProvider = StateNotifierProvider.autoDispose
   (ref, sentenceId) => PronunciationController(
     database: DatabaseHelper.instance,
     analytics: ref.read(analyticsServiceProvider),
+    tts: ref.read(ttsServiceProvider),
     sentenceId: sentenceId,
   ),
 );

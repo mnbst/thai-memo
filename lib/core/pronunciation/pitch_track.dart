@@ -89,13 +89,111 @@ double voicedRatio(List<double?> values) {
   return voiced / values.length;
 }
 
+/// 補間してよい無声区間の最大長（フレーム数）。ホップ10msで120ms。
+///
+/// 子音1つぶんの無声区間はこの程度に収まる。これを超える空白は語間の間なので、
+/// 埋めずに残す。
+const int kMaxInterpolatedGap = 12;
+
+/// 短い無声区間をまたいでF0を線形補間する。
+///
+/// **無声フレームを捨ててはいけない。** 子音（破裂音・摩擦音）の無声区間を
+/// 落とすと時間軸が縮むうえ、縮み方が音節ごとに違う。DTWの帯は「時間が比例して
+/// いる」ことを前提にしているので、この歪みを吸収できず、対応づけがずれる。
+/// カーブも有声区間の継ぎ目で垂直に跳んで見える。
+///
+/// 前後を有声に挟まれた短い空白だけを埋める。発話の前後の無音や、語間の長い間は
+/// 埋めない（そこは実際に声が無い）。
+List<double?> interpolateShortGaps(
+  List<double?> values, {
+  int maxGap = kMaxInterpolatedGap,
+}) {
+  final result = List<double?>.from(values);
+
+  var i = 0;
+  while (i < result.length) {
+    if (result[i] != null) {
+      i++;
+      continue;
+    }
+
+    final gapStart = i;
+    while (i < result.length && result[i] == null) {
+      i++;
+    }
+    final gapEnd = i; // 空白の次の有声フレーム
+
+    // 前後を有声に挟まれていて、かつ十分短いときだけ埋める。
+    if (gapStart == 0 || gapEnd >= result.length) continue;
+    if (gapEnd - gapStart > maxGap) continue;
+
+    final before = result[gapStart - 1]!;
+    final after = result[gapEnd]!;
+    final steps = gapEnd - gapStart + 1;
+    for (var k = gapStart; k < gapEnd; k++) {
+      final ratio = (k - gapStart + 1) / steps;
+      result[k] = before + (after - before) * ratio;
+    }
+  }
+
+  return result;
+}
+
+/// 発話全体にかかる直線的な傾きを取り除く。
+///
+/// 実際の発話は文が進むにつれてピッチが下がる（declination）。話者が意図して
+/// やっているわけではないので、これを声調の誤りとして数えてはいけない。
+/// 取り除かないと、**文末に近い音節ほど不当に低いと判定される**。
+/// 文末の丁寧語尾（ครับ / ค่ะ）は毎回その位置に来るため、影響が常に同じ語へ集中する。
+///
+/// 平均は動かさない（傾きだけを抜く）。後段の正規化が平均を落とすので、
+/// ここで水準まで動かす必要はない。
+List<double?> detrendSemitones(List<double?> values) {
+  final indices = <int>[];
+  final voiced = <double>[];
+  for (var i = 0; i < values.length; i++) {
+    final v = values[i];
+    if (v != null) {
+      indices.add(i);
+      voiced.add(v);
+    }
+  }
+  if (voiced.length < 2) return List<double?>.from(values);
+
+  final meanIndex = indices.reduce((a, b) => a + b) / indices.length;
+  final meanValue = voiced.reduce((a, b) => a + b) / voiced.length;
+
+  var covariance = 0.0;
+  var variance = 0.0;
+  for (var k = 0; k < voiced.length; k++) {
+    final di = indices[k] - meanIndex;
+    covariance += di * (voiced[k] - meanValue);
+    variance += di * di;
+  }
+  if (variance.abs() < 1e-9) return List<double?>.from(values);
+
+  final slope = covariance / variance;
+  return List<double?>.generate(values.length, (i) {
+    final v = values[i];
+    return v == null ? null : v - slope * (i - meanIndex);
+  });
+}
+
 /// F0（Hz）系列を、採点に使えるセミトーン系列へ整える。
 ///
-/// 変換 → メディアンフィルタの順で適用する。フィルタはセミトーン領域で掛ける
-/// （オクターブ誤りが「一定幅の跳ね」になり、対称に扱えるため）。
+/// 変換 → メディアンフィルタ → 短い無声区間の補間、の順で適用する。
+/// フィルタはセミトーン領域で掛ける（オクターブ誤りが「一定幅の跳ね」になり、
+/// 対称に扱えるため）。
+///
+/// 傾き除去（[detrendSemitones]）はここでは掛けない。6音節程度の文では、
+/// 推定した傾きが**先頭・末尾の音節の声調そのものを吸収**してしまい、
+/// 中平声と低平声の取り違えが検出できなくなる（実測でレベル誤差 0.562 → 0.051）。
+/// declination はお手本側に位置依存の傾きとして持たせる。
 List<double?> preparePitchTrack(
   List<double?> hz, {
   double refHz = kSemitoneRefHz,
   int window = kMedianFilterWindow,
 }) =>
-    medianFilter(toSemitones(hz, refHz: refHz), window: window);
+    interpolateShortGaps(
+      medianFilter(toSemitones(hz, refHz: refHz), window: window),
+    );

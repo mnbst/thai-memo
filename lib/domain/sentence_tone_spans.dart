@@ -41,7 +41,24 @@ class SentenceToneSpans {
   /// 語ごとの音節範囲。
   final List<WordToneSpan> words;
 
-  const SentenceToneSpans({required this.tones, required this.words});
+  /// 音節ごとに、声調の形を出しきれない長さか（[tones] と同じ順）。
+  ///
+  /// 短母音や死音節（末子音で閉じる音節）は時間が足りず、上昇声・下降声でも
+  /// 動きが完了しない。**この音節は形ではなく隣との高低差で判断する。**
+  final List<bool> shortSyllables;
+
+  /// 音節ごとの、お手本での時間の取り分（[syllablePointsFor]）。
+  ///
+  /// [shortSyllables] とは別に持つ。あちらは「動きを出しきれるか」、
+  /// こちらは「どれだけの長さか」で、判断の基準が違う。
+  final List<int> syllablePoints;
+
+  const SentenceToneSpans({
+    required this.tones,
+    required this.words,
+    required this.shortSyllables,
+    required this.syllablePoints,
+  });
 
   bool get isEmpty => tones.isEmpty;
 }
@@ -53,6 +70,8 @@ class SentenceToneSpans {
 SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
   final tones = <ThaiTone>[];
   final spans = <WordToneSpan>[];
+  final short = <bool>[];
+  final points = <int>[];
 
   for (final word in words) {
     final syllables = word.syllables;
@@ -64,7 +83,23 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
       length: syllables.length,
     ));
     tones.addAll(syllables.map((s) => toneFromName(s.tone)));
+    // 死音節は末子音で切られるため、短母音でなくても動きが完了しない。
+    short.addAll(syllables.map(
+      (s) => s.hasShortVowel == true || s.syllableType == 'dead',
+    ));
+    // 長さは別基準。長母音に閉鎖音が付いただけの音節は長い。
+    points.addAll(syllables.map(
+      (s) => syllablePointsFor(
+        shortVowel: s.hasShortVowel == true,
+        dead: s.syllableType == 'dead',
+      ),
+    ));
   }
 
-  return SentenceToneSpans(tones: tones, words: spans);
+  return SentenceToneSpans(
+    tones: tones,
+    words: spans,
+    shortSyllables: short,
+    syllablePoints: points,
+  );
 }
