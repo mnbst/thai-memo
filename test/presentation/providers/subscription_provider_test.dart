@@ -9,6 +9,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
+import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/subscription_provider.dart';
 import 'package:thai_memo/services/firebase_auth_service.dart';
 
@@ -21,6 +23,7 @@ void main() {
   late SubscriptionController controller;
 
   SubscriptionController createController() => SubscriptionController(
+        l10n: () => lookupL10n(const Locale('ja')),
         analytics: FakeAnalyticsService(),
         firestore: firestore,
         purchaseService: purchase,

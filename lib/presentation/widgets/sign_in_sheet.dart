@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -16,14 +18,18 @@ import '../providers/subscription_provider.dart';
 /// サインイン（昇格）に成功すると `true` を返す。キャンセル時は `false`。
 Future<bool> showSignInSheet(
   BuildContext context, {
-  String title = 'サインイン',
-  String message = '進捗を保存し、機種変更後も学習を続けられます。',
+  String? title,
+  String? message,
 }) async {
+  final l10n = L10n.of(context);
   final result = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => _SignInSheet(title: title, message: message),
+    builder: (_) => _SignInSheet(
+      title: title ?? l10n.signIn,
+      message: message ?? l10n.signInSheetMessage,
+    ),
   );
   return result ?? false;
 }
@@ -78,7 +84,7 @@ class _SignInSheet extends ConsumerWidget {
                   style: Theme.of(context).brightness == Brightness.dark
                       ? SignInWithAppleButtonStyle.white
                       : SignInWithAppleButtonStyle.black,
-                  text: 'Appleでサインイン',
+                  text: L10n.of(context).signInWithApple,
                 ),
               )
             else
@@ -87,7 +93,7 @@ class _SignInSheet extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   onPressed: () => _authenticate(context, ref, apple: false),
                   icon: const Icon(Icons.g_mobiledata, size: 24),
-                  label: const Text('Googleでサインイン'),
+                  label: Text(L10n.of(context).signInWithGoogle),
                 ),
               ),
           ],

@@ -451,6 +451,14 @@ describe('handleAppStoreNotification', () => {
       expect(getSubscription(data)?.status).toBe('active');
     });
 
+    test('DID_CHANGE_RENEWAL_INFO autoRenewStatus=0 → status=canceled（解約後に届いても active に戻さない）', async () => {
+      const data = await processNotification('DID_CHANGE_RENEWAL_INFO', {
+        renewalInfo: RENEWAL_INFO_OFF,
+      });
+      expect(data?.tier).toBe('premium');
+      expect(getSubscription(data)?.status).toBe('canceled');
+    });
+
     test('未知の通知タイプはスキップして 200 を返す（Firestore 更新なし）', async () => {
       // Apple が将来追加する可能性のある未知の通知タイプへの対応
       // 200 を返して Apple のリトライを防ぐが Firestore は更新しない
@@ -612,6 +620,22 @@ describe('handleAppStoreNotification', () => {
 
       const data = mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>;
       expect(getSubscription(data)?.expires_at).toBeNull();
+    });
+
+    test('premium 維持の通知に expiresDate がない場合は expires_at を上書きしない', async () => {
+      // null で上書きすると期限切れフォールバックが判定材料を失い永久 premium になる
+      mockParseNotificationPayload.mockResolvedValueOnce({
+        notificationType: 'DID_RENEW',
+        transactionInfo: { ...BASE_TX_INFO, expiresDate: undefined },
+        renewalInfo: RENEWAL_INFO_ON,
+      });
+      const req = makeReq({ signedPayload: 'test.jws.sig' });
+      const res = makeRes();
+      await handler(req, res);
+
+      const data = mockFirestoreSet.mock.calls[0][0] as Record<string, unknown>;
+      expect(data).not.toHaveProperty('subscription.expires_at');
+      expect(data.tier).toBe('premium');
     });
 
     test('Firestore.update() が呼ばれる（ドット記法で他フィールドを保持）', async () => {

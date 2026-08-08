@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+
 /// タイ語の声調分析ユーティリティ
 class ThaiToneAnalyzer {
   // 高子音（สูง）
@@ -305,7 +307,7 @@ class ThaiToneAnalyzer {
         toneMark: ToneMark.none,
         syllableType: SyllableType.unknown,
         resultingTone: ThaiTone.unknown,
-        explanation: '単語が空です',
+        explanation: '',
         hasShortVowel: false,
       );
     }
@@ -611,16 +613,16 @@ enum ConsonantClass {
   low,
   unknown;
 
-  String get displayName {
+  String displayName(L10n l10n) {
     switch (this) {
       case ConsonantClass.high:
-        return '高子音';
+        return l10n.consonantClassHigh;
       case ConsonantClass.middle:
-        return '中子音';
+        return l10n.consonantClassMiddle;
       case ConsonantClass.low:
-        return '低子音';
+        return l10n.consonantClassLow;
       case ConsonantClass.unknown:
-        return '不明';
+        return l10n.commonUnknownShort;
     }
   }
 
@@ -646,25 +648,25 @@ enum ToneMark {
   maiTri, // ๊
   maiChattawa; // ๋
 
-  String get displayName {
+  String displayName(L10n l10n) {
     switch (this) {
       case ToneMark.none:
-        return '声調記号なし';
+        return l10n.toneMarkNone;
       case ToneMark.maiEk:
-        return 'マイエーク';
+        return l10n.toneMarkMaiEk;
       case ToneMark.maiTho:
-        return 'マイトー';
+        return l10n.toneMarkMaiTho;
       case ToneMark.maiTri:
-        return 'マイトリー';
+        return l10n.toneMarkMaiTri;
       case ToneMark.maiChattawa:
-        return 'マイチャッタワー';
+        return l10n.toneMarkMaiChattawa;
     }
   }
 
-  String get symbol {
+  String symbol(L10n l10n) {
     switch (this) {
       case ToneMark.none:
-        return 'なし';
+        return l10n.toneMarkSymbolNone;
       case ToneMark.maiEk:
         return '่';
       case ToneMark.maiTho:
@@ -683,31 +685,31 @@ enum SyllableType {
   dead, // 死音節
   unknown;
 
-  String get displayName {
+  String displayName(L10n l10n) {
     switch (this) {
       case SyllableType.live:
-        return '生音節';
+        return l10n.syllableLive;
       case SyllableType.dead:
-        return '死音節';
+        return l10n.syllableDead;
       case SyllableType.unknown:
-        return '不明';
+        return l10n.commonUnknownShort;
     }
   }
 
   /// 母音の長短を含む表示名（低子音の死音節で使用）
-  String getDisplayNameWithVowel({bool? hasShortVowel}) {
+  String getDisplayNameWithVowel(L10n l10n, {bool? hasShortVowel}) {
     if (this == SyllableType.dead && hasShortVowel != null) {
-      return hasShortVowel ? '死音節（短母音）' : '死音節（長母音・複合母音）';
+      return hasShortVowel ? l10n.syllableDeadShort : l10n.syllableDeadLong;
     }
-    return displayName;
+    return displayName(l10n);
   }
 
-  String get description {
+  String description(L10n l10n) {
     switch (this) {
       case SyllableType.live:
-        return '長母音 または -m, -n, -ng, -y, -w で終わる';
+        return l10n.syllableLiveDesc;
       case SyllableType.dead:
-        return '短母音で末子音なし または -p, -t, -k で終わる';
+        return l10n.syllableDeadDesc;
       case SyllableType.unknown:
         return '';
     }
@@ -723,20 +725,20 @@ enum ThaiTone {
   rising, // 上昇声（第5声調）
   unknown;
 
-  String get displayName {
+  String displayName(L10n l10n) {
     switch (this) {
       case ThaiTone.mid:
-        return '平声';
+        return l10n.toneMid;
       case ThaiTone.low:
-        return '低声';
+        return l10n.toneLow;
       case ThaiTone.falling:
-        return '下降声';
+        return l10n.toneFalling;
       case ThaiTone.high:
-        return '高声';
+        return l10n.toneHigh;
       case ThaiTone.rising:
-        return '上昇声';
+        return l10n.toneRising;
       case ThaiTone.unknown:
-        return '不明';
+        return l10n.commonUnknownShort;
     }
   }
 

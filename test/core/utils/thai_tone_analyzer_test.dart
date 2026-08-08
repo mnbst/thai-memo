@@ -53,8 +53,31 @@ void main() {
 
     test('low consonants should be detected correctly', () {
       final lowConsonants = [
-        'ค', 'ง', 'ช', 'ซ', 'ท', 'ธ', 'น', 'พ', 'ฟ', 'ภ', 'ม', 'ย', 'ร', 'ล', 'ว', 'ฮ',
-        'ฑ', 'ฒ', 'ณ', 'ฤ', 'ฦ', 'ฌ', 'ญ', 'ฆ', 'ฬ',
+        'ค',
+        'ง',
+        'ช',
+        'ซ',
+        'ท',
+        'ธ',
+        'น',
+        'พ',
+        'ฟ',
+        'ภ',
+        'ม',
+        'ย',
+        'ร',
+        'ล',
+        'ว',
+        'ฮ',
+        'ฑ',
+        'ฒ',
+        'ณ',
+        'ฤ',
+        'ฦ',
+        'ฌ',
+        'ญ',
+        'ฆ',
+        'ฬ',
       ];
 
       for (final consonant in lowConsonants) {
@@ -218,16 +241,14 @@ void main() {
       final analysis = ThaiToneAnalyzer.analyzeTone('ควร');
       expect(analysis.syllableType, equals(SyllableType.live),
           reason: 'ร は生音節末子音');
-      expect(analysis.hasShortVowel, isFalse,
-          reason: 'อัว は長複合母音');
+      expect(analysis.hasShortVowel, isFalse, reason: 'อัว は長複合母音');
       expect(analysis.resultingTone, equals(ThaiTone.mid));
     });
 
     test('ควบ: low class + dead (ว=อัว long) → falling tone', () {
       final analysis = ThaiToneAnalyzer.analyzeTone('ควบ');
       expect(analysis.syllableType, equals(SyllableType.dead));
-      expect(analysis.hasShortVowel, isFalse,
-          reason: 'อัว は長複合母音のため下降声');
+      expect(analysis.hasShortVowel, isFalse, reason: 'อัว は長複合母音のため下降声');
       expect(analysis.resultingTone, equals(ThaiTone.falling));
     });
 

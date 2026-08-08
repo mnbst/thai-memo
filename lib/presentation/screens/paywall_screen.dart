@@ -26,6 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/firebase_auth_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/subscription_provider.dart';
@@ -130,7 +131,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                       const SizedBox(height: 16),
                       // タイトル
                       Text(
-                        'プレミアムプラン',
+                        L10n.of(context).paywallTitle,
                         style:
                             Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
@@ -140,7 +141,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '推しの言葉が、わかる日が来る。',
+                        L10n.of(context).paywallTagline,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -169,8 +170,8 @@ class PaywallBottomSheet extends ConsumerWidget {
     if (FirebaseAuthService.instance.currentUser?.isAnonymous ?? true) {
       final signedIn = await showSignInSheet(
         context,
-        title: 'サインインが必要です',
-        message: '購入を機種変更後も引き継ぐため、サインインしてください。',
+        title: L10n.of(context).paywallSignInRequired,
+        message: L10n.of(context).paywallSignInForPurchase,
       );
       if (!signedIn || !context.mounted) return;
     }
@@ -185,8 +186,8 @@ class PaywallBottomSheet extends ConsumerWidget {
     if (FirebaseAuthService.instance.currentUser?.isAnonymous ?? true) {
       final signedIn = await showSignInSheet(
         context,
-        title: 'サインインが必要です',
-        message: '購入を復元するには、購入時のアカウントでサインインしてください。',
+        title: L10n.of(context).paywallSignInRequired,
+        message: L10n.of(context).paywallSignInForRestore,
       );
       if (!signedIn || !context.mounted) return;
     }
@@ -215,7 +216,7 @@ class PaywallBottomSheet extends ConsumerWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            'プレミアムプランに加入中です',
+            L10n.of(context).paywallActive,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: colorScheme.onPrimaryContainer,
                   fontWeight: FontWeight.bold,
@@ -279,8 +280,8 @@ class PaywallBottomSheet extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Text(
-                _formatPrice(
-                    subState.product!.rawPrice, subState.product!.currencyCode),
+                _formatPrice(L10n.of(context), subState.product!.rawPrice,
+                    subState.product!.currencyCode),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -312,9 +313,12 @@ class PaywallBottomSheet extends ConsumerWidget {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text(
-                    '推しの言葉に近づく →',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                : Text(
+                    // 購入を開始するボタンなので、何が起きるか一読で分かる言い方にする
+                    // （情緒的なコピーは上部のタイトル・比較表で担う）。
+                    L10n.of(context).paywallSubscribe,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
           ),
           // 自動更新サブスクリプション開示文（iOS: Apple ガイドライン 3.1.2 準拠）
@@ -323,8 +327,7 @@ class PaywallBottomSheet extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: Text(
-                'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。'
-                '更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。',
+                L10n.of(context).paywallLegal,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurface.withValues(alpha: 0.6),
                       height: 1.25,
@@ -340,20 +343,20 @@ class PaywallBottomSheet extends ConsumerWidget {
             spacing: 2,
             children: [
               legalLink(
-                label: '購入を復元',
+                label: L10n.of(context).paywallRestore,
                 onPressed: subState.isLoading
                     ? null
                     : () => _startRestore(context, ref),
               ),
               separator(),
               legalLink(
-                label: '利用規約',
+                label: L10n.of(context).settingsTerms,
                 onPressed: () =>
                     launchUrl(Uri.parse(AppConfig.termsOfServiceUrl)),
               ),
               separator(),
               legalLink(
-                label: 'プライバシーポリシー',
+                label: L10n.of(context).settingsPrivacyPolicy,
                 onPressed: () =>
                     launchUrl(Uri.parse(AppConfig.privacyPolicyUrl)),
               ),
@@ -364,12 +367,11 @@ class PaywallBottomSheet extends ConsumerWidget {
     );
   }
 
-  String _formatPrice(double rawPrice, String currencyCode) {
+  String _formatPrice(L10n l10n, double rawPrice, String currencyCode) {
     if (currencyCode == 'JPY') {
-      return '¥${rawPrice.toInt()} / 月';
+      return l10n.paywallPriceYen('${rawPrice.toInt()}');
     }
-    final formatted = rawPrice.toStringAsFixed(2);
-    return '$currencyCode $formatted / 月';
+    return l10n.paywallPrice(currencyCode, rawPrice.toStringAsFixed(2));
   }
 
   Widget _buildMainBenefits(BuildContext context) {
@@ -430,9 +432,9 @@ class PaywallBottomSheet extends ConsumerWidget {
         children: [
           benefitRow(
             icon: Icons.translate,
-            title: 'ネイティブ品質で例文生成',
-            freeText: '教科書的な基礎文',
-            premiumText: 'ネイティブが使う言い回し',
+            title: L10n.of(context).paywallFeature1Title,
+            freeText: L10n.of(context).paywallFeature1Free,
+            premiumText: L10n.of(context).paywallFeature1Premium,
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -440,9 +442,9 @@ class PaywallBottomSheet extends ConsumerWidget {
           ),
           benefitRow(
             icon: Icons.auto_awesome,
-            title: 'タイドラマ・恋愛・旅行など',
-            freeText: 'おまかせ出題のみ',
-            premiumText: '学びたいテーマを自由に選べる',
+            title: L10n.of(context).paywallFeature2Title,
+            freeText: L10n.of(context).paywallFeature2Free,
+            premiumText: L10n.of(context).paywallFeature2Premium,
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -450,9 +452,9 @@ class PaywallBottomSheet extends ConsumerWidget {
           ),
           benefitRow(
             icon: Icons.school,
-            title: '学べる単語数が無制限',
-            freeText: '基礎100語まで',
-            premiumText: 'ドラマのセリフも理解できる',
+            title: L10n.of(context).paywallFeature3Title,
+            freeText: L10n.of(context).paywallFeature3Free,
+            premiumText: L10n.of(context).paywallFeature3Premium,
           ),
         ],
       ),

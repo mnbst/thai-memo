@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/l10n/l10n_provider.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/datasources/local/database_helper.dart';
@@ -49,7 +52,10 @@ class AuthState {
 class AuthController extends StateNotifier<AuthState> {
   final FirebaseAuthService _authService;
 
-  AuthController(this._authService)
+  /// 文言は言語設定に追従させたいので、値ではなく都度引く関数を持つ。
+  final L10n Function() _l10n;
+
+  AuthController(this._authService, this._l10n)
       : super(AuthState.fromService(_authService));
 
   Future<String?> signInWithGoogle() async {
@@ -59,11 +65,13 @@ class AuthController extends StateNotifier<AuthState> {
       state = AuthState.fromService(_authService);
       return null;
     } on FirebaseAuthServiceException catch (e) {
+      // 例外の message は原因コードを含む診断用。UIには言語に沿った文言を出す。
+      debugPrint('auth failed: ${e.message}');
       state = AuthState.fromService(_authService);
-      return e.message;
+      return _l10n().errGoogleSignInFailed;
     } catch (e) {
       state = AuthState.fromService(_authService);
-      return 'Googleサインインに失敗しました';
+      return _l10n().errGoogleSignInFailed;
     }
   }
 
@@ -74,11 +82,13 @@ class AuthController extends StateNotifier<AuthState> {
       state = AuthState.fromService(_authService);
       return null;
     } on FirebaseAuthServiceException catch (e) {
+      // 例外の message は原因コードを含む診断用。UIには言語に沿った文言を出す。
+      debugPrint('auth failed: ${e.message}');
       state = AuthState.fromService(_authService);
-      return e.message;
+      return _l10n().errAppleSignInFailed;
     } catch (e) {
       state = AuthState.fromService(_authService);
-      return 'Appleサインインに失敗しました';
+      return _l10n().errAppleSignInFailed;
     }
   }
 
@@ -90,11 +100,13 @@ class AuthController extends StateNotifier<AuthState> {
       state = AuthState.fromService(_authService);
       return null;
     } on FirebaseAuthServiceException catch (e) {
+      // 例外の message は原因コードを含む診断用。UIには言語に沿った文言を出す。
+      debugPrint('auth failed: ${e.message}');
       state = AuthState.fromService(_authService);
-      return e.message;
+      return _l10n().errGoogleSignInFailed;
     } catch (e) {
       state = AuthState.fromService(_authService);
-      return 'Googleサインインに失敗しました';
+      return _l10n().errGoogleSignInFailed;
     }
   }
 
@@ -106,11 +118,13 @@ class AuthController extends StateNotifier<AuthState> {
       state = AuthState.fromService(_authService);
       return null;
     } on FirebaseAuthServiceException catch (e) {
+      // 例外の message は原因コードを含む診断用。UIには言語に沿った文言を出す。
+      debugPrint('auth failed: ${e.message}');
       state = AuthState.fromService(_authService);
-      return e.message;
+      return _l10n().errAppleSignInFailed;
     } catch (e) {
       state = AuthState.fromService(_authService);
-      return 'Appleサインインに失敗しました';
+      return _l10n().errAppleSignInFailed;
     }
   }
 
@@ -122,7 +136,7 @@ class AuthController extends StateNotifier<AuthState> {
       return null;
     } catch (e) {
       state = AuthState.fromService(_authService);
-      return 'サインアウトに失敗しました';
+      return _l10n().errSignOutFailed;
     }
   }
 
@@ -137,7 +151,7 @@ class AuthController extends StateNotifier<AuthState> {
       return null;
     } catch (e) {
       state = AuthState.fromService(_authService);
-      return 'アカウント削除に失敗しました';
+      return _l10n().errDeleteAccountFailed;
     }
   }
 }
@@ -146,5 +160,8 @@ class AuthController extends StateNotifier<AuthState> {
 
 final authControllerProvider =
     StateNotifierProvider<AuthController, AuthState>((ref) {
-  return AuthController(FirebaseAuthService.instance);
+  return AuthController(
+    FirebaseAuthService.instance,
+    () => ref.read(l10nProvider),
+  );
 });

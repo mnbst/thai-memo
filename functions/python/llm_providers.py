@@ -89,6 +89,7 @@ _openai_api_key_fetched_at: float = 0.0
 
 
 OPENAI_TOKEN_PRICING_PER_MILLION: dict[str, dict[str, float]] = {
+    "gpt-5.6-luna": {"input": 0.20, "cached_input": 0.02, "output": 1.20},
     "gpt-5.4-mini": {"input": 0.75, "cached_input": 0.075, "output": 4.50},
     "gpt-5.4-nano": {"input": 0.20, "cached_input": 0.02, "output": 1.25},
     "gpt-5-mini": {"input": 0.25, "cached_input": 0.025, "output": 2.00},
@@ -118,8 +119,18 @@ def _get_openai_api_key() -> str:
 
 
 def _openai_reasoning_effort(model: str, is_premium: bool = False) -> str:
-    if model.startswith("gpt-5.4-") or model.startswith("gpt-5-"):
-        return "high" if is_premium else "medium"
+    # 検証時に効きを比べられるよう環境変数で上書き可（none/low/medium/high）。
+    override = os.environ.get("OPENAI_REASONING_EFFORT")
+    if override:
+        return override
+    # free/premium とも medium。high はレイテンシが暴れる（2026-08-05 実測、
+    # gpt-5.6-luna・20文並列: high 中央値10.5秒/p90 37秒/最大77秒、
+    # medium 中央値6.0秒/p90 9.3秒/最大16.4秒）。high は 28件中1件が74秒かけて
+    # empty output になり、リトライでさらに倍のレイテンシになる。
+    # 品質は medium でも文体遵守・訳文・多義語の使い分けが維持されることを確認済み
+    # （落ちるのは none。none では ถูก が全て「安い」になる）。
+    if model.startswith("gpt-5"):
+        return "medium"
     return "none"
 
 
@@ -519,10 +530,12 @@ def generate_sentence_sync(
     schema: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """設定されたプロバイダーで同期的に例文を生成し、構造化 dict を返す。
-    Free ティアは常に Gemini（thinking 256）を使用する。
-    モデル名は GEMINI_MODEL / GEMINI_MODEL_PREMIUM 環境変数で上書き可。
+    free/premium とも SENTENCE_PROVIDER のプロバイダーを使う。
+    モデル名は OPENAI_MODEL* / GEMINI_MODEL* 環境変数で上書き可。
     schema を省略すると RESPONSE_JSON_SCHEMA を使う。
     """
+    # free ティアは常に Gemini。premium は SENTENCE_PROVIDER に従う。
+    # 2026-08-05 に free も OpenAI へ寄せたが、同日この形へ差し戻した。
     if not is_premium or SENTENCE_PROVIDER == "gemini":
         return _gemini_generate_sync(
             system_prompt, user_prompt, is_premium, tier_label, schema

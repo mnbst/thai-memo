@@ -18,11 +18,14 @@ import os
 
 # ─── LLM プロバイダー切替 ───
 # "openai" または "gemini"。環境変数 SENTENCE_PROVIDER で上書き可。
+# 2026-08-05 に openai(gpt-5.6-luna) へ全面切替したが、同日 gemini へ差し戻した。
+# OpenAI 側のコードは残してあるので SENTENCE_PROVIDER=openai で試せる。
 SENTENCE_PROVIDER = os.environ.get("SENTENCE_PROVIDER", "gemini").lower()
 
 # ─── OpenAI モデル設定 ───
-OPENAI_MODEL = "gpt-5.4-mini"
-OPENAI_MODEL_PREMIUM = "gpt-5.4-mini"
+# 環境変数で上書き可。モデル検証時に再デプロイのみで切替できるようにしている。
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-luna")
+OPENAI_MODEL_PREMIUM = os.environ.get("OPENAI_MODEL_PREMIUM", "gpt-5.6-luna")
 
 # ─── Gemini モデル設定 ───
 # 環境変数で上書き可。dev でのモデル検証時に再デプロイのみで切替できるようにしている。
@@ -35,6 +38,22 @@ GEMINI_MODEL_PREMIUM = os.environ.get("GEMINI_MODEL_PREMIUM", "gemini-3.1-flash-
 # 最大出力トークン数: JSON形式のレスポンス（例文＋単語分解＋コンテキスト）に十分な量
 API_MAX_TOKENS = 8192
 
+# ─── 対応言語 ───
+# 訳文・解説の言語。クライアントが lang を送ってくる。
+SUPPORTED_LANGS = ("ja", "en")
+DEFAULT_LANG = "ja"
+
+
+def resolve_lang(data: dict | None) -> str:
+    """リクエストの lang を対応言語に正規化する。
+
+    lang を送らない旧クライアントは ja になる（後方互換）。未知の値も ja に倒す。
+    日本語ユーザーに英訳が返る事故のほうが、既定言語のまま返すより害が大きい。
+    """
+    lang = str((data or {}).get("lang") or "").strip().lower()
+    return lang if lang in SUPPORTED_LANGS else DEFAULT_LANG
+
+
 # ─── ティア制限 ───
 # 無料ティアの語彙上限（頻度順位）
 FREE_TIER_MAX_VOCAB = 100
@@ -45,7 +64,12 @@ FREE_TIER_MAX_VOCAB = 100
 # doc 欠損時のフォールバックとしてここでも初期化するため、必ず quota.ts と値を一致させること。
 FREE_DAILY_SENTENCES = 5
 FREE_DAILY_QUIZZES = 5
-PREMIUM_TRIAL_SENTENCES = 5
+
+# プレミアム体験トライアルは期間制（premium_trial_expires_at）。
+# PREMIUM_TRIAL_SENTENCES は残回数しか見ない旧クライアント向けの互換値で、
+# 期間中に使い切られないよう「1日の上限 × 日数」を入れる。
+PREMIUM_TRIAL_DAYS = 2
+PREMIUM_TRIAL_SENTENCES = FREE_DAILY_SENTENCES * PREMIUM_TRIAL_DAYS
 
 # ─── 文体リスト ───
 # 生成する例文の文体バリエーション。タイ語には場面に応じた多様な文体がある
@@ -108,15 +132,13 @@ FREE_TOPICS = [
     TOPICS[5],
     TOPICS[15],
 ]  # あいさつ、食べ物、買い物、タイBLドラマ
-FREE_STYLES = STYLES[1:3]  # 口語体、丁寧語
+# 2026-08-06 削除: FREE_STYLES。文体の自動抽選を止めた時点で参照が消えた
+# （prompts.py:build_register_constraint のコメント参照）。
 
 # ─── 丁寧さレベル ───
 # タイ語は丁寧さの使い分けが重要。場面に応じたレベルを選択
-POLITENESS_LEVELS = [
-    "フォーマル（丁寧語・敬語を使用）",
-    "カジュアル（くだけた友達同士の表現）",
-    "中立（一般的な日常表現）",
-]
+# 2026-08-07 削除: POLITENESS_LEVELS。丁寧さをプロンプトに渡すのをやめたため
+# 参照元が消えた（120文×3バッチで丁寧体率 42/44/42% と動かず、死にパラメータだった）。
 
 # ─── 文法フォーカス ───
 # 特定の文法パターンを含む例文を生成するための選択肢（有料ティア限定）
@@ -133,16 +155,31 @@ GRAMMAR_FOCUSES = [
 ]
 
 
-# ─── 感情・トーン ───
-# 例文に含める感情表現の種類
-EMOTIONS = [
-    "喜び・嬉しさ",
-    "悲しみ・落ち込み",
-    "驚き",
-    "不安・心配",
-    "期待・楽しみ",
-    "中立・平静",
+# 2026-08-06 削除: EMOTIONS。感情の自動抽選を止めた時点で生成経路から参照が消え、
+# 残っていたのは scripts/build_emotion_embeddings.py → corpus/emotion_embeddings.json
+# → GCS という経路だけだった。この blob をロードするコードは存在しないため、
+# 定数・ビルドスクリプト・upload_corpus.sh の分岐をまとめて削除した。
+# 感情は現在 LLM が生成して context.emotion に返す（自由記述）。
+
+
+# ─── 時間軸 ───
+# 2026-08-05 追加。grammarFocus / emotion の自動抽選を止めた結果、
+# 組み合わせが topic×subTheme×style×politeness の約400通りまで落ちたため、
+# key_word の意味を制約しない直交軸として足す。
+# いつのことを話しているか。相（กำลัง/แล้ว/จะ/เคย）の多様性を副次的に回収する。
+# どのテーマでもこの4つは全て成立するので、テーマ側の絞り込みが要らない。
+TIME_FRAMES = [
+    "今まさに起きていること",
+    "さっき起きた出来事",
+    "これからの予定",
+    "いつもの習慣",
 ]
+
+# ─── 述べ方（モダリティ）は 2026-08-06 に削除 ───
+# 断定/推量/伝聞/確認 の4値を抽選していたが、確定済みの key_word に後付けすると
+# 無理な命題を作った（×ได้ยินว่าโรงแรมจองอีกห้อง ＝「ホテルが予約する」）。
+# 述べ方の行を外して生成すると明らかに自然になる一方、น่าจะ/คง/ได้ยินว่า は
+# 14文中1文まで落ちる。まず単調さの度合いを実測するため外してみる。
 
 
 
@@ -237,30 +274,93 @@ RESPONSE_JSON_SCHEMA = {
 # 確定値が存在しないので、そのフィールドだけスキーマに戻して LLM に書かせる。
 _CONTEXT_GENERATABLE_FIELDS = {
     "topic": {"type": "string", "description": "テーマ（例: あいさつ）"},
-    "style": {"type": "string", "description": "文体（例: 丁寧語）"},
+    # 2026-08-06: 文体の自動抽選を止めて LLM に選ばせた結果、返る値が
+    # 「丁寧語 / 日常会話 / 中立 / カジュアル / 日常的な話し言葉」と揺れた。
+    # 履歴画面の表示と集計に使うので、既存の STYLES に分類させて表記を揃える。
+    "style": {
+        "type": "string",
+        "enum": STYLES,
+        "description": "実際に書いた文体を最も近いものに分類する",
+    },
     "emotion": {"type": "string", "description": "感情・トーン（例: 中立）"},
 }
 
 
-def build_response_schema(ask_context_fields: tuple[str, ...] = ()) -> dict:
+# ─── 訳文言語で差し替える description ───
+# フィールド名は japanese_translation のまま（DB列・Firestore・Dartモデルに広く
+# 散っており、改名コストが見合わない）。en では名前に引きずられないよう
+# description で正面から否定する。
+_SCHEMA_DESCRIPTIONS_EN = {
+    "japanese_translation": (
+        "例文の英訳。フィールド名は japanese だが必ず英語で書くこと（日本語不可）"
+    ),
+    "word_breakdown": "例文を構成する各単語と英語の意味。最大20件。",
+    "meaning": "単語の意味を必ず英語で記述すること（日本語不可）",
+    "note": "用法・ニュアンス・類語との違い（英語、50語以内）",
+    # context は詳細画面にそのまま表示される。ここを訳し忘れると英語UIの中で
+    # 「使用シーン」「文化的背景」だけ日本語で出る。
+    "usage_scenarios": "使用場面の説明。英語で、25語以内。",
+    "cultural_notes": "文化的な補足情報。英語で、25語以内。",
+}
+
+# LLM に生成させる context フィールドの en 版 description。
+#
+# topic と style は識別子（履歴画面の集計キー）なので**日本語のまま返させる**。
+# クライアントが generation_labels.dart で表示だけ訳す。ここを英語にすると、
+# サーバーがテーマを決めた回は日本語・LLM が選んだ回は英語となり、同じ画面の
+# 同じ項目で言語が混ざる（2026-08-07 に実測して差し戻した）。
+# emotion だけは自由記述でそのまま表示されるので英語にする。
+_CONTEXT_DESCRIPTIONS_EN = {
+    "emotion": "感情・トーン（英語で。例: neutral）",
+}
+
+
+def _apply_lang_descriptions(schema: dict) -> dict:
+    """en 用に description を差し替える（構造は変えない）。"""
+    props = schema["properties"]
+    props["japanese_translation"]["description"] = _SCHEMA_DESCRIPTIONS_EN[
+        "japanese_translation"
+    ]
+    props["word_breakdown"]["description"] = _SCHEMA_DESCRIPTIONS_EN["word_breakdown"]
+    props["word_breakdown"]["items"]["properties"]["meaning"]["description"] = (
+        _SCHEMA_DESCRIPTIONS_EN["meaning"]
+    )
+    props["target_notes"]["items"]["properties"]["note"]["description"] = (
+        _SCHEMA_DESCRIPTIONS_EN["note"]
+    )
+    context_props = props["context"]["properties"]
+    for name in ("usage_scenarios", "cultural_notes"):
+        context_props[name]["description"] = _SCHEMA_DESCRIPTIONS_EN[name]
+    return schema
+
+
+def build_response_schema(
+    ask_context_fields: tuple[str, ...] = (), lang: str = DEFAULT_LANG
+) -> dict:
     """リクエストごとのレスポンススキーマを組み立てる。
 
     Args:
         ask_context_fields: LLM に生成させる context フィールド名。
             プロンプトで値を指定しなかったものだけを渡すこと。
+        lang: 訳文の言語。en では description のみ差し替える。
 
     Returns:
         dict: RESPONSE_JSON_SCHEMA のコピー。指定フィールドを context に追加済み。
     """
-    if not ask_context_fields:
+    if not ask_context_fields and lang == DEFAULT_LANG:
         return RESPONSE_JSON_SCHEMA
 
     schema = copy.deepcopy(RESPONSE_JSON_SCHEMA)
+    if lang != DEFAULT_LANG:
+        schema = _apply_lang_descriptions(schema)
     context = schema["properties"]["context"]
     for name in ask_context_fields:
         field = _CONTEXT_GENERATABLE_FIELDS.get(name)
         if field is None:
             continue
-        context["properties"][name] = dict(field)
+        field = dict(field)
+        if lang != DEFAULT_LANG and name in _CONTEXT_DESCRIPTIONS_EN:
+            field["description"] = _CONTEXT_DESCRIPTIONS_EN[name]
+        context["properties"][name] = field
         context["required"].append(name)
     return schema

@@ -67,3 +67,41 @@ def test_constraint_block_merges_multiple_classes() -> None:
     block = build_word_class_constraint(["มัน", "หนึ่ง"])
     assert "【ターゲット語は三人称代名詞・数詞】" in block
     assert block.count("文の主役にならない") == 1
+
+
+# 2026-08-07 削除: test_formal_words_force_formal_politeness /
+# test_explicit_politeness_still_wins_over_formal_word。丁寧さの指定ごと廃止したため
+# （requires_formal_politeness と POLITENESS_LEVELS も削除）。書き言葉18語の扱いは
+# 下の formal クラスのルール検証が引き継ぐ。
+
+
+def test_formal_words_get_the_formal_class_rule() -> None:
+    """書き言葉の語がターゲットなら、場面を改まった側へ寄せる指示が付く。"""
+    from prompts import build_word_class_constraint
+
+    block = build_word_class_constraint(["โปรด"])
+    assert "改まった場面" in block
+    assert build_word_class_constraint(["ทะเล"]) == ""
+
+
+def test_register_constraint_always_bans_written_register() -> None:
+    """話し言葉ルールは丁寧さで出し分けない（2026-08-06 に常時ルールへ移行）。"""
+    from constants import TOPICS
+    from prompts import build_register_constraint
+
+    block = build_register_constraint(TOPICS[0])
+    assert "สามารถ" in block
+    assert "ท่าน" in block
+    assert "รอเดี๋ยว" in block  # 常時ルールも残る
+
+
+def test_register_constraint_adds_topic_rules() -> None:
+    from constants import TOPICS
+    from prompts import build_register_constraint
+
+    travel = build_register_constraint(TOPICS[2])
+    food = build_register_constraint(TOPICS[1])
+    romance = build_register_constraint(TOPICS[14])
+    # 移動動詞の方向は 2026-08-05 にテーマ条件を外して常時ルールへ移した
+    assert "移動動詞" in travel and "移動動詞" in food
+    assert "性的" in romance and "性的" not in food

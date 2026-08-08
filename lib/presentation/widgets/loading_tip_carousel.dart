@@ -1,6 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:thai_memo/core/constants/loading_tips.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../core/constants/loading_tips.dart';
 
 /// 例文生成中に母音の読み方や文化Tipsを8秒ごとに自動切替＋スワイプで手動切替するウィジェット
 class LoadingTipCarousel extends StatefulWidget {
@@ -11,17 +14,22 @@ class LoadingTipCarousel extends StatefulWidget {
 }
 
 class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
-  static List<LoadingTip> _shuffled = List.of(LoadingTips.all)..shuffle();
+  /// 表示順（Tipsの添字）。文言は言語で変わるので、順番だけを覚えておき
+  /// 実際の Tip は build 時に解決する。
+  static List<int> _order = _shuffledOrder();
   static int _index = 0;
 
-  late LoadingTip _currentTip;
+  static List<int> _shuffledOrder() =>
+      List<int>.generate(LoadingTips.count, (i) => i)..shuffle();
+
+  late int _currentTipIndex;
   Timer? _timer;
   bool _swipingRight = true;
 
   @override
   void initState() {
     super.initState();
-    _currentTip = _nextTip();
+    _currentTipIndex = _nextTip();
     _startTimer();
   }
 
@@ -35,27 +43,28 @@ class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 14), (_) {
       _swipingRight = true;
-      setState(() => _currentTip = _nextTip());
+      setState(() => _currentTipIndex = _nextTip());
     });
   }
 
   void _switchTip({required bool swipeRight}) {
     _swipingRight = swipeRight;
-    setState(() => _currentTip = _nextTip());
+    setState(() => _currentTipIndex = _nextTip());
     _startTimer();
   }
 
-  LoadingTip _nextTip() {
-    if (_index >= _shuffled.length) {
-      _shuffled = List.of(LoadingTips.all)..shuffle();
+  int _nextTip() {
+    if (_index >= _order.length) {
+      _order = _shuffledOrder();
       _index = 0;
     }
-    return _shuffled[_index++];
+    return _order[_index++];
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentTip = LoadingTips.at(L10n.of(context), _currentTipIndex);
 
     return GestureDetector(
       onHorizontalDragEnd: (details) {
@@ -65,32 +74,34 @@ class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
         transitionBuilder: (child, animation) {
-          final isEntering = child.key == ValueKey(_currentTip.title);
+          final isEntering = child.key == ValueKey(currentTip.title);
           final offset = _swipingRight
               ? (isEntering ? const Offset(1, 0) : const Offset(-1, 0))
               : (isEntering ? const Offset(-1, 0) : const Offset(1, 0));
           return SlideTransition(
-            position: Tween<Offset>(begin: offset, end: Offset.zero)
-                .animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
+            position: Tween<Offset>(begin: offset, end: Offset.zero).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
             child: FadeTransition(opacity: animation, child: child),
           );
         },
         child: Padding(
-          key: ValueKey(_currentTip.title),
+          key: ValueKey(currentTip.title),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _currentTip.title,
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                currentTip.title,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text(
-                _currentTip.example != null
-                    ? '${_currentTip.content}\n例: ${_currentTip.example}'
-                    : _currentTip.content,
+                currentTip.example != null
+                    ? L10n.of(context).tipWithExample(
+                        currentTip.content, currentTip.example!)
+                    : currentTip.content,
                 style: theme.textTheme.bodySmall,
               ),
             ],

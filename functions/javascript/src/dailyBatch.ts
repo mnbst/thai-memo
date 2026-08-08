@@ -18,6 +18,9 @@ import {
   FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES,
   PREMIUM_DAILY_SENTENCES, PREMIUM_DAILY_QUIZZES,
 } from './constants/quota';
+import {
+  EXPIRY_DEMOTION_MARGIN_MS, GRACE_PERIOD_MAX_MS, STORE_PLATFORMS,
+} from './constants/subscription';
 
 const db = admin.firestore();
 
@@ -30,7 +33,20 @@ const CONCURRENCY = 5;
  * ユーザーを完全削除する。アクティブな匿名ユーザーは残し、UVM・SRS等の
  * パーソナライズを維持する（link昇格までの体験を壊さない）。
  */
-/** この日数以上トークン更新がない匿名ユーザーを削除対象とする */
+/**
+ * この日数以上トークン更新がない匿名ユーザーを削除対象とする。
+ *
+ * 匿名 doc は端末の fcm_token を握ったまま残りやすい（匿名で試してから
+ * サインインすると解除経路を通らない）。重複トークン掃除で通知の重複自体は
+ * 止まるため、残骸を残す不利より復帰の取りこぼしを避けることを優先する。
+ *
+ * UI（sign_in_reminder_banner）はここより短い「3日」を告知しており、意図的に
+ * 揃えていない。告知どおり3日で消していたところ、prod の匿名ユーザーには
+ * 4〜6日空けてから戻ってくる層が実在し（2026-08-03 時点で復帰11人中5人）、
+ * その進捗を消してしまっていた。告知は復帰を促す締切として短いまま残し、
+ * 実際の保持は7日に伸ばして復帰余地を確保する。短く告知して長く保つ方向の
+ * ずれなので、ユーザーの不利にはならない。縮めるときは必ずUIを先に直すこと。
+ */
 const ANON_INACTIVE_DAYS = 7;
 /** 1回の実行で削除する匿名ユーザーの上限（負荷平準化） */
 const MAX_ANON_DELETIONS_PER_RUN = 500;
@@ -63,6 +79,8 @@ async function dailyBatchHandler() {
     console.log('No users found');
     return;
   }
+
+  await clearDuplicateFcmTokens(usersSnapshot.docs);
 
   // CONCURRENCY件ずつ並行処理。allSettledで一部失敗しても継続
   const users = usersSnapshot.docs;
@@ -153,14 +171,91 @@ async function cleanupAnonymousUsers(): Promise<void> {
   );
 }
 
-/** 期限切れ判定の猶予（更新直後の通知遅延で誤って free に落とさないため） */
-const EXPIRY_DEMOTION_MARGIN_MS = 24 * 60 * 60 * 1000;
+/** 最終アクティブとみなすタイムスタンプ（新しいものが勝つ） */
+const ACTIVITY_FIELDS = [
+  'last_active_at',
+  'last_sentence_generated_at',
+  'last_notified_at',
+  'last_opened_at',
+];
+
+function lastActivityMillis(data: Record<string, unknown>): number {
+  let latest = 0;
+  for (const field of ACTIVITY_FIELDS) {
+    const value = data[field] as { toMillis?: () => number } | undefined;
+    const millis = value?.toMillis?.();
+    if (typeof millis === 'number' && millis > latest) latest = millis;
+  }
+  return latest;
+}
+
+/**
+ * 同じ fcm_token を複数の users doc が持っている場合に、登録を残す1件を除いた
+ * uid を返す。
+ *
+ * fcm_token は端末単位の値なのに users/{uid} に持たせているため、同じ端末で
+ * アカウントを切り替えると旧 doc に生きたトークンが残り、その端末には使った
+ * アカウントの数だけ毎日例文が届く（匿名で試してからサインインした場合など）。
+ * クライアントはサインアウト時に自分の登録を解除するが、アプリ削除・再インストールや
+ * 匿名からの移行では解除が走らないため、ここを最後の砦にする。
+ *
+ * 残すのは最終アクティブが最も新しい doc。同着は uid 順で決めて結果を安定させる。
+ */
+export function duplicateTokenUids(
+  users: { id: string; data: Record<string, unknown> }[]
+): string[] {
+  const byToken = new Map<string, { id: string; activity: number }[]>();
+  for (const user of users) {
+    const token = user.data.fcm_token;
+    if (typeof token !== 'string' || !token) continue;
+    const entry = { id: user.id, activity: lastActivityMillis(user.data) };
+    const group = byToken.get(token);
+    if (group) group.push(entry);
+    else byToken.set(token, [entry]);
+  }
+
+  const stale: string[] = [];
+  for (const group of byToken.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) =>
+      b.activity - a.activity || a.id.localeCompare(b.id));
+    stale.push(...group.slice(1).map((entry) => entry.id));
+  }
+  return stale;
+}
+
+/** 重複登録のうち最新の1件以外から fcm_token を消す */
+async function clearDuplicateFcmTokens(
+  docs: FirebaseFirestore.QueryDocumentSnapshot[]
+): Promise<void> {
+  const stale = duplicateTokenUids(
+    docs.map((doc) => ({ id: doc.id, data: doc.data() || {} }))
+  );
+  if (stale.length === 0) return;
+
+  for (const uid of stale) {
+    try {
+      await db.collection('users').doc(uid).update({
+        fcm_token: admin.firestore.FieldValue.delete(),
+        daily_reminder_enabled: false,
+      });
+    } catch (e) {
+      console.error(`Failed to clear duplicate fcm_token for ${uid}`, e);
+    }
+  }
+  console.log(
+    `clearDuplicateFcmTokens: cleared ${stale.length} duplicate registration(s)`
+  );
+}
 
 /**
  * tierに応じて remaining_sentences / remaining_quizzes を日次リセット。
  *
  * ストア通知の取りこぼし対策として、subscription.expires_at を24時間以上
- * 過ぎた premium は free に落とす（猶予期間中は維持）。
+ * 過ぎた premium は free に落とす。猶予期間中（grace_period）は維持するが、
+ * GRACE_PERIOD_MAX_MS を過ぎたら通知の取りこぼしとみなして落とす。
+ * ストア購入なのに expires_at を持たない premium も、期限判定が効かず
+ * 永久 premium になるため落とす。
  * subscription フィールドがない premium（dev環境の手動設定等）は対象外。
  */
 export async function resetQuota(
@@ -171,12 +266,19 @@ export async function resetQuota(
   const subscription = userData.subscription ?? {};
   const expiresAtMs: number | undefined =
     subscription.expires_at?.toMillis?.();
+  const isStoreSubscription = STORE_PLATFORMS.includes(subscription.platform);
+
+  // 猶予期間中は期限超過が前提なので、通常より長い上限で判定する
+  const margin = subscription.status === 'grace_period' ?
+    GRACE_PERIOD_MAX_MS :
+    EXPIRY_DEMOTION_MARGIN_MS;
 
   const subscriptionLapsed =
     tier === 'premium' &&
-    typeof expiresAtMs === 'number' &&
-    subscription.status !== 'grace_period' &&
-    Date.now() - expiresAtMs > EXPIRY_DEMOTION_MARGIN_MS;
+    (typeof expiresAtMs === 'number' ?
+      Date.now() - expiresAtMs > margin :
+      // ストア購入で expires_at がない = 期限判定が働かないので premium を維持しない
+      isStoreSubscription);
 
   const isPremium = tier === 'premium' && !subscriptionLapsed;
   const sentenceResetValue = isPremium ?

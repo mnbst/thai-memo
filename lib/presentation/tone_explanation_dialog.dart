@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../core/thai_tone_analyzer.dart';
-import '../../data/models/word_breakdown.dart';
+import '../l10n/app_localizations.dart';
+import '../core/thai_tone_analyzer.dart';
+import '../data/models/word_breakdown.dart';
 import 'screens/tone_guide_screen.dart';
 
 /// 声調解説を表示するダイアログ
@@ -87,7 +88,7 @@ class ToneExplanationDialog extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            '声調の解説',
+            L10n.of(context).toneDialogTitle,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -122,7 +123,7 @@ class ToneExplanationDialog extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '音節分解',
+                  L10n.of(context).toneSyllableBreakdown,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color:
@@ -186,7 +187,7 @@ class ToneExplanationDialog extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '音節 $syllableNumber',
+                    L10n.of(context).toneSyllableNumber(syllableNumber),
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onPrimary,
                           fontWeight: FontWeight.bold,
@@ -208,8 +209,8 @@ class ToneExplanationDialog extends StatelessWidget {
             // 分析情報
             _buildInfoRow(
               context,
-              '主子音',
-              '${syllable.initialConsonant} (${consonantClass.displayName})',
+              L10n.of(context).toneMainConsonant,
+              '${syllable.initialConsonant} (${consonantClass.displayName(L10n.of(context))})',
               Icons.abc,
             ),
             const SizedBox(height: 8),
@@ -217,8 +218,8 @@ class ToneExplanationDialog extends StatelessWidget {
             const SizedBox(height: 8),
             _buildInfoRow(
               context,
-              '音節タイプ',
-              syllableType.getDisplayNameWithVowel(
+              L10n.of(context).toneSyllableType,
+              syllableType.getDisplayNameWithVowel(L10n.of(context),
                   hasShortVowel: syllable.hasShortVowel),
               Icons.waves,
             ),
@@ -235,13 +236,13 @@ class ToneExplanationDialog extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '結果: ',
+                  L10n.of(context).toneResultPrefix,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                 ),
                 Text(
-                  resultingTone.displayName,
+                  resultingTone.displayName(L10n.of(context)),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.primary,
@@ -291,7 +292,8 @@ class ToneExplanationDialog extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${consonantClass.displayName}の声調変化',
+          L10n.of(context)
+              .toneShiftFor(consonantClass.displayName(L10n.of(context))),
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -323,7 +325,7 @@ class ToneExplanationDialog extends StatelessWidget {
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
-                      '例外的な使用（現代では稀）',
+                      L10n.of(context).toneRareUsage,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: isDarkMode
                                 ? Colors.orange.shade300
@@ -482,8 +484,8 @@ class ToneExplanationDialog extends StatelessWidget {
             // 分析結果
             _buildInfoRow(
               context,
-              '主子音',
-              '${analysis.initialConsonant ?? "?"} (${analysis.consonantClass.displayName})',
+              L10n.of(context).toneMainConsonant,
+              '${analysis.initialConsonant ?? "?"} (${analysis.consonantClass.displayName(L10n.of(context))})',
               Icons.abc,
             ),
             const SizedBox(height: 8),
@@ -491,8 +493,8 @@ class ToneExplanationDialog extends StatelessWidget {
             const SizedBox(height: 8),
             _buildInfoRow(
               context,
-              '音節タイプ',
-              analysis.syllableType.getDisplayNameWithVowel(
+              L10n.of(context).toneSyllableType,
+              analysis.syllableType.getDisplayNameWithVowel(L10n.of(context),
                   hasShortVowel: analysis.hasShortVowel),
               Icons.waves,
             ),
@@ -509,14 +511,14 @@ class ToneExplanationDialog extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '結果: ',
+                  L10n.of(context).toneResultPrefix,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                 ),
                 Text(
-                  analysis.resultingTone.displayName,
+                  analysis.resultingTone.displayName(L10n.of(context)),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.primary,
@@ -593,7 +595,7 @@ class ToneExplanationDialog extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          '声調記号: ',
+          L10n.of(context).toneMarkPrefix,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context)
                     .colorScheme
@@ -605,7 +607,7 @@ class ToneExplanationDialog extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                toneMark.displayName,
+                toneMark.displayName(L10n.of(context)),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -620,7 +622,7 @@ class ToneExplanationDialog extends StatelessWidget {
                       ),
                 ),
                 Text(
-                  toneMark.symbol,
+                  toneMark.symbol(L10n.of(context)),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -661,7 +663,8 @@ class ToneExplanationDialog extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              '${analysis.consonantClass.displayName}の声調変化表',
+              L10n.of(context).toneShiftTableFor(
+                  analysis.consonantClass.displayName(L10n.of(context))),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -670,7 +673,8 @@ class ToneExplanationDialog extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '例: ${analysis.consonantClass.exampleConsonants}',
+          L10n.of(context)
+              .toneExamplePrefix(analysis.consonantClass.exampleConsonants),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context)
                     .colorScheme
@@ -717,17 +721,17 @@ class ToneExplanationDialog extends StatelessWidget {
       children: [
         _buildTableCell(
           context,
-          '声調記号',
+          L10n.of(context).toneMarkLabel,
           isHeader: true,
         ),
         _buildTableCell(
           context,
-          '音節タイプ',
+          L10n.of(context).toneSyllableType,
           isHeader: true,
         ),
         _buildTableCell(
           context,
-          '結果の声調',
+          L10n.of(context).toneResultTone,
           isHeader: true,
         ),
       ],
@@ -760,10 +764,11 @@ class ToneExplanationDialog extends StatelessWidget {
     // 低子音の死音節の場合は母音の長短を表示
     String syllableTypeDisplay;
     if (rule.syllableType == SyllableType.dead && rule.isShortVowel != null) {
-      syllableTypeDisplay = rule.syllableType
-          .getDisplayNameWithVowel(hasShortVowel: rule.isShortVowel);
+      syllableTypeDisplay = rule.syllableType.getDisplayNameWithVowel(
+          L10n.of(context),
+          hasShortVowel: rule.isShortVowel);
     } else {
-      syllableTypeDisplay = rule.syllableType.displayName;
+      syllableTypeDisplay = rule.syllableType.displayName(L10n.of(context));
     }
 
     return TableRow(
@@ -825,7 +830,7 @@ class ToneExplanationDialog extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Text(
-        toneMark.symbol,
+        toneMark.symbol(L10n.of(context)),
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
@@ -851,7 +856,7 @@ class ToneExplanationDialog extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            tone.displayName,
+            tone.displayName(L10n.of(context)),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight:
@@ -898,7 +903,7 @@ class ToneExplanationDialog extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          '= この単語に適用されている規則',
+          L10n.of(context).toneAppliedRule,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context)
                     .colorScheme
@@ -927,12 +932,12 @@ class ToneExplanationDialog extends StatelessWidget {
             );
           },
           icon: const Icon(Icons.school),
-          label: const Text('声調について詳しく学ぶ'),
+          label: Text(L10n.of(context).toneLearnMore),
         ),
         const SizedBox(height: 12),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('閉じる'),
+          child: Text(L10n.of(context).commonClose),
         ),
       ],
     );

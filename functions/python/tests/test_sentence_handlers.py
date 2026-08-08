@@ -1,10 +1,14 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
+from constants import resolve_lang
 from sentence_handlers import (
     _build_sentence_commit_update,
     _build_sentence_data,
     _effective_generation_params,
     _resolve_trial_active,
+    _trial_expires_at,
 )
 
 
@@ -76,34 +80,97 @@ def test_effective_generation_params_strips_premium_trial_flag():
     assert effective == {"topic": "タイBLドラマ"}
 
 
-# ---- premium ロジック切り替え判定（_resolve_trial_active）----
+def test_effective_generation_params_strips_lang():
+    """lang は出力言語の指定であって生成条件ではない。プロンプトへ渡さない。"""
+    params = {"topic": "タイBLドラマ", "lang": "en"}
+
+    assert _effective_generation_params(params, is_premium=True) == {
+        "topic": "タイBLドラマ"
+    }
+
+
+# ---- 言語の正規化（resolve_lang）----
 
 
 @pytest.mark.parametrize(
-    "is_premium, trial_requested, trial_remaining, expected",
+    "data, expected",
     [
-        # free＋要求＋残あり → 切り替え
-        (False, True, 5, True),
-        (False, True, 1, True),
-        # 残回数を使い切ったら free のまま
-        (False, True, 0, False),
+        ({"lang": "en"}, "en"),
+        ({"lang": "EN"}, "en"),
+        ({"lang": " ja "}, "ja"),
+        # 旧クライアントは lang を送らない
+        ({}, "ja"),
+        (None, "ja"),
+        # 未知・壊れた値は既定言語へ。英訳の誤配より無変化のほうが害が小さい
+        ({"lang": "th"}, "ja"),
+        ({"lang": ""}, "ja"),
+        ({"lang": None}, "ja"),
+        ({"lang": 123}, "ja"),
+    ],
+)
+def test_resolve_lang(data, expected):
+    assert resolve_lang(data) == expected
+
+
+# ---- premium ロジック切り替え判定（_resolve_trial_active）----
+
+
+_NOW = datetime(2026, 8, 7, 12, 0, tzinfo=timezone.utc)
+_FUTURE = _NOW + timedelta(days=1)
+_PAST = _NOW - timedelta(seconds=1)
+
+
+@pytest.mark.parametrize(
+    "is_premium, trial_requested, trial_remaining, trial_expires_at, expected",
+    [
+        # 期限内なら残回数に関わらず切り替え（期間制が本体）
+        (False, True, 10, _FUTURE, True),
+        (False, True, 0, _FUTURE, True),
+        # 期限切れは free のまま。残回数が残っていても復活させない
+        (False, True, 10, _PAST, False),
         # 要求が無ければ消費しない（自動生成等）
-        (False, False, 5, False),
+        (False, False, 10, _FUTURE, False),
         # premium は tier 側で premium 扱い、トライアルは消費しない
-        (True, True, 5, False),
+        (True, True, 10, _FUTURE, False),
+        # 期限を持たない旧doc は従来どおり残回数で判定する
+        (False, True, 5, None, True),
+        (False, True, 1, None, True),
+        (False, True, 0, None, False),
+        (False, False, 5, None, False),
+        (True, True, 5, None, False),
     ],
 )
 def test_resolve_trial_active(
-    is_premium, trial_requested, trial_remaining, expected
+    is_premium, trial_requested, trial_remaining, trial_expires_at, expected
 ):
     assert (
         _resolve_trial_active(
             is_premium=is_premium,
             trial_requested=trial_requested,
             trial_remaining=trial_remaining,
+            trial_expires_at=trial_expires_at,
+            now=_NOW,
         )
         is expected
     )
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (_FUTURE, _FUTURE),
+        # Firestore から naive で返っても UTC として扱う
+        (_FUTURE.replace(tzinfo=None), _FUTURE),
+        (None, None),
+        ("2026-08-07T12:00:00Z", None),
+    ],
+)
+def test_trial_expires_at(value, expected):
+    assert _trial_expires_at({"premium_trial_expires_at": value}) == expected
+
+
+def test_trial_expires_at_missing_field():
+    assert _trial_expires_at({}) is None
 
 
 # ---- 通常クォータとトライアル枠の独立消費（_build_sentence_commit_update）----
@@ -188,6 +255,67 @@ def test_produce_sentence_free_cache_hit(monkeypatch):
     assert target_words == ["ข้าว"]
     assert topic == "食事"
     assert from_cache is True
+
+
+def test_produce_sentence_en_skips_the_japanese_free_cache(monkeypatch):
+    """free 例文バンクは日本語訳込み。en で引くと英語ユーザーに日本語訳が返る。"""
+    import sentence_handlers
+
+    monkeypatch.setattr(
+        sentence_handlers,
+        "_select_target_words_with_topic",
+        lambda db, uid, params, **kw: (["ข้าว"], "食事"),
+    )
+
+    def _must_not_be_called(word):
+        raise AssertionError("en でキャッシュを引いてはいけない")
+
+    monkeypatch.setattr(sentence_handlers, "pick_free_sentence", _must_not_be_called)
+
+    captured = {}
+
+    def _generate(params, use_premium_spec, **kw):
+        captured["lang"] = kw.get("lang")
+        return {"thai_text": "ฉันกินข้าว"}
+
+    monkeypatch.setattr(sentence_handlers, "generate_sentence", _generate)
+
+    produced = sentence_handlers.produce_sentence(
+        None,
+        "uid",
+        {},
+        use_premium_spec=False,
+        estimated_vocab=10,
+        lang="en",
+    )
+
+    assert produced is not None
+    _sentence, _words, _topic, from_cache = produced
+    assert from_cache is False
+    assert captured["lang"] == "en"
+
+
+def test_produce_sentence_en_cache_only_returns_none(monkeypatch):
+    """毎日配信の free 経路（cache_only）は en バンクが無いので配信しない。"""
+    import sentence_handlers
+
+    monkeypatch.setattr(
+        sentence_handlers,
+        "_select_target_words_with_topic",
+        lambda db, uid, params, **kw: (["ข้าว"], "食事"),
+    )
+
+    produced = sentence_handlers.produce_sentence(
+        None,
+        "uid",
+        {},
+        use_premium_spec=False,
+        estimated_vocab=10,
+        cache_only=True,
+        lang="en",
+    )
+
+    assert produced is None
 
 
 def test_produce_sentence_cache_only_retries_then_none(monkeypatch):

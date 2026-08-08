@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import '../data/models/thai_sentence.dart';
 import '../data/sentence_repository.dart';
 
@@ -68,8 +69,8 @@ class GetSentencesException implements Exception {
   GetSentencesException(this.message);
 
   /// Get user-friendly error message
-  String getUserMessage() {
-    return 'データの読み込みに失敗しました。もう一度お試しください。';
+  String getUserMessage(L10n l10n) {
+    return l10n.errLoadFailedRetry;
   }
 
   @override

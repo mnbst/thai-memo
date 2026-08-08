@@ -249,7 +249,15 @@ export async function verifyAppStorePurchase(
   const txInfo = decodeSignedPayload<TransactionInfo>(body.signedTransactionInfo);
 
   const expiresAt = txInfo.expiresDate ? new Date(txInfo.expiresDate) : null;
-  const isExpired = expiresAt ? expiresAt < new Date() : false;
+  // 自動更新サブスクなら expiresDate は必ず来る。無い場合に premium を付与すると
+  // 期限判定が働かず永久 premium になるため、expired として扱う
+  if (!expiresAt) {
+    console.error('Transaction has no expiresDate; treating as expired', {
+      transactionId,
+      originalTransactionId: txInfo.originalTransactionId,
+    });
+  }
+  const isExpired = expiresAt ? expiresAt < new Date() : true;
   const isRevoked = !!txInfo.revocationDate;
 
   // 自動更新状態は transaction API には含まれないため、subscriptions API から取得する。

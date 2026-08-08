@@ -106,13 +106,14 @@ class PushNotificationService {
 
   /// OSの通知許可が既に得られているか。ダイアログは出さない。
   ///
-  /// 取得に失敗したときは true を返す。コーチングダイアログの出し分けに使うため、
-  /// 判断できないときは「もう許可済み」側に倒して余計な案内を出さない。
-  Future<bool> hasPermission() async {
+  /// 取得に失敗したときは null（判定不能）を返す。呼び出し側はこの回のみ案内を
+  /// 見送り、「案内済み」としては記録しないこと。true を返して既許可扱いにすると、
+  /// 一度の取得失敗でそのユーザーが恒久的に案内対象から外れる。
+  Future<bool?> hasPermission() async {
     try {
       return _isGranted(await _messaging.getNotificationSettings());
     } catch (_) {
-      return true;
+      return null;
     }
   }
 
@@ -183,6 +184,22 @@ class PushNotificationService {
         {
           'preferred_topic': topic ?? FieldValue.delete(),
         },
+        SetOptions(merge: true),
+      );
+    } catch (_) {
+      // 反映は次回の設定変更・起動時に再試行される
+    }
+  }
+
+  /// アプリ言語をサーバーへミラーする。
+  ///
+  /// 言語もローカルの SharedPreferences にしか無く配信バッチから見えないため、
+  /// 毎日例文の通知本文を出し分ける目的でこれだけ複製する。
+  /// クライアント起点の callable には引数で渡すので、ここは通知専用。
+  Future<void> setAppLanguage(String lang) async {
+    try {
+      await _userDoc?.set(
+        {'app_language': lang},
         SetOptions(merge: true),
       );
     } catch (_) {

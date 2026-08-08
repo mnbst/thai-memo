@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -40,7 +41,7 @@ except ImportError:
     from uvm import get_session_words
 
 _freq_rank: dict[str, int] | None = None
-_nlp_enrich_with_nlp: Callable[[dict], dict] | None = None
+_nlp_enrich_with_nlp: Callable[..., dict] | None = None
 _nlp_import_lock = threading.Lock()
 
 # NLP ワーカー子プロセス（nlp_worker.py 参照）。インスタンス内で1本を共有し、
@@ -51,7 +52,7 @@ _nlp_worker_lock = threading.Lock()  # 起動の排他
 _nlp_worker_io_lock = threading.Lock()  # パイプ入出力の排他
 
 
-def _get_enrich_with_nlp() -> Callable[[dict], dict]:
+def _get_enrich_with_nlp() -> Callable[..., dict]:
     """NLPの重い依存を必要になるまで読み込まない（ワーカー使用不可時のフォールバック）。"""
     global _nlp_enrich_with_nlp
     if _nlp_enrich_with_nlp is not None:
@@ -106,7 +107,7 @@ def _prewarm_nlp_async() -> None:
         _nlp_worker_proc = _spawn_nlp_worker()
 
 
-def _enrich_via_worker(sentence: dict) -> bool:
+def _enrich_via_worker(sentence: dict, lang: str = "ja") -> bool:
     """ワーカーで NLP 後処理を行う。成功したら sentence を書き換えて True。"""
     global _nlp_worker_proc
 
@@ -154,7 +155,7 @@ def _enrich_via_worker(sentence: dict) -> bool:
 
             enrich_started = time.perf_counter()
             proc.stdin.write(
-                json.dumps({"sentence": sentence}, ensure_ascii=False) + "\n"
+                json.dumps({"sentence": sentence, "lang": lang}, ensure_ascii=False) + "\n"
             )
             proc.stdin.flush()
             line = proc.stdout.readline()
@@ -181,11 +182,11 @@ def _enrich_via_worker(sentence: dict) -> bool:
     return True
 
 
-def _enrich_with_nlp(sentence: dict) -> None:
+def _enrich_with_nlp(sentence: dict, lang: str = "ja") -> None:
     """NLP 後処理を適用する。ワーカーが使えなければ同一プロセスで実行する。"""
-    if _enrich_via_worker(sentence):
+    if _enrich_via_worker(sentence, lang):
         return
-    _get_enrich_with_nlp()(sentence)
+    _get_enrich_with_nlp()(sentence, lang)
 
 
 def get_freq_rank() -> dict[str, int]:
@@ -279,7 +280,10 @@ MAX_RETRY = 1
 
 
 def _match_word(word_text: str, target: str) -> bool:
-    w = word_text.strip()
+    # ๆ の前の空白は _normalize_thai_spacing で詰めるが、そこを通らない経路
+    # （欠落補完・テスト）からも呼ばれるので照合時にも両表記を同一視する。
+    w = _compact_yamok(word_text.strip())
+    target = _compact_yamok(target)
     return w == target or w == target + "ๆ" or w + "ๆ" == target
 
 
@@ -315,11 +319,11 @@ def validate_target_words(sentence: dict, target_words: list[str] | None) -> lis
 _CONTEXT_FIELDS = ("topic", "style", "emotion")
 
 
-def _schema_for(resolved_context: dict | None) -> dict:
+def _schema_for(resolved_context: dict | None, lang: str = "ja") -> dict:
     """確定値が無い context フィールドだけ LLM に生成させるスキーマを返す。"""
     resolved = resolved_context or {}
     ask = tuple(f for f in _CONTEXT_FIELDS if not resolved.get(f))
-    return build_response_schema(ask)
+    return build_response_schema(ask, lang=lang)
 
 
 def _apply_response_compat(sentence: dict, resolved_context: dict | None) -> dict:
@@ -364,6 +368,121 @@ def _build_retry_prompt(prompt: str, missing: list[str]) -> str:
     )
 
 
+def _build_mismatch_retry_prompt(prompt: str, thai_text: str) -> str:
+    return (
+        f"{prompt}\n\n"
+        "【再生成指示】前回の生成では thai_text と word_breakdown の語が食い違っていました"
+        f"（thai_text: {thai_text}）。多くは thai_text 側の綴り誤りです。"
+        "thai_text を正しい綴りで書き直し、word_breakdown の各語が thai_text に"
+        "そのまま出現する形で出力してください。"
+    )
+
+
+def _strip_spaces(text: str) -> str:
+    return "".join(text.split())
+
+
+def _compact_yamok(text: str) -> str:
+    """畳語記号 ๆ の前の空白を詰める。
+
+    王立学士院の正式記法は ๆ の前を空けるが、TTS は空白を語境界のポーズとして
+    読むため จริง ๆ が分断されて発音される。表示より発音の自然さを優先する。
+    ๆ の後ろの空白は節の切れ目になりうるので残す。
+    """
+    return re.sub(r"\s+ๆ", "ๆ", text)
+
+
+def _normalize_thai_spacing(sentence: dict) -> None:
+    """thai_text の空白を整える。
+
+    1. 畳語記号 ๆ の前の空白を詰める（TTS 対策。_compact_yamok を参照）
+    2. word_breakdown の分割が thai_text に漏れた文の空白を詰める
+
+    2 は、同じ文の分割版（word_breakdown）を同時に出力させる構造上、プロンプトで
+    何度禁じても残る（2026-08-06 実測 6/548=1.1%。例文の有無・語クラスブロックの
+    有無と相関せず、ルール追加では消えない）。観測された6件はすべて空白位置が
+    word_breakdown の区切りと一致していたので、その一致を条件に詰める。節の
+    切れ目に空白1つの正しい文（トークン2個）と、word_breakdown と連結が一致
+    しない文には触らない。
+    """
+    text = _compact_yamok(sentence.get("thai_text") or "")
+    for wb in sentence.get("word_breakdown") or []:
+        if isinstance(wb, dict) and wb.get("word"):
+            wb["word"] = _compact_yamok(str(wb["word"]))
+    sentence["thai_text"] = text
+
+    tokens = text.split()
+    # 3トークン以下は空白過多ではあっても、どれが節の切れ目か判別できない。
+    # 実測の分かち書き崩壊は全て4トークン以上（2026-08-06）。
+    if len(tokens) < 4:
+        return
+
+    words = [
+        (wb.get("word") or "").strip()
+        for wb in sentence.get("word_breakdown") or []
+        if isinstance(wb, dict)
+    ]
+    if not words or _strip_spaces(text) != _strip_spaces("".join(words)):
+        return
+    # 空白が語の区切りと一致するだけでは足りない（2節の文でも一致する）。
+    # 語数に近い数まで割れているものだけを分かち書きの漏れとみなす。
+    # 実測6件は 0.8〜1.0、正しい2節の文は 0.5 未満（2026-08-06）。
+    if len(tokens) < len(words) * 0.7:
+        return
+
+    fixed = _strip_spaces(text)
+    print(f"thai_text word-split collapsed: {text} -> {fixed}")
+    sentence["thai_text"] = fixed
+
+
+def _has_unrepairable_breakdown(sentence: dict) -> bool:
+    """word_breakdown に thai_text へ出現しない語があるか（綴り不一致）。"""
+    from word_gap import find_gaps
+
+    return any(index < 0 for index, _ in find_gaps(sentence))
+
+
+def _repair_word_breakdown(
+    sentence: dict, is_premium: bool, tier_label: str, lang: str = "ja"
+) -> None:
+    """word_breakdown の欠落を、欠落分だけの補完クエリ1回で埋める。
+
+    文全体は作り直さない（コスト・レイテンシが見合わないため）。補完できなかった
+    場合は文全体の発音だけ thai_text から作り直し、発音が欠けたままにしない。
+    """
+    from word_gap import (
+        GAP_RESPONSE_SCHEMA,
+        GAP_SYSTEM_PROMPT,
+        apply_gap_words,
+        build_gap_prompt,
+        find_gaps,
+        repair_pronunciation,
+    )
+
+    gaps = find_gaps(sentence)
+    if not gaps:
+        return
+    thai_text = sentence.get("thai_text") or ""
+    print(f"word_breakdown gap detected: {[g[1] for g in gaps]} in {thai_text}")
+
+    if all(index >= 0 for index, _ in gaps):
+        try:
+            filled = _llm_generate_sync(
+                GAP_SYSTEM_PROMPT,
+                build_gap_prompt(thai_text, gaps),
+                is_premium,
+                f"{tier_label}-gap",
+                GAP_RESPONSE_SCHEMA,
+            )
+            if apply_gap_words(sentence, gaps, filled.get("words") or []):
+                _enrich_with_nlp(sentence, lang)
+                return
+        except Exception as exc:  # 補完の失敗で生成全体を落とさない
+            print(f"word_breakdown gap fill failed: {exc}")
+
+    repair_pronunciation(sentence)
+
+
 def _generate_single(
     system_prompt: str,
     prompt: str,
@@ -371,6 +490,7 @@ def _generate_single(
     tier_label: str,
     target_words: list[str] | None = None,
     resolved_context: dict | None = None,
+    lang: str = "ja",
 ) -> dict:
     """LLM で1文を同期生成し NLP 後処理を適用する。"""
     _prewarm_nlp_async()
@@ -383,13 +503,25 @@ def _generate_single(
             current_prompt,
             is_premium,
             tier_label,
-            _schema_for(resolved_context),
+            _schema_for(resolved_context, lang),
         )
         _apply_response_compat(sentence, resolved_context)
-        _enrich_with_nlp(sentence)
+        _normalize_thai_spacing(sentence)
+        _enrich_with_nlp(sentence, lang)
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
+            # 綴り不一致は欠落補完では直せないため、1回だけ作り直す。
+            if _has_unrepairable_breakdown(sentence) and attempt < MAX_RETRY:
+                print(
+                    "thai_text/word_breakdown mismatch "
+                    f"(attempt {attempt + 1}): {sentence.get('thai_text')}"
+                )
+                current_prompt = _build_mismatch_retry_prompt(
+                    prompt, sentence.get("thai_text") or ""
+                )
+                continue
+            _repair_word_breakdown(sentence, is_premium, tier_label, lang)
             return sentence
 
         print(
@@ -409,6 +541,7 @@ async def _generate_single_async(
     tier_label: str,
     target_words: list[str] | None = None,
     resolved_context: dict | None = None,
+    lang: str = "ja",
 ) -> dict:
     """LLM で1文を非同期生成し NLP 後処理を適用する（バッチ並列用）。"""
     _prewarm_nlp_async()
@@ -421,13 +554,25 @@ async def _generate_single_async(
             current_prompt,
             is_premium,
             tier_label,
-            _schema_for(resolved_context),
+            _schema_for(resolved_context, lang),
         )
         _apply_response_compat(sentence, resolved_context)
-        _enrich_with_nlp(sentence)
+        _normalize_thai_spacing(sentence)
+        _enrich_with_nlp(sentence, lang)
 
         missing = validate_target_words(sentence, target_words)
         if not missing:
+            # 綴り不一致は欠落補完では直せないため、1回だけ作り直す。
+            if _has_unrepairable_breakdown(sentence) and attempt < MAX_RETRY:
+                print(
+                    "thai_text/word_breakdown mismatch "
+                    f"(attempt {attempt + 1}): {sentence.get('thai_text')}"
+                )
+                current_prompt = _build_mismatch_retry_prompt(
+                    prompt, sentence.get("thai_text") or ""
+                )
+                continue
+            _repair_word_breakdown(sentence, is_premium, tier_label, lang)
             return sentence
 
         print(
@@ -446,6 +591,7 @@ def generate_sentence(
     *,
     target_words: list[str] | None = None,
     estimated_vocab: int = 0,
+    lang: str = "ja",
 ) -> dict:
     """LLM で例文を生成し、NLP後処理を適用する。"""
     tier_label = "premium" if is_premium else "free"
@@ -454,8 +600,9 @@ def generate_sentence(
         target_words,
         estimated_vocab=estimated_vocab,
         is_premium=is_premium,
+        lang=lang,
     )
-    system_prompt = get_system_prompt(is_premium, estimated_vocab)
+    system_prompt = get_system_prompt(is_premium, estimated_vocab, lang=lang)
     return _generate_single(
         system_prompt,
         prompt,
@@ -463,6 +610,7 @@ def generate_sentence(
         tier_label,
         target_words,
         resolved_context,
+        lang,
     )
 
 

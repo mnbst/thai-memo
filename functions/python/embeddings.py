@@ -7,9 +7,6 @@ GCSからembeddingデータをlazy-loadし、コサイン類似度で
   - vocab_embeddings.npy: (10000, 768) float32 — Gemini Embedding モデルの出力
   - vocab_words.json: [{"word": "ฉัน", "rank": 1}, ...] — npy の行番号と対応
   - topic_embeddings.json: {"テーマ文字列": [float, ...], ...} — 事前計算済み
-  - emotion_embeddings.json: {"感情ラベル": [float, ...], ...} — 事前計算済み
-  - style_embeddings.json: {"文体ラベル": [float, ...], ...} — 事前計算済み
-  - politeness_embeddings.json: {"丁寧さラベル": [float, ...], ...} — 事前計算済み
 """
 
 import io
@@ -30,17 +27,11 @@ _embeddings: np.ndarray | None = None  # (10000, 768) の embedding 行列
 _word_to_idx: dict[str, int] | None = None  # 単語 → _embeddings の行インデックス
 _words: list[dict[str, Any]] | None = None  # vocab_words.json の中身
 _topic_embeddings: dict[str, list[float]] | None = None  # テーマ→embedding
-_emotion_embeddings: dict[str, list[float]] | None = None  # 感情→embedding
-_style_embeddings: dict[str, list[float]] | None = None  # 文体→embedding
-_politeness_embeddings: dict[str, list[float]] | None = None  # 丁寧さ→embedding
 
 GCS_BUCKET = os.environ.get("UVM_DATA_BUCKET", "")
 EMB_BLOB = "vocab_embeddings.npy"
 WORDS_BLOB = "vocab_words.json"
 TOPIC_EMB_BLOB = "topic_embeddings.json"
-EMOTION_EMB_BLOB = "emotion_embeddings.json"
-STYLE_EMB_BLOB = "style_embeddings.json"
-POLITENESS_EMB_BLOB = "politeness_embeddings.json"
 
 
 def _load_data() -> None:
@@ -96,39 +87,6 @@ def _load_topic_embeddings() -> None:
     bucket = _get_bucket()
     blob = bucket.blob(TOPIC_EMB_BLOB)
     _topic_embeddings = json.loads(blob.download_as_text())
-
-
-def _load_emotion_embeddings() -> None:
-    """GCS から emotion_embeddings.json をロードしキャッシュする。"""
-    global _emotion_embeddings
-    if _emotion_embeddings is not None:
-        return
-
-    bucket = _get_bucket()
-    blob = bucket.blob(EMOTION_EMB_BLOB)
-    _emotion_embeddings = json.loads(blob.download_as_text())
-
-
-def _load_style_embeddings() -> None:
-    """GCS から style_embeddings.json をロードしキャッシュする。"""
-    global _style_embeddings
-    if _style_embeddings is not None:
-        return
-
-    bucket = _get_bucket()
-    blob = bucket.blob(STYLE_EMB_BLOB)
-    _style_embeddings = json.loads(blob.download_as_text())
-
-
-def _load_politeness_embeddings() -> None:
-    """GCS から politeness_embeddings.json をロードしキャッシュする。"""
-    global _politeness_embeddings
-    if _politeness_embeddings is not None:
-        return
-
-    bucket = _get_bucket()
-    blob = bucket.blob(POLITENESS_EMB_BLOB)
-    _politeness_embeddings = json.loads(blob.download_as_text())
 
 
 def _find_embedding(
@@ -218,7 +176,7 @@ def find_best_topic(
     """key_word の embedding と各テーマ embedding のコサイン類似度からテーマを返す。
 
     閾値以上の候補を類似度順に並べ、上位 top_k 件からランダムに1件選択する。
-    閾値を満たす候補がない場合は最高類似度のテーマを返す。
+    閾値を満たす候補がない場合は None を返す（呼び出し側で LLM に委ねる）。
 
     Args:
         word: key_word（タイ語単語）
@@ -252,8 +210,13 @@ def find_best_topic(
 
     scored.sort(reverse=True)
     candidates = [t for sim, t in scored if sim >= threshold]
-    pool = (candidates or [scored[0][1]])[:top_k]
-    return random.choice(pool)
+    # 2026-08-06: 閾値未達時に最高類似度を返すのをやめた。機能語 key_word は
+    # どのテーマとも意味的に無関係なので、argmax はテーマ embedding の重心バイアス
+    # （ラベル文が広いテーマほど全語に近い）を拾うだけで意味を持たない。
+    # None を返して呼び出し側から LLM にテーマを委ねる。
+    if not candidates:
+        return None
+    return random.choice(candidates[:top_k])
 
 
 _sub_theme_embeddings: dict[str, list[float]] | None = None
@@ -361,148 +324,6 @@ def find_best_sub_theme(
     return random.choices([st for _, st in scored], weights=weights, k=1)[0]
 
 
-def get_topic_option_similarity_weights(
-    topic: str,
-    options: list[str],
-    kind: str,
-    scale: float = 3.0,
-) -> list[float] | None:
-    """topic に近い style / politeness 候補を選びやすくする重みを返す。
-
-    全候補を残しつつ、topic embedding と option embedding の類似度差で
-    1.0〜(1.0 + scale) の範囲に正規化する。
-    """
-    if not topic or not options:
-        return None
-
-    _load_topic_embeddings()
-    assert _topic_embeddings is not None
-
-    if kind == "style":
-        _load_style_embeddings()
-        option_embeddings = _style_embeddings
-    elif kind == "politeness":
-        _load_politeness_embeddings()
-        option_embeddings = _politeness_embeddings
-    else:
-        raise ValueError(f"Unsupported option embedding kind: {kind}")
-
-    assert option_embeddings is not None
-
-    topic_emb = _find_embedding(topic, _topic_embeddings)
-    if topic_emb is None:
-        return None
-
-    scored: list[tuple[float, int]] = []
-    for i, option in enumerate(options):
-        option_emb = _find_embedding(option, option_embeddings)
-        if option_emb is None:
-            continue
-        scored.append((cosine_similarity(topic_emb, option_emb), i))
-
-    if not scored:
-        return None
-
-    min_similarity = min(sim for sim, _ in scored)
-    max_similarity = max(sim for sim, _ in scored)
-    if max_similarity == min_similarity:
-        return [1.0] * len(options)
-
-    weights = [1.0] * len(options)
-    for similarity, i in scored:
-        normalized = (similarity - min_similarity) / (max_similarity - min_similarity)
-        weights[i] = 1.0 + normalized * scale
-    return weights
-
-
-def get_style_similarity_weights(
-    target_words: list[str] | None,
-    styles: list[str],
-    top_k: int = 3,
-) -> list[float] | None:
-    """target_words に近い文体ラベルだけを選びやすくする重みを返す。
-
-    語彙 embedding と事前計算済み style_embeddings.json を比較し、
-    類似度上位 top_k の文体だけをランダム選択候補に残す。
-    embedding が取得できない場合は None を返し、呼び出し側で通常ランダムに戻す。
-    """
-    if not target_words:
-        return None
-
-    _load_data()
-    _load_style_embeddings()
-    assert _style_embeddings is not None
-
-    target_embs = [
-        emb for word in target_words if (emb := get_embedding(word)) is not None
-    ]
-    if not target_embs:
-        return None
-
-    target_emb = np.mean(np.stack(target_embs), axis=0)
-    scored: list[tuple[float, int]] = []
-    for i, style in enumerate(styles):
-        style_emb = _find_embedding(style, _style_embeddings)
-        if style_emb is None:
-            continue
-        scored.append((cosine_similarity(target_emb, style_emb), i))
-
-    if not scored:
-        return None
-
-    scored.sort(reverse=True)
-    top = scored[: max(1, min(top_k, len(scored)))]
-    min_similarity = min(sim for sim, _ in top)
-    weights = [0.0] * len(styles)
-    for similarity, i in top:
-        weights[i] = 1.0 + max(0.0, similarity - min_similarity) * 20.0
-    return weights
-
-
-def get_emotion_similarity_weights(
-    target_words: list[str] | None,
-    emotions: list[str],
-    top_k: int = 3,
-) -> list[float] | None:
-    """target_words に近い感情ラベルだけを選びやすくする重みを返す。
-
-    語彙 embedding と事前計算済み emotion_embeddings.json を比較し、
-    類似度上位 top_k の感情だけをランダム選択候補に残す。
-    embedding が取得できない場合は None を返し、呼び出し側で通常ランダムに戻す。
-    """
-    if not target_words:
-        return None
-
-    _load_data()
-    _load_emotion_embeddings()
-    assert _emotion_embeddings is not None
-
-    target_embs = [
-        emb for word in target_words if (emb := get_embedding(word)) is not None
-    ]
-    if not target_embs:
-        return None
-
-    target_emb = np.mean(np.stack(target_embs), axis=0)
-    scored: list[tuple[float, int]] = []
-    for i, emotion in enumerate(emotions):
-        emotion_emb = _find_embedding(emotion, _emotion_embeddings)
-        if emotion_emb is None:
-            continue
-        scored.append((cosine_similarity(target_emb, emotion_emb), i))
-
-    if not scored:
-        return None
-
-    scored.sort(reverse=True)
-    top = scored[: max(1, min(top_k, len(scored)))]
-    min_similarity = min(sim for sim, _ in top)
-    weights = [0.0] * len(emotions)
-    for similarity, i in top:
-        weights[i] = 1.0 + max(0.0, similarity - min_similarity) * 20.0
-    return weights
-
-
 def get_embedding(word: str) -> np.ndarray | None:
     """指定した単語の embedding ベクトル (768次元) を返す。
 
@@ -514,6 +335,11 @@ def get_embedding(word: str) -> np.ndarray | None:
     if idx is None:
         return None
     return _embeddings[idx]
+
+
+# 2026-08-07 削除: get_topic_option_similarity_weights（topic に近い丁寧さを
+# 選びやすくする重み）。丁寧さの抽選ごと廃止したため唯一の呼び出し元が消えた。
+# kind は "politeness" しか対応しておらず、他用途は無い。
 
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:

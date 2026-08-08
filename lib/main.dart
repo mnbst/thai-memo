@@ -2,6 +2,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
@@ -21,6 +22,13 @@ const String? _appCheckDebugToken =
 void main() async {
   // Ensure Flutter binding is initialized
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Flutter は支援技術が接続されるまでセマンティクスツリーを構築しないため、
+  // Maestro などアクセシビリティ経由でUIを読む自動化ツールからは中身が空に見える。
+  // debug ビルドでのみ常時有効にする（release は従来どおり必要時のみ構築）。
+  if (kDebugMode) {
+    SemanticsBinding.instance.ensureSemantics();
+  }
 
   // Initialize Firebase（環境に応じて設定を切替）
   final firebaseOptions = AppConfig.isProd

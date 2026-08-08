@@ -101,6 +101,15 @@ export async function verifyPlayPurchase(
   // IN_GRACE_PERIOD / ON_HOLD: 決済失敗だが回復の余地あり → grace_period として premium 維持
   // その他（EXPIRED, PAUSED 等）: サービス提供を停止 → expired として tier='free' に
   let status: PlayVerificationResult['status'];
+  if (!expiresAt) {
+    // expiryTime が無いと期限判定が働かず永久 premium になるため expired 扱い
+    console.error('Subscription has no expiryTime; treating as expired', {
+      packageName,
+      subscriptionId,
+      subscriptionState: data.subscriptionState,
+    });
+    return { valid: true, expiresAt: null, autoRenewing, status: 'expired' };
+  }
   switch (data.subscriptionState) {
     case 'SUBSCRIPTION_STATE_ACTIVE':
       status = 'active';

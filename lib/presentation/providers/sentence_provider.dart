@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n/l10n_provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/datasources/local/secure_storage_service.dart';
 import '../../data/datasources/backend_api_service.dart';
@@ -28,7 +30,9 @@ typedef GetMostRecentSentenceCallback = Future<ThaiSentence?> Function();
 final sentenceRepositoryProvider = Provider<SentenceRepository>((ref) {
   return SentenceRepository(
     databaseHelper: DatabaseHelper.instance,
-    apiService: BackendApiService(),
+    apiService: BackendApiService(
+      lang: () => ref.read(appLanguageProvider).code,
+    ),
     secureStorage: SecureStorageService.instance,
     authService: FirebaseAuthService.instance,
   );
@@ -79,8 +83,14 @@ class SentenceController extends StateNotifier<SentenceState> {
   final AnalyticsService _analytics;
   final String Function() _currentTier;
   final String? Function() _currentTopic;
+  final bool Function() _isTrialActive;
+
+  /// 期限を持たない旧ユーザー向けの残回数。トライアル最終回の判定にのみ使う。
   final int Function() _trialRemaining;
   final Future<void> Function() _onTrialExhausted;
+
+  /// 文言は言語設定に追従させたいので、値ではなく都度引く関数を持つ。
+  final L10n Function() _l10n;
   final GenerateSentenceCallback? _generateSentenceOverride;
   final GetMostRecentSentenceCallback? _getMostRecentSentenceOverride;
 
@@ -91,16 +101,18 @@ class SentenceController extends StateNotifier<SentenceState> {
     this._analytics,
     this._currentTier,
     this._currentTopic,
+    this._isTrialActive,
     this._trialRemaining,
-    this._onTrialExhausted, {
+    this._onTrialExhausted,
+    this._l10n, {
     GenerateSentenceCallback? generateSentence,
     GetMostRecentSentenceCallback? getMostRecentSentence,
   })  : _generateSentenceOverride = generateSentence,
         _getMostRecentSentenceOverride = getMostRecentSentence,
         super(const SentenceStateInitial());
 
-  /// トライアル中（free かつ残回数あり）か
-  bool get _trialActive => _currentTier() != 'premium' && _trialRemaining() > 0;
+  /// トライアル中（free かつトライアル有効）か
+  bool get _trialActive => _currentTier() != 'premium' && _isTrialActive();
 
   /// Generate a new sentence
   ///
@@ -129,6 +141,9 @@ class SentenceController extends StateNotifier<SentenceState> {
     bool fallbackToRecentOnError = false,
   }) async {
     final trialActive = _trialActive;
+    // 期間制トライアルでは最終回を回数で判定できない。期限切れ時のテーマ解除は
+    // 起動時の体験終了案内（home_screen）が担う。ここは残回数だけを持つ
+    // 旧ユーザー向けの経路。
     final wasLastTrial = trialActive && _trialRemaining() <= 1;
 
     try {
@@ -148,10 +163,10 @@ class SentenceController extends StateNotifier<SentenceState> {
         await _onTrialExhausted();
       }
     } on GenerateSentenceException catch (e) {
-      state = SentenceStateError(e.getUserMessage());
+      state = SentenceStateError(e.getUserMessage(_l10n()));
     } catch (e) {
       if (!fallbackToRecentOnError) {
-        state = SentenceStateError('予期しないエラーが発生しました: $e');
+        state = SentenceStateError(_l10n().errUnexpected('$e'));
         return;
       }
       // 生成失敗時は既存の最新例文を表示、なければサンプル表示
@@ -195,7 +210,7 @@ class SentenceController extends StateNotifier<SentenceState> {
         state = const SentenceStateEmpty();
       }
     } catch (e) {
-      state = const SentenceStateError('データの読み込みに失敗しました');
+      state = SentenceStateError(_l10n().errLoadFailed);
     }
   }
 
@@ -224,7 +239,7 @@ class SentenceController extends StateNotifier<SentenceState> {
         fallbackToRecentOnError: true,
       );
     } catch (e) {
-      state = const SentenceStateError('データの読み込みに失敗しました');
+      state = SentenceStateError(_l10n().errLoadFailed);
     }
   }
 
@@ -320,10 +335,12 @@ final sentenceControllerProvider =
       return isPremium ? 'premium' : 'free';
     },
     () => ref.read(generationParamsProvider)['topic'],
+    () => ref.read(premiumTrialActiveProvider).valueOrNull ?? false,
     () => ref.read(premiumTrialRemainingProvider).valueOrNull ?? 0,
     () => ref
         .read(settingsControllerProvider.notifier)
         .setGenerationParam('topic', null),
+    () => ref.read(l10nProvider),
   );
 });
 

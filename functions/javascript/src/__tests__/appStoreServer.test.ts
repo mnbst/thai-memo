@@ -559,7 +559,8 @@ describe('verifyAppStorePurchase', () => {
       expect(result.valid).toBe(false);
     });
 
-    test('expiresDate なしのトランザクション → expiresAt=null / status=active を返す', async () => {
+    // expires_at が無い premium は期限切れフォールバックが働かず永久 premium になる
+    test('expiresDate なしのトランザクション → expiresAt=null / status=expired を返す', async () => {
       const signedTxInfo = await makeValidSignedTransactionInfo({ expiresDate: undefined });
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -569,7 +570,7 @@ describe('verifyAppStorePurchase', () => {
       const result = await verifyAppStorePurchase('tx_123');
 
       expect(result.expiresAt).toBeNull();
-      expect(result.status).toBe('active');
+      expect(result.status).toBe('expired');
     });
 
     test('renewalInfo の autoRenewStatus=0 → status=canceled / autoRenewing=false を返す', async () => {

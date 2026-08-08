@@ -63,7 +63,7 @@ for env, pid in PROJECTS.items():
                 "key_word": s.get("key_word"),
                 "context": s.get("context"),
                 "words": [
-                    (w.get("thai"), w.get("meaning"))
+                    (w.get("word"), w.get("meaning"))
                     for w in (s.get("word_breakdown") or [])
                 ],
             }

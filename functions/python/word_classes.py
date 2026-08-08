@@ -42,3 +42,9 @@ def classify_all(words: list[str] | None) -> list[str]:
 def is_function_word(word: str) -> bool:
     cid = classify(word)
     return bool(cid and CLASSES[cid].get("function_word"))
+
+
+# 2026-08-07 削除: requires_formal_politeness（書き言葉の語がターゲットのとき
+# 丁寧さをフォーマルへ固定していた）。丁寧さ自体をプロンプトに渡さなくなったため
+# 参照元が消えた。この18語の扱いは word_classes.json の formal クラスが持つ
+# 「改まった場面を選ぶ」ルールが引き継ぐ。

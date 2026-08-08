@@ -37,12 +37,15 @@ import '../../data/datasources/backend_api_service.dart'
         BackendApiNoUserSentencesException,
         BackendApiRateLimitException,
         BackendApiService;
+import '../../core/l10n/l10n_provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../services/analytics_service.dart';
 import 'analytics_provider.dart';
+import 'settings_provider.dart';
 
 /// タイ文字のUnicode範囲にマッチする正規表現（選択肢バリデーション用）
 final RegExp _thaiScriptRegex = RegExp(r'[฀-๿]');
@@ -212,7 +215,7 @@ class QuizStatsData {
 // =============================================================================
 
 class QuizController extends StateNotifier<QuizState> {
-  final DatabaseHelper _db = DatabaseHelper.instance;
+  final DatabaseHelper _db;
   final BackendApiService _apiService;
   final AnalyticsService _analytics;
 
@@ -220,9 +223,24 @@ class QuizController extends StateNotifier<QuizState> {
   /// UVM更新のタイミングやSP保存先キーの選択に影響する。
   bool _isLearningQuiz = false;
 
+  /// 例文画面でタップされたA/Bテスト導線。まとめクイズではnull。
+  String? _quizOfferSource;
+
+  /// 同じ学習クイズの復元・やり直しでファネルイベントを重複させない。
+  bool _quizOfferStartedLogged = false;
+  bool _quizOfferAnsweredLogged = false;
+
   /// 回答ごとに非同期で送信されるUVM更新のFutureリスト。
   /// まとめクイズのサマリー表示前にすべての完了を待つ。
   final List<Future<void>> _pendingUvmUpdates = [];
+
+  /// DB保存待ちの連打で、同じ回答・統計を二重記録しないためのガード。
+  bool _isAnswering = false;
+  bool _isAdvancing = false;
+
+  /// result→次問題の保存が短時間に続いても、古いresultが後勝ちしないよう
+  /// SharedPreferencesへの書き込み順を直列化する。
+  Future<void> _quizStateWriteQueue = Future<void>.value();
 
   /// バックグラウンド事前生成で準備済みのクイズ問題
   List<QuizQuestion>? _preparedQuestions;
@@ -230,8 +248,16 @@ class QuizController extends StateNotifier<QuizState> {
   /// 事前生成の対象となった例文ID（重複生成防止用）
   String? _preparedSentenceId;
 
-  QuizController(this._apiService, this._analytics)
-      : super(const QuizInitial());
+  /// 文言は言語設定に追従させたいので、値ではなく都度引く関数を持つ。
+  final L10n Function() _l10n;
+
+  QuizController(
+    this._apiService,
+    this._analytics,
+    this._l10n, {
+    DatabaseHelper? databaseHelper,
+  })  : _db = databaseHelper ?? DatabaseHelper.instance,
+        super(const QuizInitial());
 
   /// 例文生成直後にバックグラウンドでクイズを事前生成する。
   ///
@@ -257,7 +283,7 @@ class QuizController extends StateNotifier<QuizState> {
         _preparedQuestions = questions;
         final initialState = QuizAnswering(questions, 0, []);
         unawaited(
-          _saveQuizState(_savedConfirmationQuizKey, initialState,
+          _enqueueQuizStateSave(_savedConfirmationQuizKey, initialState,
               sentenceId: sentenceId),
         );
       }
@@ -286,9 +312,15 @@ class QuizController extends StateNotifier<QuizState> {
   ///   1. SharedPreferencesに保存済みの状態（アプリ再起動後の復元）
   ///   2. メモリ上の事前生成済みクイズ（prepareQuizで準備済み）
   ///   3. その場でAPI呼び出しして生成（フォールバック）
-  Future<void> startLearningQuiz(ThaiSentence sentence) async {
+  Future<void> startLearningQuiz(
+    ThaiSentence sentence, {
+    String? offerSource,
+  }) async {
     _isLearningQuiz = true;
-    unawaited(_clearQuizState(_savedSummaryQuizKey));
+    _quizOfferSource = offerSource;
+    _quizOfferStartedLogged = false;
+    _quizOfferAnsweredLogged = false;
+    unawaited(_enqueueQuizStateClear(_savedSummaryQuizKey));
     final sentenceId = sentence.id;
 
     // 1. SP保存済み状態を復元（途中回答やサマリー完了状態も含む）
@@ -297,6 +329,18 @@ class QuizController extends StateNotifier<QuizState> {
     if (savedState != null) {
       _preparedSentenceId = sentenceId;
       state = savedState;
+      _quizOfferAnsweredLogged = switch (savedState) {
+        QuizAnswering s => s.answers.isNotEmpty,
+        QuizShowResult() || QuizSummary() => true,
+        _ => false,
+      };
+      if (savedState is QuizAnswering && !_quizOfferAnsweredLogged) {
+        _logQuizStarted(savedState.questions);
+      } else {
+        // 回答済み状態からの復元後に「やり直す」を押しても、同じofferの
+        // started/answeredとして二重計測しない。
+        _quizOfferStartedLogged = true;
+      }
       return;
     }
 
@@ -312,7 +356,8 @@ class QuizController extends StateNotifier<QuizState> {
     try {
       final questions = await _apiService.generateLearningQuiz(sentence);
       if (questions.length != 1 || _hasInvalidQuizChoices(questions)) {
-        state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
+        state = QuizError(_l10n().errQuizGenerationFailed);
+        _logQuizOfferError();
         return;
       }
 
@@ -320,11 +365,18 @@ class QuizController extends StateNotifier<QuizState> {
       _preparedQuestions = questions;
       _enterAnswering(questions);
     } on BackendApiRateLimitException {
-      state = const QuizError('本日のクイズ生成上限に達しました。');
+      state = QuizError(_l10n().quotaQuizReached);
+      _logQuizOfferError();
     } catch (e) {
       debugPrint('学習クイズ生成エラー: $e');
-      state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
+      state = QuizError(_l10n().errQuizGenerationFailed);
+      _logQuizOfferError();
     }
+  }
+
+  /// 生成エラー画面から、元のA/Bテスト文脈を維持したまま再試行する。
+  Future<void> retryLearningQuiz(ThaiSentence sentence) {
+    return startLearningQuiz(sentence, offerSource: _quizOfferSource);
   }
 
   /// まとめクイズ（5問の復習クイズ）を生成して開始する。
@@ -334,6 +386,9 @@ class QuizController extends StateNotifier<QuizState> {
   /// ユーザーの学習済み例文がない場合はQuizNoSentences状態に遷移。
   Future<void> generateAndStartQuiz() async {
     _isLearningQuiz = false;
+    _quizOfferSource = null;
+    _quizOfferStartedLogged = false;
+    _quizOfferAnsweredLogged = false;
 
     // SP保存済みの途中状態があれば復元
     final savedState = await _loadQuizState(_savedSummaryQuizKey);
@@ -346,7 +401,7 @@ class QuizController extends StateNotifier<QuizState> {
       state = const QuizGenerating();
       final questions = await _apiService.generateQuiz();
       if (questions.isEmpty || _hasInvalidQuizChoices(questions)) {
-        state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
+        state = QuizError(_l10n().errQuizGenerationFailed);
         return;
       }
 
@@ -354,15 +409,16 @@ class QuizController extends StateNotifier<QuizState> {
     } on BackendApiNoUserSentencesException {
       state = const QuizNoSentences();
     } on BackendApiRateLimitException {
-      state = const QuizError('本日のクイズ生成上限に達しました。');
+      state = QuizError(_l10n().quotaQuizReached);
     } catch (e) {
       debugPrint('クイズ生成エラー: $e');
-      state = const QuizError('クイズの生成に失敗しました。もう一度お試しください。');
+      state = QuizError(_l10n().errQuizGenerationFailed);
     }
   }
 
   /// アプリ再起動後に復元できる未完了のまとめクイズがあるか確認する。
   Future<bool> hasSavedSummaryQuiz() async {
+    await _waitForQuizStateWrites();
     final prefs = await SharedPreferences.getInstance();
     return prefs.containsKey(_savedSummaryQuizKey);
   }
@@ -372,9 +428,13 @@ class QuizController extends StateNotifier<QuizState> {
   void reset() {
     _preparedQuestions = null;
     _preparedSentenceId = null;
+    _isLearningQuiz = false;
+    _quizOfferSource = null;
+    _quizOfferStartedLogged = false;
+    _quizOfferAnsweredLogged = false;
     _pendingUvmUpdates.clear();
-    unawaited(_clearQuizState(_savedConfirmationQuizKey));
-    unawaited(_clearQuizState(_savedSummaryQuizKey));
+    unawaited(_enqueueQuizStateClear(_savedConfirmationQuizKey));
+    unawaited(_enqueueQuizStateClear(_savedSummaryQuizKey));
     state = const QuizInitial();
   }
 
@@ -415,14 +475,36 @@ class QuizController extends StateNotifier<QuizState> {
     final answeringState = QuizAnswering(questions, 0, []);
     state = answeringState;
     if (!_isLearningQuiz) {
-      unawaited(_saveQuizState(_savedSummaryQuizKey, answeringState));
+      unawaited(
+        _enqueueQuizStateSave(_savedSummaryQuizKey, answeringState),
+      );
     }
+    _logQuizStarted(questions);
+  }
+
+  void _logQuizStarted(List<QuizQuestion> questions) {
+    final category = _isLearningQuiz ? 'learning' : 'summary';
     unawaited(
       _analytics.logQuizStart(
-        category: 'sentence_review',
+        category: category,
         questionCount: questions.length,
+        source: _quizOfferSource,
       ),
     );
+
+    final source = _quizOfferSource;
+    if (_isLearningQuiz && source != null && !_quizOfferStartedLogged) {
+      _quizOfferStartedLogged = true;
+      unawaited(
+        _analytics.logQuizOffer(action: 'started', source: source),
+      );
+    }
+  }
+
+  void _logQuizOfferError() {
+    final source = _quizOfferSource;
+    if (!_isLearningQuiz || source == null) return;
+    unawaited(_analytics.logQuizOffer(action: 'error', source: source));
   }
 
   /// ユーザーが選択肢を選んだときに呼ばれる回答処理。
@@ -441,101 +523,131 @@ class QuizController extends StateNotifier<QuizState> {
     int hintLevel = 0,
     bool reviewedSentence = false,
   }) async {
-    if (state is! QuizAnswering) return;
+    if (_isAnswering || state is! QuizAnswering) return;
     final s = state as QuizAnswering;
     final question = s.questions[s.index];
-    final isCorrect = question.choices[choiceIndex] == question.correctAnswer;
-    final newAnswers = [...s.answers, isCorrect];
-    final newSelectedIndices = [...s.selectedIndices, choiceIndex];
-    final newHintLevels = <int>[...s.hintLevels ?? const [], hintLevel];
-    final newSentenceReviewFlags = <bool>[
-      ...s.sentenceReviewFlags ?? const [],
-      reviewedSentence,
-    ];
+    if (choiceIndex < 0 || choiceIndex >= question.choices.length) return;
 
-    // ローカルDBに回答結果を保存
-    final result = QuizResult(
-      id: '${question.sentenceId}_${DateTime.now().millisecondsSinceEpoch}',
-      sentenceId: question.sentenceId,
-      questionText: question.blankText,
-      correctAnswer: question.correctAnswer,
-      userAnswer: question.choices[choiceIndex],
-      isCorrect: isCorrect,
-      answeredAt: DateTime.now(),
-    );
-    await _db.insertQuizResult(result.toDatabase());
+    _isAnswering = true;
+    try {
+      final isCorrect = question.choices[choiceIndex] == question.correctAnswer;
+      final newAnswers = [...s.answers, isCorrect];
+      final newSelectedIndices = [...s.selectedIndices, choiceIndex];
+      final newHintLevels = <int>[...s.hintLevels ?? const [], hintLevel];
+      final newSentenceReviewFlags = <bool>[
+        ...s.sentenceReviewFlags ?? const [],
+        reviewedSentence,
+      ];
 
-    // UVMに回答結果を非同期送信（語彙習熟度P(know)の更新）
-    final word = question.correctAnswer;
-    if (word.isNotEmpty) {
-      final uvmUpdate = _apiService.updateUvm(
-        results: [
-          {
-            'word': word,
-            'is_correct': isCorrect,
-            'hint_level': hintLevel,
-            if (reviewedSentence) 'sentence_reviewed': true,
-          },
-        ],
-        quizType: _isLearningQuiz ? 'learning' : null,
-      );
-      _pendingUvmUpdates.add(uvmUpdate);
-      unawaited(uvmUpdate.whenComplete(() {
-        _pendingUvmUpdates.remove(uvmUpdate);
-      }));
-    }
-
-    final resultState = QuizShowResult(
-      s.questions,
-      s.index,
-      newAnswers,
-      choiceIndex,
-      isCorrect,
-      newSelectedIndices,
-      newHintLevels,
-      newSentenceReviewFlags,
-    );
-
-    // 学習クイズは1問のみなので、回答後即サマリーへ遷移
-    if (_isLearningQuiz && s.questions.length == 1) {
-      await _showSummary(resultState);
-    } else {
-      state = resultState;
-      if (!_isLearningQuiz) {
-        unawaited(_saveQuizState(_savedSummaryQuizKey, resultState));
+      // 選択肢を押した事実は、DB/APIの成否に左右されない。最初のawaitより前に
+      // 記録して、アプリ終了や保存エラーによる取りこぼしを避ける。
+      final offerSource = _quizOfferSource;
+      if (_isLearningQuiz &&
+          s.index == 0 &&
+          offerSource != null &&
+          !_quizOfferAnsweredLogged) {
+        _quizOfferAnsweredLogged = true;
+        unawaited(
+          _analytics.logQuizOffer(action: 'answered', source: offerSource),
+        );
       }
-    }
 
-    unawaited(
-      _analytics.logQuizAnswer(
-        correct: isCorrect,
-        category: 'sentence_review',
-        questionIndex: s.index + 1,
-      ),
-    );
+      // ローカルDBに回答結果を保存
+      final result = QuizResult(
+        id: '${question.sentenceId}_${DateTime.now().millisecondsSinceEpoch}',
+        sentenceId: question.sentenceId,
+        questionText: question.blankText,
+        correctAnswer: question.correctAnswer,
+        userAnswer: question.choices[choiceIndex],
+        isCorrect: isCorrect,
+        answeredAt: DateTime.now(),
+      );
+      await _db.insertQuizResult(result.toDatabase());
+
+      // UVMに回答結果を非同期送信（語彙習熟度P(know)の更新）
+      final word = question.correctAnswer;
+      if (word.isNotEmpty) {
+        final uvmUpdate = _apiService.updateUvm(
+          results: [
+            {
+              'word': word,
+              'is_correct': isCorrect,
+              'hint_level': hintLevel,
+              if (reviewedSentence) 'sentence_reviewed': true,
+            },
+          ],
+          quizType: _isLearningQuiz ? 'learning' : null,
+        );
+        _pendingUvmUpdates.add(uvmUpdate);
+        unawaited(uvmUpdate.whenComplete(() {
+          _pendingUvmUpdates.remove(uvmUpdate);
+        }));
+      }
+
+      final resultState = QuizShowResult(
+        s.questions,
+        s.index,
+        newAnswers,
+        choiceIndex,
+        isCorrect,
+        newSelectedIndices,
+        newHintLevels,
+        newSentenceReviewFlags,
+      );
+
+      // 学習クイズは1問のみなので、回答後即サマリーへ遷移
+      if (_isLearningQuiz && s.questions.length == 1) {
+        await _showSummary(resultState);
+      } else {
+        state = resultState;
+        if (!_isLearningQuiz) {
+          unawaited(
+            _enqueueQuizStateSave(_savedSummaryQuizKey, resultState),
+          );
+        }
+      }
+
+      unawaited(
+        _analytics.logQuizAnswer(
+          correct: isCorrect,
+          category: _isLearningQuiz ? 'learning' : 'summary',
+          questionIndex: s.index + 1,
+          source: _quizOfferSource,
+        ),
+      );
+    } finally {
+      _isAnswering = false;
+    }
   }
 
   /// 回答結果画面から次の問題へ進む、または最終問題ならサマリーへ遷移する
   Future<void> nextQuestion() async {
-    if (state is! QuizShowResult) return;
+    if (_isAdvancing || state is! QuizShowResult) return;
     final s = state as QuizShowResult;
-    final nextIndex = s.index + 1;
+    _isAdvancing = true;
+    try {
+      final nextIndex = s.index + 1;
 
-    if (nextIndex >= s.questions.length) {
-      await _showSummary(s);
-    } else {
-      final answeringState = QuizAnswering(
-        s.questions,
-        nextIndex,
-        s.answers,
-        s.selectedIndices,
-        s.hintLevels ?? const [],
-        s.sentenceReviewFlags ?? const [],
-      );
-      state = answeringState;
-      if (!_isLearningQuiz) {
-        unawaited(_saveQuizState(_savedSummaryQuizKey, answeringState));
+      if (nextIndex >= s.questions.length) {
+        await _showSummary(s);
+      } else {
+        final answeringState = QuizAnswering(
+          s.questions,
+          nextIndex,
+          s.answers,
+          s.selectedIndices,
+          s.hintLevels ?? const [],
+          s.sentenceReviewFlags ?? const [],
+        );
+        state = answeringState;
+        if (!_isLearningQuiz) {
+          unawaited(
+            _enqueueQuizStateSave(_savedSummaryQuizKey, answeringState),
+          );
+        }
       }
+    } finally {
+      _isAdvancing = false;
     }
   }
 
@@ -578,13 +690,15 @@ class QuizController extends StateNotifier<QuizState> {
       final sid = _preparedSentenceId;
       if (sid != null && sid.isNotEmpty) {
         unawaited(
-          _saveQuizState(_savedConfirmationQuizKey, summaryState,
+          _enqueueQuizStateSave(_savedConfirmationQuizKey, summaryState,
               sentenceId: sid),
         );
       }
-      unawaited(_clearQuizState(_savedSummaryQuizKey));
+      unawaited(_enqueueQuizStateClear(_savedSummaryQuizKey));
     } else {
-      unawaited(_saveQuizState(_savedSummaryQuizKey, summaryState));
+      unawaited(
+        _enqueueQuizStateSave(_savedSummaryQuizKey, summaryState),
+      );
     }
 
     state = summaryState;
@@ -610,6 +724,37 @@ class QuizController extends StateNotifier<QuizState> {
   // 学習クイズ（_savedConfirmationQuizKey）とまとめクイズ（_savedSummaryQuizKey）で
   // 別々のキーを使用し、互いに独立して管理する。
   // ==========================================================================
+
+  Future<void> _enqueueQuizStateWrite(
+    Future<void> Function() operation,
+  ) {
+    final queued = _quizStateWriteQueue.then<void>((_) async {
+      try {
+        await operation();
+      } catch (error, stackTrace) {
+        debugPrint('クイズ状態の保存エラー: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    });
+    _quizStateWriteQueue = queued;
+    return queued;
+  }
+
+  Future<void> _enqueueQuizStateSave(
+    String key,
+    QuizState quizState, {
+    String? sentenceId,
+  }) {
+    return _enqueueQuizStateWrite(
+      () => _saveQuizState(key, quizState, sentenceId: sentenceId),
+    );
+  }
+
+  Future<void> _enqueueQuizStateClear(String key) {
+    return _enqueueQuizStateWrite(() => _clearQuizState(key));
+  }
+
+  Future<void> _waitForQuizStateWrites() => _quizStateWriteQueue;
 
   /// 現在のクイズ状態をSharedPreferencesにJSON保存する。
   /// [sentenceId] は学習クイズの場合に指定し、復元時に対象例文との照合に使う。
@@ -683,6 +828,7 @@ class QuizController extends StateNotifier<QuizState> {
     String? sentenceId,
   }) async {
     try {
+      await _waitForQuizStateWrites();
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString(key);
       if (saved == null || saved.isEmpty) return null;
@@ -692,17 +838,25 @@ class QuizController extends StateNotifier<QuizState> {
       if (sentenceId != null && data['sentence_id'] != sentenceId) return null;
 
       final phase = data['phase'];
-      if (phase == null) return null;
-
       final rawQuestions = data['questions'];
       if (rawQuestions is! List) return null;
 
       final questions = rawQuestions
           .whereType<Map>()
-          .map(
-              (json) => QuizQuestion.fromJson(Map<String, dynamic>.from(json)))
+          .map((json) => QuizQuestion.fromJson(Map<String, dynamic>.from(json)))
           .toList();
       if (questions.isEmpty || _hasInvalidQuizChoices(questions)) return null;
+
+      // 初期版の1問確認クイズは phase を持たず、sentence_id と questions
+      // だけを保存していた。対象例文が一致する場合だけ未回答として移行する。
+      if (phase == null) {
+        if (key != _savedConfirmationQuizKey ||
+            sentenceId == null ||
+            data['sentence_id'] != sentenceId) {
+          return null;
+        }
+        return QuizAnswering(questions, 0, const []);
+      }
 
       final selectedIndices = _toIntList(data['selected_indices']);
       final hintLevels = _toIntList(data['hint_levels']);
@@ -734,8 +888,7 @@ class QuizController extends StateNotifier<QuizState> {
         // 最終問題の結果だった場合はサマリーに変換
         if (resumeIndex >= questions.length) {
           final totalCorrect = answers.where((a) => a).length;
-          final cachedStats =
-              await DatabaseHelper.instance.getCachedQuizStats();
+          final cachedStats = await _db.getCachedQuizStats();
           return QuizSummary(
             questions,
             answers,
@@ -796,8 +949,9 @@ class QuizController extends StateNotifier<QuizState> {
 final quizControllerProvider =
     StateNotifierProvider<QuizController, QuizState>((ref) {
   return QuizController(
-    BackendApiService(),
+    BackendApiService(lang: () => ref.read(appLanguageProvider).code),
     ref.watch(analyticsServiceProvider),
+    () => ref.read(l10nProvider),
   );
 });
 
