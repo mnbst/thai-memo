@@ -980,10 +980,13 @@ class L10nJa extends L10n {
   String get pronunciationPermissionOpenSettings => '設定を開く';
 
   @override
-  String get pronunciationBandTone => '上の帯＝声調';
+  String get pronunciationBandCombined => '帯＝声調と発音の総合';
 
   @override
-  String get pronunciationBandSpeech => '下の帯＝発音（通じたか）';
+  String get pronunciationSpeechRecognized => '発音：通じました';
+
+  @override
+  String get pronunciationSpeechMissing => '発音：通じませんでした';
 
   @override
   String get pronunciationSpeechUnavailable => 'この端末では発音の判定に対応していません（声調のみ）';
@@ -1006,7 +1009,7 @@ class L10nJa extends L10n {
   String get quotaQuizReached => '本日のクイズ生成上限に達しました。';
 
   @override
-  String get quotaSentenceReached => '本日の例文生成上限に達しました。\n例文は1日5回まで生成できます。';
+  String get quotaSentenceReached => '本日の例文生成上限に達しました。\nまた明日ご利用ください。';
 
   @override
   String get errAuth => '認証エラーが発生しました。アプリを再起動してください。';

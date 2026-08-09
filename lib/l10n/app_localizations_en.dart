@@ -1062,10 +1062,13 @@ class L10nEn extends L10n {
   String get pronunciationPermissionOpenSettings => 'Open settings';
 
   @override
-  String get pronunciationBandTone => 'Top bar = tone';
+  String get pronunciationBandCombined => 'Bar = tone and sounds combined';
 
   @override
-  String get pronunciationBandSpeech => 'Bottom bar = sounds (understood)';
+  String get pronunciationSpeechRecognized => 'Sounds: understood';
+
+  @override
+  String get pronunciationSpeechMissing => 'Sounds: not understood';
 
   @override
   String get pronunciationSpeechUnavailable =>
@@ -1093,7 +1096,7 @@ class L10nEn extends L10n {
 
   @override
   String get quotaSentenceReached =>
-      'You\'ve hit today\'s sentence limit.\nYou can generate up to 5 sentences a day.';
+      'You\'ve hit today\'s sentence limit.\nPlease come back tomorrow.';
 
   @override
   String get errAuth =>

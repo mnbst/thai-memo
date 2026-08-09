@@ -89,6 +89,54 @@ double voicedRatio(List<double?> values) {
   return voiced / values.length;
 }
 
+/// 有声と認めるフレームの音量の下限（発話の代表的な音量に対する比）。
+///
+/// 0.06 はおよそ -24dB。文中で弱く言われた音節でもここまでは落ちない一方、
+/// 発話前後の暗騒音はこれを下回る。
+const double kMinFrameEnergyRatio = 0.06;
+
+/// 発話の代表音量を採るパーセンタイル。
+///
+/// 最大値だと、リップノイズやボタンを押した音ひとつで基準が跳ね上がり、
+/// 発話そのものが無音扱いになる。
+const double kEnergyReferencePercentile = 0.9;
+
+/// 音量の足りないフレームを無声として落とす。
+///
+/// **ピッチが取れたことは、声が出ていたことを意味しない。** YIN は暗騒音や
+/// 空調のハムのような弱い周期性にも高い信頼度を返すことがあり、そのままだと
+/// 押しはじめの無音が「発声した区間」として取り込まれる。前後の無音は
+/// [analyzePronunciation] が切り落とすが、それは無声フレームに限るので、
+/// ここで落としておかないと残る。
+///
+/// 害は先頭が汚れることに留まらない。DTW はその区間も音節に割り当てなければ
+/// ならず、**お手本の先頭の音節が無音とつき合わされて、以降の対応づけが丸ごと
+/// ずれる**。
+///
+/// 閾値は絶対値では置けない（マイクの利得も声量も端末と場面で変わる）ので、
+/// その録音自身の代表音量に対する比で決める。
+List<double?> gateByEnergy(
+  List<double?> f0,
+  List<double> rms, {
+  double ratio = kMinFrameEnergyRatio,
+}) {
+  assert(f0.length == rms.length, 'F0とRMSはフレーム数を揃えること');
+  if (f0.isEmpty) return const [];
+
+  final levels = rms.where((v) => v > 0).toList()..sort();
+  if (levels.isEmpty) return List<double?>.filled(f0.length, null);
+
+  final index = (levels.length * kEnergyReferencePercentile)
+      .floor()
+      .clamp(0, levels.length - 1);
+  final floor = levels[index] * ratio;
+
+  return [
+    for (var i = 0; i < f0.length; i++)
+      i < rms.length && rms[i] >= floor ? f0[i] : null,
+  ];
+}
+
 /// 補間してよい無声区間の最大長（フレーム数）。ホップ10msで120ms。
 ///
 /// 子音1つぶんの無声区間はこの程度に収まる。これを超える空白は語間の間なので、
