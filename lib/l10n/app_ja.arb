@@ -379,8 +379,9 @@
   "pronunciationPermissionTitle": "マイクの使用を許可してください",
   "pronunciationPermissionBody": "発音を判定するためにマイクを使います。録音した音声は端末の中だけで処理され、どこにも送信されません。",
   "pronunciationPermissionOpenSettings": "設定を開く",
-  "pronunciationBandTone": "上の帯＝声調",
-  "pronunciationBandSpeech": "下の帯＝発音（通じたか）",
+  "pronunciationBandCombined": "帯＝声調と発音の総合",
+  "pronunciationSpeechRecognized": "発音：通じました",
+  "pronunciationSpeechMissing": "発音：通じませんでした",
   "pronunciationSpeechUnavailable": "この端末では発音の判定に対応していません（声調のみ）",
   "pronunciationPremiumTitle": "発音練習はプレミアム機能です",
   "pronunciationPremiumBody": "お手本と自分の声調を比べて、音節ごとに確認できます。",
@@ -390,9 +391,9 @@
 
   "errQuizGenerationFailed": "クイズの生成に失敗しました。もう一度お試しください。",
   "quotaQuizReached": "本日のクイズ生成上限に達しました。",
-  "quotaSentenceReached": "本日の例文生成上限に達しました。\n例文は1日5回まで生成できます。",
+  "quotaSentenceReached": "本日の例文生成上限に達しました。\nまた明日ご利用ください。",
   "@quotaSentenceReached": {
-    "description": "回数は FREE_DAILY_SENTENCES（constants.py / quota.ts）と揃えること"
+    "description": "上限回数は tier で異なる（free 5 / premium 10）ため文言に数字を含めない"
   },
   "errAuth": "認証エラーが発生しました。アプリを再起動してください。",
   "errNetwork": "ネットワーク接続エラーが発生しました。インターネット接続を確認してください。",

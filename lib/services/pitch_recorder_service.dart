@@ -13,11 +13,13 @@
 // =============================================================================
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:pitch_detector_dart/pitch_detector.dart';
 
+import '../core/pronunciation/pitch_track.dart';
 import 'speech_capture_service.dart';
 
 /// 収録のサンプリングレート（Hz）。ネイティブ側の SAMPLE_RATE と一致させること。
@@ -84,9 +86,23 @@ double peakAmplitude(Int16List samples) {
   return peak / 32768.0;
 }
 
+/// フレーム1つぶんの実効値（RMS）。
+double frameRms(List<double> window) {
+  if (window.isEmpty) return 0;
+  var sum = 0.0;
+  for (final v in window) {
+    sum += v * v;
+  }
+  return math.sqrt(sum / window.length);
+}
+
 /// PCM16のバイト列からフレームごとのF0（Hz）を取り出す。
 ///
 /// 無声・低信頼のフレームは null。isolateで実行するためトップレベル関数にしてある。
+///
+/// **信頼度だけで有声を決めない。** YINは暗騒音にも高い信頼度を返すことがあり、
+/// 押しはじめの無音が発声した区間として取り込まれる。音量の伴わないピッチは
+/// 声ではないので、[gateByEnergy] で落とす。
 Future<List<double?>> extractF0Frames(PitchExtractionRequest request) async {
   final samples = pcm16ToSamples(request.pcm16);
 
@@ -96,6 +112,7 @@ Future<List<double?>> extractF0Frames(PitchExtractionRequest request) async {
   );
 
   final frames = <double?>[];
+  final levels = <double>[];
   for (var start = 0; start + kFrameSize <= samples.length; start += kHopSize) {
     final window = List<double>.generate(
       kFrameSize,
@@ -110,8 +127,9 @@ Future<List<double?>> extractF0Frames(PitchExtractionRequest request) async {
         pitch >= kMinPlausibleF0 &&
         pitch <= kMaxPlausibleF0;
     frames.add(usable ? pitch : null);
+    levels.add(frameRms(window));
   }
-  return frames;
+  return gateByEnergy(frames, levels);
 }
 
 /// 収録1回ぶんの解析入力。
@@ -218,8 +236,12 @@ class PitchRecorderService {
       PitchExtractionRequest(result.pcm16, kRecordSampleRate),
     );
     final voiced = frames.where((f) => f != null).length;
+    // 押しはじめの無音がどれだけ取り込まれずに済んだか。判定がずれたときに
+    // 「声の前に何フレーム捨てたか」を見られるよう常設する。
+    final lead = frames.indexWhere((f) => f != null);
     debugPrint(
-      'pronunciation f0: $voiced/${frames.length} voiced frames',
+      'pronunciation f0: $voiced/${frames.length} voiced frames, '
+      'lead silence=${lead < 0 ? frames.length : lead}',
     );
 
     return PronunciationCapture(

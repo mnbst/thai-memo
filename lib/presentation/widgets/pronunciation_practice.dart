@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/pronunciation/pronunciation_analyzer.dart';
 import '../../core/pronunciation/pronunciation_scorer.dart';
 import '../../core/pronunciation/transcript_match.dart';
+import '../../core/pronunciation/word_verdict.dart';
 import '../../data/models/word_breakdown.dart';
 import '../../domain/sentence_tone_spans.dart';
 import '../../l10n/app_localizations.dart';
@@ -54,54 +55,17 @@ String _verdictLabel(ToneVerdict verdict, L10n l10n) {
   }
 }
 
-/// 「通じたか」の帯の色。声調の帯とは別の軸なので色も別に持つ。
-Color? _recognitionColor(WordRecognition recognition, ColorScheme scheme) {
+/// 語をタップしたときに出す「通じたか」の一行。帯には出さない。
+String? _recognitionLabel(WordRecognition recognition, L10n l10n) {
   switch (recognition) {
     case WordRecognition.recognized:
-      return const Color(0xFF1565C0);
+      return l10n.pronunciationSpeechRecognized;
     case WordRecognition.missing:
-      return scheme.error;
+      return l10n.pronunciationSpeechMissing;
     case WordRecognition.unavailable:
-      // 判定していない。帯そのものを描かない。
+      // 判定していない。判定して駄目だったことと混同させない。
       return null;
   }
-}
-
-/// 語に含まれる音節のうち、どれだけ合っていれば語として合格とみなすか。
-///
-/// 1音節でも外すと語全体が×になる作りだと、大半が合っている語まで赤くなり、
-/// どこを直せばよいのか分からない。8割ほど合っていれば合格として扱う。
-const double _wordCorrectRatio = 0.75;
-
-/// これを下回ると語として「違う」。
-const double _wordCloseRatio = 0.4;
-
-/// 語の判定を、含まれる音節の合い具合の割合から決める。
-///
-/// 「惜しい」は半分として数える。音節ごとの内訳は語をタップすれば見られるので、
-/// 帯は語として言い直す必要があるかどうかだけを伝える。
-ToneVerdict _wordVerdict(Iterable<SyllableScore> scores) {
-  final scored =
-      scores.where((s) => s.verdict != ToneVerdict.unscored).toList();
-  if (scored.isEmpty) return ToneVerdict.unscored;
-
-  var total = 0.0;
-  for (final score in scored) {
-    switch (score.verdict) {
-      case ToneVerdict.correct:
-        total += 1;
-      case ToneVerdict.close:
-        total += 0.5;
-      case ToneVerdict.wrong:
-      case ToneVerdict.unscored:
-        break;
-    }
-  }
-
-  final ratio = total / scored.length;
-  if (ratio >= _wordCorrectRatio) return ToneVerdict.correct;
-  if (ratio >= _wordCloseRatio) return ToneVerdict.close;
-  return ToneVerdict.wrong;
 }
 
 class PronunciationPractice extends ConsumerWidget {
@@ -443,6 +407,9 @@ class _ResultView extends StatelessWidget {
             const SizedBox(height: 8),
             _WordContourCard(
               scores: _scoresOfWord(result, spans, selectedWordIndex!),
+              recognition: selectedWordIndex! < recognition.length
+                  ? recognition[selectedWordIndex!]
+                  : WordRecognition.unavailable,
               l10n: l10n,
             ),
           ] else ...[
@@ -501,11 +468,13 @@ class _WordChips extends StatelessWidget {
       runSpacing: 6,
       children: List.generate(spans.words.length, (index) {
         final span = spans.words[index];
-        final verdict = _wordVerdict(_scoresOfWord(result, spans, index));
-        final toneColor = _verdictColor(verdict, scheme);
-        final recognitionColor = index < recognition.length
-            ? _recognitionColor(recognition[index], scheme)
-            : null;
+        final verdict = combinedWordVerdict(
+          toneVerdictOfWord(_scoresOfWord(result, spans, index)),
+          index < recognition.length
+              ? recognition[index]
+              : WordRecognition.unavailable,
+        );
+        final color = _verdictColor(verdict, scheme);
         final selected = selectedWordIndex == index;
 
         return InkWell(
@@ -515,7 +484,7 @@ class _WordChips extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              color: selected ? toneColor.withValues(alpha: 0.12) : null,
+              color: selected ? color.withValues(alpha: 0.12) : null,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -525,13 +494,9 @@ class _WordChips extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 3),
-                // 上段＝声調、下段＝発音。1本にまとめると、どちらを直せばよいか
-                // 分からなくなる。
-                _Band(color: toneColor),
-                if (recognitionColor != null) ...[
-                  const SizedBox(height: 2),
-                  _Band(color: recognitionColor),
-                ],
+                // 帯は1本。声調と発音を合わせた「言い直す必要があるか」だけを
+                // 伝え、どちらを外したかは語をタップして見せる。
+                _Band(color: color),
               ],
             ),
           ),
@@ -557,7 +522,7 @@ class _Band extends StatelessWidget {
       );
 }
 
-/// 2本の帯が何を表すかの凡例。
+/// 帯が何を表すかの凡例。
 class _BandLegend extends StatelessWidget {
   const _BandLegend({required this.l10n, required this.hasRecognition});
 
@@ -567,12 +532,12 @@ class _BandLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodySmall;
-    if (!hasRecognition) {
-      // 判定できないことと、判定して駄目だったことを混同させない。
-      return Text(l10n.pronunciationSpeechUnavailable, style: style);
-    }
+    // 判定できないことと、判定して駄目だったことを混同させない。
+    // 発音が見られない端末では、帯が声調だけを表していることを明示する。
     return Text(
-      '${l10n.pronunciationBandTone} / ${l10n.pronunciationBandSpeech}',
+      hasRecognition
+          ? l10n.pronunciationBandCombined
+          : l10n.pronunciationSpeechUnavailable,
       style: style,
     );
   }
@@ -580,15 +545,21 @@ class _BandLegend extends StatelessWidget {
 
 /// 選択した語のお手本カーブと自分のカーブを重ねて出す。
 class _WordContourCard extends StatelessWidget {
-  const _WordContourCard({required this.scores, required this.l10n});
+  const _WordContourCard({
+    required this.scores,
+    required this.recognition,
+    required this.l10n,
+  });
 
   final List<SyllableScore> scores;
+  final WordRecognition recognition;
   final L10n l10n;
 
   @override
   Widget build(BuildContext context) {
     if (scores.isEmpty) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
+    final recognitionLabel = _recognitionLabel(recognition, l10n);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -631,6 +602,18 @@ class _WordContourCard extends StatelessWidget {
                     ))
                 .toList(),
           ),
+          // 帯を1本にしたぶん、どちらの軸を外したかはここで分ける。
+          if (recognitionLabel != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              recognitionLabel,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: recognition == WordRecognition.missing
+                        ? scheme.error
+                        : null,
+                  ),
+            ),
+          ],
         ],
       ),
     );

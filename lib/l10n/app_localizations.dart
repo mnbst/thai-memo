@@ -1921,17 +1921,23 @@ abstract class L10n {
   /// **'設定を開く'**
   String get pronunciationPermissionOpenSettings;
 
-  /// No description provided for @pronunciationBandTone.
+  /// No description provided for @pronunciationBandCombined.
   ///
   /// In ja, this message translates to:
-  /// **'上の帯＝声調'**
-  String get pronunciationBandTone;
+  /// **'帯＝声調と発音の総合'**
+  String get pronunciationBandCombined;
 
-  /// No description provided for @pronunciationBandSpeech.
+  /// No description provided for @pronunciationSpeechRecognized.
   ///
   /// In ja, this message translates to:
-  /// **'下の帯＝発音（通じたか）'**
-  String get pronunciationBandSpeech;
+  /// **'発音：通じました'**
+  String get pronunciationSpeechRecognized;
+
+  /// No description provided for @pronunciationSpeechMissing.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音：通じませんでした'**
+  String get pronunciationSpeechMissing;
 
   /// No description provided for @pronunciationSpeechUnavailable.
   ///
@@ -1969,10 +1975,10 @@ abstract class L10n {
   /// **'本日のクイズ生成上限に達しました。'**
   String get quotaQuizReached;
 
-  /// 回数は FREE_DAILY_SENTENCES（constants.py / quota.ts）と揃えること
+  /// 上限回数は tier で異なる（free 5 / premium 10）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
-  /// **'本日の例文生成上限に達しました。\n例文は1日5回まで生成できます。'**
+  /// **'本日の例文生成上限に達しました。\nまた明日ご利用ください。'**
   String get quotaSentenceReached;
 
   /// No description provided for @errAuth.

@@ -233,6 +233,9 @@ lib/domain/sentence_tone_spans.dart
 lib/core/pronunciation/transcript_match.dart
 音声認識の結果と例文を語単位で照合し「通じたか」を返す。声調とは別軸の検査。
 
+lib/core/pronunciation/word_verdict.dart
+語ごとの声調判定と、声調＋発音を1本の帯にまとめる総合判定。
+
 lib/services/speech_capture_service.dart
 ネイティブのマイク収録との橋渡し。マイクは1箇所だけが握り、PCMと音声認識へ分岐する。
 

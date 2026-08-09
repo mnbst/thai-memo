@@ -287,10 +287,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            // 言語切替は dev ビルドの動作確認専用。製品ビルドでは出さない。
+            // 言語切替は dev / tester の動作確認専用。製品ビルドでは出さない。
             // 訳文は生成時の言語で保存され、切り替えても履歴は書き換わらないため、
             // 実ユーザーに開くと1つの履歴に日英が混在する。言語はストア地域で決まる。
-            if (AppConfig.isDev)
+            //
+            // tester にも出す。言語は初回起動で1回決めて保存し以後は再評価しない
+            // ので、サンドボックスのストア地域で en に落ちると**戻す手段が無く**、
+            // 再インストールするまで日本語の確認ができない。
+            if (AppConfig.isDev || AppConfig.isTester)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.translate),
@@ -369,7 +373,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// dev ビルド専用の言語切替。導線は AppConfig.isDev で閉じている。
+  /// dev / tester 専用の言語切替。製品ビルドでは導線を閉じている。
   void _showLanguagePicker(AppLanguage current) {
     final l10n = L10n.of(context);
     showDialog<void>(

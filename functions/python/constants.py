@@ -65,11 +65,17 @@ FREE_TIER_MAX_VOCAB = 100
 FREE_DAILY_SENTENCES = 5
 FREE_DAILY_QUIZZES = 5
 
+# premium の日次上限。例文は 2026-08-09 に 5 → 10 へ引き上げ（実測で課金者2人が
+# 常時上限に当たっていたため）。クイズは到達者が居ないため 5 のまま。
+PREMIUM_DAILY_SENTENCES = 10
+PREMIUM_DAILY_QUIZZES = 5
+
 # プレミアム体験トライアルは期間制（premium_trial_expires_at）。
 # PREMIUM_TRIAL_SENTENCES は残回数しか見ない旧クライアント向けの互換値で、
 # 期間中に使い切られないよう「1日の上限 × 日数」を入れる。
+# トライアルは premium 体験なので premium 側の上限を基準にする。
 PREMIUM_TRIAL_DAYS = 2
-PREMIUM_TRIAL_SENTENCES = FREE_DAILY_SENTENCES * PREMIUM_TRIAL_DAYS
+PREMIUM_TRIAL_SENTENCES = PREMIUM_DAILY_SENTENCES * PREMIUM_TRIAL_DAYS
 
 # ─── 文体リスト ───
 # 生成する例文の文体バリエーション。タイ語には場面に応じた多様な文体がある
