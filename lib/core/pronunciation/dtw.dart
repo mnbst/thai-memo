@@ -45,6 +45,14 @@ class DtwPathPoint {
 /// 無声子音を含む条件でも正しい発話が通ることを確認したうえでこの値にしている。
 const double kDtwBandRatio = 0.06;
 
+/// 音節の真ん中で声の途切れに当たったときの費用。
+///
+/// 0 だと長い途切れの中で経路が自由に滑り、境界の位置が決まらない。大きくすると
+/// 途切れを避けようとして、実際に子音のある位置から境界がずれる。
+/// ピッチの差（0〜2程度）より十分小さく置く。合成音声で 120ms の無声子音を
+/// 各音節の頭に入れた条件で、0.15 以上にすると音節の取り分が歪んだ。
+const double kVoicelessDriftCost = 0.1;
+
 /// 2つの系列を対応づけ、経路を先頭から順に返す。
 ///
 /// ステップは (1,0) / (0,1) / (1,1) の3方向。両端は必ず対応づく
@@ -57,6 +65,8 @@ List<DtwPathPoint> dtwAlign(
   List<double> reference,
   List<double> query, {
   double bandRatio = kDtwBandRatio,
+  List<bool>? queryVoiced,
+  List<bool>? referenceAtBoundary,
 }) {
   if (reference.isEmpty || query.isEmpty) return const [];
 
@@ -80,7 +90,29 @@ List<DtwPathPoint> dtwAlign(
     growable: false,
   );
 
-  double distance(int i, int j) => (reference[i] - query[j]).abs();
+  // **声が出ていないフレームは、時間は占めるがピッチの証拠を持たない。**
+  // 閉鎖音の閉鎖区間を埋めた値は前後の線形補間でしかないので、これをお手本と
+  // 突き合わせると、実在しないピッチで経路が引っ張られる。時間軸を保つために
+  // フレームは残したまま、コストだけ 0 にして「どこに対応してもよい」とする。
+  bool voiced(int j) =>
+      queryVoiced == null || j >= queryVoiced.length || queryVoiced[j];
+
+  /// お手本のこの点が、音節の端（入り際・終わり際）にあるか。
+  bool atBoundary(int i) =>
+      referenceAtBoundary == null ||
+      i >= referenceAtBoundary.length ||
+      referenceAtBoundary[i];
+
+  double distance(int i, int j) {
+    if (voiced(j)) return (reference[i] - query[j]).abs();
+    // **声の途切れは音節の切れ目の手がかり。** コストを一律 0 にすると、長い
+    // 途切れの中では経路がどこを通っても同じになり、境界の位置が決まらない。
+    // 実機で 440ms の空白が音節の真ん中に飲み込まれ、隣が9フレームまで潰れた。
+    //
+    // 音節の端で途切れに当たるのはただ（子音はそこにある）。真ん中で当たるのは
+    // わずかに損にする。これだけで、長い途切れは音節の切れ目へ寄る。
+    return atBoundary(i) ? 0.0 : kVoicelessDriftCost;
+  }
 
   cost[0][0] = distance(0, 0);
   for (var i = 1; i < n; i++) {

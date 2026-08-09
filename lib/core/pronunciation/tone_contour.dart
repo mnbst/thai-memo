@@ -23,6 +23,8 @@ const int kContourResolution = 10;
 /// 短母音＋生音節（กัน, นั้น）1つぶんのサンプル点数。
 ///
 /// 短母音だが末子音が鳴り続けるので、閉鎖音で切られる死音節ほどは短くない。
+/// 実機で บรร（บรรยากาศ の第1音節）が発話の 6.4%／7.2%（予算 8.7%）に出ており、
+/// この帯で合っている。
 const int kHalfLongSyllablePoints = 8;
 
 /// 短母音＋死音節（รัก, จะ）1つぶんのサンプル点数。
@@ -276,6 +278,57 @@ class ReferenceContour {
     final margin = (length * 0.2).round();
     final start = starts[index] + margin;
     final end = starts[index + 1] - margin;
+    if (start >= end || end > values.length) return 0;
+
+    final core = values.sublist(start, end)..sort();
+    final middle = core.length ~/ 2;
+    if (core.length.isOdd) return core[middle];
+    return (core[middle - 1] + core[middle]) / 2;
+  }
+
+  /// その点が音節の端（前後 [fraction] ずつ）にあるか。
+  ///
+  /// 子音の無声区間はここに来る。**中央より広く取る**（実測で 120ms の
+  /// 無声子音は音節の4割を占め、25%では収まらなかった）。
+  bool isEdgePoint(int pointIndex, double fraction) {
+    final syllable = syllableIndexOfPoint(pointIndex);
+    final length = starts[syllable + 1] - starts[syllable];
+    final edge = (length * fraction).round().clamp(1, length);
+    final position = pointIndex - starts[syllable];
+    return position < edge || position >= length - edge;
+  }
+
+  /// その点が音節の入り際（正規化時間の前25%）にあるか。
+  ///
+  /// 声調はここから始まる。**上昇声と高平声を分けているのはこの位置**
+  /// （上昇声は直前より低く入り、高平声は高く入る）。
+  bool isHeadPoint(int pointIndex) {
+    final syllable = syllableIndexOfPoint(pointIndex);
+    final length = starts[syllable + 1] - starts[syllable];
+    final head = (length * 0.25).round().clamp(1, length);
+    return pointIndex - starts[syllable] < head;
+  }
+
+  /// その点が音節の末尾（正規化時間の後ろ25%）にあるか。
+  ///
+  /// 次の音節に入るときの基準は、直前の音節の**中心ではなく終わり際**。人は
+  /// 直前が終わった高さから次の音節に入る。
+  bool isTailPoint(int pointIndex) {
+    final syllable = syllableIndexOfPoint(pointIndex);
+    final length = starts[syllable + 1] - starts[syllable];
+    final tail = (length * 0.25).round().clamp(1, length);
+    final position = pointIndex - starts[syllable];
+    return position >= length - tail;
+  }
+
+  /// 音節 [index] の終わり際の高さ（後ろ25%の中央値）。
+  ///
+  /// [centerLevel] と同じく、**位置で決めて対応づけからは採らない**。
+  double tailLevel(int index) {
+    final length = starts[index + 1] - starts[index];
+    final tail = (length * 0.25).round().clamp(1, length);
+    final start = starts[index + 1] - tail;
+    final end = starts[index + 1];
     if (start >= end || end > values.length) return 0;
 
     final core = values.sublist(start, end)..sort();

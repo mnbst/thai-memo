@@ -51,6 +51,9 @@ List<double?> synthesizeF0({
   double finalLowering = kFinalLoweringRange,
   int unvoicedOnsetFrames = 0,
   Map<int, double> contourScaleBySyllable = const {},
+  double carryoverStrength = 0.0,
+  double carryoverReach = 1.0,
+  Map<int, double> levelOffsetBySyllable = const {},
 }) {
   // 話者が実際に出す並びで組み立てる。declination も下降声の連続による
   // 下降幅の縮小も話者側で起きる現象なので、お手本と同じ変形を掛ける。
@@ -102,7 +105,21 @@ List<double?> synthesizeF0({
       final scale = contourScaleBySyllable[s] ?? 1.0;
       final mean = contour.reduce((a, b) => a + b) / contour.length;
       final scaled = mean + (sampleContour(contour, t) - mean) * scale;
-      final z = scaled * flatten;
+      // 声調の引っ張られ（carryover）。直前の音節が終わった高さから入るため、
+      // 音節の入りが直前に寄り、時間とともに本来の高さへ戻る。
+      // 下降声（低く終わる）の直後の高平声で最も大きく出る。
+      var carried = 0.0;
+      if (carryoverStrength > 0 && s > 0) {
+        final previous = raw.sublist(starts[s - 1], starts[s]);
+        final gap = previous.last - contour.first;
+        final decay = carryoverReach <= 0
+            ? 0.0
+            : math.max(0.0, 1 - t / carryoverReach);
+        carried = carryoverStrength * gap * decay;
+      }
+      // 音節まるごとの上下（形は保ったまま高さだけずれた発話）。
+      final offset = levelOffsetBySyllable[s] ?? 0.0;
+      final z = (scaled + carried + offset) * flatten;
       // 話者の declination。文の頭で高く、終わりで低い。
       final progress = totalFrames <= 1 ? 0.5 : (frames.length) / (totalFrames - 1);
       // flatten は発話全体の抑揚を潰すので、declination と末尾の下がりにも掛ける。

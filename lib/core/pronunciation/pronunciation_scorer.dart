@@ -2,16 +2,30 @@
 // pronunciation_scorer.dart
 // 対応づけ済みのお手本カーブと録音ピッチから、音節ごとの声調の当たり外れを出す。
 //
-// 採点は2軸で行う。
-//   - レベル誤差: 声域内での高さが合っているか
-//   - 形状誤差:   上がる／下がる／平ら の動きが合っているか
+// 判定は2つだけで行う。
+//   - 形　　: その音節の中でピッチがどう動いたか（上がる／下がる／平ら）
+//   - 入り方: **直前の音節が終わった高さ**から見て、上がって入ったか下がって
+//             入ったか平らに入ったか
 //
-// **形状だけで判定してはいけない。** タイ語5声調のうち中平声・低平声・高平声は
-// いずれも平坦で、違いは声域内の高さだけにある。推移のみを見るとこの3つが
-// 区別できない。
+// **どちらも向きしか見ない。** 振れ幅も、下げ幅も、声域内の絶対的な高さも
+// 採点しない。高さも動きの大きさも話者・場面・文中の位置で素直に動くので、
+// 正しく発音していても弾かれてしまい、練習として続かない。実際、正しく高平声を
+// 出しても平らに寄るのが普通で、お手本の上昇幅を要求するのは無理がある。
 //
-// 閾値は緩めに置いてある。判定が厳しすぎる発音練習は誰も続けられないため、
-// 迷ったら甘い側に倒す。実データでの調整前提の定数。
+// 入り方の基準を**直前の音節の終わり際**に置くのは、人が実際にそう発音するから。
+// 直前が終わった高さから次の音節に入るので、中心どうしの段差より終わり際からの
+// 段差のほうが「その音節をどう出したか」に近い。
+//
+// 判定は形と入り方の**両方**が合ったときだけ correct。片方だけなら close。
+// 両方外れていれば wrong。文頭には入り方が無いので、形だけで判断する。
+//
+// **代償を承知で緩めてある。** 高さを一切見ないので、次の取り違えは素通りする。
+//   - 文頭の 中平→低平（どちらも平らで、比べる相手もいない）
+//   - 末尾の 中平→低平（文末はもともと下がるので区別がつかない）
+//   - 下降→高平（高平声は上がってから落ちるので形が重なる）
+//   - 下げ幅・上げ幅が足りない発話全般（向きが合っていれば通る）
+// 「正しく言えているのに惜しいと言われる」ほうが練習を止めると判断して、
+// 見逃す側に倒している。
 // =============================================================================
 
 import 'dart:math' as math;
@@ -20,148 +34,76 @@ import 'dtw.dart';
 import 'tone_contour.dart';
 import '../thai_tone_analyzer.dart';
 
-// 判定は2つで行う。
-//   - 形　　: その音節の中でピッチがどう動いたか（上がる／下がる／平ら）
-//   - つながり: 直前の音節との段差
-//
-// **声域内の絶対的な高さは採点しない。** 高さは話者・場面・文中の位置で素直に
-// 動くので、正しく発音していても弾かれてしまい、練習として続かない。
-// 一方、隣との段差は声調の情報を保つ。中平声と低平声のように形が同じで
-// 高さだけが違う対立も、隣との段差の変化として捕まえられる。
-//
-// つながりは**直前の音節との段差だけ**を見る。声調は前から順に聞こえてくるもので、
-// 「直前と比べて上がったか下がったか」がそのまま手がかりになる。後ろとの段差は
-// 同じ情報を2度数えるだけで、しかも次の音節が誤ったときに巻き添えを増やす。
-//
-// そのぶん直前が誤ると自分の段差も崩れるので、**自身の高さがほぼ一致していて形も
-// 合っているとき**の逃げ道（[kExactLevelEscape]）でそこを守る。
-//
-// **どちらを根拠にするかは声調で決まる。**
-//   下降声・上昇声 → 動きそのものが情報。向きが合っていれば合格（振れ幅は問わない）
-//   中平・低平・高平 → どれも平らで形では区別できない。直前との対比だけで判断
-//
-// 両方を全声調に課すと、「形は合っているのに違います」が出る。声調ごとに
-// 情報の乗っている場所が違うので、根拠もそれに合わせる。
-//
-// 形の判定は**落ちている／上がっている／平ら**の3択まで粗くする。傾きの大きさを
-// 比べると、正しい方向に動いていても「振れ幅が足りない」で弾かれてしまい、
-// 練習として続かない。実際、正しく高平声を出しても平らに寄るのが普通で、
-// お手本の上昇幅を要求するのは無理がある。
-
-// 合成音声での実測（calibration_test.dart が範囲を守る）:
-//   正しい発話    : 形状 最大 0.239 / つながり 最大 0.103
-//   声調の取り違え: 形状 最小 0.559 / つながり 最小 0.391
-//
-// 直前が誤った音節は、自分の段差も崩れて見える。「そのつながりが崩れている」のは
-// 事実なので、[kExactLevelEscape] で救えない範囲は許容する。
-//
-// 文頭には比べる相手がいない。そこだけは段差を使わず、ピッチのグラフ
-// （形と、声域内の高さ）だけで判断する。
-
-/// 「平ら」とみなす傾きの上限。
+/// 「平ら」とみなす、音節の**始まりと終わりの差**の上限。
 ///
-/// 形は**落ちている／上がっている／平ら**の3つに分けるだけで見る。傾きの大きさを
-/// 比べると、正しい方向に動いていても「振れ幅が足りない」で弾かれてしまう。
+/// 形は**落ちている／上がっている／平ら**の3つに分けるだけで見る。動きの
+/// 大きさは比べない。正しい方向に動いていても「振れ幅が足りない」で弾かれる。
 ///
-/// この値はタイ語の声調体系とも合う。中平・低平・高平は平ら、下降と上昇だけが
-/// 動く声調で、実際の傾きも 中平 -0.29 / 低平 -0.46 / 高平 +0.76 に対し
-/// 下降 -1.86 / 上昇 +1.30 とはっきり分かれる。
-/// 平らな3つの区別は形ではなく「つながり」（隣との段差）が受け持つ。
-const double kFlatSlopeThreshold = 0.8;
+/// **回帰の傾きではなく、始まりと終わりの差で見る。** 傾きは音節の中の細かい
+/// 揺れを拾い、境目でしか差の無い声調（お手本の高平声と低平声）が判定の
+/// 境界に張り付いた。実機で、聞けば全部合っている発話の中でその2つだけが
+/// 「惜しい」になった。声調が持っているのは「どこから始まってどこへ行くか」
+/// なので、そこだけを見る。
+///
+/// 端の1点ではなく前後25%の中央値を使う。1点だと検出誤りで向きが反転する。
+const double kFlatRiseThreshold = 0.4;
+
+/// 「平らに入った」とみなす段差の上限。
+///
+/// 直前の音節が終わった高さからの差を、**上がって入った／下がって入った／
+/// 平らに入った**の3つに分けるだけで見る。差の大きさは問わない。
+///
+/// 正規化済みの声域（標準偏差）での値。中平 0.06 / 低平 -0.58 / 高平 1.11 と
+/// いった声調どうしの高さの差は 0.5 以上あるので、この幅なら別の声調へ移る
+/// 段差を潰さずに、同じ高さのまま続けた場合の細かい揺れだけを吸収できる。
+const double kFlatStepThreshold = 0.3;
 
 /// カーブの形が一致しているとみなす相関の下限。
 ///
-/// 高さの関門（[kContourLevelGate]）と組みで使うので、形の側は粗くてよい。
-/// 実機で、下降声が相関 0.45・高さのずれ 0.00 という「形はやや崩れているが
-/// 高さは完璧」な発話が落ちた。声調の取り違えは相関が 0.1 以下か負に出るので、
-/// この帯には入ってこない。
+/// 下降声・上昇声だけに使う。始まり終わりの差だけで見ると、**振れ幅が小さい発話が
+/// 「平ら」に落ちる**（合成音声で、上昇声を 0.4 倍の振れ幅で言うと落ちた）。
+/// 相関は振れ幅を無視するので、そこを救う。
+///
+/// 平らな3声調には使わない。お手本がほぼ平坦で、相関は細かい揺れを拾うだけ
+/// （実機で正しい低平声が 0.09、中平声が -0.87）。
 const double kShapeCorrelationThreshold = 0.4;
 
-/// 形状誤差（傾きの差）。判定には使わず、表示と切り分けのために残す。
+/// 向きが割れても同じ形とみなす、始まり終わりの差の食い違い。
+///
+/// お手本の高平声は上昇声の半分ほどしか上がらないので、[kFlatRiseThreshold] を
+/// どちらに置いても正しい発話が割れる。差そのものが近ければ同じ形とする。
+const double kRiseAgreement = 0.5;
+
+/// 平らな3声調（中平・低平・高平）で使う、より広い許容。
+///
+/// **この3つは形では互いに区別できない。** 形が持っている情報は「逆向きに
+/// 大きく動いていないか」だけで、区別そのものは入り方（直前の音からの位置）が
+/// 受け持つ。だから形の側は広く取って、判断を位置に寄せる。
+///
+/// 実機で、話者が文の中盤を高いまま滑り降りたときに、中平声が音節の中で 0.68
+/// ぶん下がって「惜しい」になった。お手本の declination（直線的な下がり）と
+/// 実際の下がり方の食い違いで、声調の誤りではない。
+///
+/// 広げるほど取り違えを見逃す（合成音声で 0.5 なら 40/120、0.7 で 45、
+/// 0.9 で 48、1.4 で 59）。**実機で観測された 0.68 を覆うところで止める。**
+///
+/// 文全体の滑りを推定して引いてから比べる案も測ったが、悪化した（40 → 47）。
+/// 音節ごとの動きの中央値は、先頭・末尾の声調そのものを吸収してしまう。
+/// detrend を捨てたときと同じ現象。
+const double kFlatToneRiseAgreement = 0.7;
+
+/// 動きを持つ声調か（下降声・上昇声）。
+bool isContourTone(ThaiTone tone) =>
+    tone == ThaiTone.falling || tone == ThaiTone.rising;
+
+/// 形状誤差（始まり終わりの差の食い違い）。判定には使わず、表示のために残す。
 const double kShapeErrorThreshold = 0.45;
-
-/// つながり（隣との段差）の誤差の許容値。声調ごとに変える。
-///
-/// 声調によって、どこに情報が乗っているかが違う。
-///
-/// - **下降声・上昇声**は動きそのものが情報なので、形が合っていれば足りる。
-///   高さの関係は緩めてよい
-/// - **中平・低平・高平**は形が同じで高さの関係しか手がかりが無いので、
-///   ここは締める必要がある
-/// - **高平声**はその中でも実際の発話で下がりやすく（特に文末）、やや緩める
-/// 音節の中心で高さを測るようにしてから引き直した値。合成音声での分布は
-/// 正しい発話 0.03（無声子音を入れても 0.105）に対し、取り違えは 0.28〜1.12。
-///
-/// 実機でも確認済み。9音節の発話で、正しく出せていた7音節は 0.020〜0.197 に
-/// 収まり、合成音声と同じ範囲に乗った。外れた1音節（高平声を上げそこねた）は
-/// 0.828 で、はっきり分かれている。
-const Map<ThaiTone, double> kTransitionThresholdByTone = {
-  // 下降声・上昇声はふだん形で通るので、この値が効くのは短い音節や
-  // 形が測れなかったときだけ。締めると短母音の undershoot を許せなくなる
-  // （上昇声を平坦に言った短い音節で 0.434）。
-  ThaiTone.falling: 0.45,
-  ThaiTone.rising: 0.45,
-  ThaiTone.high: 0.40,
-  ThaiTone.mid: 0.35,
-  ThaiTone.low: 0.35,
-};
-
-/// 上の表に無い声調に使う値。
-const double kTransitionErrorThreshold = 0.35;
-
-/// 下降声・上昇声を「形が合っている」で通すときに、なお要求する高さの一致。
-///
-/// 形の一致だけで通していたとき、**上昇声を高平声で発音した誤りが素通りした**
-/// （どちらも右上がりなので相関 0.90、しかし高さは 1.03 も違う）。
-/// 形は声調の情報の大半を持つが、全部ではない。
-///
-/// **隣との段差ではなく、その音節自身の高さで見る。** 段差で見ると、直前が誤った
-/// ときに巻き添えになる。実機で、末尾の下降声が相関 0.99・高さのずれ 0.04 と
-/// 完璧なのに、隣が崩れているだけで落ちた。
-///
-/// 絶対的な高さは本来は採点しない（話者・場面で素直に動く）。ここでは
-/// **明らかに崩れている場合だけを弾く**関門として、合格ラインよりずっと緩く置く。
-/// 実機の下降声・上昇声は正しく出せていれば 0.00〜0.31 に収まり、
-/// 合成音声での取り違えは 0.71 以上に出る。
-const double kContourLevelGate = 0.5;
-
-/// 直前が崩れているときに、その音節自身の高さだけで通す上限。
-///
-/// つながりは直前との段差だけを見るので、**直前が誤るとこの音節の段差も崩れる**。
-/// 実機で、中平声が高さのずれ 0.07・相関 0.99 と完璧なのに、隣が崩れている
-/// だけで落ちた。
-///
-/// このとき段差はこの音節について何も語っていないので、自身の高さで判断する。
-/// 絶対的な高さは普段は採点しないため、**ほぼ一致しているときだけ**に限る
-/// （形の一致も併せて要求する）。合成音声で最も差の小さい取り違えでも
-/// 中平→上昇 が 0.19 だが、そちらは形が合わないので通らない。
-const double kExactLevelEscape = 0.35;
-
-/// 直前が当てにならないときに、その音節自身の高さだけで通す上限。
-///
-/// 直前がずれていれば、段差が崩れていても**原因がどちらの音節かは分からない**。
-/// 実機で、高平声を上げそこねた次の低平声が段差 1.501 で誤りにされた。その音節
-/// 自身は高さのずれ 0.01・相関 0.98 で、聞けば正しく言えている。
-///
-/// そこで直前が誤っていたときだけ、自身の高さの許容を広げる。誤りが1つなら
-/// 判定に影響しない（誤った音節自身は、その直前が正しいので通常の上限で見る）。
-const double kBrokenNeighborEscape = 0.50;
-
-/// 直前との段差が使えないときに、声域内の高さだけで通す上限。
-///
-/// 文頭には比べる相手がいない。平らな3声調（中平・低平・高平）は形では互いに
-/// 区別できないので、ここだけは**声域内の高さそのもの**を根拠にするしかない。
-///
-/// 高さは話者・場面で素直に動くため普段は採点しないが、録音側もお手本側も
-/// 同じ手順で正規化してあり、declination の効かない文頭は**文中で最も高さが
-/// 安定している位置**でもある。合成音声では、文頭の取り違えは 0.53〜1.19 に出る。
-const double kGraphLevelGate = 0.40;
 
 /// 形（カーブの一致）を判定の根拠にしてよい、実際に声が出ていたフレームの最小数。
 ///
 /// 高さは数フレームでも代表値が出るが、**形はそれでは決まらない**。実機で、
 /// 5フレーム（50ms）しか取れなかった下降声が相関 -0.52 と出て弾かれた。
-/// 出ていない形を根拠に誤りと言ってはいけない。足りなければつながりで判断する。
+/// 出ていない形を根拠に誤りと言ってはいけない。足りなければ入り方で判断する。
 const int kMinVoicedFramesForShape = 10;
 
 /// 音節を採点するのに要る、実際に声が出ていたフレームの最小数。
@@ -171,25 +113,15 @@ const int kMinVoicedFramesForShape = 10;
 /// 極端な値が出て、隣との段差が壊れる。
 const int kMinVoicedFramesPerSyllable = 5;
 
-/// その声調の合格ライン。
-///
-/// 末尾の音節も途中と同じ扱いで、直前との段差で見る。端だからと合格ラインを
-/// 上乗せすると緩すぎになった（中平声を下降声・高平声で発音しても通ってしまった）。
-double transitionThresholdFor(ThaiTone tone) =>
-    kTransitionThresholdByTone[tone] ?? kTransitionErrorThreshold;
-
 /// 音節ごとの判定。
 enum ToneVerdict {
-  /// 形かつながり、**どちらかが合っていれば合格**とする。
-  ///
-  /// 両方を要求すると、正しく発音していても弾かれることが多く練習にならない。
-  /// 見逃しは増えるが、続けられるほうを採る。
+  /// 形も入り方も合っている。
   correct,
 
-  /// どちらも外れているが、まだ許容の2倍以内。
+  /// 片方だけ合っている。あるいは根拠が1つしか無く、それが外れている。
   close,
 
-  /// どちらも大きく外れている。
+  /// 形も入り方も外れている。
   wrong,
 
   /// 採点対象外（声調が判定できない音節、または対応する録音が無い）。
@@ -202,16 +134,20 @@ class SyllableScore {
   final ThaiTone tone;
   final ToneVerdict verdict;
 
-  /// 声域内の高さのずれ。[ToneVerdict.unscored] のときは 0。
+  /// 声域内の高さのずれ。**判定には使わない**（表示と切り分け用）。
   final double levelError;
 
-  /// 動き（傾き）のずれ。[ToneVerdict.unscored] のときは 0。
+  /// 動き（傾き）のずれ。判定には使わない（向きだけを見る）。
   final double shapeError;
 
-  /// 直前の音節との段差のずれ。文頭では 0。
-  ///
-  /// 直前が正しく発音できていなかったときは判定に使わないが、切り分けのために
-  /// 値そのものは入れてある。
+  /// 直前の音節の終わり際から、この音節の中心までの段差（録音側）。
+  /// 文頭では 0。
+  final double queryStep;
+
+  /// 同じ段差のお手本側。文頭では 0。
+  final double referenceStep;
+
+  /// 上2つのずれ。判定には使わない（向きだけを見る）が、切り分けのために残す。
   final double transitionError;
 
   /// 採点に使った、この音節の高さ（録音側）。切り分け用。
@@ -240,8 +176,8 @@ class SyllableScore {
 
   /// この音節に対応づいた録音側フレームの範囲（無声フレームを含む）。
   ///
-  /// 高さも形も「どのフレームがこの音節か」の上に乗っているので、境界の置かれ方を
-  /// 見られるようにしておく。対応づいたフレームが無ければ両方 -1。
+  /// 形も入り方も「どのフレームがこの音節か」の上に乗っているので、境界の
+  /// 置かれ方を見られるようにしておく。対応づいたフレームが無ければ両方 -1。
   final int queryStart;
   final int queryEnd;
 
@@ -251,6 +187,8 @@ class SyllableScore {
     required this.verdict,
     this.levelError = 0,
     this.shapeError = 0,
+    this.queryStep = 0,
+    this.referenceStep = 0,
     this.transitionError = 0,
     this.queryLevel = 0,
     this.referenceLevel = 0,
@@ -265,17 +203,6 @@ class SyllableScore {
 
 /// ピッチの動きの向き。
 enum ToneDirection { rising, falling, flat }
-
-/// 動きを持つ声調か（下降声・上昇声）。
-///
-/// この2つは動きそのものが情報なので、**向きが合っていれば合格**とする。
-/// 振れ幅は問わない。短い音節では出しきれないし、正しく発音しても
-/// お手本ほど大きくは動かない。
-///
-/// 残り3つ（中平・低平・高平）はどれも平らで、形では互いに区別できない。
-/// そちらは**直前との対比だけ**で判断する（文頭だけは高さそのもの）。
-bool isContourTone(ThaiTone tone) =>
-    tone == ThaiTone.falling || tone == ThaiTone.rising;
 
 /// 2つのカーブの形がどれだけ一致しているか（-1〜1）。
 ///
@@ -307,36 +234,79 @@ double? curveCorrelation(List<double> a, List<double> b) {
   return covariance / (math.sqrt(varianceA) * math.sqrt(varianceB));
 }
 
-/// 傾きを向きに落とす。
+/// 差を向きに落とす。
 ToneDirection directionOf(
-  double slope, {
-  double flatThreshold = kFlatSlopeThreshold,
+  double delta, {
+  double flatThreshold = kFlatRiseThreshold,
 }) {
-  if (slope > flatThreshold) return ToneDirection.rising;
-  if (slope < -flatThreshold) return ToneDirection.falling;
+  if (delta > flatThreshold) return ToneDirection.rising;
+  if (delta < -flatThreshold) return ToneDirection.falling;
   return ToneDirection.flat;
 }
 
-/// 正規化時間 0..1 に対する最小二乗の傾き。
+/// 音節の始まりから終わりまでで、ピッチがどれだけ動いたか。
 ///
-/// 始点と終点の差ではなく回帰直線を使う。端の1点が検出誤りだったときに
-/// 判定が反転するのを避けるため。
-double contourSlope(List<double> values) {
-  final n = values.length;
-  if (n < 2) return 0;
-
-  var sumT = 0.0, sumV = 0.0, sumTT = 0.0, sumTV = 0.0;
-  for (var i = 0; i < n; i++) {
-    final t = i / (n - 1);
-    sumT += t;
-    sumV += values[i];
-    sumTT += t * t;
-    sumTV += t * values[i];
-  }
-  final denominator = n * sumTT - sumT * sumT;
-  if (denominator.abs() < 1e-9) return 0;
-  return (n * sumTV - sumT * sumV) / denominator;
+/// 端の1点ではなく前後25%の中央値の差を採る。1点だと検出誤りで向きが反転する。
+double contourRise(List<double> values) {
+  if (values.length < 2) return 0;
+  final window = math.max(math.min(3, values.length ~/ 2), (values.length * 0.25).round());
+  return _median(values.sublist(values.length - window)) -
+      _median(values.sublist(0, window));
 }
+
+/// 入り方の基準（直前の終わり際）が、お手本からどれだけ離れてよいか。
+///
+/// 入り方は直前が終わった高さを基準にするので、**その基準自体がお手本とずれて
+/// いれば、段差はこの音節について何も語らない**。実機で、話者が下降声を下げきらずに
+/// 終えたあと、続く中平声2つが「上がって入るはず」を満たせずに落ちた。その2つは
+/// 自分の形も高さも合っており、崩れていたのは基準のほうだった。
+///
+/// 直前の判定が correct かどうかとは別の検査。形と入り方の両方が合っていても、
+/// **終わった位置だけがずれている**ことはある（下降声をどこまで下げるかは
+/// 話者差が大きい）。
+///
+/// 合成音声では、この検査を入れても見逃しは増えない（47 → 46/120）。
+/// 基準がずれているときの段差は、もともと判定に寄与していなかった。
+const double kBasisTolerance = 0.3;
+
+/// 位置が違う組で「動いた」と数える最小の段差。
+///
+/// 符号だけで見ると、ほぼ 0 の揺れが「上がった」に化ける。合成音声で、
+/// 下降声を中平声で発音した誤り（段差 0.000）が符号一致で素通りした。
+/// 実機で通したい上がり幅（0.16）より小さく取る。
+const double kMinStepToCount = 0.1;
+
+/// 声域の中でのおおまかな位置。**数値ではなく順序**で持つ。
+enum TonePosition { low, mid, high }
+
+/// 声調の入り際・終わり際の位置。
+const Map<ThaiTone, (TonePosition, TonePosition)> kTonePositions = {
+  ThaiTone.mid: (TonePosition.mid, TonePosition.mid),
+  ThaiTone.low: (TonePosition.low, TonePosition.low),
+  ThaiTone.high: (TonePosition.high, TonePosition.high),
+  ThaiTone.falling: (TonePosition.high, TonePosition.low),
+  ThaiTone.rising: (TonePosition.low, TonePosition.high),
+};
+
+/// 直前の終わり際とこの音節の入り際で、声域内の位置が違うか。
+///
+/// **違うなら、上か下かは幅によらず決まる。** 低平声のあとの中平声は、
+/// 直前をどこまで下げたかに関わらず「上がって入る」。実機で、低平声を
+/// お手本より 0.32 浅く出した次の中平声が、上がり幅 0.16 では足りないとして
+/// 落ちた。位置が違う組では**符号だけ**を見る。
+///
+/// 同じ位置の組（中平→中平など）は符号では決まらない。文全体の下がり
+/// （declination）でどのみち下がるので、お手本の段差と比べる。
+bool positionsDiffer(ThaiTone previous, ThaiTone current) {
+  final from = kTonePositions[previous]?.$2;
+  final to = kTonePositions[current]?.$1;
+  if (from == null || to == null) return false;
+  return from != to;
+}
+
+/// 段差を「どう入ったか」に落とす。
+ToneDirection stepDirectionOf(double step) =>
+    directionOf(step, flatThreshold: kFlatStepThreshold);
 
 /// 音節の高さを代表する値（位置が使えないときの控え）。
 ///
@@ -394,6 +364,9 @@ List<SyllableScore> scoreSyllables({
   // 音節の中心（お手本の正規化時間で中央60%）に対応づいた録音フレームだけ。
   final centerQuery =
       List.generate(reference.syllableCount, (_) => <double>[]);
+  // 音節の終わり際（お手本の正規化時間で後ろ25%）に対応づいた録音フレームだけ。
+  final tailQuery =
+      List.generate(reference.syllableCount, (_) => <double>[]);
   // 対応づいた録音フレームの範囲。無声フレームも含む（境界の位置を見るため）。
   final spanStart = List.filled(reference.syllableCount, -1);
   final spanEnd = List.filled(reference.syllableCount, -1);
@@ -420,6 +393,9 @@ List<SyllableScore> scoreSyllables({
     if (reference.isCenterPoint(point.refIndex)) {
       centerQuery[syllable].add(queryZ[point.queryIndex]);
     }
+    if (reference.isTailPoint(point.refIndex)) {
+      tailQuery[syllable].add(queryZ[point.queryIndex]);
+    }
   }
 
   /// 音節 [s] の高さ（録音側）。
@@ -433,6 +409,16 @@ List<SyllableScore> scoreSyllables({
     return _level(queryValues[s]);
   }
 
+  /// 音節 [s] の終わり際の高さ（録音側）。次の音節がここから入る。
+  ///
+  /// 終わり際に対応づいたフレームが足りなければ、中心の高さで代用する。
+  /// 無声の子音で音節の後半が丸ごと落ちることがある。
+  double queryTail(int s) {
+    final tail = tailQuery[s];
+    if (tail.length >= 3) return _median(tail);
+    return queryLevel(s);
+  }
+
   /// 音節 [s] の高さ（お手本側）。
   ///
   /// 対応づけとは無関係に、お手本カーブの中心から決める。**対応づいた点だけから
@@ -440,19 +426,6 @@ List<SyllableScore> scoreSyllables({
   /// どの点が対応づいたかで中央値が跳ぶ。同じ文を2回読んだだけで、同じ音節の
   /// お手本の高さが 0.99 と -0.36 に振れたことがある。
   double refLevel(int s) => reference.centerLevel(s);
-
-  /// 音節 [a] から [b] への段差が、お手本からどれだけずれているか。
-  /// どちらかに録音が対応していなければ測れない。
-  double? transition(int a, int b) {
-    // 測れていない音節との段差は当てにならない。
-    if (queryValues[a].length < kMinVoicedFramesPerSyllable ||
-        queryValues[b].length < kMinVoicedFramesPerSyllable) {
-      return null;
-    }
-    final queryStep = queryLevel(b) - queryLevel(a);
-    final refStep = refLevel(b) - refLevel(a);
-    return (queryStep - refStep).abs();
-  }
 
   final scores = <SyllableScore>[];
   for (var s = 0; s < reference.syllableCount; s++) {
@@ -478,152 +451,85 @@ List<SyllableScore> scoreSyllables({
 
     final levelError = (queryLevel(s) - refLevel(s)).abs();
 
-    // **直前との段差だけ**を見る。末尾の音節も途中と同じ扱いで、後ろを見ない。
+    // 入り方は**直前の音節が終わった高さから**測る。人は直前が終わった高さから
+    // 次の音節に入るので、中心どうしの段差より実際の発音に近い。
     //
     // 直前が測れていない（声が拾えなかった）場合は比べようがないので null。
-    final incoming = s > 0 ? transition(s - 1, s) : null;
-    final transitionError = incoming ?? 0.0;
-    // 段差がこの音節について語るのは、**直前がお手本どおりの高さで出ていたとき
-    // だけ**。ずれたまま段差だけ合って Correct になった音節は、そのずれを次の
-    // 段差へ持ち越す。実機で、高さが 0.45 ずれた下降声（形が合うので Correct）の
-    // 次の中平声が、自身の高さのずれ 0.01 なのに段差 0.446 で落とされた。
     //
-    // **判定ではなく高さで見る。** Correct は「直前からの段差が合っていた」と
-    // いう意味しか持たない。
-    final previousReliable = s == 0 ||
-        (scores[s - 1].verdict == ToneVerdict.correct &&
-            scores[s - 1].levelError <= kExactLevelEscape);
-    final transitionThreshold = transitionThresholdFor(tone);
-    final linkOk = incoming == null || incoming <= transitionThreshold;
+    // **直前が誤っていたときも使わない。** 直前が違う声調で終わっていれば、
+    // そこからの段差はこの音節について何も語らない。
+    final measurablePrevious =
+        s > 0 && queryValues[s - 1].length >= kMinVoicedFramesPerSyllable;
+    // **基準がお手本からずれていたら、その段差は何も語らない。**
+    final basisOff = measurablePrevious
+        ? (queryTail(s - 1) - reference.tailLevel(s - 1)).abs()
+        : 0.0;
+    final hasPrevious = measurablePrevious &&
+        scores[s - 1].verdict == ToneVerdict.correct &&
+        basisOff <= kBasisTolerance;
+    // 値そのものは切り分けのために出す（判定に使うかは [hasPrevious] で決まる）。
+    final queryStep =
+        measurablePrevious ? queryLevel(s) - queryTail(s - 1) : 0.0;
+    final referenceStep =
+        measurablePrevious ? refLevel(s) - reference.tailLevel(s - 1) : 0.0;
+    final transitionError = (queryStep - referenceStep).abs();
 
-    // 点が1つしかないと傾きが定義できない。つながりだけで判断し、
-    // 最良でも「惜しい」に留める（動きを確かめられていないため）。
-    if (queryValues[s].length < 2) {
-      scores.add(SyllableScore(
-        syllableIndex: s,
-        tone: tone,
-        verdict: linkOk ? ToneVerdict.close : ToneVerdict.wrong,
-        levelError: levelError,
-        transitionError: transitionError,
-        queryLevel: queryLevel(s),
-        referenceLevel: refLevel(s),
-        referenceValues: refValues[s],
-        queryValues: queryValues[s],
-        queryStart: spanStart[s],
-        queryEnd: spanEnd[s],
-        referencePoints: reference.pointsOf(s),
-      ));
-      continue;
-    }
+    // **大きさは見ない。** 上がって入るべきところを上がって入っていればよく、
+    // どれだけ上がったかは問わない。向きの3分割は境目で跳ねるので、段差そのものが
+    // その幅に収まっていれば同じ入り方として扱う。
+    final bool? stepAgrees = !hasPrevious
+        ? null
+        : positionsDiffer(reference.tones[s - 1], tone)
+            ? queryStep.abs() >= kMinStepToCount &&
+                queryStep.sign == referenceStep.sign
+            : stepDirectionOf(queryStep) == stepDirectionOf(referenceStep) ||
+                transitionError <= kFlatStepThreshold;
 
-    final querySlope = contourSlope(queryValues[s]);
-    final refSlope = contourSlope(refValues[s]);
-    final shapeError = (querySlope - refSlope).abs();
+    // 形は始まりと終わりの差の向きで見る。動きの大きさは問わない。
+    final queryRise = contourRise(queryValues[s]);
+    final refRise = contourRise(refValues[s]);
+    final shapeError = (queryRise - refRise).abs();
+    final correlation = curveCorrelation(queryValues[s], refValues[s]);
+    final riseAgrees = directionOf(queryRise) == directionOf(refRise) ||
+        shapeError <=
+            (isContourTone(tone) ? kRiseAgreement : kFlatToneRiseAgreement);
+    final shapeMatches = isContourTone(tone)
+        ? riseAgrees ||
+            (correlation != null && correlation >= kShapeCorrelationThreshold)
+        : riseAgrees && (hasPrevious || correlation == null || correlation >= 0);
 
     // 短母音・死音節は声調の動きを出しきる時間がない（tonal undershoot）。
-    // 形を要求しても出せないので、この音節は隣との高低差だけで判断する。
     final isShort = shortSyllables != null &&
         s < shortSyllables.length &&
         shortSyllables[s];
 
-    // 形はカーブそのものの一致だけで見る。相関なので位置のずれも振れ幅の違いも
-    // 無視され、「グラフとして同じ形か」だけが残る。
-    //
-    // 振れ幅は**問わない**。実測では、形がほぼ一致（corr=0.73〜0.99）していても
-    // 振れ幅がお手本の4割ほどしか出ない発話が普通にあり、そこを弾くと練習にならない。
-    //
-    // この代償として、**下降声を中平声で発音した場合を見逃す**（どちらも
-    // 右下がりの曲線なので相関は高い）。実測の「弱い下降」（お手本の38%）と
-    // 合成した「中平声で代用」（46%）は数値的に重なっており、両者を分ける
-    // 閾値は存在しない。弾く側に倒すと正しい発音まで巻き込む。
-    // **形は、形が出るだけの長さが取れたときだけ根拠にする。** 5フレームしか
-    // 拾えなかった音節の相関は当てにならない（実機で -0.52 が出た）。
-    final measuredEnough =
-        queryValues[s].length >= kMinVoicedFramesForShape;
-    final correlation = curveCorrelation(queryValues[s], refValues[s]);
-    final directionOk = directionOf(querySlope) == directionOf(refSlope);
-    final shapeOk = !measuredEnough
-        ? false
-        : correlation != null
-            ? correlation >= kShapeCorrelationThreshold
-            : directionOk;
+    // 形が根拠になるのは、**形が出るだけの長さが取れたとき**だけ。
+    final measuredEnough = queryValues[s].length >= kMinVoicedFramesForShape;
 
-    // 平らな3声調では、相関はお手本のわずかな傾きに対する細かい揺れを拾うだけで
-    // 意味を持たない。実機で、低平声が corr=0.09、中平声が corr=-0.87 と出た
-    // （どちらも高さは 0.34 と 0.01 でほぼ合っている）。**平らなお手本に対して
-    // 相関を要求してはいけない。** 向き（上がる／下がる／平ら）だけで見る。
-    final shapeAgrees = isContourTone(tone) ? shapeOk : directionOk;
+    // 短さが免除するのは「形を要求すること」であって、**出せた形を無視する理由に
+    // はならない**。短くても形が出ていれば、それは正しく言えた証拠。
+    final bool? shapeAgrees = !measuredEnough
+        ? null
+        : shapeMatches
+            ? true
+            : isShort
+                ? null
+                : false;
 
-    // 判断の根拠を声調で使い分ける。
-    //   下降声・上昇声 → 動きが情報なので、向きが合っていれば合格
-    //   平らな3つ　　 → 形では互いに区別できないので、直前との対比で判断
-    //
-    // 短い音節（短母音・死音節）は動きを出しきる時間がないので、形が出ていなくても
-    // 責めない。ただし**形が出ていたなら、それは短くても正しく言えた証拠**なので
-    // 合格の根拠にしてよい。短さが免除するのは「形を要求すること」であって、
-    // 出せた形を無視する理由にはならない。
-    //
-    // 実機で、文頭の短い下降声（พรุ่ง）が corr=0.99 と形は完璧なのに、
-    // 隣の音節の誤りに巻き込まれて「惜しい」に落ちていた。文頭は隣が片側に
-    // しか無いので、その1つが崩れると逃げ場が無い。
-    /// つながりだけで決める場合の判定。
-    ///
-    /// **両隣が崩れていると、段差はこの音節について何も語らない。** その場合だけ、
-    /// 自身の高さがほぼ一致していて形も合っていることを逃げ道にする。
-    ToneVerdict byLink() {
-      if (linkOk) return ToneVerdict.correct;
-      final escape =
-          previousReliable ? kExactLevelEscape : kBrokenNeighborEscape;
-      if (shapeAgrees && levelError <= escape) return ToneVerdict.correct;
-      if (transitionError <= transitionThreshold * 2) return ToneVerdict.close;
-      return ToneVerdict.wrong;
-    }
-
-    /// 段差が使えない場合の判定。文頭、または直前の声が拾えなかったとき。
-    ///
-    /// 比べられる相手がいないので、**その音節のピッチのグラフそのもの**だけで見る。
-    /// 下降声・上昇声は形、平らな3つは形では区別できないので声域内の高さ。
-    ToneVerdict byGraph() {
-      if (isContourTone(tone) && shapeOk) {
-        return levelError <= kContourLevelGate
-            ? ToneVerdict.correct
-            : ToneVerdict.close;
-      }
-      // 平らな3つは形では互いに区別できないが、**平らであるべき音節が逆向きに
-      // 動いていれば別の声調**なので、そこだけは形で弾ける。
-      // ここでの形の要求は合格ライン（[kShapeCorrelationThreshold]）より
-      // ずっと緩く、「はっきり食い違っている」ときだけ落とす。お手本がほぼ平坦で
-      // 相関が細かい揺れを拾うため、締めると正しい発話を巻き込む。
-      final graphOk = !measuredEnough ||
-          ((correlation == null || correlation >= 0) && directionOk);
-      if (levelError <= kGraphLevelGate && graphOk) {
-        return ToneVerdict.correct;
-      }
-      if (levelError <= kGraphLevelGate * 2) return ToneVerdict.close;
-      return ToneVerdict.wrong;
-    }
-
+    // 形と入り方の両方が合えば correct、片方だけなら close、両方外れれば wrong。
+    // **根拠が1つしか無いときは wrong にしない。** 文頭（入り方が無い）や
+    // 短すぎて形が測れない音節を、1つの手がかりだけで断定してはいけない。
+    final available = [shapeAgrees, stepAgrees].whereType<bool>().toList();
+    final agreed = available.where((ok) => ok).length;
     final ToneVerdict verdict;
-    if (incoming == null) {
-      verdict = byGraph();
-    } else if (isContourTone(tone)) {
-      if (shapeOk) {
-        // **形が合っていても、それだけでは通さない。** 上昇声を高平声で発音すると
-        // どちらも右上がりなので形は一致するが、高さは 1.03 違う。
-        // 形だけで判定していたとき、これが素通りしていた。
-        verdict = levelError <= kContourLevelGate
-            ? ToneVerdict.correct
-            : ToneVerdict.close;
-      } else if (isShort || !measuredEnough) {
-        // 短くて動きを出しきれない、あるいは形が出るだけ測れていない。
-        // どちらも出ていない形を責める理由にはならないので、つながりで判断する。
-        verdict = byLink();
-      } else {
-        verdict = linkOk ? ToneVerdict.close : ToneVerdict.wrong;
-      }
+    if (available.isEmpty) {
+      verdict = ToneVerdict.close;
+    } else if (agreed == available.length) {
+      verdict = ToneVerdict.correct;
+    } else if (agreed > 0 || available.length < 2) {
+      verdict = ToneVerdict.close;
     } else {
-      // 中平・低平・高平はどれも平らで、形では互いに区別できない。
-      verdict = byLink();
+      verdict = ToneVerdict.wrong;
     }
 
     scores.add(SyllableScore(
@@ -632,6 +538,8 @@ List<SyllableScore> scoreSyllables({
       verdict: verdict,
       levelError: levelError,
       shapeError: shapeError,
+      queryStep: queryStep,
+      referenceStep: referenceStep,
       transitionError: transitionError,
       queryLevel: queryLevel(s),
       referenceLevel: refLevel(s),

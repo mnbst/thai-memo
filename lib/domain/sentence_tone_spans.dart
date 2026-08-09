@@ -53,11 +53,19 @@ class SentenceToneSpans {
   /// こちらは「どれだけの長さか」で、判断の基準が違う。
   final List<int> syllablePoints;
 
+  /// 音節ごとの「表記/長さの分類」（[tones] と同じ順）。
+  ///
+  /// 時間の取り分（[syllablePoints]）は表記から決めているので、実際の発話の
+  /// 長さと食い違ったときに**どの語のどの判定が原因か**を追えなければ直せない。
+  /// 判定には使わない、ログのためだけの文字列。
+  final List<String> syllableLabels;
+
   const SentenceToneSpans({
     required this.tones,
     required this.words,
     required this.shortSyllables,
     required this.syllablePoints,
+    this.syllableLabels = const [],
   });
 
   bool get isEmpty => tones.isEmpty;
@@ -72,6 +80,7 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
   final spans = <WordToneSpan>[];
   final short = <bool>[];
   final points = <int>[];
+  final labels = <String>[];
 
   for (final word in words) {
     final syllables = word.syllables;
@@ -88,11 +97,20 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
       (s) => s.hasShortVowel == true || s.syllableType == 'dead',
     ));
     // 長さは別基準。長母音に閉鎖音が付いただけの音節は長い。
+    //
+    // อำ / ไอ / ใอ / เอา は**音としては短母音**だが、声調規則の上では生音節なので
+    // `hasShortVowel` は false で来る。長さの判定はこちらで足す。
     points.addAll(syllables.map(
       (s) => syllablePointsFor(
-        shortVowel: s.hasShortVowel == true,
+        shortVowel: s.hasShortVowel == true ||
+            ThaiToneAnalyzer.hasSpecialShortVowel(s.text),
         dead: s.syllableType == 'dead',
       ),
+    ));
+    labels.addAll(syllables.map(
+      (s) => '${s.text}'
+          '[${s.hasShortVowel == true || ThaiToneAnalyzer.hasSpecialShortVowel(s.text) ? "短" : "長"}'
+          '/${s.syllableType == "dead" ? "死" : "生"}]',
     ));
   }
 
@@ -101,5 +119,6 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
     words: spans,
     shortSyllables: short,
     syllablePoints: points,
+    syllableLabels: labels,
   );
 }

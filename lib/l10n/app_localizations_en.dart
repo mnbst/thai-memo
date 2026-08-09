@@ -994,7 +994,7 @@ class L10nEn extends L10n {
   String get pronunciationTitle => 'Try saying it';
 
   @override
-  String get pronunciationHoldToSpeak => 'Hold and speak';
+  String get pronunciationHoldToSpeak => 'Hold to speak';
 
   @override
   String get pronunciationRecording => 'Recording… release to check';
@@ -1012,24 +1012,24 @@ class L10nEn extends L10n {
   String get pronunciationYours => 'You';
 
   @override
-  String get pronunciationTapWordHint => 'Tap a word for details';
+  String get pronunciationTapWordHint => 'Tap a word to see what to fix';
 
   @override
   String pronunciationScore(int score) {
-    return '$score';
+    return 'Score $score';
   }
 
   @override
-  String get pronunciationVerdictCorrect => 'Correct';
+  String get pronunciationVerdictCorrect => 'On target';
 
   @override
-  String get pronunciationVerdictClose => 'Close';
+  String get pronunciationVerdictClose => 'Almost';
 
   @override
   String get pronunciationVerdictWrong => 'Off';
 
   @override
-  String get pronunciationVerdictUnscored => 'Not checked';
+  String get pronunciationVerdictUnscored => 'Not measured';
 
   @override
   String get pronunciationTooQuiet =>
@@ -1037,19 +1037,19 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationNoSpeakerRange =>
-      'We couldn\'t read your pitch. Please try again.';
+      'We couldn\'t read your pitch. Give it another go.';
 
   @override
   String get pronunciationNoSyllables =>
-      'This sentence doesn\'t support pronunciation practice.';
+      'Pronunciation practice isn\'t available for this sentence.';
 
   @override
   String get pronunciationMonotone =>
-      'Your pitch stayed flat. Try again, focusing on the tones.';
+      'Your pitch barely moved. Listen to the model, then say it again with the rises and falls.';
 
   @override
   String get pronunciationCaptureFailed =>
-      'Couldn\'t capture audio from the microphone';
+      'We couldn\'t get any audio from the microphone. Please try again.';
 
   @override
   String get pronunciationPermissionTitle => 'Microphone access needed';
@@ -1062,21 +1062,23 @@ class L10nEn extends L10n {
   String get pronunciationPermissionOpenSettings => 'Open settings';
 
   @override
-  String get pronunciationBandCombined => 'Bar = tone and sounds combined';
+  String get pronunciationBandCombined =>
+      'Bar color = tone and sounds together';
 
   @override
-  String get pronunciationSpeechRecognized => 'Sounds: understood';
+  String get pronunciationSpeechRecognized => 'Consonants & vowels: understood';
 
   @override
-  String get pronunciationSpeechMissing => 'Sounds: not understood';
+  String get pronunciationSpeechMissing =>
+      'Consonants & vowels: not understood';
 
   @override
   String get pronunciationSpeechUnavailable =>
-      'This device can\'t check your sounds (tone only)';
+      'Consonants and vowels can\'t be checked right now — showing tones only';
 
   @override
   String get pronunciationSpeechNoAsset =>
-      'Thai dictation isn\'t installed on this device, so your sounds can\'t be checked (tone only)';
+      'Thai dictation isn\'t installed on this device, so consonants and vowels can\'t be checked — showing tones only';
 
   @override
   String get pronunciationSpeechNoAssetHow =>
@@ -1084,11 +1086,11 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationSpeechAuthDenied =>
-      'Speech recognition isn\'t allowed, so your sounds can\'t be checked (tone only)';
+      'Speech recognition isn\'t allowed, so consonants and vowels can\'t be checked — showing tones only';
 
   @override
   String get pronunciationSpeechAndroid =>
-      'Checking your sounds isn\'t supported on Android (tone only)';
+      'Checking consonants and vowels isn\'t supported on Android — showing tones only';
 
   @override
   String get pronunciationPremiumTitle =>
@@ -1096,7 +1098,7 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationPremiumBody =>
-      'Compare your tones with the model, syllable by syllable.';
+      'Record yourself, compare each syllable\'s tone with the model, and see which words came across.';
 
   @override
   String tipWithExample(String content, String example) {

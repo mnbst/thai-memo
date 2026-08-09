@@ -9,31 +9,31 @@ SyllableScore _score(ToneVerdict verdict) => SyllableScore(
     );
 
 void main() {
-  group('contourSlope', () {
-    test('上昇するカーブは正の傾き', () {
-      expect(contourSlope([0, 0.25, 0.5, 0.75, 1]), greaterThan(0));
+  group('contourRise', () {
+    test('上がって終わるカーブは正', () {
+      expect(contourRise([0, 0.25, 0.5, 0.75, 1]), greaterThan(0));
     });
 
-    test('下降するカーブは負の傾き', () {
-      expect(contourSlope([1, 0.75, 0.5, 0.25, 0]), lessThan(0));
+    test('下がって終わるカーブは負', () {
+      expect(contourRise([1, 0.75, 0.5, 0.25, 0]), lessThan(0));
     });
 
-    test('平坦なカーブは傾き0', () {
-      expect(contourSlope([0.4, 0.4, 0.4, 0.4]), closeTo(0, 1e-9));
+    test('平坦なカーブは0', () {
+      expect(contourRise([0.4, 0.4, 0.4, 0.4]), closeTo(0, 1e-9));
     });
 
     test('点が足りなければ0', () {
-      expect(contourSlope([]), 0);
-      expect(contourSlope([0.5]), 0);
+      expect(contourRise([]), 0);
+      expect(contourRise([0.5]), 0);
     });
 
     test('端の1点が外れても向きは反転しない', () {
-      // 始点と終点の差で傾きを取ると、検出誤りで判定が裏返る。
-      // 回帰直線を使っているかの確認。
+      // 端の1点をそのまま使うと、検出誤りで判定が裏返る。
+      // 前後25%の中央値を採っているかの確認。
       final clean = [1.0, 0.8, 0.6, 0.4, 0.2];
       final withOutlier = [1.0, 0.8, 0.6, 0.4, 1.1];
-      expect(contourSlope(clean), lessThan(0));
-      expect(contourSlope(withOutlier), lessThan(0));
+      expect(contourRise(clean), lessThan(0));
+      expect(contourRise(withOutlier), lessThan(0));
     });
   });
 
