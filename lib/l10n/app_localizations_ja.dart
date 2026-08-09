@@ -992,6 +992,21 @@ class L10nJa extends L10n {
   String get pronunciationSpeechUnavailable => 'この端末では発音の判定に対応していません（声調のみ）';
 
   @override
+  String get pronunciationSpeechNoAsset =>
+      'この端末にタイ語の音声入力が入っていないため、発音は判定できません（声調のみ）';
+
+  @override
+  String get pronunciationSpeechNoAssetHow =>
+      '「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。';
+
+  @override
+  String get pronunciationSpeechAuthDenied =>
+      '音声認識の使用が許可されていないため、発音は判定できません（声調のみ）';
+
+  @override
+  String get pronunciationSpeechAndroid => 'Android では発音の判定に対応していません（声調のみ）';
+
+  @override
   String get pronunciationPremiumTitle => '発音練習はプレミアム機能です';
 
   @override

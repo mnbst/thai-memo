@@ -196,6 +196,7 @@ class _PracticeBody extends ConsumerWidget {
         return _ResultView(
           result: result,
           recognition: state.recognition,
+          recognitionStatus: state.recognitionStatus,
           spans: spans,
           selectedWordIndex: state.selectedWordIndex,
           onSelectWord: controller.toggleWord,
@@ -336,6 +337,7 @@ class _ResultView extends StatelessWidget {
   const _ResultView({
     required this.result,
     required this.recognition,
+    required this.recognitionStatus,
     required this.spans,
     required this.selectedWordIndex,
     required this.onSelectWord,
@@ -345,6 +347,9 @@ class _ResultView extends StatelessWidget {
 
   final PronunciationResult result;
   final List<WordRecognition> recognition;
+
+  /// 発音の判定が使えなかった理由コード。案内の出し分けに使う。
+  final String recognitionStatus;
   final SentenceToneSpans spans;
   final int? selectedWordIndex;
   final void Function(int) onSelectWord;
@@ -402,7 +407,11 @@ class _ResultView extends StatelessWidget {
             onSelectWord: onSelectWord,
           ),
           const SizedBox(height: 6),
-          _BandLegend(l10n: l10n, hasRecognition: _hasRecognition),
+          _BandLegend(
+            l10n: l10n,
+            hasRecognition: _hasRecognition,
+            recognitionStatus: recognitionStatus,
+          ),
           if (selectedWordIndex != null) ...[
             const SizedBox(height: 8),
             _WordContourCard(
@@ -522,23 +531,62 @@ class _Band extends StatelessWidget {
       );
 }
 
-/// 帯が何を表すかの凡例。
+/// 帯が何を表すかの凡例。発音が判定できなかった端末では、その理由を出す。
 class _BandLegend extends StatelessWidget {
-  const _BandLegend({required this.l10n, required this.hasRecognition});
+  const _BandLegend({
+    required this.l10n,
+    required this.hasRecognition,
+    required this.recognitionStatus,
+  });
 
   final L10n l10n;
   final bool hasRecognition;
+  final String recognitionStatus;
+
+  /// 理由コードごとの案内。**直せるものは直し方まで出す。**
+  ///
+  /// タイ語の音声入力が入っていない端末が大半で、これは端末の設定で直る。
+  /// 「非対応です」で終わらせると、直せる人まで諦める。
+  (String, String?) get _notice {
+    switch (recognitionStatus) {
+      case 'no_on_device_asset':
+        return (
+          l10n.pronunciationSpeechNoAsset,
+          l10n.pronunciationSpeechNoAssetHow,
+        );
+      case 'auth_denied':
+        return (l10n.pronunciationSpeechAuthDenied, null);
+      case 'android_unsupported':
+        return (l10n.pronunciationSpeechAndroid, null);
+      default:
+        return (l10n.pronunciationSpeechUnavailable, null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodySmall;
+
     // 判定できないことと、判定して駄目だったことを混同させない。
-    // 発音が見られない端末では、帯が声調だけを表していることを明示する。
-    return Text(
-      hasRecognition
-          ? l10n.pronunciationBandCombined
-          : l10n.pronunciationSpeechUnavailable,
-      style: style,
+    if (hasRecognition) {
+      return Text(l10n.pronunciationBandCombined, style: style);
+    }
+
+    final (message, how) = _notice;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(message, style: style),
+        if (how != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            how,
+            style: style?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

@@ -371,6 +371,10 @@
   "pronunciationSpeechRecognized": "Sounds: understood",
   "pronunciationSpeechMissing": "Sounds: not understood",
   "pronunciationSpeechUnavailable": "This device can't check your sounds (tone only)",
+  "pronunciationSpeechNoAsset": "Thai dictation isn't installed on this device, so your sounds can't be checked (tone only)",
+  "pronunciationSpeechNoAssetHow": "Add the Thai keyboard in Settings → General → Keyboard and turn on Dictation to enable it.",
+  "pronunciationSpeechAuthDenied": "Speech recognition isn't allowed, so your sounds can't be checked (tone only)",
+  "pronunciationSpeechAndroid": "Checking your sounds isn't supported on Android (tone only)",
   "pronunciationPremiumTitle": "Pronunciation practice is a Premium feature",
   "pronunciationPremiumBody": "Compare your tones with the model, syllable by syllable.",
 

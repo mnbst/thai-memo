@@ -19,15 +19,27 @@ void main() {
       );
     });
 
-    test('1音節だけ外した3音節の語は correct のまま', () {
-      // 1音節でも外すと語全体が赤くなる作りでは、どこを直すか分からない。
+    test('1音節でも外していれば correct にはしない', () {
+      // 0.75 の頃はここが correct だった。直すべき語が緑に見えるので締めた。
       expect(
         toneVerdictOfWord([
           _score(ToneVerdict.correct),
           _score(ToneVerdict.correct),
           _score(ToneVerdict.close),
         ]),
-        ToneVerdict.correct,
+        ToneVerdict.close,
+      );
+    });
+
+    test('外した音節が1つでも、語全体を wrong にはしない', () {
+      // 1音節でも外すと語全体が赤くなる作りでは、どこを直すか分からない。
+      expect(
+        toneVerdictOfWord([
+          _score(ToneVerdict.correct),
+          _score(ToneVerdict.correct),
+          _score(ToneVerdict.wrong),
+        ]),
+        ToneVerdict.close,
       );
     });
 
@@ -74,28 +86,57 @@ void main() {
       }
     });
 
-    test('通じなかったら声調が合っていても一段下げる', () {
+    test('通じなかった語は、声調が合っていても言い直す（wrong）', () {
+      for (final tone in ToneVerdict.values) {
+        expect(
+          combinedWordVerdict(tone, WordRecognition.missing),
+          ToneVerdict.wrong,
+          reason: '$tone',
+        );
+      }
+    });
+  });
+
+  group('combinedScore', () {
+    test('全て通じたら声調の点と発音の満点で決まる', () {
       expect(
-        combinedWordVerdict(ToneVerdict.correct, WordRecognition.missing),
-        ToneVerdict.close,
+        combinedScore(80, List.filled(4, WordRecognition.recognized)),
+        80 * 0.5 + 100 * 0.5,
       );
     });
 
-    test('声調も惜しい以下なら wrong', () {
+    test('全て通じなければ声調の点の半分', () {
       expect(
-        combinedWordVerdict(ToneVerdict.close, WordRecognition.missing),
-        ToneVerdict.wrong,
-      );
-      expect(
-        combinedWordVerdict(ToneVerdict.wrong, WordRecognition.missing),
-        ToneVerdict.wrong,
+        combinedScore(80, List.filled(4, WordRecognition.missing)),
+        40,
       );
     });
 
-    test('声調が測れなくても、通じなかったことは伝える', () {
+    test('通じた語の割合がそのまま発音側の点になる', () {
       expect(
-        combinedWordVerdict(ToneVerdict.unscored, WordRecognition.missing),
-        ToneVerdict.wrong,
+        combinedScore(60, const [
+          WordRecognition.recognized,
+          WordRecognition.recognized,
+          WordRecognition.recognized,
+          WordRecognition.missing,
+        ]),
+        60 * 0.5 + 75 * 0.5,
+      );
+    });
+
+    test('判定していない端末では声調の点をそのまま返す', () {
+      // 発音側を満点として足すと、対応していない端末のほうが点が出てしまう。
+      expect(combinedScore(70, List.filled(3, WordRecognition.unavailable)), 70);
+      expect(combinedScore(70, const []), 70);
+    });
+
+    test('unavailable は分母に入れない', () {
+      expect(
+        combinedScore(80, const [
+          WordRecognition.recognized,
+          WordRecognition.unavailable,
+        ]),
+        80 * 0.5 + 100 * 0.5,
       );
     });
   });
