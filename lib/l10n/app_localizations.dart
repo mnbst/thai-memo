@@ -1945,6 +1945,30 @@ abstract class L10n {
   /// **'この端末では発音の判定に対応していません（声調のみ）'**
   String get pronunciationSpeechUnavailable;
 
+  /// No description provided for @pronunciationSpeechNoAsset.
+  ///
+  /// In ja, this message translates to:
+  /// **'この端末にタイ語の音声入力が入っていないため、発音は判定できません（声調のみ）'**
+  String get pronunciationSpeechNoAsset;
+
+  /// No description provided for @pronunciationSpeechNoAssetHow.
+  ///
+  /// In ja, this message translates to:
+  /// **'「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。'**
+  String get pronunciationSpeechNoAssetHow;
+
+  /// No description provided for @pronunciationSpeechAuthDenied.
+  ///
+  /// In ja, this message translates to:
+  /// **'音声認識の使用が許可されていないため、発音は判定できません（声調のみ）'**
+  String get pronunciationSpeechAuthDenied;
+
+  /// No description provided for @pronunciationSpeechAndroid.
+  ///
+  /// In ja, this message translates to:
+  /// **'Android では発音の判定に対応していません（声調のみ）'**
+  String get pronunciationSpeechAndroid;
+
   /// No description provided for @pronunciationPremiumTitle.
   ///
   /// In ja, this message translates to:

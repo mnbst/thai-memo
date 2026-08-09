@@ -383,6 +383,10 @@
   "pronunciationSpeechRecognized": "発音：通じました",
   "pronunciationSpeechMissing": "発音：通じませんでした",
   "pronunciationSpeechUnavailable": "この端末では発音の判定に対応していません（声調のみ）",
+  "pronunciationSpeechNoAsset": "この端末にタイ語の音声入力が入っていないため、発音は判定できません（声調のみ）",
+  "pronunciationSpeechNoAssetHow": "「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。",
+  "pronunciationSpeechAuthDenied": "音声認識の使用が許可されていないため、発音は判定できません（声調のみ）",
+  "pronunciationSpeechAndroid": "Android では発音の判定に対応していません（声調のみ）",
   "pronunciationPremiumTitle": "発音練習はプレミアム機能です",
   "pronunciationPremiumBody": "お手本と自分の声調を比べて、音節ごとに確認できます。",
 

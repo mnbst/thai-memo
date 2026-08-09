@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/core/pronunciation/pronunciation_analyzer.dart';
 import 'package:thai_memo/core/pronunciation/pronunciation_scorer.dart';
 import 'package:thai_memo/core/pronunciation/speaker_range.dart';
+import 'package:thai_memo/core/pronunciation/transcript_match.dart';
+import 'package:thai_memo/core/pronunciation/word_verdict.dart';
 import 'package:thai_memo/core/thai_tone_analyzer.dart';
 
 import '../../helpers/f0_synthesizer.dart';
@@ -239,6 +241,43 @@ void main() {
         const SpeakerRange(medianSemitone: 50, rangeSemitone: 10),
       );
       expect(profile.sampleCount, kProfileMaxSamples);
+    });
+  });
+
+  group('総合点への発音（通じたか）の反映', () {
+    test('通じなかった語があると、声調が満点でも総合点が下がる', () {
+      final result = analyzePronunciation(
+        f0Hz: synthesizeF0(tones: _tones),
+        tones: _tones,
+        recognition: const [
+          WordRecognition.recognized,
+          WordRecognition.missing,
+        ],
+      );
+
+      expect(result.toneScore, 100);
+      expect(result.overallScore, lessThan(result.toneScore));
+    });
+
+    test('全て通じなければ、声調が満点でも半分', () {
+      final result = analyzePronunciation(
+        f0Hz: synthesizeF0(tones: _tones),
+        tones: _tones,
+        recognition: const [WordRecognition.missing, WordRecognition.missing],
+      );
+
+      expect(result.toneScore, 100);
+      expect(result.overallScore, 100 * kToneScoreWeight);
+    });
+
+    test('判定できない端末では声調のみの点数と一致する', () {
+      final result = analyzePronunciation(
+        f0Hz: synthesizeF0(tones: _tones),
+        tones: _tones,
+        recognition: const [WordRecognition.unavailable],
+      );
+
+      expect(result.overallScore, result.toneScore);
     });
   });
 }

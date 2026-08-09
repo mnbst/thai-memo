@@ -1075,6 +1075,22 @@ class L10nEn extends L10n {
       'This device can\'t check your sounds (tone only)';
 
   @override
+  String get pronunciationSpeechNoAsset =>
+      'Thai dictation isn\'t installed on this device, so your sounds can\'t be checked (tone only)';
+
+  @override
+  String get pronunciationSpeechNoAssetHow =>
+      'Add the Thai keyboard in Settings → General → Keyboard and turn on Dictation to enable it.';
+
+  @override
+  String get pronunciationSpeechAuthDenied =>
+      'Speech recognition isn\'t allowed, so your sounds can\'t be checked (tone only)';
+
+  @override
+  String get pronunciationSpeechAndroid =>
+      'Checking your sounds isn\'t supported on Android (tone only)';
+
+  @override
   String get pronunciationPremiumTitle =>
       'Pronunciation practice is a Premium feature';
 

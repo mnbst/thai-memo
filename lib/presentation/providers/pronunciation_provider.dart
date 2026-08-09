@@ -54,11 +54,18 @@ class PronunciationState {
   /// 結果表示で選択中の語（カーブを開いている語）。未選択なら null。
   final int? selectedWordIndex;
 
+  /// 発音の判定が使えなかった理由（ネイティブが返す理由コード）。
+  ///
+  /// 「非対応」で終わらせず、直せるものは直し方を案内するために持つ。
+  /// タイ語の音声入力を入れれば使えるようになる端末が大半。
+  final String recognitionStatus;
+
   const PronunciationState({
     this.phase = PronunciationPhase.idle,
     this.result,
     this.recognition = const [],
     this.selectedWordIndex,
+    this.recognitionStatus = 'not_started',
   });
 
   PronunciationState copyWith({
@@ -67,6 +74,7 @@ class PronunciationState {
     List<WordRecognition>? recognition,
     int? selectedWordIndex,
     bool clearSelection = false,
+    String? recognitionStatus,
   }) =>
       PronunciationState(
         phase: phase ?? this.phase,
@@ -74,6 +82,7 @@ class PronunciationState {
         recognition: recognition ?? this.recognition,
         selectedWordIndex:
             clearSelection ? null : (selectedWordIndex ?? this.selectedWordIndex),
+        recognitionStatus: recognitionStatus ?? this.recognitionStatus,
       );
 }
 
@@ -157,12 +166,28 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     final capture = await _recorder.stopAndExtract();
     final profile = await _loadProfile();
 
+    if (!capture.transcriptAvailable) {
+      // シミュレータでは必ずここに来る（端末内認識のアセットが無い）。
+      // 非対応なのか壊れているのかを実機で切り分けられるよう理由を出す。
+      debugPrint(
+        'pronunciation: speech recognition unavailable '
+        '(${capture.recognitionStatus})',
+      );
+    }
+    // 総合点は声調と発音の両方から決まるので、採点より先に照合する。
+    final recognition = matchTranscript(
+      expectedWords: expectedWords,
+      transcript: capture.transcript,
+      available: capture.transcriptAvailable,
+    );
+
     final result = analyzePronunciation(
       f0Hz: capture.f0Hz,
       tones: tones,
       shortSyllables: shortSyllables,
       syllablePoints: syllablePoints,
       profile: profile,
+      recognition: recognition,
     );
     // 高さも形も「どのフレームがどの音節か」の上に乗っている。時間軸が保たれて
     // いるか（DTWの帯が前提にしている）を追えるよう、まず全体の内訳を出す。
@@ -173,6 +198,13 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     debugPrint(
       'pronunciation frames: ${capture.f0Hz.length} total, '
       '$measuredFrames measured, $span aligned',
+    );
+    // 発音がどれだけ点数に効いたかを追えるようにする。
+    debugPrint(
+      'pronunciation score: tone=${result.toneScore.toStringAsFixed(1)} '
+      '-> overall=${result.overallScore.toStringAsFixed(1)} '
+      '(missing=${recognition.where((r) => r == WordRecognition.missing).length}'
+      '/${recognition.where((r) => r != WordRecognition.unavailable).length})',
     );
     // 判定に納得がいかないときに、どの数字でそうなったかを追えるようにする。
     for (final score in result.syllables) {
@@ -194,25 +226,13 @@ class PronunciationController extends StateNotifier<PronunciationState> {
       );
     }
 
-    if (!capture.transcriptAvailable) {
-      // シミュレータでは必ずここに来る（端末内認識のアセットが無い）。
-      // 非対応なのか壊れているのかを実機で切り分けられるよう理由を出す。
-      debugPrint(
-        'pronunciation: speech recognition unavailable '
-        '(${capture.recognitionStatus})',
-      );
-    }
-    final recognition = matchTranscript(
-      expectedWords: expectedWords,
-      transcript: capture.transcript,
-      available: capture.transcriptAvailable,
-    );
     if (!mounted) return;
 
     state = PronunciationState(
       phase: PronunciationPhase.result,
       result: result,
       recognition: recognition,
+      recognitionStatus: capture.recognitionStatus,
     );
 
     if (result.isScored) {

@@ -17,6 +17,8 @@ import 'pitch_track.dart';
 import 'pronunciation_scorer.dart';
 import 'speaker_range.dart';
 import 'tone_contour.dart';
+import 'transcript_match.dart';
+import 'word_verdict.dart';
 import '../thai_tone_analyzer.dart';
 
 /// 採点に必要な最小の有声フレーム比率。
@@ -49,8 +51,14 @@ enum PronunciationFailure {
 class PronunciationResult {
   final List<SyllableScore> syllables;
 
-  /// 0〜100。[failure] が [PronunciationFailure.none] のときだけ意味を持つ。
+  /// 声調と発音を合わせた 0〜100。
+  /// [failure] が [PronunciationFailure.none] のときだけ意味を持つ。
   final double overallScore;
+
+  /// 声調だけの 0〜100。[overallScore] との差が発音（通じたか）のぶん。
+  ///
+  /// 切り分け用に残してある。画面に出すのは [overallScore]。
+  final double toneScore;
 
   final PronunciationFailure failure;
 
@@ -68,9 +76,10 @@ class PronunciationResult {
     required this.syllables,
     required this.overallScore,
     required this.failure,
+    double? toneScore,
     this.speakerRange,
     this.freshRange,
-  });
+  }) : toneScore = toneScore ?? overallScore;
 
   bool get isScored => failure == PronunciationFailure.none;
 
@@ -101,12 +110,16 @@ class PronunciationResult {
 /// [shortSyllables] は声調の形を出しきれない音節（短母音・死音節）。
 /// [syllablePoints] は音節ごとの時間の取り分（[syllablePointsFor]）。
 /// [profile] は過去の録音から蓄積した声域。初回は null でよい。
+/// [recognition] は語ごとの「通じたか」（[matchTranscript]）。総合点に掛ける。
+/// 端末が音声認識に対応していない場合は空、または全て
+/// [WordRecognition.unavailable] でよい（減点しない）。
 PronunciationResult analyzePronunciation({
   required List<double?> f0Hz,
   required List<ThaiTone> tones,
   List<bool>? shortSyllables,
   List<int>? syllablePoints,
   SpeakerPitchProfile? profile,
+  List<WordRecognition> recognition = const [],
   double minVoicedRatio = kMinVoicedRatio,
 }) {
   if (tones.isEmpty) {
@@ -171,9 +184,14 @@ PronunciationResult analyzePronunciation({
     shortSyllables: shortSyllables,
   );
 
+  // 声調と発音を半々で見る。声調だけで点を出すと「全部通じていないのに高得点」
+  // になり、発音の軸が点数に効かない。
+  final toneScore = overallScoreOf(scores);
+
   return PronunciationResult(
     syllables: scores,
-    overallScore: overallScoreOf(scores),
+    overallScore: combinedScore(toneScore, recognition),
+    toneScore: toneScore,
     failure: PronunciationFailure.none,
     speakerRange: range,
     freshRange: freshRange,
