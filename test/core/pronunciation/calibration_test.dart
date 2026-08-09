@@ -4,10 +4,10 @@
 // 声調の取り違えが「合っている」に化けて機能の中身が無くなる。
 // その両側をこのテストで固定する。
 //
-// 採点は「その音節の中でのピッチの動き（形）」と「**直前の**音節との段差
-// （つながり）」の2つ。声域内の絶対的な高さは、比べる相手がいない文頭を除いて
-// 採点しない。高さは話者・場面・文中の位置で素直に動くので、正しく発音していても
-// 弾かれてしまう。
+// 採点は「その音節の中でのピッチの動き（形）」と「**直前の音節が終わった高さ**
+// から見た入り方」の2つ。どちらも**向きしか見ない**。振れ幅・下げ幅・声域内の
+// 絶対的な高さは採点しない。高さも動きの大きさも話者・場面・文中の位置で素直に
+// 動くので、正しく発音していても弾かれてしまう。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/core/pronunciation/pronunciation_analyzer.dart';
 import 'package:thai_memo/core/pronunciation/pronunciation_scorer.dart';
@@ -41,9 +41,15 @@ SyllableScore _scoreOf(
   return result.syllables[target];
 }
 
+String _detail(SyllableScore score) =>
+    'corr=${score.shapeCorrelation?.toStringAsFixed(2) ?? '-'} '
+    'slopeErr=${score.shapeError.toStringAsFixed(2)} '
+    'step=${score.queryStep.toStringAsFixed(2)}'
+    '/${score.referenceStep.toStringAsFixed(2)}';
+
 void main() {
   group('正しい発話は余裕をもって通る', () {
-    test('どの音節も閾値の内側に収まる', () {
+    test('どの音節も correct になる', () {
       for (var i = 0; i < _tones.length; i++) {
         final score = _scoreOf(const {}, i);
         expect(
@@ -52,23 +58,23 @@ void main() {
           reason: '音節$i (${_tones[i].name}) の形状誤差',
         );
         expect(
-          score.transitionError,
-          lessThan(kTransitionErrorThreshold),
-          reason: '音節$i (${_tones[i].name}) のつながり誤差',
+          score.verdict,
+          ToneVerdict.correct,
+          reason: '音節$i (${_tones[i].name}) ${_detail(score)}',
         );
-        expect(score.verdict, ToneVerdict.correct);
       }
     });
 
-    test('つながりの誤差は合格ラインから十分離れている', () {
-      // 実際の人の声は合成音声よりばらつくので、余裕が要る。
-      // 無声子音を90msまで入れた条件を含めて、正しい発話は最大 0.207。
-      // 弾けている取り違えは最小 0.55 なので、間に十分な帯がある。
+    test('入り方の向きが、境目に張り付いていない', () {
+      // 向きの3分割は境目で跳ねる。お手本の段差が [kFlatStepThreshold] の
+      // すぐ内側にあると、録音がほんの少し大きく動いただけで割れてしまう。
+      // 正しい発話では、段差そのものの差がその幅に収まっていること。
       for (var i = 0; i < _tones.length; i++) {
+        final score = _scoreOf(const {}, i);
         expect(
-          _scoreOf(const {}, i).transitionError,
-          lessThan(0.25),
-          reason: '音節$i (${_tones[i].name})',
+          score.transitionError,
+          lessThanOrEqualTo(kFlatStepThreshold),
+          reason: '音節$i (${_tones[i].name}) ${_detail(score)}',
         );
       }
     });
@@ -85,13 +91,79 @@ void main() {
           expect(
             score.verdict,
             ToneVerdict.correct,
-            reason: '音節$i (${_tones[i].name}) '
-                '(shape=${score.shapeError.toStringAsFixed(3)}, '
-                'link=${score.transitionError.toStringAsFixed(3)})',
+            reason: '音節$i (${_tones[i].name}) ${_detail(score)}',
           );
         }
       });
     }
+  });
+
+  group('発話の途中の無声区間を落とさない', () {
+    // 閉鎖音の閉鎖区間は 120ms（[kMaxInterpolatedGap]）を超えることがある。
+    // そこを時間軸から削ると、削られる量が音節ごとに違うので DTW の帯
+    // （時間が比例している前提）と噛み合わなくなる。実機で 460 フレーム中 161 が
+    // 消え、死音節の取り分が予算の 0.4〜0.8 倍に出ていた。
+    for (final onset in [12]) {
+      test('$onset フレーム（${onset * 10}ms）の無声区間があっても通る', () {
+        for (var i = 0; i < _tones.length; i++) {
+          final score = _scoreOf(const {}, i, unvoicedOnsetFrames: onset);
+          expect(
+            score.verdict,
+            ToneVerdict.correct,
+            reason: '音節$i (${_tones[i].name}) ${_detail(score)}',
+          );
+        }
+      });
+    }
+
+    test('無声区間のぶん、音節の取り分が縮まない', () {
+      // 音節ごとの無声区間の長さは同じなので、取り分の比は無声が無いときと
+      // 変わらないはず。削っていると、縮み方の違いがここに出る。
+      final withoutGap = [
+        for (var i = 0; i < _tones.length; i++)
+          _scoreOf(const {}, i).queryEnd - _scoreOf(const {}, i).queryStart + 1,
+      ];
+      final withGap = [
+        for (var i = 0; i < _tones.length; i++)
+          _scoreOf(const {}, i, unvoicedOnsetFrames: 12).queryEnd -
+              _scoreOf(const {}, i, unvoicedOnsetFrames: 12).queryStart +
+              1,
+      ];
+      final totalWithout = withoutGap.reduce((a, b) => a + b);
+      final totalWith = withGap.reduce((a, b) => a + b);
+      for (var i = 0; i < _tones.length; i++) {
+        expect(
+          withGap[i] / totalWith,
+          closeTo(withoutGap[i] / totalWithout, 0.03),
+          reason: '音節$i (${_tones[i].name}) の取り分',
+        );
+      }
+    });
+  });
+
+  group('長い無音は音節の切れ目へ寄る', () {
+    // 声の途切れは音節の切れ目の手がかり。無声フレームの対応づけコストを一律 0 に
+    // すると、長い途切れの中では経路がどこを通っても同じになり、境界が決まらない。
+    // 実機で 440ms の空白が音節の真ん中に飲み込まれ、隣の音節が9フレームまで
+    // 潰れて採点不能になった。
+    test('音節の切れ目に置いた 300ms の間で、両隣が潰れない', () {
+      final f0 = synthesizeF0(tones: _tones);
+      // 音節2と3の境目（30フレーム区切り）に無音を差し込む。
+      final withPause = <double?>[
+        ...f0.sublist(0, 90),
+        ...List<double?>.filled(30, null),
+        ...f0.sublist(90),
+      ];
+      final result = analyzePronunciation(f0Hz: withPause, tones: _tones);
+      for (var i = 0; i < _tones.length; i++) {
+        final score = result.syllables[i];
+        expect(
+          score.queryValues.length,
+          greaterThanOrEqualTo(kMinVoicedFramesPerSyllable),
+          reason: '音節$i (${_tones[i].name}) が潰れている',
+        );
+      }
+    });
   });
 
   group('声調の取り違えは correct にならない', () {
@@ -99,18 +171,18 @@ void main() {
       '下降→上昇': ({1: ThaiTone.rising}, 1),
       '上昇→下降': ({3: ThaiTone.falling}, 3),
       '上昇→中平': ({3: ThaiTone.mid}, 3),
-      '中平→下降': ({0: ThaiTone.falling}, 0),
-      '中平→高平': ({0: ThaiTone.high}, 0),
-      '高平→中平': ({4: ThaiTone.mid}, 4),
-      '末尾の中平→高平': ({5: ThaiTone.high}, 5),
       '低平→高平': ({2: ThaiTone.high}, 2),
       '高平→低平': ({4: ThaiTone.low}, 4),
+      '高平→中平': ({4: ThaiTone.mid}, 4),
       '低平→中平': ({2: ThaiTone.mid}, 2),
-      // 形が一致していても、高さの関係が崩れていれば通さない。
-      // どちらも右上がりなので相関は 0.90 に達するが、高さは 1.17 ずれている。
       '上昇→高平': ({3: ThaiTone.high}, 3),
-      '中平→上昇': ({0: ThaiTone.rising}, 0),
       '下降→中平': ({1: ThaiTone.mid}, 1),
+      '末尾の 中平→高平': ({5: ThaiTone.high}, 5),
+      // 文頭は入り方が無いので形だけで見る。平らな3声調どうしでも、逆向きに
+      // 動いていれば相関が負に出るのでそこで落とせる。
+      '文頭の 中平→下降': ({0: ThaiTone.falling}, 0),
+      '文頭の 中平→高平': ({0: ThaiTone.high}, 0),
+      '文頭の 中平→上昇': ({0: ThaiTone.rising}, 0),
     };
 
     cases.forEach((label, params) {
@@ -119,8 +191,7 @@ void main() {
         expect(
           score.verdict,
           isNot(ToneVerdict.correct),
-          reason: '$label が見逃されている '
-              '(link=${score.transitionError.toStringAsFixed(3)})',
+          reason: '$label が見逃されている (${_detail(score)})',
         );
       });
     });
@@ -140,18 +211,14 @@ void main() {
           tones: _tones,
         );
         final last = result.syllables.last;
-        expect(
-          last.verdict,
-          ToneVerdict.correct,
-          reason: 'link=${last.transitionError.toStringAsFixed(3)}',
-        );
+        expect(last.verdict, ToneVerdict.correct, reason: _detail(last));
       });
     }
   });
 
   group('短母音・死音節は形を要求しない', () {
     // 短い音節では声調の動きを出しきる時間がない（tonal undershoot）。
-    // 上昇声を平坦に言っても、隣との高低差が合っていれば通す。
+    // 上昇声を平坦に言っても、入り方が合っていれば通す。
     test('上昇声を平坦に発音しても、短い音節なら通る', () {
       final result = analyzePronunciation(
         // 上昇声の音節を中平声で発音した＝上がりきらなかった状態。
@@ -178,12 +245,7 @@ void main() {
         shortSyllables: short,
       );
       final score = result.syllables[1];
-      expect(
-        score.verdict,
-        ToneVerdict.correct,
-        reason: 'link=${score.transitionError.toStringAsFixed(3)} '
-            'lvl=${score.levelError.toStringAsFixed(3)}',
-      );
+      expect(score.verdict, ToneVerdict.correct, reason: _detail(score));
     });
 
     test('長い音節なら同じ発音は通らない', () {
@@ -196,15 +258,12 @@ void main() {
     });
   });
 
-  group('カーブの形が合っていれば、ずれと振れ幅は問わない', () {
-    for (final scale in [0.7, 0.6]) {
+  group('動きの大きさは問わない', () {
+    for (final scale in [0.7, 0.6, 0.4]) {
       test('下降声の振れ幅が $scale 倍でも通る', () {
-        // お手本ほど大きく動けない発音。形が同じなら合格にする。
+        // お手本ほど大きく動けない発音。向きが同じなら合格にする。
         final result = analyzePronunciation(
-          f0Hz: synthesizeF0(
-            tones: _tones,
-            contourScaleBySyllable: {1: scale},
-          ),
+          f0Hz: synthesizeF0(tones: _tones, contourScaleBySyllable: {1: scale}),
           tones: _tones,
         );
         expect(result.syllables[1].verdict, ToneVerdict.correct);
@@ -212,10 +271,7 @@ void main() {
 
       test('上昇声の振れ幅が $scale 倍でも通る', () {
         final result = analyzePronunciation(
-          f0Hz: synthesizeF0(
-            tones: _tones,
-            contourScaleBySyllable: {3: scale},
-          ),
+          f0Hz: synthesizeF0(tones: _tones, contourScaleBySyllable: {3: scale}),
           tones: _tones,
         );
         expect(result.syllables[3].verdict, ToneVerdict.correct);
@@ -224,48 +280,28 @@ void main() {
   });
 
   group('直前の誤りに巻き込まれない', () {
-    // つながりは直前との段差だけを見るので、**直前が誤ると自分の段差も崩れる**。
-    // そのとき自身の高さがほぼ一致していて形も合っていれば通す。
-    test('直前が誤っていても、自身の高さと形が合っていれば通る', () {
+    // 入り方は直前の終わり際からの段差なので、**直前が誤ると自分の入り方も
+    // 崩れる**。ただし向きしか見ないので、崩れ方が向きを変えるほどでなければ残る。
+    test('直前が誤っていても、自身の形と入り方の向きが合っていれば通る', () {
       final result = analyzePronunciation(
         // 音節1（下降声）を中平声で発音し、続く音節2は正しく発音する。
         f0Hz: synthesizeF0(tones: _tones, substitutions: {1: ThaiTone.mid}),
         tones: _tones,
       );
+      // 直前が中平声で終わると音節2への入り方が -0.81（お手本は -0.28）に
+      // なるが、どちらも「下がって入る」なので向きは合う。
       final score = result.syllables[2];
-      expect(
-        score.verdict,
-        ToneVerdict.correct,
-        reason: 'link=${score.transitionError.toStringAsFixed(3)} '
-            'lvl=${score.levelError.toStringAsFixed(3)}',
-      );
+      expect(score.verdict, isNot(ToneVerdict.wrong), reason: _detail(score));
     });
 
-    test('直前が誤っていれば、自身の高さの許容を広げる', () {
-      // 段差が崩れていても、原因がどちらの音節かは分からない。実機で、高平声を
-      // 上げそこねた次の低平声が段差 1.501 で誤りにされた（その音節自身は
-      // 高さのずれ 0.01）。ここでは 0.414 まで離れても通す。
+    test('直前が誤っていても、誤った音節そのものは弾かれる', () {
       final result = analyzePronunciation(
         f0Hz: synthesizeF0(tones: _tones, substitutions: {1: ThaiTone.rising}),
         tones: _tones,
       );
-      final score = result.syllables[2];
-      expect(
-        score.verdict,
-        ToneVerdict.correct,
-        reason: 'link=${score.transitionError.toStringAsFixed(3)} '
-            'lvl=${score.levelError.toStringAsFixed(3)}',
-      );
-      // 誤った音節そのものは、その直前が正しいので通常どおり弾かれる。
       expect(result.syllables[1].verdict, isNot(ToneVerdict.correct));
-    });
-
-    test('自身の高さが外れていれば、逃げ道にはならない', () {
-      // 高さがほぼ一致しているときだけの逃げ道。緩めると取り違えが素通りする。
-      expect(
-        _scoreOf({2: ThaiTone.high}, 2).verdict,
-        isNot(ToneVerdict.correct),
-      );
+      final score = result.syllables[2];
+      expect(score.verdict, ToneVerdict.correct, reason: _detail(score));
     });
   });
 
@@ -297,9 +333,7 @@ void main() {
           score.verdict,
           ToneVerdict.correct,
           reason: '音節$i (${_tones[i].name}) '
-              'n=${score.queryValues.length} '
-              'link=${score.transitionError.toStringAsFixed(3)} '
-              'lvl=${score.levelError.toStringAsFixed(3)}',
+              'n=${score.queryValues.length} ${_detail(score)}',
         );
       }
     });
@@ -328,43 +362,74 @@ void main() {
     });
   });
 
-  group('文頭はピッチのグラフだけで見る', () {
-    // 直前が無いので段差が測れない。カーブの形と、声域内の高さそのもので判断する。
+  group('文頭は形だけで見る', () {
+    // 直前が無いので入り方が測れない。カーブの形だけで判断する。
     test('正しく発音していれば通る', () {
       final score = _scoreOf(const {}, 0);
-      expect(score.transitionError, 0);
+      expect(score.queryStep, 0);
+      expect(score.referenceStep, 0);
       expect(score.verdict, ToneVerdict.correct);
     });
 
-    test('平らな声調を大きく動かせば通らない', () {
-      // 中平声を上昇声で発音した。高さのずれは 0.19 と小さいが、形が食い違う。
-      expect(_scoreOf({0: ThaiTone.rising}, 0).verdict,
-          isNot(ToneVerdict.correct));
+    test('形が食い違えば通らない', () {
+      expect(
+        _scoreOf({0: ThaiTone.rising}, 0).verdict,
+        isNot(ToneVerdict.correct),
+      );
     });
 
-    test('高さが声域の反対側に出れば通らない', () {
-      expect(_scoreOf({0: ThaiTone.high}, 0).verdict, ToneVerdict.wrong);
+    test('根拠が形だけのときは wrong にしない', () {
+      // 手がかりが1つしか無い音節を、その1つだけで断定してはいけない。
+      expect(_scoreOf({0: ThaiTone.high}, 0).verdict, ToneVerdict.close);
+    });
+  });
+
+  group('高平声の上げそこねを罰しすぎない', () {
+    // 高平声は形が使えない（平らな3声調）ので入り方だけが頼りで、しかも実際の
+    // 発話で最も上げそこねやすい。とくに**下降声の直後**は低く終わった位置から
+    // 入るので上がりきらない。実機で、お手本より 0.75〜1.44 低く出ている。
+    //
+    // 上げ幅は採点しないので、上がってさえいれば通る。
+    const fallHigh = [
+      ThaiTone.mid,
+      ThaiTone.falling,
+      ThaiTone.high,
+      ThaiTone.low,
+      ThaiTone.rising,
+      ThaiTone.mid,
+    ];
+
+    ToneVerdict verdictOf(List<ThaiTone> tones, double drop) =>
+        analyzePronunciation(
+          f0Hz: synthesizeF0(
+            tones: tones,
+            levelOffsetBySyllable: {2: -drop},
+          ),
+          tones: tones,
+        ).syllables[2].verdict;
+
+    test('下降声の直後の上げそこねを通す', () {
+      for (final drop in [0.2, 0.4, 0.6, 0.7, 1.0]) {
+        expect(verdictOf(fallHigh, drop), ToneVerdict.correct,
+            reason: '下げ幅 $drop');
+      }
     });
   });
 
   group('見逃すことを受け入れている取り違え', () {
-    // 判定を厳しくすると正しい発話まで巻き込むため、**意図してこの側に倒している**。
+    // **高さも動きの大きさも採点しない**と決めた代償。判定を厳しくすると
+    // 正しい発話まで巻き込むため、意図してこの側に倒している。
 
-    test('中平→低平 は通る（つながりの差が小さすぎる）', () {
-      // 5声調で最も差が小さい対立。つながりの誤差は 0.355 で、正しい発話の
-      // 上限（無声子音を長く取ったときの 0.246）とほとんど接している。
+    test('中平→低平 は通る（どちらも平らで、入り方の向きも同じ）', () {
       expect(_scoreOf({0: ThaiTone.low}, 0).verdict, ToneVerdict.correct);
     });
 
     test('末尾の 中平→低平 は通る（同じ最小対立）', () {
-      // 文末はもともと下がる（final lowering）ので、低く言われても
-      // 「下がりが少し深い」との区別がつかない。つながりの差は 0.294。
       expect(_scoreOf({5: ThaiTone.low}, 5).verdict, ToneVerdict.correct);
     });
 
-    test('下降→高平 は通る（高さの関係が偶然そろう）', () {
-      // 高平声は上がってから最後に落ちるので、下降声と部分的に形が重なる
-      // （相関 0.77）。この文では高さの関係も 0.074 しか変わらず、手がかりが無い。
+    test('下降→高平 は通る（形が部分的に重なる）', () {
+      // 高平声は上がってから最後に落ちるので、下降声と形が重なる（相関 0.65）。
       expect(_scoreOf({1: ThaiTone.high}, 1).verdict, ToneVerdict.correct);
     });
   });

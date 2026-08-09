@@ -557,6 +557,23 @@ class ThaiToneAnalyzer {
         return ThaiTone.unknown;
     }
   }
+
+  /// 音節が อำ / ไอ / ใอ / เอา のいずれかか（表記から判定）。
+  ///
+  /// この4つは**音としては短母音**だが、声調規則の上では生音節（คำเป็น）として
+  /// 扱われる。そのため [hasShortVowel] は false のまま（true にすると ไป・ทำ が
+  /// 死音節と判定されて声調が変わる）で、**長さだけがここで別に必要になる**。
+  ///
+  /// 実機で ใน が発話の 7.6%／8.1% しか占めないのに、長母音として 10.9% の
+  /// 時間を割り当てていた。境界がずれて隣の音節がフレームを飲み込む。
+  static bool hasSpecialShortVowel(String syllable) {
+    if (syllable.contains('ำ')) return true; // ำ (am)
+    if (syllable.contains('ไ')) return true; // ไ (ai)
+    if (syllable.contains('ใ')) return true; // ใ (ai)
+    // เ◌า (aw)。เ◌าะ は ะ を持つのでもともと短母音と判定される。
+    if (syllable.contains('เ') && syllable.endsWith('า')) return true;
+    return false;
+  }
 }
 
 /// 声調分析結果

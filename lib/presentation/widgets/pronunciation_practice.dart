@@ -222,6 +222,7 @@ class _PracticeBody extends ConsumerWidget {
             tones: spans.tones,
             shortSyllables: spans.shortSyllables,
             syllablePoints: spans.syllablePoints,
+            syllableLabels: spans.syllableLabels,
             expectedWords: spans.words.map((w) => w.wordText).toList(),
           ),
           l10n: l10n,

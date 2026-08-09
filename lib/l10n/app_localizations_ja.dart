@@ -917,10 +917,10 @@ class L10nJa extends L10n {
   String get pronunciationTitle => '発音してみる';
 
   @override
-  String get pronunciationHoldToSpeak => '押しながら発声';
+  String get pronunciationHoldToSpeak => '押したまま話す';
 
   @override
-  String get pronunciationRecording => '録音中… 離すと判定';
+  String get pronunciationRecording => '録音中… 指を離すと判定';
 
   @override
   String get pronunciationAnalyzing => '判定中…';
@@ -935,7 +935,7 @@ class L10nJa extends L10n {
   String get pronunciationYours => 'あなた';
 
   @override
-  String get pronunciationTapWordHint => '語をタップすると詳しく見られます';
+  String get pronunciationTapWordHint => '語をタップすると、どこがずれたか見られます';
 
   @override
   String pronunciationScore(int score) {
@@ -949,10 +949,10 @@ class L10nJa extends L10n {
   String get pronunciationVerdictClose => '惜しい';
 
   @override
-  String get pronunciationVerdictWrong => '違います';
+  String get pronunciationVerdictWrong => 'ずれています';
 
   @override
-  String get pronunciationVerdictUnscored => '判定対象外';
+  String get pronunciationVerdictUnscored => '判定できず';
 
   @override
   String get pronunciationTooQuiet => '声が拾えませんでした。静かな場所でもう一度お試しください';
@@ -964,10 +964,10 @@ class L10nJa extends L10n {
   String get pronunciationNoSyllables => 'この例文は発音練習に対応していません';
 
   @override
-  String get pronunciationMonotone => '抑揚が付いていません。声調を意識してもう一度';
+  String get pronunciationMonotone => '声の高さがほとんど動いていません。お手本を聞いて、上げ下げを付けてもう一度';
 
   @override
-  String get pronunciationCaptureFailed => 'マイクから音声を取得できませんでした';
+  String get pronunciationCaptureFailed => 'マイクから音声を取得できませんでした。もう一度お試しください';
 
   @override
   String get pronunciationPermissionTitle => 'マイクの使用を許可してください';
@@ -980,20 +980,21 @@ class L10nJa extends L10n {
   String get pronunciationPermissionOpenSettings => '設定を開く';
 
   @override
-  String get pronunciationBandCombined => '帯＝声調と発音の総合';
+  String get pronunciationBandCombined => '線の色＝声調と発音を合わせた判定';
 
   @override
-  String get pronunciationSpeechRecognized => '発音：通じました';
+  String get pronunciationSpeechRecognized => '発音（子音・母音）：通じました';
 
   @override
-  String get pronunciationSpeechMissing => '発音：通じませんでした';
+  String get pronunciationSpeechMissing => '発音（子音・母音）：通じませんでした';
 
   @override
-  String get pronunciationSpeechUnavailable => 'この端末では発音の判定に対応していません（声調のみ）';
+  String get pronunciationSpeechUnavailable =>
+      'いまは発音（子音・母音）を判定できません。声調だけを見ています';
 
   @override
   String get pronunciationSpeechNoAsset =>
-      'この端末にタイ語の音声入力が入っていないため、発音は判定できません（声調のみ）';
+      'この端末にタイ語の音声入力が入っていないため、発音（子音・母音）は判定できません。声調だけを見ています';
 
   @override
   String get pronunciationSpeechNoAssetHow =>
@@ -1001,16 +1002,17 @@ class L10nJa extends L10n {
 
   @override
   String get pronunciationSpeechAuthDenied =>
-      '音声認識の使用が許可されていないため、発音は判定できません（声調のみ）';
+      '音声認識が許可されていないため、発音（子音・母音）は判定できません。声調だけを見ています';
 
   @override
-  String get pronunciationSpeechAndroid => 'Android では発音の判定に対応していません（声調のみ）';
+  String get pronunciationSpeechAndroid =>
+      'Android では発音（子音・母音）の判定に対応していません。声調だけを見ています';
 
   @override
   String get pronunciationPremiumTitle => '発音練習はプレミアム機能です';
 
   @override
-  String get pronunciationPremiumBody => 'お手本と自分の声調を比べて、音節ごとに確認できます。';
+  String get pronunciationPremiumBody => '録音した声をお手本と比べ、音節ごとの声調と、語が通じたかを返します。';
 
   @override
   String tipWithExample(String content, String example) {

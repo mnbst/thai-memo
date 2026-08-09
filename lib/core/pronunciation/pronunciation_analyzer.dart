@@ -72,6 +72,15 @@ class PronunciationResult {
   /// （推定値を推定値で上書きして誤差が積み上がるのを避けるため）。
   final SpeakerRange? freshRange;
 
+  /// 声が途切れた区間（採点に使う添字での [開始, 終了]）。
+  ///
+  /// 子音、とくに閉鎖音・摩擦音では声が止まる。**その位置は音節の切れ目の
+  /// 手がかりになる**。いまは採点から外すためだけに使っているが、境界を
+  /// お手本の時間配分ではなく録音から決められるかを見るために持ち出す。
+  ///
+  /// 共鳴音で繋がる境界（งาน→นะ）はここに現れない。全ての境界は取れない。
+  final List<List<int>> voicelessGaps;
+
   const PronunciationResult({
     required this.syllables,
     required this.overallScore,
@@ -79,6 +88,7 @@ class PronunciationResult {
     double? toneScore,
     this.speakerRange,
     this.freshRange,
+    this.voicelessGaps = const [],
   }) : toneScore = toneScore ?? overallScore;
 
   bool get isScored => failure == PronunciationFailure.none;
@@ -101,6 +111,41 @@ class PronunciationResult {
         overallScore: 0,
         failure: failure,
       );
+}
+
+/// 音節の「端」とみなす割合（前後それぞれ）。
+///
+/// 子音の無声区間はここに来るので、ここで途切れに当たるのはただにする。
+/// 狭いと、ふつうの子音（実測で音節の4割を占めることがある）が中央に掛かって
+/// 罰せられ、境界がずれる。
+const double kBoundaryZoneFraction = 0.4;
+
+/// 声が途切れた区間を数える最小のフレーム数。
+///
+/// ホップ10msなので30ms。閉鎖音の閉鎖区間はこれより長い。これを下回る途切れは
+/// 声門の揺れや検出漏れで、子音の証拠にならない。
+const int kMinVoicelessGapFrames = 3;
+
+/// 声が途切れた区間（[開始, 終了]、終了を含む）を拾う。
+///
+/// [voiced] は各フレームが実際に声だったか。false は補間で埋めたフレーム。
+List<List<int>> findVoicelessGaps(List<bool> voiced) {
+  final gaps = <List<int>>[];
+  var start = -1;
+  for (var i = 0; i < voiced.length; i++) {
+    if (!voiced[i]) {
+      if (start < 0) start = i;
+      continue;
+    }
+    if (start >= 0) {
+      if (i - start >= kMinVoicelessGapFrames) gaps.add([start, i - 1]);
+      start = -1;
+    }
+  }
+  if (start >= 0 && voiced.length - start >= kMinVoicelessGapFrames) {
+    gaps.add([start, voiced.length - 1]);
+  }
+  return gaps;
 }
 
 /// 録音1回を採点する。
@@ -146,21 +191,30 @@ PronunciationResult analyzePronunciation({
     return PronunciationResult.failed(PronunciationFailure.noSpeakerRange);
   }
 
-  // 残った無声フレームを落とす前に、前後の無音を切り落とす。
+  // **発話の途中の無声区間を落としてはいけない。** 閉鎖音の閉鎖区間は 120ms を
+  // 超えることがあり（[kMaxInterpolatedGap] の外）、そこを削ると時間軸が縮む。
+  // しかも縮み方が音節ごとに違う（死音節ほど無声が長いので多く削られる）。
+  // **時間軸の比例関係は DTW の帯が前提にしている**ので、これを壊すと境界が
+  // 帯に張り付いて動けなくなる。
   //
-  // 短い無声区間は preparePitchTrack で補間済みなので、ここに残るのは発話の
-  // 前後の無音と、語間の長い間だけ。前後の無音は落としても時間軸が歪まないが、
-  // 途中の間を落とすと歪む。**時間軸の比例関係は DTW の帯が前提にしている**ので、
-  // 落とす対象は最小限にする。
-  final normalized = normalizeToSpeakerRange(semitones, range);
-  final first = normalized.indexWhere((v) => v != null);
-  final last = normalized.lastIndexWhere((v) => v != null);
+  // 実機で 460 フレーム中 161 が消え、死音節の取り分が予算の 0.4〜0.8 倍に
+  // 出ていた。母音の長短のモデルではなく、比べていた実測値のほうが歪んでいた。
+  //
+  // 長さの制限なしで補間して埋める。値は前後の線形補間なので声域も形も動かさず、
+  // [queryVoiced] で「実際の声ではない」と印を付けるので採点にも入らない。
+  // 前後の無音は補間されない（片側に声が無い）ので、そこだけを切り落とす。
+  final filled = normalizeToSpeakerRange(
+    interpolateShortGaps(measured, maxGap: measured.length),
+    range,
+  );
+  final first = filled.indexWhere((v) => v != null);
+  final last = filled.lastIndexWhere((v) => v != null);
 
   final queryZ = <double>[];
   final queryVoiced = <bool>[];
   if (first >= 0) {
     for (var i = first; i <= last; i++) {
-      final v = normalized[i];
+      final v = filled[i];
       if (v == null) continue;
       queryZ.add(v);
       queryVoiced.add(measured[i] != null);
@@ -175,7 +229,17 @@ PronunciationResult analyzePronunciation({
     shortSyllables: shortSyllables,
     syllablePoints: syllablePoints,
   );
-  final path = dtwAlign(reference.values, queryZ);
+  // 声の途切れを音節の切れ目へ寄せるため、お手本のどの点が音節の端かを渡す。
+  final atBoundary = List.generate(
+    reference.values.length,
+    (i) => reference.isEdgePoint(i, kBoundaryZoneFraction),
+  );
+  final path = dtwAlign(
+    reference.values,
+    queryZ,
+    queryVoiced: queryVoiced,
+    referenceAtBoundary: atBoundary,
+  );
   final scores = scoreSyllables(
     reference: reference,
     queryZ: queryZ,
@@ -195,5 +259,6 @@ PronunciationResult analyzePronunciation({
     failure: PronunciationFailure.none,
     speakerRange: range,
     freshRange: freshRange,
+    voicelessGaps: findVoicelessGaps(queryVoiced),
   );
 }

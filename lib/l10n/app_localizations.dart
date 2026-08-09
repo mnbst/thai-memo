@@ -1804,13 +1804,13 @@ abstract class L10n {
   /// No description provided for @pronunciationHoldToSpeak.
   ///
   /// In ja, this message translates to:
-  /// **'押しながら発声'**
+  /// **'押したまま話す'**
   String get pronunciationHoldToSpeak;
 
   /// No description provided for @pronunciationRecording.
   ///
   /// In ja, this message translates to:
-  /// **'録音中… 離すと判定'**
+  /// **'録音中… 指を離すと判定'**
   String get pronunciationRecording;
 
   /// No description provided for @pronunciationAnalyzing.
@@ -1840,7 +1840,7 @@ abstract class L10n {
   /// No description provided for @pronunciationTapWordHint.
   ///
   /// In ja, this message translates to:
-  /// **'語をタップすると詳しく見られます'**
+  /// **'語をタップすると、どこがずれたか見られます'**
   String get pronunciationTapWordHint;
 
   /// No description provided for @pronunciationScore.
@@ -1864,13 +1864,13 @@ abstract class L10n {
   /// No description provided for @pronunciationVerdictWrong.
   ///
   /// In ja, this message translates to:
-  /// **'違います'**
+  /// **'ずれています'**
   String get pronunciationVerdictWrong;
 
   /// No description provided for @pronunciationVerdictUnscored.
   ///
   /// In ja, this message translates to:
-  /// **'判定対象外'**
+  /// **'判定できず'**
   String get pronunciationVerdictUnscored;
 
   /// No description provided for @pronunciationTooQuiet.
@@ -1894,13 +1894,13 @@ abstract class L10n {
   /// No description provided for @pronunciationMonotone.
   ///
   /// In ja, this message translates to:
-  /// **'抑揚が付いていません。声調を意識してもう一度'**
+  /// **'声の高さがほとんど動いていません。お手本を聞いて、上げ下げを付けてもう一度'**
   String get pronunciationMonotone;
 
   /// No description provided for @pronunciationCaptureFailed.
   ///
   /// In ja, this message translates to:
-  /// **'マイクから音声を取得できませんでした'**
+  /// **'マイクから音声を取得できませんでした。もう一度お試しください'**
   String get pronunciationCaptureFailed;
 
   /// No description provided for @pronunciationPermissionTitle.
@@ -1924,31 +1924,31 @@ abstract class L10n {
   /// No description provided for @pronunciationBandCombined.
   ///
   /// In ja, this message translates to:
-  /// **'帯＝声調と発音の総合'**
+  /// **'線の色＝声調と発音を合わせた判定'**
   String get pronunciationBandCombined;
 
   /// No description provided for @pronunciationSpeechRecognized.
   ///
   /// In ja, this message translates to:
-  /// **'発音：通じました'**
+  /// **'発音（子音・母音）：通じました'**
   String get pronunciationSpeechRecognized;
 
   /// No description provided for @pronunciationSpeechMissing.
   ///
   /// In ja, this message translates to:
-  /// **'発音：通じませんでした'**
+  /// **'発音（子音・母音）：通じませんでした'**
   String get pronunciationSpeechMissing;
 
   /// No description provided for @pronunciationSpeechUnavailable.
   ///
   /// In ja, this message translates to:
-  /// **'この端末では発音の判定に対応していません（声調のみ）'**
+  /// **'いまは発音（子音・母音）を判定できません。声調だけを見ています'**
   String get pronunciationSpeechUnavailable;
 
   /// No description provided for @pronunciationSpeechNoAsset.
   ///
   /// In ja, this message translates to:
-  /// **'この端末にタイ語の音声入力が入っていないため、発音は判定できません（声調のみ）'**
+  /// **'この端末にタイ語の音声入力が入っていないため、発音（子音・母音）は判定できません。声調だけを見ています'**
   String get pronunciationSpeechNoAsset;
 
   /// No description provided for @pronunciationSpeechNoAssetHow.
@@ -1960,13 +1960,13 @@ abstract class L10n {
   /// No description provided for @pronunciationSpeechAuthDenied.
   ///
   /// In ja, this message translates to:
-  /// **'音声認識の使用が許可されていないため、発音は判定できません（声調のみ）'**
+  /// **'音声認識が許可されていないため、発音（子音・母音）は判定できません。声調だけを見ています'**
   String get pronunciationSpeechAuthDenied;
 
   /// No description provided for @pronunciationSpeechAndroid.
   ///
   /// In ja, this message translates to:
-  /// **'Android では発音の判定に対応していません（声調のみ）'**
+  /// **'Android では発音（子音・母音）の判定に対応していません。声調だけを見ています'**
   String get pronunciationSpeechAndroid;
 
   /// No description provided for @pronunciationPremiumTitle.
@@ -1978,7 +1978,7 @@ abstract class L10n {
   /// No description provided for @pronunciationPremiumBody.
   ///
   /// In ja, this message translates to:
-  /// **'お手本と自分の声調を比べて、音節ごとに確認できます。'**
+  /// **'録音した声をお手本と比べ、音節ごとの声調と、語が通じたかを返します。'**
   String get pronunciationPremiumBody;
 
   /// No description provided for @tipWithExample.
