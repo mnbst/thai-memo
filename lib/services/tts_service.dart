@@ -18,21 +18,32 @@ class TtsService {
   /// この値が変わっていないかを見て、自分の再生が外から打ち切られたかを判断する。
   int get session => _session;
 
+  /// iOS の共有オーディオセッションを発話向けのカテゴリに戻す。
+  ///
+  /// defaultToSpeaker は playAndRecord 専用。playback に混ぜると
+  /// iOS 側の setCategory が失敗し、カテゴリが soloAmbient のまま残って
+  /// 発話音量が着信音量に追従してしまう（＝極端に小さくなる）。
+  /// カテゴリを決めてからセッションを activate する順序も必須。
+  ///
+  /// セッションはアプリ全体で1つしかなく、発音チェックの収録が
+  /// playAndRecord に切り替える。収録側でも戻しているが、こちらでも
+  /// 毎回かけ直して、誰が触った後でも発話が小さくならないようにする。
+  Future<void> _applyIosAudioCategory() async {
+    if (!Platform.isIOS) return;
+    await _tts.setIosAudioCategory(
+      IosTextToSpeechAudioCategory.playback,
+      [
+        IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+        IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+      ],
+    );
+  }
+
   Future<void> _init() async {
     if (_isInitialized) return;
 
     if (Platform.isIOS) {
-      // defaultToSpeaker は playAndRecord 専用。playback に混ぜると
-      // iOS 側の setCategory が失敗し、カテゴリが soloAmbient のまま残って
-      // 発話音量が着信音量に追従してしまう（＝極端に小さくなる）。
-      // カテゴリを決めてからセッションを activate する順序も必須。
-      await _tts.setIosAudioCategory(
-        IosTextToSpeechAudioCategory.playback,
-        [
-          IosTextToSpeechAudioCategoryOptions.allowBluetooth,
-          IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
-        ],
-      );
+      await _applyIosAudioCategory();
       await _tts.setSharedInstance(true);
     }
 
@@ -96,6 +107,7 @@ class TtsService {
     bool keepVoice = false,
   }) async {
     await _init();
+    await _applyIosAudioCategory();
     if (!keepVoice) await _pickRandomVoice();
     await _tts.setSpeechRate(slow ? 0.3 : 0.5);
     await _tts.stop();
