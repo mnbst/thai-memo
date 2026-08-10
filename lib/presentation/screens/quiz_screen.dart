@@ -14,7 +14,6 @@ import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/review_prompt_provider.dart';
-import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
@@ -224,7 +223,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   void dispose() {
-    CoachMarkOverlay.dismiss();
+    // 自分が出したものだけ閉じる。無条件に閉じると、戻り先の画面が既に
+    // 出したコーチマークまで消してしまう。
+    CoachMarkOverlay.dismissFor(_optionalChallengeKey);
+    CoachMarkOverlay.dismissFor(_nextTopicKey);
     _celebrationController.dispose();
     super.dispose();
   }
@@ -711,7 +713,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Widget _buildVocabTransitionCard(BuildContext context, int before) {
     final vocabAsync = ref.watch(vocabStatsProvider);
-    final isPremium = ref.watch(isPremiumProvider);
+    // 体験中はサーバー側も語彙上限を外しているので、表示も合わせる。
+    final isPremium = ref.watch(effectivePremiumProvider);
     return vocabAsync.when(
       data: (vocab) {
         final cap = isPremium ? (1 << 31) : 100;
@@ -1297,7 +1300,10 @@ class _QuizQuestionViewState extends State<_QuizQuestionView>
     _cancelAutoAdvance();
     // 次の問題へ進むとこのビューだけ破棄される。対象を失ったコーチマークが
     // 残らないよう、自分が出したものはここで閉じる。
-    if (_showedReviewCoach) CoachMarkOverlay.dismiss();
+    if (_showedReviewCoach) {
+      CoachMarkOverlay.dismissFor(_checkSentenceKey);
+      CoachMarkOverlay.dismissFor(_reviewSentenceKey);
+    }
     super.dispose();
   }
 

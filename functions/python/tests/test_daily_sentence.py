@@ -24,6 +24,8 @@ from daily_sentence_handlers import (
 )
 
 NOW = datetime(2026, 7, 21, 1, 0, tzinfo=timezone.utc)  # JST 10:00
+_FUTURE = NOW + timedelta(days=1)
+_PAST = NOW - timedelta(seconds=1)
 
 
 def _user(**overrides) -> dict:
@@ -145,65 +147,44 @@ def test_should_deliver_requires_generation_history():
 
 
 def test_should_deliver_during_premium_trial():
-    """トライアル残があっても配信する（枠を1回ぶん配信に充てる）。"""
-    assert should_deliver(_user(premium_trial_remaining=3), NOW) is True
-    assert should_deliver(_user(premium_trial_remaining=0), NOW) is True
+    """トライアル中でも通常どおり配信する。"""
+    assert should_deliver(_user(premium_trial_expires_at=_FUTURE), NOW) is True
+    assert should_deliver(_user(premium_trial_expires_at=_PAST), NOW) is True
     assert should_deliver(
-        _user(tier="premium", premium_trial_remaining=3), NOW
+        _user(tier="premium", premium_trial_expires_at=_FUTURE), NOW
     ) is True
 
 
-# --- トライアル枠の消費判定 --------------------------------------------------
+# --- 配信を premium 品質で出すかの判定 ---------------------------------------
 
 
-def test_uses_premium_trial_requires_remaining_free_user():
-    assert uses_premium_trial(_user(premium_trial_remaining=3)) is True
-    assert uses_premium_trial(_user(premium_trial_remaining=0)) is False
-    assert uses_premium_trial(_user()) is False
-    # premium は tier 側で premium 品質になるためトライアルは消費しない
+def test_uses_premium_trial_follows_expiry():
+    assert uses_premium_trial(_user(premium_trial_expires_at=_FUTURE), NOW) is True
+    assert uses_premium_trial(_user(premium_trial_expires_at=_PAST), NOW) is False
+    # 期限を持たない旧doc は free 扱い
+    assert uses_premium_trial(_user(), NOW) is False
+    # premium は tier 側で premium 品質になる
     assert uses_premium_trial(
-        _user(tier="premium", premium_trial_remaining=3)
+        _user(tier="premium", premium_trial_expires_at=_FUTURE), NOW
     ) is False
 
 
-def test_uses_premium_trial_first_notification():
-    """初回配信は反応が観測できないので消費する。"""
+def test_uses_premium_trial_ignores_notification_response():
+    """期間制なので、通知が無視され続けても品質は落とさない。"""
+    ignored = _user(
+        premium_trial_expires_at=_FUTURE,
+        notify_tier_misses=2,
+        last_notified_at=NOW - timedelta(days=1),
+        last_sentence_generated_at=NOW - timedelta(days=10),
+    )
+    assert uses_premium_trial(ignored, NOW) is True
+
+
+def test_uses_premium_trial_naive_expiry_is_utc():
+    """Firestore から naive で返っても UTC として扱う。"""
     assert uses_premium_trial(
-        _user(premium_trial_remaining=5, last_notified_at=None)
+        _user(premium_trial_expires_at=_FUTURE.replace(tzinfo=None)), NOW
     ) is True
-
-
-def test_uses_premium_trial_skipped_after_ignored_notification():
-    """無視された次の配信では消費しない（体験枠を溶かさない）。"""
-    user = _user(
-        premium_trial_remaining=5,
-        last_notified_at=NOW - timedelta(days=1),
-        last_sentence_generated_at=NOW - timedelta(days=10),
-    )
-    assert uses_premium_trial(user) is False
-
-
-def test_uses_premium_trial_resumes_on_reaction():
-    """無視の直後でも、反応があれば評価後カウントが0に戻り即再開する。
-
-    保存値の notify_tier_misses（前回通知ぶん未評価）を見ると1回ぶん遅れる。
-    """
-    generated = _user(
-        premium_trial_remaining=5,
-        notify_tier_misses=2,
-        last_notified_at=NOW - timedelta(days=1),
-        last_sentence_generated_at=NOW - timedelta(hours=1),
-    )
-    assert uses_premium_trial(generated) is True
-
-    opened = _user(
-        premium_trial_remaining=5,
-        notify_tier_misses=2,
-        last_notified_at=NOW - timedelta(days=1),
-        last_sentence_generated_at=NOW - timedelta(days=10),
-        last_opened_at=NOW - timedelta(hours=1),
-    )
-    assert uses_premium_trial(opened) is True
 
 
 def test_should_deliver_opt_out_and_quota():
@@ -260,12 +241,12 @@ class _FakeTransaction:
         self.updates.append((ref, data))
 
 
-def _commit(user_data: dict | None, consume_trial: bool = False):
+def _commit(user_data: dict | None):
     transaction = _FakeTransaction()
     user_ref = _FakeRef(user_data)
     sentence_ref = _FakeRef()
     result = _commit_daily_sentence_body(
-        transaction, user_ref, sentence_ref, {"thai_text": "x"}, NOW, consume_trial
+        transaction, user_ref, sentence_ref, {"thai_text": "x"}, NOW
     )
     return result, transaction, user_ref
 
@@ -282,38 +263,6 @@ def test_commit_writes_and_returns_token():
     # 通知失敗時に戻すのは配信前の段階
     assert restore["notify_tier"] == 1
     assert restore["notify_tier_misses"] == 2
-
-
-def test_commit_consumes_trial_and_restores_it_on_failure():
-    (_token, restore), transaction, _ref = _commit(
-        _user(premium_trial_remaining=3), consume_trial=True
-    )
-
-    _sentence_ref, update = transaction.updates[0]
-    assert update["premium_trial_remaining"].value == -1
-    # 通知失敗時のロールバックで消費を戻す
-    assert restore["premium_trial_remaining"].value == 1
-
-
-def test_commit_skips_trial_when_not_requested():
-    (_token, restore), transaction, _ref = _commit(
-        _user(premium_trial_remaining=3), consume_trial=False
-    )
-
-    _sentence_ref, update = transaction.updates[0]
-    assert "premium_trial_remaining" not in update
-    assert "premium_trial_remaining" not in restore
-
-
-def test_commit_does_not_push_trial_below_zero():
-    """生成中に手動生成で使い切られた場合は消費しない。"""
-    (_token, restore), transaction, _ref = _commit(
-        _user(premium_trial_remaining=0), consume_trial=True
-    )
-
-    _sentence_ref, update = transaction.updates[0]
-    assert "premium_trial_remaining" not in update
-    assert "premium_trial_remaining" not in restore
 
 
 def test_commit_rejects_when_no_longer_due():
@@ -347,7 +296,7 @@ def test_commit_stopped_writes_nothing_in_transaction():
     transaction = _FakeTransaction()
     with pytest.raises(_DeliveryStopped):
         _commit_daily_sentence_body(
-            transaction, _FakeRef(stopped_user), _FakeRef(), {}, NOW, False
+            transaction, _FakeRef(stopped_user), _FakeRef(), {}, NOW
         )
 
     assert transaction.sets == []
@@ -412,62 +361,6 @@ class _FakeDb:
 
     def transaction(self):
         return _FakeTransaction()
-
-
-def _deliver(monkeypatch, user_data: dict, *, use_premium_spec: bool):
-    """_deliver_one を生成・送信・UVM抜きで動かし、commit に渡った引数を返す。"""
-    captured: dict = {}
-    user_ref = _FakeUserRef(user_data)
-
-    monkeypatch.setattr(
-        daily_sentence_handlers,
-        "_build_sentence",
-        lambda db, uid, data: (
-            {"thai_text": "x", "japanese_translation": "y"},
-            ["คำ"],
-            use_premium_spec,
-        ),
-    )
-
-    def _fake_commit(transaction, ref, sentence_ref, sentence_data, now, consume_trial):
-        captured["consume_trial"] = consume_trial
-        return "token", {}
-
-    monkeypatch.setattr(daily_sentence_handlers, "_commit_daily_sentence", _fake_commit)
-    monkeypatch.setattr(
-        daily_sentence_handlers, "_send_notification", lambda *a, **k: None
-    )
-    monkeypatch.setattr(
-        daily_sentence_handlers, "_register_sentence_exposure", lambda *a, **k: None
-    )
-    monkeypatch.setattr(
-        daily_sentence_handlers, "sync_estimated_vocab", lambda *a, **k: None
-    )
-
-    assert _deliver_one(_FakeDb(user_ref), "uid", user_data, NOW) is None
-    return captured
-
-
-def test_deliver_consumes_trial_when_premium_spec_used(monkeypatch):
-    captured = _deliver(
-        monkeypatch, _user(premium_trial_remaining=3), use_premium_spec=True
-    )
-    assert captured["consume_trial"] is True
-
-
-def test_deliver_skips_trial_when_falling_back_to_cache(monkeypatch):
-    """LLM生成に失敗してキャッシュ品質になったら消費しない。"""
-    captured = _deliver(
-        monkeypatch, _user(premium_trial_remaining=3), use_premium_spec=False
-    )
-    assert captured["consume_trial"] is False
-
-
-def test_deliver_without_trial_never_consumes(monkeypatch):
-    captured = _deliver(
-        monkeypatch, _user(premium_trial_remaining=0), use_premium_spec=False
-    )
-    assert captured["consume_trial"] is False
 
 
 # --- スキップ理由（配信バッチのログ内訳） -------------------------------------

@@ -32,6 +32,13 @@ jest.mock('firebase-admin', () => ({
           _seconds: Math.floor(d.getTime() / 1000),
           toDate: () => d,
         })),
+        fromMillis: jest.fn((ms: number) => ({
+          _seconds: Math.floor(ms / 1000),
+          toDate: () => new Date(ms),
+        })),
+      },
+      FieldValue: {
+        serverTimestamp: jest.fn(() => 'SERVER_TIMESTAMP'),
       },
     }
   ),
@@ -243,6 +250,60 @@ describe('resetQuota', () => {
     const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
     expect(writeData.tier).toBeUndefined();
     expect(writeData.remaining_sentences).toBe(PREMIUM_DAILY_SENTENCES);
+  });
+
+  test('体験トライアル中のfreeはpremiumと同じ回数にリセットする', async () => {
+    await resetQuota(makeUserDoc({
+      premium_trial_expires_at: makeTimestamp(Date.now() + 24 * 60 * 60 * 1000),
+    }));
+
+    const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(writeData.remaining_sentences).toBe(PREMIUM_DAILY_SENTENCES);
+    expect(writeData.remaining_quizzes).toBe(PREMIUM_DAILY_QUIZZES);
+    // 何も失っていないので終了は刻まない
+    expect(writeData.premium_trial_ended_at).toBeUndefined();
+  });
+
+  test('体験が切れた最初のリセットでfreeに戻し、終了時刻を刻む', async () => {
+    await resetQuota(makeUserDoc({
+      premium_trial_expires_at: makeTimestamp(Date.now() - 60 * 60 * 1000),
+    }));
+
+    const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(writeData.remaining_sentences).toBe(FREE_DAILY_SENTENCES);
+    expect(writeData.premium_trial_ended_at).toBeDefined();
+  });
+
+  test('体験中の半端な期限はJST 0:00へ切り上げて揃える', async () => {
+    // JST 2026-08-12 14:00 = UTC 05:00
+    const midDay = Date.UTC(2026, 7, 12, 5, 0, 0);
+    await resetQuota(makeUserDoc({
+      premium_trial_expires_at: makeTimestamp(midDay),
+    }));
+
+    const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
+    const aligned = writeData.premium_trial_expires_at as { toDate: () => Date };
+    // JST 2026-08-13 00:00 = UTC 2026-08-12 15:00
+    expect(aligned.toDate().getTime()).toBe(Date.UTC(2026, 7, 12, 15, 0, 0));
+  });
+
+  test('既にJST 0:00に揃っている期限は書き換えない', async () => {
+    await resetQuota(makeUserDoc({
+      premium_trial_expires_at: makeTimestamp(Date.UTC(2026, 7, 12, 15, 0, 0)),
+    }));
+
+    const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(writeData.premium_trial_expires_at).toBeUndefined();
+  });
+
+  test('終了時刻が既にあれば刻み直さない（ダイアログの二重表示を防ぐ）', async () => {
+    await resetQuota(makeUserDoc({
+      premium_trial_expires_at: makeTimestamp(Date.now() - 60 * 60 * 1000),
+      premium_trial_ended_at: makeTimestamp(Date.now() - 30 * 60 * 1000),
+    }));
+
+    const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(writeData.premium_trial_ended_at).toBeUndefined();
   });
 });
 

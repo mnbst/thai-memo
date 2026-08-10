@@ -3,6 +3,8 @@ import '../../l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'subscription_provider.dart';
+
 /// Firebase Auth の uid をリアクティブに提供
 final authUidProvider = StreamProvider<String?>((ref) {
   return FirebaseAuth.instance.authStateChanges().map((user) => user?.uid);
@@ -41,15 +43,6 @@ final remainingQuizzesProvider = Provider<AsyncValue<int>>((ref) {
       .whenData((data) => (data?['remaining_quizzes'] as num?)?.toInt() ?? 0);
 });
 
-/// users/{uid}.premium_trial_remaining — プレミアム体験トライアルの残回数
-///
-/// 現在のトライアルは期間制で、残回数は旧クライアント互換のために書かれている値。
-/// 有効判定には [premiumTrialActiveProvider] を使うこと。
-final premiumTrialRemainingProvider = Provider<AsyncValue<int>>((ref) {
-  return ref.watch(userDocProvider).whenData(
-      (data) => (data?['premium_trial_remaining'] as num?)?.toInt() ?? 0);
-});
-
 /// users/{uid}.premium_trial_expires_at — プレミアム体験トライアルの期限
 /// 期限を持たない旧ユーザーは null。
 final premiumTrialExpiresAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
@@ -58,18 +51,25 @@ final premiumTrialExpiresAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
       );
 });
 
+/// users/{uid}.premium_trial_ended_at — 体験終了が確定した時刻
+///
+/// 期限切れ後、最初の日次リセット（dailyBatch）で刻まれる。期限そのものではなく
+/// これを見ることで、「回数が free に戻った後」に体験終了を伝えられる。
+final premiumTrialEndedAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
+  return ref.watch(userDocProvider).whenData(
+        (data) => (data?['premium_trial_ended_at'] as Timestamp?)?.toDate(),
+      );
+});
+
 /// プレミアム体験トライアルが有効か。
 ///
-/// 新規ユーザーは登録から一定期間、テーマ選択＋premium生成を体験できる。
-/// 期限を持たない旧ユーザーだけ、従来どおり残回数で判定する（サーバー側の
-/// _resolve_trial_active と同じ順序）。
+/// 新規ユーザーは登録から一定期間、課金プレミアムと完全に同じ機能・回数を使える。
+/// サーバー側の判定（utils/premium.ts, sentence_handlers._resolve_trial_active）と
+/// 同じく期限だけで決める。
 final premiumTrialActiveProvider = Provider<AsyncValue<bool>>((ref) {
-  final expiresAt = ref.watch(premiumTrialExpiresAtProvider);
-  final remaining = ref.watch(premiumTrialRemainingProvider);
-  return expiresAt.whenData((value) {
-    if (value != null) return DateTime.now().isBefore(value);
-    return (remaining.valueOrNull ?? 0) > 0;
-  });
+  return ref.watch(premiumTrialExpiresAtProvider).whenData(
+        (value) => value != null && DateTime.now().isBefore(value),
+      );
 });
 
 /// users/{uid}.tier — Firestoreストリームからリアルタイムにプレミアム判定
@@ -77,6 +77,19 @@ final isPremiumRealtimeProvider = Provider<AsyncValue<bool>>((ref) {
   return ref
       .watch(userDocProvider)
       .whenData((data) => data?['tier'] == 'premium');
+});
+
+/// 課金プレミアム、またはプレミアム体験トライアル中か。
+///
+/// 体験中は課金と完全に同じ扱いにするので、機能の出し分けは原則これで判定する。
+/// 「課金しているか」そのものを問う場面（プラン表示・購入導線）だけ
+/// [isPremiumProvider] を使うこと。
+final effectivePremiumProvider = Provider<bool>((ref) {
+  final bool isPremium = ref.watch(isPremiumRealtimeProvider).valueOrNull ??
+      ref.watch(isPremiumProvider);
+  final bool trialActive =
+      ref.watch(premiumTrialActiveProvider).valueOrNull ?? false;
+  return isPremium || trialActive;
 });
 
 /// 次のリセット（JST 0:00）までの残り時間テキストを返す

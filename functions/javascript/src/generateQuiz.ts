@@ -35,6 +35,7 @@ import {
 } from './services/quizGenerationService';
 import { nowJST } from './utils/formatDate';
 import { DEFAULT_LANG, Lang, resolveLang } from './utils/lang';
+import { isEffectivePremium } from './utils/premium';
 
 
 /** Firestore インスタンス */
@@ -143,7 +144,8 @@ export const generateQuiz = functions.https.onCall(
       throw new functions.https.HttpsError('resource-exhausted', 'この時間帯のクイズ生成上限に達しました');
     }
 
-    const isPremium = userData.tier === 'premium';
+    // トライアル中も premium と同じ品質で出す。
+    const isPremium = isEffectivePremium(userData);
     const quizGenerationService = await createQuizGenerationService(isPremium, uid, lang);
 
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
@@ -211,7 +213,8 @@ export const generateLearningQuiz = functions.https.onCall(
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
     const userData = userDoc.data() || {};
-    const isPremium = userData.tier === 'premium';
+    // トライアル中も premium と同じ品質で出す。
+    const isPremium = isEffectivePremium(userData);
     const quizGenerationService = await createQuizGenerationService(isPremium, uid, lang);
 
     try {

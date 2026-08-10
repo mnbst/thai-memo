@@ -4,11 +4,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
+      // premium_trial_expires_at は体験の有効判定そのもの（体験中は課金プレミアムと
+      // 同じ機能・回数が出る）。書けるとプレミアムを自己付与できるので必ず塞ぐ。
       allow create: if request.auth != null && request.auth.uid == userId
-        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining']);
+        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at']);
       allow update: if request.auth != null && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'last_sentence_generated_at', 'last_notified_at'])
+            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'last_sentence_generated_at', 'last_notified_at'])
         // notify_tier / notify_tier_misses はサーバー管理だが、通知トグルON時の
         // バックオフ解除（0へのリセット）に限りクライアントから書ける
         && (!request.resource.data.diff(resource.data).affectedKeys()

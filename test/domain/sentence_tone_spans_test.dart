@@ -34,7 +34,54 @@ WordBreakdown _wordWith(String text, List<Syllable> syllables) =>
       syllables: syllables,
     );
 
+WordBreakdown _wordWithPronunciation(
+  String text,
+  String pronunciation,
+  List<String> tones,
+) =>
+    WordBreakdown(
+      wordText: text,
+      pronunciation: pronunciation,
+      meaning: '',
+      syllables: tones.map((t) => _syllable(t)).toList(),
+    );
+
 void main() {
+  group('buildSentenceToneSpans - 音節ごとのローマ字', () {
+    test('音節数と一致すれば音節へ割り当てる', () {
+      final spans = buildSentenceToneSpans([
+        _wordWithPronunciation('สวัสดี', 'sa-wàt-dii', ['mid', 'low', 'mid']),
+      ]);
+
+      expect(spans.syllableRomans, ['sa', 'wàt', 'dii']);
+    });
+
+    test('音節数が食い違う語では出さない', () {
+      final spans = buildSentenceToneSpans([
+        _wordWithPronunciation('สวัสดี', 'sa-wàt', ['mid', 'low', 'mid']),
+      ]);
+
+      expect(spans.syllableRomans, ['', '', '']);
+    });
+
+    test('発音表記が無い語では出さない', () {
+      final spans = buildSentenceToneSpans([
+        _word('มา', ['mid']),
+      ]);
+
+      expect(spans.syllableRomans, ['']);
+    });
+
+    test('語をまたいで音節順に連なる', () {
+      final spans = buildSentenceToneSpans([
+        _wordWithPronunciation('ผม', 'phǒm', ['rising']),
+        _wordWithPronunciation('สวัสดี', 'sa-wàt-dii', ['mid', 'low', 'mid']),
+      ]);
+
+      expect(spans.syllableRomans, ['phǒm', 'sa', 'wàt', 'dii']);
+    });
+  });
+
   group('buildSentenceToneSpans', () {
     test('語順に音節の声調を連結する', () {
       final spans = buildSentenceToneSpans([

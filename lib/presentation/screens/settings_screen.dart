@@ -17,7 +17,6 @@ import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
-import '../widgets/coach_mark_overlay.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/sign_in_sheet.dart';
 import '../widgets/topic_picker.dart';
@@ -41,7 +40,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   void dispose() {
-    CoachMarkOverlay.dismiss();
     _scrollController.dispose();
     super.dispose();
   }
@@ -107,6 +105,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Consumer(
               builder: (context, ref, _) {
                 final isPremium = ref.watch(isPremiumProvider);
+                // 体験中は課金と同じ機能が使えているので、そのことを出す。
+                // 「課金しているか」の表示なので Premium とは別ラベルにする。
+                final trialActive =
+                    !isPremium && ref.watch(effectivePremiumProvider);
+                final label = isPremium
+                    ? 'Premium'
+                    : trialActive
+                        ? L10n.of(context).settingsPlanTrial
+                        : 'Free';
+                final highlighted = isPremium || trialActive;
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.workspace_premium),
@@ -115,12 +123,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Chip(
-                        label: Text(isPremium ? 'Premium' : 'Free'),
-                        backgroundColor: isPremium
+                        label: Text(label),
+                        backgroundColor: highlighted
                             ? Theme.of(context).colorScheme.primaryContainer
                             : null,
                         labelStyle: TextStyle(
-                          color: isPremium
+                          color: highlighted
                               ? Theme.of(context).colorScheme.onPrimaryContainer
                               : null,
                           fontWeight: FontWeight.w600,
@@ -643,11 +651,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildTopicSelectTile() {
-    final isPremium = ref.watch(isPremiumProvider);
-    final trialActive =
-        ref.watch(premiumTrialActiveProvider).valueOrNull ?? false;
-    // Premium またはトライアル中はテーマ選択可。例文/クイズ画面のチップと判定を揃える。
-    final canSelect = isPremium || trialActive;
+    // Premium またはトライアル中はテーマ選択可。
+    final canSelect = ref.watch(effectivePremiumProvider);
     final currentTopic = ref.watch(generationParamsProvider)['topic'];
 
     final displayLabel = canSelect
@@ -724,7 +729,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildVocabScoreInline() {
     final statsAsync = ref.watch(vocabStatsProvider);
-    final isPremium = ref.watch(isPremiumProvider);
+    // 体験中はサーバー側も語彙上限を外しているので、表示も合わせる。
+    final isPremium = ref.watch(effectivePremiumProvider);
 
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;

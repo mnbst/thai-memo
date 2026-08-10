@@ -120,24 +120,21 @@ def evaluate_response(user_data: dict) -> dict:
     return {"notify_tier": tier, "notify_tier_misses": misses}
 
 
-def uses_premium_trial(user_data: dict) -> bool:
-    """この配信をプレミアム体験トライアル枠（premium品質＋残回数1消費）で出すか。
+def uses_premium_trial(user_data: dict, now: datetime | None = None) -> bool:
+    """この配信をプレミアム体験トライアル枠（premium品質）で出すか。
 
-    トライアル残がある free ユーザーを配信対象から外していた頃は、通知を受け取る
-    には先に5回分を自分で使い切る必要があり、習慣化のための通知が習慣化した後に
-    しか始まらなかった。トライアル1回を配信に充てて premium 品質の例文を通知本文
-    ごと届けることで、そのデッドロックを解く。
-
-    ただし消費するのは前回の通知に反応があったときだけにする。無視され続けても
-    消費すると、5回分が「見られなかった通知」で溶け、戻ってきたユーザーに体験枠が
-    残らない。反応の有無は evaluate_response の評価後の連続無反応カウントで見る
-    （保存値は前回通知ぶんの評価が未反映のため、それを見ると降格が1回分ずれる）。
+    トライアルは期間制なので、期間中の free ユーザーは配信も premium 品質にする。
+    判定は generateThaiSentence 側（sentence_handlers._resolve_trial_active）と同じ
+    期限のみで、消費という概念は無い。
     """
     if user_data.get("tier") == "premium":
         return False
-    if user_data.get("premium_trial_remaining", 0) <= 0:
+    expires_at = user_data.get("premium_trial_expires_at")
+    if not isinstance(expires_at, datetime):
         return False
-    return evaluate_response(user_data)["notify_tier_misses"] == 0
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return (now or datetime.now(timezone.utc)) < expires_at
 
 
 def delivery_skip_reason(user_data: dict, now: datetime) -> str | None:

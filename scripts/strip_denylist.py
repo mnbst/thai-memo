@@ -1,9 +1,14 @@
-"""freq_rank から拘束形態素を除去し、rank を連番で振り直すスクリプト。
+"""freq_rank から学習語彙にならない語を除去し、rank を連番で振り直すスクリプト。
 
-functions/python/bound_morphemes.py の BOUND_MORPHEMES に載る語
-（น่า, การ, ริ … 単独で文に立てない語）を freq_rank から物理的に削除し、
-残った語を 1 から連番で振り直す。rank に穴が空かないため、
-実行時コードでの除外フィルタが不要になる。
+除去対象:
+  - functions/python/bound_morphemes.py の BOUND_MORPHEMES
+    （น่า, การ, ริ … 単独で文に立てない拘束形態素）
+  - functions/python/interjections.py の INTERJECTIONS
+    （อ๋อ, เฮ้อ, โอ้ย … 単独で発話になる間投詞）
+  - functions/python/non_vocab.py の NON_VOCAB
+    （มั้ง, ซู, งี้ … 終助詞・人名断片・口語の崩れ表記）
+これらを freq_rank から物理的に削除し、残った語を 1 から連番で振り直す。
+rank に穴が空かないため、実行時コードでの除外フィルタが不要になる。
 
 corpus 再生成 (build_freq_rank.py) 時は corpus_word_filter.py の
 DENYLIST 経由で同じ語が落ちるため、このスクリプトは既存 JSON を
@@ -11,8 +16,8 @@ DENYLIST 経由で同じ語が落ちるため、このスクリプトは既存 J
 
 【使い方】
     cd scripts
-    python strip_bound_morphemes.py            # dry-run（差分表示のみ）
-    python strip_bound_morphemes.py --write    # corpus/*.json を書き換え（.bak を残す）
+    python strip_denylist.py            # dry-run（差分表示のみ）
+    python strip_denylist.py --write    # corpus/*.json を書き換え（.bak を残す）
 
 書き換え後は ./upload_corpus.sh <project_id> で GCS に反映する。
 
@@ -31,6 +36,10 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR.parent / "functions" / "python"))
 
 from bound_morphemes import BOUND_MORPHEMES  # noqa: E402
+from interjections import INTERJECTIONS  # noqa: E402
+from non_vocab import NON_VOCAB  # noqa: E402
+
+DENYLIST = set(BOUND_MORPHEMES) | set(INTERJECTIONS) | set(NON_VOCAB)
 
 TARGETS = [
     SCRIPT_DIR / "corpus/freq_rank.json",
@@ -39,10 +48,10 @@ TARGETS = [
 
 
 def strip(freq_rank: dict[str, int]) -> tuple[dict[str, int], list[tuple[int, str]]]:
-    """拘束形態素を除いて rank を 1 から振り直す。"""
-    removed = sorted((r, w) for w, r in freq_rank.items() if w in BOUND_MORPHEMES)
+    """除去対象語を除いて rank を 1 から振り直す。"""
+    removed = sorted((r, w) for w, r in freq_rank.items() if w in DENYLIST)
     kept = sorted(
-        ((r, w) for w, r in freq_rank.items() if w not in BOUND_MORPHEMES),
+        ((r, w) for w, r in freq_rank.items() if w not in DENYLIST),
     )
     return {w: i + 1 for i, (_, w) in enumerate(kept)}, removed
 

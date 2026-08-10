@@ -8,6 +8,10 @@ import '../../l10n/app_localizations.dart';
 class CoachMarkOverlay {
   static OverlayEntry? _entry;
 
+  /// 表示中のコーチマークが指しているウィジェット。
+  /// 画面ごとの後片付けで、他画面が出したコーチマークまで閉じないための目印。
+  static GlobalKey? _ownerKey;
+
   /// 表示中かどうか。
   static bool get isVisible => _entry != null;
 
@@ -48,6 +52,7 @@ class CoachMarkOverlay {
     void dismiss() {
       _entry?.remove();
       _entry = null;
+      _ownerKey = null;
       onDismiss?.call();
     }
 
@@ -67,6 +72,7 @@ class CoachMarkOverlay {
       ),
     );
     overlay.insert(_entry!);
+    _ownerKey = targetKey;
     return true;
   }
 
@@ -74,6 +80,16 @@ class CoachMarkOverlay {
   static void dismiss() {
     _entry?.remove();
     _entry = null;
+    _ownerKey = null;
+  }
+
+  /// [targetKey] を指しているコーチマークだけを閉じる。
+  ///
+  /// Overlay は Navigator 共有なので、画面の dispose で無条件に [dismiss] すると、
+  /// 戻り先の画面が既に出したコーチマークまで消してしまう（表示直後に消えて
+  /// ちらついて見える）。後片付けにはこちらを使う。
+  static void dismissFor(GlobalKey targetKey) {
+    if (_ownerKey == targetKey) dismiss();
   }
 }
 

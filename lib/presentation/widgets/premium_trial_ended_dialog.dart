@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../providers/pronunciation_quota_provider.dart';
+import '../screens/paywall_screen.dart';
 
 /// プレミアム体験トライアルの終了を伝え、そのまま登録へ誘導するダイアログ。
 ///
@@ -30,12 +32,22 @@ class PremiumTrialEndedDialog extends StatelessWidget {
         children: [
           Text(l10n.trialEndedBody),
           const SizedBox(height: 12),
-          // 失った機能を具体で示す。抽象的な「プレミアム機能」では効かない。
-          _Lost(icon: Icons.auto_awesome, text: l10n.trialEndedLostTopic),
+          // ここは「いま何が変わったか」だけを数字で出す。特典の全一覧は
+          // ペイウォールの仕事で、両方に並べるとペイウォールが繰り返しになる。
+          // 実数の増減が出ない項目（テーマ選択・例文の質・語彙上限）は載せない。
+          _Change(
+            icon: Icons.bolt,
+            text: l10n.trialEndedChangeQuota(
+              premiumDailySentences,
+              freeDailySentences,
+            ),
+          ),
           const SizedBox(height: 6),
-          _Lost(
-            icon: Icons.record_voice_over,
-            text: l10n.trialEndedLostQuality,
+          _Change(
+            icon: Icons.mic_none,
+            text: l10n.trialEndedChangePronunciation(
+              freeDailyPronunciationChecks,
+            ),
           ),
         ],
       ),
@@ -56,8 +68,8 @@ class PremiumTrialEndedDialog extends StatelessWidget {
   }
 }
 
-class _Lost extends StatelessWidget {
-  const _Lost({required this.icon, required this.text});
+class _Change extends StatelessWidget {
+  const _Change({required this.icon, required this.text});
 
   final IconData icon;
   final String text;

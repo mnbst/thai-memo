@@ -265,14 +265,14 @@ class PitchRecorderService {
     // 失敗したときにどの段階で落ちたかを切り分けるための計測。
     final samples = pcm16ToSamples(result.pcm16);
     final peak = samples.isEmpty ? 0.0 : peakAmplitude(samples);
-    debugPrint(
-      'pronunciation capture: ${result.pcm16.lengthInBytes} bytes, '
-      '${samples.length} samples '
-      '(${(samples.length / kRecordSampleRate).toStringAsFixed(2)}s), '
-      'peak=${peak.toStringAsFixed(4)}, '
-      'inputPeak=${result.inputPeak.toStringAsFixed(4)}, '
-      'recognition=${result.recognitionStatus}',
-    );
+    // debugPrint(
+      // 'pronunciation capture: ${result.pcm16.lengthInBytes} bytes, '
+      // '${samples.length} samples '
+      // '(${(samples.length / kRecordSampleRate).toStringAsFixed(2)}s), '
+      // 'peak=${peak.toStringAsFixed(4)}, '
+      // 'inputPeak=${result.inputPeak.toStringAsFixed(4)}, '
+      // 'recognition=${result.recognitionStatus}',
+    // );
 
     // 振幅がちょうど0＝マイクからデジタル無音が届いている。声が小さいのではなく
     // 入力経路が繋がっていない（シミュレータで macOS 側の権限が無い場合など）。
@@ -300,69 +300,69 @@ class PitchRecorderService {
       PitchExtractionRequest(result.pcm16, kRecordSampleRate),
     );
     final frames = extracted.f0Hz;
-    final voiced = frames.where((f) => f != null).length;
-    // 発話を3等分して、どこでどう失っているかを出す。末尾だけ落ちるなら
-    // 発話末の現象（軋み声か音量の減衰）で、全体に散るなら収録環境の問題。
-    final third = frames.length ~/ 3;
-    if (third > 0) {
-      final parts = <String>[];
-      for (var p = 0; p < 3; p++) {
-        final from = p * third;
-        final to = p == 2 ? frames.length : (p + 1) * third;
-        var weak = 0;
-        var range = 0;
-        var energyLost = 0;
-        for (var i = from; i < to; i++) {
-          if (i < extracted.energyRejected.length &&
-              extracted.energyRejected[i]) {
-            energyLost++;
-          } else if (i < extracted.outOfRange.length &&
-              extracted.outOfRange[i]) {
-            range++;
-          } else if (i < extracted.unpitched.length && extracted.unpitched[i]) {
-            weak++;
-          }
-        }
-        parts.add('${to - from - weak - range - energyLost}有声'
-            '/周期弱$weak/範囲外$range/音量欠$energyLost');
-      }
-      debugPrint('pronunciation loss: 前${parts[0]} 中${parts[1]} 後${parts[2]}');
-      // 落としたフレームの確信度がどこに溜まっているか。閾値のすぐ下に集まって
-      // いれば下げれば戻る。ほぼ0なら周期が本当に無い。
-      final bands = <String>[];
-      for (var p = 0; p < 3; p++) {
-        final from = p * third;
-        final to = p == 2 ? frames.length : (p + 1) * third;
-        var near = 0; // 0.3〜0.5（閾値のすぐ下）
-        var mid = 0; // 0.1〜0.3
-        var none = 0; // 0.1未満
-        for (var i = from; i < to; i++) {
-          if (i >= extracted.unpitched.length || !extracted.unpitched[i]) {
-            continue;
-          }
-          final value =
-              i < extracted.probability.length ? extracted.probability[i] : 0.0;
-          if (value >= 0.3) {
-            near++;
-          } else if (value >= 0.1) {
-            mid++;
-          } else {
-            none++;
-          }
-        }
-        bands.add('惜$near/中$mid/無$none');
-      }
-      debugPrint(
-        'pronunciation confidence: 前${bands[0]} 中${bands[1]} 後${bands[2]}',
-      );
-    }
-    // 押しはじめの無音がどれだけ取り込まれずに済んだか。判定がずれたときに
-    // 「声の前に何フレーム捨てたか」を見られるよう常設する。
-    final lead = frames.indexWhere((f) => f != null);
-    debugPrint(
-      'pronunciation f0: $voiced/${frames.length} voiced frames, '
-      'lead silence=${lead < 0 ? frames.length : lead}',
-    );
+    // final voiced = frames.where((f) => f != null).length;
+    // // 発話を3等分して、どこでどう失っているかを出す。末尾だけ落ちるなら
+    // // 発話末の現象（軋み声か音量の減衰）で、全体に散るなら収録環境の問題。
+    // final third = frames.length ~/ 3;
+    // if (third > 0) {
+      // final parts = <String>[];
+      // for (var p = 0; p < 3; p++) {
+        // final from = p * third;
+        // final to = p == 2 ? frames.length : (p + 1) * third;
+        // var weak = 0;
+        // var range = 0;
+        // var energyLost = 0;
+        // for (var i = from; i < to; i++) {
+          // if (i < extracted.energyRejected.length &&
+              // extracted.energyRejected[i]) {
+            // energyLost++;
+          // } else if (i < extracted.outOfRange.length &&
+              // extracted.outOfRange[i]) {
+            // range++;
+          // } else if (i < extracted.unpitched.length && extracted.unpitched[i]) {
+            // weak++;
+          // }
+        // }
+        // parts.add('${to - from - weak - range - energyLost}有声'
+            // '/周期弱$weak/範囲外$range/音量欠$energyLost');
+      // }
+      // debugPrint('pronunciation loss: 前${parts[0]} 中${parts[1]} 後${parts[2]}');
+      // // 落としたフレームの確信度がどこに溜まっているか。閾値のすぐ下に集まって
+      // // いれば下げれば戻る。ほぼ0なら周期が本当に無い。
+      // final bands = <String>[];
+      // for (var p = 0; p < 3; p++) {
+        // final from = p * third;
+        // final to = p == 2 ? frames.length : (p + 1) * third;
+        // var near = 0; // 0.3〜0.5（閾値のすぐ下）
+        // var mid = 0; // 0.1〜0.3
+        // var none = 0; // 0.1未満
+        // for (var i = from; i < to; i++) {
+          // if (i >= extracted.unpitched.length || !extracted.unpitched[i]) {
+            // continue;
+          // }
+          // final value =
+              // i < extracted.probability.length ? extracted.probability[i] : 0.0;
+          // if (value >= 0.3) {
+            // near++;
+          // } else if (value >= 0.1) {
+            // mid++;
+          // } else {
+            // none++;
+          // }
+        // }
+        // bands.add('惜$near/中$mid/無$none');
+      // }
+      // debugPrint(
+        // 'pronunciation confidence: 前${bands[0]} 中${bands[1]} 後${bands[2]}',
+      // );
+    // }
+    // // 押しはじめの無音がどれだけ取り込まれずに済んだか。判定がずれたときに
+    // // 「声の前に何フレーム捨てたか」を見られるよう常設する。
+    // final lead = frames.indexWhere((f) => f != null);
+    // debugPrint(
+      // 'pronunciation f0: $voiced/${frames.length} voiced frames, '
+      // 'lead silence=${lead < 0 ? frames.length : lead}',
+    // );
 
     return PronunciationCapture(
       f0Hz: frames,

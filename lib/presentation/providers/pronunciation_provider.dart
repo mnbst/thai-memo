@@ -191,105 +191,105 @@ class PronunciationController extends StateNotifier<PronunciationState> {
       profile: profile,
       recognition: recognition,
     );
-    // 高さも形も「どのフレームがどの音節か」の上に乗っている。時間軸が保たれて
-    // いるか（DTWの帯が前提にしている）を追えるよう、まず全体の内訳を出す。
-    final measuredFrames = capture.f0Hz.where((v) => v != null).length;
-    final span = result.syllables.isEmpty
-        ? 0
-        : result.syllables.last.queryEnd - result.syllables.first.queryStart + 1;
-    debugPrint(
-      'pronunciation frames: ${capture.f0Hz.length} total, '
-      '$measuredFrames measured, $span aligned',
-    );
-    // 発音がどれだけ点数に効いたかを追えるようにする。
-    debugPrint(
-      'pronunciation score: tone=${result.toneScore.toStringAsFixed(1)} '
-      '-> overall=${result.overallScore.toStringAsFixed(1)} '
-      '(missing=${recognition.where((r) => r == WordRecognition.missing).length}'
-      '/${recognition.where((r) => r != WordRecognition.unavailable).length})',
-    );
-    // お手本の時間の取り分（budget）は音節の表記から決めている。実際の発話の
-    // 長さと食い違うと DTW の帯に張り付いて境界が動けず、隣の音節がフレームを
-    // 飲み込む。**どの音節がどれだけ食い違ったか**を割合で出す。
-    final totalPoints =
-        result.syllables.fold<int>(0, (a, s) => a + s.referencePoints);
-    final totalFrames = result.syllables.fold<int>(
-      0,
-      (a, s) => a + (s.queryStart < 0 ? 0 : s.queryEnd - s.queryStart + 1),
-    );
-    // 音節の切れ目を録音そのものから決められるかを見る。子音（とくに閉鎖音）で
-    // 声が止まる位置は境界の手がかりになるが、共鳴音で繋がる境界には現れない。
-    // **どちらがどれだけあるか**を数えないと、境界を録音から取る案の可否が決まらない。
-    final gaps = result.voicelessGaps;
-    // 音量の谷は、共鳴音で繋がる切れ目の唯一の手がかり。何個拾えたかを出す。
-    final valleys = findEnergyValleys(capture.energy);
-    debugPrint(
-      'pronunciation valleys: ${valleys.length}個 '
-      '${valleys.map((v) => v[0]).join(' ')}',
-    );
-    debugPrint(
-      'pronunciation gaps: ${gaps.length}個 '
-      '(音節境界は${result.syllables.length - 1}個) '
-      '${gaps.map((g) => '${g[0]}-${g[1]}').join(' ')}',
-    );
-    // 各境界から、いちばん近い手がかり（途切れ・谷）までの距離。0 ならその境界は
-    // 録音から直接決められている。
-    final distances = <String>[];
-    for (var i = 1; i < result.syllables.length; i++) {
-      final boundary = result.syllables[i].queryStart;
-      if (boundary < 0) continue;
-      var best = -1;
-      for (final g in [...gaps, ...valleys]) {
-        final d = boundary < g[0]
-            ? g[0] - boundary
-            : boundary > g[1]
-                ? boundary - g[1]
-                : 0;
-        if (best < 0 || d < best) best = d;
-      }
-      distances.add('$i:$best');
-    }
-    debugPrint('pronunciation boundary→gap: ${distances.join(' ')}');
-    // 判定に納得がいかないときに、どの数字でそうなったかを追えるようにする。
-    for (final score in result.syllables) {
-      final correlation = score.shapeCorrelation;
-      final frames =
-          score.queryStart < 0 ? 0 : score.queryEnd - score.queryStart + 1;
-      final budgetShare = totalPoints == 0
-          ? 0.0
-          : score.referencePoints / totalPoints * 100;
-      final actualShare = totalFrames == 0 ? 0.0 : frames / totalFrames * 100;
-      final label = score.syllableIndex < syllableLabels.length
-          ? syllableLabels[score.syllableIndex]
-          : '';
-      debugPrint(
-        'pronunciation syllable ${score.syllableIndex} ${score.tone.name} '
-        '$label: '
-        'n=${score.queryValues.length} '
-        'span=${score.queryStart}-${score.queryEnd} '
-        // 予算と実測の取り分。大きく開いていれば境界が帯に張り付いている。
-        'share=${actualShare.toStringAsFixed(1)}%'
-        '/${budgetShare.toStringAsFixed(1)}% '
-        'budget=${score.referencePoints} '
-        'corr=${correlation?.toStringAsFixed(2) ?? '-'} '
-        'slope=${score.shapeError.toStringAsFixed(2)} '
-        // 入り方は向きだけを見る。段差の値も出すが判定には使っていない。
-        'step=${score.queryStep.toStringAsFixed(2)}'
-        '/${score.referenceStep.toStringAsFixed(2)} '
-        '(${stepDirectionOf(score.queryStep).name}'
-        ' vs ${stepDirectionOf(score.referenceStep).name}) '
-        'link=${score.transitionError.toStringAsFixed(3)} '
-        // 採点が使った値をそのまま出す。ここで再計算すると、位置で中心を
-        // 決めている採点側とずれた数字が出てログが読めなくなる。
-        'you=${score.queryLevel.toStringAsFixed(2)} '
-        'model=${score.referenceLevel.toStringAsFixed(2)} '
-        'lvl=${score.levelError.toStringAsFixed(2)} '
-        // どちらの根拠が効いたか。- は「根拠にできなかった」。
-        'ok=${score.shapeAgrees == null ? "-" : score.shapeAgrees! ? "形" : "形x"}'
-        '/${score.stepAgrees == null ? "-" : score.stepAgrees! ? "入" : "入x"} '
-        '-> ${score.verdict.name}',
-      );
-    }
+    // // 高さも形も「どのフレームがどの音節か」の上に乗っている。時間軸が保たれて
+    // // いるか（DTWの帯が前提にしている）を追えるよう、まず全体の内訳を出す。
+    // final measuredFrames = capture.f0Hz.where((v) => v != null).length;
+    // final span = result.syllables.isEmpty
+        // ? 0
+        // : result.syllables.last.queryEnd - result.syllables.first.queryStart + 1;
+    // debugPrint(
+      // 'pronunciation frames: ${capture.f0Hz.length} total, '
+      // '$measuredFrames measured, $span aligned',
+    // );
+    // // 発音がどれだけ点数に効いたかを追えるようにする。
+    // debugPrint(
+      // 'pronunciation score: tone=${result.toneScore.toStringAsFixed(1)} '
+      // '-> overall=${result.overallScore.toStringAsFixed(1)} '
+      // '(missing=${recognition.where((r) => r == WordRecognition.missing).length}'
+      // '/${recognition.where((r) => r != WordRecognition.unavailable).length})',
+    // );
+    // // お手本の時間の取り分（budget）は音節の表記から決めている。実際の発話の
+    // // 長さと食い違うと DTW の帯に張り付いて境界が動けず、隣の音節がフレームを
+    // // 飲み込む。**どの音節がどれだけ食い違ったか**を割合で出す。
+    // final totalPoints =
+        // result.syllables.fold<int>(0, (a, s) => a + s.referencePoints);
+    // final totalFrames = result.syllables.fold<int>(
+      // 0,
+      // (a, s) => a + (s.queryStart < 0 ? 0 : s.queryEnd - s.queryStart + 1),
+    // );
+    // // 音節の切れ目を録音そのものから決められるかを見る。子音（とくに閉鎖音）で
+    // // 声が止まる位置は境界の手がかりになるが、共鳴音で繋がる境界には現れない。
+    // // **どちらがどれだけあるか**を数えないと、境界を録音から取る案の可否が決まらない。
+    // final gaps = result.voicelessGaps;
+    // // 音量の谷は、共鳴音で繋がる切れ目の唯一の手がかり。何個拾えたかを出す。
+    // final valleys = findEnergyValleys(capture.energy);
+    // debugPrint(
+      // 'pronunciation valleys: ${valleys.length}個 '
+      // '${valleys.map((v) => v[0]).join(' ')}',
+    // );
+    // debugPrint(
+      // 'pronunciation gaps: ${gaps.length}個 '
+      // '(音節境界は${result.syllables.length - 1}個) '
+      // '${gaps.map((g) => '${g[0]}-${g[1]}').join(' ')}',
+    // );
+    // // 各境界から、いちばん近い手がかり（途切れ・谷）までの距離。0 ならその境界は
+    // // 録音から直接決められている。
+    // final distances = <String>[];
+    // for (var i = 1; i < result.syllables.length; i++) {
+      // final boundary = result.syllables[i].queryStart;
+      // if (boundary < 0) continue;
+      // var best = -1;
+      // for (final g in [...gaps, ...valleys]) {
+        // final d = boundary < g[0]
+            // ? g[0] - boundary
+            // : boundary > g[1]
+                // ? boundary - g[1]
+                // : 0;
+        // if (best < 0 || d < best) best = d;
+      // }
+      // distances.add('$i:$best');
+    // }
+    // debugPrint('pronunciation boundary→gap: ${distances.join(' ')}');
+    // // 判定に納得がいかないときに、どの数字でそうなったかを追えるようにする。
+    // for (final score in result.syllables) {
+      // final correlation = score.shapeCorrelation;
+      // final frames =
+          // score.queryStart < 0 ? 0 : score.queryEnd - score.queryStart + 1;
+      // final budgetShare = totalPoints == 0
+          // ? 0.0
+          // : score.referencePoints / totalPoints * 100;
+      // final actualShare = totalFrames == 0 ? 0.0 : frames / totalFrames * 100;
+      // final label = score.syllableIndex < syllableLabels.length
+          // ? syllableLabels[score.syllableIndex]
+          // : '';
+      // debugPrint(
+        // 'pronunciation syllable ${score.syllableIndex} ${score.tone.name} '
+        // '$label: '
+        // 'n=${score.queryValues.length} '
+        // 'span=${score.queryStart}-${score.queryEnd} '
+        // // 予算と実測の取り分。大きく開いていれば境界が帯に張り付いている。
+        // 'share=${actualShare.toStringAsFixed(1)}%'
+        // '/${budgetShare.toStringAsFixed(1)}% '
+        // 'budget=${score.referencePoints} '
+        // 'corr=${correlation?.toStringAsFixed(2) ?? '-'} '
+        // 'slope=${score.shapeError.toStringAsFixed(2)} '
+        // // 入り方は向きだけを見る。段差の値も出すが判定には使っていない。
+        // 'step=${score.queryStep.toStringAsFixed(2)}'
+        // '/${score.referenceStep.toStringAsFixed(2)} '
+        // '(${stepDirectionOf(score.queryStep).name}'
+        // ' vs ${stepDirectionOf(score.referenceStep).name}) '
+        // 'link=${score.transitionError.toStringAsFixed(3)} '
+        // // 採点が使った値をそのまま出す。ここで再計算すると、位置で中心を
+        // // 決めている採点側とずれた数字が出てログが読めなくなる。
+        // 'you=${score.queryLevel.toStringAsFixed(2)} '
+        // 'model=${score.referenceLevel.toStringAsFixed(2)} '
+        // 'lvl=${score.levelError.toStringAsFixed(2)} '
+        // // どちらの根拠が効いたか。- は「根拠にできなかった」。
+        // 'ok=${score.shapeAgrees == null ? "-" : score.shapeAgrees! ? "形" : "形x"}'
+        // '/${score.stepAgrees == null ? "-" : score.stepAgrees! ? "入" : "入x"} '
+        // '-> ${score.verdict.name}',
+      // );
+    // }
 
     if (!mounted) return;
 

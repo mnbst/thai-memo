@@ -85,10 +85,6 @@ class SentenceController extends StateNotifier<SentenceState> {
   final String? Function() _currentTopic;
   final bool Function() _isTrialActive;
 
-  /// 期限を持たない旧ユーザー向けの残回数。トライアル最終回の判定にのみ使う。
-  final int Function() _trialRemaining;
-  final Future<void> Function() _onTrialExhausted;
-
   /// 文言は言語設定に追従させたいので、値ではなく都度引く関数を持つ。
   final L10n Function() _l10n;
   final GenerateSentenceCallback? _generateSentenceOverride;
@@ -102,8 +98,6 @@ class SentenceController extends StateNotifier<SentenceState> {
     this._currentTier,
     this._currentTopic,
     this._isTrialActive,
-    this._trialRemaining,
-    this._onTrialExhausted,
     this._l10n, {
     GenerateSentenceCallback? generateSentence,
     GetMostRecentSentenceCallback? getMostRecentSentence,
@@ -118,7 +112,6 @@ class SentenceController extends StateNotifier<SentenceState> {
   ///
   /// テーマ（topic）の扱いは tier で決まる:
   /// free = おまかせ / premium・トライアル中 = ユーザー設定を反映。
-  /// トライアル中はサーバーへ premium_trial フラグを送り、残回数を1消費する。
   Future<void> generateSentence({
     Map<String, String?> generationParams = const {},
   }) async {
@@ -141,10 +134,6 @@ class SentenceController extends StateNotifier<SentenceState> {
     bool fallbackToRecentOnError = false,
   }) async {
     final trialActive = _trialActive;
-    // 期間制トライアルでは最終回を回数で判定できない。期限切れ時のテーマ解除は
-    // 起動時の体験終了案内（home_screen）が担う。ここは残回数だけを持つ
-    // 旧ユーザー向けの経路。
-    final wasLastTrial = trialActive && _trialRemaining() <= 1;
 
     try {
       final sentence = await _executeGenerateSentence(
@@ -157,11 +146,6 @@ class SentenceController extends StateNotifier<SentenceState> {
         source: source,
         topicApplied: trialActive,
       );
-      // トライアル最終回を使い切ったら、設定のテーマを「おまかせ」に戻す。
-      // 以降はフリーに戻り、テーマ選択（プレミアム機能）が使えないため。
-      if (_shouldClearTopicAfterTrial(wasLastTrial)) {
-        await _onTrialExhausted();
-      }
     } on GenerateSentenceException catch (e) {
       state = SentenceStateError(e.getUserMessage(_l10n()));
     } catch (e) {
@@ -292,10 +276,6 @@ class SentenceController extends StateNotifier<SentenceState> {
     return getMostRecent();
   }
 
-  bool _shouldClearTopicAfterTrial(bool wasLastTrial) {
-    return wasLastTrial && _currentTier() != 'premium';
-  }
-
   /// [topicApplied] はトライアル適用で free ユーザーにもテーマが効いたか。
   /// premium 判定だけで絞るとトライアル分の topic が欠測するため明示的に渡す。
   void _logGenerateSentence({
@@ -336,10 +316,6 @@ final sentenceControllerProvider =
     },
     () => ref.read(generationParamsProvider)['topic'],
     () => ref.read(premiumTrialActiveProvider).valueOrNull ?? false,
-    () => ref.read(premiumTrialRemainingProvider).valueOrNull ?? 0,
-    () => ref
-        .read(settingsControllerProvider.notifier)
-        .setGenerationParam('topic', null),
     () => ref.read(l10nProvider),
   );
 });
