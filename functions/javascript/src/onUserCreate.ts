@@ -1,12 +1,13 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
-  FREE_DAILY_SENTENCES,
-  FREE_DAILY_QUIZZES,
+  PREMIUM_DAILY_SENTENCES,
+  PREMIUM_DAILY_QUIZZES,
   PREMIUM_TRIAL_DAYS,
   PREMIUM_TRIAL_SENTENCES,
 } from './constants/quota';
 import { notifyUtcHour } from './utils/notifyUtcHour';
+import { trialExpiresAtMsFrom } from './utils/premium';
 
 /**
  * Firebase Auth の onCreate トリガー
@@ -22,13 +23,15 @@ export const onUserCreate = functions
       .doc(user.uid)
       .set(
         {
-          remaining_sentences: FREE_DAILY_SENTENCES,
-          remaining_quizzes: FREE_DAILY_QUIZZES,
+          // 登録直後はプレミアム体験トライアル中なので、初日から premium の回数を出す。
+          remaining_sentences: PREMIUM_DAILY_SENTENCES,
+          remaining_quizzes: PREMIUM_DAILY_QUIZZES,
           daily_sentence_generated: false,
-          // トライアルは期間制。残回数は旧クライアント互換のために併記する。
+          // 期限はクォータのリセット境界（JST 0:00）に揃える。実質2〜3日になる。
           premium_trial_expires_at: admin.firestore.Timestamp.fromMillis(
-            Date.now() + PREMIUM_TRIAL_DAYS * 24 * 60 * 60 * 1000,
+            trialExpiresAtMsFrom(Date.now(), PREMIUM_TRIAL_DAYS),
           ),
+          // 旧クライアント（〜1.3.14）がテーマを消さないための凍結値。減らさない。
           premium_trial_remaining: PREMIUM_TRIAL_SENTENCES,
           // 毎日例文の配信対象クエリ用。実際の timezone / 希望時刻に基づく値は
           // クライアントの設定書き込みか dailyBatch が上書きする。ここで既定値を

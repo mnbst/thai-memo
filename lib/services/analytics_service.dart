@@ -79,7 +79,7 @@ class AnalyticsService {
     required String source,
   }) async {
     await _logEvent('view_detail', {
-      'sentence_id': sentenceId,
+      // 'sentence_id': sentenceId,
       'source': source,
     });
   }
@@ -92,8 +92,8 @@ class AnalyticsService {
   }) async {
     await _logEvent('play_tts', {
       'content_type': contentType,
-      'text': _truncate(text),
-      'sentence_id': sentenceId,
+      // 'text': _truncate(text),
+      // 'sentence_id': sentenceId,
       'source': source,
     });
   }
@@ -119,7 +119,7 @@ class AnalyticsService {
     await _logEvent('quiz_answer', {
       'correct': correct ? 1 : 0,
       'category': category,
-      'question_index': questionIndex,
+      // 'question_index': questionIndex,
       'source': source,
     });
   }
@@ -165,7 +165,7 @@ class AnalyticsService {
     double? recognizedRatio,
   }) async {
     await _logEvent('pronunciation_attempt', {
-      'sentence_id': sentenceId,
+      // 'sentence_id': sentenceId,
       'score': score.round(),
       'syllable_count': syllableCount,
       'monotone': monotone ? 1 : 0,

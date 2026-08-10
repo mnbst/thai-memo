@@ -79,6 +79,13 @@ class L10nEn extends L10n {
       'Once you\'ve read the sentence, move on to the quiz.';
 
   @override
+  String get coachPronunciationTitle => 'Say it out loud';
+
+  @override
+  String get coachPronunciationMessage =>
+      'Hold the button and read it aloud. Your tones are checked on the spot.';
+
+  @override
   String get sentencePreparing => 'Preparing your next sentence...';
 
   @override
@@ -393,6 +400,9 @@ class L10nEn extends L10n {
   String get settingsPlan => 'Plan';
 
   @override
+  String get settingsPlanTrial => 'Premium trial';
+
+  @override
   String get settingsDeleteAccount => 'Delete account';
 
   @override
@@ -511,15 +521,17 @@ class L10nEn extends L10n {
   String get trialEndedTitle => 'Your premium trial has ended';
 
   @override
-  String get trialEndedBody =>
-      'You\'re back on the free plan. What you had during the trial stays available with Premium.';
+  String get trialEndedBody => 'You\'re on the free plan starting today.';
 
   @override
-  String get trialEndedLostTopic => 'Pick the topic you want to study';
+  String trialEndedChangeQuota(int premium, int free) {
+    return 'Sentences  $premium/day → $free/day';
+  }
 
   @override
-  String get trialEndedLostQuality =>
-      'Learn from more natural, expressive sentences';
+  String trialEndedChangePronunciation(int count) {
+    return 'Pronunciation checks  Unlimited → $count/day';
+  }
 
   @override
   String get trialEndedLater => 'Later';
@@ -801,7 +813,15 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get paywallFeature1Title => 'Sentences that sound native';
+  String get paywallFeatureQuotaTitle => 'Study more sentences a day';
+
+  @override
+  String paywallFeatureQuotaCount(int count) {
+    return '$count sentences a day';
+  }
+
+  @override
+  String get paywallFeature1Title => 'Learn the phrasing natives use';
 
   @override
   String get paywallFeature1Free => 'Textbook basics';
@@ -810,43 +830,55 @@ class L10nEn extends L10n {
   String get paywallFeature1Premium => 'The phrasing Thai people actually use';
 
   @override
-  String get paywallFeature2Title => 'Thai dramas, romance, travel, and more';
+  String get paywallFeaturePronunciationTitle =>
+      'Get your pronunciation scored';
 
   @override
-  String get paywallFeature2Free => 'Whatever comes up';
+  String paywallFeaturePronunciationFree(int count) {
+    return '$count checks a day';
+  }
 
   @override
-  String get paywallFeature2Premium => 'Pick the topics you want to study';
+  String get paywallFeaturePronunciationPremium => 'Unlimited';
 
   @override
-  String get paywallFeature3Title => 'No cap on how much you learn';
+  String get paywallFeatureOtherTitle => 'Also with Premium';
 
   @override
-  String get paywallFeature3Free => 'The first 100 words';
+  String get paywallFeatureOtherTopic => 'Pick the topics you want to study';
 
   @override
-  String get paywallFeature3Premium => 'Enough to follow drama dialogue';
+  String paywallFeatureOtherVocab(int limit) {
+    return 'No $limit-word cap — enough to follow drama dialogue';
+  }
+
+  @override
+  String get paywallTrialActive =>
+      'You\'re on the Premium trial. When it ends, this all goes back to Free.';
+
+  @override
+  String get paywallTrialEnded => 'This is what you had during your trial.';
 
   @override
   String get onboarding1Title => 'A fresh Thai sentence every day';
 
   @override
   String get onboarding1Body =>
-      'A new sentence arrives daily.\nTap the card for pronunciation, meaning, and audio.';
+      'A new sentence arrives daily.\nTap the card for words and meaning.';
 
   @override
-  String get onboarding2Title => 'Read, then quiz yourself';
+  String get onboarding2Title => 'Pronunciation practice, tones included';
 
   @override
   String get onboarding2Body =>
-      'Read the sentence, then check it with a quiz.\nRepeat daily and it sticks.';
+      'Listen to the model audio, then record yourself.\nSee where your tones drift.';
 
   @override
   String get onboarding3Title => 'Grow your vocabulary score';
 
   @override
   String get onboarding3Body =>
-      'Words you miss come back around.\nDifficulty follows your score.';
+      'Words you miss come back around.\nYour sentences level up with your score.';
 
   @override
   String get onboardingSkip => 'Skip';
@@ -902,28 +934,25 @@ class L10nEn extends L10n {
   String get commonGotIt => 'Got it';
 
   @override
-  String get premiumHint1Title => 'Choose what your sentences are about';
+  String get premiumHint1Title => 'Pick the topics you want to study';
 
   @override
   String get premiumHint1Body =>
-      'Thai dramas, romance, travel — study the topics you care about';
+      'Thai dramas, romance, travel — choose what your next sentence is about';
 
   @override
-  String get premiumHint2Title => 'Learn the phrasing people really use';
+  String get premiumHint2Title => 'Learn the phrasing natives use';
 
   @override
   String get premiumHint2Body =>
-      'Move past textbook lines to real conversation';
+      'Move past textbook basics to the phrasing Thai people actually use';
 
   @override
-  String get premiumHint3Title => 'No limit on words';
+  String get premiumHint3Title => 'No cap on how many words';
 
   @override
   String get premiumHint3Body =>
-      'Go beyond the first 100 words, all the way to drama dialogue';
-
-  @override
-  String get premiumHintCta => 'See Premium →';
+      'Go beyond the first 100 words — enough to follow drama dialogue';
 
   @override
   String get signInReminderTitle => 'Keep your progress safe';
@@ -1093,12 +1122,55 @@ class L10nEn extends L10n {
       'Checking consonants and vowels isn\'t supported on Android — showing tones only';
 
   @override
-  String get pronunciationPremiumTitle =>
-      'Pronunciation practice is a Premium feature';
+  String get pronunciationCoachLead => 'Fix this next';
 
   @override
-  String get pronunciationPremiumBody =>
-      'Record yourself, compare each syllable\'s tone with the model, and see which words came across.';
+  String get pronunciationCoachShapeMid =>
+      'Mid tone: hold it flat, without changing height';
+
+  @override
+  String get pronunciationCoachShapeLow =>
+      'Low tone: stay down low, drifting slightly downward';
+
+  @override
+  String get pronunciationCoachShapeFalling =>
+      'Falling tone: start high and fall all the way down';
+
+  @override
+  String get pronunciationCoachShapeHigh =>
+      'High tone: keep rising to the end instead of levelling off';
+
+  @override
+  String get pronunciationCoachShapeRising =>
+      'Rising tone: dip first, then rise all the way up';
+
+  @override
+  String pronunciationCoachStepUp(String tone) {
+    return '$tone: start higher than the sound before it';
+  }
+
+  @override
+  String pronunciationCoachStepDown(String tone) {
+    return '$tone: start lower than the sound before it';
+  }
+
+  @override
+  String pronunciationCoachNotRecognized(String word) {
+    return '\"$word\" wasn\'t picked up. Try saying it more clearly.';
+  }
+
+  @override
+  String get pronunciationLimitTitle =>
+      'You\'ve used today\'s free pronunciation checks';
+
+  @override
+  String get pronunciationLimitBody =>
+      'Premium lets you check your pronunciation as often as you like.';
+
+  @override
+  String pronunciationFreeRemaining(int count) {
+    return '$count free checks left today';
+  }
 
   @override
   String tipWithExample(String content, String example) {

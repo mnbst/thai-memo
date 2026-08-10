@@ -166,8 +166,12 @@ class _PremiumHintBannerState extends ConsumerState<PremiumHintBanner> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
+    // 直下にクイズ導線（primaryContainer のカード）が並ぶため、こちらは
+    // surface 系にして主役を譲る。学習の手を止めさせない程度の存在感に留める。
+    final onSurface = cs.onSurfaceVariant;
+
     return Card(
-      color: cs.primaryContainer,
+      color: cs.surfaceContainerHighest,
       elevation: 0,
       // 非表示時（SizedBox.shrink）に余白が残らないよう、上マージンをここで持つ
       margin: const EdgeInsets.only(top: 12),
@@ -175,45 +179,44 @@ class _PremiumHintBannerState extends ConsumerState<PremiumHintBanner> {
         onTap: () => PaywallBottomSheet.show(context, source: _pitch.source),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(_pitch.icon, size: 20, color: cs.onPrimaryContainer),
-              const SizedBox(width: 12),
+              Icon(_pitch.icon, size: 18, color: cs.primary),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       _pitch.title(L10n.of(context)),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: cs.onPrimaryContainer,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 2),
                     Text(
                       _pitch.body(L10n.of(context)),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onPrimaryContainer.withValues(alpha: 0.8),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: onSurface,
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      L10n.of(context).premiumHintCta,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: cs.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      // 英語の body は日本語より長く、狭い端末で3行になる。
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
+              Icon(Icons.chevron_right, size: 18, color: onSurface),
               IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                color: cs.onPrimaryContainer.withValues(alpha: 0.7),
+                icon: const Icon(Icons.close, size: 16),
+                color: onSurface,
                 visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 32,
+                  height: 32,
+                ),
                 onPressed: _dismiss,
                 tooltip: L10n.of(context).commonClose,
               ),

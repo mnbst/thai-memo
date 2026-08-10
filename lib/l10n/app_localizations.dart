@@ -229,6 +229,18 @@ abstract class L10n {
   /// **'例文を読んだら、確認クイズに進みましょう。'**
   String get coachQuizMessage;
 
+  /// No description provided for @coachPronunciationTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'声に出して確かめる'**
+  String get coachPronunciationTitle;
+
+  /// No description provided for @coachPronunciationMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'ボタンを押したまま読んでみましょう。声調が合っているか、その場で判定します。'**
+  String get coachPronunciationMessage;
+
   /// No description provided for @sentencePreparing.
   ///
   /// In ja, this message translates to:
@@ -781,6 +793,12 @@ abstract class L10n {
   /// **'プラン'**
   String get settingsPlan;
 
+  /// No description provided for @settingsPlanTrial.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアム体験中'**
+  String get settingsPlanTrial;
+
   /// No description provided for @settingsDeleteAccount.
   ///
   /// In ja, this message translates to:
@@ -988,20 +1006,20 @@ abstract class L10n {
   /// No description provided for @trialEndedBody.
   ///
   /// In ja, this message translates to:
-  /// **'ここからは無料プランでの学習になります。体験中に使えていた次の機能は、プレミアムでそのまま続けられます。'**
+  /// **'今日から無料プランになります。'**
   String get trialEndedBody;
 
-  /// No description provided for @trialEndedLostTopic.
+  /// No description provided for @trialEndedChangeQuota.
   ///
   /// In ja, this message translates to:
-  /// **'学びたいテーマを自分で選べる'**
-  String get trialEndedLostTopic;
+  /// **'例文　1日{premium}回 → {free}回'**
+  String trialEndedChangeQuota(int premium, int free);
 
-  /// No description provided for @trialEndedLostQuality.
+  /// No description provided for @trialEndedChangePronunciation.
   ///
   /// In ja, this message translates to:
-  /// **'より自然で表現豊かな例文で学べる'**
-  String get trialEndedLostQuality;
+  /// **'発音チェック　無制限 → 1日{count}回'**
+  String trialEndedChangePronunciation(int count);
 
   /// No description provided for @trialEndedLater.
   ///
@@ -1447,10 +1465,22 @@ abstract class L10n {
   /// **'{currency} {amount} / 月'**
   String paywallPrice(String currency, String amount);
 
+  /// No description provided for @paywallFeatureQuotaTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文をたくさん学べる'**
+  String get paywallFeatureQuotaTitle;
+
+  /// No description provided for @paywallFeatureQuotaCount.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文{count}回/日'**
+  String paywallFeatureQuotaCount(int count);
+
   /// No description provided for @paywallFeature1Title.
   ///
   /// In ja, this message translates to:
-  /// **'ネイティブ品質で例文生成'**
+  /// **'タイ人が使う言い回しで学べる'**
   String get paywallFeature1Title;
 
   /// No description provided for @paywallFeature1Free.
@@ -1462,44 +1492,56 @@ abstract class L10n {
   /// No description provided for @paywallFeature1Premium.
   ///
   /// In ja, this message translates to:
-  /// **'ネイティブが使う言い回し'**
+  /// **'タイ人の自然な言い回し'**
   String get paywallFeature1Premium;
 
-  /// No description provided for @paywallFeature2Title.
+  /// No description provided for @paywallFeaturePronunciationTitle.
   ///
   /// In ja, this message translates to:
-  /// **'タイドラマ・恋愛・旅行など'**
-  String get paywallFeature2Title;
+  /// **'発音を繰り返し確認できる'**
+  String get paywallFeaturePronunciationTitle;
 
-  /// No description provided for @paywallFeature2Free.
+  /// No description provided for @paywallFeaturePronunciationFree.
   ///
   /// In ja, this message translates to:
-  /// **'おまかせ出題のみ'**
-  String get paywallFeature2Free;
+  /// **'発音チェック{count}回/日'**
+  String paywallFeaturePronunciationFree(int count);
 
-  /// No description provided for @paywallFeature2Premium.
+  /// No description provided for @paywallFeaturePronunciationPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'無制限'**
+  String get paywallFeaturePronunciationPremium;
+
+  /// No description provided for @paywallFeatureOtherTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'その他のプレミアム特典'**
+  String get paywallFeatureOtherTitle;
+
+  /// No description provided for @paywallFeatureOtherTopic.
   ///
   /// In ja, this message translates to:
   /// **'学びたいテーマを自由に選べる'**
-  String get paywallFeature2Premium;
+  String get paywallFeatureOtherTopic;
 
-  /// No description provided for @paywallFeature3Title.
+  /// No description provided for @paywallFeatureOtherVocab.
   ///
   /// In ja, this message translates to:
-  /// **'学べる単語数が無制限'**
-  String get paywallFeature3Title;
+  /// **'単語数の上限（Freeは{limit}語）が外れ、ドラマのセリフも理解できる'**
+  String paywallFeatureOtherVocab(int limit);
 
-  /// No description provided for @paywallFeature3Free.
+  /// No description provided for @paywallTrialActive.
   ///
   /// In ja, this message translates to:
-  /// **'基礎100語まで'**
-  String get paywallFeature3Free;
+  /// **'いまはプレミアム体験中です。期間が終わると、ここは元の内容に戻ります。'**
+  String get paywallTrialActive;
 
-  /// No description provided for @paywallFeature3Premium.
+  /// No description provided for @paywallTrialEnded.
   ///
   /// In ja, this message translates to:
-  /// **'ドラマのセリフも理解できる'**
-  String get paywallFeature3Premium;
+  /// **'体験期間中に使えていた機能です。'**
+  String get paywallTrialEnded;
 
   /// No description provided for @onboarding1Title.
   ///
@@ -1510,19 +1552,19 @@ abstract class L10n {
   /// No description provided for @onboarding1Body.
   ///
   /// In ja, this message translates to:
-  /// **'毎日新しい例文が届きます。\nカードをタップで発音・意味・音声を確認。'**
+  /// **'毎日新しい例文が届きます。\nカードをタップで単語・意味を確認。'**
   String get onboarding1Body;
 
   /// No description provided for @onboarding2Title.
   ///
   /// In ja, this message translates to:
-  /// **'例文とクイズで学習'**
+  /// **'声調を含めた発音練習'**
   String get onboarding2Title;
 
   /// No description provided for @onboarding2Body.
   ///
   /// In ja, this message translates to:
-  /// **'例文を読んだらクイズで確認。\n毎日くり返して着実に定着します。'**
+  /// **'お手本を聞いて自分の声を録音。\n声調のズレをその場で確認できます。'**
   String get onboarding2Body;
 
   /// No description provided for @onboarding3Title.
@@ -1534,7 +1576,7 @@ abstract class L10n {
   /// No description provided for @onboarding3Body.
   ///
   /// In ja, this message translates to:
-  /// **'間違えた単語はくり返し出題。\nスコアに合わせて難易度も変化します。'**
+  /// **'間違えた単語はくり返し出題。\nスコアに応じて例文のレベルが上がります。'**
   String get onboarding3Body;
 
   /// No description provided for @onboardingSkip.
@@ -1636,44 +1678,38 @@ abstract class L10n {
   /// No description provided for @premiumHint1Title.
   ///
   /// In ja, this message translates to:
-  /// **'タイ例文のテーマを選べます'**
+  /// **'学びたいテーマを自由に選べる'**
   String get premiumHint1Title;
 
   /// No description provided for @premiumHint1Body.
   ///
   /// In ja, this message translates to:
-  /// **'タイドラマ・恋愛・旅行など、学びたいテーマから出題'**
+  /// **'タイドラマ・恋愛・旅行など、次の例文のテーマを指定できます'**
   String get premiumHint1Body;
 
   /// No description provided for @premiumHint2Title.
   ///
   /// In ja, this message translates to:
-  /// **'ネイティブが使う言い回しで学べます'**
+  /// **'タイ人が使う言い回しで学べる'**
   String get premiumHint2Title;
 
   /// No description provided for @premiumHint2Body.
   ///
   /// In ja, this message translates to:
-  /// **'教科書的な基礎文から、実際の会話で使われる表現へ'**
+  /// **'教科書的な基礎文から、タイ人の自然な言い回しへ'**
   String get premiumHint2Body;
 
   /// No description provided for @premiumHint3Title.
   ///
   /// In ja, this message translates to:
-  /// **'学べる単語数が無制限に'**
+  /// **'単語数の上限が外れる'**
   String get premiumHint3Title;
 
   /// No description provided for @premiumHint3Body.
   ///
   /// In ja, this message translates to:
-  /// **'基礎100語の先へ。ドラマのセリフも聞き取れるように'**
+  /// **'基礎100語の先へ。ドラマのセリフも理解できる'**
   String get premiumHint3Body;
-
-  /// No description provided for @premiumHintCta.
-  ///
-  /// In ja, this message translates to:
-  /// **'プレミアムを見る →'**
-  String get premiumHintCta;
 
   /// No description provided for @signInReminderTitle.
   ///
@@ -1732,7 +1768,7 @@ abstract class L10n {
   /// No description provided for @quizOfferOneQuestion.
   ///
   /// In ja, this message translates to:
-  /// **'1問だけ確認'**
+  /// **'覚えたか確認'**
   String get quizOfferOneQuestion;
 
   /// No description provided for @quizOfferBody.
@@ -1744,7 +1780,7 @@ abstract class L10n {
   /// No description provided for @quizOfferTryOne.
   ///
   /// In ja, this message translates to:
-  /// **'1問だけやってみる'**
+  /// **'確認する'**
   String get quizOfferTryOne;
 
   /// No description provided for @audioRepeat.
@@ -1969,17 +2005,77 @@ abstract class L10n {
   /// **'Android では発音（子音・母音）の判定に対応していません。声調だけを見ています'**
   String get pronunciationSpeechAndroid;
 
-  /// No description provided for @pronunciationPremiumTitle.
+  /// No description provided for @pronunciationCoachLead.
   ///
   /// In ja, this message translates to:
-  /// **'発音練習はプレミアム機能です'**
-  String get pronunciationPremiumTitle;
+  /// **'次はここを直す'**
+  String get pronunciationCoachLead;
 
-  /// No description provided for @pronunciationPremiumBody.
+  /// No description provided for @pronunciationCoachShapeMid.
   ///
   /// In ja, this message translates to:
-  /// **'録音した声をお手本と比べ、音節ごとの声調と、語が通じたかを返します。'**
-  String get pronunciationPremiumBody;
+  /// **'平声は、高さを変えずに平らに伸ばす'**
+  String get pronunciationCoachShapeMid;
+
+  /// No description provided for @pronunciationCoachShapeLow.
+  ///
+  /// In ja, this message translates to:
+  /// **'低声は、低いところで下げ気味のまま保つ'**
+  String get pronunciationCoachShapeLow;
+
+  /// No description provided for @pronunciationCoachShapeFalling.
+  ///
+  /// In ja, this message translates to:
+  /// **'下降声は、高いところから始めて最後まで下げ切る'**
+  String get pronunciationCoachShapeFalling;
+
+  /// No description provided for @pronunciationCoachShapeHigh.
+  ///
+  /// In ja, this message translates to:
+  /// **'高声は、上げたところで止めずに最後まで上げ続ける'**
+  String get pronunciationCoachShapeHigh;
+
+  /// No description provided for @pronunciationCoachShapeRising.
+  ///
+  /// In ja, this message translates to:
+  /// **'上昇声は、一度下げてから上げ切る'**
+  String get pronunciationCoachShapeRising;
+
+  /// No description provided for @pronunciationCoachStepUp.
+  ///
+  /// In ja, this message translates to:
+  /// **'{tone}は、直前の音より高いところから入る'**
+  String pronunciationCoachStepUp(String tone);
+
+  /// No description provided for @pronunciationCoachStepDown.
+  ///
+  /// In ja, this message translates to:
+  /// **'{tone}は、直前の音より低いところから入る'**
+  String pronunciationCoachStepDown(String tone);
+
+  /// No description provided for @pronunciationCoachNotRecognized.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」が聞き取れませんでした。もう少しはっきり言ってみる'**
+  String pronunciationCoachNotRecognized(String word);
+
+  /// No description provided for @pronunciationLimitTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の無料の発音チェックは終わりました'**
+  String get pronunciationLimitTitle;
+
+  /// No description provided for @pronunciationLimitBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムなら回数を気にせず、何度でも発音を確かめられます。'**
+  String get pronunciationLimitBody;
+
+  /// No description provided for @pronunciationFreeRemaining.
+  ///
+  /// In ja, this message translates to:
+  /// **'無料の発音チェック 残り{count}回'**
+  String pronunciationFreeRemaining(int count);
 
   /// No description provided for @tipWithExample.
   ///

@@ -226,6 +226,27 @@ ThaiTone toneFromName(String name) {
   }
 }
 
+/// [Syllable.toneMark] が持つ文字列表現から、実際の声調記号の文字へ。
+///
+/// **声調記号と声調は1対1ではない。** 同じ ่ でも中子音なら低声、低子音なら
+/// 下降声になり、記号が無くても子音クラスと生死で声調は決まる。
+/// ここが返すのは対応表ではなく、**その音節が実際に書かれている記号**。
+/// 記号を持たない音節（多数ある）は空文字。
+String toneMarkCharOf(String? name) {
+  switch (name) {
+    case 'maiEk':
+      return '่';
+    case 'maiTho':
+      return '้';
+    case 'maiTri':
+      return '๊';
+    case 'maiChattawa':
+      return '๋';
+    default:
+      return '';
+  }
+}
+
 /// 例文全体のお手本カーブ。
 class ReferenceContour {
   /// 全音節を連結した点列。

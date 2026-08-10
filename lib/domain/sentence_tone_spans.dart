@@ -60,12 +60,27 @@ class SentenceToneSpans {
   /// 判定には使わない、ログのためだけの文字列。
   final List<String> syllableLabels;
 
+  /// 音節ごとに、実際に書かれている声調記号（[tones] と同じ順）。
+  ///
+  /// 記号を持たない音節は空文字。**声調から引いた対応表ではない**
+  /// （同じ記号でも子音クラスで声調が変わるため、逆引きは成立しない）。
+  final List<String> toneMarks;
+
+  /// 音節ごとの、声調記号付きローマ字（[tones] と同じ順）。取れなければ空文字。
+  ///
+  /// 語の発音表記をハイフンで割って音節に対応づける。**ローマ字は TLTK、
+  /// 音節分割は PyThaiNLP と出所が違う**ので、数が食い違う語がある。
+  /// その語は全て空にする（ずれたまま名指しすると助言が別の音節を指す）。
+  final List<String> syllableRomans;
+
   const SentenceToneSpans({
     required this.tones,
     required this.words,
     required this.shortSyllables,
     required this.syllablePoints,
     this.syllableLabels = const [],
+    this.toneMarks = const [],
+    this.syllableRomans = const [],
   });
 
   bool get isEmpty => tones.isEmpty;
@@ -75,12 +90,30 @@ class SentenceToneSpans {
 ///
 /// 音節データを持たない語は飛ばす。サーバーが音節を返さなかった古い例文が
 /// 混ざっても、残りの語だけで練習できるようにするため。
+/// 語の発音表記を音節へ割る。数が合わなければ全て空文字で返す。
+///
+/// **数が合わないまま前から詰めてはいけない。** 1つずれるだけで、助言が
+/// 別の音節を名指しする。出せないときは出さない方がまだ良い。
+List<String> _romansOf(String pronunciation, int syllableCount) {
+  final parts = pronunciation
+      .split('-')
+      .map((p) => p.trim())
+      .where((p) => p.isNotEmpty)
+      .toList();
+  if (parts.length != syllableCount) {
+    return List.filled(syllableCount, '');
+  }
+  return parts;
+}
+
 SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
   final tones = <ThaiTone>[];
   final spans = <WordToneSpan>[];
   final short = <bool>[];
   final points = <int>[];
   final labels = <String>[];
+  final marks = <String>[];
+  final romans = <String>[];
 
   for (final word in words) {
     final syllables = word.syllables;
@@ -112,6 +145,8 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
           '[${s.hasShortVowel == true || ThaiToneAnalyzer.hasSpecialShortVowel(s.text) ? "短" : "長"}'
           '/${s.syllableType == "dead" ? "死" : "生"}]',
     ));
+    marks.addAll(syllables.map((s) => toneMarkCharOf(s.toneMark)));
+    romans.addAll(_romansOf(word.pronunciation, syllables.length));
   }
 
   return SentenceToneSpans(
@@ -120,5 +155,7 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
     shortSyllables: short,
     syllablePoints: points,
     syllableLabels: labels,
+    toneMarks: marks,
+    syllableRomans: romans,
   );
 }

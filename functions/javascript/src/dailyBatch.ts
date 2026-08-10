@@ -21,6 +21,9 @@ import {
 import {
   EXPIRY_DEMOTION_MARGIN_MS, GRACE_PERIOD_MAX_MS, STORE_PLATFORMS,
 } from './constants/subscription';
+import {
+  ceilToJstMidnight, isTrialActive, isTrialExpired, trialExpiresAtMs,
+} from './utils/premium';
 
 const db = admin.firestore();
 
@@ -281,12 +284,31 @@ export async function resetQuota(
       isStoreSubscription);
 
   const isPremium = tier === 'premium' && !subscriptionLapsed;
-  const sentenceResetValue = isPremium ?
+  // トライアル中は課金 premium と同じ回数を出す。
+  const trialActive = isTrialActive(userData);
+  const effectivePremium = isPremium || trialActive;
+  const sentenceResetValue = effectivePremium ?
     PREMIUM_DAILY_SENTENCES :
     FREE_DAILY_SENTENCES;
-  const quizResetValue = isPremium ?
+  const quizResetValue = effectivePremium ?
     PREMIUM_DAILY_QUIZZES :
     FREE_DAILY_QUIZZES;
+
+  // 体験終了ダイアログは「回数が free に戻ってから」出したい。期限切れ後の最初の
+  // リセットでここに刻み、クライアントはこの時刻の有無だけを見る。
+  const markTrialEnded =
+    !isPremium && isTrialExpired(userData) && !userData.premium_trial_ended_at;
+
+  // 期限を JST 0:00（このリセットの境界）へ切り上げて揃える。既に揃っていれば
+  // 書き換えは起きない。1.3.14 以前は期限そのものを見て体験終了を知らせるため、
+  // 揃えておかないと「まだ premium の回数が残っている日」に終了を告げてしまう。
+  const trialExpiresAt = trialExpiresAtMs(userData);
+  const alignedTrialExpiresAt =
+    trialActive && trialExpiresAt !== null ?
+      ceilToJstMidnight(trialExpiresAt) :
+      null;
+  const realignTrial =
+    alignedTrialExpiresAt !== null && alignedTrialExpiresAt !== trialExpiresAt;
 
   if (subscriptionLapsed) {
     console.log(`resetQuota: demoting lapsed premium user ${userDoc.id}`);
@@ -308,6 +330,14 @@ export async function resetQuota(
       remaining_quizzes: quizResetValue,
       daily_sentence_generated: false,
       ...(utcHour !== null ? { notify_utc_hour: utcHour } : {}),
+      ...(markTrialEnded ? {
+        premium_trial_ended_at: admin.firestore.FieldValue.serverTimestamp(),
+      } : {}),
+      ...(realignTrial ? {
+        premium_trial_expires_at: admin.firestore.Timestamp.fromMillis(
+          alignedTrialExpiresAt as number,
+        ),
+      } : {}),
       ...(subscriptionLapsed ? {
         tier: 'free',
         subscription: { status: 'expired' },

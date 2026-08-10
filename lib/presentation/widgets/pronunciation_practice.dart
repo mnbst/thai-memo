@@ -16,14 +16,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/pronunciation/pronunciation_analyzer.dart';
+import '../../core/pronunciation/pronunciation_coach.dart';
 import '../../core/pronunciation/pronunciation_scorer.dart';
 import '../../core/pronunciation/transcript_match.dart';
 import '../../core/pronunciation/word_verdict.dart';
+import '../../core/thai_tone_analyzer.dart';
 import '../../data/models/word_breakdown.dart';
 import '../../domain/sentence_tone_spans.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/pronunciation_provider.dart';
-import '../providers/subscription_provider.dart';
+import '../providers/pronunciation_quota_provider.dart';
+import '../providers/remaining_quota_provider.dart';
 import '../screens/paywall_screen.dart';
 
 /// 判定の3段階に対応する色。
@@ -89,7 +92,12 @@ class PronunciationPractice extends ConsumerWidget {
     if (spans.isEmpty) return const SizedBox.shrink();
 
     final l10n = L10n.of(context);
-    final isPremium = ref.watch(subscriptionControllerProvider).isPremium;
+    // 体験中も課金と同じく無制限。
+    final isPremium = ref.watch(effectivePremiumProvider);
+    // free でも毎日少しだけ使える。使ったことがない機能には課金できないため。
+    final used = ref.watch(pronunciationQuotaProvider);
+    final remaining = freeDailyPronunciationChecks - used;
+    final locked = !isPremium && remaining <= 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,16 +117,31 @@ class PronunciationPractice extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 8),
-        if (!isPremium)
+        if (locked)
           _PremiumLock(l10n: l10n)
-        else
-          _PracticeBody(sentenceId: id, spans: spans, l10n: l10n),
+        else ...[
+          _PracticeBody(
+            sentenceId: id,
+            spans: spans,
+            l10n: l10n,
+            countsAgainstQuota: !isPremium,
+          ),
+          if (!isPremium) ...[
+            const SizedBox(height: 6),
+            Text(
+              l10n.pronunciationFreeRemaining(remaining),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ],
       ],
     );
   }
 }
 
-/// free ユーザー向けの案内。録音ボタンの代わりに置く。
+/// 無料枠を使い切った free ユーザー向けの案内。録音ボタンの代わりに置く。
 class _PremiumLock extends StatelessWidget {
   const _PremiumLock({required this.l10n});
 
@@ -145,12 +168,12 @@ class _PremiumLock extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.pronunciationPremiumTitle,
+                    l10n.pronunciationLimitTitle,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    l10n.pronunciationPremiumBody,
+                    l10n.pronunciationLimitBody,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -168,11 +191,15 @@ class _PracticeBody extends ConsumerWidget {
     required this.sentenceId,
     required this.spans,
     required this.l10n,
+    required this.countsAgainstQuota,
   });
 
   final String sentenceId;
   final SentenceToneSpans spans;
   final L10n l10n;
+
+  /// free のときだけ true。採点が成立した回だけ枠を消費する。
+  final bool countsAgainstQuota;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -218,13 +245,20 @@ class _PracticeBody extends ConsumerWidget {
         return _RecordButton(
           recording: state.phase == PronunciationPhase.recording,
           onStart: controller.startRecording,
-          onStop: () => controller.stopAndAnalyze(
-            tones: spans.tones,
-            shortSyllables: spans.shortSyllables,
-            syllablePoints: spans.syllablePoints,
-            syllableLabels: spans.syllableLabels,
-            expectedWords: spans.words.map((w) => w.wordText).toList(),
-          ),
+          onStop: () async {
+            await controller.stopAndAnalyze(
+              tones: spans.tones,
+              shortSyllables: spans.shortSyllables,
+              syllablePoints: spans.syllablePoints,
+              syllableLabels: spans.syllableLabels,
+              expectedWords: spans.words.map((w) => w.wordText).toList(),
+            );
+            // 声が小さい・音節が取れない等で採点できなかった回は消費しない。
+            final scored = ref.read(provider).result?.isScored ?? false;
+            if (countsAgainstQuota && scored) {
+              await ref.read(pronunciationQuotaProvider.notifier).consume();
+            }
+          },
           l10n: l10n,
         );
     }
@@ -399,6 +433,20 @@ class _ResultView extends StatelessWidget {
               l10n.pronunciationScore(result.overallScore.round()),
               style: theme.textTheme.titleMedium,
             ),
+          // 帯は「どこを」しか言わない。言い直す前に「どう」を1つだけ足す。
+          if (!result.isMonotone) ...[
+            const SizedBox(height: 8),
+            _CoachCard(
+              tip: coachingTipOf(
+                result.syllables,
+                recognition: recognition,
+                wordTexts: [for (final w in spans.words) w.wordText],
+                toneMarks: spans.toneMarks,
+                romans: spans.syllableRomans,
+              ),
+              l10n: l10n,
+            ),
+          ],
           const SizedBox(height: 8),
           _WordChips(
             result: result,
@@ -451,6 +499,136 @@ List<SyllableScore> _scoresOfWord(
   return result.syllables
       .where((s) => span.contains(s.syllableIndex))
       .toList();
+}
+
+/// 次の1回で直す点を1つだけ出す。直すところが無ければ何も描かない。
+class _CoachCard extends StatelessWidget {
+  const _CoachCard({required this.tip, required this.l10n});
+
+  final CoachingTip? tip;
+  final L10n l10n;
+
+  String _text(CoachingTip tip) {
+    switch (tip.issue) {
+      case CoachIssue.notRecognized:
+        return l10n.pronunciationCoachNotRecognized(tip.wordText ?? '');
+      case CoachIssue.shape:
+        switch (tip.tone) {
+          case ThaiTone.mid:
+            return l10n.pronunciationCoachShapeMid;
+          case ThaiTone.low:
+            return l10n.pronunciationCoachShapeLow;
+          case ThaiTone.falling:
+            return l10n.pronunciationCoachShapeFalling;
+          case ThaiTone.high:
+            return l10n.pronunciationCoachShapeHigh;
+          case ThaiTone.rising:
+            return l10n.pronunciationCoachShapeRising;
+          case ThaiTone.unknown:
+          case null:
+            // coachingTipOf が除外しているので到達しない。
+            return '';
+        }
+      case CoachIssue.step:
+        final tone = tip.tone!.displayName(l10n);
+        return tip.stepUp
+            ? l10n.pronunciationCoachStepUp(tone)
+            : l10n.pronunciationCoachStepDown(tone);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tip = this.tip;
+    if (tip == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.primaryContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lightbulb_outline, size: 18, color: cs.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      l10n.pronunciationCoachLead,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                    // ローマ字を優先する。声調記号（◌้）は表記の知識が要るが、
+                    // ローマ字は声調が母音の上に直接乗るので、どの音をどう
+                    // 動かすのかがそのまま読める。取れない語では記号に落ちる。
+                    if (_syllableLabel(tip).isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      _ToneMarkChip(label: _syllableLabel(tip)),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _text(tip),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// コーチングが指した音節をどう見せるか。
+///
+/// ローマ字が取れていればそれ。無ければタイ文字の声調記号を点線円（U+25CC）に
+/// 載せる（結合文字なので、単独で置くと土台を失って崩れる）。
+String _syllableLabel(CoachingTip tip) {
+  if (tip.roman.isNotEmpty) return tip.roman;
+  if (tip.toneMark.isNotEmpty) return '◌${tip.toneMark}';
+  return '';
+}
+
+/// コーチングが指した音節を1つ表示する。
+class _ToneMarkChip extends StatelessWidget {
+  const _ToneMarkChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(color: cs.primary),
+      ),
+    );
+  }
 }
 
 /// 語ごとの判定を色帯で並べる。

@@ -18,7 +18,6 @@ import '../providers/quiz_offer_experiment_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
-import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
 import '../widgets/notification_coach_dialog.dart';
@@ -139,6 +138,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   ///
   /// 黙って機能が減ると不具合に見えるので、終了そのものを伝えることが主目的。
   /// 表示できなかった場合はフラグを立てないので、次の起動で出し直される。
+  ///
+  /// 期限そのものではなく premium_trial_ended_at（期限切れ後の最初の日次リセットで
+  /// dailyBatch が刻む）で判定する。期限切れ当日はまだ premium の回数が残っており、
+  /// 何も失っていないうちに「終了しました」と言うと嘘になる。
   Future<void> _maybeShowPremiumTrialEnded() async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(AppConfig.prefKeyPremiumTrialEndedNotified) ?? false) {
@@ -148,13 +151,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await ref.read(userDocProvider.future);
     if (!mounted) return;
 
-    // 期限を持たない旧ユーザー（回数制のまま）には出さない。
-    final expiresAt = ref.read(premiumTrialExpiresAtProvider).valueOrNull;
-    if (expiresAt == null || DateTime.now().isBefore(expiresAt)) return;
-    if (ref.read(isPremiumRealtimeProvider).valueOrNull ??
-        ref.read(isPremiumProvider)) {
-      return;
-    }
+    // トライアルを持たない旧ユーザーには出さない。
+    if (ref.read(premiumTrialEndedAtProvider).valueOrNull == null) return;
+    if (ref.read(effectivePremiumProvider)) return;
 
     if (CoachMarkOverlay.isVisible ||
         ModalRoute.of(context)?.isCurrent != true) {
@@ -194,6 +193,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ref.read(settingsControllerProvider).notificationCoachShown) {
       return;
     }
+    // 初回ガイドの最中には割り込ませない。初回は例文が自動生成されるため
+    // 「例文がある」だけでは価値を体験したことにならず、まだ何も学習して
+    // いないうちに通知の案内が出てしまう。
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false)) return;
+    if (!mounted) return;
     final sentences = await ref.read(allSentencesProvider.future);
     if (sentences.isEmpty || !mounted) return;
     await _maybeShowNotificationCoach();
@@ -726,16 +731,12 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
                     _setStage(_LearningStage.summaryQuiz);
                   }
                 : null,
+            // まとめクイズをスキップした場合は通知の案内を出さない。
+            // 1周を終えた実感がないまま案内すると断られやすく、iOSでは
+            // 一度拒否されると二度と要求できない。次の起動で出し直される。
             onNextSentence: () async {
-              // まとめクイズをスキップした場合も1周ぶんは体験し終えているので、
-              // 通知の案内はここでも出す（表示済みなら中で抑止される）。
-              final skippedFirstSummaryQuiz =
-                  offerSummaryQuiz && !_firstSummaryQuizCompleted;
               await _setCompletedCount(_completedCount + 1);
               await _proceedToNextSentence();
-              if (skippedFirstSummaryQuiz) {
-                widget.onFirstCycleCompleted?.call();
-              }
             },
           ),
         ),
@@ -856,6 +857,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   final Set<String> _loggedQuizOfferShown = {};
   final Set<String> _handledQuizOfferTaps = {};
   bool _quizOfferAssignmentHandled = false;
+  bool _sentenceCoachInFlight = false;
 
   @override
   void initState() {
@@ -871,7 +873,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   @override
   void dispose() {
-    CoachMarkOverlay.dismiss();
+    CoachMarkOverlay.dismissFor(_sentenceCardKey);
+    CoachMarkOverlay.dismissFor(_quizButtonKey);
     _sentenceScrollController
       ..removeListener(_maybeLogVisibleQuizOffer)
       ..dispose();
@@ -883,6 +886,18 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   /// 「確認クイズへ」ボタンを案内する。
   /// 例文が表示され、前面にダイアログ等がない場合のみ。
   Future<void> _maybeShowSentenceCoach() async {
+    // 詳細からの復帰と再描画で二重に走ると、表示後にもう一方の
+    // ensureVisible がスクロールし、スポットだけ取り残される。
+    if (_sentenceCoachInFlight) return;
+    _sentenceCoachInFlight = true;
+    try {
+      await _showSentenceCoach();
+    } finally {
+      _sentenceCoachInFlight = false;
+    }
+  }
+
+  Future<void> _showSentenceCoach() async {
     if (ref.read(sentenceControllerProvider) is! SentenceStateSuccess) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false) return;
@@ -1025,6 +1040,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 const SizedBox(height: 12),
                 _buildSentenceCard(context, sentence,
                     cardKey: _sentenceCardKey),
+                const PremiumHintBanner(),
                 if (quizOfferVariant?.isInline ?? false) ...[
                   const SizedBox(height: 16),
                   QuizOffer(
@@ -1034,7 +1050,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         _handleQuizOfferTap(sentence, quizOfferVariant),
                   ),
                 ],
-                const PremiumHintBanner(),
               ],
             ),
           ),
@@ -1529,9 +1544,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   }
 
   bool _legacySentenceLooksPremium() {
-    return (ref.watch(isPremiumRealtimeProvider).valueOrNull ??
-            ref.watch(isPremiumProvider)) ==
-        true;
+    // 体験中も premium スペックで生成しているので premium 表示にする。
+    return ref.watch(effectivePremiumProvider);
   }
 
   static const _levelThresholds = [100, 300, 600, 1500];

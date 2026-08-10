@@ -5,6 +5,7 @@ import pytest
 from constants import resolve_lang
 from sentence_handlers import (
     _build_sentence_commit_update,
+    _ceil_to_jst_midnight,
     _build_sentence_data,
     _effective_generation_params,
     _resolve_trial_active,
@@ -121,33 +122,21 @@ _PAST = _NOW - timedelta(seconds=1)
 
 
 @pytest.mark.parametrize(
-    "is_premium, trial_requested, trial_remaining, trial_expires_at, expected",
+    "is_premium, trial_expires_at, expected",
     [
-        # 期限内なら残回数に関わらず切り替え（期間制が本体）
-        (False, True, 10, _FUTURE, True),
-        (False, True, 0, _FUTURE, True),
-        # 期限切れは free のまま。残回数が残っていても復活させない
-        (False, True, 10, _PAST, False),
-        # 要求が無ければ消費しない（自動生成等）
-        (False, False, 10, _FUTURE, False),
-        # premium は tier 側で premium 扱い、トライアルは消費しない
-        (True, True, 10, _FUTURE, False),
-        # 期限を持たない旧doc は従来どおり残回数で判定する
-        (False, True, 5, None, True),
-        (False, True, 1, None, True),
-        (False, True, 0, None, False),
-        (False, False, 5, None, False),
-        (True, True, 5, None, False),
+        # 期限内なら premium と同じ扱いに切り替える
+        (False, _FUTURE, True),
+        # 期限切れ・期限なし（旧doc）は free のまま
+        (False, _PAST, False),
+        (False, None, False),
+        # premium は tier 側で premium 扱い
+        (True, _FUTURE, False),
     ],
 )
-def test_resolve_trial_active(
-    is_premium, trial_requested, trial_remaining, trial_expires_at, expected
-):
+def test_resolve_trial_active(is_premium, trial_expires_at, expected):
     assert (
         _resolve_trial_active(
             is_premium=is_premium,
-            trial_requested=trial_requested,
-            trial_remaining=trial_remaining,
             trial_expires_at=trial_expires_at,
             now=_NOW,
         )
@@ -173,15 +162,13 @@ def test_trial_expires_at_missing_field():
     assert _trial_expires_at({}) is None
 
 
-# ---- 通常クォータとトライアル枠の独立消費（_build_sentence_commit_update）----
+# ---- 通常クォータの消費（_build_sentence_commit_update）----
 
 
-def test_commit_update_consumes_normal_quota_without_trial():
-    # トライアル非対象（trial_decrement=0）: 通常クォータのみ消費し trial 枠は触らない
+def test_commit_update_consumes_normal_quota():
+    # トライアルは期間制なので、消費するのは通常クォータだけ。
     update = _build_sentence_commit_update(
-        {"remaining_sentences": 5, "premium_trial_remaining": 5},
-        decrement_count=1,
-        trial_decrement=0,
+        {"remaining_sentences": 5}, decrement_count=1
     )
 
     assert update["remaining_sentences"].value == -1
@@ -189,40 +176,15 @@ def test_commit_update_consumes_normal_quota_without_trial():
     assert "premium_trial_remaining" not in update
 
 
-def test_commit_update_consumes_trial_and_normal_independently():
-    # トライアル対象: 通常クォータとトライアル枠を別々に1ずつ消費
-    update = _build_sentence_commit_update(
-        {"remaining_sentences": 5, "premium_trial_remaining": 5},
-        decrement_count=1,
-        trial_decrement=1,
-    )
-
-    assert update["remaining_sentences"].value == -1
-    assert update["premium_trial_remaining"].value == -1
-
-
-def test_commit_update_does_not_decrement_trial_below_zero():
-    # 残回数0のトライアル枠は減算しない（通常クォータは通常どおり消費）
-    update = _build_sentence_commit_update(
-        {"remaining_sentences": 5, "premium_trial_remaining": 0},
-        decrement_count=1,
-        trial_decrement=1,
-    )
-
-    assert update["remaining_sentences"].value == -1
-    assert "premium_trial_remaining" not in update
-
-
 def test_commit_update_sets_first_generated_at_only_once():
     first = _build_sentence_commit_update(
-        {"remaining_sentences": 5}, decrement_count=1, trial_decrement=0
+        {"remaining_sentences": 5}, decrement_count=1
     )
     assert "first_generated_at" in first
 
     again = _build_sentence_commit_update(
         {"remaining_sentences": 5, "first_generated_at": "2026-01-01"},
         decrement_count=1,
-        trial_decrement=0,
     )
     assert "first_generated_at" not in again
 
@@ -380,3 +342,18 @@ def test_produce_sentence_free_cache_miss_falls_back_to_llm(monkeypatch):
     assert from_cache is False
     assert sentence["generation_tier"] == "free"
     assert captured["topic"] == "食事"
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        # JST 14:00 → 翌 JST 0:00（= UTC 15:00）
+        (datetime(2026, 8, 12, 5, 0, tzinfo=timezone.utc),
+         datetime(2026, 8, 12, 15, 0, tzinfo=timezone.utc)),
+        # ちょうど JST 0:00 ならそのまま
+        (datetime(2026, 8, 12, 15, 0, tzinfo=timezone.utc),
+         datetime(2026, 8, 12, 15, 0, tzinfo=timezone.utc)),
+    ],
+)
+def test_ceil_to_jst_midnight(value, expected):
+    assert _ceil_to_jst_midnight(value) == expected

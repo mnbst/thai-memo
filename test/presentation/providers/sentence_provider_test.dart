@@ -22,8 +22,7 @@ ThaiSentence _sentence() => ThaiSentence(
 
 void main() {
   late String tier;
-  late int trialRemaining;
-  late int topicClearedCount;
+  late bool trialActive;
   late Map<String, String?>? capturedParams;
   late FakeAnalyticsService analytics;
 
@@ -40,11 +39,7 @@ void main() {
       analytics,
       () => tier,
       () => '旅行',
-      () => trialRemaining > 0,
-      () => trialRemaining,
-      () async {
-        topicClearedCount += 1;
-      },
+      () => trialActive,
       () => lookupL10n(const Locale('ja')),
       generateSentence: generate ??
           ({Map<String, String?> generationParams = const {}}) async {
@@ -57,14 +52,13 @@ void main() {
 
   setUp(() {
     tier = 'free';
-    trialRemaining = 0;
-    topicClearedCount = 0;
+    trialActive = false;
     capturedParams = null;
     analytics = FakeAnalyticsService();
   });
 
-  test('freeかつトライアル残ありならtopicを維持してpremium_trialを送る', () async {
-    trialRemaining = 3;
+  test('freeでもトライアル中ならtopicを維持してpremium_trialを送る', () async {
+    trialActive = true;
     final controller = createController();
 
     await controller.generateSentence(
@@ -76,38 +70,7 @@ void main() {
       'style': '丁寧',
       'premium_trial': 'true',
     });
-    expect(topicClearedCount, 0);
     expect(controller.state, isA<SentenceStateSuccess>());
-  });
-
-  test('freeでトライアル最終回を使ったらtopicをクリアする', () async {
-    trialRemaining = 1;
-    final controller = createController();
-
-    await controller.generateSentence(
-      generationParams: const {'topic': '旅行'},
-    );
-
-    expect(capturedParams, containsPair('premium_trial', 'true'));
-    expect(topicClearedCount, 1);
-  });
-
-  test('トライアル生成中にpremiumへ変わった場合はtopicをクリアしない', () async {
-    trialRemaining = 1;
-    final controller = createController(
-      generate: ({Map<String, String?> generationParams = const {}}) async {
-        capturedParams = generationParams;
-        tier = 'premium';
-        return _sentence();
-      },
-    );
-
-    await controller.generateSentence(
-      generationParams: const {'topic': '旅行'},
-    );
-
-    expect(capturedParams, containsPair('premium_trial', 'true'));
-    expect(topicClearedCount, 0);
   });
 
   test('freeかつトライアルなしならtopicを送らない', () async {
@@ -118,7 +81,6 @@ void main() {
     );
 
     expect(capturedParams, {'style': '丁寧'});
-    expect(topicClearedCount, 0);
   });
 
   test('premiumならtopicを維持しpremium_trialは送らない', () async {
@@ -130,12 +92,11 @@ void main() {
     );
 
     expect(capturedParams, {'topic': '旅行', 'style': '丁寧'});
-    expect(topicClearedCount, 0);
   });
 
   group('analytics', () {
     test('トライアル生成はtier=freeでもtopicを記録する', () async {
-      trialRemaining = 3;
+      trialActive = true;
       final controller = createController();
 
       await controller.generateSentence(
@@ -189,7 +150,7 @@ void main() {
     });
 
     test('未生成のトライアル中ユーザーはtopic維持＋premium_trialを送る', () async {
-      trialRemaining = 3;
+      trialActive = true;
       final controller = createController();
 
       await controller.loadOrGenerateToday(
@@ -198,20 +159,7 @@ void main() {
       );
 
       expect(capturedParams, {'topic': '旅行', 'premium_trial': 'true'});
-      expect(topicClearedCount, 0);
-    });
-
-    test('自動生成でトライアル最終回を使い切ったらtopicをクリアする', () async {
-      trialRemaining = 1;
-      final controller = createController();
-
-      await controller.loadOrGenerateToday(
-        dailySentenceGenerated: false,
-        generationParams: const {'topic': '旅行'},
-      );
-
-      expect(topicClearedCount, 1);
-    });
+      });
 
     test('生成済みなら最新を表示し生成しない', () async {
       final controller = createController(

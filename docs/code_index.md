@@ -236,6 +236,9 @@ lib/core/pronunciation/transcript_match.dart
 lib/core/pronunciation/word_verdict.dart
 語ごとの声調判定と、声調＋発音を1本の帯にまとめる総合判定。
 
+lib/core/pronunciation/pronunciation_coach.dart
+採点結果から「次の1回で直す点」を1つだけ選ぶ。判定の2軸（形・入り方）をそのまま使う。
+
 lib/services/speech_capture_service.dart
 ネイティブのマイク収録との橋渡し。マイクは1箇所だけが握り、PCMと音声認識へ分岐する。
 
@@ -244,6 +247,9 @@ lib/services/pitch_recorder_service.dart
 
 lib/presentation/providers/pronunciation_provider.dart
 発音練習の状態管理（録音→判定→永続化）と、声調別集計・最弱声調の算出。
+
+lib/presentation/providers/pronunciation_quota_provider.dart
+free の発音チェック回数（1日5回）。判定は端末内なのでカウンタもローカル（SharedPreferences）。
 
 lib/presentation/widgets/pronunciation_practice.dart
 例文詳細の発音練習セクション。語ごとの判定色帯と、選択した語のピッチカーブ描画。
@@ -331,6 +337,9 @@ JST日付フォーマットユーティリティ。
 functions/javascript/src/utils/notifyUtcHour.ts
 配信希望時刻（現地）が対応するUTC時刻を算出。users.notify_utc_hourの非正規化に使う。
 
+functions/javascript/src/utils/premium.ts
+実効プレミアム判定（課金 premium ＋ 体験トライアル期間中）。tier 直参照の代わりに使う。
+
 functions/javascript/src/utils/lang.ts
 リクエストのlangをja/enへ正規化。未知・欠落はja。Python側 constants.resolve_lang と同規則。
 
@@ -359,11 +368,20 @@ PyThaiNLPの軽量ローダ。sys.modulesにスタブを置きパッケージ__i
 functions/python/pos_adjectives.py
 形容詞（状態動詞）辞書。build_adjective_dict.pyが生成する自動生成ファイル。
 
+functions/python/scripts/build_non_vocab_dict.py
+freq_rank上位語をLLMに分類させnon_vocab.pyを生成するオフラインスクリプト。
+
 functions/python/scripts/build_adjective_dict.py
 freq_rank上位語をLLMに分類させpos_adjectives.pyを生成するオフラインスクリプト。
 
 functions/python/bound_morphemes.py
 拘束形態素（น่า, การ など単独で自立しない語）辞書。freq_rank生成時に除外する語のリスト。build_bound_morpheme_dict.pyが生成する自動生成ファイル。
+
+functions/python/interjections.py
+間投詞・感嘆詞（อ๋อ, เฮ้อ, โอ้ย など）辞書。freq_rank生成時に除外する語のリスト。手動メンテ。
+
+functions/python/non_vocab.py
+学習語彙にならない語（終助詞มั้ง・人名断片ซู・口語崩れงี้）辞書。build_non_vocab_dict.pyが生成する自動生成ファイル。
 
 functions/python/pronunciation.py
 タイ文字→ローマ字発音変換（声調記号付き）。TLTKはtltk/th2ipa.pyだけをファイル指定で単独ロードし、nltk/scipyの読み込みを回避する。
@@ -443,8 +461,8 @@ docs/infra_hardening.md
 scripts/build_freq_rank.py
 タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。corpus_word_filter.pyのDENYLIST（終助詞・感嘆詞＋拘束形態素）を除外して採番する。
 
-scripts/strip_bound_morphemes.py
-既存freq_rankから拘束形態素を除去しrankを連番で振り直す一度きりの移行スクリプト。
+scripts/strip_denylist.py
+既存freq_rankから拘束形態素・間投詞を除去しrankを連番で振り直す移行スクリプト。
 
 scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。

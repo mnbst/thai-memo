@@ -29,8 +29,15 @@ import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/firebase_auth_service.dart';
 import '../providers/analytics_provider.dart';
+import '../providers/pronunciation_quota_provider.dart';
+import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../widgets/sign_in_sheet.dart';
+import '../widgets/vocab_score_dialog.dart';
+
+/// 1日あたりの例文生成回数。サーバ側の quota.ts / constants.py と一致させること。
+const freeDailySentences = 5;
+const premiumDailySentences = 10;
 
 /// プレミアムプランの説明を表示するモーダルボトムシート
 class PaywallBottomSheet extends ConsumerWidget {
@@ -147,6 +154,7 @@ class PaywallBottomSheet extends ConsumerWidget {
                             ),
                         textAlign: TextAlign.center,
                       ),
+                      _buildTrialNote(context, ref),
                       const SizedBox(height: 16),
                       _buildMainBenefits(context),
                     ],
@@ -374,14 +382,41 @@ class PaywallBottomSheet extends ConsumerWidget {
     return l10n.paywallPrice(currencyCode, rawPrice.toStringAsFixed(2));
   }
 
+  /// プレミアム体験に触れる一行。
+  ///
+  /// 体験を持っていないユーザー（期限が無い旧ユーザー）には何も出さない。
+  /// ストアの無料トライアルではないので、価格の近くではなく説明側に置く。
+  Widget _buildTrialNote(BuildContext context, WidgetRef ref) {
+    final expiresAt = ref.watch(premiumTrialExpiresAtProvider).valueOrNull;
+    if (expiresAt == null) return const SizedBox.shrink();
+    final active = DateTime.now().isBefore(expiresAt);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        active
+            ? L10n.of(context).paywallTrialActive
+            : L10n.of(context).paywallTrialEnded,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
   Widget _buildMainBenefits(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    Widget benefitRow({
+    final premiumStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: colorScheme.primary,
+          fontWeight: FontWeight.bold,
+        );
+
+    Widget row({
       required IconData icon,
       required String title,
-      String? freeText,
-      required String premiumText,
+      required List<Widget> body,
     }) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,25 +434,62 @@ class PaywallBottomSheet extends ConsumerWidget {
                       ),
                 ),
                 const SizedBox(height: 4),
-                if (freeText != null) ...[
-                  Text(
-                    freeText,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                ],
-                Text(
-                  '→ $premiumText',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
+                ...body,
               ],
             ),
           ),
+        ],
+      );
+    }
+
+    /// Free では何がどこまでで、プレミアムでどうなるかを1行ずつ対比させる。
+    Widget benefitRow({
+      required IconData icon,
+      required String title,
+      required String freeText,
+      required String premiumText,
+    }) {
+      return row(
+        icon: icon,
+        title: title,
+        body: [
+          Text(
+            freeText,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text('→ $premiumText', style: premiumStyle),
+        ],
+      );
+    }
+
+    /// 対比では書ききれない特典をまとめる行。
+    ///
+    /// 矢印が無い分「プレミアムで得られるもの」という文脈が切れやすいので、
+    /// 1項目ずつチェックを付けて、上の行と同じ側の話だと分かるようにする。
+    Widget bulletRow({
+      required IconData icon,
+      required String title,
+      required List<String> items,
+    }) {
+      return row(
+        icon: icon,
+        title: title,
+        body: [
+          for (final item in items)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.check, size: 16, color: colorScheme.primary),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(item, style: premiumStyle)),
+                ],
+              ),
+            ),
         ],
       );
     }
@@ -431,6 +503,31 @@ class PaywallBottomSheet extends ConsumerWidget {
       child: Column(
         children: [
           benefitRow(
+            icon: Icons.bolt,
+            title: L10n.of(context).paywallFeatureQuotaTitle,
+            freeText: L10n.of(context)
+                .paywallFeatureQuotaCount(freeDailySentences),
+            premiumText: L10n.of(context)
+                .paywallFeatureQuotaCount(premiumDailySentences),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: colorScheme.outlineVariant),
+          ),
+          // 数で示せる2つ（例文・発音）を先に置き、質的な訴求（ネイティブ）を後に。
+          // 体験終了ダイアログの並び（例文→発音）とも揃えている。
+          benefitRow(
+            icon: Icons.mic_none,
+            title: L10n.of(context).paywallFeaturePronunciationTitle,
+            freeText: L10n.of(context)
+                .paywallFeaturePronunciationFree(freeDailyPronunciationChecks),
+            premiumText: L10n.of(context).paywallFeaturePronunciationPremium,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: colorScheme.outlineVariant),
+          ),
+          benefitRow(
             icon: Icons.translate,
             title: L10n.of(context).paywallFeature1Title,
             freeText: L10n.of(context).paywallFeature1Free,
@@ -440,21 +537,13 @@ class PaywallBottomSheet extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1, color: colorScheme.outlineVariant),
           ),
-          benefitRow(
-            icon: Icons.auto_awesome,
-            title: L10n.of(context).paywallFeature2Title,
-            freeText: L10n.of(context).paywallFeature2Free,
-            premiumText: L10n.of(context).paywallFeature2Premium,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: colorScheme.outlineVariant),
-          ),
-          benefitRow(
-            icon: Icons.school,
-            title: L10n.of(context).paywallFeature3Title,
-            freeText: L10n.of(context).paywallFeature3Free,
-            premiumText: L10n.of(context).paywallFeature3Premium,
+          bulletRow(
+            icon: Icons.add_circle_outline,
+            title: L10n.of(context).paywallFeatureOtherTitle,
+            items: [
+              L10n.of(context).paywallFeatureOtherTopic,
+              L10n.of(context).paywallFeatureOtherVocab(freeVocabScoreLimit),
+            ],
           ),
         ],
       ),

@@ -76,6 +76,13 @@ class L10nJa extends L10n {
   String get coachQuizMessage => '例文を読んだら、確認クイズに進みましょう。';
 
   @override
+  String get coachPronunciationTitle => '声に出して確かめる';
+
+  @override
+  String get coachPronunciationMessage =>
+      'ボタンを押したまま読んでみましょう。声調が合っているか、その場で判定します。';
+
+  @override
   String get sentencePreparing => '次の例文を準備中...';
 
   @override
@@ -370,6 +377,9 @@ class L10nJa extends L10n {
   String get settingsPlan => 'プラン';
 
   @override
+  String get settingsPlanTrial => 'プレミアム体験中';
+
+  @override
   String get settingsDeleteAccount => 'アカウントを削除';
 
   @override
@@ -478,14 +488,17 @@ class L10nJa extends L10n {
   String get trialEndedTitle => 'プレミアム体験が終了しました';
 
   @override
-  String get trialEndedBody =>
-      'ここからは無料プランでの学習になります。体験中に使えていた次の機能は、プレミアムでそのまま続けられます。';
+  String get trialEndedBody => '今日から無料プランになります。';
 
   @override
-  String get trialEndedLostTopic => '学びたいテーマを自分で選べる';
+  String trialEndedChangeQuota(int premium, int free) {
+    return '例文　1日$premium回 → $free回';
+  }
 
   @override
-  String get trialEndedLostQuality => 'より自然で表現豊かな例文で学べる';
+  String trialEndedChangePronunciation(int count) {
+    return '発音チェック　無制限 → 1日$count回';
+  }
 
   @override
   String get trialEndedLater => 'あとで';
@@ -736,49 +749,67 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get paywallFeature1Title => 'ネイティブ品質で例文生成';
+  String get paywallFeatureQuotaTitle => '例文をたくさん学べる';
+
+  @override
+  String paywallFeatureQuotaCount(int count) {
+    return '例文$count回/日';
+  }
+
+  @override
+  String get paywallFeature1Title => 'タイ人が使う言い回しで学べる';
 
   @override
   String get paywallFeature1Free => '教科書的な基礎文';
 
   @override
-  String get paywallFeature1Premium => 'ネイティブが使う言い回し';
+  String get paywallFeature1Premium => 'タイ人の自然な言い回し';
 
   @override
-  String get paywallFeature2Title => 'タイドラマ・恋愛・旅行など';
+  String get paywallFeaturePronunciationTitle => '発音を繰り返し確認できる';
 
   @override
-  String get paywallFeature2Free => 'おまかせ出題のみ';
+  String paywallFeaturePronunciationFree(int count) {
+    return '発音チェック$count回/日';
+  }
 
   @override
-  String get paywallFeature2Premium => '学びたいテーマを自由に選べる';
+  String get paywallFeaturePronunciationPremium => '無制限';
 
   @override
-  String get paywallFeature3Title => '学べる単語数が無制限';
+  String get paywallFeatureOtherTitle => 'その他のプレミアム特典';
 
   @override
-  String get paywallFeature3Free => '基礎100語まで';
+  String get paywallFeatureOtherTopic => '学びたいテーマを自由に選べる';
 
   @override
-  String get paywallFeature3Premium => 'ドラマのセリフも理解できる';
+  String paywallFeatureOtherVocab(int limit) {
+    return '単語数の上限（Freeは$limit語）が外れ、ドラマのセリフも理解できる';
+  }
+
+  @override
+  String get paywallTrialActive => 'いまはプレミアム体験中です。期間が終わると、ここは元の内容に戻ります。';
+
+  @override
+  String get paywallTrialEnded => '体験期間中に使えていた機能です。';
 
   @override
   String get onboarding1Title => 'AIがタイ語例文を毎日生成';
 
   @override
-  String get onboarding1Body => '毎日新しい例文が届きます。\nカードをタップで発音・意味・音声を確認。';
+  String get onboarding1Body => '毎日新しい例文が届きます。\nカードをタップで単語・意味を確認。';
 
   @override
-  String get onboarding2Title => '例文とクイズで学習';
+  String get onboarding2Title => '声調を含めた発音練習';
 
   @override
-  String get onboarding2Body => '例文を読んだらクイズで確認。\n毎日くり返して着実に定着します。';
+  String get onboarding2Body => 'お手本を聞いて自分の声を録音。\n声調のズレをその場で確認できます。';
 
   @override
   String get onboarding3Title => 'クイズで語彙スコアUP';
 
   @override
-  String get onboarding3Body => '間違えた単語はくり返し出題。\nスコアに合わせて難易度も変化します。';
+  String get onboarding3Body => '間違えた単語はくり返し出題。\nスコアに応じて例文のレベルが上がります。';
 
   @override
   String get onboardingSkip => 'スキップ';
@@ -829,25 +860,22 @@ class L10nJa extends L10n {
   String get commonGotIt => 'わかった';
 
   @override
-  String get premiumHint1Title => 'タイ例文のテーマを選べます';
+  String get premiumHint1Title => '学びたいテーマを自由に選べる';
 
   @override
-  String get premiumHint1Body => 'タイドラマ・恋愛・旅行など、学びたいテーマから出題';
+  String get premiumHint1Body => 'タイドラマ・恋愛・旅行など、次の例文のテーマを指定できます';
 
   @override
-  String get premiumHint2Title => 'ネイティブが使う言い回しで学べます';
+  String get premiumHint2Title => 'タイ人が使う言い回しで学べる';
 
   @override
-  String get premiumHint2Body => '教科書的な基礎文から、実際の会話で使われる表現へ';
+  String get premiumHint2Body => '教科書的な基礎文から、タイ人の自然な言い回しへ';
 
   @override
-  String get premiumHint3Title => '学べる単語数が無制限に';
+  String get premiumHint3Title => '単語数の上限が外れる';
 
   @override
-  String get premiumHint3Body => '基礎100語の先へ。ドラマのセリフも聞き取れるように';
-
-  @override
-  String get premiumHintCta => 'プレミアムを見る →';
+  String get premiumHint3Body => '基礎100語の先へ。ドラマのセリフも理解できる';
 
   @override
   String get signInReminderTitle => '学習の進捗を保護';
@@ -879,13 +907,13 @@ class L10nJa extends L10n {
   String get quizOfferToQuiz => '確認クイズへ';
 
   @override
-  String get quizOfferOneQuestion => '1問だけ確認';
+  String get quizOfferOneQuestion => '覚えたか確認';
 
   @override
   String get quizOfferBody => 'この例文の単語を覚えたか、すぐ確認できます。';
 
   @override
-  String get quizOfferTryOne => '1問だけやってみる';
+  String get quizOfferTryOne => '確認する';
 
   @override
   String get audioRepeat => 'リピート';
@@ -1009,10 +1037,48 @@ class L10nJa extends L10n {
       'Android では発音（子音・母音）の判定に対応していません。声調だけを見ています';
 
   @override
-  String get pronunciationPremiumTitle => '発音練習はプレミアム機能です';
+  String get pronunciationCoachLead => '次はここを直す';
 
   @override
-  String get pronunciationPremiumBody => '録音した声をお手本と比べ、音節ごとの声調と、語が通じたかを返します。';
+  String get pronunciationCoachShapeMid => '平声は、高さを変えずに平らに伸ばす';
+
+  @override
+  String get pronunciationCoachShapeLow => '低声は、低いところで下げ気味のまま保つ';
+
+  @override
+  String get pronunciationCoachShapeFalling => '下降声は、高いところから始めて最後まで下げ切る';
+
+  @override
+  String get pronunciationCoachShapeHigh => '高声は、上げたところで止めずに最後まで上げ続ける';
+
+  @override
+  String get pronunciationCoachShapeRising => '上昇声は、一度下げてから上げ切る';
+
+  @override
+  String pronunciationCoachStepUp(String tone) {
+    return '$toneは、直前の音より高いところから入る';
+  }
+
+  @override
+  String pronunciationCoachStepDown(String tone) {
+    return '$toneは、直前の音より低いところから入る';
+  }
+
+  @override
+  String pronunciationCoachNotRecognized(String word) {
+    return '「$word」が聞き取れませんでした。もう少しはっきり言ってみる';
+  }
+
+  @override
+  String get pronunciationLimitTitle => '今日の無料の発音チェックは終わりました';
+
+  @override
+  String get pronunciationLimitBody => 'プレミアムなら回数を気にせず、何度でも発音を確かめられます。';
+
+  @override
+  String pronunciationFreeRemaining(int count) {
+    return '無料の発音チェック 残り$count回';
+  }
 
   @override
   String tipWithExample(String content, String example) {

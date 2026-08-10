@@ -23,14 +23,16 @@ export const PREMIUM_DAILY_QUIZZES = 5;
 /**
  * 新規ユーザーへのプレミアム体験トライアル期間（日）。
  * 2日にして「連続して使う」体験を作る。期限は premium_trial_expires_at。
+ * 期間中は機能・回数とも課金 premium と完全に同じ（utils/premium.ts）。
  */
 export const PREMIUM_TRIAL_DAYS = 2;
 
 /**
- * 同トライアルの残回数（互換用）。
- * 残回数しか見ない旧クライアントが期間中に使い切らないよう、1日の上限×日数を入れる。
- * トライアルは premium 体験なので premium 側の上限を基準にする（free 基準だと
- * 期間中に足りなくなる）。期限切れの検知とゼロ書き込みは
- * generateThaiSentence（Python）側で行う。
+ * premium_trial_remaining の付与値（凍結した互換値）。
+ *
+ * トライアルは期間制に一本化済みで、サーバはこの値を読まないし減らさない。
+ * ただし 1.3.14（現行ストア版）までのクライアントは「残回数 <= 1 なら体験最終回」と見なして
+ * 設定テーマを「おまかせ」へ戻すため、書かないと体験中の1回目でテーマが消える。
+ * 該当バージョンが行き渡らなくなったらフィールドごと削除してよい。
  */
 export const PREMIUM_TRIAL_SENTENCES = PREMIUM_DAILY_SENTENCES * PREMIUM_TRIAL_DAYS;
