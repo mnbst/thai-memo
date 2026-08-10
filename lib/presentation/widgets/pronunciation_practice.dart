@@ -677,8 +677,22 @@ class _WordChips extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  span.wordText,
+                Text.rich(
+                  TextSpan(
+                    text: span.wordText,
+                    children: [
+                      // 発音表記。色帯で「直せ」と言われても、読み方が出て
+                      // いなければ何を直すのか分からない。
+                      if (span.pronunciation.isNotEmpty)
+                        TextSpan(
+                          text: ' (${span.pronunciation})',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: scheme.outline,
+                                  ),
+                        ),
+                    ],
+                  ),
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 3),

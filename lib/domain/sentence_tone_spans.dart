@@ -14,6 +14,9 @@ import '../data/models/word_breakdown.dart';
 class WordToneSpan {
   final String wordText;
 
+  /// 語の発音表記（音節はハイフン区切り）。
+  final String pronunciation;
+
   /// 音節列における開始位置。
   final int start;
 
@@ -22,6 +25,7 @@ class WordToneSpan {
 
   const WordToneSpan({
     required this.wordText,
+    this.pronunciation = '',
     required this.start,
     required this.length,
   });
@@ -121,6 +125,7 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
 
     spans.add(WordToneSpan(
       wordText: word.wordText,
+      pronunciation: word.pronunciation,
       start: tones.length,
       length: syllables.length,
     ));
