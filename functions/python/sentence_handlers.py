@@ -10,9 +10,9 @@ from google.cloud.firestore_v1 import transactional
 
 try:
     from .constants import (
-        FREE_DAILY_QUIZZES,
-        FREE_DAILY_SENTENCES,
         FREE_TIER_MAX_VOCAB,
+        PREMIUM_DAILY_QUIZZES,
+        PREMIUM_DAILY_SENTENCES,
         PREMIUM_TRIAL_DAYS,
         PREMIUM_TRIAL_SENTENCES,
         resolve_lang,
@@ -34,9 +34,9 @@ try:
     )
 except ImportError:
     from constants import (
-        FREE_DAILY_QUIZZES,
-        FREE_DAILY_SENTENCES,
         FREE_TIER_MAX_VOCAB,
+        PREMIUM_DAILY_QUIZZES,
+        PREMIUM_DAILY_SENTENCES,
         PREMIUM_TRIAL_DAYS,
         PREMIUM_TRIAL_SENTENCES,
         resolve_lang,
@@ -90,6 +90,18 @@ def _select_target_words_with_topic(
     )
 
 
+_JST = timezone(timedelta(hours=9))
+
+
+def _ceil_to_jst_midnight(value: datetime) -> datetime:
+    """value 以降で最初の JST 0:00 を返す（ちょうど 0:00 ならそのまま）。"""
+    local = value.astimezone(_JST)
+    midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
+    if midnight < local:
+        midnight += timedelta(days=1)
+    return midnight.astimezone(timezone.utc)
+
+
 def _trial_expires_at(user_data: dict) -> datetime | None:
     """トライアル期限を tz-aware な datetime で返す。旧docには無いので None。"""
     value = user_data.get("premium_trial_expires_at")
@@ -103,23 +115,19 @@ def _trial_expires_at(user_data: dict) -> datetime | None:
 def _resolve_trial_active(
     *,
     is_premium: bool,
-    trial_requested: bool,
-    trial_remaining: int,
     trial_expires_at: datetime | None,
     now: datetime,
 ) -> bool:
     """この生成を premium ロジックに切り替えるか判定する。
 
-    free ユーザーがトライアル枠を要求し、トライアルが有効な場合のみ True。
-    有効判定は期限（premium_trial_expires_at）で行う。期限を持たない旧doc
-    のユーザーだけ、従来どおり残回数で判定する。
-    premium ユーザーは tier 側で premium 扱いになるためトライアルは消費しない。
+    トライアルは期間制で、期間中は完全に premium と同じ扱いにする。
+    クライアントの申告（premium_trial）は見ない。旧クライアントでも同じ体験に
+    なるべきで、申告に依存させると端末ごとに差が出る。
+    premium ユーザーは tier 側で premium 扱いになるので False。
     """
-    if is_premium or not trial_requested:
+    if is_premium or trial_expires_at is None:
         return False
-    if trial_expires_at is not None:
-        return now < trial_expires_at
-    return trial_remaining > 0
+    return now < trial_expires_at
 
 
 def _effective_generation_params(params: dict, *, is_premium: bool) -> dict:
@@ -272,29 +280,17 @@ def _build_sentence_data(
 def _build_sentence_commit_update(
     user_data: dict,
     decrement_count: int,
-    trial_decrement: int,
 ) -> dict:
     """例文コミット時の users ドキュメント更新内容を組み立てる。
 
-    通常クォータ（remaining_sentences）は常に decrement_count 消費し、
-    プレミアム体験トライアル（premium_trial_remaining）はそれとは独立に
-    残回数を 0 未満にしない範囲でのみ消費する。
+    トライアルは期間制なので、消費するのは通常クォータ（remaining_sentences）だけ。
     """
-    # トライアル残回数は0未満にしない（通常クォータ消費とは独立）
-    trial_remaining = user_data.get("premium_trial_remaining", 0)
-    trial_decrement = min(trial_decrement, trial_remaining)
-
     return {
         "remaining_sentences": firestore.firestore.Increment(-decrement_count),
         "daily_sentence_generated": True,
         "last_active_at": firestore.firestore.SERVER_TIMESTAMP,
         "last_sentence_generated_at": firestore.firestore.SERVER_TIMESTAMP,
         "sentence_generated_count": firestore.firestore.Increment(decrement_count),
-        **(
-            {"premium_trial_remaining": firestore.firestore.Increment(-trial_decrement)}
-            if trial_decrement > 0
-            else {}
-        ),
         **(
             {"first_generated_at": firestore.firestore.SERVER_TIMESTAMP}
             if "first_generated_at" not in user_data
@@ -309,7 +305,6 @@ def _commit_sentences_transaction(
     user_ref,
     sentence_writes: list[tuple],
     decrement_count: int,
-    trial_decrement: int = 0,
 ) -> None:
     user_snapshot = user_ref.get(transaction=transaction)
     user_data = (user_snapshot.to_dict() or {}) if user_snapshot.exists else {}
@@ -322,7 +317,7 @@ def _commit_sentences_transaction(
 
     transaction.update(
         user_ref,
-        _build_sentence_commit_update(user_data, decrement_count, trial_decrement),
+        _build_sentence_commit_update(user_data, decrement_count),
     )
 
 
@@ -333,12 +328,15 @@ def _ensure_user_quota(user_ref) -> dict:
     競合しても既存フィールドを壊さない。値は constants.py（= quota.ts）で一元管理。
     """
     initial = {
-        "remaining_sentences": FREE_DAILY_SENTENCES,
-        "remaining_quizzes": FREE_DAILY_QUIZZES,
+        # 付与直後はトライアル中なので premium と同じ回数を出す。
+        "remaining_sentences": PREMIUM_DAILY_SENTENCES,
+        "remaining_quizzes": PREMIUM_DAILY_QUIZZES,
         "daily_sentence_generated": False,
-        # 期限が本体。残回数は残回数しか見ない旧クライアント向けに併記する。
-        "premium_trial_expires_at": datetime.now(timezone.utc)
-        + timedelta(days=PREMIUM_TRIAL_DAYS),
+        # 期限はクォータのリセット境界（JST 0:00）に揃える。utils/premium.ts と同じ規則。
+        "premium_trial_expires_at": _ceil_to_jst_midnight(
+            datetime.now(timezone.utc) + timedelta(days=PREMIUM_TRIAL_DAYS)
+        ),
+        # 旧クライアント（〜1.3.15）がテーマを消さないための凍結値。減らさない。
         "premium_trial_remaining": PREMIUM_TRIAL_SENTENCES,
     }
     user_ref.set(initial, merge=True)
@@ -417,31 +415,13 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         tier = user_data.get("tier", "free")
         is_premium = tier == "premium"
 
-        # プレミアム体験トライアル: free ユーザーがトライアル枠を要求し、残回数があれば
-        # この生成だけ premium ロジック（テーマ選択・premiumプロンプト）で出す。
-        trial_remaining = user_data.get("premium_trial_remaining", 0)
-        trial_expires_at = _trial_expires_at(user_data)
-        trial_requested = bool((req.data or {}).get("premium_trial"))
+        # プレミアム体験トライアル: 期間中は premium ロジック
+        # （テーマ選択・premiumプロンプト・語彙上限なし）で出す。
         trial_active = _resolve_trial_active(
             is_premium=is_premium,
-            trial_requested=trial_requested,
-            trial_remaining=trial_remaining,
-            trial_expires_at=trial_expires_at,
+            trial_expires_at=_trial_expires_at(user_data),
             now=datetime.now(timezone.utc),
         )
-        # 期限切れなのに残回数が残っていると、残回数しか見ない旧クライアントが
-        # トライアル中の表示のまま固まる。ここで0を書いて表示を追従させる。
-        if (
-            trial_expires_at is not None
-            and not trial_active
-            and trial_remaining > 0
-            and datetime.now(timezone.utc) >= trial_expires_at
-        ):
-            try:
-                user_ref.update({"premium_trial_remaining": 0})
-                trial_remaining = 0
-            except Exception as exc:  # noqa: BLE001
-                print(f"Failed to clear expired premium trial: {exc}")
 
         # 生成スペック・テーマ採用は tier または トライアルで premium 相当とする
         effective_premium = is_premium or trial_active
@@ -516,7 +496,6 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
                 user_ref,
                 [(sentence_ref, sentence_data)],
                 1,
-                trial_decrement=1 if trial_active else 0,
             )
         except Exception as exc:
             print(f"Failed to save sentence to Firestore: {exc}")

@@ -151,7 +151,6 @@ def _commit_daily_sentence_body(
     sentence_ref,
     sentence_data: dict,
     now: datetime,
-    consume_trial: bool,
 ) -> tuple[str, dict]:
     """例文docの書き込みとクォータ消費・段階更新を1トランザクションで行う。
 
@@ -159,10 +158,6 @@ def _commit_daily_sentence_body(
 
     last_sentence_generated_at は書かない。あれは「次へ」押下＝反応のシグナルであり、
     配信そのものを反応として数えてはいけない。
-
-    consume_trial は例文生成前の判定なので、ここで最新の残回数を見て0未満にしない。
-    生成後に手動生成で使い切られていた場合は消費せず、premium品質の例文を1回ぶん
-    サービスする（LLM原価は既に払っており、取り返せないため）。
     """
     user_snapshot = user_ref.get(transaction=transaction)
     user_data = (user_snapshot.to_dict() or {}) if user_snapshot.exists else {}
@@ -178,22 +173,11 @@ def _commit_daily_sentence_body(
             {"last_notified_at": firestore.firestore.SERVER_TIMESTAMP, **tier_update}
         )
 
-    trial_decrement = (
-        1
-        if consume_trial and user_data.get("premium_trial_remaining", 0) > 0
-        else 0
-    )
-
     restore = {
         "notify_tier": user_data.get("notify_tier", 0),
         "notify_tier_misses": user_data.get("notify_tier_misses", 0),
         "last_notified_at": user_data.get("last_notified_at")
         or firestore.firestore.DELETE_FIELD,
-        **(
-            {"premium_trial_remaining": firestore.firestore.Increment(trial_decrement)}
-            if trial_decrement
-            else {}
-        ),
     }
 
     transaction.set(sentence_ref, sentence_data)
@@ -203,15 +187,6 @@ def _commit_daily_sentence_body(
             "remaining_sentences": firestore.firestore.Increment(-1),
             "daily_sentence_generated": True,
             "last_notified_at": firestore.firestore.SERVER_TIMESTAMP,
-            **(
-                {
-                    "premium_trial_remaining": firestore.firestore.Increment(
-                        -trial_decrement
-                    )
-                }
-                if trial_decrement
-                else {}
-            ),
             **tier_update,
         },
     )
@@ -321,18 +296,11 @@ def _deliver_one(
         if reason:
             return f"stale:{reason}"
 
-    # 生成前に確定させる。生成後だと produce_sentence の間に手動生成が入った場合に
-    # 「premium品質で作ったのに消費しない」「free品質なのに消費する」がずれる。
-    consume_trial = uses_premium_trial(user_data)
-
     picked = _build_sentence(db, uid, user_data)
     if picked is None:
         print(f"daily_sentence: no sentence available for {uid}")
         return "no_sentence"
     sentence, target_words, use_premium_spec = picked
-
-    # トライアル枠でもキャッシュに退避したなら premium 品質を出せていないので消費しない。
-    consume_trial = consume_trial and use_premium_spec
 
     sentence_data = {
         **_build_sentence_data(
@@ -350,7 +318,6 @@ def _deliver_one(
             sentence_ref,
             sentence_data,
             now,
-            consume_trial,
         )
     except _DeliveryNotDue:
         return "not_due_at_commit"

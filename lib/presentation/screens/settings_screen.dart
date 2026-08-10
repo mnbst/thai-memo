@@ -17,7 +17,6 @@ import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
-import '../widgets/coach_mark_overlay.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/sign_in_sheet.dart';
 import '../widgets/topic_picker.dart';
@@ -33,44 +32,16 @@ class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  ConsumerState<SettingsScreen> createState() => SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class SettingsScreenState extends ConsumerState<SettingsScreen> {
-  /// 毎日例文通知トグルの位置特定用（コーチマーク表示に使用）。
-  final GlobalKey _dailyReminderTileKey = GlobalKey();
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final ScrollController _scrollController = ScrollController();
 
   @override
   void dispose() {
-    CoachMarkOverlay.dismiss();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  /// 毎日例文通知のトグルをスポットライトで案内する（HomeScreenから呼ばれる）。
-  ///
-  /// OSの許可要求はここでは出さない。ユーザー自身がトグルを操作したときに
-  /// [SettingsController.setDailyReminderEnabled] 経由で出す。iOSでは一度拒否
-  /// されると二度と要求できないため、何のための通知かを伝えてから聞く。
-  Future<void> showDailyReminderCoach() async {
-    final target = _dailyReminderTileKey.currentContext;
-    if (target == null) return;
-    // 設定画面はスクロールするため、トグルを画面内に入れてから位置を確定させる。
-    await Scrollable.ensureVisible(target, alignment: 0.3);
-    if (!mounted) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _dailyReminderTileKey.currentContext == null) return;
-      CoachMarkOverlay.show(
-        context,
-        targetKey: _dailyReminderTileKey,
-        icon: Icons.notifications_active,
-        interactive: true,
-        title: L10n.of(context).coachNotificationTitle,
-        message: L10n.of(context).coachNotificationMessage,
-      );
-    });
   }
 
   @override
@@ -134,6 +105,16 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             Consumer(
               builder: (context, ref, _) {
                 final isPremium = ref.watch(isPremiumProvider);
+                // 体験中は課金と同じ機能が使えているので、そのことを出す。
+                // 「課金しているか」の表示なので Premium とは別ラベルにする。
+                final trialActive =
+                    !isPremium && ref.watch(effectivePremiumProvider);
+                final label = isPremium
+                    ? 'Premium'
+                    : trialActive
+                        ? L10n.of(context).settingsPlanTrial
+                        : 'Free';
+                final highlighted = isPremium || trialActive;
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.workspace_premium),
@@ -142,12 +123,12 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Chip(
-                        label: Text(isPremium ? 'Premium' : 'Free'),
-                        backgroundColor: isPremium
+                        label: Text(label),
+                        backgroundColor: highlighted
                             ? Theme.of(context).colorScheme.primaryContainer
                             : null,
                         labelStyle: TextStyle(
-                          color: isPremium
+                          color: highlighted
                               ? Theme.of(context).colorScheme.onPrimaryContainer
                               : null,
                           fontWeight: FontWeight.w600,
@@ -314,10 +295,14 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            // 言語切替は dev ビルドの動作確認専用。製品ビルドでは出さない。
+            // 言語切替は dev / tester の動作確認専用。製品ビルドでは出さない。
             // 訳文は生成時の言語で保存され、切り替えても履歴は書き換わらないため、
             // 実ユーザーに開くと1つの履歴に日英が混在する。言語はストア地域で決まる。
-            if (AppConfig.isDev)
+            //
+            // tester にも出す。言語は初回起動で1回決めて保存し以後は再評価しない
+            // ので、サンドボックスのストア地域で en に落ちると**戻す手段が無く**、
+            // 再インストールするまで日本語の確認ができない。
+            if (AppConfig.isDev || AppConfig.isTester)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.translate),
@@ -396,7 +381,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// dev ビルド専用の言語切替。導線は AppConfig.isDev で閉じている。
+  /// dev / tester 専用の言語切替。製品ビルドでは導線を閉じている。
   void _showLanguagePicker(AppLanguage current) {
     final l10n = L10n.of(context);
     showDialog<void>(
@@ -585,7 +570,6 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     final enabled = ref.watch(dailyReminderEnabledProvider);
 
     return SwitchListTile(
-      key: _dailyReminderTileKey,
       contentPadding: EdgeInsets.zero,
       secondary: Icon(
         Icons.notifications_active,
@@ -667,11 +651,8 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildTopicSelectTile() {
-    final isPremium = ref.watch(isPremiumProvider);
-    final trialActive =
-        ref.watch(premiumTrialActiveProvider).valueOrNull ?? false;
-    // Premium またはトライアル中はテーマ選択可。例文/クイズ画面のチップと判定を揃える。
-    final canSelect = isPremium || trialActive;
+    // Premium またはトライアル中はテーマ選択可。
+    final canSelect = ref.watch(effectivePremiumProvider);
     final currentTopic = ref.watch(generationParamsProvider)['topic'];
 
     final displayLabel = canSelect
@@ -748,7 +729,8 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildVocabScoreInline() {
     final statsAsync = ref.watch(vocabStatsProvider);
-    final isPremium = ref.watch(isPremiumProvider);
+    // 体験中はサーバー側も語彙上限を外しているので、表示も合わせる。
+    final isPremium = ref.watch(effectivePremiumProvider);
 
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;

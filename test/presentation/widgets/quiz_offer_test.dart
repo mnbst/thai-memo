@@ -39,7 +39,7 @@ void main() {
     expect(find.byKey(const ValueKey('quiz_offer_control_v1')), findsOneWidget);
     expect(find.byKey(const ValueKey('quiz_offer_inline_v1')), findsNothing);
     expect(find.text('確認クイズへ'), findsOneWidget);
-    expect(find.text('1問だけ確認'), findsNothing);
+    expect(find.text('覚えたか確認'), findsNothing);
 
     await tester.tap(find.text('確認クイズへ'));
     expect(taps, 1);
@@ -55,11 +55,11 @@ void main() {
 
     expect(find.byKey(const ValueKey('quiz_offer_inline_v1')), findsOneWidget);
     expect(find.byKey(const ValueKey('quiz_offer_control_v1')), findsNothing);
-    expect(find.text('1問だけ確認'), findsOneWidget);
-    expect(find.text('1問だけやってみる'), findsOneWidget);
+    expect(find.text('覚えたか確認'), findsOneWidget);
+    expect(find.text('確認する'), findsOneWidget);
     expect(find.text('確認クイズへ'), findsNothing);
 
-    await tester.tap(find.text('1問だけやってみる'));
+    await tester.tap(find.text('確認する'));
     expect(taps, 1);
   });
 }

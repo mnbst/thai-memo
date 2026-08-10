@@ -184,6 +184,26 @@ class DatabaseHelper {
         'INTEGER DEFAULT 0',
       );
     }
+
+    // Migrate from version 11 to 12: Add pronunciation practice tables
+    if (oldVersion < 12) {
+      await db.execute(
+        DatabaseConstants.createPronunciationAttemptsTable
+            .replaceFirst('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'),
+      );
+      await db.execute(
+        DatabaseConstants.createToneStatsTable
+            .replaceFirst('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'),
+      );
+      await db.execute(
+        DatabaseConstants.createSpeakerPitchProfileTable
+            .replaceFirst('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'),
+      );
+      await db.execute(
+        DatabaseConstants.createIndexPronunciationAttemptedAt
+            .replaceFirst('CREATE INDEX', 'CREATE INDEX IF NOT EXISTS'),
+      );
+    }
   }
 
   // ==================== Sentences CRUD Operations ====================
@@ -474,6 +494,102 @@ class DatabaseHelper {
     } catch (_) {
       return false;
     }
+  }
+
+  // ==================== Pronunciation Practice Operations ====================
+
+  /// Record one pronunciation attempt.
+  Future<void> insertPronunciationAttempt({
+    required String id,
+    required String sentenceId,
+    required double overallScore,
+  }) async {
+    final db = await database;
+    await db.insert(DatabaseConstants.tablePronunciationAttempts, {
+      DatabaseConstants.columnPronunciationId: id,
+      DatabaseConstants.columnPronunciationSentenceId: sentenceId,
+      DatabaseConstants.columnPronunciationAttemptedAt:
+          DateTime.now().millisecondsSinceEpoch,
+      DatabaseConstants.columnPronunciationScore: overallScore,
+    });
+  }
+
+  /// Accumulate per-tone outcomes.
+  ///
+  /// 声調ごとの試行数と正解数を積み上げる。「上昇声が苦手」レポートの原資。
+  Future<void> accumulateToneStats(
+    Map<String, ({int attempts, int correct})> outcomes,
+  ) async {
+    if (outcomes.isEmpty) return;
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    await db.transaction((txn) async {
+      for (final entry in outcomes.entries) {
+        await txn.rawInsert(
+          '''
+          INSERT INTO ${DatabaseConstants.tableToneStats} (
+            ${DatabaseConstants.columnToneStatsTone},
+            ${DatabaseConstants.columnToneStatsAttempts},
+            ${DatabaseConstants.columnToneStatsCorrect},
+            ${DatabaseConstants.columnToneStatsUpdatedAt}
+          ) VALUES (?, ?, ?, ?)
+          ON CONFLICT(${DatabaseConstants.columnToneStatsTone}) DO UPDATE SET
+            ${DatabaseConstants.columnToneStatsAttempts} =
+              ${DatabaseConstants.columnToneStatsAttempts} + ?,
+            ${DatabaseConstants.columnToneStatsCorrect} =
+              ${DatabaseConstants.columnToneStatsCorrect} + ?,
+            ${DatabaseConstants.columnToneStatsUpdatedAt} = ?
+          ''',
+          [
+            entry.key,
+            entry.value.attempts,
+            entry.value.correct,
+            now,
+            entry.value.attempts,
+            entry.value.correct,
+            now,
+          ],
+        );
+      }
+    });
+  }
+
+  /// Per-tone accuracy so far.
+  Future<List<Map<String, dynamic>>> getToneStats() async {
+    final db = await database;
+    return db.query(DatabaseConstants.tableToneStats);
+  }
+
+  /// Stored speaker pitch profile (single row), or null on first use.
+  Future<Map<String, dynamic>?> getSpeakerPitchProfile() async {
+    final db = await database;
+    final results = await db.query(
+      DatabaseConstants.tableSpeakerPitchProfile,
+      where: '${DatabaseConstants.columnProfileId} = ?',
+      whereArgs: [1],
+      limit: 1,
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  /// Persist the speaker pitch profile.
+  Future<void> saveSpeakerPitchProfile({
+    required double medianSemitone,
+    required double rangeSemitone,
+    required int sampleCount,
+  }) async {
+    final db = await database;
+    await db.insert(
+      DatabaseConstants.tableSpeakerPitchProfile,
+      {
+        DatabaseConstants.columnProfileId: 1,
+        DatabaseConstants.columnProfileMedianSemitone: medianSemitone,
+        DatabaseConstants.columnProfileRangeSemitone: rangeSemitone,
+        DatabaseConstants.columnProfileSampleCount: sampleCount,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   // ==================== Transaction Support ====================

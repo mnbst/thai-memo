@@ -73,6 +73,29 @@ class DatabaseConstants {
   static const String columnStreakLastCompletedDate = 'last_completed_date';
   static const String columnStreakUpdatedAt = 'updated_at';
 
+  // ==================== Pronunciation Attempts Table ====================
+  static const String tablePronunciationAttempts = 'pronunciation_attempts';
+  static const String columnPronunciationId = 'id';
+  static const String columnPronunciationSentenceId = 'sentence_id';
+  static const String columnPronunciationAttemptedAt = 'attempted_at';
+  static const String columnPronunciationScore = 'overall_score';
+
+  // ==================== Tone Stats Table ====================
+  /// 声調別の当たり外れ。「上昇声が苦手」レポートの原資。
+  static const String tableToneStats = 'tone_stats';
+  static const String columnToneStatsTone = 'tone';
+  static const String columnToneStatsAttempts = 'attempts';
+  static const String columnToneStatsCorrect = 'correct';
+  static const String columnToneStatsUpdatedAt = 'updated_at';
+
+  // ==================== Speaker Pitch Profile Table ====================
+  /// 録音を跨いで蓄積する声域。UIに出さない暗黙のキャリブレーション。
+  static const String tableSpeakerPitchProfile = 'speaker_pitch_profile';
+  static const String columnProfileId = 'id';
+  static const String columnProfileMedianSemitone = 'median_semitone';
+  static const String columnProfileRangeSemitone = 'range_semitone';
+  static const String columnProfileSampleCount = 'sample_count';
+
   // ==================== SQL Statements ====================
 
   /// Create sentences table
@@ -193,6 +216,42 @@ class DatabaseConstants {
     )
   ''';
 
+  /// Create pronunciation_attempts table
+  static const String createPronunciationAttemptsTable = '''
+    CREATE TABLE $tablePronunciationAttempts (
+      $columnPronunciationId TEXT PRIMARY KEY,
+      $columnPronunciationSentenceId TEXT NOT NULL,
+      $columnPronunciationAttemptedAt INTEGER NOT NULL,
+      $columnPronunciationScore REAL NOT NULL
+    )
+  ''';
+
+  /// Create index for pronunciation_attempts by attempted_at
+  static const String createIndexPronunciationAttemptedAt = '''
+    CREATE INDEX idx_pronunciation_attempts_attempted_at
+    ON $tablePronunciationAttempts($columnPronunciationAttemptedAt DESC)
+  ''';
+
+  /// Create tone_stats table
+  static const String createToneStatsTable = '''
+    CREATE TABLE $tableToneStats (
+      $columnToneStatsTone TEXT PRIMARY KEY,
+      $columnToneStatsAttempts INTEGER NOT NULL DEFAULT 0,
+      $columnToneStatsCorrect INTEGER NOT NULL DEFAULT 0,
+      $columnToneStatsUpdatedAt INTEGER NOT NULL
+    )
+  ''';
+
+  /// Create speaker_pitch_profile table (single row cache)
+  static const String createSpeakerPitchProfileTable = '''
+    CREATE TABLE $tableSpeakerPitchProfile (
+      $columnProfileId INTEGER PRIMARY KEY DEFAULT 1,
+      $columnProfileMedianSemitone REAL NOT NULL,
+      $columnProfileRangeSemitone REAL NOT NULL,
+      $columnProfileSampleCount INTEGER NOT NULL DEFAULT 0
+    )
+  ''';
+
   /// List of all create table statements
   static const List<String> createTableStatements = [
     createSentencesTable,
@@ -202,6 +261,9 @@ class DatabaseConstants {
     createQuizStatsTable,
     createDailyActivityTable,
     createStreakStatsTable,
+    createPronunciationAttemptsTable,
+    createToneStatsTable,
+    createSpeakerPitchProfileTable,
   ];
 
   /// List of all create index statements
@@ -210,5 +272,6 @@ class DatabaseConstants {
     createIndexWordBreakdownsSentenceId,
     createIndexGenerationLogsGeneratedAt,
     createIndexQuizResultsAnsweredAt,
+    createIndexPronunciationAttemptedAt,
   ];
 }

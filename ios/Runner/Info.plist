@@ -65,6 +65,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Used to check whether your Thai pronunciation is understandable. Recognition runs on this device.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used to check your Thai pronunciation. Your audio is processed on this device and is never uploaded.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

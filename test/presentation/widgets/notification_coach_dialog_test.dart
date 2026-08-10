@@ -43,6 +43,13 @@ void main() {
       );
     });
 
+    test('許可状態が判定不能なら出さない（既読にもしないので次の機会に回る）', () {
+      expect(
+        shouldShowNotificationCoach(coachShown: false, permissionGranted: null),
+        isFalse,
+      );
+    });
+
     test('未表示かつ未許可のときだけ出す', () {
       expect(
         shouldShowNotificationCoach(
@@ -77,29 +84,41 @@ void main() {
       expect(find.text('通知の例）'), findsOneWidget);
       expect(find.textContaining('時刻は設定で変更できます'), findsOneWidget);
 
-      // このダイアログでは通知をオンにしない。選択肢は「わかった」だけで、
-      // 拒否を確定させる導線（あとで等）は置かない。
-      expect(find.widgetWithText(FilledButton, 'わかった'), findsOneWidget);
-      expect(find.text('あとで'), findsNothing);
+      // 主導線でその場でOS許可要求まで進む。設定画面へ辿らせる導線は持たない。
+      expect(find.widgetWithText(FilledButton, '通知をオンにする'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'あとで'), findsOneWidget);
       expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);
     });
   });
 
   group('showNotificationCoachDialog', () {
-    testWidgets('「わかった」で true', (tester) async {
+    testWidgets('「通知をオンにする」で true', (tester) async {
       bool? result;
       await tester.pumpWidget(_host(onResult: (r) => result = r));
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('わかった'));
+      await tester.tap(find.text('通知をオンにする'));
       await tester.pumpAndSettle();
 
       expect(result, isTrue);
       expect(find.byType(NotificationCoachDialog), findsNothing);
     });
 
-    testWidgets('バリアタップで閉じた場合も false（設定へ案内しない）', (tester) async {
+    testWidgets('「あとで」で false（許可要求を出さない）', (tester) async {
+      bool? result;
+      await tester.pumpWidget(_host(onResult: (r) => result = r));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('あとで'));
+      await tester.pumpAndSettle();
+
+      expect(result, isFalse);
+      expect(find.byType(NotificationCoachDialog), findsNothing);
+    });
+
+    testWidgets('バリアタップで閉じた場合も false（許可要求を出さない）', (tester) async {
       bool? result;
       await tester.pumpWidget(_host(onResult: (r) => result = r));
       await tester.tap(find.text('open'));

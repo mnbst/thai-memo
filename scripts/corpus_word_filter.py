@@ -93,8 +93,18 @@ DENYLIST |= thai_stopwords() & {
 # corpus build time — see functions/python/bound_morphemes.py.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "functions" / "python"))
 from bound_morphemes import BOUND_MORPHEMES  # noqa: E402
+from interjections import INTERJECTIONS  # noqa: E402
+from non_vocab import NON_VOCAB  # noqa: E402
 
 DENYLIST |= set(BOUND_MORPHEMES)
+
+# Interjections (อ๋อ, เฮ้อ, โอ้ย …): the source corpus is subtitles, so they
+# survive the POS gate. They are not learning vocabulary — drop them too.
+DENYLIST |= set(INTERJECTIONS)
+
+# Sentence-final particles, name/transliteration fragments and colloquial
+# misspellings (มั้ง, ซู, งี้ …) — same reason, see functions/python/non_vocab.py.
+DENYLIST |= set(NON_VOCAB)
 
 THAI_RE = re.compile(r"[\u0E01-\u0E5B]")
 THAI_ONLY_RE = re.compile(r"^[\u0E01-\u0E3A\u0E40-\u0E4E]+(?: ๆ)?$")

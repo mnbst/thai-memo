@@ -79,7 +79,7 @@ class AnalyticsService {
     required String source,
   }) async {
     await _logEvent('view_detail', {
-      'sentence_id': sentenceId,
+      // 'sentence_id': sentenceId,
       'source': source,
     });
   }
@@ -92,8 +92,8 @@ class AnalyticsService {
   }) async {
     await _logEvent('play_tts', {
       'content_type': contentType,
-      'text': _truncate(text),
-      'sentence_id': sentenceId,
+      // 'text': _truncate(text),
+      // 'sentence_id': sentenceId,
       'source': source,
     });
   }
@@ -119,7 +119,7 @@ class AnalyticsService {
     await _logEvent('quiz_answer', {
       'correct': correct ? 1 : 0,
       'category': category,
-      'question_index': questionIndex,
+      // 'question_index': questionIndex,
       'source': source,
     });
   }
@@ -149,6 +149,31 @@ class AnalyticsService {
       'source': source,
       'vocab': vocab,
       'is_premium': isPremium ? 1 : 0,
+    });
+  }
+
+  /// 発音練習の1回ぶん。
+  ///
+  /// worst_tone / monotone はカスタムディメンションの登録が必要。
+  /// 登録しないと GA4 上で (not set) になり、しかも遡及しない。
+  Future<void> logPronunciationAttempt({
+    required String sentenceId,
+    required double score,
+    required int syllableCount,
+    required bool monotone,
+    required String worstTone,
+    double? recognizedRatio,
+  }) async {
+    await _logEvent('pronunciation_attempt', {
+      // 'sentence_id': sentenceId,
+      'score': score.round(),
+      'syllable_count': syllableCount,
+      'monotone': monotone ? 1 : 0,
+      'worst_tone': worstTone,
+      // 音声認識に非対応の端末では送らない。判定できないことと
+      // 判定して駄目だったことを分析上も混同させない。
+      if (recognizedRatio != null)
+        'recognized_pct': (recognizedRatio * 100).round(),
     });
   }
 

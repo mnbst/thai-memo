@@ -16,7 +16,7 @@ class AppConfig {
 
   /// Database configuration
   static const String databaseName = 'thai_memo.db';
-  static const int databaseVersion = 11;
+  static const int databaseVersion = 12;
 
   /// Background task configuration
   static const Duration backgroundTaskFrequency = Duration(hours: 24);
@@ -60,6 +60,10 @@ class AppConfig {
 
   /// 「次のテーマ」コーチマークの表示済みフラグ
   static const String prefKeyNextTopicCoachShown = 'next_topic_coach_shown';
+
+  /// 発音練習セクションのコーチマーク表示済みフラグ（詳細画面の初回表示時に出す）
+  static const String prefKeyPronunciationCoachShown =
+      'pronunciation_coach_shown';
 
   /// コーチマーク移行処理の実施済みフラグ（既存ユーザーには表示しない）
   static const String prefKeyCoachMarksMigrated = 'coach_marks_migrated';

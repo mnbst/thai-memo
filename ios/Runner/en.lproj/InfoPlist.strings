@@ -1,3 +1,9 @@
 /* Home-screen app name. iOS picks this file by the device language,
    which is a different axis from the in-app language (decided by storefront). */
 "CFBundleDisplayName" = "Daily Thai";
+
+/* Microphone permission prompt. Used only for pronunciation practice. */
+"NSMicrophoneUsageDescription" = "We use the microphone to check your pronunciation. Your audio is processed entirely on this device and is never uploaded.";
+
+/* Speech recognition permission prompt. Used to check intelligibility, on-device. */
+"NSSpeechRecognitionUsageDescription" = "We use speech recognition to check whether your pronunciation is understandable. Recognition runs on this device.";

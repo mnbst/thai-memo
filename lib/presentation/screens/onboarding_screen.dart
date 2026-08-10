@@ -29,13 +29,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       descriptionOf: _p1Body,
     ),
     _OnboardingPage(
-      icon: Icons.edit_note,
+      icon: Icons.record_voice_over,
       colorType: _ColorType.secondary,
       titleOf: _p2Title,
       descriptionOf: _p2Body,
     ),
     _OnboardingPage(
-      icon: Icons.trending_up,
+      icon: Icons.quiz,
       colorType: _ColorType.tertiary,
       titleOf: _p3Title,
       descriptionOf: _p3Body,

@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/constants/generation_labels.dart';
@@ -21,8 +22,10 @@ import '../../data/models/word_breakdown.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/tts_provider.dart';
 import '../widgets/topic_picker.dart';
+import '../widgets/coach_mark_overlay.dart';
 import '../tone_explanation_dialog.dart';
 import '../widgets/sentence_audio_player.dart';
+import '../widgets/pronunciation_practice.dart';
 
 /// 例文の詳細表示画面。
 ///
@@ -53,12 +56,18 @@ class DetailScreen extends ConsumerStatefulWidget {
 /// [DetailScreen] のステート。
 ///
 /// 単語分解セクションと文脈セクションの開閉状態を管理する。
+/// 右スワイプで戻ると判定する水平方向の速度しきい値（px/秒）
+const double _swipeBackVelocity = 300;
+
 class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// 単語分解セクションの展開/折りたたみ状態
   bool _isWordBreakdownExpanded = true;
 
   /// 文脈情報セクションの展開/折りたたみ状態
   bool _isContextExpanded = true;
+
+  /// 発音練習セクション（初回コーチマークのスポット対象）
+  final GlobalKey _pronunciationKey = GlobalKey();
 
   @override
   void initState() {
@@ -69,10 +78,71 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             source: widget.source,
           ),
     );
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_maybeShowPronunciationCoach()),
+    );
+  }
+
+  @override
+  void dispose() {
+    CoachMarkOverlay.dismissFor(_pronunciationKey);
+    super.dispose();
+  }
+
+  /// 発音練習の初回ガイド。詳細を初めて開いたときに1度だけ出す。
+  Future<void> _maybeShowPronunciationCoach() async {
+    final prefs = await SharedPreferences.getInstance();
+    final alreadyShown =
+        prefs.getBool(AppConfig.prefKeyPronunciationCoachShown) ?? false;
+    if (alreadyShown) return;
+    if (!mounted || CoachMarkOverlay.isVisible) return;
+
+    final targetContext = _pronunciationKey.currentContext;
+    final box = targetContext?.findRenderObject() as RenderBox?;
+    // 音節データが無い例文では練習セクションが空になる。スポットを当てない。
+    if (targetContext == null ||
+        !targetContext.mounted ||
+        box == null ||
+        !box.hasSize ||
+        box.size.height <= 0 ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      alignment: 0.4,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+
+    final l10n = L10n.of(context);
+    final shown = CoachMarkOverlay.show(
+      context,
+      targetKey: _pronunciationKey,
+      icon: Icons.mic_none,
+      title: l10n.coachPronunciationTitle,
+      message: l10n.coachPronunciationMessage,
+    );
+    if (shown) {
+      await prefs.setBool(AppConfig.prefKeyPronunciationCoachShown, true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // pop 開始時点で閉じる。dispose まで待つと、戻りアニメーション中も
+    // 発音コーチマークが例文画面の上に残り、ちらついて見える。
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) CoachMarkOverlay.dismissFor(_pronunciationKey);
+      },
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(L10n.of(context).detailTitle),
@@ -85,23 +155,33 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // メイン例文カード（タイ語テキスト・発音・日本語訳）
-            _buildMainSentenceCard(),
-            const SizedBox(height: 16),
-            // 単語分解カード（各単語の詳細情報）
-            _buildWordBreakdownCard(),
-            const SizedBox(height: 16),
-            // 文脈情報カード（場面・文体・感情など）
-            _buildContextCard(),
-            const SizedBox(height: 16),
-            // メタデータカード（作成日）
-            _buildMetadataCard(),
-          ],
+      // 右スワイプで前の画面（例文ページ）に戻る
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity != null &&
+              details.primaryVelocity! > _swipeBackVelocity) {
+            Navigator.of(context).maybePop();
+          }
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConfig.defaultPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // メイン例文カード（タイ語テキスト・発音・日本語訳）
+              _buildMainSentenceCard(),
+              const SizedBox(height: 16),
+              // 単語分解カード（各単語の詳細情報）
+              _buildWordBreakdownCard(),
+              const SizedBox(height: 16),
+              // 文脈情報カード（場面・文体・感情など）
+              _buildContextCard(),
+              const SizedBox(height: 16),
+              // メタデータカード（作成日）
+              _buildMetadataCard(),
+            ],
+          ),
         ),
       ),
     );
@@ -165,6 +245,13 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                       source: 'detail_sentence',
                     ),
               ),
+            ),
+            const SizedBox(height: 12),
+            // お手本を聞いたあとに自分で発声して声調を確かめる
+            PronunciationPractice(
+              key: _pronunciationKey,
+              sentenceId: widget.sentence.id,
+              words: widget.sentence.wordBreakdowns,
             ),
             const SizedBox(height: 16),
             const Divider(),

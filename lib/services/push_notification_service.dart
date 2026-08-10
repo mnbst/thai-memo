@@ -106,13 +106,14 @@ class PushNotificationService {
 
   /// OSの通知許可が既に得られているか。ダイアログは出さない。
   ///
-  /// 取得に失敗したときは true を返す。コーチングダイアログの出し分けに使うため、
-  /// 判断できないときは「もう許可済み」側に倒して余計な案内を出さない。
-  Future<bool> hasPermission() async {
+  /// 取得に失敗したときは null（判定不能）を返す。呼び出し側はこの回のみ案内を
+  /// 見送り、「案内済み」としては記録しないこと。true を返して既許可扱いにすると、
+  /// 一度の取得失敗でそのユーザーが恒久的に案内対象から外れる。
+  Future<bool?> hasPermission() async {
     try {
       return _isGranted(await _messaging.getNotificationSettings());
     } catch (_) {
-      return true;
+      return null;
     }
   }
 

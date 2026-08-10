@@ -65,8 +65,6 @@ SentenceController _sentenceController(FakeAnalyticsService analytics) {
     () => 'free',
     () => null,
     () => false,
-    () => 0,
-    () async {},
     () => lookupL10n(const Locale('ja')),
   )..showSentence(_sentence());
 }
@@ -91,7 +89,7 @@ Future<void> _pumpTodayScreen(
         ),
         isPremiumProvider.overrideWithValue(false),
         isPremiumRealtimeProvider.overrideWithValue(const AsyncData(false)),
-        premiumTrialRemainingProvider.overrideWithValue(const AsyncData(0)),
+        premiumTrialExpiresAtProvider.overrideWithValue(const AsyncData(null)),
         vocabStatsProvider.overrideWith(
           (ref) => Stream.value(const VocabStats()),
         ),
