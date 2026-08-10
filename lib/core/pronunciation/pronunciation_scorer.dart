@@ -174,6 +174,13 @@ class SyllableScore {
   /// いないかを見られるようにしておく。
   final int referencePoints;
 
+  /// 形が合っていたか。null は「形を根拠にできなかった」（短すぎる／短母音）。
+  final bool? shapeAgrees;
+
+  /// 入り方が合っていたか。null は「入り方を根拠にできなかった」
+  /// （文頭／直前が測れない／基準がずれていて不一致だった）。
+  final bool? stepAgrees;
+
   /// この音節に対応づいた録音側フレームの範囲（無声フレームを含む）。
   ///
   /// 形も入り方も「どのフレームがこの音節か」の上に乗っているので、境界の
@@ -195,6 +202,8 @@ class SyllableScore {
     this.shapeCorrelation,
     this.referenceValues = const [],
     this.queryValues = const [],
+    this.shapeAgrees,
+    this.stepAgrees,
     this.queryStart = -1,
     this.queryEnd = -1,
     this.referencePoints = 0,
@@ -283,9 +292,15 @@ enum TonePosition { low, mid, high }
 const Map<ThaiTone, (TonePosition, TonePosition)> kTonePositions = {
   ThaiTone.mid: (TonePosition.mid, TonePosition.mid),
   ThaiTone.low: (TonePosition.low, TonePosition.low),
-  ThaiTone.high: (TonePosition.high, TonePosition.high),
+  // **高平声は「高く始まる」ではない。** 現代のバンコク・タイ語では中くらいから
+  // 始まって上がる（mid-rising）。1911年の mid falling → 1962年の high level →
+  // 2006年の mid rising と変化したと報告されている。入り際は中平声とほぼ同じで、
+  // **中平声と高平声を分けるのは入り方ではなく、音節の中で上がるかどうか**。
+  ThaiTone.high: (TonePosition.mid, TonePosition.high),
   ThaiTone.falling: (TonePosition.high, TonePosition.low),
-  ThaiTone.rising: (TonePosition.low, TonePosition.high),
+  // **上昇声は上まで届かない。** Chao 213 で、戻るのは中くらいまで
+  // （高平声 35 のように上までは行かない）。
+  ThaiTone.rising: (TonePosition.low, TonePosition.mid),
 };
 
 /// 直前の終わり際とこの音節の入り際で、声域内の位置が違うか。
@@ -353,7 +368,6 @@ List<SyllableScore> scoreSyllables({
   required List<double> queryZ,
   required List<bool> queryVoiced,
   required List<DtwPathPoint> path,
-  List<bool>? shortSyllables,
 }) {
   // 音節ごとに、対応づいた (お手本, 録音) の組を集める。長さが揃うので
   // 傾きも平均もそのまま比べられる。
@@ -464,10 +478,31 @@ List<SyllableScore> scoreSyllables({
     final basisOff = measurablePrevious
         ? (queryTail(s - 1) - reference.tailLevel(s - 1)).abs()
         : 0.0;
-    final hasPrevious = measurablePrevious &&
+    // **基準がずれていても、話者がどちらへ動いたかは測れている。** ずれた基準は
+    // 一致を壊すことはあっても、偶然の一致を作りはしない。だから
+    //   - 向きが合っていれば → そのまま根拠にする（ずれた場所から出発してなお
+    //     期待どおりに動いたのだから、本物の証拠）
+    //   - 向きが合わなければ → **この音節のせいとは限らない**ので判定に使わない
+    // という非対称な扱いにする。実機で、直前を 0.72 低く終えた次の高平声が、
+    // 自分は正しく上げていた（1.64 対 お手本 0.59）のに捨てられていた。
+    final basisReliable = measurablePrevious &&
         scores[s - 1].verdict == ToneVerdict.correct &&
         basisOff <= kBasisTolerance;
-    // 値そのものは切り分けのために出す（判定に使うかは [hasPrevious] で決まる）。
+    // **到達点は入り際ではなく中心。** 物理的には「直前の終わり → この音節の
+    // 入り際」が入り方だが、入り際は測定が最も当てにならない点で、
+    //   - 子音でまだ声が出ていない（有声フレームが無く、中心の値で代用になる）
+    //   - 直前の声調の引きずり（carryover）が最も強く残る
+    // 合成音声で入り際に変えると、正しい発話が 0→3/90 落ち、見逃しも
+    // 44→46/120 に増えた。声調の位置が最も安定して出るのは中心。
+    //
+    // **中心どうしで測る案も測った**（両側とも最も安定した点にする）。
+    // 正しい発話が 1/90 落ち、見逃しも 46/120 に増えた。人は直前が終わった
+    // 高さから次に入るので、起点は終わり際が正しい。
+    //
+    // **実際に声が出始めたところ（母音の頭）を使う案も測った。** 時間の位置では
+    // なく対応づいた組の先頭を採れば子音には当たらず、正しい発話は 0/90 のまま
+    // だったが、見逃しが 44 → 52〜56/120 に増えた。声調は**音節の中で高さが
+    // 決まっていく**もので、出だしでは互いに最も近い。区別が乗っているのは中心。
     final queryStep =
         measurablePrevious ? queryLevel(s) - queryTail(s - 1) : 0.0;
     final referenceStep =
@@ -477,13 +512,24 @@ List<SyllableScore> scoreSyllables({
     // **大きさは見ない。** 上がって入るべきところを上がって入っていればよく、
     // どれだけ上がったかは問わない。向きの3分割は境目で跳ねるので、段差そのものが
     // その幅に収まっていれば同じ入り方として扱う。
-    final bool? stepAgrees = !hasPrevious
+    final bool? rawStepAgrees = !measurablePrevious
         ? null
-        : positionsDiffer(reference.tones[s - 1], tone)
+        // 位置が違う組でも、**お手本の段差そのものが 0 に近ければ向きは決まらない**。
+        // 実機で 高平→高平 が ref -0.06 に対し符号を要求され、正しく上げた発話が
+        // 落ちた（お手本の高平声は上で終わり中から始まるので、位置の上では
+        // 「下がって入る」だが、declination と相殺して実際はほぼ平ら）。
+        : positionsDiffer(reference.tones[s - 1], tone) &&
+                referenceStep.abs() >= kMinStepToCount
             ? queryStep.abs() >= kMinStepToCount &&
                 queryStep.sign == referenceStep.sign
             : stepDirectionOf(queryStep) == stepDirectionOf(referenceStep) ||
                 transitionError <= kFlatStepThreshold;
+    // 基準が信用できないときは、一致だけを採る（不一致は判定に使わない）。
+    final bool? stepAgrees = rawStepAgrees == null || basisReliable
+        ? rawStepAgrees
+        : rawStepAgrees
+            ? true
+            : null;
 
     // 形は始まりと終わりの差の向きで見る。動きの大きさは問わない。
     final queryRise = contourRise(queryValues[s]);
@@ -496,25 +542,22 @@ List<SyllableScore> scoreSyllables({
     final shapeMatches = isContourTone(tone)
         ? riseAgrees ||
             (correlation != null && correlation >= kShapeCorrelationThreshold)
-        : riseAgrees && (hasPrevious || correlation == null || correlation >= 0);
-
-    // 短母音・死音節は声調の動きを出しきる時間がない（tonal undershoot）。
-    final isShort = shortSyllables != null &&
-        s < shortSyllables.length &&
-        shortSyllables[s];
+        : riseAgrees &&
+            (stepAgrees != null || correlation == null || correlation >= 0);
 
     // 形が根拠になるのは、**形が出るだけの長さが取れたとき**だけ。
     final measuredEnough = queryValues[s].length >= kMinVoicedFramesForShape;
 
     // 短さが免除するのは「形を要求すること」であって、**出せた形を無視する理由に
     // はならない**。短くても形が出ていれば、それは正しく言えた証拠。
-    final bool? shapeAgrees = !measuredEnough
-        ? null
-        : shapeMatches
-            ? true
-            : isShort
-                ? null
-                : false;
+    // **短さを理由に形を免除しない。** お手本側は既に短い音節で振れ幅を
+    // [kShortSyllableDamping] 倍に縮めており、undershoot は織り込み済み。
+    // ここでもう一度免除すると二重の割引になり、**入り方も使えない場面で根拠が
+    // ゼロになって採点不能が並ぶ**（実機で9音節中6つが短母音の文が出た）。
+    //
+    // 合成音声では差が出ない（合成側もお手本と同じ倍率で縮めるので、短い音節では
+    // 形が必ず一致する）。効くのは実機だけ。
+    final bool? shapeAgrees = !measuredEnough ? null : shapeMatches;
 
     // 形と入り方の両方が合えば correct、片方だけなら close、両方外れれば wrong。
     // **根拠が1つしか無いときは wrong にしない。** 文頭（入り方が無い）や
@@ -523,7 +566,11 @@ List<SyllableScore> scoreSyllables({
     final agreed = available.where((ok) => ok).length;
     final ToneVerdict verdict;
     if (available.isEmpty) {
-      verdict = ToneVerdict.close;
+      // **根拠が1つも無い音節を「惜しい」と言ってはいけない。** 短母音で形を
+      // 要求できず、かつ直前がずれていて入り方も使えない、という重なりが実機で
+      // 起きる。何も測れていないのだから、判定できないと言う（点数の分母からも
+      // 外れる）。判定できないことと、判定して駄目だったことを混ぜない。
+      verdict = ToneVerdict.unscored;
     } else if (agreed == available.length) {
       verdict = ToneVerdict.correct;
     } else if (agreed > 0 || available.length < 2) {
@@ -546,6 +593,8 @@ List<SyllableScore> scoreSyllables({
       shapeCorrelation: correlation,
       referenceValues: refValues[s],
       queryValues: queryValues[s],
+      shapeAgrees: shapeAgrees,
+      stepAgrees: stepAgrees,
       queryStart: spanStart[s],
       queryEnd: spanEnd[s],
       referencePoints: reference.pointsOf(s),
