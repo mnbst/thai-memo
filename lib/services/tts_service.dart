@@ -22,15 +22,18 @@ class TtsService {
     if (_isInitialized) return;
 
     if (Platform.isIOS) {
-      await _tts.setSharedInstance(true);
+      // defaultToSpeaker は playAndRecord 専用。playback に混ぜると
+      // iOS 側の setCategory が失敗し、カテゴリが soloAmbient のまま残って
+      // 発話音量が着信音量に追従してしまう（＝極端に小さくなる）。
+      // カテゴリを決めてからセッションを activate する順序も必須。
       await _tts.setIosAudioCategory(
         IosTextToSpeechAudioCategory.playback,
         [
-          IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
           IosTextToSpeechAudioCategoryOptions.allowBluetooth,
           IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
         ],
       );
+      await _tts.setSharedInstance(true);
     }
 
     await _tts.setLanguage('th-TH');
