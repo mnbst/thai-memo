@@ -50,11 +50,51 @@ void main() {
     });
   });
 
+  group('speechSpan', () {
+    test('声が続いているところを端にする', () {
+      expect(speechSpan(<double?>[null, 1, 2, 3, null]), [1, 3]);
+    });
+
+    test('単発の有声フレームは端にしない', () {
+      // 押した直後の物音を1フレーム拾うだけで、そこが発話の始まりになる。
+      // 実機で、フレーム0だけ有声でその後 680ms 無音という録音が出て、
+      // その間が丸ごと最初の音節に入った（有声2フレームで採点不能）。
+      expect(
+        speechSpan(<double?>[1, null, null, null, 5, 6, 7, null]),
+        [4, 6],
+      );
+    });
+
+    test('末尾の単発も端にしない', () {
+      expect(
+        speechSpan(<double?>[1, 2, 3, null, null, null, 9]),
+        [0, 2],
+      );
+    });
+
+    test('どこにも続きが無ければ null', () {
+      expect(speechSpan(<double?>[1, null, 2, null]), isNull);
+      expect(speechSpan(<double?>[]), isNull);
+      expect(speechSpan(<double?>[null, null]), isNull);
+    });
+  });
+
   group('voicedRatio', () {
-    test('有声フレームの割合を返す', () {
-      expect(voicedRatio(<double?>[1, null, 2, null]), 0.5);
+    test('声のある区間で割合を返す', () {
+      expect(voicedRatio(<double?>[1, 2, 3, null, 4, 5, 6]), closeTo(6 / 7, 1e-9));
       expect(voicedRatio(<double?>[]), 0);
       expect(voicedRatio(<double?>[null, null]), 0);
+    });
+
+    test('前後の無音は分母に入れない', () {
+      // 録音は押しっぱなしなので、押してから話し出すまでと、言い終わってから
+      // 離すまでが必ず入る。全体で割ると**ゆっくり話した録音ほど弾かれる**。
+      // 実機で 6.3秒の発話が 200/629 = 31.8% となり採点そのものが失敗した。
+      const speech = <double?>[1, 2, 3, null, 4, 5, 6];
+      const withSilence = <double?>[
+        null, null, null, 1, 2, 3, null, 4, 5, 6, null, null,
+      ];
+      expect(voicedRatio(withSilence), voicedRatio(speech));
     });
   });
 

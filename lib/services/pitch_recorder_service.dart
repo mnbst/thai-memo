@@ -13,13 +13,12 @@
 // =============================================================================
 
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
-import 'package:pitch_detector_dart/pitch_detector.dart';
 
 import '../core/pronunciation/pitch_track.dart';
+import '../core/pronunciation/yin.dart';
 import 'speech_capture_service.dart';
 
 /// 収録のサンプリングレート（Hz）。ネイティブ側の SAMPLE_RATE と一致させること。
@@ -37,7 +36,12 @@ const int kFrameSize = 640;
 /// 窓をずらす幅（サンプル数）。16kHzで10ms。
 const int kHopSize = 160;
 
-/// 有声と認めるYINの信頼度の下限。
+/// 有声と認めるYINの確信度の下限。
+///
+/// **自前の YIN（[estimateF0]）は確信度を階調で返す**ので、ここが実際に効く。
+/// ライブラリ版（`pitch_detector_dart`）は絶対閾値 0.20 を切らないフレームを
+/// 確信度0で返しており、発話末の軋み声が全てそこに潰れていた（実機で 629
+/// フレーム中 429 が無声判定、うち確信度 0.1 以上は 0 件）。
 const double kMinPitchProbability = 0.5;
 
 /// 人の声として妥当なF0の範囲（Hz）。外れた値は検出誤りとして捨てる。
@@ -86,14 +90,52 @@ double peakAmplitude(Int16List samples) {
   return peak / 32768.0;
 }
 
-/// フレーム1つぶんの実効値（RMS）。
-double frameRms(List<double> window) {
-  if (window.isEmpty) return 0;
-  var sum = 0.0;
-  for (final v in window) {
-    sum += v * v;
-  }
-  return math.sqrt(sum / window.length);
+/// F0抽出の結果。フレーム数は揃っている。
+class PitchExtractionResult {
+  /// フレームごとのF0（Hz）。無声・低信頼は null。
+  final List<double?> f0Hz;
+
+  /// ピッチが取れなかったフレーム（YINが無声・低確信・範囲外と判断）。
+  ///
+  /// 音量で落としたフレーム（[energyRejected]）と**分けて数える**。発話末で
+  /// 声が失われるとき、軋み声でピッチが取れないのか、音量が落ちて足切りされたのかで
+  /// 直し方が変わる。
+  final List<bool> pitchRejected;
+
+  /// ピッチは取れたが音量が足りずに落としたフレーム。
+  final List<bool> energyRejected;
+
+  /// 周期性が弱くて落としたフレーム（YINが無声、または確信度が
+  /// [kMinPitchProbability] 未満）。**軋み声はここに出る。**
+  final List<bool> unpitched;
+
+  /// 周期は取れたが、値が人の声の範囲（[kMinPlausibleF0]〜[kMaxPlausibleF0]）を
+  /// 外れて落としたフレーム。**低すぎる声（発話末の落ち込み）はここに出る。**
+  final List<bool> outOfRange;
+
+  /// フレームごとの YIN の確信度。
+  ///
+  /// 落としたフレームの確信度が閾値のすぐ下に溜まっているなら、閾値を下げれば
+  /// 戻る。ほぼ0なら本当に周期が無いので、下げても無駄で暗騒音を拾うだけ。
+  /// **どちらかを見ないと閾値を動かせない。**
+  final List<double> probability;
+
+  /// フレームごとの音量（RMS）。
+  ///
+  /// **有声判定に使ったあと捨ててはいけない。** 共鳴音で繋がる音節の切れ目
+  /// （`ชิ้น` น → `นี้` น）は F0 にも無声区間にも現れないが、**音量の谷には出る**
+  /// （鼻音・側音は母音より弱い）。分割の手がかりとして最後まで運ぶ。
+  final List<double> energy;
+
+  const PitchExtractionResult({
+    required this.f0Hz,
+    required this.energy,
+    this.pitchRejected = const [],
+    this.energyRejected = const [],
+    this.unpitched = const [],
+    this.outOfRange = const [],
+    this.probability = const [],
+  });
 }
 
 /// PCM16のバイト列からフレームごとのF0（Hz）を取り出す。
@@ -103,16 +145,16 @@ double frameRms(List<double> window) {
 /// **信頼度だけで有声を決めない。** YINは暗騒音にも高い信頼度を返すことがあり、
 /// 押しはじめの無音が発声した区間として取り込まれる。音量の伴わないピッチは
 /// 声ではないので、[gateByEnergy] で落とす。
-Future<List<double?>> extractF0Frames(PitchExtractionRequest request) async {
+Future<PitchExtractionResult> extractF0Frames(
+  PitchExtractionRequest request,
+) async {
   final samples = pcm16ToSamples(request.pcm16);
-
-  final detector = PitchDetector(
-    audioSampleRate: request.sampleRate.toDouble(),
-    bufferSize: kFrameSize,
-  );
 
   final frames = <double?>[];
   final levels = <double>[];
+  final unpitched = <bool>[];
+  final outOfRange = <bool>[];
+  final probabilities = <double>[];
   for (var start = 0; start + kFrameSize <= samples.length; start += kHopSize) {
     final window = List<double>.generate(
       kFrameSize,
@@ -120,22 +162,43 @@ Future<List<double?>> extractF0Frames(PitchExtractionRequest request) async {
       growable: false,
     );
 
-    final result = await detector.getPitchFromFloatBuffer(window);
-    final pitch = result.pitch;
-    final usable = result.pitched &&
-        result.probability >= kMinPitchProbability &&
-        pitch >= kMinPlausibleF0 &&
-        pitch <= kMaxPlausibleF0;
-    frames.add(usable ? pitch : null);
+    final result = estimateF0(window, request.sampleRate.toDouble());
+    final pitch = result.f0Hz ?? 0;
+    // **YIN の有声判定（`pitched`）で切らない。** 軋み声は閾値を切らないが
+    // 周期は残っている。確信度で決める。
+    final periodic = result.confidence >= kMinPitchProbability;
+    final inRange = pitch >= kMinPlausibleF0 && pitch <= kMaxPlausibleF0;
+    frames.add(periodic && inRange ? pitch : null);
     levels.add(frameRms(window));
+    unpitched.add(!periodic);
+    outOfRange.add(periodic && !inRange);
+    probabilities.add(result.confidence);
   }
-  return gateByEnergy(frames, levels);
+  final gated = gateByEnergy(frames, levels);
+  return PitchExtractionResult(
+    f0Hz: gated,
+    energy: levels,
+    pitchRejected: [for (final f in frames) f == null],
+    unpitched: unpitched,
+    outOfRange: outOfRange,
+    probability: probabilities,
+    // ピッチは取れていたのに、音量で落ちたフレーム。
+    energyRejected: [
+      for (var i = 0; i < frames.length; i++)
+        frames[i] != null && gated[i] == null,
+    ],
+  );
 }
 
 /// 収録1回ぶんの解析入力。
 class PronunciationCapture {
   /// フレームごとのF0（Hz）。無声・低信頼は null。
   final List<double?> f0Hz;
+
+  /// フレームごとの音量（RMS）。[f0Hz] と同じ長さ。
+  ///
+  /// 共鳴音で繋がる音節の切れ目は F0 に出ないが、音量の谷には出る。
+  final List<double> energy;
 
   /// 音声認識の結果。非対応端末では空文字。
   final String transcript;
@@ -148,6 +211,7 @@ class PronunciationCapture {
 
   const PronunciationCapture({
     required this.f0Hz,
+    this.energy = const [],
     required this.transcript,
     required this.transcriptAvailable,
     this.recognitionStatus = 'not_started',
@@ -231,11 +295,67 @@ class PitchRecorderService {
       );
     }
 
-    final frames = await compute(
+    final extracted = await compute(
       extractF0Frames,
       PitchExtractionRequest(result.pcm16, kRecordSampleRate),
     );
+    final frames = extracted.f0Hz;
     final voiced = frames.where((f) => f != null).length;
+    // 発話を3等分して、どこでどう失っているかを出す。末尾だけ落ちるなら
+    // 発話末の現象（軋み声か音量の減衰）で、全体に散るなら収録環境の問題。
+    final third = frames.length ~/ 3;
+    if (third > 0) {
+      final parts = <String>[];
+      for (var p = 0; p < 3; p++) {
+        final from = p * third;
+        final to = p == 2 ? frames.length : (p + 1) * third;
+        var weak = 0;
+        var range = 0;
+        var energyLost = 0;
+        for (var i = from; i < to; i++) {
+          if (i < extracted.energyRejected.length &&
+              extracted.energyRejected[i]) {
+            energyLost++;
+          } else if (i < extracted.outOfRange.length &&
+              extracted.outOfRange[i]) {
+            range++;
+          } else if (i < extracted.unpitched.length && extracted.unpitched[i]) {
+            weak++;
+          }
+        }
+        parts.add('${to - from - weak - range - energyLost}有声'
+            '/周期弱$weak/範囲外$range/音量欠$energyLost');
+      }
+      debugPrint('pronunciation loss: 前${parts[0]} 中${parts[1]} 後${parts[2]}');
+      // 落としたフレームの確信度がどこに溜まっているか。閾値のすぐ下に集まって
+      // いれば下げれば戻る。ほぼ0なら周期が本当に無い。
+      final bands = <String>[];
+      for (var p = 0; p < 3; p++) {
+        final from = p * third;
+        final to = p == 2 ? frames.length : (p + 1) * third;
+        var near = 0; // 0.3〜0.5（閾値のすぐ下）
+        var mid = 0; // 0.1〜0.3
+        var none = 0; // 0.1未満
+        for (var i = from; i < to; i++) {
+          if (i >= extracted.unpitched.length || !extracted.unpitched[i]) {
+            continue;
+          }
+          final value =
+              i < extracted.probability.length ? extracted.probability[i] : 0.0;
+          if (value >= 0.3) {
+            near++;
+          } else if (value >= 0.1) {
+            mid++;
+          } else {
+            none++;
+          }
+        }
+        bands.add('惜$near/中$mid/無$none');
+      }
+      debugPrint(
+        'pronunciation confidence: 前${bands[0]} 中${bands[1]} 後${bands[2]}',
+      );
+    }
     // 押しはじめの無音がどれだけ取り込まれずに済んだか。判定がずれたときに
     // 「声の前に何フレーム捨てたか」を見られるよう常設する。
     final lead = frames.indexWhere((f) => f != null);
@@ -246,6 +366,7 @@ class PitchRecorderService {
 
     return PronunciationCapture(
       f0Hz: frames,
+      energy: extracted.energy,
       transcript: result.transcript,
       transcriptAvailable: result.transcriptAvailable,
       recognitionStatus: result.recognitionStatus,

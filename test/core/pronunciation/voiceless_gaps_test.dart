@@ -7,10 +7,10 @@ List<bool> _voiced(String pattern) =>
 void main() {
   group('findVoicelessGaps', () {
     test('声の途切れを [開始, 終了] で拾う', () {
-      // vvv...vvv...vv → 3-5 と 9-11 が途切れ
-      expect(_gaps('vvv...vvv...vv'), [
+      // vvv...vvvv...vv → 3-5 と 10-12 が途切れ
+      expect(_gaps('vvv...vvvv...vv'), [
         [3, 5],
-        [9, 11],
+        [10, 12],
       ]);
     });
 
@@ -28,6 +28,22 @@ void main() {
     test('先頭から始まる途切れも拾う', () {
       expect(_gaps('...vvv'), [
         [0, 2],
+      ]);
+    });
+
+    test('近すぎる途切れは1つにまとめる', () {
+      // 閉鎖の途中で声門が数フレームだけ鳴り、1つの子音が2つに割れて見える。
+      // 割れたまま扱うと、錨が手前の小さいほうに付いて大きいほうが次の音節の
+      // 中に取り残される。
+      expect(_gaps('vvv...vv...vvv'), [
+        [3, 10],
+      ]);
+    });
+
+    test('十分に離れていれば分けたまま', () {
+      expect(_gaps('vvv...vvvv...vvv'), [
+        [3, 5],
+        [10, 12],
       ]);
     });
 

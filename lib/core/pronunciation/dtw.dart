@@ -53,6 +53,11 @@ const double kDtwBandRatio = 0.06;
 /// 各音節の頭に入れた条件で、0.15 以上にすると音節の取り分が歪んだ。
 const double kVoicelessDriftCost = 0.1;
 
+/// **切れ目に負の費用を置いてはいけない（測って不採用）。** DTW は経路の総和を
+/// 最小化するので、負の点があるとそこに居座るほど得になり、値の大小によらず
+/// 同じ退化した経路になる（0.05 と 0.3 で結果が完全に一致した）。
+/// 引き寄せたいなら費用ではなく**通れる範囲の制約**で表す（[boundaryWindows]）。
+
 /// 2つの系列を対応づけ、経路を先頭から順に返す。
 ///
 /// ステップは (1,0) / (0,1) / (1,1) の3方向。両端は必ず対応づく
@@ -67,21 +72,46 @@ List<DtwPathPoint> dtwAlign(
   double bandRatio = kDtwBandRatio,
   List<bool>? queryVoiced,
   List<bool>? referenceAtBoundary,
+  Map<int, List<int>>? boundaryWindows,
+  List<double>? referenceToQuery,
 }) {
   if (reference.isEmpty || query.isEmpty) return const [];
 
   final n = reference.length;
   final m = query.length;
 
+  /// **音節の切れ目は、声が途切れているところに置く。** お手本の切れ目に当たる
+  /// 点について「録音側のこの範囲を通れ」と指定できる。費用で引き寄せると経路が
+  /// そこに居座るので、通れる範囲そのものを絞る。
+  ///
+  /// 指定の無い点は帯だけで制限する（従来どおり）。
+  bool inWindow(int i, int j) {
+    final window = boundaryWindows?[i];
+    if (window == null) return true;
+    return j >= window[0] && j <= window[1];
+  }
+
+  /// お手本の点 [i] が録音側のどこに来るはずか。
+  ///
+  /// 既定は対角線（時間が比例している前提）。[referenceToQuery] を渡すと、
+  /// **声の途切れで分かった音節の切れ目を通る折れ線**に置き換わる。
+  /// 予算（表記から決めた時間配分）の誤差が文全体に積み上がって帯を食い潰す
+  /// のを防げる。誤差は切れ目ごとにリセットされる。
+  double expected(int i) {
+    final map = referenceToQuery;
+    if (map != null && i < map.length) return map[i];
+    return n == 1 ? 0 : i / (n - 1) * (m - 1);
+  }
+
   /// (i, j) が帯の中にあるか。
   ///
-  /// 正規化した位置の差で見るので、系列の長さが違っても同じ意味になる。
+  /// 帯の幅は録音の長さに対する割合なので、系列の長さが違っても同じ意味になる。
   bool inBand(int i, int j) {
     if (n == 1 || m == 1) return true;
-    final di = i / (n - 1);
-    final dj = j / (m - 1);
-    return (di - dj).abs() <= bandRatio;
+    return (j - expected(i)).abs() <= bandRatio * (m - 1);
   }
+
+  bool allowed(int i, int j) => inBand(i, j) && inWindow(i, j);
 
   // cost[i][j] = reference[0..i] と query[0..j] を対応づけた累積コスト。
   final cost = List.generate(
@@ -116,16 +146,16 @@ List<DtwPathPoint> dtwAlign(
 
   cost[0][0] = distance(0, 0);
   for (var i = 1; i < n; i++) {
-    if (!inBand(i, 0)) break;
+    if (!allowed(i, 0)) break;
     cost[i][0] = cost[i - 1][0] + distance(i, 0);
   }
   for (var j = 1; j < m; j++) {
-    if (!inBand(0, j)) break;
+    if (!allowed(0, j)) break;
     cost[0][j] = cost[0][j - 1] + distance(0, j);
   }
   for (var i = 1; i < n; i++) {
     for (var j = 1; j < m; j++) {
-      if (!inBand(i, j)) continue;
+      if (!allowed(i, j)) continue;
       final best = math.min(
         cost[i - 1][j - 1],
         math.min(cost[i - 1][j], cost[i][j - 1]),

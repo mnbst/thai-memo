@@ -184,6 +184,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
 
     final result = analyzePronunciation(
       f0Hz: capture.f0Hz,
+      energy: capture.energy,
       tones: tones,
       shortSyllables: shortSyllables,
       syllablePoints: syllablePoints,
@@ -220,19 +221,25 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     // 声が止まる位置は境界の手がかりになるが、共鳴音で繋がる境界には現れない。
     // **どちらがどれだけあるか**を数えないと、境界を録音から取る案の可否が決まらない。
     final gaps = result.voicelessGaps;
+    // 音量の谷は、共鳴音で繋がる切れ目の唯一の手がかり。何個拾えたかを出す。
+    final valleys = findEnergyValleys(capture.energy);
+    debugPrint(
+      'pronunciation valleys: ${valleys.length}個 '
+      '${valleys.map((v) => v[0]).join(' ')}',
+    );
     debugPrint(
       'pronunciation gaps: ${gaps.length}個 '
       '(音節境界は${result.syllables.length - 1}個) '
       '${gaps.map((g) => '${g[0]}-${g[1]}').join(' ')}',
     );
-    // 各境界から、いちばん近い無声区間までの距離。0 ならその境界は声の途切れの
-    // 中にある＝録音から直接決められる。
+    // 各境界から、いちばん近い手がかり（途切れ・谷）までの距離。0 ならその境界は
+    // 録音から直接決められている。
     final distances = <String>[];
     for (var i = 1; i < result.syllables.length; i++) {
       final boundary = result.syllables[i].queryStart;
       if (boundary < 0) continue;
       var best = -1;
-      for (final g in gaps) {
+      for (final g in [...gaps, ...valleys]) {
         final d = boundary < g[0]
             ? g[0] - boundary
             : boundary > g[1]
@@ -277,6 +284,9 @@ class PronunciationController extends StateNotifier<PronunciationState> {
         'you=${score.queryLevel.toStringAsFixed(2)} '
         'model=${score.referenceLevel.toStringAsFixed(2)} '
         'lvl=${score.levelError.toStringAsFixed(2)} '
+        // どちらの根拠が効いたか。- は「根拠にできなかった」。
+        'ok=${score.shapeAgrees == null ? "-" : score.shapeAgrees! ? "形" : "形x"}'
+        '/${score.stepAgrees == null ? "-" : score.stepAgrees! ? "入" : "入x"} '
         '-> ${score.verdict.name}',
       );
     }

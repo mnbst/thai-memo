@@ -83,10 +83,65 @@ List<double?> medianFilter(
 /// 騒音環境ではピッチが取れず、この値が落ちる。閾値を下回るときは採点せず
 /// 「もう一度」を返すために使う。誤った採点結果を見せるより、採点を諦めるほうが
 /// 機能への信頼を保てる。
+///
+/// **前後の無音を分母に入れてはいけない。** 録音は押しっぱなしなので、押してから
+/// 話し出すまでと、言い終わってから離すまでが必ず入る。全体で割ると、
+/// **ゆっくり話した録音ほど無音の割合が増えて弾かれる**。実機で、6.3秒の発話が
+/// 200/629 = 31.8% となり `tooQuiet` で採点そのものが失敗した（先頭の無音だけで
+/// 90フレーム＝1.4秒）。声のある区間だけで測る。
 double voicedRatio(List<double?> values) {
   if (values.isEmpty) return 0;
-  final voiced = values.where((v) => v != null).length;
-  return voiced / values.length;
+  final span = speechSpan(values);
+  if (span == null) return 0;
+  var voiced = 0;
+  for (var i = span[0]; i <= span[1]; i++) {
+    if (values[i] != null) voiced++;
+  }
+  return voiced / (span[1] - span[0] + 1);
+}
+
+/// 声の始まり・終わりと認めるのに要る、連続した有声フレーム数。
+///
+/// **単発の有声フレームを発話の端にしてはいけない。** 押した直後の物音や息を
+/// 1フレーム拾うだけで、そこが発話の始まりになる。実機で、フレーム0だけが有声で
+/// その後 680ms 無音という録音が出て、**その間が丸ごと最初の音節に入った**
+/// （有声2フレームで採点不能）。ホップ10msなので30ms。
+const int kMinSpeechRun = 3;
+
+/// 声のある区間 [開始, 終了]（終了を含む）。無ければ null。
+///
+/// 連続して [kMinSpeechRun] フレーム以上声が出ているところを端とする。
+List<int>? speechSpan(List<double?> values) {
+  int? start;
+  for (var i = 0; i < values.length; i++) {
+    if (values[i] == null) continue;
+    var run = 0;
+    while (i + run < values.length && values[i + run] != null) {
+      run++;
+    }
+    if (run >= kMinSpeechRun) {
+      start = i;
+      break;
+    }
+    i += run;
+  }
+  if (start == null) return null;
+
+  int? end;
+  for (var i = values.length - 1; i >= 0; i--) {
+    if (values[i] == null) continue;
+    var run = 0;
+    while (i - run >= 0 && values[i - run] != null) {
+      run++;
+    }
+    if (run >= kMinSpeechRun) {
+      end = i;
+      break;
+    }
+    i -= run;
+  }
+  if (end == null || end < start) return null;
+  return [start, end];
 }
 
 /// 有声と認めるフレームの音量の下限（発話の代表的な音量に対する比）。
