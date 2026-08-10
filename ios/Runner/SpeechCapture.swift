@@ -136,7 +136,7 @@ final class SpeechCapture {
       self.task = nil
       self.request = nil
       self.converter = nil
-      try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+      self.releaseSession()
       completion(self.pcmData, self.transcript, self.transcriptAvailable,
                  self.recognitionStatus, self.inputPeak)
     }
@@ -152,7 +152,18 @@ final class SpeechCapture {
     request = nil
     converter = nil
     pcmData = Data()
-    try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    releaseSession()
+  }
+
+  /// 収録用に握ったオーディオセッションを手放し、再生向けのカテゴリに戻す。
+  ///
+  /// カテゴリとモードはセッションを非アクティブにしても残る。収録の
+  /// playAndRecord + measurement のまま放置すると、その後のTTS発話が
+  /// 出力処理を通らず極端に小さくなる。
+  private func releaseSession() {
+    let session = AVAudioSession.sharedInstance()
+    try? session.setActive(false, options: .notifyOthersOnDeactivation)
+    try? session.setCategory(.playback, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP])
   }
 
   // MARK: - 内部
