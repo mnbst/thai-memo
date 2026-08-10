@@ -1774,7 +1774,7 @@ abstract class L10n {
   /// No description provided for @quizOfferBody.
   ///
   /// In ja, this message translates to:
-  /// **'この例文の単語を覚えたか、すぐ確認できます。'**
+  /// **'単語を覚えたかすぐ確認できます。'**
   String get quizOfferBody;
 
   /// No description provided for @quizOfferTryOne.

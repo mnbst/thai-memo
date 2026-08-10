@@ -910,7 +910,7 @@ class L10nJa extends L10n {
   String get quizOfferOneQuestion => '覚えたか確認';
 
   @override
-  String get quizOfferBody => 'この例文の単語を覚えたか、すぐ確認できます。';
+  String get quizOfferBody => '単語を覚えたかすぐ確認できます。';
 
   @override
   String get quizOfferTryOne => '確認する';
