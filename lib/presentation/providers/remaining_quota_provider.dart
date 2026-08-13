@@ -61,6 +61,17 @@ final premiumTrialEndedAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
       );
 });
 
+/// users/{uid}.premium_trial_backfilled_at — 体験を後から配られた時刻
+///
+/// 新規登録時（onUserCreate）の付与では刻まれない。既存ユーザーへの一括配布で
+/// だけ立つので、クライアントはこれを見て「開放しました」の案内を出す。
+/// 新規ユーザーには初回ガイドで体験を伝えており、二重に案内しない。
+final premiumTrialBackfilledAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
+  return ref.watch(userDocProvider).whenData(
+        (data) => (data?['premium_trial_backfilled_at'] as Timestamp?)?.toDate(),
+      );
+});
+
 /// プレミアム体験トライアルが有効か。
 ///
 /// 新規ユーザーは登録から一定期間、課金プレミアムと完全に同じ機能・回数を使える。

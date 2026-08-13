@@ -1033,6 +1033,42 @@ abstract class L10n {
   /// **'プレミアムを見る'**
   String get trialEndedSeePremium;
 
+  /// No description provided for @trialStartedTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムを{days}日間おためしできます'**
+  String trialStartedTitle(int days);
+
+  /// No description provided for @trialStartedBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'ふだんは使えない機能を、この期間だけ開放しました。'**
+  String get trialStartedBody;
+
+  /// No description provided for @trialStartedChangeQuota.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文　1日{free}回 → {premium}回'**
+  String trialStartedChangeQuota(int free, int premium);
+
+  /// No description provided for @trialStartedChangePronunciation.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音チェック　1日{count}回 → 無制限'**
+  String trialStartedChangePronunciation(int count);
+
+  /// No description provided for @trialStartedChangeTopic.
+  ///
+  /// In ja, this message translates to:
+  /// **'テーマ選択　例文のテーマを自分で選べます'**
+  String get trialStartedChangeTopic;
+
+  /// No description provided for @trialStartedStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'使ってみる'**
+  String get trialStartedStart;
+
   /// No description provided for @topicPickerTitle.
   ///
   /// In ja, this message translates to:
@@ -3576,6 +3612,102 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'購入の検証に失敗しました'**
   String get errPurchaseVerificationFailed;
+
+  /// No description provided for @rankingTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙ランキング'**
+  String get rankingTitle;
+
+  /// No description provided for @rankingSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコアで他の学習者と比べる'**
+  String get rankingSubtitle;
+
+  /// No description provided for @rankingYourRank.
+  ///
+  /// In ja, this message translates to:
+  /// **'あなたの順位'**
+  String get rankingYourRank;
+
+  /// ランキングの順位表示
+  ///
+  /// In ja, this message translates to:
+  /// **'{rank}位'**
+  String rankingPosition(int rank);
+
+  /// No description provided for @rankingUnrankedHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文を生成すると順位がつきます'**
+  String get rankingUnrankedHint;
+
+  /// No description provided for @rankingLoadFailed.
+  ///
+  /// In ja, this message translates to:
+  /// **'ランキングを読み込めませんでした'**
+  String get rankingLoadFailed;
+
+  /// No description provided for @rankingYou.
+  ///
+  /// In ja, this message translates to:
+  /// **'あなた'**
+  String get rankingYou;
+
+  /// No description provided for @rankingDistributionTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコアの分布'**
+  String get rankingDistributionTitle;
+
+  /// No description provided for @rankingDistributionSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'帯ごとの人数。色つきがあなたの位置'**
+  String get rankingDistributionSubtitle;
+
+  /// 全体に対する自分の位置
+  ///
+  /// In ja, this message translates to:
+  /// **'上位{percent}%'**
+  String rankingPercentile(int percent);
+
+  /// 上限のない帯のラベル
+  ///
+  /// In ja, this message translates to:
+  /// **'{min}〜'**
+  String rankingBandOver(int min);
+
+  /// 語彙スコアの帯ラベル
+  ///
+  /// In ja, this message translates to:
+  /// **'{min}〜{max}'**
+  String rankingBandRange(int min, int max);
+
+  /// ニックネーム未設定ユーザーの表示名
+  ///
+  /// In ja, this message translates to:
+  /// **'ユーザー{suffix}'**
+  String rankingAnonymousName(String suffix);
+
+  /// freeユーザー向けの語彙スコア上限の注記
+  ///
+  /// In ja, this message translates to:
+  /// **'無料プランの語彙スコアは{limit}語で上限です'**
+  String rankingFreeCapNote(int limit);
+
+  /// No description provided for @settingsRanking.
+  ///
+  /// In ja, this message translates to:
+  /// **'ランキング'**
+  String get settingsRanking;
+
+  /// No description provided for @settingsRankingSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコアで他の学習者と比べる'**
+  String get settingsRankingSubtitle;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

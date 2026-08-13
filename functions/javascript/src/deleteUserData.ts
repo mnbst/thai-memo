@@ -11,6 +11,8 @@
  *   - users/{uid}/quiz_answers（クイズの回答履歴）
  *   - users/{uid}/uvm（語彙習得モデル）
  *   - users/{uid}（ユーザードキュメント本体）
+ *   - leaderboard/{uid}（ランキング公開用の複製）
+ *   - nicknames/{nickname}（ニックネームの予約）
  *   - quiz_queue 内の該当ユーザーのドキュメント
  *
  * 注意: Cloud Functions v1 の auth トリガーを使用（v2 ではまだ非サポート）
@@ -49,6 +51,15 @@ export async function deleteUserFirestoreData(uid: string): Promise<number> {
 
   // users/{uid} ドキュメント本体
   refs.push(db.doc(`users/${uid}`));
+
+  // leaderboard/{uid}（ランキング公開用の複製）と nicknames の予約
+  // ニックネームは一度きりで本人も消せないため、ここで解放しないと名前が永久に埋まる。
+  const leaderboard = await db.doc(`leaderboard/${uid}`).get();
+  const nickname = (leaderboard.data()?.nickname as string | undefined)?.trim();
+  if (nickname) {
+    refs.push(db.doc(`nicknames/${nickname.toLowerCase()}`));
+  }
+  refs.push(db.doc(`leaderboard/${uid}`));
 
   // quiz_queue 内の該当ユーザーのドキュメント
   const quizQueue = await db.collection('quiz_queue')

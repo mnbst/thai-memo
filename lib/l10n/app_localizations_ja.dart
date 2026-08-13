@@ -507,6 +507,30 @@ class L10nJa extends L10n {
   String get trialEndedSeePremium => 'プレミアムを見る';
 
   @override
+  String trialStartedTitle(int days) {
+    return 'プレミアムを$days日間おためしできます';
+  }
+
+  @override
+  String get trialStartedBody => 'ふだんは使えない機能を、この期間だけ開放しました。';
+
+  @override
+  String trialStartedChangeQuota(int free, int premium) {
+    return '例文　1日$free回 → $premium回';
+  }
+
+  @override
+  String trialStartedChangePronunciation(int count) {
+    return '発音チェック　1日$count回 → 無制限';
+  }
+
+  @override
+  String get trialStartedChangeTopic => 'テーマ選択　例文のテーマを自分で選べます';
+
+  @override
+  String get trialStartedStart => '使ってみる';
+
+  @override
   String get topicPickerTitle => 'テーマを選択';
 
   @override
@@ -1882,4 +1906,64 @@ class L10nJa extends L10n {
 
   @override
   String get errPurchaseVerificationFailed => '購入の検証に失敗しました';
+
+  @override
+  String get rankingTitle => '語彙ランキング';
+
+  @override
+  String get rankingSubtitle => '語彙スコアで他の学習者と比べる';
+
+  @override
+  String get rankingYourRank => 'あなたの順位';
+
+  @override
+  String rankingPosition(int rank) {
+    return '$rank位';
+  }
+
+  @override
+  String get rankingUnrankedHint => '例文を生成すると順位がつきます';
+
+  @override
+  String get rankingLoadFailed => 'ランキングを読み込めませんでした';
+
+  @override
+  String get rankingYou => 'あなた';
+
+  @override
+  String get rankingDistributionTitle => '語彙スコアの分布';
+
+  @override
+  String get rankingDistributionSubtitle => '帯ごとの人数。色つきがあなたの位置';
+
+  @override
+  String rankingPercentile(int percent) {
+    return '上位$percent%';
+  }
+
+  @override
+  String rankingBandOver(int min) {
+    return '$min〜';
+  }
+
+  @override
+  String rankingBandRange(int min, int max) {
+    return '$min〜$max';
+  }
+
+  @override
+  String rankingAnonymousName(String suffix) {
+    return 'ユーザー$suffix';
+  }
+
+  @override
+  String rankingFreeCapNote(int limit) {
+    return '無料プランの語彙スコアは$limit語で上限です';
+  }
+
+  @override
+  String get settingsRanking => 'ランキング';
+
+  @override
+  String get settingsRankingSubtitle => '語彙スコアで他の学習者と比べる';
 }

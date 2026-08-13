@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -925,7 +926,7 @@ class ToneExplanationDialog extends StatelessWidget {
             Navigator.of(context).pop();
             Navigator.push(
               context,
-              MaterialPageRoute(
+              CupertinoPageRoute(
                 settings: const RouteSettings(name: ToneGuideScreen.routeName),
                 builder: (context) => const ToneGuideScreen(),
               ),
