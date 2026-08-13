@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -23,6 +24,7 @@ import '../widgets/topic_picker.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'contact_form_screen.dart';
 import 'paywall_screen.dart';
+import 'ranking_screen.dart';
 import 'tone_guide_screen.dart';
 
 /// Settings screen
@@ -525,6 +527,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
+                Icons.leaderboard,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text(L10n.of(context).settingsRanking),
+              subtitle: Text(L10n.of(context).rankingSubtitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                // Cupertino ルートにすると Android でも右スワイプで戻れる
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(
+                    settings: const RouteSettings(name: RankingScreen.routeName),
+                    builder: (context) => const RankingScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
                 Icons.graphic_eq,
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -534,7 +556,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
+                  CupertinoPageRoute(
                     settings:
                         const RouteSettings(name: ToneGuideScreen.routeName),
                     builder: (context) => const ToneGuideScreen(),

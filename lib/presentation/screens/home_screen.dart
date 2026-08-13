@@ -10,6 +10,7 @@ import '../../l10n/app_localizations.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
+import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
@@ -23,6 +24,7 @@ import '../widgets/coach_mark_overlay.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_hint_banner.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
+import '../widgets/premium_trial_started_dialog.dart';
 import '../widgets/quiz_offer.dart';
 import '../widgets/sentence_audio_player.dart';
 import '../widgets/sign_in_reminder_banner.dart';
@@ -61,6 +63,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _logCurrentTabScreen();
+      // サーバーが「この端末のアプリが何を持っているか」を知るための記録。
+      // 学習の導線とは無関係なので待たない。
+      unawaited(AppVersionReporter().report());
       _notificationOpenSubscription =
           FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
       _loadInitialSentenceThenHandleNotification();
@@ -130,8 +135,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     } finally {
       await _handleInitialNotificationOpen();
       await _retryNotificationCoachIfPending();
+      await _maybeShowPremiumTrialStarted();
       await _maybeShowPremiumTrialEnded();
     }
+  }
+
+  /// 後から配られたプレミアム体験の開放を、最初の起動で一度だけ知らせる。
+  ///
+  /// 黙って配ると本人は増えたことに気づかず、終了ダイアログで初めて「失った」と
+  /// 知らされる。それでは体験させたことにならないので、開放側にも案内を出す。
+  ///
+  /// 開放と終了が同じ起動で両方立つことはない（体験中は premium_trial_ended_at が
+  /// まだ無く、終了後は premiumTrialActive が false になる）が、順序として
+  /// 開放を先に呼ぶ。
+  Future<void> _maybeShowPremiumTrialStarted() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyPremiumTrialStartedNotified) ?? false) {
+      return;
+    }
+    await ref.read(userDocProvider.future);
+    if (!mounted) return;
+
+    // 一括配布で配られた人だけが対象。新規ユーザーは初回ガイドで案内済み。
+    if (ref.read(premiumTrialBackfilledAtProvider).valueOrNull == null) return;
+    // 配布後に起動しないまま期限が切れた人には、開放を伝えても意味がない。
+    // 何も持っていない状態で「開放しました」と言うことになる。
+    if (!(ref.read(premiumTrialActiveProvider).valueOrNull ?? false)) return;
+
+    if (CoachMarkOverlay.isVisible ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+
+    final expiresAt = ref.read(premiumTrialExpiresAtProvider).valueOrNull;
+    if (expiresAt == null) return;
+    // 残り日数は切り上げる。期限は JST 0:00 に揃っているので、期限当日は
+    // 「あと1日」になる（0日と出すと、まだ使えるのに終わったように見える）。
+    final days = expiresAt.difference(DateTime.now()).inHours ~/ 24 + 1;
+
+    unawaited(
+      ref.read(analyticsServiceProvider).logPremiumTrialStarted(action: 'shown'),
+    );
+    await showPremiumTrialStartedDialog(context, days: days);
+    await prefs.setBool(AppConfig.prefKeyPremiumTrialStartedNotified, true);
   }
 
   /// プレミアム体験が切れていたら、最初の起動で一度だけ知らせて登録へ誘導する。

@@ -249,6 +249,15 @@ class AnalyticsService {
     await _logEvent('premium_trial_ended', {'action': action});
   }
 
+  /// 既存ユーザーへ後から配ったプレミアム体験の、開放案内の表示。
+  ///
+  /// [action] は shown（表示）のみ。ここでは課金を勧めないので選択肢がない。
+  /// この shown が「体験を実際に認識した人数」の分母になり、
+  /// premium_trial_ended(shown) → subscribe への転換率をここから測る。
+  Future<void> logPremiumTrialStarted({required String action}) async {
+    await _logEvent('premium_trial_started', {'action': action});
+  }
+
   /// 例文タブの常設プレミアムバナーの表示と結果。
   ///
   /// [action] は shown（表示）/ dismissed（×で閉じた）。タップして開いた場合は

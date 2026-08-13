@@ -184,6 +184,78 @@ def sync_estimated_vocab(
     if max_vocab is not None:
         estimated = min(estimated, max_vocab)
     user_ref.set({"estimated_vocab": estimated}, merge=True)
+    publish_leaderboard_vocab(db, uid, estimated)
+
+
+# ランキングの表示名に使うタイ人名。
+# 名はタイの一般的なチューレン（ชื่อเล่น＝あだ名）、姓はタイに多い姓の形。
+# 名＋姓の組み合わせだけで十分にばらけるので、数字は衝突時のみ足す。
+NICKNAME_GIVEN_NAMES = (
+    "Ploy", "Mint", "Fern", "Nan", "Aum", "Beam", "Boss", "Champ",
+    "Earth", "Film", "Gift", "Ice", "June", "Ken", "Mook", "Nut",
+    "Oat", "Pim", "Praew", "Tan", "Ton", "View", "Win", "Yok",
+    "Bank", "Best", "Gun", "Nam", "Fah", "Bow", "Cake", "Dew",
+    "Focus", "Golf", "Jane", "Kwan", "Lek", "May", "Nink", "Opal",
+    "Pat", "Puy", "Rung", "Som", "Tar", "Tui", "Ummi", "Vee",
+    "Wan", "Yui", "Bam", "Chom", "Da", "Eak", "Grace", "Jib",
+    "Kim", "Mai", "New", "Noon", "Pao", "Ping", "Sea", "Tam",
+)
+NICKNAME_SURNAMES = (
+    "Sukjai", "Chaiyaphon", "Srisuwan", "Wongthep", "Rattanakorn", "Boonmee",
+    "Phongsak", "Thongchai", "Saetang", "Kittisak", "Jaidee", "Maneerat",
+    "Piyawat", "Sombat", "Chansiri", "Preecha", "Narong", "Sirikul",
+    "Wattana", "Anuwat", "Kanjana", "Lertsak", "Meesuk", "Nopporn",
+    "Panya", "Rojana", "Sanguan", "Suwannee", "Tavorn", "Udomsak",
+    "Wiriya", "Yotsapon", "Amporn", "Bunnag", "Charoen", "Duangjai",
+    "Intira", "Kraisorn", "Malai", "Nakhon", "Phanit", "Rungrat",
+    "Somchai", "Thanapon", "Uthai", "Wichian", "Yindee", "Chaowalit",
+)
+
+
+def _assign_nickname(db: FirestoreClient, uid: str) -> str | None:
+    """未設定のユーザーに表示名を自動で割り当てる。
+
+    ユーザーに入力させない代わりに、nicknames/{小文字の名前} を create で
+    押さえて一意性を担保する（既存なら AlreadyExists で弾かれる）。
+    """
+    from google.api_core.exceptions import AlreadyExists
+
+    for attempt in range(5):
+        name = (
+            f"{random.choice(NICKNAME_GIVEN_NAMES)} "
+            f"{random.choice(NICKNAME_SURNAMES)}"
+        )
+        # 名＋姓が埋まっていたら数字で逃がす
+        if attempt >= 2:
+            name = f"{name} {random.randint(10, 99)}"
+        try:
+            db.collection("nicknames").document(name.lower()).create({"uid": uid})
+            return name
+        except AlreadyExists:
+            continue
+    return None
+
+
+def publish_leaderboard_vocab(db: FirestoreClient, uid: str, vocab: int) -> None:
+    """語彙スコアをランキング用の公開コレクションへ複製する。
+
+    users/{uid} は本人しか読めないため、ランキングは leaderboard/{uid} を別に持つ。
+    vocab も nickname もサーバー専用（rules でクライアント書き込みを全面禁止）。
+    表示名は最初の1回だけ自動採番し、以降は触らない。
+    free は estimated_vocab 自体が FREE_TIER_MAX_VOCAB でキャップされた値なので、
+    ここでは追加のキャップをしない。
+    """
+    try:
+        ref = db.collection("leaderboard").document(uid)
+        doc = cast("DocumentSnapshot", ref.get())
+        payload: dict[str, Any] = {"vocab": int(vocab), "updated_at": time.time()}
+        if not (doc.exists and (doc.to_dict() or {}).get("nickname")):
+            nickname = _assign_nickname(db, uid)
+            if nickname:
+                payload["nickname"] = nickname
+        ref.set(payload, merge=True)
+    except Exception as exc:  # ランキングの失敗で例文生成を止めない
+        print(f"publish_leaderboard_vocab failed: {exc}")
 
 
 def update_p(

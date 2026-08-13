@@ -209,6 +209,16 @@
   "trialEndedLater": "あとで",
   "trialEndedSeePremium": "プレミアムを見る",
 
+  "trialStartedTitle": "プレミアムを{days}日間おためしできます",
+  "@trialStartedTitle": { "placeholders": { "days": { "type": "int" } } },
+  "trialStartedBody": "ふだんは使えない機能を、この期間だけ開放しました。",
+  "trialStartedChangeQuota": "例文　1日{free}回 → {premium}回",
+  "@trialStartedChangeQuota": { "placeholders": { "free": { "type": "int" }, "premium": { "type": "int" } } },
+  "trialStartedChangePronunciation": "発音チェック　1日{count}回 → 無制限",
+  "@trialStartedChangePronunciation": { "placeholders": { "count": { "type": "int" } } },
+  "trialStartedChangeTopic": "テーマ選択　例文のテーマを自分で選べます",
+  "trialStartedStart": "使ってみる",
+
   "topicPickerTitle": "テーマを選択",
   "nextTopicPrefix": "次のテーマ: ",
   "topicName_blDrama": "タイBLドラマ",
@@ -691,5 +701,54 @@
   "errPurchaseGeneric": "購入エラーが発生しました",
   "purchasePending": "購入の承認待ちです。承認後に反映されます",
   "errSignInBeforePurchase": "ログインしてから購入してください",
-  "errPurchaseVerificationFailed": "購入の検証に失敗しました"
+  "errPurchaseVerificationFailed": "購入の検証に失敗しました",
+
+  "rankingTitle": "語彙ランキング",
+  "rankingSubtitle": "語彙スコアで他の学習者と比べる",
+  "rankingYourRank": "あなたの順位",
+  "rankingPosition": "{rank}位",
+  "@rankingPosition": {
+    "description": "ランキングの順位表示",
+    "placeholders": { "rank": { "type": "int" } }
+  },
+  "rankingUnrankedHint": "例文を生成すると順位がつきます",
+  "rankingLoadFailed": "ランキングを読み込めませんでした",
+  "@rankingOfTotal": {
+    "description": "ランキングの母数",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "rankingYou": "あなた",
+  "rankingDistributionTitle": "語彙スコアの分布",
+  "rankingDistributionSubtitle": "帯ごとの人数。色つきがあなたの位置",
+  "rankingPercentile": "上位{percent}%",
+  "@rankingPercentile": {
+    "description": "全体に対する自分の位置",
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "@rankingTopScore": {
+    "description": "全ユーザー中の最高語彙スコア",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "rankingBandOver": "{min}〜",
+  "@rankingBandOver": {
+    "description": "上限のない帯のラベル",
+    "placeholders": { "min": { "type": "int" } }
+  },
+  "rankingBandRange": "{min}〜{max}",
+  "@rankingBandRange": {
+    "description": "語彙スコアの帯ラベル",
+    "placeholders": { "min": { "type": "int" }, "max": { "type": "int" } }
+  },
+  "rankingAnonymousName": "ユーザー{suffix}",
+  "@rankingAnonymousName": {
+    "description": "ニックネーム未設定ユーザーの表示名",
+    "placeholders": { "suffix": { "type": "String" } }
+  },
+  "rankingFreeCapNote": "無料プランの語彙スコアは{limit}語で上限です",
+  "@rankingFreeCapNote": {
+    "description": "freeユーザー向けの語彙スコア上限の注記",
+    "placeholders": { "limit": { "type": "int" } }
+  },
+  "settingsRanking": "ランキング",
+  "settingsRankingSubtitle": "語彙スコアで他の学習者と比べる"
 }

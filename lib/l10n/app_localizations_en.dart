@@ -540,6 +540,31 @@ class L10nEn extends L10n {
   String get trialEndedSeePremium => 'See Premium';
 
   @override
+  String trialStartedTitle(int days) {
+    return 'Try Premium for $days days';
+  }
+
+  @override
+  String get trialStartedBody =>
+      'We\'ve unlocked features you don\'t normally have, just for this period.';
+
+  @override
+  String trialStartedChangeQuota(int free, int premium) {
+    return 'Sentences  $free/day → $premium/day';
+  }
+
+  @override
+  String trialStartedChangePronunciation(int count) {
+    return 'Pronunciation checks  $count/day → unlimited';
+  }
+
+  @override
+  String get trialStartedChangeTopic => 'Topics  Pick your own sentence topics';
+
+  @override
+  String get trialStartedStart => 'Try it out';
+
+  @override
   String get topicPickerTitle => 'Choose a topic';
 
   @override
@@ -2038,4 +2063,66 @@ class L10nEn extends L10n {
 
   @override
   String get errPurchaseVerificationFailed => 'Couldn\'t verify your purchase';
+
+  @override
+  String get rankingTitle => 'Vocabulary ranking';
+
+  @override
+  String get rankingSubtitle => 'See how your vocabulary score compares';
+
+  @override
+  String get rankingYourRank => 'Your rank';
+
+  @override
+  String rankingPosition(int rank) {
+    return '#$rank';
+  }
+
+  @override
+  String get rankingUnrankedHint => 'Generate a sentence to get ranked';
+
+  @override
+  String get rankingLoadFailed => 'Couldn\'t load the ranking';
+
+  @override
+  String get rankingYou => 'You';
+
+  @override
+  String get rankingDistributionTitle => 'Score distribution';
+
+  @override
+  String get rankingDistributionSubtitle =>
+      'Learners in each band; yours is highlighted';
+
+  @override
+  String rankingPercentile(int percent) {
+    return 'Top $percent%';
+  }
+
+  @override
+  String rankingBandOver(int min) {
+    return '$min+';
+  }
+
+  @override
+  String rankingBandRange(int min, int max) {
+    return '$min–$max';
+  }
+
+  @override
+  String rankingAnonymousName(String suffix) {
+    return 'Learner $suffix';
+  }
+
+  @override
+  String rankingFreeCapNote(int limit) {
+    return 'On the free plan your vocabulary score is capped at $limit words';
+  }
+
+  @override
+  String get settingsRanking => 'Ranking';
+
+  @override
+  String get settingsRankingSubtitle =>
+      'See how your vocabulary score compares';
 }

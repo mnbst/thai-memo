@@ -198,6 +198,13 @@
   "trialEndedLater": "Later",
   "trialEndedSeePremium": "See Premium",
 
+  "trialStartedTitle": "Try Premium for {days} days",
+  "trialStartedBody": "We've unlocked features you don't normally have, just for this period.",
+  "trialStartedChangeQuota": "Sentences  {free}/day → {premium}/day",
+  "trialStartedChangePronunciation": "Pronunciation checks  {count}/day → unlimited",
+  "trialStartedChangeTopic": "Topics  Pick your own sentence topics",
+  "trialStartedStart": "Try it out",
+
   "topicPickerTitle": "Choose a topic",
   "nextTopicPrefix": "Next topic: ",
   "topicName_blDrama": "Thai BL dramas",
@@ -676,5 +683,22 @@
   "errPurchaseGeneric": "Something went wrong with the purchase",
   "purchasePending": "Your purchase is awaiting approval. It'll apply once approved.",
   "errSignInBeforePurchase": "Sign in before buying",
-  "errPurchaseVerificationFailed": "Couldn't verify your purchase"
+  "errPurchaseVerificationFailed": "Couldn't verify your purchase",
+
+  "rankingTitle": "Vocabulary ranking",
+  "rankingSubtitle": "See how your vocabulary score compares",
+  "rankingYourRank": "Your rank",
+  "rankingPosition": "#{rank}",
+  "rankingUnrankedHint": "Generate a sentence to get ranked",
+  "rankingLoadFailed": "Couldn't load the ranking",
+  "rankingYou": "You",
+  "rankingDistributionTitle": "Score distribution",
+  "rankingDistributionSubtitle": "Learners in each band; yours is highlighted",
+  "rankingPercentile": "Top {percent}%",
+  "rankingBandOver": "{min}+",
+  "rankingBandRange": "{min}–{max}",
+  "rankingAnonymousName": "Learner {suffix}",
+  "rankingFreeCapNote": "On the free plan your vocabulary score is capped at {limit} words",
+  "settingsRanking": "Ranking",
+  "settingsRankingSubtitle": "See how your vocabulary score compares"
 }
