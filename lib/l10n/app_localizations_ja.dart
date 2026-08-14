@@ -21,14 +21,13 @@ class L10nJa extends L10n {
   String get settingsFontPickerTitle => 'フォントを選択';
 
   @override
-  String get settingsLanguage => '言語（dev専用）';
+  String get settingsLanguage => '言語';
 
   @override
   String get settingsLanguagePickerTitle => '言語を選択';
 
   @override
-  String get settingsLanguageNote =>
-      'dev ビルドの動作確認用です。切り替えても、すでに作った例文の訳は作成時の言語のまま残ります。';
+  String get settingsLanguageNote => '訳と解説の言語が変わります。すでに作った例文の訳は作成時の言語のまま残ります。';
 
   @override
   String get navLearn => '学習';

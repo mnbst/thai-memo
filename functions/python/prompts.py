@@ -10,7 +10,6 @@ free ティアは estimated_vocab が 100 以下にキャップされる。
 import random
 
 from constants import (
-    FREE_TOPICS,
     TIME_FRAMES,
     TOPIC_SUB_THEMES,
     TOPICS,
@@ -732,9 +731,9 @@ def resolve_generation_params(
     topic だけは未指定でも埋めず "" を返す。候補は topicOptions に入れて返すので、
     呼び出し側がプロンプトに列挙して LLM に選ばせる。
     """
-    topics_pool = TOPICS if is_premium else FREE_TOPICS
-    if is_premium:
-        topics_pool = _gate_topics(topics_pool, estimated_vocab)
+    # 2026-08-14: free 専用プール（FREE_TOPICS）を廃止。クライアントはテーマを
+    # 送らないので、tier でプールを分けても選択肢の差にならなかった。
+    topics_pool = _gate_topics(list(TOPICS), estimated_vocab)
 
     # 2026-08-06: 未指定でもランダムで埋めない。find_best_topic が閾値未達で
     # 諦めた場合はここも空のまま通し、LLM に選ばせる（候補は topics_pool を
@@ -760,14 +759,28 @@ def resolve_generation_params(
     }
 
 
+# 入門帯（vocab < 100）の長さヒント。(min_vocab, hint) を降順で判定する。
+# 2026-08-14 実測: vocab 0-9 の生成文は平均5.3語・中央値5語で、旧ヒット「〜7単語」
+# が効いていなかった。初回から2〜3語に絞り、語彙の伸びに合わせて7語へ繋ぐ。
+INTRO_LENGTH_HINTS = [
+    (60, "〜6単語"),
+    (30, "〜5単語"),
+    (10, "〜4単語"),
+    (0, "2〜3単語"),
+]
+
+
 def _compute_length_hint(estimated_vocab: int) -> str:
-    """estimated_vocab から文の長さヒントを線形補間で返す。
-    100未満: 〜7単語、1500以上: 自然な長さ、その間は比例。
+    """estimated_vocab から文の長さヒントを返す。
+    100未満: INTRO_LENGTH_HINTS の段階指定（2〜3単語から7単語へ）、
+    100-1499: 7単語から16単語へ線形補間、1500以上: 自然な長さ。
     """
     if estimated_vocab >= 1500:
         return "自然な長さ"
     if estimated_vocab < 100:
-        return "〜7単語"
+        for min_vocab, hint in INTRO_LENGTH_HINTS:
+            if estimated_vocab >= min_vocab:
+                return hint
     words = round(7 + (estimated_vocab - 100) / 1400 * 9)
     return f"〜{words}単語"
 

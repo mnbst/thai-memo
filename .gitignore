@@ -67,6 +67,7 @@ app.*.map.json
 .envrc
 
 scripts/corpus/
+scripts/asc_data/
 
 android/app/key.properties
 android/app/*.jks

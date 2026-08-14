@@ -15,7 +15,8 @@ import 'paywall_screen.dart';
 /// 語彙スコアのランキング画面。
 ///
 /// スコアも表示名（タイ人名を自動採番）もサーバーが書く。ユーザーの設定操作はない。
-/// 自分の順位を上に固定し、その下に上位[leaderboardLimit]人を張り出す。
+/// 自分の順位を上に固定し、その下に上位[leaderboardTopCount]人と、自分の上下
+/// [leaderboardNeighborCount]人ずつを並べる。全員ぶんの一覧は出さない。
 class RankingScreen extends ConsumerWidget {
   static const routeName = 'ranking';
 

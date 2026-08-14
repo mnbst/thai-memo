@@ -408,3 +408,67 @@ def test_deliver_returns_reason_when_no_sentence(monkeypatch):
     assert (
         _deliver_one(_FakeDb(user_ref), "uid", _user(), NOW) == "no_sentence"
     )
+
+
+# --- 配信の言語（users/{uid}.app_language） ----------------------------------
+
+
+def test_notification_title_follows_app_language():
+    """en ユーザーの通知タイトルは英語。本文は例文そのものなので訳文の言語に従う。"""
+    sentence = {
+        "thai_text": "เขาไม่กินเผ็ดครับ",
+        "pronunciation": "kǎo mâi gin pèt kráp",
+        "japanese_translation": "He doesn't eat spicy food.",
+        "key_word": "เผ็ด",
+        "key_word_meaning": "spicy",
+    }
+
+    title, body = build_notification_text(sentence, "en")
+
+    assert title == "🇹🇭 Thai of the Day · เผ็ด (spicy)"
+    assert body.endswith("→ He doesn't eat spicy food.")
+
+
+def test_notification_title_falls_back_to_japanese():
+    """未知の言語コードでも落ちずに ja に倒す（既定言語のまま返す方が害が小さい）。"""
+    assert build_notification_text({"key_word": "เผ็ด"}, "fr")[0].startswith(
+        "🇹🇭 今日のタイ語"
+    )
+
+
+def test_build_sentence_passes_app_language_to_generation(monkeypatch):
+    """配信バッチはリクエストを持たないので app_language から lang を解決する。
+
+    渡し忘れると produce_sentence の既定値 ja に落ち、en ユーザーの配信だけ
+    日本語訳になる（2026-08-14 に本番で発生していた）。
+    """
+    captured: dict = {}
+
+    def _fake_produce(db, uid, params, **kwargs):
+        captured.update(kwargs)
+        return ({"thai_text": "นี่อะไร"}, ["นี่"], "topic", False)
+
+    monkeypatch.setattr(daily_sentence_handlers, "produce_sentence", _fake_produce)
+
+    daily_sentence_handlers._build_sentence(
+        None, "uid", {"tier": "premium", "app_language": "en", "estimated_vocab": 0}
+    )
+
+    assert captured["lang"] == "en"
+
+
+def test_build_sentence_defaults_to_japanese_without_app_language(monkeypatch):
+    """app_language 未設定の旧クライアントは ja のまま（後方互換）。"""
+    captured: dict = {}
+
+    def _fake_produce(db, uid, params, **kwargs):
+        captured.update(kwargs)
+        return ({"thai_text": "นี่อะไร"}, ["นี่"], "topic", False)
+
+    monkeypatch.setattr(daily_sentence_handlers, "produce_sentence", _fake_produce)
+
+    daily_sentence_handlers._build_sentence(
+        None, "uid", {"tier": "premium", "estimated_vocab": 0}
+    )
+
+    assert captured["lang"] == "ja"

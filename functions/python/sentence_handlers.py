@@ -203,12 +203,11 @@ def produce_sentence(
             is_premium=use_premium_prompt,
             estimated_vocab=estimated_vocab,
         )
-        # free 例文バンク（GCS）は日本語訳込みで事前生成したもの。en で引くと
-        # 英語ユーザーの free 体験がまるごと日本語訳になる（設計 §3.4）。
-        # en バンクを作るまでは en はキャッシュを使わず必ず LLM で生成する。
-        # cache_only（毎日配信の free 経路）で en なら None を返して配信しない。
-        if not use_premium_spec and lang == "ja":
-            cached = pick_free_sentence(target_words[0])
+        # free 例文バンク（GCS）は言語ごとに事前生成したもの（設計 §3.4）。
+        # その言語のバンクがまだ無ければ空で返るので、下の LLM 生成へ落ちる。
+        # cache_only（毎日配信の free 経路）でバンクが無ければ配信しない。
+        if not use_premium_spec:
+            cached = pick_free_sentence(target_words[0], lang, topic=chosen_topic)
             if cached is not None:
                 return (
                     _attach_generation_tier(cached, use_premium_spec),

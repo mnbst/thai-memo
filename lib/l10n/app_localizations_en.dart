@@ -21,14 +21,14 @@ class L10nEn extends L10n {
   String get settingsFontPickerTitle => 'Choose a font';
 
   @override
-  String get settingsLanguage => 'Language (dev only)';
+  String get settingsLanguage => 'Language';
 
   @override
   String get settingsLanguagePickerTitle => 'Choose a language';
 
   @override
   String get settingsLanguageNote =>
-      'For checking dev builds. Sentences you already created keep the language they were created in.';
+      'Changes the language of translations and notes. Sentences you already created keep the language they were created in.';
 
   @override
   String get navLearn => 'Learn';

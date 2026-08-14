@@ -44,14 +44,23 @@ SUPPORTED_LANGS = ("ja", "en")
 DEFAULT_LANG = "ja"
 
 
+def normalize_lang(value: object) -> str:
+    """言語コードを対応言語に正規化する。未知・未設定は ja に倒す。
+
+    日本語ユーザーに英訳が返る事故のほうが、既定言語のまま返すより害が大きい。
+    """
+    lang = str(value or "").strip().lower()
+    return lang if lang in SUPPORTED_LANGS else DEFAULT_LANG
+
+
 def resolve_lang(data: dict | None) -> str:
     """リクエストの lang を対応言語に正規化する。
 
-    lang を送らない旧クライアントは ja になる（後方互換）。未知の値も ja に倒す。
-    日本語ユーザーに英訳が返る事故のほうが、既定言語のまま返すより害が大きい。
+    lang を送らない旧クライアントは ja になる（後方互換）。
+    サーバー起点の配信には lang を載せたリクエストが無いので、
+    そちらは users/{uid}.app_language を normalize_lang に通す。
     """
-    lang = str((data or {}).get("lang") or "").strip().lower()
-    return lang if lang in SUPPORTED_LANGS else DEFAULT_LANG
+    return normalize_lang((data or {}).get("lang"))
 
 
 # ─── ティア制限 ───
@@ -134,14 +143,23 @@ TOPIC_SUB_THEMES: dict[str, list[str]] = {
 
 # ─── 無料ティア用サブセット ───
 # 無料ユーザーは基本的なテーマと文体のみ利用可能
-FREE_TOPICS = [
-    TOPICS[0],
-    TOPICS[1],
-    TOPICS[5],
-    TOPICS[15],
-]  # あいさつ、食べ物、買い物、タイBLドラマ
+# 2026-08-14 削除: FREE_TOPICS（あいさつ・食べ物・買い物・BLドラマの4件）。
+# クライアントはテーマを送らず、free/premium ともサーバーが自動選出する。
+# free だけプールを狭めても「選べる候補の差」にはならず、テーマの偏りを
+# 強めるだけだった（4件では BLドラマが 82.7%）。以降 free も premium と同じ
+# TOPICS を TOPIC_MIN_VOCAB でゲートしたプールから選ぶ。選び方だけが違う
+# （free=一様抽選 / premium=embedding で key_word に最も近いテーマ）。
 # 2026-08-06 削除: FREE_STYLES。文体の自動抽選を止めた時点で参照が消えた
 # （prompts.py:build_register_constraint のコメント参照）。
+
+# free の自動選出で BLドラマを出す確率。
+# BL は語彙ゲート（TOPIC_MIN_VOCAB=100）の対象で、free は estimated_vocab が
+# 100 でキャップされるため、放っておくと入門帯には一切出ない。刺さる層には
+# 強い引きなので、レベルに関係なく一定確率で混ぜる。残りは通常の一様抽選
+# （BL を除いたゲート済みプール）。バンク生成（scripts/build_free_sentence_bank.py）
+# も同じ率で BL 枠を確保する。
+FREE_BL_TOPIC_RATE = 0.1
+BL_TOPIC = TOPICS[15]
 
 # ─── 丁寧さレベル ───
 # タイ語は丁寧さの使い分けが重要。場面に応じたレベルを選択
@@ -182,6 +200,178 @@ TIME_FRAMES = [
     "これからの予定",
     "いつもの習慣",
 ]
+
+
+# ─── 軸ラベルの英語表記 ───
+# topic / subTheme / timeFrame はサーバーが日本語の定数から決めて context に記録し、
+# style は LLM が STYLES の日本語ラベルをそのまま返す。en ユーザーの画面にその
+# 日本語が出るため、保存・返却の直前に localize_context で英語へ差し替える。
+# プロンプト側は日本語のまま触らない（調整済みの成果物であり、英訳すると
+# 出力の傾向が変わってしまう）。
+TIME_FRAME_LABELS_EN: dict[str, str] = {
+    TIME_FRAMES[0]: "Happening right now",
+    TIME_FRAMES[1]: "Something that just happened",
+    TIME_FRAMES[2]: "An upcoming plan",
+    TIME_FRAMES[3]: "A regular habit",
+}
+
+STYLE_LABELS_EN: dict[str, str] = {
+    STYLES[0]: "News article style (objective, formal reporting)",
+    STYLES[1]: "Casual spoken style (how friends talk)",
+    STYLES[2]: "Polite style (formal, respectful expressions)",
+    STYLES[3]: "Social media / text message style (abbreviations, emoji, short phrases)",
+    STYLES[4]: "Narrative / literary style (descriptive, written language)",
+}
+
+TOPIC_LABELS_EN: dict[str, str] = {
+    TOPICS[0]: "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)",
+    TOPICS[1]: "Food (ordering, impressions, street stalls, spice level, allergies)",
+    TOPICS[2]: "Travel (hotels, directions, sights, airport, tours)",
+    TOPICS[3]: "Work (reporting, meetings, overtime requests, chatting with coworkers)",
+    TOPICS[4]: "Family (introductions, parenting, thanking parents, siblings, family events)",
+    TOPICS[5]: "Shopping (haggling, size and color, returns, night markets)",
+    TOPICS[6]: "Getting around (Grab, BTS, motorbike taxi, songthaew, traffic)",
+    TOPICS[7]: "Health (describing symptoms, pharmacy, massage, checkups)",
+    TOPICS[8]: "Weather (heat, rainy season, storms, sun protection)",
+    TOPICS[9]: "Hobbies (Muay Thai, music, movies, golf, social media, games)",
+    TOPICS[10]: "School (in class, homework, exams, after school, language school)",
+    TOPICS[11]: (
+        "Religion and faith (temple etiquette, alms giving, amulets, "
+        "speaking to monks, Buddhist holidays)"
+    ),
+    TOPICS[12]: (
+        "Traditions and festivals (Songkran, Loi Krathong, royal ceremonies, "
+        "regional dishes)"
+    ),
+    TOPICS[13]: "Etiquette (the wai, honorifics, taboos, table manners, gifts)",
+    TOPICS[14]: (
+        "Romance (confessions, dates, sweet talk, long distance, breakups, "
+        "making up)"
+    ),
+    TOPICS[15]: (
+        "Thai BL drama (confessions, misunderstandings, reunions, jealousy, "
+        "betrayal, making up, kabedon, nicknames)"
+    ),
+}
+
+# サブテーマはテーマごとに引く。「別れ」があいさつでは farewell、恋愛では
+# breakup になるように、同じ日本語でもテーマで訳が変わるため平坦な辞書にしない。
+SUB_THEME_LABELS_EN: dict[str, dict[str, str]] = {
+    TOPICS[0]: {
+        "朝": "morning", "昼": "midday", "夜": "evening",
+        "初対面": "meeting for the first time", "再会": "meeting again",
+        "別れ": "saying goodbye", "電話": "on the phone",
+    },
+    TOPICS[1]: {
+        "注文": "ordering", "感想": "giving impressions", "屋台": "street stalls",
+        "辛さ調整": "adjusting spice level", "アレルギー": "allergies",
+    },
+    TOPICS[2]: {
+        "ホテル": "hotels", "道案内": "directions", "観光地": "sights",
+        "空港": "the airport", "ツアー": "tours",
+    },
+    TOPICS[3]: {
+        "報告・連絡・相談": "reporting and consulting", "打ち合わせ": "meetings",
+        "残業申請": "requesting overtime", "同僚雑談": "small talk with coworkers",
+    },
+    TOPICS[4]: {
+        "家族紹介": "introducing family", "子育て": "parenting",
+        "親への感謝": "thanking parents", "兄弟": "siblings",
+        "家族行事": "family events",
+    },
+    TOPICS[5]: {
+        "値段交渉": "haggling", "サイズ・色の確認": "checking size and color",
+        "返品": "returns", "ナイトマーケット": "night markets",
+    },
+    TOPICS[6]: {
+        "Grab": "Grab", "BTS": "the BTS", "バイタク": "motorbike taxis",
+        "ソンテウ": "songthaew", "渋滞": "traffic jams",
+    },
+    TOPICS[7]: {
+        "症状説明": "describing symptoms", "薬局": "the pharmacy",
+        "マッサージ": "massage", "健康診断": "health checkups",
+    },
+    TOPICS[8]: {
+        "暑さ": "the heat", "雨季": "the rainy season", "台風": "storms",
+        "日焼け対策": "sun protection",
+    },
+    TOPICS[9]: {
+        "ムエタイ": "Muay Thai", "音楽": "music", "映画": "movies",
+        "ゴルフ": "golf", "SNS": "social media", "ゲーム": "games",
+    },
+    TOPICS[10]: {
+        "授業中": "during class", "宿題": "homework", "試験": "exams",
+        "放課後": "after school", "語学学校": "language school",
+    },
+    TOPICS[11]: {
+        "寺院マナー": "temple etiquette", "托鉢": "alms giving",
+        "お守り": "amulets", "僧侶への話し方": "speaking to monks",
+        "仏教行事": "Buddhist holidays",
+    },
+    TOPICS[12]: {
+        "ソンクラーン": "Songkran", "ロイクラトン": "Loi Krathong",
+        "王室行事": "royal ceremonies", "地域の伝統料理": "regional dishes",
+    },
+    TOPICS[13]: {
+        "ワイの使い分け": "when to wai", "敬語": "honorifics", "タブー": "taboos",
+        "食事マナー": "table manners", "贈り物": "gifts",
+    },
+    TOPICS[14]: {
+        "告白": "confessing feelings", "デート": "dates",
+        "甘い言葉": "sweet talk", "遠距離": "long distance",
+        "別れ": "breaking up", "仲直り": "making up",
+    },
+    TOPICS[15]: {
+        "告白": "confessing feelings", "すれ違い": "misunderstandings",
+        "再会": "reuniting", "嫉妬": "jealousy", "裏切り": "betrayal",
+        "仲直り": "making up", "壁ドン": "kabedon", "あだ名呼び": "nicknames",
+        "同棲": "living together", "片想い": "unrequited love",
+    },
+}
+
+
+# サーバーがテーマを決めなかった回は LLM が選んで書くので、括弧の例示を落とした
+# 短縮形（「食べ物」「旅行」）が返る。完全一致だけだとそこが日本語のまま残る。
+_TOPIC_HEADS_EN: dict[str, str] = {
+    topic.split("（")[0]: label for topic, label in TOPIC_LABELS_EN.items()
+}
+
+
+def _localize_topic(topic: str) -> str:
+    label = TOPIC_LABELS_EN.get(topic)
+    if label is not None:
+        return label
+    return _TOPIC_HEADS_EN.get(topic.split("（")[0], topic)
+
+
+def localize_context(context: dict | None, lang: str) -> dict | None:
+    """context の軸ラベルを訳文の言語に合わせる。
+
+    ja はそのまま返す。en は既知の日本語ラベルだけ差し替え、未知の値
+    （LLM が自由記述する emotion・usage_scenarios や、既に英語のもの）は触らない。
+    冪等なので、英語化済みの例文にもう一度かけても壊れない。
+    """
+    if not isinstance(context, dict) or lang == DEFAULT_LANG:
+        return context
+    if lang != "en":
+        return context
+
+    topic = context.get("topic")
+    localized = dict(context)
+    if isinstance(topic, str):
+        localized["topic"] = _localize_topic(topic)
+    style = context.get("style")
+    if isinstance(style, str):
+        localized["style"] = STYLE_LABELS_EN.get(style, style)
+    sub_theme = context.get("subTheme")
+    if isinstance(sub_theme, str) and isinstance(topic, str):
+        localized["subTheme"] = SUB_THEME_LABELS_EN.get(topic, {}).get(
+            sub_theme, sub_theme
+        )
+    time_frame = context.get("timeFrame")
+    if isinstance(time_frame, str):
+        localized["timeFrame"] = TIME_FRAME_LABELS_EN.get(time_frame, time_frame)
+    return localized
 
 # ─── 述べ方（モダリティ）は 2026-08-06 に削除 ───
 # 断定/推量/伝聞/確認 の4値を抽選していたが、確定済みの key_word に後付けすると

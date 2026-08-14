@@ -61,7 +61,11 @@ freeユーザーは初回からfreeスペックで生成する。過去の `is_f
 
 ターゲット単語がある場合は「最優先で含めること」として指示し、テーマ/文体/文法などは「できれば反映」の補助扱いにする。
 
-free ティアはユーザー指定のテーマを使わず、`FREE_TOPICS` からおまかせ選択する。スタイルは `FREE_STYLES` に制限し、`grammarFocus` は使わない。
+テーマはクライアントから送られない（free/premium ともサーバー自動選出）。候補プールは共通で
+`TOPIC_MIN_VOCAB` によるレベル別ゲートのみ。選び方だけが tier で違い、free は**一様抽選**、
+premium は embedding で key_word に最も近いテーマを選ぶ。free で embedding を使うと
+テーマ embedding の重心バイアスで BLドラマに偏る（2026-08-14 実測 82.7%）。
+free では BLドラマだけ語彙ゲートの外で `FREE_BL_TOPIC_RATE`（10%）の固定枠を持つ。スタイルは `FREE_STYLES` に制限し、`grammarFocus` は使わない。
 語彙スコアごとの topic / style / grammarFocus 解禁仕様は `docs/vocab_unlock_parameters.md` を参照。
 
 プロンプトでは `word_breakdown` を最大20単語までに制限する。
