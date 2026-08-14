@@ -200,7 +200,7 @@ def test_produce_sentence_free_cache_hit(monkeypatch):
     monkeypatch.setattr(
         sentence_handlers,
         "pick_free_sentence",
-        lambda word: {"thai_text": "ฉันกินข้าว"},
+        lambda word, lang="ja", topic="": {"thai_text": "ฉันกินข้าว"},
     )
 
     produced = sentence_handlers.produce_sentence(
@@ -219,8 +219,8 @@ def test_produce_sentence_free_cache_hit(monkeypatch):
     assert from_cache is True
 
 
-def test_produce_sentence_en_skips_the_japanese_free_cache(monkeypatch):
-    """free 例文バンクは日本語訳込み。en で引くと英語ユーザーに日本語訳が返る。"""
+def test_produce_sentence_free_cache_is_looked_up_per_lang(monkeypatch):
+    """free 例文バンクは言語ごと。en ユーザーには en バンクを引く。"""
     import sentence_handlers
 
     monkeypatch.setattr(
@@ -229,10 +229,38 @@ def test_produce_sentence_en_skips_the_japanese_free_cache(monkeypatch):
         lambda db, uid, params, **kw: (["ข้าว"], "食事"),
     )
 
-    def _must_not_be_called(word):
-        raise AssertionError("en でキャッシュを引いてはいけない")
+    asked = {}
 
-    monkeypatch.setattr(sentence_handlers, "pick_free_sentence", _must_not_be_called)
+    def _pick(word, lang="ja", topic=""):
+        asked["lang"] = lang
+        asked["topic"] = topic
+        return {"thai_text": "I eat rice"}
+
+    monkeypatch.setattr(sentence_handlers, "pick_free_sentence", _pick)
+
+    produced = sentence_handlers.produce_sentence(
+        None, "uid", {}, use_premium_spec=False, estimated_vocab=10, lang="en"
+    )
+
+    assert produced is not None
+    assert asked["lang"] == "en"
+    # 選出したテーマをバンク抽選にも渡す（chosenTopic と実際の文を揃える）
+    assert asked["topic"] == "食事"
+    assert produced[3] is True
+
+
+def test_produce_sentence_falls_back_to_llm_when_bank_missing(monkeypatch):
+    """その言語のバンクがまだ無ければ（空で返る）LLM 生成へ落ちる。"""
+    import sentence_handlers
+
+    monkeypatch.setattr(
+        sentence_handlers,
+        "_select_target_words_with_topic",
+        lambda db, uid, params, **kw: (["ข้าว"], "食事"),
+    )
+    monkeypatch.setattr(
+        sentence_handlers, "pick_free_sentence", lambda word, lang="ja", topic="": None
+    )
 
     captured = {}
 
@@ -257,14 +285,17 @@ def test_produce_sentence_en_skips_the_japanese_free_cache(monkeypatch):
     assert captured["lang"] == "en"
 
 
-def test_produce_sentence_en_cache_only_returns_none(monkeypatch):
-    """毎日配信の free 経路（cache_only）は en バンクが無いので配信しない。"""
+def test_produce_sentence_cache_only_returns_none_without_bank(monkeypatch):
+    """毎日配信の free 経路（cache_only）は、その言語のバンクが無ければ配信しない。"""
     import sentence_handlers
 
     monkeypatch.setattr(
         sentence_handlers,
         "_select_target_words_with_topic",
         lambda db, uid, params, **kw: (["ข้าว"], "食事"),
+    )
+    monkeypatch.setattr(
+        sentence_handlers, "pick_free_sentence", lambda word, lang="ja", topic="": None
     )
 
     produced = sentence_handlers.produce_sentence(
@@ -293,7 +324,7 @@ def test_produce_sentence_cache_only_retries_then_none(monkeypatch):
         sentence_handlers, "_select_target_words_with_topic", _select
     )
     monkeypatch.setattr(
-        sentence_handlers, "pick_free_sentence", lambda word: None
+        sentence_handlers, "pick_free_sentence", lambda word, lang="ja", topic="": None
     )
 
     produced = sentence_handlers.produce_sentence(
@@ -319,7 +350,7 @@ def test_produce_sentence_free_cache_miss_falls_back_to_llm(monkeypatch):
         lambda db, uid, params, **kw: (["ข้าว"], "食事"),
     )
     monkeypatch.setattr(
-        sentence_handlers, "pick_free_sentence", lambda word: None
+        sentence_handlers, "pick_free_sentence", lambda word, lang="ja", topic="": None
     )
     captured = {}
 

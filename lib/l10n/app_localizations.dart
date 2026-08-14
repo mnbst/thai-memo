@@ -124,7 +124,7 @@ abstract class L10n {
   /// No description provided for @settingsLanguage.
   ///
   /// In ja, this message translates to:
-  /// **'言語（dev専用）'**
+  /// **'言語'**
   String get settingsLanguage;
 
   /// No description provided for @settingsLanguagePickerTitle.
@@ -133,10 +133,10 @@ abstract class L10n {
   /// **'言語を選択'**
   String get settingsLanguagePickerTitle;
 
-  /// dev限定の言語切替ダイアログの補足。履歴が書き換わらないことを伝える
+  /// 言語切替ダイアログの補足。履歴が書き換わらないことを伝える
   ///
   /// In ja, this message translates to:
-  /// **'dev ビルドの動作確認用です。切り替えても、すでに作った例文の訳は作成時の言語のまま残ります。'**
+  /// **'訳と解説の言語が変わります。すでに作った例文の訳は作成時の言語のまま残ります。'**
   String get settingsLanguageNote;
 
   /// No description provided for @navLearn.

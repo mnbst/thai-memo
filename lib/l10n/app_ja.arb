@@ -10,11 +10,11 @@
   "settingsFont": "フォント",
   "settingsFontPickerTitle": "フォントを選択",
 
-  "settingsLanguage": "言語（dev専用）",
+  "settingsLanguage": "言語",
   "settingsLanguagePickerTitle": "言語を選択",
-  "settingsLanguageNote": "dev ビルドの動作確認用です。切り替えても、すでに作った例文の訳は作成時の言語のまま残ります。",
+  "settingsLanguageNote": "訳と解説の言語が変わります。すでに作った例文の訳は作成時の言語のまま残ります。",
   "@settingsLanguageNote": {
-    "description": "dev限定の言語切替ダイアログの補足。履歴が書き換わらないことを伝える"
+    "description": "言語切替ダイアログの補足。履歴が書き換わらないことを伝える"
   },
 
   "navLearn": "学習",

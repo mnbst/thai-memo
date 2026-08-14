@@ -19,7 +19,7 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1.client import Client as FirestoreClient
 
 try:
-    from .constants import FREE_TIER_MAX_VOCAB
+    from .constants import FREE_TIER_MAX_VOCAB, normalize_lang
     from .daily_sentence import (
         MAX_TARGET_WORD_RETRY,
         TIER_STOPPED,
@@ -38,7 +38,7 @@ try:
     from .sentence_service import get_freq_rank
     from .uvm import sync_estimated_vocab
 except ImportError:
-    from constants import FREE_TIER_MAX_VOCAB
+    from constants import FREE_TIER_MAX_VOCAB, normalize_lang
     from daily_sentence import (
         MAX_TARGET_WORD_RETRY,
         TIER_STOPPED,
@@ -87,12 +87,18 @@ def _build_sentence(
     """配信する例文を作る。戻り値は (例文, target_words, premiumスペックか)。
 
     生成コアは通常生成と共通の produce_sentence。
+    訳文の言語はサーバー起点でリクエストが無いため、クライアントが
+    users/{uid}.app_language にミラーした設定から解決する。渡し忘れると
+    produce_sentence の既定値 ja に落ち、en ユーザーの配信だけ日本語になる
+    （2026-08-14 実測: en ユーザーの配信例文10本が全て日本語訳だった）。
     free はキャッシュのみでLLM原価をゼロに保つ。premium と、トライアル枠を充てる
     配信（uses_premium_trial）はLLMで生成し、失敗した場合だけキャッシュに退避して
     通知そのものは落とさない。
     premium のテーマはクライアントが users/{uid}.preferred_topic にミラーした
     設定を使い、未設定（おまかせ）なら通常生成と同じくUVMのkey_wordから決める。
     """
+    lang = normalize_lang(user_data.get("app_language"))
+
     if user_data.get("tier") == "premium" or uses_premium_trial(user_data):
         params: dict = {}
         preferred_topic = user_data.get("preferred_topic")
@@ -105,6 +111,7 @@ def _build_sentence(
                 params,
                 use_premium_spec=True,
                 estimated_vocab=user_data.get("estimated_vocab", 0),
+                lang=lang,
             )
             if produced is not None:
                 sentence, target_words, _topic, _cached = produced
@@ -122,6 +129,7 @@ def _build_sentence(
         ),
         cache_only=True,
         select_retry=MAX_TARGET_WORD_RETRY,
+        lang=lang,
     )
     if produced is None:
         return None
@@ -196,7 +204,15 @@ def _commit_daily_sentence_body(
 _commit_daily_sentence = transactional(_commit_daily_sentence_body)
 
 
-def build_notification_text(sentence: dict) -> tuple[str, str]:
+# 通知タイトルの言語別テンプレート。本文は例文そのもの（タイ文・発音・訳）なので
+# 訳文の言語で決まるが、タイトルはサーバー側の文言なのでここで出し分ける。
+_NOTIFICATION_TITLE = {
+    "ja": ("🇹🇭 今日のタイ語", "🇹🇭 今日のタイ語 · {key_word}（{meaning}）"),
+    "en": ("🇹🇭 Thai of the Day", "🇹🇭 Thai of the Day · {key_word} ({meaning})"),
+}
+
+
+def build_notification_text(sentence: dict, lang: str = "ja") -> tuple[str, str]:
     """通知のタイトルと本文を組み立てる。
 
     タイ文字だけだと通知一覧で何のアプリか判別しづらいので、タイトルに
@@ -205,14 +221,15 @@ def build_notification_text(sentence: dict) -> tuple[str, str]:
     同じ記号を並べず、発音は括弧・訳は矢印で役割を書き分ける。
     発音が無い例文もあるので行ごとに省く。
     """
+    plain, with_word = _NOTIFICATION_TITLE.get(lang, _NOTIFICATION_TITLE["ja"])
     key_word = (sentence.get("key_word") or "").strip()
     key_word_meaning = (sentence.get("key_word_meaning") or "").strip()
     if key_word and key_word_meaning:
-        title = f"🇹🇭 今日のタイ語 · {key_word}（{key_word_meaning}）"
+        title = with_word.format(key_word=key_word, meaning=key_word_meaning)
     elif key_word:
-        title = f"🇹🇭 今日のタイ語 · {key_word}"
+        title = f"{plain} · {key_word}"
     else:
-        title = "🇹🇭 今日のタイ語"
+        title = plain
 
     thai_text = (sentence.get("thai_text") or "").strip()
     pronunciation = (sentence.get("pronunciation") or "").strip()
@@ -226,8 +243,10 @@ def build_notification_text(sentence: dict) -> tuple[str, str]:
     return title, "\n".join(line for line in lines if line)
 
 
-def _send_notification(token: str, sentence_id: str, sentence: dict) -> None:
-    title, body = build_notification_text(sentence)
+def _send_notification(
+    token: str, sentence_id: str, sentence: dict, lang: str = "ja"
+) -> None:
+    title, body = build_notification_text(sentence, lang)
     messaging.send(
         messaging.Message(
             token=token,
@@ -327,7 +346,12 @@ def _deliver_one(
 
     try:
         # key_word とその意味を通知に載せるため、整形済みの sentence_data を渡す。
-        _send_notification(token, sentence_ref.id, sentence_data)
+        _send_notification(
+            token,
+            sentence_ref.id,
+            sentence_data,
+            normalize_lang(user_data.get("app_language")),
+        )
     except messaging.UnregisteredError:
         print(f"daily_sentence: token unregistered, rolling back {uid}")
         _rollback_delivery(user_ref, sentence_ref, restore)

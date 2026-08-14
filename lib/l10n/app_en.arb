@@ -7,9 +7,9 @@
   "settingsFont": "Font",
   "settingsFontPickerTitle": "Choose a font",
 
-  "settingsLanguage": "Language (dev only)",
+  "settingsLanguage": "Language",
   "settingsLanguagePickerTitle": "Choose a language",
-  "settingsLanguageNote": "For checking dev builds. Sentences you already created keep the language they were created in.",
+  "settingsLanguageNote": "Changes the language of translations and notes. Sentences you already created keep the language they were created in.",
 
   "navLearn": "Learn",
   "navHistory": "History",
