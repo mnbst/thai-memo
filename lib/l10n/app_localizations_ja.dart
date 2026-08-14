@@ -21,14 +21,13 @@ class L10nJa extends L10n {
   String get settingsFontPickerTitle => 'フォントを選択';
 
   @override
-  String get settingsLanguage => '言語（dev専用）';
+  String get settingsLanguage => '言語';
 
   @override
   String get settingsLanguagePickerTitle => '言語を選択';
 
   @override
-  String get settingsLanguageNote =>
-      'dev ビルドの動作確認用です。切り替えても、すでに作った例文の訳は作成時の言語のまま残ります。';
+  String get settingsLanguageNote => '訳と解説の言語が変わります。すでに作った例文の訳は作成時の言語のまま残ります。';
 
   @override
   String get navLearn => '学習';
@@ -505,6 +504,30 @@ class L10nJa extends L10n {
 
   @override
   String get trialEndedSeePremium => 'プレミアムを見る';
+
+  @override
+  String trialStartedTitle(int days) {
+    return 'プレミアムを$days日間おためしできます';
+  }
+
+  @override
+  String get trialStartedBody => 'ふだんは使えない機能を、この期間だけ開放しました。';
+
+  @override
+  String trialStartedChangeQuota(int free, int premium) {
+    return '例文　1日$free回 → $premium回';
+  }
+
+  @override
+  String trialStartedChangePronunciation(int count) {
+    return '発音チェック　1日$count回 → 無制限';
+  }
+
+  @override
+  String get trialStartedChangeTopic => 'テーマ選択　例文のテーマを自分で選べます';
+
+  @override
+  String get trialStartedStart => '使ってみる';
 
   @override
   String get topicPickerTitle => 'テーマを選択';
@@ -1067,6 +1090,72 @@ class L10nJa extends L10n {
   @override
   String pronunciationCoachNotRecognized(String word) {
     return '「$word」が聞き取れませんでした。もう少しはっきり言ってみる';
+  }
+
+  @override
+  String pronunciationSegmentUnaspirated(
+      String word, String label, String aspirated) {
+    return '「$word」の $label は息を出さずに出す。息が漏れると $aspirated に聞こえる';
+  }
+
+  @override
+  String pronunciationSegmentFinalP(String word) {
+    return '「$word」の終わりは唇を閉じたまま止める。「プ」と母音を足さない';
+  }
+
+  @override
+  String pronunciationSegmentFinalT(String word) {
+    return '「$word」の終わりは舌先を離さず止める。「ト」と母音を足さない';
+  }
+
+  @override
+  String pronunciationSegmentFinalK(String word) {
+    return '「$word」の終わりは喉の奥で止める。「ク」と母音を足さない';
+  }
+
+  @override
+  String pronunciationSegmentNgInitial(String word) {
+    return '「$word」の頭の ง は、口を開けたまま鼻へ抜く。「ン」を前に付けない';
+  }
+
+  @override
+  String pronunciationSegmentFinalNg(String word) {
+    return '「$word」の終わりは口を開けたまま鼻へ抜く（-ng）。口を閉じると別の語になる';
+  }
+
+  @override
+  String pronunciationSegmentFinalN(String word) {
+    return '「$word」の終わりは舌先を歯の裏に付ける（-n）。鼻に抜くと -ng になる';
+  }
+
+  @override
+  String pronunciationSegmentFinalM(String word) {
+    return '「$word」の終わりは唇を閉じる（-m）';
+  }
+
+  @override
+  String pronunciationSegmentShortVowel(String word, String label) {
+    return '「$word」の $label は短く切る。伸ばすと別の語になる';
+  }
+
+  @override
+  String pronunciationSegmentVowelAe(String word) {
+    return '「$word」の母音は「エ」より口を横に大きく開く（ɛ）';
+  }
+
+  @override
+  String pronunciationSegmentVowelOe(String word) {
+    return '「$word」の母音は口をあまり動かさず、こもった音で出す（ə）';
+  }
+
+  @override
+  String pronunciationSegmentVowelAw(String word) {
+    return '「$word」の母音は「オ」より口を丸く大きく開く（ɔ）';
+  }
+
+  @override
+  String pronunciationSegmentVowelUe(String word) {
+    return '「$word」の母音は唇を横に引いたまま「ウ」と出す（ɯ）';
   }
 
   @override
@@ -1882,4 +1971,64 @@ class L10nJa extends L10n {
 
   @override
   String get errPurchaseVerificationFailed => '購入の検証に失敗しました';
+
+  @override
+  String get rankingTitle => '語彙ランキング';
+
+  @override
+  String get rankingSubtitle => '語彙スコアで他の学習者と比べる';
+
+  @override
+  String get rankingYourRank => 'あなたの順位';
+
+  @override
+  String rankingPosition(int rank) {
+    return '$rank位';
+  }
+
+  @override
+  String get rankingUnrankedHint => '例文を生成すると順位がつきます';
+
+  @override
+  String get rankingLoadFailed => 'ランキングを読み込めませんでした';
+
+  @override
+  String get rankingYou => 'あなた';
+
+  @override
+  String get rankingDistributionTitle => '語彙スコアの分布';
+
+  @override
+  String get rankingDistributionSubtitle => '帯ごとの人数。色つきがあなたの位置';
+
+  @override
+  String rankingPercentile(int percent) {
+    return '上位$percent%';
+  }
+
+  @override
+  String rankingBandOver(int min) {
+    return '$min〜';
+  }
+
+  @override
+  String rankingBandRange(int min, int max) {
+    return '$min〜$max';
+  }
+
+  @override
+  String rankingAnonymousName(String suffix) {
+    return 'ユーザー$suffix';
+  }
+
+  @override
+  String rankingFreeCapNote(int limit) {
+    return '無料プランの語彙スコアは$limit語で上限です';
+  }
+
+  @override
+  String get settingsRanking => 'ランキング';
+
+  @override
+  String get settingsRankingSubtitle => '語彙スコアで他の学習者と比べる';
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,7 +16,6 @@ import '../providers/auth_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/sign_in_sheet.dart';
@@ -23,6 +23,7 @@ import '../widgets/topic_picker.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'contact_form_screen.dart';
 import 'paywall_screen.dart';
+import 'ranking_screen.dart';
 import 'tone_guide_screen.dart';
 
 /// Settings screen
@@ -104,17 +105,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             Consumer(
               builder: (context, ref, _) {
-                final isPremium = ref.watch(isPremiumProvider);
                 // 体験中は課金と同じ機能が使えているので、そのことを出す。
                 // 「課金しているか」の表示なので Premium とは別ラベルにする。
-                final trialActive =
-                    !isPremium && ref.watch(effectivePremiumProvider);
-                final label = isPremium
-                    ? 'Premium'
-                    : trialActive
-                        ? L10n.of(context).settingsPlanTrial
-                        : 'Free';
-                final highlighted = isPremium || trialActive;
+                // 判定が付くまでは何も出さない（free → 体験中 → Premium と
+                // 段階的にぶれて見えるのを避ける）。
+                final plan = ref.watch(planStatusProvider).valueOrNull;
+                final label = switch (plan) {
+                  PlanStatus.premium => 'Premium',
+                  PlanStatus.trial => L10n.of(context).settingsPlanTrial,
+                  PlanStatus.free => 'Free',
+                  null => null,
+                };
+                final highlighted =
+                    plan == PlanStatus.premium || plan == PlanStatus.trial;
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.workspace_premium),
@@ -122,18 +125,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Chip(
-                        label: Text(label),
-                        backgroundColor: highlighted
-                            ? Theme.of(context).colorScheme.primaryContainer
-                            : null,
-                        labelStyle: TextStyle(
-                          color: highlighted
-                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                      if (label != null)
+                        Chip(
+                          label: Text(label),
+                          backgroundColor: highlighted
+                              ? Theme.of(context).colorScheme.primaryContainer
                               : null,
-                          fontWeight: FontWeight.w600,
+                          labelStyle: TextStyle(
+                            color: highlighted
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer
+                                : null,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
                       const Icon(Icons.chevron_right),
                     ],
                   ),
@@ -295,36 +301,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            // 言語切替は dev / tester の動作確認専用。製品ビルドでは出さない。
-            // 訳文は生成時の言語で保存され、切り替えても履歴は書き換わらないため、
-            // 実ユーザーに開くと1つの履歴に日英が混在する。言語はストア地域で決まる。
-            //
-            // tester にも出す。言語は初回起動で1回決めて保存し以後は再評価しない
-            // ので、サンドボックスのストア地域で en に落ちると**戻す手段が無く**、
-            // 再インストールするまで日本語の確認ができない。
-            if (AppConfig.isDev || AppConfig.isTester)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.translate),
-                title: Text(l10n.settingsLanguage),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      ref.watch(appLanguageProvider).displayName,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                    ),
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-                onTap: () =>
-                    _showLanguagePicker(ref.read(appLanguageProvider)),
+            // 言語は初回起動でストア地域から1回決めて保存し、以後は再評価しない。
+            // 自動判定を外すと**戻す手段が無く**、ストア地域と実際の使用言語が
+            // 違うユーザー（日本在住の英語話者、海外在住の日本語話者）は
+            // 再インストールするまで読めない言語で使い続けることになる。
+            // 履歴に日英が混ざる点はダイアログの注記で伝える。
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.translate),
+              title: Text(l10n.settingsLanguage),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    ref.watch(appLanguageProvider).displayName,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
               ),
+              onTap: () => _showLanguagePicker(ref.read(appLanguageProvider)),
+            ),
             // 体験終了ダイアログは期限が来ないと出ないので、見た目の確認用に
             // dev だけ手動で開けるようにしておく。
             if (AppConfig.isDev)
@@ -381,7 +383,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// dev / tester 専用の言語切替。製品ビルドでは導線を閉じている。
+  /// 訳文・UI の言語切替。既存の例文の訳は作成時の言語のまま残る。
   void _showLanguagePicker(AppLanguage current) {
     final l10n = L10n.of(context);
     showDialog<void>(
@@ -525,6 +527,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
+                Icons.leaderboard,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text(L10n.of(context).settingsRanking),
+              subtitle: Text(L10n.of(context).rankingSubtitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                // Cupertino ルートにすると Android でも右スワイプで戻れる
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(
+                    settings: const RouteSettings(name: RankingScreen.routeName),
+                    builder: (context) => const RankingScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
                 Icons.graphic_eq,
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -534,7 +556,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
+                  CupertinoPageRoute(
                     settings:
                         const RouteSettings(name: ToneGuideScreen.routeName),
                     builder: (context) => const ToneGuideScreen(),

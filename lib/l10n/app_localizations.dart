@@ -124,7 +124,7 @@ abstract class L10n {
   /// No description provided for @settingsLanguage.
   ///
   /// In ja, this message translates to:
-  /// **'言語（dev専用）'**
+  /// **'言語'**
   String get settingsLanguage;
 
   /// No description provided for @settingsLanguagePickerTitle.
@@ -133,10 +133,10 @@ abstract class L10n {
   /// **'言語を選択'**
   String get settingsLanguagePickerTitle;
 
-  /// dev限定の言語切替ダイアログの補足。履歴が書き換わらないことを伝える
+  /// 言語切替ダイアログの補足。履歴が書き換わらないことを伝える
   ///
   /// In ja, this message translates to:
-  /// **'dev ビルドの動作確認用です。切り替えても、すでに作った例文の訳は作成時の言語のまま残ります。'**
+  /// **'訳と解説の言語が変わります。すでに作った例文の訳は作成時の言語のまま残ります。'**
   String get settingsLanguageNote;
 
   /// No description provided for @navLearn.
@@ -1032,6 +1032,42 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'プレミアムを見る'**
   String get trialEndedSeePremium;
+
+  /// No description provided for @trialStartedTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムを{days}日間おためしできます'**
+  String trialStartedTitle(int days);
+
+  /// No description provided for @trialStartedBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'ふだんは使えない機能を、この期間だけ開放しました。'**
+  String get trialStartedBody;
+
+  /// No description provided for @trialStartedChangeQuota.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文　1日{free}回 → {premium}回'**
+  String trialStartedChangeQuota(int free, int premium);
+
+  /// No description provided for @trialStartedChangePronunciation.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音チェック　1日{count}回 → 無制限'**
+  String trialStartedChangePronunciation(int count);
+
+  /// No description provided for @trialStartedChangeTopic.
+  ///
+  /// In ja, this message translates to:
+  /// **'テーマ選択　例文のテーマを自分で選べます'**
+  String get trialStartedChangeTopic;
+
+  /// No description provided for @trialStartedStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'使ってみる'**
+  String get trialStartedStart;
 
   /// No description provided for @topicPickerTitle.
   ///
@@ -2058,6 +2094,85 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'「{word}」が聞き取れませんでした。もう少しはっきり言ってみる'**
   String pronunciationCoachNotRecognized(String word);
+
+  /// No description provided for @pronunciationSegmentUnaspirated.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の {label} は息を出さずに出す。息が漏れると {aspirated} に聞こえる'**
+  String pronunciationSegmentUnaspirated(
+      String word, String label, String aspirated);
+
+  /// No description provided for @pronunciationSegmentFinalP.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは唇を閉じたまま止める。「プ」と母音を足さない'**
+  String pronunciationSegmentFinalP(String word);
+
+  /// No description provided for @pronunciationSegmentFinalT.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは舌先を離さず止める。「ト」と母音を足さない'**
+  String pronunciationSegmentFinalT(String word);
+
+  /// No description provided for @pronunciationSegmentFinalK.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは喉の奥で止める。「ク」と母音を足さない'**
+  String pronunciationSegmentFinalK(String word);
+
+  /// No description provided for @pronunciationSegmentNgInitial.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の頭の ง は、口を開けたまま鼻へ抜く。「ン」を前に付けない'**
+  String pronunciationSegmentNgInitial(String word);
+
+  /// No description provided for @pronunciationSegmentFinalNg.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは口を開けたまま鼻へ抜く（-ng）。口を閉じると別の語になる'**
+  String pronunciationSegmentFinalNg(String word);
+
+  /// No description provided for @pronunciationSegmentFinalN.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは舌先を歯の裏に付ける（-n）。鼻に抜くと -ng になる'**
+  String pronunciationSegmentFinalN(String word);
+
+  /// No description provided for @pronunciationSegmentFinalM.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは唇を閉じる（-m）'**
+  String pronunciationSegmentFinalM(String word);
+
+  /// No description provided for @pronunciationSegmentShortVowel.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の {label} は短く切る。伸ばすと別の語になる'**
+  String pronunciationSegmentShortVowel(String word, String label);
+
+  /// No description provided for @pronunciationSegmentVowelAe.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の母音は「エ」より口を横に大きく開く（ɛ）'**
+  String pronunciationSegmentVowelAe(String word);
+
+  /// No description provided for @pronunciationSegmentVowelOe.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の母音は口をあまり動かさず、こもった音で出す（ə）'**
+  String pronunciationSegmentVowelOe(String word);
+
+  /// No description provided for @pronunciationSegmentVowelAw.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の母音は「オ」より口を丸く大きく開く（ɔ）'**
+  String pronunciationSegmentVowelAw(String word);
+
+  /// No description provided for @pronunciationSegmentVowelUe.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の母音は唇を横に引いたまま「ウ」と出す（ɯ）'**
+  String pronunciationSegmentVowelUe(String word);
 
   /// No description provided for @pronunciationLimitTitle.
   ///
@@ -3576,6 +3691,102 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'購入の検証に失敗しました'**
   String get errPurchaseVerificationFailed;
+
+  /// No description provided for @rankingTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙ランキング'**
+  String get rankingTitle;
+
+  /// No description provided for @rankingSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコアで他の学習者と比べる'**
+  String get rankingSubtitle;
+
+  /// No description provided for @rankingYourRank.
+  ///
+  /// In ja, this message translates to:
+  /// **'あなたの順位'**
+  String get rankingYourRank;
+
+  /// ランキングの順位表示
+  ///
+  /// In ja, this message translates to:
+  /// **'{rank}位'**
+  String rankingPosition(int rank);
+
+  /// No description provided for @rankingUnrankedHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文を生成すると順位がつきます'**
+  String get rankingUnrankedHint;
+
+  /// No description provided for @rankingLoadFailed.
+  ///
+  /// In ja, this message translates to:
+  /// **'ランキングを読み込めませんでした'**
+  String get rankingLoadFailed;
+
+  /// No description provided for @rankingYou.
+  ///
+  /// In ja, this message translates to:
+  /// **'あなた'**
+  String get rankingYou;
+
+  /// No description provided for @rankingDistributionTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコアの分布'**
+  String get rankingDistributionTitle;
+
+  /// No description provided for @rankingDistributionSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'帯ごとの人数。色つきがあなたの位置'**
+  String get rankingDistributionSubtitle;
+
+  /// 全体に対する自分の位置
+  ///
+  /// In ja, this message translates to:
+  /// **'上位{percent}%'**
+  String rankingPercentile(int percent);
+
+  /// 上限のない帯のラベル
+  ///
+  /// In ja, this message translates to:
+  /// **'{min}〜'**
+  String rankingBandOver(int min);
+
+  /// 語彙スコアの帯ラベル
+  ///
+  /// In ja, this message translates to:
+  /// **'{min}〜{max}'**
+  String rankingBandRange(int min, int max);
+
+  /// ニックネーム未設定ユーザーの表示名
+  ///
+  /// In ja, this message translates to:
+  /// **'ユーザー{suffix}'**
+  String rankingAnonymousName(String suffix);
+
+  /// freeユーザー向けの語彙スコア上限の注記
+  ///
+  /// In ja, this message translates to:
+  /// **'無料プランの語彙スコアは{limit}語で上限です'**
+  String rankingFreeCapNote(int limit);
+
+  /// No description provided for @settingsRanking.
+  ///
+  /// In ja, this message translates to:
+  /// **'ランキング'**
+  String get settingsRanking;
+
+  /// No description provided for @settingsRankingSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコアで他の学習者と比べる'**
+  String get settingsRankingSubtitle;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

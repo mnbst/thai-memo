@@ -472,8 +472,12 @@ List<SyllableScore> scoreSyllables({
     //
     // **直前が誤っていたときも使わない。** 直前が違う声調で終わっていれば、
     // そこからの段差はこの音節について何も語らない。
-    final measurablePrevious =
-        s > 0 && queryValues[s - 1].length >= kMinVoicedFramesPerSyllable;
+    //
+    // **節の頭も文頭と同じ扱いにする。** 節の切れ目では息を継いで声を上げ直す
+    // ので、切れ目の手前が終わった高さは次の音節の入り方について何も語らない。
+    final measurablePrevious = s > 0 &&
+        !reference.isClauseStart(s) &&
+        queryValues[s - 1].length >= kMinVoicedFramesPerSyllable;
     // **基準がお手本からずれていたら、その段差は何も語らない。**
     final basisOff = measurablePrevious
         ? (queryTail(s - 1) - reference.tailLevel(s - 1)).abs()

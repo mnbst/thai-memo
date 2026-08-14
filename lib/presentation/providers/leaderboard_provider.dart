@@ -1,0 +1,234 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'remaining_quota_provider.dart';
+import 'vocab_stats_provider.dart';
+
+/// 自分の上下に何人ぶん見せるか
+const int leaderboardNeighborCount = 1;
+
+/// 常に見せる上位の人数
+const int leaderboardTopCount = 3;
+
+/// ランキング1行ぶんのデータ
+class LeaderboardEntry {
+  final String uid;
+  final String? nickname;
+  final int vocab;
+  final int rank;
+  final bool isMe;
+
+  const LeaderboardEntry({
+    required this.uid,
+    required this.nickname,
+    required this.vocab,
+    required this.rank,
+    required this.isMe,
+  });
+}
+
+CollectionReference<Map<String, dynamic>> _leaderboardRef() =>
+    FirebaseFirestore.instance.collection('leaderboard');
+
+String? _readNickname(Map<String, dynamic>? data) {
+  final name = (data?['nickname'] as String?)?.trim();
+  return (name == null || name.isEmpty) ? null : name;
+}
+
+/// vocab が [vocab] より大きい人数 + 1。同点は同順位になる。
+Future<int> _rankOf(int vocab) async {
+  final snapshot =
+      await _leaderboardRef().where('vocab', isGreaterThan: vocab).count().get();
+  return (snapshot.count ?? 0) + 1;
+}
+
+/// 自分のニックネーム（サーバーが初回生成時にタイ人名を自動採番する）
+final myNicknameProvider = StreamProvider<String?>((ref) {
+  final uid = ref.watch(authUidProvider).valueOrNull;
+  if (uid == null) return Stream.value(null);
+
+  return _leaderboardRef()
+      .doc(uid)
+      .snapshots()
+      .map((doc) => _readNickname(doc.data()));
+});
+
+/// 自分の順位。自分より vocab が大きい人数 + 1。
+///
+/// スコアが0（＝まだ例文を生成していない）のときは順位なし（null）。
+final myRankProvider = FutureProvider<int?>((ref) async {
+  final myVocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+  if (ref.watch(authUidProvider).valueOrNull == null || myVocab <= 0) {
+    return null;
+  }
+  return _rankOf(myVocab);
+});
+
+/// 上限なしの帯を範囲クエリで表すための天井
+const int _vocabCeiling = 1 << 30;
+
+/// 語彙スコアの帯。free は 100 でキャップされるのでそこだけ単独の帯にする
+/// （100 に人が積み上がるため、他の帯と混ぜると分布が読めなくなる）。
+const List<({int min, int? max})> vocabBands = [
+  (min: 1, max: 99),
+  (min: 100, max: 100),
+  (min: 101, max: 300),
+  (min: 301, max: 600),
+  (min: 601, max: 1000),
+  (min: 1001, max: null),
+];
+
+/// 分布1帯ぶん
+class VocabBand {
+  final int min;
+  final int? max;
+  final int count;
+  final bool isMine;
+
+  const VocabBand({
+    required this.min,
+    required this.max,
+    required this.count,
+    required this.isMine,
+  });
+}
+
+/// 語彙スコアの分布と全体人数・最高スコア
+class VocabDistribution {
+  final List<VocabBand> bands;
+  final int total;
+
+  const VocabDistribution({required this.bands, required this.total});
+
+  /// 上位何%か（1未満は1に丸める）。順位が無いときは null。
+  int? percentile(int? rank) {
+    if (rank == null || total <= 0) return null;
+    return (rank / total * 100).ceil().clamp(1, 100);
+  }
+}
+
+/// 帯ごとの人数を count() 集計で数える。
+///
+/// 帯の数だけクエリが要るが、count() は1000件ごとに1読み取りの課金なので
+/// 母数が増えても実質ゼロに近い。
+final vocabDistributionProvider =
+    FutureProvider<VocabDistribution>((ref) async {
+  final uid = ref.watch(authUidProvider).valueOrNull;
+  final myVocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+
+  final counts = await Future.wait(vocabBands.map((band) => _leaderboardRef()
+      .where('vocab', isGreaterThanOrEqualTo: band.min)
+      .where('vocab', isLessThanOrEqualTo: band.max ?? _vocabCeiling)
+      .count()
+      .get()));
+
+  // 自分の doc はサーバーが例文生成時に作る。まだ無い間も1人として数に入れる。
+  final missingSelf = uid == null ||
+      !(await _leaderboardRef().doc(uid).get()).exists;
+
+  var total = 0;
+  final bands = <VocabBand>[];
+  for (var i = 0; i < vocabBands.length; i++) {
+    final band = vocabBands[i];
+    final mine = myVocab > 0 &&
+        myVocab >= band.min &&
+        myVocab <= (band.max ?? _vocabCeiling);
+    final count = (counts[i].count ?? 0) + (mine && missingSelf ? 1 : 0);
+    total += count;
+    bands.add(VocabBand(
+      min: band.min,
+      max: band.max,
+      count: count,
+      isMine: mine,
+    ));
+  }
+
+  return VocabDistribution(bands: bands, total: total);
+});
+
+/// 自分と、その上下[leaderboardNeighborCount]人ぶんの行。
+///
+/// 全体一覧は出さない（母数の大半が free の同点で埋まり、上位は課金者に固定される）。
+/// 見せるのは「自分がいまどのあたりか」と、すぐ上・すぐ下の相手だけ。
+///
+/// 境界は `>=` / `<=` で取る。`>` / `<` にすると自分と同点の相手が上下どちらの
+/// クエリにも入らず、free が 100 語で密集したときに隣が誰も出なくなる。
+/// 自分の doc（サーバーが例文生成時に作る）は結果から外し、手元のスコアで差し込む。
+final leaderboardRowsProvider =
+    FutureProvider<List<LeaderboardEntry>>((ref) async {
+  final uid = ref.watch(authUidProvider).valueOrNull;
+  final myVocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+  final myNickname = ref.watch(myNicknameProvider).valueOrNull;
+  if (uid == null || myVocab <= 0) return const [];
+
+  // 自分の doc はサーバーが例文生成時に作る。まだ無い間は count() 集計に自分が
+  // 入らないので、自分より下の行の順位が1つ繰り上がって見えてしまう。
+  final myDoc = await _leaderboardRef().doc(uid).get();
+  final missingSelf = !myDoc.exists;
+
+  // 自分の doc も引っかかるので1件多く取る
+  final limit = leaderboardNeighborCount + 1;
+  final topDocs = await _leaderboardRef()
+      .orderBy('vocab', descending: true)
+      .limit(leaderboardTopCount)
+      .get();
+  final results = await Future.wait([
+    _leaderboardRef()
+        .where('vocab', isGreaterThanOrEqualTo: myVocab)
+        .orderBy('vocab')
+        .limit(limit)
+        .get(),
+    _leaderboardRef()
+        .where('vocab', isLessThanOrEqualTo: myVocab)
+        .orderBy('vocab', descending: true)
+        .limit(limit)
+        .get(),
+  ]);
+
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> pick(int index) => results[
+          index]
+      .docs
+      .where((doc) => doc.id != uid)
+      .take(leaderboardNeighborCount)
+      .toList();
+
+  // 上側は自分に近い順に取っているので、表示のために反転する
+  final above = pick(0).reversed.toList();
+  final below = pick(1);
+
+  Future<LeaderboardEntry> toEntry(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final vocab = (doc.data()['vocab'] as num?)?.toInt() ?? 0;
+    // 自分が未登録なら、自分より下の行には自分のぶんを足して数える
+    final offset = (missingSelf && vocab < myVocab) ? 1 : 0;
+    return LeaderboardEntry(
+      uid: doc.id,
+      nickname: _readNickname(doc.data()),
+      vocab: vocab,
+      rank: await _rankOf(vocab) + offset,
+      isMe: false,
+    );
+  }
+
+  final top = topDocs.docs.where((doc) => doc.id != uid).toList();
+
+  final entries = [
+    ...await Future.wait(top.map(toEntry)),
+    ...await Future.wait(above.map(toEntry)),
+    LeaderboardEntry(
+      uid: uid,
+      nickname: myNickname,
+      vocab: myVocab,
+      rank: await _rankOf(myVocab),
+      isMe: true,
+    ),
+    ...await Future.wait(below.map(toEntry)),
+  ];
+
+  // 自分が上位に近いと、トップ3と周辺の窓が重なる。同じ人を2度出さない。
+  final seen = <String>{};
+  final merged = entries.where((entry) => seen.add(entry.uid)).toList()
+    ..sort((a, b) => b.vocab.compareTo(a.vocab));
+  return merged;
+});

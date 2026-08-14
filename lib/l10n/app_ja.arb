@@ -10,11 +10,11 @@
   "settingsFont": "フォント",
   "settingsFontPickerTitle": "フォントを選択",
 
-  "settingsLanguage": "言語（dev専用）",
+  "settingsLanguage": "言語",
   "settingsLanguagePickerTitle": "言語を選択",
-  "settingsLanguageNote": "dev ビルドの動作確認用です。切り替えても、すでに作った例文の訳は作成時の言語のまま残ります。",
+  "settingsLanguageNote": "訳と解説の言語が変わります。すでに作った例文の訳は作成時の言語のまま残ります。",
   "@settingsLanguageNote": {
-    "description": "dev限定の言語切替ダイアログの補足。履歴が書き換わらないことを伝える"
+    "description": "言語切替ダイアログの補足。履歴が書き換わらないことを伝える"
   },
 
   "navLearn": "学習",
@@ -208,6 +208,16 @@
   "@trialEndedChangePronunciation": { "placeholders": { "count": { "type": "int" } } },
   "trialEndedLater": "あとで",
   "trialEndedSeePremium": "プレミアムを見る",
+
+  "trialStartedTitle": "プレミアムを{days}日間おためしできます",
+  "@trialStartedTitle": { "placeholders": { "days": { "type": "int" } } },
+  "trialStartedBody": "ふだんは使えない機能を、この期間だけ開放しました。",
+  "trialStartedChangeQuota": "例文　1日{free}回 → {premium}回",
+  "@trialStartedChangeQuota": { "placeholders": { "free": { "type": "int" }, "premium": { "type": "int" } } },
+  "trialStartedChangePronunciation": "発音チェック　1日{count}回 → 無制限",
+  "@trialStartedChangePronunciation": { "placeholders": { "count": { "type": "int" } } },
+  "trialStartedChangeTopic": "テーマ選択　例文のテーマを自分で選べます",
+  "trialStartedStart": "使ってみる",
 
   "topicPickerTitle": "テーマを選択",
   "nextTopicPrefix": "次のテーマ: ",
@@ -411,6 +421,32 @@
   "@pronunciationCoachStepDown": { "placeholders": { "tone": { "type": "String" } } },
   "pronunciationCoachNotRecognized": "「{word}」が聞き取れませんでした。もう少しはっきり言ってみる",
   "@pronunciationCoachNotRecognized": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentUnaspirated": "「{word}」の {label} は息を出さずに出す。息が漏れると {aspirated} に聞こえる",
+  "@pronunciationSegmentUnaspirated": { "placeholders": { "word": { "type": "String" }, "label": { "type": "String" }, "aspirated": { "type": "String" } } },
+  "pronunciationSegmentFinalP": "「{word}」の終わりは唇を閉じたまま止める。「プ」と母音を足さない",
+  "@pronunciationSegmentFinalP": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentFinalT": "「{word}」の終わりは舌先を離さず止める。「ト」と母音を足さない",
+  "@pronunciationSegmentFinalT": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentFinalK": "「{word}」の終わりは喉の奥で止める。「ク」と母音を足さない",
+  "@pronunciationSegmentFinalK": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentNgInitial": "「{word}」の頭の ง は、口を開けたまま鼻へ抜く。「ン」を前に付けない",
+  "@pronunciationSegmentNgInitial": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentFinalNg": "「{word}」の終わりは口を開けたまま鼻へ抜く（-ng）。口を閉じると別の語になる",
+  "@pronunciationSegmentFinalNg": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentFinalN": "「{word}」の終わりは舌先を歯の裏に付ける（-n）。鼻に抜くと -ng になる",
+  "@pronunciationSegmentFinalN": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentFinalM": "「{word}」の終わりは唇を閉じる（-m）",
+  "@pronunciationSegmentFinalM": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentShortVowel": "「{word}」の {label} は短く切る。伸ばすと別の語になる",
+  "@pronunciationSegmentShortVowel": { "placeholders": { "word": { "type": "String" }, "label": { "type": "String" } } },
+  "pronunciationSegmentVowelAe": "「{word}」の母音は「エ」より口を横に大きく開く（ɛ）",
+  "@pronunciationSegmentVowelAe": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentVowelOe": "「{word}」の母音は口をあまり動かさず、こもった音で出す（ə）",
+  "@pronunciationSegmentVowelOe": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentVowelAw": "「{word}」の母音は「オ」より口を丸く大きく開く（ɔ）",
+  "@pronunciationSegmentVowelAw": { "placeholders": { "word": { "type": "String" } } },
+  "pronunciationSegmentVowelUe": "「{word}」の母音は唇を横に引いたまま「ウ」と出す（ɯ）",
+  "@pronunciationSegmentVowelUe": { "placeholders": { "word": { "type": "String" } } },
   "pronunciationLimitTitle": "今日の無料の発音チェックは終わりました",
   "pronunciationLimitBody": "プレミアムなら回数を気にせず、何度でも発音を確かめられます。",
   "pronunciationFreeRemaining": "無料の発音チェック 残り{count}回",
@@ -691,5 +727,54 @@
   "errPurchaseGeneric": "購入エラーが発生しました",
   "purchasePending": "購入の承認待ちです。承認後に反映されます",
   "errSignInBeforePurchase": "ログインしてから購入してください",
-  "errPurchaseVerificationFailed": "購入の検証に失敗しました"
+  "errPurchaseVerificationFailed": "購入の検証に失敗しました",
+
+  "rankingTitle": "語彙ランキング",
+  "rankingSubtitle": "語彙スコアで他の学習者と比べる",
+  "rankingYourRank": "あなたの順位",
+  "rankingPosition": "{rank}位",
+  "@rankingPosition": {
+    "description": "ランキングの順位表示",
+    "placeholders": { "rank": { "type": "int" } }
+  },
+  "rankingUnrankedHint": "例文を生成すると順位がつきます",
+  "rankingLoadFailed": "ランキングを読み込めませんでした",
+  "@rankingOfTotal": {
+    "description": "ランキングの母数",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "rankingYou": "あなた",
+  "rankingDistributionTitle": "語彙スコアの分布",
+  "rankingDistributionSubtitle": "帯ごとの人数。色つきがあなたの位置",
+  "rankingPercentile": "上位{percent}%",
+  "@rankingPercentile": {
+    "description": "全体に対する自分の位置",
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "@rankingTopScore": {
+    "description": "全ユーザー中の最高語彙スコア",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "rankingBandOver": "{min}〜",
+  "@rankingBandOver": {
+    "description": "上限のない帯のラベル",
+    "placeholders": { "min": { "type": "int" } }
+  },
+  "rankingBandRange": "{min}〜{max}",
+  "@rankingBandRange": {
+    "description": "語彙スコアの帯ラベル",
+    "placeholders": { "min": { "type": "int" }, "max": { "type": "int" } }
+  },
+  "rankingAnonymousName": "ユーザー{suffix}",
+  "@rankingAnonymousName": {
+    "description": "ニックネーム未設定ユーザーの表示名",
+    "placeholders": { "suffix": { "type": "String" } }
+  },
+  "rankingFreeCapNote": "無料プランの語彙スコアは{limit}語で上限です",
+  "@rankingFreeCapNote": {
+    "description": "freeユーザー向けの語彙スコア上限の注記",
+    "placeholders": { "limit": { "type": "int" } }
+  },
+  "settingsRanking": "ランキング",
+  "settingsRankingSubtitle": "語彙スコアで他の学習者と比べる"
 }

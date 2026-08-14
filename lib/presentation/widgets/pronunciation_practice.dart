@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/pronunciation/pronunciation_analyzer.dart';
 import '../../core/pronunciation/pronunciation_coach.dart';
 import '../../core/pronunciation/pronunciation_scorer.dart';
+import '../../core/pronunciation/segment_coach.dart';
 import '../../core/pronunciation/transcript_match.dart';
 import '../../core/pronunciation/word_verdict.dart';
 import '../../core/thai_tone_analyzer.dart';
@@ -76,18 +77,22 @@ class PronunciationPractice extends ConsumerWidget {
     super.key,
     required this.sentenceId,
     required this.words,
+    this.thaiText = '',
   });
 
   /// 保存済み例文のID。未保存（null）の例文では練習させない。
   final String? sentenceId;
   final List<WordBreakdown> words;
 
+  /// 例文のタイ語。空白（節の切れ目）の位置を声調のお手本に反映するために要る。
+  final String thaiText;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final id = sentenceId;
     if (id == null) return const SizedBox.shrink();
 
-    final spans = buildSentenceToneSpans(words);
+    final spans = buildSentenceToneSpans(words, thaiText: thaiText);
     // 音節データが無い例文では練習できない。導線ごと出さない。
     if (spans.isEmpty) return const SizedBox.shrink();
 
@@ -250,6 +255,7 @@ class _PracticeBody extends ConsumerWidget {
               tones: spans.tones,
               shortSyllables: spans.shortSyllables,
               syllablePoints: spans.syllablePoints,
+              clauseStarts: spans.clauseStarts,
               syllableLabels: spans.syllableLabels,
               expectedWords: spans.words.map((w) => w.wordText).toList(),
             );
@@ -443,6 +449,9 @@ class _ResultView extends StatelessWidget {
                 wordTexts: [for (final w in spans.words) w.wordText],
                 toneMarks: spans.toneMarks,
                 romans: spans.syllableRomans,
+                // 声調が合っているのに通じなかった語では、子音・母音のうち
+                // 日本語話者が最も外しやすい点を1つ出す。
+                segmentPointOfWord: spans.segmentPointOfWord,
               ),
               l10n: l10n,
             ),
@@ -511,6 +520,12 @@ class _CoachCard extends StatelessWidget {
   String _text(CoachingTip tip) {
     switch (tip.issue) {
       case CoachIssue.notRecognized:
+        final segment = tip.segment;
+        // どの音を外したかは分からない。優先順位で選んだ1点が取れたときだけ、
+        // その音の直し方を出す。取れなければ語を名指しするだけに留める。
+        if (segment != null) {
+          return _segmentText(segment, tip.wordText ?? '', l10n);
+        }
         return l10n.pronunciationCoachNotRecognized(tip.wordText ?? '');
       case CoachIssue.shape:
         switch (tip.tone) {
@@ -592,6 +607,52 @@ class _CoachCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// 子音・母音の直し方を1行にする。
+String _segmentText(SegmentPoint point, String word, L10n l10n) {
+  switch (point.issue) {
+    case SegmentIssue.unaspirated:
+      return l10n.pronunciationSegmentUnaspirated(
+        word,
+        point.label,
+        point.aspirated,
+      );
+    case SegmentIssue.finalStop:
+      switch (point.sound) {
+        case 'p':
+          return l10n.pronunciationSegmentFinalP(word);
+        case 'k':
+          return l10n.pronunciationSegmentFinalK(word);
+        default:
+          return l10n.pronunciationSegmentFinalT(word);
+      }
+    case SegmentIssue.ngInitial:
+      return l10n.pronunciationSegmentNgInitial(word);
+    case SegmentIssue.finalNasal:
+      switch (point.sound) {
+        case 'ng':
+          return l10n.pronunciationSegmentFinalNg(word);
+        case 'm':
+          return l10n.pronunciationSegmentFinalM(word);
+        default:
+          return l10n.pronunciationSegmentFinalN(word);
+      }
+    case SegmentIssue.shortVowel:
+      return l10n.pronunciationSegmentShortVowel(word, point.label);
+    case SegmentIssue.thaiVowel:
+      switch (point.vowel) {
+        case ThaiVowelSound.ae:
+          return l10n.pronunciationSegmentVowelAe(word);
+        case ThaiVowelSound.oe:
+          return l10n.pronunciationSegmentVowelOe(word);
+        case ThaiVowelSound.aw:
+          return l10n.pronunciationSegmentVowelAw(word);
+        case ThaiVowelSound.ue:
+        case null:
+          return l10n.pronunciationSegmentVowelUe(word);
+      }
   }
 }
 

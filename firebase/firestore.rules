@@ -34,6 +34,20 @@ service cloud.firestore {
       }
     }
 
+    // ランキング（語彙スコア）。users/{uid} は本人しか読めないので公開用に分ける。
+    // 公開されるのは nickname と vocab だけ。どちらも Cloud Functions が書く。
+    // 表示名は自動採番でユーザーは入力しないため、クライアント書き込みは全面禁止。
+    match /leaderboard/{userId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 表示名の重複防止。小文字化した名前を doc ID にして押さえる。
+    // Admin SDK の create（＝既存なら AlreadyExists）で一意性を担保する。
+    match /nicknames/{nameKey} {
+      allow read, write: if false;
+    }
+
     // Quiz queue: users can read their own data, update sent field only
     match /quiz_queue/{docId} {
       allow read: if request.auth != null && resource.data.uid == request.auth.uid;

@@ -5,7 +5,6 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from constants import (
-    FREE_TOPICS,
     TIME_FRAMES,
     TOPIC_SUB_THEMES,
     TOPICS,
@@ -43,7 +42,8 @@ def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
         resolved = resolve_generation_params({}, is_premium=False)
 
     assert resolved.pop("subTheme") is None
-    assert resolved.pop("topicOptions") == FREE_TOPICS
+    # 2026-08-14: free 専用プールを廃止。候補は premium と同じゲート済み TOPICS。
+    assert resolved.pop("topicOptions") == gate_topics_for_vocab(list(TOPICS), 0)
     assert resolved == {
         # テーマは埋めず LLM に委ねる（候補は topicOptions で渡す）
         "topic": "",
@@ -61,20 +61,19 @@ def test_time_frame_is_topic_independent() -> None:
     assert seen == set(TIME_FRAMES)
 
 
-def test_free_topics_exclude_travel() -> None:
-    assert FREE_TOPICS == [
-        TOPICS[0],
-        TOPICS[1],
-        TOPICS[5],
-        TOPICS[15],
-    ]
-    assert TOPICS[2] not in FREE_TOPICS
+def test_free_topic_pool_is_vocab_gated_like_premium() -> None:
+    """2026-08-14: free 専用プール（FREE_TOPICS）を廃止した。
 
-
-def test_free_topic_pool_is_not_vocab_gated() -> None:
-    resolved = resolve_generation_params({}, is_premium=False, estimated_vocab=0)
-
-    assert resolved["topicOptions"] == FREE_TOPICS
+    クライアントはテーマを送らず free/premium ともサーバーが自動選出するので、
+    tier でプールを分けても選択肢の差にならない。free の4件プールは
+    テーマの偏りを強めるだけだった（find_best_topic 併用で BLドラマ 82.7%）。
+    """
+    for is_premium in (True, False):
+        resolved = resolve_generation_params(
+            {}, is_premium=is_premium, estimated_vocab=0
+        )
+        assert set(resolved["topicOptions"]) == set(INTRO_TOPICS)
+        assert TOPICS[15] not in resolved["topicOptions"]  # BL は vocab>=100 で解禁
 
 
 def test_unspecified_topic_is_left_to_the_llm() -> None:
@@ -303,3 +302,29 @@ def test_context_records_every_server_decided_axis() -> None:
     # 文体・感情はサーバーが決めないので入らない（LLM が生成して返す）
     assert "style" not in context
     assert "emotion" not in context
+
+
+def test_length_hint_starts_at_two_or_three_words() -> None:
+    """語彙ゼロの初回は 2〜3単語。7単語では入門者には長すぎた（2026-08-14 実測）。"""
+    assert prompts.get_difficulty(0)["length"] == "2〜3単語"
+    assert prompts.get_difficulty(9)["length"] == "2〜3単語"
+
+
+def test_length_hint_ramps_up_through_intro_band() -> None:
+    """入門帯は語彙の伸びに応じて段階的に伸ばし、vocab=100 で従来の7単語に繋ぐ。"""
+    lengths = [prompts.get_difficulty(v)["length"] for v in (0, 10, 30, 60, 100)]
+
+    assert lengths == ["2〜3単語", "〜4単語", "〜5単語", "〜6単語", "〜7単語"]
+
+
+def test_length_hint_above_intro_band_is_unchanged() -> None:
+    """初級以上の補間は据え置き（入門帯だけを変えた）。"""
+    assert prompts.get_difficulty(800)["length"] == "〜12単語"
+    assert prompts.get_difficulty(1500)["length"] == "自然な長さ"
+
+
+def test_intro_length_hint_reaches_prompt_text() -> None:
+    """長さヒントが実際にプロンプト本文へ載る。"""
+    prompt = build_uvm_prompt({}, target_words=["กิน"], estimated_vocab=0)
+
+    assert "長さ: 2〜3単語" in prompt

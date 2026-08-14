@@ -239,11 +239,12 @@ class SettingsController extends StateNotifier<SettingsState> {
     return resolved;
   }
 
-  /// アプリ言語を切り替える。**dev ビルドの動作確認専用**。
+  /// アプリ言語を切り替える。
   ///
-  /// 製品ビルドでは呼ばない（設定画面の導線を AppConfig.isDev で閉じている）。
-  /// 訳文は生成時の言語で保存され、切り替えても履歴は書き換わらないため、
-  /// 実ユーザーに開くと1つの履歴に日英が混在して例文と訳の整合が取れなくなる。
+  /// 訳文は生成時の言語で保存され、切り替えても履歴は書き換わらないので、
+  /// 1つの履歴に日英が混在しうる。設定ダイアログの注記でその旨を伝えている。
+  /// app_language は users/{uid} にもミラーする（毎日配信バッチはローカルの
+  /// SharedPreferences を見られないため）。
   Future<void> setAppLanguage(AppLanguage lang) async {
     if (lang == state.appLanguage) return;
     await _prefs?.setString(AppConfig.prefKeyAppLanguage, lang.code);

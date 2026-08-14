@@ -21,14 +21,14 @@ class L10nEn extends L10n {
   String get settingsFontPickerTitle => 'Choose a font';
 
   @override
-  String get settingsLanguage => 'Language (dev only)';
+  String get settingsLanguage => 'Language';
 
   @override
   String get settingsLanguagePickerTitle => 'Choose a language';
 
   @override
   String get settingsLanguageNote =>
-      'For checking dev builds. Sentences you already created keep the language they were created in.';
+      'Changes the language of translations and notes. Sentences you already created keep the language they were created in.';
 
   @override
   String get navLearn => 'Learn';
@@ -538,6 +538,31 @@ class L10nEn extends L10n {
 
   @override
   String get trialEndedSeePremium => 'See Premium';
+
+  @override
+  String trialStartedTitle(int days) {
+    return 'Try Premium for $days days';
+  }
+
+  @override
+  String get trialStartedBody =>
+      'We\'ve unlocked features you don\'t normally have, just for this period.';
+
+  @override
+  String trialStartedChangeQuota(int free, int premium) {
+    return 'Sentences  $free/day → $premium/day';
+  }
+
+  @override
+  String trialStartedChangePronunciation(int count) {
+    return 'Pronunciation checks  $count/day → unlimited';
+  }
+
+  @override
+  String get trialStartedChangeTopic => 'Topics  Pick your own sentence topics';
+
+  @override
+  String get trialStartedStart => 'Try it out';
 
   @override
   String get topicPickerTitle => 'Choose a topic';
@@ -1157,6 +1182,72 @@ class L10nEn extends L10n {
   @override
   String pronunciationCoachNotRecognized(String word) {
     return '\"$word\" wasn\'t picked up. Try saying it more clearly.';
+  }
+
+  @override
+  String pronunciationSegmentUnaspirated(
+      String word, String label, String aspirated) {
+    return 'In \"$word\", $label has no puff of air. With air it sounds like $aspirated.';
+  }
+
+  @override
+  String pronunciationSegmentFinalP(String word) {
+    return 'End \"$word\" with your lips closed — don\'t release it or add a vowel.';
+  }
+
+  @override
+  String pronunciationSegmentFinalT(String word) {
+    return 'End \"$word\" with your tongue tip in place — don\'t release it or add a vowel.';
+  }
+
+  @override
+  String pronunciationSegmentFinalK(String word) {
+    return 'End \"$word\" by stopping at the back of the throat — don\'t release it or add a vowel.';
+  }
+
+  @override
+  String pronunciationSegmentNgInitial(String word) {
+    return 'Start \"$word\" with ง humming through the nose — no vowel before it.';
+  }
+
+  @override
+  String pronunciationSegmentFinalNg(String word) {
+    return 'End \"$word\" through the nose with your mouth open (-ng), not with closed lips.';
+  }
+
+  @override
+  String pronunciationSegmentFinalN(String word) {
+    return 'End \"$word\" with your tongue tip behind the teeth (-n), not through the nose.';
+  }
+
+  @override
+  String pronunciationSegmentFinalM(String word) {
+    return 'End \"$word\" with your lips closed (-m).';
+  }
+
+  @override
+  String pronunciationSegmentShortVowel(String word, String label) {
+    return 'Keep $label in \"$word\" short — lengthening it makes a different word.';
+  }
+
+  @override
+  String pronunciationSegmentVowelAe(String word) {
+    return 'The vowel in \"$word\" is wider than \"e\" — spread the mouth (ɛ).';
+  }
+
+  @override
+  String pronunciationSegmentVowelOe(String word) {
+    return 'The vowel in \"$word\" is a relaxed, unrounded mid vowel (ə).';
+  }
+
+  @override
+  String pronunciationSegmentVowelAw(String word) {
+    return 'The vowel in \"$word\" is rounder and more open than \"o\" (ɔ).';
+  }
+
+  @override
+  String pronunciationSegmentVowelUe(String word) {
+    return 'The vowel in \"$word\" is \"u\" with the lips spread, not rounded (ɯ).';
   }
 
   @override
@@ -2038,4 +2129,66 @@ class L10nEn extends L10n {
 
   @override
   String get errPurchaseVerificationFailed => 'Couldn\'t verify your purchase';
+
+  @override
+  String get rankingTitle => 'Vocabulary ranking';
+
+  @override
+  String get rankingSubtitle => 'See how your vocabulary score compares';
+
+  @override
+  String get rankingYourRank => 'Your rank';
+
+  @override
+  String rankingPosition(int rank) {
+    return '#$rank';
+  }
+
+  @override
+  String get rankingUnrankedHint => 'Generate a sentence to get ranked';
+
+  @override
+  String get rankingLoadFailed => 'Couldn\'t load the ranking';
+
+  @override
+  String get rankingYou => 'You';
+
+  @override
+  String get rankingDistributionTitle => 'Score distribution';
+
+  @override
+  String get rankingDistributionSubtitle =>
+      'Learners in each band; yours is highlighted';
+
+  @override
+  String rankingPercentile(int percent) {
+    return 'Top $percent%';
+  }
+
+  @override
+  String rankingBandOver(int min) {
+    return '$min+';
+  }
+
+  @override
+  String rankingBandRange(int min, int max) {
+    return '$min–$max';
+  }
+
+  @override
+  String rankingAnonymousName(String suffix) {
+    return 'Learner $suffix';
+  }
+
+  @override
+  String rankingFreeCapNote(int limit) {
+    return 'On the free plan your vocabulary score is capped at $limit words';
+  }
+
+  @override
+  String get settingsRanking => 'Ranking';
+
+  @override
+  String get settingsRankingSubtitle =>
+      'See how your vocabulary score compares';
 }

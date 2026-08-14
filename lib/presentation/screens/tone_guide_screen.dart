@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/config/app_config.dart';
 import '../../core/thai_tone_analyzer.dart';
+import '../widgets/swipe_back.dart';
 
 /// タイ語の声調ガイド画面
 class ToneGuideScreen extends StatefulWidget {
@@ -21,7 +22,8 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
       appBar: AppBar(
         title: Text(L10n.of(context).toneGuideTitle),
       ),
-      body: SingleChildScrollView(
+      body: SwipeBack(
+        child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(AppConfig.defaultPadding),
           child: Column(
@@ -40,6 +42,7 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
               _buildToneTablesSection(),
               const SizedBox(height: 24),
             ],
+          ),
           ),
         ),
       ),

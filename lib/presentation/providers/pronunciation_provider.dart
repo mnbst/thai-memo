@@ -159,6 +159,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     required List<bool> shortSyllables,
     required List<int> syllablePoints,
     required List<String> expectedWords,
+    List<int> clauseStarts = const [],
     List<String> syllableLabels = const [],
   }) async {
     if (state.phase != PronunciationPhase.recording) return;
@@ -188,6 +189,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
       tones: tones,
       shortSyllables: shortSyllables,
       syllablePoints: syllablePoints,
+      clauseStarts: clauseStarts,
       profile: profile,
       recognition: recognition,
     );

@@ -10,7 +10,19 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import prompts
-from constants import RESPONSE_JSON_SCHEMA, STYLES, build_response_schema
+from constants import (
+    RESPONSE_JSON_SCHEMA,
+    STYLE_LABELS_EN,
+    STYLES,
+    SUB_THEME_LABELS_EN,
+    TIME_FRAME_LABELS_EN,
+    TIME_FRAMES,
+    TOPIC_LABELS_EN,
+    TOPIC_SUB_THEMES,
+    TOPICS,
+    build_response_schema,
+    localize_context,
+)
 from nlp import localize_pos
 
 
@@ -156,3 +168,68 @@ def test_localize_pos() -> None:
     assert localize_pos("類別詞", "en") == "classifier"
     # 未知のラベルは落とさずそのまま返す
     assert localize_pos("未知", "en") == "未知"
+
+
+# ---- 軸ラベル（context.topic / subTheme / timeFrame / style）----
+
+
+def test_localize_context_translates_server_decided_axes() -> None:
+    context = {
+        "topic": TOPICS[2],
+        "subTheme": "道案内",
+        "timeFrame": TIME_FRAMES[0],
+        "style": STYLES[1],
+        "emotion": "neutral",
+        "cultural_notes": "Tour groups are common.",
+    }
+
+    localized = localize_context(context, "en")
+
+    assert localized["topic"].startswith("Travel")
+    assert localized["subTheme"] == "directions"
+    assert localized["timeFrame"] == "Happening right now"
+    assert localized["style"].startswith("Casual spoken style")
+    # LLM が書いた自由記述は触らない
+    assert localized["emotion"] == "neutral"
+    assert localized["cultural_notes"] == "Tour groups are common."
+    # 元の dict は壊さない（バンクはプロセス内でキャッシュされる）
+    assert context["topic"] == TOPICS[2]
+
+
+def test_localize_context_keeps_japanese_for_ja() -> None:
+    context = {"topic": TOPICS[2], "subTheme": "道案内"}
+
+    assert localize_context(context, "ja") == context
+
+
+def test_localize_context_is_idempotent_and_passes_unknown_through() -> None:
+    """英語化済みのバンク文にもう一度かけても壊れない。未知の値も落とさない。"""
+    once = localize_context({"topic": TOPICS[2], "subTheme": "道案内"}, "en")
+
+    assert localize_context(once, "en") == once
+    assert localize_context({"topic": "未知のテーマ"}, "en") == {"topic": "未知のテーマ"}
+    assert localize_context(None, "en") is None
+
+
+def test_sub_theme_translation_depends_on_topic() -> None:
+    """同じ「別れ」でも、あいさつは farewell、恋愛は breakup。"""
+    greeting = localize_context({"topic": TOPICS[0], "subTheme": "別れ"}, "en")
+    romance = localize_context({"topic": TOPICS[14], "subTheme": "別れ"}, "en")
+
+    assert greeting["subTheme"] == "saying goodbye"
+    assert romance["subTheme"] == "breaking up"
+
+
+def test_every_server_decided_axis_value_has_an_english_label() -> None:
+    """定数を足したら英語ラベルも足す。抜けるとその軸だけ日本語で表示される。"""
+    assert set(TOPIC_LABELS_EN) == set(TOPICS)
+    assert set(STYLE_LABELS_EN) == set(STYLES)
+    assert set(TIME_FRAME_LABELS_EN) == set(TIME_FRAMES)
+    for topic, sub_themes in TOPIC_SUB_THEMES.items():
+        assert set(SUB_THEME_LABELS_EN[topic]) == set(sub_themes), topic
+
+
+def test_localize_context_handles_llm_shortened_topic() -> None:
+    """サーバーがテーマを決めなかった回は LLM が短縮形で書く（「食べ物」）。"""
+    assert localize_context({"topic": "食べ物"}, "en")["topic"].startswith("Food")
+    assert localize_context({"topic": "旅行"}, "en")["topic"].startswith("Travel")

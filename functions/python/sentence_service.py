@@ -12,7 +12,13 @@ from google.cloud import storage as gcs
 from google.cloud.firestore_v1.client import Client as FirestoreClient
 
 try:
-    from .constants import FREE_TOPICS, TOPICS, build_response_schema
+    from .constants import (
+        BL_TOPIC,
+        FREE_BL_TOPIC_RATE,
+        TOPICS,
+        build_response_schema,
+        localize_context,
+    )
     from .llm_providers import (
         generate_sentence_async as _llm_generate_async,
     )
@@ -26,7 +32,13 @@ try:
     )
     from .uvm import get_session_words
 except ImportError:
-    from constants import FREE_TOPICS, TOPICS, build_response_schema
+    from constants import (
+        BL_TOPIC,
+        FREE_BL_TOPIC_RATE,
+        TOPICS,
+        build_response_schema,
+        localize_context,
+    )
     from llm_providers import (
         generate_sentence_async as _llm_generate_async,
     )
@@ -203,32 +215,64 @@ def get_freq_rank() -> dict[str, int]:
     return _freq_rank  # type: ignore
 
 
-_free_sentences: list[dict] | None = None
+_free_sentences: dict[str, list[dict]] = {}
 
 
-def get_free_sentences() -> list[dict]:
-    """GCS から free_sentences.json を読み込みキャッシュする。"""
-    global _free_sentences
-    if _free_sentences is not None:
-        return _free_sentences
+def get_free_sentences(lang: str = "ja") -> list[dict]:
+    """GCS から free_sentences_<lang>.json を読み込みキャッシュする。
+
+    バンクは scripts/build_free_sentence_bank.py で言語ごとに作る。
+    まだ無い言語（アップロード前・新言語の追加直後）は空リストを返し、
+    呼び出し側が LLM 生成へ落ちる。ja だけは旧ファイル名 free_sentences.json
+    にも退避する（新バンクを上げる前にデプロイしても free が止まらないため）。
+    """
+    cached = _free_sentences.get(lang)
+    if cached is not None:
+        return cached
 
     project_id = os.environ.get("GCLOUD_PROJECT", "")
-    bucket_name = f"{project_id}-uvm-data"
-    client = gcs.Client()
-    blob = client.bucket(bucket_name).blob("free_sentences.json")
-    _free_sentences = json.loads(blob.download_as_text())
-    return _free_sentences  # type: ignore
+    bucket = gcs.Client().bucket(f"{project_id}-uvm-data")
+    names = [f"free_sentences_{lang}.json"]
+    if lang == "ja":
+        names.append("free_sentences.json")
+    sentences: list[dict] = []
+    for name in names:
+        blob = bucket.blob(name)
+        if blob.exists():
+            sentences = json.loads(blob.download_as_text())
+            break
+    else:
+        print(f"free bank missing for lang={lang}; falling back to LLM")
+    _free_sentences[lang] = sentences
+    return sentences
 
 
-def pick_free_sentence(target_word: str) -> dict | None:
-    """事前生成済みの free 例文から target_word に一致するものをランダムに返す。"""
-    sentences = get_free_sentences()
+def pick_free_sentence(
+    target_word: str, lang: str = "ja", topic: str = ""
+) -> dict | None:
+    """事前生成済みの free 例文から target_word に一致するものをランダムに返す。
+
+    topic を渡すと、そのテーマの文を優先する（無ければテーマ無視で選ぶ）。
+    バンクは key_word × テーマの全組み合わせを持たないので、一致が無いときに
+    諦めると配信が落ちる。テーマは選出ログ（chosenTopic）と実際に返す文を
+    揃えるためのもので、一致しないほうを優先する理由は無い。
+    """
+    sentences = get_free_sentences(lang)
     candidates = [s for s in sentences if s.get("key_word") == target_word]
     if not candidates:
         return None
+    if topic:
+        same_topic = [
+            s for s in candidates if (s.get("context") or {}).get("topic") == topic
+        ]
+        candidates = same_topic or candidates
     import random
 
-    return random.choice(candidates)
+    # バンクはプロセス内でキャッシュしているので、返す前にコピーする
+    # （呼び出し側が generation_tier 等を足してもバンクを汚さない）。
+    picked = dict(random.choice(candidates))
+    picked["context"] = localize_context(picked.get("context"), lang)
+    return picked
 
 
 def select_uvm_target_words(
@@ -244,18 +288,33 @@ def select_uvm_target_words(
 
     key_word先行方式: 帯域内からkey_wordを選出し、embeddingで最適テーマを決定する。
     テーマが明示指定されている場合はそのまま使用する。
+
+    候補プールは free / premium 共通（TOPICS を TOPIC_MIN_VOCAB でゲート）。
+    違うのは選び方だけで、free は一様抽選、premium は embedding で key_word に
+    最も近いテーマを選ぶ。
+
+    2026-08-14 実測: free の旧プール4件で find_best_topic を使うと BLドラマが
+    82.7%（買い物3.1/食べ物2.0/あいさつ0.9/閾値未達11.4）。テーマ embedding は
+    語彙全体への平均類似度に差があり、重心の高い BL が全語で argmax になる。
+    BL は刺さる層には強いが大半には刺さらないので、free は分布を均等にする。
     """
+    import random
+
     freq_rank = get_freq_rank()
     topic = params.get("topic", "")
-    if topic:
-        topics_pool = None
-    else:
-        topic_candidates = TOPICS if is_premium else FREE_TOPICS
-        topics_pool = (
-            gate_topics_for_vocab(topic_candidates, estimated_vocab or 0)
-            if is_premium
-            else topic_candidates
-        )
+    topics_pool = None
+    if not topic:
+        pool = gate_topics_for_vocab(list(TOPICS), estimated_vocab or 0)
+        if is_premium:
+            topics_pool = pool
+        elif random.random() < FREE_BL_TOPIC_RATE:
+            # BL は語彙ゲートの対象で free（vocab は 100 でキャップ）には
+            # ほぼ出ない。刺さる層向けにレベルと無関係で一定確率だけ混ぜる。
+            topic = BL_TOPIC
+        else:
+            rest = [t for t in pool if t != BL_TOPIC]
+            if rest:
+                topic = random.choice(rest)
     return get_session_words(
         db,
         uid,
@@ -506,6 +565,8 @@ def _generate_single(
             _schema_for(resolved_context, lang),
         )
         _apply_response_compat(sentence, resolved_context)
+        # 軸ラベル（テーマ・文体など）はサーバー側の日本語定数なので、en は英語へ。
+        sentence["context"] = localize_context(sentence.get("context"), lang)
         _normalize_thai_spacing(sentence)
         _enrich_with_nlp(sentence, lang)
 
@@ -557,6 +618,8 @@ async def _generate_single_async(
             _schema_for(resolved_context, lang),
         )
         _apply_response_compat(sentence, resolved_context)
+        # 軸ラベル（テーマ・文体など）はサーバー側の日本語定数なので、en は英語へ。
+        sentence["context"] = localize_context(sentence.get("context"), lang)
         _normalize_thai_spacing(sentence)
         _enrich_with_nlp(sentence, lang)
 

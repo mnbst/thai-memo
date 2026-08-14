@@ -252,6 +252,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
               key: _pronunciationKey,
               sentenceId: widget.sentence.id,
               words: widget.sentence.wordBreakdowns,
+              thaiText: widget.sentence.thaiText,
             ),
             const SizedBox(height: 16),
             const Divider(),

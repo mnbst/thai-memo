@@ -118,6 +118,9 @@ lib/presentation/providers/settings_provider.dart
 lib/presentation/providers/tts_provider.dart
 タイ語発音再生のText-to-Speechサービス。
 
+lib/presentation/providers/leaderboard_provider.dart
+語彙スコアランキング（leaderboard コレクション）。上位100人のストリームと、自分の順位（count集計。一覧の外でも出せる）。同点は同順位。
+
 lib/presentation/providers/vocab_stats_provider.dart
 Firestoreから語彙スコア・学習済み単語数をリアルタイム取得（Premium限定）。
 
@@ -142,7 +145,10 @@ lib/presentation/screens/settings_screen.dart
 設定画面（アカウント・プラン、テーマ、フォント、声調ガイド、学習データリセット、アプリ情報）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI（ボトムシート）。導線は例文タブの常設バナー（premium_hint_banner）・設定・クイズ画面配下。自動表示は dev 限定のトライアル終了案内（source=trial_ended）のみで、他は全てタップ起点。
+プレミアム課金UI（ボトムシート）。導線は例文タブの常設バナー（premium_hint_banner）・設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
+
+lib/presentation/screens/ranking_screen.dart
+語彙スコアの全期間ランキング。自分の順位カードを上に置き、その下に上位100人を張り出す。表示名はサーバー採番のタイ人名。
 
 lib/presentation/screens/onboarding_screen.dart
 初回起動時のオンボーディング画面。
@@ -174,13 +180,19 @@ lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
 
 lib/presentation/widgets/premium_trial_ended_dialog.dart
-プレミアム体験トライアル終了を伝えて登録へ誘導するダイアログ。起動時に一度だけ表示（現状 dev のみ）。
+プレミアム体験トライアル終了を伝えて登録へ誘導するダイアログ。起動時に一度だけ表示。
+
+lib/presentation/widgets/premium_trial_started_dialog.dart
+後から配られたプレミアム体験の開放を伝えるダイアログ（premium_trial_backfilled_at が目印）。課金は勧めない。
 
 lib/presentation/widgets/premium_hint_banner.dart
 例文カード直下に常設するfree向けプレミアム訴求バナー。訴求軸（テーマ/品質/語彙上限）を起動ごとに均等ランダム抽選、×で3日間非表示。お試し期間中は出さない。
 
 lib/presentation/widgets/quiz_offer.dart
 1問確認クイズ導線の表示（現行はinlineカード。controlは実験再開用に残置）。
+
+lib/presentation/widgets/swipe_back.dart
+右フリックで前画面へ戻すラッパー。Cupertinoの戻るジェスチャが左端20px限定なので、その補助として全面で拾う。
 
 lib/presentation/tone_explanation_dialog.dart
 タイ語声調の解説ダイアログ。
@@ -198,6 +210,9 @@ lib/services/tts_service.dart
 
 lib/services/push_notification_service.dart
 FCMトークン・タイムゾーン・配信希望時刻をusers/{uid}に登録。OSの通知許可とアプリ内設定の突き合わせも行う。
+
+lib/services/app_version_reporter.dart
+起動時に users doc へ app_version / app_build_number / last_opened_at を記録。サーバー側の機能出し分け判定に使う。
 
 lib/services/daily_sentence_service.dart
 サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、今日ぶんの配信例文を返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
@@ -228,7 +243,7 @@ lib/core/pronunciation/pronunciation_analyzer.dart
 発音判定のパイプライン全体。マイク・UIに依存しない純粋関数で、録音なしでテストできる。
 
 lib/domain/sentence_tone_spans.dart
-単語分解から音節の声調列と語↔音節の対応を作る。判定は音節単位、表示は語単位のため。
+単語分解から音節の声調列と語↔音節の対応を作る（thai_text の空白＝節の切れ目も拾う）。
 
 lib/core/pronunciation/transcript_match.dart
 音声認識の結果と例文を語単位で照合し「通じたか」を返す。声調とは別軸の検査。
@@ -238,6 +253,9 @@ lib/core/pronunciation/word_verdict.dart
 
 lib/core/pronunciation/pronunciation_coach.dart
 採点結果から「次の1回で直す点」を1つだけ選ぶ。判定の2軸（形・入り方）をそのまま使う。
+
+lib/core/pronunciation/segment_coach.dart
+通じなかった語の子音・母音の直し方を1つ選ぶ。日本語話者が外しやすい順の優先表。
 
 lib/services/speech_capture_service.dart
 ネイティブのマイク収録との橋渡し。マイクは1箇所だけが握り、PCMと音声認識へ分岐する。

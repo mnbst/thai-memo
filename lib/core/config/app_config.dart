@@ -88,6 +88,10 @@ class AppConfig {
   static const String prefKeyPremiumTrialEndedNotified =
       'premium_trial_ended_notified';
 
+  /// プレミアム体験の開放を通知済みか（後から配った既存ユーザー向けの案内）
+  static const String prefKeyPremiumTrialStartedNotified =
+      'premium_trial_started_notified';
+
   /// quiz_offer(assigned)を送信済みの実験群。画面再生成での重複を防ぐ。
   static const String prefKeyQuizOfferAssignmentLoggedV1 =
       'quiz_offer_assignment_logged_v1';

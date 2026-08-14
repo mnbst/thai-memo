@@ -13,7 +13,7 @@ UVM の key_word から embedding でテーマを自動選択する経路でも�
 
 1. ティア別の候補プールを決める
    - premium: `TOPICS` / `STYLES` を全候補にする。`grammarFocus` も有効。
-   - free: `FREE_TOPICS` / `FREE_STYLES` に限定する。`grammarFocus` は使わない。
+   - free: テーマのプールは premium と共通（語彙ゲートのみ）。選び方だけが違い、free は一様抽選。`grammarFocus` は使わない。
 2. `estimated_vocab` で topic / grammarFocus の自動選択候補を絞る。
 3. topic / style / politeness / grammarFocus / emotion を確定し、プロンプトに入れる。
 
@@ -42,11 +42,11 @@ round(7 + (estimated_vocab - 100) / 1400 * 9)
 
 | estimated_vocab | premium 自動選択で解禁される内容 | free 自動選択で使える内容 |
 |---:|---|---|
-| 0-99 | 入門テーマ6件、全文体、文法4件 | freeテーマ3件、free文体2件、文法なし |
-| 100-299 | 日常系テーマ5件追加、全文法 | freeテーマ3件、free文体2件、文法なし |
-| 300-599 | 学校テーマ | freeテーマ3件、free文体2件、文法なし |
-| 600-1499 | 文化系テーマ3件。難易度ラベルが中級になる | freeテーマ3件、free文体2件、文法なし |
-| 1500以上 | パラメータ追加なし。難易度ラベルが上級になり文長が自然な長さになる | freeテーマ3件、free文体2件、文法なし |
+| 0-99 | 入門テーマ6件、全文体、文法4件 | 入門テーマ6件（一様抽選）、free文体2件、文法なし |
+| 100-299 | 日常系テーマ5件追加、全文法 | 同6件＋日常系6件（一様抽選）、free文体2件、文法なし |
+| 300-599 | 学校テーマ | free は `estimated_vocab` が100でキャップされるため変化なし |
+| 600-1499 | 文化系テーマ3件。難易度ラベルが中級になる | 同上 |
+| 1500以上 | パラメータ追加なし。難易度ラベルが上級になり文長が自然な長さになる | 同上 |
 
 ## topic
 
@@ -64,10 +64,10 @@ premium の自動選択では、`TOPIC_MIN_VOCAB` で topic ごとに候補入�
 |---|---|---|
 | あいさつ | yes | yes |
 | 食べ物 | yes | yes |
-| 旅行 | yes | no |
-| 家族 | yes | no |
+| 旅行 | yes | yes |
+| 家族 | yes | yes |
 | 買い物 | yes | yes |
-| 天気 | yes | no |
+| 天気 | yes | yes |
 
 ### 100-299 で premium に追加されるテーマ
 
@@ -93,7 +93,17 @@ premium の自動選択では、`TOPIC_MIN_VOCAB` で topic ごとに候補入�
 | 伝統・祭り |
 | 礼儀作法 |
 
-free は `estimated_vocab >= 100` でも `FREE_TOPICS` の3件に限定される。
+2026-08-14: free 専用プール `FREE_TOPICS`（4件）を廃止した。クライアントはテーマを送らず
+free/premium ともサーバーが自動選出するので、tier でプールを分けても選択肢の差にならない。
+free は `TOPIC_MIN_VOCAB` でゲートしたプールから**一様抽選**する（premium は embedding で
+key_word に最も近いテーマ）。旧仕様は 4件プール × embedding 選出で BLドラマが 82.7% を
+占めていた。free は `estimated_vocab` が 100 でキャップされるため、実質は入門6テーマ＋
+min_vocab=100 の6テーマ。
+
+BLドラマだけは語彙ゲートの外で、free には常に `FREE_BL_TOPIC_RATE`（10%）で混ぜる
+（`constants.py`）。ゲート任せだと入門帯に一切出ないが、刺さる層への引きとして残すため。
+残り90%が上記プール（BL を除く）の一様抽選。バンク生成（`scripts/build_free_sentence_bank.py`）
+も同じ率で BL 枠を確保する。
 
 `TOPIC_MIN_VOCAB` の根拠は、`scripts/corpus/freq_rank_top10000.json` の入門〜初中級帯域を実際に確認した結果。
 入門帯域の汎用語は embedding で「恋愛」「伝統・祭り」などへ寄りやすいため、UVM 経路でも入門テーマに制限する。
