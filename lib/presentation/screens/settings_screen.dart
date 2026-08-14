@@ -16,7 +16,6 @@ import '../providers/auth_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/sign_in_sheet.dart';
@@ -106,17 +105,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             Consumer(
               builder: (context, ref, _) {
-                final isPremium = ref.watch(isPremiumProvider);
                 // 体験中は課金と同じ機能が使えているので、そのことを出す。
                 // 「課金しているか」の表示なので Premium とは別ラベルにする。
-                final trialActive =
-                    !isPremium && ref.watch(effectivePremiumProvider);
-                final label = isPremium
-                    ? 'Premium'
-                    : trialActive
-                        ? L10n.of(context).settingsPlanTrial
-                        : 'Free';
-                final highlighted = isPremium || trialActive;
+                // 判定が付くまでは何も出さない（free → 体験中 → Premium と
+                // 段階的にぶれて見えるのを避ける）。
+                final plan = ref.watch(planStatusProvider).valueOrNull;
+                final label = switch (plan) {
+                  PlanStatus.premium => 'Premium',
+                  PlanStatus.trial => L10n.of(context).settingsPlanTrial,
+                  PlanStatus.free => 'Free',
+                  null => null,
+                };
+                final highlighted =
+                    plan == PlanStatus.premium || plan == PlanStatus.trial;
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.workspace_premium),
@@ -124,18 +125,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Chip(
-                        label: Text(label),
-                        backgroundColor: highlighted
-                            ? Theme.of(context).colorScheme.primaryContainer
-                            : null,
-                        labelStyle: TextStyle(
-                          color: highlighted
-                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                      if (label != null)
+                        Chip(
+                          label: Text(label),
+                          backgroundColor: highlighted
+                              ? Theme.of(context).colorScheme.primaryContainer
                               : null,
-                          fontWeight: FontWeight.w600,
+                          labelStyle: TextStyle(
+                            color: highlighted
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer
+                                : null,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
                       const Icon(Icons.chevron_right),
                     ],
                   ),

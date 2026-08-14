@@ -9,7 +9,6 @@ import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/remaining_quota_provider.dart';
-import '../providers/subscription_provider.dart';
 import '../screens/paywall_screen.dart';
 
 /// 例文タブの例文カード直下に常設する、free 向けのプレミアム訴求バナー。
@@ -143,15 +142,13 @@ class _PremiumHintBannerState extends ConsumerState<PremiumHintBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final isPremium = ref.watch(isPremiumProvider);
-    if (!_eligible || isPremium) return const SizedBox.shrink();
+    if (!_eligible) return const SizedBox.shrink();
 
     // お試し期間中は topic_picker のロックも外れているため、訴求すると
     // 「もう使える機能」を勧めることになる。判定が付くまでは出さない
     // （読み込み中に一瞬出して消えるより、遅れて出るほうが目障りでない）。
-    final trial = ref.watch(premiumTrialActiveProvider);
-    if (trial.isLoading) return const SizedBox.shrink();
-    if (trial.valueOrNull ?? false) return const SizedBox.shrink();
+    final plan = ref.watch(planStatusProvider).valueOrNull;
+    if (plan != PlanStatus.free) return const SizedBox.shrink();
 
     if (!_impressionLogged) {
       _impressionLogged = true;

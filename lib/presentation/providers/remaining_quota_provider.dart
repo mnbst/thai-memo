@@ -3,6 +3,7 @@ import '../../l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/firebase_auth_service.dart';
 import 'subscription_provider.dart';
 
 /// Firebase Auth の uid をリアクティブに提供
@@ -90,17 +91,53 @@ final isPremiumRealtimeProvider = Provider<AsyncValue<bool>>((ref) {
       .whenData((data) => data?['tier'] == 'premium');
 });
 
+/// 表示・判定用のプラン状態。
+enum PlanStatus { free, trial, premium }
+
+/// ユーザーのプラン状態を users/{uid} の1スナップショットだけから決める。
+///
+/// tier と体験期限を別々のソース（Firestore の1回読み／ストリーム）から取ると、
+/// 起動直後に free → 体験中 → Premium と数段階ぶれて見えるため、判定は
+/// このプロバイダに集約する。未確定（読み込み中）は AsyncLoading のまま返し、
+/// 呼び出し側で「まだ出さない」を選べるようにする。
+final planStatusProvider = Provider<AsyncValue<PlanStatus>>((ref) {
+  final doc = ref.watch(userDocProvider);
+  final linked = FirebaseAuthService.instance.isLinkedAccount;
+
+  // サインイン済みなのに doc が無いのは onUserCreate が書く前の一瞬。ここで free と
+  // 決めると直後の体験付与で Free → 体験中 とぶれるので、未確定のままにする。
+  if (linked && doc.hasValue && doc.value == null) {
+    return const AsyncValue<PlanStatus>.loading();
+  }
+  // 読めないまま未確定を返すと Chip が出ないまま固まるので、課金状態だけでも出す。
+  if (doc.hasError) {
+    return AsyncValue.data(
+      ref.watch(isPremiumProvider) ? PlanStatus.premium : PlanStatus.free,
+    );
+  }
+
+  return doc.whenData((data) {
+    // プレミアムはサインイン（正規アカウント）時のみ有効。
+    if (linked && data?['tier'] == 'premium') return PlanStatus.premium;
+    final expiresAt =
+        (data?['premium_trial_expires_at'] as Timestamp?)?.toDate();
+    if (expiresAt != null && DateTime.now().isBefore(expiresAt)) {
+      return PlanStatus.trial;
+    }
+    return PlanStatus.free;
+  });
+});
+
 /// 課金プレミアム、またはプレミアム体験トライアル中か。
 ///
 /// 体験中は課金と完全に同じ扱いにするので、機能の出し分けは原則これで判定する。
 /// 「課金しているか」そのものを問う場面（プラン表示・購入導線）だけ
 /// [isPremiumProvider] を使うこと。
 final effectivePremiumProvider = Provider<bool>((ref) {
-  final bool isPremium = ref.watch(isPremiumRealtimeProvider).valueOrNull ??
-      ref.watch(isPremiumProvider);
-  final bool trialActive =
-      ref.watch(premiumTrialActiveProvider).valueOrNull ?? false;
-  return isPremium || trialActive;
+  final plan = ref.watch(planStatusProvider).valueOrNull;
+  if (plan != null) return plan != PlanStatus.free;
+  // ストリーム未確定の間だけ、コントローラが持つ値で代用する。
+  return ref.watch(isPremiumProvider);
 });
 
 /// 次のリセット（JST 0:00）までの残り時間テキストを返す
