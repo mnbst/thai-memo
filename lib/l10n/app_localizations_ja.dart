@@ -1093,6 +1093,72 @@ class L10nJa extends L10n {
   }
 
   @override
+  String pronunciationSegmentUnaspirated(
+      String word, String label, String aspirated) {
+    return '「$word」の $label は息を出さずに出す。息が漏れると $aspirated に聞こえる';
+  }
+
+  @override
+  String pronunciationSegmentFinalP(String word) {
+    return '「$word」の終わりは唇を閉じたまま止める。「プ」と母音を足さない';
+  }
+
+  @override
+  String pronunciationSegmentFinalT(String word) {
+    return '「$word」の終わりは舌先を離さず止める。「ト」と母音を足さない';
+  }
+
+  @override
+  String pronunciationSegmentFinalK(String word) {
+    return '「$word」の終わりは喉の奥で止める。「ク」と母音を足さない';
+  }
+
+  @override
+  String pronunciationSegmentNgInitial(String word) {
+    return '「$word」の頭の ง は、口を開けたまま鼻へ抜く。「ン」を前に付けない';
+  }
+
+  @override
+  String pronunciationSegmentFinalNg(String word) {
+    return '「$word」の終わりは口を開けたまま鼻へ抜く（-ng）。口を閉じると別の語になる';
+  }
+
+  @override
+  String pronunciationSegmentFinalN(String word) {
+    return '「$word」の終わりは舌先を歯の裏に付ける（-n）。鼻に抜くと -ng になる';
+  }
+
+  @override
+  String pronunciationSegmentFinalM(String word) {
+    return '「$word」の終わりは唇を閉じる（-m）';
+  }
+
+  @override
+  String pronunciationSegmentShortVowel(String word, String label) {
+    return '「$word」の $label は短く切る。伸ばすと別の語になる';
+  }
+
+  @override
+  String pronunciationSegmentVowelAe(String word) {
+    return '「$word」の母音は「エ」より口を横に大きく開く（ɛ）';
+  }
+
+  @override
+  String pronunciationSegmentVowelOe(String word) {
+    return '「$word」の母音は口をあまり動かさず、こもった音で出す（ə）';
+  }
+
+  @override
+  String pronunciationSegmentVowelAw(String word) {
+    return '「$word」の母音は「オ」より口を丸く大きく開く（ɔ）';
+  }
+
+  @override
+  String pronunciationSegmentVowelUe(String word) {
+    return '「$word」の母音は唇を横に引いたまま「ウ」と出す（ɯ）';
+  }
+
+  @override
   String get pronunciationLimitTitle => '今日の無料の発音チェックは終わりました';
 
   @override

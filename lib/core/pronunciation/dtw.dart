@@ -111,7 +111,16 @@ List<DtwPathPoint> dtwAlign(
     return (j - expected(i)).abs() <= bandRatio * (m - 1);
   }
 
-  bool allowed(int i, int j) => inBand(i, j) && inWindow(i, j);
+  /// **手がかりのある点は、帯ではなく窓で縛る。** 窓（[boundaryWindows]）は
+  /// 「録音のここが切れ目」という直接の証拠なので、比例配分から引いた帯より確か。
+  ///
+  /// 両方を課すと、節の切れ目の**長い間**を通れなくなる。間のぶん時間軸が伸びる
+  /// のに帯は比例配分のままなので、間の中はどの点の帯にも入らない。実機相当の
+  /// 合成（8音節・1秒の間）で経路が帯の外に出て斜めに戻され、間の周りの音節が
+  /// 2〜4個崩れた。
+  bool allowed(int i, int j) => boundaryWindows?.containsKey(i) == true
+      ? inWindow(i, j)
+      : inBand(i, j);
 
   // cost[i][j] = reference[0..i] と query[0..j] を対応づけた累積コスト。
   final cost = List.generate(

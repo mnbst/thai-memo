@@ -38,6 +38,11 @@ double sampleContour(List<double> contour, double t) {
 /// 全音節を一律に縮めても、録音側は自分の広がりで正規化されるので元に戻る。
 /// [unvoicedOnsetFrames] は各音節の頭に置く無声フレーム数。子音（破裂音・
 /// 摩擦音）でピッチが取れない区間を再現する。実際の発話では必ず入る。
+/// [clauseStarts] は新しい節が始まる音節の添字。話者は節ごとに声を上げ直す
+/// ので、declination と末尾の下がりは**節ごとに**掛ける。
+/// [pauseFrames] は節の切れ目に置く無音のフレーム数。
+/// [clauseFinalLowering] は**文中の**節末で下がる量。文末（[finalLowering]）とは
+/// 別に置く。話者によって下がらないこと（0）も、逆に上がること（負）もある。
 List<double?> synthesizeF0({
   required List<ThaiTone> tones,
   Map<int, ThaiTone> substitutions = const {},
@@ -54,6 +59,9 @@ List<double?> synthesizeF0({
   double carryoverStrength = 0.0,
   double carryoverReach = 1.0,
   Map<int, double> levelOffsetBySyllable = const {},
+  List<int> clauseStarts = const [],
+  int pauseFrames = 0,
+  double clauseFinalLowering = kClauseFinalLoweringRange,
 }) {
   // 話者が実際に出す並びで組み立てる。declination も下降声の連続による
   // 下降幅の縮小も話者側で起きる現象なので、お手本と同じ変形を掛ける。
@@ -67,8 +75,24 @@ List<double?> synthesizeF0({
           shortSyllables[s])
       ? (framesPerSyllable * kShortSyllableDuration).round()
       : framesPerSyllable;
-  final totalFrames = List.generate(tones.length, framesOf)
-      .fold<int>(0, (a, b) => a + b);
+  // 節の区切り（0 と末尾を含む）。話者の declination は節ごとにやり直される。
+  final segments = <int>[
+    0,
+    ...clauseStarts.where((s) => s > 0 && s < tones.length),
+    tones.length,
+  ]..sort();
+  int segmentOf(int syllable) {
+    for (var c = segments.length - 2; c >= 0; c--) {
+      if (syllable >= segments[c]) return c;
+    }
+    return 0;
+  }
+  final segmentFrames = [
+    for (var c = 0; c + 1 < segments.length; c++)
+      [
+        for (var s = segments[c]; s < segments[c + 1]; s++) framesOf(s),
+      ].fold<int>(0, (a, b) => a + b),
+  ];
   final points = syllablePoints ??
       [
         for (var i = 0; i < tones.length; i++)
@@ -82,6 +106,7 @@ List<double?> synthesizeF0({
     spoken,
     shortSyllables: shortSyllables,
     syllablePoints: points,
+    clauseStarts: clauseStarts,
   );
   final counts = syllablePointCounts(tones.length, points);
   final starts = <int>[0];
@@ -90,15 +115,26 @@ List<double?> synthesizeF0({
   }
 
   final frames = <double?>[];
+  var framesInSegment = 0;
   for (var s = 0; s < tones.length; s++) {
+    final segment = segmentOf(s);
+    if (s > 0 && segments.contains(s)) {
+      // 節の切れ目。息継ぎのぶん声が止まる。
+      for (var f = 0; f < pauseFrames; f++) {
+        frames.add(null);
+      }
+      framesInSegment = 0;
+    }
     final contour = raw.sublist(starts[s], starts[s + 1]);
     // 短い音節は実際に短く発音される。お手本の点数配分と揃えないと、
     // 「長さを見込んだお手本」を検証したことにならない。
     final syllableFrames = framesOf(s);
     for (var f = 0; f < syllableFrames; f++) {
-      // 音節の頭は子音で、ピッチが取れない。
+      // 音節の頭は子音で、ピッチが取れない。声は出ていないが時間は進むので、
+      // declination の進み具合には数える。
       if (f < unvoicedOnsetFrames) {
         frames.add(null);
+        framesInSegment++;
         continue;
       }
       final t = syllableFrames == 1 ? 0.0 : f / (syllableFrames - 1);
@@ -120,14 +156,20 @@ List<double?> synthesizeF0({
       // 音節まるごとの上下（形は保ったまま高さだけずれた発話）。
       final offset = levelOffsetBySyllable[s] ?? 0.0;
       final z = (scaled + carried + offset) * flatten;
-      // 話者の declination。文の頭で高く、終わりで低い。
-      final progress = totalFrames <= 1 ? 0.5 : (frames.length) / (totalFrames - 1);
+      // 話者の declination。節の頭で高く、終わりで低い。
+      final segmentTotal = segmentFrames[segment];
+      final progress =
+          segmentTotal <= 1 ? 0.5 : framesInSegment / (segmentTotal - 1);
       // flatten は発話全体の抑揚を潰すので、declination と末尾の下がりにも掛ける。
       final drift = declination * (progress - 0.5) * flatten;
-      // 発話末の追加の下がり。最後の音節の中で徐々に効く。
-      // 発話末は音節全体が一定量下がる（傾きではない）。
-      final finalDrop =
-          s == tones.length - 1 ? finalLowering * flatten : 0.0;
+      // 節末の追加の下がり。節末は音節全体が一定量下がる（傾きではない）。
+      // 文末と文中の節末は別の量（後者は話者によって下がらないこともある）。
+      final atSegmentEnd = s == segments[segment + 1] - 1;
+      final drop = segment + 2 == segments.length
+          ? finalLowering
+          : clauseFinalLowering;
+      final finalDrop = atSegmentEnd ? drop * flatten : 0.0;
+      framesInSegment++;
       final semitone =
           medianSemitone + (z - drift - finalDrop) * halfRangeSemitone;
       frames.add(kSemitoneRefHz * math.pow(2, semitone / 12).toDouble());

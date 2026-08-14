@@ -1185,6 +1185,72 @@ class L10nEn extends L10n {
   }
 
   @override
+  String pronunciationSegmentUnaspirated(
+      String word, String label, String aspirated) {
+    return 'In \"$word\", $label has no puff of air. With air it sounds like $aspirated.';
+  }
+
+  @override
+  String pronunciationSegmentFinalP(String word) {
+    return 'End \"$word\" with your lips closed — don\'t release it or add a vowel.';
+  }
+
+  @override
+  String pronunciationSegmentFinalT(String word) {
+    return 'End \"$word\" with your tongue tip in place — don\'t release it or add a vowel.';
+  }
+
+  @override
+  String pronunciationSegmentFinalK(String word) {
+    return 'End \"$word\" by stopping at the back of the throat — don\'t release it or add a vowel.';
+  }
+
+  @override
+  String pronunciationSegmentNgInitial(String word) {
+    return 'Start \"$word\" with ง humming through the nose — no vowel before it.';
+  }
+
+  @override
+  String pronunciationSegmentFinalNg(String word) {
+    return 'End \"$word\" through the nose with your mouth open (-ng), not with closed lips.';
+  }
+
+  @override
+  String pronunciationSegmentFinalN(String word) {
+    return 'End \"$word\" with your tongue tip behind the teeth (-n), not through the nose.';
+  }
+
+  @override
+  String pronunciationSegmentFinalM(String word) {
+    return 'End \"$word\" with your lips closed (-m).';
+  }
+
+  @override
+  String pronunciationSegmentShortVowel(String word, String label) {
+    return 'Keep $label in \"$word\" short — lengthening it makes a different word.';
+  }
+
+  @override
+  String pronunciationSegmentVowelAe(String word) {
+    return 'The vowel in \"$word\" is wider than \"e\" — spread the mouth (ɛ).';
+  }
+
+  @override
+  String pronunciationSegmentVowelOe(String word) {
+    return 'The vowel in \"$word\" is a relaxed, unrounded mid vowel (ə).';
+  }
+
+  @override
+  String pronunciationSegmentVowelAw(String word) {
+    return 'The vowel in \"$word\" is rounder and more open than \"o\" (ɔ).';
+  }
+
+  @override
+  String pronunciationSegmentVowelUe(String word) {
+    return 'The vowel in \"$word\" is \"u\" with the lips spread, not rounded (ɯ).';
+  }
+
+  @override
   String get pronunciationLimitTitle =>
       'You\'ve used today\'s free pronunciation checks';
 

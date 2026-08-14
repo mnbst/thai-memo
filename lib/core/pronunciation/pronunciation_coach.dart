@@ -11,6 +11,7 @@
 
 import '../thai_tone_analyzer.dart';
 import 'pronunciation_scorer.dart';
+import 'segment_coach.dart';
 import 'transcript_match.dart';
 
 /// 何を外しているか。
@@ -35,6 +36,7 @@ class CoachingTip {
     this.wordText,
     this.toneMark = '',
     this.roman = '',
+    this.segment,
   });
 
   final CoachIssue issue;
@@ -61,6 +63,12 @@ class CoachingTip {
 
   /// [syllableIndex] の音節の、声調記号付きローマ字。取れなければ空文字。
   final String roman;
+
+  /// [CoachIssue.notRecognized] のとき、子音・母音のどこを直すか。
+  ///
+  /// **取れないことがある**（優先順位に載っている音を1つも含まない語）。
+  /// そのときは語を名指しするだけに留める。
+  final SegmentPoint? segment;
 }
 
 /// 採点結果から助言を1つ選ぶ。直すところが無ければ null。
@@ -82,6 +90,7 @@ CoachingTip? coachingTipOf(
   List<String> wordTexts = const [],
   List<String> toneMarks = const [],
   List<String> romans = const [],
+  SegmentPoint? Function(int wordIndex)? segmentPointOfWord,
 }) {
   final list = scores.toList();
 
@@ -91,7 +100,10 @@ CoachingTip? coachingTipOf(
 
   // 声調は通っているのに帯が赤い場合がここ。**帯が赤いのに助言が空**という
   // 状態を作らないために、言えることだけ言う（語を名指しして言い直しを促す）。
-  return _notRecognizedTip(recognition, wordTexts);
+  final notRecognized =
+      _notRecognizedTip(recognition, wordTexts, segmentPointOfWord);
+  if (notRecognized == null) return null;
+  return _withSyllableLabels(notRecognized, toneMarks, romans);
 }
 
 /// 代表音節の表記（声調記号・ローマ字）を載せる。取れないものは空のまま。
@@ -114,13 +126,18 @@ CoachingTip _withSyllableLabels(
     wordText: tip.wordText,
     toneMark: at(toneMarks),
     roman: at(romans),
+    segment: tip.segment,
   );
 }
 
-/// 聞き取られなかった最初の語を指す。原因は特定しない。
+/// 聞き取られなかった最初の語を指す。
+///
+/// どの音を外したかは音声認識からは分からないので、[segmentPointOfWord] が
+/// あればその語に含まれる音のうち**日本語話者が最も外しやすいもの**を出す。
 CoachingTip? _notRecognizedTip(
   List<WordRecognition> recognition,
   List<String> wordTexts,
+  SegmentPoint? Function(int wordIndex)? segmentPointOfWord,
 ) {
   final count =
       recognition.length < wordTexts.length ? recognition.length : wordTexts.length;
@@ -128,7 +145,13 @@ CoachingTip? _notRecognizedTip(
     if (recognition[i] != WordRecognition.missing) continue;
     final text = wordTexts[i].trim();
     if (text.isEmpty) continue;
-    return CoachingTip(issue: CoachIssue.notRecognized, wordText: text);
+    final segment = segmentPointOfWord?.call(i);
+    return CoachingTip(
+      issue: CoachIssue.notRecognized,
+      wordText: text,
+      segment: segment,
+      syllableIndex: segment?.syllableIndex,
+    );
   }
   return null;
 }

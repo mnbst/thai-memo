@@ -2095,6 +2095,85 @@ abstract class L10n {
   /// **'「{word}」が聞き取れませんでした。もう少しはっきり言ってみる'**
   String pronunciationCoachNotRecognized(String word);
 
+  /// No description provided for @pronunciationSegmentUnaspirated.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の {label} は息を出さずに出す。息が漏れると {aspirated} に聞こえる'**
+  String pronunciationSegmentUnaspirated(
+      String word, String label, String aspirated);
+
+  /// No description provided for @pronunciationSegmentFinalP.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは唇を閉じたまま止める。「プ」と母音を足さない'**
+  String pronunciationSegmentFinalP(String word);
+
+  /// No description provided for @pronunciationSegmentFinalT.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは舌先を離さず止める。「ト」と母音を足さない'**
+  String pronunciationSegmentFinalT(String word);
+
+  /// No description provided for @pronunciationSegmentFinalK.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは喉の奥で止める。「ク」と母音を足さない'**
+  String pronunciationSegmentFinalK(String word);
+
+  /// No description provided for @pronunciationSegmentNgInitial.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の頭の ง は、口を開けたまま鼻へ抜く。「ン」を前に付けない'**
+  String pronunciationSegmentNgInitial(String word);
+
+  /// No description provided for @pronunciationSegmentFinalNg.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは口を開けたまま鼻へ抜く（-ng）。口を閉じると別の語になる'**
+  String pronunciationSegmentFinalNg(String word);
+
+  /// No description provided for @pronunciationSegmentFinalN.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは舌先を歯の裏に付ける（-n）。鼻に抜くと -ng になる'**
+  String pronunciationSegmentFinalN(String word);
+
+  /// No description provided for @pronunciationSegmentFinalM.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の終わりは唇を閉じる（-m）'**
+  String pronunciationSegmentFinalM(String word);
+
+  /// No description provided for @pronunciationSegmentShortVowel.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の {label} は短く切る。伸ばすと別の語になる'**
+  String pronunciationSegmentShortVowel(String word, String label);
+
+  /// No description provided for @pronunciationSegmentVowelAe.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の母音は「エ」より口を横に大きく開く（ɛ）'**
+  String pronunciationSegmentVowelAe(String word);
+
+  /// No description provided for @pronunciationSegmentVowelOe.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の母音は口をあまり動かさず、こもった音で出す（ə）'**
+  String pronunciationSegmentVowelOe(String word);
+
+  /// No description provided for @pronunciationSegmentVowelAw.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の母音は「オ」より口を丸く大きく開く（ɔ）'**
+  String pronunciationSegmentVowelAw(String word);
+
+  /// No description provided for @pronunciationSegmentVowelUe.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」の母音は唇を横に引いたまま「ウ」と出す（ɯ）'**
+  String pronunciationSegmentVowelUe(String word);
+
   /// No description provided for @pronunciationLimitTitle.
   ///
   /// In ja, this message translates to:

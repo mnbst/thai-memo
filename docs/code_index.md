@@ -243,7 +243,7 @@ lib/core/pronunciation/pronunciation_analyzer.dart
 発音判定のパイプライン全体。マイク・UIに依存しない純粋関数で、録音なしでテストできる。
 
 lib/domain/sentence_tone_spans.dart
-単語分解から音節の声調列と語↔音節の対応を作る。判定は音節単位、表示は語単位のため。
+単語分解から音節の声調列と語↔音節の対応を作る（thai_text の空白＝節の切れ目も拾う）。
 
 lib/core/pronunciation/transcript_match.dart
 音声認識の結果と例文を語単位で照合し「通じたか」を返す。声調とは別軸の検査。
@@ -253,6 +253,9 @@ lib/core/pronunciation/word_verdict.dart
 
 lib/core/pronunciation/pronunciation_coach.dart
 採点結果から「次の1回で直す点」を1つだけ選ぶ。判定の2軸（形・入り方）をそのまま使う。
+
+lib/core/pronunciation/segment_coach.dart
+通じなかった語の子音・母音の直し方を1つ選ぶ。日本語話者が外しやすい順の優先表。
 
 lib/services/speech_capture_service.dart
 ネイティブのマイク収録との橋渡し。マイクは1箇所だけが握り、PCMと音声認識へ分岐する。

@@ -574,6 +574,31 @@ class ThaiToneAnalyzer {
     if (syllable.contains('เ') && syllable.endsWith('า')) return true;
     return false;
   }
+
+  /// 音節の末子音（1文字）。開音節・判定できない場合は空文字。
+  ///
+  /// [_parseSyllable] の末子音の見つけ方をそのまま切り出したもの。**最後の子音を
+  /// 取るだけでは足りない**（ไป の ป は頭子音、ปลา の ล は二重子音の2文字目）。
+  /// 前置母音のぶんだけ頭子音の位置をずらし、そこより後ろにある子音だけを末子音と
+  /// みなす。
+  static String finalConsonantOf(String syllable) {
+    if (syllable.isEmpty) return '';
+
+    var pos = 0;
+    if (leadingVowels.contains(syllable[0])) pos = 1;
+    if (pos >= syllable.length) return '';
+
+    // 末子音につく ิ をスキップ（例: ชาติ の ติ → 末子音は ต）
+    var last = syllable.length - 1;
+    if (last > pos && syllable[last] == 'ิ') last--;
+    if (last <= pos) return '';
+
+    final char = syllable[last];
+    if (deadEndConsonants.contains(char) || liveEndConsonants.contains(char)) {
+      return char;
+    }
+    return '';
+  }
 }
 
 /// 声調分析結果

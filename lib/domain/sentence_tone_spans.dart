@@ -6,6 +6,7 @@
 // 音節をそのまま並べても読めないため。この対応づけをここで持つ。
 // =============================================================================
 
+import '../core/pronunciation/segment_coach.dart';
 import '../core/pronunciation/tone_contour.dart';
 import '../core/thai_tone_analyzer.dart';
 import '../data/models/word_breakdown.dart';
@@ -70,6 +71,18 @@ class SentenceToneSpans {
   /// （同じ記号でも子音クラスで声調が変わるため、逆引きは成立しない）。
   final List<String> toneMarks;
 
+  /// 音節ごとの、子音・母音の助言に要る材料（[tones] と同じ順）。
+  ///
+  /// 声調の判定には使わない。通じなかった語について「どの音を直すか」を選ぶため
+  /// だけに持つ（[segmentPointOfWord]）。
+  final List<SegmentSyllable> segmentSyllables;
+
+  /// 新しい節が始まる音節の添字（昇順）。
+  ///
+  /// `thai_text` の空白＝節の切れ目。話者はそこで息を継いで**声を上げ直す**ので、
+  /// 声調のお手本は節ごとに引き直す必要がある（[ReferenceContour.clauseStarts]）。
+  final List<int> clauseStarts;
+
   /// 音節ごとの、声調記号付きローマ字（[tones] と同じ順）。取れなければ空文字。
   ///
   /// 語の発音表記をハイフンで割って音節に対応づける。**ローマ字は TLTK、
@@ -82,12 +95,29 @@ class SentenceToneSpans {
     required this.words,
     required this.shortSyllables,
     required this.syllablePoints,
+    this.segmentSyllables = const [],
+    this.clauseStarts = const [],
     this.syllableLabels = const [],
     this.toneMarks = const [],
     this.syllableRomans = const [],
   });
 
   bool get isEmpty => tones.isEmpty;
+
+  /// 語ひとつについて、子音・母音のどこを直すかを1つ選ぶ。
+  ///
+  /// 範囲外の語・材料が無い場合は null。
+  SegmentPoint? segmentPointOfWord(int wordIndex) {
+    if (wordIndex < 0 || wordIndex >= words.length) return null;
+    if (segmentSyllables.isEmpty) return null;
+
+    final span = words[wordIndex];
+    return segmentPointOf(
+      segmentSyllables,
+      start: span.start,
+      end: span.end,
+    );
+  }
 }
 
 /// 単語分解から声調列と語の区切りを組み立てる。
@@ -110,7 +140,43 @@ List<String> _romansOf(String pronunciation, int syllableCount) {
   return parts;
 }
 
-SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
+/// 節の切れ目とみなす文字。
+///
+/// タイ語は語間に空白を置かないので、**空白は節の切れ目**（`thai_text` の空白は
+/// 最大1つで、2節あるときの切れ目にだけ置かれる）。句読点も切れ目として扱う。
+final RegExp _clauseBreakChars = RegExp(r'[\s​.!?。！？]');
+
+/// 語の直前に節の切れ目がある語の添字を返す。
+///
+/// 単語分解は空白を語として持たないので、位置は `thai_text` の上で数える。
+/// 見つからない語は飛ばす（位置が分からない語で切れ目を作ると、実際とは違う
+/// ところで声を上げ直すお手本になる）。
+Set<int> _wordsAfterClauseBreak(List<WordBreakdown> words, String thaiText) {
+  if (thaiText.isEmpty) return const {};
+
+  final result = <int>{};
+  var cursor = 0;
+  for (var i = 0; i < words.length; i++) {
+    final text = words[i].wordText;
+    if (text.isEmpty) continue;
+    final at = thaiText.indexOf(text, cursor);
+    if (at < 0) continue;
+    if (i > 0 &&
+        at > cursor &&
+        _clauseBreakChars.hasMatch(thaiText.substring(cursor, at))) {
+      result.add(i);
+    }
+    cursor = at + text.length;
+  }
+  return result;
+}
+
+/// [thaiText] を渡すと、節の切れ目（空白）を [SentenceToneSpans.clauseStarts]
+/// として拾う。省略すると1節の文として扱う。
+SentenceToneSpans buildSentenceToneSpans(
+  List<WordBreakdown> words, {
+  String thaiText = '',
+}) {
   final tones = <ThaiTone>[];
   final spans = <WordToneSpan>[];
   final short = <bool>[];
@@ -118,10 +184,22 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
   final labels = <String>[];
   final marks = <String>[];
   final romans = <String>[];
+  final segments = <SegmentSyllable>[];
+  final clauseStarts = <int>[];
 
-  for (final word in words) {
+  final breakBefore = _wordsAfterClauseBreak(words, thaiText);
+  // 音節を持たない語は飛ばすので、切れ目は**次に音節を持つ語**まで持ち越す。
+  var pendingBreak = false;
+
+  for (var i = 0; i < words.length; i++) {
+    final word = words[i];
+    if (breakBefore.contains(i)) pendingBreak = true;
+
     final syllables = word.syllables;
     if (syllables == null || syllables.isEmpty) continue;
+
+    if (pendingBreak && tones.isNotEmpty) clauseStarts.add(tones.length);
+    pendingBreak = false;
 
     spans.add(WordToneSpan(
       wordText: word.wordText,
@@ -152,6 +230,15 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
     ));
     marks.addAll(syllables.map((s) => toneMarkCharOf(s.toneMark)));
     romans.addAll(_romansOf(word.pronunciation, syllables.length));
+    // 長さは声調規則の生死ではなく実際の長さで見る（[points] と同じ基準）。
+    segments.addAll(syllables.map(
+      (s) => SegmentSyllable(
+        text: s.text,
+        initialConsonant: s.initialConsonant,
+        hasShortVowel: s.hasShortVowel == true ||
+            ThaiToneAnalyzer.hasSpecialShortVowel(s.text),
+      ),
+    ));
   }
 
   return SentenceToneSpans(
@@ -159,6 +246,8 @@ SentenceToneSpans buildSentenceToneSpans(List<WordBreakdown> words) {
     words: spans,
     shortSyllables: short,
     syllablePoints: points,
+    segmentSyllables: segments,
+    clauseStarts: clauseStarts,
     syllableLabels: labels,
     toneMarks: marks,
     syllableRomans: romans,
