@@ -6,7 +6,6 @@ import '../../core/constants/generation_labels.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/subscription_provider.dart';
 import '../screens/paywall_screen.dart';
 import 'coach_mark_overlay.dart';
 
@@ -26,10 +25,7 @@ class NextSentenceTopicLabel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isPremium = ref.watch(isPremiumProvider);
-    final trialActive =
-        ref.watch(premiumTrialActiveProvider).valueOrNull ?? false;
-    final canSelect = isPremium || trialActive;
+    final canSelect = ref.watch(effectivePremiumProvider);
     final currentTopic = ref.watch(generationParamsProvider)['topic'];
     final l10n = L10n.of(context);
     final label = canSelect
