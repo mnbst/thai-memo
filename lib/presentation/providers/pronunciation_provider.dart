@@ -98,6 +98,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     required AnalyticsService analytics,
     required TtsService tts,
     required this.sentenceId,
+    required this.scope,
   })  : _recorder = recorder ?? PitchRecorderService(),
         _tts = tts,
         _database = database,
@@ -109,6 +110,10 @@ class PronunciationController extends StateNotifier<PronunciationState> {
   final AnalyticsService _analytics;
   final TtsService _tts;
   final String sentenceId;
+
+  /// 練習UIの置き場所（'home_card' / 'detail' / 'sheet'）。
+  /// どの画面で発音チェックされているかを GA4 で見るために持つ。
+  final String scope;
 
   static const _uuid = Uuid();
 
@@ -366,6 +371,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
 
     await _analytics.logPronunciationAttempt(
       sentenceId: sentenceId,
+      source: scope,
       score: result.overallScore,
       syllableCount: result.syllables.length,
       monotone: result.isMonotone,
@@ -430,5 +436,6 @@ final pronunciationControllerProvider = StateNotifierProvider.autoDispose
     analytics: ref.read(analyticsServiceProvider),
     tts: ref.read(ttsServiceProvider),
     sentenceId: key.sentenceId,
+    scope: key.scope,
   ),
 );
