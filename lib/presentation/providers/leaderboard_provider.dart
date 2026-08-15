@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'remaining_quota_provider.dart';
 import 'vocab_stats_provider.dart';
@@ -9,6 +12,61 @@ const int leaderboardNeighborCount = 1;
 
 /// 常に見せる上位の人数
 const int leaderboardTopCount = 3;
+
+/// 端末に置いた取得結果を再利用する時間。
+///
+/// 順位は他人の生成でしか動かないので、開くたび・起動するたびに数え直す必要がない。
+/// この間はアプリを再起動しても Firestore を読まない（引っ張って更新は常に即取得）。
+const Duration leaderboardCacheTtl = Duration(hours: 6);
+
+const _rowsCacheKey = 'leaderboard_rows_cache';
+const _distributionCacheKey = 'leaderboard_distribution_cache';
+const _myRankCacheKey = 'leaderboard_my_rank_cache';
+
+/// 引っ張って更新の回数。1以上なら、その起動中はキャッシュを使わない。
+///
+/// 増やすと leaderboard 系の provider が作り直され、そのまま再取得になる。
+final leaderboardRefreshEpochProvider = StateProvider<int>((ref) => 0);
+
+/// キャッシュの中身。uid と自分のスコアが一致し、TTL 内のときだけ返す。
+///
+/// 自分のスコアが変わると順位も周辺も変わるので、キャッシュの鍵に含める。
+Future<Object?> _readCache(String key, String uid, int vocab) async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString(key);
+  if (raw == null) return null;
+
+  final Map<String, dynamic> json;
+  try {
+    json = jsonDecode(raw) as Map<String, dynamic>;
+  } catch (_) {
+    return null;
+  }
+  if (json['uid'] != uid || json['vocab'] != vocab) return null;
+
+  final at = (json['at'] as num?)?.toInt() ?? 0;
+  final age = DateTime.now().millisecondsSinceEpoch - at;
+  if (age < 0 || age > leaderboardCacheTtl.inMilliseconds) return null;
+  return json['data'];
+}
+
+Future<void> _writeCache(
+  String key,
+  String uid,
+  int vocab,
+  Object? data,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    key,
+    jsonEncode({
+      'uid': uid,
+      'vocab': vocab,
+      'at': DateTime.now().millisecondsSinceEpoch,
+      'data': data,
+    }),
+  );
+}
 
 /// ランキング1行ぶんのデータ
 class LeaderboardEntry {
@@ -25,6 +83,23 @@ class LeaderboardEntry {
     required this.rank,
     required this.isMe,
   });
+
+  Map<String, dynamic> toJson() => {
+        'uid': uid,
+        'nickname': nickname,
+        'vocab': vocab,
+        'rank': rank,
+        'isMe': isMe,
+      };
+
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
+      LeaderboardEntry(
+        uid: json['uid'] as String,
+        nickname: json['nickname'] as String?,
+        vocab: (json['vocab'] as num?)?.toInt() ?? 0,
+        rank: (json['rank'] as num?)?.toInt() ?? 0,
+        isMe: json['isMe'] == true,
+      );
 }
 
 CollectionReference<Map<String, dynamic>> _leaderboardRef() =>
@@ -58,10 +133,18 @@ final myNicknameProvider = StreamProvider<String?>((ref) {
 /// スコアが0（＝まだ例文を生成していない）のときは順位なし（null）。
 final myRankProvider = FutureProvider<int?>((ref) async {
   final myVocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
-  if (ref.watch(authUidProvider).valueOrNull == null || myVocab <= 0) {
-    return null;
+  final uid = ref.watch(authUidProvider).valueOrNull;
+  if (uid == null || myVocab <= 0) return null;
+
+  final skipCache = ref.watch(leaderboardRefreshEpochProvider) > 0;
+  if (!skipCache) {
+    final cached = await _readCache(_myRankCacheKey, uid, myVocab);
+    if (cached is num) return cached.toInt();
   }
-  return _rankOf(myVocab);
+
+  final rank = await _rankOf(myVocab);
+  await _writeCache(_myRankCacheKey, uid, myVocab, rank);
+  return rank;
 });
 
 /// 上限なしの帯を範囲クエリで表すための天井
@@ -91,6 +174,16 @@ class VocabBand {
     required this.count,
     required this.isMine,
   });
+
+  Map<String, dynamic> toJson() =>
+      {'min': min, 'max': max, 'count': count, 'isMine': isMine};
+
+  factory VocabBand.fromJson(Map<String, dynamic> json) => VocabBand(
+        min: (json['min'] as num?)?.toInt() ?? 0,
+        max: (json['max'] as num?)?.toInt(),
+        count: (json['count'] as num?)?.toInt() ?? 0,
+        isMine: json['isMine'] == true,
+      );
 }
 
 /// 語彙スコアの分布と全体人数・最高スコア
@@ -99,6 +192,19 @@ class VocabDistribution {
   final int total;
 
   const VocabDistribution({required this.bands, required this.total});
+
+  Map<String, dynamic> toJson() => {
+        'total': total,
+        'bands': bands.map((band) => band.toJson()).toList(),
+      };
+
+  factory VocabDistribution.fromJson(Map<String, dynamic> json) =>
+      VocabDistribution(
+        total: (json['total'] as num?)?.toInt() ?? 0,
+        bands: ((json['bands'] as List?) ?? const [])
+            .map((band) => VocabBand.fromJson(band as Map<String, dynamic>))
+            .toList(),
+      );
 
   /// 上位何%か（1未満は1に丸める）。順位が無いときは null。
   int? percentile(int? rank) {
@@ -115,6 +221,14 @@ final vocabDistributionProvider =
     FutureProvider<VocabDistribution>((ref) async {
   final uid = ref.watch(authUidProvider).valueOrNull;
   final myVocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+
+  final skipCache = ref.watch(leaderboardRefreshEpochProvider) > 0;
+  if (uid != null && !skipCache) {
+    final cached = await _readCache(_distributionCacheKey, uid, myVocab);
+    if (cached is Map<String, dynamic>) {
+      return VocabDistribution.fromJson(cached);
+    }
+  }
 
   final counts = await Future.wait(vocabBands.map((band) => _leaderboardRef()
       .where('vocab', isGreaterThanOrEqualTo: band.min)
@@ -143,7 +257,16 @@ final vocabDistributionProvider =
     ));
   }
 
-  return VocabDistribution(bands: bands, total: total);
+  final distribution = VocabDistribution(bands: bands, total: total);
+  if (uid != null) {
+    await _writeCache(
+      _distributionCacheKey,
+      uid,
+      myVocab,
+      distribution.toJson(),
+    );
+  }
+  return distribution;
 });
 
 /// 自分と、その上下[leaderboardNeighborCount]人ぶんの行。
@@ -160,6 +283,27 @@ final leaderboardRowsProvider =
   final myVocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
   final myNickname = ref.watch(myNicknameProvider).valueOrNull;
   if (uid == null || myVocab <= 0) return const [];
+
+  // 起動のたびに数え直さない。nickname だけは stream で来た最新に差し替える。
+  final skipCache = ref.watch(leaderboardRefreshEpochProvider) > 0;
+  if (!skipCache) {
+    final cached = await _readCache(_rowsCacheKey, uid, myVocab);
+    if (cached is List) {
+      return cached
+          .map((row) =>
+              LeaderboardEntry.fromJson(row as Map<String, dynamic>))
+          .map((row) => row.isMe
+              ? LeaderboardEntry(
+                  uid: row.uid,
+                  nickname: myNickname ?? row.nickname,
+                  vocab: row.vocab,
+                  rank: row.rank,
+                  isMe: true,
+                )
+              : row)
+          .toList();
+    }
+  }
 
   // 自分の doc はサーバーが例文生成時に作る。まだ無い間は count() 集計に自分が
   // 入らないので、自分より下の行の順位が1つ繰り上がって見えてしまう。
@@ -230,5 +374,11 @@ final leaderboardRowsProvider =
   final seen = <String>{};
   final merged = entries.where((entry) => seen.add(entry.uid)).toList()
     ..sort((a, b) => b.vocab.compareTo(a.vocab));
+  await _writeCache(
+    _rowsCacheKey,
+    uid,
+    myVocab,
+    merged.map((entry) => entry.toJson()).toList(),
+  );
   return merged;
 });

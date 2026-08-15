@@ -77,7 +77,9 @@ class PronunciationPractice extends ConsumerWidget {
     super.key,
     required this.sentenceId,
     required this.words,
+    required this.scope,
     this.thaiText = '',
+    this.showHeader = true,
   });
 
   /// 保存済み例文のID。未保存（null）の例文では練習させない。
@@ -86,6 +88,14 @@ class PronunciationPractice extends ConsumerWidget {
 
   /// 例文のタイ語。空白（節の切れ目）の位置を声調のお手本に反映するために要る。
   final String thaiText;
+
+  /// 「発音してみる」の見出し行を出すか。
+  /// マイクボタンから開く場合は入口の直下に出るので見出しは重複する。
+  final bool showHeader;
+
+  /// 置き場所の識別子（例: 'home_card' / 'detail'）。
+  /// 同じ例文でもここが違えば判定結果は共有されない。
+  final String scope;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -107,26 +117,29 @@ class PronunciationPractice extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(
-              Icons.mic_none,
-              size: 16,
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              l10n.pronunciationTitle,
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
+        if (showHeader) ...[
+          Row(
+            children: [
+              Icon(
+                Icons.mic_none,
+                size: 16,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                l10n.pronunciationTitle,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
         if (locked)
           _PremiumLock(l10n: l10n)
         else ...[
           _PracticeBody(
             sentenceId: id,
+            scope: scope,
             spans: spans,
             l10n: l10n,
             countsAgainstQuota: !isPremium,
@@ -194,12 +207,14 @@ class _PremiumLock extends StatelessWidget {
 class _PracticeBody extends ConsumerWidget {
   const _PracticeBody({
     required this.sentenceId,
+    required this.scope,
     required this.spans,
     required this.l10n,
     required this.countsAgainstQuota,
   });
 
   final String sentenceId;
+  final String scope;
   final SentenceToneSpans spans;
   final L10n l10n;
 
@@ -208,7 +223,9 @@ class _PracticeBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final provider = pronunciationControllerProvider(sentenceId);
+    final provider = pronunciationControllerProvider(
+      (sentenceId: sentenceId, scope: scope),
+    );
     final state = ref.watch(provider);
     final controller = ref.read(provider.notifier);
 
@@ -275,7 +292,12 @@ class _PracticeBody extends ConsumerWidget {
 ///
 /// 無音での自動停止は入れない。タイ語は語間に無音が入りにくく、
 /// 途中で切れて誤判定になる。
-class _RecordButton extends StatelessWidget {
+/// 押している間だけ録音するボタン。
+///
+/// 録音中は波形バーと枠の明滅で「今拾っている」ことを見せる。端末からは
+/// 入力レベルが取れないので波形は実測ではなく一定周期のアニメーション。
+/// 意味は「録音中」であって音量ではない。
+class _RecordButton extends StatefulWidget {
   const _RecordButton({
     required this.recording,
     required this.onStart,
@@ -289,45 +311,128 @@ class _RecordButton extends StatelessWidget {
   final L10n l10n;
 
   @override
+  State<_RecordButton> createState() => _RecordButtonState();
+}
+
+class _RecordButtonState extends State<_RecordButton>
+    with SingleTickerProviderStateMixin {
+  /// 波形と枠の明滅を回す。録音していない間は止めて再描画も起こさない。
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  /// アイコンと波形の置き場。切り替えで文字がずれないよう幅を固定する。
+  static const double _indicatorWidth = 26;
+  static const double _indicatorHeight = 18;
+  static const int _barCount = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.recording) _pulse.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_RecordButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.recording == oldWidget.recording) return;
+    if (widget.recording) {
+      _pulse.repeat();
+    } else {
+      _pulse.stop();
+      _pulse.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final label = widget.recording
+        ? widget.l10n.pronunciationRecording
+        : widget.l10n.pronunciationHoldToSpeak;
+
     return Semantics(
       button: true,
-      label: recording
-          ? l10n.pronunciationRecording
-          : l10n.pronunciationHoldToSpeak,
+      label: label,
       child: GestureDetector(
-        onTapDown: (_) => onStart(),
-        onTapUp: (_) => onStop(),
-        onTapCancel: () => onStop(),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: recording
-                ? scheme.error.withValues(alpha: 0.12)
-                : scheme.primaryContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                recording ? Icons.fiber_manual_record : Icons.mic,
-                size: 18,
-                color: recording ? scheme.error : scheme.primary,
+        onTapDown: (_) => widget.onStart(),
+        onTapUp: (_) => widget.onStop(),
+        onTapCancel: () => widget.onStop(),
+        child: AnimatedBuilder(
+          animation: _pulse,
+          builder: (context, _) {
+            // 0→1→0 を1周期でなぞる明滅の位相。
+            final wave = 0.5 + 0.5 * math.sin(_pulse.value * 2 * math.pi);
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: widget.recording
+                    ? scheme.error.withValues(alpha: 0.10 + 0.08 * wave)
+                    : scheme.primaryContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                // 枠は常に敷く。録音中だけ足すと高さが変わって跳ねる。
+                border: Border.all(
+                  width: 1.5,
+                  color: widget.recording
+                      ? scheme.error.withValues(alpha: 0.25 + 0.4 * wave)
+                      : Colors.transparent,
+                ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                recording
-                    ? l10n.pronunciationRecording
-                    : l10n.pronunciationHoldToSpeak,
-                style: Theme.of(context).textTheme.bodyMedium,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: _indicatorWidth,
+                    height: _indicatorHeight,
+                    child: widget.recording
+                        ? _buildBars(scheme)
+                        : Center(
+                            child: Icon(
+                              Icons.mic,
+                              size: 18,
+                              color: scheme.primary,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
+    );
+  }
+
+  /// 録音中の波形バー。バーごとに位相をずらして左から波が流れて見えるようにする。
+  Widget _buildBars(ColorScheme scheme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: List.generate(_barCount, (index) {
+        final phase = _pulse.value * 2 * math.pi + index * 0.8;
+        final level = 0.5 + 0.5 * math.sin(phase);
+        return Container(
+          width: 3,
+          height: 5 + (_indicatorHeight - 5) * level,
+          decoration: BoxDecoration(
+            color: scheme.error,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        );
+      }),
     );
   }
 }

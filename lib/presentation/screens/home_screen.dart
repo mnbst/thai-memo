@@ -25,6 +25,8 @@ import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_hint_banner.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
+import '../widgets/pronunciation_practice.dart';
+import '../widgets/pronunciation_sheet.dart';
 import '../widgets/quiz_offer.dart';
 import '../widgets/sentence_audio_player.dart';
 import '../widgets/sign_in_reminder_banner.dart';
@@ -1473,19 +1475,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         ),
                   ),
                   const SizedBox(height: 8),
-                  SentenceAudioPlayer(
-                    text: sentence.thaiText,
-                    words:
-                        sentence.wordBreakdowns.map((w) => w.wordText).toList(),
-                    onPlay: () => unawaited(
-                      ref.read(analyticsServiceProvider).logPlayTts(
-                            contentType: 'sentence',
-                            text: sentence.thaiText,
-                            sentenceId: sentence.id,
-                            source: 'today_sentence',
-                          ),
-                    ),
-                  ),
+                  _SentenceAudioSection(sentence: sentence),
                   const SizedBox(height: 16),
                   Text(
                     sentence.japaneseTranslation,
@@ -1783,5 +1773,97 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       spans.add(TextSpan(text: text.substring(lastEnd)));
     }
     return TextSpan(style: baseStyle, children: spans);
+  }
+}
+
+/// 例文カードの再生行と、その下に開く発音練習。
+///
+/// マイクは再生と対になる操作なので、大きさも色も再生ボタンに揃える。
+/// 押すとカード内に練習UIを開き、もう一度押すと畳む。
+class _SentenceAudioSection extends ConsumerStatefulWidget {
+  const _SentenceAudioSection({required this.sentence});
+
+  final ThaiSentence sentence;
+
+  @override
+  ConsumerState<_SentenceAudioSection> createState() =>
+      _SentenceAudioSectionState();
+}
+
+class _SentenceAudioSectionState extends ConsumerState<_SentenceAudioSection> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(_SentenceAudioSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 次の例文に進んだら畳んだ状態から始める
+    if (oldWidget.sentence.id != widget.sentence.id && _expanded) {
+      setState(() => _expanded = false);
+    }
+  }
+
+  void _toggle() {
+    // お手本と録音を奪い合わせない。開くときは再生を止める。
+    if (!_expanded) unawaited(ref.read(ttsServiceProvider).stopAll());
+    setState(() => _expanded = !_expanded);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sentence = widget.sentence;
+    final canPractise = canPractisePronunciation(sentence);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SentenceAudioPlayer(
+          text: sentence.thaiText,
+          words: sentence.wordBreakdowns.map((w) => w.wordText).toList(),
+          trailing: canPractise
+              ? Semantics(
+                  button: true,
+                  label: L10n.of(context).pronunciationTitle,
+                  // 再生（塗り）と役割を分けるため、こちらは枠だけにする。
+                  child: IconButton.outlined(
+                    onPressed: _toggle,
+                    tooltip: L10n.of(context).pronunciationTitle,
+                    icon: const Icon(Icons.mic_rounded),
+                  ),
+                )
+              : null,
+          onPlay: () => unawaited(
+            ref.read(analyticsServiceProvider).logPlayTts(
+                  contentType: 'sentence',
+                  text: sentence.thaiText,
+                  sentenceId: sentence.id,
+                  source: 'today_sentence',
+                ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: Alignment.topCenter,
+          child: canPractise && _expanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  // カード全体が詳細へのタップ領域なので、練習中の空振りで
+                  // 画面遷移しないようここでタップを吸収する。
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {},
+                    child: PronunciationPractice(
+                      // 詳細画面とは別インスタンス。判定結果は持ち越さない。
+                      scope: 'home_card',
+                      sentenceId: sentence.id,
+                      words: sentence.wordBreakdowns,
+                      thaiText: sentence.thaiText,
+                    ),
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+      ],
+    );
   }
 }

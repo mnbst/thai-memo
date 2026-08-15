@@ -69,9 +69,9 @@ class _RankingList extends ConsumerWidget {
       slivers: [
         CupertinoSliverRefreshControl(
           onRefresh: () async {
-            ref.invalidate(myRankProvider);
-            ref.invalidate(leaderboardRowsProvider);
-            ref.invalidate(vocabDistributionProvider);
+            // epoch を進めると3つの provider が作り直され、キャッシュを飛ばして
+            // 取り直す（以降その起動中はキャッシュを使わない）。
+            ref.read(leaderboardRefreshEpochProvider.notifier).state++;
             await Future.wait([
               ref.read(leaderboardRowsProvider.future),
               ref.read(vocabDistributionProvider.future),

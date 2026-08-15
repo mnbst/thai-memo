@@ -274,6 +274,11 @@ lib/presentation/widgets/pronunciation_practice.dart
 
 ---
 
+lib/presentation/widgets/pronunciation_sheet.dart
+ホームの例文カードから発音練習を開くボトムシート。中身は pronunciation_practice の再利用。
+
+---
+
 ## Cloud Functions — JavaScript/TypeScript
 
 functions/javascript/src/index.ts

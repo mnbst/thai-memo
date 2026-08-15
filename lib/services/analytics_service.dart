@@ -154,8 +154,11 @@ class AnalyticsService {
 
   /// 発音練習の1回ぶん。
   ///
-  /// worst_tone / monotone はカスタムディメンションの登録が必要。
-  /// 登録しないと GA4 上で (not set) になり、しかも遡及しない。
+  /// パラメータは GA4 側で登録しないと (not set) になり、しかも遡及しない。
+  /// 登録先は型で決まる。文字列は customDimension、数値は customMetric。
+  /// 数値をディメンションで登録しても値は読めず (not set) のままになる。
+  /// 登録済み: worst_tone(dim) / score(metric) / recognized_pct(metric)。
+  /// monotone は 0|1 の数値なので dim 登録は無効。metric に直すこと。
   Future<void> logPronunciationAttempt({
     required String sentenceId,
     required double score,
