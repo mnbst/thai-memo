@@ -24,6 +24,7 @@ class SentenceAudioPlayer extends ConsumerStatefulWidget {
     required this.text,
     this.words = const [],
     this.onPlay,
+    this.trailing,
     this.repeatInterval = const Duration(milliseconds: 1000),
   });
 
@@ -35,6 +36,10 @@ class SentenceAudioPlayer extends ConsumerStatefulWidget {
 
   /// 再生開始時に呼ばれる（アナリティクス用）。リピートでは呼ばない。
   final VoidCallback? onPlay;
+
+  /// 行末（シークバーの右）に並べる任意のボタン（発音練習など）。
+  /// 再生を主役に置いたまま「話す」を同じ行に足すための枠。無ければ出さない。
+  final Widget? trailing;
 
   /// 1周ごとに置く間。
   final Duration repeatInterval;
@@ -318,6 +323,10 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
             ),
           ),
         ),
+        if (widget.trailing != null) ...[
+          const SizedBox(width: 4),
+          widget.trailing!,
+        ],
       ],
     );
   }

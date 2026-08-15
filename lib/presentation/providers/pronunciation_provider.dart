@@ -98,6 +98,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     required AnalyticsService analytics,
     required TtsService tts,
     required this.sentenceId,
+    required this.scope,
   })  : _recorder = recorder ?? PitchRecorderService(),
         _tts = tts,
         _database = database,
@@ -109,6 +110,10 @@ class PronunciationController extends StateNotifier<PronunciationState> {
   final AnalyticsService _analytics;
   final TtsService _tts;
   final String sentenceId;
+
+  /// 練習UIの置き場所（'home_card' / 'detail' / 'sheet'）。
+  /// どの画面で発音チェックされているかを GA4 で見るために持つ。
+  final String scope;
 
   static const _uuid = Uuid();
 
@@ -159,6 +164,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     required List<bool> shortSyllables,
     required List<int> syllablePoints,
     required List<String> expectedWords,
+    List<int> clauseStarts = const [],
     List<String> syllableLabels = const [],
   }) async {
     if (state.phase != PronunciationPhase.recording) return;
@@ -188,6 +194,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
       tones: tones,
       shortSyllables: shortSyllables,
       syllablePoints: syllablePoints,
+      clauseStarts: clauseStarts,
       profile: profile,
       recognition: recognition,
     );
@@ -364,6 +371,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
 
     await _analytics.logPronunciationAttempt(
       sentenceId: sentenceId,
+      source: scope,
       score: result.overallScore,
       syllableCount: result.syllables.length,
       monotone: result.isMonotone,
@@ -410,16 +418,24 @@ String worstToneOf(List<SyllableScore> scores) {
   return worst;
 }
 
-/// 例文ごとの発音練習コントローラ。
+/// 発音練習コントローラの識別子。
+///
+/// 同じ例文でも置き場所ごとに別インスタンスにするため、[scope] を鍵に含める。
+/// ホームのカードと詳細画面は同時に生きていることがあり、鍵が例文IDだけだと
+/// 片方の判定結果がもう片方にも出てしまう。
+typedef PronunciationKey = ({String sentenceId, String scope});
+
+/// 例文ごと・置き場所ごとの発音練習コントローラ。
 ///
 /// 収録サービスはこのコントローラが所有する。別プロバイダに切り出すと、
 /// そちらの寿命が尽きた拍子に収録中のセッションが打ち切られる。
 final pronunciationControllerProvider = StateNotifierProvider.autoDispose
-    .family<PronunciationController, PronunciationState, String>(
-  (ref, sentenceId) => PronunciationController(
+    .family<PronunciationController, PronunciationState, PronunciationKey>(
+  (ref, key) => PronunciationController(
     database: DatabaseHelper.instance,
     analytics: ref.read(analyticsServiceProvider),
     tts: ref.read(ttsServiceProvider),
-    sentenceId: sentenceId,
+    sentenceId: key.sentenceId,
+    scope: key.scope,
   ),
 );

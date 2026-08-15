@@ -306,6 +306,80 @@ const int kMaxValleyReach = 15;
 /// 8.75% に達して帯（6%）を超え、切れ目が途切れの手前に固定された。
 const double kSeamMatchRatio = 0.15;
 
+/// 節の切れ目の「間」とみなす無声区間の長さ（フレーム）。
+///
+/// ホップ10msなので250ms。閉鎖音の閉鎖区間は長くても150ms前後なので、これを
+/// 超える無声区間は**息継ぎ**であって子音ではない。
+const int kPauseFrames = 25;
+
+/// 長い間だけを取り出す。
+List<List<int>> pausesAmong(List<List<int>> gaps) => [
+      for (final gap in gaps)
+        if (gap[1] - gap[0] + 1 >= kPauseFrames) gap,
+    ];
+
+/// 息継ぎを分母から外した、声のフレームの割合。
+///
+/// **節の切れ目で息を継いだだけで「声が拾えていない」と返してはいけない。**
+/// 8音節の文に1秒の間が入るだけで、声の割合は 0.65 から 0.43 へ落ちる。
+///
+/// 外すのは長い順に [maxPauses] 個まで。節の切れ目の数を渡す。**上限を置かずに
+/// 全ての無声区間を外すと、雑音の中に声が数回混じった録音まで通ってしまう。**
+/// 息継ぎは分かっている切れ目の数だけ起きる。
+double voicedRatioExcludingPauses(List<double?> measured, {int maxPauses = 0}) {
+  final span = speechSpan(measured);
+  if (span == null) return 0;
+
+  final voiced = [
+    for (var i = span[0]; i <= span[1]; i++) measured[i] != null,
+  ];
+  final pauses = pausesAmong(findVoicelessGaps(voiced))
+    ..sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));
+  var excluded = 0;
+  for (final pause in pauses.take(maxPauses)) {
+    excluded += pause[1] - pause[0] + 1;
+  }
+
+  final total = voiced.length - excluded;
+  if (total <= 0) return 0;
+  return voiced.where((v) => v).length / total;
+}
+
+/// 節の切れ目に、長い間を割り当てる。
+///
+/// **節の切れ目は、他の音節境界と同格に競わせてはいけない。** 節の切れ目は
+/// `thai_text` の空白から分かっている「意図された境界」で、そこには息継ぎが入る。
+/// 全ての境界を同じ土俵で競わせると、実機で 880ms の間が1つ手前の境界に付いて
+/// 以降の音節が丸ごとずれた（8音節・600ms の間で3音節が誤判定、1音節が採点不能）。
+///
+/// 間の数と節の数が合わないことは許す（息継ぎしなかった／別の場所で切った）。
+/// 長い間から順に、順序を保って割り当てる。
+Map<int, List<int>> assignPausesToClauseSeams({
+  required ReferenceContour reference,
+  required List<List<int>> voicelessGaps,
+  required int queryLength,
+}) {
+  final seams = <int>[
+    for (final syllable in reference.clauseStarts) reference.starts[syllable],
+  ];
+  final pauses = pausesAmong(voicelessGaps);
+  if (seams.isEmpty || pauses.isEmpty || queryLength < 2) return const {};
+
+  // 間が節より多いときは長いものを採る（軋み声や長い閉鎖を節の切れ目にしない）。
+  final chosen = [...pauses]
+    ..sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));
+  final used = chosen.take(seams.length).toList()
+    ..sort((a, b) => a[0] - b[0]);
+
+  final anchors = <int, List<int>>{};
+  // 節が間より多いときは前から順に付ける。**節の切れ目に息継ぎが無いこと**は
+  // ふつうに起こるので、余った節はここでは決めない（[assignGapsToSeams] に任せる）。
+  for (var i = 0; i < used.length && i < seams.length; i++) {
+    anchors[seams[i]] = used[i];
+  }
+  return anchors;
+}
+
 /// 音節の切れ目に、声の途切れを割り当てる。
 ///
 /// **タイ語の音節は必ず子音で始まり、閉鎖音・摩擦音なら声が止まる。** だから
@@ -316,21 +390,36 @@ const double kSeamMatchRatio = 0.15;
 /// 母音の途中で声が落ちる（軋み声）ことがあるので、遠すぎる途切れは捨てる。
 ///
 /// 返すのは「お手本の点の添字 → 対応づいた途切れ [開始, 終了]」。
+/// [preAnchors] は先に決まっている錨（節の切れ目 ↔ 長い間）。**その位置は動かさず、
+/// 残りの切れ目の予想位置もそこを通る折れ線から取る**。渡さないと予想位置が
+/// 発話全体の比例配分になり、間のぶんだけ全ての切れ目の予想が後ろへずれる。
 Map<int, List<int>> assignGapsToSeams({
   required ReferenceContour reference,
   required List<List<int>> voicelessGaps,
   required int queryLength,
+  Map<int, List<int>> preAnchors = const {},
 }) {
   final seams = <int>[
-    for (var s = 1; s < reference.syllableCount; s++) reference.starts[s],
+    for (var s = 1; s < reference.syllableCount; s++)
+      if (!preAnchors.containsKey(reference.starts[s])) reference.starts[s],
   ];
-  if (seams.isEmpty || voicelessGaps.isEmpty || queryLength < 2) {
-    return const {};
+  final gaps = [
+    for (final gap in voicelessGaps)
+      if (!preAnchors.values.any((used) => used[0] == gap[0])) gap,
+  ];
+  if (seams.isEmpty || gaps.isEmpty || queryLength < 2) {
+    return {...preAnchors};
   }
 
   final refLength = reference.values.length;
+  final map = referenceToQueryFrom(
+    referenceLength: refLength,
+    queryLength: queryLength,
+    anchors: preAnchors,
+  );
   final expected = [
-    for (final seam in seams) seam / refLength * queryLength,
+    for (final seam in seams)
+      seam < map.length ? map[seam] : seam / refLength * queryLength,
   ];
   /// 予想位置から途切れ **区間** までの距離。中に入っていれば 0。
   ///
@@ -352,17 +441,17 @@ Map<int, List<int>> assignGapsToSeams({
   // 対応しないこと（軋み声で声が落ちた）の両方を許す。
   const infinity = double.infinity;
   double distanceOf(int seam, int gap) =>
-      distanceTo(voicelessGaps[gap], expected[seam]);
+      distanceTo(gaps[gap], expected[seam]);
 
   final best = List.generate(
     seams.length + 1,
-    (_) => List<double>.filled(voicelessGaps.length + 1, infinity),
+    (_) => List<double>.filled(gaps.length + 1, infinity),
   );
-  for (var g = 0; g <= voicelessGaps.length; g++) {
+  for (var g = 0; g <= gaps.length; g++) {
     best[seams.length][g] = 0;
   }
   for (var i = seams.length - 1; i >= 0; i--) {
-    for (var g = voicelessGaps.length; g >= 0; g--) {
+    for (var g = gaps.length; g >= 0; g--) {
       // **切れ目に付けないことにだけ費用を置く。** 置かないと「何も割り当て
       // ない」が費用0で最適になり、どの切れ目にも錨が付かない。
       //
@@ -370,7 +459,7 @@ Map<int, List<int>> assignGapsToSeams({
       // （軋み声、子音の中の揺れ）、飛ばすたびに罰すると、手前の近い途切れに
       // 引きずられて奥の正しい途切れへ辿り着けない。
       var value = limit + best[i + 1][g]; // この切れ目には付けない
-      if (g < voicelessGaps.length) {
+      if (g < gaps.length) {
         final skipGap = best[i][g + 1]; // この途切れは切れ目ではない
         if (skipGap < value) value = skipGap;
         final distance = distanceOf(i, g);
@@ -383,17 +472,17 @@ Map<int, List<int>> assignGapsToSeams({
     }
   }
 
-  final anchors = <int, List<int>>{};
+  final anchors = <int, List<int>>{...preAnchors};
   var seam = 0;
   var gap = 0;
-  while (seam < seams.length && gap < voicelessGaps.length) {
+  while (seam < seams.length && gap < gaps.length) {
     final distance = distanceOf(seam, gap);
     final matched =
         distance <= limit ? distance + best[seam + 1][gap + 1] : infinity;
     final skipSeam = limit + best[seam + 1][gap];
     final skipGap = best[seam][gap + 1];
     if (matched <= skipSeam && matched <= skipGap) {
-      anchors[seams[seam]] = voicelessGaps[gap];
+      anchors[seams[seam]] = gaps[gap];
       seam++;
       gap++;
     } else if (skipSeam <= skipGap) {
@@ -409,16 +498,33 @@ Map<int, List<int>> assignGapsToSeams({
 ///
 /// 錨と錨の間は予算比で分ける。**繋がっている音節（途切れが出ない境界）は
 /// この区間の中で配分される**ので、予算の誤差が及ぶ範囲がその区間に限られる。
+///
+/// **長い間（[kPauseFrames] 以上）は両端で錨にする。** 息継ぎの時間はどちらの
+/// 音節のものでもないので、手前の区間は間の**始まり**で終わり、次の区間は間の
+/// **終わり**から始まる。中央を1点の錨にすると、間の半分ずつが両隣の音節の
+/// 予算に入り、そのぶん隣の音節の予想位置がずれる（600ms の間で、隣の音節が
+/// 有声5フレーム未満になって採点不能になった）。
 List<double> referenceToQueryFrom({
   required int referenceLength,
   required int queryLength,
   required Map<int, List<int>> anchors,
 }) {
-  final points = <int, double>{0: 0, referenceLength - 1: (queryLength - 1).toDouble()};
+  // ref の添字 → [手前の区間の終わり, 次の区間の始まり]。
+  final points = <int, List<double>>{
+    0: [0, 0],
+    referenceLength - 1: [
+      (queryLength - 1).toDouble(),
+      (queryLength - 1).toDouble(),
+    ],
+  };
   anchors.forEach((refIndex, gap) {
-    if (refIndex > 0 && refIndex < referenceLength - 1) {
-      points[refIndex] = (gap[0] + gap[1]) / 2;
-    }
+    if (refIndex <= 0 || refIndex >= referenceLength - 1) return;
+    // 長い間の時間はどちらの音節のものでもない。手前の区間は間の始まりで終わり、
+    // 次の区間は間の終わりから始まる。
+    final isPause = gap[1] - gap[0] + 1 >= kPauseFrames;
+    points[refIndex] = isPause
+        ? [gap[0].toDouble(), gap[1].toDouble()]
+        : [(gap[0] + gap[1]) / 2, (gap[0] + gap[1]) / 2];
   });
   final keys = points.keys.toList()..sort();
 
@@ -426,8 +532,8 @@ List<double> referenceToQueryFrom({
   for (var k = 0; k + 1 < keys.length; k++) {
     final fromRef = keys[k];
     final toRef = keys[k + 1];
-    final fromQuery = points[fromRef]!;
-    final toQuery = points[toRef]!;
+    final fromQuery = points[fromRef]![1];
+    final toQuery = points[toRef]![0];
     for (var i = fromRef; i <= toRef; i++) {
       final ratio = toRef == fromRef ? 0.0 : (i - fromRef) / (toRef - fromRef);
       map[i] = fromQuery + (toQuery - fromQuery) * ratio;
@@ -486,6 +592,9 @@ Map<int, List<int>> seamWindowsFrom({
 /// [energy] はフレームごとの音量。渡すと、共鳴音で繋がる切れ目（F0 にも無声区間
 /// にも現れない）を音量の谷から拾える。
 /// [profile] は過去の録音から蓄積した声域。初回は null でよい。
+/// [clauseStarts] は新しい節が始まる音節の添字（`thai_text` の空白の位置）。
+/// 渡すと declination と節末の下がりを節ごとに掛け、切れ目を跨いだ「入り方」を
+/// 判定に使わなくなる。
 /// [recognition] は語ごとの「通じたか」（[matchTranscript]）。総合点に掛ける。
 /// 端末が音声認識に対応していない場合は空、または全て
 /// [WordRecognition.unavailable] でよい（減点しない）。
@@ -497,6 +606,7 @@ PronunciationResult analyzePronunciation({
   List<double> energy = const [],
   SpeakerPitchProfile? profile,
   List<WordRecognition> recognition = const [],
+  List<int> clauseStarts = const [],
   double minVoicedRatio = kMinVoicedRatio,
 }) {
   if (tones.isEmpty) {
@@ -513,7 +623,10 @@ PronunciationResult analyzePronunciation({
   // 実際の声ではないので採点には使わない。
   final measured = medianFilter(toSemitones(f0Hz));
   final semitones = interpolateShortGaps(measured);
-  if (voicedRatio(measured) < minVoicedRatio) {
+  // 節の切れ目では息を継ぐ。その無音は「声が拾えていない」ではない。
+  final breaks = normalizedClauseStarts(clauseStarts, tones.length);
+  if (voicedRatioExcludingPauses(measured, maxPauses: breaks.length) <
+      minVoicedRatio) {
     return PronunciationResult.failed(PronunciationFailure.tooQuiet);
   }
 
@@ -563,6 +676,7 @@ PronunciationResult analyzePronunciation({
     tones,
     shortSyllables: shortSyllables,
     syllablePoints: syllablePoints,
+    clauseStarts: clauseStarts,
   );
   // 声の途切れを音節の切れ目へ寄せるため、お手本のどの点が音節の端かを渡す。
   final atBoundary = List.generate(
@@ -578,11 +692,19 @@ PronunciationResult analyzePronunciation({
           first.clamp(0, energy.length),
           (last + 1).clamp(0, energy.length),
         );
-  // まず途切れだけで決める。谷は残った切れ目の穴埋めにだけ使う。
+  // 節の切れ目は先に決める。分かっている境界に長い間を当てるほうが、全ての
+  // 境界を同格に競わせるより確か（[assignPausesToClauseSeams]）。
+  final pauseAnchors = assignPausesToClauseSeams(
+    reference: reference,
+    voicelessGaps: gaps,
+    queryLength: queryZ.length,
+  );
+  // 残りは途切れだけで決める。谷は残った切れ目の穴埋めにだけ使う。
   final gapAnchors = assignGapsToSeams(
     reference: reference,
     voicelessGaps: gaps,
     queryLength: queryZ.length,
+    preAnchors: pauseAnchors,
   );
   final anchors = fillSeamsWithValleys(
     reference: reference,

@@ -148,6 +148,18 @@ const double kDeclinationRange = 0.5;
 /// 対比だけに効いて形は歪まない。
 const double kFinalLoweringRange = 0.35;
 
+/// 文中の節末（息継ぎの直前）で下がる量（正規化後の単位）。
+///
+/// **文末（[kFinalLoweringRange]）と同じ量にはしない。** 文の終わりは必ず下がる
+/// が、文中の節末は下がるとは限らない（次が続くことを示して平ら〜上がることも
+/// ある）。話者・声調によっても違う。
+///
+/// 実録音が無いので、起こり得る幅（下がらない 0 〜 文末と同じ 0.35）の**真ん中**
+/// に置く。どちらに振れても誤差が半分で収まる。合成音声で、話者が
+/// 0／半分／文末と同量／逆に上がる の4通りで読んでも誤判定が増えないことを
+/// clause_break_test で確かめている。
+const double kClauseFinalLoweringRange = kFinalLoweringRange * 0.5;
+
 /// 下降声が連続したときに、2つ目の下降幅を縮める割合。
 ///
 /// 下降声は高く始まって急に落ちる。直前も下降声だと低い位置で終わっているため、
@@ -181,14 +193,19 @@ List<double> buildRawContour(
   List<ThaiTone> tones, {
   List<bool>? shortSyllables,
   List<int>? syllablePoints,
+  List<int> clauseStarts = const [],
 }) {
   final counts = syllablePointCounts(tones.length, syllablePoints);
+  final breaks = normalizedClauseStarts(clauseStarts, tones.length);
   final values = <double>[];
   for (var i = 0; i < tones.length; i++) {
     final tone = tones[i];
     var contour = kToneContours[tone] ?? kToneContours[ThaiTone.unknown]!;
+    // **節の頭では縮めない。** 縮めるのは直前の下降声から戻りきれないためで、
+    // 節の切れ目では息を継いで高い位置から入り直せる。
     if (tone == ThaiTone.falling &&
         i > 0 &&
+        !breaks.contains(i) &&
         tones[i - 1] == ThaiTone.falling) {
       contour = _damped(contour, kRepeatedFallingDamping);
     }
@@ -264,11 +281,22 @@ class ReferenceContour {
   /// 音節 i の点が始まる添字。長さは `tones.length + 1` で、末尾は全体の長さ。
   final List<int> starts;
 
+  /// 新しい節が始まる音節の添字（昇順、0 と末尾は含まない）。
+  ///
+  /// `thai_text` の空白＝節の切れ目。話者はここで息を継いで**声を上げ直す**ので、
+  /// declination も節末の下がりも節ごとに掛かり、切れ目を跨いだ「入り方」は
+  /// 成り立たない。
+  final List<int> clauseStarts;
+
   const ReferenceContour({
     required this.values,
     required this.tones,
     required this.starts,
+    this.clauseStarts = const [],
   });
+
+  /// その音節が節の頭か（文頭は含まない。文頭は `s == 0` で判断する）。
+  bool isClauseStart(int syllable) => clauseStarts.contains(syllable);
 
   /// 音節の数。
   int get syllableCount => tones.length;
@@ -374,6 +402,7 @@ class ReferenceContour {
     List<ThaiTone> tones, {
     List<bool>? shortSyllables,
     List<int>? syllablePoints,
+    List<int> clauseStarts = const [],
   }) {
     // 正規化は声調の中身だけから決める。declination を含めると分母が膨らみ、
     // 声調どうしの高さの差が縮んでしまう。
@@ -382,6 +411,7 @@ class ReferenceContour {
         tones,
         shortSyllables: shortSyllables,
         syllablePoints: syllablePoints,
+        clauseStarts: clauseStarts,
       ),
     );
 
@@ -392,17 +422,31 @@ class ReferenceContour {
     }
 
     // 正規化を済ませてから declination の傾きを足す。
-    final total = values.length;
-    if (total >= 2) {
-      for (var k = 0; k < total; k++) {
-        values[k] -= kDeclinationRange * (k / (total - 1) - 0.5);
+    //
+    // **節ごとに掛ける。** 話者は節の切れ目で息を継いで声を上げ直すので、
+    // 直線1本で引くと節1の末尾が低すぎ、節2の頭が高すぎるお手本になる。
+    final breaks = normalizedClauseStarts(clauseStarts, tones.length);
+    final segments = <int>[0, ...breaks, tones.length];
+    for (var c = 0; c + 1 < segments.length; c++) {
+      final from = starts[segments[c]];
+      final to = starts[segments[c + 1]]; // 終端は含まない
+      final span = to - from;
+      if (span < 2) continue;
+
+      for (var k = from; k < to; k++) {
+        values[k] -= kDeclinationRange * ((k - from) / (span - 1) - 0.5);
       }
 
-      // 発話末の追加の下がり。音節全体を一定量だけ下げる。
+      // 節末の追加の下がり。音節全体を一定量だけ下げる。
       // 傾きとして当てると下降声の下がりに上乗せされて形が歪む。
-      final lastStart = starts[tones.length - 1];
-      for (var k = lastStart; k < total; k++) {
-        values[k] -= kFinalLoweringRange;
+      //
+      // 文末と文中の節末は量を分ける（[kClauseFinalLoweringRange]）。
+      final isLastClause = c + 2 == segments.length;
+      final lowering =
+          isLastClause ? kFinalLoweringRange : kClauseFinalLoweringRange;
+      final lastStart = starts[segments[c + 1] - 1];
+      for (var k = lastStart; k < to; k++) {
+        values[k] -= lowering;
       }
     }
 
@@ -412,6 +456,23 @@ class ReferenceContour {
     // 合成音声（正しい発話）で、音節の長さが揃っていないだけで
     // 高さのずれが 0.05 から 0.45 に跳んだ。
     final rescaled = normalizeSelf(values);
-    return ReferenceContour(values: rescaled, tones: tones, starts: starts);
+    return ReferenceContour(
+      values: rescaled,
+      tones: tones,
+      starts: starts,
+      clauseStarts: breaks,
+    );
   }
+}
+
+/// 節の頭の添字を、重複と範囲外を落として昇順に整える。
+///
+/// 0（文頭）は節の切れ目ではない。文頭は「直前が無い」ので別に扱われる。
+List<int> normalizedClauseStarts(List<int> clauseStarts, int syllableCount) {
+  final set = <int>{
+    for (final s in clauseStarts)
+      if (s > 0 && s < syllableCount) s,
+  }.toList()
+    ..sort();
+  return set;
 }

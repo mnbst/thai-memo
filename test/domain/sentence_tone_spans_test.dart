@@ -159,4 +159,65 @@ void main() {
       expect(spans.words[1].contains(3), isFalse);
     });
   });
+
+  group('buildSentenceToneSpans - 節の切れ目', () {
+    test('空白の後ろの語の先頭音節が節の頭になる', () {
+      final spans = buildSentenceToneSpans(
+        [
+          _word('ฝนตก', ['rising', 'low']),
+          _word('ไปดู', ['mid', 'mid']),
+          _word('ไม่ได้', ['falling', 'falling']),
+        ],
+        thaiText: 'ฝนตก ไปดูไม่ได้',
+      );
+
+      expect(spans.clauseStarts, [2]);
+    });
+
+    test('空白が無ければ節の切れ目は無い', () {
+      final spans = buildSentenceToneSpans(
+        [
+          _word('ฉัน', ['rising']),
+          _word('กิน', ['mid']),
+        ],
+        thaiText: 'ฉันกิน',
+      );
+
+      expect(spans.clauseStarts, isEmpty);
+    });
+
+    test('thaiText を渡さなければ1節として扱う', () {
+      final spans = buildSentenceToneSpans([
+        _word('ฝนตก', ['rising', 'low']),
+        _word('ไปดู', ['mid', 'mid']),
+      ]);
+
+      expect(spans.clauseStarts, isEmpty);
+    });
+
+    test('文頭の空白は切れ目にしない', () {
+      final spans = buildSentenceToneSpans(
+        [
+          _word('ฉัน', ['rising']),
+          _word('กิน', ['mid']),
+        ],
+        thaiText: ' ฉันกิน',
+      );
+
+      expect(spans.clauseStarts, isEmpty);
+    });
+
+    test('切れ目の直後の語に音節が無ければ、次の語へ持ち越す', () {
+      final spans = buildSentenceToneSpans(
+        [
+          _word('ฝนตก', ['rising', 'low']),
+          _word('ไปดู', null),
+          _word('ไม่ได้', ['falling', 'falling']),
+        ],
+        thaiText: 'ฝนตก ไปดูไม่ได้',
+      );
+
+      expect(spans.clauseStarts, [2]);
+    });
+  });
 }

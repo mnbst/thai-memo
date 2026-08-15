@@ -250,8 +250,10 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             // お手本を聞いたあとに自分で発声して声調を確かめる
             PronunciationPractice(
               key: _pronunciationKey,
+              scope: 'detail',
               sentenceId: widget.sentence.id,
               words: widget.sentence.wordBreakdowns,
+              thaiText: widget.sentence.thaiText,
             ),
             const SizedBox(height: 16),
             const Divider(),

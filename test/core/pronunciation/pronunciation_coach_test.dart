@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/core/pronunciation/pronunciation_coach.dart';
+import 'package:thai_memo/core/pronunciation/segment_coach.dart';
 import 'package:thai_memo/core/pronunciation/pronunciation_scorer.dart';
 import 'package:thai_memo/core/pronunciation/transcript_match.dart';
 import 'package:thai_memo/core/thai_tone_analyzer.dart';
@@ -234,6 +235,56 @@ void main() {
 
       expect(tip!.issue, CoachIssue.notRecognized);
       expect(tip.wordText, 'ครับ');
+    });
+
+    test('聞き取られなかった語には、子音・母音の直す点を1つ載せる', () {
+      final tip = coachingTipOf(
+        [
+          _score(
+            index: 0,
+            tone: ThaiTone.mid,
+            verdict: ToneVerdict.correct,
+            shapeAgrees: true,
+            stepAgrees: true,
+          ),
+        ],
+        recognition: const [WordRecognition.missing],
+        wordTexts: const ['ปาก'],
+        romans: const ['pàak'],
+        segmentPointOfWord: (index) => index == 0
+            ? const SegmentPoint(
+                issue: SegmentIssue.unaspirated,
+                syllableIndex: 0,
+                label: 'ป',
+                aspirated: 'พ',
+              )
+            : null,
+      );
+
+      expect(tip!.issue, CoachIssue.notRecognized);
+      expect(tip.segment?.issue, SegmentIssue.unaspirated);
+      // 指した音節のローマ字が載る（声調の助言と同じ見せ方にするため）。
+      expect(tip.roman, 'pàak');
+    });
+
+    test('直す点が取れなければ語を名指しするだけ', () {
+      final tip = coachingTipOf(
+        [
+          _score(
+            index: 0,
+            tone: ThaiTone.mid,
+            verdict: ToneVerdict.correct,
+            shapeAgrees: true,
+            stepAgrees: true,
+          ),
+        ],
+        recognition: const [WordRecognition.missing],
+        wordTexts: const ['มา'],
+        segmentPointOfWord: (_) => null,
+      );
+
+      expect(tip!.issue, CoachIssue.notRecognized);
+      expect(tip.segment, isNull);
     });
 
     test('声調の助言がある回は認識より優先する', () {
