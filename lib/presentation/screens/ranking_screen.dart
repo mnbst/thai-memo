@@ -79,6 +79,10 @@ class _RankingList extends ConsumerWidget {
           },
         ),
         rowsAsync.when(
+          // 引っ張って更新のときは CupertinoSliverRefreshControl が回るので、
+          // ここでもう一度スピナーを出さない（丸が2つ並んで見える）。
+          skipLoadingOnRefresh: true,
+          skipLoadingOnReload: true,
           data: (entries) {
             if (entries.isEmpty) {
               return _MessageSliver(text: l10n.rankingUnrankedHint);
