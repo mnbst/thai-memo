@@ -316,6 +316,75 @@ void main() {
       );
     });
 
+    test('助言の声調はローマ字の記号から読む（採点側の声調より優先）', () {
+      // สิงห์: 黙字 ์ を末子音と見て死音節に落とすと低声になるが、実際は上昇声。
+      final tip = coachingTipOf(
+        [
+          _score(
+            index: 0,
+            tone: ThaiTone.low,
+            verdict: ToneVerdict.wrong,
+            shapeAgrees: false,
+            stepAgrees: false,
+          ),
+        ],
+        romans: const ['sǐng'],
+      );
+
+      expect(tip!.tone, ThaiTone.rising);
+    });
+
+    test('結合文字で来たローマ字も読む（サーバーはこちらで返す）', () {
+      final tip = coachingTipOf(
+        [
+          _score(
+            index: 0,
+            tone: ThaiTone.low,
+            verdict: ToneVerdict.wrong,
+            shapeAgrees: false,
+            stepAgrees: false,
+          ),
+        ],
+        romans: const ['si\u030Cng'],
+      );
+
+      expect(tip!.tone, ThaiTone.rising);
+    });
+
+    test('ローマ字が取れない語では採点側の声調を使う', () {
+      final tip = coachingTipOf(
+        [
+          _score(
+            index: 0,
+            tone: ThaiTone.low,
+            verdict: ToneVerdict.wrong,
+            shapeAgrees: false,
+            stepAgrees: false,
+          ),
+        ],
+        romans: const [''],
+      );
+
+      expect(tip!.tone, ThaiTone.low);
+    });
+
+    test('記号の無いローマ字は平声として読む', () {
+      final tip = coachingTipOf(
+        [
+          _score(
+            index: 0,
+            tone: ThaiTone.low,
+            verdict: ToneVerdict.wrong,
+            shapeAgrees: false,
+            stepAgrees: false,
+          ),
+        ],
+        romans: const ['dii'],
+      );
+
+      expect(tip!.tone, ThaiTone.mid);
+    });
+
     test('声調が決まらない音節は対象外', () {
       expect(
         coachingTipOf([

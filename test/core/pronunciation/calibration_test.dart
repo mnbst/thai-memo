@@ -119,6 +119,11 @@ void main() {
     test('無声区間のぶん、音節の取り分が縮まない', () {
       // 音節ごとの無声区間の長さは同じなので、取り分の比は無声が無いときと
       // 変わらないはず。削っていると、縮み方の違いがここに出る。
+      //
+      // 許容は 4%。上昇声のお手本が**底から始まる**ようになったので
+      // （[kToneContours]）、頭に長い無声区間があると入り際の補間が直前の
+      // 音節の終わりと見分けにくく、境界が 3.4% ぶん後ろへ寄る。削られている
+      // わけではない（削れていれば比はもっと大きく崩れる）。
       final withoutGap = [
         for (var i = 0; i < _tones.length; i++)
           _scoreOf(const {}, i).queryEnd - _scoreOf(const {}, i).queryStart + 1,
@@ -134,7 +139,7 @@ void main() {
       for (var i = 0; i < _tones.length; i++) {
         expect(
           withGap[i] / totalWith,
-          closeTo(withoutGap[i] / totalWithout, 0.03),
+          closeTo(withoutGap[i] / totalWithout, 0.04),
           reason: '音節$i (${_tones[i].name}) の取り分',
         );
       }
@@ -213,6 +218,8 @@ void main() {
       '低平→高平': ({2: ThaiTone.high}, 2),
       '高平→低平': ({4: ThaiTone.low}, 4),
       '高平→中平': ({4: ThaiTone.mid}, 4),
+      // 入り方が使えない音節では形しか残らず、上昇声と高平声はどちらも上がる
+      // 形なので区別が消える。高さで落とす（[kLevelDisagreement]）。
       '上昇→高平': ({3: ThaiTone.high}, 3),
       '下降→中平': ({1: ThaiTone.mid}, 1),
       // 文頭は入り方が無いので形だけで見る。平らな3声調どうしでも、逆向きに
@@ -232,6 +239,31 @@ void main() {
         );
       });
     });
+  });
+
+  group('上昇声を低平声で発音した誤り', () {
+    // お手本の上昇声が底から始まるので、低平声で発音すると相関がはっきり負に
+    // 出る（-0.71）。ディップがあった頃は 合成音声60文で 64/67 が素通りしていた。
+    //
+    // **子音の無声区間が要る。** 母音だけで繋がる（無声区間が全く無い）合成では、
+    // 直前も低平声だと音節の境界がぼやけて相関が 0.05 まで落ちる。実際の発話では
+    // 音節の頭に必ず子音が入るので、3フレーム（30ms）で足りる。
+    // 90ms を超える無声区間では有声区間が短くなりすぎて形を根拠にできず
+    // （[kMinVoicedFramesForShape]）、入り方だけが残るので落とせない。
+    for (final onset in [3, 6]) {
+      test('頭に無声フレーム$onset個あれば落とせる', () {
+        final score = _scoreOf(
+          {3: ThaiTone.low},
+          3,
+          unvoicedOnsetFrames: onset,
+        );
+        expect(
+          score.verdict,
+          isNot(ToneVerdict.correct),
+          reason: '上昇→低平 が見逃されている (${_detail(score)})',
+        );
+      });
+    }
   });
 
   group('発話末の下がりを誤りにしない', () {

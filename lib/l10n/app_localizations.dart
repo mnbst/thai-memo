@@ -2074,7 +2074,7 @@ abstract class L10n {
   /// No description provided for @pronunciationCoachShapeRising.
   ///
   /// In ja, this message translates to:
-  /// **'上昇声は、一度下げてから上げ切る'**
+  /// **'上昇声は、低いところから始めて最後まで上げ切る'**
   String get pronunciationCoachShapeRising;
 
   /// No description provided for @pronunciationCoachStepUp.
