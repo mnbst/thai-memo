@@ -12,7 +12,6 @@
 import '../thai_tone_analyzer.dart';
 import 'pronunciation_scorer.dart';
 import 'segment_coach.dart';
-import 'tone_contour.dart';
 import 'transcript_match.dart';
 
 /// 何を外しているか。
@@ -108,14 +107,6 @@ CoachingTip? coachingTipOf(
 }
 
 /// 代表音節の表記（声調記号・ローマ字）を載せる。取れないものは空のまま。
-///
-/// **助言に出す声調はローマ字から読む。** 採点に使っている声調は音節を単体で
-/// 見て引いたもので、語全体を見ないと決まらない音節（黙字 ์ の สิงห์ など）を
-/// 外す。実機では「ǐ と書いてあるのに『低声は…』と言われる」という形で出る。
-/// ローマ字が取れない語では、これまで通り採点側の声調をそのまま使う。
-///
-/// **採点そのものは変えない**（お手本カーブは採点側の声調で引かれたまま）。
-/// ここで直るのは助言の文言だけ。
 CoachingTip _withSyllableLabels(
   CoachingTip tip,
   List<String> toneMarks,
@@ -127,13 +118,9 @@ CoachingTip _withSyllableLabels(
   String at(List<String> source) =>
       index < source.length ? source[index] : '';
 
-  final roman = at(romans);
-  // 声調を持たない助言（通じなかった語）には声調を足さない。
-  final tone = tip.tone == null ? null : toneFromRoman(roman) ?? tip.tone;
-
   return CoachingTip(
     issue: tip.issue,
-    tone: tone,
+    tone: tip.tone,
     syllableIndex: index,
     stepUp: tip.stepUp,
     wordText: tip.wordText,

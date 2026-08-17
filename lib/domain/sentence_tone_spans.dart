@@ -207,21 +207,7 @@ SentenceToneSpans buildSentenceToneSpans(
       start: tones.length,
       length: syllables.length,
     ));
-    // **声調はローマ字の記号から読む。** 音節の `tone` は音節を単体で見て
-    // 引いたもので、語全体を見ないと決まらない音節を外す（黙字 ์ の สิงห์ を
-    // 死音節と見て低声にする、อักษรนำ の มหา を平声にする等。PyThaiNLP の
-    // 音節 2202個で TLTK と 3.7% 食い違い、うち上昇声を低声と読む誤りは
-    // すべて การันต์ だった）。ローマ字は TLTK が**語全体の文脈**で引くので、
-    // そちらが正しい。取れない語（[_romansOf] が数を合わせられない語）だけ
-    // 従来どおり音節単体の判定に落ちる。
-    //
-    // ここは**採点にも効く**。声調を間違えるとお手本カーブそのものが別の
-    // 声調で引かれ、その音節は何をどう測っても合わない。
-    final wordRomans = _romansOf(word.pronunciation, syllables.length);
-    tones.addAll([
-      for (var k = 0; k < syllables.length; k++)
-        toneFromRoman(wordRomans[k]) ?? toneFromName(syllables[k].tone),
-    ]);
+    tones.addAll(syllables.map((s) => toneFromName(s.tone)));
     // 死音節は末子音で切られるため、短母音でなくても動きが完了しない。
     short.addAll(syllables.map(
       (s) => s.hasShortVowel == true || s.syllableType == 'dead',
@@ -243,7 +229,7 @@ SentenceToneSpans buildSentenceToneSpans(
           '/${s.syllableType == "dead" ? "死" : "生"}]',
     ));
     marks.addAll(syllables.map((s) => toneMarkCharOf(s.toneMark)));
-    romans.addAll(wordRomans);
+    romans.addAll(_romansOf(word.pronunciation, syllables.length));
     // 長さは声調規則の生死ではなく実際の長さで見る（[points] と同じ基準）。
     segments.addAll(syllables.map(
       (s) => SegmentSyllable(

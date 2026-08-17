@@ -65,6 +65,19 @@ void main() {
       }
     });
 
+    test('入り方の向きが、境目に張り付いていない', () {
+      // 向きの3分割は境目で跳ねる。お手本の段差が [kFlatStepThreshold] の
+      // すぐ内側にあると、録音がほんの少し大きく動いただけで割れてしまう。
+      // 正しい発話では、段差そのものの差がその幅に収まっていること。
+      for (var i = 0; i < _tones.length; i++) {
+        final score = _scoreOf(const {}, i);
+        expect(
+          score.transitionError,
+          lessThanOrEqualTo(kFlatStepThreshold),
+          reason: '音節$i (${_tones[i].name}) ${_detail(score)}',
+        );
+      }
+    });
   });
 
   group('子音の無声区間があっても正しい発話は通る', () {
@@ -106,11 +119,6 @@ void main() {
     test('無声区間のぶん、音節の取り分が縮まない', () {
       // 音節ごとの無声区間の長さは同じなので、取り分の比は無声が無いときと
       // 変わらないはず。削っていると、縮み方の違いがここに出る。
-      //
-      // 許容は 4%。上昇声のお手本が**底から始まる**ようになったので
-      // （[kToneContours]）、頭に長い無声区間があると入り際の補間が直前の
-      // 音節の終わりと見分けにくく、境界が 3.4% ぶん後ろへ寄る。削られている
-      // わけではない（削れていれば比はもっと大きく崩れる）。
       final withoutGap = [
         for (var i = 0; i < _tones.length; i++)
           _scoreOf(const {}, i).queryEnd - _scoreOf(const {}, i).queryStart + 1,
@@ -126,7 +134,7 @@ void main() {
       for (var i = 0; i < _tones.length; i++) {
         expect(
           withGap[i] / totalWith,
-          closeTo(withoutGap[i] / totalWithout, 0.04),
+          closeTo(withoutGap[i] / totalWithout, 0.03),
           reason: '音節$i (${_tones[i].name}) の取り分',
         );
       }
@@ -205,14 +213,7 @@ void main() {
       '低平→高平': ({2: ThaiTone.high}, 2),
       '高平→低平': ({4: ThaiTone.low}, 4),
       '高平→中平': ({4: ThaiTone.mid}, 4),
-      // 入り方が使えない音節では形しか残らず、上昇声と高平声はどちらも上がる
-      // 形なので区別が消える。高さで落とす（[kLevelDisagreement]）。
       '上昇→高平': ({3: ThaiTone.high}, 3),
-      // 高さの検査（[kLevelDisagreement]）で拾えるようになった組。
-      // 以前は「形が重なるので見逃す」側に置いていた。
-      '下降→高平': ({1: ThaiTone.high}, 1),
-      '末尾の 中平→高平': ({5: ThaiTone.high}, 5),
-      '末尾の 中平→低平': ({5: ThaiTone.low}, 5),
       '下降→中平': ({1: ThaiTone.mid}, 1),
       // 文頭は入り方が無いので形だけで見る。平らな3声調どうしでも、逆向きに
       // 動いていれば相関が負に出るのでそこで落とせる。
@@ -230,85 +231,6 @@ void main() {
           reason: '$label が見逃されている (${_detail(score)})',
         );
       });
-    });
-  });
-
-  group('上昇声を低平声で発音した誤り', () {
-    // お手本の上昇声が底から始まるので、低平声で発音すると相関がはっきり負に
-    // 出る（-0.71）。ディップがあった頃は 合成音声60文で 64/67 が素通りしていた。
-    //
-    // **子音の無声区間が要る。** 母音だけで繋がる（無声区間が全く無い）合成では、
-    // 直前も低平声だと音節の境界がぼやけて相関が 0.05 まで落ちる。実際の発話では
-    // 音節の頭に必ず子音が入るので、3フレーム（30ms）で足りる。
-    // 90ms を超える無声区間では有声区間が短くなりすぎて形を根拠にできず
-    // （[kMinVoicedFramesForShape]）、入り方だけが残るので落とせない。
-    for (final onset in [3, 6]) {
-      test('頭に無声フレーム$onset個あれば落とせる', () {
-        final score = _scoreOf(
-          {3: ThaiTone.low},
-          3,
-          unvoicedOnsetFrames: onset,
-        );
-        expect(
-          score.verdict,
-          isNot(ToneVerdict.correct),
-          reason: '上昇→低平 が見逃されている (${_detail(score)})',
-        );
-      });
-    }
-  });
-
-  group('入り際の順序は幅によらず効く', () {
-    // 上に入るはずの組で下から入っていれば、上げ幅がいくつでも別の声調。
-    // 直前が正しく発音されていれば、その終わり際がお手本から多少ずれていても
-    // 順序は壊れない（[entryOrder]）。
-    test('低平声を、下がらずに平らのまま発音すると落ちる', () {
-      // 低平声は「底に居ること」そのもの。逆向きでなくても、期待どおり
-      // 下がって入っていなければ落とす（この声調だけの扱い）。
-      // 直前は中平声にする（下降声の直後だと、終わり際も低いので順序が
-      // 決まらず検査できない）。
-      const tones = [
-        ThaiTone.falling,
-        ThaiTone.mid,
-        ThaiTone.low,
-        ThaiTone.rising,
-        ThaiTone.high,
-      ];
-      final result = analyzePronunciation(
-        f0Hz: synthesizeF0(
-          tones: tones,
-          substitutions: const {2: ThaiTone.mid},
-          unvoicedOnsetFrames: 3,
-        ),
-        tones: tones,
-      );
-      final score = result.syllables[2];
-      expect(score.verdict, isNot(ToneVerdict.correct), reason: _detail(score));
-    });
-
-    test('低平声のあとの中平声を、下から入って発音すると落ちる', () {
-      // 音節2（低平声）は正しく、音節3を中平声で発音する＝上昇声のところを
-      // 低いまま続けた状態。入り際が直前より下に来る。
-      final score = _scoreOf(const {3: ThaiTone.low}, 3, unvoicedOnsetFrames: 3);
-      expect(
-        score.verdict,
-        isNot(ToneVerdict.correct),
-        reason: _detail(score),
-      );
-    });
-
-    test('直前を誤っていたら順序では落とさない', () {
-      // 直前が別の声調で終わっていれば、そこから見た上下は何も語らない。
-      final result = analyzePronunciation(
-        f0Hz: synthesizeF0(
-          tones: _tones,
-          substitutions: const {0: ThaiTone.high},
-          unvoicedOnsetFrames: 3,
-        ),
-        tones: _tones,
-      );
-      expect(result.syllables[1].verdict, ToneVerdict.correct,
-          reason: _detail(result.syllables[1]));
     });
   });
 
@@ -523,13 +445,8 @@ void main() {
           tones: tones,
         ).syllables[2].verdict;
 
-    // **通せるのは 0.4 まで**。これは入り方を順序だけで見るようにした代償で、
-    // 0.5 を超える上げそこねは高さの検査（[kLevelDisagreement]）に掛かって
-    // 「惜しい」になる。合成音声で、下降声の直後の高平声を一律 0.8 下げた
-    // 話者を模すと誤検出が 0 → 10/360 に増える（見逃しは 297 → 159/1440）。
-    // 実機で「正しく言えたのに惜しい」が出るならここを見直すこと。
-    test('下降声の直後の上げそこねを 0.4 まで通す', () {
-      for (final drop in [0.2, 0.4]) {
+    test('下降声の直後の上げそこねを通す', () {
+      for (final drop in [0.2, 0.4, 0.6, 0.7, 1.0]) {
         expect(verdictOf(fallHigh, drop), ToneVerdict.correct,
             reason: '下げ幅 $drop');
       }
@@ -544,10 +461,25 @@ void main() {
       expect(_scoreOf({0: ThaiTone.low}, 0).verdict, ToneVerdict.correct);
     });
 
+    test('末尾の 中平→高平 は通る（文末はどのみち下がって入る）', () {
+      // 文末は final lowering で大きく下がるので、入り方の向きでは分けられない。
+      // 直前が巻き添えで correct を外し、基準が信用できない扱いになるため、
+      // 向きの一致だけが残って通る。
+      expect(_scoreOf({5: ThaiTone.high}, 5).verdict, ToneVerdict.correct);
+    });
+
     test('低平→中平 も通る（同じ最小対立の逆向き）', () {
       // 5声調で最も差が小さい対立。どちらも平らで、入り方の向きも変わらない。
       expect(_scoreOf({2: ThaiTone.mid}, 2).verdict, ToneVerdict.correct);
     });
 
+    test('末尾の 中平→低平 は通る（同じ最小対立）', () {
+      expect(_scoreOf({5: ThaiTone.low}, 5).verdict, ToneVerdict.correct);
+    });
+
+    test('下降→高平 は通る（形が部分的に重なる）', () {
+      // 高平声は上がってから最後に落ちるので、下降声と形が重なる（相関 0.65）。
+      expect(_scoreOf({1: ThaiTone.high}, 1).verdict, ToneVerdict.correct);
+    });
   });
 }

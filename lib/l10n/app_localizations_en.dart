@@ -1167,7 +1167,7 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationCoachShapeRising =>
-      'Rising tone: start low and rise all the way to the end';
+      'Rising tone: dip first, then rise all the way up';
 
   @override
   String pronunciationCoachStepUp(String tone) {

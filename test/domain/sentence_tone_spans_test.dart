@@ -56,31 +56,6 @@ void main() {
       expect(spans.syllableRomans, ['sa', 'wàt', 'dii']);
     });
 
-    test('声調はローマ字の記号から読む（音節単体の判定より優先）', () {
-      // สิงห์: 黙字 ์ を末子音と見ると死音節→低声になるが、実際は上昇声。
-      final spans = buildSentenceToneSpans([
-        _wordWithPronunciation('สิงห์', 'sǐng', ['low']),
-      ]);
-
-      expect(spans.tones, [ThaiTone.rising]);
-    });
-
-    test('記号の無いローマ字は平声として読む', () {
-      final spans = buildSentenceToneSpans([
-        _wordWithPronunciation('ดี', 'dii', ['low']),
-      ]);
-
-      expect(spans.tones, [ThaiTone.mid]);
-    });
-
-    test('ローマ字が取れない語では音節単体の判定を使う', () {
-      final spans = buildSentenceToneSpans([
-        _wordWithPronunciation('สวัสดี', 'sa-wàt', ['mid', 'low', 'mid']),
-      ]);
-
-      expect(spans.tones, [ThaiTone.mid, ThaiTone.low, ThaiTone.mid]);
-    });
-
     test('音節数が食い違う語では出さない', () {
       final spans = buildSentenceToneSpans([
         _wordWithPronunciation('สวัสดี', 'sa-wàt', ['mid', 'low', 'mid']),
