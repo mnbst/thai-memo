@@ -414,7 +414,7 @@
   "pronunciationCoachShapeLow": "低声は、低いところで下げ気味のまま保つ",
   "pronunciationCoachShapeFalling": "下降声は、高いところから始めて最後まで下げ切る",
   "pronunciationCoachShapeHigh": "高声は、上げたところで止めずに最後まで上げ続ける",
-  "pronunciationCoachShapeRising": "上昇声は、一度下げてから上げ切る",
+  "pronunciationCoachShapeRising": "上昇声は、低いところから始めて最後まで上げ切る",
   "pronunciationCoachStepUp": "{tone}は、直前の音より高いところから入る",
   "@pronunciationCoachStepUp": { "placeholders": { "tone": { "type": "String" } } },
   "pronunciationCoachStepDown": "{tone}は、直前の音より低いところから入る",

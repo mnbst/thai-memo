@@ -8,7 +8,8 @@
 //             入ったか平らに入ったか
 //
 // **どちらも向きしか見ない。** 振れ幅も、下げ幅も、声域内の絶対的な高さも
-// 採点しない。高さも動きの大きさも話者・場面・文中の位置で素直に動くので、
+// 採点しない（例外は [kLevelDisagreement]。入り方が使えない音節に限り、
+// 高さのずれで correct を close へ落とす）。高さも動きの大きさも話者・場面・文中の位置で素直に動くので、
 // 正しく発音していても弾かれてしまい、練習として続かない。実際、正しく高平声を
 // 出しても平らに寄るのが普通で、お手本の上昇幅を要求するのは無理がある。
 //
@@ -23,6 +24,8 @@
 //   - 文頭の 中平→低平（どちらも平らで、比べる相手もいない）
 //   - 末尾の 中平→低平（文末はもともと下がるので区別がつかない）
 //   - 下降→高平（高平声は上がってから落ちるので形が重なる）
+//   - 上昇→低平（子音の無声区間が 90ms を超える音節に限る。形を根拠にできる
+//     長さが残らず、入り方だけでは両者を分けられない）
 //   - 下げ幅・上げ幅が足りない発話全般（向きが合っていれば通る）
 // 「正しく言えているのに惜しいと言われる」ほうが練習を止めると判断して、
 // 見逃す側に倒している。
@@ -105,6 +108,22 @@ const double kShapeErrorThreshold = 0.45;
 /// 5フレーム（50ms）しか取れなかった下降声が相関 -0.52 と出て弾かれた。
 /// 出ていない形を根拠に誤りと言ってはいけない。足りなければ入り方で判断する。
 const int kMinVoicedFramesForShape = 10;
+
+/// 入り方が使えないとき、高さのずれだけで correct を取り消す境目。
+///
+/// **これだけは高さそのものを見る。** 基準（直前の音節が終わった高さ）が
+/// 信用できない音節では入り方が使えず、形しか根拠が残らない。上昇声と高平声は
+/// **どちらも上がる形**なので、そこでは区別が消える（合成音声で 29/67 が素通り）。
+///
+/// 高さを判定に持ち込むのは、**correct を close へ落とす方向にだけ**。
+/// 誤りだと言い切るには弱い（話者・文中の位置で素直に動く）が、「合っている」
+/// と言い切るのを止める根拠にはなる。wrong の側へは効かせない。
+///
+/// 0.5 は正規化済みの声域での値。声調どうしの高さの差（0.5〜1.1）より小さく、
+/// 正しい発話で出るずれ（合成音声60文で最大 0.4 台）より大きい。狭めても
+/// 見逃しは減らず（0.5 で 283、0.6 で 292、0.8 で 332/1440）、正しい発話の
+/// 誤検出は 3/360 のまま動かない。
+const double kLevelDisagreement = 0.5;
 
 /// 音節を採点するのに要る、実際に声が出ていたフレームの最小数。
 ///
@@ -256,6 +275,16 @@ ToneDirection directionOf(
 /// 音節の始まりから終わりまでで、ピッチがどれだけ動いたか。
 ///
 /// 端の1点ではなく前後25%の中央値の差を採る。1点だと検出誤りで向きが反転する。
+///
+/// **端を落としてから見る案を測ったが、落とすほど悪化する。** 合成音声60文で
+/// 見逃しは 482（そのまま）→ 498（前後8%を落とす）→ 552（同15%）→
+/// 605/1440（中央付近の 20〜40% と 60〜80% の2点だけで見る）。
+/// 窓を狭めるほど測れる動きが小さくなり、向きの3分割（[kFlatRiseThreshold]）で
+/// 「平ら」に落ちる。**この判定を壊しているのは端の汚れではなく、動きが
+/// 小さく出ること**なので、窓は広く採る。
+///
+/// どの案でも 上昇→低平 は 64/67 のまま動かない。あれは端の汚れではなく
+/// お手本の上昇声が前半で沈むことが原因（[kToneContours] を参照）。
 double contourRise(List<double> values) {
   if (values.length < 2) return 0;
   final window = math.max(math.min(3, values.length ~/ 2), (values.length * 0.25).round());
@@ -543,9 +572,17 @@ List<SyllableScore> scoreSyllables({
     final riseAgrees = directionOf(queryRise) == directionOf(refRise) ||
         shapeError <=
             (isContourTone(tone) ? kRiseAgreement : kFlatToneRiseAgreement);
+    // 動きを持つ声調では、**逆向きに動いていれば形は合っていない**。
+    // 始まり終わりの差は正規化後には小さく出て（実測で 0.3〜0.6）、向きの
+    // 3分割（[kFlatRiseThreshold] = 0.4）ではどちらも「平ら」に落ちる。
+    // 上昇声のところを低平声で発音した誤りが、相関 -0.69 と**はっきり逆向き**
+    // なのに「どちらも平ら」で一致していた（合成音声で 64/67 が素通り）。
+    // 相関が閾値ぶん負なら、動きの大きさに関わらず落とす。
     final shapeMatches = isContourTone(tone)
-        ? riseAgrees ||
-            (correlation != null && correlation >= kShapeCorrelationThreshold)
+        ? (riseAgrees ||
+                (correlation != null &&
+                    correlation >= kShapeCorrelationThreshold)) &&
+            !(correlation != null && correlation <= -kShapeCorrelationThreshold)
         : riseAgrees &&
             (stepAgrees != null || correlation == null || correlation >= 0);
 
@@ -568,7 +605,7 @@ List<SyllableScore> scoreSyllables({
     // 短すぎて形が測れない音節を、1つの手がかりだけで断定してはいけない。
     final available = [shapeAgrees, stepAgrees].whereType<bool>().toList();
     final agreed = available.where((ok) => ok).length;
-    final ToneVerdict verdict;
+    ToneVerdict verdict;
     if (available.isEmpty) {
       // **根拠が1つも無い音節を「惜しい」と言ってはいけない。** 短母音で形を
       // 要求できず、かつ直前がずれていて入り方も使えない、という重なりが実機で
@@ -581,6 +618,14 @@ List<SyllableScore> scoreSyllables({
       verdict = ToneVerdict.close;
     } else {
       verdict = ToneVerdict.wrong;
+    }
+
+    // 入り方が使えない音節では、形だけで correct になる。上昇声と高平声は
+    // どちらも上がる形なので、そこは高さで分ける（[kLevelDisagreement]）。
+    if (verdict == ToneVerdict.correct &&
+        stepAgrees == null &&
+        levelError > kLevelDisagreement) {
+      verdict = ToneVerdict.close;
     }
 
     scores.add(SyllableScore(

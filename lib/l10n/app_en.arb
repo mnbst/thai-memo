@@ -399,7 +399,7 @@
   "pronunciationCoachShapeLow": "Low tone: stay down low, drifting slightly downward",
   "pronunciationCoachShapeFalling": "Falling tone: start high and fall all the way down",
   "pronunciationCoachShapeHigh": "High tone: keep rising to the end instead of levelling off",
-  "pronunciationCoachShapeRising": "Rising tone: dip first, then rise all the way up",
+  "pronunciationCoachShapeRising": "Rising tone: start low and rise all the way to the end",
   "pronunciationCoachStepUp": "{tone}: start higher than the sound before it",
   "@pronunciationCoachStepUp": { "placeholders": { "tone": { "type": "String" } } },
   "pronunciationCoachStepDown": "{tone}: start lower than the sound before it",

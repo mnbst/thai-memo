@@ -91,7 +91,7 @@ List<double> resampleContour(List<double> contour, int length) {
 /// - 低平声: 低い位置で平坦〜わずかに下降
 /// - 下降声: 少し上がってから急降下。ピークは前寄り
 /// - 高平声: 上昇しながら高い位置へ。最後にわずかに落ちる
-/// - 上昇声: 低めに始まり、底まで沈んでから中くらいまで戻る
+/// - 上昇声: 底から始めて、中くらいまで上げ切る（下降声の逆）
 ///
 /// 縦軸の目安（Chao の5段階との対応）: 1（底）= -0.80、2 = -0.45、3（中）= 0.00、
 /// 4 = 0.55、5（上）= 0.90。記述音声学の Chao 数値は 中平 323 / 低平 21 /
@@ -108,8 +108,18 @@ const Map<ThaiTone, List<double>> kToneContours = {
   // **上昇声は上まで届かない。** Chao 213 で、戻るのは 3（中平と同じ高さ）まで。
   // 以前は +0.60 まで上げていたが、それは高平声の中心（0.70）のすぐ下で、
   // 「上まで上がる声調」を2つ持っていることになっていた。
+  //
+  // **ディップは持たせない。** 記述音声学の 213 は citation form で、実際の
+  // 発話では初頭の沈みはほとんど出ない。持たせると前半が低平声と同じ下がりに
+  // なり、**低平声で発音した誤りが素通りする**（合成音声60文で 64/67。
+  // 相関も正に出るので形の軸で落とせず、中央60%の中央値も -0.70 と低平声の
+  // -0.62 より低くなって入り方の軸でも落とせない）。底から上げ切る形にすると
+  // 低平声との相関がはっきり負に出て、0/67 になる。
+  //
+  // 単調に上げると今度は**高平声と形が重なる**が、そちらは高さで分ける
+  // （[kLevelDisagreement]）。両方入れて、見逃しは 543 → 283/1440。
   ThaiTone.rising: [
-    -0.42, -0.58, -0.70, -0.77, -0.78, -0.70, -0.55, -0.35, -0.15, 0.00,
+    -0.80, -0.80, -0.78, -0.72, -0.62, -0.50, -0.36, -0.22, -0.10, 0.00,
   ],
   // 声調が判定できなかった音節。整列のために形は必要なので中平声の形を借りるが、
   // 採点からは除外する（ToneVerdict.unscored）。
@@ -242,6 +252,45 @@ ThaiTone toneFromName(String name) {
       return ThaiTone.unknown;
   }
 }
+
+/// 声調記号付きローマ字から [ThaiTone] を読む。記号が無ければ平声、
+/// ローマ字そのものが取れていなければ null。
+///
+/// **こちらが正しい。** 音節の声調は本来 `ThaiToneAnalyzer` が子音クラスと
+/// 生死から引くが、あれは**音節を単体で見る**ので、語全体を見ないと決まらない
+/// ものを外す。実測（PyThaiNLP 音節 2202個）で TLTK と 3.7% 食い違い、
+/// うち上昇声を低声と読む誤りは全て การันต์（黙字 ์: สิงห์ / สงฆ์）だった。
+/// 黙字を末子音と見て死音節に落としている。ローマ字は TLTK が**語全体の文脈**で
+/// 引いているので、黙字も อักษรนำ も正しく出る。
+///
+/// 記号は Python 側（pronunciation.py `_TONE_MARKS`）が母音の直後に結合文字として
+/// 差し込む。合成済みの文字（à / ǎ など）で来ることもあるので両方見る。
+ThaiTone? toneFromRoman(String roman) {
+  if (roman.isEmpty) return null;
+
+  for (final rune in roman.runes) {
+    final tone = _toneOfMark[rune] ?? _toneOfPrecomposed[rune];
+    if (tone != null) return tone;
+  }
+  // 記号が無いのは欠損ではなく平声（สามัญ）。
+  return ThaiTone.mid;
+}
+
+/// 結合ダイアクリティカルマーク → 声調。
+const Map<int, ThaiTone> _toneOfMark = {
+  0x0300: ThaiTone.low, // ̀  เอก
+  0x0302: ThaiTone.falling, // ̂  โท
+  0x0301: ThaiTone.high, // ́  ตรี
+  0x030C: ThaiTone.rising, // ̌  จัตวา
+};
+
+/// 合成済みの母音字 → 声調（結合文字で来なかった場合の受け）。
+final Map<int, ThaiTone> _toneOfPrecomposed = {
+  for (final c in 'àèìòùǹ'.runes) c: ThaiTone.low,
+  for (final c in 'âêîôû'.runes) c: ThaiTone.falling,
+  for (final c in 'áéíóúń'.runes) c: ThaiTone.high,
+  for (final c in 'ǎěǐǒǔ'.runes) c: ThaiTone.rising,
+};
 
 /// [Syllable.toneMark] が持つ文字列表現から、実際の声調記号の文字へ。
 ///
