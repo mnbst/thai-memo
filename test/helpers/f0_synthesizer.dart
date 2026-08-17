@@ -38,6 +38,9 @@ double sampleContour(List<double> contour, double t) {
 /// 全音節を一律に縮めても、録音側は自分の広がりで正規化されるので元に戻る。
 /// [unvoicedOnsetFrames] は各音節の頭に置く無声フレーム数。子音（破裂音・
 /// 摩擦音）でピッチが取れない区間を再現する。実際の発話では必ず入る。
+/// [toneOnVoiced] は**話者のモデル**を切り替える。false は声調が音節まるごと
+/// （子音＋母音）に張られている前提で、母音では後半しか実現されない。true は
+/// 声調が母音の中で完結する前提。実際の話者はこの中間にいる。
 /// [clauseStarts] は新しい節が始まる音節の添字。話者は節ごとに声を上げ直す
 /// ので、declination と末尾の下がりは**節ごとに**掛ける。
 /// [pauseFrames] は節の切れ目に置く無音のフレーム数。
@@ -55,6 +58,7 @@ List<double?> synthesizeF0({
   double declination = kDeclinationRange,
   double finalLowering = kFinalLoweringRange,
   int unvoicedOnsetFrames = 0,
+  bool toneOnVoiced = false,
   Map<int, double> contourScaleBySyllable = const {},
   double carryoverStrength = 0.0,
   double carryoverReach = 1.0,
@@ -137,7 +141,12 @@ List<double?> synthesizeF0({
         framesInSegment++;
         continue;
       }
-      final t = syllableFrames == 1 ? 0.0 : f / (syllableFrames - 1);
+      final voicedFrames = syllableFrames - unvoicedOnsetFrames;
+      final t = toneOnVoiced
+          ? (voicedFrames <= 1
+              ? 0.0
+              : (f - unvoicedOnsetFrames) / (voicedFrames - 1))
+          : (syllableFrames == 1 ? 0.0 : f / (syllableFrames - 1));
       final scale = contourScaleBySyllable[s] ?? 1.0;
       final mean = contour.reduce((a, b) => a + b) / contour.length;
       final scaled = mean + (sampleContour(contour, t) - mean) * scale;
