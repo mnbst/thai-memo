@@ -421,6 +421,9 @@ Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。レジ
 scripts/sample_sentences.py
 ターゲット語を指定して本番と同じ経路で例文をまとめて生成するプロンプト検証スクリプト。デプロイせずルール変更の効果を確認する。
 
+scripts/compare_models.py
+同一プロンプトを複数モデルに投げて品質指標・レイテンシ・コストをペア比較するモデル選定スクリプト（--report で既存JSONの集計のみ）。
+
 scripts/ga4_quiz_offer_experiment.py
 1問確認クイズ導線A/BテストのGA4ファネルを実験群別に集計する。
 
