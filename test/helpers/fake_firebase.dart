@@ -91,6 +91,17 @@ class _FakeDoc extends Fake implements DocumentReference<Map<String, dynamic>> {
   Future<DocumentSnapshot<Map<String, dynamic>>> get(
           [GetOptions? options]) async =>
       _FakeSnapshot(_store[_id]);
+
+  /// merge 指定のみ想定。SetOptions なしの上書きは使っていない。
+  @override
+  Future<void> set(Map<String, dynamic> data, [SetOptions? options]) async {
+    final current = _store[_id];
+    if (options?.merge == true && current != null) {
+      current.addAll(data);
+    } else {
+      _store[_id] = Map<String, dynamic>.from(data);
+    }
+  }
 }
 
 class _FakeSnapshot extends Fake
@@ -114,6 +125,40 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<Map<String, Object?>> quizStartEvents = [];
   final List<Map<String, Object?>> quizAnswerEvents = [];
   final List<Map<String, String>> quizOfferEvents = [];
+  final List<Map<String, Object?>> interviewEvents = [];
+
+  final List<Map<String, String>> coachMarkEvents = [];
+
+  @override
+  Future<void> logCoachMark({
+    required String id,
+    required String action,
+  }) async {
+    coachMarkEvents.add({'id': id, 'action': action});
+  }
+
+  @override
+  Future<void> logSummaryQuizComplete({
+    required int score,
+    required int questionCount,
+    int? vocabBefore,
+    int? vocabAfter,
+  }) async {}
+
+  @override
+  Future<void> logInterview({
+    required String action,
+    String? question,
+    String? answer,
+    int? answeredCount,
+  }) async {
+    interviewEvents.add({
+      'action': action,
+      'question': question,
+      'answer': answer,
+      'answeredCount': answeredCount,
+    });
+  }
 
   @override
   Future<void> setUserTier(String tier) async {

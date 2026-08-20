@@ -58,8 +58,15 @@ class SpeechCaptureService {
       MethodChannel('thai_memo/speech_capture');
 
   /// マイク（と音声認識）の使用許可。未許可なら要求ダイアログが出る。
+  /// 現在の許可状態を返すだけ。ダイアログは出さない。
   Future<bool> hasPermission() async {
     final granted = await _channel.invokeMethod<bool>('hasPermission');
+    return granted ?? false;
+  }
+
+  /// 許可ダイアログを出す。許可されたら true。
+  Future<bool> requestPermission() async {
+    final granted = await _channel.invokeMethod<bool>('requestPermission');
     return granted ?? false;
   }
 

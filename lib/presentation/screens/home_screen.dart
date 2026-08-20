@@ -12,6 +12,7 @@ import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
 import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
+import '../../services/interview_reporter.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
@@ -34,6 +35,7 @@ import '../widgets/loading_tip_carousel.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
+import 'interview_screen.dart';
 import 'onboarding_screen.dart';
 import 'paywall_screen.dart';
 import 'quiz_screen.dart';
@@ -52,6 +54,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
+
+  /// 設定タブの位置。通知の案内はここへ移ってから出す。
+  static const int _settingsTabIndex = 2;
   bool _initialLoadCompleted = false;
   Future<void>? _initialLoadFuture;
   final _showAppIcon = ValueNotifier<bool>(true);
@@ -68,6 +73,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       // サーバーが「この端末のアプリが何を持っているか」を知るための記録。
       // 学習の導線とは無関係なので待たない。
       unawaited(AppVersionReporter().report());
+      // 初回起動で書けなかったヒアリング回答を送り直す（送信済みなら何もしない）。
+      unawaited(InterviewReporter().report());
       _notificationOpenSubscription =
           FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
       _loadInitialSentenceThenHandleNotification();
@@ -280,6 +287,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _learningKey.currentState?.showSentenceStage();
   }
 
+  /// 通知の案内を設定タブで出す。まとめクイズの結果が出たとき、またはその
+  /// 誘導を「あとで」で見送ったときに呼ばれる。
+  ///
+  /// 学習画面の上に重ねるのではなく設定タブへ移ってから出す。案内を閉じた先に
+  /// 通知のトグルが見えていれば、後から自分で切り替える場所が分かる。
+  /// 出す条件を満たさないときはタブも動かさない（用のない画面へ飛ばさない）。
+  Future<void> _openNotificationCoachInSettings() async {
+    if (CoachMarkOverlay.isVisible) return;
+    final controller = ref.read(settingsControllerProvider.notifier);
+    await controller.initialized;
+    if (!mounted) return;
+    if (!shouldShowNotificationCoach(
+      coachShown: ref.read(settingsControllerProvider).notificationCoachShown,
+      permissionGranted: await controller.hasNotificationPermission(),
+    )) {
+      return;
+    }
+    if (!mounted) return;
+    if (_currentIndex != _settingsTabIndex) {
+      setState(() => _currentIndex = _settingsTabIndex);
+      _logCurrentTabScreen(index: _settingsTabIndex);
+    }
+    // タブが描画されてから案内を重ねる。
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    await _maybeShowNotificationCoach();
+  }
+
   /// 例文の価値を体験した後に一度だけ、毎日例文通知を継続サポート機能として紹介する。
   ///
   /// 体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否されると
@@ -395,6 +430,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         );
       }
+      if (mounted) {
+        // 機能紹介の後にヒアリングを挟む。ここで本人の状況を聞いてから
+        // アプリの考え方を伝え、その流れでコーチマークへ入る。
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(name: InterviewScreen.routeName),
+            builder: (context) => InterviewScreen(
+              onComplete: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        );
+      }
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
 
@@ -496,7 +546,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       LearningScreen(
         key: _learningKey,
         showAppIconNotifier: _showAppIcon,
-        onFirstCycleCompleted: () => unawaited(_maybeShowNotificationCoach()),
+        onNotificationCue: () =>
+            unawaited(_openNotificationCoachInSettings()),
       ),
       const HistoryScreen(),
       const SettingsScreen(),
@@ -603,12 +654,13 @@ class LearningScreen extends ConsumerStatefulWidget {
   final ValueNotifier<bool> showAppIconNotifier;
 
   /// 初回の学習が一巡（まとめクイズ完了）した直後に呼ばれる。
-  final VoidCallback? onFirstCycleCompleted;
+  /// 通知の案内を出してよいタイミング（まとめクイズの結果／その見送り）。
+  final VoidCallback? onNotificationCue;
 
   const LearningScreen({
     super.key,
     required this.showAppIconNotifier,
-    this.onFirstCycleCompleted,
+    this.onNotificationCue,
   });
 
   @override
@@ -779,9 +831,8 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
                     _setStage(_LearningStage.summaryQuiz);
                   }
                 : null,
-            // まとめクイズをスキップした場合は通知の案内を出さない。
-            // 1周を終えた実感がないまま案内すると断られやすく、iOSでは
-            // 一度拒否されると二度と要求できない。次の起動で出し直される。
+            // まとめクイズの誘導を「あとで」で見送ったら、そこで通知の案内へ回す。
+            onNotificationCue: widget.onNotificationCue,
             onNextSentence: () async {
               await _setCompletedCount(_completedCount + 1);
               await _proceedToNextSentence();
@@ -797,15 +848,15 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             showAppBar: false,
             title: l10n.learnSummaryQuizTitle,
             showVocabScoreTransition: true,
+            // 例文の価値を体験し終えた結果画面で通知の案内を出す。次の例文へ
+            // 進むまで待つと、そのまま画面を閉じた人には届かない。
+            onNotificationCue: widget.onNotificationCue,
             onNextSentence: () async {
-              final isFirstCycle = !_firstSummaryQuizCompleted;
-              if (isFirstCycle) {
+              if (!_firstSummaryQuizCompleted) {
                 await _markFirstSummaryQuizCompleted();
               }
               await _setCompletedCount(0);
               await _proceedToNextSentence();
-              // 例文の価値を体験し終えたこのタイミングで通知の案内を出す。
-              if (isFirstCycle) widget.onFirstCycleCompleted?.call();
             },
           ),
         ),
@@ -978,6 +1029,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final shown = CoachMarkOverlay.show(
       context,
       targetKey: targetKey,
+      id: detailShown ? 'quiz_button' : 'sentence_card',
+      analytics: ref.read(analyticsServiceProvider),
       icon: detailShown ? Icons.quiz : Icons.touch_app,
       title: detailShown ? l10n.coachQuizTitle : l10n.coachDetailTitle,
       message: detailShown ? l10n.coachQuizMessage : l10n.coachDetailMessage,

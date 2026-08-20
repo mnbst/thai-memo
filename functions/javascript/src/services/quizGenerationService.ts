@@ -372,6 +372,20 @@ function isThaiChoiceText(value: string): boolean {
     !LATIN_SCRIPT_REGEX.test(text);
 }
 
+/**
+ * 選択肢に付いた注釈を落とす。
+ *
+ * モデルは `กิน (kin / to eat)` や `กิน (gin / to eat): 理由` のように
+ * 発音・英訳・解説を足してくることがある（gemini-3.5-flash-lite で顕著）。
+ * 括弧・コロンの手前がタイ文字だけならそれを採用し、そうでなければ元の値を返して
+ * isThaiChoiceText 側で落とす。
+ */
+function stripChoiceAnnotation(value: string): string {
+  const text = normalizeText(value);
+  const head = normalizeText(text.split(/[(\uff08:\uff1a]/)[0]);
+  return head && isThaiChoiceText(head) ? head : text;
+}
+
 function uniqueTexts(values: string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -411,7 +425,7 @@ export function buildBlankSentencePronunciation(
 export function sanitizeQuizQuestion(
   question: GeneratedQuizQuestion,
 ): GeneratedQuizQuestion | null {
-  const correctAnswer = normalizeText(question.correct_answer);
+  const correctAnswer = stripChoiceAnnotation(question.correct_answer);
   if (!isThaiChoiceText(correctAnswer)) {
     logger.warn('Dropping quiz question due to non-Thai correct answer', {
       event: 'quiz_question_dropped_non_thai_correct_answer',
@@ -422,7 +436,7 @@ export function sanitizeQuizQuestion(
 
   const choices = uniqueTexts([
     correctAnswer,
-    ...question.choices.filter(isThaiChoiceText),
+    ...question.choices.map(stripChoiceAnnotation).filter(isThaiChoiceText),
   ]).slice(0, 4);
 
   if (choices.length < 4) {

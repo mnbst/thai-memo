@@ -40,8 +40,16 @@
   "coachQuizTitle": "次はクイズに挑戦",
   "coachQuizMessage": "例文を読んだら、確認クイズに進みましょう。",
 
+  "coachSentenceCardTitle": "今日の例文",
+  "coachSentenceCardMessage": "上がタイ文字、下がその読み方です。再生ボタンでお手本を聞けます。日本語訳はこの下にあります。",
   "coachPronunciationTitle": "声に出して確かめる",
   "coachPronunciationMessage": "ボタンを押したまま読んでみましょう。声調が合っているか、その場で判定します。",
+  "coachWordBreakdownTitle": "単語ごとに見る",
+  "coachWordBreakdownMessage": "例文がどの単語でできているかを一覧で見ます。単語をタップすると声調の解説も開きます。",
+  "coachContextTitle": "使い方を確かめる",
+  "coachContextMessage": "その例文をどんな場面で使うか、文体や文化的な背景まで確認できます。",
+  "coachDetailBackTitle": "詳細はここまで",
+  "coachDetailBackMessage": "もう少し詳細を見る場合は「あとで」をタップ。見終わったら前の画面に戻ります。",
 
   "sentencePreparing": "次の例文を準備中...",
   "todaysWords": "今日の学習単語",
@@ -331,8 +339,69 @@
   "onboarding3Title": "クイズで語彙スコアUP",
   "onboarding3Body": "間違えた単語はくり返し出題。\nスコアに応じて例文のレベルが上がります。",
   "onboardingSkip": "スキップ",
-  "onboardingStart": "はじめる",
   "onboardingNext": "次へ",
+
+  "coachTapHere": "光っている場所をタップ",
+  "coachSkip": "あとで",
+  "coachGotIt": "わかった",
+
+  "interviewIntroTitle": "4つ質問させてください",
+  "interviewIntroBody": "答えに合わせて、このアプリの学び方をお伝えします。すぐ終わります。",
+  "interviewIntroStart": "はじめる",
+  "interviewStepLabel": "{current} / {total}",
+  "@interviewStepLabel": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "interviewLevelQuestion": "タイ語はどのくらい学んでいますか？",
+  "interviewLevelNone": "まったく初めて",
+  "interviewLevelChars": "文字を少し読める",
+  "interviewLevelWords": "単語や挨拶はわかる",
+  "interviewLevelConv": "日常会話はできる",
+  "interviewGoalQuestion": "タイ語を使いたいのはどんな場面ですか？",
+  "interviewGoalTravel": "旅行で使いたい",
+  "interviewGoalWork": "仕事で必要",
+  "interviewGoalLive": "タイで暮らす・暮らしたい",
+  "interviewGoalCulture": "ドラマ・音楽を楽しみたい",
+  "interviewTimeQuestion": "1日にどのくらい学習できそうですか？",
+  "interviewTimeShort": "数分だけ",
+  "interviewTimeMedium": "10分くらい",
+  "interviewTimeLong": "30分以上",
+  "interviewStruggleQuestion": "タイ語でつまずいたことはありますか？",
+  "interviewStruggleNone": "まだ始めたばかり",
+  "interviewStruggleScript": "文字が読めない",
+  "interviewStruggleTone": "声調が難しい",
+  "interviewStruggleVocab": "単語が覚えられない",
+
+  "philosophyHeading": "このアプリの考え方",
+
+  "philosophy1None": "毎日届く1つの例文を、まず**音と意味**から覚えます。次に**タイ文字**、そして文全体へ進みます。",
+  "philosophy1Chars": "毎日届く例文は、**1単語ずつ分解**して意味と発音を表示します。読めるタイ文字が増えるほど、自力で追える範囲が広がります。",
+  "philosophy1Words": "毎日届く例文は、アプリ内の**語彙スコア**に応じて作られます。挨拶だけの段階から、日常の言い回しへ広がっていきます。",
+  "philosophy1Conv": "毎日届く例文の難しさは、**クイズの結果**から決まります。解けるほど、出てくる単語の幅が広がります。",
+
+  "philosophyKeyWord": "例文には毎回、**中心になる単語が1つ**あります。その1語を中心に覚えます。クイズで出題されるのもこの単語です。",
+
+  "philosophy2None": "読めなくても大丈夫です。例文の詳細画面で**単語をタップ**すると、**タイ文字**の読みと声調の理由が1つずつ出ます。規則は**声調ガイド**に記載してあります。",
+  "philosophy2Script": "タイ文字は、**つづりで声調が決まります**。単語をタップすると、その文字がなぜその声調になるのかを確認できます。声調の規則をまとめたガイドもあります。",
+  "philosophy2Tone": "**発音練習機能**を活用しましょう。お手本と自分の録音を比べて、単語のどの部分で声調がズレているかがわかります。声調の読み方をまとめたガイドもあります。",
+  "philosophy2Vocab": "**クイズ**が単語ごとの覚え具合を測ります。あいまいな単語は後で再出題されます。",
+
+  "philosophy3Travel": "**プレミアム**なら、例文のテーマを自分で選べます。「旅行」や「交通」を選べば、現地で使う場面の例文が届きます。",
+  "philosophy3Work": "**プレミアム**なら、例文のテーマを自分で選べます。「仕事」を選べば、職場で使う場面の例文が届きます。",
+  "philosophy3Live": "**プレミアム**なら、例文のテーマを自分で選べます。「買い物」や「家族」を選べば、暮らしの中で使う例文が届きます。",
+  "philosophy3Culture": "**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「伝統・祭り」を選べば、作品や文化に出てくる表現が届きます。",
+  "philosophy3TimeShort": "**数分あれば**、今日の1文を読んで確認クイズまで進められます。",
+  "philosophy3TimeMedium": "**10分あれば**、例文を追加しながら、発音練習やまとめクイズまで進められます。",
+  "philosophy3TimeLong": "**30分あれば**、例文の追加と発音練習に加えて、履歴からの復習や声調ガイドの読み込みまで手が回ります。",
+
+  "philosophyStart": "実際に使ってみる",
 
   "notifCoachTitle": "例文を毎日の習慣に",
   "notifCoachStep1": "通勤中や寝る前など、学習を続けやすい時刻を決めます",

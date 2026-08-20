@@ -75,11 +75,37 @@ class L10nJa extends L10n {
   String get coachQuizMessage => '例文を読んだら、確認クイズに進みましょう。';
 
   @override
+  String get coachSentenceCardTitle => '今日の例文';
+
+  @override
+  String get coachSentenceCardMessage =>
+      '上がタイ文字、下がその読み方です。再生ボタンでお手本を聞けます。日本語訳はこの下にあります。';
+
+  @override
   String get coachPronunciationTitle => '声に出して確かめる';
 
   @override
   String get coachPronunciationMessage =>
       'ボタンを押したまま読んでみましょう。声調が合っているか、その場で判定します。';
+
+  @override
+  String get coachWordBreakdownTitle => '単語ごとに見る';
+
+  @override
+  String get coachWordBreakdownMessage =>
+      '例文がどの単語でできているかを一覧で見ます。単語をタップすると声調の解説も開きます。';
+
+  @override
+  String get coachContextTitle => '使い方を確かめる';
+
+  @override
+  String get coachContextMessage => 'その例文をどんな場面で使うか、文体や文化的な背景まで確認できます。';
+
+  @override
+  String get coachDetailBackTitle => '詳細はここまで';
+
+  @override
+  String get coachDetailBackMessage => 'もう少し詳細を見る場合は「あとで」をタップ。見終わったら前の画面に戻ります。';
 
   @override
   String get sentencePreparing => '次の例文を準備中...';
@@ -838,10 +864,155 @@ class L10nJa extends L10n {
   String get onboardingSkip => 'スキップ';
 
   @override
-  String get onboardingStart => 'はじめる';
+  String get onboardingNext => '次へ';
 
   @override
-  String get onboardingNext => '次へ';
+  String get coachTapHere => '光っている場所をタップ';
+
+  @override
+  String get coachSkip => 'あとで';
+
+  @override
+  String get coachGotIt => 'わかった';
+
+  @override
+  String get interviewIntroTitle => '4つ質問させてください';
+
+  @override
+  String get interviewIntroBody => '答えに合わせて、このアプリの学び方をお伝えします。すぐ終わります。';
+
+  @override
+  String get interviewIntroStart => 'はじめる';
+
+  @override
+  String interviewStepLabel(int current, int total) {
+    return '$current / $total';
+  }
+
+  @override
+  String get interviewLevelQuestion => 'タイ語はどのくらい学んでいますか？';
+
+  @override
+  String get interviewLevelNone => 'まったく初めて';
+
+  @override
+  String get interviewLevelChars => '文字を少し読める';
+
+  @override
+  String get interviewLevelWords => '単語や挨拶はわかる';
+
+  @override
+  String get interviewLevelConv => '日常会話はできる';
+
+  @override
+  String get interviewGoalQuestion => 'タイ語を使いたいのはどんな場面ですか？';
+
+  @override
+  String get interviewGoalTravel => '旅行で使いたい';
+
+  @override
+  String get interviewGoalWork => '仕事で必要';
+
+  @override
+  String get interviewGoalLive => 'タイで暮らす・暮らしたい';
+
+  @override
+  String get interviewGoalCulture => 'ドラマ・音楽を楽しみたい';
+
+  @override
+  String get interviewTimeQuestion => '1日にどのくらい学習できそうですか？';
+
+  @override
+  String get interviewTimeShort => '数分だけ';
+
+  @override
+  String get interviewTimeMedium => '10分くらい';
+
+  @override
+  String get interviewTimeLong => '30分以上';
+
+  @override
+  String get interviewStruggleQuestion => 'タイ語でつまずいたことはありますか？';
+
+  @override
+  String get interviewStruggleNone => 'まだ始めたばかり';
+
+  @override
+  String get interviewStruggleScript => '文字が読めない';
+
+  @override
+  String get interviewStruggleTone => '声調が難しい';
+
+  @override
+  String get interviewStruggleVocab => '単語が覚えられない';
+
+  @override
+  String get philosophyHeading => 'このアプリの考え方';
+
+  @override
+  String get philosophy1None =>
+      '毎日届く1つの例文を、まず**音と意味**から覚えます。次に**タイ文字**、そして文全体へ進みます。';
+
+  @override
+  String get philosophy1Chars =>
+      '毎日届く例文は、**1単語ずつ分解**して意味と発音を表示します。読めるタイ文字が増えるほど、自力で追える範囲が広がります。';
+
+  @override
+  String get philosophy1Words =>
+      '毎日届く例文は、アプリ内の**語彙スコア**に応じて作られます。挨拶だけの段階から、日常の言い回しへ広がっていきます。';
+
+  @override
+  String get philosophy1Conv =>
+      '毎日届く例文の難しさは、**クイズの結果**から決まります。解けるほど、出てくる単語の幅が広がります。';
+
+  @override
+  String get philosophyKeyWord =>
+      '例文には毎回、**中心になる単語が1つ**あります。その1語を中心に覚えます。クイズで出題されるのもこの単語です。';
+
+  @override
+  String get philosophy2None =>
+      '読めなくても大丈夫です。例文の詳細画面で**単語をタップ**すると、**タイ文字**の読みと声調の理由が1つずつ出ます。規則は**声調ガイド**に記載してあります。';
+
+  @override
+  String get philosophy2Script =>
+      'タイ文字は、**つづりで声調が決まります**。単語をタップすると、その文字がなぜその声調になるのかを確認できます。声調の規則をまとめたガイドもあります。';
+
+  @override
+  String get philosophy2Tone =>
+      '**発音練習機能**を活用しましょう。お手本と自分の録音を比べて、単語のどの部分で声調がズレているかがわかります。声調の読み方をまとめたガイドもあります。';
+
+  @override
+  String get philosophy2Vocab => '**クイズ**が単語ごとの覚え具合を測ります。あいまいな単語は後で再出題されます。';
+
+  @override
+  String get philosophy3Travel =>
+      '**プレミアム**なら、例文のテーマを自分で選べます。「旅行」や「交通」を選べば、現地で使う場面の例文が届きます。';
+
+  @override
+  String get philosophy3Work =>
+      '**プレミアム**なら、例文のテーマを自分で選べます。「仕事」を選べば、職場で使う場面の例文が届きます。';
+
+  @override
+  String get philosophy3Live =>
+      '**プレミアム**なら、例文のテーマを自分で選べます。「買い物」や「家族」を選べば、暮らしの中で使う例文が届きます。';
+
+  @override
+  String get philosophy3Culture =>
+      '**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「伝統・祭り」を選べば、作品や文化に出てくる表現が届きます。';
+
+  @override
+  String get philosophy3TimeShort => '**数分あれば**、今日の1文を読んで確認クイズまで進められます。';
+
+  @override
+  String get philosophy3TimeMedium =>
+      '**10分あれば**、例文を追加しながら、発音練習やまとめクイズまで進められます。';
+
+  @override
+  String get philosophy3TimeLong =>
+      '**30分あれば**、例文の追加と発音練習に加えて、履歴からの復習や声調ガイドの読み込みまで手が回ります。';
+
+  @override
+  String get philosophyStart => '実際に使ってみる';
 
   @override
   String get notifCoachTitle => '例文を毎日の習慣に';

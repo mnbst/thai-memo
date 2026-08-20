@@ -31,8 +31,16 @@
   "coachQuizTitle": "Now try the quiz",
   "coachQuizMessage": "Once you've read the sentence, move on to the quiz.",
 
+  "coachSentenceCardTitle": "Today's sentence",
+  "coachSentenceCardMessage": "The Thai text is on top and its reading below. Press play to hear the model audio. The translation is further down.",
   "coachPronunciationTitle": "Say it out loud",
   "coachPronunciationMessage": "Hold the button and read it aloud. Your tones are checked on the spot.",
+  "coachWordBreakdownTitle": "See it word by word",
+  "coachWordBreakdownMessage": "This lists the words the sentence is made of. Tap a word to open its tone explanation.",
+  "coachContextTitle": "Check how it is used",
+  "coachContextMessage": "See what situation the sentence fits, how formal it is, and the cultural background behind it.",
+  "coachDetailBackTitle": "That is all for the details",
+  "coachDetailBackMessage": "Tap \"Not now\" if you want to keep reading the details. When you are done, go back to the previous screen.",
 
   "sentencePreparing": "Preparing your next sentence...",
   "todaysWords": "Today's words",
@@ -45,8 +53,8 @@
   "sampleGreetingTranslation": "Hello (said by a man)",
   "sampleGreetingWord1Meaning": "hello, goodbye",
   "sampleGreetingWord1Role": "greeting",
-  "sampleGreetingWord2Meaning": "polite particle used by men",
-  "sampleGreetingWord2Role": "final particle",
+  "sampleGreetingWord2Meaning": "polite ending used by men",
+  "sampleGreetingWord2Role": "sentence ending",
   "sampleGreetingTopic": "everyday greetings",
   "sampleGreetingStyle": "conversational",
   "sampleGreetingEmotion": "polite, formal",
@@ -139,7 +147,7 @@
   "detailTapForTone": "Tap to see the tones",
   "detailContextSection": "Context and usage",
   "detailContextTopic": "Setting",
-  "detailContextStyle": "Register",
+  "detailContextStyle": "Style",
   "detailContextEmotion": "Mood",
   "detailContextUsage": "When to use it",
   "detailContextCulture": "Cultural background",
@@ -253,7 +261,7 @@
   "vocabLevelAdvanced": "Advanced",
   "vocabDialogTitle": "Vocabulary score ({level})",
   "@vocabDialogTitle": { "placeholders": { "level": { "type": "String" } } },
-  "vocabDialogTitleFree": "Vocabulary score (Free \u00b7 {level})",
+  "vocabDialogTitleFree": "Vocabulary score (Free · {level})",
   "@vocabDialogTitleFree": { "placeholders": { "level": { "type": "String" } } },
   "vocabProgressOf": "{current} of {threshold} words",
   "@vocabProgressOf": { "placeholders": { "current": { "type": "int" }, "threshold": { "type": "int" } } },
@@ -316,11 +324,72 @@
   "onboarding3Title": "Grow your vocabulary score",
   "onboarding3Body": "Words you miss come back around.\nYour sentences level up with your score.",
   "onboardingSkip": "Skip",
-  "onboardingStart": "Get started",
   "onboardingNext": "Next",
 
+  "coachTapHere": "Tap the highlighted area",
+  "coachSkip": "Not now",
+  "coachGotIt": "Got it",
+
+  "interviewIntroTitle": "Four quick questions",
+  "interviewIntroBody": "Your answers shape how we explain the way this app works. It only takes a moment.",
+  "interviewIntroStart": "Start",
+  "interviewStepLabel": "{current} / {total}",
+  "@interviewStepLabel": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "interviewLevelQuestion": "How much Thai do you know?",
+  "interviewLevelNone": "Complete beginner",
+  "interviewLevelChars": "I can read a few letters",
+  "interviewLevelWords": "I know some words and greetings",
+  "interviewLevelConv": "I can hold a conversation",
+  "interviewGoalQuestion": "What do you want to use Thai for?",
+  "interviewGoalTravel": "Travel",
+  "interviewGoalWork": "Work",
+  "interviewGoalLive": "Living in Thailand",
+  "interviewGoalCulture": "Dramas and music",
+  "interviewTimeQuestion": "How long can you study each day?",
+  "interviewTimeShort": "A few minutes",
+  "interviewTimeMedium": "About 10 minutes",
+  "interviewTimeLong": "30 minutes or more",
+  "interviewStruggleQuestion": "What has been hardest about Thai so far?",
+  "interviewStruggleNone": "I am just getting started",
+  "interviewStruggleScript": "I cannot read Thai letters",
+  "interviewStruggleTone": "Tones are hard",
+  "interviewStruggleVocab": "Words do not stick",
+
+  "philosophyHeading": "How this app works",
+
+  "philosophy1None": "One sentence arrives each day. You learn its **sound and meaning** first, then the **Thai letters**, then the sentence as a whole.",
+  "philosophy1Chars": "Each daily sentence is **broken down word by word**, with meaning and pronunciation. The more Thai letters you can read, the more of it you can follow on your own.",
+  "philosophy1Words": "Each daily sentence is generated to match your **vocabulary score** in the app, moving from greetings out into everyday phrasing.",
+  "philosophy1Conv": "How hard each daily sentence is comes from your **quiz results**. The more you get right, the wider the range of words that shows up.",
+
+  "philosophyKeyWord": "Every sentence is built around **one key word**. Focus your learning on that word — it is also the word the quiz asks about.",
+
+  "philosophy2None": "You do not need to read anything yet. **Tap a word** on the sentence detail screen and it shows how the **Thai letters** are read and why they take that tone, one at a time. The rules are in the **tone guide**.",
+  "philosophy2Script": "In Thai, **the spelling decides the tone**. Tap a word to see why it takes that tone. There is also a guide that lays out the tone rules.",
+  "philosophy2Tone": "Make use of the **pronunciation practice**. It compares your recording with the model and shows which parts of a word are off in tone, and a guide covers how the tones work.",
+  "philosophy2Vocab": "**Quizzes** measure how well each word has stuck. Shaky words are asked again later.",
+
+  "philosophy3Travel": "**With Premium** you choose the topic of your sentences. Pick Travel or Transport and you get the phrases you need on the ground.",
+  "philosophy3Work": "**With Premium** you choose the topic of your sentences. Pick Work and you get the phrases you need on the job.",
+  "philosophy3Live": "**With Premium** you choose the topic of your sentences. Pick Shopping or Family and you get the phrases that come up in daily life.",
+  "philosophy3Culture": "**With Premium** you choose the topic of your sentences. Pick Thai BL Drama or Traditions & Festivals and you get the language those works use.",
+  "philosophy3TimeShort": "**A few minutes** covers today's sentence and the quiz that follows it.",
+  "philosophy3TimeMedium": "**Ten minutes** lets you add more sentences and go on to pronunciation practice and summary quizzes.",
+  "philosophy3TimeLong": "**Thirty minutes** covers adding sentences and pronunciation practice, plus reviewing past sentences from your history and working through the tone guide.",
+
+  "philosophyStart": "Try it out",
+
   "notifCoachTitle": "Make it a daily habit",
-  "notifCoachStep1": "Pick a time that fits your day \u2014 your commute, or just before bed",
+  "notifCoachStep1": "Pick a time that fits your day — your commute, or just before bed",
   "notifCoachStep2": "At that time, one sentence picked for you arrives on its own",
   "notifCoachHabit": "Opening it at the same time each day is what turns it into a habit",
   "notifCoachPreviewLabel": "What it looks like",
@@ -471,7 +540,7 @@
 
   "shareTopic": "Setting: {value}",
   "@shareTopic": { "placeholders": { "value": { "type": "String" } } },
-  "shareStyle": "Register: {value}",
+  "shareStyle": "Style: {value}",
   "@shareStyle": { "placeholders": { "value": { "type": "String" } } },
   "shareEmotion": "Mood: {value}",
   "@shareEmotion": { "placeholders": { "value": { "type": "String" } } },

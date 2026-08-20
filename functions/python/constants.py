@@ -443,11 +443,11 @@ RESPONSE_JSON_SCHEMA = {
             "properties": {
                 "usage_scenarios": {
                     "type": "string",
-                    "description": "使用場面の説明。50文字以内。",
+                    "description": "使用場面の説明。日本語で、50文字以内（タイ語・英語不可）。",
                 },
                 "cultural_notes": {
                     "type": "string",
-                    "description": "文化的な補足情報。50文字以内。",
+                    "description": "文化的な補足情報。日本語で、50文字以内（タイ語・英語不可）。",
                 },
             },
             "required": [
@@ -497,8 +497,8 @@ _SCHEMA_DESCRIPTIONS_EN = {
     "note": "用法・ニュアンス・類語との違い（英語、50語以内）",
     # context は詳細画面にそのまま表示される。ここを訳し忘れると英語UIの中で
     # 「使用シーン」「文化的背景」だけ日本語で出る。
-    "usage_scenarios": "使用場面の説明。英語で、25語以内。",
-    "cultural_notes": "文化的な補足情報。英語で、25語以内。",
+    "usage_scenarios": "使用場面の説明。英語で、25語以内（タイ語・日本語不可）。",
+    "cultural_notes": "文化的な補足情報。英語で、25語以内（タイ語・日本語不可）。",
 }
 
 # LLM に生成させる context フィールドの en 版 description。

@@ -41,6 +41,10 @@ class QuizScreen extends ConsumerStatefulWidget {
   final String? optionalChallengeLabel;
   final bool showVocabScoreTransition;
 
+  /// 通知の案内を出してよいタイミングになったことを伝える。
+  /// まとめクイズの結果が出たとき、またはその誘導を「あとで」で見送ったとき。
+  final VoidCallback? onNotificationCue;
+
   const QuizScreen({
     super.key,
     this.showAppBar = true,
@@ -52,11 +56,32 @@ class QuizScreen extends ConsumerStatefulWidget {
     this.nextButtonLabel,
     this.optionalChallengeLabel,
     this.showVocabScoreTransition = false,
+    this.onNotificationCue,
   });
 
   @override
   ConsumerState<QuizScreen> createState() => _QuizScreenState();
 }
+
+/// 全問正解時のクラッカー演出の長さ。サマリー画面のコーチマークは
+/// これが終わってから出す。
+const Duration _celebrationDuration = Duration(milliseconds: 1400);
+
+/// 語彙スコアの加算演出の長さ。クラッカーと同時に始まる。
+const Duration _vocabTransitionDuration = Duration(milliseconds: 1200);
+
+/// 演出が終わってから通知の案内へ移るまでの間。増えた数字を読む時間がないまま
+/// 画面が切り替わると、何が起きたのか分からなくなる。
+const Duration _notificationCuePause = Duration(milliseconds: 600);
+
+/// 結果画面の案内を「あとで」で断ったか。断った直後に別の案内を出すと、
+/// 断った意味がなくなる。この起動の間だけ黙る（表示済みフラグは立てないので、
+/// 次回起動では出し直される）。
+bool _summaryCoachDeclined = false;
+
+/// テスト用に断りの記憶を消す。
+@visibleForTesting
+void resetSummaryCoachDeclined() => _summaryCoachDeclined = false;
 
 class _QuizScreenState extends ConsumerState<QuizScreen>
     with SingleTickerProviderStateMixin {
@@ -76,7 +101,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final rng = math.Random(7);
     _celebrationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: _celebrationDuration,
     );
     _confettiParticles = List.generate(18, (index) {
       final angle = math.pi * (1.08 + rng.nextDouble() * 0.84);
@@ -109,8 +134,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (widget.showVocabScoreTransition) {
           _logSummaryQuizComplete(next);
         }
-        _maybeShowChallengeCoach();
-        _maybeShowNextTopicCoach();
+        // 同じサマリーで何度も走らせない。状態が再通知されるたびに別の案内が
+        // 出ると、閉じた直後に次の案内が現れる。
+        if (prev is! QuizSummary) {
+          _maybeShowChallengeCoach();
+          _maybeShowNextTopicCoach();
+          unawaited(_cueNotificationCoach());
+        }
       }
       if (widget.showVocabScoreTransition &&
           next is QuizAnswering &&
@@ -160,12 +190,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
   }
 
+  /// 結果画面の演出が終わるまで待つ。演出中に案内を重ねると、紙吹雪や
+  /// 加算アニメーションに隠れて何を勧められたのか残らない。
+  /// クラッカーと語彙スコアは同時に始まるので、長い方だけ待てばよい。
+  Future<void> _waitForResultAnimations() async {
+    final celebration = _celebrationController.isAnimating
+        ? _celebrationDuration * (1 - _celebrationController.value)
+        : Duration.zero;
+    final vocab = widget.showVocabScoreTransition
+        ? _vocabTransitionDuration
+        : Duration.zero;
+    final wait = celebration > vocab ? celebration : vocab;
+    if (wait > Duration.zero) await Future<void>.delayed(wait);
+  }
+
+  /// まとめクイズの結果が出たら、演出が落ち着いてから通知の案内へ渡す。
+  Future<void> _cueNotificationCoach() async {
+    if (widget.onNotificationCue == null) return;
+    if (!widget.showVocabScoreTransition) return;
+    await _waitForResultAnimations();
+    await Future<void>.delayed(_notificationCuePause);
+    if (!mounted || ref.read(quizControllerProvider) is! QuizSummary) return;
+    widget.onNotificationCue!.call();
+  }
+
   /// まとめクイズ誘導ボタンを初回だけスポットライトで案内する。
   /// 確認クイズのサマリーで誘導ボタンが出る場合のみ、1回限り。
   Future<void> _maybeShowChallengeCoach() async {
     if (widget.onOptionalChallenge == null) return;
+    if (_summaryCoachDeclined) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(AppConfig.prefKeyQuizButtonCoachShown) ?? false) return;
+
+    await _waitForResultAnimations();
+    if (!mounted) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
@@ -177,11 +235,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       CoachMarkOverlay.show(
         context,
         targetKey: _optionalChallengeKey,
+        id: 'summary_quiz',
+        analytics: ref.read(analyticsServiceProvider),
+        // 押すと5問のまとめクイズが始まる。今やらない選択を残す。
+        skippable: true,
         icon: Icons.emoji_events,
-        interactive: true,
         title: L10n.of(context).coachSummaryQuizTitle,
         message: L10n.of(context).coachSummaryQuizMessage,
         emphasis: L10n.of(context).coachSummaryQuizEmphasis,
+        // まとめクイズを見送った人にはここで通知の案内へ回す。今日の学習は
+        // ここで終わるので、次に戻ってくる手段を渡せる最後の場所になる。
+        onDismiss: (action) {
+          if (action != 'skipped') return;
+          _summaryCoachDeclined = true;
+          widget.onNotificationCue?.call();
+        },
       );
     });
   }
@@ -192,12 +260,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Future<void> _maybeShowNextTopicCoach() async {
     if (widget.onNextSentence == null) return;
     if (widget.onOptionalChallenge != null) return;
+    if (_summaryCoachDeclined) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(AppConfig.prefKeyNextTopicCoachShown) ?? false) return;
+
+    await _waitForResultAnimations();
+    if (!mounted) return;
 
     // サマリー画面が描画され、チップの位置が確定してから表示する。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
+          _summaryCoachDeclined ||
           ref.read(quizControllerProvider) is! QuizSummary ||
           _nextTopicKey.currentContext == null) {
         return;
@@ -207,10 +280,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       CoachMarkOverlay.show(
         context,
         targetKey: _nextTopicKey,
+        id: 'next_topic',
+        analytics: ref.read(analyticsServiceProvider),
+        // 今テーマを変えない人にも逃げ道を出す。
+        skippable: true,
         icon: Icons.palette_outlined,
-        interactive: true,
         title: L10n.of(context).coachTopicTitle,
         message: L10n.of(context).coachTopicMessage,
+        onDismiss: (action) {
+          if (action == 'skipped') _summaryCoachDeclined = true;
+        },
       );
     });
   }
@@ -1158,7 +1237,7 @@ class _ConfettiPainter extends CustomPainter {
 
 // ==================== 出題ビュー ====================
 
-class _QuizQuestionView extends StatefulWidget {
+class _QuizQuestionView extends ConsumerStatefulWidget {
   final QuizQuestion question;
   final int questionIndex;
   final int totalQuestions;
@@ -1189,10 +1268,10 @@ class _QuizQuestionView extends StatefulWidget {
   });
 
   @override
-  State<_QuizQuestionView> createState() => _QuizQuestionViewState();
+  ConsumerState<_QuizQuestionView> createState() => _QuizQuestionViewState();
 }
 
-class _QuizQuestionViewState extends State<_QuizQuestionView>
+class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     with WidgetsBindingObserver {
   int _hintLevel = 0;
   bool _reviewedSentence = false;
@@ -1259,8 +1338,11 @@ class _QuizQuestionViewState extends State<_QuizQuestionView>
       final shown = CoachMarkOverlay.show(
         context,
         targetKey: targetKey,
+        id: 'quiz_review',
+        analytics: ref.read(analyticsServiceProvider),
+        // 押すと解答中に例文へ移る。そのまま解きたい人を止めない。
+        skippable: true,
         icon: Icons.menu_book_outlined,
-        interactive: true,
         title: L10n.of(context).coachQuizReviewTitle,
         message: L10n.of(context).coachQuizReviewMessage,
       );
