@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home-screen app name. Android picks by device language; the in-app
+         language is a separate axis (decided by storefront). -->
+    <string name="app_name">Daily Thai</string>
+</resources>

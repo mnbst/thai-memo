@@ -260,6 +260,19 @@ class ToneExplanationDialog extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 4),
+            // どのような声調かの簡潔な説明
+            Padding(
+              padding: const EdgeInsets.only(left: 28),
+              child: Text(
+                resultingTone.description(L10n.of(context)),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant,
+                    ),
+              ),
+            ),
             const SizedBox(height: 16),
             // 声調テーブル
             _buildCompactToneTable(context, consonantClass, toneMark,
@@ -535,6 +548,20 @@ class ToneExplanationDialog extends StatelessWidget {
                       ),
                 ),
               ],
+            ),
+            const SizedBox(height: 4),
+            // どのような声調かの簡潔な説明
+            Padding(
+              padding: const EdgeInsets.only(left: 28),
+              child: Text(
+                analysis.resultingTone.description(L10n.of(context)),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onPrimaryContainer
+                          .withValues(alpha: 0.7),
+                    ),
+              ),
             ),
           ],
         ),

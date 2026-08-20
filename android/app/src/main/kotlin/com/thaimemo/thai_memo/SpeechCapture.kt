@@ -143,7 +143,9 @@ class SpeechCaptureChannel(context: Context) : MethodChannel.MethodCallHandler {
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
-      "hasPermission" -> result.success(capture.requestPermission())
+      "hasPermission" -> result.success(capture.hasPermission())
+
+      "requestPermission" -> result.success(capture.requestPermission())
 
       "start" -> try {
         capture.start()

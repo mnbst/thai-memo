@@ -6,4 +6,4 @@
 "NSMicrophoneUsageDescription" = "We use the microphone to check your pronunciation. Your audio is processed entirely on this device and is never uploaded.";
 
 /* Speech recognition permission prompt. Used to check intelligibility, on-device. */
-"NSSpeechRecognitionUsageDescription" = "We use speech recognition to check whether your pronunciation is understandable. Recognition runs on this device.";
+"NSSpeechRecognitionUsageDescription" = "Used to check whether your Thai pronunciation is understandable. It is only used for pronunciation practice in this app.";

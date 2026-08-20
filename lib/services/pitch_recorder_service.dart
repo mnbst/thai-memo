@@ -236,18 +236,27 @@ class PitchRecorderService {
 
   bool get isRecording => _recording;
 
-  /// マイクの使用許可。未許可なら要求ダイアログが出る。
+  /// マイクの使用許可の有無。ダイアログは出さない。
   Future<bool> hasPermission() => _capture.hasPermission();
 
+  /// マイクの使用許可を求める。許可されたら true。
+  Future<bool> requestPermission() => _capture.requestPermission();
+
   /// 収録を開始する。上限時間に達すると自動的に停止する。
-  Future<void> start() async {
+  ///
+  /// 上限で打ち切ったときは [onLimit] を呼ぶ。呼び出し側に伝えないと、
+  /// 収録は止まっているのに画面だけ録音中のまま残る。
+  Future<void> start({VoidCallback? onLimit}) async {
     if (_recording) return;
 
     await _capture.start();
     _recording = true;
     _limitTimer = Timer(
       const Duration(seconds: kMaxRecordingSeconds),
-      () => unawaited(_capture.cancel().then((_) => _recording = false)),
+      () => unawaited(_capture.cancel().then((_) {
+        _recording = false;
+        onLimit?.call();
+      })),
     );
   }
 

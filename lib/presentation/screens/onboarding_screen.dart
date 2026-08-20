@@ -76,14 +76,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLastPage = _currentPage == _pages.length - 1;
+    // 戻るは置かない。端末の戻る操作（Android の戻るボタン・iOS の
+    // スワイプ）も塞ぐ。スキップは残す（読みたくない人を閉じ込めない）。
+    return PopScope(
+      canPop: false,
+      child: _buildScaffold(context),
+    );
+  }
 
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        automaticallyImplyLeading: false,
         actions: [
-          if (!isLastPage)
+          // 最後の1枚では「次へ」と役割が重なるので出さない。
+          if (_currentPage < _pages.length - 1)
             TextButton(
               onPressed: () => _complete(skipped: true),
               child: Text(L10n.of(context).onboardingSkip),
@@ -116,11 +125,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
+                    // 最後の1枚でも「はじめる」にはしない。次に出るのは
+                    // アプリ本体ではなくヒアリングなので、始まるのは学習ではない。
                     child: FilledButton(
                       onPressed: _nextPage,
-                      child: Text(isLastPage
-                          ? L10n.of(context).onboardingStart
-                          : L10n.of(context).onboardingNext),
+                      child: Text(L10n.of(context).onboardingNext),
                     ),
                   ),
                 ],

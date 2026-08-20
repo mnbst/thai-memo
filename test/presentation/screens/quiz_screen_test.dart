@@ -9,7 +9,11 @@ import 'package:thai_memo/data/datasources/local/database_helper.dart';
 import 'package:thai_memo/data/models/quiz_question.dart';
 import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
+import 'package:thai_memo/presentation/providers/analytics_provider.dart';
 import 'package:thai_memo/presentation/providers/quiz_provider.dart';
+import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
+import 'package:thai_memo/presentation/providers/settings_provider.dart';
+import 'package:thai_memo/presentation/providers/vocab_stats_provider.dart';
 import 'package:thai_memo/presentation/screens/quiz_screen.dart';
 
 import '../../helpers/fake_firebase.dart';
@@ -92,9 +96,14 @@ class _QuizHarness {
 
 Future<_QuizHarness> _pumpSummaryQuiz(
   WidgetTester tester, {
+  ThaiSentence? learningSentence,
+  Future<void> Function()? onNextSentence,
+  Future<void> Function()? onOptionalChallenge,
   bool blockFirstInsert = false,
   List<QuizQuestion>? questions,
   double textScale = 1,
+  bool showVocabScoreTransition = false,
+  VoidCallback? onNotificationCue,
 }) async {
   final database = _FakeDatabaseHelper(blockFirstInsert: blockFirstInsert);
   final controller = QuizController(
@@ -109,6 +118,12 @@ Future<_QuizHarness> _pumpSummaryQuiz(
     ProviderScope(
       overrides: [
         quizControllerProvider.overrideWith((ref) => controller),
+        vocabStatsProvider.overrideWith(
+          (ref) => Stream.value(const VocabStats(estimatedVocab: 20)),
+        ),
+        effectivePremiumProvider.overrideWithValue(false),
+        analyticsServiceProvider.overrideWithValue(FakeAnalyticsService()),
+        generationParamsProvider.overrideWithValue(const {'topic': null}),
       ],
       child: MaterialApp(
         locale: const Locale('ja'),
@@ -120,7 +135,13 @@ Future<_QuizHarness> _pumpSummaryQuiz(
           ),
           child: child!,
         ),
-        home: const QuizScreen(),
+        home: QuizScreen(
+          learningSentence: learningSentence,
+          onNextSentence: onNextSentence,
+          onOptionalChallenge: onOptionalChallenge,
+          showVocabScoreTransition: showVocabScoreTransition,
+          onNotificationCue: onNotificationCue,
+        ),
       ),
     ),
   );
@@ -132,6 +153,7 @@ Future<_QuizHarness> _pumpSummaryQuiz(
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    resetSummaryCoachDeclined();
   });
 
   testWidgets('正解は同じ問題内で表示し、二重送信せず自動で次問へ進む', (tester) async {
@@ -335,6 +357,74 @@ void main() {
     await tester.pump();
 
     expect(harness.controller.state, isA<QuizSummary>());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+  });
+
+  testWidgets('まとめクイズの結果が出ると、演出が終わってから通知の案内へ渡す', (tester) async {
+    var cued = 0;
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      showVocabScoreTransition: true,
+      onNotificationCue: () => cued += 1,
+    );
+
+    // 全問を誤答で通す（クラッカー演出は出ない経路）。
+    for (var i = 0; i < _questions.length; i++) {
+      await harness.controller.answerQuestion(1);
+      await tester.pump();
+      await harness.controller.nextQuestion();
+      await tester.pump();
+    }
+    expect(harness.controller.state, isA<QuizSummary>());
+
+    // 語彙スコアの加算演出が流れている間はまだ渡さない。
+    await tester.pump(const Duration(milliseconds: 1200));
+    expect(cued, 0);
+
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(cued, 1);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('まとめクイズの案内を「あとで」で断ったら、テーマの案内は続けて出さない',
+      (tester) async {
+    // 案内カードは対象の近くに出る。結果画面が縦に長いので画面も広く取る。
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final questions = _questions.take(2).toList();
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      questions: questions,
+      onNextSentence: () async {},
+      onOptionalChallenge: () async {},
+    );
+
+    for (var i = 0; i < questions.length; i++) {
+      await harness.controller.answerQuestion(1);
+      await tester.pump();
+      await harness.controller.nextQuestion();
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+
+    expect(find.text('まとめクイズに挑戦'), findsOneWidget);
+    await tester.tap(find.text('あとで'));
+    await tester.pumpAndSettle();
+
+    // 断った直後に別の案内を重ねない。
+    expect(find.text('次の例文のテーマを選べます'), findsNothing);
+
+    // 誘導ボタンのない結果画面へ移っても、この起動の間は出さない。
+    await _pumpSummaryQuiz(
+      tester,
+      questions: questions,
+      onNextSentence: () async {},
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('次の例文のテーマを選べます'), findsNothing);
+
+    // レビュー依頼の遅延タイマーを消化してから終える。
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
   });

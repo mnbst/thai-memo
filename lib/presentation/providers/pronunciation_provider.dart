@@ -132,14 +132,23 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     await _tts.stopAll();
 
     if (!await _recorder.hasPermission()) {
-      state = const PronunciationState(
-        phase: PronunciationPhase.permissionDenied,
-      );
+      final granted = await _recorder.requestPermission();
+      if (!mounted) return;
+      if (!granted) {
+        state = const PronunciationState(
+          phase: PronunciationPhase.permissionDenied,
+        );
+        return;
+      }
+      // 許可した直後は録音を始めない。ダイアログを閉じた頃には押していた指が
+      // 離れていて、離した合図（onTapUp）が来ないまま録り続けてしまう。
+      // 押し直してもらう。
+      state = const PronunciationState();
       return;
     }
 
     try {
-      await _recorder.start();
+      await _recorder.start(onLimit: _onRecordingLimit);
     } catch (error) {
       // 収録が始められなければ、黙って idle に留まらせない。押しても何も
       // 起きない状態は原因が分からず、いちばん困る。
@@ -153,6 +162,14 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     }
     if (!mounted) return;
     state = const PronunciationState(phase: PronunciationPhase.recording);
+  }
+
+  /// 上限時間で収録が打ち切られたときの後始末。音声は捨てられているので
+  /// 判定はせず、押し直せる状態に戻す。
+  void _onRecordingLimit() {
+    if (!mounted) return;
+    if (state.phase != PronunciationPhase.recording) return;
+    state = const PronunciationState();
   }
 
   /// 録音を止めて判定する。

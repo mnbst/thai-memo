@@ -784,6 +784,24 @@ enum ThaiTone {
     }
   }
 
+  /// どのような声調かの簡潔な説明（声調解説ダイアログの結果欄で表示）
+  String description(L10n l10n) {
+    switch (this) {
+      case ThaiTone.mid:
+        return l10n.toneMidDesc;
+      case ThaiTone.low:
+        return l10n.toneLowDesc;
+      case ThaiTone.falling:
+        return l10n.toneFallingDesc;
+      case ThaiTone.high:
+        return l10n.toneHighDesc;
+      case ThaiTone.rising:
+        return l10n.toneRisingDesc;
+      case ThaiTone.unknown:
+        return '';
+    }
+  }
+
   String get symbol {
     switch (this) {
       case ThaiTone.mid:
