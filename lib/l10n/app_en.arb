@@ -35,6 +35,10 @@
   "coachSentenceCardMessage": "The Thai text is on top and its reading below. Press play to hear the model audio. The translation is further down.",
   "coachPronunciationTitle": "Say it out loud",
   "coachPronunciationMessage": "Hold the button and read it aloud. Your tones are checked on the spot.",
+  "coachTargetWordsTitle": "The quiz asks about this word",
+  "coachTargetWordsEmphasis": "today's word",
+  "coachTargetWordsMessage": "The review quiz asks about today's word. See how it is used in the sentence, then head to the review quiz.",
+
   "coachWordBreakdownTitle": "See it word by word",
   "coachWordBreakdownMessage": "This lists the words the sentence is made of. Tap a word to open its tone explanation.",
   "coachContextTitle": "Check how it is used",
@@ -96,7 +100,7 @@
   "coachQuizReviewMessage": "Not sure of the answer? Check the sentence again from here before you answer.",
   "coachSummaryQuizTitle": "Try the review quiz",
   "coachSummaryQuizEmphasis": "every 5 sentences",
-  "coachSummaryQuizMessage": "A quiz that reviews everything you've studied. It normally comes around every 5 sentences. You can also skip it and move on to the next sentence.",
+  "coachSummaryQuizMessage": "A quiz that reviews everything you've studied. It normally comes around every 5 sentences. Give it a try this first time.",
   "coachTopicTitle": "You can pick the next topic",
   "coachTopicMessage": "Tap here to change the topic of your next sentence (travel, romance, and more). Study whatever you're in the mood for.",
 

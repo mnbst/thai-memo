@@ -75,6 +75,16 @@ class L10nJa extends L10n {
   String get coachQuizMessage => '例文を読んだら、確認クイズに進みましょう。';
 
   @override
+  String get coachTargetWordsTitle => 'クイズに出るのはこの単語';
+
+  @override
+  String get coachTargetWordsEmphasis => '今日の学習単語';
+
+  @override
+  String get coachTargetWordsMessage =>
+      '確認クイズで問われるのは今日の学習単語です。例文の中でどう使われているかを見てから、確認クイズに進みましょう。';
+
+  @override
   String get coachSentenceCardTitle => '今日の例文';
 
   @override
@@ -239,7 +249,7 @@ class L10nJa extends L10n {
 
   @override
   String get coachSummaryQuizMessage =>
-      '学習した内容をまとめて確認するクイズです。本来は例文5つごとに出ます。スキップして次の例文に進むこともできます。';
+      '学習した内容をまとめて確認するクイズです。本来は例文5つごとに出ます。まずは一度やってみましょう。';
 
   @override
   String get coachTopicTitle => '次の例文のテーマを選べます';

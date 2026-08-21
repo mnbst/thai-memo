@@ -115,6 +115,9 @@ lib/presentation/providers/subscription_provider.dart
 lib/presentation/providers/settings_provider.dart
 ユーザー設定（初回起動フラグ、テーマ、生成パラメータ、フォント、アプリ言語）。
 
+lib/presentation/providers/interview_goal_provider.dart
+ヒアリングの用途（interview.goal）。テーマ未指定時の例文テーマを端末側で決める。
+
 lib/presentation/providers/tts_provider.dart
 タイ語発音再生のText-to-Speechサービス。
 
@@ -219,6 +222,7 @@ lib/services/app_version_reporter.dart
 
 lib/services/interview_reporter.dart
 オンボ直後のヒアリング回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
+
 
 lib/services/daily_sentence_service.dart
 サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、今日ぶんの配信例文を返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。

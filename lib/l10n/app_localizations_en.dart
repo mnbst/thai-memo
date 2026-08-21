@@ -79,6 +79,16 @@ class L10nEn extends L10n {
       'Once you\'ve read the sentence, move on to the quiz.';
 
   @override
+  String get coachTargetWordsTitle => 'The quiz asks about this word';
+
+  @override
+  String get coachTargetWordsEmphasis => 'today\'s word';
+
+  @override
+  String get coachTargetWordsMessage =>
+      'The review quiz asks about today\'s word. See how it is used in the sentence, then head to the review quiz.';
+
+  @override
   String get coachSentenceCardTitle => 'Today\'s sentence';
 
   @override
@@ -249,7 +259,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachSummaryQuizMessage =>
-      'A quiz that reviews everything you\'ve studied. It normally comes around every 5 sentences. You can also skip it and move on to the next sentence.';
+      'A quiz that reviews everything you\'ve studied. It normally comes around every 5 sentences. Give it a try this first time.';
 
   @override
   String get coachTopicTitle => 'You can pick the next topic';

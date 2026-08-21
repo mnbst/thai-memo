@@ -229,6 +229,24 @@ abstract class L10n {
   /// **'例文を読んだら、確認クイズに進みましょう。'**
   String get coachQuizMessage;
 
+  /// No description provided for @coachTargetWordsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズに出るのはこの単語'**
+  String get coachTargetWordsTitle;
+
+  /// No description provided for @coachTargetWordsEmphasis.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の学習単語'**
+  String get coachTargetWordsEmphasis;
+
+  /// No description provided for @coachTargetWordsMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'確認クイズで問われるのは今日の学習単語です。例文の中でどう使われているかを見てから、確認クイズに進みましょう。'**
+  String get coachTargetWordsMessage;
+
   /// No description provided for @coachSentenceCardTitle.
   ///
   /// In ja, this message translates to:

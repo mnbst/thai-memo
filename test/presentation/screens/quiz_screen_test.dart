@@ -387,8 +387,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('まとめクイズの案内を「あとで」で断ったら、テーマの案内は続けて出さない',
-      (tester) async {
+  testWidgets('まとめクイズの案内は初回だけ強制で、逃げ道を出さない', (tester) async {
     // 案内カードは対象の近くに出る。結果画面が縦に長いので画面も広く取る。
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -409,20 +408,53 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('まとめクイズに挑戦'), findsOneWidget);
-    await tester.tap(find.text('あとで'));
+    // 「あとで」は出さない。
+    expect(find.text('あとで'), findsNothing);
+
+    // 暗幕を押しても閉じない（押せる場所は光っているボタンだけ）。
+    await tester.tapAt(const Offset(400, 40));
     await tester.pumpAndSettle();
+    expect(find.text('まとめクイズに挑戦'), findsOneWidget);
 
-    // 断った直後に別の案内を重ねない。
-    expect(find.text('次の例文のテーマを選べます'), findsNothing);
+    // レビュー依頼の遅延タイマーを消化してから終える。
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+  });
 
-    // 誘導ボタンのない結果画面へ移っても、この起動の間は出さない。
-    await _pumpSummaryQuiz(
+  testWidgets('テーマの案内を「あとで」で断ったら、別の案内は続けて出さない',
+      (tester) async {
+    // 案内カードは対象の近くに出る。結果画面が縦に長いので画面も広く取る。
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final questions = _questions.take(2).toList();
+    final harness = await _pumpSummaryQuiz(
       tester,
       questions: questions,
       onNextSentence: () async {},
     );
+
+    for (var i = 0; i < questions.length; i++) {
+      await harness.controller.answerQuestion(1);
+      await tester.pump();
+      await harness.controller.nextQuestion();
+      await tester.pump();
+    }
     await tester.pumpAndSettle();
-    expect(find.text('次の例文のテーマを選べます'), findsNothing);
+
+    expect(find.text('次の例文のテーマを選べます'), findsOneWidget);
+    await tester.tap(find.text('あとで'));
+    await tester.pumpAndSettle();
+
+    // 断った直後に別の案内を重ねない。誘導ボタンのある結果画面へ移っても、
+    // この起動の間は出さない。
+    await _pumpSummaryQuiz(
+      tester,
+      questions: questions,
+      onNextSentence: () async {},
+      onOptionalChallenge: () async {},
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('まとめクイズに挑戦'), findsNothing);
 
     // レビュー依頼の遅延タイマーを消化してから終える。
     await tester.pump(const Duration(seconds: 2));

@@ -8,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/interview_reporter.dart';
 import '../providers/analytics_provider.dart';
+import '../providers/interview_goal_provider.dart';
 
 /// オンボーディングとコーチマークの間に挟む、タイ語との距離のヒアリング。
 ///
@@ -21,7 +22,7 @@ import '../providers/analytics_provider.dart';
 /// スキップは置かない。4問とも答えてから最後の1画面へ進む。
 ///
 /// 回答は端末に残し、users doc にも送る。goal は例文のテーマ選択に効く
-/// （サーバー側 resolve_interview_topic）。難易度は動かさない（語彙推定は
+/// （端末側 GenerationConstants.topicForInterviewGoal）。難易度は動かさない（語彙推定は
 /// クイズの結果でしか動かさない）。
 /// 目的は、考え方を本人の状況に寄せて伝えることと、「自分に合わせて
 /// 作られる」という前提をここで納得してもらうこと。
@@ -195,18 +196,19 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
     }
     // 全問スキップでも立てる。答えなかったことも分析の対象。
     await prefs.setBool(AppConfig.prefKeyInterviewCompleted, true);
+    // 初回例文のテーマはこの回答から端末側で決める。起動時の設定読み込みは
+    // 既に済んでいるので、ここで載せないと初回だけテーマが効かない。
+    ref.read(interviewGoalProvider.notifier).set(_answers['goal']);
     unawaited(
       ref.read(analyticsServiceProvider).logInterview(
             action: 'complete',
             answeredCount: _answers.length,
           ),
     );
-    // 例文のテーマはこの書き込みを読んで決まるので、着地してから知らせる。
-    // 詰まっているときは諦めて生成へ進ませる（回答は端末に残るので、
-    // 次の起動で送り直される。失うのは初回のテーマ反映だけ）。
-    await InterviewReporter()
-        .report()
-        .timeout(const Duration(seconds: 3), onTimeout: () {});
+    // 回答は users doc にも送る（属性 × 定着の分析と、端末を経由しない
+    // 毎日配信のテーマ決定に使う）。例文のテーマは端末側で決めるので、
+    // 生成はこの書き込みの着地を待たない。
+    unawaited(InterviewReporter().report());
     widget.onAnswersReady?.call();
   }
 

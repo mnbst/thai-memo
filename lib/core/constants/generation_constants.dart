@@ -12,6 +12,8 @@
 // 全パラメータ・全選択肢にアクセスでき、さらに自由入力プロンプトも使用可能。
 // =============================================================================
 
+import 'dart:math';
+
 /// 例文生成パラメータの選択肢を定義する定数クラス。
 ///
 /// 各パラメータ（スタイル、テーマ、丁寧さ等）の選択肢リストと、
@@ -59,6 +61,44 @@ class GenerationConstants {
     '伝統・祭り（ソンクラーン、ロイクラトン、王室行事、地域の伝統料理）',
     '礼儀作法（ワイの使い分け、敬語、タブー、食事マナー、贈り物）',
   ];
+
+  // ---------------------------------------------------------------------------
+  // ヒアリング（オンボーディングの4問）の goal → テーマ候補
+  // ---------------------------------------------------------------------------
+
+  /// ヒアリングで申告した用途（interview.goal）に対応するテーマ候補。
+  /// テーマ未指定（おまかせ）のとき、ここから引いたテーマを明示指定として
+  /// CF へ渡す。候補が複数あるものは生成のたびに引き直す（1テーマに固定すると
+  /// 入門帯の旅行偏りを別のテーマに置き換えるだけになる）。
+  ///
+  /// 候補はヒアリング最終画面の文言（philosophy3Travel/Work/Live/Culture）が
+  /// 名指ししているテーマを必ず含める。「『旅行』や『交通』が届きます」と
+  /// 伝えた相手に別のテーマを出すと、その場で反故になる。学校・宗教・礼儀作法は
+  /// どの文言でも触れていないので、語彙要求の高さを取って候補に入れない。
+  ///
+  /// 端末を経由しない毎日配信（deliverDailySentence）だけはサーバー側で同じ
+  /// 対応表を使う（constants.py: INTERVIEW_GOAL_TOPICS）。並びを変えるときは
+  /// 両方直すこと。
+  static final interviewGoalTopics = <String, List<String>>{
+    // 旅行・交通（+買い物/食べ物）
+    'travel': [topics[5], topics[8], topics[7], topics[4]],
+    // 仕事（+あいさつ）
+    'work': [topics[2], topics[3]],
+    // 買い物・家族（+健康/天気/交通/食べ物）
+    'live': [topics[7], topics[6], topics[9], topics[10], topics[8], topics[4]],
+    // タイBLドラマ・伝統・祭り（+趣味/恋愛）
+    'culture': [topics[0], topics[14], topics[11], topics[1]],
+  };
+
+  /// [goal] に対応するテーマを1つ引く。未回答・未知の goal では null を返し、
+  /// サーバーの自動選出（key_word 起点）に任せる。
+  static String? topicForInterviewGoal(String? goal) {
+    final candidates = interviewGoalTopics[goal];
+    if (candidates == null || candidates.isEmpty) return null;
+    return candidates[_random.nextInt(candidates.length)];
+  }
+
+  static final _random = Random();
 
   // ---------------------------------------------------------------------------
   // 丁寧さレベルの選択肢
