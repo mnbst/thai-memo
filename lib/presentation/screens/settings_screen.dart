@@ -17,6 +17,7 @@ import '../providers/remaining_quota_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/vocab_stats_provider.dart';
+import '../../services/push_notification_service.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/sign_in_sheet.dart';
 import '../widgets/topic_picker.dart';
@@ -601,10 +602,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       subtitle: Text(L10n.of(context).settingsDailyNotificationSubtitle),
       value: enabled,
       onChanged: (value) async {
-        final applied = await ref
+        final result = await ref
             .read(settingsControllerProvider.notifier)
             .setDailyReminderEnabled(value);
-        if (!applied && mounted) {
+        // pending（許可済み・登録待ち）でOS設定へ誘導すると誤解を招く。
+        if (result == PushEnableResult.denied && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content:

@@ -89,6 +89,27 @@ void main() {
       expect(find.widgetWithText(TextButton, 'あとで'), findsOneWidget);
       expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);
     });
+
+    testWidgets('静かに届いている間はオンオフではなく昇格を聞く', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('ja'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: const Scaffold(
+            body: NotificationCoachDialog(quietDelivery: true),
+          ),
+        ),
+      );
+
+      // 既に届いている相手に「オンにする」「あとで」と聞かない。「あとで」を
+      // 選んだ人に通知が届き続けるのは、選択と結果が食い違う。
+      expect(find.text('通知をオンにする'), findsNothing);
+      expect(find.text('あとで'), findsNothing);
+      expect(find.widgetWithText(FilledButton, '目立つように受け取る'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'このままでいい'), findsOneWidget);
+      expect(find.textContaining('通知センターにだけ届いています'), findsOneWidget);
+    });
   });
 
   group('showNotificationCoachDialog', () {

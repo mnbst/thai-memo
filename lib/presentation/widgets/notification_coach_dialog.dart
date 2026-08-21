@@ -9,7 +9,15 @@ import '../../l10n/app_localizations.dart';
 /// iOSの許可ダイアログは一度拒否されると二度と出せないため、何のための通知かを
 /// このダイアログで伝えてから聞く、という順序自体は変えない。
 class NotificationCoachDialog extends StatelessWidget {
-  const NotificationCoachDialog({super.key});
+  const NotificationCoachDialog({super.key, this.quietDelivery = false});
+
+  /// 暫定許可で「静かな配信」が既に始まっているか。
+  ///
+  /// true のときは通知が届いていない前提の文言（「通知をオンにする」「あとで」）を
+  /// 使わない。既に届いているのに「オンにする」と聞くのは事実と違うし、「あとで」を
+  /// 選んだ人に通知が届き続けるのは約束を破ることになる。ここでの選択は
+  /// 「目立たせるか、静かなままにするか」であって、オンオフではない。
+  final bool quietDelivery;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +70,9 @@ class NotificationCoachDialog extends StatelessWidget {
           const _NotificationPreview(),
           const SizedBox(height: 8),
           Text(
-            L10n.of(context).notifCoachFooter,
+            quietDelivery
+                ? L10n.of(context).notifCoachQuietNote
+                : L10n.of(context).notifCoachFooter,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -76,11 +86,15 @@ class NotificationCoachDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: Text(L10n.of(context).notifCoachLater),
+          child: Text(quietDelivery
+              ? L10n.of(context).notifCoachKeepQuiet
+              : L10n.of(context).notifCoachLater),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
-          child: Text(L10n.of(context).notifCoachEnable),
+          child: Text(quietDelivery
+              ? L10n.of(context).notifCoachPromote
+              : L10n.of(context).notifCoachEnable),
         ),
       ],
     );
@@ -203,18 +217,23 @@ class _NotificationPreview extends StatelessWidget {
 /// コーチングダイアログを表示し、通知をオンにしてよいかを返す。
 ///
 /// バリアタップなど明示的な選択なしで閉じた場合は false（許可要求を出さない）。
-Future<bool> showNotificationCoachDialog(BuildContext context) async {
+Future<bool> showNotificationCoachDialog(
+  BuildContext context, {
+  bool quietDelivery = false,
+}) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (context) => const NotificationCoachDialog(),
+    builder: (context) => NotificationCoachDialog(quietDelivery: quietDelivery),
   );
   return result ?? false;
 }
 
 /// コーチングダイアログを出すべきか。
 ///
-/// [permissionGranted] はOSの通知許可状態で、null は判定不能（取得失敗）。
-/// 既に許可済みなら紹介する必要がなく、判定不能なら出さずに次の機会へ回す。
+/// [permissionGranted] はバナー・音つきの配信が許可されているかで、null は
+/// 判定不能（取得失敗）。既に許可済みなら紹介する必要がなく、判定不能なら
+/// 出さずに次の機会へ回す。暫定許可（静かな配信）のままの人は false 扱いで、
+/// ここで昇格を案内する対象になる。
 /// アプリ内設定 `dailyReminderEnabled` は既定オンで、OSが未許可でも
 /// syncPushRegistration がオフに倒すまで true のままなので判定には使わない。
 bool shouldShowNotificationCoach({

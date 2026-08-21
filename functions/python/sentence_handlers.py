@@ -24,6 +24,7 @@ try:
         get_freq_rank,
         pick_free_sentence,
         require_target_words,
+        resolve_interview_topic,
         select_uvm_target_words,
     )
     from .uvm import (
@@ -48,6 +49,7 @@ except ImportError:
         get_freq_rank,
         pick_free_sentence,
         require_target_words,
+        resolve_interview_topic,
         select_uvm_target_words,
     )
     from uvm import (
@@ -130,7 +132,12 @@ def _resolve_trial_active(
     return now < trial_expires_at
 
 
-def _effective_generation_params(params: dict, *, is_premium: bool) -> dict:
+def _effective_generation_params(
+    params: dict,
+    *,
+    is_premium: bool,
+    user_data: dict | None = None,
+) -> dict:
     """Free users always use automatic topic selection."""
     effective = dict(params)
     effective.pop("premium_trial", None)
@@ -139,6 +146,12 @@ def _effective_generation_params(params: dict, *, is_premium: bool) -> dict:
     effective.pop("lang", None)
     if not is_premium:
         effective.pop("topic", None)
+    # テーマ未指定なら、ヒアリングで申告した用途からテーマを決める。
+    # クライアントの明示指定（テーマ選択UI）が常に優先。
+    if is_premium and not effective.get("topic") and user_data:
+        goal_topic = resolve_interview_topic(user_data)
+        if goal_topic:
+            effective["topic"] = goal_topic
     return effective
 
 
@@ -440,6 +453,7 @@ def generateThaiSentence(req: https_fn.CallableRequest) -> dict:
         params = _effective_generation_params(
             req.data or {},
             is_premium=effective_premium,
+            user_data=user_data,
         )
         lang = log_data["lang"]
         estimated_vocab = _get_capped_estimated_vocab(user_data, use_premium_spec)

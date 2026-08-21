@@ -304,17 +304,19 @@ def test_context_records_every_server_decided_axis() -> None:
     assert "emotion" not in context
 
 
-def test_length_hint_starts_at_two_or_three_words() -> None:
-    """語彙ゼロの初回は 2〜3単語。7単語では入門者には長すぎた（2026-08-14 実測）。"""
-    assert prompts.get_difficulty(0)["length"] == "2〜3単語"
-    assert prompts.get_difficulty(9)["length"] == "2〜3単語"
+def test_length_hint_max_never_drops_below_five_words() -> None:
+    """上限指定の最小値は5単語。3語以下は文にならず key_word も機能語に埋まる
+    （2026-08-21 実測）。"""
+    for vocab in (0, 9, 30, 59, 100, 800, 1499):
+        hint = prompts.get_difficulty(vocab)["length"]
+        assert int(hint.removeprefix("〜").removesuffix("単語")) >= 5, vocab
 
 
 def test_length_hint_ramps_up_through_intro_band() -> None:
     """入門帯は語彙の伸びに応じて段階的に伸ばし、vocab=100 で従来の7単語に繋ぐ。"""
     lengths = [prompts.get_difficulty(v)["length"] for v in (0, 10, 30, 60, 100)]
 
-    assert lengths == ["2〜3単語", "〜4単語", "〜5単語", "〜6単語", "〜7単語"]
+    assert lengths == ["〜5単語", "〜5単語", "〜5単語", "〜6単語", "〜7単語"]
 
 
 def test_length_hint_above_intro_band_is_unchanged() -> None:
@@ -327,4 +329,4 @@ def test_intro_length_hint_reaches_prompt_text() -> None:
     """長さヒントが実際にプロンプト本文へ載る。"""
     prompt = build_uvm_prompt({}, target_words=["กิน"], estimated_vocab=0)
 
-    assert "長さ: 2〜3単語" in prompt
+    assert "長さ: 〜5単語" in prompt

@@ -1051,6 +1051,18 @@ class L10nJa extends L10n {
   String get notifCoachEnabled => '毎日この時間に例文をお届けします。時刻は設定で変更できます。';
 
   @override
+  String get notifCoachQuietNote => 'いまは音もバナーも無しで、通知センターにだけ届いています。';
+
+  @override
+  String get notifCoachPromote => '目立つように受け取る';
+
+  @override
+  String get notifCoachKeepQuiet => 'このままでいい';
+
+  @override
+  String get notifCoachStillQuiet => '通知はこれまでどおり、通知センターに静かに届きます。';
+
+  @override
   String get commonGotIt => 'わかった';
 
   @override
