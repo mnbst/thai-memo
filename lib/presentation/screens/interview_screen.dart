@@ -8,7 +8,6 @@ import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/interview_reporter.dart';
 import '../providers/analytics_provider.dart';
-import '../providers/interview_goal_provider.dart';
 
 /// オンボーディングとコーチマークの間に挟む、タイ語との距離のヒアリング。
 ///
@@ -21,8 +20,8 @@ import '../providers/interview_goal_provider.dart';
 ///
 /// スキップは置かない。4問とも答えてから最後の1画面へ進む。
 ///
-/// 回答は端末に残し、users doc にも送る。goal は例文のテーマ選択に効く
-/// （端末側 GenerationConstants.topicForInterviewGoal）。難易度は動かさない（語彙推定は
+/// 回答は端末に残し、users doc にも送る。goal は初期テーマの決定に使う
+/// （呼び出し側でテーマ設定に入れる）。難易度は動かさない（語彙推定は
 /// クイズの結果でしか動かさない）。
 /// 目的は、考え方を本人の状況に寄せて伝えることと、「自分に合わせて
 /// 作られる」という前提をここで納得してもらうこと。
@@ -37,10 +36,10 @@ class InterviewScreen extends ConsumerStatefulWidget {
 
   final VoidCallback onComplete;
 
-  /// 回答が users doc へ着いた（か、着かないと分かった）直後に一度だけ呼ぶ。
-  /// 初回例文の生成開始点。最後の設問に答えた時点で走るので、考え方の画面を
-  /// 読んでいる間に生成が進む。
-  final VoidCallback? onAnswersReady;
+  /// 回答を保存した直後に一度だけ呼ぶ。初回例文の生成開始点で、申告した用途
+  /// （goal・未回答なら null）を渡す。最後の設問に答えた時点で走るので、
+  /// 考え方の画面を読んでいる間に生成が進む。
+  final void Function(String? goal)? onAnswersReady;
 
   @override
   ConsumerState<InterviewScreen> createState() => _InterviewScreenState();
@@ -196,9 +195,6 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
     }
     // 全問スキップでも立てる。答えなかったことも分析の対象。
     await prefs.setBool(AppConfig.prefKeyInterviewCompleted, true);
-    // 初回例文のテーマはこの回答から端末側で決める。起動時の設定読み込みは
-    // 既に済んでいるので、ここで載せないと初回だけテーマが効かない。
-    ref.read(interviewGoalProvider.notifier).set(_answers['goal']);
     unawaited(
       ref.read(analyticsServiceProvider).logInterview(
             action: 'complete',
@@ -209,7 +205,7 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
     // 毎日配信のテーマ決定に使う）。例文のテーマは端末側で決めるので、
     // 生成はこの書き込みの着地を待たない。
     unawaited(InterviewReporter().report());
-    widget.onAnswersReady?.call();
+    widget.onAnswersReady?.call(_answers['goal']);
   }
 
   Future<void> _complete() async {

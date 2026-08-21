@@ -449,7 +449,15 @@ class SettingsController extends StateNotifier<SettingsState> {
   }
 
   /// Set a generation parameter (null = random)
-  Future<void> setGenerationParam(String key, String? value) async {
+  ///
+  /// [logChange] を false にすると設定変更イベントを送らない。ヒアリングの
+  /// 回答から初期テーマを入れる場合など、本人がテーマ選択UIを触っていない
+  /// ときに使う（テーマ選択の利用率を水増ししない）。
+  Future<void> setGenerationParam(
+    String key,
+    String? value, {
+    bool logChange = true,
+  }) async {
     if (value == null) {
       await _prefs?.remove(_prefKey(key));
     } else {
@@ -460,6 +468,7 @@ class SettingsController extends StateNotifier<SettingsState> {
     state = state.copyWith(generationParams: updatedParams);
     // テーマだけは配信バッチが参照するのでサーバーへミラーする
     if (key == 'topic') unawaited(_push.setPreferredTopic(value));
+    if (!logChange) return;
     unawaited(_analytics.logChangeSetting(key: key, value: value ?? 'random'));
   }
 

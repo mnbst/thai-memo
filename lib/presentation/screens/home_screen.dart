@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
+import '../../core/constants/generation_constants.dart';
 import '../../core/quota_error.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/syllable.dart';
@@ -489,10 +490,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           MaterialPageRoute(
             settings: const RouteSettings(name: InterviewScreen.routeName),
             builder: (context) => InterviewScreen(
-              // 回答が users doc へ着いた時点で生成を始める。最後の設問の
-              // 直後なので、考え方の画面と初回ガイドを読んでいる間に進む。
-              onAnswersReady: () {
-                _initialLoadFuture ??= _loadTodaySentence();
+              // 最後の設問の直後に生成を始める。考え方の画面と初回ガイドを
+              // 読んでいる間に進む。
+              onAnswersReady: (goal) {
+                _initialLoadFuture ??= _applyInterviewTopicAndLoad(goal);
               },
               onComplete: () {
                 Navigator.pop(context);
@@ -501,12 +502,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         );
       }
-      // 初回例文のテーマはヒアリングの回答から端末側で決めるので、users doc
-      // への書き込みを待つ必要はない（送信は分析と毎日配信のため）。通常は
-      // onAnswersReady で開始済み。考え方の画面を読まずに閉じた場合だけ
-      // ここが起点になる。
+      // 回答の送信は分析と毎日配信のため。テーマは端末側で決めるので、
+      // 書き込みの着地は待たない。通常は onAnswersReady で生成開始済みで、
+      // 考え方の画面を読まずに閉じた場合だけここが起点になる。
       unawaited(InterviewReporter().report());
-      _initialLoadFuture ??= _loadTodaySentence();
+      _initialLoadFuture ??= _applyInterviewTopicAndLoad(await _savedGoal());
 
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
@@ -529,6 +529,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // 履歴を更新
     ref.invalidate(allSentencesProvider);
+  }
+
+  /// 端末に残っているヒアリングの用途（interview.goal）。未回答なら null。
+  Future<String?> _savedGoal() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('${AppConfig.prefKeyInterviewPrefix}goal');
+  }
+
+  /// ヒアリングで申告した用途に関連するテーマを1つ引き、テーマ設定に入れてから
+  /// 初回例文を生成する。
+  ///
+  /// 以後の変更は本人がテーマ選択UIでやる。ここで設定に入れておくと、次の
+  /// テーマが画面に出るし、毎日配信（preferred_topic）にも同じテーマが乗る。
+  /// テーマ選択の利用率を水増ししないよう、設定変更イベントは送らない。
+  Future<void> _applyInterviewTopicAndLoad(String? goal) async {
+    final topic = GenerationConstants.topicForInterviewGoal(goal);
+    if (topic != null) {
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .setGenerationParam('topic', topic, logChange: false);
+    }
+    await _loadTodaySentence();
   }
 
   /// Firestoreフラグを取得し、未生成なら自動生成、済みなら最新を表示

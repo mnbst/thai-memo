@@ -115,9 +115,6 @@ lib/presentation/providers/subscription_provider.dart
 lib/presentation/providers/settings_provider.dart
 ユーザー設定（初回起動フラグ、テーマ、生成パラメータ、フォント、アプリ言語）。
 
-lib/presentation/providers/interview_goal_provider.dart
-ヒアリングの用途（interview.goal）。テーマ未指定時の例文テーマを端末側で決める。
-
 lib/presentation/providers/tts_provider.dart
 タイ語発音再生のText-to-Speechサービス。
 
