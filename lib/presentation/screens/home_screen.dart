@@ -13,6 +13,7 @@ import '../../data/models/word_breakdown.dart';
 import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
 import '../../services/interview_reporter.dart';
+import '../../services/push_notification_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
@@ -143,6 +144,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       await _checkFirstLaunchAndLoadSentence();
     } finally {
       await _handleInitialNotificationOpen();
+      await _ensureProvisionalPush();
       await _retryNotificationCoachIfPending();
       await _maybeShowPremiumTrialStarted();
       await _maybeShowPremiumTrialEnded();
@@ -233,6 +235,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await PaywallBottomSheet.show(context, source: 'trial_ended');
   }
 
+  /// 例文が手元にあるユーザーに、ダイアログを出さずに暫定許可を取る。
+  ///
+  /// 正式な許可（[_maybeShowNotificationCoach]）は「まとめクイズまで進んだ人」に
+  /// しか届かず、初日で離れる大半のユーザーは配信対象に入らないまま消える。
+  /// 暫定許可なら無音で通知センターに届くだけなので、体験を邪魔せずに
+  /// 送信先だけ確保できる。案内そのものは従来どおり後から出す。
+  ///
+  /// 例文が1つも無い状態では通知する中身も無いので、その回は見送る。
+  Future<void> _ensureProvisionalPush() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyProvisionalPushRequested) ?? false) {
+      return;
+    }
+    if (!mounted) return;
+    final sentences = await ref.read(allSentencesProvider.future);
+    if (sentences.isEmpty || !mounted) return;
+
+    final granted = await ref
+        .read(settingsControllerProvider.notifier)
+        .enableProvisionalPush();
+    // 取れなかった場合（Android・本人が判断済み・失敗）も二度は試さない。
+    await prefs.setBool(AppConfig.prefKeyProvisionalPushRequested, true);
+    if (!mounted) return;
+    unawaited(
+      ref.read(analyticsServiceProvider).logNotificationCoach(
+            action: granted ? 'provisional' : 'provisional_unavailable',
+          ),
+    );
+  }
+
   /// 例文の価値を体験済みなのに通知の案内をまだ出せていない場合、起動時に出し直す。
   ///
   /// 案内はまとめクイズ完了時に出すが、その完了を条件にすると取りこぼしが大きい。
@@ -300,7 +332,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (!mounted) return;
     if (!shouldShowNotificationCoach(
       coachShown: ref.read(settingsControllerProvider).notificationCoachShown,
-      permissionGranted: await controller.hasNotificationPermission(),
+      permissionGranted: await controller.hasProminentNotificationPermission(),
     )) {
       return;
     }
@@ -328,7 +360,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final coachShown =
         ref.read(settingsControllerProvider).notificationCoachShown;
-    final permissionGranted = await controller.hasNotificationPermission();
+    final permissionGranted = await controller.hasProminentNotificationPermission();
     if (!shouldShowNotificationCoach(
       coachShown: coachShown,
       permissionGranted: permissionGranted,
@@ -348,10 +380,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
 
-    final analytics = ref.read(analyticsServiceProvider);
-    unawaited(analytics.logNotificationCoach(action: 'shown'));
+    // 暫定許可で既に静かに届いている人には、オンオフではなく「目立たせるか」を
+    // 聞く。届いているのに「オンにする？」と聞き、「あとで」を選んだ相手に
+    // 通知を出し続けるのは筋が通らない。
+    final quietDelivery =
+        await controller.hasNotificationPermission() == true &&
+            permissionGranted == false;
+    if (!mounted) return;
 
-    final accepted = await showNotificationCoachDialog(context);
+    final analytics = ref.read(analyticsServiceProvider);
+    unawaited(analytics.logNotificationCoach(
+      action: quietDelivery ? 'shown_quiet' : 'shown',
+    ));
+
+    final accepted = await showNotificationCoachDialog(
+      context,
+      quietDelivery: quietDelivery,
+    );
     unawaited(
       analytics.logNotificationCoach(
         action: accepted ? 'accepted' : 'dismissed',
@@ -361,17 +406,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await controller.markNotificationCoachShown();
     if (!accepted || !mounted) return;
 
-    // ここでOSの許可ダイアログが出る。拒否された場合トグルはオフのままになる。
-    final enabled = await controller.setDailyReminderEnabled(true);
+    // ここでOSの許可ダイアログが出る。答えるまで下の await は返らないため、
+    // 要求に入ったこと自体を先に記録する。これが無いと「ダイアログを放置して
+    // アプリを離れた」と「許可後の登録が終わらなかった」を後から区別できない。
+    unawaited(analytics.logNotificationCoach(action: 'requesting'));
+    final result = await controller.setDailyReminderEnabled(true);
     unawaited(
-      analytics.logNotificationCoach(action: enabled ? 'enabled' : 'denied'),
+      analytics.logNotificationCoach(action: result?.name ?? 'denied'),
     );
     if (!mounted) return;
+    // pending は許可が取れているので、登録待ちでも成功として伝える。
+    // quiet（昇格を断られた）は「届きます」と言うと嘘になるので分ける。
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(enabled
-            ? L10n.of(context).notifCoachEnabled
-            : L10n.of(context).settingsAllowNotificationInOsSettings),
+        content: Text(switch (result) {
+          PushEnableResult.denied =>
+            L10n.of(context).settingsAllowNotificationInOsSettings,
+          PushEnableResult.quiet => L10n.of(context).notifCoachStillQuiet,
+          _ => L10n.of(context).notifCoachEnabled,
+        }),
       ),
     );
   }
@@ -414,8 +467,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
 
     if (isFirstLaunch) {
-      // オンボーディングを読んでいる間に初回例文の生成を並行して進めておく
-      _initialLoadFuture = _loadTodaySentence();
       if (mounted) {
         // オンボーディング画面を表示し、完了を待つ
         await Navigator.push<void>(
@@ -438,6 +489,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           MaterialPageRoute(
             settings: const RouteSettings(name: InterviewScreen.routeName),
             builder: (context) => InterviewScreen(
+              // 回答が users doc へ着いた時点で生成を始める。最後の設問の
+              // 直後なので、考え方の画面と初回ガイドを読んでいる間に進む。
+              onAnswersReady: () {
+                _initialLoadFuture ??= _loadTodaySentence();
+              },
               onComplete: () {
                 Navigator.pop(context);
               },
@@ -445,6 +501,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         );
       }
+      // 初回例文のテーマはヒアリングの回答（users/{uid}.interview.goal）から
+      // サーバーが決めるので、回答が着く前に生成を投げると初回だけ従来の
+      // 自動選出（入門帯は旅行に偏る）になる。通常は onAnswersReady で
+      // 開始済み。考え方の画面を読まずに閉じた場合だけここが起点になるので、
+      // 書き込みの着地を待ってから始める（送信済みなら即座に返る）。
+      await InterviewReporter()
+          .report()
+          .timeout(const Duration(seconds: 3), onTimeout: () {});
+      _initialLoadFuture ??= _loadTodaySentence();
+
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
 

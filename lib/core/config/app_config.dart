@@ -88,6 +88,13 @@ class AppConfig {
   static const String prefKeyNotificationCoachShown =
       'notification_coach_shown';
 
+  /// 暫定許可（iOS の provisional authorization）を要求済みかどうか。
+  ///
+  /// ダイアログが出ない代わりに一度しか意味を持たない要求なので、成否に
+  /// かかわらず一度で打ち切る。再登録は起動時の同期が引き受ける。
+  static const String prefKeyProvisionalPushRequested =
+      'provisional_push_requested';
+
   /// 例文タブのプレミアム訴求バナーを閉じた日時（epoch ms）
   static const String prefKeyPremiumHintDismissedAt =
       'premium_hint_dismissed_at';

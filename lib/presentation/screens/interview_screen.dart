@@ -20,16 +20,26 @@ import '../providers/analytics_provider.dart';
 ///
 /// スキップは置かない。4問とも答えてから最後の1画面へ進む。
 ///
-/// 回答は例文生成には効かせない（語彙推定はクイズの結果でしか動かさない）。
+/// 回答は端末に残し、users doc にも送る。goal は例文のテーマ選択に効く
+/// （サーバー側 resolve_interview_topic）。難易度は動かさない（語彙推定は
+/// クイズの結果でしか動かさない）。
 /// 目的は、考え方を本人の状況に寄せて伝えることと、「自分に合わせて
 /// 作られる」という前提をここで納得してもらうこと。
-/// 回答は端末に残し、分析にも送る。
 class InterviewScreen extends ConsumerStatefulWidget {
   static const routeName = 'interview';
 
-  const InterviewScreen({super.key, required this.onComplete});
+  const InterviewScreen({
+    super.key,
+    required this.onComplete,
+    this.onAnswersReady,
+  });
 
   final VoidCallback onComplete;
+
+  /// 回答が users doc へ着いた（か、着かないと分かった）直後に一度だけ呼ぶ。
+  /// 初回例文の生成開始点。最後の設問に答えた時点で走るので、考え方の画面を
+  /// 読んでいる間に生成が進む。
+  final VoidCallback? onAnswersReady;
 
   @override
   ConsumerState<InterviewScreen> createState() => _InterviewScreenState();
@@ -143,6 +153,9 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
 
   bool _completing = false;
 
+  /// 回答の保存・送信。最後の設問に答えた時点で1度だけ started。
+  Future<void>? _submission;
+
   @override
   void initState() {
     super.initState();
@@ -159,6 +172,9 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
         _index++;
       }
     });
+    // 考え方の画面へ移るのと同時に保存・送信を始める。読んでいる間に
+    // サーバー側の生成が進むので、閉じた先で待たされる時間が短くなる。
+    if (_finished) unawaited(_submission ??= _submit());
     unawaited(
       ref.read(analyticsServiceProvider).logInterview(
             action: 'answer',
@@ -168,9 +184,8 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
     );
   }
 
-  Future<void> _complete() async {
-    if (_completing) return;
-    _completing = true;
+  /// 回答を端末と users doc へ書き、書き終えたことを親へ知らせる。
+  Future<void> _submit() async {
     final prefs = await SharedPreferences.getInstance();
     for (final entry in _answers.entries) {
       await prefs.setString(
@@ -186,8 +201,21 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
             answeredCount: _answers.length,
           ),
     );
-    // users doc へ送る。失敗しても次の起動で送り直されるので待たない。
-    unawaited(InterviewReporter().report());
+    // 例文のテーマはこの書き込みを読んで決まるので、着地してから知らせる。
+    // 詰まっているときは諦めて生成へ進ませる（回答は端末に残るので、
+    // 次の起動で送り直される。失うのは初回のテーマ反映だけ）。
+    await InterviewReporter()
+        .report()
+        .timeout(const Duration(seconds: 3), onTimeout: () {});
+    widget.onAnswersReady?.call();
+  }
+
+  Future<void> _complete() async {
+    if (_completing) return;
+    _completing = true;
+    // 最後の設問に答えた時点で始まっているのが普通。考え方の画面を読まずに
+    // すぐ閉じた場合だけここが起点になる。閉じる操作は待たせない。
+    unawaited(_submission ??= _submit());
     widget.onComplete();
   }
 

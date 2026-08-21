@@ -1133,6 +1133,20 @@ class L10nEn extends L10n {
       'Your daily sentence will arrive at this time. You can change it in Settings.';
 
   @override
+  String get notifCoachQuietNote =>
+      'Right now they arrive quietly — no sound, no banner, just Notification Center.';
+
+  @override
+  String get notifCoachPromote => 'Deliver prominently';
+
+  @override
+  String get notifCoachKeepQuiet => 'Keep them quiet';
+
+  @override
+  String get notifCoachStillQuiet =>
+      'Notifications will keep arriving quietly in Notification Center.';
+
+  @override
   String get commonGotIt => 'Got it';
 
   @override

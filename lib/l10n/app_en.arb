@@ -400,6 +400,10 @@
   "notifCoachEnable": "Turn on notifications",
   "notifCoachLater": "Not now",
   "notifCoachEnabled": "Your daily sentence will arrive at this time. You can change it in Settings.",
+  "notifCoachQuietNote": "Right now they arrive quietly — no sound, no banner, just Notification Center.",
+  "notifCoachPromote": "Deliver prominently",
+  "notifCoachKeepQuiet": "Keep them quiet",
+  "notifCoachStillQuiet": "Notifications will keep arriving quietly in Notification Center.",
   "commonGotIt": "Got it",
 
   "premiumHint1Title": "Pick the topics you want to study",

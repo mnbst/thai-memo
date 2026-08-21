@@ -340,29 +340,64 @@ class SettingsController extends StateNotifier<SettingsState> {
     state = state.copyWith(dailyReminderEnabled: enabled);
   }
 
+  /// ダイアログを出さずに暫定許可を取る（iOS のみ）。取れたら true。
+  ///
+  /// アプリ内設定も必ずオンに揃える。ここをオフのまま残すと、次回起動の
+  /// [syncPushRegistration] が「オフなのにトークンがある」と見なして
+  /// 登録を消してしまう。
+  Future<bool> enableProvisionalPush() async {
+    final granted = await _push.enableProvisionally();
+    if (!granted) return false;
+
+    await _prefs?.setBool(AppConfig.prefKeyDailyReminderEnabled, true);
+    state = state.copyWith(dailyReminderEnabled: true);
+    unawaited(
+      _analytics.logChangeSetting(
+        key: 'daily_reminder_enabled',
+        value: 'provisional',
+      ),
+    );
+    return true;
+  }
+
   /// 毎日例文の通知を切り替える。
   ///
-  /// オンにした際にOSの許可が得られなければ false を返す。呼び出し側は
-  /// OS設定へ誘導する案内を出すこと（状態はオフのままになる）。
-  Future<bool> setDailyReminderEnabled(bool enabled) async {
+  /// オフにしたときは null を返す。オンにしたときは結果をそのまま返すので、
+  /// [PushEnableResult.denied] のときだけ呼び出し側は OS設定へ誘導する案内を
+  /// 出すこと（状態はオフに戻る）。[PushEnableResult.pending] は許可済みで
+  /// 登録待ちなので、オンのまま何も出さない。
+  Future<PushEnableResult?> setDailyReminderEnabled(bool enabled) async {
     // トークン登録・削除はAPNs往復で数秒かかることがある。スイッチが固まって
     // 見えないよう先に表示を切り替え、結果が違ったら戻す。
     state = state.copyWith(dailyReminderEnabled: enabled);
 
-    final applied = enabled ? await _push.enable() : false;
-    if (!enabled) await _push.disable();
+    if (!enabled) {
+      await _push.disable();
+      await _prefs?.setBool(AppConfig.prefKeyDailyReminderEnabled, false);
+      unawaited(
+        _analytics.logChangeSetting(
+          key: 'daily_reminder_enabled',
+          value: 'off',
+        ),
+      );
+      return null;
+    }
 
-    await _prefs?.setBool(AppConfig.prefKeyDailyReminderEnabled, applied);
-    if (applied != enabled) {
-      state = state.copyWith(dailyReminderEnabled: applied);
+    final result = await _push.enable();
+    // 拒否されたときだけオフに戻す。pending は許可が取れているので維持し、
+    // 登録は onTokenRefresh か次回起動の同期に任せる。
+    final keepOn = result != PushEnableResult.denied;
+    await _prefs?.setBool(AppConfig.prefKeyDailyReminderEnabled, keepOn);
+    if (!keepOn) {
+      state = state.copyWith(dailyReminderEnabled: false);
     }
     unawaited(
       _analytics.logChangeSetting(
         key: 'daily_reminder_enabled',
-        value: applied.toString(),
+        value: result.name,
       ),
     );
-    return applied == enabled;
+    return result;
   }
 
   /// サインアウト直前に呼ぶ。いま署名中の uid の通知登録だけを解除する。
@@ -380,6 +415,10 @@ class SettingsController extends StateNotifier<SettingsState> {
   /// OSの通知許可が既に得られているか。コーチングダイアログの出し分けに使う。
   /// 取得できなかった場合は null（判定不能）。
   Future<bool?> hasNotificationPermission() => _push.hasPermission();
+
+  /// バナー・音つきの配信まで許可されているか。暫定許可のままなら false。
+  Future<bool?> hasProminentNotificationPermission() =>
+      _push.hasProminentPermission();
 
   /// 通知コーチングダイアログを表示済みにする。
   ///

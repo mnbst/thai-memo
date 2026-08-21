@@ -16,6 +16,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -25,6 +26,32 @@ const int kDefaultGenerationHour = 10;
 
 /// タイムゾーンが取得できなかった場合のフォールバック
 const String kFallbackTimezone = 'Asia/Tokyo';
+
+/// 送信先トークンの取得を諦めるまでの時間。
+///
+/// iOS の getToken() は APNs トークンが端末に届くまで返らない。上限を置かないと
+/// 許可した直後の呼び出しが返らず、トグルが結果を待ったまま固まる。
+const Duration kTokenFetchTimeout = Duration(seconds: 10);
+
+/// [PushNotificationService.enable] の結果。
+enum PushEnableResult {
+  /// 許可が得られ、送信先トークンも登録できた。配信対象に入っている。
+  enabled,
+
+  /// OS に拒否された。iOS ではアプリから再要求できないため、案内するしかない。
+  denied,
+
+  /// 許可は得られたが、トークンを登録できないまま時間切れになった。
+  ///
+  /// 許可自体は残るのでアプリ内設定はオンのままにする。登録は
+  /// onTokenRefresh か次回起動の [PushNotificationService.sync] で完了する。
+  pending,
+
+  /// 暫定許可のまま昇格を断られた。通知は届くが音もバナーも出ない。
+  ///
+  /// 配信対象ではあるのでオフには戻さない。
+  quiet,
+}
 
 /// 現地の [preferredHour] が UTC の何時の起動に当たるかを返す。
 ///
@@ -50,13 +77,18 @@ class PushNotificationService {
     FirebaseMessaging? messaging,
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
+    Duration tokenFetchTimeout = kTokenFetchTimeout,
   })  : _messaging = messaging ?? FirebaseMessaging.instance,
         _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _auth = auth ?? FirebaseAuth.instance,
+        _tokenFetchTimeout = tokenFetchTimeout;
 
   final FirebaseMessaging _messaging;
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+
+  /// トークン取得の打ち切り時間。テストから短くするためだけの seam。
+  final Duration _tokenFetchTimeout;
 
   StreamSubscription<String>? _tokenRefreshSubscription;
   bool _registrationEnabled = false;
@@ -106,6 +138,9 @@ class PushNotificationService {
 
   /// OSの通知許可が既に得られているか。ダイアログは出さない。
   ///
+  /// 暫定許可（provisional）も「得られている」に含む。配信対象に入れるか
+  /// どうかの判定はこちらを使う。
+  ///
   /// 取得に失敗したときは null（判定不能）を返す。呼び出し側はこの回のみ案内を
   /// 見送り、「案内済み」としては記録しないこと。true を返して既許可扱いにすると、
   /// 一度の取得失敗でそのユーザーが恒久的に案内対象から外れる。
@@ -117,26 +152,86 @@ class PushNotificationService {
     }
   }
 
+  /// バナー・音を伴う「目立つ配信」まで許可されているか。
+  ///
+  /// 暫定許可は通知センターに静かに積まれるだけなので false を返す。昇格を
+  /// 案内すべきかの判定はこちらを使う。[hasPermission] で判定すると、暫定許可を
+  /// 取った時点で案内対象から外れてしまい、誰も昇格しなくなる。
+  Future<bool?> hasProminentPermission() async {
+    try {
+      final settings = await _messaging.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized;
+    } catch (_) {
+      return null;
+    }
+  }
+
   void dispose() {
     _tokenRefreshSubscription?.cancel();
     _tokenRefreshSubscription = null;
   }
 
+  /// 許可ダイアログを出さずに送信先トークンだけ確保する（iOS のみ）。
+  ///
+  /// iOS の provisional authorization。通知は音もバナーも無しで通知センターに
+  /// だけ届く。ダイアログが出ないので価値を体験する前に呼んでも邪魔にならず、
+  /// 正式な許可（[enable]）へ進む前に離脱した人にも配信できる。
+  /// 届いた通知の「目立つように配信」からユーザー自身が昇格させることもできる。
+  ///
+  /// 取れたときだけ true を返す。呼び出し側はアプリ内設定もオンにすること。
+  /// オフのままだと次回起動の [sync] が登録を消してしまう。
+  Future<bool> enableProvisionally() async {
+    // Android の POST_NOTIFICATIONS に暫定許可は無く、呼ぶとダイアログが出る。
+    if (defaultTargetPlatform != TargetPlatform.iOS) return false;
+    try {
+      // 本人が既に許可・拒否を決めているなら触らない。拒否を上書きはできないし、
+      // 許可済みを暫定に落とすこともない。
+      final current = await _messaging.getNotificationSettings();
+      if (current.authorizationStatus != AuthorizationStatus.notDetermined) {
+        return false;
+      }
+
+      final settings = await _messaging.requestPermission(provisional: true);
+      if (!_isGranted(settings)) return false;
+      return await _enableRegistration();
+    } on TimeoutException {
+      // 暫定許可自体は下りている。登録は onTokenRefresh か次回起動の [sync] で
+      // 完了するので、アプリ内設定はオンにさせる。
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// 通知を有効にする。必要なら許可ダイアログを出す。
   ///
-  /// 許可が得られたら true を返す。拒否された場合はトークンを登録しないため、
-  /// 呼び出し側はトグルをオフに戻す必要がある。
-  Future<bool> enable() async {
+  /// [PushEnableResult.denied] のときだけ呼び出し側はトグルをオフに戻す。
+  /// [PushEnableResult.pending] は許可済みなのでオンのまま残すこと。
+  ///
+  /// 許可ダイアログ自体には上限を置かない。ユーザーが答えるまで返らないのは
+  /// 正常で、打ち切ると答えた結果を取りこぼす。答えないまま離れた場合は
+  /// 呼び出し側の計測（要求前のイベント）で切り分ける。
+  Future<PushEnableResult> enable() async {
     try {
       final settings = await _messaging.requestPermission();
       if (!_isGranted(settings)) {
         await _disableRegistration(deleteDeviceToken: false);
-        return false;
+        return PushEnableResult.denied;
       }
 
-      await _enableRegistration();
+      final registered = await _enableRegistration();
       await _resetNotifyBackoff();
-      return true;
+      if (!registered) return PushEnableResult.pending;
+      // 暫定許可の人に要求すると昇格ダイアログになる。断られた場合は暫定の
+      // ままなので、成功と同じには扱わない（通知は静かに届き続ける）。
+      return settings.authorizationStatus == AuthorizationStatus.provisional
+          ? PushEnableResult.quiet
+          : PushEnableResult.enabled;
+    } on TimeoutException {
+      // 許可は得られている。登録だけが終わっていないので、オンのまま残して
+      // onTokenRefresh か次回起動の sync() に任せる。ここでオフに戻すと
+      // 二度と要求できない iOS では通知を諦めることになる。
+      return PushEnableResult.pending;
     } catch (_) {
       // 許可取得に失敗したまま古い登録が残ると、UIはオフなのに通知だけ届く。
       try {
@@ -144,7 +239,7 @@ class PushNotificationService {
       } catch (_) {
         _registrationEnabled = false;
       }
-      return false;
+      return PushEnableResult.denied;
     }
   }
 
@@ -223,7 +318,11 @@ class PushNotificationService {
     }
   }
 
-  Future<void> _enableRegistration() async {
+  /// 送信先トークンを登録する。サーバーに書けたときだけ true を返す。
+  ///
+  /// 時間切れのときは [TimeoutException] を投げる。呼び出し側は許可の有無と
+  /// 区別して扱うこと。
+  Future<bool> _enableRegistration() async {
     _registrationEnabled = true;
     // iOS はデフォルトだとフォアグラウンド中の通知を表示しない。配信は1日1回で
     // 見逃されると意味がないため、アプリを開いていても出るようにする。
@@ -232,8 +331,9 @@ class PushNotificationService {
       badge: true,
       sound: true,
     );
-    final token = await _messaging.getToken();
-    if (token != null) await _saveToken(token);
+    final token = await _messaging.getToken().timeout(_tokenFetchTimeout);
+    if (token == null) return false;
+    return _saveToken(token);
   }
 
   Future<void> _disableRegistration({required bool deleteDeviceToken}) async {
@@ -267,10 +367,16 @@ class PushNotificationService {
     }
   }
 
-  Future<void> _saveToken(String token) async {
-    if (!_registrationEnabled) return;
+  /// サーバーに書けたときだけ true を返す。
+  ///
+  /// サインイン前は書き先が無い。ここを黙って成功扱いにすると、アプリは通知オンの
+  /// つもりなのにサーバーから見ると配信対象に入っていない状態が続く。
+  Future<bool> _saveToken(String token) async {
+    if (!_registrationEnabled) return false;
+    final doc = _userDoc;
+    if (doc == null) return false;
     // タイムゾーンはトークン更新のたびに書き直す。端末の移動・DST切り替えに追従させる。
-    await _userDoc?.set(
+    await doc.set(
       {
         'daily_reminder_enabled': true,
         'fcm_token': token,
@@ -278,6 +384,7 @@ class PushNotificationService {
       },
       SetOptions(merge: true),
     );
+    return true;
   }
 
   Future<String> _resolveTimezone() async {

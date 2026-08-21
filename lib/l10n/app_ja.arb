@@ -415,6 +415,10 @@
   "notifCoachEnable": "通知をオンにする",
   "notifCoachLater": "あとで",
   "notifCoachEnabled": "毎日この時間に例文をお届けします。時刻は設定で変更できます。",
+  "notifCoachQuietNote": "いまは音もバナーも無しで、通知センターにだけ届いています。",
+  "notifCoachPromote": "目立つように受け取る",
+  "notifCoachKeepQuiet": "このままでいい",
+  "notifCoachStillQuiet": "通知はこれまでどおり、通知センターに静かに届きます。",
   "commonGotIt": "わかった",
 
   "premiumHint1Title": "学びたいテーマを自由に選べる",

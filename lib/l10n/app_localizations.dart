@@ -2011,6 +2011,30 @@ abstract class L10n {
   /// **'毎日この時間に例文をお届けします。時刻は設定で変更できます。'**
   String get notifCoachEnabled;
 
+  /// No description provided for @notifCoachQuietNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'いまは音もバナーも無しで、通知センターにだけ届いています。'**
+  String get notifCoachQuietNote;
+
+  /// No description provided for @notifCoachPromote.
+  ///
+  /// In ja, this message translates to:
+  /// **'目立つように受け取る'**
+  String get notifCoachPromote;
+
+  /// No description provided for @notifCoachKeepQuiet.
+  ///
+  /// In ja, this message translates to:
+  /// **'このままでいい'**
+  String get notifCoachKeepQuiet;
+
+  /// No description provided for @notifCoachStillQuiet.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知はこれまでどおり、通知センターに静かに届きます。'**
+  String get notifCoachStillQuiet;
+
   /// No description provided for @commonGotIt.
   ///
   /// In ja, this message translates to:
