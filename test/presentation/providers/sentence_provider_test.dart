@@ -25,7 +25,6 @@ void main() {
   late bool trialActive;
   late Map<String, String?>? capturedParams;
   late FakeAnalyticsService analytics;
-  late String? interviewTopic;
 
   SentenceController createController({
     Future<ThaiSentence> Function({Map<String, String?> generationParams})?
@@ -42,7 +41,6 @@ void main() {
       () => '旅行',
       () => trialActive,
       () => lookupL10n(const Locale('ja')),
-      interviewTopic: () => interviewTopic,
       generateSentence: generate ??
           ({Map<String, String?> generationParams = const {}}) async {
             capturedParams = generationParams;
@@ -57,7 +55,6 @@ void main() {
     trialActive = false;
     capturedParams = null;
     analytics = FakeAnalyticsService();
-    interviewTopic = null;
   });
 
   test('freeでもトライアル中ならtopicを維持してpremium_trialを送る', () async {
@@ -95,51 +92,6 @@ void main() {
     );
 
     expect(capturedParams, {'topic': '旅行', 'style': '丁寧'});
-  });
-
-  group('ヒアリング由来のテーマ', () {
-    test('テーマ未指定のトライアル中はヒアリングのテーマを明示指定として送る', () async {
-      trialActive = true;
-      interviewTopic = '旅行（ホテル、道案内、観光地、空港、ツアー）';
-      final controller = createController();
-
-      await controller.generateSentence();
-
-      expect(capturedParams, {
-        'premium_trial': 'true',
-        'topic': '旅行（ホテル、道案内、観光地、空港、ツアー）',
-      });
-    });
-
-    test('ユーザーが選んだテーマはヒアリングより優先する', () async {
-      tier = 'premium';
-      interviewTopic = '旅行（ホテル、道案内、観光地、空港、ツアー）';
-      final controller = createController();
-
-      await controller.generateSentence(
-        generationParams: const {'topic': '仕事'},
-      );
-
-      expect(capturedParams, {'topic': '仕事'});
-    });
-
-    test('freeかつトライアルなしにはテーマを送らない', () async {
-      interviewTopic = '旅行（ホテル、道案内、観光地、空港、ツアー）';
-      final controller = createController();
-
-      await controller.generateSentence();
-
-      expect(capturedParams, isNot(contains('topic')));
-    });
-
-    test('未回答ならテーマを足さない（サーバーの自動選出に任せる）', () async {
-      tier = 'premium';
-      final controller = createController();
-
-      await controller.generateSentence();
-
-      expect(capturedParams, isNot(contains('topic')));
-    });
   });
 
   group('analytics', () {
