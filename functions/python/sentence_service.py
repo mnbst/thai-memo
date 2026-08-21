@@ -249,6 +249,10 @@ def get_free_sentences(lang: str = "ja") -> list[dict]:
     _free_sentences[lang] = sentences
     return sentences
 
+def pick_free_sentence(
+    target_word: str, lang: str = "ja", topic: str = ""
+) -> dict | None:
+    """事前生成済みの free 例文から target_word に一致するものをランダムに返す。
 
 def pick_free_sentence(
     target_word: str, lang: str = "ja", topic: str = ""
