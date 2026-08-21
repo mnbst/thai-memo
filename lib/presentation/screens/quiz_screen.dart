@@ -237,19 +237,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         targetKey: _optionalChallengeKey,
         id: 'summary_quiz',
         analytics: ref.read(analyticsServiceProvider),
-        // 押すと5問のまとめクイズが始まる。今やらない選択を残す。
-        skippable: true,
+        // まとめクイズは普段は見送れる。ただしこの案内は1回限りなので、
+        // ここで「あとで」を許すと、どんなものか一度も知らないまま
+        // 二度と案内されない人が出る。初回だけは押させる。
+        skippable: false,
+        barrierDismissible: false,
         icon: Icons.emoji_events,
         title: L10n.of(context).coachSummaryQuizTitle,
         message: L10n.of(context).coachSummaryQuizMessage,
         emphasis: L10n.of(context).coachSummaryQuizEmphasis,
-        // まとめクイズを見送った人にはここで通知の案内へ回す。今日の学習は
-        // ここで終わるので、次に戻ってくる手段を渡せる最後の場所になる。
-        onDismiss: (action) {
-          if (action != 'skipped') return;
-          _summaryCoachDeclined = true;
-          widget.onNotificationCue?.call();
-        },
       );
     });
   }
