@@ -35,7 +35,7 @@ try:
         _register_sentence_exposure,
         produce_sentence,
     )
-    from .sentence_service import get_freq_rank
+    from .sentence_service import get_freq_rank, resolve_interview_topic
     from .uvm import sync_estimated_vocab
 except ImportError:
     from constants import FREE_TIER_MAX_VOCAB, normalize_lang
@@ -54,7 +54,7 @@ except ImportError:
         _register_sentence_exposure,
         produce_sentence,
     )
-    from sentence_service import get_freq_rank
+    from sentence_service import get_freq_rank, resolve_interview_topic
     from uvm import sync_estimated_vocab
 
 initialize_firebase_app()
@@ -95,13 +95,17 @@ def _build_sentence(
     配信（uses_premium_trial）はLLMで生成し、失敗した場合だけキャッシュに退避して
     通知そのものは落とさない。
     premium のテーマはクライアントが users/{uid}.preferred_topic にミラーした
-    設定を使い、未設定（おまかせ）なら通常生成と同じくUVMのkey_wordから決める。
+    設定を使い、未設定（おまかせ）ならヒアリングの用途（interview.goal）から
+    決める。どちらも無ければ通常生成と同じくUVMのkey_wordから決める。
     """
     lang = normalize_lang(user_data.get("app_language"))
 
     if user_data.get("tier") == "premium" or uses_premium_trial(user_data):
         params: dict = {}
-        preferred_topic = user_data.get("preferred_topic")
+        # 本人が選んだテーマ > ヒアリングの用途 > key_word 起点の自動選出。
+        preferred_topic = user_data.get("preferred_topic") or resolve_interview_topic(
+            user_data
+        )
         if preferred_topic:
             params["topic"] = preferred_topic
         try:

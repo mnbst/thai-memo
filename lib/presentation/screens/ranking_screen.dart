@@ -69,9 +69,9 @@ class _RankingList extends ConsumerWidget {
       slivers: [
         CupertinoSliverRefreshControl(
           onRefresh: () async {
-            ref.invalidate(myRankProvider);
-            ref.invalidate(leaderboardRowsProvider);
-            ref.invalidate(vocabDistributionProvider);
+            // epoch を進めると3つの provider が作り直され、キャッシュを飛ばして
+            // 取り直す（以降その起動中はキャッシュを使わない）。
+            ref.read(leaderboardRefreshEpochProvider.notifier).state++;
             await Future.wait([
               ref.read(leaderboardRowsProvider.future),
               ref.read(vocabDistributionProvider.future),
@@ -79,6 +79,10 @@ class _RankingList extends ConsumerWidget {
           },
         ),
         rowsAsync.when(
+          // 引っ張って更新のときは CupertinoSliverRefreshControl が回るので、
+          // ここでもう一度スピナーを出さない（丸が2つ並んで見える）。
+          skipLoadingOnRefresh: true,
+          skipLoadingOnReload: true,
           data: (entries) {
             if (entries.isEmpty) {
               return _MessageSliver(text: l10n.rankingUnrankedHint);

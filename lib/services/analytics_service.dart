@@ -154,10 +154,16 @@ class AnalyticsService {
 
   /// 発音練習の1回ぶん。
   ///
-  /// worst_tone / monotone はカスタムディメンションの登録が必要。
-  /// 登録しないと GA4 上で (not set) になり、しかも遡及しない。
+  /// パラメータは GA4 側で登録しないと (not set) になり、しかも遡及しない。
+  /// 登録先は型で決まる。文字列は customDimension、数値は customMetric。
+  /// 数値をディメンションで登録しても値は読めず (not set) のままになる。
+  /// 登録済み: source(dim) / worst_tone(dim) / score(metric) /
+  /// recognized_pct(metric)。source は他イベントと共有のディメンションなので、
+  /// 画面別に見るときは eventName でも絞ること。
+  /// monotone は 0|1 の数値なので dim 登録は無効。metric に直すこと。
   Future<void> logPronunciationAttempt({
     required String sentenceId,
+    required String source,
     required double score,
     required int syllableCount,
     required bool monotone,
@@ -166,6 +172,9 @@ class AnalyticsService {
   }) async {
     await _logEvent('pronunciation_attempt', {
       // 'sentence_id': sentenceId,
+      // どの画面から練習したか（home_card / detail / sheet）。
+      // 文字列なので customDimension 側の source を再利用する。
+      'source': source,
       'score': score.round(),
       'syllable_count': syllableCount,
       'monotone': monotone ? 1 : 0,
@@ -185,8 +194,56 @@ class AnalyticsService {
     await _logEvent('onboarding_start', {});
   }
 
+  /// オンボーディングを最後まで見た。スキップは持たないので、
+  /// onboarding_start との差がそのまま離脱になる。
+  /// オンボーディング終了。[skipped] は最後まで読まずに飛ばしたか。
+  ///
+  /// 真偽値は登録済みの文字列ディメンション `value` に載せる。数値で送ると
+  /// 文字列として登録した側では (not set) になり、後から直せない。
   Future<void> logOnboardingComplete({required bool skipped}) async {
-    await _logEvent('onboarding_complete', {'skipped': skipped ? 1 : 0});
+    await _logEvent('onboarding_complete', {
+      'value': skipped ? 'skipped' : 'completed',
+    });
+  }
+
+  /// 初回ガイド（コーチマーク）1つぶんの結果。
+  ///
+  /// [id] はコーチマークの識別子（sentence_card / quiz_button など）。
+  /// action:
+  ///   shown     — 表示した
+  ///   tapped    — 案内した対象を押して進んだ（意図した通り）
+  ///   dismissed — 対象以外を押して抜けた
+  ///   closed    — 押される前に画面が閉じられ、案内が届かなかった
+  ///
+  /// 「出したか」ではなく「どの段で降りたか」を見るために3つに分ける。
+  /// 表示済みフラグは prefs にしかないので、これが無いとツアーの通過率が
+  /// 一切測れない。
+  Future<void> logCoachMark({
+    required String id,
+    required String action,
+  }) async {
+    await _logEvent('coach_mark', {'coach_id': id, 'action': action});
+  }
+
+  /// オンボーディング後のヒアリング。
+  /// action: start / answer / skip / complete
+  ///
+  /// [question] / [answer] は action='answer' のときだけ入る。complete の
+  /// 回答数は既存の `value` ディメンションへ文字列で送る。answer と兼用すると
+  /// 回答の内訳に件数が混ざるうえ、value は文字列で登録済みなので数値で
+  /// 送ると (not set) になる。
+  Future<void> logInterview({
+    required String action,
+    String? question,
+    String? answer,
+    int? answeredCount,
+  }) async {
+    await _logEvent('interview', {
+      'action': action,
+      'question': question,
+      'answer': answer,
+      'value': answeredCount?.toString(),
+    });
   }
 
   Future<void> logSummaryQuizComplete({

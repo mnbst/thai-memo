@@ -66,8 +66,13 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// 文脈情報セクションの展開/折りたたみ状態
   bool _isContextExpanded = true;
 
-  /// 発音練習セクション（初回コーチマークのスポット対象）
+  /// 初回ガイドのスポット対象。例文カード → 発音練習 → 単語の分解 →
+  /// 文脈・使い方 → 戻る の順に続けて案内する。
+  final GlobalKey _sentenceKey = GlobalKey();
   final GlobalKey _pronunciationKey = GlobalKey();
+  final GlobalKey _wordBreakdownKey = GlobalKey();
+  final GlobalKey _contextKey = GlobalKey();
+  final GlobalKey _backKey = GlobalKey();
 
   @override
   void initState() {
@@ -79,56 +84,165 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
           ),
     );
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => unawaited(_maybeShowPronunciationCoach()),
+      (_) => unawaited(_maybeShowDetailCoach()),
     );
   }
 
   @override
   void dispose() {
-    CoachMarkOverlay.dismissFor(_pronunciationKey);
+    for (final key in _coachKeys) {
+      CoachMarkOverlay.dismissFor(key);
+    }
+    _abortCoachWait?.call();
     super.dispose();
   }
 
-  /// 発音練習の初回ガイド。詳細を初めて開いたときに1度だけ出す。
-  Future<void> _maybeShowPronunciationCoach() async {
-    final prefs = await SharedPreferences.getInstance();
-    final alreadyShown =
-        prefs.getBool(AppConfig.prefKeyPronunciationCoachShown) ?? false;
-    if (alreadyShown) return;
-    if (!mounted || CoachMarkOverlay.isVisible) return;
+  List<GlobalKey> get _coachKeys => [
+        _sentenceKey,
+        _pronunciationKey,
+        _wordBreakdownKey,
+        _contextKey,
+        _backKey,
+      ];
 
-    final targetContext = _pronunciationKey.currentContext;
+  /// 待機中の連鎖を打ち切る手。画面を離れて閉じられた場合は onDismiss が
+  /// 呼ばれないため、これを呼ばないと案内の連鎖が待ちっぱなしになる。
+  VoidCallback? _abortCoachWait;
+
+  /// 詳細画面の初回ガイド。例文カード → 発音練習 → 単語の分解 → 文脈・使い方 →
+  /// 戻る を続けて案内する。
+  ///
+  /// 1つ閉じたら次へ進む。対象が画面外にあるので、毎回スクロールで見せてから
+  /// スポットを当てる。途中で画面を離れた場合は進捗を残し、次に詳細を開いた
+  /// ときに残りから再開する（まとめて出し直すと最初の案内を二度読ませる）。
+  Future<void> _maybeShowDetailCoach() async {
+    final prefs = await SharedPreferences.getInstance();
+    var step = prefs.getInt(AppConfig.prefKeyDetailTourStep) ??
+        _migratedTourStep(prefs);
+    if (step >= _coachKeys.length) return;
+    if (CoachMarkOverlay.isVisible) return;
+
+    while (step < _coachKeys.length) {
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      final pending = _showCoachStep(step);
+      // 対象が無い例文（音節データや文脈情報が欠けている）では出せない。
+      // 出せた場合はここで進捗を確定し、閉じられるまで待つ。
+      step++;
+      await prefs.setInt(AppConfig.prefKeyDetailTourStep, step);
+      if (pending == null) continue;
+      await pending;
+    }
+  }
+
+  /// 段を1つ増やす前の進捗を、新しい段番号に読み替える。
+  ///
+  /// 先頭に例文カードの案内を足したので、旧番号はそのまま使うと1つ手前を
+  /// 指す（発音の案内を二度読ませる）。まだ何も見ていない人だけ 0 から。
+  static int _migratedTourStep(SharedPreferences prefs) {
+    final old = prefs.getInt(AppConfig.prefKeyDetailTourStepV1);
+    if (old != null) return old == 0 ? 0 : old + 1;
+    // さらに旧版で発音の案内だけ見た人は、その次から始める。
+    return (prefs.getBool(AppConfig.prefKeyPronunciationCoachShown) ?? false)
+        ? 2
+        : 0;
+  }
+
+  /// [step] の案内を出す。出せたら「閉じられたら完了する Future」を返す。
+  /// 対象が描画されていない場合は null（この段は飛ばす）。
+  Future<void>? _showCoachStep(int step) {
+    final key = _coachKeys[step];
+    final targetContext = key.currentContext;
     final box = targetContext?.findRenderObject() as RenderBox?;
-    // 音節データが無い例文では練習セクションが空になる。スポットを当てない。
     if (targetContext == null ||
         !targetContext.mounted ||
         box == null ||
         !box.hasSize ||
-        box.size.height <= 0 ||
-        ModalRoute.of(context)?.isCurrent != true) {
-      return;
+        box.size.height <= 0) {
+      return null;
     }
-
-    await Scrollable.ensureVisible(
-      targetContext,
-      alignment: 0.4,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
-    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
 
     final l10n = L10n.of(context);
-    final shown = CoachMarkOverlay.show(
-      context,
-      targetKey: _pronunciationKey,
-      icon: Icons.mic_none,
-      title: l10n.coachPronunciationTitle,
-      message: l10n.coachPronunciationMessage,
-    );
-    if (shown) {
-      await prefs.setBool(AppConfig.prefKeyPronunciationCoachShown, true);
-    }
+    // どの段も対象を光らせるだけで、押させはしない。「わかった」で1つずつ
+    // 見ていく。押させると、案内の途中で別の操作（録音・折りたたみ）が
+    // 始まってしまい、残りの案内を出す場所を失う。
+    final (icon, title, message) = switch (step) {
+      0 => (
+          Icons.article_outlined,
+          l10n.coachSentenceCardTitle,
+          l10n.coachSentenceCardMessage,
+        ),
+      1 => (
+          Icons.mic_none,
+          l10n.coachPronunciationTitle,
+          l10n.coachPronunciationMessage,
+        ),
+      2 => (
+          Icons.list_alt,
+          l10n.coachWordBreakdownTitle,
+          l10n.coachWordBreakdownMessage,
+        ),
+      3 => (
+          Icons.lightbulb_outline,
+          l10n.coachContextTitle,
+          l10n.coachContextMessage,
+        ),
+      _ => (
+          Icons.arrow_back,
+          l10n.coachDetailBackTitle,
+          l10n.coachDetailBackMessage,
+        ),
+    };
+
+    // 最後の段だけは対象を押させる。ここで案内するのは出口そのものなので、
+    // 「わかった」で閉じても戻り方を試さないまま終わってしまう。
+    final isExit = step == _coachKeys.length - 1;
+
+    final completer = Completer<void>();
+    _abortCoachWait = () {
+      if (!completer.isCompleted) completer.complete();
+    };
+    unawaited(() async {
+      // 対象は画面外にあることが多い。先に見せてから強調する。
+      await Scrollable.ensureVisible(
+        targetContext,
+        alignment: 0.4,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
+        if (!completer.isCompleted) completer.complete();
+        return;
+      }
+      final shown = CoachMarkOverlay.show(
+        context,
+        targetKey: key,
+        id: _coachIds[step],
+        analytics: ref.read(analyticsServiceProvider),
+        icon: icon,
+        title: title,
+        message: message,
+        targetTappable: isExit,
+        barrierDismissible: !isExit,
+        // 逃げ道は「あとで」だけにする。暗幕タップで消せると、戻り方を
+        // 見せないまま終わる事故が起きる。
+        skippable: isExit,
+        confirmLabel: isExit ? null : l10n.coachGotIt,
+        onDismiss: (_) {
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+      if (!shown && !completer.isCompleted) completer.complete();
+    }());
+    return completer.future;
   }
+
+  static const _coachIds = [
+    'sentence_card',
+    'pronunciation',
+    'word_breakdown',
+    'context',
+    'back',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +250,10 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     // 発音コーチマークが例文画面の上に残り、ちらついて見える。
     return PopScope(
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) CoachMarkOverlay.dismissFor(_pronunciationKey);
+        if (!didPop) return;
+        for (final key in _coachKeys) {
+          CoachMarkOverlay.dismissFor(key);
+        }
       },
       child: _buildScaffold(context),
     );
@@ -145,6 +262,16 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // 戻るボタンは初回ガイドの最後で光らせる。位置を取るために
+        // 既定の leading ではなく自前で置く。
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                key: _backKey,
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).maybePop(),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              )
+            : null,
         title: Text(L10n.of(context).detailTitle),
         actions: [
           // クリップボードにコピーするボタン
@@ -198,58 +325,71 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // タイ語テキスト（長押しでコピー可能）
-            SelectableText(
-              widget.sentence.thaiText,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    height: 1.5,
-                    fontSize: 32,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            // ローマ字による発音表記（アイコン付き）
-            Row(
-              children: [
-                Icon(
-                  Icons.record_voice_over,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SelectableText(
-                    widget.sentence.pronunciation,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.8),
-                          fontStyle: FontStyle.italic,
+            // タイ文字・読み・全文再生をひとまとまりで案内する（初回ガイドの1段目）。
+            KeyedSubtree(
+              key: _sentenceKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // タイ語テキスト（長押しでコピー可能）
+                  SelectableText(
+                    widget.sentence.thaiText,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          height: 1.5,
+                          fontSize: 32,
                         ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // TTSの再生位置とリピート状態が分かる全文再生コントロール
-            SentenceAudioPlayer(
-              text: widget.sentence.thaiText,
-              words: widget.sentence.wordBreakdowns
-                  .map((w) => w.wordText)
-                  .toList(),
-              onPlay: () => unawaited(
-                ref.read(analyticsServiceProvider).logPlayTts(
-                      contentType: 'sentence',
-                      text: widget.sentence.thaiText,
-                      sentenceId: widget.sentence.id,
-                      source: 'detail_sentence',
+                  const SizedBox(height: 8),
+                  // ローマ字による発音表記（アイコン付き）
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.record_voice_over,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SelectableText(
+                          widget.sentence.pronunciation,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.8),
+                                fontStyle: FontStyle.italic,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // TTSの再生位置とリピート状態が分かる全文再生コントロール
+                  SentenceAudioPlayer(
+                    text: widget.sentence.thaiText,
+                    words: widget.sentence.wordBreakdowns
+                        .map((w) => w.wordText)
+                        .toList(),
+                    onPlay: () => unawaited(
+                      ref.read(analyticsServiceProvider).logPlayTts(
+                            contentType: 'sentence',
+                            text: widget.sentence.thaiText,
+                            sentenceId: widget.sentence.id,
+                            source: 'detail_sentence',
+                          ),
                     ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
             // お手本を聞いたあとに自分で発声して声調を確かめる
             PronunciationPractice(
               key: _pronunciationKey,
+              scope: 'detail',
               sentenceId: widget.sentence.id,
               words: widget.sentence.wordBreakdowns,
               thaiText: widget.sentence.thaiText,
@@ -294,6 +434,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// タップすると声調解説ダイアログ（ToneExplanationDialog）が開く。
   Widget _buildWordBreakdownCard() {
     return Card(
+      // 初回ガイドではカード全体をハイライトする。案内するのは
+      // 「ここに単語の一覧がある」ことで、ヘッダーという押す場所ではない。
+      key: _wordBreakdownKey,
       child: Column(
         children: [
           // ヘッダー部分（タップで展開/折りたたみ切り替え）
@@ -573,6 +716,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     if (sentenceContext == null) return const SizedBox.shrink();
 
     return Card(
+      key: _contextKey,
       child: Column(
         children: [
           // ヘッダー部分（タップで展開/折りたたみ切り替え）

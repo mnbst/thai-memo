@@ -12,6 +12,8 @@ import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
 import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
+import '../../services/interview_reporter.dart';
+import '../../services/push_notification_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
@@ -25,6 +27,8 @@ import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_hint_banner.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
+import '../widgets/pronunciation_practice.dart';
+import '../widgets/pronunciation_sheet.dart';
 import '../widgets/quiz_offer.dart';
 import '../widgets/sentence_audio_player.dart';
 import '../widgets/sign_in_reminder_banner.dart';
@@ -32,6 +36,7 @@ import '../widgets/loading_tip_carousel.dart';
 import '../widgets/vocab_score_dialog.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
+import 'interview_screen.dart';
 import 'onboarding_screen.dart';
 import 'paywall_screen.dart';
 import 'quiz_screen.dart';
@@ -50,6 +55,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
+
+  /// 設定タブの位置。通知の案内はここへ移ってから出す。
+  static const int _settingsTabIndex = 2;
   bool _initialLoadCompleted = false;
   Future<void>? _initialLoadFuture;
   final _showAppIcon = ValueNotifier<bool>(true);
@@ -66,6 +74,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       // サーバーが「この端末のアプリが何を持っているか」を知るための記録。
       // 学習の導線とは無関係なので待たない。
       unawaited(AppVersionReporter().report());
+      // 初回起動で書けなかったヒアリング回答を送り直す（送信済みなら何もしない）。
+      unawaited(InterviewReporter().report());
       _notificationOpenSubscription =
           FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
       _loadInitialSentenceThenHandleNotification();
@@ -134,6 +144,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       await _checkFirstLaunchAndLoadSentence();
     } finally {
       await _handleInitialNotificationOpen();
+      await _ensureProvisionalPush();
       await _retryNotificationCoachIfPending();
       await _maybeShowPremiumTrialStarted();
       await _maybeShowPremiumTrialEnded();
@@ -224,6 +235,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await PaywallBottomSheet.show(context, source: 'trial_ended');
   }
 
+  /// 例文が手元にあるユーザーに、ダイアログを出さずに暫定許可を取る。
+  ///
+  /// 正式な許可（[_maybeShowNotificationCoach]）は「まとめクイズまで進んだ人」に
+  /// しか届かず、初日で離れる大半のユーザーは配信対象に入らないまま消える。
+  /// 暫定許可なら無音で通知センターに届くだけなので、体験を邪魔せずに
+  /// 送信先だけ確保できる。案内そのものは従来どおり後から出す。
+  ///
+  /// 例文が1つも無い状態では通知する中身も無いので、その回は見送る。
+  Future<void> _ensureProvisionalPush() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyProvisionalPushRequested) ?? false) {
+      return;
+    }
+    if (!mounted) return;
+    final sentences = await ref.read(allSentencesProvider.future);
+    if (sentences.isEmpty || !mounted) return;
+
+    final granted = await ref
+        .read(settingsControllerProvider.notifier)
+        .enableProvisionalPush();
+    // 取れなかった場合（Android・本人が判断済み・失敗）も二度は試さない。
+    await prefs.setBool(AppConfig.prefKeyProvisionalPushRequested, true);
+    if (!mounted) return;
+    unawaited(
+      ref.read(analyticsServiceProvider).logNotificationCoach(
+            action: granted ? 'provisional' : 'provisional_unavailable',
+          ),
+    );
+  }
+
   /// 例文の価値を体験済みなのに通知の案内をまだ出せていない場合、起動時に出し直す。
   ///
   /// 案内はまとめクイズ完了時に出すが、その完了を条件にすると取りこぼしが大きい。
@@ -278,6 +319,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _learningKey.currentState?.showSentenceStage();
   }
 
+  /// 通知の案内を設定タブで出す。まとめクイズの結果が出たとき、またはその
+  /// 誘導を「あとで」で見送ったときに呼ばれる。
+  ///
+  /// 学習画面の上に重ねるのではなく設定タブへ移ってから出す。案内を閉じた先に
+  /// 通知のトグルが見えていれば、後から自分で切り替える場所が分かる。
+  /// 出す条件を満たさないときはタブも動かさない（用のない画面へ飛ばさない）。
+  Future<void> _openNotificationCoachInSettings() async {
+    if (CoachMarkOverlay.isVisible) return;
+    final controller = ref.read(settingsControllerProvider.notifier);
+    await controller.initialized;
+    if (!mounted) return;
+    if (!shouldShowNotificationCoach(
+      coachShown: ref.read(settingsControllerProvider).notificationCoachShown,
+      permissionGranted: await controller.hasProminentNotificationPermission(),
+    )) {
+      return;
+    }
+    if (!mounted) return;
+    if (_currentIndex != _settingsTabIndex) {
+      setState(() => _currentIndex = _settingsTabIndex);
+      _logCurrentTabScreen(index: _settingsTabIndex);
+    }
+    // タブが描画されてから案内を重ねる。
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    await _maybeShowNotificationCoach();
+  }
+
   /// 例文の価値を体験した後に一度だけ、毎日例文通知を継続サポート機能として紹介する。
   ///
   /// 体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否されると
@@ -291,7 +360,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final coachShown =
         ref.read(settingsControllerProvider).notificationCoachShown;
-    final permissionGranted = await controller.hasNotificationPermission();
+    final permissionGranted = await controller.hasProminentNotificationPermission();
     if (!shouldShowNotificationCoach(
       coachShown: coachShown,
       permissionGranted: permissionGranted,
@@ -311,10 +380,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
 
-    final analytics = ref.read(analyticsServiceProvider);
-    unawaited(analytics.logNotificationCoach(action: 'shown'));
+    // 暫定許可で既に静かに届いている人には、オンオフではなく「目立たせるか」を
+    // 聞く。届いているのに「オンにする？」と聞き、「あとで」を選んだ相手に
+    // 通知を出し続けるのは筋が通らない。
+    final quietDelivery =
+        await controller.hasNotificationPermission() == true &&
+            permissionGranted == false;
+    if (!mounted) return;
 
-    final accepted = await showNotificationCoachDialog(context);
+    final analytics = ref.read(analyticsServiceProvider);
+    unawaited(analytics.logNotificationCoach(
+      action: quietDelivery ? 'shown_quiet' : 'shown',
+    ));
+
+    final accepted = await showNotificationCoachDialog(
+      context,
+      quietDelivery: quietDelivery,
+    );
     unawaited(
       analytics.logNotificationCoach(
         action: accepted ? 'accepted' : 'dismissed',
@@ -324,17 +406,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await controller.markNotificationCoachShown();
     if (!accepted || !mounted) return;
 
-    // ここでOSの許可ダイアログが出る。拒否された場合トグルはオフのままになる。
-    final enabled = await controller.setDailyReminderEnabled(true);
+    // ここでOSの許可ダイアログが出る。答えるまで下の await は返らないため、
+    // 要求に入ったこと自体を先に記録する。これが無いと「ダイアログを放置して
+    // アプリを離れた」と「許可後の登録が終わらなかった」を後から区別できない。
+    unawaited(analytics.logNotificationCoach(action: 'requesting'));
+    final result = await controller.setDailyReminderEnabled(true);
     unawaited(
-      analytics.logNotificationCoach(action: enabled ? 'enabled' : 'denied'),
+      analytics.logNotificationCoach(action: result?.name ?? 'denied'),
     );
     if (!mounted) return;
+    // pending は許可が取れているので、登録待ちでも成功として伝える。
+    // quiet（昇格を断られた）は「届きます」と言うと嘘になるので分ける。
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(enabled
-            ? L10n.of(context).notifCoachEnabled
-            : L10n.of(context).settingsAllowNotificationInOsSettings),
+        content: Text(switch (result) {
+          PushEnableResult.denied =>
+            L10n.of(context).settingsAllowNotificationInOsSettings,
+          PushEnableResult.quiet => L10n.of(context).notifCoachStillQuiet,
+          _ => L10n.of(context).notifCoachEnabled,
+        }),
       ),
     );
   }
@@ -377,8 +467,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
 
     if (isFirstLaunch) {
-      // オンボーディングを読んでいる間に初回例文の生成を並行して進めておく
-      _initialLoadFuture = _loadTodaySentence();
       if (mounted) {
         // オンボーディング画面を表示し、完了を待つ
         await Navigator.push<void>(
@@ -393,6 +481,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         );
       }
+      if (mounted) {
+        // 機能紹介の後にヒアリングを挟む。ここで本人の状況を聞いてから
+        // アプリの考え方を伝え、その流れでコーチマークへ入る。
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(name: InterviewScreen.routeName),
+            builder: (context) => InterviewScreen(
+              // 回答が users doc へ着いた時点で生成を始める。最後の設問の
+              // 直後なので、考え方の画面と初回ガイドを読んでいる間に進む。
+              onAnswersReady: () {
+                _initialLoadFuture ??= _loadTodaySentence();
+              },
+              onComplete: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        );
+      }
+      // 初回例文のテーマはヒアリングの回答（users/{uid}.interview.goal）から
+      // サーバーが決めるので、回答が着く前に生成を投げると初回だけ従来の
+      // 自動選出（入門帯は旅行に偏る）になる。通常は onAnswersReady で
+      // 開始済み。考え方の画面を読まずに閉じた場合だけここが起点になるので、
+      // 書き込みの着地を待ってから始める（送信済みなら即座に返る）。
+      await InterviewReporter()
+          .report()
+          .timeout(const Duration(seconds: 3), onTimeout: () {});
+      _initialLoadFuture ??= _loadTodaySentence();
+
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
 
@@ -494,7 +612,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       LearningScreen(
         key: _learningKey,
         showAppIconNotifier: _showAppIcon,
-        onFirstCycleCompleted: () => unawaited(_maybeShowNotificationCoach()),
+        onNotificationCue: () =>
+            unawaited(_openNotificationCoachInSettings()),
       ),
       const HistoryScreen(),
       const SettingsScreen(),
@@ -601,12 +720,13 @@ class LearningScreen extends ConsumerStatefulWidget {
   final ValueNotifier<bool> showAppIconNotifier;
 
   /// 初回の学習が一巡（まとめクイズ完了）した直後に呼ばれる。
-  final VoidCallback? onFirstCycleCompleted;
+  /// 通知の案内を出してよいタイミング（まとめクイズの結果／その見送り）。
+  final VoidCallback? onNotificationCue;
 
   const LearningScreen({
     super.key,
     required this.showAppIconNotifier,
-    this.onFirstCycleCompleted,
+    this.onNotificationCue,
   });
 
   @override
@@ -777,9 +897,8 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
                     _setStage(_LearningStage.summaryQuiz);
                   }
                 : null,
-            // まとめクイズをスキップした場合は通知の案内を出さない。
-            // 1周を終えた実感がないまま案内すると断られやすく、iOSでは
-            // 一度拒否されると二度と要求できない。次の起動で出し直される。
+            // まとめクイズの誘導を「あとで」で見送ったら、そこで通知の案内へ回す。
+            onNotificationCue: widget.onNotificationCue,
             onNextSentence: () async {
               await _setCompletedCount(_completedCount + 1);
               await _proceedToNextSentence();
@@ -795,15 +914,15 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             showAppBar: false,
             title: l10n.learnSummaryQuizTitle,
             showVocabScoreTransition: true,
+            // 例文の価値を体験し終えた結果画面で通知の案内を出す。次の例文へ
+            // 進むまで待つと、そのまま画面を閉じた人には届かない。
+            onNotificationCue: widget.onNotificationCue,
             onNextSentence: () async {
-              final isFirstCycle = !_firstSummaryQuizCompleted;
-              if (isFirstCycle) {
+              if (!_firstSummaryQuizCompleted) {
                 await _markFirstSummaryQuizCompleted();
               }
               await _setCompletedCount(0);
               await _proceedToNextSentence();
-              // 例文の価値を体験し終えたこのタイミングで通知の案内を出す。
-              if (isFirstCycle) widget.onFirstCycleCompleted?.call();
             },
           ),
         ),
@@ -976,6 +1095,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final shown = CoachMarkOverlay.show(
       context,
       targetKey: targetKey,
+      id: detailShown ? 'quiz_button' : 'sentence_card',
+      analytics: ref.read(analyticsServiceProvider),
       icon: detailShown ? Icons.quiz : Icons.touch_app,
       title: detailShown ? l10n.coachQuizTitle : l10n.coachDetailTitle,
       message: detailShown ? l10n.coachQuizMessage : l10n.coachDetailMessage,
@@ -1473,19 +1594,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         ),
                   ),
                   const SizedBox(height: 8),
-                  SentenceAudioPlayer(
-                    text: sentence.thaiText,
-                    words:
-                        sentence.wordBreakdowns.map((w) => w.wordText).toList(),
-                    onPlay: () => unawaited(
-                      ref.read(analyticsServiceProvider).logPlayTts(
-                            contentType: 'sentence',
-                            text: sentence.thaiText,
-                            sentenceId: sentence.id,
-                            source: 'today_sentence',
-                          ),
-                    ),
-                  ),
+                  _SentenceAudioSection(sentence: sentence),
                   const SizedBox(height: 16),
                   Text(
                     sentence.japaneseTranslation,
@@ -1783,5 +1892,97 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       spans.add(TextSpan(text: text.substring(lastEnd)));
     }
     return TextSpan(style: baseStyle, children: spans);
+  }
+}
+
+/// 例文カードの再生行と、その下に開く発音練習。
+///
+/// マイクは再生と対になる操作なので、大きさも色も再生ボタンに揃える。
+/// 押すとカード内に練習UIを開き、もう一度押すと畳む。
+class _SentenceAudioSection extends ConsumerStatefulWidget {
+  const _SentenceAudioSection({required this.sentence});
+
+  final ThaiSentence sentence;
+
+  @override
+  ConsumerState<_SentenceAudioSection> createState() =>
+      _SentenceAudioSectionState();
+}
+
+class _SentenceAudioSectionState extends ConsumerState<_SentenceAudioSection> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(_SentenceAudioSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 次の例文に進んだら畳んだ状態から始める
+    if (oldWidget.sentence.id != widget.sentence.id && _expanded) {
+      setState(() => _expanded = false);
+    }
+  }
+
+  void _toggle() {
+    // お手本と録音を奪い合わせない。開くときは再生を止める。
+    if (!_expanded) unawaited(ref.read(ttsServiceProvider).stopAll());
+    setState(() => _expanded = !_expanded);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sentence = widget.sentence;
+    final canPractise = canPractisePronunciation(sentence);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SentenceAudioPlayer(
+          text: sentence.thaiText,
+          words: sentence.wordBreakdowns.map((w) => w.wordText).toList(),
+          trailing: canPractise
+              ? Semantics(
+                  button: true,
+                  label: L10n.of(context).pronunciationTitle,
+                  // 再生（塗り）と役割を分けるため、こちらは枠だけにする。
+                  child: IconButton.outlined(
+                    onPressed: _toggle,
+                    tooltip: L10n.of(context).pronunciationTitle,
+                    icon: const Icon(Icons.mic_rounded),
+                  ),
+                )
+              : null,
+          onPlay: () => unawaited(
+            ref.read(analyticsServiceProvider).logPlayTts(
+                  contentType: 'sentence',
+                  text: sentence.thaiText,
+                  sentenceId: sentence.id,
+                  source: 'today_sentence',
+                ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: Alignment.topCenter,
+          child: canPractise && _expanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  // カード全体が詳細へのタップ領域なので、練習中の空振りで
+                  // 画面遷移しないようここでタップを吸収する。
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {},
+                    child: PronunciationPractice(
+                      // 詳細画面とは別インスタンス。判定結果は持ち越さない。
+                      scope: 'home_card',
+                      sentenceId: sentence.id,
+                      words: sentence.wordBreakdowns,
+                      thaiText: sentence.thaiText,
+                    ),
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+      ],
+    );
   }
 }

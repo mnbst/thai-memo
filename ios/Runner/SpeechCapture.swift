@@ -265,12 +265,14 @@ final class SpeechCaptureChannel {
 
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
+    // 問い合わせと要求を分ける。問い合わせでダイアログまで出すと、
+    // 押しっぱなし録音の指がダイアログ表示中に離れ、離した合図が
+    // 届かないまま録音が始まって止まらなくなる。
     case "hasPermission":
-      if capture.hasPermission() {
-        result(true)
-      } else {
-        capture.requestPermission { result($0) }
-      }
+      result(capture.hasPermission())
+
+    case "requestPermission":
+      capture.requestPermission { result($0) }
 
     case "start":
       let args = call.arguments as? [String: Any]

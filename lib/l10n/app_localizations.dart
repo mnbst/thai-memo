@@ -229,6 +229,18 @@ abstract class L10n {
   /// **'例文を読んだら、確認クイズに進みましょう。'**
   String get coachQuizMessage;
 
+  /// No description provided for @coachSentenceCardTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の例文'**
+  String get coachSentenceCardTitle;
+
+  /// No description provided for @coachSentenceCardMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'上がタイ文字、下がその読み方です。再生ボタンでお手本を聞けます。日本語訳はこの下にあります。'**
+  String get coachSentenceCardMessage;
+
   /// No description provided for @coachPronunciationTitle.
   ///
   /// In ja, this message translates to:
@@ -240,6 +252,42 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'ボタンを押したまま読んでみましょう。声調が合っているか、その場で判定します。'**
   String get coachPronunciationMessage;
+
+  /// No description provided for @coachWordBreakdownTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語ごとに見る'**
+  String get coachWordBreakdownTitle;
+
+  /// No description provided for @coachWordBreakdownMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文がどの単語でできているかを一覧で見ます。単語をタップすると声調の解説も開きます。'**
+  String get coachWordBreakdownMessage;
+
+  /// No description provided for @coachContextTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'使い方を確かめる'**
+  String get coachContextTitle;
+
+  /// No description provided for @coachContextMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'その例文をどんな場面で使うか、文体や文化的な背景まで確認できます。'**
+  String get coachContextMessage;
+
+  /// No description provided for @coachDetailBackTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'詳細はここまで'**
+  String get coachDetailBackTitle;
+
+  /// No description provided for @coachDetailBackMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'もう少し詳細を見る場合は「あとで」をタップ。見終わったら前の画面に戻ります。'**
+  String get coachDetailBackMessage;
 
   /// No description provided for @sentencePreparing.
   ///
@@ -1621,17 +1669,275 @@ abstract class L10n {
   /// **'スキップ'**
   String get onboardingSkip;
 
-  /// No description provided for @onboardingStart.
-  ///
-  /// In ja, this message translates to:
-  /// **'はじめる'**
-  String get onboardingStart;
-
   /// No description provided for @onboardingNext.
   ///
   /// In ja, this message translates to:
   /// **'次へ'**
   String get onboardingNext;
+
+  /// No description provided for @coachTapHere.
+  ///
+  /// In ja, this message translates to:
+  /// **'光っている場所をタップ'**
+  String get coachTapHere;
+
+  /// No description provided for @coachSkip.
+  ///
+  /// In ja, this message translates to:
+  /// **'あとで'**
+  String get coachSkip;
+
+  /// No description provided for @coachGotIt.
+  ///
+  /// In ja, this message translates to:
+  /// **'わかった'**
+  String get coachGotIt;
+
+  /// No description provided for @interviewIntroTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'4つ質問させてください'**
+  String get interviewIntroTitle;
+
+  /// No description provided for @interviewIntroBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'答えに合わせて、このアプリの学び方をお伝えします。すぐ終わります。'**
+  String get interviewIntroBody;
+
+  /// No description provided for @interviewIntroStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'はじめる'**
+  String get interviewIntroStart;
+
+  /// No description provided for @interviewStepLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'{current} / {total}'**
+  String interviewStepLabel(int current, int total);
+
+  /// No description provided for @interviewLevelQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語はどのくらい学んでいますか？'**
+  String get interviewLevelQuestion;
+
+  /// No description provided for @interviewLevelNone.
+  ///
+  /// In ja, this message translates to:
+  /// **'まったく初めて'**
+  String get interviewLevelNone;
+
+  /// No description provided for @interviewLevelChars.
+  ///
+  /// In ja, this message translates to:
+  /// **'文字を少し読める'**
+  String get interviewLevelChars;
+
+  /// No description provided for @interviewLevelWords.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語や挨拶はわかる'**
+  String get interviewLevelWords;
+
+  /// No description provided for @interviewLevelConv.
+  ///
+  /// In ja, this message translates to:
+  /// **'日常会話はできる'**
+  String get interviewLevelConv;
+
+  /// No description provided for @interviewGoalQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語を使いたいのはどんな場面ですか？'**
+  String get interviewGoalQuestion;
+
+  /// No description provided for @interviewGoalTravel.
+  ///
+  /// In ja, this message translates to:
+  /// **'旅行で使いたい'**
+  String get interviewGoalTravel;
+
+  /// No description provided for @interviewGoalWork.
+  ///
+  /// In ja, this message translates to:
+  /// **'仕事で必要'**
+  String get interviewGoalWork;
+
+  /// No description provided for @interviewGoalLive.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイで暮らす・暮らしたい'**
+  String get interviewGoalLive;
+
+  /// No description provided for @interviewGoalCulture.
+  ///
+  /// In ja, this message translates to:
+  /// **'ドラマ・音楽を楽しみたい'**
+  String get interviewGoalCulture;
+
+  /// No description provided for @interviewTimeQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'1日にどのくらい学習できそうですか？'**
+  String get interviewTimeQuestion;
+
+  /// No description provided for @interviewTimeShort.
+  ///
+  /// In ja, this message translates to:
+  /// **'数分だけ'**
+  String get interviewTimeShort;
+
+  /// No description provided for @interviewTimeMedium.
+  ///
+  /// In ja, this message translates to:
+  /// **'10分くらい'**
+  String get interviewTimeMedium;
+
+  /// No description provided for @interviewTimeLong.
+  ///
+  /// In ja, this message translates to:
+  /// **'30分以上'**
+  String get interviewTimeLong;
+
+  /// No description provided for @interviewStruggleQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語でつまずいたことはありますか？'**
+  String get interviewStruggleQuestion;
+
+  /// No description provided for @interviewStruggleNone.
+  ///
+  /// In ja, this message translates to:
+  /// **'まだ始めたばかり'**
+  String get interviewStruggleNone;
+
+  /// No description provided for @interviewStruggleScript.
+  ///
+  /// In ja, this message translates to:
+  /// **'文字が読めない'**
+  String get interviewStruggleScript;
+
+  /// No description provided for @interviewStruggleTone.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調が難しい'**
+  String get interviewStruggleTone;
+
+  /// No description provided for @interviewStruggleVocab.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語が覚えられない'**
+  String get interviewStruggleVocab;
+
+  /// No description provided for @philosophyHeading.
+  ///
+  /// In ja, this message translates to:
+  /// **'このアプリの考え方'**
+  String get philosophyHeading;
+
+  /// No description provided for @philosophy1None.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎日届く1つの例文を、まず**音と意味**から覚えます。次に**タイ文字**、そして文全体へ進みます。'**
+  String get philosophy1None;
+
+  /// No description provided for @philosophy1Chars.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎日届く例文は、**1単語ずつ分解**して意味と発音を表示します。読めるタイ文字が増えるほど、自力で追える範囲が広がります。'**
+  String get philosophy1Chars;
+
+  /// No description provided for @philosophy1Words.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎日届く例文は、アプリ内の**語彙スコア**に応じて作られます。挨拶だけの段階から、日常の言い回しへ広がっていきます。'**
+  String get philosophy1Words;
+
+  /// No description provided for @philosophy1Conv.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎日届く例文の難しさは、**クイズの結果**から決まります。解けるほど、出てくる単語の幅が広がります。'**
+  String get philosophy1Conv;
+
+  /// No description provided for @philosophyKeyWord.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文には毎回、**中心になる単語が1つ**あります。その1語を中心に覚えます。クイズで出題されるのもこの単語です。'**
+  String get philosophyKeyWord;
+
+  /// No description provided for @philosophy2None.
+  ///
+  /// In ja, this message translates to:
+  /// **'読めなくても大丈夫です。例文の詳細画面で**単語をタップ**すると、**タイ文字**の読みと声調の理由が1つずつ出ます。規則は**声調ガイド**に記載してあります。'**
+  String get philosophy2None;
+
+  /// No description provided for @philosophy2Script.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字は、**つづりで声調が決まります**。単語をタップすると、その文字がなぜその声調になるのかを確認できます。声調の規則をまとめたガイドもあります。'**
+  String get philosophy2Script;
+
+  /// No description provided for @philosophy2Tone.
+  ///
+  /// In ja, this message translates to:
+  /// **'**発音練習機能**を活用しましょう。お手本と自分の録音を比べて、単語のどの部分で声調がズレているかがわかります。声調の読み方をまとめたガイドもあります。'**
+  String get philosophy2Tone;
+
+  /// No description provided for @philosophy2Vocab.
+  ///
+  /// In ja, this message translates to:
+  /// **'**クイズ**が単語ごとの覚え具合を測ります。あいまいな単語は後で再出題されます。'**
+  String get philosophy2Vocab;
+
+  /// No description provided for @philosophy3Travel.
+  ///
+  /// In ja, this message translates to:
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「旅行」や「交通」を選べば、現地で使う場面の例文が届きます。'**
+  String get philosophy3Travel;
+
+  /// No description provided for @philosophy3Work.
+  ///
+  /// In ja, this message translates to:
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「仕事」を選べば、職場で使う場面の例文が届きます。'**
+  String get philosophy3Work;
+
+  /// No description provided for @philosophy3Live.
+  ///
+  /// In ja, this message translates to:
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「買い物」や「家族」を選べば、暮らしの中で使う例文が届きます。'**
+  String get philosophy3Live;
+
+  /// No description provided for @philosophy3Culture.
+  ///
+  /// In ja, this message translates to:
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「伝統・祭り」を選べば、作品や文化に出てくる表現が届きます。'**
+  String get philosophy3Culture;
+
+  /// No description provided for @philosophy3TimeShort.
+  ///
+  /// In ja, this message translates to:
+  /// **'**数分あれば**、今日の1文を読んで確認クイズまで進められます。'**
+  String get philosophy3TimeShort;
+
+  /// No description provided for @philosophy3TimeMedium.
+  ///
+  /// In ja, this message translates to:
+  /// **'**10分あれば**、例文を追加しながら、発音練習やまとめクイズまで進められます。'**
+  String get philosophy3TimeMedium;
+
+  /// No description provided for @philosophy3TimeLong.
+  ///
+  /// In ja, this message translates to:
+  /// **'**30分あれば**、例文の追加と発音練習に加えて、履歴からの復習や声調ガイドの読み込みまで手が回ります。'**
+  String get philosophy3TimeLong;
+
+  /// No description provided for @philosophyStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'実際に使ってみる'**
+  String get philosophyStart;
 
   /// No description provided for @notifCoachTitle.
   ///
@@ -1704,6 +2010,30 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'毎日この時間に例文をお届けします。時刻は設定で変更できます。'**
   String get notifCoachEnabled;
+
+  /// No description provided for @notifCoachQuietNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'いまは音もバナーも無しで、通知センターにだけ届いています。'**
+  String get notifCoachQuietNote;
+
+  /// No description provided for @notifCoachPromote.
+  ///
+  /// In ja, this message translates to:
+  /// **'目立つように受け取る'**
+  String get notifCoachPromote;
+
+  /// No description provided for @notifCoachKeepQuiet.
+  ///
+  /// In ja, this message translates to:
+  /// **'このままでいい'**
+  String get notifCoachKeepQuiet;
+
+  /// No description provided for @notifCoachStillQuiet.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知はこれまでどおり、通知センターに静かに届きます。'**
+  String get notifCoachStillQuiet;
 
   /// No description provided for @commonGotIt.
   ///

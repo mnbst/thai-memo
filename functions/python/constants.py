@@ -161,6 +161,30 @@ TOPIC_SUB_THEMES: dict[str, list[str]] = {
 FREE_BL_TOPIC_RATE = 0.1
 BL_TOPIC = TOPICS[15]
 
+# ─── ヒアリング（オンボーディングの4問）の goal → テーマ候補 ───
+# users/{uid}.interview.goal に入る値をテーマ候補に対応づける。候補が複数ある
+# ものは生成のたびに一様抽選する（1テーマに固定すると入門帯の旅行偏りを
+# 別のテーマに置き換えるだけになる）。
+#
+# ここで選んだテーマは明示指定として扱われ TOPIC_MIN_VOCAB のゲートを通らない。
+# 本人が申告した用途なので入門帯でも出してよいという判断。
+#
+# 候補はヒアリング最終画面の文言（l10n philosophy3Travel/Work/Live/Culture）が
+# 名指ししているテーマを必ず含める。「『旅行』や『交通』が届きます」と伝えた
+# 相手に別のテーマを出すと、その場で反故になる。伝統・祭り（600ゲート）を
+# culture に入れているのはこのため。学校・宗教・礼儀作法はどの文言でも
+# 触れていないので、語彙要求の高さを取って候補に入れない。
+INTERVIEW_GOAL_TOPICS: dict[str, list[str]] = {
+    # philosophy3Travel: 旅行・交通
+    "travel": [TOPICS[2], TOPICS[6], TOPICS[5], TOPICS[1]],  # +買い物/食べ物
+    # philosophy3Work: 仕事
+    "work": [TOPICS[3], TOPICS[0]],  # +あいさつ（職場の挨拶）
+    # philosophy3Live: 買い物・家族
+    "live": [TOPICS[5], TOPICS[4], TOPICS[7], TOPICS[8], TOPICS[6], TOPICS[1]],
+    # philosophy3Culture: タイBLドラマ・伝統・祭り
+    "culture": [TOPICS[15], TOPICS[12], TOPICS[9], TOPICS[14]],  # +趣味/恋愛
+}
+
 # ─── 丁寧さレベル ───
 # タイ語は丁寧さの使い分けが重要。場面に応じたレベルを選択
 # 2026-08-07 削除: POLITENESS_LEVELS。丁寧さをプロンプトに渡すのをやめたため
@@ -443,11 +467,11 @@ RESPONSE_JSON_SCHEMA = {
             "properties": {
                 "usage_scenarios": {
                     "type": "string",
-                    "description": "使用場面の説明。50文字以内。",
+                    "description": "使用場面の説明。日本語で、50文字以内（タイ語・英語不可）。",
                 },
                 "cultural_notes": {
                     "type": "string",
-                    "description": "文化的な補足情報。50文字以内。",
+                    "description": "文化的な補足情報。日本語で、50文字以内（タイ語・英語不可）。",
                 },
             },
             "required": [
@@ -497,8 +521,8 @@ _SCHEMA_DESCRIPTIONS_EN = {
     "note": "用法・ニュアンス・類語との違い（英語、50語以内）",
     # context は詳細画面にそのまま表示される。ここを訳し忘れると英語UIの中で
     # 「使用シーン」「文化的背景」だけ日本語で出る。
-    "usage_scenarios": "使用場面の説明。英語で、25語以内。",
-    "cultural_notes": "文化的な補足情報。英語で、25語以内。",
+    "usage_scenarios": "使用場面の説明。英語で、25語以内（タイ語・日本語不可）。",
+    "cultural_notes": "文化的な補足情報。英語で、25語以内（タイ語・日本語不可）。",
 }
 
 # LLM に生成させる context フィールドの en 版 description。

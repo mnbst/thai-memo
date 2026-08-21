@@ -133,7 +133,7 @@ lib/presentation/screens/home_screen.dart
 メイン画面。3タブナビゲーション（今日/履歴/設定）。
 
 lib/presentation/screens/detail_screen.dart
-例文詳細表示（単語分解・発音付き）。
+例文詳細表示（単語分解・発音付き）。初回は発音練習→単語の分解→文脈・使い方をスクロールしながら順にコーチマークで案内する（進捗は detail_tour_step）。
 
 lib/presentation/screens/history_screen.dart
 保存済み例文一覧（全件/お気に入り、検索、削除）。
@@ -151,7 +151,10 @@ lib/presentation/screens/ranking_screen.dart
 語彙スコアの全期間ランキング。自分の順位カードを上に置き、その下に上位100人を張り出す。表示名はサーバー採番のタイ人名。
 
 lib/presentation/screens/onboarding_screen.dart
-初回起動時のオンボーディング画面。
+初回起動時のオンボーディング画面（3枚・スキップ不可）。
+
+lib/presentation/screens/interview_screen.dart
+オンボーディング直後のヒアリング4問（スキップ不可）。応答は挟まず、最後に1画面だけ回答に寄せた考え方を出す。回答は端末保存＋users docで、例文生成には効かせない。
 
 lib/presentation/screens/tone_guide_screen.dart
 タイ語声調システムのチュートリアル。
@@ -162,7 +165,7 @@ lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセル。
 
 lib/presentation/widgets/coach_mark_overlay.dart
-指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。
+指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。一呼吸おいてから対象が光って押せるようになる（「わかった」ボタンは持たない）。id/analytics を渡すと shown/tapped/dismissed/closed をGA4へ送る。
 
 lib/presentation/widgets/sign_in_reminder_banner.dart
 匿名ユーザーへ3日非アクティブでの進捗削除を警告しサインインを促すバナー（今日タブ）。告知は3日だが実削除は7日（ANON_INACTIVE_DAYS）で意図的にずらしている。
@@ -213,6 +216,10 @@ FCMトークン・タイムゾーン・配信希望時刻をusers/{uid}に登録
 
 lib/services/app_version_reporter.dart
 起動時に users doc へ app_version / app_build_number / last_opened_at を記録。サーバー側の機能出し分け判定に使う。
+
+lib/services/interview_reporter.dart
+オンボ直後のヒアリング回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
+
 
 lib/services/daily_sentence_service.dart
 サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、今日ぶんの配信例文を返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
@@ -271,6 +278,11 @@ free の発音チェック回数（1日5回）。判定は端末内なのでカ�
 
 lib/presentation/widgets/pronunciation_practice.dart
 例文詳細の発音練習セクション。語ごとの判定色帯と、選択した語のピッチカーブ描画。
+
+---
+
+lib/presentation/widgets/pronunciation_sheet.dart
+ホームの例文カードから発音練習を開くボトムシート。中身は pronunciation_practice の再利用。
 
 ---
 
@@ -493,6 +505,9 @@ UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSに�
 
 scripts/ga4_acquisition.py
 prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン別）。SAインパーソネーションで認証。
+
+scripts/ga4_register_dimension.py
+prod GA4 にイベントスコープのカスタムディメンションを登録／一覧。文字列パラメータを足したら実装と同時に実行する（登録は遡及しない）。
 
 ## Tests (Flutter)
 

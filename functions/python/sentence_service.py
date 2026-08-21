@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import random
 import re
 import subprocess
 import sys
@@ -15,6 +16,7 @@ try:
     from .constants import (
         BL_TOPIC,
         FREE_BL_TOPIC_RATE,
+        INTERVIEW_GOAL_TOPICS,
         TOPICS,
         build_response_schema,
         localize_context,
@@ -35,6 +37,7 @@ except ImportError:
     from constants import (
         BL_TOPIC,
         FREE_BL_TOPIC_RATE,
+        INTERVIEW_GOAL_TOPICS,
         TOPICS,
         build_response_schema,
         localize_context,
@@ -246,6 +249,10 @@ def get_free_sentences(lang: str = "ja") -> list[dict]:
     _free_sentences[lang] = sentences
     return sentences
 
+def pick_free_sentence(
+    target_word: str, lang: str = "ja", topic: str = ""
+) -> dict | None:
+    """事前生成済みの free 例文から target_word に一致するものをランダムに返す。
 
 def pick_free_sentence(
     target_word: str, lang: str = "ja", topic: str = ""
@@ -273,6 +280,19 @@ def pick_free_sentence(
     picked = dict(random.choice(candidates))
     picked["context"] = localize_context(picked.get("context"), lang)
     return picked
+
+
+def resolve_interview_topic(user_data: dict) -> str:
+    """ヒアリングの goal からテーマを1つ選ぶ。該当が無ければ空文字。
+
+    未回答（旧クライアント）や未知の goal では空を返し、従来どおり
+    key_word 起点の自動選出に任せる。候補が複数あるものは毎回引き直す。
+    """
+    interview = user_data.get("interview")
+    if not isinstance(interview, dict):
+        return ""
+    candidates = INTERVIEW_GOAL_TOPICS.get(interview.get("goal"))
+    return random.choice(candidates) if candidates else ""
 
 
 def select_uvm_target_words(

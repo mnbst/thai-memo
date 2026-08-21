@@ -61,7 +61,19 @@ class AppConfig {
   /// 「次のテーマ」コーチマークの表示済みフラグ
   static const String prefKeyNextTopicCoachShown = 'next_topic_coach_shown';
 
-  /// 発音練習セクションのコーチマーク表示済みフラグ（詳細画面の初回表示時に出す）
+  /// 詳細画面の初回ガイドの進捗（0=例文カード / 1=発音練習 / 2=単語の分解 /
+  /// 3=文脈・使い方 / 4=戻る / 5=完了）。途中で画面を離れても残りから再開する
+  /// ため、真偽値ではなく段で持つ。
+  ///
+  /// 段を増やしたときは新しいキーにする。旧キーの番号は1つ手前を指すので、
+  /// そのまま使うと同じ案内を二度読ませる（detail_screen で読み替える）。
+  static const String prefKeyDetailTourStep = 'detail_tour_step_v2';
+
+  /// 例文カードの案内を足す前の進捗キー（読み替え用）。
+  static const String prefKeyDetailTourStepV1 = 'detail_tour_step';
+
+  /// 発音練習セクションのコーチマーク表示済みフラグ（旧版の名残）
+
   static const String prefKeyPronunciationCoachShown =
       'pronunciation_coach_shown';
 
@@ -75,6 +87,13 @@ class AppConfig {
   /// 毎日例文通知のコーチングダイアログ表示済みフラグ（設定画面の初回表示時に出す）
   static const String prefKeyNotificationCoachShown =
       'notification_coach_shown';
+
+  /// 暫定許可（iOS の provisional authorization）を要求済みかどうか。
+  ///
+  /// ダイアログが出ない代わりに一度しか意味を持たない要求なので、成否に
+  /// かかわらず一度で打ち切る。再登録は起動時の同期が引き受ける。
+  static const String prefKeyProvisionalPushRequested =
+      'provisional_push_requested';
 
   /// 例文タブのプレミアム訴求バナーを閉じた日時（epoch ms）
   static const String prefKeyPremiumHintDismissedAt =
@@ -91,6 +110,28 @@ class AppConfig {
   /// プレミアム体験の開放を通知済みか（後から配った既存ユーザー向けの案内）
   static const String prefKeyPremiumTrialStartedNotified =
       'premium_trial_started_notified';
+
+  /// ヒアリングの回答を保存するキーの接頭辞（`interview_level` など）。
+  /// 回答は例文生成には効かせず、案内の出し分けと分析にだけ使う。
+  static const String prefKeyInterviewPrefix = 'interview_';
+
+  /// ヒアリングの設問キー。prefs・Firestore・GA4 でこの並びを共有する。
+  /// 設問を足したらここにも足す（[interviewQuestionKeys] にない回答は
+  /// users doc へ上がらない）。
+  static const List<String> interviewQuestionKeys = [
+    'level',
+    'goal',
+    'time',
+    'struggle',
+  ];
+
+  /// ヒアリングを通過したか。全問スキップでも立てる。
+  /// 「まだ来ていない人」と「答えずに抜けた人」を分けるために要る。
+  static const String prefKeyInterviewCompleted = 'interview_completed';
+
+  /// ヒアリングの回答を users doc へ書けたか。初回起動時に圏外だと書けないので、
+  /// 立つまで起動のたびに送り直す。
+  static const String prefKeyInterviewSynced = 'interview_synced';
 
   /// quiz_offer(assigned)を送信済みの実験群。画面再生成での重複を防ぐ。
   static const String prefKeyQuizOfferAssignmentLoggedV1 =

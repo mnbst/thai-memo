@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ホーム画面のアプリ名。Android は端末の表示言語で選ぶ。
+         アプリ内の言語（ストア地域で決まる）とは別軸。 -->
+    <string name="app_name">まいにちタイ語</string>
+</resources>

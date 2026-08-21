@@ -79,11 +79,39 @@ class L10nEn extends L10n {
       'Once you\'ve read the sentence, move on to the quiz.';
 
   @override
+  String get coachSentenceCardTitle => 'Today\'s sentence';
+
+  @override
+  String get coachSentenceCardMessage =>
+      'The Thai text is on top and its reading below. Press play to hear the model audio. The translation is further down.';
+
+  @override
   String get coachPronunciationTitle => 'Say it out loud';
 
   @override
   String get coachPronunciationMessage =>
       'Hold the button and read it aloud. Your tones are checked on the spot.';
+
+  @override
+  String get coachWordBreakdownTitle => 'See it word by word';
+
+  @override
+  String get coachWordBreakdownMessage =>
+      'This lists the words the sentence is made of. Tap a word to open its tone explanation.';
+
+  @override
+  String get coachContextTitle => 'Check how it is used';
+
+  @override
+  String get coachContextMessage =>
+      'See what situation the sentence fits, how formal it is, and the cultural background behind it.';
+
+  @override
+  String get coachDetailBackTitle => 'That is all for the details';
+
+  @override
+  String get coachDetailBackMessage =>
+      'Tap \"Not now\" if you want to keep reading the details. When you are done, go back to the previous screen.';
 
   @override
   String get sentencePreparing => 'Preparing your next sentence...';
@@ -117,10 +145,10 @@ class L10nEn extends L10n {
   String get sampleGreetingWord1Role => 'greeting';
 
   @override
-  String get sampleGreetingWord2Meaning => 'polite particle used by men';
+  String get sampleGreetingWord2Meaning => 'polite ending used by men';
 
   @override
-  String get sampleGreetingWord2Role => 'final particle';
+  String get sampleGreetingWord2Role => 'sentence ending';
 
   @override
   String get sampleGreetingTopic => 'everyday greetings';
@@ -362,7 +390,7 @@ class L10nEn extends L10n {
   String get detailContextTopic => 'Setting';
 
   @override
-  String get detailContextStyle => 'Register';
+  String get detailContextStyle => 'Style';
 
   @override
   String get detailContextEmotion => 'Mood';
@@ -909,10 +937,159 @@ class L10nEn extends L10n {
   String get onboardingSkip => 'Skip';
 
   @override
-  String get onboardingStart => 'Get started';
+  String get onboardingNext => 'Next';
 
   @override
-  String get onboardingNext => 'Next';
+  String get coachTapHere => 'Tap the highlighted area';
+
+  @override
+  String get coachSkip => 'Not now';
+
+  @override
+  String get coachGotIt => 'Got it';
+
+  @override
+  String get interviewIntroTitle => 'Four quick questions';
+
+  @override
+  String get interviewIntroBody =>
+      'Your answers shape how we explain the way this app works. It only takes a moment.';
+
+  @override
+  String get interviewIntroStart => 'Start';
+
+  @override
+  String interviewStepLabel(int current, int total) {
+    return '$current / $total';
+  }
+
+  @override
+  String get interviewLevelQuestion => 'How much Thai do you know?';
+
+  @override
+  String get interviewLevelNone => 'Complete beginner';
+
+  @override
+  String get interviewLevelChars => 'I can read a few letters';
+
+  @override
+  String get interviewLevelWords => 'I know some words and greetings';
+
+  @override
+  String get interviewLevelConv => 'I can hold a conversation';
+
+  @override
+  String get interviewGoalQuestion => 'What do you want to use Thai for?';
+
+  @override
+  String get interviewGoalTravel => 'Travel';
+
+  @override
+  String get interviewGoalWork => 'Work';
+
+  @override
+  String get interviewGoalLive => 'Living in Thailand';
+
+  @override
+  String get interviewGoalCulture => 'Dramas and music';
+
+  @override
+  String get interviewTimeQuestion => 'How long can you study each day?';
+
+  @override
+  String get interviewTimeShort => 'A few minutes';
+
+  @override
+  String get interviewTimeMedium => 'About 10 minutes';
+
+  @override
+  String get interviewTimeLong => '30 minutes or more';
+
+  @override
+  String get interviewStruggleQuestion =>
+      'What has been hardest about Thai so far?';
+
+  @override
+  String get interviewStruggleNone => 'I am just getting started';
+
+  @override
+  String get interviewStruggleScript => 'I cannot read Thai letters';
+
+  @override
+  String get interviewStruggleTone => 'Tones are hard';
+
+  @override
+  String get interviewStruggleVocab => 'Words do not stick';
+
+  @override
+  String get philosophyHeading => 'How this app works';
+
+  @override
+  String get philosophy1None =>
+      'One sentence arrives each day. You learn its **sound and meaning** first, then the **Thai letters**, then the sentence as a whole.';
+
+  @override
+  String get philosophy1Chars =>
+      'Each daily sentence is **broken down word by word**, with meaning and pronunciation. The more Thai letters you can read, the more of it you can follow on your own.';
+
+  @override
+  String get philosophy1Words =>
+      'Each daily sentence is generated to match your **vocabulary score** in the app, moving from greetings out into everyday phrasing.';
+
+  @override
+  String get philosophy1Conv =>
+      'How hard each daily sentence is comes from your **quiz results**. The more you get right, the wider the range of words that shows up.';
+
+  @override
+  String get philosophyKeyWord =>
+      'Every sentence is built around **one key word**. Focus your learning on that word — it is also the word the quiz asks about.';
+
+  @override
+  String get philosophy2None =>
+      'You do not need to read anything yet. **Tap a word** on the sentence detail screen and it shows how the **Thai letters** are read and why they take that tone, one at a time. The rules are in the **tone guide**.';
+
+  @override
+  String get philosophy2Script =>
+      'In Thai, **the spelling decides the tone**. Tap a word to see why it takes that tone. There is also a guide that lays out the tone rules.';
+
+  @override
+  String get philosophy2Tone =>
+      'Make use of the **pronunciation practice**. It compares your recording with the model and shows which parts of a word are off in tone, and a guide covers how the tones work.';
+
+  @override
+  String get philosophy2Vocab =>
+      '**Quizzes** measure how well each word has stuck. Shaky words are asked again later.';
+
+  @override
+  String get philosophy3Travel =>
+      '**With Premium** you choose the topic of your sentences. Pick Travel or Transport and you get the phrases you need on the ground.';
+
+  @override
+  String get philosophy3Work =>
+      '**With Premium** you choose the topic of your sentences. Pick Work and you get the phrases you need on the job.';
+
+  @override
+  String get philosophy3Live =>
+      '**With Premium** you choose the topic of your sentences. Pick Shopping or Family and you get the phrases that come up in daily life.';
+
+  @override
+  String get philosophy3Culture =>
+      '**With Premium** you choose the topic of your sentences. Pick Thai BL Drama or Traditions & Festivals and you get the language those works use.';
+
+  @override
+  String get philosophy3TimeShort =>
+      '**A few minutes** covers today\'s sentence and the quiz that follows it.';
+
+  @override
+  String get philosophy3TimeMedium =>
+      '**Ten minutes** lets you add more sentences and go on to pronunciation practice and summary quizzes.';
+
+  @override
+  String get philosophy3TimeLong =>
+      '**Thirty minutes** covers adding sentences and pronunciation practice, plus reviewing past sentences from your history and working through the tone guide.';
+
+  @override
+  String get philosophyStart => 'Try it out';
 
   @override
   String get notifCoachTitle => 'Make it a daily habit';
@@ -954,6 +1131,20 @@ class L10nEn extends L10n {
   @override
   String get notifCoachEnabled =>
       'Your daily sentence will arrive at this time. You can change it in Settings.';
+
+  @override
+  String get notifCoachQuietNote =>
+      'Right now they arrive quietly — no sound, no banner, just Notification Center.';
+
+  @override
+  String get notifCoachPromote => 'Deliver prominently';
+
+  @override
+  String get notifCoachKeepQuiet => 'Keep them quiet';
+
+  @override
+  String get notifCoachStillQuiet =>
+      'Notifications will keep arriving quietly in Notification Center.';
 
   @override
   String get commonGotIt => 'Got it';
@@ -1356,7 +1547,7 @@ class L10nEn extends L10n {
 
   @override
   String shareStyle(String value) {
-    return 'Register: $value';
+    return 'Style: $value';
   }
 
   @override
