@@ -501,14 +501,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         );
       }
-      // 初回例文のテーマはヒアリングの回答（users/{uid}.interview.goal）から
-      // サーバーが決めるので、回答が着く前に生成を投げると初回だけ従来の
-      // 自動選出（入門帯は旅行に偏る）になる。通常は onAnswersReady で
-      // 開始済み。考え方の画面を読まずに閉じた場合だけここが起点になるので、
-      // 書き込みの着地を待ってから始める（送信済みなら即座に返る）。
-      await InterviewReporter()
-          .report()
-          .timeout(const Duration(seconds: 3), onTimeout: () {});
+      // 初回例文のテーマはヒアリングの回答から端末側で決めるので、users doc
+      // への書き込みを待つ必要はない（送信は分析と毎日配信のため）。通常は
+      // onAnswersReady で開始済み。考え方の画面を読まずに閉じた場合だけ
+      // ここが起点になる。
+      unawaited(InterviewReporter().report());
       _initialLoadFuture ??= _loadTodaySentence();
 
       // 初回起動完了を記録
@@ -742,6 +739,10 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
   int _completedCount = 0;
   bool _firstSummaryQuizCompleted = true;
 
+  /// この起動でクイズ画面まで進んだか。初回ガイドの最後の段
+  /// （今日の学習単語＝出題される語）を、クイズを見て戻った回だけ出すため。
+  bool _visitedQuiz = false;
+
   int get _currentThreshold => _firstSummaryQuizCompleted
       ? _summaryQuizThreshold
       : _firstTimeSummaryQuizThreshold;
@@ -805,6 +806,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
   }
 
   void _setStage(_LearningStage newStage) {
+    if (newStage != _LearningStage.sentence) _visitedQuiz = true;
     setState(() => _stage = newStage);
     widget.showAppIconNotifier.value = newStage == _LearningStage.sentence;
   }
@@ -859,6 +861,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
 
     return switch (_stage) {
       _LearningStage.sentence => TodayScreen(
+          returnedFromQuiz: _visitedQuiz,
           onStartQuiz: (sentence, offerSource) {
             _quizSentence = sentence;
             final quizNotifier = ref.read(quizControllerProvider.notifier);
@@ -939,9 +942,14 @@ typedef LearningQuizStartCallback = void Function(
 class TodayScreen extends ConsumerStatefulWidget {
   final LearningQuizStartCallback? onStartQuiz;
 
+  /// クイズ画面を見てから例文へ戻ってきた表示か。
+  /// 初回ガイドの最後の段を出す条件。
+  final bool returnedFromQuiz;
+
   const TodayScreen({
     super.key,
     this.onStartQuiz,
+    this.returnedFromQuiz = false,
   });
 
   /// デフォルトの挨拶例文（サンプル、履歴には保存されない）。
@@ -1016,6 +1024,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// 例文カードの位置特定用（初回コーチマーク1段目で使用）。
   final GlobalKey _sentenceCardKey = GlobalKey();
+
+  /// 「今日の学習単語」の位置特定用（初回コーチマーク3段目で使用）。
+  final GlobalKey _targetWordsKey = GlobalKey();
   final GlobalKey _sentenceScrollViewportKey = GlobalKey();
   final ScrollController _sentenceScrollController = ScrollController();
   final Set<String> _scheduledQuizOfferShown = {};
@@ -1040,15 +1051,17 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   void dispose() {
     CoachMarkOverlay.dismissFor(_sentenceCardKey);
     CoachMarkOverlay.dismissFor(_quizButtonKey);
+    CoachMarkOverlay.dismissFor(_targetWordsKey);
     _sentenceScrollController
       ..removeListener(_maybeLogVisibleQuizOffer)
       ..dispose();
     super.dispose();
   }
 
-  /// 初回ガイドを2段階でスポットライト表示する。
+  /// 初回ガイドを3段階でスポットライト表示する。
   /// 1段目は例文カード（詳細を開かせる）、詳細から戻ったら2段目で
-  /// 「確認クイズへ」ボタンを案内する。
+  /// 「確認クイズへ」ボタンを案内し、クイズを見て戻ったら3段目で
+  /// 「今日の学習単語」＝出題される語であることを結び付ける。
   /// 例文が表示され、前面にダイアログ等がない場合のみ。
   Future<void> _maybeShowSentenceCoach() async {
     // 詳細からの復帰と再描画で二重に走ると、表示後にもう一方の
@@ -1065,7 +1078,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   Future<void> _showSentenceCoach() async {
     if (ref.read(sentenceControllerProvider) is! SentenceStateSuccess) return;
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false) return;
+    if (prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false) {
+      await _showTargetWordsCoach(prefs);
+      return;
+    }
 
     // 詳細を見せる段が済んでいなければ先に例文カードを案内する。
     final detailShown =
@@ -1108,6 +1124,50 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             : AppConfig.prefKeyDetailCoachShown,
         true,
       );
+    }
+  }
+
+  /// 3段目。クイズを見てから例文へ戻った回だけ、「今日の学習単語」を指して
+  /// ここが出題される語だと教える。クイズを見る前に言っても実感が無いので、
+  /// 戻ってきた回に出す。
+  Future<void> _showTargetWordsCoach(SharedPreferences prefs) async {
+    if (!widget.returnedFromQuiz) return;
+    if (prefs.getBool(AppConfig.prefKeyTargetWordsCoachShown) ?? false) return;
+
+    // 単語が無い例文では節ごと描画されない（キーも付かない）。
+    final targetContext = _targetWordsKey.currentContext;
+    if (!mounted ||
+        targetContext == null ||
+        !targetContext.mounted ||
+        !TickerMode.getValuesNotifier(targetContext).value.enabled ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      alignment: 0.1,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+
+    final l10n = L10n.of(context);
+    final shown = CoachMarkOverlay.show(
+      context,
+      targetKey: _targetWordsKey,
+      id: 'target_words',
+      analytics: ref.read(analyticsServiceProvider),
+      icon: Icons.lightbulb_outline,
+      title: l10n.coachTargetWordsTitle,
+      message: l10n.coachTargetWordsMessage,
+      emphasis: l10n.coachTargetWordsEmphasis,
+      // 単語カードは「押す場所」ではないので、ボタンだけで閉じさせる。
+      targetTappable: false,
+      confirmLabel: l10n.coachGotIt,
+    );
+    if (shown) {
+      await prefs.setBool(AppConfig.prefKeyTargetWordsCoachShown, true);
     }
   }
 
@@ -1410,6 +1470,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final cs = theme.colorScheme;
 
     return Column(
+      key: _targetWordsKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(

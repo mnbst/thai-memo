@@ -52,6 +52,10 @@ class AppConfig {
   /// 「確認クイズへ」ボタンのコーチマーク表示済みフラグ
   static const String prefKeySentenceCoachShown = 'sentence_coach_shown';
 
+  /// 「今日の学習単語」のコーチマーク表示済みフラグ。
+  /// クイズを一度見てから例文へ戻った回に、出題される語を結び付けて教える。
+  static const String prefKeyTargetWordsCoachShown = 'target_words_coach_shown';
+
   /// 出題中の「例文を確認」導線のコーチマーク表示済みフラグ
   static const String prefKeyQuizReviewCoachShown = 'quiz_review_coach_shown';
 

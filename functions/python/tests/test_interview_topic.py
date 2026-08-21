@@ -1,4 +1,9 @@
-"""ヒアリング（interview.goal）からのテーマ決定。"""
+"""ヒアリング（interview.goal）からのテーマ決定。
+
+通常生成のテーマは端末側で決めて params で渡る（sentence_provider.dart）。
+ここで検証するのは、端末を経由しない毎日配信が使う resolve_interview_topic と、
+サーバーが params のテーマに手を加えないこと。
+"""
 
 import random
 
@@ -55,32 +60,17 @@ def test_candidates_cover_topics_named_in_the_philosophy_screen():
         assert set(topics) <= set(INTERVIEW_GOAL_TOPICS[goal]), goal
 
 
-def test_client_topic_wins_over_interview():
-    params = _effective_generation_params(
-        {"topic": TOPICS[12]},
-        is_premium=True,
-        user_data={"interview": {"goal": "travel"}},
-    )
+def test_client_topic_is_used_as_is():
+    # テーマはクライアントの指定をそのまま使う（ヒアリングからの決定は端末側）。
+    params = _effective_generation_params({"topic": TOPICS[12]}, is_premium=True)
     assert params["topic"] == TOPICS[12]
 
 
-def test_interview_fills_topic_when_unspecified():
-    params = _effective_generation_params(
-        {},
-        is_premium=True,
-        user_data={"interview": {"goal": "culture"}},
-    )
-    assert params["topic"] in INTERVIEW_GOAL_TOPICS["culture"]
+def test_unspecified_topic_stays_unspecified():
+    # サーバーは users doc を読んでテーマを埋めない（旧 resolve_interview_topic 経路）。
+    assert not _effective_generation_params({}, is_premium=True).get("topic")
 
 
 def test_free_keeps_automatic_selection():
-    params = _effective_generation_params(
-        {},
-        is_premium=False,
-        user_data={"interview": {"goal": "culture"}},
-    )
+    params = _effective_generation_params({"topic": TOPICS[2]}, is_premium=False)
     assert not params.get("topic")
-
-
-def test_missing_user_data_is_noop():
-    assert not _effective_generation_params({}, is_premium=True).get("topic")

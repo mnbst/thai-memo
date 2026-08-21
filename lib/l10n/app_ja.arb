@@ -40,6 +40,10 @@
   "coachQuizTitle": "次はクイズに挑戦",
   "coachQuizMessage": "例文を読んだら、確認クイズに進みましょう。",
 
+  "coachTargetWordsTitle": "クイズに出るのはこの単語",
+  "coachTargetWordsEmphasis": "今日の学習単語",
+  "coachTargetWordsMessage": "確認クイズで問われるのは今日の学習単語です。例文の中でどう使われているかを見てから、確認クイズに進みましょう。",
+
   "coachSentenceCardTitle": "今日の例文",
   "coachSentenceCardMessage": "上がタイ文字、下がその読み方です。再生ボタンでお手本を聞けます。日本語訳はこの下にあります。",
   "coachPronunciationTitle": "声に出して確かめる",
@@ -105,7 +109,7 @@
   "coachQuizReviewMessage": "答えに自信がないときは、ここから例文を見直してから回答できます。",
   "coachSummaryQuizTitle": "まとめクイズに挑戦",
   "coachSummaryQuizEmphasis": "例文5つごと",
-  "coachSummaryQuizMessage": "学習した内容をまとめて確認するクイズです。本来は例文5つごとに出ます。スキップして次の例文に進むこともできます。",
+  "coachSummaryQuizMessage": "学習した内容をまとめて確認するクイズです。本来は例文5つごとに出ます。まずは一度やってみましょう。",
   "coachTopicTitle": "次の例文のテーマを選べます",
   "coachTopicMessage": "ここをタップすると、次に生成する例文のテーマ（旅行・恋愛など）を変更できます。気分に合わせて学習内容を選びましょう。",
 
