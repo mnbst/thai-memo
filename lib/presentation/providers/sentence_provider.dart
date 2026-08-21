@@ -15,7 +15,6 @@ import '../../domain/get_sentences_usecase.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
 import 'analytics_provider.dart';
-import 'interview_goal_provider.dart';
 import 'remaining_quota_provider.dart';
 import 'settings_provider.dart';
 import 'subscription_provider.dart';
@@ -86,10 +85,6 @@ class SentenceController extends StateNotifier<SentenceState> {
   final String? Function() _currentTopic;
   final bool Function() _isTrialActive;
 
-  /// テーマ未指定のときに使う、ヒアリング由来のテーマ。
-  /// 呼ぶたびに引き直す（候補が複数あるものを1つに固定しない）。
-  final String? Function()? _interviewTopic;
-
   /// 文言は言語設定に追従させたいので、値ではなく都度引く関数を持つ。
   final L10n Function() _l10n;
   final GenerateSentenceCallback? _generateSentenceOverride;
@@ -104,11 +99,9 @@ class SentenceController extends StateNotifier<SentenceState> {
     this._currentTopic,
     this._isTrialActive,
     this._l10n, {
-    String? Function()? interviewTopic,
     GenerateSentenceCallback? generateSentence,
     GetMostRecentSentenceCallback? getMostRecentSentence,
-  })  : _interviewTopic = interviewTopic,
-        _generateSentenceOverride = generateSentence,
+  })  : _generateSentenceOverride = generateSentence,
         _getMostRecentSentenceOverride = getMostRecentSentence,
         super(const SentenceStateInitial());
 
@@ -179,31 +172,14 @@ class SentenceController extends StateNotifier<SentenceState> {
     if (premiumTrial) {
       final trialParams = Map<String, String?>.from(generationParams);
       trialParams['premium_trial'] = 'true';
-      return _withInterviewTopic(trialParams);
+      return trialParams;
     }
     if (_currentTier() == 'premium') {
-      return _withInterviewTopic(
-        Map<String, String?>.from(generationParams),
-      );
+      return generationParams;
     }
     final effectiveParams = Map<String, String?>.from(generationParams);
     effectiveParams.remove('topic');
     return effectiveParams;
-  }
-
-  /// テーマ未指定（おまかせ）なら、ヒアリングで申告した用途からテーマを決めて
-  /// 明示指定として送る。CF 側はここで決まったテーマをそのまま使う。
-  ///
-  /// 端末で決めるのは、初回例文の生成が users doc への回答書き込みの着地を
-  /// 待たずに済むため。サーバーから読ませると、書き込みが間に合わなかった
-  /// 回だけテーマが効かない。
-  Map<String, String?> _withInterviewTopic(Map<String, String?> params) {
-    final current = params['topic'];
-    if (current != null && current.isNotEmpty) return params;
-    final topic = _interviewTopic?.call();
-    if (topic == null) return params;
-    params['topic'] = topic;
-    return params;
   }
 
   /// Load the most recent sentence
@@ -341,7 +317,6 @@ final sentenceControllerProvider =
     () => ref.read(generationParamsProvider)['topic'],
     () => ref.read(premiumTrialActiveProvider).valueOrNull ?? false,
     () => ref.read(l10nProvider),
-    interviewTopic: () => ref.read(interviewTopicProvider),
   );
 });
 
