@@ -562,7 +562,7 @@ abstract class L10n {
   /// No description provided for @coachSummaryQuizMessage.
   ///
   /// In ja, this message translates to:
-  /// **'学習した内容をまとめて確認するクイズです。本来は例文5つごとに出ます。スキップして次の例文に進むこともできます。'**
+  /// **'学習した内容をまとめて確認するクイズです。本来は例文5つごとに出ます。まずは一度やってみましょう。'**
   String get coachSummaryQuizMessage;
 
   /// No description provided for @coachTopicTitle.
