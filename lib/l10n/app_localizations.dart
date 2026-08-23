@@ -226,13 +226,13 @@ abstract class L10n {
   /// No description provided for @coachQuizMessage.
   ///
   /// In ja, this message translates to:
-  /// **'例文を読んだら、確認クイズに進みましょう。'**
+  /// **'例文をひと通り見たら、クイズで単語を覚えたかを確認しましょう。'**
   String get coachQuizMessage;
 
   /// No description provided for @coachTargetWordsTitle.
   ///
   /// In ja, this message translates to:
-  /// **'クイズに出るのはこの単語'**
+  /// **'今日はこの単語を覚えよう'**
   String get coachTargetWordsTitle;
 
   /// No description provided for @coachTargetWordsEmphasis.
@@ -244,7 +244,7 @@ abstract class L10n {
   /// No description provided for @coachTargetWordsMessage.
   ///
   /// In ja, this message translates to:
-  /// **'確認クイズで問われるのは今日の学習単語です。例文の中でどう使われているかを見てから、確認クイズに進みましょう。'**
+  /// **'今日の学習単語です。例文の中でどう使われているかを見ていきましょう。'**
   String get coachTargetWordsMessage;
 
   /// No description provided for @coachSentenceCardTitle.
@@ -256,8 +256,20 @@ abstract class L10n {
   /// No description provided for @coachSentenceCardMessage.
   ///
   /// In ja, this message translates to:
-  /// **'上がタイ文字、下がその読み方です。再生ボタンでお手本を聞けます。日本語訳はこの下にあります。'**
+  /// **'上がタイ文字、下がその読み方、いちばん下が日本語訳です。'**
   String get coachSentenceCardMessage;
+
+  /// No description provided for @coachPlayTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'お手本を聞く'**
+  String get coachPlayTitle;
+
+  /// No description provided for @coachPlayMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'再生ボタンを押すと、例文をタイ語で読み上げます。'**
+  String get coachPlayMessage;
 
   /// No description provided for @coachPronunciationTitle.
   ///
@@ -268,20 +280,80 @@ abstract class L10n {
   /// No description provided for @coachPronunciationMessage.
   ///
   /// In ja, this message translates to:
-  /// **'ボタンを押したまま読んでみましょう。声調が合っているか、その場で判定します。'**
+  /// **'ボタンを押したまま、タイ語音声を真似して読んでみましょう。声調が合っているか、その場で判定します。'**
   String get coachPronunciationMessage;
 
-  /// No description provided for @coachWordBreakdownTitle.
+  /// No description provided for @coachPronunciationResultTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音判定の見方'**
+  String get coachPronunciationResultTitle;
+
+  /// No description provided for @coachPronunciationResultMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'緑は合っている、橙は惜しい、赤は違う。どれか1語をタップしてみましょう。'**
+  String get coachPronunciationResultMessage;
+
+  /// No description provided for @coachPronunciationContourTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'自分の声調と見比べる'**
+  String get coachPronunciationContourTitle;
+
+  /// No description provided for @coachPronunciationContourMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'薄い線がお手本、濃い線があなたの声の高さです。「次はここを直す」を参考に、「もう一度」で言い直して全単語が緑になるのを目指しましょう。'**
+  String get coachPronunciationContourMessage;
+
+  /// No description provided for @coachWordDetailTitle.
   ///
   /// In ja, this message translates to:
   /// **'単語ごとに見る'**
-  String get coachWordBreakdownTitle;
+  String get coachWordDetailTitle;
 
-  /// No description provided for @coachWordBreakdownMessage.
+  /// No description provided for @coachWordDetailMessage.
   ///
   /// In ja, this message translates to:
-  /// **'例文がどの単語でできているかを一覧で見ます。単語をタップすると声調の解説も開きます。'**
-  String get coachWordBreakdownMessage;
+  /// **'例文内の単語リストです。単語をタップすると、その単語のつづりと声調の関係を詳しく見れます。'**
+  String get coachWordDetailMessage;
+
+  /// No description provided for @coachToneDetailTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調の解説の見方'**
+  String get coachToneDetailTitle;
+
+  /// No description provided for @coachToneDetailMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調の解説では、単語を音節に分け、それぞれの読みと声調記号を並べています。'**
+  String get coachToneDetailMessage;
+
+  /// No description provided for @coachToneTableTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調が決まる仕組み'**
+  String get coachToneTableTitle;
+
+  /// No description provided for @coachToneTableMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'子音文字の種類（高・中・低）と声調記号、音節の型の組み合わせで声調が決まります。青くハイライトされている行が、この音節に当てはまる規則です。'**
+  String get coachToneTableMessage;
+
+  /// No description provided for @coachToneGuideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'規則をまとめて見るには'**
+  String get coachToneGuideTitle;
+
+  /// No description provided for @coachToneGuideMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調の規則は声調ガイドにまとまっています。ここからいつでも開けます。'**
+  String get coachToneGuideMessage;
 
   /// No description provided for @coachContextTitle.
   ///
@@ -292,19 +364,19 @@ abstract class L10n {
   /// No description provided for @coachContextMessage.
   ///
   /// In ja, this message translates to:
-  /// **'その例文をどんな場面で使うか、文体や文化的な背景まで確認できます。'**
+  /// **'このカードでは、この例文をどんな場面で使うか、文体や文化的な背景まで確認できます。'**
   String get coachContextMessage;
 
   /// No description provided for @coachDetailBackTitle.
   ///
   /// In ja, this message translates to:
-  /// **'詳細はここまで'**
+  /// **'例文の詳細はここまで'**
   String get coachDetailBackTitle;
 
   /// No description provided for @coachDetailBackMessage.
   ///
   /// In ja, this message translates to:
-  /// **'もう少し詳細を見る場合は「あとで」をタップ。見終わったら前の画面に戻ります。'**
+  /// **'例文の詳細の案内はこれで終わりです。左上の戻る、または右スワイプで前の画面に戻ります。'**
   String get coachDetailBackMessage;
 
   /// No description provided for @sentencePreparing.
@@ -544,7 +616,7 @@ abstract class L10n {
   /// No description provided for @coachQuizReviewMessage.
   ///
   /// In ja, this message translates to:
-  /// **'答えに自信がないときは、ここから例文を見直してから回答できます。'**
+  /// **'空欄に入る正しい単語を選んでください。答えに迷ったら、下の「例文を確認」からいつでも例文を見直せます。'**
   String get coachQuizReviewMessage;
 
   /// No description provided for @coachSummaryQuizTitle.
@@ -562,8 +634,32 @@ abstract class L10n {
   /// No description provided for @coachSummaryQuizMessage.
   ///
   /// In ja, this message translates to:
-  /// **'学習した内容をまとめて確認するクイズです。本来は例文5つごとに出ます。まずは一度やってみましょう。'**
+  /// **'これまでの単語をまとめて復習するクイズです。本来は例文5つごとに出ますが、まずは一度やってみましょう。'**
   String get coachSummaryQuizMessage;
+
+  /// No description provided for @coachTourFinishTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'機能の紹介はここまで'**
+  String get coachTourFinishTitle;
+
+  /// No description provided for @coachTourFinishMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'お疲れ様でした！「次の例文へ」をタップしてタイ語の世界に飛び込みましょう！'**
+  String get coachTourFinishMessage;
+
+  /// No description provided for @coachTourFinishEmphasis.
+  ///
+  /// In ja, this message translates to:
+  /// **'「次の例文へ」をタップしてタイ語の世界に飛び込みましょう！'**
+  String get coachTourFinishEmphasis;
+
+  /// No description provided for @coachTourFinishQuota.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文は無料版なら1日{free}文まで。プレミアムなら1日{premium}文に増えます。'**
+  String coachTourFinishQuota(int free, int premium);
 
   /// No description provided for @coachTopicTitle.
   ///
@@ -988,7 +1084,7 @@ abstract class L10n {
   /// No description provided for @settingsDailyNotificationSubtitle.
   ///
   /// In ja, this message translates to:
-  /// **'その日の例文をお知らせします'**
+  /// **'例文をお知らせします'**
   String get settingsDailyNotificationSubtitle;
 
   /// No description provided for @settingsAllowNotificationInOsSettings.
@@ -1702,7 +1798,7 @@ abstract class L10n {
   /// No description provided for @coachSkip.
   ///
   /// In ja, this message translates to:
-  /// **'あとで'**
+  /// **'スキップ'**
   String get coachSkip;
 
   /// No description provided for @coachGotIt.
@@ -1858,7 +1954,7 @@ abstract class L10n {
   /// No description provided for @philosophy1None.
   ///
   /// In ja, this message translates to:
-  /// **'毎日届く1つの例文を、まず**音と意味**から覚えます。次に**タイ文字**、そして文全体へ進みます。'**
+  /// **'届いた例文を、まず**音と意味**から覚えます。**タイ文字**はなんとなくの形から入って、ゆっくり覚えていきましょう。'**
   String get philosophy1None;
 
   /// No description provided for @philosophy1Chars.
@@ -1882,25 +1978,25 @@ abstract class L10n {
   /// No description provided for @philosophyKeyWord.
   ///
   /// In ja, this message translates to:
-  /// **'例文には毎回、**中心になる単語が1つ**あります。その1語を中心に覚えます。クイズで出題されるのもこの単語です。'**
+  /// **'例文には毎回、**中心になる単語が1つ**あります。その単語が実際にどう使われるかを例文で覚えていきましょう。'**
   String get philosophyKeyWord;
 
   /// No description provided for @philosophy2None.
   ///
   /// In ja, this message translates to:
-  /// **'読めなくても大丈夫です。例文の詳細画面で**単語をタップ**すると、**タイ文字**の読みと声調の理由が1つずつ出ます。規則は**声調ガイド**に記載してあります。'**
+  /// **'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。'**
   String get philosophy2None;
 
   /// No description provided for @philosophy2Script.
   ///
   /// In ja, this message translates to:
-  /// **'タイ文字は、**つづりで声調が決まります**。単語をタップすると、その文字がなぜその声調になるのかを確認できます。声調の規則をまとめたガイドもあります。'**
+  /// **'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。'**
   String get philosophy2Script;
 
   /// No description provided for @philosophy2Tone.
   ///
   /// In ja, this message translates to:
-  /// **'**発音練習機能**を活用しましょう。お手本と自分の録音を比べて、単語のどの部分で声調がズレているかがわかります。声調の読み方をまとめたガイドもあります。'**
+  /// **'**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。'**
   String get philosophy2Tone;
 
   /// No description provided for @philosophy2Vocab.
@@ -1942,13 +2038,13 @@ abstract class L10n {
   /// No description provided for @philosophy3TimeMedium.
   ///
   /// In ja, this message translates to:
-  /// **'**10分あれば**、例文を追加しながら、発音練習やまとめクイズまで進められます。'**
+  /// **'**10分あれば**、例文を追加しながら、発音練習やこれまでの単語の復習まで進められます。'**
   String get philosophy3TimeMedium;
 
   /// No description provided for @philosophy3TimeLong.
   ///
   /// In ja, this message translates to:
-  /// **'**30分あれば**、例文の追加と発音練習に加えて、履歴からの復習や声調ガイドの読み込みまで手が回ります。'**
+  /// **'**30分あれば**、例文の追加と発音練習に加えて、過去の例文の復習や声調の学習まで手が回ります。'**
   String get philosophy3TimeLong;
 
   /// No description provided for @philosophyStart.
@@ -1960,7 +2056,7 @@ abstract class L10n {
   /// No description provided for @notifCoachTitle.
   ///
   /// In ja, this message translates to:
-  /// **'例文を毎日の習慣に'**
+  /// **'通知機能を活用しましょう'**
   String get notifCoachTitle;
 
   /// No description provided for @notifCoachStep1.
@@ -1978,7 +2074,7 @@ abstract class L10n {
   /// No description provided for @notifCoachHabit.
   ///
   /// In ja, this message translates to:
-  /// **'毎日同じ時間に開くので、習慣になります'**
+  /// **'毎日同じ時間に開くので、タイ語学習が習慣になります'**
   String get notifCoachHabit;
 
   /// No description provided for @notifCoachPreviewLabel.
@@ -1986,12 +2082,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'通知の例）'**
   String get notifCoachPreviewLabel;
-
-  /// No description provided for @notifCoachFooter.
-  ///
-  /// In ja, this message translates to:
-  /// **'通知をタップで学習画面へ。時刻は設定で変更できます。'**
-  String get notifCoachFooter;
 
   /// No description provided for @notifCoachNow.
   ///
@@ -2028,24 +2118,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'毎日この時間に例文をお届けします。時刻は設定で変更できます。'**
   String get notifCoachEnabled;
-
-  /// No description provided for @notifCoachQuietNote.
-  ///
-  /// In ja, this message translates to:
-  /// **'いまは音もバナーも無しで、通知センターにだけ届いています。'**
-  String get notifCoachQuietNote;
-
-  /// No description provided for @notifCoachPromote.
-  ///
-  /// In ja, this message translates to:
-  /// **'目立つように受け取る'**
-  String get notifCoachPromote;
-
-  /// No description provided for @notifCoachKeepQuiet.
-  ///
-  /// In ja, this message translates to:
-  /// **'このままでいい'**
-  String get notifCoachKeepQuiet;
 
   /// No description provided for @notifCoachStillQuiet.
   ///
@@ -2927,7 +2999,7 @@ abstract class L10n {
   /// No description provided for @toneMainConsonant.
   ///
   /// In ja, this message translates to:
-  /// **'主子音'**
+  /// **'先頭の子音'**
   String get toneMainConsonant;
 
   /// No description provided for @toneSyllableType.
@@ -3011,7 +3083,7 @@ abstract class L10n {
   /// No description provided for @toneGuideIntro.
   ///
   /// In ja, this message translates to:
-  /// **'タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、主子音（声調を決める子音）のクラス、声調記号、音節タイプによって決まります。'**
+  /// **'タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、子音文字の種類（高・中・低）、声調記号、音節タイプによって決まります。'**
   String get toneGuideIntro;
 
   /// No description provided for @toneGuideFiveTones.

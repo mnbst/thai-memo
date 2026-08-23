@@ -72,50 +72,88 @@ class L10nJa extends L10n {
   String get coachQuizTitle => '次はクイズに挑戦';
 
   @override
-  String get coachQuizMessage => '例文を読んだら、確認クイズに進みましょう。';
+  String get coachQuizMessage => '例文をひと通り見たら、クイズで単語を覚えたかを確認しましょう。';
 
   @override
-  String get coachTargetWordsTitle => 'クイズに出るのはこの単語';
+  String get coachTargetWordsTitle => '今日はこの単語を覚えよう';
 
   @override
   String get coachTargetWordsEmphasis => '今日の学習単語';
 
   @override
-  String get coachTargetWordsMessage =>
-      '確認クイズで問われるのは今日の学習単語です。例文の中でどう使われているかを見てから、確認クイズに進みましょう。';
+  String get coachTargetWordsMessage => '今日の学習単語です。例文の中でどう使われているかを見ていきましょう。';
 
   @override
   String get coachSentenceCardTitle => '今日の例文';
 
   @override
-  String get coachSentenceCardMessage =>
-      '上がタイ文字、下がその読み方です。再生ボタンでお手本を聞けます。日本語訳はこの下にあります。';
+  String get coachSentenceCardMessage => '上がタイ文字、下がその読み方、いちばん下が日本語訳です。';
+
+  @override
+  String get coachPlayTitle => 'お手本を聞く';
+
+  @override
+  String get coachPlayMessage => '再生ボタンを押すと、例文をタイ語で読み上げます。';
 
   @override
   String get coachPronunciationTitle => '声に出して確かめる';
 
   @override
   String get coachPronunciationMessage =>
-      'ボタンを押したまま読んでみましょう。声調が合っているか、その場で判定します。';
+      'ボタンを押したまま、タイ語音声を真似して読んでみましょう。声調が合っているか、その場で判定します。';
 
   @override
-  String get coachWordBreakdownTitle => '単語ごとに見る';
+  String get coachPronunciationResultTitle => '発音判定の見方';
 
   @override
-  String get coachWordBreakdownMessage =>
-      '例文がどの単語でできているかを一覧で見ます。単語をタップすると声調の解説も開きます。';
+  String get coachPronunciationResultMessage =>
+      '緑は合っている、橙は惜しい、赤は違う。どれか1語をタップしてみましょう。';
+
+  @override
+  String get coachPronunciationContourTitle => '自分の声調と見比べる';
+
+  @override
+  String get coachPronunciationContourMessage =>
+      '薄い線がお手本、濃い線があなたの声の高さです。「次はここを直す」を参考に、「もう一度」で言い直して全単語が緑になるのを目指しましょう。';
+
+  @override
+  String get coachWordDetailTitle => '単語ごとに見る';
+
+  @override
+  String get coachWordDetailMessage =>
+      '例文内の単語リストです。単語をタップすると、その単語のつづりと声調の関係を詳しく見れます。';
+
+  @override
+  String get coachToneDetailTitle => '声調の解説の見方';
+
+  @override
+  String get coachToneDetailMessage => '声調の解説では、単語を音節に分け、それぞれの読みと声調記号を並べています。';
+
+  @override
+  String get coachToneTableTitle => '声調が決まる仕組み';
+
+  @override
+  String get coachToneTableMessage =>
+      '子音文字の種類（高・中・低）と声調記号、音節の型の組み合わせで声調が決まります。青くハイライトされている行が、この音節に当てはまる規則です。';
+
+  @override
+  String get coachToneGuideTitle => '規則をまとめて見るには';
+
+  @override
+  String get coachToneGuideMessage => '声調の規則は声調ガイドにまとまっています。ここからいつでも開けます。';
 
   @override
   String get coachContextTitle => '使い方を確かめる';
 
   @override
-  String get coachContextMessage => 'その例文をどんな場面で使うか、文体や文化的な背景まで確認できます。';
+  String get coachContextMessage => 'このカードでは、この例文をどんな場面で使うか、文体や文化的な背景まで確認できます。';
 
   @override
-  String get coachDetailBackTitle => '詳細はここまで';
+  String get coachDetailBackTitle => '例文の詳細はここまで';
 
   @override
-  String get coachDetailBackMessage => 'もう少し詳細を見る場合は「あとで」をタップ。見終わったら前の画面に戻ります。';
+  String get coachDetailBackMessage =>
+      '例文の詳細の案内はこれで終わりです。左上の戻る、または右スワイプで前の画面に戻ります。';
 
   @override
   String get sentencePreparing => '次の例文を準備中...';
@@ -239,7 +277,8 @@ class L10nJa extends L10n {
   String get coachQuizReviewTitle => '迷ったら例文に戻れます';
 
   @override
-  String get coachQuizReviewMessage => '答えに自信がないときは、ここから例文を見直してから回答できます。';
+  String get coachQuizReviewMessage =>
+      '空欄に入る正しい単語を選んでください。答えに迷ったら、下の「例文を確認」からいつでも例文を見直せます。';
 
   @override
   String get coachSummaryQuizTitle => 'まとめクイズに挑戦';
@@ -249,7 +288,21 @@ class L10nJa extends L10n {
 
   @override
   String get coachSummaryQuizMessage =>
-      '学習した内容をまとめて確認するクイズです。本来は例文5つごとに出ます。まずは一度やってみましょう。';
+      'これまでの単語をまとめて復習するクイズです。本来は例文5つごとに出ますが、まずは一度やってみましょう。';
+
+  @override
+  String get coachTourFinishTitle => '機能の紹介はここまで';
+
+  @override
+  String get coachTourFinishMessage => 'お疲れ様でした！「次の例文へ」をタップしてタイ語の世界に飛び込みましょう！';
+
+  @override
+  String get coachTourFinishEmphasis => '「次の例文へ」をタップしてタイ語の世界に飛び込みましょう！';
+
+  @override
+  String coachTourFinishQuota(int free, int premium) {
+    return '例文は無料版なら1日$free文まで。プレミアムなら1日$premium文に増えます。';
+  }
 
   @override
   String get coachTopicTitle => '次の例文のテーマを選べます';
@@ -477,7 +530,7 @@ class L10nJa extends L10n {
   String get settingsDailyNotification => '毎日の例文通知';
 
   @override
-  String get settingsDailyNotificationSubtitle => 'その日の例文をお知らせします';
+  String get settingsDailyNotificationSubtitle => '例文をお知らせします';
 
   @override
   String get settingsAllowNotificationInOsSettings => '端末の設定で通知を許可してください';
@@ -880,7 +933,7 @@ class L10nJa extends L10n {
   String get coachTapHere => '光っている場所をタップ';
 
   @override
-  String get coachSkip => 'あとで';
+  String get coachSkip => 'スキップ';
 
   @override
   String get coachGotIt => 'わかった';
@@ -961,7 +1014,7 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy1None =>
-      '毎日届く1つの例文を、まず**音と意味**から覚えます。次に**タイ文字**、そして文全体へ進みます。';
+      '届いた例文を、まず**音と意味**から覚えます。**タイ文字**はなんとなくの形から入って、ゆっくり覚えていきましょう。';
 
   @override
   String get philosophy1Chars =>
@@ -977,19 +1030,19 @@ class L10nJa extends L10n {
 
   @override
   String get philosophyKeyWord =>
-      '例文には毎回、**中心になる単語が1つ**あります。その1語を中心に覚えます。クイズで出題されるのもこの単語です。';
+      '例文には毎回、**中心になる単語が1つ**あります。その単語が実際にどう使われるかを例文で覚えていきましょう。';
 
   @override
   String get philosophy2None =>
-      '読めなくても大丈夫です。例文の詳細画面で**単語をタップ**すると、**タイ文字**の読みと声調の理由が1つずつ出ます。規則は**声調ガイド**に記載してあります。';
+      'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。';
 
   @override
   String get philosophy2Script =>
-      'タイ文字は、**つづりで声調が決まります**。単語をタップすると、その文字がなぜその声調になるのかを確認できます。声調の規則をまとめたガイドもあります。';
+      'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。';
 
   @override
   String get philosophy2Tone =>
-      '**発音練習機能**を活用しましょう。お手本と自分の録音を比べて、単語のどの部分で声調がズレているかがわかります。声調の読み方をまとめたガイドもあります。';
+      '**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。';
 
   @override
   String get philosophy2Vocab => '**クイズ**が単語ごとの覚え具合を測ります。あいまいな単語は後で再出題されます。';
@@ -1015,17 +1068,17 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy3TimeMedium =>
-      '**10分あれば**、例文を追加しながら、発音練習やまとめクイズまで進められます。';
+      '**10分あれば**、例文を追加しながら、発音練習やこれまでの単語の復習まで進められます。';
 
   @override
   String get philosophy3TimeLong =>
-      '**30分あれば**、例文の追加と発音練習に加えて、履歴からの復習や声調ガイドの読み込みまで手が回ります。';
+      '**30分あれば**、例文の追加と発音練習に加えて、過去の例文の復習や声調の学習まで手が回ります。';
 
   @override
   String get philosophyStart => '実際に使ってみる';
 
   @override
-  String get notifCoachTitle => '例文を毎日の習慣に';
+  String get notifCoachTitle => '通知機能を活用しましょう';
 
   @override
   String get notifCoachStep1 => '通勤中や寝る前など、学習を続けやすい時刻を決めます';
@@ -1034,13 +1087,10 @@ class L10nJa extends L10n {
   String get notifCoachStep2 => 'その時刻に、あなた向けの1例文が自動で届きます';
 
   @override
-  String get notifCoachHabit => '毎日同じ時間に開くので、習慣になります';
+  String get notifCoachHabit => '毎日同じ時間に開くので、タイ語学習が習慣になります';
 
   @override
   String get notifCoachPreviewLabel => '通知の例）';
-
-  @override
-  String get notifCoachFooter => '通知をタップで学習画面へ。時刻は設定で変更できます。';
 
   @override
   String get notifCoachNow => '今';
@@ -1059,15 +1109,6 @@ class L10nJa extends L10n {
 
   @override
   String get notifCoachEnabled => '毎日この時間に例文をお届けします。時刻は設定で変更できます。';
-
-  @override
-  String get notifCoachQuietNote => 'いまは音もバナーも無しで、通知センターにだけ届いています。';
-
-  @override
-  String get notifCoachPromote => '目立つように受け取る';
-
-  @override
-  String get notifCoachKeepQuiet => 'このままでいい';
 
   @override
   String get notifCoachStillQuiet => '通知はこれまでどおり、通知センターに静かに届きます。';
@@ -1575,7 +1616,7 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get toneMainConsonant => '主子音';
+  String get toneMainConsonant => '先頭の子音';
 
   @override
   String get toneSyllableType => '音節タイプ';
@@ -1624,7 +1665,7 @@ class L10nJa extends L10n {
 
   @override
   String get toneGuideIntro =>
-      'タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、主子音（声調を決める子音）のクラス、声調記号、音節タイプによって決まります。';
+      'タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、子音文字の種類（高・中・低）、声調記号、音節タイプによって決まります。';
 
   @override
   String get toneGuideFiveTones => '5つの声調';

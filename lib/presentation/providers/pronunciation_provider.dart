@@ -117,10 +117,40 @@ class PronunciationController extends StateNotifier<PronunciationState> {
 
   static const _uuid = Uuid();
 
+  /// マイクの許可ダイアログを出している間だけ真。
+  ///
+  /// 状態には出さない（画面は変わらない）。初回ガイドが、許可を選んでいる
+  /// 最中に次の案内へ進んでしまうのを止めるために公開する。
+  bool get isRequestingPermission => _requestingPermission;
+  bool _requestingPermission = false;
+
   @override
   void dispose() {
     unawaited(_recorder.dispose());
     super.dispose();
+  }
+
+  /// 押させる前にマイクの許可を求めておく。初回ガイド専用。
+  ///
+  /// ボタンを押しっぱなしで録音する作りなので、押した瞬間に許可ダイアログが
+  /// 出ると、閉じた頃には指が離れていて録音が始まらない（押し直しになる）。
+  /// 案内を読ませる前に済ませてしまう。
+  ///
+  /// 既に許可済み、あるいは録音・採点中なら何もしない。断られた場合だけ
+  /// 状態を切り替え、そのことを画面に出す。
+  Future<void> requestPermissionInAdvance() async {
+    if (state.phase != PronunciationPhase.idle) return;
+    if (await _recorder.hasPermission()) return;
+    if (!mounted) return;
+    _requestingPermission = true;
+    final bool granted;
+    try {
+      granted = await _recorder.requestPermission();
+    } finally {
+      _requestingPermission = false;
+    }
+    if (!mounted || granted) return;
+    state = const PronunciationState(phase: PronunciationPhase.permissionDenied);
   }
 
   /// 録音を開始する。マイクが未許可なら許可を求め、断られたら状態を切り替える。
@@ -132,7 +162,13 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     await _tts.stopAll();
 
     if (!await _recorder.hasPermission()) {
-      final granted = await _recorder.requestPermission();
+      _requestingPermission = true;
+      final bool granted;
+      try {
+        granted = await _recorder.requestPermission();
+      } finally {
+        _requestingPermission = false;
+      }
       if (!mounted) return;
       if (!granted) {
         state = const PronunciationState(

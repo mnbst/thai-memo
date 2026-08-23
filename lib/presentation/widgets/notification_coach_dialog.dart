@@ -9,15 +9,7 @@ import '../../l10n/app_localizations.dart';
 /// iOSの許可ダイアログは一度拒否されると二度と出せないため、何のための通知かを
 /// このダイアログで伝えてから聞く、という順序自体は変えない。
 class NotificationCoachDialog extends StatelessWidget {
-  const NotificationCoachDialog({super.key, this.quietDelivery = false});
-
-  /// 暫定許可で「静かな配信」が既に始まっているか。
-  ///
-  /// true のときは通知が届いていない前提の文言（「通知をオンにする」「あとで」）を
-  /// 使わない。既に届いているのに「オンにする」と聞くのは事実と違うし、「あとで」を
-  /// 選んだ人に通知が届き続けるのは約束を破ることになる。ここでの選択は
-  /// 「目立たせるか、静かなままにするか」であって、オンオフではない。
-  final bool quietDelivery;
+  const NotificationCoachDialog({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -34,31 +26,31 @@ class NotificationCoachDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 「時刻を決める→そこに届く→同じ時間に開くから続く」の順で並べる。
-          // 時刻設定の理由と習慣化の理屈が、読まなくても順番で伝わるようにする。
-          _Step(number: 1, text: L10n.of(context).notifCoachStep1),
-          const SizedBox(height: 6),
-          _Step(number: 2, text: L10n.of(context).notifCoachStep2),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                size: 16,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  L10n.of(context).notifCoachHabit,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+            // 「時刻を決める→そこに届く→同じ時間に開くから続く」の順で並べる。
+            // 時刻設定の理由と習慣化の理屈が、読まなくても順番で伝わるようにする。
+            _Step(number: 1, text: L10n.of(context).notifCoachStep1),
+            const SizedBox(height: 6),
+            _Step(number: 2, text: L10n.of(context).notifCoachStep2),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    L10n.of(context).notifCoachHabit,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 10),
           Text(
             L10n.of(context).notifCoachPreviewLabel,
@@ -68,15 +60,6 @@ class NotificationCoachDialog extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           const _NotificationPreview(),
-          const SizedBox(height: 8),
-          Text(
-            quietDelivery
-                ? L10n.of(context).notifCoachQuietNote
-                : L10n.of(context).notifCoachFooter,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
         ],
       ),
       // 端末の文字サイズを大きくしている場合でも溢れないようにする。
@@ -84,17 +67,13 @@ class NotificationCoachDialog extends StatelessWidget {
       contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
       actionsPadding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: Text(quietDelivery
-              ? L10n.of(context).notifCoachKeepQuiet
-              : L10n.of(context).notifCoachLater),
-        ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
-          child: Text(quietDelivery
-              ? L10n.of(context).notifCoachPromote
-              : L10n.of(context).notifCoachEnable),
+          child: Text(L10n.of(context).notifCoachEnable),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(L10n.of(context).notifCoachLater),
         ),
       ],
     );
@@ -217,13 +196,10 @@ class _NotificationPreview extends StatelessWidget {
 /// コーチングダイアログを表示し、通知をオンにしてよいかを返す。
 ///
 /// バリアタップなど明示的な選択なしで閉じた場合は false（許可要求を出さない）。
-Future<bool> showNotificationCoachDialog(
-  BuildContext context, {
-  bool quietDelivery = false,
-}) async {
+Future<bool> showNotificationCoachDialog(BuildContext context) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (context) => NotificationCoachDialog(quietDelivery: quietDelivery),
+    builder: (context) => const NotificationCoachDialog(),
   );
   return result ?? false;
 }
@@ -232,8 +208,7 @@ Future<bool> showNotificationCoachDialog(
 ///
 /// [permissionGranted] はバナー・音つきの配信が許可されているかで、null は
 /// 判定不能（取得失敗）。既に許可済みなら紹介する必要がなく、判定不能なら
-/// 出さずに次の機会へ回す。暫定許可（静かな配信）のままの人は false 扱いで、
-/// ここで昇格を案内する対象になる。
+/// 出さずに次の機会へ回す。
 /// アプリ内設定 `dailyReminderEnabled` は既定オンで、OSが未許可でも
 /// syncPushRegistration がオフに倒すまで true のままなので判定には使わない。
 bool shouldShowNotificationCoach({

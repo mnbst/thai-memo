@@ -80,6 +80,8 @@ class PronunciationPractice extends ConsumerWidget {
     required this.scope,
     this.thaiText = '',
     this.showHeader = true,
+    this.resultKey,
+    this.contourKey,
   });
 
   /// 保存済み例文のID。未保存（null）の例文では練習させない。
@@ -96,6 +98,13 @@ class PronunciationPractice extends ConsumerWidget {
   /// 置き場所の識別子（例: 'home_card' / 'detail'）。
   /// 同じ例文でもここが違えば判定結果は共有されない。
   final String scope;
+
+  /// 初回ガイドで判定結果を指すためのキー。語ごとの帯に付く。
+  /// 判定前は対象そのものが無い（案内も出せない）。
+  final GlobalKey? resultKey;
+
+  /// 語を選んだときに開くカーブのカード（初回ガイドのスポット対象）。
+  final GlobalKey? contourKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -143,6 +152,8 @@ class PronunciationPractice extends ConsumerWidget {
             spans: spans,
             l10n: l10n,
             countsAgainstQuota: !isPremium,
+            resultKey: resultKey,
+            contourKey: contourKey,
           ),
           if (!isPremium) ...[
             const SizedBox(height: 6),
@@ -211,6 +222,8 @@ class _PracticeBody extends ConsumerWidget {
     required this.spans,
     required this.l10n,
     required this.countsAgainstQuota,
+    required this.resultKey,
+    required this.contourKey,
   });
 
   final String sentenceId;
@@ -220,6 +233,12 @@ class _PracticeBody extends ConsumerWidget {
 
   /// free のときだけ true。採点が成立した回だけ枠を消費する。
   final bool countsAgainstQuota;
+
+  /// 初回ガイドが判定結果を指すためのキー。
+  final GlobalKey? resultKey;
+
+  /// 初回ガイドがカーブのカードを指すためのキー。
+  final GlobalKey? contourKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -243,6 +262,8 @@ class _PracticeBody extends ConsumerWidget {
         final result = state.result;
         if (result == null) return const SizedBox.shrink();
         return _ResultView(
+          resultKey: resultKey,
+          contourKey: contourKey,
           result: result,
           recognition: state.recognition,
           recognitionStatus: state.recognitionStatus,
@@ -481,6 +502,8 @@ class _PermissionNotice extends StatelessWidget {
 
 class _ResultView extends StatelessWidget {
   const _ResultView({
+    required this.resultKey,
+    required this.contourKey,
     required this.result,
     required this.recognition,
     required this.recognitionStatus,
@@ -491,6 +514,11 @@ class _ResultView extends StatelessWidget {
     required this.l10n,
   });
 
+  /// 初回ガイドのスポット対象（語ごとの帯）に付けるキー。
+  final GlobalKey? resultKey;
+
+  /// 初回ガイドのスポット対象（カーブのカード）に付けるキー。
+  final GlobalKey? contourKey;
   final PronunciationResult result;
   final List<WordRecognition> recognition;
 
@@ -544,30 +572,16 @@ class _ResultView extends StatelessWidget {
               l10n.pronunciationScore(result.overallScore.round()),
               style: theme.textTheme.titleMedium,
             ),
-          // 帯は「どこを」しか言わない。言い直す前に「どう」を1つだけ足す。
-          if (!result.isMonotone) ...[
-            const SizedBox(height: 8),
-            _CoachCard(
-              tip: coachingTipOf(
-                result.syllables,
-                recognition: recognition,
-                wordTexts: [for (final w in spans.words) w.wordText],
-                toneMarks: spans.toneMarks,
-                romans: spans.syllableRomans,
-                // 声調が合っているのに通じなかった語では、子音・母音のうち
-                // 日本語話者が最も外しやすい点を1つ出す。
-                segmentPointOfWord: spans.segmentPointOfWord,
-              ),
-              l10n: l10n,
-            ),
-          ],
           const SizedBox(height: 8),
-          _WordChips(
-            result: result,
-            recognition: recognition,
-            spans: spans,
-            selectedWordIndex: selectedWordIndex,
-            onSelectWord: onSelectWord,
+          KeyedSubtree(
+            key: resultKey,
+            child: _WordChips(
+              result: result,
+              recognition: recognition,
+              spans: spans,
+              selectedWordIndex: selectedWordIndex,
+              onSelectWord: onSelectWord,
+            ),
           ),
           const SizedBox(height: 6),
           _BandLegend(
@@ -575,16 +589,44 @@ class _ResultView extends StatelessWidget {
             hasRecognition: _hasRecognition,
             recognitionStatus: recognitionStatus,
           ),
-          if (selectedWordIndex != null) ...[
-            const SizedBox(height: 8),
-            _WordContourCard(
-              scores: _scoresOfWord(result, spans, selectedWordIndex!),
-              recognition: selectedWordIndex! < recognition.length
-                  ? recognition[selectedWordIndex!]
-                  : WordRecognition.unavailable,
-              l10n: l10n,
-            ),
-          ] else ...[
+          if (selectedWordIndex != null)
+            // カーブ・直す点・言い直しの3つで1つの流れなので、初回ガイドの
+            // 強調も「もう一度」まで含める。直す点だけ見せて終わると、
+            // その場で言い直せることに気づかれない。
+            KeyedSubtree(
+              key: contourKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  _WordContourCard(
+                    scores: _scoresOfWord(result, spans, selectedWordIndex!),
+                    recognition: selectedWordIndex! < recognition.length
+                        ? recognition[selectedWordIndex!]
+                        : WordRecognition.unavailable,
+                    l10n: l10n,
+                  ),
+                  // 声調の直し方は初回の結果には出さない。玄人向けの細かさ
+                  // なので、語をタップして自分から中を開いた人にだけ、
+                  // その語の分を1つ出す。
+                  if (!result.isMonotone) ...[
+                    const SizedBox(height: 8),
+                    _CoachCard(
+                      tip: _coachingTipOfWord(
+                        result,
+                        spans,
+                        recognition,
+                        selectedWordIndex!,
+                      ),
+                      l10n: l10n,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  _retryButton(l10n),
+                ],
+              ),
+            )
+          else ...[
             const SizedBox(height: 6),
             Text(
               l10n.pronunciationTapWordHint,
@@ -592,15 +634,23 @@ class _ResultView extends StatelessWidget {
             ),
           ],
         ],
-        const SizedBox(height: 8),
-        TextButton.icon(
+        // 語を開いている間は強調の中に置いてあるので、ここでは出さない。
+        if (failure != null || selectedWordIndex == null) ...[
+          const SizedBox(height: 8),
+          _retryButton(l10n),
+        ],
+      ],
+    );
+  }
+
+  Widget _retryButton(L10n l10n) => Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
           onPressed: onRetry,
           icon: const Icon(Icons.refresh, size: 18),
           label: Text(l10n.pronunciationRetry),
         ),
-      ],
-    );
-  }
+      );
 }
 
 List<SyllableScore> _scoresOfWord(
@@ -613,6 +663,35 @@ List<SyllableScore> _scoresOfWord(
   return result.syllables
       .where((s) => span.contains(s.syllableIndex))
       .toList();
+}
+
+/// 選んだ語だけの助言を1つ選ぶ。
+///
+/// 文全体で最多の外しではなく、**開いた語の中の**外しを見る。カーブと助言が
+/// 別の語を指していると、どこを直せばいいのか分からなくなる。
+CoachingTip? _coachingTipOfWord(
+  PronunciationResult result,
+  SentenceToneSpans spans,
+  List<WordRecognition> recognition,
+  int wordIndex,
+) {
+  if (wordIndex >= spans.words.length) return null;
+  final word = spans.words[wordIndex];
+  return coachingTipOf(
+    _scoresOfWord(result, spans, wordIndex),
+    // 語1つ分に切り出して渡す。助言側は語順の列として扱うので、
+    // 添字0がこの語になる。
+    recognition: wordIndex < recognition.length
+        ? [recognition[wordIndex]]
+        : const [],
+    wordTexts: [word.wordText],
+    // 音節の表記は文全体の音節順で引く（SyllableScore.syllableIndex が全体の順）。
+    toneMarks: spans.toneMarks,
+    romans: spans.syllableRomans,
+    // 声調が合っているのに通じなかった語では、子音・母音のうち
+    // 日本語話者が最も外しやすい点を1つ出す。
+    segmentPointOfWord: (_) => spans.segmentPointOfWord(wordIndex),
+  );
 }
 
 /// 次の1回で直す点を1つだけ出す。直すところが無ければ何も描かない。

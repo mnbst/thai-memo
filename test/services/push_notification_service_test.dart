@@ -146,44 +146,11 @@ void main() {
     expect(firestore.users, isEmpty);
   });
 
-  group('暫定許可', () {
+  // 暫定許可の取得はやめたが、過去バージョンで暫定のまま残っている端末は
+  // enable() から昇格させる経路をそのまま使う。
+  group('過去バージョン由来の暫定許可', () {
     setUp(() => debugDefaultTargetPlatformOverride = TargetPlatform.iOS);
     tearDown(() => debugDefaultTargetPlatformOverride = null);
-
-    test('未判断ならダイアログを出さずにトークンを確保する', () async {
-      final messaging =
-          _FakeMessaging(status: AuthorizationStatus.notDetermined);
-
-      expect(await service(messaging).enableProvisionally(), isTrue);
-      // 通常の許可要求（＝ダイアログ）は一度も出していない。
-      expect(messaging.provisionalRequests, 1);
-      expect(messaging.prominentRequests, 0);
-      expect(firestore.users['u1']?['fcm_token'], 'tok-1');
-    });
-
-    test('既に拒否されているなら何もしない', () async {
-      final messaging = _FakeMessaging(status: AuthorizationStatus.denied);
-
-      expect(await service(messaging).enableProvisionally(), isFalse);
-      expect(messaging.provisionalRequests, 0);
-      expect(firestore.users['u1'], isNull);
-    });
-
-    test('既に許可済みなら暫定に落とさない', () async {
-      final messaging = _FakeMessaging(status: AuthorizationStatus.authorized);
-
-      expect(await service(messaging).enableProvisionally(), isFalse);
-      expect(messaging.provisionalRequests, 0);
-    });
-
-    test('トークンが取れなくても暫定許可は下りているので true', () async {
-      final messaging = _FakeMessaging(
-        status: AuthorizationStatus.notDetermined,
-        hangsOnGetToken: true,
-      );
-
-      expect(await service(messaging).enableProvisionally(), isTrue);
-    });
 
     test('暫定許可のまま昇格を断られたら quiet', () async {
       final messaging = _FakeMessaging(status: AuthorizationStatus.provisional)
@@ -202,13 +169,4 @@ void main() {
     });
   });
 
-  test('iOS 以外では暫定許可を要求しない', () async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    addTearDown(() => debugDefaultTargetPlatformOverride = null);
-    final messaging =
-        _FakeMessaging(status: AuthorizationStatus.notDetermined);
-
-    expect(await service(messaging).enableProvisionally(), isFalse);
-    expect(messaging.provisionalRequests, 0);
-  });
 }

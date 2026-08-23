@@ -61,7 +61,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   static const int _settingsTabIndex = 2;
   bool _initialLoadCompleted = false;
   Future<void>? _initialLoadFuture;
-  final _showAppIcon = ValueNotifier<bool>(true);
   final _dailySentenceService = DailySentenceService();
   final _learningKey = GlobalKey<_LearningScreenState>();
   StreamSubscription<RemoteMessage>? _notificationOpenSubscription;
@@ -108,7 +107,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void dispose() {
     _notificationOpenSubscription?.cancel();
-    _showAppIcon.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -145,8 +143,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       await _checkFirstLaunchAndLoadSentence();
     } finally {
       await _handleInitialNotificationOpen();
-      await _ensureProvisionalPush();
-      await _retryNotificationCoachIfPending();
       await _maybeShowPremiumTrialStarted();
       await _maybeShowPremiumTrialEnded();
     }
@@ -236,45 +232,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await PaywallBottomSheet.show(context, source: 'trial_ended');
   }
 
-  /// 例文が手元にあるユーザーに、ダイアログを出さずに暫定許可を取る。
+  /// 設定タブを開いたときに、通知の案内を出す。
   ///
-  /// 正式な許可（[_maybeShowNotificationCoach]）は「まとめクイズまで進んだ人」に
-  /// しか届かず、初日で離れる大半のユーザーは配信対象に入らないまま消える。
-  /// 暫定許可なら無音で通知センターに届くだけなので、体験を邪魔せずに
-  /// 送信先だけ確保できる。案内そのものは従来どおり後から出す。
+  /// こちらから画面を動かして出すのはやめた。自分で設定を開いた人なら、
+  /// 案内を閉じた先に通知のトグルが見えていて、後から切り替える場所も分かる。
   ///
-  /// 例文が1つも無い状態では通知する中身も無いので、その回は見送る。
-  Future<void> _ensureProvisionalPush() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyProvisionalPushRequested) ?? false) {
-      return;
-    }
-    if (!mounted) return;
-    final sentences = await ref.read(allSentencesProvider.future);
-    if (sentences.isEmpty || !mounted) return;
-
-    final granted = await ref
-        .read(settingsControllerProvider.notifier)
-        .enableProvisionalPush();
-    // 取れなかった場合（Android・本人が判断済み・失敗）も二度は試さない。
-    await prefs.setBool(AppConfig.prefKeyProvisionalPushRequested, true);
-    if (!mounted) return;
-    unawaited(
-      ref.read(analyticsServiceProvider).logNotificationCoach(
-            action: granted ? 'provisional' : 'provisional_unavailable',
-          ),
-    );
-  }
-
-  /// 例文の価値を体験済みなのに通知の案内をまだ出せていない場合、起動時に出し直す。
-  ///
-  /// 案内はまとめクイズ完了時に出すが、その完了を条件にすると取りこぼしが大きい。
-  /// まとめクイズは例文5つごとで、そこに届く前に通知が使えないままのユーザーが
-  /// 残るうえ、案内の直前・表示中にアプリを落とすと「初回サイクル」の判定は
-  /// 既に永続化済みで二度と成立しない。例文を1つでも学習していれば価値は
-  /// 伝わっているので、表示済みフラグ（notification_coach_shown）だけを条件に
-  /// 次の起動で拾い直す。
-  Future<void> _retryNotificationCoachIfPending() async {
+  /// 例文を1つも学習していないうちは出さない。毎日届く価値が伝わる前に
+  /// 聞くと断られる（iOSでは一度拒否されると二度と要求できない）。
+  Future<void> _maybeShowNotificationCoachOnSettingsOpen() async {
     // 初期化前の state は「表示済み」側の既定値なので、読む前に必ず待つ。
     await ref.read(settingsControllerProvider.notifier).initialized;
     if (!mounted ||
@@ -282,13 +247,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
     // 初回ガイドの最中には割り込ませない。初回は例文が自動生成されるため
-    // 「例文がある」だけでは価値を体験したことにならず、まだ何も学習して
-    // いないうちに通知の案内が出てしまう。
+    // 「例文がある」だけでは価値を体験したことにならない。
     final prefs = await SharedPreferences.getInstance();
     if (!(prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false)) return;
     if (!mounted) return;
     final sentences = await ref.read(allSentencesProvider.future);
     if (sentences.isEmpty || !mounted) return;
+    // タブが描画されてから案内を重ねる。開いた直後に離れた人には出さない。
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted || _currentIndex != _settingsTabIndex) return;
     await _maybeShowNotificationCoach();
   }
 
@@ -318,34 +285,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _logCurrentTabScreen(index: 0);
     }
     _learningKey.currentState?.showSentenceStage();
-  }
-
-  /// 通知の案内を設定タブで出す。まとめクイズの結果が出たとき、またはその
-  /// 誘導を「あとで」で見送ったときに呼ばれる。
-  ///
-  /// 学習画面の上に重ねるのではなく設定タブへ移ってから出す。案内を閉じた先に
-  /// 通知のトグルが見えていれば、後から自分で切り替える場所が分かる。
-  /// 出す条件を満たさないときはタブも動かさない（用のない画面へ飛ばさない）。
-  Future<void> _openNotificationCoachInSettings() async {
-    if (CoachMarkOverlay.isVisible) return;
-    final controller = ref.read(settingsControllerProvider.notifier);
-    await controller.initialized;
-    if (!mounted) return;
-    if (!shouldShowNotificationCoach(
-      coachShown: ref.read(settingsControllerProvider).notificationCoachShown,
-      permissionGranted: await controller.hasProminentNotificationPermission(),
-    )) {
-      return;
-    }
-    if (!mounted) return;
-    if (_currentIndex != _settingsTabIndex) {
-      setState(() => _currentIndex = _settingsTabIndex);
-      _logCurrentTabScreen(index: _settingsTabIndex);
-    }
-    // タブが描画されてから案内を重ねる。
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-    await _maybeShowNotificationCoach();
   }
 
   /// 例文の価値を体験した後に一度だけ、毎日例文通知を継続サポート機能として紹介する。
@@ -381,23 +320,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
 
-    // 暫定許可で既に静かに届いている人には、オンオフではなく「目立たせるか」を
-    // 聞く。届いているのに「オンにする？」と聞き、「あとで」を選んだ相手に
-    // 通知を出し続けるのは筋が通らない。
-    final quietDelivery =
-        await controller.hasNotificationPermission() == true &&
-            permissionGranted == false;
-    if (!mounted) return;
-
     final analytics = ref.read(analyticsServiceProvider);
-    unawaited(analytics.logNotificationCoach(
-      action: quietDelivery ? 'shown_quiet' : 'shown',
-    ));
+    unawaited(analytics.logNotificationCoach(action: 'shown'));
 
-    final accepted = await showNotificationCoachDialog(
-      context,
-      quietDelivery: quietDelivery,
-    );
+    final accepted = await showNotificationCoachDialog(context);
     unawaited(
       analytics.logNotificationCoach(
         action: accepted ? 'accepted' : 'dismissed',
@@ -628,37 +554,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     final l10n = L10n.of(context);
     final screens = [
-      LearningScreen(
-        key: _learningKey,
-        showAppIconNotifier: _showAppIcon,
-        onNotificationCue: () =>
-            unawaited(_openNotificationCoachInSettings()),
-      ),
+      LearningScreen(key: _learningKey),
       const HistoryScreen(),
       const SettingsScreen(),
     ];
 
     return Scaffold(
-      body: Stack(
-        children: [
-          IndexedStack(index: _currentIndex, children: screens),
-          ValueListenableBuilder<bool>(
-            valueListenable: _showAppIcon,
-            builder: (context, show, child) {
-              if (!show) return const SizedBox.shrink();
-              return child!;
-            },
-            child: Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 12,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.asset('assets/appicon.png', width: 40, height: 40),
-              ),
-            ),
-          ),
-        ],
-      ),
+      body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
@@ -669,6 +571,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             _currentIndex = index;
           });
           _logCurrentTabScreen(index: index);
+          if (index == _settingsTabIndex) {
+            unawaited(_maybeShowNotificationCoachOnSettingsOpen());
+          }
         },
         destinations: [
           NavigationDestination(
@@ -736,16 +641,11 @@ bool shouldAutoLoadAfterSentenceQuotaRefresh({
 }
 
 class LearningScreen extends ConsumerStatefulWidget {
-  final ValueNotifier<bool> showAppIconNotifier;
-
   /// 初回の学習が一巡（まとめクイズ完了）した直後に呼ばれる。
   /// 通知の案内を出してよいタイミング（まとめクイズの結果／その見送り）。
-  final VoidCallback? onNotificationCue;
 
   const LearningScreen({
     super.key,
-    required this.showAppIconNotifier,
-    this.onNotificationCue,
   });
 
   @override
@@ -760,10 +660,6 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
   ThaiSentence? _quizSentence;
   int _completedCount = 0;
   bool _firstSummaryQuizCompleted = true;
-
-  /// この起動でクイズ画面まで進んだか。初回ガイドの最後の段
-  /// （今日の学習単語＝出題される語）を、クイズを見て戻った回だけ出すため。
-  bool _visitedQuiz = false;
 
   int get _currentThreshold => _firstSummaryQuizCompleted
       ? _summaryQuizThreshold
@@ -828,9 +724,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
   }
 
   void _setStage(_LearningStage newStage) {
-    if (newStage != _LearningStage.sentence) _visitedQuiz = true;
     setState(() => _stage = newStage);
-    widget.showAppIconNotifier.value = newStage == _LearningStage.sentence;
   }
 
   void _returnToLearningTop() {
@@ -883,7 +777,6 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
 
     return switch (_stage) {
       _LearningStage.sentence => TodayScreen(
-          returnedFromQuiz: _visitedQuiz,
           onStartQuiz: (sentence, offerSource) {
             _quizSentence = sentence;
             final quizNotifier = ref.read(quizControllerProvider.notifier);
@@ -922,8 +815,6 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
                     _setStage(_LearningStage.summaryQuiz);
                   }
                 : null,
-            // まとめクイズの誘導を「あとで」で見送ったら、そこで通知の案内へ回す。
-            onNotificationCue: widget.onNotificationCue,
             onNextSentence: () async {
               await _setCompletedCount(_completedCount + 1);
               await _proceedToNextSentence();
@@ -939,9 +830,6 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             showAppBar: false,
             title: l10n.learnSummaryQuizTitle,
             showVocabScoreTransition: true,
-            // 例文の価値を体験し終えた結果画面で通知の案内を出す。次の例文へ
-            // 進むまで待つと、そのまま画面を閉じた人には届かない。
-            onNotificationCue: widget.onNotificationCue,
             onNextSentence: () async {
               if (!_firstSummaryQuizCompleted) {
                 await _markFirstSummaryQuizCompleted();
@@ -964,14 +852,9 @@ typedef LearningQuizStartCallback = void Function(
 class TodayScreen extends ConsumerStatefulWidget {
   final LearningQuizStartCallback? onStartQuiz;
 
-  /// クイズ画面を見てから例文へ戻ってきた表示か。
-  /// 初回ガイドの最後の段を出す条件。
-  final bool returnedFromQuiz;
-
   const TodayScreen({
     super.key,
     this.onStartQuiz,
-    this.returnedFromQuiz = false,
   });
 
   /// デフォルトの挨拶例文（サンプル、履歴には保存されない）。
@@ -1081,9 +964,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   }
 
   /// 初回ガイドを3段階でスポットライト表示する。
-  /// 1段目は例文カード（詳細を開かせる）、詳細から戻ったら2段目で
-  /// 「確認クイズへ」ボタンを案内し、クイズを見て戻ったら3段目で
-  /// 「今日の学習単語」＝出題される語であることを結び付ける。
+  /// 1段目は「今日の学習単語」＝出題される語、2段目は例文カード（詳細を
+  /// 開かせる）、詳細から戻ったら3段目で「覚えたか確認」を案内する。
+  /// 各段は1回だけ。読んだ後に出し直さない。
   /// 例文が表示され、前面にダイアログ等がない場合のみ。
   Future<void> _maybeShowSentenceCoach() async {
     // 詳細からの復帰と再描画で二重に走ると、表示後にもう一方の
@@ -1100,97 +983,121 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   Future<void> _showSentenceCoach() async {
     if (ref.read(sentenceControllerProvider) is! SentenceStateSuccess) return;
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false) {
-      await _showTargetWordsCoach(prefs);
-      return;
+
+    // 1段目。何を覚える回なのかを先に見せる。ここが分からないまま例文を
+    // 開かせても、どこを読めばよいのか分からない。
+    if (!(prefs.getBool(AppConfig.prefKeyTargetWordsCoachShown) ?? false)) {
+      await _showCoachStep(
+        targetKey: _targetWordsKey,
+        id: 'target_words',
+        icon: Icons.lightbulb_outline,
+        alignment: 0.1,
+        titleOf: (l10n) => l10n.coachTargetWordsTitle,
+        messageOf: (l10n) => l10n.coachTargetWordsMessage,
+        emphasisOf: (l10n) => l10n.coachTargetWordsEmphasis,
+        // 単語カードは「押す場所」ではないので、ボタンだけで閉じさせる。
+        targetTappable: false,
+        confirm: true,
+        shownFlagKey: AppConfig.prefKeyTargetWordsCoachShown,
+        prefs: prefs,
+      );
+      // 単語が無い例文では出せない（action は null）。その回は次の段へ進む。
+      if (!mounted) return;
     }
 
-    // 詳細を見せる段が済んでいなければ先に例文カードを案内する。
-    final detailShown =
-        prefs.getBool(AppConfig.prefKeyDetailCoachShown) ?? false;
-    final targetKey = detailShown ? _quizButtonKey : _sentenceCardKey;
+    // 2段目。例文カードを押させて詳細を開かせる。
+    if (!(prefs.getBool(AppConfig.prefKeyDetailCoachShown) ?? false)) {
+      final action = await _showCoachStep(
+        targetKey: _sentenceCardKey,
+        id: 'sentence_card',
+        icon: Icons.touch_app,
+        alignment: 0.1,
+        titleOf: (l10n) => l10n.coachDetailTitle,
+        messageOf: (l10n) => l10n.coachDetailMessage,
+        shownFlagKey: AppConfig.prefKeyDetailCoachShown,
+        prefs: prefs,
+      );
+      // 詳細へ移ったなら、続きは戻ってきた回に出す。ここで次を出すと
+      // 詳細画面の上に残る。
+      if (action == 'tapped' || !mounted) return;
+    }
 
+    // 3段目。覚えたかを確かめる導線。まず例文を読ませたいので、ここは
+    // 押させずに在り処だけ教える。
+    if (!(prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false)) {
+      await _showCoachStep(
+        targetKey: _quizButtonKey,
+        id: 'quiz_button',
+        icon: Icons.quiz,
+        alignment: 0.72,
+        titleOf: (l10n) => l10n.coachQuizTitle,
+        messageOf: (l10n) => l10n.coachQuizMessage,
+        targetTappable: false,
+        confirm: true,
+        shownFlagKey: AppConfig.prefKeySentenceCoachShown,
+        prefs: prefs,
+      );
+    }
+  }
+
+  /// 1段出して、閉じられるまで待つ。閉じ方（tapped / confirmed / dismissed）を
+  /// 返す。対象が描画されていない・出せなかった場合は null。
+  ///
+  /// [shownFlagKey] を渡すと、出せた時点で表示済みにする。閉じ方では判断
+  /// しない（読んだ後にどう閉じたかは、案内が届いたかとは別）。
+  Future<String?> _showCoachStep({
+    required GlobalKey targetKey,
+    required String id,
+    required IconData icon,
+    required double alignment,
+    required String Function(L10n) titleOf,
+    required String Function(L10n) messageOf,
+    String Function(L10n)? emphasisOf,
+    bool targetTappable = true,
+    bool confirm = false,
+    String? shownFlagKey,
+    SharedPreferences? prefs,
+  }) async {
+    // 単語が無い例文では節ごと描画されない（キーも付かない）。
     final targetContext = targetKey.currentContext;
     if (!mounted ||
         targetContext == null ||
         !targetContext.mounted ||
         !TickerMode.getValuesNotifier(targetContext).value.enabled ||
         ModalRoute.of(context)?.isCurrent != true) {
-      return;
+      return null;
     }
 
     // inline群でも初回ガイドの対象が画面内に入るようにして、ガイド有無が
     // 実験結果へ混入しないよう両群を同じ条件に揃える。
     await Scrollable.ensureVisible(
       targetContext,
-      alignment: detailShown ? 0.72 : 0.1,
+      alignment: alignment,
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
-    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return null;
 
     final l10n = L10n.of(context);
+    final completer = Completer<String>();
     final shown = CoachMarkOverlay.show(
       context,
       targetKey: targetKey,
-      id: detailShown ? 'quiz_button' : 'sentence_card',
+      id: id,
       analytics: ref.read(analyticsServiceProvider),
-      icon: detailShown ? Icons.quiz : Icons.touch_app,
-      title: detailShown ? l10n.coachQuizTitle : l10n.coachDetailTitle,
-      message: detailShown ? l10n.coachQuizMessage : l10n.coachDetailMessage,
+      icon: icon,
+      title: titleOf(l10n),
+      message: messageOf(l10n),
+      emphasis: emphasisOf?.call(l10n),
+      targetTappable: targetTappable,
+      confirmLabel: confirm ? l10n.coachGotIt : null,
+      onDismiss: (action) {
+        if (!completer.isCompleted) completer.complete(action);
+      },
     );
-    if (shown) {
-      await prefs.setBool(
-        detailShown
-            ? AppConfig.prefKeySentenceCoachShown
-            : AppConfig.prefKeyDetailCoachShown,
-        true,
-      );
-    }
-  }
-
-  /// 3段目。クイズを見てから例文へ戻った回だけ、「今日の学習単語」を指して
-  /// ここが出題される語だと教える。クイズを見る前に言っても実感が無いので、
-  /// 戻ってきた回に出す。
-  Future<void> _showTargetWordsCoach(SharedPreferences prefs) async {
-    if (!widget.returnedFromQuiz) return;
-    if (prefs.getBool(AppConfig.prefKeyTargetWordsCoachShown) ?? false) return;
-
-    // 単語が無い例文では節ごと描画されない（キーも付かない）。
-    final targetContext = _targetWordsKey.currentContext;
-    if (!mounted ||
-        targetContext == null ||
-        !targetContext.mounted ||
-        !TickerMode.getValuesNotifier(targetContext).value.enabled ||
-        ModalRoute.of(context)?.isCurrent != true) {
-      return;
-    }
-
-    await Scrollable.ensureVisible(
-      targetContext,
-      alignment: 0.1,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
-    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
-
-    final l10n = L10n.of(context);
-    final shown = CoachMarkOverlay.show(
-      context,
-      targetKey: _targetWordsKey,
-      id: 'target_words',
-      analytics: ref.read(analyticsServiceProvider),
-      icon: Icons.lightbulb_outline,
-      title: l10n.coachTargetWordsTitle,
-      message: l10n.coachTargetWordsMessage,
-      emphasis: l10n.coachTargetWordsEmphasis,
-      // 単語カードは「押す場所」ではないので、ボタンだけで閉じさせる。
-      targetTappable: false,
-      confirmLabel: l10n.coachGotIt,
-    );
-    if (shown) {
-      await prefs.setBool(AppConfig.prefKeyTargetWordsCoachShown, true);
-    }
+    if (!shown) return null;
+    if (shownFlagKey != null) await prefs?.setBool(shownFlagKey, true);
+    return completer.future;
   }
 
   @override

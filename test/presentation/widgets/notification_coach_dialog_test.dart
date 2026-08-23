@@ -70,7 +70,7 @@ void main() {
         ),
       );
 
-      expect(find.text('例文を毎日の習慣に'), findsOneWidget);
+      expect(find.text('通知機能を活用しましょう'), findsOneWidget);
 
       // 「時刻を決める → その時刻に届く」の順序が読める形で並んでいること。
       // 文言そのものより、この2段構成が崩れていないことを見る。
@@ -82,7 +82,6 @@ void main() {
       // 習慣化の理由づけと、通知の見た目のプレビュー。
       expect(find.textContaining('習慣になります'), findsOneWidget);
       expect(find.text('通知の例）'), findsOneWidget);
-      expect(find.textContaining('時刻は設定で変更できます'), findsOneWidget);
 
       // 主導線でその場でOS許可要求まで進む。設定画面へ辿らせる導線は持たない。
       expect(find.widgetWithText(FilledButton, '通知をオンにする'), findsOneWidget);
@@ -90,26 +89,6 @@ void main() {
       expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);
     });
 
-    testWidgets('静かに届いている間はオンオフではなく昇格を聞く', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('ja'),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          home: const Scaffold(
-            body: NotificationCoachDialog(quietDelivery: true),
-          ),
-        ),
-      );
-
-      // 既に届いている相手に「オンにする」「あとで」と聞かない。「あとで」を
-      // 選んだ人に通知が届き続けるのは、選択と結果が食い違う。
-      expect(find.text('通知をオンにする'), findsNothing);
-      expect(find.text('あとで'), findsNothing);
-      expect(find.widgetWithText(FilledButton, '目立つように受け取る'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'このままでいい'), findsOneWidget);
-      expect(find.textContaining('通知センターにだけ届いています'), findsOneWidget);
-    });
   });
 
   group('showNotificationCoachDialog', () {

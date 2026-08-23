@@ -47,6 +47,10 @@ class CoachMarkOverlay {
   /// 対象のスクロールへ転送する。
   /// [id] は分析用の識別子。表示・通過・離脱をこの単位で数える。
   /// [analytics] を渡さない場合は計測しない（テスト用）。
+  ///
+  /// [pinToTop] を立てると、吹き出しを対象の位置から決めずに画面上端へ固定する。
+  /// 対象が縦に長く（声調の一覧表など）どちら側にも収まらない案内で使う。
+  /// 対象基準のままだと帯に入り切らず、上端が見切れたまま出ることがある。
   static bool show(
     BuildContext context, {
     required GlobalKey targetKey,
@@ -60,6 +64,7 @@ class CoachMarkOverlay {
     String? confirmLabel,
     String? emphasis,
     IconData icon = Icons.palette_outlined,
+    bool pinToTop = false,
     void Function(String action)? onDismiss,
   }) {
     if (_entry != null) return false;
@@ -94,6 +99,7 @@ class CoachMarkOverlay {
         message: message,
         emphasis: emphasis,
         icon: icon,
+        pinToTop: pinToTop,
         // 対象を押して進んだのか、対象以外を押して抜けたのかを区別する。
         onTargetTap: targetTappable ? () => dismissWith('tapped') : null,
         onBarrierTap:
@@ -159,7 +165,6 @@ class _CoachMarkContent extends StatefulWidget {
   final String? emphasis;
   final IconData icon;
 
-
   /// 案内した対象を押したとき。null なら対象は押させない。
   final VoidCallback? onTargetTap;
 
@@ -175,6 +180,9 @@ class _CoachMarkContent extends StatefulWidget {
   /// スキップを選んだとき。null ならスキップは出さない。
   final VoidCallback? onSkip;
 
+  /// 吹き出しを対象基準ではなく画面上端に固定するか。
+  final bool pinToTop;
+
   const _CoachMarkContent({
     required this.targetKey,
     required this.overlayState,
@@ -188,6 +196,7 @@ class _CoachMarkContent extends StatefulWidget {
     required this.onSkip,
     required this.confirmLabel,
     required this.onConfirm,
+    this.pinToTop = false,
   });
 
   @override
@@ -339,20 +348,51 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
 
     // 対象が画面より高いことがある（カード全体を指す場合）。吹き出しの
     // 置き場は、画面に見えている範囲を基準に決める。
-    final visibleTop = math.max(hole.top, media.padding.top);
-    final visibleBottom =
-        math.min(hole.bottom, size.height - media.padding.bottom);
+    //
+    // 対象が画面の外（スクロールの下）にいることもある。安全域で挟んで
+    // おかないと置き場の計算が画面外を指し、吹き出しごと外へ出てしまう。
+    final safeTop = media.padding.top;
+    final safeBottom = size.height - media.padding.bottom;
+    final visibleTop = hole.top.clamp(safeTop, safeBottom);
+    final visibleBottom = hole.bottom.clamp(safeTop, safeBottom);
 
     const bubbleMargin = 16.0;
-    const bubbleSpace = 160.0;
-    final spaceBelow = size.height - media.padding.bottom - visibleBottom;
-    final spaceAbove = visibleTop - media.padding.top;
+    // 吹き出しの高さの見積もり。見出し＋3行＋ボタンでこのくらいになる。
+    // 小さく見積もると、入らない側に置いてしまい中身がスクロールに隠れる
+    // （「わかった」が押せなくなる）。
+    const bubbleSpace = 260.0;
+    final spaceBelow = safeBottom - visibleBottom;
+    final spaceAbove = visibleTop - safeTop;
 
-    // 下 → 上 の順に置き場を探し、どちらにも入らなければ画面上端に重ねる。
-    // 収まらないまま対象の外へ置くと、吹き出しごと画面の外に出てしまう
-    // （スクロールしないと読めない状態になる）。
-    final placeBelow = spaceBelow >= bubbleSpace;
-    final placeAbove = !placeBelow && spaceAbove >= bubbleSpace;
+    // 広い側に置く。下を優先すると、対象が画面の下寄りにあるときに
+    // 狭い側へ押し込まれ、「わかった」が帯からはみ出して押せなくなる。
+    final fitsBelow = spaceBelow >= bubbleSpace && spaceBelow >= spaceAbove;
+    final fitsAbove = !fitsBelow && spaceAbove >= bubbleSpace;
+
+    // 見積もりに満たなくても、広い側にこれだけあるなら対象の外に置く。
+    // 入り切らない分はスクロールで読めるが、対象に重ねてしまうと、見比べ
+    // させたいもの（カーブ・選択肢）を案内自身が隠すことになる。
+    const minBand = 150.0;
+    final roomBelow = spaceBelow >= spaceAbove && spaceBelow >= minBand;
+    final roomAbove = spaceAbove > spaceBelow && spaceAbove >= minBand;
+
+    // 上端に固定する指定なら、対象の位置は見ない。上端から下へ流すので、
+    // 長い吹き出しでも見出しだけは必ず読める。
+    final placeBelow = !widget.pinToTop && (fitsBelow || (!fitsAbove && roomBelow));
+    final placeAbove =
+        !widget.pinToTop && !placeBelow && (fitsAbove || roomAbove);
+
+    // どちらにも置けないときだけ重ねる。その場合はスポットの上端から下に
+    // 置く。上端より上には案内が指している文脈（クイズの設問と空欄など）が
+    // 出ていることが多く、画面の一番上から置くとそれを隠したまま
+    // 「空欄を選べ」と言うことになる。
+    const overlapBand = 220.0;
+    final overlapTop = math.min(visibleTop + 12, safeBottom - overlapBand);
+    final bubbleTop = placeBelow
+        ? visibleBottom + 12
+        : placeAbove || widget.pinToTop
+            ? safeTop + 12
+            : math.max(safeTop + 12, overlapTop);
 
     return FadeTransition(
       opacity: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
@@ -418,97 +458,108 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
               ),
             ),
           ),
-          // 吹き出し。
+          // 吹き出し。置き場を「帯」で与え、その中で対象側へ寄せる。
+          // 片側だけ固定すると、文が長い吹き出しが画面の外（ノッチや
+          // ホームバーの下）へはみ出して読めなくなる。
           Positioned(
             left: bubbleMargin,
             right: bubbleMargin,
-            top: placeBelow
-                ? visibleBottom + 12
-                : (placeAbove ? null : media.padding.top + 12),
-            bottom: placeAbove ? size.height - visibleTop + 12 : null,
-            child: ScaleTransition(
-              scale: Tween<double>(begin: 0.94, end: 1.0).animate(
-                CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-              ),
+            top: bubbleTop,
+            bottom: placeAbove
+                ? size.height - visibleTop + 12
+                : media.padding.bottom + 12,
+            child: Align(
               alignment:
                   placeAbove ? Alignment.bottomCenter : Alignment.topCenter,
-              child: Material(
-                color: cs.surface,
-                elevation: 8,
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+              // 帯に収まらないほど長い吹き出しは、切らずにスクロールさせる。
+              child: SingleChildScrollView(
+                reverse: placeAbove,
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 0.94, end: 1.0).animate(
+                    CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+                  ),
+                  alignment:
+                      placeAbove ? Alignment.bottomCenter : Alignment.topCenter,
+                  child: Material(
+                    color: cs.surface,
+                    elevation: 8,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(widget.icon, size: 20, color: cs.primary),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              widget.title,
-                              style: theme.textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Icon(widget.icon, size: 20, color: cs.primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  widget.title,
+                                  style: theme.textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text.rich(
+                            _messageSpan(
+                              theme.textTheme.bodyMedium
+                                      ?.copyWith(color: cs.onSurfaceVariant) ??
+                                  TextStyle(color: cs.onSurfaceVariant),
                             ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              // 押す場所の案内は光ってから出す。先に出すと、読む前に
+                              // 手が動いてしまう。
+                              if (widget.onTargetTap != null)
+                                AnimatedOpacity(
+                                  opacity: _armed ? 1 : 0,
+                                  duration: const Duration(milliseconds: 300),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.touch_app,
+                                          size: 16, color: cs.primary),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        L10n.of(context).coachTapHere,
+                                        style: theme.textTheme.labelLarge
+                                            ?.copyWith(
+                                          color: cs.primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              // 逃げ道は最初から見せる。遅れて現れると、閉じ方が
+                              // ないと思わせたまま読ませることになる。
+                              // 押せるのは一呼吸おいてから（誤爆で消さないため）。
+                              if (widget.onSkip != null)
+                                TextButton(
+                                  onPressed: _armed ? widget.onSkip : null,
+                                  child: Text(L10n.of(context).coachSkip),
+                                ),
+                              const Spacer(),
+                              if (widget.confirmLabel != null)
+                                AnimatedOpacity(
+                                  opacity: _armed ? 1 : 0,
+                                  duration: const Duration(milliseconds: 300),
+                                  child: FilledButton(
+                                    onPressed: _armed ? widget.onConfirm : null,
+                                    child: Text(widget.confirmLabel!),
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text.rich(
-                        _messageSpan(
-                          theme.textTheme.bodyMedium
-                                  ?.copyWith(color: cs.onSurfaceVariant) ??
-                              TextStyle(color: cs.onSurfaceVariant),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          // 押す場所の案内は光ってから出す。先に出すと、読む前に
-                          // 手が動いてしまう。
-                          if (widget.onTargetTap != null)
-                            AnimatedOpacity(
-                              opacity: _armed ? 1 : 0,
-                              duration: const Duration(milliseconds: 300),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.touch_app,
-                                      size: 16, color: cs.primary),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    L10n.of(context).coachTapHere,
-                                    style: theme.textTheme.labelLarge?.copyWith(
-                                      color: cs.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          // 逃げ道は最初から見せる。遅れて現れると、閉じ方が
-                          // ないと思わせたまま読ませることになる。
-                          // 押せるのは一呼吸おいてから（誤爆で消さないため）。
-                          if (widget.onSkip != null)
-                            TextButton(
-                              onPressed: _armed ? widget.onSkip : null,
-                              child: Text(L10n.of(context).coachSkip),
-                            ),
-                          const Spacer(),
-                          if (widget.confirmLabel != null)
-                            AnimatedOpacity(
-                              opacity: _armed ? 1 : 0,
-                              duration: const Duration(milliseconds: 300),
-                              child: FilledButton(
-                                onPressed: _armed ? widget.onConfirm : null,
-                                child: Text(widget.confirmLabel!),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
