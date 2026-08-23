@@ -110,6 +110,10 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({
+      // 初回ガイドは一巡済みとして測る。コーチマークが出ていると導線を
+      // 覆ってしまい、実験の計測とは別の話になる。
+      AppConfig.prefKeyTargetWordsCoachShown: true,
+      AppConfig.prefKeyDetailCoachShown: true,
       AppConfig.prefKeySentenceCoachShown: true,
       AppConfig.prefKeyFirstSummaryQuizCompleted: false,
       AppConfig.prefKeyPremiumHintDismissedAt:

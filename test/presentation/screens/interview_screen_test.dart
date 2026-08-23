@@ -78,7 +78,7 @@ void main() {
     await _answer(tester, '文字が読めない');
 
     // 箇条書き4点。学習段階・例文の作り・つまずきの越え方・取れる時間。
-    expect(find.textContaining('次にタイ文字'), findsOneWidget);
+    expect(find.textContaining('なんとなくの形から'), findsOneWidget);
     expect(find.textContaining('中心になる単語が1つ'), findsOneWidget);
     expect(find.textContaining('つづりで声調が決まります'), findsOneWidget);
     // 「数分だけ」と答えたので、数分で何ができるかを返す。

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,7 @@ import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/review_prompt_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
@@ -42,9 +44,6 @@ class QuizScreen extends ConsumerStatefulWidget {
   final bool showVocabScoreTransition;
 
   /// 通知の案内を出してよいタイミングになったことを伝える。
-  /// まとめクイズの結果が出たとき、またはその誘導を「あとで」で見送ったとき。
-  final VoidCallback? onNotificationCue;
-
   const QuizScreen({
     super.key,
     this.showAppBar = true,
@@ -56,7 +55,6 @@ class QuizScreen extends ConsumerStatefulWidget {
     this.nextButtonLabel,
     this.optionalChallengeLabel,
     this.showVocabScoreTransition = false,
-    this.onNotificationCue,
   });
 
   @override
@@ -71,17 +69,9 @@ const Duration _celebrationDuration = Duration(milliseconds: 1400);
 const Duration _vocabTransitionDuration = Duration(milliseconds: 1200);
 
 /// 演出が終わってから通知の案内へ移るまでの間。増えた数字を読む時間がないまま
-/// 画面が切り替わると、何が起きたのか分からなくなる。
-const Duration _notificationCuePause = Duration(milliseconds: 600);
-
-/// 結果画面の案内を「あとで」で断ったか。断った直後に別の案内を出すと、
-/// 断った意味がなくなる。この起動の間だけ黙る（表示済みフラグは立てないので、
-/// 次回起動では出し直される）。
-bool _summaryCoachDeclined = false;
-
-/// テスト用に断りの記憶を消す。
-@visibleForTesting
-void resetSummaryCoachDeclined() => _summaryCoachDeclined = false;
+/// 結果画面の演出のうち、案内を待たせる割合。1.0 だと終わり際の静かな動きまで
+/// 待つことになり、案内が遅く感じる。
+const double _resultAnimationWaitRatio = 0.6;
 
 class _QuizScreenState extends ConsumerState<QuizScreen>
     with SingleTickerProviderStateMixin {
@@ -137,10 +127,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         // 同じサマリーで何度も走らせない。状態が再通知されるたびに別の案内が
         // 出ると、閉じた直後に次の案内が現れる。
         if (prev is! QuizSummary) {
-          _maybeShowChallengeCoach();
-          _maybeShowNextTopicCoach();
-          unawaited(_cueNotificationCoach());
+          unawaited(_runSummaryCoaches());
         }
+      }
+      // 結果画面を離れたら、そこに出していた案内は畳む。この State は
+      // まとめクイズへ移っても作り直されないので、dispose では間に合わない
+      // （対象を失った吹き出しが次の問題の上に残る）。
+      if (prev is QuizSummary && next is! QuizSummary) {
+        CoachMarkOverlay.dismissFor(_optionalChallengeKey);
+        CoachMarkOverlay.dismissFor(_nextTopicKey);
+            _abortSummaryCoachWait?.call();
       }
       if (widget.showVocabScoreTransition &&
           next is QuizAnswering &&
@@ -190,9 +186,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
   }
 
-  /// 結果画面の演出が終わるまで待つ。演出中に案内を重ねると、紙吹雪や
+  /// 結果画面の演出が落ち着くまで待つ。演出中に案内を重ねると、紙吹雪や
   /// 加算アニメーションに隠れて何を勧められたのか残らない。
   /// クラッカーと語彙スコアは同時に始まるので、長い方だけ待てばよい。
+  ///
+  /// 終わり際は動きが小さく、最後まで待つと案内が遅れて感じる。目立つ間だけ
+  /// ([_resultAnimationWaitRatio]) 譲る。
   Future<void> _waitForResultAnimations() async {
     final celebration = _celebrationController.isAnimating
         ? _celebrationDuration * (1 - _celebrationController.value)
@@ -200,45 +199,118 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final vocab = widget.showVocabScoreTransition
         ? _vocabTransitionDuration
         : Duration.zero;
-    final wait = celebration > vocab ? celebration : vocab;
+    final wait =
+        (celebration > vocab ? celebration : vocab) * _resultAnimationWaitRatio;
     if (wait > Duration.zero) await Future<void>.delayed(wait);
   }
 
-  /// まとめクイズの結果が出たら、演出が落ち着いてから通知の案内へ渡す。
-  Future<void> _cueNotificationCoach() async {
-    if (widget.onNotificationCue == null) return;
-    if (!widget.showVocabScoreTransition) return;
+  /// 結果画面の案内を順番に出す。
+  ///
+  /// 同時に出すと吹き出しが重なり、後から出したものが表示すらされないまま
+  /// 「表示済み」になる。
+  Future<void> _runSummaryCoaches() async {
+    final challengeAction = await _maybeShowChallengeCoach();
+    if (!mounted) return;
+    // まとめクイズへ移る回は、ここで打ち切る。案内は対象を押した瞬間
+    // （指を離す前）に閉じるので、続けると画面が切り替わる前の一瞬に
+    // 次の吹き出しが出て、切り替わりと同時に消える。
+    if (challengeAction == 'tapped') return;
+    await _maybeShowNextTopicCoach();
+    if (!mounted) return;
+    await _maybeShowTourFinishCoach();
+  }
+
+  /// 待っている案内を打ち切る手。画面を離れたときに呼ぶ。
+  /// これが無いと、閉じられないまま連鎖が待ちっぱなしになる。
+  VoidCallback? _abortSummaryCoachWait;
+
+  /// 機能紹介の締めくくり。1回限り。
+  ///
+  /// ここまでで一通りの機能に触れている。あとは続けるだけだと伝える。
+  ///
+  /// ここだけはスポットライトを使わない。指す対象が無い話（画面の一部では
+  /// なく全体の締め）なので、中央のダイアログで出す。
+  ///
+  /// 出せなかった回は表示済みにしない。ここで記録してしまうと、一度も
+  /// 読まれないまま二度と出なくなる（結果画面はまた来るので次に回す）。
+  Future<void> _maybeShowTourFinishCoach() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyTourFinishCoachShown) ?? false) return;
+    if (!mounted || ref.read(quizControllerProvider) is! QuizSummary) {
+      _logFinishCoachSkip('not_summary');
+      return;
+    }
+
     await _waitForResultAnimations();
-    await Future<void>.delayed(_notificationCuePause);
-    if (!mounted || ref.read(quizControllerProvider) is! QuizSummary) return;
-    widget.onNotificationCue!.call();
+    // 押した指を離す前に前の案内が閉じるので、画面の切り替えはこの後に
+    // 始まる。一拍おいてから、まだ結果画面にいるかを確かめる。
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    if (ref.read(quizControllerProvider) is! QuizSummary) {
+      _logFinishCoachSkip('left_summary');
+      return;
+    }
+    if (ModalRoute.of(context)?.isCurrent != true) {
+      _logFinishCoachSkip('not_current');
+      return;
+    }
+    if (CoachMarkOverlay.isVisible) {
+      _logFinishCoachSkip('overlay_busy');
+      return;
+    }
+
+    await prefs.setBool(AppConfig.prefKeyTourFinishCoachShown, true);
+    if (!mounted) return;
+    final analytics = ref.read(analyticsServiceProvider);
+    unawaited(analytics.logCoachMark(id: 'tour_finish', action: 'shown'));
+    final seePremium = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const _TourFinishDialog(),
+    );
+    unawaited(analytics.logCoachMark(id: 'tour_finish', action: 'confirmed'));
+    if (seePremium == true && mounted) {
+      await PaywallBottomSheet.show(context, source: 'tour_finish');
+    }
+  }
+
+  /// 締めくくりを出せなかった理由。出ないときに原因を追えるようにする。
+  void _logFinishCoachSkip(String reason) {
+    if (kDebugMode) debugPrint('coach: tour_finish skipped ($reason)');
   }
 
   /// まとめクイズ誘導ボタンを初回だけスポットライトで案内する。
   /// 確認クイズのサマリーで誘導ボタンが出る場合のみ、1回限り。
-  Future<void> _maybeShowChallengeCoach() async {
-    if (widget.onOptionalChallenge == null) return;
-    if (_summaryCoachDeclined) return;
+  /// 閉じ方（対象を押したか）を返す。
+  Future<String?> _maybeShowChallengeCoach() async {
+    if (widget.onOptionalChallenge == null) return null;
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyQuizButtonCoachShown) ?? false) return;
+    if (prefs.getBool(AppConfig.prefKeyQuizButtonCoachShown) ?? false) {
+      return null;
+    }
 
     await _waitForResultAnimations();
-    if (!mounted) return;
+    if (!mounted) return null;
 
+    final completer = Completer<String?>();
+    _abortSummaryCoachWait = () {
+      if (!completer.isCompleted) completer.complete(null);
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           ref.read(quizControllerProvider) is! QuizSummary ||
           _optionalChallengeKey.currentContext == null) {
+        if (!completer.isCompleted) completer.complete(null);
         return;
       }
       unawaited(prefs.setBool(AppConfig.prefKeyQuizButtonCoachShown, true));
-      CoachMarkOverlay.show(
+      final shown = CoachMarkOverlay.show(
         context,
         targetKey: _optionalChallengeKey,
         id: 'summary_quiz',
         analytics: ref.read(analyticsServiceProvider),
         // まとめクイズは普段は見送れる。ただしこの案内は1回限りなので、
-        // ここで「あとで」を許すと、どんなものか一度も知らないまま
+        // ここでスキップを許すと、どんなものか一度も知らないまま
         // 二度と案内されない人が出る。初回だけは押させる。
         skippable: false,
         barrierDismissible: false,
@@ -246,8 +318,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         title: L10n.of(context).coachSummaryQuizTitle,
         message: L10n.of(context).coachSummaryQuizMessage,
         emphasis: L10n.of(context).coachSummaryQuizEmphasis,
+        onDismiss: (action) {
+          if (!completer.isCompleted) completer.complete(action);
+        },
       );
+      if (!shown && !completer.isCompleted) completer.complete(null);
     });
+    return completer.future;
   }
 
   /// 結果画面の「次のテーマ」変更チップを初回だけスポットライトで案内する。
@@ -256,38 +333,44 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Future<void> _maybeShowNextTopicCoach() async {
     if (widget.onNextSentence == null) return;
     if (widget.onOptionalChallenge != null) return;
-    if (_summaryCoachDeclined) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(AppConfig.prefKeyNextTopicCoachShown) ?? false) return;
 
     await _waitForResultAnimations();
     if (!mounted) return;
 
+    final completer = Completer<void>();
+    _abortSummaryCoachWait = () {
+      if (!completer.isCompleted) completer.complete();
+    };
     // サマリー画面が描画され、チップの位置が確定してから表示する。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
-          _summaryCoachDeclined ||
           ref.read(quizControllerProvider) is! QuizSummary ||
           _nextTopicKey.currentContext == null) {
+        if (!completer.isCompleted) completer.complete();
         return;
       }
       // 表示時にフラグを立てる。ボタン／チップタップのどちらで閉じても再表示しない。
       unawaited(prefs.setBool(AppConfig.prefKeyNextTopicCoachShown, true));
-      CoachMarkOverlay.show(
+      final shown = CoachMarkOverlay.show(
         context,
         targetKey: _nextTopicKey,
         id: 'next_topic',
         analytics: ref.read(analyticsServiceProvider),
-        // 今テーマを変えない人にも逃げ道を出す。
-        skippable: true,
         icon: Icons.palette_outlined,
         title: L10n.of(context).coachTopicTitle,
         message: L10n.of(context).coachTopicMessage,
-        onDismiss: (action) {
-          if (action == 'skipped') _summaryCoachDeclined = true;
+        // テーマを変えるかどうかは本人が決める。ここは在り処を教えるだけ。
+        targetTappable: false,
+        confirmLabel: L10n.of(context).coachGotIt,
+        onDismiss: (_) {
+          if (!completer.isCompleted) completer.complete();
         },
       );
+      if (!shown && !completer.isCompleted) completer.complete();
     });
+    await completer.future;
   }
 
   Future<void> _clearVocabBeforeQuiz() async {
@@ -302,6 +385,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // 出したコーチマークまで消してしまう。
     CoachMarkOverlay.dismissFor(_optionalChallengeKey);
     CoachMarkOverlay.dismissFor(_nextTopicKey);
+    _abortSummaryCoachWait?.call();
     _celebrationController.dispose();
     super.dispose();
   }
@@ -1279,6 +1363,10 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
   /// 「例文を確認」導線の位置特定用（初回コーチマーク表示に使用）。
   final GlobalKey _checkSentenceKey = GlobalKey();
 
+  /// 出題中の案内で光らせる範囲。問題文から「例文を確認」までをひとまとまりで
+  /// 見せる。導線だけ光らせても、何をする画面なのかは伝わらない。
+  final GlobalKey _quizBodyKey = GlobalKey();
+
   /// 「例文を復習する」導線の位置特定用（まとめクイズ側）。
   final GlobalKey _reviewSentenceKey = GlobalKey();
 
@@ -1333,14 +1421,17 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
       }
       final shown = CoachMarkOverlay.show(
         context,
-        targetKey: targetKey,
+        // 光らせるのは問題文から導線までのひとまとまり。
+        targetKey: _quizBodyKey,
         id: 'quiz_review',
         analytics: ref.read(analyticsServiceProvider),
-        // 押すと解答中に例文へ移る。そのまま解きたい人を止めない。
-        skippable: true,
         icon: Icons.menu_book_outlined,
         title: L10n.of(context).coachQuizReviewTitle,
         message: L10n.of(context).coachQuizReviewMessage,
+        // 解答中なので押させない。ここは「いつでも戻れる」と知らせるだけで、
+        // 実際に戻るかどうかは解いている本人が決める。
+        targetTappable: false,
+        confirmLabel: L10n.of(context).coachGotIt,
       );
       if (!shown) return;
       _showedReviewCoach = true;
@@ -1379,6 +1470,7 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     // 次の問題へ進むとこのビューだけ破棄される。対象を失ったコーチマークが
     // 残らないよう、自分が出したものはここで閉じる。
     if (_showedReviewCoach) {
+      CoachMarkOverlay.dismissFor(_quizBodyKey);
       CoachMarkOverlay.dismissFor(_checkSentenceKey);
       CoachMarkOverlay.dismissFor(_reviewSentenceKey);
     }
@@ -1573,258 +1665,356 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(AppConfig.defaultPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (widget.totalQuestions > 1) ...[
-                    // 進捗
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            L10n.of(context).quizProgress(
-                              widget.questionIndex + 1,
-                              widget.totalQuestions,
-                            ),
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 100,
-                          child: LinearProgressIndicator(
-                            value: (widget.questionIndex + 1) /
+              child: KeyedSubtree(
+                key: _quizBodyKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (widget.totalQuestions > 1) ...[
+                      // 進捗
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              L10n.of(context).quizProgress(
+                                widget.questionIndex + 1,
                                 widget.totalQuestions,
-                            borderRadius: BorderRadius.circular(4),
+                              ),
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ] else ...[
-                    Text(
-                      L10n.of(context).quizPrompt,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 100,
+                            child: LinearProgressIndicator(
+                              value: (widget.questionIndex + 1) /
+                                  widget.totalQuestions,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
                           ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  // 穴埋め例文
-                  Card(
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
-                      child: Text(
-                        question.blankText,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineMedium
-                            ?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                height: 1.5,
-                                fontSize: 28),
-                        textAlign: TextAlign.center,
+                        ],
                       ),
-                    ),
-                  ),
-                  // ヒント1: ローマ字読み（問題文の下、正解部分を空欄に）
-                  if (_hintLevel >= 1 && hasPronunciation) ...[
-                    const SizedBox(height: 8),
-                    Builder(builder: (context) {
-                      final blanked = question
-                              .blankSentencePronunciation.isNotEmpty
-                          ? question.blankSentencePronunciation
-                          : question.pronunciation.isNotEmpty
-                              ? question.sentencePronunciation
-                                  .replaceFirst(question.pronunciation, '___')
-                              : '';
-                      if (blanked.isEmpty ||
-                          blanked == question.sentencePronunciation) {
-                        return const SizedBox.shrink();
-                      }
-                      return Text(
-                        blanked,
+                      const SizedBox(height: 24),
+                    ] else ...[
+                      Text(
+                        L10n.of(context).quizPrompt,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontStyle: FontStyle.italic,
                               color: Theme.of(context)
                                   .colorScheme
                                   .onSurfaceVariant,
                             ),
                         textAlign: TextAlign.center,
-                      );
-                    }),
-                  ],
-                  // ヒント2: 日本語訳（ローマ字の下）
-                  if (_hintLevel >= 2 && hasTranslation) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      question.japaneseTranslation,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  // 4択
-                  ...List.generate(question.choices.length, (i) {
-                    final colorScheme = Theme.of(context).colorScheme;
-                    final choicePronunciation =
-                        i < question.choicePronunciations.length
-                            ? question.choicePronunciations[i]
-                            : '';
-                    final showChoicePronunciation =
-                        _hintLevel >= 1 && choicePronunciation.isNotEmpty;
-                    final isSelected = _hasResult && widget.selectedIndex == i;
-                    final isCorrectChoice = _hasResult &&
-                        question.choices[i] == question.correctAnswer;
-                    final isWrongSelection =
-                        isSelected && widget.isCorrect == false;
-
-                    Color? resultBackground;
-                    Color? resultForeground;
-                    BorderSide? resultSide;
-                    IconData? resultIcon;
-                    if (isCorrectChoice) {
-                      resultBackground = colorScheme.primaryContainer;
-                      resultForeground = colorScheme.onPrimaryContainer;
-                      resultSide =
-                          BorderSide(color: colorScheme.primary, width: 2);
-                      resultIcon = Icons.check_circle;
-                    } else if (isWrongSelection) {
-                      resultBackground = colorScheme.errorContainer;
-                      resultForeground = colorScheme.onErrorContainer;
-                      resultSide =
-                          BorderSide(color: colorScheme.error, width: 2);
-                      resultIcon = Icons.cancel;
-                    }
-
-                    final answerLocked = _isSubmitting || _hasResult;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: showChoicePronunciation ? 84 : 56,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    // 穴埋め例文
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(
+                            AppConfig.defaultPadding * 1.5),
+                        child: Text(
+                          question.blankText,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.5,
+                                  fontSize: 28),
+                          textAlign: TextAlign.center,
                         ),
-                        child: ElevatedButton(
-                          key: ValueKey('quiz_choice_$i'),
-                          onPressed:
-                              answerLocked ? null : () => _submitAnswer(i),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: resultBackground,
-                            foregroundColor: resultForeground,
-                            disabledBackgroundColor: resultBackground ??
-                                colorScheme.surfaceContainerHighest,
-                            disabledForegroundColor: resultForeground ??
-                                colorScheme.onSurfaceVariant,
-                            side: resultSide,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                  AppConfig.cardBorderRadius),
+                      ),
+                    ),
+                    // ヒント1: ローマ字読み（問題文の下、正解部分を空欄に）
+                    if (_hintLevel >= 1 && hasPronunciation) ...[
+                      const SizedBox(height: 8),
+                      Builder(builder: (context) {
+                        final blanked = question
+                                .blankSentencePronunciation.isNotEmpty
+                            ? question.blankSentencePronunciation
+                            : question.pronunciation.isNotEmpty
+                                ? question.sentencePronunciation
+                                    .replaceFirst(question.pronunciation, '___')
+                                : '';
+                        if (blanked.isEmpty ||
+                            blanked == question.sentencePronunciation) {
+                          return const SizedBox.shrink();
+                        }
+                        return Text(
+                          blanked,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontStyle: FontStyle.italic,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                          textAlign: TextAlign.center,
+                        );
+                      }),
+                    ],
+                    // ヒント2: 日本語訳（ローマ字の下）
+                    if (_hintLevel >= 2 && hasTranslation) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        question.japaneseTranslation,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    // 4択
+                    ...List.generate(question.choices.length, (i) {
+                      final colorScheme = Theme.of(context).colorScheme;
+                      final choicePronunciation =
+                          i < question.choicePronunciations.length
+                              ? question.choicePronunciations[i]
+                              : '';
+                      final showChoicePronunciation =
+                          _hintLevel >= 1 && choicePronunciation.isNotEmpty;
+                      final isSelected =
+                          _hasResult && widget.selectedIndex == i;
+                      final isCorrectChoice = _hasResult &&
+                          question.choices[i] == question.correctAnswer;
+                      final isWrongSelection =
+                          isSelected && widget.isCorrect == false;
+
+                      Color? resultBackground;
+                      Color? resultForeground;
+                      BorderSide? resultSide;
+                      IconData? resultIcon;
+                      if (isCorrectChoice) {
+                        resultBackground = colorScheme.primaryContainer;
+                        resultForeground = colorScheme.onPrimaryContainer;
+                        resultSide =
+                            BorderSide(color: colorScheme.primary, width: 2);
+                        resultIcon = Icons.check_circle;
+                      } else if (isWrongSelection) {
+                        resultBackground = colorScheme.errorContainer;
+                        resultForeground = colorScheme.onErrorContainer;
+                        resultSide =
+                            BorderSide(color: colorScheme.error, width: 2);
+                        resultIcon = Icons.cancel;
+                      }
+
+                      final answerLocked = _isSubmitting || _hasResult;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: showChoicePronunciation ? 84 : 56,
                           ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      question.choices[i],
-                                      style: const TextStyle(fontSize: 24),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    if (showChoicePronunciation) ...[
-                                      const SizedBox(height: 2),
+                          child: ElevatedButton(
+                            key: ValueKey('quiz_choice_$i'),
+                            onPressed:
+                                answerLocked ? null : () => _submitAnswer(i),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: resultBackground,
+                              foregroundColor: resultForeground,
+                              disabledBackgroundColor: resultBackground ??
+                                  colorScheme.surfaceContainerHighest,
+                              disabledForegroundColor: resultForeground ??
+                                  colorScheme.onSurfaceVariant,
+                              side: resultSide,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                    AppConfig.cardBorderRadius),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
                                       Text(
-                                        choicePronunciation,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              fontStyle: FontStyle.italic,
-                                              color: resultForeground ??
-                                                  colorScheme.primary
-                                                      .withValues(alpha: 0.75),
-                                            ),
+                                        question.choices[i],
+                                        style: const TextStyle(fontSize: 24),
                                         textAlign: TextAlign.center,
                                       ),
+                                      if (showChoicePronunciation) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          choicePronunciation,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                fontStyle: FontStyle.italic,
+                                                color: resultForeground ??
+                                                    colorScheme.primary
+                                                        .withValues(
+                                                            alpha: 0.75),
+                                              ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              if (resultIcon != null) ...[
-                                const SizedBox(width: 8),
-                                Icon(
-                                  resultIcon,
-                                  color: isWrongSelection
-                                      ? colorScheme.error
-                                      : colorScheme.primary,
-                                  semanticLabel: isWrongSelection
-                                      ? L10n.of(context).quizIncorrect
-                                      : L10n.of(context).quizCorrect,
-                                ),
+                                if (resultIcon != null) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    resultIcon,
+                                    color: isWrongSelection
+                                        ? colorScheme.error
+                                        : colorScheme.primary,
+                                    semanticLabel: isWrongSelection
+                                        ? L10n.of(context).quizIncorrect
+                                        : L10n.of(context).quizCorrect,
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    if (!_hasResult && canReviewSentence) ...[
+                      const SizedBox(height: 4),
+                      TextButton(
+                        key: _reviewSentenceKey,
+                        onPressed: () => _showSentenceDetail(sentenceDetail),
+                        child: Text(
+                          _reviewedSentence
+                              ? L10n.of(context).quizSentenceReviewed
+                              : L10n.of(context).quizReviewSentence,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Theme.of(context).colorScheme.outline,
                           ),
                         ),
                       ),
-                    );
-                  }),
-                  if (!_hasResult && canReviewSentence) ...[
-                    const SizedBox(height: 4),
-                    TextButton(
-                      key: _reviewSentenceKey,
-                      onPressed: () => _showSentenceDetail(sentenceDetail),
-                      child: Text(
-                        _reviewedSentence
-                            ? L10n.of(context).quizSentenceReviewed
-                            : L10n.of(context).quizReviewSentence,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Theme.of(context).colorScheme.outline,
+                    ] else if (!_hasResult &&
+                        widget.showHint &&
+                        _hintLevel < maxHintLevel) ...[
+                      const SizedBox(height: 4),
+                      FilledButton.tonalIcon(
+                        onPressed: () =>
+                            setState(() => _hintLevel = maxHintLevel),
+                        icon: const Icon(Icons.lightbulb_outline),
+                        label: Text(L10n.of(context).quizHint),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       ),
-                    ),
-                  ] else if (!_hasResult &&
-                      widget.showHint &&
-                      _hintLevel < maxHintLevel) ...[
-                    const SizedBox(height: 4),
-                    FilledButton.tonalIcon(
-                      onPressed: () =>
-                          setState(() => _hintLevel = maxHintLevel),
-                      icon: const Icon(Icons.lightbulb_outline),
-                      label: Text(L10n.of(context).quizHint),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                    ],
+                    if (!_hasResult && widget.onShowSentence != null) ...[
+                      const SizedBox(height: 4),
+                      FilledButton.tonalIcon(
+                        key: _checkSentenceKey,
+                        onPressed: widget.onShowSentence,
+                        icon: const Icon(Icons.menu_book_outlined),
+                        label: Text(L10n.of(context).quizCheckSentence),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                  if (!_hasResult && widget.onShowSentence != null) ...[
-                    const SizedBox(height: 4),
-                    FilledButton.tonalIcon(
-                      key: _checkSentenceKey,
-                      onPressed: widget.onShowSentence,
-                      icon: const Icon(Icons.menu_book_outlined),
-                      label: Text(L10n.of(context).quizCheckSentence),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
           ),
           if (_hasResult) _buildInlineFeedback(context),
         ],
       ),
+    );
+  }
+}
+
+/// 機能紹介の締めくくり。画面の一部ではなく全体の締めなので、スポットライト
+/// ではなく中央のダイアログで出す。
+class _TourFinishDialog extends ConsumerWidget {
+  const _TourFinishDialog();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = L10n.of(context);
+    final theme = Theme.of(context);
+    final emphasis = l10n.coachTourFinishEmphasis;
+    final message = l10n.coachTourFinishMessage;
+    final start = message.indexOf(emphasis);
+    final baseStyle = theme.textTheme.bodyMedium;
+    // すでにプレミアムの人に回数差とペイウォールを見せても意味がない。
+    final isPremium = ref.watch(isPremiumProvider);
+
+    return AlertDialog(
+      icon: Icon(
+        Icons.emoji_events_outlined,
+        color: theme.colorScheme.primary,
+        size: 32,
+      ),
+      title: Text(l10n.coachTourFinishTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            start < 0
+                ? TextSpan(text: message, style: baseStyle)
+                : TextSpan(
+                    style: baseStyle,
+                    children: [
+                      TextSpan(text: message.substring(0, start)),
+                      // 初回ガイドの吹き出しと同じ強調に揃える。
+                      TextSpan(
+                        text: emphasis,
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      TextSpan(
+                        text: message.substring(start + emphasis.length),
+                      ),
+                    ],
+                  ),
+          ),
+          if (!isPremium) ...[
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.bolt,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    l10n.coachTourFinishQuota(
+                      freeDailySentences,
+                      premiumDailySentences,
+                    ),
+                    style: baseStyle?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        if (!isPremium)
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.trialEndedSeePremium),
+          ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(l10n.coachGotIt),
+        ),
+      ],
     );
   }
 }

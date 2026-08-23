@@ -76,52 +76,94 @@ class L10nEn extends L10n {
 
   @override
   String get coachQuizMessage =>
-      'Once you\'ve read the sentence, move on to the quiz.';
+      'Once you have looked through the sentence, take the quiz to check that the words stuck.';
 
   @override
-  String get coachTargetWordsTitle => 'The quiz asks about this word';
+  String get coachTargetWordsTitle => 'Today\'s word';
 
   @override
   String get coachTargetWordsEmphasis => 'today\'s word';
 
   @override
   String get coachTargetWordsMessage =>
-      'The review quiz asks about today\'s word. See how it is used in the sentence, then head to the review quiz.';
+      'This is today\'s word. Keep it in focus and see how it is used in the sentence.';
 
   @override
   String get coachSentenceCardTitle => 'Today\'s sentence';
 
   @override
   String get coachSentenceCardMessage =>
-      'The Thai text is on top and its reading below. Press play to hear the model audio. The translation is further down.';
+      'The Thai text is on top, its reading below it, and the translation at the bottom.';
+
+  @override
+  String get coachPlayTitle => 'Hear the model reading';
+
+  @override
+  String get coachPlayMessage =>
+      'Press play and the sentence is read aloud in Thai.';
 
   @override
   String get coachPronunciationTitle => 'Say it out loud';
 
   @override
   String get coachPronunciationMessage =>
-      'Hold the button and read it aloud. Your tones are checked on the spot.';
+      'Hold the button and copy the Thai audio aloud. Your tones are checked on the spot.';
 
   @override
-  String get coachWordBreakdownTitle => 'See it word by word';
+  String get coachPronunciationResultTitle => 'How to read your result';
 
   @override
-  String get coachWordBreakdownMessage =>
-      'This lists the words the sentence is made of. Tap a word to open its tone explanation.';
+  String get coachPronunciationResultMessage =>
+      'Green is correct, orange is close, red is off. Tap any one of the words.';
+
+  @override
+  String get coachPronunciationContourTitle => 'Compare it with yours';
+
+  @override
+  String get coachPronunciationContourMessage =>
+      'The faint line is the model, the solid one is your pitch. Take the \"Fix this next\" hint, say it again with \"Try again\", and aim to turn every word green.';
+
+  @override
+  String get coachWordDetailTitle => 'See it word by word';
+
+  @override
+  String get coachWordDetailMessage =>
+      'The words in this sentence. Tap any word to see in detail how its spelling relates to its tones.';
+
+  @override
+  String get coachToneDetailTitle => 'How to read the tone breakdown';
+
+  @override
+  String get coachToneDetailMessage =>
+      'The tone breakdown splits the word into syllables, each with its reading and tone mark.';
+
+  @override
+  String get coachToneTableTitle => 'How the tone is decided';
+
+  @override
+  String get coachToneTableMessage =>
+      'The initial consonant class (high, mid, low), the tone mark, and the syllable type together decide the tone. The blue highlighted row is the rule this syllable follows.';
+
+  @override
+  String get coachToneGuideTitle => 'Want the full rules?';
+
+  @override
+  String get coachToneGuideMessage =>
+      'The tone rules are collected in the tone guide. You can open it from here any time.';
 
   @override
   String get coachContextTitle => 'Check how it is used';
 
   @override
   String get coachContextMessage =>
-      'See what situation the sentence fits, how formal it is, and the cultural background behind it.';
+      'This card shows what situation the sentence fits, how formal it is, and the cultural background behind it.';
 
   @override
   String get coachDetailBackTitle => 'That is all for the details';
 
   @override
   String get coachDetailBackMessage =>
-      'Tap \"Not now\" if you want to keep reading the details. When you are done, go back to the previous screen.';
+      'That is all for the guide. Tap back at the top left, or swipe right, to return to the previous screen.';
 
   @override
   String get sentencePreparing => 'Preparing your next sentence...';
@@ -249,7 +291,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachQuizReviewMessage =>
-      'Not sure of the answer? Check the sentence again from here before you answer.';
+      'Pick the word that fits the blank. Unsure? \"Show the sentence\" below brings the sentence back any time.';
 
   @override
   String get coachSummaryQuizTitle => 'Try the review quiz';
@@ -259,7 +301,23 @@ class L10nEn extends L10n {
 
   @override
   String get coachSummaryQuizMessage =>
-      'A quiz that reviews everything you\'ve studied. It normally comes around every 5 sentences. Give it a try this first time.';
+      'A quiz that reviews the words you have learned so far. It normally comes around every 5 sentences, but give it a try now.';
+
+  @override
+  String get coachTourFinishTitle => 'That is the whole tour';
+
+  @override
+  String get coachTourFinishMessage =>
+      'Nicely done! Tap \"Next sentence\" and dive into the Thai-speaking world!';
+
+  @override
+  String get coachTourFinishEmphasis =>
+      'Tap \"Next sentence\" and dive into the Thai-speaking world!';
+
+  @override
+  String coachTourFinishQuota(int free, int premium) {
+    return 'Sentences: up to $free a day on the free plan, $premium a day with Premium.';
+  }
 
   @override
   String get coachTopicTitle => 'You can pick the next topic';
@@ -953,7 +1011,7 @@ class L10nEn extends L10n {
   String get coachTapHere => 'Tap the highlighted area';
 
   @override
-  String get coachSkip => 'Not now';
+  String get coachSkip => 'Skip';
 
   @override
   String get coachGotIt => 'Got it';
@@ -1036,7 +1094,7 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy1None =>
-      'One sentence arrives each day. You learn its **sound and meaning** first, then the **Thai letters**, then the sentence as a whole.';
+      'Each sentence starts with its **sound and meaning**. The **Thai letters** come slowly, starting with a rough feel for the shapes.';
 
   @override
   String get philosophy1Chars =>
@@ -1052,19 +1110,19 @@ class L10nEn extends L10n {
 
   @override
   String get philosophyKeyWord =>
-      'Every sentence is built around **one key word**. Focus your learning on that word — it is also the word the quiz asks about.';
+      'Every sentence is built around **one key word**. You learn how that word is actually used through the sentence.';
 
   @override
   String get philosophy2None =>
-      'You do not need to read anything yet. **Tap a word** on the sentence detail screen and it shows how the **Thai letters** are read and why they take that tone, one at a time. The rules are in the **tone guide**.';
+      'You do not need to read the Thai script yet. This app teaches you **how the Thai letters relate to the tones**.';
 
   @override
   String get philosophy2Script =>
-      'In Thai, **the spelling decides the tone**. Tap a word to see why it takes that tone. There is also a guide that lays out the tone rules.';
+      'In Thai, **the spelling decides the tone**. This app shows you how that works, word by word.';
 
   @override
   String get philosophy2Tone =>
-      'Make use of the **pronunciation practice**. It compares your recording with the model and shows which parts of a word are off in tone, and a guide covers how the tones work.';
+      'Make use of the **pronunciation practice**. It compares your voice with the model and shows which parts of a word are off in tone.';
 
   @override
   String get philosophy2Vocab =>
@@ -1092,17 +1150,17 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy3TimeMedium =>
-      '**Ten minutes** lets you add more sentences and go on to pronunciation practice and summary quizzes.';
+      '**Ten minutes** lets you add more sentences and go on to pronunciation practice and reviewing the words so far.';
 
   @override
   String get philosophy3TimeLong =>
-      '**Thirty minutes** covers adding sentences and pronunciation practice, plus reviewing past sentences from your history and working through the tone guide.';
+      '**Thirty minutes** covers adding sentences and pronunciation practice, plus reviewing past sentences and studying the tones themselves.';
 
   @override
   String get philosophyStart => 'Try it out';
 
   @override
-  String get notifCoachTitle => 'Make it a daily habit';
+  String get notifCoachTitle => 'Make use of notifications';
 
   @override
   String get notifCoachStep1 =>
@@ -1114,14 +1172,10 @@ class L10nEn extends L10n {
 
   @override
   String get notifCoachHabit =>
-      'Opening it at the same time each day is what turns it into a habit';
+      'Opening it at the same time each day is what turns studying Thai into a habit';
 
   @override
   String get notifCoachPreviewLabel => 'What it looks like';
-
-  @override
-  String get notifCoachFooter =>
-      'Tap the notification to jump straight in. You can change the time in Settings.';
 
   @override
   String get notifCoachNow => 'now';
@@ -1141,16 +1195,6 @@ class L10nEn extends L10n {
   @override
   String get notifCoachEnabled =>
       'Your daily sentence will arrive at this time. You can change it in Settings.';
-
-  @override
-  String get notifCoachQuietNote =>
-      'Right now they arrive quietly — no sound, no banner, just Notification Center.';
-
-  @override
-  String get notifCoachPromote => 'Deliver prominently';
-
-  @override
-  String get notifCoachKeepQuiet => 'Keep them quiet';
 
   @override
   String get notifCoachStillQuiet =>

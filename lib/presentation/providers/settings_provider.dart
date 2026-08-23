@@ -340,26 +340,6 @@ class SettingsController extends StateNotifier<SettingsState> {
     state = state.copyWith(dailyReminderEnabled: enabled);
   }
 
-  /// ダイアログを出さずに暫定許可を取る（iOS のみ）。取れたら true。
-  ///
-  /// アプリ内設定も必ずオンに揃える。ここをオフのまま残すと、次回起動の
-  /// [syncPushRegistration] が「オフなのにトークンがある」と見なして
-  /// 登録を消してしまう。
-  Future<bool> enableProvisionalPush() async {
-    final granted = await _push.enableProvisionally();
-    if (!granted) return false;
-
-    await _prefs?.setBool(AppConfig.prefKeyDailyReminderEnabled, true);
-    state = state.copyWith(dailyReminderEnabled: true);
-    unawaited(
-      _analytics.logChangeSetting(
-        key: 'daily_reminder_enabled',
-        value: 'provisional',
-      ),
-    );
-    return true;
-  }
-
   /// 毎日例文の通知を切り替える。
   ///
   /// オフにしたときは null を返す。オンにしたときは結果をそのまま返すので、

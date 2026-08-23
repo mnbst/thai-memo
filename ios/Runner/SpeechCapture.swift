@@ -40,16 +40,34 @@ final class SpeechCapture {
 
   // MARK: - 権限
 
-  /// マイクと音声認識の許可をまとめて要求する。
+  /// マイクと、使える端末でだけ音声認識の許可を要求する。
   ///
   /// マイクが取れれば true。音声認識が拒否されてもピッチ判定はできるので、
   /// ここでは false にしない。
-  func requestPermission(completion: @escaping (Bool) -> Void) {
+  ///
+  /// 音声認識は端末内実行でしか使わない（[startRecognition]）。その端末に
+  /// タイ語の端末内アセットが無ければ、許可を取っても認識は動かないので
+  /// 聞かない。許可ダイアログを2つ続けて出す価値がない。
+  func requestPermission(localeId: String, completion: @escaping (Bool) -> Void) {
     requestMicrophonePermission { micGranted in
+      guard Self.canRecognizeOnDevice(localeId: localeId) else {
+        DispatchQueue.main.async { completion(micGranted) }
+        return
+      }
       SFSpeechRecognizer.requestAuthorization { _ in
         DispatchQueue.main.async { completion(micGranted) }
       }
     }
+  }
+
+  /// その言語の端末内認識が使えるか。
+  ///
+  /// 未許可（notDetermined）でも参照できる値なので、聞く前の判定に使える。
+  /// シミュレータと、アセットが入っていない実機では false。
+  private static func canRecognizeOnDevice(localeId: String) -> Bool {
+    guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeId))
+    else { return false }
+    return recognizer.supportsOnDeviceRecognition
   }
 
   private func requestMicrophonePermission(completion: @escaping (Bool) -> Void) {
@@ -272,7 +290,9 @@ final class SpeechCaptureChannel {
       result(capture.hasPermission())
 
     case "requestPermission":
-      capture.requestPermission { result($0) }
+      let permissionArgs = call.arguments as? [String: Any]
+      let permissionLocale = permissionArgs?["localeId"] as? String ?? "th-TH"
+      capture.requestPermission(localeId: permissionLocale) { result($0) }
 
     case "start":
       let args = call.arguments as? [String: Any]

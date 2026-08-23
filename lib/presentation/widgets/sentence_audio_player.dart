@@ -26,6 +26,9 @@ class SentenceAudioPlayer extends ConsumerStatefulWidget {
     this.onPlay,
     this.trailing,
     this.repeatInterval = const Duration(milliseconds: 1000),
+    this.playButtonKey,
+    this.singleCycle = false,
+    this.onPlaybackEnded,
   });
 
   /// 読み上げる全文。
@@ -43,6 +46,17 @@ class SentenceAudioPlayer extends ConsumerStatefulWidget {
 
   /// 1周ごとに置く間。
   final Duration repeatInterval;
+
+  /// 再生ボタンを外から指すためのキー（初回ガイドのスポット対象）。
+  final GlobalKey? playButtonKey;
+
+  /// 1周で自動的に止める。リピート設定より優先する。
+  /// 初回ガイドで押させたときに、鳴りっぱなしのまま次の案内へ進ませないため。
+  final bool singleCycle;
+
+  /// 再生が終わった（1周終了・停止・一時停止）。
+  /// 初回ガイドが「聞き終わったか」を知るために使う。
+  final VoidCallback? onPlaybackEnded;
 
   @override
   ConsumerState<SentenceAudioPlayer> createState() =>
@@ -131,9 +145,17 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
 
       // 読み上げ完了後は、再生モードに関係なく次回に備えて先頭へ戻す。
       setState(() => _progress = 0);
+      if (widget.singleCycle) {
+        _tts.onProgress = null;
+        unawaited(_tts.stop());
+        setState(() => _playing = false);
+        widget.onPlaybackEnded?.call();
+        return;
+      }
       if (!_repeatEnabled) {
         _tts.onProgress = null;
         setState(() => _playing = false);
+        widget.onPlaybackEnded?.call();
         return;
       }
 
@@ -142,6 +164,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
       if (!_repeatEnabled) {
         _tts.onProgress = null;
         setState(() => _playing = false);
+        widget.onPlaybackEnded?.call();
         return;
       }
     }
@@ -164,6 +187,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
   }
 
   void _stop({bool resetProgress = true}) {
+    final wasPlaying = _playing;
     _generation++;
     _tts.onProgress = null;
     unawaited(_tts.stop());
@@ -174,6 +198,9 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
         _dragValue = null;
       });
     }
+    // 途中で止めた回も「聞き終わった」として扱う。待っている側を
+    // 鳴り止んだまま待たせない。
+    if (wasPlaying) widget.onPlaybackEnded?.call();
   }
 
   String _textFromWord(int index) {
@@ -301,7 +328,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        playButton,
+        KeyedSubtree(key: widget.playButtonKey, child: playButton),
         const SizedBox(width: 4),
         Expanded(
           child: Semantics(

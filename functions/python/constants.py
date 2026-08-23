@@ -126,7 +126,7 @@ TOPIC_SUB_THEMES: dict[str, list[str]] = {
     TOPICS[1]: ["注文", "感想", "屋台", "辛さ調整", "アレルギー"],
     TOPICS[2]: ["ホテル", "道案内", "観光地", "空港", "ツアー"],
     TOPICS[3]: ["報告・連絡・相談", "打ち合わせ", "残業申請", "同僚雑談"],
-    TOPICS[4]: ["家族紹介", "子育て", "親への感謝", "兄弟", "家族行事"],
+    TOPICS[4]: ["家族を紹介する", "子どもに言い聞かせる", "親に礼を言う", "兄弟に頼みごとをする", "家族の集まりに誘う"],
     TOPICS[5]: ["値段交渉", "サイズ・色の確認", "返品", "ナイトマーケット"],
     TOPICS[6]: ["Grab", "BTS", "バイタク", "ソンテウ", "渋滞"],
     TOPICS[7]: ["症状説明", "薬局", "マッサージ", "健康診断"],
@@ -135,7 +135,7 @@ TOPIC_SUB_THEMES: dict[str, list[str]] = {
     TOPICS[10]: ["授業中", "宿題", "試験", "放課後", "語学学校"],
     TOPICS[11]: ["寺院マナー", "托鉢", "お守り", "僧侶への話し方", "仏教行事"],
     TOPICS[12]: ["ソンクラーン", "ロイクラトン", "王室行事", "地域の伝統料理"],
-    TOPICS[13]: ["ワイの使い分け", "敬語", "タブー", "食事マナー", "贈り物"],
+    TOPICS[13]: ["目上の人に挨拶する", "改まった言い方で頼む", "誘いを断る", "食事に招かれる", "贈り物を渡す"],
     TOPICS[14]: ["告白", "デート", "甘い言葉", "遠距離", "別れ", "仲直り"],
     TOPICS[15]: ["告白", "すれ違い", "再会", "嫉妬", "裏切り", "仲直り", "壁ドン", "あだ名呼び", "同棲", "片想い"],
 }
@@ -299,9 +299,11 @@ SUB_THEME_LABELS_EN: dict[str, dict[str, str]] = {
         "残業申請": "requesting overtime", "同僚雑談": "small talk with coworkers",
     },
     TOPICS[4]: {
-        "家族紹介": "introducing family", "子育て": "parenting",
-        "親への感謝": "thanking parents", "兄弟": "siblings",
-        "家族行事": "family events",
+        "家族を紹介する": "introducing your family",
+        "子どもに言い聞かせる": "telling a child what to do",
+        "親に礼を言う": "thanking a parent",
+        "兄弟に頼みごとをする": "asking a sibling for a favor",
+        "家族の集まりに誘う": "inviting family to a gathering",
     },
     TOPICS[5]: {
         "値段交渉": "haggling", "サイズ・色の確認": "checking size and color",
@@ -337,8 +339,11 @@ SUB_THEME_LABELS_EN: dict[str, dict[str, str]] = {
         "王室行事": "royal ceremonies", "地域の伝統料理": "regional dishes",
     },
     TOPICS[13]: {
-        "ワイの使い分け": "when to wai", "敬語": "honorifics", "タブー": "taboos",
-        "食事マナー": "table manners", "贈り物": "gifts",
+        "目上の人に挨拶する": "greeting someone senior",
+        "改まった言い方で頼む": "making a polite request",
+        "誘いを断る": "declining an invitation",
+        "食事に招かれる": "being invited to a meal",
+        "贈り物を渡す": "handing over a gift",
     },
     TOPICS[14]: {
         "告白": "confessing feelings", "デート": "dates",

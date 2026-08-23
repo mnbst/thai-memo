@@ -211,7 +211,7 @@ void main() {
     await showCoach(tester);
     await tester.pump(const Duration(milliseconds: 1500));
 
-    expect(find.text('あとで'), findsNothing);
+    expect(find.text('スキップ'), findsNothing);
   });
 
   testWidgets('skippable なら一呼吸の後にスキップが押せる', (tester) async {
@@ -224,12 +224,12 @@ void main() {
 
     // 読ませる前は押せない。
     expect(
-      tester.widget<TextButton>(find.widgetWithText(TextButton, 'あとで')).onPressed,
+      tester.widget<TextButton>(find.widgetWithText(TextButton, 'スキップ')).onPressed,
       isNull,
     );
 
     await tester.pump(const Duration(milliseconds: 1500));
-    await tester.tap(find.text('あとで'));
+    await tester.tap(find.text('スキップ'));
     await tester.pumpAndSettle();
 
     // 対象へは進まず、コーチマークだけ閉じる。
@@ -360,5 +360,141 @@ void main() {
     await tester.tap(find.text('わかった'));
     await tester.pumpAndSettle();
     expect(CoachMarkOverlay.isVisible, isFalse);
+  });
+
+  testWidgets('見積もりに足りない余白でも、対象に重ねず外側に置く',
+      (tester) async {
+    final targetKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [
+          L10n.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('ja'),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Column(
+              children: [
+                // 吹き出しの見積もり（260）には足りないが、置けるだけの余白。
+                const SizedBox(height: 200),
+                Expanded(child: Container(key: targetKey)),
+              ],
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => CoachMarkOverlay.show(
+                context,
+                targetKey: targetKey,
+                title: 'タイトル',
+                message: 'メッセージ',
+                targetTappable: false,
+                confirmLabel: 'わかった',
+              ),
+              child: const Icon(Icons.play_arrow),
+            ),
+          ),
+        ),
+      ),
+    );
+    await showCoach(tester);
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    final target = tester.getRect(find.byKey(targetKey));
+    final bubble = tester.getRect(find.text('メッセージ'));
+    expect(bubble.bottom, lessThanOrEqualTo(target.top));
+  });
+
+  testWidgets('上下に入らない対象では、対象の上端より下に吹き出しを出す',
+      (tester) async {
+    final targetKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [
+          L10n.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('ja'),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Column(
+              children: [
+                // 案内が指している文脈（クイズの設問など）。隠さない。
+                const SizedBox(height: 120, child: Text('設問')),
+                // 上下どちらにも吹き出しが入らない高さの対象。
+                Expanded(child: Container(key: targetKey)),
+              ],
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => CoachMarkOverlay.show(
+                context,
+                targetKey: targetKey,
+                title: 'タイトル',
+                message: 'メッセージ',
+                targetTappable: false,
+                confirmLabel: 'わかった',
+              ),
+              child: const Icon(Icons.play_arrow),
+            ),
+          ),
+        ),
+      ),
+    );
+    await showCoach(tester);
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    final prompt = tester.getRect(find.text('設問'));
+    final bubble = tester.getRect(find.text('メッセージ'));
+    expect(bubble.top, greaterThan(prompt.bottom));
+  });
+  testWidgets('pinToTop の案内は対象の位置に関わらず画面上端へ置く', (tester) async {
+    final targetKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [
+          L10n.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('ja'),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Column(
+              children: [
+                const SizedBox(height: 120, child: Text('見出し')),
+                // 画面より縦に長い対象（声調の一覧表）を模す。
+                Expanded(child: Container(key: targetKey)),
+              ],
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => CoachMarkOverlay.show(
+                context,
+                targetKey: targetKey,
+                title: 'タイトル',
+                message: 'メッセージ',
+                targetTappable: false,
+                pinToTop: true,
+                confirmLabel: 'わかった',
+              ),
+              child: const Icon(Icons.play_arrow),
+            ),
+          ),
+        ),
+      ),
+    );
+    await showCoach(tester);
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    // 見出し（対象の上端より上）にも重ねてよい。上端が見切れないことが優先。
+    final title = tester.getRect(find.text('タイトル'));
+    expect(title.top, lessThan(120));
+    expect(title.top, greaterThanOrEqualTo(0));
   });
 }

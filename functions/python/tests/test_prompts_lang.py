@@ -107,9 +107,9 @@ def test_register_constraint_switches_translation_steps() -> None:
     assert prompts.JA_TRANSLATION_STEPS in ja
     assert prompts.EN_TRANSLATION_STEPS in en
     assert prompts.JA_TRANSLATION_STEPS not in en
-    # 訳語のレジスタは言語ごと。ja の項が en に混ざらない
-    assert "×「再び」→○「また」" in ja
-    assert "×「再び」→○「また」" not in en
+    # 訳文のレジスタは指定しない（2026-08-22 に ja/en とも削除）
+    assert "話し言葉" not in ja
+    assert "話し言葉" not in en
     # タイ語の構文ルールは言語非依存。両方に入る
     assert "สามารถ〜ได้ は使わない" in ja
     assert "สามารถ〜ได้ は使わない" in en
