@@ -65,8 +65,12 @@ class SpeechCaptureService {
   }
 
   /// 許可ダイアログを出す。許可されたら true。
-  Future<bool> requestPermission() async {
-    final granted = await _channel.invokeMethod<bool>('requestPermission');
+  ///
+  /// 音声認識の許可は、その言語の端末内認識が使える端末でだけ聞く
+  /// （[localeId] を渡すのはその判定のため）。
+  Future<bool> requestPermission({String localeId = 'th-TH'}) async {
+    final granted = await _channel
+        .invokeMethod<bool>('requestPermission', {'localeId': localeId});
     return granted ?? false;
   }
 

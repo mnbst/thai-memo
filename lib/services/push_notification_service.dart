@@ -16,7 +16,6 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -169,38 +168,6 @@ class PushNotificationService {
   void dispose() {
     _tokenRefreshSubscription?.cancel();
     _tokenRefreshSubscription = null;
-  }
-
-  /// 許可ダイアログを出さずに送信先トークンだけ確保する（iOS のみ）。
-  ///
-  /// iOS の provisional authorization。通知は音もバナーも無しで通知センターに
-  /// だけ届く。ダイアログが出ないので価値を体験する前に呼んでも邪魔にならず、
-  /// 正式な許可（[enable]）へ進む前に離脱した人にも配信できる。
-  /// 届いた通知の「目立つように配信」からユーザー自身が昇格させることもできる。
-  ///
-  /// 取れたときだけ true を返す。呼び出し側はアプリ内設定もオンにすること。
-  /// オフのままだと次回起動の [sync] が登録を消してしまう。
-  Future<bool> enableProvisionally() async {
-    // Android の POST_NOTIFICATIONS に暫定許可は無く、呼ぶとダイアログが出る。
-    if (defaultTargetPlatform != TargetPlatform.iOS) return false;
-    try {
-      // 本人が既に許可・拒否を決めているなら触らない。拒否を上書きはできないし、
-      // 許可済みを暫定に落とすこともない。
-      final current = await _messaging.getNotificationSettings();
-      if (current.authorizationStatus != AuthorizationStatus.notDetermined) {
-        return false;
-      }
-
-      final settings = await _messaging.requestPermission(provisional: true);
-      if (!_isGranted(settings)) return false;
-      return await _enableRegistration();
-    } on TimeoutException {
-      // 暫定許可自体は下りている。登録は onTokenRefresh か次回起動の [sync] で
-      // 完了するので、アプリ内設定はオンにさせる。
-      return true;
-    } catch (_) {
-      return false;
-    }
   }
 
   /// 通知を有効にする。必要なら許可ダイアログを出す。

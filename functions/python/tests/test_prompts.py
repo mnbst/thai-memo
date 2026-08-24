@@ -23,6 +23,12 @@ from prompts import (
 )
 
 
+_ALL_RELATIONS = [
+    f"{status}／{intimacy}"
+    for status in prompts.RELATION_STATUSES
+    for intimacy in prompts.RELATION_INTIMACY
+]
+
 def test_resolve_generation_params_prefers_explicit_values() -> None:
     # politeness は 2026-08-07 に廃止。明示指定しても無視される。
     params = {"topic": "custom-topic", "politeness": "custom-politeness"}
@@ -32,6 +38,7 @@ def test_resolve_generation_params_prefers_explicit_values() -> None:
     result.pop("topicOptions")
     # 時間軸は明示指定が無ければ抽選される（値は非決定的）
     assert result.pop("timeFrame") in TIME_FRAMES
+    assert result.pop("relation") in _ALL_RELATIONS
     assert result == {"topic": "custom-topic"}
 
 
@@ -48,6 +55,7 @@ def test_resolve_generation_params_uses_free_pools_and_omits_grammar() -> None:
         # テーマは埋めず LLM に委ねる（候補は topicOptions で渡す）
         "topic": "",
         "timeFrame": TIME_FRAMES[0],
+        "relation": _ALL_RELATIONS[0],
     }
 
 
@@ -160,6 +168,7 @@ def test_explicit_values_override_gates_after_common_prompt_vocab() -> None:
     resolved.pop("subTheme")
     resolved.pop("topicOptions")
     assert resolved.pop("timeFrame") in TIME_FRAMES
+    assert resolved.pop("relation") in _ALL_RELATIONS
     assert resolved == params
 
 
@@ -225,9 +234,9 @@ def test_build_uvm_prompt_excludes_fixed_output_rules() -> None:
         estimated_vocab=101,
     )
 
-    assert "thai_textの空白は最大1つ" not in prompt
+    assert "thai_textは分かち書きしない" not in prompt
     assert "タイ語練習文を1つ生成" not in prompt
-    assert "thai_textの空白は最大1つ" in SYSTEM_PROMPT_FREE
+    assert "thai_textは分かち書きしない" in SYSTEM_PROMPT_FREE
     assert "meaningは日本語のみ" in SYSTEM_PROMPT_FREE
     assert "構文ルール" in SYSTEM_PROMPT_PREMIUM
     assert "英語的SVOを避ける" in SYSTEM_PROMPT_PREMIUM
@@ -296,6 +305,7 @@ def test_context_records_every_server_decided_axis() -> None:
     assert context["topic"] == TOPICS[11]
     assert context["subTheme"] in TOPIC_SUB_THEMES[TOPICS[11]]
     assert context["timeFrame"] in TIME_FRAMES
+    assert context["relation"] in _ALL_RELATIONS
     # politeness はプロンプトに出さないので記録もしない
     # （生成に影響していない値を残すと偏り集計が誤る）
     assert "politeness" not in context
@@ -330,3 +340,33 @@ def test_intro_length_hint_reaches_prompt_text() -> None:
     prompt = build_uvm_prompt({}, target_words=["กิน"], estimated_vocab=0)
 
     assert "長さ: 〜5単語" in prompt
+
+
+def test_premium_prompt_carries_the_drawn_relation() -> None:
+    """premium は抽選した関係を末尾ブロックに出す（free には付かない）。"""
+    with patch("prompts.find_best_sub_theme", return_value=None):
+        prompt, context = prompts.build_prompt_with_context(
+            {"topic": TOPICS[0]}, ["กิน"], estimated_vocab=700
+        )
+    assert "【話し手と聞き手】" in prompt
+    status, _, intimacy = context["relation"].partition("／")
+    assert status in prompt and intimacy in prompt
+
+    with patch("prompts.find_best_sub_theme", return_value=None):
+        free_prompt, _ = prompts.build_prompt_with_context(
+            {"topic": TOPICS[0]}, ["กิน"], estimated_vocab=50, is_premium=False
+        )
+    assert "【話し手と聞き手】" not in free_prompt
+
+
+def test_relation_is_drawn_from_both_axes() -> None:
+    """地位×親密度の9通りが全部引かれ、それ以外は出ない。"""
+    drawn = {
+        prompts.resolve_generation_params({"topic": TOPICS[3]}, ["กิน"])["relation"]
+        for _ in range(400)
+    }
+    assert drawn == set(_ALL_RELATIONS)
+    for relation in _ALL_RELATIONS:
+        status, _, intimacy = relation.partition("／")
+        block = prompts.build_relation_constraint(relation)
+        assert status in block and intimacy in block

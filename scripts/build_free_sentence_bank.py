@@ -42,6 +42,47 @@ EXCLUDED_KEY_WORDS = frozenset({"มิ", "ข้า", "ริ", "น่า", "�
 # 入門帯の上限（DIFFICULTY_LEVELS の入門は max_vocab=99）。
 INTRO_MAX_VOCAB = 99
 
+# ─── 文体マーカー（--refresh-markers 用、2026-08-22 追加） ───
+# free/premium の文体差は語彙ではなくこの4つに出る。free spec と premium spec を
+# 同条件10文ずつで測った実測値（主語明示 40/10%、口語終助詞 0/20%、丁寧終助詞
+# 40/0%、アスペクト 10/40%、接続標識 0/10%、2節 0/30%）から、機械判定できる
+# 4つを採った。主語明示・丁寧終助詞は「教科書的な側」に出るマーカーなので数えない
+# （消す対象ではない）。
+_COLLOQUIAL_PARTICLES = ("จัง", "นะ", "เลย", "กัน", "สิ", "หรอก", "ล่ะ", "แหละ",
+                         "ว่ะ", "เนอะ")
+_ASPECT_MARKERS = ("เพิ่ง", "มาแล้ว", "กำลัง", "เมื่อกี้", "ประจำ", "เคย", "ไว้", "อยู่")
+# เลย は _COLLOQUIAL_PARTICLES と両方に該当する（強調の終助詞と「だから」の
+# 接続詞の両用）。両方に置くと เลย 1語だけでマーカーが2つ立ち、教科書的な文まで
+# 差し替え対象になった（現行448では対象 46文中 11文がこれ）。1語は1つだけ数える。
+_CONNECTIVES = ("แต่", "เพราะ", "ก็", "ถ้า", "พอ", "จน")
+
+
+def count_style_markers(thai_text: str, key_word: str = "") -> int:
+    """premium 寄りの文体マーカーがいくつ立っているかを返す。
+
+    0 なら教科書的（入門教材の例文と同じ形）。現行バンク448文の分布は
+    0:266 / 1:147 / 2:32 / 3:3。
+
+    key_word 自体はマーカーから除く。ターゲット語が แต่/ถ้า/เคย/ไว้ のときは
+    その語が文に必ず入るので、数えると何度引き直しても下がらない
+    （引き直し3回でも下がらなかった6文が全てこのケースだった）。
+    """
+    text = thai_text or ""
+
+    def hit(markers: tuple[str, ...]) -> bool:
+        return any(k in text for k in markers if k != key_word)
+
+    n = 0
+    if hit(_COLLOQUIAL_PARTICLES):
+        n += 1
+    if hit(_ASPECT_MARKERS):
+        n += 1
+    if hit(_CONNECTIVES):
+        n += 1
+    if " " in text:  # 2節
+        n += 1
+    return n
+
 
 def load_freq_rank(project_id: str) -> dict[str, int]:
     from google.cloud import storage
@@ -168,6 +209,71 @@ def build(lang: str, words: list[tuple[str, int]], per_word: int,
     return out
 
 
+def download_bank(project_id: str, lang: str) -> list[dict]:
+    """GCS の現行バンクを読む（--refresh-markers 用）。"""
+    from google.cloud import storage
+
+    blob = (
+        storage.Client(project=project_id)
+        .bucket(f"{project_id}-uvm-data")
+        .blob(f"free_sentences_{lang}.json")
+    )
+    return json.loads(blob.download_as_text())
+
+
+def refresh(lang: str, bank: list[dict], threshold: int, workers: int,
+            retries: int) -> list[dict]:
+    """マーカーが threshold 以上の文だけ free spec で作り直す。
+
+    key_word・rank・テーマは元の行から引き継ぐ。バンク全体を作り直すと、
+    すでに教科書的な文（現行448中266文）の多様性まで振り直すことになるので、
+    置き換えるのは外れた文だけにする。
+
+    作り直した文がまた threshold 以上なら retries 回まで引き直し、それでも
+    下がらなければ元の文を残す（穴を空けない）。
+    """
+    def score(row: dict) -> int:
+        return count_style_markers(row.get("thai_text", ""), row.get("key_word", ""))
+
+    keep = [x for x in bank if score(x) < threshold]
+    targets = [x for x in bank if score(x) >= threshold]
+    print(f"[{lang}] 据え置き {len(keep)}文 / 作り直し {len(targets)}文")
+    seen = {x.get("thai_text") for x in bank}
+    started = time.monotonic()
+
+    def regenerate(row: dict) -> dict:
+        word = row["key_word"]
+        rank = row.get("key_word_rank", INTRO_MAX_VOCAB)
+        topic = (row.get("context") or {}).get("topic") or ""
+        for _ in range(retries):
+            s = generate_one(word, rank, topic, lang, is_premium=False)
+            if s is None:
+                continue
+            text = s.get("thai_text")
+            if text in seen:
+                continue
+            if count_style_markers(text, word) >= threshold:
+                continue
+            seen.add(text)
+            return s
+        print(f"  ! {word} ({lang}): {retries}回引いても下がらず元の文を残す",
+              file=sys.stderr)
+        return row
+
+    out = list(keep)
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = {ex.submit(regenerate, r): r for r in targets}
+        done = 0
+        for fut in as_completed(futs):
+            done += 1
+            if done % 10 == 0:
+                print(f"  {lang}: {done}/{len(targets)} "
+                      f"({time.monotonic() - started:.0f}s)", file=sys.stderr)
+            out.append(fut.result())
+    out.sort(key=lambda x: (x["key_word_rank"], x["thai_text"]))
+    return out
+
+
 def upload(project_id: str, lang: str, path: str) -> None:
     from google.cloud import storage
 
@@ -191,6 +297,11 @@ def main() -> None:
     p.add_argument("--spec", choices=("free", "premium"), default="premium",
                    help="生成に使うプロンプト。バンクは作り置きなので既定は premium "
                         "（語彙レジスタ制約が効き自然さが上がる。配信時の tier は free のまま）")
+    p.add_argument("--refresh-markers", type=int, default=0,
+                   help="0以外で差分更新モード。現行バンクのうち文体マーカーが"
+                        "この数以上の文だけを free spec で作り直す（推奨: 2）")
+    p.add_argument("--refresh-retries", type=int, default=3,
+                   help="--refresh-markers で引き直す最大回数（既定3）")
     p.add_argument("--workers", type=int, default=8)
     p.add_argument("--out", default="scripts/bank_out")
     p.add_argument("--upload", action="store_true", help="生成後にGCSへ上げる")
@@ -206,6 +317,24 @@ def main() -> None:
     if a.upload_only:
         for lang in langs:
             upload(project_id, lang, os.path.join(a.out, f"free_sentences_{lang}.json"))
+        return
+
+    if a.refresh_markers:
+        for lang in langs:
+            bank = download_bank(project_id, lang)
+            rows = refresh(lang, bank, a.refresh_markers, a.workers,
+                           a.refresh_retries)
+            path = os.path.join(a.out, f"free_sentences_{lang}.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(rows, f, ensure_ascii=False, indent=1)
+            dist = Counter(
+                count_style_markers(x["thai_text"], x.get("key_word", ""))
+                for x in rows
+            )
+            print(f"[{lang}] {len(rows)}文 / マーカー分布 "
+                  f"{dict(sorted(dist.items()))} → {path}")
+            if a.upload:
+                upload(project_id, lang, path)
         return
 
     freq_rank = load_freq_rank(project_id)

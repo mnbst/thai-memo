@@ -52,6 +52,10 @@ class AppConfig {
   /// 「確認クイズへ」ボタンのコーチマーク表示済みフラグ
   static const String prefKeySentenceCoachShown = 'sentence_coach_shown';
 
+  /// 声調解説ダイアログのコーチマーク表示済みフラグ。
+  /// 自分で単語を開いた初回にだけ、中の読み方を案内する。
+  static const String prefKeyToneDetailCoachShown = 'tone_detail_coach_shown';
+
   /// 「今日の学習単語」のコーチマーク表示済みフラグ。
   /// クイズを一度見てから例文へ戻った回に、出題される語を結び付けて教える。
   static const String prefKeyTargetWordsCoachShown = 'target_words_coach_shown';
@@ -62,16 +66,29 @@ class AppConfig {
   /// まとめクイズ誘導ボタンのコーチマーク表示済みフラグ
   static const String prefKeyQuizButtonCoachShown = 'quiz_button_coach_shown';
 
+  /// 機能紹介の締めくくり（クイズ結果画面）の表示済みフラグ。
+  /// ここまで来たら案内は終わりで、あとは続けるだけだと伝える。
+  static const String prefKeyTourFinishCoachShown = 'tour_finish_coach_shown';
+
   /// 「次のテーマ」コーチマークの表示済みフラグ
   static const String prefKeyNextTopicCoachShown = 'next_topic_coach_shown';
 
-  /// 詳細画面の初回ガイドの進捗（0=例文カード / 1=発音練習 / 2=単語の分解 /
-  /// 3=文脈・使い方 / 4=戻る / 5=完了）。途中で画面を離れても残りから再開する
-  /// ため、真偽値ではなく段で持つ。
+  /// 詳細画面の初回ガイドの進捗（0=例文カード / 1=お手本再生 / 2=発音練習 /
+  /// 3=単語の分解と声調詳細 / 4=文脈・使い方 / 5=戻る / 6=完了）。
+  /// 途中で画面を離れても残りから再開するため、真偽値ではなく段で持つ。
   ///
   /// 段を増やしたときは新しいキーにする。旧キーの番号は1つ手前を指すので、
   /// そのまま使うと同じ案内を二度読ませる（detail_screen で読み替える）。
-  static const String prefKeyDetailTourStep = 'detail_tour_step_v2';
+  static const String prefKeyDetailTourStep = 'detail_tour_step_v5';
+
+  /// 単語の分解と声調詳細を1段にまとめる前の進捗キー（読み替え用）。
+  static const String prefKeyDetailTourStepV4 = 'detail_tour_step_v4';
+
+  /// お手本再生の案内を足す前の進捗キー（読み替え用）。
+  static const String prefKeyDetailTourStepV3 = 'detail_tour_step_v3';
+
+  /// 単語の詳細の案内を足す前の進捗キー（読み替え用）。
+  static const String prefKeyDetailTourStepV2 = 'detail_tour_step_v2';
 
   /// 例文カードの案内を足す前の進捗キー（読み替え用）。
   static const String prefKeyDetailTourStepV1 = 'detail_tour_step';
@@ -91,13 +108,6 @@ class AppConfig {
   /// 毎日例文通知のコーチングダイアログ表示済みフラグ（設定画面の初回表示時に出す）
   static const String prefKeyNotificationCoachShown =
       'notification_coach_shown';
-
-  /// 暫定許可（iOS の provisional authorization）を要求済みかどうか。
-  ///
-  /// ダイアログが出ない代わりに一度しか意味を持たない要求なので、成否に
-  /// かかわらず一度で打ち切る。再登録は起動時の同期が引き受ける。
-  static const String prefKeyProvisionalPushRequested =
-      'provisional_push_requested';
 
   /// 例文タブのプレミアム訴求バナーを閉じた日時（epoch ms）
   static const String prefKeyPremiumHintDismissedAt =
