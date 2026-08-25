@@ -176,6 +176,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
 
   /// 押させた段の操作が終わるまで待つ。押させていない段では何もしない。
   Future<void> _awaitStepAction(int step) async {
+    // スキップされた段は、その操作を待たない。待つと何も起きないまま
+    // [_recordGrace] だけ案内が止まる。
+    if (_coachSkipped) return;
     if (step == 1) return _awaitPlaybackFinished();
     if (step == 2) {
       await _awaitPronunciationSettled();
@@ -426,6 +429,10 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
         ),
     };
 
+    // 段ごとに引き直す。出せなかった段（onDismiss が来ない）の値を持ち越すと、
+    // 次の段の待ちまで飛ばしてしまう。
+    _coachSkipped = false;
+
     final isExit = step == _coachKeys.length - 1;
     // 出口の段も押させる。案内するのが出口そのものなので、「わかった」で
     // 閉じると戻り方を試さないまま終わってしまう。
@@ -466,16 +473,22 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
         message: message,
         targetTappable: forceTap,
         barrierDismissible: !forceTap,
-        // スキップは出さない。やらせたい操作を飛ばせると、案内した機能を
+        // スキップは基本出さない。やらせたい操作を飛ばせると、案内した機能を
         // 一度も使わないまま終わる。押す先はどの段も1タップで済む。
+        // 発音だけは例外（[_skippableSteps]）。
+        skippable: _skippableSteps.contains(step),
         confirmLabel: forceTap ? null : l10n.coachGotIt,
-        onDismiss: (_) {
+        onDismiss: (action) {
+          _coachSkipped = action == 'skipped';
           if (!completer.isCompleted) completer.complete();
         },
       );
       if (!shown && !completer.isCompleted) completer.complete();
       if (!shown || step != 2) return;
       await Future<void>.delayed(_permissionCue);
+      // スキップされたら許可も聞かない。使わないと決めた機能のために
+      // ダイアログを出しても、断られて次に試すときに困るだけ。
+      if (_coachSkipped) return;
       await _requestMicPermission();
     }());
     return completer.future;
@@ -496,6 +509,16 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// 単語の詳細（声調解説）は入れない。声調の細かい話は玄人向けなので、
   /// ここでは「そこにある」とだけ伝えて、開くかどうかは本人に任せる。
   static const _forcedTapSteps = {1, 2};
+
+  /// 「スキップ」を出す段。押させる段のうち、発音（step 2）だけは抜けられる。
+  ///
+  /// 声を出せない場所（電車内・職場）で初回ガイドに当たる人が居るので、
+  /// ここを塞ぐと初回体験ごと詰まる。再生と違って代わりの進め方が無い。
+  static const _skippableSteps = {2};
+
+  /// 直前の段がスキップで閉じられたか。スキップされた段では、その操作の
+  /// 完了待ち（[_awaitStepAction]）とマイク許可を飛ばす。
+  bool _coachSkipped = false;
 
   @override
   Widget build(BuildContext context) {

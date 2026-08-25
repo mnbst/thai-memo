@@ -79,17 +79,17 @@ class L10nEn extends L10n {
       'Once you have looked through the sentence, take the quiz to check that the words stuck.';
 
   @override
-  String get coachTargetWordsTitle => 'Today\'s word';
+  String get coachTargetWordsTitle => 'Learn this word';
 
   @override
-  String get coachTargetWordsEmphasis => 'today\'s word';
+  String get coachTargetWordsEmphasis => 'target word';
 
   @override
   String get coachTargetWordsMessage =>
-      'This is today\'s word. Keep it in focus and see how it is used in the sentence.';
+      'This is the target word for this sentence. See how it is used.';
 
   @override
-  String get coachSentenceCardTitle => 'Today\'s sentence';
+  String get coachSentenceCardTitle => 'Sentence card';
 
   @override
   String get coachSentenceCardMessage =>
@@ -169,7 +169,7 @@ class L10nEn extends L10n {
   String get sentencePreparing => 'Preparing your next sentence...';
 
   @override
-  String get todaysWords => 'Today\'s words';
+  String get todaysWords => 'Target words';
 
   @override
   String get playPronunciation => 'Play pronunciation';
@@ -216,7 +216,7 @@ class L10nEn extends L10n {
       'A basic greeting you can use any time of day. Women say ค่ะ instead.';
 
   @override
-  String get quizTodayTitle => 'Today\'s quiz';
+  String get quizTodayTitle => 'Quiz';
 
   @override
   String get quizOptionalChallenge => 'Take the 5-question challenge';
@@ -316,15 +316,15 @@ class L10nEn extends L10n {
 
   @override
   String coachTourFinishQuota(int free, int premium) {
-    return 'Sentences: up to $free a day on the free plan, $premium a day with Premium.';
+    return 'You can create $free sentences a day on the free plan, or $premium a day with Premium.';
   }
 
   @override
-  String get coachTopicTitle => 'You can pick the next topic';
+  String get coachTopicTitle => 'Pick a topic, get deep into Thai culture';
 
   @override
   String get coachTopicMessage =>
-      'Tap here to change the topic of your next sentence (travel, romance, and more). Study whatever you\'re in the mood for.';
+      'Tap here to choose the topic of your next sentence. Festivals, temple etiquette, BL dramas — you pick up the culture along with the language.';
 
   @override
   String get vocabScore => 'Vocabulary score';
@@ -602,7 +602,7 @@ class L10nEn extends L10n {
   String get settingsAbout => 'About';
 
   @override
-  String get settingsTagline => 'A little Thai, every day';
+  String get settingsTagline => 'Fill your day with Thai';
 
   @override
   String get settingsPrivacyPolicy => 'Privacy policy';
@@ -896,8 +896,7 @@ class L10nEn extends L10n {
   String get paywallTitle => 'Premium';
 
   @override
-  String get paywallTagline =>
-      'One day, you\'ll understand them without subtitles.';
+  String get paywallTagline => 'Dive into the Thai-speaking world.';
 
   @override
   String get paywallSignInRequired => 'Sign in first';
@@ -934,25 +933,21 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get paywallFeatureQuotaTitle => 'Study more sentences a day';
+  String get paywallFeatureQuotaTitle => 'Immerse yourself in quality Thai';
 
   @override
-  String paywallFeatureQuotaCount(int count) {
-    return '$count sentences a day';
+  String paywallFeatureQuotaFree(int count, int limit) {
+    return '$count sentences a day · up to $limit words';
   }
 
   @override
-  String get paywallFeature1Title => 'Learn the phrasing natives use';
-
-  @override
-  String get paywallFeature1Free => 'Textbook basics';
-
-  @override
-  String get paywallFeature1Premium => 'The phrasing Thai people actually use';
+  String paywallFeatureQuotaPremium(int count) {
+    return '$count sentences a day · no word cap';
+  }
 
   @override
   String get paywallFeaturePronunciationTitle =>
-      'Get your pronunciation scored';
+      'Build confidence in how you sound';
 
   @override
   String paywallFeaturePronunciationFree(int count) {
@@ -963,15 +958,15 @@ class L10nEn extends L10n {
   String get paywallFeaturePronunciationPremium => 'Unlimited';
 
   @override
-  String get paywallFeatureOtherTitle => 'Also with Premium';
+  String get paywallFeatureTopicTitle =>
+      'Pick a topic, get deep into Thai culture';
 
   @override
-  String get paywallFeatureOtherTopic => 'Pick the topics you want to study';
+  String get paywallFeatureTopicFree => 'Beginner topics only';
 
   @override
-  String paywallFeatureOtherVocab(int limit) {
-    return 'No $limit-word cap — enough to follow drama dialogue';
-  }
+  String get paywallFeatureTopicPremium =>
+      'Festivals, temple etiquette, BL dramas — your call';
 
   @override
   String get paywallTrialActive =>
@@ -981,11 +976,11 @@ class L10nEn extends L10n {
   String get paywallTrialEnded => 'This is what you had during your trial.';
 
   @override
-  String get onboarding1Title => 'A fresh Thai sentence every day';
+  String get onboarding1Title => 'AI writes Thai sentences just for you';
 
   @override
   String get onboarding1Body =>
-      'A new sentence arrives daily.\nTap the card for words and meaning.';
+      'Sentences arrive daily — add more anytime.\nTap the card for words and meaning.';
 
   @override
   String get onboarding2Title => 'Pronunciation practice, tones included';
@@ -1098,15 +1093,15 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy1Chars =>
-      'Each daily sentence is **broken down word by word**, with meaning and pronunciation. The more Thai letters you can read, the more of it you can follow on your own.';
+      'Each sentence is **broken down word by word**, with meaning and pronunciation. The more Thai letters you can read, the more of it you can follow on your own.';
 
   @override
   String get philosophy1Words =>
-      'Each daily sentence is generated to match your **vocabulary score** in the app, moving from greetings out into everyday phrasing.';
+      'Each sentence is generated to match your **vocabulary score** in the app, moving from greetings out into everyday phrasing.';
 
   @override
   String get philosophy1Conv =>
-      'How hard each daily sentence is comes from your **quiz results**. The more you get right, the wider the range of words that shows up.';
+      'How hard each sentence is comes from your **quiz results**. The more you get right, the wider the range of words that shows up.';
 
   @override
   String get philosophyKeyWord =>
@@ -1146,7 +1141,7 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy3TimeShort =>
-      '**A few minutes** covers today\'s sentence and the quiz that follows it.';
+      '**A few minutes** covers one sentence and the quiz that follows it.';
 
   @override
   String get philosophy3TimeMedium =>
@@ -1168,7 +1163,7 @@ class L10nEn extends L10n {
 
   @override
   String get notifCoachStep2 =>
-      'At that time, one sentence picked for you arrives on its own';
+      'At that time, a sentence picked for you arrives on its own';
 
   @override
   String get notifCoachHabit =>
@@ -1204,25 +1199,25 @@ class L10nEn extends L10n {
   String get commonGotIt => 'Got it';
 
   @override
-  String get premiumHint1Title => 'Pick the topics you want to study';
+  String get premiumHint1Title => 'Pick a topic, get deep into Thai culture';
 
   @override
   String get premiumHint1Body =>
-      'Thai dramas, romance, travel — choose what your next sentence is about';
+      'Festivals, temple etiquette, BL dramas — the culture comes with the language';
 
   @override
-  String get premiumHint2Title => 'Learn the phrasing natives use';
+  String get premiumHint2Title => 'Build confidence in how you sound';
 
   @override
   String get premiumHint2Body =>
-      'Move past textbook basics to the phrasing Thai people actually use';
+      'Record as many times as you like and fix where your tones drift';
 
   @override
-  String get premiumHint3Title => 'No cap on how many words';
+  String get premiumHint3Title => 'Immerse yourself in quality Thai';
 
   @override
   String get premiumHint3Body =>
-      'Go beyond the first 100 words — enough to follow drama dialogue';
+      'Far more sentences a day — the volume is what makes it stick';
 
   @override
   String get signInReminderTitle => 'Keep your progress safe';
@@ -1518,11 +1513,11 @@ class L10nEn extends L10n {
       'We couldn\'t build the quiz. Please try again.';
 
   @override
-  String get quotaQuizReached => 'You\'ve hit today\'s quiz limit.';
+  String get quotaQuizReached => 'That\'s the last new quiz for today.';
 
   @override
   String get quotaSentenceReached =>
-      'You\'ve hit today\'s sentence limit.\nPlease come back tomorrow.';
+      'That\'s the last new sentence for today.\nRevisit past sentences or review them with a quiz.';
 
   @override
   String get errAuth =>

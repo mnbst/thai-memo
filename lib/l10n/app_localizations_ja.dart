@@ -75,16 +75,16 @@ class L10nJa extends L10n {
   String get coachQuizMessage => '例文をひと通り見たら、クイズで単語を覚えたかを確認しましょう。';
 
   @override
-  String get coachTargetWordsTitle => '今日はこの単語を覚えよう';
+  String get coachTargetWordsTitle => 'この単語を覚えよう';
 
   @override
-  String get coachTargetWordsEmphasis => '今日の学習単語';
+  String get coachTargetWordsEmphasis => '学習単語';
 
   @override
-  String get coachTargetWordsMessage => '今日の学習単語です。例文の中でどう使われているかを見ていきましょう。';
+  String get coachTargetWordsMessage => 'この例文の学習単語です。例文の中でどう使われているかを見ていきましょう。';
 
   @override
-  String get coachSentenceCardTitle => '今日の例文';
+  String get coachSentenceCardTitle => '例文カード';
 
   @override
   String get coachSentenceCardMessage => '上がタイ文字、下がその読み方、いちばん下が日本語訳です。';
@@ -159,7 +159,7 @@ class L10nJa extends L10n {
   String get sentencePreparing => '次の例文を準備中...';
 
   @override
-  String get todaysWords => '今日の学習単語';
+  String get todaysWords => '学習単語';
 
   @override
   String get playPronunciation => '発音を再生';
@@ -204,7 +204,7 @@ class L10nJa extends L10n {
   String get sampleGreetingUsage => '朝昼晩いつでも使える基本的な挨拶。女性の場合は「ค่ะ」を使います。';
 
   @override
-  String get quizTodayTitle => '今日のクイズ';
+  String get quizTodayTitle => 'クイズ';
 
   @override
   String get quizOptionalChallenge => '5問チャレンジする';
@@ -301,15 +301,15 @@ class L10nJa extends L10n {
 
   @override
   String coachTourFinishQuota(int free, int premium) {
-    return '例文は無料版なら1日$free文まで。プレミアムなら1日$premium文に増えます。';
+    return '例文は無料版で1日$free文、プレミアムなら1日$premium文まで作れます。';
   }
 
   @override
-  String get coachTopicTitle => '次の例文のテーマを選べます';
+  String get coachTopicTitle => 'テーマを選んでタイ文化に親しむ';
 
   @override
   String get coachTopicMessage =>
-      'ここをタップすると、次に生成する例文のテーマ（旅行・恋愛など）を変更できます。気分に合わせて学習内容を選びましょう。';
+      'ここをタップすると、次の例文のテーマを選べます。祭り・寺院での作法・BLドラマなど、言葉と一緒にタイの文化そのものに触れられます。';
 
   @override
   String get vocabScore => '語彙スコア';
@@ -561,7 +561,7 @@ class L10nJa extends L10n {
   String get settingsAbout => 'アプリについて';
 
   @override
-  String get settingsTagline => '毎日タイ語を学習しましょう';
+  String get settingsTagline => 'タイ語に、たっぷりふれよう';
 
   @override
   String get settingsPrivacyPolicy => 'プライバシーポリシー';
@@ -826,7 +826,7 @@ class L10nJa extends L10n {
   String get paywallTitle => 'プレミアムプラン';
 
   @override
-  String get paywallTagline => '推しの言葉が、わかる日が来る。';
+  String get paywallTagline => 'タイ語の世界に飛び込もう。';
 
   @override
   String get paywallSignInRequired => 'サインインが必要です';
@@ -861,24 +861,20 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get paywallFeatureQuotaTitle => '例文をたくさん学べる';
+  String get paywallFeatureQuotaTitle => '良質なタイ語に大量に触れられる';
 
   @override
-  String paywallFeatureQuotaCount(int count) {
-    return '例文$count回/日';
+  String paywallFeatureQuotaFree(int count, int limit) {
+    return '例文$count回/日・単語は$limit語まで';
   }
 
   @override
-  String get paywallFeature1Title => 'タイ人が使う言い回しで学べる';
+  String paywallFeatureQuotaPremium(int count) {
+    return '例文$count回/日・単語の上限なし';
+  }
 
   @override
-  String get paywallFeature1Free => '教科書的な基礎文';
-
-  @override
-  String get paywallFeature1Premium => 'タイ人の自然な言い回し';
-
-  @override
-  String get paywallFeaturePronunciationTitle => '発音を繰り返し確認できる';
+  String get paywallFeaturePronunciationTitle => '発音練習で自信をつけられる';
 
   @override
   String paywallFeaturePronunciationFree(int count) {
@@ -889,15 +885,13 @@ class L10nJa extends L10n {
   String get paywallFeaturePronunciationPremium => '無制限';
 
   @override
-  String get paywallFeatureOtherTitle => 'その他のプレミアム特典';
+  String get paywallFeatureTopicTitle => 'テーマを選んでタイ文化に親しむ';
 
   @override
-  String get paywallFeatureOtherTopic => '学びたいテーマを自由に選べる';
+  String get paywallFeatureTopicFree => '入門向けのテーマのみ';
 
   @override
-  String paywallFeatureOtherVocab(int limit) {
-    return '単語数の上限（Freeは$limit語）が外れ、ドラマのセリフも理解できる';
-  }
+  String get paywallFeatureTopicPremium => '祭り・寺院の作法・BLドラマなど自分で選べる';
 
   @override
   String get paywallTrialActive => 'いまはプレミアム体験中です。期間が終わると、ここは元の内容に戻ります。';
@@ -906,10 +900,10 @@ class L10nJa extends L10n {
   String get paywallTrialEnded => '体験期間中に使えていた機能です。';
 
   @override
-  String get onboarding1Title => 'AIがタイ語例文を毎日生成';
+  String get onboarding1Title => 'AIがあなた専用の例文を何度でも生成';
 
   @override
-  String get onboarding1Body => '毎日新しい例文が届きます。\nカードをタップで単語・意味を確認。';
+  String get onboarding1Body => '例文は毎日届き、何文でも追加できます。\nカードをタップで単語・意味を確認。';
 
   @override
   String get onboarding2Title => '声調を含めた発音練習';
@@ -1018,15 +1012,15 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy1Chars =>
-      '毎日届く例文は、**1単語ずつ分解**して意味と発音を表示します。読めるタイ文字が増えるほど、自力で追える範囲が広がります。';
+      '届く例文は、**1単語ずつ分解**して意味と発音を表示します。読めるタイ文字が増えるほど、自力で追える範囲が広がります。';
 
   @override
   String get philosophy1Words =>
-      '毎日届く例文は、アプリ内の**語彙スコア**に応じて作られます。挨拶だけの段階から、日常の言い回しへ広がっていきます。';
+      '届く例文は、アプリ内の**語彙スコア**に応じて作られます。挨拶だけの段階から、日常の言い回しへ広がっていきます。';
 
   @override
   String get philosophy1Conv =>
-      '毎日届く例文の難しさは、**クイズの結果**から決まります。解けるほど、出てくる単語の幅が広がります。';
+      '届く例文の難しさは、**クイズの結果**から決まります。解けるほど、出てくる単語の幅が広がります。';
 
   @override
   String get philosophyKeyWord =>
@@ -1064,7 +1058,7 @@ class L10nJa extends L10n {
       '**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「伝統・祭り」を選べば、作品や文化に出てくる表現が届きます。';
 
   @override
-  String get philosophy3TimeShort => '**数分あれば**、今日の1文を読んで確認クイズまで進められます。';
+  String get philosophy3TimeShort => '**数分あれば**、例文を1つ読んで確認クイズまで進められます。';
 
   @override
   String get philosophy3TimeMedium =>
@@ -1084,7 +1078,7 @@ class L10nJa extends L10n {
   String get notifCoachStep1 => '通勤中や寝る前など、学習を続けやすい時刻を決めます';
 
   @override
-  String get notifCoachStep2 => 'その時刻に、あなた向けの1例文が自動で届きます';
+  String get notifCoachStep2 => 'その時刻に、あなた向けの例文が自動で届きます';
 
   @override
   String get notifCoachHabit => '毎日同じ時間に開くので、タイ語学習が習慣になります';
@@ -1117,22 +1111,22 @@ class L10nJa extends L10n {
   String get commonGotIt => 'わかった';
 
   @override
-  String get premiumHint1Title => '学びたいテーマを自由に選べる';
+  String get premiumHint1Title => 'テーマを選んでタイ文化に親しむ';
 
   @override
-  String get premiumHint1Body => 'タイドラマ・恋愛・旅行など、次の例文のテーマを指定できます';
+  String get premiumHint1Body => '祭り・寺院での作法・BLドラマなど、言葉と一緒に文化が身につきます';
 
   @override
-  String get premiumHint2Title => 'タイ人が使う言い回しで学べる';
+  String get premiumHint2Title => '発音練習で自信をつけられる';
 
   @override
-  String get premiumHint2Body => '教科書的な基礎文から、タイ人の自然な言い回しへ';
+  String get premiumHint2Body => '回数を気にせず何度でも録音して、声調のズレを直していけます';
 
   @override
-  String get premiumHint3Title => '単語数の上限が外れる';
+  String get premiumHint3Title => '良質なタイ語に大量に触れられる';
 
   @override
-  String get premiumHint3Body => '基礎100語の先へ。ドラマのセリフも理解できる';
+  String get premiumHint3Body => '1日に作れる例文が大きく増えて、読んだ量がそのまま力になります';
 
   @override
   String get signInReminderTitle => '学習の進捗を保護';
@@ -1412,10 +1406,11 @@ class L10nJa extends L10n {
   String get errQuizGenerationFailed => 'クイズの生成に失敗しました。もう一度お試しください。';
 
   @override
-  String get quotaQuizReached => '本日のクイズ生成上限に達しました。';
+  String get quotaQuizReached => '今日の新しいクイズはここまでです。';
 
   @override
-  String get quotaSentenceReached => '本日の例文生成上限に達しました。\nまた明日ご利用ください。';
+  String get quotaSentenceReached =>
+      '今日の新しい例文はここまでです。\nこれまでの例文を読み返したり、クイズで復習できます。';
 
   @override
   String get errAuth => '認証エラーが発生しました。アプリを再起動してください。';
