@@ -70,13 +70,13 @@ const List<PremiumPitch> _pitches = [
     body: _hint1Body,
   ),
   PremiumPitch(
-    source: 'learning_banner_quality',
+    source: 'learning_banner_pronunciation',
     icon: Icons.record_voice_over,
     title: _hint2Title,
     body: _hint2Body,
   ),
   PremiumPitch(
-    source: 'learning_banner_vocab',
+    source: 'learning_banner_volume',
     icon: Icons.all_inclusive,
     title: _hint3Title,
     body: _hint3Body,

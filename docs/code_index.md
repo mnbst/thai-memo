@@ -328,7 +328,7 @@ App Store Webhookサブスクリプションイベント処理。
 ### Content Generation & Batch
 
 functions/javascript/src/generateQuiz.ts
-復習キューからクイズ生成（クォータチェック付き）。
+復習キューからクイズ生成（回数上限なし。SRSの期日到来分だけが出題対象）。
 
 functions/javascript/src/dailyBatch.ts
 日次バッチ（JST 0:00）：日次クォータリセット、UVMのP値減衰、30日超過例文削除、非アクティブ匿名ユーザー削除。
@@ -353,7 +353,7 @@ App Store Server API v1 サブスクリプション検証。
 ### Constants & Utilities
 
 functions/javascript/src/constants/quota.ts
-日次生成上限（free/premium別）。
+例文の日次生成上限（free 5 / premium 20）。クイズ側の値は上限として機能しない。
 
 functions/javascript/src/constants/subscription.ts
 期限切れ降格の猶予・猶予期間上限・ストア platform 値。
@@ -508,6 +508,9 @@ prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン�
 
 scripts/ga4_register_dimension.py
 prod GA4 にイベントスコープのカスタムディメンションを登録／一覧。文字列パラメータを足したら実装と同時に実行する（登録は遡及しない）。
+
+scripts/prod_quota_reach.py
+例文生成の日次上限への到達率をCloud Loggingから集計（tier別・人日ベース・生成数分布）。上限値を上下させる判断材料。ログ保持30日ぶんのみ。
 
 ## Tests (Flutter)
 

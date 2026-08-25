@@ -72,11 +72,14 @@ FREE_TIER_MAX_VOCAB = 100
 # 主経路は onUserCreate トリガー（functions/javascript/src/constants/quota.ts）。
 # doc 欠損時のフォールバックとしてここでも初期化するため、必ず quota.ts と値を一致させること。
 FREE_DAILY_SENTENCES = 5
+# クイズの日次上限は 2026-08-25 に撤廃済み（generateQuiz は remaining_quizzes を
+# 読まない）。フィールドの形を保つためだけに書いている初期値。
 FREE_DAILY_QUIZZES = 5
 
-# premium の日次上限。例文は 2026-08-09 に 5 → 10 へ引き上げ（実測で課金者2人が
-# 常時上限に当たっていたため）。クイズは到達者が居ないため 5 のまま。
-PREMIUM_DAILY_SENTENCES = 10
+# premium の日次上限。例文は 2026-08-09 に 5 → 10、2026-08-25 に 10 → 20 へ引き上げ。
+# 後者は「たくさん触れる」方針に合わせて free 5 との差を 4 倍に広げるため。
+# クイズは上限を撤廃済み。quota.ts と必ず一致させること。
+PREMIUM_DAILY_SENTENCES = 20
 PREMIUM_DAILY_QUIZZES = 5
 
 # プレミアム体験トライアルは期間制（premium_trial_expires_at）。

@@ -7,17 +7,27 @@
 
 /** free ユーザーの日次リセット値（JST 0:00） */
 export const FREE_DAILY_SENTENCES = 5;
+
+/**
+ * クイズの日次上限は 2026-08-25 に撤廃した（generateQuiz は remaining_quizzes を
+ * 読まないし減らさない）。出題対象は SRS で期日を迎えた自分の例文だけなので、
+ * 実質的な上限は例文側のクォータが決めている。
+ * remaining_quizzes フィールド自体は既存ドキュメントの形を保つために書き続けており、
+ * 以下の値はそのリセット用。読み手が居なくなったらフィールドごと削除してよい。
+ */
 export const FREE_DAILY_QUIZZES = 5;
 
 /**
  * premium ユーザーの日次リセット値（JST 0:00）
  *
- * 例文は 2026-08-09 に 5 → 10 へ引き上げ。直近30日の実測でアクティブ人日の
- * 48.9% が上限に到達し、課金者2人が両方とも常時上限に当たっていたため
- * （premium が回数軸で free と差が無い状態だった）。
- * クイズは上限に到達するユーザーが観測されないため 5 のまま。
+ * 例文は 2026-08-09 に 5 → 10、2026-08-25 に 10 → 20 へ引き上げ。後者は
+ * 「1日1文」から「たくさん触れる」へブランドを寄せる方針に合わせたもので、
+ * free 5 に対して 4 倍の差を作る。月額600円・Apple手取り510円に対し、
+ * 20文/日をフル消化しても AI コストは月約275円（例文 $0.00246/回 実測）で粗利は残る。
+ * クイズは上限そのものを撤廃した（FREE_DAILY_QUIZZES のコメント参照）。
  */
-export const PREMIUM_DAILY_SENTENCES = 10;
+export const PREMIUM_DAILY_SENTENCES = 20;
+/** 上限としては機能しない。FREE_DAILY_QUIZZES のコメント参照。 */
 export const PREMIUM_DAILY_QUIZZES = 5;
 
 /**

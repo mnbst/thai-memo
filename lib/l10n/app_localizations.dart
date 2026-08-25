@@ -232,25 +232,25 @@ abstract class L10n {
   /// No description provided for @coachTargetWordsTitle.
   ///
   /// In ja, this message translates to:
-  /// **'今日はこの単語を覚えよう'**
+  /// **'この単語を覚えよう'**
   String get coachTargetWordsTitle;
 
   /// No description provided for @coachTargetWordsEmphasis.
   ///
   /// In ja, this message translates to:
-  /// **'今日の学習単語'**
+  /// **'学習単語'**
   String get coachTargetWordsEmphasis;
 
   /// No description provided for @coachTargetWordsMessage.
   ///
   /// In ja, this message translates to:
-  /// **'今日の学習単語です。例文の中でどう使われているかを見ていきましょう。'**
+  /// **'この例文の学習単語です。例文の中でどう使われているかを見ていきましょう。'**
   String get coachTargetWordsMessage;
 
   /// No description provided for @coachSentenceCardTitle.
   ///
   /// In ja, this message translates to:
-  /// **'今日の例文'**
+  /// **'例文カード'**
   String get coachSentenceCardTitle;
 
   /// No description provided for @coachSentenceCardMessage.
@@ -388,7 +388,7 @@ abstract class L10n {
   /// No description provided for @todaysWords.
   ///
   /// In ja, this message translates to:
-  /// **'今日の学習単語'**
+  /// **'学習単語'**
   String get todaysWords;
 
   /// No description provided for @playPronunciation.
@@ -478,7 +478,7 @@ abstract class L10n {
   /// No description provided for @quizTodayTitle.
   ///
   /// In ja, this message translates to:
-  /// **'今日のクイズ'**
+  /// **'クイズ'**
   String get quizTodayTitle;
 
   /// No description provided for @quizOptionalChallenge.
@@ -658,19 +658,19 @@ abstract class L10n {
   /// No description provided for @coachTourFinishQuota.
   ///
   /// In ja, this message translates to:
-  /// **'例文は無料版なら1日{free}文まで。プレミアムなら1日{premium}文に増えます。'**
+  /// **'例文は無料版で1日{free}文、プレミアムなら1日{premium}文まで作れます。'**
   String coachTourFinishQuota(int free, int premium);
 
   /// No description provided for @coachTopicTitle.
   ///
   /// In ja, this message translates to:
-  /// **'次の例文のテーマを選べます'**
+  /// **'テーマを選んでタイ文化に親しむ'**
   String get coachTopicTitle;
 
   /// No description provided for @coachTopicMessage.
   ///
   /// In ja, this message translates to:
-  /// **'ここをタップすると、次に生成する例文のテーマ（旅行・恋愛など）を変更できます。気分に合わせて学習内容を選びましょう。'**
+  /// **'ここをタップすると、次の例文のテーマを選べます。祭り・寺院での作法・BLドラマなど、言葉と一緒にタイの文化そのものに触れられます。'**
   String get coachTopicMessage;
 
   /// No description provided for @vocabScore.
@@ -1138,7 +1138,7 @@ abstract class L10n {
   /// No description provided for @settingsTagline.
   ///
   /// In ja, this message translates to:
-  /// **'毎日タイ語を学習しましょう'**
+  /// **'タイ語に、たっぷりふれよう'**
   String get settingsTagline;
 
   /// No description provided for @settingsPrivacyPolicy.
@@ -1606,7 +1606,7 @@ abstract class L10n {
   /// No description provided for @paywallTagline.
   ///
   /// In ja, this message translates to:
-  /// **'推しの言葉が、わかる日が来る。'**
+  /// **'タイ語の世界に飛び込もう。'**
   String get paywallTagline;
 
   /// No description provided for @paywallSignInRequired.
@@ -1666,37 +1666,25 @@ abstract class L10n {
   /// No description provided for @paywallFeatureQuotaTitle.
   ///
   /// In ja, this message translates to:
-  /// **'例文をたくさん学べる'**
+  /// **'良質なタイ語に大量に触れられる'**
   String get paywallFeatureQuotaTitle;
 
-  /// No description provided for @paywallFeatureQuotaCount.
+  /// No description provided for @paywallFeatureQuotaFree.
   ///
   /// In ja, this message translates to:
-  /// **'例文{count}回/日'**
-  String paywallFeatureQuotaCount(int count);
+  /// **'例文{count}回/日・単語は{limit}語まで'**
+  String paywallFeatureQuotaFree(int count, int limit);
 
-  /// No description provided for @paywallFeature1Title.
+  /// No description provided for @paywallFeatureQuotaPremium.
   ///
   /// In ja, this message translates to:
-  /// **'タイ人が使う言い回しで学べる'**
-  String get paywallFeature1Title;
-
-  /// No description provided for @paywallFeature1Free.
-  ///
-  /// In ja, this message translates to:
-  /// **'教科書的な基礎文'**
-  String get paywallFeature1Free;
-
-  /// No description provided for @paywallFeature1Premium.
-  ///
-  /// In ja, this message translates to:
-  /// **'タイ人の自然な言い回し'**
-  String get paywallFeature1Premium;
+  /// **'例文{count}回/日・単語の上限なし'**
+  String paywallFeatureQuotaPremium(int count);
 
   /// No description provided for @paywallFeaturePronunciationTitle.
   ///
   /// In ja, this message translates to:
-  /// **'発音を繰り返し確認できる'**
+  /// **'発音練習で自信をつけられる'**
   String get paywallFeaturePronunciationTitle;
 
   /// No description provided for @paywallFeaturePronunciationFree.
@@ -1711,23 +1699,23 @@ abstract class L10n {
   /// **'無制限'**
   String get paywallFeaturePronunciationPremium;
 
-  /// No description provided for @paywallFeatureOtherTitle.
+  /// No description provided for @paywallFeatureTopicTitle.
   ///
   /// In ja, this message translates to:
-  /// **'その他のプレミアム特典'**
-  String get paywallFeatureOtherTitle;
+  /// **'テーマを選んでタイ文化に親しむ'**
+  String get paywallFeatureTopicTitle;
 
-  /// No description provided for @paywallFeatureOtherTopic.
+  /// No description provided for @paywallFeatureTopicFree.
   ///
   /// In ja, this message translates to:
-  /// **'学びたいテーマを自由に選べる'**
-  String get paywallFeatureOtherTopic;
+  /// **'入門向けのテーマのみ'**
+  String get paywallFeatureTopicFree;
 
-  /// No description provided for @paywallFeatureOtherVocab.
+  /// No description provided for @paywallFeatureTopicPremium.
   ///
   /// In ja, this message translates to:
-  /// **'単語数の上限（Freeは{limit}語）が外れ、ドラマのセリフも理解できる'**
-  String paywallFeatureOtherVocab(int limit);
+  /// **'祭り・寺院の作法・BLドラマなど自分で選べる'**
+  String get paywallFeatureTopicPremium;
 
   /// No description provided for @paywallTrialActive.
   ///
@@ -1744,13 +1732,13 @@ abstract class L10n {
   /// No description provided for @onboarding1Title.
   ///
   /// In ja, this message translates to:
-  /// **'AIがタイ語例文を毎日生成'**
+  /// **'AIがあなた専用の例文を何度でも生成'**
   String get onboarding1Title;
 
   /// No description provided for @onboarding1Body.
   ///
   /// In ja, this message translates to:
-  /// **'毎日新しい例文が届きます。\nカードをタップで単語・意味を確認。'**
+  /// **'例文は毎日届き、何文でも追加できます。\nカードをタップで単語・意味を確認。'**
   String get onboarding1Body;
 
   /// No description provided for @onboarding2Title.
@@ -1960,19 +1948,19 @@ abstract class L10n {
   /// No description provided for @philosophy1Chars.
   ///
   /// In ja, this message translates to:
-  /// **'毎日届く例文は、**1単語ずつ分解**して意味と発音を表示します。読めるタイ文字が増えるほど、自力で追える範囲が広がります。'**
+  /// **'届く例文は、**1単語ずつ分解**して意味と発音を表示します。読めるタイ文字が増えるほど、自力で追える範囲が広がります。'**
   String get philosophy1Chars;
 
   /// No description provided for @philosophy1Words.
   ///
   /// In ja, this message translates to:
-  /// **'毎日届く例文は、アプリ内の**語彙スコア**に応じて作られます。挨拶だけの段階から、日常の言い回しへ広がっていきます。'**
+  /// **'届く例文は、アプリ内の**語彙スコア**に応じて作られます。挨拶だけの段階から、日常の言い回しへ広がっていきます。'**
   String get philosophy1Words;
 
   /// No description provided for @philosophy1Conv.
   ///
   /// In ja, this message translates to:
-  /// **'毎日届く例文の難しさは、**クイズの結果**から決まります。解けるほど、出てくる単語の幅が広がります。'**
+  /// **'届く例文の難しさは、**クイズの結果**から決まります。解けるほど、出てくる単語の幅が広がります。'**
   String get philosophy1Conv;
 
   /// No description provided for @philosophyKeyWord.
@@ -2032,7 +2020,7 @@ abstract class L10n {
   /// No description provided for @philosophy3TimeShort.
   ///
   /// In ja, this message translates to:
-  /// **'**数分あれば**、今日の1文を読んで確認クイズまで進められます。'**
+  /// **'**数分あれば**、例文を1つ読んで確認クイズまで進められます。'**
   String get philosophy3TimeShort;
 
   /// No description provided for @philosophy3TimeMedium.
@@ -2068,7 +2056,7 @@ abstract class L10n {
   /// No description provided for @notifCoachStep2.
   ///
   /// In ja, this message translates to:
-  /// **'その時刻に、あなた向けの1例文が自動で届きます'**
+  /// **'その時刻に、あなた向けの例文が自動で届きます'**
   String get notifCoachStep2;
 
   /// No description provided for @notifCoachHabit.
@@ -2134,37 +2122,37 @@ abstract class L10n {
   /// No description provided for @premiumHint1Title.
   ///
   /// In ja, this message translates to:
-  /// **'学びたいテーマを自由に選べる'**
+  /// **'テーマを選んでタイ文化に親しむ'**
   String get premiumHint1Title;
 
   /// No description provided for @premiumHint1Body.
   ///
   /// In ja, this message translates to:
-  /// **'タイドラマ・恋愛・旅行など、次の例文のテーマを指定できます'**
+  /// **'祭り・寺院での作法・BLドラマなど、言葉と一緒に文化が身につきます'**
   String get premiumHint1Body;
 
   /// No description provided for @premiumHint2Title.
   ///
   /// In ja, this message translates to:
-  /// **'タイ人が使う言い回しで学べる'**
+  /// **'発音練習で自信をつけられる'**
   String get premiumHint2Title;
 
   /// No description provided for @premiumHint2Body.
   ///
   /// In ja, this message translates to:
-  /// **'教科書的な基礎文から、タイ人の自然な言い回しへ'**
+  /// **'回数を気にせず何度でも録音して、声調のズレを直していけます'**
   String get premiumHint2Body;
 
   /// No description provided for @premiumHint3Title.
   ///
   /// In ja, this message translates to:
-  /// **'単語数の上限が外れる'**
+  /// **'良質なタイ語に大量に触れられる'**
   String get premiumHint3Title;
 
   /// No description provided for @premiumHint3Body.
   ///
   /// In ja, this message translates to:
-  /// **'基礎100語の先へ。ドラマのセリフも理解できる'**
+  /// **'1日に作れる例文が大きく増えて、読んだ量がそのまま力になります'**
   String get premiumHint3Body;
 
   /// No description provided for @signInReminderTitle.
@@ -2627,13 +2615,13 @@ abstract class L10n {
   /// No description provided for @quotaQuizReached.
   ///
   /// In ja, this message translates to:
-  /// **'本日のクイズ生成上限に達しました。'**
+  /// **'今日の新しいクイズはここまでです。'**
   String get quotaQuizReached;
 
-  /// 上限回数は tier で異なる（free 5 / premium 10）ため文言に数字を含めない
+  /// 上限回数は tier で異なる（free 5 / premium 20）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
-  /// **'本日の例文生成上限に達しました。\nまた明日ご利用ください。'**
+  /// **'今日の新しい例文はここまでです。\nこれまでの例文を読み返したり、クイズで復習できます。'**
   String get quotaSentenceReached;
 
   /// No description provided for @errAuth.
