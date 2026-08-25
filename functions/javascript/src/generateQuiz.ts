@@ -60,36 +60,6 @@ const UVM_FILLER_PAGE_SIZE = 50;
 /** Firestore の in query に渡すキーワード数 */
 const KEYWORD_IN_QUERY_LIMIT = 10;
 
-async function consumeQuizQuota(
-  userRef: FirebaseFirestore.DocumentReference,
-): Promise<void> {
-  await db.runTransaction(async (transaction) => {
-    const userSnapshot = await transaction.get(userRef);
-    const userData = userSnapshot.data() || {};
-    const remainingQuizzes = userData.remaining_quizzes ?? 0;
-
-    if (remainingQuizzes <= 0) {
-      throw new functions.https.HttpsError('resource-exhausted', 'この時間帯のクイズ生成上限に達しました');
-    }
-
-    transaction.set(
-      userRef,
-      {
-        remaining_quizzes: remainingQuizzes - 1,
-      },
-      { merge: true },
-    );
-  });
-}
-
-async function restoreQuizQuota(
-  userRef: FirebaseFirestore.DocumentReference,
-): Promise<void> {
-  await userRef.update({
-    remaining_quizzes: admin.firestore.FieldValue.increment(1),
-  });
-}
-
 async function updateQuizStats(
   userRef: FirebaseFirestore.DocumentReference,
   questionCount: number,
@@ -132,17 +102,12 @@ export const generateQuiz = functions.https.onCall(
     // 生成への反映は Phase 2。現状は英語リクエストの実数を測るために記録だけする。
     const lang = resolveLang(request.data?.lang);
 
-    // --- クイズ生成クォータチェック ---
+    // クイズ生成に回数上限は設けない。出題できるのは SRS で復習期日を迎えた
+    // 自分の例文だけなので、例文が無ければ下の no_user_sentences で空を返す。
+    // 実質的な上限は例文側のクォータ（quota.ts）が決めている。
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
     const userData = userDoc.data() || {};
-
-    const remainingQuizzes: number = userData.remaining_quizzes ?? 0;
-
-    // 上限に達している場合はエラーを返す
-    if (remainingQuizzes <= 0) {
-      throw new functions.https.HttpsError('resource-exhausted', 'この時間帯のクイズ生成上限に達しました');
-    }
 
     // トライアル中も premium と同じ品質で出す。
     const isPremium = isEffectivePremium(userData);
@@ -151,19 +116,15 @@ export const generateQuiz = functions.https.onCall(
     // --- SRSベースでリアルタイムに復習対象例文を選出 ---
     const selectedSentences = await selectSentencesBySRS(uid, nowJST());
 
-    // ユーザー例文がない場合 → クォータ消費せずクライアントに通知
+    // ユーザー例文がない場合 → クライアントに通知
     if (selectedSentences.length === 0) {
       return { questions: [], no_user_sentences: true };
     }
-
-    // クォータをGemini呼び出し前にアトミックに消費（並行リクエストによるAPI浪費を防止）
-    await consumeQuizQuota(userRef);
 
     try {
       const sources = buildQuizSources(selectedSentences);
       const questions = await generateQuestionsFromSources(quizGenerationService, sources);
       if (questions.length === 0) {
-        await restoreQuizQuota(userRef);
         throw new functions.https.HttpsError('internal', 'クイズの生成に失敗しました');
       }
 
@@ -175,9 +136,6 @@ export const generateQuiz = functions.https.onCall(
         throw error;
       }
       console.error('Failed to generate quiz:', error);
-      await restoreQuizQuota(userRef).catch((e) =>
-        logger.error('Failed to restore quiz quota', { uid, error: e }),
-      );
       throw new functions.https.HttpsError('internal', 'クイズの生成に失敗しました');
     }
   }
@@ -188,7 +146,7 @@ export const generateQuiz = functions.https.onCall(
  *
  * クライアントで表示中の例文から、穴埋めクイズを1問だけ生成する。
  * SRS選出や補充は行わず、学習直後の確認問題として使う。
- * 学習フローの一部なので、通常クイズ用の生成クォータは消費しない。
+ * SRS を経由しないので、通常クイズと同じく回数上限は無い。
  */
 export const generateLearningQuiz = functions.https.onCall(
   {
