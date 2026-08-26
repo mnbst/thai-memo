@@ -408,6 +408,7 @@ def _gemini_call(
     user_prompt: str,
     is_premium: bool,
     schema: dict[str, Any] | None = None,
+    thinking_budget: int | None = None,
 ) -> Any:
     """Gemini generateContent を REST で同期呼び出しする。
 
@@ -415,7 +416,12 @@ def _gemini_call(
     引き連れており、Cloud Run のイメージ遅延ロードと相まってコールドスタート時に
     実測9秒かかっていた（2026-07-31 dev計測）。OpenAI 側と同じく urllib で叩く。
     例外は LLMApiError に正規化する。
+
+    thinking_budget は比較スクリプト用の上書き。本番は None のまま
+    （tier 既定の 1024/256）を使う。
     """
+    if thinking_budget is None:
+        thinking_budget = 1024 if is_premium else 256
     payload: dict[str, Any] = {
         "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
         "systemInstruction": {"parts": [{"text": system_prompt}]},
@@ -423,7 +429,7 @@ def _gemini_call(
             "responseMimeType": "application/json",
             "responseSchema": _gemini_schema(schema),
             "maxOutputTokens": API_MAX_TOKENS,
-            "thinkingConfig": {"thinkingBudget": 1024 if is_premium else 256},
+            "thinkingConfig": {"thinkingBudget": thinking_budget},
         },
     }
     request = urllib.request.Request(

@@ -268,17 +268,15 @@ def test_rules_banning_the_target_word_are_dropped() -> None:
     from prompts import build_register_constraint
 
     plain = build_register_constraint(TOPICS[2])
-    assert "สามารถ〜ได้ は使わない" in plain
     assert "書き言葉の硬い語" in plain
+    assert "สามารถ" in plain
 
-    # 禁止語が key_word のときは、その語を禁じるルールだけが消える
-    as_target = build_register_constraint(TOPICS[2], ["สามารถ"])
-    assert "สามารถ〜ได้ は使わない" not in as_target
-    assert "書き言葉の硬い語" in as_target
-
-    hard_word = build_register_constraint(TOPICS[2], ["ท่าน"])
-    assert "書き言葉の硬い語" not in hard_word
-    assert "สามารถ〜ได้ は使わない" in hard_word
+    # 禁止語が key_word のときは、その語を禁じるルールが消える。
+    # 2026-08-26 に สามารถ を硬語ルールへ統合したので、どちらの語でも同じ行が落ちる。
+    for word in ("สามารถ", "ท่าน", "ต้องการ"):
+        as_target = build_register_constraint(TOPICS[2], [word])
+        assert "書き言葉の硬い語" not in as_target, word
+        assert "ขอบคุณ/ขอโทษ" in as_target, word  # 他の常時ルールは残る
 
     # 無関係な語では何も落ちない
     assert build_register_constraint(TOPICS[2], ["ฝน"]) == plain
@@ -327,6 +325,9 @@ def test_length_hint_ramps_up_through_intro_band() -> None:
     lengths = [prompts.get_difficulty(v)["length"] for v in (0, 10, 30, 60, 100)]
 
     assert lengths == ["〜5単語", "〜5単語", "〜5単語", "〜6単語", "〜7単語"]
+
+    # 長さの指定単位は語数だけ（文字数の併記は 2026-08-26 に不採用）。
+    assert all("タイ文字" not in h for h in lengths)
 
 
 def test_length_hint_above_intro_band_is_unchanged() -> None:

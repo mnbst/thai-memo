@@ -111,8 +111,8 @@ def test_register_constraint_switches_translation_steps() -> None:
     assert "話し言葉" not in ja
     assert "話し言葉" not in en
     # タイ語の構文ルールは言語非依存。両方に入る
-    assert "สามารถ〜ได้ は使わない" in ja
-    assert "สามารถ〜ได้ は使わない" in en
+    assert "書き言葉の硬い語" in ja
+    assert "書き言葉の硬い語" in en
 
 
 def test_en_schema_descriptions_demand_english() -> None:

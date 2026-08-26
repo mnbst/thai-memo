@@ -92,7 +92,7 @@ def test_register_constraint_always_bans_written_register() -> None:
     block = build_register_constraint(TOPICS[0])
     assert "สามารถ" in block
     assert "ท่าน" in block
-    assert "รอเดี๋ยว" in block  # 常時ルールも残る
+    assert "ขอบคุณ/ขอโทษ" in block  # 常時ルールも残る
 
 
 def test_register_constraint_adds_topic_rules() -> None:
