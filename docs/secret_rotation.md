@@ -33,7 +33,7 @@ terraform apply -var-file=<env>.tfvars -var-file=secrets/<env>.tfvars
 ```
 
 - Cloud Functions は Secret Manager の `versions/latest` を**コールドスタート時に取得**する
-  （`functions/javascript/src/services/secretManager.ts`, `functions/python/llm_providers.py`）。
+  （`functions/go/internal/secrets/secrets.go`）。
   新バージョン追加後は既存インスタンスが旧値を保持し続けるため、**必ず再デプロイする**。
 
 ---

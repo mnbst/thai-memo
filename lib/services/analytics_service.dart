@@ -299,7 +299,7 @@ class AnalyticsService {
 
   /// プレミアム体験トライアル終了案内の表示と結果。
   ///
-  /// [action] は shown（表示）/ accepted（プレミアムを見る）/ dismissed（あとで）。
+  /// [action] は shown（表示）/ accepted（学習環境を続ける）/ dismissed（あとで）。
   /// shown が「体験を使い切った人数」の分母になる。開いた先の行動は
   /// tap_paywall(source: trial_ended) と subscribe(source: trial_ended) で追う。
   Future<void> logPremiumTrialEnded({required String action}) async {

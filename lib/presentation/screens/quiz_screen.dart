@@ -215,9 +215,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // （指を離す前）に閉じるので、続けると画面が切り替わる前の一瞬に
     // 次の吹き出しが出て、切り替わりと同時に消える。
     if (challengeAction == 'tapped') return;
+    // 締めくくり → テーマ の順に出す。「間違えた例文はまた出る」を読んでから
+    // 「次のテーマを選べる」を見せる方が、次の例文の話として続けて読める。
+    final finished = await _maybeShowTourFinishCoach();
+    if (!mounted) return;
     await _maybeShowNextTopicCoach();
     if (!mounted) return;
-    await _maybeShowTourFinishCoach();
+    // 次の例文へ進むのは案内をすべて読んだ後。テーマの案内より先に進めると、
+    // 画面が切り替わって対象のチップごと消える。
+    if (finished) await _advanceToNextSentenceAfterTourFinish();
   }
 
   /// 待っている案内を打ち切る手。画面を離れたときに呼ぶ。
@@ -233,34 +239,42 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   ///
   /// 出せなかった回は表示済みにしない。ここで記録してしまうと、一度も
   /// 読まれないまま二度と出なくなる（結果画面はまた来るので次に回す）。
-  Future<void> _maybeShowTourFinishCoach() async {
+  ///
+  /// 出して読まれたら true。呼び出し側は、続きの案内を出し終えてから
+  /// 次の例文へ進める。
+  Future<bool> _maybeShowTourFinishCoach() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyTourFinishCoachShown) ?? false) return;
+    if (prefs.getBool(AppConfig.prefKeyTourFinishCoachShown) ?? false) {
+      return false;
+    }
     if (!mounted || ref.read(quizControllerProvider) is! QuizSummary) {
       _logFinishCoachSkip('not_summary');
-      return;
+      return false;
     }
 
     await _waitForResultAnimations();
     // 押した指を離す前に前の案内が閉じるので、画面の切り替えはこの後に
     // 始まる。一拍おいてから、まだ結果画面にいるかを確かめる。
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
+    if (!mounted) return false;
     if (ref.read(quizControllerProvider) is! QuizSummary) {
       _logFinishCoachSkip('left_summary');
-      return;
+      return false;
     }
     if (ModalRoute.of(context)?.isCurrent != true) {
       _logFinishCoachSkip('not_current');
-      return;
+      return false;
     }
     if (CoachMarkOverlay.isVisible) {
       _logFinishCoachSkip('overlay_busy');
-      return;
+      return false;
     }
 
     await prefs.setBool(AppConfig.prefKeyTourFinishCoachShown, true);
-    if (!mounted) return;
+    // 読み終えたら例文画面へ自動で進む。着いた先で学習の流れを案内するので、
+    // ここで予約しておく（クイズ結果の上では出せない）。
+    await prefs.setBool(AppConfig.prefKeyLearningFlowCoachPending, true);
+    if (!mounted) return false;
     final analytics = ref.read(analyticsServiceProvider);
     unawaited(analytics.logCoachMark(id: 'tour_finish', action: 'shown'));
     final seePremium = await showDialog<bool>(
@@ -272,6 +286,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (seePremium == true && mounted) {
       await PaywallBottomSheet.show(context, source: 'tour_finish');
     }
+    return true;
+  }
+
+  /// 案内を読み終えたら、そのまま次の例文へ進める。
+  ///
+  /// 案内が「次の例文へ」を押させる文面ではなくなったので、押させずにこちらで
+  /// 進める。生成はここから始まり、例文画面が待っている間に走る。
+  ///
+  /// 進めるのは結果画面から動いていない回だけ。読んでいる間に自分で次へ
+  /// 進んだ人を、もう一度生成させて追い越さない。
+  Future<void> _advanceToNextSentenceAfterTourFinish() async {
+    final next = widget.onNextSentence;
+    if (next == null) return;
+    if (ref.read(quizControllerProvider) is! QuizSummary) return;
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+    unawaited(_clearVocabBeforeQuiz());
+    await next();
   }
 
   /// 締めくくりを出せなかった理由。出ないときに原因を追えるようにする。
@@ -2008,11 +2039,13 @@ class _TourFinishDialog extends ConsumerWidget {
         if (!isPremium)
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.trialEndedSeePremium),
+            child: Text(l10n.coachTourFinishSeePremium),
           ),
+        // 閉じるとそのまま次の例文へ進む。「わかった」では何が起きるか
+        // 分からないので、進み先をそのままボタンに書く。
         FilledButton(
           onPressed: () => Navigator.pop(context, false),
-          child: Text(l10n.coachGotIt),
+          child: Text(l10n.coachTourFinishNext),
         ),
       ],
     );

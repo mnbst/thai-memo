@@ -1103,24 +1103,31 @@ class _ToneCoachHostState extends ConsumerState<_ToneCoachHost> {
       pinToTop: true,
     );
     if (!mounted) return;
-    await _showStep(
+    final action = await _showStep(
       key: _toneGuideKey,
       icon: Icons.school_outlined,
       title: l10n.coachToneGuideTitle,
       message: l10n.coachToneGuideMessage,
+      // 最後の段。ここまで読んだら用は済んでいるので、閉じるボタンをそのまま
+      // 帰り道にする。解説を自分で閉じ直させると、案内の後に一手増える。
+      confirmLabel: l10n.coachToneBackToDetail,
     );
+    if (!mounted || action != 'confirmed') return;
+    Navigator.of(context).pop();
   }
 
-  /// 1段出して、閉じられるまで待つ。
-  Future<void> _showStep({
+  /// 1段出して、閉じられるまで待つ。閉じ方（confirmed / dismissed など）を
+  /// 返す。出せなかった段では null。
+  Future<String?> _showStep({
     required GlobalKey key,
     required IconData icon,
     required String title,
     required String message,
     bool pinToTop = false,
+    String? confirmLabel,
   }) async {
     final targetContext = key.currentContext;
-    if (targetContext == null || !targetContext.mounted) return;
+    if (targetContext == null || !targetContext.mounted) return null;
     // 「声調ガイド」はスクロールの末尾にあり、画面外のことがある。
     await Scrollable.ensureVisible(
       targetContext,
@@ -1128,9 +1135,9 @@ class _ToneCoachHostState extends ConsumerState<_ToneCoachHost> {
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
-    if (!mounted) return;
+    if (!mounted) return null;
 
-    final completer = Completer<void>();
+    final completer = Completer<String>();
     final shown = CoachMarkOverlay.show(
       context,
       targetKey: key,
@@ -1141,13 +1148,13 @@ class _ToneCoachHostState extends ConsumerState<_ToneCoachHost> {
       message: message,
       targetTappable: false,
       pinToTop: pinToTop,
-      confirmLabel: L10n.of(context).coachGotIt,
-      onDismiss: (_) {
-        if (!completer.isCompleted) completer.complete();
+      confirmLabel: confirmLabel ?? L10n.of(context).coachGotIt,
+      onDismiss: (action) {
+        if (!completer.isCompleted) completer.complete(action);
       },
     );
-    if (!shown) return;
-    await completer.future;
+    if (!shown) return null;
+    return completer.future;
   }
 
   /// 計測用の識別子。段ごとに読まれ方（通過・離脱）を分けて見る。

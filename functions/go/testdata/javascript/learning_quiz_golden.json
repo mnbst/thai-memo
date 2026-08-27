@@ -1,0 +1,1227 @@
+[
+ {
+  "name": "完全な例文",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": true,
+  "error_code": null,
+  "error_message": null,
+  "result": {
+   "questions": [
+    {
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ],
+     "sentence_id": "s-1",
+     "srs_interval": 0,
+     "blank_sentence_pronunciation": "chǎn ___ khâao",
+     "sentence_detail": {
+      "id": "s-1",
+      "thai_text": "ฉันกินข้าว",
+      "pronunciation": "chǎn kin khâao",
+      "japanese_translation": "私はご飯を食べる",
+      "word_breakdown": [
+       {
+        "word": "ฉัน",
+        "meaning": "私",
+        "pronunciation": "chǎn"
+       },
+       {
+        "word": "กิน",
+        "meaning": "食べる",
+        "pronunciation": "kin"
+       }
+      ],
+      "context": {
+       "situation": "食事",
+       "register": "casual"
+      },
+      "generation_tier": "premium",
+      "target_words": [
+       "กิน"
+      ]
+     }
+    }
+   ]
+  },
+  "stats": null
+ },
+ {
+  "name": "word_breakdown も context も無い（sentence_detail を付けない）",
+  "sentence": {
+   "sentence_id": "s-2",
+   "thai_text": "ฉันกินข้าว",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": true,
+  "error_code": null,
+  "error_message": null,
+  "result": {
+   "questions": [
+    {
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ],
+     "sentence_id": "s-2",
+     "srs_interval": 0,
+     "blank_sentence_pronunciation": "chǎn ___ khâao"
+    }
+   ]
+  },
+  "stats": null
+ },
+ {
+  "name": "key_word_meaning が無く word_breakdown から引く",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": true,
+  "error_code": null,
+  "error_message": null,
+  "result": {
+   "questions": [
+    {
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ],
+     "sentence_id": "s-1",
+     "srs_interval": 0,
+     "blank_sentence_pronunciation": "chǎn ___ khâao",
+     "sentence_detail": {
+      "id": "s-1",
+      "thai_text": "ฉันกินข้าว",
+      "pronunciation": "chǎn kin khâao",
+      "japanese_translation": "私はご飯を食べる",
+      "word_breakdown": [
+       {
+        "word": "ฉัน",
+        "meaning": "私",
+        "pronunciation": "chǎn"
+       },
+       {
+        "word": "กิน",
+        "meaning": "食べる",
+        "pronunciation": "kin"
+       }
+      ],
+      "context": {
+       "situation": "食事",
+       "register": "casual"
+      },
+      "generation_tier": "premium",
+      "target_words": [
+       "กิน"
+      ]
+     }
+    }
+   ]
+  },
+  "stats": null
+ },
+ {
+  "name": "context だけある",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": true,
+  "error_code": null,
+  "error_message": null,
+  "result": {
+   "questions": [
+    {
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ],
+     "sentence_id": "s-1",
+     "srs_interval": 0,
+     "blank_sentence_pronunciation": "chǎn ___ khâao",
+     "sentence_detail": {
+      "id": "s-1",
+      "thai_text": "ฉันกินข้าว",
+      "pronunciation": "chǎn kin khâao",
+      "japanese_translation": "私はご飯を食べる",
+      "word_breakdown": [],
+      "context": {
+       "situation": "食事",
+       "register": "casual"
+      },
+      "generation_tier": "premium",
+      "target_words": [
+       "กิน"
+      ]
+     }
+    }
+   ]
+  },
+  "stats": null
+ },
+ {
+  "name": "lang=en",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": "en",
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": true,
+  "error_code": null,
+  "error_message": null,
+  "result": {
+   "questions": [
+    {
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ],
+     "sentence_id": "s-1",
+     "srs_interval": 0,
+     "blank_sentence_pronunciation": "chǎn ___ khâao",
+     "sentence_detail": {
+      "id": "s-1",
+      "thai_text": "ฉันกินข้าว",
+      "pronunciation": "chǎn kin khâao",
+      "japanese_translation": "私はご飯を食べる",
+      "word_breakdown": [
+       {
+        "word": "ฉัน",
+        "meaning": "私",
+        "pronunciation": "chǎn"
+       },
+       {
+        "word": "กิน",
+        "meaning": "食べる",
+        "pronunciation": "kin"
+       }
+      ],
+      "context": {
+       "situation": "食事",
+       "register": "casual"
+      },
+      "generation_tier": "premium",
+      "target_words": [
+       "กิน"
+      ]
+     }
+    }
+   ]
+  },
+  "stats": null
+ },
+ {
+  "name": "発音が例文中に無く blank_sentence_pronunciation が空",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "zzz",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": true,
+  "error_code": null,
+  "error_message": null,
+  "result": {
+   "questions": [
+    {
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ],
+     "sentence_id": "s-1",
+     "srs_interval": 0,
+     "blank_sentence_pronunciation": "",
+     "sentence_detail": {
+      "id": "s-1",
+      "thai_text": "ฉันกินข้าว",
+      "pronunciation": "chǎn kin khâao",
+      "japanese_translation": "私はご飯を食べる",
+      "word_breakdown": [
+       {
+        "word": "ฉัน",
+        "meaning": "私",
+        "pronunciation": "chǎn"
+       },
+       {
+        "word": "กิน",
+        "meaning": "食べる",
+        "pronunciation": "kin"
+       }
+      ],
+      "context": {
+       "situation": "食事",
+       "register": "casual"
+      },
+      "generation_tier": "premium",
+      "target_words": [
+       "กิน"
+      ]
+     }
+    }
+   ]
+  },
+  "stats": null
+ },
+ {
+  "name": "key_word 不一致 → 再試行して成功",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "ไป",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ],
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": true,
+  "error_code": null,
+  "error_message": null,
+  "result": {
+   "questions": [
+    {
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ],
+     "sentence_id": "s-1",
+     "srs_interval": 0,
+     "blank_sentence_pronunciation": "chǎn ___ khâao",
+     "sentence_detail": {
+      "id": "s-1",
+      "thai_text": "ฉันกินข้าว",
+      "pronunciation": "chǎn kin khâao",
+      "japanese_translation": "私はご飯を食べる",
+      "word_breakdown": [
+       {
+        "word": "ฉัน",
+        "meaning": "私",
+        "pronunciation": "chǎn"
+       },
+       {
+        "word": "กิน",
+        "meaning": "食べる",
+        "pronunciation": "kin"
+       }
+      ],
+      "context": {
+       "situation": "食事",
+       "register": "casual"
+      },
+      "generation_tier": "premium",
+      "target_words": [
+       "กิน"
+      ]
+     }
+    }
+   ]
+  },
+  "stats": null
+ },
+ {
+  "name": "key_word 不一致が再試行でも直らない",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "ไป",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ],
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "ไป",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": false,
+  "error_code": "internal",
+  "error_message": "クイズの生成に失敗しました",
+  "result": null,
+  "stats": null
+ },
+ {
+  "name": "モデルが空を返す",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   []
+  ],
+  "ok": false,
+  "error_code": "internal",
+  "error_message": "クイズの生成に失敗しました",
+  "result": null,
+  "stats": null
+ },
+ {
+  "name": "sentence_id なし",
+  "sentence": {
+   "sentence_id": "",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "กิน",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": false,
+  "error_code": "invalid-argument",
+  "error_message": "クイズに使える例文データがありません",
+  "result": null,
+  "stats": null
+ },
+ {
+  "name": "key_word なし",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": false,
+  "error_code": "invalid-argument",
+  "error_message": "クイズに使える例文データがありません",
+  "result": null,
+  "stats": null
+ },
+ {
+  "name": "key_word が本文に含まれない",
+  "sentence": {
+   "sentence_id": "s-1",
+   "thai_text": "  ฉันกินข้าว  ",
+   "pronunciation": "chǎn kin khâao",
+   "japanese_translation": "私はご飯を食べる",
+   "key_word": "ไม่มี",
+   "key_word_pronunciation": "kin",
+   "key_word_meaning": "食べる",
+   "word_breakdown": [
+    {
+     "word": "ฉัน",
+     "meaning": "私",
+     "pronunciation": "chǎn"
+    },
+    {
+     "word": "กิน",
+     "meaning": "食べる",
+     "pronunciation": "kin"
+    }
+   ],
+   "context": {
+    "situation": "食事",
+    "register": "casual"
+   },
+   "generation_tier": "premium"
+  },
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": false,
+  "error_code": "invalid-argument",
+  "error_message": "クイズに使える例文データがありません",
+  "result": null,
+  "stats": null
+ },
+ {
+  "name": "ペイロードが null",
+  "sentence": null,
+  "lang": null,
+  "stubbed_questions": [
+   [
+    {
+     "source_index": 0,
+     "thai_text": "ฉันกินข้าว",
+     "blank_text": "ฉัน___ข้าว",
+     "correct_answer": "กิน",
+     "correct_answer_meaning": "食べる",
+     "choices": [
+      "กิน",
+      "ไป",
+      "แมว",
+      "สวย"
+     ],
+     "choice_pronunciations": [
+      "kin",
+      "pai",
+      "mɛɛo",
+      "sǔai"
+     ],
+     "pronunciation": "kin",
+     "explanation": "説明",
+     "japanese_translation": "私はご飯を食べる",
+     "sentence_pronunciation": "chǎn kin khâao",
+     "dummy_reasons": [
+      "ไป（pai / 行く）：理由",
+      "แมว（mɛɛo / 猫）：理由",
+      "สวย（sǔai / 美しい）：理由"
+     ]
+    }
+   ]
+  ],
+  "ok": false,
+  "error_code": "invalid-argument",
+  "error_message": "クイズに使える例文データがありません",
+  "result": null,
+  "stats": null
+ }
+]

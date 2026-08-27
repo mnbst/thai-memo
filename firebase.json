@@ -29,18 +29,6 @@
             "predeploy": [
                 "npm --prefix \"$RESOURCE_DIR\" run build"
             ]
-        },
-        {
-            "source": "functions/python",
-            "codebase": "py-functions",
-            "ignore": [
-                "venv",
-                ".git",
-                "firebase-debug.log",
-                "firebase-debug.*.log",
-                "__pycache__",
-                ".venv"
-            ]
         }
     ],
     "flutter": {

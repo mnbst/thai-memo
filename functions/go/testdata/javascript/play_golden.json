@@ -1,0 +1,483 @@
+[
+ {
+  "name": "SUBSCRIPTION_STATE_ACTIVE / 自動更新ON",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": true,
+  "status": "active"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_ACTIVE / 自動更新OFF",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": false
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "active"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_CANCELED / 自動更新ON",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_CANCELED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": true,
+  "status": "canceled"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_CANCELED / 自動更新OFF",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_CANCELED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": false
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "canceled"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_IN_GRACE_PERIOD / 自動更新ON",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": true,
+  "status": "grace_period"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_IN_GRACE_PERIOD / 自動更新OFF",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": false
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "grace_period"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_ON_HOLD / 自動更新ON",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_ON_HOLD",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": true,
+  "status": "grace_period"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_ON_HOLD / 自動更新OFF",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_ON_HOLD",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": false
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "grace_period"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_PAUSED / 自動更新ON",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_PAUSED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": true,
+  "status": "expired"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_PAUSED / 自動更新OFF",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_PAUSED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": false
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "expired"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_EXPIRED / 自動更新ON",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_EXPIRED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": true,
+  "status": "expired"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_EXPIRED / 自動更新OFF",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_EXPIRED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": false
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "expired"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED / 自動更新ON",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": true,
+  "status": "expired"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED / 自動更新OFF",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": false
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "expired"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_UNSPECIFIED / 自動更新ON",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_UNSPECIFIED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": true,
+  "status": "expired"
+ },
+ {
+  "name": "SUBSCRIPTION_STATE_UNSPECIFIED / 自動更新OFF",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SUBSCRIPTION_STATE_UNSPECIFIED",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": false
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "expired"
+ },
+ {
+  "name": "SOMETHING_NEW_FROM_GOOGLE / 自動更新ON",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SOMETHING_NEW_FROM_GOOGLE",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": true,
+  "status": "expired"
+ },
+ {
+  "name": "SOMETHING_NEW_FROM_GOOGLE / 自動更新OFF",
+  "response": {
+   "kind": "androidpublisher#subscriptionPurchaseV2",
+   "subscriptionState": "SOMETHING_NEW_FROM_GOOGLE",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": false
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "expired"
+ },
+ {
+  "name": "expiryTime なし → expired",
+  "response": {
+   "kind": "k",
+   "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": ""
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": null,
+  "auto_renewing": false,
+  "status": "expired"
+ },
+ {
+  "name": "lineItems が空 → expired",
+  "response": {
+   "kind": "k",
+   "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
+   "lineItems": []
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": null,
+  "auto_renewing": false,
+  "status": "expired"
+ },
+ {
+  "name": "lineItems ごと無い → expired",
+  "response": {
+   "kind": "k",
+   "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE"
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": null,
+  "auto_renewing": false,
+  "status": "expired"
+ },
+ {
+  "name": "autoRenewingPlan なし → autoRenewing=false",
+  "response": {
+   "kind": "k",
+   "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.789Z"
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696789,
+  "auto_renewing": false,
+  "status": "active"
+ },
+ {
+  "name": "オフセット付きの expiryTime",
+  "response": {
+   "kind": "k",
+   "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T21:34:56+09:00",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696000,
+  "auto_renewing": true,
+  "status": "active"
+ },
+ {
+  "name": "ナノ秒精度の expiryTime",
+  "response": {
+   "kind": "k",
+   "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
+   "lineItems": [
+    {
+     "productId": "premium_monthly",
+     "expiryTime": "2026-09-30T12:34:56.123456789Z",
+     "autoRenewingPlan": {
+      "autoRenewEnabled": true
+     }
+    }
+   ]
+  },
+  "requested_url": "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thaimemo.thai_memo/purchases/subscriptionsv2/tokens/token-abc123",
+  "valid": true,
+  "expires_at": 1790771696123,
+  "auto_renewing": true,
+  "status": "active"
+ }
+]

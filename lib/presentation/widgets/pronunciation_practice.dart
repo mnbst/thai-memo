@@ -689,50 +689,59 @@ CoachingTip? _coachingTipOfWord(
     toneMarks: spans.toneMarks,
     romans: spans.syllableRomans,
     // 声調が合っているのに通じなかった語では、子音・母音のうち
-    // 日本語話者が最も外しやすい点を1つ出す。
-    segmentPointOfWord: (_) => spans.segmentPointOfWord(wordIndex),
+    // 日本語話者が外しやすい点を、観点のグループごとに1つずつ出す。
+    segmentPointsOfWord: (_) => spans.segmentPointsOfWord(wordIndex),
   );
 }
 
-/// 次の1回で直す点を1つだけ出す。直すところが無ければ何も描かない。
+/// 次の1回で直す点を出す。直すところが無ければ何も描かない。
+///
+/// 声調は1つだけ。子音・母音は観点のグループごとに1行ずつ並べる
+/// （[SegmentGroup]）。同じ観点を並べても直せないが、観点が違えば直す場所も
+/// 違うので、末子音だけで埋まらないようにする。
 class _CoachCard extends StatelessWidget {
   const _CoachCard({required this.tip, required this.l10n});
 
   final CoachingTip? tip;
   final L10n l10n;
 
-  String _text(CoachingTip tip) {
+  /// 助言の本文。子音・母音は観点ごとに1行ずつ並べる。
+  List<String> _lines(CoachingTip tip) {
     switch (tip.issue) {
       case CoachIssue.notRecognized:
-        final segment = tip.segment;
-        // どの音を外したかは分からない。優先順位で選んだ1点が取れたときだけ、
+        // どの音を外したかは分からない。グループごとに選んだ点が取れたときだけ、
         // その音の直し方を出す。取れなければ語を名指しするだけに留める。
-        if (segment != null) {
-          return _segmentText(segment, tip.wordText ?? '', l10n);
+        if (tip.segments.isNotEmpty) {
+          return [
+            for (final segment in tip.segments)
+              _segmentText(segment, tip.wordText ?? '', l10n),
+          ];
         }
-        return l10n.pronunciationCoachNotRecognized(tip.wordText ?? '');
+        return [l10n.pronunciationCoachNotRecognized(tip.wordText ?? '')];
       case CoachIssue.shape:
         switch (tip.tone) {
           case ThaiTone.mid:
-            return l10n.pronunciationCoachShapeMid;
+            return [l10n.pronunciationCoachShapeMid];
           case ThaiTone.low:
-            return l10n.pronunciationCoachShapeLow;
+            return [l10n.pronunciationCoachShapeLow];
           case ThaiTone.falling:
-            return l10n.pronunciationCoachShapeFalling;
+            return [l10n.pronunciationCoachShapeFalling];
           case ThaiTone.high:
-            return l10n.pronunciationCoachShapeHigh;
+            return [l10n.pronunciationCoachShapeHigh];
           case ThaiTone.rising:
-            return l10n.pronunciationCoachShapeRising;
+            return [l10n.pronunciationCoachShapeRising];
           case ThaiTone.unknown:
           case null:
             // coachingTipOf が除外しているので到達しない。
-            return '';
+            return const [''];
         }
       case CoachIssue.step:
         final tone = tip.tone!.displayName(l10n);
-        return tip.stepUp
-            ? l10n.pronunciationCoachStepUp(tone)
-            : l10n.pronunciationCoachStepDown(tone);
+        return [
+          tip.stepUp
+              ? l10n.pronunciationCoachStepUp(tone)
+              : l10n.pronunciationCoachStepDown(tone),
+        ];
     }
   }
 
@@ -778,13 +787,17 @@ class _CoachCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  _text(tip),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurface,
-                    fontWeight: FontWeight.w600,
+                for (final line in _lines(tip))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      line,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: cs.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -795,7 +808,12 @@ class _CoachCard extends StatelessWidget {
 }
 
 /// 子音・母音の直し方を1行にする。
-String _segmentText(SegmentPoint point, String word, L10n l10n) {
+///
+/// 2音節以上の語では**音節を名指しする**（[SegmentPoint.syllableText]）。
+/// 語だけを指すと、どの音節のことか分からない。
+String _segmentText(SegmentPoint point, String wordText, L10n l10n) {
+  final word =
+      point.syllableText.isEmpty ? wordText : point.syllableText;
   switch (point.issue) {
     case SegmentIssue.unaspirated:
       return l10n.pronunciationSegmentUnaspirated(
@@ -823,8 +841,6 @@ String _segmentText(SegmentPoint point, String word, L10n l10n) {
         default:
           return l10n.pronunciationSegmentFinalN(word);
       }
-    case SegmentIssue.shortVowel:
-      return l10n.pronunciationSegmentShortVowel(word, point.label);
     case SegmentIssue.thaiVowel:
       switch (point.vowel) {
         case ThaiVowelSound.ae:

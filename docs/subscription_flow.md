@@ -66,6 +66,6 @@ purchase_token (JWS: eyJ...) を受信
 |---------|------|
 | `lib/services/purchase_service.dart` | 購入フロー・purchaseStream監視 |
 | `lib/presentation/providers/subscription_provider.dart` | 状態管理（SubscriptionController） |
-| `functions/javascript/src/verifySubscription.ts` | Cloud Function本体 |
-| `functions/javascript/src/services/appStoreServer.ts` | Apple API検証・JWSデコード |
-| `functions/javascript/src/handleAppStoreNotification.ts` | Apple Server Notifications V2 ハンドラ（更新・解約・失効） → `docs/appstore_notification_flow.md` |
+| `functions/go/verify_subscription.go` | Cloud Function本体 |
+| `functions/go/internal/appstore/` | Apple API検証・JWSデコード |
+| `functions/go/handle_app_store_notification.go` | Apple Server Notifications V2 ハンドラ（更新・解約・失効） → `docs/appstore_notification_flow.md` |

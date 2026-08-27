@@ -35,63 +35,121 @@ class PremiumTrialEndedDialog extends StatelessWidget {
           // ここは「いま何が変わったか」だけを数字で出す。特典の全一覧は
           // ペイウォールの仕事で、両方に並べるとペイウォールが繰り返しになる。
           // 実数の増減が出ない項目（テーマ選択・例文の質・語彙上限）は載せない。
-          _Change(
-            icon: Icons.bolt,
-            text: l10n.trialEndedChangeQuota(
-              premiumDailySentences,
-              freeDailySentences,
-            ),
-          ),
-          const SizedBox(height: 6),
-          _Change(
-            icon: Icons.mic_none,
-            text: l10n.trialEndedChangePronunciation(
-              freeDailyPronunciationChecks,
-            ),
+          _ChangeTable(
+            changes: [
+              _Change(
+                icon: Icons.bolt,
+                label: l10n.trialEndedChangeQuotaLabel,
+                premium:
+                    l10n.trialEndedChangeQuotaPremium(premiumDailySentences),
+                free: l10n.trialEndedChangeQuotaFree(freeDailySentences),
+              ),
+              _Change(
+                icon: Icons.mic_none,
+                label: l10n.trialEndedChangePronunciationLabel,
+                premium: l10n.trialEndedChangePronunciationPremium,
+                free: l10n.trialEndedChangePronunciationFree(
+                  freeDailyPronunciationChecks,
+                ),
+              ),
+            ],
           ),
         ],
       ),
       scrollable: true,
       contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
       actionsPadding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+      // 縦積みになるので、勧めたい方（プレミアム）を上に置く。
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: Text(l10n.trialEndedLater),
-        ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
-          child: Text(l10n.trialEndedSeePremium),
+          child: Text(l10n.trialEndedKeepPremium),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(l10n.trialEndedKeepFree),
         ),
       ],
     );
   }
 }
 
-class _Change extends StatelessWidget {
-  const _Change({required this.icon, required this.text});
+/// 変化する1項目。
+class _Change {
+  const _Change({
+    required this.icon,
+    required this.label,
+    required this.premium,
+    required this.free,
+  });
 
   final IconData icon;
-  final String text;
+  final String label;
+
+  /// 体験中に使えていた値。
+  final String premium;
+
+  /// 今日から戻る値。
+  final String free;
+}
+
+/// 変化を表で並べる。
+///
+/// 行ごとに Row で組むと、項目名の長さの違い（例文／発音チェック）がそのまま
+/// ずれになって、矢印も値も揃わない。列幅を共有する表にして縦を通す。
+class _ChangeTable extends StatelessWidget {
+  const _ChangeTable({required this.changes});
+
+  final List<_Change> changes;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final base = theme.textTheme.bodyMedium?.copyWith(
+      color: cs.onSurfaceVariant,
+    );
+
+    return Table(
+      columnWidths: const {
+        0: IntrinsicColumnWidth(),
+        1: IntrinsicColumnWidth(),
+        2: IntrinsicColumnWidth(),
+        3: IntrinsicColumnWidth(),
+      },
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       children: [
-        Icon(icon, size: 16, color: cs.primary),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            // 初回ガイドの体験期間と同じ強調に揃える。
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        for (final change in changes)
+          TableRow(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 12, top: 3, bottom: 3),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(change.icon, size: 16, color: cs.primary),
+                    const SizedBox(width: 6),
+                    Text(change.label, style: base),
+                  ],
+                ),
+              ),
+              // 色を付けるのは失う側（体験中の値）だけ。無料の値まで同じ強調に
+              // すると、どちらがどちらか読み分けられない。
+              Text(
+                change.premium,
+                textAlign: TextAlign.right,
+                style: base?.copyWith(
                   color: cs.primary,
                   fontWeight: FontWeight.w600,
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text('→', style: base),
+              ),
+              Text(change.free, style: base),
+            ],
           ),
-        ),
       ],
     );
   }

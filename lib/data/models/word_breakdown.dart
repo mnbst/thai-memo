@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:json_annotation/json_annotation.dart';
 
 import '../../core/database_constants.dart';
+import '../../core/pronunciation_text.dart';
 import 'syllable.dart';
 
 part 'word_breakdown.g.dart';
@@ -57,13 +58,13 @@ class WordBreakdown {
     this.id,
     this.sentenceId,
     required this.wordText,
-    required this.pronunciation,
+    required String pronunciation,
     required this.meaning,
     this.grammaticalRole,
     this.wordOrder,
     this.syllables,
     this.notes,
-  });
+  }) : pronunciation = sanitizePronunciation(pronunciation);
 
   /// Create a WordBreakdown from JSON
   factory WordBreakdown.fromJson(Map<String, dynamic> json) =>

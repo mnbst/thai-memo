@@ -70,6 +70,17 @@ class AppConfig {
   /// ここまで来たら案内は終わりで、あとは続けるだけだと伝える。
   static const String prefKeyTourFinishCoachShown = 'tour_finish_coach_shown';
 
+  /// 学習の流れ（例文→クイズ→…、5問クイズで語彙スコアが動く）を教える
+  /// 複数ページ案内の表示済みフラグ。
+  static const String prefKeyLearningFlowCoachShown =
+      'learning_flow_coach_shown';
+
+  /// 上の案内を「次に例文画面へ着いたら出す」ための予約フラグ。
+  /// 締めくくり（[prefKeyTourFinishCoachShown]）を読んだ直後に立てる。
+  /// クイズ結果の上では出せない（対象が例文画面の流れの話なので）。
+  static const String prefKeyLearningFlowCoachPending =
+      'learning_flow_coach_pending';
+
   /// 「次のテーマ」コーチマークの表示済みフラグ
   static const String prefKeyNextTopicCoachShown = 'next_topic_coach_shown';
 
