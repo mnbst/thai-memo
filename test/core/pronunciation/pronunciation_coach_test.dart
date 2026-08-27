@@ -237,7 +237,7 @@ void main() {
       expect(tip.wordText, 'ครับ');
     });
 
-    test('聞き取られなかった語には、子音・母音の直す点を1つ載せる', () {
+    test('聞き取られなかった語には、子音・母音の直す点をグループごとに載せる', () {
       final tip = coachingTipOf(
         [
           _score(
@@ -251,18 +251,29 @@ void main() {
         recognition: const [WordRecognition.missing],
         wordTexts: const ['ปาก'],
         romans: const ['pàak'],
-        segmentPointOfWord: (index) => index == 0
-            ? const SegmentPoint(
-                issue: SegmentIssue.unaspirated,
-                syllableIndex: 0,
-                label: 'ป',
-                aspirated: 'พ',
-              )
-            : null,
+        segmentPointsOfWord: (index) => index == 0
+            ? const [
+                SegmentPoint(
+                  issue: SegmentIssue.unaspirated,
+                  syllableIndex: 0,
+                  label: 'ป',
+                  aspirated: 'พ',
+                ),
+                SegmentPoint(
+                  issue: SegmentIssue.finalStop,
+                  syllableIndex: 0,
+                  label: 'ก',
+                  sound: 'k',
+                ),
+              ]
+            : const [],
       );
 
       expect(tip!.issue, CoachIssue.notRecognized);
-      expect(tip.segment?.issue, SegmentIssue.unaspirated);
+      expect(
+        tip.segments.map((s) => s.issue),
+        [SegmentIssue.unaspirated, SegmentIssue.finalStop],
+      );
       // 指した音節のローマ字が載る（声調の助言と同じ見せ方にするため）。
       expect(tip.roman, 'pàak');
     });
@@ -280,11 +291,11 @@ void main() {
         ],
         recognition: const [WordRecognition.missing],
         wordTexts: const ['มา'],
-        segmentPointOfWord: (_) => null,
+        segmentPointsOfWord: (_) => const [],
       );
 
       expect(tip!.issue, CoachIssue.notRecognized);
-      expect(tip.segment, isNull);
+      expect(tip.segments, isEmpty);
     });
 
     test('声調の助言がある回は認識より優先する', () {

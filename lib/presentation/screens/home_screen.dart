@@ -24,6 +24,7 @@ import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
+import '../widgets/learning_flow_coach_dialog.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_hint_banner.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
@@ -993,6 +994,12 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     if (ref.read(sentenceControllerProvider) is! SentenceStateSuccess) return;
     final prefs = await SharedPreferences.getInstance();
 
+    // 機能紹介の締めくくりを読んだ直後の1回だけ、学習の流れをまとめて教える。
+    // 個々の機能はここまでの段で案内済みなので、残るのは「例文とクイズを
+    // どう行き来するのか」と「語彙スコアがどこで動くのか」。
+    await _maybeShowLearningFlowCoach(prefs);
+    if (!mounted) return;
+
     // 1段目。何を覚える回なのかを先に見せる。ここが分からないまま例文を
     // 開かせても、どこを読めばよいのか分からない。
     if (!(prefs.getBool(AppConfig.prefKeyTargetWordsCoachShown) ?? false)) {
@@ -1047,6 +1054,36 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         prefs: prefs,
       );
     }
+  }
+
+  /// 学習の流れ（例文 → クイズ → …、5問クイズで語彙スコアが動く）を
+  /// 複数ページのダイアログで案内する。
+  ///
+  /// クイズ結果の締めくくりで予約され、次に例文が表示された回に出す。
+  /// スポットライトと違って画面の一部を指さないので、例文が出ていれば足りる。
+  Future<void> _maybeShowLearningFlowCoach(SharedPreferences prefs) async {
+    if (!(prefs.getBool(AppConfig.prefKeyLearningFlowCoachPending) ?? false)) {
+      return;
+    }
+    // 予約が残ったまま二度出さない。
+    if (prefs.getBool(AppConfig.prefKeyLearningFlowCoachShown) ?? false) {
+      await prefs.remove(AppConfig.prefKeyLearningFlowCoachPending);
+      return;
+    }
+    if (!mounted ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        CoachMarkOverlay.isVisible) {
+      // 出せなかった回は予約を残す。次に例文へ来たときに出し直す。
+      return;
+    }
+
+    await prefs.setBool(AppConfig.prefKeyLearningFlowCoachShown, true);
+    await prefs.remove(AppConfig.prefKeyLearningFlowCoachPending);
+    if (!mounted) return;
+    final analytics = ref.read(analyticsServiceProvider);
+    unawaited(analytics.logCoachMark(id: 'learning_flow', action: 'shown'));
+    await LearningFlowCoachDialog.show(context);
+    unawaited(analytics.logCoachMark(id: 'learning_flow', action: 'confirmed'));
   }
 
   /// 1段出して、閉じられるまで待つ。閉じ方（tapped / confirmed / dismissed）を

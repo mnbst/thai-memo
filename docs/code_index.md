@@ -182,6 +182,9 @@ lib/presentation/widgets/sentence_audio_player.dart
 lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
 
+lib/presentation/widgets/learning_flow_coach_dialog.dart
+学習の流れ（例文→クイズの繰り返し、5問クイズで語彙スコアが動く）を3ページで教えるダイアログ。締めくくりの直後に1回だけ。
+
 lib/presentation/widgets/premium_trial_ended_dialog.dart
 プレミアム体験トライアル終了を伝えて登録へ誘導するダイアログ。起動時に一度だけ表示。
 

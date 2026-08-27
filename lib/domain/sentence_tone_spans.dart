@@ -74,7 +74,7 @@ class SentenceToneSpans {
   /// 音節ごとの、子音・母音の助言に要る材料（[tones] と同じ順）。
   ///
   /// 声調の判定には使わない。通じなかった語について「どの音を直すか」を選ぶため
-  /// だけに持つ（[segmentPointOfWord]）。
+  /// だけに持つ（[segmentPointsOfWord]）。
   final List<SegmentSyllable> segmentSyllables;
 
   /// 新しい節が始まる音節の添字（昇順）。
@@ -104,15 +104,15 @@ class SentenceToneSpans {
 
   bool get isEmpty => tones.isEmpty;
 
-  /// 語ひとつについて、子音・母音のどこを直すかを1つ選ぶ。
+  /// 語ひとつについて、子音・母音のどこを直すかをグループごとに1つずつ選ぶ。
   ///
-  /// 範囲外の語・材料が無い場合は null。
-  SegmentPoint? segmentPointOfWord(int wordIndex) {
-    if (wordIndex < 0 || wordIndex >= words.length) return null;
-    if (segmentSyllables.isEmpty) return null;
+  /// 範囲外の語・材料が無い場合は空。
+  List<SegmentPoint> segmentPointsOfWord(int wordIndex) {
+    if (wordIndex < 0 || wordIndex >= words.length) return const [];
+    if (segmentSyllables.isEmpty) return const [];
 
     final span = words[wordIndex];
-    return segmentPointOf(
+    return segmentPointsOf(
       segmentSyllables,
       start: span.start,
       end: span.end,
@@ -230,13 +230,10 @@ SentenceToneSpans buildSentenceToneSpans(
     ));
     marks.addAll(syllables.map((s) => toneMarkCharOf(s.toneMark)));
     romans.addAll(_romansOf(word.pronunciation, syllables.length));
-    // 長さは声調規則の生死ではなく実際の長さで見る（[points] と同じ基準）。
     segments.addAll(syllables.map(
       (s) => SegmentSyllable(
         text: s.text,
         initialConsonant: s.initialConsonant,
-        hasShortVowel: s.hasShortVowel == true ||
-            ThaiToneAnalyzer.hasSpecialShortVowel(s.text),
       ),
     ));
   }

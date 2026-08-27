@@ -186,6 +186,23 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
       await _maybeShowResultCoach();
       return;
     }
+    if (step == 3) return _awaitWordDetailClosed();
+  }
+
+  /// 単語の詳細（声調解説）を閉じるまで待つ。
+  ///
+  /// 開いている間は詳細画面が最前面ではないので、待たずに進めると次の段が
+  /// 出せないまま初回ガイドが終わる。押されないまま（押し損ね）でも止まら
+  /// ないよう、開かない時間が [_recordGrace] を超えたら切り上げる。
+  Future<void> _awaitWordDetailClosed() async {
+    final deadline = DateTime.now().add(_recordGrace);
+    while (mounted && !_wordDetailOpen) {
+      if (DateTime.now().isAfter(deadline)) return;
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    while (mounted && _wordDetailOpen) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
   }
 
   /// お手本の再生が終わるまで待つ。1周で自動的に止まる（[_awaitingPlayback]）。
@@ -503,18 +520,26 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     'back',
   ];
 
-  /// 押させる段の番号。読むだけでは分からない操作（再生・録音）は
+  /// 押させる段の番号。読むだけでは分からない操作（再生・録音・単語の詳細）は
   /// 「わかった」で流させず、その場で一度やらせる。出口（最後の段）も同じ。
   ///
-  /// 単語の詳細（声調解説）は入れない。声調の細かい話は玄人向けなので、
-  /// ここでは「そこにある」とだけ伝えて、開くかどうかは本人に任せる。
-  static const _forcedTapSteps = {1, 2};
+  /// 単語の詳細（声調解説）も押させる。「そこにある」と伝えるだけでは開かれず、
+  /// 声調とつづりの関係を一度も見ないまま終わる。ただし玄人向けの話なので、
+  /// 読んだうえで要らないと判断した人は抜けられる（[_skippableSteps]）。
+  static const _forcedTapSteps = {1, 2, 3};
 
-  /// 「スキップ」を出す段。押させる段のうち、発音（step 2）だけは抜けられる。
+  /// 「スキップ」を出す段。押させる段のうち、発音（step 2）と
+  /// 単語の詳細（step 3）は抜けられる。
   ///
-  /// 声を出せない場所（電車内・職場）で初回ガイドに当たる人が居るので、
+  /// 発音は、声を出せない場所（電車内・職場）で初回ガイドに当たる人が居る。
   /// ここを塞ぐと初回体験ごと詰まる。再生と違って代わりの進め方が無い。
-  static const _skippableSteps = {2};
+  /// 単語の詳細は、開くと声調解説がさらに案内を重ねる。今は読みたくない人を
+  /// そこへ押し込まない。
+  static const _skippableSteps = {2, 3};
+
+  /// 単語の詳細（声調解説）が開いているか。初回ガイドで押させた段の
+  /// 待ち（[_awaitWordDetailClosed]）に使う。
+  bool _wordDetailOpen = false;
 
   /// 直前の段がスキップで閉じられたか。スキップされた段では、その操作の
   /// 完了待ち（[_awaitStepAction]）とマイク許可を飛ばす。
@@ -786,11 +811,16 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
 
   /// 単語の詳細（声調解説）を開く。
   Future<void> _openWordDetail(WordBreakdown word, int index) async {
-    await ToneExplanationDialog.show(
-      context,
-      word.wordText,
-      wordBreakdown: word,
-    );
+    _wordDetailOpen = true;
+    try {
+      await ToneExplanationDialog.show(
+        context,
+        word.wordText,
+        wordBreakdown: word,
+      );
+    } finally {
+      _wordDetailOpen = false;
+    }
   }
 
   /// 個別の単語分解アイテムを構築する。
