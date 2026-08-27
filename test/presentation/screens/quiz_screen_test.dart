@@ -419,12 +419,17 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
+    // 1ページ目は5問クイズの解き方。2ページ目が締めくくり。
+    expect(find.text('5問クイズのコツ'), findsOneWidget);
+    await tester.tap(find.text('次へ'));
+    await tester.pumpAndSettle();
+
     expect(find.text('間違えた例文は、また出ます'), findsOneWidget);
 
     await tester.tap(
       find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.text('次の例文へ'),
+        matching: find.text('わかった'),
       ),
     );
     await tester.pump();
@@ -458,12 +463,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
 
+    // 1ページ目は5問クイズの解き方。2ページ目が締めくくり。
+    expect(find.text('5問クイズのコツ'), findsOneWidget);
+    await tester.tap(find.text('次へ'));
+    await tester.pumpAndSettle();
+
     expect(find.text('間違えた例文は、また出ます'), findsOneWidget);
 
     await tester.tap(
       find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.text('次の例文へ'),
+        matching: find.text('わかった'),
       ),
     );
     await tester.pumpAndSettle();
@@ -493,13 +503,18 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
+    // 1ページ目は5問クイズの解き方。2ページ目が締めくくり。
+    expect(find.text('5問クイズのコツ'), findsOneWidget);
+    await tester.tap(find.text('次へ'));
+    await tester.pumpAndSettle();
+
     expect(find.text('間違えた例文は、また出ます'), findsOneWidget);
 
     // 締めくくりを閉じただけでは進まない。テーマの案内が残っている。
     await tester.tap(
       find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.text('次の例文へ'),
+        matching: find.text('わかった'),
       ),
     );
     await tester.pump();
@@ -509,7 +524,7 @@ void main() {
     expect(advanced, 0);
 
     await tester.pump(const Duration(milliseconds: 1300));
-    await tester.tap(find.text('わかった'));
+    await tester.tap(find.text('次の例文に進む'));
     await tester.pumpAndSettle();
 
     expect(advanced, 1);
@@ -539,7 +554,9 @@ void main() {
       await harness.controller.nextQuestion();
       await tester.pump();
     }
-    await tester.pumpAndSettle();
+    // ハイライトは出ている間ずっと明滅するので pumpAndSettle は使えない。
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pump();
 
     expect(find.text('まとめクイズに挑戦'), findsOneWidget);
     // スキップは出さない。
@@ -547,7 +564,7 @@ void main() {
 
     // 暗幕を押しても閉じない（押せる場所は光っているボタンだけ）。
     await tester.tapAt(const Offset(400, 40));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.text('まとめクイズに挑戦'), findsOneWidget);
 
     // レビュー依頼の遅延タイマーを消化してから終える。
