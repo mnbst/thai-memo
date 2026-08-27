@@ -27,10 +27,6 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
-// freeMinLatency は free ティアのレスポンスを最低これだけ引き延ばす。
-// premium との体感差を作るための意図的な待ちで、Python 版と同じ 7 秒。
-const freeMinLatency = 7 * time.Second
-
 // generateThaiSentence は functions/python/sentence_handlers.py:generateThaiSentence
 // の移植。
 //
@@ -236,15 +232,6 @@ func runGenerateThaiSentence(
 	}
 
 	produced.Sentence.TargetWords = produced.TargetWords
-
-	if !usePremiumSpec {
-		if elapsed := time.Since(start); elapsed < freeMinLatency {
-			select {
-			case <-time.After(freeMinLatency - elapsed):
-			case <-ctx.Done():
-			}
-		}
-	}
 
 	wg.Wait()
 	return produced.Sentence, nil

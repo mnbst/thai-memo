@@ -236,7 +236,7 @@
   "trialEndedChangePronunciation": "発音チェック　無制限 → 1日{count}回",
   "@trialEndedChangePronunciation": { "placeholders": { "count": { "type": "int" } } },
   "trialEndedLater": "あとで",
-  "trialEndedSeePremium": "プレミアムを見る",
+  "trialEndedSeePremium": "この学習環境を続ける",
 
   "trialStartedTitle": "プレミアムを{days}日間おためしできます",
   "@trialStartedTitle": { "placeholders": { "days": { "type": "int" } } },

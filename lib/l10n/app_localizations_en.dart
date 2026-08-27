@@ -633,7 +633,7 @@ class L10nEn extends L10n {
   String get trialEndedLater => 'Later';
 
   @override
-  String get trialEndedSeePremium => 'See Premium';
+  String get trialEndedSeePremium => 'Keep this learning experience';
 
   @override
   String trialStartedTitle(int days) {

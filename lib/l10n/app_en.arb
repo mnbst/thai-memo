@@ -225,7 +225,7 @@
   "trialEndedChangePronunciation": "Pronunciation checks  Unlimited → {count}/day",
   "@trialEndedChangePronunciation": { "placeholders": { "count": { "type": "int" } } },
   "trialEndedLater": "Later",
-  "trialEndedSeePremium": "See Premium",
+  "trialEndedSeePremium": "Keep this learning experience",
 
   "trialStartedTitle": "Try Premium for {days} days",
   "trialStartedBody": "We've unlocked features you don't normally have, just for this period.",

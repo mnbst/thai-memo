@@ -592,7 +592,7 @@ class L10nJa extends L10n {
   String get trialEndedLater => 'あとで';
 
   @override
-  String get trialEndedSeePremium => 'プレミアムを見る';
+  String get trialEndedSeePremium => 'この学習環境を続ける';
 
   @override
   String trialStartedTitle(int days) {

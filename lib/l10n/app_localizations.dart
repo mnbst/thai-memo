@@ -1192,7 +1192,7 @@ abstract class L10n {
   /// No description provided for @trialEndedSeePremium.
   ///
   /// In ja, this message translates to:
-  /// **'プレミアムを見る'**
+  /// **'この学習環境を続ける'**
   String get trialEndedSeePremium;
 
   /// No description provided for @trialStartedTitle.
