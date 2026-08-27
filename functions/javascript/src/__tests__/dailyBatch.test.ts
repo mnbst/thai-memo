@@ -252,6 +252,15 @@ describe('resetQuota', () => {
     expect(writeData.remaining_sentences).toBe(PREMIUM_DAILY_SENTENCES);
   });
 
+  /** 今日から days 日後の JST hour 時ちょうどを UTC ミリ秒で返す。 */
+  const jstHourAheadOfToday = (days: number, hour: number): number => {
+    const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const jstMidnightToday =
+      Math.floor((Date.now() + JST_OFFSET_MS) / DAY_MS) * DAY_MS - JST_OFFSET_MS;
+    return jstMidnightToday + days * DAY_MS + hour * 60 * 60 * 1000;
+  };
+
   test('体験トライアル中のfreeはpremiumと同じ回数にリセットする', async () => {
     await resetQuota(makeUserDoc({
       premium_trial_expires_at: makeTimestamp(Date.now() + 24 * 60 * 60 * 1000),
@@ -275,21 +284,23 @@ describe('resetQuota', () => {
   });
 
   test('体験中の半端な期限はJST 0:00へ切り上げて揃える', async () => {
-    // JST 2026-08-12 14:00 = UTC 05:00
-    const midDay = Date.UTC(2026, 7, 12, 5, 0, 0);
+    // 体験中でなければ切り上げの経路に入らないので、期限は必ず未来に取る。
+    // 固定日付を書くと日付が過ぎた時点で「期限切れ」の経路へ落ち、
+    // 何も検証しないまま緑になる（2026-08 に実際に腐った）。
+    const midDay = jstHourAheadOfToday(2, 14);
     await resetQuota(makeUserDoc({
       premium_trial_expires_at: makeTimestamp(midDay),
     }));
 
     const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
     const aligned = writeData.premium_trial_expires_at as { toDate: () => Date };
-    // JST 2026-08-13 00:00 = UTC 2026-08-12 15:00
-    expect(aligned.toDate().getTime()).toBe(Date.UTC(2026, 7, 12, 15, 0, 0));
+    // JST 14:00 → 同じ日の JST 24:00 ＝ 翌日 0:00
+    expect(aligned.toDate().getTime()).toBe(jstHourAheadOfToday(3, 0));
   });
 
   test('既にJST 0:00に揃っている期限は書き換えない', async () => {
     await resetQuota(makeUserDoc({
-      premium_trial_expires_at: makeTimestamp(Date.UTC(2026, 7, 12, 15, 0, 0)),
+      premium_trial_expires_at: makeTimestamp(jstHourAheadOfToday(3, 0)),
     }));
 
     const writeData = mockUserDocSet.mock.calls[0][0] as Record<string, unknown>;
