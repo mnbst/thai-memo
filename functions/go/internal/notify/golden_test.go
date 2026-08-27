@@ -19,7 +19,7 @@ type goldenCase struct {
 // タイムゾーンの扱いは Intl(ICU) と Go の tzdata で実装が全く違うので、
 // 分単位オフセットや DST 切り替え日を含む全ケースで一致することを確かめる。
 func TestUTCHourGolden(t *testing.T) {
-	raw, err := os.ReadFile("../../../javascript/scripts/notify_golden.json")
+	raw, err := os.ReadFile("../../testdata/javascript/notify_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

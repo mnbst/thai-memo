@@ -531,6 +531,7 @@
   "errQuizGenerationFailed": "We couldn't build the quiz. Please try again.",
   "quotaQuizReached": "That's the last new quiz for today.",
   "quotaSentenceReached": "That's the last new sentence for today.\nRevisit past sentences or review them with a quiz.",
+  "quotaSentenceUpgradeCta": "Premium gives you {count} sentences a day",
   "errAuth": "Something went wrong signing you in. Please restart the app.",
   "errNetwork": "Couldn't reach the network. Check your internet connection.",
   "errTimeout": "The request timed out. Please try again.",

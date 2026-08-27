@@ -78,7 +78,7 @@ func (e *noRouteError) Error() string { return "no stub route for " + e.url }
 // （scripts/genAppStoreGolden.ts）。ステータス判定だけでなく、叩いた URL の
 // 順序（本番→サンドボックスのフォールバック）まで比べる。
 func TestVerifyPurchaseGolden(t *testing.T) {
-	raw, err := os.ReadFile("../../../javascript/scripts/appstore_golden.json")
+	raw, err := os.ReadFile("../../testdata/javascript/appstore_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

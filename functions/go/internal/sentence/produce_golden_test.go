@@ -15,7 +15,7 @@ import (
 
 // handlersGoldenPath は
 // functions/python/scripts/daily_golden/gen_handlers_golden.py の出力。
-const handlersGoldenPath = "../../../python/scripts/daily_golden/handlers_golden.json"
+const handlersGoldenPath = "../../testdata/python/daily_golden/handlers_golden.json"
 
 type handlersGolden struct {
 	KeyWordLookup []struct {

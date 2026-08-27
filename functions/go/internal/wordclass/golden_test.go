@@ -29,7 +29,7 @@ type wordclassGolden struct {
 func loadWordclassGolden(t *testing.T) *wordclassGolden {
 	t.Helper()
 	raw, err := os.ReadFile(
-		"../../../python/scripts/daily_golden/wordclass_golden.json")
+		"../../testdata/python/daily_golden/wordclass_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

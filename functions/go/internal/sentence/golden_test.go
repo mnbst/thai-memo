@@ -25,7 +25,7 @@ type constantsGolden struct {
 func loadConstantsGolden(t *testing.T) *constantsGolden {
 	t.Helper()
 	raw, err := os.ReadFile(
-		"../../../python/scripts/daily_golden/constants_golden.json")
+		"../../testdata/python/daily_golden/constants_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

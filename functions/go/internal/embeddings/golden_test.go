@@ -39,7 +39,7 @@ type embeddingsGolden struct {
 func loadEmbeddingsGolden(t *testing.T) (*embeddingsGolden, *Store) {
 	t.Helper()
 	raw, err := os.ReadFile(
-		"../../../python/scripts/daily_golden/embeddings_golden.json")
+		"../../testdata/python/daily_golden/embeddings_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

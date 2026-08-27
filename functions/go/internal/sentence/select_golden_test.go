@@ -9,7 +9,7 @@ import (
 // selectGoldenPath は
 // functions/python/scripts/daily_golden/gen_select_golden.py の出力。
 // sentence_service.py の選定前段を変えたら再生成すること。
-const selectGoldenPath = "../../../python/scripts/daily_golden/select_golden.json"
+const selectGoldenPath = "../../testdata/python/daily_golden/select_golden.json"
 
 type selectGolden struct {
 	ChooseTopic []struct {

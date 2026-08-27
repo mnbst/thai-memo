@@ -79,22 +79,5 @@ android/app/*.jks
 
 tmp_subs/
 
-# scripts/ 直下は原則ローカル専用。ただし nlp_golden/ は Go 移植のリリースゲート
-# （golden.jsonl が契約そのもの）なのでバージョン管理する。
-functions/python/scripts/*
-!functions/python/scripts/nlp_golden/
-!functions/python/scripts/uvm_golden/
-# daily_golden/ と gen_go/ も Go 移植の差分テストが直接読むので追跡する
-!functions/python/scripts/daily_golden/
-!functions/python/scripts/gen_go/
-# 辞書から機械生成できるコーパス本体（4MB）は追跡しない
-functions/python/scripts/nlp_golden/data/corpus_dict.jsonl
-functions/python/scripts/nlp_golden/data/corpus*.jsonl
-!functions/python/scripts/nlp_golden/data/seed_corpus.jsonl
-functions/python/scripts/generate_free_sentences.py
-functions/python/scripts/output/free_sentences.json
-functions/python/scripts/output/progress.json
-
-
 # App Check デバッグトークン等のローカル dart-define（git 管理外）
 dart_defines.json

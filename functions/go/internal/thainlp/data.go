@@ -1,7 +1,7 @@
 // Package thainlp is the Go port of the Thai NLP stack currently provided by
-// PyThaiNLP and TLTK in functions/python.
+// PyThaiNLPとTLTKを利用していた旧Python実装から移植したデータ。
 //
-// データは functions/python/scripts/nlp_golden/export_tltk_data.py が生成する。
+// 移行時に生成したデータをGo実装の正本として保持する。
 // 元データを更新したら再実行すること。
 package thainlp
 

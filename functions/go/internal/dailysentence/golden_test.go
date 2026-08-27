@@ -32,7 +32,7 @@ type dailyGolden struct {
 
 func loadDailyGolden(t *testing.T) *dailyGolden {
 	t.Helper()
-	raw, err := os.ReadFile("../../../python/scripts/daily_golden/golden.json")
+	raw, err := os.ReadFile("../../testdata/python/daily_golden/golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

@@ -43,6 +43,11 @@ import 'paywall_screen.dart';
 import 'quiz_screen.dart';
 import 'settings_screen.dart';
 
+/// 例文の生成上限に当たった画面から開くペイウォールの source。
+/// paywall_banner(shown) と tap_paywall で同じ値を使い、CTR を
+/// learning_banner_* と同じ形で比べられるようにしている。
+const String _quotaPaywallSource = 'sentence_quota_error';
+
 /// Home screen with bottom navigation
 class HomeScreen extends ConsumerStatefulWidget {
   static const routeName = 'home';
@@ -940,6 +945,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   bool _quizOfferAssignmentHandled = false;
   bool _sentenceCoachInFlight = false;
 
+  /// 上限到達時のペイウォール導線の shown を二重に送らないためのフラグ。
+  /// build はエラー表示のまま何度も走るので、State の生存期間中1回に絞る。
+  bool _quotaPaywallImpressionLogged = false;
+
   @override
   void initState() {
     super.initState();
@@ -1742,6 +1751,22 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   /// Build error state
   Widget _buildErrorState(BuildContext context, String message) {
     final isQuotaError = isQuotaErrorMessage(message);
+
+    // 上限に当たった free だけがアップグレードで解ける状態にある。
+    // 判定が付くまで（loading）は出さない。
+    final plan = ref.watch(planStatusProvider).valueOrNull;
+    final showUpgrade = isQuotaError && plan == PlanStatus.free;
+
+    if (showUpgrade && !_quotaPaywallImpressionLogged) {
+      _quotaPaywallImpressionLogged = true;
+      unawaited(
+        ref.read(analyticsServiceProvider).logPaywallBanner(
+              action: 'shown',
+              source: _quotaPaywallSource,
+            ),
+      );
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
@@ -1774,8 +1799,24 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 textAlign: TextAlign.center,
               ),
             ],
-            // 例文の上限到達時はアップグレード促しを表示しない
-            // （premium も生成上限は同じ 5 回/日のため訴求が噛み合わない）
+            // 上限に当たった瞬間は「なぜ premium が要るのか」が最も伝わる場面
+            // なので、ここでだけ割り込みなしに訴求する。free 5 に対して
+            // premium 20（2026-08-25 に 10→20）と差が付いたため噛み合う。
+            // premium で使い切った人には勧める先が無いので出さない。
+            if (showUpgrade) ...[
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => PaywallBottomSheet.show(
+                  context,
+                  source: _quotaPaywallSource,
+                ),
+                icon: const Icon(Icons.lock_open),
+                label: Text(
+                  L10n.of(context)
+                      .quotaSentenceUpgradeCta(premiumDailySentences),
+                ),
+              ),
+            ],
             if (!isQuotaError) ...[
               const SizedBox(height: 24),
               FilledButton.icon(

@@ -62,7 +62,7 @@ type promptsGolden struct {
 func loadPromptsGolden(t *testing.T) *promptsGolden {
 	t.Helper()
 	raw, err := os.ReadFile(
-		"../../../python/scripts/daily_golden/prompts_golden.json")
+		"../../testdata/python/daily_golden/prompts_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

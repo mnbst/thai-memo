@@ -129,7 +129,7 @@ type llmGolden struct {
 
 func loadGolden(t *testing.T) *llmGolden {
 	t.Helper()
-	raw, err := os.ReadFile("../../../python/scripts/daily_golden/llm_golden.json")
+	raw, err := os.ReadFile("../../testdata/python/daily_golden/llm_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

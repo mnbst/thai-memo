@@ -1,5 +1,5 @@
 // Package uvm は語彙習得モデル（User Vocabulary Model）。
-// functions/python/uvm.py の移植。定数と式は Python 側と一致させること。
+// 旧Python版UVMの移植。定数と式は移行時のgoldenデータと一致させること。
 package uvm
 
 import "math"

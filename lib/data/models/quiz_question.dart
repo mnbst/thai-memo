@@ -6,6 +6,7 @@
 // SRS（間隔反復）による復習間隔(srsInterval)も保持。
 // =============================================================================
 
+import '../../core/pronunciation_text.dart';
 import 'thai_sentence.dart';
 
 /// 穴埋めクイズ問題モデル
@@ -71,15 +72,17 @@ class QuizQuestion {
               .toList() ??
           [],
       choicePronunciations: (json['choice_pronunciations'] as List<dynamic>?)
-              ?.map((e) => e.toString())
+              ?.map((e) => sanitizePronunciation(e.toString()))
               .toList() ??
           [],
-      pronunciation: json['pronunciation'] ?? '',
+      pronunciation: sanitizePronunciation(json['pronunciation'] ?? ''),
       explanation: json['explanation'] ?? '',
       srsInterval: json['srs_interval'] ?? 0,
       japaneseTranslation: json['japanese_translation'] ?? '',
-      sentencePronunciation: json['sentence_pronunciation'] ?? '',
-      blankSentencePronunciation: json['blank_sentence_pronunciation'] ?? '',
+      sentencePronunciation:
+          sanitizePronunciation(json['sentence_pronunciation'] ?? ''),
+      blankSentencePronunciation:
+          sanitizePronunciation(json['blank_sentence_pronunciation'] ?? ''),
       dummyReasons: (json['dummy_reasons'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??

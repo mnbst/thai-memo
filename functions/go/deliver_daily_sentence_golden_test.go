@@ -56,7 +56,7 @@ type deliveryGolden struct {
 
 func loadDeliveryGolden(t *testing.T) *deliveryGolden {
 	t.Helper()
-	raw, err := os.ReadFile("../python/scripts/daily_golden/delivery_golden.json")
+	raw, err := os.ReadFile("testdata/python/daily_golden/delivery_golden.json")
 	if err != nil {
 		t.Fatalf("golden を読めない: %v", err)
 	}

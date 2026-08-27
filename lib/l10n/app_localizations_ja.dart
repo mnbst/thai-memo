@@ -1413,6 +1413,11 @@ class L10nJa extends L10n {
       '今日の新しい例文はここまでです。\nこれまでの例文を読み返したり、クイズで復習できます。';
 
   @override
+  String quotaSentenceUpgradeCta(int count) {
+    return 'Premiumなら1日$count例文';
+  }
+
+  @override
   String get errAuth => '認証エラーが発生しました。アプリを再起動してください。';
 
   @override

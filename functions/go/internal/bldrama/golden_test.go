@@ -34,7 +34,7 @@ type golden struct {
 
 func load(t *testing.T) *golden {
 	t.Helper()
-	raw, err := os.ReadFile("../../../python/scripts/daily_golden/bldrama_golden.json")
+	raw, err := os.ReadFile("../../testdata/python/daily_golden/bldrama_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

@@ -7,6 +7,8 @@
 // =============================================================================
 
 import 'package:json_annotation/json_annotation.dart';
+
+import '../../core/pronunciation_text.dart';
 import 'word_breakdown.dart';
 
 part 'thai_sentence.g.dart';
@@ -61,7 +63,7 @@ class ThaiSentence {
   ThaiSentence({
     this.id,
     required this.thaiText,
-    required this.pronunciation,
+    required String pronunciation,
     required this.japaneseTranslation,
     required this.wordBreakdowns,
     this.context,
@@ -69,7 +71,7 @@ class ThaiSentence {
     this.generationTier,
     this.targetWords,
     this.isFavorite = false,
-  });
+  }) : pronunciation = sanitizePronunciation(pronunciation);
 
   /// JSONからThaiSentenceを生成
   factory ThaiSentence.fromJson(Map<String, dynamic> json) =>

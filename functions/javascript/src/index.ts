@@ -7,15 +7,6 @@ admin.initializeApp({
   ...(projectId && { projectId }),
 });
 
-// Export Cloud Functions
-export { dailyBatch } from './dailyBatch';
+// Firebase Auth triggers that remain on Node.js.
 export { deleteUserData } from './deleteUserData';
-export { generateLearningQuiz, generateQuiz } from './generateQuiz';
 export { onUserCreate } from './onUserCreate';
-export { verifySubscription } from './verifySubscription';
-export { subscriptionStatus } from './subscriptionStatus';
-export { handlePlayNotification } from './handlePlayNotification';
-export { handleAppStoreNotification } from './handleAppStoreNotification';
-export { sendContactEmail } from './sendContactEmail';
-export { resetLearningData } from './resetLearningData';
-export { setUserTier } from './setUserTier';

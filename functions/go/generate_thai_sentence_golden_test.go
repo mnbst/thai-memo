@@ -16,7 +16,7 @@ import (
 
 // sentenceHandlersGoldenPath は
 // functions/python/scripts/daily_golden/gen_handlers_golden.py の出力。
-const sentenceHandlersGoldenPath = "../python/scripts/daily_golden/handlers_golden.json"
+const sentenceHandlersGoldenPath = "testdata/python/daily_golden/handlers_golden.json"
 
 type sentenceHandlersGolden struct {
 	EffectiveGenerationParams []struct {

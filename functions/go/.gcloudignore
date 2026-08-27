@@ -3,3 +3,6 @@
 # go:embed に必要なので必ず含めること。
 .git
 .gitignore
+**/*_test.go
+testdata/
+cmd/

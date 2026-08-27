@@ -47,7 +47,7 @@ func (s *stubQuizService) GenerateQuizQuestions(
 // （scripts/genLearningQuizGolden.ts）。sentence_detail の組み立て、
 // key_word の突き合わせと再試行、失敗時のエラーコードと文言まで比べる。
 func TestGenerateLearningQuizGolden(t *testing.T) {
-	raw, err := os.ReadFile("../javascript/scripts/learning_quiz_golden.json")
+	raw, err := os.ReadFile("testdata/javascript/learning_quiz_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

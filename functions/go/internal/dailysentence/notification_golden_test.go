@@ -11,7 +11,7 @@ import (
 // TestNotificationGolden は通知の文面が Python 実装と一致することを確かめる。
 // golden は scripts/daily_golden/gen_notification_golden.py が生成する。
 func TestNotificationGolden(t *testing.T) {
-	raw, err := os.ReadFile("../../../python/scripts/daily_golden/notification_golden.json")
+	raw, err := os.ReadFile("../../testdata/python/daily_golden/notification_golden.json")
 	if err != nil {
 		t.Fatalf("golden を読めない: %v", err)
 	}

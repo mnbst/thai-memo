@@ -36,7 +36,7 @@ type quizGolden struct {
 
 func loadQuizGolden(t *testing.T) *quizGolden {
 	t.Helper()
-	raw, err := os.ReadFile("../../../javascript/scripts/quiz_golden.json")
+	raw, err := os.ReadFile("../../testdata/javascript/quiz_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

@@ -209,11 +209,11 @@ premium の生成はユーザーごとに逐次実行される。現状の課金
 
 ## 実装
 
-### 1. 配信バッチ（新規 Python scheduled function）
+### 1. 配信バッチ（Go scheduled function）
 
-`dailyBatch.ts`（TypeScript）には足さない。`pick_free_sentence` がPython実装のため、TSに再実装すると二重管理になる。
+現在は `functions/go/deliver_daily_sentence.go` からGo実装の生成処理を呼び出す。
 
-- `functions/python/` に新規関数を追加し、`select_uvm_target_words` + `pick_free_sentence` を再利用
+- `functions/go/internal/sentence/` の単語選定とfree例文バンクを再利用
 - スケジュール `0 * * * *`（毎時）。各ユーザーの `timezone` と設定時刻からローカル時刻を判定
 - 条件: `daily_sentence_generated == false` && オプトアウトしていない
 - キャッシュミス時はLLMを呼ばず別の語を選び直す
@@ -245,7 +245,7 @@ premium の生成はユーザーごとに逐次実行される。現状の課金
 
 ### `daily_sentence_generated` のリセットはJST固定
 
-`dailyBatch` はJST 0:00に全ユーザー一律でリセットする（`dailyBatch.ts:197`）。「同じ日」の定義はローカル日ではなくJST日になる。クォータの日次境界が元々JST固定なので既存仕様と整合しているが、UTC-9より西のユーザーはローカル配信時刻がJST日の切り替わりを跨ぐ。実害は「リセット直後に未生成扱いで配信される」＝正しい挙動なので許容する。
+`dailyBatch` はJST 0:00に全ユーザー一律でリセットする（`functions/go/daily_batch.go`）。「同じ日」の定義はローカル日ではなくJST日になる。クォータの日次境界が元々JST固定なので既存仕様と整合しているが、UTC-9より西のユーザーはローカル配信時刻がJST日の切り替わりを跨ぐ。実害は「リセット直後に未生成扱いで配信される」＝正しい挙動なので許容する。
 
 ### Firestoreルール
 
@@ -254,10 +254,10 @@ premium の生成はユーザーごとに逐次実行される。現状の課金
 
 ## 関連ファイル
 
-- `functions/python/sentence_handlers.py` — 既存生成フロー（L197 `daily_sentence_generated = true`、L350-364 キャッシュ分岐、L392-402 Firestore保存）
-- `functions/python/sentence_service.py` — `get_free_sentences` / `pick_free_sentence`（L103-125）
-- `functions/python/scripts/generate_free_sentences.py` — キャッシュ生成スクリプト
-- `functions/javascript/src/dailyBatch.ts` — 既存の日次バッチ。L197 でフラグリセット
+- `functions/go/deliver_daily_sentence.go` — 配信バッチのエントリポイント
+- `functions/go/internal/sentence/produce.go` — キャッシュ/LLM生成の制御
+- `functions/go/internal/sentence/freebank.go` — free例文バンクの読み込みと抽選
+- `functions/go/daily_batch.go` — 日次フラグとクォータのリセット
 - `firebase/firestore.rules` — L13-16 に sentences サブコレクションのルール
 - `lib/core/database_constants.dart` — L81 `id TEXT PRIMARY KEY`
 - `lib/presentation/providers/remaining_quota_provider.dart` — Firestore購読パターンの参考

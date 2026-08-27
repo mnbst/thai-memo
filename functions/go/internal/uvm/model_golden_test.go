@@ -10,7 +10,7 @@ import (
 
 // goldenPath は functions/python/scripts/uvm_golden/gen_golden.py の出力。
 // uvm.py を変えたら再生成すること。
-const goldenPath = "../../../python/scripts/uvm_golden/golden.json"
+const goldenPath = "../../testdata/python/uvm_golden/golden.json"
 
 type goldenFile struct {
 	UpdateP []struct {

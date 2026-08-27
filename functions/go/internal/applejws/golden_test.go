@@ -34,7 +34,7 @@ type appleJwsGolden struct {
 // （scripts/genAppleJwsGolden.ts）。証明書チェーンとルート CA のピン留めは
 // 偽装通知を弾く最後の砦なので、通す/弾くの境界をここで固定する。
 func TestVerifyGolden(t *testing.T) {
-	raw, err := os.ReadFile("../../../javascript/scripts/apple_jws_golden.json")
+	raw, err := os.ReadFile("../../testdata/javascript/apple_jws_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}
@@ -166,7 +166,7 @@ func sameRejectReason(jsMsg, goMsg string) bool {
 // テスト用ルートは Subject が "Apple Root CA - G3" なだけの自己署名証明書。
 // ピン留めがフィンガープリントで効いていなければここが通ってしまう。
 func TestVerifyRejectsWithProductionPinning(t *testing.T) {
-	raw, err := os.ReadFile("../../../javascript/scripts/apple_jws_golden.json")
+	raw, err := os.ReadFile("../../testdata/javascript/apple_jws_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestVerifyRejectsWithProductionPinning(t *testing.T) {
 // 攻撃の現実味: Apple の開発者向け配布証明書は WWDR が発行し、秘密鍵は開発者
 // 本人が持つ。それを中間CAの位置に置けば、誰でも偽の通知に署名できてしまう。
 func TestVerifyRejectsNonCAIssuer(t *testing.T) {
-	raw, err := os.ReadFile("../../../javascript/scripts/apple_jws_golden.json")
+	raw, err := os.ReadFile("../../testdata/javascript/apple_jws_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

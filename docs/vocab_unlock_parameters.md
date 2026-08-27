@@ -3,7 +3,7 @@
 ## 概要
 
 `estimated_vocab` は、例文生成時の難易度と自動選択パラメータの候補絞り込みに使う。
-解禁ゲートは `functions/python/prompts.py` の `resolve_generation_params()` と `gate_topics_for_vocab()` で適用される。
+解禁ゲートは `functions/go/internal/sentence/prompts.go` の生成パラメータ解決処理で適用される。
 UVM の key_word から embedding でテーマを自動選択する経路でも、同じ topic gate を使う。
 
 対象になるのは未指定パラメータの自動選択のみ。
@@ -172,10 +172,10 @@ topic との embedding 類似度で重み付けし、以下の全候補から自
 
 | 内容 | 実装 |
 |---|---|
-| 難易度ラベル | `functions/python/prompts.py` の `DIFFICULTY_LEVELS` |
-| 文長補間 | `functions/python/prompts.py` の `_compute_length_hint()` |
-| topic gate | `functions/python/prompts.py` の `TOPIC_MIN_VOCAB` / `gate_topics_for_vocab()` |
-| UVM topic gate | `functions/python/sentence_service.py` / `functions/python/sentence_handlers.py` |
+| 難易度ラベル | `functions/go/internal/sentence/prompts.go` |
+| 文長補間 | `functions/go/internal/sentence/prompts.go` |
+| topic gate | `functions/go/internal/sentence/prompts.go` |
+| UVM topic gate | `functions/go/internal/sentence/select.go` / `functions/go/internal/sentence/resolve.go` |
 | style gate | 語彙スコア制限なし。tier 別候補は `FREE_STYLES` / `STYLES` |
-| grammar gate | `functions/python/prompts.py` の `GRAMMAR_MIN_VOCAB` |
-| 選択肢リスト | `functions/python/constants.py` |
+| grammar gate | `functions/go/internal/sentence/prompts.go` |
+| 選択肢リスト | `functions/go/internal/sentence/constants_data.go` |

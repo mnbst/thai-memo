@@ -29,7 +29,7 @@ type geminiGolden struct {
 // JSON のキー順は Go と JS で違う（Go の map は整列される）ので、
 // バイト比較ではなく構造で比べる。
 func TestBuildRequestBodyGolden(t *testing.T) {
-	raw, err := os.ReadFile("../../../javascript/scripts/quiz_golden.json")
+	raw, err := os.ReadFile("../../testdata/javascript/quiz_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

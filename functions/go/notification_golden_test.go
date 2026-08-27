@@ -57,7 +57,7 @@ type notificationGolden struct {
 
 func loadNotificationGolden(t *testing.T) *notificationGolden {
 	t.Helper()
-	raw, err := os.ReadFile("../javascript/scripts/notification_golden.json")
+	raw, err := os.ReadFile("testdata/javascript/notification_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

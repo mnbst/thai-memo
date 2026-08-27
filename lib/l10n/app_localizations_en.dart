@@ -1520,6 +1520,11 @@ class L10nEn extends L10n {
       'That\'s the last new sentence for today.\nRevisit past sentences or review them with a quiz.';
 
   @override
+  String quotaSentenceUpgradeCta(int count) {
+    return 'Premium gives you $count sentences a day';
+  }
+
+  @override
   String get errAuth =>
       'Something went wrong signing you in. Please restart the app.';
 

@@ -102,7 +102,7 @@ DBマイグレーション＋旧クライアント互換の負担に見合わな
   `_onUpgrade` で `ALTER TABLE`）。表示制御には使わないが、言語切替後に履歴が混在するため
   後から分析・フィルタしたくなる。安いので今入れる。
 
-### 3.2 プロンプト（`functions/python/prompts.py`）
+### 3.2 プロンプト（`functions/go/internal/sentence/prompts.go`）
 
 `lang` パラメータで分岐する。**日本語ルールを英訳して移植してはいけない**。
 現行の訳文ルール（手順形式の訳出、過剰特定の抑制、会話語彙の選択…）は
@@ -118,13 +118,13 @@ DBマイグレーション＋旧クライアント互換の負担に見合わな
 検証は `scripts/sample_sentences.py` に `lang` を通してローカル生成で回す（デプロイ不要）。
 ルールを足すたびに ablation で効果を確認する運用は ja と同じ。
 
-### 3.3 その他の Python 側
+### 3.3 その他の Go 側
 
 | 対象 | 対応 |
 |---|---|
-| `constants.py` `RESPONSE_JSON_SCHEMA` | `description` を lang 別に。`build_response_schema(lang)` へ拡張 |
-| `nlp.get_pos_japanese()` | 品詞ラベル辞書を ja/en 2本に。固定語彙なので直訳でよい |
-| `word_classes.json` のルール文 | LLMへの指示なので日本語のままでよい。ただし「日本語訳では〜」と訳文に言及する行だけ lang 別に出し分け |
+| `internal/sentence/constants_data.go` のレスポンススキーマ | `description` を lang 別にする |
+| `internal/thainlp/posjapanese.go` | 品詞ラベル辞書を ja/en 2本にする |
+| `internal/wordclass/classes_data.go` のルール文 | LLMへの指示なので日本語のままでよい。ただし「日本語訳では〜」と訳文に言及する行だけ lang 別に出し分け |
 | `TOPICS` / `SUBTOPICS` / `STYLES` | 内部識別子は日本語のまま。プロンプトにもそのまま入れる。表示のみクライアントでマッピング。サーバーが返す `context.topic` も日本語キーなのでクライアント側で訳す |
 
 ### 3.4 free 例文バンク（最大の落とし穴）
@@ -132,13 +132,13 @@ DBマイグレーション＋旧クライアント互換の負担に見合わな
 free ティアは GCS の `free_sentences.json`（事前生成・日本語訳込み）から引く。
 ここを対応しないと、**英語ユーザーの free 体験がまるごと日本語訳になる**。
 
-- `functions/python/scripts/generate_free_sentences.py` を lang 対応させ `free_sentences_en.json` を生成
+- Goの例文生成経路で `free_sentences_en.json` を生成
 - `get_free_sentences(lang)` / `pick_free_sentence(word, lang)` でファイル切替
 - `scripts/upload_corpus.sh` に en バンクを追加
 
 ---
 
-## 4. クイズ生成（TS CF）
+## 4. クイズ生成（Go CF）
 
 `quizGenerationService.ts` のプロンプトが日本語固定（`explanation` / `dummy_reasons` の
 生成指示とスキーマ description）。callable 引数に `lang` を追加して分岐。

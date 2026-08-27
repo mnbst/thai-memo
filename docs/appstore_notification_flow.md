@@ -90,7 +90,8 @@ signedPayload (JWS)
 
 | ファイル | 役割 |
 |---------|------|
-| `functions/javascript/src/handleAppStoreNotification.ts` | Cloud Function 本体 |
-| `functions/javascript/src/services/appStoreServer.ts` | JWS デコード (`parseNotificationPayload`) |
-| `functions/javascript/src/constants/quota.ts` | tier 別クォータ定数 |
+| `functions/go/handle_app_store_notification.go` | Cloud Function 本体 |
+| `functions/go/internal/appstore/` | 通知とトランザクションのデコード |
+| `functions/go/internal/applejws/` | JWS署名検証 |
+| `functions/go/internal/quota/quota.go` | tier 別クォータ定数 |
 | `docs/subscription_flow.md` | 初回購入フロー |

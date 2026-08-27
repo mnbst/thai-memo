@@ -549,6 +549,11 @@
   "@quotaSentenceReached": {
     "description": "上限回数は tier で異なる（free 5 / premium 20）ため文言に数字を含めない"
   },
+  "quotaSentenceUpgradeCta": "Premiumなら1日{count}例文",
+  "@quotaSentenceUpgradeCta": {
+    "description": "上限に当たった free ユーザーだけに出すペイウォール導線。count は PREMIUM_DAILY_SENTENCES",
+    "placeholders": { "count": { "type": "int" } }
+  },
   "errAuth": "認証エラーが発生しました。アプリを再起動してください。",
   "errNetwork": "ネットワーク接続エラーが発生しました。インターネット接続を確認してください。",
   "errTimeout": "リクエストがタイムアウトしました。もう一度お試しください。",

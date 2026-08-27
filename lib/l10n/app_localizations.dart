@@ -2624,6 +2624,12 @@ abstract class L10n {
   /// **'今日の新しい例文はここまでです。\nこれまでの例文を読み返したり、クイズで復習できます。'**
   String get quotaSentenceReached;
 
+  /// 上限に当たった free ユーザーだけに出すペイウォール導線。count は PREMIUM_DAILY_SENTENCES
+  ///
+  /// In ja, this message translates to:
+  /// **'Premiumなら1日{count}例文'**
+  String quotaSentenceUpgradeCta(int count);
+
   /// No description provided for @errAuth.
   ///
   /// In ja, this message translates to:

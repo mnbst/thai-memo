@@ -42,7 +42,7 @@ func (r *replayTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 // （scripts/genPlayGolden.ts）。subscriptionState の全値と、期限や
 // autoRenewingPlan が欠けた場合を含む。
 func TestVerifyPurchaseGolden(t *testing.T) {
-	raw, err := os.ReadFile("../../../javascript/scripts/play_golden.json")
+	raw, err := os.ReadFile("../../testdata/javascript/play_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

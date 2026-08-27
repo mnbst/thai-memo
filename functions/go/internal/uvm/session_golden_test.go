@@ -13,7 +13,7 @@ import (
 // sessionGoldenPath は
 // functions/python/scripts/uvm_golden/gen_session_golden.py の出力。
 // uvm.py の選定まわりを変えたら再生成すること。
-const sessionGoldenPath = "../../../python/scripts/uvm_golden/session_golden.json"
+const sessionGoldenPath = "../../testdata/python/uvm_golden/session_golden.json"
 
 type sessionGolden struct {
 	NPYBase64 string            `json:"npy_base64"`

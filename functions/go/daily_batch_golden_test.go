@@ -26,7 +26,7 @@ type quotaGoldenCase struct {
 // golden は本物の src/dailyBatch.ts を firebase-admin スタブ付きで実行して
 // 生成している（scripts/genQuotaGolden.ts）ので、移植漏れがあれば必ず落ちる。
 func TestQuotaResetPayloadGolden(t *testing.T) {
-	raw, err := os.ReadFile("../javascript/scripts/quota_golden.json")
+	raw, err := os.ReadFile("testdata/javascript/quota_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}
@@ -153,7 +153,7 @@ type dupTokenGoldenCase struct {
 // 突き合わせる。どの doc を残すかは「活動時刻の降順、同着は uid の昇順」で
 // 決まるので、同着を踏むケースを含めて比べる。
 func TestDuplicateTokenUidsGolden(t *testing.T) {
-	raw, err := os.ReadFile("../javascript/scripts/dup_token_golden.json")
+	raw, err := os.ReadFile("testdata/javascript/dup_token_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}

@@ -69,7 +69,7 @@ type serviceGolden struct {
 func loadServiceGolden(t *testing.T) *serviceGolden {
 	t.Helper()
 	raw, err := os.ReadFile(
-		"../../../python/scripts/daily_golden/service_golden.json")
+		"../../testdata/python/daily_golden/service_golden.json")
 	if err != nil {
 		t.Fatalf("golden の読み込みに失敗: %v", err)
 	}
