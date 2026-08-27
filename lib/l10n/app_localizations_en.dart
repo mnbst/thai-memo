@@ -318,15 +318,16 @@ class L10nEn extends L10n {
   String get coachTourFinishSeePremium => 'See Premium';
 
   @override
-  String get coachTourFinishNext => 'Next sentence';
-
-  @override
   String coachTourFinishQuota(int free, int premium) {
     return 'You can create $free sentences a day on the free plan, or $premium a day with Premium.';
   }
 
   @override
   String get coachFlowTitle => 'How it goes from here';
+
+  @override
+  String get coachFlowGreeting =>
+      'Nice work! That was the flow, from start to finish.';
 
   @override
   String get coachFlowLoopSentence => 'Sentence';
@@ -338,45 +339,29 @@ class L10nEn extends L10n {
   String get coachFlowLoopSummary => '5-question quiz';
 
   @override
-  String get coachFlowBody1 =>
-      'Read a sentence, check it with a quiz, and repeat.';
+  String get coachFlowBody1 => 'Read a sentence, check it with a quiz.';
 
   @override
-  String get coachFlowBody1Emphasis => 'repeat';
+  String get coachSummaryTipsBody =>
+      'Questions you answer from the Thai alone grow your score the most. Try it without the translation first.';
 
   @override
-  String get coachFlowPage2Bullet1 =>
-      'New to Thai script? Check with \"Review the sentence\"';
-
-  @override
-  String get coachFlowPage2Bullet1Emphasis => '\"Review the sentence\"';
-
-  @override
-  String get coachFlowPage2Bullet2 =>
-      'Answer from the Thai alone to grow your score';
-
-  @override
-  String get coachFlowPage2Bullet2Emphasis => 'from the Thai alone';
+  String get coachSummaryTipsEmphasis => 'from the Thai alone';
 
   @override
   String get coachFlowPage1Title => 'Sentence and quiz, on repeat';
 
   @override
-  String get coachFlowPage2Title => 'The 5-question quiz';
+  String get coachSummaryTipsTitle => 'Tips for the 5-question quiz';
 
   @override
-  String coachFlowStepLabel(int current, int total) {
-    return '$current / $total';
-  }
-
-  @override
-  String get coachFlowNext => 'Next';
-
-  @override
-  String get coachFlowStart => 'Start';
+  String get coachFlowContinue => 'Keep going';
 
   @override
   String get coachTopicTitle => 'Pick a topic, get deep into Thai culture';
+
+  @override
+  String get coachTopicNext => 'Go to next sentence';
 
   @override
   String get coachTopicMessage =>
@@ -1032,7 +1017,7 @@ class L10nEn extends L10n {
       'Pick a topic, get deep into Thai culture';
 
   @override
-  String get paywallFeatureTopicFree => 'Chosen at random';
+  String get paywallFeatureTopicFree => 'Random, from beginner topics';
 
   @override
   String get paywallFeatureTopicPremium =>
@@ -1083,6 +1068,17 @@ class L10nEn extends L10n {
 
   @override
   String get coachGotIt => 'Got it';
+
+  @override
+  String get coachNext => 'Next';
+
+  @override
+  String get coachBack => 'Back';
+
+  @override
+  String coachStepLabel(int current, int total) {
+    return '$current / $total';
+  }
 
   @override
   String get interviewIntroTitle => 'Four quick questions';

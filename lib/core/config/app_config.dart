@@ -71,7 +71,7 @@ class AppConfig {
   static const String prefKeyTourFinishCoachShown = 'tour_finish_coach_shown';
 
   /// 学習の流れ（例文→クイズ→…、5問クイズで語彙スコアが動く）を教える
-  /// 複数ページ案内の表示済みフラグ。
+  /// 案内の表示済みフラグ。
   static const String prefKeyLearningFlowCoachShown =
       'learning_flow_coach_shown';
 

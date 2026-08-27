@@ -661,12 +661,6 @@ abstract class L10n {
   /// **'プレミアムを見る'**
   String get coachTourFinishSeePremium;
 
-  /// No description provided for @coachTourFinishNext.
-  ///
-  /// In ja, this message translates to:
-  /// **'次の例文へ'**
-  String get coachTourFinishNext;
-
   /// No description provided for @coachTourFinishQuota.
   ///
   /// In ja, this message translates to:
@@ -678,6 +672,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'今後の進め方'**
   String get coachFlowTitle;
+
+  /// No description provided for @coachFlowGreeting.
+  ///
+  /// In ja, this message translates to:
+  /// **'お疲れ様でした。ここまでが一通りの流れです。'**
+  String get coachFlowGreeting;
 
   /// No description provided for @coachFlowLoopSentence.
   ///
@@ -700,38 +700,20 @@ abstract class L10n {
   /// No description provided for @coachFlowBody1.
   ///
   /// In ja, this message translates to:
-  /// **'例文を読んで、クイズで確認。これをくり返します。'**
+  /// **'例文を読んで、クイズで確認。'**
   String get coachFlowBody1;
 
-  /// No description provided for @coachFlowBody1Emphasis.
+  /// No description provided for @coachSummaryTipsBody.
   ///
   /// In ja, this message translates to:
-  /// **'くり返します'**
-  String get coachFlowBody1Emphasis;
+  /// **'タイ語だけを見て答えられた問題ほど、語彙スコアは伸びます。まずは日本語を見ずに挑戦してみましょう。'**
+  String get coachSummaryTipsBody;
 
-  /// No description provided for @coachFlowPage2Bullet1.
-  ///
-  /// In ja, this message translates to:
-  /// **'タイ文字が読めないうちは「例文を復習する」で確認できます'**
-  String get coachFlowPage2Bullet1;
-
-  /// No description provided for @coachFlowPage2Bullet1Emphasis.
-  ///
-  /// In ja, this message translates to:
-  /// **'「例文を復習する」'**
-  String get coachFlowPage2Bullet1Emphasis;
-
-  /// No description provided for @coachFlowPage2Bullet2.
-  ///
-  /// In ja, this message translates to:
-  /// **'語彙スコアを伸ばすには、タイ語だけを見て答えてみましょう'**
-  String get coachFlowPage2Bullet2;
-
-  /// No description provided for @coachFlowPage2Bullet2Emphasis.
+  /// No description provided for @coachSummaryTipsEmphasis.
   ///
   /// In ja, this message translates to:
   /// **'タイ語だけを見て'**
-  String get coachFlowPage2Bullet2Emphasis;
+  String get coachSummaryTipsEmphasis;
 
   /// No description provided for @coachFlowPage1Title.
   ///
@@ -739,35 +721,29 @@ abstract class L10n {
   /// **'例文とクイズをくり返す'**
   String get coachFlowPage1Title;
 
-  /// No description provided for @coachFlowPage2Title.
+  /// No description provided for @coachSummaryTipsTitle.
   ///
   /// In ja, this message translates to:
-  /// **'例文5つごとの5問クイズ'**
-  String get coachFlowPage2Title;
+  /// **'5問クイズのコツ'**
+  String get coachSummaryTipsTitle;
 
-  /// No description provided for @coachFlowStepLabel.
+  /// No description provided for @coachFlowContinue.
   ///
   /// In ja, this message translates to:
-  /// **'{current} / {total}'**
-  String coachFlowStepLabel(int current, int total);
-
-  /// No description provided for @coachFlowNext.
-  ///
-  /// In ja, this message translates to:
-  /// **'次へ'**
-  String get coachFlowNext;
-
-  /// No description provided for @coachFlowStart.
-  ///
-  /// In ja, this message translates to:
-  /// **'はじめる'**
-  String get coachFlowStart;
+  /// **'このまま続ける'**
+  String get coachFlowContinue;
 
   /// No description provided for @coachTopicTitle.
   ///
   /// In ja, this message translates to:
   /// **'テーマを選んでタイ文化に親しむ'**
   String get coachTopicTitle;
+
+  /// No description provided for @coachTopicNext.
+  ///
+  /// In ja, this message translates to:
+  /// **'次の例文に進む'**
+  String get coachTopicNext;
 
   /// No description provided for @coachTopicMessage.
   ///
@@ -1834,7 +1810,7 @@ abstract class L10n {
   /// No description provided for @paywallFeatureTopicFree.
   ///
   /// In ja, this message translates to:
-  /// **'ランダム'**
+  /// **'入門テーマからランダム'**
   String get paywallFeatureTopicFree;
 
   /// No description provided for @paywallFeatureTopicPremium.
@@ -1926,6 +1902,24 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'わかった'**
   String get coachGotIt;
+
+  /// No description provided for @coachNext.
+  ///
+  /// In ja, this message translates to:
+  /// **'次へ'**
+  String get coachNext;
+
+  /// No description provided for @coachBack.
+  ///
+  /// In ja, this message translates to:
+  /// **'戻る'**
+  String get coachBack;
+
+  /// No description provided for @coachStepLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'{current} / {total}'**
+  String coachStepLabel(int current, int total);
 
   /// No description provided for @interviewIntroTitle.
   ///

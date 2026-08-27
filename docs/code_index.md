@@ -165,7 +165,7 @@ lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセル。
 
 lib/presentation/widgets/coach_mark_overlay.dart
-指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。一呼吸おいてから対象が光って押せるようになる（「わかった」ボタンは持たない）。id/analytics を渡すと shown/tapped/dismissed/closed をGA4へ送る。
+指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。出した時点で対象もボタンもすぐ押せる。id/analytics を渡すと shown/tapped/dismissed/closed をGA4へ送る。
 
 lib/presentation/widgets/sign_in_reminder_banner.dart
 匿名ユーザーへ3日非アクティブでの進捗削除を警告しサインインを促すバナー（今日タブ）。告知は3日だが実削除は7日（ANON_INACTIVE_DAYS）で意図的にずらしている。
@@ -183,7 +183,10 @@ lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
 
 lib/presentation/widgets/learning_flow_coach_dialog.dart
-学習の流れ（例文→クイズの繰り返し、5問クイズで語彙スコアが動く）を3ページで教えるダイアログ。締めくくりの直後に1回だけ。
+学習の流れ（例文→クイズの繰り返し）を1枚で教えるダイアログ。締めくくりの直後に1回だけ。
+
+lib/presentation/widgets/coach_bullet_text.dart
+案内ダイアログ共用の、本文の一部だけを強調して描くテキストウィジェット。
 
 lib/presentation/widgets/premium_trial_ended_dialog.dart
 プレミアム体験トライアル終了を伝えて登録へ誘導するダイアログ。起動時に一度だけ表示。

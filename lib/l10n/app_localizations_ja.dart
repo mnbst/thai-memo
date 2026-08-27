@@ -304,15 +304,15 @@ class L10nJa extends L10n {
   String get coachTourFinishSeePremium => 'プレミアムを見る';
 
   @override
-  String get coachTourFinishNext => '次の例文へ';
-
-  @override
   String coachTourFinishQuota(int free, int premium) {
     return '例文は無料版で1日$free文、プレミアムなら1日$premium文まで作れます。';
   }
 
   @override
   String get coachFlowTitle => '今後の進め方';
+
+  @override
+  String get coachFlowGreeting => 'お疲れ様でした。ここまでが一通りの流れです。';
 
   @override
   String get coachFlowLoopSentence => '例文';
@@ -324,42 +324,29 @@ class L10nJa extends L10n {
   String get coachFlowLoopSummary => '5問クイズ';
 
   @override
-  String get coachFlowBody1 => '例文を読んで、クイズで確認。これをくり返します。';
+  String get coachFlowBody1 => '例文を読んで、クイズで確認。';
 
   @override
-  String get coachFlowBody1Emphasis => 'くり返します';
+  String get coachSummaryTipsBody =>
+      'タイ語だけを見て答えられた問題ほど、語彙スコアは伸びます。まずは日本語を見ずに挑戦してみましょう。';
 
   @override
-  String get coachFlowPage2Bullet1 => 'タイ文字が読めないうちは「例文を復習する」で確認できます';
-
-  @override
-  String get coachFlowPage2Bullet1Emphasis => '「例文を復習する」';
-
-  @override
-  String get coachFlowPage2Bullet2 => '語彙スコアを伸ばすには、タイ語だけを見て答えてみましょう';
-
-  @override
-  String get coachFlowPage2Bullet2Emphasis => 'タイ語だけを見て';
+  String get coachSummaryTipsEmphasis => 'タイ語だけを見て';
 
   @override
   String get coachFlowPage1Title => '例文とクイズをくり返す';
 
   @override
-  String get coachFlowPage2Title => '例文5つごとの5問クイズ';
+  String get coachSummaryTipsTitle => '5問クイズのコツ';
 
   @override
-  String coachFlowStepLabel(int current, int total) {
-    return '$current / $total';
-  }
-
-  @override
-  String get coachFlowNext => '次へ';
-
-  @override
-  String get coachFlowStart => 'はじめる';
+  String get coachFlowContinue => 'このまま続ける';
 
   @override
   String get coachTopicTitle => 'テーマを選んでタイ文化に親しむ';
+
+  @override
+  String get coachTopicNext => '次の例文に進む';
 
   @override
   String get coachTopicMessage =>
@@ -956,7 +943,7 @@ class L10nJa extends L10n {
   String get paywallFeatureTopicTitle => 'テーマを選んでタイ文化に親しむ';
 
   @override
-  String get paywallFeatureTopicFree => 'ランダム';
+  String get paywallFeatureTopicFree => '入門テーマからランダム';
 
   @override
   String get paywallFeatureTopicPremium => '祭り・寺院の作法・BLドラマなど自分で選べる';
@@ -1002,6 +989,17 @@ class L10nJa extends L10n {
 
   @override
   String get coachGotIt => 'わかった';
+
+  @override
+  String get coachNext => '次へ';
+
+  @override
+  String get coachBack => '戻る';
+
+  @override
+  String coachStepLabel(int current, int total) {
+    return '$current / $total';
+  }
 
   @override
   String get interviewIntroTitle => '4つ質問させてください';

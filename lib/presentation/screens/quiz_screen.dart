@@ -20,6 +20,7 @@ import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
 import '../widgets/loading_tip_carousel.dart';
+import '../widgets/coach_bullet_text.dart';
 import '../widgets/topic_picker.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
@@ -219,7 +220,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // 「次のテーマを選べる」を見せる方が、次の例文の話として続けて読める。
     final finished = await _maybeShowTourFinishCoach();
     if (!mounted) return;
-    await _maybeShowNextTopicCoach();
+    await _maybeShowNextTopicCoach(advancesAfterConfirm: finished);
     if (!mounted) return;
     // 次の例文へ進むのは案内をすべて読んだ後。テーマの案内より先に進めると、
     // 画面が切り替わって対象のチップごと消える。
@@ -361,7 +362,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   /// 結果画面の「次のテーマ」変更チップを初回だけスポットライトで案内する。
   /// チップが表示される（＝次の例文へ進める）場合のみ、1回限り。
   /// 誘導ボタンがある確認クイズのサマリーではコーチが重ならないよう譲る。
-  Future<void> _maybeShowNextTopicCoach() async {
+  ///
+  /// [advancesAfterConfirm] が true の回は、閉じた後に次の例文へ進む。
+  /// ボタンの文言をその行き先に合わせる。
+  Future<void> _maybeShowNextTopicCoach({
+    required bool advancesAfterConfirm,
+  }) async {
     if (widget.onNextSentence == null) return;
     if (widget.onOptionalChallenge != null) return;
     final prefs = await SharedPreferences.getInstance();
@@ -394,7 +400,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         message: L10n.of(context).coachTopicMessage,
         // テーマを変えるかどうかは本人が決める。ここは在り処を教えるだけ。
         targetTappable: false,
-        confirmLabel: L10n.of(context).coachGotIt,
+        confirmLabel: advancesAfterConfirm
+            ? L10n.of(context).coachTopicNext
+            : L10n.of(context).coachGotIt,
         onDismiss: (_) {
           if (!completer.isCompleted) completer.complete();
         },
@@ -1962,91 +1970,131 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
 
 /// 機能紹介の締めくくり。画面の一部ではなく全体の締めなので、スポットライト
 /// ではなく中央のダイアログで出す。
-class _TourFinishDialog extends ConsumerWidget {
+///
+/// 2ページに分ける。1ページ目は5問クイズの解き方（解き終えた直後なので、次に
+/// 活かせる話として読める）、2ページ目は間違えた例文の扱い。1枚に詰めると
+/// どちらも同じ重さで並んで、どちらも読まれない。
+class _TourFinishDialog extends ConsumerStatefulWidget {
   const _TourFinishDialog();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TourFinishDialog> createState() => _TourFinishDialogState();
+}
+
+class _TourFinishDialogState extends ConsumerState<_TourFinishDialog> {
+  int _page = 0;
+
+  static const _pageCount = 2;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = L10n.of(context);
     final theme = Theme.of(context);
-    final emphasis = l10n.coachTourFinishEmphasis;
-    final message = l10n.coachTourFinishMessage;
-    final start = message.indexOf(emphasis);
-    final baseStyle = theme.textTheme.bodyMedium;
     // すでにプレミアムの人に回数差とペイウォールを見せても意味がない。
     final isPremium = ref.watch(isPremiumProvider);
+    final isLast = _page == _pageCount - 1;
 
     return AlertDialog(
       icon: Icon(
-        Icons.emoji_events_outlined,
+        _page == 0 ? Icons.emoji_events_outlined : Icons.autorenew,
         color: theme.colorScheme.primary,
         size: 32,
       ),
-      title: Text(l10n.coachTourFinishTitle),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text.rich(
-            start < 0
-                ? TextSpan(text: message, style: baseStyle)
-                : TextSpan(
-                    style: baseStyle,
-                    children: [
-                      TextSpan(text: message.substring(0, start)),
-                      // 初回ガイドの吹き出しと同じ強調に揃える。
-                      TextSpan(
-                        text: emphasis,
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      TextSpan(
-                        text: message.substring(start + emphasis.length),
-                      ),
-                    ],
-                  ),
-          ),
-          if (!isPremium) ...[
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.bolt,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    l10n.coachTourFinishQuota(
-                      freeDailySentences,
-                      premiumDailySentences,
-                    ),
-                    style: baseStyle?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
+      title: Text(
+        _page == 0 ? l10n.coachSummaryTipsTitle : l10n.coachTourFinishTitle,
+      ),
+      // ページを差し替えて出す。高さを決め打ちすると、短いページで下に
+      // 大きな余白が残る。
+      content: AnimatedSize(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        alignment: Alignment.topCenter,
+        child: _page == 0
+            ? CoachEmphasizedText(
+                key: const ValueKey('tour_finish_page_0'),
+                text: l10n.coachSummaryTipsBody,
+                emphasis: l10n.coachSummaryTipsEmphasis,
+                style: theme.textTheme.bodyMedium,
+              )
+            : _TourFinishRecapPage(
+                key: const ValueKey('tour_finish_page_1'),
+                isPremium: isPremium,
+              ),
+      ),
+      // 端末の文字サイズを大きくしている場合でも溢れないようにする。
+      scrollable: true,
+      actions: [
+        Row(
+          children: [
+            Text(
+              l10n.coachStepLabel(_page + 1, _pageCount),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const Spacer(),
+            if (isLast && !isPremium)
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(l10n.coachTourFinishSeePremium),
+              ),
+            // ここは読み物なので閉じるだけ。次の例文へ進むのは、この後に出る
+            // テーマの案内を読み終えてから。
+            FilledButton(
+              onPressed: () => isLast
+                  ? Navigator.pop(context, false)
+                  : setState(() => _page += 1),
+              child: Text(isLast ? l10n.coachGotIt : l10n.coachNext),
             ),
           ],
-        ],
-      ),
-      actions: [
-        if (!isPremium)
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.coachTourFinishSeePremium),
-          ),
-        // 閉じるとそのまま次の例文へ進む。「わかった」では何が起きるか
-        // 分からないので、進み先をそのままボタンに書く。
-        FilledButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: Text(l10n.coachTourFinishNext),
         ),
+      ],
+    );
+  }
+}
+
+/// 締めくくりの本文。間違えた例文の扱いと、1日に作れる本数。
+class _TourFinishRecapPage extends StatelessWidget {
+  const _TourFinishRecapPage({super.key, required this.isPremium});
+
+  final bool isPremium;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
+    final theme = Theme.of(context);
+    final baseStyle = theme.textTheme.bodyMedium;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CoachEmphasizedText(
+          text: l10n.coachTourFinishMessage,
+          emphasis: l10n.coachTourFinishEmphasis,
+          style: baseStyle,
+        ),
+        if (!isPremium) ...[
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.bolt, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  l10n.coachTourFinishQuota(
+                    freeDailySentences,
+                    premiumDailySentences,
+                  ),
+                  style: baseStyle?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
