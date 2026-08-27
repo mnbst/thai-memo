@@ -1,0 +1,85 @@
+{"api": "get_pos_japanese", "in": "กรุงเทพฯ", "out": "固有名詞", "tier": 1}
+{"api": "get_pos_japanese", "in": "กิน", "out": "動詞", "tier": 1}
+{"api": "get_pos_japanese", "in": "ขอบคุณ", "out": "動詞", "tier": 1}
+{"api": "get_pos_japanese", "in": "คอมพิวเตอร์", "out": "名詞", "tier": 1}
+{"api": "get_pos_japanese", "in": "สวย", "out": "形容詞", "tier": 1}
+{"api": "get_pos_japanese", "in": "สวัสดี", "out": "動詞", "tier": 1}
+{"api": "get_pos_japanese", "in": "อาหาร", "out": "名詞", "tier": 1}
+{"api": "get_pos_japanese", "in": "เร็ว", "out": "形容詞", "tier": 1}
+{"api": "get_pos_japanese", "in": "โรงเรียน", "out": "名詞", "tier": 1}
+{"api": "get_pos_japanese", "in": "ไม่รู้", "out": "名詞", "tier": 1}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "กรุงเทพฯ", "out": [["กรุงเทพฯ", "PROPN"]], "tier": 2}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "กิน", "out": [["กิน", "VERB"]], "tier": 2}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "ขอบคุณ", "out": [["ขอบคุณ", "VERB"]], "tier": 2}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "คอมพิวเตอร์", "out": [["คอมพิวเตอร์", "NOUN"]], "tier": 2}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "สวย", "out": [["สวย", "NOUN"]], "tier": 2}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "สวัสดี", "out": [["สวัสดี", "NOUN"]], "tier": 2}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "อาหาร", "out": [["อาหาร", "NOUN"]], "tier": 2}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "เร็ว", "out": [["เร็ว", "ADV"]], "tier": 2}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "โรงเรียน", "out": [["โรงเรียน", "NOUN"]], "tier": 2}
+{"api": "pos_tag_perceptron_orchid_ud", "in": "ไม่รู้", "out": [["ไม่รู้", "NOUN"]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "กรุงเทพฯ", "out": [["กรุงเทพฯ", ""]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "กิน", "out": [["กิน", "VERB"]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "ขอบคุณ", "out": [["ขอบคุณ", "VERB"]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "คอมพิวเตอร์", "out": [["คอมพิวเตอร์", "NOUN"]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "สวย", "out": [["สวย", "VERB"]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "สวัสดี", "out": [["สวัสดี", "VERB"]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "อาหาร", "out": [["อาหาร", "NOUN"]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "เร็ว", "out": [["เร็ว", "ADV"]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "โรงเรียน", "out": [["โรงเรียน", "NOUN"]], "tier": 2}
+{"api": "pos_tag_unigram_tud", "in": "ไม่รู้", "out": [["ไม่รู้", ""]], "tier": 2}
+{"api": "segment_syllables", "in": "กรุงเทพฯ", "out": ["กรุง", "เทพ", "ฯ"], "tier": 1}
+{"api": "segment_syllables", "in": "กิน", "out": ["กิน"], "tier": 1}
+{"api": "segment_syllables", "in": "ขอบคุณ", "out": ["ขอบ", "คุณ"], "tier": 1}
+{"api": "segment_syllables", "in": "คอมพิวเตอร์", "out": ["คอม", "พิว", "เตอร์"], "tier": 1}
+{"api": "segment_syllables", "in": "สวย", "out": ["สวย"], "tier": 1}
+{"api": "segment_syllables", "in": "สวัสดี", "out": ["สวัส", "ดี"], "tier": 1}
+{"api": "segment_syllables", "in": "อาหาร", "out": ["อา", "หาร"], "tier": 1}
+{"api": "segment_syllables", "in": "เร็ว", "out": ["เร็ว"], "tier": 1}
+{"api": "segment_syllables", "in": "โรงเรียน", "out": ["โรง", "เรียน"], "tier": 1}
+{"api": "segment_syllables", "in": "ไม่รู้", "out": ["ไม่", "รู้"], "tier": 1}
+{"api": "subword_tokenize", "in": "กรุงเทพฯ", "out": ["กรุง", "เทพ", "ฯ"], "tier": 2}
+{"api": "subword_tokenize", "in": "กิน", "out": ["กิน"], "tier": 2}
+{"api": "subword_tokenize", "in": "ขอบคุณ", "out": ["ขอบ", "คุณ"], "tier": 2}
+{"api": "subword_tokenize", "in": "คอมพิวเตอร์", "out": ["คอม", "พิว", "เตอร์"], "tier": 2}
+{"api": "subword_tokenize", "in": "สวย", "out": ["สวย"], "tier": 2}
+{"api": "subword_tokenize", "in": "สวัสดี", "out": ["สวัส", "ดี"], "tier": 2}
+{"api": "subword_tokenize", "in": "อาหาร", "out": ["อา", "หาร"], "tier": 2}
+{"api": "subword_tokenize", "in": "เร็ว", "out": ["เร็ว"], "tier": 2}
+{"api": "subword_tokenize", "in": "โรงเรียน", "out": ["โรง", "เรียน"], "tier": 2}
+{"api": "subword_tokenize", "in": "ไม่รู้", "out": ["ไม่", "รู้"], "tier": 2}
+{"api": "th2ipa", "in": "กรุงเทพฯ", "out": "kruŋ1.tʰeːp3 pai1+jaːn1+noj4 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "กิน", "out": "kin1 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "ขอบคุณ", "out": "kʰᴐːp2.kʰun1 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "คอมพิวเตอร์", "out": "kʰᴐːm1.pʰiw1.tɤː3 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "คุณพูดภาษาไทยได้ไหมครับ", "out": "kʰun1 pʰuːt3 pʰaː1.saː5.tʰaj1 daːj3 maj5 kʰrap4 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "ฉันอยากเรียนภาษาไทยให้เก่งกว่านี้", "out": "cʰan5 jaːk2 riːan1 pʰaː1.saː5.tʰaj1 haj3 keŋ2 kwaː2 niː4 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "ผมชอบกินข้าวผัดที่ร้านนี้มาก", "out": "pʰom5 cʰᴐːp3 kin1 kʰaːw3.pʰat2 tʰiː3 raːn4 niː4 maːk3 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "วันนี้อากาศดีมากเลยนะ", "out": "wan1.niː4 ʔaː1.kaːt2 diː1 maːk3 lɤːj1 na4 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "สวย", "out": "suːaj5 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "สวัสดี", "out": "sa2.wat2.diː1 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "อาหาร", "out": "ʔaː1.haːn5 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "เขาไปกรุงเทพฯ เมื่อวานนี้", "out": "kʰaw5 paj1 kruŋ1.tʰeːp3 pai1+jaːn1+noj4 <s/>mɯːa3.waːn1.niː4 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "เร็ว", "out": "rew1 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "โรงเรียน", "out": "roːŋ1.riːan1 <s/>", "tier": 2}
+{"api": "th2ipa", "in": "ไม่รู้", "out": "maj3 ruː4 <s/>", "tier": 2}
+{"api": "thai_to_pronunciation", "in": "กรุงเทพฯ", "out": "krung-thêep", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "กิน", "out": "kin", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "ขอบคุณ", "out": "khɔ̀ɔp-khun", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "คอมพิวเตอร์", "out": "khɔɔm-phiw-tə̂ə", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "คุณพูดภาษาไทยได้ไหมครับ", "out": "khun-phûut-phaa-sǎa-thai-dâai-mǎi-khráp", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "ฉันอยากเรียนภาษาไทยให้เก่งกว่านี้", "out": "chǎn-yàak-riian-phaa-sǎa-thai-hâi-kèng-kwàa-níi", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "ผมชอบกินข้าวผัดที่ร้านนี้มาก", "out": "phǒm-chɔ̂ɔp-kin-khâaw-phàt-thîi-ráan-níi-mâak", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "วันนี้อากาศดีมากเลยนะ", "out": "wan-níi-aa-kàat-dii-mâak-ləəi-ná", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "สวย", "out": "sǔuai", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "สวัสดี", "out": "sà-wàt-dii", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "อาหาร", "out": "aa-hǎan", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "เขาไปกรุงเทพฯ เมื่อวานนี้", "out": "khǎw-pai-krung-thêep mʉ̂ʉa-waan-níi", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "เร็ว", "out": "rew", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "โรงเรียน", "out": "roong-riian", "tier": 1}
+{"api": "thai_to_pronunciation", "in": "ไม่รู้", "out": "mâi-rúu", "tier": 1}
+{"api": "tokenize_words", "in": "คุณพูดภาษาไทยได้ไหมครับ", "out": ["คุณ", "พูด", "ภาษาไทย", "ได้", "ไหม", "ครับ"], "tier": 1}
+{"api": "tokenize_words", "in": "ฉันอยากเรียนภาษาไทยให้เก่งกว่านี้", "out": ["ฉัน", "อยาก", "เรียน", "ภาษาไทย", "ให้", "เก่ง", "กว่า", "นี้"], "tier": 1}
+{"api": "tokenize_words", "in": "ผมชอบกินข้าวผัดที่ร้านนี้มาก", "out": ["ผม", "ชอบ", "กิน", "ข้าวผัด", "ที่", "ร้าน", "นี้", "มาก"], "tier": 1}
+{"api": "tokenize_words", "in": "วันนี้อากาศดีมากเลยนะ", "out": ["วันนี้", "อากาศ", "ดีมาก", "เลย", "นะ"], "tier": 1}
+{"api": "tokenize_words", "in": "เขาไปกรุงเทพฯ เมื่อวานนี้", "out": ["เขา", "ไป", "กรุงเทพฯ", "เมื่อวาน", "นี้"], "tier": 1}

@@ -115,3 +115,16 @@ variable "app_check_debug_token" {
   default     = ""
   sensitive   = true
 }
+
+variable "enable_scheduled_jobs" {
+  description = <<-EOT
+    定期実行ジョブ（Cloud Scheduler）を作るか。
+
+    dev では false にする。JS 版の isDevOnly() が dev だけスケジューラを外して
+    いたのと同じ方針で、dev の関数は手で叩いたときだけ動く。
+    Go 版の関数は環境によらず HTTP トリガーなので、定期実行の有無は
+    このジョブの有無だけで決まる。
+  EOT
+  type        = bool
+  default     = true
+}

@@ -30,7 +30,7 @@
  */
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
-import { parseNotificationPayload } from './services/appStoreServer';
+import { AppleSignatureError, parseNotificationPayload } from './services/appStoreServer';
 import {
   FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES,
   PREMIUM_DAILY_SENTENCES, PREMIUM_DAILY_QUIZZES,
@@ -216,7 +216,17 @@ export const handleAppStoreNotification = functions.https.onRequest(
 
       res.status(200).send('OK');
     } catch (error) {
-      console.error('Error processing App Store notification:', error);
+      if (error instanceof AppleSignatureError) {
+        // 署名検証で弾いた。偽装通知なら正常な動作だが、本物を誤って弾いていると
+        // 課金状態が一切更新されない障害になる。200 を返す以上ログでしか気付けない
+        // ので、専用のイベント名で出して監視できるようにする。
+        console.error('App Store notification rejected by signature verification', {
+          event: 'appstore_notification_signature_rejected',
+          reason: error.message,
+        });
+      } else {
+        console.error('Error processing App Store notification:', error);
+      }
       // Apple expects 200 even on errors to avoid retries
       // エラーでも200を返す（Apple のリトライを防ぐため）
       res.status(200).send('OK');

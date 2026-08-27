@@ -1,0 +1,5 @@
+# gcloud functions deploy が既定で .gitignore を流用するのを止め、
+# アップロード対象を明示する。thainlp の埋め込みデータ（8.6MB）は
+# go:embed に必要なので必ず含めること。
+.git
+.gitignore

@@ -99,6 +99,21 @@ hWX7YHZnh+5tiPak7idoF9ejIUmhRANCAARJ1nUyvprWfsSXgS0ipEMGNTKf9Ww3
 8CwiHQsBK0XZY8JgZA1A5lrOTlF2T1vAUNmPCfbDuoypGeTGThW1X+E9
 -----END PRIVATE KEY-----`;
 
+/**
+ * 中間CA偽装用の偽リーフ証明書と、その秘密鍵。
+ *
+ * TEST_LEAF_CERT_B64（CA:FALSE）の秘密鍵で署名して作った証明書。
+ * 生成手順は scripts/appleTestCerts.ts を参照。
+ */
+// prettier-ignore
+const FORGED_LEAF_CERT_B64 = 'MIIBqTCCAVCgAwIBAgICEjQwCgYIKoZIzj0EAwIwPDEYMBYGA1UEAwwPQXBwbGUgQXBwIFN0b3JlMRMwEQYDVQQKDApBcHBsZSBJbmMuMQswCQYDVQQGEwJVUzAeFw0yNjA4MjcwMTIzNDBaFw0zNjA4MjQwMTIzNDBaMDwxGDAWBgNVBAMMD0FwcGxlIEFwcCBTdG9yZTETMBEGA1UECgwKQXBwbGUgSW5jLjELMAkGA1UEBhMCVVMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASnYGXSr/0iVB+/4ksO/Azo0WYy87sGGqDB0WJZndBStkwMYQHwwCoX2CT6GzthJoPfJcx1ySzbD0VZMDGYteYBo0IwQDAdBgNVHQ4EFgQUxKP0fPd6re95elMU0+QRUbyhBmswHwYDVR0jBBgwFoAUL/YCYx9GjbWlMxycrTntI+8qxZMwCgYIKoZIzj0EAwIDRwAwRAIgNQJuRZ2NcNr18CtMvDzw3BDwRaMiC43ew2H2ERMaqtoCIGNyiandqZLJEqTe/11SJOD0cujSz3oP2mSDozRhQ9o0';
+
+const FORGED_LEAF_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgPQ3a3UcI2D5xQUeV
+nFHcpNlC8b7wUhP1DNS/BWswmZqhRANCAASnYGXSr/0iVB+/4ksO/Azo0WYy87sG
+GqDB0WJZndBStkwMYQHwwCoX2CT6GzthJoPfJcx1ySzbD0VZMDGYteYB
+-----END PRIVATE KEY-----`;
+
 // ──────────────────────────────────────────────────────────
 // テスト用 JWS 生成ヘルパー
 // ──────────────────────────────────────────────────────────
@@ -126,6 +141,24 @@ async function createEvilJws(payload: Record<string, unknown>): Promise<string> 
     .setProtectedHeader({
       alg: 'ES256',
       x5c: [EVIL_LEAF_CERT_B64, EVIL_ROOT_CERT_B64],
+    })
+    .sign(privateKey);
+}
+
+/**
+ * 正規発行の非CA証明書を中間CAとして使った JWS（中間CA偽装）
+ *
+ * x5c = [偽leaf, TEST_LEAF（CA:FALSE）, TEST_ROOT]。
+ * 偽leaf は TEST_LEAF の秘密鍵で署名してあるため、隣接署名は全て正当になる。
+ */
+async function createForgedIntermediateJws(
+  payload: Record<string, unknown>
+): Promise<string> {
+  const privateKey = await importPKCS8(FORGED_LEAF_PRIVATE_KEY, 'ES256');
+  return new CompactSign(Buffer.from(JSON.stringify(payload)))
+    .setProtectedHeader({
+      alg: 'ES256',
+      x5c: [FORGED_LEAF_CERT_B64, TEST_LEAF_CERT_B64, TEST_ROOT_CERT_B64],
     })
     .sign(privateKey);
 }
@@ -290,9 +323,38 @@ describe('parseNotificationPayload（署名検証含む）', () => {
       );
     });
 
-    test('証明書チェーンの署名が不正な場合は例外をスローする', async () => {
-      // リーフ証明書を2回並べるとチェーン検証失敗（リーフはリーフによって署名されていない）
+    test('発行者の位置に非CA証明書があれば例外をスローする', async () => {
+      // リーフ証明書を2回並べる。1件目の発行者の位置に立つのはリーフ（CA:FALSE）
       const jws = await createBrokenChainJws({});
+      await expect(parseNotificationPayload(jws)).rejects.toThrow(
+        'Non-CA certificate used as issuer at index 1'
+      );
+    });
+
+    test('正規発行の非CA証明書を中間CAとして持ち込む攻撃を拒否する', async () => {
+      // TEST_LEAF_CERT_B64 は「ピン留めしたルートが正規に発行した、秘密鍵を
+      // こちらが持つ非CA証明書」= Apple の開発者向け配布証明書に相当する。
+      // これを中間CAの位置に置くと、隣接署名は全て正当・ルートの
+      // フィンガープリントも一致するチェーンが作れてしまう。
+      // basicConstraints を見ていないと通過する（2026-08 以前はこれが通った）。
+      const jws = await createForgedIntermediateJws({
+        notificationType: 'DID_RENEW',
+        data: {},
+      });
+      await expect(parseNotificationPayload(jws)).rejects.toThrow(
+        'Non-CA certificate used as issuer at index 1'
+      );
+    });
+
+    test('証明書チェーンの署名が不正な場合は例外をスローする', async () => {
+      // 発行者は CA（テスト用ルート）だが、リーフはそのルートで署名されていない
+      const privateKey = await importPKCS8(EVIL_LEAF_PRIVATE_KEY, 'ES256');
+      const jws = await new CompactSign(Buffer.from('{}'))
+        .setProtectedHeader({
+          alg: 'ES256',
+          x5c: [EVIL_LEAF_CERT_B64, TEST_ROOT_CERT_B64],
+        })
+        .sign(privateKey);
       await expect(parseNotificationPayload(jws)).rejects.toThrow(
         'Certificate chain verification failed'
       );
@@ -481,6 +543,43 @@ describe('verifyAppStorePurchase', () => {
       expect(calledUrl).toContain('api.storekit.apple.com');
       expect(calledUrl).not.toContain('sandbox');
     });
+
+    test('本番が 404 の場合はサンドボックスにフォールバックして検証する', async () => {
+      // TestFlight の購入は本番配布ビルドでも Sandbox 扱いになる
+      process.env.APP_STORE_ENVIRONMENT = 'production';
+      const signedTxInfo = await makeValidSignedTransactionInfo();
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          text: () => Promise.resolve(JSON.stringify({ errorCode: 4040010 })),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ signedTransactionInfo: signedTxInfo }),
+        });
+
+      const result = await verifyAppStorePurchase('tx_123');
+
+      const calls = (global.fetch as jest.Mock).mock.calls;
+      expect(calls[0][0]).toContain('api.storekit.apple.com');
+      expect(calls[1][0]).toContain('api.storekit-sandbox.apple.com');
+      expect(result.valid).toBe(true);
+    });
+
+    test('404 以外のエラーではフォールバックしない', async () => {
+      process.env.APP_STORE_ENVIRONMENT = 'production';
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        text: () => Promise.resolve(''),
+      });
+
+      await expect(verifyAppStorePurchase('tx_123')).rejects.toThrow(
+        'App Store API error: 401'
+      );
+      expect((global.fetch as jest.Mock)).toHaveBeenCalledTimes(1);
+    });
   });
 
   // ──────────────────────────────────────────────
@@ -500,17 +599,21 @@ describe('verifyAppStorePurchase', () => {
       );
     });
 
-    test('App Store API が 404 を返した場合は例外をスローする', async () => {
+    test('両方の環境で 404 の場合は例外をスローする', async () => {
       // トランザクション ID が存在しない場合
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      const notFound = () => ({
         ok: false,
         status: 404,
         text: () => Promise.resolve(JSON.stringify({ errorCode: 4040010 })),
       });
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(notFound())
+        .mockResolvedValueOnce(notFound());
 
       await expect(verifyAppStorePurchase('tx_123')).rejects.toThrow(
         'App Store API error: 404'
       );
+      expect((global.fetch as jest.Mock)).toHaveBeenCalledTimes(2);
     });
   });
 

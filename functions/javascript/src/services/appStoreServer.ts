@@ -17,11 +17,14 @@
  * - 本番: api.storekit.apple.com
  * - サンドボックス: api.storekit-sandbox.apple.com
  *   ※ APP_STORE_ENVIRONMENT 環境変数で切替（Cloud Functions の環境設定）
+ *   ※ 購入検証は上記を優先し、404 の場合のみ反対側の環境へフォールバックする
+ *     （本番配布ビルドでも TestFlight の購入は Sandbox 扱いになるため）
  *
  * 【署名検証】
  * parseNotificationPayload() は JWS の x5c 証明書チェーンを検証し、
  * リーフ証明書の公開鍵で署名を確認する。
- * チェーンのルートが Apple Root CA G3 であることをフィンガープリントで確認している。
+ * チェーンのルートが Apple Root CA G3 であることをフィンガープリントで確認し、
+ * 発行者の位置に非CA証明書が紛れ込んでいないことも確認している。
  */
 import * as crypto from 'crypto';
 import * as jose from 'jose';
@@ -38,6 +41,21 @@ export function getAppleRootCaFingerprint(): string {
 
 export function setAppleRootCaFingerprintForTest(fingerprint: string): void {
   _appleRootCaG3Fingerprint = fingerprint;
+}
+
+/**
+ * 署名検証で通知を弾いたことを表す。
+ *
+ * 通知ハンドラは Apple のリトライを避けるため、検証に失敗しても HTTP 200 を返す。
+ * つまり「偽装通知を弾いた」も「本物の通知を誤って弾いた」も応答からは区別できない。
+ * 後者は課金状態が一切更新されなくなる障害なので、呼び出し側がこの型を見て
+ * 専用のログを出し、監視できるようにしている。
+ */
+export class AppleSignatureError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AppleSignatureError';
+  }
 }
 
 /** GCP Secret Manager クライアント（API キーやシークレットの取得に使用） */
@@ -160,30 +178,53 @@ function decodeSignedPayload<T>(signedPayload: string): T {
  * x5c ヘッダーの証明書チェーンを検証し、リーフ証明書の公開鍵で JWS 署名を確認する。
  *
  * 検証内容:
- * 1. x5c チェーン内の各証明書が次の証明書で署名されていること
- * 2. ルート証明書のフィンガープリントが Apple Root CA G3 と一致すること
- * 3. リーフ証明書の公開鍵で JWS 署名が正当であること
+ * 1. 発行者の位置に立つ証明書が CA であること（basicConstraints）
+ * 2. x5c チェーン内の各証明書が次の証明書で署名されていること
+ * 3. ルート証明書のフィンガープリントが Apple Root CA G3 と一致すること
+ * 4. リーフ証明書の公開鍵で JWS 署名が正当であること
  *
  * @throws 検証失敗時は Error をスロー
  */
 async function verifyAppleJwsSignature(signedPayload: string): Promise<void> {
   const parts = signedPayload.split('.');
-  if (parts.length !== 3) throw new Error('Invalid JWS format');
+  if (parts.length !== 3) throw new AppleSignatureError('Invalid JWS format');
 
   const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf-8'));
   const x5c: string[] | undefined = header.x5c;
 
   if (!x5c || x5c.length < 2) {
-    throw new Error('Missing or incomplete x5c certificate chain in JWS header');
+    throw new AppleSignatureError('Missing or incomplete x5c certificate chain in JWS header');
   }
 
   // base64 DER → X509Certificate
   const certs = x5c.map(b64 => new crypto.X509Certificate(Buffer.from(b64, 'base64')));
 
+  // 発行者の位置に立つ証明書が CA であることを確認する。
+  //
+  // 署名の数学的な正しさだけを見ていると、「ピン留めしたルートが正規に発行した
+  // 非CA証明書」を中間CAとして持ち込む攻撃が通ってしまう。Apple の開発者向け
+  // 配布証明書は WWDR 発行で秘密鍵を開発者本人が持つため、それを使って偽の
+  // leaf に署名すれば、隣接署名は全て正当・ルートのフィンガープリントも一致する
+  // チェーンが作れる（basicConstraints 未検証の典型的な穴）。
+  // 配布証明書は CA:FALSE なので、ここで塞がる。
+  // 実物で確認済み（2026-08-27）:
+  //   Apple Root CA G3      CA:TRUE / Certificate Sign
+  //   Apple WWDR CA G6      CA:TRUE, pathlen:0 / Certificate Sign
+  // どちらも発行者の位置に来るが CA:TRUE なので、このチェックで
+  // 本番の通知が弾かれることはない。
+  // なお WWDR の pathlen:0 は「その下に CA を作れない」という Apple 自身の
+  // 制約で、上の攻撃も本来はここで否定されている（pathLenConstraint は
+  // JS/Go とも未検証なので、CA 判定の方で塞ぐ）。
+  for (let i = 1; i < certs.length; i++) {
+    if (!certs[i].ca) {
+      throw new AppleSignatureError(`Non-CA certificate used as issuer at index ${i}`);
+    }
+  }
+
   // 証明書チェーンの署名を検証（leaf → ... → root）
   for (let i = 0; i < certs.length - 1; i++) {
     if (!certs[i].verify(certs[i + 1].publicKey)) {
-      throw new Error(`Certificate chain verification failed at index ${i}`);
+      throw new AppleSignatureError(`Certificate chain verification failed at index ${i}`);
     }
   }
 
@@ -191,13 +232,34 @@ async function verifyAppleJwsSignature(signedPayload: string): Promise<void> {
   const rootCert = certs[certs.length - 1];
   const rootFingerprint = rootCert.fingerprint256;
   if (rootFingerprint !== _appleRootCaG3Fingerprint) {
-    throw new Error(`Untrusted root CA fingerprint: ${rootFingerprint}`);
+    throw new AppleSignatureError(`Untrusted root CA fingerprint: ${rootFingerprint}`);
   }
 
   // リーフ証明書の公開鍵で JWS 署名を検証
   const leafPem = certs[0].publicKey.export({ type: 'spki', format: 'pem' }) as string;
   const publicKey = await jose.importSPKI(leafPem, 'ES256');
-  await jose.compactVerify(signedPayload, publicKey);
+  try {
+    await jose.compactVerify(signedPayload, publicKey);
+  } catch (error) {
+    // jose 由来の例外も同じ型に揃える（呼び出し側が1つの型で判別できるように）
+    throw new AppleSignatureError(
+      error instanceof Error ? error.message : 'signature verification failed'
+    );
+  }
+}
+
+/**
+ * Get Transaction Info API を指定環境に対して呼び出す
+ *
+ * 環境フォールバック（本番 → サンドボックス）のために切り出している。
+ */
+async function fetchTransaction(
+  transactionId: string,
+  jwt: string,
+  environment: string
+): Promise<Response> {
+  const url = `https://${environment}.apple.com/inApps/v1/transactions/${transactionId}`;
+  return fetch(url, { headers: { Authorization: `Bearer ${jwt}` } });
 }
 
 /**
@@ -229,18 +291,34 @@ export async function verifyAppStorePurchase(
   }
 
   const jwt = await generateAppStoreJWT();
-  const environment = process.env.APP_STORE_ENVIRONMENT === 'production'
+
+  // 設定側の環境を優先し、404 なら反対側の環境を試す。
+  // TestFlight / Sandbox で購入したトランザクションは本番 API に存在せず
+  // 404（errorCode 4040010: Transaction id not found）になるため、
+  // フォールバックしないとテスターの購入検証が必ず失敗する。
+  const primaryEnv = process.env.APP_STORE_ENVIRONMENT === 'production'
     ? 'api.storekit' : 'api.storekit-sandbox';
+  const fallbackEnv = primaryEnv === 'api.storekit'
+    ? 'api.storekit-sandbox' : 'api.storekit';
 
-  const url = `https://${environment}.apple.com/inApps/v1/transactions/${transactionId}`;
+  let environment = primaryEnv;
+  let response = await fetchTransaction(transactionId, jwt, environment);
 
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${jwt}` },
-  });
+  if (response.status === 404) {
+    const errorBody = await response.text();
+    console.warn(
+      `App Store API 404 on ${primaryEnv}; retrying on ${fallbackEnv}`,
+      { transactionId, errorBody }
+    );
+    environment = fallbackEnv;
+    response = await fetchTransaction(transactionId, jwt, environment);
+  }
 
   if (!response.ok) {
     const errorBody = await response.text();
-    console.error(`App Store API error: ${response.status}`, { transactionId, errorBody });
+    console.error(`App Store API error: ${response.status}`, {
+      transactionId, environment, errorBody,
+    });
     throw new Error(`App Store API error: ${response.status}`);
   }
 

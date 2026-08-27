@@ -85,8 +85,20 @@ jest.mock('firebase-admin', () => ({
  * parseNotificationPayload をモック化して JWS 署名検証を除外し、
  * ビジネスロジックのみをテストする
  */
+/**
+ * 署名検証エラーの型。ハンドラは instanceof で判別して専用のログを出すため、
+ * モックにも同じ名前で用意する必要がある。
+ */
+class MockAppleSignatureError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AppleSignatureError';
+  }
+}
+
 jest.mock('../services/appStoreServer', () => ({
   parseNotificationPayload: mockParseNotificationPayload,
+  AppleSignatureError: MockAppleSignatureError,
 }));
 
 // ============================================================
@@ -277,6 +289,29 @@ describe('handleAppStoreNotification', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       // 不正な通知なので Firestore は更新しない
       expect(mockFirestoreSet).not.toHaveBeenCalled();
+    });
+
+    test('署名検証で弾いたことを専用のイベント名でログに出す', async () => {
+      // 200 を返す以上、応答からは「偽装を弾いた」と「本物を誤って弾いた」を
+      // 区別できない。後者は課金状態が更新されない障害になるので、
+      // 監視できるようログのイベント名を固定する。
+      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => { });
+      try {
+        mockParseNotificationPayload.mockRejectedValueOnce(
+          new MockAppleSignatureError('Non-CA certificate used as issuer at index 1')
+        );
+        await handler(makeReq({ signedPayload: 'forged.jws.token' }), makeRes());
+
+        expect(consoleError).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            event: 'appstore_notification_signature_rejected',
+            reason: 'Non-CA certificate used as issuer at index 1',
+          })
+        );
+      } finally {
+        consoleError.mockRestore();
+      }
     });
   });
 
