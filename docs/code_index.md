@@ -165,7 +165,7 @@ lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセル。
 
 lib/presentation/widgets/coach_mark_overlay.dart
-指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。一呼吸おいてから対象が光って押せるようになる（「わかった」ボタンは持たない）。id/analytics を渡すと shown/tapped/dismissed/closed をGA4へ送る。
+指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。出した時点で対象もボタンもすぐ押せる。id/analytics を渡すと shown/tapped/dismissed/closed をGA4へ送る。
 
 lib/presentation/widgets/sign_in_reminder_banner.dart
 匿名ユーザーへ3日非アクティブでの進捗削除を警告しサインインを促すバナー（今日タブ）。告知は3日だが実削除は7日（ANON_INACTIVE_DAYS）で意図的にずらしている。
@@ -181,6 +181,12 @@ lib/presentation/widgets/sentence_audio_player.dart
 
 lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
+
+lib/presentation/widgets/learning_flow_coach_dialog.dart
+学習の流れ（例文→クイズの繰り返し）を1枚で教えるダイアログ。締めくくりの直後に1回だけ。
+
+lib/presentation/widgets/coach_bullet_text.dart
+案内ダイアログ共用の、本文の一部だけを強調して描くテキストウィジェット。
 
 lib/presentation/widgets/premium_trial_ended_dialog.dart
 プレミアム体験トライアル終了を伝えて登録へ誘導するダイアログ。起動時に一度だけ表示。
@@ -220,7 +226,6 @@ lib/services/app_version_reporter.dart
 lib/services/interview_reporter.dart
 オンボ直後のヒアリング回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
-
 lib/services/daily_sentence_service.dart
 サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、今日ぶんの配信例文を返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
 
@@ -228,6 +233,9 @@ lib/services/daily_sentence_service.dart
 
 lib/core/thai_tone_analyzer.dart
 ルールベースのタイ語声調分析（子音クラス、音節タイプ、声調記号）。
+
+lib/core/pronunciation_text.dart
+ローマ字発音表記のサニタイズ（TLTK由来のバックスラッシュ混入を除去）。
 
 ## Pronunciation Practice (声調の発音判定)
 
@@ -289,159 +297,371 @@ lib/presentation/widgets/pronunciation_sheet.dart
 ## Cloud Functions — JavaScript/TypeScript
 
 functions/javascript/src/index.ts
-全Cloud Functionsのエクスポート（エントリーポイント）。
-
-functions/javascript/src/config/environment.ts
-dev/prod環境検出、環境変数。
-
-functions/javascript/src/config/constants.ts
-共通設定定数。
-
-### User & Subscription
+Authトリガー2本のエントリーポイント。
 
 functions/javascript/src/onUserCreate.ts
-Auth トリガー：アカウント作成時にユーザークォータ初期化。
-
-functions/javascript/src/verifySubscription.ts
-購入検証（Android/iOS）、Firestoreティア更新。
-
-functions/javascript/src/subscriptionStatus.ts
-Firestoreからサブスクリプション状態を照会。
+Authユーザー作成時にクォータとプレミアム体験期限を初期化。
 
 functions/javascript/src/deleteUserData.ts
-GDPR対応：ユーザーデータ削除。
-
-functions/javascript/src/setUserTier.ts
-管理者用callable：任意ユーザーのtierを手動切り替え（ADMIN_UIDS / custom claim admin で制限）。
-
-functions/javascript/src/services/tierService.ts
-tier付与の中核ロジック（クォータリセット・subscription書き込み・tier_grants監査ログ）。クーポン導線でも再利用する。
-
-### Notification Handlers
-
-functions/javascript/src/handlePlayNotification.ts
-Google Play RTDN（Pub/Sub）サブスクリプションイベント処理。
-
-functions/javascript/src/handleAppStoreNotification.ts
-App Store Webhookサブスクリプションイベント処理。
-
-### Content Generation & Batch
-
-functions/javascript/src/generateQuiz.ts
-復習キューからクイズ生成（回数上限なし。SRSの期日到来分だけが出題対象）。
-
-functions/javascript/src/dailyBatch.ts
-日次バッチ（JST 0:00）：日次クォータリセット、UVMのP値減衰、30日超過例文削除、非アクティブ匿名ユーザー削除。
-
-### Services
-
-functions/javascript/src/services/quizGenerationService.ts
-クイズ生成のプロンプト構築・サニタイズ・ルールベース変換。解説とダミー理由はlangでja/en分岐（NG例・書式は共有）。
-
-functions/javascript/src/services/geminiQuizService.ts
-Gemini API呼び出しによるQuizGenerationService実装。
-
-functions/javascript/src/services/secretManager.ts
-GCP Secret ManagerクライアントでAPIキー取得。
-
-functions/javascript/src/services/playBilling.ts
-Google Play Developer API v3 購入検証。
-
-functions/javascript/src/services/appStoreServer.ts
-App Store Server API v1 サブスクリプション検証。
-
-### Constants & Utilities
+Authユーザー削除時にFirestoreの関連データを削除。
 
 functions/javascript/src/constants/quota.ts
-例文の日次生成上限（free 5 / premium 20）。クイズ側の値は上限として機能しない。
-
-functions/javascript/src/constants/subscription.ts
-期限切れ降格の猶予・猶予期間上限・ストア platform 値。
-
-functions/javascript/src/constants/defaultQuizQuestions.ts
-クイズ生成フォールバック用デフォルト例文。
-
-functions/javascript/src/utils/formatDate.ts
-JST日付フォーマットユーティリティ。
+Authユーザー初期化で使うクォータと体験期間の定数。
 
 functions/javascript/src/utils/notifyUtcHour.ts
-配信希望時刻（現地）が対応するUTC時刻を算出。users.notify_utc_hourの非正規化に使う。
+配信希望時刻が対応するUTC時刻を算出。
 
 functions/javascript/src/utils/premium.ts
-実効プレミアム判定（課金 premium ＋ 体験トライアル期間中）。tier 直参照の代わりに使う。
-
-functions/javascript/src/utils/lang.ts
-リクエストのlangをja/enへ正規化。未知・欠落はja。Python側 constants.resolve_lang と同規則。
+プレミアム体験期限をJSTの日次境界へ揃える。
 
 ---
 
-## Cloud Functions — Python
+## Cloud Functions — Go
 
-functions/python/main.py
-`generateThaiSentence`・`updateUvm`・`deliverDailySentence`を再エクスポートするエントリーポイント。実処理は各handlers.py。
+functions/go/testdata/
+Python/JavaScriptからの移行時に確定した回帰テスト用goldenデータ。旧ランタイムなしでGo実装の互換性を検証する。
 
-functions/python/daily_sentence.py
-毎日例文の配信判定ロジック（段階バックオフ・反応評価・ローカル時刻）。副作用なしでテスト可能。
+functions/go/internal/thainlp/data.go
+移植用データのembedとロード。trigramからBiCount/Count/Type等をTLTKと同じ手順で導出する。
 
-functions/python/daily_sentence_handlers.py
-毎日例文の配信バッチ（毎時起動）。free=キャッシュ／premium=LLM生成（preferred_topic反映）でFirestoreに書きFCM送信。
+functions/go/internal/thainlp/thainlp.go
+Thai NLP公開APIのGo版のエントリ定義。
 
-functions/python/nlp.py
-PyThaiNLPラッパー（音節分割、発音変換、品詞タグ付け＋日本語ラベル）。品詞は機能語辞書→形容詞辞書→unigram→perceptronの順で判定。localize_posでenラベルへ変換。
+functions/go/internal/thainlp/wordparse.go
+語組み立てと音素確定のGo版。ProbPhone/SelectPhones/相互情報量（呼び出し内で累積）。移植済み。
 
-functions/python/nlp_worker.py
-nlp.pyを別プロセスで実行するワーカー。重いimportがGILで親のLLM処理を止めないようstdin/stdoutのJSON Linesで通信する。
+functions/go/internal/thainlp/th2ipa.go
+preprocess/g2p/th2ipaのGo版。IPA正規化まで。移植済み。
 
-functions/python/pythainlp_fast.py
-PyThaiNLPの軽量ローダ。sys.modulesにスタブを置きパッケージ__init__を飛ばして使うsubmoduleだけ読む（import 1.32s→0.37s）。失敗時は通常importにフォールバック。
+functions/go/internal/thainlp/pronunciation.go
+IPA→声調記号付きローマ字変換のGo版（pronunciation.py相当）。移植済み。
 
-functions/python/pos_adjectives.py
-形容詞（状態動詞）辞書。build_adjective_dict.pyが生成する自動生成ファイル。
+functions/go/internal/thainlp/postag.go
+POSタグ付けのGo版。unigram(tud)辞書引きとaveraged perceptron(orchid_ud)。移植済み。
 
-functions/python/scripts/build_non_vocab_dict.py
-freq_rank上位語をLLMに分類させnon_vocab.pyを生成するオフラインスクリプト。
+functions/go/internal/thainlp/sylrule.go
+th2ipa の音韻規則テーブル(PRON 2223本/stable/AK/EngAbbr)のロード。regexp2で先頭一致。
 
-functions/python/scripts/build_adjective_dict.py
-freq_rank上位語をLLMに分類させpos_adjectives.pyを生成するオフラインスクリプト。
+functions/go/internal/thainlp/sylparse.go
+音節解析のGo版。チャートDP・ReplaceSnd/ToneAssign/TransformSyl・Witten-Bell対数確率。移植済み。
 
-functions/python/bound_morphemes.py
-拘束形態素（น่า, การ など単独で自立しない語）辞書。freq_rank生成時に除外する語のリスト。build_bound_morpheme_dict.pyが生成する自動生成ファイル。
+functions/go/internal/thainlp/tokenize.go
+単語分割(newmm)・音節分割のGo版。TCC・Trie・最長一致・rejoin_formatted_num。移植済み。
 
-functions/python/interjections.py
-間投詞・感嘆詞（อ๋อ, เฮ้อ, โอ้ย など）辞書。freq_rank生成時に除外する語のリスト。手動メンテ。
+functions/go/internal/thainlp/posjapanese.go
+nlp.py の _tag_words/get_pos_japanese のGo版。override→形容詞辞書→unigram→perceptronの4段階。移植済み。
 
-functions/python/non_vocab.py
-学習語彙にならない語（終助詞มั้ง・人名断片ซู・口語崩れงี้）辞書。build_non_vocab_dict.pyが生成する自動生成ファイル。
+functions/go/functions.go
+Cloud Functions(2nd gen, goランタイム)のエントリポイント登録。gcloudの--entry-pointがここの名前を指す。
 
-functions/python/pronunciation.py
-タイ文字→ローマ字発音変換（声調記号付き）。TLTKはtltk/th2ipa.pyだけをファイル指定で単独ロードし、nltk/scipyの読み込みを回避する。
+functions/go/reset_learning_data.go
+resetLearningData の Go 版。学習データを全消しし free のクォータに戻す。resetLearningData.ts と等価。
 
-functions/python/prompts.py
-Gemini APIプロンプト構築（free/premium/UVM別パラメータ）。レジスタ制約・語クラス別ブロックは末尾に置く（system promptでは守られないため）。
+functions/go/internal/callable/callable.go
+Firebase callable プロトコルのGo実装。{"data"}/{"result"}/{"error"}電文・IDトークン検証・CORS。
+
+functions/go/internal/fbapp/fbapp.go
+Firebase Admin(Firestore/Auth)クライアントの遅延生成シングルトン。
+
+functions/go/internal/quota/quota.go
+生成回数クォータ定数。constants/quota.ts の移植（両者を一致させること）。
+
+functions/go/cmd/local/main.go
+デプロイ前のローカル起動用。FUNCTION_TARGETで関数を選ぶ。
+
+functions/go/reset_learning_data_live_test.go
+resetLearningDataを実Firestoreに対して回す検証テスト。LIVE_FIRESTORE_TEST=1のときだけ実行。
+
+functions/go/update_uvm.go
+updateUvm の Go 版。クイズ結果からUVMを更新する。uvm_handlers.py と等価。
+
+functions/go/internal/uvm/model.go
+UVMの純粋関数（update_p / moving_avg / estimate_vocab）と定数。uvm.py の移植。
+
+functions/go/internal/uvm/store.go
+UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。
+
+functions/go/internal/uvm/nickname.go
+ランキング表示名の自動採番。nicknames/{小文字名}をCreateで押さえて一意性を担保。
+
+functions/go/internal/uvm/freqrank.go
+GCSからfreq_rank_top10000.jsonを読みキャッシュする。
+
+functions/go/set_user_tier.go
+setUserTier の Go 版。管理者がtierを切り替える。setUserTier.ts と等価。
+
+functions/go/send_contact_email.go
+sendContactEmail の Go 版。Secret Managerのgmail-app-passwordでGmail SMTP送信。
+
+functions/go/internal/tier/tier.go
+tier手動付与の中核（applyTier）。tierService.ts の移植。tier_grantsに監査ログを残す。
+
+functions/go/internal/mailer/mailer.go
+Gmail SMTPでプレーンテキスト送信。件名のRFC2047エンコードとUTF-8宣言を自前で組む。
+
+functions/go/subscription_status.go
+subscriptionStatus の Go 版。期限切れpremiumをfreeに戻す。常にHTTPトリガーで、定期実行はCloud Scheduler側で決まる。
+
+functions/go/subscription_status_live_test.go
+落とす/残すの判定表を実Firestoreで1件ずつ確認する。全体スキャンは走らせない。
+
+functions/go/daily_batch.go
+dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_token・古い例文の掃除。常にHTTPトリガー。
+
+functions/go/deliver_daily_sentence.go
+daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文を1件作ってFirestoreに書きFCM通知する。free はキャッシュのみ、premium/トライアルはLLM生成。
+
+functions/go/deliver_daily_sentence_golden_test.go
+配信の生成分岐・コミット時の更新内容・ロールバックの更新内容をPython実装の出力と突き合わせる。
+
+functions/go/daily_batch_golden_test.go
+resetQuota と duplicateTokenUids をJS実装の出力（golden JSON）と突き合わせる。削除境界の計算も検証。
+
+functions/go/daily_batch_live_test.go
+dailyBatch のFirestore書き込み部分を実Firestoreで検証。全体実行は行わない（Auth実削除を含むため）。
+
+functions/go/internal/notify/notify.go
+notifyUtcHour の Go 版。現地の配信希望時刻がUTCの何時に当たるかを求める。tzdataを埋め込む。
+
+functions/go/internal/notify/golden_test.go
+JS(Intl)が出した8510ケースの期待値とGo(tzdata)の結果を突き合わせる。
+
+functions/go/internal/premium/premium.go
+utils/premium.ts の Go 版。プレミアム体験トライアルの有効判定とJST 0:00への切り上げ。
+
+functions/go/internal/subscription/subscription.go
+constants/subscription.ts の Go 版。期限切れ判定の猶予とストア購入プラットフォームの定数。
+
+functions/go/internal/userdata/userdata.go
+deleteUserFirestoreData の Go 版。ユーザーのFirestoreデータ（サブコレクション・leaderboard・nicknames・quiz_queue）を一括削除。
+
+functions/go/verify_subscription.go
+verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。
+
+functions/go/verify_subscription_live_test.go
+バリデーション文言、匿名拒否、ティア変更時のみのクォータリセット、旧doc剥奪を検証。
+
+functions/go/handle_app_store_notification.go
+handleAppStoreNotification の Go 版。Apple通知の署名検証と通知タイプごとのtier/status判定。エラーでも200を返す。
+
+functions/go/handle_play_notification.go
+handlePlayNotification の Go 版。Play RTDN(Pub/Sub)を受けてPlay APIで再検証しFirestoreを更新。
+
+functions/go/notification_golden_test.go
+通知ハンドラのFirestore更新内容をJS実装の出力と突き合わせる（App Store 1404ケース / Play 36ケース）。
+
+functions/go/notification_live_test.go
+通知ハンドラのFirestore部分を実Firestoreで検証。複数doc更新と無関係docの非巻き添えを確認。
+
+functions/go/internal/applejws/applejws.go
+Apple JWS の署名検証（発行者のCA判定 + x5cチェーン検証 + Apple Root CA G3 のフィンガープリント固定）とデコード。
+
+functions/go/internal/applejws/rejected.go
+署名検証で弾いたことを表すエラー型。200を返す通知ハンドラで監視用ログを出し分けるために使う。
+
+functions/go/internal/appstore/client.go
+App Store Server API v1 クライアント。ES256 JWT認証、購入検証、通知パース、sandbox/本番フォールバック。
+
+functions/go/internal/appstore/types.go
+App Store 検証結果・トランザクション情報・更新情報の型。
+
+functions/go/internal/playbilling/playbilling.go
+Google Play Developer API v3(Subscriptions v2)クライアント。購入トークンから状態を4種にマッピング。
+
+functions/go/internal/secrets/secrets.go
+Secret Manager からシークレットを読む。環境変数による差し替えに対応。
+
+functions/go/generate_quiz.go
+generateQuiz / generateLearningQuiz の Go 版。エントリポイントと定数、Geminiクライアントの生成。
+
+functions/go/generate_quiz_sources.go
+クイズ生成元の組み立て。sentence_detail・key_word意味の解決・クライアント向け1問への変換。
+
+functions/go/generate_quiz_srs.go
+SRS(間隔反復)による復習例文の選出とUVMによる補充、モデル呼び出しと再試行。
+
+functions/go/generate_quiz_golden_test.go
+generateLearningQuiz の組み立てとエラーをJS実装の出力と突き合わせる。
+
+functions/go/generate_quiz_live_test.go
+SRS選出とUVM補充を実Firestoreで検証。クエリ境界(JST 0:00)も確認。
+
+functions/go/internal/quizgen/normalize.go
+テキスト正規化・タイ語判定・注釈除去・空欄生成。JSの \s と同じ空白集合を使う。
+
+functions/go/internal/quizgen/prepare.go
+穴埋め位置の確定とルールベース項目の合成、例文発音の空欄化。
+
+functions/go/internal/quizgen/prompt.go
+クイズ生成のシステムプロンプトとユーザープロンプト(ja/en)。JS版と1バイトも変えないこと。
+
+functions/go/internal/quizgen/sanitize.go
+モデル出力の検査と整形。選択肢・ダミー理由・選択肢発音の対応付け。
+
+functions/go/internal/quizgen/types.go
+クイズ生成の入出力の型。
+
+functions/go/internal/quizgen/golden_test.go
+プロンプト(バイト一致)と整形処理をJS実装の出力と突き合わせる。
+
+functions/go/internal/gemini/quiz.go
+Gemini APIでクイズ1問分のダミー・理由・解説を生成する。トークン使用量のログも出す。
+
+functions/go/internal/gemini/schema.go
+Gemini の responseSchema(ja/en)。
+
+functions/go/internal/lang/lang.go
+訳文・解説の言語(ja/en)の正規化。
+
+functions/go/internal/dailysentence/dailysentence.go
+daily_sentence.py の Go 版。毎日例文の配信判定（段階バックオフ・見送り理由・現地時刻）。
+
+functions/go/internal/dailysentence/golden_test.go
+配信判定をPython実装の出力と突き合わせる（6000ケース + タイムゾーン112ケース）。
+
+functions/go/internal/dailysentence/notification.go
+毎日例文のFCM通知タイトル・本文の組み立て。タイトルは言語別、本文はタイ文/発音/訳の3行。
+
+functions/go/internal/dailysentence/notification_golden_test.go
+通知文面をPython実装の出力と突き合わせる（53ケース）。
+
+functions/go/internal/sentence/constants.go
+constants.py の Go 版。モデル設定・クォータ定数・context英語化・レスポンススキーマ組み立て。
+
+functions/go/internal/sentence/constants_data.go
+constants.py のデータ部分（STYLES/TOPICS/ラベル表/JSON Schema）の自動生成。手で編集しないこと。
+
+functions/go/internal/sentence/golden_test.go
+スキーマ組み立てとcontext英語化をPython実装の出力と突き合わせる。
+
+functions/go/internal/embeddings/embeddings.go
+embeddings.py の Go 版。コサイン類似度（float64累積）・意味的重複除去・多様な語の貪欲選出。
+
+functions/go/internal/embeddings/store.go
+embedding データのGCS遅延ロードとキャッシュ、重みつき抽選。
+
+functions/go/internal/embeddings/select.go
+サブテーマ・ドラマショット・テーマの類似度による選出。
+
+functions/go/internal/embeddings/npy.go
+numpy の .npy（float32・C order・2次元）を numpy 無しで読む。
+
+functions/go/internal/wordclass/wordclass.go
+word_classes.py の Go 版。key_word の語クラス逆引き。
+
+functions/go/internal/wordclass/classes_data.go
+word_classes.json の自動生成。手で編集しないこと。
+
+functions/go/internal/uvm/freqrank_live_test.go
+GCS上のfreq_rankに欠番が無いこと（moving_avgの前提）を実データで確認する。
+
+scripts/renumber_freq_rank.py
+freq_rank の rank を1からの連番に振り直す。語の増減はしない。除去は strip_denylist.py。
+
+functions/go/internal/sentence/prompts.go
+prompts.py の Go 版（ロジック）。難易度・長さヒント・テーマゲート・各種制約ブロック。
+
+functions/go/internal/sentence/prompts_data.go
+prompts.py の文字列データ（組み立て済みシステムプロンプト含む）の自動生成。手で編集しないこと。
+
+functions/go/internal/sentence/build_prompt.go
+プロンプト本体の組み立て。抽選済みの値を受け取るので決定的。
+
+functions/go/internal/sentence/prompts_golden_test.go
+プロンプト全文・システムプロンプト・制約ブロックをPython実装とバイト単位で突き合わせる。
+
+functions/go/internal/sentence/service.go
+sentence_service.py の純粋ロジック。ๆ の空白詰め・ターゲット語検証・分かち書き崩壊の修正・再生成プロンプト。
+
+functions/go/internal/sentence/service_golden_test.go
+sentence_service.py / word_gap.py の純粋ロジックをPython実装と突き合わせる。
+
+functions/go/internal/wordgap/wordgap.go
+word_gap.py の Go 版。word_breakdownの欠落検出と補完結果の差し込み。
+
+functions/go/internal/pystr/pystr.go
+Pythonと同じ空白判定・split・strip。Goの\sはASCIIのみで全角スペースやNBSPを含まないため。
+
+functions/go/internal/llm/llm.go
+LLMプロバイダー抽象レイヤ（llm_providers.py の Go 版）。リクエスト送信・指数バックオフ再送・プロバイダー振り分け。
+
+functions/go/internal/llm/openai.go
+OpenAI Responses API のリクエスト組み立て・出力抽出・トークン単価計算。
+
+functions/go/internal/llm/gemini.go
+Gemini generateContent のリクエスト組み立て・出力抽出・トークン単価計算。
+
+functions/go/internal/llm/errors.go
+LLM API エラー型。再送してよいステータスの判定。
+
+functions/go/internal/llm/golden_test.go
+llm_providers.py とリクエスト本文・ログ行・再送回数を突き合わせる差分テスト。
+
+functions/go/internal/sentence/types.go
+例文と word_breakdown の型。LLMレスポンスmapからの読み込み。
+
+functions/go/internal/sentence/generate.go
+例文生成のフロー。target_notesの展開・NLP後処理・欠落補完・やり直しの制御。
+
+functions/go/internal/sentence/generate_golden_test.go
+生成フローとNLP後処理をPython実装と突き合わせる差分テスト。
+
+functions/go/internal/thainlp/enrich.go
+word_breakdownへの音節分割・発音・品詞の付与（nlp.py:enrich_with_nlp）と品詞ラベルの英訳。
+
+functions/go/internal/sentence/resolve.go
+生成パラメータの確定（テーマ候補のゲート・時制と関係の抽選・サブテーマ選出）。
+
+functions/go/internal/sentence/resolve_golden_test.go
+resolve_generation_params の確定部分をPython実装と突き合わせる。
+
+functions/go/internal/bldrama/bldrama.go
+BLドラマ回の専用プロンプト断片。参考セリフの選出（embedding／ランダム）と断片の組み立て。
+
+functions/go/internal/bldrama/data.go
+BLドラマの設定・セリフ75件（自動生成。gen_bldrama.pyが出力）。
+
+functions/go/internal/bldrama/golden_test.go
+bl_drama.py とプロンプト断片・データを突き合わせる差分テスト。
+
+functions/go/internal/uvm/session.go
+key_word候補のランク帯算出・テーマembeddingでの絞り込み・重み付き抽選（uvm.py:get_session_words）。
+
+functions/go/internal/uvm/exposure.go
+例文に出た語の露出をUVMへ記録する（uvm.py:register_exposure / get_sentence_words）。
+
+functions/go/internal/uvm/session_golden_test.go
+uvm.py の選定・露出まわりと突き合わせる差分テスト。
+
+functions/go/internal/sentence/freebank.go
+free例文バンク（GCS）の読み込みとキャッシュ、target_word一致の抽選。
+
+functions/go/internal/sentence/select.go
+テーマ候補プールの決定とUVMからのターゲット語選定（sentence_service.py:select_uvm_target_words）。
+
+functions/go/internal/sentence/produce.go
+単語選定→キャッシュ/LLM生成→ティア付与までの生成コア（sentence_handlers.py:produce_sentence）。
+
+functions/go/internal/sentence/doc.go
+Firestoreへ保存する例文ドキュメントの組み立てとkey_wordの引き当て。
+
+functions/go/internal/sentence/select_golden_test.go
+sentence_service.py のテーマ決定と突き合わせる差分テスト。
+
+functions/go/internal/sentence/produce_golden_test.go
+sentence_handlers.py の生成コア・保存ドキュメントと突き合わせる差分テスト。
+
+functions/go/generate_thai_sentence.go
+generateThaiSentence（callable）。認証・クォータ・トライアル判定・生成・保存・UVM更新。
+
+functions/go/generate_thai_sentence_golden_test.go
+sentence_handlers.py のクォータ・トライアル・生成条件と突き合わせる差分テスト。
 
 scripts/sample_sentences.py
 ターゲット語を指定して本番と同じ経路で例文をまとめて生成するプロンプト検証スクリプト。デプロイせずルール変更の効果を確認する。
 
 scripts/ga4_quiz_offer_experiment.py
 1問確認クイズ導線A/BテストのGA4ファネルを実験群別に集計する。
-
-functions/python/word_classes.py
-word_classes.json のロードと語→クラス逆引き。pythainlpを引き込まない軽量モジュール。
-
-functions/python/word_classes.json
-key_wordの語クラス（三人称/一・二人称/限定詞/指示代名詞/数詞/数量詞/類別詞/多品詞語/機能語）と、その語がターゲットのときだけプロンプト末尾に足すルール。ルール追加はこのJSONを編集する。分割条件はJSON冒頭の_commentに記載。
-
-functions/python/themes/bl_drama.py
-BLドラマテーマのプロンプト断片構築。参考セリフ（BL_DRAMA_SHOTS）から1文だけをembedding類似度で選び出す。
-
-functions/python/constants.py
-LLMプロバイダー切替、OpenAI/Geminiモデル名、APIパラメータ、テーマ/スタイル/文法/感情リスト、レスポンスJSONスキーマ（build_response_schemaで未確定contextフィールドのみ追加）。
-
-functions/python/llm_providers.py
-LLMプロバイダー抽象レイヤ（OpenAI/Gemini切替、API呼び出し、リトライ、トークン使用量ログ）。両プロバイダーともurllibでREST直叩き（SDKはimportが重くコールドスタートを悪化させるため不使用）。
-
-functions/python/uvm.py
-UVMコアロジック（テーマ×語彙レベルによるセッション単語選定、P(know)更新、バッチ更新）。
 
 docs/estimated_vocab_logic.md
 estimated_vocab算出ロジックの詳細ドキュメント（estimate_vocab・moving_avg・sync_estimated_vocab）。
@@ -466,9 +686,6 @@ git履歴に露出したシークレット（Gemini/OpenAIキー、OAuth secret�
 
 docs/public_repo_checklist.md
 リポジトリpublic化の前提作業（履歴パージ、stateバケット堅牢化、WIF制約、GitHub設定）。
-
-functions/python/embeddings.py
-GCSからembedding/テーマembeddingをlazy-load、コサイン類似度でテーマ関連単語検索・セマンティック重複除去・ドラマ参考セリフ選出（find_best_drama_shot）。
 
 ---
 
@@ -508,6 +725,9 @@ prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン�
 
 scripts/ga4_register_dimension.py
 prod GA4 にイベントスコープのカスタムディメンションを登録／一覧。文字列パラメータを足したら実装と同時に実行する（登録は遡及しない）。
+
+scripts/ga4_language_resolution.py
+prod GA4 の初回起動時の言語決定の内訳（storefront取得失敗率・country×langの食い違い・storefront→langの整合性）。日本以外のユーザーが日本語UIで起動していないかの確認に使う。
 
 scripts/prod_quota_reach.py
 例文生成の日次上限への到達率をCloud Loggingから集計（tier別・人日ベース・生成数分布）。上限値を上下させる判断材料。ログ保持30日ぶんのみ。

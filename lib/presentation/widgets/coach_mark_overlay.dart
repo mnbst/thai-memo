@@ -10,8 +10,8 @@ import '../../services/analytics_service.dart';
 /// 使い方: 対象ウィジェットに [GlobalKey] を付け、レイアウト完了後に
 /// [CoachMarkOverlay.show] を呼ぶ。表示制御（初回のみ等）は呼び出し側の責務。
 ///
-/// 閉じ方は3通り。既定は「対象をタップして進む」で、読む前に押されないよう、
-/// 表示から [_armDelay] の間はどこもタップを受け付けない。
+/// 閉じ方は3通り。既定は「対象をタップして進む」。読む速さは人それぞれなので
+/// 待たせず、表示した時点でどれも押せる。
 ///
 /// - 既定: 対象をタップすると閉じる。対象の外を押しても閉じる（逃げ道）。
 /// - `barrierDismissible: false`: 逃げ道を塞ぎ、対象を押すまで閉じない。
@@ -148,9 +148,6 @@ class CoachMarkOverlay {
   }
 }
 
-/// 説明を読ませてから対象を押せるようにするまでの間。
-const _armDelay = Duration(milliseconds: 1200);
-
 /// スポットの角丸。ボタンのように低い対象は端を丸め切り、カードのように
 /// 高い対象はカード自体の角丸に合わせる。高さの半分で丸めると、縦に長い
 /// 対象が円形にえぐられて何を指しているのか分からなくなる。
@@ -218,11 +215,6 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
 
   ScrollPosition? _scrollPosition;
   late Rect _targetRect = widget.initialRect;
-  Timer? _armTimer;
-
-  /// 対象タップを受け付ける状態か。表示直後は false。
-  bool _armed = false;
-
   @override
   void initState() {
     super.initState();
@@ -231,16 +223,11 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
       _scrollPosition = Scrollable.maybeOf(ctx)?.position;
       _scrollPosition?.addListener(_onScroll);
     }
-    _armTimer = Timer(_armDelay, () {
-      if (!mounted) return;
-      setState(() => _armed = true);
-      _pulseController.repeat(reverse: true);
-    });
+    _pulseController.repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _armTimer?.cancel();
     _scrollPosition?.removeListener(_onScroll);
     _pulseController.dispose();
     _controller.dispose();
@@ -312,10 +299,9 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
         height: height,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          // 読ませる前は何も起きない。押せるようになった後は、対象以外を
-          // 押した人が閉じ込められないよう逃げ道にする。
+          // 対象以外を押した人が閉じ込められないよう逃げ道にする。
           // その操作をさせたい案内（onBarrierTap が null）では塞ぐ。
-          onTap: _armed ? (widget.onBarrierTap ?? () {}) : () {},
+          onTap: widget.onBarrierTap ?? () {},
           onVerticalDragUpdate: _forwardScroll,
           child: const SizedBox.expand(),
         ),
@@ -411,11 +397,10 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
           ),
           // 当たり判定は穴の外側だけ。穴の中のタップは対象そのものに届く。
           Positioned.fill(child: _barrier(hole, size)),
-          // 穴の中。読ませる前は対象も押させず、押せるようになったら
-          // translucent にして対象のタップを通しつつ、押されたら閉じる。
+          // 穴の中。translucent にして対象のタップを通しつつ、押されたら閉じる。
           Positioned.fromRect(
             rect: hole,
-            child: _armed && widget.onTargetTap != null
+            child: widget.onTargetTap != null
                 ? Listener(
                     behavior: HitTestBehavior.translucent,
                     onPointerDown: (_) => widget.onTargetTap!(),
@@ -428,14 +413,14 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
                     child: const SizedBox.expand(),
                   ),
           ),
-          // ハイライト枠線。押せるようになったら明滅させる。
+          // ハイライト枠線。明滅させて押せる場所だと伝える。
           Positioned.fromRect(
             rect: hole,
             child: IgnorePointer(
               child: AnimatedBuilder(
                 animation: _pulseController,
                 builder: (context, _) {
-                  final t = _armed ? _pulseController.value : 0.0;
+                  final t = _pulseController.value;
                   return Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(_holeRadius(hole)),
@@ -443,15 +428,13 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
                         color: cs.primary,
                         width: 2 + t * 1.5,
                       ),
-                      boxShadow: _armed
-                          ? [
-                              BoxShadow(
-                                color: cs.primary.withValues(alpha: 0.3 * t),
-                                blurRadius: 8 + t * 12,
-                                spreadRadius: t * 4,
-                              ),
-                            ]
-                          : null,
+                      boxShadow: [
+                        BoxShadow(
+                          color: cs.primary.withValues(alpha: 0.3 * t),
+                          blurRadius: 8 + t * 12,
+                          spreadRadius: t * 4,
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -514,46 +497,33 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              // 押す場所の案内は光ってから出す。先に出すと、読む前に
-                              // 手が動いてしまう。
                               if (widget.onTargetTap != null)
-                                AnimatedOpacity(
-                                  opacity: _armed ? 1 : 0,
-                                  duration: const Duration(milliseconds: 300),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.touch_app,
-                                          size: 16, color: cs.primary),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        L10n.of(context).coachTapHere,
-                                        style: theme.textTheme.labelLarge
-                                            ?.copyWith(
-                                          color: cs.primary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.touch_app,
+                                        size: 16, color: cs.primary),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      L10n.of(context).coachTapHere,
+                                      style:
+                                          theme.textTheme.labelLarge?.copyWith(
+                                        color: cs.primary,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              // 逃げ道は最初から見せる。遅れて現れると、閉じ方が
-                              // ないと思わせたまま読ませることになる。
-                              // 押せるのは一呼吸おいてから（誤爆で消さないため）。
                               if (widget.onSkip != null)
                                 TextButton(
-                                  onPressed: _armed ? widget.onSkip : null,
+                                  onPressed: widget.onSkip,
                                   child: Text(L10n.of(context).coachSkip),
                                 ),
                               const Spacer(),
                               if (widget.confirmLabel != null)
-                                AnimatedOpacity(
-                                  opacity: _armed ? 1 : 0,
-                                  duration: const Duration(milliseconds: 300),
-                                  child: FilledButton(
-                                    onPressed: _armed ? widget.onConfirm : null,
-                                    child: Text(widget.confirmLabel!),
-                                  ),
+                                FilledButton(
+                                  onPressed: widget.onConfirm,
+                                  child: Text(widget.confirmLabel!),
                                 ),
                             ],
                           ),

@@ -1,0 +1,272 @@
+// Code captured during the Python-to-Go migration. DO NOT EDIT.
+//
+// 旧Python実装の定数データをそのまま写したもの。
+// constants.py 側を変えたら再生成すること。
+
+package sentence
+
+// Styles は生成する例文の文体バリエーション（constants.STYLES）。
+var Styles = []string{
+	"ニュース記事体（客観的・フォーマルな報道文体）",
+	"口語体（友達同士のカジュアルな話し言葉）",
+	"丁寧語（フォーマルな敬語・丁寧な表現）",
+	"SNS・テキストメッセージ（略語・絵文字・短い表現）",
+	"物語・文学体（描写的・書き言葉的な表現）",
+}
+
+// Topics は例文のテーマ（constants.TOPICS）。
+var Topics = []string{
+	"あいさつ（朝・昼・夜、初対面、再会、別れ、電話）",
+	"食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
+	"旅行（ホテル、道案内、観光地、空港、ツアー）",
+	"仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）",
+	"家族（家族紹介、子育て、親への感謝、兄弟、家族行事）",
+	"買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
+	"交通（Grab、BTS、バイタク、ソンテウ、渋滞）",
+	"健康（症状説明、薬局、マッサージ、健康診断）",
+	"天気（暑さ、雨季、台風、日焼け対策）",
+	"趣味（ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム）",
+	"学校（授業中、宿題、試験、放課後、語学学校）",
+	"宗教・信仰（寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事）",
+	"伝統・祭り（ソンクラーン、ロイクラトン、王室行事、地域の伝統料理）",
+	"礼儀作法（ワイの使い分け、敬語、タブー、食事マナー、贈り物）",
+	"恋愛・男女関係（告白、デート、甘い言葉、遠距離、別れ、仲直り）",
+	"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）",
+}
+
+// GrammarFocuses は文法の焦点（constants.GRAMMAR_FOCUSES）。
+var GrammarFocuses = []string{
+	"平叙文（基本の肯定文）",
+	"疑問文（〜ไหม？〜มั้ย？など）",
+	"否定文（ไม่〜、ไม่ได้〜など）",
+	"条件文（ถ้า〜、หาก〜など）",
+	"比較表現（กว่า、เหมือนなど）",
+	"命令・依頼（〜นะ、〜ด้วยなど）",
+	"可能表現（ได้、เป็นなど）",
+	"過去・完了（แล้ว、เคยなど）",
+	"助詞・接続詞（แต่、และ、หรือなど）",
+}
+
+// TimeFrames は時制の枠（constants.TIME_FRAMES）。
+var TimeFrames = []string{
+	"今まさに起きていること",
+	"さっき起きた出来事",
+	"これからの予定",
+	"いつもの習慣",
+}
+
+// topicLabelsEN はテーマの英語ラベル（constants.TOPIC_LABELS_EN）。
+var topicLabelsEN = map[string]string{
+	"あいさつ（朝・昼・夜、初対面、再会、別れ、電話）":                 "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)",
+	"食べ物（注文、感想、屋台、辛さ調整、アレルギー）":                 "Food (ordering, impressions, street stalls, spice level, allergies)",
+	"旅行（ホテル、道案内、観光地、空港、ツアー）":                   "Travel (hotels, directions, sights, airport, tours)",
+	"仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）":             "Work (reporting, meetings, overtime requests, chatting with coworkers)",
+	"家族（家族紹介、子育て、親への感謝、兄弟、家族行事）":               "Family (introductions, parenting, thanking parents, siblings, family events)",
+	"買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）":           "Shopping (haggling, size and color, returns, night markets)",
+	"交通（Grab、BTS、バイタク、ソンテウ、渋滞）":                "Getting around (Grab, BTS, motorbike taxi, songthaew, traffic)",
+	"健康（症状説明、薬局、マッサージ、健康診断）":                   "Health (describing symptoms, pharmacy, massage, checkups)",
+	"天気（暑さ、雨季、台風、日焼け対策）":                       "Weather (heat, rainy season, storms, sun protection)",
+	"趣味（ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム）":               "Hobbies (Muay Thai, music, movies, golf, social media, games)",
+	"学校（授業中、宿題、試験、放課後、語学学校）":                   "School (in class, homework, exams, after school, language school)",
+	"宗教・信仰（寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事）":         "Religion and faith (temple etiquette, alms giving, amulets, speaking to monks, Buddhist holidays)",
+	"伝統・祭り（ソンクラーン、ロイクラトン、王室行事、地域の伝統料理）":        "Traditions and festivals (Songkran, Loi Krathong, royal ceremonies, regional dishes)",
+	"礼儀作法（ワイの使い分け、敬語、タブー、食事マナー、贈り物）":           "Etiquette (the wai, honorifics, taboos, table manners, gifts)",
+	"恋愛・男女関係（告白、デート、甘い言葉、遠距離、別れ、仲直り）":          "Romance (confessions, dates, sweet talk, long distance, breakups, making up)",
+	"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)",
+}
+
+// styleLabelsEN は文体の英語ラベル（constants.STYLE_LABELS_EN）。
+var styleLabelsEN = map[string]string{
+	"ニュース記事体（客観的・フォーマルな報道文体）":    "News article style (objective, formal reporting)",
+	"口語体（友達同士のカジュアルな話し言葉）":       "Casual spoken style (how friends talk)",
+	"丁寧語（フォーマルな敬語・丁寧な表現）":        "Polite style (formal, respectful expressions)",
+	"SNS・テキストメッセージ（略語・絵文字・短い表現）": "Social media / text message style (abbreviations, emoji, short phrases)",
+	"物語・文学体（描写的・書き言葉的な表現）":       "Narrative / literary style (descriptive, written language)",
+}
+
+// timeFrameLabelsEN は時制の英語ラベル（constants.TIME_FRAME_LABELS_EN）。
+var timeFrameLabelsEN = map[string]string{
+	"今まさに起きていること": "Happening right now",
+	"さっき起きた出来事":   "Something that just happened",
+	"これからの予定":     "An upcoming plan",
+	"いつもの習慣":      "A regular habit",
+}
+
+// subThemeLabelsEN はサブテーマの英語ラベル（constants.SUB_THEME_LABELS_EN）。
+// 外側のキーはテーマ。
+var subThemeLabelsEN = map[string]map[string]string{
+	"あいさつ（朝・昼・夜、初対面、再会、別れ、電話）": {
+		"朝":   "morning",
+		"昼":   "midday",
+		"夜":   "evening",
+		"初対面": "meeting for the first time",
+		"再会":  "meeting again",
+		"別れ":  "saying goodbye",
+		"電話":  "on the phone",
+	},
+	"食べ物（注文、感想、屋台、辛さ調整、アレルギー）": {
+		"注文":    "ordering",
+		"感想":    "giving impressions",
+		"屋台":    "street stalls",
+		"辛さ調整":  "adjusting spice level",
+		"アレルギー": "allergies",
+	},
+	"旅行（ホテル、道案内、観光地、空港、ツアー）": {
+		"ホテル": "hotels",
+		"道案内": "directions",
+		"観光地": "sights",
+		"空港":  "the airport",
+		"ツアー": "tours",
+	},
+	"仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）": {
+		"報告・連絡・相談": "reporting and consulting",
+		"打ち合わせ":    "meetings",
+		"残業申請":     "requesting overtime",
+		"同僚雑談":     "small talk with coworkers",
+	},
+	"家族（家族紹介、子育て、親への感謝、兄弟、家族行事）": {
+		"家族を紹介する":    "introducing your family",
+		"子どもに言い聞かせる": "telling a child what to do",
+		"親に礼を言う":     "thanking a parent",
+		"兄弟に頼みごとをする": "asking a sibling for a favor",
+		"家族の集まりに誘う":  "inviting family to a gathering",
+	},
+	"買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）": {
+		"値段交渉":     "haggling",
+		"サイズ・色の確認": "checking size and color",
+		"返品":       "returns",
+		"ナイトマーケット": "night markets",
+	},
+	"交通（Grab、BTS、バイタク、ソンテウ、渋滞）": {
+		"Grab": "Grab",
+		"BTS":  "the BTS",
+		"バイタク": "motorbike taxis",
+		"ソンテウ": "songthaew",
+		"渋滞":   "traffic jams",
+	},
+	"健康（症状説明、薬局、マッサージ、健康診断）": {
+		"症状説明":  "describing symptoms",
+		"薬局":    "the pharmacy",
+		"マッサージ": "massage",
+		"健康診断":  "health checkups",
+	},
+	"天気（暑さ、雨季、台風、日焼け対策）": {
+		"暑さ":    "the heat",
+		"雨季":    "the rainy season",
+		"台風":    "storms",
+		"日焼け対策": "sun protection",
+	},
+	"趣味（ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム）": {
+		"ムエタイ": "Muay Thai",
+		"音楽":   "music",
+		"映画":   "movies",
+		"ゴルフ":  "golf",
+		"SNS":  "social media",
+		"ゲーム":  "games",
+	},
+	"学校（授業中、宿題、試験、放課後、語学学校）": {
+		"授業中":  "during class",
+		"宿題":   "homework",
+		"試験":   "exams",
+		"放課後":  "after school",
+		"語学学校": "language school",
+	},
+	"宗教・信仰（寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事）": {
+		"寺院マナー":   "temple etiquette",
+		"托鉢":      "alms giving",
+		"お守り":     "amulets",
+		"僧侶への話し方": "speaking to monks",
+		"仏教行事":    "Buddhist holidays",
+	},
+	"伝統・祭り（ソンクラーン、ロイクラトン、王室行事、地域の伝統料理）": {
+		"ソンクラーン":  "Songkran",
+		"ロイクラトン":  "Loi Krathong",
+		"王室行事":    "royal ceremonies",
+		"地域の伝統料理": "regional dishes",
+	},
+	"礼儀作法（ワイの使い分け、敬語、タブー、食事マナー、贈り物）": {
+		"目上の人に挨拶する":  "greeting someone senior",
+		"改まった言い方で頼む": "making a polite request",
+		"誘いを断る":      "declining an invitation",
+		"食事に招かれる":    "being invited to a meal",
+		"贈り物を渡す":     "handing over a gift",
+	},
+	"恋愛・男女関係（告白、デート、甘い言葉、遠距離、別れ、仲直り）": {
+		"告白":   "confessing feelings",
+		"デート":  "dates",
+		"甘い言葉": "sweet talk",
+		"遠距離":  "long distance",
+		"別れ":   "breaking up",
+		"仲直り":  "making up",
+	},
+	"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）": {
+		"告白":    "confessing feelings",
+		"すれ違い":  "misunderstandings",
+		"再会":    "reuniting",
+		"嫉妬":    "jealousy",
+		"裏切り":   "betrayal",
+		"仲直り":   "making up",
+		"壁ドン":   "kabedon",
+		"あだ名呼び": "nicknames",
+		"同棲":    "living together",
+		"片想い":   "unrequited love",
+	},
+}
+
+// InterviewGoalTopics はヒアリングの goal ごとのテーマ候補
+// （constants.INTERVIEW_GOAL_TOPICS）。値は TOPICS の要素。
+var InterviewGoalTopics = map[string][]string{
+	"travel": {
+		"旅行（ホテル、道案内、観光地、空港、ツアー）",
+		"交通（Grab、BTS、バイタク、ソンテウ、渋滞）",
+		"買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
+		"食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
+	},
+	"work": {
+		"仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）",
+		"あいさつ（朝・昼・夜、初対面、再会、別れ、電話）",
+	},
+	"live": {
+		"買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
+		"家族（家族紹介、子育て、親への感謝、兄弟、家族行事）",
+		"健康（症状説明、薬局、マッサージ、健康診断）",
+		"天気（暑さ、雨季、台風、日焼け対策）",
+		"交通（Grab、BTS、バイタク、ソンテウ、渋滞）",
+		"食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
+	},
+	"culture": {
+		"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）",
+		"伝統・祭り（ソンクラーン、ロイクラトン、王室行事、地域の伝統料理）",
+		"趣味（ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム）",
+		"恋愛・男女関係（告白、デート、甘い言葉、遠距離、別れ、仲直り）",
+	},
+}
+
+// BLTopic は BL ドラマ回のテーマ（constants.BL_TOPIC = TOPICS[15]）。
+const BLTopic = "タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）"
+
+// FreeBLTopicRate は free ティアで BL テーマを引く確率
+// （constants.FREE_BL_TOPIC_RATE）。
+const FreeBLTopicRate = 0.1
+
+// responseJSONSchemaJSON は constants.RESPONSE_JSON_SCHEMA。
+// 構造が深いので JSON のまま持ち、必要なときにデコードして組み立てる。
+const responseJSONSchemaJSON = `{"type": "object", "additionalProperties": false, "properties": {"thai_text": {"type": "string", "description": "タイ語の例文テキスト（例: สวัสดีครับ）"}, "japanese_translation": {"type": "string", "description": "例文の日本語訳"}, "word_breakdown": {"type": "array", "description": "例文を構成する各単語と日本語の意味。最大20件。", "items": {"type": "object", "additionalProperties": false, "properties": {"word": {"type": "string", "description": "タイ語の単語（例: สวัสดี）"}, "meaning": {"type": "string", "description": "単語の意味を必ず日本語で記述すること（英語不可）"}}, "required": ["word", "meaning"]}}, "target_notes": {"type": "array", "description": "ターゲット単語のみの補足。ターゲット単語が無ければ空配列。", "items": {"type": "object", "additionalProperties": false, "properties": {"word": {"type": "string", "description": "対象のタイ語単語（word_breakdown の word と一致させる）"}, "note": {"type": "string", "description": "用法・ニュアンス・類語との違い（日本語、50文字以内）"}}, "required": ["word", "note"]}}, "context": {"type": "object", "additionalProperties": false, "properties": {"usage_scenarios": {"type": "string", "description": "使用場面の説明。日本語で、50文字以内（タイ語・英語不可）。"}, "cultural_notes": {"type": "string", "description": "文化的な補足情報。日本語で、50文字以内（タイ語・英語不可）。"}}, "required": ["usage_scenarios", "cultural_notes"]}}, "required": ["thai_text", "japanese_translation", "word_breakdown", "target_notes", "context"]}`
+
+// contextGeneratableFieldsJSON は constants._CONTEXT_GENERATABLE_FIELDS。
+const contextGeneratableFieldsJSON = `{"topic": {"type": "string", "description": "テーマ（例: あいさつ）"}, "style": {"type": "string", "enum": ["ニュース記事体（客観的・フォーマルな報道文体）", "口語体（友達同士のカジュアルな話し言葉）", "丁寧語（フォーマルな敬語・丁寧な表現）", "SNS・テキストメッセージ（略語・絵文字・短い表現）", "物語・文学体（描写的・書き言葉的な表現）"], "description": "実際に書いた文体を最も近いものに分類する"}, "emotion": {"type": "string", "description": "感情・トーン（例: 中立）"}}`
+
+// schemaDescriptionsEN は constants._SCHEMA_DESCRIPTIONS_EN。
+var schemaDescriptionsEN = map[string]string{
+	"japanese_translation": "例文の英訳。フィールド名は japanese だが必ず英語で書くこと（日本語不可）",
+	"word_breakdown":       "例文を構成する各単語と英語の意味。最大20件。",
+	"meaning":              "単語の意味を必ず英語で記述すること（日本語不可）",
+	"note":                 "用法・ニュアンス・類語との違い（英語、50語以内）",
+	"usage_scenarios":      "使用場面の説明。英語で、25語以内（タイ語・日本語不可）。",
+	"cultural_notes":       "文化的な補足情報。英語で、25語以内（タイ語・日本語不可）。",
+}
+
+// contextDescriptionsEN は constants._CONTEXT_DESCRIPTIONS_EN。
+var contextDescriptionsEN = map[string]string{
+	"emotion": "感情・トーン（英語で。例: neutral）",
+}

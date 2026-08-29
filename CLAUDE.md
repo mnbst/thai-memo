@@ -53,16 +53,13 @@ flutter test test/widget_test.dart  # single test
 # Static analysis
 flutter analyze
 
-# Cloud Functions - JavaScript
+# Cloud Functions - JavaScript (Auth triggers only)
 cd functions/javascript && npm install && npm run build
 cd functions/javascript && npm run deploy
 
-# Cloud Functions - Python (generateThaiSentence)
-cd functions/python && uv sync
-cd functions/python && uv export --no-hashes > requirements.txt  # デプロイ前に実行
-
-# Cloud Functions - 全関数デプロイ
-firebase deploy --only functions
+# Cloud Functions - Go
+cd functions/go && go test ./...
+# デプロイ引数は functions.go の例と稼働環境の設定を参照する
 
 # Firestore Rules デプロイ
 firebase deploy --only firestore:rules
@@ -107,10 +104,9 @@ SQLite (`thai_memo.db`) with tables: `sentences`, `word_breakdowns`, `generation
 
 ## Backend
 
-- Cloud Functions (2 codebase構成):
-  - `functions/javascript/` — TypeScript (Node.js 22): dailyBatch, generateQuiz, onUserCreate, verifySubscription, subscriptionStatus, deleteUserData, handlePlayNotification, handleAppStoreNotification
-  - `functions/python/` — Python 3.11+ (uv管理): generateThaiSentence, updateUvm（PyThaiNLPで音節分割）
+- Cloud Functions:
+  - `functions/go/` — Go 1.26: callable、生成、課金、通知、定期バッチの13関数
+  - `functions/javascript/` — TypeScript (Node.js 22): `onUserCreate`、`deleteUserData` のAuthトリガー2関数
 - Terraform IaC in `terraform/` for GCP resources (3環境: dev/tester/prod、backend configで切り替え)
 - Region: asia-northeast1 (Tokyo)
-- **Cloud Functions を修正したら必ず `firebase deploy --only functions` を実行すること**
-- **Python側の依存追加時は `cd functions/python && uv add <pkg> && uv export --no-hashes > requirements.txt`**
+- Go 関数は `gcloud functions deploy --gen2`、JS AuthトリガーはFirebase CLIで個別デプロイする。

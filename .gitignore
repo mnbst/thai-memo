@@ -37,6 +37,9 @@ migrate_working_dir/
 
 # Cloud Functions build output
 functions/javascript/build/
+functions/javascript/lib/
+# Go/JS 差分テスト用の一時ビルド
+functions/javascript/.difftest-build/
 
 # Local settings and secrets
 .claude/
@@ -75,12 +78,6 @@ android/app/*.jks
 .firebase/
 
 tmp_subs/
-
-functions/python/scripts/
-functions/python/scripts/generate_free_sentences.py
-functions/python/scripts/output/free_sentences.json
-functions/python/scripts/output/progress.json
-
 
 # App Check デバッグトークン等のローカル dart-define（git 管理外）
 dart_defines.json

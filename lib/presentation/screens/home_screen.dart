@@ -24,6 +24,7 @@ import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
+import '../widgets/learning_flow_coach_dialog.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_hint_banner.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
@@ -42,6 +43,11 @@ import 'onboarding_screen.dart';
 import 'paywall_screen.dart';
 import 'quiz_screen.dart';
 import 'settings_screen.dart';
+
+/// 例文の生成上限に当たった画面から開くペイウォールの source。
+/// paywall_banner(shown) と tap_paywall で同じ値を使い、CTR を
+/// learning_banner_* と同じ形で比べられるようにしている。
+const String _quotaPaywallSource = 'sentence_quota_error';
 
 /// Home screen with bottom navigation
 class HomeScreen extends ConsumerStatefulWidget {
@@ -940,6 +946,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   bool _quizOfferAssignmentHandled = false;
   bool _sentenceCoachInFlight = false;
 
+  /// 上限到達時のペイウォール導線の shown を二重に送らないためのフラグ。
+  /// build はエラー表示のまま何度も走るので、State の生存期間中1回に絞る。
+  bool _quotaPaywallImpressionLogged = false;
+
   @override
   void initState() {
     super.initState();
@@ -983,6 +993,12 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   Future<void> _showSentenceCoach() async {
     if (ref.read(sentenceControllerProvider) is! SentenceStateSuccess) return;
     final prefs = await SharedPreferences.getInstance();
+
+    // 機能紹介の締めくくりを読んだ直後の1回だけ、学習の流れをまとめて教える。
+    // 個々の機能はここまでの段で案内済みなので、残るのは「例文とクイズを
+    // どう行き来するのか」と「語彙スコアがどこで動くのか」。
+    await _maybeShowLearningFlowCoach(prefs);
+    if (!mounted) return;
 
     // 1段目。何を覚える回なのかを先に見せる。ここが分からないまま例文を
     // 開かせても、どこを読めばよいのか分からない。
@@ -1038,6 +1054,36 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         prefs: prefs,
       );
     }
+  }
+
+  /// 学習の流れ（例文 → クイズ → …、5問クイズで語彙スコアが動く）を
+  /// 複数ページのダイアログで案内する。
+  ///
+  /// クイズ結果の締めくくりで予約され、次に例文が表示された回に出す。
+  /// スポットライトと違って画面の一部を指さないので、例文が出ていれば足りる。
+  Future<void> _maybeShowLearningFlowCoach(SharedPreferences prefs) async {
+    if (!(prefs.getBool(AppConfig.prefKeyLearningFlowCoachPending) ?? false)) {
+      return;
+    }
+    // 予約が残ったまま二度出さない。
+    if (prefs.getBool(AppConfig.prefKeyLearningFlowCoachShown) ?? false) {
+      await prefs.remove(AppConfig.prefKeyLearningFlowCoachPending);
+      return;
+    }
+    if (!mounted ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        CoachMarkOverlay.isVisible) {
+      // 出せなかった回は予約を残す。次に例文へ来たときに出し直す。
+      return;
+    }
+
+    await prefs.setBool(AppConfig.prefKeyLearningFlowCoachShown, true);
+    await prefs.remove(AppConfig.prefKeyLearningFlowCoachPending);
+    if (!mounted) return;
+    final analytics = ref.read(analyticsServiceProvider);
+    unawaited(analytics.logCoachMark(id: 'learning_flow', action: 'shown'));
+    await LearningFlowCoachDialog.show(context);
+    unawaited(analytics.logCoachMark(id: 'learning_flow', action: 'confirmed'));
   }
 
   /// 1段出して、閉じられるまで待つ。閉じ方（tapped / confirmed / dismissed）を
@@ -1742,6 +1788,22 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   /// Build error state
   Widget _buildErrorState(BuildContext context, String message) {
     final isQuotaError = isQuotaErrorMessage(message);
+
+    // 上限に当たった free だけがアップグレードで解ける状態にある。
+    // 判定が付くまで（loading）は出さない。
+    final plan = ref.watch(planStatusProvider).valueOrNull;
+    final showUpgrade = isQuotaError && plan == PlanStatus.free;
+
+    if (showUpgrade && !_quotaPaywallImpressionLogged) {
+      _quotaPaywallImpressionLogged = true;
+      unawaited(
+        ref.read(analyticsServiceProvider).logPaywallBanner(
+              action: 'shown',
+              source: _quotaPaywallSource,
+            ),
+      );
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
@@ -1774,8 +1836,24 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 textAlign: TextAlign.center,
               ),
             ],
-            // 例文の上限到達時はアップグレード促しを表示しない
-            // （premium も生成上限は同じ 5 回/日のため訴求が噛み合わない）
+            // 上限に当たった瞬間は「なぜ premium が要るのか」が最も伝わる場面
+            // なので、ここでだけ割り込みなしに訴求する。free 5 に対して
+            // premium 20（2026-08-25 に 10→20）と差が付いたため噛み合う。
+            // premium で使い切った人には勧める先が無いので出さない。
+            if (showUpgrade) ...[
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => PaywallBottomSheet.show(
+                  context,
+                  source: _quotaPaywallSource,
+                ),
+                icon: const Icon(Icons.lock_open),
+                label: Text(
+                  L10n.of(context)
+                      .quotaSentenceUpgradeCta(premiumDailySentences),
+                ),
+              ),
+            ],
             if (!isQuotaError) ...[
               const SizedBox(height: 24),
               FilledButton.icon(

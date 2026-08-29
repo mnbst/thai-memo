@@ -36,7 +36,7 @@ class CoachingTip {
     this.wordText,
     this.toneMark = '',
     this.roman = '',
-    this.segment,
+    this.segments = const [],
   });
 
   final CoachIssue issue;
@@ -66,9 +66,10 @@ class CoachingTip {
 
   /// [CoachIssue.notRecognized] のとき、子音・母音のどこを直すか。
   ///
-  /// **取れないことがある**（優先順位に載っている音を1つも含まない語）。
+  /// 観点のグループごとに1つずつ（[SegmentGroup]）。**空のことがある**
+  /// （優先順位に載っている音を1つも含まない語）。
   /// そのときは語を名指しするだけに留める。
-  final SegmentPoint? segment;
+  final List<SegmentPoint> segments;
 }
 
 /// 採点結果から助言を1つ選ぶ。直すところが無ければ null。
@@ -90,7 +91,7 @@ CoachingTip? coachingTipOf(
   List<String> wordTexts = const [],
   List<String> toneMarks = const [],
   List<String> romans = const [],
-  SegmentPoint? Function(int wordIndex)? segmentPointOfWord,
+  List<SegmentPoint> Function(int wordIndex)? segmentPointsOfWord,
 }) {
   final list = scores.toList();
 
@@ -101,7 +102,7 @@ CoachingTip? coachingTipOf(
   // 声調は通っているのに帯が赤い場合がここ。**帯が赤いのに助言が空**という
   // 状態を作らないために、言えることだけ言う（語を名指しして言い直しを促す）。
   final notRecognized =
-      _notRecognizedTip(recognition, wordTexts, segmentPointOfWord);
+      _notRecognizedTip(recognition, wordTexts, segmentPointsOfWord);
   if (notRecognized == null) return null;
   return _withSyllableLabels(notRecognized, toneMarks, romans);
 }
@@ -126,18 +127,19 @@ CoachingTip _withSyllableLabels(
     wordText: tip.wordText,
     toneMark: at(toneMarks),
     roman: at(romans),
-    segment: tip.segment,
+    segments: tip.segments,
   );
 }
 
 /// 聞き取られなかった最初の語を指す。
 ///
-/// どの音を外したかは音声認識からは分からないので、[segmentPointOfWord] が
-/// あればその語に含まれる音のうち**日本語話者が最も外しやすいもの**を出す。
+/// どの音を外したかは音声認識からは分からないので、[segmentPointsOfWord] が
+/// あればその語に含まれる音のうち**日本語話者が外しやすいもの**を、
+/// 観点のグループごとに1つずつ出す。
 CoachingTip? _notRecognizedTip(
   List<WordRecognition> recognition,
   List<String> wordTexts,
-  SegmentPoint? Function(int wordIndex)? segmentPointOfWord,
+  List<SegmentPoint> Function(int wordIndex)? segmentPointsOfWord,
 ) {
   final count =
       recognition.length < wordTexts.length ? recognition.length : wordTexts.length;
@@ -145,15 +147,27 @@ CoachingTip? _notRecognizedTip(
     if (recognition[i] != WordRecognition.missing) continue;
     final text = wordTexts[i].trim();
     if (text.isEmpty) continue;
-    final segment = segmentPointOfWord?.call(i);
+    final segments = segmentPointsOfWord?.call(i) ?? const <SegmentPoint>[];
     return CoachingTip(
       issue: CoachIssue.notRecognized,
       wordText: text,
-      segment: segment,
-      syllableIndex: segment?.syllableIndex,
+      segments: segments,
+      // 見出しのローマ字は、指す音節が1つに定まるときだけ付ける。
+      // 別々の音節を指す行が並ぶ回に1つだけ載せると、他の行と食い違う。
+      syllableIndex: _sharedSyllableIndex(segments),
     );
   }
   return null;
+}
+
+/// 全ての点が同じ音節を指すならその添字。指す音節が割れていれば null。
+int? _sharedSyllableIndex(List<SegmentPoint> segments) {
+  if (segments.isEmpty) return null;
+  final first = segments.first.syllableIndex;
+  for (final segment in segments) {
+    if (segment.syllableIndex != first) return null;
+  }
+  return first;
 }
 
 CoachingTip? _tipAmong(List<SyllableScore> scores, ToneVerdict verdict) {

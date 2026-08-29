@@ -57,12 +57,22 @@ class PaywallBottomSheet extends ConsumerWidget {
   }) async {
     final container = ProviderScope.containerOf(context, listen: false);
     final analytics = container.read(analyticsServiceProvider);
+    // 商品取得の決着を待ってから paywall_view を送る。取得できていなければ
+    // 購入ボタンは押せないので、tap_paywall との差が「開いたが買えない」数になる。
     unawaited(
       container
           .read(subscriptionControllerProvider.notifier)
           .ensureStoreReady()
           .catchError((Object error, StackTrace stackTrace) {
         debugPrint('Failed to warm up store: $error');
+      }).whenComplete(() {
+        unawaited(
+          analytics.logPaywallView(
+            source: source,
+            productLoaded:
+                container.read(subscriptionControllerProvider).product != null,
+          ),
+        );
       }),
     );
     // 呼び出し元の source を失わないよう、表示前にイベントを確定させる。
@@ -473,23 +483,18 @@ class PaywallBottomSheet extends ConsumerWidget {
       ),
       child: Column(
         children: [
+          // テーマを先頭に置く。無料は「おまかせ」で届くだけ、プレミアムは
+          // 自分で選べる、という差が一番わかりやすい。
           benefitRow(
-            icon: Icons.bolt,
-            title: L10n.of(context).paywallFeatureQuotaTitle,
-            // 例文の回数と語彙スコアの上限を1行にまとめる。どちらも
-            // 「どれだけ触れられるか」の話なので、行を分けると差が薄まる。
-            freeText: L10n.of(context)
-                .paywallFeatureQuotaFree(freeDailySentences,
-                    freeVocabScoreLimit),
-            premiumText: L10n.of(context)
-                .paywallFeatureQuotaPremium(premiumDailySentences),
+            icon: Icons.palette_outlined,
+            title: L10n.of(context).paywallFeatureTopicTitle,
+            freeText: L10n.of(context).paywallFeatureTopicFree,
+            premiumText: L10n.of(context).paywallFeatureTopicPremium,
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1, color: colorScheme.outlineVariant),
           ),
-          // 数で示せる2つ（例文・発音）を先に並べる。体験終了ダイアログの
-          // 並び（例文→発音）とも揃えている。
           benefitRow(
             icon: Icons.mic_none,
             title: L10n.of(context).paywallFeaturePronunciationTitle,
@@ -501,13 +506,16 @@ class PaywallBottomSheet extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1, color: colorScheme.outlineVariant),
           ),
-          // テーマも回数と同じ対比で見せる。無料は「おまかせ」で届くだけ、
-          // プレミアムは自分で選べる、という差がそのまま行になる。
           benefitRow(
-            icon: Icons.palette_outlined,
-            title: L10n.of(context).paywallFeatureTopicTitle,
-            freeText: L10n.of(context).paywallFeatureTopicFree,
-            premiumText: L10n.of(context).paywallFeatureTopicPremium,
+            icon: Icons.bolt,
+            title: L10n.of(context).paywallFeatureQuotaTitle,
+            // 例文の回数と語彙スコアの上限を1行にまとめる。どちらも
+            // 「どれだけ触れられるか」の話なので、行を分けると差が薄まる。
+            freeText: L10n.of(context)
+                .paywallFeatureQuotaFree(freeDailySentences,
+                    freeVocabScoreLimit),
+            premiumText: L10n.of(context)
+                .paywallFeatureQuotaPremium(premiumDailySentences),
           ),
         ],
       ),

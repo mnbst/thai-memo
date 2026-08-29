@@ -190,6 +190,44 @@ class AnalyticsService {
     await _logEvent('subscribe', {'source': source});
   }
 
+  /// ペイウォールを開いて、商品情報の取得が決着した時点の状態。
+  ///
+  /// [productLoaded] が false のとき購入ボタンは押せない（paywall_screen の
+  /// `product == null` 分岐）。tap_paywall との差がそのまま「開いたが買えない」
+  /// 数になるので、購入ボタン押下ゼロの原因切り分けに使う。
+  Future<void> logPaywallView({
+    required String source,
+    required bool productLoaded,
+  }) async {
+    await _logEvent('paywall_view', {
+      'source': source,
+      'product_loaded': productLoaded ? 1 : 0,
+    });
+  }
+
+  /// ストアから届いた購入結果。
+  ///
+  /// [status] は purchased / restored / error / canceled / pending。
+  /// subscribe（購入ボタン押下）はストアに到達する前にも発火するため、
+  /// 決済シートまで進んだかどうかはこのイベントでしか分からない。
+  Future<void> logPurchaseResult({
+    required String status,
+    String? code,
+  }) async {
+    await _logEvent('purchase_result', {'status': status, 'code': code});
+  }
+
+  /// サーバー検証（verifySubscription）の成否。
+  ///
+  /// ストアの決済が通っても検証で落ちれば tier は premium にならないので、
+  /// purchase_result=purchased との差を課金の取りこぼしとして見る。
+  Future<void> logPurchaseVerify({
+    required bool ok,
+    String? code,
+  }) async {
+    await _logEvent('purchase_verify', {'ok': ok ? 1 : 0, 'code': code});
+  }
+
   Future<void> logOnboardingStart() async {
     await _logEvent('onboarding_start', {});
   }
@@ -299,7 +337,7 @@ class AnalyticsService {
 
   /// プレミアム体験トライアル終了案内の表示と結果。
   ///
-  /// [action] は shown（表示）/ accepted（プレミアムを見る）/ dismissed（あとで）。
+  /// [action] は shown（表示）/ accepted（学習環境を続ける）/ dismissed（あとで）。
   /// shown が「体験を使い切った人数」の分母になる。開いた先の行動は
   /// tap_paywall(source: trial_ended) と subscribe(source: trial_ended) で追う。
   Future<void> logPremiumTrialEnded({required String action}) async {

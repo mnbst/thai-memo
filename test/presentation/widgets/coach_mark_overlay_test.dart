@@ -97,50 +97,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  testWidgets('「わかった」ボタンは持たず、一呼吸おいてタップ案内が出る',
-      (tester) async {
+  testWidgets('「わかった」ボタンは持たず、タップ案内は最初から出る', (tester) async {
     await tester.pumpWidget(_app(() {}));
     await showCoach(tester);
 
     expect(find.text('メッセージ'), findsOneWidget);
     expect(find.text('わかった'), findsNothing);
-    // 読ませる前は押す場所を示さない。
-    final hint = tester.widget<AnimatedOpacity>(
-      find.ancestor(
-        of: find.text('光っている場所をタップ'),
-        matching: find.byType(AnimatedOpacity),
-      ),
-    );
-    expect(hint.opacity, 0);
-
-    await tester.pump(const Duration(milliseconds: 1500));
-    final armedHint = tester.widget<AnimatedOpacity>(
-      find.ancestor(
-        of: find.text('光っている場所をタップ'),
-        matching: find.byType(AnimatedOpacity),
-      ),
-    );
-    expect(armedHint.opacity, 1);
+    // 待たせない。押す場所は出した時点で示す。
+    expect(find.text('光っている場所をタップ'), findsOneWidget);
   });
 
-  testWidgets('一呼吸の前は対象を押しても何も起きない', (tester) async {
+  testWidgets('対象はそのまま押せて、コーチマークも閉じる', (tester) async {
     var tapped = 0;
     await tester.pumpWidget(_app(() => tapped++));
     await showCoach(tester);
-
-    await tester.tap(find.text('対象'), warnIfMissed: false);
-    await tester.pump();
-
-    expect(tapped, 0);
-    expect(CoachMarkOverlay.isVisible, isTrue);
-  });
-
-  testWidgets('一呼吸の後は対象がそのまま押せて、コーチマークも閉じる',
-      (tester) async {
-    var tapped = 0;
-    await tester.pumpWidget(_app(() => tapped++));
-    await showCoach(tester);
-    await tester.pump(const Duration(milliseconds: 1500));
 
     await tester.tap(find.text('対象'));
     await tester.pumpAndSettle();
@@ -149,11 +119,10 @@ void main() {
     expect(CoachMarkOverlay.isVisible, isFalse);
   });
 
-  testWidgets('一呼吸の後は対象の外を押すと閉じる（閉じ込めない）', (tester) async {
+  testWidgets('対象の外を押すと閉じる（閉じ込めない）', (tester) async {
     var tapped = 0;
     await tester.pumpWidget(_app(() => tapped++));
     await showCoach(tester);
-    await tester.pump(const Duration(milliseconds: 1500));
 
     await tester.tapAt(const Offset(20, 40));
     await tester.pumpAndSettle();
@@ -214,7 +183,7 @@ void main() {
     expect(find.text('スキップ'), findsNothing);
   });
 
-  testWidgets('skippable なら一呼吸の後にスキップが押せる', (tester) async {
+  testWidgets('skippable ならスキップがすぐ押せる', (tester) async {
     var tapped = 0;
     final analytics = FakeAnalyticsService();
     await tester.pumpWidget(
@@ -222,13 +191,6 @@ void main() {
     );
     await showCoach(tester);
 
-    // 読ませる前は押せない。
-    expect(
-      tester.widget<TextButton>(find.widgetWithText(TextButton, 'スキップ')).onPressed,
-      isNull,
-    );
-
-    await tester.pump(const Duration(milliseconds: 1500));
     await tester.tap(find.text('スキップ'));
     await tester.pumpAndSettle();
 

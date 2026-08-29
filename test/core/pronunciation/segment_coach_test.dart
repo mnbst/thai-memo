@@ -1,4 +1,5 @@
-// 通じなかった語について、子音・母音の直し方を1つだけ選べることを守る。
+// 通じなかった語について、子音・母音の直し方をグループごとに1つずつ選べる
+// ことを守る。
 //
 // 音声認識は「通じたか」しか返さないので、**外した音は特定できない**。だから
 // ここで守るのは「特定できた」ではなく「その語に含まれる音のうち、日本語話者が
@@ -7,15 +8,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/core/pronunciation/segment_coach.dart';
 import 'package:thai_memo/core/thai_tone_analyzer.dart';
 
-SegmentSyllable _syllable(String text, String initial, {bool short = false}) =>
-    SegmentSyllable(
-      text: text,
-      initialConsonant: initial,
-      hasShortVowel: short,
-    );
+SegmentSyllable _syllable(String text, String initial) =>
+    SegmentSyllable(text: text, initialConsonant: initial);
 
 SegmentPoint? _pointOf(List<SegmentSyllable> syllables) =>
     segmentPointOf(syllables, start: 0, end: syllables.length);
+
+List<SegmentPoint> _pointsOf(List<SegmentSyllable> syllables) =>
+    segmentPointsOf(syllables, start: 0, end: syllables.length);
 
 void main() {
   group('末子音の見つけ方', () {
@@ -86,12 +86,6 @@ void main() {
       expect(point?.sound, 'n');
     });
 
-    test('末子音が無ければ母音の長短', () {
-      final point = _pointOf([_syllable('มะ', 'ม', short: true)]);
-
-      expect(point?.issue, SegmentIssue.shortVowel);
-    });
-
     test('どれも当たらなければ母音の音色', () {
       final point = _pointOf([_syllable('แม', 'ม')]);
 
@@ -123,6 +117,83 @@ void main() {
 
       expect(point?.issue, SegmentIssue.finalNasal);
       expect(point?.syllableIndex, 1);
+    });
+  });
+
+  group('グループごとに1つずつ', () {
+    test('観点の違う点は全部出る', () {
+      // ปาก: 無気音 ป / 末子音 -k。ปาก だけでは母音と ง は当たらない。
+      final points = _pointsOf([_syllable('ปาก', 'ป')]);
+
+      expect(
+        points.map((p) => p.issue),
+        [SegmentIssue.unaspirated, SegmentIssue.finalStop],
+      );
+    });
+
+    test('同じグループからは1つだけ', () {
+      // 末子音の閉鎖音と鼻音は同じグループ。強い方（閉鎖音）だけ出す。
+      final points = _pointsOf([
+        _syllable('มาก', 'ม'),
+        _syllable('มาน', 'ม'),
+      ]);
+
+      expect(points.map((p) => p.issue), [SegmentIssue.finalStop]);
+    });
+
+    test('2音節以上の語では、どの音節のことかを名指しする', () {
+      final points = _pointsOf([
+        _syllable('ตะ', 'ต'),
+        _syllable('หลาด', 'ล'),
+      ]);
+
+      expect(points.map((p) => p.syllableText), ['ตะ', 'หลาด']);
+    });
+
+    test('1音節の語では音節を名指ししない', () {
+      // 語名と同じ文字列を2度出さない。
+      final points = _pointsOf([_syllable('ปาก', 'ป')]);
+
+      expect(points.every((p) => p.syllableText.isEmpty), isTrue);
+    });
+
+    test('4グループが揃う語', () {
+      final points = _pointsOf([
+        _syllable('ปาก', 'ป'), // 無気音・末子音
+        _syllable('งาน', 'ง'), // 語頭の ง
+        _syllable('แม', 'ม'), // 日本語に無い母音
+      ]);
+
+      expect(points.map((p) => groupOf(p.issue)), [
+        SegmentGroup.aspiration,
+        SegmentGroup.finalConsonant,
+        SegmentGroup.ngInitial,
+        SegmentGroup.vowel,
+      ]);
+    });
+
+    test('通じなくなる度合いの強い順に並ぶ', () {
+      final points = _pointsOf([
+        _syllable('แม', 'ม'), // 母音（弱い）
+        _syllable('ปา', 'ป'), // 無気音（強い）
+      ]);
+
+      expect(points.first.issue, SegmentIssue.unaspirated);
+    });
+
+    test('当たる点が無ければ空', () {
+      expect(_pointsOf([_syllable('มา', 'ม')]), isEmpty);
+      expect(_pointsOf(const []), isEmpty);
+    });
+
+    test('語の範囲の外は見ない', () {
+      final syllables = [
+        _syllable('ปา', 'ป'),
+        _syllable('มาน', 'ม'),
+      ];
+      final points = segmentPointsOf(syllables, start: 1, end: 2);
+
+      expect(points.map((p) => p.issue), [SegmentIssue.finalNasal]);
     });
   });
 

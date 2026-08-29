@@ -291,13 +291,17 @@ class L10nJa extends L10n {
       'これまでの単語をまとめて復習するクイズです。本来は例文5つごとに出ますが、まずは一度やってみましょう。';
 
   @override
-  String get coachTourFinishTitle => '機能の紹介はここまで';
+  String get coachTourFinishTitle => '間違えた例文は、また出ます';
 
   @override
-  String get coachTourFinishMessage => 'お疲れ様でした！「次の例文へ」をタップしてタイ語の世界に飛び込みましょう！';
+  String get coachTourFinishMessage =>
+      '5問クイズは、これまで読んだ例文から出題します。間違えた例文は時間をおいてもう一度出てくるので、覚え直しはアプリに任せて次へ進みましょう。';
 
   @override
-  String get coachTourFinishEmphasis => '「次の例文へ」をタップしてタイ語の世界に飛び込みましょう！';
+  String get coachTourFinishEmphasis => '間違えた例文は時間をおいてもう一度出てくる';
+
+  @override
+  String get coachTourFinishSeePremium => 'プレミアムを見る';
 
   @override
   String coachTourFinishQuota(int free, int premium) {
@@ -305,7 +309,44 @@ class L10nJa extends L10n {
   }
 
   @override
+  String get coachFlowTitle => '今後の進め方';
+
+  @override
+  String get coachFlowGreeting => 'お疲れ様でした。ここまでが一通りの流れです。';
+
+  @override
+  String get coachFlowLoopSentence => '例文';
+
+  @override
+  String get coachFlowLoopQuiz => 'クイズ';
+
+  @override
+  String get coachFlowLoopSummary => '5問クイズ';
+
+  @override
+  String get coachFlowBody1 => '例文を読んで、クイズで確認。';
+
+  @override
+  String get coachSummaryTipsBody =>
+      'タイ語だけを見て答えられた問題ほど、語彙スコアは伸びます。まずは日本語を見ずに挑戦してみましょう。';
+
+  @override
+  String get coachSummaryTipsEmphasis => 'タイ語だけを見て';
+
+  @override
+  String get coachFlowPage1Title => '例文とクイズをくり返す';
+
+  @override
+  String get coachSummaryTipsTitle => '5問クイズのコツ';
+
+  @override
+  String get coachFlowContinue => 'このまま続ける';
+
+  @override
   String get coachTopicTitle => 'テーマを選んでタイ文化に親しむ';
+
+  @override
+  String get coachTopicNext => '次の例文に進む';
 
   @override
   String get coachTopicMessage =>
@@ -579,20 +620,34 @@ class L10nJa extends L10n {
   String get trialEndedBody => '今日から無料プランになります。';
 
   @override
-  String trialEndedChangeQuota(int premium, int free) {
-    return '例文　1日$premium回 → $free回';
+  String get trialEndedKeepPremium => 'プレミアムプランを見る';
+
+  @override
+  String get trialEndedKeepFree => 'あとで';
+
+  @override
+  String get trialEndedChangeQuotaLabel => '例文';
+
+  @override
+  String trialEndedChangeQuotaPremium(int premium) {
+    return '1日$premium回';
   }
 
   @override
-  String trialEndedChangePronunciation(int count) {
-    return '発音チェック　無制限 → 1日$count回';
+  String trialEndedChangeQuotaFree(int free) {
+    return '1日$free回';
   }
 
   @override
-  String get trialEndedLater => 'あとで';
+  String get trialEndedChangePronunciationLabel => '発音チェック';
 
   @override
-  String get trialEndedSeePremium => 'プレミアムを見る';
+  String get trialEndedChangePronunciationPremium => '無制限';
+
+  @override
+  String trialEndedChangePronunciationFree(int count) {
+    return '1日$count回';
+  }
 
   @override
   String trialStartedTitle(int days) {
@@ -888,7 +943,7 @@ class L10nJa extends L10n {
   String get paywallFeatureTopicTitle => 'テーマを選んでタイ文化に親しむ';
 
   @override
-  String get paywallFeatureTopicFree => '入門向けのテーマのみ';
+  String get paywallFeatureTopicFree => '入門テーマからランダム';
 
   @override
   String get paywallFeatureTopicPremium => '祭り・寺院の作法・BLドラマなど自分で選べる';
@@ -930,7 +985,21 @@ class L10nJa extends L10n {
   String get coachSkip => 'スキップ';
 
   @override
+  String get coachToneBackToDetail => '例文詳細に戻る';
+
+  @override
   String get coachGotIt => 'わかった';
+
+  @override
+  String get coachNext => '次へ';
+
+  @override
+  String get coachBack => '戻る';
+
+  @override
+  String coachStepLabel(int current, int total) {
+    return '$current / $total';
+  }
 
   @override
   String get interviewIntroTitle => '4つ質問させてください';
@@ -1362,11 +1431,6 @@ class L10nJa extends L10n {
   }
 
   @override
-  String pronunciationSegmentShortVowel(String word, String label) {
-    return '「$word」の $label は短く切る。伸ばすと別の語になる';
-  }
-
-  @override
   String pronunciationSegmentVowelAe(String word) {
     return '「$word」の母音は「エ」より口を横に大きく開く（ɛ）';
   }
@@ -1383,7 +1447,7 @@ class L10nJa extends L10n {
 
   @override
   String pronunciationSegmentVowelUe(String word) {
-    return '「$word」の母音は唇を横に引いたまま「ウ」と出す（ɯ）';
+    return '「$word」の母音は唇を横に引いたまま「ウ」と出す（ʉ）';
   }
 
   @override
@@ -1411,6 +1475,11 @@ class L10nJa extends L10n {
   @override
   String get quotaSentenceReached =>
       '今日の新しい例文はここまでです。\nこれまでの例文を読み返したり、クイズで復習できます。';
+
+  @override
+  String quotaSentenceUpgradeCta(int count) {
+    return 'Premiumなら1日$count例文';
+  }
 
   @override
   String get errAuth => '認証エラーが発生しました。アプリを再起動してください。';
@@ -1926,7 +1995,7 @@ class L10nJa extends L10n {
   String get tip_toneFive_title => 'タイ語は5つの声調';
 
   @override
-  String get tip_toneFive_content => '平声・低声・下声・高声・上声の5つ。声調が違うと全く別の単語になります。';
+  String get tip_toneFive_content => '平声・低声・下降声・高声・上昇声の5つ。声調が違うと全く別の単語になります。';
 
   @override
   String get tip_toneFive_example =>
@@ -1945,7 +2014,7 @@ class L10nJa extends L10n {
   String get tip_toneMaiTho_title => '声調記号 ้ （mái thoo）';
 
   @override
-  String get tip_toneMaiTho_content => '文字の上に付く第2声調記号。中子音に付くと下声になります。';
+  String get tip_toneMaiTho_content => '文字の上に付く第2声調記号。中子音に付くと下降声になります。';
 
   @override
   String get tip_toneMaiTho_example => 'น้ำ（náam＝水）、บ้าน（bâan＝家）';
@@ -1955,7 +2024,7 @@ class L10nJa extends L10n {
 
   @override
   String get tip_toneMaiTriChat_content =>
-      '๊（mái trii）は高声、๋（mái jàttawaa）は上声を示します。使用頻度は低め。';
+      '๊（mái trii）は高声、๋（mái jàttawaa）は上昇声を示します。使用頻度は低め。';
 
   @override
   String get tip_toneMaiTriChat_example => 'โน๊ต（nóot＝ノート）、จ๋า（jǎa＝はいよ）';
@@ -1985,7 +2054,7 @@ class L10nJa extends L10n {
   String get tip_toneMidExplain_example => 'กา（kaa＝カラス）、ดี（dii＝良い）';
 
   @override
-  String get tip_toneRisingExplain_title => '上声（jàttawaa）';
+  String get tip_toneRisingExplain_title => '上昇声（jàttawaa）';
 
   @override
   String get tip_toneRisingExplain_content =>

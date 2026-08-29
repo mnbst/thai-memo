@@ -9,3 +9,6 @@ alert_email                   = "gcp.demo.776@gmail.com"
 billing_account               = "0189A7-F96D31-DD85EC"
 budget_amount                 = 3000
 ios_app_id                    = "1:147810088545:ios:c023f84f36af09f6c09c20"
+
+# dev はスケジューラを持たない（subscriptionStatus 等は手で叩く）
+enable_scheduled_jobs = false

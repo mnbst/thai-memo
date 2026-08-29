@@ -220,6 +220,9 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
 class FakePurchaseService extends Fake implements PurchaseService {
   bool restoreCalled = false;
   bool buyCalled = false;
+  int fetchProductCalls = 0;
+  bool initializeAvailable = true;
+  Object? fetchProductError;
 
   /// restore() 時のサーバー側処理（verifySubscription→Firestore更新）を模擬する
   void Function()? onRestore;
@@ -237,17 +240,22 @@ class FakePurchaseService extends Fake implements PurchaseService {
   void Function(String message)? onPurchasePending;
 
   @override
-  Future<bool> initialize() async => true;
+  Future<bool> initialize() async => initializeAvailable;
 
   @override
-  Future<ProductDetails?> fetchProduct() async => ProductDetails(
-        id: kProductIdPremiumMonthly,
-        title: 'プレミアム',
-        description: 'プレミアムプラン',
-        price: '¥800',
-        rawPrice: 800,
-        currencyCode: 'JPY',
-      );
+  Future<ProductDetails?> fetchProduct() async {
+    fetchProductCalls++;
+    final error = fetchProductError;
+    if (error != null) throw error;
+    return ProductDetails(
+      id: kProductIdPremiumMonthly,
+      title: 'プレミアム',
+      description: 'プレミアムプラン',
+      price: '¥800',
+      rawPrice: 800,
+      currencyCode: 'JPY',
+    );
+  }
 
   @override
   Future<void> buy(ProductDetails product) async {
@@ -258,6 +266,14 @@ class FakePurchaseService extends Fake implements PurchaseService {
   Future<void> restore() async {
     restoreCalled = true;
     onRestore?.call();
+  }
+
+  @override
+  Future<void> waitForPendingVerifications({
+    Duration settleDelay = const Duration(milliseconds: 500),
+    Duration timeout = const Duration(seconds: 35),
+  }) async {
+    await Future<void>.delayed(settleDelay);
   }
 
   @override

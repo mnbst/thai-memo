@@ -270,3 +270,103 @@ resource "google_service_account_key" "github_actions_play_upload" {
 #     module.secret_manager
 #   ]
 # }
+
+# subscriptionStatus の定期実行（毎日 JST 0:00）
+#
+# 期限切れ premium を free に落とすフォールバック。Go 版は関数の形を環境で
+# 分けない（常に HTTP トリガー）ので、定期実行の有無はこのジョブの有無で決まる。
+# firebase-functions が作っていたジョブ（firebase-schedule-* ）と同じ形
+# ―― OIDC トークン付きの HTTP POST ―― を Terraform 側で明示的に持つ。
+resource "google_cloud_scheduler_job" "subscription_status" {
+  count = var.enable_scheduled_jobs ? 1 : 0
+
+  name        = "subscription-status-daily"
+  project     = var.project_id
+  region      = var.region
+  description = "期限切れ premium ユーザーを free に戻す"
+
+  schedule  = "0 0 * * *"
+  time_zone = "Asia/Tokyo"
+
+  # 関数側のタイムアウト(300s)より長く取る。
+  attempt_deadline = "540s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://${var.region}-${var.project_id}.cloudfunctions.net/subscriptionStatus"
+
+    # Cloud Run の invoker はこの SA に対して付ける必要がある。
+    # 関数のランタイム SA と同じものを使う（既存ジョブと揃える）。
+    oidc_token {
+      service_account_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+      audience              = "https://${var.region}-${var.project_id}.cloudfunctions.net/subscriptionStatus"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# dailyBatch — 毎日 JST 0:00 の深夜バッチ。
+#
+# クォータのリセット、UVM の P 減衰、匿名ユーザーと古い例文の掃除を行う。
+# subscriptionStatus と同じく Go 版は常に HTTP トリガーなので、定期実行は
+# このジョブが担う（dev では enable_scheduled_jobs = false で作らない）。
+resource "google_cloud_scheduler_job" "daily_batch" {
+  count = var.enable_scheduled_jobs ? 1 : 0
+
+  name        = "daily-batch"
+  project     = var.project_id
+  region      = var.region
+  description = "日次クォータのリセットと各種掃除"
+
+  schedule  = "0 0 * * *"
+  time_zone = "Asia/Tokyo"
+
+  # 関数側のタイムアウト(1800s)に合わせる。全ユーザー走査があるため長い。
+  attempt_deadline = "1800s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://${var.region}-${var.project_id}.cloudfunctions.net/dailyBatch"
+
+    oidc_token {
+      service_account_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+      audience              = "https://${var.region}-${var.project_id}.cloudfunctions.net/dailyBatch"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# deliverDailySentence — 毎時起動の毎日例文配信。
+#
+# 現地の配信希望時刻に一致するユーザーへ例文を1件作って通知する。対象は
+# notify_utc_hour で絞られるので、毎時走っても読み取りは 1日1回/ユーザー。
+# Python 版は scheduler_fn.on_schedule でジョブごと自動生成していたが、
+# Go 版は他のバッチと同じく HTTP トリガーなので定期実行はここが担う。
+resource "google_cloud_scheduler_job" "deliver_daily_sentence" {
+  count = var.enable_scheduled_jobs ? 1 : 0
+
+  name        = "deliver-daily-sentence"
+  project     = var.project_id
+  region      = var.region
+  description = "毎日例文の配信（毎時、現地時刻で判定）"
+
+  schedule  = "0 * * * *"
+  time_zone = "Etc/UTC"
+
+  # 関数側のタイムアウト(540s)に合わせる。
+  attempt_deadline = "540s"
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://${var.region}-${var.project_id}.cloudfunctions.net/deliverDailySentence"
+
+    oidc_token {
+      service_account_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+      audience              = "https://${var.region}-${var.project_id}.cloudfunctions.net/deliverDailySentence"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}

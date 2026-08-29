@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/core/constants/generation_constants.dart';
 
-// サーバー側（functions/python/tests/test_interview_topic.py）と同じ取り決め。
+// サーバー側（functions/go/internal/sentence/prompts.go）と同じ取り決め。
 // 毎日配信はサーバーの対応表を使うので、両方を同じ内容に保つ。
 void main() {
   group('topicForInterviewGoal', () {

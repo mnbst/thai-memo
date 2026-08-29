@@ -3,7 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
@@ -22,6 +24,14 @@ const String? _appCheckDebugToken =
 void main() async {
   // Ensure Flutter binding is initialized
   WidgetsFlutterBinding.ensureInitialized();
+
+  // フォントは google_fonts/ に同梱済み。実行時に fonts.gstatic.com へ
+  // 取りに行かせない（オフライン・低速回線でのフォールバックを防ぐ）。
+  GoogleFonts.config.allowRuntimeFetching = false;
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString('google_fonts/OFL.txt');
+    yield LicenseEntryWithLineBreaks(const ['google_fonts'], license);
+  });
 
   // Flutter は支援技術が接続されるまでセマンティクスツリーを構築しないため、
   // Maestro などアクセシビリティ経由でUIを読む自動化ツールからは中身が空に見える。

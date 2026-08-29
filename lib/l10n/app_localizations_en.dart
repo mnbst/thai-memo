@@ -304,15 +304,18 @@ class L10nEn extends L10n {
       'A quiz that reviews the words you have learned so far. It normally comes around every 5 sentences, but give it a try now.';
 
   @override
-  String get coachTourFinishTitle => 'That is the whole tour';
+  String get coachTourFinishTitle => 'Sentences you miss come back';
 
   @override
   String get coachTourFinishMessage =>
-      'Nicely done! Tap \"Next sentence\" and dive into the Thai-speaking world!';
+      'The 5-question quiz draws on the sentences you have read. The ones you get wrong come back again after a while, so leave the reviewing to the app and move on.';
 
   @override
   String get coachTourFinishEmphasis =>
-      'Tap \"Next sentence\" and dive into the Thai-speaking world!';
+      'The ones you get wrong come back again after a while';
+
+  @override
+  String get coachTourFinishSeePremium => 'See Premium';
 
   @override
   String coachTourFinishQuota(int free, int premium) {
@@ -320,7 +323,45 @@ class L10nEn extends L10n {
   }
 
   @override
+  String get coachFlowTitle => 'How it goes from here';
+
+  @override
+  String get coachFlowGreeting =>
+      'Nice work! That was the flow, from start to finish.';
+
+  @override
+  String get coachFlowLoopSentence => 'Sentence';
+
+  @override
+  String get coachFlowLoopQuiz => 'Quiz';
+
+  @override
+  String get coachFlowLoopSummary => '5-question quiz';
+
+  @override
+  String get coachFlowBody1 => 'Read a sentence, check it with a quiz.';
+
+  @override
+  String get coachSummaryTipsBody =>
+      'Questions you answer from the Thai alone grow your score the most. Try it without the translation first.';
+
+  @override
+  String get coachSummaryTipsEmphasis => 'from the Thai alone';
+
+  @override
+  String get coachFlowPage1Title => 'Sentence and quiz, on repeat';
+
+  @override
+  String get coachSummaryTipsTitle => 'Tips for the 5-question quiz';
+
+  @override
+  String get coachFlowContinue => 'Keep going';
+
+  @override
   String get coachTopicTitle => 'Pick a topic, get deep into Thai culture';
+
+  @override
+  String get coachTopicNext => 'Go to next sentence';
 
   @override
   String get coachTopicMessage =>
@@ -620,20 +661,34 @@ class L10nEn extends L10n {
   String get trialEndedBody => 'You\'re on the free plan starting today.';
 
   @override
-  String trialEndedChangeQuota(int premium, int free) {
-    return 'Sentences  $premium/day → $free/day';
+  String get trialEndedKeepPremium => 'See the Premium plan';
+
+  @override
+  String get trialEndedKeepFree => 'Later';
+
+  @override
+  String get trialEndedChangeQuotaLabel => 'Sentences';
+
+  @override
+  String trialEndedChangeQuotaPremium(int premium) {
+    return '$premium/day';
   }
 
   @override
-  String trialEndedChangePronunciation(int count) {
-    return 'Pronunciation checks  Unlimited → $count/day';
+  String trialEndedChangeQuotaFree(int free) {
+    return '$free/day';
   }
 
   @override
-  String get trialEndedLater => 'Later';
+  String get trialEndedChangePronunciationLabel => 'Pronunciation checks';
 
   @override
-  String get trialEndedSeePremium => 'See Premium';
+  String get trialEndedChangePronunciationPremium => 'Unlimited';
+
+  @override
+  String trialEndedChangePronunciationFree(int count) {
+    return '$count/day';
+  }
 
   @override
   String trialStartedTitle(int days) {
@@ -962,7 +1017,7 @@ class L10nEn extends L10n {
       'Pick a topic, get deep into Thai culture';
 
   @override
-  String get paywallFeatureTopicFree => 'Beginner topics only';
+  String get paywallFeatureTopicFree => 'Random, from beginner topics';
 
   @override
   String get paywallFeatureTopicPremium =>
@@ -1009,7 +1064,21 @@ class L10nEn extends L10n {
   String get coachSkip => 'Skip';
 
   @override
+  String get coachToneBackToDetail => 'Back to the sentence';
+
+  @override
   String get coachGotIt => 'Got it';
+
+  @override
+  String get coachNext => 'Next';
+
+  @override
+  String get coachBack => 'Back';
+
+  @override
+  String coachStepLabel(int current, int total) {
+    return '$current / $total';
+  }
 
   @override
   String get interviewIntroTitle => 'Four quick questions';
@@ -1466,28 +1535,23 @@ class L10nEn extends L10n {
   }
 
   @override
-  String pronunciationSegmentShortVowel(String word, String label) {
-    return 'Keep $label in \"$word\" short — lengthening it makes a different word.';
-  }
-
-  @override
   String pronunciationSegmentVowelAe(String word) {
-    return 'The vowel in \"$word\" is wider than \"e\" — spread the mouth (ɛ).';
+    return 'For the vowel in \"$word\", open your mouth wider and stretch it sideways, past \"e\" (ɛ).';
   }
 
   @override
   String pronunciationSegmentVowelOe(String word) {
-    return 'The vowel in \"$word\" is a relaxed, unrounded mid vowel (ə).';
+    return 'For the vowel in \"$word\", hardly move your mouth at all — a muffled \"uh\" (ə).';
   }
 
   @override
   String pronunciationSegmentVowelAw(String word) {
-    return 'The vowel in \"$word\" is rounder and more open than \"o\" (ɔ).';
+    return 'For the vowel in \"$word\", make your lips a bigger, rounder circle than for \"o\" (ɔ).';
   }
 
   @override
   String pronunciationSegmentVowelUe(String word) {
-    return 'The vowel in \"$word\" is \"u\" with the lips spread, not rounded (ɯ).';
+    return 'For the vowel in \"$word\", say \"oo\" while keeping your lips stretched sideways, never pushed forward (ʉ).';
   }
 
   @override
@@ -1518,6 +1582,11 @@ class L10nEn extends L10n {
   @override
   String get quotaSentenceReached =>
       'That\'s the last new sentence for today.\nRevisit past sentences or review them with a quiz.';
+
+  @override
+  String quotaSentenceUpgradeCta(int count) {
+    return 'Premium gives you $count sentences a day';
+  }
 
   @override
   String get errAuth =>

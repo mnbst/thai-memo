@@ -640,20 +640,26 @@ abstract class L10n {
   /// No description provided for @coachTourFinishTitle.
   ///
   /// In ja, this message translates to:
-  /// **'機能の紹介はここまで'**
+  /// **'間違えた例文は、また出ます'**
   String get coachTourFinishTitle;
 
   /// No description provided for @coachTourFinishMessage.
   ///
   /// In ja, this message translates to:
-  /// **'お疲れ様でした！「次の例文へ」をタップしてタイ語の世界に飛び込みましょう！'**
+  /// **'5問クイズは、これまで読んだ例文から出題します。間違えた例文は時間をおいてもう一度出てくるので、覚え直しはアプリに任せて次へ進みましょう。'**
   String get coachTourFinishMessage;
 
   /// No description provided for @coachTourFinishEmphasis.
   ///
   /// In ja, this message translates to:
-  /// **'「次の例文へ」をタップしてタイ語の世界に飛び込みましょう！'**
+  /// **'間違えた例文は時間をおいてもう一度出てくる'**
   String get coachTourFinishEmphasis;
+
+  /// No description provided for @coachTourFinishSeePremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムを見る'**
+  String get coachTourFinishSeePremium;
 
   /// No description provided for @coachTourFinishQuota.
   ///
@@ -661,11 +667,83 @@ abstract class L10n {
   /// **'例文は無料版で1日{free}文、プレミアムなら1日{premium}文まで作れます。'**
   String coachTourFinishQuota(int free, int premium);
 
+  /// No description provided for @coachFlowTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'今後の進め方'**
+  String get coachFlowTitle;
+
+  /// No description provided for @coachFlowGreeting.
+  ///
+  /// In ja, this message translates to:
+  /// **'お疲れ様でした。ここまでが一通りの流れです。'**
+  String get coachFlowGreeting;
+
+  /// No description provided for @coachFlowLoopSentence.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文'**
+  String get coachFlowLoopSentence;
+
+  /// No description provided for @coachFlowLoopQuiz.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズ'**
+  String get coachFlowLoopQuiz;
+
+  /// No description provided for @coachFlowLoopSummary.
+  ///
+  /// In ja, this message translates to:
+  /// **'5問クイズ'**
+  String get coachFlowLoopSummary;
+
+  /// No description provided for @coachFlowBody1.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文を読んで、クイズで確認。'**
+  String get coachFlowBody1;
+
+  /// No description provided for @coachSummaryTipsBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語だけを見て答えられた問題ほど、語彙スコアは伸びます。まずは日本語を見ずに挑戦してみましょう。'**
+  String get coachSummaryTipsBody;
+
+  /// No description provided for @coachSummaryTipsEmphasis.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語だけを見て'**
+  String get coachSummaryTipsEmphasis;
+
+  /// No description provided for @coachFlowPage1Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文とクイズをくり返す'**
+  String get coachFlowPage1Title;
+
+  /// No description provided for @coachSummaryTipsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'5問クイズのコツ'**
+  String get coachSummaryTipsTitle;
+
+  /// No description provided for @coachFlowContinue.
+  ///
+  /// In ja, this message translates to:
+  /// **'このまま続ける'**
+  String get coachFlowContinue;
+
   /// No description provided for @coachTopicTitle.
   ///
   /// In ja, this message translates to:
   /// **'テーマを選んでタイ文化に親しむ'**
   String get coachTopicTitle;
+
+  /// No description provided for @coachTopicNext.
+  ///
+  /// In ja, this message translates to:
+  /// **'次の例文に進む'**
+  String get coachTopicNext;
 
   /// No description provided for @coachTopicMessage.
   ///
@@ -1171,29 +1249,53 @@ abstract class L10n {
   /// **'今日から無料プランになります。'**
   String get trialEndedBody;
 
-  /// No description provided for @trialEndedChangeQuota.
+  /// No description provided for @trialEndedKeepPremium.
   ///
   /// In ja, this message translates to:
-  /// **'例文　1日{premium}回 → {free}回'**
-  String trialEndedChangeQuota(int premium, int free);
+  /// **'プレミアムプランを見る'**
+  String get trialEndedKeepPremium;
 
-  /// No description provided for @trialEndedChangePronunciation.
-  ///
-  /// In ja, this message translates to:
-  /// **'発音チェック　無制限 → 1日{count}回'**
-  String trialEndedChangePronunciation(int count);
-
-  /// No description provided for @trialEndedLater.
+  /// No description provided for @trialEndedKeepFree.
   ///
   /// In ja, this message translates to:
   /// **'あとで'**
-  String get trialEndedLater;
+  String get trialEndedKeepFree;
 
-  /// No description provided for @trialEndedSeePremium.
+  /// No description provided for @trialEndedChangeQuotaLabel.
   ///
   /// In ja, this message translates to:
-  /// **'プレミアムを見る'**
-  String get trialEndedSeePremium;
+  /// **'例文'**
+  String get trialEndedChangeQuotaLabel;
+
+  /// No description provided for @trialEndedChangeQuotaPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'1日{premium}回'**
+  String trialEndedChangeQuotaPremium(int premium);
+
+  /// No description provided for @trialEndedChangeQuotaFree.
+  ///
+  /// In ja, this message translates to:
+  /// **'1日{free}回'**
+  String trialEndedChangeQuotaFree(int free);
+
+  /// No description provided for @trialEndedChangePronunciationLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音チェック'**
+  String get trialEndedChangePronunciationLabel;
+
+  /// No description provided for @trialEndedChangePronunciationPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'無制限'**
+  String get trialEndedChangePronunciationPremium;
+
+  /// No description provided for @trialEndedChangePronunciationFree.
+  ///
+  /// In ja, this message translates to:
+  /// **'1日{count}回'**
+  String trialEndedChangePronunciationFree(int count);
 
   /// No description provided for @trialStartedTitle.
   ///
@@ -1708,7 +1810,7 @@ abstract class L10n {
   /// No description provided for @paywallFeatureTopicFree.
   ///
   /// In ja, this message translates to:
-  /// **'入門向けのテーマのみ'**
+  /// **'入門テーマからランダム'**
   String get paywallFeatureTopicFree;
 
   /// No description provided for @paywallFeatureTopicPremium.
@@ -1789,11 +1891,35 @@ abstract class L10n {
   /// **'スキップ'**
   String get coachSkip;
 
+  /// No description provided for @coachToneBackToDetail.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文詳細に戻る'**
+  String get coachToneBackToDetail;
+
   /// No description provided for @coachGotIt.
   ///
   /// In ja, this message translates to:
   /// **'わかった'**
   String get coachGotIt;
+
+  /// No description provided for @coachNext.
+  ///
+  /// In ja, this message translates to:
+  /// **'次へ'**
+  String get coachNext;
+
+  /// No description provided for @coachBack.
+  ///
+  /// In ja, this message translates to:
+  /// **'戻る'**
+  String get coachBack;
+
+  /// No description provided for @coachStepLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'{current} / {total}'**
+  String coachStepLabel(int current, int total);
 
   /// No description provided for @interviewIntroTitle.
   ///
@@ -2552,12 +2678,6 @@ abstract class L10n {
   /// **'「{word}」の終わりは唇を閉じる（-m）'**
   String pronunciationSegmentFinalM(String word);
 
-  /// No description provided for @pronunciationSegmentShortVowel.
-  ///
-  /// In ja, this message translates to:
-  /// **'「{word}」の {label} は短く切る。伸ばすと別の語になる'**
-  String pronunciationSegmentShortVowel(String word, String label);
-
   /// No description provided for @pronunciationSegmentVowelAe.
   ///
   /// In ja, this message translates to:
@@ -2579,7 +2699,7 @@ abstract class L10n {
   /// No description provided for @pronunciationSegmentVowelUe.
   ///
   /// In ja, this message translates to:
-  /// **'「{word}」の母音は唇を横に引いたまま「ウ」と出す（ɯ）'**
+  /// **'「{word}」の母音は唇を横に引いたまま「ウ」と出す（ʉ）'**
   String pronunciationSegmentVowelUe(String word);
 
   /// No description provided for @pronunciationLimitTitle.
@@ -2623,6 +2743,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'今日の新しい例文はここまでです。\nこれまでの例文を読み返したり、クイズで復習できます。'**
   String get quotaSentenceReached;
+
+  /// 上限に当たった free ユーザーだけに出すペイウォール導線。count は PREMIUM_DAILY_SENTENCES
+  ///
+  /// In ja, this message translates to:
+  /// **'Premiumなら1日{count}例文'**
+  String quotaSentenceUpgradeCta(int count);
 
   /// No description provided for @errAuth.
   ///
@@ -3593,7 +3719,7 @@ abstract class L10n {
   /// No description provided for @tip_toneFive_content.
   ///
   /// In ja, this message translates to:
-  /// **'平声・低声・下声・高声・上声の5つ。声調が違うと全く別の単語になります。'**
+  /// **'平声・低声・下降声・高声・上昇声の5つ。声調が違うと全く別の単語になります。'**
   String get tip_toneFive_content;
 
   /// No description provided for @tip_toneFive_example.
@@ -3629,7 +3755,7 @@ abstract class L10n {
   /// No description provided for @tip_toneMaiTho_content.
   ///
   /// In ja, this message translates to:
-  /// **'文字の上に付く第2声調記号。中子音に付くと下声になります。'**
+  /// **'文字の上に付く第2声調記号。中子音に付くと下降声になります。'**
   String get tip_toneMaiTho_content;
 
   /// No description provided for @tip_toneMaiTho_example.
@@ -3647,7 +3773,7 @@ abstract class L10n {
   /// No description provided for @tip_toneMaiTriChat_content.
   ///
   /// In ja, this message translates to:
-  /// **'๊（mái trii）は高声、๋（mái jàttawaa）は上声を示します。使用頻度は低め。'**
+  /// **'๊（mái trii）は高声、๋（mái jàttawaa）は上昇声を示します。使用頻度は低め。'**
   String get tip_toneMaiTriChat_content;
 
   /// No description provided for @tip_toneMaiTriChat_example.
@@ -3701,7 +3827,7 @@ abstract class L10n {
   /// No description provided for @tip_toneRisingExplain_title.
   ///
   /// In ja, this message translates to:
-  /// **'上声（jàttawaa）'**
+  /// **'上昇声（jàttawaa）'**
   String get tip_toneRisingExplain_title;
 
   /// No description provided for @tip_toneRisingExplain_content.
