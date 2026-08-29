@@ -98,3 +98,23 @@ func TestVerifyPurchaseGolden(t *testing.T) {
 		}
 	}
 }
+
+func TestMapResultRejectsDifferentProduct(t *testing.T) {
+	data := &subscriptionPurchaseV2{
+		SubscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+	}
+	data.LineItems = append(data.LineItems, struct {
+		ProductID        string `json:"productId"`
+		ExpiryTime       string `json:"expiryTime"`
+		AutoRenewingPlan *struct {
+			AutoRenewEnabled bool `json:"autoRenewEnabled"`
+		} `json:"autoRenewingPlan"`
+	}{
+		ProductID:  "different_product",
+		ExpiryTime: "2030-01-01T00:00:00Z",
+	})
+
+	if _, err := mapResult("com.thaimemo.thai_memo", "premium_monthly", data); err == nil {
+		t.Fatal("要求商品と異なる lineItem が受理された")
+	}
+}

@@ -18,6 +18,7 @@ const (
 // VerificationResult は App Store 購入検証の結果。
 type VerificationResult struct {
 	Valid                 bool
+	ProductID             string
 	OriginalTransactionID string
 	// ExpiresAt は有効期限。無い場合は nil。
 	ExpiresAt    *int64 // エポックミリ秒
@@ -57,6 +58,7 @@ type RenewalInfo struct {
 type Notification struct {
 	NotificationType string
 	Subtype          string
+	SignedDate       *int64
 	TransactionInfo  TransactionInfo
 	RenewalInfo      *RenewalInfo
 }

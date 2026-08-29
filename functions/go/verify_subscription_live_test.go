@@ -61,6 +61,8 @@ func playResponse(state, expiryTime string, autoRenew bool) string {
 // Firestore にもストアにも触れないので、実行に外部依存がない。
 func TestVerifySubscriptionValidation(t *testing.T) {
 	ctx := context.Background()
+	setProjectEnv(t, "thai-memo-dev")
+	t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
 
 	cases := []struct {
 		name     string
@@ -98,6 +100,11 @@ func TestVerifySubscriptionValidation(t *testing.T) {
 			authedRequest(`{"platform":"web","purchase_token":"t","product_id":"p"}`),
 			callable.InvalidArgument, "platform は android または ios を指定してください",
 		},
+		{
+			"未知の商品",
+			authedRequest(`{"platform":"ios","purchase_token":"t","product_id":"other_subscription"}`),
+			callable.InvalidArgument, "許可されていないサブスクリプション商品です",
+		},
 	}
 
 	for _, tc := range cases {
@@ -106,6 +113,80 @@ func TestVerifySubscriptionValidation(t *testing.T) {
 			assertCallableError(t, err, tc.wantCode, tc.wantMsg)
 		})
 	}
+}
+
+// setProjectEnv は fbapp.ProjectID() が見る 3 つの環境変数をまとめて上書きする。
+// 1 つだけ設定すると、実行環境に残った別の変数で結果が変わる。
+func setProjectEnv(t *testing.T, projectID string) {
+	t.Helper()
+	for _, k := range []string{"GCLOUD_PROJECT", "GCP_PROJECT", "GOOGLE_CLOUD_PROJECT"} {
+		t.Setenv(k, projectID)
+	}
+}
+
+func TestAllowedSubscriptionProducts(t *testing.T) {
+	t.Run("prod は本番商品のみ", func(t *testing.T) {
+		setProjectEnv(t, "thai-memo-prod")
+		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
+		if !isAllowedSubscriptionProduct("premium_monthly") {
+			t.Fatal("本番商品が拒否された")
+		}
+		if isAllowedSubscriptionProduct("premium_monthly_test") {
+			t.Fatal("prod で tester 商品が許可された")
+		}
+	})
+
+	t.Run("tester はテスト商品のみ", func(t *testing.T) {
+		setProjectEnv(t, "thai-memo-67139")
+		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
+		if !isAllowedSubscriptionProduct("premium_monthly_test") {
+			t.Fatal("tester 商品が拒否された")
+		}
+		if isAllowedSubscriptionProduct("premium_monthly") {
+			t.Fatal("tester で本番商品が許可された")
+		}
+	})
+
+	t.Run("dev は両方許可", func(t *testing.T) {
+		setProjectEnv(t, "thai-memo-dev")
+		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
+		if !isAllowedSubscriptionProduct("premium_monthly") ||
+			!isAllowedSubscriptionProduct("premium_monthly_test") {
+			t.Fatal("dev で商品が拒否された")
+		}
+	})
+
+	// 2nd gen では GCLOUD_PROJECT が無く GOOGLE_CLOUD_PROJECT だけのことがある。
+	// そこで prod と判定できないと tester 商品が prod で通ってしまう。
+	t.Run("GCLOUD_PROJECT が無くても prod と判定する", func(t *testing.T) {
+		t.Setenv("GCLOUD_PROJECT", "")
+		t.Setenv("GCP_PROJECT", "")
+		t.Setenv("GOOGLE_CLOUD_PROJECT", "thai-memo-prod")
+		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
+		if isAllowedSubscriptionProduct("premium_monthly_test") {
+			t.Fatal("prod で tester 商品が許可された")
+		}
+		if !isAllowedSubscriptionProduct("premium_monthly") {
+			t.Fatal("本番商品が拒否された")
+		}
+	})
+
+	t.Run("環境を特定できなければ拒否する", func(t *testing.T) {
+		setProjectEnv(t, "")
+		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
+		if isAllowedSubscriptionProduct("premium_monthly") {
+			t.Fatal("未知の環境で商品が許可された")
+		}
+	})
+
+	t.Run("明示 allowlist を優先", func(t *testing.T) {
+		setProjectEnv(t, "thai-memo-prod")
+		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", " custom_a,custom_b ")
+		if !isAllowedSubscriptionProduct("custom_b") ||
+			isAllowedSubscriptionProduct("premium_monthly") {
+			t.Fatal("明示 allowlist が適用されていない")
+		}
+	})
 }
 
 // TestVerifySubscriptionRejectsAnonymous は匿名ユーザーを拒否することを確かめる。

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
@@ -23,10 +24,18 @@ import (
 // サブスクリプション状態の変更を Firestore に反映する。
 // 通知ペイロードは JWS 形式で署名されており、internal/applejws で検証する。
 //
-// **Apple は 200 レスポンスを期待するため、処理エラーでも 200 を返す。**
-// 200 以外を返すとリトライが発生し、通知が重複処理される可能性がある。
+// 署名不正など再試行しても直らない入力は 200 で破棄する。
+// Firestore 等の一時障害は 5xx を返し、Apple に再送させる。
 
 func handleAppStoreNotificationHTTP(w http.ResponseWriter, r *http.Request) {
+	handleAppStoreNotificationWithProcessor(w, r, processAppStoreNotification)
+}
+
+type appStoreNotificationProcessor func(context.Context, string) error
+
+func handleAppStoreNotificationWithProcessor(
+	w http.ResponseWriter, r *http.Request, process appStoreNotificationProcessor,
+) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
@@ -41,17 +50,20 @@ func handleAppStoreNotificationHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := processAppStoreNotification(r.Context(), body.SignedPayload); err != nil {
+	if err := process(r.Context(), body.SignedPayload); err != nil {
 		var rejected *applejws.RejectedError
 		if errors.As(err, &rejected) {
 			// 署名検証で弾いた。偽装通知なら正常な動作だが、本物を誤って弾いていると
 			// 課金状態が一切更新されない障害になる。200 を返す以上ログでしか気付けない
 			// ので、専用のイベント名で出して監視できるようにする。
 			log.Printf("appstore_notification_signature_rejected reason=%q", rejected.Error())
+			_, _ = w.Write([]byte("OK"))
+			return
 		} else {
 			log.Printf("Error processing App Store notification: %v", err)
+			http.Error(w, "internal", http.StatusInternalServerError)
+			return
 		}
-		// エラーでも200を返す（Apple のリトライを防ぐため）
 	}
 	_, _ = w.Write([]byte("OK"))
 }
@@ -110,6 +122,10 @@ func processAppStoreNotification(ctx context.Context, signedPayload string) erro
 	}
 
 	for _, doc := range docs {
+		if !isNewerAppStoreNotification(doc.Data(), notification.SignedDate) {
+			log.Printf("Skipping stale App Store notification for user %s", doc.Ref.ID)
+			continue
+		}
 		currentTier, _ := doc.Data()["tier"].(string)
 		updates := appStoreUpdates(notification, decision, currentTier, doc.Ref.ID)
 
@@ -136,6 +152,12 @@ func appStoreUpdates(
 		{Path: "subscription.status", Value: decision.Status},
 		{Path: "subscription.auto_renewing", Value: decision.AutoRenewing},
 		{Path: "subscription.updated_at", Value: firestore.ServerTimestamp},
+	}
+	if n.SignedDate != nil {
+		updates = append(updates, firestore.Update{
+			Path:  "subscription.notification_signed_at",
+			Value: millisToTime(*n.SignedDate),
+		})
 	}
 
 	// expires_at は premium の期限切れフォールバック（dailyBatch /
@@ -169,6 +191,20 @@ func appStoreUpdates(
 	}
 
 	return updates
+}
+
+// isNewerAppStoreNotification は再送・順序逆転した通知で新しい状態を巻き戻さない。
+// 既存データや古いテスト通知に signedDate が無い場合は互換性のため処理する。
+func isNewerAppStoreNotification(data map[string]any, incoming *int64) bool {
+	if incoming == nil {
+		return true
+	}
+	subscription, _ := data["subscription"].(map[string]any)
+	last, ok := subscription["notification_signed_at"].(time.Time)
+	if !ok {
+		return true
+	}
+	return *incoming > last.UnixMilli()
 }
 
 // appStoreDecision は通知タイプから決まるサブスクリプション状態。

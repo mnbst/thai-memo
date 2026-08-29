@@ -1,7 +1,9 @@
 package function
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,6 +18,40 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/appstore"
 	"github.com/mnbst/thai-memo/functions/go/internal/playbilling"
 )
+
+func TestAppStoreNotificationRetriesTransientFailure(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(
+		`{"signedPayload":"valid-shape-for-processor"}`,
+	))
+	rec := httptest.NewRecorder()
+	handleAppStoreNotificationWithProcessor(rec, req,
+		func(context.Context, string) error { return errors.New("temporary firestore error") })
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("一時障害の status: want 500, got %d", rec.Code)
+	}
+}
+
+func TestAppStoreNotificationOrdering(t *testing.T) {
+	last := time.UnixMilli(2_000)
+	data := map[string]any{
+		"subscription": map[string]any{"notification_signed_at": last},
+	}
+
+	older := int64(1_999)
+	equal := int64(2_000)
+	newer := int64(2_001)
+	if isNewerAppStoreNotification(data, &older) ||
+		isNewerAppStoreNotification(data, &equal) {
+		t.Fatal("古い・重複通知が受理された")
+	}
+	if !isNewerAppStoreNotification(data, &newer) {
+		t.Fatal("新しい通知が拒否された")
+	}
+	if !isNewerAppStoreNotification(data, nil) {
+		t.Fatal("signedDate のない旧通知との互換性がない")
+	}
+}
 
 type notificationGolden struct {
 	NowMS           int64  `json:"now_ms"`

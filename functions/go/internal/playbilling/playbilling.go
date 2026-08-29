@@ -38,6 +38,7 @@ const (
 // VerificationResult は Play 購入検証の結果。
 type VerificationResult struct {
 	Valid        bool
+	ProductID    string
 	ExpiresAt    *time.Time
 	AutoRenewing bool
 	Status       Status
@@ -128,11 +129,16 @@ func (c *Client) VerifyPurchase(
 func mapResult(
 	packageName, subscriptionID string, data *subscriptionPurchaseV2,
 ) (*VerificationResult, error) {
-	// lineItems[0] にサブスクリプションの詳細（有効期限、自動更新状態）が含まれる
+	// purchaseToken はプラン変更時に複数 lineItems を返すことがある。
+	// クライアント申告の商品ではなく、Play が返した同一商品だけを採用する。
 	var expiresAt *time.Time
 	autoRenewing := false
-	if len(data.LineItems) > 0 {
-		item := data.LineItems[0]
+	foundProduct := false
+	for _, item := range data.LineItems {
+		if item.ProductID != subscriptionID {
+			continue
+		}
+		foundProduct = true
 		if item.ExpiryTime != "" {
 			t, err := parseExpiryTime(item.ExpiryTime)
 			if err != nil {
@@ -143,6 +149,20 @@ func mapResult(
 		if item.AutoRenewingPlan != nil {
 			autoRenewing = item.AutoRenewingPlan.AutoRenewEnabled
 		}
+		break
+	}
+	if !foundProduct {
+		if len(data.LineItems) == 0 {
+			// 商品明細が無いレスポンスは entitlement を付与せず expired 扱い。
+			// これは従来の安全側フォールバックと同じで、商品不一致とは区別する。
+			log.Printf("Subscription has no lineItems; treating as expired (packageName=%s, subscriptionId=%s, subscriptionState=%s)",
+				packageName, subscriptionID, data.SubscriptionState)
+			return &VerificationResult{
+				Valid: true, ProductID: subscriptionID, ExpiresAt: nil,
+				AutoRenewing: false, Status: StatusExpired,
+			}, nil
+		}
+		return nil, fmt.Errorf("Play API response does not contain subscriptionId %q", subscriptionID)
 	}
 
 	if expiresAt == nil {
@@ -150,7 +170,7 @@ func mapResult(
 		log.Printf("Subscription has no expiryTime; treating as expired (packageName=%s, subscriptionId=%s, subscriptionState=%s)",
 			packageName, subscriptionID, data.SubscriptionState)
 		return &VerificationResult{
-			Valid: true, ExpiresAt: nil,
+			Valid: true, ProductID: subscriptionID, ExpiresAt: nil,
 			AutoRenewing: autoRenewing, Status: StatusExpired,
 		}, nil
 	}
@@ -168,7 +188,7 @@ func mapResult(
 	}
 
 	return &VerificationResult{
-		Valid: true, ExpiresAt: expiresAt,
+		Valid: true, ProductID: subscriptionID, ExpiresAt: expiresAt,
 		AutoRenewing: autoRenewing, Status: status,
 	}, nil
 }

@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/subscription_provider.dart';
 import 'package:thai_memo/services/firebase_auth_service.dart';
+import 'package:thai_memo/services/purchase_service.dart';
 
 import '../../helpers/fake_firebase.dart';
 
@@ -104,6 +105,38 @@ void main() {
 
       expect(controller.state.errorMessage, 'プレミアムのご利用にはサインインが必要です');
       expect(purchase.restoreCalled, isFalse);
+    });
+  });
+
+  group('ストア初期化の再試行', () {
+    test('商品取得が一度失敗しても次回呼び出しで再取得できる', () async {
+      auth.user = FakeUser(uid: 'user-1', isAnonymous: false);
+      purchase.fetchProductError = PurchaseProductLoadException('temporary');
+
+      await controller.ensureStoreReady();
+      expect(controller.state.product, isNull);
+      expect(purchase.fetchProductCalls, 1);
+
+      purchase.fetchProductError = null;
+      await controller.ensureStoreReady();
+
+      expect(purchase.fetchProductCalls, 2);
+      expect(controller.state.product, isNotNull);
+      expect(controller.state.errorMessage, isNull);
+    });
+
+    test('ストア利用不可でも次回呼び出しで再初期化できる', () async {
+      auth.user = FakeUser(uid: 'user-1', isAnonymous: false);
+      purchase.initializeAvailable = false;
+
+      await controller.ensureStoreReady();
+      expect(controller.state.product, isNull);
+
+      purchase.initializeAvailable = true;
+      await controller.ensureStoreReady();
+
+      expect(purchase.fetchProductCalls, 1);
+      expect(controller.state.product, isNotNull);
     });
   });
 

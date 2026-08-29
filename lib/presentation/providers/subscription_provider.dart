@@ -135,7 +135,8 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       await ensureStoreReady();
       if (_purchaseService == null) return;
       await _purchaseService!.restore();
-      await Future.delayed(restoreDelay);
+      await _purchaseService!
+          .waitForPendingVerifications(settleDelay: restoreDelay);
       await _fetchTierFromFirestore();
     } catch (e) {
       debugPrint('Silent restore failed: $e');
@@ -194,8 +195,9 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       }
       state = state.copyWith(isLoading: true, errorMessage: null);
       await _purchaseService!.restore();
-      // 復元後にFirestoreから最新状態を取得（サーバー検証完了を待つため遅延）
-      await Future.delayed(restoreDelay);
+      // purchaseStream から開始されたサーバー検証が完了してから最新状態を読む。
+      await _purchaseService!
+          .waitForPendingVerifications(settleDelay: restoreDelay);
       await _fetchTierFromFirestore();
       state = state.copyWith(
         isLoading: false,
@@ -231,6 +233,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
           .collection('users')
           .doc(uid);
       final doc = await ref.get();
+      if (!mounted) return false;
       final data = doc.data();
       final tier =
           data?['tier'] == 'premium' ? UserTier.premium : UserTier.free;
@@ -247,7 +250,16 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     final existing = _storeReadyFuture;
     if (existing != null) return existing;
 
-    final future = _initializeStore();
+    late final Future<void> future;
+    future = _initializeStore().whenComplete(() {
+      // isAvailable=false や商品取得失敗は例外にならないため、失敗状態を
+      // キャッシュするとアプリ再起動まで購入不能になる。次回表示時に再試行する。
+      if (mounted &&
+          state.product == null &&
+          identical(_storeReadyFuture, future)) {
+        _storeReadyFuture = null;
+      }
+    });
     _storeReadyFuture = future;
     return future;
   }
@@ -255,6 +267,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   Future<void> _loadProduct() async {
     try {
       final product = await _purchaseService?.fetchProduct();
+      if (!mounted) return;
       if (product != null) {
         state = state.copyWith(product: product, errorMessage: null);
       } else {
@@ -262,27 +275,33 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       }
     } on PurchaseProductLoadException catch (e) {
       debugPrint('Failed to load product: $e');
+      if (!mounted) return;
       state = state.copyWith(errorMessage: e.message);
     } catch (e) {
       debugPrint('Failed to load product: $e');
+      if (!mounted) return;
       state = state.copyWith(errorMessage: _l10n().errProductLoadFailed);
     }
   }
 
   void _onPurchaseCompleted() {
+    if (!mounted) return;
     unawaited(refreshTier());
     state = state.copyWith(isLoading: false);
   }
 
   void _onPurchaseCanceled() {
+    if (!mounted) return;
     state = state.copyWith(isLoading: false, errorMessage: null);
   }
 
   void _onPurchaseError(String message) {
+    if (!mounted) return;
     state = state.copyWith(isLoading: false, errorMessage: message);
   }
 
   void _onPurchasePending(String message) {
+    if (!mounted) return;
     state = state.copyWith(isLoading: false, errorMessage: message);
   }
 
@@ -293,6 +312,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
         functions: FirebaseFunctions.instanceFor(
           region: FirebaseConfig.functionsRegion,
         ),
+        analytics: _analytics,
       );
 
       service.onPurchaseCompleted = _onPurchaseCompleted;
@@ -301,6 +321,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       service.onPurchasePending = _onPurchasePending;
 
       final available = await service.initialize();
+      if (!mounted) return;
       if (!available) {
         state = state.copyWith(
           isLoading: false,
@@ -331,6 +352,7 @@ final purchaseServiceProvider = Provider<PurchaseService>((ref) {
     l10n: () => ref.read(l10nProvider),
     functions:
         FirebaseFunctions.instanceFor(region: FirebaseConfig.functionsRegion),
+    analytics: ref.read(analyticsServiceProvider),
   );
   ref.onDispose(() => service.dispose());
   return service;
