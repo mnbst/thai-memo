@@ -36,6 +36,7 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../core/config/firebase_config.dart';
+import 'analytics_service.dart';
 import 'firebase_auth_service.dart';
 
 /// アプリ内課金の商品ID（App Store Connect / Google Play Console で登録した ID と一致させる）
@@ -47,6 +48,7 @@ const String kProductIdPremiumMonthly =
 
 /// 購入状態の変化を通知するコールバック型
 typedef PurchaseCallback = void Function();
+typedef PurchaseVerifier = Future<void> Function(PurchaseDetails purchase);
 
 /// 課金商品の取得失敗時に、UIへ表示するための説明付き例外
 class PurchaseProductLoadException implements Exception {
@@ -66,13 +68,22 @@ class PurchaseService {
   PurchaseService({
     required this.l10n,
     FirebaseFunctions? functions,
-  }) : _functions = functions ??
-            FirebaseFunctions.instanceFor(
-                region: FirebaseConfig.functionsRegion);
+    AnalyticsService? analytics,
+    InAppPurchase? iap,
+    PurchaseVerifier? verifier,
+  })  : _functions = functions,
+        _analytics = analytics,
+        _iap = iap ?? InAppPurchase.instance,
+        _verifier = verifier;
 
-  final InAppPurchase _iap = InAppPurchase.instance;
-  final FirebaseFunctions _functions;
+  final InAppPurchase _iap;
+  final FirebaseFunctions? _functions;
+  final PurchaseVerifier? _verifier;
+
+  /// 購入結果の計測先。未指定なら計測しない（テスト用）。
+  final AnalyticsService? _analytics;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
+  final Set<Future<void>> _pendingVerifications = {};
 
   /// 購入完了時のコールバック（SubscriptionControllerがセット）
   PurchaseCallback? onPurchaseCompleted;
@@ -102,9 +113,15 @@ class PurchaseService {
 
     _subscription = _iap.purchaseStream.listen(
       _onPurchaseUpdate,
-      onDone: () => _subscription?.cancel(),
+      onDone: () {
+        _subscription?.cancel();
+        _subscription = null;
+      },
       onError: (Object error) {
         debugPrint('Purchase stream error: $error');
+        final failedSubscription = _subscription;
+        _subscription = null;
+        unawaited(failedSubscription?.cancel() ?? Future<void>.value());
         onPurchaseError?.call(l10n().errPurchaseStatusFailed);
       },
     );
@@ -123,7 +140,7 @@ class PurchaseService {
 
     if (response.notFoundIDs.contains(kProductIdPremiumMonthly)) {
       throw PurchaseProductLoadException(
-        'App Storeで課金商品 premium_monthly が見つかりませんでした',
+        'App Storeで課金商品 $kProductIdPremiumMonthly が見つかりませんでした',
       );
     }
 
@@ -141,7 +158,10 @@ class PurchaseService {
   /// この API で処理する（consumable は消費型アイテム用）。
   Future<void> buy(ProductDetails product) async {
     final purchaseParam = PurchaseParam(productDetails: product);
-    await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+    final started = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+    if (!started) {
+      throw StateError('Store did not accept the purchase request');
+    }
   }
 
   /// 購入を復元（機種変更・再インストール時に過去の購入を復元）
@@ -150,6 +170,29 @@ class PurchaseService {
   /// purchaseStream に PurchaseStatus.restored イベントが届く。
   Future<void> restore() async {
     await _iap.restorePurchases();
+  }
+
+  /// restorePurchases が purchaseStream へ流した購入のサーバー検証完了を待つ。
+  ///
+  /// ストアAPIの Future 完了と purchaseStream の配送には僅かなずれがあるため、
+  /// [settleDelay] だけ配送を待ってから、その時点の検証をすべて待機する。
+  Future<void> waitForPendingVerifications({
+    Duration settleDelay = const Duration(milliseconds: 500),
+    Duration timeout = const Duration(seconds: 35),
+  }) async {
+    await Future<void>.delayed(settleDelay);
+    final deadline = DateTime.now().add(timeout);
+
+    while (_pendingVerifications.isNotEmpty) {
+      final remaining = deadline.difference(DateTime.now());
+      if (remaining <= Duration.zero) {
+        throw TimeoutException('Purchase verification did not finish', timeout);
+      }
+      await Future.wait<void>(_pendingVerifications.toList())
+          .timeout(remaining);
+      // 完了直後に同じ restore バッチの次イベントが追加される場合に備える。
+      await Future<void>.delayed(Duration.zero);
+    }
   }
 
   /// 購入ストリームのハンドラ（全購入イベントがここに届く）
@@ -161,22 +204,44 @@ class PurchaseService {
     for (final purchase in purchases) {
       switch (purchase.status) {
         case PurchaseStatus.purchased:
+          _logResult('purchased');
+          _startVerification(purchase);
+          break;
         case PurchaseStatus.restored:
-          unawaited(_verifyAndComplete(purchase));
+          _logResult('restored');
+          _startVerification(purchase);
           break;
         case PurchaseStatus.error:
-          onPurchaseError?.call(purchase.error?.message ?? l10n().errPurchaseGeneric);
+          _logResult('error', code: purchase.error?.code);
+          onPurchaseError
+              ?.call(purchase.error?.message ?? l10n().errPurchaseGeneric);
           unawaited(_completePurchaseIfNeeded(purchase));
           break;
         case PurchaseStatus.canceled:
+          _logResult('canceled');
           onPurchaseCanceled?.call();
           unawaited(_completePurchaseIfNeeded(purchase));
           break;
         case PurchaseStatus.pending:
+          _logResult('pending');
           onPurchasePending?.call(l10n().purchasePending);
           break;
       }
     }
+  }
+
+  void _logResult(String status, {String? code}) {
+    unawaited(_analytics?.logPurchaseResult(status: status, code: code) ??
+        Future<void>.value());
+  }
+
+  void _startVerification(PurchaseDetails purchase) {
+    late final Future<void> task;
+    task = _verifyAndComplete(purchase).whenComplete(() {
+      _pendingVerifications.remove(task);
+    });
+    _pendingVerifications.add(task);
+    unawaited(task);
   }
 
   /// サーバー側 Cloud Function（verifySubscription）で購入の正当性を検証
@@ -192,31 +257,52 @@ class PurchaseService {
     // 未ログイン時はCloud Functionを呼べない
     if (!FirebaseAuthService.instance.isAuthenticated) {
       debugPrint('Verification skipped: user not authenticated');
+      unawaited(
+          _analytics?.logPurchaseVerify(ok: false, code: 'unauthenticated') ??
+              Future<void>.value());
       onPurchaseError?.call(l10n().errSignInBeforePurchase);
-      await _completePurchaseIfNeeded(purchase);
+      // entitlement を付与できていないので取引を完了しない。サインイン後または
+      // 次回起動時にストアから再配信・復元できる状態を保つ。
       return;
     }
 
     try {
-      final callable = _functions.httpsCallable(
-        FirebaseConfig.verifySubscriptionFunctionName,
-        options: HttpsCallableOptions(
-          timeout: const Duration(seconds: 30),
-        ),
-      );
+      final verifier = _verifier;
+      if (verifier != null) {
+        await verifier(purchase);
+      } else {
+        final functions = _functions ??
+            FirebaseFunctions.instanceFor(
+              region: FirebaseConfig.functionsRegion,
+            );
+        final callable = functions.httpsCallable(
+          FirebaseConfig.verifySubscriptionFunctionName,
+          options: HttpsCallableOptions(
+            timeout: const Duration(seconds: 30),
+          ),
+        );
 
-      await callable.call<dynamic>({
-        'platform': Platform.isIOS ? 'ios' : 'android',
-        'purchase_token': purchase.verificationData.serverVerificationData,
-        'product_id': purchase.productID,
-      });
+        await callable.call<dynamic>({
+          'platform': Platform.isIOS ? 'ios' : 'android',
+          'purchase_token': purchase.verificationData.serverVerificationData,
+          'product_id': purchase.productID,
+        });
+      }
 
+      unawaited(
+          _analytics?.logPurchaseVerify(ok: true) ?? Future<void>.value());
       onPurchaseCompleted?.call();
+      await _completePurchaseIfNeeded(purchase);
     } catch (e) {
       debugPrint('Verification failed: $e');
+      unawaited(_analytics?.logPurchaseVerify(
+            ok: false,
+            code: e is FirebaseFunctionsException ? e.code : 'unknown',
+          ) ??
+          Future<void>.value());
       onPurchaseError?.call(l10n().errPurchaseVerificationFailed);
-    } finally {
-      await _completePurchaseIfNeeded(purchase);
+      // サーバー検証に失敗した購入は完了扱いにしない。ストアの再配信または
+      // 「購入を復元」から安全に再検証できるようにする。
     }
   }
 
@@ -224,7 +310,8 @@ class PurchaseService {
   ///
   /// completePurchase を呼ばないと、ストア側でトランザクションが未完了のまま残り、
   /// 次回アプリ起動時に再度 purchaseStream にイベントが届いてしまう。
-  /// 検証の成否に関わらず、必ず呼び出す必要がある。
+  /// entitlement の付与後だけ呼ぶ。検証前に完了すると、一時障害時に
+  /// 「課金済みだがプレミアム未付与」の取引を再取得できなくなる。
   Future<void> _completePurchaseIfNeeded(PurchaseDetails purchase) async {
     if (purchase.pendingCompletePurchase) {
       try {

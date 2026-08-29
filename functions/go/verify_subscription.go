@@ -2,8 +2,11 @@ package function
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -24,6 +27,11 @@ import (
 
 // defaultAndroidPackageName は ANDROID_PACKAGE_NAME 未設定時のパッケージ名。
 const defaultAndroidPackageName = "com.thaimemo.thai_memo"
+
+const (
+	productIDPremiumMonthly     = "premium_monthly"
+	productIDPremiumMonthlyTest = "premium_monthly_test"
+)
 
 // isoMillisLayout は JS の Date#toISOString() と同じ表記。
 const isoMillisLayout = "2006-01-02T15:04:05.000Z"
@@ -59,6 +67,10 @@ func verifySubscription(ctx context.Context, req *callable.Request) (any, error)
 	if in.Platform != "android" && in.Platform != "ios" {
 		return nil, callable.Errorf(callable.InvalidArgument,
 			"platform は android または ios を指定してください")
+	}
+	if !isAllowedSubscriptionProduct(in.ProductID) {
+		return nil, callable.Errorf(callable.InvalidArgument,
+			"許可されていないサブスクリプション商品です")
 	}
 
 	result, err := runVerification(ctx, uid, in.Platform, in.PurchaseToken, in.ProductID)
@@ -113,6 +125,10 @@ func runVerification(
 		if err != nil {
 			return nil, err
 		}
+		if res.ProductID != productID {
+			return nil, fmt.Errorf("Play product mismatch: requested=%q verified=%q",
+				productID, res.ProductID)
+		}
 		status = string(res.Status)
 		expiresAt = res.ExpiresAt
 		autoRenewing = res.AutoRenewing
@@ -128,6 +144,10 @@ func runVerification(
 		res, err := appstore.Default.VerifyPurchase(ctx, purchaseToken)
 		if err != nil {
 			return nil, err
+		}
+		if res.ProductID != productID {
+			return nil, fmt.Errorf("App Store product mismatch: requested=%q verified=%q",
+				productID, res.ProductID)
 		}
 		status = string(res.Status)
 		if res.ExpiresAt != nil {
@@ -193,6 +213,43 @@ func runVerification(
 		out["expires_at"] = expiresAt.UTC().Format(isoMillisLayout)
 	}
 	return out, nil
+}
+
+// projectIDPremiumProducts は環境（GCP プロジェクト）ごとに販売している商品 ID。
+// dev は両ストア設定を検証するため両方を許可する。
+var projectIDPremiumProducts = map[string][]string{
+	"thai-memo-prod":  {productIDPremiumMonthly},
+	"thai-memo-67139": {productIDPremiumMonthlyTest},
+	"thai-memo-dev":   {productIDPremiumMonthly, productIDPremiumMonthlyTest},
+}
+
+// isAllowedSubscriptionProduct は、この環境が販売する商品だけを許可する。
+// デプロイ時に SUBSCRIPTION_PRODUCT_IDS（カンマ区切り）を指定すれば明示値を優先する。
+//
+// プロジェクト ID は fbapp.ProjectID() で引く。2nd gen では GCLOUD_PROJECT が
+// 無いことがあり、単独で見ると prod でも「未知の環境」に落ちてしまう。
+// 未知の環境は拒否する（fail-closed）。tester 商品が prod で通る状態を作らない。
+func isAllowedSubscriptionProduct(productID string) bool {
+	configured := strings.TrimSpace(os.Getenv("SUBSCRIPTION_PRODUCT_IDS"))
+	if configured != "" {
+		for _, allowed := range strings.Split(configured, ",") {
+			if strings.TrimSpace(allowed) == productID {
+				return true
+			}
+		}
+		return false
+	}
+
+	projectID := fbapp.ProjectID()
+	allowed, ok := projectIDPremiumProducts[projectID]
+	if !ok {
+		// 環境を特定できないと商品の妥当性を判断できない。全購入が
+		// InvalidArgument で落ちる状態なので、専用イベント名で気付けるようにする。
+		log.Printf("subscription_product_allowlist_unresolved project=%q product=%q",
+			projectID, productID)
+		return false
+	}
+	return slices.Contains(allowed, productID)
 }
 
 // releaseSubscriptionFromOtherUsers は同一サブスクリプションを保持する

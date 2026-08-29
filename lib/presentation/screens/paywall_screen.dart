@@ -57,12 +57,22 @@ class PaywallBottomSheet extends ConsumerWidget {
   }) async {
     final container = ProviderScope.containerOf(context, listen: false);
     final analytics = container.read(analyticsServiceProvider);
+    // 商品取得の決着を待ってから paywall_view を送る。取得できていなければ
+    // 購入ボタンは押せないので、tap_paywall との差が「開いたが買えない」数になる。
     unawaited(
       container
           .read(subscriptionControllerProvider.notifier)
           .ensureStoreReady()
           .catchError((Object error, StackTrace stackTrace) {
         debugPrint('Failed to warm up store: $error');
+      }).whenComplete(() {
+        unawaited(
+          analytics.logPaywallView(
+            source: source,
+            productLoaded:
+                container.read(subscriptionControllerProvider).product != null,
+          ),
+        );
       }),
     );
     // 呼び出し元の source を失わないよう、表示前にイベントを確定させる。

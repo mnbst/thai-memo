@@ -140,6 +140,9 @@ func TestVerifyPurchaseGolden(t *testing.T) {
 				if result.Valid != want.Valid {
 					t.Errorf("valid: want %v, got %v", want.Valid, result.Valid)
 				}
+				if result.ProductID != "com.thaimemo.monthly" {
+					t.Errorf("productId: want com.thaimemo.monthly, got %s", result.ProductID)
+				}
 				if result.OriginalTransactionID != want.OriginalTransactionID {
 					t.Errorf("originalTransactionId: want %s, got %s",
 						want.OriginalTransactionID, result.OriginalTransactionID)

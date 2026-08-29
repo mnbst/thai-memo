@@ -3,6 +3,7 @@ package function
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"cloud.google.com/go/firestore"
@@ -113,9 +114,9 @@ func processPlayNotification(
 	result, err := playbilling.Default.VerifyPurchase(
 		ctx, packageName, subscriptionID, purchaseToken)
 	if err != nil {
-		// JS 版は再検証の失敗をログに落として握り潰す（Pub/Sub の再送を招かない）。
 		log.Printf("Failed to verify Play purchase on RTDN: %v", err)
-		return nil
+		// エラーを Eventarc/Pub/Sub へ返し、一時的な Play API 障害なら再送させる。
+		return fmt.Errorf("Play purchase verification failed: %w", err)
 	}
 
 	// 検証結果に基づいて tier を決定（expired なら free、それ以外は premium）

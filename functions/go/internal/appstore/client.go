@@ -292,6 +292,7 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 
 	return &VerificationResult{
 		Valid:                 !isRevoked,
+		ProductID:             tx.ProductID,
 		OriginalTransactionID: tx.OriginalTransactionID,
 		ExpiresAt:             tx.ExpiresDate,
 		AutoRenewing:          autoRenewing,
@@ -378,6 +379,7 @@ func (c *Client) ParseNotification(signedPayload string) (*Notification, error) 
 	var notification struct {
 		NotificationType string `json:"notificationType"`
 		Subtype          string `json:"subtype"`
+		SignedDate       *int64 `json:"signedDate"`
 		Data             struct {
 			SignedTransactionInfo string `json:"signedTransactionInfo"`
 			SignedRenewalInfo     string `json:"signedRenewalInfo"`
@@ -390,6 +392,7 @@ func (c *Client) ParseNotification(signedPayload string) (*Notification, error) 
 	out := &Notification{
 		NotificationType: notification.NotificationType,
 		Subtype:          notification.Subtype,
+		SignedDate:       notification.SignedDate,
 	}
 	if err := applejws.DecodePayload(
 		notification.Data.SignedTransactionInfo, &out.TransactionInfo,
