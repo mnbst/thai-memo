@@ -12,6 +12,7 @@
 
   "settingsLanguage": "言語",
   "settingsLanguagePickerTitle": "言語を選択",
+  "settingsLanguageSubtitle": "訳と解説の言語が変わります",
   "settingsLanguageNote": "訳と解説の言語が変わります。すでに作った例文の訳は作成時の言語のまま残ります。",
   "@settingsLanguageNote": {
     "description": "言語切替ダイアログの補足。履歴が書き換わらないことを伝える"
@@ -68,8 +69,20 @@
   "coachDetailBackMessage": "例文の詳細の案内はこれで終わりです。左上の戻る、または右スワイプで前の画面に戻ります。",
 
   "sentencePreparing": "次の例文を準備中...",
-  "todaysWords": "学習単語",
+  "todaysWords": "{count, plural, other{学習単語}}",
+  "@todaysWords": {
+    "description": "学習単語セクションの見出し。英語は語数で単複が変わる",
+    "placeholders": { "count": { "type": "int" } }
+  },
   "playPronunciation": "発音を再生",
+  "sentenceListenModel": "お手本を聞く",
+  "@sentenceListenModel": {
+    "description": "例文カード下のボタン。お手本音声の再生を開く"
+  },
+  "sentencePractice": "発音練習",
+  "@sentencePractice": {
+    "description": "例文カード下のボタン。発音練習UIを開く"
+  },
   "sentenceUsingWord": "この単語を使った例文",
   "badgePremiumSentence": "Premium例文",
   "badgeFreeSentence": "Free例文",
@@ -108,6 +121,9 @@
   "quizSentenceReviewed": "例文を復習済み",
   "quizReviewSentence": "例文を復習する",
   "quizHint": "ヒント",
+  "quizHintPronunciation": "ヒント1: 発音を見る",
+  "quizHintTranslation": "ヒント2: 日本語訳を見る",
+  "quizHintShown": "ヒントは表示済み",
   "quizCheckSentence": "例文を確認",
   "quizPlaySentence": "例文を再生",
   "quizPlayWord": "単語を再生",
@@ -117,6 +133,8 @@
   "quizNextQuestion": "次の問題へ",
   "commonTryAgain": "もう一度試す",
 
+  "coachQuizHintTitle": "ヒントは2段階で出せます",
+  "coachQuizHintMessage": "迷ったら「ヒント1」で発音が出ます。もう一度押すと日本語訳も出ます。ヒントを使っても回答は記録され、語彙スコアの動きが小さくなるだけです。",
   "coachQuizReviewTitle": "迷ったら例文に戻れます",
   "coachQuizReviewMessage": "空欄に入る正しい単語を選んでください。答えに迷ったら、下の「例文を確認」からいつでも例文を見直せます。",
   "coachSummaryQuizTitle": "まとめクイズに挑戦",
@@ -163,6 +181,12 @@
   "historyTitle": "履歴",
   "historyFavoritesOnly": "お気に入りのみ表示",
   "historyDeleteAll": "すべて削除",
+  "historyFilterAll": "すべて",
+  "historyFilterFavorites": "お気に入り",
+  "historyDateWithYear": "{year}年{month}月{day}日",
+  "@historyDateWithYear": { "placeholders": { "year": { "type": "int" }, "month": { "type": "int" }, "day": { "type": "int" } } },
+  "historyDate": "{month}月{day}日",
+  "@historyDate": { "placeholders": { "month": { "type": "int" }, "day": { "type": "int" } } },
   "historySearchHint": "タイ語または日本語で検索",
   "historyEmptyFavorites": "お気に入りの例文がありません",
   "historyEmptySearch": "検索結果が見つかりませんでした",
@@ -191,6 +215,10 @@
   "@detailWordBreakdown": { "placeholders": { "count": { "type": "int" } } },
   "detailQuizTarget": "→ クイズで出題",
   "detailTapForTone": "タップして声調を確認",
+  "detailUsageSection": "使い方",
+  "detailWordsSection": "単語",
+  "detailFavoriteAdd": "お気に入りに追加",
+  "detailFavoriteRemove": "お気に入りから外す",
   "detailContextSection": "文脈・使い方",
   "detailContextTopic": "場面",
   "detailContextStyle": "文体",
@@ -205,6 +233,7 @@
   "settingsAccount": "アカウント",
   "settingsUser": "ユーザー",
   "settingsGuest": "ゲスト",
+  "settingsRankingName": "ランキングでの表示名",
   "settingsNotSignedIn": "サインインしていません",
   "settingsPlan": "プラン",
   "settingsPlanTrial": "プレミアム体験中",

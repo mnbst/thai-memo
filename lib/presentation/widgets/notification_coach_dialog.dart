@@ -35,7 +35,7 @@ class NotificationCoachDialog extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  Icons.auto_awesome,
+                  Icons.event_repeat,
                   size: 16,
                   color: Theme.of(context).colorScheme.primary,
                 ),

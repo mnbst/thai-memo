@@ -133,6 +133,12 @@ abstract class L10n {
   /// **'言語を選択'**
   String get settingsLanguagePickerTitle;
 
+  /// No description provided for @settingsLanguageSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'訳と解説の言語が変わります'**
+  String get settingsLanguageSubtitle;
+
   /// 言語切替ダイアログの補足。履歴が書き換わらないことを伝える
   ///
   /// In ja, this message translates to:
@@ -385,17 +391,29 @@ abstract class L10n {
   /// **'次の例文を準備中...'**
   String get sentencePreparing;
 
-  /// No description provided for @todaysWords.
+  /// 学習単語セクションの見出し。英語は語数で単複が変わる
   ///
   /// In ja, this message translates to:
-  /// **'学習単語'**
-  String get todaysWords;
+  /// **'{count, plural, other{学習単語}}'**
+  String todaysWords(int count);
 
   /// No description provided for @playPronunciation.
   ///
   /// In ja, this message translates to:
   /// **'発音を再生'**
   String get playPronunciation;
+
+  /// 例文カード下のボタン。お手本音声の再生を開く
+  ///
+  /// In ja, this message translates to:
+  /// **'お手本を聞く'**
+  String get sentenceListenModel;
+
+  /// 例文カード下のボタン。発音練習UIを開く
+  ///
+  /// In ja, this message translates to:
+  /// **'発音練習'**
+  String get sentencePractice;
 
   /// No description provided for @sentenceUsingWord.
   ///
@@ -559,6 +577,24 @@ abstract class L10n {
   /// **'ヒント'**
   String get quizHint;
 
+  /// No description provided for @quizHintPronunciation.
+  ///
+  /// In ja, this message translates to:
+  /// **'ヒント1: 発音を見る'**
+  String get quizHintPronunciation;
+
+  /// No description provided for @quizHintTranslation.
+  ///
+  /// In ja, this message translates to:
+  /// **'ヒント2: 日本語訳を見る'**
+  String get quizHintTranslation;
+
+  /// No description provided for @quizHintShown.
+  ///
+  /// In ja, this message translates to:
+  /// **'ヒントは表示済み'**
+  String get quizHintShown;
+
   /// No description provided for @quizCheckSentence.
   ///
   /// In ja, this message translates to:
@@ -606,6 +642,18 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'もう一度試す'**
   String get commonTryAgain;
+
+  /// No description provided for @coachQuizHintTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'ヒントは2段階で出せます'**
+  String get coachQuizHintTitle;
+
+  /// No description provided for @coachQuizHintMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'迷ったら「ヒント1」で発音が出ます。もう一度押すと日本語訳も出ます。ヒントを使っても回答は記録され、語彙スコアの動きが小さくなるだけです。'**
+  String get coachQuizHintMessage;
 
   /// No description provided for @coachQuizReviewTitle.
   ///
@@ -811,6 +859,30 @@ abstract class L10n {
   /// **'すべて削除'**
   String get historyDeleteAll;
 
+  /// No description provided for @historyFilterAll.
+  ///
+  /// In ja, this message translates to:
+  /// **'すべて'**
+  String get historyFilterAll;
+
+  /// No description provided for @historyFilterFavorites.
+  ///
+  /// In ja, this message translates to:
+  /// **'お気に入り'**
+  String get historyFilterFavorites;
+
+  /// No description provided for @historyDateWithYear.
+  ///
+  /// In ja, this message translates to:
+  /// **'{year}年{month}月{day}日'**
+  String historyDateWithYear(int year, int month, int day);
+
+  /// No description provided for @historyDate.
+  ///
+  /// In ja, this message translates to:
+  /// **'{month}月{day}日'**
+  String historyDate(int month, int day);
+
   /// No description provided for @historySearchHint.
   ///
   /// In ja, this message translates to:
@@ -949,6 +1021,30 @@ abstract class L10n {
   /// **'タップして声調を確認'**
   String get detailTapForTone;
 
+  /// No description provided for @detailUsageSection.
+  ///
+  /// In ja, this message translates to:
+  /// **'使い方'**
+  String get detailUsageSection;
+
+  /// No description provided for @detailWordsSection.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語'**
+  String get detailWordsSection;
+
+  /// No description provided for @detailFavoriteAdd.
+  ///
+  /// In ja, this message translates to:
+  /// **'お気に入りに追加'**
+  String get detailFavoriteAdd;
+
+  /// No description provided for @detailFavoriteRemove.
+  ///
+  /// In ja, this message translates to:
+  /// **'お気に入りから外す'**
+  String get detailFavoriteRemove;
+
   /// No description provided for @detailContextSection.
   ///
   /// In ja, this message translates to:
@@ -1020,6 +1116,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'ゲスト'**
   String get settingsGuest;
+
+  /// No description provided for @settingsRankingName.
+  ///
+  /// In ja, this message translates to:
+  /// **'ランキングでの表示名'**
+  String get settingsRankingName;
 
   /// No description provided for @settingsNotSignedIn.
   ///

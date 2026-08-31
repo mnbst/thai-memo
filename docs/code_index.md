@@ -11,6 +11,9 @@ lib/app.dart
 lib/core/config/app_config.dart
 アプリメタデータ、DB設定、ビルド環境設定。
 
+lib/core/theme/app_colors.dart
+アプリ全体のカラートークンと light/dark の ColorScheme 定義。
+
 lib/core/config/firebase_config.dart
 Cloud Functionsのリージョン・タイムアウト・関数名定義。
 
@@ -133,19 +136,19 @@ lib/presentation/screens/home_screen.dart
 メイン画面。3タブナビゲーション（今日/履歴/設定）。
 
 lib/presentation/screens/detail_screen.dart
-例文詳細表示（単語分解・発音付き）。初回は発音練習→単語の分解→文脈・使い方をスクロールしながら順にコーチマークで案内する（進捗は detail_tour_step）。
+例文詳細表示（例文カード・聞く／話す・使い方・単語・声調ガイド導線）。初回は例文カード→お手本再生→録音（練習セクションを先に開いてから指す）→使い方→単語の順にコーチマークで案内する（進捗は detail_tour_step）。
 
 lib/presentation/screens/history_screen.dart
-保存済み例文一覧（全件/お気に入り、検索、削除）。
+保存済み例文一覧（検索・すべて/お気に入りのチップ絞り込み・スワイプ/一括削除）。1枚のカードに罫線区切りで積む。
 
 lib/presentation/screens/quiz_screen.dart
-クイズ画面（問題出題、回答、結果確認）。
+クイズ画面（問題出題、回答、結果確認）。進み具合は上端の金の帯とAppBarの「2 / 5」（QuizProgressCounter）で示し、正誤は緑と朱、進む導線は下端の固定バー。ヒント（発音→訳文の2段階、使い切っても不活性で残す）は5問テストのみ。確認クイズはヒント無しで例文へ戻るだけ。
 
 lib/presentation/screens/settings_screen.dart
-設定画面（アカウント・プラン、テーマ、フォント、声調ガイド、学習データリセット、アプリ情報）。
+設定画面。語彙スコアの深藍カード＋Free向け課金導線を先頭に置き、以下はアカウント/学習設定/表示/アプリについての4カード（見出し＋罫線区切り）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI（ボトムシート）。導線は例文タブの常設バナー（premium_hint_banner）・設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
+プレミアム課金UI（ボトムシート）。深藍の表題カード＋Free→Premiumの対比3行＋固定購入バー。導線は例文タブの常設バナー（premium_hint_banner）・設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
 
 lib/presentation/screens/ranking_screen.dart
 語彙スコアの全期間ランキング。自分の順位カードを上に置き、その下に上位100人を張り出す。表示名はサーバー採番のタイ人名。
@@ -162,7 +165,7 @@ lib/presentation/screens/tone_guide_screen.dart
 ## Widgets
 
 lib/presentation/widgets/loading_tip_carousel.dart
-API呼び出し中のヒントカルーセル。
+API呼び出し中のヒントカルーセルと、それを載せる生成待ちの白カード（LoadingCard）。例文生成・クイズ生成で共用。
 
 lib/presentation/widgets/coach_mark_overlay.dart
 指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。出した時点で対象もボタンもすぐ押せる。id/analytics を渡すと shown/tapped/dismissed/closed をGA4へ送る。
@@ -178,6 +181,12 @@ lib/presentation/widgets/topic_picker.dart
 
 lib/presentation/widgets/sentence_audio_player.dart
 例文全文の再生／停止＋リピート再生と、単語単位の頭出しバー。
+
+lib/presentation/widgets/sentence_audio_section.dart
+例文の下の「お手本を聞く／発音練習」2ボタンと、押したときに開く再生バー・録音UI。学習タブと例文詳細で共用。
+
+lib/presentation/widgets/thai_highlight.dart
+例文中の学習単語を金で示す TextSpan 生成（深藍面の金地・紙面の色のみ・発音の3種）。
 
 lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。

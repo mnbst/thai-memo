@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'core/config/app_config.dart';
+import 'core/theme/app_colors.dart';
 import 'l10n/app_localizations.dart';
 import 'presentation/providers/analytics_provider.dart';
 import 'presentation/providers/settings_provider.dart';
@@ -152,89 +153,157 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
     );
   }
 
-  /// Build light theme
-  ThemeData _buildLightTheme(ThaiFont fontFamily) {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF1E3A8A), // Royal Blue (Thai flag)
-        brightness: Brightness.light,
-      ),
-      textTheme: _buildThaiTextTheme(fontFamily, ThemeData.light().textTheme),
-      cardTheme: CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-        ),
-      ),
-      appBarTheme: AppBarTheme(
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black87,
-        titleTextStyle: GoogleFonts.notoSans(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
-        ),
-      ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        elevation: 4,
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 12,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
-    );
-  }
+  ThemeData _buildLightTheme(ThaiFont fontFamily) => _buildTheme(
+        fontFamily,
+        AppColors.light,
+        ThemeData.light().textTheme,
+        AppColors.paper,
+      );
 
-  /// Build dark theme
-  ThemeData _buildDarkTheme(ThaiFont fontFamily) {
+  ThemeData _buildDarkTheme(ThaiFont fontFamily) => _buildTheme(
+        fontFamily,
+        AppColors.dark,
+        ThemeData.dark().textTheme,
+        AppColors.paperDark,
+      );
+
+  /// 明暗で違うのは ColorScheme と背景色だけ。形（角丸・高さ・罫線）は共通。
+  ///
+  /// カードは影ではなく 1px の罫線で面を分ける。影を残すと、深藍の面と
+  /// 温白の背景のコントラストに影が重なって濁るため。
+  ThemeData _buildTheme(
+    ThaiFont fontFamily,
+    ColorScheme scheme,
+    TextTheme baseTextTheme,
+    Color background,
+  ) {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF1E3A8A), // Royal Blue (Thai flag)
-        brightness: Brightness.dark,
-      ),
-      textTheme: _buildThaiTextTheme(fontFamily, ThemeData.dark().textTheme),
+      brightness: scheme.brightness,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: background,
+      textTheme: _buildThaiTextTheme(fontFamily, baseTextTheme),
       cardTheme: CardThemeData(
-        elevation: 2,
+        elevation: 0,
+        color: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+          side: BorderSide(color: scheme.outlineVariant),
         ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: scheme.outlineVariant,
+        thickness: 1,
+        space: 1,
       ),
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
+        scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: scheme.onSurface,
+        // 日本語は端末のシステムフォントにフォールバックする。google_fonts/ に
+        // 同梱しているのは NotoSans であって NotoSansJP ではないので、
+        // notoSansJp を指定すると実行時に読み込みへ失敗する。
         titleTextStyle: GoogleFonts.notoSans(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.04 * 17,
+          color: scheme.onSurface,
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 74,
+        elevation: 0,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: Colors.transparent,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: 24,
+            color: states.contains(WidgetState.selected)
+                ? scheme.primary
+                : scheme.onSurfaceVariant,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => GoogleFonts.notoSans(
+            fontSize: 14.5,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w400,
+            color: states.contains(WidgetState.selected)
+                ? scheme.primary
+                : scheme.onSurfaceVariant,
+          ),
         ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        elevation: 4,
+        elevation: 2,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 12,
-          ),
+          elevation: 0,
+          backgroundColor: scheme.primary,
+          foregroundColor: scheme.onPrimary,
+          minimumSize: const Size(0, 50),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppConfig.buttonBorderRadius),
           ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          backgroundColor: scheme.surface,
+          foregroundColor: scheme.primary,
+          minimumSize: const Size(0, 50),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          side: BorderSide(color: scheme.primary, width: 1.5),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConfig.buttonBorderRadius),
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 50),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConfig.buttonBorderRadius),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: scheme.primary,
+          minimumSize: const Size(0, AppConfig.minTapTarget),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surface,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: BorderSide(color: scheme.primary, width: 1.5),
         ),
       ),
     );

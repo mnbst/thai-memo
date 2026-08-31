@@ -27,6 +27,10 @@ class L10nEn extends L10n {
   String get settingsLanguagePickerTitle => 'Choose a language';
 
   @override
+  String get settingsLanguageSubtitle =>
+      'Changes the language of translations and notes';
+
+  @override
   String get settingsLanguageNote =>
       'Changes the language of translations and notes. Sentences you already created keep the language they were created in.';
 
@@ -76,7 +80,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachQuizMessage =>
-      'Once you have looked through the sentence, take the quiz to check that the words stuck.';
+      'Once you\'ve looked through the sentence, take the quiz to check that the words stuck.';
 
   @override
   String get coachTargetWordsTitle => 'Learn this word';
@@ -86,7 +90,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachTargetWordsMessage =>
-      'This is the target word for this sentence. See how it is used.';
+      'This is the target word for the sentence. See how it\'s used.';
 
   @override
   String get coachSentenceCardTitle => 'Sentence card';
@@ -100,35 +104,35 @@ class L10nEn extends L10n {
 
   @override
   String get coachPlayMessage =>
-      'Press play and the sentence is read aloud in Thai.';
+      'Press play and you\'ll hear the sentence read aloud in Thai.';
 
   @override
   String get coachPronunciationTitle => 'Say it out loud';
 
   @override
   String get coachPronunciationMessage =>
-      'Hold the button and copy the Thai audio aloud. Your tones are checked on the spot.';
+      'Hold the button and copy what you heard, out loud in Thai. Your tones are checked on the spot.';
 
   @override
   String get coachPronunciationResultTitle => 'How to read your result';
 
   @override
   String get coachPronunciationResultMessage =>
-      'Green is correct, orange is close, red is off. Tap any one of the words.';
+      'Green is correct, orange is close, red is off. Tap any of the words.';
 
   @override
   String get coachPronunciationContourTitle => 'Compare it with yours';
 
   @override
   String get coachPronunciationContourMessage =>
-      'The faint line is the model, the solid one is your pitch. Take the \"Fix this next\" hint, say it again with \"Try again\", and aim to turn every word green.';
+      'The faint line is the model and the solid one is your pitch. Follow the \"Fix this next\" hint, say it again with \"Try again\", and aim to turn every word green.';
 
   @override
   String get coachWordDetailTitle => 'See it word by word';
 
   @override
   String get coachWordDetailMessage =>
-      'The words in this sentence. Tap any word to see in detail how its spelling relates to its tones.';
+      'The words in this sentence. Tap any word for a closer look at how its spelling relates to its tones.';
 
   @override
   String get coachToneDetailTitle => 'How to read the tone breakdown';
@@ -142,7 +146,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachToneTableMessage =>
-      'The initial consonant class (high, mid, low), the tone mark, and the syllable type together decide the tone. The blue highlighted row is the rule this syllable follows.';
+      'The initial consonant class (high, mid, low), the tone mark, and the syllable type together decide the tone. The row highlighted in blue is the rule this syllable follows.';
 
   @override
   String get coachToneGuideTitle => 'Want the full rules?';
@@ -152,27 +156,41 @@ class L10nEn extends L10n {
       'The tone rules are collected in the tone guide. You can open it from here any time.';
 
   @override
-  String get coachContextTitle => 'Check how it is used';
+  String get coachContextTitle => 'Check how it\'s used';
 
   @override
   String get coachContextMessage =>
-      'This card shows what situation the sentence fits, how formal it is, and the cultural background behind it.';
+      'This card shows where the sentence fits, how formal it is, and the cultural background behind it.';
 
   @override
-  String get coachDetailBackTitle => 'That is all for the details';
+  String get coachDetailBackTitle => 'That\'s it for the details';
 
   @override
   String get coachDetailBackMessage =>
-      'That is all for the guide. Tap back at the top left, or swipe right, to return to the previous screen.';
+      'That\'s the end of the guide. Tap the back arrow at the top left, or swipe right, to return to the previous screen.';
 
   @override
   String get sentencePreparing => 'Preparing your next sentence...';
 
   @override
-  String get todaysWords => 'Target words';
+  String todaysWords(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Target words',
+      one: 'Target word',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get playPronunciation => 'Play pronunciation';
+
+  @override
+  String get sentenceListenModel => 'Listen';
+
+  @override
+  String get sentencePractice => 'Practice';
 
   @override
   String get sentenceUsingWord => 'A sentence using these words';
@@ -263,6 +281,15 @@ class L10nEn extends L10n {
   String get quizHint => 'Hint';
 
   @override
+  String get quizHintPronunciation => 'Hint 1: show pronunciation';
+
+  @override
+  String get quizHintTranslation => 'Hint 2: show translation';
+
+  @override
+  String get quizHintShown => 'All hints shown';
+
+  @override
   String get quizCheckSentence => 'Show the sentence';
 
   @override
@@ -287,6 +314,13 @@ class L10nEn extends L10n {
   String get commonTryAgain => 'Try again';
 
   @override
+  String get coachQuizHintTitle => 'Hints come in two steps';
+
+  @override
+  String get coachQuizHintMessage =>
+      'Stuck? Hint 1 shows the pronunciation, and pressing it again shows the translation. Using a hint still records your answer — it just moves your vocabulary score less.';
+
+  @override
   String get coachQuizReviewTitle => 'You can go back to the sentence';
 
   @override
@@ -301,14 +335,14 @@ class L10nEn extends L10n {
 
   @override
   String get coachSummaryQuizMessage =>
-      'A quiz that reviews the words you have learned so far. It normally comes around every 5 sentences, but give it a try now.';
+      'A quiz that reviews the words you\'ve learned so far. It normally comes around every 5 sentences, but give it a try now.';
 
   @override
   String get coachTourFinishTitle => 'Sentences you miss come back';
 
   @override
   String get coachTourFinishMessage =>
-      'The 5-question quiz draws on the sentences you have read. The ones you get wrong come back again after a while, so leave the reviewing to the app and move on.';
+      'The 5-question quiz draws on the sentences you\'ve read. The ones you get wrong come back again after a while, so leave the reviewing to the app and move on.';
 
   @override
   String get coachTourFinishEmphasis =>
@@ -327,7 +361,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachFlowGreeting =>
-      'Nice work! That was the flow, from start to finish.';
+      'Nice work! That\'s the whole loop, start to finish.';
 
   @override
   String get coachFlowLoopSentence => 'Sentence';
@@ -358,7 +392,7 @@ class L10nEn extends L10n {
   String get coachFlowContinue => 'Keep going';
 
   @override
-  String get coachTopicTitle => 'Pick a topic, get deep into Thai culture';
+  String get coachTopicTitle => 'Pick a topic and go deeper into Thai culture';
 
   @override
   String get coachTopicNext => 'Go to next sentence';
@@ -407,6 +441,22 @@ class L10nEn extends L10n {
 
   @override
   String get historyDeleteAll => 'Delete all';
+
+  @override
+  String get historyFilterAll => 'All';
+
+  @override
+  String get historyFilterFavorites => 'Favorites';
+
+  @override
+  String historyDateWithYear(int year, int month, int day) {
+    return '$year/$month/$day';
+  }
+
+  @override
+  String historyDate(int month, int day) {
+    return '$month/$day';
+  }
 
   @override
   String get historySearchHint => 'Search in Thai or English';
@@ -493,6 +543,18 @@ class L10nEn extends L10n {
   String get detailTapForTone => 'Tap to see the tones';
 
   @override
+  String get detailUsageSection => 'How to use';
+
+  @override
+  String get detailWordsSection => 'Words';
+
+  @override
+  String get detailFavoriteAdd => 'Add to favorites';
+
+  @override
+  String get detailFavoriteRemove => 'Remove from favorites';
+
+  @override
   String get detailContextSection => 'Context and usage';
 
   @override
@@ -505,10 +567,10 @@ class L10nEn extends L10n {
   String get detailContextEmotion => 'Mood';
 
   @override
-  String get detailContextUsage => 'When to use it';
+  String get detailContextUsage => 'When';
 
   @override
-  String get detailContextCulture => 'Cultural background';
+  String get detailContextCulture => 'Culture';
 
   @override
   String detailCreatedAt(String date) {
@@ -529,6 +591,9 @@ class L10nEn extends L10n {
 
   @override
   String get settingsGuest => 'Guest';
+
+  @override
+  String get settingsRankingName => 'Name shown on the leaderboard';
 
   @override
   String get settingsNotSignedIn => 'Not signed in';
@@ -988,16 +1053,16 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get paywallFeatureQuotaTitle => 'Immerse yourself in quality Thai';
+  String get paywallFeatureQuotaTitle => 'Immerse yourself in more Thai';
 
   @override
   String paywallFeatureQuotaFree(int count, int limit) {
-    return '$count sentences a day · up to $limit words';
+    return '$count sentences a day · vocabulary capped at $limit words';
   }
 
   @override
   String paywallFeatureQuotaPremium(int count) {
-    return '$count sentences a day · no word cap';
+    return '$count sentences a day · no vocabulary cap';
   }
 
   @override
@@ -1014,10 +1079,10 @@ class L10nEn extends L10n {
 
   @override
   String get paywallFeatureTopicTitle =>
-      'Pick a topic, get deep into Thai culture';
+      'Pick a topic and go deeper into Thai culture';
 
   @override
-  String get paywallFeatureTopicFree => 'Random, from beginner topics';
+  String get paywallFeatureTopicFree => 'A random beginner topic';
 
   @override
   String get paywallFeatureTopicPremium =>
@@ -1142,16 +1207,16 @@ class L10nEn extends L10n {
       'What has been hardest about Thai so far?';
 
   @override
-  String get interviewStruggleNone => 'I am just getting started';
+  String get interviewStruggleNone => 'I\'m just getting started';
 
   @override
-  String get interviewStruggleScript => 'I cannot read Thai letters';
+  String get interviewStruggleScript => 'I can\'t read Thai letters';
 
   @override
   String get interviewStruggleTone => 'Tones are hard';
 
   @override
-  String get interviewStruggleVocab => 'Words do not stick';
+  String get interviewStruggleVocab => 'Words don\'t stick';
 
   @override
   String get philosophyHeading => 'How this app works';
@@ -1178,7 +1243,7 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy2None =>
-      'You do not need to read the Thai script yet. This app teaches you **how the Thai letters relate to the tones**.';
+      'You don\'t need to read the Thai script yet. This app teaches you **how the Thai letters relate to the tones**.';
 
   @override
   String get philosophy2Script =>
@@ -1268,7 +1333,8 @@ class L10nEn extends L10n {
   String get commonGotIt => 'Got it';
 
   @override
-  String get premiumHint1Title => 'Pick a topic, get deep into Thai culture';
+  String get premiumHint1Title =>
+      'Pick a topic and go deeper into Thai culture';
 
   @override
   String get premiumHint1Body =>

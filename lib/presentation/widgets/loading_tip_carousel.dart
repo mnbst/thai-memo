@@ -2,8 +2,41 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/constants/loading_tips.dart';
+
+/// 生成待ちの面。待っている画面はどれもこの1枚に揃える。
+///
+/// 待ち時間の見た目が画面ごとに違うと、同じ「生成中」でも別のことが
+/// 起きているように見える。
+class LoadingCard extends StatelessWidget {
+  const LoadingCard({super.key, required this.message});
+
+  /// 何を待っているか（「例文を準備中…」など）。
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(message),
+              const SizedBox(height: 24),
+              const LoadingTipCarousel(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// 例文生成中に母音の読み方や文化Tipsを8秒ごとに自動切替＋スワイプで手動切替するウィジェット
 class LoadingTipCarousel extends StatefulWidget {

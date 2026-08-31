@@ -56,10 +56,11 @@ void main() {
     expect(find.byKey(const ValueKey('quiz_offer_inline_v1')), findsOneWidget);
     expect(find.byKey(const ValueKey('quiz_offer_control_v1')), findsNothing);
     expect(find.text('覚えたか確認'), findsOneWidget);
-    expect(find.text('確認する'), findsOneWidget);
+    expect(find.text('単語を覚えたかすぐ確認できます。'), findsOneWidget);
     expect(find.text('確認クイズへ'), findsNothing);
 
-    await tester.tap(find.text('確認する'));
+    // 枠の中にボタンは置かず、カード全体が1つのタップ領域。
+    await tester.tap(find.text('覚えたか確認'));
     expect(taps, 1);
   });
 }
