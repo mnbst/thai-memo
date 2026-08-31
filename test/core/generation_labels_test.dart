@@ -1,8 +1,10 @@
-/// サーバーが返す識別子が英語ラベルに変換されることを検証する。
+/// サーバーが返す識別子が表示用ラベルに変換されることを検証する。
 ///
-/// `context.topic` / `context.style` は履歴画面の集計キーなので、英語版でも
-/// サーバーは日本語の識別子のまま返す。表示だけをここで訳しているため、
-/// マッピングが漏れると英語UIの中にその項目だけ日本語で出る。
+/// `context.topic` / `context.style` には2つの形が来る。日本語の識別子
+/// （`仕事（報告・連絡・相談、…）`）と、英語ユーザー向けにサーバーが訳した
+/// 英語ラベル（`Work (reporting, meetings, …)`）。どちらも括弧の中は補足
+/// なので画面には出さない。マッピングが漏れると、英語UIの中にその項目だけ
+/// 日本語で出るか、補足が丸ごとチップからはみ出す。
 library;
 
 import 'package:flutter/material.dart';
@@ -30,6 +32,45 @@ void main() {
     test('未知のテーマはそのまま出す（訳せないより日本語で出る方がまし）', () {
       expect(topicLabel(en, '未知のテーマ').name, '未知のテーマ');
     });
+
+    test('サーバーが返す英語ラベルも括弧の前だけにする', () {
+      // constants_data.go:topicLabelsEN の全値。半角括弧なので、全角だけを
+      // 見ていると補足まで画面に出る。
+      const labels = {
+        'Greetings (morning, noon, night, first meeting, reunion, farewell, phone)':
+            'Greetings',
+        'Food (ordering, impressions, street stalls, spice level, allergies)':
+            'Food',
+        'Travel (hotels, directions, sights, airport, tours)': 'Travel',
+        'Work (reporting, meetings, overtime requests, chatting with coworkers)':
+            'Work',
+        'Family (introductions, parenting, thanking parents, siblings, family events)':
+            'Family',
+        'Shopping (haggling, size and color, returns, night markets)':
+            'Shopping',
+        'Getting around (Grab, BTS, motorbike taxi, songthaew, traffic)':
+            'Getting around',
+        'Health (describing symptoms, pharmacy, massage, checkups)': 'Health',
+        'Weather (heat, rainy season, storms, sun protection)': 'Weather',
+        'Hobbies (Muay Thai, music, movies, golf, social media, games)':
+            'Hobbies',
+        'School (in class, homework, exams, after school, language school)':
+            'School',
+        'Religion and faith (temple etiquette, alms giving, amulets, speaking to monks, Buddhist holidays)':
+            'Religion',
+        'Traditions and festivals (Songkran, Loi Krathong, royal ceremonies, regional dishes)':
+            'Traditions and festivals',
+        'Etiquette (the wai, honorifics, taboos, table manners, gifts)':
+            'Etiquette',
+        'Romance (confessions, dates, sweet talk, long distance, breakups, making up)':
+            'Dating and romance',
+        'Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)':
+            'Thai BL dramas',
+      };
+      labels.forEach((identifier, expected) {
+        expect(topicLabel(en, identifier).name, expected, reason: identifier);
+      });
+    });
   });
 
   group('styleLabel', () {
@@ -42,6 +83,22 @@ void main() {
         '物語・文学体（描写的・書き言葉的な表現）': 'Narrative',
       };
       styles.forEach((identifier, expected) {
+        expect(styleLabel(en, identifier), expected, reason: identifier);
+      });
+    });
+
+    test('サーバーが返す英語ラベルも括弧の前だけにする', () {
+      // constants_data.go:styleLabelsEN の全値。
+      const labels = {
+        'News article style (objective, formal reporting)': 'News style',
+        'Casual spoken style (how friends talk)': 'Casual spoken',
+        'Polite style (formal, respectful expressions)': 'Polite',
+        'Social media / text message style (abbreviations, emoji, short phrases)':
+            'Texting and social media',
+        'Narrative / literary style (descriptive, written language)':
+            'Narrative',
+      };
+      labels.forEach((identifier, expected) {
         expect(styleLabel(en, identifier), expected, reason: identifier);
       });
     });

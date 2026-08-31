@@ -27,6 +27,9 @@ class L10nJa extends L10n {
   String get settingsLanguagePickerTitle => '言語を選択';
 
   @override
+  String get settingsLanguageSubtitle => '訳と解説の言語が変わります';
+
+  @override
   String get settingsLanguageNote => '訳と解説の言語が変わります。すでに作った例文の訳は作成時の言語のまま残ります。';
 
   @override
@@ -159,10 +162,23 @@ class L10nJa extends L10n {
   String get sentencePreparing => '次の例文を準備中...';
 
   @override
-  String get todaysWords => '学習単語';
+  String todaysWords(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '学習単語',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get playPronunciation => '発音を再生';
+
+  @override
+  String get sentenceListenModel => 'お手本を聞く';
+
+  @override
+  String get sentencePractice => '発音練習';
 
   @override
   String get sentenceUsingWord => 'この単語を使った例文';
@@ -250,6 +266,15 @@ class L10nJa extends L10n {
   String get quizHint => 'ヒント';
 
   @override
+  String get quizHintPronunciation => 'ヒント1: 発音を見る';
+
+  @override
+  String get quizHintTranslation => 'ヒント2: 日本語訳を見る';
+
+  @override
+  String get quizHintShown => 'ヒントは表示済み';
+
+  @override
   String get quizCheckSentence => '例文を確認';
 
   @override
@@ -272,6 +297,13 @@ class L10nJa extends L10n {
 
   @override
   String get commonTryAgain => 'もう一度試す';
+
+  @override
+  String get coachQuizHintTitle => 'ヒントは2段階で出せます';
+
+  @override
+  String get coachQuizHintMessage =>
+      '迷ったら「ヒント1」で発音が出ます。もう一度押すと日本語訳も出ます。ヒントを使っても回答は記録され、語彙スコアの動きが小さくなるだけです。';
 
   @override
   String get coachQuizReviewTitle => '迷ったら例文に戻れます';
@@ -387,6 +419,22 @@ class L10nJa extends L10n {
   String get historyDeleteAll => 'すべて削除';
 
   @override
+  String get historyFilterAll => 'すべて';
+
+  @override
+  String get historyFilterFavorites => 'お気に入り';
+
+  @override
+  String historyDateWithYear(int year, int month, int day) {
+    return '$year年$month月$day日';
+  }
+
+  @override
+  String historyDate(int month, int day) {
+    return '$month月$day日';
+  }
+
+  @override
   String get historySearchHint => 'タイ語または日本語で検索';
 
   @override
@@ -462,6 +510,18 @@ class L10nJa extends L10n {
   String get detailTapForTone => 'タップして声調を確認';
 
   @override
+  String get detailUsageSection => '使い方';
+
+  @override
+  String get detailWordsSection => '単語';
+
+  @override
+  String get detailFavoriteAdd => 'お気に入りに追加';
+
+  @override
+  String get detailFavoriteRemove => 'お気に入りから外す';
+
+  @override
   String get detailContextSection => '文脈・使い方';
 
   @override
@@ -498,6 +558,9 @@ class L10nJa extends L10n {
 
   @override
   String get settingsGuest => 'ゲスト';
+
+  @override
+  String get settingsRankingName => 'ランキングでの表示名';
 
   @override
   String get settingsNotSignedIn => 'サインインしていません';

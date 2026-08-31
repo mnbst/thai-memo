@@ -14,6 +14,7 @@ import 'package:thai_memo/presentation/providers/auth_provider.dart';
 import 'package:thai_memo/presentation/providers/quiz_offer_experiment_provider.dart';
 import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
 import 'package:thai_memo/presentation/providers/sentence_provider.dart';
+import 'package:thai_memo/presentation/providers/settings_provider.dart';
 import 'package:thai_memo/presentation/providers/subscription_provider.dart';
 import 'package:thai_memo/presentation/providers/tts_provider.dart';
 import 'package:thai_memo/presentation/providers/vocab_stats_provider.dart';
@@ -87,6 +88,11 @@ Future<void> _pumpTodayScreen(
           (ref) => AuthController(FirebaseAuthService.instance,
               () => lookupL10n(const Locale('ja'))),
         ),
+        // 例文カード上の「次のテーマ」帯とヘッダーの語彙スコアが参照する。
+        // 素で読むと planStatus 経由で Firebase を叩いてしまう。
+        effectivePremiumProvider.overrideWithValue(false),
+        // 帯が読むテーマ設定。settingsController は Firebase を要求する。
+        generationParamsProvider.overrideWithValue(const {}),
         isPremiumProvider.overrideWithValue(false),
         isPremiumRealtimeProvider.overrideWithValue(const AsyncData(false)),
         premiumTrialExpiresAtProvider.overrideWithValue(const AsyncData(null)),
@@ -177,7 +183,7 @@ void main() {
     );
   });
 
-  testWidgets('inline導線は画面内へスクロールされてからshownを送る', (tester) async {
+  testWidgets('inline導線は学習単語の直下に出た時点でshownを送る', (tester) async {
     tester.view.physicalSize = const Size(360, 320);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -192,6 +198,8 @@ void main() {
     );
 
     expect(find.byKey(const ValueKey('quiz_offer_inline_v1')), findsOneWidget);
+
+    // 学習単語の直下に常に描画するので、読み進めていなくても計測する。
     expect(
       analytics.quizOfferEvents,
       [
@@ -199,21 +207,11 @@ void main() {
           'action': 'assigned',
           'source': QuizOfferVariant.inlineOneQuestion.analyticsSource,
         },
+        {
+          'action': 'shown',
+          'source': QuizOfferVariant.inlineOneQuestion.analyticsSource,
+        },
       ],
-    );
-
-    await tester.drag(
-      find.byType(SingleChildScrollView),
-      const Offset(0, -500),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      analytics.quizOfferEvents.last,
-      {
-        'action': 'shown',
-        'source': QuizOfferVariant.inlineOneQuestion.analyticsSource,
-      },
     );
   });
 

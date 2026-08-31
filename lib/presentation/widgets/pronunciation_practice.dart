@@ -82,6 +82,7 @@ class PronunciationPractice extends ConsumerWidget {
     this.showHeader = true,
     this.resultKey,
     this.contourKey,
+    this.recordKey,
   });
 
   /// 保存済み例文のID。未保存（null）の例文では練習させない。
@@ -105,6 +106,10 @@ class PronunciationPractice extends ConsumerWidget {
 
   /// 語を選んだときに開くカーブのカード（初回ガイドのスポット対象）。
   final GlobalKey? contourKey;
+
+  /// 録音ボタン（初回ガイドで押させるスポット対象）。
+  /// 判定を出したあとは結果に置き換わるので、そのときは対象そのものが無い。
+  final GlobalKey? recordKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -154,6 +159,7 @@ class PronunciationPractice extends ConsumerWidget {
             countsAgainstQuota: !isPremium,
             resultKey: resultKey,
             contourKey: contourKey,
+            recordKey: recordKey,
           ),
           if (!isPremium) ...[
             const SizedBox(height: 6),
@@ -224,6 +230,7 @@ class _PracticeBody extends ConsumerWidget {
     required this.countsAgainstQuota,
     required this.resultKey,
     required this.contourKey,
+    required this.recordKey,
   });
 
   final String sentenceId;
@@ -239,6 +246,9 @@ class _PracticeBody extends ConsumerWidget {
 
   /// 初回ガイドがカーブのカードを指すためのキー。
   final GlobalKey? contourKey;
+
+  /// 初回ガイドが録音ボタンを指すためのキー。
+  final GlobalKey? recordKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -285,25 +295,28 @@ class _PracticeBody extends ConsumerWidget {
 
       case PronunciationPhase.idle:
       case PronunciationPhase.recording:
-        return _RecordButton(
-          recording: state.phase == PronunciationPhase.recording,
-          onStart: controller.startRecording,
-          onStop: () async {
-            await controller.stopAndAnalyze(
-              tones: spans.tones,
-              shortSyllables: spans.shortSyllables,
-              syllablePoints: spans.syllablePoints,
-              clauseStarts: spans.clauseStarts,
-              syllableLabels: spans.syllableLabels,
-              expectedWords: spans.words.map((w) => w.wordText).toList(),
-            );
-            // 声が小さい・音節が取れない等で採点できなかった回は消費しない。
-            final scored = ref.read(provider).result?.isScored ?? false;
-            if (countsAgainstQuota && scored) {
-              await ref.read(pronunciationQuotaProvider.notifier).consume();
-            }
-          },
-          l10n: l10n,
+        return KeyedSubtree(
+          key: recordKey,
+          child: _RecordButton(
+            recording: state.phase == PronunciationPhase.recording,
+            onStart: controller.startRecording,
+            onStop: () async {
+              await controller.stopAndAnalyze(
+                tones: spans.tones,
+                shortSyllables: spans.shortSyllables,
+                syllablePoints: spans.syllablePoints,
+                clauseStarts: spans.clauseStarts,
+                syllableLabels: spans.syllableLabels,
+                expectedWords: spans.words.map((w) => w.wordText).toList(),
+              );
+              // 声が小さい・音節が取れない等で採点できなかった回は消費しない。
+              final scored = ref.read(provider).result?.isScored ?? false;
+              if (countsAgainstQuota && scored) {
+                await ref.read(pronunciationQuotaProvider.notifier).consume();
+              }
+            },
+            l10n: l10n,
+          ),
         );
     }
   }
@@ -660,9 +673,7 @@ List<SyllableScore> _scoresOfWord(
 ) {
   if (wordIndex >= spans.words.length) return const [];
   final span = spans.words[wordIndex];
-  return result.syllables
-      .where((s) => span.contains(s.syllableIndex))
-      .toList();
+  return result.syllables.where((s) => span.contains(s.syllableIndex)).toList();
 }
 
 /// 選んだ語だけの助言を1つ選ぶ。
@@ -681,9 +692,8 @@ CoachingTip? _coachingTipOfWord(
     _scoresOfWord(result, spans, wordIndex),
     // 語1つ分に切り出して渡す。助言側は語順の列として扱うので、
     // 添字0がこの語になる。
-    recognition: wordIndex < recognition.length
-        ? [recognition[wordIndex]]
-        : const [],
+    recognition:
+        wordIndex < recognition.length ? [recognition[wordIndex]] : const [],
     wordTexts: [word.wordText],
     // 音節の表記は文全体の音節順で引く（SyllableScore.syllableIndex が全体の順）。
     toneMarks: spans.toneMarks,
@@ -812,8 +822,7 @@ class _CoachCard extends StatelessWidget {
 /// 2音節以上の語では**音節を名指しする**（[SegmentPoint.syllableText]）。
 /// 語だけを指すと、どの音節のことか分からない。
 String _segmentText(SegmentPoint point, String wordText, L10n l10n) {
-  final word =
-      point.syllableText.isEmpty ? wordText : point.syllableText;
+  final word = point.syllableText.isEmpty ? wordText : point.syllableText;
   switch (point.issue) {
     case SegmentIssue.unaspirated:
       return l10n.pronunciationSegmentUnaspirated(
@@ -1074,7 +1083,8 @@ class _WordContourCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _LegendDot(color: scheme.outline, label: l10n.pronunciationReference),
+              _LegendDot(
+                  color: scheme.outline, label: l10n.pronunciationReference),
               const SizedBox(width: 12),
               _LegendDot(color: scheme.primary, label: l10n.pronunciationYours),
             ],

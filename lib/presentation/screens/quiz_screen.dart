@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
 import '../../core/quota_error.dart';
+import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/thai_sentence.dart';
@@ -28,6 +29,94 @@ import 'paywall_screen.dart';
 const String _summaryQuizVocabBeforeKey = 'summary_quiz_vocab_before';
 const int _maxSummaryQuizVocabIncrease = 50;
 const Duration _correctAnswerAutoAdvanceDelay = Duration(milliseconds: 1200);
+
+
+/// 出題中の位置。1問だけのクイズには進み具合が無いので持たせない。
+typedef QuizProgress = ({int index, int total});
+
+QuizProgress? quizProgressOf(QuizState state) {
+  if (state is QuizAnswering && state.questions.length > 1) {
+    return (index: state.index, total: state.questions.length);
+  }
+  if (state is QuizShowResult && state.questions.length > 1) {
+    return (index: state.index, total: state.questions.length);
+  }
+  return null;
+}
+
+/// AppBar に出す「2 / 5」。クイズの AppBar は画面ごとに別の場所が持つので、
+/// 数え方だけをここに置いて共有する。
+class QuizProgressCounter extends ConsumerWidget {
+  const QuizProgressCounter({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = quizProgressOf(ref.watch(quizControllerProvider));
+    if (progress == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(right: AppConfig.screenPadding),
+      child: Center(
+        child: Text(
+          '${progress.index + 1} / ${progress.total}',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 画面下端の固定バー。押せる導線だけを載せ、紙面とは細い罫で分ける。
+class _QuizActionBar extends StatelessWidget {
+  final List<Widget> children;
+
+  const _QuizActionBar({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+            AppConfig.screenPadding, 12, AppConfig.screenPadding, 12),
+        child: Row(children: children),
+      ),
+    );
+  }
+}
+
+/// 空欄を金の下線に置き換えた例文。
+///
+/// 下線記号（`___`）そのものは透明にして線だけを引く。記号を出したままだと、
+/// 途切れた線がタイ文字の一部に見える。
+TextSpan buildQuizBlankSpan(String blankText, TextStyle base) {
+  const marker = '___';
+  final index = blankText.indexOf(marker);
+  if (index < 0) return TextSpan(text: blankText, style: base);
+  return TextSpan(
+    style: base,
+    children: [
+      TextSpan(text: blankText.substring(0, index)),
+      TextSpan(
+        text: marker,
+        style: base.copyWith(
+          color: Colors.transparent,
+          letterSpacing: 3,
+          decoration: TextDecoration.underline,
+          decorationColor: AppColors.gold,
+          decorationThickness: 2.5,
+        ),
+      ),
+      TextSpan(text: blankText.substring(index + marker.length)),
+    ],
+  );
+}
 
 class QuizScreen extends ConsumerStatefulWidget {
   static const routeName = 'quiz';
@@ -447,15 +536,31 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Widget build(BuildContext context) {
     final quizState = ref.watch(quizControllerProvider);
 
-    final body = _buildContent(context, quizState);
+    final progress = quizProgressOf(quizState);
+    // 進み具合は画面の上端に細い帯で置く。本文に混ぜると、読むべき例文より
+    // 先に目に入る。
+    final body = Column(
+      children: [
+        if (progress != null)
+          LinearProgressIndicator(
+            value: (progress.index + 1) / progress.total,
+            minHeight: 4,
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+            color: AppColors.gold,
+          ),
+        Expanded(child: _buildContent(context, quizState)),
+      ],
+    );
 
     if (!widget.showAppBar) {
       return body;
     }
 
     return Scaffold(
-      appBar:
-          AppBar(title: Text(widget.title ?? L10n.of(context).quizTodayTitle)),
+      appBar: AppBar(
+        title: Text(widget.title ?? L10n.of(context).quizTodayTitle),
+        actions: const [QuizProgressCounter()],
+      ),
       body: body,
     );
   }
@@ -518,24 +623,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   Widget _buildGeneratingState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 24),
-            Text(
-              L10n.of(context).quizGenerating,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 32),
-            const LoadingTipCarousel(),
-          ],
-        ),
-      ),
-    );
+    return LoadingCard(message: L10n.of(context).quizGenerating);
   }
 
   Widget _buildErrorState(BuildContext context, String message) {
@@ -600,6 +688,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       question: question,
       questionIndex: state.index,
       totalQuestions: state.questions.length,
+      showHints: widget.learningSentence == null,
       onShowSentence: widget.onBackToLearningStart,
       onAnswer: (choiceIndex, hintLevel, reviewedSentence) async {
         await ref.read(quizControllerProvider.notifier).answerQuestion(
@@ -608,7 +697,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               reviewedSentence: reviewedSentence,
             );
       },
-      showHint: widget.learningSentence == null,
     );
   }
 
@@ -640,7 +728,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       totalQuestions: state.questions.length,
       selectedIndex: state.selectedIndex,
       isCorrect: state.isCorrect,
-      showHint: widget.learningSentence == null,
+      showHints: widget.learningSentence == null,
       autoAdvanceCorrect: widget.learningSentence == null,
       onShowSentence: widget.onBackToLearningStart,
       onAnswer: null,
@@ -1369,7 +1457,12 @@ class _QuizQuestionView extends ConsumerStatefulWidget {
   final int? selectedIndex;
   final bool? isCorrect;
   final Future<void> Function()? onNext;
-  final bool showHint;
+
+  /// ヒント（発音→訳文の2段階）を出すか。
+  ///
+  /// 5問テストだけ true。例文を読んだ直後に解く確認クイズにヒントは要らない
+  /// （あちらは例文へ戻れば済む）。
+  final bool showHints;
   final bool autoAdvanceCorrect;
 
   const _QuizQuestionView({
@@ -1382,7 +1475,7 @@ class _QuizQuestionView extends ConsumerStatefulWidget {
     this.selectedIndex,
     this.isCorrect,
     this.onNext,
-    this.showHint = true,
+    this.showHints = true,
     this.autoAdvanceCorrect = false,
   });
 
@@ -1392,6 +1485,8 @@ class _QuizQuestionView extends ConsumerStatefulWidget {
 
 class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     with WidgetsBindingObserver {
+  /// 開いたヒントの段（0=未使用 / 1=発音 / 2=訳文）。回答と一緒に送り、
+  /// サーバー側のUVMがαの重みに使う。
   int _hintLevel = 0;
   bool _reviewedSentence = false;
   bool _isSubmitting = false;
@@ -1406,6 +1501,9 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
   /// 見せる。導線だけ光らせても、何をする画面なのかは伝わらない。
   final GlobalKey _quizBodyKey = GlobalKey();
 
+  /// ヒント導線の位置特定用（初回コーチマーク表示に使用）。
+  final GlobalKey _hintKey = GlobalKey();
+
   /// 「例文を復習する」導線の位置特定用（まとめクイズ側）。
   final GlobalKey _reviewSentenceKey = GlobalKey();
 
@@ -1418,6 +1516,8 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
   bool get _canAutoAdvance =>
       _hasResult &&
       widget.isCorrect == true &&
+      // 解説を出す回は自分で読み終えてから進む。1.2秒で流すなら出す意味がない。
+      widget.question.explanation.trim().isEmpty &&
       widget.autoAdvanceCorrect &&
       widget.questionIndex + 1 < widget.totalQuestions &&
       widget.onNext != null;
@@ -1428,6 +1528,55 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     WidgetsBinding.instance.addObserver(this);
     _scheduleAutoAdvanceIfNeeded();
     unawaited(_maybeShowReviewCoach());
+    unawaited(_maybeShowHintCoach());
+  }
+
+  /// ヒントが2段階あることを初回だけ案内する。
+  ///
+  /// ヒント導線が出ている5問クイズでのみ、まだ一度もヒントを開いていない
+  /// 問題で1回限り。他のコーチマークと重なる回は出さず、フラグも立てない
+  /// （次の問題で出し直す）。
+  Future<void> _maybeShowHintCoach() async {
+    if (_hasResult || !widget.showHints) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyQuizHintCoachShown) ?? false) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _hasResult || _hintLevel > 0) return;
+      if (CoachMarkOverlay.isVisible) return;
+      if (_hintKey.currentContext == null ||
+          ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
+      // 選択肢が多いとヒントは画面外にある。先に見せてから強調する。
+      await Scrollable.ensureVisible(
+        _hintKey.currentContext!,
+        alignment: 0.8,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+      if (!mounted ||
+          _hasResult ||
+          _hintLevel > 0 ||
+          CoachMarkOverlay.isVisible ||
+          ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
+      final shown = CoachMarkOverlay.show(
+        context,
+        targetKey: _hintKey,
+        id: 'quiz_hint',
+        analytics: ref.read(analyticsServiceProvider),
+        icon: Icons.lightbulb_outline,
+        title: L10n.of(context).coachQuizHintTitle,
+        message: L10n.of(context).coachQuizHintMessage,
+        // ヒントを使うかは解いている本人が決める。案内から押させない。
+        targetTappable: false,
+        confirmLabel: L10n.of(context).coachGotIt,
+      );
+      if (!shown) return;
+      unawaited(prefs.setBool(AppConfig.prefKeyQuizHintCoachShown, true));
+    });
   }
 
   /// 出題中に「例文へ戻って確認できる」ことを初回だけ案内する。
@@ -1513,6 +1662,8 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
       CoachMarkOverlay.dismissFor(_checkSentenceKey);
       CoachMarkOverlay.dismissFor(_reviewSentenceKey);
     }
+    // ヒントの案内は自分が出したものだけ閉じる（dismissFor が持ち主を見る）。
+    CoachMarkOverlay.dismissFor(_hintKey);
     super.dispose();
   }
 
@@ -1578,16 +1729,13 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     );
   }
 
-  Widget _buildInlineFeedback(BuildContext context) {
+  /// 正誤と正解語の要約。本文の流れの中に置く。
+  ///
+  /// 下端に貼り付けると、続く解説まで読み切れない。下端はボタンだけに残す。
+  Widget _buildFeedbackBox(BuildContext context) {
     final l10n = L10n.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
     final isCorrect = widget.isCorrect!;
-    final feedbackColor =
-        isCorrect ? colorScheme.primaryContainer : colorScheme.errorContainer;
-    final feedbackForeground = isCorrect
-        ? colorScheme.onPrimaryContainer
-        : colorScheme.onErrorContainer;
-    final accentColor = isCorrect ? colorScheme.primary : colorScheme.error;
+    final accent = isCorrect ? AppColors.jade : AppColors.vermilion;
     final meaning = widget.question.correctAnswerMeaning.trim();
     final pronunciation = widget.question.pronunciation.trim();
     final answerDetails = [
@@ -1598,80 +1746,81 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
         pronunciation,
     ].join(' · ');
     final resultLabel = isCorrect ? l10n.quizCorrect : l10n.quizIncorrect;
+    // 読ませたいのは「なぜその語なのか」。解説が無い問題だけ、正解語と意味で
+    // 埋め合わせる。
+    final explanation = widget.question.explanation.trim();
+    final body = explanation.isNotEmpty ? explanation : answerDetails;
+    return Semantics(
+      key: const ValueKey('quiz_inline_feedback'),
+      container: true,
+      liveRegion: true,
+      label: '$resultLabel $answerDetails',
+      child: ExcludeSemantics(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppConfig.defaultPadding),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+            border: Border.all(color: accent.withValues(alpha: 0.35)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isCorrect ? Icons.check_rounded : Icons.close_rounded,
+                    size: 18,
+                    color: accent,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    resultLabel,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: accent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                body,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 下端の固定バー。左は例文へ戻る導線、右は先へ進む導線。
+  Widget? _buildActionBar(BuildContext context) {
+    final l10n = L10n.of(context);
+    final showCheck = widget.onShowSentence != null;
+    final showNext = _hasResult && widget.onNext != null;
+    if (!showCheck && !showNext) return null;
     final nextLabel = widget.questionIndex + 1 >= widget.totalQuestions
         ? l10n.quizSeeResults
         : l10n.quizNextQuestion;
-    return SafeArea(
-      key: const ValueKey('quiz_inline_feedback'),
-      top: false,
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: feedbackColor,
-          border: Border(top: BorderSide(color: accentColor, width: 2)),
-        ),
-        padding: const EdgeInsets.fromLTRB(
-          AppConfig.defaultPadding,
-          12,
-          AppConfig.defaultPadding,
-          12,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Semantics(
-              container: true,
-              liveRegion: true,
-              label: '$resultLabel $answerDetails',
-              child: ExcludeSemantics(
-                child: Row(
-                  children: [
-                    Icon(
-                      isCorrect ? Icons.check_circle : Icons.cancel,
-                      color: accentColor,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            resultLabel,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  color: accentColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            answerDetails,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      color: feedbackForeground,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    return _QuizActionBar(
+      children: [
+        if (showCheck)
+          Expanded(
+            child: OutlinedButton(
+              key: _checkSentenceKey,
+              onPressed: widget.onShowSentence,
+              child: Text(l10n.quizCheckSentence),
             ),
-            const SizedBox(height: 10),
-            FilledButton(
+          ),
+        if (showCheck && showNext) const SizedBox(width: 12),
+        if (showNext)
+          Expanded(
+            child: FilledButton(
               key: const ValueKey('quiz_next_button'),
               onPressed: _isContinuing ? null : _continueToNext,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-              ),
               child: _isContinuing
                   ? const SizedBox.square(
                       dimension: 20,
@@ -1679,21 +1828,187 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                     )
                   : Text(nextLabel),
             ),
+          ),
+      ],
+    );
+  }
+
+  /// 穴埋め例文のカード。ヒントで開く発音と訳文もこの中に積む。
+  Widget _buildSentenceCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final question = widget.question;
+    final hasPronunciation = question.sentencePronunciation.isNotEmpty;
+    final hasTranslation = question.japaneseTranslation.isNotEmpty;
+    // タイ文字の大きさは本文の見出し系より一段上げる。声調記号と母音記号が
+    // 上下に付くので、日本語と同じ級数だと潰れて読めない。
+    final base = (theme.textTheme.headlineMedium ?? const TextStyle()).copyWith(
+      fontSize: 28,
+      fontWeight: FontWeight.w500,
+      height: 1.6,
+    );
+    final blankedPronunciation = question.blankSentencePronunciation.isNotEmpty
+        ? question.blankSentencePronunciation
+        : question.pronunciation.isNotEmpty
+            ? question.sentencePronunciation
+                .replaceFirst(question.pronunciation, '___')
+            : '';
+    final showPronunciation = widget.showHints &&
+        _hintLevel >= 1 &&
+        hasPronunciation &&
+        blankedPronunciation.isNotEmpty &&
+        blankedPronunciation != question.sentencePronunciation;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text.rich(buildQuizBlankSpan(question.blankText, base)),
+            if (showPronunciation) ...[
+              const SizedBox(height: 10),
+              Text(
+                blankedPronunciation,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            if (widget.showHints && _hintLevel >= 2 && hasTranslation) ...[
+              const SizedBox(height: 8),
+              Text(
+                question.japaneseTranslation,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
+  /// 選択肢1つ。タイ語とローマ字読みを1行に並べ、右端に正誤を出す。
+  Widget _buildChoiceTile(BuildContext context, int index) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final question = widget.question;
+    final choicePronunciation = index < question.choicePronunciations.length
+        ? question.choicePronunciations[index]
+        : '';
+    final showChoicePronunciation =
+        widget.showHints && _hintLevel >= 1 && choicePronunciation.isNotEmpty;
+    final isSelected = _hasResult && widget.selectedIndex == index;
+    final isCorrectChoice =
+        _hasResult && question.choices[index] == question.correctAnswer;
+    final isWrongSelection = isSelected && widget.isCorrect == false;
+
+    // 正誤は緑と朱で示す。深藍で塗ると「選んだ」ことしか伝わらず、
+    // 合っていたのかが読み取れない。
+    Color? accent;
+    IconData? resultIcon;
+    if (isCorrectChoice) {
+      accent = AppColors.jade;
+      resultIcon = Icons.check_rounded;
+    } else if (isWrongSelection) {
+      accent = AppColors.vermilion;
+      resultIcon = Icons.close_rounded;
+    }
+    // 回答後、関わらなかった選択肢は沈める。同じ濃さで残ると、どれが答えか
+    // 目が迷う。
+    final isDimmed = _hasResult && accent == null;
+    final foreground = accent ??
+        (isDimmed
+            ? colorScheme.onSurfaceVariant.withValues(alpha: 0.6)
+            : colorScheme.onSurface);
+
+    final answerLocked = _isSubmitting || _hasResult;
+    return ElevatedButton(
+      key: ValueKey('quiz_choice_$index'),
+      onPressed: answerLocked ? null : () => _submitAnswer(index),
+      style: ElevatedButton.styleFrom(
+        // 未回答の選択肢は白い面＋罫線。塗り潰すと4つ並んだときに画面が
+        // 重くなり、タイ文字も読みにくくなる。
+        elevation: 0,
+        alignment: Alignment.centerLeft,
+        backgroundColor: accent?.withValues(alpha: 0.08) ?? colorScheme.surface,
+        disabledBackgroundColor:
+            accent?.withValues(alpha: 0.08) ?? colorScheme.surface,
+        foregroundColor: foreground,
+        disabledForegroundColor: foreground,
+        side: BorderSide(
+          color: accent ?? colorScheme.outlineVariant,
+          width: accent != null ? 1.5 : 1,
+        ),
+        minimumSize: const Size.fromHeight(58),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+        ),
+      ),
+      child: Row(
+        children: [
+          Flexible(
+            child: Text(
+              question.choices[index],
+              // タイ文字は太字にすると声調記号と頭のループが潰れるので w500 まで。
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w500,
+                color: foreground,
+              ),
+            ),
+          ),
+          if (showChoicePronunciation) ...[
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                choicePronunciation,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: colorScheme.onSurfaceVariant
+                      .withValues(alpha: isDimmed ? 0.6 : 1),
+                ),
+              ),
+            ),
+          ],
+          const Spacer(),
+          if (resultIcon != null) ...[
+            const SizedBox(width: 8),
+            Icon(
+              resultIcon,
+              color: accent,
+              semanticLabel: isWrongSelection
+                  ? L10n.of(context).quizIncorrect
+                  : L10n.of(context).quizCorrect,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
+    final theme = Theme.of(context);
     final question = widget.question;
-    final hasPronunciation = question.sentencePronunciation.isNotEmpty;
-    final hasTranslation = question.japaneseTranslation.isNotEmpty;
-    final maxHintLevel = (hasPronunciation ? 1 : 0) + (hasTranslation ? 1 : 0);
+    // ヒントは 1=発音 / 2=訳文 の2段階。片方しか無い例文でも段階の意味は
+    // 変えず、使える段階だけを順に開示する（UVMのα倍率が段階に対応する）。
+    final availableHintLevels = <int>[
+      if (question.sentencePronunciation.isNotEmpty) 1,
+      if (question.japaneseTranslation.isNotEmpty) 2,
+    ];
+    final nextHintLevel = availableHintLevels.firstWhere(
+      (level) => level > _hintLevel,
+      orElse: () => 0,
+    );
     final sentenceDetail = question.sentenceDetail;
     final canReviewSentence =
         widget.totalQuestions > 1 && sentenceDetail != null;
+    final actionBar = _buildActionBar(context);
 
     return Listener(
       onPointerDown: (_) {
@@ -1703,265 +2018,70 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppConfig.defaultPadding),
+              padding: const EdgeInsets.fromLTRB(
+                  AppConfig.screenPadding, 16, AppConfig.screenPadding, 20),
               child: KeyedSubtree(
                 key: _quizBodyKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (widget.totalQuestions > 1) ...[
-                      // 進捗
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              L10n.of(context).quizProgress(
-                                widget.questionIndex + 1,
-                                widget.totalQuestions,
-                              ),
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          SizedBox(
-                            width: 100,
-                            child: LinearProgressIndicator(
-                              value: (widget.questionIndex + 1) /
-                                  widget.totalQuestions,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                    ] else ...[
-                      Text(
-                        L10n.of(context).quizPrompt,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    // 穴埋め例文
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(
-                            AppConfig.defaultPadding * 1.5),
-                        child: Text(
-                          question.blankText,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.5,
-                                  fontSize: 28),
-                          textAlign: TextAlign.center,
-                        ),
+                    Text(
+                      l10n.quizPrompt,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    // ヒント1: ローマ字読み（問題文の下、正解部分を空欄に）
-                    if (_hintLevel >= 1 && hasPronunciation) ...[
-                      const SizedBox(height: 8),
-                      Builder(builder: (context) {
-                        final blanked = question
-                                .blankSentencePronunciation.isNotEmpty
-                            ? question.blankSentencePronunciation
-                            : question.pronunciation.isNotEmpty
-                                ? question.sentencePronunciation
-                                    .replaceFirst(question.pronunciation, '___')
-                                : '';
-                        if (blanked.isEmpty ||
-                            blanked == question.sentencePronunciation) {
-                          return const SizedBox.shrink();
-                        }
-                        return Text(
-                          blanked,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontStyle: FontStyle.italic,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                          textAlign: TextAlign.center,
-                        );
-                      }),
-                    ],
-                    // ヒント2: 日本語訳（ローマ字の下）
-                    if (_hintLevel >= 2 && hasTranslation) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        question.japaneseTranslation,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                    const SizedBox(height: 12),
+                    _buildSentenceCard(context),
                     const SizedBox(height: 16),
-                    // 4択
-                    ...List.generate(question.choices.length, (i) {
-                      final colorScheme = Theme.of(context).colorScheme;
-                      final choicePronunciation =
-                          i < question.choicePronunciations.length
-                              ? question.choicePronunciations[i]
-                              : '';
-                      final showChoicePronunciation =
-                          _hintLevel >= 1 && choicePronunciation.isNotEmpty;
-                      final isSelected =
-                          _hasResult && widget.selectedIndex == i;
-                      final isCorrectChoice = _hasResult &&
-                          question.choices[i] == question.correctAnswer;
-                      final isWrongSelection =
-                          isSelected && widget.isCorrect == false;
-
-                      Color? resultBackground;
-                      Color? resultForeground;
-                      BorderSide? resultSide;
-                      IconData? resultIcon;
-                      if (isCorrectChoice) {
-                        resultBackground = colorScheme.primaryContainer;
-                        resultForeground = colorScheme.onPrimaryContainer;
-                        resultSide =
-                            BorderSide(color: colorScheme.primary, width: 2);
-                        resultIcon = Icons.check_circle;
-                      } else if (isWrongSelection) {
-                        resultBackground = colorScheme.errorContainer;
-                        resultForeground = colorScheme.onErrorContainer;
-                        resultSide =
-                            BorderSide(color: colorScheme.error, width: 2);
-                        resultIcon = Icons.cancel;
-                      }
-
-                      final answerLocked = _isSubmitting || _hasResult;
-                      return Padding(
+                    ...List.generate(
+                      question.choices.length,
+                      (i) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: showChoicePronunciation ? 84 : 56,
-                          ),
-                          child: ElevatedButton(
-                            key: ValueKey('quiz_choice_$i'),
-                            onPressed:
-                                answerLocked ? null : () => _submitAnswer(i),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: resultBackground,
-                              foregroundColor: resultForeground,
-                              disabledBackgroundColor: resultBackground ??
-                                  colorScheme.surfaceContainerHighest,
-                              disabledForegroundColor: resultForeground ??
-                                  colorScheme.onSurfaceVariant,
-                              side: resultSide,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    AppConfig.cardBorderRadius),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        question.choices[i],
-                                        style: const TextStyle(fontSize: 24),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      if (showChoicePronunciation) ...[
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          choicePronunciation,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                fontStyle: FontStyle.italic,
-                                                color: resultForeground ??
-                                                    colorScheme.primary
-                                                        .withValues(
-                                                            alpha: 0.75),
-                                              ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                if (resultIcon != null) ...[
-                                  const SizedBox(width: 8),
-                                  Icon(
-                                    resultIcon,
-                                    color: isWrongSelection
-                                        ? colorScheme.error
-                                        : colorScheme.primary,
-                                    semanticLabel: isWrongSelection
-                                        ? L10n.of(context).quizIncorrect
-                                        : L10n.of(context).quizCorrect,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                    if (!_hasResult && canReviewSentence) ...[
+                        child: _buildChoiceTile(context, i),
+                      ),
+                    ),
+                    if (_hasResult) ...[
                       const SizedBox(height: 4),
+                      _buildFeedbackBox(context),
+                    ],
+                    if (!_hasResult &&
+                        widget.showHints &&
+                        availableHintLevels.isNotEmpty)
+                      // 全段階を出し切ってもボタンは不活性のまま残す。消すと
+                      // 4択の位置がずれ、使い切ったことも伝わらない。
+                      KeyedSubtree(
+                        key: _hintKey,
+                        child: TextButton.icon(
+                          key: const ValueKey('quiz_hint_button'),
+                          onPressed: nextHintLevel == 0
+                              ? null
+                              : () =>
+                                  setState(() => _hintLevel = nextHintLevel),
+                          icon: const Icon(Icons.lightbulb_outline, size: 20),
+                          label: Text(switch (nextHintLevel) {
+                            1 => l10n.quizHintPronunciation,
+                            2 => l10n.quizHintTranslation,
+                            _ => l10n.quizHintShown,
+                          }),
+                        ),
+                      ),
+                    if (!_hasResult && canReviewSentence)
                       TextButton(
                         key: _reviewSentenceKey,
                         onPressed: () => _showSentenceDetail(sentenceDetail),
                         child: Text(
                           _reviewedSentence
-                              ? L10n.of(context).quizSentenceReviewed
-                              : L10n.of(context).quizReviewSentence,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
+                              ? l10n.quizSentenceReviewed
+                              : l10n.quizReviewSentence,
                         ),
                       ),
-                    ] else if (!_hasResult &&
-                        widget.showHint &&
-                        _hintLevel < maxHintLevel) ...[
-                      const SizedBox(height: 4),
-                      FilledButton.tonalIcon(
-                        onPressed: () =>
-                            setState(() => _hintLevel = maxHintLevel),
-                        icon: const Icon(Icons.lightbulb_outline),
-                        label: Text(L10n.of(context).quizHint),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ],
-                    if (!_hasResult && widget.onShowSentence != null) ...[
-                      const SizedBox(height: 4),
-                      FilledButton.tonalIcon(
-                        key: _checkSentenceKey,
-                        onPressed: widget.onShowSentence,
-                        icon: const Icon(Icons.menu_book_outlined),
-                        label: Text(L10n.of(context).quizCheckSentence),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
             ),
           ),
-          if (_hasResult) _buildInlineFeedback(context),
+          if (actionBar != null) actionBar,
         ],
       ),
     );
@@ -2368,169 +2488,149 @@ class _QuizResultView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppConfig.defaultPadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (totalQuestions > 1) ...[
-            // 進捗
-            Row(
+    final l10n = L10n.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final accent = isCorrect ? AppColors.jade : AppColors.vermilion;
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+                AppConfig.screenPadding, 16, AppConfig.screenPadding, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Text(
-                    L10n.of(context)
-                        .quizProgress(questionIndex + 1, totalQuestions),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 100,
-                  child: LinearProgressIndicator(
-                    value: (questionIndex + 1) / totalQuestions,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-          // 正誤バナー
-          Card(
-            color: isCorrect
-                ? Theme.of(context).colorScheme.primaryContainer
-                : Theme.of(context).colorScheme.errorContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(AppConfig.defaultPadding),
-              child: Row(
-                children: [
-                  Icon(
-                    isCorrect ? Icons.check_circle : Icons.cancel,
-                    color: isCorrect
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.error,
-                    size: 32,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    isCorrect
-                        ? L10n.of(context).quizCorrect
-                        : L10n.of(context).quizIncorrect,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: isCorrect
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.error,
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 正解ワード
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
-              child: Center(
-                child: _QuizAnswerWordRow(
-                  question: question,
-                  analyticsSource: 'quiz_result',
-                  showSentenceContext: showExplanations,
-                  showCorrectAnswerLabel: showExplanations && !isCorrect,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (showExplanations && _hasQuizExplanationContent(question)) ...[
-            _QuizExplanationSection(question: question),
-            const SizedBox(height: 16),
-          ],
-          if (showExplanations) ...[
-            // 4択（正誤ハイライト付き）
-            ...List.generate(question.choices.length, (i) {
-              final isSelected = i == selectedIndex;
-              final isCorrectChoice =
-                  question.choices[i] == question.correctAnswer;
-              Color? bgColor;
-              Color? borderColor;
-              if (isCorrectChoice) {
-                bgColor = Theme.of(context)
-                    .colorScheme
-                    .primaryContainer
-                    .withValues(alpha: 0.5);
-                borderColor = Theme.of(context).colorScheme.primary;
-              } else if (isSelected && !isCorrect) {
-                bgColor = Theme.of(context)
-                    .colorScheme
-                    .errorContainer
-                    .withValues(alpha: 0.5);
-                borderColor = Theme.of(context).colorScheme.error;
-              }
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Container(
-                  height: 56,
+                // 正誤。緑と朱で示し、面は薄く敷くだけにする。
+                Container(
+                  padding: const EdgeInsets.all(AppConfig.defaultPadding),
                   decoration: BoxDecoration(
-                    color: bgColor,
+                    color: accent.withValues(alpha: 0.08),
                     borderRadius:
                         BorderRadius.circular(AppConfig.cardBorderRadius),
-                    border: borderColor != null
-                        ? Border.all(color: borderColor, width: 2)
-                        : Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .outline
-                                .withValues(alpha: 0.3)),
+                    border: Border.all(color: accent.withValues(alpha: 0.35)),
                   ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    question.choices[i],
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight:
-                          isCorrectChoice ? FontWeight.bold : FontWeight.normal,
+                  child: Row(
+                    children: [
+                      Icon(
+                        isCorrect ? Icons.check_rounded : Icons.close_rounded,
+                        color: accent,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isCorrect ? l10n.quizCorrect : l10n.quizIncorrect,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: accent,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 正解ワード
+                Card(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+                    child: Center(
+                      child: _QuizAnswerWordRow(
+                        question: question,
+                        analyticsSource: 'quiz_result',
+                        showSentenceContext: showExplanations,
+                        showCorrectAnswerLabel: showExplanations && !isCorrect,
+                      ),
                     ),
                   ),
                 ),
-              );
-            }),
-            const SizedBox(height: 16),
-            // 次へボタン
-            FilledButton(
-              key: const ValueKey('quiz_result_next_button'),
-              onPressed: onNext,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: Text(
-                questionIndex + 1 >= totalQuestions
-                    ? L10n.of(context).quizSeeResults
-                    : L10n.of(context).quizNextQuestion,
-              ),
+                if (showExplanations &&
+                    _hasQuizExplanationContent(question)) ...[
+                  const SizedBox(height: 16),
+                  _QuizExplanationSection(question: question),
+                ],
+                if (showExplanations) ...[
+                  const SizedBox(height: 16),
+                  // 4択（正誤ハイライト付き）
+                  ...List.generate(question.choices.length, (i) {
+                    final isSelected = i == selectedIndex;
+                    final isCorrectChoice =
+                        question.choices[i] == question.correctAnswer;
+                    Color? choiceAccent;
+                    if (isCorrectChoice) {
+                      choiceAccent = AppColors.jade;
+                    } else if (isSelected && !isCorrect) {
+                      choiceAccent = AppColors.vermilion;
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 58),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: choiceAccent?.withValues(alpha: 0.08) ??
+                              colorScheme.surface,
+                          borderRadius:
+                              BorderRadius.circular(AppConfig.cardBorderRadius),
+                          border: Border.all(
+                            color: choiceAccent ?? colorScheme.outlineVariant,
+                            width: choiceAccent != null ? 1.5 : 1,
+                          ),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          question.choices[i],
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w500,
+                            color: choiceAccent ??
+                                colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ],
             ),
-          ],
-          if (!showExplanations) ...[
-            FilledButton.icon(
-              onPressed: () async {
-                final next = onLearningNext;
-                if (next != null) {
-                  await next();
-                } else {
-                  onNext();
-                }
-              },
-              icon: const Icon(Icons.arrow_forward),
-              label: Text(learningNextLabel),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+        _QuizActionBar(
+          children: [
+            if (showExplanations)
+              Expanded(
+                child: FilledButton(
+                  key: const ValueKey('quiz_result_next_button'),
+                  onPressed: onNext,
+                  child: Text(
+                    questionIndex + 1 >= totalQuestions
+                        ? l10n.quizSeeResults
+                        : l10n.quizNextQuestion,
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: FilledButton.icon(
+                  key: const ValueKey('quiz_result_next_button'),
+                  onPressed: () async {
+                    final next = onLearningNext;
+                    if (next != null) {
+                      await next();
+                    } else {
+                      onNext();
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_forward),
+                  label: Text(learningNextLabel),
+                ),
               ),
-            ),
           ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

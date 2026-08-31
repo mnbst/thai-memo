@@ -65,7 +65,7 @@ String _hint3Body(L10n l10n) => l10n.premiumHint3Body;
 const List<PremiumPitch> _pitches = [
   PremiumPitch(
     source: 'learning_banner_topic',
-    icon: Icons.auto_awesome,
+    icon: Icons.local_offer_outlined,
     title: _hint1Title,
     body: _hint1Body,
   ),

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/generation_constants.dart';
 import '../../core/quota_error.dart';
+import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/syllable.dart';
 import '../../data/models/thai_sentence.dart';
@@ -27,12 +28,12 @@ import '../widgets/coach_mark_overlay.dart';
 import '../widgets/learning_flow_coach_dialog.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_hint_banner.dart';
+import '../widgets/topic_picker.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
-import '../widgets/pronunciation_practice.dart';
-import '../widgets/pronunciation_sheet.dart';
 import '../widgets/quiz_offer.dart';
-import '../widgets/sentence_audio_player.dart';
+import '../widgets/sentence_audio_section.dart';
+import '../widgets/thai_highlight.dart';
 import '../widgets/sign_in_reminder_banner.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/vocab_score_dialog.dart';
@@ -527,7 +528,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Row(
               children: [
                 Icon(
-                  Icons.auto_awesome,
+                  Icons.workspace_premium_outlined,
                   size: 16,
                   color: Theme.of(context).colorScheme.primary,
                 ),
@@ -804,6 +805,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
           appBar: AppBar(
             title: Text(l10n.navLearn),
             automaticallyImplyLeading: false,
+            actions: const [QuizProgressCounter()],
           ),
           body: QuizScreen(
             showAppBar: false,
@@ -831,6 +833,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
           appBar: AppBar(
             title: Text(l10n.learnSummaryQuizTitle),
             automaticallyImplyLeading: false,
+            actions: const [QuizProgressCounter()],
           ),
           body: QuizScreen(
             showAppBar: false,
@@ -1159,11 +1162,80 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final quizOfferVariant = ref.watch(quizOfferVariantProvider).valueOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: Text(L10n.of(context).navLearn)),
+      appBar: AppBar(
+        centerTitle: false,
+        titleSpacing: AppConfig.screenPadding,
+        title: Text(
+          L10n.of(context).navLearn,
+          style: Theme.of(context).appBarTheme.titleTextStyle?.copyWith(
+                fontSize: 21,
+                letterSpacing: 0.02 * 21,
+              ),
+        ),
+        actions: [
+          _buildVocabScoreChip(context),
+          const SizedBox(width: AppConfig.screenPadding),
+        ],
+      ),
       body: _buildSentenceContent(
         context,
         sentenceState,
         quizOfferVariant,
+      ),
+    );
+  }
+
+  /// ヘッダー右の語彙スコア。学習の手応えを常に見える場所に置く。
+  /// 押すと設定画面と同じ内訳ダイアログを開く。
+  Widget _buildVocabScoreChip(BuildContext context) {
+    final stats = ref.watch(vocabStatsProvider).valueOrNull;
+    if (stats == null) return const SizedBox.shrink();
+
+    final isPremium = ref.watch(effectivePremiumProvider);
+    final vocab = isPremium
+        ? stats.estimatedVocab
+        : stats.estimatedVocab.clamp(0, freeVocabScoreLimit).toInt();
+    final levelId = vocabLevel(vocab);
+    final level = vocabLevelLabel(L10n.of(context), levelId);
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return InkWell(
+      onTap: () => showVocabScoreInfo(
+        context,
+        stats.estimatedVocab,
+        isPremium: isPremium,
+      ),
+      borderRadius: BorderRadius.circular(17),
+      child: Container(
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 13),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: cs.outlineVariant),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(vocabLevelIcon(levelId), size: 15, color: AppColors.gold),
+            const SizedBox(width: 7),
+            Text(
+              L10n.of(context).vocabWords(vocab),
+              style: textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: cs.onSurface,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              level,
+              style: textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1193,23 +1265,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   /// Build loading state
   Widget _buildLoadingState() {
-    return Center(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(L10n.of(context).sentencePreparing),
-              const SizedBox(height: 24),
-              const LoadingTipCarousel(),
-            ],
-          ),
-        ),
-      ),
-    );
+    return LoadingCard(message: L10n.of(context).sentencePreparing);
   }
 
   /// Build success state with single sentence
@@ -1229,47 +1285,48 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             key: _sentenceScrollViewportKey,
             controller: _sentenceScrollController,
             padding: const EdgeInsets.fromLTRB(
+              AppConfig.screenPadding,
               AppConfig.defaultPadding,
-              AppConfig.defaultPadding,
-              AppConfig.defaultPadding,
-              AppConfig.defaultPadding,
+              AppConfig.screenPadding,
+              AppConfig.screenPadding,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SignInReminderBanner(),
-                _buildTargetWordsSection(context, sentence),
-                const SizedBox(height: 12),
+                // 並びはモックのとおり。次に届くテーマ → 例文 → 聞く/話す →
+                // 学習単語。例文を先に読ませ、そのあとで単語を確かめる。
+                const NextSentenceTopicLabel(
+                  paywallSource: 'learn_next_topic',
+                  banner: true,
+                ),
+                const SizedBox(height: 14),
                 _buildSentenceCard(context, sentence,
                     cardKey: _sentenceCardKey),
-                const PremiumHintBanner(),
-                if (quizOfferVariant?.isInline ?? false) ...[
-                  const SizedBox(height: 16),
+                const SizedBox(height: 14),
+                SentenceAudioSection(
+                  sentence: sentence,
+                  analyticsSource: 'today_sentence',
+                  practiceScope: 'home_card',
+                ),
+                const SizedBox(height: 18),
+                _buildTargetWordsSection(context, sentence),
+                // 導線は学習単語のすぐ下に置く。「この単語を覚える → 確認する」
+                // が一続きに見える距離で、別セクションには見せない。
+                if (quizOfferVariant != null) ...[
+                  const SizedBox(height: 12),
                   QuizOffer(
-                    variant: quizOfferVariant!,
+                    variant: quizOfferVariant,
                     targetKey: _quizButtonKey,
                     onPressed: () =>
                         _handleQuizOfferTap(sentence, quizOfferVariant),
                   ),
                 ],
+                const PremiumHintBanner(),
               ],
             ),
           ),
         ),
-        if (quizOfferVariant != null && !quizOfferVariant.isInline)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppConfig.defaultPadding,
-              0,
-              AppConfig.defaultPadding,
-              AppConfig.defaultPadding,
-            ),
-            child: QuizOffer(
-              variant: quizOfferVariant,
-              targetKey: _quizButtonKey,
-              onPressed: () => _handleQuizOfferTap(sentence, quizOfferVariant),
-            ),
-          ),
       ],
     );
   }
@@ -1390,21 +1447,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       return false;
     }
 
-    // controlはスクロール領域外の下部固定ボタンなので、描画済みなら可視。
-    if (!variant.isInline) return true;
-
-    final viewportBox = _sentenceScrollViewportKey.currentContext
-        ?.findRenderObject() as RenderBox?;
-    if (viewportBox == null || !viewportBox.hasSize) return false;
-
-    final targetRect = targetBox.localToGlobal(Offset.zero) & targetBox.size;
-    final viewportRect =
-        viewportBox.localToGlobal(Offset.zero) & viewportBox.size;
-    if (!targetRect.overlaps(viewportRect)) return false;
-
-    final visibleRect = targetRect.intersect(viewportRect);
-    return visibleRect.width / targetRect.width >= 0.5 &&
-        visibleRect.height / targetRect.height >= 0.5;
+    // 導線は学習単語の直下に必ず描画するので、描画済みなら可視とみなす。
+    return true;
   }
 
   void _handleQuizOfferTap(
@@ -1448,14 +1492,22 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       key: _targetWordsKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 見出しは字だけだと本文に埋もれるので、右へ罫線を伸ばして区切る。
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            L10n.of(context).todaysWords,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.bold,
-            ),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              Text(
+                L10n.of(context).todaysWords(targetWords.length),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.08 * 12,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Divider(color: cs.outlineVariant, height: 1)),
+            ],
           ),
         ),
         ...targetWords.map((word) {
@@ -1466,20 +1518,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   : null);
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
+            // 面はテーマの Card（白＋1px罫線）に任せる。塗り分けると
+            // 例文カードの深藍と競って、どちらが主役か分からなくなる。
             child: Card(
-              color: cs.secondaryContainer.withValues(alpha: 0.5),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: cs.outline.withValues(alpha: 0.2),
-                ),
-              ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
                 child: Row(
                   children: [
                     Expanded(
@@ -1490,16 +1533,18 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                             children: [
                               Text(
                                 word,
+                                // タイ文字は bold だと声調記号が潰れる。
                                 style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               if (wb != null) ...[
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 9),
                                 Text(
                                   wb.pronunciation,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: cs.primary.withValues(alpha: 0.8),
+                                    color: AppColors.gold,
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
@@ -1511,7 +1556,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                             Text(
                               wb.meaning,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: cs.onSecondaryContainer,
+                                color: cs.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -1519,16 +1564,19 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                       ),
                     ),
                     if (wb != null)
+                      // 44px の丸を敷いて、押せる場所と大きさを見せる。
                       IconButton(
-                        icon: Icon(
-                          Icons.volume_up_outlined,
-                          size: 20,
-                          color: cs.primary,
-                        ),
+                        icon: const Icon(Icons.volume_up_outlined, size: 20),
                         onPressed: () {
                           ref.read(ttsServiceProvider).speak(word);
                         },
-                        visualDensity: VisualDensity.compact,
+                        style: IconButton.styleFrom(
+                          backgroundColor: cs.surfaceContainerHigh,
+                          foregroundColor: cs.primary,
+                          minimumSize: const Size.square(
+                            AppConfig.minTapTarget,
+                          ),
+                        ),
                         tooltip: L10n.of(context).playPronunciation,
                       ),
                   ],
@@ -1537,25 +1585,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ),
           );
         }),
-        Padding(
-          padding: const EdgeInsets.only(left: 4, top: 4, bottom: 4),
-          child: Row(
-            children: [
-              Icon(
-                Icons.arrow_downward_rounded,
-                size: 16,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                L10n.of(context).sentenceUsingWord,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -1566,10 +1595,33 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     ThaiSentence sentence, {
     Key? cardKey,
   }) {
-    final borderRadius = BorderRadius.circular(AppConfig.cardBorderRadius);
+    final borderRadius = BorderRadius.circular(AppConfig.heroBorderRadius);
+    // カードの中身（再生ボタン・シークバー・ティアバッジ）は ColorScheme から
+    // 色を引くので、面を深藍にする代わりにスキームごと差し替える。
+    // 各ウィジェットに「濃い面の上か」を渡して回らずに済む。
+    return Theme(
+      data: Theme.of(context).copyWith(colorScheme: AppColors.onIndigo),
+      child: Builder(builder: (context) => _buildSentenceCardBody(
+            context,
+            sentence,
+            cardKey: cardKey,
+            borderRadius: borderRadius,
+          )),
+    );
+  }
+
+  Widget _buildSentenceCardBody(
+    BuildContext context,
+    ThaiSentence sentence, {
+    required Key? cardKey,
+    required BorderRadius borderRadius,
+  }) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
       key: cardKey,
       clipBehavior: Clip.antiAlias,
+      color: AppColors.indigo,
+      shape: RoundedRectangleBorder(borderRadius: borderRadius),
       child: Stack(
         children: [
           InkWell(
@@ -1605,48 +1657,69 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text.rich(
-                    _buildHighlightedThaiText(
+                    buildHighlightedThaiText(
                       sentence.thaiText,
                       sentence.targetWords ?? [],
                       Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: cs.onSurface,
                                 fontWeight: FontWeight.w500,
                                 height: 1.5,
                                 fontSize: 32,
                               ) ??
-                          const TextStyle(fontSize: 32),
-                      Theme.of(context).colorScheme.primary,
+                          TextStyle(fontSize: 32, color: cs.onSurface),
+                      cs.primary,
                     ),
                   ),
                   const SizedBox(height: 8),
                   // Pronunciation
-                  Text(
-                    sentence.pronunciation,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.8),
-                          fontStyle: FontStyle.italic,
-                        ),
+                  Text.rich(
+                    buildHighlightedPronunciation(
+                      sentence,
+                      Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontStyle: FontStyle.italic,
+                              ) ??
+                          TextStyle(
+                            color: cs.onSurfaceVariant,
+                            fontStyle: FontStyle.italic,
+                          ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  _SentenceAudioSection(sentence: sentence),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+                  // 金の細罫。タイ語と訳文のあいだに一本だけ引いて面を分ける。
+                  Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.gold,
+                          AppColors.gold.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     sentence.japaneseTranslation,
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(color: cs.onSurface),
                   ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant
-                          .withValues(alpha: 0.45),
-                    ),
+                  const SizedBox(height: 14),
+                  // カードの足元。テーマ・お気に入り・詳細への続きを1行にまとめる。
+                  Row(
+                    children: [
+                      if (sentence.context?.topic != null)
+                        _buildSentenceTopicTag(context, sentence),
+                      const Spacer(),
+                      _buildFavoriteButton(context, sentence),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1657,33 +1730,61 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             right: 0,
             child: _buildSentenceTierBadge(context, sentence),
           ),
-          if (sentence.id != null)
-            Positioned(
-              top: 8,
-              left: 8,
-              child: GestureDetector(
-                onTap: () async {
-                  await ref
-                      .read(sentenceRepositoryProvider)
-                      .toggleFavorite(sentence.id!, !sentence.isFavorite);
-                  final updated =
-                      sentence.copyWith(isFavorite: !sentence.isFavorite);
-                  ref
-                      .read(sentenceControllerProvider.notifier)
-                      .showSentence(updated);
-                },
-                child: Icon(
-                  sentence.isFavorite ? Icons.favorite : Icons.favorite_border,
-                  size: 24,
-                  color: sentence.isFavorite
-                      ? Colors.red
-                      : Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.4),
-                ),
-              ),
-            ),
+        ],
+      ),
+    );
+  }
+
+  /// カード足元のお気に入り。タップ領域は 44px。
+  Widget _buildFavoriteButton(BuildContext context, ThaiSentence sentence) {
+    if (sentence.id == null) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () async {
+        await ref
+            .read(sentenceRepositoryProvider)
+            .toggleFavorite(sentence.id!, !sentence.isFavorite);
+        final updated = sentence.copyWith(isFavorite: !sentence.isFavorite);
+        ref.read(sentenceControllerProvider.notifier).showSentence(updated);
+      },
+      child: SizedBox(
+        width: AppConfig.minTapTarget,
+        height: AppConfig.minTapTarget,
+        child: Icon(
+          sentence.isFavorite ? Icons.favorite : Icons.favorite_border,
+          size: 24,
+          color: sentence.isFavorite
+              ? AppColors.vermilion
+              : cs.onSurfaceVariant.withValues(alpha: 0.8),
+        ),
+      ),
+    );
+  }
+
+  /// カード足元のテーマタグ。この例文がどの場面のものかを示す。
+  Widget _buildSentenceTopicTag(BuildContext context, ThaiSentence sentence) {
+    final cs = Theme.of(context).colorScheme;
+    final label = topicShortLabel(L10n.of(context), sentence.context?.topic);
+    return Container(
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.sell_outlined, size: 14, color: AppColors.gold),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: cs.onSurfaceVariant),
+          ),
         ],
       ),
     );
@@ -1917,140 +2018,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
-  TextSpan _buildHighlightedThaiText(
-    String text,
-    List<String> targetWords,
-    TextStyle baseStyle,
-    Color highlightColor,
-  ) {
-    if (targetWords.isEmpty) {
-      return TextSpan(text: text, style: baseStyle);
-    }
-    final sorted = [...targetWords]
-      ..sort((a, b) => b.length.compareTo(a.length));
-    final pattern = sorted.map(RegExp.escape).join('|');
-    final regex = RegExp(pattern);
-    final spans = <InlineSpan>[];
-    var lastEnd = 0;
-    final highlightStyle = baseStyle.copyWith(
-      color: highlightColor,
-      fontWeight: FontWeight.bold,
-    );
-    for (final match in regex.allMatches(text)) {
-      if (match.start > lastEnd) {
-        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
-      }
-      spans.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.baseline,
-          baseline: TextBaseline.alphabetic,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            decoration: BoxDecoration(
-              color: highlightColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(match.group(0)!, style: highlightStyle),
-          ),
-        ),
-      );
-      lastEnd = match.end;
-    }
-    if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd)));
-    }
-    return TextSpan(style: baseStyle, children: spans);
-  }
 }
 
-/// 例文カードの再生行と、その下に開く発音練習。
-///
-/// マイクは再生と対になる操作なので、大きさも色も再生ボタンに揃える。
-/// 押すとカード内に練習UIを開き、もう一度押すと畳む。
-class _SentenceAudioSection extends ConsumerStatefulWidget {
-  const _SentenceAudioSection({required this.sentence});
 
-  final ThaiSentence sentence;
-
-  @override
-  ConsumerState<_SentenceAudioSection> createState() =>
-      _SentenceAudioSectionState();
-}
-
-class _SentenceAudioSectionState extends ConsumerState<_SentenceAudioSection> {
-  bool _expanded = false;
-
-  @override
-  void didUpdateWidget(_SentenceAudioSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // 次の例文に進んだら畳んだ状態から始める
-    if (oldWidget.sentence.id != widget.sentence.id && _expanded) {
-      setState(() => _expanded = false);
-    }
-  }
-
-  void _toggle() {
-    // お手本と録音を奪い合わせない。開くときは再生を止める。
-    if (!_expanded) unawaited(ref.read(ttsServiceProvider).stopAll());
-    setState(() => _expanded = !_expanded);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final sentence = widget.sentence;
-    final canPractise = canPractisePronunciation(sentence);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SentenceAudioPlayer(
-          text: sentence.thaiText,
-          words: sentence.wordBreakdowns.map((w) => w.wordText).toList(),
-          trailing: canPractise
-              ? Semantics(
-                  button: true,
-                  label: L10n.of(context).pronunciationTitle,
-                  // 再生（塗り）と役割を分けるため、こちらは枠だけにする。
-                  child: IconButton.outlined(
-                    onPressed: _toggle,
-                    tooltip: L10n.of(context).pronunciationTitle,
-                    icon: const Icon(Icons.mic_rounded),
-                  ),
-                )
-              : null,
-          onPlay: () => unawaited(
-            ref.read(analyticsServiceProvider).logPlayTts(
-                  contentType: 'sentence',
-                  text: sentence.thaiText,
-                  sentenceId: sentence.id,
-                  source: 'today_sentence',
-                ),
-          ),
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          alignment: Alignment.topCenter,
-          child: canPractise && _expanded
-              ? Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  // カード全体が詳細へのタップ領域なので、練習中の空振りで
-                  // 画面遷移しないようここでタップを吸収する。
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {},
-                    child: PronunciationPractice(
-                      // 詳細画面とは別インスタンス。判定結果は持ち越さない。
-                      scope: 'home_card',
-                      sentenceId: sentence.id,
-                      words: sentence.wordBreakdowns,
-                      thaiText: sentence.thaiText,
-                    ),
-                  ),
-                )
-              : const SizedBox(width: double.infinity),
-        ),
-      ],
-    );
-  }
-}

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 
+import '../../core/config/app_config.dart';
+import '../../core/theme/app_colors.dart';
 import '../providers/quiz_offer_experiment_provider.dart';
 
 /// 例文から1問確認クイズへ進むA/Bテスト用の導線。
@@ -36,38 +38,56 @@ class QuizOffer extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    return Card(
-      key: const ValueKey('quiz_offer_inline_v1'),
-      color: colors.primaryContainer.withValues(alpha: 0.55),
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
+    // 例文カード（深藍）・学習単語カード（白）と並ぶので、面ではなく
+    // 翡翠の細い罫線で「まだ済んでいない次の一手」だと示す。
+    //
+    // 中にボタンは置かない。枠の中にもう一段ボタンがあると、押す場所が
+    // 二重になって的が絞れない。カード全体を1つのタップ領域にする。
+    return KeyedSubtree(
+      key: targetKey,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+          side: const BorderSide(color: AppColors.jade),
+        ),
+        child: InkWell(
+          key: const ValueKey('quiz_offer_inline_v1'),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+            child: Row(
               children: [
-                Icon(Icons.bolt_rounded, color: colors.primary),
-                const SizedBox(width: 8),
+                const Icon(Icons.check_rounded,
+                    size: 20, color: AppColors.jade),
+                const SizedBox(width: 12),
                 // 英語の見出しは日本語より長く、狭い端末で横にあふれる。
                 Expanded(
-                  child: Text(
-                    L10n.of(context).quizOfferOneQuestion,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        L10n.of(context).quizOfferOneQuestion,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.jade,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        L10n.of(context).quizOfferBody,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right,
+                    size: 20, color: AppColors.jade),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              L10n.of(context).quizOfferBody,
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            _buildButton(context, L10n.of(context).quizOfferTryOne),
-          ],
+          ),
         ),
       ),
     );

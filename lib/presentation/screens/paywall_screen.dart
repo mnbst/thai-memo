@@ -26,6 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/firebase_auth_service.dart';
 import '../providers/analytics_provider.dart';
@@ -96,79 +97,31 @@ class PaywallBottomSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return DraggableScrollableSheet(
-      initialChildSize: 0.72,
+      initialChildSize: 0.78,
       minChildSize: 0.5,
       maxChildSize: 0.95,
       expand: false,
       builder: (context, scrollController) {
         return Column(
           children: [
+            _buildHandle(context),
             Expanded(
               child: SingleChildScrollView(
                 controller: scrollController,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // ドラッグハンドル + 閉じるボタン
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: IconButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                icon: Icon(
-                                  Icons.close,
-                                  size: 18,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      // タイトル
-                      Text(
-                        L10n.of(context).paywallTitle,
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme.primary,
-                                ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        L10n.of(context).paywallTagline,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                      _buildTrialNote(context, ref),
-                      const SizedBox(height: 16),
-                      _buildMainBenefits(context),
-                    ],
-                  ),
+                padding: const EdgeInsets.fromLTRB(
+                  AppConfig.screenPadding,
+                  4,
+                  AppConfig.screenPadding,
+                  20,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHero(context, ref),
+                    const SizedBox(height: 20),
+                    _buildMainBenefits(context),
+                  ],
                 ),
               ),
             ),
@@ -176,6 +129,90 @@ class PaywallBottomSheet extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+
+  /// ドラッグハンドルと閉じる。中身と一緒にスクロールさせない。
+  Widget _buildHandle(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close, size: 20),
+              color: cs.onSurfaceVariant,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 表題。アプリの主役の面と同じ深藍で、ここが特別な画面だと示す。
+  Widget _buildHero(BuildContext context, WidgetRef ref) {
+    final l10n = L10n.of(context);
+    return Theme(
+      data: Theme.of(context).copyWith(colorScheme: AppColors.onIndigo),
+      child: Builder(
+        builder: (context) {
+          final theme = Theme.of(context);
+          final cs = theme.colorScheme;
+          return Card(
+            color: AppColors.indigo,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppConfig.heroBorderRadius),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.paywallTitle,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // 金の細い罫。例文カードと同じ引き方で揃える。
+                  Container(
+                    height: 1,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.gold, Color(0x00C39A4E)],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.paywallTagline,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                  _buildTrialNote(context, ref),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -220,26 +257,39 @@ class PaywallBottomSheet extends ConsumerWidget {
     if (subState.isPremium) {
       return Container(
         width: double.infinity,
-        padding: EdgeInsets.fromLTRB(24, 14, 24, 14 + bottomSafeArea),
+        padding: EdgeInsets.fromLTRB(AppConfig.screenPadding, 14,
+            AppConfig.screenPadding, 14 + bottomSafeArea),
         decoration: BoxDecoration(
           color: colorScheme.surface,
           border: Border(
             top: BorderSide(color: colorScheme.outlineVariant),
           ),
         ),
+        // 加入済みの人には売らない。いま有効だと分かれば足りる。
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(12),
+            color: AppColors.gold.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(AppConfig.buttonBorderRadius),
+            border: Border.all(color: AppColors.gold.withValues(alpha: 0.42)),
           ),
-          child: Text(
-            L10n.of(context).paywallActive,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.bold,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.workspace_premium_outlined,
+                  size: 20, color: AppColors.goldInk),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  L10n.of(context).paywallActive,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF7A5E22),
+                        fontWeight: FontWeight.w700,
+                      ),
+                  textAlign: TextAlign.center,
                 ),
-            textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       );
@@ -276,7 +326,8 @@ class PaywallBottomSheet extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(24, 10, 24, 10 + bottomSafeArea),
+      padding: EdgeInsets.fromLTRB(
+          AppConfig.screenPadding, 12, AppConfig.screenPadding, 10 + bottomSafeArea),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
@@ -296,12 +347,12 @@ class PaywallBottomSheet extends ConsumerWidget {
           // 価格表示
           if (subState.product != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 _formatPrice(L10n.of(context), subState.product!.rawPrice,
                     subState.product!.currencyCode),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -322,8 +373,12 @@ class PaywallBottomSheet extends ConsumerWidget {
                 ? null
                 : () => _startPurchase(context, ref),
             style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 15),
               minimumSize: const Size(double.infinity, 0),
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(AppConfig.buttonBorderRadius),
+              ),
             ),
             child: subState.isLoading
                 ? const SizedBox(
@@ -335,8 +390,10 @@ class PaywallBottomSheet extends ConsumerWidget {
                     // 購入を開始するボタンなので、何が起きるか一読で分かる言い方にする
                     // （情緒的なコピーは上部のタイトル・比較表で担う）。
                     L10n.of(context).paywallSubscribe,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
                   ),
           ),
           // 自動更新サブスクリプション開示文（iOS: Apple ガイドライン 3.1.2 準拠）
@@ -402,120 +459,125 @@ class PaywallBottomSheet extends ConsumerWidget {
     final active = DateTime.now().isBefore(expiresAt);
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: 10),
       child: Text(
         active
             ? L10n.of(context).paywallTrialActive
             : L10n.of(context).paywallTrialEnded,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(color: const Color(0xFFD8BE8A)),
         textAlign: TextAlign.center,
       ),
     );
   }
 
+  /// 何がどう変わるかを3つだけ並べる。
+  ///
+  /// Free の現状 → プレミアムの姿、の対比を1行ずつ。金は「増える側」
+  /// にだけ使い、いま持っているものは沈めて置く。
   Widget _buildMainBenefits(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final l10n = L10n.of(context);
 
-    final premiumStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: colorScheme.primary,
-          fontWeight: FontWeight.bold,
-        );
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // テーマを先頭に置く。無料は「おまかせ」で届くだけ、プレミアムは
+          // 自分で選べる、という差が一番わかりやすい。
+          _buildBenefitRow(
+            context,
+            icon: Icons.local_offer_outlined,
+            title: l10n.paywallFeatureTopicTitle,
+            freeText: l10n.paywallFeatureTopicFree,
+            premiumText: l10n.paywallFeatureTopicPremium,
+          ),
+          const Divider(
+            height: 1,
+            indent: AppConfig.defaultPadding,
+            endIndent: AppConfig.defaultPadding,
+          ),
+          _buildBenefitRow(
+            context,
+            icon: Icons.mic_none,
+            title: l10n.paywallFeaturePronunciationTitle,
+            freeText: l10n
+                .paywallFeaturePronunciationFree(freeDailyPronunciationChecks),
+            premiumText: l10n.paywallFeaturePronunciationPremium,
+          ),
+          const Divider(
+            height: 1,
+            indent: AppConfig.defaultPadding,
+            endIndent: AppConfig.defaultPadding,
+          ),
+          _buildBenefitRow(
+            context,
+            icon: Icons.menu_book_outlined,
+            title: l10n.paywallFeatureQuotaTitle,
+            // 例文の回数と語彙スコアの上限を1行にまとめる。どちらも
+            // 「どれだけ触れられるか」の話なので、行を分けると差が薄まる。
+            freeText: l10n.paywallFeatureQuotaFree(
+                freeDailySentences, freeVocabScoreLimit),
+            premiumText:
+                l10n.paywallFeatureQuotaPremium(premiumDailySentences),
+          ),
+        ],
+      ),
+    );
+  }
 
-    Widget row({
-      required IconData icon,
-      required String title,
-      required List<Widget> body,
-    }) {
-      return Row(
+  Widget _buildBenefitRow(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String freeText,
+    required String premiumText,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: colorScheme.primary, size: 22),
-          const SizedBox(width: 12),
+          Icon(icon, size: 22, color: AppColors.goldInk),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  freeText,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: cs.onSurfaceVariant),
                 ),
                 const SizedBox(height: 4),
-                ...body,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.arrow_downward_rounded,
+                        size: 16, color: AppColors.goldInk),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        premiumText,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.goldInk,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-          ),
-        ],
-      );
-    }
-
-    /// Free では何がどこまでで、プレミアムでどうなるかを1行ずつ対比させる。
-    Widget benefitRow({
-      required IconData icon,
-      required String title,
-      required String freeText,
-      required String premiumText,
-    }) {
-      return row(
-        icon: icon,
-        title: title,
-        body: [
-          Text(
-            freeText,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: 2),
-          Text('→ $premiumText', style: premiumStyle),
-        ],
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          // テーマを先頭に置く。無料は「おまかせ」で届くだけ、プレミアムは
-          // 自分で選べる、という差が一番わかりやすい。
-          benefitRow(
-            icon: Icons.palette_outlined,
-            title: L10n.of(context).paywallFeatureTopicTitle,
-            freeText: L10n.of(context).paywallFeatureTopicFree,
-            premiumText: L10n.of(context).paywallFeatureTopicPremium,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: colorScheme.outlineVariant),
-          ),
-          benefitRow(
-            icon: Icons.mic_none,
-            title: L10n.of(context).paywallFeaturePronunciationTitle,
-            freeText: L10n.of(context)
-                .paywallFeaturePronunciationFree(freeDailyPronunciationChecks),
-            premiumText: L10n.of(context).paywallFeaturePronunciationPremium,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: colorScheme.outlineVariant),
-          ),
-          benefitRow(
-            icon: Icons.bolt,
-            title: L10n.of(context).paywallFeatureQuotaTitle,
-            // 例文の回数と語彙スコアの上限を1行にまとめる。どちらも
-            // 「どれだけ触れられるか」の話なので、行を分けると差が薄まる。
-            freeText: L10n.of(context)
-                .paywallFeatureQuotaFree(freeDailySentences,
-                    freeVocabScoreLimit),
-            premiumText: L10n.of(context)
-                .paywallFeatureQuotaPremium(premiumDailySentences),
           ),
         ],
       ),
