@@ -151,17 +151,21 @@ Future<_QuizHarness> _pumpSummaryQuiz(
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    // ヒントの初回案内は既定で「表示済み」。案内そのものを見るテストだけ
+    // フラグを外す。
+    SharedPreferences.setMockInitialValues({
+      AppConfig.prefKeyQuizHintCoachShown: true,
+    });
   });
 
-  testWidgets('正解は同じ問題内で表示し、二重送信せず自動で次問へ進む', (tester) async {
+  testWidgets('正解は同じ問題内で解説まで見せ、二重送信せず次へボタンで進む', (tester) async {
     final harness = await _pumpSummaryQuiz(
       tester,
       blockFirstInsert: true,
     );
     const correctChoiceKey = ValueKey('quiz_choice_0');
 
-    expect(find.text('問題 1 / 5'), findsOneWidget);
+    expect(find.text('1 / 5'), findsOneWidget);
     expect(find.text(_questions.first.blankText), findsOneWidget);
 
     // DB保存を待っている間に連打しても、回答は一度だけ送る。
@@ -183,14 +187,18 @@ void main() {
     for (var index = 0; index < 4; index++) {
       expect(find.byKey(ValueKey('quiz_choice_$index')), findsOneWidget);
     }
-    expect(find.text(_questions.first.explanation), findsNothing);
-
+    // 解説を出す回は自分で読み終えてから進む。
+    expect(find.text(_questions.first.explanation), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1500));
+    expect(harness.controller.state, isA<QuizShowResult>());
+
+    await tester.tap(find.byKey(const ValueKey('quiz_next_button')));
+    await tester.pump();
 
     final state = harness.controller.state;
     expect(state, isA<QuizAnswering>());
     expect((state as QuizAnswering).index, 1);
-    expect(find.text('問題 2 / 5'), findsOneWidget);
+    expect(find.text('2 / 5'), findsOneWidget);
     expect(find.text(_questions[1].blankText), findsOneWidget);
   });
 
@@ -225,7 +233,7 @@ void main() {
     final resultState = harness.controller.state;
     expect(resultState, isA<QuizShowResult>());
     expect((resultState as QuizShowResult).index, 0);
-    expect(find.text('問題 1 / 5'), findsOneWidget);
+    expect(find.text('1 / 5'), findsOneWidget);
 
     await tester.ensureVisible(nextButton);
     await tester.pumpAndSettle();
@@ -236,7 +244,7 @@ void main() {
     final nextState = harness.controller.state;
     expect(nextState, isA<QuizAnswering>());
     expect((nextState as QuizAnswering).index, 1);
-    expect(find.text('問題 2 / 5'), findsOneWidget);
+    expect(find.text('2 / 5'), findsOneWidget);
   });
 
   testWidgets('小さい画面と拡大文字でも結果画面を最後までスクロールできる', (tester) async {
@@ -359,6 +367,71 @@ void main() {
     await tester.pump();
   });
 
+
+  testWidgets('5問クイズのヒントは発音→訳文の2段階で開き、段階を回答に渡す', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({
+      AppConfig.prefKeyQuizHintCoachShown: true,
+    });
+    final harness = await _pumpSummaryQuiz(tester);
+    final hintButton = find.byKey(const ValueKey('quiz_hint_button'));
+
+    // 未使用時はどちらのヒントも出さない。
+    expect(find.text('nii khue coot thii 1 ___'), findsNothing);
+    expect(find.text(_questions.first.japaneseTranslation), findsNothing);
+
+    await tester.ensureVisible(hintButton);
+    await tester.tap(hintButton);
+    await tester.pump();
+
+    // 1段階目は発音だけ。訳文はまだ伏せたまま。
+    expect(find.text('nii khue coot thii 1 ___'), findsOneWidget);
+    expect(find.text(_questions.first.japaneseTranslation), findsNothing);
+
+    await tester.ensureVisible(hintButton);
+    await tester.tap(hintButton);
+    await tester.pump();
+
+    expect(find.text(_questions.first.japaneseTranslation), findsOneWidget);
+
+    // 使い切ったあともボタンは不活性で残す。
+    expect(hintButton, findsOneWidget);
+    expect(find.text('ヒントは表示済み'), findsOneWidget);
+    expect(tester.widget<TextButton>(hintButton).onPressed, isNull);
+
+    final choice = find.byKey(const ValueKey('quiz_choice_0'));
+    await tester.ensureVisible(choice);
+    await tester.tap(choice);
+    await tester.pump();
+
+    final state = harness.controller.state as QuizShowResult;
+    expect(state.hintLevels, [2]);
+  });
+
+  testWidgets('ヒントの案内は初回だけ出し、二度目の起動では出さない', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({});
+
+    await _pumpSummaryQuiz(tester);
+    // ハイライトは出ている間ずっと明滅するので pumpAndSettle は使えない。
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    expect(find.text('ヒントは2段階で出せます'), findsOneWidget);
+
+    await tester.tap(find.text('わかった'));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    expect(find.text('ヒントは2段階で出せます'), findsNothing);
+
+    // 表示済みフラグが立つので、次の出題では出ない。
+    await _pumpSummaryQuiz(tester);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    expect(find.text('ヒントは2段階で出せます'), findsNothing);
+  });
 
   testWidgets('まとめクイズへ進む回は締めくくりを出さない', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1600));

@@ -9,10 +9,12 @@ import 'dart:async';
 
 import '../../core/config/app_config.dart';
 import '../../core/l10n/app_language.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/datasources/backend_api_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../providers/auth_provider.dart';
+import '../providers/leaderboard_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
@@ -48,143 +50,251 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(L10n.of(context).settingsTitle)),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
         controller: _scrollController,
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        padding: const EdgeInsets.fromLTRB(
+          AppConfig.screenPadding,
+          4,
+          AppConfig.screenPadding,
+          AppConfig.screenPadding,
+        ),
         children: [
-          _buildAccountSection(),
-          const SizedBox(height: 24),
-          _buildLearningSection(),
-          const SizedBox(height: 24),
-          _buildDisplaySection(),
-          const SizedBox(height: 24),
-          _buildAboutSection(),
+          // 語彙スコアは設定ではなく成果なので、設定の並びの外に置く。
+          _buildVocabScoreCard(),
+          _buildPremiumPitch(),
+          _buildSection(l10n.settingsAccount, _buildAccountTiles()),
+          _buildSection(l10n.settingsLearningSection, _buildLearningTiles()),
+          _buildSection(l10n.settingsDisplay, _buildDisplayTiles()),
+          _buildSection(l10n.settingsAbout, _buildAboutTiles()),
+          const SizedBox(height: 28),
+          _buildFooter(),
         ],
       ),
     );
   }
 
-  /// Build account section
-  Widget _buildAccountSection() {
-    final authState = ref.watch(authControllerProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  /// 見出し＋1枚のカード。設定項目はカードを分けず、罫線で区切って積む。
+  Widget _buildSection(String label, List<Widget> tiles) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 22),
+        Row(
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.account_circle,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  L10n.of(context).settingsAccount,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.person),
-              title: Text(
-                authState.isLinked
-                    ? (authState.displayName ?? L10n.of(context).settingsUser)
-                    : L10n.of(context).settingsGuest,
+            Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.08 * 12,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-              subtitle: authState.isLinked
-                  ? (authState.email != null ? Text(authState.email!) : null)
-                  : Text(L10n.of(context).settingsNotSignedIn),
             ),
-            Consumer(
-              builder: (context, ref, _) {
-                // 体験中は課金と同じ機能が使えているので、そのことを出す。
-                // 「課金しているか」の表示なので Premium とは別ラベルにする。
-                // 判定が付くまでは何も出さない（free → 体験中 → Premium と
-                // 段階的にぶれて見えるのを避ける）。
-                final plan = ref.watch(planStatusProvider).valueOrNull;
-                final label = switch (plan) {
-                  PlanStatus.premium => 'Premium',
-                  PlanStatus.trial => L10n.of(context).settingsPlanTrial,
-                  PlanStatus.free => 'Free',
-                  null => null,
-                };
-                final highlighted =
-                    plan == PlanStatus.premium || plan == PlanStatus.trial;
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.workspace_premium),
-                  title: Text(L10n.of(context).settingsPlan),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Divider(color: theme.colorScheme.outlineVariant),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0)
+                  const Divider(
+                    height: 1,
+                    indent: AppConfig.defaultPadding,
+                    endIndent: AppConfig.defaultPadding,
+                  ),
+                tiles[i],
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Free 向けの課金導線。プラン行は「今どちらか」を示すだけなので、
+  /// 何が増えるのかはここで別に見せる。
+  Widget _buildPremiumPitch() {
+    if (ref.watch(effectivePremiumProvider)) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final l10n = L10n.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 13),
+      child: Material(
+        color: AppColors.gold.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+          onTap: () =>
+              PaywallBottomSheet.show(context, source: 'settings_pitch'),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+              border:
+                  Border.all(color: AppColors.gold.withValues(alpha: 0.42)),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+            child: Row(
+              children: [
+                const Icon(Icons.workspace_premium_outlined,
+                    size: 20, color: AppColors.goldInk),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (label != null)
-                        Chip(
-                          label: Text(label),
-                          backgroundColor: highlighted
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : null,
-                          labelStyle: TextStyle(
-                            color: highlighted
-                                ? Theme.of(context)
-                                    .colorScheme
-                                    .onPrimaryContainer
-                                : null,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      Text(
+                        l10n.premiumHint1Title,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF7A5E22),
                         ),
-                      const Icon(Icons.chevron_right),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        l10n.premiumHint1Body,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: const Color(0xFF8A7444)),
+                      ),
                     ],
                   ),
-                  onTap: () => PaywallBottomSheet.show(
-                    context,
-                    source: 'settings_plan',
-                  ),
-                );
-              },
-            ),
-            if (authState.isLinked)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: authState.isLoading ? null : _deleteAccount,
-                    child: Text(
-                      L10n.of(context).settingsDeleteAccount,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: authState.isLoading ? null : _signOut,
-                    child: Text(L10n.of(context).settingsSignOut),
-                  ),
-                ],
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: authState.isLoading ? null : _signIn,
-                  icon: const Icon(Icons.login),
-                  label: Text(L10n.of(context).settingsSignInToSave),
                 ),
-              ),
-            if (authState.isLoading) const LinearProgressIndicator(),
-          ],
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right,
+                    size: 20, color: AppColors.goldInk),
+              ],
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  /// アプリ名とタグライン。読ませる情報ではないので、面を持たせず末尾に置く。
+  Widget _buildFooter() {
+    final theme = Theme.of(context);
+    return Text(
+      '${L10n.of(context).settingsTagline}　·　v${AppConfig.appVersion}',
+      textAlign: TextAlign.center,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+      ),
+    );
+  }
+
+  /// アカウントとプラン。
+  List<Widget> _buildAccountTiles() {
+    final authState = ref.watch(authControllerProvider);
+    final nickname = ref.watch(myNicknameProvider).valueOrNull;
+    final l10n = L10n.of(context);
+
+    return [
+      // 名前はランキングでの表示名（サーバー採番のタイ人名）を出す。
+      // メールアドレスは本人以外が覗いても意味を持つ情報なので、設定を
+      // 開いただけで画面に出しておく理由がない。
+      ListTile(
+        leading: const Icon(Icons.person_outline),
+        title: Text(
+          authState.isLinked
+              ? (nickname ?? authState.displayName ?? l10n.settingsUser)
+              : l10n.settingsGuest,
+        ),
+        subtitle: authState.isLinked
+            ? (nickname != null ? Text(l10n.settingsRankingName) : null)
+            : Text(l10n.settingsNotSignedIn),
+        trailing: authState.isLoading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : null,
+      ),
+      Consumer(
+        builder: (context, ref, _) {
+          // 体験中は課金と同じ機能が使えているので、そのことを出す。
+          // 「課金しているか」の表示なので Premium とは別ラベルにする。
+          // 判定が付くまでは何も出さない（free → 体験中 → Premium と
+          // 段階的にぶれて見えるのを避ける）。
+          final plan = ref.watch(planStatusProvider).valueOrNull;
+          final label = switch (plan) {
+            PlanStatus.premium => 'Premium',
+            PlanStatus.trial => l10n.settingsPlanTrial,
+            PlanStatus.free => 'Free',
+            null => null,
+          };
+          final highlighted =
+              plan == PlanStatus.premium || plan == PlanStatus.trial;
+          final theme = Theme.of(context);
+          return ListTile(
+            leading: const Icon(Icons.workspace_premium_outlined),
+            title: Text(l10n.settingsPlan),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (label != null)
+                  Text(
+                    label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: highlighted ? FontWeight.w700 : null,
+                      color: highlighted
+                          ? AppColors.goldInk
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+            onTap: () =>
+                PaywallBottomSheet.show(context, source: 'settings_plan'),
+          );
+        },
+      ),
+      if (authState.isLinked)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: authState.isLoading ? null : _deleteAccount,
+                child: Text(
+                  l10n.settingsDeleteAccount,
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: authState.isLoading ? null : _signOut,
+                child: Text(l10n.settingsSignOut),
+              ),
+            ],
+          ),
+        )
+      else
+        Padding(
+          padding: const EdgeInsets.all(AppConfig.defaultPadding),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: authState.isLoading ? null : _signIn,
+              icon: const Icon(Icons.login),
+              label: Text(l10n.settingsSignInToSave),
+            ),
+          ),
+        ),
+    ];
   }
 
   Future<void> _signIn() async {
@@ -275,98 +385,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// Build display section
-  Widget _buildDisplaySection() {
+  /// 表示（フォント・言語）。
+  List<Widget> _buildDisplayTiles() {
     final currentFont = ref.watch(fontFamilyProvider);
     final l10n = L10n.of(context);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.text_fields,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  l10n.settingsDisplay,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // 言語は初回起動でストア地域から1回決めて保存し、以後は再評価しない。
-            // 自動判定を外すと**戻す手段が無く**、ストア地域と実際の使用言語が
-            // 違うユーザー（日本在住の英語話者、海外在住の日本語話者）は
-            // 再インストールするまで読めない言語で使い続けることになる。
-            // 履歴に日英が混ざる点はダイアログの注記で伝える。
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.translate),
-              title: Text(l10n.settingsLanguage),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    ref.watch(appLanguageProvider).displayName,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                  ),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
-              onTap: () => _showLanguagePicker(ref.read(appLanguageProvider)),
-            ),
-            // 体験終了ダイアログは期限が来ないと出ないので、見た目の確認用に
-            // dev だけ手動で開けるようにしておく。
-            if (AppConfig.isDev)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.hourglass_bottom_rounded),
-                title: const Text('プレミアム体験終了ダイアログ（dev）'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () async {
-                  final open = await showPremiumTrialEndedDialog(context);
-                  if (!open || !mounted) return;
-                  await PaywallBottomSheet.show(context,
-                      source: 'trial_ended_preview');
-                },
-              ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.font_download_outlined),
-              title: Text(l10n.settingsFont),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    currentFont.displayName,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                  ),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
-              onTap: () => _showFontPicker(currentFont),
-            ),
-          ],
-        ),
+    return [
+      ListTile(
+        leading: const Icon(Icons.text_fields),
+        title: Text(l10n.settingsFont),
+        trailing: _buildValueTrailing(currentFont.displayName),
+        onTap: () => _showFontPicker(currentFont),
       ),
+      // 言語は初回起動でストア地域から1回決めて保存し、以後は再評価しない。
+      // 自動判定を外すと**戻す手段が無く**、ストア地域と実際の使用言語が
+      // 違うユーザー（日本在住の英語話者、海外在住の日本語話者）は
+      // 再インストールするまで読めない言語で使い続けることになる。
+      // 履歴に日英が混ざる点はダイアログの注記で伝える。
+      ListTile(
+        leading: const Icon(Icons.language),
+        title: Text(l10n.settingsLanguage),
+        subtitle: Text(l10n.settingsLanguageSubtitle),
+        trailing: _buildValueTrailing(ref.watch(appLanguageProvider).displayName),
+        onTap: () => _showLanguagePicker(ref.read(appLanguageProvider)),
+      ),
+      // 体験終了ダイアログは期限が来ないと出ないので、見た目の確認用に
+      // dev だけ手動で開けるようにしておく。
+      if (AppConfig.isDev)
+        ListTile(
+          leading: const Icon(Icons.hourglass_bottom_rounded),
+          title: const Text('プレミアム体験終了ダイアログ（dev）'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () async {
+            final open = await showPremiumTrialEndedDialog(context);
+            if (!open || !mounted) return;
+            await PaywallBottomSheet.show(context,
+                source: 'trial_ended_preview');
+          },
+        ),
+    ];
+  }
+
+  /// 右端の「現在の値 ＞」。行の主役は左のラベルなので、値は沈めて置く。
+  Widget _buildValueTrailing(String value) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 140),
+          child: Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+        const SizedBox(width: 4),
+        const Icon(Icons.chevron_right),
+      ],
     );
   }
 
@@ -483,106 +560,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// Build learning section
-  Widget _buildLearningSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.bar_chart,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  L10n.of(context).settingsLearningStatus,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
+  /// 学習設定。声調ガイドを先頭に置くのは、設定ではなく読み物で、
+  /// ここを開いた人がいちばん手に取りやすいため。
+  List<Widget> _buildLearningTiles() {
+    final l10n = L10n.of(context);
+    return [
+      ListTile(
+        leading: const Icon(Icons.graphic_eq),
+        title: Text(l10n.settingsToneGuide),
+        subtitle: Text(l10n.settingsToneGuideSubtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          // Cupertino ルートにすると Android でも右スワイプで戻れる
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              settings: const RouteSettings(name: ToneGuideScreen.routeName),
+              builder: (context) => const ToneGuideScreen(),
             ),
-            const SizedBox(height: 12),
-            _buildVocabScoreInline(),
-            const SizedBox(height: 16),
-            Divider(
-                height: 1, color: Theme.of(context).colorScheme.outlineVariant),
-            const SizedBox(height: 12),
-            Text(
-              L10n.of(context).settingsLearningSection,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withValues(alpha: 0.7),
-                  ),
-            ),
-            _buildTopicSelectTile(),
-            _buildDailyReminderTile(),
-            _buildReminderTimeTile(),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.leaderboard,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: Text(L10n.of(context).settingsRanking),
-              subtitle: Text(L10n.of(context).rankingSubtitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                // Cupertino ルートにすると Android でも右スワイプで戻れる
-                Navigator.push(
-                  context,
-                  CupertinoPageRoute(
-                    settings: const RouteSettings(name: RankingScreen.routeName),
-                    builder: (context) => const RankingScreen(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.graphic_eq,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: Text(L10n.of(context).settingsToneGuide),
-              subtitle: Text(L10n.of(context).settingsToneGuideSubtitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  CupertinoPageRoute(
-                    settings:
-                        const RouteSettings(name: ToneGuideScreen.routeName),
-                    builder: (context) => const ToneGuideScreen(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.restart_alt,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                L10n.of(context).settingsResetLearningData,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              subtitle:
-                  Text(L10n.of(context).settingsResetLearningDataSubtitle),
-              onTap: _resetLearningData,
-            ),
-          ],
-        ),
+          );
+        },
       ),
-    );
+      _buildTopicSelectTile(),
+      _buildDailyReminderTile(),
+      _buildReminderTimeTile(),
+      ListTile(
+        leading: const Icon(Icons.leaderboard_outlined),
+        title: Text(l10n.settingsRanking),
+        subtitle: Text(l10n.rankingSubtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              settings: const RouteSettings(name: RankingScreen.routeName),
+              builder: (context) => const RankingScreen(),
+            ),
+          );
+        },
+      ),
+      ListTile(
+        leading: Icon(
+          Icons.restart_alt,
+          color: Theme.of(context).colorScheme.error,
+        ),
+        title: Text(
+          l10n.settingsResetLearningData,
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
+        subtitle: Text(l10n.settingsResetLearningDataSubtitle),
+        onTap: _resetLearningData,
+      ),
+    ];
   }
 
   /// 毎日例文のプッシュ通知トグル。
@@ -593,11 +622,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final enabled = ref.watch(dailyReminderEnabledProvider);
 
     return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      secondary: Icon(
-        Icons.notifications_active,
-        color: Theme.of(context).colorScheme.primary,
-      ),
+      secondary: const Icon(Icons.notifications_active_outlined),
       title: Text(L10n.of(context).settingsDailyNotification),
       subtitle: Text(L10n.of(context).settingsDailyNotificationSubtitle),
       value: enabled,
@@ -624,7 +649,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final hour = ref.watch(settingsControllerProvider).preferredGenerationHour;
 
     return ListTile(
-      contentPadding: EdgeInsets.zero,
       enabled: enabled,
       leading: Icon(
         Icons.schedule,
@@ -684,16 +708,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         : L10n.of(context).settingsTopicRandom;
 
     return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        Icons.category,
-        color: Theme.of(context).colorScheme.primary,
-      ),
+      leading: const Icon(Icons.local_offer_outlined),
       title: Text(L10n.of(context).settingsTopic),
-      subtitle: Text(displayLabel),
+      // テーマは「今どれか」がすぐ要る情報なので、副題ではなく右端に置く。
       trailing: canSelect
-          ? const Icon(Icons.chevron_right)
-          : Icon(Icons.lock, color: Theme.of(context).colorScheme.outline),
+          ? _buildValueTrailing(displayLabel)
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  displayLabel,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.lock,
+                    size: 18, color: Theme.of(context).colorScheme.outline),
+              ],
+            ),
       onTap: canSelect
           ? _showTopicPicker
           : () => PaywallBottomSheet.show(context, source: 'settings_topic'),
@@ -751,82 +783,125 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Widget _buildVocabScoreInline() {
+  /// 語彙スコア。設定の中でここだけが成果なので、深藍の面で見せる。
+  Widget _buildVocabScoreCard() {
     final statsAsync = ref.watch(vocabStatsProvider);
     // 体験中はサーバー側も語彙上限を外しているので、表示も合わせる。
     final isPremium = ref.watch(effectivePremiumProvider);
+    final l10n = L10n.of(context);
 
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    return Theme(
+      data: Theme.of(context).copyWith(colorScheme: AppColors.onIndigo),
+      child: Builder(
+        builder: (context) {
+          final theme = Theme.of(context);
+          final cs = theme.colorScheme;
+          return Card(
+            color: AppColors.indigo,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppConfig.heroBorderRadius),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+              child: statsAsync.when(
+                data: (stats) {
+                  final displayVocab = isPremium
+                      ? stats.estimatedVocab
+                      : stats.estimatedVocab
+                          .clamp(0, freeVocabScoreLimit)
+                          .toInt();
+                  final levelId = vocabLevel(displayVocab);
+                  final level = vocabLevelLabel(l10n, levelId);
+                  final threshold = isPremium
+                      ? _nextVocabThreshold(displayVocab)
+                      : freeVocabScoreLimit;
+                  final progress =
+                      (displayVocab / threshold).clamp(0.0, 1.0).toDouble();
 
-    return statsAsync.when(
-      data: (stats) {
-        final displayVocab = isPremium
-            ? stats.estimatedVocab
-            : stats.estimatedVocab.clamp(0, freeVocabScoreLimit).toInt();
-        final level =
-            vocabLevelLabel(L10n.of(context), vocabLevel(displayVocab));
-        final threshold =
-            isPremium ? _nextVocabThreshold(displayVocab) : freeVocabScoreLimit;
-        final progress = (displayVocab / threshold).clamp(0.0, 1.0).toDouble();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  L10n.of(context).vocabWords(displayVocab),
-                  style: textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              l10n.vocabScore,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.06 * 12,
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            l10n.vocabWords(displayVocab),
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: cs.onSurface,
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 6,
+                          color: AppColors.gold,
+                          backgroundColor: cs.onSurface.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(vocabLevelIcon(levelId),
+                              size: 17, color: AppColors.gold),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isPremium
+                                  ? '$level　·　'
+                                      '${l10n.settingsNextLevelIn(threshold - displayVocab)}'
+                                  : '$level　·　'
+                                      '${l10n.settingsFreeVocabLimit(freeVocabScoreLimit)}',
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: const Color(0xFFD8BE8A)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox(
+                  height: 74,
+                  child: Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Chip(
-                  label: Text(level),
-                  visualDensity: VisualDensity.compact,
-                  labelStyle: textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                error: (_, __) => SizedBox(
+                  height: 74,
+                  child: Center(
+                    child: Text(
+                      l10n.vocabScoreCalculating,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: cs.onSurfaceVariant),
+                    ),
                   ),
-                  padding: EdgeInsets.zero,
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 6,
-                backgroundColor: colorScheme.surfaceContainerHighest,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              isPremium
-                  ? L10n.of(context)
-                      .settingsNextLevelIn(threshold - displayVocab)
-                  : L10n.of(context)
-                      .settingsFreeVocabLimit(freeVocabScoreLimit),
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        );
-      },
-      loading: () => const SizedBox(
-        height: 48,
-        child: Center(
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
+          );
+        },
       ),
-      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -849,73 +924,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// Build about section
-  Widget _buildAboutSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.info, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 12),
-                Text(
-                  L10n.of(context).settingsAbout,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '${L10n.of(context).appTitle} v${AppConfig.appVersion}',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              L10n.of(context).settingsTagline,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-            ),
-            const Divider(height: 24),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.lock_outline),
-              title: Text(L10n.of(context).settingsPrivacyPolicy),
-              trailing: const Icon(Icons.open_in_new, size: 18),
-              onTap: () => _launchUrl(AppConfig.privacyPolicyUrl),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.description_outlined),
-              title: Text(L10n.of(context).settingsTerms),
-              trailing: const Icon(Icons.open_in_new, size: 18),
-              onTap: () => _launchUrl(AppConfig.termsOfServiceUrl),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.mail_outline),
-              title: Text(L10n.of(context).settingsContact),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  settings: const RouteSettings(
-                    name: ContactFormScreen.routeName,
-                  ),
-                  builder: (_) => const ContactFormScreen(),
-                ),
-              ),
-            ),
-          ],
+  /// アプリについて。
+  List<Widget> _buildAboutTiles() {
+    final l10n = L10n.of(context);
+    return [
+      ListTile(
+        leading: const Icon(Icons.lock_outline),
+        title: Text(l10n.settingsPrivacyPolicy),
+        trailing: const Icon(Icons.open_in_new, size: 18),
+        onTap: () => _launchUrl(AppConfig.privacyPolicyUrl),
+      ),
+      ListTile(
+        leading: const Icon(Icons.description_outlined),
+        title: Text(l10n.settingsTerms),
+        trailing: const Icon(Icons.open_in_new, size: 18),
+        onTap: () => _launchUrl(AppConfig.termsOfServiceUrl),
+      ),
+      ListTile(
+        leading: const Icon(Icons.mail_outline),
+        title: Text(l10n.settingsContact),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(name: ContactFormScreen.routeName),
+            builder: (_) => const ContactFormScreen(),
+          ),
         ),
       ),
-    );
+    ];
   }
 }

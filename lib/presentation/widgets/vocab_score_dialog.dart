@@ -27,6 +27,18 @@ String vocabLevelLabel(L10n l10n, String level) => switch (level) {
       _ => l10n.vocabLevelIntro,
     };
 
+/// 語彙レベルの目印。芽 → 葉 → 花 → 木 → 森 と育つ順に並べる。
+///
+/// 5段を1つの筋で見せたいので、全部を同じ比喩から取る。段ごとに別の比喩
+/// （葉・トロフィー・星…）を混ぜると、並べたときに順序が読めない。
+IconData vocabLevelIcon(String level) => switch (level) {
+      '初級' => Icons.eco,
+      '初中級' => Icons.local_florist,
+      '中級' => Icons.park,
+      '上級' => Icons.forest,
+      _ => Icons.grass,
+    };
+
 void showVocabScoreInfo(
   BuildContext context,
   int vocab, {
@@ -148,7 +160,7 @@ void showVocabScoreInfo(
           if (!isPremium)
             FilledButton.icon(
               onPressed: openPaywall,
-              icon: const Icon(Icons.auto_awesome, size: 18),
+              icon: const Icon(Icons.workspace_premium_outlined, size: 18),
               label: Text(l10n.vocabSeePremium),
             ),
           TextButton(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/generation_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/constants/generation_labels.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/remaining_quota_provider.dart';
@@ -21,7 +22,18 @@ class NextSentenceTopicLabel extends ConsumerWidget {
   /// ペイウォール計測用のソース名。
   final String paywallSource;
 
-  const NextSentenceTopicLabel({super.key, this.paywallSource = 'next_topic'});
+  /// 学習タブの帯として出すか。false ならチップ（クイズ結果画面での従来表示）。
+  ///
+  /// 帯は例文カードのすぐ上に置き、「次はどのテーマが届くか」を
+  /// 例文を読む前に見せる。中身の出し分け（Free はおまかせ＋ペイウォール）は
+  /// チップと同じで、器だけが違う。
+  final bool banner;
+
+  const NextSentenceTopicLabel({
+    super.key,
+    this.paywallSource = 'next_topic',
+    this.banner = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,6 +56,10 @@ class NextSentenceTopicLabel extends ConsumerWidget {
             CoachMarkOverlay.dismiss();
             PaywallBottomSheet.show(context, source: paywallSource);
           };
+
+    if (banner) {
+      return _buildBanner(context, l10n, label, canSelect, onTap);
+    }
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -77,6 +93,66 @@ class NextSentenceTopicLabel extends ConsumerWidget {
         ),
         shape: StadiumBorder(side: BorderSide(color: cs.outlineVariant)),
         backgroundColor: Colors.transparent,
+      ),
+    );
+  }
+
+  Widget _buildBanner(
+    BuildContext context,
+    L10n l10n,
+    String label,
+    bool canSelect,
+    VoidCallback onTap,
+  ) {
+    final theme = Theme.of(context);
+    return Material(
+      color: AppColors.gold.withValues(alpha: 0.13),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Ink(
+          // 帯は「毎回押す場所」ではないので、例文より先に大きな面積を取らない
+          // 高さに抑える。
+          height: 36,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.gold.withValues(alpha: 0.32)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              if (!canSelect) ...[
+                const Icon(Icons.lock, size: 15, color: Color(0xFF8A6C2E)),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                l10n.nextTopicPrefix,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: const Color(0xFF8A6C2E),
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.06 * 12,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF6B5220),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: Color(0xFFA8823C),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

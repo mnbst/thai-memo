@@ -16,17 +16,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/constants/generation_labels.dart';
+import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/pronunciation_provider.dart';
+import '../providers/sentence_provider.dart';
 import '../providers/tts_provider.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/coach_mark_overlay.dart';
 import '../tone_explanation_dialog.dart';
-import '../widgets/sentence_audio_player.dart';
-import '../widgets/pronunciation_practice.dart';
+import '../widgets/sentence_audio_section.dart';
+import '../widgets/thai_highlight.dart';
+import 'tone_guide_screen.dart';
 
 /// 例文の詳細表示画面。
 ///
@@ -61,17 +64,21 @@ class DetailScreen extends ConsumerStatefulWidget {
 const double _swipeBackVelocity = 300;
 
 class _DetailScreenState extends ConsumerState<DetailScreen> {
-  /// 単語分解セクションの展開/折りたたみ状態
-  bool _isWordBreakdownExpanded = true;
+  /// お気に入りの状態。AppBar のハートで切り替える。
+  late bool _isFavorite = widget.sentence.isFavorite;
 
-  /// 文脈情報セクションの展開/折りたたみ状態
-  bool _isContextExpanded = true;
-
-  /// 初回ガイドのスポット対象。例文カード → 発音練習 → 単語の分解 →
-  /// 文脈・使い方 → 戻る の順に続けて案内する。
+  /// 初回ガイドのスポット対象。案内の順は画面の並びと同じにする。
+  /// 例文カード → お手本再生 → 発音練習 → 使い方 → 単語 → 戻る。
+  /// 画面を行き来させると、どこの話をしているのか見失う。
   final GlobalKey _sentenceKey = GlobalKey();
   final GlobalKey _playKey = GlobalKey();
-  final GlobalKey _pronunciationKey = GlobalKey();
+  /// 録音ボタン。初回ガイドはここを押させる。「発音してみる」（畳みを開く
+  /// ボタン）ではない。開かせる操作を段に含めると、押した先で案内が消えて
+  /// 録音まで辿り着けない。
+  final GlobalKey _recordKey = GlobalKey();
+
+  /// 練習セクションを案内の前に開くための手。
+  final GlobalKey<SentenceAudioSectionState> _audioSectionKey = GlobalKey();
   final GlobalKey _wordItemKey = GlobalKey();
 
   /// 声調判定の結果を指すキー。ツアーの段ではない（判定した回にだけ出す）。
@@ -108,9 +115,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   List<GlobalKey> get _coachKeys => [
         _sentenceKey,
         _playKey,
-        _pronunciationKey,
-        _wordItemKey,
+        _recordKey,
         _contextKey,
+        _wordItemKey,
         _backKey,
       ];
 
@@ -122,7 +129,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   VoidCallback? _abortCoachWait;
 
   /// 詳細画面の初回ガイド。例文カード → お手本再生 → 発音練習 →
-  /// 単語の分解と声調詳細 → 文脈・使い方 → 戻る を続けて案内する。
+  /// 使い方 → 単語と声調詳細 → 戻る を続けて案内する。
   ///
   /// 1つ閉じたら次へ進む。対象が画面外にあるので、毎回スクロールで見せてから
   /// スポットを当てる。途中で画面を離れた場合は進捗を残し、次に詳細を開いた
@@ -140,6 +147,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
 
     while (step < _coachKeys.length) {
       if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      await _prepareStep(step);
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
       final pending = _showCoachStep(step);
       // 対象が無い例文（音節データや文脈情報が欠けている）では出せない。
       // 出せた場合はここで進捗を確定し、閉じられるまで待つ。
@@ -150,6 +159,20 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
       // 押させた段は、その操作が終わるまで次の案内を出さない。録音中や
       // 単語の詳細の上に次の吹き出しを重ねると、どちらも読めなくなる。
       await _awaitStepAction(step - 1);
+    }
+  }
+
+  /// 段を出す前の下ごしらえ。押させる対象が畳まれている段では先に開く。
+  ///
+  /// 開く操作まで案内に含めると、押した瞬間に吹き出しが消えて、開いた先の
+  /// 録音ボタンには何の案内も残らない（そこで初回ガイドが止まって見える）。
+  Future<void> _prepareStep(int step) async {
+    if (step != 2) return;
+    _audioSectionKey.currentState?.openPractice();
+    // 開く動き（AnimatedSize）が終わるまで対象は高さを持たない。
+    for (var i = 0; i < 12 && _recordKey.currentContext == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
     }
   }
 
@@ -164,8 +187,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     if (sentenceId == null) return;
     // 練習セクションが描かれていない例文（音節データ無し）では聞かない。
     // 使えない機能のために許可だけ求めるのは、断られて終わるだけ。
-    final box =
-        _pronunciationKey.currentContext?.findRenderObject() as RenderBox?;
+    final box = _recordKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize || box.size.height <= 0) return;
     await ref
         .read(pronunciationControllerProvider(
@@ -186,7 +208,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
       await _maybeShowResultCoach();
       return;
     }
-    if (step == 3) return _awaitWordDetailClosed();
+    if (step == 4) return _awaitWordDetailClosed();
   }
 
   /// 単語の詳細（声調解説）を閉じるまで待つ。
@@ -367,16 +389,32 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// 途中に段を挟むと旧番号は手前を指す（同じ案内を二度読ませる）。
   /// v2 → v3 では単語の詳細を3段目に挟んだので、そこから後ろを1つずらす。
   static int _migratedTourStep(SharedPreferences prefs) {
+    final v5 = prefs.getInt(AppConfig.prefKeyDetailTourStepV5);
+    if (v5 != null) return _swappedWordAndContext(v5);
     final v4 = prefs.getInt(AppConfig.prefKeyDetailTourStepV4);
-    if (v4 != null) return _mergedWordSteps(v4);
+    if (v4 != null) return _swappedWordAndContext(_mergedWordSteps(v4));
     final v3 = prefs.getInt(AppConfig.prefKeyDetailTourStepV3);
-    if (v3 != null) return _mergedWordSteps(_shiftedForPlayStep(v3));
+    if (v3 != null) {
+      return _swappedWordAndContext(_mergedWordSteps(_shiftedForPlayStep(v3)));
+    }
     final v2 = prefs.getInt(AppConfig.prefKeyDetailTourStepV2);
     if (v2 != null) {
-      return _mergedWordSteps(_shiftedForPlayStep(v2 <= 2 ? v2 : v2 + 1));
+      return _swappedWordAndContext(
+        _mergedWordSteps(_shiftedForPlayStep(v2 <= 2 ? v2 : v2 + 1)),
+      );
     }
-    return _mergedWordSteps(_shiftedForPlayStep(_migratedTourStepV1(prefs)));
+    return _swappedWordAndContext(
+      _mergedWordSteps(_shiftedForPlayStep(_migratedTourStepV1(prefs))),
+    );
   }
+
+  /// v5 → v6 の読み替え。単語と使い方の順を入れ替えただけなので、番号の
+  /// 意味が変わるのは 4 だけ。
+  ///
+  /// 4 で止まっている人は「単語まで見た」状態。新しい並びでそのまま 4 に
+  /// 置くと、声調解説をもう一度開かせることになる。使い方の1枚は諦めて、
+  /// 出口へ送る。読み直させるより、押させ直さないことを採る。
+  static int _swappedWordAndContext(int step) => step == 4 ? 5 : step;
 
   /// v4 → v5 の読み替え。単語の分解を単独の段から外し、声調詳細と1段に
   /// まとめたので、そこから後ろを1つ詰める。
@@ -430,14 +468,14 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
           l10n.coachPronunciationMessage,
         ),
       3 => (
-          Icons.list_alt,
-          l10n.coachWordDetailTitle,
-          l10n.coachWordDetailMessage,
-        ),
-      4 => (
           Icons.lightbulb_outline,
           l10n.coachContextTitle,
           l10n.coachContextMessage,
+        ),
+      4 => (
+          Icons.list_alt,
+          l10n.coachWordDetailTitle,
+          l10n.coachWordDetailMessage,
         ),
       _ => (
           Icons.arrow_back,
@@ -515,8 +553,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     'sentence_card',
     'play_sentence',
     'pronunciation',
-    'word_detail',
     'context',
+    'word_detail',
     'back',
   ];
 
@@ -526,16 +564,16 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// 単語の詳細（声調解説）も押させる。「そこにある」と伝えるだけでは開かれず、
   /// 声調とつづりの関係を一度も見ないまま終わる。ただし玄人向けの話なので、
   /// 読んだうえで要らないと判断した人は抜けられる（[_skippableSteps]）。
-  static const _forcedTapSteps = {1, 2, 3};
+  static const _forcedTapSteps = {1, 2, 4};
 
   /// 「スキップ」を出す段。押させる段のうち、発音（step 2）と
-  /// 単語の詳細（step 3）は抜けられる。
+  /// 単語の詳細（step 4）は抜けられる。
   ///
   /// 発音は、声を出せない場所（電車内・職場）で初回ガイドに当たる人が居る。
   /// ここを塞ぐと初回体験ごと詰まる。再生と違って代わりの進め方が無い。
   /// 単語の詳細は、開くと声調解説がさらに案内を重ねる。今は読みたくない人を
   /// そこへ押し込まない。
-  static const _skippableSteps = {2, 3};
+  static const _skippableSteps = {2, 4};
 
   /// 単語の詳細（声調解説）が開いているか。初回ガイドで押させた段の
   /// 待ち（[_awaitWordDetailClosed]）に使う。
@@ -580,7 +618,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             icon: const Icon(Icons.share),
             onPressed: _shareSentence,
             tooltip: L10n.of(context).detailShare,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
+          _buildFavoriteAction(context),
         ],
       ),
       // 右スワイプで前の画面（例文ページ）に戻る
@@ -593,21 +633,43 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
           }
         },
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppConfig.defaultPadding),
+          padding: const EdgeInsets.fromLTRB(
+            AppConfig.screenPadding,
+            AppConfig.defaultPadding,
+            AppConfig.screenPadding,
+            AppConfig.screenPadding,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // メイン例文カード（タイ語テキスト・発音・日本語訳）
+              // 例文カード（タイ語・発音・日本語訳）。学習タブと同じ深藍の面。
               _buildMainSentenceCard(),
+              const SizedBox(height: 14),
+              // 聞く／話すはカードの外。学習タブと同じ並び。
+              SentenceAudioSection(
+                key: _audioSectionKey,
+                sentence: widget.sentence,
+                analyticsSource: 'detail_sentence',
+                practiceScope: 'detail',
+                listenButtonKey: _playKey,
+                resultKey: _resultKey,
+                contourKey: _contourKey,
+                recordKey: _recordKey,
+                // 初回ガイドで押させた回だけ1周で止める。
+                singleCycle: _awaitingPlayback,
+                onPlaybackEnded: () {
+                  final gate = _playbackGate;
+                  if (gate != null && !gate.isCompleted) gate.complete();
+                },
+                onPlay: () => _playbackStarted = true,
+              ),
+              const SizedBox(height: 20),
+              _buildContextSection(),
+              _buildWordSection(),
               const SizedBox(height: 16),
-              // 単語分解カード（各単語の詳細情報）
-              _buildWordBreakdownCard(),
-              const SizedBox(height: 16),
-              // 文脈情報カード（場面・文体・感情など）
-              _buildContextCard(),
-              const SizedBox(height: 16),
-              // メタデータカード（作成日）
-              _buildMetadataCard(),
+              _buildToneGuideLink(),
+              const SizedBox(height: 12),
+              _buildCreatedAtLabel(),
             ],
           ),
         ),
@@ -615,120 +677,132 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     );
   }
 
-  /// メイン例文カードを構築する。
+  /// AppBar のお気に入り。学習タブのカード足元と同じ操作をここに置く。
+  Widget _buildFavoriteAction(BuildContext context) {
+    final id = widget.sentence.id;
+    if (id == null) return const SizedBox(width: 8);
+    final l10n = L10n.of(context);
+    return IconButton(
+      icon: Icon(_isFavorite ? Icons.favorite : Icons.favorite_border),
+      color: _isFavorite
+          ? AppColors.vermilion
+          : Theme.of(context).colorScheme.onSurfaceVariant,
+      tooltip: _isFavorite ? l10n.detailFavoriteRemove : l10n.detailFavoriteAdd,
+      onPressed: () => unawaited(_toggleFavorite(id)),
+    );
+  }
+
+  Future<void> _toggleFavorite(String id) async {
+    final next = !_isFavorite;
+    setState(() => _isFavorite = next);
+    await ref.read(sentenceRepositoryProvider).toggleFavorite(id, next);
+    // 学習タブに出ているのが同じ例文なら、そちらのハートも合わせる。
+    // 履歴から開いた別の例文で今日の例文を置き換えないよう、idで確かめる。
+    final state = ref.read(sentenceControllerProvider);
+    if (state is SentenceStateSuccess && state.sentence.id == id) {
+      ref
+          .read(sentenceControllerProvider.notifier)
+          .showSentence(state.sentence.copyWith(isFavorite: next));
+    }
+  }
+
+  /// 区切りの見出し。細い罫を右へ伸ばして、次の塊の始まりだけを示す。
+  Widget _buildSectionHeading(String label) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.08 * 12,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
+        ],
+      ),
+    );
+  }
+
+  /// メイン例文カード。
   ///
-  /// タイ語テキスト（選択可能）とTTS再生ボタン、ローマ字発音表記、
-  /// 日本語訳を縦に並べて表示する。
+  /// 学習単語は金で光らせ、タイ文字と読みで同じ語が対応して見えるようにする。
   Widget _buildMainSentenceCard() {
-    return Card(
-      // 初回ガイドの1段目はカード全体を指す。タイ文字・読み・再生・訳が
-      // 1枚に載っていることを、まとめて見せる。
-      key: _sentenceKey,
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // タイ語テキスト（長押しでコピー可能）
-                SelectableText(
-                  widget.sentence.thaiText,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        height: 1.5,
-                        fontSize: 32,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                // ローマ字による発音表記（アイコン付き）
-                Row(
-                  children: [
-                    Icon(
-                      Icons.record_voice_over,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.primary,
+    final borderRadius = BorderRadius.circular(AppConfig.heroBorderRadius);
+    // 深藍の面に載る中身は、テーマごと差し替えて色を合わせる。
+    return Theme(
+      data: Theme.of(context).copyWith(colorScheme: AppColors.onIndigo),
+      child: Builder(
+        builder: (context) {
+          final cs = Theme.of(context).colorScheme;
+          return Card(
+            // 初回ガイドの1段目はカード全体を指す。
+            key: _sentenceKey,
+            color: AppColors.indigo,
+            shape: RoundedRectangleBorder(borderRadius: borderRadius),
+            child: Padding(
+              padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    buildHighlightedThaiText(
+                      widget.sentence.thaiText,
+                      widget.sentence.targetWords ?? const [],
+                      Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: cs.onSurface,
+                                fontWeight: FontWeight.w500,
+                                height: 1.5,
+                                fontSize: 32,
+                              ) ??
+                          TextStyle(fontSize: 32, color: cs.onSurface),
+                      cs.primary,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SelectableText(
-                        widget.sentence.pronunciation,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: 0.8),
-                              fontStyle: FontStyle.italic,
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // TTSの再生位置とリピート状態が分かる全文再生コントロール
-                SentenceAudioPlayer(
-                  text: widget.sentence.thaiText,
-                  words: widget.sentence.wordBreakdowns
-                      .map((w) => w.wordText)
-                      .toList(),
-                  playButtonKey: _playKey,
-                  // 初回ガイドで押させた回だけ1周で止める。
-                  singleCycle: _awaitingPlayback,
-                  onPlaybackEnded: () {
-                    final gate = _playbackGate;
-                    if (gate != null && !gate.isCompleted) gate.complete();
-                  },
-                  onPlay: () {
-                    _playbackStarted = true;
-                    unawaited(
-                      ref.read(analyticsServiceProvider).logPlayTts(
-                            contentType: 'sentence',
-                            text: widget.sentence.thaiText,
-                            sentenceId: widget.sentence.id,
-                            source: 'detail_sentence',
-                          ),
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // お手本を聞いたあとに自分で発声して声調を確かめる
-            PronunciationPractice(
-              key: _pronunciationKey,
-              resultKey: _resultKey,
-              contourKey: _contourKey,
-              scope: 'detail',
-              sentenceId: widget.sentence.id,
-              words: widget.sentence.wordBreakdowns,
-              thaiText: widget.sentence.thaiText,
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-            // 日本語訳（翻訳アイコン付き）
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.translate,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.secondary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SelectableText(
-                    widget.sentence.japaneseTranslation,
-                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text.rich(
+                    buildHighlightedPronunciation(
+                      widget.sentence,
+                      Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontStyle: FontStyle.italic,
+                              ) ??
+                          TextStyle(
+                            color: cs.onSurfaceVariant,
+                            fontStyle: FontStyle.italic,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // 金の細罫。タイ語と訳文のあいだに一本だけ引いて面を分ける。
+                  Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.gold,
+                          AppColors.gold.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.sentence.japaneseTranslation,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(color: cs.onSurface),
+                  ),
+                ],
+              ),
             ),
-            if (widget.sentence.targetWords != null &&
-                widget.sentence.targetWords!.isNotEmpty)
-              const SizedBox(height: 8),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -745,67 +819,33 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     return index >= 0 ? index : 0;
   }
 
-  /// 単語分解カードを構築する。
+  /// 単語のセクション。
   ///
-  /// 例文を構成する各単語を番号付きリストで表示する。
-  /// ヘッダー部分をタップすると展開/折りたたみを切り替えられる。
-  /// 各単語にはタイ語テキスト・発音・意味・文法的役割が表示され、
-  /// タップすると声調解説ダイアログ（ToneExplanationDialog）が開く。
-  Widget _buildWordBreakdownCard() {
-    return Card(
-      child: Column(
-        children: [
-          // ヘッダー部分（タップで展開/折りたたみ切り替え）
-          InkWell(
-            onTap: () {
-              setState(() {
-                _isWordBreakdownExpanded = !_isWordBreakdownExpanded;
-              });
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(AppConfig.defaultPadding),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.list_alt,
-                    color: Theme.of(context).colorScheme.primary,
+  /// 折りたたみは持たない。詳細を開いた目的がここなので、毎回開く手間を挟まない。
+  Widget _buildWordSection() {
+    final words = widget.sentence.wordBreakdowns;
+    if (words.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSectionHeading(L10n.of(context).detailWordsSection),
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (var i = 0; i < words.length; i++) ...[
+                if (i > 0)
+                  Divider(
+                    height: 1,
+                    indent: AppConfig.defaultPadding,
+                    endIndent: AppConfig.defaultPadding,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      L10n.of(context).detailWordBreakdown(
-                          widget.sentence.wordBreakdowns.length),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
-                  // 展開/折りたたみアイコン
-                  Icon(
-                    _isWordBreakdownExpanded
-                        ? Icons.expand_less
-                        : Icons.expand_more,
-                  ),
-                ],
-              ),
-            ),
+                _buildWordBreakdownItem(words[i], i),
+              ],
+            ],
           ),
-          // 展開時のみ単語リストを表示
-          if (_isWordBreakdownExpanded) ...[
-            const Divider(height: 1),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: widget.sentence.wordBreakdowns.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final word = widget.sentence.wordBreakdowns[index];
-                return _buildWordBreakdownItem(word, index);
-              },
-            ),
-          ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -823,380 +863,270 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     }
   }
 
-  /// 個別の単語分解アイテムを構築する。
-  ///
-  /// 番号付きの円形バッジ、タイ語テキスト、TTS再生ボタン、発音、
-  /// 意味、文法的役割（タグ表示）を含む。
-  /// タップすると声調解説ダイアログが開き、その単語の声調分析を確認できる。
+  /// 個別の単語。タイ語・読み・品詞・意味を1行ずつ。押すと声調解説が開く。
   Widget _buildWordBreakdownItem(WordBreakdown word, int index) {
     final isTarget = _targetWordSet.contains(word.wordText);
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return InkWell(
       // 初回ガイドでは今日の学習単語を押させる。スポットの対象はここ。
       key: index == _coachWordIndex ? _wordItemKey : null,
       onTap: () => unawaited(_openWordDetail(word, index)),
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+      child: Container(
+        // 学習単語の行は左の金の罫と、語そのものの金で示す。記号を1つ足す
+        // より、行として「ここ」と分かる方が並びの中で見つけやすい。
+        decoration: isTarget
+            ? const BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: AppColors.goldInk, width: 3),
+                ),
+              )
+            : null,
+        padding: EdgeInsets.fromLTRB(isTarget ? 13 : 16, 12, 8, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: isTarget
-                            ? cs.tertiary.withValues(alpha: 0.15)
-                            : cs.primary.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${index + 1}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isTarget ? cs.tertiary : cs.primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (isTarget)
-                      Positioned(
-                        top: -4,
-                        right: -4,
-                        child: Icon(
-                          Icons.auto_awesome,
-                          size: 12,
-                          color: cs.tertiary,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
-                      Row(
-                        children: [
-                          // タイ語の単語テキスト
-                          Text(
-                            word.wordText,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                      Semantics(
+                        // 色と罫でしか出していないので、読み上げにも乗せる。
+                        label: isTarget
+                            ? '${word.wordText}、${L10n.of(context).todaysWords(1)}'
+                            : null,
+                        child: Text(
+                          word.wordText,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w600,
+                            color: isTarget ? AppColors.goldInk : null,
                           ),
-                          const SizedBox(width: 4),
-                          // 個別単語のTTS再生ボタン（ゆっくり再生）
-                          SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: IconButton(
-                              icon: Icon(
-                                Icons.volume_up,
-                                size: 16,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withValues(alpha: 0.7),
-                              ),
-                              padding: EdgeInsets.zero,
-                              onPressed: () {
-                                unawaited(
-                                  ref.read(analyticsServiceProvider).logPlayTts(
-                                        contentType: 'word',
-                                        text: word.wordText,
-                                        sentenceId: widget.sentence.id,
-                                        source: 'detail_word',
-                                      ),
-                                );
-                                ref
-                                    .read(ttsServiceProvider)
-                                    .speak(word.wordText, slow: true);
-                              },
-                              tooltip: L10n.of(context).quizPlayWord,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      // ローマ字による単語の発音表記
                       Text(
                         word.pronunciation,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: 0.7),
-                              fontStyle: FontStyle.italic,
-                            ),
+                        // 読みは金にしない。全行が金だと、学習単語の金が
+                        // 埋もれて何の色なのか読み取れない。
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
+                      if (word.grammaticalRole != null)
+                        _buildRoleTag(word.grammaticalRole!),
                     ],
                   ),
                 ),
+                // 単語だけをゆっくり鳴らす。声調解説には音が無いので、
+                // ここを外すと語単位で聞く手が無くなる。
+                IconButton(
+                  icon: const Icon(Icons.volume_up, size: 18),
+                  color: cs.onSurfaceVariant,
+                  constraints: const BoxConstraints.tightFor(
+                    width: AppConfig.minTapTarget,
+                    height: AppConfig.minTapTarget,
+                  ),
+                  padding: EdgeInsets.zero,
+                  onPressed: () {
+                    unawaited(
+                      ref.read(analyticsServiceProvider).logPlayTts(
+                            contentType: 'word',
+                            text: word.wordText,
+                            sentenceId: widget.sentence.id,
+                            source: 'detail_word',
+                          ),
+                    );
+                    ref.read(ttsServiceProvider).speak(word.wordText,
+                        slow: true);
+                  },
+                  tooltip: L10n.of(context).quizPlayWord,
+                ),
+                Icon(Icons.chevron_right, size: 20, color: cs.outline),
               ],
             ),
-            const SizedBox(height: 8),
-            // 日本語での意味
-            Text(word.meaning, style: Theme.of(context).textTheme.bodyMedium),
-            if (word.notes != null && word.notes!.trim().isNotEmpty ||
-                isTarget) ...[
+            const SizedBox(height: 2),
+            Text(
+              word.meaning,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: cs.onSurfaceVariant),
+            ),
+            if (word.notes != null && word.notes!.trim().isNotEmpty) ...[
               const SizedBox(height: 6),
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: cs.tertiaryContainer.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: cs.tertiary.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (word.notes != null && word.notes!.trim().isNotEmpty)
-                      Text(
-                        word.notes!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: cs.onTertiaryContainer,
-                            ),
-                      ),
-                    if (isTarget) ...[
-                      if (word.notes != null && word.notes!.trim().isNotEmpty)
-                        const SizedBox(height: 4),
-                      Text(
-                        L10n.of(context).detailQuizTarget,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color:
-                                  cs.onTertiaryContainer.withValues(alpha: 0.6),
-                            ),
-                      ),
-                    ],
-                  ],
+              Text(
+                word.notes!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onTertiaryContainer,
                 ),
               ),
             ],
-            // 文法的役割のタグ表示（存在する場合のみ）
-            if (word.grammaticalRole != null) ...[
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.secondary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  word.grammaticalRole!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.secondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-              ),
-            ],
-            // 「タップして声調を確認」ヒント
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.touch_app,
-                  size: 12,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  L10n.of(context).detailTapForTone,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.5),
-                        fontSize: 11,
-                      ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
-  /// 文脈情報カードを構築する。
-  ///
-  /// 例文が使われる場面・文体・感情/トーン・使用シーン・文化的背景を
-  /// アイコン付きで表示する。ヘッダータップで展開/折りたたみ可能。
-  /// 文脈情報が存在しない場合は空のウィジェットを返す。
-  Widget _buildContextCard() {
-    final sentenceContext = widget.sentence.context;
-    if (sentenceContext == null) return const SizedBox.shrink();
-
-    return Card(
-      key: _contextKey,
-      child: Column(
-        children: [
-          // ヘッダー部分（タップで展開/折りたたみ切り替え）
-          InkWell(
-            onTap: () {
-              setState(() {
-                _isContextExpanded = !_isContextExpanded;
-              });
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(AppConfig.defaultPadding),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.lightbulb_outline,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      L10n.of(context).detailContextSection,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
-                  Icon(
-                    _isContextExpanded ? Icons.expand_less : Icons.expand_more,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // 展開時のみ文脈情報を表示
-          if (_isContextExpanded) ...[
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(AppConfig.defaultPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 場面（例: 日常の挨拶、レストラン）
-                  if (sentenceContext.topic != null) ...[
-                    _buildContextItem(
-                      Icons.location_on_outlined,
-                      L10n.of(context).detailContextTopic,
-                      // サーバーが決めたテーマ識別子（日本語）。表示だけ訳す。
-                      topicShortLabel(L10n.of(context), sentenceContext.topic),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  // 文体（例: 口語体、書き言葉）
-                  if (sentenceContext.style != null) ...[
-                    _buildContextItem(
-                      Icons.text_fields_outlined,
-                      L10n.of(context).detailContextStyle,
-                      // 文体は履歴の集計キーなので日本語のまま返る。表示だけ訳す。
-                      styleLabel(L10n.of(context), sentenceContext.style!),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  // 感情・トーン（例: 丁寧、カジュアル）
-                  if (sentenceContext.emotion != null) ...[
-                    _buildContextItem(
-                      Icons.mood_outlined,
-                      L10n.of(context).detailContextEmotion,
-                      sentenceContext.emotion!,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  // 使用シーン（例: 友人との会話で）
-                  if (sentenceContext.usageScenarios != null) ...[
-                    _buildContextItem(
-                      Icons.tips_and_updates_outlined,
-                      L10n.of(context).detailContextUsage,
-                      sentenceContext.usageScenarios!,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  // 文化的背景（例: タイでは年上への敬語が重要）
-                  if (sentenceContext.culturalNotes != null) ...[
-                    _buildContextItem(
-                      Icons.info_outline,
-                      L10n.of(context).detailContextCulture,
-                      sentenceContext.culturalNotes!,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ],
+  Widget _buildRoleTag(String role) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        role,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
 
-  /// 文脈情報の各項目（アイコン・ラベル・内容）を構築する。
-  Widget _buildContextItem(IconData icon, String label, String content) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  /// 使い方のセクション。場面・文体・解説を左のラベルで引き当てる。
+  /// 文脈情報が無い例文では丸ごと出さない。
+  Widget _buildContextSection() {
+    final sentenceContext = widget.sentence.context;
+    if (sentenceContext == null) return const SizedBox.shrink();
+
+    final l10n = L10n.of(context);
+    final items = <(String, String)>[
+      if (sentenceContext.topic != null)
+        // サーバーが決めたテーマ識別子（日本語）。表示だけ訳す。
+        (
+          l10n.detailContextTopic,
+          topicShortLabel(l10n, sentenceContext.topic)
+        ),
+      if (sentenceContext.style != null)
+        // 文体は履歴の集計キーなので日本語のまま返る。表示だけ訳す。
+        (l10n.detailContextStyle, styleLabel(l10n, sentenceContext.style!)),
+      if (sentenceContext.emotion != null)
+        (l10n.detailContextEmotion, sentenceContext.emotion!),
+      if (sentenceContext.usageScenarios != null)
+        (l10n.detailContextUsage, sentenceContext.usageScenarios!),
+      if (sentenceContext.culturalNotes != null)
+        (l10n.detailContextCulture, sentenceContext.culturalNotes!),
+    ];
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      key: _contextKey,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(icon, size: 20),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              Text(content, style: Theme.of(context).textTheme.bodyMedium),
-            ],
+        _buildSectionHeading(l10n.detailUsageSection),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            // ラベルの列は中身に合わせて伸ばす。固定幅にすると、語の長い
+            // 言語でラベルが単語の途中で折れる（英語の Cultural background）。
+            child: Table(
+              columnWidths: const {
+                0: IntrinsicColumnWidth(),
+                1: FlexColumnWidth(),
+              },
+              defaultVerticalAlignment: TableCellVerticalAlignment.top,
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  _buildContextRow(items[i].$1, items[i].$2, isFirst: i == 0),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  /// 使い方の1項目。ラベルの列幅は [Table] が揃えるので、内容の頭は縦に通る。
+  TableRow _buildContextRow(String label, String content,
+      {required bool isFirst}) {
+    final theme = Theme.of(context);
+    final top = isFirst ? 0.0 : 12.0;
+    return TableRow(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(0, top, 12, 0),
+          child: Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: AppColors.gold,
+              fontWeight: FontWeight.w700,
+              // ラベルと内容で行の高さが違うと、1行の項目で頭がずれる。
+              height: 1.5,
+            ),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.only(top: top),
+          child: Text(
+            content,
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
           ),
         ),
       ],
     );
   }
 
-  /// メタデータカード（作成日）を構築する。
-  Widget _buildMetadataCard() {
+  /// 声調ガイドへの導線。単語を見て「なぜこの声調か」が気になった流れで開ける。
+  Widget _buildToneGuideLink() {
+    final theme = Theme.of(context);
+    final l10n = L10n.of(context);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      color: theme.colorScheme.surfaceContainerLow,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: ToneGuideScreen.routeName),
+            builder: (context) => const ToneGuideScreen(),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+          child: Row(
+            children: [
+              const Icon(Icons.show_chart, size: 20, color: AppColors.gold),
+              const SizedBox(width: 12),
+              Text(
+                l10n.settingsToneGuide,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  l10n.settingsToneGuideSubtitle,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ),
+              Icon(Icons.chevron_right,
+                  size: 20, color: theme.colorScheme.outline),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 作成日。読むための情報ではないので、面を持たせず小さく置く。
+  Widget _buildCreatedAtLabel() {
     final createdAt = widget.sentence.createdAt;
     final formattedDate = createdAt != null
         ? '${createdAt.year}/${createdAt.month}/${createdAt.day}'
         : L10n.of(context).commonUnknown;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConfig.defaultPadding),
-        child: Row(
-          children: [
-            Icon(
-              Icons.calendar_today_outlined,
-              size: 16,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              L10n.of(context).detailCreatedAt(formattedDate),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-            ),
-          ],
-        ),
+    final theme = Theme.of(context);
+    return Text(
+      L10n.of(context).detailCreatedAt(formattedDate),
+      textAlign: TextAlign.center,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
       ),
     );
   }

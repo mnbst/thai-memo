@@ -35,14 +35,39 @@ const _topicKeys = {
 };
 
 /// 識別子を分解して素の名称・補足を返す（未知のテーマ用のフォールバック）。
+///
+/// 括弧は全角・半角の両方を見る。サーバーは英語ユーザーには英語ラベル
+/// （`Work (reporting, meetings, ...)`）を返すので、全角だけを見ていると
+/// 分解できず、補足まで丸ごと画面に出てしまう。
 TopicLabel _rawLabel(String topic) {
-  final parenIdx = topic.indexOf('（');
+  final parenIdx = _parenIndex(topic);
   if (parenIdx <= 0) return TopicLabel(topic, '');
+  final inner = topic.substring(parenIdx).trim();
   return TopicLabel(
-    topic.substring(0, parenIdx),
-    topic.substring(parenIdx + 1, topic.length - 1),
+    topic.substring(0, parenIdx).trim(),
+    inner.length >= 2 ? inner.substring(1, inner.length - 1) : '',
   );
 }
+
+/// 括弧の開き位置。全角「（」と半角「 (」の早い方。
+int _parenIndex(String value) {
+  final full = value.indexOf('（');
+  final half = value.indexOf(' (');
+  if (full < 0) return half;
+  if (half < 0) return full;
+  return full < half ? full : half;
+}
+
+/// 英語ラベルの括弧前 → ARB のキー接尾辞。
+///
+/// 英語ユーザーの端末にはサーバーが英語ラベルを返すので、日本語の識別子では
+/// 引けない。ARB の短い名称に寄せるための対応表（表記が同じものは
+/// 素の名称のまま出せるので載せない）。
+const _topicKeysEN = {
+  'Thai BL drama': 'blDrama',
+  'Romance': 'romance',
+  'Religion and faith': 'religion',
+};
 
 /// テーマ識別子を表示用ラベルに変換する。
 ///
@@ -50,7 +75,7 @@ TopicLabel _rawLabel(String topic) {
 /// そのまま出す（訳せないより日本語で出る方がまし）。
 TopicLabel topicLabel(L10n l10n, String topic) {
   final raw = _rawLabel(topic);
-  final key = _topicKeys[raw.name];
+  final key = _topicKeys[raw.name] ?? _topicKeysEN[raw.name];
   if (key == null) return raw;
   return TopicLabel(_topicName(l10n, key), _topicSub(l10n, key));
 }
@@ -87,16 +112,27 @@ const _styleKeys = {
   '物語・文学体': 'narrative',
 };
 
+/// 英語ラベルの括弧前 → ARB のキー接尾辞（[_topicKeysEN] と同じ事情）。
+const _styleKeysEN = {
+  'News article style': 'news',
+  'Casual spoken style': 'spoken',
+  'Polite style': 'polite',
+  'Social media / text message style': 'sns',
+  'Narrative / literary style': 'narrative',
+};
+
 /// 文体識別子を表示用ラベルに変換する。未知の値はそのまま出す。
 String styleLabel(L10n l10n, String style) {
-  final key = _styleKeys[_rawLabel(style).name];
+  final raw = _rawLabel(style).name;
+  final key = _styleKeys[raw] ?? _styleKeysEN[raw];
+  if (key == null) return raw;
   return switch (key) {
     'news' => l10n.styleName_news,
     'spoken' => l10n.styleName_spoken,
     'polite' => l10n.styleName_polite,
     'sns' => l10n.styleName_sns,
     'narrative' => l10n.styleName_narrative,
-    _ => style,
+    _ => raw,
   };
 }
 

@@ -23,7 +23,19 @@ class AppConfig {
 
   /// UI configuration
   static const double defaultPadding = 16.0;
-  static const double cardBorderRadius = 12.0;
+  static const double cardBorderRadius = 16.0;
+
+  /// 例文カードなど、画面の主役になる面の角丸。
+  static const double heroBorderRadius = 20.0;
+
+  /// ボタン・入力欄の角丸。
+  static const double buttonBorderRadius = 14.0;
+
+  /// タップ領域の最小辺。
+  static const double minTapTarget = 44.0;
+
+  /// 画面端の余白。
+  static const double screenPadding = 20.0;
 
   /// Secure storage keys
   static const String secureStorageLastGeneration = 'last_generation_timestamp';
@@ -63,6 +75,10 @@ class AppConfig {
   /// 出題中の「例文を確認」導線のコーチマーク表示済みフラグ
   static const String prefKeyQuizReviewCoachShown = 'quiz_review_coach_shown';
 
+  /// 出題中のヒント導線のコーチマークを表示済みか。
+  /// ヒントが2段階あること、使っても回答は記録されることを初回だけ教える。
+  static const String prefKeyQuizHintCoachShown = 'quiz_hint_coach_shown';
+
   /// まとめクイズ誘導ボタンのコーチマーク表示済みフラグ
   static const String prefKeyQuizButtonCoachShown = 'quiz_button_coach_shown';
 
@@ -85,12 +101,15 @@ class AppConfig {
   static const String prefKeyNextTopicCoachShown = 'next_topic_coach_shown';
 
   /// 詳細画面の初回ガイドの進捗（0=例文カード / 1=お手本再生 / 2=発音練習 /
-  /// 3=単語の分解と声調詳細 / 4=文脈・使い方 / 5=戻る / 6=完了）。
+  /// 3=使い方 / 4=単語と声調詳細 / 5=戻る / 6=完了）。
   /// 途中で画面を離れても残りから再開するため、真偽値ではなく段で持つ。
   ///
   /// 段を増やしたときは新しいキーにする。旧キーの番号は1つ手前を指すので、
   /// そのまま使うと同じ案内を二度読ませる（detail_screen で読み替える）。
-  static const String prefKeyDetailTourStep = 'detail_tour_step_v5';
+  static const String prefKeyDetailTourStep = 'detail_tour_step_v6';
+
+  /// 単語と使い方の順を入れ替える前の進捗キー（読み替え用）。
+  static const String prefKeyDetailTourStepV5 = 'detail_tour_step_v5';
 
   /// 単語の分解と声調詳細を1段にまとめる前の進捗キー（読み替え用）。
   static const String prefKeyDetailTourStepV4 = 'detail_tour_step_v4';

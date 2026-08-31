@@ -29,6 +29,7 @@ class SentenceAudioPlayer extends ConsumerStatefulWidget {
     this.playButtonKey,
     this.singleCycle = false,
     this.onPlaybackEnded,
+    this.autoPlay = false,
   });
 
   /// 読み上げる全文。
@@ -53,6 +54,10 @@ class SentenceAudioPlayer extends ConsumerStatefulWidget {
   /// 1周で自動的に止める。リピート設定より優先する。
   /// 初回ガイドで押させたときに、鳴りっぱなしのまま次の案内へ進ませないため。
   final bool singleCycle;
+
+  /// 表示された時点で再生を始める。
+  /// 「お手本を聞く」を押して開く使い方で、もう一度押させないため。
+  final bool autoPlay;
 
   /// 再生が終わった（1周終了・停止・一時停止）。
   /// 初回ガイドが「聞き終わったか」を知るために使う。
@@ -88,6 +93,11 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
     super.initState();
     _tts = ref.read(ttsServiceProvider);
     _wordOffsets = wordStartOffsets(widget.text, widget.words);
+    if (widget.autoPlay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_start());
+      });
+    }
   }
 
   @override
