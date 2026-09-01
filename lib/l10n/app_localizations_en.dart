@@ -1461,10 +1461,10 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get pronunciationVerdictCorrect => 'On target';
+  String get pronunciationVerdictCorrect => 'OK';
 
   @override
-  String get pronunciationVerdictClose => 'Almost';
+  String get pronunciationVerdictClose => 'Close';
 
   @override
   String get pronunciationVerdictWrong => 'Off';
@@ -1650,7 +1650,7 @@ class L10nEn extends L10n {
 
   @override
   String pronunciationNextFocus(String word) {
-    return 'Work on \"$word\"';
+    return 'Fix \"$word\" next';
   }
 
   @override

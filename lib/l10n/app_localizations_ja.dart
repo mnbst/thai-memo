@@ -1538,7 +1538,7 @@ class L10nJa extends L10n {
   String get pronunciationCountCorrect => 'OK';
 
   @override
-  String get pronunciationCountClose => 'おしい';
+  String get pronunciationCountClose => '惜しい';
 
   @override
   String get pronunciationCountWrong => '直す';
