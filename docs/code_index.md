@@ -232,6 +232,9 @@ FCMトークン・タイムゾーン・配信希望時刻をusers/{uid}に登録
 lib/services/app_version_reporter.dart
 起動時に users doc へ app_version / app_build_number / last_opened_at を記録。サーバー側の機能出し分け判定に使う。
 
+lib/services/review_prompt_service.dart
+App Storeのレビュー依頼をiOSのOSダイアログで出す。クイズ完走と例文生成の2経路から発火し、バージョン単位＋60日クールダウンで重複を防ぐ。
+
 lib/services/interview_reporter.dart
 オンボ直後のヒアリング回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
@@ -294,12 +297,12 @@ lib/presentation/providers/pronunciation_quota_provider.dart
 free の発音チェック回数（1日5回）。判定は端末内なのでカウンタもローカル（SharedPreferences）。
 
 lib/presentation/widgets/pronunciation_practice.dart
-例文詳細の発音練習セクション。語ごとの判定色帯と、選択した語のピッチカーブ描画。
+例文詳細の発音練習セクション。点数リングと語ごとの判定チップ、選択した語のピッチカーブ・お手本再生・直し方。
 
 ---
 
 lib/presentation/widgets/pronunciation_sheet.dart
-ホームの例文カードから発音練習を開くボトムシート。中身は pronunciation_practice の再利用。
+ホームの例文カードから発音練習を開くボトムシート。お手本の再生バー＋ pronunciation_practice。
 
 ---
 

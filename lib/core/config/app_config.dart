@@ -11,9 +11,6 @@ class AppConfig {
   /// App name
   static const String appName = 'まいにちタイ語';
 
-  /// App version
-  static const String appVersion = '1.2.1';
-
   /// Database configuration
   static const String databaseName = 'thai_memo.db';
   static const int databaseVersion = 12;

@@ -125,7 +125,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachPronunciationContourMessage =>
-      'The faint line is the model and the solid one is your pitch. Follow the \"Fix this next\" hint, say it again with \"Try again\", and aim to turn every word green.';
+      'The faint line is the model and the solid one is your pitch. Follow the \"Fix this next\" hint, tap \"Try again\" below to say it again, and aim to turn every word green.';
 
   @override
   String get coachWordDetailTitle => 'See it word by word';
@@ -1642,6 +1642,32 @@ class L10nEn extends L10n {
   @override
   String get pronunciationLimitBody =>
       'Premium lets you check your pronunciation as often as you like.';
+
+  @override
+  String pronunciationSummaryRecognized(int ok, int total) {
+    return '$ok of $total words came through';
+  }
+
+  @override
+  String pronunciationNextFocus(String word) {
+    return 'Work on \"$word\"';
+  }
+
+  @override
+  String get pronunciationCountCorrect => 'OK';
+
+  @override
+  String get pronunciationCountClose => 'Close';
+
+  @override
+  String get pronunciationCountWrong => 'Fix';
+
+  @override
+  String get pronunciationTapWordHintDetail =>
+      'Tap a word to hear the model and see what to fix';
+
+  @override
+  String get pronunciationListenModelWord => 'Hear the model';
 
   @override
   String pronunciationFreeRemaining(int count) {

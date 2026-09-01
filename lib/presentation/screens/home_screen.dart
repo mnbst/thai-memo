@@ -23,6 +23,7 @@ import '../providers/quiz_offer_experiment_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
+import '../providers/review_prompt_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/coach_mark_overlay.dart';
 import '../widgets/learning_flow_coach_dialog.dart';
@@ -765,7 +766,21 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
           .read(quizControllerProvider.notifier)
           .prepareQuiz(sentenceState.sentence);
       ref.invalidate(allSentencesProvider);
+      unawaited(_requestReviewAfterSentenceGenerated());
     }
+  }
+
+  /// 例文が出た直後は満足度が高い。クイズまで進まない層への唯一の依頼機会
+  /// なので、生成の完了を待ってから静かに出す。
+  Future<void> _requestReviewAfterSentenceGenerated() async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted ||
+        ref.read(sentenceControllerProvider) is! SentenceStateSuccess) {
+      return;
+    }
+    await ref
+        .read(reviewPromptServiceProvider)
+        .maybeRequestAfterSentenceGenerated();
   }
 
   @override
@@ -1668,6 +1683,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                               ) ??
                           TextStyle(fontSize: 32, color: cs.onSurface),
                       cs.primary,
+                      words: sentence.wordBreakdowns,
                     ),
                   ),
                   const SizedBox(height: 8),

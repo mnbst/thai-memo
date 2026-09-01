@@ -117,7 +117,7 @@ class L10nJa extends L10n {
 
   @override
   String get coachPronunciationContourMessage =>
-      '薄い線がお手本、濃い線があなたの声の高さです。「次はここを直す」を参考に、「もう一度」で言い直して全単語が緑になるのを目指しましょう。';
+      '薄い線がお手本、濃い線があなたの声の高さです。「次はここを直す」を参考に、下の「もう一度」を押して言い直し、全単語が緑になるのを目指しましょう。';
 
   @override
   String get coachWordDetailTitle => '単語ごとに見る';
@@ -1529,6 +1529,31 @@ class L10nJa extends L10n {
 
   @override
   String get pronunciationLimitBody => 'プレミアムなら回数を気にせず、何度でも発音を確かめられます。';
+
+  @override
+  String pronunciationSummaryRecognized(int ok, int total) {
+    return '$total語中 $ok語が通じた';
+  }
+
+  @override
+  String pronunciationNextFocus(String word) {
+    return '「$word」を直そう';
+  }
+
+  @override
+  String get pronunciationCountCorrect => 'OK';
+
+  @override
+  String get pronunciationCountClose => 'おしい';
+
+  @override
+  String get pronunciationCountWrong => '直す';
+
+  @override
+  String get pronunciationTapWordHintDetail => '語をタップすると、お手本の聞き比べと直し方が出ます';
+
+  @override
+  String get pronunciationListenModelWord => 'お手本を聞く';
 
   @override
   String pronunciationFreeRemaining(int count) {
