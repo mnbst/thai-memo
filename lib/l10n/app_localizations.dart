@@ -232,7 +232,7 @@ abstract class L10n {
   /// No description provided for @coachQuizMessage.
   ///
   /// In ja, this message translates to:
-  /// **'例文をひと通り見たら、クイズで単語を覚えたかを確認しましょう。'**
+  /// **'確認クイズで、学習単語を覚えたか確認しましょう。'**
   String get coachQuizMessage;
 
   /// No description provided for @coachTargetWordsTitle.
@@ -348,6 +348,24 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'子音文字の種類（高・中・低）と声調記号、音節の型の組み合わせで声調が決まります。青くハイライトされている行が、この音節に当てはまる規則です。'**
   String get coachToneTableMessage;
+
+  /// No description provided for @coachToneTableEmphasis1.
+  ///
+  /// In ja, this message translates to:
+  /// **'子音文字の種類（高・中・低）'**
+  String get coachToneTableEmphasis1;
+
+  /// No description provided for @coachToneTableEmphasis2.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調記号'**
+  String get coachToneTableEmphasis2;
+
+  /// No description provided for @coachToneTableEmphasis3.
+  ///
+  /// In ja, this message translates to:
+  /// **'音節の型'**
+  String get coachToneTableEmphasis3;
 
   /// No description provided for @coachToneGuideTitle.
   ///
@@ -652,7 +670,7 @@ abstract class L10n {
   /// No description provided for @coachQuizHintMessage.
   ///
   /// In ja, this message translates to:
-  /// **'迷ったら「ヒント1」で発音が出ます。もう一度押すと日本語訳も出ます。ヒントを使っても回答は記録され、語彙スコアの動きが小さくなるだけです。'**
+  /// **'1回押すと発音、もう1回で日本語訳が出ます。迷ったら使ってみてください。'**
   String get coachQuizHintMessage;
 
   /// No description provided for @coachQuizReviewTitle.
@@ -745,22 +763,22 @@ abstract class L10n {
   /// **'5問クイズ'**
   String get coachFlowLoopSummary;
 
-  /// No description provided for @coachFlowBody1.
+  /// No description provided for @coachFlowOutcome.
   ///
   /// In ja, this message translates to:
-  /// **'例文を読んで、クイズで確認。'**
-  String get coachFlowBody1;
+  /// **'くり返すほど語彙スコアが上がり、読めるタイ語の幅が広がります。'**
+  String get coachFlowOutcome;
 
   /// No description provided for @coachSummaryTipsBody.
   ///
   /// In ja, this message translates to:
-  /// **'タイ語だけを見て答えられた問題ほど、語彙スコアは伸びます。まずは日本語を見ずに挑戦してみましょう。'**
+  /// **'慣れてきたら、ヒントを見ずに答えてみましょう。語彙スコアが伸びやすくなります。'**
   String get coachSummaryTipsBody;
 
   /// No description provided for @coachSummaryTipsEmphasis.
   ///
   /// In ja, this message translates to:
-  /// **'タイ語だけを見て'**
+  /// **'ヒントを見ずに'**
   String get coachSummaryTipsEmphasis;
 
   /// No description provided for @coachFlowPage1Title.
@@ -798,6 +816,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'ここをタップすると、次の例文のテーマを選べます。祭り・寺院での作法・BLドラマなど、言葉と一緒にタイの文化そのものに触れられます。'**
   String get coachTopicMessage;
+
+  /// No description provided for @coachTopicSelectMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'ここをタップして、次の例文のテーマを選んでみましょう。祭り・寺院での作法・BLドラマなど、言葉と一緒にタイの文化そのものに触れられます。'**
+  String get coachTopicSelectMessage;
 
   /// No description provided for @vocabScore.
   ///
@@ -1936,13 +1960,13 @@ abstract class L10n {
   /// No description provided for @onboarding1Title.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなた専用の例文を何度でも生成'**
+  /// **'AIがあなた専用の例文を毎日お届け'**
   String get onboarding1Title;
 
   /// No description provided for @onboarding1Body.
   ///
   /// In ja, this message translates to:
-  /// **'例文は毎日届き、何文でも追加できます。\nカードをタップで単語・意味を確認。'**
+  /// **'毎日の例文に加えて、その場で追加生成も。\nカードをタップで単語・意味を確認。'**
   String get onboarding1Body;
 
   /// No description provided for @onboarding2Title.
@@ -2272,7 +2296,7 @@ abstract class L10n {
   /// No description provided for @notifCoachTitle.
   ///
   /// In ja, this message translates to:
-  /// **'通知機能を活用しましょう'**
+  /// **'通知でタイ語学習を習慣にしましょう'**
   String get notifCoachTitle;
 
   /// No description provided for @notifCoachStep1.
@@ -2290,7 +2314,7 @@ abstract class L10n {
   /// No description provided for @notifCoachHabit.
   ///
   /// In ja, this message translates to:
-  /// **'毎日同じ時間に開くので、タイ語学習が習慣になります'**
+  /// **'毎日同じ時間に開くので、無理なく続けられます'**
   String get notifCoachHabit;
 
   /// No description provided for @notifCoachPreviewLabel.
@@ -2843,7 +2867,7 @@ abstract class L10n {
   /// 上限回数は tier で異なる（free 5 / premium 20）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
-  /// **'今日の新しい例文はここまでです。\nこれまでの例文を読み返したり、クイズで復習できます。'**
+  /// **'今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。'**
   String get quotaSentenceReached;
 
   /// 上限に当たった free ユーザーだけに出すペイウォール導線。count は PREMIUM_DAILY_SENTENCES

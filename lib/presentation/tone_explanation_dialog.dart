@@ -1099,6 +1099,13 @@ class _ToneCoachHostState extends ConsumerState<_ToneCoachHost> {
       icon: Icons.grid_on,
       title: l10n.coachToneTableTitle,
       message: l10n.coachToneTableMessage,
+      // 声調を決める3要素を強調する。文が長く、どれが要素なのかが
+      // 読み流すと分からない。
+      emphases: [
+        l10n.coachToneTableEmphasis1,
+        l10n.coachToneTableEmphasis2,
+        l10n.coachToneTableEmphasis3,
+      ],
       // 一覧表は画面より縦に長い。対象基準で置くと吹き出しが上に見切れる。
       pinToTop: true,
     );
@@ -1123,6 +1130,7 @@ class _ToneCoachHostState extends ConsumerState<_ToneCoachHost> {
     required IconData icon,
     required String title,
     required String message,
+    List<String> emphases = const [],
     bool pinToTop = false,
     String? confirmLabel,
   }) async {
@@ -1146,6 +1154,7 @@ class _ToneCoachHostState extends ConsumerState<_ToneCoachHost> {
       icon: icon,
       title: title,
       message: message,
+      emphases: emphases,
       targetTappable: false,
       pinToTop: pinToTop,
       confirmLabel: confirmLabel ?? L10n.of(context).coachGotIt,

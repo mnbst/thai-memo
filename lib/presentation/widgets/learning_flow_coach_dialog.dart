@@ -82,7 +82,28 @@ class _LoopPage extends StatelessWidget {
         const SizedBox(height: 12),
         const _LoopDiagram(),
         const SizedBox(height: 14),
-        Text(l10n.coachFlowBody1, style: theme.textTheme.bodyMedium),
+        // くり返しの形だけだと「何のために」が残らない。この輪を回した先に
+        // 何が起きるのかを一行で置く。
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.trending_up,
+              size: 16,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                l10n.coachFlowOutcome,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

@@ -75,7 +75,7 @@ class L10nJa extends L10n {
   String get coachQuizTitle => '次はクイズに挑戦';
 
   @override
-  String get coachQuizMessage => '例文をひと通り見たら、クイズで単語を覚えたかを確認しましょう。';
+  String get coachQuizMessage => '確認クイズで、学習単語を覚えたか確認しましょう。';
 
   @override
   String get coachTargetWordsTitle => 'この単語を覚えよう';
@@ -138,6 +138,15 @@ class L10nJa extends L10n {
   @override
   String get coachToneTableMessage =>
       '子音文字の種類（高・中・低）と声調記号、音節の型の組み合わせで声調が決まります。青くハイライトされている行が、この音節に当てはまる規則です。';
+
+  @override
+  String get coachToneTableEmphasis1 => '子音文字の種類（高・中・低）';
+
+  @override
+  String get coachToneTableEmphasis2 => '声調記号';
+
+  @override
+  String get coachToneTableEmphasis3 => '音節の型';
 
   @override
   String get coachToneGuideTitle => '規則をまとめて見るには';
@@ -302,8 +311,7 @@ class L10nJa extends L10n {
   String get coachQuizHintTitle => 'ヒントは2段階で出せます';
 
   @override
-  String get coachQuizHintMessage =>
-      '迷ったら「ヒント1」で発音が出ます。もう一度押すと日本語訳も出ます。ヒントを使っても回答は記録され、語彙スコアの動きが小さくなるだけです。';
+  String get coachQuizHintMessage => '1回押すと発音、もう1回で日本語訳が出ます。迷ったら使ってみてください。';
 
   @override
   String get coachQuizReviewTitle => '迷ったら例文に戻れます';
@@ -356,14 +364,13 @@ class L10nJa extends L10n {
   String get coachFlowLoopSummary => '5問クイズ';
 
   @override
-  String get coachFlowBody1 => '例文を読んで、クイズで確認。';
+  String get coachFlowOutcome => 'くり返すほど語彙スコアが上がり、読めるタイ語の幅が広がります。';
 
   @override
-  String get coachSummaryTipsBody =>
-      'タイ語だけを見て答えられた問題ほど、語彙スコアは伸びます。まずは日本語を見ずに挑戦してみましょう。';
+  String get coachSummaryTipsBody => '慣れてきたら、ヒントを見ずに答えてみましょう。語彙スコアが伸びやすくなります。';
 
   @override
-  String get coachSummaryTipsEmphasis => 'タイ語だけを見て';
+  String get coachSummaryTipsEmphasis => 'ヒントを見ずに';
 
   @override
   String get coachFlowPage1Title => '例文とクイズをくり返す';
@@ -383,6 +390,10 @@ class L10nJa extends L10n {
   @override
   String get coachTopicMessage =>
       'ここをタップすると、次の例文のテーマを選べます。祭り・寺院での作法・BLドラマなど、言葉と一緒にタイの文化そのものに触れられます。';
+
+  @override
+  String get coachTopicSelectMessage =>
+      'ここをタップして、次の例文のテーマを選んでみましょう。祭り・寺院での作法・BLドラマなど、言葉と一緒にタイの文化そのものに触れられます。';
 
   @override
   String get vocabScore => '語彙スコア';
@@ -1018,10 +1029,10 @@ class L10nJa extends L10n {
   String get paywallTrialEnded => '体験期間中に使えていた機能です。';
 
   @override
-  String get onboarding1Title => 'AIがあなた専用の例文を何度でも生成';
+  String get onboarding1Title => 'AIがあなた専用の例文を毎日お届け';
 
   @override
-  String get onboarding1Body => '例文は毎日届き、何文でも追加できます。\nカードをタップで単語・意味を確認。';
+  String get onboarding1Body => '毎日の例文に加えて、その場で追加生成も。\nカードをタップで単語・意味を確認。';
 
   @override
   String get onboarding2Title => '声調を含めた発音練習';
@@ -1204,7 +1215,7 @@ class L10nJa extends L10n {
   String get philosophyStart => '実際に使ってみる';
 
   @override
-  String get notifCoachTitle => '通知機能を活用しましょう';
+  String get notifCoachTitle => '通知でタイ語学習を習慣にしましょう';
 
   @override
   String get notifCoachStep1 => '通勤中や寝る前など、学習を続けやすい時刻を決めます';
@@ -1213,7 +1224,7 @@ class L10nJa extends L10n {
   String get notifCoachStep2 => 'その時刻に、あなた向けの例文が自動で届きます';
 
   @override
-  String get notifCoachHabit => '毎日同じ時間に開くので、タイ語学習が習慣になります';
+  String get notifCoachHabit => '毎日同じ時間に開くので、無理なく続けられます';
 
   @override
   String get notifCoachPreviewLabel => '通知の例）';
@@ -1536,8 +1547,7 @@ class L10nJa extends L10n {
   String get quotaQuizReached => '今日の新しいクイズはここまでです。';
 
   @override
-  String get quotaSentenceReached =>
-      '今日の新しい例文はここまでです。\nこれまでの例文を読み返したり、クイズで復習できます。';
+  String get quotaSentenceReached => '今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。';
 
   @override
   String quotaSentenceUpgradeCta(int count) {
