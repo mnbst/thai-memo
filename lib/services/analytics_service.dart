@@ -284,6 +284,27 @@ class AnalyticsService {
     });
   }
 
+  /// 評価依頼の呼び出し結果。
+  ///
+  /// source: quiz / sentence（どちらの経路から呼んだか）
+  /// outcome: requested のほか、どの条件で降りたか（[ReviewPromptOutcome]）。
+  ///
+  /// 依頼を出した回数と、出せなかった理由の内訳を見るために送る。しきい値が
+  /// 実データに対して緩いか厳しいかは、これが無いと判断できない。
+  ///
+  /// なお requested は「OSに依頼した」であって「表示された」ではない。
+  /// SKStoreReviewController は年3回の上限や独自判断で黙って出さないことが
+  /// あり、表示回数はどこからも取れない。無視率は上限としてしか出せない。
+  Future<void> logReviewPrompt({
+    required String source,
+    required String outcome,
+  }) async {
+    await _logEvent('review_prompt', {
+      'source': source,
+      'outcome': outcome,
+    });
+  }
+
   Future<void> logSummaryQuizComplete({
     required int score,
     required int questionCount,
