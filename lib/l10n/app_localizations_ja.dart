@@ -117,7 +117,7 @@ class L10nJa extends L10n {
 
   @override
   String get coachPronunciationContourMessage =>
-      '薄い線がお手本、濃い線があなたの声の高さです。「次はここを直す」を参考に、下の「もう一度」を押して言い直し、全単語が緑になるのを目指しましょう。';
+      '薄い線がお手本、濃い線があなたの声です。「次はここを直す」を見て、下の「もう一度」で言い直しましょう。';
 
   @override
   String get coachWordDetailTitle => '単語ごとに見る';
@@ -1357,9 +1357,6 @@ class L10nJa extends L10n {
   String get pronunciationYours => 'あなた';
 
   @override
-  String get pronunciationTapWordHint => '語をタップすると、どこがずれたか見られます';
-
-  @override
   String pronunciationScore(int score) {
     return '$score点';
   }
@@ -1400,9 +1397,6 @@ class L10nJa extends L10n {
 
   @override
   String get pronunciationPermissionOpenSettings => '設定を開く';
-
-  @override
-  String get pronunciationBandCombined => '線の色＝声調と発音を合わせた判定';
 
   @override
   String get pronunciationSpeechRecognized => '発音（子音・母音）：通じました';

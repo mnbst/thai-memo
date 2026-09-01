@@ -1450,7 +1450,7 @@ class _WordContourCard extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 72,
+            height: 80,
             width: double.infinity,
             child: CustomPaint(
               painter: _ContourPainter(
@@ -1550,15 +1550,20 @@ class _ContourPainter extends CustomPainter {
   /// 縦軸に取るピッチの範囲（正規化済みの単位）。
   static const double _yRange = 1.5;
 
+  /// 上下に空ける余白。範囲の端まで出た線は枠の外へ半分はみ出して切れて見える。
+  /// 線の太さ分だけ内側に寄せる。
+  static const double _yInset = 4;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (scores.isEmpty) return;
 
     final syllableWidth = size.width / scores.length;
+    final usableHeight = math.max(0.0, size.height - _yInset * 2);
 
     double yOf(double value) {
       final clamped = value.clamp(-_yRange, _yRange);
-      return size.height * (0.5 - clamped / (_yRange * 2));
+      return _yInset + usableHeight * (0.5 - clamped / (_yRange * 2));
     }
 
     // 中心線。

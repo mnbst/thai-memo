@@ -459,4 +459,60 @@ void main() {
     expect(title.top, lessThan(120));
     expect(title.top, greaterThanOrEqualTo(0));
   });
+
+  testWidgets('上下に余白が無い対象は、吹き出しが入る位置まで自動でスクロールする',
+      (tester) async {
+    final targetKey = GlobalKey();
+    final controller = ScrollController();
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [
+          L10n.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('ja'),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: SingleChildScrollView(
+              controller: controller,
+              child: Column(
+                children: [
+                  const SizedBox(height: 500),
+                  // 画面の下端近くにいる対象。上にも下にも吹き出しが入らない。
+                  Container(key: targetKey, height: 220),
+                  const SizedBox(height: 800),
+                ],
+              ),
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => CoachMarkOverlay.show(
+                context,
+                targetKey: targetKey,
+                title: 'タイトル',
+                message: 'メッセージ',
+                targetTappable: false,
+                confirmLabel: 'わかった',
+              ),
+              child: const Icon(Icons.play_arrow),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(controller.offset, 0);
+    await showCoach(tester);
+    // 呼吸のアニメーションが回り続けるので pumpAndSettle は使えない。
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    // 対象が上へ寄り、下に吹き出しぶんの余白ができている。
+    expect(controller.offset, greaterThan(0));
+    final target = tester.getRect(find.byKey(targetKey));
+    final title = tester.getRect(find.text('タイトル'));
+    expect(title.top, greaterThan(target.bottom));
+    expect(title.top, greaterThanOrEqualTo(0));
+  });
 }
