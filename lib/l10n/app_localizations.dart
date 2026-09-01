@@ -310,7 +310,7 @@ abstract class L10n {
   /// No description provided for @coachPronunciationContourMessage.
   ///
   /// In ja, this message translates to:
-  /// **'薄い線がお手本、濃い線があなたの声の高さです。「次はここを直す」を参考に、「もう一度」で言い直して全単語が緑になるのを目指しましょう。'**
+  /// **'薄い線がお手本、濃い線があなたの声の高さです。「次はここを直す」を参考に、下の「もう一度」を押して言い直し、全単語が緑になるのを目指しましょう。'**
   String get coachPronunciationContourMessage;
 
   /// No description provided for @coachWordDetailTitle.
@@ -2839,6 +2839,48 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'プレミアムなら回数を気にせず、何度でも発音を確かめられます。'**
   String get pronunciationLimitBody;
+
+  /// No description provided for @pronunciationSummaryRecognized.
+  ///
+  /// In ja, this message translates to:
+  /// **'{total}語中 {ok}語が通じた'**
+  String pronunciationSummaryRecognized(int ok, int total);
+
+  /// No description provided for @pronunciationNextFocus.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{word}」を直そう'**
+  String pronunciationNextFocus(String word);
+
+  /// No description provided for @pronunciationCountCorrect.
+  ///
+  /// In ja, this message translates to:
+  /// **'OK'**
+  String get pronunciationCountCorrect;
+
+  /// No description provided for @pronunciationCountClose.
+  ///
+  /// In ja, this message translates to:
+  /// **'おしい'**
+  String get pronunciationCountClose;
+
+  /// No description provided for @pronunciationCountWrong.
+  ///
+  /// In ja, this message translates to:
+  /// **'直す'**
+  String get pronunciationCountWrong;
+
+  /// No description provided for @pronunciationTapWordHintDetail.
+  ///
+  /// In ja, this message translates to:
+  /// **'語をタップすると、お手本の聞き比べと直し方が出ます'**
+  String get pronunciationTapWordHintDetail;
+
+  /// No description provided for @pronunciationListenModelWord.
+  ///
+  /// In ja, this message translates to:
+  /// **'お手本を聞く'**
+  String get pronunciationListenModelWord;
 
   /// No description provided for @pronunciationFreeRemaining.
   ///

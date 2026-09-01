@@ -450,6 +450,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             ) ??
                             const TextStyle(fontSize: 18),
                         AppColors.goldInk,
+                        words: sentence.wordBreakdowns,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

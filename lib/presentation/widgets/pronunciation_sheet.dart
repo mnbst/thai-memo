@@ -16,6 +16,7 @@ import '../../data/models/thai_sentence.dart';
 import '../../domain/sentence_tone_spans.dart';
 import '../../l10n/app_localizations.dart';
 import 'pronunciation_practice.dart';
+import 'sentence_audio_player.dart';
 
 /// 発音練習を出せる例文か。出せないなら入口ごと隠す。
 bool canPractisePronunciation(ThaiSentence sentence) {
@@ -87,11 +88,25 @@ class _PronunciationSheet extends StatelessWidget {
             // 判定結果が伸びるぶんはシート内でスクロールさせる
             Flexible(
               child: SingleChildScrollView(
-                child: PronunciationPractice(
-                  scope: 'sheet',
-                  sentenceId: sentence.id,
-                  words: sentence.wordBreakdowns,
-                  thaiText: sentence.thaiText,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // お手本を聞いてから話す。ここに再生が無いと、聞かずに
+                    // 録音するしかない（カードからは詳細へ移らずに開くため）。
+                    SentenceAudioPlayer(
+                      text: sentence.thaiText,
+                      words: sentence.wordBreakdowns
+                          .map((w) => w.wordText)
+                          .toList(),
+                    ),
+                    const SizedBox(height: 12),
+                    PronunciationPractice(
+                      scope: 'sheet',
+                      sentenceId: sentence.id,
+                      words: sentence.wordBreakdowns,
+                      thaiText: sentence.thaiText,
+                    ),
+                  ],
                 ),
               ),
             ),

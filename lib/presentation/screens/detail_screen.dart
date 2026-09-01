@@ -761,6 +761,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                               ) ??
                           TextStyle(fontSize: 32, color: cs.onSurface),
                       cs.primary,
+                      words: widget.sentence.wordBreakdowns,
                     ),
                   ),
                   const SizedBox(height: 8),

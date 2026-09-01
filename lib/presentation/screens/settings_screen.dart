@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -41,6 +42,26 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final ScrollController _scrollController = ScrollController();
+
+  /// 実際に動いているビルドの版。定数に焼くと更新を忘れて古い版を表示し続ける
+  /// （1.2.1 のまま10版以上放置されていた）ので、必ず OS 側から取る。
+  String? _appVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = info.version);
+    } catch (_) {
+      // 取得できなければ版を出さない。誤った版を出すより無いほうが良い。
+    }
+  }
 
   @override
   void dispose() {
@@ -182,8 +203,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// アプリ名とタグライン。読ませる情報ではないので、面を持たせず末尾に置く。
   Widget _buildFooter() {
     final theme = Theme.of(context);
+    final version = _appVersion;
     return Text(
-      '${L10n.of(context).settingsTagline}　·　v${AppConfig.appVersion}',
+      '${L10n.of(context).settingsTagline}'
+      '${version == null ? '' : '　·　v$version'}',
       textAlign: TextAlign.center,
       style: theme.textTheme.bodySmall?.copyWith(
         color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
