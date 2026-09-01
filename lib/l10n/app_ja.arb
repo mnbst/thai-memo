@@ -595,7 +595,7 @@
   "pronunciationNextFocus": "「{word}」を直そう",
   "@pronunciationNextFocus": { "placeholders": { "word": { "type": "String" } } },
   "pronunciationCountCorrect": "OK",
-  "pronunciationCountClose": "おしい",
+  "pronunciationCountClose": "惜しい",
   "pronunciationCountWrong": "直す",
   "pronunciationTapWordHintDetail": "語をタップすると、お手本の聞き比べと直し方が出ます",
   "pronunciationListenModelWord": "お手本を聞く",

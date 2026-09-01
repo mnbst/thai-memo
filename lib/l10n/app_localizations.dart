@@ -2849,7 +2849,7 @@ abstract class L10n {
   /// No description provided for @pronunciationCountClose.
   ///
   /// In ja, this message translates to:
-  /// **'おしい'**
+  /// **'惜しい'**
   String get pronunciationCountClose;
 
   /// No description provided for @pronunciationCountWrong.
