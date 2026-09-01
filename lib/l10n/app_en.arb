@@ -30,7 +30,7 @@
   "coachDetailMessage": "Tap the card to see the meaning and pronunciation of each word.",
 
   "coachQuizTitle": "Now try the quiz",
-  "coachQuizMessage": "Once you've looked through the sentence, take the quiz to check that the words stuck.",
+  "coachQuizMessage": "Take the confirmation quiz to check that today's words stuck.",
 
   "coachSentenceCardTitle": "Sentence card",
   "coachSentenceCardMessage": "The Thai text is on top, its reading below it, and the translation at the bottom.",
@@ -52,6 +52,9 @@
   "coachToneDetailMessage": "The tone breakdown splits the word into syllables, each with its reading and tone mark.",
   "coachToneTableTitle": "How the tone is decided",
   "coachToneTableMessage": "The initial consonant class (high, mid, low), the tone mark, and the syllable type together decide the tone. The row highlighted in blue is the rule this syllable follows.",
+  "coachToneTableEmphasis1": "initial consonant class (high, mid, low)",
+  "coachToneTableEmphasis2": "tone mark",
+  "coachToneTableEmphasis3": "syllable type",
   "coachToneGuideTitle": "Want the full rules?",
   "coachToneGuideMessage": "The tone rules are collected in the tone guide. You can open it from here any time.",
   "coachContextTitle": "Check how it's used",
@@ -121,7 +124,7 @@
   "commonTryAgain": "Try again",
 
   "coachQuizHintTitle": "Hints come in two steps",
-  "coachQuizHintMessage": "Stuck? Hint 1 shows the pronunciation, and pressing it again shows the translation. Using a hint still records your answer — it just moves your vocabulary score less.",
+  "coachQuizHintMessage": "Press it once for the pronunciation, twice for the translation. Use them whenever you're stuck.",
   "coachQuizReviewTitle": "You can go back to the sentence",
   "coachQuizReviewMessage": "Pick the word that fits the blank. Unsure? \"Show the sentence\" below brings the sentence back any time.",
   "coachSummaryQuizTitle": "Try the review quiz",
@@ -138,9 +141,9 @@
   "coachFlowLoopSentence": "Sentence",
   "coachFlowLoopQuiz": "Quiz",
   "coachFlowLoopSummary": "5-question quiz",
-  "coachFlowBody1": "Read a sentence, check it with a quiz.",
-  "coachSummaryTipsBody": "Questions you answer from the Thai alone grow your score the most. Try it without the translation first.",
-  "coachSummaryTipsEmphasis": "from the Thai alone",
+  "coachFlowOutcome": "The more you repeat it, the higher your vocabulary score climbs — and the wider the range of Thai you can read.",
+  "coachSummaryTipsBody": "Once you get used to it, try answering without hints — your vocabulary score grows faster.",
+  "coachSummaryTipsEmphasis": "without hints",
   "coachFlowPage1Title": "Sentence and quiz, on repeat",
   "coachSummaryTipsTitle": "Tips for the 5-question quiz",
   "coachFlowContinue": "Keep going",
@@ -148,6 +151,7 @@
   "coachTopicTitle": "Pick a topic and go deeper into Thai culture",
   "coachTopicNext": "Go to next sentence",
   "coachTopicMessage": "Tap here to choose the topic of your next sentence. Festivals, temple etiquette, BL dramas — you pick up the culture along with the language.",
+  "coachTopicSelectMessage": "Tap here and pick the topic for your next sentence. Festivals, temple etiquette, BL dramas — you pick up the culture along with the language.",
 
   "vocabScore": "Vocabulary score",
   "vocabScoreCalculating": "Calculating your vocabulary score...",
@@ -381,7 +385,7 @@
   "paywallTrialEnded": "This is what you had during your trial.",
 
   "onboarding1Title": "AI writes Thai sentences just for you",
-  "onboarding1Body": "Sentences arrive daily — add more anytime.\nTap the card for words and meaning.",
+  "onboarding1Body": "Sentences arrive daily — and you can make more yourself.\nTap the card for words and meaning.",
   "onboarding2Title": "Pronunciation practice, tones included",
   "onboarding2Body": "Listen to the model audio, then record yourself.\nSee where your tones drift.",
   "onboarding3Title": "Grow your vocabulary score",
@@ -455,10 +459,10 @@
 
   "philosophyStart": "Try it out",
 
-  "notifCoachTitle": "Make use of notifications",
+  "notifCoachTitle": "Make studying Thai a daily habit",
   "notifCoachStep1": "Pick a time that fits your day — your commute, or just before bed",
   "notifCoachStep2": "At that time, a sentence picked for you arrives on its own",
-  "notifCoachHabit": "Opening it at the same time each day is what turns studying Thai into a habit",
+  "notifCoachHabit": "Opening it at the same time each day is what makes it stick",
   "notifCoachPreviewLabel": "What it looks like",
   "notifCoachNow": "now",
   "notifCoachSampleTitle": "🇹🇭 Today's Thai · ขอบคุณ (thank you)",
@@ -576,7 +580,7 @@
 
   "errQuizGenerationFailed": "We couldn't build the quiz. Please try again.",
   "quotaQuizReached": "That's the last new quiz for today.",
-  "quotaSentenceReached": "That's the last new sentence for today.\nRevisit past sentences or review them with a quiz.",
+  "quotaSentenceReached": "That's the last new sentence for today.\nYou can still revisit past sentences in History.",
   "quotaSentenceUpgradeCta": "Premium gives you {count} sentences a day",
   "errAuth": "Something went wrong signing you in. Please restart the app.",
   "errNetwork": "Couldn't reach the network. Check your internet connection.",

@@ -462,19 +462,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(AppConfig.prefKeyNextTopicCoachShown) ?? false) return;
 
-    await _waitForResultAnimations();
-    if (!mounted) return;
+    // 締めくくりを読んだ直後は間を置かずに続ける。待っている間に「次の例文へ」
+    // を押されると、出した瞬間に画面が切り替わって一瞬光るだけになる。
+    // 締めくくりが出ていない回だけ、結果の動きが収まるのを待つ。
+    if (!advancesAfterConfirm) {
+      await _waitForResultAnimations();
+      if (!mounted) return;
+    }
 
-    final completer = Completer<void>();
+    // 初回はチップを押させてテーマを一度選ばせる。読むだけだと「次も選べる」
+    // ことが残らないので、逃げ道（暗幕タップ・確認ボタン）は塞ぐ。
+    // 選べないユーザー（Free）で塞ぐと、ペイウォールを開くしか進む道が
+    // 無くなるため、従来どおり読むだけで閉じられるようにする。
+    final selectTopic = advancesAfterConfirm && ref.read(effectivePremiumProvider);
+
+    final completer = Completer<String?>();
     _abortSummaryCoachWait = () {
-      if (!completer.isCompleted) completer.complete();
+      if (!completer.isCompleted) completer.complete(null);
     };
     // サマリー画面が描画され、チップの位置が確定してから表示する。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           ref.read(quizControllerProvider) is! QuizSummary ||
           _nextTopicKey.currentContext == null) {
-        if (!completer.isCompleted) completer.complete();
+        if (!completer.isCompleted) completer.complete(null);
         return;
       }
       // 表示時にフラグを立てる。ボタン／チップタップのどちらで閉じても再表示しない。
@@ -486,19 +497,49 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         analytics: ref.read(analyticsServiceProvider),
         icon: Icons.palette_outlined,
         title: L10n.of(context).coachTopicTitle,
-        message: L10n.of(context).coachTopicMessage,
-        // テーマを変えるかどうかは本人が決める。ここは在り処を教えるだけ。
-        targetTappable: false,
-        confirmLabel: advancesAfterConfirm
-            ? L10n.of(context).coachTopicNext
-            : L10n.of(context).coachGotIt,
-        onDismiss: (_) {
-          if (!completer.isCompleted) completer.complete();
+        message: selectTopic
+            ? L10n.of(context).coachTopicSelectMessage
+            : L10n.of(context).coachTopicMessage,
+        targetTappable: selectTopic,
+        barrierDismissible: !selectTopic,
+        confirmLabel: selectTopic
+            ? null
+            : (advancesAfterConfirm
+                ? L10n.of(context).coachTopicNext
+                : L10n.of(context).coachGotIt),
+        onDismiss: (action) {
+          if (!completer.isCompleted) completer.complete(action);
         },
       );
-      if (!shown && !completer.isCompleted) completer.complete();
+      if (!shown && !completer.isCompleted) completer.complete(null);
     });
-    await completer.future;
+    final action = await completer.future;
+    // チップを押した回は、テーマ選択のシートが閉じるまで待つ。開いたまま
+    // 次の例文へ進めると、選び終える前に生成が走る。
+    if (action == 'tapped') await _waitForTopicSheetClose();
+  }
+
+  /// テーマ選択（または Free のペイウォール）のシートが閉じるのを待つ。
+  /// 閉じたかどうかは、この画面のルートが最前面に戻ったかで判断する。
+  Future<void> _waitForTopicSheetClose() async {
+    // 押した直後はまだシートが積まれていない。開くのを待ってから、閉じるのを
+    // 待つ。開かないまま（押しても何も起きなかった）なら待ち続けない。
+    if (!await _waitForRouteCurrent(false, const Duration(seconds: 1))) return;
+    await _waitForRouteCurrent(true, const Duration(minutes: 2));
+  }
+
+  /// この画面のルートが最前面かどうかが [wanted] になるまで待つ。
+  /// なったら true、[timeout] まで変わらなければ false。
+  Future<bool> _waitForRouteCurrent(bool wanted, Duration timeout) async {
+    const interval = Duration(milliseconds: 100);
+    var waited = Duration.zero;
+    while (waited < timeout) {
+      if (!mounted) return false;
+      if ((ModalRoute.of(context)?.isCurrent ?? false) == wanted) return true;
+      await Future<void>.delayed(interval);
+      waited += interval;
+    }
+    return false;
   }
 
   Future<void> _clearVocabBeforeQuiz() async {

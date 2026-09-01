@@ -63,6 +63,7 @@ class CoachMarkOverlay {
     bool targetTappable = true,
     String? confirmLabel,
     String? emphasis,
+    List<String> emphases = const [],
     IconData icon = Icons.palette_outlined,
     bool pinToTop = false,
     void Function(String action)? onDismiss,
@@ -97,7 +98,7 @@ class CoachMarkOverlay {
         initialRect: rect,
         title: title,
         message: message,
-        emphasis: emphasis,
+        emphases: [if (emphasis != null) emphasis, ...emphases],
         icon: icon,
         pinToTop: pinToTop,
         // 対象を押して進んだのか、対象以外を押して抜けたのかを区別する。
@@ -159,7 +160,7 @@ class _CoachMarkContent extends StatefulWidget {
   final Rect initialRect;
   final String title;
   final String message;
-  final String? emphasis;
+  final List<String> emphases;
   final IconData icon;
 
   /// 案内した対象を押したとき。null なら対象は押させない。
@@ -186,7 +187,7 @@ class _CoachMarkContent extends StatefulWidget {
     required this.initialRect,
     required this.title,
     required this.message,
-    required this.emphasis,
+    required this.emphases,
     required this.icon,
     required this.onTargetTap,
     required this.onBarrierTap,
@@ -254,27 +255,40 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
 
   /// 本文を組み立てる。emphasis が本文に含まれていればそこだけ太字にする。
   TextSpan _messageSpan(TextStyle baseStyle) {
-    final emphasis = widget.emphasis;
-    final start = emphasis == null ? -1 : widget.message.indexOf(emphasis);
-    if (emphasis == null || emphasis.isEmpty || start < 0) {
+    // 強調する箇所を出現順に拾う。文中に無い語・空文字は黙って捨てる
+    // （翻訳で言い回しが変わっても、本文がそのまま出れば読める）。
+    final ranges = <({int start, int end})>[];
+    for (final emphasis in widget.emphases) {
+      if (emphasis.isEmpty) continue;
+      final start = widget.message.indexOf(emphasis);
+      if (start < 0) continue;
+      ranges.add((start: start, end: start + emphasis.length));
+    }
+    ranges.sort((a, b) => a.start.compareTo(b.start));
+
+    if (ranges.isEmpty) {
       return TextSpan(text: widget.message, style: baseStyle);
     }
-    final end = start + emphasis.length;
-    return TextSpan(
-      style: baseStyle,
-      children: [
-        TextSpan(text: widget.message.substring(0, start)),
-        TextSpan(
-          text: emphasis,
-          // 初回ガイドの体験期間と同じ強調（プライマリ色＋太字）に揃える。
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.primary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        TextSpan(text: widget.message.substring(end)),
-      ],
+
+    // 初回ガイドの体験期間と同じ強調（プライマリ色＋太字）に揃える。
+    final emphasisStyle = TextStyle(
+      color: Theme.of(context).colorScheme.primary,
+      fontWeight: FontWeight.w600,
     );
+    final children = <TextSpan>[];
+    var cursor = 0;
+    for (final range in ranges) {
+      // 重なった指定は先に来た方を優先する。
+      if (range.start < cursor) continue;
+      children.add(TextSpan(text: widget.message.substring(cursor, range.start)));
+      children.add(TextSpan(
+        text: widget.message.substring(range.start, range.end),
+        style: emphasisStyle,
+      ));
+      cursor = range.end;
+    }
+    children.add(TextSpan(text: widget.message.substring(cursor)));
+    return TextSpan(style: baseStyle, children: children);
   }
 
   /// 暗幕上の縦ドラッグを対象のスクロールへ転送する。
@@ -497,6 +511,13 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
                           const SizedBox(height: 12),
                           Row(
                             children: [
+                              // ボタンが無い段は、案内の行き先を右下に置く。
+                              // 他の段はそこに「わかった」等が出るので、
+                              // 左に寄せたままだと同じツアーの中で
+                              // 収まりが変わって見える。
+                              if (widget.confirmLabel == null &&
+                                  widget.onSkip == null)
+                                const Spacer(),
                               if (widget.onTargetTap != null)
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -519,7 +540,9 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
                                   onPressed: widget.onSkip,
                                   child: Text(L10n.of(context).coachSkip),
                                 ),
-                              const Spacer(),
+                              if (widget.confirmLabel != null ||
+                                  widget.onSkip != null)
+                                const Spacer(),
                               if (widget.confirmLabel != null)
                                 FilledButton(
                                   onPressed: widget.onConfirm,

@@ -80,7 +80,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachQuizMessage =>
-      'Once you\'ve looked through the sentence, take the quiz to check that the words stuck.';
+      'Take the confirmation quiz to check that today\'s words stuck.';
 
   @override
   String get coachTargetWordsTitle => 'Learn this word';
@@ -147,6 +147,16 @@ class L10nEn extends L10n {
   @override
   String get coachToneTableMessage =>
       'The initial consonant class (high, mid, low), the tone mark, and the syllable type together decide the tone. The row highlighted in blue is the rule this syllable follows.';
+
+  @override
+  String get coachToneTableEmphasis1 =>
+      'initial consonant class (high, mid, low)';
+
+  @override
+  String get coachToneTableEmphasis2 => 'tone mark';
+
+  @override
+  String get coachToneTableEmphasis3 => 'syllable type';
 
   @override
   String get coachToneGuideTitle => 'Want the full rules?';
@@ -318,7 +328,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachQuizHintMessage =>
-      'Stuck? Hint 1 shows the pronunciation, and pressing it again shows the translation. Using a hint still records your answer — it just moves your vocabulary score less.';
+      'Press it once for the pronunciation, twice for the translation. Use them whenever you\'re stuck.';
 
   @override
   String get coachQuizReviewTitle => 'You can go back to the sentence';
@@ -373,14 +383,15 @@ class L10nEn extends L10n {
   String get coachFlowLoopSummary => '5-question quiz';
 
   @override
-  String get coachFlowBody1 => 'Read a sentence, check it with a quiz.';
+  String get coachFlowOutcome =>
+      'The more you repeat it, the higher your vocabulary score climbs — and the wider the range of Thai you can read.';
 
   @override
   String get coachSummaryTipsBody =>
-      'Questions you answer from the Thai alone grow your score the most. Try it without the translation first.';
+      'Once you get used to it, try answering without hints — your vocabulary score grows faster.';
 
   @override
-  String get coachSummaryTipsEmphasis => 'from the Thai alone';
+  String get coachSummaryTipsEmphasis => 'without hints';
 
   @override
   String get coachFlowPage1Title => 'Sentence and quiz, on repeat';
@@ -400,6 +411,10 @@ class L10nEn extends L10n {
   @override
   String get coachTopicMessage =>
       'Tap here to choose the topic of your next sentence. Festivals, temple etiquette, BL dramas — you pick up the culture along with the language.';
+
+  @override
+  String get coachTopicSelectMessage =>
+      'Tap here and pick the topic for your next sentence. Festivals, temple etiquette, BL dramas — you pick up the culture along with the language.';
 
   @override
   String get vocabScore => 'Vocabulary score';
@@ -1100,7 +1115,7 @@ class L10nEn extends L10n {
 
   @override
   String get onboarding1Body =>
-      'Sentences arrive daily — add more anytime.\nTap the card for words and meaning.';
+      'Sentences arrive daily — and you can make more yourself.\nTap the card for words and meaning.';
 
   @override
   String get onboarding2Title => 'Pronunciation practice, tones included';
@@ -1289,7 +1304,7 @@ class L10nEn extends L10n {
   String get philosophyStart => 'Try it out';
 
   @override
-  String get notifCoachTitle => 'Make use of notifications';
+  String get notifCoachTitle => 'Make studying Thai a daily habit';
 
   @override
   String get notifCoachStep1 =>
@@ -1301,7 +1316,7 @@ class L10nEn extends L10n {
 
   @override
   String get notifCoachHabit =>
-      'Opening it at the same time each day is what turns studying Thai into a habit';
+      'Opening it at the same time each day is what makes it stick';
 
   @override
   String get notifCoachPreviewLabel => 'What it looks like';
@@ -1647,7 +1662,7 @@ class L10nEn extends L10n {
 
   @override
   String get quotaSentenceReached =>
-      'That\'s the last new sentence for today.\nRevisit past sentences or review them with a quiz.';
+      'That\'s the last new sentence for today.\nYou can still revisit past sentences in History.';
 
   @override
   String quotaSentenceUpgradeCta(int count) {
