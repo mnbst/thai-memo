@@ -111,11 +111,70 @@ class CoachMarkOverlay {
       ),
     );
     overlay.insert(_entry!);
+    // 吹き出しが入るだけの余白を作る。スポットはスクロールに追従するので、
+    // 出したあとに寄せても案内が置き去りにならない。
+    _scrollIntoView(context, targetKey);
     _ownerKey = targetKey;
     _visibleId = id;
     _analytics = analytics;
     _log('shown');
     return true;
+  }
+
+  /// 吹き出しに要る高さの見積もり。置き場を決める側（260）より少し多く見る。
+  /// ぴったりで寄せると、本文が1行伸びただけで見出しが見切れる。
+  static const double _bubbleSpace = 300;
+
+  /// 対象の上下に吹き出しぶんの余白が無ければ、スクロールして作る。
+  ///
+  /// 画面の低い端末（iPhone mini など）では、対象がそのままの位置だと上下
+  /// どちらにも吹き出しが収まらず、帯からあふれた見出しが見切れる。対象を
+  /// 動かせる（スクロールの中にいる）ときは先に寄せてしまう。
+  static void _scrollIntoView(BuildContext context, GlobalKey targetKey) {
+    final ctx = targetKey.currentContext;
+    if (ctx == null) return;
+    final position = Scrollable.maybeOf(ctx)?.position;
+    if (position == null ||
+        !position.hasPixels ||
+        !position.hasContentDimensions) {
+      return;
+    }
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+
+    final media = MediaQuery.of(context);
+    final safeTop = media.padding.top + 12;
+    final safeBottom = media.size.height - media.padding.bottom - 12;
+    final top = box.localToGlobal(Offset.zero).dy;
+    final bottom = top + box.size.height;
+
+    // 対象が丸ごと見えていて、どちらか一方に吹き出しが入るならそのまま。
+    // むやみに動かすと、案内が指している文脈（例文そのもの）を画面の外へ
+    // 追い出してしまう。
+    final spaceAbove = top - safeTop;
+    final spaceBelow = safeBottom - bottom;
+    final fullyVisible = top >= safeTop && bottom <= safeBottom;
+    if (fullyVisible && math.max(spaceAbove, spaceBelow) >= _bubbleSpace) {
+      return;
+    }
+
+    // 下に吹き出しを置けるところまで対象を上げる。対象が高くてそれでも
+    // 入らないときは、対象の上端を安全域に合わせて見える範囲を最大にする。
+    final fitsWithBubble =
+        box.size.height + _bubbleSpace <= safeBottom - safeTop;
+    final delta =
+        fitsWithBubble ? bottom - (safeBottom - _bubbleSpace) : top - safeTop;
+    final to = (position.pixels + delta)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if ((to - position.pixels).abs() < 1) return;
+
+    unawaited(
+      position.animateTo(
+        to,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+      ),
+    );
   }
 
   static void _log(String action) {

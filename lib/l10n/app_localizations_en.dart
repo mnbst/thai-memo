@@ -125,7 +125,7 @@ class L10nEn extends L10n {
 
   @override
   String get coachPronunciationContourMessage =>
-      'The faint line is the model and the solid one is your pitch. Follow the \"Fix this next\" hint, tap \"Try again\" below to say it again, and aim to turn every word green.';
+      'The faint line is the model, the solid one is you. Read \"Fix this next\", then tap \"Try again\" below to say it again.';
 
   @override
   String get coachWordDetailTitle => 'See it word by word';
@@ -1456,9 +1456,6 @@ class L10nEn extends L10n {
   String get pronunciationYours => 'You';
 
   @override
-  String get pronunciationTapWordHint => 'Tap a word to see what to fix';
-
-  @override
   String pronunciationScore(int score) {
     return 'Score $score';
   }
@@ -1481,7 +1478,7 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationNoSpeakerRange =>
-      'We couldn\'t read your pitch. Give it another go.';
+      'We couldn\'t read your pitch. Please try again.';
 
   @override
   String get pronunciationNoSyllables =>
@@ -1506,15 +1503,12 @@ class L10nEn extends L10n {
   String get pronunciationPermissionOpenSettings => 'Open settings';
 
   @override
-  String get pronunciationBandCombined =>
-      'Bar color = tone and sounds together';
-
-  @override
-  String get pronunciationSpeechRecognized => 'Consonants & vowels: understood';
+  String get pronunciationSpeechRecognized =>
+      'Consonants and vowels: came through';
 
   @override
   String get pronunciationSpeechMissing =>
-      'Consonants & vowels: not understood';
+      'Consonants and vowels: didn\'t come through';
 
   @override
   String get pronunciationSpeechUnavailable =>
@@ -1541,11 +1535,11 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationCoachShapeMid =>
-      'Mid tone: hold it flat, without changing height';
+      'Mid tone: hold it flat, at the same height throughout';
 
   @override
   String get pronunciationCoachShapeLow =>
-      'Low tone: stay down low, drifting slightly downward';
+      'Low tone: stay low and let it drift down slightly';
 
   @override
   String get pronunciationCoachShapeFalling =>
@@ -1553,7 +1547,7 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationCoachShapeHigh =>
-      'High tone: keep rising to the end instead of levelling off';
+      'High tone: keep pushing it up to the end instead of leveling off';
 
   @override
   String get pronunciationCoachShapeRising =>
@@ -1577,7 +1571,7 @@ class L10nEn extends L10n {
   @override
   String pronunciationSegmentUnaspirated(
       String word, String label, String aspirated) {
-    return 'In \"$word\", $label has no puff of air. With air it sounds like $aspirated.';
+    return 'Say the $label in \"$word\" with no puff of air — with air it sounds like $aspirated.';
   }
 
   @override
@@ -1597,7 +1591,7 @@ class L10nEn extends L10n {
 
   @override
   String pronunciationSegmentNgInitial(String word) {
-    return 'Start \"$word\" with ง humming through the nose — no vowel before it.';
+    return 'Start \"$word\" with ง humming through the nose — don\'t add an \"n\" before it.';
   }
 
   @override
@@ -1645,7 +1639,13 @@ class L10nEn extends L10n {
 
   @override
   String pronunciationSummaryRecognized(int ok, int total) {
-    return '$ok of $total words came through';
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: '$total words',
+      one: '1 word',
+    );
+    return '$ok of $_temp0 came through';
   }
 
   @override
@@ -1660,7 +1660,7 @@ class L10nEn extends L10n {
   String get pronunciationCountClose => 'Close';
 
   @override
-  String get pronunciationCountWrong => 'Fix';
+  String get pronunciationCountWrong => 'Off';
 
   @override
   String get pronunciationTapWordHintDetail =>
@@ -1671,7 +1671,13 @@ class L10nEn extends L10n {
 
   @override
   String pronunciationFreeRemaining(int count) {
-    return '$count free checks left today';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count free checks',
+      one: '1 free check',
+    );
+    return '$_temp0 left today';
   }
 
   @override

@@ -310,7 +310,7 @@ abstract class L10n {
   /// No description provided for @coachPronunciationContourMessage.
   ///
   /// In ja, this message translates to:
-  /// **'薄い線がお手本、濃い線があなたの声の高さです。「次はここを直す」を参考に、下の「もう一度」を押して言い直し、全単語が緑になるのを目指しましょう。'**
+  /// **'薄い線がお手本、濃い線があなたの声です。「次はここを直す」を見て、下の「もう一度」で言い直しましょう。'**
   String get coachPronunciationContourMessage;
 
   /// No description provided for @coachWordDetailTitle.
@@ -2569,12 +2569,6 @@ abstract class L10n {
   /// **'あなた'**
   String get pronunciationYours;
 
-  /// No description provided for @pronunciationTapWordHint.
-  ///
-  /// In ja, this message translates to:
-  /// **'語をタップすると、どこがずれたか見られます'**
-  String get pronunciationTapWordHint;
-
   /// No description provided for @pronunciationScore.
   ///
   /// In ja, this message translates to:
@@ -2652,12 +2646,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'設定を開く'**
   String get pronunciationPermissionOpenSettings;
-
-  /// No description provided for @pronunciationBandCombined.
-  ///
-  /// In ja, this message translates to:
-  /// **'線の色＝声調と発音を合わせた判定'**
-  String get pronunciationBandCombined;
 
   /// No description provided for @pronunciationSpeechRecognized.
   ///
