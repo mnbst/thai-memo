@@ -778,9 +778,15 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
         ref.read(sentenceControllerProvider) is! SentenceStateSuccess) {
       return;
     }
-    await ref
+    final outcome = await ref
         .read(reviewPromptServiceProvider)
         .maybeRequestAfterSentenceGenerated();
+    unawaited(
+      ref.read(analyticsServiceProvider).logReviewPrompt(
+            source: 'sentence',
+            outcome: outcome.name,
+          ),
+    );
   }
 
   @override

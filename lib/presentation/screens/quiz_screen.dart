@@ -566,11 +566,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
 
     final statsData = QuizStatsData.fromDatabase(summary.stats);
-    await ref.read(reviewPromptServiceProvider).maybeRequestAfterQuizCompleted(
+    final outcome = await ref
+        .read(reviewPromptServiceProvider)
+        .maybeRequestAfterQuizCompleted(
           sessionCorrect: summary.totalCorrect,
           sessionTotal: summary.questions.length,
           totalAnswered: statsData.totalAnswered,
         );
+    // 出せたかどうかだけでなく、どの条件で降りたかまで送る。しきい値が
+    // 実データに合っているかは、内訳が無いと判断できない。
+    unawaited(
+      ref.read(analyticsServiceProvider).logReviewPrompt(
+            source: 'quiz',
+            outcome: outcome.name,
+          ),
+    );
   }
 
   @override
