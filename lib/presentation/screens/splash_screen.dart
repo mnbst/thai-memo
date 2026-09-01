@@ -1,9 +1,40 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 
+/// ネイティブ起動画面（brandBlue + 160pt のアイコン）と完全に同じ絵。
+/// Flutter の最初のフレームがこれを描くことで、OS 側からの引き継ぎが見えなくなる。
+class SplashVisual extends StatelessWidget {
+  final double iconOpacity;
+
+  const SplashVisual({super.key, this.iconOpacity = 1});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: ColoredBox(
+        color: AppColors.brandBlue,
+        child: Center(
+          child: Opacity(
+            opacity: iconOpacity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(36),
+              child: Image.asset('assets/appicon.png', width: 160, height: 160),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 起動時のちらつきを消すためのスプラッシュ。
+///
+/// ネイティブ起動画面と同じ絵を最初のフレームから出し、
+/// アイコン → 青一色 → アプリ本体の順に一方向へ溶かす。
+/// 色を戻したり途中で別の画面を挟んだりしない（＝チカチカしない）。
 class SplashScreen extends StatefulWidget {
   final Widget child;
 
@@ -16,43 +47,33 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _blurAnimation;
-  late final Animation<double> _opacityAnimation;
-  late final Animation<double> _settleAnimation;
+  late final Animation<double> _iconOpacity;
+  late final Animation<double> _veilOpacity;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 900),
       vsync: this,
     );
 
-    // blur: 20 → 0
-    _blurAnimation = Tween<double>(begin: 20, end: 0).animate(
+    // アイコンが先に消え、そのあと青いベールが本体へ溶ける。
+    _iconOpacity = Tween<double>(begin: 1, end: 0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
+      ),
+    );
+    _veilOpacity = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.35, 1.0, curve: Curves.easeInOut),
       ),
     );
 
-    // opacity: 1 → 0 (スプラッシュをフェードアウト)
-    _opacityAnimation = Tween<double>(begin: 1, end: 0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.6, 1.0, curve: Curves.easeIn),
-      ),
-    );
-
-    // 背景: アプリアイコンの青 → アプリ内の背景色。
-    // アイコンからアプリ内への色の断絶を、意図した遷移として見せる。
-    _settleAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.0, 0.5, curve: Curves.easeInOut),
-    );
-
-    // 少し待ってからアニメーション開始
-    Future.delayed(const Duration(milliseconds: 500), () {
+    // 最初のフレームを描いてから開始する。遅延は入れない。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _controller.forward();
     });
   }
@@ -72,30 +93,10 @@ class _SplashScreenState extends State<SplashScreen>
           animation: _controller,
           builder: (context, child) {
             if (_controller.isCompleted) return const SizedBox.shrink();
-            return Opacity(
-              opacity: _opacityAnimation.value,
-              child: Container(
-                color: Color.lerp(
-                  AppColors.brandBlue,
-                  Theme.of(context).scaffoldBackgroundColor,
-                  _settleAnimation.value,
-                ),
-                child: Center(
-                  child: ImageFiltered(
-                    imageFilter: ImageFilter.blur(
-                      sigmaX: _blurAnimation.value,
-                      sigmaY: _blurAnimation.value,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(36),
-                      child: Image.asset(
-                        'assets/appicon.png',
-                        width: 160,
-                        height: 160,
-                      ),
-                    ),
-                  ),
-                ),
+            return IgnorePointer(
+              child: Opacity(
+                opacity: _veilOpacity.value,
+                child: SplashVisual(iconOpacity: _iconOpacity.value),
               ),
             );
           },

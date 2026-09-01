@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- アプリアイコンの青。起動時のネイティブ背景を Flutter 側スプラッシュと揃える。 -->
+    <color name="brand_blue">#FF012CE0</color>
+</resources>
