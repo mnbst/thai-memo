@@ -78,13 +78,6 @@ class PaywallBottomSheet extends ConsumerWidget {
     );
     // 呼び出し元の source を失わないよう、表示前にイベントを確定させる。
     unawaited(analytics.logTapPaywall(source: source));
-    unawaited(
-      analytics.logScreenView(
-        screenName: routeName,
-        screenClass: 'PaywallBottomSheet',
-      ),
-    );
-
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -326,8 +319,8 @@ class PaywallBottomSheet extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
-          AppConfig.screenPadding, 12, AppConfig.screenPadding, 10 + bottomSafeArea),
+      padding: EdgeInsets.fromLTRB(AppConfig.screenPadding, 12,
+          AppConfig.screenPadding, 10 + bottomSafeArea),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
@@ -519,8 +512,7 @@ class PaywallBottomSheet extends ConsumerWidget {
             // 「どれだけ触れられるか」の話なので、行を分けると差が薄まる。
             freeText: l10n.paywallFeatureQuotaFree(
                 freeDailySentences, freeVocabScoreLimit),
-            premiumText:
-                l10n.paywallFeatureQuotaPremium(premiumDailySentences),
+            premiumText: l10n.paywallFeatureQuotaPremium(premiumDailySentences),
           ),
         ],
       ),

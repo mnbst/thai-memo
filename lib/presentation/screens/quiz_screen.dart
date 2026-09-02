@@ -30,7 +30,6 @@ const String _summaryQuizVocabBeforeKey = 'summary_quiz_vocab_before';
 const int _maxSummaryQuizVocabIncrease = 50;
 const Duration _correctAnswerAutoAdvanceDelay = Duration(milliseconds: 1200);
 
-
 /// 出題中の位置。1問だけのクイズには進み具合が無いので持たせない。
 typedef QuizProgress = ({int index, int total});
 
@@ -226,7 +225,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       if (prev is QuizSummary && next is! QuizSummary) {
         CoachMarkOverlay.dismissFor(_optionalChallengeKey);
         CoachMarkOverlay.dismissFor(_nextTopicKey);
-            _abortSummaryCoachWait?.call();
+        _abortSummaryCoachWait?.call();
       }
       if (widget.showVocabScoreTransition &&
           next is QuizAnswering &&
@@ -474,7 +473,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // ことが残らないので、逃げ道（暗幕タップ・確認ボタン）は塞ぐ。
     // 選べないユーザー（Free）で塞ぐと、ペイウォールを開くしか進む道が
     // 無くなるため、従来どおり読むだけで閉じられるようにする。
-    final selectTopic = advancesAfterConfirm && ref.read(effectivePremiumProvider);
+    final selectTopic =
+        advancesAfterConfirm && ref.read(effectivePremiumProvider);
 
     final completer = Completer<String?>();
     _abortSummaryCoachWait = () {
@@ -1772,6 +1772,7 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     setState(() => _reviewedSentence = true);
     await Navigator.of(context).push(
       MaterialPageRoute(
+        settings: const RouteSettings(name: DetailScreen.routeName),
         builder: (_) => DetailScreen(
           sentence: sentence,
           source: 'quiz_review_button',

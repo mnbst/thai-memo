@@ -139,6 +139,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     await _runDetailCoach(prefs);
   }
 
+  /// 出せない段を諦めるまでの回数。0 だと今まで通り黙って消費し、大きすぎる
+  /// と対象の無い例文しか持たない人がその段で止まり続ける。
+  @visibleForTesting
+  static const maxUnavailableAttempts = 3;
+
   Future<void> _runDetailCoach(SharedPreferences prefs) async {
     var step = prefs.getInt(AppConfig.prefKeyDetailTourStep) ??
         _migratedTourStep(prefs);
@@ -151,10 +156,34 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
       if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
       final pending = _showCoachStep(step);
       // 対象が無い例文（音節データや文脈情報が欠けている）では出せない。
-      // 出せた場合はここで進捗を確定し、閉じられるまで待つ。
+      // ここで進捗を確定すると、その案内は一度も出ないまま完了扱いになる
+      // ので、進めずに打ち切って次に詳細を開いたときへ送る。ただし例文に
+      // よっては永久に対象が無いため、数回で見切って先へ進める。
+      if (pending == null) {
+        unawaited(
+          ref.read(analyticsServiceProvider).logCoachMark(
+                id: _coachIds[step],
+                action: 'unavailable',
+              ),
+        );
+        final attempts =
+            (prefs.getInt(AppConfig.prefKeyDetailTourStepAttempts) ?? 0) + 1;
+        if (attempts < maxUnavailableAttempts) {
+          await prefs.setInt(
+            AppConfig.prefKeyDetailTourStepAttempts,
+            attempts,
+          );
+          return;
+        }
+        step++;
+        await prefs.setInt(AppConfig.prefKeyDetailTourStep, step);
+        await prefs.remove(AppConfig.prefKeyDetailTourStepAttempts);
+        continue;
+      }
+      // 出せた段はここで進捗を確定し、閉じられるまで待つ。
       step++;
       await prefs.setInt(AppConfig.prefKeyDetailTourStep, step);
-      if (pending == null) continue;
+      await prefs.remove(AppConfig.prefKeyDetailTourStepAttempts);
       await pending;
       // 押させた段は、その操作が終わるまで次の案内を出さない。録音中や
       // 単語の詳細の上に次の吹き出しを重ねると、どちらも読めなくなる。
@@ -549,8 +578,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     return completer.future;
   }
 
+  /// ホーム側の初回ガイドにも例文カードの段があるため、詳細側は接頭辞を
+  /// 付けて分ける。同じ id で送ると、詳細ツアーの初段が何人に出たのかが
+  /// ホームの数に埋もれて測れない。
   static const _coachIds = [
-    'sentence_card',
+    'detail_sentence_card',
     'play_sentence',
     'pronunciation',
     'context',

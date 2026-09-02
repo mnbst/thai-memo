@@ -7,8 +7,15 @@ class AnalyticsService {
       : _analytics = FirebaseAnalytics.instance,
         observer = FirebaseAnalyticsObserver(
           analytics: FirebaseAnalytics.instance,
-          // Dialog や BottomSheet の内部 route は除外し、PageRoute のみ自動計測する。
-          routeFilter: (route) => route is PageRoute<dynamic>,
+          // Home の root route はタブ単位で手動計測する。名前のない route も
+          // (not set) の原因になるため、名前付き PageRoute だけを自動計測する。
+          routeFilter: (route) {
+            final name = route?.settings.name;
+            return route is PageRoute<dynamic> &&
+                name != null &&
+                name.isNotEmpty &&
+                name != '/';
+          },
         );
 
   static final AnalyticsService instance = AnalyticsService._internal();
@@ -22,9 +29,9 @@ class AnalyticsService {
 
   Future<void> setUserId(String? userId) async {
     if (_lastUserId == userId) return;
-    _lastUserId = userId;
     try {
       await _analytics.setUserId(id: userId);
+      _lastUserId = userId;
     } on PlatformException catch (error, stackTrace) {
       _logPlatformFailure('setUserId', error, stackTrace);
     } catch (error, stackTrace) {
@@ -34,9 +41,9 @@ class AnalyticsService {
 
   Future<void> setUserTier(String tier) async {
     if (_lastTier == tier) return;
-    _lastTier = tier;
     try {
       await _analytics.setUserProperty(name: 'tier', value: tier);
+      _lastTier = tier;
     } on PlatformException catch (error, stackTrace) {
       _logPlatformFailure('setUserProperty', error, stackTrace);
     } catch (error, stackTrace) {
@@ -117,7 +124,7 @@ class AnalyticsService {
     String? source,
   }) async {
     await _logEvent('quiz_answer', {
-      'correct': correct ? 1 : 0,
+      'correct': correct ? 'true' : 'false',
       'category': category,
       // 'question_index': questionIndex,
       'source': source,
@@ -148,7 +155,7 @@ class AnalyticsService {
     await _logEvent('tap_vocab_score', {
       'source': source,
       'vocab': vocab,
-      'is_premium': isPremium ? 1 : 0,
+      'is_premium': isPremium ? 'true' : 'false',
     });
   }
 
@@ -157,10 +164,10 @@ class AnalyticsService {
   /// パラメータは GA4 側で登録しないと (not set) になり、しかも遡及しない。
   /// 登録先は型で決まる。文字列は customDimension、数値は customMetric。
   /// 数値をディメンションで登録しても値は読めず (not set) のままになる。
-  /// 登録済み: source(dim) / worst_tone(dim) / score(metric) /
+  /// 登録済み: source(dim) / worst_tone(dim) / pronunciation_score(metric) /
   /// recognized_pct(metric)。source は他イベントと共有のディメンションなので、
   /// 画面別に見るときは eventName でも絞ること。
-  /// monotone は 0|1 の数値なので dim 登録は無効。metric に直すこと。
+  /// monotone は文字列 true|false のディメンションとして送る。
   Future<void> logPronunciationAttempt({
     required String sentenceId,
     required String source,
@@ -175,9 +182,11 @@ class AnalyticsService {
       // どの画面から練習したか（home_card / detail / sheet）。
       // 文字列なので customDimension 側の source を再利用する。
       'source': source,
-      'score': score.round(),
+      'pronunciation_score': score.round(),
       'syllable_count': syllableCount,
-      'monotone': monotone ? 1 : 0,
+      // 真偽値は割合をイベント数で計算できるようディメンションとして送る。
+      // 数値 0/1 では既存の customDimension が (not set) になる。
+      'monotone': monotone ? 'true' : 'false',
       'worst_tone': worstTone,
       // 音声認識に非対応の端末では送らない。判定できないことと
       // 判定して駄目だったことを分析上も混同させない。
@@ -201,7 +210,7 @@ class AnalyticsService {
   }) async {
     await _logEvent('paywall_view', {
       'source': source,
-      'product_loaded': productLoaded ? 1 : 0,
+      'product_loaded': productLoaded ? 'true' : 'false',
     });
   }
 
@@ -225,7 +234,10 @@ class AnalyticsService {
     required bool ok,
     String? code,
   }) async {
-    await _logEvent('purchase_verify', {'ok': ok ? 1 : 0, 'code': code});
+    await _logEvent('purchase_verify', {
+      'ok': ok ? 'true' : 'false',
+      'code': code,
+    });
   }
 
   Future<void> logOnboardingStart() async {
@@ -312,7 +324,8 @@ class AnalyticsService {
     int? vocabAfter,
   }) async {
     await _logEvent('summary_quiz_complete', {
-      'score': score,
+      // 発音側の score と同名にすると1つのカスタムメトリクスへ混ざる。
+      'quiz_score': score,
       'question_count': questionCount,
       'vocab_before': vocabBefore,
       'vocab_after': vocabAfter,
@@ -322,9 +335,9 @@ class AnalyticsService {
   /// アプリ言語をユーザープロパティにする。全指標を言語で割るために使う。
   Future<void> setUserAppLanguage(String lang) async {
     if (_lastAppLanguage == lang) return;
-    _lastAppLanguage = lang;
     try {
       await _analytics.setUserProperty(name: 'app_language', value: lang);
+      _lastAppLanguage = lang;
     } on PlatformException catch (error, stackTrace) {
       _logPlatformFailure('setUserProperty', error, stackTrace);
     } catch (error, stackTrace) {

@@ -418,7 +418,22 @@ functions/go/subscription_status_live_test.go
 落とす/残すの判定表を実Firestoreで1件ずつ確認する。全体スキャンは走らせない。
 
 functions/go/daily_batch.go
-dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_token・古い例文の掃除。常にHTTPトリガー。
+dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_token・古い例文の掃除、生成例文の品質監査。常にHTTPトリガー。
+
+functions/go/sentence_audit.go
+dailyBatch から呼ぶ品質監査。直近24時間の premium 例文を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書く。判定は既定で gpt-5.6-luna（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
+
+functions/go/sentence_audit_test.go
+監査対象の抽出条件（premium限定・本文必須）、間引き、束分けのテスト。
+
+functions/go/sentence_audit_live_test.go
+judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
+
+functions/go/internal/quality/judge.go
+例文品質judgeのプロンプト・スキーマ・sentence_flags ドキュメントの組み立て。判定基準は与えず、タイ語・訳文・key_wordだけ渡して理由を書かせる。
+
+functions/go/internal/quality/judge_test.go
+judgeレスポンスの選別（natural除外・理由なし除外・index重複）とドキュメント内容のテスト。
 
 functions/go/deliver_daily_sentence.go
 daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文を1件作ってFirestoreに書きFCM通知する。free はキャッシュのみ、premium/トライアルはLLM生成。
@@ -666,11 +681,14 @@ sentence_handlers.py の生成コア・保存ドキュメントと突き合わ�
 functions/go/generate_thai_sentence.go
 generateThaiSentence（callable）。認証・クォータ・トライアル判定・生成・保存・UVM更新。
 
+functions/go/cmd/sample/main.go
+ターゲット語・語彙帯・テーマを指定して本番と同じ経路で例文を量産する ablation 用コマンド。Firestore を通さず LLM だけ叩く。
+
 functions/go/generate_thai_sentence_golden_test.go
 sentence_handlers.py のクォータ・トライアル・生成条件と突き合わせる差分テスト。
 
 scripts/sample_sentences.py
-ターゲット語を指定して本番と同じ経路で例文をまとめて生成するプロンプト検証スクリプト。デプロイせずルール変更の効果を確認する。
+旧プロンプト検証スクリプト。functions/python の削除で動かない。後継は functions/go/cmd/sample。
 
 scripts/ga4_quiz_offer_experiment.py
 1問確認クイズ導線A/BテストのGA4ファネルを実験群別に集計する。
@@ -736,7 +754,10 @@ scripts/ga4_acquisition.py
 prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン別）。SAインパーソネーションで認証。
 
 scripts/ga4_register_dimension.py
-prod GA4 にイベントスコープのカスタムディメンションを登録／一覧。文字列パラメータを足したら実装と同時に実行する（登録は遡及しない）。
+prod GA4 のイベント／ユーザースコープのカスタムディメンションとカスタム指標を、実装スキーマに対して plan／check／apply／list する（登録は遡及しない）。
+
+scripts/ga4_funnel.py
+prod GA4 の Activation Funnel を Data API の閉鎖型ファネルとして集計。各イベントの独立ユーザー数ではなく、順番どおり到達したユーザーの遷移率と離脱数を表示する。
 
 scripts/ga4_language_resolution.py
 prod GA4 の初回起動時の言語決定の内訳（storefront取得失敗率・country×langの食い違い・storefront→langの整合性）。日本以外のユーザーが日本語UIで起動していないかの確認に使う。

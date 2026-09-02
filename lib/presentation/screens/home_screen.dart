@@ -62,7 +62,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, RouteAware {
   int _currentIndex = 0;
 
   /// 設定タブの位置。通知の案内はここへ移ってから出す。
@@ -72,6 +72,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   final _dailySentenceService = DailySentenceService();
   final _learningKey = GlobalKey<_LearningScreenState>();
   StreamSubscription<RemoteMessage>? _notificationOpenSubscription;
+  ModalRoute<dynamic>? _analyticsRoute;
 
   @override
   void initState() {
@@ -113,8 +114,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route == null || identical(route, _analyticsRoute)) return;
+    final observer = ref.read(analyticsServiceProvider).observer;
+    if (_analyticsRoute != null) observer.unsubscribe(this);
+    _analyticsRoute = route;
+    observer.subscribe(this, route);
+  }
+
+  @override
+  void didPopNext() {
+    // 詳細画面などから戻ったとき、root route の「/」ではなく現在のタブを送る。
+    _logCurrentTabScreen();
+  }
+
+  @override
   void dispose() {
     _notificationOpenSubscription?.cancel();
+    ref.read(analyticsServiceProvider).observer.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -190,7 +209,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final days = expiresAt.difference(DateTime.now()).inHours ~/ 24 + 1;
 
     unawaited(
-      ref.read(analyticsServiceProvider).logPremiumTrialStarted(action: 'shown'),
+      ref
+          .read(analyticsServiceProvider)
+          .logPremiumTrialStarted(action: 'shown'),
     );
     await showPremiumTrialStartedDialog(context, days: days);
     await prefs.setBool(AppConfig.prefKeyPremiumTrialStartedNotified, true);
@@ -308,7 +329,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final coachShown =
         ref.read(settingsControllerProvider).notificationCoachShown;
-    final permissionGranted = await controller.hasProminentNotificationPermission();
+    final permissionGranted =
+        await controller.hasProminentNotificationPermission();
     if (!shouldShowNotificationCoach(
       coachShown: coachShown,
       permissionGranted: permissionGranted,
@@ -1622,12 +1644,13 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     // 各ウィジェットに「濃い面の上か」を渡して回らずに済む。
     return Theme(
       data: Theme.of(context).copyWith(colorScheme: AppColors.onIndigo),
-      child: Builder(builder: (context) => _buildSentenceCardBody(
-            context,
-            sentence,
-            cardKey: cardKey,
-            borderRadius: borderRadius,
-          )),
+      child: Builder(
+          builder: (context) => _buildSentenceCardBody(
+                context,
+                sentence,
+                cardKey: cardKey,
+                borderRadius: borderRadius,
+              )),
     );
   }
 
@@ -2039,7 +2062,4 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       ),
     );
   }
-
 }
-
-

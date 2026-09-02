@@ -160,8 +160,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-              border:
-                  Border.all(color: AppColors.gold.withValues(alpha: 0.42)),
+              border: Border.all(color: AppColors.gold.withValues(alpha: 0.42)),
             ),
             padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
             child: Row(
@@ -293,8 +292,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onPressed: authState.isLoading ? null : _deleteAccount,
                 child: Text(
                   l10n.settingsDeleteAccount,
-                  style:
-                      TextStyle(color: Theme.of(context).colorScheme.error),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
               const SizedBox(width: 8),
@@ -429,7 +427,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         leading: const Icon(Icons.language),
         title: Text(l10n.settingsLanguage),
         subtitle: Text(l10n.settingsLanguageSubtitle),
-        trailing: _buildValueTrailing(ref.watch(appLanguageProvider).displayName),
+        trailing:
+            _buildValueTrailing(ref.watch(appLanguageProvider).displayName),
         onTap: () => _showLanguagePicker(ref.read(appLanguageProvider)),
       ),
       // 体験終了ダイアログは期限が来ないと出ないので、見た目の確認用に

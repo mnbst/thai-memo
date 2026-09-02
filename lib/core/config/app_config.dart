@@ -105,6 +105,15 @@ class AppConfig {
   /// そのまま使うと同じ案内を二度読ませる（detail_screen で読み替える）。
   static const String prefKeyDetailTourStep = 'detail_tour_step_v6';
 
+  /// 進捗が進んでいない段を、出せないまま何回試したか。
+  ///
+  /// 対象が描画されていない段（音節データの無い例文での発音練習など）で
+  /// 進捗を確定すると、その案内は一度も出ないまま完了扱いになる。次に
+  /// 詳細を開いたときに出し直すため進捗は据え置くが、例文によっては
+  /// 永久に対象が無いので、この回数で見切って先へ送る。
+  static const String prefKeyDetailTourStepAttempts =
+      'detail_tour_step_attempts';
+
   /// 単語と使い方の順を入れ替える前の進捗キー（読み替え用）。
   static const String prefKeyDetailTourStepV5 = 'detail_tour_step_v5';
 

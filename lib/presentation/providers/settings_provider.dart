@@ -193,7 +193,6 @@ class SettingsController extends StateNotifier<SettingsState> {
     // migrateExistingUserFlags では表示済みにしない。
     final notificationCoachShown =
         _prefs!.getBool(AppConfig.prefKeyNotificationCoachShown) ?? false;
-
     final appLanguage = await _resolveAppLanguage();
 
     state = SettingsState(
@@ -222,7 +221,8 @@ class SettingsController extends StateNotifier<SettingsState> {
     // ことが多く、毎回 en で立ち上がると日本語UIの確認ができない。
     // en の確認は設定の言語切替（dev専用）で行う。
     if (AppConfig.isDev) {
-      await _prefs!.setString(AppConfig.prefKeyAppLanguage, AppLanguage.ja.code);
+      await _prefs!
+          .setString(AppConfig.prefKeyAppLanguage, AppLanguage.ja.code);
       return AppLanguage.ja;
     }
 

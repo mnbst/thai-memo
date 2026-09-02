@@ -56,6 +56,12 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sent']);
     }
 
+    // 生成例文の品質監査ログ（dailyBatch が書く）。プロンプト改善の資料であって
+    // ユーザーに見せるものではない。他人の例文本文が入るので read も塞ぐ。
+    match /sentence_flags/{flagId} {
+      allow read, write: if false;
+    }
+
     // Legacy: notification_queue managed by Cloud Functions only
     match /notification_queue/{docId} {
       allow read, write: if false;

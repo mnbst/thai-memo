@@ -130,6 +130,15 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<Map<String, String>> coachMarkEvents = [];
 
   @override
+  Future<void> setUserAppLanguage(String lang) async {}
+
+  @override
+  Future<void> logReviewPrompt({
+    required String source,
+    required String outcome,
+  }) async {}
+
+  @override
   Future<void> logCoachMark({
     required String id,
     required String action,
