@@ -157,9 +157,7 @@ class _MyRankCard extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     final vocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
-    // 上限に張り付いた帯は全員同点なので、1位と出すと嘘になる。順位を伏せる。
-    final tied = isTiedBand(bandOf(vocab));
-    final rank = tied ? null : ref.watch(myRankProvider).valueOrNull;
+    final rank = ref.watch(myRankProvider).valueOrNull;
 
     return Card(
       color: colorScheme.primaryContainer,
@@ -195,20 +193,10 @@ class _MyRankCard extends ConsumerWidget {
                 ),
               ],
             ),
-            // 順位は全体ではなく同じ語彙帯の中のもの。どこと比べた数字なのかを
-            // 書かないと、帯が変わったときに順位が飛ぶ理由が読めない。
-            if (rank != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                l10n.rankingBandScope(_bandLabel(l10n, bandOf(vocab))),
-                style: textTheme.bodySmall
-                    ?.copyWith(color: colorScheme.onPrimaryContainer),
-              ),
-            ],
             if (rank == null) ...[
               const SizedBox(height: 4),
               Text(
-                tied ? l10n.rankingCapTiedNote : l10n.rankingUnrankedHint,
+                l10n.rankingUnrankedHint,
                 style: textTheme.bodySmall
                     ?.copyWith(color: colorScheme.onPrimaryContainer),
               ),
