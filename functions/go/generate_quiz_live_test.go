@@ -129,7 +129,7 @@ func TestSelectSentencesBySRS(t *testing.T) {
 		}
 	}
 
-	selected, err := selectSentencesBySRS(ctx, db, uid, jstNow)
+	selected, err := selectSentencesBySRS(ctx, db, uid, jstNow, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestSelectSentencesBySRSNoSentences(t *testing.T) {
 	fixedShuffle(t)
 
 	selected, err := selectSentencesBySRS(ctx, db,
-		"go-port-srs-empty-throwaway", time.Now().UTC().Add(jstOffset))
+		"go-port-srs-empty-throwaway", time.Now().UTC().Add(jstOffset), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

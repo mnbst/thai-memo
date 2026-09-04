@@ -23,11 +23,9 @@ import '../providers/quiz_offer_experiment_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
+import '../providers/review_prompt_provider.dart';
 import '../providers/vocab_stats_provider.dart';
-import '../widgets/coach_mark_overlay.dart';
-import '../widgets/learning_flow_coach_dialog.dart';
 import '../widgets/notification_coach_dialog.dart';
-import '../widgets/premium_hint_banner.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
@@ -36,11 +34,13 @@ import '../widgets/sentence_audio_section.dart';
 import '../widgets/thai_highlight.dart';
 import '../widgets/sign_in_reminder_banner.dart';
 import '../widgets/loading_tip_carousel.dart';
-import '../widgets/vocab_score_dialog.dart';
+import '../widgets/vocab_level.dart';
 import 'detail_screen.dart';
 import 'history_screen.dart';
 import 'interview_screen.dart';
 import 'onboarding_screen.dart';
+import 'vocab_test_screen.dart';
+import 'guide_screen.dart';
 import 'paywall_screen.dart';
 import 'quiz_screen.dart';
 import 'settings_screen.dart';
@@ -61,7 +61,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, RouteAware {
   int _currentIndex = 0;
 
   /// 設定タブの位置。通知の案内はここへ移ってから出す。
@@ -71,6 +71,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   final _dailySentenceService = DailySentenceService();
   final _learningKey = GlobalKey<_LearningScreenState>();
   StreamSubscription<RemoteMessage>? _notificationOpenSubscription;
+  ModalRoute<dynamic>? _analyticsRoute;
 
   @override
   void initState() {
@@ -112,8 +113,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route == null || identical(route, _analyticsRoute)) return;
+    final observer = ref.read(analyticsServiceProvider).observer;
+    if (_analyticsRoute != null) observer.unsubscribe(this);
+    _analyticsRoute = route;
+    observer.subscribe(this, route);
+  }
+
+  @override
+  void didPopNext() {
+    // 詳細画面などから戻ったとき、root route の「/」ではなく現在のタブを送る。
+    _logCurrentTabScreen();
+  }
+
+  @override
   void dispose() {
     _notificationOpenSubscription?.cancel();
+    ref.read(analyticsServiceProvider).observer.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -155,6 +174,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
+  /// 語彙測定を終えたオンボーディング末尾で、プレミアム体験の開始を伝える。
+  ///
+  /// 体験の起点はアカウント作成時なので、案内を出さないと本人は体験中だと
+  /// 気づかないまま終わる。ここだけはプランへの導線も添える。何が使えるのかを
+  /// 知った直後で、見たい人が自分で進める形にしておく（既定は「使ってみる」）。
+  ///
+  /// 一括配布向けの [_maybeShowPremiumTrialStarted] と同じフラグを立てて、
+  /// 同じ案内が二度出ないようにする。
+  Future<void> _showOnboardingTrialStarted() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyPremiumTrialStartedNotified) ?? false) {
+      return;
+    }
+    if (!mounted) return;
+
+    // 体験の入口なので日数は規定値で固定して出す。期限は JST 0:00 に切り上がる
+    // ので残りから数えると「3日間」に見えてしまい、告知した期間と食い違う。
+    const days = premiumTrialDays;
+
+    final analytics = ref.read(analyticsServiceProvider);
+    unawaited(analytics.logPremiumTrialStarted(action: 'shown'));
+
+    final openPaywall = await showPremiumTrialStartedDialog(
+      context,
+      days: days,
+      offerPaywall: true,
+    );
+    unawaited(
+      analytics.logPremiumTrialStarted(
+        action: openPaywall ? 'accepted' : 'dismissed',
+      ),
+    );
+    await prefs.setBool(AppConfig.prefKeyPremiumTrialStartedNotified, true);
+    if (!openPaywall || !mounted) return;
+    await PaywallBottomSheet.show(context, source: 'onboarding_trial_started');
+  }
+
   /// 後から配られたプレミアム体験の開放を、最初の起動で一度だけ知らせる。
   ///
   /// 黙って配ると本人は増えたことに気づかず、終了ダイアログで初めて「失った」と
@@ -171,27 +227,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await ref.read(userDocProvider.future);
     if (!mounted) return;
 
-    // 一括配布で配られた人だけが対象。新規ユーザーは初回ガイドで案内済み。
+    // 一括配布で配られた人だけが対象。
     if (ref.read(premiumTrialBackfilledAtProvider).valueOrNull == null) return;
     // 配布後に起動しないまま期限が切れた人には、開放を伝えても意味がない。
     // 何も持っていない状態で「開放しました」と言うことになる。
     if (!(ref.read(premiumTrialActiveProvider).valueOrNull ?? false)) return;
 
-    if (CoachMarkOverlay.isVisible ||
-        ModalRoute.of(context)?.isCurrent != true) {
-      return;
-    }
+    if (ModalRoute.of(context)?.isCurrent != true) return;
 
     final expiresAt = ref.read(premiumTrialExpiresAtProvider).valueOrNull;
     if (expiresAt == null) return;
-    // 残り日数は切り上げる。期限は JST 0:00 に揃っているので、期限当日は
-    // 「あと1日」になる（0日と出すと、まだ使えるのに終わったように見える）。
-    final days = expiresAt.difference(DateTime.now()).inHours ~/ 24 + 1;
-
     unawaited(
-      ref.read(analyticsServiceProvider).logPremiumTrialStarted(action: 'shown'),
+      ref
+          .read(analyticsServiceProvider)
+          .logPremiumTrialStarted(action: 'shown'),
     );
-    await showPremiumTrialStartedDialog(context, days: days);
+    await showPremiumTrialStartedDialog(context, days: premiumTrialDays);
     await prefs.setBool(AppConfig.prefKeyPremiumTrialStartedNotified, true);
   }
 
@@ -216,10 +267,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (ref.read(premiumTrialEndedAtProvider).valueOrNull == null) return;
     if (ref.read(effectivePremiumProvider)) return;
 
-    if (CoachMarkOverlay.isVisible ||
-        ModalRoute.of(context)?.isCurrent != true) {
-      return;
-    }
+    if (ModalRoute.of(context)?.isCurrent != true) return;
 
     final analytics = ref.read(analyticsServiceProvider);
     unawaited(analytics.logPremiumTrialEnded(action: 'shown'));
@@ -253,13 +301,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ref.read(settingsControllerProvider).notificationCoachShown) {
       return;
     }
-    // 初回ガイドの最中には割り込ませない。初回は例文が自動生成されるため
-    // 「例文がある」だけでは価値を体験したことにならない。
-    final prefs = await SharedPreferences.getInstance();
-    if (!(prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false)) return;
-    if (!mounted) return;
+    // 初回は例文が自動生成されるため、1つあるだけでは価値を体験したことに
+    // ならない。2つ目まで進んだ人にだけ聞く。
     final sentences = await ref.read(allSentencesProvider.future);
-    if (sentences.isEmpty || !mounted) return;
+    if (sentences.length < 2 || !mounted) return;
     // タブが描画されてから案内を重ねる。開いた直後に離れた人には出さない。
     await Future<void>.delayed(const Duration(milliseconds: 300));
     if (!mounted || _currentIndex != _settingsTabIndex) return;
@@ -307,7 +352,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final coachShown =
         ref.read(settingsControllerProvider).notificationCoachShown;
-    final permissionGranted = await controller.hasProminentNotificationPermission();
+    final permissionGranted =
+        await controller.hasProminentNotificationPermission();
     if (!shouldShowNotificationCoach(
       coachShown: coachShown,
       permissionGranted: permissionGranted,
@@ -319,13 +365,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       }
       return;
     }
-    // 他のコーチマークや前面の画面（オンボーディング等）とは重ねない。
-    // ここで出さなくても表示済みフラグは立たないため、次の起動で出し直される。
-    if (!mounted ||
-        CoachMarkOverlay.isVisible ||
-        ModalRoute.of(context)?.isCurrent != true) {
-      return;
-    }
+    // 前面に別の画面がある間は出さない。ここで出さなくても表示済みフラグは
+    // 立たないため、次の起動で出し直される。
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
 
     final analytics = ref.read(analyticsServiceProvider);
     unawaited(analytics.logNotificationCoach(action: 'shown'));
@@ -402,7 +444,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     if (isFirstLaunch) {
       if (mounted) {
-        // オンボーディング画面を表示し、完了を待つ
+        // まず機能紹介の3枚。何のアプリかを見せてから質問へ入る。
         await Navigator.push<void>(
           context,
           MaterialPageRoute(
@@ -416,18 +458,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         );
       }
       if (mounted) {
-        // 機能紹介の後にヒアリングを挟む。ここで本人の状況を聞いてから
-        // アプリの考え方を伝え、その流れでコーチマークへ入る。
+        // 続けてヒアリング。本人の状況を聞いてから説明書・語彙テストへ入る。
         await Navigator.push<void>(
           context,
           MaterialPageRoute(
             settings: const RouteSettings(name: InterviewScreen.routeName),
             builder: (context) => InterviewScreen(
-              // 最後の設問の直後に生成を始める。考え方の画面と初回ガイドを
-              // 読んでいる間に進む。
-              onAnswersReady: (goal) {
-                _initialLoadFuture ??= _applyInterviewTopicAndLoad(goal);
-              },
               onComplete: () {
                 Navigator.pop(context);
               },
@@ -436,20 +472,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         );
       }
       // 回答の送信は分析と毎日配信のため。テーマは端末側で決めるので、
-      // 書き込みの着地は待たない。通常は onAnswersReady で生成開始済みで、
-      // 考え方の画面を読まずに閉じた場合だけここが起点になる。
+      // 書き込みの着地は待たない。語彙スコアには効かないので、着地の順序が
+      // 語彙テストと前後しても影響しない。
       unawaited(InterviewReporter().report());
+
+      if (mounted) {
+        // 先に使い方の説明書を先頭から読ませる。読みたくない人はスキップ
+        // できる。語彙テストは「何を測るのか」が分かってからのほうが、
+        // 意味の分からない4択を突然出されるより降りられにくい。
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(name: GuideScreen.routeName),
+            builder: (context) => GuideScreen(
+              isFirstLaunch: true,
+              onDone: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      }
+
+      // 最後に語彙テスト。生成の開始はこの後まで待つ。key_word は
+      // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
+      // 0 語相当の難度で出てしまう。
+      if (mounted) {
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(name: VocabTestScreen.routeName),
+            builder: (context) => VocabTestScreen(
+              mandatory: true,
+              source: 'onboarding',
+              onFinished: (_) => Navigator.pop(context),
+            ),
+          ),
+        );
+      }
+
+      // 測り終えた直後に、ここから体験が始まることを伝える。
+      // 新規ユーザーの体験はアカウント作成時から動いているので、黙っていると
+      // 「最初から多かった」としか映らず、終了時に失うものが結び付かない。
+      if (mounted) {
+        await _showOnboardingTrialStarted();
+      }
+
+      // 生成開始。ここから先は学習画面のローディングで待たせる。
       _initialLoadFuture ??= _applyInterviewTopicAndLoad(await _savedGoal());
 
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
-
-      if (mounted) {
-        // ダイアログでデモの枠組みを伝える。閉じた後に例文とコーチマークが
-        // 競合なく出せる。
-        await _showFirstTimeGuideDialog();
-        _retriggerCoachMarkIfLoaded();
-      }
     }
 
     if (!mounted) return;
@@ -498,63 +569,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           dailySentenceGenerated: isGenerated,
           generationParams: ref.read(generationParamsProvider),
         );
-  }
-
-  /// オンボーディング中に生成が完了していた場合、コーチマークの表示判定は
-  /// ModalRoute.isCurrent で抑止されたまま再試行されない。状態を再通知して
-  /// 表示判定をやり直させる（表示済みならprefsチェックで何も起きない）。
-  void _retriggerCoachMarkIfLoaded() {
-    final state = ref.read(sentenceControllerProvider);
-    if (state is SentenceStateSuccess) {
-      ref
-          .read(sentenceControllerProvider.notifier)
-          .showSentence(state.sentence);
-    }
-  }
-
-  Future<void> _showFirstTimeGuideDialog() {
-    return showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(Icons.school, size: 40),
-        title: Text(L10n.of(context).firstGuideTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(L10n.of(context).firstGuideBody),
-            const SizedBox(height: 12),
-            // 体験が始まっていることを認識させる。終了時の訴求はここを前提にする。
-            Row(
-              children: [
-                Icon(
-                  Icons.workspace_premium_outlined,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    L10n.of(context).firstGuideTrial,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        scrollable: true,
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(L10n.of(context).commonOk),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -647,6 +661,21 @@ bool shouldAutoLoadAfterSentenceQuotaRefresh({
       changedFromNoRemainingToAvailable(previous, next);
 }
 
+/// まとめクイズ（5問チャレンジ）を誘導する間隔（例文の本数）。
+@visibleForTesting
+const int summaryQuizThreshold = 5;
+
+/// 確認クイズのサマリーでまとめクイズへ誘導するか。
+///
+/// completedCount は前回のまとめクイズ以降にこなした例文の本数（いま解いて
+/// いる確認クイズの1本は含まない）。例文 summaryQuizThreshold 本ごとに出す。
+///
+/// 以前は初回だけ 1 本目で誘導していたが、使い始めの1本目に別のクイズを
+/// 重ねるより、まず例文→確認クイズの一巡に慣れてもらうほうがよいのでやめた。
+@visibleForTesting
+bool shouldOfferSummaryQuiz(int completedCount) =>
+    completedCount + 1 >= summaryQuizThreshold;
+
 class LearningScreen extends ConsumerStatefulWidget {
   /// 初回の学習が一巡（まとめクイズ完了）した直後に呼ばれる。
   /// 通知の案内を出してよいタイミング（まとめクイズの結果／その見送り）。
@@ -660,23 +689,15 @@ class LearningScreen extends ConsumerStatefulWidget {
 }
 
 class _LearningScreenState extends ConsumerState<LearningScreen> {
-  static const int _summaryQuizThreshold = 5;
-  static const int _firstTimeSummaryQuizThreshold = 1;
   static const String _completedCountKey = 'learning_completed_count';
   _LearningStage _stage = _LearningStage.sentence;
   ThaiSentence? _quizSentence;
   int _completedCount = 0;
-  bool _firstSummaryQuizCompleted = true;
-
-  int get _currentThreshold => _firstSummaryQuizCompleted
-      ? _summaryQuizThreshold
-      : _firstTimeSummaryQuizThreshold;
 
   @override
   void initState() {
     super.initState();
     _loadCompletedCount();
-    _loadFirstSummaryQuizFlag();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _restoreSavedSummaryQuizIfNeeded();
       ref.listenManual(sentenceControllerProvider, (prev, next) {
@@ -688,21 +709,6 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
         }
       });
     });
-  }
-
-  Future<void> _loadFirstSummaryQuizFlag() async {
-    final prefs = await SharedPreferences.getInstance();
-    final completed =
-        prefs.getBool(AppConfig.prefKeyFirstSummaryQuizCompleted) ?? false;
-    if (mounted && completed != _firstSummaryQuizCompleted) {
-      setState(() => _firstSummaryQuizCompleted = completed);
-    }
-  }
-
-  Future<void> _markFirstSummaryQuizCompleted() async {
-    _firstSummaryQuizCompleted = true;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(AppConfig.prefKeyFirstSummaryQuizCompleted, true);
   }
 
   Future<void> _restoreSavedSummaryQuizIfNeeded() async {
@@ -765,7 +771,27 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
           .read(quizControllerProvider.notifier)
           .prepareQuiz(sentenceState.sentence);
       ref.invalidate(allSentencesProvider);
+      unawaited(_requestReviewAfterSentenceGenerated());
     }
+  }
+
+  /// 例文が出た直後は満足度が高い。クイズまで進まない層への唯一の依頼機会
+  /// なので、生成の完了を待ってから静かに出す。
+  Future<void> _requestReviewAfterSentenceGenerated() async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted ||
+        ref.read(sentenceControllerProvider) is! SentenceStateSuccess) {
+      return;
+    }
+    final outcome = await ref
+        .read(reviewPromptServiceProvider)
+        .maybeRequestAfterSentenceGenerated();
+    unawaited(
+      ref.read(analyticsServiceProvider).logReviewPrompt(
+            source: 'sentence',
+            outcome: outcome.name,
+          ),
+    );
   }
 
   @override
@@ -780,7 +806,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     });
 
     // この確認クイズのサマリーでまとめクイズへ誘導するか。
-    final offerSummaryQuiz = _completedCount + 1 >= _currentThreshold;
+    final offerSummaryQuiz = shouldOfferSummaryQuiz(_completedCount);
 
     return switch (_stage) {
       _LearningStage.sentence => TodayScreen(
@@ -840,9 +866,6 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             title: l10n.learnSummaryQuizTitle,
             showVocabScoreTransition: true,
             onNextSentence: () async {
-              if (!_firstSummaryQuizCompleted) {
-                await _markFirstSummaryQuizCompleted();
-              }
               await _setCompletedCount(0);
               await _proceedToNextSentence();
             },
@@ -933,21 +956,14 @@ class TodayScreen extends ConsumerStatefulWidget {
 }
 
 class _TodayScreenState extends ConsumerState<TodayScreen> {
-  /// 「確認クイズへ」ボタンの位置特定用（初回コーチマーク表示に使用）。
+  /// 「確認クイズへ」ボタンの位置特定用（導線が画面内にあるかの判定に使う）。
   final GlobalKey _quizButtonKey = GlobalKey();
-
-  /// 例文カードの位置特定用（初回コーチマーク1段目で使用）。
-  final GlobalKey _sentenceCardKey = GlobalKey();
-
-  /// 「今日の学習単語」の位置特定用（初回コーチマーク3段目で使用）。
-  final GlobalKey _targetWordsKey = GlobalKey();
   final GlobalKey _sentenceScrollViewportKey = GlobalKey();
   final ScrollController _sentenceScrollController = ScrollController();
   final Set<String> _scheduledQuizOfferShown = {};
   final Set<String> _loggedQuizOfferShown = {};
   final Set<String> _handledQuizOfferTaps = {};
   bool _quizOfferAssignmentHandled = false;
-  bool _sentenceCoachInFlight = false;
 
   /// 上限到達時のペイウォール導線の shown を二重に送らないためのフラグ。
   /// build はエラー表示のまま何度も走るので、State の生存期間中1回に絞る。
@@ -957,196 +973,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   void initState() {
     super.initState();
     _sentenceScrollController.addListener(_maybeLogVisibleQuizOffer);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowSentenceCoach();
-      ref.listenManual(sentenceControllerProvider, (prev, next) {
-        if (next is SentenceStateSuccess) _maybeShowSentenceCoach();
-      });
-    });
   }
 
   @override
   void dispose() {
-    CoachMarkOverlay.dismissFor(_sentenceCardKey);
-    CoachMarkOverlay.dismissFor(_quizButtonKey);
-    CoachMarkOverlay.dismissFor(_targetWordsKey);
     _sentenceScrollController
       ..removeListener(_maybeLogVisibleQuizOffer)
       ..dispose();
     super.dispose();
-  }
-
-  /// 初回ガイドを3段階でスポットライト表示する。
-  /// 1段目は「今日の学習単語」＝出題される語、2段目は例文カード（詳細を
-  /// 開かせる）、詳細から戻ったら3段目で「覚えたか確認」を案内する。
-  /// 各段は1回だけ。読んだ後に出し直さない。
-  /// 例文が表示され、前面にダイアログ等がない場合のみ。
-  Future<void> _maybeShowSentenceCoach() async {
-    // 詳細からの復帰と再描画で二重に走ると、表示後にもう一方の
-    // ensureVisible がスクロールし、スポットだけ取り残される。
-    if (_sentenceCoachInFlight) return;
-    _sentenceCoachInFlight = true;
-    try {
-      await _showSentenceCoach();
-    } finally {
-      _sentenceCoachInFlight = false;
-    }
-  }
-
-  Future<void> _showSentenceCoach() async {
-    if (ref.read(sentenceControllerProvider) is! SentenceStateSuccess) return;
-    final prefs = await SharedPreferences.getInstance();
-
-    // 機能紹介の締めくくりを読んだ直後の1回だけ、学習の流れをまとめて教える。
-    // 個々の機能はここまでの段で案内済みなので、残るのは「例文とクイズを
-    // どう行き来するのか」と「語彙スコアがどこで動くのか」。
-    await _maybeShowLearningFlowCoach(prefs);
-    if (!mounted) return;
-
-    // 1段目。何を覚える回なのかを先に見せる。ここが分からないまま例文を
-    // 開かせても、どこを読めばよいのか分からない。
-    if (!(prefs.getBool(AppConfig.prefKeyTargetWordsCoachShown) ?? false)) {
-      await _showCoachStep(
-        targetKey: _targetWordsKey,
-        id: 'target_words',
-        icon: Icons.lightbulb_outline,
-        alignment: 0.1,
-        titleOf: (l10n) => l10n.coachTargetWordsTitle,
-        messageOf: (l10n) => l10n.coachTargetWordsMessage,
-        emphasisOf: (l10n) => l10n.coachTargetWordsEmphasis,
-        // 単語カードは「押す場所」ではないので、ボタンだけで閉じさせる。
-        targetTappable: false,
-        confirm: true,
-        shownFlagKey: AppConfig.prefKeyTargetWordsCoachShown,
-        prefs: prefs,
-      );
-      // 単語が無い例文では出せない（action は null）。その回は次の段へ進む。
-      if (!mounted) return;
-    }
-
-    // 2段目。例文カードを押させて詳細を開かせる。
-    if (!(prefs.getBool(AppConfig.prefKeyDetailCoachShown) ?? false)) {
-      final action = await _showCoachStep(
-        targetKey: _sentenceCardKey,
-        id: 'sentence_card',
-        icon: Icons.touch_app,
-        alignment: 0.1,
-        titleOf: (l10n) => l10n.coachDetailTitle,
-        messageOf: (l10n) => l10n.coachDetailMessage,
-        shownFlagKey: AppConfig.prefKeyDetailCoachShown,
-        prefs: prefs,
-      );
-      // 詳細へ移ったなら、続きは戻ってきた回に出す。ここで次を出すと
-      // 詳細画面の上に残る。
-      if (action == 'tapped' || !mounted) return;
-    }
-
-    // 3段目。覚えたかを確かめる導線。まず例文を読ませたいので、ここは
-    // 押させずに在り処だけ教える。
-    if (!(prefs.getBool(AppConfig.prefKeySentenceCoachShown) ?? false)) {
-      await _showCoachStep(
-        targetKey: _quizButtonKey,
-        id: 'quiz_button',
-        icon: Icons.quiz,
-        alignment: 0.72,
-        titleOf: (l10n) => l10n.coachQuizTitle,
-        messageOf: (l10n) => l10n.coachQuizMessage,
-        targetTappable: false,
-        confirm: true,
-        shownFlagKey: AppConfig.prefKeySentenceCoachShown,
-        prefs: prefs,
-      );
-    }
-  }
-
-  /// 学習の流れ（例文 → クイズ → …、5問クイズで語彙スコアが動く）を
-  /// 複数ページのダイアログで案内する。
-  ///
-  /// クイズ結果の締めくくりで予約され、次に例文が表示された回に出す。
-  /// スポットライトと違って画面の一部を指さないので、例文が出ていれば足りる。
-  Future<void> _maybeShowLearningFlowCoach(SharedPreferences prefs) async {
-    if (!(prefs.getBool(AppConfig.prefKeyLearningFlowCoachPending) ?? false)) {
-      return;
-    }
-    // 予約が残ったまま二度出さない。
-    if (prefs.getBool(AppConfig.prefKeyLearningFlowCoachShown) ?? false) {
-      await prefs.remove(AppConfig.prefKeyLearningFlowCoachPending);
-      return;
-    }
-    if (!mounted ||
-        ModalRoute.of(context)?.isCurrent != true ||
-        CoachMarkOverlay.isVisible) {
-      // 出せなかった回は予約を残す。次に例文へ来たときに出し直す。
-      return;
-    }
-
-    await prefs.setBool(AppConfig.prefKeyLearningFlowCoachShown, true);
-    await prefs.remove(AppConfig.prefKeyLearningFlowCoachPending);
-    if (!mounted) return;
-    final analytics = ref.read(analyticsServiceProvider);
-    unawaited(analytics.logCoachMark(id: 'learning_flow', action: 'shown'));
-    await LearningFlowCoachDialog.show(context);
-    unawaited(analytics.logCoachMark(id: 'learning_flow', action: 'confirmed'));
-  }
-
-  /// 1段出して、閉じられるまで待つ。閉じ方（tapped / confirmed / dismissed）を
-  /// 返す。対象が描画されていない・出せなかった場合は null。
-  ///
-  /// [shownFlagKey] を渡すと、出せた時点で表示済みにする。閉じ方では判断
-  /// しない（読んだ後にどう閉じたかは、案内が届いたかとは別）。
-  Future<String?> _showCoachStep({
-    required GlobalKey targetKey,
-    required String id,
-    required IconData icon,
-    required double alignment,
-    required String Function(L10n) titleOf,
-    required String Function(L10n) messageOf,
-    String Function(L10n)? emphasisOf,
-    bool targetTappable = true,
-    bool confirm = false,
-    String? shownFlagKey,
-    SharedPreferences? prefs,
-  }) async {
-    // 単語が無い例文では節ごと描画されない（キーも付かない）。
-    final targetContext = targetKey.currentContext;
-    if (!mounted ||
-        targetContext == null ||
-        !targetContext.mounted ||
-        !TickerMode.getValuesNotifier(targetContext).value.enabled ||
-        ModalRoute.of(context)?.isCurrent != true) {
-      return null;
-    }
-
-    // inline群でも初回ガイドの対象が画面内に入るようにして、ガイド有無が
-    // 実験結果へ混入しないよう両群を同じ条件に揃える。
-    await Scrollable.ensureVisible(
-      targetContext,
-      alignment: alignment,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
-    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return null;
-
-    final l10n = L10n.of(context);
-    final completer = Completer<String>();
-    final shown = CoachMarkOverlay.show(
-      context,
-      targetKey: targetKey,
-      id: id,
-      analytics: ref.read(analyticsServiceProvider),
-      icon: icon,
-      title: titleOf(l10n),
-      message: messageOf(l10n),
-      emphasis: emphasisOf?.call(l10n),
-      targetTappable: targetTappable,
-      confirmLabel: confirm ? l10n.coachGotIt : null,
-      onDismiss: (action) {
-        if (!completer.isCompleted) completer.complete(action);
-      },
-    );
-    if (!shown) return null;
-    if (shownFlagKey != null) await prefs?.setBool(shownFlagKey, true);
-    return completer.future;
   }
 
   @override
@@ -1165,8 +999,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       appBar: AppBar(
         centerTitle: false,
         titleSpacing: AppConfig.screenPadding,
+        // ボトムナビと同じ「学習」を繰り返さない。中身を名乗る。
         title: Text(
-          L10n.of(context).navLearn,
+          L10n.of(context).learnAppBarTitle,
           style: Theme.of(context).appBarTheme.titleTextStyle?.copyWith(
                 fontSize: 21,
                 letterSpacing: 0.02 * 21,
@@ -1186,7 +1021,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   }
 
   /// ヘッダー右の語彙スコア。学習の手応えを常に見える場所に置く。
-  /// 押すと設定画面と同じ内訳ダイアログを開く。
+  /// 内訳は設定画面の語彙スコアカードで見せるので、ここは表示だけ。
   Widget _buildVocabScoreChip(BuildContext context) {
     final stats = ref.watch(vocabStatsProvider).valueOrNull;
     if (stats == null) return const SizedBox.shrink();
@@ -1200,42 +1035,34 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return InkWell(
-      onTap: () => showVocabScoreInfo(
-        context,
-        stats.estimatedVocab,
-        isPremium: isPremium,
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 13),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: cs.outlineVariant),
       ),
-      borderRadius: BorderRadius.circular(17),
-      child: Container(
-        height: 34,
-        padding: const EdgeInsets.symmetric(horizontal: 13),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: cs.outlineVariant),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(vocabLevelIcon(levelId), size: 15, color: AppColors.gold),
-            const SizedBox(width: 7),
-            Text(
-              L10n.of(context).vocabWords(vocab),
-              style: textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
-              ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(vocabLevelIcon(levelId), size: 15, color: AppColors.gold),
+          const SizedBox(width: 7),
+          Text(
+            L10n.of(context).vocabWords(vocab),
+            style: textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: cs.onSurface,
             ),
-            const SizedBox(width: 6),
-            Text(
-              level,
-              style: textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            level,
+            style: textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1301,15 +1128,20 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   banner: true,
                 ),
                 const SizedBox(height: 14),
-                _buildSentenceCard(context, sentence,
-                    cardKey: _sentenceCardKey),
-                const SizedBox(height: 14),
+                _buildSentenceCard(context, sentence),
+                // 聞くは例文の付属。ここだけ詰めて1組に見せる。
+                const SizedBox(height: 8),
                 SentenceAudioSection(
                   sentence: sentence,
                   analyticsSource: 'today_sentence',
                   practiceScope: 'home_card',
+                  // 発音練習は詳細画面だけに置く。学習タブは
+                  // 読む → 覚えたか確認 の一本道に保つ。
+                  showPractice: false,
                 ),
-                const SizedBox(height: 18),
+                // ここで組が変わる（読む → 覚える）。上の間隔より広く取る。
+                // ボタン自身が上下に余白を持つので、見た目の差は数値より開く。
+                const SizedBox(height: 14),
                 _buildTargetWordsSection(context, sentence),
                 // 導線は学習単語のすぐ下に置く。「この単語を覚える → 確認する」
                 // が一続きに見える距離で、別セクションには見せない。
@@ -1322,7 +1154,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         _handleQuizOfferTap(sentence, quizOfferVariant),
                   ),
                 ],
-                const PremiumHintBanner(),
               ],
             ),
           ),
@@ -1365,9 +1196,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       await _logQuizOfferAssignmentOnce(variant);
       if (!mounted) return;
 
-      // 初回ガイドはinlineが画面外でも先にスクロールして対象を見せる。
-      // ガイドによるスクロール中もvisibility listenerがshownを記録する。
-      unawaited(_maybeShowSentenceCoach());
       _logQuizOfferShownIfVisible(eventKey, variant);
     });
   }
@@ -1489,7 +1317,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final cs = theme.colorScheme;
 
     return Column(
-      key: _targetWordsKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 見出しは字だけだと本文に埋もれるので、右へ罫線を伸ばして区切る。
@@ -1534,9 +1361,12 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                               Text(
                                 word,
                                 // タイ文字は bold だと声調記号が潰れる。
+                                // 色は読みと揃える。例文カードの金と同じ語だと
+                                // 一目で結び付く。
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontSize: 19,
                                   fontWeight: FontWeight.w600,
+                                  color: AppColors.goldInk,
                                 ),
                               ),
                               if (wb != null) ...[
@@ -1544,7 +1374,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                                 Text(
                                   wb.pronunciation,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: AppColors.gold,
+                                    color: AppColors.goldInk,
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
@@ -1592,33 +1422,30 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   /// Build a sentence card (shared between single and batch views)
   Widget _buildSentenceCard(
     BuildContext context,
-    ThaiSentence sentence, {
-    Key? cardKey,
-  }) {
+    ThaiSentence sentence,
+  ) {
     final borderRadius = BorderRadius.circular(AppConfig.heroBorderRadius);
     // カードの中身（再生ボタン・シークバー・ティアバッジ）は ColorScheme から
     // 色を引くので、面を深藍にする代わりにスキームごと差し替える。
     // 各ウィジェットに「濃い面の上か」を渡して回らずに済む。
     return Theme(
       data: Theme.of(context).copyWith(colorScheme: AppColors.onIndigo),
-      child: Builder(builder: (context) => _buildSentenceCardBody(
-            context,
-            sentence,
-            cardKey: cardKey,
-            borderRadius: borderRadius,
-          )),
+      child: Builder(
+          builder: (context) => _buildSentenceCardBody(
+                context,
+                sentence,
+                borderRadius: borderRadius,
+              )),
     );
   }
 
   Widget _buildSentenceCardBody(
     BuildContext context,
     ThaiSentence sentence, {
-    required Key? cardKey,
     required BorderRadius borderRadius,
   }) {
     final cs = Theme.of(context).colorScheme;
     return Card(
-      key: cardKey,
       clipBehavior: Clip.antiAlias,
       color: AppColors.indigo,
       shape: RoundedRectangleBorder(borderRadius: borderRadius),
@@ -1639,11 +1466,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   ),
                 ),
               );
-              // 詳細から戻ったタイミングでクイズへの案内を出す。
-              // pop のアニメーション完了を待たないと isCurrent 判定で弾かれる。
-              await Future<void>.delayed(const Duration(milliseconds: 350));
-              if (!mounted) return;
-              unawaited(_maybeShowSentenceCoach());
             },
             borderRadius: borderRadius,
             child: Padding(
@@ -1668,6 +1490,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                               ) ??
                           TextStyle(fontSize: 32, color: cs.onSurface),
                       cs.primary,
+                      words: sentence.wordBreakdowns,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1714,10 +1537,18 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         _buildSentenceTopicTag(context, sentence),
                       const Spacer(),
                       _buildFavoriteButton(context, sentence),
+                      // 「>」だけだと何へ続くのか読めない。語を添える。
+                      Text(
+                        L10n.of(context).learnOpenDetail,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant.withValues(alpha: 0.85),
+                            ),
+                      ),
+                      const SizedBox(width: 3),
                       Icon(
                         Icons.chevron_right,
-                        size: 20,
-                        color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                        size: 18,
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.85),
                       ),
                     ],
                   ),
@@ -1726,8 +1557,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ),
           ),
           Positioned(
-            top: 0,
-            right: 0,
+            top: 14,
+            right: 16,
             child: _buildSentenceTierBadge(context, sentence),
           ),
         ],
@@ -1801,34 +1632,32 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         : _legacySentenceLooksPremium();
     final foreground = cs.onSurfaceVariant;
 
+
     return Tooltip(
       message: showPremium
           ? L10n.of(context).badgePremiumSentence
           : L10n.of(context).badgeFreeSentence,
+      // カードの角に食い込ませると角丸が欠けて見える。内側のピルにする。
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 5, 12, 5),
+        padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
         decoration: BoxDecoration(
-          color: showPremium
-              ? cs.primaryContainer.withValues(alpha: 0.72)
-              : cs.surfaceContainerHighest.withValues(alpha: 0.86),
-          border: Border(
-            left: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: 0.55),
-            ),
-            bottom: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: 0.55),
-            ),
+          color: Colors.transparent,
+          border: Border.all(
+            color: showPremium
+                ? AppColors.gold.withValues(alpha: 0.45)
+                : cs.outlineVariant.withValues(alpha: 0.55),
           ),
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(8),
-          ),
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
-          showPremium ? 'Premium' : 'Free',
+          showPremium ? 'PREMIUM' : 'FREE',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontSize: 11,
-                color: foreground.withValues(alpha: 0.82),
-                fontWeight: FontWeight.w400,
+                fontSize: 10,
+                letterSpacing: 0.6,
+                color: showPremium
+                    ? AppColors.gold
+                    : foreground.withValues(alpha: 0.82),
+                fontWeight: FontWeight.w700,
               ),
         ),
       ),
@@ -2017,7 +1846,4 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       ),
     );
   }
-
 }
-
-

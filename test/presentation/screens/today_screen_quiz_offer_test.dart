@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
-import 'package:thai_memo/core/config/app_config.dart';
 import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/data/sentence_repository.dart';
 import 'package:thai_memo/domain/delete_sentence_usecase.dart';
@@ -115,16 +114,7 @@ void main() {
   late FakeFirebaseAuth auth;
 
   setUp(() {
-    SharedPreferences.setMockInitialValues({
-      // 初回ガイドは一巡済みとして測る。コーチマークが出ていると導線を
-      // 覆ってしまい、実験の計測とは別の話になる。
-      AppConfig.prefKeyTargetWordsCoachShown: true,
-      AppConfig.prefKeyDetailCoachShown: true,
-      AppConfig.prefKeySentenceCoachShown: true,
-      AppConfig.prefKeyFirstSummaryQuizCompleted: false,
-      AppConfig.prefKeyPremiumHintDismissedAt:
-          DateTime.now().millisecondsSinceEpoch,
-    });
+    SharedPreferences.setMockInitialValues(<String, Object>{});
     auth = FakeFirebaseAuth();
     FirebaseAuthService.authOverride = auth;
   });

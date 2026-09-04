@@ -2,13 +2,14 @@ package function
 
 import (
 	"context"
-	"encoding/json"
 	"log"
+	"time"
 
 	"cloud.google.com/go/firestore"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/callable"
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
+	"github.com/mnbst/thai-memo/functions/go/internal/premium"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
@@ -55,11 +56,12 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 		return nil, callable.Errorf(callable.Internal, "語彙データを読み込めませんでした")
 	}
 
-	// tier はクライアントから書けないサーバー専用フィールド。
+	// tier はクライアントから書けないサーバー専用フィールド。トライアル中も
+	// premium と同じ扱いにする（tier だけで見ると、体験中に伸ばした
+	// estimated_vocab がクイズのたびに 100 へ切り戻される）。
 	isPremium := false
 	if snap, err := db.Collection("users").Doc(uid).Get(ctx); err == nil && snap.Exists() {
-		tier, _ := snap.Data()["tier"].(string)
-		isPremium = tier == "premium"
+		isPremium = premium.IsEffectivePremium(snap.Data(), time.Now())
 	}
 
 	log.Printf("updateUvm: uid=%s, quiz_type=%s, results=%d", uid, in.QuizType, len(results))
@@ -106,22 +108,11 @@ func parseResult(raw map[string]any) (uvm.Result, error) {
 			"is_correct が必要です (word=%s)", word)
 	}
 
-	// Python は isinstance(x, (int, float)) を見て int() する。JSON の数値は
-	// すべて float64 で届くので、数値のときだけ切り捨てる。
-	hint := 0
-	switch v := raw["hint_level"].(type) {
-	case float64:
-		hint = int(v)
-	case json.Number:
-		if n, err := v.Int64(); err == nil {
-			hint = int(n)
-		}
-	case bool:
-		// Python では bool は int のサブクラスなので True が 1 になる。
-		if v {
-			hint = 1
-		}
-	}
+	// Flutter の SDK は Dart の int を Int64 ラッパー（{"@type":...,"value":"1"}）
+	// で送る。素の数値しか見ていなかったので、ヒントを使った正解でも hint=0 と
+	// して扱われ、HintMultiplier が効いていなかった。callable.Int が両方を解く。
+	// 読めない値は 0（ヒント無し）に倒す。
+	hint, _ := callable.Int(raw["hint_level"])
 
 	reviewed, _ := raw["sentence_reviewed"].(bool)
 

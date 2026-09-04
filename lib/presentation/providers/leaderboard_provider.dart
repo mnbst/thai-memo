@@ -19,9 +19,11 @@ const int leaderboardTopCount = 3;
 /// この間はアプリを再起動しても Firestore を読まない（引っ張って更新は常に即取得）。
 const Duration leaderboardCacheTtl = Duration(hours: 6);
 
-const _rowsCacheKey = 'leaderboard_rows_cache';
-const _distributionCacheKey = 'leaderboard_distribution_cache';
-const _myRankCacheKey = 'leaderboard_my_rank_cache';
+// 全体順位に戻したので鍵を変える。前の鍵のままだと、更新直後の6時間は
+// 端末に残った帯の中の順位がそのまま出てしまう。
+const _rowsCacheKey = 'leaderboard_rows_cache_all';
+const _distributionCacheKey = 'leaderboard_distribution_cache_all';
+const _myRankCacheKey = 'leaderboard_my_rank_cache_all';
 
 /// 引っ張って更新の回数。1以上なら、その起動中はキャッシュを使わない。
 ///
@@ -110,7 +112,7 @@ String? _readNickname(Map<String, dynamic>? data) {
   return (name == null || name.isEmpty) ? null : name;
 }
 
-/// vocab が [vocab] より大きい人数 + 1。同点は同順位になる。
+/// 全ユーザーの中で vocab が [vocab] より大きい人数 + 1。同点は同順位になる。
 Future<int> _rankOf(int vocab) async {
   final snapshot =
       await _leaderboardRef().where('vocab', isGreaterThan: vocab).count().get();
@@ -149,6 +151,14 @@ final myRankProvider = FutureProvider<int?>((ref) async {
 
 /// 上限なしの帯を範囲クエリで表すための天井
 const int _vocabCeiling = 1 << 30;
+
+/// [vocab] が属する帯。どの帯にも入らない値（0以下）は最下段に寄せる。
+({int min, int? max}) bandOf(int vocab) {
+  for (final band in vocabBands) {
+    if (vocab >= band.min && vocab <= (band.max ?? _vocabCeiling)) return band;
+  }
+  return vocabBands.first;
+}
 
 /// 語彙スコアの帯。free は 100 でキャップされるのでそこだけ単独の帯にする
 /// （100 に人が積み上がるため、他の帯と混ぜると分布が読めなくなる）。
@@ -206,7 +216,7 @@ class VocabDistribution {
             .toList(),
       );
 
-  /// 上位何%か（1未満は1に丸める）。順位が無いときは null。
+  /// 全体で上位何%か（1未満は1に丸める）。順位が無いときは null。
   int? percentile(int? rank) {
     if (rank == null || total <= 0) return null;
     return (rank / total * 100).ceil().clamp(1, 100);
@@ -312,6 +322,7 @@ final leaderboardRowsProvider =
 
   // 自分の doc も引っかかるので1件多く取る
   final limit = leaderboardNeighborCount + 1;
+  // トップも周辺も全ユーザーの並びから取る。
   final topDocs = await _leaderboardRef()
       .orderBy('vocab', descending: true)
       .limit(leaderboardTopCount)

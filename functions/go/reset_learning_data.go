@@ -72,6 +72,16 @@ func resetLearningData(ctx context.Context, req *callable.Request) (any, error) 
 		"daily_sentence_generated": false,
 		"sentence_generated_count": 0,
 		"estimated_vocab":          0,
+		// 旧・自己申告レベルの下限（vocab_floor / vocab_floor_applied）はもう
+		// 読んでいない。残っている doc のフィールドはここで掃除する。
+		"vocab_floor":         firestore.Delete,
+		"vocab_floor_applied": firestore.Delete,
+		// 語彙テストの結果も学習データなので一緒に落とす（設定画面の
+		// 「前回」表示が、消したはずの記録を指したままにならないように）。
+		"vocab_test_at":    firestore.Delete,
+		"vocab_test_vocab": firestore.Delete,
+		// 受験間隔（vocab_test_window_at / vocab_test_count）は残す。
+		// ここで消せるとリセットするだけで月1回の制限を抜けられる。
 	}, firestore.MergeAll)
 	if err != nil {
 		return nil, callable.Errorf(callable.Internal, "クォータの初期化に失敗しました")

@@ -163,6 +163,18 @@ abstract class L10n {
   /// **'設定'**
   String get navSettings;
 
+  /// No description provided for @learnAppBarTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の例文'**
+  String get learnAppBarTitle;
+
+  /// No description provided for @learnOpenDetail.
+  ///
+  /// In ja, this message translates to:
+  /// **'詳細'**
+  String get learnOpenDetail;
+
   /// No description provided for @learnQuizTitle.
   ///
   /// In ja, this message translates to:
@@ -181,24 +193,6 @@ abstract class L10n {
   /// **'次の例文へ'**
   String get learnNextSentence;
 
-  /// No description provided for @firstGuideTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'まずは体験してみましょう'**
-  String get firstGuideTitle;
-
-  /// No description provided for @firstGuideBody.
-  ///
-  /// In ja, this message translates to:
-  /// **'実際に1回、例文からクイズまで通して学習します。\n押すボタンはこのあと順番にご案内します。'**
-  String get firstGuideBody;
-
-  /// 初回ガイドで強調する体験期間。日数は PREMIUM_TRIAL_DAYS（constants.py / quota.ts）と揃えること
-  ///
-  /// In ja, this message translates to:
-  /// **'最初の2日間はプレミアムの内容で学べます'**
-  String get firstGuideTrial;
-
   /// No description provided for @commonOk.
   ///
   /// In ja, this message translates to:
@@ -210,180 +204,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'再試行'**
   String get commonRetry;
-
-  /// No description provided for @coachDetailTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'まずは例文をタップ'**
-  String get coachDetailTitle;
-
-  /// No description provided for @coachDetailMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'カードをタップすると、単語ごとの意味と発音を確認できます。'**
-  String get coachDetailMessage;
-
-  /// No description provided for @coachQuizTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'次はクイズに挑戦'**
-  String get coachQuizTitle;
-
-  /// No description provided for @coachQuizMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文をひと通り見たら、クイズで単語を覚えたかを確認しましょう。'**
-  String get coachQuizMessage;
-
-  /// No description provided for @coachTargetWordsTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'この単語を覚えよう'**
-  String get coachTargetWordsTitle;
-
-  /// No description provided for @coachTargetWordsEmphasis.
-  ///
-  /// In ja, this message translates to:
-  /// **'学習単語'**
-  String get coachTargetWordsEmphasis;
-
-  /// No description provided for @coachTargetWordsMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'この例文の学習単語です。例文の中でどう使われているかを見ていきましょう。'**
-  String get coachTargetWordsMessage;
-
-  /// No description provided for @coachSentenceCardTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文カード'**
-  String get coachSentenceCardTitle;
-
-  /// No description provided for @coachSentenceCardMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'上がタイ文字、下がその読み方、いちばん下が日本語訳です。'**
-  String get coachSentenceCardMessage;
-
-  /// No description provided for @coachPlayTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'お手本を聞く'**
-  String get coachPlayTitle;
-
-  /// No description provided for @coachPlayMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'再生ボタンを押すと、例文をタイ語で読み上げます。'**
-  String get coachPlayMessage;
-
-  /// No description provided for @coachPronunciationTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'声に出して確かめる'**
-  String get coachPronunciationTitle;
-
-  /// No description provided for @coachPronunciationMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'ボタンを押したまま、タイ語音声を真似して読んでみましょう。声調が合っているか、その場で判定します。'**
-  String get coachPronunciationMessage;
-
-  /// No description provided for @coachPronunciationResultTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'発音判定の見方'**
-  String get coachPronunciationResultTitle;
-
-  /// No description provided for @coachPronunciationResultMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'緑は合っている、橙は惜しい、赤は違う。どれか1語をタップしてみましょう。'**
-  String get coachPronunciationResultMessage;
-
-  /// No description provided for @coachPronunciationContourTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'自分の声調と見比べる'**
-  String get coachPronunciationContourTitle;
-
-  /// No description provided for @coachPronunciationContourMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'薄い線がお手本、濃い線があなたの声の高さです。「次はここを直す」を参考に、「もう一度」で言い直して全単語が緑になるのを目指しましょう。'**
-  String get coachPronunciationContourMessage;
-
-  /// No description provided for @coachWordDetailTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'単語ごとに見る'**
-  String get coachWordDetailTitle;
-
-  /// No description provided for @coachWordDetailMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文内の単語リストです。単語をタップすると、その単語のつづりと声調の関係を詳しく見れます。'**
-  String get coachWordDetailMessage;
-
-  /// No description provided for @coachToneDetailTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調の解説の見方'**
-  String get coachToneDetailTitle;
-
-  /// No description provided for @coachToneDetailMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調の解説では、単語を音節に分け、それぞれの読みと声調記号を並べています。'**
-  String get coachToneDetailMessage;
-
-  /// No description provided for @coachToneTableTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調が決まる仕組み'**
-  String get coachToneTableTitle;
-
-  /// No description provided for @coachToneTableMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'子音文字の種類（高・中・低）と声調記号、音節の型の組み合わせで声調が決まります。青くハイライトされている行が、この音節に当てはまる規則です。'**
-  String get coachToneTableMessage;
-
-  /// No description provided for @coachToneGuideTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'規則をまとめて見るには'**
-  String get coachToneGuideTitle;
-
-  /// No description provided for @coachToneGuideMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調の規則は声調ガイドにまとまっています。ここからいつでも開けます。'**
-  String get coachToneGuideMessage;
-
-  /// No description provided for @coachContextTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'使い方を確かめる'**
-  String get coachContextTitle;
-
-  /// No description provided for @coachContextMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'このカードでは、この例文をどんな場面で使うか、文体や文化的な背景まで確認できます。'**
-  String get coachContextMessage;
-
-  /// No description provided for @coachDetailBackTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文の詳細はここまで'**
-  String get coachDetailBackTitle;
-
-  /// No description provided for @coachDetailBackMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文の詳細の案内はこれで終わりです。左上の戻る、または右スワイプで前の画面に戻ります。'**
-  String get coachDetailBackMessage;
 
   /// No description provided for @sentencePreparing.
   ///
@@ -642,162 +462,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'もう一度試す'**
   String get commonTryAgain;
-
-  /// No description provided for @coachQuizHintTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'ヒントは2段階で出せます'**
-  String get coachQuizHintTitle;
-
-  /// No description provided for @coachQuizHintMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'迷ったら「ヒント1」で発音が出ます。もう一度押すと日本語訳も出ます。ヒントを使っても回答は記録され、語彙スコアの動きが小さくなるだけです。'**
-  String get coachQuizHintMessage;
-
-  /// No description provided for @coachQuizReviewTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'迷ったら例文に戻れます'**
-  String get coachQuizReviewTitle;
-
-  /// No description provided for @coachQuizReviewMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'空欄に入る正しい単語を選んでください。答えに迷ったら、下の「例文を確認」からいつでも例文を見直せます。'**
-  String get coachQuizReviewMessage;
-
-  /// No description provided for @coachSummaryQuizTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'まとめクイズに挑戦'**
-  String get coachSummaryQuizTitle;
-
-  /// No description provided for @coachSummaryQuizEmphasis.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文5つごと'**
-  String get coachSummaryQuizEmphasis;
-
-  /// No description provided for @coachSummaryQuizMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'これまでの単語をまとめて復習するクイズです。本来は例文5つごとに出ますが、まずは一度やってみましょう。'**
-  String get coachSummaryQuizMessage;
-
-  /// No description provided for @coachTourFinishTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'間違えた例文は、また出ます'**
-  String get coachTourFinishTitle;
-
-  /// No description provided for @coachTourFinishMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'5問クイズは、これまで読んだ例文から出題します。間違えた例文は時間をおいてもう一度出てくるので、覚え直しはアプリに任せて次へ進みましょう。'**
-  String get coachTourFinishMessage;
-
-  /// No description provided for @coachTourFinishEmphasis.
-  ///
-  /// In ja, this message translates to:
-  /// **'間違えた例文は時間をおいてもう一度出てくる'**
-  String get coachTourFinishEmphasis;
-
-  /// No description provided for @coachTourFinishSeePremium.
-  ///
-  /// In ja, this message translates to:
-  /// **'プレミアムを見る'**
-  String get coachTourFinishSeePremium;
-
-  /// No description provided for @coachTourFinishQuota.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文は無料版で1日{free}文、プレミアムなら1日{premium}文まで作れます。'**
-  String coachTourFinishQuota(int free, int premium);
-
-  /// No description provided for @coachFlowTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'今後の進め方'**
-  String get coachFlowTitle;
-
-  /// No description provided for @coachFlowGreeting.
-  ///
-  /// In ja, this message translates to:
-  /// **'お疲れ様でした。ここまでが一通りの流れです。'**
-  String get coachFlowGreeting;
-
-  /// No description provided for @coachFlowLoopSentence.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文'**
-  String get coachFlowLoopSentence;
-
-  /// No description provided for @coachFlowLoopQuiz.
-  ///
-  /// In ja, this message translates to:
-  /// **'クイズ'**
-  String get coachFlowLoopQuiz;
-
-  /// No description provided for @coachFlowLoopSummary.
-  ///
-  /// In ja, this message translates to:
-  /// **'5問クイズ'**
-  String get coachFlowLoopSummary;
-
-  /// No description provided for @coachFlowBody1.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文を読んで、クイズで確認。'**
-  String get coachFlowBody1;
-
-  /// No description provided for @coachSummaryTipsBody.
-  ///
-  /// In ja, this message translates to:
-  /// **'タイ語だけを見て答えられた問題ほど、語彙スコアは伸びます。まずは日本語を見ずに挑戦してみましょう。'**
-  String get coachSummaryTipsBody;
-
-  /// No description provided for @coachSummaryTipsEmphasis.
-  ///
-  /// In ja, this message translates to:
-  /// **'タイ語だけを見て'**
-  String get coachSummaryTipsEmphasis;
-
-  /// No description provided for @coachFlowPage1Title.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文とクイズをくり返す'**
-  String get coachFlowPage1Title;
-
-  /// No description provided for @coachSummaryTipsTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'5問クイズのコツ'**
-  String get coachSummaryTipsTitle;
-
-  /// No description provided for @coachFlowContinue.
-  ///
-  /// In ja, this message translates to:
-  /// **'このまま続ける'**
-  String get coachFlowContinue;
-
-  /// No description provided for @coachTopicTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'テーマを選んでタイ文化に親しむ'**
-  String get coachTopicTitle;
-
-  /// No description provided for @coachTopicNext.
-  ///
-  /// In ja, this message translates to:
-  /// **'次の例文に進む'**
-  String get coachTopicNext;
-
-  /// No description provided for @coachTopicMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'ここをタップすると、次の例文のテーマを選べます。祭り・寺院での作法・BLドラマなど、言葉と一緒にタイの文化そのものに触れられます。'**
-  String get coachTopicMessage;
 
   /// No description provided for @vocabScore.
   ///
@@ -1195,6 +859,12 @@ abstract class L10n {
   /// **'学習状況'**
   String get settingsLearningStatus;
 
+  /// No description provided for @settingsGuideSection.
+  ///
+  /// In ja, this message translates to:
+  /// **'ガイド'**
+  String get settingsGuideSection;
+
   /// No description provided for @settingsLearningSection.
   ///
   /// In ja, this message translates to:
@@ -1381,23 +1051,23 @@ abstract class L10n {
   /// **'1日{free}回'**
   String trialEndedChangeQuotaFree(int free);
 
-  /// No description provided for @trialEndedChangePronunciationLabel.
+  /// No description provided for @trialEndedChangeVocabLabel.
   ///
   /// In ja, this message translates to:
-  /// **'発音チェック'**
-  String get trialEndedChangePronunciationLabel;
+  /// **'語彙スコア'**
+  String get trialEndedChangeVocabLabel;
 
-  /// No description provided for @trialEndedChangePronunciationPremium.
+  /// No description provided for @trialEndedChangeVocabPremium.
   ///
   /// In ja, this message translates to:
-  /// **'無制限'**
-  String get trialEndedChangePronunciationPremium;
+  /// **'上限なし'**
+  String get trialEndedChangeVocabPremium;
 
-  /// No description provided for @trialEndedChangePronunciationFree.
+  /// No description provided for @trialEndedChangeVocabFree.
   ///
   /// In ja, this message translates to:
-  /// **'1日{count}回'**
-  String trialEndedChangePronunciationFree(int count);
+  /// **'{free}語まで'**
+  String trialEndedChangeVocabFree(int free);
 
   /// No description provided for @trialStartedTitle.
   ///
@@ -1408,32 +1078,44 @@ abstract class L10n {
   /// No description provided for @trialStartedBody.
   ///
   /// In ja, this message translates to:
-  /// **'ふだんは使えない機能を、この期間だけ開放しました。'**
+  /// **'free版では使えない機能を、この期間だけ開放しました。'**
   String get trialStartedBody;
+
+  /// No description provided for @trialStartedChangeQuotaLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文'**
+  String get trialStartedChangeQuotaLabel;
 
   /// No description provided for @trialStartedChangeQuota.
   ///
   /// In ja, this message translates to:
-  /// **'例文　1日{free}回 → {premium}回'**
-  String trialStartedChangeQuota(int free, int premium);
+  /// **'1日{premium}回まで'**
+  String trialStartedChangeQuota(int premium);
 
-  /// No description provided for @trialStartedChangePronunciation.
+  /// No description provided for @trialStartedChangeTopicLabel.
   ///
   /// In ja, this message translates to:
-  /// **'発音チェック　1日{count}回 → 無制限'**
-  String trialStartedChangePronunciation(int count);
+  /// **'テーマ選択'**
+  String get trialStartedChangeTopicLabel;
 
   /// No description provided for @trialStartedChangeTopic.
   ///
   /// In ja, this message translates to:
-  /// **'テーマ選択　例文のテーマを自分で選べます'**
+  /// **'例文のテーマを自分で選べます'**
   String get trialStartedChangeTopic;
 
   /// No description provided for @trialStartedStart.
   ///
   /// In ja, this message translates to:
-  /// **'使ってみる'**
+  /// **'わかった'**
   String get trialStartedStart;
+
+  /// No description provided for @trialStartedSeePlans.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムを見る'**
+  String get trialStartedSeePlans;
 
   /// No description provided for @topicPickerTitle.
   ///
@@ -1699,60 +1381,6 @@ abstract class L10n {
   /// **'上級'**
   String get vocabLevelAdvanced;
 
-  /// No description provided for @vocabDialogTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'語彙スコア（{level}）'**
-  String vocabDialogTitle(String level);
-
-  /// No description provided for @vocabDialogTitleFree.
-  ///
-  /// In ja, this message translates to:
-  /// **'語彙スコア（Free・{level}）'**
-  String vocabDialogTitleFree(String level);
-
-  /// No description provided for @vocabProgressOf.
-  ///
-  /// In ja, this message translates to:
-  /// **'{current} / {threshold} 語'**
-  String vocabProgressOf(int current, int threshold);
-
-  /// No description provided for @vocabFreeCap.
-  ///
-  /// In ja, this message translates to:
-  /// **'Free上限'**
-  String get vocabFreeCap;
-
-  /// No description provided for @vocabRemaining.
-  ///
-  /// In ja, this message translates to:
-  /// **'残り{count}語'**
-  String vocabRemaining(int count);
-
-  /// No description provided for @vocabCurrentTopics.
-  ///
-  /// In ja, this message translates to:
-  /// **'現在のテーマ数（{count}件）'**
-  String vocabCurrentTopics(int count);
-
-  /// No description provided for @vocabFreeTopics.
-  ///
-  /// In ja, this message translates to:
-  /// **'Freeのテーマ数（{count}件）'**
-  String vocabFreeTopics(int count);
-
-  /// No description provided for @vocabNextUnlock.
-  ///
-  /// In ja, this message translates to:
-  /// **'次の開放（+{count}件）'**
-  String vocabNextUnlock(int count);
-
-  /// No description provided for @vocabNextUnlockIn.
-  ///
-  /// In ja, this message translates to:
-  /// **'あと{words}語で開放（+{count}件）'**
-  String vocabNextUnlockIn(int words, int count);
-
   /// No description provided for @vocabSeePremium.
   ///
   /// In ja, this message translates to:
@@ -1764,42 +1392,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'閉じる'**
   String get commonClose;
-
-  /// No description provided for @vocabFreeLimitTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'Freeは100語が上限です'**
-  String get vocabFreeLimitTitle;
-
-  /// No description provided for @vocabFreeLimitBody.
-  ///
-  /// In ja, this message translates to:
-  /// **'Premiumでは100語以上学べます。また例文のテーマが増え、より多様なタイ語が学べます。'**
-  String get vocabFreeLimitBody;
-
-  /// No description provided for @vocabUnlockMore.
-  ///
-  /// In ja, this message translates to:
-  /// **'語彙スコアが増えると次の例文テーマが開放されます。'**
-  String get vocabUnlockMore;
-
-  /// No description provided for @vocabTopicCountNow.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文テーマ候補は現在{count}件です。'**
-  String vocabTopicCountNow(int count);
-
-  /// No description provided for @vocabPremiumAddsTopics.
-  ///
-  /// In ja, this message translates to:
-  /// **'Premiumで追加されるテーマ数（{count}件）'**
-  String vocabPremiumAddsTopics(int count);
-
-  /// No description provided for @listSeparator.
-  ///
-  /// In ja, this message translates to:
-  /// **'、'**
-  String get listSeparator;
 
   /// No description provided for @paywallTitle.
   ///
@@ -1885,24 +1477,6 @@ abstract class L10n {
   /// **'例文{count}回/日・単語の上限なし'**
   String paywallFeatureQuotaPremium(int count);
 
-  /// No description provided for @paywallFeaturePronunciationTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'発音練習で自信をつけられる'**
-  String get paywallFeaturePronunciationTitle;
-
-  /// No description provided for @paywallFeaturePronunciationFree.
-  ///
-  /// In ja, this message translates to:
-  /// **'発音チェック{count}回/日'**
-  String paywallFeaturePronunciationFree(int count);
-
-  /// No description provided for @paywallFeaturePronunciationPremium.
-  ///
-  /// In ja, this message translates to:
-  /// **'無制限'**
-  String get paywallFeaturePronunciationPremium;
-
   /// No description provided for @paywallFeatureTopicTitle.
   ///
   /// In ja, this message translates to:
@@ -1936,13 +1510,13 @@ abstract class L10n {
   /// No description provided for @onboarding1Title.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなた専用の例文を何度でも生成'**
+  /// **'AIがあなた専用の例文を毎日お届け'**
   String get onboarding1Title;
 
   /// No description provided for @onboarding1Body.
   ///
   /// In ja, this message translates to:
-  /// **'例文は毎日届き、何文でも追加できます。\nカードをタップで単語・意味を確認。'**
+  /// **'毎日の例文に加えて、その場で追加生成も。\nカードをタップで単語・意味を確認。'**
   String get onboarding1Body;
 
   /// No description provided for @onboarding2Title.
@@ -1980,48 +1554,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'次へ'**
   String get onboardingNext;
-
-  /// No description provided for @coachTapHere.
-  ///
-  /// In ja, this message translates to:
-  /// **'光っている場所をタップ'**
-  String get coachTapHere;
-
-  /// No description provided for @coachSkip.
-  ///
-  /// In ja, this message translates to:
-  /// **'スキップ'**
-  String get coachSkip;
-
-  /// No description provided for @coachToneBackToDetail.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文詳細に戻る'**
-  String get coachToneBackToDetail;
-
-  /// No description provided for @coachGotIt.
-  ///
-  /// In ja, this message translates to:
-  /// **'わかった'**
-  String get coachGotIt;
-
-  /// No description provided for @coachNext.
-  ///
-  /// In ja, this message translates to:
-  /// **'次へ'**
-  String get coachNext;
-
-  /// No description provided for @coachBack.
-  ///
-  /// In ja, this message translates to:
-  /// **'戻る'**
-  String get coachBack;
-
-  /// No description provided for @coachStepLabel.
-  ///
-  /// In ja, this message translates to:
-  /// **'{current} / {total}'**
-  String coachStepLabel(int current, int total);
 
   /// No description provided for @interviewIntroTitle.
   ///
@@ -2266,13 +1798,13 @@ abstract class L10n {
   /// No description provided for @philosophyStart.
   ///
   /// In ja, this message translates to:
-  /// **'実際に使ってみる'**
+  /// **'使い方を見る'**
   String get philosophyStart;
 
   /// No description provided for @notifCoachTitle.
   ///
   /// In ja, this message translates to:
-  /// **'通知機能を活用しましょう'**
+  /// **'通知でタイ語学習を習慣にしましょう'**
   String get notifCoachTitle;
 
   /// No description provided for @notifCoachStep1.
@@ -2290,7 +1822,7 @@ abstract class L10n {
   /// No description provided for @notifCoachHabit.
   ///
   /// In ja, this message translates to:
-  /// **'毎日同じ時間に開くので、タイ語学習が習慣になります'**
+  /// **'毎日同じ時間に開くので、無理なく続けられます'**
   String get notifCoachHabit;
 
   /// No description provided for @notifCoachPreviewLabel.
@@ -2359,30 +1891,6 @@ abstract class L10n {
   /// **'祭り・寺院での作法・BLドラマなど、言葉と一緒に文化が身につきます'**
   String get premiumHint1Body;
 
-  /// No description provided for @premiumHint2Title.
-  ///
-  /// In ja, this message translates to:
-  /// **'発音練習で自信をつけられる'**
-  String get premiumHint2Title;
-
-  /// No description provided for @premiumHint2Body.
-  ///
-  /// In ja, this message translates to:
-  /// **'回数を気にせず何度でも録音して、声調のズレを直していけます'**
-  String get premiumHint2Body;
-
-  /// No description provided for @premiumHint3Title.
-  ///
-  /// In ja, this message translates to:
-  /// **'良質なタイ語に大量に触れられる'**
-  String get premiumHint3Title;
-
-  /// No description provided for @premiumHint3Body.
-  ///
-  /// In ja, this message translates to:
-  /// **'1日に作れる例文が大きく増えて、読んだ量がそのまま力になります'**
-  String get premiumHint3Body;
-
   /// No description provided for @signInReminderTitle.
   ///
   /// In ja, this message translates to:
@@ -2446,7 +1954,7 @@ abstract class L10n {
   /// No description provided for @quizOfferBody.
   ///
   /// In ja, this message translates to:
-  /// **'単語を覚えたかすぐ確認できます。'**
+  /// **'単語を覚えたかクイズで確認。'**
   String get quizOfferBody;
 
   /// No description provided for @quizOfferTryOne.
@@ -2545,12 +2053,6 @@ abstract class L10n {
   /// **'あなた'**
   String get pronunciationYours;
 
-  /// No description provided for @pronunciationTapWordHint.
-  ///
-  /// In ja, this message translates to:
-  /// **'語をタップすると、どこがずれたか見られます'**
-  String get pronunciationTapWordHint;
-
   /// No description provided for @pronunciationScore.
   ///
   /// In ja, this message translates to:
@@ -2628,12 +2130,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'設定を開く'**
   String get pronunciationPermissionOpenSettings;
-
-  /// No description provided for @pronunciationBandCombined.
-  ///
-  /// In ja, this message translates to:
-  /// **'線の色＝声調と発音を合わせた判定'**
-  String get pronunciationBandCombined;
 
   /// No description provided for @pronunciationSpeechRecognized.
   ///
@@ -2804,23 +2300,47 @@ abstract class L10n {
   /// **'「{word}」の母音は唇を横に引いたまま「ウ」と出す（ʉ）'**
   String pronunciationSegmentVowelUe(String word);
 
-  /// No description provided for @pronunciationLimitTitle.
+  /// No description provided for @pronunciationSummaryRecognized.
   ///
   /// In ja, this message translates to:
-  /// **'今日の無料の発音チェックは終わりました'**
-  String get pronunciationLimitTitle;
+  /// **'{total}語中 {ok}語が通じた'**
+  String pronunciationSummaryRecognized(int ok, int total);
 
-  /// No description provided for @pronunciationLimitBody.
+  /// No description provided for @pronunciationNextFocus.
   ///
   /// In ja, this message translates to:
-  /// **'プレミアムなら回数を気にせず、何度でも発音を確かめられます。'**
-  String get pronunciationLimitBody;
+  /// **'「{word}」を直そう'**
+  String pronunciationNextFocus(String word);
 
-  /// No description provided for @pronunciationFreeRemaining.
+  /// No description provided for @pronunciationCountCorrect.
   ///
   /// In ja, this message translates to:
-  /// **'無料の発音チェック 残り{count}回'**
-  String pronunciationFreeRemaining(int count);
+  /// **'OK'**
+  String get pronunciationCountCorrect;
+
+  /// No description provided for @pronunciationCountClose.
+  ///
+  /// In ja, this message translates to:
+  /// **'惜しい'**
+  String get pronunciationCountClose;
+
+  /// No description provided for @pronunciationCountWrong.
+  ///
+  /// In ja, this message translates to:
+  /// **'直す'**
+  String get pronunciationCountWrong;
+
+  /// No description provided for @pronunciationTapWordHintDetail.
+  ///
+  /// In ja, this message translates to:
+  /// **'語をタップすると、お手本の聞き比べと直し方が出ます'**
+  String get pronunciationTapWordHintDetail;
+
+  /// No description provided for @pronunciationListenModelWord.
+  ///
+  /// In ja, this message translates to:
+  /// **'お手本を聞く'**
+  String get pronunciationListenModelWord;
 
   /// No description provided for @tipWithExample.
   ///
@@ -2843,7 +2363,7 @@ abstract class L10n {
   /// 上限回数は tier で異なる（free 5 / premium 20）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
-  /// **'今日の新しい例文はここまでです。\nこれまでの例文を読み返したり、クイズで復習できます。'**
+  /// **'今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。'**
   String get quotaSentenceReached;
 
   /// 上限に当たった free ユーザーだけに出すペイウォール導線。count は PREMIUM_DAILY_SENTENCES
@@ -4328,6 +3848,114 @@ abstract class L10n {
   /// **'購入の検証に失敗しました'**
   String get errPurchaseVerificationFailed;
 
+  /// No description provided for @settingsVocabTest.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙力を測る'**
+  String get settingsVocabTest;
+
+  /// No description provided for @settingsVocabTestNever.
+  ///
+  /// In ja, this message translates to:
+  /// **'まだ受けていません'**
+  String get settingsVocabTestNever;
+
+  /// No description provided for @settingsVocabTestLast.
+  ///
+  /// In ja, this message translates to:
+  /// **'前回 {date}'**
+  String settingsVocabTestLast(String date);
+
+  /// No description provided for @settingsVocabTestPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアム限定'**
+  String get settingsVocabTestPremium;
+
+  /// No description provided for @vocabTestTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙力を測る'**
+  String get vocabTestTitle;
+
+  /// No description provided for @vocabTestIntroBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の単語を4択で答えてもらい、いまの語彙量を測ります。わからない単語が続いたらそこで終わりです。早ければ4問、長くても24問で終わります。'**
+  String get vocabTestIntroBody;
+
+  /// No description provided for @vocabTestIntroNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'結果は例文とクイズの難易度に反映されます。設定画面から月1回まで受け直せます。'**
+  String get vocabTestIntroNote;
+
+  /// No description provided for @vocabTestStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'はじめる'**
+  String get vocabTestStart;
+
+  /// No description provided for @vocabTestQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'この単語の意味は？'**
+  String get vocabTestQuestion;
+
+  /// No description provided for @vocabTestDontKnow.
+  ///
+  /// In ja, this message translates to:
+  /// **'わからない'**
+  String get vocabTestDontKnow;
+
+  /// No description provided for @vocabTestProgress.
+  ///
+  /// In ja, this message translates to:
+  /// **'{current} / {total} 問目'**
+  String vocabTestProgress(int current, int total);
+
+  /// No description provided for @vocabTestResultTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'いまの語彙量'**
+  String get vocabTestResultTitle;
+
+  /// No description provided for @vocabTestResultVocab.
+  ///
+  /// In ja, this message translates to:
+  /// **'約 {vocab} 語'**
+  String vocabTestResultVocab(int vocab);
+
+  /// No description provided for @vocabTestResultBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'この結果を出発点に、例文とクイズの難易度を合わせます。使ううちに実際の正誤で少しずつ動きます。'**
+  String get vocabTestResultBody;
+
+  /// No description provided for @vocabTestResultFreeCap.
+  ///
+  /// In ja, this message translates to:
+  /// **'フリープランでは語彙スコアが100までに制限されます。プレミアム体験が終わると、この値も100まで下がります。'**
+  String get vocabTestResultFreeCap;
+
+  /// No description provided for @vocabTestResultClose.
+  ///
+  /// In ja, this message translates to:
+  /// **'閉じる'**
+  String get vocabTestResultClose;
+
+  /// No description provided for @vocabTestError.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙テストを実行できませんでした'**
+  String get vocabTestError;
+
+  /// No description provided for @vocabTestRetry.
+  ///
+  /// In ja, this message translates to:
+  /// **'やり直す'**
+  String get vocabTestRetry;
+
   /// No description provided for @rankingTitle.
   ///
   /// In ja, this message translates to:
@@ -4340,6 +3968,12 @@ abstract class L10n {
   /// **'語彙スコアで他の学習者と比べる'**
   String get rankingSubtitle;
 
+  /// No description provided for @rankingBandScope.
+  ///
+  /// In ja, this message translates to:
+  /// **'{band} の中での順位'**
+  String rankingBandScope(String band);
+
   /// No description provided for @rankingYourRank.
   ///
   /// In ja, this message translates to:
@@ -4351,6 +3985,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'{rank}位'**
   String rankingPosition(int rank);
+
+  /// No description provided for @rankingCapTiedNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'上限に並んでいる人が多いため順位はつきません'**
+  String get rankingCapTiedNote;
 
   /// No description provided for @rankingUnrankedHint.
   ///
@@ -4423,6 +4063,438 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'語彙スコアで他の学習者と比べる'**
   String get settingsRankingSubtitle;
+
+  /// No description provided for @guideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'使い方ガイド'**
+  String get guideTitle;
+
+  /// No description provided for @guideSettingsSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'アプリの使い方をひと通り読む'**
+  String get guideSettingsSubtitle;
+
+  /// No description provided for @guideSkip.
+  ///
+  /// In ja, this message translates to:
+  /// **'スキップ'**
+  String get guideSkip;
+
+  /// No description provided for @guideStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙力を測る'**
+  String get guideStart;
+
+  /// No description provided for @guideClose.
+  ///
+  /// In ja, this message translates to:
+  /// **'閉じる'**
+  String get guideClose;
+
+  /// No description provided for @guideLead.
+  ///
+  /// In ja, this message translates to:
+  /// **'このアプリの使い方をまとめています。あとで設定からいつでも読み返せます。'**
+  String get guideLead;
+
+  /// No description provided for @guideFigureLoopSentence.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文'**
+  String get guideFigureLoopSentence;
+
+  /// No description provided for @guideFigureLoopQuiz.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズ'**
+  String get guideFigureLoopQuiz;
+
+  /// No description provided for @guideFigureLoopRepeat.
+  ///
+  /// In ja, this message translates to:
+  /// **'くり返す'**
+  String get guideFigureLoopRepeat;
+
+  /// No description provided for @guideFigureLoopSummary.
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズ'**
+  String get guideFigureLoopSummary;
+
+  /// No description provided for @guideFigureLoopEvery.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文5つごと'**
+  String get guideFigureLoopEvery;
+
+  /// No description provided for @guideFigureCardThai.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字'**
+  String get guideFigureCardThai;
+
+  /// No description provided for @guideFigureCardPronunciation.
+  ///
+  /// In ja, this message translates to:
+  /// **'読み方'**
+  String get guideFigureCardPronunciation;
+
+  /// No description provided for @guideFigureCardTranslation.
+  ///
+  /// In ja, this message translates to:
+  /// **'日本語訳'**
+  String get guideFigureCardTranslation;
+
+  /// No description provided for @guideFigureCardTranslationSample.
+  ///
+  /// In ja, this message translates to:
+  /// **'私はコーヒーが好きです'**
+  String get guideFigureCardTranslationSample;
+
+  /// No description provided for @guideFigureCardTargetWord.
+  ///
+  /// In ja, this message translates to:
+  /// **'金色＝学習単語'**
+  String get guideFigureCardTargetWord;
+
+  /// No description provided for @guideChapterOverview.
+  ///
+  /// In ja, this message translates to:
+  /// **'概要'**
+  String get guideChapterOverview;
+
+  /// No description provided for @guideChapterRoles.
+  ///
+  /// In ja, this message translates to:
+  /// **'それぞれの機能の役割'**
+  String get guideChapterRoles;
+
+  /// No description provided for @guideChapterHowTo.
+  ///
+  /// In ja, this message translates to:
+  /// **'操作のしかた'**
+  String get guideChapterHowTo;
+
+  /// No description provided for @guideOverviewTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'このアプリでやること'**
+  String get guideOverviewTitle;
+
+  /// No description provided for @guideOverviewBody1.
+  ///
+  /// In ja, this message translates to:
+  /// **'AIがあなたの語彙に合わせたタイ語の例文を毎日つくります。'**
+  String get guideOverviewBody1;
+
+  /// No description provided for @guideOverviewBody2.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文で覚える → クイズで確かめる。このくり返しが学習の中心です。'**
+  String get guideOverviewBody2;
+
+  /// No description provided for @guideOverviewSummaryQuiz.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文を5つ読むごとに、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。'**
+  String get guideOverviewSummaryQuiz;
+
+  /// No description provided for @guideOverviewBody3.
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズに正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。'**
+  String get guideOverviewBody3;
+
+  /// No description provided for @guideRoleSentenceTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文'**
+  String get guideRoleSentenceTitle;
+
+  /// No description provided for @guideRoleSentenceBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'詳細画面からタイ単語の使用例を確認しましょう。単語だけを覚えるより、使う場面ごと覚えるほうが記憶に残ります。'**
+  String get guideRoleSentenceBody;
+
+  /// No description provided for @guideRoleSoundTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音練習'**
+  String get guideRoleSoundTitle;
+
+  /// No description provided for @guideRoleSoundBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'自分のイントネーションとお手本を聞き比べて、発音のコツを掴みましょう。タイ語は声調で意味が変わります。'**
+  String get guideRoleSoundBody;
+
+  /// No description provided for @guideRoleQuizTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズ'**
+  String get guideRoleQuizTitle;
+
+  /// No description provided for @guideRoleQuizBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'確認クイズは、次の例文に進む前に出る1問です。例文を5つ読むごとに、それまでに学んだ内容から5問の「まとめクイズ」に挑戦できます。'**
+  String get guideRoleQuizBody;
+
+  /// No description provided for @guideRoleScoreTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコア'**
+  String get guideRoleScoreTitle;
+
+  /// No description provided for @guideRoleScoreBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズの結果から算出された、あなたの語彙量をあらわすスコアです。'**
+  String get guideRoleScoreBody;
+
+  /// No description provided for @guideRoleVocabTestTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙測定テスト'**
+  String get guideRoleVocabTestTitle;
+
+  /// No description provided for @guideRoleVocabTestBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'4択のテストで、いまの語彙量を測ります。結果は語彙スコアの出発点になり、例文とクイズの難易度に反映されます。設定画面から月1回まで受け直せます。'**
+  String get guideRoleVocabTestBody;
+
+  /// No description provided for @guideRoleRankingTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'ランキング'**
+  String get guideRoleRankingTitle;
+
+  /// No description provided for @guideRoleRankingBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコア順にユーザーを並べた時の、あなたの順位を表示します。表示名は自動で割り当てられます。'**
+  String get guideRoleRankingBody;
+
+  /// No description provided for @guideRoleTopicTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'テーマ'**
+  String get guideRoleTopicTitle;
+
+  /// No description provided for @guideRoleTopicBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'色々な場面（祭り・寺院での作法・BLドラマなど）におけるタイ語に触れてみましょう。言葉と一緒にタイの文化に触れられます。'**
+  String get guideRoleTopicBody;
+
+  /// No description provided for @guideRoleNotificationTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎日の通知'**
+  String get guideRoleNotificationTitle;
+
+  /// No description provided for @guideRoleNotificationBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語学習を習慣化するために役立ちます。決めた時刻に、その日の例文が届きます。'**
+  String get guideRoleNotificationBody;
+
+  /// No description provided for @guideRolePremiumTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'無料版とプレミアム'**
+  String get guideRolePremiumTitle;
+
+  /// No description provided for @guideRolePremiumBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'無料版でも毎日の学習は続けられます。プレミアムでは例文の数・テーマ選び・語彙スコアの上限が広がります。'**
+  String get guideRolePremiumBody;
+
+  /// No description provided for @guidePlanColItem.
+  ///
+  /// In ja, this message translates to:
+  /// **'項目'**
+  String get guidePlanColItem;
+
+  /// No description provided for @guidePlanColFree.
+  ///
+  /// In ja, this message translates to:
+  /// **'無料版'**
+  String get guidePlanColFree;
+
+  /// No description provided for @guidePlanColPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアム'**
+  String get guidePlanColPremium;
+
+  /// No description provided for @guidePlanRowSentences.
+  ///
+  /// In ja, this message translates to:
+  /// **'1日の例文'**
+  String get guidePlanRowSentences;
+
+  /// No description provided for @guidePlanRowTopic.
+  ///
+  /// In ja, this message translates to:
+  /// **'テーマ'**
+  String get guidePlanRowTopic;
+
+  /// No description provided for @guidePlanRowVocab.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコアの上限'**
+  String get guidePlanRowVocab;
+
+  /// No description provided for @guidePlanSentences.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}文'**
+  String guidePlanSentences(int count);
+
+  /// No description provided for @guidePlanTopicFree.
+  ///
+  /// In ja, this message translates to:
+  /// **'おまかせ'**
+  String get guidePlanTopicFree;
+
+  /// No description provided for @guidePlanTopicPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'自分で選べる'**
+  String get guidePlanTopicPremium;
+
+  /// No description provided for @guidePlanVocabFree.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}語'**
+  String guidePlanVocabFree(int count);
+
+  /// No description provided for @guidePlanVocabPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'約{count}語'**
+  String guidePlanVocabPremium(int count);
+
+  /// No description provided for @guideHowSentenceTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の例文を読む'**
+  String get guideHowSentenceTitle;
+
+  /// No description provided for @guideHowSentenceStep1.
+  ///
+  /// In ja, this message translates to:
+  /// **'学習タブを開くと、その日の例文が表示されます。'**
+  String get guideHowSentenceStep1;
+
+  /// No description provided for @guideHowSentenceStep3.
+  ///
+  /// In ja, this message translates to:
+  /// **'金色の語が学習単語です。クイズでここが問われます。'**
+  String get guideHowSentenceStep3;
+
+  /// No description provided for @guideHowSentenceStep4.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文カードをタップすると詳細画面が開きます。'**
+  String get guideHowSentenceStep4;
+
+  /// No description provided for @guideHowDetailTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'詳細画面'**
+  String get guideHowDetailTitle;
+
+  /// No description provided for @guideHowDetailLead.
+  ///
+  /// In ja, this message translates to:
+  /// **'詳細画面では、より深くタイ語例文を解説します。場面・文体・つづりと声調まで手がかりを増やすほど、その単語は記憶に残ります。'**
+  String get guideHowDetailLead;
+
+  /// No description provided for @guideHowSoundTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'聞く・声に出す'**
+  String get guideHowSoundTitle;
+
+  /// No description provided for @guideHowSoundStep1.
+  ///
+  /// In ja, this message translates to:
+  /// **'「お手本を聞く」で、タイ語例文の音声をループ再生します。'**
+  String get guideHowSoundStep1;
+
+  /// No description provided for @guideHowSoundStep2.
+  ///
+  /// In ja, this message translates to:
+  /// **'詳細画面の「発音練習」では、ボタンを押したまま真似して読むと、声調が合っているかをその場で判定できます。'**
+  String get guideHowSoundStep2;
+
+  /// No description provided for @guideHowSoundStep3.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音練習の判定は緑が合っている、橙が惜しい、赤が違う。語をタップすると、お手本と自分の声のカーブと直し方が出ます。'**
+  String get guideHowSoundStep3;
+
+  /// No description provided for @guideHowQuizTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズを解く'**
+  String get guideHowQuizTitle;
+
+  /// No description provided for @guideHowQuizStep1.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文の下の「覚えたか確認」から確認クイズへ進みます。'**
+  String get guideHowQuizStep1;
+
+  /// No description provided for @guideHowQuizStep2.
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。'**
+  String get guideHowQuizStep2;
+
+  /// No description provided for @guideHowQuizStep3.
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズでは、迷ったら「例文を確認」で例文に戻れます。'**
+  String get guideHowQuizStep3;
+
+  /// No description provided for @guideHowQuizStep4.
+  ///
+  /// In ja, this message translates to:
+  /// **'結果画面から、次の例文へ進むか、まとめクイズに挑むかを選べます。'**
+  String get guideHowQuizStep4;
+
+  /// No description provided for @guideHowSettingsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'設定でできること'**
+  String get guideHowSettingsTitle;
+
+  /// No description provided for @guideHowSettingsStep1.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知を受け取る時刻、表示フォント、訳と解説の言語を変えられます。'**
+  String get guideHowSettingsStep1;
+
+  /// No description provided for @guideHowSettingsStep2.
+  ///
+  /// In ja, this message translates to:
+  /// **'次の例文のテーマの選択と、ランキングもここから開けます。'**
+  String get guideHowSettingsStep2;
+
+  /// No description provided for @guideHowSettingsStep3.
+  ///
+  /// In ja, this message translates to:
+  /// **'このガイドは設定の「使い方ガイド」からいつでも開けます。'**
+  String get guideHowSettingsStep3;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

@@ -10,6 +10,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/callable"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
+	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
 type learningQuizGoldenCase struct {
@@ -159,4 +160,33 @@ func mustJSONIndent(v any) string {
 		return "<marshal error>"
 	}
 	return string(raw)
+}
+
+// TestVocabFloorFilter は境界より下の key_word を出題から外すことを確かめる。
+func TestVocabFloorFilter(t *testing.T) {
+	freqRank := uvm.FreqRank{"low": 40, "atFloor": 100, "high": 200}
+
+	if f := vocabFloorFilter(freqRank, 0); f != nil {
+		t.Error("境界 0 ではフィルタを作らない")
+	}
+
+	f := vocabFloorFilter(freqRank, 100)
+	for _, c := range []struct {
+		word string
+		want bool
+	}{
+		{"low", false},
+		{"atFloor", true},
+		{"high", true},
+		{"unknown", true}, // freq_rank 未収録は判定できないので残す
+	} {
+		if got := f.allows(c.word); got != c.want {
+			t.Errorf("allows(%q) = %v, want %v", c.word, got, c.want)
+		}
+	}
+
+	var nilFilter keyWordFilter
+	if !nilFilter.allows("low") {
+		t.Error("nil フィルタは全部通す")
+	}
 }

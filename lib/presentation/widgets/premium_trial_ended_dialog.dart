@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../providers/pronunciation_quota_provider.dart';
+import '../providers/vocab_stats_provider.dart';
 import '../screens/paywall_screen.dart';
+import 'vocab_level.dart';
 
 /// プレミアム体験トライアルの終了を伝え、そのまま登録へ誘導するダイアログ。
 ///
 /// 「使えていたものが使えなくなった」直後が最も伝わるので、体験終了を検知した
 /// 最初の起動で一度だけ出す。ペイウォールは原則タップ起点だが、この瞬間だけは
 /// 割り込みで知らせる価値がある（黙って機能が減ると不具合に見える）。
-class PremiumTrialEndedDialog extends StatelessWidget {
+class PremiumTrialEndedDialog extends ConsumerWidget {
   const PremiumTrialEndedDialog({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = L10n.of(context);
     final theme = Theme.of(context);
+
+    // 語彙スコアの行は、実際に切り下がる人にだけ出す。上限に届いていない
+    // 人には落差が無く、行だけ増えても意味が読めない。判定には free 上限で
+    // 潰れない測定値（vocab_test_vocab）を使う。
+    final stats = ref.watch(vocabStatsProvider).valueOrNull;
+    final measured = stats == null
+        ? 0
+        : (stats.testedVocab > 0 ? stats.testedVocab : stats.estimatedVocab);
 
     return AlertDialog(
       icon: Icon(
@@ -34,7 +44,7 @@ class PremiumTrialEndedDialog extends StatelessWidget {
           const SizedBox(height: 12),
           // ここは「いま何が変わったか」だけを数字で出す。特典の全一覧は
           // ペイウォールの仕事で、両方に並べるとペイウォールが繰り返しになる。
-          // 実数の増減が出ない項目（テーマ選択・例文の質・語彙上限）は載せない。
+          // 実数の増減が出ない項目（テーマ選択・例文の質）は載せない。
           _ChangeTable(
             changes: [
               _Change(
@@ -44,14 +54,13 @@ class PremiumTrialEndedDialog extends StatelessWidget {
                     l10n.trialEndedChangeQuotaPremium(premiumDailySentences),
                 free: l10n.trialEndedChangeQuotaFree(freeDailySentences),
               ),
-              _Change(
-                icon: Icons.mic_none,
-                label: l10n.trialEndedChangePronunciationLabel,
-                premium: l10n.trialEndedChangePronunciationPremium,
-                free: l10n.trialEndedChangePronunciationFree(
-                  freeDailyPronunciationChecks,
+              if (measured > freeVocabScoreLimit)
+                _Change(
+                  icon: Icons.straighten,
+                  label: l10n.trialEndedChangeVocabLabel,
+                  premium: l10n.trialEndedChangeVocabPremium,
+                  free: l10n.trialEndedChangeVocabFree(freeVocabScoreLimit),
                 ),
-              ),
             ],
           ),
         ],
@@ -111,8 +120,10 @@ class _ChangeTable extends StatelessWidget {
     );
 
     return Table(
+      // 値の3列は数字なので縮めない。余りを吸うのはラベル列だけにする
+      // （全列 Intrinsic にすると、幅が足りないときにラベルが押し出される）。
       columnWidths: const {
-        0: IntrinsicColumnWidth(),
+        0: FlexColumnWidth(),
         1: IntrinsicColumnWidth(),
         2: IntrinsicColumnWidth(),
         3: IntrinsicColumnWidth(),
@@ -129,7 +140,8 @@ class _ChangeTable extends StatelessWidget {
                   children: [
                     Icon(change.icon, size: 16, color: cs.primary),
                     const SizedBox(width: 6),
-                    Text(change.label, style: base),
+                    // 長いラベル（他言語・大きい文字サイズ）は折り返させる。
+                    Flexible(child: Text(change.label, style: base)),
                   ],
                 ),
               ),

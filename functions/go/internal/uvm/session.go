@@ -15,18 +15,27 @@ import (
 )
 
 const (
-	// VocabMaxDelta は 1 回の sync で estimated_vocab が動ける最大幅。
 	GapScanDepth = 50 // 後方スキャンの最大深さ
 	// 前方スキャンの初期幅と、estimated_vocab に対する逓減の緩さ。
 	// ahead = max(ScanAheadMin, ScanBandWidth - estimatedVocab/ScanBandDecay)
-	ScanBandWidth = 50
-	ScanBandDecay = 2
+	//
+	// 入りの 50 は広すぎた。progress 0（受験直後や新規）では後方が 0 なので
+	// 候補 51 件が全部前方に並び、ZeroPWeights の sqrt 重みでも平均で境界の
+	// 20 ランク先まで飛んでいた。入りを半分にして、8 へ降りるペースは
+	// 据え置く（ScanBandDecay を 2→5）。8 到達は est=83 → 81 でほぼ同じ。
+	//
+	// さらに 25→20。前方が広いと est の前進が「1日 5 語しか登録できない」
+	// 速度を追い越し、帯の下端が語を通り過ぎたまま二度と key_word に
+	// ならない「素通り」が出る。90日シミュレーションで未受験・真値350 の
+	// 素通りが 24語(8%) → 16語(5%)、受験者はほぼ 0 になり、d90 の推定値は
+	// 不変（±5）。効くのは ahead が下限 8 に落ちる前、est<60 の区間だけ
+	// （25 のときは est<85）。
+	ScanBandWidth = 20
+	ScanBandDecay = 5
 	ScanAheadMin  = 8 // 前方スキャンの下限（未習語が必ず候補に入るようにする）
 
 	// TopicFilterThreshold はテーマ embedding との類似度の足切り。
 	TopicFilterThreshold = 0.3
-	// TopicFilterExpandStep は帯域外を探すときの 1 段の幅。
-	TopicFilterExpandStep = 50
 )
 
 // ScanBand は estimated_vocab から key_word 候補のランク帯 [low, high] を返す
@@ -81,13 +90,20 @@ type TopicEmbedder interface {
 // FilterCandidatesByTopic はテーマ embedding との類似度で候補を絞る
 // （uvm.py:_filter_candidates_by_topic:314）。
 //
-// 帯域内に閾値以上が無ければ、帯域の外へ TopicFilterExpandStep ずつ 5 段まで
-// 広げて探す。Python のコメントは「低頻度側へ」と書いてあるが、コードは
-// expand_low を減らす（＝rank の小さい高頻度側へ）。コードに合わせてある。
-// それでも見つからなければ元の候補をそのまま返す。
+// 帯域内に閾値以上が 1 つも無ければ空を返す。呼び出し側は既出を除いたうえで
+// ClosestToTopic に落とす。
+//
+// 以前は帯域の外へ 50 ずつ 5 段まで**下へ**広げて探し、それでも駄目なら元の
+// 候補を丸ごと返していた。やめた理由は 2 つ:
+//
+//   - 下へ広げると rank 0 まで降りられ、「測定値以下は無いものとして扱う」が
+//     破れる。測定 250 の人がテーマ次第で rank 一桁の語を key_word にされた
+//   - 丸ごと返すのはテーマを無視するのと同じ。帯内で一番近い語を出すほうが
+//     テーマの指定に沿う
+//
+// 帯を出ないので、原点シフトも free の上限もそのまま守られる。
 func FilterCandidatesByTopic(
 	emb TopicEmbedder, candidates []Candidate, topicEmb []float32,
-	freqRank FreqRank, scanLow int,
 ) []Candidate {
 	var filtered []Candidate
 	for _, c := range candidates {
@@ -101,36 +117,45 @@ func FilterCandidatesByTopic(
 			filtered = append(filtered, c)
 		}
 	}
-	if len(filtered) > 0 {
-		return filtered
-	}
+	return filtered
+}
 
-	expandLow := scanLow
-	for range 5 {
-		expandHigh := expandLow
-		expandLow = max(0, expandLow-TopicFilterExpandStep)
-		if expandLow >= expandHigh {
-			break
-		}
-		// Python は expand_low <= rank < expand_high（上端は開区間）。
-		// なお上端を閉区間にしても結果は変わらない。rank == expandHigh の語は
-		// 直前の周（または元の帯域）で必ず調べ済みで、通っていればそこで
-		// return しているため、再検査しても落ちる側にしかならない。
-		for _, c := range BandCandidates(freqRank, expandLow, expandHigh-1) {
-			wordEmb := emb.Embedding(c.Word)
-			if wordEmb == nil {
-				continue
-			}
-			if embeddings.CosineSimilarity(wordEmb, topicEmb) >= TopicFilterThreshold {
-				filtered = append(filtered, c)
-			}
-		}
-		if len(filtered) > 0 {
-			return filtered
-		}
+// ClosestToTopic は候補の中でテーマ embedding に最も近い順に count 件返す。
+// 閾値を満たす語が帯内に 1 つも無かったときのフォールバック。
+//
+// 呼び出し側が先に既出（UVM 登録済み）を落としているので、同じテーマでも
+// 同じ語が出続けることはない。embedding を持たない語は比較できないので外す。
+// 全部が比較できないときは候補をそのまま返す（抽選に任せる）。
+func ClosestToTopic(
+	emb TopicEmbedder, candidates []Candidate, topicEmb []float32, count int,
+) []Candidate {
+	type scored struct {
+		c   Candidate
+		sim float64
 	}
-
-	return candidates
+	var all []scored
+	for _, c := range candidates {
+		wordEmb := emb.Embedding(c.Word)
+		if wordEmb == nil {
+			continue
+		}
+		all = append(all, scored{c: c, sim: embeddings.CosineSimilarity(wordEmb, topicEmb)})
+	}
+	if len(all) == 0 {
+		return candidates[:min(count, len(candidates))]
+	}
+	// 類似度の降順。同点は rank 昇順にして結果を一意にする。
+	sort.SliceStable(all, func(i, j int) bool {
+		if all[i].sim != all[j].sim {
+			return all[i].sim > all[j].sim
+		}
+		return all[i].c.Rank < all[j].c.Rank
+	})
+	out := make([]Candidate, 0, min(count, len(all)))
+	for _, s := range all[:min(count, len(all))] {
+		out = append(out, s.c)
+	}
+	return out
 }
 
 // ZeroPWeights は未登録／P=0 の候補の抽選重み。rank が大きい（低頻度）ほど軽い。
@@ -247,6 +272,9 @@ type SessionRequest struct {
 	TopicsPool []string
 	// EstimatedVocab は呼び出し元で取得済みの語彙スコア。nil なら Firestore から読む。
 	EstimatedVocab *int
+	// TestedVocab は語彙テストの測定値（原点）。帯の下端はここより下へ行かない。
+	// 未受験は 0 で、その場合の帯は従来どおり。
+	TestedVocab int
 }
 
 // GetSessionWords は統合スキャン方式でセッション単語を選定する
@@ -265,18 +293,41 @@ func (s *SessionSelector) GetSessionWords(
 		snap, err := db.Collection("users").Doc(req.UID).Get(ctx)
 		if err == nil && snap.Exists() {
 			estimatedVocab = intField(snap.Data(), "estimated_vocab", 0)
+			if req.TestedVocab == 0 {
+				req.TestedVocab = intField(snap.Data(), "vocab_test_vocab", 0)
+			}
 		}
 	}
 	if req.MaxVocab != nil {
 		estimatedVocab = min(estimatedVocab, *req.MaxVocab)
 	}
 
-	scanLow, scanHigh := ScanBand(estimatedVocab)
+	// 測定値を原点として帯を取る（EstimateVocab の floor と揃える）。
+	// ScanBand を「測定値からの相対位置」で計算し、あとで測定値ぶん平行移動する。
+	// 単に下端を測定値で切り上げると後方ぶん（最大 GapScanDepth）が丸ごと消え、
+	// 測定 250 のとき幅 9 しか残らない。0 から始めた人は前方 51 幅を持つので、
+	// 原点をずらすだけで同じ幅になるようにする。未受験（0）は従来と完全に同一。
+	//
+	// ただし free（MaxVocab あり）は測定値を使わない。上限 100 と原点シフトを
+	// 併用すると帯が上限に潰れるため（測定 250 で [100,100] の幅 1、測定 100
+	// でも幅 1）。free は未受験者とまったく同じ挙動にし、上限側だけで抑える。
+	tested := max(req.TestedVocab, 0)
+	if req.MaxVocab != nil {
+		tested = 0
+	}
+	scanLow, scanHigh := ScanBand(max(estimatedVocab-tested, 0))
+	scanLow += tested
+	scanHigh += tested
 	if req.MaxVocab != nil {
 		scanHigh = min(scanHigh, *req.MaxVocab)
+		scanLow = min(scanLow, scanHigh)
 	}
 
 	candidates := BandCandidates(freqRank, scanLow, scanHigh)
+
+	// fallbackEmb が非 nil のときは「帯内に閾値以上の語が無かった」。
+	// 既出を落としたあとで一番テーマに近い語を選ぶ（下の選出部）。
+	var fallbackEmb []float32
 
 	topic := req.Topic
 	if topic != "" && s.Emb != nil && len(candidates) > 0 {
@@ -285,7 +336,11 @@ func (s *SessionSelector) GetSessionWords(
 			return nil, "", err
 		}
 		if topicEmb != nil {
-			candidates = FilterCandidatesByTopic(s.Emb, candidates, topicEmb, freqRank, scanLow)
+			if matched := FilterCandidatesByTopic(s.Emb, candidates, topicEmb); len(matched) > 0 {
+				candidates = matched
+			} else {
+				fallbackEmb = topicEmb
+			}
 		}
 	}
 
@@ -308,9 +363,17 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	var selected []Candidate
-	if len(zeroP) > 0 {
+	switch {
+	case fallbackEmb != nil && len(zeroP) > 0:
+		// テーマ一致語が帯内に無かった場合。既出（UVM 登録済み）を除いた
+		// 未出の語から、一番テーマに近いものを取る。
+		selected = ClosestToTopic(s.Emb, zeroP, fallbackEmb, req.Count)
+	case fallbackEmb != nil:
+		// 帯内が全部既出。それでもテーマに一番近い語を返す。
+		selected = ClosestToTopic(s.Emb, candidates, fallbackEmb, req.Count)
+	case len(zeroP) > 0:
 		selected = s.SelectWeighted(zeroP, ZeroPWeights(zeroP), req.Count)
-	} else {
+	default:
 		selected = s.selectUnknown(candidates, pMap, req.Count)
 	}
 

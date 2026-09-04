@@ -137,6 +137,7 @@ type stubSelector struct {
 func (s *stubSelector) SelectTargetWords(
 	_ context.Context, _ *firestore.Client, _ uvm.FreqRank,
 	_ string, _ map[string]any, maxVocab *int, _ int, isPremium bool, estimatedVocab *int,
+	_ int,
 ) ([]string, string, error) {
 	s.calls++
 	s.isPremium = append(s.isPremium, isPremium)

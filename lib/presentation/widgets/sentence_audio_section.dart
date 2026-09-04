@@ -18,22 +18,14 @@ import 'sentence_audio_player.dart';
 /// 形にする。平常時はどちらも畳んでおく。頭出しバーや録音UIを常に出しておくと、
 /// まだ何も鳴っていない操作パネルが例文の下に居座る。
 ///
-/// 学習タブと例文詳細の両方から使う。初回ガイドは2つのボタンをスポットするので、
-/// キーはボタン側で受け取る。
+/// 学習タブと例文詳細の両方から使う。
 class SentenceAudioSection extends ConsumerStatefulWidget {
   const SentenceAudioSection({
     super.key,
     required this.sentence,
     required this.analyticsSource,
     required this.practiceScope,
-    this.listenButtonKey,
-    this.practiceButtonKey,
-    this.resultKey,
-    this.contourKey,
-    this.recordKey,
-    this.singleCycle = false,
-    this.onPlaybackEnded,
-    this.onPlay,
+    this.showPractice = true,
   });
 
   final ThaiSentence sentence;
@@ -44,18 +36,11 @@ class SentenceAudioSection extends ConsumerStatefulWidget {
   /// 発音練習の判定を持ち回す単位。画面ごとに分けて持ち越さない。
   final String practiceScope;
 
-  final Key? listenButtonKey;
-  final Key? practiceButtonKey;
-  final GlobalKey? resultKey;
-  final GlobalKey? contourKey;
-
-  /// 録音ボタンに付けるキー。初回ガイドがここを指す。
-  final GlobalKey? recordKey;
-
-  /// 初回ガイドで押させた回だけ1周で止める。
-  final bool singleCycle;
-  final VoidCallback? onPlaybackEnded;
-  final VoidCallback? onPlay;
+  /// 「発音練習」を出すか。学習タブでは出さない（false）。
+  ///
+  /// 録音は押しっぱなし・判定の読み込みまで含めて縦を大きく取る操作なので、
+  /// 詳細画面に一本化する。学習タブは 読む → 覚えたか確認 の一本道に保つ。
+  final bool showPractice;
 
   @override
   ConsumerState<SentenceAudioSection> createState() =>
@@ -109,21 +94,53 @@ class SentenceAudioSectionState extends ConsumerState<SentenceAudioSection> {
     });
   }
 
-  /// 「お手本を聞く」。塗りのボタンで、開いている間だけ金にする。
+  /// 「お手本を聞く」。開いている間だけ金にする。金はアプリ全体で
+  /// 「いま効いているもの」の色なので、状態の色として読める。
   ///
-  /// 深藍と白の役割（主・副）は変えない。開いていることは金で示す。金は
-  /// アプリ全体で「いま効いているもの」の色なので、状態の色として読める。
+  /// 学習タブでは発音練習を並べないぶん全幅になる。そこで塗りのままだと
+  /// 面積が大きく、下の「覚えたか確認」（この画面の主導線）より重く見える。
+  /// 単独で置く回は枠のボタンに落として、主役を譲る。
   Widget _listenButton(String label) {
+    if (!widget.showPractice) return _blendedListenButton(label);
+    if (_playerOpen) {
+      return ElevatedButton.icon(
+        onPressed: _togglePlayer,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.gold,
+          foregroundColor: const Color(0xFF2A2007),
+        ),
+        icon: const Icon(Icons.play_arrow, size: 18),
+        label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      );
+    }
     return ElevatedButton.icon(
-      key: widget.listenButtonKey,
       onPressed: _togglePlayer,
-      style: _playerOpen
-          ? ElevatedButton.styleFrom(
-              backgroundColor: AppColors.gold,
-              foregroundColor: const Color(0xFF2A2007),
-            )
-          : null,
       icon: const Icon(Icons.play_arrow, size: 18),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+  }
+
+  /// 学習タブ用の「お手本を聞く」。
+  ///
+  /// 面は持たせない。例文カードに付く操作であって、この画面の主導線
+  /// （覚えたか確認）ではない。箱を描くと主導線と同じ重さで並ぶ。
+  /// 開いている間は字だけ深藍から金へ替える。金はアプリ全体で「いま効いて
+  /// いるもの」の色なので、字の色だけで状態が読める。
+  Widget _blendedListenButton(String label) {
+    final foreground = _playerOpen ? AppColors.goldInk : AppColors.indigo;
+    return TextButton.icon(
+      onPressed: _togglePlayer,
+      style: TextButton.styleFrom(
+        minimumSize: const Size.fromHeight(44),
+        backgroundColor: Colors.transparent,
+        foregroundColor: foreground,
+        // 波紋も押下中の面も角丸の矩形で描かれる。面を持たないボタンの上に
+        // 出すと、押した瞬間だけ箱が浮き出る。
+        overlayColor: Colors.transparent,
+        splashFactory: NoSplash.splashFactory,
+        shape: const RoundedRectangleBorder(),
+      ),
+      icon: const Icon(Icons.play_arrow, size: 16),
       label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
     );
   }
@@ -131,7 +148,6 @@ class SentenceAudioSectionState extends ConsumerState<SentenceAudioSection> {
   /// 「発音してみる」。白いままで、開いている間だけ金の枠と薄い金地にする。
   Widget _practiceButton(String label) {
     return OutlinedButton.icon(
-      key: widget.practiceButtonKey,
       onPressed: _toggle,
       style: _expanded
           ? OutlinedButton.styleFrom(
@@ -148,7 +164,8 @@ class SentenceAudioSectionState extends ConsumerState<SentenceAudioSection> {
   @override
   Widget build(BuildContext context) {
     final sentence = widget.sentence;
-    final canPractise = canPractisePronunciation(sentence);
+    final canPractise =
+        widget.showPractice && canPractisePronunciation(sentence);
     final l10n = L10n.of(context);
 
     return Column(
@@ -169,17 +186,16 @@ class SentenceAudioSectionState extends ConsumerState<SentenceAudioSection> {
           curve: Curves.easeOut,
           alignment: Alignment.topCenter,
           child: _playerOpen
+              // バーはボタンの続き。上は詰めて1組に見せ、下だけ空けて
+              // 次の見出し（学習単語）とぶつけない。
               ? Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 2, bottom: 6),
                   child: SentenceAudioPlayer(
                     autoPlay: true,
                     text: sentence.thaiText,
                     words:
                         sentence.wordBreakdowns.map((w) => w.wordText).toList(),
-                    singleCycle: widget.singleCycle,
-                    onPlaybackEnded: widget.onPlaybackEnded,
                     onPlay: () {
-                      widget.onPlay?.call();
                       unawaited(
                         ref.read(analyticsServiceProvider).logPlayTts(
                               contentType: 'sentence',
@@ -206,9 +222,6 @@ class SentenceAudioSectionState extends ConsumerState<SentenceAudioSection> {
                     behavior: HitTestBehavior.opaque,
                     onTap: () {},
                     child: PronunciationPractice(
-                      resultKey: widget.resultKey,
-                      contourKey: widget.contourKey,
-                      recordKey: widget.recordKey,
                       scope: widget.practiceScope,
                       sentenceId: sentence.id,
                       words: sentence.wordBreakdowns,

@@ -193,6 +193,7 @@ func runGenerateThaiSentence(
 		Params:         effectiveGenerationParams(params, usePremiumSpec),
 		UsePremiumSpec: usePremiumSpec,
 		EstimatedVocab: estimatedVocab,
+		TestedVocab:    intValue(userData["vocab_test_vocab"]),
 		Lang:           l,
 	})
 	if err != nil {
@@ -218,8 +219,10 @@ func runGenerateThaiSentence(
 		defer wg.Done()
 		registerSentenceExposure(ctx, db, uid, produced)
 		// premium は上限なし（負の値で「上限なし」を表す）。
+		// トライアル中も premium と同じ扱いにする。tier だけで見ると、体験中に
+		// 伸ばした estimated_vocab が毎回 100 へ切り戻される。
 		maxVocab := -1
-		if !isPremium {
+		if !usePremiumSpec {
 			maxVocab = uvm.FreeTierMaxVocab
 		}
 		uvm.SyncEstimatedVocab(ctx, db, uid, freqRank, maxVocab)

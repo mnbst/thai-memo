@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:thai_memo/core/config/app_config.dart';
 import 'package:thai_memo/data/datasources/backend_api_service.dart';
 import 'package:thai_memo/data/datasources/local/database_helper.dart';
 import 'package:thai_memo/data/models/quiz_question.dart';
@@ -151,11 +150,7 @@ Future<_QuizHarness> _pumpSummaryQuiz(
 
 void main() {
   setUp(() {
-    // ヒントの初回案内は既定で「表示済み」。案内そのものを見るテストだけ
-    // フラグを外す。
-    SharedPreferences.setMockInitialValues({
-      AppConfig.prefKeyQuizHintCoachShown: true,
-    });
+    SharedPreferences.setMockInitialValues({});
   });
 
   testWidgets('正解は同じ問題内で解説まで見せ、二重送信せず次へボタンで進む', (tester) async {
@@ -367,13 +362,9 @@ void main() {
     await tester.pump();
   });
 
-
   testWidgets('5問クイズのヒントは発音→訳文の2段階で開き、段階を回答に渡す', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    SharedPreferences.setMockInitialValues({
-      AppConfig.prefKeyQuizHintCoachShown: true,
-    });
     final harness = await _pumpSummaryQuiz(tester);
     final hintButton = find.byKey(const ValueKey('quiz_hint_button'));
 
@@ -409,36 +400,13 @@ void main() {
     expect(state.hintLevels, [2]);
   });
 
-  testWidgets('ヒントの案内は初回だけ出し、二度目の起動では出さない', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    SharedPreferences.setMockInitialValues({});
-
-    await _pumpSummaryQuiz(tester);
-    // ハイライトは出ている間ずっと明滅するので pumpAndSettle は使えない。
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump();
-
-    expect(find.text('ヒントは2段階で出せます'), findsOneWidget);
-
-    await tester.tap(find.text('わかった'));
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump();
-    expect(find.text('ヒントは2段階で出せます'), findsNothing);
-
-    // 表示済みフラグが立つので、次の出題では出ない。
-    await _pumpSummaryQuiz(tester);
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump();
-    expect(find.text('ヒントは2段階で出せます'), findsNothing);
-  });
-
-  testWidgets('まとめクイズへ進む回は締めくくりを出さない', (tester) async {
+  testWidgets('クイズ完了後に案内は一切出さない', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     var challenged = 0;
     final harness = await _pumpSummaryQuiz(
       tester,
+      showVocabScoreTransition: true,
       onNextSentence: () async {},
       onOptionalChallenge: () async => challenged += 1,
     );
@@ -451,194 +419,15 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 1300));
     await tester.pump();
-    expect(find.text('まとめクイズに挑戦'), findsOneWidget);
-
-    // 誘導ボタンを押す。案内は指を離す前に閉じるので、この後に画面が
-    // 切り替わる。続けて締めくくりを出すと、切り替わりと同時に消える。
-    await tester.pump(const Duration(milliseconds: 1300));
-    await tester.tap(find.text('5問チャレンジする'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1300));
-    await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
 
-    expect(challenged, 1);
-    expect(find.text('間違えた例文は、また出ます'), findsNothing);
-    // 出していないので、表示済みにもしない（次の結果画面で出る）。
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(AppConfig.prefKeyTourFinishCoachShown), isNot(true));
-
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pump();
-  });
-
-  testWidgets('締めくくりを閉じたらテーマの案内へ続く', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final harness = await _pumpSummaryQuiz(
-      tester,
-      showVocabScoreTransition: true,
-      onNextSentence: () async {},
-    );
-
-    for (var i = 0; i < _questions.length; i++) {
-      await harness.controller.answerQuestion(1);
-      await tester.pump();
-      await harness.controller.nextQuestion();
-      await tester.pump();
-    }
-    await tester.pump(const Duration(milliseconds: 1300));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump();
-    // 1ページ目は5問クイズの解き方。2ページ目が締めくくり。
-    expect(find.text('5問クイズのコツ'), findsOneWidget);
-    await tester.tap(find.text('次へ'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('間違えた例文は、また出ます'), findsOneWidget);
-
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.text('わかった'),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1300));
-    await tester.pump();
-    // 締めくくり → テーマ の順に出す。
-    expect(find.text('テーマを選んでタイ文化に親しむ'), findsOneWidget);
-
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pump();
-  });
-
-  testWidgets('結果画面の演出が終わったら締めくくりを出す', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final harness = await _pumpSummaryQuiz(
-      tester,
-      showVocabScoreTransition: true,
-    );
-
-    for (var i = 0; i < _questions.length; i++) {
-      await harness.controller.answerQuestion(1);
-      await tester.pump();
-      await harness.controller.nextQuestion();
-      await tester.pump();
-    }
-    // 語彙スコアの加算演出が終わるまでは何も出さない。
-    await tester.pump(const Duration(milliseconds: 1300));
-    await tester.pump();
-
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump();
-
-    // 1ページ目は5問クイズの解き方。2ページ目が締めくくり。
-    expect(find.text('5問クイズのコツ'), findsOneWidget);
-    await tester.tap(find.text('次へ'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('間違えた例文は、また出ます'), findsOneWidget);
-
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.text('わかった'),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('間違えた例文は、また出ます'), findsNothing);
-
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pump();
-  });
-
-  testWidgets('案内を読み終えたら、押させずに次の例文へ進む', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    var advanced = 0;
-    final harness = await _pumpSummaryQuiz(
-      tester,
-      showVocabScoreTransition: true,
-      onNextSentence: () async => advanced += 1,
-    );
-
-    for (var i = 0; i < _questions.length; i++) {
-      await harness.controller.answerQuestion(1);
-      await tester.pump();
-      await harness.controller.nextQuestion();
-      await tester.pump();
-    }
-    await tester.pump(const Duration(milliseconds: 1300));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump();
-    // 1ページ目は5問クイズの解き方。2ページ目が締めくくり。
-    expect(find.text('5問クイズのコツ'), findsOneWidget);
-    await tester.tap(find.text('次へ'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('間違えた例文は、また出ます'), findsOneWidget);
-
-    // 締めくくりを閉じただけでは進まない。テーマの案内が残っている。
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.text('わかった'),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1300));
-    await tester.pump();
-    expect(find.text('テーマを選んでタイ文化に親しむ'), findsOneWidget);
-    expect(advanced, 0);
-
-    await tester.pump(const Duration(milliseconds: 1300));
-    await tester.tap(find.text('次の例文に進む'));
-    await tester.pumpAndSettle();
-
-    expect(advanced, 1);
-    // 例文画面で流れを案内するための予約を残す。
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(AppConfig.prefKeyLearningFlowCoachPending), isTrue);
-
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pump();
-  });
-
-  testWidgets('まとめクイズの案内は初回だけ強制で、逃げ道を出さない', (tester) async {
-    // 案内カードは対象の近くに出る。結果画面が縦に長いので画面も広く取る。
-    await tester.binding.setSurfaceSize(const Size(800, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final questions = _questions.take(2).toList();
-    final harness = await _pumpSummaryQuiz(
-      tester,
-      questions: questions,
-      onNextSentence: () async {},
-      onOptionalChallenge: () async {},
-    );
-
-    for (var i = 0; i < questions.length; i++) {
-      await harness.controller.answerQuestion(1);
-      await tester.pump();
-      await harness.controller.nextQuestion();
-      await tester.pump();
-    }
-    // ハイライトは出ている間ずっと明滅するので pumpAndSettle は使えない。
-    await tester.pump(const Duration(milliseconds: 1500));
-    await tester.pump();
-
-    expect(find.text('まとめクイズに挑戦'), findsOneWidget);
-    // スキップは出さない。
-    expect(find.text('スキップ'), findsNothing);
-
-    // 暗幕を押しても閉じない（押せる場所は光っているボタンだけ）。
-    await tester.tapAt(const Offset(400, 40));
-    await tester.pump();
-    expect(find.text('まとめクイズに挑戦'), findsOneWidget);
+    // 使い方の案内は説明書に集約した。結果画面から案内は出さず、
+    // 次に進むかどうかも本人に委ねる。
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.text('まとめクイズに挑戦'), findsNothing);
+    expect(find.text('今後の進め方'), findsNothing);
+    expect(challenged, 0);
 
     // レビュー依頼の遅延タイマーを消化してから終える。
     await tester.pump(const Duration(seconds: 2));

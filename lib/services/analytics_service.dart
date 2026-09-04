@@ -7,8 +7,15 @@ class AnalyticsService {
       : _analytics = FirebaseAnalytics.instance,
         observer = FirebaseAnalyticsObserver(
           analytics: FirebaseAnalytics.instance,
-          // Dialog や BottomSheet の内部 route は除外し、PageRoute のみ自動計測する。
-          routeFilter: (route) => route is PageRoute<dynamic>,
+          // Home の root route はタブ単位で手動計測する。名前のない route も
+          // (not set) の原因になるため、名前付き PageRoute だけを自動計測する。
+          routeFilter: (route) {
+            final name = route?.settings.name;
+            return route is PageRoute<dynamic> &&
+                name != null &&
+                name.isNotEmpty &&
+                name != '/';
+          },
         );
 
   static final AnalyticsService instance = AnalyticsService._internal();
@@ -22,9 +29,9 @@ class AnalyticsService {
 
   Future<void> setUserId(String? userId) async {
     if (_lastUserId == userId) return;
-    _lastUserId = userId;
     try {
       await _analytics.setUserId(id: userId);
+      _lastUserId = userId;
     } on PlatformException catch (error, stackTrace) {
       _logPlatformFailure('setUserId', error, stackTrace);
     } catch (error, stackTrace) {
@@ -34,9 +41,9 @@ class AnalyticsService {
 
   Future<void> setUserTier(String tier) async {
     if (_lastTier == tier) return;
-    _lastTier = tier;
     try {
       await _analytics.setUserProperty(name: 'tier', value: tier);
+      _lastTier = tier;
     } on PlatformException catch (error, stackTrace) {
       _logPlatformFailure('setUserProperty', error, stackTrace);
     } catch (error, stackTrace) {
@@ -117,7 +124,7 @@ class AnalyticsService {
     String? source,
   }) async {
     await _logEvent('quiz_answer', {
-      'correct': correct ? 1 : 0,
+      'correct': correct ? 'true' : 'false',
       'category': category,
       // 'question_index': questionIndex,
       'source': source,
@@ -148,7 +155,7 @@ class AnalyticsService {
     await _logEvent('tap_vocab_score', {
       'source': source,
       'vocab': vocab,
-      'is_premium': isPremium ? 1 : 0,
+      'is_premium': isPremium ? 'true' : 'false',
     });
   }
 
@@ -157,10 +164,10 @@ class AnalyticsService {
   /// パラメータは GA4 側で登録しないと (not set) になり、しかも遡及しない。
   /// 登録先は型で決まる。文字列は customDimension、数値は customMetric。
   /// 数値をディメンションで登録しても値は読めず (not set) のままになる。
-  /// 登録済み: source(dim) / worst_tone(dim) / score(metric) /
+  /// 登録済み: source(dim) / worst_tone(dim) / pronunciation_score(metric) /
   /// recognized_pct(metric)。source は他イベントと共有のディメンションなので、
   /// 画面別に見るときは eventName でも絞ること。
-  /// monotone は 0|1 の数値なので dim 登録は無効。metric に直すこと。
+  /// monotone は文字列 true|false のディメンションとして送る。
   Future<void> logPronunciationAttempt({
     required String sentenceId,
     required String source,
@@ -175,9 +182,11 @@ class AnalyticsService {
       // どの画面から練習したか（home_card / detail / sheet）。
       // 文字列なので customDimension 側の source を再利用する。
       'source': source,
-      'score': score.round(),
+      'pronunciation_score': score.round(),
       'syllable_count': syllableCount,
-      'monotone': monotone ? 1 : 0,
+      // 真偽値は割合をイベント数で計算できるようディメンションとして送る。
+      // 数値 0/1 では既存の customDimension が (not set) になる。
+      'monotone': monotone ? 'true' : 'false',
       'worst_tone': worstTone,
       // 音声認識に非対応の端末では送らない。判定できないことと
       // 判定して駄目だったことを分析上も混同させない。
@@ -201,7 +210,7 @@ class AnalyticsService {
   }) async {
     await _logEvent('paywall_view', {
       'source': source,
-      'product_loaded': productLoaded ? 1 : 0,
+      'product_loaded': productLoaded ? 'true' : 'false',
     });
   }
 
@@ -225,15 +234,17 @@ class AnalyticsService {
     required bool ok,
     String? code,
   }) async {
-    await _logEvent('purchase_verify', {'ok': ok ? 1 : 0, 'code': code});
+    await _logEvent('purchase_verify', {
+      'ok': ok ? 'true' : 'false',
+      'code': code,
+    });
   }
 
+  /// オンボーディング（機能紹介3枚）を開いた。
   Future<void> logOnboardingStart() async {
     await _logEvent('onboarding_start', {});
   }
 
-  /// オンボーディングを最後まで見た。スキップは持たないので、
-  /// onboarding_start との差がそのまま離脱になる。
   /// オンボーディング終了。[skipped] は最後まで読まずに飛ばしたか。
   ///
   /// 真偽値は登録済みの文字列ディメンション `value` に載せる。数値で送ると
@@ -244,26 +255,21 @@ class AnalyticsService {
     });
   }
 
-  /// 初回ガイド（コーチマーク）1つぶんの結果。
+  /// 使い方の説明書（説明書1枚）の読まれ方。
   ///
-  /// [id] はコーチマークの識別子（sentence_card / quiz_button など）。
+  /// [source] は出どころ（first_launch / settings）。
   /// action:
-  ///   shown     — 表示した
-  ///   tapped    — 案内した対象を押して進んだ（意図した通り）
-  ///   dismissed — 対象以外を押して抜けた
-  ///   closed    — 押される前に画面が閉じられ、案内が届かなかった
-  ///
-  /// 「出したか」ではなく「どの段で降りたか」を見るために3つに分ける。
-  /// 表示済みフラグは prefs にしかないので、これが無いとツアーの通過率が
-  /// 一切測れない。
-  Future<void> logCoachMark({
-    required String id,
+  ///   open      — 開いた
+  ///   skipped   — 初回導線でスキップして閉じた
+  ///   completed — 末尾のボタンで閉じた
+  Future<void> logGuide({
     required String action,
+    required String source,
   }) async {
-    await _logEvent('coach_mark', {'coach_id': id, 'action': action});
+    await _logEvent('guide', {'action': action, 'source': source});
   }
 
-  /// オンボーディング後のヒアリング。
+  /// 初回導線のヒアリング。
   /// action: start / answer / skip / complete
   ///
   /// [question] / [answer] は action='answer' のときだけ入る。complete の
@@ -284,6 +290,46 @@ class AnalyticsService {
     });
   }
 
+  /// 語彙テスト（オンボーディング末尾・設定からの再試験）の進行。
+  ///
+  /// action: start / skip / stage / complete / error
+  /// source: onboarding / settings（どちらから入ったか）
+  /// value: complete では測定した語彙数、stage では段の番号。
+  ///
+  /// 離脱がどの段で起きるかを見る。段の途中で落ちる率が高ければ問数が多すぎる。
+  Future<void> logVocabTest({
+    required String action,
+    required String source,
+    int? value,
+  }) async {
+    await _logEvent('vocab_test', {
+      'action': action,
+      'source': source,
+      'value': value?.toString(),
+    });
+  }
+
+  /// 評価依頼の呼び出し結果。
+  ///
+  /// source: quiz / sentence（どちらの経路から呼んだか）
+  /// outcome: requested のほか、どの条件で降りたか（[ReviewPromptOutcome]）。
+  ///
+  /// 依頼を出した回数と、出せなかった理由の内訳を見るために送る。しきい値が
+  /// 実データに対して緩いか厳しいかは、これが無いと判断できない。
+  ///
+  /// なお requested は「OSに依頼した」であって「表示された」ではない。
+  /// SKStoreReviewController は年3回の上限や独自判断で黙って出さないことが
+  /// あり、表示回数はどこからも取れない。無視率は上限としてしか出せない。
+  Future<void> logReviewPrompt({
+    required String source,
+    required String outcome,
+  }) async {
+    await _logEvent('review_prompt', {
+      'source': source,
+      'outcome': outcome,
+    });
+  }
+
   Future<void> logSummaryQuizComplete({
     required int score,
     required int questionCount,
@@ -291,7 +337,8 @@ class AnalyticsService {
     int? vocabAfter,
   }) async {
     await _logEvent('summary_quiz_complete', {
-      'score': score,
+      // 発音側の score と同名にすると1つのカスタムメトリクスへ混ざる。
+      'quiz_score': score,
       'question_count': questionCount,
       'vocab_before': vocabBefore,
       'vocab_after': vocabAfter,
@@ -301,9 +348,9 @@ class AnalyticsService {
   /// アプリ言語をユーザープロパティにする。全指標を言語で割るために使う。
   Future<void> setUserAppLanguage(String lang) async {
     if (_lastAppLanguage == lang) return;
-    _lastAppLanguage = lang;
     try {
       await _analytics.setUserProperty(name: 'app_language', value: lang);
+      _lastAppLanguage = lang;
     } on PlatformException catch (error, stackTrace) {
       _logPlatformFailure('setUserProperty', error, stackTrace);
     } catch (error, stackTrace) {
@@ -344,11 +391,13 @@ class AnalyticsService {
     await _logEvent('premium_trial_ended', {'action': action});
   }
 
-  /// 既存ユーザーへ後から配ったプレミアム体験の、開放案内の表示。
+  /// プレミアム体験の開放案内（一括配布の初回起動／オンボーディング末尾）の表示と結果。
   ///
-  /// [action] は shown（表示）のみ。ここでは課金を勧めないので選択肢がない。
+  /// [action] は shown（表示）/ accepted（プランを見る）/ dismissed（使ってみる）。
+  /// 一括配布ではプランへの導線を出さないので shown だけが出る。
   /// この shown が「体験を実際に認識した人数」の分母になり、
   /// premium_trial_ended(shown) → subscribe への転換率をここから測る。
+  /// 開いた先の行動は tap_paywall(source: onboarding_trial_started) で追う。
   Future<void> logPremiumTrialStarted({required String action}) async {
     await _logEvent('premium_trial_started', {'action': action});
   }

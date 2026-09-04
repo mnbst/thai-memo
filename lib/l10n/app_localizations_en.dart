@@ -44,6 +44,12 @@ class L10nEn extends L10n {
   String get navSettings => 'Settings';
 
   @override
+  String get learnAppBarTitle => 'Today\'s sentence';
+
+  @override
+  String get learnOpenDetail => 'Details';
+
+  @override
   String get learnQuizTitle => 'Quiz';
 
   @override
@@ -53,121 +59,10 @@ class L10nEn extends L10n {
   String get learnNextSentence => 'Next sentence';
 
   @override
-  String get firstGuideTitle => 'Let\'s try it once';
-
-  @override
-  String get firstGuideBody =>
-      'You\'ll go through one full round, from a sentence to a quiz.\nI\'ll point out each button as you go.';
-
-  @override
-  String get firstGuideTrial => 'Your first 2 days are on Premium';
-
-  @override
   String get commonOk => 'OK';
 
   @override
   String get commonRetry => 'Try again';
-
-  @override
-  String get coachDetailTitle => 'Tap the sentence first';
-
-  @override
-  String get coachDetailMessage =>
-      'Tap the card to see the meaning and pronunciation of each word.';
-
-  @override
-  String get coachQuizTitle => 'Now try the quiz';
-
-  @override
-  String get coachQuizMessage =>
-      'Once you\'ve looked through the sentence, take the quiz to check that the words stuck.';
-
-  @override
-  String get coachTargetWordsTitle => 'Learn this word';
-
-  @override
-  String get coachTargetWordsEmphasis => 'target word';
-
-  @override
-  String get coachTargetWordsMessage =>
-      'This is the target word for the sentence. See how it\'s used.';
-
-  @override
-  String get coachSentenceCardTitle => 'Sentence card';
-
-  @override
-  String get coachSentenceCardMessage =>
-      'The Thai text is on top, its reading below it, and the translation at the bottom.';
-
-  @override
-  String get coachPlayTitle => 'Hear the model reading';
-
-  @override
-  String get coachPlayMessage =>
-      'Press play and you\'ll hear the sentence read aloud in Thai.';
-
-  @override
-  String get coachPronunciationTitle => 'Say it out loud';
-
-  @override
-  String get coachPronunciationMessage =>
-      'Hold the button and copy what you heard, out loud in Thai. Your tones are checked on the spot.';
-
-  @override
-  String get coachPronunciationResultTitle => 'How to read your result';
-
-  @override
-  String get coachPronunciationResultMessage =>
-      'Green is correct, orange is close, red is off. Tap any of the words.';
-
-  @override
-  String get coachPronunciationContourTitle => 'Compare it with yours';
-
-  @override
-  String get coachPronunciationContourMessage =>
-      'The faint line is the model and the solid one is your pitch. Follow the \"Fix this next\" hint, say it again with \"Try again\", and aim to turn every word green.';
-
-  @override
-  String get coachWordDetailTitle => 'See it word by word';
-
-  @override
-  String get coachWordDetailMessage =>
-      'The words in this sentence. Tap any word for a closer look at how its spelling relates to its tones.';
-
-  @override
-  String get coachToneDetailTitle => 'How to read the tone breakdown';
-
-  @override
-  String get coachToneDetailMessage =>
-      'The tone breakdown splits the word into syllables, each with its reading and tone mark.';
-
-  @override
-  String get coachToneTableTitle => 'How the tone is decided';
-
-  @override
-  String get coachToneTableMessage =>
-      'The initial consonant class (high, mid, low), the tone mark, and the syllable type together decide the tone. The row highlighted in blue is the rule this syllable follows.';
-
-  @override
-  String get coachToneGuideTitle => 'Want the full rules?';
-
-  @override
-  String get coachToneGuideMessage =>
-      'The tone rules are collected in the tone guide. You can open it from here any time.';
-
-  @override
-  String get coachContextTitle => 'Check how it\'s used';
-
-  @override
-  String get coachContextMessage =>
-      'This card shows where the sentence fits, how formal it is, and the cultural background behind it.';
-
-  @override
-  String get coachDetailBackTitle => 'That\'s it for the details';
-
-  @override
-  String get coachDetailBackMessage =>
-      'That\'s the end of the guide. Tap the back arrow at the top left, or swipe right, to return to the previous screen.';
 
   @override
   String get sentencePreparing => 'Preparing your next sentence...';
@@ -312,94 +207,6 @@ class L10nEn extends L10n {
 
   @override
   String get commonTryAgain => 'Try again';
-
-  @override
-  String get coachQuizHintTitle => 'Hints come in two steps';
-
-  @override
-  String get coachQuizHintMessage =>
-      'Stuck? Hint 1 shows the pronunciation, and pressing it again shows the translation. Using a hint still records your answer — it just moves your vocabulary score less.';
-
-  @override
-  String get coachQuizReviewTitle => 'You can go back to the sentence';
-
-  @override
-  String get coachQuizReviewMessage =>
-      'Pick the word that fits the blank. Unsure? \"Show the sentence\" below brings the sentence back any time.';
-
-  @override
-  String get coachSummaryQuizTitle => 'Try the review quiz';
-
-  @override
-  String get coachSummaryQuizEmphasis => 'every 5 sentences';
-
-  @override
-  String get coachSummaryQuizMessage =>
-      'A quiz that reviews the words you\'ve learned so far. It normally comes around every 5 sentences, but give it a try now.';
-
-  @override
-  String get coachTourFinishTitle => 'Sentences you miss come back';
-
-  @override
-  String get coachTourFinishMessage =>
-      'The 5-question quiz draws on the sentences you\'ve read. The ones you get wrong come back again after a while, so leave the reviewing to the app and move on.';
-
-  @override
-  String get coachTourFinishEmphasis =>
-      'The ones you get wrong come back again after a while';
-
-  @override
-  String get coachTourFinishSeePremium => 'See Premium';
-
-  @override
-  String coachTourFinishQuota(int free, int premium) {
-    return 'You can create $free sentences a day on the free plan, or $premium a day with Premium.';
-  }
-
-  @override
-  String get coachFlowTitle => 'How it goes from here';
-
-  @override
-  String get coachFlowGreeting =>
-      'Nice work! That\'s the whole loop, start to finish.';
-
-  @override
-  String get coachFlowLoopSentence => 'Sentence';
-
-  @override
-  String get coachFlowLoopQuiz => 'Quiz';
-
-  @override
-  String get coachFlowLoopSummary => '5-question quiz';
-
-  @override
-  String get coachFlowBody1 => 'Read a sentence, check it with a quiz.';
-
-  @override
-  String get coachSummaryTipsBody =>
-      'Questions you answer from the Thai alone grow your score the most. Try it without the translation first.';
-
-  @override
-  String get coachSummaryTipsEmphasis => 'from the Thai alone';
-
-  @override
-  String get coachFlowPage1Title => 'Sentence and quiz, on repeat';
-
-  @override
-  String get coachSummaryTipsTitle => 'Tips for the 5-question quiz';
-
-  @override
-  String get coachFlowContinue => 'Keep going';
-
-  @override
-  String get coachTopicTitle => 'Pick a topic and go deeper into Thai culture';
-
-  @override
-  String get coachTopicNext => 'Go to next sentence';
-
-  @override
-  String get coachTopicMessage =>
-      'Tap here to choose the topic of your next sentence. Festivals, temple etiquette, BL dramas — you pick up the culture along with the language.';
 
   @override
   String get vocabScore => 'Vocabulary score';
@@ -634,6 +441,9 @@ class L10nEn extends L10n {
   String get settingsLearningStatus => 'Your progress';
 
   @override
+  String get settingsGuideSection => 'Guides';
+
+  @override
   String get settingsLearningSection => 'Learning';
 
   @override
@@ -745,40 +555,50 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get trialEndedChangePronunciationLabel => 'Pronunciation checks';
+  String get trialEndedChangeVocabLabel => 'Vocabulary score';
 
   @override
-  String get trialEndedChangePronunciationPremium => 'Unlimited';
+  String get trialEndedChangeVocabPremium => 'No cap';
 
   @override
-  String trialEndedChangePronunciationFree(int count) {
-    return '$count/day';
+  String trialEndedChangeVocabFree(int free) {
+    return 'up to $free';
   }
 
   @override
   String trialStartedTitle(int days) {
-    return 'Try Premium for $days days';
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'You have Premium for $days days',
+      one: 'You have Premium for 1 more day',
+    );
+    return '$_temp0';
   }
 
   @override
   String get trialStartedBody =>
-      'We\'ve unlocked features you don\'t normally have, just for this period.';
+      'We\'ve unlocked features that aren\'t in the free plan, just for this period.';
 
   @override
-  String trialStartedChangeQuota(int free, int premium) {
-    return 'Sentences  $free/day → $premium/day';
+  String get trialStartedChangeQuotaLabel => 'Sentences';
+
+  @override
+  String trialStartedChangeQuota(int premium) {
+    return 'Up to $premium a day';
   }
 
   @override
-  String trialStartedChangePronunciation(int count) {
-    return 'Pronunciation checks  $count/day → unlimited';
-  }
+  String get trialStartedChangeTopicLabel => 'Topics';
 
   @override
-  String get trialStartedChangeTopic => 'Topics  Pick your own sentence topics';
+  String get trialStartedChangeTopic => 'Pick your own sentence topics';
 
   @override
-  String get trialStartedStart => 'Try it out';
+  String get trialStartedStart => 'Got it';
+
+  @override
+  String get trialStartedSeePlans => 'See Premium plan';
 
   @override
   String get topicPickerTitle => 'Choose a topic';
@@ -928,89 +748,10 @@ class L10nEn extends L10n {
   String get vocabLevelAdvanced => 'Advanced';
 
   @override
-  String vocabDialogTitle(String level) {
-    return 'Vocabulary score ($level)';
-  }
-
-  @override
-  String vocabDialogTitleFree(String level) {
-    return 'Vocabulary score (Free · $level)';
-  }
-
-  @override
-  String vocabProgressOf(int current, int threshold) {
-    return '$current of $threshold words';
-  }
-
-  @override
-  String get vocabFreeCap => 'Free cap';
-
-  @override
-  String vocabRemaining(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count to go',
-      one: '1 to go',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String vocabCurrentTopics(int count) {
-    return 'Your topics ($count)';
-  }
-
-  @override
-  String vocabFreeTopics(int count) {
-    return 'Free topics ($count)';
-  }
-
-  @override
-  String vocabNextUnlock(int count) {
-    return 'Unlocks next (+$count)';
-  }
-
-  @override
-  String vocabNextUnlockIn(int words, int count) {
-    return '$words more words to unlock (+$count)';
-  }
-
-  @override
   String get vocabSeePremium => 'See Premium';
 
   @override
   String get commonClose => 'Close';
-
-  @override
-  String get vocabFreeLimitTitle => 'Free stops at 100 words';
-
-  @override
-  String get vocabFreeLimitBody =>
-      'Premium takes you past 100 words and opens up more topics, so you meet a wider range of Thai.';
-
-  @override
-  String get vocabUnlockMore =>
-      'As your vocabulary score grows, new sentence topics unlock.';
-
-  @override
-  String vocabTopicCountNow(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count topics are in rotation right now',
-      one: '1 topic is in rotation right now',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String vocabPremiumAddsTopics(int count) {
-    return 'Premium adds $count more topics';
-  }
-
-  @override
-  String get listSeparator => ', ';
 
   @override
   String get paywallTitle => 'Premium';
@@ -1066,18 +807,6 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get paywallFeaturePronunciationTitle =>
-      'Build confidence in how you sound';
-
-  @override
-  String paywallFeaturePronunciationFree(int count) {
-    return '$count checks a day';
-  }
-
-  @override
-  String get paywallFeaturePronunciationPremium => 'Unlimited';
-
-  @override
   String get paywallFeatureTopicTitle =>
       'Pick a topic and go deeper into Thai culture';
 
@@ -1100,7 +829,7 @@ class L10nEn extends L10n {
 
   @override
   String get onboarding1Body =>
-      'Sentences arrive daily — add more anytime.\nTap the card for words and meaning.';
+      'Sentences arrive daily — and you can make more yourself.\nTap the card for words and meaning.';
 
   @override
   String get onboarding2Title => 'Pronunciation practice, tones included';
@@ -1121,29 +850,6 @@ class L10nEn extends L10n {
 
   @override
   String get onboardingNext => 'Next';
-
-  @override
-  String get coachTapHere => 'Tap the highlighted area';
-
-  @override
-  String get coachSkip => 'Skip';
-
-  @override
-  String get coachToneBackToDetail => 'Back to the sentence';
-
-  @override
-  String get coachGotIt => 'Got it';
-
-  @override
-  String get coachNext => 'Next';
-
-  @override
-  String get coachBack => 'Back';
-
-  @override
-  String coachStepLabel(int current, int total) {
-    return '$current / $total';
-  }
 
   @override
   String get interviewIntroTitle => 'Four quick questions';
@@ -1286,10 +992,10 @@ class L10nEn extends L10n {
       '**Thirty minutes** covers adding sentences and pronunciation practice, plus reviewing past sentences and studying the tones themselves.';
 
   @override
-  String get philosophyStart => 'Try it out';
+  String get philosophyStart => 'See how it works';
 
   @override
-  String get notifCoachTitle => 'Make use of notifications';
+  String get notifCoachTitle => 'Make studying Thai a daily habit';
 
   @override
   String get notifCoachStep1 =>
@@ -1301,7 +1007,7 @@ class L10nEn extends L10n {
 
   @override
   String get notifCoachHabit =>
-      'Opening it at the same time each day is what turns studying Thai into a habit';
+      'Opening it at the same time each day is what makes it stick';
 
   @override
   String get notifCoachPreviewLabel => 'What it looks like';
@@ -1334,25 +1040,11 @@ class L10nEn extends L10n {
 
   @override
   String get premiumHint1Title =>
-      'Pick a topic and go deeper into Thai culture';
+      'Choose a theme and get closer to Thai culture';
 
   @override
   String get premiumHint1Body =>
-      'Festivals, temple etiquette, BL dramas — the culture comes with the language';
-
-  @override
-  String get premiumHint2Title => 'Build confidence in how you sound';
-
-  @override
-  String get premiumHint2Body =>
-      'Record as many times as you like and fix where your tones drift';
-
-  @override
-  String get premiumHint3Title => 'Immerse yourself in quality Thai';
-
-  @override
-  String get premiumHint3Body =>
-      'Far more sentences a day — the volume is what makes it stick';
+      'Festivals, temple etiquette, BL dramas — you pick up the culture along with the words';
 
   @override
   String get signInReminderTitle => 'Keep your progress safe';
@@ -1388,7 +1080,7 @@ class L10nEn extends L10n {
   String get quizOfferOneQuestion => 'One quick question';
 
   @override
-  String get quizOfferBody => 'See right away whether these words stuck.';
+  String get quizOfferBody => 'Check with a quiz whether these words stuck.';
 
   @override
   String get quizOfferTryOne => 'Try one question';
@@ -1441,18 +1133,15 @@ class L10nEn extends L10n {
   String get pronunciationYours => 'You';
 
   @override
-  String get pronunciationTapWordHint => 'Tap a word to see what to fix';
-
-  @override
   String pronunciationScore(int score) {
     return 'Score $score';
   }
 
   @override
-  String get pronunciationVerdictCorrect => 'On target';
+  String get pronunciationVerdictCorrect => 'OK';
 
   @override
-  String get pronunciationVerdictClose => 'Almost';
+  String get pronunciationVerdictClose => 'Close';
 
   @override
   String get pronunciationVerdictWrong => 'Off';
@@ -1466,7 +1155,7 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationNoSpeakerRange =>
-      'We couldn\'t read your pitch. Give it another go.';
+      'We couldn\'t read your pitch. Please try again.';
 
   @override
   String get pronunciationNoSyllables =>
@@ -1491,15 +1180,12 @@ class L10nEn extends L10n {
   String get pronunciationPermissionOpenSettings => 'Open settings';
 
   @override
-  String get pronunciationBandCombined =>
-      'Bar color = tone and sounds together';
-
-  @override
-  String get pronunciationSpeechRecognized => 'Consonants & vowels: understood';
+  String get pronunciationSpeechRecognized =>
+      'Consonants and vowels: came through';
 
   @override
   String get pronunciationSpeechMissing =>
-      'Consonants & vowels: not understood';
+      'Consonants and vowels: didn\'t come through';
 
   @override
   String get pronunciationSpeechUnavailable =>
@@ -1526,11 +1212,11 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationCoachShapeMid =>
-      'Mid tone: hold it flat, without changing height';
+      'Mid tone: hold it flat, at the same height throughout';
 
   @override
   String get pronunciationCoachShapeLow =>
-      'Low tone: stay down low, drifting slightly downward';
+      'Low tone: stay low and let it drift down slightly';
 
   @override
   String get pronunciationCoachShapeFalling =>
@@ -1538,7 +1224,7 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationCoachShapeHigh =>
-      'High tone: keep rising to the end instead of levelling off';
+      'High tone: keep pushing it up to the end instead of leveling off';
 
   @override
   String get pronunciationCoachShapeRising =>
@@ -1562,7 +1248,7 @@ class L10nEn extends L10n {
   @override
   String pronunciationSegmentUnaspirated(
       String word, String label, String aspirated) {
-    return 'In \"$word\", $label has no puff of air. With air it sounds like $aspirated.';
+    return 'Say the $label in \"$word\" with no puff of air — with air it sounds like $aspirated.';
   }
 
   @override
@@ -1582,7 +1268,7 @@ class L10nEn extends L10n {
 
   @override
   String pronunciationSegmentNgInitial(String word) {
-    return 'Start \"$word\" with ง humming through the nose — no vowel before it.';
+    return 'Start \"$word\" with ง humming through the nose — don\'t add an \"n\" before it.';
   }
 
   @override
@@ -1621,17 +1307,36 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get pronunciationLimitTitle =>
-      'You\'ve used today\'s free pronunciation checks';
-
-  @override
-  String get pronunciationLimitBody =>
-      'Premium lets you check your pronunciation as often as you like.';
-
-  @override
-  String pronunciationFreeRemaining(int count) {
-    return '$count free checks left today';
+  String pronunciationSummaryRecognized(int ok, int total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: '$total words',
+      one: '1 word',
+    );
+    return '$ok of $_temp0 came through';
   }
+
+  @override
+  String pronunciationNextFocus(String word) {
+    return 'Fix \"$word\" next';
+  }
+
+  @override
+  String get pronunciationCountCorrect => 'OK';
+
+  @override
+  String get pronunciationCountClose => 'Close';
+
+  @override
+  String get pronunciationCountWrong => 'Off';
+
+  @override
+  String get pronunciationTapWordHintDetail =>
+      'Tap a word to hear the model and see what to fix';
+
+  @override
+  String get pronunciationListenModelWord => 'Hear the model';
 
   @override
   String tipWithExample(String content, String example) {
@@ -1647,7 +1352,7 @@ class L10nEn extends L10n {
 
   @override
   String get quotaSentenceReached =>
-      'That\'s the last new sentence for today.\nRevisit past sentences or review them with a quiz.';
+      'That\'s the last new sentence for today.\nYou can still revisit past sentences in History.';
 
   @override
   String quotaSentenceUpgradeCta(int count) {
@@ -2506,10 +2211,79 @@ class L10nEn extends L10n {
   String get errPurchaseVerificationFailed => 'Couldn\'t verify your purchase';
 
   @override
+  String get settingsVocabTest => 'Measure your vocabulary';
+
+  @override
+  String get settingsVocabTestNever => 'Not taken yet';
+
+  @override
+  String settingsVocabTestLast(String date) {
+    return 'Last taken $date';
+  }
+
+  @override
+  String get settingsVocabTestPremium => 'Premium only';
+
+  @override
+  String get vocabTestTitle => 'Measure your vocabulary';
+
+  @override
+  String get vocabTestIntroBody =>
+      'Pick the meaning of Thai words from four choices. The test stops as soon as the words get too hard. It takes as few as 4 questions and at most 24.';
+
+  @override
+  String get vocabTestIntroNote =>
+      'The result sets the difficulty of your sentences and quizzes. You can retake it from Settings once a month.';
+
+  @override
+  String get vocabTestStart => 'Start';
+
+  @override
+  String get vocabTestQuestion => 'What does this word mean?';
+
+  @override
+  String get vocabTestDontKnow => 'I don\'t know';
+
+  @override
+  String vocabTestProgress(int current, int total) {
+    return 'Question $current of $total';
+  }
+
+  @override
+  String get vocabTestResultTitle => 'Your vocabulary';
+
+  @override
+  String vocabTestResultVocab(int vocab) {
+    return 'About $vocab words';
+  }
+
+  @override
+  String get vocabTestResultBody =>
+      'We use this as the starting point for your sentences and quizzes. It keeps moving as you answer.';
+
+  @override
+  String get vocabTestResultFreeCap =>
+      'On the free plan the vocabulary score is capped at 100. When your premium trial ends, this number drops to 100 as well.';
+
+  @override
+  String get vocabTestResultClose => 'Close';
+
+  @override
+  String get vocabTestError => 'Could not run the vocabulary test';
+
+  @override
+  String get vocabTestRetry => 'Try again';
+
+  @override
   String get rankingTitle => 'Vocabulary ranking';
 
   @override
   String get rankingSubtitle => 'See how your vocabulary score compares';
+
+  @override
+  String rankingBandScope(String band) {
+    return 'Your place among $band';
+  }
 
   @override
   String get rankingYourRank => 'Your rank';
@@ -2518,6 +2292,10 @@ class L10nEn extends L10n {
   String rankingPosition(int rank) {
     return '#$rank';
   }
+
+  @override
+  String get rankingCapTiedNote =>
+      'Too many people are tied at the cap to rank';
 
   @override
   String get rankingUnrankedHint => 'Generate a sentence to get ranked';
@@ -2566,4 +2344,258 @@ class L10nEn extends L10n {
   @override
   String get settingsRankingSubtitle =>
       'See how your vocabulary score compares';
+
+  @override
+  String get guideTitle => 'How to use the app';
+
+  @override
+  String get guideSettingsSubtitle => 'Read how the app works';
+
+  @override
+  String get guideSkip => 'Skip';
+
+  @override
+  String get guideStart => 'Measure your vocabulary';
+
+  @override
+  String get guideClose => 'Close';
+
+  @override
+  String get guideLead =>
+      'Here\'s how the app works. You can come back to this any time from Settings.';
+
+  @override
+  String get guideFigureLoopSentence => 'Sentence';
+
+  @override
+  String get guideFigureLoopQuiz => 'Quiz';
+
+  @override
+  String get guideFigureLoopRepeat => 'repeat';
+
+  @override
+  String get guideFigureLoopSummary => 'Review quiz';
+
+  @override
+  String get guideFigureLoopEvery => 'every five sentences';
+
+  @override
+  String get guideFigureCardThai => 'Thai script';
+
+  @override
+  String get guideFigureCardPronunciation => 'Pronunciation';
+
+  @override
+  String get guideFigureCardTranslation => 'Translation';
+
+  @override
+  String get guideFigureCardTranslationSample => 'I like coffee.';
+
+  @override
+  String get guideFigureCardTargetWord => 'Gold = target word';
+
+  @override
+  String get guideChapterOverview => 'Overview';
+
+  @override
+  String get guideChapterRoles => 'What each feature is for';
+
+  @override
+  String get guideChapterHowTo => 'How to use it';
+
+  @override
+  String get guideOverviewTitle => 'What you do here';
+
+  @override
+  String get guideOverviewBody1 =>
+      'Every day, AI writes new Thai sentences matched to your vocabulary level.';
+
+  @override
+  String get guideOverviewBody2 =>
+      'Read the sentence, then check yourself with a quiz. Repeating those two steps is how you learn here.';
+
+  @override
+  String get guideOverviewSummaryQuiz =>
+      'After every five sentences, you answer five questions drawn from the sentences you\'ve studied so far. If you get stuck, there are hints and a way back to the sentence.';
+
+  @override
+  String get guideOverviewBody3 =>
+      'The more you get right in review quizzes, the higher your vocabulary score — and the wider the range of words your sentences draw from. Words you struggle with are prioritized in future review quizzes, so you don\'t have to decide what to review next.';
+
+  @override
+  String get guideRoleSentenceTitle => 'Sentences';
+
+  @override
+  String get guideRoleSentenceBody =>
+      'Open the detail screen to see how a Thai word is really used. Words are easier to remember with a situation attached than on their own.';
+
+  @override
+  String get guideRoleSoundTitle => 'Pronunciation practice';
+
+  @override
+  String get guideRoleSoundBody =>
+      'In Thai, tone changes meaning. Record yourself, compare it with the model, and see which tones are off.';
+
+  @override
+  String get guideRoleQuizTitle => 'Quizzes';
+
+  @override
+  String get guideRoleQuizBody =>
+      'Answer one question to check yourself before moving on. After every five sentences, you can also take a five-question review quiz based on sentences you\'ve studied.';
+
+  @override
+  String get guideRoleScoreTitle => 'Vocabulary score';
+
+  @override
+  String get guideRoleScoreBody =>
+      'How many words you know, estimated from your quiz results.';
+
+  @override
+  String get guideRoleVocabTestTitle => 'Vocabulary test';
+
+  @override
+  String get guideRoleVocabTestBody =>
+      'A short multiple-choice test that estimates how many Thai words you know. It sets your starting vocabulary score, and with it the difficulty of your sentences and quizzes. You can retake it from Settings once a month.';
+
+  @override
+  String get guideRoleRankingTitle => 'Ranking';
+
+  @override
+  String get guideRoleRankingBody =>
+      'See where you rank among other learners based on vocabulary score. A display name is assigned automatically.';
+
+  @override
+  String get guideRoleTopicTitle => 'Topics';
+
+  @override
+  String get guideRoleTopicBody =>
+      'Explore Thai in a range of contexts—from festivals and temple etiquette to BL dramas—and learn about the culture along the way.';
+
+  @override
+  String get guideRoleNotificationTitle => 'Daily notifications';
+
+  @override
+  String get guideRoleNotificationBody =>
+      'A nudge to make studying a habit. The day\'s sentence arrives at the time you choose.';
+
+  @override
+  String get guideRolePremiumTitle => 'Free and Premium';
+
+  @override
+  String get guideRolePremiumBody =>
+      'You can keep learning every day on the Free plan. Premium raises the daily sentence count, unlocks topic choice, and lifts the vocabulary cap.';
+
+  @override
+  String get guidePlanColItem => 'Item';
+
+  @override
+  String get guidePlanColFree => 'Free';
+
+  @override
+  String get guidePlanColPremium => 'Premium';
+
+  @override
+  String get guidePlanRowSentences => 'Sentences a day';
+
+  @override
+  String get guidePlanRowTopic => 'Topics';
+
+  @override
+  String get guidePlanRowVocab => 'Vocabulary cap';
+
+  @override
+  String guidePlanSentences(int count) {
+    return '$count';
+  }
+
+  @override
+  String get guidePlanTopicFree => 'Chosen for you';
+
+  @override
+  String get guidePlanTopicPremium => 'You choose';
+
+  @override
+  String guidePlanVocabFree(int count) {
+    return '$count words';
+  }
+
+  @override
+  String guidePlanVocabPremium(int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return 'About $countString words';
+  }
+
+  @override
+  String get guideHowSentenceTitle => 'Read today\'s sentence';
+
+  @override
+  String get guideHowSentenceStep1 =>
+      'Open the Learn tab to see today\'s sentence.';
+
+  @override
+  String get guideHowSentenceStep3 =>
+      'Gold words are the ones you\'re learning. The quiz asks about those.';
+
+  @override
+  String get guideHowSentenceStep4 =>
+      'Tap the sentence card to open the detail screen.';
+
+  @override
+  String get guideHowDetailTitle => 'Look closer';
+
+  @override
+  String get guideHowDetailLead =>
+      'The detail screen gives you a closer look at each sentence. The more context you have—where a word is used, how formal it is, how it is spelled, and which tone it uses—the easier it is to remember.';
+
+  @override
+  String get guideHowSoundTitle => 'Listen and speak';
+
+  @override
+  String get guideHowSoundStep1 =>
+      '“Listen” plays the Thai sentence on a loop.';
+
+  @override
+  String get guideHowSoundStep2 =>
+      'On the detail screen, tap “Practice,” then hold “Hold to speak” while you repeat the sentence. Release the button to check your tones.';
+
+  @override
+  String get guideHowSoundStep3 =>
+      'Green means correct, amber means close, and red means off. Tap a word to compare your pitch with the model and see what to fix.';
+
+  @override
+  String get guideHowQuizTitle => 'Take the quiz';
+
+  @override
+  String get guideHowQuizStep1 =>
+      '“One quick question” below the sentence takes you to the check quiz.';
+
+  @override
+  String get guideHowQuizStep2 =>
+      'The review quiz offers hints: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.';
+
+  @override
+  String get guideHowQuizStep3 =>
+      'In the review quiz, tap “Show the sentence” if you get stuck.';
+
+  @override
+  String get guideHowQuizStep4 =>
+      'After every fifth sentence, the results screen lets you continue to the next sentence or take a review quiz.';
+
+  @override
+  String get guideHowSettingsTitle => 'In Settings';
+
+  @override
+  String get guideHowSettingsStep1 =>
+      'Change your notification time, the display font, and the language of translations and explanations.';
+
+  @override
+  String get guideHowSettingsStep2 =>
+      'The topic for your next sentence and the ranking are here too.';
+
+  @override
+  String get guideHowSettingsStep3 =>
+      'This guide is always here, under “How to use the app”.';
 }

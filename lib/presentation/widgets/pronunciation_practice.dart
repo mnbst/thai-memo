@@ -10,6 +10,7 @@
 // 読めないため。語をタップするとその語のカーブを開く。
 // =============================================================================
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -26,14 +27,12 @@ import '../../data/models/word_breakdown.dart';
 import '../../domain/sentence_tone_spans.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/pronunciation_provider.dart';
-import '../providers/pronunciation_quota_provider.dart';
-import '../providers/remaining_quota_provider.dart';
-import '../screens/paywall_screen.dart';
+import '../providers/tts_provider.dart';
 
 /// 判定の3段階に対応する色。
 ///
 /// 「惜しい」を必ず用意する。合っている／違うの2値だと挫折するため。
-Color _verdictColor(ToneVerdict verdict, ColorScheme scheme) {
+Color verdictColor(ToneVerdict verdict, ColorScheme scheme) {
   switch (verdict) {
     case ToneVerdict.correct:
       return const Color(0xFF2E7D32);
@@ -80,9 +79,6 @@ class PronunciationPractice extends ConsumerWidget {
     required this.scope,
     this.thaiText = '',
     this.showHeader = true,
-    this.resultKey,
-    this.contourKey,
-    this.recordKey,
   });
 
   /// 保存済み例文のID。未保存（null）の例文では練習させない。
@@ -100,17 +96,6 @@ class PronunciationPractice extends ConsumerWidget {
   /// 同じ例文でもここが違えば判定結果は共有されない。
   final String scope;
 
-  /// 初回ガイドで判定結果を指すためのキー。語ごとの帯に付く。
-  /// 判定前は対象そのものが無い（案内も出せない）。
-  final GlobalKey? resultKey;
-
-  /// 語を選んだときに開くカーブのカード（初回ガイドのスポット対象）。
-  final GlobalKey? contourKey;
-
-  /// 録音ボタン（初回ガイドで押させるスポット対象）。
-  /// 判定を出したあとは結果に置き換わるので、そのときは対象そのものが無い。
-  final GlobalKey? recordKey;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final id = sentenceId;
@@ -121,12 +106,6 @@ class PronunciationPractice extends ConsumerWidget {
     if (spans.isEmpty) return const SizedBox.shrink();
 
     final l10n = L10n.of(context);
-    // 体験中も課金と同じく無制限。
-    final isPremium = ref.watch(effectivePremiumProvider);
-    // free でも毎日少しだけ使える。使ったことがない機能には課金できないため。
-    final used = ref.watch(pronunciationQuotaProvider);
-    final remaining = freeDailyPronunciationChecks - used;
-    final locked = !isPremium && remaining <= 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,75 +127,13 @@ class PronunciationPractice extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
         ],
-        if (locked)
-          _PremiumLock(l10n: l10n)
-        else ...[
-          _PracticeBody(
-            sentenceId: id,
-            scope: scope,
-            spans: spans,
-            l10n: l10n,
-            countsAgainstQuota: !isPremium,
-            resultKey: resultKey,
-            contourKey: contourKey,
-            recordKey: recordKey,
-          ),
-          if (!isPremium) ...[
-            const SizedBox(height: 6),
-            Text(
-              l10n.pronunciationFreeRemaining(remaining),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ],
-        ],
+        _PracticeBody(
+          sentenceId: id,
+          scope: scope,
+          spans: spans,
+          l10n: l10n,
+        ),
       ],
-    );
-  }
-}
-
-/// 無料枠を使い切った free ユーザー向けの案内。録音ボタンの代わりに置く。
-class _PremiumLock extends StatelessWidget {
-  const _PremiumLock({required this.l10n});
-
-  final L10n l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: () => PaywallBottomSheet.show(context, source: 'pronunciation'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.lock_outline, size: 18, color: scheme.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.pronunciationLimitTitle,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    l10n.pronunciationLimitBody,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -227,28 +144,12 @@ class _PracticeBody extends ConsumerWidget {
     required this.scope,
     required this.spans,
     required this.l10n,
-    required this.countsAgainstQuota,
-    required this.resultKey,
-    required this.contourKey,
-    required this.recordKey,
   });
 
   final String sentenceId;
   final String scope;
   final SentenceToneSpans spans;
   final L10n l10n;
-
-  /// free のときだけ true。採点が成立した回だけ枠を消費する。
-  final bool countsAgainstQuota;
-
-  /// 初回ガイドが判定結果を指すためのキー。
-  final GlobalKey? resultKey;
-
-  /// 初回ガイドがカーブのカードを指すためのキー。
-  final GlobalKey? contourKey;
-
-  /// 初回ガイドが録音ボタンを指すためのキー。
-  final GlobalKey? recordKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -258,67 +159,82 @@ class _PracticeBody extends ConsumerWidget {
     final state = ref.watch(provider);
     final controller = ref.read(provider.notifier);
 
-    switch (state.phase) {
-      case PronunciationPhase.permissionDenied:
-        return _PermissionNotice(l10n: l10n);
-
-      case PronunciationPhase.analyzing:
-        return _StatusRow(
-          icon: Icons.hourglass_empty,
-          label: l10n.pronunciationAnalyzing,
-        );
-
-      case PronunciationPhase.result:
-        final result = state.result;
-        if (result == null) return const SizedBox.shrink();
-        return _ResultView(
-          resultKey: resultKey,
-          contourKey: contourKey,
-          result: result,
-          recognition: state.recognition,
-          recognitionStatus: state.recognitionStatus,
-          spans: spans,
-          selectedWordIndex: state.selectedWordIndex,
-          onSelectWord: controller.toggleWord,
-          onRetry: () {
-            controller.reset();
-            // 結果を畳むと画面が縮んで、直前まで見ていた位置が例文から
-            // 大きくずれる。言い直すには例文をもう一度見たいので先頭へ戻す。
-            Scrollable.maybeOf(context)?.position.animateTo(
-                  0,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
-          },
-          l10n: l10n,
-        );
-
-      case PronunciationPhase.idle:
-      case PronunciationPhase.recording:
-        return KeyedSubtree(
-          key: recordKey,
-          child: _RecordButton(
-            recording: state.phase == PronunciationPhase.recording,
-            onStart: controller.startRecording,
-            onStop: () async {
-              await controller.stopAndAnalyze(
-                tones: spans.tones,
-                shortSyllables: spans.shortSyllables,
-                syllablePoints: spans.syllablePoints,
-                clauseStarts: spans.clauseStarts,
-                syllableLabels: spans.syllableLabels,
-                expectedWords: spans.words.map((w) => w.wordText).toList(),
-              );
-              // 声が小さい・音節が取れない等で採点できなかった回は消費しない。
-              final scored = ref.read(provider).result?.isScored ?? false;
-              if (countsAgainstQuota && scored) {
-                await ref.read(pronunciationQuotaProvider.notifier).consume();
-              }
-            },
-            l10n: l10n,
-          ),
-        );
+    if (state.phase == PronunciationPhase.permissionDenied) {
+      return _PermissionNotice(l10n: l10n);
     }
+
+    final result =
+        state.phase == PronunciationPhase.result ? state.result : null;
+
+    // 結果を畳むのは「もう一度」を押したときだけにする。押しっぱなしの録音と
+    // 同じボタンに載せると、押した瞬間に結果が畳まれてボタンごと動き、
+    // 指を離していないのに離した扱いになる。畳む操作と話す操作は分ける。
+    void collapseResult() {
+      controller.reset();
+      // 結果を畳むと画面が縮んで、直前まで見ていた位置が例文から大きくずれる。
+      // 言い直すには例文をもう一度見たいので先頭へ戻す。
+      Scrollable.maybeOf(context)?.position.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+    }
+
+    Widget speakButton() {
+      return _RecordButton(
+        recording: state.phase == PronunciationPhase.recording,
+        label: l10n.pronunciationHoldToSpeak,
+        onStart: controller.startRecording,
+        onStop: () async {
+          await controller.stopAndAnalyze(
+            tones: spans.tones,
+            shortSyllables: spans.shortSyllables,
+            syllablePoints: spans.syllablePoints,
+            clauseStarts: spans.clauseStarts,
+            syllableLabels: spans.syllableLabels,
+            expectedWords: spans.words.map((w) => w.wordText).toList(),
+          );
+        },
+        l10n: l10n,
+      );
+    }
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (result != null) ...[
+            _ResultView(
+              result: result,
+              recognition: state.recognition,
+              recognitionStatus: state.recognitionStatus,
+              spans: spans,
+              selectedWordIndex: state.selectedWordIndex,
+              onSelectWord: controller.toggleWord,
+              l10n: l10n,
+            ),
+            const SizedBox(height: 12),
+          ],
+          // 判定中はボタンの位置のまま回す。灰色の一行に差し替えると、
+          // 押しても何も起きなかったように見える。
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: switch (state.phase) {
+              PronunciationPhase.analyzing => _AnalyzingBar(l10n: l10n),
+              // 結果を見ている間は、まず畳ませる。畳んでから押しっぱなしで話す。
+              PronunciationPhase.result => _CollapseResultButton(
+                  label: l10n.pronunciationRetry,
+                  onTap: collapseResult,
+                ),
+              _ => speakButton(),
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -334,12 +250,16 @@ class _PracticeBody extends ConsumerWidget {
 class _RecordButton extends StatefulWidget {
   const _RecordButton({
     required this.recording,
+    required this.label,
     required this.onStart,
     required this.onStop,
     required this.l10n,
   });
 
   final bool recording;
+
+  /// 押していないときの文言。判定のあとは「もう一度」に変わる。
+  final String label;
   final Future<void> Function() onStart;
   final Future<void> Function() onStop;
   final L10n l10n;
@@ -388,9 +308,8 @@ class _RecordButtonState extends State<_RecordButton>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final label = widget.recording
-        ? widget.l10n.pronunciationRecording
-        : widget.l10n.pronunciationHoldToSpeak;
+    final label =
+        widget.recording ? widget.l10n.pronunciationRecording : widget.label;
 
     return Semantics(
       button: true,
@@ -406,12 +325,12 @@ class _RecordButtonState extends State<_RecordButton>
             final wave = 0.5 + 0.5 * math.sin(_pulse.value * 2 * math.pi);
             return Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: widget.recording
                     ? scheme.error.withValues(alpha: 0.10 + 0.08 * wave)
-                    : scheme.primaryContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
+                    : scheme.primary,
+                borderRadius: BorderRadius.circular(14),
                 // 枠は常に敷く。録音中だけ足すと高さが変わって跳ねる。
                 border: Border.all(
                   width: 1.5,
@@ -432,14 +351,19 @@ class _RecordButtonState extends State<_RecordButton>
                             child: Icon(
                               Icons.mic,
                               size: 18,
-                              color: scheme.primary,
+                              color: scheme.onPrimary,
                             ),
                           ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     label,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: widget.recording
+                              ? scheme.error
+                              : scheme.onPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
                 ],
               ),
@@ -471,20 +395,88 @@ class _RecordButtonState extends State<_RecordButton>
   }
 }
 
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({required this.icon, required this.label});
+/// 結果を畳んで、話せる状態へ戻すボタン。
+///
+/// 録音ボタンと同じ形・同じ位置に置く。ここを押すと結果が閉じ、押しっぱなしで
+/// 話せる状態に戻る。
+class _CollapseResultButton extends StatelessWidget {
+  const _CollapseResultButton({required this.label, required this.onTap});
 
-  final IconData icon;
   final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: Theme.of(context).colorScheme.outline),
-        const SizedBox(width: 8),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ],
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: scheme.primary,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(width: 1.5, color: Colors.transparent),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.refresh, size: 18, color: scheme.onPrimary),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: scheme.onPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 判定中の表示。録音ボタンと同じ形・同じ位置に置き換わる。
+class _AnalyzingBar extends StatelessWidget {
+  const _AnalyzingBar({required this.l10n});
+
+  final L10n l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(width: 1.5, color: Colors.transparent),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: scheme.primary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            l10n.pronunciationAnalyzing,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -515,23 +507,15 @@ class _PermissionNotice extends StatelessWidget {
 
 class _ResultView extends StatelessWidget {
   const _ResultView({
-    required this.resultKey,
-    required this.contourKey,
     required this.result,
     required this.recognition,
     required this.recognitionStatus,
     required this.spans,
     required this.selectedWordIndex,
     required this.onSelectWord,
-    required this.onRetry,
     required this.l10n,
   });
 
-  /// 初回ガイドのスポット対象（語ごとの帯）に付けるキー。
-  final GlobalKey? resultKey;
-
-  /// 初回ガイドのスポット対象（カーブのカード）に付けるキー。
-  final GlobalKey? contourKey;
   final PronunciationResult result;
   final List<WordRecognition> recognition;
 
@@ -540,7 +524,6 @@ class _ResultView extends StatelessWidget {
   final SentenceToneSpans spans;
   final int? selectedWordIndex;
   final void Function(int) onSelectWord;
-  final VoidCallback onRetry;
   final L10n l10n;
 
   /// 音声認識まで行えた端末か。1語でも判定できていれば真。
@@ -566,104 +549,315 @@ class _ResultView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final failure = _failureMessage;
+    if (failure != null) {
+      return Text(failure, style: theme.textTheme.bodySmall);
+    }
+
+    final selected = selectedWordIndex;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (failure != null)
-          Text(failure, style: theme.textTheme.bodySmall)
-        else ...[
-          // 抑揚が無いときは点数を出さない。平坦に読むと中平声だけが偶然合って
-          // 点数が伸びるため、数字より「何をすべきか」を返す。
-          if (result.isMonotone)
-            Text(
-              l10n.pronunciationMonotone,
-              style: theme.textTheme.bodyMedium,
-            )
-          else
-            Text(
-              l10n.pronunciationScore(result.overallScore.round()),
-              style: theme.textTheme.titleMedium,
-            ),
-          const SizedBox(height: 8),
-          KeyedSubtree(
-            key: resultKey,
-            child: _WordChips(
-              result: result,
-              recognition: recognition,
-              spans: spans,
-              selectedWordIndex: selectedWordIndex,
-              onSelectWord: onSelectWord,
-            ),
-          ),
-          const SizedBox(height: 6),
-          _BandLegend(
+        // 抑揚が無いときは点数を出さない。平坦に読むと中平声だけが偶然合って
+        // 点数が伸びるため、数字より「何をすべきか」を返す。
+        if (result.isMonotone)
+          Text(
+            l10n.pronunciationMonotone,
+            style: theme.textTheme.bodyMedium,
+          )
+        else
+          _ScoreHeader(
+            result: result,
+            recognition: recognition,
+            spans: spans,
             l10n: l10n,
-            hasRecognition: _hasRecognition,
-            recognitionStatus: recognitionStatus,
           ),
-          if (selectedWordIndex != null)
-            // カーブ・直す点・言い直しの3つで1つの流れなので、初回ガイドの
-            // 強調も「もう一度」まで含める。直す点だけ見せて終わると、
-            // その場で言い直せることに気づかれない。
-            KeyedSubtree(
-              key: contourKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  _WordContourCard(
-                    scores: _scoresOfWord(result, spans, selectedWordIndex!),
-                    recognition: selectedWordIndex! < recognition.length
-                        ? recognition[selectedWordIndex!]
-                        : WordRecognition.unavailable,
-                    l10n: l10n,
-                  ),
-                  // 声調の直し方は初回の結果には出さない。玄人向けの細かさ
-                  // なので、語をタップして自分から中を開いた人にだけ、
-                  // その語の分を1つ出す。
-                  if (!result.isMonotone) ...[
-                    const SizedBox(height: 8),
-                    _CoachCard(
-                      tip: _coachingTipOfWord(
-                        result,
-                        spans,
-                        recognition,
-                        selectedWordIndex!,
-                      ),
-                      l10n: l10n,
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  _retryButton(l10n),
-                ],
-              ),
-            )
-          else ...[
-            const SizedBox(height: 6),
-            Text(
-              l10n.pronunciationTapWordHint,
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
-        ],
-        // 語を開いている間は強調の中に置いてあるので、ここでは出さない。
-        if (failure != null || selectedWordIndex == null) ...[
+        const SizedBox(height: 12),
+        _WordChips(
+          result: result,
+          recognition: recognition,
+          spans: spans,
+          selectedWordIndex: selectedWordIndex,
+          onSelectWord: onSelectWord,
+        ),
+        // 判定できる端末では、色の意味は結果ヘッダの内訳が兼ねる。
+        // ここに文章を足すと同じことを二度言うだけになる。
+        if (!_hasRecognition) ...[
           const SizedBox(height: 8),
-          _retryButton(l10n),
+          _RecognitionNotice(l10n: l10n, recognitionStatus: recognitionStatus),
+        ],
+        if (selected != null)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+              _WordContourCard(
+                word: selected < spans.words.length
+                    ? spans.words[selected]
+                    : null,
+                scores: _scoresOfWord(result, spans, selected),
+                romans: spans.syllableRomans,
+                recognition: selected < recognition.length
+                    ? recognition[selected]
+                    : WordRecognition.unavailable,
+                l10n: l10n,
+              ),
+              // 声調の直し方は初回の結果には出さない。玄人向けの細かさ
+              // なので、語をタップして自分から中を開いた人にだけ、
+              // その語の分を1つ出す。
+              if (!result.isMonotone) ...[
+                const SizedBox(height: 8),
+                _CoachCard(
+                  tip: _coachingTipOfWord(
+                    result,
+                    spans,
+                    recognition,
+                    selected,
+                  ),
+                  l10n: l10n,
+                ),
+              ],
+            ],
+          )
+        else ...[
+          const SizedBox(height: 8),
+          Text(
+            l10n.pronunciationTapWordHintDetail,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ],
     );
   }
+}
 
-  Widget _retryButton(L10n l10n) => Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh, size: 18),
-          label: Text(l10n.pronunciationRetry),
+/// 語ごとの最終判定（声調と発音を合わせたもの）を語順で返す。
+List<ToneVerdict> _wordVerdicts(
+  PronunciationResult result,
+  SentenceToneSpans spans,
+  List<WordRecognition> recognition,
+) =>
+    List.generate(
+      spans.words.length,
+      (index) => combinedWordVerdict(
+        toneVerdictOfWord(_scoresOfWord(result, spans, index)),
+        index < recognition.length
+            ? recognition[index]
+            : WordRecognition.unavailable,
+      ),
+    );
+
+/// 点数のリングと、語ごとの内訳を1行にまとめた結果の見出し。
+///
+/// 数字だけでは「何語通じたのか」「次にどこを直すのか」が分からない。
+/// 点数・通じた語数・次の1語を、この1ブロックで返す。
+class _ScoreHeader extends StatelessWidget {
+  const _ScoreHeader({
+    required this.result,
+    required this.recognition,
+    required this.spans,
+    required this.l10n,
+  });
+
+  final PronunciationResult result;
+  final List<WordRecognition> recognition;
+  final SentenceToneSpans spans;
+  final L10n l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final verdicts = _wordVerdicts(result, spans, recognition);
+
+    int countOf(ToneVerdict verdict) =>
+        verdicts.where((v) => v == verdict).length;
+    final correct = countOf(ToneVerdict.correct);
+    final close = countOf(ToneVerdict.close);
+    final wrong = countOf(ToneVerdict.wrong);
+
+    // 次に直す語は「ずれている」を優先し、無ければ「惜しい」を拾う。
+    final focusIndex = verdicts.contains(ToneVerdict.wrong)
+        ? verdicts.indexOf(ToneVerdict.wrong)
+        : verdicts.indexOf(ToneVerdict.close);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _ScoreRing(score: result.overallScore, l10n: l10n),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.pronunciationSummaryRecognized(
+                  correct,
+                  verdicts.length,
+                ),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              if (focusIndex >= 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  l10n.pronunciationNextFocus(spans.words[focusIndex].wordText),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 10,
+                runSpacing: 2,
+                children: [
+                  if (correct > 0)
+                    _CountChip(
+                      color: verdictColor(ToneVerdict.correct, scheme),
+                      label: l10n.pronunciationCountCorrect,
+                      count: correct,
+                    ),
+                  if (close > 0)
+                    _CountChip(
+                      color: verdictColor(ToneVerdict.close, scheme),
+                      label: l10n.pronunciationCountClose,
+                      count: close,
+                    ),
+                  if (wrong > 0)
+                    _CountChip(
+                      color: verdictColor(ToneVerdict.wrong, scheme),
+                      label: l10n.pronunciationCountWrong,
+                      count: wrong,
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
-      );
+      ],
+    );
+  }
+}
+
+class _CountChip extends StatelessWidget {
+  const _CountChip({
+    required this.color,
+    required this.label,
+    required this.count,
+  });
+
+  final Color color;
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$label $count',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 点数をリングで見せる。数字だけの1行より、良し悪しが一目で分かる。
+class _ScoreRing extends StatelessWidget {
+  const _ScoreRing({required this.score, required this.l10n});
+
+  final double score;
+  final L10n l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final rounded = score.round();
+
+    return Semantics(
+      label: l10n.pronunciationScore(rounded),
+      child: SizedBox(
+        width: 62,
+        height: 62,
+        child: CustomPaint(
+          painter: _ScoreRingPainter(
+            progress: (score / 100).clamp(0.0, 1.0),
+            trackColor: scheme.outlineVariant,
+            color: scheme.tertiary,
+          ),
+          child: Center(
+            child: Text(
+              '$rounded',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoreRingPainter extends CustomPainter {
+  _ScoreRingPainter({
+    required this.progress,
+    required this.trackColor,
+    required this.color,
+  });
+
+  final double progress;
+  final Color trackColor;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 5.0;
+    final rect = Offset(stroke / 2, stroke / 2) &
+        Size(size.width - stroke, size.height - stroke);
+
+    canvas.drawArc(
+      rect,
+      0,
+      math.pi * 2,
+      false,
+      Paint()
+        ..color = trackColor
+        ..strokeWidth = stroke
+        ..style = PaintingStyle.stroke,
+    );
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      math.pi * 2 * progress,
+      false,
+      Paint()
+        ..color = color
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ScoreRingPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.color != color ||
+      oldDelegate.trackColor != trackColor;
 }
 
 List<SyllableScore> _scoresOfWord(
@@ -901,7 +1095,10 @@ class _ToneMarkChip extends StatelessWidget {
   }
 }
 
-/// 語ごとの判定を色帯で並べる。
+/// 語ごとの判定をチップで並べる。
+///
+/// 判定色は面と枠に出す。3pxの帯だけでは「押せる」ことも「どの語のことか」も
+/// 伝わらない。
 class _WordChips extends StatelessWidget {
   const _WordChips({
     required this.result,
@@ -919,56 +1116,46 @@ class _WordChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final verdicts = _wordVerdicts(result, spans, recognition);
 
     return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+      spacing: 7,
+      runSpacing: 7,
       children: List.generate(spans.words.length, (index) {
         final span = spans.words[index];
-        final verdict = combinedWordVerdict(
-          toneVerdictOfWord(_scoresOfWord(result, spans, index)),
-          index < recognition.length
-              ? recognition[index]
-              : WordRecognition.unavailable,
-        );
-        final color = _verdictColor(verdict, scheme);
+        final color = verdictColor(verdicts[index], scheme);
         final selected = selectedWordIndex == index;
 
         return InkWell(
           onTap: () => onSelectWord(index),
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          borderRadius: BorderRadius.circular(11),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: selected ? color.withValues(alpha: 0.12) : null,
+              borderRadius: BorderRadius.circular(11),
+              color: color.withValues(alpha: selected ? 0.18 : 0.08),
+              border: Border.all(
+                color: color.withValues(alpha: selected ? 1 : 0.4),
+                width: selected ? 1.5 : 1,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text.rich(
-                  TextSpan(
-                    text: span.wordText,
-                    children: [
-                      // 発音表記。色帯で「直せ」と言われても、読み方が出て
-                      // いなければ何を直すのか分からない。
-                      if (span.pronunciation.isNotEmpty)
-                        TextSpan(
-                          text: ' (${span.pronunciation})',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: scheme.outline,
-                                  ),
-                        ),
-                    ],
+                Text(span.wordText, style: theme.textTheme.bodyLarge),
+                // 発音表記。色で「直せ」と言われても、読み方が出ていなければ
+                // 何を直すのか分からない。
+                if (span.pronunciation.isNotEmpty)
+                  Text(
+                    span.pronunciation,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 3),
-                // 帯は1本。声調と発音を合わせた「言い直す必要があるか」だけを
-                // 伝え、どちらを外したかは語をタップして見せる。
-                _Band(color: color),
               ],
             ),
           ),
@@ -978,38 +1165,20 @@ class _WordChips extends StatelessWidget {
   }
 }
 
-class _Band extends StatelessWidget {
-  const _Band({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        height: 3,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      );
-}
-
-/// 帯が何を表すかの凡例。発音が判定できなかった端末では、その理由を出す。
-class _BandLegend extends StatelessWidget {
-  const _BandLegend({
+/// 発音（子音・母音）を判定できなかった端末への案内。
+///
+/// **直せるものは直し方まで出す。** タイ語の音声入力が入っていない端末が
+/// 大半で、これは端末の設定で直る。「非対応です」で終わらせると、直せる人まで
+/// 諦める。
+class _RecognitionNotice extends StatelessWidget {
+  const _RecognitionNotice({
     required this.l10n,
-    required this.hasRecognition,
     required this.recognitionStatus,
   });
 
   final L10n l10n;
-  final bool hasRecognition;
   final String recognitionStatus;
 
-  /// 理由コードごとの案内。**直せるものは直し方まで出す。**
-  ///
-  /// タイ語の音声入力が入っていない端末が大半で、これは端末の設定で直る。
-  /// 「非対応です」で終わらせると、直せる人まで諦める。
   (String, String?) get _notice {
     switch (recognitionStatus) {
       case 'no_on_device_asset':
@@ -1028,14 +1197,12 @@ class _BandLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodySmall;
-
-    // 判定できないことと、判定して駄目だったことを混同させない。
-    if (hasRecognition) {
-      return Text(l10n.pronunciationBandCombined, style: style);
-    }
-
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
     final (message, how) = _notice;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1044,9 +1211,7 @@ class _BandLegend extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             how,
-            style: style?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
+            style: style?.copyWith(color: theme.colorScheme.outline),
           ),
         ],
       ],
@@ -1054,23 +1219,54 @@ class _BandLegend extends StatelessWidget {
   }
 }
 
+/// 声調の形を1文字で示す。カーブだけでは「下降声」と読めないため、
+/// 音節ごとの見出しに声調名と並べて出す。
+String _toneArrow(ThaiTone tone) {
+  switch (tone) {
+    case ThaiTone.mid:
+      return '→';
+    case ThaiTone.low:
+      return '↘';
+    case ThaiTone.falling:
+      return '⤵';
+    case ThaiTone.high:
+      return '↗';
+    case ThaiTone.rising:
+      return '⤴';
+    case ThaiTone.unknown:
+      return '';
+  }
+}
+
 /// 選択した語のお手本カーブと自分のカーブを重ねて出す。
-class _WordContourCard extends StatelessWidget {
+///
+/// 図だけでは「どこがどう違うのか」までしか分からないので、同じカードから
+/// お手本を聞けるようにする。耳で確かめられると判定に納得できる。
+class _WordContourCard extends ConsumerWidget {
   const _WordContourCard({
+    required this.word,
     required this.scores,
+    required this.romans,
     required this.recognition,
     required this.l10n,
   });
 
+  /// 開いている語。読み上げと見出しに使う。
+  final WordToneSpan? word;
   final List<SyllableScore> scores;
+
+  /// 文全体の音節ローマ字（[SyllableScore.syllableIndex] で引く）。
+  final List<String> romans;
   final WordRecognition recognition;
   final L10n l10n;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (scores.isEmpty) return const SizedBox.shrink();
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final recognitionLabel = _recognitionLabel(recognition, l10n);
+    final text = word?.wordText ?? '';
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1083,6 +1279,40 @@ class _WordContourCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    text: text,
+                    children: [
+                      if ((word?.pronunciation ?? '').isNotEmpty)
+                        TextSpan(
+                          text: '  ${word!.pronunciation}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+              if (text.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () => unawaited(
+                    ref.read(ttsServiceProvider).speak(text),
+                  ),
+                  icon: const Icon(Icons.volume_up, size: 18),
+                  label: Text(l10n.pronunciationListenModelWord),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
               _LegendDot(
                   color: scheme.outline, label: l10n.pronunciationReference),
               const SizedBox(width: 12),
@@ -1091,7 +1321,7 @@ class _WordContourCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 72,
+            height: 80,
             width: double.infinity,
             child: CustomPaint(
               painter: _ContourPainter(
@@ -1101,29 +1331,51 @@ class _WordContourCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 10,
-            runSpacing: 4,
-            children: scores
-                .map((s) => Text(
-                      '${s.tone.name} · ${_verdictLabel(s.verdict, l10n)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: _verdictColor(s.verdict, scheme),
-                          ),
-                    ))
-                .toList(),
+          const SizedBox(height: 6),
+          // 音節ごとの見出し。カーブの列と横位置を合わせる。
+          Row(
+            children: scores.map((score) {
+              final roman = score.syllableIndex < romans.length
+                  ? romans[score.syllableIndex]
+                  : '';
+              final arrow = _toneArrow(score.tone);
+              return Expanded(
+                child: Column(
+                  children: [
+                    if (roman.isNotEmpty)
+                      Text(
+                        roman,
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    Text(
+                      '${score.tone.displayName(l10n)}'
+                      '${arrow.isEmpty ? '' : ' $arrow'}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      _verdictLabel(score.verdict, l10n),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: verdictColor(score.verdict, scheme),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
-          // 帯を1本にしたぶん、どちらの軸を外したかはここで分ける。
+          // 判定は1つにまとめてあるので、どちらの軸を外したかはここで分ける。
           if (recognitionLabel != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               recognitionLabel,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: recognition == WordRecognition.missing
-                        ? scheme.error
-                        : null,
-                  ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: recognition == WordRecognition.missing
+                    ? scheme.error
+                    : scheme.onSurfaceVariant,
+              ),
             ),
           ],
         ],
@@ -1169,15 +1421,20 @@ class _ContourPainter extends CustomPainter {
   /// 縦軸に取るピッチの範囲（正規化済みの単位）。
   static const double _yRange = 1.5;
 
+  /// 上下に空ける余白。範囲の端まで出た線は枠の外へ半分はみ出して切れて見える。
+  /// 線の太さ分だけ内側に寄せる。
+  static const double _yInset = 4;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (scores.isEmpty) return;
 
     final syllableWidth = size.width / scores.length;
+    final usableHeight = math.max(0.0, size.height - _yInset * 2);
 
     double yOf(double value) {
       final clamped = value.clamp(-_yRange, _yRange);
-      return size.height * (0.5 - clamped / (_yRange * 2));
+      return _yInset + usableHeight * (0.5 - clamped / (_yRange * 2));
     }
 
     // 中心線。

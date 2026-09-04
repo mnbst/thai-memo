@@ -117,13 +117,26 @@ func generateSingleQuizQuestion(
 // SRS 例文選出
 // ---------------------------------------------------------------------------
 
+// keyWordFilter は key_word を出題してよいかを返す。nil は「絞り込み無し」。
+type keyWordFilter func(keyWord string) bool
+
+// allows は nil を「全部通す」として扱う。
+func (f keyWordFilter) allows(keyWord string) bool {
+	return f == nil || f(keyWord)
+}
+
 // selectSentencesBySRS はユーザーの全例文から復習対象を選出する。
 //
 // 選出の優先順位:
 //  1. srsDays をランダム順に見て、ジャスト日付ごとに P 値最低の1文を最大2文選出
 //  2. ①で埋まらなかった枠を、UVM の P 値が低いキーワード順に1語1文で補充
+//
+// filter は語彙テスト受験後に測定値より下の key_word を落とすために使う
+// （quizKeyWordFilter を参照）。呼び出し側は、絞った結果が空になったら
+// filter 無しでやり直すこと。
 func selectSentencesBySRS(
 	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time,
+	filter keyWordFilter,
 ) ([]selectedSentence, error) {
 	var selected []selectedSentence
 	usedIDs := map[string]bool{}
@@ -137,7 +150,7 @@ func selectSentencesBySRS(
 		}
 	}
 
-	srsSentences, err := selectSrsSentences(ctx, db, uid, jstNow)
+	srsSentences, err := selectSrsSentences(ctx, db, uid, jstNow, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +159,8 @@ func selectSentencesBySRS(
 	}
 
 	if remaining := maxQuestions - len(selected); remaining > 0 {
-		fillers, err := selectFillerSentencesByUvm(ctx, db, uid, remaining, usedIDs, usedKeyWords)
+		fillers, err := selectFillerSentencesByUvm(
+			ctx, db, uid, remaining, usedIDs, usedKeyWords, filter)
 		if err != nil {
 			return nil, err
 		}
@@ -165,6 +179,7 @@ type srsIntervalCandidates struct {
 
 func selectSrsSentences(
 	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time,
+	filter keyWordFilter,
 ) ([]selectedSentence, error) {
 	intervals := append([]int(nil), srsDays...)
 	shuffleN(len(intervals), func(i, j int) {
@@ -173,7 +188,7 @@ func selectSrsSentences(
 
 	intervalCandidates := make([]srsIntervalCandidates, len(intervals))
 	for i, interval := range intervals {
-		got, err := fetchSrsCandidatesForInterval(ctx, db, uid, jstNow, interval)
+		got, err := fetchSrsCandidatesForInterval(ctx, db, uid, jstNow, interval, filter)
 		if err != nil {
 			return nil, err
 		}
@@ -232,6 +247,7 @@ func selectSrsSentences(
 
 func fetchSrsCandidatesForInterval(
 	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time, interval int,
+	filter keyWordFilter,
 ) (srsIntervalCandidates, error) {
 	targetStart := startOfJstDayDaysAgo(jstNow, interval)
 	targetEnd := targetStart.Add(dayDuration)
@@ -251,7 +267,9 @@ func fetchSrsCandidatesForInterval(
 		if err != nil {
 			return srsIntervalCandidates{}, err
 		}
-		if isUserSentenceDocReady(doc.Data()) {
+		data := doc.Data()
+		keyWord, _ := data["key_word"].(string)
+		if isUserSentenceDocReady(data) && filter.allows(keyWord) {
 			out.Candidates = append(out.Candidates, doc)
 		}
 	}
@@ -262,7 +280,7 @@ const weakPThreshold = 0.3
 
 func selectFillerSentencesByUvm(
 	ctx context.Context, db *firestore.Client, uid string, needed int,
-	usedIDs, usedKeyWords map[string]bool,
+	usedIDs, usedKeyWords map[string]bool, filter keyWordFilter,
 ) ([]selectedSentence, error) {
 	var selected []selectedSentence
 	if needed <= 0 {
@@ -305,7 +323,7 @@ func selectFillerSentencesByUvm(
 
 		var keyWords []string
 		for _, doc := range uvmDocs[i:end] {
-			if !usedKeyWords[doc.Ref.ID] {
+			if !usedKeyWords[doc.Ref.ID] && filter.allows(doc.Ref.ID) {
 				keyWords = append(keyWords, doc.Ref.ID)
 			}
 		}

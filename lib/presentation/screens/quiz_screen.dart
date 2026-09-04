@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -16,12 +15,9 @@ import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/review_prompt_provider.dart';
-import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
-import '../widgets/coach_mark_overlay.dart';
 import '../widgets/loading_tip_carousel.dart';
-import '../widgets/coach_bullet_text.dart';
 import '../widgets/topic_picker.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
@@ -29,7 +25,6 @@ import 'paywall_screen.dart';
 const String _summaryQuizVocabBeforeKey = 'summary_quiz_vocab_before';
 const int _maxSummaryQuizVocabIncrease = 50;
 const Duration _correctAnswerAutoAdvanceDelay = Duration(milliseconds: 1200);
-
 
 /// 出題中の位置。1問だけのクイズには進み具合が無いので持たせない。
 typedef QuizProgress = ({int index, int total});
@@ -151,29 +146,14 @@ class QuizScreen extends ConsumerStatefulWidget {
   ConsumerState<QuizScreen> createState() => _QuizScreenState();
 }
 
-/// 全問正解時のクラッカー演出の長さ。サマリー画面のコーチマークは
-/// これが終わってから出す。
+/// 全問正解時のクラッカー演出の長さ。
 const Duration _celebrationDuration = Duration(milliseconds: 1400);
-
-/// 語彙スコアの加算演出の長さ。クラッカーと同時に始まる。
-const Duration _vocabTransitionDuration = Duration(milliseconds: 1200);
-
-/// 演出が終わってから通知の案内へ移るまでの間。増えた数字を読む時間がないまま
-/// 結果画面の演出のうち、案内を待たせる割合。1.0 だと終わり際の静かな動きまで
-/// 待つことになり、案内が遅く感じる。
-const double _resultAnimationWaitRatio = 0.6;
 
 class _QuizScreenState extends ConsumerState<QuizScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _celebrationController;
   late final List<_ConfettiParticle> _confettiParticles;
   int? _vocabBeforeQuiz;
-
-  /// 「次のテーマ」チップの位置特定用（初回コーチマーク表示に使用）。
-  final GlobalKey _nextTopicKey = GlobalKey();
-
-  /// まとめクイズ誘導ボタンの位置特定用（初回コーチマーク表示に使用）。
-  final GlobalKey _optionalChallengeKey = GlobalKey();
 
   @override
   void initState() {
@@ -214,19 +194,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (widget.showVocabScoreTransition) {
           _logSummaryQuizComplete(next);
         }
-        // 同じサマリーで何度も走らせない。状態が再通知されるたびに別の案内が
-        // 出ると、閉じた直後に次の案内が現れる。
-        if (prev is! QuizSummary) {
-          unawaited(_runSummaryCoaches());
-        }
-      }
-      // 結果画面を離れたら、そこに出していた案内は畳む。この State は
-      // まとめクイズへ移っても作り直されないので、dispose では間に合わない
-      // （対象を失った吹き出しが次の問題の上に残る）。
-      if (prev is QuizSummary && next is! QuizSummary) {
-        CoachMarkOverlay.dismissFor(_optionalChallengeKey);
-        CoachMarkOverlay.dismissFor(_nextTopicKey);
-            _abortSummaryCoachWait?.call();
       }
       if (widget.showVocabScoreTransition &&
           next is QuizAnswering &&
@@ -276,231 +243,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
   }
 
-  /// 結果画面の演出が落ち着くまで待つ。演出中に案内を重ねると、紙吹雪や
-  /// 加算アニメーションに隠れて何を勧められたのか残らない。
-  /// クラッカーと語彙スコアは同時に始まるので、長い方だけ待てばよい。
-  ///
-  /// 終わり際は動きが小さく、最後まで待つと案内が遅れて感じる。目立つ間だけ
-  /// ([_resultAnimationWaitRatio]) 譲る。
-  Future<void> _waitForResultAnimations() async {
-    final celebration = _celebrationController.isAnimating
-        ? _celebrationDuration * (1 - _celebrationController.value)
-        : Duration.zero;
-    final vocab = widget.showVocabScoreTransition
-        ? _vocabTransitionDuration
-        : Duration.zero;
-    final wait =
-        (celebration > vocab ? celebration : vocab) * _resultAnimationWaitRatio;
-    if (wait > Duration.zero) await Future<void>.delayed(wait);
-  }
-
-  /// 結果画面の案内を順番に出す。
-  ///
-  /// 同時に出すと吹き出しが重なり、後から出したものが表示すらされないまま
-  /// 「表示済み」になる。
-  Future<void> _runSummaryCoaches() async {
-    final challengeAction = await _maybeShowChallengeCoach();
-    if (!mounted) return;
-    // まとめクイズへ移る回は、ここで打ち切る。案内は対象を押した瞬間
-    // （指を離す前）に閉じるので、続けると画面が切り替わる前の一瞬に
-    // 次の吹き出しが出て、切り替わりと同時に消える。
-    if (challengeAction == 'tapped') return;
-    // 締めくくり → テーマ の順に出す。「間違えた例文はまた出る」を読んでから
-    // 「次のテーマを選べる」を見せる方が、次の例文の話として続けて読める。
-    final finished = await _maybeShowTourFinishCoach();
-    if (!mounted) return;
-    await _maybeShowNextTopicCoach(advancesAfterConfirm: finished);
-    if (!mounted) return;
-    // 次の例文へ進むのは案内をすべて読んだ後。テーマの案内より先に進めると、
-    // 画面が切り替わって対象のチップごと消える。
-    if (finished) await _advanceToNextSentenceAfterTourFinish();
-  }
-
-  /// 待っている案内を打ち切る手。画面を離れたときに呼ぶ。
-  /// これが無いと、閉じられないまま連鎖が待ちっぱなしになる。
-  VoidCallback? _abortSummaryCoachWait;
-
-  /// 機能紹介の締めくくり。1回限り。
-  ///
-  /// ここまでで一通りの機能に触れている。あとは続けるだけだと伝える。
-  ///
-  /// ここだけはスポットライトを使わない。指す対象が無い話（画面の一部では
-  /// なく全体の締め）なので、中央のダイアログで出す。
-  ///
-  /// 出せなかった回は表示済みにしない。ここで記録してしまうと、一度も
-  /// 読まれないまま二度と出なくなる（結果画面はまた来るので次に回す）。
-  ///
-  /// 出して読まれたら true。呼び出し側は、続きの案内を出し終えてから
-  /// 次の例文へ進める。
-  Future<bool> _maybeShowTourFinishCoach() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyTourFinishCoachShown) ?? false) {
-      return false;
-    }
-    if (!mounted || ref.read(quizControllerProvider) is! QuizSummary) {
-      _logFinishCoachSkip('not_summary');
-      return false;
-    }
-
-    await _waitForResultAnimations();
-    // 押した指を離す前に前の案内が閉じるので、画面の切り替えはこの後に
-    // 始まる。一拍おいてから、まだ結果画面にいるかを確かめる。
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return false;
-    if (ref.read(quizControllerProvider) is! QuizSummary) {
-      _logFinishCoachSkip('left_summary');
-      return false;
-    }
-    if (ModalRoute.of(context)?.isCurrent != true) {
-      _logFinishCoachSkip('not_current');
-      return false;
-    }
-    if (CoachMarkOverlay.isVisible) {
-      _logFinishCoachSkip('overlay_busy');
-      return false;
-    }
-
-    await prefs.setBool(AppConfig.prefKeyTourFinishCoachShown, true);
-    // 読み終えたら例文画面へ自動で進む。着いた先で学習の流れを案内するので、
-    // ここで予約しておく（クイズ結果の上では出せない）。
-    await prefs.setBool(AppConfig.prefKeyLearningFlowCoachPending, true);
-    if (!mounted) return false;
-    final analytics = ref.read(analyticsServiceProvider);
-    unawaited(analytics.logCoachMark(id: 'tour_finish', action: 'shown'));
-    final seePremium = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const _TourFinishDialog(),
-    );
-    unawaited(analytics.logCoachMark(id: 'tour_finish', action: 'confirmed'));
-    if (seePremium == true && mounted) {
-      await PaywallBottomSheet.show(context, source: 'tour_finish');
-    }
-    return true;
-  }
-
-  /// 案内を読み終えたら、そのまま次の例文へ進める。
-  ///
-  /// 案内が「次の例文へ」を押させる文面ではなくなったので、押させずにこちらで
-  /// 進める。生成はここから始まり、例文画面が待っている間に走る。
-  ///
-  /// 進めるのは結果画面から動いていない回だけ。読んでいる間に自分で次へ
-  /// 進んだ人を、もう一度生成させて追い越さない。
-  Future<void> _advanceToNextSentenceAfterTourFinish() async {
-    final next = widget.onNextSentence;
-    if (next == null) return;
-    if (ref.read(quizControllerProvider) is! QuizSummary) return;
-    if (ModalRoute.of(context)?.isCurrent != true) return;
-    unawaited(_clearVocabBeforeQuiz());
-    await next();
-  }
-
-  /// 締めくくりを出せなかった理由。出ないときに原因を追えるようにする。
-  void _logFinishCoachSkip(String reason) {
-    if (kDebugMode) debugPrint('coach: tour_finish skipped ($reason)');
-  }
-
-  /// まとめクイズ誘導ボタンを初回だけスポットライトで案内する。
-  /// 確認クイズのサマリーで誘導ボタンが出る場合のみ、1回限り。
-  /// 閉じ方（対象を押したか）を返す。
-  Future<String?> _maybeShowChallengeCoach() async {
-    if (widget.onOptionalChallenge == null) return null;
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyQuizButtonCoachShown) ?? false) {
-      return null;
-    }
-
-    await _waitForResultAnimations();
-    if (!mounted) return null;
-
-    final completer = Completer<String?>();
-    _abortSummaryCoachWait = () {
-      if (!completer.isCompleted) completer.complete(null);
-    };
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted ||
-          ref.read(quizControllerProvider) is! QuizSummary ||
-          _optionalChallengeKey.currentContext == null) {
-        if (!completer.isCompleted) completer.complete(null);
-        return;
-      }
-      unawaited(prefs.setBool(AppConfig.prefKeyQuizButtonCoachShown, true));
-      final shown = CoachMarkOverlay.show(
-        context,
-        targetKey: _optionalChallengeKey,
-        id: 'summary_quiz',
-        analytics: ref.read(analyticsServiceProvider),
-        // まとめクイズは普段は見送れる。ただしこの案内は1回限りなので、
-        // ここでスキップを許すと、どんなものか一度も知らないまま
-        // 二度と案内されない人が出る。初回だけは押させる。
-        skippable: false,
-        barrierDismissible: false,
-        icon: Icons.emoji_events,
-        title: L10n.of(context).coachSummaryQuizTitle,
-        message: L10n.of(context).coachSummaryQuizMessage,
-        emphasis: L10n.of(context).coachSummaryQuizEmphasis,
-        onDismiss: (action) {
-          if (!completer.isCompleted) completer.complete(action);
-        },
-      );
-      if (!shown && !completer.isCompleted) completer.complete(null);
-    });
-    return completer.future;
-  }
-
-  /// 結果画面の「次のテーマ」変更チップを初回だけスポットライトで案内する。
-  /// チップが表示される（＝次の例文へ進める）場合のみ、1回限り。
-  /// 誘導ボタンがある確認クイズのサマリーではコーチが重ならないよう譲る。
-  ///
-  /// [advancesAfterConfirm] が true の回は、閉じた後に次の例文へ進む。
-  /// ボタンの文言をその行き先に合わせる。
-  Future<void> _maybeShowNextTopicCoach({
-    required bool advancesAfterConfirm,
-  }) async {
-    if (widget.onNextSentence == null) return;
-    if (widget.onOptionalChallenge != null) return;
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyNextTopicCoachShown) ?? false) return;
-
-    await _waitForResultAnimations();
-    if (!mounted) return;
-
-    final completer = Completer<void>();
-    _abortSummaryCoachWait = () {
-      if (!completer.isCompleted) completer.complete();
-    };
-    // サマリー画面が描画され、チップの位置が確定してから表示する。
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted ||
-          ref.read(quizControllerProvider) is! QuizSummary ||
-          _nextTopicKey.currentContext == null) {
-        if (!completer.isCompleted) completer.complete();
-        return;
-      }
-      // 表示時にフラグを立てる。ボタン／チップタップのどちらで閉じても再表示しない。
-      unawaited(prefs.setBool(AppConfig.prefKeyNextTopicCoachShown, true));
-      final shown = CoachMarkOverlay.show(
-        context,
-        targetKey: _nextTopicKey,
-        id: 'next_topic',
-        analytics: ref.read(analyticsServiceProvider),
-        icon: Icons.palette_outlined,
-        title: L10n.of(context).coachTopicTitle,
-        message: L10n.of(context).coachTopicMessage,
-        // テーマを変えるかどうかは本人が決める。ここは在り処を教えるだけ。
-        targetTappable: false,
-        confirmLabel: advancesAfterConfirm
-            ? L10n.of(context).coachTopicNext
-            : L10n.of(context).coachGotIt,
-        onDismiss: (_) {
-          if (!completer.isCompleted) completer.complete();
-        },
-      );
-      if (!shown && !completer.isCompleted) completer.complete();
-    });
-    await completer.future;
-  }
-
   Future<void> _clearVocabBeforeQuiz() async {
     if (!widget.showVocabScoreTransition) return;
     final prefs = await SharedPreferences.getInstance();
@@ -509,11 +251,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   void dispose() {
-    // 自分が出したものだけ閉じる。無条件に閉じると、戻り先の画面が既に
-    // 出したコーチマークまで消してしまう。
-    CoachMarkOverlay.dismissFor(_optionalChallengeKey);
-    CoachMarkOverlay.dismissFor(_nextTopicKey);
-    _abortSummaryCoachWait?.call();
     _celebrationController.dispose();
     super.dispose();
   }
@@ -525,11 +262,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
 
     final statsData = QuizStatsData.fromDatabase(summary.stats);
-    await ref.read(reviewPromptServiceProvider).maybeRequestAfterQuizCompleted(
+    final outcome = await ref
+        .read(reviewPromptServiceProvider)
+        .maybeRequestAfterQuizCompleted(
           sessionCorrect: summary.totalCorrect,
           sessionTotal: summary.questions.length,
           totalAnswered: statsData.totalAnswered,
         );
+    // 出せたかどうかだけでなく、どの条件で降りたかまで送る。しきい値が
+    // 実データに合っているかは、内訳が無いと判断できない。
+    unawaited(
+      ref.read(analyticsServiceProvider).logReviewPrompt(
+            source: 'quiz',
+            outcome: outcome.name,
+          ),
+    );
   }
 
   @override
@@ -841,7 +588,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // 次の例文のテーマ表示／変更（課金導線）。
           if (widget.onNextSentence != null) ...[
             KeyedSubtree(
-              key: _nextTopicKey,
               child: const NextSentenceTopicLabel(
                 paywallSource: 'quiz_next_topic',
               ),
@@ -850,7 +596,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           ],
           if (widget.onOptionalChallenge != null) ...[
             KeyedSubtree(
-              key: _optionalChallengeKey,
               child: FilledButton.icon(
                 onPressed: widget.onOptionalChallenge,
                 icon: const Icon(Icons.emoji_events),
@@ -1494,22 +1239,6 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
   Timer? _autoAdvanceTimer;
   int _autoAdvanceGeneration = 0;
 
-  /// 「例文を確認」導線の位置特定用（初回コーチマーク表示に使用）。
-  final GlobalKey _checkSentenceKey = GlobalKey();
-
-  /// 出題中の案内で光らせる範囲。問題文から「例文を確認」までをひとまとまりで
-  /// 見せる。導線だけ光らせても、何をする画面なのかは伝わらない。
-  final GlobalKey _quizBodyKey = GlobalKey();
-
-  /// ヒント導線の位置特定用（初回コーチマーク表示に使用）。
-  final GlobalKey _hintKey = GlobalKey();
-
-  /// 「例文を復習する」導線の位置特定用（まとめクイズ側）。
-  final GlobalKey _reviewSentenceKey = GlobalKey();
-
-  /// このビューがコーチマークを出したか（破棄時に閉じるため）。
-  bool _showedReviewCoach = false;
-
   bool get _hasResult =>
       widget.selectedIndex != null && widget.isCorrect != null;
 
@@ -1527,104 +1256,6 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scheduleAutoAdvanceIfNeeded();
-    unawaited(_maybeShowReviewCoach());
-    unawaited(_maybeShowHintCoach());
-  }
-
-  /// ヒントが2段階あることを初回だけ案内する。
-  ///
-  /// ヒント導線が出ている5問クイズでのみ、まだ一度もヒントを開いていない
-  /// 問題で1回限り。他のコーチマークと重なる回は出さず、フラグも立てない
-  /// （次の問題で出し直す）。
-  Future<void> _maybeShowHintCoach() async {
-    if (_hasResult || !widget.showHints) return;
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyQuizHintCoachShown) ?? false) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || _hasResult || _hintLevel > 0) return;
-      if (CoachMarkOverlay.isVisible) return;
-      if (_hintKey.currentContext == null ||
-          ModalRoute.of(context)?.isCurrent != true) {
-        return;
-      }
-      // 選択肢が多いとヒントは画面外にある。先に見せてから強調する。
-      await Scrollable.ensureVisible(
-        _hintKey.currentContext!,
-        alignment: 0.8,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      );
-      if (!mounted ||
-          _hasResult ||
-          _hintLevel > 0 ||
-          CoachMarkOverlay.isVisible ||
-          ModalRoute.of(context)?.isCurrent != true) {
-        return;
-      }
-      final shown = CoachMarkOverlay.show(
-        context,
-        targetKey: _hintKey,
-        id: 'quiz_hint',
-        analytics: ref.read(analyticsServiceProvider),
-        icon: Icons.lightbulb_outline,
-        title: L10n.of(context).coachQuizHintTitle,
-        message: L10n.of(context).coachQuizHintMessage,
-        // ヒントを使うかは解いている本人が決める。案内から押させない。
-        targetTappable: false,
-        confirmLabel: L10n.of(context).coachGotIt,
-      );
-      if (!shown) return;
-      unawaited(prefs.setBool(AppConfig.prefKeyQuizHintCoachShown, true));
-    });
-  }
-
-  /// 出題中に「例文へ戻って確認できる」ことを初回だけ案内する。
-  /// 例文へ戻る導線が実際に出ている問題でのみ、1回限り。
-  Future<void> _maybeShowReviewCoach() async {
-    if (_hasResult) return;
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyQuizReviewCoachShown) ?? false) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || _hasResult) return;
-      // 確認クイズは「例文を確認」、まとめクイズは「例文を復習する」が出る。
-      final targetKey = _checkSentenceKey.currentContext != null
-          ? _checkSentenceKey
-          : (_reviewSentenceKey.currentContext != null
-              ? _reviewSentenceKey
-              : null);
-      if (targetKey == null || ModalRoute.of(context)?.isCurrent != true) {
-        return;
-      }
-      // 選択肢が多いと導線は画面外にある。先に見せてから強調する。
-      await Scrollable.ensureVisible(
-        targetKey.currentContext!,
-        alignment: 0.8,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      );
-      if (!mounted || _hasResult || ModalRoute.of(context)?.isCurrent != true) {
-        return;
-      }
-      final shown = CoachMarkOverlay.show(
-        context,
-        // 光らせるのは問題文から導線までのひとまとまり。
-        targetKey: _quizBodyKey,
-        id: 'quiz_review',
-        analytics: ref.read(analyticsServiceProvider),
-        icon: Icons.menu_book_outlined,
-        title: L10n.of(context).coachQuizReviewTitle,
-        message: L10n.of(context).coachQuizReviewMessage,
-        // 解答中なので押させない。ここは「いつでも戻れる」と知らせるだけで、
-        // 実際に戻るかどうかは解いている本人が決める。
-        targetTappable: false,
-        confirmLabel: L10n.of(context).coachGotIt,
-      );
-      if (!shown) return;
-      _showedReviewCoach = true;
-      unawaited(prefs.setBool(AppConfig.prefKeyQuizReviewCoachShown, true));
-    });
   }
 
   @override
@@ -1655,15 +1286,6 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _cancelAutoAdvance();
-    // 次の問題へ進むとこのビューだけ破棄される。対象を失ったコーチマークが
-    // 残らないよう、自分が出したものはここで閉じる。
-    if (_showedReviewCoach) {
-      CoachMarkOverlay.dismissFor(_quizBodyKey);
-      CoachMarkOverlay.dismissFor(_checkSentenceKey);
-      CoachMarkOverlay.dismissFor(_reviewSentenceKey);
-    }
-    // ヒントの案内は自分が出したものだけ閉じる（dismissFor が持ち主を見る）。
-    CoachMarkOverlay.dismissFor(_hintKey);
     super.dispose();
   }
 
@@ -1721,6 +1343,7 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     setState(() => _reviewedSentence = true);
     await Navigator.of(context).push(
       MaterialPageRoute(
+        settings: const RouteSettings(name: DetailScreen.routeName),
         builder: (_) => DetailScreen(
           sentence: sentence,
           source: 'quiz_review_button',
@@ -1810,7 +1433,6 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
         if (showCheck)
           Expanded(
             child: OutlinedButton(
-              key: _checkSentenceKey,
               onPressed: widget.onShowSentence,
               child: Text(l10n.quizCheckSentence),
             ),
@@ -2021,7 +1643,6 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
               padding: const EdgeInsets.fromLTRB(
                   AppConfig.screenPadding, 16, AppConfig.screenPadding, 20),
               child: KeyedSubtree(
-                key: _quizBodyKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -2051,7 +1672,6 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                       // 全段階を出し切ってもボタンは不活性のまま残す。消すと
                       // 4択の位置がずれ、使い切ったことも伝わらない。
                       KeyedSubtree(
-                        key: _hintKey,
                         child: TextButton.icon(
                           key: const ValueKey('quiz_hint_button'),
                           onPressed: nextHintLevel == 0
@@ -2068,7 +1688,6 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                       ),
                     if (!_hasResult && canReviewSentence)
                       TextButton(
-                        key: _reviewSentenceKey,
                         onPressed: () => _showSentenceDetail(sentenceDetail),
                         child: Text(
                           _reviewedSentence
@@ -2084,138 +1703,6 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
           if (actionBar != null) actionBar,
         ],
       ),
-    );
-  }
-}
-
-/// 機能紹介の締めくくり。画面の一部ではなく全体の締めなので、スポットライト
-/// ではなく中央のダイアログで出す。
-///
-/// 2ページに分ける。1ページ目は5問クイズの解き方（解き終えた直後なので、次に
-/// 活かせる話として読める）、2ページ目は間違えた例文の扱い。1枚に詰めると
-/// どちらも同じ重さで並んで、どちらも読まれない。
-class _TourFinishDialog extends ConsumerStatefulWidget {
-  const _TourFinishDialog();
-
-  @override
-  ConsumerState<_TourFinishDialog> createState() => _TourFinishDialogState();
-}
-
-class _TourFinishDialogState extends ConsumerState<_TourFinishDialog> {
-  int _page = 0;
-
-  static const _pageCount = 2;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context);
-    final theme = Theme.of(context);
-    // すでにプレミアムの人に回数差とペイウォールを見せても意味がない。
-    final isPremium = ref.watch(isPremiumProvider);
-    final isLast = _page == _pageCount - 1;
-
-    return AlertDialog(
-      icon: Icon(
-        _page == 0 ? Icons.emoji_events_outlined : Icons.autorenew,
-        color: theme.colorScheme.primary,
-        size: 32,
-      ),
-      title: Text(
-        _page == 0 ? l10n.coachSummaryTipsTitle : l10n.coachTourFinishTitle,
-      ),
-      // ページを差し替えて出す。高さを決め打ちすると、短いページで下に
-      // 大きな余白が残る。
-      content: AnimatedSize(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        alignment: Alignment.topCenter,
-        child: _page == 0
-            ? CoachEmphasizedText(
-                key: const ValueKey('tour_finish_page_0'),
-                text: l10n.coachSummaryTipsBody,
-                emphasis: l10n.coachSummaryTipsEmphasis,
-                style: theme.textTheme.bodyMedium,
-              )
-            : _TourFinishRecapPage(
-                key: const ValueKey('tour_finish_page_1'),
-                isPremium: isPremium,
-              ),
-      ),
-      // 端末の文字サイズを大きくしている場合でも溢れないようにする。
-      scrollable: true,
-      actions: [
-        Row(
-          children: [
-            Text(
-              l10n.coachStepLabel(_page + 1, _pageCount),
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const Spacer(),
-            if (isLast && !isPremium)
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text(l10n.coachTourFinishSeePremium),
-              ),
-            // ここは読み物なので閉じるだけ。次の例文へ進むのは、この後に出る
-            // テーマの案内を読み終えてから。
-            FilledButton(
-              onPressed: () => isLast
-                  ? Navigator.pop(context, false)
-                  : setState(() => _page += 1),
-              child: Text(isLast ? l10n.coachGotIt : l10n.coachNext),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// 締めくくりの本文。間違えた例文の扱いと、1日に作れる本数。
-class _TourFinishRecapPage extends StatelessWidget {
-  const _TourFinishRecapPage({super.key, required this.isPremium});
-
-  final bool isPremium;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context);
-    final theme = Theme.of(context);
-    final baseStyle = theme.textTheme.bodyMedium;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CoachEmphasizedText(
-          text: l10n.coachTourFinishMessage,
-          emphasis: l10n.coachTourFinishEmphasis,
-          style: baseStyle,
-        ),
-        if (!isPremium) ...[
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.bolt, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  l10n.coachTourFinishQuota(
-                    freeDailySentences,
-                    premiumDailySentences,
-                  ),
-                  style: baseStyle?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
     );
   }
 }

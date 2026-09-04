@@ -7,7 +7,19 @@ import 'remaining_quota_provider.dart';
 class VocabStats {
   final int estimatedVocab;
 
-  const VocabStats({this.estimatedVocab = 0});
+  /// 前回の語彙テスト日時（users/{uid}.vocab_test_at）。未受験は null。
+  final DateTime? testedAt;
+
+  /// 語彙テストで測った値（users/{uid}.vocab_test_vocab）。未受験は 0。
+  /// estimated_vocab と違い free の上限で切り下げられないので、体験終了時に
+  /// 「測った値 → 上限」の落差を出すのに使う。
+  final int testedVocab;
+
+  const VocabStats({
+    this.estimatedVocab = 0,
+    this.testedAt,
+    this.testedVocab = 0,
+  });
 }
 
 /// Firestore users/{uid} から語彙統計をリアルタイム取得
@@ -25,6 +37,8 @@ final vocabStatsProvider = StreamProvider<VocabStats>((ref) {
     return VocabStats(
       estimatedVocab:
           ((data['estimated_vocab'] as num?)?.toInt() ?? 0).clamp(0, 1 << 31),
+      testedAt: (data['vocab_test_at'] as Timestamp?)?.toDate(),
+      testedVocab: (data['vocab_test_vocab'] as num?)?.toInt() ?? 0,
     );
   });
 });

@@ -70,7 +70,7 @@ void main() {
         ),
       );
 
-      expect(find.text('通知機能を活用しましょう'), findsOneWidget);
+      expect(find.text('通知でタイ語学習を習慣にしましょう'), findsOneWidget);
 
       // 「時刻を決める → その時刻に届く」の順序が読める形で並んでいること。
       // 文言そのものより、この2段構成が崩れていないことを見る。
@@ -80,7 +80,7 @@ void main() {
       expect(find.textContaining('自動で届きます'), findsOneWidget);
 
       // 習慣化の理由づけと、通知の見た目のプレビュー。
-      expect(find.textContaining('習慣になります'), findsOneWidget);
+      expect(find.textContaining('無理なく続けられます'), findsOneWidget);
       expect(find.text('通知の例）'), findsOneWidget);
 
       // 主導線でその場でOS許可要求まで進む。設定画面へ辿らせる導線は持たない。

@@ -13,6 +13,8 @@ class FirebaseConfig {
   static const String subscriptionStatusFunctionName = 'subscriptionStatus';
   static const String updateUvmFunctionName = 'updateUvm';
   static const String resetLearningDataFunctionName = 'resetLearningData';
+  static const String startVocabTestFunctionName = 'startVocabTest';
+  static const String submitVocabTestFunctionName = 'submitVocabTest';
 
   /// Timeout for Cloud Functions calls
   static const Duration functionTimeout = Duration(seconds: 90);

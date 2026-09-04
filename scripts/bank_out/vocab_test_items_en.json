@@ -1,0 +1,1062 @@
+[
+  {
+    "word": "คุณ",
+    "rank": 4,
+    "gloss": "you"
+  },
+  {
+    "word": "ที่",
+    "rank": 5,
+    "gloss": "place"
+  },
+  {
+    "word": "ได้",
+    "rank": 6,
+    "gloss": "can"
+  },
+  {
+    "word": "มัน",
+    "rank": 8,
+    "gloss": "it"
+  },
+  {
+    "word": "ผม",
+    "rank": 9,
+    "gloss": "I"
+  },
+  {
+    "word": "เป็น",
+    "rank": 13,
+    "gloss": "be"
+  },
+  {
+    "word": "อะไร",
+    "rank": 14,
+    "gloss": "what"
+  },
+  {
+    "word": "เรา",
+    "rank": 16,
+    "gloss": "we"
+  },
+  {
+    "word": "เขา",
+    "rank": 18,
+    "gloss": "he"
+  },
+  {
+    "word": "ให้",
+    "rank": 20,
+    "gloss": "give"
+  },
+  {
+    "word": "อยู่",
+    "rank": 21,
+    "gloss": "stay"
+  },
+  {
+    "word": "ใช่",
+    "rank": 27,
+    "gloss": "yes"
+  },
+  {
+    "word": "ต้อง",
+    "rank": 29,
+    "gloss": "must"
+  },
+  {
+    "word": "คน",
+    "rank": 30,
+    "gloss": "person"
+  },
+  {
+    "word": "นาย",
+    "rank": 31,
+    "gloss": "mister"
+  },
+  {
+    "word": "รู้",
+    "rank": 34,
+    "gloss": "know"
+  },
+  {
+    "word": "พวก",
+    "rank": 38,
+    "gloss": "group"
+  },
+  {
+    "word": "คิด",
+    "rank": 39,
+    "gloss": "think"
+  },
+  {
+    "word": "คือ",
+    "rank": 41,
+    "gloss": "is"
+  },
+  {
+    "word": "ดี",
+    "rank": 42,
+    "gloss": "good"
+  },
+  {
+    "word": "เรื่อง",
+    "rank": 43,
+    "gloss": "matter"
+  },
+  {
+    "word": "อยาก",
+    "rank": 45,
+    "gloss": "want"
+  },
+  {
+    "word": "บอก",
+    "rank": 46,
+    "gloss": "tell"
+  },
+  {
+    "word": "อีก",
+    "rank": 53,
+    "gloss": "again"
+  },
+  {
+    "word": "ถึง",
+    "rank": 60,
+    "gloss": "arrive"
+  },
+  {
+    "word": "หรือ",
+    "rank": 61,
+    "gloss": "or"
+  },
+  {
+    "word": "กำลัง",
+    "rank": 64,
+    "gloss": "ing"
+  },
+  {
+    "word": "พวกเขา",
+    "rank": 65,
+    "gloss": "they"
+  },
+  {
+    "word": "ยังไง",
+    "rank": 67,
+    "gloss": "how"
+  },
+  {
+    "word": "ถูก",
+    "rank": 68,
+    "gloss": "correct"
+  },
+  {
+    "word": "กว่า",
+    "rank": 70,
+    "gloss": "than"
+  },
+  {
+    "word": "อย่า",
+    "rank": 73,
+    "gloss": "don't"
+  },
+  {
+    "word": "ไว้",
+    "rank": 75,
+    "gloss": "keep"
+  },
+  {
+    "word": "เพราะ",
+    "rank": 77,
+    "gloss": "because"
+  },
+  {
+    "word": "สิ่ง",
+    "rank": 78,
+    "gloss": "thing"
+  },
+  {
+    "word": "ช่วย",
+    "rank": 79,
+    "gloss": "help"
+  },
+  {
+    "word": "ลูก",
+    "rank": 91,
+    "gloss": "child"
+  },
+  {
+    "word": "พี่",
+    "rank": 92,
+    "gloss": "elder"
+  },
+  {
+    "word": "คง",
+    "rank": 94,
+    "gloss": "likely"
+  },
+  {
+    "word": "แบบ",
+    "rank": 95,
+    "gloss": "style"
+  },
+  {
+    "word": "ขอโทษ",
+    "rank": 96,
+    "gloss": "apologize"
+  },
+  {
+    "word": "หา",
+    "rank": 103,
+    "gloss": "search"
+  },
+  {
+    "word": "ใช้",
+    "rank": 106,
+    "gloss": "use"
+  },
+  {
+    "word": "รู้สึก",
+    "rank": 109,
+    "gloss": "feel"
+  },
+  {
+    "word": "เข้าใจ",
+    "rank": 111,
+    "gloss": "understand"
+  },
+  {
+    "word": "กลับ",
+    "rank": 113,
+    "gloss": "go back"
+  },
+  {
+    "word": "บ้าง",
+    "rank": 117,
+    "gloss": "some"
+  },
+  {
+    "word": "เร็ว",
+    "rank": 118,
+    "gloss": "fast"
+  },
+  {
+    "word": "เวลา",
+    "rank": 119,
+    "gloss": "time"
+  },
+  {
+    "word": "ฟัง",
+    "rank": 121,
+    "gloss": "listen"
+  },
+  {
+    "word": "พบ",
+    "rank": 125,
+    "gloss": "meet"
+  },
+  {
+    "word": "เข้า",
+    "rank": 126,
+    "gloss": "enter"
+  },
+  {
+    "word": "กลับมา",
+    "rank": 127,
+    "gloss": "return"
+  },
+  {
+    "word": "ลง",
+    "rank": 128,
+    "gloss": "down"
+  },
+  {
+    "word": "อาจจะ",
+    "rank": 129,
+    "gloss": "maybe"
+  },
+  {
+    "word": "ปี",
+    "rank": 130,
+    "gloss": "year"
+  },
+  {
+    "word": "ทั้งหมด",
+    "rank": 131,
+    "gloss": "all"
+  },
+  {
+    "word": "ทุกคน",
+    "rank": 137,
+    "gloss": "everyone"
+  },
+  {
+    "word": "ทำงาน",
+    "rank": 139,
+    "gloss": "work"
+  },
+  {
+    "word": "ได้ยิน",
+    "rank": 140,
+    "gloss": "hear"
+  },
+  {
+    "word": "แน่",
+    "rank": 149,
+    "gloss": "sure"
+  },
+  {
+    "word": "ควร",
+    "rank": 152,
+    "gloss": "should"
+  },
+  {
+    "word": "ทุกอย่าง",
+    "rank": 158,
+    "gloss": "everything"
+  },
+  {
+    "word": "เชื่อ",
+    "rank": 159,
+    "gloss": "believe"
+  },
+  {
+    "word": "ใหม่",
+    "rank": 164,
+    "gloss": "new"
+  },
+  {
+    "word": "ปล่อย",
+    "rank": 166,
+    "gloss": "release"
+  },
+  {
+    "word": "นา",
+    "rank": 169,
+    "gloss": "field"
+  },
+  {
+    "word": "พา",
+    "rank": 175,
+    "gloss": "take"
+  },
+  {
+    "word": "โทร",
+    "rank": 176,
+    "gloss": "call"
+  },
+  {
+    "word": "ชีวิต",
+    "rank": 183,
+    "gloss": "life"
+  },
+  {
+    "word": "เกิดขึ้น",
+    "rank": 191,
+    "gloss": "happen"
+  },
+  {
+    "word": "ถาม",
+    "rank": 196,
+    "gloss": "ask"
+  },
+  {
+    "word": "นาน",
+    "rank": 198,
+    "gloss": "long time"
+  },
+  {
+    "word": "ผู้ชาย",
+    "rank": 202,
+    "gloss": "man"
+  },
+  {
+    "word": "มาจาก",
+    "rank": 204,
+    "gloss": "come from"
+  },
+  {
+    "word": "รถ",
+    "rank": 208,
+    "gloss": "car"
+  },
+  {
+    "word": "ดังนั้น",
+    "rank": 209,
+    "gloss": "therefore"
+  },
+  {
+    "word": "อย่างนี้",
+    "rank": 212,
+    "gloss": "like this"
+  },
+  {
+    "word": "ทำได้",
+    "rank": 214,
+    "gloss": "can do"
+  },
+  {
+    "word": "ต่อไป",
+    "rank": 215,
+    "gloss": "next"
+  },
+  {
+    "word": "หมายถึง",
+    "rank": 224,
+    "gloss": "mean"
+  },
+  {
+    "word": "กลัว",
+    "rank": 229,
+    "gloss": "fear"
+  },
+  {
+    "word": "แต่งงาน",
+    "rank": 232,
+    "gloss": "marry"
+  },
+  {
+    "word": "ที่นั่น",
+    "rank": 237,
+    "gloss": "there"
+  },
+  {
+    "word": "แน่ใจ",
+    "rank": 238,
+    "gloss": "certain"
+  },
+  {
+    "word": "ยา",
+    "rank": 240,
+    "gloss": "medicine"
+  },
+  {
+    "word": "จับ",
+    "rank": 242,
+    "gloss": "catch"
+  },
+  {
+    "word": "ลอง",
+    "rank": 246,
+    "gloss": "try"
+  },
+  {
+    "word": "มอง",
+    "rank": 254,
+    "gloss": "look"
+  },
+  {
+    "word": "ดูเหมือน",
+    "rank": 255,
+    "gloss": "seem"
+  },
+  {
+    "word": "นั่ง",
+    "rank": 263,
+    "gloss": "sit"
+  },
+  {
+    "word": "พร้อม",
+    "rank": 264,
+    "gloss": "ready"
+  },
+  {
+    "word": "ชาย",
+    "rank": 270,
+    "gloss": "male"
+  },
+  {
+    "word": "เดิน",
+    "rank": 275,
+    "gloss": "walk"
+  },
+  {
+    "word": "นาง",
+    "rank": 284,
+    "gloss": "lady"
+  },
+  {
+    "word": "จำ",
+    "rank": 285,
+    "gloss": "remember"
+  },
+  {
+    "word": "ความจริง",
+    "rank": 292,
+    "gloss": "truth"
+  },
+  {
+    "word": "พวกคุณ",
+    "rank": 296,
+    "gloss": "you all"
+  },
+  {
+    "word": "เดี๋ยวนี้",
+    "rank": 299,
+    "gloss": "right now"
+  },
+  {
+    "word": "ที่รัก",
+    "rank": 303,
+    "gloss": "darling"
+  },
+  {
+    "word": "ยาก",
+    "rank": 305,
+    "gloss": "difficult"
+  },
+  {
+    "word": "มีความสุข",
+    "rank": 308,
+    "gloss": "happy"
+  },
+  {
+    "word": "สนใจ",
+    "rank": 320,
+    "gloss": "interest"
+  },
+  {
+    "word": "บาท",
+    "rank": 321,
+    "gloss": "baht"
+  },
+  {
+    "word": "ทา",
+    "rank": 322,
+    "gloss": "apply"
+  },
+  {
+    "word": "ที่อยู่",
+    "rank": 327,
+    "gloss": "address"
+  },
+  {
+    "word": "เซ",
+    "rank": 330,
+    "gloss": "stagger"
+  },
+  {
+    "word": "หลัง",
+    "rank": 333,
+    "gloss": "back"
+  },
+  {
+    "word": "แฟน",
+    "rank": 335,
+    "gloss": "partner"
+  },
+  {
+    "word": "ประตู",
+    "rank": 339,
+    "gloss": "door"
+  },
+  {
+    "word": "ประธาน",
+    "rank": 344,
+    "gloss": "president"
+  },
+  {
+    "word": "เยอะ",
+    "rank": 347,
+    "gloss": "many"
+  },
+  {
+    "word": "อายุ",
+    "rank": 348,
+    "gloss": "age"
+  },
+  {
+    "word": "หลังจาก",
+    "rank": 349,
+    "gloss": "after"
+  },
+  {
+    "word": "เหตุผล",
+    "rank": 356,
+    "gloss": "reason"
+  },
+  {
+    "word": "องค์",
+    "rank": 361,
+    "gloss": "deity"
+  },
+  {
+    "word": "เกินไป",
+    "rank": 368,
+    "gloss": "too much"
+  },
+  {
+    "word": "ลูกชาย",
+    "rank": 370,
+    "gloss": "son"
+  },
+  {
+    "word": "นาที",
+    "rank": 376,
+    "gloss": "minute"
+  },
+  {
+    "word": "เลือด",
+    "rank": 386,
+    "gloss": "blood"
+  },
+  {
+    "word": "สาย",
+    "rank": 390,
+    "gloss": "line"
+  },
+  {
+    "word": "ลูกสาว",
+    "rank": 393,
+    "gloss": "daughter"
+  },
+  {
+    "word": "เขียน",
+    "rank": 395,
+    "gloss": "write"
+  },
+  {
+    "word": "กลายเป็น",
+    "rank": 396,
+    "gloss": "become"
+  },
+  {
+    "word": "สัน",
+    "rank": 397,
+    "gloss": "ridge"
+  },
+  {
+    "word": "อาจารย์",
+    "rank": 401,
+    "gloss": "professor"
+  },
+  {
+    "word": "เสมอ",
+    "rank": 412,
+    "gloss": "always"
+  },
+  {
+    "word": "ขอบใจ",
+    "rank": 417,
+    "gloss": "thank"
+  },
+  {
+    "word": "ปลอดภัย",
+    "rank": 420,
+    "gloss": "safe"
+  },
+  {
+    "word": "แสดง",
+    "rank": 423,
+    "gloss": "perform"
+  },
+  {
+    "word": "กี่",
+    "rank": 428,
+    "gloss": "how many"
+  },
+  {
+    "word": "สู้",
+    "rank": 429,
+    "gloss": "fight"
+  },
+  {
+    "word": "สงสัย",
+    "rank": 430,
+    "gloss": "doubt"
+  },
+  {
+    "word": "วิ่ง",
+    "rank": 432,
+    "gloss": "run"
+  },
+  {
+    "word": "ข้างนอก",
+    "rank": 435,
+    "gloss": "outside"
+  },
+  {
+    "word": "ปกป้อง",
+    "rank": 438,
+    "gloss": "protect"
+  },
+  {
+    "word": "ให้ได้",
+    "rank": 448,
+    "gloss": "achieve"
+  },
+  {
+    "word": "ยุ",
+    "rank": 449,
+    "gloss": "incite"
+  },
+  {
+    "word": "ส่วน",
+    "rank": 451,
+    "gloss": "a part"
+  },
+  {
+    "word": "ไทย",
+    "rank": 453,
+    "gloss": "Thai"
+  },
+  {
+    "word": "เล็ก",
+    "rank": 456,
+    "gloss": "small"
+  },
+  {
+    "word": "พัก",
+    "rank": 465,
+    "gloss": "to rest"
+  },
+  {
+    "word": "นั่นแหละ",
+    "rank": 468,
+    "gloss": "exactly"
+  },
+  {
+    "word": "ความคิด",
+    "rank": 476,
+    "gloss": "an idea"
+  },
+  {
+    "word": "ที่แล้ว",
+    "rank": 479,
+    "gloss": "previous"
+  },
+  {
+    "word": "เจ็บ",
+    "rank": 480,
+    "gloss": "painful"
+  },
+  {
+    "word": "ระวัง",
+    "rank": 481,
+    "gloss": "to beware"
+  },
+  {
+    "word": "ใจ",
+    "rank": 484,
+    "gloss": "heart"
+  },
+  {
+    "word": "เก่ง",
+    "rank": 486,
+    "gloss": "skillful"
+  },
+  {
+    "word": "สี",
+    "rank": 493,
+    "gloss": "a color"
+  },
+  {
+    "word": "ยอมรับ",
+    "rank": 497,
+    "gloss": "to accept"
+  },
+  {
+    "word": "แม้แต่",
+    "rank": 498,
+    "gloss": "even"
+  },
+  {
+    "word": "โทรศัพท์",
+    "rank": 502,
+    "gloss": "telephone"
+  },
+  {
+    "word": "โชคดี",
+    "rank": 505,
+    "gloss": "lucky"
+  },
+  {
+    "word": "เต้น",
+    "rank": 508,
+    "gloss": "to dance"
+  },
+  {
+    "word": "ขโมย",
+    "rank": 510,
+    "gloss": "to steal"
+  },
+  {
+    "word": "มากมาย",
+    "rank": 518,
+    "gloss": "abundant"
+  },
+  {
+    "word": "หรือไง",
+    "rank": 519,
+    "gloss": "or what"
+  },
+  {
+    "word": "พิเศษ",
+    "rank": 524,
+    "gloss": "special"
+  },
+  {
+    "word": "ทราบ",
+    "rank": 531,
+    "gloss": "to know"
+  },
+  {
+    "word": "จริง ๆ",
+    "rank": 538,
+    "gloss": "really"
+  },
+  {
+    "word": "ทาน",
+    "rank": 539,
+    "gloss": "to eat"
+  },
+  {
+    "word": "หวัด",
+    "rank": 540,
+    "gloss": "a cold"
+  },
+  {
+    "word": "สบายดี",
+    "rank": 545,
+    "gloss": "well"
+  },
+  {
+    "word": "ตอนนั้น",
+    "rank": 546,
+    "gloss": "at that time"
+  },
+  {
+    "word": "สูง",
+    "rank": 548,
+    "gloss": "high"
+  },
+  {
+    "word": "หาก",
+    "rank": 549,
+    "gloss": "if"
+  },
+  {
+    "word": "เดียวกัน",
+    "rank": 554,
+    "gloss": "the same"
+  },
+  {
+    "word": "ช่วง",
+    "rank": 558,
+    "gloss": "a period"
+  },
+  {
+    "word": "กล้า",
+    "rank": 559,
+    "gloss": "to dare"
+  },
+  {
+    "word": "วันที่",
+    "rank": 563,
+    "gloss": "a date"
+  },
+  {
+    "word": "ต่าง",
+    "rank": 566,
+    "gloss": "different"
+  },
+  {
+    "word": "เดี๋ยวก่อน",
+    "rank": 571,
+    "gloss": "wait a moment"
+  },
+  {
+    "word": "ทำตัว",
+    "rank": 576,
+    "gloss": "to behave"
+  },
+  {
+    "word": "บิน",
+    "rank": 586,
+    "gloss": "to fly"
+  },
+  {
+    "word": "อธิบาย",
+    "rank": 587,
+    "gloss": "to explain"
+  },
+  {
+    "word": "อันตราย",
+    "rank": 589,
+    "gloss": "dangerous"
+  },
+  {
+    "word": "พ่อแม่",
+    "rank": 601,
+    "gloss": "parents"
+  },
+  {
+    "word": "ป้า",
+    "rank": 630,
+    "gloss": "aunt"
+  },
+  {
+    "word": "เหนื่อย",
+    "rank": 640,
+    "gloss": "tired"
+  },
+  {
+    "word": "ช้า",
+    "rank": 648,
+    "gloss": "slow"
+  },
+  {
+    "word": "หลับ",
+    "rank": 649,
+    "gloss": "asleep"
+  },
+  {
+    "word": "อาการ",
+    "rank": 653,
+    "gloss": "symptom"
+  },
+  {
+    "word": "ผ่าตัด",
+    "rank": 658,
+    "gloss": "surgery"
+  },
+  {
+    "word": "พอแล้ว",
+    "rank": 675,
+    "gloss": "enough"
+  },
+  {
+    "word": "ผล",
+    "rank": 688,
+    "gloss": "result"
+  },
+  {
+    "word": "เก่า",
+    "rank": 695,
+    "gloss": "old"
+  },
+  {
+    "word": "ยอ",
+    "rank": 698,
+    "gloss": "flatter"
+  },
+  {
+    "word": "รุ่นพี่",
+    "rank": 702,
+    "gloss": "senior"
+  },
+  {
+    "word": "ทั้งคู่",
+    "rank": 719,
+    "gloss": "both"
+  },
+  {
+    "word": "หน้าที่",
+    "rank": 720,
+    "gloss": "duty"
+  },
+  {
+    "word": "หลอก",
+    "rank": 723,
+    "gloss": "deceive"
+  },
+  {
+    "word": "จากนั้น",
+    "rank": 724,
+    "gloss": "then"
+  },
+  {
+    "word": "ที่ผ่านมา",
+    "rank": 733,
+    "gloss": "the past"
+  },
+  {
+    "word": "ไล่",
+    "rank": 741,
+    "gloss": "chase"
+  },
+  {
+    "word": "มีโอกาส",
+    "rank": 750,
+    "gloss": "chance"
+  },
+  {
+    "word": "ร่างกาย",
+    "rank": 769,
+    "gloss": "body"
+  },
+  {
+    "word": "ซ่า",
+    "rank": 772,
+    "gloss": "fizzy"
+  },
+  {
+    "word": "รอด",
+    "rank": 792,
+    "gloss": "survive"
+  },
+  {
+    "word": "ฆาตกร",
+    "rank": 796,
+    "gloss": "murderer"
+  },
+  {
+    "word": "ร้องเพลง",
+    "rank": 802,
+    "gloss": "sing"
+  },
+  {
+    "word": "หุบปาก",
+    "rank": 807,
+    "gloss": "shut up"
+  },
+  {
+    "word": "ปีศาจ",
+    "rank": 812,
+    "gloss": "demon"
+  },
+  {
+    "word": "ทุกวัน",
+    "rank": 823,
+    "gloss": "everyday"
+  },
+  {
+    "word": "ขับ",
+    "rank": 828,
+    "gloss": "drive"
+  },
+  {
+    "word": "คุก",
+    "rank": 829,
+    "gloss": "prison"
+  },
+  {
+    "word": "ลูกค้า",
+    "rank": 836,
+    "gloss": "customer"
+  },
+  {
+    "word": "ตกใจ",
+    "rank": 859,
+    "gloss": "startled"
+  },
+  {
+    "word": "ท่า",
+    "rank": 864,
+    "gloss": "posture"
+  },
+  {
+    "word": "ญาติ",
+    "rank": 871,
+    "gloss": "relative"
+  },
+  {
+    "word": "ทัน",
+    "rank": 880,
+    "gloss": "in time"
+  },
+  {
+    "word": "ขับรถ",
+    "rank": 884,
+    "gloss": "driving"
+  }
+]

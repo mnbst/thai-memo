@@ -8,7 +8,6 @@ import '../../l10n/app_localizations.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/paywall_screen.dart';
-import 'coach_mark_overlay.dart';
 
 /// テーマ文字列から表示用の短いラベル（括弧前の名称）を返す。null は「おまかせ」。
 String topicShortLabel(L10n l10n, String? topic) {
@@ -47,15 +46,8 @@ class NextSentenceTopicLabel extends ConsumerWidget {
     final cs = theme.colorScheme;
 
     final onTap = canSelect
-        ? () {
-            // ツアー中にスポットしたチップをタップしたらマークを閉じる。
-            CoachMarkOverlay.dismiss();
-            showTopicPicker(context, ref);
-          }
-        : () {
-            CoachMarkOverlay.dismiss();
-            PaywallBottomSheet.show(context, source: paywallSource);
-          };
+        ? () => showTopicPicker(context, ref)
+        : () => PaywallBottomSheet.show(context, source: paywallSource);
 
     if (banner) {
       return _buildBanner(context, l10n, label, canSelect, onTap);

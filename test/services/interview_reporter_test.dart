@@ -40,9 +40,26 @@ void main() {
       'goal': 'work',
     });
     expect(firestore.users['u1']?['interview_answer_count'], 2);
+    // level は分析用。語彙スコア（estimated_vocab / 旧 vocab_floor）には
+    // 一切入れない。
+    expect(firestore.users['u1']?.containsKey('vocab_floor'), isFalse);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool(AppConfig.prefKeyInterviewSynced), isTrue);
+  });
+
+  test('level を答えても語彙スコアのフィールドは書かない', () async {
+    SharedPreferences.setMockInitialValues({
+      AppConfig.prefKeyInterviewCompleted: true,
+      '${AppConfig.prefKeyInterviewPrefix}level': 'conv',
+    });
+
+    await reporter().report();
+
+    final doc = firestore.users['u1'] ?? {};
+    expect(doc.containsKey('vocab_floor'), isFalse);
+    expect(doc.containsKey('estimated_vocab'), isFalse);
+    expect(doc['interview'], {'level': 'conv'});
   });
 
   test('全問スキップでも件数0として残す', () async {

@@ -9,7 +9,7 @@ import '../providers/leaderboard_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/swipe_back.dart';
-import '../widgets/vocab_score_dialog.dart';
+import '../widgets/vocab_level.dart';
 import 'paywall_screen.dart';
 
 /// 語彙スコアのランキング画面。
@@ -156,8 +156,8 @@ class _MyRankCard extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final rank = ref.watch(myRankProvider).valueOrNull;
     final vocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+    final rank = ref.watch(myRankProvider).valueOrNull;
 
     return Card(
       color: colorScheme.primaryContainer,
@@ -207,6 +207,11 @@ class _MyRankCard extends ConsumerWidget {
     );
   }
 }
+
+/// 帯の表示名（「301〜600」「1001〜」）。順位カードと分布バーで同じ言い方をする。
+String _bandLabel(L10n l10n, ({int min, int? max}) band) => band.max == null
+    ? l10n.rankingBandOver(band.min)
+    : l10n.rankingBandRange(band.min, band.max!);
 
 class _RankRow extends StatelessWidget {
   const _RankRow({required this.entry});
@@ -379,9 +384,7 @@ class _BandBar extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    final label = band.max == null
-        ? l10n.rankingBandOver(band.min)
-        : l10n.rankingBandRange(band.min, band.max!);
+    final label = _bandLabel(l10n, (min: band.min, max: band.max));
     // 0人の帯も存在が分かるよう、ごく細い下地を残す
     final ratio = maxCount <= 0 ? 0.0 : band.count / maxCount;
 

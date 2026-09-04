@@ -311,13 +311,13 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
 }
 
 /// 起動時の匿名サインイン完了までの簡易ローディング画面。
+/// 認証待ちの間もネイティブ起動画面と同じ絵を出し続ける。
+/// ここで別の背景色やスピナーを挟むと、起動直後にちらついて見える。
 class _AuthLoadingScreen extends StatelessWidget {
   const _AuthLoadingScreen();
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const SplashVisual();
   }
 }

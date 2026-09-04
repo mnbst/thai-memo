@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -21,12 +22,14 @@ import '../providers/settings_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../../services/push_notification_service.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
+import 'vocab_test_screen.dart';
 import '../widgets/sign_in_sheet.dart';
 import '../widgets/topic_picker.dart';
-import '../widgets/vocab_score_dialog.dart';
+import '../widgets/vocab_level.dart';
 import 'contact_form_screen.dart';
 import 'paywall_screen.dart';
 import 'ranking_screen.dart';
+import 'guide_screen.dart';
 import 'tone_guide_screen.dart';
 
 /// Settings screen
@@ -41,6 +44,26 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final ScrollController _scrollController = ScrollController();
+
+  /// 実際に動いているビルドの版。定数に焼くと更新を忘れて古い版を表示し続ける
+  /// （1.2.1 のまま10版以上放置されていた）ので、必ず OS 側から取る。
+  String? _appVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = info.version);
+    } catch (_) {
+      // 取得できなければ版を出さない。誤った版を出すより無いほうが良い。
+    }
+  }
 
   @override
   void dispose() {
@@ -66,6 +89,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildVocabScoreCard(),
           _buildPremiumPitch(),
           _buildSection(l10n.settingsAccount, _buildAccountTiles()),
+          _buildSection(l10n.settingsGuideSection, _buildGuideTiles()),
           _buildSection(l10n.settingsLearningSection, _buildLearningTiles()),
           _buildSection(l10n.settingsDisplay, _buildDisplayTiles()),
           _buildSection(l10n.settingsAbout, _buildAboutTiles()),
@@ -139,8 +163,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-              border:
-                  Border.all(color: AppColors.gold.withValues(alpha: 0.42)),
+              border: Border.all(color: AppColors.gold.withValues(alpha: 0.42)),
             ),
             padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
             child: Row(
@@ -182,8 +205,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// アプリ名とタグライン。読ませる情報ではないので、面を持たせず末尾に置く。
   Widget _buildFooter() {
     final theme = Theme.of(context);
+    final version = _appVersion;
     return Text(
-      '${L10n.of(context).settingsTagline}　·　v${AppConfig.appVersion}',
+      '${L10n.of(context).settingsTagline}'
+      '${version == null ? '' : '　·　v$version'}',
       textAlign: TextAlign.center,
       style: theme.textTheme.bodySmall?.copyWith(
         color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
@@ -270,8 +295,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onPressed: authState.isLoading ? null : _deleteAccount,
                 child: Text(
                   l10n.settingsDeleteAccount,
-                  style:
-                      TextStyle(color: Theme.of(context).colorScheme.error),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
               const SizedBox(width: 8),
@@ -406,7 +430,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         leading: const Icon(Icons.language),
         title: Text(l10n.settingsLanguage),
         subtitle: Text(l10n.settingsLanguageSubtitle),
-        trailing: _buildValueTrailing(ref.watch(appLanguageProvider).displayName),
+        trailing:
+            _buildValueTrailing(ref.watch(appLanguageProvider).displayName),
         onTap: () => _showLanguagePicker(ref.read(appLanguageProvider)),
       ),
       // 体験終了ダイアログは期限が来ないと出ないので、見た目の確認用に
@@ -417,7 +442,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: const Text('プレミアム体験終了ダイアログ（dev）'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () async {
-            final open = await showPremiumTrialEndedDialog(context);
+            // 語彙スコアの行は「測った値が free 上限を超えている人」にだけ
+            // 出る。自分のアカウントは上限に張り付いていて出ないので、
+            // プレビューでは測定済みの値を差して行ごと確認できるようにする。
+            final open = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => ProviderScope(
+                    overrides: [
+                      vocabStatsProvider.overrideWith(
+                        (ref) => Stream.value(
+                          const VocabStats(
+                              estimatedVocab: 100, testedVocab: 400),
+                        ),
+                      ),
+                    ],
+                    child: const PremiumTrialEndedDialog(),
+                  ),
+                ) ??
+                false;
             if (!open || !mounted) return;
             await PaywallBottomSheet.show(context,
                 source: 'trial_ended_preview');
@@ -560,11 +602,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// 学習設定。声調ガイドを先頭に置くのは、設定ではなく読み物で、
-  /// ここを開いた人がいちばん手に取りやすいため。
-  List<Widget> _buildLearningTiles() {
+  /// 読み物（使い方ガイド・声調ガイド）。設定ではないので学習設定から分け、
+  /// 項目数が増えすぎた学習設定を短く保つ。
+  List<Widget> _buildGuideTiles() {
     final l10n = L10n.of(context);
     return [
+      ListTile(
+        leading: const Icon(Icons.menu_book_outlined),
+        title: Text(l10n.guideTitle),
+        subtitle: Text(l10n.guideSettingsSubtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              settings: const RouteSettings(name: GuideScreen.routeName),
+              builder: (context) => const GuideScreen(),
+            ),
+          );
+        },
+      ),
       ListTile(
         leading: const Icon(Icons.graphic_eq),
         title: Text(l10n.settingsToneGuide),
@@ -581,6 +638,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           );
         },
       ),
+    ];
+  }
+
+  /// 学習設定。
+  List<Widget> _buildLearningTiles() {
+    final l10n = L10n.of(context);
+    return [
+      _buildVocabTestTile(),
       _buildTopicSelectTile(),
       _buildDailyReminderTile(),
       _buildReminderTimeTile(),
@@ -694,6 +759,53 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 語彙テストの再試験。プレミアム限定（サーバー側でも弾く）。
+  ///
+  /// オンボーディングで一度測るが、伸びても測り直せないと表示が実態から
+  /// 離れていく。free は上限 100 で頭打ちなので、測っても意味が無い。
+  Widget _buildVocabTestTile() {
+    final l10n = L10n.of(context);
+    final canTake = ref.watch(effectivePremiumProvider);
+    final takenAt = ref.watch(vocabStatsProvider).valueOrNull?.testedAt;
+
+    return ListTile(
+      leading: const Icon(Icons.straighten),
+      title: Text(l10n.settingsVocabTest),
+      subtitle: Text(
+        canTake
+            ? (takenAt == null
+                ? l10n.settingsVocabTestNever
+                : l10n.settingsVocabTestLast(_formatDate(takenAt)))
+            : l10n.settingsVocabTestPremium,
+      ),
+      trailing: canTake
+          ? const Icon(Icons.chevron_right)
+          : Icon(Icons.lock,
+              size: 18, color: Theme.of(context).colorScheme.outline),
+      onTap: canTake
+          ? _openVocabTest
+          : () => PaywallBottomSheet.show(context, source: 'settings_vocab_test'),
+    );
+  }
+
+  String _formatDate(DateTime at) {
+    final local = at.toLocal();
+    return '${local.year}/${local.month}/${local.day}';
+  }
+
+  Future<void> _openVocabTest() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        settings: const RouteSettings(name: VocabTestScreen.routeName),
+        builder: (context) => VocabTestScreen(
+          source: 'settings',
+          onFinished: (_) => Navigator.pop(context),
+        ),
       ),
     );
   }
