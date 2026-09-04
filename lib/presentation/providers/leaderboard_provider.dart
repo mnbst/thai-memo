@@ -19,11 +19,11 @@ const int leaderboardTopCount = 3;
 /// この間はアプリを再起動しても Firestore を読まない（引っ張って更新は常に即取得）。
 const Duration leaderboardCacheTtl = Duration(hours: 6);
 
-// 帯の中の順位に変えたので鍵を変える。前の鍵のままだと、更新直後の6時間は
-// 端末に残った全体順位がそのまま出てしまう。
-const _rowsCacheKey = 'leaderboard_rows_cache_band';
-const _distributionCacheKey = 'leaderboard_distribution_cache_band';
-const _myRankCacheKey = 'leaderboard_my_rank_cache_band';
+// 全体順位に戻したので鍵を変える。前の鍵のままだと、更新直後の6時間は
+// 端末に残った帯の中の順位がそのまま出てしまう。
+const _rowsCacheKey = 'leaderboard_rows_cache_all';
+const _distributionCacheKey = 'leaderboard_distribution_cache_all';
+const _myRankCacheKey = 'leaderboard_my_rank_cache_all';
 
 /// 引っ張って更新の回数。1以上なら、その起動中はキャッシュを使わない。
 ///
@@ -112,19 +112,10 @@ String? _readNickname(Map<String, dynamic>? data) {
   return (name == null || name.isEmpty) ? null : name;
 }
 
-/// 同じ帯の中で vocab が [vocab] より大きい人数 + 1。同点は同順位になる。
-///
-/// 全体順位にしない。語彙スコアの出発点は 4択16問の語彙テストで、上振れると
-/// 帯をまたぐ（13〜16% が真値の2倍以上に測られる）。全体一本の並びだと測定の
-/// 運が順位に直結してしまう。帯の中だけで比べれば、測定で移れるのは「どの帯で
-/// 戦うか」までで、順位は日々の正誤でしか動かない。
+/// 全ユーザーの中で vocab が [vocab] より大きい人数 + 1。同点は同順位になる。
 Future<int> _rankOf(int vocab) async {
-  final band = bandOf(vocab);
-  final snapshot = await _leaderboardRef()
-      .where('vocab', isGreaterThan: vocab)
-      .where('vocab', isLessThanOrEqualTo: band.max ?? _vocabCeiling)
-      .count()
-      .get();
+  final snapshot =
+      await _leaderboardRef().where('vocab', isGreaterThan: vocab).count().get();
   return (snapshot.count ?? 0) + 1;
 }
 
@@ -160,9 +151,6 @@ final myRankProvider = FutureProvider<int?>((ref) async {
 
 /// 上限なしの帯を範囲クエリで表すための天井
 const int _vocabCeiling = 1 << 30;
-
-/// 全員が同じスコアで並ぶ幅 1 の帯（free の上限）かどうか。
-bool isTiedBand(({int min, int? max}) band) => band.max == band.min;
 
 /// [vocab] が属する帯。どの帯にも入らない値（0以下）は最下段に寄せる。
 ({int min, int? max}) bandOf(int vocab) {
@@ -228,18 +216,10 @@ class VocabDistribution {
             .toList(),
       );
 
-  /// 自分の帯の中で上位何%か（1未満は1に丸める）。順位が無いときは null。
-  ///
-  /// 母数は全体ではなく自分の帯。順位（[myRankProvider]）が帯の中の順位なので、
-  /// 全体人数で割ると必ず実際より上位に見えてしまう。
+  /// 全体で上位何%か（1未満は1に丸める）。順位が無いときは null。
   int? percentile(int? rank) {
-    if (rank == null) return null;
-    final mine = bands.where((band) => band.isMine).firstOrNull;
-    if (mine == null || mine.count <= 0) return null;
-    // 幅 1 の帯（free の上限 100）は全員同点。ここで順位から割合を出すと
-    // 誰もが「上位1%」になってしまうので出さない。
-    if (mine.min == mine.max) return null;
-    return (rank / mine.count * 100).ceil().clamp(1, 100);
+    if (rank == null || total <= 0) return null;
+    return (rank / total * 100).ceil().clamp(1, 100);
   }
 }
 
@@ -342,26 +322,19 @@ final leaderboardRowsProvider =
 
   // 自分の doc も引っかかるので1件多く取る
   final limit = leaderboardNeighborCount + 1;
-  // トップも周辺も自分の帯の中だけで取る。帯をまたぐと、申告レベルで上の帯に
-  // 移った人がそのまま上位に並んでしまう。
-  final band = bandOf(myVocab);
-  final bandMax = band.max ?? _vocabCeiling;
+  // トップも周辺も全ユーザーの並びから取る。
   final topDocs = await _leaderboardRef()
-      .where('vocab', isGreaterThanOrEqualTo: band.min)
-      .where('vocab', isLessThanOrEqualTo: bandMax)
       .orderBy('vocab', descending: true)
       .limit(leaderboardTopCount)
       .get();
   final results = await Future.wait([
     _leaderboardRef()
         .where('vocab', isGreaterThanOrEqualTo: myVocab)
-        .where('vocab', isLessThanOrEqualTo: bandMax)
         .orderBy('vocab')
         .limit(limit)
         .get(),
     _leaderboardRef()
         .where('vocab', isLessThanOrEqualTo: myVocab)
-        .where('vocab', isGreaterThanOrEqualTo: band.min)
         .orderBy('vocab', descending: true)
         .limit(limit)
         .get(),
