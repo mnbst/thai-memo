@@ -21,61 +21,24 @@
   "navLearn": "学習",
   "navHistory": "履歴",
   "navSettings": "設定",
+  "learnAppBarTitle": "今日の例文",
+  "learnOpenDetail": "詳細",
 
   "learnQuizTitle": "クイズ",
   "learnSummaryQuizTitle": "まとめクイズ",
   "learnNextSentence": "次の例文へ",
-
-  "firstGuideTitle": "まずは体験してみましょう",
-  "firstGuideBody": "実際に1回、例文からクイズまで通して学習します。\n押すボタンはこのあと順番にご案内します。",
-  "firstGuideTrial": "最初の2日間はプレミアムの内容で学べます",
-  "@firstGuideTrial": {
-    "description": "初回ガイドで強調する体験期間。日数は PREMIUM_TRIAL_DAYS（constants.py / quota.ts）と揃えること"
-  },
   "commonOk": "OK",
   "commonRetry": "再試行",
-
-  "coachDetailTitle": "まずは例文をタップ",
-  "coachDetailMessage": "カードをタップすると、単語ごとの意味と発音を確認できます。",
-
-  "coachQuizTitle": "次はクイズに挑戦",
-  "coachQuizMessage": "確認クイズで、学習単語を覚えたか確認しましょう。",
-
-  "coachTargetWordsTitle": "この単語を覚えよう",
-  "coachTargetWordsEmphasis": "学習単語",
-  "coachTargetWordsMessage": "この例文の学習単語です。例文の中でどう使われているかを見ていきましょう。",
-
-  "coachSentenceCardTitle": "例文カード",
-  "coachSentenceCardMessage": "上がタイ文字、下がその読み方、いちばん下が日本語訳です。",
-  "coachPlayTitle": "お手本を聞く",
-  "coachPlayMessage": "再生ボタンを押すと、例文をタイ語で読み上げます。",
-  "coachPronunciationTitle": "声に出して確かめる",
-  "coachPronunciationMessage": "ボタンを押したまま、タイ語音声を真似して読んでみましょう。声調が合っているか、その場で判定します。",
-  "coachPronunciationResultTitle": "発音判定の見方",
-  "coachPronunciationResultMessage": "緑は合っている、橙は惜しい、赤は違う。どれか1語をタップしてみましょう。",
-  "coachPronunciationContourTitle": "自分の声調と見比べる",
-  "coachPronunciationContourMessage": "薄い線がお手本、濃い線があなたの声です。「次はここを直す」を見て、下の「もう一度」で言い直しましょう。",
-  "coachWordDetailTitle": "単語ごとに見る",
-  "coachWordDetailMessage": "例文内の単語リストです。単語をタップすると、その単語のつづりと声調の関係を詳しく見れます。",
-  "coachToneDetailTitle": "声調の解説の見方",
-  "coachToneDetailMessage": "声調の解説では、単語を音節に分け、それぞれの読みと声調記号を並べています。",
-  "coachToneTableTitle": "声調が決まる仕組み",
-  "coachToneTableMessage": "子音文字の種類（高・中・低）と声調記号、音節の型の組み合わせで声調が決まります。青くハイライトされている行が、この音節に当てはまる規則です。",
-  "coachToneTableEmphasis1": "子音文字の種類（高・中・低）",
-  "coachToneTableEmphasis2": "声調記号",
-  "coachToneTableEmphasis3": "音節の型",
-  "coachToneGuideTitle": "規則をまとめて見るには",
-  "coachToneGuideMessage": "声調の規則は声調ガイドにまとまっています。ここからいつでも開けます。",
-  "coachContextTitle": "使い方を確かめる",
-  "coachContextMessage": "このカードでは、この例文をどんな場面で使うか、文体や文化的な背景まで確認できます。",
-  "coachDetailBackTitle": "例文の詳細はここまで",
-  "coachDetailBackMessage": "例文の詳細の案内はこれで終わりです。左上の戻る、または右スワイプで前の画面に戻ります。",
 
   "sentencePreparing": "次の例文を準備中...",
   "todaysWords": "{count, plural, other{学習単語}}",
   "@todaysWords": {
     "description": "学習単語セクションの見出し。英語は語数で単複が変わる",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "playPronunciation": "発音を再生",
   "sentenceListenModel": "お手本を聞く",
@@ -111,14 +74,22 @@
   "quizIncorrect": "不正解",
   "quizCorrectAnswer": "正解: {answer}",
   "@quizCorrectAnswer": {
-    "placeholders": { "answer": { "type": "String" } }
+    "placeholders": {
+      "answer": {
+        "type": "String"
+      }
+    }
   },
   "quizPrompt": "下線部に入る単語を選んでください",
   "quizProgress": "問題 {index} / {total}",
   "@quizProgress": {
     "placeholders": {
-      "index": { "type": "int" },
-      "total": { "type": "int" }
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "quizSentenceReviewed": "例文を復習済み",
@@ -136,36 +107,6 @@
   "quizNextQuestion": "次の問題へ",
   "commonTryAgain": "もう一度試す",
 
-  "coachQuizHintTitle": "ヒントは2段階で出せます",
-  "coachQuizHintMessage": "1回押すと発音、もう1回で日本語訳が出ます。迷ったら使ってみてください。",
-  "coachQuizReviewTitle": "迷ったら例文に戻れます",
-  "coachQuizReviewMessage": "空欄に入る正しい単語を選んでください。答えに迷ったら、下の「例文を確認」からいつでも例文を見直せます。",
-  "coachSummaryQuizTitle": "まとめクイズに挑戦",
-  "coachSummaryQuizEmphasis": "例文5つごと",
-  "coachSummaryQuizMessage": "これまでの単語をまとめて復習するクイズです。本来は例文5つごとに出ますが、まずは一度やってみましょう。",
-  "coachTourFinishTitle": "間違えた例文は、また出ます",
-  "coachTourFinishMessage": "5問クイズは、これまで読んだ例文から出題します。間違えた例文は時間をおいてもう一度出てくるので、覚え直しはアプリに任せて次へ進みましょう。",
-  "coachTourFinishEmphasis": "間違えた例文は時間をおいてもう一度出てくる",
-  "coachTourFinishSeePremium": "プレミアムを見る",
-  "coachTourFinishQuota": "例文は無料版で1日{free}文、プレミアムなら1日{premium}文まで作れます。",
-  "@coachTourFinishQuota": { "placeholders": { "free": { "type": "int" }, "premium": { "type": "int" } } },
-  "coachFlowTitle": "今後の進め方",
-  "coachFlowGreeting": "お疲れ様でした。ここまでが一通りの流れです。",
-  "coachFlowLoopSentence": "例文",
-  "coachFlowLoopQuiz": "クイズ",
-  "coachFlowLoopSummary": "5問クイズ",
-  "coachFlowOutcome": "くり返すほど語彙スコアが上がり、読めるタイ語の幅が広がります。",
-  "coachSummaryTipsBody": "慣れてきたら、ヒントを見ずに答えてみましょう。語彙スコアが伸びやすくなります。",
-  "coachSummaryTipsEmphasis": "ヒントを見ずに",
-  "coachFlowPage1Title": "例文とクイズをくり返す",
-  "coachSummaryTipsTitle": "5問クイズのコツ",
-  "coachFlowContinue": "このまま続ける",
-
-  "coachTopicTitle": "テーマを選んでタイ文化に親しむ",
-  "coachTopicNext": "次の例文に進む",
-  "coachTopicMessage": "ここをタップすると、次の例文のテーマを選べます。祭り・寺院での作法・BLドラマなど、言葉と一緒にタイの文化そのものに触れられます。",
-  "coachTopicSelectMessage": "ここをタップして、次の例文のテーマを選んでみましょう。祭り・寺院での作法・BLドラマなど、言葉と一緒にタイの文化そのものに触れられます。",
-
   "vocabScore": "語彙スコア",
   "vocabScoreCalculating": "語彙スコアを計算中...",
   "vocabScoreUp": "語彙スコアアップ！",
@@ -174,12 +115,20 @@
   "vocabWords": "{count}語",
   "@vocabWords": {
     "description": "語彙スコアの語数表示",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "vocabWordsDelta": "{delta}語",
   "@vocabWordsDelta": {
     "description": "増減つきの語数。delta は符号込みの文字列",
-    "placeholders": { "delta": { "type": "String" } }
+    "placeholders": {
+      "delta": {
+        "type": "String"
+      }
+    }
   },
 
   "historyTitle": "履歴",
@@ -188,9 +137,30 @@
   "historyFilterAll": "すべて",
   "historyFilterFavorites": "お気に入り",
   "historyDateWithYear": "{year}年{month}月{day}日",
-  "@historyDateWithYear": { "placeholders": { "year": { "type": "int" }, "month": { "type": "int" }, "day": { "type": "int" } } },
+  "@historyDateWithYear": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      },
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
   "historyDate": "{month}月{day}日",
-  "@historyDate": { "placeholders": { "month": { "type": "int" }, "day": { "type": "int" } } },
+  "@historyDate": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
   "historySearchHint": "タイ語または日本語で検索",
   "historyEmptyFavorites": "お気に入りの例文がありません",
   "historyEmptySearch": "検索結果が見つかりませんでした",
@@ -201,12 +171,24 @@
   "historyDeleteAllConfirm": "すべての例文履歴を削除しますか？この操作は取り消せません。",
   "historyDeletedAll": "すべての例文を削除しました",
   "historyDeleteFailed": "削除に失敗しました: {error}",
-  "@historyDeleteFailed": { "placeholders": { "error": { "type": "String" } } },
+  "@historyDeleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "historyDeleteConfirmTitle": "削除の確認",
   "historyDeleteConfirm": "この例文を削除しますか？",
   "historyDeletedOne": "例文を削除しました",
   "historyWordCount": "{count} 単語",
-  "@historyWordCount": { "placeholders": { "count": { "type": "int" } } },
+  "@historyWordCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
 
   "commonError": "エラーが発生しました",
   "commonCancel": "キャンセル",
@@ -216,7 +198,13 @@
   "detailTitle": "例文の詳細",
   "detailShare": "共有",
   "detailWordBreakdown": "単語の分解 ({count})",
-  "@detailWordBreakdown": { "placeholders": { "count": { "type": "int" } } },
+  "@detailWordBreakdown": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "detailQuizTarget": "→ クイズで出題",
   "detailTapForTone": "タップして声調を確認",
   "detailUsageSection": "使い方",
@@ -230,7 +218,13 @@
   "detailContextUsage": "使用シーン",
   "detailContextCulture": "文化的背景",
   "detailCreatedAt": "作成日: {date}",
-  "@detailCreatedAt": { "placeholders": { "date": { "type": "String" } } },
+  "@detailCreatedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "detailCopied": "クリップボードにコピーしました",
 
   "settingsTitle": "設定",
@@ -250,6 +244,7 @@
   "settingsAccountDeleted": "アカウントとすべてのデータを削除しました",
   "settingsFontSample": "例文",
   "settingsLearningStatus": "学習状況",
+  "settingsGuideSection": "ガイド",
   "settingsLearningSection": "学習設定",
   "settingsToneGuide": "声調ガイド",
   "settingsToneGuideSubtitle": "タイ語の声調ルールを学ぶ",
@@ -267,9 +262,21 @@
   "settingsTopic": "テーマ",
   "settingsTopicRandom": "おまかせ",
   "settingsNextLevelIn": "次のレベルまで あと{count}語",
-  "@settingsNextLevelIn": { "placeholders": { "count": { "type": "int" } } },
+  "@settingsNextLevelIn": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsFreeVocabLimit": "Freeプランは{limit}語が上限です",
-  "@settingsFreeVocabLimit": { "placeholders": { "limit": { "type": "int" } } },
+  "@settingsFreeVocabLimit": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "settingsCouldNotOpenUrl": "URLを開けませんでした",
   "settingsAbout": "アプリについて",
   "settingsTagline": "タイ語に、たっぷりふれよう",
@@ -282,23 +289,54 @@
   "trialEndedKeepFree": "あとで",
   "trialEndedChangeQuotaLabel": "例文",
   "trialEndedChangeQuotaPremium": "1日{premium}回",
-  "@trialEndedChangeQuotaPremium": { "placeholders": { "premium": { "type": "int" } } },
+  "@trialEndedChangeQuotaPremium": {
+    "placeholders": {
+      "premium": {
+        "type": "int"
+      }
+    }
+  },
   "trialEndedChangeQuotaFree": "1日{free}回",
-  "@trialEndedChangeQuotaFree": { "placeholders": { "free": { "type": "int" } } },
-  "trialEndedChangePronunciationLabel": "発音チェック",
-  "trialEndedChangePronunciationPremium": "無制限",
-  "trialEndedChangePronunciationFree": "1日{count}回",
-  "@trialEndedChangePronunciationFree": { "placeholders": { "count": { "type": "int" } } },
+  "@trialEndedChangeQuotaFree": {
+    "placeholders": {
+      "free": {
+        "type": "int"
+      }
+    }
+  },
+  "trialEndedChangeVocabLabel": "語彙スコア",
+  "trialEndedChangeVocabPremium": "上限なし",
+  "trialEndedChangeVocabFree": "{free}語まで",
+  "@trialEndedChangeVocabFree": {
+    "placeholders": {
+      "free": {
+        "type": "int"
+      }
+    }
+  },
 
   "trialStartedTitle": "プレミアムを{days}日間おためしできます",
-  "@trialStartedTitle": { "placeholders": { "days": { "type": "int" } } },
-  "trialStartedBody": "ふだんは使えない機能を、この期間だけ開放しました。",
-  "trialStartedChangeQuota": "例文　1日{free}回 → {premium}回",
-  "@trialStartedChangeQuota": { "placeholders": { "free": { "type": "int" }, "premium": { "type": "int" } } },
-  "trialStartedChangePronunciation": "発音チェック　1日{count}回 → 無制限",
-  "@trialStartedChangePronunciation": { "placeholders": { "count": { "type": "int" } } },
-  "trialStartedChangeTopic": "テーマ選択　例文のテーマを自分で選べます",
-  "trialStartedStart": "使ってみる",
+  "@trialStartedTitle": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "trialStartedBody": "free版では使えない機能を、この期間だけ開放しました。",
+  "trialStartedChangeQuotaLabel": "例文",
+  "trialStartedChangeQuota": "1日{premium}回まで",
+  "@trialStartedChangeQuota": {
+    "placeholders": {
+      "premium": {
+        "type": "int"
+      }
+    }
+  },
+  "trialStartedChangeTopicLabel": "テーマ選択",
+  "trialStartedChangeTopic": "例文のテーマを自分で選べます",
+  "trialStartedStart": "わかった",
+  "trialStartedSeePlans": "プレミアムを見る",
 
   "topicPickerTitle": "テーマを選択",
   "nextTopicPrefix": "次のテーマ: ",
@@ -336,7 +374,9 @@
   "topicSub_etiquette": "ワイの使い分け、敬語、タブー、食事マナー、贈り物",
 
   "styleName_news": "ニュース記事体",
-  "@styleName_news": { "description": "文体ラベル。値は constants.STYLES の識別子で、表示だけ差し替える" },
+  "@styleName_news": {
+    "description": "文体ラベル。値は constants.STYLES の識別子で、表示だけ差し替える"
+  },
   "styleName_spoken": "口語体",
   "styleName_polite": "丁寧語",
   "styleName_sns": "SNS・テキストメッセージ",
@@ -347,33 +387,8 @@
   "vocabLevelUpperBeginner": "初中級",
   "vocabLevelIntermediate": "中級",
   "vocabLevelAdvanced": "上級",
-  "vocabDialogTitle": "語彙スコア（{level}）",
-  "@vocabDialogTitle": { "placeholders": { "level": { "type": "String" } } },
-  "vocabDialogTitleFree": "語彙スコア（Free・{level}）",
-  "@vocabDialogTitleFree": { "placeholders": { "level": { "type": "String" } } },
-  "vocabProgressOf": "{current} / {threshold} 語",
-  "@vocabProgressOf": { "placeholders": { "current": { "type": "int" }, "threshold": { "type": "int" } } },
-  "vocabFreeCap": "Free上限",
-  "vocabRemaining": "残り{count}語",
-  "@vocabRemaining": { "placeholders": { "count": { "type": "int" } } },
-  "vocabCurrentTopics": "現在のテーマ数（{count}件）",
-  "@vocabCurrentTopics": { "placeholders": { "count": { "type": "int" } } },
-  "vocabFreeTopics": "Freeのテーマ数（{count}件）",
-  "@vocabFreeTopics": { "placeholders": { "count": { "type": "int" } } },
-  "vocabNextUnlock": "次の開放（+{count}件）",
-  "@vocabNextUnlock": { "placeholders": { "count": { "type": "int" } } },
-  "vocabNextUnlockIn": "あと{words}語で開放（+{count}件）",
-  "@vocabNextUnlockIn": { "placeholders": { "words": { "type": "int" }, "count": { "type": "int" } } },
   "vocabSeePremium": "Premiumを見る",
   "commonClose": "閉じる",
-  "vocabFreeLimitTitle": "Freeは100語が上限です",
-  "vocabFreeLimitBody": "Premiumでは100語以上学べます。また例文のテーマが増え、より多様なタイ語が学べます。",
-  "vocabUnlockMore": "語彙スコアが増えると次の例文テーマが開放されます。",
-  "vocabTopicCountNow": "例文テーマ候補は現在{count}件です。",
-  "@vocabTopicCountNow": { "placeholders": { "count": { "type": "int" } } },
-  "vocabPremiumAddsTopics": "Premiumで追加されるテーマ数（{count}件）",
-  "@vocabPremiumAddsTopics": { "placeholders": { "count": { "type": "int" } } },
-  "listSeparator": "、",
 
   "paywallTitle": "プレミアムプラン",
   "paywallTagline": "タイ語の世界に飛び込もう。",
@@ -385,18 +400,44 @@
   "paywallLegal": "サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。",
   "paywallRestore": "購入を復元",
   "paywallPriceYen": "¥{amount} / 月",
-  "@paywallPriceYen": { "placeholders": { "amount": { "type": "String" } } },
+  "@paywallPriceYen": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "paywallPrice": "{currency} {amount} / 月",
-  "@paywallPrice": { "placeholders": { "currency": { "type": "String" }, "amount": { "type": "String" } } },
+  "@paywallPrice": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "paywallFeatureQuotaTitle": "良質なタイ語に大量に触れられる",
   "paywallFeatureQuotaFree": "例文{count}回/日・単語は{limit}語まで",
-  "@paywallFeatureQuotaFree": { "placeholders": { "count": { "type": "int" }, "limit": { "type": "int" } } },
+  "@paywallFeatureQuotaFree": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "paywallFeatureQuotaPremium": "例文{count}回/日・単語の上限なし",
-  "@paywallFeatureQuotaPremium": { "placeholders": { "count": { "type": "int" } } },
-  "paywallFeaturePronunciationTitle": "発音練習で自信をつけられる",
-  "paywallFeaturePronunciationFree": "発音チェック{count}回/日",
-  "@paywallFeaturePronunciationFree": { "placeholders": { "count": { "type": "int" } } },
-  "paywallFeaturePronunciationPremium": "無制限",
+  "@paywallFeatureQuotaPremium": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "paywallFeatureTopicTitle": "テーマを選んでタイ文化に親しむ",
   "paywallFeatureTopicFree": "入門テーマからランダム",
   "paywallFeatureTopicPremium": "祭り・寺院の作法・BLドラマなど自分で選べる",
@@ -411,15 +452,6 @@
   "onboarding3Body": "間違えた単語はくり返し出題。\nスコアに応じて例文のレベルが上がります。",
   "onboardingSkip": "スキップ",
   "onboardingNext": "次へ",
-
-  "coachTapHere": "光っている場所をタップ",
-  "coachSkip": "スキップ",
-  "coachToneBackToDetail": "例文詳細に戻る",
-  "coachGotIt": "わかった",
-  "coachNext": "次へ",
-  "coachBack": "戻る",
-  "coachStepLabel": "{current} / {total}",
-  "@coachStepLabel": { "placeholders": { "current": { "type": "int" }, "total": { "type": "int" } } },
 
   "interviewIntroTitle": "4つ質問させてください",
   "interviewIntroBody": "答えに合わせて、このアプリの学び方をお伝えします。すぐ終わります。",
@@ -477,7 +509,7 @@
   "philosophy3TimeMedium": "**10分あれば**、例文を追加しながら、発音練習やこれまでの単語の復習まで進められます。",
   "philosophy3TimeLong": "**30分あれば**、例文の追加と発音練習に加えて、過去の例文の復習や声調の学習まで手が回ります。",
 
-  "philosophyStart": "実際に使ってみる",
+  "philosophyStart": "使い方を見る",
 
   "notifCoachTitle": "通知でタイ語学習を習慣にしましょう",
   "notifCoachStep1": "通勤中や寝る前など、学習を続けやすい時刻を決めます",
@@ -495,10 +527,6 @@
 
   "premiumHint1Title": "テーマを選んでタイ文化に親しむ",
   "premiumHint1Body": "祭り・寺院での作法・BLドラマなど、言葉と一緒に文化が身につきます",
-  "premiumHint2Title": "発音練習で自信をつけられる",
-  "premiumHint2Body": "回数を気にせず何度でも録音して、声調のズレを直していけます",
-  "premiumHint3Title": "良質なタイ語に大量に触れられる",
-  "premiumHint3Body": "1日に作れる例文が大きく増えて、読んだ量がそのまま力になります",
 
   "signInReminderTitle": "学習の進捗を保護",
   "signInReminderMessage": "サインインすると進捗が保存され、機種変更後も学習を続けられます。サインインしない場合、3日間ご利用がないと学習の進捗は削除されます。",
@@ -511,7 +539,7 @@
 
   "quizOfferToQuiz": "確認クイズへ",
   "quizOfferOneQuestion": "覚えたか確認",
-  "quizOfferBody": "単語を覚えたかすぐ確認できます。",
+  "quizOfferBody": "単語を覚えたかクイズで確認。",
   "quizOfferTryOne": "確認する",
 
   "audioRepeat": "リピート",
@@ -519,7 +547,13 @@
   "audioPause": "一時停止",
   "audioPlay": "再生",
   "audioModeHint": "現在は{mode}。長押しで再生モードを変更",
-  "@audioModeHint": { "placeholders": { "mode": { "type": "String" } } },
+  "@audioModeHint": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
   "audioModeRepeat": "リピート再生",
   "audioModeOnce": "1回だけ再生",
   "audioPosition": "再生位置",
@@ -532,7 +566,13 @@
   "pronunciationReference": "お手本",
   "pronunciationYours": "あなた",
   "pronunciationScore": "{score}点",
-  "@pronunciationScore": { "placeholders": { "score": { "type": "int" } } },
+  "@pronunciationScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
   "pronunciationVerdictCorrect": "合っています",
   "pronunciationVerdictClose": "惜しい",
   "pronunciationVerdictWrong": "ずれています",
@@ -559,51 +599,167 @@
   "pronunciationCoachShapeHigh": "高声は、上げたところで止めずに最後まで上げ続ける",
   "pronunciationCoachShapeRising": "上昇声は、一度下げてから上げ切る",
   "pronunciationCoachStepUp": "{tone}は、直前の音より高いところから入る",
-  "@pronunciationCoachStepUp": { "placeholders": { "tone": { "type": "String" } } },
+  "@pronunciationCoachStepUp": {
+    "placeholders": {
+      "tone": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationCoachStepDown": "{tone}は、直前の音より低いところから入る",
-  "@pronunciationCoachStepDown": { "placeholders": { "tone": { "type": "String" } } },
+  "@pronunciationCoachStepDown": {
+    "placeholders": {
+      "tone": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationCoachNotRecognized": "「{word}」が聞き取れませんでした。もう少しはっきり言ってみる",
-  "@pronunciationCoachNotRecognized": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationCoachNotRecognized": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentUnaspirated": "「{word}」の {label} は息を出さずに出す。息が漏れると {aspirated} に聞こえる",
-  "@pronunciationSegmentUnaspirated": { "placeholders": { "word": { "type": "String" }, "label": { "type": "String" }, "aspirated": { "type": "String" } } },
+  "@pronunciationSegmentUnaspirated": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      },
+      "aspirated": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalP": "「{word}」の終わりは唇を閉じたまま止める。「プ」と母音を足さない",
-  "@pronunciationSegmentFinalP": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalP": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalT": "「{word}」の終わりは舌先を離さず止める。「ト」と母音を足さない",
-  "@pronunciationSegmentFinalT": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalT": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalK": "「{word}」の終わりは喉の奥で止める。「ク」と母音を足さない",
-  "@pronunciationSegmentFinalK": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalK": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentNgInitial": "「{word}」の頭の ง は、口を開けたまま鼻へ抜く。「ン」を前に付けない",
-  "@pronunciationSegmentNgInitial": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentNgInitial": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalNg": "「{word}」の終わりは口を開けたまま鼻へ抜く（-ng）。口を閉じると別の語になる",
-  "@pronunciationSegmentFinalNg": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalNg": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalN": "「{word}」の終わりは舌先を歯の裏に付ける（-n）。鼻に抜くと -ng になる",
-  "@pronunciationSegmentFinalN": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalN": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalM": "「{word}」の終わりは唇を閉じる（-m）",
-  "@pronunciationSegmentFinalM": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalM": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentVowelAe": "「{word}」の母音は「エ」より口を横に大きく開く（ɛ）",
-  "@pronunciationSegmentVowelAe": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentVowelAe": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentVowelOe": "「{word}」の母音は口をあまり動かさず、こもった音で出す（ə）",
-  "@pronunciationSegmentVowelOe": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentVowelOe": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentVowelAw": "「{word}」の母音は「オ」より口を丸く大きく開く（ɔ）",
-  "@pronunciationSegmentVowelAw": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentVowelAw": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentVowelUe": "「{word}」の母音は唇を横に引いたまま「ウ」と出す（ʉ）",
-  "@pronunciationSegmentVowelUe": { "placeholders": { "word": { "type": "String" } } },
-  "pronunciationLimitTitle": "今日の無料の発音チェックは終わりました",
-  "pronunciationLimitBody": "プレミアムなら回数を気にせず、何度でも発音を確かめられます。",
+  "@pronunciationSegmentVowelUe": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSummaryRecognized": "{total}語中 {ok}語が通じた",
-  "@pronunciationSummaryRecognized": { "placeholders": { "ok": { "type": "int" }, "total": { "type": "int" } } },
+  "@pronunciationSummaryRecognized": {
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "pronunciationNextFocus": "「{word}」を直そう",
-  "@pronunciationNextFocus": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationNextFocus": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationCountCorrect": "OK",
   "pronunciationCountClose": "惜しい",
   "pronunciationCountWrong": "直す",
   "pronunciationTapWordHintDetail": "語をタップすると、お手本の聞き比べと直し方が出ます",
   "pronunciationListenModelWord": "お手本を聞く",
-  "pronunciationFreeRemaining": "無料の発音チェック 残り{count}回",
-  "@pronunciationFreeRemaining": { "placeholders": { "count": { "type": "int" } } },
 
   "tipWithExample": "{content}\n例: {example}",
-  "@tipWithExample": { "placeholders": { "content": { "type": "String" }, "example": { "type": "String" } } },
+  "@tipWithExample": {
+    "placeholders": {
+      "content": {
+        "type": "String"
+      },
+      "example": {
+        "type": "String"
+      }
+    }
+  },
 
   "errQuizGenerationFailed": "クイズの生成に失敗しました。もう一度お試しください。",
   "quotaQuizReached": "今日の新しいクイズはここまでです。",
@@ -614,7 +770,11 @@
   "quotaSentenceUpgradeCta": "Premiumなら1日{count}例文",
   "@quotaSentenceUpgradeCta": {
     "description": "上限に当たった free ユーザーだけに出すペイウォール導線。count は PREMIUM_DAILY_SENTENCES",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "errAuth": "認証エラーが発生しました。アプリを再起動してください。",
   "errNetwork": "ネットワーク接続エラーが発生しました。インターネット接続を確認してください。",
@@ -624,7 +784,13 @@
   "errLoadFailed": "データの読み込みに失敗しました",
   "errLoadFailedRetry": "データの読み込みに失敗しました。もう一度お試しください。",
   "errUnexpected": "予期しないエラーが発生しました: {error}",
-  "@errUnexpected": { "placeholders": { "error": { "type": "String" } } },
+  "@errUnexpected": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
 
   "errSignInRequiredForPremium": "プレミアムのご利用にはサインインが必要です",
   "errProductLoadFailed": "課金商品を取得できませんでした",
@@ -638,20 +804,65 @@
   "errDeleteAccountFailed": "アカウント削除に失敗しました",
 
   "quotaResetInHours": "次のリセットまで {hours}時間{minutes}分",
-  "@quotaResetInHours": { "placeholders": { "hours": { "type": "int" }, "minutes": { "type": "int" } } },
+  "@quotaResetInHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "quotaResetInMinutes": "次のリセットまで {minutes}分",
-  "@quotaResetInMinutes": { "placeholders": { "minutes": { "type": "int" } } },
+  "@quotaResetInMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
 
   "shareTopic": "【場面】{value}",
-  "@shareTopic": { "placeholders": { "value": { "type": "String" } } },
+  "@shareTopic": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "shareStyle": "【文体】{value}",
-  "@shareStyle": { "placeholders": { "value": { "type": "String" } } },
+  "@shareStyle": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "shareEmotion": "【トーン】{value}",
-  "@shareEmotion": { "placeholders": { "value": { "type": "String" } } },
+  "@shareEmotion": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "shareUsage": "【使用シーン】{value}",
-  "@shareUsage": { "placeholders": { "value": { "type": "String" } } },
+  "@shareUsage": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "shareCulture": "【文化的背景】{value}",
-  "@shareCulture": { "placeholders": { "value": { "type": "String" } } },
+  "@shareCulture": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
 
   "contactSent": "お問い合わせを送信しました。ありがとうございます。",
   "contactFailed": "送信に失敗しました。しばらくしてから再度お試しください。",
@@ -690,7 +901,13 @@
   "toneDialogTitle": "声調の解説",
   "toneSyllableBreakdown": "音節分解",
   "toneSyllableNumber": "音節 {number}",
-  "@toneSyllableNumber": { "placeholders": { "number": { "type": "int" } } },
+  "@toneSyllableNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
   "toneMainConsonant": "先頭の子音",
   "toneSyllableType": "音節タイプ",
   "toneResultPrefix": "結果: ",
@@ -698,14 +915,32 @@
   "toneMarkPrefix": "声調記号: ",
   "toneResultTone": "結果の声調",
   "toneShiftFor": "{consonantClass}の声調変化",
-  "@toneShiftFor": { "placeholders": { "consonantClass": { "type": "String" } } },
+  "@toneShiftFor": {
+    "placeholders": {
+      "consonantClass": {
+        "type": "String"
+      }
+    }
+  },
   "toneShiftTableFor": "{consonantClass}の声調変化表",
-  "@toneShiftTableFor": { "placeholders": { "consonantClass": { "type": "String" } } },
+  "@toneShiftTableFor": {
+    "placeholders": {
+      "consonantClass": {
+        "type": "String"
+      }
+    }
+  },
   "toneRareUsage": "例外的な使用（現代では稀）",
   "toneAppliedRule": "= この単語に適用されている規則",
   "toneLearnMore": "声調について詳しく学ぶ",
   "toneExamplePrefix": "例: {value}",
-  "@toneExamplePrefix": { "placeholders": { "value": { "type": "String" } } },
+  "@toneExamplePrefix": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
 
   "toneGuideTitle": "タイ語の声調ガイド",
   "toneGuideHeading": "タイ語の声調について",
@@ -717,7 +952,13 @@
   "toneGuideShiftTable": "声調変化表",
   "toneGuideShiftTableIntro": "子音クラスごとに、声調記号と音節タイプの組み合わせで決まる声調を示します。",
   "toneGuideLetterCount": "{count}文字",
-  "@toneGuideLetterCount": { "placeholders": { "count": { "type": "int" } } },
+  "@toneGuideLetterCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "toneMidDesc": "音の高さが平らで変化しない声調です。",
   "toneMidExample": "กา (gaa) カラス",
   "toneLowDesc": "低い音から始まり、少し下がる声調です。",
@@ -883,20 +1124,79 @@
   "purchasePending": "購入の承認待ちです。承認後に反映されます",
   "errSignInBeforePurchase": "ログインしてから購入してください",
   "errPurchaseVerificationFailed": "購入の検証に失敗しました",
+  "settingsVocabTest": "語彙力を測る",
+  "settingsVocabTestNever": "まだ受けていません",
+  "settingsVocabTestLast": "前回 {date}",
+  "@settingsVocabTestLast": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsVocabTestPremium": "プレミアム限定",
+  "vocabTestTitle": "語彙力を測る",
+  "vocabTestIntroBody": "タイ語の単語を4択で答えてもらい、いまの語彙量を測ります。わからない単語が続いたらそこで終わりです。早ければ4問、長くても24問で終わります。",
+  "vocabTestIntroNote": "結果は例文とクイズの難易度に反映されます。設定画面から月1回まで受け直せます。",
+  "vocabTestStart": "はじめる",
+  "vocabTestQuestion": "この単語の意味は？",
+  "vocabTestDontKnow": "わからない",
+  "vocabTestProgress": "{current} / {total} 問目",
+  "@vocabTestProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabTestResultTitle": "いまの語彙量",
+  "vocabTestResultVocab": "約 {vocab} 語",
+  "@vocabTestResultVocab": {
+    "placeholders": {
+      "vocab": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabTestResultBody": "この結果を出発点に、例文とクイズの難易度を合わせます。使ううちに実際の正誤で少しずつ動きます。",
+  "vocabTestResultFreeCap": "フリープランでは語彙スコアが100までに制限されます。プレミアム体験が終わると、この値も100まで下がります。",
+  "vocabTestResultClose": "閉じる",
+  "vocabTestError": "語彙テストを実行できませんでした",
+  "vocabTestRetry": "やり直す",
 
   "rankingTitle": "語彙ランキング",
   "rankingSubtitle": "語彙スコアで他の学習者と比べる",
+  "rankingBandScope": "{band} の中での順位",
+  "@rankingBandScope": {
+    "placeholders": {
+      "band": {
+        "type": "String"
+      }
+    }
+  },
   "rankingYourRank": "あなたの順位",
   "rankingPosition": "{rank}位",
   "@rankingPosition": {
     "description": "ランキングの順位表示",
-    "placeholders": { "rank": { "type": "int" } }
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      }
+    }
   },
+  "rankingCapTiedNote": "上限に並んでいる人が多いため順位はつきません",
   "rankingUnrankedHint": "例文を生成すると順位がつきます",
   "rankingLoadFailed": "ランキングを読み込めませんでした",
   "@rankingOfTotal": {
     "description": "ランキングの母数",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "rankingYou": "あなた",
   "rankingDistributionTitle": "語彙スコアの分布",
@@ -904,32 +1204,153 @@
   "rankingPercentile": "上位{percent}%",
   "@rankingPercentile": {
     "description": "全体に対する自分の位置",
-    "placeholders": { "percent": { "type": "int" } }
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
   },
   "@rankingTopScore": {
     "description": "全ユーザー中の最高語彙スコア",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "rankingBandOver": "{min}〜",
   "@rankingBandOver": {
     "description": "上限のない帯のラベル",
-    "placeholders": { "min": { "type": "int" } }
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
   },
   "rankingBandRange": "{min}〜{max}",
   "@rankingBandRange": {
     "description": "語彙スコアの帯ラベル",
-    "placeholders": { "min": { "type": "int" }, "max": { "type": "int" } }
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
   },
   "rankingAnonymousName": "ユーザー{suffix}",
   "@rankingAnonymousName": {
     "description": "ニックネーム未設定ユーザーの表示名",
-    "placeholders": { "suffix": { "type": "String" } }
+    "placeholders": {
+      "suffix": {
+        "type": "String"
+      }
+    }
   },
   "rankingFreeCapNote": "無料プランの語彙スコアは{limit}語で上限です",
   "@rankingFreeCapNote": {
     "description": "freeユーザー向けの語彙スコア上限の注記",
-    "placeholders": { "limit": { "type": "int" } }
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
   },
   "settingsRanking": "ランキング",
-  "settingsRankingSubtitle": "語彙スコアで他の学習者と比べる"
+  "settingsRankingSubtitle": "語彙スコアで他の学習者と比べる",
+  "guideTitle": "使い方ガイド",
+  "guideSettingsSubtitle": "アプリの使い方をひと通り読む",
+  "guideSkip": "スキップ",
+  "guideStart": "語彙力を測る",
+  "guideClose": "閉じる",
+  "guideLead": "このアプリの使い方をまとめています。あとで設定からいつでも読み返せます。",
+  "guideFigureLoopSentence": "例文",
+  "guideFigureLoopQuiz": "クイズ",
+  "guideFigureLoopRepeat": "くり返す",
+  "guideFigureLoopSummary": "まとめクイズ",
+  "guideFigureLoopEvery": "例文5つごと",
+  "guideFigureCardThai": "タイ文字",
+  "guideFigureCardPronunciation": "読み方",
+  "guideFigureCardTranslation": "日本語訳",
+  "guideFigureCardTranslationSample": "私はコーヒーが好きです",
+  "guideFigureCardTargetWord": "金色＝学習単語",
+  "guideChapterOverview": "概要",
+  "guideChapterRoles": "それぞれの機能の役割",
+  "guideChapterHowTo": "操作のしかた",
+  "guideOverviewTitle": "このアプリでやること",
+  "guideOverviewBody1": "AIがあなたの語彙に合わせたタイ語の例文を毎日つくります。",
+  "guideOverviewBody2": "例文で覚える → クイズで確かめる。このくり返しが学習の中心です。",
+  "guideOverviewSummaryQuiz": "例文を5つ読むごとに、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。",
+  "guideOverviewBody3": "まとめクイズに正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。",
+  "guideRoleSentenceTitle": "例文",
+  "guideRoleSentenceBody": "詳細画面からタイ単語の使用例を確認しましょう。単語だけを覚えるより、使う場面ごと覚えるほうが記憶に残ります。",
+  "guideRoleSoundTitle": "発音練習",
+  "guideRoleSoundBody": "自分のイントネーションとお手本を聞き比べて、発音のコツを掴みましょう。タイ語は声調で意味が変わります。",
+  "guideRoleQuizTitle": "クイズ",
+  "guideRoleQuizBody": "確認クイズは、次の例文に進む前に出る1問です。例文を5つ読むごとに、それまでに学んだ内容から5問の「まとめクイズ」に挑戦できます。",
+  "guideRoleScoreTitle": "語彙スコア",
+  "guideRoleScoreBody": "クイズの結果から算出された、あなたの語彙量をあらわすスコアです。",
+  "guideRoleVocabTestTitle": "語彙測定テスト",
+  "guideRoleVocabTestBody": "4択のテストで、いまの語彙量を測ります。結果は語彙スコアの出発点になり、例文とクイズの難易度に反映されます。設定画面から月1回まで受け直せます。",
+  "guideRoleRankingTitle": "ランキング",
+  "guideRoleRankingBody": "語彙スコア順にユーザーを並べた時の、あなたの順位を表示します。表示名は自動で割り当てられます。",
+  "guideRoleTopicTitle": "テーマ",
+  "guideRoleTopicBody": "色々な場面（祭り・寺院での作法・BLドラマなど）におけるタイ語に触れてみましょう。言葉と一緒にタイの文化に触れられます。",
+  "guideRoleNotificationTitle": "毎日の通知",
+  "guideRoleNotificationBody": "タイ語学習を習慣化するために役立ちます。決めた時刻に、その日の例文が届きます。",
+  "guideRolePremiumTitle": "無料版とプレミアム",
+  "guideRolePremiumBody": "無料版でも毎日の学習は続けられます。プレミアムでは例文の数・テーマ選び・語彙スコアの上限が広がります。",
+  "guidePlanColItem": "項目",
+  "guidePlanColFree": "無料版",
+  "guidePlanColPremium": "プレミアム",
+  "guidePlanRowSentences": "1日の例文",
+  "guidePlanRowTopic": "テーマ",
+  "guidePlanRowVocab": "語彙スコアの上限",
+  "guidePlanSentences": "{count}文",
+  "@guidePlanSentences": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guidePlanTopicFree": "おまかせ",
+  "guidePlanTopicPremium": "自分で選べる",
+  "guidePlanVocabFree": "{count}語",
+  "@guidePlanVocabFree": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guidePlanVocabPremium": "約{count}語",
+  "@guidePlanVocabPremium": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "guideHowSentenceTitle": "今日の例文を読む",
+  "guideHowSentenceStep1": "学習タブを開くと、その日の例文が表示されます。",
+  "guideHowSentenceStep3": "金色の語が学習単語です。クイズでここが問われます。",
+  "guideHowSentenceStep4": "例文カードをタップすると詳細画面が開きます。",
+  "guideHowDetailTitle": "詳細画面",
+  "guideHowDetailLead": "詳細画面では、より深くタイ語例文を解説します。場面・文体・つづりと声調まで手がかりを増やすほど、その単語は記憶に残ります。",
+  "guideHowSoundTitle": "聞く・声に出す",
+  "guideHowSoundStep1": "「お手本を聞く」で、タイ語例文の音声をループ再生します。",
+  "guideHowSoundStep2": "詳細画面の「発音練習」では、ボタンを押したまま真似して読むと、声調が合っているかをその場で判定できます。",
+  "guideHowSoundStep3": "発音練習の判定は緑が合っている、橙が惜しい、赤が違う。語をタップすると、お手本と自分の声のカーブと直し方が出ます。",
+  "guideHowQuizTitle": "クイズを解く",
+  "guideHowQuizStep1": "例文の下の「覚えたか確認」から確認クイズへ進みます。",
+  "guideHowQuizStep2": "まとめクイズではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。",
+  "guideHowQuizStep3": "まとめクイズでは、迷ったら「例文を確認」で例文に戻れます。",
+  "guideHowQuizStep4": "結果画面から、次の例文へ進むか、まとめクイズに挑むかを選べます。",
+  "guideHowSettingsTitle": "設定でできること",
+  "guideHowSettingsStep1": "通知を受け取る時刻、表示フォント、訳と解説の言語を変えられます。",
+  "guideHowSettingsStep2": "次の例文のテーマの選択と、ランキングもここから開けます。",
+  "guideHowSettingsStep3": "このガイドは設定の「使い方ガイド」からいつでも開けます。"
 }

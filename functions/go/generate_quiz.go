@@ -15,6 +15,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/premium"
 	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
+	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
 // generateQuiz / generateLearningQuiz は
@@ -113,10 +114,20 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	}
 
 	// SRS ベースでリアルタイムに復習対象例文を選出
-	selected, err := selectSentencesBySRS(ctx, db, uid, nowJST())
+	filter := quizKeyWordFilter(ctx, userData)
+	selected, err := selectSentencesBySRS(ctx, db, uid, nowJST(), filter)
 	if err != nil {
 		log.Printf("Failed to generate quiz: %v", err)
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
+	}
+	if len(selected) == 0 && filter != nil {
+		// 測定値より上の例文がまだ無いユーザーを無出題にしない。
+		log.Printf("quiz_vocab_floor_filter_empty uid=%s", uid)
+		selected, err = selectSentencesBySRS(ctx, db, uid, nowJST(), nil)
+		if err != nil {
+			log.Printf("Failed to generate quiz: %v", err)
+			return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
+		}
 	}
 
 	// ユーザー例文がない場合 → クライアントに通知
@@ -179,6 +190,53 @@ func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, erro
 	}
 
 	return map[string]any{"questions": questions[:1]}, nil
+}
+
+// quizKeyWordFilter は境界より下のランクの key_word を出題から外すフィルタを返す。
+// 境界が 0（＝まだ証拠が無い）や freq_rank を読めないときは nil。
+//
+// 境界より下の語ばかり出していると estimated_vocab が動かない。推定は境界付近の
+// 窓の平均 P でしか動かないのに、まとめクイズは SRS で過去の例文＝もっと低い帯から
+// 選んだ key_word を出すため、何問正解しても推定が動かなかった。
+//
+// 下端は estimated_vocab ではなく **語彙テストの測定値（vocab_test_vocab、固定値）**
+// を使う。estimated_vocab を下端にすると自己参照の正のフィードバックになる:
+//
+//	出題が必ず境界以上 → 正解で境界より上に P>0.5 の語ができる
+//	→ EstimateVocab の knownMaxRank が current を必ず上回る → スコアが上がる
+//	→ 境界が上がる → 出題がさらに上へ → 正解し続ける限り止まらない
+//
+// 測定値なら原点として動かないので、estimated_vocab は「実際に上の帯の語へ
+// 正解した」ぶんだけ伸びて止まる。未受験（0）は nil で従来どおり絞り込み無し。
+// free は測定値を使わない。key_word 帯も推定の走査帯も free では原点シフト
+// しない（GetSessionWords / SyncEstimatedVocab）ので、出題側だけ測定値で
+// 切ると、上限 100 に収まる例文が全部フィルタで落ちて空になる。
+func quizKeyWordFilter(ctx context.Context, userData map[string]any) keyWordFilter {
+	if !premium.IsEffectivePremium(userData, time.Now()) {
+		return nil
+	}
+	floor := intOf(userData["vocab_test_vocab"])
+	if floor <= 0 {
+		return nil
+	}
+	freqRank, err := uvm.GetFreqRank(ctx, fbapp.ProjectID())
+	if err != nil || len(freqRank) == 0 {
+		log.Printf("quiz_vocab_floor_filter_unavailable error=%v", err)
+		return nil
+	}
+	return vocabFloorFilter(freqRank, floor)
+}
+
+// vocabFloorFilter は rank が floor 以上の語だけを通す。
+// freq_rank に無い語は判定できないので残す。
+func vocabFloorFilter(freqRank uvm.FreqRank, floor int) keyWordFilter {
+	if floor <= 0 || len(freqRank) == 0 {
+		return nil
+	}
+	return func(keyWord string) bool {
+		rank, ok := freqRank[keyWord]
+		return !ok || rank >= floor
+	}
 }
 
 func userDocData(ctx context.Context, ref *firestore.DocumentRef) map[string]any {

@@ -126,16 +126,23 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<Map<String, Object?>> quizAnswerEvents = [];
   final List<Map<String, String>> quizOfferEvents = [];
   final List<Map<String, Object?>> interviewEvents = [];
+  final List<Map<String, Object?>> vocabTestEvents = [];
 
-  final List<Map<String, String>> coachMarkEvents = [];
 
   @override
-  Future<void> logCoachMark({
-    required String id,
+  Future<void> setUserAppLanguage(String lang) async {}
+
+  @override
+  Future<void> logReviewPrompt({
+    required String source,
+    required String outcome,
+  }) async {}
+
+  @override
+  Future<void> logGuide({
     required String action,
-  }) async {
-    coachMarkEvents.add({'id': id, 'action': action});
-  }
+    required String source,
+  }) async {}
 
   @override
   Future<void> logSummaryQuizComplete({
@@ -157,6 +164,19 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
       'question': question,
       'answer': answer,
       'answeredCount': answeredCount,
+    });
+  }
+
+  @override
+  Future<void> logVocabTest({
+    required String action,
+    required String source,
+    int? value,
+  }) async {
+    vocabTestEvents.add({
+      'action': action,
+      'source': source,
+      'value': value,
     });
   }
 

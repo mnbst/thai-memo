@@ -20,9 +20,9 @@ import '../providers/analytics_provider.dart';
 ///
 /// スキップは置かない。4問とも答えてから最後の1画面へ進む。
 ///
-/// 回答は端末に残し、users doc にも送る。goal は初期テーマの決定に使う
-/// （呼び出し側でテーマ設定に入れる）。難易度は動かさない（語彙推定は
-/// クイズの結果でしか動かさない）。
+/// 回答は端末に残し、users doc にも送る。goal は初期テーマの決定に使う。
+/// level は分析のためだけに聞いていて、語彙スコアには一切入れない（測るのは
+/// 語彙テスト、以後動かすのはクイズの正誤）。
 /// 目的は、考え方を本人の状況に寄せて伝えることと、「自分に合わせて
 /// 作られる」という前提をここで納得してもらうこと。
 class InterviewScreen extends ConsumerStatefulWidget {
@@ -31,15 +31,9 @@ class InterviewScreen extends ConsumerStatefulWidget {
   const InterviewScreen({
     super.key,
     required this.onComplete,
-    this.onAnswersReady,
   });
 
   final VoidCallback onComplete;
-
-  /// 回答を保存した直後に一度だけ呼ぶ。初回例文の生成開始点で、申告した用途
-  /// （goal・未回答なら null）を渡す。最後の設問に答えた時点で走るので、
-  /// 考え方の画面を読んでいる間に生成が進む。
-  final void Function(String? goal)? onAnswersReady;
 
   @override
   ConsumerState<InterviewScreen> createState() => _InterviewScreenState();
@@ -205,7 +199,6 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
     // 毎日配信のテーマ決定に使う）。例文のテーマは端末側で決めるので、
     // 生成はこの書き込みの着地を待たない。
     unawaited(InterviewReporter().report());
-    widget.onAnswersReady?.call(_answers['goal']);
   }
 
   Future<void> _complete() async {

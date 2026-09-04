@@ -15,52 +15,14 @@
   "navLearn": "Learn",
   "navHistory": "History",
   "navSettings": "Settings",
+  "learnAppBarTitle": "Today's sentence",
+  "learnOpenDetail": "Details",
 
   "learnQuizTitle": "Quiz",
   "learnSummaryQuizTitle": "Review quiz",
   "learnNextSentence": "Next sentence",
-
-  "firstGuideTitle": "Let's try it once",
-  "firstGuideBody": "You'll go through one full round, from a sentence to a quiz.\nI'll point out each button as you go.",
-  "firstGuideTrial": "Your first 2 days are on Premium",
   "commonOk": "OK",
   "commonRetry": "Try again",
-
-  "coachDetailTitle": "Tap the sentence first",
-  "coachDetailMessage": "Tap the card to see the meaning and pronunciation of each word.",
-
-  "coachQuizTitle": "Now try the quiz",
-  "coachQuizMessage": "Take the confirmation quiz to check that today's words stuck.",
-
-  "coachSentenceCardTitle": "Sentence card",
-  "coachSentenceCardMessage": "The Thai text is on top, its reading below it, and the translation at the bottom.",
-  "coachPlayTitle": "Hear the model reading",
-  "coachPlayMessage": "Press play and you'll hear the sentence read aloud in Thai.",
-  "coachPronunciationTitle": "Say it out loud",
-  "coachPronunciationMessage": "Hold the button and copy what you heard, out loud in Thai. Your tones are checked on the spot.",
-  "coachTargetWordsTitle": "Learn this word",
-  "coachTargetWordsEmphasis": "target word",
-  "coachTargetWordsMessage": "This is the target word for the sentence. See how it's used.",
-
-  "coachPronunciationResultTitle": "How to read your result",
-  "coachPronunciationResultMessage": "Green is correct, orange is close, red is off. Tap any of the words.",
-  "coachPronunciationContourTitle": "Compare it with yours",
-  "coachPronunciationContourMessage": "The faint line is the model, the solid one is you. Read \"Fix this next\", then tap \"Try again\" below to say it again.",
-  "coachWordDetailTitle": "See it word by word",
-  "coachWordDetailMessage": "The words in this sentence. Tap any word for a closer look at how its spelling relates to its tones.",
-  "coachToneDetailTitle": "How to read the tone breakdown",
-  "coachToneDetailMessage": "The tone breakdown splits the word into syllables, each with its reading and tone mark.",
-  "coachToneTableTitle": "How the tone is decided",
-  "coachToneTableMessage": "The initial consonant class (high, mid, low), the tone mark, and the syllable type together decide the tone. The row highlighted in blue is the rule this syllable follows.",
-  "coachToneTableEmphasis1": "initial consonant class (high, mid, low)",
-  "coachToneTableEmphasis2": "tone mark",
-  "coachToneTableEmphasis3": "syllable type",
-  "coachToneGuideTitle": "Want the full rules?",
-  "coachToneGuideMessage": "The tone rules are collected in the tone guide. You can open it from here any time.",
-  "coachContextTitle": "Check how it's used",
-  "coachContextMessage": "This card shows where the sentence fits, how formal it is, and the cultural background behind it.",
-  "coachDetailBackTitle": "That's it for the details",
-  "coachDetailBackMessage": "That's the end of the guide. Tap the back arrow at the top left, or swipe right, to return to the previous screen.",
 
   "sentencePreparing": "Preparing your next sentence...",
   "todaysWords": "{count, plural, =1{Target word} other{Target words}}",
@@ -98,14 +60,22 @@
   "quizIncorrect": "Not quite",
   "quizCorrectAnswer": "Correct answer: {answer}",
   "@quizCorrectAnswer": {
-    "placeholders": { "answer": { "type": "String" } }
+    "placeholders": {
+      "answer": {
+        "type": "String"
+      }
+    }
   },
   "quizPrompt": "Choose the word that fits the blank",
   "quizProgress": "Question {index} of {total}",
   "@quizProgress": {
     "placeholders": {
-      "index": { "type": "int" },
-      "total": { "type": "int" }
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "quizSentenceReviewed": "Sentence reviewed",
@@ -123,36 +93,6 @@
   "quizNextQuestion": "Next question",
   "commonTryAgain": "Try again",
 
-  "coachQuizHintTitle": "Hints come in two steps",
-  "coachQuizHintMessage": "Press it once for the pronunciation, twice for the translation. Use them whenever you're stuck.",
-  "coachQuizReviewTitle": "You can go back to the sentence",
-  "coachQuizReviewMessage": "Pick the word that fits the blank. Unsure? \"Show the sentence\" below brings the sentence back any time.",
-  "coachSummaryQuizTitle": "Try the review quiz",
-  "coachSummaryQuizEmphasis": "every 5 sentences",
-  "coachSummaryQuizMessage": "A quiz that reviews the words you've learned so far. It normally comes around every 5 sentences, but give it a try now.",
-  "coachTourFinishTitle": "Sentences you miss come back",
-  "coachTourFinishMessage": "The 5-question quiz draws on the sentences you've read. The ones you get wrong come back again after a while, so leave the reviewing to the app and move on.",
-  "coachTourFinishEmphasis": "The ones you get wrong come back again after a while",
-  "coachTourFinishSeePremium": "See Premium",
-  "coachTourFinishQuota": "You can create {free} sentences a day on the free plan, or {premium} a day with Premium.",
-  "@coachTourFinishQuota": { "placeholders": { "free": { "type": "int" }, "premium": { "type": "int" } } },
-  "coachFlowTitle": "How it goes from here",
-  "coachFlowGreeting": "Nice work! That's the whole loop, start to finish.",
-  "coachFlowLoopSentence": "Sentence",
-  "coachFlowLoopQuiz": "Quiz",
-  "coachFlowLoopSummary": "5-question quiz",
-  "coachFlowOutcome": "The more you repeat it, the higher your vocabulary score climbs — and the wider the range of Thai you can read.",
-  "coachSummaryTipsBody": "Once you get used to it, try answering without hints — your vocabulary score grows faster.",
-  "coachSummaryTipsEmphasis": "without hints",
-  "coachFlowPage1Title": "Sentence and quiz, on repeat",
-  "coachSummaryTipsTitle": "Tips for the 5-question quiz",
-  "coachFlowContinue": "Keep going",
-
-  "coachTopicTitle": "Pick a topic and go deeper into Thai culture",
-  "coachTopicNext": "Go to next sentence",
-  "coachTopicMessage": "Tap here to choose the topic of your next sentence. Festivals, temple etiquette, BL dramas — you pick up the culture along with the language.",
-  "coachTopicSelectMessage": "Tap here and pick the topic for your next sentence. Festivals, temple etiquette, BL dramas — you pick up the culture along with the language.",
-
   "vocabScore": "Vocabulary score",
   "vocabScoreCalculating": "Calculating your vocabulary score...",
   "vocabScoreUp": "Your vocabulary grew!",
@@ -160,11 +100,19 @@
   "vocabScorePremiumPitch": "Go Premium to keep tracking your growth",
   "vocabWords": "{count, plural, =1{1 word} other{{count} words}}",
   "@vocabWords": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "vocabWordsDelta": "{delta} words",
   "@vocabWordsDelta": {
-    "placeholders": { "delta": { "type": "String" } }
+    "placeholders": {
+      "delta": {
+        "type": "String"
+      }
+    }
   },
 
   "historyTitle": "History",
@@ -173,9 +121,30 @@
   "historyFilterAll": "All",
   "historyFilterFavorites": "Favorites",
   "historyDateWithYear": "{year}/{month}/{day}",
-  "@historyDateWithYear": { "placeholders": { "year": { "type": "int" }, "month": { "type": "int" }, "day": { "type": "int" } } },
+  "@historyDateWithYear": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      },
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
   "historyDate": "{month}/{day}",
-  "@historyDate": { "placeholders": { "month": { "type": "int" }, "day": { "type": "int" } } },
+  "@historyDate": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
   "historySearchHint": "Search in Thai or English",
   "historyEmptyFavorites": "No favorite sentences yet",
   "historyEmptySearch": "No matches found",
@@ -186,12 +155,24 @@
   "historyDeleteAllConfirm": "Delete your entire sentence history? This can't be undone.",
   "historyDeletedAll": "Deleted every sentence",
   "historyDeleteFailed": "Couldn't delete: {error}",
-  "@historyDeleteFailed": { "placeholders": { "error": { "type": "String" } } },
+  "@historyDeleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "historyDeleteConfirmTitle": "Delete this sentence?",
   "historyDeleteConfirm": "This sentence will be removed from your history.",
   "historyDeletedOne": "Sentence deleted",
   "historyWordCount": "{count, plural, =1{1 word} other{{count} words}}",
-  "@historyWordCount": { "placeholders": { "count": { "type": "int" } } },
+  "@historyWordCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
 
   "commonError": "Something went wrong",
   "commonCancel": "Cancel",
@@ -201,7 +182,13 @@
   "detailTitle": "Sentence details",
   "detailShare": "Share",
   "detailWordBreakdown": "Word breakdown ({count})",
-  "@detailWordBreakdown": { "placeholders": { "count": { "type": "int" } } },
+  "@detailWordBreakdown": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "detailQuizTarget": "→ Appears in the quiz",
   "detailTapForTone": "Tap to see the tones",
   "detailUsageSection": "How to use",
@@ -215,7 +202,13 @@
   "detailContextUsage": "When",
   "detailContextCulture": "Culture",
   "detailCreatedAt": "Created {date}",
-  "@detailCreatedAt": { "placeholders": { "date": { "type": "String" } } },
+  "@detailCreatedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "detailCopied": "Copied to clipboard",
 
   "settingsTitle": "Settings",
@@ -235,6 +228,7 @@
   "settingsAccountDeleted": "Your account and all its data have been deleted",
   "settingsFontSample": "Sample",
   "settingsLearningStatus": "Your progress",
+  "settingsGuideSection": "Guides",
   "settingsLearningSection": "Learning",
   "settingsToneGuide": "Tone guide",
   "settingsToneGuideSubtitle": "Learn how Thai tones work",
@@ -252,9 +246,21 @@
   "settingsTopic": "Topic",
   "settingsTopicRandom": "Any topic",
   "settingsNextLevelIn": "{count, plural, =1{1 word to the next level} other{{count} words to the next level}}",
-  "@settingsNextLevelIn": { "placeholders": { "count": { "type": "int" } } },
+  "@settingsNextLevelIn": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsFreeVocabLimit": "The free plan caps out at {limit} words",
-  "@settingsFreeVocabLimit": { "placeholders": { "limit": { "type": "int" } } },
+  "@settingsFreeVocabLimit": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "settingsCouldNotOpenUrl": "Couldn't open that link",
   "settingsAbout": "About",
   "settingsTagline": "Fill your day with Thai",
@@ -267,20 +273,47 @@
   "trialEndedKeepFree": "Later",
   "trialEndedChangeQuotaLabel": "Sentences",
   "trialEndedChangeQuotaPremium": "{premium}/day",
-  "@trialEndedChangeQuotaPremium": { "placeholders": { "premium": { "type": "int" } } },
+  "@trialEndedChangeQuotaPremium": {
+    "placeholders": {
+      "premium": {
+        "type": "int"
+      }
+    }
+  },
   "trialEndedChangeQuotaFree": "{free}/day",
-  "@trialEndedChangeQuotaFree": { "placeholders": { "free": { "type": "int" } } },
-  "trialEndedChangePronunciationLabel": "Pronunciation checks",
-  "trialEndedChangePronunciationPremium": "Unlimited",
-  "trialEndedChangePronunciationFree": "{count}/day",
-  "@trialEndedChangePronunciationFree": { "placeholders": { "count": { "type": "int" } } },
+  "@trialEndedChangeQuotaFree": {
+    "placeholders": {
+      "free": {
+        "type": "int"
+      }
+    }
+  },
+  "trialEndedChangeVocabLabel": "Vocabulary score",
+  "trialEndedChangeVocabPremium": "No cap",
+  "trialEndedChangeVocabFree": "up to {free}",
+  "@trialEndedChangeVocabFree": {
+    "placeholders": {
+      "free": {
+        "type": "int"
+      }
+    }
+  },
 
-  "trialStartedTitle": "Try Premium for {days} days",
-  "trialStartedBody": "We've unlocked features you don't normally have, just for this period.",
-  "trialStartedChangeQuota": "Sentences  {free}/day → {premium}/day",
-  "trialStartedChangePronunciation": "Pronunciation checks  {count}/day → unlimited",
-  "trialStartedChangeTopic": "Topics  Pick your own sentence topics",
-  "trialStartedStart": "Try it out",
+  "trialStartedTitle": "{days, plural, =1{You have Premium for 1 more day} other{You have Premium for {days} days}}",
+  "trialStartedBody": "We've unlocked features that aren't in the free plan, just for this period.",
+  "trialStartedChangeQuotaLabel": "Sentences",
+  "trialStartedChangeQuota": "Up to {premium} a day",
+  "@trialStartedChangeQuota": {
+    "placeholders": {
+      "premium": {
+        "type": "int"
+      }
+    }
+  },
+  "trialStartedChangeTopicLabel": "Topics",
+  "trialStartedChangeTopic": "Pick your own sentence topics",
+  "trialStartedStart": "Got it",
+  "trialStartedSeePlans": "See Premium plan",
 
   "topicPickerTitle": "Choose a topic",
   "nextTopicPrefix": "Next topic: ",
@@ -328,33 +361,8 @@
   "vocabLevelUpperBeginner": "Upper beginner",
   "vocabLevelIntermediate": "Intermediate",
   "vocabLevelAdvanced": "Advanced",
-  "vocabDialogTitle": "Vocabulary score ({level})",
-  "@vocabDialogTitle": { "placeholders": { "level": { "type": "String" } } },
-  "vocabDialogTitleFree": "Vocabulary score (Free · {level})",
-  "@vocabDialogTitleFree": { "placeholders": { "level": { "type": "String" } } },
-  "vocabProgressOf": "{current} of {threshold} words",
-  "@vocabProgressOf": { "placeholders": { "current": { "type": "int" }, "threshold": { "type": "int" } } },
-  "vocabFreeCap": "Free cap",
-  "vocabRemaining": "{count, plural, =1{1 to go} other{{count} to go}}",
-  "@vocabRemaining": { "placeholders": { "count": { "type": "int" } } },
-  "vocabCurrentTopics": "Your topics ({count})",
-  "@vocabCurrentTopics": { "placeholders": { "count": { "type": "int" } } },
-  "vocabFreeTopics": "Free topics ({count})",
-  "@vocabFreeTopics": { "placeholders": { "count": { "type": "int" } } },
-  "vocabNextUnlock": "Unlocks next (+{count})",
-  "@vocabNextUnlock": { "placeholders": { "count": { "type": "int" } } },
-  "vocabNextUnlockIn": "{words} more words to unlock (+{count})",
-  "@vocabNextUnlockIn": { "placeholders": { "words": { "type": "int" }, "count": { "type": "int" } } },
   "vocabSeePremium": "See Premium",
   "commonClose": "Close",
-  "vocabFreeLimitTitle": "Free stops at 100 words",
-  "vocabFreeLimitBody": "Premium takes you past 100 words and opens up more topics, so you meet a wider range of Thai.",
-  "vocabUnlockMore": "As your vocabulary score grows, new sentence topics unlock.",
-  "vocabTopicCountNow": "{count, plural, =1{1 topic is in rotation right now} other{{count} topics are in rotation right now}}",
-  "@vocabTopicCountNow": { "placeholders": { "count": { "type": "int" } } },
-  "vocabPremiumAddsTopics": "Premium adds {count} more topics",
-  "@vocabPremiumAddsTopics": { "placeholders": { "count": { "type": "int" } } },
-  "listSeparator": ", ",
 
   "paywallTitle": "Premium",
   "paywallTagline": "Dive into the Thai-speaking world.",
@@ -366,18 +374,44 @@
   "paywallLegal": "Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.",
   "paywallRestore": "Restore purchases",
   "paywallPriceYen": "¥{amount} / month",
-  "@paywallPriceYen": { "placeholders": { "amount": { "type": "String" } } },
+  "@paywallPriceYen": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "paywallPrice": "{currency} {amount} / month",
-  "@paywallPrice": { "placeholders": { "currency": { "type": "String" }, "amount": { "type": "String" } } },
+  "@paywallPrice": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "paywallFeatureQuotaTitle": "Immerse yourself in more Thai",
   "paywallFeatureQuotaFree": "{count} sentences a day · vocabulary capped at {limit} words",
-  "@paywallFeatureQuotaFree": { "placeholders": { "count": { "type": "int" }, "limit": { "type": "int" } } },
+  "@paywallFeatureQuotaFree": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "paywallFeatureQuotaPremium": "{count} sentences a day · no vocabulary cap",
-  "@paywallFeatureQuotaPremium": { "placeholders": { "count": { "type": "int" } } },
-  "paywallFeaturePronunciationTitle": "Build confidence in how you sound",
-  "paywallFeaturePronunciationFree": "{count} checks a day",
-  "@paywallFeaturePronunciationFree": { "placeholders": { "count": { "type": "int" } } },
-  "paywallFeaturePronunciationPremium": "Unlimited",
+  "@paywallFeatureQuotaPremium": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "paywallFeatureTopicTitle": "Pick a topic and go deeper into Thai culture",
   "paywallFeatureTopicFree": "A random beginner topic",
   "paywallFeatureTopicPremium": "Festivals, temple etiquette, BL dramas — your call",
@@ -392,14 +426,6 @@
   "onboarding3Body": "Words you miss come back around.\nYour sentences level up with your score.",
   "onboardingSkip": "Skip",
   "onboardingNext": "Next",
-
-  "coachTapHere": "Tap the highlighted area",
-  "coachSkip": "Skip",
-  "coachToneBackToDetail": "Back to the sentence",
-  "coachGotIt": "Got it",
-  "coachNext": "Next",
-  "coachBack": "Back",
-  "coachStepLabel": "{current} / {total}",
 
   "interviewIntroTitle": "Four quick questions",
   "interviewIntroBody": "Your answers shape how we explain the way this app works. It only takes a moment.",
@@ -457,7 +483,7 @@
   "philosophy3TimeMedium": "**Ten minutes** lets you add more sentences and go on to pronunciation practice and reviewing the words so far.",
   "philosophy3TimeLong": "**Thirty minutes** covers adding sentences and pronunciation practice, plus reviewing past sentences and studying the tones themselves.",
 
-  "philosophyStart": "Try it out",
+  "philosophyStart": "See how it works",
 
   "notifCoachTitle": "Make studying Thai a daily habit",
   "notifCoachStep1": "Pick a time that fits your day — your commute, or just before bed",
@@ -473,12 +499,8 @@
   "notifCoachStillQuiet": "Notifications will keep arriving quietly in Notification Center.",
   "commonGotIt": "Got it",
 
-  "premiumHint1Title": "Pick a topic and go deeper into Thai culture",
-  "premiumHint1Body": "Festivals, temple etiquette, BL dramas — the culture comes with the language",
-  "premiumHint2Title": "Build confidence in how you sound",
-  "premiumHint2Body": "Record as many times as you like and fix where your tones drift",
-  "premiumHint3Title": "Immerse yourself in quality Thai",
-  "premiumHint3Body": "Far more sentences a day — the volume is what makes it stick",
+  "premiumHint1Title": "Choose a theme and get closer to Thai culture",
+  "premiumHint1Body": "Festivals, temple etiquette, BL dramas — you pick up the culture along with the words",
 
   "signInReminderTitle": "Keep your progress safe",
   "signInReminderMessage": "Sign in and your progress is saved, so you can pick up where you left off on a new phone. Without an account, your progress is deleted after three days of not using the app.",
@@ -491,7 +513,7 @@
 
   "quizOfferToQuiz": "Go to the quiz",
   "quizOfferOneQuestion": "One quick question",
-  "quizOfferBody": "See right away whether these words stuck.",
+  "quizOfferBody": "Check with a quiz whether these words stuck.",
   "quizOfferTryOne": "Try one question",
 
   "audioRepeat": "Repeat",
@@ -499,7 +521,13 @@
   "audioPause": "Pause",
   "audioPlay": "Play",
   "audioModeHint": "Currently {mode}. Long-press to change how it plays",
-  "@audioModeHint": { "placeholders": { "mode": { "type": "String" } } },
+  "@audioModeHint": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
   "audioModeRepeat": "on repeat",
   "audioModeOnce": "playing once",
   "audioPosition": "Playback position",
@@ -512,7 +540,13 @@
   "pronunciationReference": "Model",
   "pronunciationYours": "You",
   "pronunciationScore": "Score {score}",
-  "@pronunciationScore": { "placeholders": { "score": { "type": "int" } } },
+  "@pronunciationScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
   "pronunciationVerdictCorrect": "OK",
   "pronunciationVerdictClose": "Close",
   "pronunciationVerdictWrong": "Off",
@@ -539,51 +573,167 @@
   "pronunciationCoachShapeHigh": "High tone: keep pushing it up to the end instead of leveling off",
   "pronunciationCoachShapeRising": "Rising tone: dip first, then rise all the way up",
   "pronunciationCoachStepUp": "{tone}: start higher than the sound before it",
-  "@pronunciationCoachStepUp": { "placeholders": { "tone": { "type": "String" } } },
+  "@pronunciationCoachStepUp": {
+    "placeholders": {
+      "tone": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationCoachStepDown": "{tone}: start lower than the sound before it",
-  "@pronunciationCoachStepDown": { "placeholders": { "tone": { "type": "String" } } },
+  "@pronunciationCoachStepDown": {
+    "placeholders": {
+      "tone": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationCoachNotRecognized": "\"{word}\" wasn't picked up. Try saying it more clearly.",
-  "@pronunciationCoachNotRecognized": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationCoachNotRecognized": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentUnaspirated": "Say the {label} in \"{word}\" with no puff of air — with air it sounds like {aspirated}.",
-  "@pronunciationSegmentUnaspirated": { "placeholders": { "word": { "type": "String" }, "label": { "type": "String" }, "aspirated": { "type": "String" } } },
+  "@pronunciationSegmentUnaspirated": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      },
+      "aspirated": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalP": "End \"{word}\" with your lips closed — don't release it or add a vowel.",
-  "@pronunciationSegmentFinalP": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalP": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalT": "End \"{word}\" with your tongue tip in place — don't release it or add a vowel.",
-  "@pronunciationSegmentFinalT": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalT": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalK": "End \"{word}\" by stopping at the back of the throat — don't release it or add a vowel.",
-  "@pronunciationSegmentFinalK": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalK": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentNgInitial": "Start \"{word}\" with ง humming through the nose — don't add an \"n\" before it.",
-  "@pronunciationSegmentNgInitial": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentNgInitial": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalNg": "End \"{word}\" through the nose with your mouth open (-ng), not with closed lips.",
-  "@pronunciationSegmentFinalNg": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalNg": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalN": "End \"{word}\" with your tongue tip behind the teeth (-n), not through the nose.",
-  "@pronunciationSegmentFinalN": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalN": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentFinalM": "End \"{word}\" with your lips closed (-m).",
-  "@pronunciationSegmentFinalM": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentFinalM": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentVowelAe": "For the vowel in \"{word}\", open your mouth wider and stretch it sideways, past \"e\" (ɛ).",
-  "@pronunciationSegmentVowelAe": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentVowelAe": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentVowelOe": "For the vowel in \"{word}\", hardly move your mouth at all — a muffled \"uh\" (ə).",
-  "@pronunciationSegmentVowelOe": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentVowelOe": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentVowelAw": "For the vowel in \"{word}\", make your lips a bigger, rounder circle than for \"o\" (ɔ).",
-  "@pronunciationSegmentVowelAw": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationSegmentVowelAw": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSegmentVowelUe": "For the vowel in \"{word}\", say \"oo\" while keeping your lips stretched sideways, never pushed forward (ʉ).",
-  "@pronunciationSegmentVowelUe": { "placeholders": { "word": { "type": "String" } } },
-  "pronunciationLimitTitle": "You've used today's free pronunciation checks",
-  "pronunciationLimitBody": "Premium lets you check your pronunciation as often as you like.",
+  "@pronunciationSegmentVowelUe": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationSummaryRecognized": "{ok} of {total, plural, =1{1 word} other{{total} words}} came through",
-  "@pronunciationSummaryRecognized": { "placeholders": { "ok": { "type": "int" }, "total": { "type": "int" } } },
+  "@pronunciationSummaryRecognized": {
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "pronunciationNextFocus": "Fix \"{word}\" next",
-  "@pronunciationNextFocus": { "placeholders": { "word": { "type": "String" } } },
+  "@pronunciationNextFocus": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "pronunciationCountCorrect": "OK",
   "pronunciationCountClose": "Close",
   "pronunciationCountWrong": "Off",
   "pronunciationTapWordHintDetail": "Tap a word to hear the model and see what to fix",
   "pronunciationListenModelWord": "Hear the model",
-  "pronunciationFreeRemaining": "{count, plural, =1{1 free check} other{{count} free checks}} left today",
-  "@pronunciationFreeRemaining": { "placeholders": { "count": { "type": "int" } } },
 
   "tipWithExample": "{content}\nExample: {example}",
-  "@tipWithExample": { "placeholders": { "content": { "type": "String" }, "example": { "type": "String" } } },
+  "@tipWithExample": {
+    "placeholders": {
+      "content": {
+        "type": "String"
+      },
+      "example": {
+        "type": "String"
+      }
+    }
+  },
 
   "errQuizGenerationFailed": "We couldn't build the quiz. Please try again.",
   "quotaQuizReached": "That's the last new quiz for today.",
@@ -597,7 +747,13 @@
   "errLoadFailed": "Couldn't load your data",
   "errLoadFailedRetry": "Couldn't load your data. Please try again.",
   "errUnexpected": "Something unexpected happened: {error}",
-  "@errUnexpected": { "placeholders": { "error": { "type": "String" } } },
+  "@errUnexpected": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
 
   "errSignInRequiredForPremium": "Sign in to use Premium",
   "errProductLoadFailed": "Couldn't load the subscription details",
@@ -611,20 +767,65 @@
   "errDeleteAccountFailed": "Couldn't delete your account",
 
   "quotaResetInHours": "Resets in {hours}h {minutes}m",
-  "@quotaResetInHours": { "placeholders": { "hours": { "type": "int" }, "minutes": { "type": "int" } } },
+  "@quotaResetInHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "quotaResetInMinutes": "Resets in {minutes}m",
-  "@quotaResetInMinutes": { "placeholders": { "minutes": { "type": "int" } } },
+  "@quotaResetInMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
 
   "shareTopic": "Setting: {value}",
-  "@shareTopic": { "placeholders": { "value": { "type": "String" } } },
+  "@shareTopic": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "shareStyle": "Style: {value}",
-  "@shareStyle": { "placeholders": { "value": { "type": "String" } } },
+  "@shareStyle": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "shareEmotion": "Mood: {value}",
-  "@shareEmotion": { "placeholders": { "value": { "type": "String" } } },
+  "@shareEmotion": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "shareUsage": "When to use it: {value}",
-  "@shareUsage": { "placeholders": { "value": { "type": "String" } } },
+  "@shareUsage": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "shareCulture": "Cultural background: {value}",
-  "@shareCulture": { "placeholders": { "value": { "type": "String" } } },
+  "@shareCulture": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
 
   "contactSent": "Thanks — your message is on its way.",
   "contactFailed": "We couldn't send that. Please try again in a little while.",
@@ -663,7 +864,13 @@
   "toneDialogTitle": "Tone breakdown",
   "toneSyllableBreakdown": "Syllables",
   "toneSyllableNumber": "Syllable {number}",
-  "@toneSyllableNumber": { "placeholders": { "number": { "type": "int" } } },
+  "@toneSyllableNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
   "toneMainConsonant": "Initial consonant",
   "toneSyllableType": "Syllable type",
   "toneResultPrefix": "Result: ",
@@ -671,14 +878,32 @@
   "toneMarkPrefix": "Tone mark: ",
   "toneResultTone": "Resulting tone",
   "toneShiftFor": "How tones shift for {consonantClass}",
-  "@toneShiftFor": { "placeholders": { "consonantClass": { "type": "String" } } },
+  "@toneShiftFor": {
+    "placeholders": {
+      "consonantClass": {
+        "type": "String"
+      }
+    }
+  },
   "toneShiftTableFor": "Tone chart for {consonantClass}",
-  "@toneShiftTableFor": { "placeholders": { "consonantClass": { "type": "String" } } },
+  "@toneShiftTableFor": {
+    "placeholders": {
+      "consonantClass": {
+        "type": "String"
+      }
+    }
+  },
   "toneRareUsage": "Exceptional — rare in modern Thai",
   "toneAppliedRule": "= the rule that applies to this word",
   "toneLearnMore": "Learn more about tones",
   "toneExamplePrefix": "Example: {value}",
-  "@toneExamplePrefix": { "placeholders": { "value": { "type": "String" } } },
+  "@toneExamplePrefix": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
 
   "toneGuideTitle": "Guide to Thai tones",
   "toneGuideHeading": "How Thai tones work",
@@ -690,7 +915,13 @@
   "toneGuideShiftTable": "Tone chart",
   "toneGuideShiftTableIntro": "For each consonant class, this shows the tone you get from every combination of tone mark and syllable type.",
   "toneGuideLetterCount": "{count, plural, =1{1 letter} other{{count} letters}}",
-  "@toneGuideLetterCount": { "placeholders": { "count": { "type": "int" } } },
+  "@toneGuideLetterCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "toneMidDesc": "The pitch stays flat and level.",
   "toneMidExample": "กา (gaa) crow",
   "toneLowDesc": "Starts low and dips slightly.",
@@ -856,11 +1087,62 @@
   "purchasePending": "Your purchase is awaiting approval. It'll apply once approved.",
   "errSignInBeforePurchase": "Sign in before buying",
   "errPurchaseVerificationFailed": "Couldn't verify your purchase",
+  "settingsVocabTest": "Measure your vocabulary",
+  "settingsVocabTestNever": "Not taken yet",
+  "settingsVocabTestLast": "Last taken {date}",
+  "@settingsVocabTestLast": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsVocabTestPremium": "Premium only",
+  "vocabTestTitle": "Measure your vocabulary",
+  "vocabTestIntroBody": "Pick the meaning of Thai words from four choices. The test stops as soon as the words get too hard. It takes as few as 4 questions and at most 24.",
+  "vocabTestIntroNote": "The result sets the difficulty of your sentences and quizzes. You can retake it from Settings once a month.",
+  "vocabTestStart": "Start",
+  "vocabTestQuestion": "What does this word mean?",
+  "vocabTestDontKnow": "I don't know",
+  "vocabTestProgress": "Question {current} of {total}",
+  "@vocabTestProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabTestResultTitle": "Your vocabulary",
+  "vocabTestResultVocab": "About {vocab} words",
+  "@vocabTestResultVocab": {
+    "placeholders": {
+      "vocab": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabTestResultBody": "We use this as the starting point for your sentences and quizzes. It keeps moving as you answer.",
+  "vocabTestResultFreeCap": "On the free plan the vocabulary score is capped at 100. When your premium trial ends, this number drops to 100 as well.",
+  "vocabTestResultClose": "Close",
+  "vocabTestError": "Could not run the vocabulary test",
+  "vocabTestRetry": "Try again",
 
   "rankingTitle": "Vocabulary ranking",
   "rankingSubtitle": "See how your vocabulary score compares",
+  "rankingBandScope": "Your place among {band}",
+  "@rankingBandScope": {
+    "placeholders": {
+      "band": {
+        "type": "String"
+      }
+    }
+  },
   "rankingYourRank": "Your rank",
   "rankingPosition": "#{rank}",
+  "rankingCapTiedNote": "Too many people are tied at the cap to rank",
   "rankingUnrankedHint": "Generate a sentence to get ranked",
   "rankingLoadFailed": "Couldn't load the ranking",
   "rankingYou": "You",
@@ -872,5 +1154,99 @@
   "rankingAnonymousName": "Learner {suffix}",
   "rankingFreeCapNote": "On the free plan your vocabulary score is capped at {limit} words",
   "settingsRanking": "Ranking",
-  "settingsRankingSubtitle": "See how your vocabulary score compares"
+  "settingsRankingSubtitle": "See how your vocabulary score compares",
+  "guideTitle": "How to use the app",
+  "guideSettingsSubtitle": "Read how the app works",
+  "guideSkip": "Skip",
+  "guideStart": "Measure your vocabulary",
+  "guideClose": "Close",
+  "guideLead": "Here's how the app works. You can come back to this any time from Settings.",
+  "guideFigureLoopSentence": "Sentence",
+  "guideFigureLoopQuiz": "Quiz",
+  "guideFigureLoopRepeat": "repeat",
+  "guideFigureLoopSummary": "Review quiz",
+  "guideFigureLoopEvery": "every five sentences",
+  "guideFigureCardThai": "Thai script",
+  "guideFigureCardPronunciation": "Pronunciation",
+  "guideFigureCardTranslation": "Translation",
+  "guideFigureCardTranslationSample": "I like coffee.",
+  "guideFigureCardTargetWord": "Gold = target word",
+  "guideChapterOverview": "Overview",
+  "guideChapterRoles": "What each feature is for",
+  "guideChapterHowTo": "How to use it",
+  "guideOverviewTitle": "What you do here",
+  "guideOverviewBody1": "Every day, AI writes new Thai sentences matched to your vocabulary level.",
+  "guideOverviewBody2": "Read the sentence, then check yourself with a quiz. Repeating those two steps is how you learn here.",
+  "guideOverviewSummaryQuiz": "After every five sentences, you answer five questions drawn from the sentences you've studied so far. If you get stuck, there are hints and a way back to the sentence.",
+  "guideOverviewBody3": "The more you get right in review quizzes, the higher your vocabulary score — and the wider the range of words your sentences draw from. Words you struggle with are prioritized in future review quizzes, so you don't have to decide what to review next.",
+  "guideRoleSentenceTitle": "Sentences",
+  "guideRoleSentenceBody": "Open the detail screen to see how a Thai word is really used. Words are easier to remember with a situation attached than on their own.",
+  "guideRoleSoundTitle": "Pronunciation practice",
+  "guideRoleSoundBody": "In Thai, tone changes meaning. Record yourself, compare it with the model, and see which tones are off.",
+  "guideRoleQuizTitle": "Quizzes",
+  "guideRoleQuizBody": "Answer one question to check yourself before moving on. After every five sentences, you can also take a five-question review quiz based on sentences you've studied.",
+  "guideRoleScoreTitle": "Vocabulary score",
+  "guideRoleScoreBody": "How many words you know, estimated from your quiz results.",
+  "guideRoleVocabTestTitle": "Vocabulary test",
+  "guideRoleVocabTestBody": "A short multiple-choice test that estimates how many Thai words you know. It sets your starting vocabulary score, and with it the difficulty of your sentences and quizzes. You can retake it from Settings once a month.",
+  "guideRoleRankingTitle": "Ranking",
+  "guideRoleRankingBody": "See where you rank among other learners based on vocabulary score. A display name is assigned automatically.",
+  "guideRoleTopicTitle": "Topics",
+  "guideRoleTopicBody": "Explore Thai in a range of contexts—from festivals and temple etiquette to BL dramas—and learn about the culture along the way.",
+  "guideRoleNotificationTitle": "Daily notifications",
+  "guideRoleNotificationBody": "A nudge to make studying a habit. The day's sentence arrives at the time you choose.",
+  "guideRolePremiumTitle": "Free and Premium",
+  "guideRolePremiumBody": "You can keep learning every day on the Free plan. Premium raises the daily sentence count, unlocks topic choice, and lifts the vocabulary cap.",
+  "guidePlanColItem": "Item",
+  "guidePlanColFree": "Free",
+  "guidePlanColPremium": "Premium",
+  "guidePlanRowSentences": "Sentences a day",
+  "guidePlanRowTopic": "Topics",
+  "guidePlanRowVocab": "Vocabulary cap",
+  "guidePlanSentences": "{count}",
+  "@guidePlanSentences": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guidePlanTopicFree": "Chosen for you",
+  "guidePlanTopicPremium": "You choose",
+  "guidePlanVocabFree": "{count} words",
+  "@guidePlanVocabFree": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guidePlanVocabPremium": "About {count} words",
+  "@guidePlanVocabPremium": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "guideHowSentenceTitle": "Read today's sentence",
+  "guideHowSentenceStep1": "Open the Learn tab to see today's sentence.",
+  "guideHowSentenceStep3": "Gold words are the ones you're learning. The quiz asks about those.",
+  "guideHowSentenceStep4": "Tap the sentence card to open the detail screen.",
+  "guideHowDetailTitle": "Look closer",
+  "guideHowDetailLead": "The detail screen gives you a closer look at each sentence. The more context you have—where a word is used, how formal it is, how it is spelled, and which tone it uses—the easier it is to remember.",
+  "guideHowSoundTitle": "Listen and speak",
+  "guideHowSoundStep1": "“Listen” plays the Thai sentence on a loop.",
+  "guideHowSoundStep2": "On the detail screen, tap “Practice,” then hold “Hold to speak” while you repeat the sentence. Release the button to check your tones.",
+  "guideHowSoundStep3": "Green means correct, amber means close, and red means off. Tap a word to compare your pitch with the model and see what to fix.",
+  "guideHowQuizTitle": "Take the quiz",
+  "guideHowQuizStep1": "“One quick question” below the sentence takes you to the check quiz.",
+  "guideHowQuizStep2": "The review quiz offers hints: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.",
+  "guideHowQuizStep3": "In the review quiz, tap “Show the sentence” if you get stuck.",
+  "guideHowQuizStep4": "After every fifth sentence, the results screen lets you continue to the next sentence or take a review quiz.",
+  "guideHowSettingsTitle": "In Settings",
+  "guideHowSettingsStep1": "Change your notification time, the display font, and the language of translations and explanations.",
+  "guideHowSettingsStep2": "The topic for your next sentence and the ranking are here too.",
+  "guideHowSettingsStep3": "This guide is always here, under “How to use the app”."
 }

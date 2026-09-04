@@ -79,6 +79,9 @@ lib/data/models/quiz_result.dart
 lib/data/datasources/backend_api_service.dart
 Cloud Functions HTTPクライアント。例文生成・クイズ生成呼び出し、エラーマッピング。
 
+lib/data/models/vocab_test_step.dart
+語彙テストの1往復ぶんの応答（出題1段ぶん、または最終結果）。正解は含まない。
+
 lib/data/datasources/local/database_helper.dart
 SQLite CRUD操作（sentences, word_breakdowns, generation_logs, quiz関連テーブル）。
 
@@ -125,7 +128,7 @@ lib/presentation/providers/leaderboard_provider.dart
 語彙スコアランキング（leaderboard コレクション）。上位100人のストリームと、自分の順位（count集計。一覧の外でも出せる）。同点は同順位。
 
 lib/presentation/providers/vocab_stats_provider.dart
-Firestoreから語彙スコア・学習済み単語数をリアルタイム取得（Premium限定）。
+Firestoreから語彙スコア・語彙テストの受験日と測定値をリアルタイム取得。
 
 ## Screens
 
@@ -136,7 +139,7 @@ lib/presentation/screens/home_screen.dart
 メイン画面。3タブナビゲーション（今日/履歴/設定）。
 
 lib/presentation/screens/detail_screen.dart
-例文詳細表示（例文カード・聞く／話す・使い方・単語・声調ガイド導線）。初回は例文カード→お手本再生→録音（練習セクションを先に開いてから指す）→使い方→単語の順にコーチマークで案内する（進捗は detail_tour_step）。
+例文詳細表示（例文カード・聞く／話す・使い方・単語・声調ガイド導線）。
 
 lib/presentation/screens/history_screen.dart
 保存済み例文一覧（検索・すべて/お気に入りのチップ絞り込み・スワイプ/一括削除）。1枚のカードに罫線区切りで積む。
@@ -145,19 +148,25 @@ lib/presentation/screens/quiz_screen.dart
 クイズ画面（問題出題、回答、結果確認）。進み具合は上端の金の帯とAppBarの「2 / 5」（QuizProgressCounter）で示し、正誤は緑と朱、進む導線は下端の固定バー。ヒント（発音→訳文の2段階、使い切っても不活性で残す）は5問テストのみ。確認クイズはヒント無しで例文へ戻るだけ。
 
 lib/presentation/screens/settings_screen.dart
-設定画面。語彙スコアの深藍カード＋Free向け課金導線を先頭に置き、以下はアカウント/学習設定/表示/アプリについての4カード（見出し＋罫線区切り）。
+設定画面。語彙スコアの深藍カード＋Free向け課金導線を先頭に置き、以下はアカウント/学習設定/表示/アプリについての4カード（見出し＋罫線区切り）。学習設定の先頭は読み物（使い方ガイド・声調ガイド）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI（ボトムシート）。深藍の表題カード＋Free→Premiumの対比3行＋固定購入バー。導線は例文タブの常設バナー（premium_hint_banner）・設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
+プレミアム課金UI（ボトムシート）。深藍の表題カード＋Free→Premiumの対比3行＋固定購入バー。導線は設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
 
 lib/presentation/screens/ranking_screen.dart
 語彙スコアの全期間ランキング。自分の順位カードを上に置き、その下に上位100人を張り出す。表示名はサーバー採番のタイ人名。
 
+lib/presentation/screens/guide_screen.dart
+アプリの使い方を1枚にまとめた説明書。並びは 概要 → 各機能の役割 → 操作のしかた。初回起動ではヒアリングの後・語彙テストの前に全文表示（スキップ可）、以後は設定「使い方ガイド」から読み返す。画面に重ねるコーチマークは持たない。要所には guide_figures.dart の図を挟む。
+
 lib/presentation/screens/onboarding_screen.dart
-初回起動時のオンボーディング画面（3枚・スキップ不可）。
+初回起動時の機能紹介3枚（戻る不可・スキップ可）。この後にヒアリング→使い方ガイド→語彙テスト。
 
 lib/presentation/screens/interview_screen.dart
-オンボーディング直後のヒアリング4問（スキップ不可）。応答は挟まず、最後に1画面だけ回答に寄せた考え方を出す。回答は端末保存＋users docで、例文生成には効かせない。
+初回起動時のヒアリング4問（この後に使い方ガイド→語彙テスト）（スキップ不可）。応答は挟まず、最後に1画面だけ回答に寄せた考え方を出す。回答は端末保存＋users docで、level は語彙テストの開始段に使う。
+
+lib/presentation/screens/vocab_test_screen.dart
+語彙テスト。4択を1段（4問）ずつサーバーから受け取り、落ちた段で終わる（初心者は4問）。初回は使い方ガイドの直後（mandatory: 戻る・スキップ無しで必ず測る）、以後は設定から。プレミアム限定。
 
 lib/presentation/screens/tone_guide_screen.dart
 タイ語声調システムのチュートリアル。
@@ -167,14 +176,14 @@ lib/presentation/screens/tone_guide_screen.dart
 lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセルと、それを載せる生成待ちの白カード（LoadingCard）。例文生成・クイズ生成で共用。
 
-lib/presentation/widgets/coach_mark_overlay.dart
-指定ウィジェットをスポットライト＋吹き出しで案内する初回コーチマークOverlay。出した時点で対象もボタンもすぐ押せる。id/analytics を渡すと shown/tapped/dismissed/closed をGA4へ送る。
-
 lib/presentation/widgets/sign_in_reminder_banner.dart
 匿名ユーザーへ3日非アクティブでの進捗削除を警告しサインインを促すバナー（今日タブ）。告知は3日だが実削除は7日（ANON_INACTIVE_DAYS）で意図的にずらしている。
 
 lib/presentation/widgets/level_up_dialog.dart
 語彙レベルアップ時のお祝いアニメーションダイアログ。
+
+lib/presentation/widgets/vocab_level.dart
+語彙レベルの区切り（入門〜上級）とラベル・アイコン、free の語彙スコア上限。
 
 lib/presentation/widgets/topic_picker.dart
 例文テーマ選択ダイアログ（設定・例文画面で共用）とラベル整形ヘルパー。
@@ -188,23 +197,17 @@ lib/presentation/widgets/sentence_audio_section.dart
 lib/presentation/widgets/thai_highlight.dart
 例文中の学習単語を金で示す TextSpan 生成（深藍面の金地・紙面の色のみ・発音の3種）。
 
+lib/presentation/widgets/guide_figures.dart
+使い方ガイドに載せる模式図（学習のくり返し・例文カードの構成・発音判定の色）。画面写真は使わず、文言はl10nから引く。
+
 lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
 
-lib/presentation/widgets/learning_flow_coach_dialog.dart
-学習の流れ（例文→クイズの繰り返し）を1枚で教えるダイアログ。締めくくりの直後に1回だけ。
-
-lib/presentation/widgets/coach_bullet_text.dart
-案内ダイアログ共用の、本文の一部だけを強調して描くテキストウィジェット。
-
 lib/presentation/widgets/premium_trial_ended_dialog.dart
-プレミアム体験トライアル終了を伝えて登録へ誘導するダイアログ。起動時に一度だけ表示。
+プレミアム体験トライアル終了を伝えて登録へ誘導するダイアログ。起動時に一度だけ表示。失う実数（例文の回数、語彙テストで測った値→free上限）だけを並べる。
 
 lib/presentation/widgets/premium_trial_started_dialog.dart
 後から配られたプレミアム体験の開放を伝えるダイアログ（premium_trial_backfilled_at が目印）。課金は勧めない。
-
-lib/presentation/widgets/premium_hint_banner.dart
-例文カード直下に常設するfree向けプレミアム訴求バナー。訴求軸（テーマ/品質/語彙上限）を起動ごとに均等ランダム抽選、×で3日間非表示。お試し期間中は出さない。
 
 lib/presentation/widgets/quiz_offer.dart
 1問確認クイズ導線の表示（現行はinlineカード。controlは実験再開用に残置）。
@@ -236,7 +239,7 @@ lib/services/review_prompt_service.dart
 App Storeのレビュー依頼をiOSのOSダイアログで出す。クイズ完走と例文生成の2経路から発火し、バージョン単位＋60日クールダウンで重複を防ぐ。
 
 lib/services/interview_reporter.dart
-オンボ直後のヒアリング回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
+初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
 lib/services/daily_sentence_service.dart
 サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、今日ぶんの配信例文を返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
@@ -292,9 +295,6 @@ lib/services/pitch_recorder_service.dart
 
 lib/presentation/providers/pronunciation_provider.dart
 発音練習の状態管理（録音→判定→永続化）と、声調別集計・最弱声調の算出。
-
-lib/presentation/providers/pronunciation_quota_provider.dart
-free の発音チェック回数（1日5回）。判定は端末内なのでカウンタもローカル（SharedPreferences）。
 
 lib/presentation/widgets/pronunciation_practice.dart
 例文詳細の発音練習セクション。点数リングと語ごとの判定チップ、選択した語のピッチカーブ・お手本再生・直し方。
@@ -372,6 +372,9 @@ resetLearningData の Go 版。学習データを全消しし free のクォー�
 functions/go/internal/callable/callable.go
 Firebase callable プロトコルのGo実装。{"data"}/{"result"}/{"error"}電文・IDトークン検証・CORS。
 
+functions/go/internal/callable/number.go
+callable の data に載る整数を読む。Flutter SDK が int を包む Int64 ラッパーも解く。
+
 functions/go/internal/fbapp/fbapp.go
 Firebase Admin(Firestore/Auth)クライアントの遅延生成シングルトン。
 
@@ -387,8 +390,11 @@ resetLearningDataを実Firestoreに対して回す検証テスト。LIVE_FIRESTO
 functions/go/update_uvm.go
 updateUvm の Go 版。クイズ結果からUVMを更新する。uvm_handlers.py と等価。
 
+functions/go/vocabtest.go
+startVocabTest / submitVocabTest。語彙テストの出題・採点と estimated_vocab の書き込み。全員1段目から出題。プレミアム限定＋月1回（開始時刻を起点に30日、中断のやり直しのみ同一期間内3回まで）。
+
 functions/go/internal/uvm/model.go
-UVMの純粋関数（update_p / moving_avg / estimate_vocab）と定数。uvm.py の移植。
+UVMの純粋関数（UpdateP / AnsweredAvg / EstimateVocab）と定数。語彙テストの受験有無で分岐しない単一の境界推定。
 
 functions/go/internal/uvm/store.go
 UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。
@@ -398,6 +404,12 @@ functions/go/internal/uvm/nickname.go
 
 functions/go/internal/uvm/freqrank.go
 GCSからfreq_rank_top10000.jsonを読みキャッシュする。
+
+functions/go/internal/uvm/vocabtest.go
+語彙テストの純ロジック。段の昇降・早期終了・スコア変換・出題の組み立て・測定値が支える下限。語ごとのPには触らない。
+
+functions/go/internal/uvm/vocabtest_items.go
+GCSから vocab_test_items_<lang>.json（出題語と訳）を読みキャッシュする。
 
 functions/go/set_user_tier.go
 setUserTier の Go 版。管理者がtierを切り替える。setUserTier.ts と等価。
@@ -418,7 +430,22 @@ functions/go/subscription_status_live_test.go
 落とす/残すの判定表を実Firestoreで1件ずつ確認する。全体スキャンは走らせない。
 
 functions/go/daily_batch.go
-dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_token・古い例文の掃除。常にHTTPトリガー。
+dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_token・古い例文の掃除、生成例文の品質監査。常にHTTPトリガー。
+
+functions/go/sentence_audit.go
+dailyBatch から呼ぶ品質監査。直近24時間の premium 例文を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書く。判定は既定で gpt-5.6-luna（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
+
+functions/go/sentence_audit_test.go
+監査対象の抽出条件（premium限定・本文必須）、間引き、束分けのテスト。
+
+functions/go/sentence_audit_live_test.go
+judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
+
+functions/go/internal/quality/judge.go
+例文品質judgeのプロンプト・スキーマ・sentence_flags ドキュメントの組み立て。判定基準は与えず、タイ語・訳文・key_wordだけ渡して理由を書かせる。
+
+functions/go/internal/quality/judge_test.go
+judgeレスポンスの選別（natural除外・理由なし除外・index重複）とドキュメント内容のテスト。
 
 functions/go/deliver_daily_sentence.go
 daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文を1件作ってFirestoreに書きFCM通知する。free はキャッシュのみ、premium/トライアルはLLM生成。
@@ -645,6 +672,45 @@ functions/go/internal/uvm/exposure.go
 functions/go/internal/uvm/session_golden_test.go
 uvm.py の選定・露出まわりと突き合わせる差分テスト。
 
+functions/go/internal/uvm/session_band_test.go
+KeyWordBand（帯の下端＝境界）と capBand / capCandidates のテスト。
+
+functions/go/internal/uvm/estimate_test.go
+EstimateVocab のテスト。証拠が無ければ動かさない・0からと測定値からで挙動が同じ、を固定する。
+
+functions/go/vocabtest_session_test.go
+語彙テストのセッションdocの往復（選択肢の保存と、同じ段の再送）のテスト。
+
+functions/go/internal/uvm/sim_harness_test.go
+シミュレーション用の学習サイクル再現（Firestoreを使わないin-memory版）。
+
+functions/go/internal/uvm/sim_vocabtest_test.go
+語彙テストの測定精度と、テスト後の estimated_vocab 推移のシミュレーション（SIM=1 で実行）。受験の有無・クイズ・露出上限を切り分けられる。
+
+functions/go/internal/uvm/sim_matrix_test.go
+語彙テスト受験有無 × まとめクイズ有無の2x2で estimated_vocab 推移を比べるシミュレーション（SIM=1 で実行）。
+
+functions/go/internal/uvm/sim_highrank_test.go
+高ランク帯で estimated_vocab の伸びが小さくなる原因（key_word 帯の下端と境界付近の登録語数）を分解するシミュレーション（SIM=1 で実行）。
+
+functions/go/internal/uvm/sim_dip_test.go
+受験直後に estimated_vocab が沈む現象を日次で分解するシミュレーション（SIM=1 で実行）。
+
+functions/go/internal/uvm/sim_score_test.go
+語彙テストの測定値の上振れと、その下げ方（一律減・内挿縮小・床なし）を比べるシミュレーション（SIM=1 で実行）。
+
+functions/go/internal/uvm/sim_learning_test.go
+確認クイズだけを回したときの estimated_vocab の推移と、測定値を下限にする効果を見るシミュレーション（SIM=1 で実行）。
+
+functions/go/internal/uvm/matrixsim_test.go
+受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。
+
+functions/go/internal/uvm/dropsim_test.go
+例文生成のたびに estimated_vocab が落ちる現象の再現と、前方帯の変更・等倍採点のみを母数にする案の比較。
+
+functions/go/internal/uvm/graded_test.go
+IsGradedResult（等倍採点の判定）と、graded を持たない既存 doc の扱いのテスト。
+
 functions/go/internal/sentence/freebank.go
 free例文バンク（GCS）の読み込みとキャッシュ、target_word一致の抽選。
 
@@ -666,11 +732,14 @@ sentence_handlers.py の生成コア・保存ドキュメントと突き合わ�
 functions/go/generate_thai_sentence.go
 generateThaiSentence（callable）。認証・クォータ・トライアル判定・生成・保存・UVM更新。
 
+functions/go/cmd/sample/main.go
+ターゲット語・語彙帯・テーマを指定して本番と同じ経路で例文を量産する ablation 用コマンド。Firestore を通さず LLM だけ叩く。
+
 functions/go/generate_thai_sentence_golden_test.go
 sentence_handlers.py のクォータ・トライアル・生成条件と突き合わせる差分テスト。
 
 scripts/sample_sentences.py
-ターゲット語を指定して本番と同じ経路で例文をまとめて生成するプロンプト検証スクリプト。デプロイせずルール変更の効果を確認する。
+旧プロンプト検証スクリプト。functions/python の削除で動かない。後継は functions/go/cmd/sample。
 
 scripts/ga4_quiz_offer_experiment.py
 1問確認クイズ導線A/BテストのGA4ファネルを実験群別に集計する。
@@ -717,6 +786,12 @@ docs/infra_hardening.md
 
 ## Scripts
 
+scripts/sim_scan_floor.py
+key_word帯の後方下限・読み取り上限のシミュレーション（取りこぼし率・境界との差・Firestore読取数）。
+
+scripts/build_vocab_test_items.py
+語彙テストの出題語（vocab_test_items_<lang>.json）をGeminiで作りGCSへ上げる。段の定義は uvm.TestStages と揃える。
+
 scripts/build_freq_rank.py
 タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。corpus_word_filter.pyのDENYLIST（終助詞・感嘆詞＋拘束形態素）を除外して採番する。
 
@@ -736,7 +811,10 @@ scripts/ga4_acquisition.py
 prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン別）。SAインパーソネーションで認証。
 
 scripts/ga4_register_dimension.py
-prod GA4 にイベントスコープのカスタムディメンションを登録／一覧。文字列パラメータを足したら実装と同時に実行する（登録は遡及しない）。
+prod GA4 のイベント／ユーザースコープのカスタムディメンションとカスタム指標を、実装スキーマに対して plan／check／apply／list する（登録は遡及しない）。
+
+scripts/ga4_funnel.py
+prod GA4 の Activation Funnel を Data API の閉鎖型ファネルとして集計。各イベントの独立ユーザー数ではなく、順番どおり到達したユーザーの遷移率と離脱数を表示する。
 
 scripts/ga4_language_resolution.py
 prod GA4 の初回起動時の言語決定の内訳（storefront取得失敗率・country×langの食い違い・storefront→langの整合性）。日本以外のユーザーが日本語UIで起動していないかの確認に使う。
@@ -754,6 +832,13 @@ test/services/firebase_auth_service_test.dart
 
 test/presentation/providers/subscription_provider_test.dart
 premium復帰フロー（Firestore tier反映・自動/手動復元・匿名ガード）のテスト。
+
+
+test/presentation/screens/vocab_test_screen_test.dart
+語彙テスト画面の進行（段の連結・わからない・free の断り文言・あとで）のテスト。
+
+test/presentation/widgets/premium_trial_ended_dialog_test.dart
+体験終了ダイアログが語彙スコアの落差を出す条件（測定値が free 上限超のときだけ）のテスト。
 
 ## E2E (Maestro)
 

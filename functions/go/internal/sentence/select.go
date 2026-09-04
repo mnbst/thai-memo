@@ -102,6 +102,7 @@ func (s *TargetWordSelector) SelectTargetWords(
 	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
 	uid string, params map[string]any,
 	maxVocab *int, count int, isPremium bool, estimatedVocab *int,
+	testedVocab int,
 ) ([]string, string, error) {
 	vocab := 0
 	if estimatedVocab != nil {
@@ -116,6 +117,7 @@ func (s *TargetWordSelector) SelectTargetWords(
 		MaxVocab:       maxVocab,
 		TopicsPool:     choice.Pool,
 		EstimatedVocab: estimatedVocab,
+		TestedVocab:    testedVocab,
 	})
 	if err != nil {
 		return nil, "", err

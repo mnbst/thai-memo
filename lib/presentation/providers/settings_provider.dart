@@ -193,7 +193,6 @@ class SettingsController extends StateNotifier<SettingsState> {
     // migrateExistingUserFlags では表示済みにしない。
     final notificationCoachShown =
         _prefs!.getBool(AppConfig.prefKeyNotificationCoachShown) ?? false;
-
     final appLanguage = await _resolveAppLanguage();
 
     state = SettingsState(
@@ -222,7 +221,8 @@ class SettingsController extends StateNotifier<SettingsState> {
     // ことが多く、毎回 en で立ち上がると日本語UIの確認ができない。
     // en の確認は設定の言語切替（dev専用）で行う。
     if (AppConfig.isDev) {
-      await _prefs!.setString(AppConfig.prefKeyAppLanguage, AppLanguage.ja.code);
+      await _prefs!
+          .setString(AppConfig.prefKeyAppLanguage, AppLanguage.ja.code);
       return AppLanguage.ja;
     }
 
@@ -256,15 +256,13 @@ class SettingsController extends StateNotifier<SettingsState> {
     );
   }
 
-  /// コーチマーク・オンボーディング導入前からの既存ユーザーに、アップデート後
-  /// これらが再表示されるのを防ぐ一度きりの移行処理。
+  /// 初回導線（ヒアリング・使い方の説明書）が、既存ユーザーにアップデート後
+  /// 表示されるのを防ぐ一度きりの移行処理。
   ///
   /// 既存ユーザーの判定は「ローカルDBに例文がある」を主条件とする
   /// （is_first_launch フラグは旧バージョンで保存されていない場合があるため）。
-  /// 既存ユーザーには:
-  /// - is_first_launch=false を書き、オンボーディング・初回ダイアログ・コーチ
-  ///   再トリガー（home_screen の if(isFirstLaunch) ブロック）をスキップさせる
-  /// - コーチマーク各フラグを表示済みにし、通常経路でのコーチ表示も抑止する
+  /// 既存ユーザーには is_first_launch=false を書き、home_screen の
+  /// if(isFirstLaunch) ブロックをスキップさせる。
   @visibleForTesting
   static Future<void> migrateExistingUserFlags(
     SharedPreferences prefs,
@@ -276,10 +274,6 @@ class SettingsController extends StateNotifier<SettingsState> {
     final isExistingUser = !storedFirstLaunch || await hasAnySentence();
     if (isExistingUser) {
       await prefs.setBool(AppConfig.prefKeyFirstLaunch, false);
-      await prefs.setBool(AppConfig.prefKeySentenceCoachShown, true);
-      await prefs.setBool(AppConfig.prefKeyQuizReviewCoachShown, true);
-      await prefs.setBool(AppConfig.prefKeyQuizButtonCoachShown, true);
-      await prefs.setBool(AppConfig.prefKeyNextTopicCoachShown, true);
     }
     await prefs.setBool(AppConfig.prefKeyCoachMarksMigrated, true);
   }

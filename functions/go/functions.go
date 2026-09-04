@@ -31,6 +31,8 @@ func init() {
 	registerCallable("generateQuiz", generateQuiz)
 	registerCallable("generateLearningQuiz", generateLearningQuiz)
 	registerCallable("generateThaiSentence", generateThaiSentence)
+	registerCallable("startVocabTest", startVocabTest)
+	registerCallable("submitVocabTest", submitVocabTest)
 
 	// 定期実行のバッチ。HTTP トリガーのままにして、tester/prod では
 	// Cloud Scheduler が OIDC トークン付きで叩く（Terraform 管理）。

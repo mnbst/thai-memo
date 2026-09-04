@@ -37,4 +37,20 @@ void main() {
       );
     });
   });
+
+  group('shouldOfferSummaryQuiz', () {
+    test('例文5本ごとに誘導する（初回だけ早く出したりしない）', () {
+      // completedCount はいま解いている確認クイズの1本を含まない。
+      expect(shouldOfferSummaryQuiz(0), isFalse); // 1本目
+      expect(shouldOfferSummaryQuiz(1), isFalse);
+      expect(shouldOfferSummaryQuiz(2), isFalse);
+      expect(shouldOfferSummaryQuiz(3), isFalse);
+      expect(shouldOfferSummaryQuiz(4), isTrue); // 5本目
+    });
+
+    test('まとめクイズを飛ばして本数が伸びても誘導し続ける', () {
+      expect(shouldOfferSummaryQuiz(summaryQuizThreshold), isTrue);
+      expect(shouldOfferSummaryQuiz(summaryQuizThreshold + 3), isTrue);
+    });
+  });
 }

@@ -16,10 +16,11 @@ WordBreakdown _word(String text, String pronunciation) => WordBreakdown(
       meaning: '',
     );
 
-/// 光った部分の文字列を出現順に返す（面付き＝WidgetSpan）。
+/// 光った部分の文字列を出現順に返す（金＋太字の TextSpan）。
 List<String> _highlighted(TextSpan span) => span.children!
-    .whereType<WidgetSpan>()
-    .map((s) => ((s.child as Container).child as Text).data!)
+    .whereType<TextSpan>()
+    .where((s) => s.style?.fontWeight == FontWeight.bold)
+    .map((s) => s.text!)
     .toList();
 
 /// 色が付いた部分の文字列を出現順に返す（色だけ＝TextSpan）。

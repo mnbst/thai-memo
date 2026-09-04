@@ -30,15 +30,18 @@ import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/firebase_auth_service.dart';
 import '../providers/analytics_provider.dart';
-import '../providers/pronunciation_quota_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../widgets/sign_in_sheet.dart';
-import '../widgets/vocab_score_dialog.dart';
+import '../widgets/vocab_level.dart';
 
 /// 1日あたりの例文生成回数。サーバ側の quota.ts / constants.py と一致させること。
 const freeDailySentences = 5;
 const premiumDailySentences = 20;
+
+/// 新規ユーザーに配るプレミアム体験の期間（日）。
+/// サーバ側の quota.PremiumTrialDays と一致させること。
+const premiumTrialDays = 2;
 
 /// プレミアムプランの説明を表示するモーダルボトムシート
 class PaywallBottomSheet extends ConsumerWidget {
@@ -78,13 +81,6 @@ class PaywallBottomSheet extends ConsumerWidget {
     );
     // 呼び出し元の source を失わないよう、表示前にイベントを確定させる。
     unawaited(analytics.logTapPaywall(source: source));
-    unawaited(
-      analytics.logScreenView(
-        screenName: routeName,
-        screenClass: 'PaywallBottomSheet',
-      ),
-    );
-
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -326,8 +322,8 @@ class PaywallBottomSheet extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
-          AppConfig.screenPadding, 12, AppConfig.screenPadding, 10 + bottomSafeArea),
+      padding: EdgeInsets.fromLTRB(AppConfig.screenPadding, 12,
+          AppConfig.screenPadding, 10 + bottomSafeArea),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
@@ -500,27 +496,13 @@ class PaywallBottomSheet extends ConsumerWidget {
           ),
           _buildBenefitRow(
             context,
-            icon: Icons.mic_none,
-            title: l10n.paywallFeaturePronunciationTitle,
-            freeText: l10n
-                .paywallFeaturePronunciationFree(freeDailyPronunciationChecks),
-            premiumText: l10n.paywallFeaturePronunciationPremium,
-          ),
-          const Divider(
-            height: 1,
-            indent: AppConfig.defaultPadding,
-            endIndent: AppConfig.defaultPadding,
-          ),
-          _buildBenefitRow(
-            context,
             icon: Icons.menu_book_outlined,
             title: l10n.paywallFeatureQuotaTitle,
             // 例文の回数と語彙スコアの上限を1行にまとめる。どちらも
             // 「どれだけ触れられるか」の話なので、行を分けると差が薄まる。
             freeText: l10n.paywallFeatureQuotaFree(
                 freeDailySentences, freeVocabScoreLimit),
-            premiumText:
-                l10n.paywallFeatureQuotaPremium(premiumDailySentences),
+            premiumText: l10n.paywallFeatureQuotaPremium(premiumDailySentences),
           ),
         ],
       ),

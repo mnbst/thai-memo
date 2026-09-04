@@ -23,6 +23,7 @@ type WordSelector interface {
 		ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
 		uid string, params map[string]any,
 		maxVocab *int, count int, isPremium bool, estimatedVocab *int,
+		testedVocab int,
 	) ([]string, string, error)
 }
 
@@ -55,6 +56,9 @@ type ProduceRequest struct {
 	// UsePremiumSpec が真なら premium 相当の生成（テーマ採用・語彙上限なし）。
 	UsePremiumSpec bool
 	EstimatedVocab int
+	// TestedVocab は語彙テストの測定値（原点）。key_word 帯の下端はここより
+	// 下へ行かない。未受験は 0。
+	TestedVocab int
 	// CacheOnly が真なら LLM を呼ばない（配信の free 経路）。
 	CacheOnly bool
 	// SelectRetry は CacheOnly でキャッシュミスしたときの引き直し回数。
@@ -98,7 +102,7 @@ func (p *Producer) Produce(
 		var err error
 		targetWords, chosenTopic, err = p.Selector.SelectTargetWords(
 			ctx, db, freqRank, req.UID, req.Params,
-			maxVocab, 1, usePremiumPrompt, &req.EstimatedVocab,
+			maxVocab, 1, usePremiumPrompt, &req.EstimatedVocab, req.TestedVocab,
 		)
 		if err != nil {
 			return nil, err

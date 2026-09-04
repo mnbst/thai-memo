@@ -23,6 +23,19 @@ type Result struct {
 	SentenceReviewed bool `json:"sentence_reviewed"`
 }
 
+// IsGradedResult は「等倍で採点されたクイズの回答」かを返す。
+//
+// 境界推定（SyncEstimatedVocab）の母数はこれが真の語だけ。確認クイズ
+// （quiz_type=="learning"）の正解は α×0.1、ヒント有りは ×0.5/×0.25、例文
+// レビュー由来も ×0.1 で、P は VocabCutoffP=0.42 に構造的に届かない。それでも
+// MovingAvg の母数には入るので、未登録 rank の prior(0.4) より低い実測値として
+// 平均を押し下げ、例文を生成するたびに境界が数ランク落ちていた。
+//
+// 減衰つきの回答は P だけ動かし、境界の証拠にはしない。
+func IsGradedResult(quizType string, r Result) bool {
+	return quizType != "learning" && r.HintLevel == 0 && !r.SentenceReviewed
+}
+
 // now は time.time() 相当（Unix 秒の float）。Firestore には数値で入る。
 func nowSeconds() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
@@ -78,17 +91,24 @@ func BatchUpdate(
 			mult *= SentenceReviewCorrectMultiplier
 		}
 
+		graded := IsGradedResult(quizType, r)
+
 		if data, ok := existing[r.Word]; ok {
 			// --- 既存単語の更新 ---
 			oldP := floatField(data, "p", NewWordP)
 			attempts := intField(data, "quiz_attempts", 0)
 			newP := UpdateP(oldP, r.IsCorrect, attempts, rank, mult)
-			if _, err := batch.Update(docRef, []firestore.Update{
+			updates := []firestore.Update{
 				{Path: "p", Value: newP},
 				{Path: "quiz_attempts", Value: attempts + 1},
 				{Path: "last_seen", Value: now},
 				{Path: "last_result", Value: r.IsCorrect},
-			}); err != nil {
+			}
+			// 一度立った graded は下ろさない（等倍で解いた事実は消えない）。
+			if graded {
+				updates = append(updates, firestore.Update{Path: "graded", Value: true})
+			}
+			if _, err := batch.Update(docRef, updates); err != nil {
 				return fmt.Errorf("uvm の更新に失敗 (%s): %w", r.Word, err)
 			}
 		} else {
@@ -100,6 +120,7 @@ func BatchUpdate(
 				"quiz_attempts": 1,
 				"last_seen":     now,
 				"last_result":   r.IsCorrect,
+				"graded":        graded,
 			}); err != nil {
 				return fmt.Errorf("uvm の作成に失敗 (%s): %w", r.Word, err)
 			}
@@ -131,12 +152,21 @@ func SyncEstimatedVocab(
 ) {
 	userRef := db.Collection("users").Doc(uid)
 
-	current := 0
+	current, tested := 0, 0
 	if snap, err := userRef.Get(ctx); err == nil && snap.Exists() {
-		current = intField(snap.Data(), "estimated_vocab", 0)
+		data := snap.Data()
+		current = intField(data, "estimated_vocab", 0)
+		// 語彙テストの測定値は「原点」。これ以下の rank は存在しないものとして扱う
+		// （EstimateVocab の floor）。未受験は 0。
+		tested = intField(data, "vocab_test_vocab", 0)
+	}
+	// free（maxVocab あり）は測定値を使わない。key_word 帯（GetSessionWords）が
+	// free では原点シフトしないので、走査帯の下端も揃えないと帯がずれる。
+	if maxVocab >= 0 {
+		tested = 0
 	}
 
-	scanLow := max(0, current-50)
+	scanLow := max(tested, current-50)
 	scanHigh := current + 51
 
 	uvmRef := userRef.Collection("uvm")
@@ -160,6 +190,12 @@ func SyncEstimatedVocab(
 			if !s.Exists() {
 				continue
 			}
+			// 等倍で採点された語だけを境界の証拠にする（IsGradedResult）。
+			// フィールドを持たない既存 doc は真として扱う。移行中に過去の
+			// 母数が急に減って estimated_vocab が動くのを避ける。
+			if !boolField(s.Data(), "graded", true) {
+				continue
+			}
 			entries = append(entries, RankedP{
 				Rank: rankOf[s.Ref.ID],
 				P:    floatField(s.Data(), "p", NewWordP),
@@ -167,12 +203,17 @@ func SyncEstimatedVocab(
 		}
 	}
 
-	raw := EstimateVocab(entries, current)
-	delta := max(-VocabMaxDelta, min(VocabMaxDelta, raw-current))
-	estimated := max(0, current+delta)
+	// 推定値をそのまま採用する。以前は 1 sync あたり ±3 に刻んでいたが、
+	// 刻んでも行き先は変わらず、到達までの十数回の sync に効果が分散する
+	// だけだった。クイズ 1 回の結果が、そのあとの例文生成のたびに少しずつ
+	// スコアを動かしているように見えていたのはこのため。
+	raw := EstimateVocab(entries, current, tested)
+	estimated := max(0, raw)
 	if maxVocab >= 0 {
 		estimated = min(estimated, maxVocab)
 	}
+	log.Printf("sync_estimated_vocab: uid=%s current=%d floor=%d entries=%d raw=%d -> %d",
+		uid, current, tested, len(entries), raw, estimated)
 
 	if _, err := userRef.Set(ctx, map[string]any{"estimated_vocab": estimated},
 		firestore.MergeAll); err != nil {
@@ -225,6 +266,13 @@ func floatField(data map[string]any, key string, fallback float64) float64 {
 		return float64(v)
 	case int:
 		return float64(v)
+	}
+	return fallback
+}
+
+func boolField(data map[string]any, key string, fallback bool) bool {
+	if v, ok := data[key].(bool); ok {
+		return v
 	}
 	return fallback
 }

@@ -1,84 +1,144 @@
-"""prod GA4 新規ユーザー活性化ファネル（日次）
+"""prod GA4 新規ユーザー活性化ファネル。
 
-first_open → onboarding_start → generate_sentence の日次推移を出す。
-ログイン壁/オンボ改善の先行指標。ただし新規流入が少ない時は数値がノイズになる点に注意。
+GA4 Funnel Report API の閉じたファネルを使い、同じユーザーが期間内に
+first_open → onboarding_start → onboarding_complete → generate_sentence の順で
+到達した人数を集計する。独立したイベント人数を割らないため100%を超えない。
 
 usage:
-  uv run python scripts/ga4_funnel.py [days]   # default 35
-  # 認証は SA インパーソネーション（project_ga4_data_api 参照）
-
-前提: gcloud で下記SAへの tokenCreator 権限があること。
-  ga4-analytics@thai-memo-prod.iam.gserviceaccount.com
+  uv run python scripts/ga4_funnel.py [days]  # default 35
 """
 
+from __future__ import annotations
+
+import json
 import subprocess
 import sys
-import json
-from collections import defaultdict
 
-PROP = "534357716"  # thai-memo-prod GA4
+PROP = "534357716"
 SA = "ga4-analytics@thai-memo-prod.iam.gserviceaccount.com"
-DAYS = int(sys.argv[1]) if len(sys.argv) > 1 else 35
+DEFAULT_DAYS = 35
+STEPS = (
+    "first_open",
+    "onboarding_start",
+    "onboarding_complete",
+    "generate_sentence",
+)
 
 
 def token() -> str:
-    out = subprocess.run(
-        ["gcloud", "auth", "print-access-token",
-         f"--impersonate-service-account={SA}",
-         "--scopes=https://www.googleapis.com/auth/analytics.readonly"],
-        capture_output=True, text=True,
+    result = subprocess.run(
+        [
+            "gcloud",
+            "auth",
+            "print-access-token",
+            f"--impersonate-service-account={SA}",
+            "--scopes=https://www.googleapis.com/auth/analytics.readonly",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    if out.returncode != 0 or len(out.stdout.strip()) < 50:
-        sys.exit(f"token error: {out.stderr[:300]}")
-    return out.stdout.strip()
+    value = result.stdout.strip()
+    if result.returncode != 0 or len(value) < 50:
+        raise SystemExit(f"token error: {result.stderr[:300]}")
+    return value
 
 
-def run_report(tok: str) -> dict:
+def run_report(access_token: str, days: int) -> dict:
     body = {
-        "dateRanges": [{"startDate": f"{DAYS}daysAgo", "endDate": "today"}],
-        "dimensions": [{"name": "date"}, {"name": "eventName"}],
-        "metrics": [{"name": "totalUsers"}],
-        "dimensionFilter": {"filter": {"fieldName": "eventName", "inListFilter": {
-            "values": ["first_open", "onboarding_start", "onboarding_complete", "generate_sentence"]}}},
-        "orderBys": [{"dimension": {"dimensionName": "date"}}],
+        "dateRanges": [{"startDate": f"{days}daysAgo", "endDate": "today"}],
+        "funnel": {
+            "isOpenFunnel": False,
+            "steps": [
+                {
+                    "name": event_name,
+                    "filterExpression": {
+                        "funnelEventFilter": {"eventName": event_name}
+                    },
+                }
+                for event_name in STEPS
+            ],
+        },
     }
-    url = f"https://analyticsdata.googleapis.com/v1beta/properties/{PROP}:runReport"
-    out = subprocess.run(
-        ["curl", "-s", url,
-         "-H", f"Authorization: Bearer {tok}",
-         "-H", "Content-Type: application/json",
-         "-d", json.dumps(body)],
-        capture_output=True, text=True,
+    url = (
+        "https://analyticsdata.googleapis.com/v1alpha/properties/"
+        f"{PROP}:runFunnelReport"
     )
-    return json.loads(out.stdout)
+    result = subprocess.run(
+        [
+            "curl",
+            "-sS",
+            url,
+            "-H",
+            f"Authorization: Bearer {access_token}",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            json.dumps(body),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"request error: {result.stderr[:300]}")
+    try:
+        report = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise SystemExit(f"invalid GA4 response: {result.stdout[:300]}") from None
+    if "error" in report:
+        raise SystemExit(f"GA4 error: {report['error'].get('message')}")
+    return report
 
 
-def main():
-    d = run_report(token())
-    t: dict[str, dict] = defaultdict(dict)
-    for r in d.get("rows", []):
-        dt = r["dimensionValues"][0]["value"]
-        ev = r["dimensionValues"][1]["value"]
-        t[dt][ev] = int(r["metricValues"][0]["value"])
+def percentage(value: float) -> str:
+    return f"{value * 100:.1f}%"
 
-    print(f"=== GA4 Activation Funnel (last {DAYS}d, by new users) ===")
-    print(f"{'date':>10} {'first_open':>10} {'onb_start':>9} {'onb_done':>8} {'gen':>5} {'wall%':>6}")
-    tot = defaultdict(int)
-    for dt in sorted(t):
-        a = t[dt].get("first_open", 0)
-        b = t[dt].get("onboarding_start", 0)
-        c = t[dt].get("onboarding_complete", 0)
-        g = t[dt].get("generate_sentence", 0)
-        for k, v in (("fo", a), ("os", b), ("oc", c), ("g", g)):
-            tot[k] += v
-        w = f"{b/a*100:.0f}%" if a else "-"
-        print(f"{dt:>10} {a:>10} {b:>9} {c:>8} {g:>5} {w:>6}")
-    print("-" * 52)
-    fo = tot["fo"]
-    wall = f"{tot['os']/fo*100:.0f}%" if fo else "-"
-    print(f"{'TOTAL':>10} {fo:>10} {tot['os']:>9} {tot['oc']:>8} {tot['g']:>5} {wall:>6}")
-    if fo:
-        print(f"\n注意: 新規 first_open={fo}/{DAYS}d。母数が小さいと wall% はノイズ。")
+
+def parse_rows(report: dict) -> list[tuple[str, int, float, int]]:
+    rows = report.get("funnelTable", {}).get("rows", [])
+    parsed: list[tuple[str, int, float, int]] = []
+    for row in rows:
+        step = row["dimensionValues"][0]["value"].split(". ", 1)[-1]
+        values = row["metricValues"]
+        parsed.append(
+            (
+                step,
+                int(values[0]["value"]),
+                float(values[1]["value"]),
+                int(values[2]["value"]),
+            )
+        )
+    return parsed
+
+
+def main() -> None:
+    days = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_DAYS
+    report = run_report(token(), days)
+    parsed = parse_rows(report)
+    if not parsed:
+        print("No activation funnel data.")
+        return
+
+    base = parsed[0][1]
+    print(f"=== GA4 Activation Funnel (closed, last {days}d) ===")
+    print(f"{'step':<24} {'users':>7} {'from first':>11} {'to next':>9} {'drop':>7}")
+    for step, users, completion_rate, abandonments in parsed:
+        from_first = users / base if base else 0
+        print(
+            f"{step:<24} {users:>7} {percentage(from_first):>11} "
+            f"{percentage(completion_rate):>9} {abandonments:>7}"
+        )
+
+    sampling = report.get("funnelTable", {}).get("metadata", {}).get(
+        "samplingMetadatas", []
+    )
+    if sampling:
+        item = sampling[0]
+        print(
+            "\n注意: sampled "
+            f"{item.get('samplesReadCount')}/{item.get('samplingSpaceSize')} events"
+        )
 
 
 if __name__ == "__main__":

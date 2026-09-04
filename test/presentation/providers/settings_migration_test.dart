@@ -1,7 +1,7 @@
 /// SettingsController.migrateExistingUserFlags のテスト
 ///
-/// コーチマーク・オンボーディング導入前からの既存ユーザーに、アップデート後
-/// これらが再表示されないようにする一度きりの移行処理を検証する。
+/// 初回導線（ヒアリング・使い方の説明書）が、既存ユーザーへアップデート後に
+/// 再表示されないようにする一度きりの移行処理を検証する。
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -19,15 +19,12 @@ void main() {
 
   Future<bool> Function() sentences(bool exists) => () async => exists;
 
-  test('既存ユーザー（DBに例文あり・フラグ未登録）は全フラグが立つ', () async {
+  test('既存ユーザー（DBに例文あり・フラグ未登録）は初回起動扱いにしない', () async {
     final prefs = await prefsWith({});
 
     await SettingsController.migrateExistingUserFlags(prefs, sentences(true));
 
     expect(prefs.getBool(AppConfig.prefKeyFirstLaunch), isFalse);
-    expect(prefs.getBool(AppConfig.prefKeySentenceCoachShown), isTrue);
-    expect(prefs.getBool(AppConfig.prefKeyQuizButtonCoachShown), isTrue);
-    expect(prefs.getBool(AppConfig.prefKeyNextTopicCoachShown), isTrue);
     expect(prefs.getBool(AppConfig.prefKeyCoachMarksMigrated), isTrue);
   });
 
@@ -37,20 +34,16 @@ void main() {
     await SettingsController.migrateExistingUserFlags(prefs, sentences(false));
 
     expect(prefs.getBool(AppConfig.prefKeyFirstLaunch), isFalse);
-    expect(prefs.getBool(AppConfig.prefKeySentenceCoachShown), isTrue);
     expect(prefs.getBool(AppConfig.prefKeyCoachMarksMigrated), isTrue);
   });
 
-  test('新規インストール（例文なし・フラグ未登録）はフラグを立てず移行のみ記録', () async {
+  test('新規インストール（例文なし・フラグ未登録）は初回起動のまま移行のみ記録', () async {
     final prefs = await prefsWith({});
 
     await SettingsController.migrateExistingUserFlags(prefs, sentences(false));
 
-    // is_first_launch は未登録のまま（＝true 扱い）でオンボ・コーチが出せる
+    // is_first_launch は未登録のまま（＝true 扱い）で初回導線が出せる
     expect(prefs.getBool(AppConfig.prefKeyFirstLaunch), isNull);
-    expect(prefs.getBool(AppConfig.prefKeySentenceCoachShown), isNull);
-    expect(prefs.getBool(AppConfig.prefKeyQuizButtonCoachShown), isNull);
-    expect(prefs.getBool(AppConfig.prefKeyNextTopicCoachShown), isNull);
     // 移行自体は実施済みとして記録し、二度と走らないようにする
     expect(prefs.getBool(AppConfig.prefKeyCoachMarksMigrated), isTrue);
   });
@@ -70,6 +63,5 @@ void main() {
     // 既存の is_first_launch=true を上書きせず、DB照会も行わない
     expect(called, isFalse);
     expect(prefs.getBool(AppConfig.prefKeyFirstLaunch), isTrue);
-    expect(prefs.getBool(AppConfig.prefKeySentenceCoachShown), isNull);
   });
 }

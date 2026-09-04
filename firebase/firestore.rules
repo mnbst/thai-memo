@@ -6,11 +6,27 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       // premium_trial_expires_at は体験の有効判定そのもの（体験中は課金プレミアムと
       // 同じ機能・回数が出る）。書けるとプレミアムを自己付与できるので必ず塞ぐ。
+      // estimated_vocab は語彙ランキングの公開値そのもの（leaderboard/{uid} へ
+      // サーバーが複製する）。書けると順位を自己申告できるので塞ぐ。
+      // vocab_floor_applied は旧・下限の適用済み印。サーバーはもう書かないが、
+      // クライアントに書かせる理由も無いので塞いだままにする。
+      // vocab_test_at / vocab_test_vocab は語彙テストの測定結果、
+      // vocab_test_window_at / vocab_test_count は受験間隔の記録。書けると制限を外して
+      // estimated_vocab を任意の値まで釣り上げられるので塞ぐ。
       allow create: if request.auth != null && request.auth.uid == userId
-        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at']);
+        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at'])
+        && (!request.resource.data.keys().hasAny(['vocab_floor'])
+            || request.resource.data.vocab_floor in [0, 100, 300, 600]);
       allow update: if request.auth != null && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'last_sentence_generated_at', 'last_notified_at'])
+            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'last_sentence_generated_at', 'last_notified_at', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at'])
+        // vocab_floor は「申告レベルを語彙スコアの下限にする」旧仕様の名残。
+        // サーバーはもう読まない（語彙スコアは語彙テストの測定値だけで決まる）。
+        // 旧バージョンのアプリがヒアリング送信でこれを含めてくるので、書き込み
+        // 自体は通す（拒否すると interview の記録ごと落ちる）。値の制限だけ
+        // 残しておく。新しいクライアントは送らない。
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['vocab_floor'])
+            || request.resource.data.vocab_floor in [0, 100, 300, 600])
         // notify_tier / notify_tier_misses はサーバー管理だが、通知トグルON時の
         // バックオフ解除（0へのリセット）に限りクライアントから書ける
         && (!request.resource.data.diff(resource.data).affectedKeys()
@@ -54,6 +70,12 @@ service cloud.firestore {
       allow update: if request.auth != null
         && resource.data.uid == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sent']);
+    }
+
+    // 生成例文の品質監査ログ（dailyBatch が書く）。プロンプト改善の資料であって
+    // ユーザーに見せるものではない。他人の例文本文が入るので read も塞ぐ。
+    match /sentence_flags/{flagId} {
+      allow read, write: if false;
     }
 
     // Legacy: notification_queue managed by Cloud Functions only

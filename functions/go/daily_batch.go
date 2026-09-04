@@ -128,6 +128,13 @@ func runDailyBatch(ctx context.Context) error {
 		wg.Wait()
 	}
 
+	// 品質監査は古い例文の削除より先に回す。監査対象は直近24時間ぶんなので
+	// 実際には競合しないが、順序に依存させない。
+	if err := runSentenceAudit(ctx, db, users, now); err != nil {
+		// 監査は学習用の記録であって本体処理ではない。落ちてもバッチは通す。
+		log.Printf("runSentenceAudit failed: %v", err)
+	}
+
 	if err := cleanOldSentences(ctx, db, now); err != nil {
 		return err
 	}
