@@ -2,16 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
-import '../core/config/app_config.dart';
 import '../core/thai_tone_analyzer.dart';
 import '../data/models/word_breakdown.dart';
-import 'providers/analytics_provider.dart';
 import 'screens/tone_guide_screen.dart';
-import 'widgets/coach_mark_overlay.dart';
 
 /// 声調解説を表示するダイアログ
 class ToneExplanationDialog extends StatelessWidget {
@@ -23,18 +18,12 @@ class ToneExplanationDialog extends StatelessWidget {
   ///
   /// 表のキーは1つ目の音節カードにだけ付ける。同じ説明を音節の数だけ
   /// 繰り返しても読まれない。
-  final GlobalKey? coachBodyKey;
-  final GlobalKey? coachToneTableKey;
-  final GlobalKey? coachToneGuideKey;
 
   const ToneExplanationDialog({
     super.key,
     required this.thaiWord,
     required this.analysis,
     this.wordBreakdown,
-    this.coachBodyKey,
-    this.coachToneTableKey,
-    this.coachToneGuideKey,
   });
 
   @override
@@ -64,7 +53,6 @@ class ToneExplanationDialog extends StatelessWidget {
                     if (hasSyllables) ...[
                       // 音節分解サマリー
                       KeyedSubtree(
-                        key: coachBodyKey,
                         child: _buildSyllableBreakdown(context),
                       ),
                       const SizedBox(height: 20),
@@ -83,12 +71,10 @@ class ToneExplanationDialog extends StatelessWidget {
                     ] else ...[
                       // 音節情報がない場合は単語全体の分析
                       KeyedSubtree(
-                        key: coachBodyKey,
                         child: _buildWordInfo(context),
                       ),
                       const SizedBox(height: 20),
                       KeyedSubtree(
-                        key: coachToneTableKey,
                         child: _buildToneTable(context),
                       ),
                       const SizedBox(height: 20),
@@ -197,9 +183,6 @@ class ToneExplanationDialog extends StatelessWidget {
     final syllableType =
         ThaiToneAnalyzer.parseSyllableType(syllable.syllableType);
     final resultingTone = ThaiToneAnalyzer.parseTone(syllable.tone);
-    // 項目ごとの案内は1音節目にだけ出す。
-    final isFirst = syllableNumber == 1;
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -303,7 +286,6 @@ class ToneExplanationDialog extends StatelessWidget {
             const SizedBox(height: 16),
             // 声調テーブル
             KeyedSubtree(
-              key: isFirst ? coachToneTableKey : null,
               child: _buildCompactToneTable(context, consonantClass, toneMark,
                   syllableType, syllable.hasShortVowel),
             ),
@@ -979,7 +961,6 @@ class ToneExplanationDialog extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         OutlinedButton.icon(
-          key: coachToneGuideKey,
           onPressed: () {
             Navigator.of(context).pop();
             Navigator.push(
@@ -1003,185 +984,21 @@ class ToneExplanationDialog extends StatelessWidget {
   }
 
   /// ダイアログを表示する。閉じられるまで待てる。
-  ///
-  /// 自分で単語を開いた初回だけ、中の読み方を案内する（一度きり）。
-  /// こちらから開かせるのはやめたので、案内も本人が開いたときに出す。
   static Future<void> show(
     BuildContext context,
     String thaiWord, {
     WordBreakdown? wordBreakdown,
   }) async {
     final analysis = ThaiToneAnalyzer.analyzeTone(thaiWord);
-    final prefs = await SharedPreferences.getInstance();
-    final coach =
-        !(prefs.getBool(AppConfig.prefKeyToneDetailCoachShown) ?? false);
-    // 出す前に記録する。案内の途中で閉じられても出し直さない。
-    if (coach) {
-      await prefs.setBool(AppConfig.prefKeyToneDetailCoachShown, true);
-    }
     if (!context.mounted) return;
 
     return showDialog<void>(
       context: context,
-      builder: (context) => coach
-          ? _ToneCoachHost(
-              thaiWord: thaiWord,
-              analysis: analysis,
-              wordBreakdown: wordBreakdown,
-            )
-          : ToneExplanationDialog(
-              thaiWord: thaiWord,
-              analysis: analysis,
-              wordBreakdown: wordBreakdown,
-            ),
-    );
-  }
-}
-
-/// 初回ガイド付きで声調解説を出す入れ物。
-///
-/// ダイアログ本体は StatelessWidget のままにして、スポット対象のキーと
-/// 案内の連鎖だけをここで持つ。
-class _ToneCoachHost extends ConsumerStatefulWidget {
-  const _ToneCoachHost({
-    required this.thaiWord,
-    required this.analysis,
-    required this.wordBreakdown,
-  });
-
-  final String thaiWord;
-  final ToneAnalysis analysis;
-  final WordBreakdown? wordBreakdown;
-
-  @override
-  ConsumerState<_ToneCoachHost> createState() => _ToneCoachHostState();
-}
-
-class _ToneCoachHostState extends ConsumerState<_ToneCoachHost> {
-  final GlobalKey _bodyKey = GlobalKey();
-  final GlobalKey _toneTableKey = GlobalKey();
-  final GlobalKey _toneGuideKey = GlobalKey();
-
-  List<GlobalKey> get _allKeys => [_bodyKey, _toneTableKey, _toneGuideKey];
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_runCoach()));
-  }
-
-  @override
-  void dispose() {
-    for (final key in _allKeys) {
-      CoachMarkOverlay.dismissFor(key);
-    }
-    super.dispose();
-  }
-
-  /// 全体 → 声調表 → 声調ガイド の順に案内する。
-  ///
-  /// 主子音・声調記号・音節の型を1つずつ指すと案内が長くなる。表を指して
-  /// 「この3つの組み合わせで決まる」とだけ伝え、細かい読み方は表に任せる。
-  /// どの段も「わかった」で流せる。自分で開いた人を足止めしない。
-  ///
-  /// 音節データが無い単語では表の位置が変わる。対象が無い段は自動で飛ぶ。
-  Future<void> _runCoach() async {
-    final l10n = L10n.of(context);
-    await _showStep(
-      key: _bodyKey,
-      icon: Icons.graphic_eq,
-      title: l10n.coachToneDetailTitle,
-      message: l10n.coachToneDetailMessage,
-    );
-    if (!mounted) return;
-    await _showStep(
-      key: _toneTableKey,
-      icon: Icons.grid_on,
-      title: l10n.coachToneTableTitle,
-      message: l10n.coachToneTableMessage,
-      // 声調を決める3要素を強調する。文が長く、どれが要素なのかが
-      // 読み流すと分からない。
-      emphases: [
-        l10n.coachToneTableEmphasis1,
-        l10n.coachToneTableEmphasis2,
-        l10n.coachToneTableEmphasis3,
-      ],
-      // 一覧表は画面より縦に長い。対象基準で置くと吹き出しが上に見切れる。
-      pinToTop: true,
-    );
-    if (!mounted) return;
-    final action = await _showStep(
-      key: _toneGuideKey,
-      icon: Icons.school_outlined,
-      title: l10n.coachToneGuideTitle,
-      message: l10n.coachToneGuideMessage,
-      // 最後の段。ここまで読んだら用は済んでいるので、閉じるボタンをそのまま
-      // 帰り道にする。解説を自分で閉じ直させると、案内の後に一手増える。
-      confirmLabel: l10n.coachToneBackToDetail,
-    );
-    if (!mounted || action != 'confirmed') return;
-    Navigator.of(context).pop();
-  }
-
-  /// 1段出して、閉じられるまで待つ。閉じ方（confirmed / dismissed など）を
-  /// 返す。出せなかった段では null。
-  Future<String?> _showStep({
-    required GlobalKey key,
-    required IconData icon,
-    required String title,
-    required String message,
-    List<String> emphases = const [],
-    bool pinToTop = false,
-    String? confirmLabel,
-  }) async {
-    final targetContext = key.currentContext;
-    if (targetContext == null || !targetContext.mounted) return null;
-    // 「声調ガイド」はスクロールの末尾にあり、画面外のことがある。
-    await Scrollable.ensureVisible(
-      targetContext,
-      alignment: 0.4,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
-    if (!mounted) return null;
-
-    final completer = Completer<String>();
-    final shown = CoachMarkOverlay.show(
-      context,
-      targetKey: key,
-      id: _coachIds[key] ?? 'tone_detail',
-      analytics: ref.read(analyticsServiceProvider),
-      icon: icon,
-      title: title,
-      message: message,
-      emphases: emphases,
-      targetTappable: false,
-      pinToTop: pinToTop,
-      confirmLabel: confirmLabel ?? L10n.of(context).coachGotIt,
-      onDismiss: (action) {
-        if (!completer.isCompleted) completer.complete(action);
-      },
-    );
-    if (!shown) return null;
-    return completer.future;
-  }
-
-  /// 計測用の識別子。段ごとに読まれ方（通過・離脱）を分けて見る。
-  Map<GlobalKey, String> get _coachIds => {
-        _bodyKey: 'tone_detail',
-        _toneTableKey: 'tone_detail_table',
-        _toneGuideKey: 'tone_detail_guide',
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    return ToneExplanationDialog(
-      thaiWord: widget.thaiWord,
-      analysis: widget.analysis,
-      wordBreakdown: widget.wordBreakdown,
-      coachBodyKey: _bodyKey,
-      coachToneTableKey: _toneTableKey,
-      coachToneGuideKey: _toneGuideKey,
+      builder: (context) => ToneExplanationDialog(
+        thaiWord: thaiWord,
+        analysis: analysis,
+        wordBreakdown: wordBreakdown,
+      ),
     );
   }
 }

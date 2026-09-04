@@ -12,7 +12,6 @@ import 'sign_in_sheet.dart';
 ///
 /// 表示条件:
 /// - 未サインイン（匿名）
-/// - 初回まとめクイズ完了済み（＝守りたい進捗ができたタイミング）
 /// - 閉じてから3日以上経過（初回は無条件）
 class SignInReminderBanner extends ConsumerStatefulWidget {
   const SignInReminderBanner({super.key});
@@ -39,10 +38,6 @@ class _SignInReminderBannerState extends ConsumerState<SignInReminderBanner> {
 
   Future<void> _loadEligibility() async {
     final prefs = await SharedPreferences.getInstance();
-    final quizCompleted =
-        prefs.getBool(AppConfig.prefKeyFirstSummaryQuizCompleted) ?? false;
-    if (!quizCompleted) return;
-
     final dismissedAtMs =
         prefs.getInt(AppConfig.prefKeySignInReminderDismissedAt);
     if (dismissedAtMs != null) {

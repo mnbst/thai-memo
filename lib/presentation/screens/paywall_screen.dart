@@ -30,15 +30,18 @@ import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/firebase_auth_service.dart';
 import '../providers/analytics_provider.dart';
-import '../providers/pronunciation_quota_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../widgets/sign_in_sheet.dart';
-import '../widgets/vocab_score_dialog.dart';
+import '../widgets/vocab_level.dart';
 
 /// 1日あたりの例文生成回数。サーバ側の quota.ts / constants.py と一致させること。
 const freeDailySentences = 5;
 const premiumDailySentences = 20;
+
+/// 新規ユーザーに配るプレミアム体験の期間（日）。
+/// サーバ側の quota.PremiumTrialDays と一致させること。
+const premiumTrialDays = 2;
 
 /// プレミアムプランの説明を表示するモーダルボトムシート
 class PaywallBottomSheet extends ConsumerWidget {
@@ -485,19 +488,6 @@ class PaywallBottomSheet extends ConsumerWidget {
             title: l10n.paywallFeatureTopicTitle,
             freeText: l10n.paywallFeatureTopicFree,
             premiumText: l10n.paywallFeatureTopicPremium,
-          ),
-          const Divider(
-            height: 1,
-            indent: AppConfig.defaultPadding,
-            endIndent: AppConfig.defaultPadding,
-          ),
-          _buildBenefitRow(
-            context,
-            icon: Icons.mic_none,
-            title: l10n.paywallFeaturePronunciationTitle,
-            freeText: l10n
-                .paywallFeaturePronunciationFree(freeDailyPronunciationChecks),
-            premiumText: l10n.paywallFeaturePronunciationPremium,
           ),
           const Divider(
             height: 1,

@@ -71,20 +71,9 @@ TextSpan buildHighlightedThaiText(
     if (match.start > lastEnd) {
       spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
     }
-    spans.add(
-      WidgetSpan(
-        alignment: PlaceholderAlignment.baseline,
-        baseline: TextBaseline.alphabetic,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: highlightColor.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(match.group(0)!, style: highlightStyle),
-        ),
-      ),
-    );
+    // 面も下線も持たせない。金の字と太さだけで示す。深藍の上では
+    // それだけで十分に立ち、タイ文字の声調記号も隠れない。
+    spans.add(TextSpan(text: match.group(0)!, style: highlightStyle));
     lastEnd = match.end;
   }
   if (lastEnd < text.length) {

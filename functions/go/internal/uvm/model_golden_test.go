@@ -102,11 +102,51 @@ func TestEstimateVocabMatchesPython(t *testing.T) {
 		for _, e := range c.Entries {
 			entries = append(entries, RankedP{Rank: e.Rank, P: e.P})
 		}
-		got := EstimateVocab(entries, c.Center)
+		got := EstimateVocab(entries, c.Center, 0)
 		if got != c.Want {
 			t.Fatalf("case %d (center=%d, %d entries): EstimateVocab = %d, want %d",
 				i, c.Center, len(entries), got, c.Want)
 		}
 	}
 	t.Logf("%d 件一致", len(g.EstimateVocab))
+}
+
+// 測定値（floor）を原点にすると、受験者は 0 から始めた人と同じ挙動になる。
+//
+// floor 以下の rank は存在しないものとして扱うので、
+//   - 証拠が無ければ floor から動かない（0 スタートが 0 で止まるのと同じ）
+//   - floor より下の古い doc は境界を引き戻さない
+//   - floor より上の正解（P>0.5）はこれまでどおり境界を押し上げる
+func TestEstimateVocabFloor(t *testing.T) {
+	cases := []struct {
+		name    string
+		entries []RankedP
+		center  int
+		floor   int
+		want    int
+	}{
+		{"受験直後・証拠なし", nil, 100, 100, 100},
+		{"未受験・証拠なし（従来どおり 0）", nil, 0, 0, 0},
+		{
+			"floor 以下の doc は無視する",
+			[]RankedP{{Rank: 40, P: 0.9}, {Rank: 60, P: 0.9}},
+			100, 100, 100,
+		},
+		{
+			"floor より上の正解は押し上げる",
+			[]RankedP{{Rank: 130, P: 0.58}},
+			100, 100, 130,
+		},
+		{
+			"未受験は floor=0 で従来の挙動",
+			[]RankedP{{Rank: 30, P: 0.58}},
+			20, 0, 30,
+		},
+	}
+	for _, c := range cases {
+		if got := EstimateVocab(c.entries, c.center, c.floor); got != c.want {
+			t.Errorf("%s: EstimateVocab(center=%d, floor=%d) = %d, want %d",
+				c.name, c.center, c.floor, got, c.want)
+		}
+	}
 }

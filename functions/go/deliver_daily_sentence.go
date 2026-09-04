@@ -187,6 +187,7 @@ func (d *deliverer) buildSentence(
 			Params:         params,
 			UsePremiumSpec: true,
 			EstimatedVocab: intValue(userData["estimated_vocab"]),
+			TestedVocab:    intValue(userData["vocab_test_vocab"]),
 			// premium は LLM 生成なので引き直さない（Produce の既定と同じ 1 周）。
 			SelectRetry: 1,
 			Lang:        l,
@@ -203,6 +204,8 @@ func (d *deliverer) buildSentence(
 		Params:         map[string]any{},
 		UsePremiumSpec: false,
 		EstimatedVocab: min(intValue(userData["estimated_vocab"]), uvm.FreeTierMaxVocab),
+		// free は測定値を使わない（GetSessionWords 側でも 0 に落とす）。
+		TestedVocab: 0,
 		CacheOnly:      true,
 		SelectRetry:    dailysentence.MaxTargetWordRetry,
 		Lang:           l,
@@ -462,8 +465,10 @@ func (d *deliverer) deliverOne(
 	// 露出登録は通知が届いた後にだけ行う。配信をロールバックしても
 	// UVM の P 微増は巻き戻せないため、送信成功を確認してから登録する。
 	registerSentenceExposure(ctx, d.DB, uid, p.Produced)
+	// 上限の判定は配信スペックの判定（deliverOne 冒頭）と揃える。tier だけで
+	// 見ると、トライアル中の estimated_vocab が毎回 100 へ切り戻される。
 	maxVocab := -1
-	if userData["tier"] != "premium" {
+	if userData["tier"] != "premium" && !dailysentence.UsesPremiumTrial(userData, now) {
 		maxVocab = uvm.FreeTierMaxVocab
 	}
 	uvm.SyncEstimatedVocab(ctx, d.DB, uid, d.FreqRank, maxVocab)

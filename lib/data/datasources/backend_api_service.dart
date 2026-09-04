@@ -23,6 +23,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/config/firebase_config.dart';
 import '../models/quiz_question.dart';
+import '../models/vocab_test_step.dart';
 import '../models/syllable.dart';
 import '../models/thai_sentence.dart';
 import '../models/word_breakdown.dart';
@@ -384,6 +385,58 @@ class BackendApiService {
     }
   }
 
+  /// 語彙テストを開始し、最初の1段を受け取る。
+  ///
+  /// [level] はヒアリングの level 回答。開始段が決まるだけで結果には効かない。
+  /// プレミアム限定・1日の回数上限があるので、断られたときは
+  /// [VocabTestUnavailableException] にサーバーの文言が入る。
+  Future<VocabTestStep> startVocabTest() =>
+      _vocabTestCall(FirebaseConfig.startVocabTestFunctionName, {
+        'lang': _lang(),
+      });
+
+  /// 1段ぶんの回答を送り、次の段か最終結果を受け取る。
+  /// [answers] は出題順の選択肢 index。未回答は -1。
+  ///
+  /// [stage] はこの回答がどの段のものか。サーバーが自分の段と照合して、
+  /// 採点済みの段への二重送信を弾く（弾いた場合はいま出すべき段が返る）。
+  Future<VocabTestStep> submitVocabTest(List<int> answers, {int? stage}) =>
+      _vocabTestCall(FirebaseConfig.submitVocabTestFunctionName, {
+        'answers': answers,
+        if (stage != null) 'stage': stage,
+      });
+
+  Future<VocabTestStep> _vocabTestCall(
+      String name, Map<String, dynamic> params) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw BackendApiUnauthenticatedException('User not authenticated');
+      }
+
+      final callable = _functions.httpsCallable(
+        name,
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 30)),
+      );
+      final result = await callable.call(params);
+      return VocabTestStep.fromJson(
+          _deepCast(result.data) as Map<String, dynamic>);
+    } on FirebaseFunctionsException catch (e) {
+      // プレミアム限定・回数上限・セッション切れは、理由をそのまま出したい
+      // ので分ける。
+      if (e.code == 'permission-denied' ||
+          e.code == 'failed-precondition' ||
+          e.code == 'resource-exhausted') {
+        throw VocabTestUnavailableException(e.message ?? '');
+      }
+      throw _mapFirebaseFunctionsException(e);
+    } on BackendApiException {
+      rethrow;
+    } catch (e) {
+      throw BackendApiException('語彙テストに失敗しました: $e');
+    }
+  }
+
   /// Dispose resources
   void dispose() {
     // Nothing to dispose for Cloud Functions
@@ -477,4 +530,10 @@ dynamic _deepCast(dynamic value) {
     return value.map(_deepCast).toList();
   }
   return value;
+}
+
+/// 語彙テストを受けられない（プレミアム限定 / 本日の回数上限）。
+/// [message] はサーバーが返した理由。そのまま画面に出す。
+class VocabTestUnavailableException extends BackendApiException {
+  VocabTestUnavailableException(super.message);
 }

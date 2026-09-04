@@ -240,12 +240,11 @@ class AnalyticsService {
     });
   }
 
+  /// オンボーディング（機能紹介3枚）を開いた。
   Future<void> logOnboardingStart() async {
     await _logEvent('onboarding_start', {});
   }
 
-  /// オンボーディングを最後まで見た。スキップは持たないので、
-  /// onboarding_start との差がそのまま離脱になる。
   /// オンボーディング終了。[skipped] は最後まで読まずに飛ばしたか。
   ///
   /// 真偽値は登録済みの文字列ディメンション `value` に載せる。数値で送ると
@@ -256,26 +255,21 @@ class AnalyticsService {
     });
   }
 
-  /// 初回ガイド（コーチマーク）1つぶんの結果。
+  /// 使い方の説明書（説明書1枚）の読まれ方。
   ///
-  /// [id] はコーチマークの識別子（sentence_card / quiz_button など）。
+  /// [source] は出どころ（first_launch / settings）。
   /// action:
-  ///   shown     — 表示した
-  ///   tapped    — 案内した対象を押して進んだ（意図した通り）
-  ///   dismissed — 対象以外を押して抜けた
-  ///   closed    — 押される前に画面が閉じられ、案内が届かなかった
-  ///
-  /// 「出したか」ではなく「どの段で降りたか」を見るために3つに分ける。
-  /// 表示済みフラグは prefs にしかないので、これが無いとツアーの通過率が
-  /// 一切測れない。
-  Future<void> logCoachMark({
-    required String id,
+  ///   open      — 開いた
+  ///   skipped   — 初回導線でスキップして閉じた
+  ///   completed — 末尾のボタンで閉じた
+  Future<void> logGuide({
     required String action,
+    required String source,
   }) async {
-    await _logEvent('coach_mark', {'coach_id': id, 'action': action});
+    await _logEvent('guide', {'action': action, 'source': source});
   }
 
-  /// オンボーディング後のヒアリング。
+  /// 初回導線のヒアリング。
   /// action: start / answer / skip / complete
   ///
   /// [question] / [answer] は action='answer' のときだけ入る。complete の
@@ -293,6 +287,25 @@ class AnalyticsService {
       'question': question,
       'answer': answer,
       'value': answeredCount?.toString(),
+    });
+  }
+
+  /// 語彙テスト（オンボーディング末尾・設定からの再試験）の進行。
+  ///
+  /// action: start / skip / stage / complete / error
+  /// source: onboarding / settings（どちらから入ったか）
+  /// value: complete では測定した語彙数、stage では段の番号。
+  ///
+  /// 離脱がどの段で起きるかを見る。段の途中で落ちる率が高ければ問数が多すぎる。
+  Future<void> logVocabTest({
+    required String action,
+    required String source,
+    int? value,
+  }) async {
+    await _logEvent('vocab_test', {
+      'action': action,
+      'source': source,
+      'value': value?.toString(),
     });
   }
 
@@ -378,11 +391,13 @@ class AnalyticsService {
     await _logEvent('premium_trial_ended', {'action': action});
   }
 
-  /// 既存ユーザーへ後から配ったプレミアム体験の、開放案内の表示。
+  /// プレミアム体験の開放案内（一括配布の初回起動／オンボーディング末尾）の表示と結果。
   ///
-  /// [action] は shown（表示）のみ。ここでは課金を勧めないので選択肢がない。
+  /// [action] は shown（表示）/ accepted（プランを見る）/ dismissed（使ってみる）。
+  /// 一括配布ではプランへの導線を出さないので shown だけが出る。
   /// この shown が「体験を実際に認識した人数」の分母になり、
   /// premium_trial_ended(shown) → subscribe への転換率をここから測る。
+  /// 開いた先の行動は tap_paywall(source: onboarding_trial_started) で追う。
   Future<void> logPremiumTrialStarted({required String action}) async {
     await _logEvent('premium_trial_started', {'action': action});
   }

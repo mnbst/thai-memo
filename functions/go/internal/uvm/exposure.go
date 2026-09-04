@@ -50,6 +50,9 @@ func ExposedWords(sentenceWords, targetWords []string) []string {
 }
 
 // ExposureP は同じ語が count 回出たときの P の更新後の値。
+//
+// 露出で P を動かすのをやめたため、現在 RegisterExposure からは呼ばれない。
+// Python 版との一致を確認する golden テストのために残している。
 // 1 回ごとに p += ALPHA_EXPOSURE * (1 - p) を適用し、最後にクリップする。
 func ExposureP(oldP float64, count int) float64 {
 	p := oldP
@@ -92,9 +95,12 @@ func RegisterExposure(
 		docRef := uvmRef.Doc(word)
 		snap, err := docRef.Get(ctx)
 		if err == nil && snap.Exists() {
-			oldP := floatField(snap.Data(), "p", NewWordP)
+			// 露出では P を動かさない。例文に出たことは「見た」証拠であって
+			// 「知っている」証拠ではない。ExposureP には上限が無いので、
+			// 同じ語が 6 回出るだけで P>0.5 になり、クイズを 1 問も解かずに
+			// EstimateVocab の knownMaxRank に昇格して語彙スコアを押し上げていた。
+			// last_seen だけ更新する。
 			if _, err := batch.Update(docRef, []firestore.Update{
-				{Path: "p", Value: ExposureP(oldP, counts[word])},
 				{Path: "last_seen", Value: now},
 			}); err != nil {
 				return err
@@ -108,6 +114,9 @@ func RegisterExposure(
 				"quiz_attempts": 0,
 				"last_seen":     now,
 				"last_result":   nil,
+				// 露出は「見た」証拠であって採点ではない。等倍のクイズに
+				// 答えるまで境界推定の母数に入れない（IsGradedResult）。
+				"graded": false,
 			}); err != nil {
 				return err
 			}

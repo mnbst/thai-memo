@@ -23,9 +23,6 @@ const (
 	NewWordP     = 0.1 // 新規単語の初期 P 値
 	UnknownWordP = 0.4 // UVM 未登録語の prior P
 
-	// VocabMaxDelta は1回の sync で estimated_vocab が動ける最大幅。
-	VocabMaxDelta = 3
-
 	// FreeTierMaxVocab は free ユーザーの estimated_vocab 上限
 	// （constants.py の FREE_TIER_MAX_VOCAB）。
 	FreeTierMaxVocab = 100
@@ -88,16 +85,33 @@ type RankedP struct {
 //
 // center ± 50 を走査し MovingAvg が 0.42 を下回る最初の rank を返す。
 // データがスパースなときは P > 0.5 の語の最大 rank をフォールバックに使う。
-func EstimateVocab(entries []RankedP, center int) int {
-	if len(entries) == 0 {
-		return 0
-	}
+//
+// floor は語彙テストの測定値（vocab_test_vocab）。**floor 以下の rank は存在
+// しないものとして扱う**。未受験は floor=0 で、その場合の挙動は従来と同一。
+//
+// 語彙テストを受けた人の出発点を 0 から測定値 M へずらす、という考え方。
+// 0 から始めた人が rank<0 を見ないのと同じく、測定値を持つ人は rank<M を見ない。
+// これで受験者と未受験者の挙動が「原点が違うだけ」で揃う。
+//
+// floor を入れないと、受験直後は走査帯に証拠（P>0.5 の語）が 1 つも無いので
+// knownMaxRank=0、返り値が center-50 側になり、測定値から
+// 0 へ崩れていく（測定100 が数分で 91 まで落ちる）。0 から始めた人が崩れないのは
+// 下限 0 に張り付いているからで、その下限を M に置き換えるのがこの引数。
+func EstimateVocab(entries []RankedP, center, floor int) int {
+	floor = max(floor, 0)
 
 	wordsByRank := make(map[int]float64, len(entries))
 	knownMaxRank := 0
 	totalP := 0.0
 	weighted := 0.0
+	n := 0
 	for _, e := range entries {
+		// floor 以下は「無いもの」。測定値より下に残っている古い doc が
+		// 境界を引き戻さないようにする。
+		if e.Rank < floor {
+			continue
+		}
+		n++
 		wordsByRank[e.Rank] = e.P
 		if e.P > 0.5 && e.Rank > knownMaxRank {
 			knownMaxRank = e.Rank
@@ -105,21 +119,24 @@ func EstimateVocab(entries []RankedP, center int) int {
 		totalP += e.P
 		weighted += e.P * float64(e.Rank)
 	}
+	if n == 0 {
+		return floor
+	}
 
 	// center が未指定 (0) のときは P を重みにした加重平均を中心にする。
 	if center <= 0 {
 		if totalP <= 0 {
-			return knownMaxRank
+			return max(knownMaxRank, floor)
 		}
 		center = int(weighted / totalP)
 	}
 
-	for r := center - 50; r <= center+50; r++ {
+	for r := max(center-50, floor); r <= center+50; r++ {
 		if MovingAvg(wordsByRank, r, 10) < 0.42 {
-			return max(knownMaxRank, max(r, 0))
+			return max(knownMaxRank, max(r, floor))
 		}
 	}
-	return max(knownMaxRank, max(center, 0))
+	return max(knownMaxRank, max(center, floor))
 }
 
 // HintMultiplier は hint_level から α の倍率を出す（uvm.py:batch_update_uvm）。
