@@ -65,7 +65,7 @@ func ExposureP(oldP float64, count int) float64 {
 // RegisterExposure は露出による P 微増を適用する（uvm.py:register_exposure:519）。
 //
 //   - 登録済み語: P を AlphaExposure 分、出現回数だけ微増
-//   - 未登録語: targetWords に含まれる場合のみ P=NewWordP で新規作成
+//   - 未登録語: targetWords に含まれる場合のみ P=NewWordP（=prior）で新規作成
 //
 // words は重複を含んでよい（回数として数える）。
 func RegisterExposure(
@@ -114,9 +114,10 @@ func RegisterExposure(
 				"quiz_attempts": 0,
 				"last_seen":     now,
 				"last_result":   nil,
-				// 露出は「見た」証拠であって採点ではない。等倍のクイズに
-				// 答えるまで境界推定の母数に入れない（IsGradedResult）。
-				"graded": false,
+				// 露出は「見た」証拠であって採点ではない。クイズに答えて
+				// evidence が付くまで境界推定の母数に入れない。
+				"evidence": 0.0,
+				"graded":   false,
 			}); err != nil {
 				return err
 			}

@@ -394,7 +394,7 @@ functions/go/vocabtest.go
 startVocabTest / submitVocabTest。語彙テストの出題・採点と estimated_vocab の書き込み。全員1段目から出題。プレミアム限定＋月1回（開始時刻を起点に30日、中断のやり直しのみ同一期間内3回まで）。
 
 functions/go/internal/uvm/model.go
-UVMの純粋関数（UpdateP / AnsweredAvg / EstimateVocab）と定数。語彙テストの受験有無で分岐しない単一の境界推定。
+UVMの純粋関数（UpdateP / GuessRate / MovingAvg / EstimateVocab）と定数。P の更新は尤度比（推測率 g・うっかり率 s）。旧 α 則は UpdatePAlpha として golden 用に残す。
 
 functions/go/internal/uvm/store.go
 UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。
@@ -703,13 +703,19 @@ functions/go/internal/uvm/sim_learning_test.go
 確認クイズだけを回したときの estimated_vocab の推移と、測定値を下限にする効果を見るシミュレーション（SIM=1 で実行）。
 
 functions/go/internal/uvm/matrixsim_test.go
-受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。
+受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。母数の絞り方とヒント常用時の比較も含む。更新則・新語 prior・世界側の推測率/slip を差し替えるつまみを持つ。
 
 functions/go/internal/uvm/dropsim_test.go
-例文生成のたびに estimated_vocab が落ちる現象の再現と、前方帯の変更・等倍採点のみを母数にする案の比較。
+例文生成のたびに estimated_vocab が落ちる現象の再現と、前方帯の変更・回答済みのみを母数にする案の比較。
+
+functions/go/internal/uvm/alphasim_test.go
+P 更新則の比較シミュレーション（尤度比 vs 旧 α 則 vs 不正解α強化）。世界側の推測率・slip を振って、推定誤差と「実際は知らないのに P>0.5 の語」の割合を測る。
+
+functions/go/internal/uvm/migratesim_test.go
+旧 α 則で溜まった doc を引き継いで新更新則へ切り替えたときの estimated_vocab の推移。切替時に飛ばないこと、その後の補正が緩やかなことを確かめる。
 
 functions/go/internal/uvm/graded_test.go
-IsGradedResult（等倍採点の判定）と、graded を持たない既存 doc の扱いのテスト。
+IsGradedResult（採点区分）・ResultEvidence・UpdateP の向き（正解で上がり不正解で下がる）と、evidence を持たない既存 doc の移行のテスト。
 
 functions/go/internal/sentence/freebank.go
 free例文バンク（GCS）の読み込みとキャッシュ、target_word一致の抽選。
