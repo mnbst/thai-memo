@@ -219,7 +219,8 @@ Future<ThaiSentence> _prepare(String sentencePath) async {
 /// 添付は動画1本と画像3枚まで。1画面目は動画がそのまま映すので撮らず、
 /// 動画で見切れた要素の頭が1枚目の先頭に来るところから始める。以降も同じで、
 /// 画面に収まる範囲で最も下の切れ目（見出し・区切り線）まで送る。
-/// 切れ目が見つからない回は画面ぶん送る。
+/// 切れ目が見つからない回は画面ぶん送る。枚数は必要なぶんだけで、上限まで
+/// 埋めない。
 List<double> _shotOffsets(WidgetTester tester, ScrollPosition position) {
   final viewport = position.viewportDimension;
   final maxScroll = position.maxScrollExtent;
@@ -227,16 +228,18 @@ List<double> _shotOffsets(WidgetTester tester, ScrollPosition position) {
 
   final offsets = <double>[];
   var offset = 0.0;
-  while (offsets.length < _maxShots && offset < maxScroll) {
+  while (offsets.length < _maxShots) {
+    // まだ見えていないぶんが画面の1/3に満たないなら撮らない。残りわずかの
+    // ために1枚増やすと、前の1枚とほとんど同じ画像が並ぶ。2枚で収まるなら
+    // 2枚、1枚で収まるなら1枚。
+    if (maxScroll - offset < viewport / 3) break;
     // 送り先は下端まで。ここを超えて狙うと clamp されて頭が切れる。
     final limit = offset + viewport > maxScroll ? maxScroll : offset + viewport;
     final candidates = breaks.where((b) => b > offset + 80 && b <= limit);
     final next = candidates.isEmpty
         ? limit
         : candidates.reduce((a, b) => a > b ? a : b);
-    // ほとんど送れないなら終わり。数十pxのために1枚増やすと、前の画像と
-    // ほぼ同じものが並ぶ。
-    if (next - offset < 120) break;
+    if (next <= offset) break;
     offset = next;
     offsets.add(offset);
   }
