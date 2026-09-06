@@ -74,16 +74,21 @@ jobs:
           python tools/x_post/pick_sentence.py \
             --project "$GCP_PROJECT" --out "$OUT_DIR" --seed "$(date -u +%F)"
 
-      - name: Render screenshot
-        run: |
-          flutter test test/screenshots/x_post_screenshot.dart \
-            --dart-define=X_POST_SENTENCE=$OUT_DIR/sentence.json \
-            --dart-define=X_POST_OUT=$OUT_DIR
-
       - name: Synthesize pronunciation
         run: |
           python tools/x_post/synth_tts.py \
             --sentence "$OUT_DIR/sentence.json" --out "$OUT_DIR"
+
+      # 画面の録画は読み上げの尺に合わせるので、音声を先に作る。
+      - name: Render screenshots and frames
+        run: |
+          AUDIO_MS=$(ffprobe -v error -show_entries format=duration \
+            -of csv=p=0 "$OUT_DIR/audio.mp3" | awk '{printf "%d", $1 * 1000}')
+          echo "読み上げ ${AUDIO_MS}ms"
+          flutter test test/screenshots/x_post_screenshot.dart \
+            --dart-define=X_POST_SENTENCE=$OUT_DIR/sentence.json \
+            --dart-define=X_POST_OUT=$OUT_DIR \
+            --dart-define=X_POST_AUDIO_MS=$AUDIO_MS
 
       - name: Build media
         run: python tools/x_post/build_media.py --out "$OUT_DIR"

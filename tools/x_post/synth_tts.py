@@ -3,8 +3,8 @@
 アプリ内の読み上げは端末TTS（flutter_tts）なのでCIでは使えない。投稿用は
 Google Cloud Text-to-Speech の th-TH を使う。1日1文なら無料枠に収まる。
 
-通常速度 → 間 → ゆっくり、の順で1本にまとめる。聞き取り練習として成立させる
-ため。出力は <out>/audio.mp3。
+読み上げは通常速度の1回だけ。動画では「お手本を聞く」を押す操作と重ねるので、
+アプリで1回再生したのと同じ長さに揃える。出力は <out>/audio.mp3。
 """
 
 from __future__ import annotations
@@ -17,20 +17,11 @@ from pathlib import Path
 from google.cloud import texttospeech
 
 VOICE_NAME = "th-TH-Neural2-C"
-SLOW_RATE = 0.7
-GAP = "900ms"
 
 
 def build_ssml(thai_text: str) -> str:
     escaped = html.escape(thai_text)
-    return (
-        "<speak>"
-        f"{escaped}"
-        f'<break time="{GAP}"/>'
-        f'<prosody rate="{SLOW_RATE}">{escaped}</prosody>'
-        f'<break time="600ms"/>'
-        "</speak>"
-    )
+    return f"<speak>{escaped}</speak>"
 
 
 def main() -> int:

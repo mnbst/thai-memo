@@ -1,8 +1,8 @@
 """X へ投稿し、投稿済みの記録を GCS に書き戻す。
 
-動画（カード画像＋読み上げ）を優先し、動画のアップロードに失敗したら画像に、
-画像も駄目ならテキストだけに落とす。読み上げが載らなくても、その日の投稿は
-出す方を選ぶ。
+添付は「お手本を聞く操作の動画」1本と画面の画像3枚。X が動画と画像の同時添付を
+受け付けない場合に備えて、動画だけ → 画像だけ → テキストだけ、と落としていく。
+読み上げや画像が載らなくても、その日の投稿は出す方を選ぶ。
 
 認証は OAuth 1.0a のユーザーコンテキスト。鍵は環境変数で渡す:
   X_API_KEY / X_API_SECRET / X_ACCESS_TOKEN / X_ACCESS_TOKEN_SECRET
@@ -25,6 +25,8 @@ POSTED_OBJECT = "x_post/posted.json"
 POSTED_LIMIT = 5000
 # 反応の参照に使う履歴の保持数。直近10日ぶんあれば足りるが余裕を持たせる。
 HISTORY_LIMIT = 60
+# 添付できるメディアは4件まで。1件は読み上げ動画に使う。
+IMAGE_LIMIT = 3
 
 
 def credentials() -> dict[str, str]:
@@ -35,8 +37,12 @@ def credentials() -> dict[str, str]:
     return {k: os.environ[k] for k in keys}
 
 
-def upload_media(api: tweepy.API, out: Path) -> list[str]:
-    """動画を優先し、駄目なら画像。どちらも駄目なら空を返す。"""
+def upload_media(api: tweepy.API, out: Path) -> tuple[str | None, list[str]]:
+    """動画と画像をアップロードし、それぞれの media_id を返す。
+
+    片方が失敗しても、残った方だけで投稿できるようにする。
+    """
+    video_id = None
     video = out / "post.mp4"
     if video.exists():
         try:
@@ -46,17 +52,34 @@ def upload_media(api: tweepy.API, out: Path) -> list[str]:
                 media_category="tweet_video",
                 wait_for_async_finalize=True,
             )
-            return [media.media_id_string]
+            video_id = media.media_id_string
         except Exception as error:  # noqa: BLE001 - 落とさず画像へ退避する
-            print(f"動画のアップロードに失敗、画像で投稿する: {error}", file=sys.stderr)
+            print(f"動画のアップロードに失敗: {error}", file=sys.stderr)
 
-    ids = []
-    for path in sorted(out.glob("image_*.png")):
+    image_ids = []
+    for path in sorted(out.glob("image_*.png"))[:IMAGE_LIMIT]:
         try:
-            ids.append(api.media_upload(filename=str(path)).media_id_string)
+            image_ids.append(api.media_upload(filename=str(path)).media_id_string)
         except Exception as error:  # noqa: BLE001
             print(f"画像のアップロードに失敗: {path.name}: {error}", file=sys.stderr)
-    return ids
+    return video_id, image_ids
+
+
+def media_candidates(video_id: str | None, image_ids: list[str]) -> list[list[str]]:
+    """添付の組み合わせを、望ましい順に並べて返す。
+
+    X が動画と画像の同時添付を拒む場合があるので、拒まれたら動画だけ、
+    それも駄目なら画像だけ、最後はテキストだけへ落とす。
+    """
+    sets = []
+    if video_id and image_ids:
+        sets.append([video_id, *image_ids])
+    if video_id:
+        sets.append([video_id])
+    if image_ids:
+        sets.append(image_ids)
+    sets.append([])
+    return sets
 
 
 def mark_posted(project: str, key: str, entry: dict) -> None:
@@ -103,9 +126,9 @@ def main() -> int:
     key = (out / "key.txt").read_text(encoding="utf-8").strip()
 
     if args.dry_run:
-        media = [p.name for p in sorted(out.glob("image_*.png"))]
+        media = [p.name for p in sorted(out.glob("image_*.png"))[:IMAGE_LIMIT]]
         if (out / "post.mp4").exists():
-            media = ["post.mp4"]
+            media = ["post.mp4", *media]
         print(text)
         print(f"--- media: {', '.join(media) or 'なし'}")
         return 0
@@ -125,8 +148,21 @@ def main() -> int:
         access_token_secret=creds["X_ACCESS_TOKEN_SECRET"],
     )
 
-    media_ids = upload_media(api, out)
-    response = client.create_tweet(text=text, media_ids=media_ids or None)
+    video_id, image_ids = upload_media(api, out)
+    response = None
+    for media_ids in media_candidates(video_id, image_ids):
+        try:
+            response = client.create_tweet(text=text, media_ids=media_ids or None)
+            break
+        except tweepy.HTTPException as error:
+            # 添付の組み合わせが原因なら次の組で通る。それ以外（クレジット
+            # 切れなど）はどの組でも同じなので、そこで諦める。
+            if error.response is not None and error.response.status_code != 400:
+                raise
+            print(f"添付{len(media_ids)}件で投稿できず、減らして試す: {error}",
+                  file=sys.stderr)
+    if response is None:
+        raise SystemExit("投稿できなかった")
 
     tweet_id = response.data["id"]
     print(f"投稿した: https://x.com/i/status/{tweet_id}")
