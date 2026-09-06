@@ -107,6 +107,11 @@ locals {
     "ci-p12-password",
     "ci-provisioning-profile",
     "ci-store-password",
+    # X（Twitter）自動投稿の OAuth 1.0a 認証情報
+    "x-api-key",
+    "x-api-secret",
+    "x-access-token",
+    "x-access-token-secret",
   ]
 }
 
