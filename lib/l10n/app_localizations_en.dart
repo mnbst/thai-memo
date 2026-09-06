@@ -2229,7 +2229,7 @@ class L10nEn extends L10n {
 
   @override
   String get vocabTestIntroBody =>
-      'Pick the meaning of Thai words from four choices. The test stops as soon as the words get too hard. It takes as few as 4 questions and at most 24.';
+      'Pick the meaning of Thai words from four choices. The test stops as soon as the words get too hard. It takes as few as 6 questions, and runs longer the more words you know.';
 
   @override
   String get vocabTestIntroNote =>
@@ -2245,8 +2245,8 @@ class L10nEn extends L10n {
   String get vocabTestDontKnow => 'I don\'t know';
 
   @override
-  String vocabTestProgress(int current, int total) {
-    return 'Question $current of $total';
+  String vocabTestProgress(int current) {
+    return 'Question $current';
   }
 
   @override

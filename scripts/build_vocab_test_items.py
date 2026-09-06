@@ -6,6 +6,10 @@
 
 段の定義は uvm.TestStages と揃える。ずれると測定値がずれる。
 
+1 段あたり TestItemsPerStage(6) 問を出し、誤答も同じ段から引くので、段ごとに
+最低でも 10 語、余裕を見て 20 語は残ること。生成後に段ごとの語数を必ず数える
+（高ランク帯ほど訳の重複と skip で目減りする）。
+
 usage:
   GEMINI_API_KEY=... python scripts/build_vocab_test_items.py \
       --lang ja,en --per-stage 20 --out scripts/bank_out
@@ -32,7 +36,19 @@ except ImportError:
     pass
 
 # functions/go/internal/uvm/vocabtest.go の TestStages と同じ並び。
-STAGES = [(1, 50), (51, 150), (151, 300), (301, 450), (451, 600), (601, 900)]
+STAGES = [
+    (1, 50),
+    (51, 150),
+    (151, 300),
+    (301, 450),
+    (451, 600),
+    (601, 900),
+    (901, 1200),
+    (1201, 1600),
+    (1601, 2100),
+    (2101, 2600),
+    (2601, 3000),
+]
 
 FREQ_RANK_PATH = Path(__file__).parent / "corpus" / "freq_rank_top10000.json"
 

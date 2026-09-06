@@ -1099,18 +1099,15 @@
   },
   "settingsVocabTestPremium": "Premium only",
   "vocabTestTitle": "Measure your vocabulary",
-  "vocabTestIntroBody": "Pick the meaning of Thai words from four choices. The test stops as soon as the words get too hard. It takes as few as 4 questions and at most 24.",
+  "vocabTestIntroBody": "Pick the meaning of Thai words from four choices. The test stops as soon as the words get too hard. It takes as few as 6 questions, and runs longer the more words you know.",
   "vocabTestIntroNote": "The result sets the difficulty of your sentences and quizzes. You can retake it from Settings once a month.",
   "vocabTestStart": "Start",
   "vocabTestQuestion": "What does this word mean?",
   "vocabTestDontKnow": "I don't know",
-  "vocabTestProgress": "Question {current} of {total}",
+  "vocabTestProgress": "Question {current}",
   "@vocabTestProgress": {
     "placeholders": {
       "current": {
-        "type": "int"
-      },
-      "total": {
         "type": "int"
       }
     }

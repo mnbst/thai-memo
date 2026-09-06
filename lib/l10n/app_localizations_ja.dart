@@ -2072,7 +2072,7 @@ class L10nJa extends L10n {
 
   @override
   String get vocabTestIntroBody =>
-      'タイ語の単語を4択で答えてもらい、いまの語彙量を測ります。わからない単語が続いたらそこで終わりです。早ければ4問、長くても24問で終わります。';
+      'タイ語の単語を4択で答えてもらい、いまの語彙量を測ります。わからない単語が続いたらそこで終わりです。早ければ6問、語彙が多い人ほど長くなります。';
 
   @override
   String get vocabTestIntroNote => '結果は例文とクイズの難易度に反映されます。設定画面から月1回まで受け直せます。';
@@ -2087,8 +2087,8 @@ class L10nJa extends L10n {
   String get vocabTestDontKnow => 'わからない';
 
   @override
-  String vocabTestProgress(int current, int total) {
-    return '$current / $total 問目';
+  String vocabTestProgress(int current) {
+    return '$current 問目';
   }
 
   @override
