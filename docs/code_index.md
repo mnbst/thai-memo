@@ -864,7 +864,7 @@ tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
 
 test/screenshots/x_post_screenshot.dart
-DetailScreen を flutter_test 上で描画し、スクロールしながら画像3枚と、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
+DetailScreen を flutter_test 上で描画し、動画の続きからスクロールした画像3枚までと、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
 
 .github/workflows/post-daily-x.yml
 毎日07:00 JSTに上記を通しで実行するワークフロー。dry_run で投稿せず確認できる。
