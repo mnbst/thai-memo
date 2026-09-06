@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import tweepy
@@ -22,6 +23,8 @@ from google.cloud import storage
 POSTED_OBJECT = "x_post/posted.json"
 # 投稿済みキーの保持数。バンクの規模より十分大きければ一巡を検知できる。
 POSTED_LIMIT = 5000
+# 反応の参照に使う履歴の保持数。直近10日ぶんあれば足りるが余裕を持たせる。
+HISTORY_LIMIT = 60
 
 
 def credentials() -> dict[str, str]:
@@ -56,14 +59,30 @@ def upload_media(api: tweepy.API, out: Path) -> list[str]:
     return ids
 
 
-def mark_posted(project: str, key: str) -> None:
+def mark_posted(project: str, key: str, entry: dict) -> None:
+    """投稿済みキーと、後で反応を引くための履歴を書き戻す。
+
+    履歴は pick_sentence.py が「伸びた投稿に近いもの」を選ぶのに使う。
+    tweet_id が無いと反応を引けないので、投稿が通ってから呼ぶこと。
+    """
     bucket = storage.Client(project=project).bucket(f"{project}-uvm-data")
     blob = bucket.blob(POSTED_OBJECT)
     state = json.loads(blob.download_as_bytes()) if blob.exists() else {}
+
     posted = [k for k in state.get("posted", []) if k != key]
     posted.append(key)
+
+    history = [h for h in state.get("history", []) if h.get("key") != key]
+    history.append(entry)
+
     blob.upload_from_string(
-        json.dumps({"posted": posted[-POSTED_LIMIT:]}),
+        json.dumps(
+            {
+                "posted": posted[-POSTED_LIMIT:],
+                "history": history[-HISTORY_LIMIT:],
+            },
+            ensure_ascii=False,
+        ),
         content_type="application/json",
     )
 
@@ -111,7 +130,19 @@ def main() -> int:
 
     tweet_id = response.data["id"]
     print(f"投稿した: https://x.com/i/status/{tweet_id}")
-    mark_posted(args.project, key)
+
+    sentence = json.loads((out / "sentence.json").read_text(encoding="utf-8"))
+    mark_posted(
+        args.project,
+        key,
+        {
+            "key": key,
+            "tweet_id": str(tweet_id),
+            "thai_text": sentence.get("thai_text", ""),
+            "japanese_translation": sentence.get("japanese_translation", ""),
+            "posted_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
     return 0
 
 

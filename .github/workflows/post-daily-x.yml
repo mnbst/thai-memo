@@ -63,6 +63,13 @@ jobs:
         run: tools/x_post/fetch_fonts.sh
 
       - name: Pick sentence
+        # X の鍵は直近投稿の反応を引くのに使う。クレジットが無い間は
+        # 引けずに諦めるだけで、選定も投稿も止まらない。
+        env:
+          X_API_KEY: ${{ steps.secrets.outputs.X_API_KEY }}
+          X_API_SECRET: ${{ steps.secrets.outputs.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ steps.secrets.outputs.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ steps.secrets.outputs.X_ACCESS_TOKEN_SECRET }}
         run: |
           python tools/x_post/pick_sentence.py \
             --project "$GCP_PROJECT" --out "$OUT_DIR" --seed "$(date -u +%F)"

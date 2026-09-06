@@ -693,6 +693,9 @@ IRT（3PL・θ=logランク・適応出題）で測った場合の精度を、�
 functions/go/internal/uvm/downsim_test.go
 「下振れは許容し上振れだけ抑える」前提で、階段のゲート/内挿率と IRT の c を掃き出すシミュレーション（SIM=1）。指標は全世界での上振れp90・下振れp10・世界ごとの中央値。
 
+functions/go/internal/uvm/hybridsim_test.go
+階段（最初の数段）と IRT を繋いだハイブリッド測定のシミュレーション（SIM=1）。初級者は階段の打ち切りで早く終わり、通過者だけ IRT に切り替える構成の出題数と誤差を測る。
+
 functions/go/internal/uvm/matrixsim_test.go
 受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。母数の絞り方とヒント常用時の比較も含む。更新則・新語 prior・世界側の推測率/slip を差し替えるつまみを持つ。
 
@@ -843,7 +846,10 @@ tools/x_post/README.md
 X（@everydaythai775）へ毎日の例文を自動投稿する仕組みの全体像と、必要なシークレットの手順。
 
 tools/x_post/pick_sentence.py
-GCSのfree例文バンクから未投稿を1件選び、投稿本文を組む。投稿済みは x_post/posted.json で管理。
+前日生成分（Firestore collection group sentences）から破綻を除き、Geminiに1件選ばせる。取れなければfree例文バンクへ退避。投稿済みと履歴は x_post/posted.json で管理。
+
+tools/x_post/select_prompt.txt
+例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
 
 tools/x_post/synth_tts.py
 Google Cloud TTS（th-TH）で例文の読み上げ音声を作る。通常速度→間→ゆっくりの1本。

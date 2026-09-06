@@ -7,7 +7,7 @@
 
 | 手順 | 中身 |
 | --- | --- |
-| `pick_sentence.py` | GCS の free 例文バンクから未投稿を1件選び、本文を組む |
+| `pick_sentence.py` | 前日生成分から破綻を除き、Gemini に1件選ばせて本文を組む |
 | `test/screenshots/x_post_screenshot.dart` | `DetailScreen` をそのまま描画して PNG に落とす |
 | `synth_tts.py` | Google Cloud TTS（th-TH）で読み上げ音声を作る |
 | `build_media.py` | PNG を4枚以内に分割し、1枚目＋音声を mp4 にする |
@@ -17,11 +17,45 @@
 
 ## 例文のソース
 
-`gs://<project>-uvm-data/free_sentences_ja.json`（free 例文バンク）を使う。
-毎日配信の例文はユーザーごとに生成される個人データなので公開投稿には使わない。
-バンクは同じ生成パイプラインで作った共有プールなので内容は同等。
+前日（日本時間）に生成された例文を Firestore の collection group `sentences`
+から集め、タイ語本文で重複をまとめてから Gemini に1件選ばせる。読者像は
+指定せず「X で反応が良さそうなもの」の判断を任せている。
 
-投稿済みは `gs://<project>-uvm-data/x_post/posted.json` に持つ。
+前日分が取れないとき（索引の準備待ち・権限不足・生成が無かった日）や Gemini が
+応答しないときは、`gs://<project>-uvm-data/free_sentences_ja.json`（free 例文
+バンク）からの抽選に落として投稿を止めない。`--source bank` で常にバンクを使える。
+
+collection group クエリには `sentences.created_at` の COLLECTION_GROUP 索引が
+要る（`firebase/firestore.indexes.json` の `fieldOverrides`）。
+
+投稿済みと、投稿の履歴（tweet_id とタイ語本文）は
+`gs://<project>-uvm-data/x_post/posted.json` に持つ。
+
+## 選び方を変える
+
+選定プロンプトは `select_prompt.txt` に置いてある。ここを書き換えれば選び方を
+変えられる（コードは触らなくてよい）。`#` で始まる行は無視される。
+差し込み口は `{candidates}`（候補一覧）と `{recent}`（直近の反応。下記）。
+
+## 破綻の除外
+
+Gemini に渡す前に、機械的に分かるものだけ落とす。
+
+- 本文・発音・訳のどれかが空
+- 発音表記に算用数字が残っている（例: 「50 บาท」が「5 bàat」。生成側の取りこぼし）
+- 本文が80文字を超える（詳細画面の見栄えが崩れる）
+- 単語分解が空、または分解した語が本文に見つからない
+
+自然さや訳の妥当性はプロンプト側で Gemini に見させる。
+
+## 直近の反応の参照
+
+`posted.json` の履歴にある tweet_id で自分の投稿の反応（いいね・リポスト・
+返信の合計）を引き、伸びたものをプロンプトに添える。
+
+X の読み取りは PPU のクレジットを消費する。クレジットが無い（402）・鍵が無い・
+履歴がまだ無い場合は黙って諦め、反応を参照しない選定に落ちる。当面は手元の
+感触を `select_prompt.txt` に直接書く運用でよい。
 
 ## 画面の描画
 
