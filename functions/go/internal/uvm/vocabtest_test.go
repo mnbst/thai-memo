@@ -234,29 +234,3 @@ func TestBuildStageQuestionsStaysInBand(t *testing.T) {
 		}
 	}
 }
-
-func TestSeedPWritesOnlyKnownWordMisses(t *testing.T) {
-	// 正解は書かない。既知語を置くと knownMaxRank の床になり、再受験で
-	// 測定値を下げても前回の測定値まで登り直してしまう。
-	if _, write := TestSeedP(0, false, true); write {
-		t.Error("未登録語の正解を書こうとした")
-	}
-	if _, write := TestSeedP(0.9, true, true); write {
-		t.Error("既存語の正解を書こうとした")
-	}
-
-	// 未登録語の誤答も書かない。書くと GetSessionWords の「未登録 or P=0」に
-	// 引っかからなくなり、知らないと分かった語が key_word に選ばれなくなる。
-	if _, write := TestSeedP(0, false, false); write {
-		t.Error("未登録語の誤答を書こうとした")
-	}
-
-	// 書くのは既存語の誤答だけ。履歴のほうが4択1問より信頼できるので半減に留める。
-	p, write := TestSeedP(0.6, true, false)
-	if !write || p != 0.3 {
-		t.Errorf("既存語の誤答 = (%v, %v), want (0.3, true)", p, write)
-	}
-	if p, _ := TestSeedP(0, true, false); p != PMin {
-		t.Errorf("P=0 の既存語の誤答 = %v, want %v", p, PMin)
-	}
-}

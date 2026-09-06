@@ -16,7 +16,7 @@ import (
 
 // FreeBank は事前生成済みの free 例文バンク（GCS）。
 //
-// バンクは scripts/build_free_sentence_bank.py で言語ごとに作る。
+// バンクは言語ごとの JSON として GCS に配置する。
 // まだ無い言語（アップロード前・新言語の追加直後）は空で、呼び出し側が
 // LLM 生成へ落ちる。
 type FreeBank struct {

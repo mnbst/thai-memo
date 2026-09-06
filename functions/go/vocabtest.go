@@ -280,7 +280,7 @@ func submitVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 	}
 
 	vocab := uvm.ScoreVocab(history)
-	if err := finishVocabTest(ctx, db, uid, vocab, seeds); err != nil {
+	if err := finishVocabTest(ctx, db, uid, vocab); err != nil {
 		log.Printf("submitVocabTest: 結果の保存に失敗: uid=%s error=%v", uid, err)
 		return nil, callable.Errorf(callable.Internal, "結果を保存できませんでした")
 	}
@@ -307,12 +307,13 @@ func submitVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 
 // finishVocabTest は測定結果を反映する。
 //
-// estimated_vocab は測定値そのもの（＝出発点）。下限は作らない。4 択 16 問の
-// 推定は上振れることがあるので、その後のクイズの正誤で下方修正できる余地を
-// 残す。自己申告レベルもここには入れない（SyncEstimatedVocab のコメント）。
+// estimated_vocab は測定値そのもの（＝出発点）。下限は作らない。推定は
+// 上振れることがあるので、その後のクイズの正誤で下方修正できる余地を残す。
+// 自己申告レベルもここには入れない（SyncEstimatedVocab のコメント）。
+//
+// 語ごとの P には触らない（uvm/vocabtest.go の冒頭コメント）。
 func finishVocabTest(
-	ctx context.Context, db *firestore.Client, uid string,
-	vocab int, seeds []vocabTestSeed,
+	ctx context.Context, db *firestore.Client, uid string, vocab int,
 ) error {
 	userRef := db.Collection("users").Doc(uid)
 
@@ -322,11 +323,6 @@ func finishVocabTest(
 		"vocab_test_vocab": vocab,
 	}, firestore.MergeAll); err != nil {
 		return err
-	}
-
-	if err := seedVocabTestUvm(ctx, db, uid, seeds); err != nil {
-		// 種付けに失敗しても測定値は入っている。テストは成功として返す。
-		log.Printf("finishVocabTest: UVM の種付けに失敗: uid=%s error=%v", uid, err)
 	}
 
 	uvm.PublishLeaderboardVocab(ctx, db, uid, vocab)
@@ -371,60 +367,6 @@ func seedsOf(v any) []vocabTestSeed {
 		})
 	}
 	return out
-}
-
-// seedVocabTestUvm は出題語の P をテスト結果で反映する。
-// 書くのは「既に UVM にある語を間違えた」ときだけ（uvm.TestSeedP を参照）。
-func seedVocabTestUvm(
-	ctx context.Context, db *firestore.Client, uid string,
-	seeds []vocabTestSeed,
-) error {
-	if len(seeds) == 0 {
-		return nil
-	}
-	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
-
-	refs := make([]*firestore.DocumentRef, 0, len(seeds))
-	for _, s := range seeds {
-		refs = append(refs, uvmRef.Doc(s.word))
-	}
-	snaps, err := db.GetAll(ctx, refs)
-	if err != nil {
-		return err
-	}
-	existing := map[string]map[string]any{}
-	for _, s := range snaps {
-		if s.Exists() {
-			existing[s.Ref.ID] = s.Data()
-		}
-	}
-
-	now := float64(time.Now().UnixNano()) / 1e9
-	batch := db.BulkWriter(ctx)
-	for _, s := range seeds {
-		data, exists := existing[s.word]
-		oldP := 0.0
-		if exists {
-			if p, ok := data["p"].(float64); ok {
-				oldP = p
-			}
-		}
-		p, write := uvm.TestSeedP(oldP, exists, s.correct)
-		if !write {
-			// 未登録のまま／今の P のまま残す。key_word の候補に上がるように
-			// するため（uvm.TestSeedP のコメント）。
-			continue
-		}
-		if _, err := batch.Update(uvmRef.Doc(s.word), []firestore.Update{
-			{Path: "p", Value: p},
-			{Path: "last_seen", Value: now},
-			{Path: "last_result", Value: s.correct},
-		}); err != nil {
-			return err
-		}
-	}
-	batch.End()
-	return nil
 }
 
 // vocabTestItems は出題語を読む。ProjectID は init 時に決まらないのでここで入れる。

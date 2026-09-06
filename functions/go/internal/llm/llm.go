@@ -48,6 +48,18 @@ type Client struct {
 	GeminiBase string
 	// Sleep は差し替え用。nil なら ctx を尊重した実時間の待機。
 	Sleep func(ctx context.Context, d time.Duration) error
+
+	// GeminiThinkingBudgetOverride は thinkingBudget を tier 既定値から
+	// 差し替える（ablation 用。nil なら GeminiThinkingBudget を使う）。
+	GeminiThinkingBudgetOverride *int
+}
+
+// geminiThinkingBudget は override があればそれを、無ければ tier 既定値を返す。
+func (c *Client) geminiThinkingBudget(isPremium bool) int {
+	if c.GeminiThinkingBudgetOverride != nil {
+		return *c.GeminiThinkingBudgetOverride
+	}
+	return GeminiThinkingBudget(isPremium)
 }
 
 func (c *Client) httpClient() *http.Client {
@@ -123,7 +135,7 @@ func (c *Client) geminiGenerate(
 		model = c.GeminiModelPremium
 	}
 	payload := GeminiPayload(systemPrompt, userPrompt, c.MaxTokens,
-		GeminiThinkingBudget(isPremium), schema)
+		c.geminiThinkingBudget(isPremium), schema)
 	url := fmt.Sprintf("%s/models/%s:generateContent", c.geminiBase(), model)
 
 	body, err := c.callWithRetry(ctx, tierLabel, "Gemini", func() (map[string]any, error) {

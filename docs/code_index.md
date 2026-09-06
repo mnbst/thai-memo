@@ -604,7 +604,7 @@ functions/go/internal/sentence/prompts.go
 prompts.py の Go 版（ロジック）。難易度・長さヒント・テーマゲート・各種制約ブロック。
 
 functions/go/internal/sentence/prompts_data.go
-prompts.py の文字列データ（組み立て済みシステムプロンプト含む）の自動生成。手で編集しないこと。
+プロンプトの文字列データ（組み立て済みシステムプロンプト含む）の正本。旧prompts.py由来だが再生成元は無く、直接編集する。
 
 functions/go/internal/sentence/build_prompt.go
 プロンプト本体の組み立て。抽選済みの値を受け取るので決定的。
@@ -668,6 +668,9 @@ bl_drama.py とプロンプト断片・データを突き合わせる差分テ�
 
 functions/go/internal/uvm/session.go
 key_word候補のランク帯算出・テーマembeddingでの絞り込み・重み付き抽選（uvm.py:get_session_words）。
+
+functions/go/internal/uvm/excluded.go
+key_wordにしない語（単独では古語・方言・単位でしか使わない語）の除外リスト。
 
 functions/go/internal/uvm/exposure.go
 例文に出た語の露出をUVMへ記録する（uvm.py:register_exposure / get_sentence_words）。
@@ -738,9 +741,6 @@ functions/go/cmd/sample/main.go
 functions/go/generate_thai_sentence_golden_test.go
 sentence_handlers.py のクォータ・トライアル・生成条件と突き合わせる差分テスト。
 
-scripts/sample_sentences.py
-旧プロンプト検証スクリプト。functions/python の削除で動かない。後継は functions/go/cmd/sample。
-
 scripts/ga4_quiz_offer_experiment.py
 1問確認クイズ導線A/BテストのGA4ファネルを実験群別に集計する。
 
@@ -800,9 +800,6 @@ scripts/strip_denylist.py
 
 scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。
-
-scripts/build_topic_embeddings.py
-テーマ・サブテーマ・BLドラマ参考セリフ（shot_embeddings.json）のembeddingを768次元で事前計算する。出力はcorpus/配下、アップロードはupload_corpus.sh。
 
 scripts/upload_corpus.sh
 UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSにアップロード。

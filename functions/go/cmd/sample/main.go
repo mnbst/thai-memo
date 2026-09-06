@@ -1,8 +1,7 @@
 // Command sample は現行プロンプトでオフラインに例文を量産する。
 //
 // Firestore もクォータも通さず LLM だけを叩くため、プロンプト修正 → 生成 →
-// 目視レビューを高速に回せる。ablation 用（旧 scripts/sample_sentences.py の
-// 後継。Python 実装の削除で動かなくなったため Go へ移した）。
+// 目視レビューを高速に回せる ablation 用コマンド。
 //
 //	GEMINI_API_KEY=... go run ./cmd/sample \
 //	  -words "ลอง,แต่ว่า" -vocab 200,800 -n 5 -out /tmp/abl_a.json
@@ -54,6 +53,8 @@ func main() {
 	topic := flag.String("topic", "", "テーマを固定する（省略時は LLM に選ばせる）")
 	timeFrame := flag.String("timeframe", "",
 		"話している時点を固定する（省略時は抽選）: "+strings.Join(sentence.TimeFrames, " / "))
+	thinking := flag.Int("thinking", -1,
+		"thinkingBudget を固定する（-1 なら本番の tier 既定値: premium 1024 / free 256）")
 	flag.Parse()
 
 	targetWords := splitCSV(*words)
@@ -76,6 +77,10 @@ func main() {
 	}
 
 	model := envOr("GEMINI_MODEL_PREMIUM", "gemini-3.1-flash-lite")
+	var thinkingOverride *int
+	if *thinking >= 0 {
+		thinkingOverride = thinking
+	}
 	svc := &sentence.Service{
 		Gen: &llm.Client{
 			GeminiKey:          key,
@@ -83,6 +88,8 @@ func main() {
 			MaxTokens:          8192,
 			GeminiModel:        envOr("GEMINI_MODEL", "gemini-3.1-flash-lite"),
 			GeminiModelPremium: model,
+
+			GeminiThinkingBudgetOverride: thinkingOverride,
 		},
 		// サブテーマは本番なら embeddings が選ぶ。ここは GCS を引かずに
 		// 候補からランダムに引く（偏りではなく被覆を見るため）。
