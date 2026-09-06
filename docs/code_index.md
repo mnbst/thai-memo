@@ -852,19 +852,19 @@ tools/x_post/select_prompt.txt
 例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
 
 tools/x_post/synth_tts.py
-Google Cloud TTS（th-TH）で例文の読み上げ音声を作る。通常速度→間→ゆっくりの1本。
+Google Cloud TTS（th-TH）で例文の読み上げ音声を作る。通常速度で1回だけ。
 
 tools/x_post/build_media.py
-screen.png をX上限の4枚以内に均等分割し、1枚目＋音声を ffmpeg で mp4 にする。
+「お手本を聞く」操作の連番PNGと音声を ffmpeg で mp4 にする。フレームが無ければ1枚目の画像で静止動画。
 
 tools/x_post/post_to_x.py
-Xへ投稿し、投稿済みをGCSへ記録する。動画→画像→テキストの順に自動で退避する。
+Xへ投稿し、投稿済みをGCSへ記録する。動画1本＋画像3枚。拒まれたら動画のみ→画像のみ→テキストのみへ退避する。
 
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
 
 test/screenshots/x_post_screenshot.dart
-DetailScreen を flutter_test 上で描画してPNGに落とす。`_test.dart` ではないので通常の `flutter test` では走らない。
+DetailScreen を flutter_test 上で描画し、スクロールしながら画像3枚と、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
 
 .github/workflows/post-daily-x.yml
 毎日07:00 JSTに上記を通しで実行するワークフロー。dry_run で投稿せず確認できる。

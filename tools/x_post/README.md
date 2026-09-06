@@ -1,16 +1,17 @@
 # X（Twitter）自動投稿
 
 `@everydaythai775` に毎日の例文を自動投稿する。手で出していた
-「今日のタイ語＋アプリ画面のスクショ」を、読み上げ音声つきの動画にして出す。
+「今日のタイ語＋アプリ画面のスクショ」を、お手本再生を操作する動画1本と
+画面の画像3枚にして出す。
 
 ## 流れ
 
 | 手順 | 中身 |
 | --- | --- |
 | `pick_sentence.py` | 前日生成分から破綻を除き、Gemini に1件選ばせて本文を組む |
-| `test/screenshots/x_post_screenshot.dart` | `DetailScreen` をそのまま描画して PNG に落とす |
-| `synth_tts.py` | Google Cloud TTS（th-TH）で読み上げ音声を作る |
-| `build_media.py` | PNG を4枚以内に分割し、1枚目＋音声を mp4 にする |
+| `synth_tts.py` | Google Cloud TTS（th-TH）で読み上げ音声を作る（通常速度で1回） |
+| `test/screenshots/x_post_screenshot.dart` | `DetailScreen` を描画し、画像3枚と操作フレームを書き出す |
+| `build_media.py` | 操作フレームに音声を載せて mp4 にする |
 | `post_to_x.py` | X に投稿し、投稿済みを GCS に記録する |
 
 実行は `.github/workflows/post-daily-x.yml`（毎日 07:00 JST）。
@@ -81,8 +82,18 @@ MaterialIcons を明示的に読み込んでいる。
 3. `terraform apply` で `texttospeech.googleapis.com` の有効化と
    シークレットの枠を作る。
 
-動画の添付は X の API プラン次第で使えないことがある。その場合 `post_to_x.py` は
-自動で画像4枚に、それも駄目ならテキストのみに落として投稿を止めない。
+## 添付するもの
+
+動画1本＋画像3枚（Xの添付上限は4件）。
+
+- 動画は「お手本を聞く」を押してから読み上げが終わるまでの画面。実際に操作した
+  ときと同じ描画を `flutter_test` 上で1コマずつ撮り、音声はタップした位置から
+  重ねる。読み上げは通常速度で1回だけ。
+- 画像は画面を上からスクロールしながら撮る。見出しや単語の区切りで送るので、
+  1枚目で見切れた要素の頭が次の1枚目に来る。
+
+X が動画と画像の同時添付を拒む場合に備えて、`post_to_x.py` は動画のみ →
+画像のみ → テキストのみ、の順に落として投稿を止めない。
 
 ## ローカルでの確認
 
