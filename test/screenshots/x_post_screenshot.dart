@@ -107,19 +107,15 @@ void main() {
       }
     }
 
-    final contentHeight = position.viewportDimension + position.maxScrollExtent;
+    // どの1枚も端末1画面ぶんのまま。下端まで行ったらそこで止まる（前の1枚と
+    // 重なる）。切り詰めると本物の画面に見えない。
     var count = 0;
-    for (final offset in offsets) {
-      // 最後の1枚は下端で止まるので、そのままだと切れ目より上が半端に写る。
-      // 残りの高さぶんに画面を縮めて、切れ目がちょうど上端に来るようにする。
-      if (offset > position.maxScrollExtent) {
-        final height = (contentHeight - offset + _appBarHeight)
-            .clamp(240.0, _tileHeight)
-            .toDouble();
-        tester.view.physicalSize = Size(_logicalWidth, height) * _pixelRatio;
-        await tester.pumpAndSettle();
-      }
-      position.jumpTo(offset.clamp(0.0, position.maxScrollExtent).toDouble());
+    var previous = -1.0;
+    for (final wanted in offsets) {
+      final offset = wanted.clamp(0.0, position.maxScrollExtent).toDouble();
+      if (offset == previous) break;
+      previous = offset;
+      position.jumpTo(offset);
       await tester.pumpAndSettle();
       // toImage は実時間の非同期処理なので runAsync の中で回す。
       // 偽の時間軸のままだと後始末が終わらない。
@@ -152,13 +148,8 @@ void main() {
     await tester.pumpWidget(_host(sentence, tts: tts, tapMarker: tap));
     await tester.pumpAndSettle();
 
-    // 例文カードと再生バーだけを映す。下の解説まで入れると字が小さくなる。
+    // 端末1画面ぶんをそのまま映す。切り詰めると本物の画面に見えない。
     final listen = find.text(_l10n.sentenceListenModel).first;
-    final height = (tester.getBottomLeft(listen).dy + 84)
-        .clamp(320.0, _tileHeight)
-        .toDouble();
-    tester.view.physicalSize = Size(_logicalWidth, height) * _pixelRatio;
-    await tester.pumpAndSettle();
 
     final frames = Directory('$outDir/frames');
     if (frames.existsSync()) frames.deleteSync(recursive: true);
