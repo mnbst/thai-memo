@@ -6,7 +6,7 @@ import (
 )
 
 // TestGenerationDrop は「例文を生成すると語彙スコアが少し落ちる」現象の再現。
-// graded 導入前（全部を母数に入れる）と、前方帯をいじる案、導入後を比べる。
+// 母数を絞る前（未回答の語も全部入れる）と、前方帯をいじる案、現行を比べる。
 func TestGenerationDrop(t *testing.T) {
 	trials := 20
 	type cfg struct {
@@ -17,12 +17,12 @@ func TestGenerationDrop(t *testing.T) {
 		noLearning   bool
 	}
 	cfgs := []cfg{
-		{"実装前（全部を母数に）", 0, false, true, false},
-		{"実装前 + 前方を狭める(8)", 8, false, true, false},
-		{"実装前 + 前方を狭める(3)", 3, false, true, false},
-		{"実装前 + 前方を広げる(40)", 40, false, true, false},
-		{"実装後（等倍のみ）", 0, false, false, false},
-		{"実装後 + 確認クイズ無し", 0, false, false, true},
+		{"絞る前（生のP）", 0, false, true, false},
+		{"生のP + 前方8", 8, false, true, false},
+		{"生のP + 前方3", 3, false, true, false},
+		{"生のP + 前方40", 40, false, true, false},
+		{"現行（回答済みのみ）", 0, false, false, false},
+		{"現行 + 確認クイズ無し", 0, false, false, true},
 	}
 	for _, truth := range []int{150, 350, 700} {
 		t.Logf("=== 真値 %d ===", truth)

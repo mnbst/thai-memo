@@ -1136,18 +1136,15 @@
   },
   "settingsVocabTestPremium": "プレミアム限定",
   "vocabTestTitle": "語彙力を測る",
-  "vocabTestIntroBody": "タイ語の単語を4択で答えてもらい、いまの語彙量を測ります。わからない単語が続いたらそこで終わりです。早ければ4問、長くても24問で終わります。",
+  "vocabTestIntroBody": "タイ語の単語を4択で答えてもらい、いまの語彙量を測ります。わからない単語が続いたらそこで終わりです。早ければ6問、語彙が多い人ほど長くなります。",
   "vocabTestIntroNote": "結果は例文とクイズの難易度に反映されます。設定画面から月1回まで受け直せます。",
   "vocabTestStart": "はじめる",
   "vocabTestQuestion": "この単語の意味は？",
   "vocabTestDontKnow": "わからない",
-  "vocabTestProgress": "{current} / {total} 問目",
+  "vocabTestProgress": "{current} 問目",
   "@vocabTestProgress": {
     "placeholders": {
       "current": {
-        "type": "int"
-      },
-      "total": {
         "type": "int"
       }
     }

@@ -23,17 +23,54 @@ type Result struct {
 	SentenceReviewed bool `json:"sentence_reviewed"`
 }
 
-// IsGradedResult は「等倍で採点されたクイズの回答」かを返す。
+// IsGradedResult は「採点として扱えるクイズの回答」かを返す。
 //
 // 境界推定（SyncEstimatedVocab）の母数はこれが真の語だけ。確認クイズ
-// （quiz_type=="learning"）の正解は α×0.1、ヒント有りは ×0.5/×0.25、例文
-// レビュー由来も ×0.1 で、P は VocabCutoffP=0.42 に構造的に届かない。それでも
-// MovingAvg の母数には入るので、未登録 rank の prior(0.4) より低い実測値として
-// 平均を押し下げ、例文を生成するたびに境界が数ランク落ちていた。
+// （quiz_type=="learning"）は例文を読んだ直後の1問で、答えが目の前にある。
+// 正解しても知っている証拠にならないので母数に入れない。
 //
-// 減衰つきの回答は P だけ動かし、境界の証拠にはしない。
+// ヒント・例文レビューはここでは外さない。GuessRate と
+// SentenceReviewCorrectMultiplier が既に P の動きを弱めて「弱い証拠」として
+// 扱っており、さらに母数から外すと同じ理由で二重に罰することになる。
+// 除外は中立ではなく、MovingAvg で未登録 rank の prior(0.4) に差し替える
+// 操作なので、ヒントを常用するユーザーほど母数が prior だけになり
+// estimated_vocab が動かなくなっていた。ヒント2段（訳を表示）でなお
+// 不正解、という最も強い「知らない」証拠まで捨てていたのも同じ理由。
 func IsGradedResult(quizType string, r Result) bool {
-	return quizType != "learning" && r.HintLevel == 0 && !r.SentenceReviewed
+	return quizType != "learning"
+}
+
+// ResultEvidence は回答 1 件の証拠量（等倍のまとめクイズ何問分か）を返す。
+// 累積したものが uvm doc の evidence で、境界推定の母数に入れるかを決める。
+//
+// **正誤を見てはいけない。** α 側の倍率は正解時だけ弱める（確認クイズの正解は
+// ×0.1 だが不正解は等倍）が、それを証拠量に流用すると「確認クイズは不正解だけ
+// が境界推定に届く」となり、母数が結果で選別される＝下方バイアスになる。
+// ここは回答の条件（ヒント段階・quiz_type・例文レビュー）だけで決める。
+func ResultEvidence(quizType string, r Result) float64 {
+	ev := HintMultiplier(r.HintLevel)
+	if quizType == "learning" {
+		ev *= LearningCorrectMultiplier
+	}
+	if r.SentenceReviewed {
+		ev *= SentenceReviewCorrectMultiplier
+	}
+	return ev
+}
+
+// evidenceField は uvm doc から累積証拠量を読む。0 なら「一度も答えていない」。
+//
+// evidence を持たない移行前の doc は graded から導く。graded=true（および
+// フィールドごと無い旧 doc）は正の値＝従来どおり母数に入れ、露出だけで
+// 作られた graded=false は 0 ＝ 未登録と同じ扱い。これで移行中に母数が動かない。
+func evidenceField(data map[string]any) float64 {
+	if v := floatField(data, "evidence", -1); v >= 0 {
+		return v
+	}
+	if boolField(data, "graded", true) {
+		return 1
+	}
+	return 0
 }
 
 // now は time.time() 相当（Unix 秒の float）。Firestore には数値で入る。
@@ -78,29 +115,28 @@ func BatchUpdate(
 	for _, r := range results {
 		docRef := uvmRef.Doc(r.Word)
 
-		var rank *int
-		if v, ok := freqRank[r.Word]; ok {
-			rank = &v
-		}
-
-		mult := HintMultiplier(r.HintLevel)
+		// weight は証拠の重み（UpdateP の尤度比の指数）。ヒントは weight では
+		// なく GuessRate 側で入るので、ここでは掛けない。
+		weight := 1.0
 		if quizType == "learning" && r.IsCorrect {
-			mult *= LearningCorrectMultiplier
+			weight *= LearningCorrectMultiplier
 		}
 		if r.SentenceReviewed && r.IsCorrect {
-			mult *= SentenceReviewCorrectMultiplier
+			weight *= SentenceReviewCorrectMultiplier
 		}
 
 		graded := IsGradedResult(quizType, r)
+		ev := ResultEvidence(quizType, r)
 
 		if data, ok := existing[r.Word]; ok {
 			// --- 既存単語の更新 ---
 			oldP := floatField(data, "p", NewWordP)
 			attempts := intField(data, "quiz_attempts", 0)
-			newP := UpdateP(oldP, r.IsCorrect, attempts, rank, mult)
+			newP := UpdateP(oldP, r.IsCorrect, r.HintLevel, weight)
 			updates := []firestore.Update{
 				{Path: "p", Value: newP},
 				{Path: "quiz_attempts", Value: attempts + 1},
+				{Path: "evidence", Value: evidenceField(data) + ev},
 				{Path: "last_seen", Value: now},
 				{Path: "last_result", Value: r.IsCorrect},
 			}
@@ -113,11 +149,12 @@ func BatchUpdate(
 			}
 		} else {
 			// --- 新規単語の作成（初めて見た単語） ---
-			newP := UpdateP(NewWordP, r.IsCorrect, 0, rank, mult)
+			newP := UpdateP(NewWordP, r.IsCorrect, r.HintLevel, weight)
 			if _, err := batch.Set(docRef, map[string]any{
 				"word":          r.Word,
 				"p":             newP,
 				"quiz_attempts": 1,
+				"evidence":      ev,
 				"last_seen":     now,
 				"last_result":   r.IsCorrect,
 				"graded":        graded,
@@ -190,10 +227,18 @@ func SyncEstimatedVocab(
 			if !s.Exists() {
 				continue
 			}
-			// 等倍で採点された語だけを境界の証拠にする（IsGradedResult）。
-			// フィールドを持たない既存 doc は真として扱う。移行中に過去の
-			// 母数が急に減って estimated_vocab が動くのを避ける。
-			if !boolField(s.Data(), "graded", true) {
+			// 一度も答えていない語（例文に出ただけ）は母数から外す。P は
+			// prior のままなので、MovingAvg に prior を埋めさせるのと同じ
+			// 寄与になる。EstimateVocab 側の n や中心計算を揺らさないよう
+			// 明示的に落とす。
+			//
+			// 証拠の弱さは P そのものが持っている。UpdateP は尤度比の指数に
+			// weight を、推測率に GuessRate を使うので、ヒント付きや確認クイズ
+			// だけの語は prior 付近から動かない。ここでさらに prior へ寄せる
+			// （旧 ShrinkP）と二重の割引になり、ヒントを常用するユーザーの
+			// estimated_vocab が実力より低く出ていた（真値350・ヒント2段で
+			// d90 129 対 167）。
+			if evidenceField(s.Data()) <= 0 {
 				continue
 			}
 			entries = append(entries, RankedP{

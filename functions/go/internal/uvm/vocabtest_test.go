@@ -25,19 +25,19 @@ func runTest(start int, answers []int) []StageResult {
 	}
 }
 
-// 初心者は 1 段目で落ちて 4 問で終わる（テストを入れる目的そのもの）。
+// 初心者は 1 段目で落ちて 1 段ぶんで終わる（テストを入れる目的そのもの）。
 func TestNextStageBeginnerStopsAfterOneStage(t *testing.T) {
 	history := runTest(0, []int{0})
 	if len(history) != 1 {
 		t.Fatalf("段数 = %d, want 1 (履歴=%v)", len(history), history)
 	}
-	if items := len(history) * TestItemsPerStage; items != 4 {
-		t.Errorf("出題数 = %d, want 4", items)
+	if items := len(history) * TestItemsPerStage; items != TestItemsPerStage {
+		t.Errorf("出題数 = %d, want %d", items, TestItemsPerStage)
 	}
 }
 
 func TestNextStageClimbsToCeiling(t *testing.T) {
-	history := runTest(0, []int{4, 4, 4, 4, 4, 4})
+	history := runTest(0, fill(len(TestStages), TestItemsPerStage))
 	if len(history) != len(TestStages) {
 		t.Fatalf("段数 = %d, want %d", len(history), len(TestStages))
 	}
@@ -49,7 +49,7 @@ func TestNextStageClimbsToCeiling(t *testing.T) {
 
 // 落ちたらそこで終わる。下へ戻る経路は無い（開始段が常に 0 なので不要）。
 func TestNextStageStopsOnFailure(t *testing.T) {
-	history := runTest(0, []int{4, 0})
+	history := runTest(0, []int{TestItemsPerStage, 0})
 	if len(history) != 2 {
 		t.Fatalf("履歴 = %v, want 2 段", history)
 	}
@@ -67,20 +67,22 @@ func TestScoreVocab(t *testing.T) {
 		history []StageResult
 		want    int
 	}{
-		// 期待値はいずれも内挿の結果から ScoreBias(50) を引いた値。0 で止まる。
+		// 期待値は内挿の結果そのもの（ScoreBias は 0）。出題は 1 段 6 問、
+		// 通過は 5 問（TestItemsPerStage / TestPassThreshold）。
 		//
-		// 1 段目 [1,50] で 0/4 → 推測補正後 0 → 下限に張り付く
+		// 1 段目 [1,50] で 0/6 → 推測補正後 0 → 下限に張り付く
 		{"完全初心者", []StageResult{{0, 0}}, 0},
-		// 1 段目 2/4 → c=(0.5-0.25)/0.75=1/3 → 0 + round(50/3)=17 → 補正で 0
-		{"1段目で半分", []StageResult{{0, 2}}, 0},
-		// 1 段目通過、2 段目 [51,150] で 1/4 → c=0 → 50 → 補正で 0
-		{"1段目のみ通過", []StageResult{{0, 4}, {1, 1}}, 0},
-		// 3 段目 [151,300] で 2/4 → 150 + round(150/3)=200 → 150
-		{"3段目で半分", []StageResult{{0, 4}, {1, 4}, {2, 2}}, 150},
-		// 全段通過 → 最上段の上限 900 → 850
-		{"天井", []StageResult{{0, 4}, {1, 4}, {2, 4}, {3, 4}, {4, 4}, {5, 4}}, 850},
-		// 下降して通過 → 下の段の上限を割らない（150 → 100）
-		{"下降して通過", []StageResult{{2, 1}, {1, 4}}, 100},
+		// 1 段目 3/6 → c=(0.5-0.35)/0.65=0.2308 → 0 + round(50*0.2308)=12
+		{"1段目で半分", []StageResult{{0, 3}}, 12},
+		// 1 段目通過、2 段目 [51,150] で 1/6 → c=0 → 50（1 段目の上限）
+		{"1段目のみ通過", []StageResult{{0, 6}, {1, 1}}, 50},
+		// 3 段目 [151,300] で 3/6 → 150 + round(150*0.2308)=185
+		{"3段目で半分", []StageResult{{0, 6}, {1, 6}, {2, 3}}, 185},
+		// 全段通過 → 最上段の上限
+		{"天井", allPassed(), 3000},
+		// 1 段落としても通過（6 問中 5 問）
+		{"1問落として通過", []StageResult{{0, 5}, {1, 1}}, 50},
+		{"下降して通過", []StageResult{{2, 1}, {1, 6}}, 150},
 	}
 	for _, c := range cases {
 		if got := ScoreVocab(c.history); got != c.want {
@@ -93,13 +95,22 @@ func TestScoreVocab(t *testing.T) {
 func TestScoreVocabMonotonic(t *testing.T) {
 	prev := -1
 	for stage := range TestStages {
-		history := runTest(0, append(fill(stage, 4), 0))
+		history := runTest(0, append(fill(stage, TestItemsPerStage), 0))
 		got := ScoreVocab(history)
 		if got < prev {
 			t.Errorf("段 %d で %d に下がった（前段 %d）", stage, got, prev)
 		}
 		prev = got
 	}
+}
+
+// allPassed は全段を通過した履歴。
+func allPassed() []StageResult {
+	out := make([]StageResult, 0, len(TestStages))
+	for i := range TestStages {
+		out = append(out, StageResult{i, TestItemsPerStage})
+	}
+	return out
 }
 
 func fill(n, v int) []int {
@@ -123,7 +134,7 @@ func testItems(n int) []TestItem {
 }
 
 func TestBuildStageQuestions(t *testing.T) {
-	items := testItems(900)
+	items := testItems(3000)
 	rnd := rand.New(rand.NewSource(1))
 	qs := BuildStageQuestions(items, TestStages[2], TestItemsPerStage, rnd)
 
@@ -155,7 +166,7 @@ func TestBuildStageQuestions(t *testing.T) {
 
 // 正解の位置が偏ると、位置だけで当てられる。
 func TestBuildStageQuestionsAnswerPositionSpread(t *testing.T) {
-	items := testItems(900)
+	items := testItems(3000)
 	counts := map[int]int{}
 	for seed := range 100 {
 		rnd := rand.New(rand.NewSource(int64(seed)))
@@ -208,7 +219,7 @@ func TestBuildStageQuestionsFillsAroundDuplicateGlosses(t *testing.T) {
 
 // 出題語は必ずその段のランク帯に入る（帯がずれると測定値がずれる）。
 func TestBuildStageQuestionsStaysInBand(t *testing.T) {
-	items := testItems(900)
+	items := testItems(3000)
 	rankOf := map[string]int{}
 	for _, it := range items {
 		rankOf[it.Word] = it.Rank

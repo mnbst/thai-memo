@@ -106,7 +106,7 @@ void main() {
     await tester.pumpWidget(_app(api));
     await _start(tester);
 
-    expect(find.text('1 / 4 問目'), findsOneWidget);
+    expect(find.text('1 問目'), findsOneWidget);
     await _answerStage(tester, 0);
 
     expect(find.text('約 17 語'), findsOneWidget);
@@ -123,8 +123,13 @@ void main() {
     await _start(tester);
     await _answerStage(tester, 0);
 
-    // 2段目の1問目に戻っている（進捗も振り出し）。
-    expect(find.text('1 / 4 問目'), findsOneWidget);
+    // 2段目の1問目。番号は段をまたいで通しで数える（振り出しに戻さない）。
+    expect(find.text('5 問目'), findsOneWidget);
+    // 進捗バーも巻き戻らない（6段中2段目の頭 ＝ 1/6 を超えている）。
+    final bar = tester.widget<LinearProgressIndicator>(
+      find.byType(LinearProgressIndicator),
+    );
+    expect(bar.value, greaterThan(1 / 6));
     await _answerStage(tester, 1);
     expect(find.text('約 150 語'), findsOneWidget);
   });

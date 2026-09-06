@@ -54,6 +54,8 @@ func loadGolden(t *testing.T) *goldenFile {
 // 演算順序を揃えてある限り完全一致するはず。許容差は丸め1ulp相当だけ見る。
 const eps = 1e-12
 
+// UpdatePAlpha（旧 α 則）と Python の一致を見る。本番の UpdateP は尤度比に
+// 置き換わっており、この golden の対象ではない。
 func TestUpdatePMatchesPython(t *testing.T) {
 	g := loadGolden(t)
 	if len(g.UpdateP) == 0 {
@@ -61,10 +63,10 @@ func TestUpdatePMatchesPython(t *testing.T) {
 	}
 	bad := 0
 	for _, c := range g.UpdateP {
-		got := UpdateP(c.P, c.Correct, c.QuizAttempts, c.Rank, c.HintMultiplier)
+		got := UpdatePAlpha(c.P, c.Correct, c.QuizAttempts, c.Rank, c.HintMultiplier)
 		if math.Abs(got-c.Want) > eps {
 			if bad < 5 {
-				t.Errorf("UpdateP(p=%v correct=%v attempts=%d rank=%v mult=%v) = %v, want %v",
+				t.Errorf("UpdatePAlpha(p=%v correct=%v attempts=%d rank=%v mult=%v) = %v, want %v",
 					c.P, c.Correct, c.QuizAttempts, c.Rank, c.HintMultiplier, got, c.Want)
 			}
 			bad++

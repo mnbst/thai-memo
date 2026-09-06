@@ -1,6 +1,7 @@
 /// 語彙テストの1往復ぶんの応答（startVocabTest / submitVocabTest）。
 ///
-/// 出題は1段（4問）ずつ返り、答えを送ると次の段か最終結果が返る。
+/// 出題は1段ずつ返り、答えを送ると次の段か最終結果が返る。
+/// 1段の問題数はサーバー側の定数（uvm.TestItemsPerStage）で決まる。
 /// 正解はサーバーにしか無いので、採点結果はここに入らない。
 class VocabTestStep {
   const VocabTestStep({

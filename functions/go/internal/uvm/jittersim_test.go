@@ -26,7 +26,7 @@ func jitter(seed int64, tested, maxDelta, rounds int, correctRate float64) []int
 			if !ok {
 				old = NewWordP
 			}
-			p[rank] = UpdateP(old, rnd.Float64() < correctRate, att[rank], rp(rank), 1.0)
+			p[rank] = UpdateP(old, rnd.Float64() < correctRate, 0, 1.0)
 			att[rank]++
 		}
 		// クイズ5問 + 例文生成1 = sync 6回

@@ -54,10 +54,10 @@ const maxAnonDeletionsPerRun = 500
 
 // UVM P値減衰の定数。
 //
-// 例文選定では estimated_vocab ± 10 帯域内で P が最も低い語を選出する。
-// 新規（未登録）語は P=0.02 で扱うため、露出済みだが復習されていない語の
-// P を毎日 pDecayPerDay ずつ減衰させることで、放置された語が新語より
-// 優先されるようにする。全登録単語に適用する。
+// key_word の候補が未出題語（UVM 未登録 or P=0）で埋まらなくなると、
+// GetSessionWords は 1-p 重み（UnknownWeights）にフォールバックして既習語から
+// 引き直す。P を毎日 pDecayPerDay ずつ減衰させておくと、そのとき放置された語が
+// 復習されたばかりの語より優先される。全登録単語に適用する。
 const (
 	pDecayPerDay = 0.001
 	pDecayMin    = 0.0
