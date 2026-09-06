@@ -13,7 +13,7 @@
 // 端末フォントが無い環境なので、タイ語・日本語のフォントは明示的に読み込む。
 //
 // 出力:
-//   image_1.png ... image_3.png  スクロールしながら撮った画面
+//   image_1.png ... image_3.png  動画で見切れた先からスクロールして撮った画面
 //   frames/frame_0001.png ...    「お手本を聞く」を押す操作の連番フレーム
 //   frames.json                  フレームレートと音声を差し込む位置
 // =============================================================================
@@ -216,25 +216,27 @@ Future<ThaiSentence> _prepare(String sentencePath) async {
 
 /// 何回スクロールして撮るかを決め、その各スクロール位置を返す。
 ///
-/// 添付は動画1本と画像3枚まで。1枚目で見切れた要素の頭が2枚目の先頭に来る
-/// ように、画面に収まる範囲で最も下の切れ目（見出し・区切り線）まで送る。
+/// 添付は動画1本と画像3枚まで。1画面目は動画がそのまま映すので撮らず、
+/// 動画で見切れた要素の頭が1枚目の先頭に来るところから始める。以降も同じで、
+/// 画面に収まる範囲で最も下の切れ目（見出し・区切り線）まで送る。
 /// 切れ目が見つからない回は画面ぶん送る。
 List<double> _shotOffsets(WidgetTester tester, ScrollPosition position) {
   final viewport = position.viewportDimension;
   final maxScroll = position.maxScrollExtent;
   final breaks = _breakPoints(tester);
 
-  final contentHeight = viewport + maxScroll;
-  final offsets = <double>[0];
+  final offsets = <double>[];
   var offset = 0.0;
   while (offsets.length < _maxShots && offset < maxScroll) {
-    final limit = offset + viewport;
+    // 送り先は下端まで。ここを超えて狙うと clamp されて頭が切れる。
+    final limit = offset + viewport > maxScroll ? maxScroll : offset + viewport;
     final candidates = breaks.where((b) => b > offset + 80 && b <= limit);
     final next = candidates.isEmpty
         ? limit
         : candidates.reduce((a, b) => a > b ? a : b);
-    // 残りが薄すぎる回は撮らない。下端の余白だけの画像を作らない。
-    if (contentHeight - next < 120) break;
+    // ほとんど送れないなら終わり。数十pxのために1枚増やすと、前の画像と
+    // ほぼ同じものが並ぶ。
+    if (next - offset < 120) break;
     offset = next;
     offsets.add(offset);
   }
@@ -278,7 +280,7 @@ Widget _host(
       locale: const Locale('ja'),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
-      theme: _themeWithFallbacks(buildAppLightTheme(ThaiFont.notoSansThai)),
+      theme: _themeWithFallbacks(buildAppLightTheme(ThaiFont.sarabun)),
       home: RepaintBoundary(
         key: const ValueKey('x-post-content'),
         child: tapMarker == null
@@ -365,7 +367,7 @@ ButtonStyle? _patch(ButtonStyle? style) {
   );
 }
 
-/// google_fonts/ に同梱しているタイ語フォントと、CI が置く日本語フォントを
+/// google_fonts/ に同梱しているタイ語フォント（Sarabun）と、CI が置く日本語フォントを
 /// テストのフォントコレクションへ登録する。
 Future<void> _loadFonts() async {
   Future<void> load(
@@ -387,7 +389,8 @@ Future<void> _loadFonts() async {
     if (any) await loader.load();
   }
 
-  // google_fonts は "NotoSansThai_regular" のような family 名で解決する。
+  // google_fonts は "Sarabun_regular" のような family 名で解決する。
+  // アプリの既定フォント（Sarabun）に合わせる。
   const weights = {
     'Regular': 'regular',
     'Medium': '500',
@@ -395,8 +398,8 @@ Future<void> _loadFonts() async {
     'Bold': '700',
   };
   for (final entry in weights.entries) {
-    await load('NotoSansThai_${entry.value}',
-        ['google_fonts/NotoSansThai-${entry.key}.ttf']);
+    await load('Sarabun_${entry.value}',
+        ['google_fonts/Sarabun-${entry.key}.ttf']);
     await load('NotoSans_${entry.value}',
         ['google_fonts/NotoSans-${entry.key}.ttf']);
   }
