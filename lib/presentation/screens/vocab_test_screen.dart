@@ -246,23 +246,37 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
     if (step == null || _index >= step.questions.length) {
       return const Center(child: CircularProgressIndicator());
     }
-    final question = step.questions[_index];
-    final total = step.questions.length;
-
-    return _questionBody(l10n, question, total);
+    return _questionBody(l10n, step, step.questions[_index]);
   }
 
-  Widget _questionBody(L10n l10n, VocabTestQuestion question, int total) {
+  /// 進捗は段をまたいで通しで数える。
+  ///
+  /// 段の中（1〜6問目）で出すと、段が変わるたびにバーが満杯からゼロへ戻る。
+  /// 段は最大 TestStages 段あり、実力があるほど多くの段を通るので、上の層ほど
+  /// 巻き戻しを何度も見ることになる。stage と totalStages はサーバーから
+  /// 届いているので、それで全体の中の位置を出す。
+  ///
+  /// 分子を段から作るのは、通信のやり直しで段が再送されても値が戻らない
+  /// ようにするため（画面側でカウンタを持つとそこでずれる）。
+  double _progress(VocabTestStep step) {
+    final perStage = step.questions.length;
+    if (perStage == 0) return 0;
+    final within = (_index + 1) / perStage;
+    if (step.totalStages <= 0) return within;
+    return ((step.stage + within) / step.totalStages).clamp(0.0, 1.0);
+  }
+
+  Widget _questionBody(L10n l10n, VocabTestStep step, VocabTestQuestion question) {
     final theme = Theme.of(context);
+    // 何問目かも通し。段の中の番号だと 1〜6 を何度も繰り返すことになる。
+    final asked = step.stage * step.questions.length + _index + 1;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        LinearProgressIndicator(
-          value: total == 0 ? 0 : (_index + 1) / total,
-        ),
+        LinearProgressIndicator(value: _progress(step)),
         const SizedBox(height: 8),
         Text(
-          l10n.vocabTestProgress(_index + 1, total),
+          l10n.vocabTestProgress(asked),
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),

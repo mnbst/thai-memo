@@ -3881,7 +3881,7 @@ abstract class L10n {
   /// No description provided for @vocabTestIntroBody.
   ///
   /// In ja, this message translates to:
-  /// **'タイ語の単語を4択で答えてもらい、いまの語彙量を測ります。わからない単語が続いたらそこで終わりです。早ければ4問、長くても24問で終わります。'**
+  /// **'タイ語の単語を4択で答えてもらい、いまの語彙量を測ります。わからない単語が続いたらそこで終わりです。早ければ6問、語彙が多い人ほど長くなります。'**
   String get vocabTestIntroBody;
 
   /// No description provided for @vocabTestIntroNote.
@@ -3911,8 +3911,8 @@ abstract class L10n {
   /// No description provided for @vocabTestProgress.
   ///
   /// In ja, this message translates to:
-  /// **'{current} / {total} 問目'**
-  String vocabTestProgress(int current, int total);
+  /// **'{current} 問目'**
+  String vocabTestProgress(int current);
 
   /// No description provided for @vocabTestResultTitle.
   ///
