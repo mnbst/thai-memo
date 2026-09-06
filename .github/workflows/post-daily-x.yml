@@ -1,0 +1,103 @@
+name: Post Daily Sentence to X
+
+on:
+  schedule:
+    # 07:00 JST。毎日例文の配信と同じ朝の時間帯に合わせる。
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '投稿せず、本文とメディアの確認だけ行う'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write  # WIF認証に必要
+
+env:
+  WIF_PROVIDER: projects/219961294368/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc-provider
+  CI_SERVICE_ACCOUNT: github-actions-deployer@thai-memo-prod.iam.gserviceaccount.com
+  GCP_PROJECT: thai-memo-prod
+  OUT_DIR: build/x_post
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.CI_SERVICE_ACCOUNT }}
+
+      - name: Fetch X credentials from Secret Manager
+        uses: google-github-actions/get-secretmanager-secrets@v2
+        id: secrets
+        with:
+          secrets: |-
+            X_API_KEY:${{ env.GCP_PROJECT }}/x-api-key
+            X_API_SECRET:${{ env.GCP_PROJECT }}/x-api-secret
+            X_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/x-access-token
+            X_ACCESS_TOKEN_SECRET:${{ env.GCP_PROJECT }}/x-access-token-secret
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          pip install -r tools/x_post/requirements.txt
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Fetch Japanese font
+        run: tools/x_post/fetch_fonts.sh
+
+      - name: Pick sentence
+        run: |
+          python tools/x_post/pick_sentence.py \
+            --project "$GCP_PROJECT" --out "$OUT_DIR" --seed "$(date -u +%F)"
+
+      - name: Render screenshot
+        run: |
+          flutter test test/screenshots/x_post_screenshot.dart \
+            --dart-define=X_POST_SENTENCE=$OUT_DIR/sentence.json \
+            --dart-define=X_POST_OUT=$OUT_DIR
+
+      - name: Synthesize pronunciation
+        run: |
+          python tools/x_post/synth_tts.py \
+            --sentence "$OUT_DIR/sentence.json" --out "$OUT_DIR"
+
+      - name: Build media
+        run: python tools/x_post/build_media.py --out "$OUT_DIR"
+
+      - name: Upload media as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-post-media
+          path: |
+            ${{ env.OUT_DIR }}/image_*.png
+            ${{ env.OUT_DIR }}/post.mp4
+            ${{ env.OUT_DIR }}/text.txt
+          retention-days: 7
+
+      - name: Post to X
+        env:
+          X_API_KEY: ${{ steps.secrets.outputs.X_API_KEY }}
+          X_API_SECRET: ${{ steps.secrets.outputs.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ steps.secrets.outputs.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ steps.secrets.outputs.X_ACCESS_TOKEN_SECRET }}
+        run: |
+          python tools/x_post/post_to_x.py \
+            --project "$GCP_PROJECT" --out "$OUT_DIR" \
+            ${{ inputs.dry_run && '--dry-run' || '' }}

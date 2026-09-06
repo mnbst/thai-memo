@@ -81,3 +81,6 @@ tmp_subs/
 
 # App Check デバッグトークン等のローカル dart-define（git 管理外）
 dart_defines.json
+
+# X投稿用にCIが取得するフォント（リポジトリには置かない）
+tools/x_post/fonts/

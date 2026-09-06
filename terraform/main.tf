@@ -25,6 +25,8 @@ resource "google_project_service" "required_apis" {
     "monitoring.googleapis.com",
     "billingbudgets.googleapis.com",
     "firebaseappcheck.googleapis.com",
+    # X 自動投稿の読み上げ音声（tools/x_post）
+    "texttospeech.googleapis.com",
   ])
 
   project = var.project_id

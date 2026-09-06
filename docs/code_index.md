@@ -14,6 +14,9 @@ lib/core/config/app_config.dart
 lib/core/theme/app_colors.dart
 アプリ全体のカラートークンと light/dark の ColorScheme 定義。
 
+lib/core/theme/app_theme.dart
+ThemeData の構築（app.dart から分離）。スクリーンショット生成など MyApp を起動しない経路からも同じ見た目を再現するため。
+
 lib/core/config/firebase_config.dart
 Cloud Functionsのリージョン・タイムアウト・関数名定義。
 
@@ -406,7 +409,7 @@ functions/go/internal/uvm/freqrank.go
 GCSからfreq_rank_top10000.jsonを読みキャッシュする。
 
 functions/go/internal/uvm/vocabtest.go
-語彙テストの純ロジック。段の昇降・早期終了・スコア変換・出題の組み立て・測定値が支える下限。語ごとのPには触らない。
+語彙テストの純ロジック。段の昇降・早期終了・スコア変換・出題の組み立て・測定値が支える下限。11段（上限3000）／1段6問・5問通過。語ごとのPには触らない。
 
 functions/go/internal/uvm/vocabtest_items.go
 GCSから vocab_test_items_<lang>.json（出題語と訳）を読みキャッシュする。
@@ -681,26 +684,14 @@ EstimateVocab のテスト。証拠が無ければ動かさない・0からと�
 functions/go/vocabtest_session_test.go
 語彙テストのセッションdocの往復（選択肢の保存と、同じ段の再送）のテスト。
 
-functions/go/internal/uvm/sim_harness_test.go
-シミュレーション用の学習サイクル再現（Firestoreを使わないin-memory版）。
+functions/go/internal/uvm/scoresim_test.go
+語彙テストの測定精度シミュレーション（SIM=1 で実行）。段の階段・1段の問題数・通過本数・世界側の推測率/slip を差し替えて誤差と到達率を比べる。TestStages 等を触る前に回す。
 
-functions/go/internal/uvm/sim_vocabtest_test.go
-語彙テストの測定精度と、テスト後の estimated_vocab 推移のシミュレーション（SIM=1 で実行）。受験の有無・クイズ・露出上限を切り分けられる。
+functions/go/internal/uvm/irtsim_test.go
+IRT（3PL・θ=logランク・適応出題）で測った場合の精度を、いまの階段と同条件で比べるシミュレーション（SIM=1）。世界モデル（pKnowの形）を線形/logで差し替えられる。本番コードは使わない検証専用。
 
-functions/go/internal/uvm/sim_matrix_test.go
-語彙テスト受験有無 × まとめクイズ有無の2x2で estimated_vocab 推移を比べるシミュレーション（SIM=1 で実行）。
-
-functions/go/internal/uvm/sim_highrank_test.go
-高ランク帯で estimated_vocab の伸びが小さくなる原因（key_word 帯の下端と境界付近の登録語数）を分解するシミュレーション（SIM=1 で実行）。
-
-functions/go/internal/uvm/sim_dip_test.go
-受験直後に estimated_vocab が沈む現象を日次で分解するシミュレーション（SIM=1 で実行）。
-
-functions/go/internal/uvm/sim_score_test.go
-語彙テストの測定値の上振れと、その下げ方（一律減・内挿縮小・床なし）を比べるシミュレーション（SIM=1 で実行）。
-
-functions/go/internal/uvm/sim_learning_test.go
-確認クイズだけを回したときの estimated_vocab の推移と、測定値を下限にする効果を見るシミュレーション（SIM=1 で実行）。
+functions/go/internal/uvm/downsim_test.go
+「下振れは許容し上振れだけ抑える」前提で、階段のゲート/内挿率と IRT の c を掃き出すシミュレーション（SIM=1）。指標は全世界での上振れp90・下振れp10・世界ごとの中央値。
 
 functions/go/internal/uvm/matrixsim_test.go
 受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。母数の絞り方とヒント常用時の比較も含む。更新則・新語 prior・世界側の推測率/slip を差し替えるつまみを持つ。
@@ -845,6 +836,32 @@ test/presentation/screens/vocab_test_screen_test.dart
 
 test/presentation/widgets/premium_trial_ended_dialog_test.dart
 体験終了ダイアログが語彙スコアの落差を出す条件（測定値が free 上限超のときだけ）のテスト。
+
+## X 自動投稿
+
+tools/x_post/README.md
+X（@everydaythai775）へ毎日の例文を自動投稿する仕組みの全体像と、必要なシークレットの手順。
+
+tools/x_post/pick_sentence.py
+GCSのfree例文バンクから未投稿を1件選び、投稿本文を組む。投稿済みは x_post/posted.json で管理。
+
+tools/x_post/synth_tts.py
+Google Cloud TTS（th-TH）で例文の読み上げ音声を作る。通常速度→間→ゆっくりの1本。
+
+tools/x_post/build_media.py
+screen.png をX上限の4枚以内に均等分割し、1枚目＋音声を ffmpeg で mp4 にする。
+
+tools/x_post/post_to_x.py
+Xへ投稿し、投稿済みをGCSへ記録する。動画→画像→テキストの順に自動で退避する。
+
+tools/x_post/fetch_fonts.sh
+スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
+
+test/screenshots/x_post_screenshot.dart
+DetailScreen を flutter_test 上で描画してPNGに落とす。`_test.dart` ではないので通常の `flutter test` では走らない。
+
+.github/workflows/post-daily-x.yml
+毎日07:00 JSTに上記を通しで実行するワークフロー。dry_run で投稿せず確認できる。
 
 ## E2E (Maestro)
 
