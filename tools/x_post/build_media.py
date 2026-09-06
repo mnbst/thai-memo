@@ -57,6 +57,10 @@ def _encode_frames(frames: Path, meta: dict, audio: Path, video: Path) -> bool:
     """連番PNGと音声から動画を作る。音声はタップした位置から鳴らす。"""
     delay = int(meta.get("audio_delay_ms", 0))
     fps = int(meta.get("fps", 20))
+    count = int(meta.get("count", 0))
+    # フレーム数で尺が決まる。無音の詰め物もここで打ち切る。`apad` を
+    # 無制限にすると ffmpeg が音声を作り続けて filtering で落ちる。
+    total_ms = round(count * 1000 / fps)
     return _run(
         [
             "ffmpeg", "-y",
@@ -66,13 +70,13 @@ def _encode_frames(frames: Path, meta: dict, audio: Path, video: Path) -> bool:
             "-filter_complex",
             "[0:v]scale=trunc(iw/2)*2:trunc(ih/2)*2[v];"
             # 音声はモノラルのことがある。all=1 で全チャンネルに同じ遅延を掛ける。
-            f"[1:a]adelay=delays={delay}:all=1,apad[a]",
+            f"[1:a]adelay=delays={delay}:all=1,apad=whole_dur={total_ms}ms[a]",
             "-map", "[v]", "-map", "[a]",
+            "-t", f"{total_ms / 1000:.3f}",
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
             "-r", str(fps),
             "-c:a", "aac", "-b:a", "128k",
-            "-shortest",
             "-movflags", "+faststart",
             str(video),
         ],
