@@ -21,6 +21,16 @@ from PIL import Image
 MAX_VIDEO_RATIO = 2.0
 
 
+def _run(command: list[str]) -> bool:
+    """ffmpeg を実行する。失敗したら ffmpeg の言い分をそのまま出す。"""
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode == 0:
+        return True
+    print(f"ffmpeg が失敗した（{result.returncode}）", file=sys.stderr)
+    print(result.stderr[-2000:], file=sys.stderr)
+    return False
+
+
 def build_video(out: Path) -> Path | None:
     audio = out / "audio.mp3"
     if not audio.exists():
@@ -30,22 +40,24 @@ def build_video(out: Path) -> Path | None:
     frames = out / "frames"
     meta_path = out / "frames.json"
     if frames.is_dir() and meta_path.exists():
-        _encode_frames(frames, json.loads(meta_path.read_text()), audio, video)
-        return video
+        if _encode_frames(frames, json.loads(meta_path.read_text()), audio, video):
+            return video
+        print("操作の録画を組めなかった。静止画に落とす", file=sys.stderr)
 
+    # 保険。動画が無くても画像とテキストは出せるので、ここで止めない。
     card = out / "image_1.png"
     if not card.exists():
         return None
-    print("フレームが無いので静止画で動画を作る", file=sys.stderr)
-    _encode_still(card, out, audio, video)
+    if not _encode_still(card, out, audio, video):
+        return None
     return video
 
 
-def _encode_frames(frames: Path, meta: dict, audio: Path, video: Path) -> None:
+def _encode_frames(frames: Path, meta: dict, audio: Path, video: Path) -> bool:
     """連番PNGと音声から動画を作る。音声はタップした位置から鳴らす。"""
     delay = int(meta.get("audio_delay_ms", 0))
     fps = int(meta.get("fps", 20))
-    subprocess.run(
+    return _run(
         [
             "ffmpeg", "-y",
             "-framerate", str(fps),
@@ -53,7 +65,8 @@ def _encode_frames(frames: Path, meta: dict, audio: Path, video: Path) -> None:
             "-i", str(audio),
             "-filter_complex",
             "[0:v]scale=trunc(iw/2)*2:trunc(ih/2)*2[v];"
-            f"[1:a]adelay={delay}|{delay},apad[a]",
+            # 音声はモノラルのことがある。all=1 で全チャンネルに同じ遅延を掛ける。
+            f"[1:a]adelay=delays={delay}:all=1,apad[a]",
             "-map", "[v]", "-map", "[a]",
             "-c:v", "libx264",
             "-pix_fmt", "yuv420p",
@@ -63,12 +76,10 @@ def _encode_frames(frames: Path, meta: dict, audio: Path, video: Path) -> None:
             "-movflags", "+faststart",
             str(video),
         ],
-        check=True,
-        capture_output=True,
     )
 
 
-def _encode_still(card: Path, out: Path, audio: Path, video: Path) -> None:
+def _encode_still(card: Path, out: Path, audio: Path, video: Path) -> bool:
     """フレームが無いときの保険。1枚目の画像に音声を載せる。"""
     image = Image.open(card)
     width, height = image.size
@@ -77,7 +88,7 @@ def _encode_still(card: Path, out: Path, audio: Path, video: Path) -> None:
         card = out / "video_frame.png"
         image.crop((0, 0, width, height)).save(card)
 
-    subprocess.run(
+    return _run(
         [
             "ffmpeg", "-y",
             "-loop", "1",
@@ -93,8 +104,6 @@ def _encode_still(card: Path, out: Path, audio: Path, video: Path) -> None:
             "-movflags", "+faststart",
             str(video),
         ],
-        check=True,
-        capture_output=True,
     )
 
 
