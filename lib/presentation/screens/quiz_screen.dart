@@ -611,57 +611,55 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ),
             const SizedBox(height: 16),
           ],
+          // 「次の例文」を主導線にする。確認クイズを終えた時点で1日が閉じて
+          // しまい free の生成数が中央値1本で止まっていたため、幅いっぱいの
+          // 主ボタンに引き上げ、「例文に戻る」は控えめな導線に下げた。
+          // まとめクイズを出す回だけは、そちらが節目なので主役を譲る。
           if (widget.onBackToLearningStart != null) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: widget.onBackToLearningStart,
-                    icon: const Icon(Icons.arrow_back, size: 18),
-                    label: Text(L10n.of(context).quizBackToSentence),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: widget.onOptionalChallenge != null
-                      ? OutlinedButton.icon(
-                          onPressed: () async {
-                            if (widget.onNextSentence != null) {
-                              unawaited(_clearVocabBeforeQuiz());
-                              await widget.onNextSentence!();
-                            }
-                          },
-                          icon: const Icon(Icons.arrow_forward, size: 18),
-                          label: Text(
-                            widget.nextButtonLabel ??
-                                L10n.of(context).learnNextSentence,
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: const Color(0xFFEAF2FF),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        )
-                      : FilledButton.icon(
-                          onPressed: () async {
-                            if (widget.onNextSentence != null) {
-                              unawaited(_clearVocabBeforeQuiz());
-                              await widget.onNextSentence!();
-                            }
-                          },
-                          icon: const Icon(Icons.arrow_forward),
-                          label: Text(
-                            widget.nextButtonLabel ??
-                                L10n.of(context).learnNextSentence,
-                          ),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
+            Builder(
+              builder: (context) {
+                final label = Text(
+                  widget.nextButtonLabel ??
+                      L10n.of(context).learnNextSentence,
+                );
+                const icon = Icon(Icons.arrow_forward);
+                Future<void> onPressed() async {
+                  if (widget.onNextSentence != null) {
+                    unawaited(_clearVocabBeforeQuiz());
+                    await widget.onNextSentence!();
+                  }
+                }
+
+                const buttonPadding =
+                    EdgeInsets.symmetric(vertical: 14);
+                const minimumSize = Size.fromHeight(52);
+                return widget.onOptionalChallenge != null
+                    ? OutlinedButton.icon(
+                        onPressed: onPressed,
+                        icon: icon,
+                        label: label,
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEAF2FF),
+                          padding: buttonPadding,
+                          minimumSize: minimumSize,
                         ),
-                ),
-              ],
+                      )
+                    : FilledButton.icon(
+                        onPressed: onPressed,
+                        icon: icon,
+                        label: label,
+                        style: FilledButton.styleFrom(
+                          padding: buttonPadding,
+                          minimumSize: minimumSize,
+                        ),
+                      );
+              },
+            ),
+            const SizedBox(height: 4),
+            TextButton.icon(
+              onPressed: widget.onBackToLearningStart,
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: Text(L10n.of(context).quizBackToSentence),
             ),
           ] else ...[
             FilledButton.icon(

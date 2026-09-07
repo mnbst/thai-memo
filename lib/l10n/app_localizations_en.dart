@@ -132,7 +132,7 @@ class L10nEn extends L10n {
   String get quizTodayTitle => 'Quiz';
 
   @override
-  String get quizOptionalChallenge => 'Take the 5-question challenge';
+  String get quizOptionalChallenge => 'Take the review quiz';
 
   @override
   String get quizGenerating => 'Building your quiz...';
@@ -2377,7 +2377,7 @@ class L10nEn extends L10n {
   String get guideFigureLoopSummary => 'Review quiz';
 
   @override
-  String get guideFigureLoopEvery => 'every five sentences';
+  String get guideFigureLoopEvery => 'every three sentences';
 
   @override
   String get guideFigureCardThai => 'Thai script';
@@ -2416,7 +2416,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideOverviewSummaryQuiz =>
-      'After every five sentences, you answer five questions drawn from the sentences you\'ve studied so far. If you get stuck, there are hints and a way back to the sentence.';
+      'One review quiz every three sentences (every five once you subscribe to Premium), drawn from the sentences you\'ve studied so far. If you get stuck, there are hints and a way back to the sentence.';
 
   @override
   String get guideOverviewBody3 =>
@@ -2441,7 +2441,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleQuizBody =>
-      'Answer one question to check yourself before moving on. After every five sentences, you can also take a five-question review quiz based on sentences you\'ve studied.';
+      'Answer one question to check yourself before moving on. Every three sentences (every five once you subscribe to Premium), you can also take a review quiz based on sentences you\'ve studied.';
 
   @override
   String get guideRoleScoreTitle => 'Vocabulary score';
@@ -2582,7 +2582,11 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowQuizStep4 =>
-      'After every fifth sentence, the results screen lets you continue to the next sentence or take a review quiz.';
+      'After every third sentence, the results screen lets you continue to the next sentence or take a review quiz.';
+
+  @override
+  String get guideHowQuizStep5 =>
+      'The review quiz is a checkpoint that arrives every three sentences (every five once you subscribe to Premium). It draws on the sentences you\'ve studied, and answering correctly there is what raises your vocabulary score.';
 
   @override
   String get guideHowSettingsTitle => 'In Settings';

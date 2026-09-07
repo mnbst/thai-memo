@@ -71,7 +71,8 @@ type Candidate struct {
 func BandCandidates(freqRank FreqRank, low, high int) []Candidate {
 	var out []Candidate
 	for word, rank := range freqRank {
-		if low <= rank && rank <= high && utf8.RuneCountInString(word) >= 2 {
+		if low <= rank && rank <= high && utf8.RuneCountInString(word) >= 2 &&
+			!IsExcludedTargetWord(word) {
 			out = append(out, Candidate{Word: word, Rank: rank})
 		}
 	}

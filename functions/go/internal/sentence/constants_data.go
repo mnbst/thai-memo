@@ -1,7 +1,6 @@
-// Code captured during the Python-to-Go migration. DO NOT EDIT.
-//
-// 旧Python実装の定数データをそのまま写したもの。
-// constants.py 側を変えたら再生成すること。
+// 旧Python実装（constants.py）から写した定数データ。Python 実装は削除済みで
+// 再生成元は無く、ここが現在の正本。直接編集してよい。
+// 変更後は各 golden test の期待値の更新が要る。
 
 package sentence
 
@@ -254,7 +253,7 @@ const FreeBLTopicRate = 0.1
 const responseJSONSchemaJSON = `{"type": "object", "additionalProperties": false, "properties": {"thai_text": {"type": "string", "description": "タイ語の例文テキスト（例: สวัสดีครับ）"}, "japanese_translation": {"type": "string", "description": "例文の日本語訳"}, "word_breakdown": {"type": "array", "description": "例文を構成する各単語と日本語の意味。最大20件。", "items": {"type": "object", "additionalProperties": false, "properties": {"word": {"type": "string", "description": "タイ語の単語（例: สวัสดี）"}, "meaning": {"type": "string", "description": "単語の意味を必ず日本語で記述すること（英語不可）"}}, "required": ["word", "meaning"]}}, "target_notes": {"type": "array", "description": "ターゲット単語のみの補足。ターゲット単語が無ければ空配列。", "items": {"type": "object", "additionalProperties": false, "properties": {"word": {"type": "string", "description": "対象のタイ語単語（word_breakdown の word と一致させる）"}, "note": {"type": "string", "description": "用法・ニュアンス・類語との違い（日本語、50文字以内）"}}, "required": ["word", "note"]}}, "context": {"type": "object", "additionalProperties": false, "properties": {"usage_scenarios": {"type": "string", "description": "使用場面の説明。日本語で、50文字以内（タイ語・英語不可）。"}, "cultural_notes": {"type": "string", "description": "文化的な補足情報。日本語で、50文字以内（タイ語・英語不可）。"}}, "required": ["usage_scenarios", "cultural_notes"]}}, "required": ["thai_text", "japanese_translation", "word_breakdown", "target_notes", "context"]}`
 
 // contextGeneratableFieldsJSON は constants._CONTEXT_GENERATABLE_FIELDS。
-const contextGeneratableFieldsJSON = `{"topic": {"type": "string", "description": "テーマ（例: あいさつ）"}, "style": {"type": "string", "enum": ["ニュース記事体（客観的・フォーマルな報道文体）", "口語体（友達同士のカジュアルな話し言葉）", "丁寧語（フォーマルな敬語・丁寧な表現）", "SNS・テキストメッセージ（略語・絵文字・短い表現）", "物語・文学体（描写的・書き言葉的な表現）"], "description": "実際に書いた文体を最も近いものに分類する"}, "emotion": {"type": "string", "description": "感情・トーン（例: 中立）"}}`
+const contextGeneratableFieldsJSON = `{"topic": {"type": "string", "description": "テーマ（例: あいさつ）"}, "style": {"type": "string", "description": "実際に書いた thai_text の文体を短く書く"}, "emotion": {"type": "string", "description": "感情・トーン"}}`
 
 // schemaDescriptionsEN は constants._SCHEMA_DESCRIPTIONS_EN。
 var schemaDescriptionsEN = map[string]string{
@@ -268,5 +267,6 @@ var schemaDescriptionsEN = map[string]string{
 
 // contextDescriptionsEN は constants._CONTEXT_DESCRIPTIONS_EN。
 var contextDescriptionsEN = map[string]string{
-	"emotion": "感情・トーン（英語で。例: neutral）",
+	"style":   "文体（英語で。実際に書いた thai_text の文体を短く）",
+	"emotion": "感情・トーン（英語で）",
 }

@@ -102,8 +102,7 @@ min_vocab=100 の6テーマ。
 
 BLドラマだけは語彙ゲートの外で、free には常に `FREE_BL_TOPIC_RATE`（10%）で混ぜる
 （`constants.py`）。ゲート任せだと入門帯に一切出ないが、刺さる層への引きとして残すため。
-残り90%が上記プール（BL を除く）の一様抽選。バンク生成（`scripts/build_free_sentence_bank.py`）
-も同じ率で BL 枠を確保する。
+残り90%が上記プール（BL を除く）の一様抽選。free例文バンクも同じ率で BL 枠を確保する。
 
 `TOPIC_MIN_VOCAB` の根拠は、`scripts/corpus/freq_rank_top10000.json` の入門〜初中級帯域を実際に確認した結果。
 入門帯域の汎用語は embedding で「恋愛」「伝統・祭り」などへ寄りやすいため、UVM 経路でも入門テーマに制限する。

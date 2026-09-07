@@ -1,7 +1,6 @@
-// Code captured during the Python-to-Go migration. DO NOT EDIT.
-//
-// 旧word_classes.jsonのデータをそのまま写したもの。
-// JSON 側を変えたら再生成すること。
+// 旧 word_classes.json から写した語クラス辞書。生成元の JSON は削除済みで、
+// ここが現在の正本。直接編集してよい。
+// 変更後は testdata/python/daily_golden/wordclass_golden.json の更新が要る。
 
 package wordclass
 

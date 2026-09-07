@@ -127,7 +127,7 @@ class L10nJa extends L10n {
   String get quizTodayTitle => 'クイズ';
 
   @override
-  String get quizOptionalChallenge => '5問チャレンジする';
+  String get quizOptionalChallenge => 'まとめクイズに挑戦する';
 
   @override
   String get quizGenerating => 'クイズを生成中...';
@@ -2215,7 +2215,7 @@ class L10nJa extends L10n {
   String get guideFigureLoopSummary => 'まとめクイズ';
 
   @override
-  String get guideFigureLoopEvery => '例文5つごと';
+  String get guideFigureLoopEvery => '例文3つごと';
 
   @override
   String get guideFigureCardThai => 'タイ文字';
@@ -2252,7 +2252,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideOverviewSummaryQuiz =>
-      '例文を5つ読むごとに、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。';
+      '例文3つに1回、それまでに学んだ例文からまとめクイズが出題されます（プレミアム登録後は例文5つに1回）。迷ったらヒントや例文の見返しも使えます。';
 
   @override
   String get guideOverviewBody3 =>
@@ -2277,7 +2277,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideRoleQuizBody =>
-      '確認クイズは、次の例文に進む前に出る1問です。例文を5つ読むごとに、それまでに学んだ内容から5問の「まとめクイズ」に挑戦できます。';
+      '確認クイズは、次の例文に進む前に出る1問です。例文3つに1回、それまでに学んだ内容から「まとめクイズ」に挑戦できます（プレミアム登録後は例文5つに1回）。';
 
   @override
   String get guideRoleScoreTitle => '語彙スコア';
@@ -2411,6 +2411,10 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowQuizStep4 => '結果画面から、次の例文へ進むか、まとめクイズに挑むかを選べます。';
+
+  @override
+  String get guideHowQuizStep5 =>
+      'まとめクイズは、例文3つに1回出る節目のクイズです（プレミアム登録後は例文5つに1回）。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。';
 
   @override
   String get guideHowSettingsTitle => '設定でできること';
