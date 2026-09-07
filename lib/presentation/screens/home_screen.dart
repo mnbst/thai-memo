@@ -24,6 +24,7 @@ import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/review_prompt_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/topic_picker.dart';
@@ -661,20 +662,35 @@ bool shouldAutoLoadAfterSentenceQuotaRefresh({
       changedFromNoRemainingToAvailable(previous, next);
 }
 
-/// まとめクイズ（5問チャレンジ）を誘導する間隔（例文の本数）。
+/// まとめクイズを誘導する間隔（例文の本数）。課金プレミアムだけ5本のまま。
+///
+/// free は例文を1日1本しか出さないので、5本間隔だと一巡に5日かかり、節目に
+/// 到達する前に離脱していた。3本なら数日で一巡が返る。課金ユーザーは1日10本
+/// 前後を読み切っていて既に日に何度も節目に届くため、間隔を詰める理由がなく、
+/// 詰めれば流れを切る回数とクイズ生成のコストが増えるだけになる。
 @visibleForTesting
-const int summaryQuizThreshold = 5;
+const int summaryQuizThresholdFree = 3;
+
+/// @see [summaryQuizThresholdFree]
+@visibleForTesting
+const int summaryQuizThresholdPremium = 5;
 
 /// 確認クイズのサマリーでまとめクイズへ誘導するか。
 ///
 /// completedCount は前回のまとめクイズ以降にこなした例文の本数（いま解いて
-/// いる確認クイズの1本は含まない）。例文 summaryQuizThreshold 本ごとに出す。
+/// いる確認クイズの1本は含まない）。
+///
+/// isPaidPremium は体験トライアルを含めない「実際に課金しているか」。ここだけ
+/// effectivePremium ではなく isPremium で判定するのは、トライアル中の2日間が
+/// まさに節目まで到達させたい使い始めの期間で、そこを5本間隔にすると狙いが
+/// 打ち消されるため。
 ///
 /// 以前は初回だけ 1 本目で誘導していたが、使い始めの1本目に別のクイズを
 /// 重ねるより、まず例文→確認クイズの一巡に慣れてもらうほうがよいのでやめた。
 @visibleForTesting
-bool shouldOfferSummaryQuiz(int completedCount) =>
-    completedCount + 1 >= summaryQuizThreshold;
+bool shouldOfferSummaryQuiz(int completedCount, {required bool isPaidPremium}) =>
+    completedCount + 1 >=
+    (isPaidPremium ? summaryQuizThresholdPremium : summaryQuizThresholdFree);
 
 class LearningScreen extends ConsumerStatefulWidget {
   /// 初回の学習が一巡（まとめクイズ完了）した直後に呼ばれる。
@@ -806,7 +822,10 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     });
 
     // この確認クイズのサマリーでまとめクイズへ誘導するか。
-    final offerSummaryQuiz = shouldOfferSummaryQuiz(_completedCount);
+    final offerSummaryQuiz = shouldOfferSummaryQuiz(
+      _completedCount,
+      isPaidPremium: ref.watch(isPremiumProvider),
+    );
 
     return switch (_stage) {
       _LearningStage.sentence => TodayScreen(

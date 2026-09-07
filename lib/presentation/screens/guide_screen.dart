@@ -353,6 +353,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
               l10n.guideHowQuizStep2,
               l10n.guideHowQuizStep3,
               l10n.guideHowQuizStep4,
+              l10n.guideHowQuizStep5,
             ],
             figure: const GuideQuizOfferFigure(),
             // 指しているのは1行目の「例文の下の導線」。最後に置くと、
