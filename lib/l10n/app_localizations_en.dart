@@ -2416,7 +2416,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideOverviewSummaryQuiz =>
-      'One review quiz every three sentences (every five once you subscribe to Premium), drawn from the sentences you\'ve studied so far. If you get stuck, there are hints and a way back to the sentence.';
+      'One review quiz every three sentences, drawn from the sentences you\'ve studied so far. If you get stuck, there are hints and a way back to the sentence.';
 
   @override
   String get guideOverviewBody3 =>
@@ -2441,7 +2441,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleQuizBody =>
-      'Answer one question to check yourself before moving on. Every three sentences (every five once you subscribe to Premium), you can also take a review quiz based on sentences you\'ve studied.';
+      'Answer one question to check yourself before moving on. Every three sentences, you can also take a review quiz based on sentences you\'ve studied.';
 
   @override
   String get guideRoleScoreTitle => 'Vocabulary score';
@@ -2586,7 +2586,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowQuizStep5 =>
-      'The review quiz is a checkpoint that arrives every three sentences (every five once you subscribe to Premium). It draws on the sentences you\'ve studied, and answering correctly there is what raises your vocabulary score.';
+      'The review quiz is a checkpoint that arrives every three sentences. It draws on the sentences you\'ve studied, and answering correctly there is what raises your vocabulary score.';
 
   @override
   String get guideHowSettingsTitle => 'In Settings';

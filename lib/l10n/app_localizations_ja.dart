@@ -2252,7 +2252,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideOverviewSummaryQuiz =>
-      '例文3つに1回、それまでに学んだ例文からまとめクイズが出題されます（プレミアム登録後は例文5つに1回）。迷ったらヒントや例文の見返しも使えます。';
+      '例文3つに1回、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。';
 
   @override
   String get guideOverviewBody3 =>
@@ -2277,7 +2277,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideRoleQuizBody =>
-      '確認クイズは、次の例文に進む前に出る1問です。例文3つに1回、それまでに学んだ内容から「まとめクイズ」に挑戦できます（プレミアム登録後は例文5つに1回）。';
+      '確認クイズは、次の例文に進む前に出る1問です。例文3つに1回、それまでに学んだ内容から「まとめクイズ」に挑戦できます。';
 
   @override
   String get guideRoleScoreTitle => '語彙スコア';
@@ -2414,7 +2414,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowQuizStep5 =>
-      'まとめクイズは、例文3つに1回出る節目のクイズです（プレミアム登録後は例文5つに1回）。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。';
+      'まとめクイズは、例文3つに1回出る節目のクイズです。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。';
 
   @override
   String get guideHowSettingsTitle => '設定でできること';
