@@ -63,8 +63,8 @@ void main() {
     await tester.pump();
     expect(done, 1);
 
-    await tester.scrollUntilVisible(find.text('はじめる'), 400);
-    await tester.tap(find.text('はじめる'));
+    await tester.scrollUntilVisible(find.text('語彙力を測る'), 400);
+    await tester.tap(find.text('語彙力を測る'));
     await tester.pump();
     expect(done, 2);
   });
