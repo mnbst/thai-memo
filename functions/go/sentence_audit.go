@@ -94,37 +94,39 @@ func runSentenceAudit(
 	judgedAt := time.Now()
 
 	batches := chunkCandidates(candidates, auditBatchSize)
-	for i := 0; i < len(batches); i += auditConcurrency {
-		end := min(i+auditConcurrency, len(batches))
-
-		var wg sync.WaitGroup
-		for _, batch := range batches[i:end] {
-			wg.Add(1)
-			go func(batch []quality.Candidate) {
-				defer wg.Done()
-
+	jobs := make(chan []quality.Candidate, auditConcurrency)
+	var wg sync.WaitGroup
+	for range auditConcurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for batch := range jobs {
 				hits, verdicts, err := judge.JudgeBatch(ctx, batch)
 				if err != nil {
 					mu.Lock()
 					failed++
 					mu.Unlock()
 					log.Printf("sentenceAudit: judge failed: %v", err)
-					return
+					continue
 				}
 				if len(hits) == 0 {
-					return
+					continue
 				}
 				if err := quality.Write(ctx, db, hits, verdicts, judge.Model, judgedAt); err != nil {
 					log.Printf("sentenceAudit: write failed: %v", err)
-					return
+					continue
 				}
 				mu.Lock()
 				flagged += len(hits)
 				mu.Unlock()
-			}(batch)
-		}
-		wg.Wait()
+			}
+		}()
 	}
+	for _, batch := range batches {
+		jobs <- batch
+	}
+	close(jobs)
+	wg.Wait()
 
 	log.Printf("sentenceAudit: judged=%d flagged=%d failedBatches=%d model=%s",
 		len(candidates), flagged, failed, judge.Model)
@@ -142,31 +144,43 @@ func auditCandidates(
 	cutoff time.Time,
 ) []quality.Candidate {
 	var out []quality.Candidate
-	for _, userDoc := range users {
-		uid := userDoc.Ref.ID
-		it := db.Collection("users").Doc(uid).Collection("sentences").
-			Where("created_at", ">=", cutoff).
-			Documents(ctx)
-
-		taken := 0
-		for taken < auditMaxPerUser {
-			doc, err := it.Next()
-			if err == iterator.Done {
-				break
+	jobs := make(chan *firestore.DocumentSnapshot, dailyBatchConcurrency)
+	var wg sync.WaitGroup
+	var outMu sync.Mutex
+	for range dailyBatchConcurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for userDoc := range jobs {
+				uid := userDoc.Ref.ID
+				it := db.Collection("users").Doc(uid).Collection("sentences").
+					Where("created_at", ">=", cutoff).Documents(ctx)
+				var found []quality.Candidate
+				for len(found) < auditMaxPerUser {
+					doc, err := it.Next()
+					if err == iterator.Done {
+						break
+					}
+					if err != nil {
+						log.Printf("sentenceAudit: read failed uid=%s: %v", uid, err)
+						break
+					}
+					if c, ok := candidateFrom(uid, doc.Ref.ID, doc.Data()); ok {
+						found = append(found, c)
+					}
+				}
+				it.Stop()
+				outMu.Lock()
+				out = append(out, found...)
+				outMu.Unlock()
 			}
-			if err != nil {
-				log.Printf("sentenceAudit: read failed uid=%s: %v", uid, err)
-				break
-			}
-			c, ok := candidateFrom(uid, doc.Ref.ID, doc.Data())
-			if !ok {
-				continue
-			}
-			out = append(out, c)
-			taken++
-		}
-		it.Stop()
+		}()
 	}
+	for _, userDoc := range users {
+		jobs <- userDoc
+	}
+	close(jobs)
+	wg.Wait()
 	return out
 }
 

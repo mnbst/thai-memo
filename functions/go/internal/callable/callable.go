@@ -17,12 +17,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
 
 	"firebase.google.com/go/v4/auth"
 )
+
+// maxRequestBodyBytes は callable 1 回で受け付ける JSON の上限。
+// 通常の要求は数十 KB 以下であり、巨大 body によるメモリ消費を防ぐ。
+const maxRequestBodyBytes int64 = 1 << 20
 
 // Code は callable のエラーコード（gRPC の canonical code 名）。
 type Code string
@@ -162,10 +167,17 @@ func HTTP(name string, verify Verifier, h Handler) http.HandlerFunc {
 
 		ctx := r.Context()
 
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+		decoder := json.NewDecoder(r.Body)
 		var body struct {
 			Data json.RawMessage `json:"data"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err := decoder.Decode(&body); err != nil {
+			writeError(w, name, Errorf(InvalidArgument, "リクエストの形式が不正です"))
+			return
+		}
+		// 先頭の JSON 値より後ろに別の値が続く曖昧な入力を拒否する。
+		if err := decoder.Decode(&struct{}{}); err != io.EOF {
 			writeError(w, name, Errorf(InvalidArgument, "リクエストの形式が不正です"))
 			return
 		}

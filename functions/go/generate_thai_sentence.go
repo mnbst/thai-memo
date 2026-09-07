@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -104,6 +105,11 @@ func generationErrorPayload(err error) map[string]any {
 			"code":    "QUOTA_EXCEEDED",
 			"message": "この時間帯の例文生成上限に達しました",
 		}
+	case strings.Contains(msg, "GENERATION_IN_PROGRESS"):
+		return map[string]any{
+			"code":    "RESOURCE_BUSY",
+			"message": "例文を生成中です。しばらくしてから再度お試しください",
+		}
 	case strings.Contains(msg, "SECRET_MANAGER_ERROR"):
 		return map[string]any{
 			"code":    "INTERNAL",
@@ -123,6 +129,16 @@ func generationErrorPayload(err error) map[string]any {
 }
 
 var errQuotaExceeded = errors.New("QUOTA_EXCEEDED")
+var errGenerationInProgress = errors.New("GENERATION_IN_PROGRESS")
+
+// generationLeaseDuration は例文生成 lease の有効期限。
+//
+// インスタンスが落ちて defer の解放が走らなかった場合、次に生成できるまでの
+// ロックアウト時間がそのままこの値になる。守る処理より十分長く、かつ無駄に
+// 長くない値にする。現在の関数タイムアウトは generateThaiSentence が 120 秒、
+// 同じ lease を取る resetLearningData が 60 秒なので、余裕を 60 秒足して 3 分。
+// 関数タイムアウトを伸ばすときはここも一緒に見直すこと。
+const generationLeaseDuration = 3 * time.Minute
 
 func runGenerateThaiSentence(
 	ctx context.Context, uid string, params map[string]any, l lang.Lang,
@@ -148,7 +164,7 @@ func runGenerateThaiSentence(
 	// フィールドだけの部分docを作り直すケースがあり、doc は存在するのに
 	// クォータだけ無い状態で永久に QUOTA_EXCEEDED になる。
 	if _, ok := userData["remaining_sentences"]; !ok {
-		initial, err := ensureUserQuota(ctx, userRef)
+		initial, err := ensureUserQuota(ctx, db, userRef)
 		if err != nil {
 			return nil, err
 		}
@@ -172,6 +188,14 @@ func runGenerateThaiSentence(
 		log.Printf("Quota exceeded: %s", logJSON(logData))
 		return nil, errQuotaExceeded
 	}
+
+	// クォータ消費前の LLM 呼び出しを同一ユーザーが並行実行できないよう、
+	// Firestore 上の期限付き lease でインスタンスをまたいで直列化する。
+	leaseToken, err := acquireGenerationLease(ctx, db, userRef)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseGenerationLease(ctx, db, userRef, leaseToken)
 
 	estimatedVocab := intValue(userData["estimated_vocab"])
 	if !usePremiumSpec {
@@ -322,7 +346,9 @@ func sentenceCommitUpdate(userData map[string]any, decrement int) []firestore.Up
 //
 // onUserCreate トリガー（JS）と同じ初期値を使う。merge なので、万一トリガーと
 // 競合しても既存フィールドを壊さない。値は quota パッケージで一元管理。
-func ensureUserQuota(ctx context.Context, userRef *firestore.DocumentRef) (map[string]any, error) {
+func ensureUserQuota(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+) (map[string]any, error) {
 	initial := map[string]any{
 		// 付与直後はトライアル中なので premium と同じ回数を出す。
 		"remaining_sentences":      quota.PremiumDailySentences,
@@ -334,11 +360,90 @@ func ensureUserQuota(ctx context.Context, userRef *firestore.DocumentRef) (map[s
 		// 旧クライアント（〜1.3.15）がテーマを消さないための凍結値。減らさない。
 		"premium_trial_remaining": quota.PremiumTrialSentences,
 	}
-	if _, err := userRef.Set(ctx, initial, firestore.MergeAll); err != nil {
+	result := initial
+	created := false
+	err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		created = false
+		result = initial
+		snap, err := tx.Get(userRef)
+		if err == nil && snap.Exists() {
+			if _, ok := snap.Data()["remaining_sentences"]; ok {
+				result = snap.Data()
+				return nil
+			}
+		} else if err != nil && !isNotFoundErr(err) {
+			return err
+		}
+		created = true
+		return tx.Set(userRef, initial, firestore.MergeAll)
+	})
+	if err != nil {
 		return nil, err
 	}
-	log.Printf("Initial quota set (fallback) for user %s", userRef.ID)
-	return initial, nil
+	if created {
+		log.Printf("Initial quota set (fallback) for user %s", userRef.ID)
+	}
+	return result, nil
+}
+
+func acquireGenerationLease(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+) (string, error) {
+	return acquireOperationLease(ctx, db, userRef, "sentence", generationLeaseDuration)
+}
+
+func acquireOperationLease(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+	operation string, duration time.Duration,
+) (string, error) {
+	lockRef := userRef.Collection("generation_locks").Doc(operation)
+	token := userRef.Collection("generation_locks").NewDoc().ID
+	now := time.Now().UTC()
+	err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(lockRef)
+		if err == nil && snap.Exists() {
+			expiresAt, _ := snap.Data()["expires_at"].(time.Time)
+			if expiresAt.After(now) {
+				return errGenerationInProgress
+			}
+		} else if err != nil && !isNotFoundErr(err) {
+			return err
+		}
+		return tx.Set(lockRef, map[string]any{
+			"token": token, "expires_at": now.Add(duration),
+		})
+	})
+	return token, err
+}
+
+func releaseGenerationLease(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef, token string,
+) {
+	releaseOperationLease(ctx, db, userRef, "sentence", token)
+}
+
+func releaseOperationLease(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+	operation, token string,
+) {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	lockRef := userRef.Collection("generation_locks").Doc(operation)
+	if err := db.RunTransaction(cleanupCtx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(lockRef)
+		if isNotFoundErr(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if current, _ := snap.Data()["token"].(string); current != token {
+			return nil
+		}
+		return tx.Delete(lockRef)
+	}); err != nil {
+		log.Printf("generation lease release failed uid=%s: %v", userRef.ID, err)
+	}
 }
 
 // effectiveGenerationParams は生成条件として LLM へ渡すパラメータを整える
@@ -348,17 +453,38 @@ func ensureUserQuota(ctx context.Context, userRef *firestore.DocumentRef) (map[s
 // からの決定も端末側で行う。free は自動選択に固定する。
 func effectiveGenerationParams(params map[string]any, isPremium bool) map[string]any {
 	out := map[string]any{}
-	for k, v := range params {
-		out[k] = v
+	// プロンプトへ入る値はサーバー定義の選択肢だけを通す。未知キーや自由入力を
+	// そのままコピーすると、premium の topic 経由で指示を注入できる。
+	if isPremium {
+		if topic, ok := params["topic"].(string); ok && generationTopicAllowed(topic) {
+			out["topic"] = topic
+		}
 	}
-	delete(out, "premium_trial")
-	// lang は生成条件ではなく出力言語の指定。ここに残すとプロンプトの
-	// 「条件」ブロックに未知のキーとして流れ込むので取り除く。
-	delete(out, "lang")
-	if !isPremium {
-		delete(out, "topic")
+	if frame, ok := params["timeFrame"].(string); ok &&
+		slices.Contains(sentence.TimeFrames, frame) {
+		out["timeFrame"] = frame
+	}
+	// 旧クライアント互換。現在の生成コアはこの2項目をプロンプトに使わないが、
+	// 整形結果の契約は維持する。制御文字を含む自由入力は落とす。
+	for _, key := range []string{"style", "emotion"} {
+		if value, ok := params[key].(string); ok && len(value) <= 64 &&
+			!strings.ContainsAny(value, "\r\n") {
+			out[key] = value
+		}
 	}
 	return out
+}
+
+func generationTopicAllowed(topic string) bool {
+	if topic == "" || slices.Contains(sentence.Topics, topic) {
+		return true
+	}
+	for _, configured := range sentence.Topics {
+		if head, _, ok := strings.Cut(configured, "（"); ok && topic == head {
+			return true
+		}
+	}
+	return false
 }
 
 // newProducer は生成コアに必要な依存を組み立てる。

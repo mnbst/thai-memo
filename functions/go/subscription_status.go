@@ -35,6 +35,10 @@ const gracePeriodMax = 30 * 24 * time.Hour
 const subscriptionStatusConcurrency = 5
 
 func subscriptionStatusHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	if err := runSubscriptionStatus(r.Context()); err != nil {
 		log.Printf("subscriptionStatus failed: %v", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
@@ -83,58 +87,96 @@ func runSubscriptionStatus(ctx context.Context) error {
 		updated int
 	)
 
-	for i := 0; i < len(docs); i += subscriptionStatusConcurrency {
-		end := min(i+subscriptionStatusConcurrency, len(docs))
-
-		var wg sync.WaitGroup
-		for _, doc := range docs[i:end] {
-			wg.Add(1)
-			go func(doc *firestore.DocumentSnapshot) {
-				defer wg.Done()
+	jobs := make(chan *firestore.DocumentSnapshot, subscriptionStatusConcurrency)
+	var wg sync.WaitGroup
+	for range subscriptionStatusConcurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for doc := range jobs {
 				// JS の Promise.allSettled と同じく、1件の失敗で全体を止めない。
-				if err := expireUser(ctx, doc, now); err != nil {
+				if err := expireUser(ctx, db, doc, now); err != nil {
 					log.Printf("Failed to update uid=%s: %v", doc.Ref.ID, err)
-					return
+					continue
 				}
 				mu.Lock()
 				updated++
 				mu.Unlock()
-			}(doc)
-		}
-		wg.Wait()
+			}
+		}()
 	}
+	for _, doc := range docs {
+		jobs <- doc
+	}
+	close(jobs)
+	wg.Wait()
 
 	log.Printf("subscriptionStatus completed: updated=%d", updated)
 	return nil
 }
 
 // expireUser は1ユーザーを free に落とす。落とす対象でなければ何もしない。
-func expireUser(ctx context.Context, doc *firestore.DocumentSnapshot, now time.Time) error {
-	subscription, _ := doc.Data()["subscription"].(map[string]any)
-	status, _ := subscription["status"].(string)
-
-	switch status {
-	case "grace_period":
-		// 猶予期間は期限超過が前提。通知を取りこぼした場合に premium が
-		// 永久に残らないよう、猶予の上限を過ぎたものだけ落とす。
-		expiresAt, ok := subscription["expires_at"].(time.Time)
-		if !ok || now.Sub(expiresAt) <= gracePeriodMax {
+//
+// クエリのスナップショットに LastUpdateTime を効かせると、同時刻起動の
+// dailyBatch が全ユーザー doc を書き直す（resetQuota）せいで前提条件が外れ、
+// 降格が丸ごと落ちる。トランザクション内で読み直して判定し、競合時は
+// Firestore 側の再試行に任せる。
+func expireUser(
+	ctx context.Context, db *firestore.Client,
+	doc *firestore.DocumentSnapshot, now time.Time,
+) error {
+	var status string
+	if err := db.RunTransaction(ctx, func(
+		ctx context.Context, tx *firestore.Transaction,
+	) error {
+		status = ""
+		snap, err := tx.Get(doc.Ref)
+		if isNotFoundErr(err) {
 			return nil
 		}
-	case "active", "canceled":
-		// 落とす
-	default:
-		return nil
-	}
+		if err != nil {
+			return err
+		}
 
-	if _, err := doc.Ref.Set(ctx, map[string]any{
-		"tier": "free",
-		"subscription": map[string]any{
-			"status":     "expired",
-			"updated_at": firestore.ServerTimestamp,
-		},
-	}, firestore.MergeAll); err != nil {
+		// クエリ条件（tier==premium かつ expires_at が過去）を読み直した値で
+		// 再確認する。読み取り後にストア通知で更新されていた doc を、古い
+		// スナップショットの判断で free に落とさない。
+		if tier, _ := snap.Data()["tier"].(string); tier != "premium" {
+			return nil
+		}
+		subscription, _ := snap.Data()["subscription"].(map[string]any)
+		status, _ = subscription["status"].(string)
+		expiresAt, hasExpiresAt := subscription["expires_at"].(time.Time)
+		if !hasExpiresAt || !expiresAt.Before(now) {
+			status = ""
+			return nil
+		}
+
+		switch status {
+		case "grace_period":
+			// 猶予期間は期限超過が前提。通知を取りこぼした場合に premium が
+			// 永久に残らないよう、猶予の上限を過ぎたものだけ落とす。
+			if now.Sub(expiresAt) <= gracePeriodMax {
+				status = ""
+				return nil
+			}
+		case "active", "canceled":
+			// 落とす
+		default:
+			status = ""
+			return nil
+		}
+
+		return tx.Update(doc.Ref, []firestore.Update{
+			{Path: "tier", Value: "free"},
+			{Path: "subscription.status", Value: "expired"},
+			{Path: "subscription.updated_at", Value: firestore.ServerTimestamp},
+		})
+	}); err != nil {
 		return err
+	}
+	if status == "" {
+		return nil
 	}
 
 	log.Printf("Expired: uid=%s, status=%s", doc.Ref.ID, status)

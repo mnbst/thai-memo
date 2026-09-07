@@ -89,12 +89,20 @@ func RegisterExposure(
 		counts[w]++
 	}
 
+	refs := make([]*firestore.DocumentRef, len(order))
+	for i, word := range order {
+		refs[i] = uvmRef.Doc(word)
+	}
+	snaps, err := db.GetAll(ctx, refs)
+	if err != nil {
+		return err
+	}
+
 	batch := db.BulkWriter(ctx)
 	wrote := 0
-	for _, word := range order {
-		docRef := uvmRef.Doc(word)
-		snap, err := docRef.Get(ctx)
-		if err == nil && snap.Exists() {
+	for i, word := range order {
+		docRef := refs[i]
+		if snaps[i].Exists() {
 			// 露出では P を動かさない。例文に出たことは「見た」証拠であって
 			// 「知っている」証拠ではない。ExposureP には上限が無いので、
 			// 同じ語が 6 回出るだけで P>0.5 になり、クイズを 1 問も解かずに

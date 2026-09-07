@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -21,6 +22,9 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
+// 外部 LLM・FCM と Firestore の突発負荷を抑えつつ、候補ユーザーを並行配信する。
+const dailySentenceConcurrency = 5
+
 // deliverDailySentence は daily_sentence_handlers.py の移植。
 //
 // 毎時起動し、ユーザーのローカル時刻が配信希望時刻に一致する対象へ、
@@ -33,6 +37,10 @@ import (
 // dailyBatch と同じく HTTP トリガーのままにして、定期実行するかどうかは
 // Cloud Scheduler ジョブ（Terraform 管理）の有無だけで決める。
 func deliverDailySentenceHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	if err := runDeliverDailySentence(r.Context(), time.Now().UTC()); err != nil {
 		log.Printf("deliverDailySentence failed: %v", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
@@ -83,17 +91,37 @@ func runDeliverDailySentence(ctx context.Context, now time.Time) error {
 
 	delivered := 0
 	reasons := map[string]int{}
+	type candidate struct {
+		uid  string
+		data map[string]any
+	}
+	jobs := make(chan candidate, dailySentenceConcurrency)
+	var wg sync.WaitGroup
+	var resultMu sync.Mutex
+	for range dailySentenceConcurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for c := range jobs {
+				reason := dailysentence.DeliverySkipReason(c.data, now)
+				if reason == "" {
+					reason = d.deliverOne(ctx, c.uid, c.data, now)
+				}
+				resultMu.Lock()
+				if reason == "" {
+					delivered++
+				} else {
+					reasons[reason]++
+				}
+				resultMu.Unlock()
+			}
+		}()
+	}
 	err = d.eachCandidate(ctx, now, func(uid string, userData map[string]any) {
-		reason := dailysentence.DeliverySkipReason(userData, now)
-		if reason == "" {
-			reason = d.deliverOne(ctx, uid, userData, now)
-		}
-		if reason == "" {
-			delivered++
-		} else {
-			reasons[reason]++
-		}
+		jobs <- candidate{uid: uid, data: userData}
 	})
+	close(jobs)
+	wg.Wait()
 
 	// 内訳は「なぜ通知が届いていないのか」を後から追うための常設ログ。
 	// 候補は notify_utc_hour で絞った後なので、母数はこの時刻の配信希望者だけ。
@@ -206,9 +234,9 @@ func (d *deliverer) buildSentence(
 		EstimatedVocab: min(intValue(userData["estimated_vocab"]), uvm.FreeTierMaxVocab),
 		// free は測定値を使わない（GetSessionWords 側でも 0 に落とす）。
 		TestedVocab: 0,
-		CacheOnly:      true,
-		SelectRetry:    dailysentence.MaxTargetWordRetry,
-		Lang:           l,
+		CacheOnly:   true,
+		SelectRetry: dailysentence.MaxTargetWordRetry,
+		Lang:        l,
 	})
 	if err != nil {
 		log.Printf("daily_sentence: cached generation failed for %s: %v", uid, err)

@@ -59,6 +59,9 @@ type Notification struct {
 	NotificationType string
 	Subtype          string
 	SignedDate       *int64
+	BundleID         string
+	Environment      string
+	AppAppleID       int64
 	TransactionInfo  TransactionInfo
 	RenewalInfo      *RenewalInfo
 }

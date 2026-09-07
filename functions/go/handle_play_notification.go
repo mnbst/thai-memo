@@ -127,7 +127,8 @@ func processPlayNotification(
 
 	for _, doc := range docs {
 		currentTier, _ := doc.Data()["tier"].(string)
-		if _, err := doc.Ref.Update(ctx, playUpdates(result, tier, currentTier)); err != nil {
+		if _, err := doc.Ref.Update(ctx, playUpdates(result, tier, currentTier),
+			firestore.LastUpdateTime(doc.UpdateTime)); err != nil {
 			return err
 		}
 		log.Printf("Updated user %s: tier=%s, status=%s",

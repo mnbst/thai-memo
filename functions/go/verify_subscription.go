@@ -2,6 +2,8 @@ package function
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -64,6 +66,10 @@ func verifySubscription(ctx context.Context, req *callable.Request) (any, error)
 		return nil, callable.Errorf(callable.InvalidArgument,
 			"platform, purchase_token, product_id は必須です")
 	}
+	if len(in.PurchaseToken) > 32<<10 || len(in.ProductID) > 128 {
+		return nil, callable.Errorf(callable.InvalidArgument,
+			"購入情報のサイズが上限を超えています")
+	}
 	if in.Platform != "android" && in.Platform != "ios" {
 		return nil, callable.Errorf(callable.InvalidArgument,
 			"platform は android または ios を指定してください")
@@ -94,16 +100,6 @@ func runVerification(
 	}
 
 	userRef := db.Collection("users").Doc(uid)
-	userDoc, err := userRef.Get(ctx)
-	if err != nil && !isNotFoundErr(err) {
-		return nil, err
-	}
-	currentTier := "free"
-	if userDoc != nil && userDoc.Exists() {
-		if t, ok := userDoc.Data()["tier"].(string); ok && t != "" {
-			currentTier = t
-		}
-	}
 
 	var (
 		status       string
@@ -179,28 +175,8 @@ func runVerification(
 		subscription["expires_at"] = nil
 	}
 
-	payload := map[string]any{
-		"tier":         newTier,
-		"subscription": subscription,
-	}
-	// クォータはティアが変わる時のみリセット（復元検証で誤リセットしない）
-	if currentTier != newTier {
-		if newTier == "premium" {
-			payload["remaining_sentences"] = quota.PremiumDailySentences
-			payload["remaining_quizzes"] = quota.PremiumDailyQuizzes
-		} else {
-			payload["remaining_sentences"] = quota.FreeDailySentences
-			payload["remaining_quizzes"] = quota.FreeDailyQuizzes
-		}
-	}
-
-	if _, err := userRef.Set(ctx, payload, firestore.MergeAll); err != nil {
-		return nil, err
-	}
-
-	if err := releaseSubscriptionFromOtherUsers(
-		ctx, db, identifierField, identifierValue, uid,
-	); err != nil {
+	if err := persistSubscriptionOwnership(ctx, db, userRef, subscription, newTier,
+		identifierField, identifierValue); err != nil {
 		return nil, err
 	}
 
@@ -230,64 +206,113 @@ var projectIDPremiumProducts = map[string][]string{
 // 無いことがあり、単独で見ると prod でも「未知の環境」に落ちてしまう。
 // 未知の環境は拒否する（fail-closed）。tester 商品が prod で通る状態を作らない。
 func isAllowedSubscriptionProduct(productID string) bool {
-	configured := strings.TrimSpace(os.Getenv("SUBSCRIPTION_PRODUCT_IDS"))
-	if configured != "" {
-		for _, allowed := range strings.Split(configured, ",") {
-			if strings.TrimSpace(allowed) == productID {
-				return true
-			}
-		}
-		return false
-	}
-
-	projectID := fbapp.ProjectID()
-	allowed, ok := projectIDPremiumProducts[projectID]
+	allowed, ok := subscriptionProductAllowlist()
 	if !ok {
 		// 環境を特定できないと商品の妥当性を判断できない。全購入が
 		// InvalidArgument で落ちる状態なので、専用イベント名で気付けるようにする。
 		log.Printf("subscription_product_allowlist_unresolved project=%q product=%q",
-			projectID, productID)
+			fbapp.ProjectID(), productID)
 		return false
 	}
 	return slices.Contains(allowed, productID)
 }
 
-// releaseSubscriptionFromOtherUsers は同一サブスクリプションを保持する
-// 他ユーザーの doc から premium を剥奪する。
+// subscriptionProductAllowlist はこの環境が販売する商品 ID の一覧を返す。
+//
+// ok=false は「環境を特定できず、許可・不許可を判断できない」を表す。
+// 判断できないことと「不正な商品」は区別する必要がある。ストア通知の経路では
+// 前者を 200 で捨てると Apple が再送しないまま課金状態がずれ続けるため、
+// 呼び出し側は再試行可能なエラーとして扱う。
+func subscriptionProductAllowlist() ([]string, bool) {
+	configured := strings.TrimSpace(os.Getenv("SUBSCRIPTION_PRODUCT_IDS"))
+	if configured != "" {
+		var out []string
+		for _, allowed := range strings.Split(configured, ",") {
+			if v := strings.TrimSpace(allowed); v != "" {
+				out = append(out, v)
+			}
+		}
+		return out, true
+	}
+	allowed, ok := projectIDPremiumProducts[fbapp.ProjectID()]
+	return allowed, ok
+}
+
+// persistSubscriptionOwnership は現在ユーザーへの付与と旧所有者からの剥奪を
+// 1トランザクションで行い、同一サブスクリプションの所有者を一意にする。
 //
 // 匿名ユーザーの再インストール等で uid が変わると、旧 uid の doc に
 // premium とサブスク情報が残ったままになる。放置するとストア通知の
 // ユーザー検索が旧 doc にヒットし、現役 doc の解約処理が漏れて
 // premium が永久に残る。サブスクは常に最後に検証した uid のみに紐づける。
-func releaseSubscriptionFromOtherUsers(
-	ctx context.Context, db *firestore.Client,
-	identifierField, identifierValue, currentUID string,
+func persistSubscriptionOwnership(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+	subscription map[string]any, newTier, identifierField, identifierValue string,
 ) error {
-	it := db.Collection("users").
-		Where(identifierField, "==", identifierValue).
-		Documents(ctx)
-	defer it.Stop()
-
-	for {
-		doc, err := it.Next()
-		if err == iterator.Done {
-			return nil
-		}
-		if err != nil {
+	ownerHash := sha256.Sum256([]byte(identifierField + "\x00" + identifierValue))
+	ownerRef := db.Collection("subscription_owners").Doc(hex.EncodeToString(ownerHash[:]))
+	return db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		currentTier := "free"
+		userDoc, err := tx.Get(userRef)
+		if err == nil && userDoc.Exists() {
+			if tier, ok := userDoc.Data()["tier"].(string); ok && tier != "" {
+				currentTier = tier
+			}
+		} else if err != nil && !isNotFoundErr(err) {
 			return err
 		}
-		if doc.Ref.ID == currentUID {
-			continue
+		// 同じ購入IDを検証する全トランザクションが必ず同じdocを読むため、
+		// 検索結果がまだ0件でも同時付与の一方を再試行させられる。
+		if _, err := tx.Get(ownerRef); err != nil && !isNotFoundErr(err) {
+			return err
 		}
-		if _, err := doc.Ref.Update(ctx, []firestore.Update{
-			{Path: "tier", Value: "free"},
-			{Path: "remaining_sentences", Value: quota.FreeDailySentences},
-			{Path: "remaining_quizzes", Value: quota.FreeDailyQuizzes},
-			{Path: "subscription", Value: firestore.Delete},
+
+		it := tx.Documents(db.Collection("users").Where(identifierField, "==", identifierValue))
+		defer it.Stop()
+		var previous []*firestore.DocumentSnapshot
+		for {
+			doc, err := it.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			if doc.Ref.ID != userRef.ID {
+				previous = append(previous, doc)
+			}
+		}
+
+		payload := map[string]any{"tier": newTier, "subscription": subscription}
+		if currentTier != newTier {
+			if newTier == "premium" {
+				payload["remaining_sentences"] = quota.PremiumDailySentences
+				payload["remaining_quizzes"] = quota.PremiumDailyQuizzes
+			} else {
+				payload["remaining_sentences"] = quota.FreeDailySentences
+				payload["remaining_quizzes"] = quota.FreeDailyQuizzes
+			}
+		}
+		if err := tx.Set(userRef, payload, firestore.MergeAll); err != nil {
+			return err
+		}
+		if err := tx.Set(ownerRef, map[string]any{
+			"uid": userRef.ID, "updated_at": firestore.ServerTimestamp,
 		}); err != nil {
 			return err
 		}
-		log.Printf("Released subscription from user %s (now owned by %s)",
-			doc.Ref.ID, currentUID)
-	}
+		for _, doc := range previous {
+			if err := tx.Update(doc.Ref, []firestore.Update{
+				{Path: "tier", Value: "free"},
+				{Path: "remaining_sentences", Value: quota.FreeDailySentences},
+				{Path: "remaining_quizzes", Value: quota.FreeDailyQuizzes},
+				{Path: "subscription", Value: firestore.Delete},
+			}); err != nil {
+				return err
+			}
+			log.Printf("Released subscription from user %s (now owned by %s)",
+				doc.Ref.ID, userRef.ID)
+		}
+		return nil
+	})
 }

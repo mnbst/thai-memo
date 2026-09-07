@@ -77,6 +77,7 @@ func (v *Verifier) verify(signedPayload string) error {
 		return fmt.Errorf("JWS ヘッダのデコードに失敗: %w", err)
 	}
 	var header struct {
+		Alg string   `json:"alg"`
 		X5C []string `json:"x5c"`
 	}
 	if err := json.Unmarshal(headerJSON, &header); err != nil {
@@ -84,6 +85,9 @@ func (v *Verifier) verify(signedPayload string) error {
 	}
 	if len(header.X5C) < 2 {
 		return errors.New("Missing or incomplete x5c certificate chain in JWS header")
+	}
+	if header.Alg != "ES256" {
+		return fmt.Errorf("Unexpected JWS algorithm: %q", header.Alg)
 	}
 
 	certs := make([]*x509.Certificate, 0, len(header.X5C))
@@ -144,6 +148,21 @@ func (v *Verifier) verify(signedPayload string) error {
 	root := certs[len(certs)-1]
 	if got := Fingerprint256(root.Raw); got != v.rootFingerprint() {
 		return fmt.Errorf("Untrusted root CA fingerprint: %s", got)
+	}
+
+	// 隣接署名だけでなく、現在時刻での有効期限、basic constraints、
+	// key usage、path length を標準ライブラリでも検証する。
+	roots := x509.NewCertPool()
+	roots.AddCert(root)
+	intermediates := x509.NewCertPool()
+	for _, cert := range certs[1 : len(certs)-1] {
+		intermediates.AddCert(cert)
+	}
+	if _, err := certs[0].Verify(x509.VerifyOptions{
+		Roots: roots, Intermediates: intermediates,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+	}); err != nil {
+		return fmt.Errorf("Certificate path validation failed: %w", err)
 	}
 
 	// リーフ証明書の公開鍵で JWS 署名を検証

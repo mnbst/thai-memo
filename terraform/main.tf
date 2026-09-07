@@ -232,10 +232,16 @@ locals {
     "generatequiz",
     "generatethaisentence",
     "handleappstorenotification",
-    "subscriptionstatus",
     "updateuvm",
     "verifysubscription",
   ]
+
+  # Scheduler 以外から起動させない管理用 HTTP 関数。
+  scheduled_functions = var.enable_scheduled_jobs ? toset([
+    "subscriptionstatus",
+    "dailybatch",
+    "deliverdailysentence",
+  ]) : toset([])
 }
 
 resource "google_cloud_run_service_iam_member" "callable_invoker" {
@@ -246,6 +252,16 @@ resource "google_cloud_run_service_iam_member" "callable_invoker" {
   service  = each.key
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+resource "google_cloud_run_service_iam_member" "scheduled_invoker" {
+  for_each = local.scheduled_functions
+
+  project  = var.project_id
+  location = var.region
+  service  = each.key
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
 
 # GitHub Actions 用 Google Play アップロードサービスアカウント

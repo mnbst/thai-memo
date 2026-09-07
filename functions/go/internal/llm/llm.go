@@ -18,6 +18,7 @@ import (
 
 // requestTimeout は 1 回の API 呼び出しの上限。
 const requestTimeout = 90 * time.Second
+const maxResponseSize = 4 << 20
 
 const (
 	maxRetries = 3
@@ -183,7 +184,7 @@ func (c *Client) post(
 	}
 	defer res.Body.Close()
 
-	raw, err := io.ReadAll(res.Body)
+	raw, err := io.ReadAll(io.LimitReader(res.Body, maxResponseSize))
 	if err != nil {
 		return nil, &APIError{Message: err.Error(), Provider: provider}
 	}

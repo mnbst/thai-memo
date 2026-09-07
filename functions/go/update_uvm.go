@@ -21,6 +21,8 @@ type updateUvmRequest struct {
 	QuizType string           `json:"quiz_type"`
 }
 
+const maxUVMResultsPerRequest = 50
+
 // updateUvm は functions/python/uvm_handlers.py:updateUvm の移植。
 // クイズ結果から UVM を更新する。
 func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
@@ -35,6 +37,10 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 	}
 	if len(in.Results) == 0 {
 		return map[string]any{"success": true, "updated": 0}, nil
+	}
+	if len(in.Results) > maxUVMResultsPerRequest {
+		return nil, callable.Errorf(callable.InvalidArgument,
+			"results は%d件以内にしてください", maxUVMResultsPerRequest)
 	}
 
 	results := make([]uvm.Result, 0, len(in.Results))
@@ -99,7 +105,7 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 // （正常なクライアントは必ず両方を送るので、実際の挙動差は出ない）。
 func parseResult(raw map[string]any) (uvm.Result, error) {
 	word, ok := raw["word"].(string)
-	if !ok || word == "" {
+	if !ok || word == "" || len(word) > 256 {
 		return uvm.Result{}, callable.Errorf(callable.InvalidArgument, "word が必要です")
 	}
 	isCorrect, ok := raw["is_correct"].(bool)

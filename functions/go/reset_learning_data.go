@@ -2,6 +2,7 @@ package function
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"cloud.google.com/go/firestore"
@@ -29,13 +30,22 @@ func resetLearningData(ctx context.Context, req *callable.Request) (any, error) 
 	if err != nil {
 		return nil, err
 	}
+	userRef := db.Collection("users").Doc(uid)
+	leaseToken, err := acquireGenerationLease(ctx, db, userRef)
+	if errors.Is(err, errGenerationInProgress) {
+		return nil, callable.Errorf(callable.Aborted, "例文生成の完了後に再度お試しください")
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer releaseGenerationLease(ctx, db, userRef, leaseToken)
 
 	var refs []*firestore.DocumentRef
 
 	// JS の listDocuments() 相当。実体の無い doc（サブコレクションだけ持つ）も
 	// 拾う必要があるので Documents ではなく DocumentRefs を使う。
 	for _, sub := range []string{"sentences", "quiz_answers", "uvm"} {
-		got, err := documentRefs(ctx, db.Collection("users").Doc(uid).Collection(sub))
+		got, err := documentRefs(ctx, userRef.Collection(sub))
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +76,7 @@ func resetLearningData(ctx context.Context, req *callable.Request) (any, error) 
 		batch.End()
 	}
 
-	_, err = db.Collection("users").Doc(uid).Set(ctx, map[string]any{
+	_, err = userRef.Set(ctx, map[string]any{
 		"remaining_sentences":      quota.FreeDailySentences,
 		"remaining_quizzes":        quota.FreeDailyQuizzes,
 		"daily_sentence_generated": false,
