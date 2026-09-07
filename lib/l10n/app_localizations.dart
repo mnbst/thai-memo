@@ -4199,7 +4199,7 @@ abstract class L10n {
   /// No description provided for @guideOverviewSummaryQuiz.
   ///
   /// In ja, this message translates to:
-  /// **'例文3つに1回、それまでに学んだ例文からまとめクイズが出題されます（プレミアム登録後は例文5つに1回）。迷ったらヒントや例文の見返しも使えます。'**
+  /// **'例文3つに1回、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。'**
   String get guideOverviewSummaryQuiz;
 
   /// No description provided for @guideOverviewBody3.
@@ -4241,7 +4241,7 @@ abstract class L10n {
   /// No description provided for @guideRoleQuizBody.
   ///
   /// In ja, this message translates to:
-  /// **'確認クイズは、次の例文に進む前に出る1問です。例文3つに1回、それまでに学んだ内容から「まとめクイズ」に挑戦できます（プレミアム登録後は例文5つに1回）。'**
+  /// **'確認クイズは、次の例文に進む前に出る1問です。例文3つに1回、それまでに学んだ内容から「まとめクイズ」に挑戦できます。'**
   String get guideRoleQuizBody;
 
   /// No description provided for @guideRoleScoreTitle.
@@ -4475,7 +4475,7 @@ abstract class L10n {
   /// No description provided for @guideHowQuizStep5.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズは、例文3つに1回出る節目のクイズです（プレミアム登録後は例文5つに1回）。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。'**
+  /// **'まとめクイズは、例文3つに1回出る節目のクイズです。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。'**
   String get guideHowQuizStep5;
 
   /// No description provided for @guideHowSettingsTitle.
