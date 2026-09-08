@@ -1,5 +1,7 @@
 package quizgen
 
+import "strings"
+
 // blankTarget は空欄にする語とその読み・意味。
 type blankTarget struct {
 	Word          string
@@ -15,7 +17,7 @@ func resolveBlankTarget(sentence QuizSentenceSeed) (blankTarget, bool) {
 	if keyWord == "" {
 		return blankTarget{}, false
 	}
-	if _, ok := buildBlankText(thaiText, keyWord); !ok {
+	if _, ok := buildBlankText(thaiText, keyWord, sentence.Words); !ok {
 		return blankTarget{}, false
 	}
 
@@ -43,7 +45,7 @@ func PrepareInputs(sentences []QuizSentenceSeed) []PreparedQuizSentenceSeed {
 		}
 
 		// 空欄を作れなければ本文をそのまま入れる（後段の検査で落ちる）
-		blank, blankOK := buildBlankText(thaiText, correctAnswer)
+		blank, blankOK := buildBlankText(thaiText, correctAnswer, sentence.Words)
 		if !blankOK {
 			blank = thaiText
 		}
@@ -116,6 +118,10 @@ func ApplyRuleBasedFields(
 // BuildBlankSentencePronunciation は例文の発音のうち、
 // 空欄にした語の発音を "___" に差し替える。
 // どちらかが空、または見つからなければ空文字。
+//
+// 例文の発音は語ごとの発音をスペースで繋いだもの（word_gap.go 参照）なので、
+// 語の切れ目に合う出現だけを空欄にする。部分一致で採ると weelaa の中の laa の
+// ように語の途中を空欄にしてしまう。
 func BuildBlankSentencePronunciation(
 	sentencePronunciation, keyWordPronunciation string,
 ) string {
@@ -124,10 +130,27 @@ func BuildBlankSentencePronunciation(
 	if sentence == "" || keyWord == "" {
 		return ""
 	}
-	i := indexOf(sentence, keyWord)
-	if i < 0 {
-		return ""
+
+	tokens := strings.Split(sentence, " ")
+	keyTokens := strings.Split(keyWord, " ")
+	for i := 0; i+len(keyTokens) <= len(tokens); i++ {
+		if !equalTokens(tokens[i:i+len(keyTokens)], keyTokens) {
+			continue
+		}
+		out := append([]string(nil), tokens[:i]...)
+		out = append(out, blankText)
+		out = append(out, tokens[i+len(keyTokens):]...)
+		return strings.Join(out, " ")
 	}
-	// JS の String#replace は最初の1件だけ置換する
-	return sentence[:i] + blankText + sentence[i+len(keyWord):]
+	return ""
+}
+
+// equalTokens は語の並びが等しいか。
+func equalTokens(a, b []string) bool {
+	for i := range b {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

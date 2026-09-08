@@ -34,6 +34,7 @@ func toQuizSeedSourceFromSelected(sentence selectedSentence) quizSeedSource {
 	return quizSeedSource{
 		Seed: quizgen.QuizSentenceSeed{
 			ThaiText:             str("thai_text"),
+			Words:                seedWords(data),
 			Pronunciation:        str("pronunciation"),
 			JapaneseTranslation:  str("japanese_translation"),
 			KeyWord:              str("key_word"),
@@ -73,6 +74,7 @@ func buildLearningQuizSource(payload map[string]any) (quizSeedSource, bool) {
 	return quizSeedSource{
 		Seed: quizgen.QuizSentenceSeed{
 			ThaiText:             thaiText,
+			Words:                seedWords(payload),
 			Pronunciation:        pronunciation,
 			JapaneseTranslation:  japaneseTranslation,
 			KeyWord:              keyWord,
@@ -138,6 +140,23 @@ func buildSentenceDetail(
 		detail["target_words"] = []any{keyWord}
 	}
 	return detail
+}
+
+// seedWords は word_breakdown の語を出現順に返す。
+// 空欄を語の境界に合わせるために使う。
+func seedWords(data map[string]any) []string {
+	wordBreakdown, _ := data["word_breakdown"].([]any)
+	words := make([]string, 0, len(wordBreakdown))
+	for _, raw := range wordBreakdown {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if word := quizgen.NormalizeTextValue(item["word"]); word != "" {
+			words = append(words, word)
+		}
+	}
+	return words
 }
 
 // resolveKeyWordMeaning は key_word の意味を決める。

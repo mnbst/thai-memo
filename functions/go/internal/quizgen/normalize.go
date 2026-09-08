@@ -72,11 +72,18 @@ func uniqueTexts(values []string) []string {
 }
 
 // buildBlankText は thaiText 中の answer を空欄に差し替える。
-// 見つからなければ ok=false。
-func buildBlankText(thaiText, answer string) (string, bool) {
+// words（word_breakdown の語）が本文を再構成できるならそちらと突き合わせ、
+// できないときだけ本文の部分一致で位置を決める。見つからなければ ok=false。
+func buildBlankText(thaiText, answer string, words []string) (string, bool) {
 	if thaiText == "" || answer == "" {
 		return "", false
 	}
+	if cleaned := cleanWords(words); rebuildsText(thaiText, cleaned) {
+		// 語として一致しなければ空欄を作らない。
+		// 語の途中を空欄にするより、その例文を出題しない方がよい。
+		return blankByWords(thaiText, cleaned, answer)
+	}
+
 	i := strings.Index(thaiText, answer)
 	if i == -1 {
 		return "", false
@@ -112,3 +119,78 @@ func NormalizeTextValue(value any) string {
 
 // ContainsBlank は空欄を含むか（公開版）。
 func ContainsBlank(s string) bool { return containsBlank(s) }
+
+// blankByWords は分割済みの語（word_breakdown）と key_word を突き合わせ、
+// 一致した語だけを空欄にした本文を返す。
+//
+// タイ語は分かち書きしないため、本文の部分一致では長い語の内側
+// （例: เวลา の中の ลา）を空欄にしてしまう。例文生成の時点で語には
+// 分かれているので、そちらと比べればどこを空欄にするかは一意に決まる。
+//
+// ๆ のように key_word が複数語に分かれることがあるため、連続する語も見る。
+// 一致する語が無ければ ok=false（その例文は出題に使わない）。
+// words は cleanWords を通し、rebuildsText が真であること。
+func blankByWords(thaiText string, cleaned []string, answer string) (string, bool) {
+	target := stripSpaces(answer)
+
+	// pos は「スペースを除いた本文」での語の開始位置。
+	pos := 0
+	for i, word := range cleaned {
+		for j, joined := i, ""; j < len(cleaned) && len(joined) < len(target); j++ {
+			joined += cleaned[j]
+			if joined != target {
+				continue
+			}
+			start := skipSpaces(thaiText, offsetWithSpaces(thaiText, 0, pos))
+			end := offsetWithSpaces(thaiText, start, len(target))
+			return thaiText[:start] + blankText + thaiText[end:], true
+		}
+		pos += len(word)
+	}
+	return "", false
+}
+
+// cleanWords は語からスペースを落とし、空の語を除く。
+func cleanWords(words []string) []string {
+	cleaned := make([]string, 0, len(words))
+	for _, word := range words {
+		if w := stripSpaces(word); w != "" {
+			cleaned = append(cleaned, w)
+		}
+	}
+	return cleaned
+}
+
+// rebuildsText は語を並べると本文に戻るか（分解に欠落・余りが無いか）。
+// 戻らない分解は位置決めに使えない。
+func rebuildsText(thaiText string, cleaned []string) bool {
+	return len(cleaned) > 0 && strings.Join(cleaned, "") == stripSpaces(thaiText)
+}
+
+// stripSpaces はスペースを落とす。
+// 語の区切りにスペースを入れるかは本文と word_breakdown で揃わないため、
+// 突き合わせはスペースを無視して行う。
+func stripSpaces(s string) string {
+	return strings.ReplaceAll(s, " ", "")
+}
+
+// offsetWithSpaces は from から「スペースを除いて count バイト」進んだ位置を、
+// 元の thaiText 上の位置で返す。
+func offsetWithSpaces(thaiText string, from, count int) int {
+	i := from
+	for count > 0 && i < len(thaiText) {
+		if thaiText[i] != ' ' {
+			count--
+		}
+		i++
+	}
+	return i
+}
+
+// skipSpaces は i から続くスペースを飛ばした位置を返す。
+func skipSpaces(thaiText string, i int) int {
+	for i < len(thaiText) && thaiText[i] == ' ' {
+		i++
+	}
+	return i
+}

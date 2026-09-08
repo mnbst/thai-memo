@@ -98,6 +98,7 @@ module "monitoring" {
   source = "./modules/monitoring"
 
   project_id      = var.project_id
+  project_number  = data.google_project.project.number
   alert_email     = var.alert_email
   billing_account = var.billing_account
   budget_amount   = var.budget_amount

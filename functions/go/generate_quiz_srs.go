@@ -458,6 +458,7 @@ func isUserSentenceDocReady(data map[string]any) bool {
 	}
 	return quizgen.IsSeedReady(quizgen.QuizSentenceSeed{
 		ThaiText:             str("thai_text"),
+		Words:                seedWords(data),
 		Pronunciation:        str("pronunciation"),
 		JapaneseTranslation:  str("japanese_translation"),
 		KeyWord:              str("key_word"),

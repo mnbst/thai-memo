@@ -38,6 +38,9 @@ UI文言のARBと gen_l10n 生成物（`flutter gen-l10n` で再生成）。
 lib/firebase_options_dev.dart / firebase_options_tester.dart / firebase_options_prod.dart
 環境別Firebase設定（dev/tester/prod）。
 
+web/
+Flutter Web / PWA のホストページ。manifest.json、sqflite_sw.js・sqlite3.wasm（sqflite_common_ffi_web の生成物）。
+
 ## Constants
 
 lib/core/database_constants.dart
@@ -529,7 +532,7 @@ functions/go/generate_quiz_live_test.go
 SRS選出とUVM補充を実Firestoreで検証。クエリ境界(JST 0:00)も確認。
 
 functions/go/internal/quizgen/normalize.go
-テキスト正規化・タイ語判定・注釈除去・空欄生成。JSの \s と同じ空白集合を使う。
+テキスト正規化・タイ語判定・注釈除去・空欄生成（分割済みの語と key_word を突き合わせて位置を決める）。JSの \s と同じ空白集合を使う。
 
 functions/go/internal/quizgen/prepare.go
 穴埋め位置の確定とルールベース項目の合成、例文発音の空欄化。
@@ -542,6 +545,9 @@ functions/go/internal/quizgen/sanitize.go
 
 functions/go/internal/quizgen/types.go
 クイズ生成の入出力の型。
+
+functions/go/internal/quizgen/normalize_test.go
+空欄位置が語と一致することの回帰テスト（本文・例文発音の両方）。
 
 functions/go/internal/quizgen/golden_test.go
 プロンプト(バイト一致)と整形処理をJS実装の出力と突き合わせる。
