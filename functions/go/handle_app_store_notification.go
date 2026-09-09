@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"slices"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -16,6 +19,8 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 )
+
+const appStoreNotificationMaxBodyBytes int64 = 1 << 20
 
 // handleAppStoreNotification は
 // functions/javascript/src/handleAppStoreNotification.ts の移植。
@@ -41,12 +46,18 @@ func handleAppStoreNotificationWithProcessor(
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, appStoreNotificationMaxBodyBytes)
+	decoder := json.NewDecoder(r.Body)
 	var body struct {
 		SignedPayload string `json:"signedPayload"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.SignedPayload == "" {
+	if err := decoder.Decode(&body); err != nil || body.SignedPayload == "" {
 		log.Print("Missing signedPayload")
 		http.Error(w, "Missing signedPayload", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -72,6 +83,24 @@ func processAppStoreNotification(ctx context.Context, signedPayload string) erro
 	notification, err := appstore.Default.ParseNotification(signedPayload)
 	if err != nil {
 		return err
+	}
+	// 販売商品を特定できない（GCLOUD_PROJECT 欠落・設定漏れ）のは通知側の
+	// 問題ではない。ここで RejectedError にすると 200 で捨てられ Apple が
+	// 再送しないまま課金状態が永久にずれるので、5xx を返して再送させる。
+	allowedProducts, resolved := subscriptionProductAllowlist()
+	if !resolved {
+		return fmt.Errorf(
+			"subscription_product_allowlist_unresolved project=%q", fbapp.ProjectID())
+	}
+	if !slices.Contains(allowedProducts, notification.TransactionInfo.ProductID) {
+		return &applejws.RejectedError{Err: fmt.Errorf(
+			"App Store notification product mismatch: %q",
+			notification.TransactionInfo.ProductID)}
+	}
+	if notification.RenewalInfo != nil && notification.RenewalInfo.ProductID != "" &&
+		notification.RenewalInfo.ProductID != notification.TransactionInfo.ProductID {
+		return &applejws.RejectedError{Err: errors.New(
+			"App Store notification transaction/renewal product mismatch")}
 	}
 
 	subtype := notification.Subtype
@@ -129,7 +158,10 @@ func processAppStoreNotification(ctx context.Context, signedPayload string) erro
 		currentTier, _ := doc.Data()["tier"].(string)
 		updates := appStoreUpdates(notification, decision, currentTier, doc.Ref.ID)
 
-		if _, err := doc.Ref.Update(ctx, updates); err != nil {
+		// 読み取り後に新しい通知が反映されていた場合は上書きせず、Apple の
+		// リトライで最新スナップショットから判定し直す。
+		if _, err := doc.Ref.Update(ctx, updates,
+			firestore.LastUpdateTime(doc.UpdateTime)); err != nil {
 			return err
 		}
 		log.Printf("Updated user %s: tier=%s, status=%s",

@@ -55,8 +55,13 @@ class BackendApiService {
   static String _defaultLang() => 'ja';
 
   /// Generate a new Thai sentence using backend API
-  Future<ThaiSentence> generateSentence({
+  ///
+  /// [count] を渡すとその本数を1回の呼び出しでまとめて作る（1セット）。
+  /// サーバーは残りクォータを超えては作らないので、戻りが [count] より
+  /// 少ないことがある。
+  Future<List<ThaiSentence>> generateSentences({
     Map<String, String?> generationParams = const {},
+    int count = 1,
   }) async {
     try {
       // Ensure user is authenticated
@@ -76,7 +81,7 @@ class BackendApiService {
         ),
       );
 
-      final params = <String, dynamic>{'lang': _lang()};
+      final params = <String, dynamic>{'lang': _lang(), 'count': count};
       for (final entry in generationParams.entries) {
         if (entry.value != null) {
           params[entry.key] = entry.value;
@@ -98,10 +103,14 @@ class BackendApiService {
         throw _mapBackendError(errorCode, errorMessage);
       }
 
-      // Extract sentence data
-      final sentenceData = Map<String, dynamic>.from(data['data'] as Map);
-
-      return createThaiSentenceFromJson(sentenceData);
+      // sentences はセット全部。1本のときも配列で返る。
+      // data（1本目）しか無いのは、セットを知らない古いサーバーのとき。
+      final rawSet =
+          data['sentences'] as List<dynamic>? ?? [data['data'] as Object];
+      return [
+        for (final raw in rawSet)
+          createThaiSentenceFromJson(Map<String, dynamic>.from(raw as Map)),
+      ];
     } on FirebaseFunctionsException catch (e) {
       throw _mapFirebaseFunctionsException(e);
     } on BackendApiException {

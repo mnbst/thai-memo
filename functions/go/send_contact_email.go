@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/mail"
 	"strings"
 	"sync"
+	"time"
 
+	"cloud.google.com/go/firestore"
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 
@@ -20,6 +23,10 @@ const (
 	contactAddress  = "gcp.demo.776@gmail.com"
 	contactFromName = "まいにちタイ語"
 	contactMaxLen   = 2000
+	contactNameMax  = 100
+	contactEmailMax = 320
+	contactDailyMax = 5
+	contactCooldown = time.Minute
 )
 
 var (
@@ -74,11 +81,25 @@ func sendContactEmail(ctx context.Context, req *callable.Request) (any, error) {
 	if in.Name == "" || in.Email == "" || in.Message == "" {
 		return nil, callable.Errorf(callable.InvalidArgument, "必須項目が不足しています")
 	}
+	if utf16Len(in.Name) > contactNameMax || len(in.Email) > contactEmailMax ||
+		strings.ContainsAny(in.Name, "\r\n") {
+		return nil, callable.Errorf(callable.InvalidArgument, "お名前またはメールアドレスが不正です")
+	}
+	parsedAddress, err := mail.ParseAddress(in.Email)
+	if err != nil || parsedAddress.Address != in.Email {
+		return nil, callable.Errorf(callable.InvalidArgument, "メールアドレスが不正です")
+	}
 	// JS の String#length は UTF-16 コードユニット数。ルーン数だと絵文字などで
 	// 判定がずれるので、同じ数え方に合わせる。
 	if utf16Len(in.Message) > contactMaxLen {
 		return nil, callable.Errorf(callable.InvalidArgument,
 			"メッセージは2000文字以内で入力してください")
+	}
+
+	// レート制限の消費は入力検証を全て通してから。先に数えると、サーバー自身が
+	// 弾く入力でも日次5回の枠が減り、1分のクールダウンまで始まってしまう。
+	if err := reserveContactSend(ctx, uid); err != nil {
+		return nil, err
 	}
 
 	password, err := getGmailAppPassword(ctx)
@@ -109,6 +130,37 @@ func sendContactEmail(ctx context.Context, req *callable.Request) (any, error) {
 
 	// JS 版は何も返さない（クライアントには result: null が届く）。
 	return nil, nil
+}
+
+func reserveContactSend(ctx context.Context, uid string) error {
+	db, err := fbapp.Firestore(ctx)
+	if err != nil {
+		return callable.Errorf(callable.Internal, "メール送信を準備できませんでした")
+	}
+	ref := db.Collection("contact_rate_limits").Doc(uid)
+	now := time.Now().UTC()
+	day := now.Format("2006-01-02")
+	return db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		count := 0
+		snap, err := tx.Get(ref)
+		if err == nil && snap.Exists() {
+			data := snap.Data()
+			if last, ok := data["last_sent_at"].(time.Time); ok && now.Sub(last) < contactCooldown {
+				return callable.Errorf(callable.ResourceExhausted, "しばらくしてから再度お試しください")
+			}
+			if storedDay, _ := data["day"].(string); storedDay == day {
+				count = intValue(data["count"])
+			}
+		} else if err != nil && !isNotFoundErr(err) {
+			return err
+		}
+		if count >= contactDailyMax {
+			return callable.Errorf(callable.ResourceExhausted, "本日の送信上限に達しました")
+		}
+		return tx.Set(ref, map[string]any{
+			"day": day, "count": count + 1, "last_sent_at": now,
+		}, firestore.MergeAll)
+	})
 }
 
 // utf16Len は JS の String#length と同じ数え方（UTF-16 コードユニット数）。

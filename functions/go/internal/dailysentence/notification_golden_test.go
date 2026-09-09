@@ -33,7 +33,7 @@ func TestNotificationGolden(t *testing.T) {
 	bodyLines := map[int]int{}
 	titleKinds := map[string]int{}
 	for _, c := range golden.Cases {
-		title, body := BuildNotificationText(c.Sentence, lang.Lang(c.Lang))
+		title, body := BuildNotificationText(c.Sentence, 1, lang.Lang(c.Lang))
 		if title != c.Title {
 			t.Errorf("title 不一致 lang=%q sentence=%v\n got: %q\nwant: %q",
 				c.Lang, c.Sentence, title, c.Title)

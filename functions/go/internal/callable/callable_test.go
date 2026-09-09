@@ -154,3 +154,26 @@ func TestPreflight(t *testing.T) {
 		t.Fatalf("headers = %q", w.Header().Get("Access-Control-Allow-Headers"))
 	}
 }
+
+func TestRejectsTrailingJSON(t *testing.T) {
+	h := HTTP("t", nil, func(_ context.Context, _ *Request) (any, error) {
+		t.Fatal("不正JSONでハンドラが呼ばれた")
+		return nil, nil
+	})
+	w := post(h, `{"data":{}} {"data":{}}`, "")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestRejectsOversizedBody(t *testing.T) {
+	h := HTTP("t", nil, func(_ context.Context, _ *Request) (any, error) {
+		t.Fatal("巨大bodyでハンドラが呼ばれた")
+		return nil, nil
+	})
+	body := `{"data":{"value":"` + strings.Repeat("x", int(maxRequestBodyBytes)) + `"}}`
+	w := post(h, body, "")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", w.Code)
+	}
+}

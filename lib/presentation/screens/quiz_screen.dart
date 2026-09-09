@@ -123,9 +123,7 @@ class QuizScreen extends ConsumerStatefulWidget {
   final ThaiSentence? learningSentence;
   final VoidCallback? onBackToLearningStart;
   final Future<void> Function()? onNextSentence;
-  final Future<void> Function()? onOptionalChallenge;
   final String? nextButtonLabel;
-  final String? optionalChallengeLabel;
   final bool showVocabScoreTransition;
 
   /// 通知の案内を出してよいタイミングになったことを伝える。
@@ -136,9 +134,7 @@ class QuizScreen extends ConsumerStatefulWidget {
     this.learningSentence,
     this.onBackToLearningStart,
     this.onNextSentence,
-    this.onOptionalChallenge,
     this.nextButtonLabel,
-    this.optionalChallengeLabel,
     this.showVocabScoreTransition = false,
   });
 
@@ -586,41 +582,31 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           ],
           const SizedBox(height: 16),
           // 次の例文のテーマ表示／変更（課金導線）。
-          if (widget.onNextSentence != null) ...[
+          //
+          // 確認クイズ（learningSentence あり＝セットの途中）では出さない。
+          // テーマの選択はまとめクイズの後に一本化した。途中で変えても、
+          // そのセットの残りは同じテーマで作り終えているので効かない。
+          if (widget.onNextSentence != null &&
+              widget.learningSentence == null) ...[
+            // 学習タブと同じ帯にする。まとめクイズを終えた直後は次のセットの
+            // テーマを決める唯一の場面なので、チップだと小さすぎて素通りする。
             KeyedSubtree(
               child: const NextSentenceTopicLabel(
                 paywallSource: 'quiz_next_topic',
+                banner: true,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
           ],
-          if (widget.onOptionalChallenge != null) ...[
-            KeyedSubtree(
-              child: FilledButton.icon(
-                onPressed: widget.onOptionalChallenge,
-                icon: const Icon(Icons.emoji_events),
-                label: Text(
-                  widget.optionalChallengeLabel ??
-                      L10n.of(context).quizOptionalChallenge,
-                ),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  minimumSize: const Size.fromHeight(52),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-          // 「次の例文」を主導線にする。確認クイズを終えた時点で1日が閉じて
+          // 「次へ」を主導線にする。確認クイズを終えた時点で1日が閉じて
           // しまい free の生成数が中央値1本で止まっていたため、幅いっぱいの
           // 主ボタンに引き上げ、「例文に戻る」は控えめな導線に下げた。
-          // まとめクイズを出す回だけは、そちらが節目なので主役を譲る。
+          // セットの最後だけはラベルが「まとめクイズへ」に変わる（呼び出し側）。
           if (widget.onBackToLearningStart != null) ...[
             Builder(
               builder: (context) {
                 final label = Text(
-                  widget.nextButtonLabel ??
-                      L10n.of(context).learnNextSentence,
+                  widget.nextButtonLabel ?? L10n.of(context).learnNextSentence,
                 );
                 const icon = Icon(Icons.arrow_forward);
                 Future<void> onPressed() async {
@@ -630,29 +616,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   }
                 }
 
-                const buttonPadding =
-                    EdgeInsets.symmetric(vertical: 14);
-                const minimumSize = Size.fromHeight(52);
-                return widget.onOptionalChallenge != null
-                    ? OutlinedButton.icon(
-                        onPressed: onPressed,
-                        icon: icon,
-                        label: label,
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEAF2FF),
-                          padding: buttonPadding,
-                          minimumSize: minimumSize,
-                        ),
-                      )
-                    : FilledButton.icon(
-                        onPressed: onPressed,
-                        icon: icon,
-                        label: label,
-                        style: FilledButton.styleFrom(
-                          padding: buttonPadding,
-                          minimumSize: minimumSize,
-                        ),
-                      );
+                return FilledButton.icon(
+                  onPressed: onPressed,
+                  icon: icon,
+                  label: label,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                );
               },
             ),
             const SizedBox(height: 4),
@@ -677,8 +649,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               label: Text(
                 widget.nextButtonLabel ?? L10n.of(context).learnNextSentence,
               ),
+              // 幅は上の帯に揃える。内容幅のままだと、まとめクイズの締めに
+              // 出る唯一の導線が画面の真ん中で小さく浮く。
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
+                minimumSize: const Size.fromHeight(56),
               ),
             ),
           ],

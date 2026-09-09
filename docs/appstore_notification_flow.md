@@ -19,7 +19,7 @@ sequenceDiagram
 
     Apple->>CF: POST /handleAppStoreNotification<br/>{ signedPayload: JWS }
 
-    CF->>CF: JWSデコード（二重構造）<br/>外側: notificationType, subtype<br/>内側: transactionInfo, renewalInfo
+    CF->>CF: JWS署名・証明書チェーン・アプリ識別子を検証<br/>外側: notificationType, subtype<br/>内側: transactionInfo, renewalInfo
 
     CF->>FS: subscription.original_transaction_id<br/>でユーザー検索
 
@@ -77,11 +77,22 @@ signedPayload (JWS)
 
 ## 重要な設計判断
 
-**Apple は 200 レスポンスを期待する**
-処理エラーでも 200 を返す。200 以外を返すと Apple がリトライし、重複処理が発生する。
+**再試行できるエラーだけ 5xx にする**
+署名不正・アプリ識別子不一致など再試行しても直らない入力は 200 で破棄する。
+Firestore 等の一時障害は 5xx を返し、Apple に再送させる。
+「通知が正当かどうか判断できない」場合も 5xx にする。200 で捨てると Apple は
+再送しないため、設定漏れ（`GCLOUD_PROJECT` 欠落で販売商品を特定できない等）が
+そのまま課金状態の永久ズレになる。
 
-**署名検証は未実装（TODO）**
-現在は JWS のペイロード部分をデコードするのみ。本番環境では Apple Root CA による証明書チェーン検証を追加すべき。
+**署名とアプリ識別子を検証する**
+ES256署名、Apple Root CA G3への証明書パス、有効期限・CA制約を検証する。
+さらに `bundleId`、`environment`、任意設定の `appAppleId` を自アプリの値と照合する。
+`APP_STORE_BUNDLE_ID` は未設定時 `com.thaimemo.thaiMemo`、
+`APP_STORE_APP_APPLE_ID` は数値を指定する。
+environment は Production・Sandbox の両方を受け付ける（本番でも審査・TestFlight の
+Sandbox 購入が届く）。外側と transactionInfo の一致は必須。
+`APP_STORE_ENVIRONMENT` は `verifySubscription` がどちらの Apple ホストを先に
+叩くかのヒントであって、通知の環境を絞る設定ではない。
 
 **ユーザー検索キー**
 `subscription.original_transaction_id` で検索。`verifySubscription` 実行時に保存される。初回購入前の通知は該当ユーザーなしとして 200 でスキップ。

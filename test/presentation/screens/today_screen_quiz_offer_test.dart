@@ -160,6 +160,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(analytics.quizOfferEvents, hasLength(2));
 
+    await tester.ensureVisible(find.text('確認クイズへ'));
     await tester.tap(find.text('確認クイズへ'));
     await tester.pump();
     expect(tappedSentence?.id, 'sentence-quiz-offer');
@@ -247,6 +248,7 @@ void main() {
     expect(find.text('確認クイズへ'), findsOneWidget);
     expect(analytics.quizOfferEvents, isEmpty);
 
+    await tester.ensureVisible(find.text('確認クイズへ'));
     await tester.tap(find.text('確認クイズへ'));
     await tester.pump();
     expect(tappedSource, isNull);

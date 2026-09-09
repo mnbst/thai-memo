@@ -612,22 +612,39 @@ class DatabaseHelper {
     required Map<String, dynamic> sentence,
     required List<Map<String, dynamic>> wordBreakdowns,
   }) async {
+    await insertSentencesWithWordBreakdowns([
+      (sentence: sentence, wordBreakdowns: wordBreakdowns),
+    ]);
+  }
+
+  /// Insert a complete sentence set in one transaction.
+  ///
+  /// The backend consumes quota for the whole set atomically. Mirroring that
+  /// boundary locally prevents a failed write from leaving only part of a set.
+  Future<void> insertSentencesWithWordBreakdowns(
+    List<
+            ({
+              Map<String, dynamic> sentence,
+              List<Map<String, dynamic>> wordBreakdowns,
+            })>
+        records,
+  ) async {
+    if (records.isEmpty) return;
     final db = await database;
     await db.transaction((txn) async {
-      // Insert sentence
-      await txn.insert(
-        DatabaseConstants.tableSentences,
-        sentence,
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-
-      // Insert word breakdowns
-      for (var wordBreakdown in wordBreakdowns) {
+      for (final record in records) {
         await txn.insert(
-          DatabaseConstants.tableWordBreakdowns,
-          wordBreakdown,
+          DatabaseConstants.tableSentences,
+          record.sentence,
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+        for (final wordBreakdown in record.wordBreakdowns) {
+          await txn.insert(
+            DatabaseConstants.tableWordBreakdowns,
+            wordBreakdown,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
       }
     });
   }

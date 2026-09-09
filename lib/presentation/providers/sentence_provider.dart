@@ -19,9 +19,16 @@ import 'remaining_quota_provider.dart';
 import 'settings_provider.dart';
 import 'subscription_provider.dart';
 
-typedef GenerateSentenceCallback = Future<ThaiSentence> Function({
+typedef GenerateSentenceCallback = Future<List<ThaiSentence>> Function({
   Map<String, String?> generationParams,
+  int count,
 });
+
+/// 1セットの本数。例文 → 確認クイズ →（learningSetSize本）→ まとめクイズ で一巡。
+///
+/// 毎日配信もアプリからの生成もこの本数でまとめる。サーバー側の
+/// `internal/sentence.SetSize` と必ず一致させること。
+const int learningSetSize = 5;
 typedef GetMostRecentSentenceCallback = Future<ThaiSentence?> Function();
 
 // ==================== Repository Provider ====================
@@ -112,13 +119,16 @@ class SentenceController extends StateNotifier<SentenceState> {
   ///
   /// テーマ（topic）の扱いは tier で決まる:
   /// free = おまかせ / premium・トライアル中 = ユーザー設定を反映。
+  /// [count] 本をまとめて作る（1セット）。既定は1本。
   Future<void> generateSentence({
     Map<String, String?> generationParams = const {},
+    int count = 1,
   }) async {
     state = const SentenceStateLoading();
     await _generate(
       generationParams: generationParams,
-      source: 'manual_single',
+      source: count > 1 ? 'manual_set' : 'manual_single',
+      count: count,
     );
   }
 
@@ -132,17 +142,25 @@ class SentenceController extends StateNotifier<SentenceState> {
     required Map<String, String?> generationParams,
     required String source,
     bool fallbackToRecentOnError = false,
+    int count = 1,
   }) async {
     final trialActive = _trialActive;
 
     try {
-      final sentence = await _executeGenerateSentence(
+      final sentences = await _executeGenerateSentence(
         generationParams:
             _effectiveGenerationParams(generationParams, trialActive),
+        count: count,
       );
-      state = SentenceStateSuccess(sentence, generated: true);
+      // 表示するのは1本目。残りはセットとして状態に載せ、消化カーソル
+      // （dailySetProvider）が拾う。
+      state = SentenceStateSuccess(
+        sentences.first,
+        generated: true,
+        generatedSet: sentences,
+      );
       _logGenerateSentence(
-        count: 1,
+        count: sentences.length,
         source: source,
         topicApplied: trialActive,
       );
@@ -216,11 +234,12 @@ class SentenceController extends StateNotifier<SentenceState> {
         // ローカルDBが空（再インストール等） → フラグを無視して生成を試みる
       }
 
-      // 未生成 → 1件生成
+      // 未生成 → 1セット生成
       await _generate(
         generationParams: generationParams,
         source: 'daily_auto',
         fallbackToRecentOnError: true,
+        count: learningSetSize,
       );
     } catch (e) {
       state = SentenceStateError(_l10n().errLoadFailed);
@@ -263,11 +282,12 @@ class SentenceController extends StateNotifier<SentenceState> {
     state = const SentenceStateInitial();
   }
 
-  Future<ThaiSentence> _executeGenerateSentence({
+  Future<List<ThaiSentence>> _executeGenerateSentence({
     Map<String, String?> generationParams = const {},
+    int count = 1,
   }) {
     final generate = _generateSentenceOverride ?? _generateUseCase.execute;
-    return generate(generationParams: generationParams);
+    return generate(generationParams: generationParams, count: count);
   }
 
   Future<ThaiSentence?> _executeGetMostRecentSentence() {
@@ -342,7 +362,14 @@ class SentenceStateSuccess extends SentenceState {
   final ThaiSentence sentence;
   final bool generated;
 
-  const SentenceStateSuccess(this.sentence, {this.generated = false});
+  /// 今回まとめて生成した全部（1本目が [sentence]）。生成以外の経路では空。
+  final List<ThaiSentence> generatedSet;
+
+  const SentenceStateSuccess(
+    this.sentence, {
+    this.generated = false,
+    this.generatedSet = const [],
+  });
 }
 
 /// Error state

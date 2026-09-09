@@ -104,17 +104,19 @@ func deliveryValue(t *testing.T, key string, v any) any {
 	return v
 }
 
-// stubProducer は Produce の呼び出しを記録する。
+// stubProducer は ProduceBatch の呼び出しを記録する。
 type stubProducer struct {
 	calls   []sentence.ProduceRequest
+	counts  []int
 	premium string // "ok" / "raise" / "none"
 	noCache bool
 }
 
-func (p *stubProducer) Produce(
-	_ context.Context, _ *firestore.Client, _ uvm.FreqRank, req sentence.ProduceRequest,
-) (*sentence.Produced, error) {
+func (p *stubProducer) ProduceBatch(
+	_ context.Context, _ *firestore.Client, _ uvm.FreqRank, req sentence.ProduceRequest, n int,
+) ([]*sentence.Produced, error) {
 	p.calls = append(p.calls, req)
+	p.counts = append(p.counts, n)
 	if req.UsePremiumSpec {
 		switch p.premium {
 		case "raise":
@@ -122,18 +124,31 @@ func (p *stubProducer) Produce(
 		case "none":
 			return nil, nil
 		}
-		return &sentence.Produced{
-			Sentence: &sentence.Sentence{}, TargetWords: []string{"w1"},
-			ChosenTopic: "topic1",
-		}, nil
+		return stubProduced(n, "w1", "topic1", false), nil
 	}
 	if p.noCache {
 		return nil, nil
 	}
-	return &sentence.Produced{
-		Sentence: &sentence.Sentence{}, TargetWords: []string{"w2"},
-		ChosenTopic: "topic2", FromCache: true,
-	}, nil
+	return stubProduced(n, "w2", "topic2", true), nil
+}
+
+// stubProduced は n 本ぶんの生成結果を作る。
+// 1本目は Python 側 stub と同じ語（w1 / w2）にして golden の期待値を保つ。
+func stubProduced(n int, head, topic string, fromCache bool) []*sentence.Produced {
+	out := make([]*sentence.Produced, n)
+	for i := range out {
+		word := head
+		if i > 0 {
+			word = head + "-" + strconv.Itoa(i+1)
+		}
+		out[i] = &sentence.Produced{
+			Sentence:    &sentence.Sentence{},
+			TargetWords: []string{word},
+			ChosenTopic: topic,
+			FromCache:   fromCache,
+		}
+	}
+	return out
 }
 
 func TestDeliveryBuildSentenceGolden(t *testing.T) {
@@ -152,7 +167,7 @@ func TestDeliveryBuildSentenceGolden(t *testing.T) {
 		}
 		// ヒアリングからのテーマは抽選なので値までは比べない（指定の有無だけ見る）。
 		d := &deliverer{Producer: stub}
-		got := d.buildSentence(context.Background(), "uid", userData, now)
+		got := d.buildSentences(context.Background(), "uid", userData, now, 1)
 
 		if len(stub.calls) != len(c.Calls) {
 			t.Errorf("%s: Produce の呼び出し回数 %d, want %d",
@@ -191,9 +206,11 @@ func TestDeliveryBuildSentenceGolden(t *testing.T) {
 				t.Errorf("%s: use_premium_spec %v, want %v",
 					c.Name, got.UsePremiumSpec, c.Want.UsePremiumSpec)
 			}
-			if fmt.Sprint(got.Produced.TargetWords) != fmt.Sprint(c.Want.TargetWords) {
+			if len(got.Produced) != 1 {
+				t.Errorf("%s: 例文の本数 %d, want 1", c.Name, len(got.Produced))
+			} else if fmt.Sprint(got.Produced[0].TargetWords) != fmt.Sprint(c.Want.TargetWords) {
 				t.Errorf("%s: target_words %v, want %v",
-					c.Name, got.Produced.TargetWords, c.Want.TargetWords)
+					c.Name, got.Produced[0].TargetWords, c.Want.TargetWords)
 			}
 		}
 	}
@@ -215,7 +232,7 @@ func TestDeliveryCommitGolden(t *testing.T) {
 	outcomes := map[string]int{}
 	for _, c := range golden.Commit {
 		userData := deliveryUserData(t, c.UserData)
-		token, restore, update, err := dailyCommitPlan(userData, now)
+		token, restore, update, err := dailyCommitPlan(userData, now, 1)
 
 		var stopped *deliveryStoppedError
 		outcome := "delivered"
@@ -268,7 +285,7 @@ func TestDeliveryRollbackGolden(t *testing.T) {
 			restore = append(restore, firestore.Update{
 				Path: path, Value: goldenValue(t, path, v)})
 		}
-		got := rollbackUpdate(restore, c.DeleteToken)
+		got := rollbackUpdate(restore, c.DeleteToken, 1)
 		assertUpdates(t, fmt.Sprintf("rollback[%d]", i), got, c.UserUpdate)
 	}
 	t.Logf("%d ケース一致", len(golden.Rollback))

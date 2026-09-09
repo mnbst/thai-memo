@@ -266,14 +266,25 @@ class QuizController extends StateNotifier<QuizState> {
   /// クイズ開始時の待ち時間がなくなる。
   /// 同じ例文IDに対する重複呼び出しはスキップされる。
   /// 生成中に別の例文のprepareが呼ばれた場合、古い結果は破棄される。
-  Future<void> prepareQuiz(ThaiSentence sentence) async {
+  Future<void> prepareQuiz(ThaiSentence sentence) {
     final sentenceId = sentence.id;
-    if (sentenceId == null || sentenceId.isEmpty) return;
-    if (sentenceId == _preparedSentenceId) return;
+    if (sentenceId == null || sentenceId.isEmpty) return Future.value();
+    if (sentenceId == _preparedSentenceId) {
+      return _prepareInFlight ?? Future.value();
+    }
 
     _preparedSentenceId = sentenceId;
     _preparedQuestions = null;
 
+    final run = _runPrepareQuiz(sentence, sentenceId);
+    _prepareInFlight = run;
+    return run;
+  }
+
+  /// 実行中の事前生成。開始側（startLearningQuiz）が待ち合わせるために持つ。
+  Future<void>? _prepareInFlight;
+
+  Future<void> _runPrepareQuiz(ThaiSentence sentence, String sentenceId) async {
     try {
       final questions = await _apiService.generateLearningQuiz(sentence);
       // 学習クイズは1問のみ。バリデーション通過かつ、生成中に対象が変わっていなければ採用
@@ -350,7 +361,23 @@ class QuizController extends StateNotifier<QuizState> {
       return;
     }
 
-    // 3. 事前生成中 or 未開始 → その場で生成して開始
+    // 3-a. 事前生成が走っている最中なら、それを待つ。
+    //
+    // ここで別途APIを叩くと同じユーザーが2本同時に生成することになり、
+    // サーバーの生成ロック（generate_quiz.go の operation lease）に弾かれて
+    // 409 が返り、毎回エラー画面になる（もう一度押すと1本目が終わっていて
+    // 通るので「2回目は成功する」ように見える）。
+    if (isPreparingFor(sentenceId)) {
+      state = const QuizGenerating();
+      await _prepareInFlight;
+      if (hasQuizFor(sentenceId)) {
+        _enterAnswering(_preparedQuestions!);
+        return;
+      }
+      // 事前生成が失敗していた場合だけ、下のその場生成へ落ちる。
+    }
+
+    // 3-b. 事前生成が無い・失敗した → その場で生成して開始
     state = const QuizGenerating();
 
     try {

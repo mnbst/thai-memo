@@ -44,13 +44,10 @@ class L10nEn extends L10n {
   String get navSettings => 'Settings';
 
   @override
-  String get learnAppBarTitle => 'Today\'s sentence';
-
-  @override
   String get learnOpenDetail => 'Details';
 
   @override
-  String get learnQuizTitle => 'Quiz';
+  String get learnQuizTitle => 'Quick check';
 
   @override
   String get learnSummaryQuizTitle => 'Review quiz';
@@ -59,13 +56,38 @@ class L10nEn extends L10n {
   String get learnNextSentence => 'Next sentence';
 
   @override
+  String get learnNextSet => 'Next set';
+
+  @override
+  String get learnGoToSummaryQuiz => 'Go to review quiz';
+
+  @override
+  String learnDailySetRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more to the review quiz',
+      one: '1 more to the review quiz',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get learnDailySetLast => 'Review quiz is next';
+
+  @override
+  String learnDailySetProgress(int position, int total) {
+    return '$position / $total';
+  }
+
+  @override
   String get commonOk => 'OK';
 
   @override
   String get commonRetry => 'Try again';
 
   @override
-  String get sentencePreparing => 'Preparing your next sentence...';
+  String get sentencePreparing => 'Preparing your sentences...';
 
   @override
   String todaysWords(int count) {
@@ -130,9 +152,6 @@ class L10nEn extends L10n {
 
   @override
   String get quizTodayTitle => 'Quiz';
-
-  @override
-  String get quizOptionalChallenge => 'Take the review quiz';
 
   @override
   String get quizGenerating => 'Building your quiz...';
@@ -605,6 +624,9 @@ class L10nEn extends L10n {
 
   @override
   String get nextTopicPrefix => 'Next topic: ';
+
+  @override
+  String get topicPrefix => 'Topic: ';
 
   @override
   String get topicName_blDrama => 'Thai BL dramas';
@@ -2349,7 +2371,7 @@ class L10nEn extends L10n {
   String get guideTitle => 'How to use the app';
 
   @override
-  String get guideSettingsSubtitle => 'Read how the app works';
+  String get guideSettingsSubtitle => 'See how the app works';
 
   @override
   String get guideSkip => 'Skip';
@@ -2377,7 +2399,7 @@ class L10nEn extends L10n {
   String get guideFigureLoopSummary => 'Review quiz';
 
   @override
-  String get guideFigureLoopEvery => 'every three sentences';
+  String get guideFigureLoopEvery => 'every five sentences';
 
   @override
   String get guideFigureCardThai => 'Thai script';
@@ -2408,19 +2430,19 @@ class L10nEn extends L10n {
 
   @override
   String get guideOverviewBody1 =>
-      'Every day, AI writes new Thai sentences matched to your vocabulary level.';
+      'Every day, AI writes a set of five Thai sentences matched to your vocabulary level.';
 
   @override
   String get guideOverviewBody2 =>
-      'Read the sentence, then check yourself with a quiz. Repeating those two steps is how you learn here.';
+      'Read the sentence, then check yourself with a quiz. Five of those make one cycle.';
 
   @override
   String get guideOverviewSummaryQuiz =>
-      'One review quiz every three sentences, drawn from the sentences you\'ve studied so far. If you get stuck, there are hints and a way back to the sentence.';
+      'After you finish five sentences, you move on to a review quiz drawn from the sentences you\'ve studied so far. If you get stuck, you can use hints or jump back to the sentence.';
 
   @override
   String get guideOverviewBody3 =>
-      'The more you get right in review quizzes, the higher your vocabulary score — and the wider the range of words your sentences draw from. Words you struggle with are prioritized in future review quizzes, so you don\'t have to decide what to review next.';
+      'The more you get right in review quizzes, the higher your vocabulary score—and the wider the range of words your sentences draw from. Words you struggle with are prioritized in future review quizzes, so you don\'t have to decide what to review next.';
 
   @override
   String get guideRoleSentenceTitle => 'Sentences';
@@ -2434,14 +2456,14 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleSoundBody =>
-      'In Thai, tone changes meaning. Record yourself, compare it with the model, and see which tones are off.';
+      'In Thai, tone changes meaning. Record yourself, compare it with the model pronunciation, and see which tones are off.';
 
   @override
   String get guideRoleQuizTitle => 'Quizzes';
 
   @override
   String get guideRoleQuizBody =>
-      'Answer one question to check yourself before moving on. Every three sentences, you can also take a review quiz based on sentences you\'ve studied.';
+      'The Quick check is one question before you go to the next sentence. After the fifth sentence, you move on to a review quiz based on what you\'ve studied.';
 
   @override
   String get guideRoleScoreTitle => 'Vocabulary score';
@@ -2483,7 +2505,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRolePremiumBody =>
-      'You can keep learning every day on the Free plan. Premium raises the daily sentence count, unlocks topic choice, and lifts the vocabulary cap.';
+      'You can keep learning every day on the Free plan. Premium gives you more sentences a day, unlocks topic choice, and lifts the vocabulary cap.';
 
   @override
   String get guidePlanColItem => 'Item';
@@ -2533,7 +2555,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowSentenceStep1 =>
-      'Open the Learn tab to see today\'s sentence.';
+      'Open the Learn tab to see today\'s sentence. Sentences come in sets of five, and the header shows how far along you are.';
 
   @override
   String get guideHowSentenceStep3 =>
@@ -2548,7 +2570,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowDetailLead =>
-      'The detail screen gives you a closer look at each sentence. The more context you have—where a word is used, how formal it is, how it is spelled, and which tone it uses—the easier it is to remember.';
+      'The detail screen gives you a closer look at each sentence. The more context you have—where a word is used, how formal it is, how it\'s spelled, and which tone it uses—the easier it is to remember.';
 
   @override
   String get guideHowSoundTitle => 'Listen and speak';
@@ -2559,18 +2581,18 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowSoundStep2 =>
-      'On the detail screen, tap “Practice,” then hold “Hold to speak” while you repeat the sentence. Release the button to check your tones.';
+      'On the detail screen, tap “Practice,” then press and hold the “Hold to speak” button while you repeat the sentence. Release it to check your tones.';
 
   @override
   String get guideHowSoundStep3 =>
-      'Green means correct, amber means close, and red means off. Tap a word to compare your pitch with the model and see what to fix.';
+      'Green means correct, amber means close, and red means off. Tap a word to compare your pitch with the model pronunciation and see what to fix.';
 
   @override
   String get guideHowQuizTitle => 'Take the quiz';
 
   @override
   String get guideHowQuizStep1 =>
-      '“One quick question” below the sentence takes you to the check quiz.';
+      '“One quick question” below the sentence takes you to the Quick check.';
 
   @override
   String get guideHowQuizStep2 =>
@@ -2582,11 +2604,11 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowQuizStep4 =>
-      'After every third sentence, the results screen lets you continue to the next sentence or take a review quiz.';
+      'From the results screen, go on to the next sentence. After the fifth, you go straight into the review quiz.';
 
   @override
   String get guideHowQuizStep5 =>
-      'The review quiz is a checkpoint that arrives every three sentences. It draws on the sentences you\'ve studied, and answering correctly there is what raises your vocabulary score.';
+      'The review quiz is a checkpoint that arrives every five sentences. It draws on the sentences you\'ve studied, and answering correctly there is what raises your vocabulary score.';
 
   @override
   String get guideHowSettingsTitle => 'In Settings';

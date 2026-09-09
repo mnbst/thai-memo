@@ -44,36 +44,47 @@ class SentenceRepository {
 
   // ==================== Remote Operations ====================
 
-  /// Generate a new sentence from backend API and save it to database
-  Future<ThaiSentence> generateAndSaveSentence({
+  /// Generate a set of sentences from backend API and save them to database
+  ///
+  /// [count] 本をまとめて作る（1セット）。クォータ不足なら取れるぶんだけ返る。
+  Future<List<ThaiSentence>> generateAndSaveSentences({
     Map<String, String?> generationParams = const {},
+    int count = 1,
   }) async {
     try {
       // Ensure user is authenticated
       await _authService.ensureAuthenticated();
 
-      // Generate sentence from backend API (no API key needed)
-      final sentence = await _apiService.generateSentence(
+      // Generate sentences from backend API (no API key needed)
+      final sentences = await _apiService.generateSentences(
         generationParams: generationParams,
+        count: count,
       );
 
-      // Add ID and assign sentence IDs to word breakdowns
-      final sentenceId = _uuid.v4();
-      final sentenceWithId = sentence.copyWith(id: sentenceId);
-
-      final wordBreakdownsWithIds = sentence.wordBreakdowns.map((wb) {
-        return wb.copyWith(
-          id: _uuid.v4(),
-          sentenceId: sentenceId,
+      final saved = <ThaiSentence>[];
+      for (final sentence in sentences) {
+        // Add ID and assign sentence IDs to word breakdowns
+        final sentenceId = _uuid.v4();
+        final finalSentence = sentence.copyWith(
+          id: sentenceId,
+          wordBreakdowns: sentence.wordBreakdowns
+              .map((wb) => wb.copyWith(id: _uuid.v4(), sentenceId: sentenceId))
+              .toList(),
         );
-      }).toList();
 
-      final finalSentence = sentenceWithId.copyWith(
-        wordBreakdowns: wordBreakdownsWithIds,
-      );
+        saved.add(finalSentence);
+      }
 
-      // Save to database
-      await saveSentence(finalSentence);
+      // サーバーはセット全体のクォータを一括消費するため、ローカルも同じ
+      // トランザクション境界で保存する。途中失敗で1〜4本だけ残さない。
+      await _databaseHelper.insertSentencesWithWordBreakdowns([
+        for (final sentence in saved)
+          (
+            sentence: sentence.toDatabase(),
+            wordBreakdowns:
+                sentence.wordBreakdowns.map((wb) => wb.toDatabase()).toList(),
+          ),
+      ]);
 
       // Update last generation timestamp
       await _secureStorage.saveLastGenerationTimestamp(DateTime.now());
@@ -81,7 +92,7 @@ class SentenceRepository {
       // Log successful generation
       await _logGeneration(success: true, tokensUsed: null);
 
-      return finalSentence;
+      return saved;
     } on BackendApiException catch (e) {
       // Log failed generation
       await _logGeneration(

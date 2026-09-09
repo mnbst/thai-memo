@@ -13,9 +13,15 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"time"
 
 	"golang.org/x/oauth2/google"
+)
+
+const (
+	playHTTPTimeout     = 30 * time.Second
+	playMaxResponseSize = 4 << 20
 )
 
 // apiBase は Google Play Developer API v3 のベース URL。
@@ -78,7 +84,13 @@ func (c *Client) httpClient(ctx context.Context) (*http.Client, error) {
 	if c.HTTP != nil {
 		return c.HTTP, nil
 	}
-	return google.DefaultClient(ctx, scope)
+	client, err := google.DefaultClient(ctx, scope)
+	if err != nil {
+		return nil, err
+	}
+	copy := *client
+	copy.Timeout = playHTTPTimeout
+	return &copy, nil
 }
 
 // VerifyPurchase は purchaseToken でサブスクリプション状態を問い合わせ、
@@ -91,9 +103,9 @@ func (c *Client) VerifyPurchase(
 		return nil, fmt.Errorf("Play API の認証に失敗: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/applications/%s/purchases/subscriptionsv2/tokens/%s",
-		apiBase, packageName, purchaseToken)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	endpoint := fmt.Sprintf("%s/applications/%s/purchases/subscriptionsv2/tokens/%s",
+		apiBase, url.PathEscape(packageName), url.PathEscape(purchaseToken))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +116,7 @@ func (c *Client) VerifyPurchase(
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(io.LimitReader(res.Body, playMaxResponseSize))
 	if err != nil {
 		return nil, err
 	}

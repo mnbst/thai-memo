@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -21,18 +22,29 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
+// 外部 LLM・FCM と Firestore の突発負荷を抑えつつ、候補ユーザーを並行配信する。
+const dailySentenceConcurrency = 5
+
 // deliverDailySentence は daily_sentence_handlers.py の移植。
 //
 // 毎時起動し、ユーザーのローカル時刻が配信希望時刻に一致する対象へ、
-// 通常生成と共通の生成コア（sentence.Producer.Produce）で例文を1件作って
-// Firestore に書き、FCM で通知する。free はキャッシュのみで LLM を呼ばない
-// （ミス時はターゲット語を引き直す）。premium と、プレミアム体験トライアル枠を
-// 充てる配信は LLM 生成し、失敗時はキャッシュに退避する。
+// 通常生成と共通の生成コア（sentence.Producer.ProduceBatch）で例文を作って
+// Firestore に書き、FCM で通知する（通知はセットで1通）。
+// 本数は 1.4.8 以降のクライアントなら5本、旧版は従来どおり1本
+// （dailysentence.BatchSize）。例文→確認クイズ→まとめクイズのサイクルを
+// 1日で一巡させるための設計。docs/design_daily_sentence_batch.md を参照。
+// free はキャッシュのみで LLM を呼ばない（ミス時はターゲット語を引き直す）。
+// premium と、プレミアム体験トライアル枠を充てる配信は LLM 生成し、
+// 失敗時はキャッシュに退避する。
 // 通知の送信成功後に露出登録（UVM）を行い、通常生成と語彙状態を揃える。
 //
 // dailyBatch と同じく HTTP トリガーのままにして、定期実行するかどうかは
 // Cloud Scheduler ジョブ（Terraform 管理）の有無だけで決める。
 func deliverDailySentenceHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	if err := runDeliverDailySentence(r.Context(), time.Now().UTC()); err != nil {
 		log.Printf("deliverDailySentence failed: %v", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
@@ -48,8 +60,8 @@ type notifier interface {
 
 // sentenceProducer は生成コアの差し替え点。実装は sentence.Producer。
 type sentenceProducer interface {
-	Produce(ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
-		req sentence.ProduceRequest) (*sentence.Produced, error)
+	ProduceBatch(ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
+		req sentence.ProduceRequest, n int) ([]*sentence.Produced, error)
 }
 
 // deliverer は 1 時間分の配信に必要な依存をまとめる。
@@ -83,17 +95,37 @@ func runDeliverDailySentence(ctx context.Context, now time.Time) error {
 
 	delivered := 0
 	reasons := map[string]int{}
+	type candidate struct {
+		uid  string
+		data map[string]any
+	}
+	jobs := make(chan candidate, dailySentenceConcurrency)
+	var wg sync.WaitGroup
+	var resultMu sync.Mutex
+	for range dailySentenceConcurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for c := range jobs {
+				reason := dailysentence.DeliverySkipReason(c.data, now)
+				if reason == "" {
+					reason = d.deliverOne(ctx, c.uid, c.data, now)
+				}
+				resultMu.Lock()
+				if reason == "" {
+					delivered++
+				} else {
+					reasons[reason]++
+				}
+				resultMu.Unlock()
+			}
+		}()
+	}
 	err = d.eachCandidate(ctx, now, func(uid string, userData map[string]any) {
-		reason := dailysentence.DeliverySkipReason(userData, now)
-		if reason == "" {
-			reason = d.deliverOne(ctx, uid, userData, now)
-		}
-		if reason == "" {
-			delivered++
-		} else {
-			reasons[reason]++
-		}
+		jobs <- candidate{uid: uid, data: userData}
 	})
+	close(jobs)
+	wg.Wait()
 
 	// 内訳は「なぜ通知が届いていないのか」を後から追うための常設ログ。
 	// 候補は notify_utc_hour で絞った後なので、母数はこの時刻の配信希望者だけ。
@@ -148,15 +180,16 @@ func (d *deliverer) eachCandidate(
 	}
 }
 
-// picked は配信する例文と、その生成条件。
-type picked struct {
-	Produced       *sentence.Produced
+// pickedSet は配信する例文セットと、その生成条件。
+type pickedSet struct {
+	Produced       []*sentence.Produced
 	UsePremiumSpec bool
 }
 
-// buildSentence は配信する例文を作る。
+// buildSentences は配信する例文を n 本作る。
 //
-// 生成コアは通常生成と共通の Producer.Produce。
+// 生成コアは通常生成と共通の Producer.ProduceBatch（単語選定1回・生成は並列）。
+// n 本に満たなくても、揃ったぶんだけ配信する。
 // 訳文の言語はサーバー起点でリクエストが無いため、クライアントが
 // users/{uid}.app_language にミラーした設定から解決する。渡し忘れると
 // 既定値 ja に落ち、en ユーザーの配信だけ日本語になる
@@ -167,9 +200,9 @@ type picked struct {
 // premium のテーマはクライアントが users/{uid}.preferred_topic にミラーした
 // 設定を使い、未設定（おまかせ）ならヒアリングの用途（interview.goal）から
 // 決める。どちらも無ければ通常生成と同じく UVM の key_word から決める。
-func (d *deliverer) buildSentence(
-	ctx context.Context, uid string, userData map[string]any, now time.Time,
-) *picked {
+func (d *deliverer) buildSentences(
+	ctx context.Context, uid string, userData map[string]any, now time.Time, n int,
+) *pickedSet {
 	l := lang.Resolve(userData["app_language"])
 
 	if userData["tier"] == "premium" || dailysentence.UsesPremiumTrial(userData, now) {
@@ -182,7 +215,7 @@ func (d *deliverer) buildSentence(
 		if preferred != "" {
 			params["topic"] = preferred
 		}
-		produced, err := d.Producer.Produce(ctx, d.DB, d.FreqRank, sentence.ProduceRequest{
+		produced, err := d.Producer.ProduceBatch(ctx, d.DB, d.FreqRank, sentence.ProduceRequest{
 			UID:            uid,
 			Params:         params,
 			UsePremiumSpec: true,
@@ -191,33 +224,34 @@ func (d *deliverer) buildSentence(
 			// premium は LLM 生成なので引き直さない（Produce の既定と同じ 1 周）。
 			SelectRetry: 1,
 			Lang:        l,
-		})
+		}, n)
 		if err != nil {
 			log.Printf("daily_sentence: premium generation failed for %s: %v", uid, err)
-		} else if produced != nil {
-			return &picked{Produced: produced, UsePremiumSpec: true}
+		} else if len(produced) > 0 {
+			return &pickedSet{Produced: produced, UsePremiumSpec: true}
 		}
 	}
 
-	produced, err := d.Producer.Produce(ctx, d.DB, d.FreqRank, sentence.ProduceRequest{
+	produced, err := d.Producer.ProduceBatch(ctx, d.DB, d.FreqRank, sentence.ProduceRequest{
 		UID:            uid,
 		Params:         map[string]any{},
 		UsePremiumSpec: false,
 		EstimatedVocab: min(intValue(userData["estimated_vocab"]), uvm.FreeTierMaxVocab),
 		// free は測定値を使わない（GetSessionWords 側でも 0 に落とす）。
 		TestedVocab: 0,
-		CacheOnly:      true,
-		SelectRetry:    dailysentence.MaxTargetWordRetry,
-		Lang:           l,
-	})
+		CacheOnly:   true,
+		// キャッシュミス分は語を引き直す。n 本ぶん埋めるので周回数も本数に比例させる。
+		SelectRetry: dailysentence.MaxTargetWordRetry * n,
+		Lang:        l,
+	}, n)
 	if err != nil {
 		log.Printf("daily_sentence: cached generation failed for %s: %v", uid, err)
 		return nil
 	}
-	if produced == nil {
+	if len(produced) == 0 {
 		return nil
 	}
-	return &picked{Produced: produced, UsePremiumSpec: false}
+	return &pickedSet{Produced: produced, UsePremiumSpec: false}
 }
 
 func (d *deliverer) intn(n int) int {
@@ -240,7 +274,7 @@ type deliveryStoppedError struct {
 
 func (e *deliveryStoppedError) Error() string { return "DELIVERY_STOPPED" }
 
-// commitDailySentence は例文docの書き込みとクォータ消費・段階更新を
+// commitDailySentence はセット全部の例文docの書き込みとクォータ消費・段階更新を
 // 1トランザクションで行う。
 //
 // 戻り値は (送信先トークン, 通知失敗時に段階を戻すための更新内容)。
@@ -248,8 +282,8 @@ func (e *deliveryStoppedError) Error() string { return "DELIVERY_STOPPED" }
 // last_sentence_generated_at は書かない。あれは「次へ」押下＝反応のシグナルであり、
 // 配信そのものを反応として数えてはいけない。
 func (d *deliverer) commitDailySentence(
-	ctx context.Context, userRef, sentenceRef *firestore.DocumentRef,
-	sentenceData map[string]any, now time.Time,
+	ctx context.Context, userRef *firestore.DocumentRef,
+	sentenceRefs []*firestore.DocumentRef, sentenceData []map[string]any, now time.Time,
 ) (token string, restore []firestore.Update, err error) {
 	err = d.DB.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		userData := map[string]any{}
@@ -257,14 +291,16 @@ func (d *deliverer) commitDailySentence(
 			userData = snap.Data()
 		}
 
-		tok, rest, update, perr := dailyCommitPlan(userData, now)
+		tok, rest, update, perr := dailyCommitPlan(userData, now, len(sentenceRefs))
 		if perr != nil {
 			return perr
 		}
 		token, restore = tok, rest
 
-		if serr := tx.Set(sentenceRef, sentenceData); serr != nil {
-			return serr
+		for i, ref := range sentenceRefs {
+			if serr := tx.Set(ref, sentenceData[i]); serr != nil {
+				return serr
+			}
 		}
 		return tx.Update(userRef, update)
 	})
@@ -273,8 +309,9 @@ func (d *deliverer) commitDailySentence(
 
 // dailyCommitPlan は最新の user doc から、コミット時の書き込み内容を決める。
 //
+// consumed は配信する例文の本数。クォータは free / premium とも本数ぶん消費する。
 // 戻り値は (送信先トークン, 通知失敗時に戻すための更新, users への更新)。
-func dailyCommitPlan(userData map[string]any, now time.Time) (
+func dailyCommitPlan(userData map[string]any, now time.Time, consumed int) (
 	token string, restore, update []firestore.Update, err error,
 ) {
 	// 外側の列挙結果は古い可能性があるため、二重配信を防ぐ正の判定は
@@ -293,7 +330,7 @@ func dailyCommitPlan(userData map[string]any, now time.Time) (
 	token, _ = userData["fcm_token"].(string)
 	restore = deliveryRestoreUpdate(userData)
 	update = append([]firestore.Update{
-		{Path: "remaining_sentences", Value: firestore.Increment(-1)},
+		{Path: "remaining_sentences", Value: firestore.Increment(-consumed)},
 		{Path: "daily_sentence_generated", Value: true},
 		{Path: "last_notified_at", Value: firestore.ServerTimestamp},
 	}, tierUpdateFields(tierUpdate)...)
@@ -345,10 +382,13 @@ func isZeroValue(v any) bool {
 //
 // 複数行の本文は展開しないと切られるため、Android は BigText 相当の
 // 表示になるよう優先度を上げ、iOS はロック画面で読み上げ枠を確保する。
+// セットで配信しても通知は1通のまま。Data に daily_set_id / daily_set_size を
+// 載せ、クライアントは同じセットの例文をまとめて取り込む。sentence_id は
+// 5本セットを知らない旧版が見るので、1本目の doc ID を従来どおり載せ続ける。
 func buildNotification(
-	token, sentenceID string, sentenceData map[string]any, l lang.Lang,
+	token, setID string, setSize int, sentenceData map[string]any, l lang.Lang,
 ) *messaging.Message {
-	title, body := dailysentence.BuildNotificationText(sentenceData, l)
+	title, body := dailysentence.BuildNotificationText(sentenceData, setSize, l)
 	return &messaging.Message{
 		Token:        token,
 		Notification: &messaging.Notification{Title: title, Body: body},
@@ -364,7 +404,12 @@ func buildNotification(
 				Aps: &messaging.Aps{Sound: "default"},
 			},
 		},
-		Data: map[string]string{"type": "daily_sentence", "sentence_id": sentenceID},
+		Data: map[string]string{
+			"type":           "daily_sentence",
+			"sentence_id":    setID,
+			"daily_set_id":   setID,
+			"daily_set_size": strconv.Itoa(setSize),
+		},
 	}
 }
 
@@ -377,20 +422,25 @@ func buildNotification(
 // トークンまで消すと、原因を直しても配信対象から永久に外れてしまう
 // （再登録はアプリ再起動待ちになる）。
 func rollbackDelivery(
-	ctx context.Context, userRef, sentenceRef *firestore.DocumentRef,
-	restore []firestore.Update, deleteToken bool,
+	ctx context.Context, userRef *firestore.DocumentRef,
+	sentenceRefs []*firestore.DocumentRef, restore []firestore.Update, deleteToken bool,
 ) {
-	if _, err := sentenceRef.Delete(ctx); err != nil {
-		log.Printf("daily_sentence: rollback の例文削除に失敗: %v", err)
+	for _, ref := range sentenceRefs {
+		if _, err := ref.Delete(ctx); err != nil {
+			log.Printf("daily_sentence: rollback の例文削除に失敗: %v", err)
+		}
 	}
-	if _, err := userRef.Update(ctx, rollbackUpdate(restore, deleteToken)); err != nil {
+	update := rollbackUpdate(restore, deleteToken, len(sentenceRefs))
+	if _, err := userRef.Update(ctx, update); err != nil {
 		log.Printf("daily_sentence: rollback の users 更新に失敗: %v", err)
 	}
 }
 
-func rollbackUpdate(restore []firestore.Update, deleteToken bool) []firestore.Update {
+func rollbackUpdate(
+	restore []firestore.Update, deleteToken bool, consumed int,
+) []firestore.Update {
 	updates := []firestore.Update{
-		{Path: "remaining_sentences", Value: firestore.Increment(1)},
+		{Path: "remaining_sentences", Value: firestore.Increment(consumed)},
 		{Path: "daily_sentence_generated", Value: false},
 	}
 	if deleteToken {
@@ -400,7 +450,11 @@ func rollbackUpdate(restore []firestore.Update, deleteToken bool) []firestore.Up
 	return append(updates, restore...)
 }
 
-// deliverOne は1件配信する。配信できたら ""、できなければ理由を返す（ログ集計用）。
+// deliverOne は1ユーザーへ1セット配信する。配信できたら ""、
+// できなければ理由を返す（ログ集計用）。
+//
+// 本数はクライアントの版で決まる（dailysentence.BatchSize）。旧版は従来どおり1本。
+// クォータが本数に足りなければ取れるぶんだけ配信する。
 func (d *deliverer) deliverOne(
 	ctx context.Context, uid string, userData map[string]any, now time.Time,
 ) string {
@@ -418,19 +472,40 @@ func (d *deliverer) deliverOne(
 		}
 	}
 
-	p := d.buildSentence(ctx, uid, userData, now)
+	// 先に自発生成した日は残り本数がセットに足りない。取れるぶんだけ配信する。
+	n := min(dailysentence.BatchSize(userData), intValue(userData["remaining_sentences"]))
+	if n <= 0 {
+		return "quota_exhausted"
+	}
+
+	p := d.buildSentences(ctx, uid, userData, now, n)
 	if p == nil {
 		log.Printf("daily_sentence: no sentence available for %s", uid)
 		return "no_sentence"
 	}
 
-	sentenceData := p.Produced.Sentence.BuildSentenceDoc(
-		p.Produced.TargetWords[0], p.UsePremiumSpec)
-	sentenceData["daily"] = true
-	sentenceData["daily_date"] = dailysentence.LocalDate(userData["timezone"], now)
-	sentenceRef := userRef.Collection("sentences").NewDoc()
+	// daily_set_id は1本目の doc ID を流用する。セット専用の ID を作っても
+	// 参照する側（クライアントの取り込み）は同値で引くだけなので増やさない。
+	size := len(p.Produced)
+	localDate := dailysentence.LocalDate(userData["timezone"], now)
+	sentenceRefs := make([]*firestore.DocumentRef, size)
+	sentenceData := make([]map[string]any, size)
+	for i := range sentenceRefs {
+		sentenceRefs[i] = userRef.Collection("sentences").NewDoc()
+	}
+	setID := sentenceRefs[0].ID
+	for i, produced := range p.Produced {
+		data := produced.Sentence.BuildSentenceDoc(
+			produced.TargetWords[0], p.UsePremiumSpec)
+		data["daily"] = true
+		data["daily_date"] = localDate
+		data["daily_set_id"] = setID
+		data["daily_set_index"] = i
+		data["daily_set_size"] = size
+		sentenceData[i] = data
+	}
 
-	token, restore, err := d.commitDailySentence(ctx, userRef, sentenceRef, sentenceData, now)
+	token, restore, err := d.commitDailySentence(ctx, userRef, sentenceRefs, sentenceData, now)
 	if err != nil {
 		var stopped *deliveryStoppedError
 		switch {
@@ -446,31 +521,34 @@ func (d *deliverer) deliverOne(
 		return "error"
 	}
 
-	// key_word とその意味を通知に載せるため、整形済みの sentenceData を渡す。
-	msg := buildNotification(token, sentenceRef.ID, sentenceData,
+	// key_word とその意味を通知に載せるため、整形済みの1本目を渡す。
+	msg := buildNotification(token, setID, size, sentenceData[0],
 		lang.Resolve(userData["app_language"]))
 	if _, err := d.Notifier.Send(ctx, msg); err != nil {
 		if messaging.IsUnregistered(err) {
 			log.Printf("daily_sentence: token unregistered, rolling back %s", uid)
-			rollbackDelivery(ctx, userRef, sentenceRef, restore, true)
+			rollbackDelivery(ctx, userRef, sentenceRefs, restore, true)
 			return "token_unregistered"
 		}
 		// トークン失効以外の送信失敗（権限・FCM障害など）。ここを素通りすると
 		// 通知が飛ばないのにクォータと当日フラグだけ消費されてしまう。
 		log.Printf("daily_sentence: send failed for %s: %v", uid, err)
-		rollbackDelivery(ctx, userRef, sentenceRef, restore, false)
+		rollbackDelivery(ctx, userRef, sentenceRefs, restore, false)
 		return "send_failed"
 	}
 
 	// 露出登録は通知が届いた後にだけ行う。配信をロールバックしても
 	// UVM の P 微増は巻き戻せないため、送信成功を確認してから登録する。
-	registerSentenceExposure(ctx, d.DB, uid, p.Produced)
+	for _, produced := range p.Produced {
+		registerSentenceExposure(ctx, d.DB, uid, produced)
+	}
 	// 上限の判定は配信スペックの判定（deliverOne 冒頭）と揃える。tier だけで
 	// 見ると、トライアル中の estimated_vocab が毎回 100 へ切り戻される。
 	maxVocab := -1
 	if userData["tier"] != "premium" && !dailysentence.UsesPremiumTrial(userData, now) {
 		maxVocab = uvm.FreeTierMaxVocab
 	}
+	// 語彙推定の同期はセットで1回。露出の登録が全部済んでから呼ぶ。
 	uvm.SyncEstimatedVocab(ctx, d.DB, uid, d.FreqRank, maxVocab)
 	return ""
 }

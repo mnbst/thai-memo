@@ -42,13 +42,10 @@ class L10nJa extends L10n {
   String get navSettings => '設定';
 
   @override
-  String get learnAppBarTitle => '今日の例文';
-
-  @override
   String get learnOpenDetail => '詳細';
 
   @override
-  String get learnQuizTitle => 'クイズ';
+  String get learnQuizTitle => '確認クイズ';
 
   @override
   String get learnSummaryQuizTitle => 'まとめクイズ';
@@ -57,13 +54,32 @@ class L10nJa extends L10n {
   String get learnNextSentence => '次の例文へ';
 
   @override
+  String get learnNextSet => '次のセットへ';
+
+  @override
+  String get learnGoToSummaryQuiz => 'まとめクイズへ';
+
+  @override
+  String learnDailySetRemaining(int count) {
+    return 'あと$count本でまとめクイズ';
+  }
+
+  @override
+  String get learnDailySetLast => '次はまとめクイズ';
+
+  @override
+  String learnDailySetProgress(int position, int total) {
+    return '$position / $total';
+  }
+
+  @override
   String get commonOk => 'OK';
 
   @override
   String get commonRetry => '再試行';
 
   @override
-  String get sentencePreparing => '次の例文を準備中...';
+  String get sentencePreparing => '例文を準備中...';
 
   @override
   String todaysWords(int count) {
@@ -125,9 +141,6 @@ class L10nJa extends L10n {
 
   @override
   String get quizTodayTitle => 'クイズ';
-
-  @override
-  String get quizOptionalChallenge => 'まとめクイズに挑戦する';
 
   @override
   String get quizGenerating => 'クイズを生成中...';
@@ -566,6 +579,9 @@ class L10nJa extends L10n {
 
   @override
   String get nextTopicPrefix => '次のテーマ: ';
+
+  @override
+  String get topicPrefix => 'テーマ: ';
 
   @override
   String get topicName_blDrama => 'タイBLドラマ';
@@ -2215,7 +2231,7 @@ class L10nJa extends L10n {
   String get guideFigureLoopSummary => 'まとめクイズ';
 
   @override
-  String get guideFigureLoopEvery => '例文3つごと';
+  String get guideFigureLoopEvery => '例文5つごと';
 
   @override
   String get guideFigureCardThai => 'タイ文字';
@@ -2245,18 +2261,18 @@ class L10nJa extends L10n {
   String get guideOverviewTitle => 'このアプリでやること';
 
   @override
-  String get guideOverviewBody1 => 'AIがあなたの語彙に合わせたタイ語の例文を毎日つくります。';
+  String get guideOverviewBody1 => 'AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。';
 
   @override
-  String get guideOverviewBody2 => '例文で覚える → クイズで確かめる。このくり返しが学習の中心です。';
+  String get guideOverviewBody2 => '例文で覚える → クイズで確かめる。これを5つくり返して1巡です。';
 
   @override
   String get guideOverviewSummaryQuiz =>
-      '例文3つに1回、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。';
+      '例文5つを学び終えると「まとめクイズ」に進みます。それまでに学んだ例文から出題され、迷ったらヒントや例文の見返しも使えます。';
 
   @override
   String get guideOverviewBody3 =>
-      'まとめクイズに正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。';
+      '「まとめクイズ」に正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。';
 
   @override
   String get guideRoleSentenceTitle => '例文';
@@ -2277,7 +2293,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideRoleQuizBody =>
-      '確認クイズは、次の例文に進む前に出る1問です。例文3つに1回、それまでに学んだ内容から「まとめクイズ」に挑戦できます。';
+      '確認クイズは、次の例文に進む前に出る1問です。5つ目を終えると、それまでに学んだ内容から出題される「まとめクイズ」に進みます。';
 
   @override
   String get guideRoleScoreTitle => '語彙スコア';
@@ -2367,7 +2383,8 @@ class L10nJa extends L10n {
   String get guideHowSentenceTitle => '今日の例文を読む';
 
   @override
-  String get guideHowSentenceStep1 => '学習タブを開くと、その日の例文が表示されます。';
+  String get guideHowSentenceStep1 =>
+      '学習タブを開くと、その日の例文が表示されます。例文は5つで1セットで、いま何本目かが上に出ます。';
 
   @override
   String get guideHowSentenceStep3 => '金色の語が学習単語です。クイズでここが問われます。';
@@ -2404,17 +2421,18 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowQuizStep2 =>
-      'まとめクイズではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。';
+      '「まとめクイズ」ではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。';
 
   @override
-  String get guideHowQuizStep3 => 'まとめクイズでは、迷ったら「例文を確認」で例文に戻れます。';
+  String get guideHowQuizStep3 => '「まとめクイズ」では、迷ったら「例文を確認」で例文に戻れます。';
 
   @override
-  String get guideHowQuizStep4 => '結果画面から、次の例文へ進むか、まとめクイズに挑むかを選べます。';
+  String get guideHowQuizStep4 =>
+      '確認クイズの結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。';
 
   @override
   String get guideHowQuizStep5 =>
-      'まとめクイズは、例文3つに1回出る節目のクイズです。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。';
+      '「まとめクイズ」は、例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。';
 
   @override
   String get guideHowSettingsTitle => '設定でできること';

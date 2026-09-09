@@ -2,12 +2,15 @@ package quizgen
 
 // QuizSentenceSeed はクイズ生成の入力（例文1件ぶん）。
 type QuizSentenceSeed struct {
-	ThaiText             string `json:"thai_text"`
-	Pronunciation        string `json:"pronunciation"`
-	JapaneseTranslation  string `json:"japanese_translation"`
-	KeyWord              string `json:"key_word"`
-	KeyWordPronunciation string `json:"key_word_pronunciation"`
-	KeyWordMeaning       string `json:"key_word_meaning"`
+	ThaiText string `json:"thai_text"`
+	// Words は word_breakdown の語（出現順）。空欄を語の境界に合わせるために使う。
+	// 空なら本文の部分一致で位置を決める（語の途中を空欄にしうる）。
+	Words                []string `json:"words,omitempty"`
+	Pronunciation        string   `json:"pronunciation"`
+	JapaneseTranslation  string   `json:"japanese_translation"`
+	KeyWord              string   `json:"key_word"`
+	KeyWordPronunciation string   `json:"key_word_pronunciation"`
+	KeyWordMeaning       string   `json:"key_word_meaning"`
 }
 
 // PreparedQuizSentenceSeed は穴埋め位置を確定させた入力。

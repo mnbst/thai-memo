@@ -2,6 +2,7 @@ package sentence
 
 import (
 	"context"
+	"sync"
 
 	"cloud.google.com/go/firestore"
 
@@ -84,6 +85,29 @@ type Produced struct {
 func (p *Producer) Produce(
 	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank, req ProduceRequest,
 ) (*Produced, error) {
+	produced, err := p.ProduceBatch(ctx, db, freqRank, req, 1)
+	if err != nil || len(produced) == 0 {
+		return nil, err
+	}
+	return produced[0], nil
+}
+
+// ProduceBatch は同じテーマで n 本まとめて作る（毎日配信の5本セット）。
+//
+// 単語選定は1回にまとめる。並列に呼ぶと各呼び出しが同じ UVM 状態を見るため
+// key_word が重複する。排他は SelectTargetWords（GetSessionWords）が保証する。
+// そのあとの LLM 生成だけ並列に回す（同時50本まで劣化しないことを実測済み。
+// 設計 docs/design_daily_sentence_batch.md §3.1）。
+//
+// 戻り値は選定順。n 本に満たなくても揃ったぶんを返し、1本も作れなければ
+// 空スライスを返す（CacheOnly の全ミス）。生成が全滅したときだけエラーを返す。
+func (p *Producer) ProduceBatch(
+	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
+	req ProduceRequest, n int,
+) ([]*Produced, error) {
+	if n < 1 {
+		n = 1
+	}
 	// UsePremiumPromptForVocab は今は req.UsePremiumSpec をそのまま返すので、
 	// この呼び出しを外しても結果は変わらない（語彙による出し分けは廃止済み）。
 	// Python 側も同じ形で呼び続けているので、対応を追えるよう残す。
@@ -95,61 +119,131 @@ func (p *Producer) Produce(
 		maxVocab = &v
 	}
 
-	var targetWords []string
-	chosenTopic := ""
-	retries := max(1, req.SelectRetry)
-	for range retries {
-		var err error
-		targetWords, chosenTopic, err = p.Selector.SelectTargetWords(
-			ctx, db, freqRank, req.UID, req.Params,
-			maxVocab, 1, usePremiumPrompt, &req.EstimatedVocab, req.TestedVocab,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		// free 例文バンク（GCS）は言語ごとに事前生成したもの（設計 §3.4）。
-		// その言語のバンクがまだ無ければ空で返るので、下の LLM 生成へ落ちる。
-		// CacheOnly（毎日配信の free 経路）でバンクが無ければ配信しない。
-		if !req.UsePremiumSpec && p.Bank != nil {
-			cached, err := p.Bank.Pick(ctx, targetWords[0], req.Lang, chosenTopic)
-			if err != nil {
-				return nil, err
-			}
-			if cached != nil {
-				cached.GenerationTier = GenerationTier(req.UsePremiumSpec)
-				return &Produced{
-					Sentence:    cached,
-					TargetWords: targetWords,
-					ChosenTopic: chosenTopic,
-					FromCache:   true,
-				}, nil
-			}
-		}
-		if !req.CacheOnly {
-			break
-		}
-	}
-
-	if req.CacheOnly {
-		return nil, nil
-	}
+	// free 例文バンク（GCS）は言語ごとに事前生成したもの（設計 §3.4）。
+	// その言語のバンクがまだ無ければ空で返るので、下の LLM 生成へ落ちる。
+	// CacheOnly（毎日配信の free 経路）でバンクが無ければ配信しない。
+	useBank := !req.UsePremiumSpec && p.Bank != nil
 
 	params := map[string]any{}
 	for k, v := range req.Params {
 		params[k] = v
 	}
-	params["topic"] = chosenTopic
 
-	s, err := p.Service.GenerateSentence(
-		ctx, params, req.UsePremiumSpec, targetWords, req.EstimatedVocab, req.Lang)
-	if err != nil {
-		return nil, err
+	results := make([]*Produced, 0, n)
+	used := map[string]bool{}
+	retries := max(1, req.SelectRetry)
+	for range retries {
+		want := n - len(results)
+		if want <= 0 {
+			break
+		}
+		words, topic, err := p.Selector.SelectTargetWords(
+			ctx, db, freqRank, req.UID, params,
+			maxVocab, want, usePremiumPrompt, &req.EstimatedVocab, req.TestedVocab,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if n > 1 {
+			// セット内でテーマを揃える。引き直しでも同じテーマを引くよう、
+			// 1回目で決まったテーマを以降の選定に渡す。
+			params["topic"] = topic
+		}
+
+		fresh := make([]string, 0, len(words))
+		for _, w := range words {
+			if !used[w] {
+				used[w] = true
+				fresh = append(fresh, w)
+			}
+		}
+
+		missed := fresh
+		if useBank {
+			missed = missed[:0:0]
+			for _, w := range fresh {
+				cached, err := p.Bank.Pick(ctx, w, req.Lang, topic)
+				if err != nil {
+					return nil, err
+				}
+				if cached == nil {
+					missed = append(missed, w)
+					continue
+				}
+				cached.GenerationTier = GenerationTier(req.UsePremiumSpec)
+				results = append(results, &Produced{
+					Sentence:    cached,
+					TargetWords: []string{w},
+					ChosenTopic: topic,
+					FromCache:   true,
+				})
+			}
+		}
+		if req.CacheOnly {
+			// LLM は呼ばない。埋まらなかったぶんは次の周で語を引き直す。
+			continue
+		}
+
+		generated, err := p.generate(ctx, req, params, topic, missed)
+		results = append(results, generated...)
+		if len(results) == 0 && err != nil {
+			return nil, err
+		}
+		break
 	}
-	s.GenerationTier = GenerationTier(req.UsePremiumSpec)
-	return &Produced{
-		Sentence:    s,
-		TargetWords: targetWords,
-		ChosenTopic: chosenTopic,
-	}, nil
+	return results, nil
+}
+
+// generate は語ごとに LLM 生成を並列で回す。戻り値は語の順。
+//
+// 一部が失敗しても成功したぶんを返す（配信は揃った本数で行う）。
+// エラーは最初の1件だけ返し、呼び出し側は全滅のときだけエラーとして扱う。
+func (p *Producer) generate(
+	ctx context.Context, req ProduceRequest, params map[string]any,
+	topic string, words []string,
+) ([]*Produced, error) {
+	if len(words) == 0 {
+		return nil, nil
+	}
+	produced := make([]*Produced, len(words))
+	errs := make([]error, len(words))
+	var wg sync.WaitGroup
+	for i, w := range words {
+		wg.Add(1)
+		go func(i int, w string) {
+			defer wg.Done()
+			callParams := map[string]any{}
+			for k, v := range params {
+				callParams[k] = v
+			}
+			callParams["topic"] = topic
+
+			s, err := p.Service.GenerateSentence(
+				ctx, callParams, req.UsePremiumSpec, []string{w}, req.EstimatedVocab, req.Lang)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			s.GenerationTier = GenerationTier(req.UsePremiumSpec)
+			produced[i] = &Produced{
+				Sentence:    s,
+				TargetWords: []string{w},
+				ChosenTopic: topic,
+			}
+		}(i, w)
+	}
+	wg.Wait()
+
+	out := make([]*Produced, 0, len(words))
+	var firstErr error
+	for i, pr := range produced {
+		if pr != nil {
+			out = append(out, pr)
+			continue
+		}
+		if firstErr == nil {
+			firstErr = errs[i]
+		}
+	}
+	return out, firstErr
 }

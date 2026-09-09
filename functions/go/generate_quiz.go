@@ -2,6 +2,7 @@ package function
 
 import (
 	"context"
+	"errors"
 	"log"
 	"math/rand"
 	"time"
@@ -40,6 +41,8 @@ const (
 
 	dayDuration = 24 * time.Hour
 	jstOffset   = 9 * time.Hour
+
+	quizGenerationLeaseDuration = 2 * time.Minute
 )
 
 // srsDays は SRS（間隔反復）の復習間隔（日数）。
@@ -86,6 +89,28 @@ type quizQuestion struct {
 // エントリポイント
 // ---------------------------------------------------------------------------
 
+// acquireQuizLease は同一ユーザーのクイズ生成を直列化する lease を取る。
+//
+// 競合は ResourceExhausted にしない。クライアントは resource-exhausted を
+// 「本日の生成上限」として扱い（backend_api_service.dart）、連打やタイムアウト
+// 後の再試行で「今日の新しいクイズはここまでです」と嘘を出してしまう。
+// 一時的な衝突は Aborted、それ以外の障害は Internal にしてログへ残す。
+func acquireQuizLease(
+	ctx context.Context, db *firestore.Client, uid string, userRef *firestore.DocumentRef,
+) (string, error) {
+	token, err := acquireOperationLease(
+		ctx, db, userRef, "quiz", quizGenerationLeaseDuration)
+	if errors.Is(err, errGenerationInProgress) {
+		return "", callable.Errorf(callable.Aborted,
+			"クイズを生成中です。しばらくしてから再度お試しください")
+	}
+	if err != nil {
+		log.Printf("generateQuiz: lease の取得に失敗: uid=%s error=%v", uid, err)
+		return "", callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
+	}
+	return token, nil
+}
+
 func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	uid, err := req.RequireAuth()
 	if err != nil {
@@ -105,6 +130,11 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	}
 
 	userRef := db.Collection("users").Doc(uid)
+	leaseToken, err := acquireQuizLease(ctx, db, uid, userRef)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseOperationLease(ctx, db, userRef, "quiz", leaseToken)
 	userData := userDocData(ctx, userRef)
 
 	// トライアル中も premium と同じ品質で出す。
@@ -177,7 +207,13 @@ func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, erro
 	if err != nil {
 		return nil, err
 	}
-	userData := userDocData(ctx, db.Collection("users").Doc(uid))
+	userRef := db.Collection("users").Doc(uid)
+	leaseToken, err := acquireQuizLease(ctx, db, uid, userRef)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseOperationLease(ctx, db, userRef, "quiz", leaseToken)
+	userData := userDocData(ctx, userRef)
 
 	service, err := newQuizService(ctx, uid, premium.IsEffectivePremium(userData, time.Now()), l)
 	if err != nil {

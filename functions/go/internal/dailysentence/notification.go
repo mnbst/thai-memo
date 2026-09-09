@@ -14,6 +14,14 @@ var notificationTitle = map[lang.Lang]struct{ plain, withWord string }{
 	lang.EN: {"🇹🇭 Thai of the Day", "🇹🇭 Thai of the Day · %s (%s)"},
 }
 
+// セット配信のときにタイトルへ添える本数。1本目の key_word しか本文に出ないので、
+// 「今日は何本届いたか」はここでしか伝わらない。
+// 残り本数（withWord）と総数（plain）で数え方が変わることに注意。
+var notificationSetSuffix = map[lang.Lang]struct{ plain, withWord string }{
+	lang.JA: {" · %d本", " ほか%d本"},
+	lang.EN: {" · %d sentences", " +%d more"},
+}
+
 // BuildNotificationText は通知のタイトルと本文を組み立てる。
 //
 // タイ文字だけだと通知一覧で何のアプリか判別しづらいので、タイトルに
@@ -21,11 +29,18 @@ var notificationTitle = map[lang.Lang]struct{ plain, withWord string }{
 // 本文は タイ文 / 発音 / 訳 の3行。3行は並列な項目ではなく1つの例文の3側面なので、
 // 同じ記号を並べず、発音は括弧・訳は矢印で役割を書き分ける。
 // 発音が無い例文もあるので行ごとに省く。
+// setSize が2以上（5本セット配信）なら本数をタイトルに添える。
 // daily_sentence_handlers.py:build_notification_text:219 の移植。
-func BuildNotificationText(sentence map[string]any, l lang.Lang) (title, body string) {
+func BuildNotificationText(
+	sentence map[string]any, setSize int, l lang.Lang,
+) (title, body string) {
 	tmpl, ok := notificationTitle[l]
 	if !ok {
 		tmpl = notificationTitle[lang.JA]
+	}
+	suffix, ok := notificationSetSuffix[l]
+	if !ok {
+		suffix = notificationSetSuffix[lang.JA]
 	}
 
 	keyWord := trimmedField(sentence, "key_word")
@@ -37,6 +52,13 @@ func BuildNotificationText(sentence map[string]any, l lang.Lang) (title, body st
 		title = tmpl.plain + " · " + keyWord
 	default:
 		title = tmpl.plain
+	}
+	if setSize > 1 {
+		if keyWord != "" {
+			title += fmt.Sprintf(suffix.withWord, setSize-1)
+		} else {
+			title += fmt.Sprintf(suffix.plain, setSize)
+		}
 	}
 
 	lines := make([]string, 0, 3)

@@ -21,16 +21,40 @@
   "navLearn": "学習",
   "navHistory": "履歴",
   "navSettings": "設定",
-  "learnAppBarTitle": "今日の例文",
   "learnOpenDetail": "詳細",
 
-  "learnQuizTitle": "クイズ",
+  "learnQuizTitle": "確認クイズ",
   "learnSummaryQuizTitle": "まとめクイズ",
   "learnNextSentence": "次の例文へ",
+  "learnNextSet": "次のセットへ",
+  "@learnNextSet": {
+    "description": "まとめクイズを終えて、新しい5本のセットを始めるボタン"
+  },
+  "learnGoToSummaryQuiz": "まとめクイズへ",
+  "@learnGoToSummaryQuiz": {
+    "description": "セットの最後の確認クイズの後、まとめクイズへ進むボタン"
+  },
+  "learnDailySetRemaining": "あと{count}本でまとめクイズ",
+  "@learnDailySetRemaining": {
+    "description": "セットの残り本数。5本を学び終えるとまとめクイズへ進む",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learnDailySetLast": "次はまとめクイズ",
+  "@learnDailySetLast": {
+    "description": "セットの最後の1本を表示しているとき（残り0本）の見出し"
+  },
+  "learnDailySetProgress": "{position} / {total}",
+  "@learnDailySetProgress": {
+    "description": "配信セットの何本目か",
+    "placeholders": {
+      "position": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "commonOk": "OK",
   "commonRetry": "再試行",
 
-  "sentencePreparing": "次の例文を準備中...",
+  "sentencePreparing": "例文を準備中...",
   "todaysWords": "{count, plural, other{学習単語}}",
   "@todaysWords": {
     "description": "学習単語セクションの見出し。英語は語数で単複が変わる",
@@ -65,7 +89,6 @@
   "sampleGreetingUsage": "朝昼晩いつでも使える基本的な挨拶。女性の場合は「ค่ะ」を使います。",
 
   "quizTodayTitle": "クイズ",
-  "quizOptionalChallenge": "まとめクイズに挑戦する",
   "quizGenerating": "クイズを生成中...",
   "quizOpenSentenceFirst": "まず例文を開きましょう",
   "quizFromLearningSentence": "クイズは学習中の例文から出題されます",
@@ -340,6 +363,10 @@
 
   "topicPickerTitle": "テーマを選択",
   "nextTopicPrefix": "次のテーマ: ",
+  "topicPrefix": "テーマ: ",
+  "@topicPrefix": {
+    "description": "例文画面の帯（表示のみ・変更不可）の見出し"
+  },
   "topicName_blDrama": "タイBLドラマ",
   "topicSub_blDrama": "告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び",
   "topicName_romance": "恋愛・男女関係",
@@ -1266,7 +1293,7 @@
   "guideFigureLoopQuiz": "クイズ",
   "guideFigureLoopRepeat": "くり返す",
   "guideFigureLoopSummary": "まとめクイズ",
-  "guideFigureLoopEvery": "例文3つごと",
+  "guideFigureLoopEvery": "例文5つごと",
   "guideFigureCardThai": "タイ文字",
   "guideFigureCardPronunciation": "読み方",
   "guideFigureCardTranslation": "日本語訳",
@@ -1276,16 +1303,16 @@
   "guideChapterRoles": "それぞれの機能の役割",
   "guideChapterHowTo": "操作のしかた",
   "guideOverviewTitle": "このアプリでやること",
-  "guideOverviewBody1": "AIがあなたの語彙に合わせたタイ語の例文を毎日つくります。",
-  "guideOverviewBody2": "例文で覚える → クイズで確かめる。このくり返しが学習の中心です。",
-  "guideOverviewSummaryQuiz": "例文3つに1回、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。",
-  "guideOverviewBody3": "まとめクイズに正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。",
+  "guideOverviewBody1": "AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。",
+  "guideOverviewBody2": "例文で覚える → クイズで確かめる。これを5つくり返して1巡です。",
+  "guideOverviewSummaryQuiz": "例文5つを学び終えると「まとめクイズ」に進みます。それまでに学んだ例文から出題され、迷ったらヒントや例文の見返しも使えます。",
+  "guideOverviewBody3": "「まとめクイズ」に正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。",
   "guideRoleSentenceTitle": "例文",
   "guideRoleSentenceBody": "詳細画面からタイ単語の使用例を確認しましょう。単語だけを覚えるより、使う場面ごと覚えるほうが記憶に残ります。",
   "guideRoleSoundTitle": "発音練習",
   "guideRoleSoundBody": "自分のイントネーションとお手本を聞き比べて、発音のコツを掴みましょう。タイ語は声調で意味が変わります。",
   "guideRoleQuizTitle": "クイズ",
-  "guideRoleQuizBody": "確認クイズは、次の例文に進む前に出る1問です。例文3つに1回、それまでに学んだ内容から「まとめクイズ」に挑戦できます。",
+  "guideRoleQuizBody": "確認クイズは、次の例文に進む前に出る1問です。5つ目を終えると、それまでに学んだ内容から出題される「まとめクイズ」に進みます。",
   "guideRoleScoreTitle": "語彙スコア",
   "guideRoleScoreBody": "クイズの結果から算出された、あなたの語彙量をあらわすスコアです。",
   "guideRoleVocabTestTitle": "語彙測定テスト",
@@ -1332,7 +1359,7 @@
     }
   },
   "guideHowSentenceTitle": "今日の例文を読む",
-  "guideHowSentenceStep1": "学習タブを開くと、その日の例文が表示されます。",
+  "guideHowSentenceStep1": "学習タブを開くと、その日の例文が表示されます。例文は5つで1セットで、いま何本目かが上に出ます。",
   "guideHowSentenceStep3": "金色の語が学習単語です。クイズでここが問われます。",
   "guideHowSentenceStep4": "例文カードをタップすると詳細画面が開きます。",
   "guideHowDetailTitle": "詳細画面",
@@ -1343,10 +1370,10 @@
   "guideHowSoundStep3": "発音練習の判定は緑が合っている、橙が惜しい、赤が違う。語をタップすると、お手本と自分の声のカーブと直し方が出ます。",
   "guideHowQuizTitle": "クイズを解く",
   "guideHowQuizStep1": "例文の下の「覚えたか確認」から確認クイズへ進みます。",
-  "guideHowQuizStep2": "まとめクイズではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。",
-  "guideHowQuizStep3": "まとめクイズでは、迷ったら「例文を確認」で例文に戻れます。",
-  "guideHowQuizStep4": "結果画面から、次の例文へ進むか、まとめクイズに挑むかを選べます。",
-  "guideHowQuizStep5": "まとめクイズは、例文3つに1回出る節目のクイズです。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。",
+  "guideHowQuizStep2": "「まとめクイズ」ではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。",
+  "guideHowQuizStep3": "「まとめクイズ」では、迷ったら「例文を確認」で例文に戻れます。",
+  "guideHowQuizStep4": "確認クイズの結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。",
+  "guideHowQuizStep5": "「まとめクイズ」は、例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。",
   "guideHowSettingsTitle": "設定でできること",
   "guideHowSettingsStep1": "通知を受け取る時刻、表示フォント、訳と解説の言語を変えられます。",
   "guideHowSettingsStep2": "次の例文のテーマの選択と、ランキングもここから開けます。",

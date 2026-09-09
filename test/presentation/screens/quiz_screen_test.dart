@@ -98,7 +98,6 @@ Future<_QuizHarness> _pumpSummaryQuiz(
   WidgetTester tester, {
   ThaiSentence? learningSentence,
   Future<void> Function()? onNextSentence,
-  Future<void> Function()? onOptionalChallenge,
   bool blockFirstInsert = false,
   List<QuizQuestion>? questions,
   double textScale = 1,
@@ -137,7 +136,6 @@ Future<_QuizHarness> _pumpSummaryQuiz(
         home: QuizScreen(
           learningSentence: learningSentence,
           onNextSentence: onNextSentence,
-          onOptionalChallenge: onOptionalChallenge,
           showVocabScoreTransition: showVocabScoreTransition,
         ),
       ),
@@ -403,12 +401,10 @@ void main() {
   testWidgets('クイズ完了後に案内は一切出さない', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    var challenged = 0;
     final harness = await _pumpSummaryQuiz(
       tester,
       showVocabScoreTransition: true,
       onNextSentence: () async {},
-      onOptionalChallenge: () async => challenged += 1,
     );
 
     for (var i = 0; i < _questions.length; i++) {
@@ -422,12 +418,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
 
-    // 使い方の案内は説明書に集約した。結果画面から案内は出さず、
-    // 次に進むかどうかも本人に委ねる。
+    // 使い方の案内は説明書に集約した。結果画面から案内は出さない。
     expect(find.byType(Dialog), findsNothing);
-    expect(find.text('まとめクイズに挑戦'), findsNothing);
     expect(find.text('今後の進め方'), findsNothing);
-    expect(challenged, 0);
 
     // レビュー依頼の遅延タイマーを消化してから終える。
     await tester.pump(const Duration(seconds: 2));

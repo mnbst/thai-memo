@@ -14,7 +14,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	neturl "net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +29,11 @@ const defaultBundleID = "com.thaimemo.thaiMemo"
 
 // jwtLifetime は App Store Server API 認証用 JWT の有効期限（JS 版の '20m'）。
 const jwtLifetime = 20 * time.Minute
+
+const (
+	appStoreHTTPTimeout     = 30 * time.Second
+	appStoreMaxResponseSize = 4 << 20
+)
 
 // Client は App Store Server API を叩く。
 type Client struct {
@@ -45,7 +52,7 @@ func (c *Client) httpClient() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return http.DefaultClient
+	return &http.Client{Timeout: appStoreHTTPTimeout}
 }
 
 func (c *Client) verifier() *applejws.Verifier {
@@ -175,7 +182,7 @@ func (c *Client) get(ctx context.Context, url, jwt string) (*http.Response, erro
 
 func readBody(res *http.Response) string {
 	defer res.Body.Close()
-	b, err := io.ReadAll(res.Body)
+	b, err := io.ReadAll(io.LimitReader(res.Body, appStoreMaxResponseSize))
 	if err != nil {
 		return ""
 	}
@@ -217,7 +224,8 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 	environment := primary
 
 	res, err := c.get(ctx,
-		fmt.Sprintf("https://%s.apple.com/inApps/v1/transactions/%s", environment, transactionID),
+		fmt.Sprintf("https://%s.apple.com/inApps/v1/transactions/%s", environment,
+			neturl.PathEscape(transactionID)),
 		jwt)
 	if err != nil {
 		return nil, err
@@ -228,7 +236,8 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 			primary, fallback, transactionID, readBody(res))
 		environment = fallback
 		res, err = c.get(ctx,
-			fmt.Sprintf("https://%s.apple.com/inApps/v1/transactions/%s", environment, transactionID),
+			fmt.Sprintf("https://%s.apple.com/inApps/v1/transactions/%s", environment,
+				neturl.PathEscape(transactionID)),
 			jwt)
 		if err != nil {
 			return nil, err
@@ -310,7 +319,7 @@ func (c *Client) fetchRenewalInfo(
 ) *RenewalInfo {
 	res, err := c.get(ctx,
 		fmt.Sprintf("https://%s.apple.com/inApps/v1/subscriptions/%s",
-			environment, originalTransactionID),
+			environment, neturl.PathEscape(originalTransactionID)),
 		jwt)
 	if err != nil {
 		log.Printf("Failed to fetch renewal info: %v", err)
@@ -383,6 +392,9 @@ func (c *Client) ParseNotification(signedPayload string) (*Notification, error) 
 		Data             struct {
 			SignedTransactionInfo string `json:"signedTransactionInfo"`
 			SignedRenewalInfo     string `json:"signedRenewalInfo"`
+			BundleID              string `json:"bundleId"`
+			Environment           string `json:"environment"`
+			AppAppleID            int64  `json:"appAppleId"`
 		} `json:"data"`
 	}
 	if err := applejws.DecodePayload(signedPayload, &notification); err != nil {
@@ -393,6 +405,9 @@ func (c *Client) ParseNotification(signedPayload string) (*Notification, error) 
 		NotificationType: notification.NotificationType,
 		Subtype:          notification.Subtype,
 		SignedDate:       notification.SignedDate,
+		BundleID:         notification.Data.BundleID,
+		Environment:      notification.Data.Environment,
+		AppAppleID:       notification.Data.AppAppleID,
 	}
 	if err := applejws.DecodePayload(
 		notification.Data.SignedTransactionInfo, &out.TransactionInfo,
@@ -408,5 +423,39 @@ func (c *Client) ParseNotification(signedPayload string) (*Notification, error) 
 		}
 		out.RenewalInfo = &renewal
 	}
+	if c == Default {
+		if err := validateNotificationIdentity(out); err != nil {
+			return nil, &applejws.RejectedError{Err: err}
+		}
+	}
 	return out, nil
+}
+
+func validateNotificationIdentity(n *Notification) error {
+	bundleID := strings.TrimSpace(os.Getenv("APP_STORE_BUNDLE_ID"))
+	if bundleID == "" {
+		bundleID = defaultBundleID
+	}
+	if n.BundleID != bundleID {
+		return fmt.Errorf("App Store notification bundle mismatch: got=%q", n.BundleID)
+	}
+	// APP_STORE_ENVIRONMENT は VerifyPurchase が「どちらのホストを先に叩くか」を
+	// 決めるヒントであって、受け取る通知の環境を絞る設定ではない。prod でも
+	// 審査・TestFlight の Sandbox 購入は起きるため、両方を受け付ける。ここで
+	// 弾くと 200 で破棄され Apple は再送しないので、課金状態が永久にずれる。
+	// 外側と transactionInfo の環境が食い違う細工だけは拒否する。
+	if n.Environment != "Production" && n.Environment != "Sandbox" {
+		return fmt.Errorf("App Store notification unknown environment: got=%q", n.Environment)
+	}
+	if n.TransactionInfo.Environment != "" && n.TransactionInfo.Environment != n.Environment {
+		return fmt.Errorf("App Store notification environment mismatch: got=%q transaction=%q",
+			n.Environment, n.TransactionInfo.Environment)
+	}
+	if configured := strings.TrimSpace(os.Getenv("APP_STORE_APP_APPLE_ID")); configured != "" {
+		appID, err := strconv.ParseInt(configured, 10, 64)
+		if err != nil || n.AppAppleID != appID {
+			return fmt.Errorf("App Store notification appAppleId mismatch")
+		}
+	}
+	return nil
 }

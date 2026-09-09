@@ -68,7 +68,7 @@ func TestSubscriptionStatusDecision(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := expireUser(ctx, snap, now); err != nil {
+			if err := expireUser(ctx, db, snap, now); err != nil {
 				t.Fatal(err)
 			}
 

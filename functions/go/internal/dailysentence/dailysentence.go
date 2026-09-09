@@ -6,9 +6,12 @@
 package dailysentence
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/notify"
+	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
 
 // TierIntervalDays は段階ごとの配信間隔（日）。
@@ -207,4 +210,52 @@ func DeliverySkipReason(userData map[string]any, now time.Time) string {
 // ShouldDeliver は配信対象かどうか。
 func ShouldDeliver(userData map[string]any, now time.Time) bool {
 	return DeliverySkipReason(userData, now) == ""
+}
+
+// DailyBatchSize は1回の配信で作る例文の本数。
+//
+// 例文→確認クイズ→まとめクイズのサイクルを1日で1周させるため、
+// アプリからの生成（generateThaiSentence）と同じ「1セット」の本数を使う。
+const DailyBatchSize = sentence.SetSize
+
+// DailyBatchMinVersion は5本セットを扱えるクライアントの最小バージョン。
+//
+// 旧版は配信済みドキュメントを全部取り込んだうえで最新の1件しか表示しないため、
+// 5本送るとクォータだけ消費して4本が履歴に埋もれる。必ず版で絞る。
+// ロールアウトはこの値の上げ下げで切り替える。
+var DailyBatchMinVersion = [3]int{1, 4, 8}
+
+// BatchSize は配信本数。版が読めない・古い場合は従来どおり1本（安全側）。
+//
+// app_build_number は使えない。pubspec のビルド番号は 0 固定で、実際の番号は
+// CI が --build-number=${{ github.run_number }} で注入しており、tester と prod で
+// ワークフローが別＝採番系列が独立しているため大小がリリース順序を表さない。
+func BatchSize(userData map[string]any) int {
+	version, _ := userData["app_version"].(string)
+	if compareVersion(version, DailyBatchMinVersion) < 0 {
+		return 1
+	}
+	return DailyBatchSize
+}
+
+// compareVersion は "1.4.8" 形式を major/minor/patch の順に比較する。
+// パースできない値は最小扱い（-1）にして安全側へ倒す。
+func compareVersion(version string, other [3]int) int {
+	parts := strings.SplitN(strings.TrimSpace(version), ".", 4)
+	if len(parts) != 3 {
+		return -1
+	}
+	for i, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 {
+			return -1
+		}
+		if n != other[i] {
+			if n < other[i] {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
 }
