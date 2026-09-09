@@ -746,7 +746,6 @@ class LearningScreen extends ConsumerStatefulWidget {
 }
 
 class _LearningScreenState extends ConsumerState<LearningScreen> {
-  static const String _completedCountKey = 'learning_completed_count';
   _LearningStage _stage = _LearningStage.sentence;
   ThaiSentence? _quizSentence;
   int _completedCount = 0;
@@ -757,6 +756,16 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     _loadCompletedCount();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _restoreSavedSummaryQuizIfNeeded();
+      // セット開始時のリセット（DailySetController.start）は prefs 側だけなので、
+      // 同じ起動のまま新しいセットが始まったときは画面の値も戻す。
+      ref.listenManual(dailySetProvider, (prev, next) {
+        if (!next.isActive || next.index != 0) return;
+        final startedNewSet =
+            prev?.sentences.firstOrNull?.id != next.sentences.first.id;
+        if (startedNewSet && _completedCount != 0) {
+          setState(() => _completedCount = 0);
+        }
+      });
       ref.listenManual(sentenceControllerProvider, (prev, next) {
         if (prev is SentenceStateLoading &&
             next is SentenceStateSuccess &&
@@ -781,7 +790,10 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
 
   Future<void> _loadCompletedCount() async {
     final prefs = await SharedPreferences.getInstance();
-    final count = prefs.getInt(_completedCountKey) ?? 0;
+    // 閾値を下げた/上げたバージョンから上がってくると、旧閾値のままの本数が
+    // 残り、1本目から節目扱いになる。範囲外は起点へ戻す。
+    final saved = prefs.getInt(learningCompletedCountKey) ?? 0;
+    final count = saved >= summaryQuizThreshold ? 0 : saved;
     if (mounted && count != _completedCount) {
       setState(() => _completedCount = count);
     }
@@ -790,7 +802,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
   Future<void> _setCompletedCount(int count) async {
     _completedCount = count;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_completedCountKey, count);
+    await prefs.setInt(learningCompletedCountKey, count);
   }
 
   void _setStage(_LearningStage newStage) {
