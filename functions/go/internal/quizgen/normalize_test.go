@@ -111,3 +111,29 @@ func TestBlankSentencePronunciationKeepsWordBoundary(t *testing.T) {
 		})
 	}
 }
+
+// TestBlankMatchesKeyWordWithRepeatMark は本文が ๆ 付きで書かれた語でも、
+// ๆ 無しの key_word で空欄を作れることを見る（prod で確認クイズが
+// 400 になった回帰: key_word=จี / 本文=จีๆ）。
+func TestBlankMatchesKeyWordWithRepeatMark(t *testing.T) {
+	seed := QuizSentenceSeed{
+		ThaiText: "ที่นั่นสวยจีๆนะครับ",
+		Words:    []string{"ที่นั่น", "สวย", "จีๆ", "นะครับ"},
+		KeyWord:  "จี",
+	}
+
+	if !IsSeedReady(seed) {
+		t.Fatalf("ๆ の有無だけの違いで出題不可と判定した")
+	}
+	got := PrepareInputs([]QuizSentenceSeed{seed})[0]
+	if want := "ที่นั่นสวย___นะครับ"; got.BlankText != want {
+		t.Errorf("BlankText = %q, want %q", got.BlankText, want)
+	}
+	if want := "จีๆ"; got.CorrectAnswer != want {
+		t.Errorf("CorrectAnswer = %q, want %q", got.CorrectAnswer, want)
+	}
+	if !MatchesKeyWord(got.CorrectAnswer, seed.KeyWord) {
+		t.Errorf("正解 %q が key_word %q と一致しないと判定された",
+			got.CorrectAnswer, seed.KeyWord)
+	}
+}
