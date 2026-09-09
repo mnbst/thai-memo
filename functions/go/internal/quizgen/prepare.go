@@ -10,6 +10,11 @@ type blankTarget struct {
 }
 
 // resolveBlankTarget は key_word が本文中に見つかるときだけ空欄の対象を返す。
+//
+// 見つからないときは ๆ の有無だけ違う表記も試す。LLM は選定語「จี」を本文で
+// 「จีๆ」と書くことがあり、そのとき key_word は語として一致しない
+// （sentence.matchKeyWord が発音・意味の照合で同じ揺れを吸収している）。
+// ここで拾わないと、その例文はクイズを作れず確認クイズが必ず失敗する。
 func resolveBlankTarget(sentence QuizSentenceSeed) (blankTarget, bool) {
 	thaiText := normalizeText(sentence.ThaiText)
 	keyWord := normalizeText(sentence.KeyWord)
@@ -17,15 +22,48 @@ func resolveBlankTarget(sentence QuizSentenceSeed) (blankTarget, bool) {
 	if keyWord == "" {
 		return blankTarget{}, false
 	}
-	if _, ok := buildBlankText(thaiText, keyWord, sentence.Words); !ok {
+	word := ""
+	for _, candidate := range KeyWordVariants(keyWord) {
+		if _, ok := buildBlankText(thaiText, candidate, sentence.Words); ok {
+			word = candidate
+			break
+		}
+	}
+	if word == "" {
 		return blankTarget{}, false
 	}
 
 	return blankTarget{
-		Word:          keyWord,
+		Word:          word,
 		Pronunciation: normalizeText(sentence.KeyWordPronunciation),
 		Meaning:       normalizeText(sentence.KeyWordMeaning),
 	}, true
+}
+
+// repeatMark はタイ語の繰り返し記号 ๆ。
+const repeatMark = "ๆ"
+
+// KeyWordVariants は key_word と、ๆ の有無だけ違う表記を返す（key_word 自身が先頭）。
+func KeyWordVariants(keyWord string) []string {
+	word := normalizeText(keyWord)
+	if word == "" {
+		return nil
+	}
+	if trimmed := strings.TrimSuffix(word, repeatMark); trimmed != word {
+		return []string{word, trimmed}
+	}
+	return []string{word, word + repeatMark}
+}
+
+// MatchesKeyWord は正解が key_word と同じ語かを返す。ๆ の有無は同一視する。
+func MatchesKeyWord(correctAnswer, keyWord string) bool {
+	answer := normalizeText(correctAnswer)
+	for _, candidate := range KeyWordVariants(keyWord) {
+		if answer == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 // PrepareInputs は各例文の穴埋め位置を確定させる。

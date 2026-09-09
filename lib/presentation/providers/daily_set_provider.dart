@@ -17,6 +17,11 @@ import '../../data/models/thai_sentence.dart';
 import '../../data/sentence_repository.dart';
 import 'sentence_provider.dart';
 
+/// まとめクイズまでの消化本数（LearningScreen が持つ）の保存キー。
+///
+/// セット開始でリセットしたいので、キーだけをここに置いて共有する。
+const String learningCompletedCountKey = 'learning_completed_count';
+
 class DailySetState {
   const DailySetState({this.sentences = const [], this.index = 0});
 
@@ -90,6 +95,11 @@ class DailySetController extends StateNotifier<DailySetState> {
       return;
     }
     state = DailySetState(sentences: sentences);
+    // 新しいセットの1本目は必ず節目の起点。前のセットで積んだ本数を持ち越すと、
+    // 1本目の確認クイズでいきなりまとめクイズへ誘導してしまう（閾値を変えた
+    // バージョンアップ直後に起きた）。
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(learningCompletedCountKey, 0);
     await _save();
   }
 

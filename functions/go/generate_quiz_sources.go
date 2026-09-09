@@ -2,7 +2,6 @@ package function
 
 import (
 	"log"
-	"strings"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
 )
@@ -223,7 +222,8 @@ func isQuizSeedSourceReady(source quizSeedSource) bool {
 }
 
 // matchesKeyWord はモデルが返した正解が、こちらの指定した key_word と一致するか。
+// 本文が ๆ を付けて書いているときは正解もその表記になるので、ๆ の有無は許す。
 func matchesKeyWord(question quizgen.GeneratedQuizQuestion, seed quizgen.QuizSentenceSeed) bool {
 	return seed.KeyWord == "" ||
-		strings.TrimSpace(question.CorrectAnswer) == strings.TrimSpace(seed.KeyWord)
+		quizgen.MatchesKeyWord(question.CorrectAnswer, seed.KeyWord)
 }

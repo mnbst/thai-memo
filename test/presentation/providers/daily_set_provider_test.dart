@@ -43,6 +43,20 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test('セット開始でまとめクイズまでの消化本数を0へ戻す', () async {
+    // 閾値を変えたバージョンへ上げると旧値が残り、1本目でまとめクイズへ
+    // 誘導されてしまう。新しいセットの開始が節目の起点になる。
+    SharedPreferences.setMockInitialValues({learningCompletedCountKey: 4});
+    final container = containerWith({});
+
+    await container
+        .read(dailySetProvider.notifier)
+        .start(_set(['a', 'b', 'c', 'd', 'e']));
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getInt(learningCompletedCountKey), 0);
+  });
+
   test('セットを受け取ったら1本目から数える', () async {
     final container = containerWith({});
     final controller = container.read(dailySetProvider.notifier);
