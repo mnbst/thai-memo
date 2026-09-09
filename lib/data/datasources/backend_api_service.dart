@@ -327,9 +327,18 @@ class BackendApiService {
     }
   }
 
+  /// 語の照合。ๆ（繰り返し記号）の有無は同一視する。
+  /// 選定語が「จี」でも本文は「จีๆ」と書かれることがあり、
+  /// サーバー側（sentence.matchKeyWord / quizgen.MatchesKeyWord）も同じ扱い。
+  static bool _sameWord(String a, String b) {
+    final x = a.trim();
+    final y = b.trim();
+    return x == y || x == '$y\u0E46' || '$x\u0E46' == y;
+  }
+
   String _findWordPronunciation(ThaiSentence sentence, String word) {
     for (final breakdown in sentence.wordBreakdowns) {
-      if (breakdown.wordText.trim() == word.trim()) {
+      if (_sameWord(breakdown.wordText, word)) {
         return breakdown.pronunciation;
       }
     }
@@ -338,7 +347,7 @@ class BackendApiService {
 
   String _findWordMeaning(ThaiSentence sentence, String word) {
     for (final breakdown in sentence.wordBreakdowns) {
-      if (breakdown.wordText.trim() == word.trim()) {
+      if (_sameWord(breakdown.wordText, word)) {
         return breakdown.meaning;
       }
     }
