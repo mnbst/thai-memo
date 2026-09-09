@@ -90,7 +90,10 @@ func generateThaiSentence(ctx context.Context, req *callable.Request) (any, erro
 	}
 
 	response["success"] = true
-	response["data"] = result
+	// data は1本目。セットを知らない旧クライアントはこれだけを見る。
+	// sentences には作れた全部を入れる（1本のときも配列で返す）。
+	response["data"] = result[0]
+	response["sentences"] = result
 	log.Printf("Request completed successfully: %s", logJSON(logData))
 	return response, nil
 }
@@ -140,10 +143,28 @@ var errGenerationInProgress = errors.New("GENERATION_IN_PROGRESS")
 // 関数タイムアウトを伸ばすときはここも一緒に見直すこと。
 const generationLeaseDuration = 3 * time.Minute
 
+// requestedSetSize はクライアントが求める本数。
+//
+// 旧クライアントは count を送らないので1本（従来どおり）。上限は
+// sentence.SetSize で、これを超える値を送られても増やさない。
+//
+// 数を読むのに callable.Int を使うこと。Flutter の Firebase SDK は Dart の
+// int を protobuf の Int64 ラッパー
+// （{"@type":".../google.protobuf.Int64Value","value":5}）に包んで送るので、
+// Firestore 用の intValue では map のまま読めず、常に既定値へ落ちる
+// （vocabtest.go の Answers と同じ理由）。
+func requestedSetSize(params map[string]any) int {
+	count, ok := callable.Int(params["count"])
+	if !ok || count < 1 {
+		return 1
+	}
+	return min(count, sentence.SetSize)
+}
+
 func runGenerateThaiSentence(
 	ctx context.Context, uid string, params map[string]any, l lang.Lang,
 	logData map[string]any, start time.Time,
-) (*sentence.Sentence, error) {
+) ([]*sentence.Sentence, error) {
 	db, err := fbapp.Firestore(ctx)
 	if err != nil {
 		return nil, err
@@ -212,24 +233,29 @@ func runGenerateThaiSentence(
 		return nil, err
 	}
 
-	produced, err := producer.Produce(ctx, db, freqRank, sentence.ProduceRequest{
+	// 残りクォータを超えては作らない。足りなければ取れるぶんだけ返す。
+	count := min(requestedSetSize(params), remaining)
+
+	produced, err := producer.ProduceBatch(ctx, db, freqRank, sentence.ProduceRequest{
 		UID:            uid,
 		Params:         effectiveGenerationParams(params, usePremiumSpec),
 		UsePremiumSpec: usePremiumSpec,
 		EstimatedVocab: estimatedVocab,
 		TestedVocab:    intValue(userData["vocab_test_vocab"]),
 		Lang:           l,
-	})
+	}, count)
 	if err != nil {
 		return nil, err
 	}
-	if produced == nil { // CacheOnly=false では起きない
+	if len(produced) == 0 { // CacheOnly=false では起きない
 		return nil, errors.New("sentence generation returned nothing")
 	}
 
-	logData["uvmWords"] = len(produced.TargetWords)
-	logData["chosenTopic"] = produced.ChosenTopic
-	if produced.FromCache {
+	logData["requestedCount"] = count
+	logData["generatedCount"] = len(produced)
+	logData["uvmWords"] = len(produced[0].TargetWords)
+	logData["chosenTopic"] = produced[0].ChosenTopic
+	if produced[0].FromCache {
 		logData["source"] = "cached"
 	}
 	logData["success"] = true
@@ -241,10 +267,13 @@ func runGenerateThaiSentence(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		registerSentenceExposure(ctx, db, uid, produced)
+		for _, p := range produced {
+			registerSentenceExposure(ctx, db, uid, p)
+		}
 		// premium は上限なし（負の値で「上限なし」を表す）。
 		// トライアル中も premium と同じ扱いにする。tier だけで見ると、体験中に
 		// 伸ばした estimated_vocab が毎回 100 へ切り戻される。
+		// 語彙推定の同期はセットで1回でよい（露出の登録が全部済んでから）。
 		maxVocab := -1
 		if !usePremiumSpec {
 			maxVocab = uvm.FreeTierMaxVocab
@@ -252,16 +281,20 @@ func runGenerateThaiSentence(
 		uvm.SyncEstimatedVocab(ctx, db, uid, freqRank, maxVocab)
 	}()
 
-	if err := commitSentence(ctx, db, userRef, uid, produced, usePremiumSpec); err != nil {
+	if err := commitSentences(ctx, db, userRef, produced, usePremiumSpec); err != nil {
 		log.Printf("Failed to save sentence to Firestore: %v", err)
 		wg.Wait()
 		return nil, err
 	}
 
-	produced.Sentence.TargetWords = produced.TargetWords
+	sentences := make([]*sentence.Sentence, len(produced))
+	for i, p := range produced {
+		p.Sentence.TargetWords = p.TargetWords
+		sentences[i] = p.Sentence
+	}
 
 	wg.Wait()
-	return produced.Sentence, nil
+	return sentences, nil
 }
 
 // registerSentenceExposure は例文に出た語の露出を UVM に記録する
@@ -297,14 +330,21 @@ func registerSentenceExposure(
 	}
 }
 
-// commitSentence は例文の保存とクォータ消費を 1 トランザクションで行う
+// commitSentences はセット全部の保存とクォータ消費を 1 トランザクションで行う
 // （sentence_handlers.py:_commit_sentences_transaction:296）。
-func commitSentence(
+//
+// クォータは本数ぶん消費する。トランザクション内で残りが足りなければ
+// 全部やめる（部分的に書いて部分的に課金する状態を作らない）。
+func commitSentences(
 	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
-	uid string, produced *sentence.Produced, usePremiumSpec bool,
+	produced []*sentence.Produced, usePremiumSpec bool,
 ) error {
-	sentenceRef := userRef.Collection("sentences").NewDoc()
-	doc := produced.Sentence.BuildSentenceDoc(produced.TargetWords[0], usePremiumSpec)
+	refs := make([]*firestore.DocumentRef, len(produced))
+	docs := make([]map[string]any, len(produced))
+	for i, p := range produced {
+		refs[i] = userRef.Collection("sentences").NewDoc()
+		docs[i] = p.Sentence.BuildSentenceDoc(p.TargetWords[0], usePremiumSpec)
+	}
 
 	return db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		snap, err := tx.Get(userRef)
@@ -312,13 +352,15 @@ func commitSentence(
 		if err == nil && snap.Exists() {
 			userData = snap.Data()
 		}
-		if intValue(userData["remaining_sentences"]) < 1 {
+		if intValue(userData["remaining_sentences"]) < len(refs) {
 			return errQuotaExceeded
 		}
-		if err := tx.Set(sentenceRef, doc); err != nil {
-			return err
+		for i, ref := range refs {
+			if err := tx.Set(ref, docs[i]); err != nil {
+				return err
+			}
 		}
-		return tx.Update(userRef, sentenceCommitUpdate(userData, 1))
+		return tx.Update(userRef, sentenceCommitUpdate(userData, len(refs)))
 	})
 }
 

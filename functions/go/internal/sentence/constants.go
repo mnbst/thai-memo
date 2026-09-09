@@ -46,6 +46,12 @@ const (
 	FreeTierMaxVocab = 100
 )
 
+// SetSize は「1セット＝何本か」。毎日配信も、アプリからの生成も、この本数を
+// ひとまとまりにして 例文 → 確認クイズ → …（SetSize本）… → まとめクイズ を
+// 1サイクルとする。まとめクイズの間隔（クライアントの summaryQuizThreshold）と
+// 必ず一致させること。docs/design_daily_sentence_batch.md を参照。
+const SetSize = 5
+
 // 新規ユーザー初期クォータ。
 //
 // users/{uid} doc が未作成のまま生成された場合の初期値。

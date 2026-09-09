@@ -115,6 +115,9 @@ lib/domain/delete_sentence_usecase.dart
 lib/presentation/providers/sentence_provider.dart
 例文CRUD・生成状態のRiverpod StateNotifier。
 
+lib/presentation/providers/daily_set_provider.dart
+例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、何本目まで進んだかを SharedPreferences に保存して再開する。
+
 lib/presentation/providers/quiz_provider.dart
 クイズ状態管理（initial→pending→generating→ready→answering→result→summary）。
 
@@ -248,7 +251,7 @@ lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
 lib/services/daily_sentence_service.dart
-サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、今日ぶんの配信例文を返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
+サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、今日ぶんの配信セット（DailySentenceSet）を返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
 
 ## Thai Language Processing (Dart)
 
@@ -454,10 +457,16 @@ functions/go/internal/quality/judge_test.go
 judgeレスポンスの選別（natural除外・理由なし除外・index重複）とドキュメント内容のテスト。
 
 functions/go/deliver_daily_sentence.go
-daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文を1件作ってFirestoreに書きFCM通知する。free はキャッシュのみ、premium/トライアルはLLM生成。
+daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、premium/トライアルはLLM生成。
 
 functions/go/deliver_daily_sentence_golden_test.go
 配信の生成分岐・コミット時の更新内容・ロールバックの更新内容をPython実装の出力と突き合わせる。
+
+functions/go/deliver_daily_sentence_batch_test.go
+5本セット配信の本数・クォータ消費・ロールバック・通知Dataのテスト。
+
+functions/go/deliver_daily_sentence_live_test.go
+dev の実Firestore・実Geminiに対して5本セット配信を通しで確かめる（通知だけ差し替え）。
 
 functions/go/daily_batch_golden_test.go
 resetQuota と duplicateTokenUids をJS実装の出力（golden JSON）と突き合わせる。削除境界の計算も検証。
@@ -562,13 +571,16 @@ functions/go/internal/lang/lang.go
 訳文・解説の言語(ja/en)の正規化。
 
 functions/go/internal/dailysentence/dailysentence.go
-daily_sentence.py の Go 版。毎日例文の配信判定（段階バックオフ・見送り理由・現地時刻）。
+daily_sentence.py の Go 版。毎日例文の配信判定（段階バックオフ・見送り理由・現地時刻）とバージョン別の配信本数（BatchSize）。
+
+functions/go/internal/dailysentence/batch_test.go
+app_version による配信本数の判定と、セット本数を添えた通知タイトルのテスト。
 
 functions/go/internal/dailysentence/golden_test.go
 配信判定をPython実装の出力と突き合わせる（6000ケース + タイムゾーン112ケース）。
 
 functions/go/internal/dailysentence/notification.go
-毎日例文のFCM通知タイトル・本文の組み立て。タイトルは言語別、本文はタイ文/発音/訳の3行。
+毎日例文のFCM通知タイトル・本文の組み立て。タイトルは言語別（セット配信は本数を付与）、本文はタイ文/発音/訳の3行。
 
 functions/go/internal/dailysentence/notification_golden_test.go
 通知文面をPython実装の出力と突き合わせる（53ケース）。
@@ -727,7 +739,7 @@ functions/go/internal/sentence/select.go
 テーマ候補プールの決定とUVMからのターゲット語選定（sentence_service.py:select_uvm_target_words）。
 
 functions/go/internal/sentence/produce.go
-単語選定→キャッシュ/LLM生成→ティア付与までの生成コア（sentence_handlers.py:produce_sentence）。
+単語選定→キャッシュ/LLM生成→ティア付与までの生成コア（sentence_handlers.py:produce_sentence）。ProduceBatch は n 本まとめて（選定1回・生成は並列）。毎日配信とアプリからの生成の共通経路。
 
 functions/go/internal/sentence/doc.go
 Firestoreへ保存する例文ドキュメントの組み立てとkey_wordの引き当て。
@@ -738,11 +750,20 @@ sentence_service.py のテーマ決定と突き合わせる差分テスト。
 functions/go/internal/sentence/produce_golden_test.go
 sentence_handlers.py の生成コア・保存ドキュメントと突き合わせる差分テスト。
 
+functions/go/internal/sentence/produce_batch_test.go
+ProduceBatch（選定1回・生成並列・キャッシュミスの引き直し・一部失敗）のテスト。
+
 functions/go/generate_thai_sentence.go
-generateThaiSentence（callable）。認証・クォータ・トライアル判定・生成・保存・UVM更新。
+generateThaiSentence（callable）。認証・クォータ・トライアル判定・生成・保存・UVM更新。count を送るとその本数を1セットで作る（未指定は1本＝旧クライアント互換）。
+
+functions/go/generate_thai_sentence_test.go
+セット本数の解釈（count 未指定は1本・上限は sentence.SetSize）のテスト。
 
 functions/go/cmd/sample/main.go
 ターゲット語・語彙帯・テーマを指定して本番と同じ経路で例文を量産する ablation 用コマンド。Firestore を通さず LLM だけ叩く。
+
+functions/go/cmd/burst/main.go
+毎日例文の5本セット配信で増える LLM 同時実行の実測コマンド。ユーザー数×本数を同時に叩き、1本/1ユーザー/全体の所要と失敗の内訳を出す。
 
 functions/go/generate_thai_sentence_golden_test.go
 sentence_handlers.py のクォータ・トライアル・生成条件と突き合わせる差分テスト。
@@ -761,6 +782,9 @@ docs/design_english_version.md
 
 docs/design_daily_sentence.md
 毎日例文の配信＋プッシュ通知の設計（配信ターゲティング、段階バックオフ、反応シグナル、必要フィールド）。
+
+docs/design_daily_sentence_batch.md
+毎日例文を5本セットで配信する設計（版ゲート・セットのデータモデル・クライアントの消化フロー・クォータ判断）。
 
 docs/design_pronunciation_practice.md
 発音練習（声調）の設計。例文詳細でお手本と自分の声のピッチを比較する。F0抽出・自己正規化・DTW対応づけ・採点。
@@ -829,6 +853,15 @@ scripts/prod_quota_reach.py
 
 test/helpers/fake_firebase.dart
 FirebaseAuth/Firestore/PurchaseService/AnalyticsServiceのテスト用フェイク実装。
+
+test/services/daily_sentence_service_test.dart
+配信セットの並び替え（daily_set_index 昇順・旧形式のdoc IDフォールバック）のテスト。
+
+test/presentation/providers/daily_set_provider_test.dart
+配信セットのカーソル（開始・前進・使い切り・再開・欠損時の詰め）のテスト。
+
+test/presentation/providers/quiz_prepare_race_test.dart
+確認クイズの事前生成中に開始しても生成APIを二重に叩かないことのテスト（サーバーの生成ロックで409になる回帰）。
 
 test/services/firebase_auth_service_test.dart
 匿名→正規アカウントのリンク（昇格）・既存アカウントフォールバックのテスト。

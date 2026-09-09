@@ -9,19 +9,30 @@ class GenerateSentenceUseCase {
 
   GenerateSentenceUseCase(this._repository);
 
-  /// Execute the use case to generate and save a new sentence
+  /// Execute the use case to generate and save a set of sentences
   ///
-  /// Returns the generated [ThaiSentence]
+  /// [count] 本をまとめて作る（1セット＝例文→確認クイズ→…→まとめクイズの一巡）。
+  /// クォータ不足なら取れるぶんだけ返る。空で返ることはない（失敗は例外）。
   /// Throws [GenerateSentenceException] if generation fails
-  Future<ThaiSentence> execute({
+  Future<List<ThaiSentence>> execute({
     Map<String, String?> generationParams = const {},
+    int count = 1,
   }) async {
     try {
       // No need to check API key - authentication handled by Firebase
-      final sentence = await _repository.generateAndSaveSentence(
+      final sentences = await _repository.generateAndSaveSentences(
         generationParams: generationParams,
+        count: count,
       );
-      return sentence;
+      if (sentences.isEmpty) {
+        throw GenerateSentenceException(
+          'Backend returned no sentence',
+          type: GenerateSentenceErrorType.serverError,
+        );
+      }
+      return sentences;
+    } on GenerateSentenceException {
+      rethrow;
     } on RepositoryException catch (e) {
       throw GenerateSentenceException(
         e.message,

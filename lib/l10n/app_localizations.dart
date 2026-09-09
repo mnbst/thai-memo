@@ -163,12 +163,6 @@ abstract class L10n {
   /// **'設定'**
   String get navSettings;
 
-  /// No description provided for @learnAppBarTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'今日の例文'**
-  String get learnAppBarTitle;
-
   /// No description provided for @learnOpenDetail.
   ///
   /// In ja, this message translates to:
@@ -178,7 +172,7 @@ abstract class L10n {
   /// No description provided for @learnQuizTitle.
   ///
   /// In ja, this message translates to:
-  /// **'クイズ'**
+  /// **'確認クイズ'**
   String get learnQuizTitle;
 
   /// No description provided for @learnSummaryQuizTitle.
@@ -192,6 +186,36 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'次の例文へ'**
   String get learnNextSentence;
+
+  /// まとめクイズを終えて、新しい5本のセットを始めるボタン
+  ///
+  /// In ja, this message translates to:
+  /// **'次のセットへ'**
+  String get learnNextSet;
+
+  /// セットの最後の確認クイズの後、まとめクイズへ進むボタン
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズへ'**
+  String get learnGoToSummaryQuiz;
+
+  /// セットの残り本数。5本を学び終えるとまとめクイズへ進む
+  ///
+  /// In ja, this message translates to:
+  /// **'あと{count}本でまとめクイズ'**
+  String learnDailySetRemaining(int count);
+
+  /// セットの最後の1本を表示しているとき（残り0本）の見出し
+  ///
+  /// In ja, this message translates to:
+  /// **'次はまとめクイズ'**
+  String get learnDailySetLast;
+
+  /// 配信セットの何本目か
+  ///
+  /// In ja, this message translates to:
+  /// **'{position} / {total}'**
+  String learnDailySetProgress(int position, int total);
 
   /// No description provided for @commonOk.
   ///
@@ -208,7 +232,7 @@ abstract class L10n {
   /// No description provided for @sentencePreparing.
   ///
   /// In ja, this message translates to:
-  /// **'次の例文を準備中...'**
+  /// **'例文を準備中...'**
   String get sentencePreparing;
 
   /// 学習単語セクションの見出し。英語は語数で単複が変わる
@@ -318,12 +342,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'クイズ'**
   String get quizTodayTitle;
-
-  /// No description provided for @quizOptionalChallenge.
-  ///
-  /// In ja, this message translates to:
-  /// **'まとめクイズに挑戦する'**
-  String get quizOptionalChallenge;
 
   /// No description provided for @quizGenerating.
   ///
@@ -1128,6 +1146,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'次のテーマ: '**
   String get nextTopicPrefix;
+
+  /// 例文画面の帯（表示のみ・変更不可）の見出し
+  ///
+  /// In ja, this message translates to:
+  /// **'テーマ: '**
+  String get topicPrefix;
 
   /// No description provided for @topicName_blDrama.
   ///
@@ -4127,7 +4151,7 @@ abstract class L10n {
   /// No description provided for @guideFigureLoopEvery.
   ///
   /// In ja, this message translates to:
-  /// **'例文3つごと'**
+  /// **'例文5つごと'**
   String get guideFigureLoopEvery;
 
   /// No description provided for @guideFigureCardThai.
@@ -4187,25 +4211,25 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody1.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなたの語彙に合わせたタイ語の例文を毎日つくります。'**
+  /// **'AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。'**
   String get guideOverviewBody1;
 
   /// No description provided for @guideOverviewBody2.
   ///
   /// In ja, this message translates to:
-  /// **'例文で覚える → クイズで確かめる。このくり返しが学習の中心です。'**
+  /// **'例文で覚える → クイズで確かめる。これを5つくり返して1巡です。'**
   String get guideOverviewBody2;
 
   /// No description provided for @guideOverviewSummaryQuiz.
   ///
   /// In ja, this message translates to:
-  /// **'例文3つに1回、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。'**
+  /// **'例文5つを学び終えると「まとめクイズ」に進みます。それまでに学んだ例文から出題され、迷ったらヒントや例文の見返しも使えます。'**
   String get guideOverviewSummaryQuiz;
 
   /// No description provided for @guideOverviewBody3.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズに正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。'**
+  /// **'「まとめクイズ」に正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。'**
   String get guideOverviewBody3;
 
   /// No description provided for @guideRoleSentenceTitle.
@@ -4241,7 +4265,7 @@ abstract class L10n {
   /// No description provided for @guideRoleQuizBody.
   ///
   /// In ja, this message translates to:
-  /// **'確認クイズは、次の例文に進む前に出る1問です。例文3つに1回、それまでに学んだ内容から「まとめクイズ」に挑戦できます。'**
+  /// **'確認クイズは、次の例文に進む前に出る1問です。5つ目を終えると、それまでに学んだ内容から出題される「まとめクイズ」に進みます。'**
   String get guideRoleQuizBody;
 
   /// No description provided for @guideRoleScoreTitle.
@@ -4391,7 +4415,7 @@ abstract class L10n {
   /// No description provided for @guideHowSentenceStep1.
   ///
   /// In ja, this message translates to:
-  /// **'学習タブを開くと、その日の例文が表示されます。'**
+  /// **'学習タブを開くと、その日の例文が表示されます。例文は5つで1セットで、いま何本目かが上に出ます。'**
   String get guideHowSentenceStep1;
 
   /// No description provided for @guideHowSentenceStep3.
@@ -4457,25 +4481,25 @@ abstract class L10n {
   /// No description provided for @guideHowQuizStep2.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。'**
+  /// **'「まとめクイズ」ではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。'**
   String get guideHowQuizStep2;
 
   /// No description provided for @guideHowQuizStep3.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズでは、迷ったら「例文を確認」で例文に戻れます。'**
+  /// **'「まとめクイズ」では、迷ったら「例文を確認」で例文に戻れます。'**
   String get guideHowQuizStep3;
 
   /// No description provided for @guideHowQuizStep4.
   ///
   /// In ja, this message translates to:
-  /// **'結果画面から、次の例文へ進むか、まとめクイズに挑むかを選べます。'**
+  /// **'確認クイズの結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。'**
   String get guideHowQuizStep4;
 
   /// No description provided for @guideHowQuizStep5.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズは、例文3つに1回出る節目のクイズです。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。'**
+  /// **'「まとめクイズ」は、例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。'**
   String get guideHowQuizStep5;
 
   /// No description provided for @guideHowSettingsTitle.

@@ -24,11 +24,14 @@ void main() {
   late String tier;
   late bool trialActive;
   late Map<String, String?>? capturedParams;
+  late int? capturedCount;
   late FakeAnalyticsService analytics;
 
   SentenceController createController({
-    Future<ThaiSentence> Function({Map<String, String?> generationParams})?
-        generate,
+    Future<List<ThaiSentence>> Function({
+      Map<String, String?> generationParams,
+      int count,
+    })? generate,
     Future<ThaiSentence?> Function()? getMostRecent,
   }) {
     final repo = _FakeSentenceRepository();
@@ -42,9 +45,13 @@ void main() {
       () => trialActive,
       () => lookupL10n(const Locale('ja')),
       generateSentence: generate ??
-          ({Map<String, String?> generationParams = const {}}) async {
+          ({
+            Map<String, String?> generationParams = const {},
+            int count = 1,
+          }) async {
             capturedParams = generationParams;
-            return _sentence();
+            capturedCount = count;
+            return [for (var i = 0; i < count; i++) _sentence()];
           },
       getMostRecentSentence: getMostRecent ?? () async => null,
     );
@@ -54,6 +61,7 @@ void main() {
     tier = 'free';
     trialActive = false;
     capturedParams = null;
+    capturedCount = null;
     analytics = FakeAnalyticsService();
   });
 
@@ -92,6 +100,46 @@ void main() {
     );
 
     expect(capturedParams, {'topic': '旅行', 'style': '丁寧'});
+  });
+
+  group('セット生成', () {
+    test('本数を指定するとその本数をまとめて作り、1本目を表示する', () async {
+      final controller = createController();
+
+      await controller.generateSentence(count: learningSetSize);
+
+      expect(capturedCount, learningSetSize);
+      final state = controller.state as SentenceStateSuccess;
+      expect(state.generated, isTrue);
+      expect(state.generatedSet.length, learningSetSize);
+      expect(state.sentence, same(state.generatedSet.first));
+    });
+
+    test('既定は1本（本数を指定しない呼び出しの挙動を変えない）', () async {
+      final controller = createController();
+
+      await controller.generateSentence();
+
+      expect(capturedCount, 1);
+      expect((controller.state as SentenceStateSuccess).generatedSet.length, 1);
+    });
+
+    test('自動生成（起動時）もセットで作る', () async {
+      final controller = createController();
+
+      await controller.loadOrGenerateToday(dailySentenceGenerated: false);
+
+      expect(capturedCount, learningSetSize);
+    });
+
+    test('生成本数を analytics に記録する', () async {
+      final controller = createController();
+
+      await controller.generateSentence(count: learningSetSize);
+
+      expect(analytics.generateSentenceEvents.single['count'], learningSetSize);
+      expect(analytics.generateSentenceEvents.single['source'], 'manual_set');
+    });
   });
 
   group('analytics', () {
@@ -159,7 +207,7 @@ void main() {
       );
 
       expect(capturedParams, {'topic': '旅行', 'premium_trial': 'true'});
-      });
+    });
 
     test('生成済みなら最新を表示し生成しない', () async {
       final controller = createController(
@@ -189,7 +237,10 @@ void main() {
 
     test('生成失敗時は既存の最新例文を表示する', () async {
       final controller = createController(
-        generate: ({Map<String, String?> generationParams = const {}}) async {
+        generate: ({
+          Map<String, String?> generationParams = const {},
+          int count = 1,
+        }) async {
           throw StateError('boom');
         },
         getMostRecent: () async => _sentence(),
@@ -202,7 +253,10 @@ void main() {
 
     test('生成失敗かつ既存例文もなければ空状態になる', () async {
       final controller = createController(
-        generate: ({Map<String, String?> generationParams = const {}}) async {
+        generate: ({
+          Map<String, String?> generationParams = const {},
+          int count = 1,
+        }) async {
           throw StateError('boom');
         },
       );

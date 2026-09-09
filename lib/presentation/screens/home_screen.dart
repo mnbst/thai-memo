@@ -16,6 +16,7 @@ import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
 import '../../services/interview_reporter.dart';
 import '../../services/push_notification_service.dart';
+import '../providers/daily_set_provider.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
@@ -68,6 +69,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   static const int _settingsTabIndex = 2;
   bool _initialLoadCompleted = false;
   Future<void>? _initialLoadFuture;
+  Future<void>? _dailySetRestoreFuture;
   final _dailySentenceService = DailySentenceService();
   final _learningKey = GlobalKey<_LearningScreenState>();
   StreamSubscription<RemoteMessage>? _notificationOpenSubscription;
@@ -145,16 +147,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   /// 配信された今日の例文があれば表示する。表示したら true。
+  ///
+  /// 配信は5本セットなので、カーソルを1本目に立ててから先頭を表示する。
+  /// 残りは「次へ」でセットから順に出す（生成もクォータ消費もしない）。
   Future<bool> _showDeliveredIfAny({String? sentenceId}) async {
     final delivered = await _dailySentenceService.sync(sentenceId: sentenceId);
     if (delivered == null || !mounted) return false;
 
+    final activeSet = ref.read(dailySetProvider);
+    final sameSet = isSameDailySet(activeSet, delivered);
+    if (!sameSet) {
+      // 旧prodサーバー・旧形式doc・通信断時のローカルfallbackは1本だけ。
+      // これをセットとして開始すると isLast=true になり、1.4.7では無かった
+      // 「1本後にまとめクイズへ強制遷移」が起きる。複数本だけをセット扱いする。
+      await ref.read(dailySetProvider.notifier).start(
+            delivered.sentences.length > 1
+                ? delivered.sentences
+                : const <ThaiSentence>[],
+          );
+      if (!mounted) return false;
+    }
+
+    // 同じ通知をもう一度開いても、途中まで進めたカーソルを先頭へ戻さない。
+    final shown = sameSet ? activeSet.current! : delivered.first;
     final current = ref.read(sentenceControllerProvider);
-    if (current is SentenceStateSuccess &&
-        current.sentence.id == delivered.id) {
+    if (current is SentenceStateSuccess && current.sentence.id == shown.id) {
       return true;
     }
-    ref.read(sentenceControllerProvider.notifier).showSentence(delivered);
+    ref.read(sentenceControllerProvider.notifier).showSentence(shown);
     ref.invalidate(allSentencesProvider);
     return true;
   }
@@ -559,9 +579,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// Firestoreフラグを取得し、未生成なら自動生成、済みなら最新を表示
   Future<void> _loadTodaySentence() async {
+    // カーソル復元と新着同期を直列化する。復元を投げっぱなしにすると、同期で
+    // 開始した新しいセットを古いカーソルが後から上書きする。
+    await (_dailySetRestoreFuture ??=
+        ref.read(dailySetProvider.notifier).restore());
+
     // 配信例文の取り込みを先に終わらせる。今日ぶんがあればそれが今日の例文なので、
     // 生成もローカル読み込みも走らせない（通知タップかどうかの判定は不要）。
     if (await _showDeliveredIfAny()) return;
+
+    // 新着が無ければ、前回閉じた位置の例文をそのまま表示する。「最新の例文」を
+    // 読むと、カーソルが2/5なのに本文は5本目という不整合になる。
+    final restored = ref.read(dailySetProvider).current;
+    if (restored != null) {
+      ref.read(sentenceControllerProvider.notifier).showSentence(restored);
+      return;
+    }
 
     final data = await ref.read(userDocProvider.future);
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
@@ -638,6 +671,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
 enum _LearningStage { sentence, quiz, summaryQuiz }
 
+/// 通知を再度開いたとき、消化中の同じセットを先頭へ戻さないための判定。
+@visibleForTesting
+bool isSameDailySet(DailySetState active, DailySentenceSet delivered) {
+  if (!active.isActive) return false;
+
+  // Firestore を読めない通知タップは、ローカルにある通知対象の1本だけを返す。
+  // それが消化中セットの一員なら同じセットとして扱い、カーソルを壊さない。
+  if (delivered.sentences.length == 1) {
+    final deliveredId = delivered.first.id;
+    return deliveredId != null &&
+        active.sentences.any((sentence) => sentence.id == deliveredId);
+  }
+
+  return active.sentences.length == delivered.sentences.length &&
+      active.sentences.asMap().entries.every(
+            (entry) => entry.value.id == delivered.sentences[entry.key].id,
+          );
+}
+
 @visibleForTesting
 bool changedFromNoRemainingToAvailable(
   AsyncValue<int>? previous,
@@ -661,21 +713,21 @@ bool shouldAutoLoadAfterSentenceQuotaRefresh({
       changedFromNoRemainingToAvailable(previous, next);
 }
 
-/// まとめクイズを誘導する間隔（例文の本数）。
+/// まとめクイズを出す間隔（例文の本数）。
 ///
-/// 5本だった頃は、free が例文を1日1本しか出さないため一巡に5日かかり、節目に
-/// 到達する前に離脱していた（生涯生成数の中央値2本、定着層でも0.25本/日）。
-/// 3本なら数日で一巡が返る。課金の有無で分けることも考えたが、まずは全体を
-/// 3本にして様子を見る。
+/// 1セットの本数（learningSetSize）と必ず一致させる。配信も自発生成も5本を
+/// ひとまとまりで作るので、セットを1本ずつ消化しきった時点が節目になる。
+/// 1日1本ずつ配信していた頃は5本だと一巡に5日かかるため3本へ下げたが、
+/// まとめて届くようになって1日で一巡が返るため前提が変わった。
 @visibleForTesting
-const int summaryQuizThreshold = 3;
+const int summaryQuizThreshold = learningSetSize;
 
-/// 確認クイズのサマリーでまとめクイズへ誘導するか。
+/// この確認クイズの後にまとめクイズへ進むか。
 ///
 /// completedCount は前回のまとめクイズ以降にこなした例文の本数（いま解いて
 /// いる確認クイズの1本は含まない）。例文 summaryQuizThreshold 本ごとに出す。
 ///
-/// 以前は初回だけ 1 本目で誘導していたが、使い始めの1本目に別のクイズを
+/// 以前は初回だけ 1 本目で出していたが、使い始めの1本目に別のクイズを
 /// 重ねるより、まず例文→確認クイズの一巡に慣れてもらうほうがよいのでやめた。
 @visibleForTesting
 bool shouldOfferSummaryQuiz(int completedCount) =>
@@ -759,9 +811,31 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     _setStage(_LearningStage.sentence);
   }
 
-  /// 次の例文へ進む。テーマの適用可否・トライアル消費は controller 側で判定する。
+  /// まとめクイズへ進む。セットの締めなので、ここは飛ばせない導線にする。
+  Future<void> _startSummaryQuiz() async {
+    await _setCompletedCount(0);
+    if (!mounted) return;
+    final quizNotifier = ref.read(quizControllerProvider.notifier);
+    quizNotifier.reset();
+    unawaited(quizNotifier.generateAndStartQuiz());
+    _setStage(_LearningStage.summaryQuiz);
+  }
+
+  /// 次の例文へ進む。
+  ///
+  /// 配信セットに残りがあれば、そこから出すだけで生成しない（クォータもLLMも
+  /// 消費しない）。使い切ったら従来どおり生成へ落ちる。テーマの適用可否・
+  /// トライアル消費は controller 側で判定する。
   Future<void> _proceedToNextSentence() async {
-    await _generateNextLearningSentence();
+    final next = await ref.read(dailySetProvider.notifier).advance();
+    if (next == null) {
+      await _generateNextLearningSentence();
+      return;
+    }
+    if (!mounted) return;
+    _setStage(_LearningStage.sentence);
+    ref.read(sentenceControllerProvider.notifier).showSentence(next);
+    ref.read(quizControllerProvider.notifier).prepareQuiz(next);
   }
 
   Future<void> _generateNextLearningSentence() async {
@@ -769,6 +843,7 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     final genParams = ref.read(generationParamsProvider);
     await ref.read(sentenceControllerProvider.notifier).generateSentence(
           generationParams: genParams,
+          count: learningSetSize,
         );
     final sentenceState = ref.read(sentenceControllerProvider);
     if (sentenceState is SentenceStateSuccess) {
@@ -811,7 +886,10 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     });
 
     // この確認クイズのサマリーでまとめクイズへ誘導するか。
-    final offerSummaryQuiz = shouldOfferSummaryQuiz(_completedCount);
+    // 配信セットの最後の1本なら常に誘導する（セット＝1サイクル）。
+    final dailySet = ref.watch(dailySetProvider);
+    final offerSummaryQuiz =
+        dailySet.isLast || shouldOfferSummaryQuiz(_completedCount);
 
     return switch (_stage) {
       _LearningStage.sentence => TodayScreen(
@@ -843,21 +921,18 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             title: l10n.learnQuizTitle,
             learningSentence: _quizSentence,
             onBackToLearningStart: _returnToLearningTop,
-            nextButtonLabel: l10n.learnNextSentence,
-            onOptionalChallenge: offerSummaryQuiz
-                ? () async {
-                    await _setCompletedCount(0);
-                    ref.read(quizControllerProvider.notifier).reset();
-                    ref
-                        .read(quizControllerProvider.notifier)
-                        .generateAndStartQuiz();
-                    _setStage(_LearningStage.summaryQuiz);
-                  }
-                : null,
-            onNextSentence: () async {
-              await _setCompletedCount(_completedCount + 1);
-              await _proceedToNextSentence();
-            },
+            // セットを消化しきったら、次は必ずまとめクイズ。以前は「挑戦する」
+            // という任意の導線で、通り過ぎると節目が来ないまま本数だけ伸びた。
+            // 5本＝1サイクルにした以上、締めを飛ばせる形にはしない。
+            nextButtonLabel: offerSummaryQuiz
+                ? l10n.learnGoToSummaryQuiz
+                : l10n.learnNextSentence,
+            onNextSentence: offerSummaryQuiz
+                ? _startSummaryQuiz
+                : () async {
+                    await _setCompletedCount(_completedCount + 1);
+                    await _proceedToNextSentence();
+                  },
           ),
         ),
       _LearningStage.summaryQuiz => Scaffold(
@@ -870,6 +945,9 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
             showAppBar: false,
             title: l10n.learnSummaryQuizTitle,
             showVocabScoreTransition: true,
+            // ここを抜けるとセットを使い切っているので、次は新しい5本を作る。
+            // 「次の例文へ」だと1本だけ足すように読めるので名前を分ける。
+            nextButtonLabel: l10n.learnNextSet,
             onNextSentence: () async {
               await _setCompletedCount(0);
               await _proceedToNextSentence();
@@ -884,6 +962,77 @@ typedef LearningQuizStartCallback = void Function(
   ThaiSentence sentence,
   String? offerSource,
 );
+
+/// 配信セットの進み具合（「1 / 5」）。
+///
+/// 例文 → 確認クイズ → …（5本）… → まとめクイズ が1サイクルであることは、
+/// 全体の本数が見えないと伝わらない。元の課題（サイクルがわかりにくい）への
+/// 直接の答えがこの表示で、5本まとめ配信はその前提条件にすぎない。
+/// セットを消化していないとき（自発生成）は何も出さない。
+class DailySetProgress extends ConsumerWidget {
+  const DailySetProgress({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final set = ref.watch(dailySetProvider);
+    if (!set.isActive) return const SizedBox.shrink();
+
+    final l10n = L10n.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    // まとめクイズまであと何本か。「今日のセット」だと打ち止めに読めるので、
+    // 到達点の側から数える。
+    final remaining = set.total - set.position;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                // 残り0本（セットの最後）で「あと0本」にならないよう分ける。
+                remaining > 0
+                    ? l10n.learnDailySetRemaining(remaining)
+                    : l10n.learnDailySetLast,
+                style: textTheme.labelMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                l10n.learnDailySetProgress(set.position, set.total),
+                style: textTheme.labelMedium?.copyWith(
+                  color: cs.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              for (var i = 0; i < set.total; i++) ...[
+                if (i > 0) const SizedBox(width: 4),
+                Expanded(
+                  child: Container(
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color:
+                          i <= set.index ? AppColors.gold : cs.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Today's sentence screen
 class TodayScreen extends ConsumerStatefulWidget {
@@ -1004,9 +1153,12 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       appBar: AppBar(
         centerTitle: false,
         titleSpacing: AppConfig.screenPadding,
-        // ボトムナビと同じ「学習」を繰り返さない。中身を名乗る。
+        // クイズ・まとめクイズの AppBar（navLearn）と同じ名前にする。
+        // 「今日の例文」だと1本で終わる画面に見えるうえ、すぐ下の
+        // 「今日のセット 1 / 5」と「今日の」が重なる。日付と本数は
+        // その行に持たせ、ここはタブの名前だけを名乗る。
         title: Text(
-          L10n.of(context).learnAppBarTitle,
+          L10n.of(context).navLearn,
           style: Theme.of(context).appBarTheme.titleTextStyle?.copyWith(
                 fontSize: 21,
                 letterSpacing: 0.02 * 21,
@@ -1126,11 +1278,17 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SignInReminderBanner(),
+                // セットの何本目かを最上部に置く。読み始める前に「今日は
+                // あと何本で一巡か」が見えるようにするため。
+                const DailySetProgress(),
                 // 並びはモックのとおり。次に届くテーマ → 例文 → 聞く/話す →
                 // 学習単語。例文を先に読ませ、そのあとで単語を確かめる。
                 const NextSentenceTopicLabel(
                   paywallSource: 'learn_next_topic',
                   banner: true,
+                  // テーマの変更はまとめクイズの後だけ。セットの途中で
+                  // 変えてもその5本には効かないので、ここは表示のみ。
+                  readOnly: true,
                 ),
                 const SizedBox(height: 14),
                 _buildSentenceCard(context, sentence),
@@ -1254,7 +1412,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     String eventKey,
     QuizOfferVariant variant,
   ) {
-    if (_loggedQuizOfferShown.contains(eventKey) ||
+    // 割り当て保存に失敗した端末は control UI を見せるだけで実験母集団には
+    // 入れない。初回描画だけでなくスクロール経由でも必ず除外する。
+    if (!variant.participatesInExperiment ||
+        _loggedQuizOfferShown.contains(eventKey) ||
         !_isQuizOfferVisible(variant)) {
       return;
     }
@@ -1546,7 +1707,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                       Text(
                         L10n.of(context).learnOpenDetail,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant.withValues(alpha: 0.85),
+                              color:
+                                  cs.onSurfaceVariant.withValues(alpha: 0.85),
                             ),
                       ),
                       const SizedBox(width: 3),
@@ -1636,7 +1798,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         ? sentence.wasGeneratedWithPremiumSpec
         : _legacySentenceLooksPremium();
     final foreground = cs.onSurfaceVariant;
-
 
     return Tooltip(
       message: showPremium
@@ -1796,7 +1957,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   final genParams = ref.read(generationParamsProvider);
                   ref
                       .read(sentenceControllerProvider.notifier)
-                      .generateSentence(generationParams: genParams);
+                      .generateSentence(
+                        generationParams: genParams,
+                        count: learningSetSize,
+                      );
                 },
                 icon: const Icon(Icons.refresh),
                 label: Text(L10n.of(context).commonRetry),
