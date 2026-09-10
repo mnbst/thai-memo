@@ -4493,7 +4493,7 @@ abstract class L10n {
   /// No description provided for @guideHowQuizStep2.
   ///
   /// In ja, this message translates to:
-  /// **'例文に出た単語の意味を4択で選びます。'**
+  /// **'直前に読んだ例文の学習単語（金色の語）について、その意味を4択で選びます。'**
   String get guideHowQuizStep2;
 
   /// No description provided for @guideHowQuizStep3.
@@ -4523,20 +4523,26 @@ abstract class L10n {
   /// No description provided for @guideHowReviewQuizStep2.
   ///
   /// In ja, this message translates to:
-  /// **'ヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。'**
+  /// **'出題される例文は、前日・3日前・1週間前…と日をあけて選ばれます。その中でも、まだ身についていない単語から先に出ます。'**
   String get guideHowReviewQuizStep2;
 
   /// No description provided for @guideHowReviewQuizStep3.
   ///
   /// In ja, this message translates to:
-  /// **'迷ったら「例文を確認」で例文に戻れます。'**
+  /// **'ヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。'**
   String get guideHowReviewQuizStep3;
 
   /// No description provided for @guideHowReviewQuizStep4.
   ///
   /// In ja, this message translates to:
-  /// **'ここでの正解が語彙スコアに反映されます。'**
+  /// **'迷ったら「例文を確認」で例文に戻れます。'**
   String get guideHowReviewQuizStep4;
+
+  /// No description provided for @guideHowReviewQuizStep5.
+  ///
+  /// In ja, this message translates to:
+  /// **'ここでの正解が語彙スコアに反映されます。'**
+  String get guideHowReviewQuizStep5;
 
   /// No description provided for @guideHowSettingsTitle.
   ///

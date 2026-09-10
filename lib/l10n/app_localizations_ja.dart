@@ -2426,7 +2426,7 @@ class L10nJa extends L10n {
   String get guideHowQuizStep1 => '例文の下の「覚えたか確認」から確認クイズへ進みます。';
 
   @override
-  String get guideHowQuizStep2 => '例文に出た単語の意味を4択で選びます。';
+  String get guideHowQuizStep2 => '直前に読んだ例文の学習単語（金色の語）について、その意味を4択で選びます。';
 
   @override
   String get guideHowQuizStep3 => '答えると、その単語の意味や使い方の解説が出ます。';
@@ -2444,13 +2444,17 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowReviewQuizStep2 =>
+      '出題される例文は、前日・3日前・1週間前…と日をあけて選ばれます。その中でも、まだ身についていない単語から先に出ます。';
+
+  @override
+  String get guideHowReviewQuizStep3 =>
       'ヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。';
 
   @override
-  String get guideHowReviewQuizStep3 => '迷ったら「例文を確認」で例文に戻れます。';
+  String get guideHowReviewQuizStep4 => '迷ったら「例文を確認」で例文に戻れます。';
 
   @override
-  String get guideHowReviewQuizStep4 => 'ここでの正解が語彙スコアに反映されます。';
+  String get guideHowReviewQuizStep5 => 'ここでの正解が語彙スコアに反映されます。';
 
   @override
   String get guideHowSettingsTitle => '設定でできること';

@@ -367,6 +367,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
               l10n.guideHowReviewQuizStep2,
               l10n.guideHowReviewQuizStep3,
               l10n.guideHowReviewQuizStep4,
+              l10n.guideHowReviewQuizStep5,
             ],
           ),
           _GuideSection(

@@ -2602,7 +2602,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowQuizStep2 =>
-      'You choose the meaning of a word from the sentence, out of four options.';
+      'You choose the meaning of the target word — the gold one — from the sentence you just read, out of four options.';
 
   @override
   String get guideHowQuizStep3 =>
@@ -2621,14 +2621,18 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowReviewQuizStep2 =>
-      'Hints are available: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.';
+      'The sentences it asks about are spaced out over time — a day ago, three days ago, a week ago, and so on. Within those, the words you haven\'t learnt yet come first.';
 
   @override
   String get guideHowReviewQuizStep3 =>
-      'Tap “Show the sentence” if you get stuck.';
+      'Hints are available: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.';
 
   @override
   String get guideHowReviewQuizStep4 =>
+      'Tap “Show the sentence” if you get stuck.';
+
+  @override
+  String get guideHowReviewQuizStep5 =>
       'Answering correctly here is what raises your vocabulary score.';
 
   @override
