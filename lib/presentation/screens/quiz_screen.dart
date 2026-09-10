@@ -11,6 +11,7 @@ import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/thai_sentence.dart';
+import '../../services/analytics_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/remaining_quota_provider.dart';
@@ -149,11 +150,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _celebrationController;
   late final List<_ConfettiParticle> _confettiParticles;
+  late final AnalyticsService _analytics;
   int? _vocabBeforeQuiz;
+  Stopwatch? _confirmationResponseTimer;
+  bool _confirmationQuestionActive = false;
+  String _confirmationQuizFormat = QuizQuestion.clozeChoiceFormat;
 
   @override
   void initState() {
     super.initState();
+    _analytics = ref.read(analyticsServiceProvider);
     final rng = math.Random(7);
     _celebrationController = AnimationController(
       vsync: this,
@@ -197,8 +203,71 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           prev is! QuizAnswering) {
         _captureVocabBeforeQuiz();
       }
+      if (next is QuizAnswering) {
+        _logConfirmationQuestionShown(next);
+      } else if (prev is QuizAnswering && _confirmationQuestionActive) {
+        _logConfirmationQuestionAbandoned(exitReason: 'state_changed');
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = ref.read(quizControllerProvider);
+      if (state is QuizAnswering) {
+        _logConfirmationQuestionShown(state);
+      }
     });
     unawaited(_restoreVocabBeforeQuiz());
+  }
+
+  void _logConfirmationQuestionShown(QuizAnswering state) {
+    if (widget.learningSentence == null ||
+        state.questions.length != 1 ||
+        _confirmationQuestionActive) {
+      return;
+    }
+    _confirmationQuestionActive = true;
+    _confirmationQuizFormat = state.questions[state.index].quizFormat;
+    _confirmationResponseTimer = Stopwatch()..start();
+    unawaited(
+      _analytics.logConfirmationQuizQuestion(
+        action: 'shown',
+        quizFormat: _confirmationQuizFormat,
+      ),
+    );
+  }
+
+  void _logConfirmationQuestionAnswered(
+    QuizQuestion question,
+    int choiceIndex,
+  ) {
+    if (!_confirmationQuestionActive) return;
+    final timer = _confirmationResponseTimer?..stop();
+    _confirmationQuestionActive = false;
+    final correct = choiceIndex >= 0 &&
+        choiceIndex < question.choices.length &&
+        question.choices[choiceIndex] == question.correctChoice;
+    unawaited(
+      _analytics.logConfirmationQuizQuestion(
+        action: 'answered',
+        quizFormat: _confirmationQuizFormat,
+        responseMs: timer?.elapsedMilliseconds,
+        correct: correct,
+      ),
+    );
+  }
+
+  void _logConfirmationQuestionAbandoned({required String exitReason}) {
+    if (!_confirmationQuestionActive) return;
+    final timer = _confirmationResponseTimer?..stop();
+    _confirmationQuestionActive = false;
+    unawaited(
+      _analytics.logConfirmationQuizQuestion(
+        action: 'abandoned',
+        quizFormat: _confirmationQuizFormat,
+        responseMs: timer?.elapsedMilliseconds,
+        exitReason: exitReason,
+      ),
+    );
   }
 
   Future<void> _captureVocabBeforeQuiz() async {
@@ -247,6 +316,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   void dispose() {
+    _logConfirmationQuestionAbandoned(exitReason: 'screen_disposed');
     _celebrationController.dispose();
     super.dispose();
   }
@@ -431,9 +501,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       question: question,
       questionIndex: state.index,
       totalQuestions: state.questions.length,
-      showHints: widget.learningSentence == null,
+      showHints: widget.learningSentence == null && !question.isMeaningChoice,
       onShowSentence: widget.onBackToLearningStart,
       onAnswer: (choiceIndex, hintLevel, reviewedSentence) async {
+        _logConfirmationQuestionAnswered(question, choiceIndex);
         await ref.read(quizControllerProvider.notifier).answerQuestion(
               choiceIndex,
               hintLevel: hintLevel,
@@ -701,16 +772,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           ),
         ),
         const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
-            child: _QuizAnswerWordRow(
-              question: question,
-              analyticsSource: 'quiz_summary_confirmation',
-              showSentenceContext: false,
+        if (question.isMeaningChoice && !isCorrect)
+          _MeaningQuizIncorrectReview(question: question)
+        else ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+              child: _QuizAnswerWordRow(
+                question: question,
+                analyticsSource: 'quiz_summary_confirmation',
+                showSentenceContext: false,
+              ),
             ),
           ),
-        ),
+          // 正解でも対象語の解説は読ませる。意味4択は語の理解が目的なので、
+          // 当たった＝分かったとは限らない。
+          if (question.isMeaningChoice)
+            _MeaningWordExplanationCard(question: question),
+        ],
       ],
     );
   }
@@ -1459,7 +1538,26 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text.rich(buildQuizBlankSpan(question.blankText, base)),
+            if (question.isMeaningChoice) ...[
+              Text(
+                question.correctAnswer,
+                key: const ValueKey('quiz_meaning_word'),
+                style: base,
+              ),
+              // 意味4択のローマ字はヒントにしない。読めない語は意味も思い出せず、
+              // 出題そのものが成立しないため常に添える。
+              if (question.pronunciation.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  question.pronunciation,
+                  key: const ValueKey('quiz_meaning_word_pronunciation'),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ] else
+              Text.rich(buildQuizBlankSpan(question.blankText, base)),
             if (showPronunciation) ...[
               const SizedBox(height: 10),
               Text(
@@ -1497,7 +1595,7 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
         widget.showHints && _hintLevel >= 1 && choicePronunciation.isNotEmpty;
     final isSelected = _hasResult && widget.selectedIndex == index;
     final isCorrectChoice =
-        _hasResult && question.choices[index] == question.correctAnswer;
+        _hasResult && question.choices[index] == question.correctChoice;
     final isWrongSelection = isSelected && widget.isCorrect == false;
 
     // 正誤は緑と朱で示す。深藍で塗ると「選んだ」ことしか伝わらず、
@@ -1550,7 +1648,7 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
               question.choices[index],
               // タイ文字は太字にすると声調記号と頭のループが潰れるので w500 まで。
               style: TextStyle(
-                fontSize: 24,
+                fontSize: question.isMeaningChoice ? 18 : 24,
                 fontWeight: FontWeight.w500,
                 color: foreground,
               ),
@@ -1601,8 +1699,9 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
       orElse: () => 0,
     );
     final sentenceDetail = question.sentenceDetail;
-    final canReviewSentence =
-        widget.totalQuestions > 1 && sentenceDetail != null;
+    final canReviewSentence = widget.totalQuestions > 1 &&
+        sentenceDetail != null &&
+        !question.isMeaningChoice;
     final actionBar = _buildActionBar(context);
 
     return Listener(
@@ -1620,7 +1719,9 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      l10n.quizPrompt,
+                      question.isMeaningChoice
+                          ? l10n.quizMeaningPrompt
+                          : l10n.quizPrompt,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -1990,33 +2091,38 @@ class _QuizResultView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // 正解ワード
-                Card(
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
-                    child: Center(
-                      child: _QuizAnswerWordRow(
-                        question: question,
-                        analyticsSource: 'quiz_result',
-                        showSentenceContext: showExplanations,
-                        showCorrectAnswerLabel: showExplanations && !isCorrect,
+                if (question.isMeaningChoice && !isCorrect)
+                  _MeaningQuizIncorrectReview(question: question)
+                else ...[
+                  // 正解ワード
+                  Card(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+                      child: Center(
+                        child: _QuizAnswerWordRow(
+                          question: question,
+                          analyticsSource: 'quiz_result',
+                          showSentenceContext: showExplanations,
+                          showCorrectAnswerLabel:
+                              showExplanations && !isCorrect,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                if (showExplanations &&
-                    _hasQuizExplanationContent(question)) ...[
-                  const SizedBox(height: 16),
-                  _QuizExplanationSection(question: question),
+                  if (showExplanations &&
+                      _hasQuizExplanationContent(question)) ...[
+                    const SizedBox(height: 16),
+                    _QuizExplanationSection(question: question),
+                  ],
                 ],
-                if (showExplanations) ...[
+                if (showExplanations && !question.isMeaningChoice) ...[
                   const SizedBox(height: 16),
                   // 4択（正誤ハイライト付き）
                   ...List.generate(question.choices.length, (i) {
                     final isSelected = i == selectedIndex;
                     final isCorrectChoice =
-                        question.choices[i] == question.correctAnswer;
+                        question.choices[i] == question.correctChoice;
                     Color? choiceAccent;
                     if (isCorrectChoice) {
                       choiceAccent = AppColors.jade;
@@ -2043,7 +2149,7 @@ class _QuizResultView extends StatelessWidget {
                         child: Text(
                           question.choices[i],
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: question.isMeaningChoice ? 18 : 24,
                             fontWeight: FontWeight.w500,
                             color: choiceAccent ??
                                 colorScheme.onSurfaceVariant
@@ -2090,6 +2196,75 @@ class _QuizResultView extends StatelessWidget {
               ),
           ],
         ),
+      ],
+    );
+  }
+}
+
+/// 意味4択で問われた単語そのものの解説。解説が空なら何も出さない。
+class _MeaningWordExplanationCard extends StatelessWidget {
+  final QuizQuestion question;
+
+  const _MeaningWordExplanationCard({required this.question});
+
+  @override
+  Widget build(BuildContext context) {
+    final explanation = question.explanation.trim();
+    if (explanation.isEmpty) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppConfig.defaultPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                L10n.of(context).quizWordExplanation,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                explanation,
+                key: const ValueKey('quiz_word_explanation'),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 意味4択を間違えたときの復習。正解語と、その単語そのものの解説を出す。
+/// 元例文は出題前に読んだばかりなので再掲しない。
+class _MeaningQuizIncorrectReview extends StatelessWidget {
+  final QuizQuestion question;
+
+  const _MeaningQuizIncorrectReview({required this.question});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+            child: _QuizAnswerWordRow(
+              question: question,
+              analyticsSource: 'meaning_quiz_result',
+              showSentenceContext: false,
+              showCorrectAnswerLabel: true,
+            ),
+          ),
+        ),
+        _MeaningWordExplanationCard(question: question),
       ],
     );
   }
@@ -2189,7 +2364,7 @@ class _QuizResultDetail extends StatelessWidget {
           ...List.generate(question.choices.length, (i) {
             final isSelected = i == selectedIndex;
             final isCorrectChoice =
-                question.choices[i] == question.correctAnswer;
+                question.choices[i] == question.correctChoice;
             Color? bgColor;
             Color? borderColor;
             if (isCorrectChoice) {

@@ -391,6 +391,18 @@ abstract class L10n {
   /// **'下線部に入る単語を選んでください'**
   String get quizPrompt;
 
+  /// No description provided for @quizMeaningPrompt.
+  ///
+  /// In ja, this message translates to:
+  /// **'この単語の意味を選んでください'**
+  String get quizMeaningPrompt;
+
+  /// No description provided for @quizWordExplanation.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語の解説'**
+  String get quizWordExplanation;
+
   /// No description provided for @quizProgress.
   ///
   /// In ja, this message translates to:

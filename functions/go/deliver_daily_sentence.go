@@ -188,7 +188,8 @@ type pickedSet struct {
 
 // buildSentences は配信する例文を n 本作る。
 //
-// 生成コアは通常生成と共通の Producer.ProduceBatch（単語選定1回・生成は並列）。
+// 生成コアは通常生成と共通の Producer.ProduceBatch（単語選定1回・生成は語ごとに並列）。
+// テーマは premium のおまかせだけセット内で散る（sentence.SelectTargetWords）。
 // n 本に満たなくても、揃ったぶんだけ配信する。
 // 訳文の言語はサーバー起点でリクエストが無いため、クライアントが
 // users/{uid}.app_language にミラーした設定から解決する。渡し忘れると

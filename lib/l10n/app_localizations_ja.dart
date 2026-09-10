@@ -169,6 +169,12 @@ class L10nJa extends L10n {
   String get quizPrompt => '下線部に入る単語を選んでください';
 
   @override
+  String get quizMeaningPrompt => 'この単語の意味を選んでください';
+
+  @override
+  String get quizWordExplanation => '単語の解説';
+
+  @override
   String quizProgress(int index, int total) {
     return '問題 $index / $total';
   }

@@ -2,6 +2,7 @@ package function
 
 import (
 	"log"
+	"strings"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
 )
@@ -30,22 +31,55 @@ func toQuizSeedSourceFromSelected(sentence selectedSentence) quizSeedSource {
 		return s
 	}
 
+	seed := quizgen.QuizSentenceSeed{
+		QuizFormat:           quizgen.FormatClozeChoice,
+		ThaiText:             str("thai_text"),
+		Words:                seedWords(data),
+		Pronunciation:        str("pronunciation"),
+		JapaneseTranslation:  str("japanese_translation"),
+		KeyWord:              str("key_word"),
+		KeyWordPronunciation: str("key_word_pronunciation"),
+		KeyWordMeaning:       resolveKeyWordMeaning(data),
+	}
 	return quizSeedSource{
-		Seed: quizgen.QuizSentenceSeed{
-			ThaiText:             str("thai_text"),
-			Words:                seedWords(data),
-			Pronunciation:        str("pronunciation"),
-			JapaneseTranslation:  str("japanese_translation"),
-			KeyWord:              str("key_word"),
-			KeyWordPronunciation: str("key_word_pronunciation"),
-			KeyWordMeaning:       resolveKeyWordMeaning(data),
-		},
+		Seed:                  seed,
 		SentenceID:            sentence.ID,
 		SrsInterval:           sentence.SrsInterval,
 		JapaneseTranslation:   str("japanese_translation"),
 		SentencePronunciation: str("pronunciation"),
 		SentenceDetail:        buildSentenceDetail(data, sentence.ID, nil),
 	}
+}
+
+// meaningChoicesFromSentence は同じ例文の word_breakdown から意味4択を作る。
+// 対象語の意味を正解として先頭に置き、後段の Sanitizer で順序を混ぜる。
+// 4件揃わない例文は意味問題にせず、従来の穴埋めへフォールバックする。
+func meaningChoicesFromSentence(data map[string]any, correctMeaning string) []string {
+	correct := strings.TrimSpace(correctMeaning)
+	if correct == "" {
+		return nil
+	}
+
+	seen := map[string]bool{correct: true}
+	var dummies []string
+	wordBreakdown, _ := data["word_breakdown"].([]any)
+	for _, raw := range wordBreakdown {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		meaning := strings.TrimSpace(quizgen.NormalizeTextValue(item["meaning"]))
+		if meaning == "" || seen[meaning] {
+			continue
+		}
+		seen[meaning] = true
+		dummies = append(dummies, meaning)
+	}
+	if len(dummies) < 3 {
+		return nil
+	}
+	shuffleN(len(dummies), func(i, j int) { dummies[i], dummies[j] = dummies[j], dummies[i] })
+	return append([]string{correct}, dummies[:3]...)
 }
 
 // buildLearningQuizSource は学習フローから渡された例文を生成元にする。
@@ -72,6 +106,7 @@ func buildLearningQuizSource(payload map[string]any) (quizSeedSource, bool) {
 
 	return quizSeedSource{
 		Seed: quizgen.QuizSentenceSeed{
+			QuizFormat:           quizgen.FormatClozeChoice,
 			ThaiText:             thaiText,
 			Words:                seedWords(payload),
 			Pronunciation:        pronunciation,
@@ -86,6 +121,24 @@ func buildLearningQuizSource(payload map[string]any) (quizSeedSource, bool) {
 		SentencePronunciation: pronunciation,
 		SentenceDetail:        sentenceDetail,
 	}, true
+}
+
+// buildLearningQuizSourceForClient は対応を明示した新クライアントの確認クイズだけを
+// 意味4択にする。未宣言の1.4.8以前と、選択肢が4件揃わない例文は穴埋めのまま。
+func buildLearningQuizSourceForClient(
+	payload map[string]any, supportsMeaningChoice bool,
+) (quizSeedSource, bool) {
+	source, ok := buildLearningQuizSource(payload)
+	if !ok || !supportsMeaningChoice {
+		return source, ok
+	}
+	choices := meaningChoicesFromSentence(payload, source.Seed.KeyWordMeaning)
+	if len(choices) != 4 {
+		return source, ok
+	}
+	source.Seed.QuizFormat = quizgen.FormatMeaningChoice
+	source.Seed.MeaningChoices = choices
+	return source, ok
 }
 
 type sentenceFallback struct {
@@ -208,6 +261,7 @@ func toQuizQuestion(
 			source.SentencePronunciation, source.Seed.KeyWordPronunciation),
 		DummyReasons:   question.DummyReasons,
 		SentenceDetail: source.SentenceDetail,
+		QuizFormat:     question.QuizFormat,
 	}
 }
 

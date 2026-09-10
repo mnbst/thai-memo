@@ -90,6 +90,8 @@
     }
   },
   "quizPrompt": "Choose the word that fits the blank",
+  "quizMeaningPrompt": "Choose the meaning of this word",
+  "quizWordExplanation": "Word explanation",
   "quizProgress": "Question {index} of {total}",
   "@quizProgress": {
     "placeholders": {

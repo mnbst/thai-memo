@@ -291,6 +291,12 @@ class BackendApiService {
 
       final result = await callable.call({
         'lang': _lang(),
+        // 確認クイズだけ意味4択に対応する。これを送らない1.4.8以前には
+        // サーバーが従来の穴埋めを返す。
+        'supported_quiz_formats': [
+          QuizQuestion.clozeChoiceFormat,
+          QuizQuestion.meaningChoiceFormat,
+        ],
         'sentence': {
           'sentence_id': sentenceId,
           'thai_text': sentence.thaiText,

@@ -181,6 +181,12 @@ class L10nEn extends L10n {
   String get quizPrompt => 'Choose the word that fits the blank';
 
   @override
+  String get quizMeaningPrompt => 'Choose the meaning of this word';
+
+  @override
+  String get quizWordExplanation => 'Word explanation';
+
+  @override
   String quizProgress(int index, int total) {
     return 'Question $index of $total';
   }

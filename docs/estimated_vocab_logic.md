@@ -352,13 +352,40 @@ Firestoreの `users/{uid}.estimated_vocab` を効率的に更新する。
 | 例文生成後（exposure更新後） | `sentence_handlers.py` |
 | クイズ結果更新後 | `uvm.py:batch_update_uvm()` |
 
+### P に下限を置く（`PFloor`、2026-09）
+
+`UpdateP` は odds の掛け算なので、下限が無いと間違え続けた語の P はいくらでも
+0 に近づく。出題は低 P 語優先（`selectSrsSentences` / `selectFillerSentencesByUvm`）
+なので、一度沈んだ語が毎日出続けて「間違えた問題の再出題がしつこい」状態になっていた。
+
+`PFloor = 0.15` は **「ヒント無し・等倍で 2 回連続正解したら必ず P>0.5 に戻る」**
+から決めた値。hint0 の正解は odds を `(1-s)/g = 2.4286` 倍するので 2 問で 5.898 倍、
+P=0.5（odds 1）に届く下限 odds は `1/5.898 = 0.1695` ＝ P >= 0.145。
+
+```
+0.150 --正解--> 0.300 --正解--> 0.510
+              (>0.3 weak脱出)  (>0.42 cutoff, >0.5 既知)
+```
+
+`daily_batch.go` の `pDecayMin` も `uvm.PFloor` に揃える。ここだけ 0 のままだと
+0.001/日 の減衰で 150 日かけて下限の下へ沈み、保証が崩れる。同じループが
+`PFloor` 導入前に沈んだ doc を下限まで引き上げる（移行）。旧則 `UpdatePAlpha` と
+`ExposureP` は golden データが 0 前提なので `PMin`(0.0) のまま。
+
+**代償は境界の上振れ。** 知らない語も 0.15 より下へ行けないぶん `MovingAvg` が
+上がる。d90（`TestVocabMatrix`）は 真値150 が 204→218、350 が 411→432、
+700 が 794→814。誤既知は g_true=.25・真値150 で 2.9/21.8 → 7.8/33.0
+（`TestUpdateRuleWorld`）。0.145 が閾値 0.5 を満たす最小値なので、この保証を
+維持したまま代償を減らす余地はほぼ無い。
+
 ## 定数
 
 | 定数 | 値 | 用途 |
 |------|----|------|
 | `UnknownWordP` | 0.4 | `ExposureCap` の基準値（推定の prior としては使わない） |
 | `VocabCutoffP` | 0.42 | スキャンを打ち切る平均 P の閾値 |
-| `NewWordP` | 0.1 | UVM新規登録時の初期 P |
+| `NewWordP` | = `UnknownWordP`(0.4) | UVM新規登録時の初期 P |
+| `PFloor` | 0.15 | `UpdateP` が返す P の下限（2 連続正解で P>0.5 に戻る保証）|
 
 `TestKnownP`(0.8) は 2026-09-04 に、`TestSeedP` は 2026-09-06 に廃止した
 （「語彙テストは UVM に何も書かない」を参照）。

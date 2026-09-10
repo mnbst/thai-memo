@@ -1,6 +1,6 @@
 // =============================================================================
 // quiz_question.dart
-// 穴埋めクイズの問題モデル。
+// 穴埋め・意味4択クイズの問題モデル。
 // Cloud Functions (generateQuiz) がGeminiで生成したクイズ問題を表現する。
 // 例文の一部を空欄にし、4択から正解を選ぶ形式。
 // SRS（間隔反復）による復習間隔(srsInterval)も保持。
@@ -9,14 +9,18 @@
 import '../../core/pronunciation_text.dart';
 import 'thai_sentence.dart';
 
-/// 穴埋めクイズ問題モデル
+/// クイズ問題モデル
 ///
 /// blankText: 空欄部分を _____ に置換した文
 /// choices: 4つの選択肢（正解を含む）
 /// correctAnswer: 正解のタイ語テキスト
 /// correctAnswerMeaning: 正解単語の日本語の意味
 /// srsInterval: SRS復習間隔（日数）
+/// quizFormat: cloze_choice（穴埋め）/ meaning_choice（単語→意味）
 class QuizQuestion {
+  static const clozeChoiceFormat = 'cloze_choice';
+  static const meaningChoiceFormat = 'meaning_choice';
+
   final String sentenceId;
   final String thaiText;
   final String blankText;
@@ -32,6 +36,13 @@ class QuizQuestion {
   final String blankSentencePronunciation;
   final List<String> dummyReasons;
   final ThaiSentence? sentenceDetail;
+  final String quizFormat;
+
+  bool get isMeaningChoice => quizFormat == meaningChoiceFormat;
+
+  /// 選択肢に実際に入る正解。意味4択でもUVMへ送る語はcorrectAnswerのまま。
+  String get correctChoice =>
+      isMeaningChoice ? correctAnswerMeaning : correctAnswer;
 
   const QuizQuestion({
     required this.sentenceId,
@@ -49,6 +60,7 @@ class QuizQuestion {
     this.blankSentencePronunciation = '',
     this.dummyReasons = const [],
     this.sentenceDetail,
+    this.quizFormat = clozeChoiceFormat,
   });
 
   factory QuizQuestion.fromJson(Map<String, dynamic> json) {
@@ -90,6 +102,7 @@ class QuizQuestion {
       sentenceDetail: sentenceDetailJson != null
           ? ThaiSentence.fromJson(sentenceDetailJson)
           : null,
+      quizFormat: json['quiz_format']?.toString() ?? clozeChoiceFormat,
     );
   }
 
@@ -128,5 +141,6 @@ class QuizQuestion {
         'blank_sentence_pronunciation': blankSentencePronunciation,
         'dummy_reasons': dummyReasons,
         if (sentenceDetail != null) 'sentence_detail': sentenceDetail!.toJson(),
+        'quiz_format': quizFormat,
       };
 }

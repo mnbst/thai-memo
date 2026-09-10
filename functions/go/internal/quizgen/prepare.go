@@ -2,6 +2,13 @@ package quizgen
 
 import "strings"
 
+func quizFormatOf(sentence QuizSentenceSeed) string {
+	if sentence.QuizFormat == FormatMeaningChoice {
+		return FormatMeaningChoice
+	}
+	return FormatClozeChoice
+}
+
 // blankTarget は空欄にする語とその読み・意味。
 type blankTarget struct {
 	Word          string
@@ -96,6 +103,8 @@ func PrepareInputs(sentences []QuizSentenceSeed) []PreparedQuizSentenceSeed {
 			Pronunciation:        pronunciation,
 			CorrectAnswerMeaning: meaning,
 			JapaneseTranslation:  normalizeText(sentence.JapaneseTranslation),
+			QuizFormat:           sentence.QuizFormat,
+			MeaningChoices:       uniqueTexts(sentence.MeaningChoices),
 		})
 	}
 	return out
@@ -108,7 +117,22 @@ func IsSeedReady(sentence QuizSentenceSeed) bool {
 		return false
 	}
 	p := prepared[0]
+	if p.QuizFormat == FormatMeaningChoice {
+		return p.CorrectAnswer != "" &&
+			p.CorrectAnswerMeaning != "" &&
+			len(p.MeaningChoices) == 4 &&
+			containsText(p.MeaningChoices, p.CorrectAnswerMeaning)
+	}
 	return p.CorrectAnswer != "" && containsBlank(p.BlankText)
+}
+
+func containsText(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 // ApplyRuleBasedFields はモデルの出力に、こちらで確定済みの項目を合成する。
@@ -139,9 +163,14 @@ func ApplyRuleBasedFields(
 			Pronunciation:        p.Pronunciation,
 			Explanation:          draft.Explanation,
 			DummyReasons:         draft.DummyReasons,
+			QuizFormat:           p.QuizFormat,
 		}
 
-		if !hasPrepared || p.CorrectAnswer == "" || !containsBlank(p.BlankText) {
+		if hasPrepared && p.QuizFormat == FormatMeaningChoice &&
+			p.CorrectAnswer != "" && p.CorrectAnswerMeaning != "" &&
+			len(p.MeaningChoices) == 4 {
+			question.Choices = append([]string(nil), p.MeaningChoices...)
+		} else if !hasPrepared || p.CorrectAnswer == "" || !containsBlank(p.BlankText) {
 			// 空欄を作れていない。正解を選択肢に混ぜず、後段の検査に落とさせる。
 			question.Choices = draft.Dummies
 		} else {

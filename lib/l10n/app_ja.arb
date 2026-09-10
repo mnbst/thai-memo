@@ -104,6 +104,8 @@
     }
   },
   "quizPrompt": "下線部に入る単語を選んでください",
+  "quizMeaningPrompt": "この単語の意味を選んでください",
+  "quizWordExplanation": "単語の解説",
   "quizProgress": "問題 {index} / {total}",
   "@quizProgress": {
     "placeholders": {

@@ -233,6 +233,7 @@ class QuizController extends StateNotifier<QuizState> {
   /// 回答ごとに非同期で送信されるUVM更新のFutureリスト。
   /// まとめクイズのサマリー表示前にすべての完了を待つ。
   final List<Future<void>> _pendingUvmUpdates = [];
+  Stopwatch? _questionResponseTimer;
 
   /// DB保存待ちの連打で、同じ回答・統計を二重記録しないためのガード。
   bool _isAnswering = false;
@@ -340,6 +341,9 @@ class QuizController extends StateNotifier<QuizState> {
     if (savedState != null) {
       _preparedSentenceId = sentenceId;
       state = savedState;
+      if (savedState is QuizAnswering) {
+        _questionResponseTimer = Stopwatch()..start();
+      }
       _quizOfferAnsweredLogged = switch (savedState) {
         QuizAnswering s => s.answers.isNotEmpty,
         QuizShowResult() || QuizSummary() => true,
@@ -421,6 +425,9 @@ class QuizController extends StateNotifier<QuizState> {
     final savedState = await _loadQuizState(_savedSummaryQuizKey);
     if (savedState != null) {
       state = savedState;
+      if (savedState is QuizAnswering) {
+        _questionResponseTimer = Stopwatch()..start();
+      }
       return;
     }
 
@@ -460,6 +467,7 @@ class QuizController extends StateNotifier<QuizState> {
     _quizOfferStartedLogged = false;
     _quizOfferAnsweredLogged = false;
     _pendingUvmUpdates.clear();
+    _questionResponseTimer = null;
     unawaited(_enqueueQuizStateClear(_savedConfirmationQuizKey));
     unawaited(_enqueueQuizStateClear(_savedSummaryQuizKey));
     state = const QuizInitial();
@@ -470,8 +478,8 @@ class QuizController extends StateNotifier<QuizState> {
   /// 以下のいずれかに該当する場合、不正と判定:
   ///   - 選択肢が4つでない
   ///   - 正解がタイ語でない（英字・日本語・漢字を含む）
-  ///   - 正解が選択肢リストに含まれていない
-  ///   - いずれかの選択肢がタイ語でない
+  ///   - 形式に応じた正解が選択肢リストに含まれていない
+  ///   - 穴埋めなのに、いずれかの選択肢がタイ語でない
   /// Gemini APIが稀に不正な選択肢を返すことがあるため、この検証が必要。
   bool _hasInvalidQuizChoices(List<QuizQuestion> questions) {
     return questions.any((question) {
@@ -481,8 +489,15 @@ class QuizController extends StateNotifier<QuizState> {
       if (!_isThaiChoice(question.correctAnswer)) {
         return true;
       }
-      if (!question.choices.contains(question.correctAnswer)) {
+      if (question.correctChoice.trim().isEmpty ||
+          !question.choices.contains(question.correctChoice)) {
         return true;
+      }
+      if (question.choices.map((choice) => choice.trim()).toSet().length != 4) {
+        return true;
+      }
+      if (question.isMeaningChoice) {
+        return question.choices.any((choice) => choice.trim().isEmpty);
       }
       return question.choices.any((choice) => !_isThaiChoice(choice));
     });
@@ -501,6 +516,7 @@ class QuizController extends StateNotifier<QuizState> {
   void _enterAnswering(List<QuizQuestion> questions) {
     final answeringState = QuizAnswering(questions, 0, []);
     state = answeringState;
+    _questionResponseTimer = Stopwatch()..start();
     if (!_isLearningQuiz) {
       unawaited(
         _enqueueQuizStateSave(_savedSummaryQuizKey, answeringState),
@@ -557,7 +573,8 @@ class QuizController extends StateNotifier<QuizState> {
 
     _isAnswering = true;
     try {
-      final isCorrect = question.choices[choiceIndex] == question.correctAnswer;
+      final responseTimer = _questionResponseTimer?..stop();
+      final isCorrect = question.choices[choiceIndex] == question.correctChoice;
       final newAnswers = [...s.answers, isCorrect];
       final newSelectedIndices = [...s.selectedIndices, choiceIndex];
       final newHintLevels = <int>[...s.hintLevels ?? const [], hintLevel];
@@ -640,6 +657,9 @@ class QuizController extends StateNotifier<QuizState> {
           category: _isLearningQuiz ? 'learning' : 'summary',
           questionIndex: s.index + 1,
           source: _quizOfferSource,
+          quizFormat: question.quizFormat,
+          srsInterval: question.srsInterval,
+          responseMs: responseTimer?.elapsedMilliseconds,
         ),
       );
     } finally {
@@ -667,6 +687,7 @@ class QuizController extends StateNotifier<QuizState> {
           s.sentenceReviewFlags ?? const [],
         );
         state = answeringState;
+        _questionResponseTimer = Stopwatch()..start();
         if (!_isLearningQuiz) {
           unawaited(
             _enqueueQuizStateSave(_savedSummaryQuizKey, answeringState),

@@ -25,6 +25,7 @@ type selectedSentence struct {
 
 // generateQuestionsFromSources は生成元ごとに1問ずつ作る。
 // 失敗した分は1度だけ作り直す（key_word 不一致が主な失敗理由）。
+// 意味4択だけが失敗した場合は、同じ例文の穴埋めへ戻して問題数を保つ。
 func generateQuestionsFromSources(
 	ctx context.Context, service quizService, sources []quizSeedSource,
 ) []quizQuestion {
@@ -70,6 +71,17 @@ func generateQuestionsFromSources(
 			}(i)
 		}
 		wg.Wait()
+	}
+
+	for i, q := range results {
+		if q != nil || ready[i].Seed.QuizFormat != quizgen.FormatMeaningChoice {
+			continue
+		}
+		fallback := ready[i]
+		fallback.Seed.QuizFormat = quizgen.FormatClozeChoice
+		fallback.Seed.MeaningChoices = nil
+		log.Printf("meaning_quiz_falling_back_to_cloze sentenceId=%s", fallback.SentenceID)
+		results[i] = generateSingleQuizQuestion(ctx, service, fallback, 2)
 	}
 
 	out := make([]quizQuestion, 0, len(results))

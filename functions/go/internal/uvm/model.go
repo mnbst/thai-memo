@@ -22,8 +22,31 @@ const (
 	// RankScaleRef はこの rank で alpha_max が上限・下限の中間値になる。
 	RankScaleRef = 600
 
-	PMin = 0.0 // P の下限
+	// PMin は P のクリップ下限。旧則 UpdatePAlpha と ExposureP 専用で、
+	// 本番の UpdateP は PFloor を使う（golden データが 0 前提のため動かせない）。
+	PMin = 0.0
 	PMax = 0.99
+
+	// PFloor は UpdateP が返す P の下限。**0 にしてはいけない。**
+	//
+	// 尤度比の更新は odds の掛け算なので、下限が無いと間違え続けた語の odds は
+	// いくらでも 0 に近づき、そこからは何回正解しても閾値へ戻れない。出題は
+	// 低 P 語優先（selectSrsSentences / selectFillerSentencesByUvm）なので、
+	// 一度沈んだ語が毎日出続ける「しつこい再出題」になっていた。
+	//
+	// 0.15 は「ヒント無し・等倍で 2 回連続正解したら必ず P>0.5 に戻る」から
+	// 決めた値。hint0 の正解は odds を (1-s)/g = 2.4286 倍するので 2 問で
+	// 5.898 倍、P=0.5（odds 1）に届く下限 odds は 1/5.898 = 0.1695、
+	// すなわち P >= 0.145。
+	//
+	//	0.150 --正解--> 0.300 --正解--> 0.510
+	//
+	// 途中で weakPThreshold(0.3) と cutoff(0.42) も越えるので、復習優先度から
+	// 抜けるのと既知判定に載るのが同時に起きる。TestUpdatePRecovery が固定。
+	//
+	// PFloor < cutoff(0.42) なので、境界推定では「知らない」側の票のままである
+	// ことは変わらない（窓 21 ランクが全部 PFloor でも平均 0.15）。
+	PFloor = 0.15
 	// UnknownWordP は UVM 未登録語の prior P。
 	UnknownWordP = 0.4
 	// NewWordP は新規単語の初期 P 値。prior と同じ値でなければならない。
@@ -104,7 +127,10 @@ func UpdateP(p float64, correct bool, hintLevel int, weight float64) float64 {
 		lr = (1 - BayesSlip) / g
 	}
 	odds := p / (1 - p) * math.Pow(lr, weight)
-	return math.Max(PMin, math.Min(PMax, odds/(1+odds)))
+	// 下限は PFloor。ただし移行前の doc など既に PFloor を下回っている P を
+	// 不正解で引き上げてしまわないよう、その場合は元の P を下限にする。
+	lower := math.Min(PFloor, p)
+	return math.Max(lower, math.Min(PMax, odds/(1+odds)))
 }
 
 // MovingAvg は rank 周辺の平均習熟度（uvm.py:moving_avg）。

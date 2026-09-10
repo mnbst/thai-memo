@@ -93,17 +93,38 @@ type TargetWordSelector struct {
 // （sentence_service.py:require_target_words:346 の RuntimeError）。
 var ErrNoTargetWords = errors.New("No target words selected from UVM")
 
+// TargetWord は選定した key_word と、その語に割り当てるテーマ。
+//
+// テーマを語ごとに持たせるのは、1回の選定で複数本まとめて作る（5本セット）
+// ときに、セット全部が1テーマに揃わないようにするため。
+type TargetWord struct {
+	Word  string
+	Topic string
+}
+
 // SelectTargetWords はテーマを決めたうえで UVM からターゲット語を選ぶ
 // （sentence_service.py:select_uvm_target_words + require_target_words）。
 //
-// key_word 先行方式: 帯域内から key_word を選出し、embedding で最適テーマを
-// 決める。テーマが明示指定されていればそのまま使う。
+// count 本まとめて引ける。GetSessionWords はプールから外しながら引くので、
+// 1回の呼び出しで返る語は重複しない。逆に呼び出しをまたぐ排他は無いので、
+// セットを作るときは分けずにここで count 本を引くこと。
+//
+// テーマの決め方は ChooseTopic に従う。
+//
+//	テーマ指定あり : 指定値。全部の語が同じテーマ（key_word はテーマで絞られる）
+//	free おまかせ  : 一様抽選で1つ。全部の語が同じテーマ（同上）
+//	premium おまかせ: 語ごとに embedding で決める（テーマは語を絞らない）
+//
+// premium だけ語ごとになるのは、ChooseTopic が premium にはテーマを確定せず
+// 候補プールだけ渡すため。テーマによる候補の絞り込みが無く、語の選定と
+// テーマの決定が独立している。free を同じ形にすると、テーマ分布が embedding の
+// 重心に引きずられて BLドラマへ偏る（ChooseTopic のコメント参照）。
 func (s *TargetWordSelector) SelectTargetWords(
 	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
 	uid string, params map[string]any,
 	maxVocab *int, count int, isPremium bool, estimatedVocab *int,
 	testedVocab int,
-) ([]string, string, error) {
+) ([]TargetWord, error) {
 	vocab := 0
 	if estimatedVocab != nil {
 		vocab = *estimatedVocab
@@ -120,12 +141,41 @@ func (s *TargetWordSelector) SelectTargetWords(
 		TestedVocab:    testedVocab,
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if len(words) == 0 {
-		return nil, "", ErrNoTargetWords
+		return nil, ErrNoTargetWords
 	}
-	return words, topic, nil
+
+	return assignTopics(ctx, words, topic, choice, s.Session.Emb)
+}
+
+// assignTopics は選定した語にテーマを割り当てる。
+//
+// テーマが選定前に確定していれば（テーマ指定あり / free おまかせ）全部そのテーマ。
+// 確定していなければ（premium おまかせ）語ごとに embedding で決める。
+// GetSessionWords が決めるのは 1 本目ぶんだけなので、2 本目以降をここで埋める。
+func assignTopics(
+	ctx context.Context, words []string, firstTopic string,
+	choice TopicChoice, emb uvm.TopicEmbedder,
+) ([]TargetWord, error) {
+	out := make([]TargetWord, len(words))
+	for i, w := range words {
+		out[i] = TargetWord{Word: w, Topic: firstTopic}
+	}
+	if choice.Topic != "" || emb == nil {
+		return out, nil
+	}
+	for i := 1; i < len(out); i++ {
+		topic, err := emb.FindBestTopic(
+			ctx, out[i].Word, choice.Pool, uvm.TopicMatchTopK, uvm.TopicMatchThreshold)
+		if err != nil {
+			return nil, err
+		}
+		// 閾値未達は "" のまま。LLM にテーマを委ねる（1 本目と同じ扱い）。
+		out[i].Topic = topic
+	}
+	return out, nil
 }
 
 func (s *TargetWordSelector) float64n() float64 {

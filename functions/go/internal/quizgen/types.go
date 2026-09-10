@@ -1,8 +1,14 @@
 package quizgen
 
+const (
+	FormatClozeChoice   = "cloze_choice"
+	FormatMeaningChoice = "meaning_choice"
+)
+
 // QuizSentenceSeed はクイズ生成の入力（例文1件ぶん）。
 type QuizSentenceSeed struct {
-	ThaiText string `json:"thai_text"`
+	QuizFormat string `json:"quiz_format,omitempty"`
+	ThaiText   string `json:"thai_text"`
 	// Words は word_breakdown の語（出現順）。空欄を語の境界に合わせるために使う。
 	// 空なら本文の部分一致で位置を決める（語の途中を空欄にしうる）。
 	Words                []string `json:"words,omitempty"`
@@ -11,17 +17,22 @@ type QuizSentenceSeed struct {
 	KeyWord              string   `json:"key_word"`
 	KeyWordPronunciation string   `json:"key_word_pronunciation"`
 	KeyWordMeaning       string   `json:"key_word_meaning"`
+	// MeaningChoices は意味4択の正解を含む4件。例文の word_breakdown から
+	// ルールベースで確定し、モデルには変更させない。
+	MeaningChoices []string `json:"meaning_choices,omitempty"`
 }
 
 // PreparedQuizSentenceSeed は穴埋め位置を確定させた入力。
 type PreparedQuizSentenceSeed struct {
-	SourceIndex          int    `json:"source_index"`
-	ThaiText             string `json:"thai_text"`
-	BlankText            string `json:"blank_text"`
-	CorrectAnswer        string `json:"correct_answer"`
-	Pronunciation        string `json:"pronunciation"`
-	CorrectAnswerMeaning string `json:"correct_answer_meaning"`
-	JapaneseTranslation  string `json:"japanese_translation"`
+	SourceIndex          int      `json:"source_index"`
+	ThaiText             string   `json:"thai_text"`
+	BlankText            string   `json:"blank_text"`
+	CorrectAnswer        string   `json:"correct_answer"`
+	Pronunciation        string   `json:"pronunciation"`
+	CorrectAnswerMeaning string   `json:"correct_answer_meaning"`
+	JapaneseTranslation  string   `json:"japanese_translation"`
+	QuizFormat           string   `json:"quiz_format,omitempty"`
+	MeaningChoices       []string `json:"meaning_choices,omitempty"`
 }
 
 // Draft はモデルが返す3項目。blank_text と correct_answer は
@@ -47,4 +58,5 @@ type GeneratedQuizQuestion struct {
 	JapaneseTranslation   string   `json:"japanese_translation"`
 	SentencePronunciation string   `json:"sentence_pronunciation"`
 	DummyReasons          []string `json:"dummy_reasons"`
+	QuizFormat            string   `json:"quiz_format,omitempty"`
 }

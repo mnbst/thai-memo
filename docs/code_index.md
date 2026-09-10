@@ -528,6 +528,12 @@ Secret Manager からシークレットを読む。環境変数による差し�
 functions/go/generate_quiz.go
 generateQuiz / generateLearningQuiz の Go 版。エントリポイントと定数、Geminiクライアントの生成。
 
+functions/go/word_explanation_cache.go
+意味4択の単語解説をFirestore `word_explanations` に貯めて使い回す quizService ラッパー。
+
+functions/go/word_explanation_cache_test.go
+キャッシュヒット時にモデルを呼ばないこと・穴埋めは対象外・意味違いが別キーになることの確認。
+
 functions/go/generate_quiz_sources.go
 クイズ生成元の組み立て。sentence_detail・key_word意味の解決・クライアント向け1問への変換。
 

@@ -25,7 +25,7 @@ type WordSelector interface {
 		uid string, params map[string]any,
 		maxVocab *int, count int, isPremium bool, estimatedVocab *int,
 		testedVocab int,
-	) ([]string, string, error)
+	) ([]TargetWord, error)
 }
 
 // CachedSentences は free 例文バンク。実装は FreeBank。
@@ -92,12 +92,16 @@ func (p *Producer) Produce(
 	return produced[0], nil
 }
 
-// ProduceBatch は同じテーマで n 本まとめて作る（毎日配信の5本セット）。
+// ProduceBatch は n 本まとめて作る（毎日配信の5本セット）。
 //
-// 単語選定は1回にまとめる。並列に呼ぶと各呼び出しが同じ UVM 状態を見るため
-// key_word が重複する。排他は SelectTargetWords（GetSessionWords）が保証する。
-// そのあとの LLM 生成だけ並列に回す（同時50本まで劣化しないことを実測済み。
-// 設計 docs/design_daily_sentence_batch.md §3.1）。
+// 単語選定は1回にまとめる。GetSessionWords はプールから外しながら引くので、
+// 1回の呼び出しで返る n 語は重複しない。呼び出しをまたぐ排他は無いため、
+// 分けて引くと同じ key_word が同じセットに2本入りうる。
+// そのあとの LLM 生成だけ語ごとに並列で回す（同時50本まで劣化しないことを
+// 実測済み。設計 docs/design_daily_sentence_batch.md §3.1）。
+//
+// テーマは語ごと（TargetWord.Topic）。premium のおまかせだけセット内で散り、
+// テーマ指定あり・free おまかせは全部同じテーマになる（SelectTargetWords 参照）。
 //
 // 戻り値は選定順。n 本に満たなくても揃ったぶんを返し、1本も作れなければ
 // 空スライスを返す（CacheOnly の全ミス）。生成が全滅したときだけエラーを返す。
@@ -124,11 +128,6 @@ func (p *Producer) ProduceBatch(
 	// CacheOnly（毎日配信の free 経路）でバンクが無ければ配信しない。
 	useBank := !req.UsePremiumSpec && p.Bank != nil
 
-	params := map[string]any{}
-	for k, v := range req.Params {
-		params[k] = v
-	}
-
 	results := make([]*Produced, 0, n)
 	used := map[string]bool{}
 	retries := max(1, req.SelectRetry)
@@ -137,44 +136,40 @@ func (p *Producer) ProduceBatch(
 		if want <= 0 {
 			break
 		}
-		words, topic, err := p.Selector.SelectTargetWords(
-			ctx, db, freqRank, req.UID, params,
+		selected, err := p.Selector.SelectTargetWords(
+			ctx, db, freqRank, req.UID, req.Params,
 			maxVocab, want, usePremiumPrompt, &req.EstimatedVocab, req.TestedVocab,
 		)
 		if err != nil {
 			return nil, err
 		}
-		if n > 1 {
-			// セット内でテーマを揃える。引き直しでも同じテーマを引くよう、
-			// 1回目で決まったテーマを以降の選定に渡す。
-			params["topic"] = topic
-		}
-
-		fresh := make([]string, 0, len(words))
-		for _, w := range words {
-			if !used[w] {
-				used[w] = true
-				fresh = append(fresh, w)
+		// 引き直し（CacheOnly）は前の周と別の呼び出しなので、そこだけ重複しうる。
+		fresh := make([]TargetWord, 0, len(selected))
+		for _, tw := range selected {
+			if used[tw.Word] {
+				continue
 			}
+			used[tw.Word] = true
+			fresh = append(fresh, tw)
 		}
 
 		missed := fresh
 		if useBank {
 			missed = missed[:0:0]
-			for _, w := range fresh {
-				cached, err := p.Bank.Pick(ctx, w, req.Lang, topic)
+			for _, tw := range fresh {
+				cached, err := p.Bank.Pick(ctx, tw.Word, req.Lang, tw.Topic)
 				if err != nil {
 					return nil, err
 				}
 				if cached == nil {
-					missed = append(missed, w)
+					missed = append(missed, tw)
 					continue
 				}
 				cached.GenerationTier = GenerationTier(req.UsePremiumSpec)
 				results = append(results, &Produced{
 					Sentence:    cached,
-					TargetWords: []string{w},
-					ChosenTopic: topic,
+					TargetWords: []string{tw.Word},
+					ChosenTopic: tw.Topic,
 					FromCache:   true,
 				})
 			}
@@ -184,7 +179,7 @@ func (p *Producer) ProduceBatch(
 			continue
 		}
 
-		generated, err := p.generate(ctx, req, params, topic, missed)
+		generated, err := p.generate(ctx, req, missed)
 		results = append(results, generated...)
 		if len(results) == 0 && err != nil {
 			return nil, err
@@ -194,32 +189,32 @@ func (p *Producer) ProduceBatch(
 	return results, nil
 }
 
-// generate は語ごとに LLM 生成を並列で回す。戻り値は語の順。
+// generate は語ごとに LLM 生成を並列で回す。戻り値は選定順。
 //
+// テーマは語ごと（TargetWord.Topic）。
 // 一部が失敗しても成功したぶんを返す（配信は揃った本数で行う）。
 // エラーは最初の1件だけ返し、呼び出し側は全滅のときだけエラーとして扱う。
 func (p *Producer) generate(
-	ctx context.Context, req ProduceRequest, params map[string]any,
-	topic string, words []string,
+	ctx context.Context, req ProduceRequest, picks []TargetWord,
 ) ([]*Produced, error) {
-	if len(words) == 0 {
+	if len(picks) == 0 {
 		return nil, nil
 	}
-	produced := make([]*Produced, len(words))
-	errs := make([]error, len(words))
+	produced := make([]*Produced, len(picks))
+	errs := make([]error, len(picks))
 	var wg sync.WaitGroup
-	for i, w := range words {
+	for i, pk := range picks {
 		wg.Add(1)
-		go func(i int, w string) {
+		go func(i int, pk TargetWord) {
 			defer wg.Done()
 			callParams := map[string]any{}
-			for k, v := range params {
+			for k, v := range req.Params {
 				callParams[k] = v
 			}
-			callParams["topic"] = topic
+			callParams["topic"] = pk.Topic
 
 			s, err := p.Service.GenerateSentence(
-				ctx, callParams, req.UsePremiumSpec, []string{w}, req.EstimatedVocab, req.Lang)
+				ctx, callParams, req.UsePremiumSpec, []string{pk.Word}, req.EstimatedVocab, req.Lang)
 			if err != nil {
 				errs[i] = err
 				return
@@ -227,14 +222,14 @@ func (p *Producer) generate(
 			s.GenerationTier = GenerationTier(req.UsePremiumSpec)
 			produced[i] = &Produced{
 				Sentence:    s,
-				TargetWords: []string{w},
-				ChosenTopic: topic,
+				TargetWords: []string{pk.Word},
+				ChosenTopic: pk.Topic,
 			}
-		}(i, w)
+		}(i, pk)
 	}
 	wg.Wait()
 
-	out := make([]*Produced, 0, len(words))
+	out := make([]*Produced, 0, len(picks))
 	var firstErr error
 	for i, pr := range produced {
 		if pr != nil {
