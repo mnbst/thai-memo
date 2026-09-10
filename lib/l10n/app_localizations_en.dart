@@ -2469,7 +2469,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleQuizBody =>
-      'The Quick check is one question before you go to the next sentence. After the fifth sentence, you move on to a review quiz based on what you\'ve studied.';
+      'Quizzes come in two kinds. The Quick check is one question before the next sentence, where you choose the meaning of a word. After the fifth sentence, you move on to a review quiz drawn from what you\'ve studied, where you fill in the blank.';
 
   @override
   String get guideRoleScoreTitle => 'Vocabulary score';
@@ -2594,7 +2594,7 @@ class L10nEn extends L10n {
       'Green means correct, amber means close, and red means off. Tap a word to compare your pitch with the model pronunciation and see what to fix.';
 
   @override
-  String get guideHowQuizTitle => 'Take the quiz';
+  String get guideHowQuizTitle => 'Take the quick check';
 
   @override
   String get guideHowQuizStep1 =>
@@ -2602,19 +2602,34 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowQuizStep2 =>
-      'The review quiz offers hints: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.';
+      'You choose the meaning of a word from the sentence, out of four options.';
 
   @override
   String get guideHowQuizStep3 =>
-      'In the review quiz, tap “Show the sentence” if you get stuck.';
+      'Once you answer, you get a short explanation of that word and how it is used.';
 
   @override
   String get guideHowQuizStep4 =>
       'From the results screen, go on to the next sentence. After the fifth, you go straight into the review quiz.';
 
   @override
-  String get guideHowQuizStep5 =>
-      'The review quiz is a checkpoint that arrives every five sentences. It draws on the sentences you\'ve studied, and answering correctly there is what raises your vocabulary score.';
+  String get guideHowReviewQuizTitle => 'Take the review quiz';
+
+  @override
+  String get guideHowReviewQuizStep1 =>
+      'A checkpoint that arrives every five sentences. It draws on the sentences you\'ve studied: you choose the word that fits the blank.';
+
+  @override
+  String get guideHowReviewQuizStep2 =>
+      'Hints are available: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.';
+
+  @override
+  String get guideHowReviewQuizStep3 =>
+      'Tap “Show the sentence” if you get stuck.';
+
+  @override
+  String get guideHowReviewQuizStep4 =>
+      'Answering correctly here is what raises your vocabulary score.';
 
   @override
   String get guideHowSettingsTitle => 'In Settings';
