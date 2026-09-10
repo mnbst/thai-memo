@@ -78,6 +78,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // 意味4択の単語解説キャッシュ（generateLearningQuiz が書く）。全ユーザー共有で
+    // 個人情報は入らないが、読み書きはサーバー（Admin SDK）だけに限る。
+    match /word_explanations/{wordKey} {
+      allow read, write: if false;
+    }
+
     // Legacy: notification_queue managed by Cloud Functions only
     match /notification_queue/{docId} {
       allow read, write: if false;

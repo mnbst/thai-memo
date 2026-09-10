@@ -95,6 +95,9 @@ class _FakeAnalyticsService extends Fake implements AnalyticsService {
     required String category,
     int? questionIndex,
     String? source,
+    String? quizFormat,
+    int? srsInterval,
+    int? responseMs,
   }) async {}
 }
 

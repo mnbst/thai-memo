@@ -83,6 +83,7 @@ type quizQuestion struct {
 	BlankSentencePronunciation string         `json:"blank_sentence_pronunciation"`
 	DummyReasons               []string       `json:"dummy_reasons"`
 	SentenceDetail             map[string]any `json:"sentence_detail,omitempty"`
+	QuizFormat                 string         `json:"quiz_format,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +185,15 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	return map[string]any{"questions": questions}, nil
 }
 
+func supportsQuizFormat(supported []string, format string) bool {
+	for _, candidate := range supported {
+		if candidate == format {
+			return true
+		}
+	}
+	return false
+}
+
 func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	uid, err := req.RequireAuth()
 	if err != nil {
@@ -191,13 +201,17 @@ func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, erro
 	}
 
 	var in struct {
-		Lang     any            `json:"lang"`
-		Sentence map[string]any `json:"sentence"`
+		Lang                 any            `json:"lang"`
+		Sentence             map[string]any `json:"sentence"`
+		SupportedQuizFormats []string       `json:"supported_quiz_formats"`
 	}
 	_ = req.Bind(&in)
 	l := lang.Resolve(in.Lang)
 
-	source, ok := buildLearningQuizSource(in.Sentence)
+	source, ok := buildLearningQuizSourceForClient(
+		in.Sentence,
+		supportsQuizFormat(in.SupportedQuizFormats, quizgen.FormatMeaningChoice),
+	)
 	if !ok || !quizgen.IsSeedReady(source.Seed) {
 		return nil, callable.Errorf(callable.InvalidArgument,
 			"クイズに使える例文データがありません")
@@ -220,7 +234,9 @@ func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, erro
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}
 
-	questions := generateQuestionsFromSources(ctx, service, []quizSeedSource{source})
+	// 意味4択の解説は語単位で使い回せるので、共有キャッシュを挟む。
+	questions := generateQuestionsFromSources(ctx,
+		withWordExplanationCache(service, db, l), []quizSeedSource{source})
 	if len(questions) == 0 {
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}

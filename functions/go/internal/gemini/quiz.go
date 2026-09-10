@@ -89,9 +89,11 @@ func (s *QuizService) GenerateQuizQuestions(
 // BuildRequestBody は Gemini へ送るリクエスト本文を組み立てる。
 // 差分テストから直接呼べるように切り出している。
 func BuildRequestBody(sentences []quizgen.QuizSentenceSeed, l lang.Lang) map[string]any {
+	isMeaningChoice := len(sentences) == 1 &&
+		sentences[0].QuizFormat == quizgen.FormatMeaningChoice
 	return map[string]any{
 		"systemInstruction": map[string]any{
-			"parts": []any{map[string]any{"text": quizgen.SystemPrompt(l)}},
+			"parts": []any{map[string]any{"text": quizgen.SystemPromptFor(sentences, l)}},
 		},
 		"contents": []any{map[string]any{
 			"role":  "user",
@@ -99,7 +101,7 @@ func BuildRequestBody(sentences []quizgen.QuizSentenceSeed, l lang.Lang) map[str
 		}},
 		"generationConfig": map[string]any{
 			"responseMimeType": "application/json",
-			"responseSchema":   responseSchema(l),
+			"responseSchema":   responseSchema(l, isMeaningChoice),
 			"maxOutputTokens":  maxOutputTokens,
 			"thinkingConfig": map[string]any{
 				"thinkingBudget": thinkingBudget,

@@ -138,7 +138,7 @@ func (s *stubSelector) SelectTargetWords(
 	_ context.Context, _ *firestore.Client, _ uvm.FreqRank,
 	_ string, _ map[string]any, maxVocab *int, _ int, isPremium bool, estimatedVocab *int,
 	_ int,
-) ([]string, string, error) {
+) ([]TargetWord, error) {
 	s.calls++
 	s.isPremium = append(s.isPremium, isPremium)
 	s.maxVocab = append(s.maxVocab, maxVocab)
@@ -147,7 +147,7 @@ func (s *stubSelector) SelectTargetWords(
 		v = *estimatedVocab
 	}
 	s.estimatedVocab = append(s.estimatedVocab, v)
-	return []string{fmtWord(s.calls)}, fmtTopic(s.calls), nil
+	return []TargetWord{{Word: fmtWord(s.calls), Topic: fmtTopic(s.calls)}}, nil
 }
 
 func fmtWord(n int) string  { return "w" + strconv.Itoa(n) }

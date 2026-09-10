@@ -18,6 +18,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 	"github.com/mnbst/thai-memo/functions/go/internal/subscription"
 	"github.com/mnbst/thai-memo/functions/go/internal/userdata"
+	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
 // dailyBatch は functions/javascript/src/dailyBatch.ts の移植。
@@ -60,7 +61,10 @@ const maxAnonDeletionsPerRun = 500
 // 復習されたばかりの語より優先される。全登録単語に適用する。
 const (
 	pDecayPerDay = 0.001
-	pDecayMin    = 0.0
+	// 減衰の下限は uvm.PFloor と揃える。ここだけ 0 にすると、間違えた語が
+	// 150 日かけて PFloor の下へ沈み、「2 回連続正解で P>0.5 に戻る」保証が
+	// 崩れる（uvm.PFloor のコメントを参照）。
+	pDecayMin = uvm.PFloor
 )
 
 // sentenceRetention は例文を保持する期間。これより古いものは削除する。
