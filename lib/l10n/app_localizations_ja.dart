@@ -169,6 +169,12 @@ class L10nJa extends L10n {
   String get quizPrompt => '下線部に入る単語を選んでください';
 
   @override
+  String get quizMeaningPrompt => 'この単語の意味を選んでください';
+
+  @override
+  String get quizWordExplanation => '単語の解説';
+
+  @override
   String quizProgress(int index, int total) {
     return '問題 $index / $total';
   }
@@ -2293,7 +2299,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideRoleQuizBody =>
-      '確認クイズは、次の例文に進む前に出る1問です。5つ目を終えると、それまでに学んだ内容から出題される「まとめクイズ」に進みます。';
+      'クイズは2種類あります。確認クイズは、次の例文に進む前に単語の意味を選ぶ1問です。5つ目を終えると、それまでに学んだ例文から下線部の単語を選ぶ「まとめクイズ」に進みます。';
 
   @override
   String get guideRoleScoreTitle => '語彙スコア';
@@ -2414,25 +2420,41 @@ class L10nJa extends L10n {
       '発音練習の判定は緑が合っている、橙が惜しい、赤が違う。語をタップすると、お手本と自分の声のカーブと直し方が出ます。';
 
   @override
-  String get guideHowQuizTitle => 'クイズを解く';
+  String get guideHowQuizTitle => '確認クイズを解く';
 
   @override
   String get guideHowQuizStep1 => '例文の下の「覚えたか確認」から確認クイズへ進みます。';
 
   @override
-  String get guideHowQuizStep2 =>
-      '「まとめクイズ」ではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。';
+  String get guideHowQuizStep2 => '直前に読んだ例文の学習単語（金色の語）について、その意味を4択で選びます。';
 
   @override
-  String get guideHowQuizStep3 => '「まとめクイズ」では、迷ったら「例文を確認」で例文に戻れます。';
+  String get guideHowQuizStep3 => '答えると、その単語の意味や使い方の解説が出ます。';
 
   @override
   String get guideHowQuizStep4 =>
-      '確認クイズの結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。';
+      '結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。';
 
   @override
-  String get guideHowQuizStep5 =>
-      '「まとめクイズ」は、例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から出題され、ここでの正解が語彙スコアに反映されます。';
+  String get guideHowReviewQuizTitle => 'まとめクイズを解く';
+
+  @override
+  String get guideHowReviewQuizStep1 =>
+      '例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から、下線部に入る単語を選びます。';
+
+  @override
+  String get guideHowReviewQuizStep2 =>
+      '出題される例文は、前日・3日前・1週間前…と日をあけて選ばれます。その中でも、まだ身についていない単語から先に出ます。';
+
+  @override
+  String get guideHowReviewQuizStep3 =>
+      'ヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。';
+
+  @override
+  String get guideHowReviewQuizStep4 => '迷ったら「例文を確認」で例文に戻れます。';
+
+  @override
+  String get guideHowReviewQuizStep5 => 'ここでの正解が語彙スコアに反映されます。';
 
   @override
   String get guideHowSettingsTitle => '設定でできること';

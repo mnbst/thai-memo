@@ -106,6 +106,29 @@ dummies / explanation / dummy_reasons の3項目のみ。
 dummies 3件、correct_answer 不含、dummy_reasons 3件。
 3ダミーすべて、周辺タイ語だけで除外できること。`
 
+var meaningSystemPrompt = map[lang.Lang]string{
+	lang.JA: `確定済みのタイ語単語の意味4択問題1問について、対象単語そのものの解説だけを作成してください。
+正解と選択肢は変更しません。
+
+【出力】
+explanation のみ。
+- explanation: 対象単語の意味・ニュアンス・使い方を、日本語140文字以内で簡潔に説明する
+- 出題に使った例文の解説、不正解候補の理由、新しい例文は書かない
+
+【最終確認】
+explanation だけを返す。`,
+	lang.EN: `For one finalized multiple-choice Thai word meaning question, explain only the target word itself.
+Do not change the correct answer or choices.
+
+【Output】
+Return only explanation.
+- explanation: briefly explain the target word's meaning, nuance, and usage in English, using at most 80 words
+- do not explain the source sentence, discuss wrong choices, or create a new example sentence
+
+【Final check】
+Return only explanation.`,
+}
+
 // SystemPrompt は言語ごとのシステムプロンプト。
 func SystemPrompt(l lang.Lang) string {
 	if l != lang.EN {
@@ -121,10 +144,33 @@ func SystemPrompt(l lang.Lang) string {
 	).Replace(systemPromptTemplate)
 }
 
+// SystemPromptFor は問題形式に合う指示を返す。SystemPrompt はJS版との
+// golden互換を保つため穴埋め専用のまま残す。
+func SystemPromptFor(sentences []QuizSentenceSeed, l lang.Lang) string {
+	if len(sentences) == 1 && quizFormatOf(sentences[0]) == FormatMeaningChoice {
+		if l != lang.EN {
+			l = lang.JA
+		}
+		return meaningSystemPrompt[l]
+	}
+	return SystemPrompt(l)
+}
+
 // BuildPrompt はユーザープロンプト（問題データの並び）を組み立てる。
 func BuildPrompt(sentences []QuizSentenceSeed, l lang.Lang) string {
+	if len(sentences) == 1 && quizFormatOf(sentences[0]) == FormatMeaningChoice {
+		return buildMeaningPrompt(sentences[0], l)
+	}
 	return "以下のタイ語穴埋め問題について、システム指示に従って出力してください。\n\n" +
 		buildPreparedSentenceList(sentences, l)
+}
+
+func buildMeaningPrompt(sentence QuizSentenceSeed, l lang.Lang) string {
+	prepared := PrepareInputs([]QuizSentenceSeed{sentence})[0]
+	return fmt.Sprintf(
+		"以下の意味4択問題について、システム指示に従って出力してください。\n\n"+
+			"target_word: %s\ncorrect_meaning: %s",
+		prepared.CorrectAnswer, prepared.CorrectAnswerMeaning)
 }
 
 func buildPreparedSentenceList(sentences []QuizSentenceSeed, l lang.Lang) string {

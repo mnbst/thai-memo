@@ -43,6 +43,9 @@ func (s *Sanitizer) Questions(questions []GeneratedQuizQuestion) []GeneratedQuiz
 //   - タイ語の選択肢が4件に満たない
 //   - ダミー3件それぞれに対応する理由が揃っていない
 func (s *Sanitizer) Question(question GeneratedQuizQuestion) (GeneratedQuizQuestion, bool) {
+	if question.QuizFormat == FormatMeaningChoice {
+		return s.meaningQuestion(question)
+	}
 	correctAnswer := stripChoiceAnnotation(question.CorrectAnswer)
 	if !isThaiChoiceText(correctAnswer) {
 		log.Printf("Dropping quiz question due to non-Thai correct answer: %q",
@@ -89,6 +92,41 @@ func (s *Sanitizer) Question(question GeneratedQuizQuestion) (GeneratedQuizQuest
 	out.JapaneseTranslation = normalizeText(question.JapaneseTranslation)
 	out.SentencePronunciation = normalizeText(question.SentencePronunciation)
 	out.DummyReasons = dummyReasons
+	return out, true
+}
+
+func (s *Sanitizer) meaningQuestion(
+	question GeneratedQuizQuestion,
+) (GeneratedQuizQuestion, bool) {
+	correctAnswer := stripChoiceAnnotation(question.CorrectAnswer)
+	correctMeaning := normalizeText(question.CorrectAnswerMeaning)
+	if !isThaiChoiceText(correctAnswer) || correctMeaning == "" {
+		log.Printf("Dropping meaning quiz due to invalid answer: word=%q meaning=%q",
+			question.CorrectAnswer, question.CorrectAnswerMeaning)
+		return GeneratedQuizQuestion{}, false
+	}
+
+	choices := uniqueTexts(question.Choices)
+	if len(choices) != 4 || !containsText(choices, correctMeaning) {
+		log.Printf("Dropping meaning quiz due to invalid choices: correct=%q choices=%v",
+			correctMeaning, question.Choices)
+		return GeneratedQuizQuestion{}, false
+	}
+	out := question
+	out.QuizFormat = FormatMeaningChoice
+	out.ThaiText = normalizeText(question.ThaiText)
+	out.BlankText = normalizeText(question.BlankText)
+	out.CorrectAnswer = correctAnswer
+	out.CorrectAnswerMeaning = correctMeaning
+	out.Choices = s.shuffle(choices)
+	out.ChoicePronunciations = []string{}
+	out.Pronunciation = normalizeText(question.Pronunciation)
+	out.Explanation = normalizeText(question.Explanation)
+	out.JapaneseTranslation = normalizeText(question.JapaneseTranslation)
+	out.SentencePronunciation = normalizeText(question.SentencePronunciation)
+	// 意味問題の誤答は同じ例文の既存語義からルールベースで選ぶため、
+	// LLMによる不正解理由は生成も表示もしない。
+	out.DummyReasons = []string{}
 	return out, true
 }
 

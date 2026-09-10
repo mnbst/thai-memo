@@ -80,6 +80,18 @@ func BandCandidates(freqRank FreqRank, low, high int) []Candidate {
 	return out
 }
 
+// テーマ未指定のとき key_word からテーマを決める条件（FindBestTopic の引数）。
+//
+// 類似度が TopicMatchThreshold 以上のテーマを上位 TopicMatchTopK 件まで残し、
+// その中から1つ引く。argmax にしないのは、テーマ embedding の重心の高さで
+// 特定テーマ（BLドラマ）が全語で1位になるため。
+// セット生成で語ごとにテーマを決める側（sentence.SelectTargetWords）も
+// 同じ条件を使うので、定数にして片方だけずれないようにする。
+const (
+	TopicMatchTopK      = 5
+	TopicMatchThreshold = 0.545
+)
+
 // TopicEmbedder は候補フィルタとテーマ選択に使う embedding 参照。
 // 実装は internal/embeddings.Store。
 type TopicEmbedder interface {
@@ -387,7 +399,8 @@ func (s *SessionSelector) GetSessionWords(
 	if chosenTopic == "" && s.Emb != nil && len(words) > 0 {
 		// 閾値未達（＝key_word がどのテーマとも結びつかない機能語など）は
 		// "" のまま返し、テーマを LLM に決めさせる。ランダムに埋めない。
-		chosenTopic, err = s.Emb.FindBestTopic(ctx, words[0], req.TopicsPool, 5, 0.545)
+		chosenTopic, err = s.Emb.FindBestTopic(
+			ctx, words[0], req.TopicsPool, TopicMatchTopK, TopicMatchThreshold)
 		if err != nil {
 			return nil, "", err
 		}

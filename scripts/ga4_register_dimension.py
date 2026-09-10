@@ -47,6 +47,9 @@ DIMENSIONS = (
     Dimension("content_type", "EVENT", "TTS content type"),
     Dimension("category", "EVENT", "Quiz category"),
     Dimension("correct", "EVENT", "Quiz answer correct"),
+    Dimension("quiz_format", "EVENT", "Quiz question format"),
+    Dimension("srs_interval", "EVENT", "Quiz SRS interval"),
+    Dimension("exit_reason", "EVENT", "Question exit reason"),
     Dimension("is_premium", "EVENT", "Premium at event"),
     Dimension("monotone", "EVENT", "Pronunciation monotone"),
     Dimension("worst_tone", "EVENT", "Worst pronunciation tone"),
@@ -71,6 +74,7 @@ DIMENSIONS = (
 METRICS = (
     Metric("count", "Generated sentence count"),
     Metric("question_count", "Quiz question count"),
+    Metric("response_ms", "Quiz response time ms"),
     Metric("vocab", "Estimated vocabulary"),
     Metric("pronunciation_score", "Pronunciation score"),
     Metric("syllable_count", "Pronunciation syllable count"),

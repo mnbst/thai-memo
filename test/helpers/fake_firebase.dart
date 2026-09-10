@@ -125,9 +125,9 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<Map<String, Object?>> quizStartEvents = [];
   final List<Map<String, Object?>> quizAnswerEvents = [];
   final List<Map<String, String>> quizOfferEvents = [];
+  final List<Map<String, Object?>> confirmationQuizQuestionEvents = [];
   final List<Map<String, Object?>> interviewEvents = [];
   final List<Map<String, Object?>> vocabTestEvents = [];
-
 
   @override
   Future<void> setUserAppLanguage(String lang) async {}
@@ -219,12 +219,18 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
     required String category,
     int? questionIndex,
     String? source,
+    String? quizFormat,
+    int? srsInterval,
+    int? responseMs,
   }) async {
     quizAnswerEvents.add({
       'correct': correct,
       'category': category,
       'question_index': questionIndex,
       'source': source,
+      'quiz_format': quizFormat,
+      'srs_interval': srsInterval,
+      'response_ms': responseMs,
     });
   }
 
@@ -234,6 +240,23 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
     required String source,
   }) async {
     quizOfferEvents.add({'action': action, 'source': source});
+  }
+
+  @override
+  Future<void> logConfirmationQuizQuestion({
+    required String action,
+    required String quizFormat,
+    int? responseMs,
+    bool? correct,
+    String? exitReason,
+  }) async {
+    confirmationQuizQuestionEvents.add({
+      'action': action,
+      'quiz_format': quizFormat,
+      'response_ms': responseMs,
+      'correct': correct,
+      'exit_reason': exitReason,
+    });
   }
 }
 

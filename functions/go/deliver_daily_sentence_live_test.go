@@ -132,10 +132,8 @@ func TestDeliverDailySentenceSetLive(t *testing.T) {
 			t.Errorf("key_word %q が %d 件", word, n)
 		}
 	}
-	// テーマはセットで共通（SelectTargetWords がテーマを1つ返す）。
-	if len(topics) > 1 {
-		t.Errorf("テーマがセット内で割れている: %v", topics)
-	}
+	// テーマはおまかせ（preferred_topic 未設定）なので本ごとに抽選される。
+	// 実データでは偶然揃うこともあるため本数までは決め打ちせず、分布だけ残す。
 	t.Logf("テーマ=%v", topics)
 
 	// --- クォータと当日フラグ ---
