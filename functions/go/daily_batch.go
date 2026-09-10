@@ -513,12 +513,10 @@ func decayUvmP(ctx context.Context, db *firestore.Client, uid string) error {
 		}
 
 		p := floatField(doc.Data()["p"])
-		if p == pDecayMin {
+		if p <= pDecayMin {
 			continue
 		}
 
-		// pDecayMin を下回る P は下限まで引き上げる。PFloor を入れる前に
-		// 沈んだ doc の救済で、以後は下限に張り付いて上の continue で止まる。
 		newP := max(pDecayMin, p-pDecayPerDay)
 		if _, err := bw.Update(doc.Ref, []firestore.Update{
 			{Path: "p", Value: newP},
