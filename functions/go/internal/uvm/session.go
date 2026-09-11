@@ -337,6 +337,9 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	candidates := BandCandidates(freqRank, scanLow, scanHigh)
+	// band は絞り込み前の帯。テーマで絞ると数語しか残らないことがあり、
+	// そのときセットの本数を埋めるために使う。
+	band := candidates
 
 	// fallbackEmb が非 nil のときは「帯内に閾値以上の語が無かった」。
 	// 既出を落としたあとで一番テーマに近い語を選ぶ（下の選出部）。
@@ -344,15 +347,15 @@ func (s *SessionSelector) GetSessionWords(
 
 	topic := req.Topic
 	if topic != "" && s.Emb != nil && len(candidates) > 0 {
-		topicEmb, err := s.Emb.TopicEmbedding(ctx, topic)
+		emb, err := s.Emb.TopicEmbedding(ctx, topic)
 		if err != nil {
 			return nil, "", err
 		}
-		if topicEmb != nil {
-			if matched := FilterCandidatesByTopic(s.Emb, candidates, topicEmb); len(matched) > 0 {
+		if emb != nil {
+			if matched := FilterCandidatesByTopic(s.Emb, candidates, emb); len(matched) > 0 {
 				candidates = matched
 			} else {
-				fallbackEmb = topicEmb
+				fallbackEmb = emb
 			}
 		}
 	}
@@ -390,6 +393,21 @@ func (s *SessionSelector) GetSessionWords(
 		selected = s.selectUnknown(candidates, pMap, req.Count)
 	}
 
+	// テーマで絞った帯が req.Count に足りないと、セットがその本数で欠ける
+	// （例文5本が3本で返る）。閾値を満たす語が 1 つも無いときは
+	// ClosestToTopic で埋めているので、足りないときも同じ考え方で埋める。
+	if len(selected) < req.Count && len(band) > len(candidates) {
+		rest := remaining(band, selected)
+		if len(rest) > 0 {
+			// 帯ぶんの P を読み直すのは、足りないと分かったときだけ。
+			restP, err := s.fetchP(ctx, db, req.UID, rest)
+			if err != nil {
+				return nil, "", err
+			}
+			selected = TopUpFromBand(selected, rest, restP, req.Count)
+		}
+	}
+
 	words := make([]string, len(selected))
 	for i, c := range selected {
 		words[i] = c.Word
@@ -417,6 +435,62 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	return words, chosenTopic, nil
+}
+
+// remaining は band から selected の語を除いたもの。
+func remaining(band, selected []Candidate) []Candidate {
+	taken := make(map[string]bool, len(selected))
+	for _, c := range selected {
+		taken[c.Word] = true
+	}
+	rest := make([]Candidate, 0, len(band))
+	for _, c := range band {
+		if !taken[c.Word] {
+			rest = append(rest, c)
+		}
+	}
+	return rest
+}
+
+// TopUpFromBand はテーマで絞った選出が count に足りないとき、絞り込み前の帯の
+// 残り（rest）から埋める。
+//
+// 取るのは帯の前方（ランクの大きい側＝まだ習っていない語）から。後方は既習寄り
+// なので、穴埋めでそちらへ戻ると同じ語を何度も key_word にすることになる。
+// 前方は ScanBand が「未習語が必ず候補に入るように」取ってある区間で、
+// 埋めるならそこから出すのが帯の意図に合う。
+//
+// 未出（P=0 か未登録）の語を先に使い、それでも足りなければ既出から取る。
+// テーマの閾値は見ない。閾値を満たす語が帯に 1 つも無いときに ClosestToTopic で
+// 埋めるのと同じ扱いで、「テーマから少し離れた語」より「本数が欠けたセット」の
+// ほうが困るという判断。
+func TopUpFromBand(
+	selected, rest []Candidate, pMap map[string]float64, count int,
+) []Candidate {
+	ordered := append([]Candidate(nil), rest...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return ordered[i].Rank > ordered[j].Rank
+	})
+
+	var zeroP, known []Candidate
+	for _, c := range ordered {
+		if p, ok := pMap[c.Word]; !ok || p == 0.0 {
+			zeroP = append(zeroP, c)
+		} else {
+			known = append(known, c)
+		}
+	}
+
+	out := selected
+	for _, pool := range [][]Candidate{zeroP, known} {
+		for _, c := range pool {
+			if len(out) >= count {
+				return out
+			}
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // fetchP は候補語の UVM ドキュメントを一括で読み、p を集める。

@@ -450,6 +450,15 @@ functions/go/sentence_audit_test.go
 functions/go/sentence_audit_live_test.go
 judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
 
+functions/go/internal/sentence/corpusbank.go
+静的コーパス（GCS: corpus_sentences_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語だけ LLM 生成へ落ちる（free は従来どおり FreeBank）。
+
+functions/go/internal/sentence/corpusbank_test.go
+premium がコーパス・free が従来バンクという分岐、テーマ優先とその諦め、キャッシュ汚染防止のテスト。
+
+functions/go/internal/corpustrans/translate.go
+静的コーパス専用。確定したタイ語文に日本語訳と英訳を1回のレスポンスで付ける訳プロンプトとスキーマ。語義も日英そろえて返し、語数が合わなければ1回作り直す。
+
 functions/go/internal/quality/judge.go
 例文品質judgeのプロンプト・スキーマ・sentence_flags ドキュメントの組み立て。判定基準は与えず、タイ語・訳文・key_wordだけ渡して理由を書かせる。
 
@@ -633,6 +642,9 @@ functions/go/internal/sentence/prompts_data.go
 functions/go/internal/sentence/build_prompt.go
 プロンプト本体の組み立て。抽選済みの値を受け取るので決定的。
 
+functions/go/internal/sentence/retry.go
+差し戻し用の【やり直し】ブロックを組み立てる。judgeの指摘を末尾に置く。前回のタイ語文は載せない（生成側が写すため）。
+
 functions/go/internal/sentence/prompts_golden_test.go
 プロンプト全文・システムプロンプト・制約ブロックをPython実装とバイト単位で突き合わせる。
 
@@ -765,8 +777,23 @@ generateThaiSentence（callable）。認証・クォータ・トライアル判�
 functions/go/generate_thai_sentence_test.go
 セット本数の解釈（count 未指定は1本・上限は sentence.SetSize）のテスト。
 
+functions/go/cmd/corpus/main.go
+静的コーパスの生成マニフェスト（語×テーマ×サブテーマ）を本番と同じ選出ロジックで作る。-labels でテーマ/サブテーマのラベルをJSON出力。 word_denylist.json で語を除外し、既定では rank の続きから補充して語数を保つ。
+
 functions/go/cmd/sample/main.go
 ターゲット語・語彙帯・テーマを指定して本番と同じ経路で例文を量産する ablation 用コマンド。Firestore を通さず LLM だけ叩く。
+
+functions/go/cmd/vetwords/main.go
+コーパスのターゲット語候補をLLMで1語ずつ判定し、除外すべき語（断片・誤記・固有名詞など）の提案JSONを出す。反映は人が見て決める。
+
+functions/go/cmd/pilot/main.go
+cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。
+
+functions/go/cmd/translate/main.go
+cmd/gencorpus の出力に internal/corpustrans で日英の訳を付け直し、最終コーパスのJSONLを書くコマンド。生成時の日本語訳は下書き扱いで置き換える。
+
+functions/go/cmd/gencorpus/main.go
+静的コーパスの全量生成コマンド。マニフェストを 生成→判定→差し戻し→再判定 まで通し、ブロック単位でJSONLに追記する。同じ出力先を指すと続きから流せる。
 
 functions/go/cmd/burst/main.go
 毎日例文の5本セット配信で増える LLM 同時実行の実測コマンド。ユーザー数×本数を同時に叩き、1本/1ユーザー/全体の所要と失敗の内訳を出す。
@@ -831,8 +858,26 @@ scripts/build_vocab_test_items.py
 scripts/build_freq_rank.py
 タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。corpus_word_filter.pyのDENYLIST（終助詞・感嘆詞＋拘束形態素）を除外して採番する。
 
+scripts/export_corpus_bank.py
+コーパスのJSONLを例文バンク（GCS）の形へ言語別に書き出すスクリプト。word_denylist.json の語はここでも落とす。
+
+scripts/pack_corpus.py
+cmd/translate の最終JSONLを、アプリ同梱の読み取り専用SQLite（corpus_sentences / corpus_words / corpus_meta）にまとめる。列名はアプリ側の既存テーブルに合わせ、word_denylist.json の語は弾く。
+
 scripts/strip_denylist.py
-既存freq_rankから拘束形態素・間投詞を除去しrankを連番で振り直す移行スクリプト。
+word_denylist.json の _strip_freq_rank 分類（断片・誤記・固有名詞）を freq_rank から除去しrankを連番で振り直す。--write で書き換え、upload_corpus.sh でGCSへ反映。
+
+functions/go/cmd/sample/main.go
+プロンプト改訂の効果を見るサンプル生成CLI。ランク帯から語を散らしテーマを割り当てて生成し、JSONと1行要約を出す。-seed で語を固定でき改訂前後を対照できる。 -fix で judge をかけ、不合格を指摘つきで差し戻して作り直す。
+
+scripts/harvest_sentences.py
+Firestoreの既存例文（users/{uid}/sentences、30日で消える）をsentence_flags除外・thai_text重複排除してbank_out/harvest_{ja,en}.jsonへ吸い出す。静的コーパスの種。
+
+scripts/word_denylist.json
+静的コーパスのkey_wordから外す語（王室・性的・罵倒・犯罪・固有名詞・ファンタジー・断片・誤記の8分類）。freq_rankが字幕コーパス由来のため。_strip_freq_rank が true の分類は稼働中の freq_rank からも落とす。uvm/excluded.goとは方針が別。
+
+scripts/build_theme_embeddings.py
+テーマ・サブテーマのembeddingを差分生成。ラベルは cmd/corpus -labels が書き出した prompts_data.go 由来のJSONを読む。--all で全再生成。
 
 scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。
