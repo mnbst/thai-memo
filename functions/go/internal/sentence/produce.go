@@ -28,7 +28,8 @@ type WordSelector interface {
 	) ([]TargetWord, error)
 }
 
-// CachedSentences は free 例文バンク。実装は FreeBank。
+// CachedSentences は事前生成した例文の出どころ。
+// 実装は FreeBank（free 例文バンク）と CorpusBank（premium の静的コーパス）。
 type CachedSentences interface {
 	Pick(ctx context.Context, targetWord string, l lang.Lang, topic string) (*Sentence, error)
 }
@@ -46,8 +47,12 @@ type SentenceGenerator interface {
 // 通常生成（generateThaiSentence）と毎日配信（deliverDailySentence）の共通経路。
 type Producer struct {
 	Selector WordSelector
-	Bank     CachedSentences
-	Service  SentenceGenerator
+	// Bank は free 例文バンク（GCS）。free のときだけ引く。
+	Bank CachedSentences
+	// Corpus は premium の静的コーパス（GCS）。premium のときだけ引く。
+	// 当たらない語＝コーパスのランク上限より先へ進んだ人は LLM 生成へ落ちる。
+	Corpus  CachedSentences
+	Service SentenceGenerator
 }
 
 // ProduceRequest は Produce の条件。
@@ -123,10 +128,15 @@ func (p *Producer) ProduceBatch(
 		maxVocab = &v
 	}
 
-	// free 例文バンク（GCS）は言語ごとに事前生成したもの（設計 §3.4）。
-	// その言語のバンクがまだ無ければ空で返るので、下の LLM 生成へ落ちる。
+	// 事前生成した例文はティアで出どころが違う。free は従来どおり free
+	// 例文バンク、premium は静的コーパス（設計 §3.4）。どちらも言語ごとの
+	// ファイルで、まだ無ければ空で返るので下の LLM 生成へ落ちる。
 	// CacheOnly（毎日配信の free 経路）でバンクが無ければ配信しない。
-	useBank := !req.UsePremiumSpec && p.Bank != nil
+	bank := p.Bank
+	if req.UsePremiumSpec {
+		bank = p.Corpus
+	}
+	useBank := bank != nil
 
 	results := make([]*Produced, 0, n)
 	used := map[string]bool{}
@@ -157,7 +167,7 @@ func (p *Producer) ProduceBatch(
 		if useBank {
 			missed = missed[:0:0]
 			for _, tw := range fresh {
-				cached, err := p.Bank.Pick(ctx, tw.Word, req.Lang, tw.Topic)
+				cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic)
 				if err != nil {
 					return nil, err
 				}

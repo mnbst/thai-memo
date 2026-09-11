@@ -565,6 +565,8 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 			Session: &uvm.SessionSelector{Emb: store},
 		},
 		Bank: &sentence.FreeBank{ProjectID: fbapp.ProjectID()},
+		// premium は静的コーパスから出す。無い語だけ Service（LLM）へ落ちる。
+		Corpus: &sentence.CorpusBank{ProjectID: fbapp.ProjectID()},
 		Service: &sentence.Service{
 			Gen:      client,
 			Resolver: &sentence.Resolver{SubThemes: store},
