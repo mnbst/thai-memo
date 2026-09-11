@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -192,6 +193,22 @@ func probPhone(s *phoneStats, p, pw, w, nw string) float64 {
 	return 0.8*p3 + 0.16*p2 + 0.03*p1 + 0.00001*p0 + 0.00000000001
 }
 
+// sylPhoneFix は selectPhones の統計選択を上書きする音節。
+//
+// tltk の統計は候補の並びからではなく学習コーパスの頻度から選ぶため、
+// コーパスに現れない綴りでは正しい候補があっても負ける。แผล は
+// 「先行母音 แ + 子音結合 ผล + 末子音なし」で、ล を末子音と読む候補
+// （phxxn4 = phɛ̌ɛn）が結合の候補（phlxx4 = phlɛ̌ɛ）に勝ってしまう。
+// 同型の綴り（เพล/แปล/แกล/เปล など）は正しく結合が残るので、規則ではなく
+// この綴りだけのデータ欠落。vocab_words.json 78,773 語を走査して
+// 該当したのは แผล のみ（2026-09-11）。
+//
+// 上書きは候補に含まれている音素列にだけ効く。候補に無い読みは作れないので、
+// 誤った読みを新しく持ち込むことはない。
+var sylPhoneFix = map[string]string{
+	"แผล": "phlxx4", // phlɛ̌ɛ（傷）。誤: phxxn4
+}
+
 var reQuote = regexp.MustCompile(`'`)
 
 // selectPhones は SelectPhones:558。音節ごとに最尤の音素列を選ぶ。
@@ -206,6 +223,10 @@ func selectPhones(s *phoneStats, pronun map[string][]string, slst []string) stri
 		cands := pronun[padded[i]]
 		if len(cands) == 1 {
 			out = append(out, cands[0])
+			continue
+		}
+		if fix, ok := sylPhoneFix[padded[i]]; ok && slices.Contains(cands, fix) {
+			out = append(out, fix)
 			continue
 		}
 		outp := ""
