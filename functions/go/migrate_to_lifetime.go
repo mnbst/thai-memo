@@ -73,6 +73,16 @@ func migrateToLifetime(ctx context.Context, req *callable.Request) (any, error) 
 				"移行できるのはプレミアムをご利用中の方だけです")
 		}
 
+		// 対象はリリース時点で課金していた方の名簿（doc の目印）に限る。
+		//
+		// 端末側の「案内済み」フラグは再インストールで消えるので、それだけでは
+		// 「月額を1ヶ月買う→入れ直す→無償移行→解約」で 600 円の買い切りが
+		// 成立してしまう。名簿はリリース前に立てるので、後から買った人は入らない。
+		if eligible, _ := data["lifetime_migration_eligible"].(bool); !eligible {
+			return callable.Errorf(callable.FailedPrecondition,
+				"無償移行の対象ではありません")
+		}
+
 		// 対象はストア購入の課金者に限る。手動付与（platform=manual）や
 		// 体験トライアルは「継続してくださっている方」ではない。
 		if !subscription.IsStorePlatform(sub["platform"]) {

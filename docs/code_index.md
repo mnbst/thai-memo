@@ -508,7 +508,7 @@ functions/go/internal/userdata/userdata.go
 deleteUserFirestoreData の Go 版。ユーザーのFirestoreデータ（サブコレクション・leaderboard・nicknames・quiz_queue）を一括削除。
 
 functions/go/migrate_to_lifetime.go
-migrateToLifetime の実装。月額課金者の subscription に買い切りの印（lifetime）を立てるだけの無償移行。購入記録は書き換えない。受付期限あり（LIFETIME_MIGRATION_DEADLINE で変更可）。
+migrateToLifetime の実装。月額課金者の subscription に買い切りの印（lifetime）を立てるだけの無償移行。購入記録は書き換えない。対象はリリース時点の課金者に立てた目印（users.lifetime_migration_eligible）を持つ人だけ。受付期限あり（LIFETIME_MIGRATION_DEADLINE で変更可）。
 
 functions/go/migrate_to_lifetime_test.go
 移行済みユーザーが日次リセット・ストア通知の期限切れで降格しないこと、返金・取消では降格することのテスト。
