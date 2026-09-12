@@ -13,13 +13,15 @@ service cloud.firestore {
       // vocab_test_at / vocab_test_vocab は語彙テストの測定結果、
       // vocab_test_window_at / vocab_test_count は受験間隔の記録。書けると制限を外して
       // estimated_vocab を任意の値まで釣り上げられるので塞ぐ。
+      // lifetime_migration_eligible は無償買い切り移行のサーバー管理名簿。
+      // 本人が立てられると migrateToLifetime の対象制限を回避できるので塞ぐ。
       allow create: if request.auth != null && request.auth.uid == userId
-        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at'])
+        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'lifetime_migration_eligible', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at'])
         && (!request.resource.data.keys().hasAny(['vocab_floor'])
             || request.resource.data.vocab_floor in [0, 100, 300, 600]);
       allow update: if request.auth != null && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'last_sentence_generated_at', 'last_notified_at', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at'])
+            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'lifetime_migration_eligible', 'last_sentence_generated_at', 'last_notified_at', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at'])
         // vocab_floor は「申告レベルを語彙スコアの下限にする」旧仕様の名残。
         // サーバーはもう読まない（語彙スコアは語彙テストの測定値だけで決まる）。
         // 旧バージョンのアプリがヒアリング送信でこれを含めてくるので、書き込み

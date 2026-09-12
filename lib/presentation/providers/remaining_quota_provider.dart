@@ -162,6 +162,7 @@ final lifetimeMigrationEligibleProvider = Provider<bool>((ref) {
   final data = ref.watch(userDocProvider).valueOrNull;
   if (data == null) return false;
   if (data['tier'] != 'premium') return false;
+  if (data['lifetime_migration_eligible'] != true) return false;
 
   final sub = data['subscription'];
   if (sub is! Map) return false;

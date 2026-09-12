@@ -34,6 +34,16 @@ const (
 	ScanBandDecay = 5
 	ScanAheadMin  = 8 // 前方スキャンの下限（未習語が必ず候補に入るようにする）
 
+	// ForwardTopUpDepth は、帯の中で本数が埋まらないときに前方へ広げる深さ。
+	//
+	// 帯（幅は後方 50 + 前方 8〜20）を使い切るのは、est が伸びないまま生成を
+	// 続けた人。そこで既出を key_word に戻すと同じ語が何度も出るので、帯の
+	// 続きから未出を取る。深さは後方スキャン（GapScanDepth）と同じ 50。
+	// 1 セット 5 本ぶんを賄うには十分広く、難度が跳ぶほど遠くもない。
+	// ここで取れるのは穴埋めぶんだけで、帯そのものは動かさない
+	// （est の前進は従来どおり ScanBand が決める）。
+	ForwardTopUpDepth = 50
+
 	// TopicFilterThreshold はテーマ embedding との類似度の足切り。
 	TopicFilterThreshold = 0.3
 )
@@ -402,18 +412,33 @@ func (s *SessionSelector) GetSessionWords(
 		selected = s.selectUnknown(candidates, pMap, req.Count)
 	}
 
-	// テーマで絞った帯が req.Count に足りないと、セットがその本数で欠ける
-	// （例文5本が3本で返る）。閾値を満たす語が 1 つも無いときは
-	// ClosestToTopic で埋めているので、足りないときも同じ考え方で埋める。
-	if len(selected) < req.Count && len(band) > len(candidates) {
+	// 選出が req.Count に足りないと、セットがその本数で欠ける（例文5本が
+	// 1本で返る）。欠ける道は2つある。
+	//   - テーマで絞った帯が req.Count に満たない
+	//   - テーマ無し（premium おまかせ）で、帯の未出語（zeroP）が尽きかけ
+	//     ている。SelectWeighted は zeroP の数しか返さない。
+	// prod 2026-09-12: 帯59語のうち未出が1語だけ残った premium ユーザーが、
+	// おまかせで1本しか受け取れなかった。絞り込みの有無で条件を分けず、
+	// 足りなければ常に帯の残りから埋める（未出→既出の順は TopUpFromBand）。
+	if len(selected) < req.Count {
 		rest := remaining(band, selected)
-		if len(rest) > 0 {
-			// 帯ぶんの P を読み直すのは、足りないと分かったときだけ。
-			restP, err := s.fetchP(ctx, db, req.UID, rest)
+		// 帯の中で埋まらないときのために、帯の前方（ランクの大きい側）へ
+		// ForwardTopUpDepth ぶん広げた語も一緒に見る。帯の既出を使い回すより、
+		// 前方の未出を出すほうが「まだ習っていない語を出す」帯の意図に合う。
+		forwardHigh := scanHigh + ForwardTopUpDepth
+		if req.MaxVocab != nil {
+			// free は語彙上限を越えない。上限に張り付いている帯では前方ぶんが
+			// 空になり、従来どおり帯の中だけで埋める。
+			forwardHigh = min(forwardHigh, *req.MaxVocab)
+		}
+		forward := BandCandidates(freqRank, scanHigh+1, forwardHigh)
+		if len(rest)+len(forward) > 0 {
+			// P を読み直すのは、足りないと分かったときだけ。
+			restP, err := s.fetchP(ctx, db, req.UID, append(append([]Candidate(nil), rest...), forward...))
 			if err != nil {
 				return nil, "", err
 			}
-			selected = TopUpFromBand(selected, rest, restP, req.Count)
+			selected = TopUpFromBand(selected, rest, forward, restP, req.Count)
 		}
 	}
 
@@ -461,24 +486,27 @@ func remaining(band, selected []Candidate) []Candidate {
 	return rest
 }
 
-// TopUpFromBand はテーマで絞った選出が count に足りないとき、絞り込み前の帯の
-// 残り（rest）から埋める。
+// TopUpFromBand は選出が count に足りないとき、帯の残り（rest）と、帯の前方へ
+// 広げたぶん（forward）から埋める。
 //
-// 取るのは帯の前方（ランクの大きい側＝まだ習っていない語）から。後方は既習寄り
-// なので、穴埋めでそちらへ戻ると同じ語を何度も key_word にすることになる。
-// 前方は ScanBand が「未習語が必ず候補に入るように」取ってある区間で、
-// 埋めるならそこから出すのが帯の意図に合う。
+// 使う順は 3 段:
+//  1. 帯の未出（P=0 か未登録）。ランクの小さい側から。帯の中は易しい語を先に
+//     出す（ZeroPWeights が本選出で低ランクを重く見るのと同じ向き）。
+//  2. 帯の前方（ランクの大きい側）の外にある未出（forward）。帯に近い側から。
+//     帯の中では 5 本に届かない人—帯を使い切った premium ユーザーや、テーマ
+//     一致語が数語しかない場合—はここで埋まる。帯の上端から 1 ランクずつ前へ
+//     進む形なので難度は跳ばない。
+//  3. 帯の既出。ランクの小さい側から。既出を key_word にするのは最後の手段。
 //
-// 未出（P=0 か未登録）の語を先に使い、それでも足りなければ既出から取る。
 // テーマの閾値は見ない。閾値を満たす語が帯に 1 つも無いときに ClosestToTopic で
 // 埋めるのと同じ扱いで、「テーマから少し離れた語」より「本数が欠けたセット」の
 // ほうが困るという判断。
 func TopUpFromBand(
-	selected, rest []Candidate, pMap map[string]float64, count int,
+	selected, rest, forward []Candidate, pMap map[string]float64, count int,
 ) []Candidate {
 	ordered := append([]Candidate(nil), rest...)
 	sort.SliceStable(ordered, func(i, j int) bool {
-		return ordered[i].Rank > ordered[j].Rank
+		return ordered[i].Rank < ordered[j].Rank
 	})
 
 	var zeroP, known []Candidate
@@ -490,8 +518,19 @@ func TopUpFromBand(
 		}
 	}
 
+	// 帯の外も帯に近い側（＝ランクの小さい側）から。帯の上端の続きとして
+	// 1 ランクずつ前へ進む形にして、難度が跳ねないようにする。既出は飛ばす。
+	fwd := append([]Candidate(nil), forward...)
+	sort.SliceStable(fwd, func(i, j int) bool { return fwd[i].Rank < fwd[j].Rank })
+	var fwdZeroP []Candidate
+	for _, c := range fwd {
+		if p, ok := pMap[c.Word]; !ok || p == 0.0 {
+			fwdZeroP = append(fwdZeroP, c)
+		}
+	}
+
 	out := selected
-	for _, pool := range [][]Candidate{zeroP, known} {
+	for _, pool := range [][]Candidate{zeroP, fwdZeroP, known} {
 		for _, c := range pool {
 			if len(out) >= count {
 				return out
