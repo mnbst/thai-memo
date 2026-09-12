@@ -155,6 +155,15 @@ def looks_broken(sentence: dict) -> bool:
     return False
 
 
+def sound_only(pool: list[dict]) -> list[dict]:
+    """破綻と語数で候補を絞る。残らなければ空を返して呼び出し側に落とさせる。"""
+    if not pool:
+        return []
+    sound = [s for s in pool if not looks_broken(s)]
+    print(f"破綻を除いて {len(sound)}/{len(pool)} 件", file=sys.stderr)
+    return sound
+
+
 def recent_performance(history: list[dict]) -> list[dict]:
     """直近の投稿に反応の数を突き合わせて返す。引けなければ空。
 
@@ -317,27 +326,27 @@ def main() -> int:
 
     pool: list[dict] = []
     if args.source == "daily":
+        daily: list[dict] = []
         try:
-            pool = fetch_yesterday(args.project, now)
+            daily = fetch_yesterday(args.project, now)
         except gcp_exceptions.GoogleAPIError as error:
             # 索引の準備待ちや権限不足でも投稿は止めない。
             print(f"前日分の取得に失敗: {error}", file=sys.stderr)
+        pool = sound_only(daily)
         if not pool:
-            print("前日分が無いのでバンクに落とす", file=sys.stderr)
+            # 前日分が無い日も、語数や破綻で全部落ちた日もバンクに回す。
+            print("条件に合う前日分が無いのでバンクに落とす", file=sys.stderr)
 
     if not pool:
-        pool = load_json(bucket, BANK_OBJECT, [])
+        bank = load_json(bucket, BANK_OBJECT, [])
+        pool = sound_only(bank)
+        if not pool and bank:
+            # バンクにも残らないのは条件が厳しすぎる側の問題。止めるよりは出す。
+            print("条件に合う候補が無いのでバンク全体から選ぶ", file=sys.stderr)
+            pool = bank
     if not pool:
         print(f"候補が無い: gs://{bucket.name}/{BANK_OBJECT}", file=sys.stderr)
         return 1
-
-    sound = [s for s in pool if not looks_broken(s)]
-    if sound:
-        print(f"破綻を除いて {len(sound)}/{len(pool)} 件", file=sys.stderr)
-        pool = sound
-    else:
-        # 全部弾いてしまったら選びようがない。投稿を止めるよりは出す。
-        print("破綻していない候補が無いので全体から選ぶ", file=sys.stderr)
 
     candidates = [s for s in pool if sentence_key(s) not in posted]
     if not candidates:
