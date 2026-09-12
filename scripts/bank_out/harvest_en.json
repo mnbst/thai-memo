@@ -1,0 +1,4177 @@
+[
+ {
+  "thai_text": "ฉันจะเลื่อนเพราะพายุ",
+  "pronunciation": "chǎn jà lʉ̂ʉan phrɔ́ phaa-yú",
+  "japanese_translation": "I will postpone it because of the typhoon.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ฉัน"
+    ],
+    "notes": "A neutral or slightly feminine pronoun for 'I'. Often used in informal or semi-formal contexts.",
+    "pronunciation": "chǎn",
+    "grammatical_role": "pronoun",
+    "meaning": "I (female/neutral pronoun)",
+    "word": "ฉัน"
+   },
+   {
+    "syllables": [
+     "จะ"
+    ],
+    "notes": "",
+    "pronunciation": "jà",
+    "grammatical_role": "auxiliary",
+    "meaning": "will",
+    "word": "จะ"
+   },
+   {
+    "syllables": [
+     "เลื่อน"
+    ],
+    "notes": "",
+    "pronunciation": "lʉ̂ʉan",
+    "grammatical_role": "verb",
+    "meaning": "postpone",
+    "word": "เลื่อน"
+   },
+   {
+    "syllables": [
+     "เพราะ"
+    ],
+    "notes": "",
+    "pronunciation": "phrɔ́",
+    "grammatical_role": "conjunction",
+    "meaning": "because of",
+    "word": "เพราะ"
+   },
+   {
+    "syllables": [
+     "พา",
+     "ยุ"
+    ],
+    "notes": "",
+    "pronunciation": "phaa-yú",
+    "grammatical_role": "noun",
+    "meaning": "typhoon",
+    "word": "พายุ"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／ほとんど面識がない",
+   "usage_scenarios": "Explaining a change in plans due to incoming severe weather.",
+   "emotion": "neutral",
+   "cultural_notes": "Mentioning weather as a reason for changing plans is common in Thailand, especially during the rainy season.",
+   "subTheme": "storms",
+   "timeFrame": "An upcoming plan",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Weather (heat, rainy season, storms, sun protection)"
+  },
+  "key_word": "ฉัน",
+  "key_word_pronunciation": "chǎn",
+  "key_word_meaning": "I (female/neutral pronoun)",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 1,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ฉันสั่งเผ็ดประจำ",
+  "pronunciation": "chǎn sàng phèt prà-jam",
+  "japanese_translation": "I order spicy food regularly.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ฉัน"
+    ],
+    "meaning": "I (informal, female)",
+    "grammatical_role": "pronoun",
+    "pronunciation": "chǎn",
+    "notes": "Informal first-person pronoun, commonly used by females or when speaking to close friends and family.",
+    "word": "ฉัน"
+   },
+   {
+    "syllables": [
+     "สั่ง"
+    ],
+    "meaning": "to order",
+    "grammatical_role": "verb",
+    "pronunciation": "sàng",
+    "notes": "",
+    "word": "สั่ง"
+   },
+   {
+    "syllables": [
+     "เผ็ด"
+    ],
+    "meaning": "spicy",
+    "grammatical_role": "adjective",
+    "pronunciation": "phèt",
+    "notes": "",
+    "word": "เผ็ด"
+   },
+   {
+    "syllables": [
+     "ประ",
+     "จำ"
+    ],
+    "meaning": "habitually",
+    "grammatical_role": "adjective",
+    "pronunciation": "prà-jam",
+    "notes": "",
+    "word": "ประจำ"
+   }
+  ],
+  "context": {
+   "relation": "自分より目上／家族や恋人のように近い",
+   "usage_scenarios": "Ordering at a favorite local food stall.",
+   "emotion": "neutral",
+   "cultural_notes": "Thai people often define their spice preference as a regular habit.",
+   "subTheme": "ordering",
+   "timeFrame": "A regular habit",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Food (ordering, impressions, street stalls, spice level, allergies)"
+  },
+  "key_word": "ฉัน",
+  "key_word_pronunciation": "chǎn",
+  "key_word_meaning": "I (informal, female)",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 1,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ฉันหลอกมึงมาตลอด",
+  "pronunciation": "chǎn lɔ̀ɔk mʉng maa-tà-lɔ̀ɔt",
+  "japanese_translation": "I have been deceiving you all along.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ฉัน"
+    ],
+    "meaning": "I (first-person singular pronoun)",
+    "pronunciation": "chǎn",
+    "grammatical_role": "pronoun",
+    "notes": "A first-person singular pronoun. Generally feminine or polite in neutral speech, but here used to express raw, dramatic conflict.",
+    "word": "ฉัน"
+   },
+   {
+    "syllables": [
+     "หลอก"
+    ],
+    "meaning": "to deceive",
+    "pronunciation": "lɔ̀ɔk",
+    "grammatical_role": "verb",
+    "notes": "",
+    "word": "หลอก"
+   },
+   {
+    "syllables": [
+     "มึง"
+    ],
+    "meaning": "you (second-person singular pronoun, intimate/crude)",
+    "pronunciation": "mʉng",
+    "grammatical_role": "pronoun",
+    "notes": "",
+    "word": "มึง"
+   },
+   {
+    "syllables": [
+     "มา",
+     "ตลอด"
+    ],
+    "notes": "",
+    "pronunciation": "maa-tà-lɔ̀ɔt",
+    "grammatical_role": "adverb",
+    "meaning": "all along",
+    "word": "มาตลอด"
+   }
+  ],
+  "context": {
+   "usage_scenarios": "The moment a secret agent reveals their true identity to their target, breaking the romantic bond.",
+   "emotion": "Betrayal and bitter regret.",
+   "cultural_notes": "The juxtaposition of 'ฉัน' and 'มึง' highlights a fractured, intimate, yet hostile connection between the characters.",
+   "style": "Dramatic, accusatory, and colloquial.",
+   "topic": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)"
+  },
+  "key_word": "ฉัน",
+  "key_word_pronunciation": "chǎn",
+  "key_word_meaning": "I (first-person singular pronoun)",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 1,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ฉันโดนฝน",
+  "pronunciation": "chǎn doon fǒn",
+  "japanese_translation": "I am caught in the rain.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ฉัน"
+    ],
+    "notes": "A first-person singular pronoun often used by females. While widely understood, it can sound more formal or literary in certain spoken contexts compared to 'rao'.",
+    "grammatical_role": "pronoun",
+    "pronunciation": "chǎn",
+    "meaning": "I (neutral/female)",
+    "word": "ฉัน"
+   },
+   {
+    "syllables": [
+     "โดน"
+    ],
+    "notes": "",
+    "pronunciation": "doon",
+    "grammatical_role": "auxiliary",
+    "meaning": "to be caught in",
+    "word": "โดน"
+   },
+   {
+    "syllables": [
+     "ฝน"
+    ],
+    "meaning": "rain",
+    "pronunciation": "fǒn",
+    "grammatical_role": "noun",
+    "notes": "",
+    "word": "ฝน"
+   }
+  ],
+  "context": {
+   "subTheme": "the rainy season",
+   "usage_scenarios": "Explaining to someone why you are wet during the rainy season.",
+   "timeFrame": "Happening right now",
+   "emotion": "neutral",
+   "cultural_notes": "In Thailand, being caught in sudden heavy rain is a common daily occurrence.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Weather (heat, rainy season, storms, sun protection)"
+  },
+  "key_word": "ฉัน",
+  "key_word_pronunciation": "chǎn",
+  "key_word_meaning": "I (neutral/female)",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 1,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ฉันไปลอยกระทงทุกปีค่ะ",
+  "pronunciation": "chǎn pai lɔɔi-krà-thong thúk-pii khâ",
+  "japanese_translation": "I go to Loi Krathong every year.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ฉัน"
+    ],
+    "notes": "A common personal pronoun for 'I' used by females. It is polite and appropriate in standard daily conversation.",
+    "pronunciation": "chǎn",
+    "grammatical_role": "pronoun",
+    "meaning": "I (female personal pronoun)",
+    "word": "ฉัน"
+   },
+   {
+    "syllables": [
+     "ไป"
+    ],
+    "notes": "",
+    "pronunciation": "pai",
+    "grammatical_role": "adverb",
+    "meaning": "go",
+    "word": "ไป"
+   },
+   {
+    "syllables": [
+     "ลอย",
+     "กระ",
+     "ทง"
+    ],
+    "notes": "",
+    "pronunciation": "lɔɔi-krà-thong",
+    "grammatical_role": "noun",
+    "meaning": "Loi Krathong festival",
+    "word": "ลอยกระทง"
+   },
+   {
+    "syllables": [
+     "ทุก",
+     "ปี"
+    ],
+    "notes": "",
+    "grammatical_role": "noun",
+    "pronunciation": "thúk-pii",
+    "meaning": "every year",
+    "word": "ทุกปี"
+   },
+   {
+    "syllables": [
+     "ค่ะ"
+    ],
+    "notes": "",
+    "pronunciation": "khâ",
+    "grammatical_role": "particle",
+    "meaning": "polite sentence ending particle for female",
+    "word": "ค่ะ"
+   }
+  ],
+  "context": {
+   "relation": "自分より目下／ほとんど面識がない",
+   "usage_scenarios": "Talking about personal habits during an annual festival.",
+   "emotion": "Neutral and informative",
+   "cultural_notes": "Loi Krathong is a traditional Thai festival involving floating baskets on water.",
+   "subTheme": "Loi Krathong",
+   "timeFrame": "A regular habit",
+   "style": "Casual yet polite",
+   "topic": "Traditions and festivals (Songkran, Loi Krathong, royal ceremonies, regional dishes)"
+  },
+  "key_word": "ฉัน",
+  "key_word_pronunciation": "chǎn",
+  "key_word_meaning": "I (female personal pronoun)",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 1,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "พี่แกล้งฉัน",
+  "pronunciation": "phîi klɛ̂ɛng chǎn",
+  "japanese_translation": "My sibling just teased me.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "พี่"
+    ],
+    "notes": "",
+    "pronunciation": "phîi",
+    "grammatical_role": "noun",
+    "meaning": "older sibling",
+    "word": "พี่"
+   },
+   {
+    "syllables": [
+     "แกล้ง"
+    ],
+    "notes": "",
+    "pronunciation": "klɛ̂ɛng",
+    "grammatical_role": "noun",
+    "meaning": "to tease",
+    "word": "แกล้ง"
+   },
+   {
+    "syllables": [
+     "ฉัน"
+    ],
+    "notes": "A personal pronoun used by the speaker to refer to themselves. It is common in casual or intimate settings.",
+    "pronunciation": "chǎn",
+    "grammatical_role": "pronoun",
+    "meaning": "I (used by the speaker)",
+    "word": "ฉัน"
+   }
+  ],
+  "context": {
+   "subTheme": "siblings",
+   "usage_scenarios": "Telling a parent that an older sibling just teased them.",
+   "timeFrame": "Something that just happened",
+   "emotion": "annoyed",
+   "cultural_notes": "Thai language uses specific kinship terms like 'pi' to identify siblings.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Family (introductions, parenting, thanking parents, siblings, family events)"
+  },
+  "key_word": "ฉัน",
+  "key_word_pronunciation": "chǎn",
+  "key_word_meaning": "I (used by the speaker)",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 1,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ขอไม่เผ็ด",
+  "pronunciation": "khɔ̌ɔ mâi phèt",
+  "japanese_translation": "Please, no spice.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ขอ"
+    ],
+    "notes": "",
+    "pronunciation": "khɔ̌ɔ",
+    "grammatical_role": "verb",
+    "meaning": "to ask for",
+    "word": "ขอ"
+   },
+   {
+    "syllables": [
+     "ไม่"
+    ],
+    "notes": "A negation particle used before verbs or adjectives to express the opposite meaning.",
+    "pronunciation": "mâi",
+    "grammatical_role": "negator",
+    "meaning": "not",
+    "word": "ไม่"
+   },
+   {
+    "syllables": [
+     "เผ็ด"
+    ],
+    "notes": "",
+    "pronunciation": "phèt",
+    "grammatical_role": "adjective",
+    "meaning": "spicy",
+    "word": "เผ็ด"
+   }
+  ],
+  "context": {
+   "subTheme": "ordering",
+   "usage_scenarios": "Ordering food at a stall or restaurant.",
+   "emotion": "neutral",
+   "timeFrame": "Happening right now",
+   "cultural_notes": "Spiciness levels are a common adjustment when ordering food in Thailand.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Food (ordering, impressions, street stalls, spice level, allergies)"
+  },
+  "key_word": "ไม่",
+  "key_word_pronunciation": "mâi",
+  "key_word_meaning": "not",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 2,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "มึงไม่เชื่อ",
+  "pronunciation": "mʉng mâi chʉ̂ʉa",
+  "japanese_translation": "You do not believe it.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "มึง"
+    ],
+    "notes": "",
+    "pronunciation": "mʉng",
+    "grammatical_role": "pronoun",
+    "meaning": "you (informal, male-male friend)",
+    "word": "มึง"
+   },
+   {
+    "syllables": [
+     "ไม่"
+    ],
+    "notes": "Standard negation particle in Thai. Used before verbs or adjectives to indicate denial or absence of action.",
+    "pronunciation": "mâi",
+    "grammatical_role": "negator",
+    "meaning": "not",
+    "word": "ไม่"
+   },
+   {
+    "syllables": [
+     "เชื่อ"
+    ],
+    "notes": "",
+    "pronunciation": "chʉ̂ʉa",
+    "grammatical_role": "verb",
+    "meaning": "believe",
+    "word": "เชื่อ"
+   }
+  ],
+  "context": {
+   "usage_scenarios": "Er is skeptical about the fortune-telling result provided by his rival, Mawin.",
+   "emotion": "skeptical",
+   "cultural_notes": "The use of 'มึง' is informal and indicates a close, intense relationship between the two characters.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)"
+  },
+  "key_word": "ไม่",
+  "key_word_pronunciation": "mâi",
+  "key_word_meaning": "not",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 2,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ไม่กลัวผีหรอก",
+  "pronunciation": "mâi kluua phǐi rɔ̀ɔk",
+  "japanese_translation": "I am not afraid of ghosts.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ไม่"
+    ],
+    "notes": "A fundamental negation particle used before verbs or adjectives. It cannot be used with 'กำลัง' (use 'ไม่ได้' instead) or before 'ดี' in casual speech.",
+    "pronunciation": "mâi",
+    "grammatical_role": "negator",
+    "meaning": "not",
+    "word": "ไม่"
+   },
+   {
+    "syllables": [
+     "กลัว"
+    ],
+    "meaning": "afraid",
+    "pronunciation": "kluua",
+    "grammatical_role": "verb",
+    "notes": "",
+    "word": "กลัว"
+   },
+   {
+    "syllables": [
+     "ผี"
+    ],
+    "notes": "",
+    "pronunciation": "phǐi",
+    "grammatical_role": "noun",
+    "meaning": "ghost",
+    "word": "ผี"
+   },
+   {
+    "syllables": [
+     "หรอก"
+    ],
+    "meaning": "emphatic particle for negation",
+    "pronunciation": "rɔ̀ɔk",
+    "grammatical_role": "particle",
+    "notes": "",
+    "word": "หรอก"
+   }
+  ],
+  "context": {
+   "usage_scenarios": "Peach comforts Home by showing he is not intimidated by the spirit in the house.",
+   "emotion": "Confident and comforting",
+   "cultural_notes": "Thai culture often features ghosts in daily life, and saying one is not afraid is a common way to express bravery.",
+   "style": "Casual spoken Thai",
+   "topic": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)"
+  },
+  "key_word": "ไม่",
+  "key_word_pronunciation": "mâi",
+  "key_word_meaning": "not",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 2,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "กูจะอยู่กับมึง",
+  "pronunciation": "kuu jà yùu kàp mʉng",
+  "japanese_translation": "I will stay with you.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "กู"
+    ],
+    "notes": "",
+    "pronunciation": "kuu",
+    "grammatical_role": "pronoun",
+    "meaning": "I (informal, male, close friend/partner)",
+    "word": "กู"
+   },
+   {
+    "syllables": [
+     "จะ"
+    ],
+    "notes": "Indicates future intent or willingness. Unlike standard future markers, it expresses commitment when used in this intimate context.",
+    "grammatical_role": "auxiliary",
+    "pronunciation": "jà",
+    "meaning": "will",
+    "word": "จะ"
+   },
+   {
+    "syllables": [
+     "อยู่"
+    ],
+    "notes": "",
+    "pronunciation": "yùu",
+    "grammatical_role": "verb",
+    "meaning": "stay",
+    "word": "อยู่"
+   },
+   {
+    "syllables": [
+     "กับ"
+    ],
+    "notes": "",
+    "pronunciation": "kàp",
+    "grammatical_role": "preposition",
+    "meaning": "with",
+    "word": "กับ"
+   },
+   {
+    "syllables": [
+     "มึง"
+    ],
+    "notes": "",
+    "pronunciation": "mʉng",
+    "grammatical_role": "pronoun",
+    "meaning": "you (informal, male, close friend/partner)",
+    "word": "มึง"
+   }
+  ],
+  "context": {
+   "usage_scenarios": "The couple reconciles after a misunderstanding; Kang promises Moo he will stay by his side.",
+   "emotion": "Affectionate and sincere",
+   "style": "Very informal spoken language",
+   "cultural_notes": "Using 'gu' and 'mueng' highlights the deep, informal, and exclusive bond between close male partners in Thai BL culture.",
+   "topic": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)"
+  },
+  "key_word": "จะ",
+  "key_word_pronunciation": "jà",
+  "key_word_meaning": "will",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 3,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "จะกินอันนี้",
+  "pronunciation": "jà kin an-níi",
+  "japanese_translation": "I will have this one.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "จะ"
+    ],
+    "notes": "Indicates future intent or immediate decision in the present. Placed directly before the main verb.",
+    "pronunciation": "jà",
+    "grammatical_role": "auxiliary",
+    "meaning": "will",
+    "word": "จะ"
+   },
+   {
+    "syllables": [
+     "กิน"
+    ],
+    "notes": "",
+    "pronunciation": "kin",
+    "grammatical_role": "verb",
+    "meaning": "eat",
+    "word": "กิน"
+   },
+   {
+    "syllables": [
+     "อัน",
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "an-níi",
+    "grammatical_role": "determiner",
+    "meaning": "this one",
+    "word": "อันนี้"
+   }
+  ],
+  "context": {
+   "subTheme": "giving impressions",
+   "usage_scenarios": "Ordering food at a casual street stall.",
+   "timeFrame": "A regular habit",
+   "emotion": "decisive",
+   "cultural_notes": "A very common, concise way to express a choice when ordering at a restaurant.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Food (ordering, impressions, street stalls, spice level, allergies)"
+  },
+  "key_word": "จะ",
+  "key_word_pronunciation": "jà",
+  "key_word_meaning": "will",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 3,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "จะลดไหม",
+  "pronunciation": "jà lót mǎi",
+  "japanese_translation": "Will you give me a discount?",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "จะ"
+    ],
+    "notes": "Indicates future intent or inquiry about a potential action. Often used in requests for price reductions.",
+    "pronunciation": "jà",
+    "grammatical_role": "auxiliary",
+    "meaning": "will",
+    "word": "จะ"
+   },
+   {
+    "syllables": [
+     "ลด"
+    ],
+    "notes": "",
+    "grammatical_role": "verb",
+    "pronunciation": "lót",
+    "meaning": "reduce",
+    "word": "ลด"
+   },
+   {
+    "syllables": [
+     "ไหม"
+    ],
+    "notes": "",
+    "pronunciation": "mǎi",
+    "grammatical_role": "particle",
+    "meaning": "question particle",
+    "word": "ไหม"
+   }
+  ],
+  "context": {
+   "subTheme": "haggling",
+   "usage_scenarios": "Asking for a discount while shopping at a market.",
+   "timeFrame": "A regular habit",
+   "emotion": "neutral",
+   "cultural_notes": "Bargaining is common in local markets.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Shopping (haggling, size and color, returns, night markets)"
+  },
+  "key_word": "จะ",
+  "key_word_pronunciation": "jà",
+  "key_word_meaning": "will",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 3,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "คุณต้องชอบผมแล้ว",
+  "pronunciation": "khun tɔ̂ɔng chɔ̂ɔp phǒm lɛ́ɛw",
+  "japanese_translation": "You must like me now.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "คุณ"
+    ],
+    "meaning": "you (polite second-person pronoun)",
+    "pronunciation": "khun",
+    "grammatical_role": "pronoun",
+    "notes": "A polite second-person pronoun used here to establish a specific boundary or formal dynamic compared to the informal 'mueang'.",
+    "word": "คุณ"
+   },
+   {
+    "syllables": [
+     "ต้อง"
+    ],
+    "notes": "",
+    "pronunciation": "tɔ̂ɔng",
+    "grammatical_role": "auxiliary",
+    "meaning": "must",
+    "word": "ต้อง"
+   },
+   {
+    "syllables": [
+     "ชอบ"
+    ],
+    "notes": "",
+    "pronunciation": "chɔ̂ɔp",
+    "grammatical_role": "verb",
+    "meaning": "like",
+    "word": "ชอบ"
+   },
+   {
+    "syllables": [
+     "ผม"
+    ],
+    "notes": "",
+    "grammatical_role": "pronoun",
+    "pronunciation": "phǒm",
+    "meaning": "I/me (polite first-person pronoun, male)",
+    "word": "ผม"
+   },
+   {
+    "syllables": [
+     "แล้ว"
+    ],
+    "notes": "",
+    "pronunciation": "lɛ́ɛw",
+    "grammatical_role": "adverb",
+    "meaning": "now/already (indicating a change of state)",
+    "word": "แล้ว"
+   }
+  ],
+  "context": {
+   "usage_scenarios": "A student attempting to win over a popular fortuneteller through a romantic challenge.",
+   "emotion": "Determined and playful",
+   "style": "Polite and assertive",
+   "cultural_notes": "Using polite pronouns in an intimate setting creates a playful contrast between formal distance and romantic tension.",
+   "topic": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)"
+  },
+  "key_word": "คุณ",
+  "key_word_pronunciation": "khun",
+  "key_word_meaning": "you (polite second-person pronoun)",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 4,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "คุณลองไซส์นี้",
+  "pronunciation": "khun lɔɔng sai níi",
+  "japanese_translation": "You try this size.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "คุณ"
+    ],
+    "notes": "Used as a polite second-person pronoun. It is suitable for both formal and informal shopping contexts.",
+    "grammatical_role": "pronoun",
+    "pronunciation": "khun",
+    "meaning": "you (polite)",
+    "word": "คุณ"
+   },
+   {
+    "syllables": [
+     "ลอง"
+    ],
+    "notes": "",
+    "pronunciation": "lɔɔng",
+    "grammatical_role": "verb",
+    "meaning": "to try",
+    "word": "ลอง"
+   },
+   {
+    "syllables": [
+     "ไซส์"
+    ],
+    "meaning": "size",
+    "pronunciation": "sai",
+    "grammatical_role": "verb",
+    "notes": "",
+    "word": "ไซส์"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   }
+  ],
+  "context": {
+   "subTheme": "checking size and color",
+   "usage_scenarios": "Suggesting a customer try on a specific size in a clothing store.",
+   "emotion": "neutral",
+   "timeFrame": "A regular habit",
+   "cultural_notes": "Politeness is key in Thai service interactions, even when giving simple instructions.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Shopping (haggling, size and color, returns, night markets)"
+  },
+  "key_word": "คุณ",
+  "key_word_pronunciation": "khun",
+  "key_word_meaning": "you (polite)",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 4,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "กูไม่ชอบที่ตรงนั้น",
+  "pronunciation": "kuu mâi chɔ̂ɔp thîi trong-nán",
+  "japanese_translation": "I do not like that place.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "กู"
+    ],
+    "notes": "",
+    "pronunciation": "kuu",
+    "grammatical_role": "pronoun",
+    "meaning": "I (informal, male)",
+    "word": "กู"
+   },
+   {
+    "syllables": [
+     "ไม่"
+    ],
+    "notes": "",
+    "pronunciation": "mâi",
+    "grammatical_role": "negator",
+    "meaning": "not",
+    "word": "ไม่"
+   },
+   {
+    "syllables": [
+     "ชอบ"
+    ],
+    "notes": "",
+    "pronunciation": "chɔ̂ɔp",
+    "grammatical_role": "verb",
+    "meaning": "like",
+    "word": "ชอบ"
+   },
+   {
+    "syllables": [
+     "ที่"
+    ],
+    "notes": "Used here as a noun meaning 'place' or 'location'. It functions as a content word distinct from its use as a relative pronoun or preposition.",
+    "grammatical_role": "pronoun",
+    "pronunciation": "thîi",
+    "meaning": "place",
+    "word": "ที่"
+   },
+   {
+    "syllables": [
+     "ตรง",
+     "นั้น"
+    ],
+    "notes": "",
+    "grammatical_role": "noun",
+    "pronunciation": "trong-nán",
+    "meaning": "there",
+    "word": "ตรงนั้น"
+   }
+  ],
+  "context": {
+   "usage_scenarios": "Peach expresses his discomfort about the haunted property to Home.",
+   "emotion": "Distressed and firm",
+   "cultural_notes": "The use of 'กู' indicates a very close, informal, and masculine-coded relationship.",
+   "style": "Casual spoken language",
+   "topic": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)"
+  },
+  "key_word": "ที่",
+  "key_word_pronunciation": "thîi",
+  "key_word_meaning": "place",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 5,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "วัดนี้สวยที่หนึ่ง",
+  "pronunciation": "wát níi sǔuai thîi nʉ̀ng",
+  "japanese_translation": "This temple is the most beautiful.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "วัด"
+    ],
+    "notes": "",
+    "pronunciation": "wát",
+    "grammatical_role": "noun",
+    "meaning": "temple",
+    "word": "วัด"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "grammatical_role": "determiner",
+    "pronunciation": "níi",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "สวย"
+    ],
+    "notes": "",
+    "pronunciation": "sǔuai",
+    "grammatical_role": "adjective",
+    "meaning": "beautiful",
+    "word": "สวย"
+   },
+   {
+    "syllables": [
+     "ที่"
+    ],
+    "notes": "Used here as part of a superlative expression meaning 'rank one' or 'first place'.",
+    "pronunciation": "thîi",
+    "grammatical_role": "pronoun",
+    "meaning": "rank",
+    "word": "ที่"
+   },
+   {
+    "syllables": [
+     "หนึ่ง"
+    ],
+    "notes": "",
+    "grammatical_role": "determiner",
+    "pronunciation": "nʉ̀ng",
+    "meaning": "one",
+    "word": "หนึ่ง"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／家族や恋人のように近い",
+   "usage_scenarios": "Commenting on a temple visited during a trip.",
+   "emotion": "impressed",
+   "cultural_notes": "Temples are common tourist destinations in Thailand.",
+   "subTheme": "sights",
+   "timeFrame": "Something that just happened",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Travel (hotels, directions, sights, airport, tours)"
+  },
+  "key_word": "ที่",
+  "key_word_pronunciation": "thîi",
+  "key_word_meaning": "rank",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 5,
+  "source_env": "tester"
+ },
+ {
+  "thai_text": "สวัสดีที่นั่น",
+  "pronunciation": "sà-wàt-dii thîi nân",
+  "japanese_translation": "Hello to everyone there.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "สวัส",
+     "ดี"
+    ],
+    "notes": "",
+    "pronunciation": "sà-wàt-dii",
+    "grammatical_role": "verb",
+    "meaning": "hello",
+    "word": "สวัสดี"
+   },
+   {
+    "syllables": [
+     "ที่"
+    ],
+    "notes": "Used here as a preposition meaning 'at' to indicate the location being addressed.",
+    "pronunciation": "thîi",
+    "grammatical_role": "pronoun",
+    "meaning": "at",
+    "word": "ที่"
+   },
+   {
+    "syllables": [
+     "นั่น"
+    ],
+    "notes": "",
+    "grammatical_role": "pronoun",
+    "pronunciation": "nân",
+    "meaning": "that place",
+    "word": "นั่น"
+   }
+  ],
+  "context": {
+   "subTheme": "midday",
+   "usage_scenarios": "Greeting people currently located at a specific remote location.",
+   "timeFrame": "Happening right now",
+   "emotion": "friendly",
+   "cultural_notes": "A friendly way to acknowledge a group's location during a call or video chat.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)"
+  },
+  "key_word": "ที่",
+  "key_word_pronunciation": "thîi",
+  "key_word_meaning": "at",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 5,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ไปที่วัด",
+  "pronunciation": "pai thîi wát",
+  "japanese_translation": "Going to the temple.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ไป"
+    ],
+    "meaning": "to go",
+    "grammatical_role": "adverb",
+    "pronunciation": "pai",
+    "notes": "",
+    "word": "ไป"
+   },
+   {
+    "syllables": [
+     "ที่"
+    ],
+    "meaning": "at",
+    "grammatical_role": "pronoun",
+    "pronunciation": "thîi",
+    "notes": "Used here as a preposition meaning 'at' to indicate a destination or location.",
+    "word": "ที่"
+   },
+   {
+    "syllables": [
+     "วัด"
+    ],
+    "meaning": "temple",
+    "grammatical_role": "noun",
+    "pronunciation": "wát",
+    "notes": "",
+    "word": "วัด"
+   }
+  ],
+  "context": {
+   "subTheme": "sights",
+   "usage_scenarios": "When telling someone about a travel destination you are headed to.",
+   "emotion": "neutral",
+   "timeFrame": "Happening right now",
+   "cultural_notes": "Temples are the most common and important tourist sites in Thailand.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Travel (hotels, directions, sights, airport, tours)"
+  },
+  "key_word": "ที่",
+  "key_word_pronunciation": "thîi",
+  "key_word_meaning": "at",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 5,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "แดดร้อนได้",
+  "pronunciation": "dɛ̀ɛt rɔ́ɔn dâai",
+  "japanese_translation": "The sun can get hot.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "แดด"
+    ],
+    "notes": "",
+    "pronunciation": "dɛ̀ɛt",
+    "grammatical_role": "noun",
+    "meaning": "sunlight",
+    "word": "แดด"
+   },
+   {
+    "syllables": [
+     "ร้อน"
+    ],
+    "notes": "",
+    "pronunciation": "rɔ́ɔn",
+    "grammatical_role": "adjective",
+    "meaning": "hot",
+    "word": "ร้อน"
+   },
+   {
+    "syllables": [
+     "ได้"
+    ],
+    "notes": "Functions here as an auxiliary verb indicating possibility or the capability of the weather to become intense.",
+    "grammatical_role": "auxiliary",
+    "pronunciation": "dâai",
+    "meaning": "can",
+    "word": "ได้"
+   }
+  ],
+  "context": {
+   "subTheme": "the heat",
+   "usage_scenarios": "Discussing the potential intensity of the sun.",
+   "timeFrame": "Happening right now",
+   "emotion": "neutral",
+   "cultural_notes": "Thailand's intense tropical sun makes this a common topic.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Weather (heat, rainy season, storms, sun protection)"
+  },
+  "key_word": "ได้",
+  "key_word_pronunciation": "dâai",
+  "key_word_meaning": "can",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 6,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ผมอยากรู้จัก",
+  "pronunciation": "phǒm yàak rúu-jàk",
+  "japanese_translation": "I want to get to know you.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ผม"
+    ],
+    "notes": "A polite pronoun used by males. It is standard in formal or semi-formal settings.",
+    "pronunciation": "phǒm",
+    "grammatical_role": "pronoun",
+    "meaning": "I (male, polite)",
+    "word": "ผม"
+   },
+   {
+    "syllables": [
+     "อยาก"
+    ],
+    "notes": "",
+    "pronunciation": "yàak",
+    "grammatical_role": "verb",
+    "meaning": "want to",
+    "word": "อยาก"
+   },
+   {
+    "syllables": [
+     "รู้",
+     "จัก"
+    ],
+    "notes": "",
+    "pronunciation": "rúu-jàk",
+    "grammatical_role": "verb",
+    "meaning": "get to know",
+    "word": "รู้จัก"
+   }
+  ],
+  "context": {
+   "usage_scenarios": "Er tells the fortune teller Mawin he wants to get to know him better personally.",
+   "emotion": "sincere and curious",
+   "cultural_notes": "Using 'ผม' is common in developing relationships to show sincerity and politeness.",
+   "style": "Polite style (formal, respectful expressions)",
+   "topic": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)"
+  },
+  "key_word": "ผม",
+  "key_word_pronunciation": "phǒm",
+  "key_word_meaning": "I (male, polite)",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 9,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "เขาบอกว่าร้อน",
+  "pronunciation": "khǎw bɔ̀ɔk wâa rɔ́ɔn",
+  "japanese_translation": "They said it is hot.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "เขา"
+    ],
+    "notes": "",
+    "pronunciation": "khǎw",
+    "grammatical_role": "pronoun",
+    "meaning": "they",
+    "word": "เขา"
+   },
+   {
+    "syllables": [
+     "บอก"
+    ],
+    "notes": "",
+    "pronunciation": "bɔ̀ɔk",
+    "grammatical_role": "verb",
+    "meaning": "say",
+    "word": "บอก"
+   },
+   {
+    "syllables": [
+     "ว่า"
+    ],
+    "notes": "Acts as a conjunction to link verbs of communication or thought with a following clause.",
+    "pronunciation": "wâa",
+    "grammatical_role": "conjunction",
+    "meaning": "that",
+    "word": "ว่า"
+   },
+   {
+    "syllables": [
+     "ร้อน"
+    ],
+    "notes": "",
+    "pronunciation": "rɔ́ɔn",
+    "grammatical_role": "adjective",
+    "meaning": "hot",
+    "word": "ร้อน"
+   }
+  ],
+  "context": {
+   "subTheme": "the heat",
+   "usage_scenarios": "Discussing the weather forecast with others.",
+   "timeFrame": "An upcoming plan",
+   "emotion": "neutral",
+   "cultural_notes": "Commonly used for relaying information about future weather conditions.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Weather (heat, rainy season, storms, sun protection)"
+  },
+  "key_word": "ว่า",
+  "key_word_pronunciation": "wâa",
+  "key_word_meaning": "that",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 11,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ทัวร์นี้คืออะไร",
+  "pronunciation": "thuua níi khʉʉ à-rai",
+  "japanese_translation": "What is this tour?",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ทัวร์"
+    ],
+    "notes": "",
+    "grammatical_role": "verb",
+    "pronunciation": "thuua",
+    "meaning": "tour",
+    "word": "ทัวร์"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "คือ"
+    ],
+    "notes": "",
+    "pronunciation": "khʉʉ",
+    "grammatical_role": "auxiliary",
+    "meaning": "is",
+    "word": "คือ"
+   },
+   {
+    "syllables": [
+     "อะ",
+     "ไร"
+    ],
+    "notes": "Interrogative pronoun meaning what. Used at the end of a clause or sentence to ask for information about objects or actions.",
+    "pronunciation": "à-rai",
+    "grammatical_role": "pronoun",
+    "meaning": "what",
+    "word": "อะไร"
+   }
+  ],
+  "context": {
+   "subTheme": "tours",
+   "usage_scenarios": "Asking for clarification about the details or nature of the current tour.",
+   "emotion": "curious",
+   "timeFrame": "Happening right now",
+   "style": "Casual spoken style (how friends talk)",
+   "cultural_notes": "Using 'อะไร' is common when seeking immediate information in casual settings.",
+   "topic": "Travel (hotels, directions, sights, airport, tours)"
+  },
+  "key_word": "อะไร",
+  "key_word_pronunciation": "à-rai",
+  "key_word_meaning": "what",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 14,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "แดดแรง ก็ทา",
+  "pronunciation": "dɛ̀ɛt rɛɛng kɔ̂ɔ thaa",
+  "japanese_translation": "The sun is strong, so I am applying it.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "แดด"
+    ],
+    "notes": "",
+    "grammatical_role": "noun",
+    "pronunciation": "dɛ̀ɛt",
+    "meaning": "sunlight",
+    "word": "แดด"
+   },
+   {
+    "syllables": [
+     "แรง"
+    ],
+    "notes": "",
+    "pronunciation": "rɛɛng",
+    "grammatical_role": "adjective",
+    "meaning": "strong",
+    "word": "แรง"
+   },
+   {
+    "syllables": [
+     "ก็"
+    ],
+    "meaning": "so",
+    "pronunciation": "kɔ̂ɔ",
+    "grammatical_role": "adverb",
+    "notes": "Functions as a conjunction meaning 'so' or 'then' in this context, linking the state of the sun to the action.",
+    "word": "ก็"
+   },
+   {
+    "syllables": [
+     "ทา"
+    ],
+    "meaning": "apply",
+    "pronunciation": "thaa",
+    "grammatical_role": "verb",
+    "notes": "",
+    "word": "ทา"
+   }
+  ],
+  "context": {
+   "subTheme": "sun protection",
+   "usage_scenarios": "Briefly explaining one's action of applying sunscreen due to intense sun.",
+   "timeFrame": "Happening right now",
+   "emotion": "neutral",
+   "cultural_notes": "Sun protection is crucial in Thailand due to the high intensity of the sun.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Weather (heat, rainy season, storms, sun protection)"
+  },
+  "key_word": "ก็",
+  "key_word_pronunciation": "kɔ̂ɔ",
+  "key_word_meaning": "so",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 15,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "เราทานข้าวเที่ยงครับ",
+  "pronunciation": "raw thaan khâaw thîiang khráp",
+  "japanese_translation": "We are having lunch.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "เรา"
+    ],
+    "notes": "Used here as a first-person plural pronoun, though it can function as a singular pronoun in informal settings.",
+    "pronunciation": "raw",
+    "grammatical_role": "pronoun",
+    "meaning": "we",
+    "word": "เรา"
+   },
+   {
+    "syllables": [
+     "ทาน"
+    ],
+    "notes": "",
+    "pronunciation": "thaan",
+    "grammatical_role": "verb",
+    "meaning": "to eat (polite)",
+    "word": "ทาน"
+   },
+   {
+    "syllables": [
+     "ข้าว"
+    ],
+    "notes": "",
+    "pronunciation": "khâaw",
+    "grammatical_role": "noun",
+    "meaning": "rice or meal",
+    "word": "ข้าว"
+   },
+   {
+    "syllables": [
+     "เที่ยง"
+    ],
+    "notes": "",
+    "pronunciation": "thîiang",
+    "grammatical_role": "noun",
+    "meaning": "noon",
+    "word": "เที่ยง"
+   },
+   {
+    "syllables": [
+     "ครับ"
+    ],
+    "notes": "",
+    "pronunciation": "khráp",
+    "grammatical_role": "particle",
+    "meaning": "polite particle (male speaker)",
+    "word": "ครับ"
+   }
+  ],
+  "context": {
+   "topic": "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)",
+   "usage_scenarios": "Greeting a senior colleague at lunchtime.",
+   "emotion": "Neutral and respectful",
+   "cultural_notes": "Eating together is a common social bonding activity in Thai workplace culture.",
+   "subTheme": "midday",
+   "timeFrame": "A regular habit",
+   "style": "Polite and habitual",
+   "relation": "自分より目上／ほとんど面識がない"
+  },
+  "key_word": "เรา",
+  "key_word_pronunciation": "raw",
+  "key_word_meaning": "we",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 16,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ร้านนี้ไม่มีแล้ว",
+  "pronunciation": "ráan níi mâi mii lɛ́ɛw",
+  "japanese_translation": "This shop has nothing left.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ร้าน"
+    ],
+    "meaning": "shop",
+    "grammatical_role": "noun",
+    "pronunciation": "ráan",
+    "notes": "",
+    "word": "ร้าน"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "meaning": "this",
+    "grammatical_role": "determiner",
+    "pronunciation": "níi",
+    "notes": "",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "ไม่"
+    ],
+    "meaning": "not",
+    "grammatical_role": "negator",
+    "pronunciation": "mâi",
+    "notes": "",
+    "word": "ไม่"
+   },
+   {
+    "syllables": [
+     "มี"
+    ],
+    "meaning": "have",
+    "grammatical_role": "verb",
+    "pronunciation": "mii",
+    "notes": "Indicates existence or possession. When preceded by ไม่, it denotes absence or lack of items.",
+    "word": "มี"
+   },
+   {
+    "syllables": [
+     "แล้ว"
+    ],
+    "meaning": "already",
+    "grammatical_role": "adverb",
+    "pronunciation": "lɛ́ɛw",
+    "notes": "",
+    "word": "แล้ว"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／家族や恋人のように近い",
+   "usage_scenarios": "A person discovering a street food stall has run out of food.",
+   "emotion": "neutral",
+   "cultural_notes": "Street food stalls in Thailand often close once they sell out of their daily preparation.",
+   "subTheme": "street stalls",
+   "timeFrame": "Something that just happened",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Food (ordering, impressions, street stalls, spice level, allergies)"
+  },
+  "key_word": "มี",
+  "key_word_pronunciation": "mii",
+  "key_word_meaning": "have",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 17,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ผมจะเจอเขาเช้านี้",
+  "pronunciation": "phǒm jà jəə khǎw cháw-níi",
+  "japanese_translation": "I will meet him this morning.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ผม"
+    ],
+    "notes": "",
+    "grammatical_role": "pronoun",
+    "pronunciation": "phǒm",
+    "meaning": "I (male speaker, polite)",
+    "word": "ผม"
+   },
+   {
+    "syllables": [
+     "จะ"
+    ],
+    "notes": "",
+    "pronunciation": "jà",
+    "grammatical_role": "auxiliary",
+    "meaning": "will",
+    "word": "จะ"
+   },
+   {
+    "syllables": [
+     "เจอ"
+    ],
+    "notes": "",
+    "grammatical_role": "verb",
+    "pronunciation": "jəə",
+    "meaning": "meet",
+    "word": "เจอ"
+   },
+   {
+    "syllables": [
+     "เขา"
+    ],
+    "notes": "A third-person pronoun used here as an object. It is gender-neutral and commonly refers to he, she, or they.",
+    "pronunciation": "khǎw",
+    "grammatical_role": "pronoun",
+    "meaning": "him",
+    "word": "เขา"
+   },
+   {
+    "syllables": [
+     "เช้า",
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "cháw-níi",
+    "grammatical_role": "determiner",
+    "meaning": "this morning",
+    "word": "เช้านี้"
+   }
+  ],
+  "context": {
+   "topic": "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)",
+   "usage_scenarios": "Briefly stating a plan to meet someone during a morning conversation.",
+   "emotion": "Casual and informative.",
+   "cultural_notes": "Mentioning specific plans for the day is a common way to acknowledge time constraints.",
+   "subTheme": "morning",
+   "timeFrame": "An upcoming plan",
+   "style": "Simple, everyday spoken Thai.",
+   "relation": "自分と対等／ほとんど面識がない"
+  },
+  "key_word": "เขา",
+  "key_word_pronunciation": "khǎw",
+  "key_word_meaning": "him",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 18,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "เจอคนขาย ถามเขา",
+  "pronunciation": "jəə khon-khǎai thǎam khǎw",
+  "japanese_translation": "I met the seller and asked him.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "เจอ"
+    ],
+    "meaning": "meet or see",
+    "pronunciation": "jəə",
+    "grammatical_role": "verb",
+    "notes": "",
+    "word": "เจอ"
+   },
+   {
+    "syllables": [
+     "คน",
+     "ขาย"
+    ],
+    "notes": "",
+    "pronunciation": "khon-khǎai",
+    "grammatical_role": "noun",
+    "meaning": "seller",
+    "word": "คนขาย"
+   },
+   {
+    "syllables": [
+     "ถาม"
+    ],
+    "notes": "",
+    "pronunciation": "thǎam",
+    "grammatical_role": "verb",
+    "meaning": "ask",
+    "word": "ถาม"
+   },
+   {
+    "syllables": [
+     "เขา"
+    ],
+    "notes": "Used as a third-person pronoun for 'him' or 'her' in spoken language, referring to someone previously mentioned.",
+    "pronunciation": "khǎw",
+    "grammatical_role": "pronoun",
+    "meaning": "him",
+    "word": "เขา"
+   }
+  ],
+  "context": {
+   "subTheme": "haggling",
+   "usage_scenarios": "Describing a recent attempt to bargain for a price at a market.",
+   "timeFrame": "Something that just happened",
+   "emotion": "neutral",
+   "cultural_notes": "Bargaining is common in Thai local markets and usually involves friendly interaction.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Shopping (haggling, size and color, returns, night markets)"
+  },
+  "key_word": "เขา",
+  "key_word_pronunciation": "khǎw",
+  "key_word_meaning": "him",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 18,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "รถมาแล้ว",
+  "pronunciation": "rót maa lɛ́ɛw",
+  "japanese_translation": "The car is here.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "รถ"
+    ],
+    "meaning": "car",
+    "grammatical_role": "noun",
+    "pronunciation": "rót",
+    "notes": "",
+    "word": "รถ"
+   },
+   {
+    "syllables": [
+     "มา"
+    ],
+    "meaning": "come",
+    "grammatical_role": "verb",
+    "pronunciation": "maa",
+    "notes": "Indicates movement towards the speaker's current location.",
+    "word": "มา"
+   },
+   {
+    "syllables": [
+     "แล้ว"
+    ],
+    "meaning": "already",
+    "grammatical_role": "adverb",
+    "pronunciation": "lɛ́ɛw",
+    "notes": "",
+    "word": "แล้ว"
+   }
+  ],
+  "context": {
+   "subTheme": "directions",
+   "usage_scenarios": "Announcing the arrival of a vehicle.",
+   "emotion": "neutral",
+   "timeFrame": "Happening right now",
+   "cultural_notes": "Commonly used in daily travel situations.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Travel (hotels, directions, sights, airport, tours)"
+  },
+  "key_word": "มา",
+  "key_word_pronunciation": "maa",
+  "key_word_meaning": "come",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 19,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "แนะนำชื่อให้หน่อย",
+  "pronunciation": "nɛ́-nam chʉ̂ʉ hâi nɔ̀ɔi",
+  "japanese_translation": "Please tell me your name.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "แนะ",
+     "นำ"
+    ],
+    "meaning": "introduce",
+    "grammatical_role": "verb",
+    "pronunciation": "nɛ́-nam",
+    "notes": "",
+    "word": "แนะนำ"
+   },
+   {
+    "syllables": [
+     "ชื่อ"
+    ],
+    "meaning": "name",
+    "grammatical_role": "noun",
+    "pronunciation": "chʉ̂ʉ",
+    "notes": "",
+    "word": "ชื่อ"
+   },
+   {
+    "syllables": [
+     "ให้"
+    ],
+    "meaning": "for",
+    "grammatical_role": "conjunction",
+    "pronunciation": "hâi",
+    "notes": "Acts as a preposition indicating the beneficiary of the action, commonly used to soften a request.",
+    "word": "ให้"
+   },
+   {
+    "syllables": [
+     "หน่อย"
+    ],
+    "meaning": "a bit",
+    "grammatical_role": "adverb",
+    "pronunciation": "nɔ̀ɔi",
+    "notes": "",
+    "word": "หน่อย"
+   }
+  ],
+  "context": {
+   "subTheme": "meeting for the first time",
+   "usage_scenarios": "Asking for someone's name in a casual first-meeting situation.",
+   "emotion": "friendly",
+   "timeFrame": "Happening right now",
+   "cultural_notes": "Asking for a name is standard in Thai introductions.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)"
+  },
+  "key_word": "ให้",
+  "key_word_pronunciation": "hâi",
+  "key_word_meaning": "for",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 20,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ให้ร้านทำเผ็ด",
+  "pronunciation": "hâi ráan tham phèt",
+  "japanese_translation": "Ask the shop to make it spicy.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ให้"
+    ],
+    "meaning": "let",
+    "grammatical_role": "conjunction",
+    "pronunciation": "hâi",
+    "notes": "Used as a causative verb or to give permission/request someone to perform an action.",
+    "word": "ให้"
+   },
+   {
+    "syllables": [
+     "ร้าน"
+    ],
+    "meaning": "shop",
+    "grammatical_role": "noun",
+    "pronunciation": "ráan",
+    "notes": "",
+    "word": "ร้าน"
+   },
+   {
+    "syllables": [
+     "ทำ"
+    ],
+    "meaning": "make",
+    "grammatical_role": "verb",
+    "pronunciation": "tham",
+    "notes": "",
+    "word": "ทำ"
+   },
+   {
+    "syllables": [
+     "เผ็ด"
+    ],
+    "meaning": "spicy",
+    "grammatical_role": "adjective",
+    "pronunciation": "phèt",
+    "notes": "",
+    "word": "เผ็ด"
+   }
+  ],
+  "context": {
+   "subTheme": "street stalls",
+   "usage_scenarios": "Ordering food at a street stall, specifically requesting the spice level.",
+   "emotion": "neutral",
+   "timeFrame": "An upcoming plan",
+   "cultural_notes": "Customizing spice levels is common in Thai street food culture.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Food (ordering, impressions, street stalls, spice level, allergies)"
+  },
+  "key_word": "ให้",
+  "key_word_pronunciation": "hâi",
+  "key_word_meaning": "let",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 20,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ตลาดนี้ถูกเลย",
+  "pronunciation": "tà-làat níi thùuk ləəi",
+  "japanese_translation": "This market is really cheap.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ตลาด"
+    ],
+    "notes": "",
+    "pronunciation": "tà-làat",
+    "grammatical_role": "noun",
+    "meaning": "market",
+    "word": "ตลาด"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "ถูก"
+    ],
+    "notes": "",
+    "pronunciation": "thùuk",
+    "grammatical_role": "adjective",
+    "meaning": "cheap",
+    "word": "ถูก"
+   },
+   {
+    "syllables": [
+     "เลย"
+    ],
+    "notes": "Acts as an intensifier to emphasize the adjective preceding it in casual speech, indicating a high degree or confirming a fact.",
+    "pronunciation": "ləəi",
+    "grammatical_role": "adverb",
+    "meaning": "emphatic particle",
+    "word": "เลย"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／家族や恋人のように近い",
+   "usage_scenarios": "Discussing the prices at a night market with a close friend.",
+   "emotion": "Satisfied and enthusiastic.",
+   "cultural_notes": "Night markets are popular for finding affordable goods and local food.",
+   "subTheme": "night markets",
+   "timeFrame": "Something that just happened",
+   "style": "Casual and conversational.",
+   "topic": "Shopping (haggling, size and color, returns, night markets)"
+  },
+  "key_word": "เลย",
+  "key_word_pronunciation": "ləəi",
+  "key_word_meaning": "emphatic particle",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 24,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "มวยไทยไม่น่าเบื่อเลย",
+  "pronunciation": "muuai-thai mâi nâa-bʉ̀ʉa ləəi",
+  "japanese_translation": "Muay Thai is not boring at all.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "มวย",
+     "ไทย"
+    ],
+    "notes": "",
+    "grammatical_role": "proper noun",
+    "pronunciation": "muuai-thai",
+    "meaning": "Muay Thai",
+    "word": "มวยไทย"
+   },
+   {
+    "syllables": [
+     "ไม่"
+    ],
+    "notes": "",
+    "grammatical_role": "negator",
+    "pronunciation": "mâi",
+    "meaning": "not",
+    "word": "ไม่"
+   },
+   {
+    "syllables": [
+     "น่า",
+     "เบื่อ"
+    ],
+    "notes": "",
+    "pronunciation": "nâa-bʉ̀ʉa",
+    "grammatical_role": "adjective",
+    "meaning": "boring",
+    "word": "น่าเบื่อ"
+   },
+   {
+    "syllables": [
+     "เลย"
+    ],
+    "notes": "Used in negative sentences to emphasize the negation, translated as 'not at all'.",
+    "pronunciation": "ləəi",
+    "grammatical_role": "adverb",
+    "meaning": "at all",
+    "word": "เลย"
+   }
+  ],
+  "context": {
+   "topic": "Hobbies (Muay Thai, music, movies, golf, social media, games)",
+   "usage_scenarios": "Watching a live Muay Thai match and sharing your impression.",
+   "emotion": "positive and impressed",
+   "cultural_notes": "Muay Thai is a popular traditional sport in Thailand.",
+   "subTheme": "Muay Thai",
+   "timeFrame": "Happening right now",
+   "style": "Casual spoken style (how friends talk)",
+   "relation": "自分より目下／顔見知り程度"
+  },
+  "key_word": "เลย",
+  "key_word_pronunciation": "ləəi",
+  "key_word_meaning": "at all",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 24,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ไปก่อนเลยครับ",
+  "pronunciation": "pai kɔ̀ɔn ləəi khráp",
+  "japanese_translation": "I am leaving now.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ไป"
+    ],
+    "meaning": "to go",
+    "pronunciation": "pai",
+    "grammatical_role": "adverb",
+    "notes": "",
+    "word": "ไป"
+   },
+   {
+    "syllables": [
+     "ก่อน"
+    ],
+    "notes": "",
+    "pronunciation": "kɔ̀ɔn",
+    "grammatical_role": "conjunction",
+    "meaning": "before or ahead",
+    "word": "ก่อน"
+   },
+   {
+    "syllables": [
+     "เลย"
+    ],
+    "meaning": "particle emphasizing immediate action or sequence",
+    "pronunciation": "ləəi",
+    "grammatical_role": "adverb",
+    "notes": "Used here as an emphasis to signal the immediate action of leaving. It softens the statement while indicating a definitive sequence.",
+    "word": "เลย"
+   },
+   {
+    "syllables": [
+     "ครับ"
+    ],
+    "notes": "",
+    "pronunciation": "khráp",
+    "grammatical_role": "particle",
+    "meaning": "polite particle for male speaker",
+    "word": "ครับ"
+   }
+  ],
+  "context": {
+   "topic": "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)",
+   "usage_scenarios": "A junior colleague politely taking leave from a senior person.",
+   "emotion": "Respectful and professional.",
+   "cultural_notes": "It is customary to inform others before leaving to show respect.",
+   "subTheme": "saying goodbye",
+   "timeFrame": "Happening right now",
+   "style": "Polite everyday spoken Thai.",
+   "relation": "自分より目上／ほとんど面識がない"
+  },
+  "key_word": "เลย",
+  "key_word_pronunciation": "ləəi",
+  "key_word_meaning": "particle emphasizing immediate action or sequence",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 24,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "กินข้าวในร้านตอนเที่ยง",
+  "pronunciation": "kin khâaw nai ráan tɔɔn-thîiang",
+  "japanese_translation": "Eat lunch in the shop at noon.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "กิน"
+    ],
+    "notes": "",
+    "pronunciation": "kin",
+    "grammatical_role": "verb",
+    "meaning": "eat",
+    "word": "กิน"
+   },
+   {
+    "syllables": [
+     "ข้าว"
+    ],
+    "meaning": "rice/meal",
+    "pronunciation": "khâaw",
+    "grammatical_role": "noun",
+    "notes": "",
+    "word": "ข้าว"
+   },
+   {
+    "syllables": [
+     "ใน"
+    ],
+    "notes": "A preposition indicating location inside a space. Used before nouns to specify where an action occurs.",
+    "pronunciation": "nai",
+    "grammatical_role": "preposition",
+    "meaning": "in",
+    "word": "ใน"
+   },
+   {
+    "syllables": [
+     "ร้าน"
+    ],
+    "notes": "",
+    "grammatical_role": "noun",
+    "pronunciation": "ráan",
+    "meaning": "shop/restaurant",
+    "word": "ร้าน"
+   },
+   {
+    "syllables": [
+     "ตอน",
+     "เที่ยง"
+    ],
+    "notes": "",
+    "grammatical_role": "noun",
+    "pronunciation": "tɔɔn-thîiang",
+    "meaning": "at noon",
+    "word": "ตอนเที่ยง"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／家族や恋人のように近い",
+   "usage_scenarios": "Planning lunch with a partner or close friend during the morning.",
+   "emotion": "Casual and direct",
+   "cultural_notes": "Eating out at lunch is common in Thailand; Thai people often refer to meals as 'rice'.",
+   "subTheme": "midday",
+   "timeFrame": "An upcoming plan",
+   "style": "Informal",
+   "topic": "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)"
+  },
+  "key_word": "ใน",
+  "key_word_pronunciation": "nai",
+  "key_word_meaning": "in",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 25,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ในร้านมีไหม",
+  "pronunciation": "nai ráan mii mǎi",
+  "japanese_translation": "Is it in the shop?",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ใน"
+    ],
+    "notes": "A preposition indicating location inside something, similar to the English 'in' or 'inside'.",
+    "pronunciation": "nai",
+    "grammatical_role": "preposition",
+    "meaning": "in",
+    "word": "ใน"
+   },
+   {
+    "syllables": [
+     "ร้าน"
+    ],
+    "notes": "",
+    "pronunciation": "ráan",
+    "grammatical_role": "noun",
+    "meaning": "shop",
+    "word": "ร้าน"
+   },
+   {
+    "syllables": [
+     "มี"
+    ],
+    "notes": "",
+    "pronunciation": "mii",
+    "grammatical_role": "verb",
+    "meaning": "have",
+    "word": "มี"
+   },
+   {
+    "syllables": [
+     "ไหม"
+    ],
+    "notes": "",
+    "pronunciation": "mǎi",
+    "grammatical_role": "particle",
+    "meaning": "question particle",
+    "word": "ไหม"
+   }
+  ],
+  "context": {
+   "subTheme": "checking size and color",
+   "usage_scenarios": "Checking if an item is available inside a shop.",
+   "emotion": "neutral",
+   "timeFrame": "An upcoming plan",
+   "style": "Casual spoken style (how friends talk)",
+   "cultural_notes": "A common way to inquire about stock availability.",
+   "topic": "Shopping (haggling, size and color, returns, night markets)"
+  },
+  "key_word": "ใน",
+  "key_word_pronunciation": "nai",
+  "key_word_meaning": "in",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 25,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "อรุณสวัสดิ์และตื่นได้แล้ว",
+  "pronunciation": "à-run-sà-wàt lɛ́ tʉ̀ʉn dâi lɛ́ɛw",
+  "japanese_translation": "Good morning and wake up now.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "อรุณ",
+     "สวัสดิ์"
+    ],
+    "notes": "",
+    "pronunciation": "à-run-sà-wàt",
+    "grammatical_role": "proper noun",
+    "meaning": "good morning",
+    "word": "อรุณสวัสดิ์"
+   },
+   {
+    "syllables": [
+     "และ"
+    ],
+    "notes": "A conjunction used to connect clauses or nouns. In spoken Thai, it is often omitted or replaced by other connectors, but it is grammatically correct for linking actions.",
+    "pronunciation": "lɛ́",
+    "grammatical_role": "conjunction",
+    "meaning": "and",
+    "word": "และ"
+   },
+   {
+    "syllables": [
+     "ตื่น"
+    ],
+    "notes": "",
+    "pronunciation": "tʉ̀ʉn",
+    "grammatical_role": "verb",
+    "meaning": "wake up",
+    "word": "ตื่น"
+   },
+   {
+    "syllables": [
+     "ได้"
+    ],
+    "notes": "",
+    "pronunciation": "dâi",
+    "grammatical_role": "auxiliary",
+    "meaning": "particle indicating a change of state",
+    "word": "ได้"
+   },
+   {
+    "syllables": [
+     "แล้ว"
+    ],
+    "notes": "",
+    "pronunciation": "lɛ́ɛw",
+    "grammatical_role": "adverb",
+    "meaning": "already",
+    "word": "แล้ว"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／家族や恋人のように近い",
+   "usage_scenarios": "A person waking up their partner or child in the morning.",
+   "emotion": "Casual and encouraging",
+   "cultural_notes": "Morning greetings are common in families; 'อรุณสวัสดิ์' is standard and polite.",
+   "subTheme": "morning",
+   "timeFrame": "Happening right now",
+   "style": "Informal and intimate spoken Thai",
+   "topic": "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)"
+  },
+  "key_word": "และ",
+  "key_word_pronunciation": "lɛ́",
+  "key_word_meaning": "and",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 28,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "นายชอบกินเผ็ดไหม",
+  "pronunciation": "naai chɔ̂ɔp kin phèt mǎi",
+  "japanese_translation": "Do you like spicy food?",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "นาย"
+    ],
+    "meaning": "you (informal, male)",
+    "grammatical_role": "noun",
+    "pronunciation": "naai",
+    "notes": "Informal second-person pronoun used primarily among males or to infer younger/equal status. Not to be confused with the formal title.",
+    "word": "นาย"
+   },
+   {
+    "syllables": [
+     "ชอบ"
+    ],
+    "meaning": "to like",
+    "grammatical_role": "verb",
+    "pronunciation": "chɔ̂ɔp",
+    "notes": "",
+    "word": "ชอบ"
+   },
+   {
+    "syllables": [
+     "กิน"
+    ],
+    "meaning": "to eat",
+    "grammatical_role": "verb",
+    "pronunciation": "kin",
+    "notes": "",
+    "word": "กิน"
+   },
+   {
+    "syllables": [
+     "เผ็ด"
+    ],
+    "meaning": "spicy",
+    "grammatical_role": "adjective",
+    "pronunciation": "phèt",
+    "notes": "",
+    "word": "เผ็ด"
+   },
+   {
+    "syllables": [
+     "ไหม"
+    ],
+    "meaning": "question marker",
+    "grammatical_role": "particle",
+    "pronunciation": "mǎi",
+    "notes": "",
+    "word": "ไหม"
+   }
+  ],
+  "context": {
+   "subTheme": "giving impressions",
+   "usage_scenarios": "Asking a friend about their spice tolerance while eating together.",
+   "emotion": "curious",
+   "timeFrame": "A regular habit",
+   "cultural_notes": "Spicy food is a staple in Thai cuisine and preferences are often discussed.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Food (ordering, impressions, street stalls, spice level, allergies)"
+  },
+  "key_word": "นาย",
+  "key_word_pronunciation": "naai",
+  "key_word_meaning": "you (informal, male)",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 31,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "พรุ่งนี้กินร้านนี้",
+  "pronunciation": "phrûng-níi kin ráan níi",
+  "japanese_translation": "I will eat at this shop tomorrow.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "พรุ่ง",
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "phrûng-níi",
+    "grammatical_role": "conjunction",
+    "meaning": "tomorrow",
+    "word": "พรุ่งนี้"
+   },
+   {
+    "syllables": [
+     "กิน"
+    ],
+    "notes": "",
+    "pronunciation": "kin",
+    "grammatical_role": "verb",
+    "meaning": "eat",
+    "word": "กิน"
+   },
+   {
+    "syllables": [
+     "ร้าน"
+    ],
+    "notes": "",
+    "pronunciation": "ráan",
+    "grammatical_role": "noun",
+    "meaning": "shop",
+    "word": "ร้าน"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "A demonstrative determiner meaning 'this'. It always follows the noun it modifies.",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   }
+  ],
+  "context": {
+   "subTheme": "giving impressions",
+   "usage_scenarios": "Discussing food plans for the next day with a friend.",
+   "timeFrame": "An upcoming plan",
+   "emotion": "neutral",
+   "cultural_notes": "Street food and casual dining shops are central to daily Thai life.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Food (ordering, impressions, street stalls, spice level, allergies)"
+  },
+  "key_word": "นี้",
+  "key_word_pronunciation": "níi",
+  "key_word_meaning": "this",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 33,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ถ้าแพ้ต้องเล่นใหม่",
+  "pronunciation": "thâa phɛ́ɛ tɔ̂ɔng lên mài",
+  "japanese_translation": "If you lose, you have to play again.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ถ้า"
+    ],
+    "notes": "A common conditional conjunction used at the start of a clause.",
+    "pronunciation": "thâa",
+    "grammatical_role": "conjunction",
+    "meaning": "if",
+    "word": "ถ้า"
+   },
+   {
+    "syllables": [
+     "แพ้"
+    ],
+    "meaning": "to lose",
+    "pronunciation": "phɛ́ɛ",
+    "grammatical_role": "verb",
+    "notes": "",
+    "word": "แพ้"
+   },
+   {
+    "syllables": [
+     "ต้อง"
+    ],
+    "meaning": "must",
+    "pronunciation": "tɔ̂ɔng",
+    "grammatical_role": "auxiliary",
+    "notes": "",
+    "word": "ต้อง"
+   },
+   {
+    "syllables": [
+     "เล่น"
+    ],
+    "notes": "",
+    "grammatical_role": "verb",
+    "pronunciation": "lên",
+    "meaning": "to play",
+    "word": "เล่น"
+   },
+   {
+    "syllables": [
+     "ใหม่"
+    ],
+    "meaning": "again",
+    "pronunciation": "mài",
+    "grammatical_role": "adjective",
+    "notes": "",
+    "word": "ใหม่"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／家族や恋人のように近い",
+   "usage_scenarios": "Friends playing a video game together.",
+   "emotion": "casual",
+   "cultural_notes": "Commonly used in casual gaming settings.",
+   "subTheme": "games",
+   "timeFrame": "Happening right now",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Hobbies (Muay Thai, music, movies, golf, social media, games)"
+  },
+  "key_word": "ถ้า",
+  "key_word_pronunciation": "thâa",
+  "key_word_meaning": "if",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 35,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "พวกเราขอดูหน่อย",
+  "pronunciation": "phûuak raw khɔ̌ɔ duu nɔ̀ɔi",
+  "japanese_translation": "We want to take a look at this.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "พวก"
+    ],
+    "notes": "A prefix used to make pronouns plural, specifically for 'we' when combined with 'เรา'.",
+    "pronunciation": "phûuak",
+    "grammatical_role": "noun",
+    "meaning": "plural prefix",
+    "word": "พวก"
+   },
+   {
+    "syllables": [
+     "เรา"
+    ],
+    "notes": "",
+    "pronunciation": "raw",
+    "grammatical_role": "pronoun",
+    "meaning": "we",
+    "word": "เรา"
+   },
+   {
+    "syllables": [
+     "ขอ"
+    ],
+    "notes": "",
+    "grammatical_role": "verb",
+    "pronunciation": "khɔ̌ɔ",
+    "meaning": "want to",
+    "word": "ขอ"
+   },
+   {
+    "syllables": [
+     "ดู"
+    ],
+    "notes": "",
+    "pronunciation": "duu",
+    "grammatical_role": "verb",
+    "meaning": "see",
+    "word": "ดู"
+   },
+   {
+    "syllables": [
+     "หน่อย"
+    ],
+    "notes": "",
+    "pronunciation": "nɔ̀ɔi",
+    "grammatical_role": "adverb",
+    "meaning": "a little bit",
+    "word": "หน่อย"
+   }
+  ],
+  "context": {
+   "topic": "Shopping (haggling, size and color, returns, night markets)",
+   "usage_scenarios": "Asking a shop assistant to show an item to a group.",
+   "emotion": "neutral",
+   "cultural_notes": "Polite to indicate group interest when shopping.",
+   "subTheme": "checking size and color",
+   "timeFrame": "An upcoming plan",
+   "style": "Casual spoken style (how friends talk)",
+   "relation": "自分より目下／ほとんど面識がない"
+  },
+  "key_word": "พวก",
+  "key_word_pronunciation": "phûuak",
+  "key_word_meaning": "plural prefix",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 38,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "พวกเราจะดูหนังครับ",
+  "pronunciation": "phûuak raw jà duu nǎng khráp",
+  "japanese_translation": "We will watch a movie.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "พวก"
+    ],
+    "notes": "A prefix used to indicate plurality when combined with pronouns, as in 'puak-rao' (we) or 'puak-khun' (you all).",
+    "pronunciation": "phûuak",
+    "grammatical_role": "noun",
+    "meaning": "group or plural marker",
+    "word": "พวก"
+   },
+   {
+    "syllables": [
+     "เรา"
+    ],
+    "notes": "",
+    "grammatical_role": "pronoun",
+    "pronunciation": "raw",
+    "meaning": "we, us",
+    "word": "เรา"
+   },
+   {
+    "syllables": [
+     "จะ"
+    ],
+    "notes": "",
+    "pronunciation": "jà",
+    "grammatical_role": "auxiliary",
+    "meaning": "will, shall",
+    "word": "จะ"
+   },
+   {
+    "syllables": [
+     "ดู"
+    ],
+    "notes": "",
+    "pronunciation": "duu",
+    "grammatical_role": "verb",
+    "meaning": "to watch",
+    "word": "ดู"
+   },
+   {
+    "syllables": [
+     "หนัง"
+    ],
+    "notes": "",
+    "pronunciation": "nǎng",
+    "grammatical_role": "noun",
+    "meaning": "movie",
+    "word": "หนัง"
+   },
+   {
+    "syllables": [
+     "ครับ"
+    ],
+    "meaning": "polite particle for males",
+    "pronunciation": "khráp",
+    "grammatical_role": "particle",
+    "notes": "",
+    "word": "ครับ"
+   }
+  ],
+  "context": {
+   "topic": "Hobbies (Muay Thai, music, movies, golf, social media, games)",
+   "usage_scenarios": "Informing a superior about planned leisure activity.",
+   "emotion": "neutral",
+   "cultural_notes": "Adding polite particles like 'krap' is essential when speaking to a superior.",
+   "subTheme": "movies",
+   "timeFrame": "An upcoming plan",
+   "style": "Polite style (formal, respectful expressions)",
+   "relation": "自分より目上／ほとんど面識がない"
+  },
+  "key_word": "พวก",
+  "key_word_pronunciation": "phûuak",
+  "key_word_meaning": "group or plural marker",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 38,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "พวกเราไปสนามบินกัน",
+  "pronunciation": "phûuak raw pai sà-nǎam-bin kan",
+  "japanese_translation": "We go to the airport together.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "พวก"
+    ],
+    "meaning": "group prefix",
+    "grammatical_role": "noun",
+    "pronunciation": "phûuak",
+    "notes": "Used as a prefix to pluralize pronouns, often referring to a group of people.",
+    "word": "พวก"
+   },
+   {
+    "syllables": [
+     "เรา"
+    ],
+    "meaning": "we",
+    "grammatical_role": "pronoun",
+    "pronunciation": "raw",
+    "notes": "",
+    "word": "เรา"
+   },
+   {
+    "syllables": [
+     "ไป"
+    ],
+    "meaning": "go",
+    "grammatical_role": "adverb",
+    "pronunciation": "pai",
+    "notes": "",
+    "word": "ไป"
+   },
+   {
+    "syllables": [
+     "สนาม",
+     "บิน"
+    ],
+    "meaning": "airport",
+    "grammatical_role": "noun",
+    "pronunciation": "sà-nǎam-bin",
+    "notes": "",
+    "word": "สนามบิน"
+   },
+   {
+    "syllables": [
+     "กัน"
+    ],
+    "meaning": "together",
+    "grammatical_role": "adverb",
+    "pronunciation": "kan",
+    "notes": "",
+    "word": "กัน"
+   }
+  ],
+  "context": {
+   "subTheme": "the airport",
+   "usage_scenarios": "Discussing a regular routine for group travel.",
+   "emotion": "neutral",
+   "timeFrame": "A regular habit",
+   "cultural_notes": "Using 'พวกเรา' is a natural way to emphasize the group aspect.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Travel (hotels, directions, sights, airport, tours)"
+  },
+  "key_word": "พวก",
+  "key_word_pronunciation": "phûuak",
+  "key_word_meaning": "group prefix",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 38,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "คิดว่าข้าวนี้อร่อย",
+  "pronunciation": "khít wâa khâaw níi à-rɔ̀ɔi",
+  "japanese_translation": "I think this rice is delicious.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "คิด"
+    ],
+    "notes": "Used here to express an opinion or subjective assessment of the food.",
+    "pronunciation": "khít",
+    "grammatical_role": "verb",
+    "meaning": "to think",
+    "word": "คิด"
+   },
+   {
+    "syllables": [
+     "ว่า"
+    ],
+    "notes": "",
+    "pronunciation": "wâa",
+    "grammatical_role": "conjunction",
+    "meaning": "that",
+    "word": "ว่า"
+   },
+   {
+    "syllables": [
+     "ข้าว"
+    ],
+    "notes": "",
+    "pronunciation": "khâaw",
+    "grammatical_role": "noun",
+    "meaning": "rice",
+    "word": "ข้าว"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "อร่อย"
+    ],
+    "notes": "",
+    "pronunciation": "à-rɔ̀ɔi",
+    "grammatical_role": "adjective",
+    "meaning": "delicious",
+    "word": "อร่อย"
+   }
+  ],
+  "context": {
+   "subTheme": "giving impressions",
+   "usage_scenarios": "Expressing one's opinion on a meal while eating.",
+   "emotion": "positive and casual",
+   "timeFrame": "Happening right now",
+   "cultural_notes": "Food is a frequent topic of conversation in Thai social interactions.",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Food (ordering, impressions, street stalls, spice level, allergies)"
+  },
+  "key_word": "คิด",
+  "key_word_pronunciation": "khít",
+  "key_word_meaning": "to think",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 39,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ทำไมเข้าประชุมช้า",
+  "pronunciation": "tham-mai khâw prà-chum cháa",
+  "japanese_translation": "Why are you joining the meeting late?",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ทำ",
+     "ไม"
+    ],
+    "notes": "Interrogative word used to ask for a reason, commonly placed at the beginning of a sentence.",
+    "pronunciation": "tham-mai",
+    "grammatical_role": "adverb",
+    "meaning": "why",
+    "word": "ทำไม"
+   },
+   {
+    "syllables": [
+     "เข้า"
+    ],
+    "notes": "",
+    "pronunciation": "khâw",
+    "grammatical_role": "verb",
+    "meaning": "join",
+    "word": "เข้า"
+   },
+   {
+    "syllables": [
+     "ประ",
+     "ชุม"
+    ],
+    "notes": "",
+    "pronunciation": "prà-chum",
+    "grammatical_role": "verb",
+    "meaning": "meeting",
+    "word": "ประชุม"
+   },
+   {
+    "syllables": [
+     "ช้า"
+    ],
+    "notes": "",
+    "pronunciation": "cháa",
+    "grammatical_role": "adjective",
+    "meaning": "late",
+    "word": "ช้า"
+   }
+  ],
+  "context": {
+   "relation": "自分より目下／家族や恋人のように近い",
+   "usage_scenarios": "Asking a subordinate about their tardiness to a scheduled meeting.",
+   "emotion": "annoyed",
+   "cultural_notes": "Direct questioning is common between close colleagues or when a superior addresses a subordinate.",
+   "subTheme": "meetings",
+   "timeFrame": "Happening right now",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Work (reporting, meetings, overtime requests, chatting with coworkers)"
+  },
+  "key_word": "ทำไม",
+  "key_word_pronunciation": "tham-mai",
+  "key_word_meaning": "why",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 44,
+  "source_env": "dev"
+ },
+ {
+  "thai_text": "อยากไปวัดไปทางไหนดี",
+  "pronunciation": "yàak pai wát pai thaang-nǎi dii",
+  "japanese_translation": "Which way should I go to get to the temple?",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "อยาก"
+    ],
+    "meaning": "want",
+    "pronunciation": "yàak",
+    "grammatical_role": "verb",
+    "notes": "Expresses a personal desire or wish. It is less formal than 'ต้องการ' and is used in everyday conversation to state what one wants to do.",
+    "word": "อยาก"
+   },
+   {
+    "syllables": [
+     "ไป"
+    ],
+    "notes": "",
+    "grammatical_role": "adverb",
+    "pronunciation": "pai",
+    "meaning": "go",
+    "word": "ไป"
+   },
+   {
+    "syllables": [
+     "วัด"
+    ],
+    "meaning": "temple",
+    "pronunciation": "wát",
+    "grammatical_role": "noun",
+    "notes": "",
+    "word": "วัด"
+   },
+   {
+    "syllables": [
+     "ไป"
+    ],
+    "meaning": "go",
+    "pronunciation": "pai",
+    "grammatical_role": "adverb",
+    "notes": "",
+    "word": "ไป"
+   },
+   {
+    "syllables": [
+     "ทาง",
+     "ไหน"
+    ],
+    "notes": "",
+    "grammatical_role": "determiner",
+    "pronunciation": "thaang-nǎi",
+    "meaning": "which way",
+    "word": "ทางไหน"
+   },
+   {
+    "syllables": [
+     "ดี"
+    ],
+    "meaning": "good",
+    "pronunciation": "dii",
+    "grammatical_role": "adjective",
+    "notes": "",
+    "word": "ดี"
+   }
+  ],
+  "context": {
+   "subTheme": "directions",
+   "usage_scenarios": "Asking a local for directions to a nearby temple.",
+   "emotion": "neutral",
+   "timeFrame": "A regular habit",
+   "style": "Casual spoken style (how friends talk)",
+   "cultural_notes": "Temples are central to Thai culture and are frequent destinations for locals and tourists alike.",
+   "topic": "Travel (hotels, directions, sights, airport, tours)"
+  },
+  "key_word": "อยาก",
+  "key_word_pronunciation": "yàak",
+  "key_word_meaning": "want",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 45,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "มึงแค่กลัวกูเฉยๆ",
+  "pronunciation": "mʉng khɛ̂ɛ kluua kuu chə̌əi-chə̌əi",
+  "japanese_translation": "You're just afraid of me, that's all.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "มึง"
+    ],
+    "meaning": "you (male, informal, rude/intimate)",
+    "grammatical_role": "pronoun",
+    "pronunciation": "mʉng",
+    "notes": "",
+    "word": "มึง"
+   },
+   {
+    "syllables": [
+     "แค่"
+    ],
+    "meaning": "just / only",
+    "grammatical_role": "adverb",
+    "pronunciation": "khɛ̂ɛ",
+    "notes": "Used to limit the extent of an action or feeling. It is common in casual speech, unlike the formal word 'เพียง'.",
+    "word": "แค่"
+   },
+   {
+    "syllables": [
+     "กลัว"
+    ],
+    "meaning": "afraid / scared",
+    "grammatical_role": "verb",
+    "pronunciation": "kluua",
+    "notes": "",
+    "word": "กลัว"
+   },
+   {
+    "syllables": [
+     "กู"
+    ],
+    "meaning": "I / me (male, informal, rude/intimate)",
+    "grammatical_role": "pronoun",
+    "pronunciation": "kuu",
+    "notes": "",
+    "word": "กู"
+   },
+   {
+    "syllables": [
+     "เฉย",
+     "ๆ"
+    ],
+    "meaning": "that's all / nothing more",
+    "grammatical_role": "noun",
+    "pronunciation": "chə̌əi-chə̌əi",
+    "notes": "",
+    "word": "เฉยๆ"
+   }
+  ],
+  "context": {
+   "usage_scenarios": "Peach confronts Home about his distant behavior, suspecting that his past trauma is the reason for the tension between them.",
+   "emotion": "tense and confrontational",
+   "style": "Casual spoken style (how friends talk)",
+   "cultural_notes": "Thai males often use informal pronouns like 'mung' and 'gu' to express raw honesty, intense closeness, or conflict with each other.",
+   "topic": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)"
+  },
+  "key_word": "แค่",
+  "key_word_pronunciation": "khɛ̂ɛ",
+  "key_word_meaning": "just / only",
+  "generation_tier": "free",
+  "lang": "en",
+  "key_word_rank": 50,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "ทุกครั้งทัวร์นี้ถูกมาก",
+  "pronunciation": "thúk khráng thuua níi thùuk mâak",
+  "japanese_translation": "Every time this tour is very cheap.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ทุก"
+    ],
+    "meaning": "every",
+    "pronunciation": "thúk",
+    "grammatical_role": "adverb",
+    "notes": "",
+    "word": "ทุก"
+   },
+   {
+    "syllables": [
+     "ครั้ง"
+    ],
+    "notes": "",
+    "pronunciation": "khráng",
+    "grammatical_role": "noun",
+    "meaning": "time",
+    "word": "ครั้ง"
+   },
+   {
+    "syllables": [
+     "ทัวร์"
+    ],
+    "notes": "",
+    "pronunciation": "thuua",
+    "grammatical_role": "verb",
+    "meaning": "tour",
+    "word": "ทัวร์"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "ถูก"
+    ],
+    "notes": "Means cheap or inexpensive. It is a common adjective for price. Note that it is also a passive marker, but here it functions clearly as an adjective.",
+    "pronunciation": "thùuk",
+    "grammatical_role": "adjective",
+    "meaning": "cheap",
+    "word": "ถูก"
+   },
+   {
+    "syllables": [
+     "มาก"
+    ],
+    "notes": "",
+    "pronunciation": "mâak",
+    "grammatical_role": "adverb",
+    "meaning": "very",
+    "word": "มาก"
+   }
+  ],
+  "context": {
+   "topic": "Travel (hotels, directions, sights, airport, tours)",
+   "usage_scenarios": "Discussing vacation planning with a partner.",
+   "emotion": "Casual and satisfied",
+   "cultural_notes": "Mentioning price affordability is common when planning trips.",
+   "subTheme": "tours",
+   "timeFrame": "A regular habit",
+   "style": "Casual spoken",
+   "relation": "自分と対等／家族や恋人のように近い"
+  },
+  "key_word": "ถูก",
+  "key_word_pronunciation": "thùuk",
+  "key_word_meaning": "cheap",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 68,
+  "source_env": "dev"
+ },
+ {
+  "thai_text": "เมื่อกี้เห็นวัดนี้แล้ว",
+  "pronunciation": "mʉ̂ʉa-kîi hěn wát níi lɛ́ɛw",
+  "japanese_translation": "I just saw this temple.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "เมื่อ",
+     "กี้"
+    ],
+    "notes": "",
+    "pronunciation": "mʉ̂ʉa-kîi",
+    "grammatical_role": "noun",
+    "meaning": "just now",
+    "word": "เมื่อกี้"
+   },
+   {
+    "syllables": [
+     "เห็น"
+    ],
+    "notes": "Indicates sensory perception of seeing. It is more fundamental and involuntary compared to 'ดู' which means to watch or look at.",
+    "pronunciation": "hěn",
+    "grammatical_role": "verb",
+    "meaning": "to see",
+    "word": "เห็น"
+   },
+   {
+    "syllables": [
+     "วัด"
+    ],
+    "notes": "",
+    "pronunciation": "wát",
+    "grammatical_role": "noun",
+    "meaning": "temple",
+    "word": "วัด"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "แล้ว"
+    ],
+    "notes": "",
+    "pronunciation": "lɛ́ɛw",
+    "grammatical_role": "adverb",
+    "meaning": "already",
+    "word": "แล้ว"
+   }
+  ],
+  "context": {
+   "topic": "Travel (hotels, directions, sights, airport, tours)",
+   "usage_scenarios": "Sharing a quick observation with a family member while sightseeing.",
+   "emotion": "Casual and informative",
+   "cultural_notes": "Visiting temples is a central activity for travelers and locals in Thailand.",
+   "subTheme": "sights",
+   "timeFrame": "Something that just happened",
+   "style": "Natural spoken Thai",
+   "relation": "自分より目上／家族や恋人のように近い"
+  },
+  "key_word": "เห็น",
+  "key_word_pronunciation": "hěn",
+  "key_word_meaning": "to see",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 69,
+  "source_env": "dev"
+ },
+ {
+  "thai_text": "ทัวร์นี้สนุกกว่าเจ้าอื่น",
+  "pronunciation": "thuua níi sà-nùk kwàa jâw ʉ̀ʉn",
+  "japanese_translation": "This tour is more fun than the others.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "ทัวร์"
+    ],
+    "notes": "",
+    "pronunciation": "thuua",
+    "grammatical_role": "verb",
+    "meaning": "tour",
+    "word": "ทัวร์"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "สนุก"
+    ],
+    "notes": "",
+    "pronunciation": "sà-nùk",
+    "grammatical_role": "adjective",
+    "meaning": "fun",
+    "word": "สนุก"
+   },
+   {
+    "syllables": [
+     "กว่า"
+    ],
+    "notes": "Used as a comparative marker. Follows the adjective and precedes the object of comparison.",
+    "pronunciation": "kwàa",
+    "grammatical_role": "adverb",
+    "meaning": "more than",
+    "word": "กว่า"
+   },
+   {
+    "syllables": [
+     "เจ้า"
+    ],
+    "meaning": "agency or operator",
+    "pronunciation": "jâw",
+    "grammatical_role": "noun",
+    "notes": "",
+    "word": "เจ้า"
+   },
+   {
+    "syllables": [
+     "อื่น"
+    ],
+    "notes": "",
+    "pronunciation": "ʉ̀ʉn",
+    "grammatical_role": "determiner",
+    "meaning": "other",
+    "word": "อื่น"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／ほとんど面識がない",
+   "usage_scenarios": "Comparing travel agencies or tour providers.",
+   "emotion": "Positive and satisfied",
+   "cultural_notes": "The word chao is commonly used in business contexts to refer to vendors or providers.",
+   "subTheme": "tours",
+   "timeFrame": "A regular habit",
+   "style": "Casual spoken Thai",
+   "topic": "Travel (hotels, directions, sights, airport, tours)"
+  },
+  "key_word": "กว่า",
+  "key_word_pronunciation": "kwàa",
+  "key_word_meaning": "more than",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 70,
+  "source_env": "dev"
+ },
+ {
+  "thai_text": "พรุ่งนี้ฉันจะทำให้เธอยิ้ม",
+  "pronunciation": "phrûng-níi chǎn jà tham-hâi thəə yím",
+  "japanese_translation": "I will make you smile tomorrow.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "พรุ่ง",
+     "นี้"
+    ],
+    "notes": "",
+    "grammatical_role": "conjunction",
+    "pronunciation": "phrûng-níi",
+    "meaning": "tomorrow",
+    "word": "พรุ่งนี้"
+   },
+   {
+    "syllables": [
+     "ฉัน"
+    ],
+    "notes": "",
+    "pronunciation": "chǎn",
+    "grammatical_role": "pronoun",
+    "meaning": "I (informal, for intimate relationships)",
+    "word": "ฉัน"
+   },
+   {
+    "syllables": [
+     "จะ"
+    ],
+    "notes": "",
+    "pronunciation": "jà",
+    "grammatical_role": "auxiliary",
+    "meaning": "will (future marker)",
+    "word": "จะ"
+   },
+   {
+    "syllables": [
+     "ทำ",
+     "ให้"
+    ],
+    "notes": "Used as a causative verb to mean 'to make someone do something' or 'to cause a particular state'.",
+    "pronunciation": "tham-hâi",
+    "grammatical_role": "verb",
+    "meaning": "to make (someone do something)",
+    "word": "ทำให้"
+   },
+   {
+    "syllables": [
+     "เธอ"
+    ],
+    "notes": "",
+    "grammatical_role": "pronoun",
+    "pronunciation": "thəə",
+    "meaning": "you (informal, for intimate relationships)",
+    "word": "เธอ"
+   },
+   {
+    "syllables": [
+     "ยิ้ม"
+    ],
+    "notes": "",
+    "pronunciation": "yím",
+    "grammatical_role": "verb",
+    "meaning": "smile",
+    "word": "ยิ้ม"
+   }
+  ],
+  "context": {
+   "relation": "自分より目下／家族や恋人のように近い",
+   "usage_scenarios": "Speaking to a partner about future plans to make them happy.",
+   "timeFrame": "An upcoming plan",
+   "emotion": "affectionate",
+   "cultural_notes": "Uses informal pronouns suitable for close, affectionate relationships.",
+   "style": "conversational and affectionate",
+   "topic": "family"
+  },
+  "key_word": "ทำให้",
+  "key_word_pronunciation": "tham-hâi",
+  "key_word_meaning": "to make (someone do something)",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 71,
+  "source_env": "dev"
+ },
+ {
+  "thai_text": "อย่าเพิ่งซื้อนะ มันแพง",
+  "pronunciation": "yàa phə̂əng sʉ́ʉ ná man phɛɛng",
+  "japanese_translation": "Don't buy it yet, it's expensive.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "อย่า"
+    ],
+    "notes": "A negative imperative marker used to forbid or discourage an action.",
+    "pronunciation": "yàa",
+    "grammatical_role": "negator",
+    "meaning": "do not",
+    "word": "อย่า"
+   },
+   {
+    "syllables": [
+     "เพิ่ง"
+    ],
+    "meaning": "just / yet",
+    "pronunciation": "phə̂əng",
+    "grammatical_role": "adverb",
+    "notes": "",
+    "word": "เพิ่ง"
+   },
+   {
+    "syllables": [
+     "ซื้อ"
+    ],
+    "notes": "",
+    "pronunciation": "sʉ́ʉ",
+    "grammatical_role": "verb",
+    "meaning": "buy",
+    "word": "ซื้อ"
+   },
+   {
+    "syllables": [
+     "นะ"
+    ],
+    "notes": "",
+    "pronunciation": "ná",
+    "grammatical_role": "particle",
+    "meaning": "particle indicating friendliness",
+    "word": "นะ"
+   },
+   {
+    "syllables": [
+     "มัน"
+    ],
+    "notes": "",
+    "grammatical_role": "pronoun",
+    "pronunciation": "man",
+    "meaning": "it",
+    "word": "มัน"
+   },
+   {
+    "syllables": [
+     "แพง"
+    ],
+    "meaning": "expensive",
+    "pronunciation": "phɛɛng",
+    "grammatical_role": "adjective",
+    "notes": "",
+    "word": "แพง"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／家族や恋人のように近い",
+   "usage_scenarios": "Discussing price with a close friend at a market.",
+   "emotion": "Urgent and advisory.",
+   "cultural_notes": "Bargaining is common and expected in local Thai markets.",
+   "subTheme": "haggling",
+   "timeFrame": "Happening right now",
+   "style": "Casual, conversational, and direct.",
+   "topic": "Shopping (haggling, size and color, returns, night markets)"
+  },
+  "key_word": "อย่า",
+  "key_word_pronunciation": "yàa",
+  "key_word_meaning": "do not",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 73,
+  "source_env": "dev"
+ },
+ {
+  "thai_text": "กำลังเก็บโปสเตอร์หนังอยู่ครับ",
+  "pronunciation": "kam-lang kèp pòot-tə̂ə nǎng yùu khráp",
+  "japanese_translation": "I am putting away the movie posters.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "กำ",
+     "ลัง"
+    ],
+    "meaning": "in the middle of",
+    "grammatical_role": "auxiliary",
+    "pronunciation": "kam-lang",
+    "notes": "",
+    "word": "กำลัง"
+   },
+   {
+    "syllables": [
+     "เก็บ"
+    ],
+    "meaning": "to put away",
+    "grammatical_role": "verb",
+    "pronunciation": "kèp",
+    "notes": "Used for putting things away or tidying up. It can also mean to collect items.",
+    "word": "เก็บ"
+   },
+   {
+    "syllables": [
+     "โปส",
+     "เตอร์"
+    ],
+    "meaning": "poster",
+    "grammatical_role": "noun",
+    "pronunciation": "pòot-tə̂ə",
+    "notes": "",
+    "word": "โปสเตอร์"
+   },
+   {
+    "syllables": [
+     "หนัง"
+    ],
+    "meaning": "movie",
+    "grammatical_role": "noun",
+    "pronunciation": "nǎng",
+    "notes": "",
+    "word": "หนัง"
+   },
+   {
+    "syllables": [
+     "อยู่"
+    ],
+    "meaning": "be at (progressive marker)",
+    "grammatical_role": "verb",
+    "pronunciation": "yùu",
+    "notes": "",
+    "word": "อยู่"
+   },
+   {
+    "syllables": [
+     "ครับ"
+    ],
+    "meaning": "I (polite particle)",
+    "grammatical_role": "particle",
+    "pronunciation": "khráp",
+    "notes": "",
+    "word": "ครับ"
+   }
+  ],
+  "context": {
+   "relation": "自分と対等／顔見知り程度",
+   "usage_scenarios": "Tidying up or organizing a collection of movie posters at home.",
+   "emotion": "neutral",
+   "cultural_notes": "Movie memorabilia and posters are popular among Thai collectors and fans.",
+   "subTheme": "movies",
+   "timeFrame": "Happening right now",
+   "style": "Polite style (formal, respectful expressions)",
+   "topic": "Hobbies (Muay Thai, music, movies, golf, social media, games)"
+  },
+  "key_word": "เก็บ",
+  "key_word_pronunciation": "kèp",
+  "key_word_meaning": "to put away",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 239,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "แพ้เกมแล้วเพราะว่าเน็ตหลุด",
+  "pronunciation": "phɛ́ɛ keem lɛ́ɛw phrɔ́-wâa nét lùt",
+  "japanese_translation": "I lost the game because the internet disconnected.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "แพ้"
+    ],
+    "meaning": "to lose",
+    "grammatical_role": "verb",
+    "pronunciation": "phɛ́ɛ",
+    "notes": "",
+    "word": "แพ้"
+   },
+   {
+    "syllables": [
+     "เกม"
+    ],
+    "meaning": "game",
+    "grammatical_role": "noun",
+    "pronunciation": "keem",
+    "notes": "",
+    "word": "เกม"
+   },
+   {
+    "syllables": [
+     "แล้ว"
+    ],
+    "meaning": "already",
+    "grammatical_role": "adverb",
+    "pronunciation": "lɛ́ɛw",
+    "notes": "",
+    "word": "แล้ว"
+   },
+   {
+    "syllables": [
+     "เพราะ",
+     "ว่า"
+    ],
+    "meaning": "because",
+    "grammatical_role": "conjunction",
+    "pronunciation": "phrɔ́-wâa",
+    "notes": "Used to connect a clause to its reason. Often interchangeable with 'เพราะ', but 'เพราะว่า' emphasizes the explanation.",
+    "word": "เพราะว่า"
+   },
+   {
+    "syllables": [
+     "เน็ต"
+    ],
+    "meaning": "internet",
+    "grammatical_role": "noun",
+    "pronunciation": "nét",
+    "notes": "",
+    "word": "เน็ต"
+   },
+   {
+    "syllables": [
+     "หลุด"
+    ],
+    "meaning": "to be disconnected",
+    "grammatical_role": "verb",
+    "pronunciation": "lùt",
+    "notes": "",
+    "word": "หลุด"
+   }
+  ],
+  "context": {
+   "relation": "自分より目下／家族や恋人のように近い",
+   "usage_scenarios": "Explaining a recent loss in a video game to a friend or sibling.",
+   "emotion": "annoyed and frustrated",
+   "cultural_notes": "Thai people often use the word 'เน็ต' for internet and 'หลุด' to describe connection drops.",
+   "subTheme": "games",
+   "timeFrame": "Something that just happened",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Hobbies (Muay Thai, music, movies, golf, social media, games)"
+  },
+  "key_word": "เพราะว่า",
+  "key_word_pronunciation": "phrɔ́-wâa",
+  "key_word_meaning": "because",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 250,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "รีบหน่อยนะ เกมคืนนี้เริ่มแล้ว",
+  "pronunciation": "rîip nɔ̀ɔi ná keem khʉʉn-níi rə̂əm lɛ́ɛw",
+  "japanese_translation": "Please hurry, the game tonight is starting.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "รีบ"
+    ],
+    "meaning": "hurry",
+    "grammatical_role": "verb",
+    "pronunciation": "rîip",
+    "notes": "Indicates urgency. Used here as an imperative request to a close person to speed up.",
+    "word": "รีบ"
+   },
+   {
+    "syllables": [
+     "หน่อย"
+    ],
+    "meaning": "a little bit",
+    "grammatical_role": "adverb",
+    "pronunciation": "nɔ̀ɔi",
+    "notes": "",
+    "word": "หน่อย"
+   },
+   {
+    "syllables": [
+     "นะ"
+    ],
+    "meaning": "particle for softening",
+    "grammatical_role": "particle",
+    "pronunciation": "ná",
+    "notes": "",
+    "word": "นะ"
+   },
+   {
+    "syllables": [
+     "เกม"
+    ],
+    "meaning": "game",
+    "grammatical_role": "noun",
+    "pronunciation": "keem",
+    "notes": "",
+    "word": "เกม"
+   },
+   {
+    "syllables": [
+     "คืน",
+     "นี้"
+    ],
+    "meaning": "tonight",
+    "grammatical_role": "determiner",
+    "pronunciation": "khʉʉn-níi",
+    "notes": "",
+    "word": "คืนนี้"
+   },
+   {
+    "syllables": [
+     "เริ่ม"
+    ],
+    "meaning": "start",
+    "grammatical_role": "verb",
+    "pronunciation": "rə̂əm",
+    "notes": "",
+    "word": "เริ่ม"
+   },
+   {
+    "syllables": [
+     "แล้ว"
+    ],
+    "meaning": "already",
+    "grammatical_role": "adverb",
+    "pronunciation": "lɛ́ɛw",
+    "notes": "",
+    "word": "แล้ว"
+   }
+  ],
+  "context": {
+   "relation": "自分より目上／家族や恋人のように近い",
+   "usage_scenarios": "Asking a close senior to hurry before starting a game.",
+   "emotion": "excited",
+   "cultural_notes": "Using the particle 'นะ' softens the command, making it polite yet intimate.",
+   "subTheme": "games",
+   "timeFrame": "An upcoming plan",
+   "style": "Casual spoken style (how friends talk)",
+   "topic": "Hobbies (Muay Thai, music, movies, golf, social media, games)"
+  },
+  "key_word": "รีบ",
+  "key_word_pronunciation": "rîip",
+  "key_word_meaning": "hurry",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 262,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "เสื้อสีนี้เหลือไซส์ไหนบ้าง",
+  "pronunciation": "sʉ̂ʉa sǐi níi lʉ̌ʉa sai nǎi bâang",
+  "japanese_translation": "Which sizes are left for this color shirt?",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "เสื้อ"
+    ],
+    "notes": "",
+    "pronunciation": "sʉ̂ʉa",
+    "grammatical_role": "noun",
+    "meaning": "shirt",
+    "word": "เสื้อ"
+   },
+   {
+    "syllables": [
+     "สี"
+    ],
+    "notes": "",
+    "pronunciation": "sǐi",
+    "grammatical_role": "noun",
+    "meaning": "color",
+    "word": "สี"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "เหลือ"
+    ],
+    "meaning": "to remain",
+    "pronunciation": "lʉ̌ʉa",
+    "grammatical_role": "verb",
+    "notes": "Indicates availability or remaining stock. Used in inquiries about quantity or remaining options.",
+    "word": "เหลือ"
+   },
+   {
+    "syllables": [
+     "ไซส์"
+    ],
+    "notes": "",
+    "pronunciation": "sai",
+    "grammatical_role": "noun",
+    "meaning": "size",
+    "word": "ไซส์"
+   },
+   {
+    "syllables": [
+     "ไหน"
+    ],
+    "notes": "",
+    "pronunciation": "nǎi",
+    "grammatical_role": "determiner",
+    "meaning": "which",
+    "word": "ไหน"
+   },
+   {
+    "syllables": [
+     "บ้าง"
+    ],
+    "notes": "",
+    "pronunciation": "bâang",
+    "grammatical_role": "adverb",
+    "meaning": "question particle for multiple items",
+    "word": "บ้าง"
+   }
+  ],
+  "context": {
+   "topic": "Shopping (haggling, size and color, returns, night markets)",
+   "usage_scenarios": "Asking a vendor or companion about available inventory at a night market.",
+   "emotion": "Inquisitive",
+   "cultural_notes": "Night markets are popular for bargain shopping where stock often varies.",
+   "subTheme": "checking size and color",
+   "timeFrame": "An upcoming plan",
+   "style": "Casual spoken",
+   "relation": "自分と対等／家族や恋人のように近い"
+  },
+  "key_word": "เหลือ",
+  "key_word_pronunciation": "lʉ̌ʉa",
+  "key_word_meaning": "to remain",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 373,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "เอาสีนี้เลย เราสายแล้วนะ",
+  "pronunciation": "aw sǐi níi ləəi raw sǎai lɛ́ɛw ná",
+  "japanese_translation": "Let's take this color, we are already late.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "เอา"
+    ],
+    "notes": "",
+    "pronunciation": "aw",
+    "grammatical_role": "verb",
+    "meaning": "take",
+    "word": "เอา"
+   },
+   {
+    "syllables": [
+     "สี"
+    ],
+    "notes": "",
+    "pronunciation": "sǐi",
+    "grammatical_role": "noun",
+    "meaning": "color",
+    "word": "สี"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "เลย"
+    ],
+    "notes": "",
+    "pronunciation": "ləəi",
+    "grammatical_role": "adverb",
+    "meaning": "emphasis particle",
+    "word": "เลย"
+   },
+   {
+    "syllables": [
+     "เรา"
+    ],
+    "notes": "",
+    "pronunciation": "raw",
+    "grammatical_role": "pronoun",
+    "meaning": "we (informal)",
+    "word": "เรา"
+   },
+   {
+    "syllables": [
+     "สาย"
+    ],
+    "meaning": "late",
+    "pronunciation": "sǎai",
+    "grammatical_role": "adjective",
+    "notes": "Used as an adjective to indicate being behind schedule or late for an appointment.",
+    "word": "สาย"
+   },
+   {
+    "syllables": [
+     "แล้ว"
+    ],
+    "notes": "",
+    "pronunciation": "lɛ́ɛw",
+    "grammatical_role": "adverb",
+    "meaning": "already",
+    "word": "แล้ว"
+   },
+   {
+    "syllables": [
+     "นะ"
+    ],
+    "notes": "",
+    "pronunciation": "ná",
+    "grammatical_role": "particle",
+    "meaning": "softening particle",
+    "word": "นะ"
+   }
+  ],
+  "context": {
+   "relation": "自分より目下／家族や恋人のように近い",
+   "usage_scenarios": "Shopping at a night market while being in a rush.",
+   "emotion": "Urgent and friendly.",
+   "cultural_notes": "Night markets are popular; time management is essential.",
+   "subTheme": "checking size and color",
+   "timeFrame": "Happening right now",
+   "style": "Casual and intimate.",
+   "topic": "Shopping (haggling, size and color, returns, night markets)"
+  },
+  "key_word": "สาย",
+  "key_word_pronunciation": "sǎai",
+  "key_word_meaning": "late",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 390,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "เรือลำนี้พังเลยเอาไปคืนที่ตลาดมา",
+  "pronunciation": "rʉʉa lam níi phang ləəi aw pai khʉʉn thîi tà-làat maa",
+  "japanese_translation": "This boat was broken, so I already took it back to the market.",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "เรือ"
+    ],
+    "notes": "A noun referring to a boat or ship. It uses the classifier 'ลำ'.",
+    "pronunciation": "rʉʉa",
+    "grammatical_role": "noun",
+    "meaning": "boat",
+    "word": "เรือ"
+   },
+   {
+    "syllables": [
+     "ลำ"
+    ],
+    "meaning": "classifier for boats",
+    "pronunciation": "lam",
+    "grammatical_role": "noun",
+    "notes": "",
+    "word": "ลำ"
+   },
+   {
+    "syllables": [
+     "นี้"
+    ],
+    "notes": "",
+    "pronunciation": "níi",
+    "grammatical_role": "determiner",
+    "meaning": "this",
+    "word": "นี้"
+   },
+   {
+    "syllables": [
+     "พัง"
+    ],
+    "notes": "",
+    "pronunciation": "phang",
+    "grammatical_role": "verb",
+    "meaning": "broken",
+    "word": "พัง"
+   },
+   {
+    "syllables": [
+     "เลย"
+    ],
+    "meaning": "so",
+    "pronunciation": "ləəi",
+    "grammatical_role": "adverb",
+    "notes": "",
+    "word": "เลย"
+   },
+   {
+    "syllables": [
+     "เอา"
+    ],
+    "notes": "",
+    "pronunciation": "aw",
+    "grammatical_role": "verb",
+    "meaning": "take",
+    "word": "เอา"
+   },
+   {
+    "syllables": [
+     "ไป"
+    ],
+    "notes": "",
+    "pronunciation": "pai",
+    "grammatical_role": "adverb",
+    "meaning": "go",
+    "word": "ไป"
+   },
+   {
+    "syllables": [
+     "คืน"
+    ],
+    "meaning": "return",
+    "pronunciation": "khʉʉn",
+    "grammatical_role": "verb",
+    "notes": "",
+    "word": "คืน"
+   },
+   {
+    "syllables": [
+     "ที่"
+    ],
+    "notes": "",
+    "grammatical_role": "pronoun",
+    "pronunciation": "thîi",
+    "meaning": "at",
+    "word": "ที่"
+   },
+   {
+    "syllables": [
+     "ตลาด"
+    ],
+    "notes": "",
+    "grammatical_role": "noun",
+    "pronunciation": "tà-làat",
+    "meaning": "market",
+    "word": "ตลาด"
+   },
+   {
+    "syllables": [
+     "มา"
+    ],
+    "notes": "",
+    "pronunciation": "maa",
+    "grammatical_role": "verb",
+    "meaning": "completed",
+    "word": "มา"
+   }
+  ],
+  "context": {
+   "topic": "Shopping (haggling, size and color, returns, night markets)",
+   "usage_scenarios": "Returning a broken item to a vendor at a market.",
+   "emotion": "neutral",
+   "cultural_notes": "Market vendors in Thailand are generally willing to accept returns if items are defective.",
+   "subTheme": "returns",
+   "timeFrame": "Something that just happened",
+   "style": "Casual spoken style (how friends talk)",
+   "relation": "自分と対等／家族や恋人のように近い"
+  },
+  "key_word": "เรือ",
+  "key_word_pronunciation": "rʉʉa",
+  "key_word_meaning": "boat",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 550,
+  "source_env": "prod"
+ },
+ {
+  "thai_text": "พี่แกง วานช่วยฟังสิ่งที่ผมประกาศในวิทยุที",
+  "pronunciation": "phîi kɛɛng waan chûuai fang sìng thîi phǒm prà-kàat nai wít-thá-yú thii",
+  "japanese_translation": "แกงครับ ช่วยฟังสิ่งที่ผมออกอากาศในวิทยุหน่อยได้ไหม",
+  "word_breakdown": [
+   {
+    "syllables": [
+     "พี่"
+    ],
+    "notes": "",
+    "pronunciation": "phîi",
+    "grammatical_role": "名詞",
+    "meaning": "年上の人に対する呼称",
+    "word": "พี่"
+   },
+   {
+    "syllables": [
+     "แกง"
+    ],
+    "meaning": "名前",
+    "pronunciation": "kɛɛng",
+    "grammatical_role": "名詞",
+    "notes": "",
+    "word": "แกง"
+   },
+   {
+    "syllables": [
+     "วาน"
+    ],
+    "notes": "相手に簡単な頼み事をする際に使う丁寧な動詞。ขอร้องより日常的。",
+    "pronunciation": "waan",
+    "grammatical_role": "名詞",
+    "meaning": "頼む",
+    "word": "วาน"
+   },
+   {
+    "syllables": [
+     "ช่วย"
+    ],
+    "notes": "",
+    "grammatical_role": "動詞",
+    "pronunciation": "chûuai",
+    "meaning": "手伝う",
+    "word": "ช่วย"
+   },
+   {
+    "syllables": [
+     "ฟัง"
+    ],
+    "notes": "",
+    "grammatical_role": "動詞",
+    "pronunciation": "fang",
+    "meaning": "聞く",
+    "word": "ฟัง"
+   },
+   {
+    "syllables": [
+     "สิ่ง"
+    ],
+    "notes": "",
+    "pronunciation": "sìng",
+    "grammatical_role": "名詞",
+    "meaning": "こと",
+    "word": "สิ่ง"
+   },
+   {
+    "syllables": [
+     "ที่"
+    ],
+    "notes": "",
+    "pronunciation": "thîi",
+    "grammatical_role": "代名詞",
+    "meaning": "関係代名詞",
+    "word": "ที่"
+   },
+   {
+    "syllables": [
+     "ผม"
+    ],
+    "notes": "",
+    "pronunciation": "phǒm",
+    "grammatical_role": "代名詞",
+    "meaning": "私（男性の謙譲語）",
+    "word": "ผม"
+   },
+   {
+    "syllables": [
+     "ประ",
+     "กาศ"
+    ],
+    "meaning": "放送する",
+    "pronunciation": "prà-kàat",
+    "grammatical_role": "動詞",
+    "notes": "",
+    "word": "ประกาศ"
+   },
+   {
+    "syllables": [
+     "ใน"
+    ],
+    "notes": "",
+    "grammatical_role": "前置詞",
+    "pronunciation": "nai",
+    "meaning": "の中",
+    "word": "ใน"
+   },
+   {
+    "syllables": [
+     "วิท",
+     "ยุ"
+    ],
+    "notes": "",
+    "pronunciation": "wít-thá-yú",
+    "grammatical_role": "名詞",
+    "meaning": "ラジオ",
+    "word": "วิทยุ"
+   },
+   {
+    "syllables": [
+     "ที"
+    ],
+    "notes": "",
+    "pronunciation": "thii",
+    "grammatical_role": "名詞",
+    "meaning": "軽いお願いを表す助詞",
+    "word": "ที"
+   }
+  ],
+  "context": {
+   "usage_scenarios": "校内放送で先輩に自分の告白を聞いてほしいと頼む場面。",
+   "emotion": "甘酸っぱい緊張感",
+   "style": "口語体（友達同士のカジュアルな話し言葉）",
+   "cultural_notes": "タイの学校では校内放送が愛の告白の定番の舞台になることが多い。",
+   "topic": "タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）"
+  },
+  "key_word": "วาน",
+  "key_word_pronunciation": "waan",
+  "key_word_meaning": "頼む",
+  "generation_tier": "premium",
+  "lang": "en",
+  "key_word_rank": 930,
+  "source_env": "prod"
+ }
+]
