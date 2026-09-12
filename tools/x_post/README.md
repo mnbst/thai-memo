@@ -24,8 +24,9 @@
 
 前日分が取れないとき（索引の準備待ち・権限不足・生成が無かった日）、下の条件に
 合う前日分が1件も残らなかったとき、Gemini が応答しないときは、
-`gs://<project>-uvm-data/free_sentences_ja.json`（free 例文バンク）からの抽選に
-落として投稿を止めない。`--source bank` で常にバンクを使える。
+`gs://<project>-uvm-data/corpus_sentences_ja.json`（premium と同じ静的コーパス、
+13,403件）からの抽選に落として投稿を止めない。`--source corpus` で常にコーパスを
+使える。
 
 collection group クエリには `sentences.created_at` の COLLECTION_GROUP 索引が
 要る（`firebase/firestore.indexes.json` の `fieldOverrides`）。

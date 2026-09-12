@@ -2,7 +2,8 @@
 
 前日に生成された例文（Firestore の collection group `sentences`）を候補にして、
 その中から「反応が良さそうな1件」を Gemini に選ばせる。前日分が取れないときや
-Gemini が使えないときは、GCS の free 例文バンクに落として投稿を止めない。
+Gemini が使えないときは、GCS の静的コーパス（premium と同じもの）に落として
+投稿を止めない。
 
 投稿済みは gs://<project>-uvm-data/x_post/posted.json で管理する。
 選んだ例文は <out>/sentence.json、投稿本文は <out>/text.txt に書く。
@@ -30,7 +31,8 @@ from google.api_core import exceptions as gcp_exceptions
 from google.cloud import firestore, secretmanager, storage
 from requests_oauthlib import OAuth1Session
 
-BANK_OBJECT = "free_sentences_ja.json"
+# premium と同じ静的コーパス。free 例文バンクより広く、語数で絞っても残る。
+CORPUS_OBJECT = "corpus_sentences_ja.json"
 POSTED_OBJECT = "x_post/posted.json"
 
 # 投稿は日本時間の朝に出る。「前日」も日本時間で切る。
@@ -311,9 +313,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--source",
-        choices=["daily", "bank"],
+        choices=["daily", "corpus"],
         default="daily",
-        help="daily は前日生成分、bank は free 例文バンク。",
+        help="daily は前日生成分、corpus は premium の静的コーパス。",
     )
     args = parser.parse_args()
 
@@ -335,17 +337,17 @@ def main() -> int:
         pool = sound_only(daily)
         if not pool:
             # 前日分が無い日も、語数や破綻で全部落ちた日もバンクに回す。
-            print("条件に合う前日分が無いのでバンクに落とす", file=sys.stderr)
+            print("条件に合う前日分が無いのでコーパスに落とす", file=sys.stderr)
 
     if not pool:
-        bank = load_json(bucket, BANK_OBJECT, [])
-        pool = sound_only(bank)
-        if not pool and bank:
-            # バンクにも残らないのは条件が厳しすぎる側の問題。止めるよりは出す。
-            print("条件に合う候補が無いのでバンク全体から選ぶ", file=sys.stderr)
-            pool = bank
+        corpus = load_json(bucket, CORPUS_OBJECT, [])
+        pool = sound_only(corpus)
+        if not pool and corpus:
+            # コーパスにも残らないのは条件が厳しすぎる側の問題。止めるよりは出す。
+            print("条件に合う候補が無いのでコーパス全体から選ぶ", file=sys.stderr)
+            pool = corpus
     if not pool:
-        print(f"候補が無い: gs://{bucket.name}/{BANK_OBJECT}", file=sys.stderr)
+        print(f"候補が無い: gs://{bucket.name}/{CORPUS_OBJECT}", file=sys.stderr)
         return 1
 
     candidates = [s for s in pool if sentence_key(s) not in posted]
