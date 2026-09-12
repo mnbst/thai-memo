@@ -42,6 +42,10 @@ MAX_CANDIDATES = 60
 # 反応を参照する直近の投稿数。だいたい10日ぶん。
 RECENT_POSTS = 10
 
+# 投稿に回す例文の語数。短すぎると学びが薄く、長すぎると詳細画面に収まらない。
+MIN_WORDS = 6
+MAX_WORDS = 11
+
 GEMINI_SECRET = "gemini-api-key"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
 GEMINI_ENDPOINT = (
@@ -140,6 +144,8 @@ def looks_broken(sentence: dict) -> bool:
 
     breakdown = sentence.get("word_breakdown") or []
     if not breakdown:
+        return True
+    if not MIN_WORDS <= len(breakdown) <= MAX_WORDS:
         return True
     # 分解した単語が本文に無い＝分解がずれている。
     for word in breakdown:
