@@ -125,7 +125,7 @@ lib/presentation/providers/quiz_offer_experiment_provider.dart
 例文→1問確認クイズ導線のvariant定義。v1のA/Bテストはinlineカードで確定済み（全端末inline）。
 
 lib/presentation/providers/subscription_provider.dart
-ティア状態（free/premium）。Firestoreと同期、課金サービス連携。
+ティア状態（free/premium）。Firestoreと同期、課金サービス連携。月額・買い切りのどちらを買うかは purchase(lifetime:) で選ぶ。
 
 lib/presentation/providers/settings_provider.dart
 ユーザー設定（初回起動フラグ、テーマ、生成パラメータ、フォント、アプリ言語）。
@@ -160,7 +160,10 @@ lib/presentation/screens/settings_screen.dart
 設定画面。語彙スコアの深藍カード＋Free向け課金導線を先頭に置き、以下はアカウント/学習設定/表示/アプリについての4カード（見出し＋罫線区切り）。学習設定の先頭は読み物（使い方ガイド・声調ガイド）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI（ボトムシート）。深藍の表題カード＋Free→Premiumの対比3行＋固定購入バー。導線は設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
+プレミアム課金UI（ボトムシート）。深藍の表題カード＋Free→Premiumの対比3行＋固定購入バー（月額／買い切りのプラン選択＋購入ボタン1つ。買い切りが引けない環境では選択を出さず従来の1本道）。導線は設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
+
+test/screenshots/paywall_review_screenshot.dart
+App Store 審査用スクショ（課金画面）の生成。商品を差し込んで描くので、ストア反映を待たずに買い切り込みの画面が撮れる。出力は build/appstore/paywall_review.png。
 
 lib/presentation/screens/ranking_screen.dart
 語彙スコアの全期間ランキング。自分の順位カードを上に置き、その下に上位100人を張り出す。表示名はサーバー採番のタイ人名。
@@ -212,6 +215,9 @@ lib/presentation/widgets/guide_figures.dart
 lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
 
+lib/presentation/widgets/premium_lifetime_migration_dialog.dart
+月額の既存プレミアムユーザーへ、買い切りプラン新設と無料移行を知らせるダイアログ。追加料金なし。自動更新はこちらから止められないので、停止が要ることを同じ画面で伝える。案内→ローディング→完了/失敗まで通す showLifetimeMigrationFlow を持つ。dev は設定から手動表示（サーバーには投げない）。
+
 lib/presentation/widgets/premium_trial_ended_dialog.dart
 プレミアム体験トライアル終了を伝えて登録へ誘導するダイアログ。起動時に一度だけ表示。失う実数（例文の回数、語彙テストで測った値→free上限）だけを並べる。
 
@@ -230,7 +236,7 @@ lib/presentation/tone_explanation_dialog.dart
 ## Services
 
 lib/services/purchase_service.dart
-アプリ内課金（iOS/Android）とサブスクリプション検証。
+アプリ内課金（iOS/Android）と購入検証。月額サブスクと買い切り（iOSのみ）の2商品を扱う。
 
 lib/services/storefront_service.dart
 ダウンロード元のストア地域取得。初回起動時のアプリ言語決定にだけ使う。
@@ -388,7 +394,7 @@ functions/go/internal/fbapp/fbapp.go
 Firebase Admin(Firestore/Auth)クライアントの遅延生成シングルトン。
 
 functions/go/internal/quota/quota.go
-生成回数クォータ定数。constants/quota.ts の移植（両者を一致させること）。
+生成回数クォータ定数。constants/quota.ts の移植（両者を一致させること）。premium の例文は無制限（大きな値を毎日入れ直す形）。
 
 functions/go/cmd/local/main.go
 デプロイ前のローカル起動用。FUNCTION_TARGETで関数を選ぶ。
@@ -440,6 +446,9 @@ functions/go/subscription_status_live_test.go
 
 functions/go/daily_batch.go
 dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_token・古い例文の掃除、生成例文の品質監査。常にHTTPトリガー。
+
+functions/go/daily_batch_quota_test.go
+日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
 dailyBatch から呼ぶ品質監査。直近24時間の premium 例文を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書く。判定は既定で gpt-5.6-luna（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
@@ -498,8 +507,14 @@ constants/subscription.ts の Go 版。期限切れ判定の猶予とストア�
 functions/go/internal/userdata/userdata.go
 deleteUserFirestoreData の Go 版。ユーザーのFirestoreデータ（サブコレクション・leaderboard・nicknames・quiz_queue）を一括削除。
 
+functions/go/migrate_to_lifetime.go
+migrateToLifetime の実装。月額課金者の subscription に買い切りの印（lifetime）を立てるだけの無償移行。購入記録は書き換えない。受付期限あり（LIFETIME_MIGRATION_DEADLINE で変更可）。
+
+functions/go/migrate_to_lifetime_test.go
+移行済みユーザーが日次リセット・ストア通知の期限切れで降格しないこと、返金・取消では降格することのテスト。
+
 functions/go/verify_subscription.go
-verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。
+verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。買い切り（premium_lifetime, iOSのみ）は期限を持たず subscription.lifetime=true で印を付ける。
 
 functions/go/verify_subscription_live_test.go
 バリデーション文言、匿名拒否、ティア変更時のみのクォータリセット、旧doc剥奪を検証。

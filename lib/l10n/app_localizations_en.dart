@@ -555,6 +555,49 @@ class L10nEn extends L10n {
   String get settingsContact => 'Contact us';
 
   @override
+  String get settingsLifetimeMigration => 'Move to the lifetime plan';
+
+  @override
+  String get settingsLifetimeMigrationSubtitle => 'No additional payment';
+
+  @override
+  String get lifetimeMigrationTitle => 'We\'ve added a lifetime plan';
+
+  @override
+  String get lifetimeMigrationBody =>
+      'Thank you for staying with us. For our continuing subscribers, moving to the lifetime plan is free right now.';
+
+  @override
+  String get lifetimeMigrationNoCharge => 'No additional payment';
+
+  @override
+  String get lifetimeMigrationCancelNote =>
+      'After moving, please turn off monthly auto-renewal yourself in your App Store account settings. Billing continues until you do.';
+
+  @override
+  String get lifetimeMigrationProgress => 'Moving your plan…';
+
+  @override
+  String get lifetimeMigrationDoneTitle => 'You\'re on the lifetime plan';
+
+  @override
+  String get lifetimeMigrationDoneBody =>
+      'Premium is yours from here on. Don\'t forget to turn off monthly auto-renewal.';
+
+  @override
+  String get lifetimeMigrationFailedTitle => 'We couldn\'t move your plan';
+
+  @override
+  String get lifetimeMigrationFailedBody =>
+      'Please try again in a little while. Your Premium access continues as before.';
+
+  @override
+  String get lifetimeMigrationConfirm => 'Move to lifetime';
+
+  @override
+  String get lifetimeMigrationLater => 'Later';
+
+  @override
   String get trialEndedTitle => 'Your premium trial has ended';
 
   @override
@@ -570,9 +613,7 @@ class L10nEn extends L10n {
   String get trialEndedChangeQuotaLabel => 'Sentences';
 
   @override
-  String trialEndedChangeQuotaPremium(int premium) {
-    return '$premium/day';
-  }
+  String get trialEndedChangeQuotaPremium => 'Unlimited';
 
   @override
   String trialEndedChangeQuotaFree(int free) {
@@ -609,9 +650,7 @@ class L10nEn extends L10n {
   String get trialStartedChangeQuotaLabel => 'Sentences';
 
   @override
-  String trialStartedChangeQuota(int premium) {
-    return 'Up to $premium a day';
-  }
+  String get trialStartedChangeQuota => 'Unlimited';
 
   @override
   String get trialStartedChangeTopicLabel => 'Topics';
@@ -805,6 +844,29 @@ class L10nEn extends L10n {
   String get paywallSubscribe => 'Go Premium';
 
   @override
+  String get paywallPlanMonthlyTitle => 'Monthly';
+
+  @override
+  String get paywallPlanMonthlyNote => 'Renews monthly. Cancel anytime.';
+
+  @override
+  String paywallPlanMonthlyPrice(String price) {
+    return '$price / mo';
+  }
+
+  @override
+  String get paywallPlanLifetimeTitle => 'Lifetime';
+
+  @override
+  String get paywallPlanLifetimeNote => 'One payment. No renewal.';
+
+  @override
+  String get paywallPurchaseCta => 'Start with this plan';
+
+  @override
+  String get paywallLifetimeNote => 'A one-time payment. No renewals.';
+
+  @override
   String get paywallLegal =>
       'Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.';
 
@@ -825,21 +887,12 @@ class L10nEn extends L10n {
   String get paywallFeatureQuotaTitle => 'Immerse yourself in more Thai';
 
   @override
-  String paywallFeatureQuotaFree(int count, int limit) {
-    return '$count sentences a day · vocabulary capped at $limit words';
-  }
-
-  @override
-  String paywallFeatureQuotaPremium(int count) {
-    return '$count sentences a day · no vocabulary cap';
-  }
+  String get paywallFeatureQuotaPremium =>
+      'Unlimited sentences · no vocabulary cap';
 
   @override
   String get paywallFeatureTopicTitle =>
       'Pick a topic and go deeper into Thai culture';
-
-  @override
-  String get paywallFeatureTopicFree => 'A random beginner topic';
 
   @override
   String get paywallFeatureTopicPremium =>
@@ -1383,9 +1436,7 @@ class L10nEn extends L10n {
       'That\'s the last new sentence for today.\nYou can still revisit past sentences in History.';
 
   @override
-  String quotaSentenceUpgradeCta(int count) {
-    return 'Premium gives you $count sentences a day';
-  }
+  String get quotaSentenceUpgradeCta => 'Premium gives you unlimited sentences';
 
   @override
   String get errAuth =>
@@ -2530,6 +2581,9 @@ class L10nEn extends L10n {
 
   @override
   String get guidePlanRowVocab => 'Vocabulary cap';
+
+  @override
+  String get guidePlanSentencesUnlimited => 'Unlimited';
 
   @override
   String guidePlanSentences(int count) {

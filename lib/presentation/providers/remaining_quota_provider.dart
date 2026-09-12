@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_config.dart';
 import '../../services/firebase_auth_service.dart';
 import 'subscription_provider.dart';
 
@@ -150,3 +152,30 @@ String nextResetText(L10n l10n) {
   if (hours > 0) return l10n.quotaResetInHours(hours, minutes);
   return l10n.quotaResetInMinutes(minutes);
 }
+
+/// 買い切りへの無償移行を案内してよいユーザーか。
+///
+/// 条件はサーバー側（migrateToLifetime）と揃える。ストアで課金中（解約済みで
+/// 期限内、支払い猶予中も含む）で、まだ買い切りの印が付いていない人だけ。
+/// 手動付与や体験トライアルは「継続してくださっている方」ではないので外す。
+final lifetimeMigrationEligibleProvider = Provider<bool>((ref) {
+  final data = ref.watch(userDocProvider).valueOrNull;
+  if (data == null) return false;
+  if (data['tier'] != 'premium') return false;
+
+  final sub = data['subscription'];
+  if (sub is! Map) return false;
+  if (sub['lifetime'] == true) return false;
+  if (sub['platform'] != 'ios' && sub['platform'] != 'android') return false;
+
+  return const {'active', 'canceled', 'grace_period'}.contains(sub['status']);
+});
+
+/// 起動時に無償移行の案内を実際に出した端末か。
+///
+/// 「移行時点で課金していた人」の目印。案内を押し損ねた・移行に失敗した人へ
+/// 設定からのやり直し口を出すために使う。
+final lifetimeMigrationOfferedProvider = FutureProvider<bool>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(AppConfig.prefKeyLifetimeMigrationOffered) ?? false;
+});

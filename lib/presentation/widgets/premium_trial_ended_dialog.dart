@@ -50,8 +50,7 @@ class PremiumTrialEndedDialog extends ConsumerWidget {
               _Change(
                 icon: Icons.bolt,
                 label: l10n.trialEndedChangeQuotaLabel,
-                premium:
-                    l10n.trialEndedChangeQuotaPremium(premiumDailySentences),
+                premium: l10n.trialEndedChangeQuotaPremium,
                 free: l10n.trialEndedChangeQuotaFree(freeDailySentences),
               ),
               if (measured > freeVocabScoreLimit)
@@ -135,13 +134,15 @@ class _ChangeTable extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(right: 12, top: 3, bottom: 3),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                // 値の3列を縮めない方針なので、狭い画面・大きい文字ではラベル列の
+                // 取り分がほとんど残らない。Row だと溢れて赤帯になるため、行を
+                // 折り返せる Wrap で組む（アイコンとラベルが上下に分かれる）。
+                child: Wrap(
+                  spacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Icon(change.icon, size: 16, color: cs.primary),
-                    const SizedBox(width: 6),
-                    // 長いラベル（他言語・大きい文字サイズ）は折り返させる。
-                    Flexible(child: Text(change.label, style: base)),
+                    Text(change.label, style: base),
                   ],
                 ),
               ),

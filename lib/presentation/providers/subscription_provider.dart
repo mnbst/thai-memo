@@ -10,8 +10,12 @@
 ///   - クライアントはアプリ起動時・フォアグラウンド復帰時に Firestore から最新 tier を取得
 /// - dev環境: Firestore（ストア接続なしでテスト可能）
 ///
+/// 【プラン構成】
+/// - premium_monthly: 月額サブスクリプション（iOS / Android）
+/// - premium_lifetime: 買い切り（iOSのみ）。どちらも付与される権利は同じ premium。
+///
 /// 【Free / Premium の機能差分】
-/// - 例文生成: Free=5回/日 / Premium=5回/日（0時リセット）
+/// - 例文生成: Free=5回/日 / Premium=無制限（0時リセット）
 /// - クイズ: Free=1回/日 / Premium=5回/日（0時リセット）
 /// - 選べる単語: Free=100語まで / Premium=無制限
 /// - テーマ: Free=3種 / Premium=15種
@@ -48,18 +52,21 @@ enum UserTier { free, premium }
 ///
 /// tier: 現在の課金ティア（アプリ全体の機能制限判定に使用）
 /// isLoading: 購入/復元処理中かどうか（ボタンの無効化やローディング表示に使用）
-/// product: ストアから取得した商品情報（価格表示に使用、取得前は null）
+/// product: ストアから取得した月額商品（価格表示に使用、取得前は null）
+/// lifetimeProduct: 買い切り商品（iOSのみ。未販売環境では null）
 /// errorMessage: 直近のエラーメッセージ（購入失敗時に UI に表示）
 class SubscriptionState {
   final UserTier tier;
   final bool isLoading;
   final ProductDetails? product;
+  final ProductDetails? lifetimeProduct;
   final String? errorMessage;
 
   const SubscriptionState({
     this.tier = UserTier.free,
     this.isLoading = false,
     this.product,
+    this.lifetimeProduct,
     this.errorMessage,
   });
 
@@ -69,12 +76,14 @@ class SubscriptionState {
     UserTier? tier,
     bool? isLoading,
     ProductDetails? product,
+    ProductDetails? lifetimeProduct,
     String? errorMessage,
   }) {
     return SubscriptionState(
       tier: tier ?? this.tier,
       isLoading: isLoading ?? this.isLoading,
       product: product ?? this.product,
+      lifetimeProduct: lifetimeProduct ?? this.lifetimeProduct,
       errorMessage: errorMessage,
     );
   }
@@ -93,11 +102,13 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     required L10n Function() l10n,
     FirebaseFirestore? firestore,
     PurchaseService? purchaseService,
+    FirebaseFunctions? functions,
     this.restoreDelay = const Duration(seconds: 2),
   })  : _analytics = analytics,
         _l10n = l10n,
         _firestore = firestore,
         _purchaseService = purchaseService,
+        _functions = functions,
         super(const SubscriptionState(tier: UserTier.free));
 
   final AnalyticsService _analytics;
@@ -105,6 +116,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   /// 文言は言語設定に追従させたいので、値ではなく都度引く関数を持つ。
   final L10n Function() _l10n;
   final FirebaseFirestore? _firestore;
+  final FirebaseFunctions? _functions;
   PurchaseService? _purchaseService;
   Future<void>? _storeReadyFuture;
 
@@ -144,7 +156,11 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   }
 
   /// 購入を開始
-  Future<void> purchase() async {
+  ///
+  /// [lifetime] が true なら買い切り、false なら月額を買う。買い切りを売って
+  /// いない環境（Android・商品未登録）では lifetimeProduct が無いので、
+  /// 呼び出し側がボタン自体を出さない。
+  Future<void> purchase({bool lifetime = false}) async {
     if (!FirebaseAuthService.instance.isLinkedAccount) {
       state = state.copyWith(
         isLoading: false,
@@ -154,7 +170,8 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     }
     try {
       await ensureStoreReady();
-      if (_purchaseService == null || state.product == null) {
+      final product = lifetime ? state.lifetimeProduct : state.product;
+      if (_purchaseService == null || product == null) {
         state = state.copyWith(
           isLoading: false,
           errorMessage: _l10n().errProductLoadFailed,
@@ -162,7 +179,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
         return;
       }
       state = state.copyWith(isLoading: true, errorMessage: null);
-      await _purchaseService!.buy(state.product!);
+      await _purchaseService!.buy(product);
     } catch (e) {
       debugPrint('Failed to start purchase: $e');
       state = state.copyWith(
@@ -208,6 +225,24 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       state = state.copyWith(
           isLoading: false, errorMessage: _l10n().errRestoreFailed);
     }
+  }
+
+  /// 月額から買い切りへ無償で移行する。
+  ///
+  /// サーバーが subscription に買い切りの印を立てるだけで、購入は発生しない。
+  /// 月額の自動更新はアプリからは止められないので、停止はユーザー本人が行う
+  /// （案内ダイアログで伝えている）。
+  Future<void> migrateToLifetime() async {
+    final functions = _functions ??
+        FirebaseFunctions.instanceFor(region: FirebaseConfig.functionsRegion);
+    final callable = functions.httpsCallable(
+      FirebaseConfig.migrateToLifetimeFunctionName,
+      options: HttpsCallableOptions(timeout: const Duration(seconds: 30)),
+    );
+    await callable.call<dynamic>();
+    // 権利そのものは変わらない（premium のまま）が、doc を読み直して
+    // 画面の状態をサーバーに合わせる。
+    await refreshTier();
   }
 
   /// Firestore の users/{uid}.tier フィールドからサブスクリプション状態を取得
@@ -266,10 +301,14 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
   Future<void> _loadProduct() async {
     try {
-      final product = await _purchaseService?.fetchProduct();
+      final products = await _purchaseService?.fetchProducts();
       if (!mounted) return;
-      if (product != null) {
-        state = state.copyWith(product: product, errorMessage: null);
+      if (products != null) {
+        state = state.copyWith(
+          product: products.monthly,
+          lifetimeProduct: products.lifetime,
+          errorMessage: null,
+        );
       } else {
         state = state.copyWith(errorMessage: _l10n().errProductLoadFailed);
       }

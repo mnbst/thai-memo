@@ -5,8 +5,9 @@
 ///
 /// 1. Free / Premium の機能比較テーブル（例文生成回数、クイズ、テーマ数など）
 /// 2. 月額価格の表示（ストアから動的に取得した実際の価格）
-/// 3. 「プレミアムに登録」ボタン → OS ネイティブの決済シートを起動
-/// 4. 「購入を復元」ボタン → 機種変更・再インストール時の復元用
+/// 3. 「プレミアムに登録」ボタン（月額）→ OS ネイティブの決済シートを起動
+/// 4. 「買い切り」ボタン（iOSのみ。商品が引けた時だけ出す）
+/// 5. 「購入を復元」ボタン → 機種変更・再インストール時の復元用
 ///
 /// 【表示トリガー】
 /// - 設定画面のアップグレードバナータップ
@@ -33,18 +34,17 @@ import '../providers/analytics_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../widgets/sign_in_sheet.dart';
-import '../widgets/vocab_level.dart';
 
-/// 1日あたりの例文生成回数。サーバ側の quota.ts / constants.py と一致させること。
+/// free の1日あたりの例文生成回数。サーバ側の quota.ts と一致させること。
+/// premium は無制限なので、対応する定数は持たない（文言側で「無制限」と書く）。
 const freeDailySentences = 5;
-const premiumDailySentences = 20;
 
 /// 新規ユーザーに配るプレミアム体験の期間（日）。
 /// サーバ側の quota.PremiumTrialDays と一致させること。
 const premiumTrialDays = 2;
 
 /// プレミアムプランの説明を表示するモーダルボトムシート
-class PaywallBottomSheet extends ConsumerWidget {
+class PaywallBottomSheet extends ConsumerStatefulWidget {
   static const routeName = 'paywall';
 
   const PaywallBottomSheet({
@@ -92,9 +92,24 @@ class PaywallBottomSheet extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PaywallBottomSheet> createState() =>
+      _PaywallBottomSheetState();
+}
+
+/// 選べるプラン。どちらも付与される権利は同じ premium で、支払い方だけが違う。
+enum _Plan { monthly, lifetime }
+
+class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
+  /// 既定は月額。最初の負担が軽い方を初期選択にする。
+  _Plan _plan = _Plan.monthly;
+
+  String get source => widget.source;
+
+  @override
+  Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.78,
+      // 購入バーがプラン2枚ぶん高い。特典が見切れない高さにしておく。
+      initialChildSize: 0.86,
       minChildSize: 0.5,
       maxChildSize: 0.95,
       expand: false,
@@ -217,7 +232,11 @@ class PaywallBottomSheet extends ConsumerWidget {
   /// 既にプレミアムの場合は「加入中」メッセージのみ表示。
   /// product が null（ストアから商品情報を取得できていない）の場合、購入ボタンは無効化される。
   /// 購入を開始する。匿名ユーザーの場合は、復元のため先にサインインを必須とする。
-  Future<void> _startPurchase(BuildContext context, WidgetRef ref) async {
+  Future<void> _startPurchase(
+    BuildContext context,
+    WidgetRef ref, {
+    bool lifetime = false,
+  }) async {
     if (FirebaseAuthService.instance.currentUser?.isAnonymous ?? true) {
       final signedIn = await showSignInSheet(
         context,
@@ -227,9 +246,13 @@ class PaywallBottomSheet extends ConsumerWidget {
       if (!signedIn || !context.mounted) return;
     }
     unawaited(
-      ref.read(analyticsServiceProvider).logSubscribe(source: source),
+      ref.read(analyticsServiceProvider).logSubscribe(
+            source: lifetime ? '${source}_lifetime' : source,
+          ),
     );
-    await ref.read(subscriptionControllerProvider.notifier).purchase();
+    await ref
+        .read(subscriptionControllerProvider.notifier)
+        .purchase(lifetime: lifetime);
   }
 
   /// 購入を復元する。匿名ユーザーの場合は先にサインインを必須とする。
@@ -249,6 +272,13 @@ class PaywallBottomSheet extends ConsumerWidget {
     final subState = ref.watch(subscriptionControllerProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
+
+    // 買い切りを売っていない環境（Android・商品が引けない時）では選択肢が
+    // 1つしか無い。ラジオも「このプランで」も出さず、これまでの1本道にする。
+    final hasChoice = subState.lifetimeProduct != null;
+    final lifetimeChosen = hasChoice && _plan == _Plan.lifetime;
+    final selectedProduct =
+        lifetimeChosen ? subState.lifetimeProduct : subState.product;
 
     if (subState.isPremium) {
       return Container(
@@ -340,34 +370,46 @@ class PaywallBottomSheet extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 価格表示
-          if (subState.product != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                _formatPrice(L10n.of(context), subState.product!.rawPrice,
-                    subState.product!.currencyCode),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                textAlign: TextAlign.center,
-              ),
+          // プラン選択。月額と買い切りを同じ形で並べ、価格と「更新があるか」を
+          // 縦に見比べられるようにする。ボタンを2つ並べると、どちらが何円で
+          // 何が違うのかが読み取れなかった。
+          _buildPlanCard(
+            context,
+            plan: _Plan.monthly,
+            title: L10n.of(context).paywallPlanMonthlyTitle,
+            note: L10n.of(context).paywallPlanMonthlyNote,
+            price: subState.product == null
+                ? ''
+                : L10n.of(context).paywallPlanMonthlyPrice(
+                    subState.product!.price,
+                  ),
+            selectable: hasChoice,
+          ),
+          if (subState.lifetimeProduct != null)
+            _buildPlanCard(
+              context,
+              plan: _Plan.lifetime,
+              title: L10n.of(context).paywallPlanLifetimeTitle,
+              note: L10n.of(context).paywallPlanLifetimeNote,
+              price: subState.lifetimeProduct!.price,
+              selectable: hasChoice,
             ),
           // エラーメッセージ
           if (subState.errorMessage != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
               child: Text(
                 subState.errorMessage!,
                 style: TextStyle(color: colorScheme.error),
                 textAlign: TextAlign.center,
               ),
             ),
-          // 購入ボタン
+          const SizedBox(height: 4),
+          // 購入ボタン。選んでいるプランをそのまま買う。
           FilledButton(
-            onPressed: subState.isLoading || subState.product == null
+            onPressed: subState.isLoading || selectedProduct == null
                 ? null
-                : () => _startPurchase(context, ref),
+                : () => _startPurchase(context, ref, lifetime: lifetimeChosen),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 15),
               minimumSize: const Size(double.infinity, 0),
@@ -385,15 +427,33 @@ class PaywallBottomSheet extends ConsumerWidget {
                 : Text(
                     // 購入を開始するボタンなので、何が起きるか一読で分かる言い方にする
                     // （情緒的なコピーは上部のタイトル・比較表で担う）。
-                    L10n.of(context).paywallSubscribe,
+                    hasChoice
+                        ? L10n.of(context).paywallPurchaseCta
+                        : L10n.of(context).paywallSubscribe,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: Theme.of(context).colorScheme.onPrimary,
                         ),
                   ),
           ),
+          // 買い切りを選んでいる間は、自動更新の開示文ではなくこちらを出す。
+          if (lifetimeChosen) ...[
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: Text(
+                L10n.of(context).paywallLifetimeNote,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                      height: 1.25,
+                    ),
+                textAlign: TextAlign.left,
+              ),
+            ),
+          ],
           // 自動更新サブスクリプション開示文（iOS: Apple ガイドライン 3.1.2 準拠）
-          if (defaultTargetPlatform == TargetPlatform.iOS) ...[
+          if (!lifetimeChosen &&
+              defaultTargetPlatform == TargetPlatform.iOS) ...[
             const SizedBox(height: 6),
             SizedBox(
               width: double.infinity,
@@ -438,11 +498,79 @@ class PaywallBottomSheet extends ConsumerWidget {
     );
   }
 
-  String _formatPrice(L10n l10n, double rawPrice, String currencyCode) {
-    if (currencyCode == 'JPY') {
-      return l10n.paywallPriceYen('${rawPrice.toInt()}');
-    }
-    return l10n.paywallPrice(currencyCode, rawPrice.toStringAsFixed(2));
+  /// プラン1つぶん。名前・更新の有無・価格をこの並びで固定して、2つを縦に
+  /// 見比べられるようにする。
+  Widget _buildPlanCard(
+    BuildContext context, {
+    required _Plan plan,
+    required String title,
+    required String note,
+    required String price,
+    required bool selectable,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final selected = !selectable || _plan == plan;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: selectable ? () => setState(() => _plan = plan) : null,
+        borderRadius: BorderRadius.circular(AppConfig.buttonBorderRadius),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: selected && selectable
+                ? AppColors.gold.withValues(alpha: 0.10)
+                : cs.surface,
+            borderRadius: BorderRadius.circular(AppConfig.buttonBorderRadius),
+            border: Border.all(
+              color: selected ? AppColors.gold : cs.outlineVariant,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              if (selectable) ...[
+                Icon(
+                  selected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  size: 20,
+                  color: selected ? AppColors.goldInk : cs.outline,
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      note,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                price,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// プレミアム体験に触れる一行。
@@ -480,13 +608,12 @@ class PaywallBottomSheet extends ConsumerWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          // テーマを先頭に置く。無料は「おまかせ」で届くだけ、プレミアムは
-          // 自分で選べる、という差が一番わかりやすい。
+          // テーマを先頭に置く。「自分で選べる」が一番わかりやすい変化なので、
+          // ここから読ませる。
           _buildBenefitRow(
             context,
             icon: Icons.local_offer_outlined,
             title: l10n.paywallFeatureTopicTitle,
-            freeText: l10n.paywallFeatureTopicFree,
             premiumText: l10n.paywallFeatureTopicPremium,
           ),
           const Divider(
@@ -500,24 +627,24 @@ class PaywallBottomSheet extends ConsumerWidget {
             title: l10n.paywallFeatureQuotaTitle,
             // 例文の回数と語彙スコアの上限を1行にまとめる。どちらも
             // 「どれだけ触れられるか」の話なので、行を分けると差が薄まる。
-            freeText: l10n.paywallFeatureQuotaFree(
-                freeDailySentences, freeVocabScoreLimit),
-            premiumText: l10n.paywallFeatureQuotaPremium(premiumDailySentences),
+            premiumText: l10n.paywallFeatureQuotaPremium,
           ),
         ],
       ),
     );
   }
 
+  /// 特典1つぶん。見出し（太字）と、プレミアムで何が変わるか（金）の2行だけ。
+  ///
+  /// free の値を並べていたが、プランの比較は下の選択カードの仕事になった。
+  /// ここで二重に比べさせると、読む量が増えるわりに差が薄まる。
   Widget _buildBenefitRow(
     BuildContext context, {
     required IconData icon,
     required String title,
-    required String freeText,
     required String premiumText,
   }) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Row(
@@ -534,29 +661,13 @@ class PaywallBottomSheet extends ConsumerWidget {
                   style: theme.textTheme.bodyLarge
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
-                  freeText,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: cs.onSurfaceVariant),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.arrow_downward_rounded,
-                        size: 16, color: AppColors.goldInk),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        premiumText,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.goldInk,
-                        ),
-                      ),
-                    ),
-                  ],
+                  premiumText,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.goldInk,
+                  ),
                 ),
               ],
             ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../screens/paywall_screen.dart';
 
 /// プレミアム体験の開放を伝えるダイアログ。
 ///
@@ -49,7 +48,7 @@ class PremiumTrialStartedDialog extends StatelessWidget {
           _Unlocked(
             icon: Icons.bolt,
             label: l10n.trialStartedChangeQuotaLabel,
-            text: l10n.trialStartedChangeQuota(premiumDailySentences),
+            text: l10n.trialStartedChangeQuota,
           ),
           const SizedBox(height: 6),
           _Unlocked(

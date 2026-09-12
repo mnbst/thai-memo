@@ -10,6 +10,7 @@ class FirebaseConfig {
   static const String generateQuizFunctionName = 'generateQuiz';
   static const String generateLearningQuizFunctionName = 'generateLearningQuiz';
   static const String verifySubscriptionFunctionName = 'verifySubscription';
+  static const String migrateToLifetimeFunctionName = 'migrateToLifetime';
   static const String subscriptionStatusFunctionName = 'subscriptionStatus';
   static const String updateUvmFunctionName = 'updateUvm';
   static const String resetLearningDataFunctionName = 'resetLearningData';

@@ -11,6 +11,7 @@ import (
 	"google.golang.org/api/iterator"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
+	"github.com/mnbst/thai-memo/functions/go/internal/subscription"
 )
 
 // subscriptionStatus は functions/javascript/src/subscriptionStatus.ts の移植。
@@ -144,9 +145,14 @@ func expireUser(
 		if tier, _ := snap.Data()["tier"].(string); tier != "premium" {
 			return nil
 		}
-		subscription, _ := snap.Data()["subscription"].(map[string]any)
-		status, _ = subscription["status"].(string)
-		expiresAt, hasExpiresAt := subscription["expires_at"].(time.Time)
+		sub, _ := snap.Data()["subscription"].(map[string]any)
+		// 買い切り（購入・無償移行とも）は月額の期限が過ぎても premium のまま。
+		if subscription.IsLifetime(sub) {
+			status = ""
+			return nil
+		}
+		status, _ = sub["status"].(string)
+		expiresAt, hasExpiresAt := sub["expires_at"].(time.Time)
 		if !hasExpiresAt || !expiresAt.Before(now) {
 			status = ""
 			return nil

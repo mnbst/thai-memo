@@ -19,8 +19,10 @@ import '../providers/leaderboard_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../../services/push_notification_service.dart';
+import '../widgets/premium_lifetime_migration_dialog.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import 'vocab_test_screen.dart';
 import '../widgets/sign_in_sheet.dart';
@@ -285,6 +287,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           );
         },
       ),
+      // 起動時の案内は一度きりなので、押し損ねた人・移行に失敗した人の
+      // やり直し口をここに置く。移行が済めば対象から外れて消える。
+      Consumer(
+        builder: (context, ref, _) {
+          // 案内を出した端末（＝移行時点で課金していた人）にだけ出す。
+          final offered =
+              ref.watch(lifetimeMigrationOfferedProvider).valueOrNull ?? false;
+          if (!offered || !ref.watch(lifetimeMigrationEligibleProvider)) {
+            return const SizedBox.shrink();
+          }
+          return ListTile(
+            leading: const Icon(Icons.card_giftcard_outlined),
+            title: Text(l10n.settingsLifetimeMigration),
+            subtitle: Text(l10n.settingsLifetimeMigrationSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => showLifetimeMigrationFlow(
+              context,
+              migrate: () => ref
+                  .read(subscriptionControllerProvider.notifier)
+                  .migrateToLifetime(),
+            ),
+          );
+        },
+      ),
       if (authState.isLinked)
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
@@ -464,6 +490,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             await PaywallBottomSheet.show(context,
                 source: 'trial_ended_preview');
           },
+        ),
+      // 買い切り移行の案内は、月額の課金者にしか出ない。見た目の確認用に
+      // dev だけ手動で開けるようにしておく（移行処理そのものは未実装）。
+      if (AppConfig.isDev)
+        ListTile(
+          leading: const Icon(Icons.workspace_premium_outlined),
+          title: const Text('買い切り移行の案内（dev）'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showLifetimeMigrationFlow(
+            context,
+            // dev は見た目の確認用。サーバーには投げず、ローディングの見え方
+            // だけ再現する。
+            migrate: () => Future<void>.delayed(const Duration(seconds: 2)),
+          ),
         ),
     ];
   }

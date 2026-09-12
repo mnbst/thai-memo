@@ -22,12 +22,14 @@ import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/quiz_offer_experiment_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/review_prompt_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/topic_picker.dart';
+import '../widgets/premium_lifetime_migration_dialog.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
 import '../widgets/quiz_offer.dart';
@@ -191,6 +193,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       await _handleInitialNotificationOpen();
       await _maybeShowPremiumTrialStarted();
       await _maybeShowPremiumTrialEnded();
+      await _maybeShowLifetimeMigration();
     }
   }
 
@@ -305,6 +308,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         .setGenerationParam('topic', null);
     if (!openPaywall || !mounted) return;
     await PaywallBottomSheet.show(context, source: 'trial_ended');
+  }
+
+  /// 月額で続けてくださっている方に、買い切りへの無償移行を案内する。
+  ///
+  /// 買い切りプランを出したこと自体を知る機会がここしか無いので、起動時に
+  /// 割り込んで伝える。案内は一度だけ（押し損ねた人・移行に失敗した人は
+  /// 設定のプラン欄から入り直せる）。
+  Future<void> _maybeShowLifetimeMigration() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyLifetimeMigrationNotified) ?? false) {
+      return;
+    }
+    // users doc が届く前に読むと、常に「対象外」で素通りしてしまう。
+    await ref.read(userDocProvider.future);
+    if (!mounted) return;
+
+    if (!ref.read(lifetimeMigrationEligibleProvider)) {
+      // 対象外（free など）にも「案内は済んだ」と記録して閉じる。ここを
+      // 開けたままにすると、このリリース後に月額を買った人にまで無償移行が
+      // 出てしまう。案内はあくまで、出した時点で続けてくださっていた方向け。
+      await prefs.setBool(AppConfig.prefKeyLifetimeMigrationNotified, true);
+      return;
+    }
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+
+    // 出した時点で立てる。移行に失敗しても起動のたびに割り込まない
+    //（やり直しは設定から）。
+    await prefs.setBool(AppConfig.prefKeyLifetimeMigrationNotified, true);
+    await prefs.setBool(AppConfig.prefKeyLifetimeMigrationOffered, true);
+    if (!mounted) return;
+
+    await showLifetimeMigrationFlow(
+      context,
+      migrate: () =>
+          ref.read(subscriptionControllerProvider.notifier).migrateToLifetime(),
+    );
   }
 
   /// 設定タブを開いたときに、通知の案内を出す。
@@ -1957,8 +1996,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 ),
                 icon: const Icon(Icons.lock_open),
                 label: Text(
-                  L10n.of(context)
-                      .quotaSentenceUpgradeCta(premiumDailySentences),
+                  L10n.of(context).quotaSentenceUpgradeCta,
                 ),
               ),
             ],

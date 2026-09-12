@@ -517,6 +517,49 @@ class L10nJa extends L10n {
   String get settingsContact => 'お問い合わせ';
 
   @override
+  String get settingsLifetimeMigration => '買い切りプランへ移行';
+
+  @override
+  String get settingsLifetimeMigrationSubtitle => '追加のお支払いはありません';
+
+  @override
+  String get lifetimeMigrationTitle => '買い切りプランを新設しました';
+
+  @override
+  String get lifetimeMigrationBody =>
+      'いつもご利用ありがとうございます。継続してくださっている方へ、いまなら無料で買い切りプランへ移行いただけます。';
+
+  @override
+  String get lifetimeMigrationNoCharge => '追加のお支払いはありません';
+
+  @override
+  String get lifetimeMigrationCancelNote =>
+      '移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。';
+
+  @override
+  String get lifetimeMigrationProgress => '移行しています…';
+
+  @override
+  String get lifetimeMigrationDoneTitle => '買い切りプランに移行しました';
+
+  @override
+  String get lifetimeMigrationDoneBody =>
+      'これ以降ずっとプレミアムをご利用いただけます。月額の自動更新の停止をお忘れなく。';
+
+  @override
+  String get lifetimeMigrationFailedTitle => '移行できませんでした';
+
+  @override
+  String get lifetimeMigrationFailedBody =>
+      '時間をおいて、もう一度お試しください。プレミアムのご利用はこれまでどおり続きます。';
+
+  @override
+  String get lifetimeMigrationConfirm => '買い切りに移行する';
+
+  @override
+  String get lifetimeMigrationLater => 'あとで';
+
+  @override
   String get trialEndedTitle => 'プレミアム体験が終了しました';
 
   @override
@@ -532,9 +575,7 @@ class L10nJa extends L10n {
   String get trialEndedChangeQuotaLabel => '例文';
 
   @override
-  String trialEndedChangeQuotaPremium(int premium) {
-    return '1日$premium回';
-  }
+  String get trialEndedChangeQuotaPremium => '無制限';
 
   @override
   String trialEndedChangeQuotaFree(int free) {
@@ -564,9 +605,7 @@ class L10nJa extends L10n {
   String get trialStartedChangeQuotaLabel => '例文';
 
   @override
-  String trialStartedChangeQuota(int premium) {
-    return '1日$premium回まで';
-  }
+  String get trialStartedChangeQuota => '無制限';
 
   @override
   String get trialStartedChangeTopicLabel => 'テーマ選択';
@@ -743,6 +782,29 @@ class L10nJa extends L10n {
   String get paywallSubscribe => 'プレミアムに登録';
 
   @override
+  String get paywallPlanMonthlyTitle => '月額プラン';
+
+  @override
+  String get paywallPlanMonthlyNote => '毎月自動更新・いつでも解約';
+
+  @override
+  String paywallPlanMonthlyPrice(String price) {
+    return '$price / 月';
+  }
+
+  @override
+  String get paywallPlanLifetimeTitle => '買い切り';
+
+  @override
+  String get paywallPlanLifetimeNote => '支払いは1回だけ・更新なし';
+
+  @override
+  String get paywallPurchaseCta => 'このプランで始める';
+
+  @override
+  String get paywallLifetimeNote => '1回きりの支払いです。更新はありません。';
+
+  @override
   String get paywallLegal =>
       'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。';
 
@@ -763,20 +825,10 @@ class L10nJa extends L10n {
   String get paywallFeatureQuotaTitle => '良質なタイ語に大量に触れられる';
 
   @override
-  String paywallFeatureQuotaFree(int count, int limit) {
-    return '例文$count回/日・単語は$limit語まで';
-  }
-
-  @override
-  String paywallFeatureQuotaPremium(int count) {
-    return '例文$count回/日・単語の上限なし';
-  }
+  String get paywallFeatureQuotaPremium => '例文は無制限・単語の上限なし';
 
   @override
   String get paywallFeatureTopicTitle => 'テーマを選んでタイ文化に親しむ';
-
-  @override
-  String get paywallFeatureTopicFree => '入門テーマからランダム';
 
   @override
   String get paywallFeatureTopicPremium => '祭り・寺院の作法・BLドラマなど自分で選べる';
@@ -1282,9 +1334,7 @@ class L10nJa extends L10n {
   String get quotaSentenceReached => '今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。';
 
   @override
-  String quotaSentenceUpgradeCta(int count) {
-    return 'Premiumなら1日$count例文';
-  }
+  String get quotaSentenceUpgradeCta => 'Premiumなら例文は無制限';
 
   @override
   String get errAuth => '認証エラーが発生しました。アプリを再起動してください。';
@@ -2359,6 +2409,9 @@ class L10nJa extends L10n {
 
   @override
   String get guidePlanRowVocab => '語彙スコアの上限';
+
+  @override
+  String get guidePlanSentencesUnlimited => '無制限';
 
   @override
   String guidePlanSentences(int count) {

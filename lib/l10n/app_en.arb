@@ -292,19 +292,25 @@
   "settingsPrivacyPolicy": "Privacy policy",
   "settingsTerms": "Terms of service",
   "settingsContact": "Contact us",
+  "settingsLifetimeMigration": "Move to the lifetime plan",
+  "settingsLifetimeMigrationSubtitle": "No additional payment",
+  "lifetimeMigrationTitle": "We've added a lifetime plan",
+  "lifetimeMigrationBody": "Thank you for staying with us. For our continuing subscribers, moving to the lifetime plan is free right now.",
+  "lifetimeMigrationNoCharge": "No additional payment",
+  "lifetimeMigrationCancelNote": "After moving, please turn off monthly auto-renewal yourself in your App Store account settings. Billing continues until you do.",
+  "lifetimeMigrationProgress": "Moving your plan…",
+  "lifetimeMigrationDoneTitle": "You're on the lifetime plan",
+  "lifetimeMigrationDoneBody": "Premium is yours from here on. Don't forget to turn off monthly auto-renewal.",
+  "lifetimeMigrationFailedTitle": "We couldn't move your plan",
+  "lifetimeMigrationFailedBody": "Please try again in a little while. Your Premium access continues as before.",
+  "lifetimeMigrationConfirm": "Move to lifetime",
+  "lifetimeMigrationLater": "Later",
   "trialEndedTitle": "Your premium trial has ended",
   "trialEndedBody": "You're on the free plan starting today.",
   "trialEndedKeepPremium": "See the Premium plan",
   "trialEndedKeepFree": "Later",
   "trialEndedChangeQuotaLabel": "Sentences",
-  "trialEndedChangeQuotaPremium": "{premium}/day",
-  "@trialEndedChangeQuotaPremium": {
-    "placeholders": {
-      "premium": {
-        "type": "int"
-      }
-    }
-  },
+  "trialEndedChangeQuotaPremium": "Unlimited",
   "trialEndedChangeQuotaFree": "{free}/day",
   "@trialEndedChangeQuotaFree": {
     "placeholders": {
@@ -327,14 +333,7 @@
   "trialStartedTitle": "{days, plural, =1{You have Premium for 1 more day} other{You have Premium for {days} days}}",
   "trialStartedBody": "We've unlocked features that aren't in the free plan, just for this period.",
   "trialStartedChangeQuotaLabel": "Sentences",
-  "trialStartedChangeQuota": "Up to {premium} a day",
-  "@trialStartedChangeQuota": {
-    "placeholders": {
-      "premium": {
-        "type": "int"
-      }
-    }
-  },
+  "trialStartedChangeQuota": "Unlimited",
   "trialStartedChangeTopicLabel": "Topics",
   "trialStartedChangeTopic": "Pick your own sentence topics",
   "trialStartedStart": "Got it",
@@ -400,6 +399,13 @@
   "paywallSignInForRestore": "To restore a purchase, sign in with the account you bought it on.",
   "paywallActive": "Your Premium plan is active",
   "paywallSubscribe": "Go Premium",
+  "paywallPlanMonthlyTitle": "Monthly",
+  "paywallPlanMonthlyNote": "Renews monthly. Cancel anytime.",
+  "paywallPlanMonthlyPrice": "{price} / mo",
+  "paywallPlanLifetimeTitle": "Lifetime",
+  "paywallPlanLifetimeNote": "One payment. No renewal.",
+  "paywallPurchaseCta": "Start with this plan",
+  "paywallLifetimeNote": "A one-time payment. No renewals.",
   "paywallLegal": "Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.",
   "paywallRestore": "Restore purchases",
   "paywallPriceYen": "¥{amount} / month",
@@ -422,27 +428,8 @@
     }
   },
   "paywallFeatureQuotaTitle": "Immerse yourself in more Thai",
-  "paywallFeatureQuotaFree": "{count} sentences a day · vocabulary capped at {limit} words",
-  "@paywallFeatureQuotaFree": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "limit": {
-        "type": "int"
-      }
-    }
-  },
-  "paywallFeatureQuotaPremium": "{count} sentences a day · no vocabulary cap",
-  "@paywallFeatureQuotaPremium": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "paywallFeatureQuotaPremium": "Unlimited sentences · no vocabulary cap",
   "paywallFeatureTopicTitle": "Pick a topic and go deeper into Thai culture",
-  "paywallFeatureTopicFree": "A random beginner topic",
   "paywallFeatureTopicPremium": "Festivals, temple etiquette, BL dramas — your call",
   "paywallTrialActive": "You're on the Premium trial. When it ends, this all goes back to Free.",
   "paywallTrialEnded": "This is what you had during your trial.",
@@ -767,7 +754,7 @@
   "errQuizGenerationFailed": "We couldn't build the quiz. Please try again.",
   "quotaQuizReached": "That's the last new quiz for today.",
   "quotaSentenceReached": "That's the last new sentence for today.\nYou can still revisit past sentences in History.",
-  "quotaSentenceUpgradeCta": "Premium gives you {count} sentences a day",
+  "quotaSentenceUpgradeCta": "Premium gives you unlimited sentences",
   "errAuth": "Something went wrong signing you in. Please restart the app.",
   "errNetwork": "Couldn't reach the network. Check your internet connection.",
   "errTimeout": "The request timed out. Please try again.",
@@ -1229,6 +1216,7 @@
   "guidePlanRowSentences": "Sentences a day",
   "guidePlanRowTopic": "Topics",
   "guidePlanRowVocab": "Vocabulary cap",
+  "guidePlanSentencesUnlimited": "Unlimited",
   "guidePlanSentences": "{count}",
   "@guidePlanSentences": {
     "placeholders": {

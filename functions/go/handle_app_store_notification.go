@@ -18,6 +18,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/appstore"
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
+	"github.com/mnbst/thai-memo/functions/go/internal/subscription"
 )
 
 const appStoreNotificationMaxBodyBytes int64 = 1 << 20
@@ -156,7 +157,9 @@ func processAppStoreNotification(ctx context.Context, signedPayload string) erro
 			continue
 		}
 		currentTier, _ := doc.Data()["tier"].(string)
-		updates := appStoreUpdates(notification, decision, currentTier, doc.Ref.ID)
+		d := keepPremiumForLifetime(
+			decision, doc.Data(), notification.NotificationType)
+		updates := appStoreUpdates(notification, d, currentTier, doc.Ref.ID)
 
 		// 読み取り後に新しい通知が反映されていた場合は上書きせず、Apple の
 		// リトライで最新スナップショットから判定し直す。
@@ -165,9 +168,36 @@ func processAppStoreNotification(ctx context.Context, signedPayload string) erro
 			return err
 		}
 		log.Printf("Updated user %s: tier=%s, status=%s",
-			doc.Ref.ID, decision.Tier, decision.Status)
+			doc.Ref.ID, d.Tier, d.Status)
 	}
 	return nil
+}
+
+// keepPremiumForLifetime は、買い切りへ移行済みのユーザーを月額の期限切れで
+// 落とさないようにする。
+//
+// 月額を解約すれば EXPIRED が届く。移行した人にとってはそれが正常な流れなので、
+// ここで free に落とすと案内文言（追加料金なしでずっと使える）と食い違う。
+// subscription.status は通知どおり expired に倒したままにして、tier だけ残す。
+//
+// 返金・取消（REFUND / REVOKE）は別で、権利ごと剥がす。無償移行の入口が
+// 「月額を買って返金する」だけで済む状態にはしない。
+func keepPremiumForLifetime(
+	d appStoreDecision, data map[string]any, notificationType string,
+) appStoreDecision {
+	if d.Tier != "free" {
+		return d
+	}
+	switch notificationType {
+	case "REFUND", "REVOKE":
+		return d
+	}
+	sub, _ := data["subscription"].(map[string]any)
+	if !subscription.IsLifetime(sub) {
+		return d
+	}
+	d.Tier = "premium"
+	return d
 }
 
 // appStoreUpdates は1ユーザーぶんの更新内容を組み立てる（Firestore に触らない）。

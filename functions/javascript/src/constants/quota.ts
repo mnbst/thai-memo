@@ -20,13 +20,14 @@ export const FREE_DAILY_QUIZZES = 5;
 /**
  * premium ユーザーの日次リセット値（JST 0:00）
  *
- * 例文は 2026-08-09 に 5 → 10、2026-08-25 に 10 → 20 へ引き上げ。後者は
- * 「1日1文」から「たくさん触れる」へブランドを寄せる方針に合わせたもので、
- * free 5 に対して 4 倍の差を作る。月額600円・Apple手取り510円に対し、
- * 20文/日をフル消化しても AI コストは月約275円（例文 $0.00246/回 実測）で粗利は残る。
+ * 例文は 2026-08-09 に 5 → 10、2026-08-25 に 10 → 20 と引き上げ、
+ * 2026-09-12 に「無制限」へ切り替えた。premium の例文は静的コーパスから出すため
+ * 1本あたりの限界コストがほぼ 0 になり、回数で絞る理由が無くなった。
+ * 無制限は別フラグではなく、実質到達しない大きな値を毎日入れ直す形で表す
+ * （消費・リセットの経路を変えずに済み、LLM 後詰めの暴走にも天井として効く）。
  * クイズは上限そのものを撤廃した（FREE_DAILY_QUIZZES のコメント参照）。
  */
-export const PREMIUM_DAILY_SENTENCES = 20;
+export const PREMIUM_DAILY_SENTENCES = 9999;
 /** 上限としては機能しない。FREE_DAILY_QUIZZES のコメント参照。 */
 export const PREMIUM_DAILY_QUIZZES = 5;
 
@@ -45,4 +46,4 @@ export const PREMIUM_TRIAL_DAYS = 2;
  * 設定テーマを「おまかせ」へ戻すため、書かないと体験中の1回目でテーマが消える。
  * 該当バージョンが行き渡らなくなったらフィールドごと削除してよい。
  */
-export const PREMIUM_TRIAL_SENTENCES = PREMIUM_DAILY_SENTENCES * PREMIUM_TRIAL_DAYS;
+export const PREMIUM_TRIAL_SENTENCES = 40;

@@ -140,6 +140,37 @@ void main() {
     });
   });
 
+  group('プラン選択', () {
+    test('買い切りを選ぶと買い切り商品を購入する', () async {
+      auth.user = FakeUser(uid: 'linked-uid', isAnonymous: false);
+      await controller.ensureStoreReady();
+
+      await controller.purchase(lifetime: true);
+
+      expect(purchase.lastBought?.id, kProductIdPremiumLifetime);
+    });
+
+    test('既定では月額を購入する', () async {
+      auth.user = FakeUser(uid: 'linked-uid', isAnonymous: false);
+      await controller.ensureStoreReady();
+
+      await controller.purchase();
+
+      expect(purchase.lastBought?.id, kProductIdPremiumMonthly);
+    });
+
+    test('買い切りを売っていない環境では買い切りを購入できない', () async {
+      auth.user = FakeUser(uid: 'linked-uid', isAnonymous: false);
+      purchase.includeLifetimeProduct = false;
+      await controller.ensureStoreReady();
+
+      await controller.purchase(lifetime: true);
+
+      expect(purchase.lastBought, isNull);
+      expect(controller.state.errorMessage, isNotNull);
+    });
+  });
+
   group('restore（手動復元）', () {
     test('サインイン後の手動復元でpremiumに復帰できる', () async {
       auth.user = FakeUser(uid: 'user-1', isAnonymous: false);

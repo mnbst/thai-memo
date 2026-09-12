@@ -411,7 +411,7 @@ func resetQuota(
 // 過ぎた premium は free に落とす。猶予期間中（grace_period）は維持するが、
 // GracePeriodMax を過ぎたら通知の取りこぼしとみなして落とす。
 // ストア購入なのに expires_at を持たない premium も、期限判定が効かず
-// 永久 premium になるため落とす。
+// 永久 premium になるため落とす（買い切りは期限を持たないのが正常なので除く）。
 // subscription フィールドがない premium（dev環境の手動設定等）は対象外。
 func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[string]any {
 	tier, _ := userData["tier"].(string)
@@ -430,9 +430,14 @@ func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[s
 
 	subscriptionLapsed := tier == "premium"
 	if subscriptionLapsed {
-		if hasExpiresAt {
+		switch {
+		case subscription.IsLifetime(sub):
+			// 買い切りは期限を持たないのが正常。返金・取消でのみ free に戻る
+			// （REFUND / REVOKE 通知）ので、ここでは落とさない。
+			subscriptionLapsed = false
+		case hasExpiresAt:
 			subscriptionLapsed = now.Sub(expiresAt) > margin
-		} else {
+		default:
 			// ストア購入で expires_at がない = 期限判定が働かないので premium を維持しない
 			subscriptionLapsed = isStoreSubscription
 		}

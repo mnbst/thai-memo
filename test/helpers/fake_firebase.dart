@@ -129,8 +129,25 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<Map<String, Object?>> interviewEvents = [];
   final List<Map<String, Object?>> vocabTestEvents = [];
 
+  /// 購入導線の計測。source を控えるだけ（月額／買い切りの判別に使う）。
+  final List<String> subscribeEvents = [];
+
   @override
   Future<void> setUserAppLanguage(String lang) async {}
+
+  @override
+  Future<void> logSubscribe({required String source}) async {
+    subscribeEvents.add(source);
+  }
+
+  @override
+  Future<void> logTapPaywall({required String source}) async {}
+
+  @override
+  Future<void> logPaywallView({
+    required String source,
+    required bool productLoaded,
+  }) async {}
 
   @override
   Future<void> logReviewPrompt({
@@ -285,24 +302,43 @@ class FakePurchaseService extends Fake implements PurchaseService {
   @override
   Future<bool> initialize() async => initializeAvailable;
 
+  /// 買い切り商品も返すか（iOS 相当の環境を模す）
+  bool includeLifetimeProduct = true;
+
   @override
-  Future<ProductDetails?> fetchProduct() async {
+  Future<PremiumProducts> fetchProducts() async {
     fetchProductCalls++;
     final error = fetchProductError;
     if (error != null) throw error;
-    return ProductDetails(
-      id: kProductIdPremiumMonthly,
-      title: 'プレミアム',
-      description: 'プレミアムプラン',
-      price: '¥800',
-      rawPrice: 800,
-      currencyCode: 'JPY',
+    return PremiumProducts(
+      monthly: ProductDetails(
+        id: kProductIdPremiumMonthly,
+        title: 'プレミアム',
+        description: 'プレミアムプラン',
+        price: '¥800',
+        rawPrice: 800,
+        currencyCode: 'JPY',
+      ),
+      lifetime: includeLifetimeProduct
+          ? ProductDetails(
+              id: kProductIdPremiumLifetime,
+              title: 'プレミアム買い切り',
+              description: 'プレミアム買い切りプラン',
+              price: '¥1,800',
+              rawPrice: 1800,
+              currencyCode: 'JPY',
+            )
+          : null,
     );
   }
+
+  /// 直近に購入した商品（月額か買い切りかの判別に使う）
+  ProductDetails? lastBought;
 
   @override
   Future<void> buy(ProductDetails product) async {
     buyCalled = true;
+    lastBought = product;
   }
 
   @override

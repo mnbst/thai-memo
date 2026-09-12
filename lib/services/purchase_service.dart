@@ -17,6 +17,7 @@
 /// - premium_monthly: 月額サブスクリプション（自動更新型）
 ///   ※ buyNonConsumable() を使用しているが、サブスクリプションは
 ///     in_app_purchase パッケージでは nonConsumable として扱う仕様
+/// - premium_lifetime: 買い切り（非消費型・iOSのみ）。期限が無く、返金・取消でのみ失効する。
 ///
 /// 【関連ファイル】
 /// - subscription_provider.dart: 購入状態の Riverpod 状態管理
@@ -45,6 +46,23 @@ const String kProductIdPremiumMonthly =
     String.fromEnvironment('ENV') == 'tester'
         ? 'premium_monthly_test'
         : 'premium_monthly';
+
+/// 買い切りプランの商品ID（非消費型）。
+/// Android は一時購入の検証API（purchases.products）が未実装なので iOS でのみ扱う。
+const String kProductIdPremiumLifetime =
+    String.fromEnvironment('ENV') == 'tester'
+        ? 'premium_lifetime_test'
+        : 'premium_lifetime';
+
+/// ペイウォールに出す購入可能な商品。
+///
+/// lifetime は iOS でのみ引ける（Android 未販売）ため null になりうる。
+class PremiumProducts {
+  const PremiumProducts({required this.monthly, this.lifetime});
+
+  final ProductDetails monthly;
+  final ProductDetails? lifetime;
+}
 
 /// 購入状態の変化を通知するコールバック型
 typedef PurchaseCallback = void Function();
@@ -128,9 +146,16 @@ class PurchaseService {
     return true;
   }
 
-  /// 商品情報を取得
-  Future<ProductDetails?> fetchProduct() async {
-    final response = await _iap.queryProductDetails({kProductIdPremiumMonthly});
+  /// 販売中の商品情報を取得する。
+  ///
+  /// 月額と買い切りを1回の問い合わせでまとめて引く。買い切りは iOS のみ販売
+  /// なので、見つからなくても失敗にはせず null を返す（月額だけで購入できる）。
+  /// 月額が引けないときだけ、これまで通り例外にする。
+  Future<PremiumProducts> fetchProducts() async {
+    final ids = <String>{kProductIdPremiumMonthly};
+    if (Platform.isIOS) ids.add(kProductIdPremiumLifetime);
+
+    final response = await _iap.queryProductDetails(ids);
     if (response.error != null) {
       debugPrint('Product query error: ${response.error}');
       throw PurchaseProductLoadException(
@@ -148,7 +173,26 @@ class PurchaseService {
       throw PurchaseProductLoadException(l10n().errProductLoadFailed);
     }
 
-    return response.productDetails.first;
+    ProductDetails? find(String id) {
+      for (final product in response.productDetails) {
+        if (product.id == id) return product;
+      }
+      return null;
+    }
+
+    final monthly = find(kProductIdPremiumMonthly);
+    if (monthly == null) {
+      throw PurchaseProductLoadException(l10n().errProductLoadFailed);
+    }
+    if (response.notFoundIDs.contains(kProductIdPremiumLifetime)) {
+      // 買い切りを未登録の環境でも月額は売れる状態を保つ。
+      debugPrint('Lifetime product not found: $kProductIdPremiumLifetime');
+    }
+
+    return PremiumProducts(
+      monthly: monthly,
+      lifetime: find(kProductIdPremiumLifetime),
+    );
   }
 
   /// 購入を開始（OS ネイティブの決済シートを表示）

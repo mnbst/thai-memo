@@ -1039,6 +1039,84 @@ abstract class L10n {
   /// **'お問い合わせ'**
   String get settingsContact;
 
+  /// No description provided for @settingsLifetimeMigration.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りプランへ移行'**
+  String get settingsLifetimeMigration;
+
+  /// No description provided for @settingsLifetimeMigrationSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'追加のお支払いはありません'**
+  String get settingsLifetimeMigrationSubtitle;
+
+  /// No description provided for @lifetimeMigrationTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りプランを新設しました'**
+  String get lifetimeMigrationTitle;
+
+  /// No description provided for @lifetimeMigrationBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'いつもご利用ありがとうございます。継続してくださっている方へ、いまなら無料で買い切りプランへ移行いただけます。'**
+  String get lifetimeMigrationBody;
+
+  /// No description provided for @lifetimeMigrationNoCharge.
+  ///
+  /// In ja, this message translates to:
+  /// **'追加のお支払いはありません'**
+  String get lifetimeMigrationNoCharge;
+
+  /// No description provided for @lifetimeMigrationCancelNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。'**
+  String get lifetimeMigrationCancelNote;
+
+  /// No description provided for @lifetimeMigrationProgress.
+  ///
+  /// In ja, this message translates to:
+  /// **'移行しています…'**
+  String get lifetimeMigrationProgress;
+
+  /// No description provided for @lifetimeMigrationDoneTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りプランに移行しました'**
+  String get lifetimeMigrationDoneTitle;
+
+  /// No description provided for @lifetimeMigrationDoneBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'これ以降ずっとプレミアムをご利用いただけます。月額の自動更新の停止をお忘れなく。'**
+  String get lifetimeMigrationDoneBody;
+
+  /// No description provided for @lifetimeMigrationFailedTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'移行できませんでした'**
+  String get lifetimeMigrationFailedTitle;
+
+  /// No description provided for @lifetimeMigrationFailedBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'時間をおいて、もう一度お試しください。プレミアムのご利用はこれまでどおり続きます。'**
+  String get lifetimeMigrationFailedBody;
+
+  /// No description provided for @lifetimeMigrationConfirm.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りに移行する'**
+  String get lifetimeMigrationConfirm;
+
+  /// No description provided for @lifetimeMigrationLater.
+  ///
+  /// In ja, this message translates to:
+  /// **'あとで'**
+  String get lifetimeMigrationLater;
+
   /// No description provided for @trialEndedTitle.
   ///
   /// In ja, this message translates to:
@@ -1072,8 +1150,8 @@ abstract class L10n {
   /// No description provided for @trialEndedChangeQuotaPremium.
   ///
   /// In ja, this message translates to:
-  /// **'1日{premium}回'**
-  String trialEndedChangeQuotaPremium(int premium);
+  /// **'無制限'**
+  String get trialEndedChangeQuotaPremium;
 
   /// No description provided for @trialEndedChangeQuotaFree.
   ///
@@ -1120,8 +1198,8 @@ abstract class L10n {
   /// No description provided for @trialStartedChangeQuota.
   ///
   /// In ja, this message translates to:
-  /// **'1日{premium}回まで'**
-  String trialStartedChangeQuota(int premium);
+  /// **'無制限'**
+  String get trialStartedChangeQuota;
 
   /// No description provided for @trialStartedChangeTopicLabel.
   ///
@@ -1471,6 +1549,48 @@ abstract class L10n {
   /// **'プレミアムに登録'**
   String get paywallSubscribe;
 
+  /// No description provided for @paywallPlanMonthlyTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'月額プラン'**
+  String get paywallPlanMonthlyTitle;
+
+  /// No description provided for @paywallPlanMonthlyNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎月自動更新・いつでも解約'**
+  String get paywallPlanMonthlyNote;
+
+  /// プラン選択の月額側。price はストアの表示価格（¥600 など）
+  ///
+  /// In ja, this message translates to:
+  /// **'{price} / 月'**
+  String paywallPlanMonthlyPrice(String price);
+
+  /// No description provided for @paywallPlanLifetimeTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切り'**
+  String get paywallPlanLifetimeTitle;
+
+  /// No description provided for @paywallPlanLifetimeNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'支払いは1回だけ・更新なし'**
+  String get paywallPlanLifetimeNote;
+
+  /// No description provided for @paywallPurchaseCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'このプランで始める'**
+  String get paywallPurchaseCta;
+
+  /// No description provided for @paywallLifetimeNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'1回きりの支払いです。更新はありません。'**
+  String get paywallLifetimeNote;
+
   /// No description provided for @paywallLegal.
   ///
   /// In ja, this message translates to:
@@ -1501,29 +1621,17 @@ abstract class L10n {
   /// **'良質なタイ語に大量に触れられる'**
   String get paywallFeatureQuotaTitle;
 
-  /// No description provided for @paywallFeatureQuotaFree.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文{count}回/日・単語は{limit}語まで'**
-  String paywallFeatureQuotaFree(int count, int limit);
-
   /// No description provided for @paywallFeatureQuotaPremium.
   ///
   /// In ja, this message translates to:
-  /// **'例文{count}回/日・単語の上限なし'**
-  String paywallFeatureQuotaPremium(int count);
+  /// **'例文は無制限・単語の上限なし'**
+  String get paywallFeatureQuotaPremium;
 
   /// No description provided for @paywallFeatureTopicTitle.
   ///
   /// In ja, this message translates to:
   /// **'テーマを選んでタイ文化に親しむ'**
   String get paywallFeatureTopicTitle;
-
-  /// No description provided for @paywallFeatureTopicFree.
-  ///
-  /// In ja, this message translates to:
-  /// **'入門テーマからランダム'**
-  String get paywallFeatureTopicFree;
 
   /// No description provided for @paywallFeatureTopicPremium.
   ///
@@ -2396,17 +2504,17 @@ abstract class L10n {
   /// **'今日の新しいクイズはここまでです。'**
   String get quotaQuizReached;
 
-  /// 上限回数は tier で異なる（free 5 / premium 20）ため文言に数字を含めない
+  /// 上限回数は tier で異なる（free 5 / premium 無制限）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
   /// **'今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。'**
   String get quotaSentenceReached;
 
-  /// 上限に当たった free ユーザーだけに出すペイウォール導線。count は PREMIUM_DAILY_SENTENCES
+  /// 上限に当たった free ユーザーだけに出すペイウォール導線。premium の例文は無制限なので数字を含めない
   ///
   /// In ja, this message translates to:
-  /// **'Premiumなら1日{count}例文'**
-  String quotaSentenceUpgradeCta(int count);
+  /// **'Premiumなら例文は無制限'**
+  String get quotaSentenceUpgradeCta;
 
   /// No description provided for @errAuth.
   ///
@@ -4387,6 +4495,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'語彙スコアの上限'**
   String get guidePlanRowVocab;
+
+  /// プラン比較表の premium 側。例文は無制限
+  ///
+  /// In ja, this message translates to:
+  /// **'無制限'**
+  String get guidePlanSentencesUnlimited;
 
   /// No description provided for @guidePlanSentences.
   ///

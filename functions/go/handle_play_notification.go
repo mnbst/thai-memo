@@ -13,6 +13,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/playbilling"
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
+	"github.com/mnbst/thai-memo/functions/go/internal/subscription"
 )
 
 // handlePlayNotification は
@@ -127,12 +128,22 @@ func processPlayNotification(
 
 	for _, doc := range docs {
 		currentTier, _ := doc.Data()["tier"].(string)
-		if _, err := doc.Ref.Update(ctx, playUpdates(result, tier, currentTier),
+		// 買い切りへ移行済みなら、月額の期限切れでは落とさない。
+		// Play の通知は返金と期限切れを status で区別できない（どちらも
+		// expired になる）ので、Android は期限切れ側に寄せて維持する。
+		userTier := tier
+		if userTier == "free" {
+			sub, _ := doc.Data()["subscription"].(map[string]any)
+			if subscription.IsLifetime(sub) {
+				userTier = "premium"
+			}
+		}
+		if _, err := doc.Ref.Update(ctx, playUpdates(result, userTier, currentTier),
 			firestore.LastUpdateTime(doc.UpdateTime)); err != nil {
 			return err
 		}
 		log.Printf("Updated user %s: tier=%s, status=%s",
-			doc.Ref.ID, tier, result.Status)
+			doc.Ref.ID, userTier, result.Status)
 	}
 	return nil
 }

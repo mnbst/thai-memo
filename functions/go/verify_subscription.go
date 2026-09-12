@@ -33,7 +33,18 @@ const defaultAndroidPackageName = "com.thaimemo.thai_memo"
 const (
 	productIDPremiumMonthly     = "premium_monthly"
 	productIDPremiumMonthlyTest = "premium_monthly_test"
+
+	// 買い切り（非消費型）。期限を持たず、返金・取消でのみ無効になる。
+	// 現状 iOS のみ販売する（Play の一時購入は purchases.products API が別で未対応）。
+	productIDPremiumLifetime     = "premium_lifetime"
+	productIDPremiumLifetimeTest = "premium_lifetime_test"
 )
+
+// isLifetimeProduct は買い切り商品かどうか。
+func isLifetimeProduct(productID string) bool {
+	return productID == productIDPremiumLifetime ||
+		productID == productIDPremiumLifetimeTest
+}
 
 // isoMillisLayout は JS の Date#toISOString() と同じ表記。
 const isoMillisLayout = "2006-01-02T15:04:05.000Z"
@@ -77,6 +88,11 @@ func verifySubscription(ctx context.Context, req *callable.Request) (any, error)
 	if !isAllowedSubscriptionProduct(in.ProductID) {
 		return nil, callable.Errorf(callable.InvalidArgument,
 			"許可されていないサブスクリプション商品です")
+	}
+	// 買い切りは Play の一時購入 API（purchases.products）が未実装なので iOS のみ。
+	if isLifetimeProduct(in.ProductID) && in.Platform != "ios" {
+		return nil, callable.Errorf(callable.InvalidArgument,
+			"この商品は iOS でのみご利用いただけます")
 	}
 
 	result, err := runVerification(ctx, uid, in.Platform, in.PurchaseToken, in.ProductID)
@@ -135,9 +151,17 @@ func runVerification(
 			"platform":   "android",
 			// RTDN（Google Play通知）での検索に使用
 			"purchase_token": purchaseToken,
+			"lifetime":       false,
 		}
 	} else {
-		res, err := appstore.Default.VerifyPurchase(ctx, purchaseToken)
+		lifetime := isLifetimeProduct(productID)
+
+		// 買い切りは期限が無いのが正常なので、期限で判定する経路を通さない。
+		verify := appstore.Default.VerifyPurchase
+		if lifetime {
+			verify = appstore.Default.VerifyOneTimePurchase
+		}
+		res, err := verify(ctx, purchaseToken)
 		if err != nil {
 			return nil, err
 		}
@@ -158,6 +182,10 @@ func runVerification(
 			"platform":   "ios",
 			// App Store通知での検索に使用
 			"original_transaction_id": res.OriginalTransactionID,
+			// 期限切れフォールバック（dailyBatch / subscriptionStatus）に
+			// 「expires_at が無くても落とすな」と伝える目印。
+			// 月額へ戻ったときに残らないよう、常に書く。
+			"lifetime": lifetime,
 		}
 	}
 
@@ -194,9 +222,12 @@ func runVerification(
 // projectIDPremiumProducts は環境（GCP プロジェクト）ごとに販売している商品 ID。
 // dev は両ストア設定を検証するため両方を許可する。
 var projectIDPremiumProducts = map[string][]string{
-	"thai-memo-prod":  {productIDPremiumMonthly},
-	"thai-memo-67139": {productIDPremiumMonthlyTest},
-	"thai-memo-dev":   {productIDPremiumMonthly, productIDPremiumMonthlyTest},
+	"thai-memo-prod":  {productIDPremiumMonthly, productIDPremiumLifetime},
+	"thai-memo-67139": {productIDPremiumMonthlyTest, productIDPremiumLifetimeTest},
+	"thai-memo-dev": {
+		productIDPremiumMonthly, productIDPremiumMonthlyTest,
+		productIDPremiumLifetime, productIDPremiumLifetimeTest,
+	},
 }
 
 // isAllowedSubscriptionProduct は、この環境が販売する商品だけを許可する。
