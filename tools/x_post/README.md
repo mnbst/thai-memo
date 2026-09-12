@@ -22,9 +22,10 @@
 から集め、タイ語本文で重複をまとめてから Gemini に1件選ばせる。読者像は
 指定せず「X で反応が良さそうなもの」の判断を任せている。
 
-前日分が取れないとき（索引の準備待ち・権限不足・生成が無かった日）や Gemini が
-応答しないときは、`gs://<project>-uvm-data/free_sentences_ja.json`（free 例文
-バンク）からの抽選に落として投稿を止めない。`--source bank` で常にバンクを使える。
+前日分が取れないとき（索引の準備待ち・権限不足・生成が無かった日）、下の条件に
+合う前日分が1件も残らなかったとき、Gemini が応答しないときは、
+`gs://<project>-uvm-data/free_sentences_ja.json`（free 例文バンク）からの抽選に
+落として投稿を止めない。`--source bank` で常にバンクを使える。
 
 collection group クエリには `sentences.created_at` の COLLECTION_GROUP 索引が
 要る（`firebase/firestore.indexes.json` の `fieldOverrides`）。
