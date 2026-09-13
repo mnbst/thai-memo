@@ -41,6 +41,7 @@ flutter run --dart-define=ENV=prod
 |------|------|------|------|
 | `/users/{uid}` | FCMトークン・通知設定 | アプリ起動時（merge upsert） | なし（永続） |
 | `/users/{uid}/sentences/{id}` | タイ語例文 | `generateThaiSentence` Cloud Function | **30日経過で自動削除**（`notificationBatch`が毎日0:00 JSTに実行） |
+| `/users/{uid}/learning_state/daily_sets` | 進行中・待機中の例文セットと完了履歴 | クライアント（トランザクションで端末間マージ） | 継続保持（完了IDは直近64セット） |
 | `/users/{uid}/quiz_answers/{id}` | クイズ回答履歴 | クイズ回答時にアプリから書き込み | なし（永続蓄積） |
 | `/users/{uid}/quiz_sessions/{id}` | クイズセッション結果 | クイズ完了時にアプリから書き込み | なし（永続蓄積） |
 | `/quiz_queue/{id}` | 通知用クイズキュー | `notificationBatch`が毎日0:00 JSTに生成 | **毎日全削除して再生成**（実質TTL 24時間） |

@@ -116,7 +116,7 @@ lib/presentation/providers/sentence_provider.dart
 例文CRUD・生成状態のRiverpod StateNotifier。
 
 lib/presentation/providers/daily_set_provider.dart
-例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、何本目まで進んだかを SharedPreferences に保存して再開する。
+例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、進行位置を SharedPreferences（端末の続き）と Firestore（端末間の正本）へ同じ形で保存して再開する。
 
 lib/presentation/providers/quiz_provider.dart
 クイズ状態管理（initial→pending→generating→ready→answering→result→summary）。
@@ -257,7 +257,10 @@ lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
 lib/services/daily_sentence_service.dart
-サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、今日ぶんの配信セット（DailySentenceSet）を返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
+サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
+
+lib/services/daily_set_progress_store.dart
+例文セットの進行位置（DailySetProgressSnapshot）の Firestore 読み書きと、端末間の単調マージ（mergeDailySetProgress）。
 
 ## Thai Language Processing (Dart)
 
@@ -957,7 +960,10 @@ test/services/daily_sentence_service_test.dart
 配信セットの並び替え（daily_set_index 昇順・旧形式のdoc IDフォールバック）のテスト。
 
 test/presentation/providers/daily_set_provider_test.dart
-配信セットのカーソル（開始・前進・使い切り・再開・欠損時の詰め）のテスト。
+配信セットのカーソル（開始・前進・使い切り・再開・欠損時の詰め・待機列・旧キー移行）のテスト。
+
+test/services/daily_set_progress_store_test.dart
+端末間マージ（カーソルの単調性・完了セットの非復活・待機列の統合）のテスト。
 
 test/presentation/providers/quiz_prepare_race_test.dart
 確認クイズの事前生成中に開始しても生成APIを二重に叩かないことのテスト（サーバーの生成ロックで409になる回帰）。

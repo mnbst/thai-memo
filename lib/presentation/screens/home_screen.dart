@@ -148,37 +148,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
-  /// 配信された今日の例文があれば表示する。表示したら true。
+  /// 配信された今日の例文を取り込む。
   ///
-  /// 配信は5本セットなので、カーソルを1本目に立ててから先頭を表示する。
-  /// 残りは「次へ」でセットから順に出す（生成もクォータ消費もしない）。
-  Future<bool> _showDeliveredIfAny({String? sentenceId}) async {
-    final delivered = await _dailySentenceService.sync(sentenceId: sentenceId);
-    if (delivered == null || !mounted) return false;
+  /// 複数日ぶん溜まっていても取りこぼさず、結果は最も強いもの
+  /// （表示 > 待機 > 何もなし）を返す。
+  Future<_DeliveredAction> _showDeliveredIfAny({String? sentenceId}) async {
+    final deliveredSets =
+        await _dailySentenceService.syncAll(sentenceId: sentenceId);
+    var result = _DeliveredAction.none;
+    for (final delivered in deliveredSets) {
+      if (!mounted) break;
+      final action = await _acceptDeliveredSet(delivered);
+      if (action.index > result.index) result = action;
+    }
+    return result;
+  }
 
+  Future<_DeliveredAction> _acceptDeliveredSet(
+    DailySentenceSet delivered,
+  ) async {
     final activeSet = ref.read(dailySetProvider);
-    final sameSet = isSameDailySet(activeSet, delivered);
-    if (!sameSet) {
-      // 旧prodサーバー・旧形式doc・通信断時のローカルfallbackは1本だけ。
-      // これをセットとして開始すると isLast=true になり、1.4.7では無かった
-      // 「1本後にまとめクイズへ強制遷移」が起きる。複数本だけをセット扱いする。
-      await ref.read(dailySetProvider.notifier).start(
-            delivered.sentences.length > 1
-                ? delivered.sentences
-                : const <ThaiSentence>[],
-          );
-      if (!mounted) return false;
+    // 同じ通知をもう一度開いても、途中まで進めたカーソルを先頭へ戻さない。
+    if (isSameDailySet(activeSet, delivered)) {
+      _showIfNotVisible(activeSet.current!);
+      return _DeliveredAction.shown;
     }
 
-    // 同じ通知をもう一度開いても、途中まで進めたカーソルを先頭へ戻さない。
-    final shown = sameSet ? activeSet.current! : delivered.first;
-    final current = ref.read(sentenceControllerProvider);
-    if (current is SentenceStateSuccess && current.sentence.id == shown.id) {
-      return true;
+    // フォアグラウンド復帰と通知タップは同時に走りうる。進行中セットを新着で
+    // 上書きすると、残りの例文が履歴にしか残らず「飛ばされた」ように見えるため、
+    // 消化中なら次のセットとして永続化し、表示は奪わない。
+    final queued = activeSet.isActive;
+    await ref.read(dailySetProvider.notifier).acceptDeliveredSet(
+          setId: delivered.setId,
+          sentences: delivered.sentences,
+        );
+    if (!mounted) {
+      return queued ? _DeliveredAction.queued : _DeliveredAction.none;
     }
-    ref.read(sentenceControllerProvider.notifier).showSentence(shown);
+    final shown = queued ? activeSet.current : delivered.first;
+    if (shown != null) _showIfNotVisible(shown);
+    return queued ? _DeliveredAction.queued : _DeliveredAction.shown;
+  }
+
+  /// 表示中の例文と違うときだけ差し替える。同じものを入れ直すと画面が瞬く。
+  void _showIfNotVisible(ThaiSentence sentence) {
+    final current = ref.read(sentenceControllerProvider);
+    if (current is SentenceStateSuccess && current.sentence.id == sentence.id) {
+      return;
+    }
+    ref.read(sentenceControllerProvider.notifier).showSentence(sentence);
     ref.invalidate(allSentencesProvider);
-    return true;
   }
 
   /// 初回ロードと通知タップ処理を直列化する。
@@ -381,8 +400,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _handleNotificationOpen(RemoteMessage message) async {
     if (!_isDailySentenceNotification(message) || !mounted) return;
     final sentenceId = message.data['sentence_id']?.toString();
-    final shown = await _showDeliveredIfAny(sentenceId: sentenceId);
-    if (!shown || !mounted) return;
+    final action = await _showDeliveredIfAny(sentenceId: sentenceId);
+    if (action != _DeliveredAction.shown || !mounted) return;
     _openLearningSentenceStage();
   }
 
@@ -470,6 +489,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 初回ロードが完了する前はスキップ（_checkFirstLaunchAndLoadSentenceとの二重生成を防ぐ）
     if (!_initialLoadCompleted) return;
 
+    // 別端末で進んだ位置を先に取り込む。Firestore 側は同一セットの最大位置を
+    // 正本にするため、古い端末を開いてもカーソルは巻き戻らない。
+    await ref.read(dailySetProvider.notifier).syncFromCloud();
+    if (!mounted) return;
+    final syncedSentence = ref.read(dailySetProvider).current;
+    if (syncedSentence != null) _showIfNotVisible(syncedSentence);
+
     // 生成中ならスキップ
     final currentState = ref.read(sentenceControllerProvider);
     if (currentState is SentenceStateLoading) {
@@ -477,7 +503,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     // 裏に回っている間に配信されていれば、それに差し替える
-    if (await _showDeliveredIfAny()) return;
+    if (await _showDeliveredIfAny() != _DeliveredAction.none) return;
 
     final data = await ref.read(userDocProvider.future);
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
@@ -626,7 +652,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // 配信例文の取り込みを先に終わらせる。今日ぶんがあればそれが今日の例文なので、
     // 生成もローカル読み込みも走らせない（通知タップかどうかの判定は不要）。
-    if (await _showDeliveredIfAny()) return;
+    if (await _showDeliveredIfAny() != _DeliveredAction.none) return;
 
     // 新着が無ければ、前回閉じた位置の例文をそのまま表示する。「最新の例文」を
     // 読むと、カーソルが2/5なのに本文は5本目という不整合になる。
@@ -708,6 +734,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 }
+
+enum _DeliveredAction { none, shown, queued }
 
 enum _LearningStage { sentence, quiz, summaryQuiz }
 
