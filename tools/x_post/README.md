@@ -8,7 +8,7 @@
 
 | 手順 | 中身 |
 | --- | --- |
-| `pick_sentence.py` | 前日生成分から破綻を除き、Gemini に1件選ばせて本文を組む |
+| `pick_sentence.py` | コーパスを恋愛と語数で絞り、Gemini に1件選ばせて本文を組む |
 | `synth_tts.py` | Google Cloud TTS（th-TH）で読み上げ音声を作る（通常速度で1回） |
 | `test/screenshots/x_post_screenshot.dart` | `DetailScreen` を描画し、画像3枚と操作フレームを書き出す |
 | `build_media.py` | 操作フレームに音声を載せて mp4 にする |
@@ -18,18 +18,13 @@
 
 ## 例文のソース
 
-前日（日本時間）に生成された例文を Firestore の collection group `sentences`
-から集め、タイ語本文で重複をまとめてから Gemini に1件選ばせる。読者像は
-指定せず「X で反応が良さそうなもの」の判断を任せている。
+`gs://<project>-uvm-data/corpus_sentences_ja.json`（premium と同じ静的コーパス）
+だけを候補にする。恋愛のトピック（`恋愛・男女関係` と `タイBLドラマ`）と語数で
+絞り、残りから Gemini に1件選ばせる。Gemini が応答しないときは同じ候補から抽選
+して投稿を止めない。
 
-前日分が取れないとき（索引の準備待ち・権限不足・生成が無かった日）、下の条件に
-合う前日分が1件も残らなかったとき、Gemini が応答しないときは、
-`gs://<project>-uvm-data/corpus_sentences_ja.json`（premium と同じ静的コーパス、
-13,403件）からの抽選に落として投稿を止めない。`--source corpus` で常にコーパスを
-使える。
-
-collection group クエリには `sentences.created_at` の COLLECTION_GROUP 索引が
-要る（`firebase/firestore.indexes.json` の `fieldOverrides`）。
+前日に生成された例文は使わない。配信当時のコーパスに使い方が入っていなかった
+ものが混ざり、詳細画面の「使い方」が1項目だけになるため。
 
 投稿済みと、投稿の履歴（tweet_id とタイ語本文）は
 `gs://<project>-uvm-data/x_post/posted.json` に持つ。
@@ -48,7 +43,7 @@ Gemini に渡す前に、機械的に分かるものだけ落とす。
 - 発音表記に算用数字が残っている（例: 「50 บาท」が「5 bàat」。生成側の取りこぼし）
 - 本文が80文字を超える（詳細画面の見栄えが崩れる）
 - 単語分解が空、または分解した語が本文に見つからない
-- 語数（単語分解の数）が6〜11の範囲に無い
+- 語数（単語分解の数）が7〜11の範囲に無い
 
 自然さや訳の妥当性はプロンプト側で Gemini に見させる。
 

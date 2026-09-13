@@ -1,9 +1,11 @@
 """X 投稿に使う例文を1件選ぶ。
 
-前日に生成された例文（Firestore の collection group `sentences`）を候補にして、
-その中から「反応が良さそうな1件」を Gemini に選ばせる。前日分が取れないときや
-Gemini が使えないときは、GCS の静的コーパス（premium と同じもの）に落として
-投稿を止めない。
+候補は GCS の静的コーパス（premium と同じもの）だけ。恋愛のトピックと語数で
+絞った中から「反応が良さそうな1件」を Gemini に選ばせる。Gemini が使えない
+ときは同じ候補から抽選して投稿を止めない。
+
+前日に生成された例文は使わない。使い方の項目が埋まっていないものが混ざる
+（配信当時のコーパスに使い方が無かった）ため、投稿の見栄えが揃わない。
 
 投稿済みは gs://<project>-uvm-data/x_post/posted.json で管理する。
 選んだ例文は <out>/sentence.json、投稿本文は <out>/text.txt に書く。
@@ -27,8 +29,7 @@ from pathlib import Path
 
 import certifi
 import requests
-from google.api_core import exceptions as gcp_exceptions
-from google.cloud import firestore, secretmanager, storage
+from google.cloud import secretmanager, storage
 from requests_oauthlib import OAuth1Session
 
 # premium と同じ静的コーパス。free 例文バンクより広く、語数で絞っても残る。
@@ -45,8 +46,12 @@ MAX_CANDIDATES = 60
 RECENT_POSTS = 10
 
 # 投稿に回す例文の語数。短すぎると学びが薄く、長すぎると詳細画面に収まらない。
-MIN_WORDS = 6
+MIN_WORDS = 7
 MAX_WORDS = 11
+
+# 投稿に回すトピック。コーパスの context.topic はこの語を含む2つ。
+# 恋人・気になる相手とのやり取りに寄せるため、ここだけを候補にする。
+TOPIC_KEYWORDS = ("恋愛", "BLドラマ")
 
 GEMINI_SECRET = "gemini-api-key"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
@@ -98,33 +103,6 @@ def build_text(sentence: dict) -> str:
     return "\n".join(lines)
 
 
-def yesterday_range(now: datetime) -> tuple[datetime, datetime]:
-    """日本時間での前日 00:00〜24:00。"""
-    today = now.astimezone(JST).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    return today - timedelta(days=1), today
-
-
-def fetch_yesterday(project: str, now: datetime) -> list[dict]:
-    """前日に生成された例文を集める。タイ語本文が同じものは1件にまとめる。"""
-    since, until = yesterday_range(now)
-    client = firestore.Client(project=project)
-    query = (
-        client.collection_group("sentences")
-        .where(filter=firestore.FieldFilter("created_at", ">=", since))
-        .where(filter=firestore.FieldFilter("created_at", "<", until))
-    )
-
-    unique: dict[str, dict] = {}
-    for doc in query.stream():
-        data = doc.to_dict() or {}
-        if not data.get("thai_text") or not data.get("japanese_translation"):
-            continue
-        unique.setdefault(sentence_key(data), data)
-    return list(unique.values())
-
-
 # 発音表記に算用数字が残っていたら、数字が読みに変換されていない
 # （例: 「50 บาท」が「5 bàat」）。生成側の取りこぼしなので投稿には回さない。
 _DIGITS = re.compile(r"[0-9\u0e50-\u0e59]")
@@ -164,6 +142,18 @@ def sound_only(pool: list[dict]) -> list[dict]:
     sound = [s for s in pool if not looks_broken(s)]
     print(f"破綻を除いて {len(sound)}/{len(pool)} 件", file=sys.stderr)
     return sound
+
+
+def romance_only(pool: list[dict]) -> list[dict]:
+    """恋愛のトピックだけ残す。トピックが無い例文は落とす。"""
+
+    def is_romance(sentence: dict) -> bool:
+        topic = (sentence.get("context") or {}).get("topic") or ""
+        return any(k in topic for k in TOPIC_KEYWORDS)
+
+    picked = [s for s in pool if is_romance(s)]
+    print(f"恋愛のトピックに絞って {len(picked)}/{len(pool)} 件", file=sys.stderr)
+    return picked
 
 
 def recent_performance(history: list[dict]) -> list[dict]:
@@ -311,12 +301,6 @@ def main() -> int:
         default=str(PROMPT_FILE),
         help="選定プロンプトのファイル。",
     )
-    parser.add_argument(
-        "--source",
-        choices=["daily", "corpus"],
-        default="daily",
-        help="daily は前日生成分、corpus は premium の静的コーパス。",
-    )
     args = parser.parse_args()
 
     bucket = storage.Client(project=args.project).bucket(
@@ -326,28 +310,18 @@ def main() -> int:
     posted = set(state.get("posted", []))
     now = datetime.now(timezone.utc)
 
-    pool: list[dict] = []
-    if args.source == "daily":
-        daily: list[dict] = []
-        try:
-            daily = fetch_yesterday(args.project, now)
-        except gcp_exceptions.GoogleAPIError as error:
-            # 索引の準備待ちや権限不足でも投稿は止めない。
-            print(f"前日分の取得に失敗: {error}", file=sys.stderr)
-        pool = sound_only(daily)
-        if not pool:
-            # 前日分が無い日も、語数や破綻で全部落ちた日もバンクに回す。
-            print("条件に合う前日分が無いのでコーパスに落とす", file=sys.stderr)
+    corpus = load_json(bucket, CORPUS_OBJECT, [])
+    if not corpus:
+        print(f"コーパスが無い: gs://{bucket.name}/{CORPUS_OBJECT}", file=sys.stderr)
+        return 1
 
+    pool = romance_only(sound_only(corpus))
     if not pool:
-        corpus = load_json(bucket, CORPUS_OBJECT, [])
+        # 恋愛で残らないのは絞り込みが厳しすぎる側の問題。止めるよりは出す。
+        print("恋愛の候補が無いので語数だけで選ぶ", file=sys.stderr)
         pool = sound_only(corpus)
-        if not pool and corpus:
-            # コーパスにも残らないのは条件が厳しすぎる側の問題。止めるよりは出す。
-            print("条件に合う候補が無いのでコーパス全体から選ぶ", file=sys.stderr)
-            pool = corpus
     if not pool:
-        print(f"候補が無い: gs://{bucket.name}/{CORPUS_OBJECT}", file=sys.stderr)
+        print("条件に合う候補が無い", file=sys.stderr)
         return 1
 
     candidates = [s for s in pool if sentence_key(s) not in posted]
