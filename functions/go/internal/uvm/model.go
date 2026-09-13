@@ -58,7 +58,7 @@ const (
 	// 大きく取らざるを得ない。prior から始めれば 1 問の正解で素直に越える。
 	NewWordP = UnknownWordP
 
-	// FreeTierMaxVocab は free ユーザーの estimated_vocab 上限
+	// FreeTierMaxVocab は free ユーザーの教材と estimated_vocab の上限
 	// （constants.py の FREE_TIER_MAX_VOCAB）。
 	FreeTierMaxVocab = 100
 

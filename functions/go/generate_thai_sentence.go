@@ -276,15 +276,8 @@ func runGenerateThaiSentence(
 		for _, p := range produced {
 			registerSentenceExposure(ctx, db, uid, p)
 		}
-		// premium は上限なし（負の値で「上限なし」を表す）。
-		// トライアル中も premium と同じ扱いにする。tier だけで見ると、体験中に
-		// 伸ばした estimated_vocab が毎回 100 へ切り戻される。
-		// 語彙推定の同期はセットで1回でよい（露出の登録が全部済んでから）。
-		maxVocab := -1
-		if !usePremiumSpec {
-			maxVocab = uvm.FreeTierMaxVocab
-		}
-		uvm.SyncEstimatedVocab(ctx, db, uid, freqRank, maxVocab)
+		// 最新の実効権利を読み、真のfreeだけを従来どおり100語上限にする。
+		uvm.SyncEstimatedVocab(ctx, db, uid, freqRank)
 	}()
 
 	if err := commitSentences(ctx, db, userRef, produced, usePremiumSpec, l); err != nil {

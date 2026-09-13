@@ -14,6 +14,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -66,7 +67,10 @@ class DailySetState {
   bool get hasNext => index + 1 < sentences.length;
 
   /// セットの最後の1本か。ここの確認クイズの後は必ずまとめクイズへ進む。
-  bool get isLast => isActive && !hasNext;
+  ///
+  /// 1本だけのもの（旧形式の配信・クォータ残1）はセットの締めとして扱わない。
+  /// 1本読んだだけでまとめクイズへ送られてしまう。
+  bool get isLast => isActive && !hasNext && sentences.length > 1;
 
   ThaiSentence? get current => isActive ? sentences[index] : null;
 }
@@ -78,9 +82,14 @@ class DailySetController extends StateNotifier<DailySetState> {
   final Ref _ref;
   final DailySetProgressStore Function() _readProgressStore;
   List<String> _completedSetIds = const [];
+  Future<void>? _remoteSyncFuture;
+  bool _remoteSyncDirty = false;
   Future<void> _operationTail = Future.value();
 
   DailySetProgressStore get _progressStore => _readProgressStore();
+
+  /// 外から今の状態を読むための入口（StateNotifier の state は protected）。
+  DailySetState get currentState => state;
 
   /// 復元のときだけ使う。ここで解決を遅らせるのは、進捗表示（DailySetProgress）が
   /// 状態を watch するだけで Firebase 依存のリポジトリまで作られないようにするため。
@@ -111,7 +120,25 @@ class DailySetController extends StateNotifier<DailySetState> {
   }
 
   /// Firestore の正本を取り込み、別端末で進んだカーソルや待機セットを反映する。
-  Future<void> syncFromCloud() => _serialized(_persist);
+  Future<void> syncFromCloud() async {
+    _scheduleRemoteSync();
+    await settled;
+  }
+
+  /// 予約済みの Firestore 同期まで含めて落ち着くのを待つ。
+  @visibleForTesting
+  Future<void> get settled async {
+    while (true) {
+      await _operationTail;
+      final remote = _remoteSyncFuture;
+      if (remote != null) {
+        await remote;
+        continue;
+      }
+      await _operationTail;
+      if (_remoteSyncFuture == null) return;
+    }
+  }
 
   /// 新しいセットの消化を1本目から始める。
   ///
@@ -157,11 +184,11 @@ class DailySetController extends StateNotifier<DailySetState> {
       return false;
     }
     if (!state.isActive) {
-      // 1本しか無い配信（旧prod・旧形式doc・通信断のfallback）はセットにしない。
-      // isLast=true になり、1本後にまとめクイズへ強制遷移してしまう。
-      if (sentences.length > 1) {
-        await _start(sentences, setId: setId);
-      }
+      // 1本しか無い配信（旧prod・旧形式doc・通信断のfallback、free のクォータ残1）
+      // もセットとして開始する。載せないと進行位置が残らず、再起動や別端末で
+      // 「読んだのにまた出る／読まずに消える」になる。まとめクイズへ強制遷移
+      // させないための除外は isLast 側で行う。
+      await _start(sentences, setId: setId);
       return true;
     }
 
@@ -176,6 +203,24 @@ class DailySetController extends StateNotifier<DailySetState> {
     );
     await _persist();
     return false;
+  }
+
+  /// アプリ内で生成したセットを受け取る。配信と同じく、消化中のセットは
+  /// 奪わず次のセットとして待たせる。表示を戻すのは呼び出し側。
+  ///
+  /// 戻り値は、その場で表示に切り替えてよいときだけ true。
+  Future<bool> acceptGeneratedSet(List<ThaiSentence> sentences) =>
+      _serialized(() => _acceptGeneratedSet(sentences));
+
+  Future<bool> _acceptGeneratedSet(List<ThaiSentence> sentences) async {
+    if (sentences.isEmpty) return false;
+    final setId = sentences.first.id;
+    if (setId == null) {
+      // ID が無いものは待機列に積んでも復元できない。従来どおり即開始する。
+      await _start(sentences);
+      return true;
+    }
+    return _acceptDeliveredSet(setId: setId, sentences: sentences);
   }
 
   /// 次の1本へ進む。セットを使い切っていたら null を返す（生成へ落とす合図）。
@@ -228,18 +273,11 @@ class DailySetController extends StateNotifier<DailySetState> {
 
     final next = state.pendingSets.first;
     final remaining = state.pendingSets.skip(1).toList();
-    if (next.sentences.length > 1) {
-      state = DailySetState(
-        setId: next.setId,
-        sentences: next.sentences,
-        pendingSets: remaining,
-      );
-    } else {
-      // 1本しか無いものはセットにしない。ただし捨てるだけだと Firestore 側に
-      // 残り、merge で正本として復活してしまうので、完了として記録して落とす。
-      _markCompleted(next.setId);
-      state = DailySetState(pendingSets: remaining);
-    }
+    state = DailySetState(
+      setId: next.setId,
+      sentences: next.sentences,
+      pendingSets: remaining,
+    );
     await _startNewCycle();
     return next.sentences.first;
   }
@@ -274,21 +312,67 @@ class DailySetController extends StateNotifier<DailySetState> {
         completedSetIds: _completedSetIds,
       );
 
-  /// ローカルへ保存し、Firestore の正本とマージして反映する。
+  /// 端末の続きを確定させる。Firestore は待たない。
   ///
-  /// 通信前にローカルを確定させておくのは、マージに失敗しても端末側の続きが
-  /// 残るようにするため。マージできたらその結果でもう一度上書きする。
+  /// 正本は端末のローカル状態として扱い、Firestore との突き合わせは後ろで回す。
+  /// 通信を待って表示を止めると、機内・低速回線で「開いたのに例文が出ない」
+  /// になり、待った末にカーソルが動いて画面が切り替わる。
   Future<void> _persist() async {
     await _saveLocal();
-    final merged = await _progressStore.merge(_snapshot());
-    if (merged == null) return;
-    await _apply(merged);
-    if (mounted) await _saveLocal();
+    _scheduleRemoteSync();
+  }
+
+  /// Firestore とのマージを1本だけ予約する。予約済みなら重ねない。
+  void _scheduleRemoteSync() {
+    if (_remoteSyncFuture != null) {
+      _remoteSyncDirty = true;
+      return;
+    }
+    late final Future<void> future;
+    future = _mergeRemote().whenComplete(() {
+      if (identical(_remoteSyncFuture, future)) _remoteSyncFuture = null;
+      if (_remoteSyncDirty && mounted) {
+        _remoteSyncDirty = false;
+        _scheduleRemoteSync();
+      }
+    });
+    _remoteSyncFuture = future;
+  }
+
+  /// ローカルの状態を Firestore の正本とマージして反映する。
+  ///
+  /// マージに失敗しても端末側の続きは保存済みなので、学習は止まらない。
+  Future<void> _mergeRemote() async {
+    // 破棄後に走ることがある（アプリ終了・テストの後始末）。ここから先は
+    // provider を読むので、生きているときだけ進める。
+    if (!mounted) return;
+    // provider の参照と送信状態は await をまたぐ前に取る。通信中に進んだ
+    // ローカル状態は、完了後の foreground merge で重ね直す。
+    final store = _progressStore;
+    final localAtRequest = _snapshot();
+    final merged = await store.merge(localAtRequest);
+    if (merged == null || !mounted) return;
+    // 通信中も advance/start は止めない。反映だけをローカル操作と直列化し、
+    // その時点で学習中のセットとカーソルは維持する。
+    await _serialized(() async {
+      if (!mounted) return;
+      final localNow = _snapshot();
+      final reconciled = mergeDailySetProgressPreservingLocalActive(
+        merged,
+        localNow,
+      );
+      await _apply(reconciled);
+      if (mounted) await _saveLocal();
+    });
   }
 
   Future<void> _saveLocal() async {
+    if (!mounted) return;
+    // state は await をまたぐ前に写し取る。破棄後に読むと例外になるうえ、
+    // 待っているあいだに進んだ位置を書き戻してしまう。
+    final encoded = jsonEncode(_snapshot().toJson());
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_progressKey, jsonEncode(_snapshot().toJson()));
+    await prefs.setString(_progressKey, encoded);
   }
 
   DailySetProgressSnapshot? _readLocal(SharedPreferences prefs) {
@@ -314,9 +398,9 @@ class DailySetController extends StateNotifier<DailySetState> {
         prefs.getStringList('completed_daily_set_ids') ?? const <String>[];
     final pending = <DailySetRef>[];
     try {
-      final rawSets = (jsonDecode(prefs.getString('pending_daily_sets') ?? '[]')
-              as List)
-          .whereType<Map>();
+      final rawSets =
+          (jsonDecode(prefs.getString('pending_daily_sets') ?? '[]') as List)
+              .whereType<Map>();
       for (final raw in rawSets) {
         final set = DailySetRef.fromJson({
           'set_id': raw['set_id'],
@@ -343,12 +427,19 @@ class DailySetController extends StateNotifier<DailySetState> {
   /// スナップショットの例文IDを実体へ解決して state に反映する。
   /// ローカル保存とクラウド正本のどちらも同じ経路を通る。
   Future<void> _apply(DailySetProgressSnapshot? snapshot) async {
-    if (snapshot == null) return;
+    if (snapshot == null || !mounted) return;
+    // 解決中に provider が破棄されても ref を読み直さないよう、依存先を先に取る。
+    final repository = _repository;
+    final progressStore = _progressStore;
     _completedSetIds = snapshot.completedSetIds;
 
     final pending = <PendingDailySet>[];
     for (final ref in snapshot.pending) {
-      final sentences = await _resolve(ref.sentenceIds);
+      final sentences = await _resolve(
+        ref.sentenceIds,
+        repository,
+        progressStore,
+      );
       if (sentences.isNotEmpty) {
         pending.add(PendingDailySet(setId: ref.setId, sentences: sentences));
       }
@@ -361,7 +452,11 @@ class DailySetController extends StateNotifier<DailySetState> {
     final active = <ThaiSentence>[];
     if (activeRef != null) {
       for (var i = 0; i < activeRef.sentenceIds.length; i++) {
-        final sentence = await _fetch(activeRef.sentenceIds[i]);
+        final sentence = await _fetch(
+          activeRef.sentenceIds[i],
+          repository,
+          progressStore,
+        );
         if (sentence != null) {
           active.add(sentence);
         } else if (i < snapshot.activeIndex) {
@@ -385,10 +480,14 @@ class DailySetController extends StateNotifier<DailySetState> {
     );
   }
 
-  Future<List<ThaiSentence>> _resolve(List<String> ids) async {
+  Future<List<ThaiSentence>> _resolve(
+    List<String> ids,
+    SentenceRepository repository,
+    DailySetProgressStore progressStore,
+  ) async {
     final sentences = <ThaiSentence>[];
     for (final id in ids) {
-      final sentence = await _fetch(id);
+      final sentence = await _fetch(id, repository, progressStore);
       if (sentence != null) sentences.add(sentence);
     }
     return sentences;
@@ -396,13 +495,18 @@ class DailySetController extends StateNotifier<DailySetState> {
 
   /// ローカルDBを先に見る。別端末で受け取った例文だけ配信docから引き直し、
   /// 引けたらローカルにも入れて以後の復元を通信なしで済ませる。
-  Future<ThaiSentence?> _fetch(String id) async {
-    final local = await _repository.getSentenceById(id);
+  Future<ThaiSentence?> _fetch(
+    String id,
+    SentenceRepository repository,
+    DailySetProgressStore progressStore,
+  ) async {
+    final local = await repository.getSentenceById(id);
     if (local != null) return local;
-    final remote = await _progressStore.fetchSentence(id);
-    if (remote != null) await _repository.saveSentence(remote);
+    final remote = await progressStore.fetchSentence(id);
+    if (remote != null) await repository.saveSentence(remote);
     return remote;
   }
+
 }
 
 final dailySetProgressStoreProvider = Provider<DailySetProgressStore>((ref) {
@@ -419,11 +523,20 @@ final dailySetProvider =
   // カーソルを立てるのではなく、生成結果を1か所で拾う。
   ref.listen<SentenceState>(sentenceControllerProvider, (_, next) {
     if (next is! SentenceStateSuccess || !next.generated) return;
-    // 1本しか作れなかった（残りクォータ）ときは空で渡す。セットになって
-    // いないので進捗も出さず、前のセットのカーソルも残さない。
-    controller.start(
-      next.generatedSet.length > 1 ? next.generatedSet : const [],
-    );
+    final generated = next.generatedSet;
+    if (generated.isEmpty) return;
+    // 消化中のセットは奪わない。日付が変わった朝の自動生成（クォータ復活・
+    // daily_sentence_generated=false）はセットの途中でも走るので、ここで
+    // start すると残りが履歴にしか残らず「飛ばされた」ように見える。
+    controller.acceptGeneratedSet(generated).then((accepted) {
+      if (accepted) return;
+      // 待機列へ回したぶんを表示したままにすると、進捗（2/5）と本文がずれる。
+      // 消化中の1本へ戻す。
+      final current = controller.currentState.current;
+      if (current != null) {
+        ref.read(sentenceControllerProvider.notifier).showSentence(current);
+      }
+    });
   });
   return controller;
 });

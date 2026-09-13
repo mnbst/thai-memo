@@ -90,6 +90,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       unawaited(InterviewReporter().report());
       _notificationOpenSubscription =
           FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
+      // 後ろで取り込んだ別端末の進行位置を、例文を読んでいる間だけ反映する。
+      ref.listenManual(dailySetProvider, (previous, next) {
+        if (!_initialLoadCompleted) return;
+        final current = next.current;
+        if (current == null || current.id == previous?.current?.id) return;
+        _showIfNotVisible(current);
+      });
       _loadInitialSentenceThenHandleNotification();
       // remaining_sentences監視: 0→正数（dailyBatchリセット）で自動読み込み
       ref.listenManual(remainingSentencesProvider, (prev, next) {
@@ -103,8 +110,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           previous: prev,
           next: next,
           dailySentenceGenerated: isGenerated,
+          hasActiveSet: ref.read(dailySetProvider).isActive,
         )) {
-          // dailyBatchリセット時は表示中でも新日の例文を生成。
+          // dailyBatchリセット時は、進行中セットが無い場合だけ新日の例文を生成。
           // 購入・復元などでquotaだけ戻った場合は当日生成済みフラグを尊重する。
           ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
                 dailySentenceGenerated: false,
@@ -152,25 +160,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   ///
   /// 複数日ぶん溜まっていても取りこぼさず、結果は最も強いもの
   /// （表示 > 待機 > 何もなし）を返す。
-  Future<_DeliveredAction> _showDeliveredIfAny({String? sentenceId}) async {
+  Future<_DeliveredAction> _showDeliveredIfAny({
+    String? sentenceId,
+    bool force = false,
+  }) async {
     final deliveredSets =
         await _dailySentenceService.syncAll(sentenceId: sentenceId);
     var result = _DeliveredAction.none;
     for (final delivered in deliveredSets) {
       if (!mounted) break;
-      final action = await _acceptDeliveredSet(delivered);
+      final action = await _acceptDeliveredSet(delivered, force: force);
       if (action.index > result.index) result = action;
     }
     return result;
   }
 
   Future<_DeliveredAction> _acceptDeliveredSet(
-    DailySentenceSet delivered,
-  ) async {
+    DailySentenceSet delivered, {
+    bool force = false,
+  }) async {
     final activeSet = ref.read(dailySetProvider);
     // 同じ通知をもう一度開いても、途中まで進めたカーソルを先頭へ戻さない。
     if (isSameDailySet(activeSet, delivered)) {
-      _showIfNotVisible(activeSet.current!);
+      _showIfNotVisible(activeSet.current!, force: force);
       return _DeliveredAction.shown;
     }
 
@@ -178,20 +190,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 上書きすると、残りの例文が履歴にしか残らず「飛ばされた」ように見えるため、
     // 消化中なら次のセットとして永続化し、表示は奪わない。
     final queued = activeSet.isActive;
-    await ref.read(dailySetProvider.notifier).acceptDeliveredSet(
-          setId: delivered.setId,
-          sentences: delivered.sentences,
-        );
+    final accepted =
+        await ref.read(dailySetProvider.notifier).acceptDeliveredSet(
+              setId: delivered.setId,
+              sentences: delivered.sentences,
+            );
     if (!mounted) {
       return queued ? _DeliveredAction.queued : _DeliveredAction.none;
     }
-    final shown = queued ? activeSet.current : delivered.first;
-    if (shown != null) _showIfNotVisible(shown);
-    return queued ? _DeliveredAction.queued : _DeliveredAction.shown;
+    if (!accepted) {
+      // 待機列へ回したか、消化済みで断られたか。断られたもの（古い通知の
+      // 再タップ）を表示すると、終わったセットの例文が復活する。
+      return queued ? _DeliveredAction.queued : _DeliveredAction.none;
+    }
+    final shown = ref.read(dailySetProvider).current ?? delivered.first;
+    _showIfNotVisible(shown, force: force);
+    return _DeliveredAction.shown;
   }
 
   /// 表示中の例文と違うときだけ差し替える。同じものを入れ直すと画面が瞬く。
-  void _showIfNotVisible(ThaiSentence sentence) {
+  ///
+  /// クイズを解いている最中は差し替えない。裏の例文だけ変わると、いま答えて
+  /// いる問題と本文がずれる。通知タップのように本人が開いたとき（force）だけ
+  /// 例文ステージへ戻して差し替える。
+  void _showIfNotVisible(ThaiSentence sentence, {bool force = false}) {
+    if (!force && !(_learningKey.currentState?.isOnSentenceStage ?? true)) {
+      return;
+    }
     final current = ref.read(sentenceControllerProvider);
     if (current is SentenceStateSuccess && current.sentence.id == sentence.id) {
       return;
@@ -400,7 +425,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _handleNotificationOpen(RemoteMessage message) async {
     if (!_isDailySentenceNotification(message) || !mounted) return;
     final sentenceId = message.data['sentence_id']?.toString();
-    final action = await _showDeliveredIfAny(sentenceId: sentenceId);
+    final action =
+        await _showDeliveredIfAny(sentenceId: sentenceId, force: true);
     if (action != _DeliveredAction.shown || !mounted) return;
     _openLearningSentenceStage();
   }
@@ -489,12 +515,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 初回ロードが完了する前はスキップ（_checkFirstLaunchAndLoadSentenceとの二重生成を防ぐ）
     if (!_initialLoadCompleted) return;
 
-    // 別端末で進んだ位置を先に取り込む。Firestore 側は同一セットの最大位置を
-    // 正本にするため、古い端末を開いてもカーソルは巻き戻らない。
-    await ref.read(dailySetProvider.notifier).syncFromCloud();
-    if (!mounted) return;
-    final syncedSentence = ref.read(dailySetProvider).current;
-    if (syncedSentence != null) _showIfNotVisible(syncedSentence);
+    // 別端末で進んだ位置は後ろで取り込む。待たないのは、通信が遅いあいだ
+    // 端末の続きを表示できないほうが困るため。反映は下のリスナーが拾う
+    // （Firestore 側は同一セットの最大位置を正本にするので巻き戻らない）。
+    unawaited(ref.read(dailySetProvider.notifier).syncFromCloud());
 
     // 生成中ならスキップ
     final currentState = ref.read(sentenceControllerProvider);
@@ -513,7 +537,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
 
-    if (!isGenerated) {
+    // 日付が変わると daily_sentence_generated は false へ戻る。セットの途中で
+    // ここを通ると新しいセットを生成してしまい、開いた瞬間に例文が切り替わって
+    // 残りが飛ばされる。消化しきってから次を出す。
+    if (!isGenerated && !ref.read(dailySetProvider).isActive) {
       ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
             dailySentenceGenerated: false,
             generationParams: ref.read(generationParamsProvider),
@@ -776,8 +803,10 @@ bool shouldAutoLoadAfterSentenceQuotaRefresh({
   required AsyncValue<int>? previous,
   required AsyncValue<int> next,
   required bool dailySentenceGenerated,
+  bool hasActiveSet = false,
 }) {
   return !dailySentenceGenerated &&
+      !hasActiveSet &&
       changedFromNoRemainingToAvailable(previous, next);
 }
 
@@ -873,6 +902,9 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
     await prefs.setInt(learningCompletedCountKey, count);
   }
 
+  /// いま例文を読んでいる段か。クイズ中は本文を裏で差し替えない。
+  bool get isOnSentenceStage => _stage == _LearningStage.sentence;
+
   void _setStage(_LearningStage newStage) {
     setState(() => _stage = newStage);
   }
@@ -907,6 +939,23 @@ class _LearningScreenState extends ConsumerState<LearningScreen> {
   /// 消費しない）。使い切ったら従来どおり生成へ落ちる。テーマの適用可否・
   /// トライアル消費は controller 側で判定する。
   Future<void> _proceedToNextSentence() async {
+    // 別端末の進行を取り込むと、いま解き終えた例文よりカーソルが先にいる
+    // ことがある。そこから advance すると間の1本を飛ばすので、カーソルの
+    // 現在位置を出すだけにする。
+    final set = ref.read(dailySetProvider);
+    final answered = _quizSentence;
+    if (answered != null && set.isActive) {
+      final current = set.current;
+      // 同一セットの先行だけでなく、別端末が次セットへ進めた場合も現在位置を
+      // さらに advance しない。後者で進めると新セットの1本目が飛ぶ。
+      if (current != null && current.id != answered.id) {
+        _setStage(_LearningStage.sentence);
+        ref.read(sentenceControllerProvider.notifier).showSentence(current);
+        ref.read(quizControllerProvider.notifier).prepareQuiz(current);
+        return;
+      }
+    }
+
     final next = await ref.read(dailySetProvider.notifier).advance();
     if (next == null) {
       await _generateNextLearningSentence();
@@ -1055,7 +1104,8 @@ class DailySetProgress extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final set = ref.watch(dailySetProvider);
-    if (!set.isActive) return const SizedBox.shrink();
+    // 1本だけのもの（旧形式の配信・クォータ残1）は「セット」ではないので出さない。
+    if (!set.isActive || set.total <= 1) return const SizedBox.shrink();
 
     final l10n = L10n.of(context);
     final cs = Theme.of(context).colorScheme;

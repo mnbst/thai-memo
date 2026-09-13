@@ -71,4 +71,39 @@ void main() {
     expect(merged.active?.setId, 'b');
     expect(merged.completedSetIds, contains('a'));
   });
+
+  test('学習中の取り込みは表示中セットを維持し、クラウドの次セットを待機させる', () {
+    final merged = mergeDailySetProgressPreservingLocalActive(
+      DailySetProgressSnapshot(
+        active: _set('b'),
+        completedSetIds: const ['a'],
+      ),
+      DailySetProgressSnapshot(active: _set('a'), activeIndex: 1),
+    );
+
+    expect(merged.active?.setId, 'a');
+    expect(merged.activeIndex, 1);
+    expect(merged.pending.map((set) => set.setId), ['b']);
+    expect(merged.completedSetIds, isNot(contains('a')));
+  });
+
+  test('学習中は同一セットのクラウド側カーソルでも表示位置を動かさない', () {
+    final merged = mergeDailySetProgressPreservingLocalActive(
+      DailySetProgressSnapshot(active: _set('a'), activeIndex: 4),
+      DailySetProgressSnapshot(active: _set('a'), activeIndex: 1),
+    );
+
+    expect(merged.active?.setId, 'a');
+    expect(merged.activeIndex, 1);
+  });
+
+  test('通信中に完了したセットを古いクラウド結果から復活させない', () {
+    final merged = mergeDailySetProgressPreservingLocalActive(
+      DailySetProgressSnapshot(active: _set('a'), activeIndex: 1),
+      const DailySetProgressSnapshot(completedSetIds: ['a']),
+    );
+
+    expect(merged.active, isNull);
+    expect(merged.completedSetIds, contains('a'));
+  });
 }

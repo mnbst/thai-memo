@@ -12,6 +12,7 @@ type UserData = Record<string, unknown>;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const GRACE_PERIOD_MAX_MS = 30 * DAY_MS;
 
 /**
  * 与えた時刻以降で最初の JST 0:00 に切り上げる（ちょうど 0:00 ならそのまま）。
@@ -49,10 +50,33 @@ export function isTrialExpired(userData: UserData, now = Date.now()): boolean {
   return expiresAt !== null && now >= expiresAt;
 }
 
-/** 課金 premium もしくはトライアル中か */
+/** 課金 premium もしくはトライアル中か。tier反映待ちは購読期限から補完する。 */
 export function isEffectivePremium(
   userData: UserData,
   now = Date.now(),
 ): boolean {
-  return userData?.tier === 'premium' || isTrialActive(userData, now);
+  if (userData?.tier === 'premium' || isTrialActive(userData, now)) return true;
+
+  const subscription = userData?.subscription as
+    | Record<string, unknown>
+    | undefined;
+  const status = subscription?.status;
+  // REFUND / REVOKE 後も lifetime や将来の expires_at が残ることがある。
+  // 取消済みの権利を subscription の補完判定で復活させない。
+  if (status === 'expired' || status === 'revoked' || status === 'refunded') {
+    return false;
+  }
+  if (subscription?.lifetime === true && status === 'active') return true;
+  if (status !== 'active' && status !== 'canceled' && status !== 'grace_period') {
+    return false;
+  }
+
+  const expiresAt = subscription?.expires_at as
+    | { toMillis?: () => number }
+    | undefined;
+  const expiresAtMs = expiresAt?.toMillis?.();
+  if (typeof expiresAtMs !== 'number') return false;
+  if (now < expiresAtMs) return true;
+  return status === 'grace_period'
+    && now - expiresAtMs <= GRACE_PERIOD_MAX_MS;
 }

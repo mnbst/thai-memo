@@ -268,6 +268,11 @@ func (d *deliverer) intn(n int) int {
 // errDeliveryNotDue はトランザクション内の再判定で配信条件を満たさなくなった。
 var errDeliveryNotDue = errors.New("DELIVERY_NOT_DUE")
 
+// errEntitlementChanged は例文生成中に実効tierが変わったことを表す。
+// free条件で作った例文をpremium確定後に配信（またはその逆）しないため、
+// その回は何も確定せず次回の定期実行へ回す。
+var errEntitlementChanged = errors.New("ENTITLEMENT_CHANGED")
+
 // deliveryStoppedError は段階が配信停止に達したことを表す。
 //
 // トランザクション内で update しても、エラーを返した時点で rollback され
@@ -290,6 +295,7 @@ func (d *deliverer) commitDailySentence(
 	sentenceRefs []*firestore.DocumentRef, sentenceData []map[string]any, now time.Time,
 	consumeQuota bool,
 ) (token string, restore []firestore.Update, err error) {
+	expectedPremium := !consumeQuota
 	err = d.DB.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		userData := map[string]any{}
 		if snap, gerr := tx.Get(userRef); gerr == nil && snap.Exists() {
@@ -300,7 +306,8 @@ func (d *deliverer) commitDailySentence(
 		if consumeQuota {
 			consumed = len(sentenceRefs)
 		}
-		tok, rest, update, perr := dailyCommitPlan(userData, now, consumed)
+		tok, rest, update, perr := dailyCommitPlanForEntitlement(
+			userData, now, consumed, expectedPremium)
 		if perr != nil {
 			return perr
 		}
@@ -324,10 +331,20 @@ func (d *deliverer) commitDailySentence(
 func dailyCommitPlan(userData map[string]any, now time.Time, consumed int) (
 	token string, restore, update []firestore.Update, err error,
 ) {
+	return dailyCommitPlanForEntitlement(
+		userData, now, consumed, premium.IsEffectivePremium(userData, now))
+}
+
+func dailyCommitPlanForEntitlement(
+	userData map[string]any, now time.Time, consumed int, expectedPremium bool,
+) (token string, restore, update []firestore.Update, err error) {
 	// 外側の列挙結果は古い可能性があるため、二重配信を防ぐ正の判定は
 	// トランザクション内の最新 user doc で行う。
 	if !dailysentence.ShouldDeliver(userData, now) {
 		return "", nil, nil, errDeliveryNotDue
+	}
+	if premium.IsEffectivePremium(userData, now) != expectedPremium {
+		return "", nil, nil, errEntitlementChanged
 	}
 
 	tierUpdate := dailysentence.EvaluateResponse(userData)
@@ -482,16 +499,18 @@ func (d *deliverer) deliverOne(
 ) string {
 	userRef := d.DB.Collection("users").Doc(uid)
 
-	if userData["tier"] == "premium" || dailysentence.UsesPremiumTrial(userData, now) {
-		// LLM を叩く前に最新状態を読み直す。二重配信自体はトランザクションで
-		// 弾けるが、生成コストは commit 前に払ってしまうため窓を狭めておく。
-		userData = map[string]any{}
-		if snap, err := userRef.Get(ctx); err == nil && snap.Exists() {
-			userData = snap.Data()
+	// 候補列挙後に購入検証が完了することがあるため、元のtierに関係なく生成直前に
+	// 必ず読み直す。読めないときは古いfree条件で配信せず、次回へ回す。
+	snap, err := userRef.Get(ctx)
+	if err != nil || !snap.Exists() {
+		if err != nil {
+			log.Printf("daily_sentence: user refresh failed for %s: %v", uid, err)
 		}
-		if reason := dailysentence.DeliverySkipReason(userData, now); reason != "" {
-			return "stale:" + reason
-		}
+		return "refresh_failed"
+	}
+	userData = snap.Data()
+	if reason := dailysentence.DeliverySkipReason(userData, now); reason != "" {
+		return "stale:" + reason
 	}
 
 	// premium・トライアルは回数を消費しないので、残数で絞らない。
@@ -544,6 +563,8 @@ func (d *deliverer) deliverOne(
 		switch {
 		case errors.Is(err, errDeliveryNotDue):
 			return "not_due_at_commit"
+		case errors.Is(err, errEntitlementChanged):
+			return "entitlement_changed_at_commit"
 		case errors.As(err, &stopped):
 			if _, uerr := userRef.Update(ctx, stopped.updates); uerr != nil {
 				log.Printf("daily_sentence: 配信停止の記録に失敗 %s: %v", uid, uerr)
@@ -575,13 +596,7 @@ func (d *deliverer) deliverOne(
 	for _, produced := range p.Produced {
 		registerSentenceExposure(ctx, d.DB, uid, produced)
 	}
-	// 上限の判定は配信スペックの判定（deliverOne 冒頭）と揃える。tier だけで
-	// 見ると、トライアル中の estimated_vocab が毎回 100 へ切り戻される。
-	maxVocab := -1
-	if userData["tier"] != "premium" && !dailysentence.UsesPremiumTrial(userData, now) {
-		maxVocab = uvm.FreeTierMaxVocab
-	}
-	// 語彙推定の同期はセットで1回。露出の登録が全部済んでから呼ぶ。
-	uvm.SyncEstimatedVocab(ctx, d.DB, uid, d.FreqRank, maxVocab)
+	// 最新の実効権利を読み、真のfreeだけを従来どおり100語上限にする。
+	uvm.SyncEstimatedVocab(ctx, d.DB, uid, d.FreqRank)
 	return ""
 }

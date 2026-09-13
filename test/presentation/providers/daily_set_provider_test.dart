@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,6 +35,20 @@ class _MemoryProgressStore implements DailySetProgressStore {
   ) async {
     remote = mergeDailySetProgress(remote, local);
     return remote;
+  }
+}
+
+class _GatedProgressStore extends _MemoryProgressStore {
+  _GatedProgressStore(super.byId);
+
+  final gate = Completer<void>();
+
+  @override
+  Future<DailySetProgressSnapshot?> merge(
+    DailySetProgressSnapshot local,
+  ) async {
+    await gate.future;
+    return super.merge(local);
   }
 }
 
@@ -106,6 +122,46 @@ void main() {
     expect(state.current?.id, 'a');
     // 1本目はセットの最後ではないので、まとめクイズはまだ出さない。
     expect(state.isLast, isFalse);
+  });
+
+  test('Firestore同期が遅くても次の例文へ進める', () async {
+    final byId = {
+      for (final id in ['a', 'b']) id: _sentence(id)
+    };
+    final store = _GatedProgressStore(byId);
+    final container = containerWith(byId, progressStore: store);
+    final controller = container.read(dailySetProvider.notifier);
+
+    await controller.start(_set(['a', 'b']), setId: 'A');
+
+    final next = await controller.advance().timeout(
+          const Duration(milliseconds: 200),
+        );
+    expect(next?.id, 'b');
+
+    store.gate.complete();
+    await controller.settled;
+  });
+
+  test('別端末が次セットへ進んでいても表示中セットを途中で差し替えない', () async {
+    final byId = {
+      for (final id in ['a1', 'a2', 'b1', 'b2']) id: _sentence(id),
+    };
+    final store = _MemoryProgressStore(byId)
+      ..remote = DailySetProgressSnapshot(
+        active: DailySetRef.fromSentences('B', _set(['b1', 'b2'])),
+        completedSetIds: const ['A'],
+      );
+    final container = containerWith(byId, progressStore: store);
+    final controller = container.read(dailySetProvider.notifier);
+
+    await controller.start(_set(['a1', 'a2']), setId: 'A');
+    await controller.settled;
+
+    final state = container.read(dailySetProvider);
+    expect(state.setId, 'A');
+    expect(state.current?.id, 'a1');
+    expect(state.pendingSets.map((set) => set.setId), ['B']);
   });
 
   test('最後の1本まで進めたら isLast になり、その次で使い切る', () async {
@@ -213,11 +269,15 @@ void main() {
       sentences: _set(['c', 'd']),
     );
     await first.advance();
+    // Firestore への反映は表示を待たせない後追い。読み出す前に落ち着かせる。
+    await first.settled;
 
     // SharedPreferencesを持たない別端末相当。
     SharedPreferences.setMockInitialValues({});
     final secondDevice = containerWith(sentences, progressStore: cloud);
-    await secondDevice.read(dailySetProvider.notifier).restore();
+    final second = secondDevice.read(dailySetProvider.notifier);
+    await second.restore();
+    await second.settled;
 
     final restored = secondDevice.read(dailySetProvider);
     expect(restored.current?.id, 'b');
@@ -340,7 +400,7 @@ void main() {
     expect(state.pendingSets, isEmpty);
   });
 
-  test('待機中の1本だけのセットは、消化後にクラウドから復活しない', () async {
+  test('待機中の1本だけの配信も順番に出し、消化後はクラウドから復活しない', () async {
     final byId = {
       for (final id in ['a1', 'a2', 'x1']) id: _sentence(id),
     };
@@ -353,11 +413,63 @@ void main() {
     await controller.advance();
     await controller.advance();
 
+    // 1本だけの配信も飛ばさず出す。ただしセットの締めではないので、
+    // 1本読んだだけでまとめクイズへは送らない。
+    final promoted = container.read(dailySetProvider);
+    expect(promoted.setId, 'X');
+    expect(promoted.current?.id, 'x1');
+    expect(promoted.isLast, isFalse);
+
+    await controller.advance();
+    await controller.settled;
+
     final state = container.read(dailySetProvider);
     expect(state.isActive, isFalse);
     expect(state.pendingSets, isEmpty);
     expect(store.remote.active, isNull);
     expect(store.remote.pending, isEmpty);
+  });
+
+  test('消化中に自動生成が走っても、進行中セットを奪わず待機列へ回す', () async {
+    final byId = {
+      for (final id in ['a1', 'a2', 'g1', 'g2']) id: _sentence(id),
+    };
+    final container = containerWith(byId);
+    final controller = container.read(dailySetProvider.notifier);
+
+    await controller.start(_set(['a1', 'a2']), setId: 'A');
+    final accepted = await controller.acceptGeneratedSet(_set(['g1', 'g2']));
+
+    expect(accepted, isFalse);
+    final state = container.read(dailySetProvider);
+    expect(state.setId, 'A');
+    expect(state.current?.id, 'a1');
+    expect(state.pendingSets.single.setId, 'g1');
+  });
+
+  test('セットを消化しきっていれば、生成結果はそのまま次のセットになる', () async {
+    final byId = {
+      for (final id in ['g1', 'g2']) id: _sentence(id)
+    };
+    final container = containerWith(byId);
+    final controller = container.read(dailySetProvider.notifier);
+
+    final accepted = await controller.acceptGeneratedSet(_set(['g1', 'g2']));
+
+    expect(accepted, isTrue);
+    expect(container.read(dailySetProvider).current?.id, 'g1');
+  });
+
+  test('1本だけのセットはまとめクイズの締めにしない', () async {
+    final byId = {'s1': _sentence('s1')};
+    final container = containerWith(byId);
+    final controller = container.read(dailySetProvider.notifier);
+
+    await controller.acceptDeliveredSet(setId: 'S', sentences: _set(['s1']));
+
+    final state = container.read(dailySetProvider);
+    expect(state.isActive, isTrue);
+    expect(state.isLast, isFalse);
   });
 
   test('1.4.8以前の分割キーからも続きを復元する', () async {

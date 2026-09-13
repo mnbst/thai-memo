@@ -107,6 +107,18 @@ void main() {
         isFalse,
       );
     });
+
+    test('tier反映で残数が戻っても進行中セットを上書きしない', () {
+      expect(
+        shouldAutoLoadAfterSentenceQuotaRefresh(
+          previous: const AsyncData(0),
+          next: const AsyncData(20),
+          dailySentenceGenerated: false,
+          hasActiveSet: true,
+        ),
+        isFalse,
+      );
+    });
   });
 
   group('shouldOfferSummaryQuiz', () {

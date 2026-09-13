@@ -116,7 +116,7 @@ lib/presentation/providers/sentence_provider.dart
 例文CRUD・生成状態のRiverpod StateNotifier。
 
 lib/presentation/providers/daily_set_provider.dart
-例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、進行位置を SharedPreferences（端末の続き）と Firestore（端末間の正本）へ同じ形で保存して再開する。
+例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す。進行位置は SharedPreferences を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。
 
 lib/presentation/providers/quiz_provider.dart
 クイズ状態管理（initial→pending→generating→ready→answering→result→summary）。
@@ -137,7 +137,10 @@ lib/presentation/providers/leaderboard_provider.dart
 語彙スコアランキング（leaderboard コレクション）。上位100人のストリームと、自分の順位（count集計。一覧の外でも出せる）。同点は同順位。
 
 lib/presentation/providers/vocab_stats_provider.dart
-Firestoreから語彙スコア・語彙テストの受験日と測定値をリアルタイム取得。
+語彙スコア・語彙テストの受験日と測定値。users/{uid} の共有listenerから受け取る。
+
+lib/presentation/providers/remaining_quota_provider.dart
+users/{uid} を監視する唯一のlistener（userDocSnapshotProvider）。残回数・Premium・体験トライアル・語彙がこの1本を共有する。
 
 ## Screens
 

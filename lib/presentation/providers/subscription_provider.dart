@@ -7,7 +7,7 @@
 /// - prod/tester環境: Firestore の users/{uid}.tier フィールド
 ///   - 購入時: verifySubscription Cloud Function がストア API で検証後に 'premium' に更新
 ///   - 解約/期限切れ時: handleAppStoreNotification / handlePlayNotification が 'free' に更新
-///   - クライアントはアプリ起動時・フォアグラウンド復帰時に Firestore から最新 tier を取得
+///   - クライアントは端末キャッシュを先に表示し、Firestore listener で最新 tier へ収束
 /// - dev環境: Firestore（ストア接続なしでテスト可能）
 ///
 /// 【プラン構成】
@@ -37,6 +37,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/firebase_config.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
@@ -119,6 +120,10 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   final FirebaseFunctions? _functions;
   PurchaseService? _purchaseService;
   Future<void>? _storeReadyFuture;
+  Future<void>? _initializeFuture;
+  String? _initializeKey;
+
+  static const _tierCachePrefix = 'subscription_tier_';
 
   /// 復元リクエスト後、サーバー検証完了を待ってから Firestore を再読するまでの待機時間
   final Duration restoreDelay;
@@ -128,17 +133,80 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   /// アプリ起動時に main.dart から1回呼び出される。
   /// Firestoreにサブスク情報がない場合（新規/再登録ユーザー）は
   /// バックグラウンドでストアからの購入復元を試みる。
-  Future<void> initialize() async {
-    final needsRestore = await _fetchTierFromFirestore();
+  Future<void> initialize() {
+    final user = FirebaseAuthService.instance.currentUser;
+    if (user == null) return Future.value();
+    final linked = FirebaseAuthService.instance.isLinkedAccount;
+    final key = '${user.uid}:$linked';
+    if (_initializeKey == key && _initializeFuture != null) {
+      return _initializeFuture!;
+    }
+    _initializeKey = key;
+    return _initializeFuture = _initialize(user.uid, linked: linked);
+  }
+
+  Future<void> _initialize(String uid, {required bool linked}) async {
+    if (!linked) {
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted || FirebaseAuthService.instance.currentUser?.uid != uid) {
+        return;
+      }
+      state = state.copyWith(tier: UserTier.free);
+      unawaited(_analytics.setUserTier(UserTier.free.name));
+      return;
+    }
+
+    // Firestoreを待たず、前回確定したtierを先に流す。画面とローカル学習状態は
+    // すぐ復元し、取得後にだけ最新状態へ更新する。
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('$_tierCachePrefix$uid');
+    final hasCachedTier =
+        cached == UserTier.premium.name || cached == UserTier.free.name;
+    if (mounted && FirebaseAuthService.instance.currentUser?.uid == uid) {
+      if (hasCachedTier) {
+        final tier =
+            cached == UserTier.premium.name ? UserTier.premium : UserTier.free;
+        state = state.copyWith(tier: tier);
+      }
+    }
+
+    final needsRestore = await _fetchTierFromFirestore(expectedUid: uid);
     // 匿名ユーザーは自動復元しない（premiumが匿名uidへ移ってしまうため）
     if (needsRestore && FirebaseAuthService.instance.isLinkedAccount) {
       unawaited(_silentRestore());
     }
   }
 
-  /// フォアグラウンド復帰時にティアを再取得
+  /// 明示的にサーバー反映を待ちたい操作向けの再取得。
+  /// 通常の起動・復帰は Firestore listener が自動的に追従する。
   Future<void> refreshTier() async {
     await _fetchTierFromFirestore();
+  }
+
+  bool _applyTierSnapshot(String uid, Map<String, dynamic>? data) {
+    if (!mounted || FirebaseAuthService.instance.currentUser?.uid != uid) {
+      return false;
+    }
+    final tier = FirebaseAuthService.instance.isLinkedAccount &&
+            data?['tier'] == 'premium'
+        ? UserTier.premium
+        : UserTier.free;
+    state = state.copyWith(tier: tier);
+    unawaited(_cacheTier(uid, tier));
+    unawaited(_analytics.setUserTier(tier.name));
+    final hasSubscription = data?.containsKey('subscription') ?? false;
+    return !hasSubscription && tier != UserTier.premium;
+  }
+
+  /// アプリ共通の users/{uid} listener から最新状態を受け取る。
+  /// Subscription専用listenerは作らず、クォータ等と同じreadを共有する。
+  void applyUserDocument(String uid, Map<String, dynamic>? data) {
+    _applyTierSnapshot(uid, data);
+  }
+
+  Future<void> _cacheTier(String uid, UserTier tier) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_tierCachePrefix$uid', tier.name);
   }
 
   /// バックグラウンドでストアから購入を復元（UIブロックしない）
@@ -248,8 +316,8 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   /// Firestore の users/{uid}.tier フィールドからサブスクリプション状態を取得
   ///
   /// サブスク情報がないユーザー（新規/再登録）の場合 true を返す。
-  Future<bool> _fetchTierFromFirestore() async {
-    final uid = FirebaseAuthService.instance.currentUser?.uid;
+  Future<bool> _fetchTierFromFirestore({String? expectedUid}) async {
+    final uid = expectedUid ?? FirebaseAuthService.instance.currentUser?.uid;
     if (uid == null) return false;
 
     // プレミアムはサインイン（正規アカウント）時のみ有効。
@@ -268,14 +336,10 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
           .collection('users')
           .doc(uid);
       final doc = await ref.get();
-      if (!mounted) return false;
-      final data = doc.data();
-      final tier =
-          data?['tier'] == 'premium' ? UserTier.premium : UserTier.free;
-      state = state.copyWith(tier: tier);
-      unawaited(_analytics.setUserTier(tier.name));
-      final hasSubscription = data?.containsKey('subscription') ?? false;
-      return !hasSubscription && tier != UserTier.premium;
+      if (!mounted || FirebaseAuthService.instance.currentUser?.uid != uid) {
+        return false;
+      }
+      return _applyTierSnapshot(uid, doc.data());
     } catch (_) {
       return false;
     }
@@ -325,7 +389,6 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
   void _onPurchaseCompleted() {
     if (!mounted) return;
-    unawaited(refreshTier());
     state = state.copyWith(isLoading: false);
   }
 

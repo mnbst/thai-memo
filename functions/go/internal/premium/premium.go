@@ -8,7 +8,11 @@
 // トライアルは期間制（premium_trial_expires_at）。
 package premium
 
-import "time"
+import (
+	"time"
+
+	"github.com/mnbst/thai-memo/functions/go/internal/subscription"
+)
 
 const (
 	dayMS       = 24 * 60 * 60 * 1000
@@ -62,6 +66,34 @@ func IsTrialExpired(userData map[string]any, now time.Time) bool {
 }
 
 // IsEffectivePremium は課金 premium もしくはトライアル中か。
+//
+// 購入・復元直後は subscription の検証結果より tier の反映が遅れることがある。
+// その短い窓で free の教材を配信しないよう、有効期限内のストア購入と買い切りも
+// 実効権利として扱う。期限切れ情報だけで premium を延命しない。
 func IsEffectivePremium(userData map[string]any, now time.Time) bool {
-	return userData["tier"] == "premium" || IsTrialActive(userData, now)
+	if userData["tier"] == "premium" || IsTrialActive(userData, now) {
+		return true
+	}
+	sub, _ := userData["subscription"].(map[string]any)
+	status, _ := sub["status"].(string)
+	// REFUND / REVOKE は tier=free, status=expired にする一方、過去の
+	// lifetime 印や将来の expires_at が doc に残ることがある。状態を先に
+	// 確認しないと、取り消した権利をここで再び premium にしてしまう。
+	if status == "expired" || status == "revoked" || status == "refunded" {
+		return false
+	}
+	if subscription.IsLifetime(sub) && status == "active" {
+		return true
+	}
+	if status != "active" && status != "canceled" && status != "grace_period" {
+		return false
+	}
+	expiresAt, ok := sub["expires_at"].(time.Time)
+	if !ok {
+		return false
+	}
+	if now.Before(expiresAt) {
+		return true
+	}
+	return status == "grace_period" && now.Sub(expiresAt) <= subscription.GracePeriodMax
 }

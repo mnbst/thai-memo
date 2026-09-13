@@ -2,6 +2,7 @@ package function
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -131,6 +132,23 @@ func TestDailyCommitPlanPremiumKeepsQuota(t *testing.T) {
 		"notify_tier":              0,
 		"notify_tier_misses":       0,
 	})
+}
+
+func TestDailyCommitPlanRejectsTierChangeDuringGeneration(t *testing.T) {
+	now := time.Date(2026, 8, 27, 1, 0, 0, 0, time.UTC)
+	userData := batchUserData(now)
+	userData["tier"] = "premium"
+
+	_, _, _, err := dailyCommitPlanForEntitlement(userData, now, 5, false)
+	if !errors.Is(err, errEntitlementChanged) {
+		t.Fatalf("free生成中にpremiumへ変わったら拒否するべき: %v", err)
+	}
+
+	userData["tier"] = "free"
+	_, _, _, err = dailyCommitPlanForEntitlement(userData, now, 0, true)
+	if !errors.Is(err, errEntitlementChanged) {
+		t.Fatalf("premium生成中にfreeへ変わったら拒否するべき: %v", err)
+	}
 }
 
 // TestRollbackUpdatePremiumKeepsQuota は消費していない配信の巻き戻しで
