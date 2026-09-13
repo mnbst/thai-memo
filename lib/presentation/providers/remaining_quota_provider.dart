@@ -155,21 +155,20 @@ String nextResetText(L10n l10n) {
 
 /// 買い切りへの無償移行を案内してよいユーザーか。
 ///
-/// 条件はサーバー側（migrateToLifetime）と揃える。ストアで課金中（解約済みで
-/// 期限内、支払い猶予中も含む）で、まだ買い切りの印が付いていない人だけ。
-/// 手動付与や体験トライアルは「継続してくださっている方」ではないので外す。
+/// 条件はサーバー側（migrateToLifetime）と揃える。サーバーの名簿
+/// （lifetime_migration_eligible）に載っていて、ストアでの購入記録があり、
+/// まだ買い切りの印が付いていない人。status は見ないので、いま課金中の方も
+/// 過去に買って切れている方も同じく対象。手動付与や体験トライアルは
+/// platform で外れる。
 final lifetimeMigrationEligibleProvider = Provider<bool>((ref) {
   final data = ref.watch(userDocProvider).valueOrNull;
   if (data == null) return false;
-  if (data['tier'] != 'premium') return false;
   if (data['lifetime_migration_eligible'] != true) return false;
 
   final sub = data['subscription'];
   if (sub is! Map) return false;
   if (sub['lifetime'] == true) return false;
-  if (sub['platform'] != 'ios' && sub['platform'] != 'android') return false;
-
-  return const {'active', 'canceled', 'grace_period'}.contains(sub['status']);
+  return sub['platform'] == 'ios' || sub['platform'] == 'android';
 });
 
 /// 起動時に無償移行の案内を実際に出した端末か。

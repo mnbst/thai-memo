@@ -10,12 +10,15 @@ import (
 
 	"github.com/mnbst/thai-memo/functions/go/internal/callable"
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
+	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 	"github.com/mnbst/thai-memo/functions/go/internal/subscription"
 )
 
-// migrateToLifetime は月額課金中のユーザーを買い切りプランへ無償で移行する。
+// migrateToLifetime は月額を購入した（している）ユーザーを買い切りプランへ
+// 無償で移行する。対象はリリース時点の課金者に加えて、過去に月額を買って
+// いまは切れている方も含む。
 //
-// 買い切り商品を売りつけるのではなく、いま払っている人の subscription に
+// 買い切り商品を売りつけるのではなく、払ってくださった人の subscription に
 // lifetime の印を付けるだけ。これで期限切れによる降格の経路（dailyBatch /
 // subscriptionStatus / ストア通知）が全て素通りになり、月額の自動更新を
 // 止めたあとも premium が残る。
@@ -68,37 +71,33 @@ func migrateToLifetime(ctx context.Context, req *callable.Request) (any, error) 
 			return nil
 		}
 
-		if tier, _ := data["tier"].(string); tier != "premium" {
-			return callable.Errorf(callable.FailedPrecondition,
-				"移行できるのはプレミアムをご利用中の方だけです")
-		}
-
-		// 対象はリリース時点で課金していた方の名簿（doc の目印）に限る。
+		// 対象はリリース時点の名簿（doc の目印）に限る。いま課金中の方に加えて、
+		// 過去に月額を購入した履歴のある方（解約・期限切れ済み）も含む。
 		//
 		// 端末側の「案内済み」フラグは再インストールで消えるので、それだけでは
 		// 「月額を1ヶ月買う→入れ直す→無償移行→解約」で 600 円の買い切りが
 		// 成立してしまう。名簿はリリース前に立てるので、後から買った人は入らない。
+		// tier は見ない。期限切れの方は free に落ちているが、それは名簿に
+		// 載っている以上「過去に払ってくださった方」であることと矛盾しない。
 		if eligible, _ := data["lifetime_migration_eligible"].(bool); !eligible {
 			return callable.Errorf(callable.FailedPrecondition,
 				"無償移行の対象ではありません")
 		}
 
-		// 対象はストア購入の課金者に限る。手動付与（platform=manual）や
-		// 体験トライアルは「継続してくださっている方」ではない。
+		// 見るのは「ストアで買った記録があるか」だけ。subscription は
+		// verifySubscription がストア検証を通ったときにだけ書くので、
+		// platform がストアなら購入履歴があるということ。status（active /
+		// canceled / expired …）は問わない。過去に買って切れている方も対象。
+		// 手動付与（platform=manual）や体験トライアルはここで外れる。
 		if !subscription.IsStorePlatform(sub["platform"]) {
 			return callable.Errorf(callable.FailedPrecondition,
-				"ストアでご購入いただいたプランのみ移行できます")
-		}
-		status, _ := sub["status"].(string)
-		switch status {
-		case "active", "canceled", "grace_period":
-			// 移行できる
-		default:
-			return callable.Errorf(callable.FailedPrecondition,
-				"有効なご契約が見つかりません")
+				"ストアでのご購入履歴が見つかりません")
 		}
 
-		return tx.Set(userRef, map[string]any{
+		payload := map[string]any{
+			// 期限切れの方は free に落ちているので、ここで premium へ戻す。
+			// 以後は lifetime の印が期限切れ判定を素通りさせる。
+			"tier": "premium",
 			"subscription": map[string]any{
 				"lifetime": true,
 				// 無償移行の記録。買い切りを購入した人と区別できるようにする。
@@ -106,7 +105,16 @@ func migrateToLifetime(ctx context.Context, req *callable.Request) (any, error) 
 				"lifetime_migrated_at": firestore.ServerTimestamp,
 				"updated_at":           firestore.ServerTimestamp,
 			},
-		}, firestore.MergeAll)
+		}
+		// free から戻した人は回数も premium にしておく。次の日次リセットまで
+		// free の残数のままだと、移行した直後に使えない時間ができる
+		//（verifySubscription の昇格と同じ扱い）。
+		if tier, _ := data["tier"].(string); tier != "premium" {
+			payload["remaining_sentences"] = quota.PremiumDailySentences
+			payload["remaining_quizzes"] = quota.PremiumDailyQuizzes
+		}
+
+		return tx.Set(userRef, payload, firestore.MergeAll)
 	}); err != nil {
 		return nil, err
 	}

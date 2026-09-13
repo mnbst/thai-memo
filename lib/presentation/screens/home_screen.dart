@@ -310,7 +310,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await PaywallBottomSheet.show(context, source: 'trial_ended');
   }
 
-  /// 月額で続けてくださっている方に、買い切りへの無償移行を案内する。
+  /// 月額を買ってくださった方に、買い切りへの無償移行を案内する。
+  /// いま継続中の方に加えて、過去に買って期限が切れた方も対象。
   ///
   /// 買い切りプランを出したこと自体を知る機会がここしか無いので、起動時に
   /// 割り込んで伝える。案内は一度だけ（押し損ねた人・移行に失敗した人は
@@ -325,7 +326,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (!mounted) return;
 
     if (!ref.read(lifetimeMigrationEligibleProvider)) {
-      // 対象外（free など）にも「案内は済んだ」と記録して閉じる。ここを
+      // 対象外（名簿に無い人）にも「案内は済んだ」と記録して閉じる。ここを
       // 開けたままにすると、このリリース後に月額を買った人にまで無償移行が
       // 出てしまう。案内はあくまで、出した時点で続けてくださっていた方向け。
       await prefs.setBool(AppConfig.prefKeyLifetimeMigrationNotified, true);
