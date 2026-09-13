@@ -8,8 +8,11 @@
 /// - サインイン後の手動復元でpremiumに復帰できる
 library;
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/subscription_provider.dart';
 import 'package:thai_memo/services/firebase_auth_service.dart';
@@ -32,6 +35,7 @@ void main() {
       );
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     auth = FakeFirebaseAuth();
     FirebaseAuthService.authOverride = auth;
     firestore = FakeFirestore();
@@ -67,6 +71,47 @@ void main() {
       expect(controller.state.isPremium, isTrue);
       // 既にサブスク記録があるので自動復元は不要
       expect(purchase.restoreCalled, isFalse);
+    });
+
+    test('ローカルtierを先に流し、Firestore取得後に最新状態へ更新する', () async {
+      auth.user = FakeUser(uid: 'user-1', isAnonymous: false);
+      SharedPreferences.setMockInitialValues({
+        'subscription_tier_user-1': 'premium',
+      });
+      firestore.users['user-1'] = {
+        'tier': 'free',
+        'subscription': {'productId': 'premium_monthly'},
+      };
+      firestore.getGate = Completer<void>();
+
+      final initializing = controller.initialize();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.state.isPremium, isTrue);
+
+      firestore.getGate!.complete();
+      await initializing;
+      expect(controller.state.isPremium, isFalse);
+    });
+
+    test('共有listenerが運ぶtier変更を専用listenerなしで反映する', () async {
+      auth.user = FakeUser(uid: 'user-1', isAnonymous: false);
+      firestore.users['user-1'] = {
+        'tier': 'free',
+        'subscription': {'productId': 'premium_monthly'},
+      };
+      await controller.initialize();
+      expect(controller.state.isPremium, isFalse);
+      // users/{uid} の監視はアプリ共通の1本だけ。課金用に増やさない。
+      expect(firestore.listenerCount, 0);
+
+      controller.applyUserDocument('user-1', {
+        'tier': 'premium',
+        'subscription': {'productId': 'premium_monthly'},
+      });
+
+      expect(controller.state.isPremium, isTrue);
+      expect(firestore.listenerCount, 0);
     });
 
     test('サインイン済み・サブスク記録なしは自動復元が走りpremiumに復帰する', () async {

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/app_localizations.dart';
 import 'presentation/providers/analytics_provider.dart';
+import 'presentation/providers/remaining_quota_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/subscription_provider.dart';
 import 'presentation/screens/home_screen.dart';
@@ -22,14 +23,12 @@ class ThaiMemoApp extends ConsumerStatefulWidget {
   ConsumerState<ThaiMemoApp> createState() => _ThaiMemoAppState();
 }
 
-class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
-    with WidgetsBindingObserver {
+class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
   StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     // Analytics の userId を認証状態に追従させる。
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       unawaited(ref.read(analyticsServiceProvider).setUserId(user?.uid));
@@ -41,20 +40,21 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
         );
       }
     });
+    // users/{uid} はクォータ等がすでに監視している1本を共有する。
+    // Subscription専用listenerを増やさず、同じ更新からtierも反映する。
+    ref.listenManual(userDocProvider, (_, next) {
+      final uid = FirebaseAuthService.instance.currentUser?.uid;
+      if (uid == null || !next.hasValue) return;
+      ref
+          .read(subscriptionControllerProvider.notifier)
+          .applyUserDocument(uid, next.value);
+    });
   }
 
   @override
   void dispose() {
     _authSubscription?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      ref.read(subscriptionControllerProvider.notifier).refreshTier();
-    }
   }
 
   bool _anonSignInStarted = false;

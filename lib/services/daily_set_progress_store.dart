@@ -206,3 +206,52 @@ DailySetProgressSnapshot mergeDailySetProgress(
     completedSetIds: trimCompletedSetIds(completed),
   );
 }
+
+/// 学習中の端末へクラウド状態を取り込む。ただし、画面に出しているセットと
+/// カーソルは動かさない。別端末が先へ進んでいても、読んでいる例文を突然
+/// 差し替えたり、次セットの1本目を飛ばしたりしないための foreground merge。
+///
+/// クラウド側の次セットと待機セットは、現在セットの後ろへ欠落なく取り込む。
+DailySetProgressSnapshot mergeDailySetProgressPreservingLocalActive(
+  DailySetProgressSnapshot cloud,
+  DailySetProgressSnapshot local,
+) {
+  final localActive = local.active;
+  // 通信中にこの端末がセットを完了した場合、その completed をクラウド結果へ
+  // 重ね直す。cloud をそのまま返すと、完了直前の active が復活する。
+  if (localActive == null) return mergeDailySetProgress(cloud, local);
+
+  final completed = <String>{
+    ...cloud.completedSetIds,
+    ...local.completedSetIds,
+  }..remove(localActive.setId);
+
+  var active = localActive;
+  final cloudRefs = <DailySetRef>[
+    if (cloud.active != null) cloud.active!,
+    ...cloud.pending,
+  ];
+  for (final ref in cloudRefs) {
+    if (ref.setId == localActive.setId &&
+        ref.sentenceIds.length > active.sentenceIds.length) {
+      active = ref;
+    }
+  }
+
+  final pending = <String, DailySetRef>{};
+  for (final ref in [...local.pending, ...cloudRefs]) {
+    if (ref.setId == active.setId || completed.contains(ref.setId)) continue;
+    final previous = pending[ref.setId];
+    if (previous == null ||
+        ref.sentenceIds.length > previous.sentenceIds.length) {
+      pending[ref.setId] = ref;
+    }
+  }
+
+  return DailySetProgressSnapshot(
+    active: active,
+    activeIndex: local.activeIndex,
+    pending: pending.values.toList(),
+    completedSetIds: trimCompletedSetIds(completed),
+  );
+}

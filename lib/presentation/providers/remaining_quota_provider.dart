@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/app_localizations.dart';
@@ -13,17 +15,50 @@ final authUidProvider = StreamProvider<String?>((ref) {
   return FirebaseAuth.instance.authStateChanges().map((user) => user?.uid);
 });
 
-/// Firestore users/{uid} ドキュメント全体を1つのリスナーで監視
-final userDocProvider = StreamProvider<Map<String, dynamic>?>((ref) {
-  final uidAsync = ref.watch(authUidProvider);
-  final uid = uidAsync.valueOrNull;
-  if (uid == null) return Stream.value(null);
+/// users/{uid} の1スナップショット。取得元（サーバー / 端末キャッシュ）も持つ。
+class UserDocSnapshot {
+  const UserDocSnapshot({required this.data, required this.isFromCache});
+
+  final Map<String, dynamic>? data;
+  final bool isFromCache;
+}
+
+/// Firestore users/{uid} を監視する唯一のリスナー。
+///
+/// 語彙・Premium・クォータはすべてこの1本を共有する。用途ごとに listener を
+/// 増やすと、同じ doc を何本も常時監視して読み取りが積み上がるため。
+final userDocSnapshotProvider = StreamProvider<UserDocSnapshot>((ref) {
+  final uid = ref.watch(authUidProvider).valueOrNull;
+  if (uid == null) {
+    return Stream.value(const UserDocSnapshot(data: null, isFromCache: false));
+  }
 
   return FirebaseFirestore.instance
       .collection('users')
       .doc(uid)
       .snapshots()
-      .map((doc) => doc.data());
+      .map((doc) => UserDocSnapshot(
+            data: doc.data(),
+            isFromCache: doc.metadata.isFromCache,
+          ));
+});
+
+/// users/{uid} のフィールドを読む入口。監視は [userDocSnapshotProvider] の共有分。
+final userDocProvider = StreamProvider<Map<String, dynamic>?>((ref) {
+  final controller = StreamController<Map<String, dynamic>?>();
+  ref.onDispose(controller.close);
+  ref.listen<AsyncValue<UserDocSnapshot>>(
+    userDocSnapshotProvider,
+    (_, next) {
+      if (controller.isClosed) return;
+      next.whenOrNull(
+        data: (doc) => controller.add(doc.data),
+        error: controller.addError,
+      );
+    },
+    fireImmediately: true,
+  );
+  return controller.stream;
 });
 
 /// users/{uid}.remaining_sentences
