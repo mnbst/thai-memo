@@ -33,7 +33,7 @@ func TestSentenceAuditLive(t *testing.T) {
 	t.Logf("users=%d", len(users))
 
 	cutoff := time.Now().Add(-time.Duration(hours) * time.Hour)
-	candidates := auditCandidates(ctx, db, users, cutoff)
+	candidates, _ := auditCandidates(ctx, db, users, cutoff)
 	t.Logf("直近%dh の premium 例文=%d件", hours, len(candidates))
 	if len(candidates) == 0 {
 		t.Skip("対象なし")

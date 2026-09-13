@@ -84,3 +84,7 @@ dart_defines.json
 
 # X投稿用にCIが取得するフォント（リポジトリには置かない）
 tools/x_post/fonts/
+
+# cmd 配下をローカルでビルドした実行ファイル
+functions/go/sample
+functions/go/usagefill

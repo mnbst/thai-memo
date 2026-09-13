@@ -43,6 +43,26 @@ func TestCandidateFromSkipsNonPremium(t *testing.T) {
 	if _, ok := candidateFrom("u1", "s1", empty); ok {
 		t.Error("本文が空の doc を対象にしている")
 	}
+
+	// バンク由来は対象外（既にコーパスにある文を判定し直さない）。
+	cached := map[string]any{
+		"generation_tier": "premium",
+		"thai_text":       "ผมกินข้าว",
+		"from_cache":      true,
+	}
+	if _, ok := candidateFrom("u1", "s1", cached); ok {
+		t.Error("バンク由来の doc を対象にしている")
+	}
+
+	// from_cache=false は LLM 生成。対象に残す。
+	llm := map[string]any{
+		"generation_tier": "premium",
+		"thai_text":       "ผมกินข้าว",
+		"from_cache":      false,
+	}
+	if _, ok := candidateFrom("u1", "s1", llm); !ok {
+		t.Error("LLM 生成の doc を落としている")
+	}
 }
 
 func TestSampleCandidatesCapsAndMixes(t *testing.T) {

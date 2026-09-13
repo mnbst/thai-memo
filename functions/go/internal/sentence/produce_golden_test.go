@@ -109,9 +109,17 @@ func TestBuildSentenceDocAgainstPythonGolden(t *testing.T) {
 		if err != nil {
 			t.Fatalf("case %d: 例文を読めない: %v", ci, err)
 		}
-		doc := s.BuildSentenceDoc("กิน", c.UsePremiumSpec)
+		doc := s.BuildSentenceDoc(DocMeta{
+			KeyWord:        "กิน",
+			UsePremiumSpec: c.UsePremiumSpec,
+			Lang:           lang.JA,
+		})
 		// created_at（SERVER_TIMESTAMP）は比較対象外。
 		delete(doc, "created_at")
+		// lang / from_cache は Python 版に無い後付けのフィールド。golden は
+		// 移植時の一致を残すためのものなので、増えたぶんは比較から外す。
+		delete(doc, "lang")
+		delete(doc, "from_cache")
 
 		normalizeNotes(c.Want)
 		gotJSON, _ := json.Marshal(doc)
@@ -164,7 +172,9 @@ type stubBank struct {
 	calls []pickCall
 }
 
-func (b *stubBank) Pick(_ context.Context, targetWord string, l lang.Lang, topic string) (*Sentence, error) {
+func (b *stubBank) Pick(
+	_ context.Context, targetWord string, l lang.Lang, topic string,
+) (*Sentence, error) {
 	b.calls = append(b.calls, pickCall{targetWord, l, topic})
 	i := len(b.calls) - 1
 	if i < len(b.hits) && b.hits[i] {

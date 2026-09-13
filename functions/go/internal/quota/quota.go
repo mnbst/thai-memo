@@ -17,9 +17,9 @@ const (
 	// 出すようになり（produce.go の Corpus 経路）、1本あたりの限界コストがほぼ 0 に
 	// なったため、回数で絞る理由が無くなった。
 	//
-	// 無制限を別フラグで表さず、毎日この大きな値を入れ直す形にしている。消費と
-	// リセットの経路（generateThaiSentence / dailyBatch）を一切変えずに済み、
-	// コーパスに無い語で LLM 後詰めに落ちた場合の暴走にも天井として効く。
+	// premium は消費もしない（generateThaiSentence / deliverDailySentence は
+	// remaining_sentences に触らない）。この値は「無制限」を示す表示用の残数として
+	// 毎日入れ直すだけで、上限としては機能しない。free だけが実際に消費する。
 	PremiumDailySentences = 9999
 
 	// PremiumDailyQuizzes は上限としては機能しない。FreeDailyQuizzes 参照。

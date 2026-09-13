@@ -23,8 +23,9 @@ export const FREE_DAILY_QUIZZES = 5;
  * 例文は 2026-08-09 に 5 → 10、2026-08-25 に 10 → 20 と引き上げ、
  * 2026-09-12 に「無制限」へ切り替えた。premium の例文は静的コーパスから出すため
  * 1本あたりの限界コストがほぼ 0 になり、回数で絞る理由が無くなった。
- * 無制限は別フラグではなく、実質到達しない大きな値を毎日入れ直す形で表す
- * （消費・リセットの経路を変えずに済み、LLM 後詰めの暴走にも天井として効く）。
+ * premium は消費もしない（Go 側の generateThaiSentence / deliverDailySentence は
+ * remaining_sentences に触らない）。この値は「無制限」を示す表示用の残数として
+ * 毎日入れ直すだけで、上限としては機能しない。free だけが実際に消費する。
  * クイズは上限そのものを撤廃した（FREE_DAILY_QUIZZES のコメント参照）。
  */
 export const PREMIUM_DAILY_SENTENCES = 9999;

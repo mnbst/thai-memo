@@ -96,15 +96,17 @@ func PrepareInputs(sentences []QuizSentenceSeed) []PreparedQuizSentenceSeed {
 		}
 
 		out = append(out, PreparedQuizSentenceSeed{
-			SourceIndex:          i,
-			ThaiText:             thaiText,
-			BlankText:            blank,
-			CorrectAnswer:        correctAnswer,
-			Pronunciation:        pronunciation,
-			CorrectAnswerMeaning: meaning,
-			JapaneseTranslation:  normalizeText(sentence.JapaneseTranslation),
-			QuizFormat:           sentence.QuizFormat,
-			MeaningChoices:       uniqueTexts(sentence.MeaningChoices),
+			SourceIndex:              i,
+			ThaiText:                 thaiText,
+			BlankText:                blank,
+			CorrectAnswer:            correctAnswer,
+			Pronunciation:            pronunciation,
+			CorrectAnswerMeaning:     meaning,
+			JapaneseTranslation:      normalizeText(sentence.JapaneseTranslation),
+			QuizFormat:               sentence.QuizFormat,
+			MeaningChoices:           uniqueTexts(sentence.MeaningChoices),
+			FixedDummies:             uniqueTexts(sentence.FixedDummies),
+			FixedDummyPronunciations: sentence.FixedDummyPronunciations,
 		})
 	}
 	return out
@@ -155,6 +157,7 @@ func ApplyRuleBasedFields(
 
 		question := GeneratedQuizQuestion{
 			SourceIndex:          &index,
+			DummyPronunciations:  p.FixedDummyPronunciations,
 			ThaiText:             p.ThaiText,
 			BlankText:            p.BlankText,
 			CorrectAnswer:        p.CorrectAnswer,
@@ -172,14 +175,24 @@ func ApplyRuleBasedFields(
 			question.Choices = append([]string(nil), p.MeaningChoices...)
 		} else if !hasPrepared || p.CorrectAnswer == "" || !containsBlank(p.BlankText) {
 			// 空欄を作れていない。正解を選択肢に混ぜず、後段の検査に落とさせる。
-			question.Choices = draft.Dummies
+			question.Choices = dummiesOf(p, draft)
 		} else {
-			question.Choices = append([]string{p.CorrectAnswer}, draft.Dummies...)
+			question.Choices = append([]string{p.CorrectAnswer}, dummiesOf(p, draft)...)
 		}
 
 		out = append(out, question)
 	}
 	return out
+}
+
+// dummiesOf は選択肢に使うダミー。確定済み（PickDistractors）があればそれを使い、
+// モデルが返したダミーは捨てる。確定済みを渡したのにモデルが別の語で理由を
+// 書いた場合は、後段の sanitizeDummyReasons が対応を取れずにその問題ごと落ちる。
+func dummiesOf(p PreparedQuizSentenceSeed, draft Draft) []string {
+	if len(p.FixedDummies) > 0 {
+		return append([]string(nil), p.FixedDummies...)
+	}
+	return draft.Dummies
 }
 
 // BuildBlankSentencePronunciation は例文の発音のうち、

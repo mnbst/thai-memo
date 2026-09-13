@@ -202,8 +202,11 @@ func runGenerateThaiSentence(
 	trialActive := !isPremium && premium.IsTrialActive(userData, time.Now())
 	usePremiumSpec := isPremium || trialActive
 
+	// premium（トライアル含む）は回数を消費しない。例文は静的コーパスから出す
+	// ようになり 1 本あたりの限界コストがほぼ 0 なので、残数を見る意味が無い。
+	// free だけが remaining_sentences で絞られる。
 	remaining := intValue(userData["remaining_sentences"])
-	if remaining <= 0 {
+	if !usePremiumSpec && remaining <= 0 {
 		logData["error"] = "QUOTA_EXCEEDED"
 		logData["remainingSentences"] = remaining
 		log.Printf("Quota exceeded: %s", logJSON(logData))
@@ -233,8 +236,11 @@ func runGenerateThaiSentence(
 		return nil, err
 	}
 
-	// 残りクォータを超えては作らない。足りなければ取れるぶんだけ返す。
-	count := min(requestedSetSize(params), remaining)
+	// free は残りクォータを超えては作らない。足りなければ取れるぶんだけ返す。
+	count := requestedSetSize(params)
+	if !usePremiumSpec {
+		count = min(count, remaining)
+	}
 
 	produced, err := producer.ProduceBatch(ctx, db, freqRank, sentence.ProduceRequest{
 		UID:            uid,
@@ -281,7 +287,7 @@ func runGenerateThaiSentence(
 		uvm.SyncEstimatedVocab(ctx, db, uid, freqRank, maxVocab)
 	}()
 
-	if err := commitSentences(ctx, db, userRef, produced, usePremiumSpec); err != nil {
+	if err := commitSentences(ctx, db, userRef, produced, usePremiumSpec, l); err != nil {
 		log.Printf("Failed to save sentence to Firestore: %v", err)
 		wg.Wait()
 		return nil, err
@@ -337,13 +343,18 @@ func registerSentenceExposure(
 // 全部やめる（部分的に書いて部分的に課金する状態を作らない）。
 func commitSentences(
 	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
-	produced []*sentence.Produced, usePremiumSpec bool,
+	produced []*sentence.Produced, usePremiumSpec bool, l lang.Lang,
 ) error {
 	refs := make([]*firestore.DocumentRef, len(produced))
 	docs := make([]map[string]any, len(produced))
 	for i, p := range produced {
 		refs[i] = userRef.Collection("sentences").NewDoc()
-		docs[i] = p.Sentence.BuildSentenceDoc(p.TargetWords[0], usePremiumSpec)
+		docs[i] = p.Sentence.BuildSentenceDoc(sentence.DocMeta{
+			KeyWord:        p.TargetWords[0],
+			UsePremiumSpec: usePremiumSpec,
+			Lang:           l,
+			FromCache:      p.FromCache,
+		})
 	}
 
 	return db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
@@ -352,7 +363,7 @@ func commitSentences(
 		if err == nil && snap.Exists() {
 			userData = snap.Data()
 		}
-		if intValue(userData["remaining_sentences"]) < len(refs) {
+		if !usePremiumSpec && intValue(userData["remaining_sentences"]) < len(refs) {
 			return errQuotaExceeded
 		}
 		for i, ref := range refs {
@@ -360,21 +371,27 @@ func commitSentences(
 				return err
 			}
 		}
-		return tx.Update(userRef, sentenceCommitUpdate(userData, len(refs)))
+		return tx.Update(userRef, sentenceCommitUpdate(userData, len(refs), !usePremiumSpec))
 	})
 }
 
 // sentenceCommitUpdate は例文コミット時の users ドキュメント更新内容
 // （sentence_handlers.py:_build_sentence_commit_update:277）。
 //
-// トライアルは期間制なので、消費するのは通常クォータ（remaining_sentences）だけ。
-func sentenceCommitUpdate(userData map[string]any, decrement int) []firestore.Update {
+// consumeQuota が false（premium・トライアル）のときは remaining_sentences を
+// 触らない。生成本数の記録（sentence_generated_count）は tier によらず残す。
+func sentenceCommitUpdate(
+	userData map[string]any, count int, consumeQuota bool,
+) []firestore.Update {
 	updates := []firestore.Update{
-		{Path: "remaining_sentences", Value: firestore.Increment(-decrement)},
 		{Path: "daily_sentence_generated", Value: true},
 		{Path: "last_active_at", Value: firestore.ServerTimestamp},
 		{Path: "last_sentence_generated_at", Value: firestore.ServerTimestamp},
-		{Path: "sentence_generated_count", Value: firestore.Increment(decrement)},
+		{Path: "sentence_generated_count", Value: firestore.Increment(count)},
+	}
+	if consumeQuota {
+		updates = append(updates,
+			firestore.Update{Path: "remaining_sentences", Value: firestore.Increment(-count)})
 	}
 	if _, ok := userData["first_generated_at"]; !ok {
 		updates = append(updates,
@@ -567,6 +584,8 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 		Bank: &sentence.FreeBank{ProjectID: fbapp.ProjectID()},
 		// premium は静的コーパスから出す。無い語だけ Service（LLM）へ落ちる。
 		Corpus: &sentence.CorpusBank{ProjectID: fbapp.ProjectID()},
+		// バンクの在庫が既出だった語も LLM 生成へ落とす（同じ文を二度出さない）。
+		History: &sentence.FirestoreHistory{},
 		Service: &sentence.Service{
 			Gen:      client,
 			Resolver: &sentence.Resolver{SubThemes: store},

@@ -2,6 +2,7 @@ package sentence
 
 import (
 	"context"
+	"log"
 	"sync"
 
 	"cloud.google.com/go/firestore"
@@ -51,7 +52,9 @@ type Producer struct {
 	Bank CachedSentences
 	// Corpus は premium の静的コーパス（GCS）。premium のときだけ引く。
 	// 当たらない語＝コーパスのランク上限より先へ進んだ人は LLM 生成へ落ちる。
-	Corpus  CachedSentences
+	Corpus CachedSentences
+	// History は既出例文の取得。nil なら既出を見ない（同じ文が再び出うる）。
+	History History
 	Service SentenceGenerator
 }
 
@@ -138,7 +141,22 @@ func (p *Producer) ProduceBatch(
 	}
 	useBank := bank != nil
 
+	// 既出の本文。バンクを引くときだけ要る（LLM 生成は毎回新しい文を作る）。
+	// 読めなくてもバンクは引く。重複の可能性より、配信や生成が落ちるほうが重い。
+	seen := map[string]bool{}
+	if useBank && p.History != nil {
+		if texts, err := p.History.SeenTexts(ctx, db, req.UID); err != nil {
+			log.Printf("produce: 既出例文の取得に失敗 uid=%s: %v", req.UID, err)
+		} else if texts != nil {
+			// 以降このセットで出した文も足していくので、nil なら空の map のまま使う。
+			seen = texts
+		}
+	}
+
 	results := make([]*Produced, 0, n)
+	// setTexts はこの呼び出しで出した本文。既出を無視して引き直すとき
+	// （下の CacheOnly の最後の1周）でも、セット内の重複だけは避ける。
+	setTexts := map[string]bool{}
 	used := map[string]bool{}
 	retries := max(1, req.SelectRetry)
 	for range retries {
@@ -175,6 +193,18 @@ func (p *Producer) ProduceBatch(
 					missed = append(missed, tw)
 					continue
 				}
+				if seen[cached.ThaiText] {
+					// 既に出した文。バンクは語×テーマで1本しか持たないので、
+					// 同じ key_word が再選出されるとそのまま同じ文が返る。
+					// ここで在庫の別の文へ逃がさないのは、テーマ指定のときに
+					// 頼まれたテーマから外れるため。指定どおりの新しい文を
+					// 作れる LLM へ落とす（free は次の周で語を引き直す）。
+					missed = append(missed, tw)
+					continue
+				}
+				// 同じセットの中で二度出さない（語が違っても在庫が重なりうる）。
+				seen[cached.ThaiText] = true
+				setTexts[cached.ThaiText] = true
 				cached.GenerationTier = GenerationTier(req.UsePremiumSpec)
 				results = append(results, &Produced{
 					Sentence:    cached,
@@ -195,6 +225,40 @@ func (p *Producer) ProduceBatch(
 			return nil, err
 		}
 		break
+	}
+
+	// free の配信（CacheOnly）は LLM へ落とせないので、既出を避けきると
+	// 1本も作れないことがある。free バンクは 112 語 × 4 本しかなく、
+	// 続けている人はいずれ全部見る。配信を落とすより既出をもう一度出す
+	// ほうがましなので、最後に既出を無視して引き直す。
+	// premium は LLM 生成へ落ちるので、ここには来ない。
+	if req.CacheOnly && useBank && len(results) == 0 && len(seen) > 0 {
+		log.Printf("produce: 未出の在庫が尽きた uid=%s。既出を許して引き直す", req.UID)
+		selected, err := p.Selector.SelectTargetWords(
+			ctx, db, freqRank, req.UID, req.Params,
+			maxVocab, n, usePremiumPrompt, &req.EstimatedVocab, req.TestedVocab,
+		)
+		if err != nil {
+			return nil, err
+		}
+		for _, tw := range selected {
+			cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic)
+			if err != nil {
+				return nil, err
+			}
+			// この周だけ既出（seen）を見ない。セット内の重複だけ避ける。
+			if cached == nil || setTexts[cached.ThaiText] {
+				continue
+			}
+			setTexts[cached.ThaiText] = true
+			cached.GenerationTier = GenerationTier(req.UsePremiumSpec)
+			results = append(results, &Produced{
+				Sentence:    cached,
+				TargetWords: []string{tw.Word},
+				ChosenTopic: tw.Topic,
+				FromCache:   true,
+			})
+		}
 	}
 	return results, nil
 }

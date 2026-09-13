@@ -137,6 +137,44 @@ func LocalizeContext(context map[string]any, l lang.Lang) map[string]any {
 	return localized
 }
 
+// ContextFieldSchema は context の1フィールドのスキーマを言語別に返す。
+//
+// 配信経路のスキーマ（responseJSONSchemaJSON / contextGeneratableFieldsJSON）と
+// 同じ定義をそのまま渡すためのもの。静的コーパスへ後から使い方を付ける
+// （internal/corpususage）ときに、説明文を書き直さずここから引く。説明を
+// 2か所に持つと、字数や言語の指定が配信ぶんとコーパスぶんでずれる。
+//
+// 未知の名前では nil を返す。
+func ContextFieldSchema(name string, l lang.Lang) map[string]any {
+	var raw any
+	if props, ok := decodeJSON(responseJSONSchemaJSON)["properties"].(map[string]any); ok {
+		if context, ok := props["context"].(map[string]any); ok {
+			if fields, ok := context["properties"].(map[string]any); ok {
+				raw = fields[name]
+			}
+		}
+	}
+	if raw == nil {
+		raw = decodeJSON(contextGeneratableFieldsJSON)[name]
+	}
+	if raw == nil {
+		return nil
+	}
+	field, ok := cloneAny(raw).(map[string]any)
+	if !ok {
+		return nil
+	}
+	if l == lang.Default {
+		return field
+	}
+	if desc, found := schemaDescriptionsEN[name]; found {
+		field["description"] = desc
+	} else if desc, found := contextDescriptionsEN[name]; found {
+		field["description"] = desc
+	}
+	return field
+}
+
 // BuildResponseSchema はリクエストごとのレスポンススキーマを組み立てる。
 //
 // askContextFields は LLM に生成させる context フィールド名。

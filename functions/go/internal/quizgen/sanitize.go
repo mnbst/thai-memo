@@ -4,6 +4,7 @@ import (
 	"log"
 	"math/rand"
 	"regexp"
+	"strings"
 )
 
 // Sanitizer はモデル出力の検査と整形。
@@ -86,7 +87,8 @@ func (s *Sanitizer) Question(question GeneratedQuizQuestion) (GeneratedQuizQuest
 	out.CorrectAnswerMeaning = normalizeText(question.CorrectAnswerMeaning)
 	out.Choices = shuffled
 	out.ChoicePronunciations = buildChoicePronunciations(
-		shuffled, correctAnswer, question.Pronunciation, dummyReasons)
+		shuffled, correctAnswer, question.Pronunciation, dummyReasons,
+		question.DummyPronunciations)
 	out.Pronunciation = normalizeText(question.Pronunciation)
 	out.Explanation = normalizeText(question.Explanation)
 	out.JapaneseTranslation = normalizeText(question.JapaneseTranslation)
@@ -166,10 +168,16 @@ func sanitizeDummyReasons(
 }
 
 // buildChoicePronunciations は選択肢ごとの発音を組み立てる。
-// 正解は例文データの発音、ダミーは理由の書式から切り出す。
+//
+// 正解は例文データの発音。ダミーは fixed（選定側が NLP で作った発音）が
+// あればそれを使い、無ければ従来どおり理由の書式から切り出す。
+//
+// 理由からの切り出しはモデルの文面頼みで、実測で崩れた
+// （en で「ถูก (thùuk): …」と意味が省かれ、発音が空になった 2026-09-12）。
+// ダミーを確定させた経路ではモデルを介さずに埋める。
 func buildChoicePronunciations(
 	choices []string, correctAnswer, correctAnswerPronunciation string,
-	dummyReasons []string,
+	dummyReasons []string, fixed map[string]string,
 ) []string {
 	normalizedCorrect := normalizeText(correctAnswerPronunciation)
 
@@ -177,6 +185,10 @@ func buildChoicePronunciations(
 	for _, choice := range choices {
 		if choice == correctAnswer {
 			out = append(out, normalizedCorrect)
+			continue
+		}
+		if pron := strings.TrimSpace(fixed[choice]); pron != "" {
+			out = append(out, pron)
 			continue
 		}
 		pronunciation := ""

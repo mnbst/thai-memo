@@ -25,6 +25,12 @@ import (
 // ファイルは言語ごと（corpus_sentences_ja.json / _en.json）。一文二訳なので
 // タイ語本文は両方に同じものが入り、訳と語義だけが違う。
 // scripts/export_corpus_bank.py が書き出す。
+//
+// これに加えて、運用中に LLM 生成された例文のうち judge を通ったものを
+// 貯めたプール（corpus_pool_<lang>.json、dailyBatch が毎日書き出す）も
+// 同じ索引へ重ねる。静的コーパスは語×テーマで1本しか持たないので、
+// 同じ key_word が再選出された人に同じ文が出る。プールはその穴を
+// 埋める在庫で、出どころが違うだけで扱いは静的コーパスと同じ。
 type CorpusBank struct {
 	// ProjectID は GCS バケット名 {ProjectID}-uvm-data に使う。
 	ProjectID string
@@ -37,7 +43,8 @@ type CorpusBank struct {
 	index map[lang.Lang]map[string][]Sentence
 }
 
-// Load は corpus_sentences_<lang>.json を読んで key_word で索く形にする。
+// Load は corpus_sentences_<lang>.json とプール（corpus_pool_<lang>.json）を
+// 読んで key_word で索く形にする。
 //
 // 見つからなければ空を返し、それもキャッシュする（毎回 GCS を叩かない）。
 // 空のときは呼び出し側が LLM 生成へ落ちるので、バンクを上げる前に
@@ -49,7 +56,6 @@ func (b *CorpusBank) Load(ctx context.Context, l lang.Lang) (map[string][]Senten
 		return cached, nil
 	}
 
-	name := fmt.Sprintf("corpus_sentences_%s.json", l)
 	index := map[string][]Sentence{}
 
 	client, err := storage.NewClient(ctx)
@@ -57,25 +63,24 @@ func (b *CorpusBank) Load(ctx context.Context, l lang.Lang) (map[string][]Senten
 		return nil, fmt.Errorf("GCS クライアントの生成に失敗: %w", err)
 	}
 	defer client.Close()
+	bucket := client.Bucket(b.ProjectID + "-uvm-data")
 
-	r, err := client.Bucket(b.ProjectID + "-uvm-data").Object(name).NewReader(ctx)
-	if err != nil {
-		log.Printf("corpus bank missing for lang=%s; falling back to LLM", l)
-	} else {
-		data, readErr := io.ReadAll(r)
-		r.Close()
-		if readErr != nil {
-			return nil, fmt.Errorf("%s の読み出しに失敗: %w", name, readErr)
+	for _, name := range []string{CorpusObject(l), PoolObject(l)} {
+		sentences, err := ReadSentences(ctx, bucket, name)
+		if err != nil {
+			return nil, err
 		}
-		var sentences []Sentence
-		if err := json.Unmarshal(data, &sentences); err != nil {
-			return nil, fmt.Errorf("%s の JSON 解析に失敗: %w", name, err)
+		if sentences == nil {
+			// 静的コーパス・プールのどちらも、無ければ無いまま進む。
+			// プールは運用が始まるまで存在しない。
+			log.Printf("corpus bank: %s missing for lang=%s", name, l)
+			continue
 		}
 		for _, s := range sentences {
 			index[s.KeyWord] = append(index[s.KeyWord], s)
 		}
-		log.Printf("corpus bank loaded: lang=%s sentences=%d words=%d",
-			l, len(sentences), len(index))
+		log.Printf("corpus bank loaded: object=%s lang=%s sentences=%d words=%d",
+			name, l, len(sentences), len(index))
 	}
 
 	if b.index == nil {
@@ -119,6 +124,36 @@ func (b *CorpusBank) Pick(
 	picked.WordBreakdown = append([]Word(nil), picked.WordBreakdown...)
 	picked.Context = LocalizeContext(picked.Context, l)
 	return &picked, nil
+}
+
+// CorpusObject / PoolObject は静的コーパスとプールの GCS オブジェクト名。
+// dailyBatch の書き出し側と読み込み側で名前がずれないよう、ここで一元化する。
+func CorpusObject(l lang.Lang) string { return fmt.Sprintf("corpus_sentences_%s.json", l) }
+func PoolObject(l lang.Lang) string   { return fmt.Sprintf("corpus_pool_%s.json", l) }
+
+// ReadSentences は GCS の JSON 配列を読む。オブジェクトが無ければ nil, nil。
+// プールを読み書きする dailyBatch 側（sentence_pool.go）も同じ入口を使う。
+func ReadSentences(
+	ctx context.Context, bucket *storage.BucketHandle, name string,
+) ([]Sentence, error) {
+	r, err := bucket.Object(name).NewReader(ctx)
+	if err != nil {
+		// Python は blob.exists() で分岐する。開けない理由は問わない。
+		return nil, nil
+	}
+	data, err := io.ReadAll(r)
+	r.Close()
+	if err != nil {
+		return nil, fmt.Errorf("%s の読み出しに失敗: %w", name, err)
+	}
+	var sentences []Sentence
+	if err := json.Unmarshal(data, &sentences); err != nil {
+		return nil, fmt.Errorf("%s の JSON 解析に失敗: %w", name, err)
+	}
+	if sentences == nil {
+		sentences = []Sentence{}
+	}
+	return sentences, nil
 }
 
 func (b *CorpusBank) intn(n int) int {

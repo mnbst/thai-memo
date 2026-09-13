@@ -451,7 +451,13 @@ functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch から呼ぶ品質監査。直近24時間の premium 例文を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書く。判定は既定で gpt-5.6-luna（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
+dailyBatch から呼ぶ品質監査。直近24時間の premium 例文（LLM生成分のみ、from_cache=true は除く）を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書き、通ったものは例文プールへ回す。判定は既定で gpt-5.6-luna（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
+
+functions/go/sentence_pool.go
+judge を通った例文を GCS の例文プール（corpus_pool_<lang>.json）へ追記する。thai_text で重複排除、上限超過分は古い側から捨てる（SENTENCE_POOL_MAX=0 で無効化）。
+
+functions/go/sentence_pool_test.go
+プール項目への変換（lang不明・除外語・欠損の除外）と、重複排除・上限での切り詰めのテスト。
 
 functions/go/sentence_audit_test.go
 監査対象の抽出条件（premium限定・本文必須）、間引き、束分けのテスト。
@@ -460,7 +466,7 @@ functions/go/sentence_audit_live_test.go
 judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
 
 functions/go/internal/sentence/corpusbank.go
-静的コーパス（GCS: corpus_sentences_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語だけ LLM 生成へ落ちる（free は従来どおり FreeBank）。
+静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語だけ LLM 生成へ落ちる（free は従来どおり FreeBank）。
 
 functions/go/internal/sentence/corpusbank_test.go
 premium がコーパス・free が従来バンクという分岐、テーマ優先とその諦め、キャッシュ汚染防止のテスト。
@@ -577,7 +583,22 @@ functions/go/internal/quizgen/prepare.go
 穴埋め位置の確定とルールベース項目の合成、例文発音の空欄化。
 
 functions/go/internal/quizgen/prompt.go
-クイズ生成のシステムプロンプトとユーザープロンプト(ja/en)。JS版と1バイトも変えないこと。
+クイズ生成のシステムプロンプトとユーザープロンプト(ja/en)。従来版（モデルがダミーも作る）はJS版と1バイトも変えないこと。ダミー確定時は専用の短い指示に切り替える（ダミー条件とNG例を落として36%減）。
+
+functions/go/internal/quizgen/distractors.go
+穴埋めダミー選択肢の選定。正解の前後±150ランク × 正解と違う品詞 × 機能語でない × 文中に無い、で3件選ぶ。揃わなければ帯を倍に広げて3回まで、それでも足りなければ従来どおりLLMに作らせる。
+
+functions/go/quiz_distractors.go
+distractors.go が使う語彙情報（freq_rank・品詞・語クラス）の実装と、ダミーの発音生成（thainlp）。
+
+functions/go/quiz_cloze_cache.go
+穴埋めクイズのキャッシュ（Firestore `quiz_questions`、例文1つにつき1件）。ダミー・その発音・理由・解説をまとめて持ち、当たればダミー選定もモデル呼び出しも走らない。ミス時だけ選定してから生成し、保存する。
+
+functions/go/quiz_cloze_cache_test.go
+ヒットでモデルを呼ばないこと、キーが例文単位であること、出題語が違えば作り直すこと、ダミー選定が決定的であることのテスト。
+
+functions/go/quiz_posdict_data.go
+scripts/build_pos_dict.py の生成物。コーパスの文中で付いた品詞の集計（5,665語）。語単体のタグ付けより安定するので先に引く。
 
 functions/go/internal/quizgen/sanitize.go
 モデル出力の検査と整形。選択肢・ダミー理由・選択肢発音の対応付け。
@@ -771,8 +792,11 @@ free例文バンク（GCS）の読み込みとキャッシュ、target_word一�
 functions/go/internal/sentence/select.go
 テーマ候補プールの決定とUVMからのターゲット語選定（sentence_service.py:select_uvm_target_words）。
 
+functions/go/internal/sentence/history.go
+users/{uid}/sentences から既出例文の本文（直近300件）を読む。バンクに同じ文を二度出させないための除外集合。
+
 functions/go/internal/sentence/produce.go
-単語選定→キャッシュ/LLM生成→ティア付与までの生成コア（sentence_handlers.py:produce_sentence）。ProduceBatch は n 本まとめて（選定1回・生成は並列）。毎日配信とアプリからの生成の共通経路。
+単語選定→キャッシュ/LLM生成→ティア付与までの生成コア（sentence_handlers.py:produce_sentence）。ProduceBatch は n 本まとめて（選定1回・生成は並列）。毎日配信とアプリからの生成の共通経路。バンクが既出の文を返したら LLM 生成へ落とす（テーマ指定を守るため、在庫の別テーマへは逃がさない）。free の配信は LLM へ落とせないので、語を引き直し、未出が尽きたら最後に既出を許す。
 
 functions/go/internal/sentence/doc.go
 Firestoreへ保存する例文ドキュメントの組み立てとkey_wordの引き当て。
@@ -806,6 +830,12 @@ cmd/corpus のマニフェストから本番と同じ経路で例文を生成し
 
 functions/go/cmd/translate/main.go
 cmd/gencorpus の出力に internal/corpustrans で日英の訳を付け直し、最終コーパスのJSONLを書くコマンド。生成時の日本語訳は下書き扱いで置き換える。
+
+functions/go/cmd/usagefill/main.go
+最終コーパスの各文に「使い方」4項目（style / emotion / usage_scenarios / cultural_notes、日英）を付けてサイドカーJSONLに書く。-max-rank で頻度の高い語から流せる。
+
+functions/go/internal/corpususage/usage.go
+usagefill の中身。プロンプトとスキーマ（説明文は配信経路の sentence.ContextFieldSchema から引く）。style は en のラベル差し替えのため選択肢を enum で閉じる。
 
 functions/go/cmd/gencorpus/main.go
 静的コーパスの全量生成コマンド。マニフェストを 生成→判定→差し戻し→再判定 まで通し、ブロック単位でJSONLに追記する。同じ出力先を指すと続きから流せる。
@@ -893,6 +923,9 @@ scripts/word_denylist.json
 
 scripts/build_theme_embeddings.py
 テーマ・サブテーマのembeddingを差分生成。ラベルは cmd/corpus -labels が書き出した prompts_data.go 由来のJSONを読む。--all で全再生成。
+
+scripts/build_pos_dict.py
+コーパスの grammatical_role を語ごとに集計して品詞辞書（quiz_posdict_data.go）を生成。最頻品詞が8割未満の語は入れない。
 
 scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。

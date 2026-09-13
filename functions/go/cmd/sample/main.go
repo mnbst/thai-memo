@@ -55,11 +55,28 @@ func main() {
 	out := flag.String("out", "", "JSON の出力先。空なら標準出力に要約のみ")
 	fix := flag.Bool("fix", false, "生成後に judge をかけ、不合格を指摘つきで差し戻す")
 	rankFile := flag.String("rank", rankPath, "freq_rank_top10000.json のパス")
+	wordList := flag.String("words", "", "key_word を固定する（カンマ区切り）。指定時は -n が語ごとの生成数")
+	relation := flag.String("relation", "", "話し手と聞き手の関係を固定する（例: 自分より目上／ほとんど面識がない）")
+	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
 	flag.Parse()
 
-	words, err := pickWords(*rankFile, *n, *seed)
-	if err != nil {
-		log.Fatal(err)
+	var words []wordRank
+	if *wordList != "" {
+		for _, w := range strings.Split(*wordList, ",") {
+			w = strings.TrimSpace(w)
+			if w == "" {
+				continue
+			}
+			for i := 0; i < *n; i++ {
+				words = append(words, wordRank{Word: w})
+			}
+		}
+	} else {
+		var err error
+		words, err = pickWords(*rankFile, *n, *seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	topics := pickTopics(*topic)
 
@@ -95,6 +112,12 @@ func main() {
 			topic := topics[i%len(topics)]
 			if topic != "" {
 				params["topic"] = topic
+			}
+			if *relation != "" {
+				params["relation"] = *relation
+			}
+			if *timeFrame != "" {
+				params["timeFrame"] = *timeFrame
 			}
 			s, err := svc.GenerateSentence(ctx, params, !*free,
 				[]string{w.Word}, *vocab, lang.Lang(*langCode))

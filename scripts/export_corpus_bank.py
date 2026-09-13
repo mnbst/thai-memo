@@ -38,7 +38,54 @@ def load_denylist(path):
     }
 
 
-def to_sentence(row, lang):
+def load_usage(path):
+    """cmd/usagefill のサイドカーを thai_text で索く形にする。
+
+    無ければ空。使い方の項目が無くてもバンクは作れる（アプリ側は
+    context に無いキーを出さないだけ）。
+    """
+    usage = {}
+    if not path or not os.path.exists(path):
+        return usage
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            if row.get("error") or not row.get("thai_text"):
+                continue
+            usage[row["thai_text"]] = row
+    return usage
+
+
+def usage_context(row, lang):
+    """使い方の4項目を、その言語の値で返す。
+
+    style だけは日本語ラベルのまま入れる。en 配信では
+    sentence.LocalizeContext が styleLabelsEN で英語へ差し替えるので、
+    ここで英訳すると未知の値になって差し替えが効かない。
+    emotion / usage_scenarios / cultural_notes は自由記述なので
+    言語ごとの文をそのまま入れる。
+    """
+    if not row:
+        return {}
+    suffix = "ja" if lang == "ja" else "en"
+    out = OrderedDict()
+    if row.get("style"):
+        out["style"] = row["style"]
+    for key, field in (
+        ("emotion", "emotion"),
+        ("usage_scenarios", "usage"),
+        ("cultural_notes", "culture"),
+    ):
+        value = row.get(f"{field}_{suffix}")
+        if value:
+            out[key] = value
+    return out
+
+
+def to_sentence(row, lang, usage=None):
     """コーパスの1行を internal/sentence.Sentence の JSON へ落とす。
 
     対象語の語義説明（note）はその語の word_breakdown に入れる。LLM 生成では
@@ -66,6 +113,7 @@ def to_sentence(row, lang):
         context=OrderedDict(
             topic=row["topic"],
             subTheme=row.get("sub_theme") or "",
+            **usage_context(usage, lang),
         ),
         key_word=target,
         key_word_rank=row["key_word_rank"],
@@ -80,10 +128,16 @@ def main():
     parser.add_argument("--in", dest="src", default="scripts/corpus/corpus.jsonl")
     parser.add_argument("--out-dir", default="scripts/corpus/bank")
     parser.add_argument("--denylist", default="scripts/word_denylist.json")
+    parser.add_argument(
+        "--usage",
+        default="scripts/corpus/usage.jsonl",
+        help="cmd/usagefill のサイドカー。無ければ使い方の項目を入れない",
+    )
     parser.add_argument("--max-rank", type=int, default=0, help="0 なら制限なし")
     args = parser.parse_args()
 
     deny = load_denylist(args.denylist)
+    usage = load_usage(args.usage)
     os.makedirs(args.out_dir, exist_ok=True)
 
     # (target_word, topic) が重なったら後勝ち。pack_corpus.py と同じ扱い。
@@ -113,7 +167,10 @@ def main():
         out = os.path.join(args.out_dir, f"corpus_sentences_{lang}.json")
         with open(out, "w", encoding="utf-8") as f:
             json.dump(
-                [to_sentence(row, lang) for row in rows.values()],
+                [
+                    to_sentence(row, lang, usage.get(row["thai_text"]))
+                    for row in rows.values()
+                ],
                 f,
                 ensure_ascii=False,
             )
@@ -121,7 +178,9 @@ def main():
         print(f"{out}  {len(rows)}文  {size:.1f}MB")
 
     words = {word for word, _ in rows}
+    filled = sum(1 for row in rows.values() if row["thai_text"] in usage)
     print(f"語 {len(words)}  落とした行 {dropped}")
+    print(f"使い方つき {filled}文 / {len(rows)}文")
 
 
 if __name__ == "__main__":

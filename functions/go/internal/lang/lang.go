@@ -33,3 +33,18 @@ func Resolve(value any) Lang {
 	}
 	return Default
 }
+
+// Parse は保存済みの値を対応言語として読む。
+//
+// Resolve と違い既定へ倒さない。未知・空なら ok=false を返す。
+// 「言語が分からない doc」と「ja の doc」を区別したい側（例文プールの
+// 振り分け）が使う。取り違えると訳文の言語が混ざる。
+func Parse(s string) (Lang, bool) {
+	switch Lang(strings.ToLower(strings.TrimSpace(s))) {
+	case JA:
+		return JA, true
+	case EN:
+		return EN, true
+	}
+	return "", false
+}

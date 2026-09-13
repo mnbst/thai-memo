@@ -18,6 +18,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/dailysentence"
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
+	"github.com/mnbst/thai-memo/functions/go/internal/premium"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
@@ -184,6 +185,8 @@ func (d *deliverer) eachCandidate(
 type pickedSet struct {
 	Produced       []*sentence.Produced
 	UsePremiumSpec bool
+	// Lang は訳文の言語（保存する doc に残す）。
+	Lang lang.Lang
 }
 
 // buildSentences は配信する例文を n 本作る。
@@ -229,7 +232,7 @@ func (d *deliverer) buildSentences(
 		if err != nil {
 			log.Printf("daily_sentence: premium generation failed for %s: %v", uid, err)
 		} else if len(produced) > 0 {
-			return &pickedSet{Produced: produced, UsePremiumSpec: true}
+			return &pickedSet{Produced: produced, UsePremiumSpec: true, Lang: l}
 		}
 	}
 
@@ -252,7 +255,7 @@ func (d *deliverer) buildSentences(
 	if len(produced) == 0 {
 		return nil
 	}
-	return &pickedSet{Produced: produced, UsePremiumSpec: false}
+	return &pickedSet{Produced: produced, UsePremiumSpec: false, Lang: l}
 }
 
 func (d *deliverer) intn(n int) int {
@@ -285,6 +288,7 @@ func (e *deliveryStoppedError) Error() string { return "DELIVERY_STOPPED" }
 func (d *deliverer) commitDailySentence(
 	ctx context.Context, userRef *firestore.DocumentRef,
 	sentenceRefs []*firestore.DocumentRef, sentenceData []map[string]any, now time.Time,
+	consumeQuota bool,
 ) (token string, restore []firestore.Update, err error) {
 	err = d.DB.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		userData := map[string]any{}
@@ -292,7 +296,11 @@ func (d *deliverer) commitDailySentence(
 			userData = snap.Data()
 		}
 
-		tok, rest, update, perr := dailyCommitPlan(userData, now, len(sentenceRefs))
+		consumed := 0
+		if consumeQuota {
+			consumed = len(sentenceRefs)
+		}
+		tok, rest, update, perr := dailyCommitPlan(userData, now, consumed)
 		if perr != nil {
 			return perr
 		}
@@ -310,7 +318,8 @@ func (d *deliverer) commitDailySentence(
 
 // dailyCommitPlan は最新の user doc から、コミット時の書き込み内容を決める。
 //
-// consumed は配信する例文の本数。クォータは free / premium とも本数ぶん消費する。
+// consumed は消費するクォータ（配信本数）。premium・トライアルは回数を消費しない
+// ので 0 が渡り、remaining_sentences には触らない。
 // 戻り値は (送信先トークン, 通知失敗時に戻すための更新, users への更新)。
 func dailyCommitPlan(userData map[string]any, now time.Time, consumed int) (
 	token string, restore, update []firestore.Update, err error,
@@ -330,11 +339,15 @@ func dailyCommitPlan(userData map[string]any, now time.Time, consumed int) (
 
 	token, _ = userData["fcm_token"].(string)
 	restore = deliveryRestoreUpdate(userData)
-	update = append([]firestore.Update{
-		{Path: "remaining_sentences", Value: firestore.Increment(-consumed)},
+	update = []firestore.Update{
 		{Path: "daily_sentence_generated", Value: true},
 		{Path: "last_notified_at", Value: firestore.ServerTimestamp},
-	}, tierUpdateFields(tierUpdate)...)
+	}
+	if consumed > 0 {
+		update = append(update,
+			firestore.Update{Path: "remaining_sentences", Value: firestore.Increment(-consumed)})
+	}
+	update = append(update, tierUpdateFields(tierUpdate)...)
 	return token, restore, update, nil
 }
 
@@ -424,14 +437,19 @@ func buildNotification(
 // （再登録はアプリ再起動待ちになる）。
 func rollbackDelivery(
 	ctx context.Context, userRef *firestore.DocumentRef,
-	sentenceRefs []*firestore.DocumentRef, restore []firestore.Update, deleteToken bool,
+	sentenceRefs []*firestore.DocumentRef, restore []firestore.Update,
+	deleteToken, consumedQuota bool,
 ) {
 	for _, ref := range sentenceRefs {
 		if _, err := ref.Delete(ctx); err != nil {
 			log.Printf("daily_sentence: rollback の例文削除に失敗: %v", err)
 		}
 	}
-	update := rollbackUpdate(restore, deleteToken, len(sentenceRefs))
+	consumed := 0
+	if consumedQuota {
+		consumed = len(sentenceRefs)
+	}
+	update := rollbackUpdate(restore, deleteToken, consumed)
 	if _, err := userRef.Update(ctx, update); err != nil {
 		log.Printf("daily_sentence: rollback の users 更新に失敗: %v", err)
 	}
@@ -441,8 +459,11 @@ func rollbackUpdate(
 	restore []firestore.Update, deleteToken bool, consumed int,
 ) []firestore.Update {
 	updates := []firestore.Update{
-		{Path: "remaining_sentences", Value: firestore.Increment(consumed)},
 		{Path: "daily_sentence_generated", Value: false},
+	}
+	if consumed > 0 {
+		updates = append(updates,
+			firestore.Update{Path: "remaining_sentences", Value: firestore.Increment(consumed)})
 	}
 	if deleteToken {
 		updates = append(updates,
@@ -473,8 +494,14 @@ func (d *deliverer) deliverOne(
 		}
 	}
 
-	// 先に自発生成した日は残り本数がセットに足りない。取れるぶんだけ配信する。
-	n := min(dailysentence.BatchSize(userData), intValue(userData["remaining_sentences"]))
+	// premium・トライアルは回数を消費しないので、残数で絞らない。
+	consumeQuota := !premium.IsEffectivePremium(userData, now)
+
+	// free は先に自発生成した日は残り本数がセットに足りない。取れるぶんだけ配信する。
+	n := dailysentence.BatchSize(userData)
+	if consumeQuota {
+		n = min(n, intValue(userData["remaining_sentences"]))
+	}
 	if n <= 0 {
 		return "quota_exhausted"
 	}
@@ -496,8 +523,12 @@ func (d *deliverer) deliverOne(
 	}
 	setID := sentenceRefs[0].ID
 	for i, produced := range p.Produced {
-		data := produced.Sentence.BuildSentenceDoc(
-			produced.TargetWords[0], p.UsePremiumSpec)
+		data := produced.Sentence.BuildSentenceDoc(sentence.DocMeta{
+			KeyWord:        produced.TargetWords[0],
+			UsePremiumSpec: p.UsePremiumSpec,
+			Lang:           p.Lang,
+			FromCache:      produced.FromCache,
+		})
 		data["daily"] = true
 		data["daily_date"] = localDate
 		data["daily_set_id"] = setID
@@ -506,7 +537,8 @@ func (d *deliverer) deliverOne(
 		sentenceData[i] = data
 	}
 
-	token, restore, err := d.commitDailySentence(ctx, userRef, sentenceRefs, sentenceData, now)
+	token, restore, err := d.commitDailySentence(
+		ctx, userRef, sentenceRefs, sentenceData, now, consumeQuota)
 	if err != nil {
 		var stopped *deliveryStoppedError
 		switch {
@@ -528,13 +560,13 @@ func (d *deliverer) deliverOne(
 	if _, err := d.Notifier.Send(ctx, msg); err != nil {
 		if messaging.IsUnregistered(err) {
 			log.Printf("daily_sentence: token unregistered, rolling back %s", uid)
-			rollbackDelivery(ctx, userRef, sentenceRefs, restore, true)
+			rollbackDelivery(ctx, userRef, sentenceRefs, restore, true, consumeQuota)
 			return "token_unregistered"
 		}
 		// トークン失効以外の送信失敗（権限・FCM障害など）。ここを素通りすると
 		// 通知が飛ばないのにクォータと当日フラグだけ消費されてしまう。
 		log.Printf("daily_sentence: send failed for %s: %v", uid, err)
-		rollbackDelivery(ctx, userRef, sentenceRefs, restore, false)
+		rollbackDelivery(ctx, userRef, sentenceRefs, restore, false, consumeQuota)
 		return "send_failed"
 	}
 

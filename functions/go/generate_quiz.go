@@ -169,7 +169,9 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 		}, nil
 	}
 
-	questions := generateQuestionsFromSources(ctx, service, buildQuizSources(selected))
+	// まとめクイズはダミーが確定していれば理由と解説を使い回せる。
+	questions := generateQuestionsFromSources(ctx,
+		withQuizClozeCache(service, db, l), buildQuizSources(selected))
 	if len(questions) == 0 {
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}
@@ -234,9 +236,11 @@ func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, erro
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}
 
-	// 意味4択の解説は語単位で使い回せるので、共有キャッシュを挟む。
+	// 意味4択の解説は語単位で、穴埋めは文・正解・ダミーの組で使い回せるので、
+	// どちらも共有キャッシュを挟む。
 	questions := generateQuestionsFromSources(ctx,
-		withWordExplanationCache(service, db, l), []quizSeedSource{source})
+		withQuizClozeCache(withWordExplanationCache(service, db, l), db, l),
+		[]quizSeedSource{source})
 	if len(questions) == 0 {
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}

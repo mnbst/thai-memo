@@ -116,3 +116,29 @@ func TestBuildNotificationSetData(t *testing.T) {
 		t.Errorf("Data = %v, want %v", msg.Data, want)
 	}
 }
+
+// TestDailyCommitPlanPremiumKeepsQuota は premium 配信で
+// remaining_sentences に触らないことを確かめる（consumed=0）。
+func TestDailyCommitPlanPremiumKeepsQuota(t *testing.T) {
+	now := time.Date(2026, 8, 27, 1, 0, 0, 0, time.UTC)
+	_, _, update, err := dailyCommitPlan(batchUserData(now), now, 0)
+	if err != nil {
+		t.Fatalf("配信できるはずが %v", err)
+	}
+	assertUpdates(t, "commit/premium", update, map[string]any{
+		"daily_sentence_generated": true,
+		"last_notified_at":         "@server_timestamp",
+		"notify_tier":              0,
+		"notify_tier_misses":       0,
+	})
+}
+
+// TestRollbackUpdatePremiumKeepsQuota は消費していない配信の巻き戻しで
+// remaining_sentences を増やさないことを確かめる。
+func TestRollbackUpdatePremiumKeepsQuota(t *testing.T) {
+	got := rollbackUpdate([]firestore.Update{{Path: "notify_tier", Value: 0}}, false, 0)
+	assertUpdates(t, "rollback/premium", got, map[string]any{
+		"daily_sentence_generated": false,
+		"notify_tier":              0,
+	})
+}

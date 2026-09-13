@@ -201,3 +201,18 @@ func TestSchemaRequiresVerdictFields(t *testing.T) {
 		}
 	}
 }
+
+func TestParseAcceptedReturnsNaturalOnly(t *testing.T) {
+	raw := map[string]any{"results": []any{
+		map[string]any{"index": 0, "natural": true, "reason": ""},
+		map[string]any{"index": 1, "natural": false, "reason": "共起が不自然"},
+		// 同じ index の2件目は先勝ちで無視する（ParseVerdicts と同じ規則）。
+		map[string]any{"index": 0, "natural": false, "reason": "後出し"},
+		map[string]any{"index": 9, "natural": true, "reason": ""},
+	}}
+	got := ParseAccepted(raw, 3)
+	if len(got) != 1 || got[0] != 0 {
+		t.Fatalf("ParseAccepted = %v, want [0]", got)
+	}
+	// index 2 は判定が返ってこなかった。無言の欠落は通さない。
+}

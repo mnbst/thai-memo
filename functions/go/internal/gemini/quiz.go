@@ -91,6 +91,7 @@ func (s *QuizService) GenerateQuizQuestions(
 func BuildRequestBody(sentences []quizgen.QuizSentenceSeed, l lang.Lang) map[string]any {
 	isMeaningChoice := len(sentences) == 1 &&
 		sentences[0].QuizFormat == quizgen.FormatMeaningChoice
+	hasFixedDummies := quizgen.AllHaveFixedDummies(sentences)
 	return map[string]any{
 		"systemInstruction": map[string]any{
 			"parts": []any{map[string]any{"text": quizgen.SystemPromptFor(sentences, l)}},
@@ -101,7 +102,7 @@ func BuildRequestBody(sentences []quizgen.QuizSentenceSeed, l lang.Lang) map[str
 		}},
 		"generationConfig": map[string]any{
 			"responseMimeType": "application/json",
-			"responseSchema":   responseSchema(l, isMeaningChoice),
+			"responseSchema":   responseSchema(l, isMeaningChoice, hasFixedDummies),
 			"maxOutputTokens":  maxOutputTokens,
 			"thinkingConfig": map[string]any{
 				"thinkingBudget": thinkingBudget,

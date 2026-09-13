@@ -101,7 +101,7 @@ func TestCappedEstimatedVocabAgainstPythonGolden(t *testing.T) {
 func TestSentenceCommitUpdateAgainstPythonGolden(t *testing.T) {
 	g := loadSentenceHandlersGolden(t)
 	for ci, c := range g.CommitUpdate {
-		updates := sentenceCommitUpdate(c.UserData, c.Decrement)
+		updates := sentenceCommitUpdate(c.UserData, c.Decrement, true)
 		var keys []string
 		byPath := map[string]any{}
 		for _, u := range updates {
@@ -175,4 +175,23 @@ func equalStrs(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// TestSentenceCommitUpdatePremiumKeepsQuota は premium の生成で
+// remaining_sentences を減らさず、生成本数の記録だけ残すことを確かめる。
+func TestSentenceCommitUpdatePremiumKeepsQuota(t *testing.T) {
+	updates := sentenceCommitUpdate(map[string]any{
+		"first_generated_at": time.Now(),
+	}, 5, false)
+	for _, u := range updates {
+		if u.Path == "remaining_sentences" {
+			t.Fatalf("premium なのにクォータを消費している: %v", updates)
+		}
+	}
+	assertUpdates(t, "commit/premium", updates, map[string]any{
+		"daily_sentence_generated":   true,
+		"last_active_at":             "@server_timestamp",
+		"last_sentence_generated_at": "@server_timestamp",
+		"sentence_generated_count":   "@increment:5",
+	})
 }

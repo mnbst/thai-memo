@@ -74,7 +74,9 @@ type batchBank struct {
 	calls []pickCall
 }
 
-func (b *batchBank) Pick(_ context.Context, w string, l lang.Lang, topic string) (*Sentence, error) {
+func (b *batchBank) Pick(
+	_ context.Context, w string, l lang.Lang, topic string,
+) (*Sentence, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.calls = append(b.calls, pickCall{w, l, topic})
@@ -83,6 +85,9 @@ func (b *batchBank) Pick(_ context.Context, w string, l lang.Lang, topic string)
 	}
 	s := goldenSentence()
 	s.KeyWord = w
+	// 語ごとに別の文にする。コーパスは1本を1語の索引にしか置かないので、
+	// 別の key_word で同じ本文が返ることは実際には起きない。
+	s.ThaiText += w
 	return s, nil
 }
 
