@@ -199,6 +199,29 @@ void main() {
     expect(state.current?.id, 'b');
   });
 
+  test('欠けていた1本を拾い直しても読んでいる例文は動かない', () async {
+    // 前回の起動で 'a' を引けず、詰めた並び [b, c] のカーソル1（= c）で保存
+    // された状態。クラウドには5本そろった正本がある。
+    final sentences = {
+      for (final id in ['a', 'b', 'c']) id: _sentence(id),
+    };
+    final cloud = _MemoryProgressStore(sentences);
+    cloud.remote = DailySetProgressSnapshot(
+      active: DailySetRef(setId: 's1', sentenceIds: const ['a', 'b', 'c']),
+      activeSentenceId: 'c',
+    );
+
+    final container = containerWith(sentences, progressStore: cloud);
+    final controller = container.read(dailySetProvider.notifier);
+    await controller.start(_set(['b', 'c']), setId: 's1');
+    await controller.advance();
+    await controller.settled;
+
+    final state = container.read(dailySetProvider);
+    expect(state.current?.id, 'c');
+    expect(state.total, 3, reason: '欠けていた1本はクラウドから戻す');
+  });
+
   test('進行中に届いた新しい配信は表示を奪わず待機させる', () async {
     final container = containerWith({});
     final controller = container.read(dailySetProvider.notifier);

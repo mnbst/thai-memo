@@ -263,7 +263,7 @@ lib/services/daily_sentence_service.dart
 サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
 
 lib/services/daily_set_progress_store.dart
-例文セットの進行位置（DailySetProgressSnapshot）の Firestore 読み書きと、端末間の単調マージ（mergeDailySetProgress）。
+例文セットの進行位置（DailySetProgressSnapshot）の Firestore 読み書きと、端末間の単調マージ（mergeDailySetProgress）。位置の正本は例文ID（active_sentence_id）で、番号はその並びでの写し。
 
 ## Thai Language Processing (Dart)
 

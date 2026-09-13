@@ -8,13 +8,71 @@ DailySetRef _set(String id, [List<String>? sentenceIds]) => DailySetRef(
 
 void main() {
   test('同じセットを別端末で進めても大きいカーソルを維持する', () {
+    final ids = ['a-1', 'a-2', 'a-3', 'a-4'];
     final merged = mergeDailySetProgress(
-      DailySetProgressSnapshot(active: _set('a'), activeIndex: 3),
-      DailySetProgressSnapshot(active: _set('a'), activeIndex: 1),
+      DailySetProgressSnapshot(
+        active: _set('a', ids),
+        activeSentenceId: 'a-4',
+      ),
+      DailySetProgressSnapshot(
+        active: _set('a', ids),
+        activeSentenceId: 'a-2',
+      ),
     );
 
     expect(merged.active?.setId, 'a');
     expect(merged.activeIndex, 3);
+    expect(merged.activeSentenceId, 'a-4');
+  });
+
+  test('片方の並びが1本欠けていても、位置は例文IDで揃える', () {
+    // 欠けた並び [a-2, a-3] のカーソル1（= a-3）と、そろった正本のカーソル1
+    // （= a-2）。番号をそのまま max すると a-4 まで飛ぶ。
+    final merged = mergeDailySetProgress(
+      DailySetProgressSnapshot(
+        active: _set('a', ['a-1', 'a-2', 'a-3', 'a-4']),
+        activeSentenceId: 'a-2',
+      ),
+      DailySetProgressSnapshot(
+        active: _set('a', ['a-2', 'a-3']),
+        activeSentenceId: 'a-3',
+      ),
+    );
+
+    expect(merged.active?.sentenceIds.length, 4);
+    expect(merged.activeSentenceId, 'a-3');
+    expect(merged.activeIndex, 2);
+  });
+
+  test('読んでいる1本は、クラウドの長い並びを採っても動かない', () {
+    final merged = mergeDailySetProgressPreservingLocalActive(
+      DailySetProgressSnapshot(
+        active: _set('a', ['a-1', 'a-2', 'a-3']),
+        activeSentenceId: 'a-3',
+      ),
+      DailySetProgressSnapshot(
+        active: _set('a', ['a-2', 'a-3']),
+        activeSentenceId: 'a-2',
+      ),
+    );
+
+    expect(merged.activeSentenceId, 'a-2');
+    expect(merged.activeIndex, 1);
+  });
+
+  test('番号しか持たない旧データは、その並びの例文IDへ読み替える', () {
+    final restored = DailySetProgressSnapshot.fromJson({
+      'active': {
+        'set_id': 'a',
+        'sentence_ids': ['a-1', 'a-2', 'a-3'],
+      },
+      'active_index': 2,
+    });
+
+    expect(restored.activeSentenceId, 'a-3');
+    expect(restored.activeIndex, 2);
+    // 旧バージョンが同じdocを読んでも先頭に戻らないよう、番号も書き続ける。
+    expect(restored.toJson()['active_index'], 2);
   });
 
   test('完了したセットは古い端末の進行中・待機中状態から復活しない', () {
@@ -61,7 +119,7 @@ void main() {
 
   test('一方が現セットを完了して次へ進んだ場合は次セットを正本にする', () {
     final merged = mergeDailySetProgress(
-      DailySetProgressSnapshot(active: _set('a'), activeIndex: 4),
+      DailySetProgressSnapshot(active: _set('a')),
       DailySetProgressSnapshot(
         active: _set('b'),
         completedSetIds: const ['a'],
@@ -78,7 +136,7 @@ void main() {
         active: _set('b'),
         completedSetIds: const ['a'],
       ),
-      DailySetProgressSnapshot(active: _set('a'), activeIndex: 1),
+      DailySetProgressSnapshot(active: _set('a'), activeSentenceId: 'a-2'),
     );
 
     expect(merged.active?.setId, 'a');
@@ -89,8 +147,8 @@ void main() {
 
   test('学習中は同一セットのクラウド側カーソルでも表示位置を動かさない', () {
     final merged = mergeDailySetProgressPreservingLocalActive(
-      DailySetProgressSnapshot(active: _set('a'), activeIndex: 4),
-      DailySetProgressSnapshot(active: _set('a'), activeIndex: 1),
+      DailySetProgressSnapshot(active: _set('a'), activeSentenceId: 'a-1'),
+      DailySetProgressSnapshot(active: _set('a'), activeSentenceId: 'a-2'),
     );
 
     expect(merged.active?.setId, 'a');
@@ -99,7 +157,7 @@ void main() {
 
   test('通信中に完了したセットを古いクラウド結果から復活させない', () {
     final merged = mergeDailySetProgressPreservingLocalActive(
-      DailySetProgressSnapshot(active: _set('a'), activeIndex: 1),
+      DailySetProgressSnapshot(active: _set('a')),
       const DailySetProgressSnapshot(completedSetIds: ['a']),
     );
 
