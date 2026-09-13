@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -35,6 +33,25 @@ class DailySetRef {
   final String setId;
   final List<String> sentenceIds;
 
+  /// この並びでの例文の位置。載っていなければ null。
+  int? positionOf(String? sentenceId) {
+    if (sentenceId == null) return null;
+    final found = sentenceIds.indexOf(sentenceId);
+    return found < 0 ? null : found;
+  }
+
+  /// [candidates] のうち、この並びで最も先へ進んでいる1本。
+  /// どれも載っていなければ先頭（＝まだ読んでいない扱い）。
+  String? furthestOf(Iterable<String?> candidates) {
+    if (sentenceIds.isEmpty) return null;
+    var furthest = 0;
+    for (final id in candidates) {
+      final at = positionOf(id);
+      if (at != null && at > furthest) furthest = at;
+    }
+    return sentenceIds[furthest];
+  }
+
   Map<String, dynamic> toJson() => {
         'set_id': setId,
         'sentence_ids': sentenceIds,
@@ -54,23 +71,36 @@ class DailySetRef {
 class DailySetProgressSnapshot {
   const DailySetProgressSnapshot({
     this.active,
-    this.activeIndex = 0,
+    this.activeSentenceId,
     this.pending = const [],
     this.completedSetIds = const [],
   });
 
   final DailySetRef? active;
-  final int activeIndex;
+
+  /// カーソルが指している例文ID。位置の正本はこれだけで、番号は並びから引く。
+  ///
+  /// 番号を持ち回ると、保存時と並びが1本違うだけで隣の例文を指す（欠けた1本を
+  /// 拾い直した側を採ったとき、位置が先へずれる）。
+  final String? activeSentenceId;
+
   final List<DailySetRef> pending;
   final List<String> completedSetIds;
 
   bool get isEmpty =>
       active == null && pending.isEmpty && completedSetIds.isEmpty;
 
+  /// [active] の並びでの位置。表示と、番号しか読めない旧バージョン向け。
+  int get activeIndex => active?.positionOf(activeSentenceId) ?? 0;
+
   /// ローカル（SharedPreferences）用。そのまま jsonEncode できる形にする。
+  ///
+  /// active_index は読まないが、書くのはやめない。1.5.0 以前のクライアントが
+  /// 同じ doc を読むと、無ければセットの先頭から読み直しになる。
   Map<String, dynamic> toJson() => {
         'active': active?.toJson(),
         'active_index': activeIndex,
+        'active_sentence_id': activeSentenceId,
         'pending': [for (final set in pending) set.toJson()],
         'completed_set_ids': completedSetIds,
       };
@@ -87,9 +117,18 @@ class DailySetProgressSnapshot {
       final set = DailySetRef.fromJson(value);
       if (set != null) pending.add(set);
     }
+    final active = DailySetRef.fromJson(data['active']);
+    var anchorId = data['active_sentence_id'] as String?;
+    if ((anchorId == null || anchorId.isEmpty) && active != null) {
+      // 1.5.0 以前は番号だけを保存していた。その並びで読み替える。
+      final index = (data['active_index'] as num?)?.toInt() ?? 0;
+      if (index >= 0 && index < active.sentenceIds.length) {
+        anchorId = active.sentenceIds[index];
+      }
+    }
     return DailySetProgressSnapshot(
-      active: DailySetRef.fromJson(data['active']),
-      activeIndex: (data['active_index'] as num?)?.toInt() ?? 0,
+      active: active,
+      activeSentenceId: anchorId,
       pending: pending,
       completedSetIds: ((data['completed_set_ids'] as List?) ?? const [])
           .whereType<String>()
@@ -183,17 +222,12 @@ DailySetProgressSnapshot mergeDailySetProgress(
   }
 
   DailySetRef? active;
-  var index = 0;
   final remoteActive = remote.active;
   final localActive = local.active;
   if (remoteActive != null && unique.containsKey(remoteActive.setId)) {
     active = unique.remove(remoteActive.setId);
-    index = localActive?.setId == remoteActive.setId
-        ? math.max(remote.activeIndex, local.activeIndex)
-        : remote.activeIndex;
   } else if (localActive != null && unique.containsKey(localActive.setId)) {
     active = unique.remove(localActive.setId);
-    index = local.activeIndex;
   } else if (unique.isNotEmpty) {
     active = unique.values.first;
     unique.remove(active.setId);
@@ -201,7 +235,11 @@ DailySetProgressSnapshot mergeDailySetProgress(
 
   return DailySetProgressSnapshot(
     active: active,
-    activeIndex: index,
+    // 単調性は「採用した並びでの位置」で比べる。別セットのIDはこの並びに
+    // 載っていないので、両端末ぶんを渡しても取り違えない。
+    activeSentenceId: active?.furthestOf(
+      [remote.activeSentenceId, local.activeSentenceId],
+    ),
     pending: unique.values.toList(),
     completedSetIds: trimCompletedSetIds(completed),
   );
@@ -250,7 +288,9 @@ DailySetProgressSnapshot mergeDailySetProgressPreservingLocalActive(
 
   return DailySetProgressSnapshot(
     active: active,
-    activeIndex: local.activeIndex,
+    // 読んでいる1本はそのまま。クラウド側の長い並びを採っても、位置はIDで
+    // 引き直されるので動かない。
+    activeSentenceId: local.activeSentenceId,
     pending: pending.values.toList(),
     completedSetIds: trimCompletedSetIds(completed),
   );

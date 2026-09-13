@@ -304,7 +304,8 @@ class DailySetController extends StateNotifier<DailySetState> {
         active: state.isActive && state.setId != null
             ? DailySetRef.fromSentences(state.setId!, state.sentences)
             : null,
-        activeIndex: state.index,
+        // 位置の正本は「いま読んでいる例文のID」。番号は並びから引き直す。
+        activeSentenceId: state.current?.id,
         pending: [
           for (final pending in state.pendingSets)
             DailySetRef.fromSentences(pending.setId, pending.sentences),
@@ -418,7 +419,7 @@ class DailySetController extends StateNotifier<DailySetState> {
       active: ids.isEmpty
           ? null
           : DailySetRef(setId: setId ?? ids.first, sentenceIds: ids),
-      activeIndex: cursor,
+      activeSentenceId: cursor >= 0 && cursor < ids.length ? ids[cursor] : null,
       pending: pending,
       completedSetIds: completed,
     );
@@ -446,9 +447,11 @@ class DailySetController extends StateNotifier<DailySetState> {
     }
 
     final activeRef = snapshot.active;
-    // 消えた例文（履歴から削除された等）は詰めて扱う。カーソルより前が欠けた
-    // ぶんだけ位置も前へずらす。
-    var index = snapshot.activeIndex;
+    // 読んでいた1本（snapshot.activeIndex が指す位置）より前に何本残ったかが、
+    // そのまま復元後の位置になる。消えた例文（履歴から削除された等）は詰めて
+    // 扱い、読んでいた1本自体が消えていれば次に残っている1本を指す。
+    final anchorAt = snapshot.activeIndex;
+    var index = 0;
     final active = <ThaiSentence>[];
     if (activeRef != null) {
       for (var i = 0; i < activeRef.sentenceIds.length; i++) {
@@ -457,11 +460,9 @@ class DailySetController extends StateNotifier<DailySetState> {
           repository,
           progressStore,
         );
-        if (sentence != null) {
-          active.add(sentence);
-        } else if (i < snapshot.activeIndex) {
-          index--;
-        }
+        if (sentence == null) continue;
+        if (i < anchorAt) index++;
+        active.add(sentence);
       }
     }
 

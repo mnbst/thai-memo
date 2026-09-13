@@ -679,7 +679,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // 配信例文の取り込みを先に終わらせる。今日ぶんがあればそれが今日の例文なので、
     // 生成もローカル読み込みも走らせない（通知タップかどうかの判定は不要）。
-    if (await _showDeliveredIfAny() != _DeliveredAction.none) return;
+    //
+    // 待機列へ回しただけ（queued）のときは何も表示していない。ここで抜けると
+    // 起動直後が空表示のままになるので、下の復元へ落とす。
+    if (await _showDeliveredIfAny() == _DeliveredAction.shown) return;
 
     // 新着が無ければ、前回閉じた位置の例文をそのまま表示する。「最新の例文」を
     // 読むと、カーソルが2/5なのに本文は5本目という不整合になる。
