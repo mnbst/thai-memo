@@ -53,28 +53,29 @@ class DailySentenceService {
   static const _uuid = Uuid();
 
   /// 直近この日数ぶんの配信を取り込み対象にする。
-  /// サーバー側の例文保持期間（30日）より短く、取りこぼしを拾える程度の幅。
-  static const _lookbackDays = 7;
+  /// サーバー側の保持期間いっぱいまで見て、再インストール後も待機列を再構築する。
+  static const _lookbackDays = 30;
 
   /// 起動時・フォアグラウンド復帰時に呼ぶ。失敗しても学習の妨げにならないよう握り潰す。
   ///
-  /// 今回はじめて取り込んだ配信があれば、そのセット全体を返す。呼び出し側はこれを
-  /// 順に表示するだけでよく、通知タップかどうかを判定する必要はない。
+  /// 今回はじめて取り込んだ配信セットをすべて返す。通知タップ対象があれば先頭、
+  /// 残りは古い順。呼び出し側は順に表示・待機列へ積むだけでよく、通知タップか
+  /// どうかを判定する必要はない。
   ///
   /// 「今日ぶんか」を日付で判定しない。サーバーはユーザー登録時のタイムゾーンで
   /// 日付を切るため、端末が国をまたぐとクライアントの「今日」とずれる。
   /// 未取り込み＝まだ見せていない配信、という判定なら時差に依存しない。
-  Future<DailySentenceSet?> sync({String? sentenceId}) async {
+  Future<List<DailySentenceSet>> syncAll({String? sentenceId}) async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) return null;
+    if (uid == null) return const [];
 
     // last_opened_at は表示に関係しない副シグナルなので待たない。
     // 待つとサーバー往復ぶんだけ通知タップからの表示が遅れる。
     unawaited(_touchLastOpenedAt(uid));
-    return _syncDeliveredSentences(uid, sentenceId: sentenceId);
+    return _syncDeliveredSets(uid, sentenceId: sentenceId);
   }
 
-  Future<DailySentenceSet?> _syncDeliveredSentences(
+  Future<List<DailySentenceSet>> _syncDeliveredSets(
     String uid, {
     String? sentenceId,
   }) async {
@@ -85,13 +86,8 @@ class DailySentenceService {
         ? await _importDeliveredSentenceById(uid, sentenceId)
         : null;
 
-    // 表示すべき1件が確定したら、取りこぼし回収の一括取り込みは待たずに返す。
-    // 待つと7日ぶんのクエリが終わるまで画面が切り替わらない。
-    if (byId != null) {
-      unawaited(_importDeliveredSentences(uid));
-      return byId;
-    }
-    return _importDeliveredSentences(uid);
+    final others = await _importDeliveredSets(uid);
+    return [if (byId != null) byId, ...others];
   }
 
   Future<DailySentenceSet?> _importDeliveredSentenceById(
@@ -158,9 +154,9 @@ class DailySentenceService {
 
   /// 配信済み例文をローカルへ取り込み、新しく届いたセットを返す。
   ///
-  /// 取り込みは未取り込みの配信すべてが対象（取りこぼしの回収）。返すのは
-  /// そのうち最新のものが属するセットだけで、それが「今日の学習」になる。
-  Future<DailySentenceSet?> _importDeliveredSentences(String uid) async {
+  /// 取り込みは未取り込みの配信すべてが対象（取りこぼしの回収）。返す順番は
+  /// 配信日時の古いセットから。複数日ぶんあっても待機キューへ順に積める。
+  Future<List<DailySentenceSet>> _importDeliveredSets(String uid) async {
     try {
       final since = DateTime.now().subtract(
         const Duration(days: _lookbackDays),
@@ -173,35 +169,50 @@ class DailySentenceService {
           .where('created_at', isGreaterThan: Timestamp.fromDate(since))
           .get();
 
-      String? newestSetId;
-      DateTime? latest;
+      final bySet =
+          <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
       for (final doc in snapshot.docs) {
-        // 1件の不正データで他の配信まで取り込めなくならないよう、docごとに握り潰す。
-        try {
-          // Firestore の doc ID をそのままローカルの主キーに使う。
-          // 取り込み済みならスキップするので、お気に入り等のローカル状態を壊さない。
-          if (await _repository.sentenceExists(doc.id)) continue;
+        bySet.putIfAbsent(_setIdOf(doc.id, doc.data()), () => []).add(doc);
+      }
 
-          final sentence = toSentence(doc.id, doc.data());
-          await _repository.saveSentence(sentence);
-          final createdAt = sentence.createdAt;
-          if (latest == null ||
-              (createdAt != null && createdAt.isAfter(latest))) {
-            latest = createdAt;
-            newestSetId = _setIdOf(doc.id, doc.data());
+      // 未取り込みの docs を含むセットだけが「新しく届いた」対象。
+      // 並べ替えのキーは、そのセットの最初の配信時刻。
+      final newSets = <String, DateTime>{};
+      for (final entry in bySet.entries) {
+        for (final doc in entry.value) {
+          // 1件の不正データで他の配信まで取り込めなくならないよう、docごとに握り潰す。
+          try {
+            // Firestore の doc ID をそのままローカルの主キーに使う。
+            // 取り込み済みならスキップするので、お気に入り等のローカル状態を壊さない。
+            if (await _repository.sentenceExists(doc.id)) continue;
+
+            final sentence = toSentence(doc.id, doc.data());
+            await _repository.saveSentence(sentence);
+            final date =
+                sentence.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final previous = newSets[entry.key];
+            if (previous == null || date.isBefore(previous)) {
+              newSets[entry.key] = date;
+            }
+          } catch (e) {
+            debugPrint('DailySentenceService: import failed for ${doc.id}: $e');
           }
-        } catch (e) {
-          debugPrint('DailySentenceService: import failed for ${doc.id}: $e');
         }
       }
 
-      if (newestSetId == null) return null;
-      return _importSet(newestSetId, snapshot.docs);
+      final orderedIds = newSets.keys.toList()
+        ..sort((a, b) => newSets[a]!.compareTo(newSets[b]!));
+      final sets = <DailySentenceSet>[];
+      for (final setId in orderedIds) {
+        final set = await _importSet(setId, bySet[setId]!);
+        if (set != null) sets.add(set);
+      }
+      return sets;
     } catch (e) {
       // 取り込み失敗時は次回の起動で再試行される。
       // 黙って落ちるとインデックス不足などの構成ミスに気づけないのでログは残す。
       debugPrint('DailySentenceService: fetch failed: $e');
-      return null;
+      return const [];
     }
   }
 
@@ -260,8 +271,7 @@ class DailySentenceService {
 
   /// Firestore の配信docを ThaiSentence に変換する。
   ///
-  /// インスタンス状態を持たないので静的にしてある（テストから直接叩けるようにするため）。
-  @visibleForTesting
+  /// インスタンス状態を持たないので静的にし、Firestore進捗の復元でも共用する。
   static ThaiSentence toSentence(String id, Map<String, dynamic> data) {
     final createdAt = data['created_at'];
     final rawBreakdowns = (data['word_breakdown'] as List?) ?? const [];

@@ -45,6 +45,20 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
+      // 例文セットの進行位置。複数端末・再インストール後も続きを復元する。
+      // 学習コンテンツや課金状態には影響せず、本人の状態だけを本人が更新できる。
+      match /learning_state/{stateId} {
+        allow read: if request.auth != null
+          && request.auth.uid == userId
+          && stateId == 'daily_sets';
+        allow create, update: if request.auth != null
+          && request.auth.uid == userId
+          && stateId == 'daily_sets'
+          && request.resource.data.keys().hasOnly([
+            'active', 'active_index', 'pending', 'completed_set_ids', 'updated_at'
+          ]);
+      }
+
       // UVM (User Vocabulary Model): read only, writes by Cloud Functions only
       match /uvm/{word} {
         allow read: if request.auth != null && request.auth.uid == userId;
