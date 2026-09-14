@@ -27,26 +27,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'daily_set_progress_store.dart';
 
-/// 学習タブのどの段にいるか。
-enum LearningStage {
-  sentence,
-  confirmationQuiz,
-  summaryQuiz;
-
-  static LearningStage fromName(Object? value) {
-    return LearningStage.values.firstWhere(
-      (stage) => stage.name == value,
-      orElse: () => LearningStage.sentence,
-    );
-  }
-}
+/// 学習タブのどの段にいるか。保存はしない——進み具合から導出する。
+enum LearningStage { sentence, confirmationQuiz, summaryQuiz }
 
 /// 端末に保存する学習の進み具合。
+///
+/// 持つのは「どこまで進んだか」だけ:
+///   - セットの何本目を読んでいるか（[set] のカーソル）
+///   - その1本の確認クイズを受けたか（[confirmationQuizSentenceId]）
+///   - まとめクイズをどこまで答えたか（[summaryQuiz] の index / answers）
+///
+/// 段（[stage]）は保存しない。保存すると「段はまとめクイズなのに中身が無い」
+/// のような、進み具合と食い違う状態を作れてしまう。導出なら食い違いようがない。
+///
+/// クイズの問題文と選択肢はサーバー生成で作り直せないので、進み具合とは別に
+/// 「描き直す材料」として同じレコードに置いておく。
 @immutable
 class LearningProgressRecord {
   const LearningProgressRecord({
     this.set = const DailySetProgressSnapshot(),
-    this.stage = LearningStage.sentence,
+    this.confirmationQuizSentenceId,
     this.confirmationQuiz,
     this.summaryQuiz,
   });
@@ -54,36 +54,49 @@ class LearningProgressRecord {
   /// セットの並びとカーソル。Firestore と共有する唯一の部分。
   final DailySetProgressSnapshot set;
 
-  /// いまの段。保存するのは、結果画面や回答中で閉じた人を同じ場所へ戻すため。
-  final LearningStage stage;
+  /// 確認クイズを受けた1本の例文ID。カーソルを次へ進めてよいかの判定に使う。
+  ///
+  /// 以前は画面（LearningScreen）の変数に置いていたので、再起動すると
+  /// 「この1本の確認クイズを受けたか」が分からなくなっていた。
+  final String? confirmationQuizSentenceId;
 
-  /// 確認クイズ（1問）の進行。どの例文のものかは payload の sentence_id が
-  /// 持つ（カーソルの外の1本にも付きうる）。カーソルが動けば一緒に消える。
+  /// 確認クイズ（1問）を描き直す材料。どの例文のものかは payload の
+  /// sentence_id が持つ（カーソルの外の1本にも付きうる）。
   final Map<String, dynamic>? confirmationQuiz;
 
-  /// まとめクイズ（5問）の進行。持ち主は進行中のセット。
+  /// まとめクイズ（5問）を描き直す材料。持ち主は進行中のセット。
   final Map<String, dynamic>? summaryQuiz;
+
+  /// いま開くべき段。まとめクイズの進行が残っていればそこへ戻す。
+  ///
+  /// 確認クイズは段として復元しない。例文画面から開き直せば保存した1問が
+  /// そのまま続くので、起動直後にクイズ画面を出すほどのものではない。
+  LearningStage get stage =>
+      summaryQuiz == null ? LearningStage.sentence : LearningStage.summaryQuiz;
 
   LearningProgressRecord copyWith({
     DailySetProgressSnapshot? set,
-    LearningStage? stage,
+    String? confirmationQuizSentenceId,
     Map<String, dynamic>? confirmationQuiz,
     Map<String, dynamic>? summaryQuiz,
-    bool clearConfirmationQuiz = false,
+    bool clearConfirmation = false,
     bool clearSummaryQuiz = false,
   }) {
     return LearningProgressRecord(
       set: set ?? this.set,
-      stage: stage ?? this.stage,
+      // 確認クイズの「受けた1本」と、その描き直す材料は同じ寿命。
+      confirmationQuizSentenceId: clearConfirmation
+          ? null
+          : confirmationQuizSentenceId ?? this.confirmationQuizSentenceId,
       confirmationQuiz:
-          clearConfirmationQuiz ? null : confirmationQuiz ?? this.confirmationQuiz,
+          clearConfirmation ? null : confirmationQuiz ?? this.confirmationQuiz,
       summaryQuiz: clearSummaryQuiz ? null : summaryQuiz ?? this.summaryQuiz,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'set': set.toJson(),
-        'stage': stage.name,
+        'confirmation_quiz_sentence_id': confirmationQuizSentenceId,
         'confirmation_quiz': confirmationQuiz,
         'summary_quiz': summaryQuiz,
       };
@@ -95,7 +108,8 @@ class LearningProgressRecord {
               Map<String, dynamic>.from(data['set'] as Map),
             )
           : const DailySetProgressSnapshot(),
-      stage: LearningStage.fromName(data['stage']),
+      confirmationQuizSentenceId:
+          data['confirmation_quiz_sentence_id'] as String?,
       confirmationQuiz: _asMap(data['confirmation_quiz']),
       summaryQuiz: _asMap(data['summary_quiz']),
     );
@@ -124,6 +138,12 @@ class LearningProgressStore {
     'completed_daily_set_ids',
   ];
 
+  /// 読み書きの待ち行列。書き手（カーソル・確認クイズ・まとめクイズ）は同じ
+  /// インスタンスを共有すること（learningProgressStoreProvider）。別々に持つと
+  /// 読んで書き戻す間に互いを追い越し、後勝ちで片方のフィールドが消える。
+  ///
+  /// static にはしない。プロセスをまたいで残る待ち行列は、テストのように
+  /// 実行環境が切り替わる場所で前の待ちを引きずって止まる。
   Future<void> _tail = Future.value();
 
   Future<T> _serialized<T>(Future<T> Function() operation) async {
@@ -220,9 +240,9 @@ class LearningProgressStore {
 
     final record = LearningProgressRecord(
       set: setSnapshot,
-      // 段は保存していなかったので、残っているまとめクイズから読み替える。
-      // 確認クイズは例文画面からいつでも開き直せるので、段は動かさない。
-      stage: summary != null ? LearningStage.summaryQuiz : LearningStage.sentence,
+      // 旧データに「確認クイズを受けた1本」は無い。カーソルの1本ぶんだけ
+      // 引き継ぐ（保存が残っている＝その1本の確認クイズを開いていた）。
+      confirmationQuizSentenceId: confirmation == null ? null : activeSentenceId,
       confirmationQuiz: confirmation,
       summaryQuiz: summary,
     );

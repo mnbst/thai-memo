@@ -11,6 +11,7 @@ import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/analytics_provider.dart';
 import 'package:thai_memo/presentation/providers/quiz_provider.dart';
+import 'package:thai_memo/services/learning_progress_store.dart';
 import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
 import 'package:thai_memo/presentation/providers/settings_provider.dart';
 import 'package:thai_memo/presentation/providers/vocab_stats_provider.dart';
@@ -144,7 +145,8 @@ Future<_QuizHarness> _pumpSummaryQuiz(
     analytics,
     () => lookupL10n(const Locale('ja')),
     databaseHelper: database,
-  );
+                       progressStore: LearningProgressStore(),
+                     );
   if (learningSentence != null) {
     await controller.startLearningQuiz(learningSentence);
   } else {

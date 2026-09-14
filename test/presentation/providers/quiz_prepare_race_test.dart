@@ -9,6 +9,7 @@ import 'package:thai_memo/data/models/quiz_question.dart';
 import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/quiz_provider.dart';
+import 'package:thai_memo/services/learning_progress_store.dart';
 
 import '../../helpers/fake_firebase.dart';
 
@@ -80,7 +81,8 @@ void main() {
       FakeAnalyticsService(),
       () => lookupL10n(const Locale('ja')),
       databaseHelper: _FakeDatabaseHelper(),
-    );
+                   progressStore: LearningProgressStore(),
+                 );
   });
 
   // サーバーは同じユーザーの生成をロックで直列化するので、2本同時に投げると

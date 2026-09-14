@@ -43,6 +43,7 @@ import '../../data/models/quiz_result.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../services/analytics_service.dart';
 import '../../services/learning_progress_store.dart';
+import 'daily_set_provider.dart';
 import 'analytics_provider.dart';
 import 'settings_provider.dart';
 
@@ -258,12 +259,13 @@ class QuizController extends StateNotifier<QuizState> {
     this._analytics,
     this._l10n, {
     DatabaseHelper? databaseHelper,
-    LearningProgressStore? progressStore,
+    required LearningProgressStore progressStore,
   })  : _db = databaseHelper ?? DatabaseHelper.instance,
-        _progress = progressStore ?? LearningProgressStore(),
+        _progress = progressStore,
         super(const QuizInitial());
 
-  /// カーソル・段と共有する学習レコード。クイズの保存先でもある。
+  /// 学習レコード。必須にしてあるのは、カーソル側と同じインスタンスを渡し忘れると
+  /// 同じレコードへの読み書きが二重の待ち行列になり、後勝ちで片方が消えるため。
   final LearningProgressStore _progress;
 
   /// 例文生成直後にバックグラウンドでクイズを事前生成する。
@@ -871,7 +873,7 @@ class QuizController extends StateNotifier<QuizState> {
     await _progress.update(
       (current) => switch (slot) {
         _QuizSlot.confirmation =>
-          current.copyWith(clearConfirmationQuiz: true),
+          current.copyWith(clearConfirmation: true),
         _QuizSlot.summary => current.copyWith(clearSummaryQuiz: true),
       },
     );
@@ -1022,6 +1024,9 @@ final quizControllerProvider =
     BackendApiService(lang: () => ref.read(appLanguageProvider).code),
     ref.watch(analyticsServiceProvider),
     () => ref.read(l10nProvider),
+    // カーソル・段と同じインスタンスを共有する。別々に持つと、同じレコードへの
+    // 読み書きが二重の待ち行列になる。
+    progressStore: ref.read(learningProgressStoreProvider),
   );
 });
 

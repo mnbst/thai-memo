@@ -9,6 +9,7 @@ import 'package:thai_memo/data/datasources/local/database_helper.dart';
 import 'package:thai_memo/data/models/quiz_question.dart';
 import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/presentation/providers/quiz_provider.dart';
+import 'package:thai_memo/services/learning_progress_store.dart';
 
 import '../../helpers/fake_firebase.dart';
 
@@ -79,7 +80,8 @@ void main() {
       analytics,
       () => lookupL10n(const Locale('ja')),
       databaseHelper: _FakeDatabaseHelper(),
-    );
+                   progressStore: LearningProgressStore(),
+                 );
   });
 
   test('学習クイズはstartedと最初のansweredだけを導線source付きで送る', () async {
@@ -157,7 +159,8 @@ void main() {
       errorAnalytics,
       () => lookupL10n(const Locale('ja')),
       databaseHelper: _FakeDatabaseHelper(),
-    );
+                              progressStore: LearningProgressStore(),
+                            );
     const source = 'learning_quiz_inline_v1';
 
     await errorController.startLearningQuiz(_sentence, offerSource: source);

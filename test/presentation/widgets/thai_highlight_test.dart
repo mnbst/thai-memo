@@ -52,6 +52,44 @@ void main() {
       expect(_highlighted(span), ['และ']);
     });
 
+    test('ไม้ยมก（ๆ）の前のスペースが食い違っても光る', () {
+      // 例文は「จริงๆ」（詰める）、学習単語と単語分解は「จริง ๆ」（空ける）と
+      // 表記が割れることがある。タイ語ではどちらも同じ語なので、スペースの
+      // 有無で光らなくなるのはこちらの都合でしかない。
+      final span = buildHighlightedThaiText(
+        'งานโปรเจกต์นี้ยาก จริงๆ ทุกวัน',
+        const ['จริง ๆ'],
+        _base,
+        gold,
+        words: [
+          _word('งาน', 'ngaan'),
+          _word('โปรเจกต์', 'proo-jèek'),
+          _word('นี้', 'níi'),
+          _word('ยาก', 'yâak'),
+          _word('จริง ๆ', 'jing-jing'),
+          _word('ทุกวัน', 'thúk wan'),
+        ],
+      );
+
+      expect(_highlighted(span), ['จริงๆ']);
+    });
+
+    test('例文側が空けていて学習単語が詰めていても光る', () {
+      final span = buildHighlightedThaiText(
+        'ยาก จริง ๆ นะ',
+        const ['จริงๆ'],
+        _base,
+        gold,
+        words: [
+          _word('ยาก', 'yâak'),
+          _word('จริงๆ', 'jing-jing'),
+          _word('นะ', 'ná'),
+        ],
+      );
+
+      expect(_highlighted(span), ['จริง ๆ']);
+    });
+
     test('単語分解が無ければ従来どおり全ての一致を光らせる', () {
       final span = buildHighlightedThaiText(
         'และและ',
@@ -108,6 +146,25 @@ void main() {
 
       // lɛ́ɛw の頭ではなく、単語として現れる lɛ́ だけ。
       expect(lit, ['lɛ́']);
+    });
+
+    test('ไม้ยมก の前のスペースが食い違っても読みを引ける', () {
+      final span = buildHighlightedPronunciation(
+        ThaiSentence(
+          id: 's',
+          thaiText: 'ยาก จริงๆ',
+          pronunciation: 'yâak jing-jing',
+          japaneseTranslation: '',
+          targetWords: const ['จริงๆ'],
+          wordBreakdowns: [
+            _word('ยาก', 'yâak'),
+            _word('จริง ๆ', 'jing-jing'),
+          ],
+        ),
+        _base,
+      );
+
+      expect(_tinted(span, gold), ['jing-jing']);
     });
 
     test('多音節語は語まるごとで光る', () {
