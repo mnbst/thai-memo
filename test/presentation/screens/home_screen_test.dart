@@ -5,6 +5,7 @@ import 'package:thai_memo/presentation/providers/daily_set_provider.dart';
 import 'package:thai_memo/presentation/screens/home_screen.dart';
 import 'package:thai_memo/presentation/screens/learning_screen.dart';
 import 'package:thai_memo/services/daily_sentence_service.dart';
+import 'package:thai_memo/services/learning_progress_store.dart';
 
 ThaiSentence _sentence(String id) => ThaiSentence(
       id: id,
@@ -38,6 +39,30 @@ void main() {
     test('解いた1本がカーソルと違えば進めない', () {
       expect(
         shouldAdvanceDailySetCursor(set: active, answered: _sentence('c')),
+        isFalse,
+      );
+    });
+
+    test('まとめクイズを解き終えたら、確認クイズの記録が無くても次のセットへ進む', () {
+      // まとめクイズを始めるときの reset() で answered が落ちる。ここで
+      // 進めないと同じセットの最後の1本へ戻り、まとめクイズを繰り返す。
+      expect(
+        shouldAdvanceDailySetCursor(
+          set: DailySetState(sentences: sentences, index: 2),
+          answered: null,
+          stage: LearningStage.summaryQuiz,
+        ),
+        isTrue,
+      );
+    });
+
+    test('最後の1本まで来ていないまとめクイズの復元では進めない', () {
+      expect(
+        shouldAdvanceDailySetCursor(
+          set: active,
+          answered: null,
+          stage: LearningStage.summaryQuiz,
+        ),
         isFalse,
       );
     });

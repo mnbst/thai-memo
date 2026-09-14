@@ -115,6 +115,9 @@ class _NoopProgressStore implements DailySetProgressStore {
   Future<ThaiSentence?> fetchSentence(String id) async => null;
 
   @override
+  Future<DailySetRef?> fetchLatestDeliveredSet() async => null;
+
+  @override
   Future<DailySetProgressSnapshot?> merge(
     DailySetProgressSnapshot local,
   ) async =>

@@ -399,6 +399,23 @@ class DatabaseHelper {
     );
   }
 
+  /// [ids] のうち、クイズに答えた記録が残っている例文ID。
+  ///
+  /// 端末の進行位置を失ったときに「どこまで読んだか」を推定するために使う。
+  /// 確認クイズを受けた＝その1本は読み終えている、という対応で辿る。
+  Future<Set<String>> answeredSentenceIds(List<String> ids) async {
+    if (ids.isEmpty) return const {};
+    final db = await database;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    final rows = await db.rawQuery(
+      'SELECT DISTINCT ${DatabaseConstants.columnQuizSentenceId} AS id '
+      'FROM ${DatabaseConstants.tableQuizResults} '
+      'WHERE ${DatabaseConstants.columnQuizSentenceId} IN ($placeholders)',
+      ids,
+    );
+    return {for (final row in rows) row['id'] as String};
+  }
+
   /// Get quiz stats (total answers and correct count)
   Future<Map<String, int>> getQuizStats() async {
     final db = await database;

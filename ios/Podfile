@@ -33,6 +33,14 @@ target 'Runner' do
   use_frameworks!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  # Firestore をソースからビルドすると gRPC/BoringSSL/abseil のコンパイルで
+  # クリーンビルドが十数分かかる。プリコンパイル済みバイナリを使う。
+  # タグは Podfile.lock の FirebaseFirestore バージョンと必ず揃えること。
+  # 宣言は flutter_install_all_ios_pods の後（invertase の README の並び）。
+  pod 'FirebaseFirestore',
+      :git => 'https://github.com/invertase/firestore-ios-sdk-frameworks.git',
+      :tag => '12.15.0'
   target 'RunnerTests' do
     inherit! :search_paths
   end

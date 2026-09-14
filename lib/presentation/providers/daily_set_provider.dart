@@ -16,6 +16,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/thai_sentence.dart';
@@ -107,12 +108,59 @@ class DailySetController extends StateNotifier<DailySetState> {
   Future<void>? _restoreFuture;
 
   Future<void> _restore() async {
-    await _apply((await _progress.load()).set);
+    final snapshot = (await _progress.load()).set;
+    await _apply(snapshot);
     if (!mounted) return;
     // 進行中セットが残っていなければ、待機列の先頭を今日のセットに繰り上げる。
     if (!state.isActive) await _promotePendingIfAny();
     if (!mounted) return;
+    // 端末の記録がまるごと無いときだけ、配信docから組み直す。
+    if (!state.isActive && snapshot.isEmpty) await _reconstructFromDelivery();
+    if (!mounted) return;
     await _persist();
+  }
+
+  /// 進行位置を失った端末で、直近の配信セットとカーソルを組み直す。
+  ///
+  /// 1.4.9 以前の分割キーを読み落としたビルドを経由すると、端末の記録だけが
+  /// 消えて例文はローカルDBに残る。この状態は取り込み経路からは救えない
+  /// （DailySentenceService は未取り込みの配信しか返さない）ので、配信docを
+  /// 直接引き直す。
+  ///
+  /// 対象は「例文がすべてローカルDBに揃っているセット」だけに絞る。新規
+  /// インストールはDBが空なので、ここでは何もせず通常の取り込みへ落ちる。
+  Future<void> _reconstructFromDelivery() async {
+    final repository = _repository;
+    final ref = await _progressStore.fetchLatestDeliveredSet();
+    if (ref == null || !mounted) return;
+
+    final sentences = <ThaiSentence>[];
+    for (final id in ref.sentenceIds) {
+      final local = await repository.getSentenceById(id);
+      // 1本でも欠けていれば、このセットは「読んだ記録が残っている過去の
+      // セット」ではない。取り込み経路に任せる。
+      if (local == null) return;
+      sentences.add(local);
+    }
+    if (sentences.length < 2 || !mounted) return;
+
+    // どこまで読んだかはクイズの記録から推す。確認クイズを受けた最後の1本の
+    // 次が、次に読むべき1本。
+    final answered = await repository.answeredSentenceIds(ref.sentenceIds);
+    if (!mounted) return;
+    final resumeAt = resumeIndexFromAnswers(ref.sentenceIds, answered);
+    if (resumeAt >= sentences.length) {
+      // 最後まで受け終わっている。完了として覚え、復活させない。
+      _markCompleted(ref.setId);
+      return;
+    }
+
+    state = DailySetState(
+      setId: ref.setId,
+      sentences: sentences,
+      index: resumeAt,
+      pendingSets: state.pendingSets,
+    );
   }
 
   /// Firestore の正本を取り込み、別端末で進んだカーソルや待機セットを反映する。
@@ -465,6 +513,19 @@ class DailySetController extends StateNotifier<DailySetState> {
     if (remote != null) await repository.saveSentence(remote);
     return remote;
   }
+}
+
+/// 答えた記録のある最後の1本の「次」を、再開位置として返す。
+///
+/// 記録が飛び飛びでも、いちばん先の1本を基準にする（途中の1本だけ答えずに
+/// 進んでいることがある）。1本も無ければ先頭から。
+@visibleForTesting
+int resumeIndexFromAnswers(List<String> sentenceIds, Set<String> answered) {
+  var furthest = -1;
+  for (var i = 0; i < sentenceIds.length; i++) {
+    if (answered.contains(sentenceIds[i])) furthest = i;
+  }
+  return furthest + 1;
 }
 
 final dailySetProgressStoreProvider = Provider<DailySetProgressStore>((ref) {
