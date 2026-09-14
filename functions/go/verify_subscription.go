@@ -146,13 +146,7 @@ func runVerification(
 		autoRenewing = res.AutoRenewing
 		identifierField = "subscription.purchase_token"
 		identifierValue = purchaseToken
-		subscription = map[string]any{
-			"product_id": productID,
-			"platform":   "android",
-			// RTDN（Google Play通知）での検索に使用
-			"purchase_token": purchaseToken,
-			"lifetime":       false,
-		}
+		subscription = subscriptionRecord("android", productID, purchaseToken)
 	} else {
 		lifetime := isLifetimeProduct(productID)
 
@@ -177,16 +171,7 @@ func runVerification(
 		autoRenewing = res.AutoRenewing
 		identifierField = "subscription.original_transaction_id"
 		identifierValue = res.OriginalTransactionID
-		subscription = map[string]any{
-			"product_id": productID,
-			"platform":   "ios",
-			// App Store通知での検索に使用
-			"original_transaction_id": res.OriginalTransactionID,
-			// 期限切れフォールバック（dailyBatch / subscriptionStatus）に
-			// 「expires_at が無くても落とすな」と伝える目印。
-			// 月額へ戻ったときに残らないよう、常に書く。
-			"lifetime": lifetime,
-		}
+		subscription = subscriptionRecord("ios", productID, res.OriginalTransactionID)
 	}
 
 	newTier := "premium"
@@ -217,6 +202,31 @@ func runVerification(
 		out["expires_at"] = expiresAt.UTC().Format(isoMillisLayout)
 	}
 	return out, nil
+}
+
+// subscriptionRecord は verifySubscription が Firestore へ書くサブスク記録。
+// identifier はストア通知でユーザーを引くためのキー（Play は purchaseToken、
+// App Store は originalTransactionId）。
+//
+// lifetime（期限切れフォールバックに「expires_at が無くても落とすな」と
+// 伝える目印）は、買い切りを検証したときだけ true を書く。月額の検証で
+// false を書くと、買い切り購入者・無償移行者の自動更新ぶんが検証された
+// 時点で印が消え、そのあと解約したときに free へ落ちてしまう。印を外すのは
+// 買い切りそのものの返金・取消（REFUND / REVOKE 通知）だけ。
+func subscriptionRecord(platform, productID, identifier string) map[string]any {
+	record := map[string]any{
+		"product_id": productID,
+		"platform":   platform,
+	}
+	if platform == "android" {
+		record["purchase_token"] = identifier
+	} else {
+		record["original_transaction_id"] = identifier
+	}
+	if isLifetimeProduct(productID) {
+		record["lifetime"] = true
+	}
+	return record
 }
 
 // projectIDPremiumProducts は環境（GCP プロジェクト）ごとに販売している商品 ID。

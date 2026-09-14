@@ -131,6 +131,29 @@ void main() {
       expect(purchase.restoreCalled, isTrue);
       expect(controller.state.isPremium, isTrue);
     });
+
+    // 購読して初めて購入イベントが届く。ペイウォールを開いたときだけ購読して
+    // いると、検証に失敗したまま完了していない購入が回収されない。
+    test('サインイン済みなら起動時に購入ストリームを購読する', () async {
+      auth.user = FakeUser(uid: 'linked-uid', isAnonymous: false);
+      firestore.users['linked-uid'] = {'tier': 'premium', 'subscription': {}};
+
+      await controller.initialize();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(purchase.initializeCalls, 1);
+      // 商品情報までは取りに行かない（起動を待たせない）
+      expect(purchase.fetchProductCalls, 0);
+    });
+
+    test('匿名ユーザーでは購入ストリームを購読しない', () async {
+      auth.user = FakeUser(uid: 'anon-uid', isAnonymous: true);
+
+      await controller.initialize();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(purchase.initializeCalls, 0);
+    });
   });
 
   group('purchase / restore のサインインガード', () {
