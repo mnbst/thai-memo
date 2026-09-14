@@ -248,13 +248,17 @@ class LearningProgressStore {
     );
 
     await prefs.setString(key, jsonEncode(record.toJson()));
-    for (final name in [
-      legacySetKey,
-      legacyConfirmationQuizKey,
-      legacySummaryQuizKey,
-      ...legacySplitKeys,
-    ]) {
-      await prefs.remove(name);
+    // 畳めたときだけ旧キーを捨てる。空のまま消すと、読み落としの不具合が
+    // 「消えた」に変わって取り返しがつかなくなる（残しても数KBに満たない）。
+    if (record.set.active != null) {
+      for (final name in [
+        legacySetKey,
+        legacyConfirmationQuizKey,
+        legacySummaryQuizKey,
+        ...legacySplitKeys,
+      ]) {
+        await prefs.remove(name);
+      }
     }
     return record;
   }
@@ -296,9 +300,16 @@ class LearningProgressStore {
       // 壊れていれば待機列は諦める。進行中セットの復元は続ける。
     }
 
-    final active = (setId != null && setId.isNotEmpty && ids.isNotEmpty)
-        ? DailySetRef(setId: setId, sentenceIds: ids)
-        : null;
+    // setId は 1.4.9 以前の端末には無い（Firestore doc のフィールド名で、
+    // SharedPreferences には書いていなかった）。無いことを理由に並びごと
+    // 捨てると、上げた瞬間に進行中のセットが消えてセット表示が出なくなる。
+    // 突き合わせに使うだけなので、先頭の例文IDを識別子に充てる。
+    final active = ids.isEmpty
+        ? null
+        : DailySetRef(
+            setId: (setId != null && setId.isNotEmpty) ? setId : ids.first,
+            sentenceIds: ids,
+          );
     return DailySetProgressSnapshot(
       active: active,
       activeSentenceId: active != null && cursor >= 0 && cursor < ids.length

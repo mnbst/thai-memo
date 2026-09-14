@@ -154,6 +154,16 @@ class SentenceRepository {
     }
   }
 
+  /// 進行位置の再構成用。クイズに答えた記録のある例文IDを絞り込む。
+  Future<Set<String>> answeredSentenceIds(List<String> ids) async {
+    try {
+      return await _databaseHelper.answeredSentenceIds(ids);
+    } catch (e) {
+      // 推定に使うだけなので、読めなければ「答えた記録なし」で先へ進める。
+      return const {};
+    }
+  }
+
   /// Get all sentences from the database
   Future<List<ThaiSentence>> getAllSentences() async {
     try {

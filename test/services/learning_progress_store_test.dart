@@ -150,4 +150,36 @@ void main() {
     expect(prefs.getString(LearningProgressStore.legacySetKey), isNull);
     expect(prefs.getStringList('daily_set_ids'), isNull);
   });
+
+  // 1.4.9 以前の端末は setId を持たない（Firestore doc のフィールドで、
+  // 端末には書いていなかった）。無いことを理由に並びごと捨てると、
+  // 上げた瞬間に進行中のセットが消える。
+  test('1.4.9 の分割キーは setId が無くても復元する', () async {
+    SharedPreferences.setMockInitialValues({
+      'daily_set_ids': ['a', 'b', 'c'],
+      'daily_set_cursor': 1,
+    });
+    final store = LearningProgressStore();
+
+    final record = await store.load();
+
+    expect(record.set.active?.sentenceIds, ['a', 'b', 'c']);
+    expect(record.set.activeSentenceId, 'b');
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getStringList('daily_set_ids'), isNull);
+  });
+
+  test('畳めなかったときは旧キーを消さない', () async {
+    SharedPreferences.setMockInitialValues({
+      'daily_set_cursor': 2,
+    });
+    final store = LearningProgressStore();
+
+    final record = await store.load();
+
+    expect(record.set.active, isNull);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getInt('daily_set_cursor'), 2);
+  });
 }

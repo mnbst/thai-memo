@@ -143,6 +143,14 @@ abstract class DailySetProgressStore {
 
   /// 配信docから例文を引き直す。ローカルDBは呼び出し側が先に見る。
   Future<ThaiSentence?> fetchSentence(String id);
+
+  /// 直近の配信セットの並びを配信docから組み直す。進行位置を失った端末を
+  /// 救うためだけの経路で、取り込み済みかどうかは問わない（取り込み済みの
+  /// 配信は DailySentenceService.syncAll が返さないので、そこからは辿れない）。
+  ///
+  /// 既定は「組み直さない」。救済はクラウドの配信docを持つ実装だけの仕事で、
+  /// 通常の復元経路はこれに依存しない。
+  Future<DailySetRef?> fetchLatestDeliveredSet() async => null;
 }
 
 class FirestoreDailySetProgressStore implements DailySetProgressStore {
@@ -192,6 +200,58 @@ class FirestoreDailySetProgressStore implements DailySetProgressStore {
       return null;
     }
   }
+
+  @override
+  Future<DailySetRef?> fetchLatestDeliveredSet() async {
+    final collection = _userCollection('sentences');
+    if (collection == null) return null;
+    try {
+      // 絞り込みは取り込み経路（DailySentenceService）と同じ形にする。
+      // 別の形にすると複合インデックスをもう1本作ることになる。
+      final since = DateTime.now().subtract(
+        const Duration(days: deliveredSetLookbackDays),
+      );
+      final snapshot = await collection
+          .where('daily', isEqualTo: true)
+          .where('created_at', isGreaterThan: Timestamp.fromDate(since))
+          .get();
+
+      final docs = [
+        for (final doc in snapshot.docs) MapEntry(doc.id, doc.data()),
+      ];
+      return latestDeliveredSetRef(docs);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+/// 配信docの束から、いちばん新しいセットの並びを取り出す。
+///
+/// セットの新しさは、そのセットに属する doc の created_at の最大で測る。
+/// 並びは DailySentenceService と同じ daily_set_index の昇順。
+DailySetRef? latestDeliveredSetRef(
+  List<MapEntry<String, Map<String, dynamic>>> docs,
+) {
+  final newest = <String, DateTime>{};
+  for (final doc in docs) {
+    final setId = DailySentenceService.setIdOf(doc.key, doc.value);
+    final createdAt = doc.value['created_at'];
+    final date = createdAt is Timestamp
+        ? createdAt.toDate()
+        : DateTime.fromMillisecondsSinceEpoch(0);
+    final previous = newest[setId];
+    if (previous == null || date.isAfter(previous)) newest[setId] = date;
+  }
+  if (newest.isEmpty) return null;
+
+  final latestSetId = newest.entries
+      .reduce((a, b) => a.value.isAfter(b.value) ? a : b)
+      .key;
+  final members = DailySentenceService.orderSetMembers(latestSetId, docs);
+  final ids = [for (final member in members) member.key];
+  if (ids.isEmpty) return null;
+  return DailySetRef(setId: latestSetId, sentenceIds: ids);
 }
 
 /// 端末間競合を単調にマージする。完了済みは復活させず、同一セットの位置は

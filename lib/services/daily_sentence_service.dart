@@ -26,6 +26,10 @@ import '../data/sentence_repository.dart';
 ///
 /// サーバーは1回の配信で例文を複数本（1.4.8以降は5本）書き込み、通知は1通だけ送る。
 /// クライアントはこれを1サイクル（例文→確認クイズ→…→まとめクイズ）として消化する。
+/// 配信docを遡って見る日数。取り込みと、進行位置の再構成で同じ窓を使う。
+/// サーバー側の保持期間いっぱいまで見て、再インストール後も待機列を再構築する。
+const int deliveredSetLookbackDays = 30;
+
 class DailySentenceSet {
   const DailySentenceSet({required this.setId, required this.sentences});
 
@@ -54,7 +58,7 @@ class DailySentenceService {
 
   /// 直近この日数ぶんの配信を取り込み対象にする。
   /// サーバー側の保持期間いっぱいまで見て、再インストール後も待機列を再構築する。
-  static const _lookbackDays = 30;
+  static const _lookbackDays = deliveredSetLookbackDays;
 
   /// 起動時・フォアグラウンド復帰時に呼ぶ。失敗しても学習の妨げにならないよう握り潰す。
   ///
@@ -172,7 +176,7 @@ class DailySentenceService {
       final bySet =
           <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
       for (final doc in snapshot.docs) {
-        bySet.putIfAbsent(_setIdOf(doc.id, doc.data()), () => []).add(doc);
+        bySet.putIfAbsent(setIdOf(doc.id, doc.data()), () => []).add(doc);
       }
 
       // 未取り込みの docs を含むセットだけが「新しく届いた」対象。
@@ -248,18 +252,19 @@ class DailySentenceService {
   }
 
   /// setId に属するドキュメントを配信順（daily_set_index の昇順）に並べる。
-  @visibleForTesting
+  /// 進行位置の再構成（daily_set_progress_store）からも使う。
   static List<MapEntry<String, Map<String, dynamic>>> orderSetMembers(
     String setId,
     List<MapEntry<String, Map<String, dynamic>>> docs,
   ) {
-    return docs.where((doc) => _setIdOf(doc.key, doc.value) == setId).toList()
+    return docs.where((doc) => setIdOf(doc.key, doc.value) == setId).toList()
       ..sort((a, b) => _setIndexOf(a.value).compareTo(_setIndexOf(b.value)));
   }
 
   /// セットの識別子。1本ずつ配信していた頃のドキュメントには無いので、
   /// その場合は doc ID 自身を使って「1本だけのセット」として扱う。
-  static String _setIdOf(String docId, Map<String, dynamic> data) {
+  /// 配信docのセット識別子。旧形式（daily_set_id 無し）は doc 自身を1本のセットとして扱う。
+  static String setIdOf(String docId, Map<String, dynamic> data) {
     final setId = data['daily_set_id'];
     return (setId is String && setId.isNotEmpty) ? setId : docId;
   }
