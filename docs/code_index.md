@@ -116,7 +116,10 @@ lib/presentation/providers/sentence_provider.dart
 例文CRUD・生成状態のRiverpod StateNotifier。
 
 lib/presentation/providers/daily_set_provider.dart
-例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す。進行位置は SharedPreferences を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。
+例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す。進行位置は学習レコード（learning_progress_store）を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。読む1本が変わったときに、その1本に属していたクイズ保存と段を落とすのもここ。
+
+lib/services/learning_progress_store.dart
+学習の進み具合（セットのカーソル・いまの段・クイズの進行）を端末に1レコードで持つ。旧3キー（daily_set_progress / saved_confirmation_quiz / saved_summary_quiz）からの移行もここ。
 
 lib/presentation/providers/quiz_provider.dart
 クイズ状態管理（initial→pending→generating→ready→answering→result→summary）。保存した進行は持ち主（確認クイズ=例文ID / まとめクイズ=セットID）が今の対象と一致するときだけ復元する。

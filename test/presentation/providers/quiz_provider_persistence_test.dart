@@ -10,6 +10,7 @@ import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/quiz_provider.dart';
 import 'package:thai_memo/services/analytics_service.dart';
+import 'package:thai_memo/services/learning_progress_store.dart';
 
 const _savedSummaryQuizKey = 'saved_summary_quiz';
 const _savedConfirmationQuizKey = 'saved_confirmation_quiz';
@@ -113,6 +114,26 @@ QuizController _controller({
   );
 }
 
+/// 1.4.10 以前の端末に残っていた形。カーソルとクイズが別キーに入っている。
+String _legacyCursor({
+  required String setId,
+  required List<String> ids,
+  required String currentId,
+}) =>
+    jsonEncode({
+      'active': {'set_id': setId, 'sentence_ids': ids},
+      'active_index': ids.indexOf(currentId),
+      'active_sentence_id': currentId,
+      'pending': <dynamic>[],
+      'completed_set_ids': <String>[],
+    });
+
+/// いまの保存先（学習レコード）から、クイズの枠を読む。
+Future<Map<String, dynamic>?> _savedQuiz({required bool summary}) async {
+  final record = await LearningProgressStore().load();
+  return summary ? record.summaryQuiz : record.confirmationQuiz;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -123,8 +144,11 @@ void main() {
   test('旧result中間状態を次のQuizAnsweringへ復元しAPI生成しない', () async {
     final questions = [_question(1), _question(2), _question(3)];
     SharedPreferences.setMockInitialValues({
+      'daily_set_progress':
+          _legacyCursor(setId: 'set-a', ids: ['a', 'b'], currentId: 'b'),
       _savedSummaryQuizKey: jsonEncode({
         'phase': 'result',
+        'set_id': 'set-a',
         'questions': questions.map((question) => question.toJson()).toList(),
         'index': 0,
         'answers': [true],
@@ -138,7 +162,7 @@ void main() {
     );
     final controller = _controller(backend: backend);
 
-    expect(await controller.restoreSavedSummaryQuiz(setId: null), isTrue);
+    expect(await controller.restoreSavedSummaryQuiz(), isTrue);
 
     expect(backend.generateQuizCalls, 0);
     expect(controller.state, isA<QuizAnswering>());
@@ -155,8 +179,11 @@ void main() {
   test('旧result最終状態をQuizSummaryへ復元しAPI生成しない', () async {
     final questions = [_question(1), _question(2), _question(3)];
     SharedPreferences.setMockInitialValues({
+      'daily_set_progress':
+          _legacyCursor(setId: 'set-a', ids: ['a', 'b'], currentId: 'b'),
       _savedSummaryQuizKey: jsonEncode({
         'phase': 'result',
+        'set_id': 'set-a',
         'questions': questions.map((question) => question.toJson()).toList(),
         'index': 2,
         'answers': [true, false, true],
@@ -175,7 +202,7 @@ void main() {
       cachedStats: cachedStats,
     );
 
-    expect(await controller.restoreSavedSummaryQuiz(setId: null), isTrue);
+    expect(await controller.restoreSavedSummaryQuiz(), isTrue);
 
     expect(backend.generateQuizCalls, 0);
     expect(controller.state, isA<QuizSummary>());
@@ -199,6 +226,11 @@ void main() {
       explanation: 'タイ語',
     );
     SharedPreferences.setMockInitialValues({
+      'daily_set_progress': _legacyCursor(
+        setId: 'set-a',
+        ids: ['sentence-legacy', 'b'],
+        currentId: 'sentence-legacy',
+      ),
       _savedConfirmationQuizKey: jsonEncode({
         'sentence_id': 'sentence-legacy',
         'questions': [savedQuestion.toJson()],
@@ -235,10 +267,7 @@ void main() {
     // 保存キューの完了を待ち、result保存が次問題のanswering保存を
     // 後から上書きしないことも同時に確認する。
     await controller.waitForSavedQuizWrites();
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_savedSummaryQuizKey);
-    expect(raw, isNotNull);
-    final saved = jsonDecode(raw!) as Map<String, dynamic>;
+    final saved = (await _savedQuiz(summary: true))!;
 
     expect(saved['phase'], 'answering');
     expect(saved['index'], 1);
@@ -256,49 +285,190 @@ void main() {
         ]));
   });
 
-  test('別のセットで保存されたまとめクイズは復元しない', () async {
-    // 終わったセットの保存が残っていても、持ち主が違えば開かない。消し忘れが
-    // あっても、終わったクイズの結果画面から学習が再開することはない。
-    SharedPreferences.setMockInitialValues({
-      _savedSummaryQuizKey: jsonEncode({
-        'phase': 'summary',
-        'set_id': 'set-old',
-        'questions': [_question(1).toJson()],
-        'answers': [true],
-      }),
+  group('現行形式の保存と復元の往復', () {
+    // 旧形式の読み込みテストはあるが、いま書いた保存をいま読む経路が無かった。
+    // 保存の形をこの先まとめるので、畳む前の振る舞いをここで固定する。
+    _CountingBackendApiService backend() => _CountingBackendApiService(
+          summaryFallback: [_question(1), _question(2)],
+          learningFallback: [_question(8)],
+        );
+
+    test('回答中のまとめクイズは同じ位置から再開する', () async {
+      final controller = _controller(backend: backend());
+      await controller.generateAndStartQuiz();
+      await controller.answerQuestion(0);
+      await controller.nextQuestion();
+      expect(controller.state, isA<QuizAnswering>());
+      await controller.waitForSavedQuizWrites();
+
+      final restored = _controller(backend: backend());
+      expect(await restored.restoreSavedSummaryQuiz(), isTrue);
+      final state = restored.state as QuizAnswering;
+      expect(state.index, 1);
+      expect(state.answers, [true]);
     });
-    final controller = _controller(
-      backend: _CountingBackendApiService(
-        summaryFallback: [_question(99)],
-        learningFallback: [_question(98)],
-      ),
-    );
 
-    expect(await controller.restoreSavedSummaryQuiz(setId: 'set-new'), isFalse);
-    expect(controller.state, isA<QuizInitial>());
+    test('結果表示中のまとめクイズは次の問題から再開する', () async {
+      final controller = _controller(backend: backend());
+      await controller.generateAndStartQuiz();
+      await controller.answerQuestion(0);
+      expect(controller.state, isA<QuizShowResult>());
+      await controller.waitForSavedQuizWrites();
 
-    // 同じセットなら続きから開く。
-    expect(await controller.restoreSavedSummaryQuiz(setId: 'set-old'), isTrue);
-    expect(controller.state, isA<QuizSummary>());
+      final restored = _controller(backend: backend());
+      expect(await restored.restoreSavedSummaryQuiz(), isTrue);
+      final state = restored.state as QuizAnswering;
+      expect(state.index, 1);
+      expect(state.answers, [true]);
+    });
+
+    test('終わったまとめクイズは結果画面のまま再開する', () async {
+      // 「結果画面で離脱して再起動したら、まとめクイズをやり直しになる」の
+      // 保存側。ここが壊れていないことを先に固定しておく。
+      final controller = _controller(backend: backend());
+      await controller.generateAndStartQuiz();
+      await controller.answerQuestion(0);
+      await controller.nextQuestion();
+      await controller.answerQuestion(0);
+      await controller.nextQuestion();
+      expect(controller.state, isA<QuizSummary>());
+      await controller.waitForSavedQuizWrites();
+
+      final restored = _controller(backend: backend());
+      expect(await restored.restoreSavedSummaryQuiz(), isTrue);
+      final state = restored.state as QuizSummary;
+      expect(state.answers, [true, true]);
+      expect(state.totalCorrect, 2);
+      expect(restored.state, isA<QuizSummary>());
+    });
   });
 
-  test('持ち主を持たない旧データのまとめクイズは復元しない', () async {
-    // 1.4.10 以前の保存にはセットIDが無い。どのセットのものか分からないので、
-    // 開かずに捨てる（次のまとめクイズで上書きされる）。
-    SharedPreferences.setMockInitialValues({
-      _savedSummaryQuizKey: jsonEncode({
-        'phase': 'summary',
-        'questions': [_question(1).toJson()],
-        'answers': [true],
-      }),
-    });
-    final controller = _controller(
-      backend: _CountingBackendApiService(
-        summaryFallback: [_question(99)],
-        learningFallback: [_question(98)],
-      ),
-    );
+  group('保存の後始末', () {
+    test('reset は確認クイズもまとめクイズも保存を消す', () async {
+      final controller = _controller(
+        backend: _CountingBackendApiService(
+          summaryFallback: [_question(1), _question(2)],
+          learningFallback: [_question(3)],
+        ),
+      );
+      await controller.generateAndStartQuiz();
+      await controller.prepareQuiz(_learningSentence);
+      await controller.waitForSavedQuizWrites();
+      expect(await _savedQuiz(summary: true), isNotNull);
+      expect(await _savedQuiz(summary: false), isNotNull);
 
-    expect(await controller.restoreSavedSummaryQuiz(setId: 'set-new'), isFalse);
+      controller.reset();
+      await controller.waitForSavedQuizWrites();
+
+      expect(await _savedQuiz(summary: true), isNull);
+      expect(await _savedQuiz(summary: false), isNull);
+      expect(controller.state, isA<QuizInitial>());
+    });
+
+    test('確認クイズの保存は対象の例文が一致しなければ使わない', () async {
+      // まとめクイズ側（set_id）には2件あるが、確認クイズ側（sentence_id）の
+      // 照合を押さえたものが無かった。
+      final backend = _CountingBackendApiService(
+        summaryFallback: [_question(1)],
+        learningFallback: [_question(5)],
+      );
+      final controller = _controller(backend: backend);
+      await controller.prepareQuiz(_learningSentence);
+      await controller.waitForSavedQuizWrites();
+
+      expect(await _savedQuiz(summary: false), isNotNull);
+      expect(controller.hasQuizFor(_learningSentence.id), isTrue);
+      expect(controller.hasQuizFor('sentence-other'), isFalse);
+
+      // 別の例文で開いたら、保存は使わずその例文のぶんを作り直す。
+      final other = ThaiSentence(
+        id: 'sentence-other',
+        thaiText: 'ผมหิว',
+        pronunciation: 'phom hiu',
+        japaneseTranslation: 'お腹がすいた',
+        wordBreakdowns: const [],
+      );
+      await controller.startLearningQuiz(other);
+
+      expect(backend.generateLearningQuizCalls, 2);
+      expect(controller.state, isA<QuizAnswering>());
+    });
+  });
+
+  group('1.4.10 以前の保存からの移行', () {
+    // 旧版はクイズを別キーに置き、持ち主（セットID・例文ID）を保存へ添えて
+    // 突き合わせていた。いまは学習レコードに畳むので、突き合わせるのは
+    // 畳むときの1回だけ。持ち主が違うものは引き継がない。
+    Map<String, Object> legacy({
+      required String cursorSetId,
+      required String savedSetId,
+    }) =>
+        {
+          'daily_set_progress': jsonEncode({
+            'active': {
+              'set_id': cursorSetId,
+              'sentence_ids': ['a', 'b'],
+            },
+            'active_index': 0,
+            'active_sentence_id': 'a',
+            'pending': <dynamic>[],
+            'completed_set_ids': <String>[],
+          }),
+          _savedSummaryQuizKey: jsonEncode({
+            'phase': 'summary',
+            'set_id': savedSetId,
+            'questions': [_question(1).toJson()],
+            'answers': [true],
+          }),
+        };
+
+    test('終わったセットのまとめクイズは引き継がない', () async {
+      SharedPreferences.setMockInitialValues(
+        legacy(cursorSetId: 'set-new', savedSetId: 'set-old'),
+      );
+      final controller = _controller(
+        backend: _CountingBackendApiService(
+          summaryFallback: [_question(99)],
+          learningFallback: [_question(98)],
+        ),
+      );
+
+      expect(await controller.restoreSavedSummaryQuiz(), isFalse);
+      expect(controller.state, isA<QuizInitial>());
+    });
+
+    test('進行中セットのまとめクイズは続きから開く', () async {
+      SharedPreferences.setMockInitialValues(
+        legacy(cursorSetId: 'set-a', savedSetId: 'set-a'),
+      );
+      final controller = _controller(
+        backend: _CountingBackendApiService(
+          summaryFallback: [_question(99)],
+          learningFallback: [_question(98)],
+        ),
+      );
+
+      expect(await controller.restoreSavedSummaryQuiz(), isTrue);
+      expect(controller.state, isA<QuizSummary>());
+    });
+
+    test('持ち主を持たない旧データは引き継がない', () async {
+      // 1.4.9 以前の保存にはセットIDが無い。どのセットのものか分からない。
+      SharedPreferences.setMockInitialValues({
+        _savedSummaryQuizKey: jsonEncode({
+          'phase': 'summary',
+          'questions': [_question(1).toJson()],
+          'answers': [true],
+        }),
+      });
+      final controller = _controller(
+        backend: _CountingBackendApiService(
+          summaryFallback: [_question(99)],
+          learningFallback: [_question(98)],
+        ),
+      );
+
+      expect(await controller.restoreSavedSummaryQuiz(), isFalse);
+    });
   });
 }

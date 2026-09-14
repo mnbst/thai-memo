@@ -10,11 +10,10 @@ import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/remaining_quota_provider.dart';
+import '../../services/learning_progress_store.dart';
 import '../providers/review_prompt_provider.dart';
 import 'quiz_screen.dart';
 import 'today_screen.dart';
-
-enum _LearningStage { sentence, quiz, summaryQuiz }
 
 ///
 /// 進めてよいのは、いま表示している1本の確認クイズを解き終えたときだけ。
@@ -52,43 +51,58 @@ class LearningScreen extends ConsumerStatefulWidget {
 }
 
 class LearningScreenState extends ConsumerState<LearningScreen> {
-  _LearningStage _stage = _LearningStage.sentence;
+  LearningStage _stage = LearningStage.sentence;
   ThaiSentence? _quizSentence;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _restoreSavedSummaryQuizIfNeeded();
+      _restoreStage();
       ref.listenManual(sentenceControllerProvider, (prev, next) {
         if (prev is SentenceStateLoading &&
             next is SentenceStateSuccess &&
             next.generated &&
-            _stage == _LearningStage.sentence) {
+            _stage == LearningStage.sentence) {
           ref.read(quizControllerProvider.notifier).prepareQuiz(next.sentence);
         }
       });
     });
   }
 
-  /// 中断したまとめクイズがあれば、その続きから開く。
+  /// 前回閉じた段へ戻す。
   ///
-  /// 終わったセットの保存は復元されない（持ち主のセットIDで弾かれる）ので、
-  /// ここへ来るのは本当に途中だったときだけ。
-  Future<void> _restoreSavedSummaryQuizIfNeeded() async {
-    if (_stage != _LearningStage.sentence) return;
+  /// 段は学習レコードに入っていて、セットが変われば一緒に sentence へ戻る
+  /// （DailySetController._saveLocal）。ここへ来るのは本当に途中だったときだけ。
+  Future<void> _restoreStage() async {
+    if (_stage != LearningStage.sentence) return;
+    // カーソルの復元を待つ。レコードを読むのはその後でよい。
+    await ref.read(dailySetProvider.notifier).restored;
+    if (!mounted || _stage != LearningStage.sentence) return;
+
+    final record = await ref.read(learningProgressStoreProvider).load();
+    // 確認クイズの段は戻さない。例文画面から開き直せば保存した1問がそのまま
+    // 続くので、起動直後にクイズ画面を出すほどのものではない。
+    if (record.stage != LearningStage.summaryQuiz || !mounted) return;
+
     final restored = await ref
         .read(quizControllerProvider.notifier)
-        .restoreSavedSummaryQuiz(setId: ref.read(dailySetProvider).setId);
+        .restoreSavedSummaryQuiz();
     if (!mounted || !restored) return;
-    _setStage(_LearningStage.summaryQuiz);
+    _setStage(LearningStage.summaryQuiz);
   }
 
   /// いま例文を読んでいる段か。クイズ中は本文を裏で差し替えない。
-  bool get isOnSentenceStage => _stage == _LearningStage.sentence;
+  bool get isOnSentenceStage => _stage == LearningStage.sentence;
 
-  void _setStage(_LearningStage newStage) {
+  void _setStage(LearningStage newStage) {
     setState(() => _stage = newStage);
+    // 段を保存するのは、結果画面や回答中で閉じた人を同じ場所へ戻すため。
+    unawaited(
+      ref
+          .read(learningProgressStoreProvider)
+          .update((record) => record.copyWith(stage: newStage)),
+    );
   }
 
   void _returnToLearningTop() {
@@ -96,13 +110,13 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
     if (sentence != null) {
       ref.read(sentenceControllerProvider.notifier).showSentence(sentence);
     }
-    _setStage(_LearningStage.sentence);
+    _setStage(LearningStage.sentence);
   }
 
   void showSentenceStage() {
     _quizSentence = null;
     ref.read(quizControllerProvider.notifier).reset();
-    _setStage(_LearningStage.sentence);
+    _setStage(LearningStage.sentence);
   }
 
   /// まとめクイズへ進む。セットの締めなので、ここは飛ばせない導線にする。
@@ -110,11 +124,9 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
     final quizNotifier = ref.read(quizControllerProvider.notifier);
     quizNotifier.reset();
     unawaited(
-      quizNotifier.generateAndStartQuiz(
-        setId: ref.read(dailySetProvider).setId,
-      ),
+      quizNotifier.generateAndStartQuiz(),
     );
-    _setStage(_LearningStage.summaryQuiz);
+    _setStage(LearningStage.summaryQuiz);
   }
 
   /// 次の例文へ進む。
@@ -128,7 +140,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
     if (!shouldAdvanceDailySetCursor(set: set, answered: _quizSentence) &&
         current != null) {
       // カーソルは動かさず、現在位置の1本を出すだけ。
-      _setStage(_LearningStage.sentence);
+      _setStage(LearningStage.sentence);
       ref.read(sentenceControllerProvider.notifier).showSentence(current);
       ref.read(quizControllerProvider.notifier).prepareQuiz(current);
       return;
@@ -140,13 +152,13 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
       return;
     }
     if (!mounted) return;
-    _setStage(_LearningStage.sentence);
+    _setStage(LearningStage.sentence);
     ref.read(sentenceControllerProvider.notifier).showSentence(next);
     ref.read(quizControllerProvider.notifier).prepareQuiz(next);
   }
 
   Future<void> _generateNextLearningSentence() async {
-    _setStage(_LearningStage.sentence);
+    _setStage(LearningStage.sentence);
     final genParams = ref.read(generationParamsProvider);
     await ref.read(sentenceControllerProvider.notifier).generateSentence(
           generationParams: genParams,
@@ -187,8 +199,8 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
     ref.listen(remainingSentencesProvider, (prev, next) {
       if (changedFromNoRemainingToAvailable(prev, next) &&
           mounted &&
-          _stage != _LearningStage.sentence) {
-        _setStage(_LearningStage.sentence);
+          _stage != LearningStage.sentence) {
+        _setStage(LearningStage.sentence);
       }
     });
 
@@ -198,7 +210,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
     final offerSummaryQuiz = ref.watch(dailySetProvider).isLast;
 
     return switch (_stage) {
-      _LearningStage.sentence => TodayScreen(
+      LearningStage.sentence => TodayScreen(
           onReload: widget.onReload,
           onStartQuiz: (sentence, offerSource) {
             _quizSentence = sentence;
@@ -214,10 +226,10 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
                 offerSource: offerSource,
               );
             }
-            _setStage(_LearningStage.quiz);
+            _setStage(LearningStage.confirmationQuiz);
           },
         ),
-      _LearningStage.quiz => Scaffold(
+      LearningStage.confirmationQuiz => Scaffold(
           appBar: AppBar(
             title: Text(l10n.navLearn),
             automaticallyImplyLeading: false,
@@ -238,7 +250,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
                 offerSummaryQuiz ? _startSummaryQuiz : _proceedToNextSentence,
           ),
         ),
-      _LearningStage.summaryQuiz => Scaffold(
+      LearningStage.summaryQuiz => Scaffold(
           appBar: AppBar(
             title: Text(l10n.learnSummaryQuizTitle),
             automaticallyImplyLeading: false,
