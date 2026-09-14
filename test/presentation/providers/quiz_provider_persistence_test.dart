@@ -138,7 +138,7 @@ void main() {
     );
     final controller = _controller(backend: backend);
 
-    await controller.generateAndStartQuiz();
+    expect(await controller.restoreSavedSummaryQuiz(setId: null), isTrue);
 
     expect(backend.generateQuizCalls, 0);
     expect(controller.state, isA<QuizAnswering>());
@@ -175,7 +175,7 @@ void main() {
       cachedStats: cachedStats,
     );
 
-    await controller.generateAndStartQuiz();
+    expect(await controller.restoreSavedSummaryQuiz(setId: null), isTrue);
 
     expect(backend.generateQuizCalls, 0);
     expect(controller.state, isA<QuizSummary>());
@@ -234,7 +234,7 @@ void main() {
 
     // 保存キューの完了を待ち、result保存が次問題のanswering保存を
     // 後から上書きしないことも同時に確認する。
-    expect(await controller.hasSavedSummaryQuiz(), isTrue);
+    await controller.waitForSavedQuizWrites();
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_savedSummaryQuizKey);
     expect(raw, isNotNull);
@@ -254,5 +254,51 @@ void main() {
           'hint_levels',
           'sentence_review_flags',
         ]));
+  });
+
+  test('別のセットで保存されたまとめクイズは復元しない', () async {
+    // 終わったセットの保存が残っていても、持ち主が違えば開かない。消し忘れが
+    // あっても、終わったクイズの結果画面から学習が再開することはない。
+    SharedPreferences.setMockInitialValues({
+      _savedSummaryQuizKey: jsonEncode({
+        'phase': 'summary',
+        'set_id': 'set-old',
+        'questions': [_question(1).toJson()],
+        'answers': [true],
+      }),
+    });
+    final controller = _controller(
+      backend: _CountingBackendApiService(
+        summaryFallback: [_question(99)],
+        learningFallback: [_question(98)],
+      ),
+    );
+
+    expect(await controller.restoreSavedSummaryQuiz(setId: 'set-new'), isFalse);
+    expect(controller.state, isA<QuizInitial>());
+
+    // 同じセットなら続きから開く。
+    expect(await controller.restoreSavedSummaryQuiz(setId: 'set-old'), isTrue);
+    expect(controller.state, isA<QuizSummary>());
+  });
+
+  test('持ち主を持たない旧データのまとめクイズは復元しない', () async {
+    // 1.4.10 以前の保存にはセットIDが無い。どのセットのものか分からないので、
+    // 開かずに捨てる（次のまとめクイズで上書きされる）。
+    SharedPreferences.setMockInitialValues({
+      _savedSummaryQuizKey: jsonEncode({
+        'phase': 'summary',
+        'questions': [_question(1).toJson()],
+        'answers': [true],
+      }),
+    });
+    final controller = _controller(
+      backend: _CountingBackendApiService(
+        summaryFallback: [_question(99)],
+        learningFallback: [_question(98)],
+      ),
+    );
+
+    expect(await controller.restoreSavedSummaryQuiz(setId: 'set-new'), isFalse);
   });
 }

@@ -23,11 +23,6 @@ import '../../data/sentence_repository.dart';
 import '../../services/daily_set_progress_store.dart';
 import 'sentence_provider.dart';
 
-/// まとめクイズまでの消化本数（LearningScreen が持つ）の保存キー。
-///
-/// セット開始でリセットしたいので、キーだけをここに置いて共有する。
-const String learningCompletedCountKey = 'learning_completed_count';
-
 class PendingDailySet {
   const PendingDailySet({required this.setId, required this.sentences});
 
@@ -159,7 +154,7 @@ class DailySetController extends StateNotifier<DailySetState> {
       sentences: sentences,
       pendingSets: state.pendingSets,
     );
-    await _startNewCycle();
+    await _persist();
   }
 
   /// 新着配信を受け取る。進行中なら表示を奪わず、次のセットとして保存する。
@@ -278,17 +273,8 @@ class DailySetController extends StateNotifier<DailySetState> {
       sentences: next.sentences,
       pendingSets: remaining,
     );
-    await _startNewCycle();
-    return next.sentences.first;
-  }
-
-  /// 新しいセットの1本目は必ず節目の起点。前のセットで積んだ本数を持ち越すと、
-  /// 1本目の確認クイズでいきなりまとめクイズへ誘導してしまう（閾値を変えた
-  /// バージョンアップ直後に起きた）。
-  Future<void> _startNewCycle() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(learningCompletedCountKey, 0);
     await _persist();
+    return next.sentences.first;
   }
 
   /// セットから抜けるときは必ず完了として記録する。記録が漏れると、Firestore に

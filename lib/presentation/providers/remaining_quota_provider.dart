@@ -214,3 +214,17 @@ final lifetimeMigrationOfferedProvider = FutureProvider<bool>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getBool(AppConfig.prefKeyLifetimeMigrationOffered) ?? false;
 });
+
+/// 残数が「0以下」から「正数」へ変わったか。日次リセット（dailyBatch）で
+/// クォータが戻った瞬間を拾うための判定で、画面とLearningScreenで共有する。
+bool changedFromNoRemainingToAvailable(
+  AsyncValue<int>? previous,
+  AsyncValue<int> next,
+) {
+  final previousRemaining = previous?.valueOrNull;
+  final nextRemaining = next.valueOrNull;
+  return previousRemaining != null &&
+      nextRemaining != null &&
+      previousRemaining <= 0 &&
+      nextRemaining > 0;
+}

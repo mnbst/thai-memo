@@ -1,0 +1,254 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../l10n/app_localizations.dart';
+import '../../data/models/thai_sentence.dart';
+import '../providers/daily_set_provider.dart';
+import '../providers/analytics_provider.dart';
+import '../providers/sentence_provider.dart';
+import '../providers/quiz_provider.dart';
+import '../providers/settings_provider.dart';
+import '../providers/remaining_quota_provider.dart';
+import '../providers/review_prompt_provider.dart';
+import 'quiz_screen.dart';
+import 'today_screen.dart';
+
+enum _LearningStage { sentence, quiz, summaryQuiz }
+
+///
+/// 進めてよいのは、いま表示している1本の確認クイズを解き終えたときだけ。
+/// [answered] が null なのは、確認クイズを経ずにここへ来たとき（終了済みの
+/// まとめクイズが再起動で復元され、その「次のセット」を押した場合など）で、
+/// 進めると読んでいない1本と、その確認クイズが飛ぶ。
+///
+/// 解いた1本がカーソルと違うときも進めない。別端末が先へ進めていた場合で、
+/// さらに advance すると間の1本を飛ばす。
+///
+/// セットを消化していないとき（自発生成・使い切り）は従来どおり進めてよい。
+@visibleForTesting
+bool shouldAdvanceDailySetCursor({
+  required DailySetState set,
+  required ThaiSentence? answered,
+}) {
+  if (!set.isActive) return true;
+  return answered != null && set.current?.id == answered.id;
+}
+
+class LearningScreen extends ConsumerStatefulWidget {
+  /// 初回の学習が一巡（まとめクイズ完了）した直後に呼ばれる。
+  /// 通知の案内を出してよいタイミング（まとめクイズの結果／その見送り）。
+
+  const LearningScreen({
+    super.key,
+  });
+
+  @override
+  ConsumerState<LearningScreen> createState() => LearningScreenState();
+}
+
+class LearningScreenState extends ConsumerState<LearningScreen> {
+  _LearningStage _stage = _LearningStage.sentence;
+  ThaiSentence? _quizSentence;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreSavedSummaryQuizIfNeeded();
+      ref.listenManual(sentenceControllerProvider, (prev, next) {
+        if (prev is SentenceStateLoading &&
+            next is SentenceStateSuccess &&
+            next.generated &&
+            _stage == _LearningStage.sentence) {
+          ref.read(quizControllerProvider.notifier).prepareQuiz(next.sentence);
+        }
+      });
+    });
+  }
+
+  /// 中断したまとめクイズがあれば、その続きから開く。
+  ///
+  /// 終わったセットの保存は復元されない（持ち主のセットIDで弾かれる）ので、
+  /// ここへ来るのは本当に途中だったときだけ。
+  Future<void> _restoreSavedSummaryQuizIfNeeded() async {
+    if (_stage != _LearningStage.sentence) return;
+    final restored = await ref
+        .read(quizControllerProvider.notifier)
+        .restoreSavedSummaryQuiz(setId: ref.read(dailySetProvider).setId);
+    if (!mounted || !restored) return;
+    _setStage(_LearningStage.summaryQuiz);
+  }
+
+  /// いま例文を読んでいる段か。クイズ中は本文を裏で差し替えない。
+  bool get isOnSentenceStage => _stage == _LearningStage.sentence;
+
+  void _setStage(_LearningStage newStage) {
+    setState(() => _stage = newStage);
+  }
+
+  void _returnToLearningTop() {
+    final sentence = _quizSentence;
+    if (sentence != null) {
+      ref.read(sentenceControllerProvider.notifier).showSentence(sentence);
+    }
+    _setStage(_LearningStage.sentence);
+  }
+
+  void showSentenceStage() {
+    _quizSentence = null;
+    ref.read(quizControllerProvider.notifier).reset();
+    _setStage(_LearningStage.sentence);
+  }
+
+  /// まとめクイズへ進む。セットの締めなので、ここは飛ばせない導線にする。
+  Future<void> _startSummaryQuiz() async {
+    final quizNotifier = ref.read(quizControllerProvider.notifier);
+    quizNotifier.reset();
+    unawaited(
+      quizNotifier.generateAndStartQuiz(
+        setId: ref.read(dailySetProvider).setId,
+      ),
+    );
+    _setStage(_LearningStage.summaryQuiz);
+  }
+
+  /// 次の例文へ進む。
+  ///
+  /// 配信セットに残りがあれば、そこから出すだけで生成しない（クォータもLLMも
+  /// 消費しない）。使い切ったら従来どおり生成へ落ちる。テーマの適用可否・
+  /// トライアル消費は controller 側で判定する。
+  Future<void> _proceedToNextSentence() async {
+    final set = ref.read(dailySetProvider);
+    final current = set.current;
+    if (!shouldAdvanceDailySetCursor(set: set, answered: _quizSentence) &&
+        current != null) {
+      // カーソルは動かさず、現在位置の1本を出すだけ。
+      _setStage(_LearningStage.sentence);
+      ref.read(sentenceControllerProvider.notifier).showSentence(current);
+      ref.read(quizControllerProvider.notifier).prepareQuiz(current);
+      return;
+    }
+
+    final next = await ref.read(dailySetProvider.notifier).advance();
+    if (next == null) {
+      await _generateNextLearningSentence();
+      return;
+    }
+    if (!mounted) return;
+    _setStage(_LearningStage.sentence);
+    ref.read(sentenceControllerProvider.notifier).showSentence(next);
+    ref.read(quizControllerProvider.notifier).prepareQuiz(next);
+  }
+
+  Future<void> _generateNextLearningSentence() async {
+    _setStage(_LearningStage.sentence);
+    final genParams = ref.read(generationParamsProvider);
+    await ref.read(sentenceControllerProvider.notifier).generateSentence(
+          generationParams: genParams,
+          count: learningSetSize,
+        );
+    final sentenceState = ref.read(sentenceControllerProvider);
+    if (sentenceState is SentenceStateSuccess) {
+      ref
+          .read(quizControllerProvider.notifier)
+          .prepareQuiz(sentenceState.sentence);
+      ref.invalidate(allSentencesProvider);
+      unawaited(_requestReviewAfterSentenceGenerated());
+    }
+  }
+
+  /// 例文が出た直後は満足度が高い。クイズまで進まない層への唯一の依頼機会
+  /// なので、生成の完了を待ってから静かに出す。
+  Future<void> _requestReviewAfterSentenceGenerated() async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted ||
+        ref.read(sentenceControllerProvider) is! SentenceStateSuccess) {
+      return;
+    }
+    final outcome = await ref
+        .read(reviewPromptServiceProvider)
+        .maybeRequestAfterSentenceGenerated();
+    unawaited(
+      ref.read(analyticsServiceProvider).logReviewPrompt(
+            source: 'sentence',
+            outcome: outcome.name,
+          ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
+    ref.listen(remainingSentencesProvider, (prev, next) {
+      if (changedFromNoRemainingToAvailable(prev, next) &&
+          mounted &&
+          _stage != _LearningStage.sentence) {
+        _setStage(_LearningStage.sentence);
+      }
+    });
+
+    // この確認クイズのサマリーでまとめクイズへ誘導するか。
+    // セットの最後の1本＝1サイクルの締め。本数を別に数えていた頃は、セットと
+    // 数えた本数が食い違うと節目がずれた。
+    final offerSummaryQuiz = ref.watch(dailySetProvider).isLast;
+
+    return switch (_stage) {
+      _LearningStage.sentence => TodayScreen(
+          onStartQuiz: (sentence, offerSource) {
+            _quizSentence = sentence;
+            final quizNotifier = ref.read(quizControllerProvider.notifier);
+            final quizState = ref.read(quizControllerProvider);
+
+            // 既に回答中/結果表示中ならそのまま再表示
+            if (quizState is QuizAnswering || quizState is QuizShowResult) {
+              // nothing
+            } else {
+              quizNotifier.startLearningQuiz(
+                sentence,
+                offerSource: offerSource,
+              );
+            }
+            _setStage(_LearningStage.quiz);
+          },
+        ),
+      _LearningStage.quiz => Scaffold(
+          appBar: AppBar(
+            title: Text(l10n.navLearn),
+            automaticallyImplyLeading: false,
+            actions: const [QuizProgressCounter()],
+          ),
+          body: QuizScreen(
+            showAppBar: false,
+            title: l10n.learnQuizTitle,
+            learningSentence: _quizSentence,
+            onBackToLearningStart: _returnToLearningTop,
+            // セットを消化しきったら、次は必ずまとめクイズ。以前は「挑戦する」
+            // という任意の導線で、通り過ぎると節目が来ないまま本数だけ伸びた。
+            // 5本＝1サイクルにした以上、締めを飛ばせる形にはしない。
+            nextButtonLabel: offerSummaryQuiz
+                ? l10n.learnGoToSummaryQuiz
+                : l10n.learnNextSentence,
+            onNextSentence:
+                offerSummaryQuiz ? _startSummaryQuiz : _proceedToNextSentence,
+          ),
+        ),
+      _LearningStage.summaryQuiz => Scaffold(
+          appBar: AppBar(
+            title: Text(l10n.learnSummaryQuizTitle),
+            automaticallyImplyLeading: false,
+            actions: const [QuizProgressCounter()],
+          ),
+          body: QuizScreen(
+            showAppBar: false,
+            title: l10n.learnSummaryQuizTitle,
+            showVocabScoreTransition: true,
+            // ここを抜けるとセットを使い切っているので、次は新しい5本を作る。
+            // 「次の例文へ」だと1本だけ足すように読めるので名前を分ける。
+            nextButtonLabel: l10n.learnNextSet,
+            onNextSentence: _proceedToNextSentence,
+          ),
+        ),
+    };
+  }
+}

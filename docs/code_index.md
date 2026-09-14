@@ -119,7 +119,7 @@ lib/presentation/providers/daily_set_provider.dart
 例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す。進行位置は SharedPreferences を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。
 
 lib/presentation/providers/quiz_provider.dart
-クイズ状態管理（initial→pending→generating→ready→answering→result→summary）。
+クイズ状態管理（initial→pending→generating→ready→answering→result→summary）。保存した進行は持ち主（確認クイズ=例文ID / まとめクイズ=セットID）が今の対象と一致するときだけ復元する。
 
 lib/presentation/providers/quiz_offer_experiment_provider.dart
 例文→1問確認クイズ導線のvariant定義。v1のA/Bテストはinlineカードで確定済み（全端末inline）。
@@ -148,7 +148,13 @@ lib/presentation/screens/splash_screen.dart
 アプリ初期化中のローディング画面。
 
 lib/presentation/screens/home_screen.dart
-メイン画面。3タブナビゲーション（今日/履歴/設定）。
+メイン画面。3タブナビゲーション（今日/履歴/設定）、配信例文の取り込みと通知タップの受け口、起動時の初回ロード。
+
+lib/presentation/screens/learning_screen.dart
+学習タブの段（例文→確認クイズ→まとめクイズ）の進行。カーソルを進めてよいかの判定（shouldAdvanceDailySetCursor）はここ。
+
+lib/presentation/screens/today_screen.dart
+例文表示の本体（例文カード・クイズ導線・語彙スコアチップ・セットの進み具合 DailySetProgress）。
 
 lib/presentation/screens/detail_screen.dart
 例文詳細表示（例文カード・聞く／話す・使い方・単語・声調ガイド導線）。

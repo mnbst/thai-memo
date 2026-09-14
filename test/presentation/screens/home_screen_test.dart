@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/presentation/providers/daily_set_provider.dart';
 import 'package:thai_memo/presentation/screens/home_screen.dart';
+import 'package:thai_memo/presentation/screens/learning_screen.dart';
 import 'package:thai_memo/services/daily_sentence_service.dart';
 
 ThaiSentence _sentence(String id) => ThaiSentence(
@@ -14,6 +15,44 @@ ThaiSentence _sentence(String id) => ThaiSentence(
     );
 
 void main() {
+  group('shouldAdvanceDailySetCursor', () {
+    final sentences = [_sentence('a'), _sentence('b'), _sentence('c')];
+    final active = DailySetState(sentences: sentences, index: 0);
+
+    test('確認クイズを解いた1本がカーソルと同じなら進める', () {
+      expect(
+        shouldAdvanceDailySetCursor(set: active, answered: _sentence('a')),
+        isTrue,
+      );
+    });
+
+    test('確認クイズを経ていなければ進めない', () {
+      // 終了済みのまとめクイズが再起動で復元され、その「次のセット」を押した
+      // 場合。ここで進めると1本目と、その確認クイズが飛ぶ。
+      expect(
+        shouldAdvanceDailySetCursor(set: active, answered: null),
+        isFalse,
+      );
+    });
+
+    test('解いた1本がカーソルと違えば進めない', () {
+      expect(
+        shouldAdvanceDailySetCursor(set: active, answered: _sentence('c')),
+        isFalse,
+      );
+    });
+
+    test('セットを消化していなければ従来どおり進める', () {
+      expect(
+        shouldAdvanceDailySetCursor(
+          set: const DailySetState(),
+          answered: null,
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('isSameDailySet', () {
     test('同じ並びの通知を再度開いても消化中セットを作り直さない', () {
       final sentences = [_sentence('a'), _sentence('b'), _sentence('c')];
@@ -121,19 +160,4 @@ void main() {
     });
   });
 
-  group('shouldOfferSummaryQuiz', () {
-    test('配信セットと同じ例文5本ごとに誘導する（初回だけ早く出したりしない）', () {
-      // completedCount はいま解いている確認クイズの1本を含まない。
-      expect(shouldOfferSummaryQuiz(0), isFalse); // 1本目
-      expect(shouldOfferSummaryQuiz(1), isFalse);
-      expect(shouldOfferSummaryQuiz(2), isFalse);
-      expect(shouldOfferSummaryQuiz(3), isFalse);
-      expect(shouldOfferSummaryQuiz(4), isTrue); // 5本目
-    });
-
-    test('まとめクイズを飛ばして本数が伸びても誘導し続ける', () {
-      expect(shouldOfferSummaryQuiz(summaryQuizThreshold), isTrue);
-      expect(shouldOfferSummaryQuiz(summaryQuizThreshold + 3), isTrue);
-    });
-  });
 }

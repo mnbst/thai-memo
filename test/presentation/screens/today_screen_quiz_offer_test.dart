@@ -17,7 +17,7 @@ import 'package:thai_memo/presentation/providers/settings_provider.dart';
 import 'package:thai_memo/presentation/providers/subscription_provider.dart';
 import 'package:thai_memo/presentation/providers/tts_provider.dart';
 import 'package:thai_memo/presentation/providers/vocab_stats_provider.dart';
-import 'package:thai_memo/presentation/screens/home_screen.dart';
+import 'package:thai_memo/presentation/screens/today_screen.dart';
 import 'package:thai_memo/services/firebase_auth_service.dart';
 import 'package:thai_memo/services/tts_service.dart';
 
