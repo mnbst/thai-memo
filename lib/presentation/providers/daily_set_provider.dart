@@ -6,21 +6,23 @@
 // docs/design_daily_sentence_batch.md）。クライアントはそれを1サイクル
 // （例文→確認クイズ→…→最後の1本のあとにまとめクイズ）として順に消化する。
 //
-// 進行位置は SharedPreferences（端末の続き）と Firestore（端末間の正本）の
-// 両方に、DailySetProgressSnapshot という同じ形で持つ。保存するのは例文IDと
-// 位置だけで、本文はローカルDBか配信docから引き直す。
+// 進行位置は端末（learning_progress レコードの set 部分）と Firestore（端末間の
+// 正本）の両方に、DailySetProgressSnapshot という同じ形で持つ。保存するのは
+// 例文IDと位置だけで、本文はローカルDBか配信docから引き直す。
+//
+// 端末側は段・クイズと同じ1レコードなので、読む1本が変わったときに、その1本に
+// 属していたクイズの保存を一緒に落とせる（_saveLocal）。
 // =============================================================================
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/models/thai_sentence.dart';
 import '../../data/sentence_repository.dart';
 import '../../services/daily_set_progress_store.dart';
+import '../../services/learning_progress_store.dart';
 import 'sentence_provider.dart';
 
 class PendingDailySet {
@@ -71,11 +73,14 @@ class DailySetState {
 }
 
 class DailySetController extends StateNotifier<DailySetState> {
-  DailySetController(this._ref, this._readProgressStore)
+  DailySetController(this._ref, this._readProgressStore, this._progress)
       : super(const DailySetState());
 
   final Ref _ref;
   final DailySetProgressStore Function() _readProgressStore;
+
+  /// 端末側の学習レコード（セット・段・クイズ）。
+  final LearningProgressStore _progress;
   List<String> _completedSetIds = const [];
   Future<void>? _remoteSyncFuture;
   bool _remoteSyncDirty = false;
@@ -90,23 +95,19 @@ class DailySetController extends StateNotifier<DailySetState> {
   /// 状態を watch するだけで Firebase 依存のリポジトリまで作られないようにするため。
   SentenceRepository get _repository => _ref.read(sentenceRepositoryProvider);
 
-  static const String _progressKey = 'daily_set_progress';
+  /// 起動時に前回の続きを復元する。何度呼んでも最初の1回を共有する。
+  ///
+  /// 復元前のカーソルは「セット無し」と区別がつかない。起動時に誰がいつ聞いても
+  /// 同じ答えになるよう、待ち合わせ先をここに1本持つ。
+  Future<void> restore() => _restoreFuture ??= _serialized(_restore);
 
-  /// 1.4.8 までのキー。移行のためだけに読み、読んだ時点で捨てる。
-  static const List<String> _legacyKeys = [
-    'daily_set_ids',
-    'daily_set_cursor',
-    'daily_set_id',
-    'pending_daily_sets',
-    'completed_daily_set_ids',
-  ];
+  /// カーソルの復元が終わるまで待つ。始まっていなければここで始める。
+  Future<void> get restored => restore();
 
-  /// 起動時に前回の続きを復元する。
-  Future<void> restore() => _serialized(_restore);
+  Future<void>? _restoreFuture;
 
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    await _apply(_readLocal(prefs) ?? await _readLegacy(prefs));
+    await _apply((await _progress.load()).set);
     if (!mounted) return;
     // 進行中セットが残っていなければ、待機列の先頭を今日のセットに繰り上げる。
     if (!state.isActive) await _promotePendingIfAny();
@@ -240,10 +241,7 @@ class DailySetController extends StateNotifier<DailySetState> {
   Future<void> _clear() async {
     state = const DailySetState();
     _completedSetIds = const [];
-    final prefs = await SharedPreferences.getInstance();
-    for (final key in [_progressKey, ..._legacyKeys]) {
-      await prefs.remove(key);
-    }
+    await _progress.clear();
   }
 
   Future<T> _serialized<T>(Future<T> Function() operation) async {
@@ -357,59 +355,24 @@ class DailySetController extends StateNotifier<DailySetState> {
     if (!mounted) return;
     // state は await をまたぐ前に写し取る。破棄後に読むと例外になるうえ、
     // 待っているあいだに進んだ位置を書き戻してしまう。
-    final encoded = jsonEncode(_snapshot().toJson());
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_progressKey, encoded);
-  }
-
-  DailySetProgressSnapshot? _readLocal(SharedPreferences prefs) {
-    final encoded = prefs.getString(_progressKey);
-    if (encoded == null || encoded.isEmpty) return null;
-    try {
-      return DailySetProgressSnapshot.fromJson(
-        Map<String, dynamic>.from(jsonDecode(encoded) as Map),
+    final snapshot = _snapshot();
+    await _progress.update((current) {
+      final sentenceChanged =
+          current.set.activeSentenceId != snapshot.activeSentenceId;
+      final setChanged = current.set.active?.setId != snapshot.active?.setId;
+      if (!sentenceChanged && !setChanged) return current.copyWith(set: snapshot);
+      // 読む1本が変わったら、その1本に属していたクイズの保存は連れて行かない。
+      // セットごと変わったならまとめクイズも同じ。持ち主を保存へ添えて毎回
+      // 突き合わせる代わりに、捨てる場所をここ1か所にする。
+      return current.copyWith(
+        set: snapshot,
+        stage: LearningStage.sentence,
+        clearConfirmationQuiz: true,
+        clearSummaryQuiz: setChanged,
       );
-    } catch (_) {
-      return null;
-    }
+    });
   }
 
-  /// 1.4.8 以前の分割キーから読み直す。次回からは統合キーだけを見る。
-  Future<DailySetProgressSnapshot?> _readLegacy(
-    SharedPreferences prefs,
-  ) async {
-    final ids = prefs.getStringList('daily_set_ids') ?? const [];
-    final setId = prefs.getString('daily_set_id');
-    final cursor = prefs.getInt('daily_set_cursor') ?? 0;
-    final completed =
-        prefs.getStringList('completed_daily_set_ids') ?? const <String>[];
-    final pending = <DailySetRef>[];
-    try {
-      final rawSets =
-          (jsonDecode(prefs.getString('pending_daily_sets') ?? '[]') as List)
-              .whereType<Map>();
-      for (final raw in rawSets) {
-        final set = DailySetRef.fromJson({
-          'set_id': raw['set_id'],
-          'sentence_ids': raw['sentence_ids'],
-        });
-        if (set != null) pending.add(set);
-      }
-    } catch (_) {
-      // 壊れていれば待機列は諦める。進行中セットの復元は続ける。
-    }
-    for (final key in _legacyKeys) {
-      await prefs.remove(key);
-    }
-    return DailySetProgressSnapshot(
-      active: ids.isEmpty
-          ? null
-          : DailySetRef(setId: setId ?? ids.first, sentenceIds: ids),
-      activeSentenceId: cursor >= 0 && cursor < ids.length ? ids[cursor] : null,
-      pending: pending,
-      completedSetIds: completed,
-    );
-  }
 
   /// スナップショットの例文IDを実体へ解決して state に反映する。
   /// ローカル保存とクラウド正本のどちらも同じ経路を通る。
@@ -500,11 +463,17 @@ final dailySetProgressStoreProvider = Provider<DailySetProgressStore>((ref) {
   return FirestoreDailySetProgressStore();
 });
 
+/// 端末側の学習レコード。セット・段・クイズの書き手が共有する。
+final learningProgressStoreProvider = Provider<LearningProgressStore>((ref) {
+  return LearningProgressStore();
+});
+
 final dailySetProvider =
     StateNotifierProvider<DailySetController, DailySetState>((ref) {
   final controller = DailySetController(
     ref,
     () => ref.read(dailySetProgressStoreProvider),
+    ref.read(learningProgressStoreProvider),
   );
   // アプリからの生成もセット単位。生成経路が複数あるので、呼び出し側それぞれで
   // カーソルを立てるのではなく、生成結果を1か所で拾う。

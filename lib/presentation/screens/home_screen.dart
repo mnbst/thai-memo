@@ -50,7 +50,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   static const int _settingsTabIndex = 2;
   bool _initialLoadCompleted = false;
   Future<void>? _initialLoadFuture;
-  Future<void>? _dailySetRestoreFuture;
   final _dailySentenceService = DailySentenceService();
   final _learningKey = GlobalKey<LearningScreenState>();
   StreamSubscription<RemoteMessage>? _notificationOpenSubscription;
@@ -682,8 +681,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // カーソル復元と新着同期を直列化する。復元を投げっぱなしにすると、同期で
     // 開始した新しいセットを古いカーソルが後から上書きする。
-    await (_dailySetRestoreFuture ??=
-        ref.read(dailySetProvider.notifier).restore());
+    // 復元そのものは controller 側で1回に束ねている。
+    await ref.read(dailySetProvider.notifier).restored;
 
     // 配信例文の取り込みを先に終わらせる。今日ぶんがあればそれが今日の例文なので、
     // 生成もローカル読み込みも走らせない（通知タップかどうかの判定は不要）。
