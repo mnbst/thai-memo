@@ -72,7 +72,10 @@ Widget _host() {
       analyticsServiceProvider.overrideWithValue(_NoopAnalytics()),
       // 体験トライアルの注記は出さない（購入の導線だけを写す）。
       // Firestore を触らせないためにも差し替える。
-      userDocProvider.overrideWith((ref) => Stream.value(null)),
+      userDocSnapshotProvider.overrideWith(
+        (ref) =>
+            Stream.value(const UserDocSnapshot(data: null, isFromCache: false)),
+      ),
       subscriptionControllerProvider.overrideWith((ref) => _StubController()),
     ],
     child: MaterialApp(

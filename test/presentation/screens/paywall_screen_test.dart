@@ -59,7 +59,10 @@ Future<void> _pump(
     ProviderScope(
       overrides: [
         analyticsServiceProvider.overrideWithValue(FakeAnalyticsService()),
-        userDocProvider.overrideWith((ref) => Stream.value(null)),
+        userDocSnapshotProvider.overrideWith(
+          (ref) =>
+              Stream.value(const UserDocSnapshot(data: null, isFromCache: false)),
+        ),
         subscriptionControllerProvider.overrideWith(
           (ref) => _ReadyController(
             analytics: FakeAnalyticsService(),

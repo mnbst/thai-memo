@@ -113,6 +113,9 @@ class L10nJa extends L10n {
   String get sampleSentenceNotice => 'サンプル例文（履歴には保存されません）';
 
   @override
+  String get sampleReload => '今日の例文を読み込む';
+
+  @override
   String get sampleGreetingTranslation => 'こんにちは（男性の場合）';
 
   @override

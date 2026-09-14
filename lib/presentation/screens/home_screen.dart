@@ -137,32 +137,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// 配信された今日の例文を取り込む。
   ///
-  /// 複数日ぶん溜まっていても取りこぼさず、結果は最も強いもの
-  /// （表示 > 待機 > 何もなし）を返す。
-  Future<_DeliveredAction> _showDeliveredIfAny({
+  /// 複数日ぶん溜まっていても取りこぼさない。結果は取り込んだ全セットの
+  /// 論理和で返す（[DeliveredOutcome] を参照）。
+  Future<DeliveredOutcome> _showDeliveredIfAny({
     String? sentenceId,
     bool force = false,
   }) async {
     final deliveredSets =
         await _dailySentenceService.syncAll(sentenceId: sentenceId);
-    var result = _DeliveredAction.none;
+    var result = noDelivery;
     for (final delivered in deliveredSets) {
       if (!mounted) break;
-      final action = await _acceptDeliveredSet(delivered, force: force);
-      if (action.index > result.index) result = action;
+      result = mergeDeliveredOutcome(
+        result,
+        await _acceptDeliveredSet(delivered, force: force),
+      );
     }
     return result;
   }
 
-  Future<_DeliveredAction> _acceptDeliveredSet(
+  Future<DeliveredOutcome> _acceptDeliveredSet(
     DailySentenceSet delivered, {
     bool force = false,
   }) async {
     final activeSet = ref.read(dailySetProvider);
     // 同じ通知をもう一度開いても、途中まで進めたカーソルを先頭へ戻さない。
     if (isSameDailySet(activeSet, delivered)) {
-      _showIfNotVisible(activeSet.current!, force: force);
-      return _DeliveredAction.shown;
+      return (
+        displayed: _showIfNotVisible(activeSet.current!, force: force),
+        imported: true,
+      );
     }
 
     // フォアグラウンド復帰と通知タップは同時に走りうる。進行中セットを新着で
@@ -174,17 +178,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               setId: delivered.setId,
               sentences: delivered.sentences,
             );
-    if (!mounted) {
-      return queued ? _DeliveredAction.queued : _DeliveredAction.none;
-    }
-    if (!accepted) {
-      // 待機列へ回したか、消化済みで断られたか。断られたもの（古い通知の
-      // 再タップ）を表示すると、終わったセットの例文が復活する。
-      return queued ? _DeliveredAction.queued : _DeliveredAction.none;
+    // 断られたもの（古い通知の再タップ）を表示すると、終わったセットの例文が
+    // 復活する。待機列へ回したぶんは「取り込んだ」として数える。
+    if (!mounted || !accepted) {
+      return (displayed: false, imported: queued);
     }
     final shown = ref.read(dailySetProvider).current ?? delivered.first;
-    _showIfNotVisible(shown, force: force);
-    return _DeliveredAction.shown;
+    return (
+      displayed: _showIfNotVisible(shown, force: force),
+      imported: true,
+    );
   }
 
   /// 表示中の例文と違うときだけ差し替える。同じものを入れ直すと画面が瞬く。
@@ -192,16 +195,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   /// クイズを解いている最中は差し替えない。裏の例文だけ変わると、いま答えて
   /// いる問題と本文がずれる。通知タップのように本人が開いたとき（force）だけ
   /// 例文ステージへ戻して差し替える。
-  void _showIfNotVisible(ThaiSentence sentence, {bool force = false}) {
+  ///
+  /// 戻り値は、その例文が画面に出ているか。差し替えを見送ったのに「出した」と
+  /// 答えると、呼び出し側は何も表示されていない画面のまま先へ進んでしまう。
+  bool _showIfNotVisible(ThaiSentence sentence, {bool force = false}) {
     if (!force && !(_learningKey.currentState?.isOnSentenceStage ?? true)) {
-      return;
+      return false;
     }
     final current = ref.read(sentenceControllerProvider);
     if (current is SentenceStateSuccess && current.sentence.id == sentence.id) {
-      return;
+      return true;
     }
     ref.read(sentenceControllerProvider.notifier).showSentence(sentence);
     ref.invalidate(allSentencesProvider);
+    return true;
   }
 
   /// 初回ロードと通知タップ処理を直列化する。
@@ -210,14 +217,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   /// 初回ロード側の loadOrGenerateToday が上書きしてしまう。
   /// 初回起動時は onboarding の push 中に popUntil が走る危険もある。
   Future<void> _loadInitialSentenceThenHandleNotification() async {
+    await runInitialLoad(
+      load: _checkFirstLaunchAndLoadSentence,
+      recover: _recoverAfterInitialLoadFailure,
+      markCompleted: () => _initialLoadCompleted = true,
+    );
+
+    await _handleInitialNotificationOpen();
+    await _maybeShowPremiumTrialStarted();
+    await _maybeShowPremiumTrialEnded();
+    await _maybeShowLifetimeMigration();
+  }
+
+  /// サンプル表示から本人がやり直す導線。起動時と同じ手順（配信の取り込み →
+  /// 前回の続き → 生成）をもう一度通す。
+  Future<void> _reloadToday() async {
     try {
-      await _checkFirstLaunchAndLoadSentence();
-    } finally {
-      await _handleInitialNotificationOpen();
-      await _maybeShowPremiumTrialStarted();
-      await _maybeShowPremiumTrialEnded();
-      await _maybeShowLifetimeMigration();
+      await _loadTodaySentence();
+    } catch (e) {
+      debugPrint('HomeScreen: reload failed: $e');
+      await _recoverAfterInitialLoadFailure();
     }
+  }
+
+  /// 起動ロードが落ちたときの最後の受け皿。ローカルの最新例文（無ければ空）を出す。
+  Future<void> _recoverAfterInitialLoadFailure() async {
+    if (!mounted) return;
+    if (ref.read(sentenceControllerProvider) is SentenceStateSuccess) return;
+    await ref.read(sentenceControllerProvider.notifier).loadMostRecent();
   }
 
   /// 語彙測定を終えたオンボーディング末尾で、プレミアム体験の開始を伝える。
@@ -270,7 +297,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (prefs.getBool(AppConfig.prefKeyPremiumTrialStartedNotified) ?? false) {
       return;
     }
-    await ref.read(userDocProvider.future);
+    await ref.read(userDocSnapshotProvider.future);
     if (!mounted) return;
 
     // 一括配布で配られた人だけが対象。
@@ -306,7 +333,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
     // users doc が届く前に読むと常に「判定不能」で素通りしてしまう。
-    await ref.read(userDocProvider.future);
+    await ref.read(userDocSnapshotProvider.future);
     if (!mounted) return;
 
     // トライアルを持たない旧ユーザーには出さない。
@@ -345,7 +372,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
     // users doc が届く前に読むと、常に「対象外」で素通りしてしまう。
-    await ref.read(userDocProvider.future);
+    await ref.read(userDocSnapshotProvider.future);
     if (!mounted) return;
 
     if (!ref.read(lifetimeMigrationEligibleProvider)) {
@@ -404,9 +431,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _handleNotificationOpen(RemoteMessage message) async {
     if (!_isDailySentenceNotification(message) || !mounted) return;
     final sentenceId = message.data['sentence_id']?.toString();
-    final action =
+    final delivered =
         await _showDeliveredIfAny(sentenceId: sentenceId, force: true);
-    if (action != _DeliveredAction.shown || !mounted) return;
+    if (!delivered.displayed || !mounted) return;
     _openLearningSentenceStage();
   }
 
@@ -506,9 +533,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     // 裏に回っている間に配信されていれば、それに差し替える
-    if (await _showDeliveredIfAny() != _DeliveredAction.none) return;
+    if ((await _showDeliveredIfAny()).imported) return;
 
-    final data = await ref.read(userDocProvider.future);
+    final data = (await ref.read(userDocSnapshotProvider.future)).data;
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
 
     // 今日の生成済みフラグが立っていて表示成功状態なら、そのまま維持する
@@ -619,8 +646,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     await (_initialLoadFuture ??= _loadTodaySentence());
 
-    _initialLoadCompleted = true;
-
     if (!mounted) return;
 
     // 履歴を更新
@@ -651,6 +676,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// Firestoreフラグを取得し、未生成なら自動生成、済みなら最新を表示
   Future<void> _loadTodaySentence() async {
+    // 読み込み元を確かめる前にローディングを立てる。ここから下は配信の取り込みや
+    // Firestore の読みで待たされるので、Initial のままだと画面が空に見える。
+    ref.read(sentenceControllerProvider.notifier).markLoading();
+
     // カーソル復元と新着同期を直列化する。復元を投げっぱなしにすると、同期で
     // 開始した新しいセットを古いカーソルが後から上書きする。
     await (_dailySetRestoreFuture ??=
@@ -661,7 +690,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     //
     // 待機列へ回しただけ（queued）のときは何も表示していない。ここで抜けると
     // 起動直後が空表示のままになるので、下の復元へ落とす。
-    if (await _showDeliveredIfAny() == _DeliveredAction.shown) return;
+    if ((await _showDeliveredIfAny()).displayed) return;
 
     // 新着が無ければ、前回閉じた位置の例文をそのまま表示する。「最新の例文」を
     // 読むと、カーソルが2/5なのに本文は5本目という不整合になる。
@@ -671,7 +700,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return;
     }
 
-    final data = await ref.read(userDocProvider.future);
+    final data = (await ref.read(userDocSnapshotProvider.future)).data;
     final isGenerated = (data?['daily_sentence_generated'] as bool?) ?? false;
     await ref.read(sentenceControllerProvider.notifier).loadOrGenerateToday(
           dailySentenceGenerated: isGenerated,
@@ -683,7 +712,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     final l10n = L10n.of(context);
     final screens = [
-      LearningScreen(key: _learningKey),
+      LearningScreen(key: _learningKey, onReload: _reloadToday),
       const HistoryScreen(),
       const SettingsScreen(),
     ];
@@ -744,7 +773,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
-enum _DeliveredAction { none, shown, queued }
+/// 配信取り込みの結果。
+///
+/// [displayed] は実際に画面へ出したか。[imported] は表示・待機を問わず新しい
+/// 配信を受け取ったか（受け取っていれば、その日の例文は決まっているので
+/// 生成もローカル読み込みも要らない）。
+typedef DeliveredOutcome = ({bool displayed, bool imported});
+
+const DeliveredOutcome noDelivery = (displayed: false, imported: false);
+
+@visibleForTesting
+DeliveredOutcome mergeDeliveredOutcome(DeliveredOutcome a, DeliveredOutcome b) {
+  return (
+    displayed: a.displayed || b.displayed,
+    imported: a.imported || b.imported,
+  );
+}
+
+/// 起動ロードを実行し、失敗しても「完了」として扱う。
+///
+/// [markCompleted] を落とすと、復帰時の再ロードも配信・クォータのリスナーも
+/// 全て素通りになり、アプリを再起動するまで例文が出ない。失敗こそ、この後の
+/// 経路を生かしておく必要がある。[recover] は画面を待たせっぱなしにしない
+/// ための受け皿。
+@visibleForTesting
+Future<void> runInitialLoad({
+  required Future<void> Function() load,
+  required Future<void> Function() recover,
+  required void Function() markCompleted,
+}) async {
+  try {
+    await load();
+  } catch (e) {
+    debugPrint('HomeScreen: initial load failed: $e');
+    try {
+      await recover();
+    } catch (e) {
+      debugPrint('HomeScreen: initial load recovery failed: $e');
+    }
+  } finally {
+    markCompleted();
+  }
+}
 
 /// 通知を再度開いたとき、消化中の同じセットを先頭へ戻さないための判定。
 @visibleForTesting

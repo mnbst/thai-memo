@@ -113,6 +113,75 @@ void main() {
     });
   });
 
+  group('mergeDeliveredOutcome', () {
+    test('1セットでも表示できていれば表示扱いにする', () {
+      expect(
+        mergeDeliveredOutcome(
+          (displayed: false, imported: true),
+          (displayed: true, imported: true),
+        ),
+        (displayed: true, imported: true),
+      );
+    });
+
+    test('待機列へ回しただけなら取り込み扱いに留める', () {
+      // 表示していないのに「表示した」と答えると、呼び出し側が空の画面のまま
+      // 先へ進んでしまう（起動直後にサンプルのまま固まる原因だった）。
+      expect(
+        mergeDeliveredOutcome(noDelivery, (displayed: false, imported: true)),
+        (displayed: false, imported: true),
+      );
+    });
+
+    test('新着が無ければ何もしていない', () {
+      expect(mergeDeliveredOutcome(noDelivery, noDelivery), noDelivery);
+    });
+  });
+
+  group('runInitialLoad', () {
+    test('成功したら復帰処理は走らず、完了として記録する', () async {
+      var recovered = false;
+      var completed = false;
+
+      await runInitialLoad(
+        load: () async {},
+        recover: () async => recovered = true,
+        markCompleted: () => completed = true,
+      );
+
+      expect(recovered, isFalse);
+      expect(completed, isTrue);
+    });
+
+    test('起動ロードが落ちても復帰処理を通し、完了として記録する', () async {
+      // ここで完了を記録し損ねると、フォアグラウンド復帰の再ロードも配信・
+      // クォータのリスナーも全て素通りになり、再起動するまで直らない。
+      var recovered = false;
+      var completed = false;
+
+      await runInitialLoad(
+        load: () async => throw StateError('boom'),
+        recover: () async => recovered = true,
+        markCompleted: () => completed = true,
+      );
+
+      expect(recovered, isTrue);
+      expect(completed, isTrue);
+    });
+
+    test('復帰処理まで落ちても完了として記録する', () async {
+      var completed = false;
+
+      await runInitialLoad(
+        load: () async => throw StateError('boom'),
+        recover: () async => throw StateError('boom again'),
+        markCompleted: () => completed = true,
+      );
+
+      expect(completed, isTrue);
+    });
+  });
+
   group('shouldAutoLoadAfterSentenceQuotaRefresh', () {
     test('0から正数に戻り、当日未生成なら自動ロードする', () {
       expect(

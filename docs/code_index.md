@@ -974,6 +974,9 @@ test/presentation/providers/daily_set_provider_test.dart
 test/services/daily_set_progress_store_test.dart
 端末間マージ（カーソルの単調性・完了セットの非復活・待機列の統合）のテスト。
 
+test/presentation/screens/today_screen_initial_state_test.dart
+起動直後（読み込み前・読み込み中）にサンプル例文を出さないことのテスト。
+
 test/presentation/providers/quiz_prepare_race_test.dart
 確認クイズの事前生成中に開始しても生成APIを二重に叩かないことのテスト（サーバーの生成ロックで409になる回帰）。
 
