@@ -53,6 +53,9 @@ class _Api extends Fake implements BackendApiService {
 }
 
 class _Cloud implements DailySetProgressStore {
+  @override
+  Future<DailySetRef?> fetchLatestDeliveredSet() async => null;
+
   Completer<void>? gate;
   DailySetProgressSnapshot remote = const DailySetProgressSnapshot();
   @override

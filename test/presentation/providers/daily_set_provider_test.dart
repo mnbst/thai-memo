@@ -14,6 +14,9 @@ class _NoopProgressStore implements DailySetProgressStore {
   Future<ThaiSentence?> fetchSentence(String id) async => null;
 
   @override
+  Future<DailySetRef?> fetchLatestDeliveredSet() async => null;
+
+  @override
   Future<DailySetProgressSnapshot?> merge(
     DailySetProgressSnapshot local,
   ) async =>
@@ -26,8 +29,14 @@ class _MemoryProgressStore implements DailySetProgressStore {
   final Map<String, ThaiSentence> byId;
   DailySetProgressSnapshot remote = const DailySetProgressSnapshot();
 
+  /// 配信docから組み直せるセット（進行位置を失った端末の救済経路）。
+  DailySetRef? delivered;
+
   @override
   Future<ThaiSentence?> fetchSentence(String id) async => byId[id];
+
+  @override
+  Future<DailySetRef?> fetchLatestDeliveredSet() async => delivered;
 
   @override
   Future<DailySetProgressSnapshot?> merge(
@@ -54,12 +63,19 @@ class _GatedProgressStore extends _MemoryProgressStore {
 
 /// ID で引ける例文だけを返す。履歴から消えた例文は null になる。
 class _FakeSentenceRepository extends Fake implements SentenceRepository {
-  _FakeSentenceRepository(this.byId);
+  _FakeSentenceRepository(this.byId, {this.answered = const {}});
 
   final Map<String, ThaiSentence> byId;
 
+  /// クイズに答えた記録のある例文ID（進行位置の再構成で使う）。
+  final Set<String> answered;
+
   @override
   Future<ThaiSentence?> getSentenceById(String id) async => byId[id];
+
+  @override
+  Future<Set<String>> answeredSentenceIds(List<String> ids) async =>
+      {for (final id in ids) if (answered.contains(id)) id};
 }
 
 ThaiSentence _sentence(String id) => ThaiSentence(
@@ -79,11 +95,13 @@ void main() {
   ProviderContainer containerWith(
     Map<String, ThaiSentence> byId, {
     DailySetProgressStore? progressStore,
+    Set<String> answered = const {},
   }) {
     final container = ProviderContainer(
       overrides: [
-        sentenceRepositoryProvider
-            .overrideWithValue(_FakeSentenceRepository(byId)),
+        sentenceRepositoryProvider.overrideWithValue(
+          _FakeSentenceRepository(byId, answered: answered),
+        ),
         dailySetProgressStoreProvider.overrideWithValue(
           progressStore ?? _NoopProgressStore(),
         ),
@@ -510,5 +528,79 @@ void main() {
     final container = containerWith({});
     await container.read(dailySetProvider.notifier).restore();
     expect(container.read(dailySetProvider).isActive, isFalse);
+  });
+
+  // 進行位置を失った端末（旧キーを読み落としたビルドを経由した場合）の救済。
+  group('配信docからの再構成', () {
+    Map<String, ThaiSentence> byIds(List<String> ids) =>
+        {for (final id in ids) id: _sentence(id)};
+
+    test('答えた記録の次の1本から再開する', () async {
+      final byId = byIds(['a', 'b', 'c']);
+      final store = _MemoryProgressStore(byId)
+        ..delivered = const DailySetRef(
+          setId: 'A',
+          sentenceIds: ['a', 'b', 'c'],
+        );
+      final container = containerWith(
+        byId,
+        progressStore: store,
+        answered: {'a'},
+      );
+
+      await container.read(dailySetProvider.notifier).restored;
+
+      final state = container.read(dailySetProvider);
+      expect(state.setId, 'A');
+      expect(state.total, 3);
+      expect(state.current?.id, 'b');
+    });
+
+    test('全部答え終わっているセットは復活させない', () async {
+      final byId = byIds(['a', 'b']);
+      final store = _MemoryProgressStore(byId)
+        ..delivered =
+            const DailySetRef(setId: 'A', sentenceIds: ['a', 'b']);
+      final container = containerWith(
+        byId,
+        progressStore: store,
+        answered: {'a', 'b'},
+      );
+
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.restored;
+      await controller.settled;
+
+      expect(container.read(dailySetProvider).isActive, isFalse);
+      // 完了として覚えるので、クラウド側から同じセットが戻ってこない。
+      expect(store.remote.completedSetIds, contains('A'));
+    });
+
+    test('例文がローカルに揃っていなければ取り込み経路に任せる', () async {
+      final byId = byIds(['a']);
+      final store = _MemoryProgressStore(byId)
+        ..delivered =
+            const DailySetRef(setId: 'A', sentenceIds: ['a', 'b']);
+      final container = containerWith(byId, progressStore: store);
+
+      await container.read(dailySetProvider.notifier).restored;
+
+      expect(container.read(dailySetProvider).isActive, isFalse);
+      expect(store.remote.completedSetIds, isEmpty);
+    });
+
+    test('端末に記録が残っていれば配信docを見に行かない', () async {
+      final byId = byIds(['a', 'b', 'x', 'y']);
+      final store = _MemoryProgressStore(byId)
+        ..delivered =
+            const DailySetRef(setId: 'OLD', sentenceIds: ['x', 'y']);
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+
+      await controller.start(_set(['a', 'b']), setId: 'A');
+      await controller.restored;
+
+      expect(container.read(dailySetProvider).setId, 'A');
+    });
   });
 }

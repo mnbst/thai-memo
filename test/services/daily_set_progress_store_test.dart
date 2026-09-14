@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/services/daily_set_progress_store.dart';
 
@@ -163,5 +164,46 @@ void main() {
 
     expect(merged.active, isNull);
     expect(merged.completedSetIds, contains('a'));
+  });
+
+  // 進行位置を失った端末の救済。配信docの束から直近のセットを組み直す。
+  group('latestDeliveredSetRef', () {
+    MapEntry<String, Map<String, dynamic>> doc(
+      String id, {
+      required String setId,
+      required int index,
+      required int day,
+    }) =>
+        MapEntry(id, {
+          'daily_set_id': setId,
+          'daily_set_index': index,
+          'created_at': Timestamp.fromDate(DateTime(2026, 9, day)),
+        });
+
+    test('いちばん新しいセットを daily_set_index の順で返す', () {
+      final ref = latestDeliveredSetRef([
+        doc('old-1', setId: 'OLD', index: 0, day: 1),
+        doc('new-2', setId: 'NEW', index: 1, day: 5),
+        doc('new-1', setId: 'NEW', index: 0, day: 5),
+      ]);
+
+      expect(ref?.setId, 'NEW');
+      expect(ref?.sentenceIds, ['new-1', 'new-2']);
+    });
+
+    test('daily_set_id を持たない旧形式は doc 単体のセットとして扱う', () {
+      final ref = latestDeliveredSetRef([
+        MapEntry('legacy', {
+          'created_at': Timestamp.fromDate(DateTime(2026, 9, 9)),
+        }),
+      ]);
+
+      expect(ref?.setId, 'legacy');
+      expect(ref?.sentenceIds, ['legacy']);
+    });
+
+    test('配信が無ければ null', () {
+      expect(latestDeliveredSetRef(const []), isNull);
+    });
   });
 }
