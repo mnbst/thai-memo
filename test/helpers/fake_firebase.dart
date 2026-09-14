@@ -329,6 +329,7 @@ class FakePurchaseService extends Fake implements PurchaseService {
   bool buyCalled = false;
   int fetchProductCalls = 0;
   bool initializeAvailable = true;
+  int initializeCalls = 0;
   Object? fetchProductError;
 
   /// restore() 時のサーバー側処理（verifySubscription→Firestore更新）を模擬する
@@ -347,7 +348,10 @@ class FakePurchaseService extends Fake implements PurchaseService {
   void Function(String message)? onPurchasePending;
 
   @override
-  Future<bool> initialize() async => initializeAvailable;
+  Future<bool> initialize() async {
+    initializeCalls++;
+    return initializeAvailable;
+  }
 
   /// 買い切り商品も返すか（iOS 相当の環境を模す）
   bool includeLifetimeProduct = true;
