@@ -48,8 +48,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ios/Pods
+          # Podfile.lock が変わったら Pods は作り直す。古いキャッシュを
+          # 引き継ぐと、入れ替えたはずの pod（ソース版 FirebaseFirestore 等）が
+          # 残って archive で二重生成になる。restore-keys は置かない。
           key: pods-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: pods-
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2

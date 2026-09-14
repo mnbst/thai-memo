@@ -61,7 +61,13 @@ class DailySetProgress extends ConsumerWidget {
     final remaining = set.total - set.position;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      // どの state の上にも同じ位置で載るよう、画面端の余白は自分で持つ。
+      padding: const EdgeInsets.fromLTRB(
+        AppConfig.screenPadding,
+        AppConfig.defaultPadding,
+        AppConfig.screenPadding,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -314,6 +320,22 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     SentenceState state,
     QuizOfferVariant? quizOfferVariant,
   ) {
+    // セットの進み具合は state の外に置く。success の中だけに置くと、free が
+    // クォータ切れでエラー／サンプル表示へ落ちたとき、カーソルが5本セットの
+    // 途中でも「あと4本でまとめクイズ」が消え、残りが飛んだように見える。
+    return Column(
+      children: [
+        const DailySetProgress(),
+        Expanded(child: _buildSentenceBody(context, state, quizOfferVariant)),
+      ],
+    );
+  }
+
+  Widget _buildSentenceBody(
+    BuildContext context,
+    SentenceState state,
+    QuizOfferVariant? quizOfferVariant,
+  ) {
     if (state is SentenceStateLoading) {
       return _buildLoadingState();
     } else if (state is SentenceStateSuccess) {
@@ -363,9 +385,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SignInReminderBanner(),
-                // セットの何本目かを最上部に置く。読み始める前に「今日は
-                // あと何本で一巡か」が見えるようにするため。
-                const DailySetProgress(),
                 // 並びはモックのとおり。次に届くテーマ → 例文 → 聞く/話す →
                 // 学習単語。例文を先に読ませ、そのあとで単語を確かめる。
                 const NextSentenceTopicLabel(
