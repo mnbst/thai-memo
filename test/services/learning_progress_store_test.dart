@@ -46,7 +46,7 @@ void main() {
 
     expect(record.set.active?.setId, 'set-a');
     expect(record.set.activeSentenceId, 'b');
-    // まとめクイズが残っていた＝結果や回答の途中で閉じた人なので、段も戻す。
+    // まとめクイズが残っていた＝結果や回答の途中で閉じた人。段はそこから導出。
     expect(record.stage, LearningStage.summaryQuiz);
     expect(record.summaryQuiz?['phase'], 'summary');
     // 持ち主は畳んだ時点で落とす（カーソルと同じレコードにいるので要らない）。
@@ -121,20 +121,20 @@ void main() {
               activeSentenceId: 'a',
             ),
           )),
-      store.update((r) => r.copyWith(stage: LearningStage.summaryQuiz)),
+      store.update((r) => r.copyWith(confirmationQuizSentenceId: 'a')),
       store.update((r) => r.copyWith(summaryQuiz: {'phase': 'summary'})),
     ]);
 
     final record = await store.load();
     expect(record.set.active?.setId, 'set-a');
-    expect(record.stage, LearningStage.summaryQuiz);
+    expect(record.confirmationQuizSentenceId, 'a');
     expect(record.summaryQuiz?['phase'], 'summary');
   });
 
   test('clear は新旧すべてのキーを消す', () async {
     SharedPreferences.setMockInitialValues({
       LearningProgressStore.key: jsonEncode(
-        const LearningProgressRecord(stage: LearningStage.summaryQuiz).toJson(),
+        const LearningProgressRecord(confirmationQuizSentenceId: 'a').toJson(),
       ),
       LearningProgressStore.legacySetKey: jsonEncode(
         _legacySet(setId: 'set-a', ids: ['a'], currentId: 'a'),

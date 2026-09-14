@@ -58,7 +58,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _restoreStage();
+      _restoreProgress();
       ref.listenManual(sentenceControllerProvider, (prev, next) {
         if (prev is SentenceStateLoading &&
             next is SentenceStateSuccess &&
@@ -70,20 +70,31 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
     });
   }
 
-  /// 前回閉じた段へ戻す。
+  /// 前回の続きから開く。
   ///
-  /// 段は学習レコードに入っていて、セットが変われば一緒に sentence へ戻る
-  /// （DailySetController._saveLocal）。ここへ来るのは本当に途中だったときだけ。
-  Future<void> _restoreStage() async {
+  /// 段はレコードの進み具合から導出する（まとめクイズの進行が残っていれば
+  /// そこへ戻す）。保存された段を読むのではないので、段と中身が食い違わない。
+  Future<void> _restoreProgress() async {
     if (_stage != LearningStage.sentence) return;
     // カーソルの復元を待つ。レコードを読むのはその後でよい。
     await ref.read(dailySetProvider.notifier).restored;
     if (!mounted || _stage != LearningStage.sentence) return;
 
     final record = await ref.read(learningProgressStoreProvider).load();
-    // 確認クイズの段は戻さない。例文画面から開き直せば保存した1問がそのまま
-    // 続くので、起動直後にクイズ画面を出すほどのものではない。
-    if (record.stage != LearningStage.summaryQuiz || !mounted) return;
+    if (!mounted) return;
+
+    // 「この1本の確認クイズは受けた」を引き継ぐ。これが無いと、再起動後の
+    // 「次へ」が確認クイズを受けていない扱いになり、同じ1本に留まる。
+    final answeredId = record.confirmationQuizSentenceId;
+    if (answeredId != null) {
+      _quizSentence = ref
+          .read(dailySetProvider)
+          .sentences
+          .where((sentence) => sentence.id == answeredId)
+          .firstOrNull;
+    }
+
+    if (record.stage != LearningStage.summaryQuiz) return;
 
     final restored = await ref
         .read(quizControllerProvider.notifier)
@@ -95,13 +106,22 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
   /// いま例文を読んでいる段か。クイズ中は本文を裏で差し替えない。
   bool get isOnSentenceStage => _stage == LearningStage.sentence;
 
+  /// 段は画面の状態でしかない。保存するのは進み具合（レコード）のほうで、
+  /// 段はそこから導出する。
   void _setStage(LearningStage newStage) {
     setState(() => _stage = newStage);
-    // 段を保存するのは、結果画面や回答中で閉じた人を同じ場所へ戻すため。
+  }
+
+  /// 確認クイズを受けた1本を覚える。再起動をまたいでカーソルを進められる
+  /// ようにするため、画面の変数だけでなくレコードにも残す。
+  void _rememberConfirmationQuiz(ThaiSentence sentence) {
+    _quizSentence = sentence;
+    final id = sentence.id;
+    if (id == null) return;
     unawaited(
-      ref
-          .read(learningProgressStoreProvider)
-          .update((record) => record.copyWith(stage: newStage)),
+      ref.read(learningProgressStoreProvider).update(
+            (record) => record.copyWith(confirmationQuizSentenceId: id),
+          ),
     );
   }
 
@@ -115,6 +135,11 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
 
   void showSentenceStage() {
     _quizSentence = null;
+    unawaited(
+      ref
+          .read(learningProgressStoreProvider)
+          .update((record) => record.copyWith(clearConfirmation: true)),
+    );
     ref.read(quizControllerProvider.notifier).reset();
     _setStage(LearningStage.sentence);
   }
@@ -213,7 +238,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
       LearningStage.sentence => TodayScreen(
           onReload: widget.onReload,
           onStartQuiz: (sentence, offerSource) {
-            _quizSentence = sentence;
+            _rememberConfirmationQuiz(sentence);
             final quizNotifier = ref.read(quizControllerProvider.notifier);
             final quizState = ref.read(quizControllerProvider);
 

@@ -197,6 +197,8 @@ Future<ProviderContainer> _pumpLearningScreen(
           _FakeQuizAnalytics(),
           () => lookupL10n(const Locale('ja')),
           databaseHelper: _FakeDatabaseHelper(),
+          // 本番と同じく、カーソル側と同じインスタンスを共有する。
+          progressStore: ref.read(learningProgressStoreProvider),
         ),
       ),
       sentenceControllerProvider
@@ -249,13 +251,36 @@ void _seedFinishedSummaryQuizRecord({required String setId}) {
           active: DailySetRef(setId: setId, sentenceIds: ids),
           activeSentenceId: ids.last,
         ),
-        stage: LearningStage.summaryQuiz,
         summaryQuiz: {
           'phase': 'summary',
           'questions': [_question(1).toJson()],
           'answers': [true],
           'total_correct': 1,
           'stats': <String, dynamic>{},
+        },
+      ).toJson(),
+    ),
+  });
+}
+
+/// まとめクイズを回答の途中まで進めて閉じた端末。
+void _seedInProgressSummaryQuizRecord({required String setId}) {
+  final ids = ['a', 'b', 'c', 'd', 'e'];
+  SharedPreferences.setMockInitialValues({
+    LearningProgressStore.key: jsonEncode(
+      LearningProgressRecord(
+        set: DailySetProgressSnapshot(
+          active: DailySetRef(setId: setId, sentenceIds: ids),
+          activeSentenceId: ids.last,
+        ),
+        summaryQuiz: {
+          'phase': 'answering',
+          'questions': [_question(1).toJson(), _question(2).toJson()],
+          'index': 1,
+          'answers': [true],
+          'selected_indices': [0],
+          'hint_levels': [0],
+          'sentence_review_flags': [false],
         },
       ).toJson(),
     ),
@@ -326,6 +351,44 @@ void main() {
     expect(record.stage, LearningStage.sentence);
     expect(record.summaryQuiz, isNull);
     expect(record.confirmationQuiz, isNull);
+  });
+
+  testWidgets('まとめクイズの回答途中で閉じたら、その問題から再開する', (tester) async {
+    _seedInProgressSummaryQuizRecord(setId: 'set-a');
+    final backend = _FakeBackendApiService();
+
+    final container = await _pumpLearningScreen(tester, backend: backend);
+    await container.read(dailySetProvider.notifier).restore();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final state = container.read(quizControllerProvider);
+    expect(state, isA<QuizAnswering>(),
+        reason: '回答途中の保存が復元されていない');
+    expect((state as QuizAnswering).index, 1);
+    expect(backend.generateQuizCalls, 0);
+  });
+
+  testWidgets('回答途中の状態が実際にレコードへ書かれている', (tester) async {
+    // 復元側だけでなく保存側の確認。まとめクイズを1問解いた時点で、段と
+    // 回答途中の進行がレコードに載っていなければ、再起動で戻れない。
+    _seedFinishedSummaryQuizRecord(setId: 'set-a');
+    final container = await _pumpLearningScreen(
+      tester,
+      backend: _FakeBackendApiService(),
+    );
+    await container.read(dailySetProvider.notifier).restore();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final quiz = container.read(quizControllerProvider.notifier);
+    quiz.reset();
+    await quiz.generateAndStartQuiz();
+    await tester.pump(const Duration(milliseconds: 100));
+    await quiz.waitForSavedQuizWrites();
+
+    final record = await LearningProgressStore().load();
+    expect(record.summaryQuiz?['phase'], 'answering',
+        reason: '回答途中の進行が保存されていない');
+    expect(record.set.activeSentenceId, 'e', reason: 'カーソルが動いている');
   });
 
   testWidgets('カーソル復元が終わるまで段を決めない', (tester) async {

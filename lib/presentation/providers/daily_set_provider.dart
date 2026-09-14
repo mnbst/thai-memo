@@ -361,13 +361,12 @@ class DailySetController extends StateNotifier<DailySetState> {
           current.set.activeSentenceId != snapshot.activeSentenceId;
       final setChanged = current.set.active?.setId != snapshot.active?.setId;
       if (!sentenceChanged && !setChanged) return current.copyWith(set: snapshot);
-      // 読む1本が変わったら、その1本に属していたクイズの保存は連れて行かない。
-      // セットごと変わったならまとめクイズも同じ。持ち主を保存へ添えて毎回
-      // 突き合わせる代わりに、捨てる場所をここ1か所にする。
+      // 読む1本が変わったら、その1本の確認クイズ（受けた記録と、描き直す材料）は
+      // 連れて行かない。セットごと変わったならまとめクイズも同じ。持ち主を保存へ
+      // 添えて毎回突き合わせる代わりに、捨てる場所をここ1か所にする。
       return current.copyWith(
         set: snapshot,
-        stage: LearningStage.sentence,
-        clearConfirmationQuiz: true,
+        clearConfirmation: true,
         clearSummaryQuiz: setChanged,
       );
     });

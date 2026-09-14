@@ -111,7 +111,8 @@ QuizController _controller({
     _FakeAnalyticsService(),
     () => lookupL10n(const Locale('ja')),
     databaseHelper: _FakeDatabaseHelper(cachedStats: cachedStats),
-  );
+           progressStore: LearningProgressStore(),
+         );
 }
 
 /// 1.4.10 以前の端末に残っていた形。カーソルとクイズが別キーに入っている。
