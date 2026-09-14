@@ -85,7 +85,8 @@ Future<void> _pumpTodayScreen(
         ttsServiceProvider.overrideWithValue(_FakeTtsService()),
         authControllerProvider.overrideWith(
           (ref) => AuthController(FirebaseAuthService.instance,
-              () => lookupL10n(const Locale('ja'))),
+              () => lookupL10n(const Locale('ja')),
+              clearLocalData: () async {}),
         ),
         // 例文カード上の「次のテーマ」帯とヘッダーの語彙スコアが参照する。
         // 素で読むと planStatus 経由で Firebase を叩いてしまう。
@@ -93,7 +94,6 @@ Future<void> _pumpTodayScreen(
         // 帯が読むテーマ設定。settingsController は Firebase を要求する。
         generationParamsProvider.overrideWithValue(const {}),
         isPremiumProvider.overrideWithValue(false),
-        isPremiumRealtimeProvider.overrideWithValue(const AsyncData(false)),
         premiumTrialExpiresAtProvider.overrideWithValue(const AsyncData(null)),
         vocabStatsProvider.overrideWith(
           (ref) => Stream.value(const VocabStats()),

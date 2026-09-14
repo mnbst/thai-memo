@@ -16,7 +16,6 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/thai_sentence.dart';
@@ -84,6 +83,7 @@ class DailySetController extends StateNotifier<DailySetState> {
   List<String> _completedSetIds = const [];
   Future<void>? _remoteSyncFuture;
   bool _remoteSyncDirty = false;
+  bool _syncPaused = false;
   Future<void> _operationTail = Future.value();
 
   DailySetProgressStore get _progressStore => _readProgressStore();
@@ -122,7 +122,6 @@ class DailySetController extends StateNotifier<DailySetState> {
   }
 
   /// 予約済みの Firestore 同期まで含めて落ち着くのを待つ。
-  @visibleForTesting
   Future<void> get settled async {
     while (true) {
       await _operationTail;
@@ -238,6 +237,15 @@ class DailySetController extends StateNotifier<DailySetState> {
 
   Future<void> clear() => _serialized(_clear);
 
+  /// リセット中に古い進捗をサーバーへ書き戻さない。開始済みの同期は先に完了させる。
+  Future<void> pauseSync() async {
+    _syncPaused = true;
+    _remoteSyncDirty = false;
+    await settled;
+  }
+
+  void resumeSync() => _syncPaused = false;
+
   Future<void> _clear() async {
     state = const DailySetState();
     _completedSetIds = const [];
@@ -309,6 +317,7 @@ class DailySetController extends StateNotifier<DailySetState> {
 
   /// Firestore とのマージを1本だけ予約する。予約済みなら重ねない。
   void _scheduleRemoteSync() {
+    if (_syncPaused || !mounted) return;
     if (_remoteSyncFuture != null) {
       _remoteSyncDirty = true;
       return;
@@ -360,7 +369,9 @@ class DailySetController extends StateNotifier<DailySetState> {
       final sentenceChanged =
           current.set.activeSentenceId != snapshot.activeSentenceId;
       final setChanged = current.set.active?.setId != snapshot.active?.setId;
-      if (!sentenceChanged && !setChanged) return current.copyWith(set: snapshot);
+      if (!sentenceChanged && !setChanged) {
+        return current.copyWith(set: snapshot);
+      }
       // 読む1本が変わったら、その1本の確認クイズ（受けた記録と、描き直す材料）は
       // 連れて行かない。セットごと変わったならまとめクイズも同じ。持ち主を保存へ
       // 添えて毎回突き合わせる代わりに、捨てる場所をここ1か所にする。
@@ -371,7 +382,6 @@ class DailySetController extends StateNotifier<DailySetState> {
       );
     });
   }
-
 
   /// スナップショットの例文IDを実体へ解決して state に反映する。
   /// ローカル保存とクラウド正本のどちらも同じ経路を通る。
@@ -455,7 +465,6 @@ class DailySetController extends StateNotifier<DailySetState> {
     if (remote != null) await repository.saveSentence(remote);
     return remote;
   }
-
 }
 
 final dailySetProgressStoreProvider = Provider<DailySetProgressStore>((ref) {

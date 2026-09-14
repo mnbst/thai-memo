@@ -10,10 +10,14 @@
  *   - users/{uid}/sentences（学習した例文データ）
  *   - users/{uid}/quiz_answers（クイズの回答履歴）
  *   - users/{uid}/uvm（語彙習得モデル）
+ *   - users/{uid}/learning_state（端末間の学習進捗）
+ *   - users/{uid}/generation_locks（生成の多重実行防止lease）
  *   - users/{uid}（ユーザードキュメント本体）
  *   - leaderboard/{uid}（ランキング公開用の複製）
  *   - nicknames/{nickname}（ニックネームの予約）
  *   - quiz_queue 内の該当ユーザーのドキュメント
+ *   - contact_rate_limits/{uid}（問い合わせ送信制限）
+ *   - subscription_owners 内の該当ユーザーの所有権レコード
  *
  * 注意: Cloud Functions v1 の auth トリガーを使用（v2 ではまだ非サポート）
  */
@@ -49,6 +53,11 @@ export async function deleteUserFirestoreData(uid: string): Promise<number> {
   const uvm = await db.collection(`users/${uid}/uvm`).listDocuments();
   refs.push(...uvm);
 
+  for (const sub of ['learning_state', 'generation_locks']) {
+    refs.push(...await db.collection(`users/${uid}/${sub}`).listDocuments());
+  }
+  refs.push(db.doc(`contact_rate_limits/${uid}`));
+
   // users/{uid} ドキュメント本体
   refs.push(db.doc(`users/${uid}`));
 
@@ -66,6 +75,13 @@ export async function deleteUserFirestoreData(uid: string): Promise<number> {
     .where('uid', '==', uid)
     .get();
   for (const doc of quizQueue.docs) {
+    refs.push(doc.ref);
+  }
+
+  const owners = await db.collection('subscription_owners')
+    .where('uid', '==', uid)
+    .get();
+  for (const doc of owners.docs) {
     refs.push(doc.ref);
   }
 

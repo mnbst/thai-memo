@@ -91,12 +91,12 @@ Future<void> _pumpTodayScreen(
           (ref) => AuthController(
             FirebaseAuthService.instance,
             () => lookupL10n(const Locale('ja')),
+            clearLocalData: () async {},
           ),
         ),
         effectivePremiumProvider.overrideWithValue(false),
         generationParamsProvider.overrideWithValue(const {}),
         isPremiumProvider.overrideWithValue(false),
-        isPremiumRealtimeProvider.overrideWithValue(const AsyncData(false)),
         premiumTrialExpiresAtProvider.overrideWithValue(const AsyncData(null)),
         vocabStatsProvider.overrideWith(
           (ref) => Stream.value(const VocabStats()),
@@ -142,7 +142,8 @@ void main() {
   testWidgets('読み込み中もサンプルを出さない', (tester) async {
     final controller = _controller(analytics: analytics)..markLoading();
 
-    await _pumpTodayScreen(tester, analytics: analytics, controller: controller);
+    await _pumpTodayScreen(tester,
+        analytics: analytics, controller: controller);
 
     expect(find.text(_loadingText), findsOneWidget);
     expect(find.text(_sampleNotice), findsNothing);
@@ -150,7 +151,8 @@ void main() {
 
   testWidgets('保存された例文が1本も無いと分かって初めてサンプルを出す', (tester) async {
     final controller = _controller(analytics: analytics);
-    await _pumpTodayScreen(tester, analytics: analytics, controller: controller);
+    await _pumpTodayScreen(tester,
+        analytics: analytics, controller: controller);
 
     await controller.loadMostRecent();
     await tester.pump();

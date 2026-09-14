@@ -303,7 +303,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (ref.read(premiumTrialBackfilledAtProvider).valueOrNull == null) return;
     // 配布後に起動しないまま期限が切れた人には、開放を伝えても意味がない。
     // 何も持っていない状態で「開放しました」と言うことになる。
-    if (!(ref.read(premiumTrialActiveProvider).valueOrNull ?? false)) return;
+    if (!ref.read(trialActiveProvider)) return;
 
     if (ModalRoute.of(context)?.isCurrent != true) return;
 
@@ -833,7 +833,6 @@ bool isSameDailySet(DailySetState active, DailySentenceSet delivered) {
             (entry) => entry.value.id == delivered.sentences[entry.key].id,
           );
 }
-
 
 @visibleForTesting
 bool shouldAutoLoadAfterSentenceQuotaRefresh({

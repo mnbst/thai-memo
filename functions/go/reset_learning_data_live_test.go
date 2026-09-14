@@ -40,9 +40,10 @@ func TestResetLearningDataLive(t *testing.T) {
 	const queueDoc = "go-port-live-test-queue"
 
 	seed := map[string][]string{
-		"sentences":    {"s1", "s2"},
-		"quiz_answers": {"q1"},
-		"uvm":          {"u1"},
+		"sentences":      {"s1", "s2"},
+		"quiz_answers":   {"q1"},
+		"uvm":            {"u1"},
+		"learning_state": {"daily_sets"},
 	}
 
 	t.Cleanup(func() {
@@ -73,7 +74,10 @@ func TestResetLearningDataLive(t *testing.T) {
 
 	// merge であることを確かめるため、リセット対象外のフィールドも入れておく。
 	if _, err := db.Collection("users").Doc(uid).Set(ctx, map[string]any{
-		"remaining_sentences":      99,
+		"remaining_sentences":      0,
+		"remaining_quizzes":        2,
+		"vocab_test_count":         1,
+		"vocab_test_window_at":     123,
 		"sentence_generated_count": 42,
 		"daily_sentence_generated": true,
 		"keep_me":                  "残るはず",
@@ -108,8 +112,10 @@ func TestResetLearningDataLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	for k, w := range map[string]any{
-		"remaining_sentences":      int64(5),
-		"remaining_quizzes":        int64(5),
+		"remaining_sentences":      int64(0),
+		"remaining_quizzes":        int64(2),
+		"vocab_test_count":         int64(1),
+		"vocab_test_window_at":     int64(123),
 		"sentence_generated_count": int64(0),
 		"estimated_vocab":          int64(0),
 		"daily_sentence_generated": false,

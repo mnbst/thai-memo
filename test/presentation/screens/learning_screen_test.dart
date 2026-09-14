@@ -211,12 +211,12 @@ Future<ProviderContainer> _pumpLearningScreen(
         (ref) => AuthController(
           FirebaseAuthService.instance,
           () => lookupL10n(const Locale('ja')),
+          clearLocalData: () async {},
         ),
       ),
       effectivePremiumProvider.overrideWithValue(false),
       generationParamsProvider.overrideWithValue(const {}),
       isPremiumProvider.overrideWithValue(false),
-      isPremiumRealtimeProvider.overrideWithValue(const AsyncData(false)),
       premiumTrialExpiresAtProvider.overrideWithValue(const AsyncData(null)),
       vocabStatsProvider.overrideWith(
         (ref) => Stream.value(const VocabStats(estimatedVocab: 20)),
@@ -341,7 +341,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     await container.read(dailySetProvider.notifier).start(
-      [for (final id in ['f', 'g']) _sentence(id)],
+      [
+        for (final id in ['f', 'g']) _sentence(id)
+      ],
       setId: 'set-b',
     );
     await tester.pump(const Duration(milliseconds: 100));
@@ -362,8 +364,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     final state = container.read(quizControllerProvider);
-    expect(state, isA<QuizAnswering>(),
-        reason: '回答途中の保存が復元されていない');
+    expect(state, isA<QuizAnswering>(), reason: '回答途中の保存が復元されていない');
     expect((state as QuizAnswering).index, 1);
     expect(backend.generateQuizCalls, 0);
   });

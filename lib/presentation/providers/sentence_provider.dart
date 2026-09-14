@@ -14,10 +14,10 @@ import '../../domain/generate_sentence_usecase.dart';
 import '../../domain/get_sentences_usecase.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
+import '../../services/pending_operations.dart';
 import 'analytics_provider.dart';
 import 'remaining_quota_provider.dart';
 import 'settings_provider.dart';
-import 'subscription_provider.dart';
 
 typedef GenerateSentenceCallback = Future<List<ThaiSentence>> Function({
   Map<String, String?> generationParams,
@@ -84,6 +84,8 @@ final sentenceCountProvider = FutureProvider<int>((ref) async {
 
 /// Controller for managing sentence operations
 class SentenceController extends StateNotifier<SentenceState> {
+  final _pending = PendingOperations();
+  Future<void> settleForLearningReset() => _pending.settle();
   final GenerateSentenceUseCase _generateUseCase;
   final GetSentencesUseCase _getUseCase;
   final DeleteSentenceUseCase _deleteUseCase;
@@ -262,6 +264,8 @@ class SentenceController extends StateNotifier<SentenceState> {
     state = SentenceStateSuccess(sentence);
   }
 
+  void reset() => state = const SentenceStateEmpty();
+
   /// Delete a sentence
   Future<void> deleteSentence(String id) async {
     try {
@@ -293,13 +297,14 @@ class SentenceController extends StateNotifier<SentenceState> {
     int count = 1,
   }) {
     final generate = _generateSentenceOverride ?? _generateUseCase.execute;
-    return generate(generationParams: generationParams, count: count);
+    return _pending
+        .track(generate(generationParams: generationParams, count: count));
   }
 
   Future<ThaiSentence?> _executeGetMostRecentSentence() {
     final getMostRecent =
         _getMostRecentSentenceOverride ?? _getUseCase.getMostRecent;
-    return getMostRecent();
+    return _pending.track(getMostRecent());
   }
 
   /// [topicApplied] はトライアル適用で free ユーザーにもテーマが効いたか。
@@ -335,13 +340,9 @@ final sentenceControllerProvider =
     getUseCase,
     deleteUseCase,
     analytics,
-    () {
-      final bool isPremium = ref.read(isPremiumRealtimeProvider).valueOrNull ??
-          ref.read(isPremiumProvider);
-      return isPremium ? 'premium' : 'free';
-    },
+    () => ref.read(effectivePremiumProvider) ? 'premium' : 'free',
     () => ref.read(generationParamsProvider)['topic'],
-    () => ref.read(premiumTrialActiveProvider).valueOrNull ?? false,
+    () => ref.read(trialActiveProvider),
     () => ref.read(l10nProvider),
   );
 });

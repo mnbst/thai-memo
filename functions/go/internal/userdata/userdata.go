@@ -24,6 +24,7 @@ const batchLimit = 500
 //   - users/{uid}/sentences（学習した例文データ）
 //   - users/{uid}/quiz_answers（クイズの回答履歴）
 //   - users/{uid}/uvm（語彙習得モデル）
+//   - users/{uid}/learning_state（端末間の学習進捗）
 //   - users/{uid}/generation_locks（生成の多重実行防止lease）
 //   - users/{uid}（ユーザードキュメント本体）
 //   - leaderboard/{uid}（ランキング公開用の複製）
@@ -38,7 +39,7 @@ func DeleteFirestoreData(ctx context.Context, db *firestore.Client, uid string) 
 
 	// 実体の無い doc（サブコレクションだけ持つ）も拾うため DocumentRefs を使う
 	// （JS の listDocuments() 相当）。
-	for _, sub := range []string{"sentences", "quiz_answers", "uvm", "generation_locks"} {
+	for _, sub := range []string{"sentences", "quiz_answers", "uvm", "learning_state", "generation_locks"} {
 		got, err := documentRefs(ctx, db.Collection("users").Doc(uid).Collection(sub))
 		if err != nil {
 			return 0, err
@@ -91,18 +92,35 @@ func DeleteFirestoreData(ctx context.Context, db *firestore.Client, uid string) 
 		refs = append(refs, doc.Ref)
 	}
 
+	if err := DeleteDocuments(ctx, db, refs); err != nil {
+		return 0, err
+	}
+	return len(refs), nil
+}
+
+// DeleteDocuments waits for each write result, including server-side failures.
+// BulkWriter.Delete only reports enqueue errors; End alone cannot report failure.
+func DeleteDocuments(ctx context.Context, db *firestore.Client, refs []*firestore.DocumentRef) error {
 	for i := 0; i < len(refs); i += batchLimit {
 		end := min(i+batchLimit, len(refs))
 		bw := db.BulkWriter(ctx)
+		jobs := make([]*firestore.BulkWriterJob, 0, end-i)
 		for _, ref := range refs[i:end] {
-			if _, err := bw.Delete(ref); err != nil {
-				return 0, fmt.Errorf("削除に失敗: %w", err)
+			job, err := bw.Delete(ref)
+			if err != nil {
+				bw.End()
+				return fmt.Errorf("削除に失敗: %w", err)
 			}
+			jobs = append(jobs, job)
 		}
 		bw.End()
+		for _, job := range jobs {
+			if _, err := job.Results(); err != nil {
+				return fmt.Errorf("削除に失敗: %w", err)
+			}
+		}
 	}
-
-	return len(refs), nil
+	return nil
 }
 
 func documentRefs(ctx context.Context, col *firestore.CollectionRef) ([]*firestore.DocumentRef, error) {
