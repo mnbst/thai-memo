@@ -34,6 +34,16 @@ const (
 	ScanBandDecay = 5
 	ScanAheadMin  = 8 // 前方スキャンの下限（未習語が必ず候補に入るようにする）
 
+	// ForwardTopUpDepth は、帯の中で本数が埋まらないときに前方へ広げる深さ。
+	//
+	// 帯（幅は後方 50 + 前方 8〜20）を使い切るのは、est が伸びないまま生成を
+	// 続けた人。そこで既出を key_word に戻すと同じ語が何度も出るので、帯の
+	// 続きから未出を取る。深さは後方スキャン（GapScanDepth）と同じ 50。
+	// 1 セット 5 本ぶんを賄うには十分広く、難度が跳ぶほど遠くもない。
+	// ここで取れるのは穴埋めぶんだけで、帯そのものは動かさない
+	// （est の前進は従来どおり ScanBand が決める）。
+	ForwardTopUpDepth = 50
+
 	// TopicFilterThreshold はテーマ embedding との類似度の足切り。
 	TopicFilterThreshold = 0.3
 )
@@ -71,13 +81,35 @@ type Candidate struct {
 func BandCandidates(freqRank FreqRank, low, high int) []Candidate {
 	var out []Candidate
 	for word, rank := range freqRank {
-		if low <= rank && rank <= high && utf8.RuneCountInString(word) >= 2 {
+		if low <= rank && rank <= high && utf8.RuneCountInString(word) >= 2 &&
+			!IsExcludedTargetWord(word) {
 			out = append(out, Candidate{Word: word, Rank: rank})
 		}
 	}
 	sort.Slice(out, func(a, b int) bool { return out[a].Rank < out[b].Rank })
 	return out
 }
+
+// テーマ未指定のとき key_word からテーマを決める条件（FindBestTopic の引数）。
+//
+// 類似度が TopicMatchThreshold 以上のテーマを上位 TopicMatchTopK 件まで残し、
+// その中から1つ引く。argmax にしないのは、テーマ embedding の重心の高さで
+// 特定テーマ（BLドラマ）が全語で1位になるため。
+// セット生成で語ごとにテーマを決める側（sentence.SelectTargetWords）も
+// 同じ条件を使うので、定数にして片方だけずれないようにする。
+// 静的コーパスのマニフェスト（cmd/corpus）も同じ定数で語×テーマを起こす。
+// serve 側が指定しうるテーマとコーパスの在庫を一致させるため、ここを動かすと
+// コーパスの再生成が要る。
+//
+// 閾値は全語×全テーマの類似度中央値（0.530）付近に置くと、通過テーマ数が
+// そのまま語ごとの在庫数になって谷ができる。0.545 では 1201 語が 5 本未満、
+// うち ยาว のように 1 テーマだけ通った語は在庫1本＝毎回同じ文になっていた。
+// 0.52 まで下げると 5 本未満は 116 語。候補が増えるぶん重心バイアスも薄まり、
+// BLドラマが実際に引かれる期待値は 19.7% → 16.9% に下がる。
+const (
+	TopicMatchTopK      = 5
+	TopicMatchThreshold = 0.52
+)
 
 // TopicEmbedder は候補フィルタとテーマ選択に使う embedding 参照。
 // 実装は internal/embeddings.Store。
@@ -324,6 +356,9 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	candidates := BandCandidates(freqRank, scanLow, scanHigh)
+	// band は絞り込み前の帯。テーマで絞ると数語しか残らないことがあり、
+	// そのときセットの本数を埋めるために使う。
+	band := candidates
 
 	// fallbackEmb が非 nil のときは「帯内に閾値以上の語が無かった」。
 	// 既出を落としたあとで一番テーマに近い語を選ぶ（下の選出部）。
@@ -331,15 +366,15 @@ func (s *SessionSelector) GetSessionWords(
 
 	topic := req.Topic
 	if topic != "" && s.Emb != nil && len(candidates) > 0 {
-		topicEmb, err := s.Emb.TopicEmbedding(ctx, topic)
+		emb, err := s.Emb.TopicEmbedding(ctx, topic)
 		if err != nil {
 			return nil, "", err
 		}
-		if topicEmb != nil {
-			if matched := FilterCandidatesByTopic(s.Emb, candidates, topicEmb); len(matched) > 0 {
+		if emb != nil {
+			if matched := FilterCandidatesByTopic(s.Emb, candidates, emb); len(matched) > 0 {
 				candidates = matched
 			} else {
-				fallbackEmb = topicEmb
+				fallbackEmb = emb
 			}
 		}
 	}
@@ -377,6 +412,36 @@ func (s *SessionSelector) GetSessionWords(
 		selected = s.selectUnknown(candidates, pMap, req.Count)
 	}
 
+	// 選出が req.Count に足りないと、セットがその本数で欠ける（例文5本が
+	// 1本で返る）。欠ける道は2つある。
+	//   - テーマで絞った帯が req.Count に満たない
+	//   - テーマ無し（premium おまかせ）で、帯の未出語（zeroP）が尽きかけ
+	//     ている。SelectWeighted は zeroP の数しか返さない。
+	// prod 2026-09-12: 帯59語のうち未出が1語だけ残った premium ユーザーが、
+	// おまかせで1本しか受け取れなかった。絞り込みの有無で条件を分けず、
+	// 足りなければ常に帯の残りから埋める（未出→既出の順は TopUpFromBand）。
+	if len(selected) < req.Count {
+		rest := remaining(band, selected)
+		// 帯の中で埋まらないときのために、帯の前方（ランクの大きい側）へ
+		// ForwardTopUpDepth ぶん広げた語も一緒に見る。帯の既出を使い回すより、
+		// 前方の未出を出すほうが「まだ習っていない語を出す」帯の意図に合う。
+		forwardHigh := scanHigh + ForwardTopUpDepth
+		if req.MaxVocab != nil {
+			// free は語彙上限を越えない。上限に張り付いている帯では前方ぶんが
+			// 空になり、従来どおり帯の中だけで埋める。
+			forwardHigh = min(forwardHigh, *req.MaxVocab)
+		}
+		forward := BandCandidates(freqRank, scanHigh+1, forwardHigh)
+		if len(rest)+len(forward) > 0 {
+			// P を読み直すのは、足りないと分かったときだけ。
+			restP, err := s.fetchP(ctx, db, req.UID, append(append([]Candidate(nil), rest...), forward...))
+			if err != nil {
+				return nil, "", err
+			}
+			selected = TopUpFromBand(selected, rest, forward, restP, req.Count)
+		}
+	}
+
 	words := make([]string, len(selected))
 	for i, c := range selected {
 		words[i] = c.Word
@@ -386,7 +451,8 @@ func (s *SessionSelector) GetSessionWords(
 	if chosenTopic == "" && s.Emb != nil && len(words) > 0 {
 		// 閾値未達（＝key_word がどのテーマとも結びつかない機能語など）は
 		// "" のまま返し、テーマを LLM に決めさせる。ランダムに埋めない。
-		chosenTopic, err = s.Emb.FindBestTopic(ctx, words[0], req.TopicsPool, 5, 0.545)
+		chosenTopic, err = s.Emb.FindBestTopic(
+			ctx, words[0], req.TopicsPool, TopicMatchTopK, TopicMatchThreshold)
 		if err != nil {
 			return nil, "", err
 		}
@@ -403,6 +469,76 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	return words, chosenTopic, nil
+}
+
+// remaining は band から selected の語を除いたもの。
+func remaining(band, selected []Candidate) []Candidate {
+	taken := make(map[string]bool, len(selected))
+	for _, c := range selected {
+		taken[c.Word] = true
+	}
+	rest := make([]Candidate, 0, len(band))
+	for _, c := range band {
+		if !taken[c.Word] {
+			rest = append(rest, c)
+		}
+	}
+	return rest
+}
+
+// TopUpFromBand は選出が count に足りないとき、帯の残り（rest）と、帯の前方へ
+// 広げたぶん（forward）から埋める。
+//
+// 使う順は 3 段:
+//  1. 帯の未出（P=0 か未登録）。ランクの小さい側から。帯の中は易しい語を先に
+//     出す（ZeroPWeights が本選出で低ランクを重く見るのと同じ向き）。
+//  2. 帯の前方（ランクの大きい側）の外にある未出（forward）。帯に近い側から。
+//     帯の中では 5 本に届かない人—帯を使い切った premium ユーザーや、テーマ
+//     一致語が数語しかない場合—はここで埋まる。帯の上端から 1 ランクずつ前へ
+//     進む形なので難度は跳ばない。
+//  3. 帯の既出。ランクの小さい側から。既出を key_word にするのは最後の手段。
+//
+// テーマの閾値は見ない。閾値を満たす語が帯に 1 つも無いときに ClosestToTopic で
+// 埋めるのと同じ扱いで、「テーマから少し離れた語」より「本数が欠けたセット」の
+// ほうが困るという判断。
+func TopUpFromBand(
+	selected, rest, forward []Candidate, pMap map[string]float64, count int,
+) []Candidate {
+	ordered := append([]Candidate(nil), rest...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return ordered[i].Rank < ordered[j].Rank
+	})
+
+	var zeroP, known []Candidate
+	for _, c := range ordered {
+		if p, ok := pMap[c.Word]; !ok || p == 0.0 {
+			zeroP = append(zeroP, c)
+		} else {
+			known = append(known, c)
+		}
+	}
+
+	// 帯の外も帯に近い側（＝ランクの小さい側）から。帯の上端の続きとして
+	// 1 ランクずつ前へ進む形にして、難度が跳ねないようにする。既出は飛ばす。
+	fwd := append([]Candidate(nil), forward...)
+	sort.SliceStable(fwd, func(i, j int) bool { return fwd[i].Rank < fwd[j].Rank })
+	var fwdZeroP []Candidate
+	for _, c := range fwd {
+		if p, ok := pMap[c.Word]; !ok || p == 0.0 {
+			fwdZeroP = append(fwdZeroP, c)
+		}
+	}
+
+	out := selected
+	for _, pool := range [][]Candidate{zeroP, fwdZeroP, known} {
+		for _, c := range pool {
+			if len(out) >= count {
+				return out
+			}
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // fetchP は候補語の UVM ドキュメントを一括で読み、p を集める。

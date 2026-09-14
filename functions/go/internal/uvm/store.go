@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+
+	"github.com/mnbst/thai-memo/functions/go/internal/premium"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -90,7 +92,6 @@ func BatchUpdate(
 	results []Result,
 	freqRank map[string]int,
 	quizType string,
-	isPremium bool,
 ) error {
 	now := nowSeconds()
 	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
@@ -166,11 +167,7 @@ func BatchUpdate(
 	batch.End()
 
 	if freqRank != nil {
-		maxVocab := -1 // 負値は「上限なし」（Python の None 相当）
-		if !isPremium {
-			maxVocab = FreeTierMaxVocab
-		}
-		SyncEstimatedVocab(ctx, db, uid, freqRank, maxVocab)
+		SyncEstimatedVocab(ctx, db, uid, freqRank)
 	}
 	return nil
 }
@@ -179,30 +176,37 @@ func BatchUpdate(
 // （uvm.py:sync_estimated_vocab）。
 //
 // 現在値を中心に freq_rank ±50 の語だけ UVM から引いて再計算する（全件取得を避ける）。
-// maxVocab が負のときは上限なし。
+// 実効freeでは従来どおり [FreeTierMaxVocab] を上限にする。購入・復元直後に
+// tierだけ反映が遅れている場合は、subscriptionを含む実効権利でpremium判定する。
 func SyncEstimatedVocab(
 	ctx context.Context,
 	db *firestore.Client,
 	uid string,
 	freqRank map[string]int,
-	maxVocab int,
 ) {
 	userRef := db.Collection("users").Doc(uid)
 
-	current, tested := 0, 0
-	if snap, err := userRef.Get(ctx); err == nil && snap.Exists() {
-		data := snap.Data()
-		current = intField(data, "estimated_vocab", 0)
-		// 語彙テストの測定値は「原点」。これ以下の rank は存在しないものとして扱う
-		// （EstimateVocab の floor）。未受験は 0。
-		tested = intField(data, "vocab_test_vocab", 0)
+	snap, err := userRef.Get(ctx)
+	if err != nil {
+		// 権利・現在値を読めない状態で free/0 と推測して書くと、premium の
+		// estimated_vocab を100以下へ破壊する。次回の同期へ回す。
+		log.Printf("sync_estimated_vocab: user の取得に失敗: uid=%s error=%v", uid, err)
+		return
 	}
-	// free（maxVocab あり）は測定値を使わない。key_word 帯（GetSessionWords）が
-	// free では原点シフトしないので、走査帯の下端も揃えないと帯がずれる。
-	if maxVocab >= 0 {
+	if !snap.Exists() {
+		log.Printf("sync_estimated_vocab: user が存在しないため中止: uid=%s", uid)
+		return
+	}
+	userData := snap.Data()
+	current := intField(userData, "estimated_vocab", 0)
+	// 語彙テストの測定値は「原点」。これ以下の rank は存在しないものとして扱う
+	// （EstimateVocab の floor）。未受験は 0。
+	tested := intField(userData, "vocab_test_vocab", 0)
+	isPremium := estimatedVocabCap(userData, time.Now()) < 0
+	if !isPremium {
+		// free の key_word 帯は原点シフトしないため、走査帯も同じ基準に揃える。
 		tested = 0
 	}
-
 	scanLow := max(tested, current-50)
 	scanHigh := current + 51
 
@@ -248,14 +252,33 @@ func SyncEstimatedVocab(
 		}
 	}
 
+	// 帯に証拠が1つも無ければ触らない。EstimateVocab は母数ゼロのとき floor
+	// （未受験なら 0）を返すので、そのまま書くと積み上げたスコアが消える。
+	// free の帯（key_word は 100 以下）しか答えていない人の estimated_vocab が
+	// 300 台のまま残っている、といった組み合わせで起きる。
+	if len(entries) == 0 {
+		if !isPremium && current > FreeTierMaxVocab {
+			if _, err := userRef.Set(ctx,
+				map[string]any{"estimated_vocab": FreeTierMaxVocab}, firestore.MergeAll); err != nil {
+				log.Printf("sync_estimated_vocab: free上限の書き込みに失敗: uid=%s error=%v", uid, err)
+				return
+			}
+			PublishLeaderboardVocab(ctx, db, uid, FreeTierMaxVocab)
+			return
+		}
+		log.Printf("sync_estimated_vocab: 帯に証拠が無いため据え置き: uid=%s current=%d floor=%d",
+			uid, current, tested)
+		return
+	}
+
 	// 推定値をそのまま採用する。以前は 1 sync あたり ±3 に刻んでいたが、
 	// 刻んでも行き先は変わらず、到達までの十数回の sync に効果が分散する
 	// だけだった。クイズ 1 回の結果が、そのあとの例文生成のたびに少しずつ
 	// スコアを動かしているように見えていたのはこのため。
 	raw := EstimateVocab(entries, current, tested)
 	estimated := max(0, raw)
-	if maxVocab >= 0 {
-		estimated = min(estimated, maxVocab)
+	if !isPremium {
+		estimated = min(estimated, FreeTierMaxVocab)
 	}
 	log.Printf("sync_estimated_vocab: uid=%s current=%d floor=%d entries=%d raw=%d -> %d",
 		uid, current, tested, len(entries), raw, estimated)
@@ -268,12 +291,21 @@ func SyncEstimatedVocab(
 	PublishLeaderboardVocab(ctx, db, uid, estimated)
 }
 
+// estimatedVocabCap は永続化する語彙推定値の上限。負値は上限なし。
+// tier反映待ちはsubscriptionから補完し、有効な購入者をfreeへ落とさない。
+func estimatedVocabCap(userData map[string]any, now time.Time) int {
+	if premium.IsEffectivePremium(userData, now) {
+		return -1
+	}
+	return FreeTierMaxVocab
+}
+
 // PublishLeaderboardVocab は語彙スコアをランキング用の公開コレクションへ複製する
 // （uvm.py:publish_leaderboard_vocab）。
 //
 // users/{uid} は本人しか読めないため leaderboard/{uid} を別に持つ。
 // 表示名は最初の1回だけ自動採番し、以降は触らない。
-// free は estimated_vocab 自体がキャップ済みなので、ここでは追加のキャップをしない。
+// free は estimated_vocab 自体がキャップ済みなので、ここでは追加で加工しない。
 // ランキングの失敗で呼び出し元を止めない（Python と同じくエラーを飲む）。
 func PublishLeaderboardVocab(ctx context.Context, db *firestore.Client, uid string, vocab int) {
 	ref := db.Collection("leaderboard").Doc(uid)

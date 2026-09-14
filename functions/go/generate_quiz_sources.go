@@ -31,21 +31,55 @@ func toQuizSeedSourceFromSelected(sentence selectedSentence) quizSeedSource {
 		return s
 	}
 
+	seed := quizgen.QuizSentenceSeed{
+		QuizFormat:           quizgen.FormatClozeChoice,
+		ThaiText:             str("thai_text"),
+		Words:                seedWords(data),
+		Pronunciation:        str("pronunciation"),
+		JapaneseTranslation:  str("japanese_translation"),
+		KeyWord:              str("key_word"),
+		KeyWordPronunciation: str("key_word_pronunciation"),
+		KeyWordMeaning:       resolveKeyWordMeaning(data),
+	}
 	return quizSeedSource{
-		Seed: quizgen.QuizSentenceSeed{
-			ThaiText:             str("thai_text"),
-			Pronunciation:        str("pronunciation"),
-			JapaneseTranslation:  str("japanese_translation"),
-			KeyWord:              str("key_word"),
-			KeyWordPronunciation: str("key_word_pronunciation"),
-			KeyWordMeaning:       resolveKeyWordMeaning(data),
-		},
+		Seed:                  seed,
 		SentenceID:            sentence.ID,
 		SrsInterval:           sentence.SrsInterval,
 		JapaneseTranslation:   str("japanese_translation"),
 		SentencePronunciation: str("pronunciation"),
 		SentenceDetail:        buildSentenceDetail(data, sentence.ID, nil),
 	}
+}
+
+// meaningChoicesFromSentence は同じ例文の word_breakdown から意味4択を作る。
+// 対象語の意味を正解として先頭に置き、後段の Sanitizer で順序を混ぜる。
+// 4件揃わない例文は意味問題にせず、従来の穴埋めへフォールバックする。
+func meaningChoicesFromSentence(data map[string]any, correctMeaning string) []string {
+	correct := strings.TrimSpace(correctMeaning)
+	if correct == "" {
+		return nil
+	}
+
+	seen := map[string]bool{correct: true}
+	var dummies []string
+	wordBreakdown, _ := data["word_breakdown"].([]any)
+	for _, raw := range wordBreakdown {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		meaning := strings.TrimSpace(quizgen.NormalizeTextValue(item["meaning"]))
+		if meaning == "" || seen[meaning] {
+			continue
+		}
+		seen[meaning] = true
+		dummies = append(dummies, meaning)
+	}
+	if len(dummies) < 3 {
+		return nil
+	}
+	shuffleN(len(dummies), func(i, j int) { dummies[i], dummies[j] = dummies[j], dummies[i] })
+	return append([]string{correct}, dummies[:3]...)
 }
 
 // buildLearningQuizSource は学習フローから渡された例文を生成元にする。
@@ -72,7 +106,9 @@ func buildLearningQuizSource(payload map[string]any) (quizSeedSource, bool) {
 
 	return quizSeedSource{
 		Seed: quizgen.QuizSentenceSeed{
+			QuizFormat:           quizgen.FormatClozeChoice,
 			ThaiText:             thaiText,
+			Words:                seedWords(payload),
 			Pronunciation:        pronunciation,
 			JapaneseTranslation:  japaneseTranslation,
 			KeyWord:              keyWord,
@@ -85,6 +121,24 @@ func buildLearningQuizSource(payload map[string]any) (quizSeedSource, bool) {
 		SentencePronunciation: pronunciation,
 		SentenceDetail:        sentenceDetail,
 	}, true
+}
+
+// buildLearningQuizSourceForClient は対応を明示した新クライアントの確認クイズだけを
+// 意味4択にする。未宣言の1.4.8以前と、選択肢が4件揃わない例文は穴埋めのまま。
+func buildLearningQuizSourceForClient(
+	payload map[string]any, supportsMeaningChoice bool,
+) (quizSeedSource, bool) {
+	source, ok := buildLearningQuizSource(payload)
+	if !ok || !supportsMeaningChoice {
+		return source, ok
+	}
+	choices := meaningChoicesFromSentence(payload, source.Seed.KeyWordMeaning)
+	if len(choices) != 4 {
+		return source, ok
+	}
+	source.Seed.QuizFormat = quizgen.FormatMeaningChoice
+	source.Seed.MeaningChoices = choices
+	return source, ok
 }
 
 type sentenceFallback struct {
@@ -140,6 +194,23 @@ func buildSentenceDetail(
 	return detail
 }
 
+// seedWords は word_breakdown の語を出現順に返す。
+// 空欄を語の境界に合わせるために使う。
+func seedWords(data map[string]any) []string {
+	wordBreakdown, _ := data["word_breakdown"].([]any)
+	words := make([]string, 0, len(wordBreakdown))
+	for _, raw := range wordBreakdown {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if word := quizgen.NormalizeTextValue(item["word"]); word != "" {
+			words = append(words, word)
+		}
+	}
+	return words
+}
+
 // resolveKeyWordMeaning は key_word の意味を決める。
 // 保存済みの key_word_meaning が空なら word_breakdown から探す。
 //
@@ -190,6 +261,7 @@ func toQuizQuestion(
 			source.SentencePronunciation, source.Seed.KeyWordPronunciation),
 		DummyReasons:   question.DummyReasons,
 		SentenceDetail: source.SentenceDetail,
+		QuizFormat:     question.QuizFormat,
 	}
 }
 
@@ -204,7 +276,8 @@ func isQuizSeedSourceReady(source quizSeedSource) bool {
 }
 
 // matchesKeyWord はモデルが返した正解が、こちらの指定した key_word と一致するか。
+// 本文が ๆ を付けて書いているときは正解もその表記になるので、ๆ の有無は許す。
 func matchesKeyWord(question quizgen.GeneratedQuizQuestion, seed quizgen.QuizSentenceSeed) bool {
 	return seed.KeyWord == "" ||
-		strings.TrimSpace(question.CorrectAnswer) == strings.TrimSpace(seed.KeyWord)
+		quizgen.MatchesKeyWord(question.CorrectAnswer, seed.KeyWord)
 }

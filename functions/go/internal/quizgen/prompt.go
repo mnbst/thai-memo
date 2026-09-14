@@ -106,6 +106,81 @@ dummies / explanation / dummy_reasons の3項目のみ。
 dummies 3件、correct_answer 不含、dummy_reasons 3件。
 3ダミーすべて、周辺タイ語だけで除外できること。`
 
+// fixedDummySystemPrompt はダミーを渡して理由と解説だけ書かせる版。
+//
+// ダミーは PickDistractors が「正解の前後ランク × 正解と違う品詞 ×
+// 機能語でない」で選んでいる。SystemPrompt が長い NG 例で塞いでいた
+// 「複数正解になる候補」は選定側で機械的に落ちるので、ここには残さない。
+// 残すのは dummy_reasons の書式（extractDummyPronunciation が依存）と、
+// 訳文を見ずに解けること。
+var fixedDummySystemPrompt = map[lang.Lang]string{
+	lang.JA: `確定済みのタイ語穴埋め問題1問について、ダミーの不正解理由と解説だけを作成してください。
+blank_text / correct_answer / dummies は変更しません。
+
+【出力】
+explanation / dummy_reasons の2項目のみ。
+- {{EXPLANATION_RULE}}
+- {{DUMMY_REASON_FORMAT}}
+
+{{VISIBILITY_RULE}}
+
+【理由の書き方】
+- 渡された dummies 3件それぞれについて、その語がその位置に入らない理由を書く
+- 品詞と位置で説明する（動詞の位置に名詞、目的語に形容詞、など）
+- dummies の語を書き換えない。3行は互いに異なる理由にする
+
+{{BANNED_REASON_PHRASES}}
+
+{{GOOD_REASON_EXAMPLES}}
+
+【最終確認】
+dummy_reasons 3件、dummies と同じ語・同じ順。`,
+	lang.EN: `確定済みのタイ語穴埋め問題1問について、ダミーの不正解理由と解説だけを作成してください。
+blank_text / correct_answer / dummies は変更しません。
+
+【出力】
+explanation / dummy_reasons の2項目のみ。
+- {{EXPLANATION_RULE}}
+- {{DUMMY_REASON_FORMAT}}
+
+{{VISIBILITY_RULE}}
+
+【理由の書き方】
+- 渡された dummies 3件それぞれについて、その語がその位置に入らない理由を書く
+- 品詞と位置で説明する（動詞の位置に名詞、目的語に形容詞、など）
+- dummies の語を書き換えない。3行は互いに異なる理由にする
+
+{{BANNED_REASON_PHRASES}}
+
+{{GOOD_REASON_EXAMPLES}}
+
+【最終確認】
+dummy_reasons 3件、dummies と同じ語・同じ順。`,
+}
+
+var meaningSystemPrompt = map[lang.Lang]string{
+	lang.JA: `確定済みのタイ語単語の意味4択問題1問について、対象単語そのものの解説だけを作成してください。
+正解と選択肢は変更しません。
+
+【出力】
+explanation のみ。
+- explanation: 対象単語の意味・ニュアンス・使い方を、日本語140文字以内で簡潔に説明する
+- 出題に使った例文の解説、不正解候補の理由、新しい例文は書かない
+
+【最終確認】
+explanation だけを返す。`,
+	lang.EN: `For one finalized multiple-choice Thai word meaning question, explain only the target word itself.
+Do not change the correct answer or choices.
+
+【Output】
+Return only explanation.
+- explanation: briefly explain the target word's meaning, nuance, and usage in English, using at most 80 words
+- do not explain the source sentence, discuss wrong choices, or create a new example sentence
+
+【Final check】
+Return only explanation.`,
+}
+
 // SystemPrompt は言語ごとのシステムプロンプト。
 func SystemPrompt(l lang.Lang) string {
 	if l != lang.EN {
@@ -121,10 +196,65 @@ func SystemPrompt(l lang.Lang) string {
 	).Replace(systemPromptTemplate)
 }
 
+// SystemPromptFor は問題形式に合う指示を返す。SystemPrompt はJS版との
+// golden互換を保つため穴埋め専用のまま残す。
+func SystemPromptFor(sentences []QuizSentenceSeed, l lang.Lang) string {
+	if len(sentences) == 1 && quizFormatOf(sentences[0]) == FormatMeaningChoice {
+		if l != lang.EN {
+			l = lang.JA
+		}
+		return meaningSystemPrompt[l]
+	}
+	if AllHaveFixedDummies(sentences) {
+		return fixedDummyPrompt(l)
+	}
+	return SystemPrompt(l)
+}
+
+// AllHaveFixedDummies は全問のダミーが確定しているか。1問でも欠けていれば
+// 従来のプロンプト（モデルがダミーも作る）に倒す。1回の呼び出しに
+// 指示は1つしか付けられないので、混在は指示とデータが食い違う。
+// レスポンススキーマ（internal/gemini）も同じ判定で dummies を落とす。
+func AllHaveFixedDummies(sentences []QuizSentenceSeed) bool {
+	if len(sentences) == 0 {
+		return false
+	}
+	for _, s := range sentences {
+		if len(uniqueTexts(s.FixedDummies)) != DistractorCount {
+			return false
+		}
+	}
+	return true
+}
+
+func fixedDummyPrompt(l lang.Lang) string {
+	if l != lang.EN {
+		l = lang.JA
+	}
+	return strings.NewReplacer(
+		"{{EXPLANATION_RULE}}", explanationRule[l],
+		"{{DUMMY_REASON_FORMAT}}", dummyReasonFormat[l],
+		"{{VISIBILITY_RULE}}", visibilityRule[l],
+		"{{BANNED_REASON_PHRASES}}", bannedReasonPhrases[l],
+		"{{GOOD_REASON_EXAMPLES}}", goodReasonExamples[l],
+	).Replace(fixedDummySystemPrompt[l])
+}
+
 // BuildPrompt はユーザープロンプト（問題データの並び）を組み立てる。
 func BuildPrompt(sentences []QuizSentenceSeed, l lang.Lang) string {
+	if len(sentences) == 1 && quizFormatOf(sentences[0]) == FormatMeaningChoice {
+		return buildMeaningPrompt(sentences[0], l)
+	}
 	return "以下のタイ語穴埋め問題について、システム指示に従って出力してください。\n\n" +
 		buildPreparedSentenceList(sentences, l)
+}
+
+func buildMeaningPrompt(sentence QuizSentenceSeed, l lang.Lang) string {
+	prepared := PrepareInputs([]QuizSentenceSeed{sentence})[0]
+	return fmt.Sprintf(
+		"以下の意味4択問題について、システム指示に従って出力してください。\n\n"+
+			"target_word: %s\ncorrect_meaning: %s",
+		prepared.CorrectAnswer, prepared.CorrectAnswerMeaning)
 }
 
 func buildPreparedSentenceList(sentences []QuizSentenceSeed, l lang.Lang) string {
@@ -143,11 +273,15 @@ func buildPreparedSentenceList(sentences []QuizSentenceSeed, l lang.Lang) string
 		if meaning == "" {
 			meaning = "未指定"
 		}
-		entries = append(entries, fmt.Sprintf(
+		entry := fmt.Sprintf(
 			"%d. thai_text: %s\n   blank_text: %s\n   correct_answer: %s\n"+
 				"   correct_answer_pronunciation: %s\n   correct_answer_meaning: %s\n   %s: %s",
 			i+1, s.ThaiText, s.BlankText, s.CorrectAnswer,
-			s.Pronunciation, meaning, translationLabel, s.JapaneseTranslation))
+			s.Pronunciation, meaning, translationLabel, s.JapaneseTranslation)
+		if len(s.FixedDummies) > 0 {
+			entry += "\n   dummies: " + strings.Join(s.FixedDummies, " / ")
+		}
+		entries = append(entries, entry)
 	}
 	return strings.Join(entries, "\n\n")
 }

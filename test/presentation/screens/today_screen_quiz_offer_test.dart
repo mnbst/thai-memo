@@ -17,7 +17,7 @@ import 'package:thai_memo/presentation/providers/settings_provider.dart';
 import 'package:thai_memo/presentation/providers/subscription_provider.dart';
 import 'package:thai_memo/presentation/providers/tts_provider.dart';
 import 'package:thai_memo/presentation/providers/vocab_stats_provider.dart';
-import 'package:thai_memo/presentation/screens/home_screen.dart';
+import 'package:thai_memo/presentation/screens/today_screen.dart';
 import 'package:thai_memo/services/firebase_auth_service.dart';
 import 'package:thai_memo/services/tts_service.dart';
 
@@ -85,7 +85,8 @@ Future<void> _pumpTodayScreen(
         ttsServiceProvider.overrideWithValue(_FakeTtsService()),
         authControllerProvider.overrideWith(
           (ref) => AuthController(FirebaseAuthService.instance,
-              () => lookupL10n(const Locale('ja'))),
+              () => lookupL10n(const Locale('ja')),
+              clearLocalData: () async {}),
         ),
         // 例文カード上の「次のテーマ」帯とヘッダーの語彙スコアが参照する。
         // 素で読むと planStatus 経由で Firebase を叩いてしまう。
@@ -93,7 +94,6 @@ Future<void> _pumpTodayScreen(
         // 帯が読むテーマ設定。settingsController は Firebase を要求する。
         generationParamsProvider.overrideWithValue(const {}),
         isPremiumProvider.overrideWithValue(false),
-        isPremiumRealtimeProvider.overrideWithValue(const AsyncData(false)),
         premiumTrialExpiresAtProvider.overrideWithValue(const AsyncData(null)),
         vocabStatsProvider.overrideWith(
           (ref) => Stream.value(const VocabStats()),
@@ -160,6 +160,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(analytics.quizOfferEvents, hasLength(2));
 
+    await tester.ensureVisible(find.text('確認クイズへ'));
     await tester.tap(find.text('確認クイズへ'));
     await tester.pump();
     expect(tappedSentence?.id, 'sentence-quiz-offer');
@@ -247,6 +248,7 @@ void main() {
     expect(find.text('確認クイズへ'), findsOneWidget);
     expect(analytics.quizOfferEvents, isEmpty);
 
+    await tester.ensureVisible(find.text('確認クイズへ'));
     await tester.tap(find.text('確認クイズへ'));
     await tester.pump();
     expect(tappedSource, isNull);

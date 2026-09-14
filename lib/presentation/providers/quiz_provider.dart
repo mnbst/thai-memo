@@ -26,11 +26,11 @@
 // =============================================================================
 
 import 'dart:async';
-import 'dart:convert';
+
+import '../../services/pending_operations.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/datasources/backend_api_service.dart'
     show
@@ -44,6 +44,8 @@ import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../services/analytics_service.dart';
+import '../../services/learning_progress_store.dart';
+import 'daily_set_provider.dart';
 import 'analytics_provider.dart';
 import 'settings_provider.dart';
 
@@ -53,11 +55,13 @@ final RegExp _thaiScriptRegex = RegExp(r'[฀-๿]');
 /// タイ語以外の文字（英字・日本語・漢字）を検出する正規表現（不正な選択肢の検出用）
 final RegExp _nonThaiChoiceRegex = RegExp(r'[A-Za-z぀-ヿㇰ-ㇿ一-鿿]');
 
-/// 学習クイズ（1問確認クイズ）のSharedPreferences保存キー
-const String _savedConfirmationQuizKey = 'saved_confirmation_quiz';
-
-/// まとめクイズ（5問復習クイズ）のSharedPreferences保存キー
-const String _savedSummaryQuizKey = 'saved_summary_quiz';
+/// クイズの保存先。学習の進み具合レコード（learning_progress）の中の、
+/// 確認クイズとまとめクイズのどちらを指すか。
+///
+/// まとめクイズの持ち主（セットID）は添えない。カーソルと同じレコードにいて、
+/// セットが変われば一緒に落ちる（DailySetController._saveLocal）。確認クイズは
+/// カーソルの外の1本にも付きうるので、例文IDを payload に残す。
+enum _QuizSlot { confirmation, summary }
 
 // =============================================================================
 // クイズ状態クラス群
@@ -215,6 +219,7 @@ class QuizStatsData {
 // =============================================================================
 
 class QuizController extends StateNotifier<QuizState> {
+  final _pending = PendingOperations();
   final DatabaseHelper _db;
   final BackendApiService _apiService;
   final AnalyticsService _analytics;
@@ -233,6 +238,7 @@ class QuizController extends StateNotifier<QuizState> {
   /// 回答ごとに非同期で送信されるUVM更新のFutureリスト。
   /// まとめクイズのサマリー表示前にすべての完了を待つ。
   final List<Future<void>> _pendingUvmUpdates = [];
+  Stopwatch? _questionResponseTimer;
 
   /// DB保存待ちの連打で、同じ回答・統計を二重記録しないためのガード。
   bool _isAnswering = false;
@@ -256,8 +262,14 @@ class QuizController extends StateNotifier<QuizState> {
     this._analytics,
     this._l10n, {
     DatabaseHelper? databaseHelper,
+    required LearningProgressStore progressStore,
   })  : _db = databaseHelper ?? DatabaseHelper.instance,
+        _progress = progressStore,
         super(const QuizInitial());
+
+  /// 学習レコード。必須にしてあるのは、カーソル側と同じインスタンスを渡し忘れると
+  /// 同じレコードへの読み書きが二重の待ち行列になり、後勝ちで片方が消えるため。
+  final LearningProgressStore _progress;
 
   /// 例文生成直後にバックグラウンドでクイズを事前生成する。
   ///
@@ -266,14 +278,25 @@ class QuizController extends StateNotifier<QuizState> {
   /// クイズ開始時の待ち時間がなくなる。
   /// 同じ例文IDに対する重複呼び出しはスキップされる。
   /// 生成中に別の例文のprepareが呼ばれた場合、古い結果は破棄される。
-  Future<void> prepareQuiz(ThaiSentence sentence) async {
+  Future<void> prepareQuiz(ThaiSentence sentence) {
     final sentenceId = sentence.id;
-    if (sentenceId == null || sentenceId.isEmpty) return;
-    if (sentenceId == _preparedSentenceId) return;
+    if (sentenceId == null || sentenceId.isEmpty) return Future.value();
+    if (sentenceId == _preparedSentenceId) {
+      return _prepareInFlight ?? Future.value();
+    }
 
     _preparedSentenceId = sentenceId;
     _preparedQuestions = null;
 
+    final run = _runPrepareQuiz(sentence, sentenceId);
+    _prepareInFlight = run;
+    return run;
+  }
+
+  /// 実行中の事前生成。開始側（startLearningQuiz）が待ち合わせるために持つ。
+  Future<void>? _prepareInFlight;
+
+  Future<void> _runPrepareQuiz(ThaiSentence sentence, String sentenceId) async {
     try {
       final questions = await _apiService.generateLearningQuiz(sentence);
       // 学習クイズは1問のみ。バリデーション通過かつ、生成中に対象が変わっていなければ採用
@@ -283,7 +306,7 @@ class QuizController extends StateNotifier<QuizState> {
         _preparedQuestions = questions;
         final initialState = QuizAnswering(questions, 0, []);
         unawaited(
-          _enqueueQuizStateSave(_savedConfirmationQuizKey, initialState,
+          _enqueueQuizStateSave(_QuizSlot.confirmation, initialState,
               sentenceId: sentenceId),
         );
       }
@@ -312,7 +335,11 @@ class QuizController extends StateNotifier<QuizState> {
   ///   1. SharedPreferencesに保存済みの状態（アプリ再起動後の復元）
   ///   2. メモリ上の事前生成済みクイズ（prepareQuizで準備済み）
   ///   3. その場でAPI呼び出しして生成（フォールバック）
-  Future<void> startLearningQuiz(
+  Future<void> startLearningQuiz(ThaiSentence sentence,
+          {String? offerSource}) =>
+      _pending.track(_startLearningQuiz(sentence, offerSource: offerSource));
+
+  Future<void> _startLearningQuiz(
     ThaiSentence sentence, {
     String? offerSource,
   }) async {
@@ -320,15 +347,18 @@ class QuizController extends StateNotifier<QuizState> {
     _quizOfferSource = offerSource;
     _quizOfferStartedLogged = false;
     _quizOfferAnsweredLogged = false;
-    unawaited(_enqueueQuizStateClear(_savedSummaryQuizKey));
+    unawaited(_enqueueQuizStateClear(_QuizSlot.summary));
     final sentenceId = sentence.id;
 
     // 1. SP保存済み状態を復元（途中回答やサマリー完了状態も含む）
     final savedState =
-        await _loadQuizState(_savedConfirmationQuizKey, sentenceId: sentenceId);
+        await _loadQuizState(_QuizSlot.confirmation, sentenceId: sentenceId);
     if (savedState != null) {
       _preparedSentenceId = sentenceId;
       state = savedState;
+      if (savedState is QuizAnswering) {
+        _questionResponseTimer = Stopwatch()..start();
+      }
       _quizOfferAnsweredLogged = switch (savedState) {
         QuizAnswering s => s.answers.isNotEmpty,
         QuizShowResult() || QuizSummary() => true,
@@ -350,7 +380,23 @@ class QuizController extends StateNotifier<QuizState> {
       return;
     }
 
-    // 3. 事前生成中 or 未開始 → その場で生成して開始
+    // 3-a. 事前生成が走っている最中なら、それを待つ。
+    //
+    // ここで別途APIを叩くと同じユーザーが2本同時に生成することになり、
+    // サーバーの生成ロック（generate_quiz.go の operation lease）に弾かれて
+    // 409 が返り、毎回エラー画面になる（もう一度押すと1本目が終わっていて
+    // 通るので「2回目は成功する」ように見える）。
+    if (isPreparingFor(sentenceId)) {
+      state = const QuizGenerating();
+      await _prepareInFlight;
+      if (hasQuizFor(sentenceId)) {
+        _enterAnswering(_preparedQuestions!);
+        return;
+      }
+      // 事前生成が失敗していた場合だけ、下のその場生成へ落ちる。
+    }
+
+    // 3-b. 事前生成が無い・失敗した → その場で生成して開始
     state = const QuizGenerating();
 
     try {
@@ -381,21 +427,17 @@ class QuizController extends StateNotifier<QuizState> {
 
   /// まとめクイズ（5問の復習クイズ）を生成して開始する。
   ///
-  /// SRS（間隔反復）で選出された過去の例文から穴埋め問題を生成。
-  /// SP保存済みの途中状態があればそこから再開する。
+  /// SRS（間隔反復）で選出された過去の例文から穴埋め問題を生成する。
+  /// 途中から再開するのは [restoreSavedSummaryQuiz] の役目で、ここは常に作る。
   /// ユーザーの学習済み例文がない場合はQuizNoSentences状態に遷移。
-  Future<void> generateAndStartQuiz() async {
+  Future<void> generateAndStartQuiz() =>
+      _pending.track(_generateAndStartQuiz());
+
+  Future<void> _generateAndStartQuiz() async {
     _isLearningQuiz = false;
     _quizOfferSource = null;
     _quizOfferStartedLogged = false;
     _quizOfferAnsweredLogged = false;
-
-    // SP保存済みの途中状態があれば復元
-    final savedState = await _loadQuizState(_savedSummaryQuizKey);
-    if (savedState != null) {
-      state = savedState;
-      return;
-    }
 
     try {
       state = const QuizGenerating();
@@ -416,11 +458,23 @@ class QuizController extends StateNotifier<QuizState> {
     }
   }
 
-  /// アプリ再起動後に復元できる未完了のまとめクイズがあるか確認する。
-  Future<bool> hasSavedSummaryQuiz() async {
-    await _waitForQuizStateWrites();
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_savedSummaryQuizKey);
+  /// 中断したまとめクイズを復元する。復元できたときだけ true。
+  ///
+  /// 終わったセットの保存はカーソルが動いた時点で落ちているので、ここに
+  /// 残っているのは進行中セットのものだけ。生成はしないので、保存が無ければ
+  /// 画面はそのまま。
+  Future<bool> restoreSavedSummaryQuiz() async {
+    final savedState = await _loadQuizState(_QuizSlot.summary);
+    if (savedState == null) return false;
+    _isLearningQuiz = false;
+    _quizOfferSource = null;
+    _quizOfferStartedLogged = false;
+    _quizOfferAnsweredLogged = false;
+    state = savedState;
+    if (savedState is QuizAnswering) {
+      _questionResponseTimer = Stopwatch()..start();
+    }
+    return true;
   }
 
   /// 全状態をリセットしてQuizInitialに戻す。
@@ -433,9 +487,18 @@ class QuizController extends StateNotifier<QuizState> {
     _quizOfferStartedLogged = false;
     _quizOfferAnsweredLogged = false;
     _pendingUvmUpdates.clear();
-    unawaited(_enqueueQuizStateClear(_savedConfirmationQuizKey));
-    unawaited(_enqueueQuizStateClear(_savedSummaryQuizKey));
+    _questionResponseTimer = null;
+    unawaited(_enqueueQuizStateClear(_QuizSlot.confirmation));
+    unawaited(_enqueueQuizStateClear(_QuizSlot.summary));
     state = const QuizInitial();
+  }
+
+  /// サーバーで学習記録を消す前に、送信済みの回答と事前生成の保存を完了させる。
+  Future<void> settleForLearningReset() async {
+    await _pending.settle();
+    await Future.wait(List<Future<void>>.of(_pendingUvmUpdates));
+    await _prepareInFlight;
+    await _waitForQuizStateWrites();
   }
 
   /// クイズ問題の選択肢が有効かを検証する。
@@ -443,8 +506,8 @@ class QuizController extends StateNotifier<QuizState> {
   /// 以下のいずれかに該当する場合、不正と判定:
   ///   - 選択肢が4つでない
   ///   - 正解がタイ語でない（英字・日本語・漢字を含む）
-  ///   - 正解が選択肢リストに含まれていない
-  ///   - いずれかの選択肢がタイ語でない
+  ///   - 形式に応じた正解が選択肢リストに含まれていない
+  ///   - 穴埋めなのに、いずれかの選択肢がタイ語でない
   /// Gemini APIが稀に不正な選択肢を返すことがあるため、この検証が必要。
   bool _hasInvalidQuizChoices(List<QuizQuestion> questions) {
     return questions.any((question) {
@@ -454,8 +517,15 @@ class QuizController extends StateNotifier<QuizState> {
       if (!_isThaiChoice(question.correctAnswer)) {
         return true;
       }
-      if (!question.choices.contains(question.correctAnswer)) {
+      if (question.correctChoice.trim().isEmpty ||
+          !question.choices.contains(question.correctChoice)) {
         return true;
+      }
+      if (question.choices.map((choice) => choice.trim()).toSet().length != 4) {
+        return true;
+      }
+      if (question.isMeaningChoice) {
+        return question.choices.any((choice) => choice.trim().isEmpty);
       }
       return question.choices.any((choice) => !_isThaiChoice(choice));
     });
@@ -474,9 +544,10 @@ class QuizController extends StateNotifier<QuizState> {
   void _enterAnswering(List<QuizQuestion> questions) {
     final answeringState = QuizAnswering(questions, 0, []);
     state = answeringState;
+    _questionResponseTimer = Stopwatch()..start();
     if (!_isLearningQuiz) {
       unawaited(
-        _enqueueQuizStateSave(_savedSummaryQuizKey, answeringState),
+        _enqueueQuizStateSave(_QuizSlot.summary, answeringState),
       );
     }
     _logQuizStarted(questions);
@@ -518,7 +589,12 @@ class QuizController extends StateNotifier<QuizState> {
   ///
   /// [hintLevel] はヒント使用段階。UVMの習熟度計算で正解の重みを調整するために使用。
   /// [reviewedSentence] は回答前に元の例文を確認したかどうか。
-  Future<void> answerQuestion(
+  Future<void> answerQuestion(int choiceIndex,
+          {int hintLevel = 0, bool reviewedSentence = false}) =>
+      _pending.track(_answerQuestion(choiceIndex,
+          hintLevel: hintLevel, reviewedSentence: reviewedSentence));
+
+  Future<void> _answerQuestion(
     int choiceIndex, {
     int hintLevel = 0,
     bool reviewedSentence = false,
@@ -530,7 +606,8 @@ class QuizController extends StateNotifier<QuizState> {
 
     _isAnswering = true;
     try {
-      final isCorrect = question.choices[choiceIndex] == question.correctAnswer;
+      final responseTimer = _questionResponseTimer?..stop();
+      final isCorrect = question.choices[choiceIndex] == question.correctChoice;
       final newAnswers = [...s.answers, isCorrect];
       final newSelectedIndices = [...s.selectedIndices, choiceIndex];
       final newHintLevels = <int>[...s.hintLevels ?? const [], hintLevel];
@@ -602,7 +679,7 @@ class QuizController extends StateNotifier<QuizState> {
         state = resultState;
         if (!_isLearningQuiz) {
           unawaited(
-            _enqueueQuizStateSave(_savedSummaryQuizKey, resultState),
+            _enqueueQuizStateSave(_QuizSlot.summary, resultState),
           );
         }
       }
@@ -613,6 +690,9 @@ class QuizController extends StateNotifier<QuizState> {
           category: _isLearningQuiz ? 'learning' : 'summary',
           questionIndex: s.index + 1,
           source: _quizOfferSource,
+          quizFormat: question.quizFormat,
+          srsInterval: question.srsInterval,
+          responseMs: responseTimer?.elapsedMilliseconds,
         ),
       );
     } finally {
@@ -621,7 +701,9 @@ class QuizController extends StateNotifier<QuizState> {
   }
 
   /// 回答結果画面から次の問題へ進む、または最終問題ならサマリーへ遷移する
-  Future<void> nextQuestion() async {
+  Future<void> nextQuestion() => _pending.track(_nextQuestion());
+
+  Future<void> _nextQuestion() async {
     if (_isAdvancing || state is! QuizShowResult) return;
     final s = state as QuizShowResult;
     _isAdvancing = true;
@@ -640,9 +722,10 @@ class QuizController extends StateNotifier<QuizState> {
           s.sentenceReviewFlags ?? const [],
         );
         state = answeringState;
+        _questionResponseTimer = Stopwatch()..start();
         if (!_isLearningQuiz) {
           unawaited(
-            _enqueueQuizStateSave(_savedSummaryQuizKey, answeringState),
+            _enqueueQuizStateSave(_QuizSlot.summary, answeringState),
           );
         }
       }
@@ -690,14 +773,14 @@ class QuizController extends StateNotifier<QuizState> {
       final sid = _preparedSentenceId;
       if (sid != null && sid.isNotEmpty) {
         unawaited(
-          _enqueueQuizStateSave(_savedConfirmationQuizKey, summaryState,
+          _enqueueQuizStateSave(_QuizSlot.confirmation, summaryState,
               sentenceId: sid),
         );
       }
-      unawaited(_enqueueQuizStateClear(_savedSummaryQuizKey));
+      unawaited(_enqueueQuizStateClear(_QuizSlot.summary));
     } else {
       unawaited(
-        _enqueueQuizStateSave(_savedSummaryQuizKey, summaryState),
+        _enqueueQuizStateSave(_QuizSlot.summary, summaryState),
       );
     }
 
@@ -717,12 +800,11 @@ class QuizController extends StateNotifier<QuizState> {
   }
 
   // ==========================================================================
-  // SharedPreferences永続化
+  // 永続化
   //
-  // クイズの進行状態をJSONとしてSharedPreferencesに保存・復元する。
-  // アプリがバックグラウンドで終了された場合でも、途中から再開できるようにする。
-  // 学習クイズ（_savedConfirmationQuizKey）とまとめクイズ（_savedSummaryQuizKey）で
-  // 別々のキーを使用し、互いに独立して管理する。
+  // クイズの進行を、カーソル・段と同じ学習レコードへ保存・復元する。
+  // アプリがバックグラウンドで終了された場合でも、途中から再開できる。
+  // 確認クイズとまとめクイズは同じレコードの別の枠（_QuizSlot）に入る。
   // ==========================================================================
 
   Future<void> _enqueueQuizStateWrite(
@@ -741,25 +823,27 @@ class QuizController extends StateNotifier<QuizState> {
   }
 
   Future<void> _enqueueQuizStateSave(
-    String key,
+    _QuizSlot slot,
     QuizState quizState, {
     String? sentenceId,
   }) {
     return _enqueueQuizStateWrite(
-      () => _saveQuizState(key, quizState, sentenceId: sentenceId),
+      () => _saveQuizState(slot, quizState, sentenceId: sentenceId),
     );
   }
 
-  Future<void> _enqueueQuizStateClear(String key) {
-    return _enqueueQuizStateWrite(() => _clearQuizState(key));
+  Future<void> _enqueueQuizStateClear(_QuizSlot slot) {
+    return _enqueueQuizStateWrite(() => _clearQuizState(slot));
   }
 
   Future<void> _waitForQuizStateWrites() => _quizStateWriteQueue;
 
-  /// 現在のクイズ状態をSharedPreferencesにJSON保存する。
-  /// [sentenceId] は学習クイズの場合に指定し、復元時に対象例文との照合に使う。
+  /// 保存完了を待つ。学習データの掃除もこの待ち行列の後で行う。
+  Future<void> waitForSavedQuizWrites() => _waitForQuizStateWrites();
+
+  /// 現在のクイズ状態を学習レコードへ保存する。
   Future<void> _saveQuizState(
-    String key,
+    _QuizSlot slot,
     QuizState quizState, {
     String? sentenceId,
   }) async {
@@ -801,20 +885,30 @@ class QuizController extends StateNotifier<QuizState> {
       _ => null,
     };
     if (snapshot == null) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, jsonEncode(snapshot));
+    await _progress.update(
+      (current) => switch (slot) {
+        _QuizSlot.confirmation => current.copyWith(confirmationQuiz: snapshot),
+        _QuizSlot.summary => current.copyWith(summaryQuiz: snapshot),
+      },
+    );
   }
 
-  Future<void> _clearQuizState(String key) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(key);
+  Future<void> _clearQuizState(_QuizSlot slot) async {
+    await _progress.update(
+      (current) => switch (slot) {
+        _QuizSlot.confirmation => current.copyWith(clearConfirmation: true),
+        _QuizSlot.summary => current.copyWith(clearSummaryQuiz: true),
+      },
+    );
   }
 
-  /// SharedPreferencesからクイズ状態を復元する。
+  /// 学習レコードからクイズ状態を復元する。
   ///
-  /// [sentenceId] が指定された場合、保存されたsentence_idと一致しなければnullを返す。
-  /// これにより、別の例文用に保存されたクイズが誤って復元されるのを防ぐ。
+  /// 保存はカーソルと同じレコードにあり、読む1本が変わった時点で落とされる。
+  /// ここで持ち主を突き合わせるのは確認クイズだけで、比べる相手も同じレコードの
+  /// カーソル（[LearningProgressRecord.set]）にする。表示中の例文がカーソルから
+  /// 外れている経路（起動失敗時の最新例文フォールバックなど）で、別の1本の
+  /// クイズを開かないため。
   ///
   /// 復元時のフェーズ別処理:
   ///   - summary: そのままQuizSummaryとして復元
@@ -824,18 +918,23 @@ class QuizController extends StateNotifier<QuizState> {
   /// データの整合性チェック（問題数・回答数の一致、選択肢バリデーション）を行い、
   /// 不整合があればnullを返して新規生成にフォールバックさせる。
   Future<QuizState?> _loadQuizState(
-    String key, {
+    _QuizSlot slot, {
     String? sentenceId,
   }) async {
     try {
       await _waitForQuizStateWrites();
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(key);
-      if (saved == null || saved.isEmpty) return null;
-
-      final data = jsonDecode(saved);
-      if (data is! Map) return null;
-      if (sentenceId != null && data['sentence_id'] != sentenceId) return null;
+      final record = await _progress.load();
+      final data = switch (slot) {
+        _QuizSlot.confirmation => record.confirmationQuiz,
+        _QuizSlot.summary => record.summaryQuiz,
+      };
+      if (data == null || data.isEmpty) return null;
+      // 確認クイズだけは持ち主を保存に添える。まとめクイズと違い、カーソルの
+      // 外にある1本（起動失敗時の最新例文フォールバックなど）にも付きうるので、
+      // セットのカーソルからは導けない。
+      if (slot == _QuizSlot.confirmation && data['sentence_id'] != sentenceId) {
+        return null;
+      }
 
       final phase = data['phase'];
       final rawQuestions = data['questions'];
@@ -848,13 +947,9 @@ class QuizController extends StateNotifier<QuizState> {
       if (questions.isEmpty || _hasInvalidQuizChoices(questions)) return null;
 
       // 初期版の1問確認クイズは phase を持たず、sentence_id と questions
-      // だけを保存していた。対象例文が一致する場合だけ未回答として移行する。
+      // だけを保存していた。未回答として移行する。
       if (phase == null) {
-        if (key != _savedConfirmationQuizKey ||
-            sentenceId == null ||
-            data['sentence_id'] != sentenceId) {
-          return null;
-        }
+        if (slot != _QuizSlot.confirmation || sentenceId == null) return null;
         return QuizAnswering(questions, 0, const []);
       }
 
@@ -924,7 +1019,7 @@ class QuizController extends StateNotifier<QuizState> {
         sentenceReviewFlags,
       );
     } catch (e) {
-      debugPrint('クイズ状態の読み込みエラー ($key): $e');
+      debugPrint('クイズ状態の読み込みエラー ($slot): $e');
       return null;
     }
   }
@@ -952,6 +1047,9 @@ final quizControllerProvider =
     BackendApiService(lang: () => ref.read(appLanguageProvider).code),
     ref.watch(analyticsServiceProvider),
     () => ref.read(l10nProvider),
+    // カーソル・段と同じインスタンスを共有する。別々に持つと、同じレコードへの
+    // 読み書きが二重の待ち行列になる。
+    progressStore: ref.read(learningProgressStoreProvider),
   );
 });
 

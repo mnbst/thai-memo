@@ -12,6 +12,7 @@ import (
 	"math"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
@@ -28,6 +29,11 @@ var pricingPerMillion = struct{ Input, Output float64 }{Input: 0.25, Output: 1.5
 
 const maxOutputTokens = 4096
 const thinkingBudget = 256
+
+const (
+	quizHTTPTimeout     = 60 * time.Second
+	quizMaxResponseSize = 2 << 20
+)
 
 // QuizService は Gemini でクイズ1問ぶんのダミー・理由・解説を作る。
 type QuizService struct {
@@ -49,7 +55,7 @@ func (s *QuizService) httpClient() *http.Client {
 	if s.HTTP != nil {
 		return s.HTTP
 	}
-	return http.DefaultClient
+	return &http.Client{Timeout: quizHTTPTimeout}
 }
 
 func (s *QuizService) baseURL() string {
@@ -83,9 +89,12 @@ func (s *QuizService) GenerateQuizQuestions(
 // BuildRequestBody は Gemini へ送るリクエスト本文を組み立てる。
 // 差分テストから直接呼べるように切り出している。
 func BuildRequestBody(sentences []quizgen.QuizSentenceSeed, l lang.Lang) map[string]any {
+	isMeaningChoice := len(sentences) == 1 &&
+		sentences[0].QuizFormat == quizgen.FormatMeaningChoice
+	hasFixedDummies := quizgen.AllHaveFixedDummies(sentences)
 	return map[string]any{
 		"systemInstruction": map[string]any{
-			"parts": []any{map[string]any{"text": quizgen.SystemPrompt(l)}},
+			"parts": []any{map[string]any{"text": quizgen.SystemPromptFor(sentences, l)}},
 		},
 		"contents": []any{map[string]any{
 			"role":  "user",
@@ -93,7 +102,7 @@ func BuildRequestBody(sentences []quizgen.QuizSentenceSeed, l lang.Lang) map[str
 		}},
 		"generationConfig": map[string]any{
 			"responseMimeType": "application/json",
-			"responseSchema":   responseSchema(l),
+			"responseSchema":   responseSchema(l, isMeaningChoice, hasFixedDummies),
 			"maxOutputTokens":  maxOutputTokens,
 			"thinkingConfig": map[string]any{
 				"thinkingBudget": thinkingBudget,
@@ -133,14 +142,14 @@ func (s *QuizService) fetchStructuredResponse(
 		return nil
 	}
 
-	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s",
-		s.baseURL(), Model, s.APIKey)
+	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent", s.baseURL(), Model)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		log.Printf("gemini_quiz_generation_failed model=%s error=%v", Model, err)
 		return nil
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", s.APIKey)
 
 	res, err := s.httpClient().Do(req)
 	if err != nil {
@@ -149,7 +158,7 @@ func (s *QuizService) fetchStructuredResponse(
 	}
 	defer res.Body.Close()
 
-	raw, err := io.ReadAll(res.Body)
+	raw, err := io.ReadAll(io.LimitReader(res.Body, quizMaxResponseSize))
 	if err != nil {
 		log.Printf("gemini_quiz_generation_failed model=%s error=%v", Model, err)
 		return nil

@@ -3,6 +3,16 @@ variable "project_id" {
   type        = string
 }
 
+variable "project_number" {
+  description = <<-EOT
+    GCP プロジェクト番号。予算フィルタ用。
+
+    Billing Budget API は projects/<ID> を渡してもプロジェクト番号に
+    正規化して返すため、ID を書くと毎回差分が出る。番号で宣言する。
+  EOT
+  type        = string
+}
+
 variable "alert_email" {
   description = "アラート通知先メールアドレス。空の場合は通知チャネル・アラートポリシーを作成しない。"
   type        = string

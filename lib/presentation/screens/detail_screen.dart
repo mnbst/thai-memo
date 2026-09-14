@@ -155,7 +155,13 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   Future<void> _toggleFavorite(String id) async {
     final next = !_isFavorite;
     setState(() => _isFavorite = next);
-    await ref.read(sentenceRepositoryProvider).toggleFavorite(id, next);
+    try {
+      await ref.read(sentenceRepositoryProvider).toggleFavorite(id, next);
+    } catch (error) {
+      if (mounted) setState(() => _isFavorite = !next);
+      debugPrint('failed to update favorite: $error');
+      return;
+    }
     // 学習タブに出ているのが同じ例文なら、そちらのハートも合わせる。
     // 履歴から開いた別の例文で今日の例文を置き換えないよう、idで確かめる。
     final state = ref.read(sentenceControllerProvider);

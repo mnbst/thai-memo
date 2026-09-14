@@ -161,6 +161,11 @@ func BuildRegisterConstraint(topic string, targetWords []string, l lang.Lang) st
 	if topic == Topics[14] || topic == Topics[15] {
 		rules = append(rules, romanceTopicRules...)
 	}
+	// 宗教・信仰 / 伝統・祭り / 礼儀作法 は僧侶・王族・高位の公職が相手になり
+	// ท่าน が正しい敬称になる。この3テーマだけ敬称の禁止を外す。
+	if topic != Topics[11] && topic != Topics[12] && topic != Topics[13] {
+		rules = append(rules, formalPronounRule)
+	}
 	rules = dropRulesBanningTargets(rules, targetWords)
 
 	return "【最後に確認】\n" + numberedRules(rules) + "\n\n" + stepsFor(l)

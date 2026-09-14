@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,7 +90,10 @@ func generateThaiSentence(ctx context.Context, req *callable.Request) (any, erro
 	}
 
 	response["success"] = true
-	response["data"] = result
+	// data は1本目。セットを知らない旧クライアントはこれだけを見る。
+	// sentences には作れた全部を入れる（1本のときも配列で返す）。
+	response["data"] = result[0]
+	response["sentences"] = result
 	log.Printf("Request completed successfully: %s", logJSON(logData))
 	return response, nil
 }
@@ -103,6 +107,11 @@ func generationErrorPayload(err error) map[string]any {
 		return map[string]any{
 			"code":    "QUOTA_EXCEEDED",
 			"message": "この時間帯の例文生成上限に達しました",
+		}
+	case strings.Contains(msg, "GENERATION_IN_PROGRESS"):
+		return map[string]any{
+			"code":    "RESOURCE_BUSY",
+			"message": "例文を生成中です。しばらくしてから再度お試しください",
 		}
 	case strings.Contains(msg, "SECRET_MANAGER_ERROR"):
 		return map[string]any{
@@ -123,11 +132,39 @@ func generationErrorPayload(err error) map[string]any {
 }
 
 var errQuotaExceeded = errors.New("QUOTA_EXCEEDED")
+var errGenerationInProgress = errors.New("GENERATION_IN_PROGRESS")
+
+// generationLeaseDuration は例文生成 lease の有効期限。
+//
+// インスタンスが落ちて defer の解放が走らなかった場合、次に生成できるまでの
+// ロックアウト時間がそのままこの値になる。守る処理より十分長く、かつ無駄に
+// 長くない値にする。現在の関数タイムアウトは generateThaiSentence が 120 秒、
+// 同じ lease を取る resetLearningData が 60 秒なので、余裕を 60 秒足して 3 分。
+// 関数タイムアウトを伸ばすときはここも一緒に見直すこと。
+const generationLeaseDuration = 3 * time.Minute
+
+// requestedSetSize はクライアントが求める本数。
+//
+// 旧クライアントは count を送らないので1本（従来どおり）。上限は
+// sentence.SetSize で、これを超える値を送られても増やさない。
+//
+// 数を読むのに callable.Int を使うこと。Flutter の Firebase SDK は Dart の
+// int を protobuf の Int64 ラッパー
+// （{"@type":".../google.protobuf.Int64Value","value":5}）に包んで送るので、
+// Firestore 用の intValue では map のまま読めず、常に既定値へ落ちる
+// （vocabtest.go の Answers と同じ理由）。
+func requestedSetSize(params map[string]any) int {
+	count, ok := callable.Int(params["count"])
+	if !ok || count < 1 {
+		return 1
+	}
+	return min(count, sentence.SetSize)
+}
 
 func runGenerateThaiSentence(
 	ctx context.Context, uid string, params map[string]any, l lang.Lang,
 	logData map[string]any, start time.Time,
-) (*sentence.Sentence, error) {
+) ([]*sentence.Sentence, error) {
 	db, err := fbapp.Firestore(ctx)
 	if err != nil {
 		return nil, err
@@ -148,7 +185,7 @@ func runGenerateThaiSentence(
 	// フィールドだけの部分docを作り直すケースがあり、doc は存在するのに
 	// クォータだけ無い状態で永久に QUOTA_EXCEEDED になる。
 	if _, ok := userData["remaining_sentences"]; !ok {
-		initial, err := ensureUserQuota(ctx, userRef)
+		initial, err := ensureUserQuota(ctx, db, userRef)
 		if err != nil {
 			return nil, err
 		}
@@ -165,13 +202,24 @@ func runGenerateThaiSentence(
 	trialActive := !isPremium && premium.IsTrialActive(userData, time.Now())
 	usePremiumSpec := isPremium || trialActive
 
+	// premium（トライアル含む）は回数を消費しない。例文は静的コーパスから出す
+	// ようになり 1 本あたりの限界コストがほぼ 0 なので、残数を見る意味が無い。
+	// free だけが remaining_sentences で絞られる。
 	remaining := intValue(userData["remaining_sentences"])
-	if remaining <= 0 {
+	if !usePremiumSpec && remaining <= 0 {
 		logData["error"] = "QUOTA_EXCEEDED"
 		logData["remainingSentences"] = remaining
 		log.Printf("Quota exceeded: %s", logJSON(logData))
 		return nil, errQuotaExceeded
 	}
+
+	// クォータ消費前の LLM 呼び出しを同一ユーザーが並行実行できないよう、
+	// Firestore 上の期限付き lease でインスタンスをまたいで直列化する。
+	leaseToken, err := acquireGenerationLease(ctx, db, userRef)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseGenerationLease(ctx, db, userRef, leaseToken)
 
 	estimatedVocab := intValue(userData["estimated_vocab"])
 	if !usePremiumSpec {
@@ -188,24 +236,32 @@ func runGenerateThaiSentence(
 		return nil, err
 	}
 
-	produced, err := producer.Produce(ctx, db, freqRank, sentence.ProduceRequest{
+	// free は残りクォータを超えては作らない。足りなければ取れるぶんだけ返す。
+	count := requestedSetSize(params)
+	if !usePremiumSpec {
+		count = min(count, remaining)
+	}
+
+	produced, err := producer.ProduceBatch(ctx, db, freqRank, sentence.ProduceRequest{
 		UID:            uid,
 		Params:         effectiveGenerationParams(params, usePremiumSpec),
 		UsePremiumSpec: usePremiumSpec,
 		EstimatedVocab: estimatedVocab,
 		TestedVocab:    intValue(userData["vocab_test_vocab"]),
 		Lang:           l,
-	})
+	}, count)
 	if err != nil {
 		return nil, err
 	}
-	if produced == nil { // CacheOnly=false では起きない
+	if len(produced) == 0 { // CacheOnly=false では起きない
 		return nil, errors.New("sentence generation returned nothing")
 	}
 
-	logData["uvmWords"] = len(produced.TargetWords)
-	logData["chosenTopic"] = produced.ChosenTopic
-	if produced.FromCache {
+	logData["requestedCount"] = count
+	logData["generatedCount"] = len(produced)
+	logData["uvmWords"] = len(produced[0].TargetWords)
+	logData["chosenTopic"] = produced[0].ChosenTopic
+	if produced[0].FromCache {
 		logData["source"] = "cached"
 	}
 	logData["success"] = true
@@ -217,27 +273,27 @@ func runGenerateThaiSentence(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		registerSentenceExposure(ctx, db, uid, produced)
-		// premium は上限なし（負の値で「上限なし」を表す）。
-		// トライアル中も premium と同じ扱いにする。tier だけで見ると、体験中に
-		// 伸ばした estimated_vocab が毎回 100 へ切り戻される。
-		maxVocab := -1
-		if !usePremiumSpec {
-			maxVocab = uvm.FreeTierMaxVocab
+		for _, p := range produced {
+			registerSentenceExposure(ctx, db, uid, p)
 		}
-		uvm.SyncEstimatedVocab(ctx, db, uid, freqRank, maxVocab)
+		// 最新の実効権利を読み、真のfreeだけを従来どおり100語上限にする。
+		uvm.SyncEstimatedVocab(ctx, db, uid, freqRank)
 	}()
 
-	if err := commitSentence(ctx, db, userRef, uid, produced, usePremiumSpec); err != nil {
+	if err := commitSentences(ctx, db, userRef, produced, usePremiumSpec, l); err != nil {
 		log.Printf("Failed to save sentence to Firestore: %v", err)
 		wg.Wait()
 		return nil, err
 	}
 
-	produced.Sentence.TargetWords = produced.TargetWords
+	sentences := make([]*sentence.Sentence, len(produced))
+	for i, p := range produced {
+		p.Sentence.TargetWords = p.TargetWords
+		sentences[i] = p.Sentence
+	}
 
 	wg.Wait()
-	return produced.Sentence, nil
+	return sentences, nil
 }
 
 // registerSentenceExposure は例文に出た語の露出を UVM に記録する
@@ -273,14 +329,26 @@ func registerSentenceExposure(
 	}
 }
 
-// commitSentence は例文の保存とクォータ消費を 1 トランザクションで行う
+// commitSentences はセット全部の保存とクォータ消費を 1 トランザクションで行う
 // （sentence_handlers.py:_commit_sentences_transaction:296）。
-func commitSentence(
+//
+// クォータは本数ぶん消費する。トランザクション内で残りが足りなければ
+// 全部やめる（部分的に書いて部分的に課金する状態を作らない）。
+func commitSentences(
 	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
-	uid string, produced *sentence.Produced, usePremiumSpec bool,
+	produced []*sentence.Produced, usePremiumSpec bool, l lang.Lang,
 ) error {
-	sentenceRef := userRef.Collection("sentences").NewDoc()
-	doc := produced.Sentence.BuildSentenceDoc(produced.TargetWords[0], usePremiumSpec)
+	refs := make([]*firestore.DocumentRef, len(produced))
+	docs := make([]map[string]any, len(produced))
+	for i, p := range produced {
+		refs[i] = userRef.Collection("sentences").NewDoc()
+		docs[i] = p.Sentence.BuildSentenceDoc(sentence.DocMeta{
+			KeyWord:        p.TargetWords[0],
+			UsePremiumSpec: usePremiumSpec,
+			Lang:           l,
+			FromCache:      p.FromCache,
+		})
+	}
 
 	return db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		snap, err := tx.Get(userRef)
@@ -288,27 +356,35 @@ func commitSentence(
 		if err == nil && snap.Exists() {
 			userData = snap.Data()
 		}
-		if intValue(userData["remaining_sentences"]) < 1 {
+		if !usePremiumSpec && intValue(userData["remaining_sentences"]) < len(refs) {
 			return errQuotaExceeded
 		}
-		if err := tx.Set(sentenceRef, doc); err != nil {
-			return err
+		for i, ref := range refs {
+			if err := tx.Set(ref, docs[i]); err != nil {
+				return err
+			}
 		}
-		return tx.Update(userRef, sentenceCommitUpdate(userData, 1))
+		return tx.Update(userRef, sentenceCommitUpdate(userData, len(refs), !usePremiumSpec))
 	})
 }
 
 // sentenceCommitUpdate は例文コミット時の users ドキュメント更新内容
 // （sentence_handlers.py:_build_sentence_commit_update:277）。
 //
-// トライアルは期間制なので、消費するのは通常クォータ（remaining_sentences）だけ。
-func sentenceCommitUpdate(userData map[string]any, decrement int) []firestore.Update {
+// consumeQuota が false（premium・トライアル）のときは remaining_sentences を
+// 触らない。生成本数の記録（sentence_generated_count）は tier によらず残す。
+func sentenceCommitUpdate(
+	userData map[string]any, count int, consumeQuota bool,
+) []firestore.Update {
 	updates := []firestore.Update{
-		{Path: "remaining_sentences", Value: firestore.Increment(-decrement)},
 		{Path: "daily_sentence_generated", Value: true},
 		{Path: "last_active_at", Value: firestore.ServerTimestamp},
 		{Path: "last_sentence_generated_at", Value: firestore.ServerTimestamp},
-		{Path: "sentence_generated_count", Value: firestore.Increment(decrement)},
+		{Path: "sentence_generated_count", Value: firestore.Increment(count)},
+	}
+	if consumeQuota {
+		updates = append(updates,
+			firestore.Update{Path: "remaining_sentences", Value: firestore.Increment(-count)})
 	}
 	if _, ok := userData["first_generated_at"]; !ok {
 		updates = append(updates,
@@ -322,7 +398,9 @@ func sentenceCommitUpdate(userData map[string]any, decrement int) []firestore.Up
 //
 // onUserCreate トリガー（JS）と同じ初期値を使う。merge なので、万一トリガーと
 // 競合しても既存フィールドを壊さない。値は quota パッケージで一元管理。
-func ensureUserQuota(ctx context.Context, userRef *firestore.DocumentRef) (map[string]any, error) {
+func ensureUserQuota(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+) (map[string]any, error) {
 	initial := map[string]any{
 		// 付与直後はトライアル中なので premium と同じ回数を出す。
 		"remaining_sentences":      quota.PremiumDailySentences,
@@ -334,11 +412,90 @@ func ensureUserQuota(ctx context.Context, userRef *firestore.DocumentRef) (map[s
 		// 旧クライアント（〜1.3.15）がテーマを消さないための凍結値。減らさない。
 		"premium_trial_remaining": quota.PremiumTrialSentences,
 	}
-	if _, err := userRef.Set(ctx, initial, firestore.MergeAll); err != nil {
+	result := initial
+	created := false
+	err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		created = false
+		result = initial
+		snap, err := tx.Get(userRef)
+		if err == nil && snap.Exists() {
+			if _, ok := snap.Data()["remaining_sentences"]; ok {
+				result = snap.Data()
+				return nil
+			}
+		} else if err != nil && !isNotFoundErr(err) {
+			return err
+		}
+		created = true
+		return tx.Set(userRef, initial, firestore.MergeAll)
+	})
+	if err != nil {
 		return nil, err
 	}
-	log.Printf("Initial quota set (fallback) for user %s", userRef.ID)
-	return initial, nil
+	if created {
+		log.Printf("Initial quota set (fallback) for user %s", userRef.ID)
+	}
+	return result, nil
+}
+
+func acquireGenerationLease(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+) (string, error) {
+	return acquireOperationLease(ctx, db, userRef, "sentence", generationLeaseDuration)
+}
+
+func acquireOperationLease(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+	operation string, duration time.Duration,
+) (string, error) {
+	lockRef := userRef.Collection("generation_locks").Doc(operation)
+	token := userRef.Collection("generation_locks").NewDoc().ID
+	now := time.Now().UTC()
+	err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(lockRef)
+		if err == nil && snap.Exists() {
+			expiresAt, _ := snap.Data()["expires_at"].(time.Time)
+			if expiresAt.After(now) {
+				return errGenerationInProgress
+			}
+		} else if err != nil && !isNotFoundErr(err) {
+			return err
+		}
+		return tx.Set(lockRef, map[string]any{
+			"token": token, "expires_at": now.Add(duration),
+		})
+	})
+	return token, err
+}
+
+func releaseGenerationLease(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef, token string,
+) {
+	releaseOperationLease(ctx, db, userRef, "sentence", token)
+}
+
+func releaseOperationLease(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+	operation, token string,
+) {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	lockRef := userRef.Collection("generation_locks").Doc(operation)
+	if err := db.RunTransaction(cleanupCtx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(lockRef)
+		if isNotFoundErr(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if current, _ := snap.Data()["token"].(string); current != token {
+			return nil
+		}
+		return tx.Delete(lockRef)
+	}); err != nil {
+		log.Printf("generation lease release failed uid=%s: %v", userRef.ID, err)
+	}
 }
 
 // effectiveGenerationParams は生成条件として LLM へ渡すパラメータを整える
@@ -348,17 +505,38 @@ func ensureUserQuota(ctx context.Context, userRef *firestore.DocumentRef) (map[s
 // からの決定も端末側で行う。free は自動選択に固定する。
 func effectiveGenerationParams(params map[string]any, isPremium bool) map[string]any {
 	out := map[string]any{}
-	for k, v := range params {
-		out[k] = v
+	// プロンプトへ入る値はサーバー定義の選択肢だけを通す。未知キーや自由入力を
+	// そのままコピーすると、premium の topic 経由で指示を注入できる。
+	if isPremium {
+		if topic, ok := params["topic"].(string); ok && generationTopicAllowed(topic) {
+			out["topic"] = topic
+		}
 	}
-	delete(out, "premium_trial")
-	// lang は生成条件ではなく出力言語の指定。ここに残すとプロンプトの
-	// 「条件」ブロックに未知のキーとして流れ込むので取り除く。
-	delete(out, "lang")
-	if !isPremium {
-		delete(out, "topic")
+	if frame, ok := params["timeFrame"].(string); ok &&
+		slices.Contains(sentence.TimeFrames, frame) {
+		out["timeFrame"] = frame
+	}
+	// 旧クライアント互換。現在の生成コアはこの2項目をプロンプトに使わないが、
+	// 整形結果の契約は維持する。制御文字を含む自由入力は落とす。
+	for _, key := range []string{"style", "emotion"} {
+		if value, ok := params[key].(string); ok && len(value) <= 64 &&
+			!strings.ContainsAny(value, "\r\n") {
+			out[key] = value
+		}
 	}
 	return out
+}
+
+func generationTopicAllowed(topic string) bool {
+	if topic == "" || slices.Contains(sentence.Topics, topic) {
+		return true
+	}
+	for _, configured := range sentence.Topics {
+		if head, _, ok := strings.Cut(configured, "（"); ok && topic == head {
+			return true
+		}
+	}
+	return false
 }
 
 // newProducer は生成コアに必要な依存を組み立てる。
@@ -397,6 +575,10 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 			Session: &uvm.SessionSelector{Emb: store},
 		},
 		Bank: &sentence.FreeBank{ProjectID: fbapp.ProjectID()},
+		// premium は静的コーパスから出す。無い語だけ Service（LLM）へ落ちる。
+		Corpus: &sentence.CorpusBank{ProjectID: fbapp.ProjectID()},
+		// バンクの在庫が既出だった語も LLM 生成へ落とす（同じ文を二度出さない）。
+		History: &sentence.FirestoreHistory{},
 		Service: &sentence.Service{
 			Gen:      client,
 			Resolver: &sentence.Resolver{SubThemes: store},

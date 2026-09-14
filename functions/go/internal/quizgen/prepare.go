@@ -1,5 +1,14 @@
 package quizgen
 
+import "strings"
+
+func quizFormatOf(sentence QuizSentenceSeed) string {
+	if sentence.QuizFormat == FormatMeaningChoice {
+		return FormatMeaningChoice
+	}
+	return FormatClozeChoice
+}
+
 // blankTarget は空欄にする語とその読み・意味。
 type blankTarget struct {
 	Word          string
@@ -8,6 +17,11 @@ type blankTarget struct {
 }
 
 // resolveBlankTarget は key_word が本文中に見つかるときだけ空欄の対象を返す。
+//
+// 見つからないときは ๆ の有無だけ違う表記も試す。LLM は選定語「จี」を本文で
+// 「จีๆ」と書くことがあり、そのとき key_word は語として一致しない
+// （sentence.matchKeyWord が発音・意味の照合で同じ揺れを吸収している）。
+// ここで拾わないと、その例文はクイズを作れず確認クイズが必ず失敗する。
 func resolveBlankTarget(sentence QuizSentenceSeed) (blankTarget, bool) {
 	thaiText := normalizeText(sentence.ThaiText)
 	keyWord := normalizeText(sentence.KeyWord)
@@ -15,15 +29,48 @@ func resolveBlankTarget(sentence QuizSentenceSeed) (blankTarget, bool) {
 	if keyWord == "" {
 		return blankTarget{}, false
 	}
-	if _, ok := buildBlankText(thaiText, keyWord); !ok {
+	word := ""
+	for _, candidate := range KeyWordVariants(keyWord) {
+		if _, ok := buildBlankText(thaiText, candidate, sentence.Words); ok {
+			word = candidate
+			break
+		}
+	}
+	if word == "" {
 		return blankTarget{}, false
 	}
 
 	return blankTarget{
-		Word:          keyWord,
+		Word:          word,
 		Pronunciation: normalizeText(sentence.KeyWordPronunciation),
 		Meaning:       normalizeText(sentence.KeyWordMeaning),
 	}, true
+}
+
+// repeatMark はタイ語の繰り返し記号 ๆ。
+const repeatMark = "ๆ"
+
+// KeyWordVariants は key_word と、ๆ の有無だけ違う表記を返す（key_word 自身が先頭）。
+func KeyWordVariants(keyWord string) []string {
+	word := normalizeText(keyWord)
+	if word == "" {
+		return nil
+	}
+	if trimmed := strings.TrimSuffix(word, repeatMark); trimmed != word {
+		return []string{word, trimmed}
+	}
+	return []string{word, word + repeatMark}
+}
+
+// MatchesKeyWord は正解が key_word と同じ語かを返す。ๆ の有無は同一視する。
+func MatchesKeyWord(correctAnswer, keyWord string) bool {
+	answer := normalizeText(correctAnswer)
+	for _, candidate := range KeyWordVariants(keyWord) {
+		if answer == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 // PrepareInputs は各例文の穴埋め位置を確定させる。
@@ -43,19 +90,23 @@ func PrepareInputs(sentences []QuizSentenceSeed) []PreparedQuizSentenceSeed {
 		}
 
 		// 空欄を作れなければ本文をそのまま入れる（後段の検査で落ちる）
-		blank, blankOK := buildBlankText(thaiText, correctAnswer)
+		blank, blankOK := buildBlankText(thaiText, correctAnswer, sentence.Words)
 		if !blankOK {
 			blank = thaiText
 		}
 
 		out = append(out, PreparedQuizSentenceSeed{
-			SourceIndex:          i,
-			ThaiText:             thaiText,
-			BlankText:            blank,
-			CorrectAnswer:        correctAnswer,
-			Pronunciation:        pronunciation,
-			CorrectAnswerMeaning: meaning,
-			JapaneseTranslation:  normalizeText(sentence.JapaneseTranslation),
+			SourceIndex:              i,
+			ThaiText:                 thaiText,
+			BlankText:                blank,
+			CorrectAnswer:            correctAnswer,
+			Pronunciation:            pronunciation,
+			CorrectAnswerMeaning:     meaning,
+			JapaneseTranslation:      normalizeText(sentence.JapaneseTranslation),
+			QuizFormat:               sentence.QuizFormat,
+			MeaningChoices:           uniqueTexts(sentence.MeaningChoices),
+			FixedDummies:             uniqueTexts(sentence.FixedDummies),
+			FixedDummyPronunciations: sentence.FixedDummyPronunciations,
 		})
 	}
 	return out
@@ -68,7 +119,22 @@ func IsSeedReady(sentence QuizSentenceSeed) bool {
 		return false
 	}
 	p := prepared[0]
+	if p.QuizFormat == FormatMeaningChoice {
+		return p.CorrectAnswer != "" &&
+			p.CorrectAnswerMeaning != "" &&
+			len(p.MeaningChoices) == 4 &&
+			containsText(p.MeaningChoices, p.CorrectAnswerMeaning)
+	}
 	return p.CorrectAnswer != "" && containsBlank(p.BlankText)
+}
+
+func containsText(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 // ApplyRuleBasedFields はモデルの出力に、こちらで確定済みの項目を合成する。
@@ -91,6 +157,7 @@ func ApplyRuleBasedFields(
 
 		question := GeneratedQuizQuestion{
 			SourceIndex:          &index,
+			DummyPronunciations:  p.FixedDummyPronunciations,
 			ThaiText:             p.ThaiText,
 			BlankText:            p.BlankText,
 			CorrectAnswer:        p.CorrectAnswer,
@@ -99,13 +166,18 @@ func ApplyRuleBasedFields(
 			Pronunciation:        p.Pronunciation,
 			Explanation:          draft.Explanation,
 			DummyReasons:         draft.DummyReasons,
+			QuizFormat:           p.QuizFormat,
 		}
 
-		if !hasPrepared || p.CorrectAnswer == "" || !containsBlank(p.BlankText) {
+		if hasPrepared && p.QuizFormat == FormatMeaningChoice &&
+			p.CorrectAnswer != "" && p.CorrectAnswerMeaning != "" &&
+			len(p.MeaningChoices) == 4 {
+			question.Choices = append([]string(nil), p.MeaningChoices...)
+		} else if !hasPrepared || p.CorrectAnswer == "" || !containsBlank(p.BlankText) {
 			// 空欄を作れていない。正解を選択肢に混ぜず、後段の検査に落とさせる。
-			question.Choices = draft.Dummies
+			question.Choices = dummiesOf(p, draft)
 		} else {
-			question.Choices = append([]string{p.CorrectAnswer}, draft.Dummies...)
+			question.Choices = append([]string{p.CorrectAnswer}, dummiesOf(p, draft)...)
 		}
 
 		out = append(out, question)
@@ -113,9 +185,23 @@ func ApplyRuleBasedFields(
 	return out
 }
 
+// dummiesOf は選択肢に使うダミー。確定済み（PickDistractors）があればそれを使い、
+// モデルが返したダミーは捨てる。確定済みを渡したのにモデルが別の語で理由を
+// 書いた場合は、後段の sanitizeDummyReasons が対応を取れずにその問題ごと落ちる。
+func dummiesOf(p PreparedQuizSentenceSeed, draft Draft) []string {
+	if len(p.FixedDummies) > 0 {
+		return append([]string(nil), p.FixedDummies...)
+	}
+	return draft.Dummies
+}
+
 // BuildBlankSentencePronunciation は例文の発音のうち、
 // 空欄にした語の発音を "___" に差し替える。
 // どちらかが空、または見つからなければ空文字。
+//
+// 例文の発音は語ごとの発音をスペースで繋いだもの（word_gap.go 参照）なので、
+// 語の切れ目に合う出現だけを空欄にする。部分一致で採ると weelaa の中の laa の
+// ように語の途中を空欄にしてしまう。
 func BuildBlankSentencePronunciation(
 	sentencePronunciation, keyWordPronunciation string,
 ) string {
@@ -124,10 +210,27 @@ func BuildBlankSentencePronunciation(
 	if sentence == "" || keyWord == "" {
 		return ""
 	}
-	i := indexOf(sentence, keyWord)
-	if i < 0 {
-		return ""
+
+	tokens := strings.Split(sentence, " ")
+	keyTokens := strings.Split(keyWord, " ")
+	for i := 0; i+len(keyTokens) <= len(tokens); i++ {
+		if !equalTokens(tokens[i:i+len(keyTokens)], keyTokens) {
+			continue
+		}
+		out := append([]string(nil), tokens[:i]...)
+		out = append(out, blankText)
+		out = append(out, tokens[i+len(keyTokens):]...)
+		return strings.Join(out, " ")
 	}
-	// JS の String#replace は最初の1件だけ置換する
-	return sentence[:i] + blankText + sentence[i+len(keyWord):]
+	return ""
+}
+
+// equalTokens は語の並びが等しいか。
+func equalTokens(a, b []string) bool {
+	for i := range b {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

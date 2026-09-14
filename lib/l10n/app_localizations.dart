@@ -163,12 +163,6 @@ abstract class L10n {
   /// **'設定'**
   String get navSettings;
 
-  /// No description provided for @learnAppBarTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'今日の例文'**
-  String get learnAppBarTitle;
-
   /// No description provided for @learnOpenDetail.
   ///
   /// In ja, this message translates to:
@@ -178,7 +172,7 @@ abstract class L10n {
   /// No description provided for @learnQuizTitle.
   ///
   /// In ja, this message translates to:
-  /// **'クイズ'**
+  /// **'確認クイズ'**
   String get learnQuizTitle;
 
   /// No description provided for @learnSummaryQuizTitle.
@@ -192,6 +186,36 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'次の例文へ'**
   String get learnNextSentence;
+
+  /// まとめクイズを終えて、新しい5本のセットを始めるボタン
+  ///
+  /// In ja, this message translates to:
+  /// **'次のセットへ'**
+  String get learnNextSet;
+
+  /// セットの最後の確認クイズの後、まとめクイズへ進むボタン
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズへ'**
+  String get learnGoToSummaryQuiz;
+
+  /// セットの残り本数。5本を学び終えるとまとめクイズへ進む
+  ///
+  /// In ja, this message translates to:
+  /// **'あと{count}本でまとめクイズ'**
+  String learnDailySetRemaining(int count);
+
+  /// セットの最後の1本を表示しているとき（残り0本）の見出し
+  ///
+  /// In ja, this message translates to:
+  /// **'次はまとめクイズ'**
+  String get learnDailySetLast;
+
+  /// 配信セットの何本目か
+  ///
+  /// In ja, this message translates to:
+  /// **'{position} / {total}'**
+  String learnDailySetProgress(int position, int total);
 
   /// No description provided for @commonOk.
   ///
@@ -208,7 +232,7 @@ abstract class L10n {
   /// No description provided for @sentencePreparing.
   ///
   /// In ja, this message translates to:
-  /// **'次の例文を準備中...'**
+  /// **'例文を準備中...'**
   String get sentencePreparing;
 
   /// 学習単語セクションの見出し。英語は語数で単複が変わる
@@ -258,6 +282,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'サンプル例文（履歴には保存されません）'**
   String get sampleSentenceNotice;
+
+  /// No description provided for @sampleReload.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の例文を読み込む'**
+  String get sampleReload;
 
   /// No description provided for @sampleGreetingTranslation.
   ///
@@ -319,12 +349,6 @@ abstract class L10n {
   /// **'クイズ'**
   String get quizTodayTitle;
 
-  /// No description provided for @quizOptionalChallenge.
-  ///
-  /// In ja, this message translates to:
-  /// **'5問チャレンジする'**
-  String get quizOptionalChallenge;
-
   /// No description provided for @quizGenerating.
   ///
   /// In ja, this message translates to:
@@ -372,6 +396,18 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'下線部に入る単語を選んでください'**
   String get quizPrompt;
+
+  /// No description provided for @quizMeaningPrompt.
+  ///
+  /// In ja, this message translates to:
+  /// **'この単語の意味を選んでください'**
+  String get quizMeaningPrompt;
+
+  /// No description provided for @quizWordExplanation.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語の解説'**
+  String get quizWordExplanation;
 
   /// No description provided for @quizProgress.
   ///
@@ -1009,6 +1045,84 @@ abstract class L10n {
   /// **'お問い合わせ'**
   String get settingsContact;
 
+  /// No description provided for @settingsLifetimeMigration.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りプランへ移行'**
+  String get settingsLifetimeMigration;
+
+  /// No description provided for @settingsLifetimeMigrationSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'追加のお支払いはありません'**
+  String get settingsLifetimeMigrationSubtitle;
+
+  /// No description provided for @lifetimeMigrationTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りプランを新設しました'**
+  String get lifetimeMigrationTitle;
+
+  /// No description provided for @lifetimeMigrationBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'いつもご利用ありがとうございます。継続してくださっている方へ、いまなら無料で買い切りプランへ移行いただけます。'**
+  String get lifetimeMigrationBody;
+
+  /// No description provided for @lifetimeMigrationNoCharge.
+  ///
+  /// In ja, this message translates to:
+  /// **'追加のお支払いはありません'**
+  String get lifetimeMigrationNoCharge;
+
+  /// No description provided for @lifetimeMigrationCancelNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。'**
+  String get lifetimeMigrationCancelNote;
+
+  /// No description provided for @lifetimeMigrationProgress.
+  ///
+  /// In ja, this message translates to:
+  /// **'移行しています…'**
+  String get lifetimeMigrationProgress;
+
+  /// No description provided for @lifetimeMigrationDoneTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りプランに移行しました'**
+  String get lifetimeMigrationDoneTitle;
+
+  /// No description provided for @lifetimeMigrationDoneBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'これ以降ずっとプレミアムをご利用いただけます。月額の自動更新の停止をお忘れなく。'**
+  String get lifetimeMigrationDoneBody;
+
+  /// No description provided for @lifetimeMigrationFailedTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'移行できませんでした'**
+  String get lifetimeMigrationFailedTitle;
+
+  /// No description provided for @lifetimeMigrationFailedBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'時間をおいて、もう一度お試しください。プレミアムのご利用はこれまでどおり続きます。'**
+  String get lifetimeMigrationFailedBody;
+
+  /// No description provided for @lifetimeMigrationConfirm.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りに移行する'**
+  String get lifetimeMigrationConfirm;
+
+  /// No description provided for @lifetimeMigrationLater.
+  ///
+  /// In ja, this message translates to:
+  /// **'あとで'**
+  String get lifetimeMigrationLater;
+
   /// No description provided for @trialEndedTitle.
   ///
   /// In ja, this message translates to:
@@ -1042,8 +1156,8 @@ abstract class L10n {
   /// No description provided for @trialEndedChangeQuotaPremium.
   ///
   /// In ja, this message translates to:
-  /// **'1日{premium}回'**
-  String trialEndedChangeQuotaPremium(int premium);
+  /// **'無制限'**
+  String get trialEndedChangeQuotaPremium;
 
   /// No description provided for @trialEndedChangeQuotaFree.
   ///
@@ -1090,8 +1204,8 @@ abstract class L10n {
   /// No description provided for @trialStartedChangeQuota.
   ///
   /// In ja, this message translates to:
-  /// **'1日{premium}回まで'**
-  String trialStartedChangeQuota(int premium);
+  /// **'無制限'**
+  String get trialStartedChangeQuota;
 
   /// No description provided for @trialStartedChangeTopicLabel.
   ///
@@ -1128,6 +1242,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'次のテーマ: '**
   String get nextTopicPrefix;
+
+  /// 例文画面の帯（表示のみ・変更不可）の見出し
+  ///
+  /// In ja, this message translates to:
+  /// **'テーマ: '**
+  String get topicPrefix;
 
   /// No description provided for @topicName_blDrama.
   ///
@@ -1435,6 +1555,48 @@ abstract class L10n {
   /// **'プレミアムに登録'**
   String get paywallSubscribe;
 
+  /// No description provided for @paywallPlanMonthlyTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'月額プラン'**
+  String get paywallPlanMonthlyTitle;
+
+  /// No description provided for @paywallPlanMonthlyNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎月自動更新・いつでも解約'**
+  String get paywallPlanMonthlyNote;
+
+  /// プラン選択の月額側。price はストアの表示価格（¥600 など）
+  ///
+  /// In ja, this message translates to:
+  /// **'{price} / 月'**
+  String paywallPlanMonthlyPrice(String price);
+
+  /// No description provided for @paywallPlanLifetimeTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切り'**
+  String get paywallPlanLifetimeTitle;
+
+  /// No description provided for @paywallPlanLifetimeNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'支払いは1回だけ・更新なし'**
+  String get paywallPlanLifetimeNote;
+
+  /// No description provided for @paywallPurchaseCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'このプランで始める'**
+  String get paywallPurchaseCta;
+
+  /// No description provided for @paywallLifetimeNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'1回きりの支払いです。更新はありません。'**
+  String get paywallLifetimeNote;
+
   /// No description provided for @paywallLegal.
   ///
   /// In ja, this message translates to:
@@ -1465,29 +1627,17 @@ abstract class L10n {
   /// **'良質なタイ語に大量に触れられる'**
   String get paywallFeatureQuotaTitle;
 
-  /// No description provided for @paywallFeatureQuotaFree.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文{count}回/日・単語は{limit}語まで'**
-  String paywallFeatureQuotaFree(int count, int limit);
-
   /// No description provided for @paywallFeatureQuotaPremium.
   ///
   /// In ja, this message translates to:
-  /// **'例文{count}回/日・単語の上限なし'**
-  String paywallFeatureQuotaPremium(int count);
+  /// **'例文は無制限・単語の上限なし'**
+  String get paywallFeatureQuotaPremium;
 
   /// No description provided for @paywallFeatureTopicTitle.
   ///
   /// In ja, this message translates to:
   /// **'テーマを選んでタイ文化に親しむ'**
   String get paywallFeatureTopicTitle;
-
-  /// No description provided for @paywallFeatureTopicFree.
-  ///
-  /// In ja, this message translates to:
-  /// **'入門テーマからランダム'**
-  String get paywallFeatureTopicFree;
 
   /// No description provided for @paywallFeatureTopicPremium.
   ///
@@ -2360,17 +2510,17 @@ abstract class L10n {
   /// **'今日の新しいクイズはここまでです。'**
   String get quotaQuizReached;
 
-  /// 上限回数は tier で異なる（free 5 / premium 20）ため文言に数字を含めない
+  /// 上限回数は tier で異なる（free 5 / premium 無制限）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
   /// **'今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。'**
   String get quotaSentenceReached;
 
-  /// 上限に当たった free ユーザーだけに出すペイウォール導線。count は PREMIUM_DAILY_SENTENCES
+  /// 上限に当たった free ユーザーだけに出すペイウォール導線。premium の例文は無制限なので数字を含めない
   ///
   /// In ja, this message translates to:
-  /// **'Premiumなら1日{count}例文'**
-  String quotaSentenceUpgradeCta(int count);
+  /// **'Premiumなら例文は無制限'**
+  String get quotaSentenceUpgradeCta;
 
   /// No description provided for @errAuth.
   ///
@@ -4187,25 +4337,25 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody1.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなたの語彙に合わせたタイ語の例文を毎日つくります。'**
+  /// **'AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。'**
   String get guideOverviewBody1;
 
   /// No description provided for @guideOverviewBody2.
   ///
   /// In ja, this message translates to:
-  /// **'例文で覚える → クイズで確かめる。このくり返しが学習の中心です。'**
+  /// **'例文で覚える → クイズで確かめる。これを5つくり返して1巡です。'**
   String get guideOverviewBody2;
 
   /// No description provided for @guideOverviewSummaryQuiz.
   ///
   /// In ja, this message translates to:
-  /// **'例文を5つ読むごとに、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。'**
+  /// **'例文5つを学び終えると「まとめクイズ」に進みます。それまでに学んだ例文から出題され、迷ったらヒントや例文の見返しも使えます。'**
   String get guideOverviewSummaryQuiz;
 
   /// No description provided for @guideOverviewBody3.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズに正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。'**
+  /// **'「まとめクイズ」に正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。'**
   String get guideOverviewBody3;
 
   /// No description provided for @guideRoleSentenceTitle.
@@ -4241,7 +4391,7 @@ abstract class L10n {
   /// No description provided for @guideRoleQuizBody.
   ///
   /// In ja, this message translates to:
-  /// **'確認クイズは、次の例文に進む前に出る1問です。例文を5つ読むごとに、それまでに学んだ内容から5問の「まとめクイズ」に挑戦できます。'**
+  /// **'クイズは2種類あります。確認クイズは、次の例文に進む前に単語の意味を選ぶ1問です。5つ目を終えると、それまでに学んだ例文から下線部の単語を選ぶ「まとめクイズ」に進みます。'**
   String get guideRoleQuizBody;
 
   /// No description provided for @guideRoleScoreTitle.
@@ -4352,6 +4502,12 @@ abstract class L10n {
   /// **'語彙スコアの上限'**
   String get guidePlanRowVocab;
 
+  /// プラン比較表の premium 側。例文は無制限
+  ///
+  /// In ja, this message translates to:
+  /// **'無制限'**
+  String get guidePlanSentencesUnlimited;
+
   /// No description provided for @guidePlanSentences.
   ///
   /// In ja, this message translates to:
@@ -4391,7 +4547,7 @@ abstract class L10n {
   /// No description provided for @guideHowSentenceStep1.
   ///
   /// In ja, this message translates to:
-  /// **'学習タブを開くと、その日の例文が表示されます。'**
+  /// **'学習タブを開くと、その日の例文が表示されます。例文は5つで1セットで、いま何本目かが上に出ます。'**
   String get guideHowSentenceStep1;
 
   /// No description provided for @guideHowSentenceStep3.
@@ -4445,7 +4601,7 @@ abstract class L10n {
   /// No description provided for @guideHowQuizTitle.
   ///
   /// In ja, this message translates to:
-  /// **'クイズを解く'**
+  /// **'確認クイズを解く'**
   String get guideHowQuizTitle;
 
   /// No description provided for @guideHowQuizStep1.
@@ -4457,20 +4613,56 @@ abstract class L10n {
   /// No description provided for @guideHowQuizStep2.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。'**
+  /// **'直前に読んだ例文の学習単語（金色の語）について、その意味を4択で選びます。'**
   String get guideHowQuizStep2;
 
   /// No description provided for @guideHowQuizStep3.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズでは、迷ったら「例文を確認」で例文に戻れます。'**
+  /// **'答えると、その単語の意味や使い方の解説が出ます。'**
   String get guideHowQuizStep3;
 
   /// No description provided for @guideHowQuizStep4.
   ///
   /// In ja, this message translates to:
-  /// **'結果画面から、次の例文へ進むか、まとめクイズに挑むかを選べます。'**
+  /// **'結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。'**
   String get guideHowQuizStep4;
+
+  /// No description provided for @guideHowReviewQuizTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズを解く'**
+  String get guideHowReviewQuizTitle;
+
+  /// No description provided for @guideHowReviewQuizStep1.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から、下線部に入る単語を選びます。'**
+  String get guideHowReviewQuizStep1;
+
+  /// No description provided for @guideHowReviewQuizStep2.
+  ///
+  /// In ja, this message translates to:
+  /// **'出題される例文は、前日・3日前・1週間前…と日をあけて選ばれます。その中でも、まだ身についていない単語から先に出ます。'**
+  String get guideHowReviewQuizStep2;
+
+  /// No description provided for @guideHowReviewQuizStep3.
+  ///
+  /// In ja, this message translates to:
+  /// **'ヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。'**
+  String get guideHowReviewQuizStep3;
+
+  /// No description provided for @guideHowReviewQuizStep4.
+  ///
+  /// In ja, this message translates to:
+  /// **'迷ったら「例文を確認」で例文に戻れます。'**
+  String get guideHowReviewQuizStep4;
+
+  /// No description provided for @guideHowReviewQuizStep5.
+  ///
+  /// In ja, this message translates to:
+  /// **'ここでの正解が語彙スコアに反映されます。'**
+  String get guideHowReviewQuizStep5;
 
   /// No description provided for @guideHowSettingsTitle.
   ///

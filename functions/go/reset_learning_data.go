@@ -2,6 +2,7 @@ package function
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"cloud.google.com/go/firestore"
@@ -9,15 +10,12 @@ import (
 
 	"github.com/mnbst/thai-memo/functions/go/internal/callable"
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
-	"github.com/mnbst/thai-memo/functions/go/internal/quota"
+	"github.com/mnbst/thai-memo/functions/go/internal/userdata"
 )
-
-// batchLimit は Firestore の一括書き込み上限。
-const batchLimit = 500
 
 // resetLearningData は functions/javascript/src/resetLearningData.ts の移植。
 //
-// 呼び出し元ユーザーの学習データを全消しし、クォータを free の初期値に戻す。
+// 呼び出し元ユーザーの学習データを全消しする。利用枠は補充しない。
 // 返り値は {"deleted": <件数>}。JS 版と同じ電文・同じ文言を返すこと。
 func resetLearningData(ctx context.Context, req *callable.Request) (any, error) {
 	uid, err := req.RequireAuth()
@@ -29,13 +27,22 @@ func resetLearningData(ctx context.Context, req *callable.Request) (any, error) 
 	if err != nil {
 		return nil, err
 	}
+	userRef := db.Collection("users").Doc(uid)
+	leaseToken, err := acquireGenerationLease(ctx, db, userRef)
+	if errors.Is(err, errGenerationInProgress) {
+		return nil, callable.Errorf(callable.Aborted, "例文生成の完了後に再度お試しください")
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer releaseGenerationLease(ctx, db, userRef, leaseToken)
 
 	var refs []*firestore.DocumentRef
 
 	// JS の listDocuments() 相当。実体の無い doc（サブコレクションだけ持つ）も
 	// 拾う必要があるので Documents ではなく DocumentRefs を使う。
-	for _, sub := range []string{"sentences", "quiz_answers", "uvm"} {
-		got, err := documentRefs(ctx, db.Collection("users").Doc(uid).Collection(sub))
+	for _, sub := range []string{"sentences", "quiz_answers", "uvm", "learning_state"} {
+		got, err := documentRefs(ctx, userRef.Collection(sub))
 		if err != nil {
 			return nil, err
 		}
@@ -55,20 +62,13 @@ func resetLearningData(ctx context.Context, req *callable.Request) (any, error) 
 		refs = append(refs, doc.Ref)
 	}
 
-	for i := 0; i < len(refs); i += batchLimit {
-		end := min(i+batchLimit, len(refs))
-		batch := db.BulkWriter(ctx)
-		for _, ref := range refs[i:end] {
-			if _, err := batch.Delete(ref); err != nil {
-				return nil, callable.Errorf(callable.Internal, "削除に失敗しました")
-			}
-		}
-		batch.End()
+	if err := userdata.DeleteDocuments(ctx, db, refs); err != nil {
+		log.Printf("resetLearningData delete failed: %v", err)
+		return nil, callable.Errorf(callable.Internal, "削除に失敗しました")
 	}
 
-	_, err = db.Collection("users").Doc(uid).Set(ctx, map[string]any{
-		"remaining_sentences":      quota.FreeDailySentences,
-		"remaining_quizzes":        quota.FreeDailyQuizzes,
+	_, err = userRef.Set(ctx, map[string]any{
+		// 日次残数と受験間隔は保持する。リセットで利用制限を回避させない。
 		"daily_sentence_generated": false,
 		"sentence_generated_count": 0,
 		"estimated_vocab":          0,
@@ -84,7 +84,14 @@ func resetLearningData(ctx context.Context, req *callable.Request) (any, error) 
 		// ここで消せるとリセットするだけで月1回の制限を抜けられる。
 	}, firestore.MergeAll)
 	if err != nil {
-		return nil, callable.Errorf(callable.Internal, "クォータの初期化に失敗しました")
+		return nil, callable.Errorf(callable.Internal, "学習データの初期化に失敗しました")
+	}
+	// 公開スコアも同時に落とす。ニックネームの予約はアカウント削除まで維持する。
+	_, err = db.Collection("leaderboard").Doc(uid).Update(ctx, []firestore.Update{
+		{Path: "vocab", Value: 0},
+	})
+	if err != nil && !isNotFoundErr(err) {
+		return nil, callable.Errorf(callable.Internal, "ランキングの初期化に失敗しました")
 	}
 
 	log.Printf("Reset %d document(s) for user: %s", len(refs), uid)

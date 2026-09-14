@@ -2,6 +2,7 @@ package function
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -105,7 +106,7 @@ func startVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 	// 判定はクォータフィールドの有無で行う。doc の有無で見ると、クイズ系だけの
 	// 部分doc が残っているユーザーが直らない（生成側と同じ理由）。
 	if _, ok := data["remaining_sentences"]; !ok {
-		initial, err := ensureUserQuota(ctx, userRef)
+		initial, err := ensureUserQuota(ctx, db, userRef)
 		if err != nil {
 			log.Printf("startVocabTest: 初期クォータの付与に失敗: uid=%s error=%v", uid, err)
 			return nil, callable.Errorf(callable.Internal, "語彙テストを準備できませんでした")
@@ -118,23 +119,6 @@ func startVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 	if !premium.IsEffectivePremium(data, now) {
 		return nil, callable.Errorf(callable.PermissionDenied,
 			"語彙テストはプレミアム限定です")
-	}
-
-	// 間隔は開始時刻で数える。完了時だと、途中で閉じたぶんが数えられず
-	// 「開き直す」だけで無制限になる。
-	windowAt, hasWindow := data["vocab_test_window_at"].(time.Time)
-	inWindow := hasWindow && now.Sub(windowAt) < vocabTestInterval
-	measured := false
-	if inWindow {
-		measured, err = vocabTestMeasured(ctx, db, uid)
-		if err != nil {
-			return nil, err
-		}
-	}
-	count, newWindow, err := vocabTestStartCount(
-		now, windowAt, inWindow, measured, intOf(data["vocab_test_count"]))
-	if err != nil {
-		return nil, err
 	}
 
 	items, err := vocabTestItems(ctx, l)
@@ -151,28 +135,57 @@ func startVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 		return nil, err
 	}
 
-	progress := map[string]any{
-		"vocab_test_count": count,
-		// 旧・1日3回の記録。読まなくなったのでここで掃除する。
-		"vocab_test_count_date": firestore.Delete,
-	}
-	if newWindow {
-		progress["vocab_test_window_at"] = now
-	}
-	if _, err := userRef.Set(ctx, progress, firestore.MergeAll); err != nil {
-		log.Printf("startVocabTest: 回数の記録に失敗: uid=%s error=%v", uid, err)
-		return nil, callable.Errorf(callable.Internal, "語彙テストを開始できませんでした")
-	}
-
-	if _, err := vocabTestSessionDoc(db, uid).Set(ctx, map[string]any{
-		"lang":       string(l),
-		"stage":      stage,
-		"history":    []any{},
-		"seeds":      []any{},
-		"questions":  questionsToStore(questions),
-		"started_at": firestore.ServerTimestamp,
+	// 回数判定とセッションの上書きを原子的に行い、同時開始による回数制限の
+	// すり抜けを防ぐ。
+	sessionRef := vocabTestSessionDoc(db, uid)
+	if err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		userSnap, err := tx.Get(userRef)
+		if err != nil {
+			return err
+		}
+		fresh := userSnap.Data()
+		if !premium.IsEffectivePremium(fresh, now) {
+			return callable.Errorf(callable.PermissionDenied, "語彙テストはプレミアム限定です")
+		}
+		windowAt, hasWindow := fresh["vocab_test_window_at"].(time.Time)
+		inWindow := hasWindow && now.Sub(windowAt) < vocabTestInterval
+		measured := false
+		if inWindow {
+			sessionSnap, sessionErr := tx.Get(sessionRef)
+			switch {
+			case isNotFoundErr(sessionErr):
+				measured = true
+			case sessionErr != nil:
+				return sessionErr
+			default:
+				measured, _ = sessionSnap.Data()["done"].(bool)
+			}
+		}
+		count, newWindow, err := vocabTestStartCount(
+			now, windowAt, inWindow, measured, intOf(fresh["vocab_test_count"]))
+		if err != nil {
+			return err
+		}
+		progress := map[string]any{
+			"vocab_test_count":      count,
+			"vocab_test_count_date": firestore.Delete,
+		}
+		if newWindow {
+			progress["vocab_test_window_at"] = now
+		}
+		if err := tx.Set(userRef, progress, firestore.MergeAll); err != nil {
+			return err
+		}
+		return tx.Set(sessionRef, map[string]any{
+			"lang": string(l), "stage": stage, "history": []any{}, "seeds": []any{},
+			"questions": questionsToStore(questions), "started_at": firestore.ServerTimestamp,
+		})
 	}); err != nil {
 		log.Printf("startVocabTest: セッション保存に失敗: uid=%s error=%v", uid, err)
+		var callableErr *callable.Error
+		if errors.As(err, &callableErr) {
+			return nil, callableErr
+		}
 		return nil, callable.Errorf(callable.Internal, "語彙テストを開始できませんでした")
 	}
 
@@ -267,35 +280,29 @@ func submitVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := sessionRef.Set(ctx, map[string]any{
-			"stage":     next,
-			"history":   historyToStore(history),
-			"seeds":     seedsToStore(seeds),
-			"questions": questionsToStore(questions),
-		}, firestore.MergeAll); err != nil {
+		if _, err := sessionRef.Update(ctx, []firestore.Update{
+			{Path: "stage", Value: next},
+			{Path: "history", Value: historyToStore(history)},
+			{Path: "seeds", Value: seedsToStore(seeds)},
+			{Path: "questions", Value: questionsToStore(questions)},
+		}, firestore.LastUpdateTime(snap.UpdateTime)); err != nil {
 			log.Printf("submitVocabTest: セッション更新に失敗: uid=%s error=%v", uid, err)
-			return nil, callable.Errorf(callable.Internal, "語彙テストを続けられませんでした")
+			return nil, callable.Errorf(callable.Aborted, "回答が重複しました。再送してください")
 		}
 		return vocabTestStageResponse(next, questions), nil
 	}
 
 	vocab := uvm.ScoreVocab(history)
-	if err := finishVocabTest(ctx, db, uid, vocab, seeds); err != nil {
+	if err := finishVocabTest(ctx, db, uid, stage, vocab, len(seeds)); err != nil {
 		log.Printf("submitVocabTest: 結果の保存に失敗: uid=%s error=%v", uid, err)
+		// 段の食い違い（二重送信）は Aborted で「再送してください」を返す。
+		// ここで潰すと理由が消え、クライアントの再試行導線にも乗らない。
+		var callableErr *callable.Error
+		if errors.As(err, &callableErr) {
+			return nil, callableErr
+		}
 		return nil, callable.Errorf(callable.Internal, "結果を保存できませんでした")
 	}
-	// セッションは消さずに済んだ印を付ける。消すと、応答が届かなかった
-	// クライアントの再送が「開始されていません」になり、測れているのに
-	// 失敗として見える。次の開始で丸ごと上書きされる。
-	if _, err := sessionRef.Set(ctx, map[string]any{
-		"done":      true,
-		"vocab":     vocab,
-		"asked":     len(seeds),
-		"questions": []any{},
-	}, firestore.MergeAll); err != nil {
-		log.Printf("submitVocabTest: セッションの完了印に失敗: uid=%s error=%v", uid, err)
-	}
-
 	log.Printf("submitVocabTest completed: uid=%s vocab=%d stages=%d", uid, vocab, len(history))
 	return map[string]any{
 		"done":        true,
@@ -307,26 +314,39 @@ func submitVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 
 // finishVocabTest は測定結果を反映する。
 //
-// estimated_vocab は測定値そのもの（＝出発点）。下限は作らない。4 択 16 問の
-// 推定は上振れることがあるので、その後のクイズの正誤で下方修正できる余地を
-// 残す。自己申告レベルもここには入れない（SyncEstimatedVocab のコメント）。
+// estimated_vocab は測定値そのもの（＝出発点）。下限は作らない。推定は
+// 上振れることがあるので、その後のクイズの正誤で下方修正できる余地を残す。
+// 自己申告レベルもここには入れない（SyncEstimatedVocab のコメント）。
+//
+// 語ごとの P には触らない（uvm/vocabtest.go の冒頭コメント）。
 func finishVocabTest(
-	ctx context.Context, db *firestore.Client, uid string,
-	vocab int, seeds []vocabTestSeed,
+	ctx context.Context, db *firestore.Client, uid string, expectedStage, vocab, asked int,
 ) error {
 	userRef := db.Collection("users").Doc(uid)
-
-	if _, err := userRef.Set(ctx, map[string]any{
-		"estimated_vocab":  vocab,
-		"vocab_test_at":    firestore.ServerTimestamp,
-		"vocab_test_vocab": vocab,
-	}, firestore.MergeAll); err != nil {
+	sessionRef := vocabTestSessionDoc(db, uid)
+	if err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(sessionRef)
+		if err != nil {
+			return err
+		}
+		if done, _ := snap.Data()["done"].(bool); done {
+			return nil
+		}
+		if intOf(snap.Data()["stage"]) != expectedStage {
+			return callable.Errorf(callable.Aborted, "回答が重複しました。再送してください")
+		}
+		if err := tx.Set(userRef, map[string]any{
+			"estimated_vocab": vocab, "vocab_test_at": firestore.ServerTimestamp,
+			"vocab_test_vocab": vocab,
+		}, firestore.MergeAll); err != nil {
+			return err
+		}
+		// セッションは消さず完了印を残し、通信断後の再送を冪等にする。
+		return tx.Set(sessionRef, map[string]any{
+			"done": true, "vocab": vocab, "asked": asked, "questions": []any{},
+		}, firestore.MergeAll)
+	}); err != nil {
 		return err
-	}
-
-	if err := seedVocabTestUvm(ctx, db, uid, seeds); err != nil {
-		// 種付けに失敗しても測定値は入っている。テストは成功として返す。
-		log.Printf("finishVocabTest: UVM の種付けに失敗: uid=%s error=%v", uid, err)
 	}
 
 	uvm.PublishLeaderboardVocab(ctx, db, uid, vocab)
@@ -371,60 +391,6 @@ func seedsOf(v any) []vocabTestSeed {
 		})
 	}
 	return out
-}
-
-// seedVocabTestUvm は出題語の P をテスト結果で反映する。
-// 書くのは「既に UVM にある語を間違えた」ときだけ（uvm.TestSeedP を参照）。
-func seedVocabTestUvm(
-	ctx context.Context, db *firestore.Client, uid string,
-	seeds []vocabTestSeed,
-) error {
-	if len(seeds) == 0 {
-		return nil
-	}
-	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
-
-	refs := make([]*firestore.DocumentRef, 0, len(seeds))
-	for _, s := range seeds {
-		refs = append(refs, uvmRef.Doc(s.word))
-	}
-	snaps, err := db.GetAll(ctx, refs)
-	if err != nil {
-		return err
-	}
-	existing := map[string]map[string]any{}
-	for _, s := range snaps {
-		if s.Exists() {
-			existing[s.Ref.ID] = s.Data()
-		}
-	}
-
-	now := float64(time.Now().UnixNano()) / 1e9
-	batch := db.BulkWriter(ctx)
-	for _, s := range seeds {
-		data, exists := existing[s.word]
-		oldP := 0.0
-		if exists {
-			if p, ok := data["p"].(float64); ok {
-				oldP = p
-			}
-		}
-		p, write := uvm.TestSeedP(oldP, exists, s.correct)
-		if !write {
-			// 未登録のまま／今の P のまま残す。key_word の候補に上がるように
-			// するため（uvm.TestSeedP のコメント）。
-			continue
-		}
-		if _, err := batch.Update(uvmRef.Doc(s.word), []firestore.Update{
-			{Path: "p", Value: p},
-			{Path: "last_seen", Value: now},
-			{Path: "last_result", Value: s.correct},
-		}); err != nil {
-			return err
-		}
-	}
-	batch.End()
-	return nil
 }
 
 // vocabTestItems は出題語を読む。ProjectID は init 時に決まらないのでここで入れる。

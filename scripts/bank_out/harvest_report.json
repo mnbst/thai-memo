@@ -1,0 +1,40 @@
+{
+ "envs": [
+  "prod",
+  "tester",
+  "dev"
+ ],
+ "per_env": {
+  "prod": {
+   "flags": 11,
+   "scanned": 1405,
+   "kept": 1331,
+   "dup": 74
+  },
+  "tester": {
+   "flags": 1,
+   "scanned": 4,
+   "kept": 4
+  },
+  "dev": {
+   "scanned": 172,
+   "kept": 171,
+   "dup": 1
+  }
+ },
+ "flagged_total": 12,
+ "dropped_by_flag": 11,
+ "unique_total": 1495,
+ "ja": {
+  "count": 1437,
+  "rank_unknown": 4,
+  "rank_le_5000": 1433,
+  "distinct_key_words": 487
+ },
+ "en": {
+  "count": 58,
+  "rank_unknown": 0,
+  "rank_le_5000": 58,
+  "distinct_key_words": 38
+ }
+}

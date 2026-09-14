@@ -19,6 +19,10 @@ type ResolvedParams struct {
 	SubTheme     string
 	TimeFrame    string
 	Relation     string
+	// LengthHint は文の長さ指定の上書き。空なら estimated_vocab から決める。
+	// 静的コーパスの生成だけが使う。コーパスの長さはターゲット語の頻度ランクで
+	// 決まり、配信時の estimated_vocab では決まらないため。
+	LengthHint string
 }
 
 // DramaSection は BL ドラマ回の専用ブロック。
@@ -41,6 +45,9 @@ func BuildPrompt(
 	drama DramaSection,
 ) (string, map[string]any) {
 	diff := GetDifficulty(estimatedVocab)
+	if resolved.LengthHint != "" {
+		diff.Length = resolved.LengthHint
+	}
 	promptIsPremium := UsePremiumPromptForVocab(isPremium, estimatedVocab)
 
 	topic := resolved.Topic

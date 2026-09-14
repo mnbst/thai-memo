@@ -14579,247 +14579,125 @@
   "generation_tier": "free"
  },
  {
-  "key_word": "ท่าน",
+  "key_word": "กลับ",
   "key_word_rank": 61,
   "estimated_vocab": 61,
-  "thai_text": "ท่านรอทัวร์ที่นี่ครับ",
-  "pronunciation": "thân rɔɔ thuua thîi-nîi khráp",
-  "japanese_translation": "Please wait for the tour here.",
+  "thai_text": "ฉันกลับบ้านตอนเช้า",
+  "pronunciation": "chǎn klàp bâan tɔɔn-cháw",
+  "japanese_translation": "I return home in the morning.",
   "word_breakdown": [
    {
-    "word": "ท่าน",
-    "meaning": "you (formal/respectful)",
-    "notes": "A highly formal and respectful pronoun for you. Used when addressing customers, superiors, or in polite announcements.",
+    "word": "ฉัน",
+    "meaning": "I (gender-neutral, informal to neutral)",
+    "notes": "",
     "syllables": [
-     "ท่าน"
+     "ฉัน"
     ],
-    "pronunciation": "thân",
+    "pronunciation": "chǎn",
     "grammatical_role": "pronoun"
    },
    {
-    "word": "รอ",
-    "meaning": "wait",
-    "notes": "",
+    "word": "กลับ",
+    "meaning": "to return",
+    "notes": "Indicates returning to a place of origin or home. Distinct from 'ไป' (to go) which indicates movement away from the current location.",
     "syllables": [
-     "รอ"
+     "กลับ"
     ],
-    "pronunciation": "rɔɔ",
+    "pronunciation": "klàp",
     "grammatical_role": "verb"
    },
    {
-    "word": "ทัวร์",
-    "meaning": "tour",
+    "word": "บ้าน",
+    "meaning": "home",
     "notes": "",
     "syllables": [
-     "ทัวร์"
+     "บ้าน"
     ],
-    "pronunciation": "thuua",
-    "grammatical_role": "verb"
+    "pronunciation": "bâan",
+    "grammatical_role": "noun"
    },
    {
-    "word": "ที่นี่",
-    "meaning": "here",
+    "word": "ตอนเช้า",
+    "meaning": "in the morning",
     "notes": "",
     "syllables": [
-     "ที่",
-     "นี่"
+     "ตอน",
+     "เช้า"
     ],
-    "pronunciation": "thîi-nîi",
-    "grammatical_role": "determiner"
-   },
-   {
-    "word": "ครับ",
-    "meaning": "polite particle (male)",
-    "notes": "",
-    "syllables": [
-     "ครับ"
-    ],
-    "pronunciation": "khráp",
-    "grammatical_role": "particle"
+    "pronunciation": "tɔɔn-cháw",
+    "grammatical_role": "adverb"
    }
   ],
   "context": {
-   "usage_scenarios": "Tour guide instructing a customer.",
-   "cultural_notes": "Used to show high respect to guests or customers in Thailand.",
-   "style": "Polite style (formal, respectful expressions)",
-   "emotion": "polite",
-   "topic": "Travel (hotels, directions, sights, airport, tours)",
-   "subTheme": "tours",
-   "timeFrame": "A regular habit"
+   "cultural_notes": "Morning return often refers to coming back from market or exercise.",
+   "emotion": "Neutral and factual.",
+   "relation": "自分と対等／顔見知り程度",
+   "style": "Simple, neutral statement.",
+   "subTheme": "morning",
+   "timeFrame": "Happening right now",
+   "topic": "Greetings (morning, noon, night, first meeting, reunion, farewell, phone)",
+   "usage_scenarios": "Describing a morning routine or daily schedule."
   },
   "generation_tier": "free"
  },
  {
-  "key_word": "ท่าน",
+  "key_word": "กลับ",
   "key_word_rank": 61,
   "estimated_vocab": 61,
-  "thai_text": "ท่านอยากได้เสื้อไซส์อะไรครับ",
-  "pronunciation": "thân yàak-dâai sʉ̂ʉa sai à-rai khráp",
-  "japanese_translation": "What size shirt would you like?",
+  "thai_text": "ฉันจะกลับไปซื้ออาหาร",
+  "pronunciation": "chǎn jà klàp pai sʉ́ʉ aa-hǎan",
+  "japanese_translation": "I will return to buy some food.",
   "word_breakdown": [
    {
-    "word": "ท่าน",
-    "meaning": "you (formal/respectful)",
-    "notes": "A highly respectful pronoun for 'you'. Used in formal contexts, service environments, or when addressing social superiors.",
+    "word": "ฉัน",
+    "meaning": "I (general, polite)",
+    "notes": "",
     "syllables": [
-     "ท่าน"
+     "ฉัน"
     ],
-    "pronunciation": "thân",
+    "pronunciation": "chǎn",
     "grammatical_role": "pronoun"
    },
    {
-    "word": "อยากได้",
-    "meaning": "want to get",
+    "word": "จะ",
+    "meaning": "will",
     "notes": "",
     "syllables": [
-     "อยาก",
-     "ได้"
+     "จะ"
     ],
-    "pronunciation": "yàak-dâai",
-    "grammatical_role": "noun"
+    "pronunciation": "jà",
+    "grammatical_role": "auxiliary"
    },
    {
-    "word": "เสื้อ",
-    "meaning": "shirt",
-    "notes": "",
+    "word": "กลับ",
+    "meaning": "return",
+    "notes": "Indicates moving back to a previous location. Often paired with 'ไป' (to go) as 'กลับไป' to mean 'go back to'.",
     "syllables": [
-     "เสื้อ"
+     "กลับ"
     ],
-    "pronunciation": "sʉ̂ʉa",
-    "grammatical_role": "noun"
-   },
-   {
-    "word": "ไซส์",
-    "meaning": "size",
-    "notes": "",
-    "syllables": [
-     "ไซส์"
-    ],
-    "pronunciation": "sai",
-    "grammatical_role": "noun"
-   },
-   {
-    "word": "อะไร",
-    "meaning": "what",
-    "notes": "",
-    "syllables": [
-     "อะ",
-     "ไร"
-    ],
-    "pronunciation": "à-rai",
-    "grammatical_role": "pronoun"
-   },
-   {
-    "word": "ครับ",
-    "meaning": "polite particle (male)",
-    "notes": "",
-    "syllables": [
-     "ครับ"
-    ],
-    "pronunciation": "khráp",
-    "grammatical_role": "particle"
-   }
-  ],
-  "context": {
-   "usage_scenarios": "Asking a VIP customer about their preferred clothing size in a retail store.",
-   "cultural_notes": "Using 'ท่าน' creates a distance of respect and is standard for professional customer service in Thailand.",
-   "style": "Polite style (formal, respectful expressions)",
-   "emotion": "neutral and professional",
-   "topic": "Shopping (haggling, size and color, returns, night markets)",
-   "subTheme": "checking size and color",
-   "timeFrame": "An upcoming plan"
-  },
-  "generation_tier": "free"
- },
- {
-  "key_word": "ท่าน",
-  "key_word_rank": 61,
-  "estimated_vocab": 61,
-  "thai_text": "พรุ่งนี้ทัวร์ท่านเริ่มที่วัด",
-  "pronunciation": "phrûng-níi thuua thân rə̂əm thîi wát",
-  "japanese_translation": "Your tour starts at the temple tomorrow.",
-  "word_breakdown": [
-   {
-    "word": "พรุ่งนี้",
-    "meaning": "tomorrow",
-    "notes": "",
-    "syllables": [
-     "พรุ่ง",
-     "นี้"
-    ],
-    "pronunciation": "phrûng-níi",
-    "grammatical_role": "conjunction"
-   },
-   {
-    "word": "ทัวร์",
-    "meaning": "tour",
-    "notes": "",
-    "syllables": [
-     "ทัวร์"
-    ],
-    "pronunciation": "thuua",
+    "pronunciation": "klàp",
     "grammatical_role": "verb"
    },
    {
-    "word": "ท่าน",
-    "meaning": "you (polite, formal)",
-    "notes": "A highly formal, polite pronoun for 'you', used when addressing guests, elders, or superiors in professional or respectful contexts.",
-    "syllables": [
-     "ท่าน"
-    ],
-    "pronunciation": "thân",
-    "grammatical_role": "pronoun"
-   },
-   {
-    "word": "เริ่ม",
-    "meaning": "start",
+    "word": "ไป",
+    "meaning": "to go",
     "notes": "",
     "syllables": [
-     "เริ่ม"
+     "ไป"
     ],
-    "pronunciation": "rə̂əm",
+    "pronunciation": "pai",
+    "grammatical_role": "adverb"
+   },
+   {
+    "word": "ซื้อ",
+    "meaning": "buy",
+    "notes": "",
+    "syllables": [
+     "ซื้อ"
+    ],
+    "pronunciation": "sʉ́ʉ",
     "grammatical_role": "verb"
    },
-   {
-    "word": "ที่",
-    "meaning": "at",
-    "notes": "",
-    "syllables": [
-     "ที่"
-    ],
-    "pronunciation": "thîi",
-    "grammatical_role": "pronoun"
-   },
-   {
-    "word": "วัด",
-    "meaning": "temple",
-    "notes": "",
-    "syllables": [
-     "วัด"
-    ],
-    "pronunciation": "wát",
-    "grammatical_role": "noun"
-   }
-  ],
-  "context": {
-   "usage_scenarios": "A professional tour guide informing a guest about their upcoming itinerary.",
-   "cultural_notes": "Using 'ท่าน' shows deep respect to customers or people of higher social status in Thailand.",
-   "style": "Polite style (formal, respectful expressions)",
-   "emotion": "formal and informative",
-   "topic": "Travel (hotels, directions, sights, airport, tours)",
-   "subTheme": "tours",
-   "timeFrame": "An upcoming plan"
-  },
-  "generation_tier": "free"
- },
- {
-  "key_word": "ท่าน",
-  "key_word_rank": 61,
-  "estimated_vocab": 61,
-  "thai_text": "อาหารจานนี้อร่อยไหมครับท่าน",
-  "pronunciation": "aa-hǎan jaan-níi à-rɔ̀ɔi mǎi khráp thân",
-  "japanese_translation": "Did you enjoy this dish, sir?",
-  "word_breakdown": [
    {
     "word": "อาหาร",
     "meaning": "food",
@@ -14830,67 +14708,172 @@
     ],
     "pronunciation": "aa-hǎan",
     "grammatical_role": "noun"
-   },
-   {
-    "word": "จานนี้",
-    "meaning": "this dish",
-    "notes": "",
-    "syllables": [
-     "จาน",
-     "นี้"
-    ],
-    "pronunciation": "jaan-níi",
-    "grammatical_role": "determiner"
-   },
-   {
-    "word": "อร่อย",
-    "meaning": "delicious",
-    "notes": "",
-    "syllables": [
-     "อร่อย"
-    ],
-    "pronunciation": "à-rɔ̀ɔi",
-    "grammatical_role": "adjective"
-   },
-   {
-    "word": "ไหม",
-    "meaning": "question particle",
-    "notes": "",
-    "syllables": [
-     "ไหม"
-    ],
-    "pronunciation": "mǎi",
-    "grammatical_role": "particle"
-   },
-   {
-    "word": "ครับ",
-    "meaning": "polite particle (male)",
-    "notes": "",
-    "syllables": [
-     "ครับ"
-    ],
-    "pronunciation": "khráp",
-    "grammatical_role": "particle"
-   },
-   {
-    "word": "ท่าน",
-    "meaning": "you (formal/respectful)",
-    "notes": "A highly formal second-person pronoun used to address customers, superiors, or high-ranking individuals.",
-    "syllables": [
-     "ท่าน"
-    ],
-    "pronunciation": "thân",
-    "grammatical_role": "pronoun"
    }
   ],
   "context": {
-   "usage_scenarios": "A waiter checking on a customer's satisfaction after they have finished a dish.",
-   "cultural_notes": "Using 'ท่าน' is standard for high-end hospitality to show respect to guests.",
-   "style": "Polite style (formal, respectful expressions)",
-   "emotion": "polite and attentive",
+   "cultural_notes": "Common when visiting street food markets or food courts.",
+   "emotion": "Neutral, informative.",
+   "relation": "自分より目上／顔見知り程度",
+   "style": "Simple, spoken Thai.",
+   "subTheme": "street stalls",
+   "timeFrame": "Happening right now",
    "topic": "Food (ordering, impressions, street stalls, spice level, allergies)",
-   "subTheme": "giving impressions",
-   "timeFrame": "Something that just happened"
+   "usage_scenarios": "Saying this when leaving a food stall momentarily to return later."
+  },
+  "generation_tier": "free"
+ },
+ {
+  "key_word": "กลับ",
+  "key_word_rank": 61,
+  "estimated_vocab": 61,
+  "thai_text": "ฉันจะกลับโรงแรมตอนเย็น",
+  "pronunciation": "chǎn jà klàp roong-rɛɛm tɔɔn-yen",
+  "japanese_translation": "I will return to the hotel in the evening.",
+  "word_breakdown": [
+   {
+    "word": "ฉัน",
+    "meaning": "I (general, neutral)",
+    "notes": "",
+    "syllables": [
+     "ฉัน"
+    ],
+    "pronunciation": "chǎn",
+    "grammatical_role": "pronoun"
+   },
+   {
+    "word": "จะ",
+    "meaning": "will",
+    "notes": "",
+    "syllables": [
+     "จะ"
+    ],
+    "pronunciation": "jà",
+    "grammatical_role": "auxiliary"
+   },
+   {
+    "word": "กลับ",
+    "meaning": "return / go back",
+    "notes": "Means to return or go back to a place. It can be used alone or followed by a location, similar to 'return to' in English.",
+    "syllables": [
+     "กลับ"
+    ],
+    "pronunciation": "klàp",
+    "grammatical_role": "verb"
+   },
+   {
+    "word": "โรงแรม",
+    "meaning": "hotel",
+    "notes": "",
+    "syllables": [
+     "โรง",
+     "แรม"
+    ],
+    "pronunciation": "roong-rɛɛm",
+    "grammatical_role": "noun"
+   },
+   {
+    "word": "ตอนเย็น",
+    "meaning": "in the evening",
+    "notes": "",
+    "syllables": [
+     "ตอน",
+     "เย็น"
+    ],
+    "pronunciation": "tɔɔn-yen",
+    "grammatical_role": "noun"
+   }
+  ],
+  "context": {
+   "cultural_notes": "Very common structure for stating daily travel plans.",
+   "emotion": "Informative",
+   "relation": "自分と対等／ほとんど面識がない",
+   "style": "Neutral/Polite",
+   "subTheme": "hotels",
+   "timeFrame": "An upcoming plan",
+   "topic": "Travel (hotels, directions, sights, airport, tours)",
+   "usage_scenarios": "Informing someone of your travel schedule."
+  },
+  "generation_tier": "free"
+ },
+ {
+  "key_word": "กลับ",
+  "key_word_rank": 61,
+  "estimated_vocab": 61,
+  "thai_text": "ประชุมเสร็จแล้วกลับบ้านได้",
+  "pronunciation": "prà-chum sèt lɛ́ɛw klàp bâan dâi",
+  "japanese_translation": "The meeting is finished, so it is possible to go home.",
+  "word_breakdown": [
+   {
+    "word": "ประชุม",
+    "meaning": "meeting",
+    "notes": "",
+    "syllables": [
+     "ประ",
+     "ชุม"
+    ],
+    "pronunciation": "prà-chum",
+    "grammatical_role": "verb"
+   },
+   {
+    "word": "เสร็จ",
+    "meaning": "finished",
+    "notes": "",
+    "syllables": [
+     "เสร็จ"
+    ],
+    "pronunciation": "sèt",
+    "grammatical_role": "adjective"
+   },
+   {
+    "word": "แล้ว",
+    "meaning": "already",
+    "notes": "",
+    "syllables": [
+     "แล้ว"
+    ],
+    "pronunciation": "lɛ́ɛw",
+    "grammatical_role": "adverb"
+   },
+   {
+    "word": "กลับ",
+    "meaning": "to return",
+    "notes": "A versatile verb meaning to go back or return. It is used for both physical locations like home and abstract concepts like returning to a state.",
+    "syllables": [
+     "กลับ"
+    ],
+    "pronunciation": "klàp",
+    "grammatical_role": "verb"
+   },
+   {
+    "word": "บ้าน",
+    "meaning": "home",
+    "notes": "",
+    "syllables": [
+     "บ้าน"
+    ],
+    "pronunciation": "bâan",
+    "grammatical_role": "noun"
+   },
+   {
+    "word": "ได้",
+    "meaning": "can",
+    "notes": "",
+    "syllables": [
+     "ได้"
+    ],
+    "pronunciation": "dâi",
+    "grammatical_role": "auxiliary"
+   }
+  ],
+  "context": {
+   "cultural_notes": "Thai office culture often focuses on completing tasks before leaving.",
+   "emotion": "Neutral and relieved.",
+   "relation": "自分より目上／家族や恋人のように近い",
+   "style": "Polite and direct professional instruction.",
+   "subTheme": "meetings",
+   "timeFrame": "Something that just happened",
+   "topic": "Work (reporting, meetings, overtime requests, chatting with coworkers)",
+   "usage_scenarios": "Ending a work meeting and allowing team members to leave for home."
   },
   "generation_tier": "free"
  },

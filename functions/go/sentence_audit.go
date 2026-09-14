@@ -12,6 +12,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/llm"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
@@ -74,7 +75,7 @@ func runSentenceAudit(
 		return nil
 	}
 
-	candidates := auditCandidates(ctx, db, users, now.Add(-auditWindow))
+	candidates, docs := auditCandidates(ctx, db, users, now.Add(-auditWindow))
 	if len(candidates) == 0 {
 		log.Print("sentenceAudit: no premium sentences in window")
 		return nil
@@ -87,48 +88,85 @@ func runSentenceAudit(
 	}
 
 	var (
-		mu      sync.Mutex
-		flagged int
-		failed  int
+		mu       sync.Mutex
+		flagged  int
+		failed   int
+		accepted []quality.Candidate
 	)
 	judgedAt := time.Now()
 
 	batches := chunkCandidates(candidates, auditBatchSize)
-	for i := 0; i < len(batches); i += auditConcurrency {
-		end := min(i+auditConcurrency, len(batches))
-
-		var wg sync.WaitGroup
-		for _, batch := range batches[i:end] {
-			wg.Add(1)
-			go func(batch []quality.Candidate) {
-				defer wg.Done()
-
-				hits, verdicts, err := judge.JudgeBatch(ctx, batch)
+	jobs := make(chan []quality.Candidate, auditConcurrency)
+	var wg sync.WaitGroup
+	for range auditConcurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for batch := range jobs {
+				res, err := judge.Review(ctx, batch)
 				if err != nil {
 					mu.Lock()
 					failed++
 					mu.Unlock()
 					log.Printf("sentenceAudit: judge failed: %v", err)
-					return
-				}
-				if len(hits) == 0 {
-					return
-				}
-				if err := quality.Write(ctx, db, hits, verdicts, judge.Model, judgedAt); err != nil {
-					log.Printf("sentenceAudit: write failed: %v", err)
-					return
+					continue
 				}
 				mu.Lock()
-				flagged += len(hits)
+				accepted = append(accepted, res.Accepted...)
 				mu.Unlock()
-			}(batch)
-		}
-		wg.Wait()
+				if len(res.Flagged) == 0 {
+					continue
+				}
+				if err := quality.Write(
+					ctx, db, res.Flagged, res.Verdicts, judge.Model, judgedAt); err != nil {
+					log.Printf("sentenceAudit: write failed: %v", err)
+					continue
+				}
+				mu.Lock()
+				flagged += len(res.Flagged)
+				mu.Unlock()
+			}
+		}()
 	}
+	for _, batch := range batches {
+		jobs <- batch
+	}
+	close(jobs)
+	wg.Wait()
 
-	log.Printf("sentenceAudit: judged=%d flagged=%d failedBatches=%d model=%s",
-		len(candidates), flagged, failed, judge.Model)
+	log.Printf("sentenceAudit: judged=%d flagged=%d accepted=%d failedBatches=%d model=%s",
+		len(candidates), flagged, len(accepted), failed, judge.Model)
+
+	// 判定を通ったものは例文プールへ回す。プールの書き出しに失敗しても
+	// 監査そのものは済んでいるので、エラーは返さず記録だけ残す。
+	if err := poolAccepted(ctx, accepted, docs); err != nil {
+		log.Printf("sentencePool: write failed: %v", err)
+	}
 	return nil
+}
+
+// poolAccepted は judge を通った例文を GCS のプールへ足す。
+//
+// SENTENCE_POOL_MAX=0 で止められる（プール自体を使わない運用に戻せる）。
+func poolAccepted(
+	ctx context.Context, accepted []quality.Candidate, docs map[string]map[string]any,
+) error {
+	maxEntries := intEnvOr("SENTENCE_POOL_MAX", poolMaxEntries)
+	if maxEntries <= 0 {
+		log.Print("sentencePool: disabled (SENTENCE_POOL_MAX=0)")
+		return nil
+	}
+	entries := make([]poolEntry, 0, len(accepted))
+	for _, c := range accepted {
+		data, ok := docs[quality.FlagID(c)]
+		if !ok {
+			continue
+		}
+		if e, ok := buildPoolEntry(data); ok {
+			entries = append(entries, e)
+		}
+	}
+	return writeSentencePool(ctx, fbapp.ProjectID(), entries, maxEntries)
 }
 
 // auditCandidates は各ユーザーの直近の premium 例文を集める。
@@ -140,40 +178,66 @@ func runSentenceAudit(
 func auditCandidates(
 	ctx context.Context, db *firestore.Client, users []*firestore.DocumentSnapshot,
 	cutoff time.Time,
-) []quality.Candidate {
+) ([]quality.Candidate, map[string]map[string]any) {
 	var out []quality.Candidate
-	for _, userDoc := range users {
-		uid := userDoc.Ref.ID
-		it := db.Collection("users").Doc(uid).Collection("sentences").
-			Where("created_at", ">=", cutoff).
-			Documents(ctx)
-
-		taken := 0
-		for taken < auditMaxPerUser {
-			doc, err := it.Next()
-			if err == iterator.Done {
-				break
+	// docs は判定を通ったものをプールへ入れるときに使う。Candidate は判定に
+	// 要る項目しか持たず、word_breakdown が落ちているため doc 側を取っておく。
+	docs := map[string]map[string]any{}
+	jobs := make(chan *firestore.DocumentSnapshot, dailyBatchConcurrency)
+	var wg sync.WaitGroup
+	var outMu sync.Mutex
+	for range dailyBatchConcurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for userDoc := range jobs {
+				uid := userDoc.Ref.ID
+				it := db.Collection("users").Doc(uid).Collection("sentences").
+					Where("created_at", ">=", cutoff).Documents(ctx)
+				var found []quality.Candidate
+				for len(found) < auditMaxPerUser {
+					doc, err := it.Next()
+					if err == iterator.Done {
+						break
+					}
+					if err != nil {
+						log.Printf("sentenceAudit: read failed uid=%s: %v", uid, err)
+						break
+					}
+					if c, ok := candidateFrom(uid, doc.Ref.ID, doc.Data()); ok {
+						found = append(found, c)
+						outMu.Lock()
+						docs[quality.FlagID(c)] = doc.Data()
+						outMu.Unlock()
+					}
+				}
+				it.Stop()
+				outMu.Lock()
+				out = append(out, found...)
+				outMu.Unlock()
 			}
-			if err != nil {
-				log.Printf("sentenceAudit: read failed uid=%s: %v", uid, err)
-				break
-			}
-			c, ok := candidateFrom(uid, doc.Ref.ID, doc.Data())
-			if !ok {
-				continue
-			}
-			out = append(out, c)
-			taken++
-		}
-		it.Stop()
+		}()
 	}
-	return out
+	for _, userDoc := range users {
+		jobs <- userDoc
+	}
+	close(jobs)
+	wg.Wait()
+	return out, docs
 }
 
 // candidateFrom は例文 doc を判定対象へ変換する。premium 生成でないもの、
-// 本文が欠けているものは対象外。
+// バンク由来のもの、本文が欠けているものは対象外。
+//
+// バンク由来（from_cache=true）を外すのは、判定し直しても得るものが無いため。
+// コーパスの文は生成時に judge を通っており、同じ文が毎日何人にも配られる。
+// フィールドが無い doc はこれを付ける前の保存で、当時は LLM 生成しか
+// users/{uid}/sentences に入らなかったので対象のままでよい。
 func candidateFrom(uid, docID string, data map[string]any) (quality.Candidate, bool) {
 	if stringField(data["generation_tier"]) != "premium" {
+		return quality.Candidate{}, false
+	}
+	if cached, ok := data["from_cache"].(bool); ok && cached {
 		return quality.Candidate{}, false
 	}
 	thai := stringField(data["thai_text"])

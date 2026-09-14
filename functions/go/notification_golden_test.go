@@ -147,7 +147,8 @@ func TestAppStoreNotificationUpdatesGolden(t *testing.T) {
 			if len(c.Updates) != 1 {
 				t.Fatalf("JS 側の更新件数が想定外: %d", len(c.Updates))
 			}
-			want := decodeGolden(c.Updates[0].Data).(map[string]any)
+			want := retargetLegacyPremiumQuota(
+				decodeGolden(c.Updates[0].Data).(map[string]any))
 
 			got := updatesToMap(appStoreUpdates(
 				notification, decision, derefOr(c.CurrentTier, ""), c.Updates[0].UID,
@@ -237,7 +238,8 @@ func TestPlayNotificationUpdatesGolden(t *testing.T) {
 			if len(c.Updates) != 1 {
 				t.Fatalf("JS 側の更新件数が想定外: %d", len(c.Updates))
 			}
-			want := decodeGolden(c.Updates[0].Data).(map[string]any)
+			want := retargetLegacyPremiumQuota(
+				decodeGolden(c.Updates[0].Data).(map[string]any))
 
 			// JS が返した status と expires_at から検証結果を復元する
 			// （playbilling の変換そのものは internal/playbilling の golden で見ている）

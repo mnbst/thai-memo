@@ -122,12 +122,40 @@ class AnalyticsService {
     required String category,
     int? questionIndex,
     String? source,
+    String? quizFormat,
+    int? srsInterval,
+    int? responseMs,
   }) async {
     await _logEvent('quiz_answer', {
       'correct': correct ? 'true' : 'false',
       'category': category,
       // 'question_index': questionIndex,
       'source': source,
+      'quiz_format': quizFormat,
+      // 集計で1/3/7/14/30日を行として扱うため文字列dimensionで送る。
+      'srs_interval': srsInterval?.toString(),
+      'response_ms': responseMs,
+    });
+  }
+
+  /// 例文を読んだ直後の1問確認クイズで、問題表示後の難しさを測る。
+  ///
+  /// [action] は shown / answered / abandoned。abandoned は問題表示後、
+  /// 回答せずに画面を離れた場合に送る。既存の quiz_offer は導線全体、こちらは
+  /// 実際に問題が表示されてからの挙動を測るためのイベント。
+  Future<void> logConfirmationQuizQuestion({
+    required String action,
+    required String quizFormat,
+    int? responseMs,
+    bool? correct,
+    String? exitReason,
+  }) async {
+    await _logEvent('confirmation_quiz_question', {
+      'action': action,
+      'quiz_format': quizFormat,
+      'response_ms': responseMs,
+      'correct': correct == null ? null : (correct ? 'true' : 'false'),
+      'exit_reason': exitReason,
     });
   }
 

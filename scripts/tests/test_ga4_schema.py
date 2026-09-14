@@ -35,6 +35,17 @@ class Ga4SchemaTest(unittest.TestCase):
         self.assertIn("quiz_score", metrics)
         self.assertNotIn("score", metrics)
 
+    def test_confirmation_quiz_parameters_are_registered(self) -> None:
+        event_dimensions = {
+            item.parameter for item in DIMENSIONS if item.scope == "EVENT"
+        }
+        metrics = {item.parameter for item in METRICS}
+
+        self.assertIn("quiz_format", event_dimensions)
+        self.assertIn("srs_interval", event_dimensions)
+        self.assertIn("exit_reason", event_dimensions)
+        self.assertIn("response_ms", metrics)
+
     def test_missing_definitions_respects_scope(self) -> None:
         dimensions = [
             {"parameterName": "tier", "scope": "EVENT"},

@@ -77,11 +77,21 @@ func TestUpdatePDirection(t *testing.T) {
 			MaxGuessRate, 1-BayesSlip)
 	}
 	for _, hint := range []int{0, 1, 2, 5} {
-		for _, p := range []float64{0.05, NewWordP, 0.5, 0.95} {
+		// PFloor が UpdateP の下限なので、それ未満の P は本番では出てこない。
+		for _, p := range []float64{PFloor, NewWordP, 0.5, 0.95} {
 			if up := UpdateP(p, true, hint, 1); up <= p {
 				t.Errorf("hint=%d p=%v: 正解で上がらない (%v)", hint, p, up)
 			}
-			if dn := UpdateP(p, false, hint, 1); dn >= p {
+			dn := UpdateP(p, false, hint, 1)
+			// 下限に張り付いている語は不正解でも動かない（これが「しつこい
+			// 再出題」を止めている）。それ以外は必ず下がる。
+			if p <= PFloor {
+				if dn != PFloor {
+					t.Errorf("hint=%d p=%v: 不正解で下限を割った (%v)", hint, p, dn)
+				}
+				continue
+			}
+			if dn >= p {
 				t.Errorf("hint=%d p=%v: 不正解で下がらない (%v)", hint, p, dn)
 			}
 		}
@@ -124,5 +134,45 @@ func TestEvidenceFieldMigration(t *testing.T) {
 		if got := evidenceField(c.data); math.Abs(got-c.want) > 1e-9 {
 			t.Errorf("%s: evidenceField = %v, want %v", c.name, got, c.want)
 		}
+	}
+}
+
+// TestUpdatePRecovery は「間違えた語も、ヒント無しで 2 回連続正解すれば
+// 既知判定(P>0.5)へ戻る」ことを固定する。PFloor の存在理由そのもの。
+//
+// 下限が無かった頃は、間違え続けた語の P がいくらでも 0 に近づき、出題が
+// 低 P 語優先なので同じ語が毎日出続けていた。
+func TestUpdatePRecovery(t *testing.T) {
+	const known = 0.5
+
+	// どんな履歴の語でも、下限から 2 連続正解で既知へ戻る。
+	starts := []float64{PFloor, 0.0, 1e-9, 0.05}
+	for _, start := range starts {
+		p := math.Max(start, PFloor) // 本番の P は必ず PFloor 以上
+		p = UpdateP(p, true, 0, 1)
+		if p > known {
+			t.Errorf("start=%v: 1 問目で既知に戻ってしまう (%v)", start, p)
+		}
+		p = UpdateP(p, true, 0, 1)
+		if p <= known {
+			t.Errorf("start=%v: 2 連続正解で既知に戻らない (%v)", start, p)
+		}
+	}
+
+	// 間違え続けても下限より下へは行かない。
+	p := NewWordP
+	for range 20 {
+		p = UpdateP(p, false, 0, 1)
+	}
+	if p != PFloor {
+		t.Errorf("20 連続不正解で下限に張り付かない: %v", p)
+	}
+
+	// prior から 1 問不正解 → 2 連続正解で既知へ戻る（体感の主経路）。
+	p = UpdateP(NewWordP, false, 0, 1)
+	p = UpdateP(p, true, 0, 1)
+	p = UpdateP(p, true, 0, 1)
+	if p <= known {
+		t.Errorf("不正解1回のあと2連続正解で既知に戻らない: %v", p)
 	}
 }

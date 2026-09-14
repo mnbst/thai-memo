@@ -8,11 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/app_localizations.dart';
 import 'presentation/providers/analytics_provider.dart';
+import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/remaining_quota_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/subscription_provider.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/splash_screen.dart';
 import 'services/firebase_auth_service.dart';
+import 'services/anonymous_sign_in_coordinator.dart';
 
 /// Main application widget
 class ThaiMemoApp extends ConsumerStatefulWidget {
@@ -22,14 +25,22 @@ class ThaiMemoApp extends ConsumerStatefulWidget {
   ConsumerState<ThaiMemoApp> createState() => _ThaiMemoAppState();
 }
 
-class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
-    with WidgetsBindingObserver {
+class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
   StreamSubscription<User?>? _authSubscription;
+  late final AnonymousSignInCoordinator _anonymousSignIn;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    _anonymousSignIn = AnonymousSignInCoordinator(
+      // アカウント削除後の端末データ掃除が終わるまで次のユーザーを作らない。
+      canSignIn: () =>
+          FirebaseAuth.instance.currentUser == null &&
+          !ref.read(authControllerProvider).isLoading,
+      signIn: () async {
+        await FirebaseAuthService.instance.signInAnonymously();
+      },
+    );
     // Analytics の userId を認証状態に追従させる。
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       unawaited(ref.read(analyticsServiceProvider).setUserId(user?.uid));
@@ -41,34 +52,27 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
         );
       }
     });
+    // users/{uid} はクォータ等がすでに監視している1本を共有する。
+    // Subscription専用listenerを増やさず、同じ更新からtierも反映する。
+    ref.listenManual(userDocProvider, (_, next) {
+      final uid = FirebaseAuthService.instance.currentUser?.uid;
+      if (uid == null || !next.hasValue) return;
+      ref
+          .read(subscriptionControllerProvider.notifier)
+          .applyUserDocument(uid, next.value);
+    });
   }
 
   @override
   void dispose() {
+    _anonymousSignIn.dispose();
     _authSubscription?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      ref.read(subscriptionControllerProvider.notifier).refreshTier();
-    }
-  }
-
-  bool _anonSignInStarted = false;
-
-  /// 未認証時に匿名サインインを一度だけ開始する。
-  void _ensureAnonymousSignIn() {
-    if (_anonSignInStarted) return;
-    if (FirebaseAuth.instance.currentUser != null) return;
-    _anonSignInStarted = true;
-    unawaited(FirebaseAuthService.instance.signInAnonymously());
-  }
-
-  @override
   Widget build(BuildContext context) {
+    ref.watch(authControllerProvider.select((state) => state.isLoading));
     // Watch theme mode and font family from settings
     final themeMode = ref.watch(themeModeProvider);
     final fontFamily = ref.watch(fontFamilyProvider);
@@ -99,7 +103,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp>
           if (user == null) {
             // 未認証なら匿名サインインを開始し、完了までローディング表示。
             // 匿名でも HomeScreen に進めるため、ログイン壁は出さない。
-            _ensureAnonymousSignIn();
+            _anonymousSignIn.ensureSignedIn();
             return const _AuthLoadingScreen();
           }
           // 認証後にサブスクリプション状態をFirestoreから取得

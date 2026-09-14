@@ -36,3 +36,13 @@ func IsStorePlatform(platform any) bool {
 	}
 	return false
 }
+
+// IsLifetime は買い切り（非消費型）購入かどうか。
+//
+// 買い切りは expires_at を持たない。ストア購入で expires_at が無いものは
+// 「期限判定が効かない premium」として free に落とす扱いなので、そこから
+// 除外するためにこの目印を見る（verifySubscription が必ず書く）。
+func IsLifetime(sub map[string]any) bool {
+	lifetime, _ := sub["lifetime"].(bool)
+	return lifetime
+}

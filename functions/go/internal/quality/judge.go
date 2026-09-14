@@ -141,6 +141,34 @@ func ParseVerdicts(raw map[string]any, batchSize int) []Verdict {
 	return out
 }
 
+// ParseAccepted は natural=true と判定された index を返す。
+//
+// ParseVerdicts が落とす側（指摘）だけを見るのに対し、こちらは通した側を返す。
+// 判定が返ってこなかった index は通さない（無言の欠落を合格にしない）。
+// 例文プールへ入れてよいかの判断に使う。
+func ParseAccepted(raw map[string]any, batchSize int) []int {
+	data, err := json.Marshal(raw["results"])
+	if err != nil {
+		return nil
+	}
+	var results []Verdict
+	if err := json.Unmarshal(data, &results); err != nil {
+		return nil
+	}
+	seen := map[int]bool{}
+	var out []int
+	for _, v := range results {
+		if v.Index < 0 || v.Index >= batchSize || seen[v.Index] {
+			continue
+		}
+		seen[v.Index] = true
+		if v.Natural {
+			out = append(out, v.Index)
+		}
+	}
+	return out
+}
+
 // FlagID は sentence_flags の doc ID。uid と例文 ID から決める。
 //
 // 自動採番にすると、バッチを流し直したときに同じ文の指摘が二重に積まれ、
@@ -177,23 +205,46 @@ type Judge struct {
 	Model string
 }
 
+// Result は 1 バッチの判定結果。
+type Result struct {
+	// Flagged / Verdicts は不自然と判定されたもの（sentence_flags へ書く）。
+	Flagged  []Candidate
+	Verdicts []Verdict
+	// Accepted は自然と判定されたもの（例文プールへ回す）。
+	Accepted []Candidate
+}
+
 // JudgeBatch は 1 回の LLM 呼び出しで batch 全体を判定し、
 // 報告対象の Candidate と Verdict の組を返す。
 func (j *Judge) JudgeBatch(ctx context.Context, batch []Candidate) ([]Candidate, []Verdict, error) {
+	res, err := j.Review(ctx, batch)
+	if err != nil {
+		return nil, nil, err
+	}
+	return res.Flagged, res.Verdicts, nil
+}
+
+// Review は 1 回の LLM 呼び出しで batch 全体を判定し、落とした側と通した側の
+// 両方を返す。
+func (j *Judge) Review(ctx context.Context, batch []Candidate) (Result, error) {
 	if len(batch) == 0 {
-		return nil, nil, nil
+		return Result{}, nil
 	}
 	raw, err := j.Gen.GenerateSentence(ctx, SystemPrompt, BuildUserPrompt(batch),
 		true, "judge", ResponseSchema())
 	if err != nil {
-		return nil, nil, err
+		return Result{}, err
 	}
 	verdicts := ParseVerdicts(raw, len(batch))
 	flagged := make([]Candidate, len(verdicts))
 	for i, v := range verdicts {
 		flagged[i] = batch[v.Index]
 	}
-	return flagged, verdicts, nil
+	accepted := make([]Candidate, 0, len(batch))
+	for _, i := range ParseAccepted(raw, len(batch)) {
+		accepted = append(accepted, batch[i])
+	}
+	return Result{Flagged: flagged, Verdicts: verdicts, Accepted: accepted}, nil
 }
 
 // Write は判定結果を sentence_flags へ書く。

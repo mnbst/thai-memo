@@ -93,7 +93,7 @@ void main() {
     // 強調マーカーは描画されない（パースされて色と太さになる）。
     expect(find.textContaining('**'), findsNothing);
 
-    await tester.tap(find.text('実際に使ってみる'));
+    await tester.tap(find.text('使い方を見る'));
     await tester.pumpAndSettle();
     expect(completed, isTrue);
 

@@ -27,7 +27,7 @@ resource "google_billing_budget" "monthly" {
   display_name    = "Thai Memo Monthly Budget (${var.project_id})"
 
   budget_filter {
-    projects               = ["projects/${var.project_id}"]
+    projects               = ["projects/${var.project_number}"]
     calendar_period        = "MONTH"
     credit_types_treatment = "INCLUDE_ALL_CREDITS"
   }

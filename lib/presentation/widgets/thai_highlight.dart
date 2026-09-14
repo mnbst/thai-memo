@@ -7,6 +7,42 @@ import '../../data/models/word_breakdown.dart';
 /// 例文中の学習単語を金で光らせる。学習タブと例文詳細で同じ見え方にするため、
 /// 描画のしかたはここに1つだけ置く。
 
+/// ไม้ยมก（ๆ）。前を空けるか詰めるかは書き手によって割れる。
+const _maiYamok = 'ๆ';
+
+/// 語をさがすための正規表現。スペースの有無の違いは無視する。
+///
+/// 同じ語でも「จริงๆ」と「จริง ๆ」の両方の書き方があり、例文と単語分解で
+/// 食い違うことがある。タイ語としては同じ語なので、ここで揺れを吸収する。
+/// 語の途中に勝手なスペースは入らないので、緩めるのは語中のスペースと
+/// ไม้ยมก の前だけにとどめる。
+RegExp _flexibleWord(String word) {
+  final buffer = StringBuffer();
+  var pendingSpace = false;
+  for (final rune in word.runes) {
+    final char = String.fromCharCode(rune);
+    if (char.trim().isEmpty) {
+      pendingSpace = true;
+      continue;
+    }
+    if (buffer.isNotEmpty && (pendingSpace || char == _maiYamok)) {
+      buffer.write(r'\s*');
+    }
+    buffer.write(RegExp.escape(char));
+    pendingSpace = false;
+  }
+  return RegExp(buffer.toString());
+}
+
+/// スペースを落とした形。語の同一性を見るときの鍵に使う。
+String _spaceless(String value) => value.replaceAll(RegExp(r'\s+'), '');
+
+/// 複数の語をまとめて探す正規表現。長い語から先に当てる。
+RegExp _flexibleWords(List<String> words) {
+  final sorted = [...words]..sort((a, b) => b.length.compareTo(a.length));
+  return RegExp(sorted.map((w) => _flexibleWord(w).pattern).join('|'));
+}
+
 /// 学習単語が「語として」出てくる位置だけを返す。
 ///
 /// 文字列の部分一致だけで光らせると、長い語の中に短い学習単語が含まれる
@@ -20,10 +56,10 @@ Map<int, int> _wordRanges(String text, List<WordBreakdown> words) {
   for (final word in words) {
     final wordText = word.wordText;
     if (wordText.isEmpty) continue;
-    final at = text.indexOf(wordText, cursor);
-    if (at < 0) continue;
-    ranges[at] = at + wordText.length;
-    cursor = at + wordText.length;
+    final match = _flexibleWord(wordText).firstMatch(text.substring(cursor));
+    if (match == null) continue;
+    ranges[cursor + match.start] = cursor + match.end;
+    cursor += match.end;
   }
   return ranges;
 }
@@ -57,8 +93,7 @@ TextSpan buildHighlightedThaiText(
   if (targetWords.isEmpty) {
     return TextSpan(text: text, style: baseStyle);
   }
-  final sorted = [...targetWords]..sort((a, b) => b.length.compareTo(a.length));
-  final regex = RegExp(sorted.map(RegExp.escape).join('|'));
+  final regex = _flexibleWords(targetWords);
   final ranges = _wordRanges(text, words);
   final spans = <InlineSpan>[];
   var lastEnd = 0;
@@ -96,8 +131,7 @@ TextSpan buildTintedThaiText(
   if (targetWords.isEmpty) {
     return TextSpan(text: text, style: baseStyle);
   }
-  final sorted = [...targetWords]..sort((a, b) => b.length.compareTo(a.length));
-  final regex = RegExp(sorted.map(RegExp.escape).join('|'));
+  final regex = _flexibleWords(targetWords);
   final ranges = _wordRanges(text, words);
   final spans = <InlineSpan>[];
   var lastEnd = 0;
@@ -132,11 +166,14 @@ TextSpan buildHighlightedPronunciation(
     return TextSpan(text: text, style: baseStyle);
   }
 
+  // 語の引き当てもスペースの揺れを無視する（「จริงๆ」と「จริง ๆ」）。
   final breakdownMap = {
-    for (final wb in sentence.wordBreakdowns) wb.wordText: wb.pronunciation,
+    for (final wb in sentence.wordBreakdowns)
+      _spaceless(wb.wordText): wb.pronunciation,
   };
   final readings = targetWords
-      .map((w) => breakdownMap[w] ?? breakdownMap['$wๆ'])
+      .map((w) =>
+          breakdownMap[_spaceless(w)] ?? breakdownMap[_spaceless('$w$_maiYamok')])
       .whereType<String>()
       .where((r) => r.isNotEmpty && text.contains(r))
       .toList()

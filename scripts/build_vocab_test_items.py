@@ -27,7 +27,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-# ローカル実行では CA バンドルの明示が要る（build_free_sentence_bank.py と同じ）。
+# ローカル実行では CA バンドルの明示が要る。
 try:
     import certifi
 

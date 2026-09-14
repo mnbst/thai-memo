@@ -380,7 +380,7 @@ class GuidePlanCompareFigure extends StatelessWidget {
           row(
             l10n.guidePlanRowSentences,
             l10n.guidePlanSentences(freeDailySentences),
-            l10n.guidePlanSentences(premiumDailySentences),
+            l10n.guidePlanSentencesUnlimited,
             null,
           ),
           row(

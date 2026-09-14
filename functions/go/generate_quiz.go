@@ -2,6 +2,7 @@ package function
 
 import (
 	"context"
+	"errors"
 	"log"
 	"math/rand"
 	"time"
@@ -40,6 +41,8 @@ const (
 
 	dayDuration = 24 * time.Hour
 	jstOffset   = 9 * time.Hour
+
+	quizGenerationLeaseDuration = 2 * time.Minute
 )
 
 // srsDays は SRS（間隔反復）の復習間隔（日数）。
@@ -80,11 +83,34 @@ type quizQuestion struct {
 	BlankSentencePronunciation string         `json:"blank_sentence_pronunciation"`
 	DummyReasons               []string       `json:"dummy_reasons"`
 	SentenceDetail             map[string]any `json:"sentence_detail,omitempty"`
+	QuizFormat                 string         `json:"quiz_format,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
 // エントリポイント
 // ---------------------------------------------------------------------------
+
+// acquireQuizLease は同一ユーザーのクイズ生成を直列化する lease を取る。
+//
+// 競合は ResourceExhausted にしない。クライアントは resource-exhausted を
+// 「本日の生成上限」として扱い（backend_api_service.dart）、連打やタイムアウト
+// 後の再試行で「今日の新しいクイズはここまでです」と嘘を出してしまう。
+// 一時的な衝突は Aborted、それ以外の障害は Internal にしてログへ残す。
+func acquireQuizLease(
+	ctx context.Context, db *firestore.Client, uid string, userRef *firestore.DocumentRef,
+) (string, error) {
+	token, err := acquireOperationLease(
+		ctx, db, userRef, "quiz", quizGenerationLeaseDuration)
+	if errors.Is(err, errGenerationInProgress) {
+		return "", callable.Errorf(callable.Aborted,
+			"クイズを生成中です。しばらくしてから再度お試しください")
+	}
+	if err != nil {
+		log.Printf("generateQuiz: lease の取得に失敗: uid=%s error=%v", uid, err)
+		return "", callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
+	}
+	return token, nil
+}
 
 func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	uid, err := req.RequireAuth()
@@ -105,6 +131,11 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	}
 
 	userRef := db.Collection("users").Doc(uid)
+	leaseToken, err := acquireQuizLease(ctx, db, uid, userRef)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseOperationLease(ctx, db, userRef, "quiz", leaseToken)
 	userData := userDocData(ctx, userRef)
 
 	// トライアル中も premium と同じ品質で出す。
@@ -138,7 +169,9 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 		}, nil
 	}
 
-	questions := generateQuestionsFromSources(ctx, service, buildQuizSources(selected))
+	// まとめクイズはダミーが確定していれば理由と解説を使い回せる。
+	questions := generateQuestionsFromSources(ctx,
+		withQuizClozeCache(service, db, l), buildQuizSources(selected))
 	if len(questions) == 0 {
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}
@@ -154,6 +187,15 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	return map[string]any{"questions": questions}, nil
 }
 
+func supportsQuizFormat(supported []string, format string) bool {
+	for _, candidate := range supported {
+		if candidate == format {
+			return true
+		}
+	}
+	return false
+}
+
 func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	uid, err := req.RequireAuth()
 	if err != nil {
@@ -161,13 +203,17 @@ func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, erro
 	}
 
 	var in struct {
-		Lang     any            `json:"lang"`
-		Sentence map[string]any `json:"sentence"`
+		Lang                 any            `json:"lang"`
+		Sentence             map[string]any `json:"sentence"`
+		SupportedQuizFormats []string       `json:"supported_quiz_formats"`
 	}
 	_ = req.Bind(&in)
 	l := lang.Resolve(in.Lang)
 
-	source, ok := buildLearningQuizSource(in.Sentence)
+	source, ok := buildLearningQuizSourceForClient(
+		in.Sentence,
+		supportsQuizFormat(in.SupportedQuizFormats, quizgen.FormatMeaningChoice),
+	)
 	if !ok || !quizgen.IsSeedReady(source.Seed) {
 		return nil, callable.Errorf(callable.InvalidArgument,
 			"クイズに使える例文データがありません")
@@ -177,14 +223,24 @@ func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, erro
 	if err != nil {
 		return nil, err
 	}
-	userData := userDocData(ctx, db.Collection("users").Doc(uid))
+	userRef := db.Collection("users").Doc(uid)
+	leaseToken, err := acquireQuizLease(ctx, db, uid, userRef)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseOperationLease(ctx, db, userRef, "quiz", leaseToken)
+	userData := userDocData(ctx, userRef)
 
 	service, err := newQuizService(ctx, uid, premium.IsEffectivePremium(userData, time.Now()), l)
 	if err != nil {
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}
 
-	questions := generateQuestionsFromSources(ctx, service, []quizSeedSource{source})
+	// 意味4択の解説は語単位で、穴埋めは文・正解・ダミーの組で使い回せるので、
+	// どちらも共有キャッシュを挟む。
+	questions := generateQuestionsFromSources(ctx,
+		withQuizClozeCache(withWordExplanationCache(service, db, l), db, l),
+		[]quizSeedSource{source})
 	if len(questions) == 0 {
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}

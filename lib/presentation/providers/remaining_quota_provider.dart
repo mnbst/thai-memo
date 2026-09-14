@@ -1,27 +1,65 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/firebase_auth_service.dart';
+import '../../core/config/app_config.dart';
 import 'subscription_provider.dart';
 
-/// Firebase Auth の uid をリアクティブに提供
-final authUidProvider = StreamProvider<String?>((ref) {
-  return FirebaseAuth.instance.authStateChanges().map((user) => user?.uid);
+/// 認証ユーザーの識別子とアカウント種別を、同じ Firebase Auth ストリームから提供する。
+/// userChanges は匿名アカウントのリンクでも流れるため、uid が変わらない昇格も拾える。
+class AuthIdentity {
+  const AuthIdentity({required this.uid, required this.isLinked});
+
+  final String uid;
+  final bool isLinked;
+}
+
+final authIdentityProvider = StreamProvider<AuthIdentity?>((ref) {
+  return FirebaseAuth.instance.userChanges().map((user) {
+    if (user == null) return null;
+    return AuthIdentity(uid: user.uid, isLinked: !user.isAnonymous);
+  });
 });
 
-/// Firestore users/{uid} ドキュメント全体を1つのリスナーで監視
-final userDocProvider = StreamProvider<Map<String, dynamic>?>((ref) {
-  final uidAsync = ref.watch(authUidProvider);
-  final uid = uidAsync.valueOrNull;
-  if (uid == null) return Stream.value(null);
+final authUidProvider = Provider<AsyncValue<String?>>((ref) {
+  return ref.watch(authIdentityProvider).whenData((identity) => identity?.uid);
+});
+
+/// users/{uid} の1スナップショット。取得元（サーバー / 端末キャッシュ）も持つ。
+class UserDocSnapshot {
+  const UserDocSnapshot({required this.data, required this.isFromCache});
+
+  final Map<String, dynamic>? data;
+  final bool isFromCache;
+}
+
+/// Firestore users/{uid} を監視する唯一のリスナー。
+///
+/// 語彙・Premium・クォータはすべてこの1本を共有する。用途ごとに listener を
+/// 増やすと、同じ doc を何本も常時監視して読み取りが積み上がるため。
+final userDocSnapshotProvider = StreamProvider<UserDocSnapshot>((ref) {
+  final uid = ref.watch(authUidProvider).valueOrNull;
+  if (uid == null) {
+    return Stream.value(const UserDocSnapshot(data: null, isFromCache: false));
+  }
 
   return FirebaseFirestore.instance
       .collection('users')
       .doc(uid)
       .snapshots()
-      .map((doc) => doc.data());
+      .map((doc) => UserDocSnapshot(
+            data: doc.data(),
+            isFromCache: doc.metadata.isFromCache,
+          ));
+});
+
+/// users/{uid} のフィールドを読む入口。監視は [userDocSnapshotProvider] の共有分。
+///
+/// 最初の到着を待つときは [userDocSnapshotProvider] の future を読む。
+final userDocProvider = Provider<AsyncValue<Map<String, dynamic>?>>((ref) {
+  return ref.watch(userDocSnapshotProvider).whenData((doc) => doc.data);
 });
 
 /// users/{uid}.remaining_sentences
@@ -29,19 +67,6 @@ final remainingSentencesProvider = Provider<AsyncValue<int>>((ref) {
   return ref
       .watch(userDocProvider)
       .whenData((data) => (data?['remaining_sentences'] as num?)?.toInt() ?? 0);
-});
-
-/// users/{uid}.daily_sentence_generated
-final dailySentenceGeneratedProvider = Provider<AsyncValue<bool>>((ref) {
-  return ref.watch(userDocProvider).whenData(
-      (data) => (data?['daily_sentence_generated'] as bool?) ?? false);
-});
-
-/// users/{uid}.remaining_quizzes
-final remainingQuizzesProvider = Provider<AsyncValue<int>>((ref) {
-  return ref
-      .watch(userDocProvider)
-      .whenData((data) => (data?['remaining_quizzes'] as num?)?.toInt() ?? 0);
 });
 
 /// users/{uid}.premium_trial_expires_at — プレミアム体験トライアルの期限
@@ -69,26 +94,9 @@ final premiumTrialEndedAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
 /// 新規ユーザーには初回ガイドで体験を伝えており、二重に案内しない。
 final premiumTrialBackfilledAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
   return ref.watch(userDocProvider).whenData(
-        (data) => (data?['premium_trial_backfilled_at'] as Timestamp?)?.toDate(),
+        (data) =>
+            (data?['premium_trial_backfilled_at'] as Timestamp?)?.toDate(),
       );
-});
-
-/// プレミアム体験トライアルが有効か。
-///
-/// 新規ユーザーは登録から一定期間、課金プレミアムと完全に同じ機能・回数を使える。
-/// サーバー側の判定（utils/premium.ts, sentence_handlers._resolve_trial_active）と
-/// 同じく期限だけで決める。
-final premiumTrialActiveProvider = Provider<AsyncValue<bool>>((ref) {
-  return ref.watch(premiumTrialExpiresAtProvider).whenData(
-        (value) => value != null && DateTime.now().isBefore(value),
-      );
-});
-
-/// users/{uid}.tier — Firestoreストリームからリアルタイムにプレミアム判定
-final isPremiumRealtimeProvider = Provider<AsyncValue<bool>>((ref) {
-  return ref
-      .watch(userDocProvider)
-      .whenData((data) => data?['tier'] == 'premium');
 });
 
 /// 表示・判定用のプラン状態。
@@ -102,7 +110,14 @@ enum PlanStatus { free, trial, premium }
 /// 呼び出し側で「まだ出さない」を選べるようにする。
 final planStatusProvider = Provider<AsyncValue<PlanStatus>>((ref) {
   final doc = ref.watch(userDocProvider);
-  final linked = FirebaseAuthService.instance.isLinkedAccount;
+  final identity = ref.watch(authIdentityProvider);
+  if (identity.isLoading) return const AsyncValue<PlanStatus>.loading();
+  if (identity.hasError) {
+    return AsyncValue.data(
+      ref.watch(isPremiumProvider) ? PlanStatus.premium : PlanStatus.free,
+    );
+  }
+  final linked = identity.valueOrNull?.isLinked ?? false;
 
   // サインイン済みなのに doc が無いのは onUserCreate が書く前の一瞬。ここで free と
   // 決めると直後の体験付与で Free → 体験中 とぶれるので、未確定のままにする。
@@ -140,6 +155,11 @@ final effectivePremiumProvider = Provider<bool>((ref) {
   return ref.watch(isPremiumProvider);
 });
 
+/// 課金と体験を区別する必要がある箇所も、共通のプラン判定から導出する。
+final trialActiveProvider = Provider<bool>((ref) {
+  return ref.watch(planStatusProvider).valueOrNull == PlanStatus.trial;
+});
+
 /// 次のリセット（JST 0:00）までの残り時間テキストを返す
 String nextResetText(L10n l10n) {
   final nowJst = DateTime.now().toUtc().add(const Duration(hours: 9));
@@ -149,4 +169,45 @@ String nextResetText(L10n l10n) {
   final minutes = diff.inMinutes % 60;
   if (hours > 0) return l10n.quotaResetInHours(hours, minutes);
   return l10n.quotaResetInMinutes(minutes);
+}
+
+/// 買い切りへの無償移行を案内してよいユーザーか。
+///
+/// 条件はサーバー側（migrateToLifetime）と揃える。サーバーの名簿
+/// （lifetime_migration_eligible）に載っていて、ストアでの購入記録があり、
+/// まだ買い切りの印が付いていない人。status は見ないので、いま課金中の方も
+/// 過去に買って切れている方も同じく対象。手動付与や体験トライアルは
+/// platform で外れる。
+final lifetimeMigrationEligibleProvider = Provider<bool>((ref) {
+  final data = ref.watch(userDocProvider).valueOrNull;
+  if (data == null) return false;
+  if (data['lifetime_migration_eligible'] != true) return false;
+
+  final sub = data['subscription'];
+  if (sub is! Map) return false;
+  if (sub['lifetime'] == true) return false;
+  return sub['platform'] == 'ios' || sub['platform'] == 'android';
+});
+
+/// 起動時に無償移行の案内を実際に出した端末か。
+///
+/// 「移行時点で課金していた人」の目印。案内を押し損ねた・移行に失敗した人へ
+/// 設定からのやり直し口を出すために使う。
+final lifetimeMigrationOfferedProvider = FutureProvider<bool>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(AppConfig.prefKeyLifetimeMigrationOffered) ?? false;
+});
+
+/// 残数が「0以下」から「正数」へ変わったか。日次リセット（dailyBatch）で
+/// クォータが戻った瞬間を拾うための判定で、画面とLearningScreenで共有する。
+bool changedFromNoRemainingToAvailable(
+  AsyncValue<int>? previous,
+  AsyncValue<int> next,
+) {
+  final previousRemaining = previous?.valueOrNull;
+  final nextRemaining = next.valueOrNull;
+  return previousRemaining != null &&
+      nextRemaining != null &&
+      previousRemaining <= 0 &&
+      nextRemaining > 0;
 }

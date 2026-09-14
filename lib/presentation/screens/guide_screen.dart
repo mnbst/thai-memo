@@ -360,6 +360,17 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
             figureAfterLine: 0,
           ),
           _GuideSection(
+            icon: Icons.flag_outlined,
+            title: l10n.guideHowReviewQuizTitle,
+            lines: [
+              l10n.guideHowReviewQuizStep1,
+              l10n.guideHowReviewQuizStep2,
+              l10n.guideHowReviewQuizStep3,
+              l10n.guideHowReviewQuizStep4,
+              l10n.guideHowReviewQuizStep5,
+            ],
+          ),
+          _GuideSection(
             icon: Icons.settings_outlined,
             title: l10n.guideHowSettingsTitle,
             lines: [

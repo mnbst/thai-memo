@@ -28,6 +28,7 @@ func init() {
 	registerCallable("setUserTier", setUserTier)
 	registerCallable("sendContactEmail", sendContactEmail)
 	registerCallable("verifySubscription", verifySubscription)
+	registerCallable("migrateToLifetime", migrateToLifetime)
 	registerCallable("generateQuiz", generateQuiz)
 	registerCallable("generateLearningQuiz", generateLearningQuiz)
 	registerCallable("generateThaiSentence", generateThaiSentence)

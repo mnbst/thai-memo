@@ -28,10 +28,18 @@ class NextSentenceTopicLabel extends ConsumerWidget {
   /// チップと同じで、器だけが違う。
   final bool banner;
 
+  /// 変更導線を出さず、表示だけにするか。
+  ///
+  /// テーマの選択はまとめクイズの後に一本化した。セットの途中で変えても
+  /// そのセットには効かない（5本は同じテーマで作られている）ので、
+  /// 例文画面では押せる形にしない。
+  final bool readOnly;
+
   const NextSentenceTopicLabel({
     super.key,
     this.paywallSource = 'next_topic',
     this.banner = false,
+    this.readOnly = false,
   });
 
   @override
@@ -45,9 +53,11 @@ class NextSentenceTopicLabel extends ConsumerWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final onTap = canSelect
-        ? () => showTopicPicker(context, ref)
-        : () => PaywallBottomSheet.show(context, source: paywallSource);
+    final onTap = readOnly
+        ? null
+        : canSelect
+            ? () => showTopicPicker(context, ref)
+            : () => PaywallBottomSheet.show(context, source: paywallSource);
 
     if (banner) {
       return _buildBanner(context, l10n, label, canSelect, onTap);
@@ -94,7 +104,7 @@ class NextSentenceTopicLabel extends ConsumerWidget {
     L10n l10n,
     String label,
     bool canSelect,
-    VoidCallback onTap,
+    VoidCallback? onTap,
   ) {
     final theme = Theme.of(context);
     return Material(
@@ -114,12 +124,15 @@ class NextSentenceTopicLabel extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
-              if (!canSelect) ...[
+              // 鍵は「押せばペイウォール」の合図なので、押せないときは出さない。
+              if (!canSelect && onTap != null) ...[
                 const Icon(Icons.lock, size: 15, color: Color(0xFF8A6C2E)),
                 const SizedBox(width: 8),
               ],
               Text(
-                l10n.nextTopicPrefix,
+                // 押せる帯は「次に届くテーマ」を予告する。押せない帯は
+                // いま学んでいるセットのテーマを名乗るだけ。
+                onTap == null ? l10n.topicPrefix : l10n.nextTopicPrefix,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: const Color(0xFF8A6C2E),
                   fontWeight: FontWeight.w700,
@@ -137,11 +150,12 @@ class NextSentenceTopicLabel extends ConsumerWidget {
                   ),
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: Color(0xFFA8823C),
-              ),
+              if (onTap != null)
+                const Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: Color(0xFFA8823C),
+                ),
             ],
           ),
         ),

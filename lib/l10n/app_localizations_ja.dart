@@ -42,13 +42,10 @@ class L10nJa extends L10n {
   String get navSettings => '設定';
 
   @override
-  String get learnAppBarTitle => '今日の例文';
-
-  @override
   String get learnOpenDetail => '詳細';
 
   @override
-  String get learnQuizTitle => 'クイズ';
+  String get learnQuizTitle => '確認クイズ';
 
   @override
   String get learnSummaryQuizTitle => 'まとめクイズ';
@@ -57,13 +54,32 @@ class L10nJa extends L10n {
   String get learnNextSentence => '次の例文へ';
 
   @override
+  String get learnNextSet => '次のセットへ';
+
+  @override
+  String get learnGoToSummaryQuiz => 'まとめクイズへ';
+
+  @override
+  String learnDailySetRemaining(int count) {
+    return 'あと$count本でまとめクイズ';
+  }
+
+  @override
+  String get learnDailySetLast => '次はまとめクイズ';
+
+  @override
+  String learnDailySetProgress(int position, int total) {
+    return '$position / $total';
+  }
+
+  @override
   String get commonOk => 'OK';
 
   @override
   String get commonRetry => '再試行';
 
   @override
-  String get sentencePreparing => '次の例文を準備中...';
+  String get sentencePreparing => '例文を準備中...';
 
   @override
   String todaysWords(int count) {
@@ -97,6 +113,9 @@ class L10nJa extends L10n {
   String get sampleSentenceNotice => 'サンプル例文（履歴には保存されません）';
 
   @override
+  String get sampleReload => '今日の例文を読み込む';
+
+  @override
   String get sampleGreetingTranslation => 'こんにちは（男性の場合）';
 
   @override
@@ -127,9 +146,6 @@ class L10nJa extends L10n {
   String get quizTodayTitle => 'クイズ';
 
   @override
-  String get quizOptionalChallenge => '5問チャレンジする';
-
-  @override
   String get quizGenerating => 'クイズを生成中...';
 
   @override
@@ -154,6 +170,12 @@ class L10nJa extends L10n {
 
   @override
   String get quizPrompt => '下線部に入る単語を選んでください';
+
+  @override
+  String get quizMeaningPrompt => 'この単語の意味を選んでください';
+
+  @override
+  String get quizWordExplanation => '単語の解説';
 
   @override
   String quizProgress(int index, int total) {
@@ -498,6 +520,49 @@ class L10nJa extends L10n {
   String get settingsContact => 'お問い合わせ';
 
   @override
+  String get settingsLifetimeMigration => '買い切りプランへ移行';
+
+  @override
+  String get settingsLifetimeMigrationSubtitle => '追加のお支払いはありません';
+
+  @override
+  String get lifetimeMigrationTitle => '買い切りプランを新設しました';
+
+  @override
+  String get lifetimeMigrationBody =>
+      'いつもご利用ありがとうございます。継続してくださっている方へ、いまなら無料で買い切りプランへ移行いただけます。';
+
+  @override
+  String get lifetimeMigrationNoCharge => '追加のお支払いはありません';
+
+  @override
+  String get lifetimeMigrationCancelNote =>
+      '移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。';
+
+  @override
+  String get lifetimeMigrationProgress => '移行しています…';
+
+  @override
+  String get lifetimeMigrationDoneTitle => '買い切りプランに移行しました';
+
+  @override
+  String get lifetimeMigrationDoneBody =>
+      'これ以降ずっとプレミアムをご利用いただけます。月額の自動更新の停止をお忘れなく。';
+
+  @override
+  String get lifetimeMigrationFailedTitle => '移行できませんでした';
+
+  @override
+  String get lifetimeMigrationFailedBody =>
+      '時間をおいて、もう一度お試しください。プレミアムのご利用はこれまでどおり続きます。';
+
+  @override
+  String get lifetimeMigrationConfirm => '買い切りに移行する';
+
+  @override
+  String get lifetimeMigrationLater => 'あとで';
+
+  @override
   String get trialEndedTitle => 'プレミアム体験が終了しました';
 
   @override
@@ -513,9 +578,7 @@ class L10nJa extends L10n {
   String get trialEndedChangeQuotaLabel => '例文';
 
   @override
-  String trialEndedChangeQuotaPremium(int premium) {
-    return '1日$premium回';
-  }
+  String get trialEndedChangeQuotaPremium => '無制限';
 
   @override
   String trialEndedChangeQuotaFree(int free) {
@@ -545,9 +608,7 @@ class L10nJa extends L10n {
   String get trialStartedChangeQuotaLabel => '例文';
 
   @override
-  String trialStartedChangeQuota(int premium) {
-    return '1日$premium回まで';
-  }
+  String get trialStartedChangeQuota => '無制限';
 
   @override
   String get trialStartedChangeTopicLabel => 'テーマ選択';
@@ -566,6 +627,9 @@ class L10nJa extends L10n {
 
   @override
   String get nextTopicPrefix => '次のテーマ: ';
+
+  @override
+  String get topicPrefix => 'テーマ: ';
 
   @override
   String get topicName_blDrama => 'タイBLドラマ';
@@ -721,6 +785,29 @@ class L10nJa extends L10n {
   String get paywallSubscribe => 'プレミアムに登録';
 
   @override
+  String get paywallPlanMonthlyTitle => '月額プラン';
+
+  @override
+  String get paywallPlanMonthlyNote => '毎月自動更新・いつでも解約';
+
+  @override
+  String paywallPlanMonthlyPrice(String price) {
+    return '$price / 月';
+  }
+
+  @override
+  String get paywallPlanLifetimeTitle => '買い切り';
+
+  @override
+  String get paywallPlanLifetimeNote => '支払いは1回だけ・更新なし';
+
+  @override
+  String get paywallPurchaseCta => 'このプランで始める';
+
+  @override
+  String get paywallLifetimeNote => '1回きりの支払いです。更新はありません。';
+
+  @override
   String get paywallLegal =>
       'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。';
 
@@ -741,20 +828,10 @@ class L10nJa extends L10n {
   String get paywallFeatureQuotaTitle => '良質なタイ語に大量に触れられる';
 
   @override
-  String paywallFeatureQuotaFree(int count, int limit) {
-    return '例文$count回/日・単語は$limit語まで';
-  }
-
-  @override
-  String paywallFeatureQuotaPremium(int count) {
-    return '例文$count回/日・単語の上限なし';
-  }
+  String get paywallFeatureQuotaPremium => '例文は無制限・単語の上限なし';
 
   @override
   String get paywallFeatureTopicTitle => 'テーマを選んでタイ文化に親しむ';
-
-  @override
-  String get paywallFeatureTopicFree => '入門テーマからランダム';
 
   @override
   String get paywallFeatureTopicPremium => '祭り・寺院の作法・BLドラマなど自分で選べる';
@@ -1260,9 +1337,7 @@ class L10nJa extends L10n {
   String get quotaSentenceReached => '今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。';
 
   @override
-  String quotaSentenceUpgradeCta(int count) {
-    return 'Premiumなら1日$count例文';
-  }
+  String get quotaSentenceUpgradeCta => 'Premiumなら例文は無制限';
 
   @override
   String get errAuth => '認証エラーが発生しました。アプリを再起動してください。';
@@ -2245,18 +2320,18 @@ class L10nJa extends L10n {
   String get guideOverviewTitle => 'このアプリでやること';
 
   @override
-  String get guideOverviewBody1 => 'AIがあなたの語彙に合わせたタイ語の例文を毎日つくります。';
+  String get guideOverviewBody1 => 'AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。';
 
   @override
-  String get guideOverviewBody2 => '例文で覚える → クイズで確かめる。このくり返しが学習の中心です。';
+  String get guideOverviewBody2 => '例文で覚える → クイズで確かめる。これを5つくり返して1巡です。';
 
   @override
   String get guideOverviewSummaryQuiz =>
-      '例文を5つ読むごとに、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。';
+      '例文5つを学び終えると「まとめクイズ」に進みます。それまでに学んだ例文から出題され、迷ったらヒントや例文の見返しも使えます。';
 
   @override
   String get guideOverviewBody3 =>
-      'まとめクイズに正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。';
+      '「まとめクイズ」に正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。';
 
   @override
   String get guideRoleSentenceTitle => '例文';
@@ -2277,7 +2352,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideRoleQuizBody =>
-      '確認クイズは、次の例文に進む前に出る1問です。例文を5つ読むごとに、それまでに学んだ内容から5問の「まとめクイズ」に挑戦できます。';
+      'クイズは2種類あります。確認クイズは、次の例文に進む前に単語の意味を選ぶ1問です。5つ目を終えると、それまでに学んだ例文から下線部の単語を選ぶ「まとめクイズ」に進みます。';
 
   @override
   String get guideRoleScoreTitle => '語彙スコア';
@@ -2339,6 +2414,9 @@ class L10nJa extends L10n {
   String get guidePlanRowVocab => '語彙スコアの上限';
 
   @override
+  String get guidePlanSentencesUnlimited => '無制限';
+
+  @override
   String guidePlanSentences(int count) {
     return '$count文';
   }
@@ -2367,7 +2445,8 @@ class L10nJa extends L10n {
   String get guideHowSentenceTitle => '今日の例文を読む';
 
   @override
-  String get guideHowSentenceStep1 => '学習タブを開くと、その日の例文が表示されます。';
+  String get guideHowSentenceStep1 =>
+      '学習タブを開くと、その日の例文が表示されます。例文は5つで1セットで、いま何本目かが上に出ます。';
 
   @override
   String get guideHowSentenceStep3 => '金色の語が学習単語です。クイズでここが問われます。';
@@ -2397,20 +2476,41 @@ class L10nJa extends L10n {
       '発音練習の判定は緑が合っている、橙が惜しい、赤が違う。語をタップすると、お手本と自分の声のカーブと直し方が出ます。';
 
   @override
-  String get guideHowQuizTitle => 'クイズを解く';
+  String get guideHowQuizTitle => '確認クイズを解く';
 
   @override
   String get guideHowQuizStep1 => '例文の下の「覚えたか確認」から確認クイズへ進みます。';
 
   @override
-  String get guideHowQuizStep2 =>
-      'まとめクイズではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。';
+  String get guideHowQuizStep2 => '直前に読んだ例文の学習単語（金色の語）について、その意味を4択で選びます。';
 
   @override
-  String get guideHowQuizStep3 => 'まとめクイズでは、迷ったら「例文を確認」で例文に戻れます。';
+  String get guideHowQuizStep3 => '答えると、その単語の意味や使い方の解説が出ます。';
 
   @override
-  String get guideHowQuizStep4 => '結果画面から、次の例文へ進むか、まとめクイズに挑むかを選べます。';
+  String get guideHowQuizStep4 =>
+      '結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。';
+
+  @override
+  String get guideHowReviewQuizTitle => 'まとめクイズを解く';
+
+  @override
+  String get guideHowReviewQuizStep1 =>
+      '例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から、下線部に入る単語を選びます。';
+
+  @override
+  String get guideHowReviewQuizStep2 =>
+      '出題される例文は、前日・3日前・1週間前…と日をあけて選ばれます。その中でも、まだ身についていない単語から先に出ます。';
+
+  @override
+  String get guideHowReviewQuizStep3 =>
+      'ヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。';
+
+  @override
+  String get guideHowReviewQuizStep4 => '迷ったら「例文を確認」で例文に戻れます。';
+
+  @override
+  String get guideHowReviewQuizStep5 => 'ここでの正解が語彙スコアに反映されます。';
 
   @override
   String get guideHowSettingsTitle => '設定でできること';

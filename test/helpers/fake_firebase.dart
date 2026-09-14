@@ -7,6 +7,8 @@ library;
 // テスト用フェイクとして意図的にFirestoreのsealedクラスを実装する
 // ignore_for_file: subtype_of_sealed_class
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,35 +64,68 @@ class FakeFirebaseAuth extends Fake implements FirebaseAuth {
 class FakeFirestore extends Fake implements FirebaseFirestore {
   /// uid → ドキュメントデータ
   final Map<String, Map<String, dynamic>> users = {};
+  final Map<String, StreamController<DocumentSnapshot<Map<String, dynamic>>>>
+      _userStreams = {};
+  Completer<void>? getGate;
+
+  /// snapshots() が開かれた doc の数。listener を増やしていないことの確認に使う。
+  int get listenerCount => _userStreams.length;
+
+  void emitUser(String uid) {
+    _userStreams[uid]?.add(_FakeSnapshot(users[uid]));
+  }
 
   @override
   CollectionReference<Map<String, dynamic>> collection(String collectionPath) {
     assert(collectionPath == 'users');
-    return _FakeCollection(users);
+    return _FakeCollection(users, getGate, _userStreams);
   }
 }
 
 class _FakeCollection extends Fake
     implements CollectionReference<Map<String, dynamic>> {
-  _FakeCollection(this._store);
+  _FakeCollection(this._store, this._getGate, this._streams);
 
   final Map<String, Map<String, dynamic>> _store;
+  final Completer<void>? _getGate;
+  final Map<String, StreamController<DocumentSnapshot<Map<String, dynamic>>>>
+      _streams;
 
   @override
   DocumentReference<Map<String, dynamic>> doc([String? path]) =>
-      _FakeDoc(_store, path!);
+      _FakeDoc(_store, path!, _getGate, _streams);
 }
 
 class _FakeDoc extends Fake implements DocumentReference<Map<String, dynamic>> {
-  _FakeDoc(this._store, this._id);
+  _FakeDoc(this._store, this._id, this._getGate, this._streams);
 
   final Map<String, Map<String, dynamic>> _store;
   final String _id;
+  final Completer<void>? _getGate;
+  final Map<String, StreamController<DocumentSnapshot<Map<String, dynamic>>>>
+      _streams;
 
   @override
   Future<DocumentSnapshot<Map<String, dynamic>>> get(
-          [GetOptions? options]) async =>
-      _FakeSnapshot(_store[_id]);
+      [GetOptions? options]) async {
+    await _getGate?.future;
+    return _FakeSnapshot(_store[_id]);
+  }
+
+  @override
+  Stream<DocumentSnapshot<Map<String, dynamic>>> snapshots({
+    bool includeMetadataChanges = false,
+    ListenSource source = ListenSource.defaultSource,
+  }) async* {
+    final controller = _streams.putIfAbsent(
+      _id,
+      () =>
+          StreamController<DocumentSnapshot<Map<String, dynamic>>>.broadcast(),
+    );
+    await _getGate?.future;
+    yield _FakeSnapshot(_store[_id]);
+    yield* controller.stream;
+  }
 
   /// merge 指定のみ想定。SetOptions なしの上書きは使っていない。
   @override
@@ -101,6 +136,7 @@ class _FakeDoc extends Fake implements DocumentReference<Map<String, dynamic>> {
     } else {
       _store[_id] = Map<String, dynamic>.from(data);
     }
+    _streams[_id]?.add(_FakeSnapshot(_store[_id]));
   }
 }
 
@@ -114,7 +150,18 @@ class _FakeSnapshot extends Fake
   bool get exists => _data != null;
 
   @override
+  SnapshotMetadata get metadata => _FakeSnapshotMetadata();
+
+  @override
   Map<String, dynamic>? data() => _data;
+}
+
+class _FakeSnapshotMetadata extends Fake implements SnapshotMetadata {
+  @override
+  bool get isFromCache => false;
+
+  @override
+  bool get hasPendingWrites => false;
 }
 
 // ==================== Analytics / Purchase ====================
@@ -125,12 +172,29 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<Map<String, Object?>> quizStartEvents = [];
   final List<Map<String, Object?>> quizAnswerEvents = [];
   final List<Map<String, String>> quizOfferEvents = [];
+  final List<Map<String, Object?>> confirmationQuizQuestionEvents = [];
   final List<Map<String, Object?>> interviewEvents = [];
   final List<Map<String, Object?>> vocabTestEvents = [];
 
+  /// 購入導線の計測。source を控えるだけ（月額／買い切りの判別に使う）。
+  final List<String> subscribeEvents = [];
 
   @override
   Future<void> setUserAppLanguage(String lang) async {}
+
+  @override
+  Future<void> logSubscribe({required String source}) async {
+    subscribeEvents.add(source);
+  }
+
+  @override
+  Future<void> logTapPaywall({required String source}) async {}
+
+  @override
+  Future<void> logPaywallView({
+    required String source,
+    required bool productLoaded,
+  }) async {}
 
   @override
   Future<void> logReviewPrompt({
@@ -219,12 +283,18 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
     required String category,
     int? questionIndex,
     String? source,
+    String? quizFormat,
+    int? srsInterval,
+    int? responseMs,
   }) async {
     quizAnswerEvents.add({
       'correct': correct,
       'category': category,
       'question_index': questionIndex,
       'source': source,
+      'quiz_format': quizFormat,
+      'srs_interval': srsInterval,
+      'response_ms': responseMs,
     });
   }
 
@@ -234,6 +304,23 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
     required String source,
   }) async {
     quizOfferEvents.add({'action': action, 'source': source});
+  }
+
+  @override
+  Future<void> logConfirmationQuizQuestion({
+    required String action,
+    required String quizFormat,
+    int? responseMs,
+    bool? correct,
+    String? exitReason,
+  }) async {
+    confirmationQuizQuestionEvents.add({
+      'action': action,
+      'quiz_format': quizFormat,
+      'response_ms': responseMs,
+      'correct': correct,
+      'exit_reason': exitReason,
+    });
   }
 }
 
@@ -262,24 +349,43 @@ class FakePurchaseService extends Fake implements PurchaseService {
   @override
   Future<bool> initialize() async => initializeAvailable;
 
+  /// 買い切り商品も返すか（iOS 相当の環境を模す）
+  bool includeLifetimeProduct = true;
+
   @override
-  Future<ProductDetails?> fetchProduct() async {
+  Future<PremiumProducts> fetchProducts() async {
     fetchProductCalls++;
     final error = fetchProductError;
     if (error != null) throw error;
-    return ProductDetails(
-      id: kProductIdPremiumMonthly,
-      title: 'プレミアム',
-      description: 'プレミアムプラン',
-      price: '¥800',
-      rawPrice: 800,
-      currencyCode: 'JPY',
+    return PremiumProducts(
+      monthly: ProductDetails(
+        id: kProductIdPremiumMonthly,
+        title: 'プレミアム',
+        description: 'プレミアムプラン',
+        price: '¥800',
+        rawPrice: 800,
+        currencyCode: 'JPY',
+      ),
+      lifetime: includeLifetimeProduct
+          ? ProductDetails(
+              id: kProductIdPremiumLifetime,
+              title: 'プレミアム買い切り',
+              description: 'プレミアム買い切りプラン',
+              price: '¥1,800',
+              rawPrice: 1800,
+              currencyCode: 'JPY',
+            )
+          : null,
     );
   }
+
+  /// 直近に購入した商品（月額か買い切りかの判別に使う）
+  ProductDetails? lastBought;
 
   @override
   Future<void> buy(ProductDetails product) async {
     buyCalled = true;
+    lastBought = product;
   }
 
   @override

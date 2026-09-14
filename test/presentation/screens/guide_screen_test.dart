@@ -63,8 +63,8 @@ void main() {
     await tester.pump();
     expect(done, 1);
 
-    await tester.scrollUntilVisible(find.text('はじめる'), 400);
-    await tester.tap(find.text('はじめる'));
+    await tester.scrollUntilVisible(find.text('語彙力を測る'), 400);
+    await tester.tap(find.text('語彙力を測る'));
     await tester.pump();
     expect(done, 2);
   });
@@ -94,7 +94,7 @@ void main() {
 
     await tester.scrollUntilVisible(find.textContaining('Hold to speak'), 400);
     expect(
-      find.textContaining('tap “Practice,” then hold “Hold to speak”'),
+      find.textContaining('tap “Practice,” then press and hold the “Hold to speak” button'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

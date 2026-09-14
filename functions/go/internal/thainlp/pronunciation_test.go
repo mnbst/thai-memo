@@ -38,3 +38,35 @@ func TestShortVowelIsNotLengthened(t *testing.T) {
 		}
 	}
 }
+
+// TestClusterIsNotSplitIntoFinal は、先行母音 + 子音結合の綴りで結合が
+// 末子音に解けてしまう音節を見る。tltk の統計はコーパス頻度で候補を選ぶため、
+// 綴りが学習コーパスに無いと正しい候補があっても負ける。
+//
+//	แผล -> phxxn4（"phɛ̌ɛn"）／正しくは phlxx4（"phlɛ̌ɛ"）
+//
+// 修正は wordparse.go:sylPhoneFix。同型の綴りを巻き込んでいないことも見る。
+func TestClusterIsNotSplitIntoFinal(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"แผล", "phlɛ̌ɛ"},
+		{"แผลนี้เจ็บมาก", "phlɛ̌ɛ-níi-jèp-mâak"},
+		// ล が本当に末子音の綴りは変えない
+		{"แผน", "phɛ̌ɛn"},
+		{"ผล", "phǒn"},
+		{"เจล", "jeen"},
+		// 同型で元から結合が残る綴り
+		{"เพล", "phlee"},
+		{"แปล", "plɛɛ"},
+		{"เผลอ", "phlə̌ə"},
+	}
+	for _, c := range cases {
+		got, err := ThaiToPronunciation(c.in)
+		if err != nil {
+			t.Errorf("ThaiToPronunciation(%q): %v", c.in, err)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("ThaiToPronunciation(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

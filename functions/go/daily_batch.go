@@ -18,6 +18,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 	"github.com/mnbst/thai-memo/functions/go/internal/subscription"
 	"github.com/mnbst/thai-memo/functions/go/internal/userdata"
+	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
 // dailyBatch は functions/javascript/src/dailyBatch.ts の移植。
@@ -60,13 +61,20 @@ const maxAnonDeletionsPerRun = 500
 // 復習されたばかりの語より優先される。全登録単語に適用する。
 const (
 	pDecayPerDay = 0.001
-	pDecayMin    = 0.0
+	// 減衰の下限は uvm.PFloor と揃える。ここだけ 0 にすると、間違えた語が
+	// 150 日かけて PFloor の下へ沈み、「2 回連続正解で P>0.5 に戻る」保証が
+	// 崩れる（uvm.PFloor のコメントを参照）。
+	pDecayMin = uvm.PFloor
 )
 
 // sentenceRetention は例文を保持する期間。これより古いものは削除する。
 const sentenceRetentionDays = 30
 
 func dailyBatchHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	if err := runDailyBatch(r.Context()); err != nil {
 		log.Printf("dailyBatch failed: %v", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
@@ -106,27 +114,29 @@ func runDailyBatch(ctx context.Context) error {
 
 	clearDuplicateFcmTokens(ctx, db, users)
 
-	// dailyBatchConcurrency 件ずつ並行処理。1件失敗しても継続する
-	// （JS の Promise.allSettled と同じ）。
-	for i := 0; i < len(users); i += dailyBatchConcurrency {
-		end := min(i+dailyBatchConcurrency, len(users))
-
-		var wg sync.WaitGroup
-		for _, doc := range users[i:end] {
-			wg.Add(1)
-			go func(doc *firestore.DocumentSnapshot) {
-				defer wg.Done()
+	// 固定数の worker で処理し、遅い1件が次のまとまり全体を止めない。
+	jobs := make(chan *firestore.DocumentSnapshot, dailyBatchConcurrency)
+	var wg sync.WaitGroup
+	for range dailyBatchConcurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for doc := range jobs {
 				if err := resetQuota(ctx, db, doc, now); err != nil {
 					log.Printf("resetQuota failed uid=%s: %v", doc.Ref.ID, err)
-					return
+					continue
 				}
 				if err := decayUvmP(ctx, db, doc.Ref.ID); err != nil {
 					log.Printf("decayUvmP failed uid=%s: %v", doc.Ref.ID, err)
 				}
-			}(doc)
-		}
-		wg.Wait()
+			}
+		}()
 	}
+	for _, doc := range users {
+		jobs <- doc
+	}
+	close(jobs)
+	wg.Wait()
 
 	// 品質監査は古い例文の削除より先に回す。監査対象は直近24時間ぶんなので
 	// 実際には競合しないが、順序に依存させない。
@@ -401,7 +411,7 @@ func resetQuota(
 // 過ぎた premium は free に落とす。猶予期間中（grace_period）は維持するが、
 // GracePeriodMax を過ぎたら通知の取りこぼしとみなして落とす。
 // ストア購入なのに expires_at を持たない premium も、期限判定が効かず
-// 永久 premium になるため落とす。
+// 永久 premium になるため落とす（買い切りは期限を持たないのが正常なので除く）。
 // subscription フィールドがない premium（dev環境の手動設定等）は対象外。
 func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[string]any {
 	tier, _ := userData["tier"].(string)
@@ -420,9 +430,14 @@ func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[s
 
 	subscriptionLapsed := tier == "premium"
 	if subscriptionLapsed {
-		if hasExpiresAt {
+		switch {
+		case subscription.IsLifetime(sub):
+			// 買い切りは期限を持たないのが正常。返金・取消でのみ free に戻る
+			// （REFUND / REVOKE 通知）ので、ここでは落とさない。
+			subscriptionLapsed = false
+		case hasExpiresAt:
 			subscriptionLapsed = now.Sub(expiresAt) > margin
-		} else {
+		default:
 			// ストア購入で expires_at がない = 期限判定が働かないので premium を維持しない
 			subscriptionLapsed = isStoreSubscription
 		}
@@ -550,12 +565,31 @@ func cleanOldSentences(ctx context.Context, db *firestore.Client, now time.Time)
 		return err
 	}
 
-	for _, userDoc := range users {
-		if err := deleteOldSentencesFor(ctx, db, userDoc.Ref.ID, cutoff); err != nil {
-			return err
-		}
+	jobs := make(chan string, dailyBatchConcurrency)
+	var wg sync.WaitGroup
+	var firstErr error
+	var errMu sync.Mutex
+	for range dailyBatchConcurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for uid := range jobs {
+				if err := deleteOldSentencesFor(ctx, db, uid, cutoff); err != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = err
+					}
+					errMu.Unlock()
+				}
+			}
+		}()
 	}
-	return nil
+	for _, userDoc := range users {
+		jobs <- userDoc.Ref.ID
+	}
+	close(jobs)
+	wg.Wait()
+	return firstErr
 }
 
 // deleteOldSentencesFor は1ユーザーぶんの古い例文を消す。

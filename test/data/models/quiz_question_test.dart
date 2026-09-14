@@ -3,6 +3,27 @@ import 'package:thai_memo/data/models/quiz_question.dart';
 
 void main() {
   group('QuizQuestion.fromJson', () {
+    test('meaning_choice は意味を正解選択肢にする', () {
+      final json = _baseJson()
+        ..['quiz_format'] = QuizQuestion.meaningChoiceFormat
+        ..['correct_answer_meaning'] = '食べる'
+        ..['choices'] = ['食べる', '速い', '家', '美しい'];
+
+      final q = QuizQuestion.fromJson(json);
+
+      expect(q.isMeaningChoice, isTrue);
+      expect(q.correctAnswer, 'กิน');
+      expect(q.correctChoice, '食べる');
+      expect(q.toJson()['quiz_format'], QuizQuestion.meaningChoiceFormat);
+    });
+
+    test('quiz_format のない旧問題は穴埋めとして読む', () {
+      final q = QuizQuestion.fromJson(_baseJson());
+
+      expect(q.isMeaningChoice, isFalse);
+      expect(q.correctChoice, q.correctAnswer);
+    });
+
     test('dummy_reasons あり', () {
       final json = _baseJson()
         ..['dummy_reasons'] = ['เร็ว は副詞のため代入不可', 'บ้าน は名詞/場所', 'สวย は形容詞'];

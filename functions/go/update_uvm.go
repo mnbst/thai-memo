@@ -3,13 +3,11 @@ package function
 import (
 	"context"
 	"log"
-	"time"
 
 	"cloud.google.com/go/firestore"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/callable"
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
-	"github.com/mnbst/thai-memo/functions/go/internal/premium"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
@@ -20,6 +18,8 @@ type updateUvmRequest struct {
 	Results  []map[string]any `json:"results"`
 	QuizType string           `json:"quiz_type"`
 }
+
+const maxUVMResultsPerRequest = 50
 
 // updateUvm は functions/python/uvm_handlers.py:updateUvm の移植。
 // クイズ結果から UVM を更新する。
@@ -35,6 +35,10 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 	}
 	if len(in.Results) == 0 {
 		return map[string]any{"success": true, "updated": 0}, nil
+	}
+	if len(in.Results) > maxUVMResultsPerRequest {
+		return nil, callable.Errorf(callable.InvalidArgument,
+			"results は%d件以内にしてください", maxUVMResultsPerRequest)
 	}
 
 	results := make([]uvm.Result, 0, len(in.Results))
@@ -56,17 +60,9 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 		return nil, callable.Errorf(callable.Internal, "語彙データを読み込めませんでした")
 	}
 
-	// tier はクライアントから書けないサーバー専用フィールド。トライアル中も
-	// premium と同じ扱いにする（tier だけで見ると、体験中に伸ばした
-	// estimated_vocab がクイズのたびに 100 へ切り戻される）。
-	isPremium := false
-	if snap, err := db.Collection("users").Doc(uid).Get(ctx); err == nil && snap.Exists() {
-		isPremium = premium.IsEffectivePremium(snap.Data(), time.Now())
-	}
-
 	log.Printf("updateUvm: uid=%s, quiz_type=%s, results=%d", uid, in.QuizType, len(results))
 
-	if err := uvm.BatchUpdate(ctx, db, uid, results, freqRank, in.QuizType, isPremium); err != nil {
+	if err := uvm.BatchUpdate(ctx, db, uid, results, freqRank, in.QuizType); err != nil {
 		log.Printf("updateUvm: uid=%s error=%v", uid, err)
 		return nil, callable.Errorf(callable.Internal, "学習データの更新に失敗しました")
 	}
@@ -99,7 +95,7 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 // （正常なクライアントは必ず両方を送るので、実際の挙動差は出ない）。
 func parseResult(raw map[string]any) (uvm.Result, error) {
 	word, ok := raw["word"].(string)
-	if !ok || word == "" {
+	if !ok || word == "" || len(word) > 256 {
 		return uvm.Result{}, callable.Errorf(callable.InvalidArgument, "word が必要です")
 	}
 	isCorrect, ok := raw["is_correct"].(bool)

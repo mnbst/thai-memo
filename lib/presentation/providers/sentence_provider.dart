@@ -14,14 +14,21 @@ import '../../domain/generate_sentence_usecase.dart';
 import '../../domain/get_sentences_usecase.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
+import '../../services/pending_operations.dart';
 import 'analytics_provider.dart';
 import 'remaining_quota_provider.dart';
 import 'settings_provider.dart';
-import 'subscription_provider.dart';
 
-typedef GenerateSentenceCallback = Future<ThaiSentence> Function({
+typedef GenerateSentenceCallback = Future<List<ThaiSentence>> Function({
   Map<String, String?> generationParams,
+  int count,
 });
+
+/// 1セットの本数。例文 → 確認クイズ →（learningSetSize本）→ まとめクイズ で一巡。
+///
+/// 毎日配信もアプリからの生成もこの本数でまとめる。サーバー側の
+/// `internal/sentence.SetSize` と必ず一致させること。
+const int learningSetSize = 5;
 typedef GetMostRecentSentenceCallback = Future<ThaiSentence?> Function();
 
 // ==================== Repository Provider ====================
@@ -77,6 +84,8 @@ final sentenceCountProvider = FutureProvider<int>((ref) async {
 
 /// Controller for managing sentence operations
 class SentenceController extends StateNotifier<SentenceState> {
+  final _pending = PendingOperations();
+  Future<void> settleForLearningReset() => _pending.settle();
   final GenerateSentenceUseCase _generateUseCase;
   final GetSentencesUseCase _getUseCase;
   final DeleteSentenceUseCase _deleteUseCase;
@@ -103,7 +112,9 @@ class SentenceController extends StateNotifier<SentenceState> {
     GetMostRecentSentenceCallback? getMostRecentSentence,
   })  : _generateSentenceOverride = generateSentence,
         _getMostRecentSentenceOverride = getMostRecentSentence,
-        super(const SentenceStateInitial());
+        // 起動直後は「まだ読み込んでいない」＝読み込み中。区別しても画面の
+        // 出し分けは同じで、分岐が1つ増えるだけだった。
+        super(const SentenceStateLoading());
 
   /// トライアル中（free かつトライアル有効）か
   bool get _trialActive => _currentTier() != 'premium' && _isTrialActive();
@@ -112,13 +123,16 @@ class SentenceController extends StateNotifier<SentenceState> {
   ///
   /// テーマ（topic）の扱いは tier で決まる:
   /// free = おまかせ / premium・トライアル中 = ユーザー設定を反映。
+  /// [count] 本をまとめて作る（1セット）。既定は1本。
   Future<void> generateSentence({
     Map<String, String?> generationParams = const {},
+    int count = 1,
   }) async {
     state = const SentenceStateLoading();
     await _generate(
       generationParams: generationParams,
-      source: 'manual_single',
+      source: count > 1 ? 'manual_set' : 'manual_single',
+      count: count,
     );
   }
 
@@ -132,17 +146,25 @@ class SentenceController extends StateNotifier<SentenceState> {
     required Map<String, String?> generationParams,
     required String source,
     bool fallbackToRecentOnError = false,
+    int count = 1,
   }) async {
     final trialActive = _trialActive;
 
     try {
-      final sentence = await _executeGenerateSentence(
+      final sentences = await _executeGenerateSentence(
         generationParams:
             _effectiveGenerationParams(generationParams, trialActive),
+        count: count,
       );
-      state = SentenceStateSuccess(sentence, generated: true);
+      // 表示するのは1本目。残りはセットとして状態に載せ、消化カーソル
+      // （dailySetProvider）が拾う。
+      state = SentenceStateSuccess(
+        sentences.first,
+        generated: true,
+        generatedSet: sentences,
+      );
       _logGenerateSentence(
-        count: 1,
+        count: sentences.length,
         source: source,
         topicApplied: trialActive,
       );
@@ -182,6 +204,15 @@ class SentenceController extends StateNotifier<SentenceState> {
     return effectiveParams;
   }
 
+  /// ロードのやり直しを宣言する。
+  ///
+  /// 読み込み元（配信の取り込み・Firestore フラグ）を確かめる前に立てる。
+  /// 前回の表示・エラーを残したまま待たせると、いま何を待っているのか
+  /// 画面から分からない。
+  void markLoading() {
+    state = const SentenceStateLoading();
+  }
+
   /// Load the most recent sentence
   Future<void> loadMostRecent() async {
     state = const SentenceStateLoading();
@@ -216,11 +247,12 @@ class SentenceController extends StateNotifier<SentenceState> {
         // ローカルDBが空（再インストール等） → フラグを無視して生成を試みる
       }
 
-      // 未生成 → 1件生成
+      // 未生成 → 1セット生成
       await _generate(
         generationParams: generationParams,
         source: 'daily_auto',
         fallbackToRecentOnError: true,
+        count: learningSetSize,
       );
     } catch (e) {
       state = SentenceStateError(_l10n().errLoadFailed);
@@ -231,6 +263,8 @@ class SentenceController extends StateNotifier<SentenceState> {
   void showSentence(ThaiSentence sentence) {
     state = SentenceStateSuccess(sentence);
   }
+
+  void reset() => state = const SentenceStateEmpty();
 
   /// Delete a sentence
   Future<void> deleteSentence(String id) async {
@@ -258,22 +292,19 @@ class SentenceController extends StateNotifier<SentenceState> {
     }
   }
 
-  /// Reset state
-  void reset() {
-    state = const SentenceStateInitial();
-  }
-
-  Future<ThaiSentence> _executeGenerateSentence({
+  Future<List<ThaiSentence>> _executeGenerateSentence({
     Map<String, String?> generationParams = const {},
+    int count = 1,
   }) {
     final generate = _generateSentenceOverride ?? _generateUseCase.execute;
-    return generate(generationParams: generationParams);
+    return _pending
+        .track(generate(generationParams: generationParams, count: count));
   }
 
   Future<ThaiSentence?> _executeGetMostRecentSentence() {
     final getMostRecent =
         _getMostRecentSentenceOverride ?? _getUseCase.getMostRecent;
-    return getMostRecent();
+    return _pending.track(getMostRecent());
   }
 
   /// [topicApplied] はトライアル適用で free ユーザーにもテーマが効いたか。
@@ -309,13 +340,9 @@ final sentenceControllerProvider =
     getUseCase,
     deleteUseCase,
     analytics,
-    () {
-      final bool isPremium = ref.read(isPremiumRealtimeProvider).valueOrNull ??
-          ref.read(isPremiumProvider);
-      return isPremium ? 'premium' : 'free';
-    },
+    () => ref.read(effectivePremiumProvider) ? 'premium' : 'free',
     () => ref.read(generationParamsProvider)['topic'],
-    () => ref.read(premiumTrialActiveProvider).valueOrNull ?? false,
+    () => ref.read(trialActiveProvider),
     () => ref.read(l10nProvider),
   );
 });
@@ -325,11 +352,6 @@ final sentenceControllerProvider =
 /// State for sentence operations
 abstract class SentenceState {
   const SentenceState();
-}
-
-/// Initial state
-class SentenceStateInitial extends SentenceState {
-  const SentenceStateInitial();
 }
 
 /// Loading state
@@ -342,7 +364,14 @@ class SentenceStateSuccess extends SentenceState {
   final ThaiSentence sentence;
   final bool generated;
 
-  const SentenceStateSuccess(this.sentence, {this.generated = false});
+  /// 今回まとめて生成した全部（1本目が [sentence]）。生成以外の経路では空。
+  final List<ThaiSentence> generatedSet;
+
+  const SentenceStateSuccess(
+    this.sentence, {
+    this.generated = false,
+    this.generatedSet = const [],
+  });
 }
 
 /// Error state

@@ -1,7 +1,7 @@
 """昨日〜今日に生成された例文を全環境から取得する。
 
 usage:
-  cd functions/python && uv run python <this> [days]
+  uv run --with firebase-admin python scripts/audit_sentences.py [days]
 """
 
 import json

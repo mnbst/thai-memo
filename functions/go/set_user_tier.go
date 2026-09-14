@@ -16,7 +16,8 @@ import (
 // setUserTier は functions/javascript/src/setUserTier.ts の移植。
 //
 // 管理者が任意ユーザーの tier を切り替える。呼べるのは custom claim
-// `admin: true` を持つユーザー、または環境変数 ADMIN_UIDS に含まれる uid のみ。
+// `admin: true` を持つユーザーのみ。本番以外では運用互換のため、環境変数
+// ADMIN_UIDS に含まれる uid も許可する。
 // tier はクライアントから直接書けない（firestore.rules で禁止）ため、
 // 切り替えは必ずこの関数を通す。
 func setUserTier(ctx context.Context, req *callable.Request) (any, error) {
@@ -117,7 +118,16 @@ func assertAdmin(req *callable.Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if req.Auth.HasClaim("admin") || slices.Contains(adminUIDs(), uid) {
+	// 本番の管理権限は署名済み custom claim だけを信頼する。環境変数UIDは
+	// claim を用意しにくい dev/tester の運用互換に限定する。
+	//
+	// 2nd gen では GCLOUD_PROJECT 等が無く ProjectID() が空になることがある。
+	// 「prod ではない」を空文字で満たさせると本番で環境変数バイパスが復活する
+	// ので、非 prod と積極的に判定できたときだけ許可する（fail-closed）。
+	projectID := fbapp.ProjectID()
+	isNonProdAllowlisted := projectID != "" && projectID != "thai-memo-prod" &&
+		slices.Contains(adminUIDs(), uid)
+	if req.Auth.HasClaim("admin") || isNonProdAllowlisted {
 		return uid, nil
 	}
 	log.Printf("setUserTier: 権限のない呼び出し uid=%s", uid)

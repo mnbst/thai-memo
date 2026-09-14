@@ -55,8 +55,13 @@ class BackendApiService {
   static String _defaultLang() => 'ja';
 
   /// Generate a new Thai sentence using backend API
-  Future<ThaiSentence> generateSentence({
+  ///
+  /// [count] を渡すとその本数を1回の呼び出しでまとめて作る（1セット）。
+  /// サーバーは残りクォータを超えては作らないので、戻りが [count] より
+  /// 少ないことがある。
+  Future<List<ThaiSentence>> generateSentences({
     Map<String, String?> generationParams = const {},
+    int count = 1,
   }) async {
     try {
       // Ensure user is authenticated
@@ -76,7 +81,7 @@ class BackendApiService {
         ),
       );
 
-      final params = <String, dynamic>{'lang': _lang()};
+      final params = <String, dynamic>{'lang': _lang(), 'count': count};
       for (final entry in generationParams.entries) {
         if (entry.value != null) {
           params[entry.key] = entry.value;
@@ -98,10 +103,14 @@ class BackendApiService {
         throw _mapBackendError(errorCode, errorMessage);
       }
 
-      // Extract sentence data
-      final sentenceData = Map<String, dynamic>.from(data['data'] as Map);
-
-      return createThaiSentenceFromJson(sentenceData);
+      // sentences はセット全部。1本のときも配列で返る。
+      // data（1本目）しか無いのは、セットを知らない古いサーバーのとき。
+      final rawSet =
+          data['sentences'] as List<dynamic>? ?? [data['data'] as Object];
+      return [
+        for (final raw in rawSet)
+          createThaiSentenceFromJson(Map<String, dynamic>.from(raw as Map)),
+      ];
     } on FirebaseFunctionsException catch (e) {
       throw _mapFirebaseFunctionsException(e);
     } on BackendApiException {
@@ -282,6 +291,12 @@ class BackendApiService {
 
       final result = await callable.call({
         'lang': _lang(),
+        // 確認クイズだけ意味4択に対応する。これを送らない1.4.8以前には
+        // サーバーが従来の穴埋めを返す。
+        'supported_quiz_formats': [
+          QuizQuestion.clozeChoiceFormat,
+          QuizQuestion.meaningChoiceFormat,
+        ],
         'sentence': {
           'sentence_id': sentenceId,
           'thai_text': sentence.thaiText,
@@ -318,9 +333,18 @@ class BackendApiService {
     }
   }
 
+  /// 語の照合。ๆ（繰り返し記号）の有無は同一視する。
+  /// 選定語が「จี」でも本文は「จีๆ」と書かれることがあり、
+  /// サーバー側（sentence.matchKeyWord / quizgen.MatchesKeyWord）も同じ扱い。
+  static bool _sameWord(String a, String b) {
+    final x = a.trim();
+    final y = b.trim();
+    return x == y || x == '$y\u0E46' || '$x\u0E46' == y;
+  }
+
   String _findWordPronunciation(ThaiSentence sentence, String word) {
     for (final breakdown in sentence.wordBreakdowns) {
-      if (breakdown.wordText.trim() == word.trim()) {
+      if (_sameWord(breakdown.wordText, word)) {
         return breakdown.pronunciation;
       }
     }
@@ -329,7 +353,7 @@ class BackendApiService {
 
   String _findWordMeaning(ThaiSentence sentence, String word) {
     for (final breakdown in sentence.wordBreakdowns) {
-      if (breakdown.wordText.trim() == word.trim()) {
+      if (_sameWord(breakdown.wordText, word)) {
         return breakdown.meaning;
       }
     }

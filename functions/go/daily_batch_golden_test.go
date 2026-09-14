@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+
+	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 )
 
 // quotaGoldenNow は genQuotaGolden.ts の NOW_MS と一致させること。
@@ -49,6 +51,7 @@ func TestQuotaResetPayloadGolden(t *testing.T) {
 	for _, c := range cases {
 		data, _ := decodeGolden(c.Data).(map[string]any)
 		want, _ := decodeGolden(c.Expected).(map[string]any)
+		want = retargetLegacyPremiumQuota(want)
 		got := normalizeGoPayload(quotaResetPayload(c.UID, data, now))
 
 		for k := range want {
@@ -116,6 +119,24 @@ func decodeGolden(v any) any {
 		out[k] = decodeGolden(val)
 	}
 	return out
+}
+
+// legacyPremiumDailySentences は golden を作った時点（JS/Python 実装）の
+// premium 日次リセット値。2026-09-12 に premium を無制限へ切り替えたため、
+// golden の生値そのままでは一致しない。
+//
+// golden は「移植で振る舞いが変わっていないこと」の記録であって、その後の
+// 意図的な仕様変更まで固定するものではない。定数の差し替えだけを翻訳し、
+// 分岐（どの条件で premium 値を書くか）は golden のまま突き合わせる。
+const legacyPremiumDailySentences = 20.0
+
+// retargetLegacyPremiumQuota は golden 側の premium クォータ値を現行の定数へ読み替える。
+func retargetLegacyPremiumQuota(want map[string]any) map[string]any {
+	if v, ok := want["remaining_sentences"].(float64); ok &&
+		v == legacyPremiumDailySentences {
+		want["remaining_sentences"] = float64(quota.PremiumDailySentences)
+	}
+	return want
 }
 
 // normalizeGoPayload は Go 側の値を golden と比較できる形へ揃える。

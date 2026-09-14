@@ -14,7 +14,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	neturl "net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +29,11 @@ const defaultBundleID = "com.thaimemo.thaiMemo"
 
 // jwtLifetime は App Store Server API 認証用 JWT の有効期限（JS 版の '20m'）。
 const jwtLifetime = 20 * time.Minute
+
+const (
+	appStoreHTTPTimeout     = 30 * time.Second
+	appStoreMaxResponseSize = 4 << 20
+)
 
 // Client は App Store Server API を叩く。
 type Client struct {
@@ -45,7 +52,7 @@ func (c *Client) httpClient() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return http.DefaultClient
+	return &http.Client{Timeout: appStoreHTTPTimeout}
 }
 
 func (c *Client) verifier() *applejws.Verifier {
@@ -175,7 +182,7 @@ func (c *Client) get(ctx context.Context, url, jwt string) (*http.Response, erro
 
 func readBody(res *http.Response) string {
 	defer res.Body.Close()
-	b, err := io.ReadAll(res.Body)
+	b, err := io.ReadAll(io.LimitReader(res.Body, appStoreMaxResponseSize))
 	if err != nil {
 		return ""
 	}
@@ -201,60 +208,19 @@ func ExtractTransactionID(token string) string {
 	return payload.TransactionID
 }
 
+// TypeNonConsumable は買い切り（非消費型）商品の TransactionInfo.type。
+const TypeNonConsumable = "Non-Consumable"
+
 // VerifyPurchase は App Store Server API v1 でトランザクションを検証する。
 //
 // transactionID を使って Apple のサーバーにトランザクション情報を問い合わせ、
 // サブスクリプションの有効性（期限切れ・返金済みかどうか）を判定する。
+//
+// 買い切り商品には期限が無く、この関数では expired 扱いになる。
+// VerifyOneTimePurchase を使うこと。
 func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*VerificationResult, error) {
-	transactionID = ExtractTransactionID(transactionID)
-
-	jwt, err := c.generateJWT(ctx)
+	tx, jwt, environment, err := c.fetchTransaction(ctx, transactionID)
 	if err != nil {
-		return nil, err
-	}
-
-	primary, fallback := environments()
-	environment := primary
-
-	res, err := c.get(ctx,
-		fmt.Sprintf("https://%s.apple.com/inApps/v1/transactions/%s", environment, transactionID),
-		jwt)
-	if err != nil {
-		return nil, err
-	}
-
-	if res.StatusCode == http.StatusNotFound {
-		log.Printf("App Store API 404 on %s; retrying on %s (transactionId=%s, body=%s)",
-			primary, fallback, transactionID, readBody(res))
-		environment = fallback
-		res, err = c.get(ctx,
-			fmt.Sprintf("https://%s.apple.com/inApps/v1/transactions/%s", environment, transactionID),
-			jwt)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		body := readBody(res)
-		log.Printf("App Store API error: %d (transactionId=%s, environment=%s, body=%s)",
-			res.StatusCode, transactionID, environment, body)
-		return nil, fmt.Errorf("App Store API error: %d", res.StatusCode)
-	}
-
-	var body struct {
-		SignedTransactionInfo string `json:"signedTransactionInfo"`
-	}
-	raw := readBody(res)
-	if err := json.Unmarshal([]byte(raw), &body); err != nil {
-		return nil, fmt.Errorf("App Store API のレスポンスをパースできない: %w", err)
-	}
-
-	if err := c.verifier().Verify(body.SignedTransactionInfo); err != nil {
-		return nil, err
-	}
-	var tx TransactionInfo
-	if err := applejws.DecodePayload(body.SignedTransactionInfo, &tx); err != nil {
 		return nil, err
 	}
 
@@ -262,7 +228,7 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 	// 期限判定が働かず永久 premium になるため、expired として扱う。
 	if tx.ExpiresDate == nil {
 		log.Printf("Transaction has no expiresDate; treating as expired (transactionId=%s, originalTransactionId=%s)",
-			transactionID, tx.OriginalTransactionID)
+			tx.TransactionID, tx.OriginalTransactionID)
 	}
 
 	isExpired := true
@@ -300,6 +266,101 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 	}, nil
 }
 
+// fetchTransaction は transactions API から1件取得し、署名を検証して返す。
+// 併せて、後続の API 呼び出しで使う JWT と、実際に見つかった環境を返す。
+func (c *Client) fetchTransaction(
+	ctx context.Context, transactionID string,
+) (*TransactionInfo, string, string, error) {
+	transactionID = ExtractTransactionID(transactionID)
+
+	jwt, err := c.generateJWT(ctx)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	primary, fallback := environments()
+	environment := primary
+
+	res, err := c.get(ctx,
+		fmt.Sprintf("https://%s.apple.com/inApps/v1/transactions/%s", environment,
+			neturl.PathEscape(transactionID)),
+		jwt)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	if res.StatusCode == http.StatusNotFound {
+		log.Printf("App Store API 404 on %s; retrying on %s (transactionId=%s, body=%s)",
+			primary, fallback, transactionID, readBody(res))
+		environment = fallback
+		res, err = c.get(ctx,
+			fmt.Sprintf("https://%s.apple.com/inApps/v1/transactions/%s", environment,
+				neturl.PathEscape(transactionID)),
+			jwt)
+		if err != nil {
+			return nil, "", "", err
+		}
+	}
+
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		body := readBody(res)
+		log.Printf("App Store API error: %d (transactionId=%s, environment=%s, body=%s)",
+			res.StatusCode, transactionID, environment, body)
+		return nil, "", "", fmt.Errorf("App Store API error: %d", res.StatusCode)
+	}
+
+	var body struct {
+		SignedTransactionInfo string `json:"signedTransactionInfo"`
+	}
+	raw := readBody(res)
+	if err := json.Unmarshal([]byte(raw), &body); err != nil {
+		return nil, "", "", fmt.Errorf("App Store API のレスポンスをパースできない: %w", err)
+	}
+
+	if err := c.verifier().Verify(body.SignedTransactionInfo); err != nil {
+		return nil, "", "", err
+	}
+	var tx TransactionInfo
+	if err := applejws.DecodePayload(body.SignedTransactionInfo, &tx); err != nil {
+		return nil, "", "", err
+	}
+	return &tx, jwt, environment, nil
+}
+
+// VerifyOneTimePurchase は買い切り（非消費型）の購入を検証する。
+//
+// 期限が無いのが正常な形なので expiresDate は見ない。無効になるのは返金・取消
+// （revocationDate）だけで、これは REFUND / REVOKE 通知でも降格される。
+// 期限で自動的に free へ戻る道が無いぶん、ここでは商品の型まで確かめる。
+func (c *Client) VerifyOneTimePurchase(
+	ctx context.Context, transactionID string,
+) (*VerificationResult, error) {
+	tx, _, _, err := c.fetchTransaction(ctx, transactionID)
+	if err != nil {
+		return nil, err
+	}
+
+	if tx.Type != TypeNonConsumable {
+		return nil, fmt.Errorf("買い切り商品として検証したが type が違う: %q (productId=%s)",
+			tx.Type, tx.ProductID)
+	}
+
+	revoked := tx.RevocationDate != nil
+	status := StatusActive
+	if revoked {
+		status = StatusExpired
+	}
+
+	return &VerificationResult{
+		Valid:                 !revoked,
+		ProductID:             tx.ProductID,
+		OriginalTransactionID: tx.OriginalTransactionID,
+		ExpiresAt:             nil,
+		AutoRenewing:          false,
+		Status:                status,
+	}, nil
+}
+
 // fetchRenewalInfo は Get All Subscription Statuses API から最新の RenewalInfo を取る。
 //
 // transaction API のレスポンスには autoRenewStatus が含まれないため、
@@ -310,7 +371,7 @@ func (c *Client) fetchRenewalInfo(
 ) *RenewalInfo {
 	res, err := c.get(ctx,
 		fmt.Sprintf("https://%s.apple.com/inApps/v1/subscriptions/%s",
-			environment, originalTransactionID),
+			environment, neturl.PathEscape(originalTransactionID)),
 		jwt)
 	if err != nil {
 		log.Printf("Failed to fetch renewal info: %v", err)
@@ -383,6 +444,9 @@ func (c *Client) ParseNotification(signedPayload string) (*Notification, error) 
 		Data             struct {
 			SignedTransactionInfo string `json:"signedTransactionInfo"`
 			SignedRenewalInfo     string `json:"signedRenewalInfo"`
+			BundleID              string `json:"bundleId"`
+			Environment           string `json:"environment"`
+			AppAppleID            int64  `json:"appAppleId"`
 		} `json:"data"`
 	}
 	if err := applejws.DecodePayload(signedPayload, &notification); err != nil {
@@ -393,6 +457,9 @@ func (c *Client) ParseNotification(signedPayload string) (*Notification, error) 
 		NotificationType: notification.NotificationType,
 		Subtype:          notification.Subtype,
 		SignedDate:       notification.SignedDate,
+		BundleID:         notification.Data.BundleID,
+		Environment:      notification.Data.Environment,
+		AppAppleID:       notification.Data.AppAppleID,
 	}
 	if err := applejws.DecodePayload(
 		notification.Data.SignedTransactionInfo, &out.TransactionInfo,
@@ -408,5 +475,39 @@ func (c *Client) ParseNotification(signedPayload string) (*Notification, error) 
 		}
 		out.RenewalInfo = &renewal
 	}
+	if c == Default {
+		if err := validateNotificationIdentity(out); err != nil {
+			return nil, &applejws.RejectedError{Err: err}
+		}
+	}
 	return out, nil
+}
+
+func validateNotificationIdentity(n *Notification) error {
+	bundleID := strings.TrimSpace(os.Getenv("APP_STORE_BUNDLE_ID"))
+	if bundleID == "" {
+		bundleID = defaultBundleID
+	}
+	if n.BundleID != bundleID {
+		return fmt.Errorf("App Store notification bundle mismatch: got=%q", n.BundleID)
+	}
+	// APP_STORE_ENVIRONMENT は VerifyPurchase が「どちらのホストを先に叩くか」を
+	// 決めるヒントであって、受け取る通知の環境を絞る設定ではない。prod でも
+	// 審査・TestFlight の Sandbox 購入は起きるため、両方を受け付ける。ここで
+	// 弾くと 200 で破棄され Apple は再送しないので、課金状態が永久にずれる。
+	// 外側と transactionInfo の環境が食い違う細工だけは拒否する。
+	if n.Environment != "Production" && n.Environment != "Sandbox" {
+		return fmt.Errorf("App Store notification unknown environment: got=%q", n.Environment)
+	}
+	if n.TransactionInfo.Environment != "" && n.TransactionInfo.Environment != n.Environment {
+		return fmt.Errorf("App Store notification environment mismatch: got=%q transaction=%q",
+			n.Environment, n.TransactionInfo.Environment)
+	}
+	if configured := strings.TrimSpace(os.Getenv("APP_STORE_APP_APPLE_ID")); configured != "" {
+		appID, err := strconv.ParseInt(configured, 10, 64)
+		if err != nil || n.AppAppleID != appID {
+			return fmt.Errorf("App Store notification appAppleId mismatch")
+		}
+	}
+	return nil
 }

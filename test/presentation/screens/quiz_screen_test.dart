@@ -11,6 +11,7 @@ import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/analytics_provider.dart';
 import 'package:thai_memo/presentation/providers/quiz_provider.dart';
+import 'package:thai_memo/services/learning_progress_store.dart';
 import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
 import 'package:thai_memo/presentation/providers/settings_provider.dart';
 import 'package:thai_memo/presentation/providers/vocab_stats_provider.dart';
@@ -33,6 +34,35 @@ final _questions = List<QuizQuestion>.generate(
     sentencePronunciation: 'nii khue coot thii ${index + 1} phasa thai',
     dummyReasons: ['อาหาร を選んだ場合の詳しい誤答理由 ${index + 1}'],
   ),
+);
+
+final _learningSentence = ThaiSentence(
+  id: 'sentence-0',
+  thaiText: 'นี่คือโจทย์ที่ 1 ภาษาไทย',
+  pronunciation: 'nii khue coot thii nueng phasa thai',
+  japaneseTranslation: 'これは問題1のタイ語です',
+  wordBreakdowns: const [],
+);
+
+final _meaningQuestion = QuizQuestion(
+  sentenceId: 'sentence-0',
+  thaiText: 'ฉันชอบภาษาไทย',
+  blankText: 'ฉันชอบ___',
+  correctAnswer: 'ภาษาไทย',
+  correctAnswerMeaning: 'タイ語',
+  choices: const ['タイ語', '私', '好き', '本'],
+  pronunciation: 'phasa thai',
+  explanation: 'ภาษาไทย は「タイ語」を意味し、言語名を表す名詞です。',
+  srsInterval: 7,
+  japaneseTranslation: '私はタイ語が好きです',
+  sentencePronunciation: 'chan chop phasa thai',
+  dummyReasons: const [
+    '私：ฉัน の意味です',
+    '好き：ชอบ の意味です',
+    '本：この単語の意味ではありません',
+  ],
+  sentenceDetail: _learningSentence,
+  quizFormat: QuizQuestion.meaningChoiceFormat,
 );
 
 class _FakeBackendApiService extends Fake implements BackendApiService {
@@ -88,30 +118,40 @@ class _FakeDatabaseHelper extends Fake implements DatabaseHelper {
 }
 
 class _QuizHarness {
-  const _QuizHarness({required this.controller, required this.database});
+  const _QuizHarness({
+    required this.controller,
+    required this.database,
+    required this.analytics,
+  });
 
   final QuizController controller;
   final _FakeDatabaseHelper database;
+  final FakeAnalyticsService analytics;
 }
 
 Future<_QuizHarness> _pumpSummaryQuiz(
   WidgetTester tester, {
   ThaiSentence? learningSentence,
   Future<void> Function()? onNextSentence,
-  Future<void> Function()? onOptionalChallenge,
   bool blockFirstInsert = false,
   List<QuizQuestion>? questions,
   double textScale = 1,
   bool showVocabScoreTransition = false,
 }) async {
   final database = _FakeDatabaseHelper(blockFirstInsert: blockFirstInsert);
+  final analytics = FakeAnalyticsService();
   final controller = QuizController(
     _FakeBackendApiService(questions),
-    FakeAnalyticsService(),
+    analytics,
     () => lookupL10n(const Locale('ja')),
     databaseHelper: database,
-  );
-  await controller.generateAndStartQuiz();
+                       progressStore: LearningProgressStore(),
+                     );
+  if (learningSentence != null) {
+    await controller.startLearningQuiz(learningSentence);
+  } else {
+    await controller.generateAndStartQuiz();
+  }
 
   await tester.pumpWidget(
     ProviderScope(
@@ -121,7 +161,7 @@ Future<_QuizHarness> _pumpSummaryQuiz(
           (ref) => Stream.value(const VocabStats(estimatedVocab: 20)),
         ),
         effectivePremiumProvider.overrideWithValue(false),
-        analyticsServiceProvider.overrideWithValue(FakeAnalyticsService()),
+        analyticsServiceProvider.overrideWithValue(analytics),
         generationParamsProvider.overrideWithValue(const {'topic': null}),
       ],
       child: MaterialApp(
@@ -137,7 +177,6 @@ Future<_QuizHarness> _pumpSummaryQuiz(
         home: QuizScreen(
           learningSentence: learningSentence,
           onNextSentence: onNextSentence,
-          onOptionalChallenge: onOptionalChallenge,
           showVocabScoreTransition: showVocabScoreTransition,
         ),
       ),
@@ -145,12 +184,126 @@ Future<_QuizHarness> _pumpSummaryQuiz(
   );
   await tester.pump();
 
-  return _QuizHarness(controller: controller, database: database);
+  return _QuizHarness(
+    controller: controller,
+    database: database,
+    analytics: analytics,
+  );
 }
 
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('確認クイズは表示と回答時間・正誤を記録する', (tester) async {
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      learningSentence: _learningSentence,
+      questions: [_questions.first],
+    );
+
+    expect(harness.analytics.confirmationQuizQuestionEvents, [
+      {
+        'action': 'shown',
+        'quiz_format': 'cloze_choice',
+        'response_ms': null,
+        'correct': null,
+        'exit_reason': null,
+      },
+    ]);
+
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_0')));
+    await tester.pump();
+
+    final answered = harness.analytics.confirmationQuizQuestionEvents.last;
+    expect(answered['action'], 'answered');
+    expect(answered['quiz_format'], 'cloze_choice');
+    expect(answered['correct'], isTrue);
+    expect(answered['response_ms'], isA<int>());
+    expect(answered['response_ms'], greaterThanOrEqualTo(0));
+    expect(answered['exit_reason'], isNull);
+  });
+
+  testWidgets('確認クイズを未回答で離れるとabandonedを記録する', (tester) async {
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      learningSentence: _learningSentence,
+      questions: [_questions.first],
+    );
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    final abandoned = harness.analytics.confirmationQuizQuestionEvents.last;
+    expect(abandoned['action'], 'abandoned');
+    expect(abandoned['quiz_format'], 'cloze_choice');
+    expect(abandoned['correct'], isNull);
+    expect(abandoned['response_ms'], isA<int>());
+    expect(abandoned['response_ms'], greaterThanOrEqualTo(0));
+    expect(abandoned['exit_reason'], 'screen_disposed');
+  });
+
+  testWidgets('確認意味4択の正解時も単語の解説を出し、元例文は出さない', (tester) async {
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      learningSentence: _learningSentence,
+      questions: [_meaningQuestion],
+    );
+
+    expect(find.text('この単語の意味を選んでください'), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_meaning_word')), findsOneWidget);
+    expect(find.text('ภาษาไทย'), findsOneWidget);
+    // ローマ字はヒント扱いにせず出題時から常に出す。
+    expect(
+      find.byKey(const ValueKey('quiz_meaning_word_pronunciation')),
+      findsOneWidget,
+    );
+    expect(find.text('phasa thai'), findsOneWidget);
+    expect(find.text('ฉันชอบ___'), findsNothing);
+    expect(find.text('私はタイ語が好きです'), findsNothing);
+    expect(find.text('例文を復習する'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_0')));
+    await tester.pump();
+
+    expect(harness.controller.state, isA<QuizSummary>());
+    expect(find.text('単語の解説'), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_word_explanation')), findsOneWidget);
+    expect(find.text(_meaningQuestion.explanation), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_source_sentence')), findsNothing);
+    expect(find.text('chan chop phasa thai'), findsNothing);
+    expect(find.text('私はタイ語が好きです'), findsNothing);
+
+    final answerEvent = harness.analytics.quizAnswerEvents.single;
+    expect(answerEvent['correct'], isTrue);
+    expect(answerEvent['quiz_format'], QuizQuestion.meaningChoiceFormat);
+    expect(answerEvent['srs_interval'], 7);
+    expect(answerEvent['response_ms'], isA<int>());
+  });
+
+  testWidgets('確認意味4択の不正解時は正解語と単語解説だけを表示する', (tester) async {
+    await _pumpSummaryQuiz(
+      tester,
+      learningSentence: _learningSentence,
+      questions: [_meaningQuestion],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_1')));
+    await tester.pump();
+
+    expect(find.text('単語の解説'), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_word_explanation')), findsOneWidget);
+    expect(find.text(_meaningQuestion.explanation), findsOneWidget);
+    expect(find.text('この単語を使った例文'), findsNothing);
+    expect(find.byKey(const ValueKey('quiz_source_sentence')), findsNothing);
+    expect(find.text('ฉันชอบภาษาไทย'), findsNothing);
+    expect(find.text('chan chop phasa thai'), findsNothing);
+    expect(find.text('私はタイ語が好きです'), findsNothing);
+    expect(find.text(_meaningQuestion.dummyReasons.first), findsNothing);
+    expect(find.text('私'), findsNothing);
   });
 
   testWidgets('正解は同じ問題内で解説まで見せ、二重送信せず次へボタンで進む', (tester) async {
@@ -403,12 +556,10 @@ void main() {
   testWidgets('クイズ完了後に案内は一切出さない', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    var challenged = 0;
     final harness = await _pumpSummaryQuiz(
       tester,
       showVocabScoreTransition: true,
       onNextSentence: () async {},
-      onOptionalChallenge: () async => challenged += 1,
     );
 
     for (var i = 0; i < _questions.length; i++) {
@@ -422,12 +573,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
 
-    // 使い方の案内は説明書に集約した。結果画面から案内は出さず、
-    // 次に進むかどうかも本人に委ねる。
+    // 使い方の案内は説明書に集約した。結果画面から案内は出さない。
     expect(find.byType(Dialog), findsNothing);
-    expect(find.text('まとめクイズに挑戦'), findsNothing);
     expect(find.text('今後の進め方'), findsNothing);
-    expect(challenged, 0);
 
     // レビュー依頼の遅延タイマーを消化してから終える。
     await tester.pump(const Duration(seconds: 2));

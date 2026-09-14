@@ -4,6 +4,7 @@ import (
 	"log"
 	"math/rand"
 	"regexp"
+	"strings"
 )
 
 // Sanitizer はモデル出力の検査と整形。
@@ -43,6 +44,9 @@ func (s *Sanitizer) Questions(questions []GeneratedQuizQuestion) []GeneratedQuiz
 //   - タイ語の選択肢が4件に満たない
 //   - ダミー3件それぞれに対応する理由が揃っていない
 func (s *Sanitizer) Question(question GeneratedQuizQuestion) (GeneratedQuizQuestion, bool) {
+	if question.QuizFormat == FormatMeaningChoice {
+		return s.meaningQuestion(question)
+	}
 	correctAnswer := stripChoiceAnnotation(question.CorrectAnswer)
 	if !isThaiChoiceText(correctAnswer) {
 		log.Printf("Dropping quiz question due to non-Thai correct answer: %q",
@@ -83,12 +87,48 @@ func (s *Sanitizer) Question(question GeneratedQuizQuestion) (GeneratedQuizQuest
 	out.CorrectAnswerMeaning = normalizeText(question.CorrectAnswerMeaning)
 	out.Choices = shuffled
 	out.ChoicePronunciations = buildChoicePronunciations(
-		shuffled, correctAnswer, question.Pronunciation, dummyReasons)
+		shuffled, correctAnswer, question.Pronunciation, dummyReasons,
+		question.DummyPronunciations)
 	out.Pronunciation = normalizeText(question.Pronunciation)
 	out.Explanation = normalizeText(question.Explanation)
 	out.JapaneseTranslation = normalizeText(question.JapaneseTranslation)
 	out.SentencePronunciation = normalizeText(question.SentencePronunciation)
 	out.DummyReasons = dummyReasons
+	return out, true
+}
+
+func (s *Sanitizer) meaningQuestion(
+	question GeneratedQuizQuestion,
+) (GeneratedQuizQuestion, bool) {
+	correctAnswer := stripChoiceAnnotation(question.CorrectAnswer)
+	correctMeaning := normalizeText(question.CorrectAnswerMeaning)
+	if !isThaiChoiceText(correctAnswer) || correctMeaning == "" {
+		log.Printf("Dropping meaning quiz due to invalid answer: word=%q meaning=%q",
+			question.CorrectAnswer, question.CorrectAnswerMeaning)
+		return GeneratedQuizQuestion{}, false
+	}
+
+	choices := uniqueTexts(question.Choices)
+	if len(choices) != 4 || !containsText(choices, correctMeaning) {
+		log.Printf("Dropping meaning quiz due to invalid choices: correct=%q choices=%v",
+			correctMeaning, question.Choices)
+		return GeneratedQuizQuestion{}, false
+	}
+	out := question
+	out.QuizFormat = FormatMeaningChoice
+	out.ThaiText = normalizeText(question.ThaiText)
+	out.BlankText = normalizeText(question.BlankText)
+	out.CorrectAnswer = correctAnswer
+	out.CorrectAnswerMeaning = correctMeaning
+	out.Choices = s.shuffle(choices)
+	out.ChoicePronunciations = []string{}
+	out.Pronunciation = normalizeText(question.Pronunciation)
+	out.Explanation = normalizeText(question.Explanation)
+	out.JapaneseTranslation = normalizeText(question.JapaneseTranslation)
+	out.SentencePronunciation = normalizeText(question.SentencePronunciation)
+	// 意味問題の誤答は同じ例文の既存語義からルールベースで選ぶため、
+	// LLMによる不正解理由は生成も表示もしない。
+	out.DummyReasons = []string{}
 	return out, true
 }
 
@@ -128,10 +168,16 @@ func sanitizeDummyReasons(
 }
 
 // buildChoicePronunciations は選択肢ごとの発音を組み立てる。
-// 正解は例文データの発音、ダミーは理由の書式から切り出す。
+//
+// 正解は例文データの発音。ダミーは fixed（選定側が NLP で作った発音）が
+// あればそれを使い、無ければ従来どおり理由の書式から切り出す。
+//
+// 理由からの切り出しはモデルの文面頼みで、実測で崩れた
+// （en で「ถูก (thùuk): …」と意味が省かれ、発音が空になった 2026-09-12）。
+// ダミーを確定させた経路ではモデルを介さずに埋める。
 func buildChoicePronunciations(
 	choices []string, correctAnswer, correctAnswerPronunciation string,
-	dummyReasons []string,
+	dummyReasons []string, fixed map[string]string,
 ) []string {
 	normalizedCorrect := normalizeText(correctAnswerPronunciation)
 
@@ -139,6 +185,10 @@ func buildChoicePronunciations(
 	for _, choice := range choices {
 		if choice == correctAnswer {
 			out = append(out, normalizedCorrect)
+			continue
+		}
+		if pron := strings.TrimSpace(fixed[choice]); pron != "" {
+			out = append(out, pron)
 			continue
 		}
 		pronunciation := ""

@@ -1,17 +1,10 @@
-// Command sample は現行プロンプトでオフラインに例文を量産する。
+// Command sample はプロンプトの改訂前後を見比べるためのサンプル生成。
 //
-// Firestore もクォータも通さず LLM だけを叩くため、プロンプト修正 → 生成 →
-// 目視レビューを高速に回せる。ablation 用（旧 scripts/sample_sentences.py の
-// 後継。Python 実装の削除で動かなくなったため Go へ移した）。
+// 語はランク帯から散らし、テーマは16種を順に割り当てる。結果は JSON と
+// 1行要約で出すので、そのまま品質判定にかけられる。
 //
-//	GEMINI_API_KEY=... go run ./cmd/sample \
-//	  -words "ลอง,แต่ว่า" -vocab 200,800 -n 5 -out /tmp/abl_a.json
-//
-// 接続の不自然さを測るなら -vocab 1500 -timeframe これからの予定 に寄せる
-// （台帳の実測でこの層の NG 率が 12%、他は 0.7〜6%）。
-//
-// -topic を省くと本番と同じくテーマは LLM が選ぶ。指定するとサブテーマも付く
-// （本番は embeddings が選ぶが、ここは GCS を引かずに候補から一様に引く）。
+//	go run ./cmd/sample -n 40 -out /tmp/sample.json
+//	go run ./cmd/sample -n 20 -lang en -topic 恋愛
 package main
 
 import (
@@ -22,144 +15,323 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"strconv"
+	"sort"
 	"strings"
 	"sync"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/bldrama"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/llm"
+	"github.com/mnbst/thai-memo/functions/go/internal/quality"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
 
+const rankPath = "../../scripts/corpus/freq_rank_top10000.json"
+
+// bands はサンプルを散らすランク帯。静的コーパスの帯分けに合わせてある。
+var bands = [][2]int{{1, 300}, {301, 500}, {501, 1500}, {1501, 3000}, {3001, 5000}}
+
 type record struct {
-	TargetWord  string `json:"target_word"`
-	Vocab       int    `json:"vocab"`
-	ThaiText    string `json:"thai_text"`
-	Translation string `json:"japanese_translation"`
-	// WordCount は word_breakdown の語数（長さヒントの遵守を見る）。
-	WordCount int            `json:"word_count"`
-	Context   map[string]any `json:"context,omitempty"`
-	Error     string         `json:"error,omitempty"`
+	Rank  int    `json:"key_word_rank"`
+	Word  string `json:"key_word"`
+	Topic string `json:"requested_topic,omitempty"`
+	Err   string `json:"error,omitempty"`
+	// Retried は差し戻して作り直した文。空なら judge を通っている。
+	Retried *sentence.Sentence `json:"retried,omitempty"`
+	// Notes は judge の指摘。差し戻しプロンプトへそのまま入れる。
+	Notes []string `json:"notes,omitempty"`
+	*sentence.Sentence
 }
 
 func main() {
-	words := flag.String("words", "", "ターゲット語のカンマ区切り（必須）")
-	vocabs := flag.String("vocab", "200,800", "estimated_vocab のカンマ区切り")
-	n := flag.Int("n", 5, "語×語彙帯ごとの生成数")
+	n := flag.Int("n", 40, "生成本数")
 	langCode := flag.String("lang", "ja", "訳文の言語（ja / en）")
-	free := flag.Bool("free", false, "free ティアのプロンプトで生成する")
-	out := flag.String("out", "", "出力 JSON のパス（省略時は標準出力）")
-	conc := flag.Int("c", 4, "同時実行数")
-	topic := flag.String("topic", "", "テーマを固定する（省略時は LLM に選ばせる）")
-	timeFrame := flag.String("timeframe", "",
-		"話している時点を固定する（省略時は抽選）: "+strings.Join(sentence.TimeFrames, " / "))
+	free := flag.Bool("free", false, "free ティアで生成する")
+	vocab := flag.Int("vocab", 800, "estimated_vocab")
+	topic := flag.String("topic", "", "テーマを固定する（部分一致）。空なら16種を順に割り当てる")
+	conc := flag.Int("c", 5, "同時実行数")
+	seed := flag.Int64("seed", 1, "語の抽選シード")
+	out := flag.String("out", "", "JSON の出力先。空なら標準出力に要約のみ")
+	fix := flag.Bool("fix", false, "生成後に judge をかけ、不合格を指摘つきで差し戻す")
+	rankFile := flag.String("rank", rankPath, "freq_rank_top10000.json のパス")
+	wordList := flag.String("words", "", "key_word を固定する（カンマ区切り）。指定時は -n が語ごとの生成数")
+	relation := flag.String("relation", "", "話し手と聞き手の関係を固定する（例: 自分より目上／ほとんど面識がない）")
+	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
 	flag.Parse()
 
-	targetWords := splitCSV(*words)
-	if len(targetWords) == 0 {
-		log.Fatal("-words は必須")
-	}
-	var bands []int
-	for _, v := range splitCSV(*vocabs) {
-		iv, err := strconv.Atoi(v)
-		if err != nil {
-			log.Fatalf("-vocab の値が数値でない: %q", v)
+	var words []wordRank
+	if *wordList != "" {
+		for _, w := range strings.Split(*wordList, ",") {
+			w = strings.TrimSpace(w)
+			if w == "" {
+				continue
+			}
+			for i := 0; i < *n; i++ {
+				words = append(words, wordRank{Word: w})
+			}
 		}
-		bands = append(bands, iv)
+	} else {
+		var err error
+		words, err = pickWords(*rankFile, *n, *seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+	topics := pickTopics(*topic)
 
 	ctx := context.Background()
 	key, err := secrets.Get(ctx, "gemini-api-key")
 	if err != nil {
 		log.Fatalf("GEMINI_API_KEY か gemini-api-key が要る: %v", err)
 	}
-
-	model := envOr("GEMINI_MODEL_PREMIUM", "gemini-3.1-flash-lite")
+	model := envOr("GEMINI_MODEL", "gemini-3.1-flash-lite")
 	svc := &sentence.Service{
 		Gen: &llm.Client{
-			GeminiKey:          key,
-			Provider:           "gemini",
-			MaxTokens:          8192,
-			GeminiModel:        envOr("GEMINI_MODEL", "gemini-3.1-flash-lite"),
-			GeminiModelPremium: model,
+			GeminiKey: key, Provider: "gemini", MaxTokens: 8192,
+			GeminiModel: model, GeminiModelPremium: model,
 		},
-		// サブテーマは本番なら embeddings が選ぶ。ここは GCS を引かずに
-		// 候補からランダムに引く（偏りではなく被覆を見るため）。
 		Resolver: &sentence.Resolver{SubThemes: randomSubTheme{}},
+		// ドラマ回の専用ブロック。Shots が nil ならシーンをランダムに引く。
+		Drama: &bldrama.Builder{},
 	}
+	fmt.Fprintf(os.Stderr, "n=%d lang=%s tier=%s vocab=%d model=%s\n",
+		*n, *langCode, tierLabel(*free), *vocab, model)
 
-	type job struct {
-		word  string
-		vocab int
-	}
-	var jobs []job
-	for _, w := range targetWords {
-		for _, v := range bands {
-			for range *n {
-				jobs = append(jobs, job{w, v})
-			}
-		}
-	}
-
-	results := make([]record, len(jobs))
+	recs := make([]record, len(words))
 	sem := make(chan struct{}, *conc)
 	var wg sync.WaitGroup
-	for i, j := range jobs {
+	for i, w := range words {
 		wg.Add(1)
-		go func() {
+		go func(i int, w wordRank) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			rec := record{TargetWord: j.word, Vocab: j.vocab}
 			params := map[string]any{}
-			if *topic != "" {
-				params["topic"] = *topic
+			topic := topics[i%len(topics)]
+			if topic != "" {
+				params["topic"] = topic
+			}
+			if *relation != "" {
+				params["relation"] = *relation
 			}
 			if *timeFrame != "" {
 				params["timeFrame"] = *timeFrame
 			}
 			s, err := svc.GenerateSentence(ctx, params, !*free,
-				[]string{j.word}, j.vocab, lang.Lang(*langCode))
+				[]string{w.Word}, *vocab, lang.Lang(*langCode))
+			recs[i] = record{Rank: w.Rank, Word: w.Word, Topic: topic, Sentence: s}
 			if err != nil {
-				rec.Error = err.Error()
-			} else {
-				rec.ThaiText = s.ThaiText
-				rec.Translation = s.JapaneseTranslation
-				rec.WordCount = len(s.WordBreakdown)
-				rec.Context = s.Context
+				recs[i].Err = err.Error()
+				fmt.Fprint(os.Stderr, "x")
+				return
 			}
-			results[i] = rec
-			fmt.Fprintf(os.Stderr, ".")
-		}()
+			fmt.Fprint(os.Stderr, ".")
+		}(i, w)
 	}
 	wg.Wait()
 	fmt.Fprintln(os.Stderr)
 
-	data, err := json.MarshalIndent(results, "", "  ")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if *out == "" {
-		fmt.Println(string(data))
-		return
-	}
-	if err := os.WriteFile(*out, append(data, '\n'), 0o644); err != nil {
-		log.Fatal(err)
+	if *fix {
+		retry(ctx, svc, recs, *free, *vocab, lang.Lang(*langCode), *conc)
 	}
 
-	var failed int
-	for _, r := range results {
-		if r.Error != "" {
-			failed++
+	if *out != "" {
+		b, err := json.MarshalIndent(recs, "", " ")
+		if err != nil {
+			log.Fatal(err)
 		}
+		if err := os.WriteFile(*out, b, 0o644); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s\n", *out)
 	}
-	fmt.Fprintf(os.Stderr, "%d 文を %s へ書いた（失敗 %d）\n",
-		len(results)-failed, *out, failed)
+	summarize(recs)
 }
 
-// randomSubTheme は候補から 1 つ引くだけの SubThemeFinder。
+// retry は judge をかけ、不合格だったものを指摘つきで作り直す。
+//
+// 差し戻しでは BuildPrompt をこちら側で呼び、末尾に BuildRetryConstraint を
+// 足してから GenerateSingle に渡す。GenerateSentence はプロンプトを内部で
+// 組み立ててしまうので使えない。コーパス生成のバッチも同じ形になる。
+func retry(
+	ctx context.Context, svc *sentence.Service, recs []record,
+	free bool, vocab int, l lang.Lang, conc int,
+) {
+	var batch []quality.Candidate
+	var idx []int
+	for i, r := range recs {
+		if r.Sentence == nil {
+			continue
+		}
+		batch = append(batch, quality.Candidate{
+			SentenceID:          fmt.Sprint(i),
+			ThaiText:            r.ThaiText,
+			Pronunciation:       r.Pronunciation,
+			JapaneseTranslation: r.JapaneseTranslation,
+			KeyWord:             r.Word,
+		})
+		idx = append(idx, i)
+	}
+	if len(batch) == 0 {
+		return
+	}
+
+	j := &quality.Judge{Gen: svc.Gen}
+	flagged, verdicts, err := j.JudgeBatch(ctx, batch)
+	if err != nil {
+		log.Printf("judge に失敗: %v", err)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "judge: %d件中 %d件が不合格\n", len(batch), len(flagged))
+	if len(flagged) == 0 {
+		return
+	}
+
+	sem := make(chan struct{}, conc)
+	var wg sync.WaitGroup
+	for n, v := range verdicts {
+		i := idx[v.Index]
+		recs[i].Notes = []string{verdicts[n].Reason}
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			s, err := regenerate(ctx, svc, recs[i], free, vocab, l)
+			if err != nil {
+				log.Printf("差し戻しに失敗 [%s]: %v", recs[i].Word, err)
+				fmt.Fprint(os.Stderr, "x")
+				return
+			}
+			recs[i].Retried = s
+			fmt.Fprint(os.Stderr, "+")
+		}(i)
+	}
+	wg.Wait()
+	fmt.Fprintln(os.Stderr)
+}
+
+func regenerate(
+	ctx context.Context, svc *sentence.Service, r record,
+	free bool, vocab int, l lang.Lang,
+) (*sentence.Sentence, error) {
+	params := map[string]any{}
+	if r.Topic != "" {
+		params["topic"] = r.Topic
+	}
+	words := []string{r.Word}
+	resolved := svc.Resolver.Resolve(ctx, params, words, vocab)
+
+	var drama sentence.DramaSection
+	if svc.Drama != nil && resolved.Topic == sentence.Topics[15] {
+		drama = svc.Drama.BuildDramaSection(words)
+	}
+	prompt, rc := sentence.BuildPrompt(resolved, words, vocab, !free, l, drama)
+	if block := sentence.BuildRetryConstraint(r.Notes); block != "" {
+		prompt += "\n\n" + block
+	}
+	tier := "premium"
+	if free {
+		tier = "free"
+	}
+	return sentence.GenerateSingle(ctx, svc.Gen, sentence.Request{
+		SystemPrompt:    sentence.SystemPrompt(!free, l),
+		Prompt:          prompt,
+		IsPremium:       !free,
+		TierLabel:       tier,
+		TargetWords:     words,
+		ResolvedContext: rc,
+		Lang:            l,
+	})
+}
+
+func summarize(recs []record) {
+	var failed int
+	for i, r := range recs {
+		if r.Err != "" || r.Sentence == nil {
+			failed++
+			fmt.Printf("%3d r%-5d [%s] 失敗: %s\n", i+1, r.Rank, r.Word, r.Err)
+			continue
+		}
+		c, _ := r.Context["topic"].(string)
+		sub, _ := r.Context["subTheme"].(string)
+		fmt.Printf("%3d r%-5d [%s] %s\n     %s\n     %s  (%s/%s)\n",
+			i+1, r.Rank, r.Word, r.ThaiText, r.Pronunciation,
+			r.JapaneseTranslation, truncate(c, 14), sub)
+		for _, n := range r.Notes {
+			fmt.Printf("     ✗ %s\n", n)
+		}
+		if r.Retried != nil {
+			fmt.Printf("     → %s\n       %s\n       %s\n",
+				r.Retried.ThaiText, r.Retried.Pronunciation,
+				r.Retried.JapaneseTranslation)
+		}
+	}
+	fmt.Printf("\n生成 %d / 失敗 %d\n", len(recs)-failed, failed)
+}
+
+type wordRank struct {
+	Word string
+	Rank int
+}
+
+// pickWords は各帯から均等に語を引く。同じ seed なら同じ語が出るので、
+// 改訂前後で同じ語を生成して比べられる。
+func pickWords(path string, n int, seed int64) ([]wordRank, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]int
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, err
+	}
+	byBand := make([][]wordRank, len(bands))
+	for w, r := range m {
+		for i, b := range bands {
+			if r >= b[0] && r <= b[1] {
+				byBand[i] = append(byBand[i], wordRank{w, r})
+				break
+			}
+		}
+	}
+	rng := rand.New(rand.NewSource(seed))
+	var out []wordRank
+	for i := range byBand {
+		sort.Slice(byBand[i], func(a, b int) bool { return byBand[i][a].Rank < byBand[i][b].Rank })
+		per := n / len(bands)
+		if i < n%len(bands) {
+			per++
+		}
+		rng.Shuffle(len(byBand[i]), func(a, b int) {
+			byBand[i][a], byBand[i][b] = byBand[i][b], byBand[i][a]
+		})
+		if per > len(byBand[i]) {
+			per = len(byBand[i])
+		}
+		out = append(out, byBand[i][:per]...)
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].Rank < out[b].Rank })
+	return out, nil
+}
+
+// pickTopics は固定テーマ1つ、または16種すべてを返す。
+func pickTopics(filter string) []string {
+	if filter == "" {
+		return append([]string(nil), sentence.Topics...)
+	}
+	for _, t := range sentence.Topics {
+		if strings.Contains(t, filter) {
+			return []string{t}
+		}
+	}
+	log.Fatalf("テーマが見つからない: %q", filter)
+	return nil
+}
+
 type randomSubTheme struct{}
 
 func (randomSubTheme) FindBestSubTheme(
@@ -171,14 +343,19 @@ func (randomSubTheme) FindBestSubTheme(
 	return subThemes[rand.Intn(len(subThemes))], nil
 }
 
-func splitCSV(s string) []string {
-	var out []string
-	for _, part := range strings.Split(s, ",") {
-		if p := strings.TrimSpace(part); p != "" {
-			out = append(out, p)
-		}
+func tierLabel(free bool) string {
+	if free {
+		return "free"
 	}
-	return out
+	return "premium"
+}
+
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
 }
 
 func envOr(key, fallback string) string {

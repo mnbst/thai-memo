@@ -15,16 +15,40 @@
   "navLearn": "Learn",
   "navHistory": "History",
   "navSettings": "Settings",
-  "learnAppBarTitle": "Today's sentence",
   "learnOpenDetail": "Details",
 
-  "learnQuizTitle": "Quiz",
+  "learnQuizTitle": "Quick check",
   "learnSummaryQuizTitle": "Review quiz",
   "learnNextSentence": "Next sentence",
+  "learnNextSet": "Next set",
+  "@learnNextSet": {
+    "description": "Button after the review quiz that starts a new set"
+  },
+  "learnGoToSummaryQuiz": "Go to review quiz",
+  "@learnGoToSummaryQuiz": {
+    "description": "Button after the last confirmation quiz of a set"
+  },
+  "learnDailySetRemaining": "{count, plural, =1{1 more to the review quiz} other{{count} more to the review quiz}}",
+  "@learnDailySetRemaining": {
+    "description": "Sentences left in the set before the review quiz",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learnDailySetLast": "Review quiz is next",
+  "@learnDailySetLast": {
+    "description": "Heading while showing the last sentence of the set"
+  },
+  "learnDailySetProgress": "{position} / {total}",
+  "@learnDailySetProgress": {
+    "description": "Which sentence of the delivered set is showing",
+    "placeholders": {
+      "position": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "commonOk": "OK",
   "commonRetry": "Try again",
 
-  "sentencePreparing": "Preparing your next sentence...",
+  "sentencePreparing": "Preparing your sentences...",
   "todaysWords": "{count, plural, =1{Target word} other{Target words}}",
   "playPronunciation": "Play pronunciation",
   "sentenceListenModel": "Listen",
@@ -39,6 +63,7 @@
   "badgePremiumSentence": "Premium sentence",
   "badgeFreeSentence": "Free sentence",
   "sampleSentenceNotice": "Sample sentence (not saved to your history)",
+  "sampleReload": "Load today's sentence",
 
   "sampleGreetingTranslation": "Hello (said by a man)",
   "sampleGreetingWord1Meaning": "hello, goodbye",
@@ -51,7 +76,6 @@
   "sampleGreetingUsage": "A basic greeting you can use any time of day. Women say ค่ะ instead.",
 
   "quizTodayTitle": "Quiz",
-  "quizOptionalChallenge": "Take the 5-question challenge",
   "quizGenerating": "Building your quiz...",
   "quizOpenSentenceFirst": "Open a sentence first",
   "quizFromLearningSentence": "Questions come from the sentence you're studying",
@@ -67,6 +91,8 @@
     }
   },
   "quizPrompt": "Choose the word that fits the blank",
+  "quizMeaningPrompt": "Choose the meaning of this word",
+  "quizWordExplanation": "Word explanation",
   "quizProgress": "Question {index} of {total}",
   "@quizProgress": {
     "placeholders": {
@@ -267,19 +293,25 @@
   "settingsPrivacyPolicy": "Privacy policy",
   "settingsTerms": "Terms of service",
   "settingsContact": "Contact us",
+  "settingsLifetimeMigration": "Move to the lifetime plan",
+  "settingsLifetimeMigrationSubtitle": "No additional payment",
+  "lifetimeMigrationTitle": "We've added a lifetime plan",
+  "lifetimeMigrationBody": "Thank you for staying with us. For our continuing subscribers, moving to the lifetime plan is free right now.",
+  "lifetimeMigrationNoCharge": "No additional payment",
+  "lifetimeMigrationCancelNote": "After moving, please turn off monthly auto-renewal yourself in your App Store account settings. Billing continues until you do.",
+  "lifetimeMigrationProgress": "Moving your plan…",
+  "lifetimeMigrationDoneTitle": "You're on the lifetime plan",
+  "lifetimeMigrationDoneBody": "Premium is yours from here on. Don't forget to turn off monthly auto-renewal.",
+  "lifetimeMigrationFailedTitle": "We couldn't move your plan",
+  "lifetimeMigrationFailedBody": "Please try again in a little while. Your Premium access continues as before.",
+  "lifetimeMigrationConfirm": "Move to lifetime",
+  "lifetimeMigrationLater": "Later",
   "trialEndedTitle": "Your premium trial has ended",
   "trialEndedBody": "You're on the free plan starting today.",
   "trialEndedKeepPremium": "See the Premium plan",
   "trialEndedKeepFree": "Later",
   "trialEndedChangeQuotaLabel": "Sentences",
-  "trialEndedChangeQuotaPremium": "{premium}/day",
-  "@trialEndedChangeQuotaPremium": {
-    "placeholders": {
-      "premium": {
-        "type": "int"
-      }
-    }
-  },
+  "trialEndedChangeQuotaPremium": "Unlimited",
   "trialEndedChangeQuotaFree": "{free}/day",
   "@trialEndedChangeQuotaFree": {
     "placeholders": {
@@ -302,14 +334,7 @@
   "trialStartedTitle": "{days, plural, =1{You have Premium for 1 more day} other{You have Premium for {days} days}}",
   "trialStartedBody": "We've unlocked features that aren't in the free plan, just for this period.",
   "trialStartedChangeQuotaLabel": "Sentences",
-  "trialStartedChangeQuota": "Up to {premium} a day",
-  "@trialStartedChangeQuota": {
-    "placeholders": {
-      "premium": {
-        "type": "int"
-      }
-    }
-  },
+  "trialStartedChangeQuota": "Unlimited",
   "trialStartedChangeTopicLabel": "Topics",
   "trialStartedChangeTopic": "Pick your own sentence topics",
   "trialStartedStart": "Got it",
@@ -317,6 +342,10 @@
 
   "topicPickerTitle": "Choose a topic",
   "nextTopicPrefix": "Next topic: ",
+  "topicPrefix": "Topic: ",
+  "@topicPrefix": {
+    "description": "Heading of the read-only topic banner on the sentence screen"
+  },
   "topicName_blDrama": "Thai BL dramas",
   "topicSub_blDrama": "confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, pet names",
   "topicName_romance": "Dating and romance",
@@ -371,6 +400,13 @@
   "paywallSignInForRestore": "To restore a purchase, sign in with the account you bought it on.",
   "paywallActive": "Your Premium plan is active",
   "paywallSubscribe": "Go Premium",
+  "paywallPlanMonthlyTitle": "Monthly",
+  "paywallPlanMonthlyNote": "Renews monthly. Cancel anytime.",
+  "paywallPlanMonthlyPrice": "{price} / mo",
+  "paywallPlanLifetimeTitle": "Lifetime",
+  "paywallPlanLifetimeNote": "One payment. No renewal.",
+  "paywallPurchaseCta": "Start with this plan",
+  "paywallLifetimeNote": "A one-time payment. No renewals.",
   "paywallLegal": "Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.",
   "paywallRestore": "Restore purchases",
   "paywallPriceYen": "¥{amount} / month",
@@ -393,27 +429,8 @@
     }
   },
   "paywallFeatureQuotaTitle": "Immerse yourself in more Thai",
-  "paywallFeatureQuotaFree": "{count} sentences a day · vocabulary capped at {limit} words",
-  "@paywallFeatureQuotaFree": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "limit": {
-        "type": "int"
-      }
-    }
-  },
-  "paywallFeatureQuotaPremium": "{count} sentences a day · no vocabulary cap",
-  "@paywallFeatureQuotaPremium": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "paywallFeatureQuotaPremium": "Unlimited sentences · no vocabulary cap",
   "paywallFeatureTopicTitle": "Pick a topic and go deeper into Thai culture",
-  "paywallFeatureTopicFree": "A random beginner topic",
   "paywallFeatureTopicPremium": "Festivals, temple etiquette, BL dramas — your call",
   "paywallTrialActive": "You're on the Premium trial. When it ends, this all goes back to Free.",
   "paywallTrialEnded": "This is what you had during your trial.",
@@ -738,7 +755,7 @@
   "errQuizGenerationFailed": "We couldn't build the quiz. Please try again.",
   "quotaQuizReached": "That's the last new quiz for today.",
   "quotaSentenceReached": "That's the last new sentence for today.\nYou can still revisit past sentences in History.",
-  "quotaSentenceUpgradeCta": "Premium gives you {count} sentences a day",
+  "quotaSentenceUpgradeCta": "Premium gives you unlimited sentences",
   "errAuth": "Something went wrong signing you in. Please restart the app.",
   "errNetwork": "Couldn't reach the network. Check your internet connection.",
   "errTimeout": "The request timed out. Please try again.",
@@ -1153,7 +1170,7 @@
   "settingsRanking": "Ranking",
   "settingsRankingSubtitle": "See how your vocabulary score compares",
   "guideTitle": "How to use the app",
-  "guideSettingsSubtitle": "Read how the app works",
+  "guideSettingsSubtitle": "See how the app works",
   "guideSkip": "Skip",
   "guideStart": "Measure your vocabulary",
   "guideClose": "Close",
@@ -1172,16 +1189,16 @@
   "guideChapterRoles": "What each feature is for",
   "guideChapterHowTo": "How to use it",
   "guideOverviewTitle": "What you do here",
-  "guideOverviewBody1": "Every day, AI writes new Thai sentences matched to your vocabulary level.",
-  "guideOverviewBody2": "Read the sentence, then check yourself with a quiz. Repeating those two steps is how you learn here.",
-  "guideOverviewSummaryQuiz": "After every five sentences, you answer five questions drawn from the sentences you've studied so far. If you get stuck, there are hints and a way back to the sentence.",
-  "guideOverviewBody3": "The more you get right in review quizzes, the higher your vocabulary score — and the wider the range of words your sentences draw from. Words you struggle with are prioritized in future review quizzes, so you don't have to decide what to review next.",
+  "guideOverviewBody1": "Every day, AI writes a set of five Thai sentences matched to your vocabulary level.",
+  "guideOverviewBody2": "Read the sentence, then check yourself with a quiz. Five of those make one cycle.",
+  "guideOverviewSummaryQuiz": "After you finish five sentences, you move on to a review quiz drawn from the sentences you've studied so far. If you get stuck, you can use hints or jump back to the sentence.",
+  "guideOverviewBody3": "The more you get right in review quizzes, the higher your vocabulary score—and the wider the range of words your sentences draw from. Words you struggle with are prioritized in future review quizzes, so you don't have to decide what to review next.",
   "guideRoleSentenceTitle": "Sentences",
   "guideRoleSentenceBody": "Open the detail screen to see how a Thai word is really used. Words are easier to remember with a situation attached than on their own.",
   "guideRoleSoundTitle": "Pronunciation practice",
-  "guideRoleSoundBody": "In Thai, tone changes meaning. Record yourself, compare it with the model, and see which tones are off.",
+  "guideRoleSoundBody": "In Thai, tone changes meaning. Record yourself, compare it with the model pronunciation, and see which tones are off.",
   "guideRoleQuizTitle": "Quizzes",
-  "guideRoleQuizBody": "Answer one question to check yourself before moving on. After every five sentences, you can also take a five-question review quiz based on sentences you've studied.",
+  "guideRoleQuizBody": "Quizzes come in two kinds. The Quick check is one question before the next sentence, where you choose the meaning of a word. After the fifth sentence, you move on to a review quiz drawn from what you've studied, where you fill in the blank.",
   "guideRoleScoreTitle": "Vocabulary score",
   "guideRoleScoreBody": "How many words you know, estimated from your quiz results.",
   "guideRoleVocabTestTitle": "Vocabulary test",
@@ -1193,13 +1210,14 @@
   "guideRoleNotificationTitle": "Daily notifications",
   "guideRoleNotificationBody": "A nudge to make studying a habit. The day's sentence arrives at the time you choose.",
   "guideRolePremiumTitle": "Free and Premium",
-  "guideRolePremiumBody": "You can keep learning every day on the Free plan. Premium raises the daily sentence count, unlocks topic choice, and lifts the vocabulary cap.",
+  "guideRolePremiumBody": "You can keep learning every day on the Free plan. Premium gives you more sentences a day, unlocks topic choice, and lifts the vocabulary cap.",
   "guidePlanColItem": "Item",
   "guidePlanColFree": "Free",
   "guidePlanColPremium": "Premium",
   "guidePlanRowSentences": "Sentences a day",
   "guidePlanRowTopic": "Topics",
   "guidePlanRowVocab": "Vocabulary cap",
+  "guidePlanSentencesUnlimited": "Unlimited",
   "guidePlanSentences": "{count}",
   "@guidePlanSentences": {
     "placeholders": {
@@ -1228,20 +1246,26 @@
     }
   },
   "guideHowSentenceTitle": "Read today's sentence",
-  "guideHowSentenceStep1": "Open the Learn tab to see today's sentence.",
+  "guideHowSentenceStep1": "Open the Learn tab to see today's sentence. Sentences come in sets of five, and the header shows how far along you are.",
   "guideHowSentenceStep3": "Gold words are the ones you're learning. The quiz asks about those.",
   "guideHowSentenceStep4": "Tap the sentence card to open the detail screen.",
   "guideHowDetailTitle": "Look closer",
-  "guideHowDetailLead": "The detail screen gives you a closer look at each sentence. The more context you have—where a word is used, how formal it is, how it is spelled, and which tone it uses—the easier it is to remember.",
+  "guideHowDetailLead": "The detail screen gives you a closer look at each sentence. The more context you have—where a word is used, how formal it is, how it's spelled, and which tone it uses—the easier it is to remember.",
   "guideHowSoundTitle": "Listen and speak",
   "guideHowSoundStep1": "“Listen” plays the Thai sentence on a loop.",
-  "guideHowSoundStep2": "On the detail screen, tap “Practice,” then hold “Hold to speak” while you repeat the sentence. Release the button to check your tones.",
-  "guideHowSoundStep3": "Green means correct, amber means close, and red means off. Tap a word to compare your pitch with the model and see what to fix.",
-  "guideHowQuizTitle": "Take the quiz",
-  "guideHowQuizStep1": "“One quick question” below the sentence takes you to the check quiz.",
-  "guideHowQuizStep2": "The review quiz offers hints: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.",
-  "guideHowQuizStep3": "In the review quiz, tap “Show the sentence” if you get stuck.",
-  "guideHowQuizStep4": "After every fifth sentence, the results screen lets you continue to the next sentence or take a review quiz.",
+  "guideHowSoundStep2": "On the detail screen, tap “Practice,” then press and hold the “Hold to speak” button while you repeat the sentence. Release it to check your tones.",
+  "guideHowSoundStep3": "Green means correct, amber means close, and red means off. Tap a word to compare your pitch with the model pronunciation and see what to fix.",
+  "guideHowQuizTitle": "Take the quick check",
+  "guideHowQuizStep1": "“One quick question” below the sentence takes you to the Quick check.",
+  "guideHowQuizStep2": "You choose the meaning of the target word — the gold one — from the sentence you just read, out of four options.",
+  "guideHowQuizStep3": "Once you answer, you get a short explanation of that word and how it is used.",
+  "guideHowQuizStep4": "From the results screen, go on to the next sentence. After the fifth, you go straight into the review quiz.",
+  "guideHowReviewQuizTitle": "Take the review quiz",
+  "guideHowReviewQuizStep1": "A checkpoint that arrives every five sentences. It draws on the sentences you've studied: you choose the word that fits the blank.",
+  "guideHowReviewQuizStep2": "The sentences it asks about are spaced out over time — a day ago, three days ago, a week ago, and so on. Within those, the words you haven't learnt yet come first.",
+  "guideHowReviewQuizStep3": "Hints are available: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.",
+  "guideHowReviewQuizStep4": "Tap “Show the sentence” if you get stuck.",
+  "guideHowReviewQuizStep5": "Answering correctly here is what raises your vocabulary score.",
   "guideHowSettingsTitle": "In Settings",
   "guideHowSettingsStep1": "Change your notification time, the display font, and the language of translations and explanations.",
   "guideHowSettingsStep2": "The topic for your next sentence and the ranking are here too.",

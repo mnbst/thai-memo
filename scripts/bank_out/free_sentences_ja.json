@@ -14399,67 +14399,16 @@
   "generation_tier": "free"
  },
  {
-  "key_word": "ท่าน",
+  "key_word": "กลับ",
   "key_word_rank": 61,
   "estimated_vocab": 61,
-  "thai_text": "ท่านครับ นี่คือคุณพ่อผมครับ",
-  "pronunciation": "thân khráp nîi khʉʉ khun-phɔ̂ɔ phǒm khráp",
-  "japanese_translation": "こちらが私の父でございます。",
+  "thai_text": "ผมจะกลับบ้านตอนนี้ครับ",
+  "pronunciation": "phǒm jà klàp bâan tɔɔn-níi khráp",
+  "japanese_translation": "今、家に帰ります。",
   "word_breakdown": [
    {
-    "word": "ท่าน",
-    "meaning": "あなた（目上・非常に丁寧）",
-    "notes": "目上の人に対する敬称・二人称。非常に改まった場で使用される。",
-    "syllables": [
-     "ท่าน"
-    ],
-    "pronunciation": "thân",
-    "grammatical_role": "代名詞"
-   },
-   {
-    "word": "ครับ",
-    "meaning": "です・ます（男性・丁寧）",
-    "notes": "",
-    "syllables": [
-     "ครับ"
-    ],
-    "pronunciation": "khráp",
-    "grammatical_role": "助詞"
-   },
-   {
-    "word": "นี่",
-    "meaning": "これ",
-    "notes": "",
-    "syllables": [
-     "นี่"
-    ],
-    "pronunciation": "nîi",
-    "grammatical_role": "代名詞"
-   },
-   {
-    "word": "คือ",
-    "meaning": "～である",
-    "notes": "",
-    "syllables": [
-     "คือ"
-    ],
-    "pronunciation": "khʉʉ",
-    "grammatical_role": "助動詞"
-   },
-   {
-    "word": "คุณพ่อ",
-    "meaning": "父（丁寧）",
-    "notes": "",
-    "syllables": [
-     "คุณ",
-     "พ่อ"
-    ],
-    "pronunciation": "khun-phɔ̂ɔ",
-    "grammatical_role": "名詞"
-   },
-   {
     "word": "ผม",
-    "meaning": "私（男性・丁寧）",
+    "meaning": "私（男性が使う丁寧な一人称）",
     "notes": "",
     "syllables": [
      "ผม"
@@ -14468,47 +14417,8 @@
     "grammatical_role": "代名詞"
    },
    {
-    "word": "ครับ",
-    "meaning": "丁寧な語尾（男性用）",
-    "syllables": [
-     "ครับ"
-    ],
-    "pronunciation": "khráp",
-    "grammatical_role": "助詞"
-   }
-  ],
-  "context": {
-   "usage_scenarios": "改まった場で目上の人に自分の家族を紹介する場面。",
-   "cultural_notes": "タイでは目上の人に対して非常に丁寧に話す文化がある。",
-   "style": "丁寧語（フォーマルな敬語・丁寧な表現）",
-   "emotion": "敬意・礼儀正しい",
-   "topic": "家族（家族紹介、子育て、親への感謝、兄弟、家族行事）",
-   "subTheme": "家族紹介",
-   "timeFrame": "いつもの習慣"
-  },
-  "generation_tier": "free"
- },
- {
-  "key_word": "ท่าน",
-  "key_word_rank": 61,
-  "estimated_vocab": 61,
-  "thai_text": "ท่านจะรับข้าวไหมครับ",
-  "pronunciation": "thân jà ráp khâaw mǎi khráp",
-  "japanese_translation": "お食事になさいますか。",
-  "word_breakdown": [
-   {
-    "word": "ท่าน",
-    "meaning": "あなた（丁寧・目上）",
-    "notes": "目上の人や顧客に対して使う二人称。丁寧で改まった表現。",
-    "syllables": [
-     "ท่าน"
-    ],
-    "pronunciation": "thân",
-    "grammatical_role": "代名詞"
-   },
-   {
     "word": "จะ",
-    "meaning": "〜するつもりだ",
+    "meaning": "～するつもりだ",
     "notes": "",
     "syllables": [
      "จะ"
@@ -14517,38 +14427,39 @@
     "grammatical_role": "助動詞"
    },
    {
-    "word": "รับ",
-    "meaning": "受け取る（注文する・食べるの丁寧語）",
-    "notes": "",
+    "word": "กลับ",
+    "meaning": "帰る",
+    "notes": "帰る、戻るの意味。動詞の後に目的地を直接置く。",
     "syllables": [
-     "รับ"
+     "กลับ"
     ],
-    "pronunciation": "ráp",
+    "pronunciation": "klàp",
     "grammatical_role": "動詞"
    },
    {
-    "word": "ข้าว",
-    "meaning": "ご飯（食事）",
+    "word": "บ้าน",
+    "meaning": "家",
     "notes": "",
     "syllables": [
-     "ข้าว"
+     "บ้าน"
     ],
-    "pronunciation": "khâaw",
+    "pronunciation": "bâan",
     "grammatical_role": "名詞"
    },
    {
-    "word": "ไหม",
-    "meaning": "（疑問の助詞）",
+    "word": "ตอนนี้",
+    "meaning": "今",
     "notes": "",
     "syllables": [
-     "ไหม"
+     "ตอน",
+     "นี้"
     ],
-    "pronunciation": "mǎi",
-    "grammatical_role": "助詞"
+    "pronunciation": "tɔɔn-níi",
+    "grammatical_role": "限定詞"
    },
    {
     "word": "ครับ",
-    "meaning": "（男性・丁寧の助詞）",
+    "meaning": "丁寧さを表す文末詞（男性用）",
     "notes": "",
     "syllables": [
      "ครับ"
@@ -14558,52 +14469,43 @@
    }
   ],
   "context": {
-   "usage_scenarios": "高級なレストランで店員が顧客に食事を伺う場面。",
-   "cultural_notes": "タイではサービス業において顧客を敬うために用いられる。",
-   "style": "丁寧語（フォーマルな敬語・丁寧な表現）",
-   "emotion": "中立・丁寧",
-   "topic": "食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
-   "subTheme": "注文",
-   "timeFrame": "いつもの習慣"
+   "cultural_notes": "「家」を指す「บ้าน」は、物理的な家だけでなく「自分の帰る場所」というニュアンスを含みます。",
+   "emotion": "落ち着いた丁寧な報告",
+   "relation": "自分より目下／顔見知り程度",
+   "style": "丁寧な口語",
+   "subTheme": "朝",
+   "timeFrame": "今まさに起きていること",
+   "topic": "あいさつ（朝・昼・夜、初対面、再会、別れ、電話）",
+   "usage_scenarios": "外出先から帰る時や、電話で今から戻ることを伝える時に使います。"
   },
   "generation_tier": "free"
  },
  {
-  "key_word": "ท่าน",
+  "key_word": "กลับ",
   "key_word_rank": 61,
   "estimated_vocab": 61,
-  "thai_text": "ท่านชอบสีนี้ไหม",
-  "pronunciation": "thân chɔ̂ɔp sǐi níi mǎi",
-  "japanese_translation": "こちらの色でよろしいでしょうか。",
+  "thai_text": "ข้าวร้านนี้อร่อยฉันจะกลับมาอีก",
+  "pronunciation": "khâaw ráan níi à-rɔ̀ɔi chǎn jà klàp maa ìik",
+  "japanese_translation": "この店の料理はおいしいのでまた来ます。",
   "word_breakdown": [
    {
-    "word": "ท่าน",
-    "meaning": "あなた（丁寧・改まった場での呼びかけ）",
-    "notes": "目上の方や顧客を指す敬称。คุณよりも非常に改まった表現。",
-    "syllables": [
-     "ท่าน"
-    ],
-    "pronunciation": "thân",
-    "grammatical_role": "代名詞"
-   },
-   {
-    "word": "ชอบ",
-    "meaning": "好きだ",
+    "word": "ข้าว",
+    "meaning": "ご飯、食事",
     "notes": "",
     "syllables": [
-     "ชอบ"
+     "ข้าว"
     ],
-    "pronunciation": "chɔ̂ɔp",
-    "grammatical_role": "動詞"
+    "pronunciation": "khâaw",
+    "grammatical_role": "名詞"
    },
    {
-    "word": "สี",
-    "meaning": "色",
+    "word": "ร้าน",
+    "meaning": "店",
     "notes": "",
     "syllables": [
-     "สี"
+     "ร้าน"
     ],
-    "pronunciation": "sǐi",
+    "pronunciation": "ráan",
     "grammatical_role": "名詞"
    },
    {
@@ -14617,105 +14519,198 @@
     "grammatical_role": "限定詞"
    },
    {
-    "word": "ไหม",
-    "meaning": "か（疑問文を作る）",
+    "word": "อร่อย",
+    "meaning": "おいしい",
     "notes": "",
     "syllables": [
-     "ไหม"
+     "อร่อย"
     ],
-    "pronunciation": "mǎi",
-    "grammatical_role": "助詞"
+    "pronunciation": "à-rɔ̀ɔi",
+    "grammatical_role": "形容詞"
+   },
+   {
+    "word": "ฉัน",
+    "meaning": "私（男女共通、やや丁寧）",
+    "notes": "",
+    "syllables": [
+     "ฉัน"
+    ],
+    "pronunciation": "chǎn",
+    "grammatical_role": "代名詞"
+   },
+   {
+    "word": "จะ",
+    "meaning": "〜するつもりだ",
+    "notes": "",
+    "syllables": [
+     "จะ"
+    ],
+    "pronunciation": "jà",
+    "grammatical_role": "助動詞"
+   },
+   {
+    "word": "กลับ",
+    "meaning": "戻る、帰る",
+    "notes": "戻る、帰るの意。กลับมา（戻ってくる）とセットで使うことが多い。",
+    "syllables": [
+     "กลับ"
+    ],
+    "pronunciation": "klàp",
+    "grammatical_role": "動詞"
+   },
+   {
+    "word": "มา",
+    "meaning": "来る",
+    "notes": "",
+    "syllables": [
+     "มา"
+    ],
+    "pronunciation": "maa",
+    "grammatical_role": "動詞"
+   },
+   {
+    "word": "อีก",
+    "meaning": "もう一度",
+    "notes": "",
+    "syllables": [
+     "อีก"
+    ],
+    "pronunciation": "ìik",
+    "grammatical_role": "副詞"
    }
   ],
   "context": {
-   "usage_scenarios": "高級店で店員が顧客に色を確認する際の使用。",
-   "cultural_notes": "ท่านเป็นคำสุภาพที่นิยมใช้ในงานบริการระดับสูง",
-   "style": "丁寧語（フォーマルな敬語・丁寧な表現）",
-   "emotion": "中立的で礼儀正しい",
-   "topic": "買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
-   "subTheme": "サイズ・色の確認",
-   "timeFrame": "さっき起きた出来事"
+   "cultural_notes": "タイで「戻ってくる」と伝えると、料理や店に対する最大限の賛辞になります。",
+   "emotion": "満足感、好意的",
+   "relation": "自分より目下／顔見知り程度",
+   "style": "丁寧な口語",
+   "subTheme": "感想",
+   "timeFrame": "これからの予定",
+   "topic": "食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
+   "usage_scenarios": "食事の後に店員や友人に感想を伝える時。"
   },
   "generation_tier": "free"
  },
  {
-  "key_word": "ท่าน",
+  "key_word": "กลับ",
   "key_word_rank": 61,
   "estimated_vocab": 61,
-  "thai_text": "ยินดีที่ได้พบท่านครับ",
-  "pronunciation": "yin-dii thîi dâai phóp thân khráp",
-  "japanese_translation": "お会いできて光栄です。",
+  "thai_text": "ฉันกลับโรงแรม",
+  "pronunciation": "chǎn klàp roong-rɛɛm",
+  "japanese_translation": "私はホテルに戻る。",
   "word_breakdown": [
    {
-    "word": "ยินดี",
-    "meaning": "喜ぶ",
+    "word": "ฉัน",
+    "meaning": "私（男女共通、丁寧な一人称）",
     "notes": "",
     "syllables": [
-     "ยิน",
-     "ดี"
+     "ฉัน"
     ],
-    "pronunciation": "yin-dii",
-    "grammatical_role": "形容詞"
-   },
-   {
-    "word": "ที่",
-    "meaning": "〜こと",
-    "notes": "",
-    "syllables": [
-     "ที่"
-    ],
-    "pronunciation": "thîi",
+    "pronunciation": "chǎn",
     "grammatical_role": "代名詞"
    },
    {
-    "word": "ได้",
-    "meaning": "〜できる",
-    "notes": "",
+    "word": "กลับ",
+    "meaning": "戻る、帰る",
+    "notes": "場所へ戻る、帰るという意味。後ろに場所を示す語を直接置くことができる。",
     "syllables": [
-     "ได้"
+     "กลับ"
     ],
-    "pronunciation": "dâai",
-    "grammatical_role": "助動詞"
-   },
-   {
-    "word": "พบ",
-    "meaning": "会う",
-    "notes": "",
-    "syllables": [
-     "พบ"
-    ],
-    "pronunciation": "phóp",
+    "pronunciation": "klàp",
     "grammatical_role": "動詞"
    },
    {
-    "word": "ท่าน",
-    "meaning": "あなた（目上の相手・丁寧）",
-    "notes": "目上の相手や社会的地位の高い方を指す、非常に丁寧な二人称。",
-    "syllables": [
-     "ท่าน"
-    ],
-    "pronunciation": "thân",
-    "grammatical_role": "代名詞"
-   },
-   {
-    "word": "ครับ",
-    "meaning": "です・ます（男性・丁寧）",
+    "word": "โรงแรม",
+    "meaning": "ホテル",
     "notes": "",
     "syllables": [
-     "ครับ"
+     "โรง",
+     "แรม"
     ],
-    "pronunciation": "khráp",
-    "grammatical_role": "助詞"
+    "pronunciation": "roong-rɛɛm",
+    "grammatical_role": "名詞"
    }
   ],
   "context": {
-   "usage_scenarios": "公式な場での初対面時。",
-   "cultural_notes": "目上の人に対する敬意を込めた丁寧な呼びかけ。",
-   "style": "丁寧語（フォーマルな敬語・丁寧な表現）",
-   "emotion": "敬意",
-   "topic": "あいさつ（朝・昼・夜、初対面、再会、別れ、電話）",
-   "subTheme": "初対面",
-   "timeFrame": "今まさに起きていること"
+   "cultural_notes": "タイ語では帰る場所を省略せず直後に置くのが一般的です。",
+   "emotion": "落ち着いた報告",
+   "relation": "自分と対等／家族や恋人のように近い",
+   "style": "標準的で丁寧な言い回し",
+   "subTheme": "ホテル",
+   "timeFrame": "いつもの習慣",
+   "topic": "旅行（ホテル、道案内、観光地、空港、ツアー）",
+   "usage_scenarios": "観光から宿泊先に戻る際や、日常の習慣として話す場面。"
+  },
+  "generation_tier": "free"
+ },
+ {
+  "key_word": "กลับ",
+  "key_word_rank": 61,
+  "estimated_vocab": 61,
+  "thai_text": "ฉันขอกลับบ้านดึก",
+  "pronunciation": "chǎn khɔ̌ɔ klàp bâan dʉ̀k",
+  "japanese_translation": "私は遅く家に帰ることを願い出ます。",
+  "word_breakdown": [
+   {
+    "word": "ฉัน",
+    "meaning": "私（男女共通・丁寧）",
+    "notes": "",
+    "syllables": [
+     "ฉัน"
+    ],
+    "pronunciation": "chǎn",
+    "grammatical_role": "代名詞"
+   },
+   {
+    "word": "ขอ",
+    "meaning": "頼む、願う",
+    "notes": "",
+    "syllables": [
+     "ขอ"
+    ],
+    "pronunciation": "khɔ̌ɔ",
+    "grammatical_role": "動詞"
+   },
+   {
+    "word": "กลับ",
+    "meaning": "戻る、帰る",
+    "notes": "移動の方向に関わらず、元いた場所やホームグラウンドに戻る動作を指す。",
+    "syllables": [
+     "กลับ"
+    ],
+    "pronunciation": "klàp",
+    "grammatical_role": "動詞"
+   },
+   {
+    "word": "บ้าน",
+    "meaning": "家",
+    "notes": "",
+    "syllables": [
+     "บ้าน"
+    ],
+    "pronunciation": "bâan",
+    "grammatical_role": "名詞"
+   },
+   {
+    "word": "ดึก",
+    "meaning": "遅い（夜）",
+    "notes": "",
+    "syllables": [
+     "ดึก"
+    ],
+    "pronunciation": "dʉ̀k",
+    "grammatical_role": "名詞"
+   }
+  ],
+  "context": {
+   "cultural_notes": "タイの職場でも、帰宅時間を管理者に申請または報告する文化がある。",
+   "emotion": "真剣、控えめ",
+   "relation": "自分と対等／ほとんど面識がない",
+   "style": "やや丁寧な日常語",
+   "subTheme": "残業申請",
+   "timeFrame": "今まさに起きていること",
+   "topic": "仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）",
+   "usage_scenarios": "職場で遅くまで残業したい旨を上司に伝える場面。"
   },
   "generation_tier": "free"
  },
@@ -20974,24 +20969,25 @@
   "key_word": "ต้องการ",
   "key_word_rank": 83,
   "estimated_vocab": 83,
-  "thai_text": "ท่านต้องการราคานี้ไหมครับ",
-  "pronunciation": "thân tɔ̂ɔng-kaan raa-khaa níi mǎi khráp",
-  "japanese_translation": "こちらの価格でよろしいでしょうか。",
+  "thai_text": "ลูกค้าต้องการลดราคาไหมครับ",
+  "pronunciation": "lûuk-kháa tɔ̂ɔng-kaan lót raa-khaa mǎi khráp",
+  "japanese_translation": "お客様は値下げを希望されますか。",
   "word_breakdown": [
    {
-    "word": "ท่าน",
-    "meaning": "あなた（丁寧）",
+    "word": "ลูกค้า",
+    "meaning": "お客様",
     "notes": "",
     "syllables": [
-     "ท่าน"
+     "ลูก",
+     "ค้า"
     ],
-    "pronunciation": "thân",
-    "grammatical_role": "代名詞"
+    "pronunciation": "lûuk-kháa",
+    "grammatical_role": "名詞"
    },
    {
     "word": "ต้องการ",
-    "meaning": "希望する、求める（硬い表現）",
-    "notes": "「欲しい・望む」の硬い表現。接客や公的な場で使われる。",
+    "meaning": "希望する、必要とする（改まった語）",
+    "notes": "「～が欲しい」「～を希望する」の意味。動詞の前に置き、丁寧で改まった響きを持つ。",
     "syllables": [
      "ต้อง",
      "การ"
@@ -21000,8 +20996,18 @@
     "grammatical_role": "動詞"
    },
    {
+    "word": "ลด",
+    "meaning": "下げる、減らす",
+    "notes": "",
+    "syllables": [
+     "ลด"
+    ],
+    "pronunciation": "lót",
+    "grammatical_role": "動詞"
+   },
+   {
     "word": "ราคา",
-    "meaning": "価格",
+    "meaning": "価格、値段",
     "notes": "",
     "syllables": [
      "รา",
@@ -21011,18 +21017,8 @@
     "grammatical_role": "名詞"
    },
    {
-    "word": "นี้",
-    "meaning": "これ",
-    "notes": "",
-    "syllables": [
-     "นี้"
-    ],
-    "pronunciation": "níi",
-    "grammatical_role": "限定詞"
-   },
-   {
     "word": "ไหม",
-    "meaning": "か（疑問の助詞）",
+    "meaning": "～か（疑問の助詞）",
     "notes": "",
     "syllables": [
      "ไหม"
@@ -21032,7 +21028,7 @@
    },
    {
     "word": "ครับ",
-    "meaning": "です（男性・丁寧）",
+    "meaning": "～です（男性用丁寧語）",
     "notes": "",
     "syllables": [
      "ครับ"
@@ -21042,13 +21038,14 @@
    }
   ],
   "context": {
-   "usage_scenarios": "店員が客に提示した価格で合意できるか確認する場面。",
-   "cultural_notes": "店員が客に対して敬意を払うため、ท่านという丁寧な代名詞を使用している。",
-   "style": "丁寧語（フォーマルな敬語・丁寧な表現）",
-   "emotion": "中立",
-   "topic": "買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
+   "cultural_notes": "タイの市場や店舗で、店員は客を「ลูกค้า」と呼び敬意を示す。",
+   "emotion": "丁寧、事務的",
+   "relation": "自分より目上／ほとんど面識がない",
+   "style": "丁寧な書き言葉・接客スタイル",
    "subTheme": "値段交渉",
-   "timeFrame": "今まさに起きていること"
+   "timeFrame": "今まさに起きていること",
+   "topic": "買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
+   "usage_scenarios": "店員が丁寧にお客様の意向を確認する場面。"
   },
   "generation_tier": "free"
  },

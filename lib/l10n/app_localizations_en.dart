@@ -44,13 +44,10 @@ class L10nEn extends L10n {
   String get navSettings => 'Settings';
 
   @override
-  String get learnAppBarTitle => 'Today\'s sentence';
-
-  @override
   String get learnOpenDetail => 'Details';
 
   @override
-  String get learnQuizTitle => 'Quiz';
+  String get learnQuizTitle => 'Quick check';
 
   @override
   String get learnSummaryQuizTitle => 'Review quiz';
@@ -59,13 +56,38 @@ class L10nEn extends L10n {
   String get learnNextSentence => 'Next sentence';
 
   @override
+  String get learnNextSet => 'Next set';
+
+  @override
+  String get learnGoToSummaryQuiz => 'Go to review quiz';
+
+  @override
+  String learnDailySetRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more to the review quiz',
+      one: '1 more to the review quiz',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get learnDailySetLast => 'Review quiz is next';
+
+  @override
+  String learnDailySetProgress(int position, int total) {
+    return '$position / $total';
+  }
+
+  @override
   String get commonOk => 'OK';
 
   @override
   String get commonRetry => 'Try again';
 
   @override
-  String get sentencePreparing => 'Preparing your next sentence...';
+  String get sentencePreparing => 'Preparing your sentences...';
 
   @override
   String todaysWords(int count) {
@@ -101,6 +123,9 @@ class L10nEn extends L10n {
       'Sample sentence (not saved to your history)';
 
   @override
+  String get sampleReload => 'Load today\'s sentence';
+
+  @override
   String get sampleGreetingTranslation => 'Hello (said by a man)';
 
   @override
@@ -132,9 +157,6 @@ class L10nEn extends L10n {
   String get quizTodayTitle => 'Quiz';
 
   @override
-  String get quizOptionalChallenge => 'Take the 5-question challenge';
-
-  @override
   String get quizGenerating => 'Building your quiz...';
 
   @override
@@ -160,6 +182,12 @@ class L10nEn extends L10n {
 
   @override
   String get quizPrompt => 'Choose the word that fits the blank';
+
+  @override
+  String get quizMeaningPrompt => 'Choose the meaning of this word';
+
+  @override
+  String get quizWordExplanation => 'Word explanation';
 
   @override
   String quizProgress(int index, int total) {
@@ -530,6 +558,49 @@ class L10nEn extends L10n {
   String get settingsContact => 'Contact us';
 
   @override
+  String get settingsLifetimeMigration => 'Move to the lifetime plan';
+
+  @override
+  String get settingsLifetimeMigrationSubtitle => 'No additional payment';
+
+  @override
+  String get lifetimeMigrationTitle => 'We\'ve added a lifetime plan';
+
+  @override
+  String get lifetimeMigrationBody =>
+      'Thank you for staying with us. For our continuing subscribers, moving to the lifetime plan is free right now.';
+
+  @override
+  String get lifetimeMigrationNoCharge => 'No additional payment';
+
+  @override
+  String get lifetimeMigrationCancelNote =>
+      'After moving, please turn off monthly auto-renewal yourself in your App Store account settings. Billing continues until you do.';
+
+  @override
+  String get lifetimeMigrationProgress => 'Moving your plan…';
+
+  @override
+  String get lifetimeMigrationDoneTitle => 'You\'re on the lifetime plan';
+
+  @override
+  String get lifetimeMigrationDoneBody =>
+      'Premium is yours from here on. Don\'t forget to turn off monthly auto-renewal.';
+
+  @override
+  String get lifetimeMigrationFailedTitle => 'We couldn\'t move your plan';
+
+  @override
+  String get lifetimeMigrationFailedBody =>
+      'Please try again in a little while. Your Premium access continues as before.';
+
+  @override
+  String get lifetimeMigrationConfirm => 'Move to lifetime';
+
+  @override
+  String get lifetimeMigrationLater => 'Later';
+
+  @override
   String get trialEndedTitle => 'Your premium trial has ended';
 
   @override
@@ -545,9 +616,7 @@ class L10nEn extends L10n {
   String get trialEndedChangeQuotaLabel => 'Sentences';
 
   @override
-  String trialEndedChangeQuotaPremium(int premium) {
-    return '$premium/day';
-  }
+  String get trialEndedChangeQuotaPremium => 'Unlimited';
 
   @override
   String trialEndedChangeQuotaFree(int free) {
@@ -584,9 +653,7 @@ class L10nEn extends L10n {
   String get trialStartedChangeQuotaLabel => 'Sentences';
 
   @override
-  String trialStartedChangeQuota(int premium) {
-    return 'Up to $premium a day';
-  }
+  String get trialStartedChangeQuota => 'Unlimited';
 
   @override
   String get trialStartedChangeTopicLabel => 'Topics';
@@ -605,6 +672,9 @@ class L10nEn extends L10n {
 
   @override
   String get nextTopicPrefix => 'Next topic: ';
+
+  @override
+  String get topicPrefix => 'Topic: ';
 
   @override
   String get topicName_blDrama => 'Thai BL dramas';
@@ -777,6 +847,29 @@ class L10nEn extends L10n {
   String get paywallSubscribe => 'Go Premium';
 
   @override
+  String get paywallPlanMonthlyTitle => 'Monthly';
+
+  @override
+  String get paywallPlanMonthlyNote => 'Renews monthly. Cancel anytime.';
+
+  @override
+  String paywallPlanMonthlyPrice(String price) {
+    return '$price / mo';
+  }
+
+  @override
+  String get paywallPlanLifetimeTitle => 'Lifetime';
+
+  @override
+  String get paywallPlanLifetimeNote => 'One payment. No renewal.';
+
+  @override
+  String get paywallPurchaseCta => 'Start with this plan';
+
+  @override
+  String get paywallLifetimeNote => 'A one-time payment. No renewals.';
+
+  @override
   String get paywallLegal =>
       'Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.';
 
@@ -797,21 +890,12 @@ class L10nEn extends L10n {
   String get paywallFeatureQuotaTitle => 'Immerse yourself in more Thai';
 
   @override
-  String paywallFeatureQuotaFree(int count, int limit) {
-    return '$count sentences a day · vocabulary capped at $limit words';
-  }
-
-  @override
-  String paywallFeatureQuotaPremium(int count) {
-    return '$count sentences a day · no vocabulary cap';
-  }
+  String get paywallFeatureQuotaPremium =>
+      'Unlimited sentences · no vocabulary cap';
 
   @override
   String get paywallFeatureTopicTitle =>
       'Pick a topic and go deeper into Thai culture';
-
-  @override
-  String get paywallFeatureTopicFree => 'A random beginner topic';
 
   @override
   String get paywallFeatureTopicPremium =>
@@ -1355,9 +1439,7 @@ class L10nEn extends L10n {
       'That\'s the last new sentence for today.\nYou can still revisit past sentences in History.';
 
   @override
-  String quotaSentenceUpgradeCta(int count) {
-    return 'Premium gives you $count sentences a day';
-  }
+  String get quotaSentenceUpgradeCta => 'Premium gives you unlimited sentences';
 
   @override
   String get errAuth =>
@@ -2349,7 +2431,7 @@ class L10nEn extends L10n {
   String get guideTitle => 'How to use the app';
 
   @override
-  String get guideSettingsSubtitle => 'Read how the app works';
+  String get guideSettingsSubtitle => 'See how the app works';
 
   @override
   String get guideSkip => 'Skip';
@@ -2408,19 +2490,19 @@ class L10nEn extends L10n {
 
   @override
   String get guideOverviewBody1 =>
-      'Every day, AI writes new Thai sentences matched to your vocabulary level.';
+      'Every day, AI writes a set of five Thai sentences matched to your vocabulary level.';
 
   @override
   String get guideOverviewBody2 =>
-      'Read the sentence, then check yourself with a quiz. Repeating those two steps is how you learn here.';
+      'Read the sentence, then check yourself with a quiz. Five of those make one cycle.';
 
   @override
   String get guideOverviewSummaryQuiz =>
-      'After every five sentences, you answer five questions drawn from the sentences you\'ve studied so far. If you get stuck, there are hints and a way back to the sentence.';
+      'After you finish five sentences, you move on to a review quiz drawn from the sentences you\'ve studied so far. If you get stuck, you can use hints or jump back to the sentence.';
 
   @override
   String get guideOverviewBody3 =>
-      'The more you get right in review quizzes, the higher your vocabulary score — and the wider the range of words your sentences draw from. Words you struggle with are prioritized in future review quizzes, so you don\'t have to decide what to review next.';
+      'The more you get right in review quizzes, the higher your vocabulary score—and the wider the range of words your sentences draw from. Words you struggle with are prioritized in future review quizzes, so you don\'t have to decide what to review next.';
 
   @override
   String get guideRoleSentenceTitle => 'Sentences';
@@ -2434,14 +2516,14 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleSoundBody =>
-      'In Thai, tone changes meaning. Record yourself, compare it with the model, and see which tones are off.';
+      'In Thai, tone changes meaning. Record yourself, compare it with the model pronunciation, and see which tones are off.';
 
   @override
   String get guideRoleQuizTitle => 'Quizzes';
 
   @override
   String get guideRoleQuizBody =>
-      'Answer one question to check yourself before moving on. After every five sentences, you can also take a five-question review quiz based on sentences you\'ve studied.';
+      'Quizzes come in two kinds. The Quick check is one question before the next sentence, where you choose the meaning of a word. After the fifth sentence, you move on to a review quiz drawn from what you\'ve studied, where you fill in the blank.';
 
   @override
   String get guideRoleScoreTitle => 'Vocabulary score';
@@ -2483,7 +2565,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRolePremiumBody =>
-      'You can keep learning every day on the Free plan. Premium raises the daily sentence count, unlocks topic choice, and lifts the vocabulary cap.';
+      'You can keep learning every day on the Free plan. Premium gives you more sentences a day, unlocks topic choice, and lifts the vocabulary cap.';
 
   @override
   String get guidePlanColItem => 'Item';
@@ -2502,6 +2584,9 @@ class L10nEn extends L10n {
 
   @override
   String get guidePlanRowVocab => 'Vocabulary cap';
+
+  @override
+  String get guidePlanSentencesUnlimited => 'Unlimited';
 
   @override
   String guidePlanSentences(int count) {
@@ -2533,7 +2618,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowSentenceStep1 =>
-      'Open the Learn tab to see today\'s sentence.';
+      'Open the Learn tab to see today\'s sentence. Sentences come in sets of five, and the header shows how far along you are.';
 
   @override
   String get guideHowSentenceStep3 =>
@@ -2548,7 +2633,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowDetailLead =>
-      'The detail screen gives you a closer look at each sentence. The more context you have—where a word is used, how formal it is, how it is spelled, and which tone it uses—the easier it is to remember.';
+      'The detail screen gives you a closer look at each sentence. The more context you have—where a word is used, how formal it is, how it\'s spelled, and which tone it uses—the easier it is to remember.';
 
   @override
   String get guideHowSoundTitle => 'Listen and speak';
@@ -2559,30 +2644,53 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowSoundStep2 =>
-      'On the detail screen, tap “Practice,” then hold “Hold to speak” while you repeat the sentence. Release the button to check your tones.';
+      'On the detail screen, tap “Practice,” then press and hold the “Hold to speak” button while you repeat the sentence. Release it to check your tones.';
 
   @override
   String get guideHowSoundStep3 =>
-      'Green means correct, amber means close, and red means off. Tap a word to compare your pitch with the model and see what to fix.';
+      'Green means correct, amber means close, and red means off. Tap a word to compare your pitch with the model pronunciation and see what to fix.';
 
   @override
-  String get guideHowQuizTitle => 'Take the quiz';
+  String get guideHowQuizTitle => 'Take the quick check';
 
   @override
   String get guideHowQuizStep1 =>
-      '“One quick question” below the sentence takes you to the check quiz.';
+      '“One quick question” below the sentence takes you to the Quick check.';
 
   @override
   String get guideHowQuizStep2 =>
-      'The review quiz offers hints: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.';
+      'You choose the meaning of the target word — the gold one — from the sentence you just read, out of four options.';
 
   @override
   String get guideHowQuizStep3 =>
-      'In the review quiz, tap “Show the sentence” if you get stuck.';
+      'Once you answer, you get a short explanation of that word and how it is used.';
 
   @override
   String get guideHowQuizStep4 =>
-      'After every fifth sentence, the results screen lets you continue to the next sentence or take a review quiz.';
+      'From the results screen, go on to the next sentence. After the fifth, you go straight into the review quiz.';
+
+  @override
+  String get guideHowReviewQuizTitle => 'Take the review quiz';
+
+  @override
+  String get guideHowReviewQuizStep1 =>
+      'A checkpoint that arrives every five sentences. It draws on the sentences you\'ve studied: you choose the word that fits the blank.';
+
+  @override
+  String get guideHowReviewQuizStep2 =>
+      'The sentences it asks about are spaced out over time — a day ago, three days ago, a week ago, and so on. Within those, the words you haven\'t learnt yet come first.';
+
+  @override
+  String get guideHowReviewQuizStep3 =>
+      'Hints are available: tap Hint once for the pronunciation, twice for the translation. Answering without hints raises your score faster.';
+
+  @override
+  String get guideHowReviewQuizStep4 =>
+      'Tap “Show the sentence” if you get stuck.';
+
+  @override
+  String get guideHowReviewQuizStep5 =>
+      'Answering correctly here is what raises your vocabulary score.';
 
   @override
   String get guideHowSettingsTitle => 'In Settings';

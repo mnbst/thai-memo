@@ -21,16 +21,40 @@
   "navLearn": "学習",
   "navHistory": "履歴",
   "navSettings": "設定",
-  "learnAppBarTitle": "今日の例文",
   "learnOpenDetail": "詳細",
 
-  "learnQuizTitle": "クイズ",
+  "learnQuizTitle": "確認クイズ",
   "learnSummaryQuizTitle": "まとめクイズ",
   "learnNextSentence": "次の例文へ",
+  "learnNextSet": "次のセットへ",
+  "@learnNextSet": {
+    "description": "まとめクイズを終えて、新しい5本のセットを始めるボタン"
+  },
+  "learnGoToSummaryQuiz": "まとめクイズへ",
+  "@learnGoToSummaryQuiz": {
+    "description": "セットの最後の確認クイズの後、まとめクイズへ進むボタン"
+  },
+  "learnDailySetRemaining": "あと{count}本でまとめクイズ",
+  "@learnDailySetRemaining": {
+    "description": "セットの残り本数。5本を学び終えるとまとめクイズへ進む",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learnDailySetLast": "次はまとめクイズ",
+  "@learnDailySetLast": {
+    "description": "セットの最後の1本を表示しているとき（残り0本）の見出し"
+  },
+  "learnDailySetProgress": "{position} / {total}",
+  "@learnDailySetProgress": {
+    "description": "配信セットの何本目か",
+    "placeholders": {
+      "position": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "commonOk": "OK",
   "commonRetry": "再試行",
 
-  "sentencePreparing": "次の例文を準備中...",
+  "sentencePreparing": "例文を準備中...",
   "todaysWords": "{count, plural, other{学習単語}}",
   "@todaysWords": {
     "description": "学習単語セクションの見出し。英語は語数で単複が変わる",
@@ -53,6 +77,7 @@
   "badgePremiumSentence": "Premium例文",
   "badgeFreeSentence": "Free例文",
   "sampleSentenceNotice": "サンプル例文（履歴には保存されません）",
+  "sampleReload": "今日の例文を読み込む",
 
   "sampleGreetingTranslation": "こんにちは（男性の場合）",
   "sampleGreetingWord1Meaning": "こんにちは、さようなら",
@@ -65,7 +90,6 @@
   "sampleGreetingUsage": "朝昼晩いつでも使える基本的な挨拶。女性の場合は「ค่ะ」を使います。",
 
   "quizTodayTitle": "クイズ",
-  "quizOptionalChallenge": "5問チャレンジする",
   "quizGenerating": "クイズを生成中...",
   "quizOpenSentenceFirst": "まず例文を開きましょう",
   "quizFromLearningSentence": "クイズは学習中の例文から出題されます",
@@ -81,6 +105,8 @@
     }
   },
   "quizPrompt": "下線部に入る単語を選んでください",
+  "quizMeaningPrompt": "この単語の意味を選んでください",
+  "quizWordExplanation": "単語の解説",
   "quizProgress": "問題 {index} / {total}",
   "@quizProgress": {
     "placeholders": {
@@ -283,19 +309,25 @@
   "settingsPrivacyPolicy": "プライバシーポリシー",
   "settingsTerms": "利用規約",
   "settingsContact": "お問い合わせ",
+  "settingsLifetimeMigration": "買い切りプランへ移行",
+  "settingsLifetimeMigrationSubtitle": "追加のお支払いはありません",
+  "lifetimeMigrationTitle": "買い切りプランを新設しました",
+  "lifetimeMigrationBody": "いつもご利用ありがとうございます。継続してくださっている方へ、いまなら無料で買い切りプランへ移行いただけます。",
+  "lifetimeMigrationNoCharge": "追加のお支払いはありません",
+  "lifetimeMigrationCancelNote": "移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。",
+  "lifetimeMigrationProgress": "移行しています…",
+  "lifetimeMigrationDoneTitle": "買い切りプランに移行しました",
+  "lifetimeMigrationDoneBody": "これ以降ずっとプレミアムをご利用いただけます。月額の自動更新の停止をお忘れなく。",
+  "lifetimeMigrationFailedTitle": "移行できませんでした",
+  "lifetimeMigrationFailedBody": "時間をおいて、もう一度お試しください。プレミアムのご利用はこれまでどおり続きます。",
+  "lifetimeMigrationConfirm": "買い切りに移行する",
+  "lifetimeMigrationLater": "あとで",
   "trialEndedTitle": "プレミアム体験が終了しました",
   "trialEndedBody": "今日から無料プランになります。",
   "trialEndedKeepPremium": "プレミアムプランを見る",
   "trialEndedKeepFree": "あとで",
   "trialEndedChangeQuotaLabel": "例文",
-  "trialEndedChangeQuotaPremium": "1日{premium}回",
-  "@trialEndedChangeQuotaPremium": {
-    "placeholders": {
-      "premium": {
-        "type": "int"
-      }
-    }
-  },
+  "trialEndedChangeQuotaPremium": "無制限",
   "trialEndedChangeQuotaFree": "1日{free}回",
   "@trialEndedChangeQuotaFree": {
     "placeholders": {
@@ -325,14 +357,7 @@
   },
   "trialStartedBody": "free版では使えない機能を、この期間だけ開放しました。",
   "trialStartedChangeQuotaLabel": "例文",
-  "trialStartedChangeQuota": "1日{premium}回まで",
-  "@trialStartedChangeQuota": {
-    "placeholders": {
-      "premium": {
-        "type": "int"
-      }
-    }
-  },
+  "trialStartedChangeQuota": "無制限",
   "trialStartedChangeTopicLabel": "テーマ選択",
   "trialStartedChangeTopic": "例文のテーマを自分で選べます",
   "trialStartedStart": "わかった",
@@ -340,6 +365,10 @@
 
   "topicPickerTitle": "テーマを選択",
   "nextTopicPrefix": "次のテーマ: ",
+  "topicPrefix": "テーマ: ",
+  "@topicPrefix": {
+    "description": "例文画面の帯（表示のみ・変更不可）の見出し"
+  },
   "topicName_blDrama": "タイBLドラマ",
   "topicSub_blDrama": "告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び",
   "topicName_romance": "恋愛・男女関係",
@@ -397,6 +426,21 @@
   "paywallSignInForRestore": "購入を復元するには、購入時のアカウントでサインインしてください。",
   "paywallActive": "プレミアムプランに加入中です",
   "paywallSubscribe": "プレミアムに登録",
+  "paywallPlanMonthlyTitle": "月額プラン",
+  "paywallPlanMonthlyNote": "毎月自動更新・いつでも解約",
+  "paywallPlanMonthlyPrice": "{price} / 月",
+  "@paywallPlanMonthlyPrice": {
+    "description": "プラン選択の月額側。price はストアの表示価格（¥600 など）",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallPlanLifetimeTitle": "買い切り",
+  "paywallPlanLifetimeNote": "支払いは1回だけ・更新なし",
+  "paywallPurchaseCta": "このプランで始める",
+  "paywallLifetimeNote": "1回きりの支払いです。更新はありません。",
   "paywallLegal": "サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。",
   "paywallRestore": "購入を復元",
   "paywallPriceYen": "¥{amount} / 月",
@@ -419,27 +463,8 @@
     }
   },
   "paywallFeatureQuotaTitle": "良質なタイ語に大量に触れられる",
-  "paywallFeatureQuotaFree": "例文{count}回/日・単語は{limit}語まで",
-  "@paywallFeatureQuotaFree": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "limit": {
-        "type": "int"
-      }
-    }
-  },
-  "paywallFeatureQuotaPremium": "例文{count}回/日・単語の上限なし",
-  "@paywallFeatureQuotaPremium": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "paywallFeatureQuotaPremium": "例文は無制限・単語の上限なし",
   "paywallFeatureTopicTitle": "テーマを選んでタイ文化に親しむ",
-  "paywallFeatureTopicFree": "入門テーマからランダム",
   "paywallFeatureTopicPremium": "祭り・寺院の作法・BLドラマなど自分で選べる",
   "paywallTrialActive": "いまはプレミアム体験中です。期間が終わると、ここは元の内容に戻ります。",
   "paywallTrialEnded": "体験期間中に使えていた機能です。",
@@ -765,16 +790,11 @@
   "quotaQuizReached": "今日の新しいクイズはここまでです。",
   "quotaSentenceReached": "今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。",
   "@quotaSentenceReached": {
-    "description": "上限回数は tier で異なる（free 5 / premium 20）ため文言に数字を含めない"
+    "description": "上限回数は tier で異なる（free 5 / premium 無制限）ため文言に数字を含めない"
   },
-  "quotaSentenceUpgradeCta": "Premiumなら1日{count}例文",
+  "quotaSentenceUpgradeCta": "Premiumなら例文は無制限",
   "@quotaSentenceUpgradeCta": {
-    "description": "上限に当たった free ユーザーだけに出すペイウォール導線。count は PREMIUM_DAILY_SENTENCES",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
+    "description": "上限に当たった free ユーザーだけに出すペイウォール導線。premium の例文は無制限なので数字を含めない"
   },
   "errAuth": "認証エラーが発生しました。アプリを再起動してください。",
   "errNetwork": "ネットワーク接続エラーが発生しました。インターネット接続を確認してください。",
@@ -1276,16 +1296,16 @@
   "guideChapterRoles": "それぞれの機能の役割",
   "guideChapterHowTo": "操作のしかた",
   "guideOverviewTitle": "このアプリでやること",
-  "guideOverviewBody1": "AIがあなたの語彙に合わせたタイ語の例文を毎日つくります。",
-  "guideOverviewBody2": "例文で覚える → クイズで確かめる。このくり返しが学習の中心です。",
-  "guideOverviewSummaryQuiz": "例文を5つ読むごとに、それまでに学んだ例文からまとめクイズが出題されます。迷ったらヒントや例文の見返しも使えます。",
-  "guideOverviewBody3": "まとめクイズに正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。",
+  "guideOverviewBody1": "AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。",
+  "guideOverviewBody2": "例文で覚える → クイズで確かめる。これを5つくり返して1巡です。",
+  "guideOverviewSummaryQuiz": "例文5つを学び終えると「まとめクイズ」に進みます。それまでに学んだ例文から出題され、迷ったらヒントや例文の見返しも使えます。",
+  "guideOverviewBody3": "「まとめクイズ」に正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。",
   "guideRoleSentenceTitle": "例文",
   "guideRoleSentenceBody": "詳細画面からタイ単語の使用例を確認しましょう。単語だけを覚えるより、使う場面ごと覚えるほうが記憶に残ります。",
   "guideRoleSoundTitle": "発音練習",
   "guideRoleSoundBody": "自分のイントネーションとお手本を聞き比べて、発音のコツを掴みましょう。タイ語は声調で意味が変わります。",
   "guideRoleQuizTitle": "クイズ",
-  "guideRoleQuizBody": "確認クイズは、次の例文に進む前に出る1問です。例文を5つ読むごとに、それまでに学んだ内容から5問の「まとめクイズ」に挑戦できます。",
+  "guideRoleQuizBody": "クイズは2種類あります。確認クイズは、次の例文に進む前に単語の意味を選ぶ1問です。5つ目を終えると、それまでに学んだ例文から下線部の単語を選ぶ「まとめクイズ」に進みます。",
   "guideRoleScoreTitle": "語彙スコア",
   "guideRoleScoreBody": "クイズの結果から算出された、あなたの語彙量をあらわすスコアです。",
   "guideRoleVocabTestTitle": "語彙測定テスト",
@@ -1304,6 +1324,10 @@
   "guidePlanRowSentences": "1日の例文",
   "guidePlanRowTopic": "テーマ",
   "guidePlanRowVocab": "語彙スコアの上限",
+  "guidePlanSentencesUnlimited": "無制限",
+  "@guidePlanSentencesUnlimited": {
+    "description": "プラン比較表の premium 側。例文は無制限"
+  },
   "guidePlanSentences": "{count}文",
   "@guidePlanSentences": {
     "placeholders": {
@@ -1332,7 +1356,7 @@
     }
   },
   "guideHowSentenceTitle": "今日の例文を読む",
-  "guideHowSentenceStep1": "学習タブを開くと、その日の例文が表示されます。",
+  "guideHowSentenceStep1": "学習タブを開くと、その日の例文が表示されます。例文は5つで1セットで、いま何本目かが上に出ます。",
   "guideHowSentenceStep3": "金色の語が学習単語です。クイズでここが問われます。",
   "guideHowSentenceStep4": "例文カードをタップすると詳細画面が開きます。",
   "guideHowDetailTitle": "詳細画面",
@@ -1341,11 +1365,17 @@
   "guideHowSoundStep1": "「お手本を聞く」で、タイ語例文の音声をループ再生します。",
   "guideHowSoundStep2": "詳細画面の「発音練習」では、ボタンを押したまま真似して読むと、声調が合っているかをその場で判定できます。",
   "guideHowSoundStep3": "発音練習の判定は緑が合っている、橙が惜しい、赤が違う。語をタップすると、お手本と自分の声のカーブと直し方が出ます。",
-  "guideHowQuizTitle": "クイズを解く",
+  "guideHowQuizTitle": "確認クイズを解く",
   "guideHowQuizStep1": "例文の下の「覚えたか確認」から確認クイズへ進みます。",
-  "guideHowQuizStep2": "まとめクイズではヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。",
-  "guideHowQuizStep3": "まとめクイズでは、迷ったら「例文を確認」で例文に戻れます。",
-  "guideHowQuizStep4": "結果画面から、次の例文へ進むか、まとめクイズに挑むかを選べます。",
+  "guideHowQuizStep2": "直前に読んだ例文の学習単語（金色の語）について、その意味を4択で選びます。",
+  "guideHowQuizStep3": "答えると、その単語の意味や使い方の解説が出ます。",
+  "guideHowQuizStep4": "結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。",
+  "guideHowReviewQuizTitle": "まとめクイズを解く",
+  "guideHowReviewQuizStep1": "例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から、下線部に入る単語を選びます。",
+  "guideHowReviewQuizStep2": "出題される例文は、前日・3日前・1週間前…と日をあけて選ばれます。その中でも、まだ身についていない単語から先に出ます。",
+  "guideHowReviewQuizStep3": "ヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。",
+  "guideHowReviewQuizStep4": "迷ったら「例文を確認」で例文に戻れます。",
+  "guideHowReviewQuizStep5": "ここでの正解が語彙スコアに反映されます。",
   "guideHowSettingsTitle": "設定でできること",
   "guideHowSettingsStep1": "通知を受け取る時刻、表示フォント、訳と解説の言語を変えられます。",
   "guideHowSettingsStep2": "次の例文のテーマの選択と、ランキングもここから開けます。",

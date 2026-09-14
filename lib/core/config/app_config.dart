@@ -75,6 +75,19 @@ class AppConfig {
   static const String prefKeyPremiumTrialStartedNotified =
       'premium_trial_started_notified';
 
+  /// 買い切りへの無償移行の案内を、この端末で処理し終えたか。
+  ///
+  /// 対象（移行時点で課金中）だったかに関わらず、起動時に一度だけ決着させる。
+  /// free のまま素通りした人にも立てるので、このリリース後に月額を買った人へ
+  /// 無償移行が出ることはない。
+  static const String prefKeyLifetimeMigrationNotified =
+      'lifetime_migration_notified';
+
+  /// 実際に案内を出したか（＝移行時点で課金していた人か）。
+  /// 押し損ねた人・移行に失敗した人にだけ、設定にやり直し口を出すために使う。
+  static const String prefKeyLifetimeMigrationOffered =
+      'lifetime_migration_offered';
+
   /// ヒアリングの回答を保存するキーの接頭辞（`interview_level` など）。
   /// 回答は例文生成には効かせず、案内の出し分けと分析にだけ使う。
   static const String prefKeyInterviewPrefix = 'interview_';
