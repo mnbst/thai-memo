@@ -27,6 +27,8 @@
 
 import 'dart:async';
 
+import '../../services/pending_operations.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -217,6 +219,7 @@ class QuizStatsData {
 // =============================================================================
 
 class QuizController extends StateNotifier<QuizState> {
+  final _pending = PendingOperations();
   final DatabaseHelper _db;
   final BackendApiService _apiService;
   final AnalyticsService _analytics;
@@ -332,7 +335,11 @@ class QuizController extends StateNotifier<QuizState> {
   ///   1. SharedPreferencesに保存済みの状態（アプリ再起動後の復元）
   ///   2. メモリ上の事前生成済みクイズ（prepareQuizで準備済み）
   ///   3. その場でAPI呼び出しして生成（フォールバック）
-  Future<void> startLearningQuiz(
+  Future<void> startLearningQuiz(ThaiSentence sentence,
+          {String? offerSource}) =>
+      _pending.track(_startLearningQuiz(sentence, offerSource: offerSource));
+
+  Future<void> _startLearningQuiz(
     ThaiSentence sentence, {
     String? offerSource,
   }) async {
@@ -423,7 +430,10 @@ class QuizController extends StateNotifier<QuizState> {
   /// SRS（間隔反復）で選出された過去の例文から穴埋め問題を生成する。
   /// 途中から再開するのは [restoreSavedSummaryQuiz] の役目で、ここは常に作る。
   /// ユーザーの学習済み例文がない場合はQuizNoSentences状態に遷移。
-  Future<void> generateAndStartQuiz() async {
+  Future<void> generateAndStartQuiz() =>
+      _pending.track(_generateAndStartQuiz());
+
+  Future<void> _generateAndStartQuiz() async {
     _isLearningQuiz = false;
     _quizOfferSource = null;
     _quizOfferStartedLogged = false;
@@ -481,6 +491,14 @@ class QuizController extends StateNotifier<QuizState> {
     unawaited(_enqueueQuizStateClear(_QuizSlot.confirmation));
     unawaited(_enqueueQuizStateClear(_QuizSlot.summary));
     state = const QuizInitial();
+  }
+
+  /// サーバーで学習記録を消す前に、送信済みの回答と事前生成の保存を完了させる。
+  Future<void> settleForLearningReset() async {
+    await _pending.settle();
+    await Future.wait(List<Future<void>>.of(_pendingUvmUpdates));
+    await _prepareInFlight;
+    await _waitForQuizStateWrites();
   }
 
   /// クイズ問題の選択肢が有効かを検証する。
@@ -571,7 +589,12 @@ class QuizController extends StateNotifier<QuizState> {
   ///
   /// [hintLevel] はヒント使用段階。UVMの習熟度計算で正解の重みを調整するために使用。
   /// [reviewedSentence] は回答前に元の例文を確認したかどうか。
-  Future<void> answerQuestion(
+  Future<void> answerQuestion(int choiceIndex,
+          {int hintLevel = 0, bool reviewedSentence = false}) =>
+      _pending.track(_answerQuestion(choiceIndex,
+          hintLevel: hintLevel, reviewedSentence: reviewedSentence));
+
+  Future<void> _answerQuestion(
     int choiceIndex, {
     int hintLevel = 0,
     bool reviewedSentence = false,
@@ -678,7 +701,9 @@ class QuizController extends StateNotifier<QuizState> {
   }
 
   /// 回答結果画面から次の問題へ進む、または最終問題ならサマリーへ遷移する
-  Future<void> nextQuestion() async {
+  Future<void> nextQuestion() => _pending.track(_nextQuestion());
+
+  Future<void> _nextQuestion() async {
     if (_isAdvancing || state is! QuizShowResult) return;
     final s = state as QuizShowResult;
     _isAdvancing = true;
@@ -813,8 +838,7 @@ class QuizController extends StateNotifier<QuizState> {
 
   Future<void> _waitForQuizStateWrites() => _quizStateWriteQueue;
 
-  /// 保存の書き込みが落ち着くまで待つ（テストから保存結果を読むため）。
-  @visibleForTesting
+  /// 保存完了を待つ。学習データの掃除もこの待ち行列の後で行う。
   Future<void> waitForSavedQuizWrites() => _waitForQuizStateWrites();
 
   /// 現在のクイズ状態を学習レコードへ保存する。
@@ -872,8 +896,7 @@ class QuizController extends StateNotifier<QuizState> {
   Future<void> _clearQuizState(_QuizSlot slot) async {
     await _progress.update(
       (current) => switch (slot) {
-        _QuizSlot.confirmation =>
-          current.copyWith(clearConfirmation: true),
+        _QuizSlot.confirmation => current.copyWith(clearConfirmation: true),
         _QuizSlot.summary => current.copyWith(clearSummaryQuiz: true),
       },
     );

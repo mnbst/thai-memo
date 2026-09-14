@@ -127,6 +127,21 @@ class SettingsController extends StateNotifier<SettingsState> {
   final PushNotificationService _push;
   final StorefrontService _storefront;
   SharedPreferences? _prefs;
+  Future<void> _notificationUpdateTail = Future.value();
+
+  Future<T> _serializeNotificationUpdate<T>(Future<T> Function() operation) {
+    final previous = _notificationUpdateTail;
+    final done = Completer<void>();
+    _notificationUpdateTail = done.future;
+    return (() async {
+      await previous;
+      try {
+        return await operation();
+      } finally {
+        done.complete();
+      }
+    })();
+  }
 
   /// 初期化完了を待つための Completer
   final Completer<void> _initialized = Completer<void>();
@@ -319,7 +334,10 @@ class SettingsController extends StateNotifier<SettingsState> {
   ///
   /// 未許可なら許可ダイアログが出る。拒否された場合はアプリ内設定もオフに倒し、
   /// 「オンなのに届かない」状態が残らないようにする。
-  Future<void> syncPushRegistration() async {
+  Future<void> syncPushRegistration() =>
+      _serializeNotificationUpdate(_syncPushRegistration);
+
+  Future<void> _syncPushRegistration() async {
     await initialized;
     // 既存ユーザーはテーマを変更するまでサーバー側に設定が無いので、起動時に揃える
     unawaited(_push.setPreferredTopic(state.generationParams['topic']));
@@ -340,11 +358,16 @@ class SettingsController extends StateNotifier<SettingsState> {
   /// [PushEnableResult.denied] のときだけ呼び出し側は OS設定へ誘導する案内を
   /// 出すこと（状態はオフに戻る）。[PushEnableResult.pending] は許可済みで
   /// 登録待ちなので、オンのまま何も出さない。
-  Future<PushEnableResult?> setDailyReminderEnabled(bool enabled) async {
+  Future<PushEnableResult?> setDailyReminderEnabled(bool enabled) {
     // トークン登録・削除はAPNs往復で数秒かかることがある。スイッチが固まって
     // 見えないよう先に表示を切り替え、結果が違ったら戻す。
     state = state.copyWith(dailyReminderEnabled: enabled);
+    return _serializeNotificationUpdate(
+      () => _setDailyReminderEnabled(enabled),
+    );
+  }
 
+  Future<PushEnableResult?> _setDailyReminderEnabled(bool enabled) async {
     if (!enabled) {
       await _push.disable();
       await _prefs?.setBool(AppConfig.prefKeyDailyReminderEnabled, false);
@@ -383,7 +406,7 @@ class SettingsController extends StateNotifier<SettingsState> {
   /// アプリ内設定（dailyReminderEnabled）は端末の意思なので書き換えない。
   /// 次のサインインで syncPushRegistration が新しいトークンを登録し直す。
   Future<void> unregisterPushForSignOut() async {
-    await _push.disable();
+    await _serializeNotificationUpdate(_push.disable);
   }
 
   /// OSの通知許可が既に得られているか。コーチングダイアログの出し分けに使う。

@@ -158,16 +158,20 @@ class SentenceRepository {
   Future<List<ThaiSentence>> getAllSentences() async {
     try {
       final sentenceMaps = await _databaseHelper.getAllSentences();
+      if (sentenceMaps.isEmpty) return [];
+      final wordsBySentence = <String, List<WordBreakdown>>{};
+      for (final row in await _databaseHelper.getAllWordBreakdowns()) {
+        final word = WordBreakdown.fromDatabase(row);
+        final owner = word.sentenceId;
+        if (owner != null) {
+          (wordsBySentence[owner] ??= []).add(word);
+        }
+      }
       final sentences = <ThaiSentence>[];
 
       for (var sentenceMap in sentenceMaps) {
         final sentenceId = sentenceMap['id'] as String;
-        final wordBreakdownMaps =
-            await _databaseHelper.getWordBreakdownsBySentenceId(sentenceId);
-
-        final wordBreakdowns = wordBreakdownMaps
-            .map((map) => WordBreakdown.fromDatabase(map))
-            .toList();
+        final wordBreakdowns = wordsBySentence[sentenceId] ?? [];
 
         sentences.add(ThaiSentence.fromDatabase(sentenceMap, wordBreakdowns));
       }

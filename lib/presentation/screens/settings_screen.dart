@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'dart:async';
@@ -11,10 +10,9 @@ import 'dart:async';
 import '../../core/config/app_config.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/datasources/backend_api_service.dart';
 import '../../l10n/app_localizations.dart';
-import '../../data/datasources/local/database_helper.dart';
 import '../providers/auth_provider.dart';
+import '../providers/learning_data_reset_provider.dart';
 import '../providers/leaderboard_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/sentence_provider.dart';
@@ -828,7 +826,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               size: 18, color: Theme.of(context).colorScheme.outline),
       onTap: canTake
           ? _openVocabTest
-          : () => PaywallBottomSheet.show(context, source: 'settings_vocab_test'),
+          : () =>
+              PaywallBottomSheet.show(context, source: 'settings_vocab_test'),
     );
   }
 
@@ -908,17 +907,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
+
+    final navigator = Navigator.of(context, rootNavigator: true);
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    ));
 
     try {
-      await BackendApiService().resetLearningData();
-      await DatabaseHelper.instance.deleteDatabase();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
+      await ref.read(learningDataResetProvider).reset();
 
       if (mounted) {
-        ref.invalidate(allSentencesProvider);
-        ref.invalidate(sentenceCountProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(L10n.of(context).settingsResetDone)),
         );
@@ -932,6 +936,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       }
+    } finally {
+      if (navigator.mounted) navigator.pop();
     }
   }
 

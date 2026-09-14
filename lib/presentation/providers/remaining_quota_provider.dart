@@ -5,12 +5,26 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
-import '../../services/firebase_auth_service.dart';
 import 'subscription_provider.dart';
 
-/// Firebase Auth の uid をリアクティブに提供
-final authUidProvider = StreamProvider<String?>((ref) {
-  return FirebaseAuth.instance.authStateChanges().map((user) => user?.uid);
+/// 認証ユーザーの識別子とアカウント種別を、同じ Firebase Auth ストリームから提供する。
+/// userChanges は匿名アカウントのリンクでも流れるため、uid が変わらない昇格も拾える。
+class AuthIdentity {
+  const AuthIdentity({required this.uid, required this.isLinked});
+
+  final String uid;
+  final bool isLinked;
+}
+
+final authIdentityProvider = StreamProvider<AuthIdentity?>((ref) {
+  return FirebaseAuth.instance.userChanges().map((user) {
+    if (user == null) return null;
+    return AuthIdentity(uid: user.uid, isLinked: !user.isAnonymous);
+  });
+});
+
+final authUidProvider = Provider<AsyncValue<String?>>((ref) {
+  return ref.watch(authIdentityProvider).whenData((identity) => identity?.uid);
 });
 
 /// users/{uid} の1スナップショット。取得元（サーバー / 端末キャッシュ）も持つ。
@@ -55,19 +69,6 @@ final remainingSentencesProvider = Provider<AsyncValue<int>>((ref) {
       .whenData((data) => (data?['remaining_sentences'] as num?)?.toInt() ?? 0);
 });
 
-/// users/{uid}.daily_sentence_generated
-final dailySentenceGeneratedProvider = Provider<AsyncValue<bool>>((ref) {
-  return ref.watch(userDocProvider).whenData(
-      (data) => (data?['daily_sentence_generated'] as bool?) ?? false);
-});
-
-/// users/{uid}.remaining_quizzes
-final remainingQuizzesProvider = Provider<AsyncValue<int>>((ref) {
-  return ref
-      .watch(userDocProvider)
-      .whenData((data) => (data?['remaining_quizzes'] as num?)?.toInt() ?? 0);
-});
-
 /// users/{uid}.premium_trial_expires_at — プレミアム体験トライアルの期限
 /// 期限を持たない旧ユーザーは null。
 final premiumTrialExpiresAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
@@ -93,26 +94,9 @@ final premiumTrialEndedAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
 /// 新規ユーザーには初回ガイドで体験を伝えており、二重に案内しない。
 final premiumTrialBackfilledAtProvider = Provider<AsyncValue<DateTime?>>((ref) {
   return ref.watch(userDocProvider).whenData(
-        (data) => (data?['premium_trial_backfilled_at'] as Timestamp?)?.toDate(),
+        (data) =>
+            (data?['premium_trial_backfilled_at'] as Timestamp?)?.toDate(),
       );
-});
-
-/// プレミアム体験トライアルが有効か。
-///
-/// 新規ユーザーは登録から一定期間、課金プレミアムと完全に同じ機能・回数を使える。
-/// サーバー側の判定（utils/premium.ts, sentence_handlers._resolve_trial_active）と
-/// 同じく期限だけで決める。
-final premiumTrialActiveProvider = Provider<AsyncValue<bool>>((ref) {
-  return ref.watch(premiumTrialExpiresAtProvider).whenData(
-        (value) => value != null && DateTime.now().isBefore(value),
-      );
-});
-
-/// users/{uid}.tier — Firestoreストリームからリアルタイムにプレミアム判定
-final isPremiumRealtimeProvider = Provider<AsyncValue<bool>>((ref) {
-  return ref
-      .watch(userDocProvider)
-      .whenData((data) => data?['tier'] == 'premium');
 });
 
 /// 表示・判定用のプラン状態。
@@ -126,7 +110,14 @@ enum PlanStatus { free, trial, premium }
 /// 呼び出し側で「まだ出さない」を選べるようにする。
 final planStatusProvider = Provider<AsyncValue<PlanStatus>>((ref) {
   final doc = ref.watch(userDocProvider);
-  final linked = FirebaseAuthService.instance.isLinkedAccount;
+  final identity = ref.watch(authIdentityProvider);
+  if (identity.isLoading) return const AsyncValue<PlanStatus>.loading();
+  if (identity.hasError) {
+    return AsyncValue.data(
+      ref.watch(isPremiumProvider) ? PlanStatus.premium : PlanStatus.free,
+    );
+  }
+  final linked = identity.valueOrNull?.isLinked ?? false;
 
   // サインイン済みなのに doc が無いのは onUserCreate が書く前の一瞬。ここで free と
   // 決めると直後の体験付与で Free → 体験中 とぶれるので、未確定のままにする。
@@ -162,6 +153,11 @@ final effectivePremiumProvider = Provider<bool>((ref) {
   if (plan != null) return plan != PlanStatus.free;
   // ストリーム未確定の間だけ、コントローラが持つ値で代用する。
   return ref.watch(isPremiumProvider);
+});
+
+/// 課金と体験を区別する必要がある箇所も、共通のプラン判定から導出する。
+final trialActiveProvider = Provider<bool>((ref) {
+  return ref.watch(planStatusProvider).valueOrNull == PlanStatus.trial;
 });
 
 /// 次のリセット（JST 0:00）までの残り時間テキストを返す

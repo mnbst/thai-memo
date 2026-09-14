@@ -9,7 +9,6 @@ import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/remaining_quota_provider.dart';
 import '../../services/learning_progress_store.dart';
 import '../providers/review_prompt_provider.dart';
 import 'quiz_screen.dart';
@@ -57,6 +56,14 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
   @override
   void initState() {
     super.initState();
+    ref.listenManual(quizControllerProvider, (previous, next) {
+      if (next is QuizInitial && mounted) {
+        setState(() {
+          _stage = LearningStage.sentence;
+          _quizSentence = null;
+        });
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _restoreProgress();
       ref.listenManual(sentenceControllerProvider, (prev, next) {
@@ -221,14 +228,6 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context);
-    ref.listen(remainingSentencesProvider, (prev, next) {
-      if (changedFromNoRemainingToAvailable(prev, next) &&
-          mounted &&
-          _stage != LearningStage.sentence) {
-        _setStage(LearningStage.sentence);
-      }
-    });
-
     // この確認クイズのサマリーでまとめクイズへ誘導するか。
     // セットの最後の1本＝1サイクルの締め。本数を別に数えていた頃は、セットと
     // 数えた本数が食い違うと節目がずれた。

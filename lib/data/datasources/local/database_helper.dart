@@ -353,6 +353,16 @@ class DatabaseHelper {
     await batch.commit(noResult: true);
   }
 
+  /// 履歴一覧用に全単語を一括取得する。各例文内の単語順を保つ。
+  Future<List<Map<String, dynamic>>> getAllWordBreakdowns() async {
+    final db = await database;
+    return db.query(
+      DatabaseConstants.tableWordBreakdowns,
+      orderBy: '${DatabaseConstants.columnWordSentenceId} ASC, '
+          '${DatabaseConstants.columnWordOrder} ASC',
+    );
+  }
+
   /// Get word breakdowns for a sentence
   Future<List<Map<String, dynamic>>> getWordBreakdownsBySentenceId(
       String sentenceId) async {
