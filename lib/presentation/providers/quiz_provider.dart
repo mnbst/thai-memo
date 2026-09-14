@@ -59,6 +59,14 @@ const String _savedConfirmationQuizKey = 'saved_confirmation_quiz';
 /// まとめクイズ（5問復習クイズ）のSharedPreferences保存キー
 const String _savedSummaryQuizKey = 'saved_summary_quiz';
 
+/// 保存されたクイズの「持ち主」を入れるフィールド名。
+///
+/// 確認クイズは例文、まとめクイズはセットに属する。復元のたびに今の対象と
+/// 突き合わせ、違えば捨てる。消すタイミングで管理すると、消し忘れた保存が
+/// 次の起動で復元され、終わったクイズの画面から学習が再開してしまう。
+String _quizOwnerField(String key) =>
+    key == _savedSummaryQuizKey ? 'set_id' : 'sentence_id';
+
 // =============================================================================
 // クイズ状態クラス群
 //
@@ -285,6 +293,10 @@ class QuizController extends StateNotifier<QuizState> {
   /// 実行中の事前生成。開始側（startLearningQuiz）が待ち合わせるために持つ。
   Future<void>? _prepareInFlight;
 
+  /// いま解いているまとめクイズが属するセット。保存に添えて、別のセットへ
+  /// 移ったあとの復元を止める。セットを消化していないときは null。
+  String? _summarySetId;
+
   Future<void> _runPrepareQuiz(ThaiSentence sentence, String sentenceId) async {
     try {
       final questions = await _apiService.generateLearningQuiz(sentence);
@@ -337,7 +349,7 @@ class QuizController extends StateNotifier<QuizState> {
 
     // 1. SP保存済み状態を復元（途中回答やサマリー完了状態も含む）
     final savedState =
-        await _loadQuizState(_savedConfirmationQuizKey, sentenceId: sentenceId);
+        await _loadQuizState(_savedConfirmationQuizKey, ownerId: sentenceId);
     if (savedState != null) {
       _preparedSentenceId = sentenceId;
       state = savedState;
@@ -412,24 +424,15 @@ class QuizController extends StateNotifier<QuizState> {
 
   /// まとめクイズ（5問の復習クイズ）を生成して開始する。
   ///
-  /// SRS（間隔反復）で選出された過去の例文から穴埋め問題を生成。
-  /// SP保存済みの途中状態があればそこから再開する。
+  /// SRS（間隔反復）で選出された過去の例文から穴埋め問題を生成する。
+  /// 途中から再開するのは [restoreSavedSummaryQuiz] の役目で、ここは常に作る。
   /// ユーザーの学習済み例文がない場合はQuizNoSentences状態に遷移。
-  Future<void> generateAndStartQuiz() async {
+  Future<void> generateAndStartQuiz({String? setId}) async {
     _isLearningQuiz = false;
     _quizOfferSource = null;
     _quizOfferStartedLogged = false;
     _quizOfferAnsweredLogged = false;
-
-    // SP保存済みの途中状態があれば復元
-    final savedState = await _loadQuizState(_savedSummaryQuizKey);
-    if (savedState != null) {
-      state = savedState;
-      if (savedState is QuizAnswering) {
-        _questionResponseTimer = Stopwatch()..start();
-      }
-      return;
-    }
+    _summarySetId = setId;
 
     try {
       state = const QuizGenerating();
@@ -450,11 +453,24 @@ class QuizController extends StateNotifier<QuizState> {
     }
   }
 
-  /// アプリ再起動後に復元できる未完了のまとめクイズがあるか確認する。
-  Future<bool> hasSavedSummaryQuiz() async {
-    await _waitForQuizStateWrites();
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_savedSummaryQuizKey);
+  /// 中断したまとめクイズを復元する。復元できたときだけ true。
+  ///
+  /// [setId] は今消化しているセット。保存が別のセットのものなら復元しない
+  /// （終わったセットのまとめクイズが起動のたびに開く）。生成はしないので、
+  /// 保存が無ければ画面はそのまま。
+  Future<bool> restoreSavedSummaryQuiz({required String? setId}) async {
+    final savedState = await _loadQuizState(_savedSummaryQuizKey, ownerId: setId);
+    if (savedState == null) return false;
+    _isLearningQuiz = false;
+    _quizOfferSource = null;
+    _quizOfferStartedLogged = false;
+    _quizOfferAnsweredLogged = false;
+    _summarySetId = setId;
+    state = savedState;
+    if (savedState is QuizAnswering) {
+      _questionResponseTimer = Stopwatch()..start();
+    }
+    return true;
   }
 
   /// 全状態をリセットしてQuizInitialに戻す。
@@ -468,6 +484,7 @@ class QuizController extends StateNotifier<QuizState> {
     _quizOfferAnsweredLogged = false;
     _pendingUvmUpdates.clear();
     _questionResponseTimer = null;
+    _summarySetId = null;
     unawaited(_enqueueQuizStateClear(_savedConfirmationQuizKey));
     unawaited(_enqueueQuizStateClear(_savedSummaryQuizKey));
     state = const QuizInitial();
@@ -804,6 +821,10 @@ class QuizController extends StateNotifier<QuizState> {
 
   Future<void> _waitForQuizStateWrites() => _quizStateWriteQueue;
 
+  /// 保存の書き込みが落ち着くまで待つ（テストから保存結果を読むため）。
+  @visibleForTesting
+  Future<void> waitForSavedQuizWrites() => _waitForQuizStateWrites();
+
   /// 現在のクイズ状態をSharedPreferencesにJSON保存する。
   /// [sentenceId] は学習クイズの場合に指定し、復元時に対象例文との照合に使う。
   Future<void> _saveQuizState(
@@ -849,6 +870,12 @@ class QuizController extends StateNotifier<QuizState> {
       _ => null,
     };
     if (snapshot == null) return;
+    // まとめクイズの持ち主（セットID）はここで添える。保存経路が4つあるので、
+    // 呼び出し側それぞれで持たせるのではなく1か所にまとめる。
+    final summarySetId = _summarySetId;
+    if (key == _savedSummaryQuizKey && summarySetId != null) {
+      snapshot['set_id'] = summarySetId;
+    }
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, jsonEncode(snapshot));
@@ -861,8 +888,9 @@ class QuizController extends StateNotifier<QuizState> {
 
   /// SharedPreferencesからクイズ状態を復元する。
   ///
-  /// [sentenceId] が指定された場合、保存されたsentence_idと一致しなければnullを返す。
-  /// これにより、別の例文用に保存されたクイズが誤って復元されるのを防ぐ。
+  /// 保存された持ち主（確認クイズ=例文ID / まとめクイズ=セットID）が
+  /// [ownerId] と一致しなければ null を返す。別の例文・終わったセットのクイズが
+  /// 復元されるのを防ぐ。
   ///
   /// 復元時のフェーズ別処理:
   ///   - summary: そのままQuizSummaryとして復元
@@ -873,7 +901,7 @@ class QuizController extends StateNotifier<QuizState> {
   /// 不整合があればnullを返して新規生成にフォールバックさせる。
   Future<QuizState?> _loadQuizState(
     String key, {
-    String? sentenceId,
+    String? ownerId,
   }) async {
     try {
       await _waitForQuizStateWrites();
@@ -883,7 +911,7 @@ class QuizController extends StateNotifier<QuizState> {
 
       final data = jsonDecode(saved);
       if (data is! Map) return null;
-      if (sentenceId != null && data['sentence_id'] != sentenceId) return null;
+      if (data[_quizOwnerField(key)] != ownerId) return null;
 
       final phase = data['phase'];
       final rawQuestions = data['questions'];
@@ -898,11 +926,7 @@ class QuizController extends StateNotifier<QuizState> {
       // 初期版の1問確認クイズは phase を持たず、sentence_id と questions
       // だけを保存していた。対象例文が一致する場合だけ未回答として移行する。
       if (phase == null) {
-        if (key != _savedConfirmationQuizKey ||
-            sentenceId == null ||
-            data['sentence_id'] != sentenceId) {
-          return null;
-        }
+        if (key != _savedConfirmationQuizKey || ownerId == null) return null;
         return QuizAnswering(questions, 0, const []);
       }
 
