@@ -28,8 +28,14 @@ import 'today_screen.dart';
 bool shouldAdvanceDailySetCursor({
   required DailySetState set,
   required ThaiSentence? answered,
+  LearningStage stage = LearningStage.sentence,
 }) {
   if (!set.isActive) return true;
+  // まとめクイズはセットの締め。最後の1本まで読み終えた位置で解いているので、
+  // 確認クイズの持ち主が手元に残っていなくても進めてよい。まとめクイズを始める
+  // ときの reset() で [answered] は落ちるため、ここを見ないと同じセットの
+  // 最後の1本へ戻り、まとめクイズを何度も解かされる。
+  if (stage == LearningStage.summaryQuiz && set.isLast) return true;
   return answered != null && set.current?.id == answered.id;
 }
 
@@ -169,7 +175,11 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
   Future<void> _proceedToNextSentence() async {
     final set = ref.read(dailySetProvider);
     final current = set.current;
-    if (!shouldAdvanceDailySetCursor(set: set, answered: _quizSentence) &&
+    if (!shouldAdvanceDailySetCursor(
+          set: set,
+          answered: _quizSentence,
+          stage: _stage,
+        ) &&
         current != null) {
       // カーソルは動かさず、現在位置の1本を出すだけ。
       _setStage(LearningStage.sentence);
