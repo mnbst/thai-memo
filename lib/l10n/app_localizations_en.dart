@@ -123,6 +123,9 @@ class L10nEn extends L10n {
       'Sample sentence (not saved to your history)';
 
   @override
+  String get sampleReload => 'Load today\'s sentence';
+
+  @override
   String get sampleGreetingTranslation => 'Hello (said by a man)';
 
   @override

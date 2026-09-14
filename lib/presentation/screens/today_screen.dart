@@ -114,9 +114,14 @@ class DailySetProgress extends ConsumerWidget {
 class TodayScreen extends ConsumerStatefulWidget {
   final LearningQuizStartCallback? onStartQuiz;
 
+  /// 今日の例文を取り直す。サンプル表示から抜ける唯一の手段なので、
+  /// 空状態のカードにこの導線を出す。
+  final Future<void> Function()? onReload;
+
   const TodayScreen({
     super.key,
     this.onStartQuiz,
+    this.onReload,
   });
 
   /// デフォルトの挨拶例文（サンプル、履歴には保存されない）。
@@ -194,6 +199,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   final Set<String> _loggedQuizOfferShown = {};
   final Set<String> _handledQuizOfferTaps = {};
   bool _quizOfferAssignmentHandled = false;
+
+  /// 再読み込み中か。押しっぱなしを防ぐためだけの状態。
+  bool _reloading = false;
 
   /// 上限到達時のペイウォール導線の shown を二重に送らないためのフラグ。
   /// build はエラー表示のまま何度も走るので、State の生存期間中1回に絞る。
@@ -318,9 +326,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       return _buildErrorState(context, state.message);
     } else if (state is SentenceStateEmpty) {
       return _buildEmptyState(context);
-    } else {
-      return _buildEmptyState(context);
     }
+    // 読み込み中。ここでサンプルを出すと、起動処理が終わらないときに
+    // 「サンプルのまま切り替わらない」ようにしか見えない。
+    return _buildLoadingState();
   }
 
   /// Build loading state
@@ -1082,6 +1091,22 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          // サンプルは「まだ自分の例文が1本も無い」状態の見本でしかない。
+          // 取り込みや生成が失敗してここへ来た人が、自分でやり直せるようにする。
+          if (widget.onReload != null) ...[
+            FilledButton.icon(
+              onPressed: _reloading ? null : _reloadToday,
+              icon: _reloading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+              label: Text(L10n.of(context).sampleReload),
+            ),
+            const SizedBox(height: 16),
+          ],
           _buildSentenceCard(
             context,
             TodayScreen.defaultGreetingSentence(L10n.of(context)),
@@ -1089,5 +1114,16 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _reloadToday() async {
+    final reload = widget.onReload;
+    if (reload == null) return;
+    setState(() => _reloading = true);
+    try {
+      await reload();
+    } finally {
+      if (mounted) setState(() => _reloading = false);
+    }
   }
 }

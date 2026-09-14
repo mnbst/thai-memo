@@ -65,6 +65,22 @@ void main() {
     analytics = FakeAnalyticsService();
   });
 
+  group('markLoading', () {
+    test('起動直後は読み込み中から始まる', () async {
+      // 起動時は配信の取り込みと Firestore の読みで待たされる。ここが空状態
+      // だと、読み込み前なのにサンプル例文が出てしまう。
+      expect(createController().state, isA<SentenceStateLoading>());
+    });
+
+    test('表示中の例文があってもローディングへ戻す', () async {
+      final controller = createController()..showSentence(_sentence());
+
+      controller.markLoading();
+
+      expect(controller.state, isA<SentenceStateLoading>());
+    });
+  });
+
   test('freeでもトライアル中ならtopicを維持してpremium_trialを送る', () async {
     trialActive = true;
     final controller = createController();

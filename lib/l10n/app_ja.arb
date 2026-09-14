@@ -77,6 +77,7 @@
   "badgePremiumSentence": "Premium例文",
   "badgeFreeSentence": "Free例文",
   "sampleSentenceNotice": "サンプル例文（履歴には保存されません）",
+  "sampleReload": "今日の例文を読み込む",
 
   "sampleGreetingTranslation": "こんにちは（男性の場合）",
   "sampleGreetingWord1Meaning": "こんにちは、さようなら",

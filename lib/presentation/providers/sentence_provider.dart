@@ -110,7 +110,9 @@ class SentenceController extends StateNotifier<SentenceState> {
     GetMostRecentSentenceCallback? getMostRecentSentence,
   })  : _generateSentenceOverride = generateSentence,
         _getMostRecentSentenceOverride = getMostRecentSentence,
-        super(const SentenceStateInitial());
+        // 起動直後は「まだ読み込んでいない」＝読み込み中。区別しても画面の
+        // 出し分けは同じで、分岐が1つ増えるだけだった。
+        super(const SentenceStateLoading());
 
   /// トライアル中（free かつトライアル有効）か
   bool get _trialActive => _currentTier() != 'premium' && _isTrialActive();
@@ -200,6 +202,15 @@ class SentenceController extends StateNotifier<SentenceState> {
     return effectiveParams;
   }
 
+  /// ロードのやり直しを宣言する。
+  ///
+  /// 読み込み元（配信の取り込み・Firestore フラグ）を確かめる前に立てる。
+  /// 前回の表示・エラーを残したまま待たせると、いま何を待っているのか
+  /// 画面から分からない。
+  void markLoading() {
+    state = const SentenceStateLoading();
+  }
+
   /// Load the most recent sentence
   Future<void> loadMostRecent() async {
     state = const SentenceStateLoading();
@@ -277,11 +288,6 @@ class SentenceController extends StateNotifier<SentenceState> {
     }
   }
 
-  /// Reset state
-  void reset() {
-    state = const SentenceStateInitial();
-  }
-
   Future<List<ThaiSentence>> _executeGenerateSentence({
     Map<String, String?> generationParams = const {},
     int count = 1,
@@ -345,11 +351,6 @@ final sentenceControllerProvider =
 /// State for sentence operations
 abstract class SentenceState {
   const SentenceState();
-}
-
-/// Initial state
-class SentenceStateInitial extends SentenceState {
-  const SentenceStateInitial();
 }
 
 /// Loading state

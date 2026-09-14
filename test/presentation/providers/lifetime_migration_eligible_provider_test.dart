@@ -5,10 +5,12 @@ import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
 Future<ProviderContainer> containerWithUser(Map<String, dynamic> user) async {
   final container = ProviderContainer(
     overrides: [
-      userDocProvider.overrideWith((ref) => Stream.value(user)),
+      userDocSnapshotProvider.overrideWith(
+        (ref) => Stream.value(UserDocSnapshot(data: user, isFromCache: false)),
+      ),
     ],
   );
-  await container.read(userDocProvider.future);
+  await container.read(userDocSnapshotProvider.future);
   return container;
 }
 

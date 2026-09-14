@@ -63,6 +63,7 @@
   "badgePremiumSentence": "Premium sentence",
   "badgeFreeSentence": "Free sentence",
   "sampleSentenceNotice": "Sample sentence (not saved to your history)",
+  "sampleReload": "Load today's sentence",
 
   "sampleGreetingTranslation": "Hello (said by a man)",
   "sampleGreetingWord1Meaning": "hello, goodbye",

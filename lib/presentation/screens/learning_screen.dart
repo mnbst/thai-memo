@@ -41,7 +41,11 @@ class LearningScreen extends ConsumerStatefulWidget {
 
   const LearningScreen({
     super.key,
+    this.onReload,
   });
+
+  /// 今日の例文を取り直す（配信の取り込みからやり直す）。
+  final Future<void> Function()? onReload;
 
   @override
   ConsumerState<LearningScreen> createState() => LearningScreenState();
@@ -195,6 +199,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
 
     return switch (_stage) {
       _LearningStage.sentence => TodayScreen(
+          onReload: widget.onReload,
           onStartQuiz: (sentence, offerSource) {
             _quizSentence = sentence;
             final quizNotifier = ref.read(quizControllerProvider.notifier);

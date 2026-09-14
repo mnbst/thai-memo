@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/app_localizations.dart';
@@ -44,21 +42,10 @@ final userDocSnapshotProvider = StreamProvider<UserDocSnapshot>((ref) {
 });
 
 /// users/{uid} のフィールドを読む入口。監視は [userDocSnapshotProvider] の共有分。
-final userDocProvider = StreamProvider<Map<String, dynamic>?>((ref) {
-  final controller = StreamController<Map<String, dynamic>?>();
-  ref.onDispose(controller.close);
-  ref.listen<AsyncValue<UserDocSnapshot>>(
-    userDocSnapshotProvider,
-    (_, next) {
-      if (controller.isClosed) return;
-      next.whenOrNull(
-        data: (doc) => controller.add(doc.data),
-        error: controller.addError,
-      );
-    },
-    fireImmediately: true,
-  );
-  return controller.stream;
+///
+/// 最初の到着を待つときは [userDocSnapshotProvider] の future を読む。
+final userDocProvider = Provider<AsyncValue<Map<String, dynamic>?>>((ref) {
+  return ref.watch(userDocSnapshotProvider).whenData((doc) => doc.data);
 });
 
 /// users/{uid}.remaining_sentences

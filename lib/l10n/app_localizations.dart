@@ -283,6 +283,12 @@ abstract class L10n {
   /// **'サンプル例文（履歴には保存されません）'**
   String get sampleSentenceNotice;
 
+  /// No description provided for @sampleReload.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の例文を読み込む'**
+  String get sampleReload;
+
   /// No description provided for @sampleGreetingTranslation.
   ///
   /// In ja, this message translates to:
