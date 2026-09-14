@@ -240,6 +240,16 @@ func appStoreUpdates(
 			n.NotificationType, uid)
 	}
 
+	// 買い切りそのものの返金・取消では印を外す。tier を free にするだけだと
+	// 印が残り、そのあと月額を買った人が解約後も premium のままになる。
+	// 月額の返金で外さないのは、買い切りの権利まで巻き添えにしないため。
+	if isLifetimeProduct(n.TransactionInfo.ProductID) &&
+		(n.NotificationType == "REFUND" || n.NotificationType == "REVOKE") {
+		updates = append(updates, firestore.Update{
+			Path: "subscription.lifetime", Value: false,
+		})
+	}
+
 	// クォータはティアが変わる時のみリセット（同一 tier の更新通知でリセットしない）
 	if currentTier != decision.Tier {
 		sentences, quizzes := quota.PremiumDailySentences, quota.PremiumDailyQuizzes

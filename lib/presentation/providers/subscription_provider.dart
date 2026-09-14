@@ -120,6 +120,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   final FirebaseFunctions? _functions;
   PurchaseService? _purchaseService;
   Future<void>? _storeReadyFuture;
+  Future<void>? _purchaseStreamFuture;
   Future<void>? _initializeFuture;
   String? _initializeKey;
 
@@ -155,6 +156,12 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       unawaited(_analytics.setUserTier(UserTier.free.name));
       return;
     }
+
+    // ストアの購入ストリームは、購読して初めてイベントが届く（未完了の
+    // トランザクションや自動更新ぶんも購読時にまとめて流れてくる）。ペイウォールを
+    // 開いたときだけ購読していると、検証に失敗したまま完了していない購入が
+    // 「課金済みなのに free」のまま放置される。サインイン済みなら起動時に繋ぐ。
+    unawaited(ensurePurchaseStream());
 
     // Firestoreを待たず、前回確定したtierを先に流す。画面とローカル学習状態は
     // すぐ復元し、取得後にだけ最新状態へ更新する。
@@ -345,6 +352,42 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     }
   }
 
+  /// 購入ストリームだけを購読する（商品情報は取りに行かない）。
+  ///
+  /// 起動時に呼ぶ。未完了の購入をサーバー検証へ載せ直すのが目的なので、
+  /// 失敗しても画面にエラーは出さず、次の機会に繋ぎ直す。
+  Future<void> ensurePurchaseStream() {
+    final existing = _purchaseStreamFuture;
+    if (existing != null) return existing;
+    return _purchaseStreamFuture = _startPurchaseStream();
+  }
+
+  Future<void> _startPurchaseStream() async {
+    try {
+      final available = await _ensurePurchaseService().initialize();
+      if (!available) _purchaseStreamFuture = null;
+    } catch (e) {
+      debugPrint('Failed to observe purchase stream: $e');
+      _purchaseStreamFuture = null;
+    }
+  }
+
+  /// PurchaseService を用意し、購入結果のコールバックを繋ぐ。
+  PurchaseService _ensurePurchaseService() {
+    final service = _purchaseService ??= PurchaseService(
+      l10n: _l10n,
+      functions: FirebaseFunctions.instanceFor(
+        region: FirebaseConfig.functionsRegion,
+      ),
+      analytics: _analytics,
+    );
+    service.onPurchaseCompleted = _onPurchaseCompleted;
+    service.onPurchaseError = _onPurchaseError;
+    service.onPurchaseCanceled = _onPurchaseCanceled;
+    service.onPurchasePending = _onPurchasePending;
+    return service;
+  }
+
   Future<void> ensureStoreReady() {
     final existing = _storeReadyFuture;
     if (existing != null) return existing;
@@ -409,18 +452,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
   Future<void> _initializeStore() async {
     try {
-      final service = _purchaseService ??= PurchaseService(
-        l10n: _l10n,
-        functions: FirebaseFunctions.instanceFor(
-          region: FirebaseConfig.functionsRegion,
-        ),
-        analytics: _analytics,
-      );
-
-      service.onPurchaseCompleted = _onPurchaseCompleted;
-      service.onPurchaseError = _onPurchaseError;
-      service.onPurchaseCanceled = _onPurchaseCanceled;
-      service.onPurchasePending = _onPurchasePending;
+      final service = _ensurePurchaseService();
 
       final available = await service.initialize();
       if (!mounted) return;

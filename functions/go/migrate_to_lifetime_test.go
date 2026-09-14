@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/appstore"
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 )
 
@@ -70,5 +71,57 @@ func TestLifetimeMigrationSurvivesAppStoreExpiry(t *testing.T) {
 	}
 	if got := keepPremiumForLifetime(expired, plain, "EXPIRED"); got.Tier != "free" {
 		t.Errorf("印が無いのに premium を残している")
+	}
+}
+
+// TestVerifyKeepsLifetimeMark は、月額の検証が買い切りの印を消さないこと。
+//
+// 買い切り購入者・無償移行者は月額も持っている（自動更新も続く）。その
+// 自動更新ぶんが購入ストリームから検証されたときに印が消えると、解約時に
+// free へ落ちてしまい、受付期限後は取り返せない。
+func TestVerifyKeepsLifetimeMark(t *testing.T) {
+	monthly := subscriptionRecord("ios", productIDPremiumMonthly, "tx-1")
+	if _, ok := monthly["lifetime"]; ok {
+		t.Errorf("月額の検証が lifetime を書いている: %v", monthly["lifetime"])
+	}
+
+	android := subscriptionRecord("android", productIDPremiumMonthly, "token-1")
+	if _, ok := android["lifetime"]; ok {
+		t.Errorf("Android 月額の検証が lifetime を書いている: %v", android["lifetime"])
+	}
+
+	lifetime := subscriptionRecord("ios", productIDPremiumLifetime, "tx-2")
+	if lifetime["lifetime"] != true {
+		t.Errorf("買い切りの検証で印が立っていない: %v", lifetime["lifetime"])
+	}
+}
+
+// TestLifetimeRefundClearsMark は、買い切りの返金・取消で印そのものを外すこと。
+// 印が残ると、そのあと月額を買った人が解約後も premium のままになる。
+// 月額の返金では外さない（買い切りの権利を巻き添えにしない）。
+func TestLifetimeRefundClearsMark(t *testing.T) {
+	free := appStoreDecision{Tier: "free", Status: "expired", Handled: true}
+
+	clears := func(productID, notificationType string) bool {
+		n := &appstore.Notification{NotificationType: notificationType}
+		n.TransactionInfo.ProductID = productID
+		for _, u := range appStoreUpdates(n, free, "premium", "uid") {
+			if u.Path == "subscription.lifetime" {
+				return u.Value == false
+			}
+		}
+		return false
+	}
+
+	for _, notificationType := range []string{"REFUND", "REVOKE"} {
+		if !clears(productIDPremiumLifetime, notificationType) {
+			t.Errorf("買い切りの %s で印を外していない", notificationType)
+		}
+		if clears(productIDPremiumMonthly, notificationType) {
+			t.Errorf("月額の %s で買い切りの印まで外している", notificationType)
+		}
+	}
+	if clears(productIDPremiumLifetime, "EXPIRED") {
+		t.Error("EXPIRED で買い切りの印を外している")
 	}
 }
