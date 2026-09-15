@@ -1,5 +1,10 @@
 [
   {
+    "word": "ไม่",
+    "rank": 2,
+    "gloss": "no"
+  },
+  {
     "word": "คุณ",
     "rank": 4,
     "gloss": "you"
@@ -23,6 +28,16 @@
     "word": "ผม",
     "rank": 9,
     "gloss": "i"
+  },
+  {
+    "word": "ว่า",
+    "rank": 11,
+    "gloss": "say that"
+  },
+  {
+    "word": "แล้ว",
+    "rank": 12,
+    "gloss": "already"
   },
   {
     "word": "เป็น",
@@ -55,9 +70,29 @@
     "gloss": "stay"
   },
   {
+    "word": "นี่",
+    "rank": 23,
+    "gloss": "this"
+  },
+  {
+    "word": "เลย",
+    "rank": 24,
+    "gloss": "at all"
+  },
+  {
+    "word": "ใน",
+    "rank": 25,
+    "gloss": "inside"
+  },
+  {
     "word": "ใช่",
     "rank": 27,
     "gloss": "yes"
+  },
+  {
+    "word": "และ",
+    "rank": 28,
+    "gloss": "and"
   },
   {
     "word": "ต้อง",
@@ -78,6 +113,11 @@
     "word": "รู้",
     "rank": 34,
     "gloss": "know"
+  },
+  {
+    "word": "ด้วย",
+    "rank": 37,
+    "gloss": "also"
   },
   {
     "word": "พวก",
@@ -115,9 +155,19 @@
     "gloss": "tell"
   },
   {
-    "word": "อีก",
-    "rank": 53,
-    "gloss": "again"
+    "word": "นั่น",
+    "rank": 47,
+    "gloss": "that"
+  },
+  {
+    "word": "ยัง",
+    "rank": 49,
+    "gloss": "still"
+  },
+  {
+    "word": "แค่",
+    "rank": 50,
+    "gloss": "only"
   },
   {
     "word": "ถึง",
@@ -125,24 +175,9 @@
     "gloss": "arrive"
   },
   {
-    "word": "หรือ",
-    "rank": 61,
-    "gloss": "or"
-  },
-  {
-    "word": "กำลัง",
-    "rank": 64,
-    "gloss": "ing"
-  },
-  {
     "word": "พวกเขา",
     "rank": 65,
     "gloss": "they"
-  },
-  {
-    "word": "ยังไง",
-    "rank": 67,
-    "gloss": "how"
   },
   {
     "word": "ถูก",
@@ -150,24 +185,9 @@
     "gloss": "correct"
   },
   {
-    "word": "กว่า",
-    "rank": 70,
-    "gloss": "than"
-  },
-  {
-    "word": "อย่า",
-    "rank": 73,
-    "gloss": "don't"
-  },
-  {
     "word": "ไว้",
     "rank": 75,
     "gloss": "keep"
-  },
-  {
-    "word": "เพราะ",
-    "rank": 77,
-    "gloss": "because"
   },
   {
     "word": "สิ่ง",
@@ -180,6 +200,11 @@
     "gloss": "help"
   },
   {
+    "word": "ต้องการ",
+    "rank": 81,
+    "gloss": "to need"
+  },
+  {
     "word": "ลูก",
     "rank": 91,
     "gloss": "child"
@@ -188,11 +213,6 @@
     "word": "พี่",
     "rank": 92,
     "gloss": "elder"
-  },
-  {
-    "word": "คง",
-    "rank": 94,
-    "gloss": "likely"
   },
   {
     "word": "แบบ",
@@ -230,11 +250,6 @@
     "gloss": "go back"
   },
   {
-    "word": "บ้าง",
-    "rank": 117,
-    "gloss": "some"
-  },
-  {
     "word": "เร็ว",
     "rank": 118,
     "gloss": "fast"
@@ -268,11 +283,6 @@
     "word": "ลง",
     "rank": 128,
     "gloss": "down"
-  },
-  {
-    "word": "อาจจะ",
-    "rank": 129,
-    "gloss": "maybe"
   },
   {
     "word": "ปี",
@@ -310,11 +320,6 @@
     "gloss": "should"
   },
   {
-    "word": "ทุกอย่าง",
-    "rank": 158,
-    "gloss": "everything"
-  },
-  {
     "word": "เชื่อ",
     "rank": 159,
     "gloss": "believe"
@@ -343,6 +348,11 @@
     "word": "โทร",
     "rank": 176,
     "gloss": "call"
+  },
+  {
+    "word": "น่าจะ",
+    "rank": 180,
+    "gloss": "probably"
   },
   {
     "word": "ชีวิต",
@@ -390,11 +400,6 @@
     "gloss": "like this"
   },
   {
-    "word": "ทำได้",
-    "rank": 214,
-    "gloss": "can do"
-  },
-  {
     "word": "ต่อไป",
     "rank": 215,
     "gloss": "next"
@@ -413,6 +418,11 @@
     "word": "แต่งงาน",
     "rank": 232,
     "gloss": "marry"
+  },
+  {
+    "word": "อย่างไร",
+    "rank": 235,
+    "gloss": "how"
   },
   {
     "word": "ที่นั่น",
@@ -573,11 +583,6 @@
     "word": "เหตุผล",
     "rank": 356,
     "gloss": "reason"
-  },
-  {
-    "word": "องค์",
-    "rank": 361,
-    "gloss": "deity"
   },
   {
     "word": "เกินไป",
@@ -795,11 +800,6 @@
     "gloss": "special"
   },
   {
-    "word": "ทราบ",
-    "rank": 531,
-    "gloss": "to know"
-  },
-  {
     "word": "จริง ๆ",
     "rank": 538,
     "gloss": "really"
@@ -852,7 +852,7 @@
   {
     "word": "วันที่",
     "rank": 563,
-    "gloss": "a date"
+    "gloss": "calendar date"
   },
   {
     "word": "ต่าง",
@@ -883,6 +883,11 @@
     "word": "อันตราย",
     "rank": 589,
     "gloss": "dangerous"
+  },
+  {
+    "word": "เดท",
+    "rank": 599,
+    "gloss": "romantic date"
   },
   {
     "word": "พ่อแม่",
@@ -1035,6 +1040,16 @@
     "gloss": "customer"
   },
   {
+    "word": "ค้นหา",
+    "rank": 839,
+    "gloss": "to search"
+  },
+  {
+    "word": "แดน",
+    "rank": 845,
+    "gloss": "territory"
+  },
+  {
     "word": "ตกใจ",
     "rank": 859,
     "gloss": "startled"
@@ -1043,6 +1058,11 @@
     "word": "ท่า",
     "rank": 864,
     "gloss": "posture"
+  },
+  {
+    "word": "พบกัน",
+    "rank": 866,
+    "gloss": "to meet"
   },
   {
     "word": "ญาติ",
@@ -1168,6 +1188,11 @@
     "word": "อาศัย",
     "rank": 1040,
     "gloss": "reside"
+  },
+  {
+    "word": "โซล",
+    "rank": 1050,
+    "gloss": "Seoul"
   },
   {
     "word": "ประกาศ",
@@ -1315,9 +1340,9 @@
     "gloss": "condition"
   },
   {
-    "word": "แปลกใจ",
-    "rank": 1331,
-    "gloss": "surprised"
+    "word": "ขวบ",
+    "rank": 1315,
+    "gloss": "years old"
   },
   {
     "word": "ผู้อำนวยการ",
@@ -1370,6 +1395,11 @@
     "gloss": "wheel"
   },
   {
+    "word": "เป็นไป",
+    "rank": 1459,
+    "gloss": "to proceed"
+  },
+  {
     "word": "บอล",
     "rank": 1460,
     "gloss": "ball"
@@ -1388,6 +1418,11 @@
     "word": "ทาส",
     "rank": 1520,
     "gloss": "slave"
+  },
+  {
+    "word": "มึง",
+    "rank": 1524,
+    "gloss": "you (rude)"
   },
   {
     "word": "ทั้งคืน",
@@ -1495,6 +1530,11 @@
     "gloss": "gay"
   },
   {
+    "word": "เทพ",
+    "rank": 1800,
+    "gloss": "god"
+  },
+  {
     "word": "เคียงข้าง",
     "rank": 1808,
     "gloss": "beside"
@@ -1505,9 +1545,9 @@
     "gloss": "eight"
   },
   {
-    "word": "มองดู",
-    "rank": 1823,
-    "gloss": "observe"
+    "word": "หน",
+    "rank": 1828,
+    "gloss": "times (counter)"
   },
   {
     "word": "ค่ำ",
@@ -1533,11 +1573,6 @@
     "word": "ทักทาย",
     "rank": 1910,
     "gloss": "greet"
-  },
-  {
-    "word": "ถึงว่า",
-    "rank": 1947,
-    "gloss": "no wonder"
   },
   {
     "word": "ชั่วร้าย",
@@ -1625,9 +1660,19 @@
     "gloss": "from now"
   },
   {
+    "word": "สไตล์",
+    "rank": 2158,
+    "gloss": "style"
+  },
+  {
     "word": "บอกลา",
     "rank": 2178,
     "gloss": "say goodbye"
+  },
+  {
+    "word": "แนว",
+    "rank": 2194,
+    "gloss": "trend"
   },
   {
     "word": "ในประเทศ",
@@ -1688,11 +1733,6 @@
     "word": "งานศพ",
     "rank": 2347,
     "gloss": "funeral"
-  },
-  {
-    "word": "ขุนนาง",
-    "rank": 2358,
-    "gloss": "nobleman"
   },
   {
     "word": "ค้า",
@@ -1818,6 +1858,16 @@
     "word": "สาป",
     "rank": 2646,
     "gloss": "curse"
+  },
+  {
+    "word": "คิดออก",
+    "rank": 2651,
+    "gloss": "to figure out"
+  },
+  {
+    "word": "เฝ้าดู",
+    "rank": 2656,
+    "gloss": "to watch over"
   },
   {
     "word": "เอาชีวิต",
@@ -1953,6 +2003,11 @@
     "word": "ทุเรศ",
     "rank": 2947,
     "gloss": "disgusting"
+  },
+  {
+    "word": "เทค",
+    "rank": 2959,
+    "gloss": "to take over"
   },
   {
     "word": "ค่าเช่า",

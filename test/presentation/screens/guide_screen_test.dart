@@ -94,7 +94,7 @@ void main() {
 
     await tester.scrollUntilVisible(find.textContaining('Hold to speak'), 400);
     expect(
-      find.textContaining('tap “Practice,” then press and hold the “Hold to speak” button'),
+      find.textContaining('hold down the “Hold to speak” button'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
