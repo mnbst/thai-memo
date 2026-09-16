@@ -487,7 +487,10 @@ functions/go/internal/sentence/corpusbank_test.go
 premium がコーパス・free が従来バンクという分岐、テーマ優先とその諦め、キャッシュ汚染防止のテスト。
 
 functions/go/internal/corpustrans/translate.go
-静的コーパス専用。確定したタイ語文に日本語訳と英訳を1回のレスポンスで付ける訳プロンプトとスキーマ。語義も日英そろえて返し、語数が合わなければ1回作り直す。
+静的コーパス専用。確定したタイ語文に日本語訳と英訳を1回のレスポンスで付ける訳プロンプトとスキーマ。日本語は自然な訳、英訳は直訳・時制なしと規則を分けてある。FixedJA を渡すと英訳だけ作り直すモード（SchemaEN）。語義も日英そろえて返し、語数や英訳の機械チェックに落ちれば作り直す。
+
+functions/go/internal/corpustrans/validate_en_test.go
+英訳の機械チェック（品詞名の混入・スラッシュ併記の三人称・タイ文字残留・句点）の単体テスト。
 
 functions/go/internal/quality/judge.go
 例文品質judgeのプロンプト・スキーマ・sentence_flags ドキュメントの組み立て。判定基準は与えず、タイ語・訳文・key_wordだけ渡して理由を書かせる。
@@ -844,7 +847,7 @@ functions/go/cmd/pilot/main.go
 cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。
 
 functions/go/cmd/translate/main.go
-cmd/gencorpus の出力に internal/corpustrans で日英の訳を付け直し、最終コーパスのJSONLを書くコマンド。生成時の日本語訳は下書き扱いで置き換える。
+cmd/gencorpus の出力に internal/corpustrans で日英の訳を付け直し、最終コーパスのJSONLを書くコマンド。生成時の日本語訳は下書き扱いで置き換える。-en-only は完成コーパスを入力に取り、英訳だけ差し替える（日本語は持ち越す）。
 
 functions/go/cmd/usagefill/main.go
 最終コーパスの各文に「使い方」4項目（style / emotion / usage_scenarios / cultural_notes、日英）を付けてサイドカーJSONLに書く。-max-rank で頻度の高い語から流せる。
@@ -913,7 +916,7 @@ scripts/sim_scan_floor.py
 key_word帯の後方下限・読み取り上限のシミュレーション（取りこぼし率・境界との差・Firestore読取数）。
 
 scripts/build_vocab_test_items.py
-語彙テストの出題語（vocab_test_items_<lang>.json）をGeminiで作りGCSへ上げる。段の定義は uvm.TestStages と揃える。
+語彙テストの出題語（vocab_test_items_<lang>.json）をGeminiで作りGCSへ上げる。段の定義は uvm.TestStages と揃える。--lang で全言語ぶんを1回で作り出題語を揃える。--from-ja は ja を正として他言語の訳だけ埋める（出題語と rank を動かさない）。
 
 scripts/build_freq_rank.py
 タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。corpus_word_filter.pyのDENYLIST（終助詞・感嘆詞＋拘束形態素）を除外して採番する。

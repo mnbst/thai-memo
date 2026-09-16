@@ -57,7 +57,7 @@ void main() {
         'School (in class, homework, exams, after school, language school)':
             'School',
         'Religion and faith (temple etiquette, alms giving, amulets, speaking to monks, Buddhist holidays)':
-            'Religion',
+            'Religion and faith',
         'Traditions and festivals (Songkran, Loi Krathong, royal ceremonies, regional dishes)':
             'Traditions and festivals',
         'Etiquette (the wai, honorifics, taboos, table manners, gifts)':
@@ -76,11 +76,11 @@ void main() {
   group('styleLabel', () {
     test('STYLES の全値が英語ラベルに変換される', () {
       const styles = {
-        'ニュース記事体（客観的・フォーマルな報道文体）': 'News style',
-        '口語体（友達同士のカジュアルな話し言葉）': 'Casual spoken',
+        'ニュース記事体（客観的・フォーマルな報道文体）': 'News article style',
+        '口語体（友達同士のカジュアルな話し言葉）': 'Colloquial style',
         '丁寧語（フォーマルな敬語・丁寧な表現）': 'Polite',
         'SNS・テキストメッセージ（略語・絵文字・短い表現）': 'Texting and social media',
-        '物語・文学体（描写的・書き言葉的な表現）': 'Narrative',
+        '物語・文学体（描写的・書き言葉的な表現）': 'Narrative and literary style',
       };
       styles.forEach((identifier, expected) {
         expect(styleLabel(en, identifier), expected, reason: identifier);
@@ -90,13 +90,13 @@ void main() {
     test('サーバーが返す英語ラベルも括弧の前だけにする', () {
       // constants_data.go:styleLabelsEN の全値。
       const labels = {
-        'News article style (objective, formal reporting)': 'News style',
-        'Casual spoken style (how friends talk)': 'Casual spoken',
+        'News article style (objective, formal reporting)': 'News article style',
+        'Casual spoken style (how friends talk)': 'Colloquial style',
         'Polite style (formal, respectful expressions)': 'Polite',
         'Social media / text message style (abbreviations, emoji, short phrases)':
             'Texting and social media',
         'Narrative / literary style (descriptive, written language)':
-            'Narrative',
+            'Narrative and literary style',
       };
       labels.forEach((identifier, expected) {
         expect(styleLabel(en, identifier), expected, reason: identifier);
