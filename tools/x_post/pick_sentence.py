@@ -49,9 +49,9 @@ RECENT_POSTS = 10
 MIN_WORDS = 7
 MAX_WORDS = 11
 
-# 投稿に回すトピック。コーパスの context.topic はこの語を含む2つ。
+# 投稿に回すトピック。コーパスの context.topic がこの語を含むものだけ。
 # 恋人・気になる相手とのやり取りに寄せるため、ここだけを候補にする。
-TOPIC_KEYWORDS = ("恋愛", "BLドラマ")
+TOPIC_KEYWORDS = ("恋愛",)
 
 GEMINI_SECRET = "gemini-api-key"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
