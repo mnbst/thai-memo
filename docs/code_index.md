@@ -409,7 +409,7 @@ functions/go/internal/fbapp/fbapp.go
 Firebase Admin(Firestore/Auth)クライアントの遅延生成シングルトン。
 
 functions/go/internal/quota/quota.go
-生成回数クォータ定数。constants/quota.ts の移植（両者を一致させること）。premium の例文は無制限（大きな値を毎日入れ直す形）。
+生成回数クォータ定数と、ティア変更時のリセット値を返す Reset()。constants/quota.ts の移植（両者を一致させること）。premium の例文は無制限（大きな値を毎日入れ直す形）。
 
 functions/go/cmd/local/main.go
 デプロイ前のローカル起動用。FUNCTION_TARGETで関数を選ぶ。
@@ -499,7 +499,7 @@ functions/go/internal/quality/judge_test.go
 judgeレスポンスの選別（natural除外・理由なし除外・index重複）とドキュメント内容のテスト。
 
 functions/go/deliver_daily_sentence.go
-daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、premium/トライアルはLLM生成。
+daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、実効プレミアム（premium.IsEffectivePremium）はLLM生成。
 
 functions/go/deliver_daily_sentence_golden_test.go
 配信の生成分岐・コミット時の更新内容・ロールバックの更新内容をPython実装の出力と突き合わせる。
@@ -516,6 +516,9 @@ resetQuota と duplicateTokenUids をJS実装の出力（golden JSON）と突き
 functions/go/daily_batch_live_test.go
 dailyBatch のFirestore書き込み部分を実Firestoreで検証。全体実行は行わない（Auth実削除を含むため）。
 
+functions/go/quiz_language_live_test.go
+韓国語の解説が出た例文を実Geminiで作り直し、解説とダミー理由が日本語で出るか確かめる。QUIZ_LANGUAGE_LIVE=1 で実行。
+
 functions/go/internal/notify/notify.go
 notifyUtcHour の Go 版。現地の配信希望時刻がUTCの何時に当たるかを求める。tzdataを埋め込む。
 
@@ -523,22 +526,28 @@ functions/go/internal/notify/golden_test.go
 JS(Intl)が出した8510ケースの期待値とGo(tzdata)の結果を突き合わせる。
 
 functions/go/internal/premium/premium.go
-utils/premium.ts の Go 版。プレミアム体験トライアルの有効判定とJST 0:00への切り上げ。
+utils/premium.ts の Go 版。実効プレミアム判定 IsEffectivePremium()（課金・体験トライアル・猶予期間・反映待ちの購入）の唯一の置き場。生成・配信・クイズ・語彙テストが全てこれを通す。トライアル期限のJST 0:00切り上げもここ。
 
 functions/go/internal/subscription/subscription.go
-constants/subscription.ts の Go 版。期限切れ判定の猶予とストア購入プラットフォームの定数。
+constants/subscription.ts の Go 版。期限切れ判定の猶予・ストア購入プラットフォームの定数と、「まだ premium を維持してよいか」の唯一の判定 Entitled()（買い切り・猶予期間・expires_at 欠落の扱いを集約）。
+
+functions/go/internal/subscription/subscription_test.go
+Entitled() の判定表（買い切り・期限内外・猶予期間・expires_at 欠落・手動付与）のテスト。
 
 functions/go/internal/userdata/userdata.go
 deleteUserFirestoreData の Go 版。ユーザーのFirestoreデータ（サブコレクション・leaderboard・nicknames・quiz_queue）を一括削除。
+
+functions/go/lifetime.go
+買い切り（購入・無償移行）の権利をどう残し、どう剥がすかの集約。期限切れで落とさない判定（keepPremiumForLifetime）、剥がすときの更新内容（tier・印・クォータを必ず一緒に動かす）、返金通知用キーの埋め戻し、旧データ向け subscription_owners フォールバック。
 
 functions/go/migrate_to_lifetime.go
 migrateToLifetime の実装。月額課金者の subscription に買い切りの印（lifetime）を立てるだけの無償移行。購入記録は書き換えない。対象は名簿（users.lifetime_migration_eligible）を持ち、ストアでの購入記録（subscription.platform）がある人。status は見ないので過去に買って失効した人も含む（失効者は tier と回数を premium へ戻す）。受付期限あり（LIFETIME_MIGRATION_DEADLINE で変更可）。
 
 functions/go/migrate_to_lifetime_test.go
-移行済みユーザーが日次リセット・ストア通知の期限切れで降格しないこと、返金・取消では降格することのテスト。
+移行済みユーザーが日次リセット・ストア通知の期限切れで降格しないこと、返金・取消では降格すること（購入済みの買い切りは月額の返金では失わないこと）、月額の検証で買い切り所有者を落とさないことのテスト。
 
 functions/go/verify_subscription.go
-verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。買い切り（premium_lifetime, iOSのみ）は期限を持たず subscription.lifetime=true で印を付ける。
+verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。買い切り（premium_lifetime, iOSのみ）は期限を持たず subscription.lifetime=true と lifetime_transaction_id で印を付ける。買い切り所有者は月額の検証では free に落とさない（verifiedTier）。
 
 functions/go/verify_subscription_live_test.go
 バリデーション文言、匿名拒否、ティア変更時のみのクォータリセット、旧doc剥奪を検証。
@@ -621,6 +630,9 @@ scripts/build_pos_dict.py の生成物。コーパスの文中で付いた品詞
 functions/go/internal/quizgen/sanitize.go
 モデル出力の検査と整形。選択肢・ダミー理由・選択肢発音の対応付け。
 
+functions/go/internal/quizgen/drift.go
+クイズ出力（解説・ダミー理由）の言語ずれの検出と、書き直しプロンプト。
+
 functions/go/internal/quizgen/types.go
 クイズ生成の入出力の型。
 
@@ -636,11 +648,17 @@ Gemini APIでクイズ1問分のダミー・理由・解説を生成する。ト
 functions/go/internal/gemini/schema.go
 Gemini の responseSchema(ja/en)。
 
+functions/go/internal/gemini/repair.go
+言語がずれたフィールドだけを Gemini に1回書き直させる。直らなければそのフィールドを空にする。
+
 functions/go/internal/lang/lang.go
 訳文・解説の言語(ja/en)の正規化。
 
+functions/go/internal/lang/drift.go
+LLM出力の言語ずれ（ja 指定で韓国語など）の文字による判定。生成経路すべてで共通に使う。
+
 functions/go/internal/dailysentence/dailysentence.go
-daily_sentence.py の Go 版。毎日例文の配信判定（段階バックオフ・見送り理由・現地時刻）とバージョン別の配信本数（BatchSize）。
+daily_sentence.py の Go 版。毎日例文の配信判定（段階バックオフ・見送り理由・現地時刻）とバージョン別の配信本数（BatchSize）。権利の判定は持たない（internal/premium）。
 
 functions/go/internal/dailysentence/batch_test.go
 app_version による配信本数の判定と、セット本数を添えた通知タイトルのテスト。
@@ -655,7 +673,7 @@ functions/go/internal/dailysentence/notification_golden_test.go
 通知文面をPython実装の出力と突き合わせる（53ケース）。
 
 functions/go/internal/sentence/constants.go
-constants.py の Go 版。モデル設定・クォータ定数・context英語化・レスポンススキーマ組み立て。
+constants.py の Go 版。モデル設定・context英語化・レスポンススキーマ組み立て（クォータ定数は internal/quota に一本化）。
 
 functions/go/internal/sentence/constants_data.go
 constants.py のデータ部分（STYLES/TOPICS/ラベル表/JSON Schema）の自動生成。手で編集しないこと。
@@ -733,7 +751,10 @@ functions/go/internal/sentence/types.go
 例文と word_breakdown の型。LLMレスポンスmapからの読み込み。
 
 functions/go/internal/sentence/generate.go
-例文生成のフロー。target_notesの展開・NLP後処理・欠落補完・やり直しの制御。
+例文生成のフロー。target_notesの展開・NLP後処理・欠落補完・言語ずれの書き直し・やり直しの制御。
+
+functions/go/internal/sentence/drift.go
+訳文・語義・使い方の言語ずれを検出し、ずれた項目だけ1回書き直させる。使い方が直らなければ空にし、訳文・語義が直らなければ文ごと作り直す。
 
 functions/go/internal/sentence/generate_golden_test.go
 生成フローとNLP後処理をPython実装と突き合わせる差分テスト。
@@ -829,7 +850,7 @@ functions/go/internal/sentence/produce_batch_test.go
 ProduceBatch（選定1回・生成並列・キャッシュミスの引き直し・一部失敗）のテスト。
 
 functions/go/generate_thai_sentence.go
-generateThaiSentence（callable）。認証・クォータ・トライアル判定・生成・保存・UVM更新。count を送るとその本数を1セットで作る（未指定は1本＝旧クライアント互換）。
+generateThaiSentence（callable）。認証・クォータ・権利判定（premium.IsEffectivePremium）・生成・保存・UVM更新。count を送るとその本数を1セットで作る（未指定は1本＝旧クライアント互換）。
 
 functions/go/generate_thai_sentence_test.go
 セット本数の解釈（count 未指定は1本・上限は sentence.SetSize）のテスト。
@@ -842,6 +863,9 @@ functions/go/cmd/sample/main.go
 
 functions/go/cmd/vetwords/main.go
 コーパスのターゲット語候補をLLMで1語ずつ判定し、除外すべき語（断片・誤記・固有名詞など）の提案JSONを出す。反映は人が見て決める。
+
+functions/go/cmd/vetquizlang/main.go
+Firestore の quiz_questions を走査し、解説・ダミー理由が指定と違う言語の件を洗い出す。-delete で消すと次の出題で作り直される。
 
 functions/go/cmd/pilot/main.go
 cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。
@@ -860,6 +884,9 @@ functions/go/cmd/gencorpus/main.go
 
 functions/go/cmd/burst/main.go
 毎日例文の5本セット配信で増える LLM 同時実行の実測コマンド。ユーザー数×本数を同時に叩き、1本/1ユーザー/全体の所要と失敗の内訳を出す。
+
+functions/go/cmd/lifetimeaudit/main.go
+買い切り doc の読み取り専用集計。返金通知用キー（lifetime_transaction_id）を持たない購入者＝dailyBatch の埋め戻し対象を数える。デプロイ後の確認にも使う。
 
 functions/go/generate_thai_sentence_golden_test.go
 sentence_handlers.py のクォータ・トライアル・生成条件と突き合わせる差分テスト。

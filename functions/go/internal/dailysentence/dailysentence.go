@@ -154,21 +154,6 @@ func EvaluateResponse(userData map[string]any) TierUpdate {
 	return TierUpdate{NotifyTier: tier, NotifyMisses: misses}
 }
 
-// UsesPremiumTrial はこの配信をプレミアム体験トライアル枠（premium品質）で出すか。
-//
-// トライアルは期間制なので、期間中の free ユーザーは配信も premium 品質にする。
-// 判定は generateThaiSentence 側と同じ期限のみで、消費という概念は無い。
-func UsesPremiumTrial(userData map[string]any, now time.Time) bool {
-	if userData["tier"] == "premium" {
-		return false
-	}
-	expiresAt, ok := asDatetime(userData["premium_trial_expires_at"])
-	if !ok {
-		return false
-	}
-	return now.Before(expiresAt)
-}
-
 // DeliverySkipReason は配信を見送る理由。配信対象なら空文字。
 //
 // 理由を文字列で返すのは、配信バッチのログに内訳を残すため。

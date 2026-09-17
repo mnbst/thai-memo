@@ -81,6 +81,7 @@ func (s *QuizService) GenerateQuizQuestions(
 	if draft == nil {
 		return nil
 	}
+	s.repairLanguage(ctx, sentences, draft)
 
 	merged := quizgen.ApplyRuleBasedFields([]quizgen.Draft{*draft}, sentences)
 	return s.sanitizer().Questions(merged)
@@ -136,17 +137,36 @@ type geminiResponse struct {
 func (s *QuizService) fetchStructuredResponse(
 	ctx context.Context, sentences []quizgen.QuizSentenceSeed,
 ) *quizgen.Draft {
-	body, err := json.Marshal(BuildRequestBody(sentences, s.Lang))
-	if err != nil {
+	text := s.post(ctx, BuildRequestBody(sentences, s.Lang), sentences)
+	if text == "" {
+		return nil
+	}
+
+	var draft quizgen.Draft
+	if err := json.Unmarshal([]byte(text), &draft); err != nil {
 		log.Printf("gemini_quiz_generation_failed model=%s error=%v", Model, err)
 		return nil
+	}
+	return &draft
+}
+
+// post は1回の generateContent。返るのは本文のテキストだけで、
+// 失敗はすべてログに落として空文字にする（生成を止めない）。
+func (s *QuizService) post(
+	ctx context.Context, requestBody map[string]any,
+	sentences []quizgen.QuizSentenceSeed,
+) string {
+	body, err := json.Marshal(requestBody)
+	if err != nil {
+		log.Printf("gemini_quiz_generation_failed model=%s error=%v", Model, err)
+		return ""
 	}
 
 	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent", s.baseURL(), Model)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		log.Printf("gemini_quiz_generation_failed model=%s error=%v", Model, err)
-		return nil
+		return ""
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-goog-api-key", s.APIKey)
@@ -154,20 +174,20 @@ func (s *QuizService) fetchStructuredResponse(
 	res, err := s.httpClient().Do(req)
 	if err != nil {
 		log.Printf("gemini_quiz_generation_failed model=%s error=%v", Model, err)
-		return nil
+		return ""
 	}
 	defer res.Body.Close()
 
 	raw, err := io.ReadAll(io.LimitReader(res.Body, quizMaxResponseSize))
 	if err != nil {
 		log.Printf("gemini_quiz_generation_failed model=%s error=%v", Model, err)
-		return nil
+		return ""
 	}
 
 	var parsed geminiResponse
 	if err := json.Unmarshal(raw, &parsed); err != nil {
 		log.Printf("gemini_quiz_generation_failed model=%s error=%v", Model, err)
-		return nil
+		return ""
 	}
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
@@ -177,7 +197,7 @@ func (s *QuizService) fetchStructuredResponse(
 		}
 		log.Printf("gemini_quiz_generation_failed status=%d model=%s errorCode=%d errorMessage=%s",
 			res.StatusCode, Model, code, message)
-		return nil
+		return ""
 	}
 
 	s.logUsage(sentences, parsed.UsageMetadata)
@@ -188,15 +208,8 @@ func (s *QuizService) fetchStructuredResponse(
 	}
 	if text == "" {
 		log.Printf("gemini_quiz_generation_empty_output model=%s", Model)
-		return nil
 	}
-
-	var draft quizgen.Draft
-	if err := json.Unmarshal([]byte(text), &draft); err != nil {
-		log.Printf("gemini_quiz_generation_failed model=%s error=%v", Model, err)
-		return nil
-	}
-	return &draft
+	return text
 }
 
 func (s *QuizService) logUsage(

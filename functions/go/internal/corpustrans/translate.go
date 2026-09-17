@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
 
@@ -301,6 +302,13 @@ func validate(res *Result, in Input) error {
 	if err := validateEN(res.EN); err != nil {
 		return err
 	}
+	// 指定と違う言語で書かれていたら差し戻す（ja に韓国語など）。
+	if !in.ENOnly() && lang.IsWrongLanguage(res.JA, lang.JA) {
+		return fmt.Errorf("日本語訳が日本語で書かれていない")
+	}
+	if lang.IsWrongLanguage(res.EN, lang.EN) {
+		return fmt.Errorf("英訳が英語で書かれていない")
+	}
 	if len(res.Words) != len(in.Words) {
 		return fmt.Errorf("単語が %d 件（%d 件のはず）", len(res.Words), len(in.Words))
 	}
@@ -310,6 +318,12 @@ func validate(res *Result, in Input) error {
 		}
 		if strings.TrimSpace(w.EN) == "" {
 			return fmt.Errorf("%d 件目の語義が空", i+1)
+		}
+		if lang.AnyWrongLanguage(lang.EN, w.EN) {
+			return fmt.Errorf("%d 件目の英語の語義が英語で書かれていない", i+1)
+		}
+		if !in.ENOnly() && lang.AnyWrongLanguage(lang.JA, w.JA) {
+			return fmt.Errorf("%d 件目の日本語の語義が日本語で書かれていない", i+1)
 		}
 		if !in.ENOnly() && strings.TrimSpace(w.JA) == "" {
 			return fmt.Errorf("%d 件目の語義が空", i+1)

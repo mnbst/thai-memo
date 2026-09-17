@@ -194,13 +194,12 @@ func runGenerateThaiSentence(
 		}
 	}
 
-	isPremium := userData["tier"] == "premium"
-
-	// プレミアム体験トライアル: 期間中は premium ロジック
-	// （テーマ選択・premiumプロンプト・語彙上限なし）で出す。
+	// 実効プレミアム（課金 premium・体験トライアル・猶予期間・反映待ちの購入）
+	// なら premium ロジック（テーマ選択・premiumプロンプト・語彙上限なし）で出す。
+	// 判定は premium.IsEffectivePremium に集約する。配信（deliverDailySentence）・
+	// クイズ・語彙テストと同じ関数を通し、経路ごとに権利の解釈がずれないようにする。
 	// クライアントの申告（premium_trial）は見ない。
-	trialActive := !isPremium && premium.IsTrialActive(userData, time.Now())
-	usePremiumSpec := isPremium || trialActive
+	usePremiumSpec := premium.IsEffectivePremium(userData, time.Now())
 
 	// premium（トライアル含む）は回数を消費しない。例文は静的コーパスから出す
 	// ようになり 1 本あたりの限界コストがほぼ 0 なので、残数を見る意味が無い。

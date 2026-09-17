@@ -24,14 +24,6 @@ import (
 // ジョブ（Terraform 管理）が OIDC トークン付きで叩く。dev はジョブを作らない
 // ので、手で叩いたときだけ動く点は JS 版と変わらない。
 
-// gracePeriodMaxMs は grace_period を premium のまま維持する上限
-// （constants/subscription.ts:GRACE_PERIOD_MAX_MS）。
-//
-// 猶予期間は Apple が最長16日、Google Play が最長30日。
-// GRACE_PERIOD_EXPIRED / EXPIRED 通知を取りこぼしても、期限からこの期間を
-// 過ぎた grace_period は free に落とす。
-const gracePeriodMax = 30 * 24 * time.Hour
-
 // subscriptionStatusConcurrency は JS 版の CONCURRENCY。
 const subscriptionStatusConcurrency = 5
 
@@ -146,27 +138,22 @@ func expireUser(
 			return nil
 		}
 		sub, _ := snap.Data()["subscription"].(map[string]any)
-		// 買い切り（購入・無償移行とも）は月額の期限が過ぎても premium のまま。
-		if subscription.IsLifetime(sub) {
+		// 買い切り・猶予期間・expires_at 欠落の扱いは internal/subscription に
+		// 集約している（dailyBatch と同じ判定を使う）。このバッチは期限を過ぎた
+		// ものを即日落とす役なので margin は取らない。
+		if subscription.Entitled(sub, now, 0) {
 			status = ""
 			return nil
 		}
 		status, _ = sub["status"].(string)
-		expiresAt, hasExpiresAt := sub["expires_at"].(time.Time)
-		if !hasExpiresAt || !expiresAt.Before(now) {
+		if _, hasExpiresAt := sub["expires_at"].(time.Time); !hasExpiresAt {
 			status = ""
 			return nil
 		}
 
+		// 既に free 相当の status（expired 等）まで落ちている doc は触らない。
 		switch status {
-		case "grace_period":
-			// 猶予期間は期限超過が前提。通知を取りこぼした場合に premium が
-			// 永久に残らないよう、猶予の上限を過ぎたものだけ落とす。
-			if now.Sub(expiresAt) <= gracePeriodMax {
-				status = ""
-				return nil
-			}
-		case "active", "canceled":
+		case "grace_period", "active", "canceled":
 			// 落とす
 		default:
 			status = ""

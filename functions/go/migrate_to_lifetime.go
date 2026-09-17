@@ -106,12 +106,32 @@ func migrateToLifetime(ctx context.Context, req *callable.Request) (any, error) 
 				"updated_at":           firestore.ServerTimestamp,
 			},
 		}
+		// 無償移行の根拠になった月額取引を別フィールドへ退避する。
+		// original_transaction_id / purchase_token は、その後に別の月額を
+		// 検証すると上書きされるため、返金通知を移行権利へ結び直せなくなる。
+		migrationSub := payload["subscription"].(map[string]any)
+		sourceRecorded := false
+		if platform, _ := sub["platform"].(string); platform == "ios" {
+			if id, _ := sub["original_transaction_id"].(string); id != "" {
+				migrationSub["lifetime_source_transaction_id"] = id
+				sourceRecorded = true
+			}
+		} else if platform == "android" {
+			if token, _ := sub["purchase_token"].(string); token != "" {
+				migrationSub["lifetime_source_purchase_token"] = token
+				sourceRecorded = true
+			}
+		}
+		if !sourceRecorded {
+			return callable.Errorf(callable.FailedPrecondition,
+				"移行元の購入IDが見つかりません。購入情報を復元してから再試行してください")
+		}
 		// free から戻した人は回数も premium にしておく。次の日次リセットまで
 		// free の残数のままだと、移行した直後に使えない時間ができる
 		//（verifySubscription の昇格と同じ扱い）。
 		if tier, _ := data["tier"].(string); tier != "premium" {
-			payload["remaining_sentences"] = quota.PremiumDailySentences
-			payload["remaining_quizzes"] = quota.PremiumDailyQuizzes
+			payload["remaining_sentences"], payload["remaining_quizzes"] =
+				quota.Reset(true)
 		}
 
 		return tx.Set(userRef, payload, firestore.MergeAll)
