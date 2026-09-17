@@ -15,6 +15,7 @@ import (
 	"cloud.google.com/go/firestore"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
+	"github.com/mnbst/thai-memo/functions/go/internal/subscription"
 )
 
 // ManualPlatform は手動付与の subscription.platform 値（ストア購入と区別する）。
@@ -89,28 +90,28 @@ func ApplyTier(ctx context.Context, db *firestore.Client, p Params) (*Result, er
 		previous = Premium
 	}
 
-	subscription, _ := data["subscription"].(map[string]any)
-	platform, _ := subscription["platform"].(string)
-	status, _ := subscription["status"].(string)
-	isStore := platform == "ios" || platform == "android"
-	isStoreActive := isStore && (status == "active" || status == "grace_period")
+	sub, _ := data["subscription"].(map[string]any)
+	platform, _ := sub["platform"].(string)
+	status, _ := sub["status"].(string)
+	isStore := subscription.IsStorePlatform(platform)
+	// 買い切りは status が expired（月額の期限切れ）でも権利が生きている。
+	// status だけを見ると、買い切り購入者を force なしで free にできてしまう。
+	isLifetime := subscription.IsLifetime(sub)
+	isStoreActive := isStore &&
+		(status == "active" || status == "grace_period" || isLifetime)
 
 	if isStoreActive && !p.Force {
 		return nil, &Error{FailedPrecondition, fmt.Sprintf(
-			"ストア購入が有効なユーザーです（platform=%s, status=%s）。"+
-				"上書きするには force=true を指定してください", platform, status)}
+			"ストア購入が有効なユーザーです（platform=%s, status=%s, lifetime=%t）。"+
+				"上書きするには force=true を指定してください",
+			platform, status, isLifetime)}
 	}
 
 	update := map[string]any{"tier": string(p.Tier)}
 
 	if previous != p.Tier {
-		if p.Tier == Premium {
-			update["remaining_sentences"] = quota.PremiumDailySentences
-			update["remaining_quizzes"] = quota.PremiumDailyQuizzes
-		} else {
-			update["remaining_sentences"] = quota.FreeDailySentences
-			update["remaining_quizzes"] = quota.FreeDailyQuizzes
-		}
+		update["remaining_sentences"], update["remaining_quizzes"] =
+			quota.Reset(p.Tier == Premium)
 	}
 
 	// expires_at は premium かつ期間指定ありのときだけ持たせる。
@@ -140,6 +141,14 @@ func ApplyTier(ctx context.Context, db *firestore.Client, p Params) (*Result, er
 			"expires_at":    expiresAt,
 			"auto_renewing": false,
 			"updated_at":    firestore.ServerTimestamp,
+			// MergeAll はネストしたマップをフィールド単位で残すので、明示的に
+			// 消さないと買い切りの印だけが生き延びる。印が残ったまま月額を
+			// 買い直した人は、解約しても premium が落ちなくなる。
+			"lifetime":                       false,
+			"lifetime_source":                nil,
+			"lifetime_transaction_id":        nil,
+			"lifetime_source_transaction_id": nil,
+			"lifetime_source_purchase_token": nil,
 		}
 	}
 

@@ -92,8 +92,7 @@ class PaywallBottomSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<PaywallBottomSheet> createState() =>
-      _PaywallBottomSheetState();
+  ConsumerState<PaywallBottomSheet> createState() => _PaywallBottomSheetState();
 }
 
 /// 選べるプラン。どちらも付与される権利は同じ premium で、支払い方だけが違う。
@@ -273,14 +272,29 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
     final colorScheme = Theme.of(context).colorScheme;
     final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
 
+    final userData = ref.watch(userDocProvider).valueOrNull;
+    final subscription = userData?['subscription'];
+    final hasStoreMonthly = subscription is Map &&
+        (subscription['platform'] == 'ios' ||
+            subscription['platform'] == 'android') &&
+        subscription['lifetime'] != true;
+    // 無償移行の対象者に買い切りを購入させない。名簿外の月額加入者だけ、
+    // 有効期限を待たず買い切りへ変更できる。買い切りは現在iOSのみ販売。
+    final canChangeMonthlyToLifetime = subState.isPremium &&
+        hasStoreMonthly &&
+        !ref.watch(lifetimeMigrationEligibleProvider) &&
+        subState.lifetimeProduct != null;
+
     // 買い切りを売っていない環境（Android・商品が引けない時）では選択肢が
     // 1つしか無い。ラジオも「このプランで」も出さず、これまでの1本道にする。
-    final hasChoice = subState.lifetimeProduct != null;
-    final lifetimeChosen = hasChoice && _plan == _Plan.lifetime;
+    final hasChoice =
+        subState.lifetimeProduct != null && !canChangeMonthlyToLifetime;
+    final lifetimeChosen =
+        canChangeMonthlyToLifetime || (hasChoice && _plan == _Plan.lifetime);
     final selectedProduct =
         lifetimeChosen ? subState.lifetimeProduct : subState.product;
 
-    if (subState.isPremium) {
+    if (subState.isPremium && !canChangeMonthlyToLifetime) {
       return Container(
         width: double.infinity,
         padding: EdgeInsets.fromLTRB(AppConfig.screenPadding, 14,
@@ -373,18 +387,19 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
           // プラン選択。月額と買い切りを同じ形で並べ、価格と「更新があるか」を
           // 縦に見比べられるようにする。ボタンを2つ並べると、どちらが何円で
           // 何が違うのかが読み取れなかった。
-          _buildPlanCard(
-            context,
-            plan: _Plan.monthly,
-            title: L10n.of(context).paywallPlanMonthlyTitle,
-            note: L10n.of(context).paywallPlanMonthlyNote,
-            price: subState.product == null
-                ? ''
-                : L10n.of(context).paywallPlanMonthlyPrice(
-                    subState.product!.price,
-                  ),
-            selectable: hasChoice,
-          ),
+          if (!canChangeMonthlyToLifetime)
+            _buildPlanCard(
+              context,
+              plan: _Plan.monthly,
+              title: L10n.of(context).paywallPlanMonthlyTitle,
+              note: L10n.of(context).paywallPlanMonthlyNote,
+              price: subState.product == null
+                  ? ''
+                  : L10n.of(context).paywallPlanMonthlyPrice(
+                      subState.product!.price,
+                    ),
+              selectable: hasChoice,
+            ),
           if (subState.lifetimeProduct != null)
             _buildPlanCard(
               context,
@@ -427,9 +442,11 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
                 : Text(
                     // 購入を開始するボタンなので、何が起きるか一読で分かる言い方にする
                     // （情緒的なコピーは上部のタイトル・比較表で担う）。
-                    hasChoice
-                        ? L10n.of(context).paywallPurchaseCta
-                        : L10n.of(context).paywallSubscribe,
+                    canChangeMonthlyToLifetime
+                        ? L10n.of(context).paywallChangeToLifetimeCta
+                        : hasChoice
+                            ? L10n.of(context).paywallPurchaseCta
+                            : L10n.of(context).paywallSubscribe,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: Theme.of(context).colorScheme.onPrimary,
@@ -442,7 +459,9 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
             SizedBox(
               width: double.infinity,
               child: Text(
-                L10n.of(context).paywallLifetimeNote,
+                canChangeMonthlyToLifetime
+                    ? L10n.of(context).paywallMonthlyToLifetimeNote
+                    : L10n.of(context).paywallLifetimeNote,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurface.withValues(alpha: 0.6),
                       height: 1.25,

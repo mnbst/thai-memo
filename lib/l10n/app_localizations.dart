@@ -1591,11 +1591,23 @@ abstract class L10n {
   /// **'このプランで始める'**
   String get paywallPurchaseCta;
 
+  /// No description provided for @paywallChangeToLifetimeCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りへ変更する'**
+  String get paywallChangeToLifetimeCta;
+
   /// No description provided for @paywallLifetimeNote.
   ///
   /// In ja, this message translates to:
   /// **'1回きりの支払いです。更新はありません。'**
   String get paywallLifetimeNote;
+
+  /// No description provided for @paywallMonthlyToLifetimeNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りの購入後も、現在の月額プランは自動では解約されません。App Storeのアカウント設定から月額プランを解約してください。'**
+  String get paywallMonthlyToLifetimeNote;
 
   /// No description provided for @paywallLegal.
   ///
@@ -4337,7 +4349,7 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody1.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。'**
+  /// **'AIがあなたの語彙に合わせたタイ語の例文を、毎日つくります。読み終えたら、その場で追加することもできます。'**
   String get guideOverviewBody1;
 
   /// No description provided for @guideOverviewBody2.

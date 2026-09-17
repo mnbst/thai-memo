@@ -120,29 +120,36 @@ func processAppStoreNotification(ctx context.Context, signedPayload string) erro
 	// originalTransactionId でユーザーを検索。
 	// 匿名ユーザーの再インストール等で同一サブスクの doc が複数残る可能性が
 	// あるため limit(1) にせず、該当する全 doc を更新する。
-	it := db.Collection("users").
-		Where("subscription.original_transaction_id", "==",
-			notification.TransactionInfo.OriginalTransactionID).
-		Documents(ctx)
-	defer it.Stop()
+	originalTxID := notification.TransactionInfo.OriginalTransactionID
+	docs, err := findUsersBySubscriptionField(
+		ctx, db, "subscription.original_transaction_id", originalTxID)
+	if err != nil {
+		return err
+	}
 
-	var docs []*firestore.DocumentSnapshot
-	for {
-		doc, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
+	// 買い切りのあとに月額を検証すると original_transaction_id は月額側で
+	// 上書きされる。買い切りぶんの返金・取消がどの doc にも当たらなくなるので、
+	// 検証時に残した lifetime_transaction_id でも引く。
+	// 権利を剥がす通知でしか使わないので、それ以外では引かない（更新通知の
+	// たびに users をもう1回読むのを避ける）。
+	var lifetimeOnly []*firestore.DocumentSnapshot
+	if isRevocationNotification(notification) {
+		lifetimeOnly, err = findLifetimeOnlyUsers(
+			ctx, db, originalTxID, notification.TransactionInfo.ProductID, docs)
 		if err != nil {
 			return err
 		}
-		docs = append(docs, doc)
 	}
 
-	if len(docs) == 0 {
+	if len(docs) == 0 && len(lifetimeOnly) == 0 {
 		// 初回購入前の通知など
-		log.Printf("No user found for originalTransactionId: %s",
-			notification.TransactionInfo.OriginalTransactionID)
+		log.Printf("No user found for originalTransactionId: %s", originalTxID)
 		return nil
+	}
+
+	if err := revokeLifetimeForUsers(
+		ctx, lifetimeOnly, notification, time.Now()); err != nil {
+		return err
 	}
 
 	decision := decideAppStoreNotification(notification)
@@ -157,9 +164,9 @@ func processAppStoreNotification(ctx context.Context, signedPayload string) erro
 			continue
 		}
 		currentTier, _ := doc.Data()["tier"].(string)
-		d := keepPremiumForLifetime(
-			decision, doc.Data(), notification.NotificationType)
-		updates := appStoreUpdates(notification, d, currentTier, doc.Ref.ID)
+		d, lifetimeRevoked := keepPremiumForLifetime(decision, doc.Data(), notification)
+		updates := appStoreUpdates(
+			notification, d, currentTier, doc.Ref.ID, lifetimeRevoked)
 
 		// 読み取り後に新しい通知が反映されていた場合は上書きせず、Apple の
 		// リトライで最新スナップショットから判定し直す。
@@ -173,31 +180,125 @@ func processAppStoreNotification(ctx context.Context, signedPayload string) erro
 	return nil
 }
 
-// keepPremiumForLifetime は、買い切りへ移行済みのユーザーを月額の期限切れで
-// 落とさないようにする。
+// findUsersBySubscriptionField は subscription の識別子で users を引く。
+func findUsersBySubscriptionField(
+	ctx context.Context, db *firestore.Client, field, value string,
+) ([]*firestore.DocumentSnapshot, error) {
+	if value == "" {
+		return nil, nil
+	}
+	it := db.Collection("users").Where(field, "==", value).Documents(ctx)
+	defer it.Stop()
+
+	var docs []*firestore.DocumentSnapshot
+	for {
+		doc, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		docs = append(docs, doc)
+	}
+	return docs, nil
+}
+
+// findLifetimeOnlyUsers は「買い切りの記録は持つが、いまの
+// original_transaction_id は別（月額を後から検証した）」doc を返す。
+// 購入した買い切りIDと、無償移行の根拠になった月額IDの両方を引く。
+func findLifetimeOnlyUsers(
+	ctx context.Context, db *firestore.Client, originalTxID, productID string,
+	primary []*firestore.DocumentSnapshot,
+) ([]*firestore.DocumentSnapshot, error) {
+	if originalTxID == "" {
+		return nil, nil
+	}
+	seen := make(map[string]bool, len(primary))
+	for _, doc := range primary {
+		seen[doc.Ref.ID] = true
+	}
+	var out []*firestore.DocumentSnapshot
+	for _, field := range []string{
+		"subscription.lifetime_transaction_id",
+		"subscription.lifetime_source_transaction_id",
+	} {
+		docs, err := findUsersBySubscriptionField(ctx, db, field, originalTxID)
+		if err != nil {
+			return nil, err
+		}
+		for _, doc := range docs {
+			if !seen[doc.Ref.ID] {
+				seen[doc.Ref.ID] = true
+				out = append(out, doc)
+			}
+		}
+	}
+
+	// フィールド導入前にIDを別の月額で上書き済みでも、購入検証時の
+	// subscription_owners には元のID→uidが残る。返金通知でそのuidを最後の
+	// フォールバックとして引き、旧データでも権利を剥がせるようにする。
+	ownerDoc, err := subscriptionOwnerRef(
+		db, "subscription.original_transaction_id", originalTxID).Get(ctx)
+	if err == nil && ownerDoc.Exists() {
+		uid, _ := ownerDoc.Data()["uid"].(string)
+		if uid != "" && !seen[uid] {
+			userDoc, err := db.Collection("users").Doc(uid).Get(ctx)
+			if err == nil && userDoc.Exists() {
+				sub, _ := userDoc.Data()["subscription"].(map[string]any)
+				lifetimeID, _ := sub["lifetime_transaction_id"].(string)
+				sourceID, _ := sub["lifetime_source_transaction_id"].(string)
+				matchesDirect := isLifetimeProduct(productID) &&
+					subscription.LifetimeSource(sub) != "monthly_migration" &&
+					(lifetimeID == "" || lifetimeID == originalTxID)
+				// 無償移行の旧データでsourceIDが無い場合、ownerRefが移行後に
+				// 検証した別月額を指す可能性がある。空IDからは推測して剥がさない。
+				matchesMigration := !isLifetimeProduct(productID) &&
+					subscription.LifetimeSource(sub) == "monthly_migration" &&
+					sourceID == originalTxID
+				if subscription.IsLifetime(sub) && (matchesDirect || matchesMigration) {
+					out = append(out, userDoc)
+				}
+			} else if err != nil && !isNotFoundErr(err) {
+				return nil, err
+			}
+		}
+	} else if err != nil && !isNotFoundErr(err) {
+		return nil, err
+	}
+	return out, nil
+}
+
+// revokeLifetimeForUsers は買い切りの返金・取消を、いまは月額の記録を持って
+// いる doc へ適用する。
 //
-// 月額を解約すれば EXPIRED が届く。移行した人にとってはそれが正常な流れなので、
-// ここで free に落とすと案内文言（追加料金なしでずっと使える）と食い違う。
-// subscription.status は通知どおり expired に倒したままにして、tier だけ残す。
-//
-// 返金・取消（REFUND / REVOKE）は別で、権利ごと剥がす。無償移行の入口が
-// 「月額を買って返金する」だけで済む状態にはしない。
-func keepPremiumForLifetime(
-	d appStoreDecision, data map[string]any, notificationType string,
-) appStoreDecision {
-	if d.Tier != "free" {
-		return d
+// 通知は買い切りについてのものなので、月額側の status / expires_at には触らない。
+// 買い切りの印だけを外し、月額の権利が残っていなければ free に落とす。
+// 冪等なので、順序逆転を見る notification_signed_at の判定は通さない
+// （通す場合、あとから届いた月額の通知に隠されて印が外れないままになる）。
+func revokeLifetimeForUsers(
+	ctx context.Context, docs []*firestore.DocumentSnapshot,
+	n *appstore.Notification, now time.Time,
+) error {
+	if len(docs) == 0 {
+		return nil
 	}
-	switch notificationType {
-	case "REFUND", "REVOKE":
-		return d
+	if !isRevocationNotification(n) {
+		return nil
 	}
-	sub, _ := data["subscription"].(map[string]any)
-	if !subscription.IsLifetime(sub) {
-		return d
+	for _, doc := range docs {
+		sub, _ := doc.Data()["subscription"].(map[string]any)
+		if !subscription.IsLifetime(sub) || !lifetimeRevoked(sub, n) {
+			continue
+		}
+		updates := lifetimeReleaseUpdates(doc.Data(), now)
+		if _, err := doc.Ref.Update(ctx, updates,
+			firestore.LastUpdateTime(doc.UpdateTime)); err != nil {
+			return err
+		}
+		log.Printf("Revoked lifetime for user %s (%s)", doc.Ref.ID, n.NotificationType)
 	}
-	d.Tier = "premium"
-	return d
+	return nil
 }
 
 // appStoreUpdates は1ユーザーぶんの更新内容を組み立てる（Firestore に触らない）。
@@ -206,6 +307,7 @@ func keepPremiumForLifetime(
 // original_transaction_id 等を保持する。
 func appStoreUpdates(
 	n *appstore.Notification, decision appStoreDecision, currentTier, uid string,
+	lifetimeRevoked bool,
 ) []firestore.Update {
 	isFree := decision.Tier == "free"
 
@@ -240,22 +342,25 @@ func appStoreUpdates(
 			n.NotificationType, uid)
 	}
 
-	// 買い切りそのものの返金・取消では印を外す。tier を free にするだけだと
-	// 印が残り、そのあと月額を買った人が解約後も premium のままになる。
-	// 月額の返金で外さないのは、買い切りの権利まで巻き添えにしないため。
-	if isLifetimeProduct(n.TransactionInfo.ProductID) &&
-		(n.NotificationType == "REFUND" || n.NotificationType == "REVOKE") {
-		updates = append(updates, firestore.Update{
-			Path: "subscription.lifetime", Value: false,
-		})
+	// 権利を剥がすときは印も一緒に消す（判定は lifetimeRevoked）。tier だけ
+	// 落として印を残すと、そのあと月額を買い直して解約するだけで premium が
+	// 永久に戻る。
+	if lifetimeRevoked {
+		updates = append(updates,
+			firestore.Update{Path: "subscription.lifetime", Value: false},
+			firestore.Update{Path: "subscription.lifetime_source", Value: firestore.Delete},
+			firestore.Update{
+				Path: "subscription.lifetime_transaction_id", Value: firestore.Delete},
+			firestore.Update{
+				Path: "subscription.lifetime_source_transaction_id", Value: firestore.Delete},
+			firestore.Update{
+				Path: "subscription.lifetime_source_purchase_token", Value: firestore.Delete},
+		)
 	}
 
 	// クォータはティアが変わる時のみリセット（同一 tier の更新通知でリセットしない）
 	if currentTier != decision.Tier {
-		sentences, quizzes := quota.PremiumDailySentences, quota.PremiumDailyQuizzes
-		if isFree {
-			sentences, quizzes = quota.FreeDailySentences, quota.FreeDailyQuizzes
-		}
+		sentences, quizzes := quota.Reset(!isFree)
 		updates = append(updates,
 			firestore.Update{Path: "remaining_sentences", Value: sentences},
 			firestore.Update{Path: "remaining_quizzes", Value: quizzes},

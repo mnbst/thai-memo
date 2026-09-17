@@ -37,8 +37,10 @@ class _ReadyController extends SubscriptionController {
     required super.l10n,
     required super.purchaseService,
     required bool withLifetime,
+    bool isPremium = false,
   }) : super(firestore: FakeFirestore()) {
     state = SubscriptionState(
+      tier: isPremium ? UserTier.premium : UserTier.free,
       product: _product('premium_monthly', '¥600', 600),
       lifetimeProduct:
           withLifetime ? _product('premium_lifetime', '¥1,800', 1800) : null,
@@ -54,14 +56,17 @@ Future<void> _pump(
   WidgetTester tester, {
   required FakePurchaseService purchase,
   bool withLifetime = true,
+  bool isPremium = false,
+  Map<String, dynamic>? userData,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         analyticsServiceProvider.overrideWithValue(FakeAnalyticsService()),
         userDocSnapshotProvider.overrideWith(
-          (ref) =>
-              Stream.value(const UserDocSnapshot(data: null, isFromCache: false)),
+          (ref) => Stream.value(
+            UserDocSnapshot(data: userData, isFromCache: false),
+          ),
         ),
         subscriptionControllerProvider.overrideWith(
           (ref) => _ReadyController(
@@ -69,6 +74,7 @@ Future<void> _pump(
             l10n: () => lookupL10n(const Locale('ja')),
             purchaseService: purchase,
             withLifetime: withLifetime,
+            isPremium: isPremium,
           ),
         ),
       ],
@@ -135,5 +141,75 @@ void main() {
     // 選択肢が1つなら、これまで通りの「プレミアムに登録」のまま。
     expect(find.text('プレミアムに登録'), findsOneWidget);
     expect(find.text('このプランで始める'), findsNothing);
+  });
+
+  testWidgets('名簿外の月額加入者は期限切れを待たず買い切りへ変更できる', (tester) async {
+    await _pump(
+      tester,
+      purchase: purchase,
+      isPremium: true,
+      userData: {
+        'tier': 'premium',
+        'subscription': {
+          'platform': 'ios',
+          'product_id': 'premium_monthly',
+          'status': 'active',
+          'lifetime': false,
+        },
+      },
+    );
+
+    expect(find.text('プレミアムプランに加入中です'), findsNothing);
+    expect(find.text('月額プラン'), findsNothing);
+    expect(find.text('買い切り'), findsOneWidget);
+    expect(find.text('買い切りへ変更する'), findsOneWidget);
+    expect(find.textContaining('月額プランは自動では解約されません'), findsOneWidget);
+
+    await tester.tap(find.text('買い切りへ変更する'));
+    await tester.pump();
+
+    expect(purchase.lastBought?.id, 'premium_lifetime');
+  });
+
+  testWidgets('無償移行の名簿内ユーザーには買い切りを販売しない', (tester) async {
+    await _pump(
+      tester,
+      purchase: purchase,
+      isPremium: true,
+      userData: {
+        'tier': 'premium',
+        'lifetime_migration_eligible': true,
+        'subscription': {
+          'platform': 'ios',
+          'product_id': 'premium_monthly',
+          'status': 'active',
+          'lifetime': false,
+        },
+      },
+    );
+
+    expect(find.text('プレミアムプランに加入中です'), findsOneWidget);
+    expect(find.text('買い切りへ変更する'), findsNothing);
+    expect(purchase.lastBought, isNull);
+  });
+
+  testWidgets('買い切り所有者には再購入を出さない', (tester) async {
+    await _pump(
+      tester,
+      purchase: purchase,
+      isPremium: true,
+      userData: {
+        'tier': 'premium',
+        'subscription': {
+          'platform': 'ios',
+          'product_id': 'premium_lifetime',
+          'status': 'active',
+          'lifetime': true,
+        },
+      },
+    );
+
+    expect(find.text('プレミアムプランに加入中です'), findsOneWidget);
+    expect(find.text('買い切りへ変更する'), findsNothing);
   });
 }

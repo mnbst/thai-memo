@@ -25,8 +25,10 @@ type dailyGolden struct {
 			NotifyTier   int `json:"notify_tier"`
 			NotifyMisses int `json:"notify_tier_misses"`
 		} `json:"evaluate_response"`
-		UsesPremiumTrial bool    `json:"uses_premium_trial"`
-		SkipReason       *string `json:"delivery_skip_reason"`
+		// uses_premium_trial は Python 版の「トライアル枠で配信するか」。
+		// 実効プレミアムの判定は premium.IsEffectivePremium に一本化したため
+		// 対応する Go 関数は無く、突き合わせもしない。
+		SkipReason *string `json:"delivery_skip_reason"`
 	} `json:"cases"`
 }
 
@@ -124,11 +126,6 @@ func TestDeliveryDecisionGolden(t *testing.T) {
 				i, c.Evaluate.NotifyTier, c.Evaluate.NotifyMisses,
 				got.NotifyTier, got.NotifyMisses, c.Data)
 		}
-		if got := UsesPremiumTrial(data, now); got != c.UsesPremiumTrial {
-			t.Errorf("case %d: UsesPremiumTrial Python=%v Go=%v\n  %v",
-				i, c.UsesPremiumTrial, got, c.Data)
-		}
-
 		wantReason := ""
 		if c.SkipReason != nil {
 			wantReason = *c.SkipReason

@@ -190,6 +190,8 @@ func decode(raw map[string]any) (*Result, error) {
 	return &res, nil
 }
 
+var driftLanguageName = map[lang.Lang]string{lang.JA: "日本語", lang.EN: "英語"}
+
 func validate(res *Result) error {
 	known := false
 	for _, s := range Styles {
@@ -204,13 +206,18 @@ func validate(res *Result) error {
 	for _, f := range []struct {
 		name  string
 		value string
+		lang  lang.Lang
 	}{
-		{"emotion_ja", res.EmotionJA}, {"emotion_en", res.EmotionEN},
-		{"usage_ja", res.UsageJA}, {"usage_en", res.UsageEN},
-		{"culture_ja", res.CultureJA}, {"culture_en", res.CultureEN},
+		{"emotion_ja", res.EmotionJA, lang.JA}, {"emotion_en", res.EmotionEN, lang.EN},
+		{"usage_ja", res.UsageJA, lang.JA}, {"usage_en", res.UsageEN, lang.EN},
+		{"culture_ja", res.CultureJA, lang.JA}, {"culture_en", res.CultureEN, lang.EN},
 	} {
 		if strings.TrimSpace(f.value) == "" {
 			return fmt.Errorf("%s が空", f.name)
+		}
+		// 指定と違う言語で書かれていたら差し戻す（ja に韓国語など）。
+		if lang.IsWrongLanguage(f.value, f.lang) {
+			return fmt.Errorf("%s が%sで書かれていない", f.name, driftLanguageName[f.lang])
 		}
 	}
 	return nil

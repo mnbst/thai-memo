@@ -3,6 +3,7 @@ package function
 import (
 	"context"
 	"log"
+	"maps"
 	"net/http"
 	"sort"
 	"sync"
@@ -419,41 +420,18 @@ func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[s
 		tier = "free"
 	}
 	sub, _ := userData["subscription"].(map[string]any)
-	expiresAt, hasExpiresAt := sub["expires_at"].(time.Time)
-	isStoreSubscription := subscription.IsStorePlatform(sub["platform"])
 
-	// 猶予期間中は期限超過が前提なので、通常より長い上限で判定する
-	margin := subscription.ExpiryDemotionMargin
-	if status, _ := sub["status"].(string); status == "grace_period" {
-		margin = subscription.GracePeriodMax
-	}
-
-	subscriptionLapsed := tier == "premium"
-	if subscriptionLapsed {
-		switch {
-		case subscription.IsLifetime(sub):
-			// 買い切りは期限を持たないのが正常。返金・取消でのみ free に戻る
-			// （REFUND / REVOKE 通知）ので、ここでは落とさない。
-			subscriptionLapsed = false
-		case hasExpiresAt:
-			subscriptionLapsed = now.Sub(expiresAt) > margin
-		default:
-			// ストア購入で expires_at がない = 期限判定が働かないので premium を維持しない
-			subscriptionLapsed = isStoreSubscription
-		}
-	}
+	// 維持できるかの判定（買い切り・猶予期間・expires_at 欠落の扱い）は
+	// internal/subscription に集約している。
+	subscriptionLapsed := tier == "premium" &&
+		!subscription.Entitled(sub, now, subscription.ExpiryDemotionMargin)
 
 	isPremium := tier == "premium" && !subscriptionLapsed
 	// トライアル中は課金 premium と同じ回数を出す。
 	trialActive := premium.IsTrialActive(userData, now)
 	effectivePremium := isPremium || trialActive
 
-	sentenceResetValue := quota.FreeDailySentences
-	quizResetValue := quota.FreeDailyQuizzes
-	if effectivePremium {
-		sentenceResetValue = quota.PremiumDailySentences
-		quizResetValue = quota.PremiumDailyQuizzes
-	}
+	sentenceResetValue, quizResetValue := quota.Reset(effectivePremium)
 
 	payload := map[string]any{
 		"remaining_sentences":      sentenceResetValue,
@@ -487,10 +465,24 @@ func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[s
 		}
 	}
 
+	// subscription へ書くぶんは1つにまとめる（payload["subscription"] を
+	// 別々に代入すると、あとの代入が前の内容を丸ごと捨ててしまう）。
+	subPayload := map[string]any{}
+
+	// 買い切り購入者のうち、返金通知用のキーを持たない doc を補う（過渡期の埋め戻し）。
+	if backfill := lifetimeBackfillPayload(userData); backfill != nil {
+		maps.Copy(subPayload, backfill)
+		log.Printf("resetQuota: backfilling lifetime identifier for user %s", uid)
+	}
+
 	if subscriptionLapsed {
 		log.Printf("resetQuota: demoting lapsed premium user %s", uid)
 		payload["tier"] = "free"
-		payload["subscription"] = map[string]any{"status": "expired"}
+		subPayload["status"] = "expired"
+	}
+
+	if len(subPayload) > 0 {
+		payload["subscription"] = subPayload
 	}
 
 	return payload

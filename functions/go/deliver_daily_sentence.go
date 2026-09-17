@@ -198,9 +198,11 @@ type pickedSet struct {
 // users/{uid}.app_language にミラーした設定から解決する。渡し忘れると
 // 既定値 ja に落ち、en ユーザーの配信だけ日本語になる
 // （2026-08-14 実測: en ユーザーの配信例文10本が全て日本語訳だった）。
-// free はキャッシュのみで LLM 原価をゼロに保つ。premium と、トライアル枠を充てる
-// 配信（UsesPremiumTrial）は LLM で生成し、失敗した場合だけキャッシュに退避して
-// 通知そのものは落とさない。
+// free はキャッシュのみで LLM 原価をゼロに保つ。実効プレミアム
+// （premium.IsEffectivePremium: 課金・体験トライアル・猶予期間・反映待ちの購入）は
+// LLM で生成し、失敗した場合だけキャッシュに退避して通知そのものは落とさない。
+// 回数消費の判定（consumeQuota）と同じ関数を使い、「回数は premium 扱いなのに
+// 中身は free 品質」のような食い違いを作らない。
 // premium のテーマはクライアントが users/{uid}.preferred_topic にミラーした
 // 設定を使い、未設定（おまかせ）ならヒアリングの用途（interview.goal）から
 // 決める。どちらも無ければ通常生成と同じく UVM の key_word から決める。
@@ -209,7 +211,7 @@ func (d *deliverer) buildSentences(
 ) *pickedSet {
 	l := lang.Resolve(userData["app_language"])
 
-	if userData["tier"] == "premium" || dailysentence.UsesPremiumTrial(userData, now) {
+	if premium.IsEffectivePremium(userData, now) {
 		params := map[string]any{}
 		// 本人が選んだテーマ > ヒアリングの用途 > key_word 起点の自動選出。
 		preferred, _ := userData["preferred_topic"].(string)

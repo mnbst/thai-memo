@@ -46,3 +46,45 @@ func IsLifetime(sub map[string]any) bool {
 	lifetime, _ := sub["lifetime"].(bool)
 	return lifetime
 }
+
+// LifetimeSource は買い切りの出所（"monthly_migration" なら無償移行、
+// 空なら買い切りそのものの購入）。
+func LifetimeSource(sub map[string]any) string {
+	source, _ := sub["lifetime_source"].(string)
+	return source
+}
+
+// LifetimeTransactionID は買い切りを検証したときの originalTransactionId。
+//
+// subscription.original_transaction_id は月額を再検証すると上書きされるため、
+// 買い切りの返金・取消通知はこちらでも引けるようにしている。
+func LifetimeTransactionID(sub map[string]any) string {
+	id, _ := sub["lifetime_transaction_id"].(string)
+	return id
+}
+
+// Entitled は subscription の記録だけを見て「まだ premium を維持してよいか」を返す。
+// 期限切れフォールバック（dailyBatch / subscriptionStatus）の判定はここに集約する。
+//
+// margin は期限超過を見逃す幅（ストア通知の遅延ぶん）。grace_period は期限超過が
+// 前提なので、margin が短くても GracePeriodMax まで維持する。
+//
+//   - 買い切り（購入・無償移行とも）: 期限を持たないのが正常なので常に維持する。
+//     返金・取消は subscription.lifetime を落とす側で表現する。
+//   - expires_at あり: 超過が margin 以内なら維持。
+//   - expires_at なし: ストア購入なら期限判定が効かないので維持しない
+//     （手動付与・体験トライアルの無期限はここで維持される）。
+func Entitled(sub map[string]any, now time.Time, margin time.Duration) bool {
+	if IsLifetime(sub) {
+		return true
+	}
+	if status, _ := sub["status"].(string); status == "grace_period" &&
+		margin < GracePeriodMax {
+		margin = GracePeriodMax
+	}
+	expiresAt, ok := sub["expires_at"].(time.Time)
+	if !ok {
+		return !IsStorePlatform(sub["platform"])
+	}
+	return now.Sub(expiresAt) <= margin
+}

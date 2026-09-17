@@ -174,10 +174,7 @@ func playUpdates(
 
 	// クォータはティアが変わる時のみリセット（更新通知で誤リセットしない）
 	if currentTier != tier {
-		sentences, quizzes := quota.PremiumDailySentences, quota.PremiumDailyQuizzes
-		if isFree {
-			sentences, quizzes = quota.FreeDailySentences, quota.FreeDailyQuizzes
-		}
+		sentences, quizzes := quota.Reset(!isFree)
 		updates = append(updates,
 			firestore.Update{Path: "remaining_sentences", Value: sentences},
 			firestore.Update{Path: "remaining_quizzes", Value: quizzes},

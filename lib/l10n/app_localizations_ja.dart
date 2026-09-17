@@ -805,7 +805,14 @@ class L10nJa extends L10n {
   String get paywallPurchaseCta => 'このプランで始める';
 
   @override
+  String get paywallChangeToLifetimeCta => '買い切りへ変更する';
+
+  @override
   String get paywallLifetimeNote => '1回きりの支払いです。更新はありません。';
+
+  @override
+  String get paywallMonthlyToLifetimeNote =>
+      '買い切りの購入後も、現在の月額プランは自動では解約されません。App Storeのアカウント設定から月額プランを解約してください。';
 
   @override
   String get paywallLegal =>
@@ -2320,7 +2327,8 @@ class L10nJa extends L10n {
   String get guideOverviewTitle => 'このアプリでやること';
 
   @override
-  String get guideOverviewBody1 => 'AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。';
+  String get guideOverviewBody1 =>
+      'AIがあなたの語彙に合わせたタイ語の例文を、毎日つくります。読み終えたら、その場で追加することもできます。';
 
   @override
   String get guideOverviewBody2 => '例文で覚える → クイズで確かめる。これを5つくり返して1巡です。';
