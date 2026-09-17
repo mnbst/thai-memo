@@ -866,7 +866,14 @@ class L10nEn extends L10n {
   String get paywallPurchaseCta => 'Start with this plan';
 
   @override
+  String get paywallChangeToLifetimeCta => 'Switch to lifetime';
+
+  @override
   String get paywallLifetimeNote => 'A one-time payment. No renewals.';
+
+  @override
+  String get paywallMonthlyToLifetimeNote =>
+      'Buying the lifetime plan does not automatically cancel your current monthly subscription. Cancel the monthly plan separately in your App Store account settings.';
 
   @override
   String get paywallLegal =>
@@ -2494,7 +2501,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideOverviewBody1 =>
-      'Every day, AI creates five Thai sentences at once, matched to your vocabulary.';
+      'Every day, AI creates Thai sentences matched to your vocabulary. When you finish them, you can generate more on the spot.';
 
   @override
   String get guideOverviewBody2 =>
