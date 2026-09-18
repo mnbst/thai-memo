@@ -146,20 +146,37 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 
 	// SRS ベースでリアルタイムに復習対象例文を選出
 	filter := quizKeyWordFilter(ctx, userData)
-	selected, err := selectSentencesBySRS(ctx, db, uid, nowJST(), filter)
-	if err != nil {
+	sel := newSelection()
+	// 語彙テストの測定値で絞り、空なら絞らずにやり直す（1周ぶん）。
+	selectPass := func(viewedOnly bool) error {
+		if err := selectSentencesBySRS(
+			ctx, db, uid, nowJST(), filter, viewedOnly, sel); err != nil {
+			return err
+		}
+		if len(sel.sentences) == 0 && filter != nil {
+			// 測定値より上の例文がまだ無いユーザーを無出題にしない。
+			log.Printf("quiz_vocab_floor_filter_empty uid=%s", uid)
+			return selectSentencesBySRS(ctx, db, uid, nowJST(), nil, viewedOnly, sel)
+		}
+		return nil
+	}
+
+	// まず既読だけで選ぶ。まだ読んでいない例文から出題しないため。
+	if err := selectPass(true); err != nil {
 		log.Printf("Failed to generate quiz: %v", err)
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}
-	if len(selected) == 0 && filter != nil {
-		// 測定値より上の例文がまだ無いユーザーを無出題にしない。
-		log.Printf("quiz_vocab_floor_filter_empty uid=%s", uid)
-		selected, err = selectSentencesBySRS(ctx, db, uid, nowJST(), nil)
-		if err != nil {
+	if !sel.full() {
+		// 既読だけでは問題数が埋まらない（始めたばかり・例文を読まずに
+		// クイズだけ回す人）。無出題や2問だけのクイズにするより、
+		// 未読を混ぜてでも従来どおりの問題数を出す。
+		log.Printf("quiz_viewed_only_short uid=%s viewed=%d", uid, len(sel.sentences))
+		if err := selectPass(false); err != nil {
 			log.Printf("Failed to generate quiz: %v", err)
 			return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 		}
 	}
+	selected := sel.sentences
 
 	// ユーザー例文がない場合 → クライアントに通知
 	if len(selected) == 0 {

@@ -15,6 +15,7 @@ import '../../domain/get_sentences_usecase.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
 import '../../services/pending_operations.dart';
+import '../../services/sentence_view_marker.dart';
 import 'analytics_provider.dart';
 import 'remaining_quota_provider.dart';
 import 'settings_provider.dart';
@@ -99,6 +100,10 @@ class SentenceController extends StateNotifier<SentenceState> {
   final GenerateSentenceCallback? _generateSentenceOverride;
   final GetMostRecentSentenceCallback? _getMostRecentSentenceOverride;
 
+  /// 表示した例文をサーバーへ既読として返す。まとめクイズが未読の例文を
+  /// 出さないために要る（sentence_view_marker.dart）。
+  final SentenceViewMarker _viewMarker;
+
   SentenceController(
     this._generateUseCase,
     this._getUseCase,
@@ -110,8 +115,10 @@ class SentenceController extends StateNotifier<SentenceState> {
     this._l10n, {
     GenerateSentenceCallback? generateSentence,
     GetMostRecentSentenceCallback? getMostRecentSentence,
+    SentenceViewMarker? viewMarker,
   })  : _generateSentenceOverride = generateSentence,
         _getMostRecentSentenceOverride = getMostRecentSentence,
+        _viewMarker = viewMarker ?? SentenceViewMarker.instance,
         // 起動直後は「まだ読み込んでいない」＝読み込み中。区別しても画面の
         // 出し分けは同じで、分岐が1つ増えるだけだった。
         super(const SentenceStateLoading());
@@ -158,11 +165,7 @@ class SentenceController extends StateNotifier<SentenceState> {
       );
       // 表示するのは1本目。残りはセットとして状態に載せ、消化カーソル
       // （dailySetProvider）が拾う。
-      state = SentenceStateSuccess(
-        sentences.first,
-        generated: true,
-        generatedSet: sentences,
-      );
+      _show(sentences.first, generated: true, generatedSet: sentences);
       _logGenerateSentence(
         count: sentences.length,
         source: source,
@@ -178,7 +181,7 @@ class SentenceController extends StateNotifier<SentenceState> {
       // 生成失敗時は既存の最新例文を表示、なければサンプル表示
       final recent = await _executeGetMostRecentSentence();
       if (recent != null) {
-        state = SentenceStateSuccess(recent);
+        _show(recent);
       } else {
         state = const SentenceStateEmpty();
       }
@@ -220,7 +223,7 @@ class SentenceController extends StateNotifier<SentenceState> {
     try {
       final sentence = await _executeGetMostRecentSentence();
       if (sentence != null) {
-        state = SentenceStateSuccess(sentence);
+        _show(sentence);
       } else {
         state = const SentenceStateEmpty();
       }
@@ -241,7 +244,7 @@ class SentenceController extends StateNotifier<SentenceState> {
         // 今日生成済み → 最新を表示
         final recent = await _executeGetMostRecentSentence();
         if (recent != null) {
-          state = SentenceStateSuccess(recent);
+          _show(recent);
           return;
         }
         // ローカルDBが空（再インストール等） → フラグを無視して生成を試みる
@@ -261,7 +264,24 @@ class SentenceController extends StateNotifier<SentenceState> {
 
   /// 通知から受け取った例文を直接表示する
   void showSentence(ThaiSentence sentence) {
-    state = SentenceStateSuccess(sentence);
+    _show(sentence);
+  }
+
+  /// 例文を画面へ載せ、既読として記録する。
+  ///
+  /// 表示するのは常に1本だけ。[generatedSet] の残りは待機列へ回るので
+  /// 既読にはしない（読む番が来たときにここを通る）。
+  void _show(
+    ThaiSentence sentence, {
+    bool generated = false,
+    List<ThaiSentence> generatedSet = const [],
+  }) {
+    state = SentenceStateSuccess(
+      sentence,
+      generated: generated,
+      generatedSet: generatedSet,
+    );
+    _viewMarker.markViewed(sentence.id);
   }
 
   void reset() => state = const SentenceStateEmpty();

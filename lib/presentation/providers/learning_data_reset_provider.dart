@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/datasources/backend_api_service.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../services/firebase_auth_service.dart';
+import '../../services/sentence_view_marker.dart';
 import 'daily_set_provider.dart';
 import 'leaderboard_provider.dart';
 import 'quiz_provider.dart';
@@ -68,6 +69,8 @@ class LearningDataReset {
       quiz.reset();
       await quiz.waitForSavedQuizWrites();
       await sets.clear();
+      // 例文ごと消えるので、既読の送信記録も持っていても使えない。
+      await SentenceViewMarker.instance.clear();
       await _deleteDatabase();
       final prefs = await SharedPreferences.getInstance();
       if (clearPreferences) {

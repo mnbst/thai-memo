@@ -63,8 +63,12 @@ class SentenceRepository {
 
       final saved = <ThaiSentence>[];
       for (final sentence in sentences) {
-        // Add ID and assign sentence IDs to word breakdowns
-        final sentenceId = _uuid.v4();
+        // 主キーはサーバーの doc ID を使う。既読（viewed）を書き戻す宛先が
+        // 同じIDでないと、読んだ例文をサーバー側で既読にできない。
+        // 返ってこない場合（旧サーバー）だけ端末でUUIDを振る。
+        final serverId = sentence.id;
+        final sentenceId =
+            (serverId != null && serverId.isNotEmpty) ? serverId : _uuid.v4();
         final finalSentence = sentence.copyWith(
           id: sentenceId,
           wordBreakdowns: sentence.wordBreakdowns

@@ -549,6 +549,7 @@ func (d *deliverer) deliverOne(
 			UsePremiumSpec: p.UsePremiumSpec,
 			Lang:           p.Lang,
 			FromCache:      produced.FromCache,
+			TrackViewed:    sentence.SupportsViewTracking(userData),
 		})
 		data["daily"] = true
 		data["daily_date"] = localDate

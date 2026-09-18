@@ -19,6 +19,7 @@ import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/models/word_breakdown.dart';
+import '../../services/sentence_view_marker.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/tts_provider.dart';
@@ -73,6 +74,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             source: widget.source,
           ),
     );
+    // 履歴から開いた例文もここで既読になる（学習タブ以外の読み口）。
+    SentenceViewMarker.instance.markViewed(widget.sentence.id);
   }
 
   @override

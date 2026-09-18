@@ -129,10 +129,11 @@ func TestSelectSentencesBySRS(t *testing.T) {
 		}
 	}
 
-	selected, err := selectSentencesBySRS(ctx, db, uid, jstNow, nil)
-	if err != nil {
+	sel := newSelection()
+	if err := selectSentencesBySRS(ctx, db, uid, jstNow, nil, true, sel); err != nil {
 		t.Fatal(err)
 	}
+	selected := sel.sentences
 
 	byID := map[string]int{}
 	for _, s := range selected {
@@ -190,11 +191,12 @@ func TestSelectSentencesBySRSNoSentences(t *testing.T) {
 	db, ctx := liveFirestore(t)
 	fixedShuffle(t)
 
-	selected, err := selectSentencesBySRS(ctx, db,
-		"go-port-srs-empty-throwaway", time.Now().UTC().Add(jstOffset), nil)
-	if err != nil {
+	sel := newSelection()
+	if err := selectSentencesBySRS(ctx, db, "go-port-srs-empty-throwaway",
+		time.Now().UTC().Add(jstOffset), nil, true, sel); err != nil {
 		t.Fatal(err)
 	}
+	selected := sel.sentences
 	if len(selected) != 0 {
 		t.Errorf("例文が無いのに %d 件選ばれた", len(selected))
 	}

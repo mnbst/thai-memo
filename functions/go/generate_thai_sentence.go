@@ -279,7 +279,8 @@ func runGenerateThaiSentence(
 		uvm.SyncEstimatedVocab(ctx, db, uid, freqRank)
 	}()
 
-	if err := commitSentences(ctx, db, userRef, produced, usePremiumSpec, l); err != nil {
+	if err := commitSentences(ctx, db, userRef, produced, usePremiumSpec, l,
+		sentence.SupportsViewTracking(userData)); err != nil {
 		log.Printf("Failed to save sentence to Firestore: %v", err)
 		wg.Wait()
 		return nil, err
@@ -336,6 +337,7 @@ func registerSentenceExposure(
 func commitSentences(
 	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
 	produced []*sentence.Produced, usePremiumSpec bool, l lang.Lang,
+	trackViewed bool,
 ) error {
 	refs := make([]*firestore.DocumentRef, len(produced))
 	docs := make([]map[string]any, len(produced))
@@ -346,10 +348,11 @@ func commitSentences(
 			UsePremiumSpec: usePremiumSpec,
 			Lang:           l,
 			FromCache:      p.FromCache,
+			TrackViewed:    trackViewed,
 		})
 	}
 
-	return db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+	if err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		snap, err := tx.Get(userRef)
 		userData := map[string]any{}
 		if err == nil && snap.Exists() {
@@ -364,7 +367,16 @@ func commitSentences(
 			}
 		}
 		return tx.Update(userRef, sentenceCommitUpdate(userData, len(refs), !usePremiumSpec))
-	})
+	}); err != nil {
+		return err
+	}
+
+	// 保存できた doc ID をレスポンスへ載せる。クライアントはこれをローカルの
+	// 主キーにし、読んだ例文へ既読（viewed）を書き戻す宛先にする。
+	for i, p := range produced {
+		p.Sentence.ID = refs[i].ID
+	}
+	return nil
 }
 
 // sentenceCommitUpdate は例文コミット時の users ドキュメント更新内容

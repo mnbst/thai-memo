@@ -83,7 +83,7 @@ lib/data/models/quiz_result.dart
 ## Data Sources
 
 lib/data/datasources/backend_api_service.dart
-Cloud Functions HTTPクライアント。例文生成・クイズ生成呼び出し、エラーマッピング。
+Cloud Functions HTTPクライアント。例文生成・クイズ生成呼び出し、エラーマッピング。生成レスポンスの id（サーバーの doc ID）も読む。
 
 lib/data/models/vocab_test_step.dart
 語彙テストの1往復ぶんの応答（出題1段ぶん、または最終結果）。正解は含まない。
@@ -262,6 +262,9 @@ FCMトークン・タイムゾーン・配信希望時刻をusers/{uid}に登録
 lib/services/app_version_reporter.dart
 起動時に users doc へ app_version / app_build_number / last_opened_at を記録。サーバー側の機能出し分け判定に使う。
 
+lib/services/sentence_view_marker.dart
+画面に出した例文へ既読（viewed=true）を付ける。未送信ぶんは端末に溜め、起動時に流す。まとめクイズが未読の例文を出さないために要る。
+
 lib/services/review_prompt_service.dart
 App Storeのレビュー依頼をiOSのOSダイアログで出す。クイズ完走と例文生成の2経路から発火し、バージョン単位＋60日クールダウンで重複を防ぐ。
 
@@ -404,6 +407,9 @@ Firebase callable プロトコルのGo実装。{"data"}/{"result"}/{"error"}電�
 
 functions/go/internal/callable/number.go
 callable の data に載る整数を読む。Flutter SDK が int を包む Int64 ラッパーも解く。
+
+functions/go/internal/appver/appver.go
+クライアントの app_version（"1.4.11" 形式）による機能出し分けの比較。配信本数・既読トラッキングの可否判定で共用する。
 
 functions/go/internal/fbapp/fbapp.go
 Firebase Admin(Firestore/Auth)クライアントの遅延生成シングルトン。

@@ -169,7 +169,11 @@ class BackendApiService {
       final targetWords = targetWordsJson?.map((e) => e as String).toList();
 
       // Create ThaiSentence
+      //
+      // id はサーバー側 doc（users/{uid}/sentences）のID。旧サーバーは返さない
+      // ので空になり、その場合は保存側でUUIDを振る。
       final sentence = ThaiSentence(
+        id: json['id'] as String?,
         thaiText: json['thai_text'] as String? ?? '',
         pronunciation: json['pronunciation'] as String? ?? '',
         japaneseTranslation: json['japanese_translation'] as String? ?? '',
