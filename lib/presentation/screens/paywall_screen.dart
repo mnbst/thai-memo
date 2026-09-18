@@ -387,17 +387,18 @@ class _PaywallBottomSheetState extends ConsumerState<PaywallBottomSheet> {
           // プラン選択。月額と買い切りを同じ形で並べ、価格と「更新があるか」を
           // 縦に見比べられるようにする。ボタンを2つ並べると、どちらが何円で
           // 何が違うのかが読み取れなかった。
-          if (!canChangeMonthlyToLifetime)
+          // 商品が引けていない間は月額カードも出さない。価格が空のカードを
+          // 残すと「買えない購入項目が並んでいる」状態になり、App Review で
+          // Guideline 2.1(b) を取られる。買い切り側と同じ null ガードにする。
+          if (!canChangeMonthlyToLifetime && subState.product != null)
             _buildPlanCard(
               context,
               plan: _Plan.monthly,
               title: L10n.of(context).paywallPlanMonthlyTitle,
               note: L10n.of(context).paywallPlanMonthlyNote,
-              price: subState.product == null
-                  ? ''
-                  : L10n.of(context).paywallPlanMonthlyPrice(
-                      subState.product!.price,
-                    ),
+              price: L10n.of(context).paywallPlanMonthlyPrice(
+                subState.product!.price,
+              ),
               selectable: hasChoice,
             ),
           if (subState.lifetimeProduct != null)
