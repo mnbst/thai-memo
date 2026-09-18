@@ -31,6 +31,10 @@ type TargetNote struct {
 // LLM のレスポンス（RESPONSE_JSON_SCHEMA 準拠）をそのまま受け、
 // 後処理で Pronunciation と各語の NLP 情報が足される。
 type Sentence struct {
+	// ID は保存後の users/{uid}/sentences の doc ID。クライアントはこれを
+	// ローカルの主キーに使い、既読（viewed）を書き戻すときの宛先にする。
+	// 保存前（生成直後）は空。
+	ID                  string         `json:"id,omitempty"`
 	ThaiText            string         `json:"thai_text"`
 	JapaneseTranslation string         `json:"japanese_translation"`
 	Pronunciation       string         `json:"pronunciation,omitempty"`

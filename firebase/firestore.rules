@@ -38,7 +38,15 @@ service cloud.firestore {
 
       match /sentences/{sentenceId} {
         allow read: if request.auth != null && request.auth.uid == userId;
-        allow write: if false;
+        // 本文はサーバーだけが書く。例外は既読フラグ（viewed）で、読んだ本人が
+        // true にできる。まとめクイズが「まだ読んでいない例文」を出さないために
+        // 要る。true への変更だけを通すので、既読を取り消して出題を避けることは
+        // できない。
+        allow create, delete: if false;
+        allow update: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['viewed'])
+          && request.resource.data.viewed == true;
       }
 
       match /quiz_answers/{answerId} {

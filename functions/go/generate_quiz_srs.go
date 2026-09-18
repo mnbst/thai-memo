@@ -137,7 +137,48 @@ func (f keyWordFilter) allows(keyWord string) bool {
 	return f == nil || f(keyWord)
 }
 
-// selectSentencesBySRS はユーザーの全例文から復習対象を選出する。
+// selection は選出の途中経過。既読だけで1周し、足りなければ未読も含めて
+// もう1周するので、選んだ例文と使った key_word を周をまたいで持ち回る。
+type selection struct {
+	sentences    []selectedSentence
+	usedIDs      map[string]bool
+	usedKeyWords map[string]bool
+	// srsCount は SRS 枠（maxSrsSentences）から選んだ本数。
+	srsCount int
+}
+
+func newSelection() *selection {
+	return &selection{
+		usedIDs:      map[string]bool{},
+		usedKeyWords: map[string]bool{},
+	}
+}
+
+func (s *selection) add(candidate selectedSentence) {
+	s.sentences = append(s.sentences, candidate)
+	s.usedIDs[candidate.ID] = true
+	if keyWord, ok := candidate.Data["key_word"].(string); ok && keyWord != "" {
+		s.usedKeyWords[keyWord] = true
+	}
+	if candidate.SrsInterval > 0 {
+		s.srsCount++
+	}
+}
+
+func (s *selection) full() bool { return len(s.sentences) >= maxQuestions }
+
+// isSentenceViewed は例文がユーザーに表示済みかどうか。
+//
+// viewed フィールドが無い例文は既読扱いにする。旧クライアント宛て・
+// この機能より前に書かれた doc には付かないので、無い＝判定不能であり、
+// 未読扱いにすると出題できる例文が消える（sentence.SupportsViewTracking）。
+// 値が入っていて false のときだけ未読。
+func isSentenceViewed(data map[string]any) bool {
+	viewed, ok := data["viewed"].(bool)
+	return !ok || viewed
+}
+
+// selectSentencesBySRS はユーザーの全例文から復習対象を選び、sel へ足す。
 //
 // 選出の優先順位:
 //  1. srsDays をランダム順に見て、ジャスト日付ごとに P 値最低の1文を最大2文選出
@@ -146,42 +187,34 @@ func (f keyWordFilter) allows(keyWord string) bool {
 // filter は語彙テスト受験後に測定値より下の key_word を落とすために使う
 // （quizKeyWordFilter を参照）。呼び出し側は、絞った結果が空になったら
 // filter 無しでやり直すこと。
+//
+// viewedOnly が真なら未読（viewed == false）の例文を候補から外す。
+// まだ読んでいない例文を出題しないための絞り込みで、これだけでは
+// 問題数が埋まらないことがあるため、呼び出し側が偽でもう1周する。
 func selectSentencesBySRS(
 	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time,
-	filter keyWordFilter,
-) ([]selectedSentence, error) {
-	var selected []selectedSentence
-	usedIDs := map[string]bool{}
-	usedKeyWords := map[string]bool{}
-
-	add := func(candidate selectedSentence) {
-		selected = append(selected, candidate)
-		usedIDs[candidate.ID] = true
-		if keyWord, ok := candidate.Data["key_word"].(string); ok && keyWord != "" {
-			usedKeyWords[keyWord] = true
-		}
-	}
-
-	srsSentences, err := selectSrsSentences(ctx, db, uid, jstNow, filter)
+	filter keyWordFilter, viewedOnly bool, sel *selection,
+) error {
+	srsSentences, err := selectSrsSentences(ctx, db, uid, jstNow, filter, viewedOnly, sel)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for _, candidate := range srsSentences {
-		add(candidate)
+		sel.add(candidate)
 	}
 
-	if remaining := maxQuestions - len(selected); remaining > 0 {
+	if remaining := maxQuestions - len(sel.sentences); remaining > 0 {
 		fillers, err := selectFillerSentencesByUvm(
-			ctx, db, uid, remaining, usedIDs, usedKeyWords, filter)
+			ctx, db, uid, remaining, sel.usedIDs, sel.usedKeyWords, filter, viewedOnly)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, candidate := range fillers {
-			add(candidate)
+			sel.add(candidate)
 		}
 	}
 
-	return selected, nil
+	return nil
 }
 
 type srsIntervalCandidates struct {
@@ -191,7 +224,7 @@ type srsIntervalCandidates struct {
 
 func selectSrsSentences(
 	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time,
-	filter keyWordFilter,
+	filter keyWordFilter, viewedOnly bool, sel *selection,
 ) ([]selectedSentence, error) {
 	intervals := append([]int(nil), srsDays...)
 	shuffleN(len(intervals), func(i, j int) {
@@ -200,7 +233,8 @@ func selectSrsSentences(
 
 	intervalCandidates := make([]srsIntervalCandidates, len(intervals))
 	for i, interval := range intervals {
-		got, err := fetchSrsCandidatesForInterval(ctx, db, uid, jstNow, interval, filter)
+		got, err := fetchSrsCandidatesForInterval(
+			ctx, db, uid, jstNow, interval, filter, viewedOnly)
 		if err != nil {
 			return nil, err
 		}
@@ -218,9 +252,13 @@ func selectSrsSentences(
 
 	var selected []selectedSentence
 	usedIDs := map[string]bool{}
+	// 既に選んだぶんは2周目で選び直さない。SRS 枠の残りも周をまたいで数える。
+	for id := range sel.usedIDs {
+		usedIDs[id] = true
+	}
 
 	for _, c := range intervalCandidates {
-		if len(selected) >= maxSrsSentences {
+		if sel.srsCount+len(selected) >= maxSrsSentences {
 			break
 		}
 
@@ -259,7 +297,7 @@ func selectSrsSentences(
 
 func fetchSrsCandidatesForInterval(
 	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time, interval int,
-	filter keyWordFilter,
+	filter keyWordFilter, viewedOnly bool,
 ) (srsIntervalCandidates, error) {
 	targetStart := startOfJstDayDaysAgo(jstNow, interval)
 	targetEnd := targetStart.Add(dayDuration)
@@ -281,6 +319,9 @@ func fetchSrsCandidatesForInterval(
 		}
 		data := doc.Data()
 		keyWord, _ := data["key_word"].(string)
+		if viewedOnly && !isSentenceViewed(data) {
+			continue
+		}
 		if isUserSentenceDocReady(data) && filter.allows(keyWord) {
 			out.Candidates = append(out.Candidates, doc)
 		}
@@ -292,7 +333,7 @@ const weakPThreshold = 0.3
 
 func selectFillerSentencesByUvm(
 	ctx context.Context, db *firestore.Client, uid string, needed int,
-	usedIDs, usedKeyWords map[string]bool, filter keyWordFilter,
+	usedIDs, usedKeyWords map[string]bool, filter keyWordFilter, viewedOnly bool,
 ) ([]selectedSentence, error) {
 	var selected []selectedSentence
 	if needed <= 0 {
@@ -343,7 +384,8 @@ func selectFillerSentencesByUvm(
 			continue
 		}
 
-		byKeyWord, err := fetchSentenceCandidatesByKeyWords(ctx, db, uid, keyWords, usedIDs)
+		byKeyWord, err := fetchSentenceCandidatesByKeyWords(
+			ctx, db, uid, keyWords, usedIDs, viewedOnly)
 		if err != nil {
 			return nil, err
 		}
@@ -377,7 +419,7 @@ func selectFillerSentencesByUvm(
 
 func fetchSentenceCandidatesByKeyWords(
 	ctx context.Context, db *firestore.Client, uid string,
-	keyWords []string, usedIDs map[string]bool,
+	keyWords []string, usedIDs map[string]bool, viewedOnly bool,
 ) (map[string][]*firestore.DocumentSnapshot, error) {
 	out := map[string][]*firestore.DocumentSnapshot{}
 	if len(keyWords) == 0 {
@@ -400,6 +442,9 @@ func fetchSentenceCandidatesByKeyWords(
 		data := doc.Data()
 		keyWord, ok := data["key_word"].(string)
 		if !ok || usedIDs[doc.Ref.ID] || !isUserSentenceDocReady(data) {
+			continue
+		}
+		if viewedOnly && !isSentenceViewed(data) {
 			continue
 		}
 		out[keyWord] = append(out[keyWord], doc)
