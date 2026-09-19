@@ -487,7 +487,7 @@ functions/go/sentence_audit_live_test.go
 judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
 
 functions/go/internal/sentence/corpusbank.go
-静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語だけ LLM 生成へ落ちる（free は従来どおり FreeBank）。
+静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、頼まれたテーマの在庫が無い語が LLM 生成へ落ちる（free は従来どおり FreeBank）。
 
 functions/go/internal/sentence/corpusbank_test.go
 premium がコーパス・free が従来バンクという分岐、テーマ優先とその諦め、キャッシュ汚染防止のテスト。
