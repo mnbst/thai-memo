@@ -42,6 +42,26 @@ func TestIsWrongLanguage(t *testing.T) {
 			lang: JA,
 			want: true,
 		},
+		{
+			// 2026-09 に prod で毎回弾かれていた ผม の語義。括弧で切れており
+			// 漢字の連続は短い。日本語として正しいので通す。
+			name: "ja の括弧で区切った漢字だけの語義",
+			text: "私（男性一人称）",
+			lang: JA,
+			want: false,
+		},
+		{
+			name: "ja の読点で区切った漢字だけの語義",
+			text: "一人称代名詞、男性用",
+			lang: JA,
+			want: false,
+		},
+		{
+			name: "ja に中国語",
+			text: "我刚才坐在拳击场旁边",
+			lang: JA,
+			want: true,
+		},
 		{name: "ja に英語文", text: "This is written in English.", lang: JA, want: true},
 		{name: "ja の英字固有名詞", text: "LINE", lang: JA, want: false},
 		{name: "ja にタイ語だけ", text: "นี่คือเวลา", lang: JA, want: true},
