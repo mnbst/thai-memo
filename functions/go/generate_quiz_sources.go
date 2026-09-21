@@ -137,7 +137,8 @@ func buildLearningQuizSource(payload map[string]any) (quizSeedSource, bool) {
 // topUp は例文だけで4件に届かないときに呼ぶ、外から借りる訳の供給元
 // （語彙テストの出題語）。呼ぶのは足りないときだけで、足りていれば触らない。
 func buildLearningQuizSourceForClient(
-	payload map[string]any, supportsMeaningChoice bool, topUp func() []uvm.TestItem,
+	payload map[string]any, supportsMeaningChoice, allowFewerChoices bool,
+	topUp func() []uvm.TestItem,
 ) (quizSeedSource, bool) {
 	source, ok := buildLearningQuizSource(payload)
 	if !ok || !supportsMeaningChoice {
@@ -147,7 +148,15 @@ func buildLearningQuizSourceForClient(
 	if len(choices) < 4 && topUp != nil {
 		choices = topUpMeaningChoices(choices, payload, source.Seed.KeyWord, topUp())
 	}
-	if len(choices) < 2 {
+	// 4件に満たない意味当ては、択を減らして出せるクライアントにだけ返す。
+	// 古いクライアントは「選択肢が4つでなければ不正」で問題ごと弾くので、
+	// 4件揃わなければ従来どおり穴埋めに落とす（サーバーを先に出しても
+	// 公開済みのアプリが壊れないようにするための分岐）。
+	min := 4
+	if allowFewerChoices {
+		min = 2
+	}
+	if len(choices) < min {
 		return source, ok
 	}
 	source.Seed.QuizFormat = quizgen.FormatMeaningChoice

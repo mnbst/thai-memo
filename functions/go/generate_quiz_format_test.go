@@ -28,7 +28,7 @@ func learningQuizPayload() map[string]any {
 
 // 対応を宣言したクライアントの確認クイズだけが意味4択になる。
 func TestBuildLearningQuizSourceForClientMeaningChoice(t *testing.T) {
-	meaning, ok := buildLearningQuizSourceForClient(learningQuizPayload(), true, nil)
+	meaning, ok := buildLearningQuizSourceForClient(learningQuizPayload(), true, true, nil)
 	if !ok {
 		t.Fatal("意味4択の生成元を作れなかった")
 	}
@@ -46,7 +46,7 @@ func TestBuildLearningQuizSourceForClientMeaningChoice(t *testing.T) {
 	}
 
 	// 未宣言（1.4.8以前）は従来の穴埋めのまま。
-	oldClient, ok := buildLearningQuizSourceForClient(learningQuizPayload(), false, nil)
+	oldClient, ok := buildLearningQuizSourceForClient(learningQuizPayload(), false, false, nil)
 	if !ok {
 		t.Fatal("穴埋めの生成元を作れなかった")
 	}
@@ -76,7 +76,7 @@ func TestBuildLearningQuizSourceForClientTopsUpChoices(t *testing.T) {
 		{Word: "มัน", Rank: 8, Gloss: "それ"},
 	}
 	source, ok := buildLearningQuizSourceForClient(
-		payload, true, func() []uvm.TestItem { return pool })
+		payload, true, true, func() []uvm.TestItem { return pool })
 	if !ok {
 		t.Fatal("生成元を作れなかった")
 	}
@@ -109,7 +109,7 @@ func TestBuildLearningQuizSourceForClientReducesChoices(t *testing.T) {
 	}
 
 	// 補充元が無ければ択を減らす。
-	source, ok := buildLearningQuizSourceForClient(payload, true, nil)
+	source, ok := buildLearningQuizSourceForClient(payload, true, true, nil)
 	if !ok {
 		t.Fatal("生成元を作れなかった")
 	}
@@ -124,6 +124,34 @@ func TestBuildLearningQuizSourceForClientReducesChoices(t *testing.T) {
 	}
 }
 
+// 択を減らした意味当ては、対応を宣言したクライアントにだけ返す。
+// 公開済みの古いアプリは選択肢が4件でない問題を弾くので、穴埋めに落とす。
+func TestBuildLearningQuizSourceForClientKeepsFourChoicesForOldClient(t *testing.T) {
+	payload := learningQuizPayload()
+	payload["word_breakdown"] = []any{
+		map[string]any{"word": "ฉัน", "meaning": "私"},
+		map[string]any{"word": "ชอบ", "meaning": "私"},
+		map[string]any{"word": "เรียน", "meaning": "勉強する"},
+	}
+
+	// 綴り4択を宣言しない＝択を減らせないクライアント。
+	old, ok := buildLearningQuizSourceForClient(payload, true, false, nil)
+	if !ok {
+		t.Fatal("生成元を作れなかった")
+	}
+	if old.Seed.QuizFormat != quizgen.FormatClozeChoice {
+		t.Fatalf("format = %q, want cloze（2択を古いアプリへ返した）",
+			old.Seed.QuizFormat)
+	}
+
+	// 新しいクライアントには減らした択のまま返す。
+	fresh, _ := buildLearningQuizSourceForClient(payload, true, true, nil)
+	if fresh.Seed.QuizFormat != quizgen.FormatMeaningChoice ||
+		len(fresh.Seed.MeaningChoices) != 2 {
+		t.Fatalf("new client seed = %#v", fresh.Seed)
+	}
+}
+
 // ダミーを1件も作れない例文だけは穴埋めに戻す。
 func TestBuildLearningQuizSourceForClientFallsBackToCloze(t *testing.T) {
 	payload := learningQuizPayload()
@@ -132,7 +160,7 @@ func TestBuildLearningQuizSourceForClientFallsBackToCloze(t *testing.T) {
 		map[string]any{"word": "เรียน", "meaning": "勉強する"},
 	}
 
-	source, ok := buildLearningQuizSourceForClient(payload, true, nil)
+	source, ok := buildLearningQuizSourceForClient(payload, true, true, nil)
 	if !ok {
 		t.Fatal("生成元を作れなかった")
 	}
@@ -166,7 +194,7 @@ func TestSupportsQuizFormat(t *testing.T) {
 
 // 意味4択の問題は選択肢をそのままクライアントへ渡す。
 func TestToQuizQuestionKeepsMeaningFormat(t *testing.T) {
-	source, _ := buildLearningQuizSourceForClient(learningQuizPayload(), true, nil)
+	source, _ := buildLearningQuizSourceForClient(learningQuizPayload(), true, true, nil)
 	choices := append([]string(nil), source.Seed.MeaningChoices...)
 	q := toQuizQuestion(quizgen.GeneratedQuizQuestion{
 		QuizFormat:           quizgen.FormatMeaningChoice,

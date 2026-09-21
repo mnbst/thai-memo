@@ -32,6 +32,14 @@ const (
 
 	// MaxTargetWordRetry はキャッシュヒットするまでターゲット語を引き直す回数。
 	MaxTargetWordRetry = 5
+
+	// DueSlack は配信期日の前倒し幅（IsDue）。
+	//
+	// 毎時起動の開始時刻と、その回で対象ユーザーに辿り着くまでの時間は日ごとに
+	// 揺れる。この揺れを吸収しないと、前日より数秒早い起動が not_due になって
+	// 1日飛ぶ。対象時刻の起動は日に1回なので、揺れより十分大きく、かつ最短
+	// 間隔（1日）より十分小さい値にする。
+	DueSlack = time.Hour
 )
 
 // local は不正・未設定の tz 名を Asia/Tokyo にフォールバックしてローカル時刻へ変換する。
@@ -100,6 +108,11 @@ func HasGenerationHistory(userData map[string]any) bool {
 }
 
 // IsDue は段階ごとの配信間隔を満たしているか。初回（未通知）は常に true。
+//
+// 期日は DueSlack ぶん早める。前回の配信時刻ちょうどを期日にすると、起動が
+// 数秒でも早い日に丸1日ぶん見送ってしまう（2026-09-20、01:00:11 に配信した
+// 翌日の起動が 01:00:03 で not_due。対象時刻の起動は日に1回なので、その
+// ユーザーはその日の配信を丸ごと失う）。
 func IsDue(userData map[string]any, now time.Time) bool {
 	tier := numField(userData["notify_tier"], 0)
 	if tier >= TierStopped {
@@ -109,7 +122,7 @@ func IsDue(userData map[string]any, now time.Time) bool {
 	if !ok {
 		return true
 	}
-	due := lastNotified.AddDate(0, 0, TierIntervalDays[tier])
+	due := lastNotified.AddDate(0, 0, TierIntervalDays[tier]).Add(-DueSlack)
 	return !now.Before(due)
 }
 

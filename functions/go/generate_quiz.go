@@ -253,6 +253,10 @@ func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, erro
 	source, ok := buildLearningQuizSourceForClient(
 		in.Sentence,
 		supportsQuizFormat(in.SupportedQuizFormats, quizgen.FormatMeaningChoice),
+		// 択を減らした意味当てを読めるのは、綴り4択に対応したビルド以降。
+		// 能力宣言をそのまま版の代わりに使う（版番号で分岐すると、
+		// 宣言と版の二重管理になる）。
+		supportsQuizFormat(in.SupportedQuizFormats, quizgen.FormatSpellingChoice),
 		func() []uvm.TestItem {
 			// 例文が短くて選択肢が埋まらないときだけ読む（インスタンス内で使い回す）。
 			items, err := vocabTestItems(ctx, l)
