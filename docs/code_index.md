@@ -116,7 +116,7 @@ lib/presentation/providers/sentence_provider.dart
 例文CRUD・生成状態のRiverpod StateNotifier。
 
 lib/presentation/providers/daily_set_provider.dart
-例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す。進行位置は学習レコード（learning_progress_store）を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。読む1本が変わったときに、その1本に属していたクイズ保存と段を落とすのもここ。
+例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す（待機は1セットまで。溢れた古いほうは完了扱いで捨てる）。進行位置は学習レコード（learning_progress_store）を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。読む1本が変わったときに、その1本に属していたクイズ保存と段を落とすのもここ。
 
 lib/services/learning_progress_store.dart
 学習の進み具合（セットのカーソル・いまの段・クイズの進行）を端末に1レコードで持つ。旧3キー（daily_set_progress / saved_confirmation_quiz / saved_summary_quiz）からの移行もここ。
@@ -505,13 +505,16 @@ functions/go/internal/quality/judge_test.go
 judgeレスポンスの選別（natural除外・理由なし除外・index重複）とドキュメント内容のテスト。
 
 functions/go/deliver_daily_sentence.go
-daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、実効プレミアム（premium.IsEffectivePremium）はLLM生成。
+daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、実効プレミアム（premium.IsEffectivePremium）はLLM生成。通知成功後に、1本も読まれなかった過去の配信セットを消す（洗い替え）。
 
 functions/go/deliver_daily_sentence_golden_test.go
 配信の生成分岐・コミット時の更新内容・ロールバックの更新内容をPython実装の出力と突き合わせる。
 
 functions/go/deliver_daily_sentence_batch_test.go
 5本セット配信の本数・クォータ消費・ロールバック・通知Dataのテスト。
+
+functions/go/deliver_daily_sentence_purge_test.go
+未読セットの洗い替え判定（全未読のみ削除・既読混在は残す・viewed無しは残す・旧形式）のテスト。
 
 functions/go/deliver_daily_sentence_live_test.go
 dev の実Firestore・実Geminiに対して5本セット配信を通しで確かめる（通知だけ差し替え）。
@@ -986,6 +989,9 @@ UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSに�
 
 scripts/ga4_acquisition.py
 prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン別）。SAインパーソネーションで認証。
+
+scripts/ga4_retention.py
+prod GA4 の first_open 起点コホートリテンション（weekly/daily）。既定で米国を除外、--all/--only/--exclude で範囲変更。
 
 scripts/ga4_register_dimension.py
 prod GA4 のイベント／ユーザースコープのカスタムディメンションとカスタム指標を、実装スキーマに対して plan／check／apply／list する（登録は遡及しない）。

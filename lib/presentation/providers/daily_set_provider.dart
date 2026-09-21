@@ -25,6 +25,15 @@ import '../../services/daily_set_progress_store.dart';
 import '../../services/learning_progress_store.dart';
 import 'sentence_provider.dart';
 
+/// 待機列に置く配信セットの上限。
+///
+/// サーバーは配信のたびに「1本も読まれなかったセット」を消すので
+/// （deliver_daily_sentence.go: purgeUnreadDeliveredSets）、未読の在庫は
+/// 常に最新1セットだけになる。取り込み済みで端末に残ったぶんも同じ上限で
+/// 揃え、古い順に何セットも読まされる状態を作らない。
+/// 溢れたセットは捨てるが、例文そのものはローカルDB（履歴）に残る。
+const int maxPendingSets = 1;
+
 class PendingDailySet {
   const PendingDailySet({required this.setId, required this.sentences});
 
@@ -50,6 +59,9 @@ class DailySetState {
   final int index;
 
   /// 進行中セットを終えたあとに表示する配信セット。
+  ///
+  /// 溜めるのは1セットまで（maxPendingSets）。積み上げると、無視していた日数ぶん
+  /// 古い例文が先に出て、いまのレベルに合った最新セットが最後尾へ回る。
   final List<PendingDailySet> pendingSets;
 
   /// セットを消化中か。
@@ -239,10 +251,10 @@ class DailySetController extends StateNotifier<DailySetState> {
       setId: state.setId,
       sentences: state.sentences,
       index: state.index,
-      pendingSets: [
+      pendingSets: _trimPending([
         ...state.pendingSets,
         PendingDailySet(setId: setId, sentences: sentences),
-      ],
+      ]),
     );
     await _persist();
     return false;
@@ -329,6 +341,19 @@ class DailySetController extends StateNotifier<DailySetState> {
     );
     await _persist();
     return next.sentences.first;
+  }
+
+  /// 待機列を上限（maxPendingSets）まで詰める。残すのは新しいほう。
+  ///
+  /// 落としたセットは完了として記録する。記録しないと、Firestore に残った
+  /// 同じセットが merge で未完了の正本と見なされ、次の同期でまた積み直される。
+  List<PendingDailySet> _trimPending(List<PendingDailySet> pending) {
+    if (pending.length <= maxPendingSets) return pending;
+    final dropped = pending.take(pending.length - maxPendingSets);
+    for (final set in dropped) {
+      _markCompleted(set.setId);
+    }
+    return pending.skip(pending.length - maxPendingSets).toList();
   }
 
   /// セットから抜けるときは必ず完了として記録する。記録が漏れると、Firestore に
@@ -451,6 +476,8 @@ class DailySetController extends StateNotifier<DailySetState> {
         pending.add(PendingDailySet(setId: ref.setId, sentences: sentences));
       }
     }
+    // 別端末や旧ビルドが積んだぶんも、ここで上限まで詰める。
+    final trimmed = _trimPending(pending);
 
     final activeRef = snapshot.active;
     // 読んでいた1本（snapshot.activeIndex が指す位置）より前に何本残ったかが、
@@ -476,14 +503,14 @@ class DailySetController extends StateNotifier<DailySetState> {
     // ことがある。dispose 後に state を代入すると StateNotifier が例外を投げる。
     if (!mounted) return;
     if (active.isEmpty) {
-      state = DailySetState(pendingSets: pending);
+      state = DailySetState(pendingSets: trimmed);
       return;
     }
     state = DailySetState(
       setId: activeRef!.setId,
       sentences: active,
       index: index.clamp(0, active.length - 1),
-      pendingSets: pending,
+      pendingSets: trimmed,
     );
   }
 

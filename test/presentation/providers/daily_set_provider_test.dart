@@ -344,9 +344,42 @@ void main() {
       ),
     ]);
 
+    // 直列化されるので後着（next-2）が後ろに積まれ、待機は上限1セットぶん
+    // だけ残る。先に届いたほうが落ちる。
     expect(
       container.read(dailySetProvider).pendingSets.map((set) => set.setId),
-      ['next-1', 'next-2'],
+      ['next-2'],
+    );
+  });
+
+  test('待機列は1セットまで。溢れた古いほうは完了扱いで捨てる', () async {
+    final container = containerWith({});
+    final controller = container.read(dailySetProvider.notifier);
+    await controller.start(_set(['a', 'b']), setId: 'current');
+
+    await controller.acceptDeliveredSet(
+      setId: 'old',
+      sentences: _set(['c', 'd']),
+    );
+    await controller.acceptDeliveredSet(
+      setId: 'new',
+      sentences: _set(['e', 'f']),
+    );
+
+    expect(
+      container.read(dailySetProvider).pendingSets.map((set) => set.setId),
+      ['new'],
+    );
+
+    // 捨てたセットは完了として記録されるので、通知を開き直しても戻らない。
+    final shown = await controller.acceptDeliveredSet(
+      setId: 'old',
+      sentences: _set(['c', 'd']),
+    );
+    expect(shown, isFalse);
+    expect(
+      container.read(dailySetProvider).pendingSets.map((set) => set.setId),
+      ['new'],
     );
   });
 
