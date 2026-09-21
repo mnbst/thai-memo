@@ -24,6 +24,7 @@ const batchLimit = 500
 //   - users/{uid}/sentences（学習した例文データ）
 //   - users/{uid}/quiz_answers（クイズの回答履歴）
 //   - users/{uid}/uvm（語彙習得モデル）
+//   - users/{uid}/units（綴り4択の部品ごとの習熟）
 //   - users/{uid}/learning_state（端末間の学習進捗）
 //   - users/{uid}/generation_locks（生成の多重実行防止lease）
 //   - users/{uid}（ユーザードキュメント本体）
@@ -39,7 +40,7 @@ func DeleteFirestoreData(ctx context.Context, db *firestore.Client, uid string) 
 
 	// 実体の無い doc（サブコレクションだけ持つ）も拾うため DocumentRefs を使う
 	// （JS の listDocuments() 相当）。
-	for _, sub := range []string{"sentences", "quiz_answers", "uvm", "learning_state", "generation_locks"} {
+	for _, sub := range []string{"sentences", "quiz_answers", "uvm", "units", "learning_state", "generation_locks"} {
 		got, err := documentRefs(ctx, db.Collection("users").Doc(uid).Collection(sub))
 		if err != nil {
 			return 0, err

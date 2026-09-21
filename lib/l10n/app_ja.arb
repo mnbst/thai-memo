@@ -106,6 +106,7 @@
   },
   "quizPrompt": "下線部に入る単語を選んでください",
   "quizMeaningPrompt": "この単語の意味を選んでください",
+  "quizSpellingPrompt": "この読みの綴りを選んでください",
   "quizWordExplanation": "単語の解説",
   "quizProgress": "問題 {index} / {total}",
   "@quizProgress": {
@@ -128,6 +129,24 @@
   "quizPlaySentence": "例文を再生",
   "quizPlayWord": "単語を再生",
   "quizWhyCorrect": "正解理由",
+  "quizSpellingBreakdown": "綴りの分解",
+  "quizToneRuleFor": "{consonantClass}の声調規則",
+  "@quizToneRuleFor": {
+    "placeholders": {
+      "consonantClass": {
+        "type": "String"
+      }
+    }
+  },
+  "quizPartOnset": "頭子音",
+  "quizPartVowel": "母音",
+  "quizPartCoda": "末子音",
+  "quizPartVowelCoda": "母音＋末子音",
+  "quizPartToneLabel": "声調",
+  "quizPartKaran": "ガーラン",
+  "quizPartSilent": "黙字",
+  "quizPartSilentValue": "読まない",
+  "quizPartNone": "なし",
   "quizWhyIncorrect": "不正解理由",
   "quizSeeResults": "結果を見る",
   "quizNextQuestion": "次の問題へ",

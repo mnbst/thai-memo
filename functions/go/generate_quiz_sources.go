@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
+	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
 // buildQuizSources は選出した例文をランダム順に並べ、最大 maxQuestions 件を返す。
@@ -51,9 +52,13 @@ func toQuizSeedSourceFromSelected(sentence selectedSentence) quizSeedSource {
 	}
 }
 
-// meaningChoicesFromSentence は同じ例文の word_breakdown から意味4択を作る。
+// meaningChoicesFromSentence は同じ例文の word_breakdown から意味の選択肢を作る。
 // 対象語の意味を正解として先頭に置き、後段の Sanitizer で順序を混ぜる。
-// 4件揃わない例文は意味問題にせず、従来の穴埋めへフォールバックする。
+//
+// 4件に足りなければ**選択肢を減らして**返す（3択・2択）。確認クイズは意味当てに
+// 統一したいので、揃わないことを理由に穴埋めへ落とさない。実測（prod の例文
+// 800件）では 4択 93.1% / 3択 6.2% / 2択 0.6% で、1件も作れない例文は無かった。
+// ダミーが1件も無いときだけ nil（穴埋めへ）。
 func meaningChoicesFromSentence(data map[string]any, correctMeaning string) []string {
 	correct := strings.TrimSpace(correctMeaning)
 	if correct == "" {
@@ -75,11 +80,14 @@ func meaningChoicesFromSentence(data map[string]any, correctMeaning string) []st
 		seen[meaning] = true
 		dummies = append(dummies, meaning)
 	}
-	if len(dummies) < 3 {
+	if len(dummies) == 0 {
 		return nil
 	}
 	shuffleN(len(dummies), func(i, j int) { dummies[i], dummies[j] = dummies[j], dummies[i] })
-	return append([]string{correct}, dummies[:3]...)
+	if len(dummies) > 3 {
+		dummies = dummies[:3]
+	}
+	return append([]string{correct}, dummies...)
 }
 
 // buildLearningQuizSource は学習フローから渡された例文を生成元にする。
@@ -123,22 +131,89 @@ func buildLearningQuizSource(payload map[string]any) (quizSeedSource, bool) {
 	}, true
 }
 
-// buildLearningQuizSourceForClient は対応を明示した新クライアントの確認クイズだけを
-// 意味4択にする。未宣言の1.4.8以前と、選択肢が4件揃わない例文は穴埋めのまま。
+// buildLearningQuizSourceForClient は対応を明示した新クライアントの確認クイズを
+// 意味当てにする。未宣言の1.4.8以前と、ダミーを1件も作れない例文は穴埋めのまま。
+//
+// topUp は例文だけで4件に届かないときに呼ぶ、外から借りる訳の供給元
+// （語彙テストの出題語）。呼ぶのは足りないときだけで、足りていれば触らない。
 func buildLearningQuizSourceForClient(
-	payload map[string]any, supportsMeaningChoice bool,
+	payload map[string]any, supportsMeaningChoice, allowFewerChoices bool,
+	topUp func() []uvm.TestItem,
 ) (quizSeedSource, bool) {
 	source, ok := buildLearningQuizSource(payload)
 	if !ok || !supportsMeaningChoice {
 		return source, ok
 	}
 	choices := meaningChoicesFromSentence(payload, source.Seed.KeyWordMeaning)
-	if len(choices) != 4 {
+	if len(choices) < 4 && topUp != nil {
+		choices = topUpMeaningChoices(choices, payload, source.Seed.KeyWord, topUp())
+	}
+	// 4件に満たない意味当ては、択を減らして出せるクライアントにだけ返す。
+	// 古いクライアントは「選択肢が4つでなければ不正」で問題ごと弾くので、
+	// 4件揃わなければ従来どおり穴埋めに落とす（サーバーを先に出しても
+	// 公開済みのアプリが壊れないようにするための分岐）。
+	min := 4
+	if allowFewerChoices {
+		min = 2
+	}
+	if len(choices) < min {
 		return source, ok
 	}
 	source.Seed.QuizFormat = quizgen.FormatMeaningChoice
 	source.Seed.MeaningChoices = choices
 	return source, ok
+}
+
+// topUpMeaningChoices は例文の語だけで足りない選択肢を、語彙テストの出題語の
+// 訳で埋める。
+//
+// 同じ例文の語から作るのが基本（既習語で紛らわしいダミーになる）で、これは
+// 2語・3語の短い例文のための補充。実測では確認クイズの 6.8% がこれに当たる。
+//
+// 同じ訳を二度出さないのはもちろん、**例文に出てくる語と同じ語は使わない**。
+// 訳し方が違うだけの同義語（ไม่ の「いいえ」と「〜ない（否定）」）が並ぶと、
+// 正解が2つある問題になってしまう。
+func topUpMeaningChoices(
+	choices []string, payload map[string]any, keyWord string, pool []uvm.TestItem,
+) []string {
+	if len(choices) == 0 || len(pool) == 0 {
+		return choices
+	}
+
+	used := map[string]bool{}
+	for _, choice := range choices {
+		used[choice] = true
+	}
+	skipWord := map[string]bool{keyWord: true}
+	wordBreakdown, _ := payload["word_breakdown"].([]any)
+	for _, raw := range wordBreakdown {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		skipWord[quizgen.NormalizeTextValue(item["word"])] = true
+		used[strings.TrimSpace(quizgen.NormalizeTextValue(item["meaning"]))] = true
+	}
+
+	order := make([]int, len(pool))
+	for i := range order {
+		order[i] = i
+	}
+	shuffleN(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
+
+	for _, i := range order {
+		if len(choices) >= 4 {
+			break
+		}
+		item := pool[i]
+		gloss := strings.TrimSpace(item.Gloss)
+		if gloss == "" || used[gloss] || skipWord[strings.TrimSpace(item.Word)] {
+			continue
+		}
+		used[gloss] = true
+		choices = append(choices, gloss)
+	}
+	return choices
 }
 
 type sentenceFallback struct {

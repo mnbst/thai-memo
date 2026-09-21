@@ -44,8 +44,11 @@ func (s *Sanitizer) Questions(questions []GeneratedQuizQuestion) []GeneratedQuiz
 //   - タイ語の選択肢が4件に満たない
 //   - ダミー3件それぞれに対応する理由が揃っていない
 func (s *Sanitizer) Question(question GeneratedQuizQuestion) (GeneratedQuizQuestion, bool) {
-	if question.QuizFormat == FormatMeaningChoice {
+	switch question.QuizFormat {
+	case FormatMeaningChoice:
 		return s.meaningQuestion(question)
+	case FormatSpellingChoice:
+		return s.spellingQuestion(question)
 	}
 	correctAnswer := stripChoiceAnnotation(question.CorrectAnswer)
 	if !isThaiChoiceText(correctAnswer) {
@@ -109,7 +112,8 @@ func (s *Sanitizer) meaningQuestion(
 	}
 
 	choices := uniqueTexts(question.Choices)
-	if len(choices) != 4 || !containsText(choices, correctMeaning) {
+	if len(choices) < minMeaningChoices || len(choices) > maxMeaningChoices ||
+		!containsText(choices, correctMeaning) {
 		log.Printf("Dropping meaning quiz due to invalid choices: correct=%q choices=%v",
 			correctMeaning, question.Choices)
 		return GeneratedQuizQuestion{}, false

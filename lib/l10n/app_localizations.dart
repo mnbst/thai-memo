@@ -403,6 +403,12 @@ abstract class L10n {
   /// **'この単語の意味を選んでください'**
   String get quizMeaningPrompt;
 
+  /// No description provided for @quizSpellingPrompt.
+  ///
+  /// In ja, this message translates to:
+  /// **'この読みの綴りを選んでください'**
+  String get quizSpellingPrompt;
+
   /// No description provided for @quizWordExplanation.
   ///
   /// In ja, this message translates to:
@@ -474,6 +480,72 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'正解理由'**
   String get quizWhyCorrect;
+
+  /// No description provided for @quizSpellingBreakdown.
+  ///
+  /// In ja, this message translates to:
+  /// **'綴りの分解'**
+  String get quizSpellingBreakdown;
+
+  /// No description provided for @quizToneRuleFor.
+  ///
+  /// In ja, this message translates to:
+  /// **'{consonantClass}の声調規則'**
+  String quizToneRuleFor(String consonantClass);
+
+  /// No description provided for @quizPartOnset.
+  ///
+  /// In ja, this message translates to:
+  /// **'頭子音'**
+  String get quizPartOnset;
+
+  /// No description provided for @quizPartVowel.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音'**
+  String get quizPartVowel;
+
+  /// No description provided for @quizPartCoda.
+  ///
+  /// In ja, this message translates to:
+  /// **'末子音'**
+  String get quizPartCoda;
+
+  /// No description provided for @quizPartVowelCoda.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音＋末子音'**
+  String get quizPartVowelCoda;
+
+  /// No description provided for @quizPartToneLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調'**
+  String get quizPartToneLabel;
+
+  /// No description provided for @quizPartKaran.
+  ///
+  /// In ja, this message translates to:
+  /// **'ガーラン'**
+  String get quizPartKaran;
+
+  /// No description provided for @quizPartSilent.
+  ///
+  /// In ja, this message translates to:
+  /// **'黙字'**
+  String get quizPartSilent;
+
+  /// No description provided for @quizPartSilentValue.
+  ///
+  /// In ja, this message translates to:
+  /// **'読まない'**
+  String get quizPartSilentValue;
+
+  /// No description provided for @quizPartNone.
+  ///
+  /// In ja, this message translates to:
+  /// **'なし'**
+  String get quizPartNone;
 
   /// No description provided for @quizWhyIncorrect.
   ///

@@ -105,10 +105,11 @@ func (s *Sentence) BuildSentenceDoc(m DocMeta) map[string]any {
 // 「未読」の例文だけが溜まり、まとめクイズの候補が尽きる。ロールアウトは
 // この値の上げ下げで切り替える。
 //
-// 1.4.10 は未公開（審査中）で、既読を書けるビルドだけが世に出る。
-// TestFlight に配った 1.4.10 の古いビルドだけは版で区別できないが、
-// その場合もクイズは未読を混ぜる周へ落ちるので出題は止まらない。
-var ViewTrackingMinVersion = [3]int{1, 4, 10}
+// 既読を書く実装が入ったのは 1.4.11。1.4.10 を審査中の未公開版と見て
+// 1.4.10 にしていたが、1.4.10 は公開されて実ユーザーが使っており
+// （2026-09、prod に build 121 の稼働を確認）、そこへ viewed=false を
+// 付けても誰も true にしない。
+var ViewTrackingMinVersion = [3]int{1, 4, 11}
 
 // SupportsViewTracking は既読を書けるクライアントかどうか。
 //

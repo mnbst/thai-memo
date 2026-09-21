@@ -45,7 +45,7 @@ func (s *countingQuizService) GenerateQuizQuestions(
 }
 
 func meaningSeed() quizgen.QuizSentenceSeed {
-	source, _ := buildLearningQuizSourceForClient(learningQuizPayload(), true)
+	source, _ := buildLearningQuizSourceForClient(learningQuizPayload(), true, true, nil)
 	return source.Seed
 }
 
@@ -83,7 +83,7 @@ func TestWordExplanationCacheSkipsClozeQuiz(t *testing.T) {
 	inner := &countingQuizService{explanation: "解説"}
 	service := &cachedQuizService{inner: inner, store: store, lang: lang.JA}
 
-	source, _ := buildLearningQuizSourceForClient(learningQuizPayload(), false)
+	source, _ := buildLearningQuizSourceForClient(learningQuizPayload(), false, false, nil)
 	seeds := []quizgen.QuizSentenceSeed{source.Seed}
 	service.GenerateQuizQuestions(context.Background(), seeds)
 	service.GenerateQuizQuestions(context.Background(), seeds)

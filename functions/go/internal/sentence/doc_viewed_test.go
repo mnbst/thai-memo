@@ -25,10 +25,11 @@ func TestSupportsViewTracking(t *testing.T) {
 		version string
 		want    bool
 	}{
-		{"1.4.10", true},
 		{"1.4.11", true},
 		{"1.5.0", true},
 		{"2.0.0", true},
+		// 1.4.10 は公開済みだが既読を書かない。
+		{"1.4.10", false},
 		{"1.4.9", false},
 		{"1.3.99", false},
 		{"", false},

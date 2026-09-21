@@ -504,14 +504,18 @@ class QuizController extends StateNotifier<QuizState> {
   /// クイズ問題の選択肢が有効かを検証する。
   ///
   /// 以下のいずれかに該当する場合、不正と判定:
-  ///   - 選択肢が4つでない
+  ///   - 選択肢の数が形式に合わない（意味当ては2〜4、それ以外は4）
   ///   - 正解がタイ語でない（英字・日本語・漢字を含む）
   ///   - 形式に応じた正解が選択肢リストに含まれていない
   ///   - 穴埋めなのに、いずれかの選択肢がタイ語でない
   /// Gemini APIが稀に不正な選択肢を返すことがあるため、この検証が必要。
   bool _hasInvalidQuizChoices(List<QuizQuestion> questions) {
     return questions.any((question) {
-      if (question.choices.length != 4) {
+      // 意味当ては同じ例文の語から選択肢を作るので、語の少ない例文では
+      // 4件に満たない。択を減らしてでも意味当てで出す（穴埋めにしない）。
+      final minChoices = question.isMeaningChoice ? 2 : 4;
+      if (question.choices.length < minChoices ||
+          question.choices.length > 4) {
         return true;
       }
       if (!_isThaiChoice(question.correctAnswer)) {
@@ -521,7 +525,8 @@ class QuizController extends StateNotifier<QuizState> {
           !question.choices.contains(question.correctChoice)) {
         return true;
       }
-      if (question.choices.map((choice) => choice.trim()).toSet().length != 4) {
+      if (question.choices.map((choice) => choice.trim()).toSet().length !=
+          question.choices.length) {
         return true;
       }
       if (question.isMeaningChoice) {
@@ -651,6 +656,14 @@ class QuizController extends StateNotifier<QuizState> {
               'is_correct': isCorrect,
               'hint_level': hintLevel,
               if (reviewedSentence) 'sentence_reviewed': true,
+              // 綴り4択は単語のPとは別に、音節の部品ごとの正誤も貯める。
+              // どの部品を測ったかはサーバーが選択肢から計算するので、
+              // 出題時の4択と選んだものを送る。
+              if (question.isSpellingChoice) ...{
+                'quiz_format': question.quizFormat,
+                'choices': question.choices,
+                'selected_answer': question.choices[choiceIndex],
+              },
             },
           ],
           quizType: _isLearningQuiz ? 'learning' : null,

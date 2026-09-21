@@ -25,7 +25,7 @@ type selectedSentence struct {
 
 // generateQuestionsFromSources は生成元ごとに1問ずつ作る。
 // 失敗した分は1度だけ作り直す（key_word 不一致が主な失敗理由）。
-// 意味4択だけが失敗した場合は、同じ例文の穴埋めへ戻して問題数を保つ。
+// 意味4択・綴り4択だけが失敗した場合は、同じ例文の穴埋めへ戻して問題数を保つ。
 func generateQuestionsFromSources(
 	ctx context.Context, service quizService, sources []quizSeedSource,
 ) []quizQuestion {
@@ -74,13 +74,17 @@ func generateQuestionsFromSources(
 	}
 
 	for i, q := range results {
-		if q != nil || ready[i].Seed.QuizFormat != quizgen.FormatMeaningChoice {
+		if q != nil || ready[i].Seed.QuizFormat == quizgen.FormatClozeChoice {
 			continue
 		}
 		fallback := ready[i]
+		log.Printf("quiz_falling_back_to_cloze format=%s sentenceId=%s",
+			fallback.Seed.QuizFormat, fallback.SentenceID)
 		fallback.Seed.QuizFormat = quizgen.FormatClozeChoice
 		fallback.Seed.MeaningChoices = nil
-		log.Printf("meaning_quiz_falling_back_to_cloze sentenceId=%s", fallback.SentenceID)
+		// 綴り4択のダミーは非語なので、穴埋めの選択肢に持ち越してはいけない。
+		fallback.Seed.FixedDummies = nil
+		fallback.Seed.FixedExplanation = ""
 		results[i] = generateSingleQuizQuestion(ctx, service, fallback, 2)
 	}
 
@@ -103,6 +107,18 @@ func generateQuestionsFromSources(
 func generateSingleQuizQuestion(
 	ctx context.Context, service quizService, source quizSeedSource, attempt int,
 ) *quizQuestion {
+	// 綴り4択は選択肢も解説もルールベースで確定しているのでモデルを呼ばない。
+	if source.Seed.QuizFormat == quizgen.FormatSpellingChoice {
+		question, ok := quizgen.BuildSpellingQuestion(source.Seed)
+		if !ok {
+			return nil
+		}
+		out := toQuizQuestion(question, source)
+		out.SpellingParts, out.SpellingGlyphs, out.SpellingToneRule =
+			spellingBreakdownOf(question.CorrectAnswer)
+		return &out
+	}
+
 	questions := service.GenerateQuizQuestions(ctx,
 		[]quizgen.QuizSentenceSeed{source.Seed})
 	if len(questions) == 0 {

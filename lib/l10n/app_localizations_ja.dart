@@ -175,6 +175,9 @@ class L10nJa extends L10n {
   String get quizMeaningPrompt => 'この単語の意味を選んでください';
 
   @override
+  String get quizSpellingPrompt => 'この読みの綴りを選んでください';
+
+  @override
   String get quizWordExplanation => '単語の解説';
 
   @override
@@ -211,6 +214,41 @@ class L10nJa extends L10n {
 
   @override
   String get quizWhyCorrect => '正解理由';
+
+  @override
+  String get quizSpellingBreakdown => '綴りの分解';
+
+  @override
+  String quizToneRuleFor(String consonantClass) {
+    return '$consonantClassの声調規則';
+  }
+
+  @override
+  String get quizPartOnset => '頭子音';
+
+  @override
+  String get quizPartVowel => '母音';
+
+  @override
+  String get quizPartCoda => '末子音';
+
+  @override
+  String get quizPartVowelCoda => '母音＋末子音';
+
+  @override
+  String get quizPartToneLabel => '声調';
+
+  @override
+  String get quizPartKaran => 'ガーラン';
+
+  @override
+  String get quizPartSilent => '黙字';
+
+  @override
+  String get quizPartSilentValue => '読まない';
+
+  @override
+  String get quizPartNone => 'なし';
 
   @override
   String get quizWhyIncorrect => '不正解理由';
