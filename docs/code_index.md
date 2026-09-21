@@ -433,7 +433,10 @@ functions/go/internal/uvm/model.go
 UVMの純粋関数（UpdateP / GuessRate / MovingAvg / EstimateVocab）と定数。P の更新は尤度比（推測率 g・うっかり率 s）。旧 α 則は UpdatePAlpha として golden 用に残す。
 
 functions/go/internal/uvm/store.go
-UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。
+UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。出題形式ごとの証拠の強さ（Result.FormatScale）もここで効かせる。
+
+functions/go/internal/uvm/spellingsim_test.go
+綴り4択の証拠係数が estimated_vocab の伸びをどれだけ鈍らせるかのシミュレーション（SIM=1 で実行）。実測の重複（平均3.0回/語）で d30 が2%遅くなる程度。
 
 functions/go/internal/uvm/nickname.go
 ランキング表示名の自動採番。nicknames/{小文字名}をCreateで押さえて一意性を担保。
@@ -446,6 +449,42 @@ functions/go/internal/uvm/vocabtest.go
 
 functions/go/internal/uvm/vocabtest_items.go
 GCSから vocab_test_items_<lang>.json（出題語と訳）を読みキャッシュする。
+
+functions/go/internal/spellunit/code.go
+音節形コード（sylform_var.json のキー）を頭子音・母音・末子音・声調に分ける。綴り→コードの逆引きも持つ。単音節だけが対象。
+
+functions/go/internal/spellunit/question.go
+綴り4択のダミー生成（1次元だけ変えた非語・表示長一致・毎回変える）と、回答から部品ごとの証拠を取り出す処理。
+
+functions/go/internal/spellunit/parts.go
+綴りを頭子音・母音・末子音・声調に分けて読みと文字を付ける（答え合わせの表示用）。書く順に切った Glyphs も返す。
+
+functions/go/internal/spellunit/segment.go
+綴りのどの字がどの部品かを規則で切る。前置母音・二重子音・ห/อ を前に置く頭子音・読まない ร・์ を扱い、組み直して元に戻らなければ文字を出さない。
+
+functions/go/internal/spellunit/display_manual_test.go
+全綴りを分解表示にかけて字と部品の対応がズレる形を数える監査（SPELLUNIT_DISPLAY=1 でのみ実行）。
+
+functions/go/internal/spellunit/tonerule.go
+声調が決まる3要素（頭子音の階級・生音/死音・声調記号）を綴りから出す。
+
+functions/go/internal/spellunit/model.go
+部品ごとの P の更新。ダミーが全部非語なので推測率は素の 0.25（uvm の 0.35 とは別に持つ）。
+
+functions/go/internal/spellunit/store.go
+部品データのFirestore層（users/{uid}/units）。取り違え先も数える。estimated_vocab には流さない。
+
+functions/go/internal/spellunit/spellunit_test.go
+コード分解・ダミーが実在語でないこと・証拠の取り出し・Pの回復のテスト。
+
+functions/go/internal/spellunit/coverage_manual_test.go
+頻度帯ごとの出題可能率の調査（SPELLUNIT_COVERAGE=1 で実行）。上位100語で52%、上位2000語で21%。
+
+functions/go/internal/spellunit/unitcoverage_manual_test.go
+部品の網羅に必要な頻度ランクの調査（SPELLUNIT_UNITCOV=1 で実行）。rank100 で 42/72 種、全72種は rank5363 まで必要。
+
+functions/go/internal/spellunit/eligible_manual_test.go
+綴り4択にできる語の一覧を書き出す（SPELLUNIT_ELIGIBLE_OUT=... で実行）。本番データとの突き合わせ用。
 
 functions/go/set_user_tier.go
 setUserTier の Go 版。管理者がtierを切り替える。setUserTier.ts と等価。
@@ -601,7 +640,7 @@ functions/go/word_explanation_cache_test.go
 キャッシュヒット時にモデルを呼ばないこと・穴埋めは対象外・意味違いが別キーになることの確認。
 
 functions/go/generate_quiz_sources.go
-クイズ生成元の組み立て。sentence_detail・key_word意味の解決・クライアント向け1問への変換。
+クイズ生成元の組み立て。sentence_detail・key_word意味の解決・クライアント向け1問への変換。確認クイズの意味当ては同じ例文の語から選択肢を作り、短い例文で4件に足りなければ語彙テストの出題語の訳で補う。
 
 functions/go/generate_quiz_srs.go
 SRS(間隔反復)による復習例文の選出とUVMによる補充、モデル呼び出しと再試行。
@@ -638,6 +677,18 @@ scripts/build_pos_dict.py の生成物。コーパスの文中で付いた品詞
 
 functions/go/internal/quizgen/sanitize.go
 モデル出力の検査と整形。選択肢・ダミー理由・選択肢発音の対応付け。
+
+functions/go/internal/quizgen/spelling.go
+綴り4択（読み＋意味→タイ語の綴り）の組み立てと検査。選択肢も解説も確定済みなのでモデルを呼ばない。
+
+functions/go/quiz_beginner.go
+入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値100未満のユーザーには出題できる問題を全部入門用にし、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
+
+functions/go/quiz_spelling.go
+入門用の形式のひとつ、綴り4択への差し替え。回答から部品データ（users/{uid}/units）を更新するのもここ。
+
+functions/go/quiz_beginner_test.go
+対象ユーザーの線引き、クライアント未対応なら差し替えないこと、出題できる語が全部差し替わること、通過済みの語は戻さないことのテスト。
 
 functions/go/internal/quizgen/drift.go
 クイズ出力（解説・ダミー理由）の言語ずれの検出と、書き直しプロンプト。

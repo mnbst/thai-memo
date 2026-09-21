@@ -39,7 +39,7 @@ func TestApplyRuleBasedFieldsKeepsMeaningChoices(t *testing.T) {
 	}
 }
 
-// 4件揃わない、正解が選択肢に無いものは意味問題として使えない。
+// 択が減るのは許す（3択・2択）。1件だけ・正解が無いものは使えない。
 func TestIsSeedReadyRejectsBrokenMeaningChoices(t *testing.T) {
 	base := QuizSentenceSeed{
 		QuizFormat:           FormatMeaningChoice,
@@ -50,10 +50,24 @@ func TestIsSeedReadyRejectsBrokenMeaningChoices(t *testing.T) {
 		KeyWordMeaning:       "タイ語",
 	}
 
-	short := base
-	short.MeaningChoices = []string{"タイ語", "私", "好き"}
-	if IsSeedReady(short) {
-		t.Fatal("選択肢3件を通してしまった")
+	// 例文の語が少ないと4件に満たない。確認クイズは意味当てに統一したいので、
+	// 択を減らしてでも通す。
+	three := base
+	three.MeaningChoices = []string{"タイ語", "私", "好き"}
+	if !IsSeedReady(three) {
+		t.Fatal("3択を落としてしまった")
+	}
+
+	two := base
+	two.MeaningChoices = []string{"タイ語", "私"}
+	if !IsSeedReady(two) {
+		t.Fatal("2択を落としてしまった")
+	}
+
+	one := base
+	one.MeaningChoices = []string{"タイ語"}
+	if IsSeedReady(one) {
+		t.Fatal("正解だけの1択を通してしまった")
 	}
 
 	missing := base

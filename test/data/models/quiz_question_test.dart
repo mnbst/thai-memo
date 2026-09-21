@@ -17,6 +17,36 @@ void main() {
       expect(q.toJson()['quiz_format'], QuizQuestion.meaningChoiceFormat);
     });
 
+    test('spelling_choice は正解の分解と書く順の字を読む', () {
+      final json = _baseJson()
+        ..['quiz_format'] = QuizQuestion.spellingChoiceFormat
+        ..['choices'] = ['กิน', 'กีน', 'กิม', 'จิน']
+        ..['spelling_parts'] = [
+          {'role': 'onset', 'text': 'ก', 'sound': 'k'},
+          {'role': 'vowel', 'text': 'ิ', 'sound': 'i'},
+          {'role': 'coda', 'text': 'น', 'sound': 'n'},
+          {'role': 'tone', 'tone': 'mid'},
+        ]
+        ..['spelling_glyphs'] = [
+          {'role': 'onset', 'text': 'ก'},
+          {'role': 'vowel', 'text': 'ิ'},
+          {'role': 'coda', 'text': 'น'},
+        ];
+
+      final q = QuizQuestion.fromJson(json);
+
+      expect(q.isSpellingChoice, isTrue);
+      expect(q.correctChoice, 'กิน');
+      expect(q.spellingParts.length, 4);
+      expect(q.spellingParts[3].tone, 'mid');
+      // 母音記号は土台の「-」を添えて単体でも読めるようにする。
+      expect(q.spellingParts[1].displayText, '-ิ');
+      expect(q.spellingParts[0].displayText, 'ก');
+      // 書く順につなぐと元の綴りに戻る。
+      expect(q.spellingGlyphs.map((g) => g.text).join(), 'กิน');
+      expect(q.toJson()['spelling_glyphs'], isA<List>());
+    });
+
     test('quiz_format のない旧問題は穴埋めとして読む', () {
       final q = QuizQuestion.fromJson(_baseJson());
 

@@ -67,6 +67,16 @@ const (
 	// SentenceReviewCorrectMultiplier は例文レビュー由来の正解を弱める係数。
 	SentenceReviewCorrectMultiplier = 0.1
 
+	// SpellingChoiceScale は綴り4択（入門用）の証拠を弱める係数。正誤とも同じ。
+	//
+	// この形式は出題文が読みと意味を渡してしまうので、正解は「綴りを
+	// 見分けられた」証拠であって「語を知っている」証拠ではない。不正解も
+	// 同じで、意味も読みも知っている語を綴りだけで落とす。等倍のままだと
+	// 新語（P=0.4）が1回の不正解で下限 0.15 まで沈み、SRS で出続ける。
+	//
+	// 正誤の片側だけを弱めないこと（Result.FormatScale のコメント参照）。
+	SpellingChoiceScale = 0.5
+
 	// BayesGuessTop はヒント無しの 4 択で「知らなくても当たる」確率 g。
 	//
 	// 素の 4 択なら 0.25 だが、まとめクイズは穴埋めでダミーが品詞・文法で

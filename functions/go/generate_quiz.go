@@ -16,6 +16,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/premium"
 	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
+	"github.com/mnbst/thai-memo/functions/go/internal/spellunit"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
@@ -84,6 +85,15 @@ type quizQuestion struct {
 	DummyReasons               []string       `json:"dummy_reasons"`
 	SentenceDetail             map[string]any `json:"sentence_detail,omitempty"`
 	QuizFormat                 string         `json:"quiz_format,omitempty"`
+	// SpellingParts は綴り4択の答え合わせ用。正解の綴りを頭子音・母音・
+	// 末子音・声調に分けたもの（音の順）。
+	SpellingParts []spellunit.Part `json:"spelling_parts,omitempty"`
+	// SpellingGlyphs は同じ正解を書く順に切ったもの。画面はこれで
+	// 「綴りのどの字がどの部品か」を色分けする。
+	SpellingGlyphs []spellunit.Glyph `json:"spelling_glyphs,omitempty"`
+	// SpellingToneRule は声調が決まる3要素（頭子音の階級・生音/死音・
+	// 声調記号）。声調だけは字が1つに対応しないので、規則として見せる。
+	SpellingToneRule *spellunit.ToneRule `json:"spelling_tone_rule,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -119,7 +129,8 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	}
 
 	var in struct {
-		Lang any `json:"lang"`
+		Lang                 any      `json:"lang"`
+		SupportedQuizFormats []string `json:"supported_quiz_formats"`
 	}
 	_ = req.Bind(&in)
 	// 解説の言語。旧クライアントは送ってこないので ja に落ちる。
@@ -186,9 +197,21 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 		}, nil
 	}
 
+	sources := buildQuizSources(selected)
+	if beginnerQuizEnabled(userData) {
+		words := make([]string, 0, len(sources))
+		for _, source := range sources {
+			words = append(words, source.Seed.KeyWord)
+		}
+		applied := applyBeginnerFormats(sources, in.SupportedQuizFormats, l,
+			beginnerPassedWords(ctx, db, uid, words))
+		log.Printf("beginner_quiz_formats_applied uid=%s applied=%d of=%d",
+			uid, applied, len(sources))
+	}
+
 	// まとめクイズはダミーが確定していれば理由と解説を使い回せる。
 	questions := generateQuestionsFromSources(ctx,
-		withQuizClozeCache(service, db, l), buildQuizSources(selected))
+		withQuizClozeCache(service, db, l), sources)
 	if len(questions) == 0 {
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}
@@ -230,6 +253,15 @@ func generateLearningQuiz(ctx context.Context, req *callable.Request) (any, erro
 	source, ok := buildLearningQuizSourceForClient(
 		in.Sentence,
 		supportsQuizFormat(in.SupportedQuizFormats, quizgen.FormatMeaningChoice),
+		func() []uvm.TestItem {
+			// 例文が短くて選択肢が埋まらないときだけ読む（インスタンス内で使い回す）。
+			items, err := vocabTestItems(ctx, l)
+			if err != nil {
+				log.Printf("meaning_choice_topup_unavailable error=%v", err)
+				return nil
+			}
+			return items
+		},
 	)
 	if !ok || !quizgen.IsSeedReady(source.Seed) {
 		return nil, callable.Errorf(callable.InvalidArgument,

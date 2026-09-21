@@ -92,6 +92,7 @@
   },
   "quizPrompt": "Choose the word that goes in the blank",
   "quizMeaningPrompt": "Choose the meaning of this word",
+  "quizSpellingPrompt": "Choose the spelling for this word",
   "quizWordExplanation": "Word explanation",
   "quizProgress": "Question {index} of {total}",
   "@quizProgress": {
@@ -114,6 +115,24 @@
   "quizPlaySentence": "Play the sentence",
   "quizPlayWord": "Play the word",
   "quizWhyCorrect": "Why it's correct",
+  "quizSpellingBreakdown": "Spelling breakdown",
+  "quizToneRuleFor": "Tone rules for {consonantClass}",
+  "@quizToneRuleFor": {
+    "placeholders": {
+      "consonantClass": {
+        "type": "String"
+      }
+    }
+  },
+  "quizPartOnset": "Initial",
+  "quizPartVowel": "Vowel",
+  "quizPartCoda": "Final",
+  "quizPartVowelCoda": "Vowel + final",
+  "quizPartToneLabel": "Tone",
+  "quizPartKaran": "Karan",
+  "quizPartSilent": "Silent",
+  "quizPartSilentValue": "Not read",
+  "quizPartNone": "none",
   "quizWhyIncorrect": "Why it's incorrect",
   "quizSeeResults": "See results",
   "quizNextQuestion": "Next question",

@@ -176,3 +176,47 @@ func TestUpdatePRecovery(t *testing.T) {
 		t.Errorf("不正解1回のあと2連続正解で既知に戻らない: %v", p)
 	}
 }
+
+// TestFormatScale は出題形式の係数が正誤で偏らず、証拠量にも同じだけ効くこと。
+func TestFormatScale(t *testing.T) {
+	spelling := Result{FormatScale: SpellingChoiceScale}
+
+	// 証拠量（境界推定の母数）はヒント段階と同じく条件だけで決まる。
+	if got := ResultEvidence("review", spelling); got != SpellingChoiceScale {
+		t.Errorf("ResultEvidence = %v, want %v", got, SpellingChoiceScale)
+	}
+	// 正誤で証拠量が変わってはいけない。
+	wrong := spelling
+	wrong.IsCorrect = false
+	right := spelling
+	right.IsCorrect = true
+	if ResultEvidence("review", wrong) != ResultEvidence("review", right) {
+		t.Error("正誤で証拠量が変わっている")
+	}
+	// 母数からは外さない（弱いだけで採点ではある）。
+	if !IsGradedResult("review", spelling) {
+		t.Error("綴り4択が母数から外れている")
+	}
+
+	// P の動きも両側が同じだけ鈍る。新語が1回の不正解で下限まで沈まない。
+	scaled := UpdateP(NewWordP, false, 0, SpellingChoiceScale)
+	plain := UpdateP(NewWordP, false, 0, 1.0)
+	if !(scaled > plain) {
+		t.Errorf("不正解の落ち幅が鈍っていない: %.3f vs %.3f", scaled, plain)
+	}
+	if math.Abs(plain-PFloor) > 1e-9 {
+		t.Errorf("等倍の不正解は下限に張り付くはず: %.3f", plain)
+	}
+	up := UpdateP(NewWordP, true, 0, SpellingChoiceScale)
+	if !(up > NewWordP && up < UpdateP(NewWordP, true, 0, 1.0)) {
+		t.Errorf("正解の上がり幅が鈍っていない: %.3f", up)
+	}
+
+	// **係数を下げるときはここを見ること。** EstimateVocab は P>0.5 の語だけを
+	// knownMaxRank に数える。新語が1回の正解で 0.5 を越えられなくなると、
+	// 1語1回しか出ない帯（重複の少ないユーザー）で境界が伸びなくなる。
+	// 0.510 と余裕は 0.01 しかない（0.4 まで下げると 0.487 で届かない）。
+	if up <= 0.5 {
+		t.Errorf("綴り4択の1回正解で新語が既知にならない: %.3f", up)
+	}
+}

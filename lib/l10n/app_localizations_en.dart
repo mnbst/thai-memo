@@ -187,6 +187,9 @@ class L10nEn extends L10n {
   String get quizMeaningPrompt => 'Choose the meaning of this word';
 
   @override
+  String get quizSpellingPrompt => 'Choose the spelling for this word';
+
+  @override
   String get quizWordExplanation => 'Word explanation';
 
   @override
@@ -223,6 +226,41 @@ class L10nEn extends L10n {
 
   @override
   String get quizWhyCorrect => 'Why it\'s correct';
+
+  @override
+  String get quizSpellingBreakdown => 'Spelling breakdown';
+
+  @override
+  String quizToneRuleFor(String consonantClass) {
+    return 'Tone rules for $consonantClass';
+  }
+
+  @override
+  String get quizPartOnset => 'Initial';
+
+  @override
+  String get quizPartVowel => 'Vowel';
+
+  @override
+  String get quizPartCoda => 'Final';
+
+  @override
+  String get quizPartVowelCoda => 'Vowel + final';
+
+  @override
+  String get quizPartToneLabel => 'Tone';
+
+  @override
+  String get quizPartKaran => 'Karan';
+
+  @override
+  String get quizPartSilent => 'Silent';
+
+  @override
+  String get quizPartSilentValue => 'Not read';
+
+  @override
+  String get quizPartNone => 'none';
 
   @override
   String get quizWhyIncorrect => 'Why it\'s incorrect';
