@@ -33,3 +33,15 @@ const (
 	// 無制限化する前の PremiumDailySentences(20) * PremiumTrialDays(2) の値をそのまま置く。
 	PremiumTrialSentences = 40
 )
+
+// Reset は tier に対応する日次リセット値（例文, クイズ）を返す。
+//
+// ティアが変わったときの書き戻しは verifySubscription・ストア通知・dailyBatch・
+// 手動付与・買い切り移行の5経路にあり、それぞれで free/premium を書き分けると
+// 片方だけ直す事故が起きる。値の対応はここだけに置く。
+func Reset(premium bool) (sentences, quizzes int) {
+	if premium {
+		return PremiumDailySentences, PremiumDailyQuizzes
+	}
+	return FreeDailySentences, FreeDailyQuizzes
+}

@@ -25,8 +25,10 @@ type dailyGolden struct {
 			NotifyTier   int `json:"notify_tier"`
 			NotifyMisses int `json:"notify_tier_misses"`
 		} `json:"evaluate_response"`
-		UsesPremiumTrial bool    `json:"uses_premium_trial"`
-		SkipReason       *string `json:"delivery_skip_reason"`
+		// uses_premium_trial は Python 版の「トライアル枠で配信するか」。
+		// 実効プレミアムの判定は premium.IsEffectivePremium に一本化したため
+		// 対応する Go 関数は無く、突き合わせもしない。
+		SkipReason *string `json:"delivery_skip_reason"`
 	} `json:"cases"`
 }
 
@@ -72,11 +74,30 @@ func TestLocalTimeGolden(t *testing.T) {
 	t.Logf("%d ケース一致", len(golden.TzCases))
 }
 
+// withinDueSlack は「Python なら not_due、Go では DueSlack ぶん前倒しして
+// 配信する」期日直前のケースか。意図した差なので golden から除く。
+func withinDueSlack(data map[string]any, now time.Time) bool {
+	tier := numField(data["notify_tier"], 0)
+	if tier >= TierStopped {
+		return false
+	}
+	lastNotified, ok := asDatetime(data["last_notified_at"])
+	if !ok {
+		return false
+	}
+	due := lastNotified.AddDate(0, 0, TierIntervalDays[tier])
+	return now.Before(due) && !now.Before(due.Add(-DueSlack))
+}
+
 // TestDeliveryDecisionGolden は配信判定を Python 実装と突き合わせる。
 //
 // golden は本物の daily_sentence.py を実行して作っている
 // （scripts/daily_golden/gen_golden.py）。見送り理由の文字列まで比べるので、
 // 判定順序が入れ替わっただけでも落ちる。
+//
+// 期日の前倒し（DueSlack）だけは Python に無い。毎時起動の揺れで1日飛ぶのを
+// 止めるために足したものなので、その窓に入るケースは差を認める
+// （withinDueSlack）。
 func TestDeliveryDecisionGolden(t *testing.T) {
 	golden := loadDailyGolden(t)
 	if len(golden.Cases) == 0 {
@@ -115,8 +136,11 @@ func TestDeliveryDecisionGolden(t *testing.T) {
 			t.Errorf("case %d: HasGenerationHistory Python=%v Go=%v\n  %v",
 				i, c.HasHistory, got, c.Data)
 		}
-		if got := IsDue(data, now); got != c.IsDue {
-			t.Errorf("case %d: IsDue Python=%v Go=%v\n  %v", i, c.IsDue, got, c.Data)
+		slack := withinDueSlack(data, now)
+		wantDue := c.IsDue || slack
+		if got := IsDue(data, now); got != wantDue {
+			t.Errorf("case %d: IsDue want=%v Go=%v (slack=%v)\n  %v",
+				i, wantDue, got, slack, c.Data)
 		}
 		if got := EvaluateResponse(data); got.NotifyTier != c.Evaluate.NotifyTier ||
 			got.NotifyMisses != c.Evaluate.NotifyMisses {
@@ -124,16 +148,14 @@ func TestDeliveryDecisionGolden(t *testing.T) {
 				i, c.Evaluate.NotifyTier, c.Evaluate.NotifyMisses,
 				got.NotifyTier, got.NotifyMisses, c.Data)
 		}
-		if got := UsesPremiumTrial(data, now); got != c.UsesPremiumTrial {
-			t.Errorf("case %d: UsesPremiumTrial Python=%v Go=%v\n  %v",
-				i, c.UsesPremiumTrial, got, c.Data)
-		}
-
 		wantReason := ""
 		if c.SkipReason != nil {
 			wantReason = *c.SkipReason
 		}
 		reasonCount[wantReason]++
+		if wantReason == "not_due" && slack {
+			wantReason = ""
+		}
 		if got := DeliverySkipReason(data, now); got != wantReason {
 			t.Errorf("case %d: DeliverySkipReason Python=%q Go=%q\n  %v",
 				i, wantReason, got, c.Data)

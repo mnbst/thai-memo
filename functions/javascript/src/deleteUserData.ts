@@ -10,6 +10,7 @@
  *   - users/{uid}/sentences（学習した例文データ）
  *   - users/{uid}/quiz_answers（クイズの回答履歴）
  *   - users/{uid}/uvm（語彙習得モデル）
+ *   - users/{uid}/units（綴り4択の部品ごとの習熟）
  *   - users/{uid}/learning_state（端末間の学習進捗）
  *   - users/{uid}/generation_locks（生成の多重実行防止lease）
  *   - users/{uid}（ユーザードキュメント本体）
@@ -52,6 +53,10 @@ export async function deleteUserFirestoreData(uid: string): Promise<number> {
   // users/{uid}/uvm サブコレクション（語彙習得モデル）
   const uvm = await db.collection(`users/${uid}/uvm`).listDocuments();
   refs.push(...uvm);
+
+  // users/{uid}/units サブコレクション（綴り4択の部品ごとの習熟）
+  const units = await db.collection(`users/${uid}/units`).listDocuments();
+  refs.push(...units);
 
   for (const sub of ['learning_state', 'generation_locks']) {
     refs.push(...await db.collection(`users/${uid}/${sub}`).listDocuments());

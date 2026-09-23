@@ -52,24 +52,6 @@ const (
 // 必ず一致させること。docs/design_daily_sentence_batch.md を参照。
 const SetSize = 5
 
-// 新規ユーザー初期クォータ。
-//
-// users/{uid} doc が未作成のまま生成された場合の初期値。
-// 主経路は onUserCreate トリガー（functions/javascript/src/constants/quota.ts）。
-// doc 欠損時のフォールバックとしてここでも初期化するため、
-// **必ず quota.ts / internal/quota と値を一致させること。**
-const (
-	FreeDailySentences    = 5
-	FreeDailyQuizzes      = 5
-	PremiumDailySentences = 20
-	PremiumDailyQuizzes   = 5
-	PremiumTrialDays      = 2
-
-	// PremiumTrialSentences は premium_trial_remaining の付与値（凍結した互換値）。
-	// サーバは読まないし減らさない。
-	PremiumTrialSentences = PremiumDailySentences * PremiumTrialDays
-)
-
 // topicHeadsEN は括弧の例示を落とした短縮形（「食べ物」「旅行」）からの引き当て表。
 //
 // サーバーがテーマを決めなかった回は LLM が選んで書くので短縮形が返る。

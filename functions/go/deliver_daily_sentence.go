@@ -198,9 +198,11 @@ type pickedSet struct {
 // users/{uid}.app_language にミラーした設定から解決する。渡し忘れると
 // 既定値 ja に落ち、en ユーザーの配信だけ日本語になる
 // （2026-08-14 実測: en ユーザーの配信例文10本が全て日本語訳だった）。
-// free はキャッシュのみで LLM 原価をゼロに保つ。premium と、トライアル枠を充てる
-// 配信（UsesPremiumTrial）は LLM で生成し、失敗した場合だけキャッシュに退避して
-// 通知そのものは落とさない。
+// free はキャッシュのみで LLM 原価をゼロに保つ。実効プレミアム
+// （premium.IsEffectivePremium: 課金・体験トライアル・猶予期間・反映待ちの購入）は
+// LLM で生成し、失敗した場合だけキャッシュに退避して通知そのものは落とさない。
+// 回数消費の判定（consumeQuota）と同じ関数を使い、「回数は premium 扱いなのに
+// 中身は free 品質」のような食い違いを作らない。
 // premium のテーマはクライアントが users/{uid}.preferred_topic にミラーした
 // 設定を使い、未設定（おまかせ）ならヒアリングの用途（interview.goal）から
 // 決める。どちらも無ければ通常生成と同じく UVM の key_word から決める。
@@ -209,7 +211,7 @@ func (d *deliverer) buildSentences(
 ) *pickedSet {
 	l := lang.Resolve(userData["app_language"])
 
-	if userData["tier"] == "premium" || dailysentence.UsesPremiumTrial(userData, now) {
+	if premium.IsEffectivePremium(userData, now) {
 		params := map[string]any{}
 		// 本人が選んだテーマ > ヒアリングの用途 > key_word 起点の自動選出。
 		preferred, _ := userData["preferred_topic"].(string)
@@ -547,6 +549,7 @@ func (d *deliverer) deliverOne(
 			UsePremiumSpec: p.UsePremiumSpec,
 			Lang:           p.Lang,
 			FromCache:      produced.FromCache,
+			TrackViewed:    sentence.SupportsViewTracking(userData),
 		})
 		data["daily"] = true
 		data["daily_date"] = localDate
@@ -598,5 +601,109 @@ func (d *deliverer) deliverOne(
 	}
 	// 最新の実効権利を読み、真のfreeだけを従来どおり100語上限にする。
 	uvm.SyncEstimatedVocab(ctx, d.DB, uid, d.FreqRank)
+
+	// 通知が届いたあとで、前回までの未読セットを洗い替える。送信前に消すと、
+	// 通知失敗でロールバックしたとき手元から例文だけが消える。
+	d.purgeUnreadDeliveredSets(ctx, userRef, setID)
 	return ""
+}
+
+// deliveredDoc は洗い替えの判定に使う配信docの最小形。
+type deliveredDoc struct {
+	ID   string
+	Data map[string]any
+}
+
+// deliveredSetID は配信docの属するセット。旧形式（daily_set_id 無し）は
+// doc 自身を1本のセットとして扱う（クライアントの setIdOf と同じ規則）。
+func deliveredSetID(docID string, data map[string]any) string {
+	if setID, ok := data["daily_set_id"].(string); ok && setID != "" {
+		return setID
+	}
+	return docID
+}
+
+// unreadDeliveredSetIDs は keepSetID 以外で「1本も読まれていない」配信セットを
+// 返す（doc ID 昇順で安定させる）。
+//
+// 1本でも既読があるセットは消さない。消化の途中で、カーソルがそこに載っている。
+// viewed フィールドを持たない doc は既読扱い（isSentenceViewed）なので、
+// 既読トラッキング非対応の版へ配信したぶんは洗い替えの対象にならない。
+// 判定できないものを消さない側に倒す。
+func unreadDeliveredSetIDs(docs []deliveredDoc, keepSetID string) []string {
+	members := map[string][]string{}
+	read := map[string]bool{}
+	for _, doc := range docs {
+		setID := deliveredSetID(doc.ID, doc.Data)
+		if setID == keepSetID {
+			continue
+		}
+		members[setID] = append(members[setID], doc.ID)
+		if isSentenceViewed(doc.Data) {
+			read[setID] = true
+		}
+	}
+
+	var ids []string
+	for setID := range members {
+		if !read[setID] {
+			ids = append(ids, setID)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// purgeUnreadDeliveredSets は今回配信した keepSetID 以外の未読セットを消す。
+//
+// 通知したのに1本も読まれなかったセットは、次の配信が届いた時点で捨てる。
+// 残すと、クライアントは未取り込みの配信を30日ぶん全部拾って待機列へ積むため
+// （daily_sentence_service.dart）、無視した日数ぶん古い例文が先に出て、いまの
+// レベルに合った最新セットが最後尾へ回る。key_word の選定は P とestimated_vocab
+// しか見ず、クイズを受けていない間はどちらも動かないので、溜まったセットは
+// 同じ帯の似た語ばかりになる（重複するうえスコアも伸びない）。
+//
+// 失敗しても配信自体は成立しているのでログだけ残す。次回の配信で消し直せる。
+func (d *deliverer) purgeUnreadDeliveredSets(
+	ctx context.Context, userRef *firestore.DocumentRef, keepSetID string,
+) {
+	it := userRef.Collection("sentences").Where("daily", "==", true).Documents(ctx)
+	defer it.Stop()
+
+	var docs []deliveredDoc
+	for {
+		doc, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			log.Printf("daily_sentence: 未読セットの列挙に失敗 %s: %v", userRef.ID, err)
+			return
+		}
+		docs = append(docs, deliveredDoc{ID: doc.Ref.ID, Data: doc.Data()})
+	}
+
+	stale := map[string]bool{}
+	for _, setID := range unreadDeliveredSetIDs(docs, keepSetID) {
+		stale[setID] = true
+	}
+	if len(stale) == 0 {
+		return
+	}
+
+	bw := d.DB.BulkWriter(ctx)
+	deleted := 0
+	for _, doc := range docs {
+		if !stale[deliveredSetID(doc.ID, doc.Data)] {
+			continue
+		}
+		if _, err := bw.Delete(userRef.Collection("sentences").Doc(doc.ID)); err != nil {
+			log.Printf("daily_sentence: 未読セットの削除に失敗 %s: %v", userRef.ID, err)
+			continue
+		}
+		deleted++
+	}
+	bw.End()
+	log.Printf("daily_sentence: purged unread sets uid=%s sets=%d sentences=%d",
+		userRef.ID, len(stale), deleted)
 }

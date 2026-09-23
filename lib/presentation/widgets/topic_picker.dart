@@ -57,7 +57,7 @@ class NextSentenceTopicLabel extends ConsumerWidget {
         ? null
         : canSelect
             ? () => showTopicPicker(context, ref)
-            : () => PaywallBottomSheet.show(context, source: paywallSource);
+            : () => PaywallScreen.show(context, source: paywallSource);
 
     if (banner) {
       return _buildBanner(context, l10n, label, canSelect, onTap);

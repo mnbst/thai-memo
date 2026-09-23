@@ -6,10 +6,9 @@
 package dailysentence
 
 import (
-	"strconv"
-	"strings"
 	"time"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/appver"
 	"github.com/mnbst/thai-memo/functions/go/internal/notify"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
@@ -33,6 +32,14 @@ const (
 
 	// MaxTargetWordRetry はキャッシュヒットするまでターゲット語を引き直す回数。
 	MaxTargetWordRetry = 5
+
+	// DueSlack は配信期日の前倒し幅（IsDue）。
+	//
+	// 毎時起動の開始時刻と、その回で対象ユーザーに辿り着くまでの時間は日ごとに
+	// 揺れる。この揺れを吸収しないと、前日より数秒早い起動が not_due になって
+	// 1日飛ぶ。対象時刻の起動は日に1回なので、揺れより十分大きく、かつ最短
+	// 間隔（1日）より十分小さい値にする。
+	DueSlack = time.Hour
 )
 
 // local は不正・未設定の tz 名を Asia/Tokyo にフォールバックしてローカル時刻へ変換する。
@@ -101,6 +108,11 @@ func HasGenerationHistory(userData map[string]any) bool {
 }
 
 // IsDue は段階ごとの配信間隔を満たしているか。初回（未通知）は常に true。
+//
+// 期日は DueSlack ぶん早める。前回の配信時刻ちょうどを期日にすると、起動が
+// 数秒でも早い日に丸1日ぶん見送ってしまう（2026-09-20、01:00:11 に配信した
+// 翌日の起動が 01:00:03 で not_due。対象時刻の起動は日に1回なので、その
+// ユーザーはその日の配信を丸ごと失う）。
 func IsDue(userData map[string]any, now time.Time) bool {
 	tier := numField(userData["notify_tier"], 0)
 	if tier >= TierStopped {
@@ -110,7 +122,7 @@ func IsDue(userData map[string]any, now time.Time) bool {
 	if !ok {
 		return true
 	}
-	due := lastNotified.AddDate(0, 0, TierIntervalDays[tier])
+	due := lastNotified.AddDate(0, 0, TierIntervalDays[tier]).Add(-DueSlack)
 	return !now.Before(due)
 }
 
@@ -152,21 +164,6 @@ func EvaluateResponse(userData map[string]any) TierUpdate {
 		misses = 0
 	}
 	return TierUpdate{NotifyTier: tier, NotifyMisses: misses}
-}
-
-// UsesPremiumTrial はこの配信をプレミアム体験トライアル枠（premium品質）で出すか。
-//
-// トライアルは期間制なので、期間中の free ユーザーは配信も premium 品質にする。
-// 判定は generateThaiSentence 側と同じ期限のみで、消費という概念は無い。
-func UsesPremiumTrial(userData map[string]any, now time.Time) bool {
-	if userData["tier"] == "premium" {
-		return false
-	}
-	expiresAt, ok := asDatetime(userData["premium_trial_expires_at"])
-	if !ok {
-		return false
-	}
-	return now.Before(expiresAt)
 }
 
 // DeliverySkipReason は配信を見送る理由。配信対象なら空文字。
@@ -226,36 +223,9 @@ const DailyBatchSize = sentence.SetSize
 var DailyBatchMinVersion = [3]int{1, 4, 8}
 
 // BatchSize は配信本数。版が読めない・古い場合は従来どおり1本（安全側）。
-//
-// app_build_number は使えない。pubspec のビルド番号は 0 固定で、実際の番号は
-// CI が --build-number=${{ github.run_number }} で注入しており、tester と prod で
-// ワークフローが別＝採番系列が独立しているため大小がリリース順序を表さない。
 func BatchSize(userData map[string]any) int {
-	version, _ := userData["app_version"].(string)
-	if compareVersion(version, DailyBatchMinVersion) < 0 {
+	if !appver.AtLeast(userData, DailyBatchMinVersion) {
 		return 1
 	}
 	return DailyBatchSize
-}
-
-// compareVersion は "1.4.8" 形式を major/minor/patch の順に比較する。
-// パースできない値は最小扱い（-1）にして安全側へ倒す。
-func compareVersion(version string, other [3]int) int {
-	parts := strings.SplitN(strings.TrimSpace(version), ".", 4)
-	if len(parts) != 3 {
-		return -1
-	}
-	for i, p := range parts {
-		n, err := strconv.Atoi(p)
-		if err != nil || n < 0 {
-			return -1
-		}
-		if n != other[i] {
-			if n < other[i] {
-				return -1
-			}
-			return 1
-		}
-	}
-	return 0
 }

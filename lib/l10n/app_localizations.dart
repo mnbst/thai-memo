@@ -403,6 +403,12 @@ abstract class L10n {
   /// **'この単語の意味を選んでください'**
   String get quizMeaningPrompt;
 
+  /// No description provided for @quizSpellingPrompt.
+  ///
+  /// In ja, this message translates to:
+  /// **'この読みの綴りを選んでください'**
+  String get quizSpellingPrompt;
+
   /// No description provided for @quizWordExplanation.
   ///
   /// In ja, this message translates to:
@@ -474,6 +480,72 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'正解理由'**
   String get quizWhyCorrect;
+
+  /// No description provided for @quizSpellingBreakdown.
+  ///
+  /// In ja, this message translates to:
+  /// **'綴りの分解'**
+  String get quizSpellingBreakdown;
+
+  /// No description provided for @quizToneRuleFor.
+  ///
+  /// In ja, this message translates to:
+  /// **'{consonantClass}の声調規則'**
+  String quizToneRuleFor(String consonantClass);
+
+  /// No description provided for @quizPartOnset.
+  ///
+  /// In ja, this message translates to:
+  /// **'頭子音'**
+  String get quizPartOnset;
+
+  /// No description provided for @quizPartVowel.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音'**
+  String get quizPartVowel;
+
+  /// No description provided for @quizPartCoda.
+  ///
+  /// In ja, this message translates to:
+  /// **'末子音'**
+  String get quizPartCoda;
+
+  /// No description provided for @quizPartVowelCoda.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音＋末子音'**
+  String get quizPartVowelCoda;
+
+  /// No description provided for @quizPartToneLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調'**
+  String get quizPartToneLabel;
+
+  /// No description provided for @quizPartKaran.
+  ///
+  /// In ja, this message translates to:
+  /// **'ガーラン'**
+  String get quizPartKaran;
+
+  /// No description provided for @quizPartSilent.
+  ///
+  /// In ja, this message translates to:
+  /// **'黙字'**
+  String get quizPartSilent;
+
+  /// No description provided for @quizPartSilentValue.
+  ///
+  /// In ja, this message translates to:
+  /// **'読まない'**
+  String get quizPartSilentValue;
+
+  /// No description provided for @quizPartNone.
+  ///
+  /// In ja, this message translates to:
+  /// **'なし'**
+  String get quizPartNone;
 
   /// No description provided for @quizWhyIncorrect.
   ///
@@ -1573,10 +1645,28 @@ abstract class L10n {
   /// **'{price} / 月'**
   String paywallPlanMonthlyPrice(String price);
 
+  /// No description provided for @paywallPlanYearlyTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'年額プラン'**
+  String get paywallPlanYearlyTitle;
+
+  /// No description provided for @paywallPlanYearlyNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎年自動更新・いつでも解約'**
+  String get paywallPlanYearlyNote;
+
+  /// プラン選択の年額側。price はストアの表示価格（¥4,800 など）
+  ///
+  /// In ja, this message translates to:
+  /// **'{price} / 年'**
+  String paywallPlanYearlyPrice(String price);
+
   /// No description provided for @paywallPlanLifetimeTitle.
   ///
   /// In ja, this message translates to:
-  /// **'買い切り'**
+  /// **'買い切りプラン'**
   String get paywallPlanLifetimeTitle;
 
   /// No description provided for @paywallPlanLifetimeNote.
@@ -1591,11 +1681,23 @@ abstract class L10n {
   /// **'このプランで始める'**
   String get paywallPurchaseCta;
 
+  /// No description provided for @paywallChangeToLifetimeCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りへ変更する'**
+  String get paywallChangeToLifetimeCta;
+
   /// No description provided for @paywallLifetimeNote.
   ///
   /// In ja, this message translates to:
   /// **'1回きりの支払いです。更新はありません。'**
   String get paywallLifetimeNote;
+
+  /// No description provided for @paywallMonthlyToLifetimeNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。'**
+  String get paywallMonthlyToLifetimeNote;
 
   /// No description provided for @paywallLegal.
   ///
@@ -4337,7 +4439,7 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody1.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。'**
+  /// **'AIがあなたの語彙に合わせたタイ語の例文を、毎日つくります。読み終えたら、その場で追加することもできます。'**
   String get guideOverviewBody1;
 
   /// No description provided for @guideOverviewBody2.

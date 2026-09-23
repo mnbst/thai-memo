@@ -106,16 +106,28 @@ func TestCorpusBankPickPrefersTopic(t *testing.T) {
 	}
 }
 
-// テーマが無くても諦めない。語ごとに平均4.5テーマしか無いので、
-// ここで nil を返すとテーマ指定のたびに LLM を呼ぶことになる。
-func TestCorpusBankPickFallsBackWhenTopicMissing(t *testing.T) {
+// 頼まれたテーマの在庫が無いときは、別テーマの文で埋めずに nil を返す
+// （LLM がそのテーマで作る）。
+func TestCorpusBankPickReturnsNilWhenTopicMissing(t *testing.T) {
 	bank := corpusBankStub(corpusSentence("ฉัน", "食べ物", "a"))
 	got, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "宗教・信仰")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if got != nil {
+		t.Fatalf("テーマ違いの文を返さないこと: %+v", got)
+	}
+}
+
+// テーマ未指定のときは在庫から選ぶ（テーマで絞らない）。
+func TestCorpusBankPickWithoutTopicUsesStock(t *testing.T) {
+	bank := corpusBankStub(corpusSentence("ฉัน", "食べ物", "a"))
+	got, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got == nil || got.ThaiText != "a" {
-		t.Fatalf("テーマ違いでも1本返すこと: %+v", got)
+		t.Fatalf("テーマ未指定では在庫を返すこと: %+v", got)
 	}
 }
 

@@ -92,9 +92,18 @@ func (b *CorpusBank) Load(ctx context.Context, l lang.Lang) (map[string][]Senten
 
 // Pick は target_word の例文を1件返す。無ければ nil（LLM 生成へ落ちる）。
 //
-// topic を渡すとそのテーマを優先するが、無ければテーマを無視して選ぶ。
-// コーパスは語ごとに平均4.5テーマしか持たないので、一致が無いときに諦めると
-// テーマ指定のたびに LLM を呼ぶことになる。
+// topic を渡したときは、そのテーマの文が無ければ nil を返す。以前はテーマを
+// 捨てて在庫から返していたが、頼まれたテーマと違う文が黙って出ていた。
+//
+// 落とす側のコストは実測で無視できる（2026-09）。
+//
+//   - コーパスは語×テーマの 67% で一致を持たない（ja・15,859文）。ただし
+//     これを踏むのはテーマが語と独立に決まるとき、つまりユーザーがテーマを
+//     指定したときだけ
+//   - 実トラフィックでのテーマ指定率は 0.2%（GA4 30日・generate_sentence
+//     1,460件中3件）。premium おまかせは語から embedding でテーマを決めるので
+//     在庫のラベルとほぼ一致し、一致しないのは 2% にとどまる
+//   - 1本あたりの生成コストは $0.002 なので、増分は 0.001円/本 未満
 func (b *CorpusBank) Pick(
 	ctx context.Context, targetWord string, l lang.Lang, topic string,
 ) (*Sentence, error) {
@@ -113,9 +122,11 @@ func (b *CorpusBank) Pick(
 				sameTopic = append(sameTopic, s)
 			}
 		}
-		if len(sameTopic) > 0 {
-			candidates = sameTopic
+		if len(sameTopic) == 0 {
+			// 頼まれたテーマの在庫が無い。別テーマの文で埋めずに LLM へ渡す。
+			return nil, nil
 		}
+		candidates = sameTopic
 	}
 
 	// バンクはプロセス内でキャッシュしているので、返す前にコピーする

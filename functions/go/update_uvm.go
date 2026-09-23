@@ -8,6 +8,7 @@ import (
 
 	"github.com/mnbst/thai-memo/functions/go/internal/callable"
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
+	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
@@ -84,6 +85,10 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 		log.Printf("updateUvm metrics update failed: uid=%s, error=%v", uid, err)
 	}
 
+	// 綴り4択の回答は部品データ（users/{uid}/units）にも入れる。
+	// 失敗しても UVM 更新は成功として返す。
+	applySpellingObservations(ctx, db, uid, in.Results)
+
 	log.Printf("updateUvm completed: uid=%s, updated=%d", uid, len(results))
 	return map[string]any{"success": true, "updated": len(results)}, nil
 }
@@ -112,10 +117,17 @@ func parseResult(raw map[string]any) (uvm.Result, error) {
 
 	reviewed, _ := raw["sentence_reviewed"].(bool)
 
+	// 出題形式ごとの証拠の強さ。送ってこない形式は等倍。
+	scale := 0.0
+	if format, _ := raw["quiz_format"].(string); format == quizgen.FormatSpellingChoice {
+		scale = uvm.SpellingChoiceScale
+	}
+
 	return uvm.Result{
 		Word:             word,
 		IsCorrect:        isCorrect,
 		HintLevel:        hint,
 		SentenceReviewed: reviewed,
+		FormatScale:      scale,
 	}, nil
 }

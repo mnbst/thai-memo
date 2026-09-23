@@ -3,6 +3,16 @@ package quizgen
 const (
 	FormatClozeChoice   = "cloze_choice"
 	FormatMeaningChoice = "meaning_choice"
+	// FormatSpellingChoice は読みと意味からタイ語の綴りを選ぶ4択。
+	// ダミーは3件とも「音節としては有り得るが実在しない綴り」を
+	// spellunit がその場で作るので、この形式だけモデルを呼ばない。
+	FormatSpellingChoice = "spelling_choice"
+)
+
+// 意味当ての選択肢数。例文の語数が足りなければ択を減らす（穴埋めには落とさない）。
+const (
+	minMeaningChoices = 2
+	maxMeaningChoices = 4
 )
 
 // QuizSentenceSeed はクイズ生成の入力（例文1件ぶん）。
@@ -23,6 +33,9 @@ type QuizSentenceSeed struct {
 	// FixedDummies は確定済みの穴埋めダミー3件（PickDistractors の結果）。
 	// 入っていればモデルはダミーを作らず、理由と解説だけ書く。
 	FixedDummies []string `json:"fixed_dummies,omitempty"`
+	// FixedExplanation は確定済みの解説。モデルを呼ばない形式（綴り4択）が
+	// 使う。空ならモデルの解説をそのまま載せる。
+	FixedExplanation string `json:"fixed_explanation,omitempty"`
 	// FixedDummyPronunciations はダミーの発音（語 → ローマ字）。
 	// 選定側（quiz_distractors.go）が NLP で作る。モデルの理由文から
 	// 切り出すより確実で、書式が崩れても4択の発音が空にならない。
@@ -41,7 +54,8 @@ type PreparedQuizSentenceSeed struct {
 	QuizFormat           string   `json:"quiz_format,omitempty"`
 	MeaningChoices       []string `json:"meaning_choices,omitempty"`
 	FixedDummies         []string `json:"fixed_dummies,omitempty"`
-	// FixedDummyPronunciations は QuizSentenceSeed から持ち越す。
+	// FixedExplanation / FixedDummyPronunciations は QuizSentenceSeed から持ち越す。
+	FixedExplanation         string            `json:"-"`
 	FixedDummyPronunciations map[string]string `json:"-"`
 }
 

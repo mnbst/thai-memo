@@ -3,8 +3,9 @@ package quizgen
 import "strings"
 
 func quizFormatOf(sentence QuizSentenceSeed) string {
-	if sentence.QuizFormat == FormatMeaningChoice {
-		return FormatMeaningChoice
+	switch sentence.QuizFormat {
+	case FormatMeaningChoice, FormatSpellingChoice:
+		return sentence.QuizFormat
 	}
 	return FormatClozeChoice
 }
@@ -106,6 +107,7 @@ func PrepareInputs(sentences []QuizSentenceSeed) []PreparedQuizSentenceSeed {
 			QuizFormat:               sentence.QuizFormat,
 			MeaningChoices:           uniqueTexts(sentence.MeaningChoices),
 			FixedDummies:             uniqueTexts(sentence.FixedDummies),
+			FixedExplanation:         normalizeText(sentence.FixedExplanation),
 			FixedDummyPronunciations: sentence.FixedDummyPronunciations,
 		})
 	}
@@ -119,10 +121,21 @@ func IsSeedReady(sentence QuizSentenceSeed) bool {
 		return false
 	}
 	p := prepared[0]
+	if p.QuizFormat == FormatSpellingChoice {
+		// 綴り4択は本文に空欄を作らない。読みと意味が出題文になるので、
+		// その2つとダミー3件が揃っていることだけを見る。
+		return p.CorrectAnswer != "" &&
+			p.Pronunciation != "" &&
+			p.CorrectAnswerMeaning != "" &&
+			len(p.FixedDummies) == 3
+	}
 	if p.QuizFormat == FormatMeaningChoice {
+		// 選択肢は2〜4件。同じ例文から作るので、語の少ない例文では
+		// 4件に満たないことがある（そのときは択を減らす）。
 		return p.CorrectAnswer != "" &&
 			p.CorrectAnswerMeaning != "" &&
-			len(p.MeaningChoices) == 4 &&
+			len(p.MeaningChoices) >= minMeaningChoices &&
+			len(p.MeaningChoices) <= maxMeaningChoices &&
 			containsText(p.MeaningChoices, p.CorrectAnswerMeaning)
 	}
 	return p.CorrectAnswer != "" && containsBlank(p.BlankText)
@@ -171,7 +184,7 @@ func ApplyRuleBasedFields(
 
 		if hasPrepared && p.QuizFormat == FormatMeaningChoice &&
 			p.CorrectAnswer != "" && p.CorrectAnswerMeaning != "" &&
-			len(p.MeaningChoices) == 4 {
+			len(p.MeaningChoices) >= minMeaningChoices {
 			question.Choices = append([]string(nil), p.MeaningChoices...)
 		} else if !hasPrepared || p.CorrectAnswer == "" || !containsBlank(p.BlankText) {
 			// 空欄を作れていない。正解を選択肢に混ぜず、後段の検査に落とさせる。

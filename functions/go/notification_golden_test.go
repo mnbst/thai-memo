@@ -152,6 +152,7 @@ func TestAppStoreNotificationUpdatesGolden(t *testing.T) {
 
 			got := updatesToMap(appStoreUpdates(
 				notification, decision, derefOr(c.CurrentTier, ""), c.Updates[0].UID,
+				false,
 			))
 
 			if _, ok := want["subscription.expires_at"]; !ok {

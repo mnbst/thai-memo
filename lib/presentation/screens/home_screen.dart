@@ -12,6 +12,7 @@ import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
 import '../../services/interview_reporter.dart';
 import '../../services/push_notification_service.dart';
+import '../../services/sentence_view_marker.dart';
 import '../providers/daily_set_provider.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
@@ -66,6 +67,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       unawaited(AppVersionReporter().report());
       // 初回起動で書けなかったヒアリング回答を送り直す（送信済みなら何もしない）。
       unawaited(InterviewReporter().report());
+      // 通信できずに端末へ溜まった既読を流す。
+      unawaited(SentenceViewMarker.instance.flush());
       _notificationOpenSubscription =
           FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
       // 後ろで取り込んだ別端末の進行位置を、例文を読んでいる間だけ反映する。
@@ -280,7 +283,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
     await prefs.setBool(AppConfig.prefKeyPremiumTrialStartedNotified, true);
     if (!openPaywall || !mounted) return;
-    await PaywallBottomSheet.show(context, source: 'onboarding_trial_started');
+    await PaywallScreen.show(context, source: 'onboarding_trial_started');
   }
 
   /// 後から配られたプレミアム体験の開放を、最初の起動で一度だけ知らせる。
@@ -356,7 +359,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         .read(settingsControllerProvider.notifier)
         .setGenerationParam('topic', null);
     if (!openPaywall || !mounted) return;
-    await PaywallBottomSheet.show(context, source: 'trial_ended');
+    await PaywallScreen.show(context, source: 'trial_ended');
   }
 
   /// 月額を買ってくださった方に、買い切りへの無償移行を案内する。

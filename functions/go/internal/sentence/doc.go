@@ -5,6 +5,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/appver"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 )
 
@@ -51,6 +52,9 @@ type DocMeta struct {
 	// 例文本体には言語が書かれておらず、あとから users の設定を見ても、
 	// 生成後に設定を変えた人のぶんが取り違わる。
 	Lang lang.Lang
+	// TrackViewed が真なら viewed=false を付けて「まだ読まれていない」状態で
+	// 保存する。既読はクライアントが true へ書き換える（SupportsViewTracking）。
+	TrackViewed bool
 	// FromCache はバンク（FreeBank / CorpusBank）から出した文かどうか。
 	// 真なら品質監査もプール追加も対象外にする（既にバンクにある文なので
 	// 判定し直す意味が無く、プールへ入れ直すと同じ文が二重に増える）。
@@ -75,7 +79,7 @@ func (s *Sentence) BuildSentenceDoc(m DocMeta) map[string]any {
 	if context == nil {
 		context = map[string]any{}
 	}
-	return map[string]any{
+	doc := map[string]any{
 		"thai_text":              s.ThaiText,
 		"pronunciation":          s.Pronunciation,
 		"japanese_translation":   s.JapaneseTranslation,
@@ -89,4 +93,28 @@ func (s *Sentence) BuildSentenceDoc(m DocMeta) map[string]any {
 		"lang":                   string(m.Lang),
 		"from_cache":             m.FromCache,
 	}
+	if m.TrackViewed {
+		doc["viewed"] = false
+	}
+	return doc
+}
+
+// ViewTrackingMinVersion は既読（viewed）を書けるクライアントの最小バージョン。
+//
+// これ未満の版に viewed=false を付けると、誰も true へ書き換えないまま
+// 「未読」の例文だけが溜まり、まとめクイズの候補が尽きる。ロールアウトは
+// この値の上げ下げで切り替える。
+//
+// 既読を書く実装が入ったのは 1.4.11。1.4.10 を審査中の未公開版と見て
+// 1.4.10 にしていたが、1.4.10 は公開されて実ユーザーが使っており
+// （2026-09、prod に build 121 の稼働を確認）、そこへ viewed=false を
+// 付けても誰も true にしない。
+var ViewTrackingMinVersion = [3]int{1, 4, 11}
+
+// SupportsViewTracking は既読を書けるクライアントかどうか。
+//
+// 偽なら viewed を付けずに保存する。クイズ側はフィールドが無い例文を
+// 既読扱いにするので、旧クライアントは従来どおりの出題になる。
+func SupportsViewTracking(userData map[string]any) bool {
+	return appver.AtLeast(userData, ViewTrackingMinVersion)
 }

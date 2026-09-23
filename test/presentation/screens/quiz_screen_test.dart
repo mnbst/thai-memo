@@ -117,6 +117,35 @@ class _FakeDatabaseHelper extends Fake implements DatabaseHelper {
   Future<Map<String, dynamic>?> getCachedQuizStats() async => null;
 }
 
+final _spellingQuestion = QuizQuestion(
+  sentenceId: 'sentence-0',
+  thaiText: 'ฉันกินข้าว',
+  blankText: 'ฉัน___ข้าว',
+  correctAnswer: 'กิน',
+  correctAnswerMeaning: '食べる',
+  choices: const ['กิน', 'กีน', 'กิม', 'จิน'],
+  pronunciation: 'kin',
+  explanation: '実在する綴りは กิน だけで、ほかの3つはタイ語にありません。',
+  japaneseTranslation: '私はご飯を食べます',
+  sentencePronunciation: 'chan kin khaao',
+  quizFormat: QuizQuestion.spellingChoiceFormat,
+  spellingParts: const [
+    SpellingPart(role: 'onset', text: 'ก', sound: 'k'),
+    SpellingPart(role: 'vowel', text: 'ิ', sound: 'i'),
+    SpellingPart(role: 'coda', text: 'น', sound: 'n'),
+    SpellingPart(role: 'tone', tone: 'mid'),
+  ],
+  spellingToneRule: const SpellingToneRule(
+    consonantClass: 'mid',
+    syllable: 'live',
+  ),
+  spellingGlyphs: const [
+    SpellingGlyph(role: 'onset', text: 'ก'),
+    SpellingGlyph(role: 'vowel', text: 'ิ'),
+    SpellingGlyph(role: 'coda', text: 'น'),
+  ],
+);
+
 class _QuizHarness {
   const _QuizHarness({
     required this.controller,
@@ -284,6 +313,41 @@ void main() {
     expect(answerEvent['response_ms'], isA<int>());
   });
 
+  testWidgets('確認クイズは選択肢が揃わなければ3択で出す', (tester) async {
+    final threeChoices = QuizQuestion(
+      sentenceId: 'sentence-0',
+      thaiText: 'ฉันชอบภาษาไทย',
+      blankText: 'ฉันชอบ___',
+      correctAnswer: 'ภาษาไทย',
+      correctAnswerMeaning: 'タイ語',
+      choices: const ['タイ語', '私', '好き'],
+      pronunciation: 'phasa thai',
+      explanation: 'ภาษาไทย は「タイ語」を意味します。',
+      japaneseTranslation: '私はタイ語が好きです',
+      sentencePronunciation: 'chan chop phasa thai',
+      quizFormat: QuizQuestion.meaningChoiceFormat,
+    );
+
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      learningSentence: _learningSentence,
+      questions: [threeChoices],
+    );
+
+    // 択が減っても穴埋めにはしない。
+    expect(find.text('この単語の意味を選んでください'), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_choice_0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_choice_2')), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_choice_3')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_0')));
+    await tester.pump();
+
+    expect(harness.controller.state, isA<QuizSummary>());
+    expect(harness.analytics.quizAnswerEvents.single['quiz_format'],
+        QuizQuestion.meaningChoiceFormat);
+  });
+
   testWidgets('確認意味4択の不正解時は正解語と単語解説だけを表示する', (tester) async {
     await _pumpSummaryQuiz(
       tester,
@@ -393,6 +457,126 @@ void main() {
     expect(nextState, isA<QuizAnswering>());
     expect((nextState as QuizAnswering).index, 1);
     expect(find.text('2 / 5'), findsOneWidget);
+  });
+
+  testWidgets('読まない字は専用のマスで見せる', (tester) async {
+    // องค์ の ค์ は書くが読まない。
+    final question = QuizQuestion(
+      sentenceId: 'sentence-0',
+      thaiText: 'องค์กร',
+      blankText: '___กร',
+      correctAnswer: 'องค์',
+      correctAnswerMeaning: '組織',
+      choices: const ['องค์', 'อังค์', 'องด์', 'อบค์'],
+      pronunciation: 'ong',
+      explanation: '',
+      quizFormat: QuizQuestion.spellingChoiceFormat,
+      spellingParts: const [
+        SpellingPart(role: 'onset', text: 'อ'),
+        SpellingPart(role: 'vowel', sound: 'o'),
+        SpellingPart(role: 'coda', text: 'ง', sound: 'ng'),
+        SpellingPart(role: 'tone', tone: 'mid'),
+        SpellingPart(role: 'silent', text: 'ค์'),
+      ],
+      spellingGlyphs: const [
+        SpellingGlyph(role: 'onset', text: 'อ'),
+        SpellingGlyph(role: 'coda', text: 'ง'),
+        SpellingGlyph(role: 'silent', text: 'ค์'),
+      ],
+    );
+    await _pumpSummaryQuiz(tester, questions: [question]);
+
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_1')));
+    await tester.pump();
+
+    // 見出しは記号の名前。記号そのもの（์）は単体だと崩れるので出さない。
+    expect(find.text('ガーラン'), findsOneWidget);
+    expect(find.text('読まない'), findsOneWidget);
+    expect(find.text('ค์'), findsOneWidget);
+    // 末子音は読む字だけ。
+    expect(find.text('ง'), findsOneWidget);
+  });
+
+  testWidgets('母音字が末子音を兼ねる綴りは1マスにまとめる', (tester) async {
+    // ทำ の ำ は「母音 a + 末子音 m」を1字で書く。
+    final question = QuizQuestion(
+      sentenceId: 'sentence-0',
+      thaiText: 'ฉันทำอาหาร',
+      blankText: 'ฉัน___อาหาร',
+      correctAnswer: 'ทำ',
+      correctAnswerMeaning: '作る',
+      choices: const ['ทำ', 'ทิม', 'ทาม', 'ธำ'],
+      pronunciation: 'tham',
+      explanation: '',
+      quizFormat: QuizQuestion.spellingChoiceFormat,
+      spellingParts: const [
+        SpellingPart(role: 'onset', text: 'ท', sound: 'th'),
+        SpellingPart(role: 'vowel', text: 'ำ', sound: 'a'),
+        SpellingPart(role: 'coda', sound: 'm'),
+        SpellingPart(role: 'tone', tone: 'mid'),
+      ],
+      spellingGlyphs: const [
+        SpellingGlyph(role: 'onset', text: 'ท'),
+        SpellingGlyph(role: 'vowel', text: 'ำ'),
+      ],
+    );
+    await _pumpSummaryQuiz(tester, questions: [question]);
+
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_1')));
+    await tester.pump();
+
+    expect(find.text('母音＋末子音'), findsOneWidget);
+    expect(find.text('am'), findsOneWidget);
+    // 別々の「母音」「末子音」には割らない。
+    expect(find.text('母音'), findsNothing);
+    expect(find.text('末子音'), findsNothing);
+  });
+
+  testWidgets('綴り4択の答え合わせは正解の綴りだけを部品ごとに見せる', (tester) async {
+    await _pumpSummaryQuiz(tester, questions: [_spellingQuestion]);
+
+    // 出題文は読みと意味。タイ文字は選択肢だけ。
+    expect(find.text('この読みの綴りを選んでください'), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_spelling_pronunciation')),
+        findsOneWidget);
+
+    // 2番目（กีน・母音だけ違う）を選ぶ。
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_1')));
+    await tester.pump();
+
+    expect(find.text('綴りの分解'), findsOneWidget);
+    // 正解語・読み上げは分解と同じカードにまとめる。
+    expect(find.byIcon(Icons.volume_up), findsOneWidget);
+    expect(find.text('食べる'), findsOneWidget);
+    // 見せるのは正解だけ。選んだ綴りは並べない。
+    expect(find.text('頭子音'), findsOneWidget);
+    expect(find.text('母音'), findsOneWidget);
+    expect(find.text('末子音'), findsOneWidget);
+    expect(find.text('声調'), findsOneWidget);
+    expect(find.text('ii'), findsNothing);
+    expect(find.text('i'), findsOneWidget);
+    expect(find.text('k'), findsOneWidget);
+    expect(find.text('平声'), findsOneWidget);
+
+    // 読みとタイ文字の対応を出す。母音記号は土台の「-」を添える。
+    expect(find.text('-ิ'), findsOneWidget);
+
+    // 声調は字1つに対応しないので、階級の規則としてまとめる。
+    expect(find.text('中子音の声調規則'), findsOneWidget);
+    expect(find.text('生音節 × 声調記号なし → 平声'), findsOneWidget);
+    // 開くと、その階級の声調表と声調ガイドへの導線が出る。
+    expect(find.text('結果の声調'), findsNothing);
+    final tile = find.byKey(const ValueKey('quiz_spelling_tone_rule'));
+    await tester.scrollUntilVisible(tile, 120);
+    await tester.tap(tile, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(find.text('結果の声調'), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_spelling_tone_guide_button')),
+        findsOneWidget);
+
+    // 分解カードが同じことを言うので、正解理由は出さない。
+    expect(find.text('正解理由'), findsNothing);
+    expect(find.text(_spellingQuestion.explanation), findsNothing);
   });
 
   testWidgets('小さい画面と拡大文字でも結果画面を最後までスクロールできる', (tester) async {

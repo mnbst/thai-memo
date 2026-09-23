@@ -41,7 +41,7 @@ func resetLearningData(ctx context.Context, req *callable.Request) (any, error) 
 
 	// JS の listDocuments() 相当。実体の無い doc（サブコレクションだけ持つ）も
 	// 拾う必要があるので Documents ではなく DocumentRefs を使う。
-	for _, sub := range []string{"sentences", "quiz_answers", "uvm", "learning_state"} {
+	for _, sub := range []string{"sentences", "quiz_answers", "uvm", "units", "learning_state"} {
 		got, err := documentRefs(ctx, userRef.Collection(sub))
 		if err != nil {
 			return nil, err

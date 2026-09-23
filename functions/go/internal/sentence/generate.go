@@ -250,6 +250,13 @@ func GenerateSingle(ctx context.Context, gen Generator, req Request) (*Sentence,
 		}
 
 		RepairWordBreakdown(ctx, gen, s, &req)
+
+		// 訳文・語義の言語が直らなければ文ごと作り直す。やり直しの枠が
+		// 残っていなければ、生成を落とすよりは出す（ログには残る）。
+		if !RepairLanguage(ctx, gen, s, &req) && attempt < MaxRetry {
+			currentPrompt = req.Prompt
+			continue
+		}
 		return s, nil
 	}
 

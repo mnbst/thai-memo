@@ -83,7 +83,7 @@ lib/data/models/quiz_result.dart
 ## Data Sources
 
 lib/data/datasources/backend_api_service.dart
-Cloud Functions HTTPクライアント。例文生成・クイズ生成呼び出し、エラーマッピング。
+Cloud Functions HTTPクライアント。例文生成・クイズ生成呼び出し、エラーマッピング。生成レスポンスの id（サーバーの doc ID）も読む。
 
 lib/data/models/vocab_test_step.dart
 語彙テストの1往復ぶんの応答（出題1段ぶん、または最終結果）。正解は含まない。
@@ -116,7 +116,7 @@ lib/presentation/providers/sentence_provider.dart
 例文CRUD・生成状態のRiverpod StateNotifier。
 
 lib/presentation/providers/daily_set_provider.dart
-例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す。進行位置は学習レコード（learning_progress_store）を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。読む1本が変わったときに、その1本に属していたクイズ保存と段を落とすのもここ。
+例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す（待機は1セットまで。溢れた古いほうは完了扱いで捨てる）。進行位置は学習レコード（learning_progress_store）を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。読む1本が変わったときに、その1本に属していたクイズ保存と段を落とすのもここ。
 
 lib/services/learning_progress_store.dart
 学習の進み具合（セットのカーソル・いまの段・クイズの進行）を端末に1レコードで持つ。旧3キー（daily_set_progress / saved_confirmation_quiz / saved_summary_quiz）からの移行もここ。
@@ -128,7 +128,7 @@ lib/presentation/providers/quiz_offer_experiment_provider.dart
 例文→1問確認クイズ導線のvariant定義。v1のA/Bテストはinlineカードで確定済み（全端末inline）。
 
 lib/presentation/providers/subscription_provider.dart
-ティア状態（free/premium）。Firestoreと同期、課金サービス連携。月額・買い切りのどちらを買うかは purchase(lifetime:) で選ぶ。
+ティア状態（free/premium）。Firestoreと同期、課金サービス連携。月額・年額・買い切りのどれを買うかは purchase(plan:) で選ぶ。
 
 lib/presentation/providers/settings_provider.dart
 ユーザー設定（初回起動フラグ、テーマ、生成パラメータ、フォント、アプリ言語）。
@@ -172,7 +172,7 @@ lib/presentation/screens/settings_screen.dart
 設定画面。語彙スコアの深藍カード＋Free向け課金導線を先頭に置き、以下はアカウント/学習設定/表示/アプリについての4カード（見出し＋罫線区切り）。学習設定の先頭は読み物（使い方ガイド・声調ガイド）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI（ボトムシート）。深藍の表題カード＋Free→Premiumの対比3行＋固定購入バー（月額／買い切りのプラン選択＋購入ボタン1つ。買い切りが引けない環境では選択を出さず従来の1本道）。導線は設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
+プレミアム課金UI（全画面ページ PaywallScreen）。深藍の表題カード＋特典＋プラン選択（月額／年額／買い切り。月額しか引けない環境では選択を出さず従来の1本道）＋開示文・復元リンクを1本のスクロールに載せ、購入ボタンだけ下端に固定。導線は設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
 
 test/screenshots/paywall_review_screenshot.dart
 App Store 審査用スクショ（課金画面）の生成。商品を差し込んで描くので、ストア反映を待たずに買い切り込みの画面が撮れる。出力は build/appstore/paywall_review.png。
@@ -248,7 +248,7 @@ lib/presentation/tone_explanation_dialog.dart
 ## Services
 
 lib/services/purchase_service.dart
-アプリ内課金（iOS/Android）と購入検証。月額サブスクと買い切り（iOSのみ）の2商品を扱う。
+アプリ内課金（iOS/Android）と購入検証。月額・年額サブスクと買い切り（iOSのみ）の3商品を扱う。
 
 lib/services/storefront_service.dart
 ダウンロード元のストア地域取得。初回起動時のアプリ言語決定にだけ使う。
@@ -261,6 +261,9 @@ FCMトークン・タイムゾーン・配信希望時刻をusers/{uid}に登録
 
 lib/services/app_version_reporter.dart
 起動時に users doc へ app_version / app_build_number / last_opened_at を記録。サーバー側の機能出し分け判定に使う。
+
+lib/services/sentence_view_marker.dart
+画面に出した例文へ既読（viewed=true）を付ける。未送信ぶんは端末に溜め、起動時に流す。まとめクイズが未読の例文を出さないために要る。
 
 lib/services/review_prompt_service.dart
 App Storeのレビュー依頼をiOSのOSダイアログで出す。クイズ完走と例文生成の2経路から発火し、バージョン単位＋60日クールダウンで重複を防ぐ。
@@ -405,11 +408,14 @@ Firebase callable プロトコルのGo実装。{"data"}/{"result"}/{"error"}電�
 functions/go/internal/callable/number.go
 callable の data に載る整数を読む。Flutter SDK が int を包む Int64 ラッパーも解く。
 
+functions/go/internal/appver/appver.go
+クライアントの app_version（"1.4.11" 形式）による機能出し分けの比較。配信本数・既読トラッキングの可否判定で共用する。
+
 functions/go/internal/fbapp/fbapp.go
 Firebase Admin(Firestore/Auth)クライアントの遅延生成シングルトン。
 
 functions/go/internal/quota/quota.go
-生成回数クォータ定数。constants/quota.ts の移植（両者を一致させること）。premium の例文は無制限（大きな値を毎日入れ直す形）。
+生成回数クォータ定数と、ティア変更時のリセット値を返す Reset()。constants/quota.ts の移植（両者を一致させること）。premium の例文は無制限（大きな値を毎日入れ直す形）。
 
 functions/go/cmd/local/main.go
 デプロイ前のローカル起動用。FUNCTION_TARGETで関数を選ぶ。
@@ -427,7 +433,10 @@ functions/go/internal/uvm/model.go
 UVMの純粋関数（UpdateP / GuessRate / MovingAvg / EstimateVocab）と定数。P の更新は尤度比（推測率 g・うっかり率 s）。旧 α 則は UpdatePAlpha として golden 用に残す。
 
 functions/go/internal/uvm/store.go
-UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。
+UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。出題形式ごとの証拠の強さ（Result.FormatScale）もここで効かせる。
+
+functions/go/internal/uvm/spellingsim_test.go
+綴り4択の証拠係数が estimated_vocab の伸びをどれだけ鈍らせるかのシミュレーション（SIM=1 で実行）。実測の重複（平均3.0回/語）で d30 が2%遅くなる程度。
 
 functions/go/internal/uvm/nickname.go
 ランキング表示名の自動採番。nicknames/{小文字名}をCreateで押さえて一意性を担保。
@@ -440,6 +449,42 @@ functions/go/internal/uvm/vocabtest.go
 
 functions/go/internal/uvm/vocabtest_items.go
 GCSから vocab_test_items_<lang>.json（出題語と訳）を読みキャッシュする。
+
+functions/go/internal/spellunit/code.go
+音節形コード（sylform_var.json のキー）を頭子音・母音・末子音・声調に分ける。綴り→コードの逆引きも持つ。単音節だけが対象。
+
+functions/go/internal/spellunit/question.go
+綴り4択のダミー生成（1次元だけ変えた非語・表示長一致・毎回変える）と、回答から部品ごとの証拠を取り出す処理。
+
+functions/go/internal/spellunit/parts.go
+綴りを頭子音・母音・末子音・声調に分けて読みと文字を付ける（答え合わせの表示用）。書く順に切った Glyphs も返す。
+
+functions/go/internal/spellunit/segment.go
+綴りのどの字がどの部品かを規則で切る。前置母音・二重子音・ห/อ を前に置く頭子音・読まない ร・์ を扱い、組み直して元に戻らなければ文字を出さない。
+
+functions/go/internal/spellunit/display_manual_test.go
+全綴りを分解表示にかけて字と部品の対応がズレる形を数える監査（SPELLUNIT_DISPLAY=1 でのみ実行）。
+
+functions/go/internal/spellunit/tonerule.go
+声調が決まる3要素（頭子音の階級・生音/死音・声調記号）を綴りから出す。
+
+functions/go/internal/spellunit/model.go
+部品ごとの P の更新。ダミーが全部非語なので推測率は素の 0.25（uvm の 0.35 とは別に持つ）。
+
+functions/go/internal/spellunit/store.go
+部品データのFirestore層（users/{uid}/units）。取り違え先も数える。estimated_vocab には流さない。
+
+functions/go/internal/spellunit/spellunit_test.go
+コード分解・ダミーが実在語でないこと・証拠の取り出し・Pの回復のテスト。
+
+functions/go/internal/spellunit/coverage_manual_test.go
+頻度帯ごとの出題可能率の調査（SPELLUNIT_COVERAGE=1 で実行）。上位100語で52%、上位2000語で21%。
+
+functions/go/internal/spellunit/unitcoverage_manual_test.go
+部品の網羅に必要な頻度ランクの調査（SPELLUNIT_UNITCOV=1 で実行）。rank100 で 42/72 種、全72種は rank5363 まで必要。
+
+functions/go/internal/spellunit/eligible_manual_test.go
+綴り4択にできる語の一覧を書き出す（SPELLUNIT_ELIGIBLE_OUT=... で実行）。本番データとの突き合わせ用。
 
 functions/go/set_user_tier.go
 setUserTier の Go 版。管理者がtierを切り替える。setUserTier.ts と等価。
@@ -466,7 +511,7 @@ functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch から呼ぶ品質監査。直近24時間の premium 例文（LLM生成分のみ、from_cache=true は除く）を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書き、通ったものは例文プールへ回す。判定は既定で gpt-5.6-luna（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
+dailyBatch から呼ぶ品質監査。直近24時間の premium 例文（LLM生成分のみ、from_cache=true は除く）を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書き、通ったものは例文プールへ回す。判定は既定で gpt-5-mini（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
 
 functions/go/sentence_pool.go
 judge を通った例文を GCS の例文プール（corpus_pool_<lang>.json）へ追記する。thai_text で重複排除、上限超過分は古い側から捨てる（SENTENCE_POOL_MAX=0 で無効化）。
@@ -481,13 +526,16 @@ functions/go/sentence_audit_live_test.go
 judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
 
 functions/go/internal/sentence/corpusbank.go
-静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語だけ LLM 生成へ落ちる（free は従来どおり FreeBank）。
+静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、頼まれたテーマの在庫が無い語が LLM 生成へ落ちる（free は従来どおり FreeBank）。
 
 functions/go/internal/sentence/corpusbank_test.go
 premium がコーパス・free が従来バンクという分岐、テーマ優先とその諦め、キャッシュ汚染防止のテスト。
 
 functions/go/internal/corpustrans/translate.go
-静的コーパス専用。確定したタイ語文に日本語訳と英訳を1回のレスポンスで付ける訳プロンプトとスキーマ。語義も日英そろえて返し、語数が合わなければ1回作り直す。
+静的コーパス専用。確定したタイ語文に日本語訳と英訳を1回のレスポンスで付ける訳プロンプトとスキーマ。日本語は自然な訳、英訳は直訳・時制なしと規則を分けてある。FixedJA を渡すと英訳だけ作り直すモード（SchemaEN）。語義も日英そろえて返し、語数や英訳の機械チェックに落ちれば作り直す。
+
+functions/go/internal/corpustrans/validate_en_test.go
+英訳の機械チェック（品詞名の混入・スラッシュ併記の三人称・タイ文字残留・句点）の単体テスト。
 
 functions/go/internal/quality/judge.go
 例文品質judgeのプロンプト・スキーマ・sentence_flags ドキュメントの組み立て。判定基準は与えず、タイ語・訳文・key_wordだけ渡して理由を書かせる。
@@ -496,13 +544,16 @@ functions/go/internal/quality/judge_test.go
 judgeレスポンスの選別（natural除外・理由なし除外・index重複）とドキュメント内容のテスト。
 
 functions/go/deliver_daily_sentence.go
-daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、premium/トライアルはLLM生成。
+daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、実効プレミアム（premium.IsEffectivePremium）はLLM生成。通知成功後に、1本も読まれなかった過去の配信セットを消す（洗い替え）。
 
 functions/go/deliver_daily_sentence_golden_test.go
 配信の生成分岐・コミット時の更新内容・ロールバックの更新内容をPython実装の出力と突き合わせる。
 
 functions/go/deliver_daily_sentence_batch_test.go
 5本セット配信の本数・クォータ消費・ロールバック・通知Dataのテスト。
+
+functions/go/deliver_daily_sentence_purge_test.go
+未読セットの洗い替え判定（全未読のみ削除・既読混在は残す・viewed無しは残す・旧形式）のテスト。
 
 functions/go/deliver_daily_sentence_live_test.go
 dev の実Firestore・実Geminiに対して5本セット配信を通しで確かめる（通知だけ差し替え）。
@@ -513,6 +564,9 @@ resetQuota と duplicateTokenUids をJS実装の出力（golden JSON）と突き
 functions/go/daily_batch_live_test.go
 dailyBatch のFirestore書き込み部分を実Firestoreで検証。全体実行は行わない（Auth実削除を含むため）。
 
+functions/go/quiz_language_live_test.go
+韓国語の解説が出た例文を実Geminiで作り直し、解説とダミー理由が日本語で出るか確かめる。QUIZ_LANGUAGE_LIVE=1 で実行。
+
 functions/go/internal/notify/notify.go
 notifyUtcHour の Go 版。現地の配信希望時刻がUTCの何時に当たるかを求める。tzdataを埋め込む。
 
@@ -520,22 +574,28 @@ functions/go/internal/notify/golden_test.go
 JS(Intl)が出した8510ケースの期待値とGo(tzdata)の結果を突き合わせる。
 
 functions/go/internal/premium/premium.go
-utils/premium.ts の Go 版。プレミアム体験トライアルの有効判定とJST 0:00への切り上げ。
+utils/premium.ts の Go 版。実効プレミアム判定 IsEffectivePremium()（課金・体験トライアル・猶予期間・反映待ちの購入）の唯一の置き場。生成・配信・クイズ・語彙テストが全てこれを通す。トライアル期限のJST 0:00切り上げもここ。
 
 functions/go/internal/subscription/subscription.go
-constants/subscription.ts の Go 版。期限切れ判定の猶予とストア購入プラットフォームの定数。
+constants/subscription.ts の Go 版。期限切れ判定の猶予・ストア購入プラットフォームの定数と、「まだ premium を維持してよいか」の唯一の判定 Entitled()（買い切り・猶予期間・expires_at 欠落の扱いを集約）。
+
+functions/go/internal/subscription/subscription_test.go
+Entitled() の判定表（買い切り・期限内外・猶予期間・expires_at 欠落・手動付与）のテスト。
 
 functions/go/internal/userdata/userdata.go
 deleteUserFirestoreData の Go 版。ユーザーのFirestoreデータ（サブコレクション・leaderboard・nicknames・quiz_queue）を一括削除。
+
+functions/go/lifetime.go
+買い切り（購入・無償移行）の権利をどう残し、どう剥がすかの集約。期限切れで落とさない判定（keepPremiumForLifetime）、剥がすときの更新内容（tier・印・クォータを必ず一緒に動かす）、返金通知用キーの埋め戻し、旧データ向け subscription_owners フォールバック。
 
 functions/go/migrate_to_lifetime.go
 migrateToLifetime の実装。月額課金者の subscription に買い切りの印（lifetime）を立てるだけの無償移行。購入記録は書き換えない。対象は名簿（users.lifetime_migration_eligible）を持ち、ストアでの購入記録（subscription.platform）がある人。status は見ないので過去に買って失効した人も含む（失効者は tier と回数を premium へ戻す）。受付期限あり（LIFETIME_MIGRATION_DEADLINE で変更可）。
 
 functions/go/migrate_to_lifetime_test.go
-移行済みユーザーが日次リセット・ストア通知の期限切れで降格しないこと、返金・取消では降格することのテスト。
+移行済みユーザーが日次リセット・ストア通知の期限切れで降格しないこと、返金・取消では降格すること（購入済みの買い切りは月額の返金では失わないこと）、月額の検証で買い切り所有者を落とさないことのテスト。
 
 functions/go/verify_subscription.go
-verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。買い切り（premium_lifetime, iOSのみ）は期限を持たず subscription.lifetime=true で印を付ける。
+verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。買い切り（premium_lifetime, iOSのみ）は期限を持たず subscription.lifetime=true と lifetime_transaction_id で印を付ける。年額（premium_annual）は月額と同じ自動更新として扱う。買い切り所有者は月額の検証では free に落とさない（verifiedTier）。
 
 functions/go/verify_subscription_live_test.go
 バリデーション文言、匿名拒否、ティア変更時のみのクォータリセット、旧doc剥奪を検証。
@@ -580,7 +640,7 @@ functions/go/word_explanation_cache_test.go
 キャッシュヒット時にモデルを呼ばないこと・穴埋めは対象外・意味違いが別キーになることの確認。
 
 functions/go/generate_quiz_sources.go
-クイズ生成元の組み立て。sentence_detail・key_word意味の解決・クライアント向け1問への変換。
+クイズ生成元の組み立て。sentence_detail・key_word意味の解決・クライアント向け1問への変換。確認クイズの意味当ては同じ例文の語から選択肢を作り、短い例文で4件に足りなければ語彙テストの出題語の訳で補う。
 
 functions/go/generate_quiz_srs.go
 SRS(間隔反復)による復習例文の選出とUVMによる補充、モデル呼び出しと再試行。
@@ -618,6 +678,21 @@ scripts/build_pos_dict.py の生成物。コーパスの文中で付いた品詞
 functions/go/internal/quizgen/sanitize.go
 モデル出力の検査と整形。選択肢・ダミー理由・選択肢発音の対応付け。
 
+functions/go/internal/quizgen/spelling.go
+綴り4択（読み＋意味→タイ語の綴り）の組み立てと検査。選択肢も解説も確定済みなのでモデルを呼ばない。
+
+functions/go/quiz_beginner.go
+入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値100未満のユーザーには出題できる問題を全部入門用にし、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
+
+functions/go/quiz_spelling.go
+入門用の形式のひとつ、綴り4択への差し替え。回答から部品データ（users/{uid}/units）を更新するのもここ。
+
+functions/go/quiz_beginner_test.go
+対象ユーザーの線引き、クライアント未対応なら差し替えないこと、出題できる語が全部差し替わること、通過済みの語は戻さないことのテスト。
+
+functions/go/internal/quizgen/drift.go
+クイズ出力（解説・ダミー理由）の言語ずれの検出と、書き直しプロンプト。
+
 functions/go/internal/quizgen/types.go
 クイズ生成の入出力の型。
 
@@ -633,11 +708,17 @@ Gemini APIでクイズ1問分のダミー・理由・解説を生成する。ト
 functions/go/internal/gemini/schema.go
 Gemini の responseSchema(ja/en)。
 
+functions/go/internal/gemini/repair.go
+言語がずれたフィールドだけを Gemini に1回書き直させる。直らなければそのフィールドを空にする。
+
 functions/go/internal/lang/lang.go
 訳文・解説の言語(ja/en)の正規化。
 
+functions/go/internal/lang/drift.go
+LLM出力の言語ずれ（ja 指定で韓国語など）の文字による判定。生成経路すべてで共通に使う。
+
 functions/go/internal/dailysentence/dailysentence.go
-daily_sentence.py の Go 版。毎日例文の配信判定（段階バックオフ・見送り理由・現地時刻）とバージョン別の配信本数（BatchSize）。
+daily_sentence.py の Go 版。毎日例文の配信判定（段階バックオフ・見送り理由・現地時刻）とバージョン別の配信本数（BatchSize）。権利の判定は持たない（internal/premium）。
 
 functions/go/internal/dailysentence/batch_test.go
 app_version による配信本数の判定と、セット本数を添えた通知タイトルのテスト。
@@ -652,7 +733,7 @@ functions/go/internal/dailysentence/notification_golden_test.go
 通知文面をPython実装の出力と突き合わせる（53ケース）。
 
 functions/go/internal/sentence/constants.go
-constants.py の Go 版。モデル設定・クォータ定数・context英語化・レスポンススキーマ組み立て。
+constants.py の Go 版。モデル設定・context英語化・レスポンススキーマ組み立て（クォータ定数は internal/quota に一本化）。
 
 functions/go/internal/sentence/constants_data.go
 constants.py のデータ部分（STYLES/TOPICS/ラベル表/JSON Schema）の自動生成。手で編集しないこと。
@@ -730,7 +811,10 @@ functions/go/internal/sentence/types.go
 例文と word_breakdown の型。LLMレスポンスmapからの読み込み。
 
 functions/go/internal/sentence/generate.go
-例文生成のフロー。target_notesの展開・NLP後処理・欠落補完・やり直しの制御。
+例文生成のフロー。target_notesの展開・NLP後処理・欠落補完・言語ずれの書き直し・やり直しの制御。
+
+functions/go/internal/sentence/drift.go
+訳文・語義・使い方の言語ずれを検出し、ずれた項目だけ1回書き直させる。使い方が直らなければ空にし、訳文・語義が直らなければ文ごと作り直す。
 
 functions/go/internal/sentence/generate_golden_test.go
 生成フローとNLP後処理をPython実装と突き合わせる差分テスト。
@@ -826,7 +910,7 @@ functions/go/internal/sentence/produce_batch_test.go
 ProduceBatch（選定1回・生成並列・キャッシュミスの引き直し・一部失敗）のテスト。
 
 functions/go/generate_thai_sentence.go
-generateThaiSentence（callable）。認証・クォータ・トライアル判定・生成・保存・UVM更新。count を送るとその本数を1セットで作る（未指定は1本＝旧クライアント互換）。
+generateThaiSentence（callable）。認証・クォータ・権利判定（premium.IsEffectivePremium）・生成・保存・UVM更新。count を送るとその本数を1セットで作る（未指定は1本＝旧クライアント互換）。
 
 functions/go/generate_thai_sentence_test.go
 セット本数の解釈（count 未指定は1本・上限は sentence.SetSize）のテスト。
@@ -840,11 +924,14 @@ functions/go/cmd/sample/main.go
 functions/go/cmd/vetwords/main.go
 コーパスのターゲット語候補をLLMで1語ずつ判定し、除外すべき語（断片・誤記・固有名詞など）の提案JSONを出す。反映は人が見て決める。
 
+functions/go/cmd/vetquizlang/main.go
+Firestore の quiz_questions を走査し、解説・ダミー理由が指定と違う言語の件を洗い出す。-delete で消すと次の出題で作り直される。
+
 functions/go/cmd/pilot/main.go
 cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。
 
 functions/go/cmd/translate/main.go
-cmd/gencorpus の出力に internal/corpustrans で日英の訳を付け直し、最終コーパスのJSONLを書くコマンド。生成時の日本語訳は下書き扱いで置き換える。
+cmd/gencorpus の出力に internal/corpustrans で日英の訳を付け直し、最終コーパスのJSONLを書くコマンド。生成時の日本語訳は下書き扱いで置き換える。-en-only は完成コーパスを入力に取り、英訳だけ差し替える（日本語は持ち越す）。
 
 functions/go/cmd/usagefill/main.go
 最終コーパスの各文に「使い方」4項目（style / emotion / usage_scenarios / cultural_notes、日英）を付けてサイドカーJSONLに書く。-max-rank で頻度の高い語から流せる。
@@ -857,6 +944,9 @@ functions/go/cmd/gencorpus/main.go
 
 functions/go/cmd/burst/main.go
 毎日例文の5本セット配信で増える LLM 同時実行の実測コマンド。ユーザー数×本数を同時に叩き、1本/1ユーザー/全体の所要と失敗の内訳を出す。
+
+functions/go/cmd/lifetimeaudit/main.go
+買い切り doc の読み取り専用集計。返金通知用キー（lifetime_transaction_id）を持たない購入者＝dailyBatch の埋め戻し対象を数える。デプロイ後の確認にも使う。
 
 functions/go/generate_thai_sentence_golden_test.go
 sentence_handlers.py のクォータ・トライアル・生成条件と突き合わせる差分テスト。
@@ -913,7 +1003,7 @@ scripts/sim_scan_floor.py
 key_word帯の後方下限・読み取り上限のシミュレーション（取りこぼし率・境界との差・Firestore読取数）。
 
 scripts/build_vocab_test_items.py
-語彙テストの出題語（vocab_test_items_<lang>.json）をGeminiで作りGCSへ上げる。段の定義は uvm.TestStages と揃える。
+語彙テストの出題語（vocab_test_items_<lang>.json）をGeminiで作りGCSへ上げる。段の定義は uvm.TestStages と揃える。--lang で全言語ぶんを1回で作り出題語を揃える。--from-ja は ja を正として他言語の訳だけ埋める（出題語と rank を動かさない）。
 
 scripts/build_freq_rank.py
 タイ語コーパスからPyThaiNLPで単語頻度ランキングを構築。corpus_word_filter.pyのDENYLIST（終助詞・感嘆詞＋拘束形態素）を除外して採番する。
@@ -950,6 +1040,9 @@ UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSに�
 
 scripts/ga4_acquisition.py
 prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン別）。SAインパーソネーションで認証。
+
+scripts/ga4_retention.py
+prod GA4 の first_open 起点コホートリテンション（weekly/daily）。既定で米国を除外、--all/--only/--exclude で範囲変更。
 
 scripts/ga4_register_dimension.py
 prod GA4 のイベント／ユーザースコープのカスタムディメンションとカスタム指標を、実装スキーマに対して plan／check／apply／list する（登録は遡及しない）。

@@ -23,6 +23,21 @@ type Result struct {
 	HintLevel int `json:"-"`
 	// SentenceReviewed は真のときだけ α を弱める。
 	SentenceReviewed bool `json:"sentence_reviewed"`
+	// FormatScale は出題形式ごとの証拠の強さ。0 なら 1.0（従来の形式）。
+	//
+	// **正誤で変えてはいけない。** 片側だけ弱めると母数が結果で選別され、
+	// ResultEvidence のコメントにある下方バイアスと同じことが起きる。
+	// 形式という回答の条件だけで決める（値は呼び出し側が決める。
+	// 入門用の形式は SpellingChoiceScale）。
+	FormatScale float64 `json:"-"`
+}
+
+// scale は FormatScale を 1.0 既定で読む。
+func (r Result) scale() float64 {
+	if r.FormatScale <= 0 {
+		return 1.0
+	}
+	return r.FormatScale
 }
 
 // IsGradedResult は「採点として扱えるクイズの回答」かを返す。
@@ -50,7 +65,7 @@ func IsGradedResult(quizType string, r Result) bool {
 // が境界推定に届く」となり、母数が結果で選別される＝下方バイアスになる。
 // ここは回答の条件（ヒント段階・quiz_type・例文レビュー）だけで決める。
 func ResultEvidence(quizType string, r Result) float64 {
-	ev := HintMultiplier(r.HintLevel)
+	ev := HintMultiplier(r.HintLevel) * r.scale()
 	if quizType == "learning" {
 		ev *= LearningCorrectMultiplier
 	}
@@ -118,7 +133,7 @@ func BatchUpdate(
 
 		// weight は証拠の重み（UpdateP の尤度比の指数）。ヒントは weight では
 		// なく GuessRate 側で入るので、ここでは掛けない。
-		weight := 1.0
+		weight := r.scale()
 		if quizType == "learning" && r.IsCorrect {
 			weight *= LearningCorrectMultiplier
 		}

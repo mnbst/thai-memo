@@ -5,17 +5,18 @@ import (
 	"testing"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
+	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
 func learningQuizPayload() map[string]any {
 	return map[string]any{
-		"sentence_id":             "sentence-1",
-		"thai_text":               "ฉันชอบเรียนภาษาไทย",
-		"pronunciation":           "chan chop rian phasa thai",
-		"japanese_translation":    "私はタイ語を勉強するのが好きです",
-		"key_word":                "เรียน",
-		"key_word_pronunciation":  "rian",
-		"key_word_meaning":        "勉強する",
+		"sentence_id":            "sentence-1",
+		"thai_text":              "ฉันชอบเรียนภาษาไทย",
+		"pronunciation":          "chan chop rian phasa thai",
+		"japanese_translation":   "私はタイ語を勉強するのが好きです",
+		"key_word":               "เรียน",
+		"key_word_pronunciation": "rian",
+		"key_word_meaning":       "勉強する",
 		"word_breakdown": []any{
 			map[string]any{"word": "ฉัน", "meaning": "私"},
 			map[string]any{"word": "ชอบ", "meaning": "好き"},
@@ -27,7 +28,7 @@ func learningQuizPayload() map[string]any {
 
 // 対応を宣言したクライアントの確認クイズだけが意味4択になる。
 func TestBuildLearningQuizSourceForClientMeaningChoice(t *testing.T) {
-	meaning, ok := buildLearningQuizSourceForClient(learningQuizPayload(), true)
+	meaning, ok := buildLearningQuizSourceForClient(learningQuizPayload(), true, true, nil)
 	if !ok {
 		t.Fatal("意味4択の生成元を作れなかった")
 	}
@@ -45,7 +46,7 @@ func TestBuildLearningQuizSourceForClientMeaningChoice(t *testing.T) {
 	}
 
 	// 未宣言（1.4.8以前）は従来の穴埋めのまま。
-	oldClient, ok := buildLearningQuizSourceForClient(learningQuizPayload(), false)
+	oldClient, ok := buildLearningQuizSourceForClient(learningQuizPayload(), false, false, nil)
 	if !ok {
 		t.Fatal("穴埋めの生成元を作れなかった")
 	}
@@ -56,7 +57,50 @@ func TestBuildLearningQuizSourceForClientMeaningChoice(t *testing.T) {
 }
 
 // 意味の重複・欠落で4件揃わない例文は穴埋めへ落とす。
-func TestBuildLearningQuizSourceForClientFallsBackToCloze(t *testing.T) {
+// 例文が短くて選択肢が埋まらないときは、語彙テストの出題語の訳で4件に足す。
+func TestBuildLearningQuizSourceForClientTopsUpChoices(t *testing.T) {
+	payload := learningQuizPayload()
+	payload["word_breakdown"] = []any{
+		map[string]any{"word": "ไม่", "meaning": "〜ない（否定）"},
+		map[string]any{"word": "เรียน", "meaning": "勉強する"},
+	}
+	payload["key_word"] = "เรียน"
+	payload["key_word_meaning"] = "勉強する"
+	payload["thai_text"] = "ไม่เรียน"
+
+	pool := []uvm.TestItem{
+		{Word: "ไม่", Rank: 2, Gloss: "いいえ"},   // 例文に出る語なので使わない
+		{Word: "เรียน", Rank: 50, Gloss: "学ぶ"}, // 出題語そのものも使わない
+		{Word: "คุณ", Rank: 4, Gloss: "あなた"},
+		{Word: "ที่", Rank: 5, Gloss: "場所"},
+		{Word: "มัน", Rank: 8, Gloss: "それ"},
+	}
+	source, ok := buildLearningQuizSourceForClient(
+		payload, true, true, func() []uvm.TestItem { return pool })
+	if !ok {
+		t.Fatal("生成元を作れなかった")
+	}
+	if source.Seed.QuizFormat != quizgen.FormatMeaningChoice {
+		t.Fatalf("format = %q", source.Seed.QuizFormat)
+	}
+	choices := source.Seed.MeaningChoices
+	if len(choices) != 4 {
+		t.Fatalf("choices = %v, want 4件", choices)
+	}
+	if choices[0] != "勉強する" {
+		t.Fatalf("正解が先頭にない: %v", choices)
+	}
+	for _, banned := range []string{"いいえ", "学ぶ"} {
+		for _, c := range choices {
+			if c == banned {
+				t.Errorf("例文の語・出題語と同じ語の訳を混ぜた: %q in %v", banned, choices)
+			}
+		}
+	}
+}
+
+// 選択肢が4件揃わない例文は、穴埋めに落とさず択を減らして意味当てにする。
+func TestBuildLearningQuizSourceForClientReducesChoices(t *testing.T) {
 	payload := learningQuizPayload()
 	payload["word_breakdown"] = []any{
 		map[string]any{"word": "ฉัน", "meaning": "私"},
@@ -64,7 +108,59 @@ func TestBuildLearningQuizSourceForClientFallsBackToCloze(t *testing.T) {
 		map[string]any{"word": "เรียน", "meaning": "勉強する"},
 	}
 
-	source, ok := buildLearningQuizSourceForClient(payload, true)
+	// 補充元が無ければ択を減らす。
+	source, ok := buildLearningQuizSourceForClient(payload, true, true, nil)
+	if !ok {
+		t.Fatal("生成元を作れなかった")
+	}
+	if source.Seed.QuizFormat != quizgen.FormatMeaningChoice {
+		t.Fatalf("format = %q, want meaning", source.Seed.QuizFormat)
+	}
+	if len(source.Seed.MeaningChoices) != 2 {
+		t.Fatalf("choices = %v, want 2件", source.Seed.MeaningChoices)
+	}
+	if source.Seed.MeaningChoices[0] != "勉強する" {
+		t.Fatalf("正解が先頭にない: %v", source.Seed.MeaningChoices)
+	}
+}
+
+// 択を減らした意味当ては、対応を宣言したクライアントにだけ返す。
+// 公開済みの古いアプリは選択肢が4件でない問題を弾くので、穴埋めに落とす。
+func TestBuildLearningQuizSourceForClientKeepsFourChoicesForOldClient(t *testing.T) {
+	payload := learningQuizPayload()
+	payload["word_breakdown"] = []any{
+		map[string]any{"word": "ฉัน", "meaning": "私"},
+		map[string]any{"word": "ชอบ", "meaning": "私"},
+		map[string]any{"word": "เรียน", "meaning": "勉強する"},
+	}
+
+	// 綴り4択を宣言しない＝択を減らせないクライアント。
+	old, ok := buildLearningQuizSourceForClient(payload, true, false, nil)
+	if !ok {
+		t.Fatal("生成元を作れなかった")
+	}
+	if old.Seed.QuizFormat != quizgen.FormatClozeChoice {
+		t.Fatalf("format = %q, want cloze（2択を古いアプリへ返した）",
+			old.Seed.QuizFormat)
+	}
+
+	// 新しいクライアントには減らした択のまま返す。
+	fresh, _ := buildLearningQuizSourceForClient(payload, true, true, nil)
+	if fresh.Seed.QuizFormat != quizgen.FormatMeaningChoice ||
+		len(fresh.Seed.MeaningChoices) != 2 {
+		t.Fatalf("new client seed = %#v", fresh.Seed)
+	}
+}
+
+// ダミーを1件も作れない例文だけは穴埋めに戻す。
+func TestBuildLearningQuizSourceForClientFallsBackToCloze(t *testing.T) {
+	payload := learningQuizPayload()
+	payload["word_breakdown"] = []any{
+		map[string]any{"word": "ฉัน", "meaning": "勉強する"},
+		map[string]any{"word": "เรียน", "meaning": "勉強する"},
+	}
+
+	source, ok := buildLearningQuizSourceForClient(payload, true, true, nil)
 	if !ok {
 		t.Fatal("生成元を作れなかった")
 	}
@@ -98,7 +194,7 @@ func TestSupportsQuizFormat(t *testing.T) {
 
 // 意味4択の問題は選択肢をそのままクライアントへ渡す。
 func TestToQuizQuestionKeepsMeaningFormat(t *testing.T) {
-	source, _ := buildLearningQuizSourceForClient(learningQuizPayload(), true)
+	source, _ := buildLearningQuizSourceForClient(learningQuizPayload(), true, true, nil)
 	choices := append([]string(nil), source.Seed.MeaningChoices...)
 	q := toQuizQuestion(quizgen.GeneratedQuizQuestion{
 		QuizFormat:           quizgen.FormatMeaningChoice,

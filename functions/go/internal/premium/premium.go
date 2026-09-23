@@ -65,11 +65,16 @@ func IsTrialExpired(userData map[string]any, now time.Time) bool {
 	return ok && now.UnixMilli() >= expiresAt
 }
 
-// IsEffectivePremium は課金 premium もしくはトライアル中か。
+// IsEffectivePremium は premium の機能を出してよいユーザーか。
 //
-// 購入・復元直後は subscription の検証結果より tier の反映が遅れることがある。
-// その短い窓で free の教材を配信しないよう、有効期限内のストア購入と買い切りも
-// 実効権利として扱う。期限切れ情報だけで premium を延命しない。
+// 例文生成・毎日配信・クイズ・語彙テストは全てこの1本で判定する。経路ごとに
+// tier やトライアル期限を直接見ると「回数は premium 扱いなのに中身は free 品質」
+// のような食い違いが出るため、実効権利の解釈はここだけに置く。
+//
+// 含むもの: tier=premium / 体験トライアル中 / 猶予期間（支払い回復待ち）/
+// 反映待ちのストア購入。購入・復元直後は subscription の検証結果より tier の
+// 反映が遅れることがあるので、有効期限内のストア購入と買い切りも実効権利として
+// 扱う。期限切れ情報だけで premium を延命はしない。
 func IsEffectivePremium(userData map[string]any, now time.Time) bool {
 	if userData["tier"] == "premium" || IsTrialActive(userData, now) {
 		return true

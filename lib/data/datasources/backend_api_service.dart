@@ -169,7 +169,11 @@ class BackendApiService {
       final targetWords = targetWordsJson?.map((e) => e as String).toList();
 
       // Create ThaiSentence
+      //
+      // id はサーバー側 doc（users/{uid}/sentences）のID。旧サーバーは返さない
+      // ので空になり、その場合は保存側でUUIDを振る。
       final sentence = ThaiSentence(
+        id: json['id'] as String?,
         thaiText: json['thai_text'] as String? ?? '',
         pronunciation: json['pronunciation'] as String? ?? '',
         japaneseTranslation: json['japanese_translation'] as String? ?? '',
@@ -241,7 +245,15 @@ class BackendApiService {
         ),
       );
 
-      final result = await callable.call({'lang': _lang()});
+      final result = await callable.call({
+        'lang': _lang(),
+        // 綴り4択に対応していることを伝える。送らない旧クライアントには
+        // サーバーが従来どおり穴埋めだけを返す。
+        'supported_quiz_formats': [
+          QuizQuestion.clozeChoiceFormat,
+          QuizQuestion.spellingChoiceFormat,
+        ],
+      });
       final data = _deepCast(result.data) as Map<String, dynamic>;
 
       if (data['no_user_sentences'] == true) {

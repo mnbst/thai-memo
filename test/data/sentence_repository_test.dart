@@ -68,4 +68,27 @@ void main() {
     expect(await repository.getAllSentences(), isEmpty);
     expect(db.wordQueries, 0);
   });
+
+  test('レスポンスの id をそのまま主キーにする（既読の宛先を揃えるため）', () {
+    final sentence = BackendApiService.createThaiSentenceFromJson({
+      'id': 'server-doc-1',
+      'thai_text': 'ฉันกินข้าว',
+      'pronunciation': 'chan kin khao',
+      'japanese_translation': 'ご飯を食べます',
+      'word_breakdown': const [],
+    });
+
+    expect(sentence.id, 'server-doc-1');
+  });
+
+  test('id を返さない旧サーバーのレスポンスでも読める', () {
+    final sentence = BackendApiService.createThaiSentenceFromJson({
+      'thai_text': 'ฉันกินข้าว',
+      'pronunciation': 'chan kin khao',
+      'japanese_translation': 'ご飯を食べます',
+      'word_breakdown': const [],
+    });
+
+    expect(sentence.id, isNull);
+  });
 }

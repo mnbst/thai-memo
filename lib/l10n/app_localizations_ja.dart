@@ -175,6 +175,9 @@ class L10nJa extends L10n {
   String get quizMeaningPrompt => 'この単語の意味を選んでください';
 
   @override
+  String get quizSpellingPrompt => 'この読みの綴りを選んでください';
+
+  @override
   String get quizWordExplanation => '単語の解説';
 
   @override
@@ -211,6 +214,41 @@ class L10nJa extends L10n {
 
   @override
   String get quizWhyCorrect => '正解理由';
+
+  @override
+  String get quizSpellingBreakdown => '綴りの分解';
+
+  @override
+  String quizToneRuleFor(String consonantClass) {
+    return '$consonantClassの声調規則';
+  }
+
+  @override
+  String get quizPartOnset => '頭子音';
+
+  @override
+  String get quizPartVowel => '母音';
+
+  @override
+  String get quizPartCoda => '末子音';
+
+  @override
+  String get quizPartVowelCoda => '母音＋末子音';
+
+  @override
+  String get quizPartToneLabel => '声調';
+
+  @override
+  String get quizPartKaran => 'ガーラン';
+
+  @override
+  String get quizPartSilent => '黙字';
+
+  @override
+  String get quizPartSilentValue => '読まない';
+
+  @override
+  String get quizPartNone => 'なし';
 
   @override
   String get quizWhyIncorrect => '不正解理由';
@@ -796,7 +834,18 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get paywallPlanLifetimeTitle => '買い切り';
+  String get paywallPlanYearlyTitle => '年額プラン';
+
+  @override
+  String get paywallPlanYearlyNote => '毎年自動更新・いつでも解約';
+
+  @override
+  String paywallPlanYearlyPrice(String price) {
+    return '$price / 年';
+  }
+
+  @override
+  String get paywallPlanLifetimeTitle => '買い切りプラン';
 
   @override
   String get paywallPlanLifetimeNote => '支払いは1回だけ・更新なし';
@@ -805,7 +854,14 @@ class L10nJa extends L10n {
   String get paywallPurchaseCta => 'このプランで始める';
 
   @override
+  String get paywallChangeToLifetimeCta => '買い切りへ変更する';
+
+  @override
   String get paywallLifetimeNote => '1回きりの支払いです。更新はありません。';
+
+  @override
+  String get paywallMonthlyToLifetimeNote =>
+      '買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。';
 
   @override
   String get paywallLegal =>
@@ -2320,7 +2376,8 @@ class L10nJa extends L10n {
   String get guideOverviewTitle => 'このアプリでやること';
 
   @override
-  String get guideOverviewBody1 => 'AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。';
+  String get guideOverviewBody1 =>
+      'AIがあなたの語彙に合わせたタイ語の例文を、毎日つくります。読み終えたら、その場で追加することもできます。';
 
   @override
   String get guideOverviewBody2 => '例文で覚える → クイズで確かめる。これを5つくり返して1巡です。';

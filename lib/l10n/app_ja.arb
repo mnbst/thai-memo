@@ -106,6 +106,7 @@
   },
   "quizPrompt": "下線部に入る単語を選んでください",
   "quizMeaningPrompt": "この単語の意味を選んでください",
+  "quizSpellingPrompt": "この読みの綴りを選んでください",
   "quizWordExplanation": "単語の解説",
   "quizProgress": "問題 {index} / {total}",
   "@quizProgress": {
@@ -128,6 +129,24 @@
   "quizPlaySentence": "例文を再生",
   "quizPlayWord": "単語を再生",
   "quizWhyCorrect": "正解理由",
+  "quizSpellingBreakdown": "綴りの分解",
+  "quizToneRuleFor": "{consonantClass}の声調規則",
+  "@quizToneRuleFor": {
+    "placeholders": {
+      "consonantClass": {
+        "type": "String"
+      }
+    }
+  },
+  "quizPartOnset": "頭子音",
+  "quizPartVowel": "母音",
+  "quizPartCoda": "末子音",
+  "quizPartVowelCoda": "母音＋末子音",
+  "quizPartToneLabel": "声調",
+  "quizPartKaran": "ガーラン",
+  "quizPartSilent": "黙字",
+  "quizPartSilentValue": "読まない",
+  "quizPartNone": "なし",
   "quizWhyIncorrect": "不正解理由",
   "quizSeeResults": "結果を見る",
   "quizNextQuestion": "次の問題へ",
@@ -437,10 +456,23 @@
       }
     }
   },
-  "paywallPlanLifetimeTitle": "買い切り",
+  "paywallPlanYearlyTitle": "年額プラン",
+  "paywallPlanYearlyNote": "毎年自動更新・いつでも解約",
+  "paywallPlanYearlyPrice": "{price} / 年",
+  "@paywallPlanYearlyPrice": {
+    "description": "プラン選択の年額側。price はストアの表示価格（¥4,800 など）",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallPlanLifetimeTitle": "買い切りプラン",
   "paywallPlanLifetimeNote": "支払いは1回だけ・更新なし",
   "paywallPurchaseCta": "このプランで始める",
+  "paywallChangeToLifetimeCta": "買い切りへ変更する",
   "paywallLifetimeNote": "1回きりの支払いです。更新はありません。",
+  "paywallMonthlyToLifetimeNote": "買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。",
   "paywallLegal": "サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。",
   "paywallRestore": "購入を復元",
   "paywallPriceYen": "¥{amount} / 月",
@@ -1296,7 +1328,7 @@
   "guideChapterRoles": "それぞれの機能の役割",
   "guideChapterHowTo": "操作のしかた",
   "guideOverviewTitle": "このアプリでやること",
-  "guideOverviewBody1": "AIがあなたの語彙に合わせたタイ語の例文を、毎日5つまとめてつくります。",
+  "guideOverviewBody1": "AIがあなたの語彙に合わせたタイ語の例文を、毎日つくります。読み終えたら、その場で追加することもできます。",
   "guideOverviewBody2": "例文で覚える → クイズで確かめる。これを5つくり返して1巡です。",
   "guideOverviewSummaryQuiz": "例文5つを学び終えると「まとめクイズ」に進みます。それまでに学んだ例文から出題され、迷ったらヒントや例文の見返しも使えます。",
   "guideOverviewBody3": "「まとめクイズ」に正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。",

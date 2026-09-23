@@ -7,6 +7,12 @@
 //	GOOGLE_CLOUD_PROJECT=thai-memo-dev go run ./cmd/translate \
 //	  -in /tmp/corpus_ja.jsonl -out /tmp/corpus.jsonl -c 10
 //
+// -en-only は完成コーパスを入力に取り、英訳だけ作り直す。日本語訳と
+// 日本語の語義はそのまま持ち越すので、英訳の方針を変えたときに使う。
+//
+//	go run ./cmd/translate -en-only \
+//	  -in scripts/corpus/corpus.jsonl -out /tmp/corpus_en2.jsonl -c 10
+//
 // 同じ -out を指して再実行すると、書けている行を飛ばして続きから流す。
 package main
 
@@ -86,30 +92,64 @@ func main() {
 	block := flag.Int("block", 200, "追記するまとまりの件数")
 	limit := flag.Int("limit", 0, "先頭 N 件だけ流す（0 は全部）")
 	maxRank := flag.Int("max-rank", 0, "この頻度ランクまでで切る（0 は全部）")
+	enOnly := flag.Bool("en-only", false,
+		"-in に完成コーパス（このコマンドの出力）を渡し、英訳だけ作り直す。日本語訳と日本語の語義は持ち越す")
 	flag.Parse()
 
-	rows, skipped, err := loadRows(*in)
-	if err != nil {
-		log.Fatal(err)
-	}
 	done, err := loadDone(*out)
 	if err != nil {
 		log.Fatal(err)
 	}
-	var todo []genRow
-	for _, r := range rows {
-		if *maxRank > 0 && r.Rank > *maxRank {
-			continue
+	var (
+		todo    []func(context.Context, sentence.Generator) outRow
+		total   int
+		skipped int
+	)
+	if *enOnly {
+		rows, err := loadOutRows(*in)
+		if err != nil {
+			log.Fatal(err)
 		}
-		if !done[r.TargetWord+"\x00"+r.Topic] {
-			todo = append(todo, r)
+		total = len(rows)
+		for _, r := range rows {
+			if *maxRank > 0 && r.Rank > *maxRank {
+				continue
+			}
+			// 日本語訳が無い行（生成に失敗した行）は英訳の土台が無いので触らない。
+			if strings.TrimSpace(r.JA) == "" {
+				skipped++
+				continue
+			}
+			if done[r.key()] {
+				continue
+			}
+			todo = append(todo, func(ctx context.Context, gen sentence.Generator) outRow {
+				return retranslateEN(ctx, gen, r)
+			})
+		}
+	} else {
+		rows, dropped, err := loadRows(*in)
+		if err != nil {
+			log.Fatal(err)
+		}
+		total, skipped = len(rows), dropped
+		for _, r := range rows {
+			if *maxRank > 0 && r.Rank > *maxRank {
+				continue
+			}
+			if done[r.TargetWord+"\x00"+r.Topic] {
+				continue
+			}
+			todo = append(todo, func(ctx context.Context, gen sentence.Generator) outRow {
+				return translate(ctx, gen, r)
+			})
 		}
 	}
 	if *limit > 0 && *limit < len(todo) {
 		todo = todo[:*limit]
 	}
 	fmt.Fprintf(os.Stderr, "採用 %d件 / 不採用 %d件 / 済み %d件 / これから %d件\n",
-		len(rows), skipped, len(done), len(todo))
+		total, skipped, len(done), len(todo))
 	if len(todo) == 0 {
 		return
 	}
@@ -136,7 +176,7 @@ func main() {
 	for lo := 0; lo < len(todo); lo += *block {
 		hi := min(lo+*block, len(todo))
 		recs := make([]outRow, hi-lo)
-		parallel(hi-lo, *conc, func(i int) { recs[i] = translate(ctx, gen, todo[lo+i]) })
+		parallel(hi-lo, *conc, func(i int) { recs[i] = todo[lo+i](ctx, gen) })
 		if err := appendJSONL(f, recs); err != nil {
 			log.Fatal(err)
 		}
@@ -183,6 +223,66 @@ func translate(ctx context.Context, gen sentence.Generator, r genRow) outRow {
 		}
 	}
 	return row
+}
+
+// retranslateEN は完成コーパスの1行の英訳だけを作り直す。
+//
+// タイ語文・発音・音節・日本語訳・日本語の語義は入力のまま持ち越し、
+// en / note_en / words[].en だけを差し替える。日本語訳は確定値として
+// プロンプトへ渡すだけで、スキーマに日本語の欄が無いので返ってこない。
+func retranslateEN(ctx context.Context, gen sentence.Generator, r outRow) outRow {
+	words := make([]string, len(r.Words))
+	glossJA := make([]string, len(r.Words))
+	for i, w := range r.Words {
+		words[i], glossJA[i] = w.Word, w.JA
+	}
+	res, err := corpustrans.Translate(ctx, gen, corpustrans.Input{
+		ThaiText:      r.ThaiText,
+		Pronunciation: r.Pronunciation,
+		Words:         words,
+		TargetWord:    r.TargetWord,
+		Topic:         r.Topic,
+		SubTheme:      r.SubTheme,
+		FixedJA:       r.JA,
+		FixedGlossJA:  glossJA,
+	})
+	out := r
+	out.Err = ""
+	if err != nil {
+		out.Err = err.Error()
+		return out
+	}
+	out.EN, out.NoteEN = res.EN, res.NoteEN
+	out.Words = make([]word, len(r.Words))
+	copy(out.Words, r.Words)
+	for i := range out.Words {
+		out.Words[i].EN = res.Words[i].EN
+	}
+	return out
+}
+
+// loadOutRows は完成コーパス（このコマンドの出力）を読む。-en-only 用。
+func loadOutRows(path string) ([]outRow, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var rows []outRow
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1024*1024), 16*1024*1024)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" {
+			continue
+		}
+		var r outRow
+		if err := json.Unmarshal([]byte(line), &r); err != nil {
+			return nil, err
+		}
+		rows = append(rows, r)
+	}
+	return rows, sc.Err()
 }
 
 // loadRows は採用できる行だけ返す。2つめの戻り値は落とした件数。
