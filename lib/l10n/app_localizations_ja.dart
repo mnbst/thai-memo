@@ -845,7 +845,7 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get paywallPlanLifetimeTitle => '買い切り';
+  String get paywallPlanLifetimeTitle => '買い切りプラン';
 
   @override
   String get paywallPlanLifetimeNote => '支払いは1回だけ・更新なし';

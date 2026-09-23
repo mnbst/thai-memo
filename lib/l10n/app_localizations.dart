@@ -1666,7 +1666,7 @@ abstract class L10n {
   /// No description provided for @paywallPlanLifetimeTitle.
   ///
   /// In ja, this message translates to:
-  /// **'買い切り'**
+  /// **'買い切りプラン'**
   String get paywallPlanLifetimeTitle;
 
   /// No description provided for @paywallPlanLifetimeNote.

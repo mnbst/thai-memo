@@ -118,7 +118,7 @@ void main() {
     expect(find.text('¥600 / 月'), findsOneWidget);
     expect(find.text('年額プラン'), findsOneWidget);
     expect(find.text('¥4,800 / 年'), findsOneWidget);
-    expect(find.text('買い切り'), findsOneWidget);
+    expect(find.text('買い切りプラン'), findsOneWidget);
     expect(find.text('¥5,800'), findsOneWidget);
   });
 
@@ -134,8 +134,8 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('このプランで始める').hitTestable(), findsOneWidget);
     // 特典の下にあるプラン欄も、スクロールすれば届く。
-    await tester.scrollUntilVisible(find.text('買い切り'), 200);
-    expect(find.text('買い切り').hitTestable(), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('買い切りプラン'), 200);
+    expect(find.text('買い切りプラン').hitTestable(), findsOneWidget);
   });
 
   testWidgets('既定は月額。そのまま押すと月額を買う', (tester) async {
@@ -163,8 +163,8 @@ void main() {
   testWidgets('買い切りを選んでから押すと買い切りを買う', (tester) async {
     await _pump(tester, purchase: purchase);
 
-    await tester.ensureVisible(find.text('買い切り'));
-    await tester.tap(find.text('買い切り'));
+    await tester.ensureVisible(find.text('買い切りプラン'));
+    await tester.tap(find.text('買い切りプラン'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('このプランで始める'));
     await tester.pump();
@@ -175,7 +175,7 @@ void main() {
   testWidgets('買い切りを売っていない環境（Android）でも月額と年額は選べる', (tester) async {
     await _pump(tester, purchase: purchase, withLifetime: false);
 
-    expect(find.text('買い切り'), findsNothing);
+    expect(find.text('買い切りプラン'), findsNothing);
     expect(find.text('月額プラン'), findsOneWidget);
     expect(find.text('年額プラン'), findsOneWidget);
     expect(find.text('このプランで始める'), findsOneWidget);
@@ -190,7 +190,7 @@ void main() {
     );
 
     expect(find.text('年額プラン'), findsNothing);
-    expect(find.text('買い切り'), findsNothing);
+    expect(find.text('買い切りプラン'), findsNothing);
     // 選択肢が1つなら、これまで通りの「プレミアムに登録」のまま。
     expect(find.text('プレミアムに登録'), findsOneWidget);
     expect(find.text('このプランで始める'), findsNothing);
@@ -215,7 +215,7 @@ void main() {
     expect(find.text('プレミアムプランに加入中です'), findsNothing);
     expect(find.text('月額プラン'), findsNothing);
     expect(find.text('年額プラン'), findsNothing);
-    expect(find.text('買い切り'), findsOneWidget);
+    expect(find.text('買い切りプラン'), findsOneWidget);
     expect(find.text('買い切りへ変更する'), findsOneWidget);
     expect(find.textContaining('現在のサブスクリプションは自動では解約されません'), findsOneWidget);
 

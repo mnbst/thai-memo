@@ -467,7 +467,7 @@
       }
     }
   },
-  "paywallPlanLifetimeTitle": "買い切り",
+  "paywallPlanLifetimeTitle": "買い切りプラン",
   "paywallPlanLifetimeNote": "支払いは1回だけ・更新なし",
   "paywallPurchaseCta": "このプランで始める",
   "paywallChangeToLifetimeCta": "買い切りへ変更する",
