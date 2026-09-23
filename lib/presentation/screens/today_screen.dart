@@ -1043,7 +1043,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             if (showUpgrade) ...[
               const SizedBox(height: 24),
               FilledButton.icon(
-                onPressed: () => PaywallBottomSheet.show(
+                onPressed: () => PaywallScreen.show(
                   context,
                   source: _quotaPaywallSource,
                 ),

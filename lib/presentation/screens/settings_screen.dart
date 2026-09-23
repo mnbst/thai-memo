@@ -159,7 +159,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
           onTap: () =>
-              PaywallBottomSheet.show(context, source: 'settings_pitch'),
+              PaywallScreen.show(context, source: 'settings_pitch'),
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
@@ -281,7 +281,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             onTap: () =>
-                PaywallBottomSheet.show(context, source: 'settings_plan'),
+                PaywallScreen.show(context, source: 'settings_plan'),
           );
         },
       ),
@@ -485,7 +485,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ) ??
                 false;
             if (!open || !mounted) return;
-            await PaywallBottomSheet.show(context,
+            await PaywallScreen.show(context,
                 source: 'trial_ended_preview');
           },
         ),
@@ -827,7 +827,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       onTap: canTake
           ? _openVocabTest
           : () =>
-              PaywallBottomSheet.show(context, source: 'settings_vocab_test'),
+              PaywallScreen.show(context, source: 'settings_vocab_test'),
     );
   }
 
@@ -879,7 +879,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
       onTap: canSelect
           ? _showTopicPicker
-          : () => PaywallBottomSheet.show(context, source: 'settings_topic'),
+          : () => PaywallScreen.show(context, source: 'settings_topic'),
     );
   }
 

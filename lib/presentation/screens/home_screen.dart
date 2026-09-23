@@ -283,7 +283,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
     await prefs.setBool(AppConfig.prefKeyPremiumTrialStartedNotified, true);
     if (!openPaywall || !mounted) return;
-    await PaywallBottomSheet.show(context, source: 'onboarding_trial_started');
+    await PaywallScreen.show(context, source: 'onboarding_trial_started');
   }
 
   /// 後から配られたプレミアム体験の開放を、最初の起動で一度だけ知らせる。
@@ -359,7 +359,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         .read(settingsControllerProvider.notifier)
         .setGenerationParam('topic', null);
     if (!openPaywall || !mounted) return;
-    await PaywallBottomSheet.show(context, source: 'trial_ended');
+    await PaywallScreen.show(context, source: 'trial_ended');
   }
 
   /// 月額を買ってくださった方に、買い切りへの無償移行を案内する。

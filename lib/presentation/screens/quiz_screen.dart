@@ -871,7 +871,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   const Divider(),
                   const SizedBox(height: 8),
                   InkWell(
-                    onTap: () => PaywallBottomSheet.show(
+                    onTap: () => PaywallScreen.show(
                       context,
                       source: 'quiz_vocab_cap_banner',
                     ),

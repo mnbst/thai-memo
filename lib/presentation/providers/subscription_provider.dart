@@ -12,7 +12,8 @@
 ///
 /// 【プラン構成】
 /// - premium_monthly: 月額サブスクリプション（iOS / Android）
-/// - premium_lifetime: 買い切り（iOSのみ）。どちらも付与される権利は同じ premium。
+/// - premium_annual: 年額サブスクリプション（iOS / Android）
+/// - premium_lifetime: 買い切り（iOSのみ）。どれも付与される権利は同じ premium。
 ///
 /// 【Free / Premium の機能差分】
 /// - 例文生成: Free=5回/日 / Premium=無制限（0時リセット）
@@ -54,12 +55,14 @@ enum UserTier { free, premium }
 /// tier: 現在の課金ティア（アプリ全体の機能制限判定に使用）
 /// isLoading: 購入/復元処理中かどうか（ボタンの無効化やローディング表示に使用）
 /// product: ストアから取得した月額商品（価格表示に使用、取得前は null）
+/// yearlyProduct: 年額商品（ストア未登録の環境では null）
 /// lifetimeProduct: 買い切り商品（iOSのみ。未販売環境では null）
 /// errorMessage: 直近のエラーメッセージ（購入失敗時に UI に表示）
 class SubscriptionState {
   final UserTier tier;
   final bool isLoading;
   final ProductDetails? product;
+  final ProductDetails? yearlyProduct;
   final ProductDetails? lifetimeProduct;
   final String? errorMessage;
 
@@ -67,16 +70,25 @@ class SubscriptionState {
     this.tier = UserTier.free,
     this.isLoading = false,
     this.product,
+    this.yearlyProduct,
     this.lifetimeProduct,
     this.errorMessage,
   });
 
   bool get isPremium => tier == UserTier.premium;
 
+  /// プランに対応する商品。ストアから引けていなければ null。
+  ProductDetails? productFor(PremiumPlan plan) => switch (plan) {
+        PremiumPlan.monthly => product,
+        PremiumPlan.yearly => yearlyProduct,
+        PremiumPlan.lifetime => lifetimeProduct,
+      };
+
   SubscriptionState copyWith({
     UserTier? tier,
     bool? isLoading,
     ProductDetails? product,
+    ProductDetails? yearlyProduct,
     ProductDetails? lifetimeProduct,
     String? errorMessage,
   }) {
@@ -84,6 +96,7 @@ class SubscriptionState {
       tier: tier ?? this.tier,
       isLoading: isLoading ?? this.isLoading,
       product: product ?? this.product,
+      yearlyProduct: yearlyProduct ?? this.yearlyProduct,
       lifetimeProduct: lifetimeProduct ?? this.lifetimeProduct,
       errorMessage: errorMessage,
     );
@@ -232,10 +245,9 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
 
   /// 購入を開始
   ///
-  /// [lifetime] が true なら買い切り、false なら月額を買う。買い切りを売って
-  /// いない環境（Android・商品未登録）では lifetimeProduct が無いので、
-  /// 呼び出し側がボタン自体を出さない。
-  Future<void> purchase({bool lifetime = false}) async {
+  /// [plan] の商品を買う。年額・買い切りを売っていない環境（Android・商品
+  /// 未登録）では該当の商品が無いので、呼び出し側が選択肢自体を出さない。
+  Future<void> purchase({PremiumPlan plan = PremiumPlan.monthly}) async {
     if (!FirebaseAuthService.instance.isLinkedAccount) {
       state = state.copyWith(
         isLoading: false,
@@ -245,7 +257,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     }
     try {
       await ensureStoreReady();
-      final product = lifetime ? state.lifetimeProduct : state.product;
+      final product = state.productFor(plan);
       if (_purchaseService == null || product == null) {
         state = state.copyWith(
           isLoading: false,
@@ -413,6 +425,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       if (products != null) {
         state = state.copyWith(
           product: products.monthly,
+          yearlyProduct: products.yearly,
           lifetimeProduct: products.lifetime,
           errorMessage: null,
         );

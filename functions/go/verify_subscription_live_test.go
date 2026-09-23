@@ -128,10 +128,12 @@ func TestAllowedSubscriptionProducts(t *testing.T) {
 	t.Run("prod は本番商品のみ", func(t *testing.T) {
 		setProjectEnv(t, "thai-memo-prod")
 		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
-		if !isAllowedSubscriptionProduct("premium_monthly") {
+		if !isAllowedSubscriptionProduct("premium_monthly") ||
+			!isAllowedSubscriptionProduct("premium_annual") {
 			t.Fatal("本番商品が拒否された")
 		}
-		if isAllowedSubscriptionProduct("premium_monthly_test") {
+		if isAllowedSubscriptionProduct("premium_monthly_test") ||
+			isAllowedSubscriptionProduct("premium_annual_test") {
 			t.Fatal("prod で tester 商品が許可された")
 		}
 	})
@@ -139,10 +141,12 @@ func TestAllowedSubscriptionProducts(t *testing.T) {
 	t.Run("tester はテスト商品のみ", func(t *testing.T) {
 		setProjectEnv(t, "thai-memo-67139")
 		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
-		if !isAllowedSubscriptionProduct("premium_monthly_test") {
+		if !isAllowedSubscriptionProduct("premium_monthly_test") ||
+			!isAllowedSubscriptionProduct("premium_annual_test") {
 			t.Fatal("tester 商品が拒否された")
 		}
-		if isAllowedSubscriptionProduct("premium_monthly") {
+		if isAllowedSubscriptionProduct("premium_monthly") ||
+			isAllowedSubscriptionProduct("premium_annual") {
 			t.Fatal("tester で本番商品が許可された")
 		}
 	})

@@ -456,12 +456,23 @@
       }
     }
   },
-  "paywallPlanLifetimeTitle": "買い切り",
+  "paywallPlanYearlyTitle": "年額プラン",
+  "paywallPlanYearlyNote": "毎年自動更新・いつでも解約",
+  "paywallPlanYearlyPrice": "{price} / 年",
+  "@paywallPlanYearlyPrice": {
+    "description": "プラン選択の年額側。price はストアの表示価格（¥4,800 など）",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallPlanLifetimeTitle": "買い切りプラン",
   "paywallPlanLifetimeNote": "支払いは1回だけ・更新なし",
   "paywallPurchaseCta": "このプランで始める",
   "paywallChangeToLifetimeCta": "買い切りへ変更する",
   "paywallLifetimeNote": "1回きりの支払いです。更新はありません。",
-  "paywallMonthlyToLifetimeNote": "買い切りの購入後も、現在の月額プランは自動では解約されません。App Storeのアカウント設定から月額プランを解約してください。",
+  "paywallMonthlyToLifetimeNote": "買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。",
   "paywallLegal": "サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。",
   "paywallRestore": "購入を復元",
   "paywallPriceYen": "¥{amount} / 月",
