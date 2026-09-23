@@ -1645,6 +1645,24 @@ abstract class L10n {
   /// **'{price} / 月'**
   String paywallPlanMonthlyPrice(String price);
 
+  /// No description provided for @paywallPlanYearlyTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'年額プラン'**
+  String get paywallPlanYearlyTitle;
+
+  /// No description provided for @paywallPlanYearlyNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'毎年自動更新・いつでも解約'**
+  String get paywallPlanYearlyNote;
+
+  /// プラン選択の年額側。price はストアの表示価格（¥4,800 など）
+  ///
+  /// In ja, this message translates to:
+  /// **'{price} / 年'**
+  String paywallPlanYearlyPrice(String price);
+
   /// No description provided for @paywallPlanLifetimeTitle.
   ///
   /// In ja, this message translates to:
@@ -1678,7 +1696,7 @@ abstract class L10n {
   /// No description provided for @paywallMonthlyToLifetimeNote.
   ///
   /// In ja, this message translates to:
-  /// **'買い切りの購入後も、現在の月額プランは自動では解約されません。App Storeのアカウント設定から月額プランを解約してください。'**
+  /// **'買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。'**
   String get paywallMonthlyToLifetimeNote;
 
   /// No description provided for @paywallLegal.

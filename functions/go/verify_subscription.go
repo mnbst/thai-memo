@@ -34,6 +34,10 @@ const (
 	productIDPremiumMonthly     = "premium_monthly"
 	productIDPremiumMonthlyTest = "premium_monthly_test"
 
+	// 年額（自動更新）。iOS は月額と同じサブスクリプショングループ。
+	productIDPremiumYearly     = "premium_annual"
+	productIDPremiumYearlyTest = "premium_annual_test"
+
 	// 買い切り（非消費型）。期限を持たず、返金・取消でのみ無効になる。
 	// 現状 iOS のみ販売する（Play の一時購入は purchases.products API が別で未対応）。
 	productIDPremiumLifetime     = "premium_lifetime"
@@ -317,10 +321,16 @@ func combineLifetimeVerification(
 // projectIDPremiumProducts は環境（GCP プロジェクト）ごとに販売している商品 ID。
 // dev は両ストア設定を検証するため両方を許可する。
 var projectIDPremiumProducts = map[string][]string{
-	"thai-memo-prod":  {productIDPremiumMonthly, productIDPremiumLifetime},
-	"thai-memo-67139": {productIDPremiumMonthlyTest, productIDPremiumLifetimeTest},
+	"thai-memo-prod": {
+		productIDPremiumMonthly, productIDPremiumYearly, productIDPremiumLifetime,
+	},
+	"thai-memo-67139": {
+		productIDPremiumMonthlyTest, productIDPremiumYearlyTest,
+		productIDPremiumLifetimeTest,
+	},
 	"thai-memo-dev": {
 		productIDPremiumMonthly, productIDPremiumMonthlyTest,
+		productIDPremiumYearly, productIDPremiumYearlyTest,
 		productIDPremiumLifetime, productIDPremiumLifetimeTest,
 	},
 }

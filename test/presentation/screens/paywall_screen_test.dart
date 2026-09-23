@@ -3,7 +3,9 @@
 /// 検証する仕様:
 /// - 月額と買い切りが両方出て、既定は月額が選ばれている
 /// - 買い切りを選ぶと、購入は買い切り商品に向く
-/// - 買い切りを売っていない環境（商品が引けない）ではプラン選択を出さない
+/// - 年額を選ぶと、購入は年額商品に向く
+/// - 月額しか引けない環境ではプラン選択を出さない
+/// - 小さい iPhone（SE）でもはみ出さず、購入ボタンが画面内に残る
 library;
 
 import 'package:flutter/material.dart';
@@ -36,14 +38,17 @@ class _ReadyController extends SubscriptionController {
     required super.analytics,
     required super.l10n,
     required super.purchaseService,
+    required bool withYearly,
     required bool withLifetime,
     bool isPremium = false,
   }) : super(firestore: FakeFirestore()) {
     state = SubscriptionState(
       tier: isPremium ? UserTier.premium : UserTier.free,
       product: _product('premium_monthly', '¥600', 600),
+      yearlyProduct:
+          withYearly ? _product('premium_annual', '¥4,800', 4800) : null,
       lifetimeProduct:
-          withLifetime ? _product('premium_lifetime', '¥1,800', 1800) : null,
+          withLifetime ? _product('premium_lifetime', '¥5,800', 5800) : null,
     );
   }
 
@@ -55,6 +60,7 @@ class _ReadyController extends SubscriptionController {
 Future<void> _pump(
   WidgetTester tester, {
   required FakePurchaseService purchase,
+  bool withYearly = true,
   bool withLifetime = true,
   bool isPremium = false,
   Map<String, dynamic>? userData,
@@ -73,6 +79,7 @@ Future<void> _pump(
             analytics: FakeAnalyticsService(),
             l10n: () => lookupL10n(const Locale('ja')),
             purchaseService: purchase,
+            withYearly: withYearly,
             withLifetime: withLifetime,
             isPremium: isPremium,
           ),
@@ -82,7 +89,7 @@ Future<void> _pump(
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
         locale: const Locale('ja'),
-        home: const Scaffold(body: PaywallBottomSheet(source: 'test')),
+        home: const PaywallScreen(source: 'test'),
       ),
     ),
   );
@@ -104,13 +111,31 @@ void main() {
     FirebaseAuthService.authOverride = null;
   });
 
-  testWidgets('月額と買い切りを価格つきで並べる', (tester) async {
+  testWidgets('月額・年額・買い切りを価格つきで並べる', (tester) async {
     await _pump(tester, purchase: purchase);
 
     expect(find.text('月額プラン'), findsOneWidget);
     expect(find.text('¥600 / 月'), findsOneWidget);
+    expect(find.text('年額プラン'), findsOneWidget);
+    expect(find.text('¥4,800 / 年'), findsOneWidget);
     expect(find.text('買い切り'), findsOneWidget);
-    expect(find.text('¥1,800'), findsOneWidget);
+    expect(find.text('¥5,800'), findsOneWidget);
+  });
+
+  testWidgets('小さい iPhone（SE）でもはみ出さず、購入ボタンが画面内に残る', (tester) async {
+    tester.view.physicalSize = const Size(750, 1334);
+    tester.view.devicePixelRatio = 2;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await _pump(tester, purchase: purchase);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('このプランで始める').hitTestable(), findsOneWidget);
+    // 特典の下にあるプラン欄も、スクロールすれば届く。
+    await tester.scrollUntilVisible(find.text('買い切り'), 200);
+    expect(find.text('買い切り').hitTestable(), findsOneWidget);
   });
 
   testWidgets('既定は月額。そのまま押すと月額を買う', (tester) async {
@@ -123,9 +148,22 @@ void main() {
     expect(purchase.lastBought?.id, 'premium_monthly');
   });
 
+  testWidgets('年額を選んでから押すと年額を買う', (tester) async {
+    await _pump(tester, purchase: purchase);
+
+    await tester.ensureVisible(find.text('年額プラン'));
+    await tester.tap(find.text('年額プラン'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('このプランで始める'));
+    await tester.pump();
+
+    expect(purchase.lastBought?.id, 'premium_annual');
+  });
+
   testWidgets('買い切りを選んでから押すと買い切りを買う', (tester) async {
     await _pump(tester, purchase: purchase);
 
+    await tester.ensureVisible(find.text('買い切り'));
     await tester.tap(find.text('買い切り'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('このプランで始める'));
@@ -134,9 +172,24 @@ void main() {
     expect(purchase.lastBought?.id, 'premium_lifetime');
   });
 
-  testWidgets('買い切りを売っていない環境ではプラン選択を出さない', (tester) async {
+  testWidgets('買い切りを売っていない環境（Android）でも月額と年額は選べる', (tester) async {
     await _pump(tester, purchase: purchase, withLifetime: false);
 
+    expect(find.text('買い切り'), findsNothing);
+    expect(find.text('月額プラン'), findsOneWidget);
+    expect(find.text('年額プラン'), findsOneWidget);
+    expect(find.text('このプランで始める'), findsOneWidget);
+  });
+
+  testWidgets('月額しか引けない環境ではプラン選択を出さない', (tester) async {
+    await _pump(
+      tester,
+      purchase: purchase,
+      withYearly: false,
+      withLifetime: false,
+    );
+
+    expect(find.text('年額プラン'), findsNothing);
     expect(find.text('買い切り'), findsNothing);
     // 選択肢が1つなら、これまで通りの「プレミアムに登録」のまま。
     expect(find.text('プレミアムに登録'), findsOneWidget);
@@ -161,9 +214,10 @@ void main() {
 
     expect(find.text('プレミアムプランに加入中です'), findsNothing);
     expect(find.text('月額プラン'), findsNothing);
+    expect(find.text('年額プラン'), findsNothing);
     expect(find.text('買い切り'), findsOneWidget);
     expect(find.text('買い切りへ変更する'), findsOneWidget);
-    expect(find.textContaining('月額プランは自動では解約されません'), findsOneWidget);
+    expect(find.textContaining('現在のサブスクリプションは自動では解約されません'), findsOneWidget);
 
     await tester.tap(find.text('買い切りへ変更する'));
     await tester.pump();

@@ -356,6 +356,9 @@ class FakePurchaseService extends Fake implements PurchaseService {
   /// 買い切り商品も返すか（iOS 相当の環境を模す）
   bool includeLifetimeProduct = true;
 
+  /// 年額商品も返すか（ストアに登録済みの環境を模す）
+  bool includeYearlyProduct = true;
+
   @override
   Future<PremiumProducts> fetchProducts() async {
     fetchProductCalls++;
@@ -370,6 +373,16 @@ class FakePurchaseService extends Fake implements PurchaseService {
         rawPrice: 800,
         currencyCode: 'JPY',
       ),
+      yearly: includeYearlyProduct
+          ? ProductDetails(
+              id: kProductIdPremiumYearly,
+              title: 'プレミアム年額',
+              description: 'プレミアム年額プラン',
+              price: '¥4,800',
+              rawPrice: 4800,
+              currencyCode: 'JPY',
+            )
+          : null,
       lifetime: includeLifetimeProduct
           ? ProductDetails(
               id: kProductIdPremiumLifetime,
@@ -383,7 +396,7 @@ class FakePurchaseService extends Fake implements PurchaseService {
     );
   }
 
-  /// 直近に購入した商品（月額か買い切りかの判別に使う）
+  /// 直近に購入した商品（どのプランを買ったかの判別に使う）
   ProductDetails? lastBought;
 
   @override

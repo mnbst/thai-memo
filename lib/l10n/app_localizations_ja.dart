@@ -834,6 +834,17 @@ class L10nJa extends L10n {
   }
 
   @override
+  String get paywallPlanYearlyTitle => '年額プラン';
+
+  @override
+  String get paywallPlanYearlyNote => '毎年自動更新・いつでも解約';
+
+  @override
+  String paywallPlanYearlyPrice(String price) {
+    return '$price / 年';
+  }
+
+  @override
   String get paywallPlanLifetimeTitle => '買い切り';
 
   @override
@@ -850,7 +861,7 @@ class L10nJa extends L10n {
 
   @override
   String get paywallMonthlyToLifetimeNote =>
-      '買い切りの購入後も、現在の月額プランは自動では解約されません。App Storeのアカウント設定から月額プランを解約してください。';
+      '買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。';
 
   @override
   String get paywallLegal =>

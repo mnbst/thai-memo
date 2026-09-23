@@ -213,9 +213,18 @@ void main() {
       auth.user = FakeUser(uid: 'linked-uid', isAnonymous: false);
       await controller.ensureStoreReady();
 
-      await controller.purchase(lifetime: true);
+      await controller.purchase(plan: PremiumPlan.lifetime);
 
       expect(purchase.lastBought?.id, kProductIdPremiumLifetime);
+    });
+
+    test('年額を選ぶと年額商品を購入する', () async {
+      auth.user = FakeUser(uid: 'linked-uid', isAnonymous: false);
+      await controller.ensureStoreReady();
+
+      await controller.purchase(plan: PremiumPlan.yearly);
+
+      expect(purchase.lastBought?.id, kProductIdPremiumYearly);
     });
 
     test('既定では月額を購入する', () async {
@@ -232,7 +241,7 @@ void main() {
       purchase.includeLifetimeProduct = false;
       await controller.ensureStoreReady();
 
-      await controller.purchase(lifetime: true);
+      await controller.purchase(plan: PremiumPlan.lifetime);
 
       expect(purchase.lastBought, isNull);
       expect(controller.state.errorMessage, isNotNull);

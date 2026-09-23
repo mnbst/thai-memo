@@ -895,6 +895,17 @@ class L10nEn extends L10n {
   }
 
   @override
+  String get paywallPlanYearlyTitle => 'Yearly';
+
+  @override
+  String get paywallPlanYearlyNote => 'Renews yearly. Cancel anytime.';
+
+  @override
+  String paywallPlanYearlyPrice(String price) {
+    return '$price / year';
+  }
+
+  @override
   String get paywallPlanLifetimeTitle => 'Lifetime';
 
   @override
@@ -911,7 +922,7 @@ class L10nEn extends L10n {
 
   @override
   String get paywallMonthlyToLifetimeNote =>
-      'Buying the lifetime plan does not automatically cancel your current monthly subscription. Cancel the monthly plan separately in your App Store account settings.';
+      'Buying the lifetime plan does not automatically cancel your current subscription. Cancel it separately in your App Store account settings.';
 
   @override
   String get paywallLegal =>

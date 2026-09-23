@@ -17,6 +17,7 @@
 /// - premium_monthly: 月額サブスクリプション（自動更新型）
 ///   ※ buyNonConsumable() を使用しているが、サブスクリプションは
 ///     in_app_purchase パッケージでは nonConsumable として扱う仕様
+/// - premium_annual: 年額サブスクリプション（自動更新型）。iOS は月額と同じグループ。
 /// - premium_lifetime: 買い切り（非消費型・iOSのみ）。期限が無く、返金・取消でのみ失効する。
 ///
 /// 【関連ファイル】
@@ -47,6 +48,11 @@ const String kProductIdPremiumMonthly =
         ? 'premium_monthly_test'
         : 'premium_monthly';
 
+/// 年額プランの商品ID（自動更新型）。
+const String kProductIdPremiumYearly = String.fromEnvironment('ENV') == 'tester'
+    ? 'premium_annual_test'
+    : 'premium_annual';
+
 /// 買い切りプランの商品ID（非消費型）。
 /// Android は一時購入の検証API（purchases.products）が未実装なので iOS でのみ扱う。
 const String kProductIdPremiumLifetime =
@@ -54,13 +60,18 @@ const String kProductIdPremiumLifetime =
         ? 'premium_lifetime_test'
         : 'premium_lifetime';
 
+/// 選べるプラン。どれも付与される権利は同じ premium で、支払い方だけが違う。
+enum PremiumPlan { monthly, yearly, lifetime }
+
 /// ペイウォールに出す購入可能な商品。
 ///
-/// lifetime は iOS でのみ引ける（Android 未販売）ため null になりうる。
+/// yearly はストアに未登録の環境で、lifetime は iOS 以外（Android 未販売）で
+/// null になりうる。
 class PremiumProducts {
-  const PremiumProducts({required this.monthly, this.lifetime});
+  const PremiumProducts({required this.monthly, this.yearly, this.lifetime});
 
   final ProductDetails monthly;
+  final ProductDetails? yearly;
   final ProductDetails? lifetime;
 }
 
@@ -148,11 +159,12 @@ class PurchaseService {
 
   /// 販売中の商品情報を取得する。
   ///
-  /// 月額と買い切りを1回の問い合わせでまとめて引く。買い切りは iOS のみ販売
-  /// なので、見つからなくても失敗にはせず null を返す（月額だけで購入できる）。
+  /// 月額・年額・買い切りを1回の問い合わせでまとめて引く。年額と買い切りは
+  /// 見つからなくても失敗にはせず null を返す（月額だけで購入できる）。
+  /// 買い切りは iOS のみ販売。
   /// 月額が引けないときだけ、これまで通り例外にする。
   Future<PremiumProducts> fetchProducts() async {
-    final ids = <String>{kProductIdPremiumMonthly};
+    final ids = <String>{kProductIdPremiumMonthly, kProductIdPremiumYearly};
     if (Platform.isIOS) ids.add(kProductIdPremiumLifetime);
 
     final response = await _iap.queryProductDetails(ids);
@@ -184,6 +196,10 @@ class PurchaseService {
     if (monthly == null) {
       throw PurchaseProductLoadException(l10n().errProductLoadFailed);
     }
+    if (response.notFoundIDs.contains(kProductIdPremiumYearly)) {
+      // 年額を未登録の環境でも月額は売れる状態を保つ。
+      debugPrint('Yearly product not found: $kProductIdPremiumYearly');
+    }
     if (response.notFoundIDs.contains(kProductIdPremiumLifetime)) {
       // 買い切りを未登録の環境でも月額は売れる状態を保つ。
       debugPrint('Lifetime product not found: $kProductIdPremiumLifetime');
@@ -191,6 +207,7 @@ class PurchaseService {
 
     return PremiumProducts(
       monthly: monthly,
+      yearly: find(kProductIdPremiumYearly),
       lifetime: find(kProductIdPremiumLifetime),
     );
   }

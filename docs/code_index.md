@@ -128,7 +128,7 @@ lib/presentation/providers/quiz_offer_experiment_provider.dart
 例文→1問確認クイズ導線のvariant定義。v1のA/Bテストはinlineカードで確定済み（全端末inline）。
 
 lib/presentation/providers/subscription_provider.dart
-ティア状態（free/premium）。Firestoreと同期、課金サービス連携。月額・買い切りのどちらを買うかは purchase(lifetime:) で選ぶ。
+ティア状態（free/premium）。Firestoreと同期、課金サービス連携。月額・年額・買い切りのどれを買うかは purchase(plan:) で選ぶ。
 
 lib/presentation/providers/settings_provider.dart
 ユーザー設定（初回起動フラグ、テーマ、生成パラメータ、フォント、アプリ言語）。
@@ -172,7 +172,7 @@ lib/presentation/screens/settings_screen.dart
 設定画面。語彙スコアの深藍カード＋Free向け課金導線を先頭に置き、以下はアカウント/学習設定/表示/アプリについての4カード（見出し＋罫線区切り）。学習設定の先頭は読み物（使い方ガイド・声調ガイド）。
 
 lib/presentation/screens/paywall_screen.dart
-プレミアム課金UI（ボトムシート）。深藍の表題カード＋Free→Premiumの対比3行＋固定購入バー（月額／買い切りのプラン選択＋購入ボタン1つ。買い切りが引けない環境では選択を出さず従来の1本道）。導線は設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
+プレミアム課金UI（全画面ページ PaywallScreen）。深藍の表題カード＋特典＋プラン選択（月額／年額／買い切り。月額しか引けない環境では選択を出さず従来の1本道）＋開示文・復元リンクを1本のスクロールに載せ、購入ボタンだけ下端に固定。導線は設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
 
 test/screenshots/paywall_review_screenshot.dart
 App Store 審査用スクショ（課金画面）の生成。商品を差し込んで描くので、ストア反映を待たずに買い切り込みの画面が撮れる。出力は build/appstore/paywall_review.png。
@@ -248,7 +248,7 @@ lib/presentation/tone_explanation_dialog.dart
 ## Services
 
 lib/services/purchase_service.dart
-アプリ内課金（iOS/Android）と購入検証。月額サブスクと買い切り（iOSのみ）の2商品を扱う。
+アプリ内課金（iOS/Android）と購入検証。月額・年額サブスクと買い切り（iOSのみ）の3商品を扱う。
 
 lib/services/storefront_service.dart
 ダウンロード元のストア地域取得。初回起動時のアプリ言語決定にだけ使う。
@@ -511,7 +511,7 @@ functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch から呼ぶ品質監査。直近24時間の premium 例文（LLM生成分のみ、from_cache=true は除く）を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書き、通ったものは例文プールへ回す。判定は既定で gpt-5.6-luna（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
+dailyBatch から呼ぶ品質監査。直近24時間の premium 例文（LLM生成分のみ、from_cache=true は除く）を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書き、通ったものは例文プールへ回す。判定は既定で gpt-5-mini（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
 
 functions/go/sentence_pool.go
 judge を通った例文を GCS の例文プール（corpus_pool_<lang>.json）へ追記する。thai_text で重複排除、上限超過分は古い側から捨てる（SENTENCE_POOL_MAX=0 で無効化）。
@@ -595,7 +595,7 @@ functions/go/migrate_to_lifetime_test.go
 移行済みユーザーが日次リセット・ストア通知の期限切れで降格しないこと、返金・取消では降格すること（購入済みの買い切りは月額の返金では失わないこと）、月額の検証で買い切り所有者を落とさないことのテスト。
 
 functions/go/verify_subscription.go
-verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。買い切り（premium_lifetime, iOSのみ）は期限を持たず subscription.lifetime=true と lifetime_transaction_id で印を付ける。買い切り所有者は月額の検証では free に落とさない（verifiedTier）。
+verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。買い切り（premium_lifetime, iOSのみ）は期限を持たず subscription.lifetime=true と lifetime_transaction_id で印を付ける。年額（premium_annual）は月額と同じ自動更新として扱う。買い切り所有者は月額の検証では free に落とさない（verifiedTier）。
 
 functions/go/verify_subscription_live_test.go
 バリデーション文言、匿名拒否、ティア変更時のみのクォータリセット、旧doc剥奪を検証。

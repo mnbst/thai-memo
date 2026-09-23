@@ -471,7 +471,7 @@ class _FreeCapNote extends ConsumerWidget {
               ),
         ),
         TextButton(
-          onPressed: () => PaywallBottomSheet.show(context, source: 'ranking'),
+          onPressed: () => PaywallScreen.show(context, source: 'ranking'),
           child: Text(l10n.vocabSeePremium),
         ),
       ],

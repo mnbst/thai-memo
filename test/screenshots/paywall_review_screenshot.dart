@@ -86,9 +86,7 @@ Widget _host() {
       theme: _themeWithFallbacks(buildAppLightTheme(ThaiFont.sarabun)),
       home: RepaintBoundary(
         key: const ValueKey('paywall-shot'),
-        child: const Scaffold(
-          body: PaywallBottomSheet(source: 'appstore_review'),
-        ),
+        child: const PaywallScreen(source: 'appstore_review'),
       ),
     ),
   );
@@ -108,11 +106,17 @@ class _StubController extends SubscriptionController {
         price: '¥600',
         rawPrice: 600,
       ),
+      yearlyProduct: _product(
+        id: 'premium_annual',
+        title: 'プレミアム（年額）',
+        price: '¥4,800',
+        rawPrice: 4800,
+      ),
       lifetimeProduct: _product(
         id: 'premium_lifetime',
         title: 'プレミアム 買い切り',
-        price: '¥1,800',
-        rawPrice: 1800,
+        price: '¥5,800',
+        rawPrice: 5800,
       ),
     );
   }
@@ -170,7 +174,8 @@ Future<void> _loadFonts() async {
       final file = File(path);
       if (!file.existsSync()) continue;
       any = true;
-      loader.addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
+      loader
+          .addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
       if (firstOnly) break;
     }
     if (any) await loader.load();
