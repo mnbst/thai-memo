@@ -56,7 +56,7 @@ func TestCorpusBankLive(t *testing.T) {
 		}
 
 		// ランク1の語。コーパスにある語は必ず引けること。
-		got, err := bank.Pick(ctx, "ฉัน", l, "")
+		got, err := bank.Pick(ctx, "ฉัน", l, "", false)
 		if err != nil {
 			t.Fatal(err)
 		}

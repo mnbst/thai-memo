@@ -31,8 +31,13 @@ type WordSelector interface {
 
 // CachedSentences は事前生成した例文の出どころ。
 // 実装は FreeBank（free 例文バンク）と CorpusBank（premium の静的コーパス）。
+//
+// strictTopic はユーザーがテーマを指定したとき true。そのテーマの在庫が
+// 無ければ別テーマの文で埋めずに nil を返してよい（LLM がそのテーマで作る）。
 type CachedSentences interface {
-	Pick(ctx context.Context, targetWord string, l lang.Lang, topic string) (*Sentence, error)
+	Pick(
+		ctx context.Context, targetWord string, l lang.Lang, topic string, strictTopic bool,
+	) (*Sentence, error)
 }
 
 // SentenceGenerator は LLM 生成。実装は Service。
@@ -140,6 +145,10 @@ func (p *Producer) ProduceBatch(
 		bank = p.Corpus
 	}
 	useBank := bank != nil
+	// おまかせのテーマは語に近い上位5テーマからの抽選で、コーパスの
+	// ラベルと一致しないことが多い（9/20〜 実測でヒット率が 75%→46%）。
+	// テーマで在庫を諦めるのはユーザーが指定したときだけにする。
+	strictTopic := strParam(req.Params, "topic") != ""
 
 	// 既出の本文。バンクを引くときだけ要る（LLM 生成は毎回新しい文を作る）。
 	// 読めなくてもバンクは引く。重複の可能性より、配信や生成が落ちるほうが重い。
@@ -185,7 +194,7 @@ func (p *Producer) ProduceBatch(
 		if useBank {
 			missed = missed[:0:0]
 			for _, tw := range fresh {
-				cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic)
+				cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic, strictTopic)
 				if err != nil {
 					return nil, err
 				}
@@ -242,7 +251,7 @@ func (p *Producer) ProduceBatch(
 			return nil, err
 		}
 		for _, tw := range selected {
-			cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic)
+			cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic, strictTopic)
 			if err != nil {
 				return nil, err
 			}

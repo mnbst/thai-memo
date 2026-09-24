@@ -110,7 +110,7 @@ class _FakeSentenceRepository extends Fake implements SentenceRepository {
   Future<ThaiSentence?> getSentenceById(String id) async => byId[id];
 }
 
-class _NoopProgressStore implements DailySetProgressStore {
+class _NoopProgressStore extends DailySetProgressStore {
   @override
   Future<ThaiSentence?> fetchSentence(String id) async => null;
 

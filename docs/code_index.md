@@ -116,7 +116,7 @@ lib/presentation/providers/sentence_provider.dart
 例文CRUD・生成状態のRiverpod StateNotifier。
 
 lib/presentation/providers/daily_set_provider.dart
-例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す（待機は1セットまで。溢れた古いほうは完了扱いで捨てる）。進行位置は学習レコード（learning_progress_store）を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。読む1本が変わったときに、その1本に属していたクイズ保存と段を落とすのもここ。
+例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す（待機は1セットまで。溢れた古いほうは完了扱いで捨てる）。進行位置は学習レコード（learning_progress_store）を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。起動・復帰時（例文の段にいるとき）だけは別端末の位置とまとめクイズの途中経過に合わせる（syncFromCloud(adopt)）。読む1本が変わったときに、その1本に属していたクイズ保存と段を落とすのもここ。
 
 lib/services/learning_progress_store.dart
 学習の進み具合（セットのカーソル・いまの段・クイズの進行）を端末に1レコードで持つ。旧3キー（daily_set_progress / saved_confirmation_quiz / saved_summary_quiz）からの移行もここ。
@@ -526,10 +526,10 @@ functions/go/sentence_audit_live_test.go
 judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
 
 functions/go/internal/sentence/corpusbank.go
-静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、頼まれたテーマの在庫が無い語が LLM 生成へ落ちる（free は従来どおり FreeBank）。
+静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
 
 functions/go/internal/sentence/corpusbank_test.go
-premium がコーパス・free が従来バンクという分岐、テーマ優先とその諦め、キャッシュ汚染防止のテスト。
+premium がコーパス・free が従来バンクという分岐、テーマ優先と指定時だけの諦め、キャッシュ汚染防止のテスト。
 
 functions/go/internal/corpustrans/translate.go
 静的コーパス専用。確定したタイ語文に日本語訳と英訳を1回のレスポンスで付ける訳プロンプトとスキーマ。日本語は自然な訳、英訳は直訳・時制なしと規則を分けてある。FixedJA を渡すと英訳だけ作り直すモード（SchemaEN）。語義も日英そろえて返し、語数や英訳の機械チェックに落ちれば作り直す。

@@ -97,7 +97,7 @@ func TestCorpusBankPickPrefersTopic(t *testing.T) {
 		corpusSentence("ฉัน", "食べ物", "a"),
 		corpusSentence("ฉัน", "旅行", "b"),
 	)
-	got, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "旅行")
+	got, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "旅行", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,11 +106,11 @@ func TestCorpusBankPickPrefersTopic(t *testing.T) {
 	}
 }
 
-// 頼まれたテーマの在庫が無いときは、別テーマの文で埋めずに nil を返す
+// 指定されたテーマの在庫が無いときは、別テーマの文で埋めずに nil を返す
 // （LLM がそのテーマで作る）。
 func TestCorpusBankPickReturnsNilWhenTopicMissing(t *testing.T) {
 	bank := corpusBankStub(corpusSentence("ฉัน", "食べ物", "a"))
-	got, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "宗教・信仰")
+	got, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "宗教・信仰", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,10 +119,22 @@ func TestCorpusBankPickReturnsNilWhenTopicMissing(t *testing.T) {
 	}
 }
 
+// おまかせで選ばれたテーマの在庫が無いときは、別テーマの在庫から返す。
+func TestCorpusBankPickFallsBackWhenTopicNotStrict(t *testing.T) {
+	bank := corpusBankStub(corpusSentence("ฉัน", "食べ物", "a"))
+	got, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "宗教・信仰", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || got.ThaiText != "a" {
+		t.Fatalf("おまかせでは在庫を返すこと: %+v", got)
+	}
+}
+
 // テーマ未指定のときは在庫から選ぶ（テーマで絞らない）。
 func TestCorpusBankPickWithoutTopicUsesStock(t *testing.T) {
 	bank := corpusBankStub(corpusSentence("ฉัน", "食べ物", "a"))
-	got, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "")
+	got, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +145,7 @@ func TestCorpusBankPickWithoutTopicUsesStock(t *testing.T) {
 
 func TestCorpusBankPickUnknownWordReturnsNil(t *testing.T) {
 	bank := corpusBankStub(corpusSentence("ฉัน", "食べ物", "a"))
-	got, err := bank.Pick(context.Background(), "ไม่มี", lang.JA, "")
+	got, err := bank.Pick(context.Background(), "ไม่มี", lang.JA, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,14 +158,14 @@ func TestCorpusBankPickUnknownWordReturnsNil(t *testing.T) {
 // 呼び出し側で、バンクはインスタンスの寿命ぶん使い回される）。
 func TestCorpusBankPickDoesNotShareState(t *testing.T) {
 	bank := corpusBankStub(corpusSentence("ฉัน", "食べ物", "a"))
-	first, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "")
+	first, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	first.GenerationTier = "premium"
 	first.WordBreakdown[0].Meaning = "書き換え"
 
-	second, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "")
+	second, err := bank.Pick(context.Background(), "ฉัน", lang.JA, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}

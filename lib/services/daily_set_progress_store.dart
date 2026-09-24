@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -151,6 +153,35 @@ abstract class DailySetProgressStore {
   /// 既定は「組み直さない」。救済はクラウドの配信docを持つ実装だけの仕事で、
   /// 通常の復元経路はこれに依存しない。
   Future<DailySetRef?> fetchLatestDeliveredSet() async => null;
+
+  /// まとめクイズの途中経過を送る。別端末が同じセットの続きから解けるように。
+  /// 失敗しても学習は止めない（端末側の保存が正本）。
+  Future<void> saveSummaryQuiz(String setId, Map<String, dynamic> quiz) async {}
+
+  /// 別端末が送ったまとめクイズの途中経過。無ければ・読めなければ null。
+  Future<RemoteSummaryQuiz?> fetchSummaryQuiz() async => null;
+}
+
+/// 端末間で共有するまとめクイズの途中経過。持ち主はセットID。
+class RemoteSummaryQuiz {
+  const RemoteSummaryQuiz({required this.setId, required this.quiz});
+
+  final String setId;
+
+  /// 端末の学習レコードの summary_quiz と同じ形。
+  final Map<String, dynamic> quiz;
+}
+
+/// まとめクイズがどこまで進んだか。答え終えた（summary）ものがいちばん先。
+/// 保存が無ければ -1。
+int summaryQuizProgress(Map<String, dynamic>? quiz) {
+  if (quiz == null) return -1;
+  final questions = quiz['questions'];
+  if (quiz['phase'] == 'summary') {
+    return (questions is List ? questions.length : 0) + 1;
+  }
+  final answers = quiz['answers'];
+  return answers is List ? answers.length : 0;
 }
 
 class FirestoreDailySetProgressStore implements DailySetProgressStore {
@@ -185,6 +216,41 @@ class FirestoreDailySetProgressStore implements DailySetProgressStore {
         transaction.set(ref, merged.toFirestore());
         return merged;
       });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> saveSummaryQuiz(String setId, Map<String, dynamic> quiz) async {
+    final ref = _userCollection('learning_state')?.doc('summary_quiz');
+    if (ref == null) return;
+    try {
+      // 中身は JSON 文字列で持つ。問題の形が変わってもルールと型変換に
+      // 引っかからず、端末のレコードと同じ形のまま戻せる。
+      await ref.set({
+        'set_id': setId,
+        'quiz_json': jsonEncode(quiz),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Future<RemoteSummaryQuiz?> fetchSummaryQuiz() async {
+    final ref = _userCollection('learning_state')?.doc('summary_quiz');
+    if (ref == null) return null;
+    try {
+      final data = (await ref.get()).data();
+      final setId = data?['set_id'];
+      final encoded = data?['quiz_json'];
+      if (setId is! String || encoded is! String) return null;
+      final quiz = jsonDecode(encoded);
+      if (quiz is! Map) return null;
+      return RemoteSummaryQuiz(
+        setId: setId,
+        quiz: Map<String, dynamic>.from(quiz),
+      );
     } catch (_) {
       return null;
     }

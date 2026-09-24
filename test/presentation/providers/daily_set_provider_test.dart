@@ -8,8 +8,9 @@ import 'package:thai_memo/data/sentence_repository.dart';
 import 'package:thai_memo/presentation/providers/daily_set_provider.dart';
 import 'package:thai_memo/presentation/providers/sentence_provider.dart';
 import 'package:thai_memo/services/daily_set_progress_store.dart';
+import 'package:thai_memo/services/learning_progress_store.dart';
 
-class _NoopProgressStore implements DailySetProgressStore {
+class _NoopProgressStore extends DailySetProgressStore {
   @override
   Future<ThaiSentence?> fetchSentence(String id) async => null;
 
@@ -23,7 +24,7 @@ class _NoopProgressStore implements DailySetProgressStore {
       null;
 }
 
-class _MemoryProgressStore implements DailySetProgressStore {
+class _MemoryProgressStore extends DailySetProgressStore {
   _MemoryProgressStore(this.byId);
 
   final Map<String, ThaiSentence> byId;
@@ -45,6 +46,17 @@ class _MemoryProgressStore implements DailySetProgressStore {
     remote = mergeDailySetProgress(remote, local);
     return remote;
   }
+
+  /// 別端末が送ったまとめクイズの途中経過。
+  RemoteSummaryQuiz? summaryQuiz;
+
+  @override
+  Future<void> saveSummaryQuiz(String setId, Map<String, dynamic> quiz) async {
+    summaryQuiz = RemoteSummaryQuiz(setId: setId, quiz: quiz);
+  }
+
+  @override
+  Future<RemoteSummaryQuiz?> fetchSummaryQuiz() async => summaryQuiz;
 }
 
 class _GatedProgressStore extends _MemoryProgressStore {
@@ -281,6 +293,133 @@ void main() {
     expect(state.current?.id, 'a');
     expect(state.pendingSets.single.setId, 'new');
     expect(state.pendingSets.single.sentences.map((s) => s.id), ['c', 'd']);
+  });
+
+  group('別端末の進み具合に合わせる（adopt）', () {
+    Map<String, ThaiSentence> sentencesOf(List<String> ids) =>
+        {for (final id in ids) id: _sentence(id)};
+
+    Map<String, dynamic> summaryQuiz({required int answered}) => {
+          'phase': 'answering',
+          'questions': const [],
+          'index': answered,
+          'answers': [for (var i = 0; i < answered; i++) true],
+        };
+
+    test('同じセットで別端末が先へ進んでいれば、その位置へ進む', () async {
+      final byId = sentencesOf(['a', 'b', 'c']);
+      final store = _MemoryProgressStore(byId)
+        ..remote = DailySetProgressSnapshot(
+          active: DailySetRef.fromSentences('A', _set(['a', 'b', 'c'])),
+          activeSentenceId: 'c',
+        );
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c']), setId: 'A');
+      await controller.settled;
+      expect(container.read(dailySetProvider).current?.id, 'a');
+
+      await controller.syncFromCloud(adopt: true);
+
+      expect(container.read(dailySetProvider).current?.id, 'c');
+    });
+
+    test('別端末が次のセットへ進んでいれば、そのセットへ移る', () async {
+      final byId = sentencesOf(['a1', 'a2', 'b1', 'b2']);
+      final store = _MemoryProgressStore(byId)
+        ..remote = DailySetProgressSnapshot(
+          active: DailySetRef.fromSentences('B', _set(['b1', 'b2'])),
+          activeSentenceId: 'b2',
+          completedSetIds: const ['A'],
+        );
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a1', 'a2']), setId: 'A');
+      await controller.settled;
+
+      await controller.syncFromCloud(adopt: true);
+
+      final state = container.read(dailySetProvider);
+      expect(state.setId, 'B');
+      expect(state.current?.id, 'b2');
+      expect(state.pendingSets, isEmpty);
+    });
+
+    test('別端末で解きかけたまとめクイズを引き継ぐ', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId)
+        ..remote = DailySetProgressSnapshot(
+          active: DailySetRef.fromSentences('A', _set(['a', 'b'])),
+          activeSentenceId: 'b',
+        )
+        ..summaryQuiz =
+            RemoteSummaryQuiz(setId: 'A', quiz: summaryQuiz(answered: 2));
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+      await controller.settled;
+
+      await controller.syncFromCloud(adopt: true);
+
+      final record =
+          await container.read(learningProgressStoreProvider).load();
+      expect(record.stage, LearningStage.summaryQuiz);
+      expect(record.summaryQuiz?['answers'], hasLength(2));
+    });
+
+    test('この端末のほうが先まで答えていれば、まとめクイズは上書きしない', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId)
+        ..summaryQuiz =
+            RemoteSummaryQuiz(setId: 'A', quiz: summaryQuiz(answered: 1));
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+      await controller.advance();
+      await controller.settled;
+      await container.read(learningProgressStoreProvider).update(
+            (record) => record.copyWith(summaryQuiz: summaryQuiz(answered: 3)),
+          );
+
+      await controller.syncFromCloud(adopt: true);
+
+      final record =
+          await container.read(learningProgressStoreProvider).load();
+      expect(record.summaryQuiz?['answers'], hasLength(3));
+    });
+
+    test('別のセットのまとめクイズは引き継がない', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId)
+        ..summaryQuiz =
+            RemoteSummaryQuiz(setId: 'OLD', quiz: summaryQuiz(answered: 2));
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+      await controller.advance();
+      await controller.settled;
+
+      await controller.syncFromCloud(adopt: true);
+
+      final record =
+          await container.read(learningProgressStoreProvider).load();
+      expect(record.summaryQuiz, isNull);
+    });
+
+    test('まとめクイズの途中経過は、セットの最後の1本にいるときだけ送る', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId);
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+
+      controller.pushSummaryQuiz(summaryQuiz(answered: 1));
+      expect(store.summaryQuiz, isNull);
+
+      await controller.advance();
+      controller.pushSummaryQuiz(summaryQuiz(answered: 1));
+      expect(store.summaryQuiz?.setId, 'A');
+    });
   });
 
   test('別端末ではFirestore正本のカーソルと待機セットを復元する', () async {

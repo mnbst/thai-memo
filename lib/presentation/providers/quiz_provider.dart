@@ -263,9 +263,14 @@ class QuizController extends StateNotifier<QuizState> {
     this._l10n, {
     DatabaseHelper? databaseHelper,
     required LearningProgressStore progressStore,
+    void Function(Map<String, dynamic> quiz)? onSummaryQuizSaved,
   })  : _db = databaseHelper ?? DatabaseHelper.instance,
         _progress = progressStore,
+        _onSummaryQuizSaved = onSummaryQuizSaved,
         super(const QuizInitial());
+
+  /// まとめクイズを保存したあとに呼ぶ。別端末へ途中経過を送るため。
+  final void Function(Map<String, dynamic> quiz)? _onSummaryQuizSaved;
 
   /// 学習レコード。必須にしてあるのは、カーソル側と同じインスタンスを渡し忘れると
   /// 同じレコードへの読み書きが二重の待ち行列になり、後勝ちで片方が消えるため。
@@ -904,6 +909,7 @@ class QuizController extends StateNotifier<QuizState> {
         _QuizSlot.summary => current.copyWith(summaryQuiz: snapshot),
       },
     );
+    if (slot == _QuizSlot.summary) _onSummaryQuizSaved?.call(snapshot);
   }
 
   Future<void> _clearQuizState(_QuizSlot slot) async {
@@ -1063,6 +1069,8 @@ final quizControllerProvider =
     // カーソル・段と同じインスタンスを共有する。別々に持つと、同じレコードへの
     // 読み書きが二重の待ち行列になる。
     progressStore: ref.read(learningProgressStoreProvider),
+    onSummaryQuizSaved: (quiz) =>
+        ref.read(dailySetProvider.notifier).pushSummaryQuiz(quiz),
   );
 });
 
