@@ -56,9 +56,17 @@ const (
 //
 // 落ちるのは共起の誤り（ดูงาน 等）。judge のモデルではなくプロンプトが
 // そのクラスを名指ししていないことによる。
+//
+// 2026-09-23、プールへ入った62本の再判定（各4回）で gpt-5-mini へ上げた:
+//
+//	gpt-5.6-luna  既知の欠陥を1/4〜4/4（実行ごとに指摘先が入れ替わる）
+//	gpt-5-mini    同じ欠陥を4/4で再現。誤検出は1〜2件増えるが、落ちるのは
+//	              プールの在庫だけで表示には出ない
+//
+// コストは100本/回で $0.012 → $0.055（月 +$1.3）。
 const (
 	defaultJudgeProvider = "openai"
-	defaultJudgeModel    = "gpt-5.6-luna"
+	defaultJudgeModel    = "gpt-5-mini"
 )
 
 // runSentenceAudit は直近に生成された premium 例文を判定し、不自然なものだけを

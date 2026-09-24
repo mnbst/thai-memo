@@ -3,8 +3,15 @@
 first_open を起点に、N日後/N週後に実際に戻ってきた割合を出す。
 Firestore版（prod_analytics.py）の「生存期間>=N日」とは定義が違うので注意。
 
+既定で米国を除外する。米国は日本とほぼ同数の新規が入るが再訪がほぼゼロで
+（2026-09 時点で80人中1人）、含めると全コホートが希釈され定着の変化を読み違える。
+英語版をリリースして米国流入が意味を持つようになったら EXCLUDE_COUNTRIES を見直す。
+
 usage:
-  uv run python scripts/ga4_retention.py [weekly|daily]   # default weekly
+  uv run python scripts/ga4_retention.py [weekly|daily]       # default weekly、米国除外
+  uv run python scripts/ga4_retention.py weekly --all         # 除外なし（全世界）
+  uv run python scripts/ga4_retention.py weekly --only=Japan  # 指定国のみ
+  uv run python scripts/ga4_retention.py weekly --exclude="United States,India"
   # 認証は SA インパーソネーション（project_ga4_data_api 参照）
 """
 
@@ -16,7 +23,42 @@ from collections import defaultdict
 
 PROP = "534357716"  # thai-memo-prod GA4
 SA = "ga4-analytics@thai-memo-prod.iam.gserviceaccount.com"
-MODE = sys.argv[1] if len(sys.argv) > 1 else "weekly"
+
+# GA4 の country 値は英語表記。
+EXCLUDE_COUNTRIES = ["United States"]
+
+args = sys.argv[1:]
+MODE = next((a for a in args if not a.startswith("-")), "weekly")
+only: list[str] = []
+exclude: list[str] = EXCLUDE_COUNTRIES
+for a in args:
+    if a == "--all":
+        exclude = []
+    elif a.startswith("--only="):
+        only = [c.strip() for c in a.split("=", 1)[1].split(",") if c.strip()]
+        exclude = []
+    elif a.startswith("--exclude="):
+        exclude = [c.strip() for c in a.split("=", 1)[1].split(",") if c.strip()]
+
+
+def country_filter() -> dict | None:
+    """only 指定があればそれだけ、なければ exclude を除いた全世界。"""
+    if only:
+        return {"filter": {"fieldName": "country",
+                           "inListFilter": {"values": only}}}
+    if exclude:
+        return {"notExpression": {
+            "filter": {"fieldName": "country",
+                       "inListFilter": {"values": exclude}}}}
+    return None
+
+
+def scope_label() -> str:
+    if only:
+        return "only " + "+".join(only)
+    if exclude:
+        return "excl " + "+".join(exclude)
+    return "全世界"
 
 
 def token() -> str:
@@ -71,7 +113,7 @@ def cohort_body(granularity: str, n: int, span: int) -> dict:
                 "dimension": "firstSessionDate",
                 "dateRange": {"startDate": s.isoformat(), "endDate": s.isoformat()},
             })
-    return {
+    body = {
         "cohortSpec": {
             "cohorts": cohorts,
             "cohortsRange": {"granularity": granularity, "startOffset": 0,
@@ -80,6 +122,10 @@ def cohort_body(granularity: str, n: int, span: int) -> dict:
         "dimensions": [{"name": "cohort"}, {"name": f"cohortNth{unit}"}],
         "metrics": [{"name": "cohortActiveUsers"}],
     }
+    f = country_filter()
+    if f:
+        body["dimensionFilter"] = f
+    return body
 
 
 def main():
@@ -103,7 +149,7 @@ def main():
 
     maxn = body["cohortSpec"]["cohortsRange"]["endOffset"]
     cols = list(range(0, maxn + 1))
-    print(f"=== GA4 Cohort Retention ({gran}, first_open 起点) ===")
+    print(f"=== GA4 Cohort Retention ({gran}, first_open 起点) / {scope_label()} ===")
     print(f"{'cohort':>16} {'N':>5} " + " ".join(f"{label}{i:<4d}" for i in cols))
     for cn in sorted(t, key=lambda x: int(x[1:])):
         row = t[cn]
