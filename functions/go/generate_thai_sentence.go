@@ -248,6 +248,8 @@ func runGenerateThaiSentence(
 		EstimatedVocab: estimatedVocab,
 		TestedVocab:    intValue(userData["vocab_test_vocab"]),
 		Lang:           l,
+		// LLM 生成分を判定し、不合格なら作り直す（待ち時間 +0.5 秒、作り直し時 +5 秒前後）。
+		QualityCheck: generationQualityCheck(),
 	}, count)
 	if err != nil {
 		return nil, err
@@ -349,6 +351,7 @@ func commitSentences(
 			Lang:           l,
 			FromCache:      p.FromCache,
 			TrackViewed:    trackViewed,
+			Quality:        p.Quality,
 		})
 	}
 
@@ -582,6 +585,8 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 
 	store := embeddings.Default
 	return &sentence.Producer{
+		// 判定器が作れなくても生成は止めない（判定なしで動く）。
+		Checker: newQualityChecker(ctx),
 		Selector: &sentence.TargetWordSelector{
 			Session: &uvm.SessionSelector{Emb: store},
 		},
@@ -633,4 +638,10 @@ func logJSON(data map[string]any) string {
 		return fmt.Sprintf("%v", data)
 	}
 	return string(b)
+}
+
+// generationQualityCheck は通常生成で生成直後の品質判定を行うか。
+// SENTENCE_QUALITY_CHECK=0 で止められる（Jev 障害時・待ち時間が問題になったときの逃げ道）。
+func generationQualityCheck() bool {
+	return envOr("SENTENCE_QUALITY_CHECK", "1") != "0"
 }

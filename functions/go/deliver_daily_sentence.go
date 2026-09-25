@@ -230,6 +230,8 @@ func (d *deliverer) buildSentences(
 			// premium は LLM 生成なので引き直さない（Produce の既定と同じ 1 周）。
 			SelectRetry: 1,
 			Lang:        l,
+			// 配信はユーザーを待たせないので、LLM 生成分を判定して不合格なら作り直す。
+			QualityCheck: deliveryQualityCheck(),
 		}, n)
 		if err != nil {
 			log.Printf("daily_sentence: premium generation failed for %s: %v", uid, err)
@@ -550,6 +552,7 @@ func (d *deliverer) deliverOne(
 			Lang:           p.Lang,
 			FromCache:      produced.FromCache,
 			TrackViewed:    sentence.SupportsViewTracking(userData),
+			Quality:        produced.Quality,
 		})
 		data["daily"] = true
 		data["daily_date"] = localDate
@@ -706,4 +709,10 @@ func (d *deliverer) purgeUnreadDeliveredSets(
 	bw.End()
 	log.Printf("daily_sentence: purged unread sets uid=%s sets=%d sentences=%d",
 		userRef.ID, len(stale), deleted)
+}
+
+// deliveryQualityCheck は配信で生成直後の品質判定を行うか。
+// DELIVERY_QUALITY_CHECK=0 で止められる（Jev 障害時の逃げ道）。
+func deliveryQualityCheck() bool {
+	return envOr("DELIVERY_QUALITY_CHECK", "1") != "0"
 }

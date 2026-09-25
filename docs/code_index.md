@@ -511,7 +511,10 @@ functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch から呼ぶ品質監査。直近24時間の premium 例文（LLM生成分のみ、from_cache=true は除く）を無作為抽出してLLMに判定させ、不自然なものだけ sentence_flags へ書き、通ったものは例文プールへ回す。判定は既定で gpt-5-mini（SENTENCE_JUDGE_PROVIDER / SENTENCE_JUDGE_MODEL で変更、SENTENCE_AUDIT_MAX=0 で無効化）。
+dailyBatch のステップ6。直近24時間の premium LLM 例文のうち、生成時の判定で quality.passed=true の文だけを例文プールへ回す（判定はしない）。作り直しても不合格・未判定の文は外し、外した文をログに出す。
+
+functions/go/quality_check.go
+quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文判定で、不合格なら差し戻し用の指摘を返し sentence_flags へ1件書く（stage=first/retry）。キーが無ければ nil（判定なしで動く）。
 
 functions/go/sentence_pool.go
 judge を通った例文を GCS の例文プール（corpus_pool_<lang>.json）へ追記する。thai_text で重複排除、上限超過分は古い側から捨てる（SENTENCE_POOL_MAX=0 で無効化）。
@@ -520,10 +523,13 @@ functions/go/sentence_pool_test.go
 プール項目への変換（lang不明・除外語・欠損の除外）と、重複排除・上限での切り詰めのテスト。
 
 functions/go/sentence_audit_test.go
-監査対象の抽出条件（premium限定・本文必須）、間引き、束分けのテスト。
+プール候補の抽出条件（premium限定・バンク除外・本文必須）、quality による振り分け、束分けのテスト。
 
 functions/go/sentence_audit_live_test.go
-judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
+Jev judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
+
+functions/go/internal/sentence/produce_check_test.go
+生成直後の品質判定（QualityCheck）のテスト。不合格だけ作り直して再判定・作り直しても不合格は Passed=false・失敗時は元の文・バンク由来は判定しない。
 
 functions/go/internal/sentence/corpusbank.go
 静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
@@ -538,10 +544,16 @@ functions/go/internal/corpustrans/validate_en_test.go
 英訳の機械チェック（品詞名の混入・スラッシュ併記の三人称・タイ文字残留・句点）の単体テスト。
 
 functions/go/internal/quality/judge.go
-例文品質judgeのプロンプト・スキーマ・sentence_flags ドキュメントの組み立て。判定基準は与えず、タイ語・訳文・key_wordだけ渡して理由を書かせる。
+例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足はコードで判定し、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
+
+functions/go/internal/quality/judge_eval_live_test.go
+評価セット（testdata/judge_eval.json、欠陥55・正常70）を実際の Jev にかけ、欠陥の検出数・正常の誤検出数と中身を出す。観点・閾値を変えたら前後で回す（JUDGE_EVAL_LIVE=1）。
+
+functions/go/internal/quality/testdata/judge_eval.json
+judge の評価セット。prod 監査・罠・過去の誤検出から作った欠陥/正常のラベル付き例文。
 
 functions/go/internal/quality/judge_test.go
-judgeレスポンスの選別（natural除外・理由なし除外・index重複）とドキュメント内容のテスト。
+Jevスタブでの合否振り分け・観点別閾値・英訳で訳の観点を外すこと・失敗時の扱い・再試行のテスト。
 
 functions/go/deliver_daily_sentence.go
 daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、実効プレミアム（premium.IsEffectivePremium）はLLM生成。通知成功後に、1本も読まれなかった過去の配信セットを消す（洗い替え）。

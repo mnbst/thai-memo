@@ -283,6 +283,15 @@ func (s *Service) GenerateSentence(
 	ctx context.Context, params map[string]any, isPremium bool,
 	targetWords []string, estimatedVocab int, l lang.Lang,
 ) (*Sentence, error) {
+	return s.GenerateSentenceWithNotes(ctx, params, isPremium, targetWords, estimatedVocab, l, nil)
+}
+
+// GenerateSentenceWithNotes は GenerateSentence に差し戻しの指摘を足して生成する。
+// notes は BuildRetryConstraint でプロンプト末尾へ置く。空なら GenerateSentence と同じ。
+func (s *Service) GenerateSentenceWithNotes(
+	ctx context.Context, params map[string]any, isPremium bool,
+	targetWords []string, estimatedVocab int, l lang.Lang, notes []string,
+) (*Sentence, error) {
 	tierLabel := "free"
 	if isPremium {
 		tierLabel = "premium"
@@ -299,6 +308,9 @@ func (s *Service) GenerateSentence(
 
 	prompt, resolvedContext := BuildPrompt(
 		resolved, targetWords, estimatedVocab, isPremium, l, drama)
+	if block := BuildRetryConstraint(notes); block != "" {
+		prompt += "\n\n" + block
+	}
 
 	return GenerateSingle(ctx, s.Gen, Request{
 		SystemPrompt:    SystemPrompt(isPremium, l),

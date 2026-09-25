@@ -65,18 +65,26 @@ func TestCandidateFromSkipsNonPremium(t *testing.T) {
 	}
 }
 
-func TestSampleCandidatesCapsAndMixes(t *testing.T) {
-	in := make([]quality.Candidate, 50)
-	for i := range in {
-		in[i] = quality.Candidate{UID: string(rune('a' + i%26)), SentenceID: string(rune('A' + i%26))}
+// プールへ回すのは quality.passed が真の文だけ。判定の無い文も回さない。
+func TestPoolVerdictOf(t *testing.T) {
+	cases := []struct {
+		name   string
+		data   map[string]any
+		want   poolVerdict
+		reason string
+	}{
+		{"合格", map[string]any{"quality": map[string]any{"passed": true}}, poolPassed, ""},
+		{"作り直しても不合格", map[string]any{"quality": map[string]any{
+			"passed": false, "retried": true, "reason": "共起 0.62"}}, poolRejected, "共起 0.62"},
+		{"quality 無し", map[string]any{}, poolUnjudged, ""},
+		{"passed が欠けている", map[string]any{"quality": map[string]any{"reason": "x"}}, poolUnjudged, ""},
+		{"doc が無い", nil, poolUnjudged, ""},
 	}
-
-	if got := sampleCandidates(in, 100); len(got) != 50 {
-		t.Errorf("上限未満はそのまま返す: %d", len(got))
-	}
-	got := sampleCandidates(in, 10)
-	if len(got) != 10 {
-		t.Fatalf("上限まで間引かれていない: %d", len(got))
+	for _, c := range cases {
+		got, reason := poolVerdictOf(c.data)
+		if got != c.want || reason != c.reason {
+			t.Errorf("%s: got (%v, %q), want (%v, %q)", c.name, got, reason, c.want, c.reason)
+		}
 	}
 }
 

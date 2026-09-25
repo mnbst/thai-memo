@@ -59,6 +59,9 @@ type DocMeta struct {
 	// 真なら品質監査もプール追加も対象外にする（既にバンクにある文なので
 	// 判定し直す意味が無く、プールへ入れ直すと同じ文が二重に増える）。
 	FromCache bool
+	// Quality は生成直後の判定結果。nil なら quality フィールドを書かない。
+	// dailyBatch は quality.passed が真の文だけを例文プールへ回す。
+	Quality *Quality
 }
 
 // BuildSentenceDoc は users/{uid}/sentences へ書き込む内容を組み立てる
@@ -95,6 +98,15 @@ func (s *Sentence) BuildSentenceDoc(m DocMeta) map[string]any {
 	}
 	if m.TrackViewed {
 		doc["viewed"] = false
+	}
+	if q := m.Quality; q != nil {
+		doc["quality"] = map[string]any{
+			"passed":  q.Passed,
+			"retried": q.Retried,
+			"reason":  q.Reason,
+			"scores":  q.Scores,
+			"model":   q.Model,
+		}
 	}
 	return doc
 }

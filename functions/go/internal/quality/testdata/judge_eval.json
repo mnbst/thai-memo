@@ -1,0 +1,1127 @@
+[
+ {
+  "thai_text": "ประตูเปลี่ยนไปแล้วครับ",
+  "translation": "搭乗口が変更されました。",
+  "key_word": "แห่ง",
+  "lang": "ja",
+  "label": "bad",
+  "class": "共起",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "คนทั้งสองคนนี้มาสนามบินทุกวันเลย",
+  "translation": "この二人は毎日空港に来ています。",
+  "key_word": "ทั้งสอง",
+  "lang": "ja",
+  "label": "bad",
+  "class": "文法",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "วันนี้ต่อยมวยมาแต่ว่าเหนื่อยมาก",
+  "translation": "今日ムエタイをしてきたけれど、とても疲れた。",
+  "key_word": "แต่ว่า",
+  "lang": "ja",
+  "label": "bad",
+  "class": "接続",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "งานครอบครัวใหญ่ขนาดนี้ เชิญครับ",
+  "translation": "家族の集まりがこれほど大きいので、ぜひお越しください。",
+  "key_word": "ขนาด",
+  "lang": "ja",
+  "label": "bad",
+  "class": "接続",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "มึงหล่อแต่มันขัดกับเลข กูเลยไม่เชื่อดวงมึง",
+  "translation": "お前はかっこいいけど、数学の原理に反してるからお前の占いは信じないよ。",
+  "key_word": "หล่อ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "มึงจะทายให้กูง่ายเหมือนจับหมูใส่เล้าแบบนี้เลยหรือไง",
+  "translation": "そんな風に豚を小屋に入れるみたいに簡単だと、俺に占うつもりか？",
+  "key_word": "หมู",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "เลี้ยวซ้ายแยกนี้เดี๋ยวนี้",
+  "translation": "この交差点を今すぐ左に曲がってください。",
+  "key_word": "เดี๋ยวนี้",
+  "lang": "ja",
+  "label": "bad",
+  "class": "共起",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ไปมองโปสเตอร์หนังใหม่กันไหม",
+  "translation": "新しい映画のポスターを見に行かない？",
+  "key_word": "มอง",
+  "lang": "ja",
+  "label": "bad",
+  "class": "共起",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "คืนเสื้อตัวนี้ได้ครับ",
+  "translation": "このシャツを返品できました。",
+  "key_word": "ได้",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "เฮีย โลกที่กูเห็นมันแตกต่างไปจากเดิมตั้งแต่มีมึงอยู่",
+  "translation": "ヘイ、俺が見る世界は君がいてから前とは違うんだ。",
+  "key_word": "แตกต่าง",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "เฮีย ประตูนี้ล็อค พีชช่วยเปิดนะ",
+  "translation": "ヒア、このドア鍵がかかってる。開けてあげるよ。",
+  "key_word": "ล็อค",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ที่แห่งนี้มีพี่ขายแกงอร่อย",
+  "translation": "この場所にはカレーを売る先輩がいる。",
+  "key_word": "แห่ง",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "วันนี้ผมอยู่ดูแลงานนี้ให้ครับ",
+  "translation": "今日は私がこの仕事を（残って）引き受けます。",
+  "key_word": "ดูแล",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ผมเพิ่งจับกระเป๋าที่สายพานครับ",
+  "translation": "空港の荷物受け取りのベルトコンベアで、さっき自分の荷物を手に取ったところです。",
+  "key_word": "จับ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ผมยอมทรยศร่างกายตัวเองแค่มาหาแมวคุณนะ",
+  "translation": "君の猫に会うためなら、自分の体に背くことだって厭わないよ。",
+  "key_word": "ทรยศ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "อย่าเอาชีวิตมาแขวนที่คอกู",
+  "translation": "俺に命を預けるな。",
+  "key_word": "คอ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ผมเห็นงานด้วยตาตัวเองครับ",
+  "translation": "私は自分の目で仕事を見ました。",
+  "key_word": "ตา",
+  "lang": "ja",
+  "label": "bad",
+  "class": "共起",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "เฮียรู้อยู่แล้วใช่ไหมว่ากูโกหกมึงมาตลอด",
+  "translation": "ヘイア、俺がずっと嘘をついていたって気づいていたんだろ？",
+  "key_word": "เฮีย",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "มึงทำข้าวแกงจานนี้เองใช่ป่ะเฮีย",
+  "translation": "このカレーはお前が作ったのか、ヘイ。",
+  "key_word": "เฮีย",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "เจ๊ ช่วยคุ้มครองเขาให้หน่อยนะครับ",
+  "translation": "ジェー、彼を守ってあげてください。",
+  "key_word": "เจ๊",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "อาหารนี้ไม่เผ็ด",
+  "translation": "この料理は辛くない。",
+  "key_word": "ไม่",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ฉันกินเผ็ดไม่ได้ค่ะ",
+  "translation": "私は辛いものが食べられません。",
+  "key_word": "ฉัน",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "หวังว่าจะขึ้นเครื่องทัน",
+  "translation": "飛行機に間に合うといいな。",
+  "key_word": "หวัง",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ตำรวจเยอะจังที่สนามบิน",
+  "translation": "空港には警察がたくさんいますね。",
+  "key_word": "ตำรวจ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "เพิ่งซื้อเกมนี้มา",
+  "translation": "このゲームを買ったばかりです。",
+  "key_word": "ซื้อ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "หัวหน้าไม่ยอมให้แก้รายงาน",
+  "translation": "上司が報告書の修正を許可してくれない。",
+  "key_word": "ยอม",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "วงสวิงเมื่อกี้ของคุณดีมาก",
+  "translation": "今のスイング、とても良かったですよ。",
+  "key_word": "ดีมาก",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "อย่าโดนคนขับแท็กซี่หลอก",
+  "translation": "タクシー運転手に騙されないで。",
+  "key_word": "โดน",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "เย็นนี้เราไปดื่มกันไหม",
+  "translation": "今晩、飲みに行かない？",
+  "key_word": "ดื่ม",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ประชุมนี้เลื่อนเวลาอีกแล้ว",
+  "translation": "この会議、また時間が変更になったよ。",
+  "key_word": "อีกแล้ว",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "คุณจะถึงสนามบินภายในหนึ่งชั่วโมงครับ",
+  "translation": "1時間以内に空港へ到着します。",
+  "key_word": "ภายใน",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "พรุ่งนี้จะไปสถานีอย่างไรดี",
+  "translation": "明日、どうやって駅へ行けばいいですか？",
+  "key_word": "อย่างไร",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "เพิ่งดูหนังจบครับ",
+  "translation": "ちょうど映画を見終わったところです。",
+  "key_word": "เพิ่ง",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "มึงบาดเจ็บตรงไหนบ้างหรือเปล่า",
+  "translation": "どこか怪我してない？",
+  "key_word": "บาดเจ็บ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ปีก่อนมึงไม่ชอบเพลงแนวนี้เลย",
+  "translation": "お前、去年はこのジャンルの曲、全然好きじゃなかったよな。",
+  "key_word": "ปีก่อน",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ถ้าจะจบ มึงก็บอกมาตรงๆ",
+  "translation": "終わらせたいなら、直接言えよ。",
+  "key_word": "จบ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ผมได้ยาแล้วครับ",
+  "translation": "薬を受け取りました。",
+  "key_word": "ยา",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ขอบคุณที่มางานแต่งงานเรา",
+  "translation": "私たちの結婚式に来てくれてありがとう。",
+  "key_word": "แต่งงาน",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ทางนี้ตอนเย็นจะเงียบเดินง่ายครับ",
+  "translation": "この道は夕方になると静かで歩きやすいですよ。",
+  "key_word": "เงียบ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "งานช่วงนี้หนักนะ พักบ้างเถอะ",
+  "translation": "最近仕事が大変だね、少し休んだら？",
+  "key_word": "หนัก",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "เฮีย เจ็บมากมั้ย มึงไปโดนอะไรมาวะ",
+  "translation": "兄貴、ひどく痛むのか。お前、何に遭ったんだ。",
+  "key_word": "เฮีย",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod監査 2026-09-25"
+ },
+ {
+  "thai_text": "ผมจะรายงานความคืบหน้าให้พระองค์ทราบ",
+  "translation": "進捗状況を殿下にご報告いたします。",
+  "key_word": "พระองค์",
+  "lang": "ja",
+  "label": "bad",
+  "class": "王室・僧侶用語",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พระองค์มาที่วัดเมื่อเช้านี้",
+  "translation": "殿下は今朝お寺にいらっしゃいました。",
+  "key_word": "พระองค์",
+  "lang": "ja",
+  "label": "bad",
+  "class": "王室・僧侶用語",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พระราชากินข้าวที่วัง",
+  "translation": "王様は宮殿でお食事をされる。",
+  "key_word": "พระราชา",
+  "lang": "ja",
+  "label": "bad",
+  "class": "王室・僧侶用語",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พระสงฆ์กินข้าวตอนเช้า",
+  "translation": "お坊さんは朝に食事をする。",
+  "key_word": "พระสงฆ์",
+  "lang": "ja",
+  "label": "bad",
+  "class": "王室・僧侶用語",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "หลวงพ่อนอนตอนสามทุ่ม",
+  "translation": "住職は夜9時に休まれる。",
+  "key_word": "หลวงพ่อ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "王室・僧侶用語",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พระราชินีพูดกับประชาชน",
+  "translation": "王妃は国民にお言葉を述べられた。",
+  "key_word": "พระราชินี",
+  "lang": "ja",
+  "label": "bad",
+  "class": "王室・僧侶用語",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ผมให้ของขวัญพระที่วัด",
+  "translation": "私はお寺のお坊さんに贈り物をさしあげた。",
+  "key_word": "ของขวัญ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "王室・僧侶用語",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "คุณแม่ครับ มึงกินข้าวหรือยัง",
+  "translation": "お母さん、ご飯食べた？",
+  "key_word": "กินข้าว",
+  "lang": "ja",
+  "label": "bad",
+  "class": "王室・僧侶用語",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ผมกรอกเอกสารนี้เพื่อให้หัวหน้าอนุมัติงานล่วงเวลา",
+  "translation": "私はこの書類に記入し、上司に残業を承認してもらう。",
+  "key_word": "เพื่อให้",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳の欠落",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ฉันออกกำลังกายทุกวันเพื่อสุขภาพ",
+  "translation": "私は毎日運動する。",
+  "key_word": "เพื่อ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳の欠落",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ถ้าฝนตกเราจะไม่ไป",
+  "translation": "雨が降る。私たちは行かない。",
+  "key_word": "ถ้า",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳の欠落",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "เขาไม่ได้โกรธ แค่เหนื่อย",
+  "translation": "彼は怒っている、ただ疲れているだけ。",
+  "key_word": "ไม่ได้",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳の欠落",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ผมอาจจะไปสายนิดหน่อย",
+  "translation": "少し遅れて行きます。",
+  "key_word": "อาจจะ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳の欠落",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "เขาช่วยฉันทั้งที่ไม่มีเวลา",
+  "translation": "彼は時間がなく、私を手伝った。",
+  "key_word": "ทั้งที่",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳の欠落",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พรุ่งนี้ผมต้องตื่นเช้า",
+  "translation": "明日私は早く起きる。",
+  "key_word": "ต้อง",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳の欠落",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ผมจะกราบบังคมทูลรายงานความคืบหน้าให้ทรงทราบ",
+  "translation": "進捗状況を殿下にご報告申し上げます。",
+  "key_word": "พระองค์",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พระองค์เสด็จมาที่วัดเมื่อเช้านี้",
+  "translation": "殿下は今朝お寺にいらっしゃいました。",
+  "key_word": "พระองค์",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พระราชาเสวยพระกระยาหารที่วัง",
+  "translation": "王様は宮殿でお食事をされる。",
+  "key_word": "พระราชา",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พระสงฆ์ฉันภัตตาหารตอนเช้า",
+  "translation": "お坊さんは朝に食事をする。",
+  "key_word": "พระสงฆ์",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "หลวงพ่อจำวัดตอนสามทุ่ม",
+  "translation": "住職は夜9時に休まれる。",
+  "key_word": "หลวงพ่อ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พระราชินีมีพระราชดำรัสกับประชาชน",
+  "translation": "王妃は国民にお言葉を述べられた。",
+  "key_word": "พระราชินี",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ผมถวายสังฆทานที่วัด",
+  "translation": "私はお寺でお坊さんに供物を捧げた。",
+  "key_word": "ถวาย",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "แม่ครับ กินข้าวหรือยังครับ",
+  "translation": "お母さん、ご飯食べましたか？",
+  "key_word": "กินข้าว",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ผมกรอกเอกสารนี้เพื่อให้หัวหน้าอนุมัติงานล่วงเวลา",
+  "translation": "上司に残業を承認してもらうために、この書類に記入します。",
+  "key_word": "เพื่อให้",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ฉันออกกำลังกายทุกวันเพื่อสุขภาพ",
+  "translation": "健康のために毎日運動している。",
+  "key_word": "เพื่อ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ถ้าฝนตกเราจะไม่ไป",
+  "translation": "雨が降ったら、私たちは行かない。",
+  "key_word": "ถ้า",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "เขาไม่ได้โกรธ แค่เหนื่อย",
+  "translation": "彼は怒っているんじゃなくて、疲れているだけ。",
+  "key_word": "ไม่ได้",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "ผมอาจจะไปสายนิดหน่อย",
+  "translation": "少し遅れるかもしれません。",
+  "key_word": "อาจจะ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "เขาช่วยฉันทั้งที่ไม่มีเวลา",
+  "translation": "彼は時間がないのに私を手伝ってくれた。",
+  "key_word": "ทั้งที่",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "พรุ่งนี้ผมต้องตื่นเช้า",
+  "translation": "明日は早起きしなければならない。",
+  "key_word": "ต้อง",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-25"
+ },
+ {
+  "thai_text": "คำแนะนำของมึงยอดเยี่ยมมาก กูเริ่มเข้าใจเขาแล้ว",
+  "translation": "お前の助言は最高だ。あいつのことを理解し始めてきたよ。",
+  "key_word": "ยอดเยี่ยม",
+  "lang": "ja",
+  "label": "bad",
+  "class": "語の高さの混在",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "มึงปกป้องกูได้ยอดเยี่ยมมากนะ",
+  "translation": "お前は俺を本当によく守ってくれたな。",
+  "key_word": "ปกป้อง",
+  "lang": "ja",
+  "label": "bad",
+  "class": "語の高さの混在",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "กูต้องการให้มึงดำเนินการเรื่องนี้ด่วน",
+  "translation": "この件、お前に急いで片付けてほしい。",
+  "key_word": "ดำเนินการ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "語の高さの混在",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "มึงสามารถมาหากูได้ทุกเมื่อ",
+  "translation": "いつでも俺のところに来ていいぞ。",
+  "key_word": "สามารถ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "語の高さの混在",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "เนื่องจากกูป่วย กูเลยไม่ไปเรียน",
+  "translation": "俺は具合が悪いから、授業に行かない。",
+  "key_word": "เนื่องจาก",
+  "lang": "ja",
+  "label": "bad",
+  "class": "語の高さの混在",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "บอกมึงอย่างไรถึงจะรู้ว่าชอบ",
+  "translation": "どう言えばお前は好きだって分かってくれるんだ。",
+  "key_word": "อย่างไร",
+  "lang": "ja",
+  "label": "bad",
+  "class": "語の高さの混在",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "กูขอขอบพระคุณมึงมากที่ช่วยกู",
+  "translation": "助けてくれて本当にありがとな。",
+  "key_word": "ขอบพระคุณ",
+  "lang": "ja",
+  "label": "bad",
+  "class": "語の高さの混在",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "มึงจะรับประทานอะไรดีวะ",
+  "translation": "お前、何食う？",
+  "key_word": "รับประทาน",
+  "lang": "ja",
+  "label": "bad",
+  "class": "語の高さの混在",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "คำแนะนำของมึงเจ๋งมาก กูเริ่มเข้าใจเขาแล้ว",
+  "translation": "お前の助言は最高だ。あいつのことを理解し始めてきたよ。",
+  "key_word": "ยอดเยี่ยม",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "มึงปกป้องกูได้ดีมากเลยนะ",
+  "translation": "お前は俺を本当によく守ってくれたな。",
+  "key_word": "ปกป้อง",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "กูอยากให้มึงจัดการเรื่องนี้ด่วน",
+  "translation": "この件、お前に急いで片付けてほしい。",
+  "key_word": "จัดการ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "มึงมาหากูได้ตลอดนะ",
+  "translation": "いつでも俺のところに来ていいぞ。",
+  "key_word": "มาหา",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "กูป่วยเลยไม่ไปเรียน",
+  "translation": "俺は具合が悪いから、授業に行かない。",
+  "key_word": "เลย",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "บอกมึงยังไงถึงจะรู้ว่าชอบ",
+  "translation": "どう言えばお前は好きだって分かってくれるんだ。",
+  "key_word": "ยังไง",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "ขอบใจมึงมากที่ช่วยกู",
+  "translation": "助けてくれて本当にありがとな。",
+  "key_word": "ขอบใจ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "มึงจะกินอะไรดีวะ",
+  "translation": "お前、何食う？",
+  "key_word": "กิน",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "ผมต้องการให้คุณดำเนินการเรื่องนี้โดยด่วนครับ",
+  "translation": "この件を至急ご対応いただきたいです。",
+  "key_word": "ดำเนินการ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "เนื่องจากผมป่วย จึงขอลาหยุดวันนี้ครับ",
+  "translation": "体調不良のため、本日はお休みをいただきます。",
+  "key_word": "เนื่องจาก",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "ปกป้องคนสำคัญไม่ต้องสู้เสมอไปทำได้เช่นอยู่ข้างมึง",
+  "translation": "大切な人を守る方法は戦うことだけじゃない。側にいることだってそうなんだ。",
+  "key_word": "เช่น",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味・接続",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "ระยะทางนี้หมายถึงรอคุณกลับมา",
+  "translation": "この距離は、あなたが戻るのを待つことを意味する。",
+  "key_word": "หมายถึง",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味・接続",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "สาบานว่าจะดูแลคุณอาให้ดีตั้งแต่การเจอกันครั้งแรกนี้ครับ",
+  "translation": "初めてお会いする今回から、叔母様を大切にすると誓います。",
+  "key_word": "สาบาน",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味・接続",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "ดึกแล้วครับ ร้านนี้มีขนมประเภทใหม่เพิ่งมาขาย",
+  "translation": "もう夜ですね。この店には新しい種類の菓子が売りに出たばかりです。",
+  "key_word": "ประเภท",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味・接続",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "พรุ่งนี้ร้านนวดร้านนี้สวยมากครับ",
+  "translation": "明日、こちらのマッサージ店はとても綺麗です。",
+  "key_word": "สวย",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味・接続",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "งานด่วนเข้า งานนี้เดี๋ยวค่อยกินข้าวเที่ยงกัน",
+  "translation": "急ぎの仕事が入ったから、この仕事は後で昼食にしよう。",
+  "key_word": "กิน",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味・接続",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "วันนี้คุณสวยจังหายโกรธกันนะ",
+  "translation": "今日はとても美しいですね、お互いに怒るのをやめましょう。",
+  "key_word": "สวย",
+  "lang": "ja",
+  "label": "bad",
+  "class": "意味・接続",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "มึงดื้อเหมือนหลานกูเลย นอนพักไปเดี๋ยวแผลก็หาย",
+  "translation": "お前は俺の甥っ子みたいに頑固だな。寝て休めばそのうち傷も治るよ。",
+  "key_word": "หลาน",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "ไม่ว่ามึงจะทำอะไรก็ตาม กูไม่อยากให้มึงมาเสียเวลากับกู",
+  "translation": "お前が何をするにしても、俺のせいで時間を無駄にしてほしくないんだ。",
+  "key_word": "อะไรก็ตาม",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "มึงมีสิทธิเกลียดแมว แต่กูก็มีสิทธิรักพวกมันเหมือนกัน",
+  "translation": "お前には猫を嫌う権利があるけど、俺には同じように猫を愛する権利があるんだ。",
+  "key_word": "สิทธิ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "ใจเย็นๆ ครับ เดี๋ยวผมช่วยดูไซส์ให้",
+  "translation": "落ち着いてください。あとでサイズを確認するのをお手伝いします。",
+  "key_word": "ใจเย็น",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "เมื่อกี้ขอลดราคา ขออีกครั้งได้ไหมคะ",
+  "translation": "さっき値下げをお願いしたけれど、もう一度お願いできますか。",
+  "key_word": "อีกครั้ง",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "สอบเสร็จแล้วครับคืนนี้หลับสบายแน่นอน",
+  "translation": "試験が終わったので、今夜はぐっすり眠れそうです。",
+  "key_word": "สอบ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "หูแก้วใบนั้นเมื่อกี้จับแล้วร้อนมาก",
+  "translation": "さっきそのカップの取っ手を触ったら、すごく熱かったよ。",
+  "key_word": "หู",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "โปรแกรมที่วางไว้ล่มหมดแล้วเพราะเราเดินช้อปปิ้งที่ตลาดนัดเพลินไปหน่อย",
+  "translation": "予定していた計画はナイトマーケットでの買い物が楽しすぎてすべて台無しになった。",
+  "key_word": "โปรแกรม",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "เจ้าของร้านนี้เป็นเทพเรื่องขายของจริงๆ ผมเลยเผลอซื้อมาตั้งสองตัวเลย",
+  "translation": "この店の主人は本当に売るのがうますぎて、思わず2枚も買ってしまった。",
+  "key_word": "เทพ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "มึงอย่าไปคิดมาก ผีแถวนี้ส่วนใหญ่ก็แค่คนหลงทาง",
+  "translation": "考えすぎるなよ。ここの霊のほとんどは、ただの迷い人だ。",
+  "key_word": "ส่วนใหญ่",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "ชีวิตแบบนี้เหมือนตกนรก กูไม่อยากทำต่อแล้ว",
+  "translation": "こんな生活は地獄のようだ。もうこれ以上は続けたくない。",
+  "key_word": "นรก",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "มึงเข้าใจผิดแล้ว กูไม่ใช่พนักงานที่นี่หรอก แค่อยากมาเจอหน้ามึง",
+  "translation": "お前は勘違いしてるよ。俺はここの店員じゃない、ただお前に会いに来ただけだ。",
+  "key_word": "พนักงาน",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "ไซส์นี้ผิด พรุ่งนี้จะเอาไปเปลี่ยน",
+  "translation": "このサイズは間違いだ。明日、交換しに行く。",
+  "key_word": "ผิด",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "สวัสดีตอนเช้าครับ รายงานชิ้นนั้นยังดองไว้อยู่หรือเปล่าครับ",
+  "translation": "おはようございます。その報告書はまだ手つかずのままですか。",
+  "key_word": "ดอง",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "เที่ยงแล้ว ถึงเวลาสมควรที่ต้องไปทานข้าวกันนะ",
+  "translation": "お昼だ、ご飯を食べに行くべき時間になった。",
+  "key_word": "สมควร",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "ทำไมพี่ต้องดูแลมันดีขนาดนี้",
+  "translation": "どうしてピーはそんなにあの人を大切にするの。",
+  "key_word": "พี่",
+  "lang": "ja",
+  "label": "bad",
+  "class": "呼称の音写",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "พี่แกงวันนี้ใจดีมากครับ",
+  "translation": "カン先輩、今日はとても優しいですね。",
+  "key_word": "พี่",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "เจ๊มาวินช่วยดูดวงเรื่องความรักหน่อยได้ไหม",
+  "translation": "マウィンさん、恋愛について占ってくれない？",
+  "key_word": "เจ๊",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "罠 2026-09-26"
+ },
+ {
+  "thai_text": "หวังว่าจะได้ไปคอนเสิร์ตกับพี่",
+  "translation": "พี่と一緒にコンサートに行けるといいな",
+  "key_word": "หวัง",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳にタイ文字",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "พี่ไม่ช่วยเลย",
+  "translation": "兄（姉）が助けてくれなかった。",
+  "key_word": "พี่",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳の括弧補足",
+  "source": "prod 7日 2026-09-26"
+ },
+ {
+  "thai_text": "มึงทำตัวเป็นคุณหนูจริงๆนะ จะจีบมึงทีทำไมยากขนาดนี้",
+  "translation": "お前、本当に箱入り息子みたいだな。口説こうとするのになんでこんなに難しいんだよ。",
+  "key_word": "คุณหนู",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "プール誤検出 2026-09-26"
+ },
+ {
+  "thai_text": "เราพักที่นี่เพราะว่าห้องนี้ดี",
+  "translation": "私たちはここがいいのでここに泊まる。",
+  "key_word": "เพราะว่า",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "プール誤検出 2026-09-26"
+ },
+ {
+  "thai_text": "ตรงนั้นมีอะไรแปลกๆ โฮมลองดูหน่อยสิ",
+  "translation": "そこに何か変なものがある、ホーム、ちょっと見てみて。",
+  "key_word": "ลองดู",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "プール誤検出 2026-09-26"
+ },
+ {
+  "thai_text": "งานนี้เราต้องทำอย่างไร",
+  "translation": "この仕事、どうすればいい？",
+  "key_word": "อย่างไร",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "プール誤検出 2026-09-26"
+ },
+ {
+  "thai_text": "มึงมาอยู่กับกูเถอะ เราจะได้กินข้าวด้วยกันทุกวัน",
+  "translation": "俺と一緒に住もうよ、毎日一緒に食事ができるから。",
+  "key_word": "กินข้าว",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "プール誤検出 2026-09-26"
+ },
+ {
+  "thai_text": "มันเผ็ดมาก",
+  "translation": "それ、とても辛い。",
+  "key_word": "มัน",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "プール誤検出 2026-09-26"
+ },
+ {
+  "thai_text": "กำลังทำการสำรวจห้องอยู่หรอเห็นยืนนิ่งเชียว",
+  "translation": "部屋の調査でもしているの？じっと立っているから。",
+  "key_word": "ทำการ",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "プール誤検出 2026-09-26"
+ },
+ {
+  "thai_text": "มึงปกป้องกูได้ยอดเยี่ยมมากนะ",
+  "translation": "お前が俺を守ってくれたのは本当に最高だ。",
+  "key_word": "ยอดเยี่ยม",
+  "lang": "ja",
+  "label": "bad",
+  "class": "語の高さの混在",
+  "source": "プール 2026-09-26"
+ },
+ {
+  "thai_text": "คุณต้องบินไปทำงานพรุ่งนี้ใช่ไหมครับ",
+  "translation": "明日仕事で飛行機移動ですよね。",
+  "key_word": "บิน",
+  "lang": "ja",
+  "label": "bad",
+  "class": "訳の欠落",
+  "source": "プール 2026-09-26"
+ }
+]
