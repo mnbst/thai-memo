@@ -38,7 +38,7 @@ func TestSentenceAuditLive(t *testing.T) {
 	if len(candidates) == 0 {
 		t.Skip("対象なし")
 	}
-	candidates = sampleCandidates(candidates, maxN)
+	candidates = candidates[:min(len(candidates), maxN)]
 
 	judge, err := newJudge(ctx)
 	if err != nil {
@@ -47,7 +47,7 @@ func TestSentenceAuditLive(t *testing.T) {
 	t.Logf("judge=%s 判定対象=%d件", judge.Model, len(candidates))
 
 	flaggedTotal := 0
-	for _, batch := range chunkCandidates(candidates, auditBatchSize) {
+	for _, batch := range chunkCandidates(candidates, 5) {
 		hits, verdicts, err := judge.JudgeBatch(ctx, batch)
 		if err != nil {
 			t.Errorf("judge 失敗: %v", err)
@@ -119,7 +119,7 @@ func TestSentenceAuditFileLive(t *testing.T) {
 	t.Logf("judge=%s 判定対象=%d件", judge.Model, len(candidates))
 
 	flaggedTotal := 0
-	for _, batch := range chunkCandidates(candidates, auditBatchSize) {
+	for _, batch := range chunkCandidates(candidates, 5) {
 		hits, verdicts, err := judge.JudgeBatch(ctx, batch)
 		if err != nil {
 			t.Errorf("judge 失敗: %v", err)

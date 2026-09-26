@@ -13,7 +13,7 @@ class AppConfig {
 
   /// Database configuration
   static const String databaseName = 'thai_memo.db';
-  static const int databaseVersion = 12;
+  static const int databaseVersion = 13;
 
   /// Background task configuration
   static const Duration backgroundTaskFrequency = Duration(hours: 24);
@@ -54,6 +54,10 @@ class AppConfig {
 
   /// 既存ユーザー向け移行処理の実施済みフラグ（初回導線を出し直さない）。
   static const String prefKeyCoachMarksMigrated = 'coach_marks_migrated';
+
+  /// 端末の学習データの持ち主（最後にサインインしていた uid）。
+  /// サインアウトでは消さず、別アカウントでサインインしたときだけ消すために使う。
+  static const String prefKeyLocalDataOwnerUid = 'local_data_owner_uid';
 
   /// サインイン促進バナーを閉じた日時（epoch ms）
   static const String prefKeySignInReminderDismissedAt =

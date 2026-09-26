@@ -31,8 +31,13 @@ type WordSelector interface {
 
 // CachedSentences は事前生成した例文の出どころ。
 // 実装は FreeBank（free 例文バンク）と CorpusBank（premium の静的コーパス）。
+//
+// strictTopic はユーザーがテーマを指定したとき true。そのテーマの在庫が
+// 無ければ別テーマの文で埋めずに nil を返してよい（LLM がそのテーマで作る）。
 type CachedSentences interface {
-	Pick(ctx context.Context, targetWord string, l lang.Lang, topic string) (*Sentence, error)
+	Pick(
+		ctx context.Context, targetWord string, l lang.Lang, topic string, strictTopic bool,
+	) (*Sentence, error)
 }
 
 // SentenceGenerator は LLM 生成。実装は Service。
@@ -40,6 +45,61 @@ type SentenceGenerator interface {
 	GenerateSentence(
 		ctx context.Context, params map[string]any, isPremium bool,
 		targetWords []string, estimatedVocab int, l lang.Lang,
+	) (*Sentence, error)
+}
+
+// CheckInput は判定1回ぶんの入力。UID・Topic・Tier・Stage は記録用。
+type CheckInput struct {
+	UID      string
+	Sentence *Sentence
+	KeyWord  string
+	Topic    string
+	Tier     string
+	Lang     lang.Lang
+	// Stage は "first"（生成直後）か "retry"（作り直し後）。
+	Stage string
+}
+
+// CheckResult は判定1回ぶんの結果。Notes が空なら合格。
+type CheckResult struct {
+	// Notes は差し戻しプロンプトへ渡す指摘。
+	Notes []string
+	// Reason は閾値を超えた観点と確率（例: "共起 0.62"）。
+	Reason string
+	// Scores は全観点の確率。
+	Scores map[string]float64
+	Model  string
+}
+
+// Passed は合格かどうか。
+func (r CheckResult) Passed() bool { return len(r.Notes) == 0 }
+
+// Checker は LLM 生成直後の品質判定。実装は quality.Judge の包み（qualityChecker）。
+type Checker interface {
+	// Check は判定に失敗したら err を返す。呼び出し側は生成を止めない。
+	Check(ctx context.Context, in CheckInput) (CheckResult, error)
+}
+
+// Quality は保存する文の最終的な判定結果（例文 doc の quality フィールド）。
+// nil は「判定していない／判定に失敗した」で、プールには入れない。
+type Quality struct {
+	Passed bool
+	// Retried は不合格で作り直した文かどうか。Passed はその作り直し後の判定。
+	Retried bool
+	Reason  string
+	Scores  map[string]float64
+	Model   string
+}
+
+func qualityFrom(r CheckResult, retried bool) *Quality {
+	return &Quality{Passed: r.Passed(), Retried: retried, Reason: r.Reason, Scores: r.Scores, Model: r.Model}
+}
+
+// notesGenerator は差し戻しの指摘つきで作り直せる生成器。実装は Service。
+type notesGenerator interface {
+	GenerateSentenceWithNotes(
+		ctx context.Context, params map[string]any, isPremium bool,
+		targetWords []string, estimatedVocab int, l lang.Lang, notes []string,
 	) (*Sentence, error)
 }
 
@@ -56,6 +116,9 @@ type Producer struct {
 	// History は既出例文の取得。nil なら既出を見ない（同じ文が再び出うる）。
 	History History
 	Service SentenceGenerator
+	// Checker は LLM 生成直後の判定。nil、または ProduceRequest.QualityCheck が
+	// 偽なら判定しない。バンク・コーパス由来の文は判定済みなので見ない。
+	Checker Checker
 }
 
 // ProduceRequest は Produce の条件。
@@ -73,6 +136,12 @@ type ProduceRequest struct {
 	// SelectRetry は CacheOnly でキャッシュミスしたときの引き直し回数。
 	SelectRetry int
 	Lang        lang.Lang
+	// QualityCheck が真なら LLM 生成した文を Checker にかけ、不合格なら指摘を
+	// 付けて1回だけ作り直し、作り直した文をもう一度判定する（2026-09-25 の
+	// 実測で作り直し後の合格 7/8）。作り直しても不合格なら作り直した文を使い、
+	// Quality.Passed=false で保存する（プールに入らない）。元の文は不合格と
+	// 分かっているので戻さない。
+	QualityCheck bool
 }
 
 // Produced は Produce の結果。
@@ -83,6 +152,8 @@ type Produced struct {
 	ChosenTopic string
 	// FromCache は free 例文バンク由来かどうか。
 	FromCache bool
+	// Quality は判定結果。判定していなければ nil。
+	Quality *Quality
 }
 
 // Produce は単語選定 → キャッシュ/LLM → generation_tier 付与までを行う
@@ -140,6 +211,10 @@ func (p *Producer) ProduceBatch(
 		bank = p.Corpus
 	}
 	useBank := bank != nil
+	// おまかせのテーマは語に近い上位5テーマからの抽選で、コーパスの
+	// ラベルと一致しないことが多い（9/20〜 実測でヒット率が 75%→46%）。
+	// テーマで在庫を諦めるのはユーザーが指定したときだけにする。
+	strictTopic := strParam(req.Params, "topic") != ""
 
 	// 既出の本文。バンクを引くときだけ要る（LLM 生成は毎回新しい文を作る）。
 	// 読めなくてもバンクは引く。重複の可能性より、配信や生成が落ちるほうが重い。
@@ -185,7 +260,7 @@ func (p *Producer) ProduceBatch(
 		if useBank {
 			missed = missed[:0:0]
 			for _, tw := range fresh {
-				cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic)
+				cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic, strictTopic)
 				if err != nil {
 					return nil, err
 				}
@@ -242,7 +317,7 @@ func (p *Producer) ProduceBatch(
 			return nil, err
 		}
 		for _, tw := range selected {
-			cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic)
+			cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic, strictTopic)
 			if err != nil {
 				return nil, err
 			}
@@ -293,11 +368,16 @@ func (p *Producer) generate(
 				errs[i] = err
 				return
 			}
+			var q *Quality
+			if req.QualityCheck {
+				s, q = p.checkAndRetry(ctx, req, callParams, pk, s)
+			}
 			s.GenerationTier = GenerationTier(req.UsePremiumSpec)
 			produced[i] = &Produced{
 				Sentence:    s,
 				TargetWords: []string{pk.Word},
 				ChosenTopic: pk.Topic,
+				Quality:     q,
 			}
 		}(i, pk)
 	}
@@ -315,4 +395,42 @@ func (p *Producer) generate(
 		}
 	}
 	return out, firstErr
+}
+
+// checkAndRetry は s を判定し、不合格なら指摘つきで1回だけ作り直して判定し直す。
+//
+// 返す Quality が nil なのは、判定器が無い・判定に失敗したとき（プールに入れない）。
+// 作り直しの生成に失敗したら元の文を不合格のまま返す。どの失敗でも生成・配信は止めない。
+func (p *Producer) checkAndRetry(
+	ctx context.Context, req ProduceRequest, params map[string]any, pk TargetWord, s *Sentence,
+) (*Sentence, *Quality) {
+	rg, ok := p.Service.(notesGenerator)
+	if p.Checker == nil || !ok {
+		return s, nil
+	}
+	in := CheckInput{
+		UID: req.UID, Sentence: s, KeyWord: pk.Word, Topic: pk.Topic,
+		Tier: GenerationTier(req.UsePremiumSpec), Lang: req.Lang, Stage: "first",
+	}
+	first, err := p.Checker.Check(ctx, in)
+	if err != nil {
+		log.Printf("produce: quality check failed key_word=%s: %v", pk.Word, err)
+		return s, nil
+	}
+	if first.Passed() {
+		return s, qualityFrom(first, false)
+	}
+	retried, err := rg.GenerateSentenceWithNotes(
+		ctx, params, req.UsePremiumSpec, []string{pk.Word}, req.EstimatedVocab, req.Lang, first.Notes)
+	if err != nil {
+		log.Printf("produce: quality retry failed key_word=%s: %v", pk.Word, err)
+		return s, qualityFrom(first, false)
+	}
+	in.Sentence, in.Stage = retried, "retry"
+	second, err := p.Checker.Check(ctx, in)
+	if err != nil {
+		log.Printf("produce: quality recheck failed key_word=%s: %v", pk.Word, err)
+		return retried, nil
+	}
+	return retried, qualityFrom(second, true)
 }

@@ -116,7 +116,7 @@ func main() {
 	})
 	fmt.Fprintln(os.Stderr)
 
-	first := judge(ctx, svc, recs, func(r *record) *sentence.Sentence { return r.Sentence }, *conc)
+	first := judge(ctx, recs, l, func(r *record) *sentence.Sentence { return r.Sentence }, *conc)
 	for i, notes := range first {
 		recs[i].Notes = notes
 	}
@@ -140,7 +140,7 @@ func main() {
 	})
 	fmt.Fprintln(os.Stderr)
 
-	second := judge(ctx, svc, recs, func(r *record) *sentence.Sentence { return r.Retried }, *conc)
+	second := judge(ctx, recs, l, func(r *record) *sentence.Sentence { return r.Retried }, *conc)
 	for i := range recs {
 		if recs[i].Retried != nil && len(second[i]) == 0 {
 			recs[i].RetryOK = true
@@ -193,7 +193,7 @@ func generate(
 // judge は pick で取り出した文をまとめて判定し、index ごとの指摘を返す。
 // 指摘が空なら合格、pick が nil を返した index も空になる。
 func judge(
-	ctx context.Context, svc *sentence.Service, recs []record,
+	ctx context.Context, recs []record, l lang.Lang,
 	pick func(*record) *sentence.Sentence, conc int,
 ) map[int][]string {
 	var batch []quality.Candidate
@@ -209,6 +209,7 @@ func judge(
 			Pronunciation:       s.Pronunciation,
 			JapaneseTranslation: s.JapaneseTranslation,
 			KeyWord:             recs[i].Word,
+			Lang:                l,
 		})
 		idx = append(idx, i)
 	}
@@ -217,7 +218,11 @@ func judge(
 		return notes
 	}
 
-	j := &quality.Judge{Gen: svc.Gen}
+	j, err := quality.NewJudge(ctx)
+	if err != nil {
+		log.Printf("judge を作れない: %v", err)
+		return notes
+	}
 	var mu sync.Mutex
 	chunks := (len(batch) + judgeBatchSize - 1) / judgeBatchSize
 	parallel(chunks, conc, func(c int) {
@@ -235,7 +240,7 @@ func judge(
 				continue
 			}
 			i := idx[lo+v.Index]
-			notes[i] = append(notes[i], v.Reason)
+			notes[i] = append(notes[i], v.RetryNotes()...)
 		}
 	})
 	fmt.Fprintf(os.Stderr, "judge: %d件中 %d件が不合格\n", len(batch), len(notes))

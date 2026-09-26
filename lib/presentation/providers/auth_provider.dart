@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/config/app_config.dart';
 import '../../core/l10n/l10n_provider.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/daily_sentence_service.dart';
 import '../../services/firebase_auth_service.dart';
 import 'learning_data_reset_provider.dart';
+import 'sentence_provider.dart';
 
 // ==================== Auth State ====================
 
@@ -55,13 +61,26 @@ class AuthController extends StateNotifier<AuthState> {
   final Future<void> Function() _clearLocalData;
   final Future<void> Function(String? uid) _clearUserLocalData;
 
+  /// 端末の学習データが誰のものか（uid）の読み書き。
+  final Future<String?> Function() _readDataOwner;
+  final Future<void> Function(String uid) _writeDataOwner;
+
+  /// 端末を空にした後で、新しいユーザーの例文を Firestore から戻す。
+  final Future<void> Function() _restoreHistory;
+
   AuthController(
     this._authService,
     this._l10n, {
     required Future<void> Function() clearLocalData,
     Future<void> Function(String? uid)? clearUserLocalData,
+    Future<String?> Function()? readDataOwner,
+    Future<void> Function(String uid)? writeDataOwner,
+    Future<void> Function()? restoreHistory,
   })  : _clearLocalData = clearLocalData,
         _clearUserLocalData = clearUserLocalData ?? ((_) async {}),
+        _readDataOwner = readDataOwner ?? (() async => null),
+        _writeDataOwner = writeDataOwner ?? ((_) async {}),
+        _restoreHistory = restoreHistory ?? (() async {}),
         super(AuthState.fromService(_authService));
 
   Future<String?> signInWithGoogle() async {
@@ -147,7 +166,9 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final uid = _authService.currentUser?.uid;
       await _authService.signOut();
-      await _clearUserLocalData(uid);
+      // 端末の履歴は消さない。同じアカウントで戻れば続きから使える。
+      // 別アカウントでサインインしたときに _clearPreviousUserIfChanged で消す。
+      if (uid != null) await _writeDataOwner(uid);
       state = AuthState.fromService(_authService);
       return null;
     } catch (e) {
@@ -156,11 +177,19 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// 端末データの持ち主と違うアカウントになったときだけ端末データを消す。
+  ///
+  /// 持ち主はサインアウト後の匿名ユーザーではなく、最後にサインインしていた
+  /// アカウント。記録が無ければ（旧版から更新した直後）直前の uid で判定する。
   Future<void> _clearPreviousUserIfChanged(String? previousUid) async {
-    if (previousUid == null || _authService.currentUser?.uid == previousUid) {
-      return;
+    final uid = _authService.currentUser?.uid;
+    if (uid == null) return;
+    final owner = await _readDataOwner() ?? previousUid;
+    if (owner != null && owner != uid) {
+      await _clearUserLocalData(owner);
+      unawaited(_restoreHistory());
     }
-    await _clearUserLocalData(previousUid);
+    await _writeDataOwner(uid);
   }
 
   Future<String?> deleteAccount() async {
@@ -188,5 +217,15 @@ final authControllerProvider =
     clearLocalData: () => ref.read(learningDataResetProvider).clearLocal(),
     clearUserLocalData: (uid) =>
         ref.read(learningDataResetProvider).clearUserLocal(uid),
+    readDataOwner: () async => (await SharedPreferences.getInstance())
+        .getString(AppConfig.prefKeyLocalDataOwnerUid),
+    writeDataOwner: (uid) async => (await SharedPreferences.getInstance())
+        .setString(AppConfig.prefKeyLocalDataOwnerUid, uid),
+    restoreHistory: () async {
+      if (await DailySentenceService().restoreHistory() > 0) {
+        ref.invalidate(allSentencesProvider);
+        ref.invalidate(sentenceCountProvider);
+      }
+    },
   );
 });

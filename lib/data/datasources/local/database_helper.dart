@@ -204,6 +204,14 @@ class DatabaseHelper {
             .replaceFirst('CREATE INDEX', 'CREATE INDEX IF NOT EXISTS'),
       );
     }
+
+    // Migrate from version 12 to 13: Add deleted_sentences table
+    if (oldVersion < 13) {
+      await db.execute(
+        DatabaseConstants.createDeletedSentencesTable
+            .replaceFirst('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'),
+      );
+    }
   }
 
   // ==================== Sentences CRUD Operations ====================
@@ -291,19 +299,48 @@ class DatabaseHelper {
   }
 
   /// Delete a sentence (and its word breakdowns due to CASCADE)
+  ///
+  /// 消したIDは残す。Firestore には例文が残るので、取り込みで復活させないため。
   Future<int> deleteSentence(String id) async {
     final db = await database;
-    return await db.delete(
-      DatabaseConstants.tableSentences,
-      where: '${DatabaseConstants.columnSentenceId} = ?',
-      whereArgs: [id],
-    );
+    return await db.transaction((txn) async {
+      await txn.insert(
+        DatabaseConstants.tableDeletedSentences,
+        {DatabaseConstants.columnDeletedSentenceId: id},
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+      return await txn.delete(
+        DatabaseConstants.tableSentences,
+        where: '${DatabaseConstants.columnSentenceId} = ?',
+        whereArgs: [id],
+      );
+    });
   }
 
   /// Delete all sentences (and their word breakdowns due to CASCADE)
   Future<int> deleteAllSentences() async {
     final db = await database;
-    return await db.delete(DatabaseConstants.tableSentences);
+    return await db.transaction((txn) async {
+      await txn.execute(
+        'INSERT OR IGNORE INTO ${DatabaseConstants.tableDeletedSentences} '
+        '(${DatabaseConstants.columnDeletedSentenceId}) '
+        'SELECT ${DatabaseConstants.columnSentenceId} '
+        'FROM ${DatabaseConstants.tableSentences}',
+      );
+      return await txn.delete(DatabaseConstants.tableSentences);
+    });
+  }
+
+  /// ユーザーが消した例文か
+  Future<bool> isSentenceDeleted(String id) async {
+    final db = await database;
+    final rows = await db.query(
+      DatabaseConstants.tableDeletedSentences,
+      where: '${DatabaseConstants.columnDeletedSentenceId} = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
   }
 
   /// Get total sentence count

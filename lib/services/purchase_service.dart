@@ -315,15 +315,14 @@ class PurchaseService {
   /// - iOS: transactionId（App Store Server API で検証に使用）
   /// - Android: purchaseToken（Google Play Developer API で検証に使用）
   Future<void> _verifyAndComplete(PurchaseDetails purchase) async {
-    // 未ログイン時はCloud Functionを呼べない
-    if (!FirebaseAuthService.instance.isAuthenticated) {
-      debugPrint('Verification skipped: user not authenticated');
+    // サーバーは匿名 uid への付与を拒否する。購入操作は先にサインインさせるので、
+    // ここに来るのはサインアウト後にストアが再配信した取引だけ。エラーは出さずに
+    // 保留し、取引も完了しない。サインイン後または次回起動時に再配信・復元される。
+    if (!FirebaseAuthService.instance.isLinkedAccount) {
+      debugPrint('Verification deferred: user not signed in');
       unawaited(
           _analytics?.logPurchaseVerify(ok: false, code: 'unauthenticated') ??
               Future<void>.value());
-      onPurchaseError?.call(l10n().errSignInBeforePurchase);
-      // entitlement を付与できていないので取引を完了しない。サインイン後または
-      // 次回起動時にストアから再配信・復元できる状態を保つ。
       return;
     }
 

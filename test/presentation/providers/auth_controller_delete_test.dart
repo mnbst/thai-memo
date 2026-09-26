@@ -81,10 +81,10 @@ void main() {
     expect(controller.state.isLoading, isFalse);
   });
 
-  test('サインアウト完了後に元ユーザーの端末学習データを消す', () async {
+  test('サインアウトでは端末データを消さず、持ち主を記録する', () async {
     final signedOut = Completer<void>();
-    final cleaned = Completer<void>();
-    String? clearedUid;
+    var cleared = false;
+    String? owner;
     final auth = _Auth()..user = _User('user-1');
     auth.logout = () async {
       await signedOut.future;
@@ -93,23 +93,58 @@ void main() {
     final controller = AuthController(
       auth,
       () => lookupL10n(const Locale('ja')),
-      clearLocalData: () async {},
-      clearUserLocalData: (uid) async {
-        clearedUid = uid;
-        await cleaned.future;
-      },
+      clearLocalData: () async => cleared = true,
+      clearUserLocalData: (_) async => cleared = true,
+      writeDataOwner: (uid) async => owner = uid,
     );
     addTearDown(controller.dispose);
 
     final operation = controller.signOut();
-    expect(clearedUid, isNull);
-    signedOut.complete();
-    await Future<void>.delayed(Duration.zero);
-    expect(clearedUid, 'user-1');
     expect(controller.state.isLoading, isTrue);
-    cleaned.complete();
+    signedOut.complete();
     expect(await operation, isNull);
+    expect(cleared, isFalse);
+    expect(owner, 'user-1');
     expect(controller.state.isLoading, isFalse);
+  });
+
+  group('サインアウト後に匿名から入り直す', () {
+    Future<(String?, bool, String?)> signInAs(String account) async {
+      String? clearedUid;
+      var restored = false;
+      String? owner = 'user-1';
+      final auth = _Auth()..user = _User('anonymous-2');
+      auth.googleLink = () async {
+        auth.user = _User(account);
+        return auth.user;
+      };
+      final controller = AuthController(
+        auth,
+        () => lookupL10n(const Locale('ja')),
+        clearLocalData: () async {},
+        clearUserLocalData: (uid) async => clearedUid = uid,
+        readDataOwner: () async => owner,
+        writeDataOwner: (uid) async => owner = uid,
+        restoreHistory: () async => restored = true,
+      );
+      addTearDown(controller.dispose);
+      expect(await controller.linkWithGoogle(), isNull);
+      return (clearedUid, restored, owner);
+    }
+
+    test('同じアカウントなら端末データを残す', () async {
+      final (clearedUid, restored, owner) = await signInAs('user-1');
+      expect(clearedUid, isNull);
+      expect(restored, isFalse);
+      expect(owner, 'user-1');
+    });
+
+    test('別アカウントなら前の持ち主のデータを消して取り込み直す', () async {
+      final (clearedUid, restored, owner) = await signInAs('user-3');
+      expect(clearedUid, 'user-1');
+      expect(restored, isTrue);
+      expect(owner, 'user-3');
+    });
   });
 
   test('リンクが既存アカウントへの切替になった場合は匿名ユーザーのデータを消す', () async {
