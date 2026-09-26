@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"strings"
 
+	"firebase.google.com/go/v4/appcheck"
 	"firebase.google.com/go/v4/auth"
 )
 
@@ -110,9 +111,22 @@ func (a *Auth) HasClaim(name string) bool {
 type Request struct {
 	Auth *Auth
 	Data json.RawMessage
+	// AppCheck は App Check トークンの検証結果。現状は記録するだけで弾かない。
+	AppCheck AppCheckStatus
 	// Raw は稀に header などが要るハンドラ向け。通常は使わない。
 	Raw *http.Request
 }
+
+// AppCheckStatus は App Check トークンの検証結果。
+type AppCheckStatus string
+
+const (
+	AppCheckValid   AppCheckStatus = "valid"
+	AppCheckInvalid AppCheckStatus = "invalid"
+	AppCheckMissing AppCheckStatus = "missing"
+	// AppCheckUnchecked はトークンはあるが検証クライアントが無く確かめていない。
+	AppCheckUnchecked AppCheckStatus = "unchecked"
+)
 
 // Bind は data を v にデコードする。失敗は INVALID_ARGUMENT。
 func (r *Request) Bind(v any) error {
@@ -143,11 +157,20 @@ type Verifier interface {
 	VerifyIDToken(ctx context.Context, idToken string) (*auth.Token, error)
 }
 
+// AppCheckVerifier は App Check トークンを検証する。テストで差し替えられるようにインタフェース。
+type AppCheckVerifier interface {
+	VerifyToken(token string) (*appcheck.DecodedAppCheckToken, error)
+}
+
 // HTTP は Handler を functions-framework に渡せる http.HandlerFunc にする。
 //
 // verify が nil のときは認証をスキップする（ローカル検証用）。本番では
 // 必ず Firebase Auth クライアントを渡すこと。
-func HTTP(name string, verify Verifier, h Handler) http.HandlerFunc {
+//
+// App Check は検証して結果を記録するだけで、失敗しても弾かない。未対応の旧
+// クライアントが残っている間に弾くと使えなくなるため。appCheck が nil なら
+// 検証しない。
+func HTTP(name string, verify Verifier, appCheck AppCheckVerifier, h Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// CORS: cloud_functions プラグインは Web でのみ preflight を出すが、
 		// 将来 Web 対応する場合に備えて JS SDK と同じ応答をしておく。
@@ -194,6 +217,10 @@ func HTTP(name string, verify Verifier, h Handler) http.HandlerFunc {
 			req.Auth = &Auth{UID: decoded.UID, Token: decoded}
 		}
 
+		req.AppCheck = verifyAppCheck(appCheck, r.Header.Get("X-Firebase-AppCheck"))
+		// 未証明の割合を測るため、全リクエストで結果を残す。
+		log.Printf("%s: appCheck=%s", name, req.AppCheck)
+
 		result, err := h(ctx, req)
 		if err != nil {
 			writeError(w, name, err)
@@ -205,6 +232,19 @@ func HTTP(name string, verify Verifier, h Handler) http.HandlerFunc {
 			log.Printf("%s: レスポンスの書き出しに失敗: %v", name, err)
 		}
 	}
+}
+
+func verifyAppCheck(v AppCheckVerifier, token string) AppCheckStatus {
+	if token == "" {
+		return AppCheckMissing
+	}
+	if v == nil {
+		return AppCheckUnchecked
+	}
+	if _, err := v.VerifyToken(token); err != nil {
+		return AppCheckInvalid
+	}
+	return AppCheckValid
 }
 
 func bearerToken(r *http.Request) string {

@@ -15,6 +15,7 @@
 // =============================================================================
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,6 +98,9 @@ class DailySetController extends StateNotifier<DailySetState> {
   Future<void>? _remoteSyncFuture;
   bool _remoteSyncDirty = false;
   bool _syncPaused = false;
+
+  /// 次のクラウド同期で、読んでいる位置もクラウド側に合わせるか。
+  bool _adoptNextRemote = false;
   Future<void> _operationTail = Future.value();
 
   DailySetProgressStore get _progressStore => _readProgressStore();
@@ -176,7 +180,13 @@ class DailySetController extends StateNotifier<DailySetState> {
   }
 
   /// Firestore の正本を取り込み、別端末で進んだカーソルや待機セットを反映する。
-  Future<void> syncFromCloud() async {
+  ///
+  /// [adopt] が true なら、読んでいるセットと位置もクラウド側（先へ進んだ端末）に
+  /// 合わせ、まとめクイズの途中経過も引き継ぐ。アプリを開いた直後のように、
+  /// 本人がまだ何も操作していないときだけ使う。false のままだと、読んでいる
+  /// 1本は動かさない（読んでいる最中に例文が差し替わらないように）。
+  Future<void> syncFromCloud({bool adopt = false}) async {
+    if (adopt) _adoptNextRemote = true;
     _scheduleRemoteSync();
     await settled;
   }
@@ -416,21 +426,59 @@ class DailySetController extends StateNotifier<DailySetState> {
     // provider の参照と送信状態は await をまたぐ前に取る。通信中に進んだ
     // ローカル状態は、完了後の foreground merge で重ね直す。
     final store = _progressStore;
+    final adopt = _adoptNextRemote;
+    _adoptNextRemote = false;
     final localAtRequest = _snapshot();
     final merged = await store.merge(localAtRequest);
     if (merged == null || !mounted) return;
     // 通信中も advance/start は止めない。反映だけをローカル操作と直列化し、
     // その時点で学習中のセットとカーソルは維持する。
+    var adopted = false;
     await _serialized(() async {
       if (!mounted) return;
       final localNow = _snapshot();
-      final reconciled = mergeDailySetProgressPreservingLocalActive(
-        merged,
-        localNow,
-      );
+      // クラウド側に合わせるのは、通信中にこの端末で何も進めていないときだけ。
+      // 進めていれば、その操作のほうが新しい。
+      adopted = adopt &&
+          jsonEncode(localNow.toJson()) == jsonEncode(localAtRequest.toJson());
+      final reconciled = adopted
+          ? merged
+          : mergeDailySetProgressPreservingLocalActive(merged, localNow);
       await _apply(reconciled);
       if (mounted) await _saveLocal();
     });
+    if (adopted) await _adoptRemoteSummaryQuiz(store);
+  }
+
+  /// 別端末で解きかけたまとめクイズを、この端末のレコードへ取り込む。
+  ///
+  /// 取り込むのは、同じセットの最後の1本にいて、別端末のほうが先まで
+  /// 答えているときだけ。画面をまとめクイズへ切り替えるのは呼び出し側。
+  Future<void> _adoptRemoteSummaryQuiz(DailySetProgressStore store) async {
+    if (!mounted || !state.isLast) return;
+    final remote = await store.fetchSummaryQuiz();
+    if (remote == null || !mounted) return;
+    await _serialized(() async {
+      if (!mounted || !state.isLast || state.setId != remote.setId) return;
+      await _progress.update((current) {
+        if (summaryQuizProgress(remote.quiz) <=
+            summaryQuizProgress(current.summaryQuiz)) {
+          return current;
+        }
+        return current.copyWith(summaryQuiz: remote.quiz);
+      });
+    });
+  }
+
+  /// まとめクイズの途中経過を別端末へ送る。持ち主は進行中のセット。
+  ///
+  /// まとめクイズはセットの最後の1本のあとで解くので、そこにいないときの
+  /// 保存（セットを消化していない自発のまとめクイズ）は送らない。
+  void pushSummaryQuiz(Map<String, dynamic> quiz) {
+    if (_syncPaused || !mounted || !state.isLast) return;
+    final setId = state.setId;
+    if (setId == null) return;
+    unawaited(_progressStore.saveSummaryQuiz(setId, quiz));
   }
 
   Future<void> _saveLocal() async {

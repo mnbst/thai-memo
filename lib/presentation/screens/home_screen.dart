@@ -145,8 +145,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     String? sentenceId,
     bool force = false,
   }) async {
-    final deliveredSets =
-        await _dailySentenceService.syncAll(sentenceId: sentenceId);
+    // 再インストール直後など端末が空なら、自分で生成した例文も戻す。
+    final (deliveredSets, restored) = await (
+      _dailySentenceService.syncAll(sentenceId: sentenceId),
+      _dailySentenceService.restoreHistoryIfEmpty(),
+    ).wait;
+    if (restored > 0 && mounted) ref.invalidate(allSentencesProvider);
     var result = noDelivery;
     for (final delivered in deliveredSets) {
       if (!mounted) break;
@@ -213,6 +217,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return true;
   }
 
+  /// 別端末（iPhone と iPad など）で進んだ位置とまとめクイズを取り込む。
+  ///
+  /// 読んでいる位置まで合わせるのは例文の段にいるときだけ。クイズを解いている
+  /// 最中に裏のセットを動かすと、解き終えたあとの「次へ」が別の1本を指す。
+  /// 例文の差し替えは initState のリスナーが拾う。
+  Future<void> _adoptProgressFromOtherDevices() async {
+    final adopt = _learningKey.currentState?.isOnSentenceStage ?? true;
+    await ref.read(dailySetProvider.notifier).syncFromCloud(adopt: adopt);
+    if (!mounted || !adopt) return;
+    await _learningKey.currentState?.restoreProgress();
+  }
+
   /// 初回ロードと通知タップ処理を直列化する。
   ///
   /// 並行させると sync() が二重に走り、通知経由で表示した配信例文を
@@ -224,6 +240,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       recover: _recoverAfterInitialLoadFailure,
       markCompleted: () => _initialLoadCompleted = true,
     );
+    // 起動時の復元は端末の記録から出す（通信を待たない）。別端末のほうが
+    // 先へ進んでいれば、表示してから追いつかせる。
+    if (_initialLoadCompleted) unawaited(_adoptProgressFromOtherDevices());
 
     await _handleInitialNotificationOpen();
     await _maybeShowPremiumTrialStarted();
@@ -524,9 +543,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (!_initialLoadCompleted) return;
 
     // 別端末で進んだ位置は後ろで取り込む。待たないのは、通信が遅いあいだ
-    // 端末の続きを表示できないほうが困るため。反映は下のリスナーが拾う
-    // （Firestore 側は同一セットの最大位置を正本にするので巻き戻らない）。
-    unawaited(ref.read(dailySetProvider.notifier).syncFromCloud());
+    // 端末の続きを表示できないほうが困るため。
+    unawaited(_adoptProgressFromOtherDevices());
 
     // 生成中ならスキップ
     final currentState = ref.read(sentenceControllerProvider);

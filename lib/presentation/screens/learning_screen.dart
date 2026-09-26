@@ -71,7 +71,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _restoreProgress();
+      restoreProgress();
       ref.listenManual(sentenceControllerProvider, (prev, next) {
         if (prev is SentenceStateLoading &&
             next is SentenceStateSuccess &&
@@ -87,7 +87,10 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
   ///
   /// 段はレコードの進み具合から導出する（まとめクイズの進行が残っていれば
   /// そこへ戻す）。保存された段を読むのではないので、段と中身が食い違わない。
-  Future<void> _restoreProgress() async {
+  ///
+  /// 起動時のほか、別端末の進み具合を取り込んだあとにも呼ばれる（例文を
+  /// 読んでいる段にいるときだけ動く）。
+  Future<void> restoreProgress() async {
     if (_stage != LearningStage.sentence) return;
     // カーソルの復元を待つ。レコードを読むのはその後でよい。
     await ref.read(dailySetProvider.notifier).restored;

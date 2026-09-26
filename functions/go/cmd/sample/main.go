@@ -171,6 +171,7 @@ func retry(
 			Pronunciation:       r.Pronunciation,
 			JapaneseTranslation: r.JapaneseTranslation,
 			KeyWord:             r.Word,
+			Lang:                l,
 		})
 		idx = append(idx, i)
 	}
@@ -178,7 +179,11 @@ func retry(
 		return
 	}
 
-	j := &quality.Judge{Gen: svc.Gen}
+	j, err := quality.NewJudge(ctx)
+	if err != nil {
+		log.Printf("judge を作れない: %v", err)
+		return
+	}
 	flagged, verdicts, err := j.JudgeBatch(ctx, batch)
 	if err != nil {
 		log.Printf("judge に失敗: %v", err)
@@ -193,7 +198,7 @@ func retry(
 	var wg sync.WaitGroup
 	for n, v := range verdicts {
 		i := idx[v.Index]
-		recs[i].Notes = []string{verdicts[n].Reason}
+		recs[i].Notes = verdicts[n].RetryNotes()
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()

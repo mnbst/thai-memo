@@ -141,8 +141,9 @@ func TestDeliverDailySentenceSetLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := after.Data()["remaining_sentences"].(int64); got != 20-int64(len(docs)) {
-		t.Errorf("remaining_sentences = %d, want %d", got, 20-int64(len(docs)))
+	// premium は回数を消費しない（quota.PremiumDailySentences 参照）。
+	if got, _ := after.Data()["remaining_sentences"].(int64); got != 20 {
+		t.Errorf("remaining_sentences = %d, want 20", got)
 	}
 	if after.Data()["daily_sentence_generated"] != true {
 		t.Error("daily_sentence_generated が立っていない")

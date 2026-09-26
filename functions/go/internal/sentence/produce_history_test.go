@@ -170,6 +170,37 @@ func TestProduceCacheOnlyFallsBackToSeenWhenExhausted(t *testing.T) {
 	}
 }
 
+// テーマで在庫を諦めてよいのはユーザーがテーマを指定したときだけ。
+// おまかせ（params に topic が無い）では strictTopic=false で引く。
+func TestProducePassesStrictTopicOnlyWhenSpecified(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		params map[string]any
+		want   bool
+	}{
+		{"指定あり", map[string]any{"topic": "指定"}, true},
+		{"おまかせ", map[string]any{}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			corpus := &stubBank{hits: []bool{true}}
+			p := &Producer{Selector: &stubSelector{}, Corpus: corpus, Service: &stubService{}}
+			if _, err := p.Produce(context.Background(), nil, nil, ProduceRequest{
+				UID:            "uid",
+				Params:         tc.params,
+				UsePremiumSpec: true,
+				EstimatedVocab: 42,
+				SelectRetry:    1,
+				Lang:           lang.JA,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if len(corpus.strict) != 1 || corpus.strict[0] != tc.want {
+				t.Errorf("strictTopic = %v, want [%v]", corpus.strict, tc.want)
+			}
+		})
+	}
+}
+
 // singleBank は text の1本しか持たない。
 type singleBank struct {
 	text  string
@@ -177,7 +208,7 @@ type singleBank struct {
 }
 
 func (b *singleBank) Pick(
-	_ context.Context, w string, _ lang.Lang, _ string,
+	_ context.Context, w string, _ lang.Lang, _ string, _ bool,
 ) (*Sentence, error) {
 	b.calls++
 	return &Sentence{ThaiText: b.text, KeyWord: w}, nil

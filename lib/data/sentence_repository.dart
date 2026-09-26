@@ -140,6 +140,24 @@ class SentenceRepository {
     }
   }
 
+  /// ユーザーが消した例文か（Firestore から取り込み直さない）
+  Future<bool> isSentenceDeleted(String id) async {
+    try {
+      return await _databaseHelper.isSentenceDeleted(id);
+    } catch (e) {
+      throw RepositoryException('Failed to check deleted sentence: $e');
+    }
+  }
+
+  /// 端末に例文が1件も無いか
+  Future<bool> hasNoSentences() async {
+    try {
+      return !await _databaseHelper.hasAnySentence();
+    } catch (e) {
+      throw RepositoryException('Failed to check sentences: $e');
+    }
+  }
+
   /// Get a sentence by ID from the local database
   Future<ThaiSentence?> getSentenceById(String id) async {
     try {

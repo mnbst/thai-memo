@@ -75,7 +75,7 @@ type batchBank struct {
 }
 
 func (b *batchBank) Pick(
-	_ context.Context, w string, l lang.Lang, topic string,
+	_ context.Context, w string, l lang.Lang, topic string, _ bool,
 ) (*Sentence, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

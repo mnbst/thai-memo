@@ -96,6 +96,11 @@ class DatabaseConstants {
   static const String columnProfileRangeSemitone = 'range_semitone';
   static const String columnProfileSampleCount = 'sample_count';
 
+  // ==================== Deleted Sentences Table ====================
+  /// ユーザーが消した例文のID。Firestore からの取り込みで復活させないために残す。
+  static const String tableDeletedSentences = 'deleted_sentences';
+  static const String columnDeletedSentenceId = 'id';
+
   // ==================== SQL Statements ====================
 
   /// Create sentences table
@@ -252,6 +257,13 @@ class DatabaseConstants {
     )
   ''';
 
+  /// Create deleted_sentences table
+  static const String createDeletedSentencesTable = '''
+    CREATE TABLE $tableDeletedSentences (
+      $columnDeletedSentenceId TEXT PRIMARY KEY
+    )
+  ''';
+
   /// List of all create table statements
   static const List<String> createTableStatements = [
     createSentencesTable,
@@ -264,6 +276,7 @@ class DatabaseConstants {
     createPronunciationAttemptsTable,
     createToneStatsTable,
     createSpeakerPitchProfileTable,
+    createDeletedSentencesTable,
   ];
 
   /// List of all create index statements

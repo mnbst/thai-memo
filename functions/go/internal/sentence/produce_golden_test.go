@@ -170,12 +170,15 @@ type pickCall struct {
 type stubBank struct {
 	hits  []bool
 	calls []pickCall
+	// strict は呼ばれるたびの strictTopic。
+	strict []bool
 }
 
 func (b *stubBank) Pick(
-	_ context.Context, targetWord string, l lang.Lang, topic string,
+	_ context.Context, targetWord string, l lang.Lang, topic string, strictTopic bool,
 ) (*Sentence, error) {
 	b.calls = append(b.calls, pickCall{targetWord, l, topic})
+	b.strict = append(b.strict, strictTopic)
 	i := len(b.calls) - 1
 	if i < len(b.hits) && b.hits[i] {
 		s := goldenSentence()

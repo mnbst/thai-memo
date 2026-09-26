@@ -52,7 +52,7 @@ class _Api extends Fake implements BackendApiService {
   }
 }
 
-class _Cloud implements DailySetProgressStore {
+class _Cloud extends DailySetProgressStore {
   @override
   Future<DailySetRef?> fetchLatestDeliveredSet() async => null;
 

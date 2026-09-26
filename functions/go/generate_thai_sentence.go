@@ -60,10 +60,8 @@ func generateThaiSentence(ctx context.Context, req *callable.Request) (any, erro
 		"requestedTopic": requestedTopic,
 		// 訳文の言語。旧クライアントは送ってこないので ja に落ちる。
 		"lang": string(l),
-		// App Check は現状 UNENFORCED。Python 版は検証済みトークンの有無を
-		// 記録していたが、Go の callable は App Check を検証しないので、
-		// ここではヘッダの有無だけを見る（未証明の割合はやや低く出る）。
-		"appCheck": req.Raw != nil && req.Raw.Header.Get("X-Firebase-AppCheck") != "",
+		// App Check は検証するが弾かない（callable.HTTP 参照）。
+		"appCheck": req.AppCheck == callable.AppCheckValid,
 	}
 
 	if req.Auth == nil || req.Auth.UID == "" {
@@ -248,6 +246,8 @@ func runGenerateThaiSentence(
 		EstimatedVocab: estimatedVocab,
 		TestedVocab:    intValue(userData["vocab_test_vocab"]),
 		Lang:           l,
+		// LLM 生成分を判定し、不合格なら作り直す（待ち時間 +0.5 秒、作り直し時 +5 秒前後）。
+		QualityCheck: generationQualityCheck(),
 	}, count)
 	if err != nil {
 		return nil, err
@@ -349,6 +349,7 @@ func commitSentences(
 			Lang:           l,
 			FromCache:      p.FromCache,
 			TrackViewed:    trackViewed,
+			Quality:        p.Quality,
 		})
 	}
 
@@ -582,6 +583,8 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 
 	store := embeddings.Default
 	return &sentence.Producer{
+		// 判定器が作れなくても生成は止めない（判定なしで動く）。
+		Checker: newQualityChecker(ctx),
 		Selector: &sentence.TargetWordSelector{
 			Session: &uvm.SessionSelector{Emb: store},
 		},
@@ -633,4 +636,10 @@ func logJSON(data map[string]any) string {
 		return fmt.Sprintf("%v", data)
 	}
 	return string(b)
+}
+
+// generationQualityCheck は通常生成で生成直後の品質判定を行うか。
+// SENTENCE_QUALITY_CHECK=0 で止められる（Jev 障害時・待ち時間が問題になったときの逃げ道）。
+func generationQualityCheck() bool {
+	return envOr("SENTENCE_QUALITY_CHECK", "1") != "0"
 }

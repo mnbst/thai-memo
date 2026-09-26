@@ -13,6 +13,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/appcheck"
 	"firebase.google.com/go/v4/auth"
 	"firebase.google.com/go/v4/messaging"
 )
@@ -29,6 +30,10 @@ var (
 	authOnce sync.Once
 	authCli  *auth.Client
 	authErr  error
+
+	acOnce sync.Once
+	acCli  *appcheck.Client
+	acErr  error
 
 	msgOnce sync.Once
 	msgCli  *messaging.Client
@@ -88,6 +93,22 @@ func Auth(ctx context.Context) (*auth.Client, error) {
 		}
 	})
 	return authCli, authErr
+}
+
+// AppCheck は App Check クライアントを返す。callable の App Check トークン検証に使う。
+func AppCheck(ctx context.Context) (*appcheck.Client, error) {
+	acOnce.Do(func() {
+		a, err := App(ctx)
+		if err != nil {
+			acErr = err
+			return
+		}
+		acCli, acErr = a.AppCheck(ctx)
+		if acErr != nil {
+			acErr = fmt.Errorf("app check クライアントの生成に失敗: %w", acErr)
+		}
+	})
+	return acCli, acErr
 }
 
 // Messaging は FCM クライアントを返す。毎日例文の通知送信に使う。

@@ -58,7 +58,7 @@ service cloud.firestore {
       match /learning_state/{stateId} {
         allow read: if request.auth != null
           && request.auth.uid == userId
-          && stateId == 'daily_sets';
+          && stateId in ['daily_sets', 'summary_quiz'];
         allow create, update: if request.auth != null
           && request.auth.uid == userId
           && stateId == 'daily_sets'
@@ -66,6 +66,14 @@ service cloud.firestore {
             'active', 'active_index', 'active_sentence_id', 'pending',
             'completed_set_ids', 'updated_at'
           ]);
+        // まとめクイズの途中経過。別端末が同じセットの続きから解くため。
+        allow create, update: if request.auth != null
+          && request.auth.uid == userId
+          && stateId == 'summary_quiz'
+          && request.resource.data.keys().hasOnly(['set_id', 'quiz_json', 'updated_at'])
+          && request.resource.data.set_id is string
+          && request.resource.data.quiz_json is string
+          && request.resource.data.quiz_json.size() < 200000;
       }
 
       // UVM (User Vocabulary Model): read only, writes by Cloud Functions only

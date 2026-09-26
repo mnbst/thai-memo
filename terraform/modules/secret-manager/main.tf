@@ -90,6 +90,27 @@ resource "google_secret_manager_secret_iam_member" "gmail_app_password_accessor"
   member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
 }
 
+# TypeSafe Jev API key for the sentence quality judge (dailyBatch の品質監査)
+# 値は terraform 管理外: gcloud secrets versions add typesafe-api-key --data-file=- で手動設定
+resource "google_secret_manager_secret" "typesafe_api_key" {
+  secret_id = "typesafe-api-key"
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+
+  lifecycle {
+    ignore_changes = [labels]
+  }
+}
+
+resource "google_secret_manager_secret_iam_member" "typesafe_api_key_accessor" {
+  secret_id = google_secret_manager_secret.typesafe_api_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.project_number}-compute@developer.gserviceaccount.com"
+}
+
 # --- CI/CD secrets (GitHub Actions 用) ---
 # 値は terraform 管理外: gcloud secrets versions add <name> --data-file=- で手動設定
 
