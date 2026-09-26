@@ -272,7 +272,7 @@ lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
 lib/services/daily_sentence_service.dart
-サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。
+サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。端末が空のとき・アカウント切替時は、自分で生成した例文（直近30日）も取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。
 
 lib/services/daily_set_progress_store.dart
 例文セットの進行位置（DailySetProgressSnapshot）の Firestore 読み書きと、端末間の単調マージ（mergeDailySetProgress）。位置の正本は例文ID（active_sentence_id）で、番号はその並びでの写し。

@@ -145,8 +145,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     String? sentenceId,
     bool force = false,
   }) async {
-    final deliveredSets =
-        await _dailySentenceService.syncAll(sentenceId: sentenceId);
+    // 再インストール直後など端末が空なら、自分で生成した例文も戻す。
+    final (deliveredSets, restored) = await (
+      _dailySentenceService.syncAll(sentenceId: sentenceId),
+      _dailySentenceService.restoreHistoryIfEmpty(),
+    ).wait;
+    if (restored > 0 && mounted) ref.invalidate(allSentencesProvider);
     var result = noDelivery;
     for (final delivered in deliveredSets) {
       if (!mounted) break;

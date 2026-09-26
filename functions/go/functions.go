@@ -61,6 +61,13 @@ func registerCallable(name string, h callable.Handler) {
 				http.StatusInternalServerError)
 			return
 		}
-		callable.HTTP(name, verifier, h).ServeHTTP(w, r)
+		// App Check は記録だけなので、用意できなくても callable は止めない。
+		var appCheck callable.AppCheckVerifier
+		if ac, err := fbapp.AppCheck(r.Context()); err != nil {
+			log.Printf("%s: app check クライアントを用意できない: %v", name, err)
+		} else {
+			appCheck = ac
+		}
+		callable.HTTP(name, verifier, appCheck, h).ServeHTTP(w, r)
 	})
 }

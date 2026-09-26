@@ -60,10 +60,8 @@ func generateThaiSentence(ctx context.Context, req *callable.Request) (any, erro
 		"requestedTopic": requestedTopic,
 		// 訳文の言語。旧クライアントは送ってこないので ja に落ちる。
 		"lang": string(l),
-		// App Check は現状 UNENFORCED。Python 版は検証済みトークンの有無を
-		// 記録していたが、Go の callable は App Check を検証しないので、
-		// ここではヘッダの有無だけを見る（未証明の割合はやや低く出る）。
-		"appCheck": req.Raw != nil && req.Raw.Header.Get("X-Firebase-AppCheck") != "",
+		// App Check は検証するが弾かない（callable.HTTP 参照）。
+		"appCheck": req.AppCheck == callable.AppCheckValid,
 	}
 
 	if req.Auth == nil || req.Auth.UID == "" {

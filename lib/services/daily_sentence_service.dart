@@ -130,6 +130,9 @@ class DailySentenceService {
         if (set != null) return set;
       }
 
+      if (local == null && await _repository.isSentenceDeleted(doc.id)) {
+        return null;
+      }
       final sentence = local ?? toSentence(doc.id, data);
       if (local == null) await _repository.saveSentence(sentence);
       return DailySentenceSet(setId: doc.id, sentences: [sentence]);
@@ -142,6 +145,59 @@ class DailySentenceService {
       return local == null
           ? null
           : DailySentenceSet(setId: sentenceId, sentences: [local]);
+    }
+  }
+
+  static Future<int>? _restoring;
+
+  /// 端末が空のときだけ [restoreHistory] する。再インストール後の起動で使う。
+  Future<int> restoreHistoryIfEmpty() async {
+    try {
+      if (!await _repository.hasNoSentences()) return 0;
+    } catch (e) {
+      debugPrint('DailySentenceService: history check failed: $e');
+      return 0;
+    }
+    return restoreHistory();
+  }
+
+  /// 自分で生成した例文を Firestore から端末へ取り込み、取り込んだ本数を返す。
+  ///
+  /// 配信分（daily: true）は待機列に積む必要があるので [syncAll] に任せる。
+  /// 端末にあるもの・ユーザーが消したものは取り込まない。サーバーの保持期間
+  /// （30日）より古いものは戻らない。
+  Future<int> restoreHistory() =>
+      _restoring ??= _restoreHistory().whenComplete(() => _restoring = null);
+
+  Future<int> _restoreHistory() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return 0;
+    try {
+      final since = DateTime.now().subtract(
+        const Duration(days: _lookbackDays),
+      );
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('sentences')
+          .where('created_at', isGreaterThan: Timestamp.fromDate(since))
+          .get();
+      var imported = 0;
+      for (final doc in snapshot.docs) {
+        try {
+          if (doc.data()['daily'] == true) continue;
+          if (await _repository.sentenceExists(doc.id)) continue;
+          if (await _repository.isSentenceDeleted(doc.id)) continue;
+          await _repository.saveSentence(toSentence(doc.id, doc.data()));
+          imported++;
+        } catch (e) {
+          debugPrint('DailySentenceService: restore failed for ${doc.id}: $e');
+        }
+      }
+      return imported;
+    } catch (e) {
+      debugPrint('DailySentenceService: restore fetch failed: $e');
+      return 0;
     }
   }
 
@@ -189,6 +245,7 @@ class DailySentenceService {
             // Firestore の doc ID をそのままローカルの主キーに使う。
             // 取り込み済みならスキップするので、お気に入り等のローカル状態を壊さない。
             if (await _repository.sentenceExists(doc.id)) continue;
+            if (await _repository.isSentenceDeleted(doc.id)) continue;
 
             final sentence = toSentence(doc.id, doc.data());
             await _repository.saveSentence(sentence);
@@ -236,6 +293,10 @@ class DailySentenceService {
         // お気に入り等の端末固有状態を保つため、取り込み済みならremoteから
         // 作り直したオブジェクトではなくSQLite上の実体を返す。
         final local = await _repository.getSentenceById(member.key);
+        if (local == null &&
+            await _repository.isSentenceDeleted(member.key)) {
+          continue;
+        }
         final sentence = local ?? toSentence(member.key, member.value);
         if (local == null) {
           await _repository.saveSentence(sentence);
