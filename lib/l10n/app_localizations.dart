@@ -1297,12 +1297,6 @@ abstract class L10n {
   /// **'わかった'**
   String get trialStartedStart;
 
-  /// No description provided for @trialStartedSeePlans.
-  ///
-  /// In ja, this message translates to:
-  /// **'プレミアムを見る'**
-  String get trialStartedSeePlans;
-
   /// No description provided for @topicPickerTitle.
   ///
   /// In ja, this message translates to:
@@ -1591,12 +1585,6 @@ abstract class L10n {
   /// **'プレミアムプラン'**
   String get paywallTitle;
 
-  /// No description provided for @paywallTagline.
-  ///
-  /// In ja, this message translates to:
-  /// **'タイ語の世界に飛び込もう。'**
-  String get paywallTagline;
-
   /// No description provided for @paywallSignInRequired.
   ///
   /// In ja, this message translates to:
@@ -1663,6 +1651,12 @@ abstract class L10n {
   /// **'{price} / 年'**
   String paywallPlanYearlyPrice(String price);
 
+  /// 年額カードの割引ラベル。月額12か月ぶんとの差（切り捨て）
+  ///
+  /// In ja, this message translates to:
+  /// **'{percent}%お得'**
+  String paywallPlanYearlySave(int percent);
+
   /// No description provided for @paywallPlanLifetimeTitle.
   ///
   /// In ja, this message translates to:
@@ -1705,6 +1699,36 @@ abstract class L10n {
   /// **'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。'**
   String get paywallLegal;
 
+  /// ストアの無料トライアル（初回特典）の対象者にだけ出すバッジ。特典は1アカウント1回なので事実として書ける。期限を偽る「今だけ」は使わない。
+  ///
+  /// In ja, this message translates to:
+  /// **'初回限定'**
+  String get paywallTrialBadge;
+
+  /// No description provided for @paywallTrialHeadline.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアム{days}日間 無料体験'**
+  String paywallTrialHeadline(int days);
+
+  /// No description provided for @paywallTrialCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'{days}日間 無料で始める'**
+  String paywallTrialCta(int days);
+
+  /// No description provided for @paywallTrialTermsMonthly.
+  ///
+  /// In ja, this message translates to:
+  /// **'{days}日間の無料期間のあと {price} / 月で自動更新。無料期間中に解約すれば料金はかかりません。'**
+  String paywallTrialTermsMonthly(int days, String price);
+
+  /// No description provided for @paywallTrialTermsYearly.
+  ///
+  /// In ja, this message translates to:
+  /// **'{days}日間の無料期間のあと {price} / 年で自動更新。無料期間中に解約すれば料金はかかりません。'**
+  String paywallTrialTermsYearly(int days, String price);
+
   /// No description provided for @paywallRestore.
   ///
   /// In ja, this message translates to:
@@ -1744,20 +1768,8 @@ abstract class L10n {
   /// No description provided for @paywallFeatureTopicPremium.
   ///
   /// In ja, this message translates to:
-  /// **'祭り・寺院の作法・BLドラマなど自分で選べる'**
+  /// **'祭り・寺院の作法・BLドラマなど'**
   String get paywallFeatureTopicPremium;
-
-  /// No description provided for @paywallTrialActive.
-  ///
-  /// In ja, this message translates to:
-  /// **'いまはプレミアム体験中です。期間が終わると、ここは元の内容に戻ります。'**
-  String get paywallTrialActive;
-
-  /// No description provided for @paywallTrialEnded.
-  ///
-  /// In ja, this message translates to:
-  /// **'体験期間中に使えていた機能です。'**
-  String get paywallTrialEnded;
 
   /// No description provided for @onboarding1Title.
   ///

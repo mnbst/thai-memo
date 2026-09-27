@@ -703,9 +703,6 @@ class L10nEn extends L10n {
   String get trialStartedStart => 'Got it';
 
   @override
-  String get trialStartedSeePlans => 'See Premium';
-
-  @override
   String get topicPickerTitle => 'Choose a topic';
 
   @override
@@ -864,9 +861,6 @@ class L10nEn extends L10n {
   String get paywallTitle => 'Premium';
 
   @override
-  String get paywallTagline => 'Dive into the Thai-speaking world.';
-
-  @override
   String get paywallSignInRequired => 'Sign-in required';
 
   @override
@@ -906,6 +900,11 @@ class L10nEn extends L10n {
   }
 
   @override
+  String paywallPlanYearlySave(int percent) {
+    return 'Save $percent%';
+  }
+
+  @override
   String get paywallPlanLifetimeTitle => 'Lifetime';
 
   @override
@@ -927,6 +926,29 @@ class L10nEn extends L10n {
   @override
   String get paywallLegal =>
       'Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.';
+
+  @override
+  String get paywallTrialBadge => 'First-time offer';
+
+  @override
+  String paywallTrialHeadline(int days) {
+    return '$days-day free Premium trial';
+  }
+
+  @override
+  String paywallTrialCta(int days) {
+    return 'Start $days-day free trial';
+  }
+
+  @override
+  String paywallTrialTermsMonthly(int days, String price) {
+    return 'Free for $days days, then $price / month, renewing automatically. Cancel during the trial and you won\'t be charged.';
+  }
+
+  @override
+  String paywallTrialTermsYearly(int days, String price) {
+    return 'Free for $days days, then $price / year, renewing automatically. Cancel during the trial and you won\'t be charged.';
+  }
 
   @override
   String get paywallRestore => 'Restore purchase';
@@ -953,15 +975,7 @@ class L10nEn extends L10n {
 
   @override
   String get paywallFeatureTopicPremium =>
-      'Choose for yourself: festivals, temple etiquette, BL dramas';
-
-  @override
-  String get paywallTrialActive =>
-      'You\'re on the Premium trial right now. When it ends, this goes back to how it was.';
-
-  @override
-  String get paywallTrialEnded =>
-      'These are the features you could use during the trial.';
+      'Festivals, temple etiquette, BL dramas and more';
 
   @override
   String get onboarding1Title =>

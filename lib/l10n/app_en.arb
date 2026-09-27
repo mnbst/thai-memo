@@ -357,7 +357,6 @@
   "trialStartedChangeTopicLabel": "Topic selection",
   "trialStartedChangeTopic": "You can choose the topic of your sentences yourself",
   "trialStartedStart": "Got it",
-  "trialStartedSeePlans": "See Premium",
 
   "topicPickerTitle": "Choose a topic",
   "nextTopicPrefix": "Next topic: ",
@@ -413,7 +412,6 @@
   "commonClose": "Close",
 
   "paywallTitle": "Premium",
-  "paywallTagline": "Dive into the Thai-speaking world.",
   "paywallSignInRequired": "Sign-in required",
   "paywallSignInForPurchase": "Please sign in so your purchase carries over after you change phones.",
   "paywallSignInForRestore": "To restore your purchase, sign in with the account you bought it on.",
@@ -425,6 +423,7 @@
   "paywallPlanYearlyTitle": "Yearly",
   "paywallPlanYearlyNote": "Renews yearly. Cancel anytime.",
   "paywallPlanYearlyPrice": "{price} / year",
+  "paywallPlanYearlySave": "Save {percent}%",
   "paywallPlanLifetimeTitle": "Lifetime",
   "paywallPlanLifetimeNote": "One payment. No renewal.",
   "paywallPurchaseCta": "Start with this plan",
@@ -432,6 +431,11 @@
   "paywallLifetimeNote": "A one-time payment. No renewals.",
   "paywallMonthlyToLifetimeNote": "Buying the lifetime plan does not automatically cancel your current subscription. Cancel it separately in your App Store account settings.",
   "paywallLegal": "Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.",
+  "paywallTrialBadge": "First-time offer",
+  "paywallTrialHeadline": "{days}-day free Premium trial",
+  "paywallTrialCta": "Start {days}-day free trial",
+  "paywallTrialTermsMonthly": "Free for {days} days, then {price} / month, renewing automatically. Cancel during the trial and you won't be charged.",
+  "paywallTrialTermsYearly": "Free for {days} days, then {price} / year, renewing automatically. Cancel during the trial and you won't be charged.",
   "paywallRestore": "Restore purchase",
   "paywallPriceYen": "¥{amount} / month",
   "@paywallPriceYen": {
@@ -455,9 +459,7 @@
   "paywallFeatureQuotaTitle": "Get lots of exposure to good Thai",
   "paywallFeatureQuotaPremium": "Unlimited sentences · no word cap",
   "paywallFeatureTopicTitle": "Choose a topic and get closer to Thai culture",
-  "paywallFeatureTopicPremium": "Choose for yourself: festivals, temple etiquette, BL dramas",
-  "paywallTrialActive": "You're on the Premium trial right now. When it ends, this goes back to how it was.",
-  "paywallTrialEnded": "These are the features you could use during the trial.",
+  "paywallFeatureTopicPremium": "Festivals, temple etiquette, BL dramas and more",
 
   "onboarding1Title": "AI delivers sentences made just for you, every day",
   "onboarding1Body": "Beyond the daily sentence, you can generate more on the spot.\nTap the card to check words and meanings.",

@@ -1,9 +1,9 @@
 /// ペイウォールのプラン選択のテスト
 ///
 /// 検証する仕様:
-/// - 月額と買い切りが両方出て、既定は月額が選ばれている
+/// - 月額と買い切りが両方出て、既定は年額が選ばれている
+/// - 月額を選ぶと、購入は月額商品に向く
 /// - 買い切りを選ぶと、購入は買い切り商品に向く
-/// - 年額を選ぶと、購入は年額商品に向く
 /// - 月額しか引けない環境ではプラン選択を出さない
 /// - 小さい iPhone（SE）でもはみ出さず、購入ボタンが画面内に残る
 library;
@@ -138,26 +138,26 @@ void main() {
     expect(find.text('買い切りプラン').hitTestable(), findsOneWidget);
   });
 
-  testWidgets('既定は月額。そのまま押すと月額を買う', (tester) async {
+  testWidgets('既定は年額。そのまま押すと年額を買う', (tester) async {
     await _pump(tester, purchase: purchase);
 
     await tester.tap(find.text('このプランで始める'));
     // 購入中はボタンが進捗表示に変わって回り続けるので settle させない。
     await tester.pump();
 
-    expect(purchase.lastBought?.id, 'premium_monthly');
+    expect(purchase.lastBought?.id, 'premium_annual');
   });
 
-  testWidgets('年額を選んでから押すと年額を買う', (tester) async {
+  testWidgets('月額を選んでから押すと月額を買う', (tester) async {
     await _pump(tester, purchase: purchase);
 
-    await tester.ensureVisible(find.text('年額プラン'));
-    await tester.tap(find.text('年額プラン'));
+    await tester.ensureVisible(find.text('月額プラン'));
+    await tester.tap(find.text('月額プラン'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('このプランで始める'));
     await tester.pump();
 
-    expect(purchase.lastBought?.id, 'premium_annual');
+    expect(purchase.lastBought?.id, 'premium_monthly');
   });
 
   testWidgets('買い切りを選んでから押すと買い切りを買う', (tester) async {

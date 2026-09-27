@@ -36,6 +36,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
+import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 
 import '../core/config/firebase_config.dart';
 import 'analytics_service.dart';
@@ -63,16 +66,46 @@ const String kProductIdPremiumLifetime =
 /// 選べるプラン。どれも付与される権利は同じ premium で、支払い方だけが違う。
 enum PremiumPlan { monthly, yearly, lifetime }
 
+/// ストアの無料トライアル（月額・年額の初回特典）の日数。
+///
+/// iOS はストアから期間を引けない（in_app_purchase_storekit が SK2 の
+/// introductoryOffer を露出していない）ので、App Store Connect / Play Console の
+/// 設定と手で揃える。
+const storeTrialDays = 7;
+
+/// iOS の無料トライアルが始まる時刻。App Store Connect の Introductory Offer の
+/// startDate（prod: 2026-10-05）に揃える。
+///
+/// StoreKit の判定は「本人が使えるか」だけで、オファーが開始済みかは見ない。
+/// 開始前に「無料」と出すと初回から課金されるので、それまでは出さない。
+/// 地域の 0:00 がどこでも過ぎている UTC 12:00 にしておく。
+/// tester はオファーを即時開始にしてあるので待たない。
+final DateTime? iosStoreTrialStartsAt =
+    String.fromEnvironment('ENV') == 'tester'
+        ? null
+        : DateTime.utc(2026, 10, 5, 12);
+
 /// ペイウォールに出す購入可能な商品。
 ///
 /// yearly はストアに未登録の環境で、lifetime は iOS 以外（Android 未販売）で
 /// null になりうる。
 class PremiumProducts {
-  const PremiumProducts({required this.monthly, this.yearly, this.lifetime});
+  const PremiumProducts({
+    required this.monthly,
+    this.yearly,
+    this.lifetime,
+    this.trials = const {},
+  });
 
   final ProductDetails monthly;
   final ProductDetails? yearly;
   final ProductDetails? lifetime;
+
+  /// 無料トライアルで買える商品。本人がトライアルを使えるプランだけ入る。
+  ///
+  /// iOS は表示用と同じ商品（特典はストアが自動で当てる）。Android は無料期間
+  /// 付きオファーの商品で、価格が「無料」になるので表示には使わない。
+  final Map<PremiumPlan, ProductDetails> trials;
 }
 
 /// 購入状態の変化を通知するコールバック型
@@ -185,11 +218,26 @@ class PurchaseService {
       throw PurchaseProductLoadException(l10n().errProductLoadFailed);
     }
 
+    // Android は1つの商品が基本プランとオファーの数だけ並んで返る。
+    // 価格の表示には基本プラン（offerId が無いもの）を使う。オファーの価格は
+    // 最初の期間の値（無料トライアルなら「無料」）になっている。
     ProductDetails? find(String id) {
+      ProductDetails? first;
       for (final product in response.productDetails) {
-        if (product.id == id) return product;
+        if (product.id != id) continue;
+        if (product is GooglePlayProductDetails &&
+            product.subscriptionIndex != null &&
+            product
+                    .productDetails
+                    .subscriptionOfferDetails![product.subscriptionIndex!]
+                    .offerId !=
+                null) {
+          first ??= product;
+          continue;
+        }
+        return product;
       }
-      return null;
+      return first;
     }
 
     final monthly = find(kProductIdPremiumMonthly);
@@ -205,11 +253,61 @@ class PurchaseService {
       debugPrint('Lifetime product not found: $kProductIdPremiumLifetime');
     }
 
+    final yearly = find(kProductIdPremiumYearly);
+    final trials = <PremiumPlan, ProductDetails>{};
+    for (final (plan, product) in [
+      (PremiumPlan.monthly, monthly),
+      (PremiumPlan.yearly, yearly),
+    ]) {
+      if (product == null) continue;
+      final trial = await _findTrial(product, response.productDetails);
+      if (trial != null) trials[plan] = trial;
+    }
+
     return PremiumProducts(
       monthly: monthly,
-      yearly: find(kProductIdPremiumYearly),
+      yearly: yearly,
       lifetime: find(kProductIdPremiumLifetime),
+      trials: trials,
     );
+  }
+
+  /// [product] を無料トライアルで買うための商品。使えなければ null。
+  ///
+  /// iOS: 初回特典は購読グループで1回きり。対象かどうかだけを StoreKit 2 に聞く。
+  /// Android: Play は本人が使えるオファーしか返さないので、無料の期間を持つ
+  /// オファーがあればそれが対象。
+  /// 判定に失敗したら「無料」とは出さない（出して課金されるほうが害が大きい）。
+  Future<ProductDetails?> _findTrial(
+    ProductDetails product,
+    List<ProductDetails> all,
+  ) async {
+    if (product is AppStoreProduct2Details) {
+      final startsAt = iosStoreTrialStartsAt;
+      if (startsAt != null && DateTime.now().isBefore(startsAt)) return null;
+      try {
+        final eligible = await SK2Product.isIntroductoryOfferEligible(
+          product.id,
+        );
+        return eligible ? product : null;
+      } catch (e) {
+        debugPrint('Intro offer eligibility check failed: $e');
+        return null;
+      }
+    }
+    for (final candidate in all) {
+      if (candidate.id != product.id ||
+          candidate is! GooglePlayProductDetails ||
+          candidate.subscriptionIndex == null) {
+        continue;
+      }
+      final offer = candidate.productDetails
+          .subscriptionOfferDetails![candidate.subscriptionIndex!];
+      if (offer.pricingPhases.any((phase) => phase.priceAmountMicros == 0)) {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   /// 購入を開始（OS ネイティブの決済シートを表示）

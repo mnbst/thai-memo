@@ -102,6 +102,8 @@ class _Offer {
     required this.hasChoice,
     required this.plan,
     required this.productLoaded,
+    required this.trial,
+    required this.anyTrial,
   });
 
   /// 購入ボタンを出すか。加入済みで買い替えも無い人には売らない。
@@ -115,12 +117,19 @@ class _Offer {
   /// 選んでいるプランの商品がストアから引けているか。
   final bool productLoaded;
 
+  /// 選んでいるプランを無料トライアルで始められるか。
+  final bool trial;
+
+  /// どれかのプランで無料トライアルを使えるか（「初回限定」を出すか）。
+  final bool anyTrial;
+
   bool get lifetimeChosen => plan == PremiumPlan.lifetime;
 }
 
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
-  /// 既定は月額。最初の負担が軽い方を初期選択にする。
-  PremiumPlan _plan = PremiumPlan.monthly;
+  /// 既定は年額。無料トライアルならどちらも最初は0円なので、割安な方を先に見せる。
+  /// 年額が引けない環境では [_resolveOffer] が月額へ倒す。
+  PremiumPlan _plan = PremiumPlan.yearly;
 
   String get source => widget.source;
 
@@ -148,7 +157,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildHero(context, ref),
+                    _buildHero(context, offer),
                     const SizedBox(height: 20),
                     _buildMainBenefits(context),
                     const SizedBox(height: 20),
@@ -205,9 +214,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final hasChoice = available > 1 && !canChangeMonthlyToLifetime;
     final plan = canChangeMonthlyToLifetime
         ? PremiumPlan.lifetime
-        : hasChoice
+        : hasChoice && subState.productFor(_plan) != null
             ? _plan
             : PremiumPlan.monthly;
+
+    // 買い替え（月額→買い切り）の人にトライアルは無い。
+    final trialForSale = !subState.isPremium && !canChangeMonthlyToLifetime;
 
     return _Offer(
       forSale: !subState.isPremium || canChangeMonthlyToLifetime,
@@ -215,11 +227,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       hasChoice: hasChoice,
       plan: plan,
       productLoaded: subState.productFor(plan) != null,
+      trial: trialForSale && subState.hasTrial(plan),
+      anyTrial: trialForSale && subState.trialProducts.isNotEmpty,
     );
   }
 
   /// 表題。アプリの主役の面と同じ深藍で、ここが特別な画面だと示す。
-  Widget _buildHero(BuildContext context, WidgetRef ref) {
+  Widget _buildHero(BuildContext context, _Offer offer) {
     final l10n = L10n.of(context);
     return Theme(
       data: Theme.of(context).copyWith(colorScheme: AppColors.onIndigo),
@@ -233,41 +247,49 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               borderRadius: BorderRadius.circular(AppConfig.heroBorderRadius),
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (offer.anyTrial) ...[
+                    Center(child: _buildTrialBadge(context)),
+                    const SizedBox(height: 10),
+                  ],
+                  // トライアルを出すときは見出しを1本にする。「プレミアムプラン」と
+                  // 「無料でおためし」を並べると、どちらが主役か分からなくなる。
                   Text(
-                    l10n.paywallTitle,
+                    offer.anyTrial
+                        ? l10n.paywallTrialHeadline(storeTrialDays)
+                        : l10n.paywallTitle,
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: cs.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  // 金の細い罫。例文カードと同じ引き方で揃える。
-                  Container(
-                    height: 1,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.gold, Color(0x00C39A4E)],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    l10n.paywallTagline,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: cs.onSurfaceVariant),
-                  ),
-                  _buildTrialNote(context, ref),
                 ],
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// 「初回限定」。深藍の上で目に入るよう、金の地に濃い文字で置く。
+  Widget _buildTrialBadge(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.gold,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        L10n.of(context).paywallTrialBadge,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.indigo,
+            ),
       ),
     );
   }
@@ -411,6 +433,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               subState.yearlyProduct!.price,
             ),
             selectable: offer.hasChoice,
+            badge: _yearlySavingPercent(subState) == null
+                ? null
+                : L10n.of(context)
+                    .paywallPlanYearlySave(_yearlySavingPercent(subState)!),
           ),
         if (subState.lifetimeProduct != null)
           _buildPlanCard(
@@ -523,18 +549,58 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     // （情緒的なコピーは上部のタイトル・比較表で担う）。
                     offer.canChangeMonthlyToLifetime
                         ? L10n.of(context).paywallChangeToLifetimeCta
-                        : offer.hasChoice
-                            ? L10n.of(context).paywallPurchaseCta
-                            : L10n.of(context).paywallSubscribe,
+                        : offer.trial
+                            ? L10n.of(context).paywallTrialCta(storeTrialDays)
+                            : offer.hasChoice
+                                ? L10n.of(context).paywallPurchaseCta
+                                : L10n.of(context).paywallSubscribe,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: colorScheme.onPrimary,
                         ),
                   ),
           ),
+          // 無料期間のあと何円かかるかをボタンのすぐ下に書く
+          // （App Review Guideline 3.1.2: トライアル後の請求額を明示する）。
+          if (offer.trial && offer.productLoaded)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _trialTerms(context, subState, offer.plan),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  /// 年額を月額12か月ぶんと比べた割引率（%）。比べられない・差が小さいときは null。
+  int? _yearlySavingPercent(SubscriptionState subState) {
+    final monthly = subState.product;
+    final yearly = subState.yearlyProduct;
+    if (monthly == null || yearly == null) return null;
+    if (monthly.currencyCode != yearly.currencyCode) return null;
+    final fullPrice = monthly.rawPrice * 12;
+    if (fullPrice <= 0) return null;
+    // 切り捨てにする。四捨五入で実際より大きく言わない。
+    final percent = ((1 - yearly.rawPrice / fullPrice) * 100).floor();
+    return percent >= 5 ? percent : null;
+  }
+
+  String _trialTerms(
+    BuildContext context,
+    SubscriptionState subState,
+    PremiumPlan plan,
+  ) {
+    final l10n = L10n.of(context);
+    final price = subState.productFor(plan)!.price;
+    return plan == PremiumPlan.yearly
+        ? l10n.paywallTrialTermsYearly(storeTrialDays, price)
+        : l10n.paywallTrialTermsMonthly(storeTrialDays, price);
   }
 
   /// プラン1つぶん。名前・更新の有無・価格をこの並びで固定して、2つを縦に
@@ -546,6 +612,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     required String note,
     required String price,
     required bool selectable,
+    String? badge,
   }) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -584,10 +651,33 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        if (badge != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.gold.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              badge,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.goldInk,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -608,30 +698,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// プレミアム体験に触れる一行。
-  ///
-  /// 体験を持っていないユーザー（期限が無い旧ユーザー）には何も出さない。
-  /// ストアの無料トライアルではないので、価格の近くではなく説明側に置く。
-  Widget _buildTrialNote(BuildContext context, WidgetRef ref) {
-    final expiresAt = ref.watch(premiumTrialExpiresAtProvider).valueOrNull;
-    if (expiresAt == null) return const SizedBox.shrink();
-    final active = DateTime.now().isBefore(expiresAt);
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Text(
-        active
-            ? L10n.of(context).paywallTrialActive
-            : L10n.of(context).paywallTrialEnded,
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: const Color(0xFFD8BE8A)),
-        textAlign: TextAlign.center,
       ),
     );
   }

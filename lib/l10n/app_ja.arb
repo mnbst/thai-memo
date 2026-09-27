@@ -380,7 +380,6 @@
   "trialStartedChangeTopicLabel": "テーマ選択",
   "trialStartedChangeTopic": "例文のテーマを自分で選べます",
   "trialStartedStart": "わかった",
-  "trialStartedSeePlans": "プレミアムを見る",
 
   "topicPickerTitle": "テーマを選択",
   "nextTopicPrefix": "次のテーマ: ",
@@ -439,7 +438,6 @@
   "commonClose": "閉じる",
 
   "paywallTitle": "プレミアムプラン",
-  "paywallTagline": "タイ語の世界に飛び込もう。",
   "paywallSignInRequired": "サインインが必要です",
   "paywallSignInForPurchase": "購入を機種変更後も引き継ぐため、サインインしてください。",
   "paywallSignInForRestore": "購入を復元するには、購入時のアカウントでサインインしてください。",
@@ -467,6 +465,15 @@
       }
     }
   },
+  "paywallPlanYearlySave": "{percent}%お得",
+  "@paywallPlanYearlySave": {
+    "description": "年額カードの割引ラベル。月額12か月ぶんとの差（切り捨て）",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "paywallPlanLifetimeTitle": "買い切りプラン",
   "paywallPlanLifetimeNote": "支払いは1回だけ・更新なし",
   "paywallPurchaseCta": "このプランで始める",
@@ -474,6 +481,48 @@
   "paywallLifetimeNote": "1回きりの支払いです。更新はありません。",
   "paywallMonthlyToLifetimeNote": "買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。",
   "paywallLegal": "サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。",
+  "paywallTrialBadge": "初回限定",
+  "@paywallTrialBadge": {
+    "description": "ストアの無料トライアル（初回特典）の対象者にだけ出すバッジ。特典は1アカウント1回なので事実として書ける。期限を偽る「今だけ」は使わない。"
+  },
+  "paywallTrialHeadline": "プレミアム{days}日間 無料体験",
+  "@paywallTrialHeadline": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallTrialCta": "{days}日間 無料で始める",
+  "@paywallTrialCta": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallTrialTermsMonthly": "{days}日間の無料期間のあと {price} / 月で自動更新。無料期間中に解約すれば料金はかかりません。",
+  "@paywallTrialTermsMonthly": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallTrialTermsYearly": "{days}日間の無料期間のあと {price} / 年で自動更新。無料期間中に解約すれば料金はかかりません。",
+  "@paywallTrialTermsYearly": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
   "paywallRestore": "購入を復元",
   "paywallPriceYen": "¥{amount} / 月",
   "@paywallPriceYen": {
@@ -497,9 +546,7 @@
   "paywallFeatureQuotaTitle": "良質なタイ語に大量に触れられる",
   "paywallFeatureQuotaPremium": "例文は無制限・単語の上限なし",
   "paywallFeatureTopicTitle": "テーマを選んでタイ文化に親しむ",
-  "paywallFeatureTopicPremium": "祭り・寺院の作法・BLドラマなど自分で選べる",
-  "paywallTrialActive": "いまはプレミアム体験中です。期間が終わると、ここは元の内容に戻ります。",
-  "paywallTrialEnded": "体験期間中に使えていた機能です。",
+  "paywallFeatureTopicPremium": "祭り・寺院の作法・BLドラマなど",
 
   "onboarding1Title": "AIがあなた専用の例文を毎日お届け",
   "onboarding1Body": "毎日の例文に加えて、その場で追加生成も。\nカードをタップで単語・意味を確認。",
