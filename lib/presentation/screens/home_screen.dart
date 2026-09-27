@@ -268,43 +268,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await ref.read(sentenceControllerProvider.notifier).loadMostRecent();
   }
 
-  /// 語彙測定を終えたオンボーディング末尾で、プレミアム体験の開始を伝える。
-  ///
-  /// 体験の起点はアカウント作成時なので、案内を出さないと本人は体験中だと
-  /// 気づかないまま終わる。ここだけはプランへの導線も添える。何が使えるのかを
-  /// 知った直後で、見たい人が自分で進める形にしておく（既定は「使ってみる」）。
-  ///
-  /// 一括配布向けの [_maybeShowPremiumTrialStarted] と同じフラグを立てて、
-  /// 同じ案内が二度出ないようにする。
-  Future<void> _showOnboardingTrialStarted() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyPremiumTrialStartedNotified) ?? false) {
-      return;
-    }
-    if (!mounted) return;
-
-    // 体験の入口なので日数は規定値で固定して出す。期限は JST 0:00 に切り上がる
-    // ので残りから数えると「3日間」に見えてしまい、告知した期間と食い違う。
-    const days = premiumTrialDays;
-
-    final analytics = ref.read(analyticsServiceProvider);
-    unawaited(analytics.logPremiumTrialStarted(action: 'shown'));
-
-    final openPaywall = await showPremiumTrialStartedDialog(
-      context,
-      days: days,
-      offerPaywall: true,
-    );
-    unawaited(
-      analytics.logPremiumTrialStarted(
-        action: openPaywall ? 'accepted' : 'dismissed',
-      ),
-    );
-    await prefs.setBool(AppConfig.prefKeyPremiumTrialStartedNotified, true);
-    if (!openPaywall || !mounted) return;
-    await PaywallScreen.show(context, source: 'onboarding_trial_started');
-  }
-
   /// 後から配られたプレミアム体験の開放を、最初の起動で一度だけ知らせる。
   ///
   /// 黙って配ると本人は増えたことに気づかず、終了ダイアログで初めて「失った」と
@@ -648,11 +611,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         );
       }
 
-      // 測り終えた直後に、ここから体験が始まることを伝える。
-      // 新規ユーザーの体験はアカウント作成時から動いているので、黙っていると
-      // 「最初から多かった」としか映らず、終了時に失うものが結び付かない。
+      // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
+      // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
+      // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
       if (mounted) {
-        await _showOnboardingTrialStarted();
+        await PaywallScreen.show(context, source: 'onboarding');
       }
 
       // 生成開始。ここから先は学習画面のローディングで待たせる。

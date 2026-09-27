@@ -128,7 +128,7 @@ lib/presentation/providers/quiz_offer_experiment_provider.dart
 例文→1問確認クイズ導線のvariant定義。v1のA/Bテストはinlineカードで確定済み（全端末inline）。
 
 lib/presentation/providers/subscription_provider.dart
-ティア状態（free/premium）。Firestoreと同期、課金サービス連携。月額・年額・買い切りのどれを買うかは purchase(plan:) で選ぶ。
+ティア状態（free/premium）。Firestoreと同期、課金サービス連携。月額・年額・買い切りのどれを買うかは purchase(plan:) で選ぶ。無料トライアル対象ならトライアル付きで買う。
 
 lib/presentation/providers/settings_provider.dart
 ユーザー設定（初回起動フラグ、テーマ、生成パラメータ、フォント、アプリ言語）。

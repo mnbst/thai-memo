@@ -73,6 +73,9 @@ dependencies:
 
   # In-App Purchase
   in_app_purchase: ^3.2.0
+  # 無料トライアルの判定（iOS: 対象者か / Android: 無料期間付きオファー）に使う。
+  in_app_purchase_android: ^0.4.0+8
+  in_app_purchase_storekit: ^0.4.8+1
   url_launcher: ^6.3.2
 
   # Push Notification (毎日例文の配信)
