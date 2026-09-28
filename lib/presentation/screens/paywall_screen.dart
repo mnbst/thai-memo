@@ -102,8 +102,8 @@ class _Offer {
     required this.hasChoice,
     required this.plan,
     required this.productLoaded,
-    required this.trial,
-    required this.anyTrial,
+    required this.selectedTrial,
+    required this.headlineTrial,
   });
 
   /// 購入ボタンを出すか。加入済みで買い替えも無い人には売らない。
@@ -117,11 +117,15 @@ class _Offer {
   /// 選んでいるプランの商品がストアから引けているか。
   final bool productLoaded;
 
-  /// 選んでいるプランを無料トライアルで始められるか。
-  final bool trial;
+  /// 選んでいるプランの無料トライアル。始められなければ null。
+  final StoreTrial? selectedTrial;
 
-  /// どれかのプランで無料トライアルを使えるか（「初回限定」を出すか）。
-  final bool anyTrial;
+  /// 見出しに出す無料トライアル。どのプランでも使えなければ null
+  /// （「初回限定」も出さない）。
+  final StoreTrial? headlineTrial;
+
+  bool get trial => selectedTrial != null;
+  bool get anyTrial => headlineTrial != null;
 
   bool get lifetimeChosen => plan == PremiumPlan.lifetime;
 }
@@ -227,8 +231,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       hasChoice: hasChoice,
       plan: plan,
       productLoaded: subState.productFor(plan) != null,
-      trial: trialForSale && subState.hasTrial(plan),
-      anyTrial: trialForSale && subState.trialProducts.isNotEmpty,
+      selectedTrial: trialForSale ? subState.trials[plan] : null,
+      // 見出しは選んでいるプランの日数を優先する。月額と年額で期間を
+      // 変えたとき、ボタンと見出しの日数が食い違わないように。
+      headlineTrial: !trialForSale
+          ? null
+          : subState.trials[plan] ?? subState.trials.values.firstOrNull,
     );
   }
 
@@ -259,7 +267,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   // 「無料でおためし」を並べると、どちらが主役か分からなくなる。
                   Text(
                     offer.anyTrial
-                        ? l10n.paywallTrialHeadline(storeTrialDays)
+                        ? l10n.paywallTrialHeadline(offer.headlineTrial!.days)
                         : l10n.paywallTitle,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineMedium?.copyWith(
@@ -550,7 +558,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     offer.canChangeMonthlyToLifetime
                         ? L10n.of(context).paywallChangeToLifetimeCta
                         : offer.trial
-                            ? L10n.of(context).paywallTrialCta(storeTrialDays)
+                            ? L10n.of(context)
+                                .paywallTrialCta(offer.selectedTrial!.days)
                             : offer.hasChoice
                                 ? L10n.of(context).paywallPurchaseCta
                                 : L10n.of(context).paywallSubscribe,
@@ -566,7 +575,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                _trialTerms(context, subState, offer.plan),
+                _trialTerms(context, subState, offer),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
@@ -594,13 +603,14 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   String _trialTerms(
     BuildContext context,
     SubscriptionState subState,
-    PremiumPlan plan,
+    _Offer offer,
   ) {
     final l10n = L10n.of(context);
-    final price = subState.productFor(plan)!.price;
-    return plan == PremiumPlan.yearly
-        ? l10n.paywallTrialTermsYearly(storeTrialDays, price)
-        : l10n.paywallTrialTermsMonthly(storeTrialDays, price);
+    final price = subState.productFor(offer.plan)!.price;
+    final days = offer.selectedTrial!.days;
+    return offer.plan == PremiumPlan.yearly
+        ? l10n.paywallTrialTermsYearly(days, price)
+        : l10n.paywallTrialTermsMonthly(days, price);
   }
 
   /// プラン1つぶん。名前・更新の有無・価格をこの並びで固定して、2つを縦に

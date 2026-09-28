@@ -1258,7 +1258,7 @@
     }
   },
   "vocabTestResultBody": "この結果を出発点に、例文とクイズの難易度を合わせます。使ううちに実際の正誤で少しずつ動きます。",
-  "vocabTestResultFreeCap": "フリープランでは語彙スコアが100までに制限されます。プレミアム体験が終わると、この値も100まで下がります。",
+  "vocabTestResultFreeCap": "フリープランでは語彙スコアが100までに制限されます。プレミアムなら上限なく伸ばせます。",
   "vocabTestResultClose": "閉じる",
   "vocabTestError": "語彙テストを実行できませんでした",
   "vocabTestRetry": "やり直す",

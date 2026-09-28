@@ -4199,7 +4199,7 @@ abstract class L10n {
   /// No description provided for @vocabTestResultFreeCap.
   ///
   /// In ja, this message translates to:
-  /// **'フリープランでは語彙スコアが100までに制限されます。プレミアム体験が終わると、この値も100まで下がります。'**
+  /// **'フリープランでは語彙スコアが100までに制限されます。プレミアムなら上限なく伸ばせます。'**
   String get vocabTestResultFreeCap;
 
   /// No description provided for @vocabTestResultClose.

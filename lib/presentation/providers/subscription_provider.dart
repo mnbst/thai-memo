@@ -65,8 +65,8 @@ class SubscriptionState {
   final ProductDetails? yearlyProduct;
   final ProductDetails? lifetimeProduct;
 
-  /// 無料トライアルで買える商品（[PremiumProducts.trials]）。
-  final Map<PremiumPlan, ProductDetails> trialProducts;
+  /// 無料トライアル（[PremiumProducts.trials]）。
+  final Map<PremiumPlan, StoreTrial> trials;
   final String? errorMessage;
 
   const SubscriptionState({
@@ -75,7 +75,7 @@ class SubscriptionState {
     this.product,
     this.yearlyProduct,
     this.lifetimeProduct,
-    this.trialProducts = const {},
+    this.trials = const {},
     this.errorMessage,
   });
 
@@ -89,7 +89,7 @@ class SubscriptionState {
       };
 
   /// [plan] を無料トライアルで始められるか。
-  bool hasTrial(PremiumPlan plan) => trialProducts.containsKey(plan);
+  bool hasTrial(PremiumPlan plan) => trials.containsKey(plan);
 
   SubscriptionState copyWith({
     UserTier? tier,
@@ -97,7 +97,7 @@ class SubscriptionState {
     ProductDetails? product,
     ProductDetails? yearlyProduct,
     ProductDetails? lifetimeProduct,
-    Map<PremiumPlan, ProductDetails>? trialProducts,
+    Map<PremiumPlan, StoreTrial>? trials,
     String? errorMessage,
   }) {
     return SubscriptionState(
@@ -106,7 +106,7 @@ class SubscriptionState {
       product: product ?? this.product,
       yearlyProduct: yearlyProduct ?? this.yearlyProduct,
       lifetimeProduct: lifetimeProduct ?? this.lifetimeProduct,
-      trialProducts: trialProducts ?? this.trialProducts,
+      trials: trials ?? this.trials,
       errorMessage: errorMessage,
     );
   }
@@ -267,7 +267,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     try {
       await ensureStoreReady();
       // トライアルを使える人にはトライアル付きで売る（Android はオファーが別商品）。
-      final product = state.trialProducts[plan] ?? state.productFor(plan);
+      final product = state.trials[plan]?.product ?? state.productFor(plan);
       if (_purchaseService == null || product == null) {
         state = state.copyWith(
           isLoading: false,
@@ -437,7 +437,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
           product: products.monthly,
           yearlyProduct: products.yearly,
           lifetimeProduct: products.lifetime,
-          trialProducts: products.trials,
+          trials: products.trials,
           errorMessage: null,
         );
       } else {

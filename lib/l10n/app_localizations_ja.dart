@@ -2252,7 +2252,7 @@ class L10nJa extends L10n {
 
   @override
   String get vocabTestResultFreeCap =>
-      'フリープランでは語彙スコアが100までに制限されます。プレミアム体験が終わると、この値も100まで下がります。';
+      'フリープランでは語彙スコアが100までに制限されます。プレミアムなら上限なく伸ばせます。';
 
   @override
   String get vocabTestResultClose => '閉じる';
