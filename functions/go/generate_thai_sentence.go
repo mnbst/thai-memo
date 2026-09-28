@@ -192,6 +192,18 @@ func runGenerateThaiSentence(
 		}
 	}
 
+	// 旧アプリの新規ユーザーにだけ、これまでのプレミアム体験を配る
+	// （legacyTrialGrant のコメント）。
+	if needsLegacyTrial(userData) {
+		granted, err := grantLegacyTrial(ctx, db, userRef, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range granted {
+			userData[k] = v
+		}
+	}
+
 	// 実効プレミアム（課金 premium・体験トライアル・猶予期間・反映待ちの購入）
 	// なら premium ロジック（テーマ選択・premiumプロンプト・語彙上限なし）で出す。
 	// 判定は premium.IsEffectivePremium に集約する。配信（deliverDailySentence）・
@@ -410,19 +422,16 @@ func sentenceCommitUpdate(
 //
 // onUserCreate トリガー（JS）と同じ初期値を使う。merge なので、万一トリガーと
 // 競合しても既存フィールドを壊さない。値は quota パッケージで一元管理。
+//
+// 新規は free で始まる。プレミアム体験はストアの無料トライアルへ移した
+// （1.4.13〜）。旧アプリ向けの体験は初回生成で grantLegacyTrial が配る。
 func ensureUserQuota(
 	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
 ) (map[string]any, error) {
 	initial := map[string]any{
-		// 付与直後はトライアル中なので premium と同じ回数を出す。
-		"remaining_sentences":      quota.PremiumDailySentences,
-		"remaining_quizzes":        quota.PremiumDailyQuizzes,
+		"remaining_sentences":      quota.FreeDailySentences,
+		"remaining_quizzes":        quota.FreeDailyQuizzes,
 		"daily_sentence_generated": false,
-		// 期限はクォータのリセット境界（JST 0:00）に揃える。premium パッケージと同じ規則。
-		"premium_trial_expires_at": time.UnixMilli(
-			premium.TrialExpiresAtMsFrom(time.Now().UnixMilli(), quota.PremiumTrialDays)).UTC(),
-		// 旧クライアント（〜1.3.15）がテーマを消さないための凍結値。減らさない。
-		"premium_trial_remaining": quota.PremiumTrialSentences,
 	}
 	result := initial
 	created := false
@@ -446,6 +455,88 @@ func ensureUserQuota(
 	}
 	if created {
 		log.Printf("Initial quota set (fallback) for user %s", userRef.ID)
+	}
+	return result, nil
+}
+
+// storeTrialAppVersion はストアの無料トライアルへ移った最初の版。
+// これより前の版はオンボーディングの末尾で「プレミアムを2日間おためし」と
+// 案内するので、その人にはサーバーの体験を配らないと案内が嘘になる。
+var storeTrialAppVersion = [3]int{1, 4, 13}
+
+// needsLegacyTrial は旧アプリの新規ユーザーで、まだ体験を配っていないか。
+//
+// 体験はもともと onUserCreate で配っていたが、その時点ではまだ版が分からない
+// （app_version はアプリの起動時に書かれる）。旧アプリはオンボーディングの
+// 直後に必ず例文を生成するので、初回生成で配れば案内と中身が一致する。
+//
+//   - 体験を一度も持っていない（premium_trial_expires_at が無い）
+//   - まだ一度も生成していない（体験導入前からの既存ユーザーを除く）
+//   - 版が 1.4.13 未満か、記録が無い（旧アプリ。書き込みが間に合わなかった
+//     新アプリも含むが、体験が付くだけで害は無い）
+func needsLegacyTrial(userData map[string]any) bool {
+	if _, ok := userData["premium_trial_expires_at"]; ok {
+		return false
+	}
+	if _, ok := userData["first_generated_at"]; ok {
+		return false
+	}
+	version, _ := userData["app_version"].(string)
+	return appVersionBefore(version, storeTrialAppVersion)
+}
+
+// appVersionBefore は version（"1.4.12" 形式）が min より前か。
+// 読めない値は前（旧アプリ）とみなす。
+func appVersionBefore(version string, min [3]int) bool {
+	parts := strings.Split(strings.TrimSpace(version), ".")
+	if len(parts) != 3 {
+		return true
+	}
+	for i, part := range parts {
+		n, err := strconv.Atoi(part)
+		if err != nil {
+			return true
+		}
+		if n != min[i] {
+			return n < min[i]
+		}
+	}
+	return false
+}
+
+// grantLegacyTrial は旧アプリの新規ユーザーにプレミアム体験を配る。
+// 以前 onUserCreate が入れていたのと同じ値。同時に呼ばれても二重に延ばさない。
+func grantLegacyTrial(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef, now time.Time,
+) (map[string]any, error) {
+	grant := map[string]any{
+		// 体験中は premium と同じ回数を出す。
+		"remaining_sentences": quota.PremiumDailySentences,
+		"remaining_quizzes":   quota.PremiumDailyQuizzes,
+		// 期限はクォータのリセット境界（JST 0:00）に揃える。premium パッケージと同じ規則。
+		"premium_trial_expires_at": time.UnixMilli(
+			premium.TrialExpiresAtMsFrom(now.UnixMilli(), quota.PremiumTrialDays)).UTC(),
+		// 旧クライアント（〜1.3.15）がテーマを消さないための凍結値。減らさない。
+		"premium_trial_remaining": quota.PremiumTrialSentences,
+	}
+	result := map[string]any{}
+	err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		result = map[string]any{}
+		snap, err := tx.Get(userRef)
+		if err != nil && !isNotFoundErr(err) {
+			return err
+		}
+		if err == nil && snap.Exists() && !needsLegacyTrial(snap.Data()) {
+			return nil
+		}
+		result = grant
+		return tx.Set(userRef, grant, firestore.MergeAll)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(result) > 0 {
+		log.Printf("Legacy premium trial granted for user %s", userRef.ID)
 	}
 	return result, nil
 }
