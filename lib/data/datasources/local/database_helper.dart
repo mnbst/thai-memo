@@ -68,6 +68,14 @@ class DatabaseHelper {
     return (result.first['e'] as int? ?? 0) == 1;
   }
 
+  Future<bool> hasAnyDeletedSentence() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT EXISTS(SELECT 1 FROM ${DatabaseConstants.tableDeletedSentences}) AS e',
+    );
+    return (result.first['e'] as int? ?? 0) == 1;
+  }
+
   /// Configure database (enable foreign keys)
   Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
@@ -317,6 +325,17 @@ class DatabaseHelper {
     });
   }
 
+  Future<List<String>> getAllSentenceIds() async {
+    final db = await database;
+    final rows = await db.query(
+      DatabaseConstants.tableSentences,
+      columns: [DatabaseConstants.columnSentenceId],
+    );
+    return [
+      for (final row in rows) row[DatabaseConstants.columnSentenceId] as String
+    ];
+  }
+
   /// Delete all sentences (and their word breakdowns due to CASCADE)
   Future<int> deleteAllSentences() async {
     final db = await database;
@@ -545,6 +564,31 @@ class DatabaseHelper {
       },
       where: '${DatabaseConstants.columnStatsId} = ?',
       whereArgs: [1],
+    );
+  }
+
+  /// quiz_stats をサーバーの値で置き換える（端末間共有。QuizStatsSync から呼ぶ）。
+  Future<void> replaceQuizStats({
+    required int totalAnswered,
+    required int totalCorrect,
+    required int currentStreak,
+    required int bestStreak,
+    required String? lastQuizDate,
+  }) async {
+    final db = await database;
+    await db.insert(
+      DatabaseConstants.tableQuizStats,
+      {
+        DatabaseConstants.columnStatsId: 1,
+        DatabaseConstants.columnStatsTotalAnswered: totalAnswered,
+        DatabaseConstants.columnStatsTotalCorrect: totalCorrect,
+        DatabaseConstants.columnStatsCurrentStreak: currentStreak,
+        DatabaseConstants.columnStatsBestStreak: bestStreak,
+        DatabaseConstants.columnStatsLastQuizDate: lastQuizDate,
+        DatabaseConstants.columnStatsUpdatedAt:
+            DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 

@@ -272,7 +272,13 @@ lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
 lib/services/daily_sentence_service.dart
-サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。端末が空のとき・アカウント切替時は、自分で生成した例文（直近30日）も取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。
+users/{uid}/sentences を updated_at の差分同期でローカルSQLiteへ反映する（配信・自分で生成した例文の取り込み、ほかの端末でのお気に入り・削除）。まっさらな端末だけ全件読む。未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。アカウント切替時は自分で生成した例文を取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。
+
+lib/services/sentence_remote_state.dart
+お気に入り・削除を Firestore の例文docへ書き、ほかの端末へ伝える（favorite / deleted / updated_at）。
+
+lib/services/quiz_stats_sync.dart
+クイズ累積統計（総回答数・正解数・連続日数）を learning_state/quiz_stats で端末間共有する。送れないセッションは端末に溜め、旧版で貯めた端末の統計は1回だけ合算する。
 
 lib/services/daily_set_progress_store.dart
 例文セットの進行位置（DailySetProgressSnapshot）の Firestore 読み書きと、端末間の単調マージ（mergeDailySetProgress）。位置の正本は例文ID（active_sentence_id）で、番号はその並びでの写し。
@@ -1081,6 +1087,9 @@ test/presentation/providers/daily_set_provider_test.dart
 
 test/services/daily_set_progress_store_test.dart
 端末間マージ（カーソルの単調性・完了セットの非復活・待機列の統合）のテスト。
+
+test/services/quiz_stats_sync_test.dart
+クイズ累積統計のセッション加算（連続日数・遅れて届いた日付）と端末間の合算のテスト。
 
 test/presentation/screens/today_screen_initial_state_test.dart
 起動直後（読み込み前・読み込み中）にサンプル例文を出さないことのテスト。

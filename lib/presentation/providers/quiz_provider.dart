@@ -27,6 +27,7 @@
 
 import 'dart:async';
 
+import '../../services/quiz_stats_sync.dart';
 import '../../services/pending_operations.dart';
 
 import 'package:flutter/foundation.dart';
@@ -519,8 +520,7 @@ class QuizController extends StateNotifier<QuizState> {
       // 意味当ては同じ例文の語から選択肢を作るので、語の少ない例文では
       // 4件に満たない。択を減らしてでも意味当てで出す（穴埋めにしない）。
       final minChoices = question.isMeaningChoice ? 2 : 4;
-      if (question.choices.length < minChoices ||
-          question.choices.length > 4) {
+      if (question.choices.length < minChoices || question.choices.length > 4) {
         return true;
       }
       if (!_isThaiChoice(question.correctAnswer)) {
@@ -773,6 +773,12 @@ class QuizController extends StateNotifier<QuizState> {
       sessionTotal: s.questions.length,
       quizDate: today,
     );
+    // ほかの端末にも伝える。表示は上の端末側の値で済むので待たない。
+    unawaited(QuizStatsSync.instance.recordSession(QuizSessionDelta(
+      correct: totalCorrect,
+      total: s.questions.length,
+      date: today,
+    )));
 
     final cachedStats = await _db.getCachedQuizStats();
 
@@ -1078,6 +1084,10 @@ final quizControllerProvider =
 /// quiz_statsテーブルから取得した統計データ（総回答数、正答率、連続日数）を提供する。
 /// ホーム画面やサマリー画面の学習進捗表示で使用。
 final quizStatsProvider = FutureProvider<QuizStatsData>((ref) async {
+  // ほかの端末で解いたぶんを取り込む。通信が遅くても端末の値で表示する。
+  await QuizStatsSync.instance
+      .pull()
+      .timeout(const Duration(seconds: 3), onTimeout: () {});
   final row = await DatabaseHelper.instance.getCachedQuizStats();
   return QuizStatsData.fromDatabase(row);
 });

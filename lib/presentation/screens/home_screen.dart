@@ -146,14 +146,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     String? sentenceId,
     bool force = false,
   }) async {
-    // 再インストール直後など端末が空なら、自分で生成した例文も戻す。
-    final (deliveredSets, restored) = await (
-      _dailySentenceService.syncAll(sentenceId: sentenceId),
-      _dailySentenceService.restoreHistoryIfEmpty(),
-    ).wait;
-    if (restored > 0 && mounted) ref.invalidate(allSentencesProvider);
+    // 自分で生成した例文・ほかの端末でのお気に入りと削除もここで反映される。
+    final synced = await _dailySentenceService.syncAll(sentenceId: sentenceId);
+    if (synced.historyChanged && mounted) {
+      ref.invalidate(allSentencesProvider);
+      ref.invalidate(sentenceCountProvider);
+    }
     var result = noDelivery;
-    for (final delivered in deliveredSets) {
+    for (final delivered in synced.sets) {
       if (!mounted) break;
       result = mergeDeliveredOutcome(
         result,

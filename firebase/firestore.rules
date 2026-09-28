@@ -42,11 +42,23 @@ service cloud.firestore {
         // true にできる。まとめクイズが「まだ読んでいない例文」を出さないために
         // 要る。true への変更だけを通すので、既読を取り消して出題を避けることは
         // できない。
+        //
+        // お気に入り（favorite）と削除（deleted）も本人が書ける。ほかの端末へ
+        // 伝えるためのもので、書くときは updated_at を更新時刻にする（差分同期の
+        // カーソル）。削除は取り消せない。
         allow create, delete: if false;
         allow update: if request.auth != null && request.auth.uid == userId
           && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['viewed'])
           && request.resource.data.viewed == true;
+        allow update: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['favorite', 'deleted', 'updated_at'])
+          && request.resource.data.updated_at == request.time
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['favorite'])
+              || request.resource.data.favorite is bool)
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deleted'])
+              || request.resource.data.deleted == true);
       }
 
       match /quiz_answers/{answerId} {
@@ -58,7 +70,7 @@ service cloud.firestore {
       match /learning_state/{stateId} {
         allow read: if request.auth != null
           && request.auth.uid == userId
-          && stateId in ['daily_sets', 'summary_quiz'];
+          && stateId in ['daily_sets', 'summary_quiz', 'quiz_stats'];
         allow create, update: if request.auth != null
           && request.auth.uid == userId
           && stateId == 'daily_sets'
@@ -74,6 +86,20 @@ service cloud.firestore {
           && request.resource.data.set_id is string
           && request.resource.data.quiz_json is string
           && request.resource.data.quiz_json.size() < 200000;
+        // クイズの累積統計（総回答数・正解数・連続日数）。端末間で共有する。
+        allow create, update: if request.auth != null
+          && request.auth.uid == userId
+          && stateId == 'quiz_stats'
+          && request.resource.data.keys().hasOnly([
+            'total_answered', 'total_correct', 'current_streak', 'best_streak',
+            'last_quiz_date', 'updated_at'
+          ])
+          && request.resource.data.total_answered is int
+          && request.resource.data.total_correct is int
+          && request.resource.data.current_streak is int
+          && request.resource.data.best_streak is int
+          && (request.resource.data.last_quiz_date == null
+              || request.resource.data.last_quiz_date is string);
       }
 
       // UVM (User Vocabulary Model): read only, writes by Cloud Functions only
