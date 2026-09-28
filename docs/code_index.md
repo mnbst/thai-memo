@@ -505,7 +505,7 @@ functions/go/subscription_status_live_test.go
 落とす/残すの判定表を実Firestoreで1件ずつ確認する。全体スキャンは走らせない。
 
 functions/go/daily_batch.go
-dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_token・古い例文の掃除、生成例文の品質監査。常にHTTPトリガー。
+dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_tokenの掃除、生成例文の品質監査。常にHTTPトリガー。
 
 functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
@@ -571,7 +571,7 @@ functions/go/deliver_daily_sentence_live_test.go
 dev の実Firestore・実Geminiに対して5本セット配信を通しで確かめる（通知だけ差し替え）。
 
 functions/go/daily_batch_golden_test.go
-resetQuota と duplicateTokenUids をJS実装の出力（golden JSON）と突き合わせる。削除境界の計算も検証。
+resetQuota と duplicateTokenUids をJS実装の出力（golden JSON）と突き合わせる。
 
 functions/go/daily_batch_live_test.go
 dailyBatch のFirestore書き込み部分を実Firestoreで検証。全体実行は行わない（Auth実削除を含むため）。
@@ -1033,7 +1033,7 @@ functions/go/cmd/sample/main.go
 プロンプト改訂の効果を見るサンプル生成CLI。ランク帯から語を散らしテーマを割り当てて生成し、JSONと1行要約を出す。-seed で語を固定でき改訂前後を対照できる。 -fix で judge をかけ、不合格を指摘つきで差し戻して作り直す。
 
 scripts/harvest_sentences.py
-Firestoreの既存例文（users/{uid}/sentences、30日で消える）をsentence_flags除外・thai_text重複排除してbank_out/harvest_{ja,en}.jsonへ吸い出す。静的コーパスの種。
+Firestoreの既存例文（users/{uid}/sentences）をsentence_flags除外・thai_text重複排除してbank_out/harvest_{ja,en}.jsonへ吸い出す。静的コーパスの種。
 
 scripts/word_denylist.json
 静的コーパスのkey_wordから外す語（王室・性的・罵倒・犯罪・固有名詞・ファンタジー・断片・誤記の8分類）。freq_rankが字幕コーパス由来のため。_strip_freq_rank が true の分類は稼働中の freq_rank からも落とす。uvm/excluded.goとは方針が別。

@@ -29,6 +29,20 @@
       ]
     },
     {
+      "collectionGroup": "sentences",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "key_word",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "quiz_queue",
       "queryScope": "COLLECTION",
       "fields": [

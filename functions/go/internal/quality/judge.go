@@ -449,8 +449,8 @@ func FlagID(c Candidate) string {
 
 // FlagDoc は sentence_flags へ書く内容を組み立てる。
 //
-// 例文本文を複製して持つ。users/{uid}/sentences は30日で消える
-// （dailyBatch の cleanOldSentences）ので、参照だけ残すと台帳が空洞になる。
+// 例文本文を複製して持つ。users/{uid}/sentences は退会で
+// なくなるので、参照だけ残すと台帳が空洞になる。
 // scores は閾値未満の観点も含めて残す（閾値を後から動かして数え直せる）。
 func FlagDoc(c Candidate, v Verdict, judgeModel string, judgedAt time.Time) map[string]any {
 	return map[string]any{
