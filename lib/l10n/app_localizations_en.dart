@@ -2418,7 +2418,7 @@ class L10nEn extends L10n {
 
   @override
   String get vocabTestResultFreeCap =>
-      'On the free plan the vocabulary score is capped at 100. When your premium trial ends, this number drops to 100 as well.';
+      'On the free plan the vocabulary score is capped at 100. With Premium it can keep growing.';
 
   @override
   String get vocabTestResultClose => 'Close';

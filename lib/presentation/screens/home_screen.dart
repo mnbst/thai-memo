@@ -22,7 +22,8 @@ import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_lifetime_migration_dialog.dart';
-import '../widgets/premium_trial_ended_dialog.dart';
+// 終了ダイアログを止めている間は使わない（_maybeShowPremiumTrialEnded）。
+// import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
 import 'history_screen.dart';
 import 'interview_screen.dart';
@@ -324,24 +325,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (ref.read(premiumTrialEndedAtProvider).valueOrNull == null) return;
     if (ref.read(effectivePremiumProvider)) return;
 
-    if (ModalRoute.of(context)?.isCurrent != true) return;
-
-    final analytics = ref.read(analyticsServiceProvider);
-    unawaited(analytics.logPremiumTrialEnded(action: 'shown'));
-
-    final openPaywall = await showPremiumTrialEndedDialog(context);
-    unawaited(
-      analytics.logPremiumTrialEnded(
-        action: openPaywall ? 'accepted' : 'dismissed',
-      ),
-    );
+    // 終了ダイアログは止めている。オンボーディング直後のペイウォールを×で
+    // 閉じた直後に重ねて出てしまい、課金の案内が続けて2回になるため。
+    // テーマの巻き戻しは表示と生成を揃えるのに要るので、ダイアログを出さなくても行う。
+    // if (ModalRoute.of(context)?.isCurrent != true) return;
+    //
+    // final analytics = ref.read(analyticsServiceProvider);
+    // unawaited(analytics.logPremiumTrialEnded(action: 'shown'));
+    //
+    // final openPaywall = await showPremiumTrialEndedDialog(context);
+    // unawaited(
+    //   analytics.logPremiumTrialEnded(
+    //     action: openPaywall ? 'accepted' : 'dismissed',
+    //   ),
+    // );
     await prefs.setBool(AppConfig.prefKeyPremiumTrialEndedNotified, true);
     // 体験中に選んだテーマは free では効かない。表示と実際の生成を揃える。
     await ref
         .read(settingsControllerProvider.notifier)
         .setGenerationParam('topic', null);
-    if (!openPaywall || !mounted) return;
-    await PaywallScreen.show(context, source: 'trial_ended');
+    // if (!openPaywall || !mounted) return;
+    // await PaywallScreen.show(context, source: 'trial_ended');
   }
 
   /// 月額を買ってくださった方に、買い切りへの無償移行を案内する。

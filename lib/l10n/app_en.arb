@@ -1165,7 +1165,7 @@
     }
   },
   "vocabTestResultBody": "We use this result as a starting point to match the difficulty of your sentences and quizzes. As you use the app, it shifts little by little based on your actual answers.",
-  "vocabTestResultFreeCap": "On the free plan the vocabulary score is capped at 100. When your premium trial ends, this number drops to 100 as well.",
+  "vocabTestResultFreeCap": "On the free plan the vocabulary score is capped at 100. With Premium it can keep growing.",
   "vocabTestResultClose": "Close",
   "vocabTestError": "Could not run the vocabulary test",
   "vocabTestRetry": "Start over",
