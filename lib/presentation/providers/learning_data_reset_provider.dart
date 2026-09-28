@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/datasources/backend_api_service.dart';
 import '../../data/datasources/local/database_helper.dart';
+import '../../services/quiz_stats_sync.dart';
 import '../../services/firebase_auth_service.dart';
 import '../../services/sentence_view_marker.dart';
 import 'daily_set_provider.dart';
@@ -94,6 +95,8 @@ class LearningDataReset {
     // Firestore表示キャッシュだけを消し、テーマ・言語・通知・案内済み等の
     // アプリ設定は維持する。
     if (uid == null) return;
+    // 送っていないクイズ統計は、消した学習データのぶんなので捨てる。
+    await QuizStatsSync.instance.clear(uid);
     for (final key in prefs.getKeys()) {
       if (key.startsWith('vocab_stats_${uid}_')) await prefs.remove(key);
     }

@@ -272,7 +272,13 @@ lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
 lib/services/daily_sentence_service.dart
-サーバー配信された毎日例文をFirestoreからローカルSQLiteへ取り込み、未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。端末が空のとき・アカウント切替時は、自分で生成した例文（直近30日）も取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。
+users/{uid}/sentences を updated_at の差分同期でローカルSQLiteへ反映する（配信・自分で生成した例文の取り込み、ほかの端末でのお気に入り・削除）。まっさらな端末だけ全件読む。未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。アカウント切替時は自分で生成した例文を取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。
+
+lib/services/sentence_remote_state.dart
+お気に入り・削除を Firestore の例文docへ書き、ほかの端末へ伝える（favorite / deleted / updated_at）。
+
+lib/services/quiz_stats_sync.dart
+クイズ累積統計（総回答数・正解数・連続日数）を learning_state/quiz_stats で端末間共有する。送れないセッションは端末に溜め、旧版で貯めた端末の統計は1回だけ合算する。
 
 lib/services/daily_set_progress_store.dart
 例文セットの進行位置（DailySetProgressSnapshot）の Firestore 読み書きと、端末間の単調マージ（mergeDailySetProgress）。位置の正本は例文ID（active_sentence_id）で、番号はその並びでの写し。
@@ -505,7 +511,7 @@ functions/go/subscription_status_live_test.go
 落とす/残すの判定表を実Firestoreで1件ずつ確認する。全体スキャンは走らせない。
 
 functions/go/daily_batch.go
-dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_token・古い例文の掃除、生成例文の品質監査。常にHTTPトリガー。
+dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_tokenの掃除、生成例文の品質監査。常にHTTPトリガー。
 
 functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
@@ -571,7 +577,7 @@ functions/go/deliver_daily_sentence_live_test.go
 dev の実Firestore・実Geminiに対して5本セット配信を通しで確かめる（通知だけ差し替え）。
 
 functions/go/daily_batch_golden_test.go
-resetQuota と duplicateTokenUids をJS実装の出力（golden JSON）と突き合わせる。削除境界の計算も検証。
+resetQuota と duplicateTokenUids をJS実装の出力（golden JSON）と突き合わせる。
 
 functions/go/daily_batch_live_test.go
 dailyBatch のFirestore書き込み部分を実Firestoreで検証。全体実行は行わない（Auth実削除を含むため）。
@@ -1033,7 +1039,7 @@ functions/go/cmd/sample/main.go
 プロンプト改訂の効果を見るサンプル生成CLI。ランク帯から語を散らしテーマを割り当てて生成し、JSONと1行要約を出す。-seed で語を固定でき改訂前後を対照できる。 -fix で judge をかけ、不合格を指摘つきで差し戻して作り直す。
 
 scripts/harvest_sentences.py
-Firestoreの既存例文（users/{uid}/sentences、30日で消える）をsentence_flags除外・thai_text重複排除してbank_out/harvest_{ja,en}.jsonへ吸い出す。静的コーパスの種。
+Firestoreの既存例文（users/{uid}/sentences）をsentence_flags除外・thai_text重複排除してbank_out/harvest_{ja,en}.jsonへ吸い出す。静的コーパスの種。
 
 scripts/word_denylist.json
 静的コーパスのkey_wordから外す語（王室・性的・罵倒・犯罪・固有名詞・ファンタジー・断片・誤記の8分類）。freq_rankが字幕コーパス由来のため。_strip_freq_rank が true の分類は稼働中の freq_rank からも落とす。uvm/excluded.goとは方針が別。
@@ -1081,6 +1087,9 @@ test/presentation/providers/daily_set_provider_test.dart
 
 test/services/daily_set_progress_store_test.dart
 端末間マージ（カーソルの単調性・完了セットの非復活・待機列の統合）のテスト。
+
+test/services/quiz_stats_sync_test.dart
+クイズ累積統計のセッション加算（連続日数・遅れて届いた日付）と端末間の合算のテスト。
 
 test/presentation/screens/today_screen_initial_state_test.dart
 起動直後（読み込み前・読み込み中）にサンプル例文を出さないことのテスト。

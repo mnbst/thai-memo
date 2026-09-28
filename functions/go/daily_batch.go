@@ -29,7 +29,6 @@ import (
 //  2. 重複 fcm_token の掃除
 //  3. ユーザーごとの日次クォータをリセット
 //  4. UVM の P 値を減衰
-//  5. 30日以上前の古い例文を削除
 //
 // subscriptionStatus と同じく常に HTTP トリガーで、定期実行するかどうかは
 // Cloud Scheduler ジョブ（Terraform 管理）の有無だけで決める。
@@ -67,9 +66,6 @@ const (
 	// 崩れる（uvm.PFloor のコメントを参照）。
 	pDecayMin = uvm.PFloor
 )
-
-// sentenceRetention は例文を保持する期間。これより古いものは削除する。
-const sentenceRetentionDays = 30
 
 func dailyBatchHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -139,15 +135,9 @@ func runDailyBatch(ctx context.Context) error {
 	close(jobs)
 	wg.Wait()
 
-	// 品質監査は古い例文の削除より先に回す。監査対象は直近24時間ぶんなので
-	// 実際には競合しないが、順序に依存させない。
 	if err := runSentenceAudit(ctx, db, users, now); err != nil {
 		// 監査は学習用の記録であって本体処理ではない。落ちてもバッチは通す。
 		log.Printf("runSentenceAudit failed: %v", err)
-	}
-
-	if err := cleanOldSentences(ctx, db, now); err != nil {
-		return err
 	}
 
 	log.Print("dailyBatch completed")
@@ -542,90 +532,4 @@ func floatField(v any) float64 {
 		return float64(n)
 	}
 	return 0
-}
-
-// ---------------------------------------------------------------------------
-// 5. 古い例文の削除
-// ---------------------------------------------------------------------------
-
-// cleanOldSentences は sentenceRetentionDays 日以上前の例文を全ユーザーから削除する。
-func cleanOldSentences(ctx context.Context, db *firestore.Client, now time.Time) error {
-	cutoff := oldSentenceCutoff(now)
-
-	users, err := allUserDocs(ctx, db)
-	if err != nil {
-		return err
-	}
-
-	jobs := make(chan string, dailyBatchConcurrency)
-	var wg sync.WaitGroup
-	var firstErr error
-	var errMu sync.Mutex
-	for range dailyBatchConcurrency {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for uid := range jobs {
-				if err := deleteOldSentencesFor(ctx, db, uid, cutoff); err != nil {
-					errMu.Lock()
-					if firstErr == nil {
-						firstErr = err
-					}
-					errMu.Unlock()
-				}
-			}
-		}()
-	}
-	for _, userDoc := range users {
-		jobs <- userDoc.Ref.ID
-	}
-	close(jobs)
-	wg.Wait()
-	return firstErr
-}
-
-// deleteOldSentencesFor は1ユーザーぶんの古い例文を消す。
-// 全走査と分けておくと、テストから捨て uid だけを対象に呼べる。
-func deleteOldSentencesFor(
-	ctx context.Context, db *firestore.Client, uid string, cutoff time.Time,
-) error {
-	it := db.Collection("users").Doc(uid).Collection("sentences").
-		Where("created_at", "<", cutoff).
-		Documents(ctx)
-	defer it.Stop()
-
-	bw := db.BulkWriter(ctx)
-	var deleted int
-	for {
-		doc, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		if _, err := bw.Delete(doc.Ref); err != nil {
-			return err
-		}
-		deleted++
-	}
-	bw.End()
-
-	if deleted > 0 {
-		log.Printf("cleanOldSentences: uid=%s, deleted %d sentence(s)", uid, deleted)
-	}
-	return nil
-}
-
-// oldSentenceCutoff は削除境界（この時刻より前の created_at を消す）を求める。
-//
-// JS 版は nowJST()（= now + 9h）から30日引き、setHours(0,0,0,0) で「その日の
-// 0:00」に丸めてから 9h 引いて UTC に戻していた。setHours はプロセスのローカル
-// タイムゾーンで効くので、この式が JST 0:00 の境界になるのは実行環境の TZ が
-// UTC のとき（Cloud Functions がそう）だけ。Go 版は UTC 固定で明示的に書く。
-func oldSentenceCutoff(now time.Time) time.Time {
-	jstNow := now.UTC().Add(9 * time.Hour)
-	d := jstNow.AddDate(0, 0, -sentenceRetentionDays)
-	midnight := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.UTC)
-	return midnight.Add(-9 * time.Hour)
 }
