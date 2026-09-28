@@ -40,6 +40,10 @@ type TransactionInfo struct {
 	RevocationDate *int64 `json:"revocationDate"`
 	Type           string `json:"type"`
 	Environment    string `json:"environment"`
+	// IsUpgraded は同じ購読グループの上位プランへ切り替えられた古い取引か。
+	// Apple は切り替え元に revocationDate も付けるが、権利は新しい取引へ
+	// 引き継がれているので、取り消し（返金）と混同してはいけない。
+	IsUpgraded bool `json:"isUpgraded"`
 }
 
 // RenewalInfo は Apple の更新情報（JWS デコード後）。

@@ -164,8 +164,15 @@ func runVerification(
 			return nil, err
 		}
 		if res.ProductID != productID {
-			return nil, fmt.Errorf("App Store product mismatch: requested=%q verified=%q",
-				productID, res.ProductID)
+			// 上位プランへ切り替えた古い取引（月額）を検証すると、判定は最新の
+			// 取引（年額）で行われて商品が変わる。同じ購読の販売中の自動更新
+			// サブスクなら、切り替え先を正として記録する。
+			if lifetime || isLifetimeProduct(res.ProductID) ||
+				!isAllowedSubscriptionProduct(res.ProductID) {
+				return nil, fmt.Errorf("App Store product mismatch: requested=%q verified=%q",
+					productID, res.ProductID)
+			}
+			productID = res.ProductID
 		}
 		if res.OriginalTransactionID == "" {
 			return nil, errors.New("App Store originalTransactionId is empty")

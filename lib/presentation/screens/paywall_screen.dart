@@ -98,7 +98,9 @@ class PaywallScreen extends ConsumerStatefulWidget {
 class _Offer {
   const _Offer({
     required this.forSale,
-    required this.canChangeMonthlyToLifetime,
+    required this.changing,
+    required this.currentPlan,
+    required this.changeTargets,
     required this.hasChoice,
     required this.plan,
     required this.productLoaded,
@@ -106,9 +108,17 @@ class _Offer {
     required this.headlineTrial,
   });
 
-  /// 購入ボタンを出すか。加入済みで買い替えも無い人には売らない。
+  /// 購入ボタンを出すか。加入済みで変更先も無い人には売らない。
   final bool forSale;
-  final bool canChangeMonthlyToLifetime;
+
+  /// 加入中の人のプラン変更か（月額⇄年額、サブスク→買い切り）。
+  final bool changing;
+
+  /// 加入中の自動更新プラン（iOS の月額・年額）。分からなければ null。
+  final PremiumPlan? currentPlan;
+
+  /// 加入中の人が変更できるプラン。
+  final List<PremiumPlan> changeTargets;
   final bool hasChoice;
 
   /// 購入ボタンで買うプラン。
@@ -210,24 +220,47 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         !ref.watch(lifetimeMigrationEligibleProvider) &&
         subState.lifetimeProduct != null;
 
+    // 加入中の自動更新プラン。月額⇄年額は同じ購読グループなので、もう一方を
+    // 買えば Apple が切り替えとして扱う（年額へは即時・月額へは次回更新から）。
+    // Android は Play 側の切り替え処理（ChangeSubscriptionParam）が未対応なので
+    // 出さない。
+    final currentPlan = subState.isPremium &&
+            hasStoreSubscription &&
+            subscription['platform'] == 'ios'
+        ? switch (subscription['product_id']) {
+            kProductIdPremiumMonthly => PremiumPlan.monthly,
+            kProductIdPremiumYearly => PremiumPlan.yearly,
+            _ => null,
+          }
+        : null;
+    final changeTargets = [
+      if (currentPlan != null)
+        for (final plan in [PremiumPlan.monthly, PremiumPlan.yearly])
+          if (plan != currentPlan && subState.productFor(plan) != null) plan,
+      if (canChangeMonthlyToLifetime) PremiumPlan.lifetime,
+    ];
+    final changing = subState.isPremium && changeTargets.isNotEmpty;
+
     // 年額も買い切りも引けない環境では選択肢が1つしか無い。ラジオも
     // 「このプランで」も出さず、これまでの1本道にする。
     final available = PremiumPlan.values
         .where((plan) => subState.productFor(plan) != null)
         .length;
-    final hasChoice = available > 1 && !canChangeMonthlyToLifetime;
-    final plan = canChangeMonthlyToLifetime
-        ? PremiumPlan.lifetime
+    final hasChoice = changing ? changeTargets.length > 1 : available > 1;
+    final plan = changing
+        ? (changeTargets.contains(_plan) ? _plan : changeTargets.first)
         : hasChoice && subState.productFor(_plan) != null
             ? _plan
             : PremiumPlan.monthly;
 
-    // 買い替え（月額→買い切り）の人にトライアルは無い。
-    final trialForSale = !subState.isPremium && !canChangeMonthlyToLifetime;
+    // 加入中の人（プラン変更）にトライアルは無い。
+    final trialForSale = !subState.isPremium;
 
     return _Offer(
-      forSale: !subState.isPremium || canChangeMonthlyToLifetime,
-      canChangeMonthlyToLifetime: canChangeMonthlyToLifetime,
+      forSale: !subState.isPremium || changing,
+      changing: changing,
+      currentPlan: currentPlan,
+      changeTargets: changeTargets,
       hasChoice: hasChoice,
       plan: plan,
       productLoaded: subState.productFor(plan) != null,
@@ -345,37 +378,105 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// 既にプレミアムの場合は「加入中」メッセージのみ表示。
   Widget _buildPlanSection(BuildContext context, WidgetRef ref, _Offer offer) {
     final subState = ref.watch(subscriptionControllerProvider);
-    final colorScheme = Theme.of(context).colorScheme;
 
     if (!offer.forSale) {
       // 加入済みの人には売らない。いま有効だと分かれば足りる。
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.gold.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(AppConfig.buttonBorderRadius),
-          border: Border.all(color: AppColors.gold.withValues(alpha: 0.42)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.workspace_premium_outlined,
-                size: 20, color: AppColors.goldInk),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                L10n.of(context).paywallActive,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF7A5E22),
-                      fontWeight: FontWeight.w700,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-            ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildActiveBadge(context),
+          if (_lifetimeWithRenewingSubscription(ref)) ...[
+            const SizedBox(height: 12),
+            _buildCancelSubscriptionNotice(context),
           ],
-        ),
+        ],
       );
     }
+    return _buildChoosablePlanSection(context, ref, offer, subState);
+  }
+
+  /// 「プレミアムプランに加入中です」。
+  Widget _buildActiveBadge(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.gold.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(AppConfig.buttonBorderRadius),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.42)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.workspace_premium_outlined,
+              size: 20, color: AppColors.goldInk),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              L10n.of(context).paywallActive,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF7A5E22),
+                    fontWeight: FontWeight.w700,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 買い切りを持っているのに、サブスクの自動更新が続いているか（iOS）。
+  ///
+  /// 買い切りはサブスクとは別の商品なので、買ってもサブスクは自動で
+  /// 解約されない。放っておくと両方に課金され続ける。
+  bool _lifetimeWithRenewingSubscription(WidgetRef ref) {
+    final subscription =
+        ref.watch(userDocProvider).valueOrNull?['subscription'];
+    return subscription is Map &&
+        subscription['lifetime'] == true &&
+        subscription['platform'] == 'ios' &&
+        subscription['auto_renewing'] == true &&
+        subscription['status'] == 'active';
+  }
+
+  /// サブスクの解約を促す。Apple の購読管理画面を直接開く。
+  Widget _buildCancelSubscriptionNotice(BuildContext context) {
+    final l10n = L10n.of(context);
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppConfig.buttonBorderRadius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.paywallCancelSubscriptionNote,
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () => launchUrl(
+              Uri.parse(AppConfig.appStoreSubscriptionsUrl),
+              mode: LaunchMode.externalApplication,
+            ),
+            child: Text(l10n.paywallManageSubscriptions),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 売るプランを選ぶ欄（新規購入とプラン変更）。
+  Widget _buildChoosablePlanSection(
+    BuildContext context,
+    WidgetRef ref,
+    _Offer offer,
+    SubscriptionState subState,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     Widget legalLink({
       required String label,
@@ -420,48 +521,60 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         // 商品が引けていない間は月額カードも出さない。価格が空のカードを
         // 残すと「買えない購入項目が並んでいる」状態になり、App Review で
         // Guideline 2.1(b) を取られる。買い切り側と同じ null ガードにする。
-        if (!offer.canChangeMonthlyToLifetime && subState.product != null)
+        if (_showsCard(offer, PremiumPlan.monthly) && subState.product != null)
           _buildPlanCard(
             context,
+            offer: offer,
             plan: PremiumPlan.monthly,
             title: L10n.of(context).paywallPlanMonthlyTitle,
             note: L10n.of(context).paywallPlanMonthlyNote,
             price: L10n.of(context).paywallPlanMonthlyPrice(
               subState.product!.price,
             ),
-            selectable: offer.hasChoice,
           ),
-        if (!offer.canChangeMonthlyToLifetime && subState.yearlyProduct != null)
+        if (_showsCard(offer, PremiumPlan.yearly) &&
+            subState.yearlyProduct != null)
           _buildPlanCard(
             context,
+            offer: offer,
             plan: PremiumPlan.yearly,
             title: L10n.of(context).paywallPlanYearlyTitle,
             note: L10n.of(context).paywallPlanYearlyNote,
             price: L10n.of(context).paywallPlanYearlyPrice(
               subState.yearlyProduct!.price,
             ),
-            selectable: offer.hasChoice,
             badge: _yearlySavingPercent(subState) == null
                 ? null
                 : L10n.of(context)
                     .paywallPlanYearlySave(_yearlySavingPercent(subState)!),
           ),
-        if (subState.lifetimeProduct != null)
+        if (_showsCard(offer, PremiumPlan.lifetime) &&
+            subState.lifetimeProduct != null)
           _buildPlanCard(
             context,
+            offer: offer,
             plan: PremiumPlan.lifetime,
             title: L10n.of(context).paywallPlanLifetimeTitle,
             note: L10n.of(context).paywallPlanLifetimeNote,
             price: subState.lifetimeProduct!.price,
-            selectable: offer.hasChoice,
           ),
         // 買い切りを選んでいる間は、自動更新の開示文ではなくこちらを出す。
         if (offer.lifetimeChosen) ...[
           const SizedBox(height: 6),
           Text(
-            offer.canChangeMonthlyToLifetime
+            offer.changing
                 ? L10n.of(context).paywallMonthlyToLifetimeNote
                 : L10n.of(context).paywallLifetimeNote,
+            style: noteStyle,
+          ),
+        ],
+        // 月額⇄年額はいつ切り替わるかが逆向きで違うので、選んだ向きの分だけ書く。
+        if (offer.changing && !offer.lifetimeChosen) ...[
+          const SizedBox(height: 6),
+          Text(
+            offer.plan == PremiumPlan.yearly
+                ? L10n.of(context).paywallChangeToYearlyNote
+                : L10n.of(context).paywallChangeToMonthlyNote,
             style: noteStyle,
           ),
         ],
@@ -555,8 +668,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 : Text(
                     // 購入を開始するボタンなので、何が起きるか一読で分かる言い方にする
                     // （情緒的なコピーは上部のタイトル・比較表で担う）。
-                    offer.canChangeMonthlyToLifetime
-                        ? L10n.of(context).paywallChangeToLifetimeCta
+                    offer.changing
+                        ? switch (offer.plan) {
+                            PremiumPlan.lifetime =>
+                              L10n.of(context).paywallChangeToLifetimeCta,
+                            PremiumPlan.yearly =>
+                              L10n.of(context).paywallChangeToYearlyCta,
+                            PremiumPlan.monthly =>
+                              L10n.of(context).paywallChangeToMonthlyCta,
+                          }
                         : offer.trial
                             ? L10n.of(context)
                                 .paywallTrialCta(offer.selectedTrial!.days)
@@ -615,18 +735,28 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   /// プラン1つぶん。名前・更新の有無・価格をこの並びで固定して、2つを縦に
   /// 見比べられるようにする。
+  /// プラン変更のときは、今のプランと変更先だけを並べる。
+  bool _showsCard(_Offer offer, PremiumPlan plan) =>
+      !offer.changing ||
+      plan == offer.currentPlan ||
+      offer.changeTargets.contains(plan);
+
   Widget _buildPlanCard(
     BuildContext context, {
+    required _Offer offer,
     required PremiumPlan plan,
     required String title,
     required String note,
     required String price,
-    required bool selectable,
     String? badge,
   }) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final selected = !selectable || _plan == plan;
+    // 今のプランは選べない。並べるのは「どこから変えるのか」を見せるため。
+    final current = offer.changing && plan == offer.currentPlan;
+    final selectable = offer.hasChoice && !current;
+    final selected = !current && plan == offer.plan;
+    if (current) badge = L10n.of(context).paywallPlanCurrent;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

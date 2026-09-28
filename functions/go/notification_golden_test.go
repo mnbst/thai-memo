@@ -147,8 +147,8 @@ func TestAppStoreNotificationUpdatesGolden(t *testing.T) {
 			if len(c.Updates) != 1 {
 				t.Fatalf("JS 側の更新件数が想定外: %d", len(c.Updates))
 			}
-			want := retargetLegacyPremiumQuota(
-				decodeGolden(c.Updates[0].Data).(map[string]any))
+			want := trackSubscriptionProduct(retargetLegacyPremiumQuota(
+				decodeGolden(c.Updates[0].Data).(map[string]any)), notification)
 
 			got := updatesToMap(appStoreUpdates(
 				notification, decision, derefOr(c.CurrentTier, ""), c.Updates[0].UID,
@@ -309,4 +309,18 @@ func boolStr(b bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+// trackSubscriptionProduct は JS 版に無い差分を want に足す。
+//
+// Go 版は premium のまま続く通知で subscription.product_id を書く（月額⇄年額の
+// 切り替えを追うため。appStoreUpdates のコメント）。JS 版は書かないので、
+// その1項目だけを足してから比べる。それ以外の更新内容は JS と一致させたまま。
+func trackSubscriptionProduct(
+	want map[string]any, n *appstore.Notification,
+) map[string]any {
+	if want["tier"] == "premium" && !isLifetimeProduct(n.TransactionInfo.ProductID) {
+		want["subscription.product_id"] = n.TransactionInfo.ProductID
+	}
+	return want
 }

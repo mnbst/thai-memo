@@ -1729,6 +1729,48 @@ abstract class L10n {
   /// **'{days}日間の無料期間のあと {price} / 年で自動更新。無料期間中に解約すれば料金はかかりません。'**
   String paywallTrialTermsYearly(int days, String price);
 
+  /// No description provided for @paywallPlanCurrent.
+  ///
+  /// In ja, this message translates to:
+  /// **'ご利用中'**
+  String get paywallPlanCurrent;
+
+  /// No description provided for @paywallChangeToYearlyCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'年額プランに変更する'**
+  String get paywallChangeToYearlyCta;
+
+  /// No description provided for @paywallChangeToMonthlyCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'月額プランに変更する'**
+  String get paywallChangeToMonthlyCta;
+
+  /// No description provided for @paywallChangeToYearlyNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。'**
+  String get paywallChangeToYearlyNote;
+
+  /// No description provided for @paywallChangeToMonthlyNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。'**
+  String get paywallChangeToMonthlyNote;
+
+  /// No description provided for @paywallCancelSubscriptionNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い切りプランをご購入済みです。サブスクリプションの自動更新が続いているため、解約しないと料金がかかり続けます。'**
+  String get paywallCancelSubscriptionNote;
+
+  /// No description provided for @paywallManageSubscriptions.
+  ///
+  /// In ja, this message translates to:
+  /// **'サブスクリプションを解約する'**
+  String get paywallManageSubscriptions;
+
   /// No description provided for @paywallRestore.
   ///
   /// In ja, this message translates to:

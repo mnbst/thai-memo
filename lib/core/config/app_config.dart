@@ -38,6 +38,10 @@ class AppConfig {
   static const String secureStorageLastGeneration = 'last_generation_timestamp';
 
   /// Legal URLs
+  /// Apple の購読管理画面（解約・プラン変更）。アプリから直接開ける。
+  static const String appStoreSubscriptionsUrl =
+      'https://apps.apple.com/account/subscriptions';
+
   static const String privacyPolicyUrl =
       'https://thai-memo-prod.web.app/privacy-policy.html';
   static const String termsOfServiceUrl =

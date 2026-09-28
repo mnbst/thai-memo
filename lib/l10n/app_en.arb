@@ -436,6 +436,13 @@
   "paywallTrialCta": "Start {days}-day free trial",
   "paywallTrialTermsMonthly": "Free for {days} days, then {price} / month, renewing automatically. Cancel during the trial and you won't be charged.",
   "paywallTrialTermsYearly": "Free for {days} days, then {price} / year, renewing automatically. Cancel during the trial and you won't be charged.",
+  "paywallPlanCurrent": "Current plan",
+  "paywallChangeToYearlyCta": "Switch to yearly",
+  "paywallChangeToMonthlyCta": "Switch to monthly",
+  "paywallChangeToYearlyNote": "You'll switch to the yearly plan right away. Apple refunds the unused part of your monthly plan.",
+  "paywallChangeToMonthlyNote": "You'll switch to the monthly plan when your current yearly plan ends. Until then, you keep the yearly plan.",
+  "paywallCancelSubscriptionNote": "You own the lifetime plan, but your subscription is still set to renew. Cancel it to stop being charged.",
+  "paywallManageSubscriptions": "Cancel subscription",
   "paywallRestore": "Restore purchase",
   "paywallPriceYen": "¥{amount} / month",
   "@paywallPriceYen": {
