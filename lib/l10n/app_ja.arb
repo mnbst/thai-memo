@@ -523,6 +523,13 @@
       }
     }
   },
+  "paywallPlanCurrent": "ご利用中",
+  "paywallChangeToYearlyCta": "年額プランに変更する",
+  "paywallChangeToMonthlyCta": "月額プランに変更する",
+  "paywallChangeToYearlyNote": "すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。",
+  "paywallChangeToMonthlyNote": "今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。",
+  "paywallCancelSubscriptionNote": "買い切りプランをご購入済みです。サブスクリプションの自動更新が続いているため、解約しないと料金がかかり続けます。",
+  "paywallManageSubscriptions": "サブスクリプションを解約する",
   "paywallRestore": "購入を復元",
   "paywallPriceYen": "¥{amount} / 月",
   "@paywallPriceYen": {

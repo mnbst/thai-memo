@@ -196,26 +196,47 @@ void main() {
     expect(find.text('このプランで始める'), findsNothing);
   });
 
-  testWidgets('名簿外の月額加入者は期限切れを待たず買い切りへ変更できる', (tester) async {
-    await _pump(
-      tester,
-      purchase: purchase,
-      isPremium: true,
-      userData: {
+  Map<String, dynamic> subscriber(String productId,
+          {bool lifetime = false, bool eligible = false}) =>
+      {
         'tier': 'premium',
+        if (eligible) 'lifetime_migration_eligible': true,
         'subscription': {
           'platform': 'ios',
-          'product_id': 'premium_monthly',
+          'product_id': productId,
           'status': 'active',
-          'lifetime': false,
+          'auto_renewing': true,
+          'lifetime': lifetime,
         },
-      },
-    );
+      };
+
+  testWidgets('月額加入者は今のプランに印が付き、既定で年額への変更を選ぶ', (tester) async {
+    await _pump(tester,
+        purchase: purchase,
+        isPremium: true,
+        userData: subscriber('premium_monthly'));
 
     expect(find.text('プレミアムプランに加入中です'), findsNothing);
-    expect(find.text('月額プラン'), findsNothing);
-    expect(find.text('年額プラン'), findsNothing);
-    expect(find.text('買い切りプラン'), findsOneWidget);
+    expect(find.text('ご利用中'), findsOneWidget);
+    expect(find.text('年額プランに変更する'), findsOneWidget);
+    expect(find.textContaining('日割りで返金'), findsOneWidget);
+
+    await tester.tap(find.text('年額プランに変更する'));
+    await tester.pump();
+
+    expect(purchase.lastBought?.id, 'premium_annual');
+  });
+
+  testWidgets('名簿外の月額加入者は期限切れを待たず買い切りへ変更できる', (tester) async {
+    await _pump(tester,
+        purchase: purchase,
+        isPremium: true,
+        userData: subscriber('premium_monthly'));
+
+    await tester.ensureVisible(find.text('買い切りプラン'));
+    await tester.tap(find.text('買い切りプラン'));
+    await tester.pumpAndSettle();
+
     expect(find.text('買い切りへ変更する'), findsOneWidget);
     expect(find.textContaining('現在のサブスクリプションは自動では解約されません'), findsOneWidget);
 
@@ -225,26 +246,46 @@ void main() {
     expect(purchase.lastBought?.id, 'premium_lifetime');
   });
 
-  testWidgets('無償移行の名簿内ユーザーには買い切りを販売しない', (tester) async {
-    await _pump(
-      tester,
-      purchase: purchase,
-      isPremium: true,
-      userData: {
-        'tier': 'premium',
-        'lifetime_migration_eligible': true,
-        'subscription': {
-          'platform': 'ios',
-          'product_id': 'premium_monthly',
-          'status': 'active',
-          'lifetime': false,
-        },
-      },
-    );
+  testWidgets('年額加入者は月額へ変更でき、次回更新からだと伝える', (tester) async {
+    await _pump(tester,
+        purchase: purchase,
+        isPremium: true,
+        userData: subscriber('premium_annual'));
+
+    await tester.ensureVisible(find.text('月額プラン'));
+    await tester.tap(find.text('月額プラン'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('月額プランに変更する'), findsOneWidget);
+    expect(find.textContaining('期限が来たら、月額プランへ切り替わります'), findsOneWidget);
+
+    await tester.tap(find.text('月額プランに変更する'));
+    await tester.pump();
+
+    expect(purchase.lastBought?.id, 'premium_monthly');
+  });
+
+  testWidgets('無償移行の名簿内ユーザーには買い切りを販売しない（年額への変更はできる）',
+      (tester) async {
+    await _pump(tester,
+        purchase: purchase,
+        isPremium: true,
+        userData: subscriber('premium_monthly', eligible: true));
+
+    expect(find.text('買い切りプラン'), findsNothing);
+    expect(find.text('買い切りへ変更する'), findsNothing);
+    expect(find.text('年額プランに変更する'), findsOneWidget);
+    expect(purchase.lastBought, isNull);
+  });
+
+  testWidgets('買い切りを持っていてサブスクの自動更新が続いていれば解約を促す', (tester) async {
+    await _pump(tester,
+        purchase: purchase,
+        isPremium: true,
+        userData: subscriber('premium_monthly', lifetime: true));
 
     expect(find.text('プレミアムプランに加入中です'), findsOneWidget);
-    expect(find.text('買い切りへ変更する'), findsNothing);
-    expect(purchase.lastBought, isNull);
+    expect(find.text('サブスクリプションを解約する'), findsOneWidget);
   });
 
   testWidgets('買い切り所有者には再購入を出さない', (tester) async {

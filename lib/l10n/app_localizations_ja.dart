@@ -890,6 +890,30 @@ class L10nJa extends L10n {
   }
 
   @override
+  String get paywallPlanCurrent => 'ご利用中';
+
+  @override
+  String get paywallChangeToYearlyCta => '年額プランに変更する';
+
+  @override
+  String get paywallChangeToMonthlyCta => '月額プランに変更する';
+
+  @override
+  String get paywallChangeToYearlyNote =>
+      'すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。';
+
+  @override
+  String get paywallChangeToMonthlyNote =>
+      '今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。';
+
+  @override
+  String get paywallCancelSubscriptionNote =>
+      '買い切りプランをご購入済みです。サブスクリプションの自動更新が続いているため、解約しないと料金がかかり続けます。';
+
+  @override
+  String get paywallManageSubscriptions => 'サブスクリプションを解約する';
+
+  @override
   String get paywallRestore => '購入を復元';
 
   @override

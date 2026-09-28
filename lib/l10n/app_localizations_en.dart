@@ -951,6 +951,30 @@ class L10nEn extends L10n {
   }
 
   @override
+  String get paywallPlanCurrent => 'Current plan';
+
+  @override
+  String get paywallChangeToYearlyCta => 'Switch to yearly';
+
+  @override
+  String get paywallChangeToMonthlyCta => 'Switch to monthly';
+
+  @override
+  String get paywallChangeToYearlyNote =>
+      'You\'ll switch to the yearly plan right away. Apple refunds the unused part of your monthly plan.';
+
+  @override
+  String get paywallChangeToMonthlyNote =>
+      'You\'ll switch to the monthly plan when your current yearly plan ends. Until then, you keep the yearly plan.';
+
+  @override
+  String get paywallCancelSubscriptionNote =>
+      'You own the lifetime plan, but your subscription is still set to renew. Cancel it to stop being charged.';
+
+  @override
+  String get paywallManageSubscriptions => 'Cancel subscription';
+
+  @override
   String get paywallRestore => 'Restore purchase';
 
   @override
