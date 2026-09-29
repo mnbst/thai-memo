@@ -54,6 +54,7 @@ enum UserTier { free, premium }
 ///
 /// tier: 現在の課金ティア（アプリ全体の機能制限判定に使用）
 /// isLoading: 購入/復元処理中かどうか（ボタンの無効化やローディング表示に使用）
+/// isLoadingProducts: ストアからプラン一覧を取得中かどうか
 /// product: ストアから取得した月額商品（価格表示に使用、取得前は null）
 /// yearlyProduct: 年額商品（ストア未登録の環境では null）
 /// lifetimeProduct: 買い切り商品（iOSのみ。未販売環境では null）
@@ -61,6 +62,7 @@ enum UserTier { free, premium }
 class SubscriptionState {
   final UserTier tier;
   final bool isLoading;
+  final bool isLoadingProducts;
   final ProductDetails? product;
   final ProductDetails? yearlyProduct;
   final ProductDetails? lifetimeProduct;
@@ -72,6 +74,7 @@ class SubscriptionState {
   const SubscriptionState({
     this.tier = UserTier.free,
     this.isLoading = false,
+    this.isLoadingProducts = false,
     this.product,
     this.yearlyProduct,
     this.lifetimeProduct,
@@ -94,6 +97,7 @@ class SubscriptionState {
   SubscriptionState copyWith({
     UserTier? tier,
     bool? isLoading,
+    bool? isLoadingProducts,
     ProductDetails? product,
     ProductDetails? yearlyProduct,
     ProductDetails? lifetimeProduct,
@@ -103,6 +107,7 @@ class SubscriptionState {
     return SubscriptionState(
       tier: tier ?? this.tier,
       isLoading: isLoading ?? this.isLoading,
+      isLoadingProducts: isLoadingProducts ?? this.isLoadingProducts,
       product: product ?? this.product,
       yearlyProduct: yearlyProduct ?? this.yearlyProduct,
       lifetimeProduct: lifetimeProduct ?? this.lifetimeProduct,
@@ -475,6 +480,8 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
   }
 
   Future<void> _initializeStore() async {
+    // copyWith は errorMessage を引き継がないので、前回の失敗文言は再取得中に消える。
+    state = state.copyWith(isLoadingProducts: true);
     try {
       final service = _ensurePurchaseService();
 
@@ -491,6 +498,13 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     } catch (_) {
       _storeReadyFuture = null;
       rethrow;
+    } finally {
+      if (mounted) {
+        state = state.copyWith(
+          isLoadingProducts: false,
+          errorMessage: state.errorMessage,
+        );
+      }
     }
   }
 

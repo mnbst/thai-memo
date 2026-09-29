@@ -521,6 +521,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         // 商品が引けていない間は月額カードも出さない。価格が空のカードを
         // 残すと「買えない購入項目が並んでいる」状態になり、App Review で
         // Guideline 2.1(b) を取られる。買い切り側と同じ null ガードにする。
+        // プラン一覧の取得中は、カードの代わりにローディングを出す。
+        if (subState.isLoadingProducts && subState.product == null)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
         if (_showsCard(offer, PremiumPlan.monthly) && subState.product != null)
           _buildPlanCard(
             context,
