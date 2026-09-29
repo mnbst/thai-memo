@@ -194,8 +194,11 @@ func runGenerateThaiSentence(
 
 	// 旧アプリの新規ユーザーにだけ、これまでのプレミアム体験を配る
 	// （legacyTrialGrant のコメント）。
-	if needsLegacyTrial(userData) {
-		granted, err := grantLegacyTrial(ctx, db, userRef, time.Now())
+	clientUsesStoreTrial, _ := params["store_trial_paywall"].(bool)
+	if needsLegacyTrial(userData, clientUsesStoreTrial) {
+		granted, err := grantLegacyTrial(
+			ctx, db, userRef, time.Now(), clientUsesStoreTrial,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -472,9 +475,15 @@ var storeTrialAppVersion = [3]int{1, 4, 13}
 //
 //   - 体験を一度も持っていない（premium_trial_expires_at が無い）
 //   - まだ一度も生成していない（体験導入前からの既存ユーザーを除く）
-//   - 版が 1.4.13 未満か、記録が無い（旧アプリ。書き込みが間に合わなかった
-//     新アプリも含むが、体験が付くだけで害は無い）
-func needsLegacyTrial(userData map[string]any) bool {
+//   - 新クライアントの store_trial_paywall 申告が無い
+//   - 保存済みの版が 1.4.13 未満か、記録が無い（旧アプリ）
+//
+// app_version の書き込みは起動時の非同期処理なので、それだけで判定すると
+// 新アプリの初回生成が先に着いたときに旧2日体験を誤付与する。
+func needsLegacyTrial(userData map[string]any, clientUsesStoreTrial bool) bool {
+	if clientUsesStoreTrial {
+		return false
+	}
 	if _, ok := userData["premium_trial_expires_at"]; ok {
 		return false
 	}
@@ -508,6 +517,7 @@ func appVersionBefore(version string, min [3]int) bool {
 // 以前 onUserCreate が入れていたのと同じ値。同時に呼ばれても二重に延ばさない。
 func grantLegacyTrial(
 	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef, now time.Time,
+	clientUsesStoreTrial bool,
 ) (map[string]any, error) {
 	grant := map[string]any{
 		// 体験中は premium と同じ回数を出す。
@@ -526,7 +536,8 @@ func grantLegacyTrial(
 		if err != nil && !isNotFoundErr(err) {
 			return err
 		}
-		if err == nil && snap.Exists() && !needsLegacyTrial(snap.Data()) {
+		if err == nil && snap.Exists() &&
+			!needsLegacyTrial(snap.Data(), clientUsesStoreTrial) {
 			return nil
 		}
 		result = grant

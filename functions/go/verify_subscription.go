@@ -186,6 +186,12 @@ func runVerification(
 		identifierField = "subscription.original_transaction_id"
 		identifierValue = res.OriginalTransactionID
 		subscription = subscriptionRecord("ios", productID, res.OriginalTransactionID)
+		// 審査のため Sandbox 取引でも premium は付けるが、売上と区別できるよう
+		// 印を残す。買い切りは月額と同じ doc に重なるので別フィールドにも持つ。
+		subscription["sandbox"] = res.Sandbox
+		if lifetime {
+			subscription["lifetime_sandbox"] = res.Sandbox
+		}
 	}
 
 	newTier := "premium"
@@ -276,6 +282,7 @@ func applyVerifiedLifetimeState(record map[string]any, lifetime bool, tier strin
 	record["lifetime"] = false
 	record["lifetime_source"] = nil
 	record["lifetime_transaction_id"] = nil
+	record["lifetime_sandbox"] = nil
 }
 
 // combineLifetimeVerification は、買い切り検証と別に有効な月額レコードがある場合、
@@ -304,6 +311,7 @@ func combineLifetimeVerification(
 	if newTier == "premium" {
 		out["lifetime"] = true
 		out["lifetime_transaction_id"] = incomingID
+		out["lifetime_sandbox"] = record["lifetime_sandbox"]
 		// 実購入を持つようになったので、無償移行由来ではなく購入由来にする。
 		out["lifetime_source"] = nil
 		out["lifetime_source_transaction_id"] = nil
@@ -317,6 +325,7 @@ func combineLifetimeVerification(
 	if incomingID != "" && currentID == incomingID {
 		out["lifetime"] = false
 		out["lifetime_transaction_id"] = nil
+		out["lifetime_sandbox"] = nil
 	}
 	if subscription.IsLifetime(out) ||
 		subscription.Entitled(out, now, subscription.ExpiryDemotionMargin) {

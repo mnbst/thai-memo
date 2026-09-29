@@ -1,8 +1,7 @@
 """prod Firestore 全ユーザー集計スクリプト
 
 usage:
-  cd functions/python
-  uv run python ../../scripts/prod_analytics.py
+  uv run --with firebase-admin --with google-cloud-storage python scripts/prod_analytics.py
 """
 
 import os
@@ -68,6 +67,33 @@ total = len(user_docs)
 for tier, count in sorted(tiers.items()):
     pct = count / total * 100 if total else 0
     print(f"  {tier:10s}: {count:4d} ({pct:.1f}%)")
+
+# -------------------------
+# 実課金者（Sandbox 取引を除く）
+# 審査のため Sandbox 取引でも premium を付けるので、tier だけでは売上と
+# 区別できない。subscription.sandbox / lifetime_sandbox で本番の購入だけ数える。
+# -------------------------
+print("\n=== Paying Users (Sandbox excluded) ===")
+paid_ever = paid_premium = sandbox_premium = lifetime_buyers = 0
+for user_doc in user_docs:
+    d = user_doc.to_dict() or {}
+    sub = d.get('subscription') or {}
+    if sub.get('platform') not in ('ios', 'android'):
+        continue
+    real_main = sub.get('sandbox') is not True
+    real_lifetime = bool(sub.get('lifetime_transaction_id')) and sub.get('lifetime_sandbox') is not True
+    paid = real_main or real_lifetime
+    paid_ever += paid
+    lifetime_buyers += real_lifetime
+    if d.get('tier') == 'premium':
+        if paid:
+            paid_premium += 1
+        else:
+            sandbox_premium += 1
+print(f"  Paid ever:        {paid_ever}")
+print(f"  Premium (paid):   {paid_premium}")
+print(f"  Premium (sandbox only): {sandbox_premium}")
+print(f"  Lifetime buyers:  {lifetime_buyers}")
 
 # -------------------------
 # estimated_vocab 分布
@@ -198,66 +224,33 @@ if tot_s:
     print(f"  {'TOTAL':>10s}  {tot_s:7d}  {tot_g:4d}  {tot_g/tot_s*100:5.0f}%")
 
 # -------------------------
-# リテンション分析（users ドキュメントの timestamp フィールドで集計）
+# アクティブ数（users ドキュメントの last_active_at で集計）
+# 非アクティブな匿名ユーザーは dailyBatch が7日で削除するため、Firestore では
+# コホートリテンションを出せない（生存者だけが残り大きく過大評価になる）。
 # -------------------------
-print("\n=== Retention Analysis ===")
+print("\n=== Active Users ===")
 
-from collections import defaultdict
-
-cohorts = defaultdict(lambda: {'total': 0, 'd1': 0, 'd7': 0, 'd30': 0})
-dau = 0
-wau = 0
-mau = 0
-
+dau = wau = mau = 0
 for user_doc in user_docs:
-    d = user_doc.to_dict() or {}
-    first = d.get('first_generated_at')
-    last = d.get('last_active_at')
-    if not first:
+    last = (user_doc.to_dict() or {}).get('last_active_at')
+    if not last:
         continue
+    inactive_days = (NOW - last.replace(tzinfo=timezone.utc).astimezone(JST)).days
+    dau += inactive_days <= 0
+    wau += inactive_days <= 7
+    mau += inactive_days <= 30
 
-    first_dt = first.replace(tzinfo=timezone.utc).astimezone(JST)
-    age_days = (NOW - first_dt).days
-
-    # WAU / MAU
-    if last:
-        last_dt = last.replace(tzinfo=timezone.utc).astimezone(JST)
-        inactive_days = (NOW - last_dt).days
-        if inactive_days <= 0:
-            dau += 1
-        if inactive_days <= 7:
-            wau += 1
-        if inactive_days <= 30:
-            mau += 1
-
-        # コホート（登録週）ごとのリテンション
-        cohort_key = first_dt.strftime('%Y-W%W')
-        cohorts[cohort_key]['total'] += 1
-        active_span = (last_dt - first_dt).days
-        if active_span >= 1:
-            cohorts[cohort_key]['d1'] += 1
-        if active_span >= 7:
-            cohorts[cohort_key]['d7'] += 1
-        if active_span >= 30:
-            cohorts[cohort_key]['d30'] += 1
-
-users_with_activity = sum(1 for u in user_docs if (u.to_dict() or {}).get('first_generated_at'))
-print(f"  Users with activity: {users_with_activity}")
 print(f"  DAU (today): {dau}")
 print(f"  WAU (7d):  {wau}")
 print(f"  MAU (30d): {mau}")
 
-print("\n=== Cohort Retention (by signup week) ===")
-print(f"  {'Cohort':>10s}  {'N':>4s}  {'D1':>6s}  {'D7':>6s}  {'D30':>6s}")
-for cohort_key in sorted(cohorts.keys()):
-    c = cohorts[cohort_key]
-    n = c['total']
-    if n < 2:
-        continue
-    d1 = f"{c['d1']/n*100:.0f}%" if (NOW - datetime.strptime(cohort_key + '-1', '%Y-W%W-%w').replace(tzinfo=JST)).days >= 1 else '-'
-    d7 = f"{c['d7']/n*100:.0f}%" if (NOW - datetime.strptime(cohort_key + '-1', '%Y-W%W-%w').replace(tzinfo=JST)).days >= 7 else '-'
-    d30 = f"{c['d30']/n*100:.0f}%" if (NOW - datetime.strptime(cohort_key + '-1', '%Y-W%W-%w').replace(tzinfo=JST)).days >= 30 else '-'
-    print(f"  {cohort_key:>10s}  {n:4d}  {d1:>6s}  {d7:>6s}  {d30:>6s}")
+# -------------------------
+# コホートリテンションは削除の影響を受けない GA4 から取る（米国=審査は除外）
+# -------------------------
+print()
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ga4_retention
+ga4_retention.main()
 
 firebase_admin.delete_app(app)
 print("\nDone.")

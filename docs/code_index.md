@@ -613,7 +613,7 @@ functions/go/migrate_to_lifetime_test.go
 移行済みユーザーが日次リセット・ストア通知の期限切れで降格しないこと、返金・取消では降格すること（購入済みの買い切りは月額の返金では失わないこと）、月額の検証で買い切り所有者を落とさないことのテスト。
 
 functions/go/verify_subscription.go
-verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。買い切り（premium_lifetime, iOSのみ）は期限を持たず subscription.lifetime=true と lifetime_transaction_id で印を付ける。年額（premium_annual）は月額と同じ自動更新として扱う。買い切り所有者は月額の検証では free に落とさない（verifiedTier）。
+verifySubscription の Go 版。ストアAPIで購入を検証しFirestoreへ保存。同一サブスクを持つ旧docからpremiumを剥奪する。買い切り（premium_lifetime, iOSのみ）は期限を持たず subscription.lifetime=true と lifetime_transaction_id で印を付ける。年額（premium_annual）は月額と同じ自動更新として扱う。買い切り所有者は月額の検証では free に落とさない（verifiedTier）。Sandbox 取引（TestFlight・審査）も付与するが subscription.sandbox / lifetime_sandbox で印を残し売上集計から外す。
 
 functions/go/verify_subscription_live_test.go
 バリデーション文言、匿名拒否、ティア変更時のみのクォータリセット、旧doc剥奪を検証。
@@ -856,7 +856,7 @@ functions/go/internal/bldrama/golden_test.go
 bl_drama.py とプロンプト断片・データを突き合わせる差分テスト。
 
 functions/go/internal/uvm/session.go
-key_word候補のランク帯算出・テーマembeddingでの絞り込み・重み付き抽選（uvm.py:get_session_words）。
+key_word候補のランク帯算出・重み付き抽選・テーマ未指定時のテーマ決定（uvm.py:get_session_words）。
 
 functions/go/internal/uvm/excluded.go
 key_wordにしない語（単独では古語・方言・単位でしか使わない語）の除外リスト。

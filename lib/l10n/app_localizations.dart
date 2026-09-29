@@ -1708,25 +1708,25 @@ abstract class L10n {
   /// No description provided for @paywallTrialHeadline.
   ///
   /// In ja, this message translates to:
-  /// **'プレミアム{days}日間 無料体験'**
+  /// **'プレミアムを{days}日間無料で体験'**
   String paywallTrialHeadline(int days);
 
   /// No description provided for @paywallTrialCta.
   ///
   /// In ja, this message translates to:
-  /// **'{days}日間 無料で始める'**
+  /// **'{days}日間無料で試す'**
   String paywallTrialCta(int days);
 
   /// No description provided for @paywallTrialTermsMonthly.
   ///
   /// In ja, this message translates to:
-  /// **'{days}日間の無料期間のあと {price} / 月で自動更新。無料期間中に解約すれば料金はかかりません。'**
+  /// **'{days}日間無料。その後は月額{price}で自動更新されます。料金を発生させないためには、無料期間終了の24時間前までに解約してください。'**
   String paywallTrialTermsMonthly(int days, String price);
 
   /// No description provided for @paywallTrialTermsYearly.
   ///
   /// In ja, this message translates to:
-  /// **'{days}日間の無料期間のあと {price} / 年で自動更新。無料期間中に解約すれば料金はかかりません。'**
+  /// **'{days}日間無料。その後は年額{price}で自動更新されます。料金を発生させないためには、無料期間終了の24時間前までに解約してください。'**
   String paywallTrialTermsYearly(int days, String price);
 
   /// No description provided for @paywallPlanCurrent.
@@ -4241,8 +4241,8 @@ abstract class L10n {
   /// No description provided for @vocabTestResultFreeCap.
   ///
   /// In ja, this message translates to:
-  /// **'フリープランでは語彙スコアが100までに制限されます。プレミアムなら上限なく伸ばせます。'**
-  String get vocabTestResultFreeCap;
+  /// **'フリープランでは、語彙スコアと例文の難しさは100語までです。このあとの学習ではスコアが100になり、そこから上がりません。プレミアムなら測定した{vocab}語から始められます。'**
+  String vocabTestResultFreeCap(int vocab);
 
   /// No description provided for @vocabTestResultClose.
   ///

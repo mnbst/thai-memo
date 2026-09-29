@@ -434,8 +434,8 @@
   "paywallTrialBadge": "First-time offer",
   "paywallTrialHeadline": "{days}-day free Premium trial",
   "paywallTrialCta": "Start {days}-day free trial",
-  "paywallTrialTermsMonthly": "Free for {days} days, then {price} / month, renewing automatically. Cancel during the trial and you won't be charged.",
-  "paywallTrialTermsYearly": "Free for {days} days, then {price} / year, renewing automatically. Cancel during the trial and you won't be charged.",
+  "paywallTrialTermsMonthly": "Free for {days} days, then {price} per month, renewing automatically. Cancel at least 24 hours before the trial ends to avoid being charged.",
+  "paywallTrialTermsYearly": "Free for {days} days, then {price} per year, renewing automatically. Cancel at least 24 hours before the trial ends to avoid being charged.",
   "paywallPlanCurrent": "Current plan",
   "paywallChangeToYearlyCta": "Switch to yearly",
   "paywallChangeToMonthlyCta": "Switch to monthly",
@@ -1172,7 +1172,14 @@
     }
   },
   "vocabTestResultBody": "We use this result as a starting point to match the difficulty of your sentences and quizzes. As you use the app, it shifts little by little based on your actual answers.",
-  "vocabTestResultFreeCap": "On the free plan the vocabulary score is capped at 100. With Premium it can keep growing.",
+  "vocabTestResultFreeCap": "On the free plan, your vocabulary score and sentence difficulty are capped at 100 words. From here your score will show 100 and won't go higher. With Premium you start from your measured {vocab} words.",
+  "@vocabTestResultFreeCap": {
+    "placeholders": {
+      "vocab": {
+        "type": "int"
+      }
+    }
+  },
   "vocabTestResultClose": "Close",
   "vocabTestError": "Could not run the vocabulary test",
   "vocabTestRetry": "Start over",

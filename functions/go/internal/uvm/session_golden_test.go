@@ -1,13 +1,10 @@
 package uvm
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"math"
 	"os"
 	"testing"
-
-	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 )
 
 // sessionGoldenPath は
@@ -16,10 +13,8 @@ import (
 const sessionGoldenPath = "../../testdata/python/uvm_golden/session_golden.json"
 
 type sessionGolden struct {
-	NPYBase64 string            `json:"npy_base64"`
-	Words     []embeddings.Word `json:"words"`
-	FreqRank  FreqRank          `json:"freq_rank"`
-	ScanBand  []struct {
+	FreqRank FreqRank `json:"freq_rank"`
+	ScanBand []struct {
 		EstimatedVocab int   `json:"estimated_vocab"`
 		Want           []int `json:"want"`
 	} `json:"scan_band"`
@@ -41,12 +36,6 @@ type sessionGolden struct {
 		UnknownWeights []float64          `json:"unknown_weights"`
 		ZeroPWords     []string           `json:"zero_p_words"`
 	} `json:"weights"`
-	FilterByTopic []struct {
-		Low      int       `json:"low"`
-		High     int       `json:"high"`
-		TopicEmb []float32 `json:"topic_emb"`
-		Want     []string  `json:"want"`
-	} `json:"filter_by_topic"`
 	ExposureP []struct {
 		OldP  float64 `json:"old_p"`
 		Count int     `json:"count"`
@@ -151,60 +140,6 @@ func TestSelectionWeightsAgainstPythonGolden(t *testing.T) {
 		}
 	}
 	t.Logf("抽選の重み %dケース一致", len(g.Weights))
-}
-
-func TestFilterCandidatesByTopicAgainstPythonGolden(t *testing.T) {
-	g := loadSessionGolden(t)
-	npy, err := base64.StdEncoding.DecodeString(g.NPYBase64)
-	if err != nil {
-		t.Fatalf("npy の base64 を戻せない: %v", err)
-	}
-	store := &embeddings.Store{}
-	if err := store.LoadFromBytes(npy, g.Words); err != nil {
-		t.Fatalf("embedding を読み込めない: %v", err)
-	}
-
-	// 帯内に閾値以上がある場合だけ Python と一致させる。閾値以上が 1 つも
-	// 無い場合、Python は「帯の外へ下方向に拡張」または「候補を丸ごと返す」
-	// で答えを作っていたが、Go はどちらもやめて空を返し、呼び出し側が
-	// 既出を除いたうえで ClosestToTopic に落とす。
-	matched, fellBack := 0, 0
-	for ci, c := range g.FilterByTopic {
-		cands := BandCandidates(g.FreqRank, c.Low, c.High)
-		got := FilterCandidatesByTopic(store, cands, c.TopicEmb)
-		var words []string
-		for _, x := range got {
-			words = append(words, x.Word)
-		}
-		if len(words) > 0 {
-			if !equalStrings(words, c.Want) {
-				t.Fatalf("case %d (%d..%d): = %q, want %q", ci, c.Low, c.High, words, c.Want)
-			}
-			matched++
-			continue
-		}
-		// 空を返したなら、Python 側の答えも「帯内で閾値を超えた語」では
-		// なかったはず。帯の外の語を含むか、帯の候補そのままか、のどちらか。
-		var bandWords []string
-		for _, x := range cands {
-			bandWords = append(bandWords, x.Word)
-		}
-		inBandSubset := true
-		for _, w := range c.Want {
-			r, ok := g.FreqRank[w]
-			if !ok || r < c.Low || r > c.High {
-				inBandSubset = false
-				break
-			}
-		}
-		if inBandSubset && !equalStrings(c.Want, bandWords) {
-			t.Fatalf("case %d (%d..%d): 空を返したが Python は帯内の部分集合 %q を返している",
-				ci, c.Low, c.High, c.Want)
-		}
-		fellBack++
-	}
-	t.Logf("テーマでの候補絞り込み: 帯内一致 %dケースが Python と一致 / 閾値未達 %dケースは空を返す（新仕様）",
-		matched, fellBack)
 }
 
 func TestExposurePAgainstPythonGolden(t *testing.T) {

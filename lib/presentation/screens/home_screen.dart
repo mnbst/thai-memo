@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,8 +23,7 @@ import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_lifetime_migration_dialog.dart';
-// 終了ダイアログを止めている間は使わない（_maybeShowPremiumTrialEnded）。
-// import '../widgets/premium_trial_ended_dialog.dart';
+import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
 import 'history_screen.dart';
 import 'interview_screen.dart';
@@ -56,6 +56,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   final _learningKey = GlobalKey<LearningScreenState>();
   StreamSubscription<RemoteMessage>? _notificationOpenSubscription;
   ModalRoute<dynamic>? _analyticsRoute;
+  // dispose では ref を読めない（アカウント削除などで破棄されると例外になる）ので、
+  // 購読した observer を持っておく。
+  FirebaseAnalyticsObserver? _analyticsObserver;
 
   @override
   void initState() {
@@ -114,6 +117,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final observer = ref.read(analyticsServiceProvider).observer;
     if (_analyticsRoute != null) observer.unsubscribe(this);
     _analyticsRoute = route;
+    _analyticsObserver = observer;
     observer.subscribe(this, route);
   }
 
@@ -126,7 +130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void dispose() {
     _notificationOpenSubscription?.cancel();
-    ref.read(analyticsServiceProvider).observer.unsubscribe(this);
+    _analyticsObserver?.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -300,7 +304,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           .read(analyticsServiceProvider)
           .logPremiumTrialStarted(action: 'shown'),
     );
-    await showPremiumTrialStartedDialog(context, days: premiumTrialDays);
+    await showPremiumTrialStartedDialog(
+      context,
+      days: legacyPremiumTrialDays,
+    );
     await prefs.setBool(AppConfig.prefKeyPremiumTrialStartedNotified, true);
   }
 
@@ -325,27 +332,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (ref.read(premiumTrialEndedAtProvider).valueOrNull == null) return;
     if (ref.read(effectivePremiumProvider)) return;
 
-    // 終了ダイアログは止めている。オンボーディング直後のペイウォールを×で
-    // 閉じた直後に重ねて出てしまい、課金の案内が続けて2回になるため。
-    // テーマの巻き戻しは表示と生成を揃えるのに要るので、ダイアログを出さなくても行う。
-    // if (ModalRoute.of(context)?.isCurrent != true) return;
-    //
-    // final analytics = ref.read(analyticsServiceProvider);
-    // unawaited(analytics.logPremiumTrialEnded(action: 'shown'));
-    //
-    // final openPaywall = await showPremiumTrialEndedDialog(context);
-    // unawaited(
-    //   analytics.logPremiumTrialEnded(
-    //     action: openPaywall ? 'accepted' : 'dismissed',
-    //   ),
-    // );
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+
+    // premium_trial_ended_at は旧サーバー体験にしか付かない。
+    // ストアの無料トライアルとは重ならないため、旧体験の終了時だけ
+    // 減る機能を説明してプランへ案内する。
+    final analytics = ref.read(analyticsServiceProvider);
+    unawaited(analytics.logPremiumTrialEnded(action: 'shown'));
+
+    final openPaywall = await showPremiumTrialEndedDialog(context);
+    unawaited(
+      analytics.logPremiumTrialEnded(
+        action: openPaywall ? 'accepted' : 'dismissed',
+      ),
+    );
     await prefs.setBool(AppConfig.prefKeyPremiumTrialEndedNotified, true);
     // 体験中に選んだテーマは free では効かない。表示と実際の生成を揃える。
     await ref
         .read(settingsControllerProvider.notifier)
         .setGenerationParam('topic', null);
-    // if (!openPaywall || !mounted) return;
-    // await PaywallScreen.show(context, source: 'trial_ended');
+    if (!openPaywall || !mounted) return;
+    await PaywallScreen.show(context, source: 'trial_ended');
   }
 
   /// 月額を買ってくださった方に、買い切りへの無償移行を案内する。

@@ -18,6 +18,7 @@ import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
 import 'package:thai_memo/presentation/providers/subscription_provider.dart';
 import 'package:thai_memo/presentation/screens/paywall_screen.dart';
 import 'package:thai_memo/services/firebase_auth_service.dart';
+import 'package:thai_memo/services/purchase_service.dart';
 
 import '../../helpers/fake_firebase.dart';
 
@@ -41,6 +42,7 @@ class _ReadyController extends SubscriptionController {
     required bool withYearly,
     required bool withLifetime,
     bool isPremium = false,
+    Map<PremiumPlan, StoreTrial> trials = const {},
   }) : super(firestore: FakeFirestore()) {
     state = SubscriptionState(
       tier: isPremium ? UserTier.premium : UserTier.free,
@@ -49,6 +51,7 @@ class _ReadyController extends SubscriptionController {
           withYearly ? _product('premium_annual', '¥4,800', 4800) : null,
       lifetimeProduct:
           withLifetime ? _product('premium_lifetime', '¥5,800', 5800) : null,
+      trials: trials,
     );
   }
 
@@ -64,6 +67,7 @@ Future<void> _pump(
   bool withLifetime = true,
   bool isPremium = false,
   Map<String, dynamic>? userData,
+  Map<PremiumPlan, StoreTrial> trials = const {},
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -82,6 +86,7 @@ Future<void> _pump(
             withYearly: withYearly,
             withLifetime: withLifetime,
             isPremium: isPremium,
+            trials: trials,
           ),
         ),
       ],
@@ -120,6 +125,57 @@ void main() {
     expect(find.text('¥4,800 / 年'), findsOneWidget);
     expect(find.text('買い切りプラン'), findsOneWidget);
     expect(find.text('¥5,800'), findsOneWidget);
+  });
+
+  testWidgets('選択中のプランに無料体験がなければ、別プランの無料表示を出さない', (tester) async {
+    final monthly = _product('premium_monthly', '¥600', 600);
+    await _pump(
+      tester,
+      purchase: purchase,
+      trials: {
+        PremiumPlan.monthly: StoreTrial(product: monthly, days: 7),
+      },
+    );
+
+    // 既定の年額はトライアル対象外。月額の特典を見出しに
+    // 流用すると、年額料金が即時請求される画面で「7日間無料」と見える。
+    expect(find.textContaining('7日間'), findsNothing);
+    expect(find.text('プレミアムプラン'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('月額プラン'));
+    await tester.tap(find.text('月額プラン'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('7日間'), findsWidgets);
+    expect(find.text('7日間無料で試す'), findsOneWidget);
+    expect(
+      find.text(
+        '7日間無料。その後は月額¥600で自動更新されます。'
+        '料金を発生させないためには、無料期間終了の24時間前までに解約してください。',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('買い切り選択中はサブスクの無料体験を出さない', (tester) async {
+    final monthly = _product('premium_monthly', '¥600', 600);
+    final yearly = _product('premium_annual', '¥4,800', 4800);
+    await _pump(
+      tester,
+      purchase: purchase,
+      trials: {
+        PremiumPlan.monthly: StoreTrial(product: monthly, days: 7),
+        PremiumPlan.yearly: StoreTrial(product: yearly, days: 7),
+      },
+    );
+
+    expect(find.textContaining('7日間'), findsWidgets);
+    await tester.ensureVisible(find.text('買い切りプラン'));
+    await tester.tap(find.text('買い切りプラン'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('7日間'), findsNothing);
+    expect(find.text('プレミアムプラン'), findsOneWidget);
   });
 
   testWidgets('小さい iPhone（SE）でもはみ出さず、購入ボタンが画面内に残る', (tester) async {
@@ -265,8 +321,7 @@ void main() {
     expect(purchase.lastBought?.id, 'premium_monthly');
   });
 
-  testWidgets('無償移行の名簿内ユーザーには買い切りを販売しない（年額への変更はできる）',
-      (tester) async {
+  testWidgets('無償移行の名簿内ユーザーには買い切りを販売しない（年額への変更はできる）', (tester) async {
     await _pump(tester,
         purchase: purchase,
         isPremium: true,

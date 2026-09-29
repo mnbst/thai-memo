@@ -7,6 +7,7 @@ import '../../data/datasources/backend_api_service.dart';
 import '../../data/models/vocab_test_step.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
+import '../providers/remaining_quota_provider.dart';
 import '../providers/settings_provider.dart';
 
 /// 語彙テスト。4択でいまの語彙量を測り、estimated_vocab の出発点を決める。
@@ -338,12 +339,32 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
         ),
         const SizedBox(height: 24),
         Text(l10n.vocabTestResultBody, style: theme.textTheme.bodyMedium),
-        if (step?.freeCapped ?? false) ...[
+        // free_capped はサーバーが測定値だけで立てるので、プレミアムには出さない。
+        // free は直後の同期でスコアが100へ下がるため、見落とされない形で伝える。
+        if ((step?.freeCapped ?? false) &&
+            !ref.watch(effectivePremiumProvider)) ...[
           const SizedBox(height: 16),
-          Text(
-            l10n.vocabTestResultFreeCap,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline,
+                    size: 20, color: theme.colorScheme.onSecondaryContainer),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.vocabTestResultFreeCap(vocab),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSecondaryContainer),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
         const Spacer(),

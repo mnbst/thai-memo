@@ -942,12 +942,12 @@ class L10nEn extends L10n {
 
   @override
   String paywallTrialTermsMonthly(int days, String price) {
-    return 'Free for $days days, then $price / month, renewing automatically. Cancel during the trial and you won\'t be charged.';
+    return 'Free for $days days, then $price per month, renewing automatically. Cancel at least 24 hours before the trial ends to avoid being charged.';
   }
 
   @override
   String paywallTrialTermsYearly(int days, String price) {
-    return 'Free for $days days, then $price / year, renewing automatically. Cancel during the trial and you won\'t be charged.';
+    return 'Free for $days days, then $price per year, renewing automatically. Cancel at least 24 hours before the trial ends to avoid being charged.';
   }
 
   @override
@@ -2441,8 +2441,9 @@ class L10nEn extends L10n {
       'We use this result as a starting point to match the difficulty of your sentences and quizzes. As you use the app, it shifts little by little based on your actual answers.';
 
   @override
-  String get vocabTestResultFreeCap =>
-      'On the free plan the vocabulary score is capped at 100. With Premium it can keep growing.';
+  String vocabTestResultFreeCap(int vocab) {
+    return 'On the free plan, your vocabulary score and sentence difficulty are capped at 100 words. From here your score will show 100 and won\'t go higher. With Premium you start from your measured $vocab words.';
+  }
 
   @override
   String get vocabTestResultClose => 'Close';
