@@ -93,23 +93,41 @@ func TestQualityCheckRetriesOnlyFlagged(t *testing.T) {
 	}
 }
 
-// 作り直しても不合格なら、作り直した文を Passed=false で返す（プールに入らない）。
+// 作り直しても不合格なら、その文をセットから外す（残りの本数で返す）。
 func TestQualityCheckRetryStillFails(t *testing.T) {
 	chk := &stubChecker{bad: map[string]bool{"w1": true}, badRetry: true}
 	p := &Producer{Selector: &batchSelector{}, Service: &notesService{}, Checker: chk}
 	req := batchRequest(false, true, 1)
 	req.QualityCheck = true
 
-	got, err := p.ProduceBatch(context.Background(), nil, nil, req, 1)
+	got, err := p.ProduceBatch(context.Background(), nil, nil, req, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q := got[0].Quality
-	if got[0].Sentence.ThaiText != "retried" || q == nil || q.Passed || !q.Retried || q.Reason != "共起 0.62" {
-		t.Fatalf("作り直し後の不合格が記録されていない: %q %+v", got[0].Sentence.ThaiText, q)
+	if len(got) != 2 {
+		t.Fatalf("不合格の1本を外して2本のはず: %d", len(got))
 	}
-	if chk.calls[1].Stage != "retry" || chk.calls[1].UID != "uid" {
-		t.Errorf("再判定の入力が違う: %+v", chk.calls[1])
+	for _, pr := range got {
+		if pr.TargetWords[0] == "w1" || pr.Quality == nil || !pr.Quality.Passed {
+			t.Errorf("不合格の文が残っている: %s %+v", pr.TargetWords[0], pr.Quality)
+		}
+	}
+	var retry *CheckInput
+	for i := range chk.calls {
+		if chk.calls[i].Stage == "retry" {
+			retry = &chk.calls[i]
+		}
+	}
+	if retry == nil || retry.KeyWord != "w1" || retry.UID != "uid" {
+		t.Errorf("再判定の入力が違う: %+v", retry)
+	}
+
+	// 全部外れたら ErrQualityRejected。
+	chk = &stubChecker{bad: map[string]bool{"w1": true}, badRetry: true}
+	p = &Producer{Selector: &batchSelector{}, Service: &notesService{}, Checker: chk}
+	got, err = p.ProduceBatch(context.Background(), nil, nil, req, 1)
+	if !errors.Is(err, ErrQualityRejected) || len(got) != 0 {
+		t.Errorf("全滅なのに %v %v", got, err)
 	}
 }
 
@@ -125,7 +143,7 @@ func TestQualityCheckOffByRequest(t *testing.T) {
 	}
 }
 
-// 判定や作り直しが失敗しても元の文で続ける（生成・配信を止めない）。
+// 判定が失敗しても元の文で続ける（生成・配信を止めない）。
 func TestQualityCheckFailOpen(t *testing.T) {
 	req := batchRequest(false, true, 1)
 	req.QualityCheck = true
@@ -141,15 +159,12 @@ func TestQualityCheckFailOpen(t *testing.T) {
 		t.Errorf("判定失敗なのに quality がある: %+v", got[0].Quality)
 	}
 
+	// 作り直しの生成に失敗したら、不合格と分かっている元の文は出さない。
 	p = &Producer{Selector: &batchSelector{}, Service: &notesService{retryFail: true},
 		Checker: &stubChecker{bad: map[string]bool{"w1": true}}}
-	got, err = p.ProduceBatch(context.Background(), nil, nil, req, 1)
-	if err != nil || len(got) != 1 || got[0].Sentence.ThaiText == "retried" {
-		t.Fatalf("作り直し失敗で元の文を返していない: %v %v", got, err)
-	}
-	// 作り直せなかった元の文は不合格のまま（プールに入らない）。
-	if q := got[0].Quality; q == nil || q.Passed || q.Retried {
-		t.Errorf("quality = %+v", got[0].Quality)
+	got, err = p.ProduceBatch(context.Background(), nil, nil, req, 2)
+	if err != nil || len(got) != 1 || got[0].TargetWords[0] == "w1" {
+		t.Fatalf("作り直し失敗の不合格文を外していない: %v %v", got, err)
 	}
 }
 

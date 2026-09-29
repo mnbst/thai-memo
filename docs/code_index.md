@@ -535,7 +535,7 @@ functions/go/sentence_audit_live_test.go
 Jev judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
 
 functions/go/internal/sentence/produce_check_test.go
-生成直後の品質判定（QualityCheck）のテスト。不合格だけ作り直して再判定・作り直しても不合格は Passed=false・失敗時は元の文・バンク由来は判定しない。
+生成直後の品質判定（QualityCheck）のテスト。不合格だけ作り直して再判定・作り直しても不合格ならセットから外す・判定失敗時は元の文・バンク由来は判定しない。
 
 functions/go/internal/sentence/corpusbank.go
 静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
@@ -550,7 +550,10 @@ functions/go/internal/corpustrans/validate_en_test.go
 英訳の機械チェック（品詞名の混入・スラッシュ併記の三人称・タイ文字残留・句点）の単体テスト。
 
 functions/go/internal/quality/judge.go
-例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足はコードで判定し、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
+例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
+
+functions/go/internal/quality/rules.go
+コードで判定する観点（訳の文法用語・英訳の助動詞なし not・既知の誤訳・語の誤用の正規表現・頭なしの ก็ตาม）と、語が文にあるときだけ Jev に用法を聞く語ごとの観点（wordUsages）。
 
 functions/go/internal/quality/judge_eval_live_test.go
 評価セット（testdata/judge_eval.json、欠陥55・正常70）を実際の Jev にかけ、欠陥の検出数・正常の誤検出数と中身を出す。観点・閾値を変えたら前後で回す（JUDGE_EVAL_LIVE=1）。

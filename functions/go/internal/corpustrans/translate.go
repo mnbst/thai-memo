@@ -333,6 +333,7 @@ func validate(res *Result, in Input) error {
 }
 
 // 英訳の機械チェック。プロンプトで禁じても 120 文に数件は漏れるので、
+// reGrammarTerm は quality/rules.go の gramTermRe に写してある（直すなら両方）。
 // 出たら差し戻す。語義の欄には掛けない（語義では "final particle" のような
 // 説明が正しい。落とすのは訳文の中だけという規則に合わせる）。
 var (
