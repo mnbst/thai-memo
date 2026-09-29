@@ -249,19 +249,13 @@ class PurchaseService {
     }
 
     final yearly = find(kProductIdPremiumYearly);
-    final iosTrialDays = Platform.isIOS
-        ? await _iosFreeTrialDays(
-            {kProductIdPremiumMonthly, kProductIdPremiumYearly},
-          )
-        : const <String, int>{};
     final trials = <PremiumPlan, StoreTrial>{};
     for (final (plan, product) in [
       (PremiumPlan.monthly, monthly),
       (PremiumPlan.yearly, yearly),
     ]) {
       if (product == null) continue;
-      final trial =
-          await _findTrial(product, response.productDetails, iosTrialDays);
+      final trial = await _findTrial(product, response.productDetails);
       if (trial != null) trials[plan] = trial;
     }
 
@@ -275,20 +269,17 @@ class PurchaseService {
 
   /// [product] の無料トライアル。オファーが無い・本人が使えないときは null。
   ///
-  /// iOS: オファーの有無と期間は [iosTrialDays]（StoreKit 1 の
-  /// introductoryPrice）で、本人が使えるか（初回特典は購読グループで1回きり）は
-  /// StoreKit 2 で見る。StoreKit 2 の判定はオファーの有無を見ないので、
-  /// 片方だけでは「無料と出たのに課金される」ことが起きる。
+  /// iOS: 商品と一緒に返る introductory offer から期間を読み、本人が使えるか
+  /// （初回特典は購読グループで1回きり）を StoreKit 2 で見る。
   /// Android: Play は有効で本人が使えるオファーしか返さないので、無料の期間を
   /// 持つオファーがあればそれが対象。
   /// 判定に失敗したら「無料」とは出さない（出して課金されるほうが害が大きい）。
   Future<StoreTrial?> _findTrial(
     ProductDetails product,
     List<ProductDetails> all,
-    Map<String, int> iosTrialDays,
   ) async {
     if (product is AppStoreProduct2Details) {
-      final days = iosTrialDays[product.id];
+      final days = iosFreeTrialDays(product);
       if (days == null) return null;
       try {
         final eligible = await SK2Product.isIntroductoryOfferEligible(
@@ -320,37 +311,49 @@ class PurchaseService {
     return null;
   }
 
-  /// いま有効な無料トライアルの日数を商品IDごとに引く（iOS）。
+  /// iOS の商品レスポンスに含まれる無料トライアルの日数。
   ///
-  /// StoreKit 1 の introductoryPrice は、ストアで今適用される初回特典を返す。
-  /// 開始日前・未設定なら空。in_app_purchase_storekit は StoreKit 2 側で
-  /// 初回特典の中身を露出していないので、ここだけ StoreKit 1 で問い合わせる。
-  Future<Map<String, int>> _iosFreeTrialDays(Set<String> ids) async {
-    try {
-      final response = await SKRequestMaker().startProductRequest(ids.toList());
-      final result = <String, int>{};
-      for (final product in response.products) {
-        final intro = product.introductoryPrice;
-        // プラグインの綴りは freeTrail（Trial ではない）。
-        if (intro == null ||
-            intro.paymentMode != SKProductDiscountPaymentMode.freeTrail) {
+  /// StoreKit 2 のラッパーは、名前は promotionalOffers だが introductory offer
+  /// も同じ配列に格納する。別途 StoreKit 1 へ問い合わせると Sandbox で空に
+  /// なることがあるため、商品を取得したAPIと同じレスポンスだけを使う。
+  @visibleForTesting
+  static int? iosFreeTrialDays(ProductDetails product) {
+    if (product is AppStoreProduct2Details) {
+      final offers = product.sk2Product.subscription?.promotionalOffers ?? [];
+      for (final offer in offers) {
+        if (offer.type != SK2SubscriptionOfferType.introductory ||
+            offer.paymentMode != SK2SubscriptionOfferPaymentMode.freeTrial) {
           continue;
         }
-        final period = intro.subscriptionPeriod;
-        final unitDays = switch (period.unit) {
-          SKSubscriptionPeriodUnit.day => 1,
-          SKSubscriptionPeriodUnit.week => 7,
-          SKSubscriptionPeriodUnit.month => 30,
-          SKSubscriptionPeriodUnit.year => 365,
+        final unitDays = switch (offer.period.unit) {
+          SK2SubscriptionPeriodUnit.day => 1,
+          SK2SubscriptionPeriodUnit.week => 7,
+          SK2SubscriptionPeriodUnit.month => 30,
+          SK2SubscriptionPeriodUnit.year => 365,
         };
-        result[product.productIdentifier] =
-            unitDays * period.numberOfUnits * intro.numberOfPeriods;
+        return unitDays * offer.period.value * offer.periodCount;
       }
-      return result;
-    } catch (e) {
-      debugPrint('Intro offer lookup failed: $e');
-      return const {};
+      return null;
     }
+
+    if (product is AppStoreProductDetails) {
+      final intro = product.skProduct.introductoryPrice;
+      // プラグインの綴りは freeTrail（Trial ではない）。
+      if (intro == null ||
+          intro.paymentMode != SKProductDiscountPaymentMode.freeTrail) {
+        return null;
+      }
+      final period = intro.subscriptionPeriod;
+      final unitDays = switch (period.unit) {
+        SKSubscriptionPeriodUnit.day => 1,
+        SKSubscriptionPeriodUnit.week => 7,
+        SKSubscriptionPeriodUnit.month => 30,
+        SKSubscriptionPeriodUnit.year => 365,
+      };
+      return unitDays * period.numberOfUnits * intro.numberOfPeriods;
+    }
+
+    return null;
   }
 
   /// ISO 8601 の期間（P1W / P7D / P1M / P1Y）を日数にする。読めなければ null。
