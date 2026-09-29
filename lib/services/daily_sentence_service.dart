@@ -6,6 +6,10 @@
 // 書き込んだ例文を、起動時・フォアグラウンド復帰時にローカルSQLiteへ取り込む。
 // 通知ペイロードは表示に使わない（通知を開かなくても例文が手元に揃うようにするため）。
 //
+// 取り込みは updated_at の差分同期。前回読んだ updated_at より新しい doc だけを
+// 読み、配信・自分で生成した例文・ほかの端末でのお気に入りと削除をまとめて
+// 反映する。まっさらな端末（再インストール・アカウント切替）だけは全件読む。
+//
 // 同じタイミングで users/{uid}.last_opened_at を書く。配信バックオフの「開封」判定に
 // 使われる副シグナルで、これが動いている限り配信頻度は落ちない。
 // =============================================================================
@@ -15,6 +19,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/models/syllable.dart';
@@ -26,9 +31,20 @@ import '../data/sentence_repository.dart';
 ///
 /// サーバーは1回の配信で例文を複数本（1.4.8以降は5本）書き込み、通知は1通だけ送る。
 /// クライアントはこれを1サイクル（例文→確認クイズ→…→まとめクイズ）として消化する。
-/// 配信docを遡って見る日数。取り込みと、進行位置の再構成で同じ窓を使う。
-/// サーバー側の保持期間いっぱいまで見て、再インストール後も待機列を再構築する。
+/// 待機列へ積む配信の古さの上限（日）。全件読んだとき、これより古い配信は
+/// 履歴へ入れるだけにする。進行位置の再構成も同じ窓を使う。
 const int deliveredSetLookbackDays = 30;
+
+/// syncAll の結果。
+class SentenceSyncResult {
+  const SentenceSyncResult({this.sets = const [], this.historyChanged = false});
+
+  /// 今回はじめて取り込んだ配信セット。
+  final List<DailySentenceSet> sets;
+
+  /// 履歴（例文の増減・お気に入り）が変わったか。一覧の読み直しに使う。
+  final bool historyChanged;
+}
 
 class DailySentenceSet {
   const DailySentenceSet({required this.setId, required this.sentences});
@@ -56,9 +72,10 @@ class DailySentenceService {
   final SentenceRepository _repository;
   static const _uuid = Uuid();
 
-  /// 直近この日数ぶんの配信を取り込み対象にする。
-  /// サーバー側の保持期間いっぱいまで見て、再インストール後も待機列を再構築する。
   static const _lookbackDays = deliveredSetLookbackDays;
+
+  /// 差分同期のカーソル（読んだ doc の updated_at の最大、マイクロ秒）。
+  static String syncCursorKey(String uid) => 'sentence_sync_cursor_$uid';
 
   /// 起動時・フォアグラウンド復帰時に呼ぶ。失敗しても学習の妨げにならないよう握り潰す。
   ///
@@ -69,9 +86,9 @@ class DailySentenceService {
   /// 「今日ぶんか」を日付で判定しない。サーバーはユーザー登録時のタイムゾーンで
   /// 日付を切るため、端末が国をまたぐとクライアントの「今日」とずれる。
   /// 未取り込み＝まだ見せていない配信、という判定なら時差に依存しない。
-  Future<List<DailySentenceSet>> syncAll({String? sentenceId}) async {
+  Future<SentenceSyncResult> syncAll({String? sentenceId}) async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) return const [];
+    if (uid == null) return const SentenceSyncResult();
 
     // last_opened_at は表示に関係しない副シグナルなので待たない。
     // 待つとサーバー往復ぶんだけ通知タップからの表示が遅れる。
@@ -79,7 +96,7 @@ class DailySentenceService {
     return _syncDeliveredSets(uid, sentenceId: sentenceId);
   }
 
-  Future<List<DailySentenceSet>> _syncDeliveredSets(
+  Future<SentenceSyncResult> _syncDeliveredSets(
     String uid, {
     String? sentenceId,
   }) async {
@@ -90,8 +107,11 @@ class DailySentenceService {
         ? await _importDeliveredSentenceById(uid, sentenceId)
         : null;
 
-    final others = await _importDeliveredSets(uid);
-    return [if (byId != null) byId, ...others];
+    final others = await _syncChanges(uid);
+    return SentenceSyncResult(
+      sets: [if (byId != null) byId, ...others.sets],
+      historyChanged: byId != null || others.historyChanged,
+    );
   }
 
   Future<DailySentenceSet?> _importDeliveredSentenceById(
@@ -150,22 +170,11 @@ class DailySentenceService {
 
   static Future<int>? _restoring;
 
-  /// 端末が空のときだけ [restoreHistory] する。再インストール後の起動で使う。
-  Future<int> restoreHistoryIfEmpty() async {
-    try {
-      if (!await _repository.hasNoSentences()) return 0;
-    } catch (e) {
-      debugPrint('DailySentenceService: history check failed: $e');
-      return 0;
-    }
-    return restoreHistory();
-  }
-
   /// 自分で生成した例文を Firestore から端末へ取り込み、取り込んだ本数を返す。
   ///
-  /// 配信分（daily: true）は待機列に積む必要があるので [syncAll] に任せる。
-  /// 端末にあるもの・ユーザーが消したものは取り込まない。サーバーの保持期間
-  /// （30日）より古いものは戻らない。
+  /// アカウント切替の直後に使う。配信分（daily: true）は待機列に積む必要が
+  /// あるので [syncAll] に任せる。端末にあるもの・ユーザーが消したものは
+  /// 取り込まない。
   Future<int> restoreHistory() =>
       _restoring ??= _restoreHistory().whenComplete(() => _restoring = null);
 
@@ -173,19 +182,16 @@ class DailySentenceService {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return 0;
     try {
-      final since = DateTime.now().subtract(
-        const Duration(days: _lookbackDays),
-      );
       final snapshot = await _firestore
           .collection('users')
           .doc(uid)
           .collection('sentences')
-          .where('created_at', isGreaterThan: Timestamp.fromDate(since))
           .get();
       var imported = 0;
       for (final doc in snapshot.docs) {
         try {
           if (doc.data()['daily'] == true) continue;
+          if (doc.data()['deleted'] == true) continue;
           if (await _repository.sentenceExists(doc.id)) continue;
           if (await _repository.isSentenceDeleted(doc.id)) continue;
           await _repository.saveSentence(toSentence(doc.id, doc.data()));
@@ -212,53 +218,100 @@ class DailySentenceService {
     }
   }
 
-  /// 配信済み例文をローカルへ取り込み、新しく届いたセットを返す。
+  /// 前回の同期より後に変わった例文を端末へ反映し、新しく届いた配信セットを返す。
   ///
-  /// 取り込みは未取り込みの配信すべてが対象（取りこぼしの回収）。返す順番は
-  /// 配信日時の古いセットから。複数日ぶんあっても待機キューへ順に積める。
-  Future<List<DailySentenceSet>> _importDeliveredSets(String uid) async {
+  /// - 端末に無い例文は取り込む（配信・自分で生成したもの）。ユーザーが消した
+  ///   ものは取り込まない。
+  /// - ほかの端末で消された例文は端末からも消す。
+  /// - お気に入りはサーバーの値に合わせる。
+  ///
+  /// 返す配信セットは、今回はじめて取り込んだ配信を含むもの（取りこぼしの回収）。
+  /// 順番は配信日時の古いセットから。複数日ぶんあっても待機キューへ順に積める。
+  Future<SentenceSyncResult> _syncChanges(String uid) async {
     try {
-      final since = DateTime.now().subtract(
+      final prefs = await SharedPreferences.getInstance();
+      final cursorKey = syncCursorKey(uid);
+      final cursor = prefs.getInt(cursorKey);
+      // まっさらな端末では、前に使っていたときのカーソルが残っていても全件読む。
+      final full = cursor == null || await _repository.hasNoLocalHistory();
+
+      Query<Map<String, dynamic>> query =
+          _firestore.collection('users').doc(uid).collection('sentences');
+      if (!full) {
+        query = query.where(
+          'updated_at',
+          isGreaterThan: Timestamp.fromMicrosecondsSinceEpoch(cursor),
+        );
+      }
+      // 端末キャッシュから読むと、手元に無い doc を飛ばしたままカーソルだけ
+      // 進んで取りこぼす。必ずサーバーから読む。
+      final snapshot = await query.get(const GetOptions(source: Source.server));
+
+      final queueSince = DateTime.now().subtract(
         const Duration(days: _lookbackDays),
       );
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('sentences')
-          .where('daily', isEqualTo: true)
-          .where('created_at', isGreaterThan: Timestamp.fromDate(since))
-          .get();
-
       final bySet =
           <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
+      final newSets = <String, DateTime>{};
+      var historyChanged = false;
+      var failed = false;
+      var latest = cursor;
+
       for (final doc in snapshot.docs) {
-        bySet.putIfAbsent(setIdOf(doc.id, doc.data()), () => []).add(doc);
+        final data = doc.data();
+        // updated_at の無い旧docは created_at で代える。旧docに後からお気に
+        // 入り・削除が付けば、そのときの updated_at がこれより新しくなる。
+        final stamp = data['updated_at'] ?? data['created_at'];
+        if (stamp is Timestamp) {
+          final micros = stamp.microsecondsSinceEpoch;
+          if (latest == null || micros > latest) latest = micros;
+        }
+        final isDaily = data['daily'] == true;
+        if (isDaily && data['deleted'] != true) {
+          bySet.putIfAbsent(setIdOf(doc.id, data), () => []).add(doc);
+        }
+
+        // 1件の不正データで他の例文まで取り込めなくならないよう、docごとに握り潰す。
+        try {
+          if (data['deleted'] == true) {
+            if (await _repository.sentenceExists(doc.id)) {
+              await _repository.applyRemoteDeletion(doc.id);
+              historyChanged = true;
+            }
+            continue;
+          }
+          // Firestore の doc ID をそのままローカルの主キーに使う。
+          final local = await _repository.getSentenceById(doc.id);
+          if (local != null) {
+            final favorite = data['favorite'];
+            if (favorite is bool && favorite != local.isFavorite) {
+              await _repository.applyRemoteFavorite(doc.id, favorite);
+              historyChanged = true;
+            }
+            continue;
+          }
+          if (await _repository.isSentenceDeleted(doc.id)) continue;
+
+          final sentence = toSentence(doc.id, data);
+          await _repository.saveSentence(sentence);
+          historyChanged = true;
+          final date =
+              sentence.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          if (!isDaily || date.isBefore(queueSince)) continue;
+          final setId = setIdOf(doc.id, data);
+          final previous = newSets[setId];
+          if (previous == null || date.isBefore(previous)) {
+            newSets[setId] = date;
+          }
+        } catch (e) {
+          failed = true;
+          debugPrint('DailySentenceService: import failed for ${doc.id}: $e');
+        }
       }
 
-      // 未取り込みの docs を含むセットだけが「新しく届いた」対象。
-      // 並べ替えのキーは、そのセットの最初の配信時刻。
-      final newSets = <String, DateTime>{};
-      for (final entry in bySet.entries) {
-        for (final doc in entry.value) {
-          // 1件の不正データで他の配信まで取り込めなくならないよう、docごとに握り潰す。
-          try {
-            // Firestore の doc ID をそのままローカルの主キーに使う。
-            // 取り込み済みならスキップするので、お気に入り等のローカル状態を壊さない。
-            if (await _repository.sentenceExists(doc.id)) continue;
-            if (await _repository.isSentenceDeleted(doc.id)) continue;
-
-            final sentence = toSentence(doc.id, doc.data());
-            await _repository.saveSentence(sentence);
-            final date =
-                sentence.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            final previous = newSets[entry.key];
-            if (previous == null || date.isBefore(previous)) {
-              newSets[entry.key] = date;
-            }
-          } catch (e) {
-            debugPrint('DailySentenceService: import failed for ${doc.id}: $e');
-          }
-        }
+      // 取り込めなかった doc があれば、次回また読めるようカーソルを据え置く。
+      if (!failed && latest != null && latest != cursor) {
+        await prefs.setInt(cursorKey, latest);
       }
 
       final orderedIds = newSets.keys.toList()
@@ -268,12 +321,12 @@ class DailySentenceService {
         final set = await _importSet(setId, bySet[setId]!);
         if (set != null) sets.add(set);
       }
-      return sets;
+      return SentenceSyncResult(sets: sets, historyChanged: historyChanged);
     } catch (e) {
       // 取り込み失敗時は次回の起動で再試行される。
       // 黙って落ちるとインデックス不足などの構成ミスに気づけないのでログは残す。
       debugPrint('DailySentenceService: fetch failed: $e');
-      return const [];
+      return const SentenceSyncResult();
     }
   }
 
@@ -293,8 +346,7 @@ class DailySentenceService {
         // お気に入り等の端末固有状態を保つため、取り込み済みならremoteから
         // 作り直したオブジェクトではなくSQLite上の実体を返す。
         final local = await _repository.getSentenceById(member.key);
-        if (local == null &&
-            await _repository.isSentenceDeleted(member.key)) {
+        if (local == null && await _repository.isSentenceDeleted(member.key)) {
           continue;
         }
         final sentence = local ?? toSentence(member.key, member.value);
@@ -369,6 +421,7 @@ class DailySentenceService {
           ? SentenceContext.fromJson(Map<String, dynamic>.from(context))
           : null,
       createdAt: createdAt is Timestamp ? createdAt.toDate() : DateTime.now(),
+      isFavorite: data['favorite'] == true,
       generationTier: data['generation_tier'] as String?,
       targetWords: [
         if (data['key_word'] is String) data['key_word'] as String,

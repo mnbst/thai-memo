@@ -144,6 +144,9 @@ var Aspects = []Aspect{
 		Question: "`thai_text` に文法の誤り（語の重複、類別詞の誤用、語順の誤り）があるか"},
 	{ID: "coherence", Label: "意味・接続", Threshold: coherenceThreshold,
 		Question: "`thai_text` をタイ語の母語話者が読んだとき、何を言いたい文なのかが分からない、または前半と後半が別々の話になっているか（あいさつ・前置きと無関係な用件をつなげる、比喩や理由が成り立たない、時を表す語と述語が噛み合わない等）"},
+	{ID: "conjunction", Label: "接続語の論理", Threshold: conjunctionThreshold,
+		Question: "`thai_text` の接続語（เพราะ、เลย、ก็เลย、ดังนั้น、แต่、แม้ว่า、ถึง 等）が、前後の内容の関係と合っていないか。理由・結果の接続語でつないだのに後ろが前の理由・結果として成り立たない（本来は逆接でつなぐべき）もの、逆接の接続語でつないだのに前後が対立していないものを含む",
+		Note:     "thai_text の接続語が前後の関係と合っていなかった（理由の接続語でつないだが、中身は逆接の関係だった等）。前後の関係に合う接続語を使う"},
 	{ID: "register", Label: "王室・僧侶用語", Threshold: Threshold,
 		Question: "`thai_text` で王族（พระองค์、พระราชา、พระราชินี 等）や僧侶（พระ、หลวงพ่อ 等）の動作・所有・発言を、一般の人向けの語（กิน、นอน、มา、พูด、ให้、ทราบ 等）で表しているか。王族には王室用語（เสด็จ、เสวย、ตรัส、ทรงทราบ 等）、僧侶には僧侶用語（ฉัน、จำวัด、ถวาย 等）を使うのが正しい",
 		Note:     "王族や僧侶の動作・所有・発言を一般の人向けの語で書いていた。王族には王室用語、僧侶には僧侶用語を使う"},
@@ -155,6 +158,9 @@ var Aspects = []Aspect{
 	{ID: "trans_drop", Label: "訳の欠落", Threshold: transDropThreshold, JAOnly: true,
 		Question: "`japanese_translation` から、`thai_text` にある目的・条件・否定・可能性・義務・譲歩を表す語（เพื่อ、เพื่อให้、ถ้า、ไม่、อาจจะ、ต้อง、ทั้งที่ など）の意味が抜けているか。「〜ために」を「〜し、」と並べただけの訳も抜けに含む",
 		Note:     "japanese_translation から、thai_text にある目的・条件・否定・可能性・義務・譲歩の意味が抜けていた。「〜ために」を「〜し、」と並べただけの訳も抜けに含む"},
+	{ID: "trans_conj", Label: "訳の接続", Threshold: Threshold, JAOnly: true,
+		Question: "`japanese_translation` が、`thai_text` の接続語（เพราะ=理由、แต่・แม้ว่า=逆接、ถ้า=条件 等）と違う関係で前後をつないでいるか（理由の เพราะ を「〜が」「〜のに」と逆接で訳す等）",
+		Note:     "japanese_translation が、thai_text の接続語と違う関係（理由を逆接で訳す等）で前後をつないでいた"},
 	{ID: "trans_vocative", Label: "呼称の音写", Threshold: vocativeThreshold, JAOnly: true,
 		Question: "`japanese_translation` に、`thai_text` の呼称（เฮีย、เจ๊、พี่、น้อง 等）をカタカナで音を写した語（ヘイ、ヒア、ヘイア、ジェー、ピー 等）が入っているか。人名・あだ名（カン、ホーム 等）をカタカナで書いたものは含まない",
 		Note:     "japanese_translation で、thai_text の呼称をカタカナで音写していた。呼称は音写せず、日本語の呼び方にするか省く"},
@@ -188,6 +194,12 @@ const transDropThreshold = 0.45
 // 0.12〜0.38 しか付けないが、正常文は ≤0.18 に収まる（2026-09-26、罠25件）。
 // 0.25 で prod 7日310本の新規不合格は3本（全部本物）、正解セットの正常 0/21。
 const coherenceThreshold = 0.25
+
+// conjunctionThreshold は conjunction の閾値。×สินค้าชิ้นนี้คืนได้ไหมเพราะซื้อเกินเจ็ดวันแล้ว
+// （逆接を เพราะ でつなぐ）が 0.35〜0.37 だった。罠12件（2026-09-27）で接続の誤り
+// 5/5 が ≥0.35、正しい文 7/7 が ≤0.11。この文は coherence では 0.08 しか立たない。
+// prod 7日338本で conjunction / trans_conj が立ったのはこの文だけ（trans_conj 0.64）。
+const conjunctionThreshold = 0.3
 
 // vocativeThreshold は trans_vocative の閾値。罠179件で 0.6 以上なら音写 42/42・
 // 誤検出 0/137 だが、prod で正しいあだ名表記（カン先輩）が 0.64 になったので 0.7。
@@ -449,8 +461,8 @@ func FlagID(c Candidate) string {
 
 // FlagDoc は sentence_flags へ書く内容を組み立てる。
 //
-// 例文本文を複製して持つ。users/{uid}/sentences は30日で消える
-// （dailyBatch の cleanOldSentences）ので、参照だけ残すと台帳が空洞になる。
+// 例文本文を複製して持つ。users/{uid}/sentences は退会で
+// なくなるので、参照だけ残すと台帳が空洞になる。
 // scores は閾値未満の観点も含めて残す（閾値を後から動かして数え直せる）。
 func FlagDoc(c Candidate, v Verdict, judgeModel string, judgedAt time.Time) map[string]any {
 	return map[string]any{

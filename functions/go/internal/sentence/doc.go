@@ -73,6 +73,9 @@ type DocMeta struct {
 // notes が無い語ではキーごと欠ける。Go は構造体なので必ず notes を書く
 // （値は空文字）。読み手は欠損も空文字として扱うので実害は無く、
 // ドキュメントの形が揃うぶんこちらを採る。
+//
+// updated_at は端末間同期の差分カーソル。クライアントはお気に入り・削除の
+// ときにも更新し、updated_at > 前回同期 の分だけ読む。
 func (s *Sentence) BuildSentenceDoc(m DocMeta) map[string]any {
 	breakdown := s.WordBreakdown
 	if breakdown == nil {
@@ -89,6 +92,7 @@ func (s *Sentence) BuildSentenceDoc(m DocMeta) map[string]any {
 		"word_breakdown":         breakdown,
 		"context":                context,
 		"created_at":             firestore.ServerTimestamp,
+		"updated_at":             firestore.ServerTimestamp,
 		"key_word":               m.KeyWord,
 		"key_word_pronunciation": s.KeyWordPronunciation(m.KeyWord),
 		"key_word_meaning":       s.KeyWordMeaning(m.KeyWord),

@@ -24,6 +24,8 @@ type VerificationResult struct {
 	ExpiresAt    *int64 // エポックミリ秒
 	AutoRenewing bool
 	Status       Status
+	// Sandbox は TestFlight / Sandbox の取引か。本番の売上ではないので集計から外す。
+	Sandbox bool
 }
 
 // TransactionInfo は Apple のトランザクション情報（JWS デコード後）。
@@ -40,7 +42,14 @@ type TransactionInfo struct {
 	RevocationDate *int64 `json:"revocationDate"`
 	Type           string `json:"type"`
 	Environment    string `json:"environment"`
+	// IsUpgraded は同じ購読グループの上位プランへ切り替えられた古い取引か。
+	// Apple は切り替え元に revocationDate も付けるが、権利は新しい取引へ
+	// 引き継がれているので、取り消し（返金）と混同してはいけない。
+	IsUpgraded bool `json:"isUpgraded"`
 }
+
+// EnvironmentSandbox は TestFlight / Sandbox 取引の TransactionInfo.environment。
+const EnvironmentSandbox = "Sandbox"
 
 // RenewalInfo は Apple の更新情報（JWS デコード後）。
 //

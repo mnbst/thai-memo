@@ -15,6 +15,7 @@
 import 'package:uuid/uuid.dart';
 
 import '../../services/firebase_auth_service.dart';
+import '../../services/sentence_remote_state.dart';
 import 'datasources/local/database_helper.dart';
 import 'datasources/local/secure_storage_service.dart';
 import 'datasources/backend_api_service.dart';
@@ -30,6 +31,7 @@ class SentenceRepository {
   final BackendApiService _apiService;
   final SecureStorageService _secureStorage;
   final FirebaseAuthService _authService;
+  final SentenceRemoteState _remoteState;
   final Uuid _uuid = const Uuid();
 
   SentenceRepository({
@@ -37,10 +39,12 @@ class SentenceRepository {
     BackendApiService? apiService,
     SecureStorageService? secureStorage,
     FirebaseAuthService? authService,
+    SentenceRemoteState? remoteState,
   })  : _databaseHelper = databaseHelper ?? DatabaseHelper.instance,
         _apiService = apiService ?? BackendApiService(),
         _secureStorage = secureStorage ?? SecureStorageService.instance,
-        _authService = authService ?? FirebaseAuthService.instance;
+        _authService = authService ?? FirebaseAuthService.instance,
+        _remoteState = remoteState ?? SentenceRemoteState();
 
   // ==================== Remote Operations ====================
 
@@ -158,6 +162,16 @@ class SentenceRepository {
     }
   }
 
+  /// 例文も削除記録も無い、まっさらな端末か（再インストール・アカウント切替の直後）。
+  Future<bool> hasNoLocalHistory() async {
+    try {
+      return !await _databaseHelper.hasAnySentence() &&
+          !await _databaseHelper.hasAnyDeletedSentence();
+    } catch (e) {
+      throw RepositoryException('Failed to check sentences: $e');
+    }
+  }
+
   /// Get a sentence by ID from the local database
   Future<ThaiSentence?> getSentenceById(String id) async {
     try {
@@ -234,7 +248,15 @@ class SentenceRepository {
   }
 
   /// Delete a sentence
+  ///
+  /// ほかの端末でも消えるよう Firestore にも削除を書く。
   Future<void> deleteSentence(String id) async {
+    await applyRemoteDeletion(id);
+    _remoteState.markDeleted([id]);
+  }
+
+  /// ほかの端末で消された例文を端末からも消す。Firestore には書き戻さない。
+  Future<void> applyRemoteDeletion(String id) async {
     try {
       await _databaseHelper.deleteSentence(id);
     } catch (e) {
@@ -243,7 +265,15 @@ class SentenceRepository {
   }
 
   /// Toggle favorite status
+  ///
+  /// ほかの端末にも伝わるよう Firestore にも書く。
   Future<void> toggleFavorite(String id, bool isFavorite) async {
+    await applyRemoteFavorite(id, isFavorite);
+    _remoteState.markFavorite(id, isFavorite);
+  }
+
+  /// ほかの端末で付け外ししたお気に入りを端末に写す。Firestore には書き戻さない。
+  Future<void> applyRemoteFavorite(String id, bool isFavorite) async {
     try {
       await _databaseHelper.updateSentenceFavorite(id, isFavorite);
     } catch (e) {
@@ -253,11 +283,14 @@ class SentenceRepository {
 
   /// Delete all sentences
   Future<void> deleteAllSentences() async {
+    final List<String> ids;
     try {
+      ids = await _databaseHelper.getAllSentenceIds();
       await _databaseHelper.deleteAllSentences();
     } catch (e) {
       throw RepositoryException('Failed to delete all sentences: $e');
     }
+    _remoteState.markDeleted(ids);
   }
 
   /// Get total sentence count

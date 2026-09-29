@@ -111,13 +111,13 @@ type TargetWord struct {
 //
 // テーマの決め方は ChooseTopic に従う。
 //
-//	テーマ指定あり : 指定値。全部の語が同じテーマ（key_word はテーマで絞られる）
-//	free おまかせ  : 一様抽選で1つ。全部の語が同じテーマ（同上）
-//	premium おまかせ: 語ごとに embedding で決める（テーマは語を絞らない）
+//	テーマ指定あり : 指定値。全部の語が同じテーマ
+//	free おまかせ  : 一様抽選で1つ。全部の語が同じテーマ
+//	premium おまかせ: 語ごとに embedding で決める
 //
+// key_word はどの場合もテーマで絞らない（語の選定はテーマに依らない）。
 // premium だけ語ごとになるのは、ChooseTopic が premium にはテーマを確定せず
-// 候補プールだけ渡すため。テーマによる候補の絞り込みが無く、語の選定と
-// テーマの決定が独立している。free を同じ形にすると、テーマ分布が embedding の
+// 候補プールだけ渡すため。free を同じ形にすると、テーマ分布が embedding の
 // 重心に引きずられて BLドラマへ偏る（ChooseTopic のコメント参照）。
 func (s *TargetWordSelector) SelectTargetWords(
 	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,

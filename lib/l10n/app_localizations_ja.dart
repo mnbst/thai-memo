@@ -658,9 +658,6 @@ class L10nJa extends L10n {
   String get trialStartedStart => 'わかった';
 
   @override
-  String get trialStartedSeePlans => 'プレミアムを見る';
-
-  @override
   String get topicPickerTitle => 'テーマを選択';
 
   @override
@@ -805,9 +802,6 @@ class L10nJa extends L10n {
   String get paywallTitle => 'プレミアムプラン';
 
   @override
-  String get paywallTagline => 'タイ語の世界に飛び込もう。';
-
-  @override
   String get paywallSignInRequired => 'サインインが必要です';
 
   @override
@@ -845,6 +839,11 @@ class L10nJa extends L10n {
   }
 
   @override
+  String paywallPlanYearlySave(int percent) {
+    return '$percent%お得';
+  }
+
+  @override
   String get paywallPlanLifetimeTitle => '買い切りプラン';
 
   @override
@@ -866,6 +865,53 @@ class L10nJa extends L10n {
   @override
   String get paywallLegal =>
       'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。';
+
+  @override
+  String get paywallTrialBadge => '初回限定';
+
+  @override
+  String paywallTrialHeadline(int days) {
+    return 'プレミアムを$days日間無料で体験';
+  }
+
+  @override
+  String paywallTrialCta(int days) {
+    return '$days日間無料で試す';
+  }
+
+  @override
+  String paywallTrialTermsMonthly(int days, String price) {
+    return '$days日間無料。その後は月額$priceで自動更新されます。料金を発生させないためには、無料期間終了の24時間前までに解約してください。';
+  }
+
+  @override
+  String paywallTrialTermsYearly(int days, String price) {
+    return '$days日間無料。その後は年額$priceで自動更新されます。料金を発生させないためには、無料期間終了の24時間前までに解約してください。';
+  }
+
+  @override
+  String get paywallPlanCurrent => 'ご利用中';
+
+  @override
+  String get paywallChangeToYearlyCta => '年額プランに変更する';
+
+  @override
+  String get paywallChangeToMonthlyCta => '月額プランに変更する';
+
+  @override
+  String get paywallChangeToYearlyNote =>
+      'すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。';
+
+  @override
+  String get paywallChangeToMonthlyNote =>
+      '今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。';
+
+  @override
+  String get paywallCancelSubscriptionNote =>
+      '買い切りプランをご購入済みです。サブスクリプションの自動更新が続いているため、解約しないと料金がかかり続けます。';
+
+  @override
+  String get paywallManageSubscriptions => 'サブスクリプションを解約する';
 
   @override
   String get paywallRestore => '購入を復元';
@@ -890,13 +936,7 @@ class L10nJa extends L10n {
   String get paywallFeatureTopicTitle => 'テーマを選んでタイ文化に親しむ';
 
   @override
-  String get paywallFeatureTopicPremium => '祭り・寺院の作法・BLドラマなど自分で選べる';
-
-  @override
-  String get paywallTrialActive => 'いまはプレミアム体験中です。期間が終わると、ここは元の内容に戻ります。';
-
-  @override
-  String get paywallTrialEnded => '体験期間中に使えていた機能です。';
+  String get paywallFeatureTopicPremium => '祭り・寺院の作法・BLドラマなど';
 
   @override
   String get onboarding1Title => 'AIがあなた専用の例文を毎日お届け';
@@ -2235,8 +2275,9 @@ class L10nJa extends L10n {
       'この結果を出発点に、例文とクイズの難易度を合わせます。使ううちに実際の正誤で少しずつ動きます。';
 
   @override
-  String get vocabTestResultFreeCap =>
-      'フリープランでは語彙スコアが100までに制限されます。プレミアム体験が終わると、この値も100まで下がります。';
+  String vocabTestResultFreeCap(int vocab) {
+    return 'フリープランでは、語彙スコアと例文の難しさは100語までです。このあとの学習ではスコアが100になり、そこから上がりません。プレミアムなら測定した$vocab語から始められます。';
+  }
 
   @override
   String get vocabTestResultClose => '閉じる';

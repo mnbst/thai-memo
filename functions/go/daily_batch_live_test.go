@@ -162,64 +162,6 @@ func TestDailyBatchDecayUvmP(t *testing.T) {
 	}
 }
 
-// TestDailyBatchCleanOldSentences は保持期間より古い例文だけが消えることを確かめる。
-//
-// cleanOldSentences は users を全走査するので、dev の他ユーザーの古い例文まで
-// 消してしまう。ここでは削除対象クエリと BulkWriter の挙動だけを、捨て uid に
-// 限定して同じ式で確かめる。
-func TestDailyBatchCleanOldSentences(t *testing.T) {
-	db, ctx := liveFirestore(t)
-
-	const uid = "go-port-cleansent-throwaway"
-	col := db.Collection("users").Doc(uid).Collection("sentences")
-
-	now := time.Now()
-	cutoff := oldSentenceCutoff(now)
-
-	seeds := map[string]time.Time{
-		"old-40d":        now.Add(-40 * 24 * time.Hour),
-		"old-31d":        now.Add(-31 * 24 * time.Hour),
-		"just-before":    cutoff.Add(-time.Second),
-		"exactly-cutoff": cutoff, // "<" なので残る
-		"just-after":     cutoff.Add(time.Second),
-		"recent":         now.Add(-time.Hour),
-		"future-somehow": now.Add(24 * time.Hour),
-	}
-	wantDeleted := map[string]bool{
-		"old-40d": true, "old-31d": true, "just-before": true,
-	}
-
-	t.Cleanup(func() {
-		for id := range seeds {
-			_, _ = col.Doc(id).Delete(ctx)
-		}
-		_, _ = db.Collection("users").Doc(uid).Delete(ctx)
-	})
-
-	for id, createdAt := range seeds {
-		if _, err := col.Doc(id).Set(ctx, map[string]any{
-			"created_at": createdAt, "thai": "ทดสอบ",
-		}); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := deleteOldSentencesFor(ctx, db, uid, cutoff); err != nil {
-		t.Fatal(err)
-	}
-
-	for id := range seeds {
-		doc, err := col.Doc(id).Get(ctx)
-		exists := err == nil && doc.Exists()
-		if wantDeleted[id] && exists {
-			t.Errorf("%s: 削除されるはずが残っている", id)
-		}
-		if !wantDeleted[id] && !exists {
-			t.Errorf("%s: 残るはずが削除されている", id)
-		}
-	}
-}
-
 // TestDailyBatchClearDuplicateFcmTokens は重複解除の書き込みを確かめる。
 // どの uid を解除するかの判定は TestDuplicateTokenUidsGolden で見ている。
 func TestDailyBatchClearDuplicateFcmTokens(t *testing.T) {

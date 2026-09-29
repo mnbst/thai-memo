@@ -221,7 +221,7 @@ func selectSentencesBySRS(
 
 	if remaining := maxQuestions - len(sel.sentences); remaining > 0 {
 		fillers, err := selectFillerSentencesByUvm(
-			ctx, db, uid, remaining, sel.usedIDs, sel.usedKeyWords, filter, viewedOnly)
+			ctx, db, uid, jstNow, remaining, sel.usedIDs, sel.usedKeyWords, filter, viewedOnly)
 		if err != nil {
 			return err
 		}
@@ -348,7 +348,7 @@ func fetchSrsCandidatesForInterval(
 const weakPThreshold = 0.3
 
 func selectFillerSentencesByUvm(
-	ctx context.Context, db *firestore.Client, uid string, needed int,
+	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time, needed int,
 	usedIDs, usedKeyWords map[string]bool, filter keyWordFilter, viewedOnly bool,
 ) ([]selectedSentence, error) {
 	var selected []selectedSentence
@@ -401,7 +401,7 @@ func selectFillerSentencesByUvm(
 		}
 
 		byKeyWord, err := fetchSentenceCandidatesByKeyWords(
-			ctx, db, uid, keyWords, usedIDs, viewedOnly)
+			ctx, db, uid, jstNow, keyWords, usedIDs, viewedOnly)
 		if err != nil {
 			return nil, err
 		}
@@ -433,8 +433,14 @@ func selectFillerSentencesByUvm(
 	return selected, nil
 }
 
+// keyWordCandidateLookbackDays は語から例文を引くときに遡る日数。
+//
+// users/{uid}/sentences は消さずに残すので、期間で切らないと使い込むほど
+// 読み取り件数が増える。
+const keyWordCandidateLookbackDays = 90
+
 func fetchSentenceCandidatesByKeyWords(
-	ctx context.Context, db *firestore.Client, uid string,
+	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time,
 	keyWords []string, usedIDs map[string]bool, viewedOnly bool,
 ) (map[string][]*firestore.DocumentSnapshot, error) {
 	out := map[string][]*firestore.DocumentSnapshot{}
@@ -444,6 +450,7 @@ func fetchSentenceCandidatesByKeyWords(
 
 	it := db.Collection("users").Doc(uid).Collection("sentences").
 		Where("key_word", "in", keyWords).
+		Where("created_at", ">=", startOfJstDayDaysAgo(jstNow, keyWordCandidateLookbackDays)).
 		Documents(ctx)
 	defer it.Stop()
 

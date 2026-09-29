@@ -54,12 +54,15 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
     });
     // users/{uid} はクォータ等がすでに監視している1本を共有する。
     // Subscription専用listenerを増やさず、同じ更新からtierも反映する。
-    ref.listenManual(userDocProvider, (_, next) {
+    // 派生の userDocProvider を聞くと、別プロバイダの build 中に再計算されて
+    // 通知が走り「build 中に他プロバイダを変更」になる。ストリーム本体を聞き、
+    // 再購読時（build 中に出る loading）は飛ばして、届いたイベントだけ反映する。
+    ref.listenManual(userDocSnapshotProvider, (_, next) {
       final uid = FirebaseAuthService.instance.currentUser?.uid;
-      if (uid == null || !next.hasValue) return;
+      if (uid == null || next.isLoading || !next.hasValue) return;
       ref
           .read(subscriptionControllerProvider.notifier)
-          .applyUserDocument(uid, next.value);
+          .applyUserDocument(uid, next.value!.data);
     });
   }
 

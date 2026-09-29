@@ -114,8 +114,9 @@ func TestBuildSentenceDocAgainstPythonGolden(t *testing.T) {
 			UsePremiumSpec: c.UsePremiumSpec,
 			Lang:           lang.JA,
 		})
-		// created_at（SERVER_TIMESTAMP）は比較対象外。
+		// created_at / updated_at（SERVER_TIMESTAMP）は比較対象外。
 		delete(doc, "created_at")
+		delete(doc, "updated_at")
 		// lang / from_cache は Python 版に無い後付けのフィールド。golden は
 		// 移植時の一致を残すためのものなので、増えたぶんは比較から外す。
 		delete(doc, "lang")

@@ -703,9 +703,6 @@ class L10nEn extends L10n {
   String get trialStartedStart => 'Got it';
 
   @override
-  String get trialStartedSeePlans => 'See Premium';
-
-  @override
   String get topicPickerTitle => 'Choose a topic';
 
   @override
@@ -864,9 +861,6 @@ class L10nEn extends L10n {
   String get paywallTitle => 'Premium';
 
   @override
-  String get paywallTagline => 'Dive into the Thai-speaking world.';
-
-  @override
   String get paywallSignInRequired => 'Sign-in required';
 
   @override
@@ -906,6 +900,11 @@ class L10nEn extends L10n {
   }
 
   @override
+  String paywallPlanYearlySave(int percent) {
+    return 'Save $percent%';
+  }
+
+  @override
   String get paywallPlanLifetimeTitle => 'Lifetime';
 
   @override
@@ -927,6 +926,53 @@ class L10nEn extends L10n {
   @override
   String get paywallLegal =>
       'Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.';
+
+  @override
+  String get paywallTrialBadge => 'First-time offer';
+
+  @override
+  String paywallTrialHeadline(int days) {
+    return '$days-day free Premium trial';
+  }
+
+  @override
+  String paywallTrialCta(int days) {
+    return 'Start $days-day free trial';
+  }
+
+  @override
+  String paywallTrialTermsMonthly(int days, String price) {
+    return 'Free for $days days, then $price per month, renewing automatically. Cancel at least 24 hours before the trial ends to avoid being charged.';
+  }
+
+  @override
+  String paywallTrialTermsYearly(int days, String price) {
+    return 'Free for $days days, then $price per year, renewing automatically. Cancel at least 24 hours before the trial ends to avoid being charged.';
+  }
+
+  @override
+  String get paywallPlanCurrent => 'Current plan';
+
+  @override
+  String get paywallChangeToYearlyCta => 'Switch to yearly';
+
+  @override
+  String get paywallChangeToMonthlyCta => 'Switch to monthly';
+
+  @override
+  String get paywallChangeToYearlyNote =>
+      'You\'ll switch to the yearly plan right away. Apple refunds the unused part of your monthly plan.';
+
+  @override
+  String get paywallChangeToMonthlyNote =>
+      'You\'ll switch to the monthly plan when your current yearly plan ends. Until then, you keep the yearly plan.';
+
+  @override
+  String get paywallCancelSubscriptionNote =>
+      'You own the lifetime plan, but your subscription is still set to renew. Cancel it to stop being charged.';
+
+  @override
+  String get paywallManageSubscriptions => 'Cancel subscription';
 
   @override
   String get paywallRestore => 'Restore purchase';
@@ -953,15 +999,7 @@ class L10nEn extends L10n {
 
   @override
   String get paywallFeatureTopicPremium =>
-      'Choose for yourself: festivals, temple etiquette, BL dramas';
-
-  @override
-  String get paywallTrialActive =>
-      'You\'re on the Premium trial right now. When it ends, this goes back to how it was.';
-
-  @override
-  String get paywallTrialEnded =>
-      'These are the features you could use during the trial.';
+      'Festivals, temple etiquette, BL dramas and more';
 
   @override
   String get onboarding1Title =>
@@ -2403,8 +2441,9 @@ class L10nEn extends L10n {
       'We use this result as a starting point to match the difficulty of your sentences and quizzes. As you use the app, it shifts little by little based on your actual answers.';
 
   @override
-  String get vocabTestResultFreeCap =>
-      'On the free plan the vocabulary score is capped at 100. When your premium trial ends, this number drops to 100 as well.';
+  String vocabTestResultFreeCap(int vocab) {
+    return 'On the free plan, your vocabulary score and sentence difficulty are capped at 100 words. From here your score will show 100 and won\'t go higher. With Premium you start from your measured $vocab words.';
+  }
 
   @override
   String get vocabTestResultClose => 'Close';

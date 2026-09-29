@@ -36,6 +36,10 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
+import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
+import 'package:in_app_purchase_storekit/store_kit_wrappers.dart';
 
 import '../core/config/firebase_config.dart';
 import 'analytics_service.dart';
@@ -63,16 +67,40 @@ const String kProductIdPremiumLifetime =
 /// 選べるプラン。どれも付与される権利は同じ premium で、支払い方だけが違う。
 enum PremiumPlan { monthly, yearly, lifetime }
 
+/// ストアの無料トライアル（月額・年額の初回特典）。
+///
+/// 有無も日数もストアの設定から都度引く。App Store Connect / Play Console の
+/// 開始日・期間を変えても、アプリの表示が勝手に追従する。
+class StoreTrial {
+  const StoreTrial({required this.product, required this.days});
+
+  /// トライアル付きで買うための商品。iOS は表示用と同じ商品（特典はストアが
+  /// 自動で当てる）。Android は無料期間付きオファーの商品で、価格が「無料」に
+  /// なるので表示には使わない。
+  final ProductDetails product;
+
+  /// 無料期間の日数。
+  final int days;
+}
+
 /// ペイウォールに出す購入可能な商品。
 ///
 /// yearly はストアに未登録の環境で、lifetime は iOS 以外（Android 未販売）で
 /// null になりうる。
 class PremiumProducts {
-  const PremiumProducts({required this.monthly, this.yearly, this.lifetime});
+  const PremiumProducts({
+    required this.monthly,
+    this.yearly,
+    this.lifetime,
+    this.trials = const {},
+  });
 
   final ProductDetails monthly;
   final ProductDetails? yearly;
   final ProductDetails? lifetime;
+
+  /// 無料トライアル。オファーが有効で、本人が使えるプランだけ入る。
+  final Map<PremiumPlan, StoreTrial> trials;
 }
 
 /// 購入状態の変化を通知するコールバック型
@@ -185,11 +213,26 @@ class PurchaseService {
       throw PurchaseProductLoadException(l10n().errProductLoadFailed);
     }
 
+    // Android は1つの商品が基本プランとオファーの数だけ並んで返る。
+    // 価格の表示には基本プラン（offerId が無いもの）を使う。オファーの価格は
+    // 最初の期間の値（無料トライアルなら「無料」）になっている。
     ProductDetails? find(String id) {
+      ProductDetails? first;
       for (final product in response.productDetails) {
-        if (product.id == id) return product;
+        if (product.id != id) continue;
+        if (product is GooglePlayProductDetails &&
+            product.subscriptionIndex != null &&
+            product
+                    .productDetails
+                    .subscriptionOfferDetails![product.subscriptionIndex!]
+                    .offerId !=
+                null) {
+          first ??= product;
+          continue;
+        }
+        return product;
       }
-      return null;
+      return first;
     }
 
     final monthly = find(kProductIdPremiumMonthly);
@@ -205,11 +248,122 @@ class PurchaseService {
       debugPrint('Lifetime product not found: $kProductIdPremiumLifetime');
     }
 
+    final yearly = find(kProductIdPremiumYearly);
+    final iosTrialDays = Platform.isIOS
+        ? await _iosFreeTrialDays(
+            {kProductIdPremiumMonthly, kProductIdPremiumYearly},
+          )
+        : const <String, int>{};
+    final trials = <PremiumPlan, StoreTrial>{};
+    for (final (plan, product) in [
+      (PremiumPlan.monthly, monthly),
+      (PremiumPlan.yearly, yearly),
+    ]) {
+      if (product == null) continue;
+      final trial =
+          await _findTrial(product, response.productDetails, iosTrialDays);
+      if (trial != null) trials[plan] = trial;
+    }
+
     return PremiumProducts(
       monthly: monthly,
-      yearly: find(kProductIdPremiumYearly),
+      yearly: yearly,
       lifetime: find(kProductIdPremiumLifetime),
+      trials: trials,
     );
+  }
+
+  /// [product] の無料トライアル。オファーが無い・本人が使えないときは null。
+  ///
+  /// iOS: オファーの有無と期間は [iosTrialDays]（StoreKit 1 の
+  /// introductoryPrice）で、本人が使えるか（初回特典は購読グループで1回きり）は
+  /// StoreKit 2 で見る。StoreKit 2 の判定はオファーの有無を見ないので、
+  /// 片方だけでは「無料と出たのに課金される」ことが起きる。
+  /// Android: Play は有効で本人が使えるオファーしか返さないので、無料の期間を
+  /// 持つオファーがあればそれが対象。
+  /// 判定に失敗したら「無料」とは出さない（出して課金されるほうが害が大きい）。
+  Future<StoreTrial?> _findTrial(
+    ProductDetails product,
+    List<ProductDetails> all,
+    Map<String, int> iosTrialDays,
+  ) async {
+    if (product is AppStoreProduct2Details) {
+      final days = iosTrialDays[product.id];
+      if (days == null) return null;
+      try {
+        final eligible = await SK2Product.isIntroductoryOfferEligible(
+          product.id,
+        );
+        return eligible ? StoreTrial(product: product, days: days) : null;
+      } catch (e) {
+        debugPrint('Intro offer eligibility check failed: $e');
+        return null;
+      }
+    }
+    for (final candidate in all) {
+      if (candidate.id != product.id ||
+          candidate is! GooglePlayProductDetails ||
+          candidate.subscriptionIndex == null) {
+        continue;
+      }
+      final offer = candidate.productDetails
+          .subscriptionOfferDetails![candidate.subscriptionIndex!];
+      for (final phase in offer.pricingPhases) {
+        if (phase.priceAmountMicros != 0) continue;
+        final days = _isoPeriodDays(phase.billingPeriod);
+        if (days == null) continue;
+        final cycles =
+            phase.billingCycleCount == 0 ? 1 : phase.billingCycleCount;
+        return StoreTrial(product: candidate, days: days * cycles);
+      }
+    }
+    return null;
+  }
+
+  /// いま有効な無料トライアルの日数を商品IDごとに引く（iOS）。
+  ///
+  /// StoreKit 1 の introductoryPrice は、ストアで今適用される初回特典を返す。
+  /// 開始日前・未設定なら空。in_app_purchase_storekit は StoreKit 2 側で
+  /// 初回特典の中身を露出していないので、ここだけ StoreKit 1 で問い合わせる。
+  Future<Map<String, int>> _iosFreeTrialDays(Set<String> ids) async {
+    try {
+      final response = await SKRequestMaker().startProductRequest(ids.toList());
+      final result = <String, int>{};
+      for (final product in response.products) {
+        final intro = product.introductoryPrice;
+        // プラグインの綴りは freeTrail（Trial ではない）。
+        if (intro == null ||
+            intro.paymentMode != SKProductDiscountPaymentMode.freeTrail) {
+          continue;
+        }
+        final period = intro.subscriptionPeriod;
+        final unitDays = switch (period.unit) {
+          SKSubscriptionPeriodUnit.day => 1,
+          SKSubscriptionPeriodUnit.week => 7,
+          SKSubscriptionPeriodUnit.month => 30,
+          SKSubscriptionPeriodUnit.year => 365,
+        };
+        result[product.productIdentifier] =
+            unitDays * period.numberOfUnits * intro.numberOfPeriods;
+      }
+      return result;
+    } catch (e) {
+      debugPrint('Intro offer lookup failed: $e');
+      return const {};
+    }
+  }
+
+  /// ISO 8601 の期間（P1W / P7D / P1M / P1Y）を日数にする。読めなければ null。
+  static int? _isoPeriodDays(String period) {
+    final match = RegExp(r'^P(\d+)([DWMY])$').firstMatch(period);
+    if (match == null) return null;
+    final n = int.parse(match.group(1)!);
+    return switch (match.group(2)) {
+      'D' => n,
+      'W' => n * 7,
+      'M' => n * 30,
+      _ => n * 365,
+    };
   }
 
   /// 購入を開始（OS ネイティブの決済シートを表示）

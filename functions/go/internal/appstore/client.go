@@ -231,15 +231,25 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 			tx.TransactionID, tx.OriginalTransactionID)
 	}
 
+	// 自動更新状態は transaction API には含まれないため subscriptions API から取る。
+	// 取得失敗時（nil）は従来通り autoRenewing=true / active にフォールバックする。
+	renewalInfo, latest := c.fetchSubscriptionStatus(
+		ctx, tx.OriginalTransactionID, jwt, environment)
+
+	// 月額→年額のように上位プランへ切り替えた古い取引は revocationDate を持つ。
+	// そのまま判定すると期限切れになり、年額を払っているのに free へ落ちる。
+	// 権利は同じ購読の最新の取引へ移っているので、そちらで判定する。
+	tx, err = resolveUpgraded(tx, latest)
+	if err != nil {
+		return nil, err
+	}
+
 	isExpired := true
 	if tx.ExpiresDate != nil {
 		isExpired = *tx.ExpiresDate < c.now().UnixMilli()
 	}
 	isRevoked := tx.RevocationDate != nil
 
-	// 自動更新状態は transaction API には含まれないため subscriptions API から取る。
-	// 取得失敗時（nil）は従来通り autoRenewing=true / active にフォールバックする。
-	renewalInfo := c.fetchRenewalInfo(ctx, tx.OriginalTransactionID, jwt, environment)
 	autoRenewing := true
 	if renewalInfo != nil {
 		autoRenewing = renewalInfo.AutoRenewStatus == 1
@@ -263,6 +273,7 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 		ExpiresAt:             tx.ExpiresDate,
 		AutoRenewing:          autoRenewing,
 		Status:                status,
+		Sandbox:               tx.Environment == EnvironmentSandbox,
 	}, nil
 }
 
@@ -358,30 +369,32 @@ func (c *Client) VerifyOneTimePurchase(
 		ExpiresAt:             nil,
 		AutoRenewing:          false,
 		Status:                status,
+		Sandbox:               tx.Environment == EnvironmentSandbox,
 	}, nil
 }
 
-// fetchRenewalInfo は Get All Subscription Statuses API から最新の RenewalInfo を取る。
+// fetchSubscriptionStatus は Get All Subscription Statuses API から最新の
+// RenewalInfo と、その購読の最新の取引を取る。取れなければそれぞれ nil。
 //
 // transaction API のレスポンスには autoRenewStatus が含まれないため、
 // /inApps/v1/subscriptions/{originalTransactionId} から signedRenewalInfo を取得する。
 // 取得・検証に失敗しても購入検証自体は成立させたいので、失敗時は nil を返す。
-func (c *Client) fetchRenewalInfo(
+func (c *Client) fetchSubscriptionStatus(
 	ctx context.Context, originalTransactionID, jwt, environment string,
-) *RenewalInfo {
+) (*RenewalInfo, *TransactionInfo) {
 	res, err := c.get(ctx,
 		fmt.Sprintf("https://%s.apple.com/inApps/v1/subscriptions/%s",
 			environment, neturl.PathEscape(originalTransactionID)),
 		jwt)
 	if err != nil {
 		log.Printf("Failed to fetch renewal info: %v", err)
-		return nil
+		return nil, nil
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		readBody(res)
 		log.Printf("App Store subscriptions API error: %d (originalTransactionId=%s)",
 			res.StatusCode, originalTransactionID)
-		return nil
+		return nil, nil
 	}
 
 	var body struct {
@@ -389,19 +402,21 @@ func (c *Client) fetchRenewalInfo(
 			LastTransactions []struct {
 				OriginalTransactionID string `json:"originalTransactionId"`
 				SignedRenewalInfo     string `json:"signedRenewalInfo"`
+				SignedTransactionInfo string `json:"signedTransactionInfo"`
 			} `json:"lastTransactions"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(readBody(res)), &body); err != nil {
 		log.Printf("Failed to fetch renewal info: %v", err)
-		return nil
+		return nil, nil
 	}
 
-	var signed string
+	var signed, signedTx string
 	for _, group := range body.Data {
 		for _, tx := range group.LastTransactions {
 			if tx.OriginalTransactionID == originalTransactionID {
 				signed = tx.SignedRenewalInfo
+				signedTx = tx.SignedTransactionInfo
 				break
 			}
 		}
@@ -410,19 +425,56 @@ func (c *Client) fetchRenewalInfo(
 		}
 	}
 	if signed == "" {
-		return nil
+		return nil, nil
 	}
+	latest := c.decodeTransaction(signedTx)
 
 	if err := c.verifier().Verify(signed); err != nil {
 		log.Printf("Failed to fetch renewal info: %v", err)
-		return nil
+		return nil, latest
 	}
 	var renewal RenewalInfo
 	if err := applejws.DecodePayload(signed, &renewal); err != nil {
 		log.Printf("Failed to fetch renewal info: %v", err)
+		return nil, latest
+	}
+	return &renewal, latest
+}
+
+// resolveUpgraded は判定に使う取引を返す。上位プランへ切り替えた古い取引なら
+// 同じ購読の最新の取引、そうでなければ tx そのもの。
+//
+// 最新が取れない・古い取引のままのときはエラーにする。古い取引で判定すると
+// 期限切れ（free）を書いてしまい、切り替え先の権利まで消える。
+func resolveUpgraded(tx, latest *TransactionInfo) (*TransactionInfo, error) {
+	if !tx.IsUpgraded {
+		return tx, nil
+	}
+	if latest == nil || latest.TransactionID == tx.TransactionID ||
+		latest.OriginalTransactionID != tx.OriginalTransactionID {
+		return nil, fmt.Errorf(
+			"upgraded transaction has no successor (transactionId=%s)", tx.TransactionID)
+	}
+	log.Printf("Transaction %s was upgraded; verifying latest %s (%s)",
+		tx.TransactionID, latest.TransactionID, latest.ProductID)
+	return latest, nil
+}
+
+// decodeTransaction は署名を検証して取引情報を読む。読めなければ nil。
+func (c *Client) decodeTransaction(signed string) *TransactionInfo {
+	if signed == "" {
 		return nil
 	}
-	return &renewal
+	if err := c.verifier().Verify(signed); err != nil {
+		log.Printf("Failed to verify latest transaction: %v", err)
+		return nil
+	}
+	var tx TransactionInfo
+	if err := applejws.DecodePayload(signed, &tx); err != nil {
+		log.Printf("Failed to decode latest transaction: %v", err)
+		return nil
+	}
+	return &tx
 }
 
 // ParseNotification は App Store Server Notifications V2 のペイロードを

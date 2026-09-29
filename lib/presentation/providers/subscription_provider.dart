@@ -64,6 +64,9 @@ class SubscriptionState {
   final ProductDetails? product;
   final ProductDetails? yearlyProduct;
   final ProductDetails? lifetimeProduct;
+
+  /// 無料トライアル（[PremiumProducts.trials]）。
+  final Map<PremiumPlan, StoreTrial> trials;
   final String? errorMessage;
 
   const SubscriptionState({
@@ -72,6 +75,7 @@ class SubscriptionState {
     this.product,
     this.yearlyProduct,
     this.lifetimeProduct,
+    this.trials = const {},
     this.errorMessage,
   });
 
@@ -84,12 +88,16 @@ class SubscriptionState {
         PremiumPlan.lifetime => lifetimeProduct,
       };
 
+  /// [plan] を無料トライアルで始められるか。
+  bool hasTrial(PremiumPlan plan) => trials.containsKey(plan);
+
   SubscriptionState copyWith({
     UserTier? tier,
     bool? isLoading,
     ProductDetails? product,
     ProductDetails? yearlyProduct,
     ProductDetails? lifetimeProduct,
+    Map<PremiumPlan, StoreTrial>? trials,
     String? errorMessage,
   }) {
     return SubscriptionState(
@@ -98,6 +106,7 @@ class SubscriptionState {
       product: product ?? this.product,
       yearlyProduct: yearlyProduct ?? this.yearlyProduct,
       lifetimeProduct: lifetimeProduct ?? this.lifetimeProduct,
+      trials: trials ?? this.trials,
       errorMessage: errorMessage,
     );
   }
@@ -257,7 +266,8 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
     }
     try {
       await ensureStoreReady();
-      final product = state.productFor(plan);
+      // トライアルを使える人にはトライアル付きで売る（Android はオファーが別商品）。
+      final product = state.trials[plan]?.product ?? state.productFor(plan);
       if (_purchaseService == null || product == null) {
         state = state.copyWith(
           isLoading: false,
@@ -427,6 +437,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
           product: products.monthly,
           yearlyProduct: products.yearly,
           lifetimeProduct: products.lifetime,
+          trials: products.trials,
           errorMessage: null,
         );
       } else {

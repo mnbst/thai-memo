@@ -23,7 +23,7 @@ import (
 // estimated_vocab はクイズの正誤でしか動かないが、この 2 本だけは測定値を
 // 直接書く。推定を迂回できる唯一の経路なので、
 //
-//   - プレミアム（トライアル含む）限定。オンボーディングは全員トライアル中
+//   - 初回はだれでも、測り直しはプレミアム（トライアル含む）限定
 //   - 正解はセッション doc（クライアントから読めない）に置き、採点はサーバー
 //
 //   - 1 か月（vocabTestInterval）に 1 回まで
@@ -52,6 +52,21 @@ const (
 	// やり直しでは上振れを釣れない。
 	vocabTestStartsPerWindow = 3
 )
+
+// canStartVocabTest は語彙テストを始めてよいか。
+//
+// 初回（まだ測定を終えていない）はだれでも受けられる。オンボーディングの
+// 必須手順で、新規ユーザーはサーバーのプレミアム体験を持たない（ストアの
+// 無料トライアルへ移行した）ので、プレミアム限定にすると最初で止まる。
+// 測り直しはプレミアム限定のまま。途中で切れた初回は vocab_test_at が
+// まだ無いので、開始回数の上限の範囲でやり直せる。
+func canStartVocabTest(data map[string]any, now time.Time) bool {
+	if premium.IsEffectivePremium(data, now) {
+		return true
+	}
+	_, tested := data["vocab_test_at"]
+	return !tested
+}
 
 // vocabTestSessionDoc はセッション doc への参照。
 func vocabTestSessionDoc(db *firestore.Client, uid string) *firestore.DocumentRef {
@@ -116,7 +131,7 @@ func startVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 		}
 	}
 
-	if !premium.IsEffectivePremium(data, now) {
+	if !canStartVocabTest(data, now) {
 		return nil, callable.Errorf(callable.PermissionDenied,
 			"語彙テストはプレミアム限定です")
 	}
@@ -144,7 +159,7 @@ func startVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 			return err
 		}
 		fresh := userSnap.Data()
-		if !premium.IsEffectivePremium(fresh, now) {
+		if !canStartVocabTest(fresh, now) {
 			return callable.Errorf(callable.PermissionDenied, "語彙テストはプレミアム限定です")
 		}
 		windowAt, hasWindow := fresh["vocab_test_window_at"].(time.Time)

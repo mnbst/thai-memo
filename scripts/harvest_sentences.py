@@ -1,7 +1,6 @@
 """Firestore の既存例文を収集してコーパス素材にする。
 
-users/{uid}/sentences は 30 日で消える（dailyBatch の cleanOldSentences）ので、
-生成を始める前に吸い出しておく。sentence_flags で不合格になったものは除外する。
+sentence_flags で不合格になったものは除外する。
 
 usage:
   uv run --with firebase-admin python scripts/harvest_sentences.py [env ...]

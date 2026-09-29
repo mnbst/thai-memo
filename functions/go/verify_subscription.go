@@ -164,8 +164,15 @@ func runVerification(
 			return nil, err
 		}
 		if res.ProductID != productID {
-			return nil, fmt.Errorf("App Store product mismatch: requested=%q verified=%q",
-				productID, res.ProductID)
+			// 上位プランへ切り替えた古い取引（月額）を検証すると、判定は最新の
+			// 取引（年額）で行われて商品が変わる。同じ購読の販売中の自動更新
+			// サブスクなら、切り替え先を正として記録する。
+			if lifetime || isLifetimeProduct(res.ProductID) ||
+				!isAllowedSubscriptionProduct(res.ProductID) {
+				return nil, fmt.Errorf("App Store product mismatch: requested=%q verified=%q",
+					productID, res.ProductID)
+			}
+			productID = res.ProductID
 		}
 		if res.OriginalTransactionID == "" {
 			return nil, errors.New("App Store originalTransactionId is empty")
@@ -179,6 +186,12 @@ func runVerification(
 		identifierField = "subscription.original_transaction_id"
 		identifierValue = res.OriginalTransactionID
 		subscription = subscriptionRecord("ios", productID, res.OriginalTransactionID)
+		// 審査のため Sandbox 取引でも premium は付けるが、売上と区別できるよう
+		// 印を残す。買い切りは月額と同じ doc に重なるので別フィールドにも持つ。
+		subscription["sandbox"] = res.Sandbox
+		if lifetime {
+			subscription["lifetime_sandbox"] = res.Sandbox
+		}
 	}
 
 	newTier := "premium"
@@ -269,6 +282,7 @@ func applyVerifiedLifetimeState(record map[string]any, lifetime bool, tier strin
 	record["lifetime"] = false
 	record["lifetime_source"] = nil
 	record["lifetime_transaction_id"] = nil
+	record["lifetime_sandbox"] = nil
 }
 
 // combineLifetimeVerification は、買い切り検証と別に有効な月額レコードがある場合、
@@ -297,6 +311,7 @@ func combineLifetimeVerification(
 	if newTier == "premium" {
 		out["lifetime"] = true
 		out["lifetime_transaction_id"] = incomingID
+		out["lifetime_sandbox"] = record["lifetime_sandbox"]
 		// 実購入を持つようになったので、無償移行由来ではなく購入由来にする。
 		out["lifetime_source"] = nil
 		out["lifetime_source_transaction_id"] = nil
@@ -310,6 +325,7 @@ func combineLifetimeVerification(
 	if incomingID != "" && currentID == incomingID {
 		out["lifetime"] = false
 		out["lifetime_transaction_id"] = nil
+		out["lifetime_sandbox"] = nil
 	}
 	if subscription.IsLifetime(out) ||
 		subscription.Entitled(out, now, subscription.ExpiryDemotionMargin) {

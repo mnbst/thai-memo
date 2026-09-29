@@ -8,22 +8,16 @@ import '../../l10n/app_localizations.dart';
 /// 気づかないまま期間が終わり、終了ダイアログで初めて「失った」と知らされる。
 /// それでは価値を体験したことにならないので、開放の瞬間に何が使えるかを伝える。
 ///
-/// 語彙測定を終えたオンボーディング末尾でも出す（[offerPaywall] = true）。
-/// 一括配布のときは課金を勧めないが、こちらは「これから何が使えるのか」を
-/// 知った直後なので、プランへ進める導線を1本だけ足す。訴求の本体は
-/// 体験が終わる [PremiumTrialEndedDialog] の仕事のままにする。
+/// 語彙測定を終えたオンボーディング末尾でも出す。そちらは閉じた後に
+/// 呼び出し側がペイウォールを続けて開く。
 class PremiumTrialStartedDialog extends StatelessWidget {
   const PremiumTrialStartedDialog({
     super.key,
     required this.days,
-    this.offerPaywall = false,
   });
 
   /// 体験できる残り日数（期限から算出）。
   final int days;
-
-  /// ペイウォールへの導線を出すか。出したときは true を返して閉じる。
-  final bool offerPaywall;
 
   @override
   Widget build(BuildContext context) {
@@ -62,13 +56,8 @@ class PremiumTrialStartedDialog extends StatelessWidget {
       contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
       actionsPadding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
       actions: [
-        if (offerPaywall)
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.trialStartedSeePlans),
-          ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, false),
+          onPressed: () => Navigator.pop(context),
           child: Text(l10n.trialStartedStart),
         ),
       ],
@@ -110,19 +99,13 @@ class _Unlocked extends StatelessWidget {
   }
 }
 
-/// 体験開放ダイアログを表示する。戻り値はペイウォールを開くかどうか
-/// （[offerPaywall] が false のときは常に false）。
-Future<bool> showPremiumTrialStartedDialog(
+/// 体験開放ダイアログを表示する。
+Future<void> showPremiumTrialStartedDialog(
   BuildContext context, {
   required int days,
-  bool offerPaywall = false,
-}) async {
-  final result = await showDialog<bool>(
+}) {
+  return showDialog<void>(
     context: context,
-    builder: (context) => PremiumTrialStartedDialog(
-      days: days,
-      offerPaywall: offerPaywall,
-    ),
+    builder: (context) => PremiumTrialStartedDialog(days: days),
   );
-  return result ?? false;
 }

@@ -163,6 +163,10 @@ func TestVerifyPurchaseGolden(t *testing.T) {
 					t.Errorf("expiresAt: want %d, got %d",
 						*want.ExpiresAt, *result.ExpiresAt)
 				}
+				// golden の取引はすべて environment=Sandbox で署名されている。
+				if !result.Sandbox {
+					t.Error("Sandbox の取引なのに sandbox=false")
+				}
 			}
 
 			// 叩いた URL が同じであること（環境の選択とフォールバックの確認）

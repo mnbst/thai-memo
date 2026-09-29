@@ -121,7 +121,7 @@ class SentenceViewMarker {
         await sentences.doc(id).update({'viewed': true});
         done.add(id);
       } on FirebaseException catch (e) {
-        // 消えた例文（30日で削除）は送りようがないので待ち行列から外す。
+        // 消えた例文は送りようがないので待ち行列から外す。
         // それ以外（通信断など）は残して次の起動で送り直す。
         if (e.code == 'not-found' || e.code == 'permission-denied') {
           pending.remove(id);

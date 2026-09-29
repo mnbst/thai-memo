@@ -324,6 +324,15 @@ func appStoreUpdates(
 		})
 	}
 
+	// プランを切り替えた（月額⇄年額）ら、今どちらの商品かを追う。ペイウォールは
+	// これを見て「ご利用中」を出す。買い切りの通知では書かない（買い切りの
+	// 印は月額の記録に重ねて持つので、product_id は自動更新側を指したままにする）。
+	if !isFree && !isLifetimeProduct(n.TransactionInfo.ProductID) {
+		updates = append(updates, firestore.Update{
+			Path: "subscription.product_id", Value: n.TransactionInfo.ProductID,
+		})
+	}
+
 	// expires_at は premium の期限切れフォールバック（dailyBatch /
 	// subscriptionStatus）の判定材料。premium のまま null で上書きすると
 	// 期限判定が効かなくなるため、値が無い premium 通知では既存値を残す。
@@ -404,6 +413,8 @@ type appStoreDecision struct {
 //   - EXPIRED / REVOKE / REFUND: → free / expired
 //   - GRACE_PERIOD_EXPIRED     : 猶予期間終了 → free / expired
 //   - DID_FAIL_TO_RENEW        : GRACE_PERIOD なら premium / grace_period、他は free / expired
+//   - DID_CHANGE_RENEWAL_PREF  : UPGRADE（月額→年額）は即時に切り替わる → premium / active。
+//     DOWNGRADE は次回更新から効くので、ここでは何もしない（更新時の DID_RENEW で反映）
 func decideAppStoreNotification(n *appstore.Notification) appStoreDecision {
 	autoRenewing := n.RenewalInfo != nil && n.RenewalInfo.AutoRenewStatus == 1
 	autoRenewOff := n.RenewalInfo != nil && n.RenewalInfo.AutoRenewStatus == 0
@@ -434,6 +445,13 @@ func decideAppStoreNotification(n *appstore.Notification) appStoreDecision {
 		} else {
 			d.Status = "active"
 		}
+
+	case "DID_CHANGE_RENEWAL_PREF":
+		if n.Subtype != "UPGRADE" {
+			d.Handled = false
+			break
+		}
+		d.Tier, d.Status = "premium", "active"
 
 	case "DID_FAIL_TO_RENEW":
 		if n.Subtype == "GRACE_PERIOD" {
