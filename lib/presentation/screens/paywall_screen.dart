@@ -40,9 +40,10 @@ import '../widgets/sign_in_sheet.dart';
 /// premium は無制限なので、対応する定数は持たない（文言側で「無制限」と書く）。
 const freeDailySentences = 5;
 
-/// 新規ユーザーに配るプレミアム体験の期間（日）。
+/// 1.4.12以前のユーザーに互換付与する旧体験の期間（日）。
+/// 新規ユーザーの無料期間はストアから取得し、この値は使わない。
 /// サーバ側の quota.PremiumTrialDays と一致させること。
-const premiumTrialDays = 2;
+const legacyPremiumTrialDays = 2;
 
 /// プレミアムプランの説明を表示する全画面ページ
 class PaywallScreen extends ConsumerStatefulWidget {
@@ -265,11 +266,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       plan: plan,
       productLoaded: subState.productFor(plan) != null,
       selectedTrial: trialForSale ? subState.trials[plan] : null,
-      // 見出しは選んでいるプランの日数を優先する。月額と年額で期間を
-      // 変えたとき、ボタンと見出しの日数が食い違わないように。
-      headlineTrial: !trialForSale
-          ? null
-          : subState.trials[plan] ?? subState.trials.values.firstOrNull,
+      // 無料体験の見出しは、購入ボタンが実際に開始するプランにだけ連動させる。
+      // 別プランの特典へフォールバックすると、買い切りや対象外プランを選んだ
+      // 状態でも「無料体験」と表示され、実際の即時請求と食い違ってしまう。
+      headlineTrial: trialForSale ? subState.trials[plan] : null,
     );
   }
 

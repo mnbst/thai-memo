@@ -1,0 +1,129 @@
+{
+  "identifier" : "7C1E2A54-3B8D-4F6A-9E21-5D0B8C4F7A13",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "34.99",
+      "familyShareable" : false,
+      "internalID" : "6811252697",
+      "localizations" : [
+        {
+          "description" : "Unlimited sentences. One payment, no renewal.",
+          "displayName" : "Premium (Lifetime)",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "例文が無制限に。1回のお支払いでずっと使えます。",
+          "displayName" : "プレミアム 買い切り",
+          "locale" : "ja"
+        }
+      ],
+      "productID" : "premium_lifetime",
+      "referenceName" : "Premium Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6759669680",
+    "_developerTeamID" : "5KTT2C466P",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "ja",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21962721",
+      "localizations" : [
+
+      ],
+      "name" : "Premium Plan",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "3.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6760120989",
+          "introductoryOffer" : {
+            "internalID" : "A1F3C9D2-6B7E-4C85-8D14-2E9F0A6B3C71",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Unlimited sentences. Choose from 16 topics.",
+              "displayName" : "Premium Monthly Plan",
+              "locale" : "en_US"
+            },
+            {
+              "description" : "例文が無制限に。16テーマから自由に選べます。",
+              "displayName" : "プレミアム月額プラン",
+              "locale" : "ja"
+            }
+          ],
+          "productID" : "premium_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Premium Monthly",
+          "subscriptionGroupID" : "21962721",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "29.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6815271809",
+          "introductoryOffer" : {
+            "internalID" : "B82D4E07-9C1A-4F36-A5E8-7D3C1B0F9E24",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Unlimited sentences. Choose from 16 topics.",
+              "displayName" : "Premium Yearly Plan",
+              "locale" : "en_US"
+            },
+            {
+              "description" : "例文が無制限に。16テーマから自由に選べます。",
+              "displayName" : "プレミアム年額プラン",
+              "locale" : "ja"
+            }
+          ],
+          "productID" : "premium_annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Premium Yearly",
+          "subscriptionGroupID" : "21962721",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

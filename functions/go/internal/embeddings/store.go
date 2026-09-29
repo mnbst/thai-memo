@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"os"
 	"sort"
-	"strings"
 	"sync"
 
 	"cloud.google.com/go/storage"
@@ -144,28 +143,6 @@ func (s *Store) Embedding(word string) []float32 {
 		return nil
 	}
 	return s.matrix[i]
-}
-
-// TopicEmbedding はテーマ文字列の embedding を返す。
-// 完全一致に加えて部分一致（どちらの向きでも）を許す。
-func (s *Store) TopicEmbedding(ctx context.Context, topic string) ([]float32, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := s.loadJSONEmbeddings(ctx, &s.topicEmbs, topicEmbBlob); err != nil {
-		return nil, err
-	}
-	return findEmbedding(topic, s.topicEmbs), nil
-}
-
-// findEmbedding は Python の _find_embedding。
-// map の反復順に依存するため、Go では決定的になるようキー順で走査する。
-func findEmbedding(label string, embs map[string][]float32) []float32 {
-	for _, key := range sortedKeys(embs) {
-		if label == key || strings.Contains(key, label) || strings.Contains(label, key) {
-			return embs[key]
-		}
-	}
-	return nil
 }
 
 func sortedKeys(m map[string][]float32) []string {

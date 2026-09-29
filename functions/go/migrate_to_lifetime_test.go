@@ -184,6 +184,31 @@ func TestLifetimeVerificationPreservesMonthlyRecord(t *testing.T) {
 	}
 }
 
+// 本番の月額に Sandbox の買い切りが重なっても、どちらが売上かを区別できること。
+func TestLifetimeVerificationKeepsSandboxMarkSeparate(t *testing.T) {
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	monthly := map[string]any{
+		"platform": "ios", "product_id": productIDPremiumMonthly,
+		"original_transaction_id": "tx-monthly", "status": "expired",
+		"expires_at": now.Add(-60 * 24 * time.Hour), "sandbox": false,
+	}
+	lifetime := subscriptionRecord("ios", productIDPremiumLifetime, "tx-lifetime")
+	lifetime["sandbox"] = true
+	lifetime["lifetime_sandbox"] = true
+
+	got, _ := combineLifetimeVerification(lifetime, "premium", monthly, now)
+	if got["sandbox"] != false || got["lifetime_sandbox"] != true {
+		t.Fatalf("月額と買い切りの環境が混ざっている: %v", got)
+	}
+
+	revoked := subscriptionRecord("ios", productIDPremiumLifetime, "tx-lifetime")
+	applyVerifiedLifetimeState(revoked, true, "free")
+	got, _ = combineLifetimeVerification(revoked, "free", got, now)
+	if got["lifetime_sandbox"] != nil {
+		t.Fatalf("返金後に買い切りの環境の印が残っている: %v", got)
+	}
+}
+
 func TestInvalidLifetimeDoesNotRevokeMigration(t *testing.T) {
 	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	current := map[string]any{

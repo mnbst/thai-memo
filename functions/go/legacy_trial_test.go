@@ -28,19 +28,22 @@ func TestAppVersionBefore(t *testing.T) {
 func TestNeedsLegacyTrial(t *testing.T) {
 	now := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 	tests := []struct {
-		name string
-		data map[string]any
-		want bool
+		name                 string
+		data                 map[string]any
+		clientUsesStoreTrial bool
+		want                 bool
 	}{
-		{"旧アプリの新規は配る", map[string]any{"app_version": "1.4.12"}, true},
-		{"版の記録が無い新規は配る", map[string]any{}, true},
-		{"1.4.13 の新規は配らない", map[string]any{"app_version": "1.4.13"}, false},
-		{"体験を持っていれば配らない", map[string]any{"app_version": "1.4.12", "premium_trial_expires_at": now}, false},
-		{"生成したことがあれば配らない", map[string]any{"app_version": "1.4.12", "first_generated_at": now}, false},
+		{"旧アプリの新規は配る", map[string]any{"app_version": "1.4.12"}, false, true},
+		{"版の記録が無い旧アプリは配る", map[string]any{}, false, true},
+		{"版の書き込み前でも新アプリには配らない", map[string]any{}, true, false},
+		{"doc の版が古くても新アプリには配らない", map[string]any{"app_version": "1.4.12"}, true, false},
+		{"1.4.13 の新規は配らない", map[string]any{"app_version": "1.4.13"}, false, false},
+		{"体験を持っていれば配らない", map[string]any{"app_version": "1.4.12", "premium_trial_expires_at": now}, false, false},
+		{"生成したことがあれば配らない", map[string]any{"app_version": "1.4.12", "first_generated_at": now}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := needsLegacyTrial(tt.data); got != tt.want {
+			if got := needsLegacyTrial(tt.data, tt.clientUsesStoreTrial); got != tt.want {
 				t.Errorf("needsLegacyTrial = %v, want %v", got, tt.want)
 			}
 		})

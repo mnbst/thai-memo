@@ -871,22 +871,22 @@ class L10nJa extends L10n {
 
   @override
   String paywallTrialHeadline(int days) {
-    return 'プレミアム$days日間 無料体験';
+    return 'プレミアムを$days日間無料で体験';
   }
 
   @override
   String paywallTrialCta(int days) {
-    return '$days日間 無料で始める';
+    return '$days日間無料で試す';
   }
 
   @override
   String paywallTrialTermsMonthly(int days, String price) {
-    return '$days日間の無料期間のあと $price / 月で自動更新。無料期間中に解約すれば料金はかかりません。';
+    return '$days日間無料。その後は月額$priceで自動更新されます。料金を発生させないためには、無料期間終了の24時間前までに解約してください。';
   }
 
   @override
   String paywallTrialTermsYearly(int days, String price) {
-    return '$days日間の無料期間のあと $price / 年で自動更新。無料期間中に解約すれば料金はかかりません。';
+    return '$days日間無料。その後は年額$priceで自動更新されます。料金を発生させないためには、無料期間終了の24時間前までに解約してください。';
   }
 
   @override
@@ -2275,8 +2275,9 @@ class L10nJa extends L10n {
       'この結果を出発点に、例文とクイズの難易度を合わせます。使ううちに実際の正誤で少しずつ動きます。';
 
   @override
-  String get vocabTestResultFreeCap =>
-      'フリープランでは語彙スコアが100までに制限されます。プレミアムなら上限なく伸ばせます。';
+  String vocabTestResultFreeCap(int vocab) {
+    return 'フリープランでは、語彙スコアと例文の難しさは100語までです。このあとの学習ではスコアが100になり、そこから上がりません。プレミアムなら測定した$vocab語から始められます。';
+  }
 
   @override
   String get vocabTestResultClose => '閉じる';

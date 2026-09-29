@@ -87,6 +87,11 @@ class BackendApiService {
           params[entry.key] = entry.value;
         }
       }
+      // 1.4.13以降はストアの無料トライアルを使う。新規ユーザーへ
+      // 旧2日体験を互換付与するかを、Firestoreへの app_version の
+      // 非同期書き込み順に依存せずサーバーが判定できるようにする。
+      // 呼び出し側の generationParams で上書きできないよう最後に入れる。
+      params['store_trial_paywall'] = true;
 
       final result = await callable.call(params);
 

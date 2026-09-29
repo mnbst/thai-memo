@@ -88,6 +88,7 @@ func lifetimeReleaseUpdates(data map[string]any, now time.Time) []firestore.Upda
 		{Path: "subscription.lifetime", Value: false},
 		{Path: "subscription.lifetime_source", Value: firestore.Delete},
 		{Path: "subscription.lifetime_transaction_id", Value: firestore.Delete},
+		{Path: "subscription.lifetime_sandbox", Value: firestore.Delete},
 		{Path: "subscription.lifetime_source_transaction_id", Value: firestore.Delete},
 		{Path: "subscription.lifetime_source_purchase_token", Value: firestore.Delete},
 		{Path: "subscription.updated_at", Value: firestore.ServerTimestamp},

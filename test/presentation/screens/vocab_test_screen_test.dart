@@ -197,7 +197,8 @@ void main() {
     await tester.pumpWidget(_app(api));
     await _start(tester);
 
-    expect(find.textContaining('100までに制限されます'), findsOneWidget);
+    expect(find.textContaining('語彙スコアと例文の難しさは100語まで'), findsOneWidget);
+    expect(find.textContaining('測定した300語から'), findsOneWidget);
   });
 
   testWidgets('オンボーディングでは逃げ道を出さない', (tester) async {

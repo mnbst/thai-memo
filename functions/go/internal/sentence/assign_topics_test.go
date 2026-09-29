@@ -15,8 +15,6 @@ type stubEmb struct {
 
 func (e *stubEmb) Embedding(string) []float32 { return nil }
 
-func (e *stubEmb) TopicEmbedding(context.Context, string) ([]float32, error) { return nil, nil }
-
 func (e *stubEmb) FindBestTopic(
 	_ context.Context, word string, topics []string, _ int, _ float64,
 ) (string, error) {

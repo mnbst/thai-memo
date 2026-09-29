@@ -273,6 +273,7 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 		ExpiresAt:             tx.ExpiresDate,
 		AutoRenewing:          autoRenewing,
 		Status:                status,
+		Sandbox:               tx.Environment == EnvironmentSandbox,
 	}, nil
 }
 
@@ -368,6 +369,7 @@ func (c *Client) VerifyOneTimePurchase(
 		ExpiresAt:             nil,
 		AutoRenewing:          false,
 		Status:                status,
+		Sandbox:               tx.Environment == EnvironmentSandbox,
 	}, nil
 }
 

@@ -10,8 +10,6 @@ import (
 	"unicode/utf8"
 
 	"cloud.google.com/go/firestore"
-
-	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 )
 
 const (
@@ -43,9 +41,6 @@ const (
 	// ここで取れるのは穴埋めぶんだけで、帯そのものは動かさない
 	// （est の前進は従来どおり ScanBand が決める）。
 	ForwardTopUpDepth = 50
-
-	// TopicFilterThreshold はテーマ embedding との類似度の足切り。
-	TopicFilterThreshold = 0.3
 )
 
 // ScanBand は estimated_vocab から key_word 候補のランク帯 [low, high] を返す
@@ -111,83 +106,11 @@ const (
 	TopicMatchThreshold = 0.52
 )
 
-// TopicEmbedder は候補フィルタとテーマ選択に使う embedding 参照。
+// TopicEmbedder はテーマ選択に使う embedding 参照。
 // 実装は internal/embeddings.Store。
 type TopicEmbedder interface {
 	Embedding(word string) []float32
-	TopicEmbedding(ctx context.Context, topic string) ([]float32, error)
 	FindBestTopic(ctx context.Context, word string, topics []string, topK int, threshold float64) (string, error)
-}
-
-// FilterCandidatesByTopic はテーマ embedding との類似度で候補を絞る
-// （uvm.py:_filter_candidates_by_topic:314）。
-//
-// 帯域内に閾値以上が 1 つも無ければ空を返す。呼び出し側は既出を除いたうえで
-// ClosestToTopic に落とす。
-//
-// 以前は帯域の外へ 50 ずつ 5 段まで**下へ**広げて探し、それでも駄目なら元の
-// 候補を丸ごと返していた。やめた理由は 2 つ:
-//
-//   - 下へ広げると rank 0 まで降りられ、「測定値以下は無いものとして扱う」が
-//     破れる。測定 250 の人がテーマ次第で rank 一桁の語を key_word にされた
-//   - 丸ごと返すのはテーマを無視するのと同じ。帯内で一番近い語を出すほうが
-//     テーマの指定に沿う
-//
-// 帯を出ないので、原点シフトも free の上限もそのまま守られる。
-func FilterCandidatesByTopic(
-	emb TopicEmbedder, candidates []Candidate, topicEmb []float32,
-) []Candidate {
-	var filtered []Candidate
-	for _, c := range candidates {
-		wordEmb := emb.Embedding(c.Word)
-		if wordEmb == nil {
-			continue
-		}
-		// 境界（ちょうど 0.3）は差分テストで踏めない。float の類似度が
-		// 閾値と厳密に一致する入力を作れないため、>= と > は区別できない。
-		if embeddings.CosineSimilarity(wordEmb, topicEmb) >= TopicFilterThreshold {
-			filtered = append(filtered, c)
-		}
-	}
-	return filtered
-}
-
-// ClosestToTopic は候補の中でテーマ embedding に最も近い順に count 件返す。
-// 閾値を満たす語が帯内に 1 つも無かったときのフォールバック。
-//
-// 呼び出し側が先に既出（UVM 登録済み）を落としているので、同じテーマでも
-// 同じ語が出続けることはない。embedding を持たない語は比較できないので外す。
-// 全部が比較できないときは候補をそのまま返す（抽選に任せる）。
-func ClosestToTopic(
-	emb TopicEmbedder, candidates []Candidate, topicEmb []float32, count int,
-) []Candidate {
-	type scored struct {
-		c   Candidate
-		sim float64
-	}
-	var all []scored
-	for _, c := range candidates {
-		wordEmb := emb.Embedding(c.Word)
-		if wordEmb == nil {
-			continue
-		}
-		all = append(all, scored{c: c, sim: embeddings.CosineSimilarity(wordEmb, topicEmb)})
-	}
-	if len(all) == 0 {
-		return candidates[:min(count, len(candidates))]
-	}
-	// 類似度の降順。同点は rank 昇順にして結果を一意にする。
-	sort.SliceStable(all, func(i, j int) bool {
-		if all[i].sim != all[j].sim {
-			return all[i].sim > all[j].sim
-		}
-		return all[i].c.Rank < all[j].c.Rank
-	})
-	out := make([]Candidate, 0, min(count, len(all)))
-	for _, s := range all[:min(count, len(all))] {
-		out = append(out, s.c)
-	}
-	return out
 }
 
 // ZeroPWeights は未登録／P=0 の候補の抽選重み。rank が大きい（低頻度）ほど軽い。
@@ -313,7 +236,7 @@ type SessionRequest struct {
 // （uvm.py:get_session_words:360）。
 //
 // 1. scan_band が返すランク帯から未登録 or P=0 の語を rank 重み付きで選ぶ
-// 2. テーマ指定があれば embedding で候補を絞り、そのテーマをそのまま使う
+// 2. テーマ指定があればそのテーマをそのまま使う。key_word はテーマで絞らない
 // 3. 指定が無ければ key_word から embedding でテーマを決める（閾値未達なら ""）
 func (s *SessionSelector) GetSessionWords(
 	ctx context.Context, db *firestore.Client, freqRank FreqRank, req SessionRequest,
@@ -356,28 +279,7 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	candidates := BandCandidates(freqRank, scanLow, scanHigh)
-	// band は絞り込み前の帯。テーマで絞ると数語しか残らないことがあり、
-	// そのときセットの本数を埋めるために使う。
-	band := candidates
-
-	// fallbackEmb が非 nil のときは「帯内に閾値以上の語が無かった」。
-	// 既出を落としたあとで一番テーマに近い語を選ぶ（下の選出部）。
-	var fallbackEmb []float32
-
 	topic := req.Topic
-	if topic != "" && s.Emb != nil && len(candidates) > 0 {
-		emb, err := s.Emb.TopicEmbedding(ctx, topic)
-		if err != nil {
-			return nil, "", err
-		}
-		if emb != nil {
-			if matched := FilterCandidatesByTopic(s.Emb, candidates, emb); len(matched) > 0 {
-				candidates = matched
-			} else {
-				fallbackEmb = emb
-			}
-		}
-	}
 
 	if len(candidates) == 0 {
 		log.Printf("get_session_words: no candidates, estimated_vocab=%d, scan=[%d, %d], topic=%s",
@@ -398,30 +300,20 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	var selected []Candidate
-	switch {
-	case fallbackEmb != nil && len(zeroP) > 0:
-		// テーマ一致語が帯内に無かった場合。既出（UVM 登録済み）を除いた
-		// 未出の語から、一番テーマに近いものを取る。
-		selected = ClosestToTopic(s.Emb, zeroP, fallbackEmb, req.Count)
-	case fallbackEmb != nil:
-		// 帯内が全部既出。それでもテーマに一番近い語を返す。
-		selected = ClosestToTopic(s.Emb, candidates, fallbackEmb, req.Count)
-	case len(zeroP) > 0:
+	if len(zeroP) > 0 {
 		selected = s.SelectWeighted(zeroP, ZeroPWeights(zeroP), req.Count)
-	default:
+	} else {
 		selected = s.selectUnknown(candidates, pMap, req.Count)
 	}
 
 	// 選出が req.Count に足りないと、セットがその本数で欠ける（例文5本が
-	// 1本で返る）。欠ける道は2つある。
-	//   - テーマで絞った帯が req.Count に満たない
-	//   - テーマ無し（premium おまかせ）で、帯の未出語（zeroP）が尽きかけ
-	//     ている。SelectWeighted は zeroP の数しか返さない。
+	// 1本で返る）。帯の未出語（zeroP）が尽きかけていると、SelectWeighted は
+	// zeroP の数しか返さない。
 	// prod 2026-09-12: 帯59語のうち未出が1語だけ残った premium ユーザーが、
-	// おまかせで1本しか受け取れなかった。絞り込みの有無で条件を分けず、
-	// 足りなければ常に帯の残りから埋める（未出→既出の順は TopUpFromBand）。
+	// おまかせで1本しか受け取れなかった。
+	// 足りなければ帯の残りから埋める（未出→既出の順は TopUpFromBand）。
 	if len(selected) < req.Count {
-		rest := remaining(band, selected)
+		rest := remaining(candidates, selected)
 		// 帯の中で埋まらないときのために、帯の前方（ランクの大きい側）へ
 		// ForwardTopUpDepth ぶん広げた語も一緒に見る。帯の既出を使い回すより、
 		// 前方の未出を出すほうが「まだ習っていない語を出す」帯の意図に合う。
