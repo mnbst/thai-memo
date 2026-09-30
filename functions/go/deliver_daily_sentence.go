@@ -638,7 +638,9 @@ func unreadDeliveredSetIDs(docs []deliveredDoc, keepSetID string) []string {
 	read := map[string]bool{}
 	for _, doc := range docs {
 		setID := deliveredSetID(doc.ID, doc.Data)
-		if setID == keepSetID {
+		// 洗い替え済み（削除印つき）は数えない。印を付け直すと updated_at が
+		// 動き続け、端末の差分同期が毎回読み直すことになる。
+		if setID == keepSetID || isSentenceDeleted(doc.Data) {
 			continue
 		}
 		members[setID] = append(members[setID], doc.ID)
@@ -657,7 +659,24 @@ func unreadDeliveredSetIDs(docs []deliveredDoc, keepSetID string) []string {
 	return ids
 }
 
+// purgedSentenceRetention は洗い替えで削除印を付けた doc を物理削除するまでの猶予。
+//
+// 端末は updated_at の差分で例文を取り込むので、doc をいきなり消すと削除が
+// 伝わらず、別端末の履歴・待機列に残り続ける。印を付けて updated_at を進め、
+// 端末が読みに来る時間を置いてから消す。
+const purgedSentenceRetention = 14 * 24 * time.Hour
+
+// isSentenceDeleted は削除印（本人の削除・洗い替え）が付いた例文か。
+func isSentenceDeleted(data map[string]any) bool {
+	deleted, _ := data["deleted"].(bool)
+	return deleted
+}
+
 // purgeUnreadDeliveredSets は今回配信した keepSetID 以外の未読セットを消す。
+//
+// 消すといっても、まず削除印（deleted / updated_at）を付けるだけにする。
+// 別端末に削除を伝えるため（purgedSentenceRetention）。印を付けてから猶予を
+// 過ぎた doc は、ここで物理削除する。
 //
 // 通知したのに1本も読まれなかったセットは、次の配信が届いた時点で捨てる。
 // 残すと、クライアントは未取り込みの配信を30日ぶん全部拾って待機列へ積むため
@@ -690,25 +709,55 @@ func (d *deliverer) purgeUnreadDeliveredSets(
 	for _, setID := range unreadDeliveredSetIDs(docs, keepSetID) {
 		stale[setID] = true
 	}
-	if len(stale) == 0 {
+	expired := expiredPurgedDocIDs(docs, time.Now())
+	if len(stale) == 0 && len(expired) == 0 {
 		return
 	}
 
 	bw := d.DB.BulkWriter(ctx)
-	deleted := 0
+	marked := 0
 	for _, doc := range docs {
-		if !stale[deliveredSetID(doc.ID, doc.Data)] {
+		if isSentenceDeleted(doc.Data) || !stale[deliveredSetID(doc.ID, doc.Data)] {
 			continue
 		}
-		if _, err := bw.Delete(userRef.Collection("sentences").Doc(doc.ID)); err != nil {
-			log.Printf("daily_sentence: 未読セットの削除に失敗 %s: %v", userRef.ID, err)
+		ref := userRef.Collection("sentences").Doc(doc.ID)
+		if _, err := bw.Update(ref, []firestore.Update{
+			{Path: "deleted", Value: true},
+			{Path: "purged_at", Value: firestore.ServerTimestamp},
+			{Path: "updated_at", Value: firestore.ServerTimestamp},
+		}); err != nil {
+			log.Printf("daily_sentence: 未読セットの削除印に失敗 %s: %v", userRef.ID, err)
 			continue
 		}
-		deleted++
+		marked++
+	}
+	removed := 0
+	for _, id := range expired {
+		if _, err := bw.Delete(userRef.Collection("sentences").Doc(id)); err != nil {
+			log.Printf("daily_sentence: 洗い替え済みdocの削除に失敗 %s: %v", userRef.ID, err)
+			continue
+		}
+		removed++
 	}
 	bw.End()
-	log.Printf("daily_sentence: purged unread sets uid=%s sets=%d sentences=%d",
-		userRef.ID, len(stale), deleted)
+	log.Printf("daily_sentence: purged unread sets uid=%s sets=%d marked=%d removed=%d",
+		userRef.ID, len(stale), marked, removed)
+}
+
+// expiredPurgedDocIDs は洗い替えで削除印を付けてから猶予を過ぎた doc。
+//
+// 本人が消した例文（purged_at 無し）は対象にしない。端末の削除記録と
+// 突き合わせる材料なので、ここでは残す。
+func expiredPurgedDocIDs(docs []deliveredDoc, now time.Time) []string {
+	var ids []string
+	for _, doc := range docs {
+		purgedAt, ok := doc.Data["purged_at"].(time.Time)
+		if ok && isSentenceDeleted(doc.Data) && now.Sub(purgedAt) >= purgedSentenceRetention {
+			ids = append(ids, doc.ID)
+		}
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // deliveryQualityCheck は配信で生成直後の品質判定を行うか。

@@ -191,6 +191,10 @@ func candidateFrom(uid, docID string, data map[string]any) (quality.Candidate, b
 	if cached, ok := data["from_cache"].(bool); ok && cached {
 		return quality.Candidate{}, false
 	}
+	// 本人が消した例文・洗い替えた未読セットは共有の在庫に回さない。
+	if isSentenceDeleted(data) {
+		return quality.Candidate{}, false
+	}
 	thai := stringField(data["thai_text"])
 	if thai == "" {
 		return quality.Candidate{}, false
