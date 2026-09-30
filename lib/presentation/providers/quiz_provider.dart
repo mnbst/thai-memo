@@ -265,13 +265,20 @@ class QuizController extends StateNotifier<QuizState> {
     DatabaseHelper? databaseHelper,
     required LearningProgressStore progressStore,
     void Function(Map<String, dynamic> quiz)? onSummaryQuizSaved,
+    void Function(String sentenceId, Map<String, dynamic> quiz)?
+        onConfirmationQuizAnswered,
   })  : _db = databaseHelper ?? DatabaseHelper.instance,
         _progress = progressStore,
         _onSummaryQuizSaved = onSummaryQuizSaved,
+        _onConfirmationQuizAnswered = onConfirmationQuizAnswered,
         super(const QuizInitial());
 
   /// まとめクイズを保存したあとに呼ぶ。別端末へ途中経過を送るため。
   final void Function(Map<String, dynamic> quiz)? _onSummaryQuizSaved;
+
+  /// 確認クイズを答え終えたとき（別端末へ伝えるため）。
+  final void Function(String sentenceId, Map<String, dynamic> quiz)?
+      _onConfirmationQuizAnswered;
 
   /// 学習レコード。必須にしてあるのは、カーソル側と同じインスタンスを渡し忘れると
   /// 同じレコードへの読み書きが二重の待ち行列になり、後勝ちで片方が消えるため。
@@ -916,6 +923,11 @@ class QuizController extends StateNotifier<QuizState> {
       },
     );
     if (slot == _QuizSlot.summary) _onSummaryQuizSaved?.call(snapshot);
+    if (slot == _QuizSlot.confirmation &&
+        sentenceId != null &&
+        snapshot['phase'] == 'summary') {
+      _onConfirmationQuizAnswered?.call(sentenceId, snapshot);
+    }
   }
 
   Future<void> _clearQuizState(_QuizSlot slot) async {
@@ -1077,6 +1089,9 @@ final quizControllerProvider =
     progressStore: ref.read(learningProgressStoreProvider),
     onSummaryQuizSaved: (quiz) =>
         ref.read(dailySetProvider.notifier).pushSummaryQuiz(quiz),
+    onConfirmationQuizAnswered: (sentenceId, quiz) => ref
+        .read(dailySetProvider.notifier)
+        .pushConfirmationQuiz(sentenceId, quiz),
   );
 });
 

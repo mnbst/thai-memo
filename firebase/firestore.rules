@@ -97,7 +97,7 @@ service cloud.firestore {
 
         allow read: if request.auth != null
           && request.auth.uid == userId
-          && stateId in ['daily_sets', 'summary_quiz', 'quiz_stats'];
+          && stateId in ['daily_sets', 'summary_quiz', 'confirmation_quiz', 'quiz_stats'];
         allow create, update: if request.auth != null
           && request.auth.uid == userId
           && stateId == 'daily_sets'
@@ -114,20 +114,31 @@ service cloud.firestore {
           && request.resource.data.set_id is string
           && request.resource.data.quiz_json is string
           && request.resource.data.quiz_json.size() < 200000;
+        // 答え終えた確認クイズ。別端末が同じ1本で出し直さないため。
+        allow create, update: if request.auth != null
+          && request.auth.uid == userId
+          && stateId == 'confirmation_quiz'
+          && request.resource.data.keys().hasOnly(['sentence_id', 'quiz_json', 'updated_at'])
+          && request.resource.data.sentence_id is string
+          && request.resource.data.quiz_json is string
+          && request.resource.data.quiz_json.size() < 50000;
         // クイズの累積統計（総回答数・正解数・連続日数）。端末間で共有する。
         allow create, update: if request.auth != null
           && request.auth.uid == userId
           && stateId == 'quiz_stats'
           && request.resource.data.keys().hasOnly([
             'total_answered', 'total_correct', 'current_streak', 'best_streak',
-            'last_quiz_date', 'updated_at'
+            'last_quiz_date', 'recent_dates', 'updated_at'
           ])
           && request.resource.data.total_answered is int
           && request.resource.data.total_correct is int
           && request.resource.data.current_streak is int
           && request.resource.data.best_streak is int
           && (request.resource.data.last_quiz_date == null
-              || request.resource.data.last_quiz_date is string);
+              || request.resource.data.last_quiz_date is string)
+          && (!('recent_dates' in request.resource.data)
+              || (request.resource.data.recent_dates is list
+                  && request.resource.data.recent_dates.size() <= 60));
       }
 
       // UVM (User Vocabulary Model): read only, writes by Cloud Functions only
