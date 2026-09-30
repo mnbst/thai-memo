@@ -4,10 +4,11 @@
 // 初回起動では先頭から全文を読ませ（スキップ可）、以後は設定からいつでも開ける。
 // 画面の上に案内を重ねるコーチマークは持たない。読む場所はここ1つに集める。
 //
-// 並びは 概要 → それぞれの機能の役割 → 操作のしかた。
+// 並びは 概要 → 学習のコツ → それぞれの機能の役割 → 操作のしかた。
 // 何のためのアプリかを先に置き、次に各機能が何のためにあるかを説明し、
 // 最後に実際の手順へ降りる。手順から始めると、押し方は分かっても
-// なぜ押すのかが残らない。
+// なぜ押すのかが残らない。コツは学び方の心構えなので概要の直後に置く
+// （初回はスキップされやすく、後ろほど読まれない）。他画面には出さない。
 // =============================================================================
 
 import 'dart:async';
@@ -267,6 +268,20 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
         ],
       ),
       _GuideChapter(
+        title: l10n.guideChapterTips,
+        sections: [
+          _GuideSection(
+            icon: Icons.lightbulb_outline,
+            title: l10n.guideTipsTitle,
+            lines: [
+              l10n.guideTipsRepeat,
+              l10n.guideTipsRelation,
+              l10n.guideTipsSpeak,
+            ],
+          ),
+        ],
+      ),
+      _GuideChapter(
         title: l10n.guideChapterRoles,
         sections: [
           _GuideSection(
@@ -282,7 +297,11 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
           _GuideSection(
             icon: Icons.quiz_outlined,
             title: l10n.guideRoleQuizTitle,
-            lines: [l10n.guideRoleQuizBody],
+            lines: [
+              l10n.guideRoleQuizCheck,
+              l10n.guideRoleQuizSummary,
+              l10n.guideRoleQuizSpelling,
+            ],
           ),
           _GuideSection(
             icon: Icons.trending_up,
