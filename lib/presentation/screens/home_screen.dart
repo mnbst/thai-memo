@@ -9,11 +9,13 @@ import '../../core/config/app_config.dart';
 import '../../core/constants/generation_constants.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/thai_sentence.dart';
+import '../../data/datasources/backend_api_service.dart';
 import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
 import '../../services/interview_reporter.dart';
 import '../../services/push_notification_service.dart';
 import '../../services/sentence_view_marker.dart';
+import '../../services/uvm_update_queue.dart';
 import '../providers/daily_set_provider.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
@@ -73,6 +75,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       unawaited(InterviewReporter().report());
       // 通信できずに端末へ溜まった既読を流す。
       unawaited(SentenceViewMarker.instance.flush());
+      // 送れずに端末へ溜まったクイズ回答（語彙スコアの更新）を流す。
+      unawaited(
+          UvmUpdateQueue.instance.flush(BackendApiService().sendUvmPayload));
       _notificationOpenSubscription =
           FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
       // 後ろで取り込んだ別端末の進行位置を、例文を読んでいる間だけ反映する。
@@ -516,6 +521,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 初回ロードが完了する前はスキップ（_checkFirstLaunchAndLoadSentenceとの二重生成を防ぐ）
     if (!_initialLoadCompleted) return;
 
+    // 圏外のあいだに溜まったクイズ回答を流す。
+    unawaited(
+        UvmUpdateQueue.instance.flush(BackendApiService().sendUvmPayload));
+
     // 別端末で進んだ位置は後ろで取り込む。待たないのは、通信が遅いあいだ
     // 端末の続きを表示できないほうが困るため。
     unawaited(_adoptProgressFromOtherDevices());
@@ -678,6 +687,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 開始した新しいセットを古いカーソルが後から上書きする。
     // 復元そのものは controller 側で1回に束ねている。
     await ref.read(dailySetProvider.notifier).restored;
+
+    // 配信を取り込む前に、別端末で進んだ位置・終えたセットを合わせる。端末の
+    // 記録が古いままだと、別端末で読み終えたセットを1本目から出し直したり、
+    // 取り込んだ配信で待機列が溢れて読みかけのセットを捨てたりする。
+    // 通信が遅いときは待たずに進む（合わせるのは後ろで続く）。
+    await ref
+        .read(dailySetProvider.notifier)
+        .syncFromCloud(
+          adopt: _learningKey.currentState?.isOnSentenceStage ?? true,
+        )
+        .timeout(const Duration(seconds: 3), onTimeout: () {});
 
     // 配信例文の取り込みを先に終わらせる。今日ぶんがあればそれが今日の例文なので、
     // 生成もローカル読み込みも走らせない（通知タップかどうかの判定は不要）。

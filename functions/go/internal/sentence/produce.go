@@ -2,6 +2,8 @@ package sentence
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -138,11 +140,17 @@ type ProduceRequest struct {
 	Lang        lang.Lang
 	// QualityCheck が真なら LLM 生成した文を Checker にかけ、不合格なら指摘を
 	// 付けて1回だけ作り直し、作り直した文をもう一度判定する（2026-09-25 の
-	// 実測で作り直し後の合格 7/8）。作り直しても不合格なら作り直した文を使い、
-	// Quality.Passed=false で保存する（プールに入らない）。元の文は不合格と
-	// 分かっているので戻さない。
+	// 実測で作り直し後の合格 7/8）。作り直しても不合格（作り直しの生成に失敗
+	// した場合を含む）の文はセットから外す（ErrQualityRejected）。セットが
+	// n 本に満たなくなるのは許容する（2026-09-30。語の用法の罠で 28/120 が
+	// 作り直し後も不合格で、その多くは誤用のままだった）。
+	// 判定そのものに失敗したときは元の文で続ける（Quality=nil、プールに入らない）。
 	QualityCheck bool
 }
+
+// ErrQualityRejected は作り直しても品質判定に通らず、文をセットから外したこと。
+// セットの全部が外れたときだけ ProduceBatch のエラーとして返る。
+var ErrQualityRejected = errors.New("sentence rejected by quality check")
 
 // Produced は Produce の結果。
 type Produced struct {
@@ -371,6 +379,11 @@ func (p *Producer) generate(
 			var q *Quality
 			if req.QualityCheck {
 				s, q = p.checkAndRetry(ctx, req, callParams, pk, s)
+				if q != nil && !q.Passed {
+					log.Printf("produce: dropped after quality retry key_word=%s reason=%s", pk.Word, q.Reason)
+					errs[i] = fmt.Errorf("%w: key_word=%s", ErrQualityRejected, pk.Word)
+					return
+				}
 			}
 			s.GenerationTier = GenerationTier(req.UsePremiumSpec)
 			produced[i] = &Produced{

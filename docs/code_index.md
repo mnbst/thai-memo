@@ -277,11 +277,14 @@ users/{uid}/sentences を updated_at の差分同期でローカルSQLiteへ反�
 lib/services/sentence_remote_state.dart
 お気に入り・削除を Firestore の例文docへ書き、ほかの端末へ伝える（favorite / deleted / updated_at）。
 
+lib/services/uvm_update_queue.dart
+クイズ回答のUVM更新（updateUvm）を送れるまで端末に溜め、起動・復帰時に古い順に送り直す。
+
 lib/services/quiz_stats_sync.dart
 クイズ累積統計（総回答数・正解数・連続日数）を learning_state/quiz_stats で端末間共有する。送れないセッションは端末に溜め、旧版で貯めた端末の統計は1回だけ合算する。
 
 lib/services/daily_set_progress_store.dart
-例文セットの進行位置（DailySetProgressSnapshot）の Firestore 読み書きと、端末間の単調マージ（mergeDailySetProgress）。位置の正本は例文ID（active_sentence_id）で、番号はその並びでの写し。
+例文セットの進行位置（DailySetProgressSnapshot）の Firestore 読み書きと、端末間の単調マージ（mergeDailySetProgress）。位置の正本は例文ID（active_sentence_id）で、番号はその並びでの写し。待機列から溢れて捨てたセット（dropped_set_ids）は端末だけに持ち、Firestoreへ送らない。
 
 ## Thai Language Processing (Dart)
 
@@ -535,7 +538,7 @@ functions/go/sentence_audit_live_test.go
 Jev judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
 
 functions/go/internal/sentence/produce_check_test.go
-生成直後の品質判定（QualityCheck）のテスト。不合格だけ作り直して再判定・作り直しても不合格は Passed=false・失敗時は元の文・バンク由来は判定しない。
+生成直後の品質判定（QualityCheck）のテスト。不合格だけ作り直して再判定・作り直しても不合格ならセットから外す・判定失敗時は元の文・バンク由来は判定しない。
 
 functions/go/internal/sentence/corpusbank.go
 静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
@@ -550,7 +553,10 @@ functions/go/internal/corpustrans/validate_en_test.go
 英訳の機械チェック（品詞名の混入・スラッシュ併記の三人称・タイ文字残留・句点）の単体テスト。
 
 functions/go/internal/quality/judge.go
-例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足はコードで判定し、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
+例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
+
+functions/go/internal/quality/rules.go
+コードで判定する観点（訳の文法用語・英訳の助動詞なし not・既知の誤訳・語の誤用の正規表現・頭なしの ก็ตาม）と、語が文にあるときだけ Jev に用法を聞く語ごとの観点（wordUsages）。
 
 functions/go/internal/quality/judge_eval_live_test.go
 評価セット（testdata/judge_eval.json、欠陥55・正常70）を実際の Jev にかけ、欠陥の検出数・正常の誤検出数と中身を出す。観点・閾値を変えたら前後で回す（JUDGE_EVAL_LIVE=1）。
@@ -1087,6 +1093,9 @@ test/presentation/providers/daily_set_provider_test.dart
 
 test/services/daily_set_progress_store_test.dart
 端末間マージ（カーソルの単調性・完了セットの非復活・待機列の統合）のテスト。
+
+test/services/uvm_update_queue_test.dart
+UVM更新の再送キュー（溜める・古い順に送る・送っても無駄なものは捨てる）のテスト。
 
 test/services/quiz_stats_sync_test.dart
 クイズ累積統計のセッション加算（連続日数・遅れて届いた日付）と端末間の合算のテスト。

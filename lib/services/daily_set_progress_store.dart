@@ -76,6 +76,7 @@ class DailySetProgressSnapshot {
     this.activeSentenceId,
     this.pending = const [],
     this.completedSetIds = const [],
+    this.droppedSetIds = const [],
   });
 
   final DailySetRef? active;
@@ -89,8 +90,18 @@ class DailySetProgressSnapshot {
   final List<DailySetRef> pending;
   final List<String> completedSetIds;
 
+  /// 待機列から溢れて、この端末が捨てたセット。端末の中だけで持つ。
+  ///
+  /// 完了（[completedSetIds]）と分けるのは、完了は Firestore で全端末に効くため。
+  /// 溢れたのが別端末の読みかけセットだと、完了として送った時点でその続きが
+  /// 全端末から消える。捨てたセットは、この端末の待機列へ積み直さないためだけに使う。
+  final List<String> droppedSetIds;
+
   bool get isEmpty =>
-      active == null && pending.isEmpty && completedSetIds.isEmpty;
+      active == null &&
+      pending.isEmpty &&
+      completedSetIds.isEmpty &&
+      droppedSetIds.isEmpty;
 
   /// [active] の並びでの位置。表示と、番号しか読めない旧バージョン向け。
   int get activeIndex => active?.positionOf(activeSentenceId) ?? 0;
@@ -105,11 +116,13 @@ class DailySetProgressSnapshot {
         'active_sentence_id': activeSentenceId,
         'pending': [for (final set in pending) set.toJson()],
         'completed_set_ids': completedSetIds,
+        'dropped_set_ids': droppedSetIds,
       };
 
-  /// Firestore 用。更新時刻はサーバー側で打つ。
+  /// Firestore 用。更新時刻はサーバー側で打つ。捨てたセットは端末の中だけの
+  /// 記録なので送らない。
   Map<String, dynamic> toFirestore() => {
-        ...toJson(),
+        ...toJson()..remove('dropped_set_ids'),
         'updated_at': FieldValue.serverTimestamp(),
       };
 
@@ -133,6 +146,9 @@ class DailySetProgressSnapshot {
       activeSentenceId: anchorId,
       pending: pending,
       completedSetIds: ((data['completed_set_ids'] as List?) ?? const [])
+          .whereType<String>()
+          .toList(),
+      droppedSetIds: ((data['dropped_set_ids'] as List?) ?? const [])
           .whereType<String>()
           .toList(),
     );
@@ -311,9 +327,8 @@ DailySetRef? latestDeliveredSetRef(
   }
   if (newest.isEmpty) return null;
 
-  final latestSetId = newest.entries
-      .reduce((a, b) => a.value.isAfter(b.value) ? a : b)
-      .key;
+  final latestSetId =
+      newest.entries.reduce((a, b) => a.value.isAfter(b.value) ? a : b).key;
   final members = DailySentenceService.orderSetMembers(latestSetId, docs);
   final ids = [for (final member in members) member.key];
   if (ids.isEmpty) return null;

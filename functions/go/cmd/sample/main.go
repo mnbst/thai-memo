@@ -41,6 +41,9 @@ type record struct {
 	Retried *sentence.Sentence `json:"retried,omitempty"`
 	// Notes は judge の指摘。差し戻しプロンプトへそのまま入れる。
 	Notes []string `json:"notes,omitempty"`
+	// RetryNotes は作り直した文の再判定の指摘。空なら作り直した文は合格
+	// （本番の Producer.checkAndRetry と同じく、不合格ならプールに入らない）。
+	RetryNotes []string `json:"retry_notes,omitempty"`
 	*sentence.Sentence
 }
 
@@ -217,6 +220,38 @@ func retry(
 	}
 	wg.Wait()
 	fmt.Fprintln(os.Stderr)
+	recheck(ctx, j, recs, l)
+}
+
+// recheck は作り直した文をもう一度判定し、不合格なら RetryNotes に指摘を残す。
+func recheck(ctx context.Context, j *quality.Judge, recs []record, l lang.Lang) {
+	var batch []quality.Candidate
+	var idx []int
+	for i, r := range recs {
+		if r.Retried == nil {
+			continue
+		}
+		batch = append(batch, quality.Candidate{
+			SentenceID:          fmt.Sprint(i),
+			ThaiText:            r.Retried.ThaiText,
+			Pronunciation:       r.Retried.Pronunciation,
+			JapaneseTranslation: r.Retried.JapaneseTranslation,
+			KeyWord:             r.Word,
+			Lang:                l,
+		})
+		idx = append(idx, i)
+	}
+	if len(batch) == 0 {
+		return
+	}
+	flagged, verdicts, err := j.JudgeBatch(ctx, batch)
+	if err != nil {
+		log.Printf("作り直した文の判定に失敗: %v", err)
+	}
+	for _, v := range verdicts {
+		recs[idx[v.Index]].RetryNotes = v.RetryNotes()
+	}
+	fmt.Fprintf(os.Stderr, "recheck: 作り直し %d件中 %d件が不合格\n", len(batch), len(flagged))
 }
 
 func regenerate(
