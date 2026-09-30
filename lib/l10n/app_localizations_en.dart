@@ -1030,6 +1030,9 @@ class L10nEn extends L10n {
   String get onboardingNext => 'Next';
 
   @override
+  String get onboardingHaveAccount => 'Already have an account? Sign in';
+
+  @override
   String get interviewIntroTitle => 'Four quick questions';
 
   @override

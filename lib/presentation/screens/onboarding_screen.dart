@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/firebase_auth_service.dart';
 import '../providers/analytics_provider.dart';
+import '../widgets/sign_in_sheet.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   static const routeName = 'onboarding';
 
   const OnboardingScreen({super.key, required this.onComplete});
 
-  final VoidCallback onComplete;
+  /// 引数は、既存アカウントにサインインして抜けたか。真なら呼び出し側は
+  /// ヒアリング・語彙テストを飛ばし、クラウドから続きを戻す。
+  final ValueChanged<bool> onComplete;
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -54,13 +58,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
-  void _complete({required bool skipped}) {
+  void _complete({required bool skipped, bool existingAccount = false}) {
     unawaited(
       ref
           .read(analyticsServiceProvider)
           .logOnboardingComplete(skipped: skipped),
     );
-    widget.onComplete();
+    widget.onComplete(existingAccount);
+  }
+
+  /// 別の端末で使っていたアカウントで入る。
+  ///
+  /// 新しい端末は匿名で始まるので、ここで入らないと、ヒアリングと語彙テストを
+  /// 捨てアカウントでやり直し、そのあいだの学習もサインイン時に捨てることになる。
+  /// uid が変わったときだけ既存アカウントとみなす。変わらなければ（匿名を
+  /// そのまま昇格した＝新規）、ふつうにオンボーディングを続ける。
+  Future<void> _signInExisting() async {
+    final before = FirebaseAuthService.instance.currentUser?.uid;
+    final signedIn = await showSignInSheet(context);
+    if (!mounted || !signedIn) return;
+    final after = FirebaseAuthService.instance.currentUser?.uid;
+    if (after != null && after != before) {
+      _complete(skipped: true, existingAccount: true);
+    }
   }
 
   void _nextPage() {
@@ -131,6 +151,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       onPressed: _nextPage,
                       child: Text(L10n.of(context).onboardingNext),
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _signInExisting,
+                    child: Text(L10n.of(context).onboardingHaveAccount),
                   ),
                 ],
               ),

@@ -165,4 +165,42 @@ void main() {
     expect(await controller.linkWithGoogle(), isNull);
     expect(clearedUid, 'anonymous-1');
   });
+
+  test('別アカウントへ切り替わったら、掃除のあとで切替を知らせる', () async {
+    final events = <String>[];
+    final auth = _Auth()..user = _User('anon');
+    auth.googleLink = () async {
+      auth.user = _User('existing');
+      return auth.user;
+    };
+    final controller = AuthController(
+      auth,
+      () => lookupL10n(const Locale('ja')),
+      clearLocalData: () async {},
+      clearUserLocalData: (uid) async => events.add('clear:$uid'),
+      readDataOwner: () async => null,
+      onAccountSwitched: () => events.add('switched'),
+    );
+    addTearDown(controller.dispose);
+
+    expect(await controller.linkWithGoogle(), isNull);
+    expect(events, ['clear:anon', 'switched']);
+  });
+
+  test('匿名をそのまま昇格したとき（uid が同じ）は切替を知らせない', () async {
+    var switched = false;
+    final auth = _Auth()..user = _User('anon');
+    auth.googleLink = () async => auth.user;
+    final controller = AuthController(
+      auth,
+      () => lookupL10n(const Locale('ja')),
+      clearLocalData: () async {},
+      readDataOwner: () async => null,
+      onAccountSwitched: () => switched = true,
+    );
+    addTearDown(controller.dispose);
+
+    expect(await controller.linkWithGoogle(), isNull);
+    expect(switched, isFalse);
+  });
 }
