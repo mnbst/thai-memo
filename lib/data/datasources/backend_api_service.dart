@@ -19,9 +19,9 @@
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 
 import '../../../core/config/firebase_config.dart';
+import '../../../services/uvm_update_queue.dart';
 import '../models/quiz_question.dart';
 import '../models/vocab_test_step.dart';
 import '../models/syllable.dart';
@@ -381,25 +381,23 @@ class BackendApiService {
   Future<void> updateUvm({
     required List<Map<String, dynamic>> results,
     String? quizType,
-  }) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return;
+  }) {
+    if (_auth.currentUser == null) return Future.value();
+    final payload = <String, dynamic>{'results': results};
+    if (quizType != null) payload['quiz_type'] = quizType;
+    // 送れなかった回答は端末に残し、次に送れたときに流す（UvmUpdateQueue）。
+    return UvmUpdateQueue.instance.submit(payload, sendUvmPayload);
+  }
 
-      final callable = _functions.httpsCallable(
-        FirebaseConfig.updateUvmFunctionName,
-        options: HttpsCallableOptions(
-          timeout: const Duration(seconds: 30),
-        ),
-      );
-
-      final payload = <String, dynamic>{'results': results};
-      if (quizType != null) payload['quiz_type'] = quizType;
-      await callable.call(payload);
-    } catch (e) {
-      // fire-and-forget: UVM更新失敗はログのみ
-      debugPrint('Failed to update UVM: $e');
-    }
+  /// updateUvm を1回呼ぶ。失敗は例外のまま返す（送り直しの判断は呼び出し側）。
+  Future<void> sendUvmPayload(Map<String, dynamic> payload) async {
+    final callable = _functions.httpsCallable(
+      FirebaseConfig.updateUvmFunctionName,
+      options: HttpsCallableOptions(
+        timeout: const Duration(seconds: 30),
+      ),
+    );
+    await callable.call(payload);
   }
 
   Future<void> resetLearningData() async {

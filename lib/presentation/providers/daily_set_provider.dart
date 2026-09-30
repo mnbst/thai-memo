@@ -95,6 +95,9 @@ class DailySetController extends StateNotifier<DailySetState> {
   /// 端末側の学習レコード（セット・段・クイズ）。
   final LearningProgressStore _progress;
   List<String> _completedSetIds = const [];
+
+  /// 待機列から溢れて捨てたセット。端末の中だけで持ち、Firestore へは送らない。
+  List<String> _droppedSetIds = const [];
   Future<void>? _remoteSyncFuture;
   bool _remoteSyncDirty = false;
   bool _syncPaused = false;
@@ -244,6 +247,7 @@ class DailySetController extends StateNotifier<DailySetState> {
   }) async {
     if (sentences.isEmpty) return false;
     if (_completedSetIds.contains(setId) ||
+        _droppedSetIds.contains(setId) ||
         state.setId == setId ||
         state.pendingSets.any((pending) => pending.setId == setId)) {
       return false;
@@ -319,6 +323,7 @@ class DailySetController extends StateNotifier<DailySetState> {
   Future<void> _clear() async {
     state = const DailySetState();
     _completedSetIds = const [];
+    _droppedSetIds = const [];
     await _progress.clear();
   }
 
@@ -355,15 +360,22 @@ class DailySetController extends StateNotifier<DailySetState> {
 
   /// 待機列を上限（maxPendingSets）まで詰める。残すのは新しいほう。
   ///
-  /// 落としたセットは完了として記録する。記録しないと、Firestore に残った
-  /// 同じセットが merge で未完了の正本と見なされ、次の同期でまた積み直される。
+  /// 落としたセットは「捨てた」として端末にだけ記録する。記録しないと、
+  /// Firestore に残った同じセットが次の同期でまた積み直される。完了として
+  /// 記録してはいけない。完了は全端末に効くので、落としたのが別端末の
+  /// 読みかけセットだと、その続きが全端末から消える。
   List<PendingDailySet> _trimPending(List<PendingDailySet> pending) {
     if (pending.length <= maxPendingSets) return pending;
     final dropped = pending.take(pending.length - maxPendingSets);
     for (final set in dropped) {
-      _markCompleted(set.setId);
+      _markDropped(set.setId);
     }
     return pending.skip(pending.length - maxPendingSets).toList();
+  }
+
+  void _markDropped(String setId) {
+    if (_droppedSetIds.contains(setId)) return;
+    _droppedSetIds = trimCompletedSetIds([..._droppedSetIds, setId]);
   }
 
   /// セットから抜けるときは必ず完了として記録する。記録が漏れると、Firestore に
@@ -386,6 +398,7 @@ class DailySetController extends StateNotifier<DailySetState> {
             DailySetRef.fromSentences(pending.setId, pending.sentences),
         ],
         completedSetIds: _completedSetIds,
+        droppedSetIds: _droppedSetIds,
       );
 
   /// 端末の続きを確定させる。Firestore は待たない。
@@ -512,9 +525,16 @@ class DailySetController extends StateNotifier<DailySetState> {
     final repository = _repository;
     final progressStore = _progressStore;
     _completedSetIds = snapshot.completedSetIds;
+    // クラウドの正本は捨てたセットを持たない。端末の記録と合わせて持ち続ける。
+    _droppedSetIds = trimCompletedSetIds(
+      {..._droppedSetIds, ...snapshot.droppedSetIds},
+    );
 
     final pending = <PendingDailySet>[];
     for (final ref in snapshot.pending) {
+      // この端末が捨てたセットは待機列へ戻さない。読んでいるセット（active）は
+      // 別端末で読みかけのものかもしれないので、ここでは弾かない。
+      if (_droppedSetIds.contains(ref.setId)) continue;
       final sentences = await _resolve(
         ref.sentenceIds,
         repository,

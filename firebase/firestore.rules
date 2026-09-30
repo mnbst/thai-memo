@@ -68,6 +68,33 @@ service cloud.firestore {
       // 例文セットの進行位置。複数端末・再インストール後も続きを復元する。
       // 学習コンテンツや課金状態には影響せず、本人の状態だけを本人が更新できる。
       match /learning_state/{stateId} {
+        // 別端末が読みかけのセット（正本の active）を、読み終えていないのに
+        // 完了へ入れる書き込みか。
+        //
+        // 1.5.x までのクライアントは、待機列から溢れたセットを completed_set_ids に
+        // 入れて送る。溢れたのが別端末の読みかけセットだと、全端末でその続きが
+        // 消える。読み終えた端末なら最後の1本を既読にしているか、位置が最後の
+        // 1本まで来ているので、どちらでもないものだけを拒む。
+        //
+        // 正本が3日動いていなければ通す。読んでいた端末をもう使っていない人
+        // （機種変更）の同期を止め続けないため。
+        function dropsUnfinishedActive() {
+          let before = resource.data;
+          let active = before.get('active', null);
+          let ids = active == null ? [] : active.get('sentence_ids', []);
+          let lastId = ids.size() > 0 ? ids[ids.size() - 1] : '';
+          let lastPath = /databases/$(database)/documents/users/$(userId)/sentences/$(lastId);
+          return lastId is string && lastId != ''
+            && active.get('set_id', null) is string
+            && request.resource.data.get('completed_set_ids', []).hasAny([active.set_id])
+            && !before.get('completed_set_ids', []).hasAny([active.set_id])
+            && before.get('active_sentence_id', null) != lastId
+            && before.get('updated_at', null) is timestamp
+            && before.updated_at > request.time - duration.value(3, 'd')
+            && exists(lastPath)
+            && get(lastPath).data.get('viewed', false) != true;
+        }
+
         allow read: if request.auth != null
           && request.auth.uid == userId
           && stateId in ['daily_sets', 'summary_quiz', 'quiz_stats'];
@@ -77,7 +104,8 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
             'active', 'active_index', 'active_sentence_id', 'pending',
             'completed_set_ids', 'updated_at'
-          ]);
+          ])
+          && (resource == null || !dropsUnfinishedActive());
         // まとめクイズの途中経過。別端末が同じセットの続きから解くため。
         allow create, update: if request.auth != null
           && request.auth.uid == userId
