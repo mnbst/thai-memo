@@ -57,6 +57,22 @@ class _MemoryProgressStore extends DailySetProgressStore {
 
   @override
   Future<RemoteSummaryQuiz?> fetchSummaryQuiz() async => summaryQuiz;
+
+  /// 別端末が答え終えた確認クイズ。
+  RemoteConfirmationQuiz? confirmationQuiz;
+
+  @override
+  Future<void> saveConfirmationQuiz(
+    String sentenceId,
+    Map<String, dynamic> quiz,
+  ) async {
+    confirmationQuiz =
+        RemoteConfirmationQuiz(sentenceId: sentenceId, quiz: quiz);
+  }
+
+  @override
+  Future<RemoteConfirmationQuiz?> fetchConfirmationQuiz() async =>
+      confirmationQuiz;
 }
 
 class _GatedProgressStore extends _MemoryProgressStore {
@@ -368,6 +384,63 @@ void main() {
       expect(record.summaryQuiz?['answers'], hasLength(2));
     });
 
+    test('別端末で答え終えた確認クイズを、読んでいる1本なら引き継ぐ', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId)
+        ..remote = DailySetProgressSnapshot(
+          active: DailySetRef.fromSentences('A', _set(['a', 'b'])),
+          activeSentenceId: 'a',
+        )
+        ..confirmationQuiz = const RemoteConfirmationQuiz(
+          sentenceId: 'a',
+          quiz: {'phase': 'summary', 'sentence_id': 'a'},
+        );
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+      await controller.settled;
+
+      await controller.syncFromCloud(adopt: true);
+
+      final record = await container.read(learningProgressStoreProvider).load();
+      expect(record.confirmationQuizSentenceId, 'a');
+      expect(record.confirmationQuiz?['phase'], 'summary');
+    });
+
+    test('別の1本の確認クイズは引き継がない', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId)
+        ..confirmationQuiz = const RemoteConfirmationQuiz(
+          sentenceId: 'b',
+          quiz: {'phase': 'summary', 'sentence_id': 'b'},
+        );
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+      await controller.settled;
+
+      await controller.syncFromCloud(adopt: true);
+
+      final record = await container.read(learningProgressStoreProvider).load();
+      expect(record.confirmationQuizSentenceId, isNull);
+    });
+
+    test('答え終えた確認クイズは、読んでいる1本のものだけ送る', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId);
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+
+      controller.pushConfirmationQuiz('b', const {'phase': 'summary'});
+      await Future<void>.delayed(Duration.zero);
+      expect(store.confirmationQuiz, isNull);
+
+      controller.pushConfirmationQuiz('a', const {'phase': 'summary'});
+      await Future<void>.delayed(Duration.zero);
+      expect(store.confirmationQuiz?.sentenceId, 'a');
+    });
+
     test('この端末のほうが先まで答えていれば、まとめクイズは上書きしない', () async {
       final byId = sentencesOf(['a', 'b']);
       final store = _MemoryProgressStore(byId)
@@ -522,7 +595,9 @@ void main() {
   });
 
   test('溢れて捨てたセットは完了として Firestore へ送らない', () async {
-    final byId = {for (final id in ['a', 'b', 'c', 'e']) id: _sentence(id)};
+    final byId = {
+      for (final id in ['a', 'b', 'c', 'e']) id: _sentence(id)
+    };
     final store = _MemoryProgressStore(byId);
     final container = containerWith(byId, progressStore: store);
     final controller = container.read(dailySetProvider.notifier);

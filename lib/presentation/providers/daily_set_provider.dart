@@ -460,7 +460,43 @@ class DailySetController extends StateNotifier<DailySetState> {
       await _apply(reconciled);
       if (mounted) await _saveLocal();
     });
-    if (adopted) await _adoptRemoteSummaryQuiz(store);
+    if (adopted) {
+      await _adoptRemoteSummaryQuiz(store);
+      await _adoptRemoteConfirmationQuiz(store);
+    }
+  }
+
+  /// 別端末で答え終えた確認クイズを、この端末のレコードへ取り込む。
+  ///
+  /// 取り込むのは、いま読んでいる1本のものだけ。これで「次へ」がこの端末でも
+  /// 進めるようになり、同じ1本の確認クイズを出し直さない（答えを二重に
+  /// 語彙スコアへ送らない）。
+  Future<void> _adoptRemoteConfirmationQuiz(
+    DailySetProgressStore store,
+  ) async {
+    final currentId = state.current?.id;
+    if (!mounted || currentId == null) return;
+    final remote = await store.fetchConfirmationQuiz();
+    if (remote == null || !mounted) return;
+    await _serialized(() async {
+      if (!mounted || state.current?.id != remote.sentenceId) return;
+      await _progress.update((current) {
+        if (current.confirmationQuizSentenceId == remote.sentenceId &&
+            current.confirmationQuiz?['phase'] == 'summary') {
+          return current;
+        }
+        return current.copyWith(
+          confirmationQuizSentenceId: remote.sentenceId,
+          confirmationQuiz: remote.quiz,
+        );
+      });
+    });
+  }
+
+  /// 答え終えた確認クイズを別端末へ送る。持ち主はいま読んでいる1本。
+  void pushConfirmationQuiz(String sentenceId, Map<String, dynamic> quiz) {
+    if (_syncPaused || !mounted || state.current?.id != sentenceId) return;
+    unawaited(_progressStore.saveConfirmationQuiz(sentenceId, quiz));
   }
 
   /// 別端末で解きかけたまとめクイズを、この端末のレコードへ取り込む。

@@ -335,6 +335,10 @@ func fetchSrsCandidatesForInterval(
 		}
 		data := doc.Data()
 		keyWord, _ := data["key_word"].(string)
+		// 本人が消した例文・洗い替えた未読セットは出題しない。
+		if isSentenceDeleted(data) {
+			continue
+		}
 		if viewedOnly && !isSentenceViewed(data) {
 			continue
 		}
@@ -464,7 +468,8 @@ func fetchSentenceCandidatesByKeyWords(
 		}
 		data := doc.Data()
 		keyWord, ok := data["key_word"].(string)
-		if !ok || usedIDs[doc.Ref.ID] || !isUserSentenceDocReady(data) {
+		if !ok || usedIDs[doc.Ref.ID] || isSentenceDeleted(data) ||
+			!isUserSentenceDocReady(data) {
 			continue
 		}
 		if viewedOnly && !isSentenceViewed(data) {

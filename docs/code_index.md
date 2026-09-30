@@ -281,7 +281,7 @@ lib/services/uvm_update_queue.dart
 クイズ回答のUVM更新（updateUvm）を送れるまで端末に溜め、起動・復帰時に古い順に送り直す。
 
 lib/services/quiz_stats_sync.dart
-クイズ累積統計（総回答数・正解数・連続日数）を learning_state/quiz_stats で端末間共有する。送れないセッションは端末に溜め、旧版で貯めた端末の統計は1回だけ合算する。
+クイズ累積統計（総回答数・正解数・連続日数）を learning_state/quiz_stats で端末間共有する。連続日数は解いた日の記録（recent_dates）から数え、遅れて届いたセッションも連続に数える。送れないセッションは端末に溜め、旧版で貯めた端末の統計は1回だけ合算する。
 
 lib/services/daily_set_progress_store.dart
 例文セットの進行位置（DailySetProgressSnapshot）の Firestore 読み書きと、端末間の単調マージ（mergeDailySetProgress）。位置の正本は例文ID（active_sentence_id）で、番号はその並びでの写し。待機列から溢れて捨てたセット（dropped_set_ids）は端末だけに持ち、Firestoreへ送らない。

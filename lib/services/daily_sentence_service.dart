@@ -131,6 +131,8 @@ class DailySentenceService {
           .doc(sentenceId)
           .get();
       final data = doc.data();
+      // 洗い替えで削除印が付いた配信（古い通知の開き直し）は出さない。
+      if (data?['deleted'] == true) return null;
       if (!doc.exists || data == null || data['daily'] != true) {
         return local == null
             ? null
@@ -337,7 +339,10 @@ class DailySentenceService {
   ) async {
     final members = orderSetMembers(
       setId,
-      [for (final doc in docs) MapEntry(doc.id, doc.data())],
+      [
+        for (final doc in docs)
+          if (doc.data()['deleted'] != true) MapEntry(doc.id, doc.data()),
+      ],
     );
 
     final sentences = <ThaiSentence>[];

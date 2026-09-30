@@ -1861,6 +1861,12 @@ abstract class L10n {
   /// **'次へ'**
   String get onboardingNext;
 
+  /// No description provided for @onboardingHaveAccount.
+  ///
+  /// In ja, this message translates to:
+  /// **'アカウントをお持ちの方はこちら'**
+  String get onboardingHaveAccount;
+
   /// No description provided for @interviewIntroTitle.
   ///
   /// In ja, this message translates to:

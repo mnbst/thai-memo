@@ -176,6 +176,25 @@ abstract class DailySetProgressStore {
 
   /// 別端末が送ったまとめクイズの途中経過。無ければ・読めなければ null。
   Future<RemoteSummaryQuiz?> fetchSummaryQuiz() async => null;
+
+  /// 答え終えた確認クイズを送る。別端末が同じ1本で出し直さないように。
+  Future<void> saveConfirmationQuiz(
+    String sentenceId,
+    Map<String, dynamic> quiz,
+  ) async {}
+
+  /// 別端末が答え終えた確認クイズ。無ければ・読めなければ null。
+  Future<RemoteConfirmationQuiz?> fetchConfirmationQuiz() async => null;
+}
+
+/// 端末間で共有する、答え終えた確認クイズ。持ち主は例文ID。
+class RemoteConfirmationQuiz {
+  const RemoteConfirmationQuiz({required this.sentenceId, required this.quiz});
+
+  final String sentenceId;
+
+  /// 端末の学習レコードの confirmation_quiz と同じ形。
+  final Map<String, dynamic> quiz;
 }
 
 /// 端末間で共有するまとめクイズの途中経過。持ち主はセットID。
@@ -273,11 +292,48 @@ class FirestoreDailySetProgressStore implements DailySetProgressStore {
   }
 
   @override
+  Future<void> saveConfirmationQuiz(
+    String sentenceId,
+    Map<String, dynamic> quiz,
+  ) async {
+    final ref = _userCollection('learning_state')?.doc('confirmation_quiz');
+    if (ref == null) return;
+    try {
+      await ref.set({
+        'sentence_id': sentenceId,
+        'quiz_json': jsonEncode(quiz),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Future<RemoteConfirmationQuiz?> fetchConfirmationQuiz() async {
+    final ref = _userCollection('learning_state')?.doc('confirmation_quiz');
+    if (ref == null) return null;
+    try {
+      final data = (await ref.get()).data();
+      final sentenceId = data?['sentence_id'];
+      final encoded = data?['quiz_json'];
+      if (sentenceId is! String || encoded is! String) return null;
+      final quiz = jsonDecode(encoded);
+      if (quiz is! Map) return null;
+      return RemoteConfirmationQuiz(
+        sentenceId: sentenceId,
+        quiz: Map<String, dynamic>.from(quiz),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<ThaiSentence?> fetchSentence(String id) async {
     try {
       final doc = await _userCollection('sentences')?.doc(id).get();
       final data = doc?.data();
-      return data == null ? null : DailySentenceService.toSentence(id, data);
+      if (data == null || data['deleted'] == true) return null;
+      return DailySentenceService.toSentence(id, data);
     } catch (_) {
       return null;
     }
@@ -316,6 +372,10 @@ DailySetRef? latestDeliveredSetRef(
   List<MapEntry<String, Map<String, dynamic>>> docs,
 ) {
   final newest = <String, DateTime>{};
+  docs = [
+    for (final doc in docs)
+      if (doc.value['deleted'] != true) doc,
+  ];
   for (final doc in docs) {
     final setId = DailySentenceService.setIdOf(doc.key, doc.value);
     final createdAt = doc.value['created_at'];

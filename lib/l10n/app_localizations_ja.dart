@@ -963,6 +963,9 @@ class L10nJa extends L10n {
   String get onboardingNext => '次へ';
 
   @override
+  String get onboardingHaveAccount => 'アカウントをお持ちの方はこちら';
+
+  @override
   String get interviewIntroTitle => '4つ質問させてください';
 
   @override

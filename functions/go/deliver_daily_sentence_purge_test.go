@@ -3,6 +3,7 @@ package function
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func daily(setID string, viewed any) map[string]any {
@@ -90,5 +91,41 @@ func TestDeliveredSetID(t *testing.T) {
 	}
 	if got := deliveredSetID("doc1", map[string]any{"daily_set_id": ""}); got != "doc1" {
 		t.Errorf("空文字は doc ID: %q", got)
+	}
+}
+
+func TestUnreadDeliveredSetIDsSkipsPurged(t *testing.T) {
+	purged := daily("old1", false)
+	purged["deleted"] = true
+	docs := []deliveredDoc{
+		{ID: "new1", Data: daily("new1", false)},
+		{ID: "old1", Data: purged},
+	}
+	// 削除印つきは数え直さない（印を付け直して updated_at を動かさない）。
+	if got := unreadDeliveredSetIDs(docs, "new1"); len(got) != 0 {
+		t.Fatalf("got %v, want none", got)
+	}
+}
+
+func TestExpiredPurgedDocIDs(t *testing.T) {
+	now := time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)
+	doc := func(deleted bool, purgedAgo time.Duration) map[string]any {
+		data := daily("s", false)
+		if deleted {
+			data["deleted"] = true
+		}
+		if purgedAgo > 0 {
+			data["purged_at"] = now.Add(-purgedAgo)
+		}
+		return data
+	}
+	docs := []deliveredDoc{
+		{ID: "expired", Data: doc(true, purgedSentenceRetention)},
+		{ID: "fresh", Data: doc(true, purgedSentenceRetention-time.Hour)},
+		{ID: "userDeleted", Data: doc(true, 0)},
+		{ID: "live", Data: doc(false, 0)},
+	}
+	if got, want := expiredPurgedDocIDs(docs, now), []string{"expired"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
 	}
 }

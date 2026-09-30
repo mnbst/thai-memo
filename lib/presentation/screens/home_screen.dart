@@ -10,6 +10,7 @@ import '../../core/constants/generation_constants.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../data/datasources/backend_api_service.dart';
+import '../providers/auth_provider.dart';
 import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
 import '../../services/interview_reporter.dart';
@@ -80,6 +81,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           UvmUpdateQueue.instance.flush(BackendApiService().sendUvmPayload));
       _notificationOpenSubscription =
           FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
+      // 設定などから別アカウントへ切り替えたら、そのアカウントの続き
+      // （配信・進行位置）を読み込み直す。端末データは切替時に消えている。
+      ref.listenManual(accountSwitchEpochProvider, (_, __) {
+        if (_initialLoadCompleted && mounted) unawaited(_reloadToday());
+      });
       // 後ろで取り込んだ別端末の進行位置を、例文を読んでいる間だけ反映する。
       ref.listenManual(dailySetProvider, (previous, next) {
         if (!_initialLoadCompleted) return;
@@ -565,6 +571,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
 
     if (isFirstLaunch) {
+      var existingAccount = false;
       if (mounted) {
         // まず機能紹介の3枚。何のアプリかを見せてから質問へ入る。
         await Navigator.push<void>(
@@ -572,74 +579,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           MaterialPageRoute(
             settings: const RouteSettings(name: OnboardingScreen.routeName),
             builder: (context) => OnboardingScreen(
-              onComplete: () {
+              onComplete: (existing) {
+                existingAccount = existing;
                 Navigator.pop(context);
               },
             ),
           ),
         );
       }
-      if (mounted) {
-        // 続けてヒアリング。本人の状況を聞いてから説明書・語彙テストへ入る。
-        await Navigator.push<void>(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: InterviewScreen.routeName),
-            builder: (context) => InterviewScreen(
-              onComplete: () {
-                Navigator.pop(context);
-              },
+      // 別の端末で使っていたアカウントで入った人は、ヒアリング・語彙テストを
+      // 済ませている。続きはクラウドから戻す（_loadTodaySentence）。
+      if (existingAccount) {
+        ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
+      } else {
+        if (mounted) {
+          // 続けてヒアリング。本人の状況を聞いてから説明書・語彙テストへ入る。
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: InterviewScreen.routeName),
+              builder: (context) => InterviewScreen(
+                onComplete: () {
+                  Navigator.pop(context);
+                },
+              ),
             ),
-          ),
-        );
-      }
-      // 回答の送信は分析と毎日配信のため。テーマは端末側で決めるので、
-      // 書き込みの着地は待たない。語彙スコアには効かないので、着地の順序が
-      // 語彙テストと前後しても影響しない。
-      unawaited(InterviewReporter().report());
+          );
+        }
+        // 回答の送信は分析と毎日配信のため。テーマは端末側で決めるので、
+        // 書き込みの着地は待たない。語彙スコアには効かないので、着地の順序が
+        // 語彙テストと前後しても影響しない。
+        unawaited(InterviewReporter().report());
 
-      if (mounted) {
-        // 先に使い方の説明書を先頭から読ませる。読みたくない人はスキップ
-        // できる。語彙テストは「何を測るのか」が分かってからのほうが、
-        // 意味の分からない4択を突然出されるより降りられにくい。
-        await Navigator.push<void>(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: GuideScreen.routeName),
-            builder: (context) => GuideScreen(
-              isFirstLaunch: true,
-              onDone: () => Navigator.pop(context),
+        if (mounted) {
+          // 先に使い方の説明書を先頭から読ませる。読みたくない人はスキップ
+          // できる。語彙テストは「何を測るのか」が分かってからのほうが、
+          // 意味の分からない4択を突然出されるより降りられにくい。
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: GuideScreen.routeName),
+              builder: (context) => GuideScreen(
+                isFirstLaunch: true,
+                onDone: () => Navigator.pop(context),
+              ),
             ),
-          ),
-        );
-      }
+          );
+        }
 
-      // 最後に語彙テスト。生成の開始はこの後まで待つ。key_word は
-      // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
-      // 0 語相当の難度で出てしまう。
-      if (mounted) {
-        await Navigator.push<void>(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: VocabTestScreen.routeName),
-            builder: (context) => VocabTestScreen(
-              mandatory: true,
-              source: 'onboarding',
-              onFinished: (_) => Navigator.pop(context),
+        // 最後に語彙テスト。生成の開始はこの後まで待つ。key_word は
+        // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
+        // 0 語相当の難度で出てしまう。
+        if (mounted) {
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: VocabTestScreen.routeName),
+              builder: (context) => VocabTestScreen(
+                mandatory: true,
+                source: 'onboarding',
+                onFinished: (_) => Navigator.pop(context),
+              ),
             ),
-          ),
-        );
-      }
+          );
+        }
 
-      // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
-      // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
-      // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
-      if (mounted) {
-        await PaywallScreen.show(context, source: 'onboarding');
-      }
+        // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
+        // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
+        // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
+        if (mounted) {
+          await PaywallScreen.show(context, source: 'onboarding');
+        }
 
-      // 生成開始。ここから先は学習画面のローディングで待たせる。
-      _initialLoadFuture ??= _applyInterviewTopicAndLoad(await _savedGoal());
+        // 生成開始。ここから先は学習画面のローディングで待たせる。
+        _initialLoadFuture ??= _applyInterviewTopicAndLoad(await _savedGoal());
+      }
 
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();

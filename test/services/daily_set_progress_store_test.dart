@@ -191,6 +191,17 @@ void main() {
       expect(ref?.sentenceIds, ['new-1', 'new-2']);
     });
 
+    test('洗い替えで削除印が付いたセットは選ばない', () {
+      final purged = doc('new-1', setId: 'NEW', index: 0, day: 5);
+      purged.value['deleted'] = true;
+      final ref = latestDeliveredSetRef([
+        doc('old-1', setId: 'OLD', index: 0, day: 1),
+        purged,
+      ]);
+
+      expect(ref?.setId, 'OLD');
+    });
+
     test('daily_set_id を持たない旧形式は doc 単体のセットとして扱う', () {
       final ref = latestDeliveredSetRef([
         MapEntry('legacy', {
