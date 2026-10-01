@@ -331,7 +331,7 @@
   "trialEndedKeepFree": "Later",
   "trialEndedChangeQuotaLabel": "Sentences",
   "trialEndedChangeQuotaPremium": "Unlimited",
-  "trialEndedChangeQuotaFree": "{free} per day",
+  "trialEndedChangeQuotaFree": "{free} sets per day",
   "@trialEndedChangeQuotaFree": {
     "placeholders": {
       "free": {
@@ -1261,7 +1261,7 @@
   "guidePlanRowTopic": "Topics",
   "guidePlanRowVocab": "Vocabulary cap",
   "guidePlanSentencesUnlimited": "Unlimited",
-  "guidePlanSentences": "{count}",
+  "guidePlanSentences": "{count} sets",
   "@guidePlanSentences": {
     "placeholders": {
       "count": {

@@ -5,8 +5,11 @@
  * dailyBatch, verifySubscription, handlePlayNotification, handleAppStoreNotification で使用。
  */
 
-/** free ユーザーの日次リセット値（JST 0:00） */
-export const FREE_DAILY_SENTENCES = 5;
+/**
+ * free ユーザーの日次リセット値（JST 0:00）。数えるのは例文の本数ではなくセット数。
+ * Go の quota.FreeDailySentences と一致させること。
+ */
+export const FREE_DAILY_SENTENCES = 2;
 
 /**
  * クイズの日次上限は 2026-08-25 に撤廃した（generateQuiz は remaining_quizzes を

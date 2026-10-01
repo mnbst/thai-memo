@@ -112,7 +112,13 @@ func TestSentenceCommitUpdateAgainstPythonGolden(t *testing.T) {
 		if !equalStrs(keys, c.WantKeys) {
 			t.Fatalf("case %d: 更新キー = %v, want %v", ci, keys, c.WantKeys)
 		}
-		if !reflect.DeepEqual(byPath["remaining_sentences"], firestore.Increment(c.WantRemainingDelta)) {
+		// golden は本数ぶん減らしていた頃のもの。free の枠はセット数になり、
+		// 本数によらず1セットで1減らす。
+		wantRemaining := c.WantRemainingDelta
+		if wantRemaining < 0 {
+			wantRemaining = -1
+		}
+		if !reflect.DeepEqual(byPath["remaining_sentences"], firestore.Increment(wantRemaining)) {
 			t.Errorf("case %d: remaining_sentences の増減が違う", ci)
 		}
 		if !reflect.DeepEqual(byPath["sentence_generated_count"], firestore.Increment(c.WantCountDelta)) {

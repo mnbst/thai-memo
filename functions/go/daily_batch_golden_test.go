@@ -130,11 +130,20 @@ func decodeGolden(v any) any {
 // 分岐（どの条件で premium 値を書くか）は golden のまま突き合わせる。
 const legacyPremiumDailySentences = 20.0
 
-// retargetLegacyPremiumQuota は golden 側の premium クォータ値を現行の定数へ読み替える。
+// legacyFreeDailySentences は golden を作った時点の free 日次リセット値（例文の本数）。
+// 2026-10 に free の枠をセット数（quota.FreeDailySentences）へ切り替えた。
+const legacyFreeDailySentences = 5.0
+
+// retargetLegacyPremiumQuota は golden 側のクォータ値（premium・free）を現行の定数へ
+// 読み替える。
 func retargetLegacyPremiumQuota(want map[string]any) map[string]any {
-	if v, ok := want["remaining_sentences"].(float64); ok &&
-		v == legacyPremiumDailySentences {
-		want["remaining_sentences"] = float64(quota.PremiumDailySentences)
+	if v, ok := want["remaining_sentences"].(float64); ok {
+		switch v {
+		case legacyPremiumDailySentences:
+			want["remaining_sentences"] = float64(quota.PremiumDailySentences)
+		case legacyFreeDailySentences:
+			want["remaining_sentences"] = float64(quota.FreeDailySentences)
+		}
 	}
 	return want
 }

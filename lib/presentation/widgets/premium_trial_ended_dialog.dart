@@ -51,7 +51,7 @@ class PremiumTrialEndedDialog extends ConsumerWidget {
                 icon: Icons.bolt,
                 label: l10n.trialEndedChangeQuotaLabel,
                 premium: l10n.trialEndedChangeQuotaPremium,
-                free: l10n.trialEndedChangeQuotaFree(freeDailySentences),
+                free: l10n.trialEndedChangeQuotaFree(freeDailySets),
               ),
               if (measured > freeVocabScoreLimit)
                 _Change(

@@ -308,7 +308,7 @@ func (d *deliverer) commitDailySentence(
 
 		consumed := 0
 		if consumeQuota {
-			consumed = len(sentenceRefs)
+			consumed = 1 // 枠はセット数で数える（quota.FreeDailySentences）
 		}
 		tok, rest, update, perr := dailyCommitPlanForEntitlement(
 			userData, now, consumed, expectedPremium)
@@ -329,7 +329,7 @@ func (d *deliverer) commitDailySentence(
 
 // dailyCommitPlan は最新の user doc から、コミット時の書き込み内容を決める。
 //
-// consumed は消費するクォータ（配信本数）。premium・トライアルは回数を消費しない
+// consumed は消費するクォータ（セット数なので1）。premium・トライアルは回数を消費しない
 // ので 0 が渡り、remaining_sentences には触らない。
 // 戻り値は (送信先トークン, 通知失敗時に戻すための更新, users への更新)。
 func dailyCommitPlan(userData map[string]any, now time.Time, consumed int) (
@@ -468,7 +468,7 @@ func rollbackDelivery(
 	}
 	consumed := 0
 	if consumedQuota {
-		consumed = len(sentenceRefs)
+		consumed = 1 // 枠はセット数で数える（quota.FreeDailySentences）
 	}
 	update := rollbackUpdate(restore, deleteToken, consumed)
 	if _, err := userRef.Update(ctx, update); err != nil {
@@ -520,13 +520,10 @@ func (d *deliverer) deliverOne(
 	// premium・トライアルは回数を消費しないので、残数で絞らない。
 	consumeQuota := !premium.IsEffectivePremium(userData, now)
 
-	// free は先に自発生成した日は残り本数がセットに足りない。取れるぶんだけ配信する。
-	// 1本だけ余る日は、その1本もこのセットに含める（sentence.FitQuota）。
+	// free の枠はセット数で数える。残りが1以上なら1セットぶん配信する
+	// （残りが0の日は DeliverySkipReason が quota_exhausted で外している）。
 	n := dailysentence.BatchSize(userData)
-	if consumeQuota {
-		n = sentence.FitQuota(n, intValue(userData["remaining_sentences"]))
-	}
-	if n <= 0 {
+	if consumeQuota && intValue(userData["remaining_sentences"]) <= 0 {
 		return "quota_exhausted"
 	}
 

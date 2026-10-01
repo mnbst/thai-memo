@@ -36,9 +36,10 @@ import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../widgets/sign_in_sheet.dart';
 
-/// free の1日あたりの例文生成回数。サーバ側の quota.ts と一致させること。
+/// free の1日あたりのセット数。サーバ側の quota.FreeDailySentences と一致させること。
+/// 1セットの本数は人によって2〜5本なので、本数ではなくセット数で数える。
 /// premium は無制限なので、対応する定数は持たない（文言側で「無制限」と書く）。
-const freeDailySentences = 5;
+const freeDailySets = 2;
 
 /// 1.4.12以前のユーザーに互換付与する旧体験の期間（日）。
 /// 新規ユーザーの無料期間はストアから取得し、この値は使わない。

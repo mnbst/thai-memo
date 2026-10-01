@@ -61,18 +61,3 @@ func numberToInt(v any) int {
 	}
 	return 0
 }
-
-// FitQuota は残り本数（free の remaining_sentences）で絞った1セットの本数。
-//
-// 本数が5で割り切れないと、その日の最後に1本だけのセットが残る（2本なら
-// 2→2→1、4本なら 4→1）。1本のセットにはまとめクイズが付かない（クライアントの
-// isLast は2本以上）ので、その1本は直前のセットに含める。まとめクイズの
-// 問題数は SetSizeFor のままなので、このときだけセットより1問少ない。
-// size が1（セット非対応の旧版）なら足さない。
-func FitQuota(size, remaining int) int {
-	n := min(size, remaining)
-	if size >= 2 && remaining-n == 1 {
-		return remaining
-	}
-	return n
-}
