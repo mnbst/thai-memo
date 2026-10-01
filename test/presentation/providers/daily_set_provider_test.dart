@@ -233,6 +233,76 @@ void main() {
     expect(state.current?.id, 'b');
   });
 
+  group('shrinkActiveSet', () {
+    test('1本目で止まっていれば指定の本数まで縮め、最後の1本でまとめへ進める', () async {
+      final container = containerWith({});
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c', 'd', 'e']), setId: 'A');
+
+      expect(await controller.shrinkActiveSet(2), isTrue);
+
+      final state = container.read(dailySetProvider);
+      expect(state.setId, 'A~2');
+      expect(state.total, 2);
+      expect(state.current?.id, 'a');
+      expect((await controller.advance())?.id, 'b');
+      expect(container.read(dailySetProvider).isLast, isTrue);
+    });
+
+    test('読んだ例文と読んでいる1本は落とさない', () async {
+      final container = containerWith({});
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c', 'd', 'e']), setId: 'A');
+      await controller.advance();
+      await controller.advance();
+      await controller.advance();
+
+      expect(await controller.shrinkActiveSet(2), isTrue);
+
+      final state = container.read(dailySetProvider);
+      expect(state.total, 4);
+      expect(state.current?.id, 'd');
+      expect(state.isLast, isTrue);
+    });
+
+    test('今の本数以下のセットは縮めない', () async {
+      final container = containerWith({});
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c', 'd', 'e']), setId: 'A');
+
+      expect(await controller.shrinkActiveSet(5), isFalse);
+      await controller.advance();
+      await controller.advance();
+      await controller.advance();
+      await controller.advance();
+      expect(await controller.shrinkActiveSet(2), isFalse);
+      expect(container.read(dailySetProvider).setId, 'A');
+    });
+
+    test('クラウドに元の5本が残っていても、同期で元の本数に戻らない', () async {
+      final byId = {
+        for (final id in ['a', 'b', 'c', 'd', 'e']) id: _sentence(id),
+      };
+      final store = _MemoryProgressStore(byId)
+        ..remote = DailySetProgressSnapshot(
+          active:
+              DailySetRef.fromSentences('A', _set(['a', 'b', 'c', 'd', 'e'])),
+          activeSentenceId: 'a',
+        );
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c', 'd', 'e']), setId: 'A');
+      await controller.settled;
+
+      await controller.shrinkActiveSet(2);
+      await controller.syncFromCloud(adopt: true);
+
+      final state = container.read(dailySetProvider);
+      expect(state.setId, 'A~2');
+      expect(state.total, 2);
+    });
+  });
+
   test('欠けていた1本を拾い直しても読んでいる例文は動かない', () async {
     // 前回の起動で 'a' を引けず、詰めた並び [b, c] のカーソル1（= c）で保存
     // された状態。クラウドには5本そろった正本がある。

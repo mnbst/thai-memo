@@ -16,6 +16,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/premium"
 	"github.com/mnbst/thai-memo/functions/go/internal/quizgen"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
+	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 	"github.com/mnbst/thai-memo/functions/go/internal/spellunit"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
@@ -28,8 +29,9 @@ import (
 // 実質的な上限は例文側のクォータ（internal/quota）が決めている。
 
 const (
-	// maxQuestions は1回のクイズ生成で出題する最大問題数。
-	maxQuestions = 5
+	// maxQuestions は1回のクイズ生成で出題する最大問題数。実際の問題数は
+	// セット本数（sentence.SetSizeFor）にそろえ、入門者は2〜4問になる。
+	maxQuestions = sentence.SetSize
 
 	// maxSrsSentences は SRS から選ぶ最大例文数。
 	maxSrsSentences = 2
@@ -157,7 +159,7 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 
 	// SRS ベースでリアルタイムに復習対象例文を選出
 	filter := quizKeyWordFilter(ctx, userData)
-	sel := newSelection()
+	sel := newSelection(sentence.SetSizeFor(userData))
 	// 語彙テストの測定値で絞り、空なら絞らずにやり直す（1周ぶん）。
 	selectPass := func(viewedOnly bool) error {
 		if err := selectSentencesBySRS(
@@ -197,7 +199,7 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 		}, nil
 	}
 
-	sources := buildQuizSources(selected)
+	sources := buildQuizSources(selected, sel.limit)
 	if beginnerQuizEnabled(userData) {
 		words := make([]string, 0, len(sources))
 		for _, source := range sources {
@@ -221,8 +223,8 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 		return nil, callable.Errorf(callable.Internal, "クイズの生成に失敗しました")
 	}
 
-	if len(questions) > maxQuestions {
-		questions = questions[:maxQuestions]
+	if len(questions) > sel.limit {
+		questions = questions[:sel.limit]
 	}
 	return map[string]any{"questions": questions}, nil
 }

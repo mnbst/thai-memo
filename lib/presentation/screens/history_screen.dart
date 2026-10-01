@@ -83,8 +83,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// 検索バーを構築する。タイ語・日本語・発音で絞り込める。
   Widget _buildSearchBar(L10n l10n) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppConfig.screenPadding, 4,
-          AppConfig.screenPadding, 0),
+      padding: const EdgeInsets.fromLTRB(
+          AppConfig.screenPadding, 4, AppConfig.screenPadding, 0),
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
@@ -117,7 +117,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       alignment: Alignment.centerLeft,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppConfig.screenPadding),
+        padding:
+            const EdgeInsets.symmetric(horizontal: AppConfig.screenPadding),
         child: Row(
           children: [
             _buildFilterChip(
@@ -162,7 +163,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           height: 40,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: selected ? cs.primary : cs.outlineVariant),
+            border:
+                Border.all(color: selected ? cs.primary : cs.outlineVariant),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
@@ -379,8 +381,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       SnackBar(
         content: Text(message),
         duration: const Duration(seconds: 2),
-        backgroundColor:
-            isError ? Theme.of(context).colorScheme.error : null,
+        backgroundColor: isError ? Theme.of(context).colorScheme.error : null,
       ),
     );
   }

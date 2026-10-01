@@ -81,8 +81,8 @@ void main() {
       FakeAnalyticsService(),
       () => lookupL10n(const Locale('ja')),
       databaseHelper: _FakeDatabaseHelper(),
-                   progressStore: LearningProgressStore(),
-                 );
+      progressStore: LearningProgressStore(),
+    );
   });
 
   // サーバーは同じユーザーの生成をロックで直列化するので、2本同時に投げると

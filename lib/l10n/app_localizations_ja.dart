@@ -694,13 +694,13 @@ class L10nJa extends L10n {
   String get topicName_food => '食べ物';
 
   @override
-  String get topicSub_food => '注文、感想、屋台、辛さ調整、アレルギー';
+  String get topicSub_food => 'コラボカフェ、注文、感想、屋台、辛さ調整、アレルギー';
 
   @override
   String get topicName_travel => '旅行';
 
   @override
-  String get topicSub_travel => 'ホテル、道案内、観光地、空港、ツアー';
+  String get topicSub_travel => 'ロケ地めぐり、ホテル、道案内、観光地、空港、ツアー';
 
   @override
   String get topicName_family => '家族';
@@ -712,7 +712,7 @@ class L10nJa extends L10n {
   String get topicName_shopping => '買い物';
 
   @override
-  String get topicSub_shopping => '値段交渉、サイズ・色の確認、返品、ナイトマーケット';
+  String get topicSub_shopping => '推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット';
 
   @override
   String get topicName_transport => '交通';
@@ -736,7 +736,7 @@ class L10nJa extends L10n {
   String get topicName_hobbies => '趣味';
 
   @override
-  String get topicSub_hobbies => 'ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム';
+  String get topicSub_hobbies => '推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム';
 
   @override
   String get topicName_school => '学校';
@@ -748,7 +748,7 @@ class L10nJa extends L10n {
   String get topicName_religion => '宗教・信仰';
 
   @override
-  String get topicSub_religion => '寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事';
+  String get topicSub_religion => '推しの誕生日のタンブン、寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事';
 
   @override
   String get topicName_festivals => '伝統・祭り';
@@ -2390,7 +2390,7 @@ class L10nJa extends L10n {
   String get guideFigureLoopSummary => 'まとめクイズ';
 
   @override
-  String get guideFigureLoopEvery => '例文5つごと';
+  String get guideFigureLoopEvery => '例文最大5つごと';
 
   @override
   String get guideFigureCardThai => 'タイ文字';
@@ -2424,11 +2424,11 @@ class L10nJa extends L10n {
       'AIがあなたのレベルに合ったタイ語の例文を毎日つくります。学び終えたら、さらに追加できます。';
 
   @override
-  String get guideOverviewBody2 => '例文で覚える → クイズで確かめる。これを5つくり返して1巡です。';
+  String get guideOverviewBody2 => '例文で覚える → クイズで確かめる。これを最大5回くり返して1巡です。';
 
   @override
   String get guideOverviewSummaryQuiz =>
-      '例文を5つ学ぶと「まとめクイズ」に進みます。迷ったときは、ヒントや例文の見返しを使えます。';
+      '1セット（最大5つ）の例文を学ぶと「まとめクイズ」に進みます。迷ったときは、ヒントや例文の見返しを使えます。';
 
   @override
   String get guideOverviewBody3 =>
@@ -2454,7 +2454,7 @@ class L10nJa extends L10n {
   String get guideRoleQuizCheck => '確認クイズ：例文ごとに、学習単語の意味を選びます。';
 
   @override
-  String get guideRoleQuizSummary => 'まとめクイズ：例文5つごとに、下線部に入る単語を選びます。';
+  String get guideRoleQuizSummary => 'まとめクイズ：例文最大5つごとに、下線部に入る単語を選びます。';
 
   @override
   String get guideRoleQuizSpelling =>
@@ -2549,7 +2549,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowSentenceStep1 =>
-      '学習タブに、その日の例文が表示されます。例文は5つで1セットです。上部で進み具合を確認できます。';
+      '学習タブに、その日の例文が表示されます。例文は最大5つで1セットです。上部で進み具合を確認できます。';
 
   @override
   String get guideHowSentenceStep3 => '金色の語が学習単語です。クイズでここが問われます。';
@@ -2591,13 +2591,14 @@ class L10nJa extends L10n {
   String get guideHowQuizStep3 => '回答後に、単語の意味と使い方を確認できます。';
 
   @override
-  String get guideHowQuizStep4 => '結果画面から次の例文へ進みます。5つ目のあとは「まとめクイズ」です。';
+  String get guideHowQuizStep4 => '結果画面から次の例文へ進みます。セットの最後の例文のあとは「まとめクイズ」です。';
 
   @override
   String get guideHowReviewQuizTitle => 'まとめクイズを解く';
 
   @override
-  String get guideHowReviewQuizStep1 => '例文を5つ学ぶごとに、学習済みの例文から穴埋め問題が出ます。';
+  String get guideHowReviewQuizStep1 =>
+      '1セット（最大5つ）の例文を学ぶごとに、学習済みの例文から穴埋め問題が出ます。';
 
   @override
   String get guideHowReviewQuizStep2 =>

@@ -16,6 +16,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -290,6 +291,35 @@ class DailySetController extends StateNotifier<DailySetState> {
       return true;
     }
     return _acceptDeliveredSet(setId: setId, sentences: sentences);
+  }
+
+  /// 読みかけのセットを [size] 本まで縮める。縮めたら true。
+  ///
+  /// 入門者のセット本数を減らす前に配られた5本セットの途中で止まっている人を、
+  /// 新しい本数のまとめクイズへ早く届かせるため。読んだ例文といま読んでいる
+  /// 1本は残し、その先だけを落とす（落とした例文も履歴には残る）。
+  ///
+  /// 縮めたセットには新しい ID を振り、元のセットは完了として記録する。
+  /// 同じ ID のままだと、マージが長いほうの並びを採るので（mergeDailySetProgress）
+  /// 次の同期で元の本数に戻ってしまう。
+  Future<bool> shrinkActiveSet(int size) =>
+      _serialized(() => _shrinkActiveSet(size));
+
+  Future<bool> _shrinkActiveSet(int size) async {
+    final setId = state.setId;
+    if (!state.isActive || setId == null) return false;
+    final length = math.max(state.index + 1, size);
+    // 2本未満にはしない（isLast が立たず、まとめクイズへ進めなくなる）。
+    if (length < 2 || length >= state.sentences.length) return false;
+    _markCompleted(setId);
+    state = DailySetState(
+      setId: '$setId~$length',
+      sentences: state.sentences.sublist(0, length),
+      index: state.index,
+      pendingSets: state.pendingSets,
+    );
+    await _persist();
+    return true;
   }
 
   /// 次の1本へ進む。セットを使い切っていたら null を返す（生成へ落とす合図）。

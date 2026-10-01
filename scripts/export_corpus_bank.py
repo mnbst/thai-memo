@@ -140,7 +140,8 @@ def main():
     usage = load_usage(args.usage)
     os.makedirs(args.out_dir, exist_ok=True)
 
-    # (target_word, topic) が重なったら後勝ち。pack_corpus.py と同じ扱い。
+    # (target_word, topic, sub_theme) が重なったら後勝ち。同じ語・テーマでも
+    # 場面が違えば別の文として残す（バンクは1語に複数文を持てる）。
     rows = OrderedDict()
     dropped = {"error": 0, "deny": 0, "rank": 0, "blank": 0}
     with open(args.src, encoding="utf-8") as f:
@@ -161,7 +162,7 @@ def main():
             if not all(row.get(lang) for lang in LANGS):
                 dropped["blank"] += 1
                 continue
-            rows[(row["target_word"], row["topic"])] = row
+            rows[(row["target_word"], row["topic"], row.get("sub_theme", ""))] = row
 
     for lang in LANGS:
         out = os.path.join(args.out_dir, f"corpus_sentences_{lang}.json")
@@ -177,7 +178,7 @@ def main():
         size = os.path.getsize(out) / 1024 / 1024
         print(f"{out}  {len(rows)}文  {size:.1f}MB")
 
-    words = {word for word, _ in rows}
+    words = {key[0] for key in rows}
     filled = sum(1 for row in rows.values() if row["thai_text"] in usage)
     print(f"語 {len(words)}  落とした行 {dropped}")
     print(f"使い方つき {filled}文 / {len(rows)}文")

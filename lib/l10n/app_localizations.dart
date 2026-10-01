@@ -187,7 +187,7 @@ abstract class L10n {
   /// **'次の例文へ'**
   String get learnNextSentence;
 
-  /// まとめクイズを終えて、新しい5本のセットを始めるボタン
+  /// まとめクイズを終えて、新しいセット（最大5本）を始めるボタン
   ///
   /// In ja, this message translates to:
   /// **'次のセットへ'**
@@ -199,7 +199,7 @@ abstract class L10n {
   /// **'まとめクイズへ'**
   String get learnGoToSummaryQuiz;
 
-  /// セットの残り本数。5本を学び終えるとまとめクイズへ進む
+  /// セットの残り本数。セット（最大5本）を学び終えるとまとめクイズへ進む
   ///
   /// In ja, this message translates to:
   /// **'あと{count}本でまとめクイズ'**
@@ -1372,7 +1372,7 @@ abstract class L10n {
   /// No description provided for @topicSub_food.
   ///
   /// In ja, this message translates to:
-  /// **'注文、感想、屋台、辛さ調整、アレルギー'**
+  /// **'コラボカフェ、注文、感想、屋台、辛さ調整、アレルギー'**
   String get topicSub_food;
 
   /// No description provided for @topicName_travel.
@@ -1384,7 +1384,7 @@ abstract class L10n {
   /// No description provided for @topicSub_travel.
   ///
   /// In ja, this message translates to:
-  /// **'ホテル、道案内、観光地、空港、ツアー'**
+  /// **'ロケ地めぐり、ホテル、道案内、観光地、空港、ツアー'**
   String get topicSub_travel;
 
   /// No description provided for @topicName_family.
@@ -1408,7 +1408,7 @@ abstract class L10n {
   /// No description provided for @topicSub_shopping.
   ///
   /// In ja, this message translates to:
-  /// **'値段交渉、サイズ・色の確認、返品、ナイトマーケット'**
+  /// **'推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット'**
   String get topicSub_shopping;
 
   /// No description provided for @topicName_transport.
@@ -1456,7 +1456,7 @@ abstract class L10n {
   /// No description provided for @topicSub_hobbies.
   ///
   /// In ja, this message translates to:
-  /// **'ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム'**
+  /// **'推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム'**
   String get topicSub_hobbies;
 
   /// No description provided for @topicName_school.
@@ -1480,7 +1480,7 @@ abstract class L10n {
   /// No description provided for @topicSub_religion.
   ///
   /// In ja, this message translates to:
-  /// **'寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事'**
+  /// **'推しの誕生日のタンブン、寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事'**
   String get topicSub_religion;
 
   /// No description provided for @topicName_festivals.
@@ -4439,7 +4439,7 @@ abstract class L10n {
   /// No description provided for @guideFigureLoopEvery.
   ///
   /// In ja, this message translates to:
-  /// **'例文5つごと'**
+  /// **'例文最大5つごと'**
   String get guideFigureLoopEvery;
 
   /// No description provided for @guideFigureCardThai.
@@ -4505,13 +4505,13 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody2.
   ///
   /// In ja, this message translates to:
-  /// **'例文で覚える → クイズで確かめる。これを5つくり返して1巡です。'**
+  /// **'例文で覚える → クイズで確かめる。これを最大5回くり返して1巡です。'**
   String get guideOverviewBody2;
 
   /// No description provided for @guideOverviewSummaryQuiz.
   ///
   /// In ja, this message translates to:
-  /// **'例文を5つ学ぶと「まとめクイズ」に進みます。迷ったときは、ヒントや例文の見返しを使えます。'**
+  /// **'1セット（最大5つ）の例文を学ぶと「まとめクイズ」に進みます。迷ったときは、ヒントや例文の見返しを使えます。'**
   String get guideOverviewSummaryQuiz;
 
   /// No description provided for @guideOverviewBody3.
@@ -4559,7 +4559,7 @@ abstract class L10n {
   /// No description provided for @guideRoleQuizSummary.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズ：例文5つごとに、下線部に入る単語を選びます。'**
+  /// **'まとめクイズ：例文最大5つごとに、下線部に入る単語を選びます。'**
   String get guideRoleQuizSummary;
 
   /// No description provided for @guideRoleQuizSpelling.
@@ -4721,7 +4721,7 @@ abstract class L10n {
   /// No description provided for @guideHowSentenceStep1.
   ///
   /// In ja, this message translates to:
-  /// **'学習タブに、その日の例文が表示されます。例文は5つで1セットです。上部で進み具合を確認できます。'**
+  /// **'学習タブに、その日の例文が表示されます。例文は最大5つで1セットです。上部で進み具合を確認できます。'**
   String get guideHowSentenceStep1;
 
   /// No description provided for @guideHowSentenceStep3.
@@ -4799,7 +4799,7 @@ abstract class L10n {
   /// No description provided for @guideHowQuizStep4.
   ///
   /// In ja, this message translates to:
-  /// **'結果画面から次の例文へ進みます。5つ目のあとは「まとめクイズ」です。'**
+  /// **'結果画面から次の例文へ進みます。セットの最後の例文のあとは「まとめクイズ」です。'**
   String get guideHowQuizStep4;
 
   /// No description provided for @guideHowReviewQuizTitle.
@@ -4811,7 +4811,7 @@ abstract class L10n {
   /// No description provided for @guideHowReviewQuizStep1.
   ///
   /// In ja, this message translates to:
-  /// **'例文を5つ学ぶごとに、学習済みの例文から穴埋め問題が出ます。'**
+  /// **'1セット（最大5つ）の例文を学ぶごとに、学習済みの例文から穴埋め問題が出ます。'**
   String get guideHowReviewQuizStep1;
 
   /// No description provided for @guideHowReviewQuizStep2.

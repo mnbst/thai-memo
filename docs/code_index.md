@@ -116,7 +116,7 @@ lib/presentation/providers/sentence_provider.dart
 例文CRUD・生成状態のRiverpod StateNotifier。
 
 lib/presentation/providers/daily_set_provider.dart
-例文セット（5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す（待機は1セットまで。溢れた古いほうは完了扱いで捨てる）。進行位置は学習レコード（learning_progress_store）を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。起動・復帰時（例文の段にいるとき）だけは別端末の位置とまとめクイズの途中経過に合わせる（syncFromCloud(adopt)）。読む1本が変わったときに、その1本に属していたクイズ保存と段を落とすのもここ。
+例文セット（最大5本）の消化カーソル。配信・自発生成どちらのセットも拾い、消化中なら新着・生成分を待機列へ回す（待機は1セットまで。溢れた古いほうは完了扱いで捨てる）。進行位置は学習レコード（learning_progress_store）を正本として即時保存し、Firestore とのマージは表示を待たせず後追いで行う。起動・復帰時（例文の段にいるとき）だけは別端末の位置とまとめクイズの途中経過に合わせる（syncFromCloud(adopt)）。入門者の読みかけセットを今の本数まで縮める（shrinkActiveSet）。読む1本が変わったときに、その1本に属していたクイズ保存と段を落とすのもここ。
 
 lib/services/learning_progress_store.dart
 学習の進み具合（セットのカーソル・いまの段・クイズの進行）を端末に1レコードで持つ。旧3キー（daily_set_progress / saved_confirmation_quiz / saved_summary_quiz）からの移行もここ。
@@ -225,7 +225,7 @@ lib/presentation/widgets/guide_figures.dart
 使い方ガイドに載せる模式図（学習のくり返し・例文カードの構成・発音判定の色）。画面写真は使わず、文言はl10nから引く。
 
 lib/presentation/widgets/notification_coach_dialog.dart
-毎日例文通知を継続サポート機能として紹介するコーチングダイアログ＋表示判定。
+毎日例文通知を継続サポート機能として紹介するコーチングダイアログ、表示判定、まとめクイズ完了時に出す流れ（maybeShowNotificationCoach）。
 
 lib/presentation/widgets/premium_lifetime_migration_dialog.dart
 月額の既存プレミアムユーザーへ、買い切りプラン新設と無料移行を知らせるダイアログ。追加料金なし。自動更新はこちらから止められないので、停止が要ることを同じ画面で伝える。案内→ローディング→完了/失敗まで通す showLifetimeMigrationFlow を持つ。dev は設定から手動表示（サーバーには投げない）。
@@ -759,6 +759,9 @@ functions/go/internal/dailysentence/notification_golden_test.go
 functions/go/internal/sentence/constants.go
 constants.py の Go 版。モデル設定・context英語化・レスポンススキーマ組み立て（クォータ定数は internal/quota に一本化）。
 
+functions/go/internal/sentence/setsize.go
+1セットの本数（SetSizeFor）。ヒアリング none は2本・words は3本から始め、語彙スコア50で5本に戻す。生成・配信・まとめクイズの問題数で共通。
+
 functions/go/internal/sentence/constants_data.go
 constants.py のデータ部分（STYLES/TOPICS/ラベル表/JSON Schema）の自動生成。手で編集しないこと。
 
@@ -856,7 +859,7 @@ functions/go/internal/bldrama/bldrama.go
 BLドラマ回の専用プロンプト断片。参考セリフの選出（embedding／ランダム）と断片の組み立て。
 
 functions/go/internal/bldrama/data.go
-BLドラマの設定・セリフ75件（自動生成。gen_bldrama.pyが出力）。
+BLドラマの設定・セリフ177件（正本。直接編集。2026年作品はGMMTV公式クリップ題名から採取）。
 
 functions/go/internal/bldrama/golden_test.go
 bl_drama.py とプロンプト断片・データを突き合わせる差分テスト。
@@ -1055,6 +1058,9 @@ scripts/build_theme_embeddings.py
 
 scripts/build_pos_dict.py
 コーパスの grammatical_role を語ごとに集計して品詞辞書（quiz_posdict_data.go）を生成。最頻品詞が8割未満の語は入れない。
+
+scripts/build_shot_embeddings.py
+BLドラマ参考セリフ（bldrama/data.go）のembeddingを差分生成しshot_embeddings.jsonへ。
 
 scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。

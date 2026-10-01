@@ -80,8 +80,8 @@ void main() {
       analytics,
       () => lookupL10n(const Locale('ja')),
       databaseHelper: _FakeDatabaseHelper(),
-                   progressStore: LearningProgressStore(),
-                 );
+      progressStore: LearningProgressStore(),
+    );
   });
 
   test('学習クイズはstartedと最初のansweredだけを導線source付きで送る', () async {
@@ -159,8 +159,8 @@ void main() {
       errorAnalytics,
       () => lookupL10n(const Locale('ja')),
       databaseHelper: _FakeDatabaseHelper(),
-                              progressStore: LearningProgressStore(),
-                            );
+      progressStore: LearningProgressStore(),
+    );
     const source = 'learning_quiz_inline_v1';
 
     await errorController.startLearningQuiz(_sentence, offerSource: source);

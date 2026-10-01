@@ -1,5 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/push_notification_service.dart';
+import '../providers/analytics_provider.dart';
+import '../providers/settings_provider.dart';
 
 /// 毎日例文通知を「継続をサポートする機能」として紹介するコーチングダイアログ。
 ///
@@ -26,31 +31,31 @@ class NotificationCoachDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            // 「時刻を決める→そこに届く→同じ時間に開くから続く」の順で並べる。
-            // 時刻設定の理由と習慣化の理屈が、読まなくても順番で伝わるようにする。
-            _Step(number: 1, text: L10n.of(context).notifCoachStep1),
-            const SizedBox(height: 6),
-            _Step(number: 2, text: L10n.of(context).notifCoachStep2),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(
-                  Icons.event_repeat,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
+          // 「時刻を決める→そこに届く→同じ時間に開くから続く」の順で並べる。
+          // 時刻設定の理由と習慣化の理屈が、読まなくても順番で伝わるようにする。
+          _Step(number: 1, text: L10n.of(context).notifCoachStep1),
+          const SizedBox(height: 6),
+          _Step(number: 2, text: L10n.of(context).notifCoachStep2),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(
+                Icons.event_repeat,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  L10n.of(context).notifCoachHabit,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    L10n.of(context).notifCoachHabit,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           Text(
             L10n.of(context).notifCoachPreviewLabel,
@@ -217,4 +222,79 @@ bool shouldShowNotificationCoach({
 }) {
   if (coachShown) return false;
   return permissionGranted == false;
+}
+
+/// まとめクイズを終えたときに一度だけ、毎日例文通知を継続サポート機能として
+/// 紹介する。出したら true。
+///
+/// 体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否されると
+/// 二度と要求できない）ため、インストール直後には出さない。設定タブを開いた
+/// ときに出していた期間（2026-08-24〜）は承諾率が12%で、まとめクイズ完了時に
+/// 出していた期間（45%）より大きく下がったため、ここへ戻した。
+/// 「通知をオンにする」を押したらその場でOSの許可要求まで出す。
+Future<bool> maybeShowNotificationCoach(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final controller = ref.read(settingsControllerProvider.notifier);
+  // 初期化前の state は「表示済み」側の既定値なので、読む前に必ず待つ。
+  await controller.initialized;
+  if (!context.mounted) return false;
+
+  final coachShown =
+      ref.read(settingsControllerProvider).notificationCoachShown;
+  final permissionGranted =
+      await controller.hasProminentNotificationPermission();
+  if (!shouldShowNotificationCoach(
+    coachShown: coachShown,
+    permissionGranted: permissionGranted,
+  )) {
+    // 許可済みだと確認できたときだけ、紹介不要として記録する。判定不能（null）
+    // で記録すると、一度の取得失敗でそのユーザーが恒久的に案内対象から外れる。
+    if (!coachShown && permissionGranted == true) {
+      await controller.markNotificationCoachShown();
+    }
+    return false;
+  }
+  // 前面に別の画面がある間は出さない。ここで出さなくても表示済みフラグは
+  // 立たないため、次のまとめクイズで出し直される。
+  if (!context.mounted || ModalRoute.of(context)?.isCurrent != true) {
+    return false;
+  }
+
+  final analytics = ref.read(analyticsServiceProvider);
+  unawaited(analytics.logNotificationCoach(action: 'shown'));
+
+  final accepted = await showNotificationCoachDialog(context);
+  unawaited(
+    analytics.logNotificationCoach(
+      action: accepted ? 'accepted' : 'dismissed',
+    ),
+  );
+  // 出したら結果に関わらず記録する。断られた直後の出し直しは印象を悪くする。
+  await controller.markNotificationCoachShown();
+  if (!accepted || !context.mounted) return true;
+
+  // ここでOSの許可ダイアログが出る。答えるまで下の await は返らないため、
+  // 要求に入ったこと自体を先に記録する。これが無いと「ダイアログを放置して
+  // アプリを離れた」と「許可後の登録が終わらなかった」を後から区別できない。
+  unawaited(analytics.logNotificationCoach(action: 'requesting'));
+  final result = await controller.setDailyReminderEnabled(true);
+  unawaited(
+    analytics.logNotificationCoach(action: result?.name ?? 'denied'),
+  );
+  if (!context.mounted) return true;
+  // pending は許可が取れているので、登録待ちでも成功として伝える。
+  // quiet（昇格を断られた）は「届きます」と言うと嘘になるので分ける。
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(switch (result) {
+        PushEnableResult.denied =>
+          L10n.of(context).settingsAllowNotificationInOsSettings,
+        PushEnableResult.quiet => L10n.of(context).notifCoachStillQuiet,
+        _ => L10n.of(context).notifCoachEnabled,
+      }),
+    ),
+  );
+  return true;
 }

@@ -159,16 +159,23 @@ type selection struct {
 	sentences    []selectedSentence
 	usedIDs      map[string]bool
 	usedKeyWords map[string]bool
-	// srsCount は SRS 枠（maxSrsSentences）から選んだ本数。
+	// srsCount は SRS 枠（srsLimit）から選んだ本数。
 	srsCount int
+	// limit は問題数（＝選ぶ例文の数）。セット本数にそろえる。
+	limit int
 }
 
-func newSelection() *selection {
+func newSelection(limit int) *selection {
 	return &selection{
 		usedIDs:      map[string]bool{},
 		usedKeyWords: map[string]bool{},
+		limit:        min(limit, maxQuestions),
 	}
 }
+
+// srsLimit は SRS 枠の本数。問題数の半分まで（5問なら maxSrsSentences の2）。
+// 短いクイズを SRS で埋めると、いま学んだ例文が出題から押し出される。
+func (s *selection) srsLimit() int { return min(maxSrsSentences, s.limit/2) }
 
 func (s *selection) add(candidate selectedSentence) {
 	s.sentences = append(s.sentences, candidate)
@@ -181,7 +188,7 @@ func (s *selection) add(candidate selectedSentence) {
 	}
 }
 
-func (s *selection) full() bool { return len(s.sentences) >= maxQuestions }
+func (s *selection) full() bool { return len(s.sentences) >= s.limit }
 
 // isSentenceViewed は例文がユーザーに表示済みかどうか。
 //
@@ -219,7 +226,7 @@ func selectSentencesBySRS(
 		sel.add(candidate)
 	}
 
-	if remaining := maxQuestions - len(sel.sentences); remaining > 0 {
+	if remaining := sel.limit - len(sel.sentences); remaining > 0 {
 		fillers, err := selectFillerSentencesByUvm(
 			ctx, db, uid, jstNow, remaining, sel.usedIDs, sel.usedKeyWords, filter, viewedOnly)
 		if err != nil {
@@ -274,7 +281,7 @@ func selectSrsSentences(
 	}
 
 	for _, c := range intervalCandidates {
-		if sel.srsCount+len(selected) >= maxSrsSentences {
+		if sel.srsCount+len(selected) >= sel.srsLimit() {
 			break
 		}
 

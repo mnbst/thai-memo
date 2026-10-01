@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/bldrama"
+	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/llm"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
@@ -59,6 +60,7 @@ func main() {
 	fix := flag.Bool("fix", false, "生成後に judge をかけ、不合格を指摘つきで差し戻す")
 	rankFile := flag.String("rank", rankPath, "freq_rank_top10000.json のパス")
 	wordList := flag.String("words", "", "key_word を固定する（カンマ区切り）。指定時は -n が語ごとの生成数")
+	shot := flag.String("shot", "", "BLドラマ回の参考セリフをショットIDで固定する（例: ub_05）。空ならランダム")
 	relation := flag.String("relation", "", "話し手と聞き手の関係を固定する（例: 自分より目上／ほとんど面識がない）")
 	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
 	flag.Parse()
@@ -89,6 +91,10 @@ func main() {
 		log.Fatalf("GEMINI_API_KEY か gemini-api-key が要る: %v", err)
 	}
 	model := envOr("GEMINI_MODEL", "gemini-3.1-flash-lite")
+	drama := &bldrama.Builder{}
+	if *shot != "" {
+		drama.Shots = fixedShot(*shot)
+	}
 	svc := &sentence.Service{
 		Gen: &llm.Client{
 			GeminiKey: key, Provider: "gemini", MaxTokens: 8192,
@@ -96,7 +102,7 @@ func main() {
 		},
 		Resolver: &sentence.Resolver{SubThemes: randomSubTheme{}},
 		// ドラマ回の専用ブロック。Shots が nil ならシーンをランダムに引く。
-		Drama: &bldrama.Builder{},
+		Drama: drama,
 	}
 	fmt.Fprintf(os.Stderr, "n=%d lang=%s tier=%s vocab=%d model=%s\n",
 		*n, *langCode, tierLabel(*free), *vocab, model)
@@ -403,4 +409,19 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// fixedShot は -shot で指定したセリフを常に選ぶ。新しく足したセリフの効きを見るため。
+type fixedShot string
+
+func (f fixedShot) FindBestDramaShot(
+	_ context.Context, _ string, shots []embeddings.Shot,
+) (string, error) {
+	want := string(f)
+	for _, shot := range shots {
+		if shot.ID == want {
+			return want, nil
+		}
+	}
+	return "", fmt.Errorf("unknown drama shot ID: %q", want)
 }

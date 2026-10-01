@@ -114,8 +114,10 @@ String? _readNickname(Map<String, dynamic>? data) {
 
 /// 全ユーザーの中で vocab が [vocab] より大きい人数 + 1。同点は同順位になる。
 Future<int> _rankOf(int vocab) async {
-  final snapshot =
-      await _leaderboardRef().where('vocab', isGreaterThan: vocab).count().get();
+  final snapshot = await _leaderboardRef()
+      .where('vocab', isGreaterThan: vocab)
+      .count()
+      .get();
   return (snapshot.count ?? 0) + 1;
 }
 
@@ -134,7 +136,8 @@ final myNicknameProvider = StreamProvider<String?>((ref) {
 ///
 /// スコアが0（＝まだ例文を生成していない）のときは順位なし（null）。
 final myRankProvider = FutureProvider<int?>((ref) async {
-  final myVocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+  final myVocab =
+      ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
   final uid = ref.watch(authUidProvider).valueOrNull;
   if (uid == null || myVocab <= 0) return null;
 
@@ -230,7 +233,8 @@ class VocabDistribution {
 final vocabDistributionProvider =
     FutureProvider<VocabDistribution>((ref) async {
   final uid = ref.watch(authUidProvider).valueOrNull;
-  final myVocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+  final myVocab =
+      ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
 
   final skipCache = ref.watch(leaderboardRefreshEpochProvider) > 0;
   if (uid != null && !skipCache) {
@@ -247,8 +251,8 @@ final vocabDistributionProvider =
       .get()));
 
   // 自分の doc はサーバーが例文生成時に作る。まだ無い間も1人として数に入れる。
-  final missingSelf = uid == null ||
-      !(await _leaderboardRef().doc(uid).get()).exists;
+  final missingSelf =
+      uid == null || !(await _leaderboardRef().doc(uid).get()).exists;
 
   var total = 0;
   final bands = <VocabBand>[];
@@ -290,7 +294,8 @@ final vocabDistributionProvider =
 final leaderboardRowsProvider =
     FutureProvider<List<LeaderboardEntry>>((ref) async {
   final uid = ref.watch(authUidProvider).valueOrNull;
-  final myVocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+  final myVocab =
+      ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
   final myNickname = ref.watch(myNicknameProvider).valueOrNull;
   if (uid == null || myVocab <= 0) return const [];
 
@@ -300,8 +305,7 @@ final leaderboardRowsProvider =
     final cached = await _readCache(_rowsCacheKey, uid, myVocab);
     if (cached is List) {
       return cached
-          .map((row) =>
-              LeaderboardEntry.fromJson(row as Map<String, dynamic>))
+          .map((row) => LeaderboardEntry.fromJson(row as Map<String, dynamic>))
           .map((row) => row.isMe
               ? LeaderboardEntry(
                   uid: row.uid,
@@ -340,12 +344,12 @@ final leaderboardRowsProvider =
         .get(),
   ]);
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> pick(int index) => results[
-          index]
-      .docs
-      .where((doc) => doc.id != uid)
-      .take(leaderboardNeighborCount)
-      .toList();
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> pick(int index) =>
+      results[index]
+          .docs
+          .where((doc) => doc.id != uid)
+          .take(leaderboardNeighborCount)
+          .toList();
 
   // 上側は自分に近い順に取っているので、表示のために反転する
   final above = pick(0).reversed.toList();

@@ -22,6 +22,7 @@ import '../providers/review_prompt_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
+import '../widgets/notification_coach_dialog.dart';
 import '../widgets/topic_picker.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
@@ -130,7 +131,6 @@ class QuizScreen extends ConsumerStatefulWidget {
   final String? nextButtonLabel;
   final bool showVocabScoreTransition;
 
-  /// 通知の案内を出してよいタイミングになったことを伝える。
   const QuizScreen({
     super.key,
     this.showAppBar = true,
@@ -194,7 +194,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         }
         ref.invalidate(quizStatsProvider);
         if (prev is QuizShowResult) {
-          unawaited(_requestReviewAfterQuizCompletion(next));
+          unawaited(_afterQuizCompleted(next));
         }
         if (widget.showVocabScoreTransition) {
           _logSummaryQuizComplete(next);
@@ -324,11 +324,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     super.dispose();
   }
 
-  Future<void> _requestReviewAfterQuizCompletion(QuizSummary summary) async {
+  /// 結果を見せてから、まとめクイズなら通知の案内、出なければレビュー依頼を出す。
+  /// 同じ完了で両方を重ねると、どちらも断られやすい。
+  Future<void> _afterQuizCompleted(QuizSummary summary) async {
     await Future<void>.delayed(const Duration(seconds: 2));
     if (!mounted || ref.read(quizControllerProvider) is! QuizSummary) {
       return;
     }
+    if (widget.showVocabScoreTransition &&
+        await maybeShowNotificationCoach(context, ref)) {
+      return;
+    }
+    if (!mounted) return;
 
     final statsData = QuizStatsData.fromDatabase(summary.stats);
     final outcome = await ref
@@ -1899,8 +1906,7 @@ class _QuizAnswerWordRow extends ConsumerWidget {
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: colorScheme.primary,
                       // タイ文字は太字にすると声調記号と頭のループが潰れる。
-                      fontWeight:
-                          largeWord ? FontWeight.w500 : FontWeight.w600,
+                      fontWeight: largeWord ? FontWeight.w500 : FontWeight.w600,
                       fontSize: largeWord ? 40 : null,
                       height: largeWord ? 1.3 : null,
                     ),
@@ -2147,8 +2153,8 @@ class _QuizResultView extends StatelessWidget {
                   else
                     Card(
                       child: Padding(
-                        padding:
-                            const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
+                        padding: const EdgeInsets.all(
+                            AppConfig.defaultPadding * 1.5),
                         child: Center(
                           child: _QuizAnswerWordRow(
                             question: question,
@@ -2321,7 +2327,6 @@ class _MeaningQuizIncorrectReview extends StatelessWidget {
   }
 }
 
-
 // ==================== 綴り4択の分解カード ====================
 
 /// 綴り4択の答え合わせで、正解と選んだ綴りを部品ごとに並べる。
@@ -2388,9 +2393,8 @@ class _SpellingBreakdownCard extends StatelessWidget {
     // 末子音に字が無く、母音の字がそれを兼ねているとき（母音に字がある）。
     final vowel = parts.firstWhere((p) => p.role == 'vowel',
         orElse: () => const SpellingPart(role: 'vowel'));
-    final merged = coda.text.isEmpty &&
-        coda.sound.isNotEmpty &&
-        vowel.text.isNotEmpty;
+    final merged =
+        coda.text.isEmpty && coda.sound.isNotEmpty && vowel.text.isNotEmpty;
 
     final cells = <_BreakdownCell>[];
     for (final part in ordered) {
@@ -2474,8 +2478,7 @@ class _SpellingBreakdownCard extends StatelessWidget {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     if (question.spellingParts.isEmpty) return const SizedBox.shrink();
-    final cells =
-        _cells(l10n, question.spellingParts, question.spellingGlyphs);
+    final cells = _cells(l10n, question.spellingParts, question.spellingGlyphs);
 
     return Card(
       child: Padding(
@@ -2594,8 +2597,8 @@ class _SpellingBreakdownCard extends StatelessWidget {
             },
             children: [
               TableRow(
-                decoration:
-                    BoxDecoration(color: theme.colorScheme.surfaceContainerHigh),
+                decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHigh),
                 children: [
                   _tableCell(context, l10n.toneMarkLabel, header: true),
                   _tableCell(context, l10n.toneSyllableType, header: true),
