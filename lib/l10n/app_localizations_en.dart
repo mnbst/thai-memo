@@ -742,13 +742,14 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_food =>
-      'ordering, reactions, street stalls, spice levels, allergies';
+      'collab cafes, ordering, reactions, street stalls, spice levels, allergies';
 
   @override
   String get topicName_travel => 'Travel';
 
   @override
-  String get topicSub_travel => 'hotels, directions, sights, airports, tours';
+  String get topicSub_travel =>
+      'filming locations, hotels, directions, sights, airports, tours';
 
   @override
   String get topicName_family => 'Family';
@@ -762,7 +763,7 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_shopping =>
-      'haggling, sizes and colors, returns, night markets';
+      'fan merch, haggling, sizes and colors, returns, night markets';
 
   @override
   String get topicName_transport => 'Transport';
@@ -789,7 +790,7 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_hobbies =>
-      'Muay Thai, music, movies, golf, social media, games';
+      'fandom, Muay Thai, music, movies, golf, social media, games';
 
   @override
   String get topicName_school => 'School';
@@ -803,7 +804,7 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_religion =>
-      'temple etiquette, almsgiving, amulets, speaking to monks, Buddhist holidays';
+      'merit-making for idols\' birthdays, temple etiquette, almsgiving, amulets, speaking to monks, Buddhist holidays';
 
   @override
   String get topicName_festivals => 'Traditions and festivals';
@@ -2552,7 +2553,7 @@ class L10nEn extends L10n {
   String get guideFigureLoopSummary => 'Summary quiz';
 
   @override
-  String get guideFigureLoopEvery => 'every five sentences';
+  String get guideFigureLoopEvery => 'every set of up to five';
 
   @override
   String get guideFigureCardThai => 'Thai script';
@@ -2587,11 +2588,11 @@ class L10nEn extends L10n {
 
   @override
   String get guideOverviewBody2 =>
-      'Learn a sentence → take a quick quiz. Do that five times and you\'ve finished a round.';
+      'Learn a sentence → take a quick quiz. Do that up to five times and you\'ve finished a round.';
 
   @override
   String get guideOverviewSummaryQuiz =>
-      'After five sentences, you get a summary quiz. If you get stuck, use a hint or review the sentence.';
+      'After each set of up to five sentences, you get a summary quiz. If you get stuck, use a hint or review the sentence.';
 
   @override
   String get guideOverviewBody3 =>
@@ -2620,7 +2621,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleQuizSummary =>
-      'Summary quiz: every five sentences, choose the missing word.';
+      'Summary quiz: after each set of up to five sentences, choose the missing word.';
 
   @override
   String get guideRoleQuizSpelling =>
@@ -2719,7 +2720,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowSentenceStep1 =>
-      'Open the Learn tab to see today\'s sentence. Sentences come in sets of five, with your progress shown at the top.';
+      'Open the Learn tab to see today\'s sentence. Sentences come in sets of up to five, with your progress shown at the top.';
 
   @override
   String get guideHowSentenceStep3 =>
@@ -2768,14 +2769,14 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowQuizStep4 =>
-      'Then move to the next sentence. After the fifth, the summary quiz begins.';
+      'Then move to the next sentence. After the last one in the set, the summary quiz begins.';
 
   @override
   String get guideHowReviewQuizTitle => 'Take the summary quiz';
 
   @override
   String get guideHowReviewQuizStep1 =>
-      'After every five sentences, choose the missing word in a sentence you\'ve studied.';
+      'After each set of up to five sentences, choose the missing word in a sentence you\'ve studied.';
 
   @override
   String get guideHowReviewQuizStep2 =>

@@ -24,25 +24,25 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
       ),
       body: SwipeBack(
         child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(AppConfig.defaultPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildIntroductionSection(),
-              const SizedBox(height: 24),
-              _buildFiveTonesSection(),
-              const SizedBox(height: 24),
-              _buildConsonantClassSection(),
-              const SizedBox(height: 24),
-              _buildToneMarksSection(),
-              const SizedBox(height: 24),
-              _buildSyllableTypesSection(),
-              const SizedBox(height: 24),
-              _buildToneTablesSection(),
-              const SizedBox(height: 24),
-            ],
-          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppConfig.defaultPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildIntroductionSection(),
+                const SizedBox(height: 24),
+                _buildFiveTonesSection(),
+                const SizedBox(height: 24),
+                _buildConsonantClassSection(),
+                const SizedBox(height: 24),
+                _buildToneMarksSection(),
+                const SizedBox(height: 24),
+                _buildSyllableTypesSection(),
+                const SizedBox(height: 24),
+                _buildToneTablesSection(),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),

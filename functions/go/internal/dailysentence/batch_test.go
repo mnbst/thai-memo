@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
+	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
 
 func TestBatchSize(t *testing.T) {
@@ -34,6 +35,15 @@ func TestBatchSize(t *testing.T) {
 	// 未報告ユーザー（起動時ミラー前）も1本。
 	if got := BatchSize(map[string]any{}); got != 1 {
 		t.Errorf("app_version 未設定 = %d, want 1", got)
+	}
+	// 入門者は語彙スコアに応じて縮める。
+	beginner := map[string]any{
+		"app_version":     "1.4.14",
+		"interview":       map[string]any{"level": "none"},
+		"estimated_vocab": int64(0),
+	}
+	if got := BatchSize(beginner); got != sentence.BeginnerMinSetSize {
+		t.Errorf("入門者 = %d, want %d", got, sentence.BeginnerMinSetSize)
 	}
 }
 

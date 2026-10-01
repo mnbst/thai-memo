@@ -175,6 +175,7 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<Map<String, Object?>> confirmationQuizQuestionEvents = [];
   final List<Map<String, Object?>> interviewEvents = [];
   final List<Map<String, Object?>> vocabTestEvents = [];
+  final List<String> notificationCoachEvents = [];
 
   /// 購入導線の計測。source を控えるだけ（月額／買い切りの判別に使う）。
   final List<String> subscribeEvents = [];
@@ -229,6 +230,11 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
       'answer': answer,
       'answeredCount': answeredCount,
     });
+  }
+
+  @override
+  Future<void> logNotificationCoach({required String action}) async {
+    notificationCoachEvents.add(action);
   }
 
   @override

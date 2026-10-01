@@ -116,7 +116,8 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
     }
   }
 
-  void _fail(String message, {required Future<VocabTestStep> Function()? retry}) {
+  void _fail(String message,
+      {required Future<VocabTestStep> Function()? retry}) {
     if (!mounted) return;
     setState(() {
       _errorMessage = message;
@@ -223,8 +224,7 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Spacer(),
-        Icon(Icons.straighten,
-            size: 48, color: theme.colorScheme.primary),
+        Icon(Icons.straighten, size: 48, color: theme.colorScheme.primary),
         const SizedBox(height: 24),
         Text(l10n.vocabTestIntroBody, style: theme.textTheme.bodyLarge),
         const SizedBox(height: 16),
@@ -267,7 +267,8 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
     return ((step.stage + within) / step.totalStages).clamp(0.0, 1.0);
   }
 
-  Widget _questionBody(L10n l10n, VocabTestStep step, VocabTestQuestion question) {
+  Widget _questionBody(
+      L10n l10n, VocabTestStep step, VocabTestQuestion question) {
     final theme = Theme.of(context);
     // 何問目かも通し。段の中の番号だと 1〜6 を何度も繰り返すことになる。
     final asked = step.stage * step.questions.length + _index + 1;

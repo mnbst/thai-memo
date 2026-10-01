@@ -44,7 +44,7 @@ func TestRequestedSetSize(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		if got := requestedSetSize(c.params); got != c.want {
+		if got := requestedSetSize(c.params, nil); got != c.want {
 			t.Errorf("%s: requestedSetSize = %d, want %d", c.name, got, c.want)
 		}
 	}

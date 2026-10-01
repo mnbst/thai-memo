@@ -8,14 +8,14 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
-// buildQuizSources は選出した例文をランダム順に並べ、最大 maxQuestions 件を返す。
-func buildQuizSources(selected []selectedSentence) []quizSeedSource {
+// buildQuizSources は選出した例文をランダム順に並べ、最大 limit 件を返す。
+func buildQuizSources(selected []selectedSentence, limit int) []quizSeedSource {
 	shuffled := append([]selectedSentence(nil), selected...)
 	shuffleN(len(shuffled), func(i, j int) {
 		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})
-	if len(shuffled) > maxQuestions {
-		shuffled = shuffled[:maxQuestions]
+	if len(shuffled) > limit {
+		shuffled = shuffled[:limit]
 	}
 
 	out := make([]quizSeedSource, 0, len(shuffled))

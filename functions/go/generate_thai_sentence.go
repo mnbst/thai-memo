@@ -144,19 +144,20 @@ const generationLeaseDuration = 3 * time.Minute
 // requestedSetSize はクライアントが求める本数。
 //
 // 旧クライアントは count を送らないので1本（従来どおり）。上限は
-// sentence.SetSize で、これを超える値を送られても増やさない。
+// そのユーザーのセット本数（sentence.SetSizeFor）で、これを超える値を
+// 送られても増やさない。入門者はここで2〜4本に縮む。
 //
 // 数を読むのに callable.Int を使うこと。Flutter の Firebase SDK は Dart の
 // int を protobuf の Int64 ラッパー
 // （{"@type":".../google.protobuf.Int64Value","value":5}）に包んで送るので、
 // Firestore 用の intValue では map のまま読めず、常に既定値へ落ちる
 // （vocabtest.go の Answers と同じ理由）。
-func requestedSetSize(params map[string]any) int {
+func requestedSetSize(params, userData map[string]any) int {
 	count, ok := callable.Int(params["count"])
 	if !ok || count < 1 {
 		return 1
 	}
-	return min(count, sentence.SetSize)
+	return min(count, sentence.SetSizeFor(userData))
 }
 
 func runGenerateThaiSentence(
@@ -249,7 +250,7 @@ func runGenerateThaiSentence(
 	}
 
 	// free は残りクォータを超えては作らない。足りなければ取れるぶんだけ返す。
-	count := requestedSetSize(params)
+	count := requestedSetSize(params, userData)
 	if !usePremiumSpec {
 		count = min(count, remaining)
 	}

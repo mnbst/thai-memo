@@ -173,7 +173,8 @@ TextSpan buildHighlightedPronunciation(
   };
   final readings = targetWords
       .map((w) =>
-          breakdownMap[_spaceless(w)] ?? breakdownMap[_spaceless('$w$_maiYamok')])
+          breakdownMap[_spaceless(w)] ??
+          breakdownMap[_spaceless('$w$_maiYamok')])
       .whereType<String>()
       .where((r) => r.isNotEmpty && text.contains(r))
       .toList()
