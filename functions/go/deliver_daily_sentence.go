@@ -521,9 +521,10 @@ func (d *deliverer) deliverOne(
 	consumeQuota := !premium.IsEffectivePremium(userData, now)
 
 	// free は先に自発生成した日は残り本数がセットに足りない。取れるぶんだけ配信する。
+	// 1本だけ余る日は、その1本もこのセットに含める（sentence.FitQuota）。
 	n := dailysentence.BatchSize(userData)
 	if consumeQuota {
-		n = min(n, intValue(userData["remaining_sentences"]))
+		n = sentence.FitQuota(n, intValue(userData["remaining_sentences"]))
 	}
 	if n <= 0 {
 		return "quota_exhausted"
