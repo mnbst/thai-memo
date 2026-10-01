@@ -250,9 +250,10 @@ func runGenerateThaiSentence(
 	}
 
 	// free は残りクォータを超えては作らない。足りなければ取れるぶんだけ返す。
+	// 1本だけ余る日は、その1本もこのセットに含める（sentence.FitQuota）。
 	count := requestedSetSize(params, userData)
 	if !usePremiumSpec {
-		count = min(count, remaining)
+		count = sentence.FitQuota(count, remaining)
 	}
 
 	produced, err := producer.ProduceBatch(ctx, db, freqRank, sentence.ProduceRequest{
