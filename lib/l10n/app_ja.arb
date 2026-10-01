@@ -877,7 +877,7 @@
   "quotaQuizReached": "今日の新しいクイズはここまでです。",
   "quotaSentenceReached": "今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。",
   "@quotaSentenceReached": {
-    "description": "上限回数は tier で異なる（free 5 / premium 無制限）ため文言に数字を含めない"
+    "description": "上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない"
   },
   "quotaSentenceUpgradeCta": "Premiumなら例文は無制限",
   "@quotaSentenceUpgradeCta": {

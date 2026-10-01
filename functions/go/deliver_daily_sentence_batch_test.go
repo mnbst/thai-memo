@@ -68,16 +68,16 @@ func TestBuildSentencesBatch(t *testing.T) {
 	}
 }
 
-// TestDailyCommitPlanConsumesBatch はクォータが配信本数ぶん減ることを確かめる。
-// free は5本/日なので、ここが1本のままだと枠が合わない。
-func TestDailyCommitPlanConsumesBatch(t *testing.T) {
+// TestDailyCommitPlanConsumesSet は配信本数によらずクォータが1セットぶん減ることを
+// 確かめる。remaining_sentences は本数ではなく残りセット数。
+func TestDailyCommitPlanConsumesSet(t *testing.T) {
 	now := time.Date(2026, 8, 27, 1, 0, 0, 0, time.UTC)
-	_, _, update, err := dailyCommitPlan(batchUserData(now), now, 5)
+	_, _, update, err := dailyCommitPlan(batchUserData(now), now, true)
 	if err != nil {
 		t.Fatalf("配信できるはずが %v", err)
 	}
-	assertUpdates(t, "commit/5本", update, map[string]any{
-		"remaining_sentences":      "@increment:-5",
+	assertUpdates(t, "commit/1セット", update, map[string]any{
+		"remaining_sentences":      "@increment:-1",
 		"daily_sentence_generated": true,
 		"last_notified_at":         "@server_timestamp",
 		"notify_tier":              0,
@@ -85,21 +85,30 @@ func TestDailyCommitPlanConsumesBatch(t *testing.T) {
 	})
 }
 
-// TestRollbackUpdateRestoresBatch は通知失敗時に本数ぶん戻すことを確かめる。
-func TestRollbackUpdateRestoresBatch(t *testing.T) {
+// TestRollbackUpdateRestoresSet は通知失敗時に1セットぶん戻すことを確かめる。
+func TestRollbackUpdateRestoresSet(t *testing.T) {
 	restore := []firestore.Update{
 		{Path: "notify_tier", Value: 0},
 		{Path: "notify_tier_misses", Value: 0},
 		{Path: "last_notified_at", Value: firestore.Delete},
 	}
-	got := rollbackUpdate(restore, false, 5)
-	assertUpdates(t, "rollback/5本", got, map[string]any{
-		"remaining_sentences":      "@increment:5",
+	got := rollbackUpdate(restore, false, 1)
+	assertUpdates(t, "rollback/1セット", got, map[string]any{
+		"remaining_sentences":      "@increment:1",
 		"daily_sentence_generated": false,
 		"notify_tier":              0,
 		"notify_tier_misses":       0,
 		"last_notified_at":         "@delete",
 	})
+}
+
+func TestConsumedSentenceQuotaCountsSets(t *testing.T) {
+	if got := consumedSentenceQuota(true); got != 1 {
+		t.Fatalf("free の消費 = %d, want 1セット", got)
+	}
+	if got := consumedSentenceQuota(false); got != 0 {
+		t.Fatalf("premium・トライアルの消費 = %d, want 0", got)
+	}
 }
 
 // TestBuildNotificationSetData は通知の Data にセット情報が載ることを確かめる。
@@ -119,10 +128,10 @@ func TestBuildNotificationSetData(t *testing.T) {
 }
 
 // TestDailyCommitPlanPremiumKeepsQuota は premium 配信で
-// remaining_sentences に触らないことを確かめる（consumed=0）。
+// remaining_sentences に触らないことを確かめる（consumeQuota=false）。
 func TestDailyCommitPlanPremiumKeepsQuota(t *testing.T) {
 	now := time.Date(2026, 8, 27, 1, 0, 0, 0, time.UTC)
-	_, _, update, err := dailyCommitPlan(batchUserData(now), now, 0)
+	_, _, update, err := dailyCommitPlan(batchUserData(now), now, false)
 	if err != nil {
 		t.Fatalf("配信できるはずが %v", err)
 	}
@@ -139,13 +148,13 @@ func TestDailyCommitPlanRejectsTierChangeDuringGeneration(t *testing.T) {
 	userData := batchUserData(now)
 	userData["tier"] = "premium"
 
-	_, _, _, err := dailyCommitPlanForEntitlement(userData, now, 5, false)
+	_, _, _, err := dailyCommitPlanForEntitlement(userData, now, true, false)
 	if !errors.Is(err, errEntitlementChanged) {
 		t.Fatalf("free生成中にpremiumへ変わったら拒否するべき: %v", err)
 	}
 
 	userData["tier"] = "free"
-	_, _, _, err = dailyCommitPlanForEntitlement(userData, now, 0, true)
+	_, _, _, err = dailyCommitPlanForEntitlement(userData, now, false, true)
 	if !errors.Is(err, errEntitlementChanged) {
 		t.Fatalf("premium生成中にfreeへ変わったら拒否するべき: %v", err)
 	}

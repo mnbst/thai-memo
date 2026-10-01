@@ -136,32 +136,30 @@ gemini-3.1-flash-lite に対して叩いた結果（dev、premium プロンプ�
 `commitDailySentence` を n 本対応にする。1トランザクションのまま。
 
 - `tx.Set` を n 回（doc は事前に `NewDoc()` で n 個確保）
-- `remaining_sentences` は `Increment(-consumed)`
+- free の `remaining_sentences` は残りセット数なので、配信本数によらず `Increment(-1)`
 - `daily_sentence_generated` / `last_notified_at` / `notify_tier` は現状どおり
 - `dailyCommitPlan` の戻り値に consumed を足す
 
-**クォータの扱い**: free / premium とも**配信した本数ぶん消費**する（現行の1消費の延長）。
+**クォータの扱い**: free は**1回の配信で1セットぶん消費**する。premium・トライアルは
+無制限なので `remaining_sentences` に触らない。
 
 | | 上限 | 配信後の残り |
 |---|---|---|
-| free | 5本/日 | 0本 |
-| premium | 20本/日 | 15本 |
+| free | 2セット/日 | 1セット |
+| premium・トライアル | 無制限 | 変更なし |
 
-free は配信だけで枠を使い切るが、実データ上 free の自発生成は1〜2本止まりで、
-その大半が配信された1本を見て終わる日なので実質的な取り上げにならない。
+free は配信で1セットを受け取り、その日にもう1セットを自発生成できる。
 
 これに伴う2点:
 
-- **先に自発生成した日は配信が5本に満たない。** free が朝の配信前に2本作っていれば残り3本。
-  `min(remaining_sentences, DailyBatchSize)` を配信し、`daily_set_size` に実数を書く。
-  実データでは free の生成時刻は配信時刻（8〜12時）に張り付いており、
-  配信が先に来る日がほとんどなので影響は小さい。0本のときは配信を見送る。
+- **残りが1セットなら本数を縮めない。** `remaining_sentences > 0` なら
+  `BatchSize` で決まる1セットをそのまま配信し、0なら配信を見送る。
 - **セット消化後の「次へ」は上限到達になる。** これは新しいエラー状態ではなく、
   既存の上限到達表示＋ペイウォール導線（`_quotaPaywallSource = 'sentence_quota_error'`）に
-  そのまま落ちる。5本を学び切った直後は「なぜ premium が要るか」が最も伝わる場面なので、
+  そのまま落ちる。2セットを学び切った直後は「なぜ premium が要るか」が最も伝わる場面なので、
   導線としてはむしろ良い位置になる。新しい文言・画面は作らない。
 
-`deliveryRestoreUpdate` / `rollbackUpdate` の `Increment(+1)` も consumed に揃える。
+`deliveryRestoreUpdate` / `rollbackUpdate` は通知失敗時に1セットぶん `Increment(+1)` する。
 
 ### 3.3 通知
 
@@ -183,7 +181,7 @@ l10n（ja/en）に文言を追加。`notification_golden_test.go` の期待値�
 
 - 通知送信失敗・トークン失効 → **n本すべて削除**してロールバック。`rollbackDelivery` を複数 ref 対応に。
 - 一部の生成失敗 → 揃ったぶんだけ配信し、`daily_set_size` に実数を書く。0本なら従来どおり `no_sentence`。
-- `remaining_sentences` が本数に足りない → 取れるぶんだけ配信（3.2）。0本なら配信を見送る。
+- `remaining_sentences` が0セット → 配信を見送る。1以上なら本数を縮めず1セット配信する。
 
 ### 3.5 UVM
 
@@ -300,7 +298,23 @@ commit a66ba61 で消した「プレミアム登録後は例文5つに1回」の
 
 - 配信本数 5本、まとめクイズ間隔も5本（配信セット＝1サイクル）
 - 版ゲートは `app_version >= 1.4.8`（`app_build_number` は使えない。1参照）
-- クォータは free / premium とも配信本数ぶん消費（3.2）
+- クォータは free のみ配信1回につき1セット消費。premium・トライアルは消費しない（3.2）
 - 生成は**並列**。同時50本まで劣化なしを実測（3.1）。`dailySentenceConcurrency = 5` は据え置き
 
 未決事項なし。実装に着手できる。
+
+## 9. 本数クォータからセットクォータへの切り替え手順
+
+`remaining_sentences` は同じフィールドのまま単位だけが変わるため、デプロイ前からある
+free ユーザーの値は自動では判別できない。切り替え時は次の順序で揃える。
+
+1. `dailyBatch` の実行時刻を避け、Go の関連関数を個別デプロイする。
+   `generateThaiSentence`、`deliverDailySentence`、`dailyBatch`、`verifySubscription`、
+   `handleAppStoreNotification`、`handlePlayNotification`、`setUserTier`、`startVocabTest` が対象。
+2. JS codebase の `onUserCreate` をデプロイし、新規ユーザーの初期値を2セットにする。
+3. 実効freeの既存ユーザーだけを対象に、`remaining_sentences` を
+   `min(現在値, 2)` へ手動更新する。0や1を2へ戻して当日の使用分を復活させない。
+4. 更新後に `remaining_sentences > 2` の実効freeユーザーが0件であることを確認する。
+
+データ更新をコードより先に行うと、旧生成関数が値2を「残り2本」と解釈してセットを
+縮めるため、必ずコードを先に切り替える。

@@ -306,12 +306,8 @@ func (d *deliverer) commitDailySentence(
 			userData = snap.Data()
 		}
 
-		consumed := 0
-		if consumeQuota {
-			consumed = 1 // 枠はセット数で数える（quota.FreeDailySentences）
-		}
 		tok, rest, update, perr := dailyCommitPlanForEntitlement(
-			userData, now, consumed, expectedPremium)
+			userData, now, consumeQuota, expectedPremium)
 		if perr != nil {
 			return perr
 		}
@@ -329,18 +325,18 @@ func (d *deliverer) commitDailySentence(
 
 // dailyCommitPlan は最新の user doc から、コミット時の書き込み内容を決める。
 //
-// consumed は消費するクォータ（セット数なので1）。premium・トライアルは回数を消費しない
-// ので 0 が渡り、remaining_sentences には触らない。
+// consumeQuota はfreeならtrue。1セットぶん消費する。premium・トライアルはfalseで、
+// remaining_sentences には触らない。
 // 戻り値は (送信先トークン, 通知失敗時に戻すための更新, users への更新)。
-func dailyCommitPlan(userData map[string]any, now time.Time, consumed int) (
+func dailyCommitPlan(userData map[string]any, now time.Time, consumeQuota bool) (
 	token string, restore, update []firestore.Update, err error,
 ) {
 	return dailyCommitPlanForEntitlement(
-		userData, now, consumed, premium.IsEffectivePremium(userData, now))
+		userData, now, consumeQuota, premium.IsEffectivePremium(userData, now))
 }
 
 func dailyCommitPlanForEntitlement(
-	userData map[string]any, now time.Time, consumed int, expectedPremium bool,
+	userData map[string]any, now time.Time, consumeQuota, expectedPremium bool,
 ) (token string, restore, update []firestore.Update, err error) {
 	// 外側の列挙結果は古い可能性があるため、二重配信を防ぐ正の判定は
 	// トランザクション内の最新 user doc で行う。
@@ -364,6 +360,7 @@ func dailyCommitPlanForEntitlement(
 		{Path: "daily_sentence_generated", Value: true},
 		{Path: "last_notified_at", Value: firestore.ServerTimestamp},
 	}
+	consumed := consumedSentenceQuota(consumeQuota)
 	if consumed > 0 {
 		update = append(update,
 			firestore.Update{Path: "remaining_sentences", Value: firestore.Increment(-consumed)})
@@ -466,14 +463,20 @@ func rollbackDelivery(
 			log.Printf("daily_sentence: rollback の例文削除に失敗: %v", err)
 		}
 	}
-	consumed := 0
-	if consumedQuota {
-		consumed = 1 // 枠はセット数で数える（quota.FreeDailySentences）
-	}
+	consumed := consumedSentenceQuota(consumedQuota)
 	update := rollbackUpdate(restore, deleteToken, consumed)
 	if _, err := userRef.Update(ctx, update); err != nil {
 		log.Printf("daily_sentence: rollback の users 更新に失敗: %v", err)
 	}
+}
+
+// consumedSentenceQuota はfreeの配信1回で消費するセット数。
+// セット内の例文本数には依存しない。
+func consumedSentenceQuota(consume bool) int {
+	if consume {
+		return 1
+	}
+	return 0
 }
 
 func rollbackUpdate(
@@ -497,7 +500,7 @@ func rollbackUpdate(
 // できなければ理由を返す（ログ集計用）。
 //
 // 本数はクライアントの版で決まる（dailysentence.BatchSize）。旧版は従来どおり1本。
-// クォータが本数に足りなければ取れるぶんだけ配信する。
+// free の remaining_sentences は残りセット数なので、1以上なら本数を縮めず配信する。
 func (d *deliverer) deliverOne(
 	ctx context.Context, uid string, userData map[string]any, now time.Time,
 ) string {

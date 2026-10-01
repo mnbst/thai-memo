@@ -16,8 +16,8 @@
 /// - premium_lifetime: 買い切り（iOSのみ）。どれも付与される権利は同じ premium。
 ///
 /// 【Free / Premium の機能差分】
-/// - 例文生成: Free=5回/日 / Premium=無制限（0時リセット）
-/// - クイズ: Free=1回/日 / Premium=5回/日（0時リセット）
+/// - 例文生成: Free=2セット/日 / Premium=無制限（0時リセット）
+/// - クイズ: Free / Premium とも回数上限なし
 /// - 選べる単語: Free=100語まで / Premium=無制限
 /// - テーマ: Free=3種 / Premium=15種
 /// - 文体: Free=2種 / Premium=5種

@@ -2672,7 +2672,7 @@ abstract class L10n {
   /// **'今日の新しいクイズはここまでです。'**
   String get quotaQuizReached;
 
-  /// 上限回数は tier で異なる（free 5 / premium 無制限）ため文言に数字を含めない
+  /// 上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
   /// **'今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。'**

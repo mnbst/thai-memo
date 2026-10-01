@@ -13,6 +13,7 @@ import (
 
 	"github.com/mnbst/thai-memo/functions/go/internal/callable"
 	"github.com/mnbst/thai-memo/functions/go/internal/playbilling"
+	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 )
 
 // verifySubscription を dev の実 Firestore に対して確かめる。
@@ -306,9 +307,9 @@ func TestVerifySubscriptionWrites(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if doc.Data()["remaining_sentences"] != int64(5) {
-			t.Errorf("remaining_sentences: want 5, got %v",
-				doc.Data()["remaining_sentences"])
+		if doc.Data()["remaining_sentences"] != int64(quota.FreeDailySentences) {
+			t.Errorf("remaining_sentences: want %d, got %v",
+				quota.FreeDailySentences, doc.Data()["remaining_sentences"])
 		}
 	})
 
@@ -383,9 +384,9 @@ func TestVerifySubscriptionReleasesOtherUsers(t *testing.T) {
 	if oldDoc.Data()["tier"] != "free" {
 		t.Errorf("旧 doc が premium のまま: %v", oldDoc.Data()["tier"])
 	}
-	if oldDoc.Data()["remaining_sentences"] != int64(5) {
-		t.Errorf("旧 doc のクォータ: want 5, got %v",
-			oldDoc.Data()["remaining_sentences"])
+	if oldDoc.Data()["remaining_sentences"] != int64(quota.FreeDailySentences) {
+		t.Errorf("旧 doc のクォータ: want %d, got %v",
+			quota.FreeDailySentences, oldDoc.Data()["remaining_sentences"])
 	}
 	if _, ok := oldDoc.Data()["subscription"]; ok {
 		t.Errorf("旧 doc の subscription が消えていない: %v", oldDoc.Data()["subscription"])
