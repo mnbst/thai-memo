@@ -46,25 +46,3 @@ func TestSetSizeFor(t *testing.T) {
 		}
 	}
 }
-
-func TestFitQuota(t *testing.T) {
-	cases := []struct{ size, remaining, want int }{
-		{2, 5, 2}, // 2 → 残り3
-		{2, 3, 3}, // 残り3なら2本で1本余るので3本
-		{2, 2, 2},
-		{2, 1, 1},
-		{3, 5, 3}, // 3 → 残り2
-		{3, 2, 2},
-		{4, 5, 5}, // 4本だと1本余るので5本
-		{4, 4, 4},
-		{5, 5, 5},
-		{5, 3, 3},
-		{1, 2, 1}, // 旧版（1本ずつ）は足さない
-		{2, 0, 0},
-	}
-	for _, c := range cases {
-		if got := FitQuota(c.size, c.remaining); got != c.want {
-			t.Errorf("FitQuota(%d, %d) = %d, want %d", c.size, c.remaining, got, c.want)
-		}
-	}
-}

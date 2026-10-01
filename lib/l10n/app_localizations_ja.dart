@@ -620,7 +620,7 @@ class L10nJa extends L10n {
 
   @override
   String trialEndedChangeQuotaFree(int free) {
-    return '1日$free回';
+    return '1日$freeセット';
   }
 
   @override
@@ -2521,7 +2521,7 @@ class L10nJa extends L10n {
 
   @override
   String guidePlanSentences(int count) {
-    return '$count文';
+    return '$countセット';
   }
 
   @override

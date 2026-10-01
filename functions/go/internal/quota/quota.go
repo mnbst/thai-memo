@@ -4,7 +4,10 @@ package quota
 
 const (
 	// FreeDailySentences は free ユーザーの日次リセット値（JST 0:00）。
-	FreeDailySentences = 5
+	// 数えるのは例文の本数ではなくセットの数（remaining_sentences もセット数）。
+	// 1セットの本数は人によって2〜5本（sentence.SetSizeFor）なので、本数で
+	// 数えると割り切れずに1本だけのセットが残る。
+	FreeDailySentences = 2
 
 	// FreeDailyQuizzes はクイズの日次リセット値。
 	// クイズの日次上限は 2026-08-25 に撤廃済みで、この値は既存ドキュメントの

@@ -656,7 +656,7 @@ class L10nEn extends L10n {
 
   @override
   String trialEndedChangeQuotaFree(int free) {
-    return '$free per day';
+    return '$free sets per day';
   }
 
   @override
@@ -2692,7 +2692,7 @@ class L10nEn extends L10n {
 
   @override
   String guidePlanSentences(int count) {
-    return '$count';
+    return '$count sets';
   }
 
   @override

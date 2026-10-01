@@ -1234,7 +1234,7 @@ abstract class L10n {
   /// No description provided for @trialEndedChangeQuotaFree.
   ///
   /// In ja, this message translates to:
-  /// **'1日{free}回'**
+  /// **'1日{free}セット'**
   String trialEndedChangeQuotaFree(int free);
 
   /// No description provided for @trialEndedChangeVocabLabel.
@@ -4685,7 +4685,7 @@ abstract class L10n {
   /// No description provided for @guidePlanSentences.
   ///
   /// In ja, this message translates to:
-  /// **'{count}文'**
+  /// **'{count}セット'**
   String guidePlanSentences(int count);
 
   /// No description provided for @guidePlanTopicFree.

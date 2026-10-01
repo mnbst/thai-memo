@@ -217,7 +217,7 @@ func runGenerateThaiSentence(
 
 	// premium（トライアル含む）は回数を消費しない。例文は静的コーパスから出す
 	// ようになり 1 本あたりの限界コストがほぼ 0 なので、残数を見る意味が無い。
-	// free だけが remaining_sentences で絞られる。
+	// free だけが remaining_sentences（残りセット数）で絞られる。
 	remaining := intValue(userData["remaining_sentences"])
 	if !usePremiumSpec && remaining <= 0 {
 		logData["error"] = "QUOTA_EXCEEDED"
@@ -249,12 +249,8 @@ func runGenerateThaiSentence(
 		return nil, err
 	}
 
-	// free は残りクォータを超えては作らない。足りなければ取れるぶんだけ返す。
-	// 1本だけ余る日は、その1本もこのセットに含める（sentence.FitQuota）。
+	// free の枠はセット数で数えるので、本数は残りに関係なく1セットぶん作る。
 	count := requestedSetSize(params, userData)
-	if !usePremiumSpec {
-		count = sentence.FitQuota(count, remaining)
-	}
 
 	produced, err := producer.ProduceBatch(ctx, db, freqRank, sentence.ProduceRequest{
 		UID:            uid,
@@ -376,7 +372,7 @@ func commitSentences(
 		if err == nil && snap.Exists() {
 			userData = snap.Data()
 		}
-		if !usePremiumSpec && intValue(userData["remaining_sentences"]) < len(refs) {
+		if !usePremiumSpec && intValue(userData["remaining_sentences"]) < 1 {
 			return errQuotaExceeded
 		}
 		for i, ref := range refs {
@@ -401,7 +397,8 @@ func commitSentences(
 // （sentence_handlers.py:_build_sentence_commit_update:277）。
 //
 // consumeQuota が false（premium・トライアル）のときは remaining_sentences を
-// 触らない。生成本数の記録（sentence_generated_count）は tier によらず残す。
+// 触らない。free は本数によらず1セットで1減らす（remaining_sentences はセット数）。
+// 生成本数の記録（sentence_generated_count）は tier によらず残す。
 func sentenceCommitUpdate(
 	userData map[string]any, count int, consumeQuota bool,
 ) []firestore.Update {
@@ -413,7 +410,7 @@ func sentenceCommitUpdate(
 	}
 	if consumeQuota {
 		updates = append(updates,
-			firestore.Update{Path: "remaining_sentences", Value: firestore.Increment(-count)})
+			firestore.Update{Path: "remaining_sentences", Value: firestore.Increment(-1)})
 	}
 	if _, ok := userData["first_generated_at"]; !ok {
 		updates = append(updates,
