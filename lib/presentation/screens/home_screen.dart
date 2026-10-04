@@ -550,16 +550,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           );
         }
 
-        // 最後に語彙テスト。生成の開始はこの後まで待つ。key_word は
+        // 最後に語彙テスト（任意）。生成の開始はこの後まで待つ。key_word は
         // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
-        // 0 語相当の難度で出てしまう。
+        // 0 語相当の難度で出てしまう。受けずに進んだ人は 0 語から始まる。
         if (mounted) {
           await Navigator.push<void>(
             context,
             MaterialPageRoute(
               settings: const RouteSettings(name: VocabTestScreen.routeName),
               builder: (context) => VocabTestScreen(
-                mandatory: true,
                 source: 'onboarding',
                 onFinished: (_) => Navigator.pop(context),
               ),
