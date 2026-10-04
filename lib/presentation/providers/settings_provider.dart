@@ -221,6 +221,12 @@ class SettingsController extends StateNotifier<SettingsState> {
       notificationCoachShown: notificationCoachShown,
     );
     unawaited(_analytics.setUserAppLanguage(appLanguage.code));
+    // 回答済みの既存ユーザーにも起動時に付ける。
+    if (_prefs!.getBool(AppConfig.prefKeyInterviewCompleted) ?? false) {
+      final level =
+          _prefs!.getString('${AppConfig.prefKeyInterviewPrefix}level');
+      unawaited(_analytics.setUserInterviewLevel(level ?? 'skipped'));
+    }
   }
 
   /// アプリ言語を決める。保存済みならそれが真実。未保存（初回起動）のときだけ

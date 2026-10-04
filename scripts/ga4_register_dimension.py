@@ -67,6 +67,7 @@ DIMENSIONS = (
     Dimension("storefront", "EVENT", "App Store storefront"),
     Dimension("tier", "USER", "User tier"),
     Dimension("app_language", "USER", "User app language"),
+    Dimension("interview_level", "USER", "User interview level"),
 )
 
 

@@ -183,6 +183,13 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   @override
   Future<void> setUserAppLanguage(String lang) async {}
 
+  final List<String> interviewLevels = [];
+
+  @override
+  Future<void> setUserInterviewLevel(String level) async {
+    interviewLevels.add(level);
+  }
+
   @override
   Future<void> logSubscribe({required String source}) async {
     subscribeEvents.add(source);

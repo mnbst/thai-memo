@@ -26,6 +26,7 @@ class AnalyticsService {
   String? _lastUserId;
   String? _lastTier;
   String? _lastAppLanguage;
+  String? _lastInterviewLevel;
 
   Future<void> setUserId(String? userId) async {
     if (_lastUserId == userId) return;
@@ -379,6 +380,21 @@ class AnalyticsService {
     try {
       await _analytics.setUserProperty(name: 'app_language', value: lang);
       _lastAppLanguage = lang;
+    } on PlatformException catch (error, stackTrace) {
+      _logPlatformFailure('setUserProperty', error, stackTrace);
+    } catch (error, stackTrace) {
+      _logPlatformFailure('setUserProperty', error, stackTrace);
+    }
+  }
+
+  /// ヒアリングの level 回答をユーザープロパティにする。クイズ形式ごとの
+  /// 正答率などを入門者（none / words）で割るために使う。
+  /// level を飛ばした人は skipped。ヒアリング導入前のユーザーは送らない。
+  Future<void> setUserInterviewLevel(String level) async {
+    if (_lastInterviewLevel == level) return;
+    try {
+      await _analytics.setUserProperty(name: 'interview_level', value: level);
+      _lastInterviewLevel = level;
     } on PlatformException catch (error, stackTrace) {
       _logPlatformFailure('setUserProperty', error, stackTrace);
     } catch (error, stackTrace) {
