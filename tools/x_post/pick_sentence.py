@@ -1,6 +1,6 @@
 """X 投稿に使う例文を1件選ぶ。
 
-候補は GCS の静的コーパス（premium と同じもの）だけ。恋愛のトピックと語数で
+候補は GCS の静的コーパス（premium と同じもの）だけ。BLドラマのトピックと語数で
 絞った中から「反応が良さそうな1件」を Gemini に選ばせる。Gemini が使えない
 ときは同じ候補から抽選して投稿を止めない。
 
@@ -50,8 +50,8 @@ MIN_WORDS = 7
 MAX_WORDS = 11
 
 # 投稿に回すトピック。コーパスの context.topic がこの語を含むものだけ。
-# 恋人・気になる相手とのやり取りに寄せるため、ここだけを候補にする。
-TOPIC_KEYWORDS = ("恋愛",)
+# タイBLドラマ好きに刺さるセリフ調に寄せるため、ここだけを候補にする。
+TOPIC_KEYWORDS = ("BLドラマ",)
 
 GEMINI_SECRET = "gemini-api-key"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
@@ -145,14 +145,14 @@ def sound_only(pool: list[dict]) -> list[dict]:
 
 
 def romance_only(pool: list[dict]) -> list[dict]:
-    """恋愛のトピックだけ残す。トピックが無い例文は落とす。"""
+    """BLドラマのトピックだけ残す。トピックが無い例文は落とす。"""
 
     def is_romance(sentence: dict) -> bool:
         topic = (sentence.get("context") or {}).get("topic") or ""
         return any(k in topic for k in TOPIC_KEYWORDS)
 
     picked = [s for s in pool if is_romance(s)]
-    print(f"恋愛のトピックに絞って {len(picked)}/{len(pool)} 件", file=sys.stderr)
+    print(f"BLドラマのトピックに絞って {len(picked)}/{len(pool)} 件", file=sys.stderr)
     return picked
 
 
@@ -317,8 +317,8 @@ def main() -> int:
 
     pool = romance_only(sound_only(corpus))
     if not pool:
-        # 恋愛で残らないのは絞り込みが厳しすぎる側の問題。止めるよりは出す。
-        print("恋愛の候補が無いので語数だけで選ぶ", file=sys.stderr)
+        # BLドラマで残らないのは絞り込みが厳しすぎる側の問題。止めるよりは出す。
+        print("BLドラマの候補が無いので語数だけで選ぶ", file=sys.stderr)
         pool = sound_only(corpus)
     if not pool:
         print("条件に合う候補が無い", file=sys.stderr)
