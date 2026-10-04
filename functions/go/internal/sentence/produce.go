@@ -268,7 +268,7 @@ func (p *Producer) ProduceBatch(
 		if useBank {
 			missed = missed[:0:0]
 			for _, tw := range fresh {
-				cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic, strictTopic)
+				cached, topic, err := pickCached(ctx, bank, tw, req.Lang, strictTopic)
 				if err != nil {
 					return nil, err
 				}
@@ -292,7 +292,7 @@ func (p *Producer) ProduceBatch(
 				results = append(results, &Produced{
 					Sentence:    cached,
 					TargetWords: []string{tw.Word},
-					ChosenTopic: tw.Topic,
+					ChosenTopic: topic,
 					FromCache:   true,
 				})
 			}
@@ -325,7 +325,7 @@ func (p *Producer) ProduceBatch(
 			return nil, err
 		}
 		for _, tw := range selected {
-			cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic, strictTopic)
+			cached, topic, err := pickCached(ctx, bank, tw, req.Lang, strictTopic)
 			if err != nil {
 				return nil, err
 			}
@@ -338,12 +338,36 @@ func (p *Producer) ProduceBatch(
 			results = append(results, &Produced{
 				Sentence:    cached,
 				TargetWords: []string{tw.Word},
-				ChosenTopic: tw.Topic,
+				ChosenTopic: topic,
 				FromCache:   true,
 			})
 		}
 	}
 	return results, nil
+}
+
+// pickCached は語の在庫を引き、文と、その文のテーマを返す。
+//
+// まとめたテーマ（tw.Group）のときは、解決した個別テーマに無ければ同じまとめの
+// 他の中身からも引く。どれもまとめた本人の指定の範囲なので、LLM へ落とすより
+// 在庫を使う。
+func pickCached(
+	ctx context.Context, bank CachedSentences, tw TargetWord, l lang.Lang, strictTopic bool,
+) (*Sentence, string, error) {
+	cached, err := bank.Pick(ctx, tw.Word, l, tw.Topic, strictTopic)
+	if err != nil || cached != nil || tw.Group == "" {
+		return cached, tw.Topic, err
+	}
+	for _, t := range TopicGroups[tw.Group] {
+		if t == tw.Topic {
+			continue
+		}
+		cached, err := bank.Pick(ctx, tw.Word, l, t, true)
+		if err != nil || cached != nil {
+			return cached, t, err
+		}
+	}
+	return nil, tw.Topic, nil
 }
 
 // generate は語ごとに LLM 生成を並列で回す。戻り値は選定順。

@@ -1,6 +1,7 @@
-"""BLドラマの参考セリフの embedding を作る。
+"""参考セリフ（BLドラマ・テーマ回）の embedding を作る。
 
-セリフの正本は functions/go/internal/bldrama/data.go の shots。
+セリフの正本は functions/go/internal/bldrama/data.go と
+functions/go/internal/themeshots/data.go の shots。
 FindBestDramaShot はセリフ本文で embedding を引き、無いセリフは候補から外すので、
 セリフを足したらこれを流して upload_corpus.sh で GCS に上げる。
 
@@ -19,16 +20,23 @@ from pathlib import Path
 from vertexai.language_models import TextEmbeddingModel
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "functions" / "go" / "internal" / "bldrama" / "data.go"
+DATA = [
+    ROOT / "functions" / "go" / "internal" / "bldrama" / "data.go",
+    ROOT / "functions" / "go" / "internal" / "themeshots" / "data.go",
+]
 OUT = ROOT / "scripts" / "corpus" / "shot_embeddings.json"
 DIM = 768  # vocab_embeddings.npy と揃える。ずれると次元不一致で候補から落ちる
 MODEL = "gemini-embedding-001"
 
 
 def load_shots() -> list[str]:
-    src = DATA.read_text(encoding="utf-8")
-    block = src[src.index("var shots = map[string]string{") : src.index("\n}\n")]
-    return [json.loads(m) for m in re.findall(r'^\t"[a-z]+_\d+": ("(?:[^"\\]|\\.)*"),$', block, re.M)]
+    out: list[str] = []
+    for path in DATA:
+        src = path.read_text(encoding="utf-8")
+        start = src.index("var shots = map[string]string{")
+        block = src[start : src.index("\n}\n", start)]
+        out += [json.loads(m) for m in re.findall(r'^\t"[a-z]+_\d+":\s+("(?:[^"\\]|\\.)*"),$', block, re.M)]
+    return out
 
 
 def main() -> None:

@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 
@@ -207,6 +208,37 @@ func (s *Store) LoadFromBytes(npy []byte, words []Word) error {
 		s.wordToIx[w.Word] = i
 	}
 	return nil
+}
+
+// LoadLocalShots は GCS を介さず、ローカルの語 embedding とショット embedding を
+// 読み込んだ Store を返す（cmd での試行・コーパス生成用）。dir は scripts/corpus。
+func LoadLocalShots(dir string) (*Store, error) {
+	npy, err := os.ReadFile(filepath.Join(dir, embBlob))
+	if err != nil {
+		return nil, err
+	}
+	var words []Word
+	if err := readJSONFile(filepath.Join(dir, wordsBlob), &words); err != nil {
+		return nil, err
+	}
+	shots := map[string][]float32{}
+	if err := readJSONFile(filepath.Join(dir, shotEmbBlob), &shots); err != nil {
+		return nil, err
+	}
+	s := &Store{}
+	if err := s.LoadFromBytes(npy, words); err != nil {
+		return nil, err
+	}
+	s.SetNamedEmbeddings(nil, nil, shots)
+	return s, nil
+}
+
+func readJSONFile(path string, v any) error {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, v)
 }
 
 // SetNamedEmbeddings はテーマ・サブテーマ・ショットの embedding を差し込む

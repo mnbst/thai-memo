@@ -774,6 +774,9 @@ embeddings.py の Go 版。コサイン類似度（float64累積）・意味的�
 functions/go/internal/embeddings/store.go
 embedding データのGCS遅延ロードとキャッシュ、重みつき抽選。
 
+functions/go/internal/embeddings/scene_test.go
+場面（ショットembeddingの平均）の選出と閾値のテスト。
+
 functions/go/internal/embeddings/select.go
 サブテーマ・ドラマショット・テーマの類似度による選出。
 
@@ -863,6 +866,21 @@ BLドラマの設定・セリフ177件（正本。直接編集。2026年作品�
 
 functions/go/internal/bldrama/golden_test.go
 bl_drama.py とプロンプト断片・データを突き合わせる差分テスト。
+
+functions/go/internal/themeshots/themeshots.go
+BL以外の全テーマの参考例文ブロック。語に近い場面（embedding、閾値0.75）か全体からの1文の選出と、テーマ別の代わりのやり取りを含む断片の組み立て。
+
+functions/go/internal/themeshots/data.go
+BL以外15テーマの参考例文565件と124場面（正本。Thai PBS [CC] の Foodwork・シットコム等の字幕から Jev で振り分けて採取。文のみで人名・注釈なし）。
+
+functions/go/internal/themeshots/themeshots_test.go
+参考例文データの形（英字・注釈なし、場面あり）と断片の組み立てのテスト。
+
+functions/go/internal/sentence/shots_test.go
+テーマ回の参考例文がサブテーマと関係の指定を置き換えることのテスト。
+
+functions/go/internal/sentence/topic_group_test.go
+まとめたテーマ（タイ暮らし・タイ旅行）の中身の検証、語ごとの解決、在庫を中身の他テーマから引くフォールバックのテスト。
 
 functions/go/internal/uvm/session.go
 key_word候補のランク帯算出・重み付き抽選・テーマ未指定時のテーマ決定（uvm.py:get_session_words）。
@@ -972,6 +990,9 @@ usagefill の中身。プロンプトとスキーマ（説明文は配信経路�
 functions/go/cmd/gencorpus/main.go
 静的コーパスの全量生成コマンド。マニフェストを 生成→判定→差し戻し→再判定 まで通し、ブロック単位でJSONLに追記する。同じ出力先を指すと続きから流せる。
 
+functions/go/cmd/freeregen/main.go
+free 例文バンク（free_sentences_<lang>.json）のうち指定テーマの項目だけを本番と同じ生成経路で作り直す（判定・差し戻し1回、通らなければ元の項目を残す）。
+
 functions/go/cmd/burst/main.go
 毎日例文の5本セット配信で増える LLM 同時実行の実測コマンド。ユーザー数×本数を同時に叩き、1本/1ユーザー/全体の所要と失敗の内訳を出す。
 
@@ -1063,7 +1084,7 @@ scripts/build_pos_dict.py
 コーパスの grammatical_role を語ごとに集計して品詞辞書（quiz_posdict_data.go）を生成。最頻品詞が8割未満の語は入れない。
 
 scripts/build_shot_embeddings.py
-BLドラマ参考セリフ（bldrama/data.go）のembeddingを差分生成しshot_embeddings.jsonへ。
+参考セリフ（bldrama/data.go・themeshots/data.go）のembeddingを差分生成しshot_embeddings.jsonへ。
 
 scripts/build_embeddings.py
 freq_rank_top10000からVertex AI gemini-embedding-001でembedding生成。

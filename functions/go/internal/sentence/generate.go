@@ -270,11 +270,41 @@ type DramaBuilder interface {
 	BuildDramaSection(targetWords []string) DramaSection
 }
 
+// ShotBuilder は BL 以外のテーマ回の参考例文ブロックを組み立てる。
+// 実装は internal/themeshots。ショットの無いテーマにはゼロ値を返す。
+type ShotBuilder interface {
+	BuildShotSection(topic string, targetWords []string) DramaSection
+}
+
 // Service は例文生成の入口。
 type Service struct {
 	Gen      Generator
 	Resolver *Resolver
 	Drama    DramaBuilder
+	// Shots は nil ならテーマ回の参考例文を付けない。
+	Shots ShotBuilder
+}
+
+// SceneSection はテーマ回の場面ブロック（BL ドラマ回・参考例文の回）を返す。
+// 該当しなければゼロ値。参考例文の場面はサブテーマの代わりなので、付けたときは
+// resolved のサブテーマを空にする。関係の指定は残す。
+//
+// プロンプトを自前で組む cmd/pilot・cmd/gencorpus もこれを通す。
+func (s *Service) SceneSection(resolved *ResolvedParams, targetWords []string) DramaSection {
+	if resolved.Topic == Topics[15] {
+		if s.Drama == nil {
+			return DramaSection{}
+		}
+		return s.Drama.BuildDramaSection(targetWords)
+	}
+	if s.Shots == nil || resolved.Topic == "" {
+		return DramaSection{}
+	}
+	section := s.Shots.BuildShotSection(resolved.Topic, targetWords)
+	if section.Context != "" {
+		resolved.SubTheme = ""
+	}
+	return section
 }
 
 // GenerateSentence は LLM で例文を生成し、NLP 後処理を適用する。
@@ -301,10 +331,7 @@ func (s *Service) GenerateSentenceWithNotes(
 
 	// ドラマ回は場面をドラマ側のブロックが決めるので、テーマ・サブテーマ・
 	// 時点・関係の行を出さない（BuildPrompt 側で落とす）。
-	var drama DramaSection
-	if s.Drama != nil && resolved.Topic == Topics[15] {
-		drama = s.Drama.BuildDramaSection(targetWords)
-	}
+	drama := s.SceneSection(&resolved, targetWords)
 
 	prompt, resolvedContext := BuildPrompt(
 		resolved, targetWords, estimatedVocab, isPremium, l, drama)

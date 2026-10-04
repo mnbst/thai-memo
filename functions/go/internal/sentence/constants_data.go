@@ -33,6 +33,23 @@ var Topics = []string{
 	"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）",
 }
 
+// LifeTopic と TravelTopic は、ヒアリングの用途（タイで暮らす／旅行）に合わせて
+// 個別テーマをまとめたテーマ。テーマ選択の画面にはこちらだけを出す。
+//
+// まとめたテーマは選定の入口だけで、例文は中身の個別テーマで作る
+// （TargetWordSelector が語ごとに中身の1つへ解決する）。キャッシュ・保存される
+// context.topic・参考例文は個別テーマのまま使う。
+const (
+	LifeTopic   = "タイ暮らし（買い物、交通、健康、家族、天気、食べ物）"
+	TravelTopic = "タイ旅行（観光、ホテル、交通、買い物、食べ物）"
+)
+
+// TopicGroups はまとめたテーマと、その中身の個別テーマ。
+var TopicGroups = map[string][]string{
+	LifeTopic:   {Topics[5], Topics[6], Topics[7], Topics[4], Topics[8], Topics[1]},
+	TravelTopic: {Topics[2], Topics[6], Topics[5], Topics[1]},
+}
+
 // GrammarFocuses は文法の焦点（constants.GRAMMAR_FOCUSES）。
 var GrammarFocuses = []string{
 	"平叙文（基本の肯定文）",
@@ -223,24 +240,12 @@ var subThemeLabelsEN = map[string]map[string]string{
 // InterviewGoalTopics はヒアリングの goal ごとのテーマ候補
 // （constants.INTERVIEW_GOAL_TOPICS）。値は TOPICS の要素。
 var InterviewGoalTopics = map[string][]string{
-	"travel": {
-		"旅行（ホテル、道案内、観光地、空港、ツアー）",
-		"交通（Grab、BTS、バイタク、ソンテウ、渋滞）",
-		"買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
-		"食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
-	},
+	"travel": {TravelTopic},
 	"work": {
 		"仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）",
 		"あいさつ（朝・昼・夜、初対面、再会、別れ、電話）",
 	},
-	"live": {
-		"買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
-		"家族（家族紹介、子育て、親への感謝、兄弟、家族行事）",
-		"健康（症状説明、薬局、マッサージ、健康診断）",
-		"天気（暑さ、雨季、台風、日焼け対策）",
-		"交通（Grab、BTS、バイタク、ソンテウ、渋滞）",
-		"食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
-	},
+	"live": {LifeTopic},
 	"culture": {
 		"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）",
 		"伝統・祭り（ソンクラーン、ロイクラトン、王室行事、地域の伝統料理）",

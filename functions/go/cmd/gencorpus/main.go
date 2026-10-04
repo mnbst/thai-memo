@@ -32,11 +32,13 @@ import (
 	"time"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/bldrama"
+	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/llm"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
+	"github.com/mnbst/thai-memo/functions/go/internal/themeshots"
 )
 
 // judgeBatchSize は sentence_audit.go の auditBatchSize に合わせる。
@@ -79,6 +81,7 @@ func main() {
 	limit := flag.Int("limit", 0, "先頭 N 件だけ流す（0 は全部）")
 	maxRank := flag.Int("max-rank", 0, "この頻度ランクまでで切る（0 は全部）")
 	redo := flag.Bool("redo-rejected", false, "判定を通らなかった行をもう一度流す")
+	embDir := flag.String("emb-dir", "../../scripts/corpus", "場面の選出に使う embedding のディレクトリ（空なら場面で絞らない）")
 	flag.Parse()
 
 	rows, err := loadRows(*in)
@@ -120,6 +123,7 @@ func main() {
 		},
 		Resolver: &sentence.Resolver{},
 		Drama:    &bldrama.Builder{},
+		Shots:    &themeshots.Builder{Scenes: sceneFinder(*embDir)},
 	}
 	l := lang.Lang(*langCode)
 
@@ -201,10 +205,7 @@ func generate(
 	resolved.SubTheme = r.SubTheme
 	resolved.LengthHint = r.LengthHint
 
-	var drama sentence.DramaSection
-	if r.Topic == sentence.Topics[15] {
-		drama = svc.Drama.BuildDramaSection(words)
-	}
+	drama := svc.SceneSection(&resolved, words)
 	prompt, rc := sentence.BuildPrompt(resolved, words, r.KnownRank, true, l, drama)
 	if block := sentence.BuildRetryConstraint(notes); block != "" {
 		prompt += "\n\n" + block
@@ -434,4 +435,17 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// sceneFinder は -emb-dir のローカル embedding から場面の選出器を作る。
+// 空なら nil（場面で絞らずランダム）。本番は GCS の同じファイルを使う。
+func sceneFinder(dir string) themeshots.SceneFinder {
+	if dir == "" {
+		return nil
+	}
+	store, err := embeddings.LoadLocalShots(dir)
+	if err != nil {
+		log.Fatalf("embedding を読めない: %v", err)
+	}
+	return store
 }

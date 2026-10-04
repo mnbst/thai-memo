@@ -11,6 +11,7 @@ import (
 	"cloud.google.com/go/firestore"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/premium"
+	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
@@ -80,6 +81,16 @@ func TestEffectiveGenerationParamsRejectsPromptInjection(t *testing.T) {
 	}, true)
 	if len(got) != 0 {
 		t.Fatalf("未知または自由入力の生成条件が残った: %#v", got)
+	}
+}
+
+// まとめたテーマ（タイ暮らし・タイ旅行）は premium の指定として通す。
+func TestEffectiveGenerationParamsKeepsTopicGroups(t *testing.T) {
+	for _, topic := range []string{sentence.LifeTopic, sentence.TravelTopic} {
+		got := effectiveGenerationParams(map[string]any{"topic": topic}, true)
+		if got["topic"] != topic {
+			t.Errorf("%s が落ちた: %#v", topic, got)
+		}
 	}
 }
 

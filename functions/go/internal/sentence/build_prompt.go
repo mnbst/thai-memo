@@ -84,7 +84,13 @@ func BuildPrompt(
 		timeFrame = ""
 		relation = ""
 	case topic != "":
-		topicLine = fmt.Sprintf("- テーマ: %s\n", topic)
+		label := topic
+		if drama.Context != "" {
+			// 参考例文の回はカッコ内の下位項目（辛さ調整、アレルギー…）を出さない。
+			// 出すと場面よりそちらが効き、どの場面を渡しても同じ話題に寄った。
+			label, _, _ = strings.Cut(topic, "（")
+		}
+		topicLine = fmt.Sprintf("- テーマ: %s\n", label)
 	default:
 		// テーマ未確定。候補を列挙してターゲット単語に合うものを選ばせる。
 		// 選択肢を閉じることで estimated_vocab のレベル別ゲートは維持される。
