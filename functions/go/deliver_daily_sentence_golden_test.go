@@ -232,7 +232,7 @@ func TestDeliveryCommitGolden(t *testing.T) {
 	outcomes := map[string]int{}
 	for _, c := range golden.Commit {
 		userData := deliveryUserData(t, c.UserData)
-		token, restore, update, err := dailyCommitPlan(userData, now, 1)
+		token, restore, update, err := dailyCommitPlan(userData, now, true)
 
 		var stopped *deliveryStoppedError
 		outcome := "delivered"

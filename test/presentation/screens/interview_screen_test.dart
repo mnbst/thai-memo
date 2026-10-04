@@ -107,6 +107,7 @@ void main() {
       analytics.interviewEvents.map((e) => e['action']),
       containsAllInOrder(['start', 'answer', 'answer', 'answer', 'answer', 'complete']),
     );
+    expect(analytics.interviewLevels, ['none']);
   });
 
   testWidgets('考え方は上から1項目ずつ現れる', (tester) async {

@@ -195,6 +195,11 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
             answeredCount: _answers.length,
           ),
     );
+    unawaited(
+      ref
+          .read(analyticsServiceProvider)
+          .setUserInterviewLevel(_answers['level'] ?? 'skipped'),
+    );
     // 回答は users doc にも送る（属性 × 定着の分析と、端末を経由しない
     // 毎日配信のテーマ決定に使う）。例文のテーマは端末側で決めるので、
     // 生成はこの書き込みの着地を待たない。

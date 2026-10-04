@@ -547,7 +547,7 @@ functions/go/internal/sentence/corpusbank_test.go
 premium がコーパス・free が従来バンクという分岐、テーマ優先と指定時だけの諦め、キャッシュ汚染防止のテスト。
 
 functions/go/internal/corpustrans/translate.go
-静的コーパス専用。確定したタイ語文に日本語訳と英訳を1回のレスポンスで付ける訳プロンプトとスキーマ。日本語は自然な訳、英訳は直訳・時制なしと規則を分けてある。FixedJA を渡すと英訳だけ作り直すモード（SchemaEN）。語義も日英そろえて返し、語数や英訳の機械チェックに落ちれば作り直す。
+静的コーパス専用。確定したタイ語文に日本語訳と英訳を1回のレスポンスで付ける訳プロンプトとスキーマ。日英とも自然な訳（英訳の規則は enRules に1本化）。FixedJA を渡すと英訳だけ作り直すモード（SchemaEN）。語義も日英そろえて返し、語数や英訳の機械チェックに落ちれば作り直す。
 
 functions/go/internal/corpustrans/validate_en_test.go
 英訳の機械チェック（品詞名の混入・スラッシュ併記の三人称・タイ文字残留・句点）の単体テスト。
@@ -913,7 +913,10 @@ functions/go/internal/uvm/graded_test.go
 IsGradedResult（採点区分）・ResultEvidence・UpdateP の向き（正解で上がり不正解で下がる）と、evidence を持たない既存 doc の移行のテスト。
 
 functions/go/internal/sentence/freebank.go
-free例文バンク（GCS）の読み込みとキャッシュ、target_word一致の抽選。
+free例文バンク（GCS）の読み込みとキャッシュ、target_word一致の抽選。バンクに無いテーマは nil で生成へ落とす。
+
+functions/go/internal/sentence/freebank_test.go
+free例文バンクの抽選（テーマ一致の優先・在庫の無いテーマの扱い）のテスト。
 
 functions/go/internal/sentence/select.go
 テーマ候補プールの決定とUVMからのターゲット語選定（sentence_service.py:select_uvm_target_words）。

@@ -7,6 +7,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 	"github.com/mnbst/thai-memo/functions/go/internal/userdata"
 )
 
@@ -69,8 +70,9 @@ func TestDailyBatchResetQuotaWrites(t *testing.T) {
 	if got["tier"] != "free" {
 		t.Errorf("tier: want free, got %v", got["tier"])
 	}
-	if got["remaining_sentences"] != int64(5) {
-		t.Errorf("remaining_sentences: want 5, got %v", got["remaining_sentences"])
+	if got["remaining_sentences"] != int64(quota.FreeDailySentences) {
+		t.Errorf("remaining_sentences: want %d, got %v",
+			quota.FreeDailySentences, got["remaining_sentences"])
 	}
 	if got["notify_utc_hour"] != int64(1) {
 		t.Errorf("notify_utc_hour: want 1 (Asia/Tokyo 10時), got %v", got["notify_utc_hour"])
