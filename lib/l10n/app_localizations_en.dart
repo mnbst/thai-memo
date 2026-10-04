@@ -821,6 +821,20 @@ class L10nEn extends L10n {
       'when to wai, polite speech, taboos, table manners, gifts';
 
   @override
+  String get topicName_life => 'Living in Thailand';
+
+  @override
+  String get topicSub_life =>
+      'shopping, transport, health, family, weather, food';
+
+  @override
+  String get topicName_thaiTravel => 'Traveling in Thailand';
+
+  @override
+  String get topicSub_thaiTravel =>
+      'sightseeing, hotels, transport, shopping, food';
+
+  @override
   String get styleName_news => 'News article style';
 
   @override
@@ -1144,7 +1158,7 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy3Travel =>
-      '**With Premium**, choose “Travel” or “Transport” for sentences you can use on your trip.';
+      '**With Premium**, choose “Traveling in Thailand” for sentences you can use on your trip — sightseeing, getting around, shopping and more.';
 
   @override
   String get philosophy3Work =>
@@ -1152,7 +1166,7 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy3Live =>
-      '**With Premium**, choose “Shopping” or “Family” for sentences you can use in daily life.';
+      '**With Premium**, choose “Living in Thailand” for sentences you can use in daily life — shopping, transport, family and more.';
 
   @override
   String get philosophy3Culture =>

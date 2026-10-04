@@ -396,6 +396,10 @@
   "topicSub_festivals": "Songkran, Loy Krathong, royal ceremonies, regional dishes",
   "topicName_etiquette": "Etiquette",
   "topicSub_etiquette": "when to wai, polite speech, taboos, table manners, gifts",
+  "topicName_life": "Living in Thailand",
+  "topicSub_life": "shopping, transport, health, family, weather, food",
+  "topicName_thaiTravel": "Traveling in Thailand",
+  "topicSub_thaiTravel": "sightseeing, hotels, transport, shopping, food",
 
   "styleName_news": "News article style",
   "styleName_spoken": "Colloquial style",
@@ -526,9 +530,9 @@
   "philosophy2Tone": "Use **pronunciation practice** to compare your voice with the model and find where your tone differs.",
   "philosophy2Vocab": "**Quizzes** track how well you know each word. Words you haven't mastered return later.",
 
-  "philosophy3Travel": "**With Premium**, choose “Travel” or “Transport” for sentences you can use on your trip.",
+  "philosophy3Travel": "**With Premium**, choose “Traveling in Thailand” for sentences you can use on your trip — sightseeing, getting around, shopping and more.",
   "philosophy3Work": "**With Premium**, choose “Work” for sentences you can use in the workplace.",
-  "philosophy3Live": "**With Premium**, choose “Shopping” or “Family” for sentences you can use in daily life.",
+  "philosophy3Live": "**With Premium**, choose “Living in Thailand” for sentences you can use in daily life — shopping, transport, family and more.",
   "philosophy3Culture": "**With Premium**, choose “Thai BL dramas” or “Traditions and festivals” to learn expressions from Thai media and culture.",
   "philosophy3TimeShort": "**In a few minutes**, you can read a sentence and take its check quiz.",
   "philosophy3TimeMedium": "**In ten minutes**, you can add sentences, practice pronunciation, and review words.",

@@ -763,6 +763,18 @@ class L10nJa extends L10n {
   String get topicSub_etiquette => 'ワイの使い分け、敬語、タブー、食事マナー、贈り物';
 
   @override
+  String get topicName_life => 'タイ暮らし';
+
+  @override
+  String get topicSub_life => '買い物、交通、健康、家族、天気、食べ物';
+
+  @override
+  String get topicName_thaiTravel => 'タイ旅行';
+
+  @override
+  String get topicSub_thaiTravel => '観光、ホテル、交通、買い物、食べ物';
+
+  @override
   String get styleName_news => 'ニュース記事体';
 
   @override
@@ -1076,7 +1088,7 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy3Travel =>
-      '**プレミアム**なら、例文のテーマを自分で選べます。「旅行」や「交通」を選べば、現地で使う場面の例文が届きます。';
+      '**プレミアム**なら、例文のテーマを自分で選べます。「タイ旅行」を選べば、観光・移動・買い物など現地で使う場面の例文が届きます。';
 
   @override
   String get philosophy3Work =>
@@ -1084,7 +1096,7 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy3Live =>
-      '**プレミアム**なら、例文のテーマを自分で選べます。「買い物」や「家族」を選べば、暮らしの中で使う例文が届きます。';
+      '**プレミアム**なら、例文のテーマを自分で選べます。「タイ暮らし」を選べば、買い物・交通・家族など暮らしの中で使う例文が届きます。';
 
   @override
   String get philosophy3Culture =>

@@ -1507,6 +1507,30 @@ abstract class L10n {
   /// **'ワイの使い分け、敬語、タブー、食事マナー、贈り物'**
   String get topicSub_etiquette;
 
+  /// No description provided for @topicName_life.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ暮らし'**
+  String get topicName_life;
+
+  /// No description provided for @topicSub_life.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い物、交通、健康、家族、天気、食べ物'**
+  String get topicSub_life;
+
+  /// No description provided for @topicName_thaiTravel.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ旅行'**
+  String get topicName_thaiTravel;
+
+  /// No description provided for @topicSub_thaiTravel.
+  ///
+  /// In ja, this message translates to:
+  /// **'観光、ホテル、交通、買い物、食べ物'**
+  String get topicSub_thaiTravel;
+
   /// 文体ラベル。値は constants.STYLES の識別子で、表示だけ差し替える
   ///
   /// In ja, this message translates to:
@@ -2068,7 +2092,7 @@ abstract class L10n {
   /// No description provided for @philosophy3Travel.
   ///
   /// In ja, this message translates to:
-  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「旅行」や「交通」を選べば、現地で使う場面の例文が届きます。'**
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイ旅行」を選べば、観光・移動・買い物など現地で使う場面の例文が届きます。'**
   String get philosophy3Travel;
 
   /// No description provided for @philosophy3Work.
@@ -2080,7 +2104,7 @@ abstract class L10n {
   /// No description provided for @philosophy3Live.
   ///
   /// In ja, this message translates to:
-  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「買い物」や「家族」を選べば、暮らしの中で使う例文が届きます。'**
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイ暮らし」を選べば、買い物・交通・家族など暮らしの中で使う例文が届きます。'**
   String get philosophy3Live;
 
   /// No description provided for @philosophy3Culture.
