@@ -91,6 +91,9 @@ func (b *FreeBank) Sentences(ctx context.Context, l lang.Lang) ([]Sentence, erro
 // バンクは key_word × テーマの全組み合わせを持たないので、一致が無いときに
 // 諦めると配信が落ちる。一致が 1 件も無ければ nil（LLM 生成へ落ちる）。
 // strictTopic は見ない（free は指定テーマでも在庫を優先する）。
+//
+// ただしバンクに1本も無いテーマ（交通など）は nil を返し、その場で生成させる。
+// 別テーマの在庫で埋めると、そのテーマが free に一度も出なくなる。
 func (b *FreeBank) Pick(
 	ctx context.Context, targetWord string, l lang.Lang, topic string, _ bool,
 ) (*Sentence, error) {
@@ -99,10 +102,17 @@ func (b *FreeBank) Pick(
 		return nil, err
 	}
 	var candidates []Sentence
+	topicStocked := topic == ""
 	for _, s := range sentences {
 		if s.KeyWord == targetWord {
 			candidates = append(candidates, s)
 		}
+		if t, _ := s.Context["topic"].(string); t == topic {
+			topicStocked = true
+		}
+	}
+	if !topicStocked {
+		return nil, nil
 	}
 	if len(candidates) == 0 {
 		return nil, nil
