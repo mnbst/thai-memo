@@ -2602,7 +2602,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideOverviewBody2 =>
-      'Learn a sentence → take a check quiz. Do that up to five times and you\'ve finished a set.';
+      'Learn each target word through a sentence → take a check quiz. Do that up to five times and you\'ve finished a set.';
 
   @override
   String get guideOverviewSummaryQuiz =>

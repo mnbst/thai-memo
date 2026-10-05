@@ -4529,7 +4529,7 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody2.
   ///
   /// In ja, this message translates to:
-  /// **'例文で覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。'**
+  /// **'例文で学習単語を覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。'**
   String get guideOverviewBody2;
 
   /// No description provided for @guideOverviewSummaryQuiz.

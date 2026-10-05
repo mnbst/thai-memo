@@ -2436,7 +2436,8 @@ class L10nJa extends L10n {
       'AIがあなたのレベルに合った学習単語を選び、その単語を使ったタイ語の例文をつくります。';
 
   @override
-  String get guideOverviewBody2 => '例文で覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。';
+  String get guideOverviewBody2 =>
+      '例文で学習単語を覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。';
 
   @override
   String get guideOverviewSummaryQuiz =>

@@ -1395,7 +1395,7 @@
   "guideChapterHowTo": "操作のしかた",
   "guideOverviewTitle": "このアプリでやること",
   "guideOverviewBody1": "AIがあなたのレベルに合った学習単語を選び、その単語を使ったタイ語の例文をつくります。",
-  "guideOverviewBody2": "例文で覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。",
+  "guideOverviewBody2": "例文で学習単語を覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。",
   "guideOverviewSummaryQuiz": "1セット学び終えると「まとめクイズ」に進みます。迷ったときは、ヒントを見たり例文を見返したりできます。",
   "guideOverviewBody3": "まとめクイズに正解すると語彙スコアが上がり、例文に出る単語も増えていきます。ヒントなしで正解すると、さらに上がりやすくなります。間違えた問題は、あとでもう一度出題されます。",
   "guideRoleSentenceTitle": "例文",
