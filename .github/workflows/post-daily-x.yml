@@ -2,8 +2,9 @@ name: Post Daily Sentence to X
 
 on:
   schedule:
-    # 07:00 JST。毎日例文の配信と同じ朝の時間帯に合わせる。
-    - cron: '0 22 * * *'
+    # 06:47 JST。毎日例文の配信と同じ朝の時間帯に合わせる。
+    # 毎時0分は GitHub の schedule が混み、数時間遅れることがあるので外す。
+    - cron: '47 21 * * *'
   workflow_dispatch:
     inputs:
       dry_run:

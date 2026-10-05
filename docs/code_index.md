@@ -520,7 +520,7 @@ functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch のステップ6。直近24時間の premium LLM 例文のうち、生成時の判定で quality.passed=true の文だけを例文プールへ回す（判定はしない）。作り直しても不合格・未判定の文は外し、外した文をログに出す。
+dailyBatch のステップ6。直近24時間の premium LLM 例文のうち、生成時の判定で quality.passed=true の文をプール用の観点（quality.PoolAspects）で判定し直し、通った文だけを例文プールへ回す。外した文はログに出す。
 
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文判定で、不合格なら差し戻し用の指摘を返し sentence_flags へ1件書く（stage=first/retry）。キーが無ければ nil（判定なしで動く）。
@@ -554,6 +554,9 @@ functions/go/internal/corpustrans/validate_en_test.go
 
 functions/go/internal/quality/judge.go
 例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
+
+functions/go/internal/quality/pool.go
+プールへ入れるときだけ足す Jev の観点（場面として言わない文・訳の意味のずれ）と ReviewPool。生成時の作り直しには入れない。
 
 functions/go/internal/quality/rules.go
 コードで判定する観点（訳の文法用語・英訳の助動詞なし not・既知の誤訳・語の誤用の正規表現・頭なしの ก็ตาม）と、語が文にあるときだけ Jev に用法を聞く語ごとの観点（wordUsages）。
@@ -974,6 +977,9 @@ functions/go/cmd/vetwords/main.go
 
 functions/go/cmd/vetquizlang/main.go
 Firestore の quiz_questions を走査し、解説・ダミー理由が指定と違う言語の件を洗い出す。-delete で消すと次の出題で作り直される。
+
+functions/go/cmd/poolrecheck/main.go
+GCS の例文プールを今の判定（Aspects＋PoolAspects）で洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。
 
 functions/go/cmd/pilot/main.go
 cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。

@@ -17,10 +17,10 @@ import (
 
 // 例文プールへの振り分け（dailyBatch のステップ6）。
 //
-// 品質の判定はここでは行わない。生成直後に Jev で判定し、不合格なら作り直して
-// 判定し直した結果が例文 doc の quality フィールドに入っている
-// （sentence.Producer.checkAndRetry）。ここでは quality.passed が真の文だけを
-// 例文プールへ回し、外した文をログに残す。
+// 生成直後に Jev で判定し、不合格なら作り直して判定し直した結果が例文 doc の
+// quality フィールドに入っている（sentence.Producer.checkAndRetry）。ここでは
+// quality.passed が真の文だけを候補にし、さらにプール用の観点（quality.PoolAspects）で
+// 判定し直して、通った文だけを例文プールへ回す。外した文はログに残す。
 //
 // 不合格の中身は sentence_flags にも判定ごとに残っている（stage=first / retry）。
 // stage=retry が「作り直しても不合格でプールに入らなかった文」。
@@ -72,12 +72,43 @@ func runSentenceAudit(
 	log.Printf("sentencePool: candidates=%d passed=%d rejected=%d unjudged=%d",
 		len(candidates), counts[poolPassed], counts[poolRejected], counts[poolUnjudged])
 
+	if len(accepted) > 0 {
+		judge, err := quality.NewJudge(ctx)
+		if err != nil {
+			// 判定できないなら入れない（未判定の文と同じ扱い）。
+			log.Printf("sentencePool: judge unavailable, skip pooling: %v", err)
+			return nil
+		}
+		accepted = poolGate(ctx, judge, accepted)
+	}
+
 	// プールの書き出しに失敗しても生成済みの例文には影響しないので、
 	// エラーは返さず記録だけ残す。
 	if err := poolAccepted(ctx, accepted, docs); err != nil {
 		log.Printf("sentencePool: write failed: %v", err)
 	}
 	return nil
+}
+
+// poolReviewer はプール用の観点で判定するもの（quality.Judge。テストで差し替える）。
+type poolReviewer interface {
+	ReviewPool(ctx context.Context, batch []quality.Candidate) (quality.Result, error)
+}
+
+// poolGate は生成時の判定に合格した文を、プール用の観点で判定し直す。
+// 通った文だけを返す。判定に失敗した文は返さない（品質が分からない文は入れない）。
+func poolGate(ctx context.Context, r poolReviewer, accepted []quality.Candidate) []quality.Candidate {
+	res, err := r.ReviewPool(ctx, accepted)
+	if err != nil {
+		log.Printf("sentencePool: pool judge failed for some sentences: %v", err)
+	}
+	for i, c := range res.Flagged {
+		log.Printf("sentencePool: pool-rejected key_word=%s reason=%s thai=%q translation=%q",
+			c.KeyWord, res.Verdicts[i].Reason, c.ThaiText, c.JapaneseTranslation)
+	}
+	log.Printf("sentencePool: pool judge accepted=%d rejected=%d failed=%d",
+		len(res.Accepted), len(res.Flagged), len(accepted)-len(res.Accepted)-len(res.Flagged))
+	return res.Accepted
 }
 
 // poolVerdictOf は例文 doc の quality フィールドから振り分けを決める。

@@ -20,8 +20,9 @@
 //
 //   - trans_add（訳の加筆・欠落）だけ閾値を 0.6 に上げる。「最近」の補いや
 //     過去形など細かい揺れで 0.4〜0.6 に立つものが大半だった
-//   - 英訳の文には訳の観点（trans_add / trans_wrong）を聞かない。英訳は
-//     直訳・時制なしを仕様にしており、加筆・誤訳の問いと噛み合わない
+//   - 英訳の文には訳の観点（trans_add / trans_wrong）を聞かない。当時の英訳は
+//     直訳・時制なしを仕様にしており、加筆・誤訳の問いと噛み合わなかった。
+//     2026-10-04 に英訳も自然な訳へ戻したので、英訳に聞くかは測り直して決める
 //     Jev 生成ルール50本をそのまま         AUC 0.72。出力形式のルールが正常文でも
 //     0.66〜0.76 で立ち、判定に使えない
 //
@@ -177,7 +178,7 @@ var Aspects = append([]Aspect{
 		Note:  "japanese_translation に品詞名・文法用語や角括弧を書いていた。対応する語が無いものは訳さずに落とす",
 		Check: gramTerm},
 	{ID: "trans_bare_not", Label: "英訳の否定の形",
-		Note:  "japanese_translation の否定を助動詞なしの not で書いていた。意味のまとまりの中は自然な英語の句にする",
+		Note:  "japanese_translation の否定を助動詞なしの not で書いていた。do not / does not など自然な英語の否定にする",
 		Check: bareNot},
 	{ID: "trans_lexicon", Label: "既知の誤訳",
 		Note:  "japanese_translation で、thai_text の語を、それより狭い別の物を指す訳語で訳していた。thai_text の語が指す範囲のまま訳す",
@@ -252,8 +253,13 @@ func jevAspects(aspects []Aspect) []Aspect {
 
 // aspectsFor は c に聞く観点を返す。
 func aspectsFor(c Candidate) []Aspect {
-	out := make([]Aspect, 0, len(Aspects))
-	for _, a := range Aspects {
+	return aspectsIn(Aspects, c)
+}
+
+// aspectsIn は list のうち c に聞く観点を返す。
+func aspectsIn(list []Aspect, c Candidate) []Aspect {
+	out := make([]Aspect, 0, len(list))
+	for _, a := range list {
 		if a.JAOnly && c.Lang == lang.EN {
 			continue
 		}
@@ -310,15 +316,21 @@ func (j *Judge) JudgeBatch(ctx context.Context, batch []Candidate) ([]Candidate,
 // 呼び出しに失敗した文はどちらにも入れない（無言の欠落を合格にしない）。
 // 失敗があっても判定できた分は返し、エラーはまとめて返す。
 func (j *Judge) Review(ctx context.Context, batch []Candidate) (Result, error) {
+	return j.review(ctx, batch, Aspects)
+}
+
+// review は list の観点で batch を判定する（Review / ReviewPool の本体）。
+func (j *Judge) review(ctx context.Context, batch []Candidate, list []Aspect) (Result, error) {
 	var res Result
 	var errs []error
 	for i, c := range batch {
-		scores, err := j.score(ctx, c)
+		aspects := aspectsIn(list, c)
+		scores, err := j.score(ctx, c, aspects)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", FlagID(c), err))
 			continue
 		}
-		if v, bad := verdictFrom(i, c, scores); bad {
+		if v, bad := verdictFrom(i, aspects, scores); bad {
 			res.Flagged = append(res.Flagged, c)
 			res.Verdicts = append(res.Verdicts, v)
 		} else {
@@ -328,10 +340,10 @@ func (j *Judge) Review(ctx context.Context, batch []Candidate) (Result, error) {
 	return res, errors.Join(errs...)
 }
 
-// verdictFrom は観点ごとの確率から合否を決める。
-func verdictFrom(index int, c Candidate, scores map[string]float64) (Verdict, bool) {
+// verdictFrom は観点ごとの確率から合否を決める。aspects はその文に聞いた観点。
+func verdictFrom(index int, aspects []Aspect, scores map[string]float64) (Verdict, bool) {
 	var hits []Aspect
-	for _, a := range aspectsFor(c) {
+	for _, a := range aspects {
 		if scores[a.ID] > a.Threshold {
 			hits = append(hits, a)
 		}
@@ -366,14 +378,18 @@ type jevState struct {
 // 0.16〜0.61 → map の辞書順＝japanese_translation 先頭 0.41〜0.87）。
 // 閾値は thai_text 先頭で測ったもの。criteria の順序はほぼ効かない。
 func RequestBody(model string, c Candidate) map[string]any {
+	return requestBody(model, c, aspectsFor(c))
+}
+
+// requestBody は aspects（その文に聞く観点）で本文を組む。
+func requestBody(model string, c Candidate, aspects []Aspect) map[string]any {
 	state := jevState{
 		ThaiText:            c.ThaiText,
 		JapaneseTranslation: c.JapaneseTranslation,
 		KeyWord:             c.KeyWord,
 	}
-	aspects := jevAspects(aspectsFor(c))
 	questions := make(map[string]any, len(aspects))
-	for _, a := range aspects {
+	for _, a := range jevAspects(aspects) {
 		questions[a.ID] = map[string]any{
 			"type":         "noul",
 			"instructions": aspectPreamble + a.Question,
@@ -386,10 +402,10 @@ func RequestBody(model string, c Candidate) map[string]any {
 	return map[string]any{"model": model, "state": state, "questions": questions}
 }
 
-// score は 1 文を判定し、観点 ID → はいの確率 を返す。
+// score は 1 文を aspects（その文に聞く観点）で判定し、観点 ID → はいの確率 を返す。
 // 429 / 529 は指数バックオフで数回だけ再試行する。
-func (j *Judge) score(ctx context.Context, c Candidate) (map[string]float64, error) {
-	body, err := json.Marshal(RequestBody(j.model(), c))
+func (j *Judge) score(ctx context.Context, c Candidate, aspects []Aspect) (map[string]float64, error) {
+	body, err := json.Marshal(requestBody(j.model(), c, aspects))
 	if err != nil {
 		return nil, err
 	}
@@ -431,12 +447,12 @@ func (j *Judge) score(ctx context.Context, c Candidate) (map[string]float64, err
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("jev: status %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
 		}
-		scores, err := ParseScores(raw, jevAspects(aspectsFor(c)))
+		scores, err := ParseScores(raw, jevAspects(aspects))
 		if err != nil {
 			return nil, err
 		}
 		// コードで判定する観点は 1（不合格）/ 0 で並べる。
-		for _, a := range aspectsFor(c) {
+		for _, a := range aspects {
 			if a.Check == nil {
 				continue
 			}

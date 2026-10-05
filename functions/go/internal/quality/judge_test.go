@@ -121,7 +121,7 @@ func TestTransAddUsesHigherThreshold(t *testing.T) {
 	}
 }
 
-// 英訳の文には訳の観点を聞かない（直訳・時制なしが仕様で、問いと噛み合わない）。
+// 英訳の文には訳の観点を聞かない（judge.go 先頭のコメント参照）。
 func TestEnglishSkipsTranslationAspects(t *testing.T) {
 	batch := sample(1)
 	batch[0].Lang = lang.EN

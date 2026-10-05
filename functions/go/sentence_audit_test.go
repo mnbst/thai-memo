@@ -1,6 +1,8 @@
 package function
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -113,5 +115,32 @@ func TestIntEnvOr(t *testing.T) {
 	t.Setenv("SENTENCE_AUDIT_MAX_FOR_TEST", "ten")
 	if got := intEnvOr("SENTENCE_AUDIT_MAX_FOR_TEST", 100); got != 100 {
 		t.Errorf("不正値は既定値: %d", got)
+	}
+}
+
+type stubPoolReviewer struct {
+	res quality.Result
+	err error
+}
+
+func (s stubPoolReviewer) ReviewPool(context.Context, []quality.Candidate) (quality.Result, error) {
+	return s.res, s.err
+}
+
+func TestPoolGateKeepsOnlyAccepted(t *testing.T) {
+	ok := quality.Candidate{SentenceID: "ok"}
+	bad := quality.Candidate{SentenceID: "bad"}
+	failed := quality.Candidate{SentenceID: "failed"}
+	r := stubPoolReviewer{
+		res: quality.Result{
+			Accepted: []quality.Candidate{ok},
+			Flagged:  []quality.Candidate{bad},
+			Verdicts: []quality.Verdict{{Reason: "場面として言わない文 0.50"}},
+		},
+		err: errors.New("jev: status 500"),
+	}
+	got := poolGate(t.Context(), r, []quality.Candidate{ok, bad, failed})
+	if len(got) != 1 || got[0].SentenceID != "ok" {
+		t.Fatalf("合格した文だけを返すはず: %+v", got)
 	}
 }

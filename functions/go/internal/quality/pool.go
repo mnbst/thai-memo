@@ -1,0 +1,44 @@
+package quality
+
+import "context"
+
+// プールへ入れるときだけ足す観点（dailyBatch のステップ6）。
+//
+// 生成直後の判定（Aspects）に合格した文のうち、場面として言わない文と、意味が
+// ずれた訳をここで落とす。どちらも文法・共起の誤りではないので Aspects では
+// 拾えない（prod プールの目視で欠陥と決めた 20本のうち、Aspects で落ちたのは 3本）。
+//
+// 生成直後の判定（作り直し）には入れない。作り直しはユーザーを待たせる経路で、
+// 誤検出は正しい文の作り直し・セットからの除外になる。プールなら落としても
+// その語が LLM 生成へ回るだけなので、検出側に倒した閾値で使える。
+//
+// 2026-10-04 の実測（situation 0.35 / tmean 0.4、どちらか超えたら不合格）:
+//
+//	prod プール目視 40本（欠陥20・正常20）  検出 7/20・誤検出 0/20（2回とも同じ）
+//	judge_eval.json 137本（欠陥60・正常77） 検出 26/60・誤検出 9/77
+//	prod プール ja 372本                    不合格 25本（目視で欠陥 約12・境界 約7・誤検出 約6）
+//
+// judge_eval の誤検出は王室・僧侶用語の正しい文（改まった文を「普段言わない」と
+// 取る）が多い。0.4 / 0.45 にすると judge_eval の誤検出 5/77・プールの不合格 8本まで
+// 下がるが、検出も 16/60 に落ちる。
+//
+// 時を表す語どうしの矛盾（AUC 0.49）・必要な語の抜け（検出 2/60）・決まった
+// 言い回しからのずれ（誤検出 22/77）も測ったが、どれも使えなかった。
+var PoolAspects = []Aspect{
+	{ID: "situation", Label: "場面として言わない文", Threshold: situationThreshold,
+		Question: "`thai_text` は、タイ語の母語話者が実際の場面で口にすることがほとんど無い文か（聞き手が今していることを聞き手本人に説明する、言う必要のない当たり前のことを述べる、場面に合わない時を表す語を足している 等）"},
+	// 英訳では測っていないので日本語訳にだけ聞く。
+	{ID: "tmean", Label: "訳の意味のずれ", Threshold: tmeanThreshold, JAOnly: true,
+		Question: "`japanese_translation` を読んだ日本語話者が受け取る意味が、`thai_text` の意味と食い違うか（推量を意図として訳す、指す物や範囲を取り違える、原文に無い評価を足す、日本語として不自然で意味が変わる 等）"},
+}
+
+const (
+	situationThreshold = 0.35
+	tmeanThreshold     = 0.4
+)
+
+// ReviewPool は batch を PoolAspects だけで判定する。Review と同じく、
+// 呼び出しに失敗した文は Flagged にも Accepted にも入れない。
+func (j *Judge) ReviewPool(ctx context.Context, batch []Candidate) (Result, error) {
+	return j.review(ctx, batch, PoolAspects)
+}
