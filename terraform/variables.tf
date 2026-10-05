@@ -139,3 +139,9 @@ variable "github_dispatch_token" {
   default     = ""
   sensitive   = true
 }
+
+variable "x_post_themes" {
+  description = "X 投稿で抽選するテーマ（カンマ区切り。タイ旅行,タイ生活,恋愛）。空なら全部。"
+  type        = string
+  default     = ""
+}

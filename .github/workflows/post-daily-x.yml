@@ -9,6 +9,10 @@ on:
         description: '投稿せず、本文とメディアの確認だけ行う'
         type: boolean
         default: false
+      themes:
+        description: '抽選するテーマ（カンマ区切り。空なら全部: タイ旅行,タイ生活,恋愛）'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -69,9 +73,11 @@ jobs:
           X_API_SECRET: ${{ steps.secrets.outputs.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ steps.secrets.outputs.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ steps.secrets.outputs.X_ACCESS_TOKEN_SECRET }}
+          THEMES: ${{ inputs.themes }}
         run: |
           python tools/x_post/pick_sentence.py \
-            --project "$GCP_PROJECT" --out "$OUT_DIR" --seed "$(date -u +%F)"
+            --project "$GCP_PROJECT" --out "$OUT_DIR" --seed "$(date -u +%F)" \
+            --themes "$THEMES"
 
       - name: Synthesize pronunciation
         run: |
