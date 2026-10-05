@@ -874,7 +874,7 @@ functions/go/internal/themeshots/themeshots.go
 BL以外の全テーマの参考例文ブロック。語に近い場面（embedding、閾値0.75）か全体からの1文の選出と、テーマ別の代わりのやり取りを含む断片の組み立て。
 
 functions/go/internal/themeshots/data.go
-BL以外15テーマの参考例文565件と124場面（正本。Thai PBS [CC] の Foodwork・シットコム等の字幕から Jev で振り分けて採取。文のみで人名・注釈なし）。
+BL以外15テーマの参考例文758件と174場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等の字幕から Jev で振り分けて採取。文のみで人名・注釈なし）。
 
 functions/go/internal/themeshots/themeshots_test.go
 参考例文データの形（英字・注釈なし、場面あり）と断片の組み立てのテスト。
