@@ -416,7 +416,10 @@ resource "google_cloud_scheduler_job" "post_daily_x" {
   http_target {
     http_method = "POST"
     uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
-    body        = base64encode(jsonencode({ ref = "main" }))
+    body = base64encode(jsonencode({
+      ref    = "main"
+      inputs = { themes = var.x_post_themes }
+    }))
 
     headers = {
       "Authorization"        = "Bearer ${var.github_dispatch_token}"

@@ -1,7 +1,7 @@
 """X 投稿に使う例文を1件選ぶ。
 
 候補は GCS の静的コーパス（premium と同じもの）だけ。その日のテーマ
-（タイ旅行・タイ生活・恋愛から抽選）と語数で絞った中から「反応が良さそうな1件」を Gemini に選ばせる。Gemini が使えない
+（--themes で渡したものから抽選）と語数で絞った中から「反応が良さそうな1件」を Gemini に選ばせる。Gemini が使えない
 ときは同じ候補から抽選して投稿を止めない。
 
 前日に生成された例文は使わない。使い方の項目が埋まっていないものが混ざる
@@ -49,9 +49,10 @@ RECENT_POSTS = 10
 MIN_WORDS = 7
 MAX_WORDS = 11
 
-# 投稿のテーマ。毎日この中から1つ抽選し、コーパスの context.topic が
-# 挙げた個別テーマで始まるものだけを候補にする。旅行・生活の中身はアプリの
-# 「タイ旅行」「タイ暮らし」（GenerationConstants.travelTopic / lifeTopic）に揃える。
+# 投稿のテーマ。--themes で渡したものから毎日1つ抽選し、コーパスの
+# context.topic が挙げた個別テーマで始まるものだけを候補にする。旅行・生活の
+# 中身はアプリの「タイ旅行」「タイ暮らし」（GenerationConstants.travelTopic /
+# lifeTopic）に揃える。--themes は Cloud Scheduler の起動リクエストから来る。
 THEMES = {
     "タイ旅行": ("旅行", "交通", "買い物", "食べ物"),
     "タイ生活": ("買い物", "交通", "健康", "家族", "天気", "食べ物"),
@@ -307,7 +308,20 @@ def main() -> int:
         default=str(PROMPT_FILE),
         help="選定プロンプトのファイル。",
     )
+    parser.add_argument(
+        "--themes",
+        default="",
+        help=f"抽選するテーマをカンマ区切りで。空なら全部。候補: {','.join(THEMES)}",
+    )
     args = parser.parse_args()
+
+    themes = [t.strip() for t in args.themes.split(",") if t.strip()] or list(
+        THEMES
+    )
+    unknown = [t for t in themes if t not in THEMES]
+    if unknown:
+        print(f"知らないテーマ: {','.join(unknown)}", file=sys.stderr)
+        return 1
 
     bucket = storage.Client(project=args.project).bucket(
         f"{args.project}-uvm-data"
@@ -322,14 +336,11 @@ def main() -> int:
         return 1
 
     rng = random.Random(args.seed or None)
-    theme = rng.choice(list(THEMES))
+    theme = rng.choice(themes)
     print(f"今日のテーマ: {theme}", file=sys.stderr)
 
+    # テーマ外は出さない。残らなければ投稿を止める。
     pool = theme_only(sound_only(corpus), theme)
-    if not pool:
-        # テーマで残らないのは絞り込みが厳しすぎる側の問題。止めるよりは出す。
-        print(f"{theme}の候補が無いので語数だけで選ぶ", file=sys.stderr)
-        pool = sound_only(corpus)
     if not pool:
         print("条件に合う候補が無い", file=sys.stderr)
         return 1
