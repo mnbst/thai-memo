@@ -1,7 +1,7 @@
 """X 投稿に使う例文を1件選ぶ。
 
-候補は GCS の静的コーパス（premium と同じもの）だけ。BLドラマのトピックと語数で
-絞った中から「反応が良さそうな1件」を Gemini に選ばせる。Gemini が使えない
+候補は GCS の静的コーパス（premium と同じもの）だけ。その日のテーマ
+（タイ旅行・タイ生活・恋愛から抽選）と語数で絞った中から「反応が良さそうな1件」を Gemini に選ばせる。Gemini が使えない
 ときは同じ候補から抽選して投稿を止めない。
 
 前日に生成された例文は使わない。使い方の項目が埋まっていないものが混ざる
@@ -49,9 +49,14 @@ RECENT_POSTS = 10
 MIN_WORDS = 7
 MAX_WORDS = 11
 
-# 投稿に回すトピック。コーパスの context.topic がこの語を含むものだけ。
-# タイBLドラマ好きに刺さるセリフ調に寄せるため、ここだけを候補にする。
-TOPIC_KEYWORDS = ("BLドラマ",)
+# 投稿のテーマ。毎日この中から1つ抽選し、コーパスの context.topic が
+# 挙げた個別テーマで始まるものだけを候補にする。旅行・生活の中身はアプリの
+# 「タイ旅行」「タイ暮らし」（GenerationConstants.travelTopic / lifeTopic）に揃える。
+THEMES = {
+    "タイ旅行": ("旅行", "交通", "買い物", "食べ物"),
+    "タイ生活": ("買い物", "交通", "健康", "家族", "天気", "食べ物"),
+    "恋愛": ("恋愛・男女関係",),
+}
 
 GEMINI_SECRET = "gemini-api-key"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
@@ -144,15 +149,16 @@ def sound_only(pool: list[dict]) -> list[dict]:
     return sound
 
 
-def romance_only(pool: list[dict]) -> list[dict]:
-    """BLドラマのトピックだけ残す。トピックが無い例文は落とす。"""
+def theme_only(pool: list[dict], theme: str) -> list[dict]:
+    """テーマに含まれる個別テーマだけ残す。トピックが無い例文は落とす。"""
+    prefixes = THEMES[theme]
 
-    def is_romance(sentence: dict) -> bool:
+    def in_theme(sentence: dict) -> bool:
         topic = (sentence.get("context") or {}).get("topic") or ""
-        return any(k in topic for k in TOPIC_KEYWORDS)
+        return topic.startswith(prefixes)
 
-    picked = [s for s in pool if is_romance(s)]
-    print(f"BLドラマのトピックに絞って {len(picked)}/{len(pool)} 件", file=sys.stderr)
+    picked = [s for s in pool if in_theme(s)]
+    print(f"{theme}に絞って {len(picked)}/{len(pool)} 件", file=sys.stderr)
     return picked
 
 
@@ -238,7 +244,7 @@ def gemini_key(project: str) -> str:
 
 
 def choose_with_gemini(
-    project: str, candidates: list[dict], recent: str, prompt: str
+    project: str, candidates: list[dict], recent: str, prompt: str, theme: str
 ) -> dict | None:
     """Gemini に1件選ばせる。失敗したら None を返して呼び出し側で抽選に落とす。"""
     listed = "\n".join(
@@ -254,7 +260,7 @@ def choose_with_gemini(
                     "parts": [
                         {
                             "text": prompt.format(
-                                candidates=listed, recent=recent
+                                candidates=listed, recent=recent, theme=theme
                             )
                         }
                     ],
@@ -315,10 +321,14 @@ def main() -> int:
         print(f"コーパスが無い: gs://{bucket.name}/{CORPUS_OBJECT}", file=sys.stderr)
         return 1
 
-    pool = romance_only(sound_only(corpus))
+    rng = random.Random(args.seed or None)
+    theme = rng.choice(list(THEMES))
+    print(f"今日のテーマ: {theme}", file=sys.stderr)
+
+    pool = theme_only(sound_only(corpus), theme)
     if not pool:
-        # BLドラマで残らないのは絞り込みが厳しすぎる側の問題。止めるよりは出す。
-        print("BLドラマの候補が無いので語数だけで選ぶ", file=sys.stderr)
+        # テーマで残らないのは絞り込みが厳しすぎる側の問題。止めるよりは出す。
+        print(f"{theme}の候補が無いので語数だけで選ぶ", file=sys.stderr)
         pool = sound_only(corpus)
     if not pool:
         print("条件に合う候補が無い", file=sys.stderr)
@@ -330,13 +340,12 @@ def main() -> int:
         print("未投稿の例文が尽きたので全体から選ぶ", file=sys.stderr)
         candidates = pool
 
-    rng = random.Random(args.seed or None)
     if len(candidates) > MAX_CANDIDATES:
         candidates = rng.sample(candidates, MAX_CANDIDATES)
 
     recent = performance_section(recent_performance(state.get("history", [])))
     picked = choose_with_gemini(
-        args.project, candidates, recent, load_prompt(Path(args.prompt))
+        args.project, candidates, recent, load_prompt(Path(args.prompt)), theme
     ) or rng.choice(candidates)
 
     # 詳細画面は作成日を出す。Firestore の Timestamp はそのままでは JSON に
