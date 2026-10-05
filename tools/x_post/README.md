@@ -8,7 +8,7 @@
 
 | 手順 | 中身 |
 | --- | --- |
-| `pick_sentence.py` | コーパスをBLドラマと語数で絞り、Gemini に1件選ばせて本文を組む |
+| `pick_sentence.py` | コーパスをその日のテーマと語数で絞り、Gemini に1件選ばせて本文を組む |
 | `synth_tts.py` | Google Cloud TTS（th-TH）で読み上げ音声を作る（通常速度で1回） |
 | `test/screenshots/x_post_screenshot.dart` | `DetailScreen` を描画し、画像3枚と操作フレームを書き出す |
 | `build_media.py` | 操作フレームに音声を載せて mp4 にする |
@@ -19,8 +19,8 @@
 ## 例文のソース
 
 `gs://<project>-uvm-data/corpus_sentences_ja.json`（premium と同じ静的コーパス）
-だけを候補にする。BLドラマのトピック（`タイBLドラマ`）と語数で絞り、残りから
-Gemini に1件選ばせる。Gemini が応答しないときは同じ候補から抽選
+だけを候補にする。毎日テーマ（タイ旅行・タイ生活・恋愛）を1つ抽選し、そのテーマと
+語数で絞った残りから Gemini に1件選ばせる。Gemini が応答しないときは同じ候補から抽選
 して投稿を止めない。
 
 前日に生成された例文は使わない。配信当時のコーパスに使い方が入っていなかった
