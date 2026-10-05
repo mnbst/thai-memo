@@ -275,7 +275,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
             title: l10n.guideTipsTitle,
             lines: [
               l10n.guideTipsRepeat,
-              l10n.guideTipsRelation,
+              l10n.guideTipsScript,
               l10n.guideTipsSpeak,
             ],
           ),

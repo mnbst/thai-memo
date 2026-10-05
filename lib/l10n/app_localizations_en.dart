@@ -2598,19 +2598,19 @@ class L10nEn extends L10n {
 
   @override
   String get guideOverviewBody1 =>
-      'Every day, AI creates Thai sentences for your level. When you finish, you can add more.';
+      'AI chooses target words for your level and creates Thai sentences using them.';
 
   @override
   String get guideOverviewBody2 =>
-      'Learn a sentence → take a quick quiz. Do that up to five times and you\'ve finished a round.';
+      'Learn a sentence → take a check quiz. Do that up to five times and you\'ve finished a set.';
 
   @override
   String get guideOverviewSummaryQuiz =>
-      'After each set of up to five sentences, you get a summary quiz. If you get stuck, use a hint or review the sentence.';
+      'After you finish a set, you move on to the summary quiz. If you get stuck, you can use a hint or look back at the sentence.';
 
   @override
   String get guideOverviewBody3 =>
-      'Correct answers raise your vocabulary score and broaden the vocabulary used in your sentences. Anything you miss comes back later.';
+      'Correct answers in the summary quiz raise your vocabulary score and bring new words into your sentences. Answering without hints raises it faster. Questions you miss will come up again later.';
 
   @override
   String get guideRoleSentenceTitle => 'Sentences';
@@ -2639,14 +2639,14 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleQuizSpelling =>
-      'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the spelling from its pronunciation and meaning. After one correct answer, questions for that word become fill-in-the-blank.';
+      'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word\'s spelling from its pronunciation and meaning. After you answer correctly once for a target word, later questions for it become fill-in-the-blank.';
 
   @override
   String get guideRoleScoreTitle => 'Vocabulary score';
 
   @override
   String get guideRoleScoreBody =>
-      'An estimate of your current vocabulary, based on quiz results.';
+      'An estimate of your current vocabulary, based on your vocabulary test and summary quiz results.';
 
   @override
   String get guideRoleVocabTestTitle => 'Vocabulary test';
@@ -2764,7 +2764,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowSoundStep3 =>
-      'Green means correct, amber means close, and red means incorrect. Tap a word to compare your pitch with the model and see how to improve.';
+      'Each word turns green if its tone is correct, amber if close, and red if incorrect. Tap a word to compare your pitch with the model and see how to improve.';
 
   @override
   String get guideHowQuizTitle => 'Take the check quiz';
@@ -2794,7 +2794,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowReviewQuizStep2 =>
-      'Sentences return for review after one day, three days, one week, and longer intervals. Words you haven\'t mastered appear first.';
+      'In summary quizzes, sentences return for review after one day, three days, one week, and longer intervals. Questions on target words you haven\'t mastered appear first.';
 
   @override
   String get guideHowReviewQuizStep3 =>
@@ -2831,13 +2831,13 @@ class L10nEn extends L10n {
 
   @override
   String get guideTipsRepeat =>
-      'Mistakes are part of learning. Review the same sentences instead of trying to memorize everything at once.';
+      'Mistakes in quizzes are fine. You don’t need to memorize whole sentences; seeing the target words again and again will naturally grow your vocabulary.';
 
   @override
-  String get guideTipsRelation =>
-      'Pronouns and endings change depending on who you\'re talking to. See “Context and usage” on the detail screen.';
+  String get guideTipsScript =>
+      'With Thai script, getting the overall shape of each word is enough at first. As it becomes familiar, start telling apart the consonants, vowels, and tone marks little by little.';
 
   @override
   String get guideTipsSpeak =>
-      'Try using what you\'ve learned in conversation. Speaking aloud helps it stick.';
+      'Try using the words and sentences you\'ve learned in conversation. Speaking aloud helps them stick.';
 }
