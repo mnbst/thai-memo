@@ -70,3 +70,29 @@ func TestClusterIsNotSplitIntoFinal(t *testing.T) {
 		}
 	}
 }
+
+// TestLinkingSyllableTakesFinalConsonant は、末子音をもう一度頭子音として
+// 読む音節（ฆาต|ตะ）を見る。tltk の音節辞書が ฆาต に khaat2'ka1 を
+// 与えており、つなぎの音節が ต ではなく ก で読まれていた。
+//
+//	ฆาตกร -> "khâat-kà-kɔɔn"／正しくは "khâat-tà-kɔɔn"
+//
+// 修正は wordparse.go:sylPhoneRewrite。
+func TestLinkingSyllableTakesFinalConsonant(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"ฆาตกร", "khâat-tà-kɔɔn"},
+		{"ฆาตกรรม", "khâat-tà-kam"},
+		{"ราชการ", "râat-chá-kaan"},
+		{"ผลไม้", "phǒn-lá-mái"},
+	}
+	for _, c := range cases {
+		got, err := ThaiToPronunciation(c.in)
+		if err != nil {
+			t.Errorf("ThaiToPronunciation(%q): %v", c.in, err)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("ThaiToPronunciation(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

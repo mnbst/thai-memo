@@ -874,7 +874,7 @@ functions/go/internal/themeshots/themeshots.go
 BL以外の全テーマの参考例文ブロック。語に近い場面（embedding、閾値0.75）か全体からの1文の選出と、テーマ別の代わりのやり取りを含む断片の組み立て。
 
 functions/go/internal/themeshots/data.go
-BL以外15テーマの参考例文565件と124場面（正本。Thai PBS [CC] の Foodwork・シットコム等の字幕から Jev で振り分けて採取。文のみで人名・注釈なし）。
+BL以外15テーマの参考例文758件と174場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等の字幕から Jev で振り分けて採取。文のみで人名・注釈なし）。
 
 functions/go/internal/themeshots/themeshots_test.go
 参考例文データの形（英字・注釈なし、場面あり）と断片の組み立てのテスト。
@@ -997,7 +997,7 @@ functions/go/cmd/gencorpus/main.go
 静的コーパスの全量生成コマンド。マニフェストを 生成→判定→差し戻し→再判定 まで通し、ブロック単位でJSONLに追記する。同じ出力先を指すと続きから流せる。
 
 functions/go/cmd/freeregen/main.go
-free 例文バンク（free_sentences_<lang>.json）のうち指定テーマの項目だけを本番と同じ生成経路で作り直す（判定・差し戻し1回、通らなければ元の項目を残す）。
+free 例文バンク（free_sentences_<lang>.json）のうち指定テーマの項目だけを本番と同じ生成経路で作り直す（判定・差し戻し1回、通らなければ元の項目を残す）。プロンプトは premium と同じ。
 
 functions/go/cmd/burst/main.go
 毎日例文の5本セット配信で増える LLM 同時実行の実測コマンド。ユーザー数×本数を同時に叩き、1本/1ユーザー/全体の所要と失敗の内訳を出す。

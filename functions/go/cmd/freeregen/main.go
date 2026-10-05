@@ -1,7 +1,8 @@
 // Command freeregen は free 例文バンク（free_sentences_<lang>.json）のうち、
-// 指定テーマの項目だけを本番と同じ生成経路で作り直す。
+// 指定テーマの項目だけを本番と同じ生成経路で作り直す。プロンプトは free でも
+// premium と同じもの（sentence.Service.GenerateSentenceWithNotes）を使う。
 //
-// 語・ランク・estimated_vocab は元の項目のまま、free のプロンプトで生成し、
+// 語・ランク・estimated_vocab は元の項目のまま生成し、
 // 判定 → 差し戻し1回 → 再判定 まで通す。2回とも通らなければ元の項目を残す。
 // それ以外の項目には触らない。
 //

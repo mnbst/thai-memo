@@ -4523,25 +4523,25 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody1.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなたのレベルに合ったタイ語の例文を毎日つくります。学び終えたら、さらに追加できます。'**
+  /// **'AIがあなたのレベルに合った学習単語を選び、その単語を使ったタイ語の例文をつくります。'**
   String get guideOverviewBody1;
 
   /// No description provided for @guideOverviewBody2.
   ///
   /// In ja, this message translates to:
-  /// **'例文で覚える → クイズで確かめる。これを最大5回くり返して1巡です。'**
+  /// **'例文で覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。'**
   String get guideOverviewBody2;
 
   /// No description provided for @guideOverviewSummaryQuiz.
   ///
   /// In ja, this message translates to:
-  /// **'1セット（最大5つ）の例文を学ぶと「まとめクイズ」に進みます。迷ったときは、ヒントや例文の見返しを使えます。'**
+  /// **'1セット学び終えると「まとめクイズ」に進みます。迷ったときは、ヒントを見たり例文を見返したりできます。'**
   String get guideOverviewSummaryQuiz;
 
   /// No description provided for @guideOverviewBody3.
   ///
   /// In ja, this message translates to:
-  /// **'正解するほど語彙スコアが上がり、例文に出る単語が増えます。間違えた例文はあとで再出題されます。'**
+  /// **'まとめクイズに正解すると語彙スコアが上がり、例文に出る単語も増えていきます。ヒントなしで正解すると、さらに上がりやすくなります。間違えた問題は、あとでもう一度出題されます。'**
   String get guideOverviewBody3;
 
   /// No description provided for @guideRoleSentenceTitle.
@@ -4589,7 +4589,7 @@ abstract class L10n {
   /// No description provided for @guideRoleQuizSpelling.
   ///
   /// In ja, this message translates to:
-  /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。読みと意味から綴りを選び、一度正解すると穴埋め問題に変わります。'**
+  /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。その学習単語について一度正解すると、以後は穴埋め問題が出ます。'**
   String get guideRoleQuizSpelling;
 
   /// No description provided for @guideRoleScoreTitle.
@@ -4601,7 +4601,7 @@ abstract class L10n {
   /// No description provided for @guideRoleScoreBody.
   ///
   /// In ja, this message translates to:
-  /// **'クイズ結果から推定した、現在の語彙量です。'**
+  /// **'語彙測定テストとまとめクイズの結果から推定した、現在の語彙量です。'**
   String get guideRoleScoreBody;
 
   /// No description provided for @guideRoleVocabTestTitle.
@@ -4793,7 +4793,7 @@ abstract class L10n {
   /// No description provided for @guideHowSoundStep3.
   ///
   /// In ja, this message translates to:
-  /// **'緑は合っている、橙は惜しい、赤は違うという判定です。語をタップすると、お手本との声の高さの違いと直し方を確認できます。'**
+  /// **'各語の声調が合っていれば緑、惜しければ橙、違っていれば赤で表示されます。語をタップすると、お手本との声の高さの違いと直し方を確認できます。'**
   String get guideHowSoundStep3;
 
   /// No description provided for @guideHowQuizTitle.
@@ -4841,7 +4841,7 @@ abstract class L10n {
   /// No description provided for @guideHowReviewQuizStep2.
   ///
   /// In ja, this message translates to:
-  /// **'前日・3日前・1週間前など、間隔をあけて復習します。まだ身についていない単語が優先されます。'**
+  /// **'まとめクイズでは、前日・3日前・1週間前などに学んだ例文を、間隔をあけて復習します。まだ身についていない学習単語の問題が優先して出ます。'**
   String get guideHowReviewQuizStep2;
 
   /// No description provided for @guideHowReviewQuizStep3.
@@ -4901,19 +4901,19 @@ abstract class L10n {
   /// No description provided for @guideTipsRepeat.
   ///
   /// In ja, this message translates to:
-  /// **'クイズは間違えても大丈夫です。丸暗記より、同じ例文を何度も見て覚えましょう。'**
+  /// **'クイズは間違えても大丈夫です。例文を丸ごと覚えなくても、学習単語を何度も見るうちに自然と語彙が増えていきます。'**
   String get guideTipsRepeat;
 
-  /// No description provided for @guideTipsRelation.
+  /// No description provided for @guideTipsScript.
   ///
   /// In ja, this message translates to:
-  /// **'人称や語尾は、相手との関係で変わります。詳細画面の「文脈・使い方」を参考にしましょう。'**
-  String get guideTipsRelation;
+  /// **'タイ文字は、まず単語全体の形をつかめれば十分です。見慣れてきたら、子音・母音・声調記号を少しずつ見分けていきましょう。'**
+  String get guideTipsScript;
 
   /// No description provided for @guideTipsSpeak.
   ///
   /// In ja, this message translates to:
-  /// **'覚えたフレーズを会話で使ってみましょう。声に出すほど身につきます。'**
+  /// **'覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。'**
   String get guideTipsSpeak;
 }
 

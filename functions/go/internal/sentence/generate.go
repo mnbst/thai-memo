@@ -322,6 +322,7 @@ func (s *Service) GenerateSentenceWithNotes(
 	ctx context.Context, params map[string]any, isPremium bool,
 	targetWords []string, estimatedVocab int, l lang.Lang, notes []string,
 ) (*Sentence, error) {
+	// ラベルはログと費用集計用なので、実際のティアのまま残す。
 	tierLabel := "free"
 	if isPremium {
 		tierLabel = "premium"
@@ -333,16 +334,20 @@ func (s *Service) GenerateSentenceWithNotes(
 	// 時点・関係の行を出さない（BuildPrompt 側で落とす）。
 	drama := s.SceneSection(&resolved, targetWords)
 
+	// 例文の作り（プロンプト・モデル・thinking）は free も premium と同じにする。
+	// free と premium の差は語の選び方（語彙上限）とテーマの決め方だけで、
+	// 長さ・難易度は estimatedVocab が決める。free のリアルタイム生成は週十数回で、
+	// 揃えても費用はほぼ変わらない（2026-10-05 実測 $0.00224 → $0.00255/回）。
 	prompt, resolvedContext := BuildPrompt(
-		resolved, targetWords, estimatedVocab, isPremium, l, drama)
+		resolved, targetWords, estimatedVocab, true, l, drama)
 	if block := BuildRetryConstraint(notes); block != "" {
 		prompt += "\n\n" + block
 	}
 
 	return GenerateSingle(ctx, s.Gen, Request{
-		SystemPrompt:    SystemPrompt(isPremium, l),
+		SystemPrompt:    SystemPrompt(true, l),
 		Prompt:          prompt,
-		IsPremium:       isPremium,
+		IsPremium:       true,
 		TierLabel:       tierLabel,
 		TargetWords:     targetWords,
 		ResolvedContext: resolvedContext,
