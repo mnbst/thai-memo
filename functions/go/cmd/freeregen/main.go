@@ -1,6 +1,6 @@
 // Command freeregen は free 例文バンク（free_sentences_<lang>.json）のうち、
-// 指定テーマの項目だけを本番と同じ生成経路で作り直す。-premium を付けると
-// premium のプロンプトで作る（free と premium で例文の作りを揃えるため）。
+// 指定テーマの項目だけを本番と同じ生成経路で作り直す。プロンプトは free でも
+// premium と同じもの（sentence.Service.GenerateSentenceWithNotes）を使う。
 //
 // 語・ランク・estimated_vocab は元の項目のまま生成し、
 // 判定 → 差し戻し1回 → 再判定 まで通す。2回とも通らなければ元の項目を残す。
@@ -48,7 +48,6 @@ func main() {
 	langCode := flag.String("lang", "ja", "バンクの言語（ja / en）")
 	topicIx := flag.Int("topic", 1, "作り直すテーマ（sentence.Topics の添字）")
 	conc := flag.Int("c", 10, "同時実行数")
-	premium := flag.Bool("premium", false, "premium のプロンプトで作る（長さ・難易度は項目の estimated_vocab のまま）")
 	embDir := flag.String("emb-dir", "../../scripts/corpus", "場面の選出に使う embedding のディレクトリ（空なら場面で絞らない）")
 	flag.Parse()
 	if *in == "" || *out == "" {
@@ -103,7 +102,7 @@ func main() {
 
 	gen := func(jb *job) {
 		s, err := svc.GenerateSentenceWithNotes(ctx, map[string]any{"topic": topic},
-			*premium, []string{jb.word}, jb.vocab, l, jb.notes)
+			false, []string{jb.word}, jb.vocab, l, jb.notes)
 		if err != nil {
 			log.Printf("生成失敗 %s: %v", jb.word, err)
 			jb.s = nil
