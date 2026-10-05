@@ -997,7 +997,7 @@ functions/go/cmd/gencorpus/main.go
 静的コーパスの全量生成コマンド。マニフェストを 生成→判定→差し戻し→再判定 まで通し、ブロック単位でJSONLに追記する。同じ出力先を指すと続きから流せる。
 
 functions/go/cmd/freeregen/main.go
-free 例文バンク（free_sentences_<lang>.json）のうち指定テーマの項目だけを本番と同じ生成経路で作り直す（判定・差し戻し1回、通らなければ元の項目を残す）。
+free 例文バンク（free_sentences_<lang>.json）のうち指定テーマの項目だけを本番と同じ生成経路で作り直す（判定・差し戻し1回、通らなければ元の項目を残す）。-premium で premium のプロンプトを使う。
 
 functions/go/cmd/burst/main.go
 毎日例文の5本セット配信で増える LLM 同時実行の実測コマンド。ユーザー数×本数を同時に叩き、1本/1ユーザー/全体の所要と失敗の内訳を出す。
