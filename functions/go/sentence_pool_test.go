@@ -31,6 +31,9 @@ func TestBuildPoolEntry(t *testing.T) {
 	if e.Lang != lang.JA {
 		t.Errorf("lang = %q, want ja", e.Lang)
 	}
+	if e.Tier != "premium" {
+		t.Errorf("tier = %q, want premium", e.Tier)
+	}
 	if e.Sentence.KeyWord != "กิน" {
 		t.Errorf("key_word = %q, want กิน", e.Sentence.KeyWord)
 	}
@@ -50,6 +53,8 @@ func TestBuildPoolEntrySkips(t *testing.T) {
 	}{
 		// lang を付ける前に保存された doc。訳文の言語が決められない。
 		{"lang なし", func(d map[string]any) { delete(d, "lang") }},
+		// generation_tier を持たない旧 doc。どちらのプールか決められない。
+		{"tier なし", func(d map[string]any) { delete(d, "generation_tier") }},
 		{"lang 不明", func(d map[string]any) { d["lang"] = "th" }},
 		{"key_word なし", func(d map[string]any) { delete(d, "key_word") }},
 		// key_word から外した語（古語の一人称）。プールにも入れない。
@@ -63,6 +68,22 @@ func TestBuildPoolEntrySkips(t *testing.T) {
 		if _, ok := buildPoolEntry(d); ok {
 			t.Errorf("%s: 落とすべき doc を通している", c.name)
 		}
+	}
+}
+
+// free の文は free のプールへ振り分ける。
+func TestBuildPoolEntryFree(t *testing.T) {
+	d := poolDoc()
+	d["generation_tier"] = "free"
+	e, ok := buildPoolEntry(d)
+	if !ok {
+		t.Fatal("free の doc を落としている")
+	}
+	if got := sentence.PoolObjectFor(e.Tier, e.Lang); got != "free_pool_ja.json" {
+		t.Errorf("free のプール = %q, want free_pool_ja.json", got)
+	}
+	if got := sentence.PoolObjectFor("premium", lang.EN); got != "corpus_pool_en.json" {
+		t.Errorf("premium のプール = %q, want corpus_pool_en.json", got)
 	}
 }
 

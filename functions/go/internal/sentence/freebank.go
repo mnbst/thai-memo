@@ -19,6 +19,10 @@ import (
 // バンクは言語ごとの JSON として GCS に配置する。
 // まだ無い言語（アップロード前・新言語の追加直後）は空で、呼び出し側が
 // LLM 生成へ落ちる。
+//
+// これに加えて、free で LLM 生成された例文のうち judge を通ったものを貯めた
+// プール（free_pool_<lang>.json、dailyBatch が毎日書き出す）も重ねる。
+// premium のプール（CorpusBank）とはファイルを分け、ティアごとに洗い直せるようにする。
 type FreeBank struct {
 	// ProjectID は GCS バケット名 {ProjectID}-uvm-data に使う。
 	ProjectID string
@@ -29,8 +33,8 @@ type FreeBank struct {
 	cache map[lang.Lang][]Sentence
 }
 
-// Sentences は GCS から free_sentences_<lang>.json を読み込みキャッシュする
-// （sentence_service.py:get_free_sentences:224）。
+// Sentences は GCS から free_sentences_<lang>.json とプール（free_pool_<lang>.json）を
+// 読み込みキャッシュする（sentence_service.py:get_free_sentences:224）。
 //
 // ja だけは旧ファイル名 free_sentences.json にも退避する（新バンクを上げる前に
 // デプロイしても free が止まらないため）。見つからなければ空を返し、それも
@@ -75,6 +79,16 @@ func (b *FreeBank) Sentences(ctx context.Context, l lang.Lang) ([]Sentence, erro
 	}
 	if !found {
 		log.Printf("free bank missing for lang=%s; falling back to LLM", l)
+	}
+
+	// プールは運用が始まるまで存在しない。無ければ無いまま進む。
+	pool, err := ReadSentences(ctx, bucket, FreePoolObject(l))
+	if err != nil {
+		return nil, err
+	}
+	if pool != nil {
+		sentences = append(sentences, pool...)
+		log.Printf("free bank pool loaded: lang=%s sentences=%d", l, len(pool))
 	}
 
 	if b.cache == nil {

@@ -1,4 +1,5 @@
 // Command poolrecheck は GCS の例文プールを今の判定で洗い直す。
+// プールはティアごとに別ファイルなので、-tier で選ぶ（premium / free）。
 //
 // プールに入った文は後から判定し直さないので、観点を足したり直したりしたら
 // これで既存の文にもかける。生成時の観点（quality.Aspects）とプール用の観点
@@ -8,6 +9,7 @@
 // <name>.bak-YYYYMMDD に写してから書き戻す。判定に失敗した文は残す。
 //
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolrecheck -lang ja
+//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolrecheck -lang ja -tier free
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolrecheck -lang ja -write
 package main
 
@@ -30,6 +32,7 @@ import (
 
 func main() {
 	langCode := flag.String("lang", "ja", "プールの言語（ja / en）")
+	tier := flag.String("tier", "premium", "プールのティア（premium / free）")
 	write := flag.Bool("write", false, "落とした結果を GCS へ書き戻す（バックアップを取ってから）")
 	conc := flag.Int("c", 8, "同時実行数")
 	flag.Parse()
@@ -37,6 +40,9 @@ func main() {
 	l, ok := lang.Parse(*langCode)
 	if !ok {
 		log.Fatalf("-lang %q は ja / en のどちらか", *langCode)
+	}
+	if *tier != sentence.GenerationTier(true) && *tier != sentence.GenerationTier(false) {
+		log.Fatalf("-tier %q は premium / free のどちらか", *tier)
 	}
 	project := os.Getenv("GCLOUD_PROJECT")
 	if project == "" {
@@ -50,7 +56,7 @@ func main() {
 	}
 	defer client.Close()
 	bucket := client.Bucket(project + "-uvm-data")
-	name := sentence.PoolObject(l)
+	name := sentence.PoolObjectFor(*tier, l)
 
 	// ReadSentences は開けないとき nil を返す。空のまま書き戻さないよう止める。
 	pool, err := sentence.ReadSentences(ctx, bucket, name)
@@ -79,7 +85,7 @@ func main() {
 			defer func() { <-sem }()
 			c := []quality.Candidate{{
 				ThaiText: s.ThaiText, JapaneseTranslation: s.JapaneseTranslation,
-				KeyWord: s.KeyWord, Lang: l,
+				KeyWord: s.KeyWord, Lang: l, GenerationTier: *tier,
 			}}
 			reason, err := recheck(ctx, judge, c)
 			mu.Lock()

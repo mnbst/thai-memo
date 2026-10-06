@@ -55,12 +55,12 @@ func BuildPrompt(
 	timeFrame := resolved.TimeFrame
 	relation := resolved.Relation
 
-	// 「さっき起きた出来事」だけ、相手の行動を求める文（依頼・指示・禁止）と
+	// 過去の時点（さっき・昨日や以前）だけ、相手の行動を求める文（依頼・指示・禁止）と
 	// 両立しない。【可能な限り反映】の逃げ道は「上位の指示と衝突する場合」に
 	// 限られ、文型の選択は LLM の自由なのでこの衝突を拾えない。
 	// 条件が確定している時点にだけ但し書きを付ける。
 	timeFrameNote := ""
-	if timeFrame == TimeFrames[1] {
+	if timeFrame == TimeFrames[1] || timeFrame == TimeFrames[4] {
 		timeFrameNote = "（すでに起きた出来事を述べる文に付ける。" +
 			"相手のこれからの行動を求める文にするなら、この時点は落とす）"
 	}
