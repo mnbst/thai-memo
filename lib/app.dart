@@ -14,6 +14,7 @@ import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/subscription_provider.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/splash_screen.dart';
+import 'presentation/widgets/tablet_width_limit.dart';
 import 'services/firebase_auth_service.dart';
 import 'services/anonymous_sign_in_coordinator.dart';
 
@@ -99,6 +100,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
       themeMode: themeMode,
       theme: buildAppLightTheme(fontFamily),
       darkTheme: buildAppDarkTheme(fontFamily),
+      builder: (context, child) => TabletWidthLimit(child: child!),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {

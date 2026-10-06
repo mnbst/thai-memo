@@ -1,0 +1,39 @@
+{
+  "_comment": "並び順がストアでの表示順。** で囲んだ部分を強調色にする。screen は撮る画面の説明（capture.sh が表示する）。ab_first は A/B テストの A 案で先頭に置く旧1枚目（iPhone のみ）。",
+  "shots": [
+    {
+      "id": "01_today",
+      "screen": "学習タブ（今日の例文）。例文カードと学習単語が見える状態",
+      "ja": "**今の語彙でわかる**\nあなただけのAI例文",
+      "en": "**AI sentences**\nfor your level"
+    },
+    {
+      "id": "02_detail",
+      "screen": "例文の詳細。単語の分解が見える位置までスクロール",
+      "ja": "単語・発音・使い方まで\n**ひと目でわかる**",
+      "en": "Words, tones & usage\n**at a glance**"
+    },
+    {
+      "id": "03_pronunciation",
+      "screen": "発音練習の結果（スコアと音の高さのグラフ）",
+      "ja": "**声調を見比べて**\n伝わる発音へ",
+      "en": "**See your tones**\nsound more natural"
+    },
+    {
+      "id": "04_quiz",
+      "screen": "クイズで正解した直後（解説が出ている状態）",
+      "ja": "覚えたつもりを\n**クイズで確認**",
+      "en": "**Quiz yourself**\nand make it stick"
+    },
+    {
+      "id": "05_topics",
+      "screen": "設定 → テーマ選択の一覧",
+      "ja": "**BLドラマも旅行も**\n好きから学べる",
+      "en": "From **BL dramas**\nto travel Thai"
+    }
+  ],
+  "ab_first": {
+    "ja": "tools/store_screenshots/legacy/ja.jpg",
+    "en": "tools/store_screenshots/legacy/en.jpg"
+  }
+}

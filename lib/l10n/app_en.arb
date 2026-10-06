@@ -51,11 +51,11 @@
   "sentencePreparing": "Preparing sentences...",
   "todaysWords": "{count, plural, =1{Target word} other{Target words}}",
   "playPronunciation": "Play pronunciation",
-  "sentenceListenModel": "Listen to the model",
+  "sentenceListenModel": "Listen",
   "@sentenceListenModel": {
     "description": "Button under the sentence card. Opens model audio playback"
   },
-  "sentencePractice": "Pronunciation practice",
+  "sentencePractice": "Practice",
   "@sentencePractice": {
     "description": "Button under the sentence card. Opens pronunciation practice"
   },

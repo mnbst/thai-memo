@@ -209,6 +209,9 @@ lib/presentation/widgets/level_up_dialog.dart
 lib/presentation/widgets/vocab_level.dart
 語彙レベルの区切り（入門〜上級）とラベル・アイコン、free の語彙スコア上限。
 
+lib/presentation/widgets/tablet_width_limit.dart
+iPad など幅の広い画面で、アプリ全体を最大680ptの縦長の列にして中央に寄せる（MaterialApp.builder で適用）。
+
 lib/presentation/widgets/topic_picker.dart
 例文テーマ選択ダイアログ（設定・例文画面で共用）とラベル整形ヘルパー。
 
@@ -520,13 +523,13 @@ functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch のステップ6。直近24時間の premium LLM 例文のうち、生成時の判定で quality.passed=true の文をプール用の観点（quality.PoolAspects）で判定し直し、通った文だけを例文プールへ回す。外した文はログに出す。
+dailyBatch のステップ6。直近24時間の LLM 生成例文（premium / free）のうち、生成時の判定で quality.passed=true の文をプール用の観点（quality.PoolAspects）で判定し直し、通った文だけをティアごとの例文プールへ回す。外した文はログに出す。
 
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文判定で、不合格なら差し戻し用の指摘を返し sentence_flags へ1件書く（stage=first/retry）。キーが無ければ nil（判定なしで動く）。
 
 functions/go/sentence_pool.go
-judge を通った例文を GCS の例文プール（corpus_pool_<lang>.json）へ追記する。thai_text で重複排除、上限超過分は古い側から捨てる（SENTENCE_POOL_MAX=0 で無効化）。
+judge を通った例文を GCS のティア別例文プール（premium: corpus_pool_<lang>.json / free: free_pool_<lang>.json）へ追記する。thai_text で重複排除、上限超過分は古い側から捨てる（SENTENCE_POOL_MAX=0 で無効化）。
 
 functions/go/sentence_pool_test.go
 プール項目への変換（lang不明・除外語・欠損の除外）と、重複排除・上限での切り詰めのテスト。
@@ -556,7 +559,7 @@ functions/go/internal/quality/judge.go
 例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
 
 functions/go/internal/quality/pool.go
-プールへ入れるときだけ足す Jev の観点（場面として言わない文・訳の意味のずれ）と ReviewPool。生成時の作り直しには入れない。
+プールへ入れるときだけ足す Jev の観点（場面として言わない文・訳の意味のずれ・人名）と ReviewPool。生成時の作り直しには入れない。
 
 functions/go/internal/quality/rules.go
 コードで判定する観点（訳の文法用語・英訳の助動詞なし not・既知の誤訳・語の誤用の正規表現・頭なしの ก็ตาม）と、語が文にあるときだけ Jev に用法を聞く語ごとの観点（wordUsages）。
@@ -858,6 +861,9 @@ word_breakdownへの音節分割・発音・品詞の付与（nlp.py:enrich_with
 functions/go/internal/sentence/resolve.go
 生成パラメータの確定（テーマ候補のゲート・時制と関係の抽選・サブテーマ選出）。
 
+functions/go/internal/sentence/timeframe.go
+語が自然に置ける時点（time_frames.json、Jevで事前判定）から時制の候補を絞る。
+
 functions/go/internal/sentence/resolve_golden_test.go
 resolve_generation_params の確定部分をPython実装と突き合わせる。
 
@@ -934,7 +940,7 @@ functions/go/internal/uvm/graded_test.go
 IsGradedResult（採点区分）・ResultEvidence・UpdateP の向き（正解で上がり不正解で下がる）と、evidence を持たない既存 doc の移行のテスト。
 
 functions/go/internal/sentence/freebank.go
-free例文バンク（GCS）の読み込みとキャッシュ、target_word一致の抽選。バンクに無いテーマは nil で生成へ落とす。
+free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。バンクに無いテーマは nil で生成へ落とす。
 
 functions/go/internal/sentence/freebank_test.go
 free例文バンクの抽選（テーマ一致の優先・在庫の無いテーマの扱い）のテスト。
@@ -979,7 +985,7 @@ functions/go/cmd/vetquizlang/main.go
 Firestore の quiz_questions を走査し、解説・ダミー理由が指定と違う言語の件を洗い出す。-delete で消すと次の出題で作り直される。
 
 functions/go/cmd/poolrecheck/main.go
-GCS の例文プールを今の判定（Aspects＋PoolAspects）で洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。
+GCS の例文プールを今の判定（Aspects＋PoolAspects）でティア別（-tier premium / free）に洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。
 
 functions/go/cmd/pilot/main.go
 cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。
@@ -1089,6 +1095,9 @@ scripts/build_theme_embeddings.py
 scripts/build_pos_dict.py
 コーパスの grammatical_role を語ごとに集計して品詞辞書（quiz_posdict_data.go）を生成。最頻品詞が8割未満の語は入れない。
 
+scripts/build_time_frames.py
+頻度上位語ごとに各時点への適合をJevで判定し time_frames.json を生成。
+
 scripts/build_shot_embeddings.py
 参考セリフ（bldrama/data.go・themeshots/data.go）のembeddingを差分生成しshot_embeddings.jsonへ。
 
@@ -1183,6 +1192,26 @@ DetailScreen を flutter_test 上で描画し、動画の続きからスクロ�
 
 .github/workflows/post-daily-x.yml
 毎日07:00 JSTに上記を通しで実行するワークフロー。dry_run で投稿せず確認できる。
+
+## App Store スクリーンショット
+
+tools/store_screenshots/captions.json
+ストア用スクショの並び順・撮る画面・見出し（ja/en、`**` で強調）。
+
+tools/store_screenshots/capture.sh
+シミュレータ（iPhone 6.9／iPad 13）をステータスバー固定で起動し、captions.json の順に素材を build/store_shots/raw へ撮る。
+
+tools/store_screenshots/fetch_fonts.sh
+見出し用の太字日本語フォント（NotoSansJP-Black）を取得する。
+
+test/screenshots/store_mock_screens.dart
+ストア用スクショの素材6画面（ja/en × iPhone/iPad）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。
+
+test/screenshots/store_mock_data.dart
+上記に描く例文・クイズの見本データ（ja/en）。
+
+test/screenshots/store_screenshots.dart
+素材に見出し・端末の枠を合成し build/store_shots/out へ書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
 
 ## E2E (Maestro)
 
