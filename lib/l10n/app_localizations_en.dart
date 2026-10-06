@@ -104,10 +104,10 @@ class L10nEn extends L10n {
   String get playPronunciation => 'Play pronunciation';
 
   @override
-  String get sentenceListenModel => 'Listen to the model';
+  String get sentenceListenModel => 'Listen';
 
   @override
-  String get sentencePractice => 'Pronunciation practice';
+  String get sentencePractice => 'Practice';
 
   @override
   String get sentenceUsingWord => 'Example with this word';

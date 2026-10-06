@@ -209,6 +209,9 @@ lib/presentation/widgets/level_up_dialog.dart
 lib/presentation/widgets/vocab_level.dart
 語彙レベルの区切り（入門〜上級）とラベル・アイコン、free の語彙スコア上限。
 
+lib/presentation/widgets/tablet_width_limit.dart
+iPad など幅の広い画面で、アプリ全体を最大680ptの縦長の列にして中央に寄せる（MaterialApp.builder で適用）。
+
 lib/presentation/widgets/topic_picker.dart
 例文テーマ選択ダイアログ（設定・例文画面で共用）とラベル整形ヘルパー。
 
