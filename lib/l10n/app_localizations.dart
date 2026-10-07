@@ -2140,32 +2140,14 @@ abstract class L10n {
   /// No description provided for @notifCoachTitle.
   ///
   /// In ja, this message translates to:
-  /// **'通知でタイ語学習を習慣にしましょう'**
+  /// **'毎日、例文が通知で届きます'**
   String get notifCoachTitle;
-
-  /// No description provided for @notifCoachStep1.
-  ///
-  /// In ja, this message translates to:
-  /// **'通勤中や寝る前など、学習を続けやすい時刻を決めます'**
-  String get notifCoachStep1;
-
-  /// No description provided for @notifCoachStep2.
-  ///
-  /// In ja, this message translates to:
-  /// **'その時刻に、あなた向けの例文が自動で届きます'**
-  String get notifCoachStep2;
 
   /// No description provided for @notifCoachHabit.
   ///
   /// In ja, this message translates to:
-  /// **'毎日同じ時間に開くので、無理なく続けられます'**
+  /// **'同じ時間に届くので、続けやすくなります'**
   String get notifCoachHabit;
-
-  /// No description provided for @notifCoachPreviewLabel.
-  ///
-  /// In ja, this message translates to:
-  /// **'通知の例）'**
-  String get notifCoachPreviewLabel;
 
   /// No description provided for @notifCoachNow.
   ///
@@ -2194,13 +2176,13 @@ abstract class L10n {
   /// No description provided for @notifCoachLater.
   ///
   /// In ja, this message translates to:
-  /// **'あとで'**
+  /// **'今はしない'**
   String get notifCoachLater;
 
   /// No description provided for @notifCoachEnabled.
   ///
   /// In ja, this message translates to:
-  /// **'毎日この時間に例文をお届けします。時刻は設定で変更できます。'**
+  /// **'毎日、決まった時間に例文をお届けします。時刻は設定で変更できます。'**
   String get notifCoachEnabled;
 
   /// No description provided for @notifCoachStillQuiet.

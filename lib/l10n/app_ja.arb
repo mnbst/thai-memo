@@ -627,17 +627,14 @@
 
   "philosophyStart": "使い方を見る",
 
-  "notifCoachTitle": "通知でタイ語学習を習慣にしましょう",
-  "notifCoachStep1": "通勤中や寝る前など、学習を続けやすい時刻を決めます",
-  "notifCoachStep2": "その時刻に、あなた向けの例文が自動で届きます",
-  "notifCoachHabit": "毎日同じ時間に開くので、無理なく続けられます",
-  "notifCoachPreviewLabel": "通知の例）",
+  "notifCoachTitle": "毎日、例文が通知で届きます",
+  "notifCoachHabit": "同じ時間に届くので、続けやすくなります",
   "notifCoachNow": "今",
   "notifCoachSampleTitle": "🇹🇭 今日のタイ語 · ขอบคุณ（ありがとう）",
   "notifCoachSampleBody": "→ コーヒーをありがとうございます",
   "notifCoachEnable": "通知をオンにする",
-  "notifCoachLater": "あとで",
-  "notifCoachEnabled": "毎日この時間に例文をお届けします。時刻は設定で変更できます。",
+  "notifCoachLater": "今はしない",
+  "notifCoachEnabled": "毎日、決まった時間に例文をお届けします。時刻は設定で変更できます。",
   "notifCoachStillQuiet": "通知はこれまでどおり、通知センターに静かに届きます。",
   "commonGotIt": "わかった",
 

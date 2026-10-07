@@ -540,17 +540,14 @@
 
   "philosophyStart": "See how it works",
 
-  "notifCoachTitle": "Make studying Thai a habit with notifications",
-  "notifCoachStep1": "Choose a convenient time, such as your commute or before bed",
-  "notifCoachStep2": "Your daily sentence arrives automatically at that time",
-  "notifCoachHabit": "Open it at the same time each day to build a steady habit",
-  "notifCoachPreviewLabel": "Example notification",
+  "notifCoachTitle": "Get a daily notification with a Thai sentence",
+  "notifCoachHabit": "It arrives at the same time every day, making it easier to keep learning.",
   "notifCoachNow": "now",
-  "notifCoachSampleTitle": "🇹🇭 Today's Thai · ขอบคุณ (thank you)",
+  "notifCoachSampleTitle": "🇹🇭 Thai of the Day · ขอบคุณ (thank you)",
   "notifCoachSampleBody": "→ Thank you for the coffee",
   "notifCoachEnable": "Turn on notifications",
-  "notifCoachLater": "Later",
-  "notifCoachEnabled": "Your daily sentence will arrive at this time. You can change it in Settings.",
+  "notifCoachLater": "Not now",
+  "notifCoachEnabled": "Your daily sentence will arrive at a set time each day. You can change it in Settings.",
   "notifCoachStillQuiet": "Notifications will keep arriving quietly in Notification Center.",
   "commonGotIt": "Got it",
 

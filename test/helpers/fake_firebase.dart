@@ -240,7 +240,10 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   }
 
   @override
-  Future<void> logNotificationCoach({required String action}) async {
+  Future<void> logNotificationCoach({
+    required String action,
+    required String source,
+  }) async {
     notificationCoachEvents.add(action);
   }
 

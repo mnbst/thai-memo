@@ -56,8 +56,11 @@ class SettingsState {
   /// 毎日例文のプッシュ通知を受け取るか
   final bool dailyReminderEnabled;
 
-  /// 通知コーチングダイアログを表示済みか（設定画面の初回表示で一度だけ出す）
+  /// 通知コーチングダイアログを一度でも表示したか
   final bool notificationCoachShown;
+
+  /// 最後に再案内したときの [AppConfig.notificationCoachRepromptVersion]。未再案内なら null。
+  final String? notificationCoachRepromptedVersion;
 
   const SettingsState({
     required this.isFirstLaunch,
@@ -68,6 +71,7 @@ class SettingsState {
     this.appLanguage = AppLanguage.ja,
     this.dailyReminderEnabled = true,
     this.notificationCoachShown = true,
+    this.notificationCoachRepromptedVersion,
   });
 
   /// 配信希望時刻の「時」。サーバー側は時単位でしか配信しない。
@@ -93,6 +97,7 @@ class SettingsState {
     AppLanguage? appLanguage,
     bool? dailyReminderEnabled,
     bool? notificationCoachShown,
+    String? notificationCoachRepromptedVersion,
   }) {
     return SettingsState(
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
@@ -105,6 +110,8 @@ class SettingsState {
       dailyReminderEnabled: dailyReminderEnabled ?? this.dailyReminderEnabled,
       notificationCoachShown:
           notificationCoachShown ?? this.notificationCoachShown,
+      notificationCoachRepromptedVersion: notificationCoachRepromptedVersion ??
+          this.notificationCoachRepromptedVersion,
     );
   }
 }
@@ -219,6 +226,8 @@ class SettingsController extends StateNotifier<SettingsState> {
       appLanguage: appLanguage,
       dailyReminderEnabled: dailyReminderEnabled,
       notificationCoachShown: notificationCoachShown,
+      notificationCoachRepromptedVersion: _prefs!
+          .getString(AppConfig.prefKeyNotificationCoachRepromptedVersion),
     );
     unawaited(_analytics.setUserAppLanguage(appLanguage.code));
     // 回答済みの既存ユーザーにも起動時に付ける。
@@ -423,14 +432,41 @@ class SettingsController extends StateNotifier<SettingsState> {
   Future<bool?> hasProminentNotificationPermission() =>
       _push.hasProminentPermission();
 
+  /// OSの通知許可をまだ一度も求めていないか（iOS の notDetermined）。
+  ///
+  /// true のときだけアプリから許可ダイアログを出せる。一度拒否された人には
+  /// 出せないので、コーチングの再案内はこれが true の人に限る。
+  /// 取得できなかった場合は null（判定不能）。
+  Future<bool?> canRequestNotificationPermission() =>
+      _push.canRequestPermission();
+
   /// 通知コーチングダイアログを表示済みにする。
   ///
-  /// 出したら結果（オンにした／後回し）に関わらず記録する。断られた直後に
-  /// 出し直すと通知そのものへの印象が悪くなるため、再表示はしない。
+  /// 出したら結果（オンにした／今はしない）に関わらず記録する。断った人に
+  /// 出し直すかはリリースごとに [AppConfig.notificationCoachRepromptVersion] で決める。
   Future<void> markNotificationCoachShown() async {
     if (state.notificationCoachShown) return;
     await _prefs?.setBool(AppConfig.prefKeyNotificationCoachShown, true);
     state = state.copyWith(notificationCoachShown: true);
+  }
+
+  /// サインイン中の uid。再案内A/Bの割り当てに使う。
+  String? get currentUid => _push.currentUid;
+
+  /// 再案内A/Bの割り当てを users/{uid} に残す。
+  Future<void> recordNotificationRepromptExperiment({
+    required String experimentId,
+    required String arm,
+  }) =>
+      _push.recordRepromptExperiment(experimentId: experimentId, arm: arm);
+
+  /// 今のリリースの再案内を出したことを記録する。同じリリースでは二度出さない。
+  Future<void> markNotificationCoachReprompted(String version) async {
+    await _prefs?.setString(
+      AppConfig.prefKeyNotificationCoachRepromptedVersion,
+      version,
+    );
+    state = state.copyWith(notificationCoachRepromptedVersion: version);
   }
 
   /// 配信希望時刻を設定する。サーバーは時単位でしか配信しないため分は捨てる。

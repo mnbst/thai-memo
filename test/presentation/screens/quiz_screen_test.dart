@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:thai_memo/core/config/app_config.dart';
 import 'package:thai_memo/data/datasources/backend_api_service.dart';
 import 'package:thai_memo/data/datasources/local/database_helper.dart';
 import 'package:thai_memo/data/models/quiz_question.dart';
@@ -783,11 +784,79 @@ void main() {
 
     await _finishQuiz(tester, harness);
 
-    expect(find.text('通知でタイ語学習を習慣にしましょう'), findsOneWidget);
+    expect(find.text('毎日、例文が通知で届きます'), findsOneWidget);
 
-    await tester.tap(find.text('あとで'));
+    await tester.tap(find.text('今はしない'));
     await tester.pumpAndSettle();
     expect(settings.state.notificationCoachShown, isTrue);
+  });
+
+  testWidgets('再案内A/Bで出さない群なら出さず、再案内済みにする', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final settings = _FakeSettingsController(
+      coachShown: true,
+      canRequest: true,
+      uid: 'uid-a', // holdout
+      repromptedVersion: 'old',
+    );
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      showVocabScoreTransition: true,
+      onNextSentence: () async {},
+      settings: settings,
+    );
+
+    await _finishQuiz(tester, harness);
+
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(settings.experiments.single, endsWith(':holdout'));
+    expect(
+      settings.state.notificationCoachRepromptedVersion,
+      AppConfig.notificationCoachRepromptVersion,
+    );
+  });
+
+  testWidgets('一度断った人にも、再案内のリリースならもう一度だけ出す', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final settings = _FakeSettingsController(
+      coachShown: true,
+      canRequest: true,
+      repromptedVersion: 'old',
+    );
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      showVocabScoreTransition: true,
+      onNextSentence: () async {},
+      settings: settings,
+    );
+
+    await _finishQuiz(tester, harness);
+
+    expect(find.text('毎日、例文が通知で届きます'), findsOneWidget);
+    await tester.tap(find.text('今はしない'));
+    await tester.pumpAndSettle();
+    expect(settings.experiments.single, endsWith(':show'));
+    expect(
+      settings.state.notificationCoachRepromptedVersion,
+      AppConfig.notificationCoachRepromptVersion,
+    );
+  });
+
+  testWidgets('OSで拒否済みなら、再案内のリリースでも出さない', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      showVocabScoreTransition: true,
+      onNextSentence: () async {},
+      settings: _FakeSettingsController(coachShown: true, canRequest: false),
+    );
+
+    await _finishQuiz(tester, harness);
+
+    expect(find.byType(AlertDialog), findsNothing);
   });
 
   testWidgets('通知を許可済みなら、まとめクイズ後も案内を出さない', (tester) async {
@@ -829,11 +898,39 @@ class _FakeSettingsController extends StateNotifier<SettingsState>
   _FakeSettingsController({
     bool coachShown = true,
     this.permissionGranted = false,
+    this.canRequest = false,
+    this.uid = 'uid-b',
+    String? repromptedVersion,
   }) : super(
-          SettingsState.initial().copyWith(notificationCoachShown: coachShown),
+          SettingsState.initial().copyWith(
+            notificationCoachShown: coachShown,
+            notificationCoachRepromptedVersion: repromptedVersion,
+          ),
         );
 
   final bool? permissionGranted;
+  final bool? canRequest;
+  final String? uid;
+  final experiments = <String>[];
+
+  @override
+  String? get currentUid => uid;
+
+  @override
+  Future<void> recordNotificationRepromptExperiment({
+    required String experimentId,
+    required String arm,
+  }) async {
+    experiments.add('$experimentId:$arm');
+  }
+
+  @override
+  Future<bool?> canRequestNotificationPermission() async => canRequest;
+
+  @override
+  Future<void> markNotificationCoachReprompted(String version) async {
+    state = state.copyWith(notificationCoachRepromptedVersion: version);
+  }
 
   @override
   Future<void> get initialized async {}

@@ -1188,28 +1188,18 @@ class L10nEn extends L10n {
   String get philosophyStart => 'See how it works';
 
   @override
-  String get notifCoachTitle => 'Make studying Thai a habit with notifications';
-
-  @override
-  String get notifCoachStep1 =>
-      'Choose a convenient time, such as your commute or before bed';
-
-  @override
-  String get notifCoachStep2 =>
-      'Your daily sentence arrives automatically at that time';
+  String get notifCoachTitle => 'Get a daily notification with a Thai sentence';
 
   @override
   String get notifCoachHabit =>
-      'Open it at the same time each day to build a steady habit';
-
-  @override
-  String get notifCoachPreviewLabel => 'Example notification';
+      'It arrives at the same time every day, making it easier to keep learning.';
 
   @override
   String get notifCoachNow => 'now';
 
   @override
-  String get notifCoachSampleTitle => '🇹🇭 Today\'s Thai · ขอบคุณ (thank you)';
+  String get notifCoachSampleTitle =>
+      '🇹🇭 Thai of the Day · ขอบคุณ (thank you)';
 
   @override
   String get notifCoachSampleBody => '→ Thank you for the coffee';
@@ -1218,11 +1208,11 @@ class L10nEn extends L10n {
   String get notifCoachEnable => 'Turn on notifications';
 
   @override
-  String get notifCoachLater => 'Later';
+  String get notifCoachLater => 'Not now';
 
   @override
   String get notifCoachEnabled =>
-      'Your daily sentence will arrive at this time. You can change it in Settings.';
+      'Your daily sentence will arrive at a set time each day. You can change it in Settings.';
 
   @override
   String get notifCoachStillQuiet =>
