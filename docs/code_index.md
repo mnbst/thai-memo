@@ -559,7 +559,7 @@ functions/go/internal/quality/judge.go
 例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
 
 functions/go/internal/quality/pool.go
-プールへ入れるときだけ足す Jev の観点（場面として言わない文・訳の意味のずれ・人名）と ReviewPool。生成時の作り直しには入れない。
+プールへ入れるときだけ足す Jev の観点（場面として言わない文・訳の意味のずれ）と ReviewPool。生成時の作り直しには入れない。
 
 functions/go/internal/quality/rules.go
 コードで判定する観点（訳の文法用語・英訳の助動詞なし not・既知の誤訳・語の誤用の正規表現・頭なしの ก็ตาม）と、語が文にあるときだけ Jev に用法を聞く語ごとの観点（wordUsages）。
@@ -1127,6 +1127,9 @@ prod GA4 の初回起動時の言語決定の内訳（storefront取得失敗率�
 
 scripts/prod_quota_reach.py
 例文生成の日次上限への到達率をCloud Loggingから集計（tier別・人日ベース・生成数分布）。上限値を上下させる判断材料。ログ保持30日ぶんのみ。
+
+scripts/notif_reprompt_experiment.py
+通知コーチング再案内A/B（show / holdout）の群別トークン取得率と継続率を users.notif_reprompt_experiment から集計。
 
 ## Tests (Flutter)
 
