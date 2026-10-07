@@ -127,12 +127,24 @@ func (b *Builder) intn(n int) int {
 }
 
 // BuildShotSection はテーマ回のプロンプト断片を返す。ショットの無いテーマならゼロ値。
-func (b *Builder) BuildShotSection(topic string, targetWords []string) sentence.DramaSection {
+//
+// medium が会話以外で、そのテーマにその媒体の例文（writtenShots）があればそちらを付ける。
+// 無ければ会話のショットを付け、媒体を対面の会話に戻す。
+func (b *Builder) BuildShotSection(topic string, targetWords []string, medium string) sentence.DramaSection {
+	if texts := writtenShots[topic][medium]; len(texts) > 0 {
+		return sentence.DramaSection{
+			Context: "- 参考タイ語例（言い回しの参考。この1文のみ）: " + texts[b.intn(len(texts))] + "\n",
+			Required: "- 参考タイ語例をそのまま使わず、オリジナルの1文を作る。" +
+				"参考例の語を部分的に差し替えて別の意味の語を作らない\n",
+			Medium: medium,
+		}
+	}
 	id := b.PickShot(topic, targetWords)
 	if id == "" {
 		return sentence.DramaSection{}
 	}
 	return sentence.DramaSection{
+		Medium: sentence.Media[0].Name,
 		Context: "- 場面: " + shotScene[id] + "\n" +
 			"- 参考タイ語例（話し言葉の言い回しの参考。この1文のみ）: " + shots[id] + "\n",
 		Required: "- 参考タイ語例をそのまま使わず、同じ場面のオリジナルの1文を作る。" +

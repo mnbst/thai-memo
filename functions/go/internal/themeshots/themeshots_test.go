@@ -40,7 +40,7 @@ func TestShotsArePlainThai(t *testing.T) {
 func TestBuildShotSection(t *testing.T) {
 	b := &Builder{Rand: rand.New(rand.NewSource(1))}
 
-	got := b.BuildShotSection(sentence.Topics[1], []string{"อร่อย"})
+	got := b.BuildShotSection(sentence.Topics[1], []string{"อร่อย"}, "")
 	id := pickedID(t, got.Context)
 	if !strings.Contains(got.Context, "- 場面: "+shotScene[id]) {
 		t.Errorf("場面の行が無い: %q", got.Context)
@@ -50,12 +50,12 @@ func TestBuildShotSection(t *testing.T) {
 	}
 
 	// 場面を落としたときのやり取りはテーマごとに変わる。
-	if s := b.BuildShotSection(sentence.Topics[5], []string{"ราคา"}); !strings.Contains(s.Required, "買い物のやり取りにする") {
+	if s := b.BuildShotSection(sentence.Topics[5], []string{"ราคา"}, ""); !strings.Contains(s.Required, "買い物のやり取りにする") {
 		t.Errorf("買い物のやり取りになっていない: %q", s.Required)
 	}
 
 	// ショットの無いテーマ（BL はドラマ側が持つ）には何も付けない。
-	if s := b.BuildShotSection(sentence.Topics[15], []string{"รัก"}); s != (sentence.DramaSection{}) {
+	if s := b.BuildShotSection(sentence.Topics[15], []string{"รัก"}, ""); s != (sentence.DramaSection{}) {
 		t.Errorf("ショットの無いテーマに付いた: %+v", s)
 	}
 }
@@ -115,5 +115,26 @@ func TestResolveGroup(t *testing.T) {
 	b = &Builder{Scenes: stubScenes{}}
 	if got := b.ResolveGroup(sentence.LifeTopic, "x"); got != "" {
 		t.Errorf("= %q, want 空", got)
+	}
+}
+
+// 解説・紹介文の例文があるテーマはそれを付け、無いテーマ（あいさつ）は会話のショットに戻す。
+func TestBuildShotSectionWritten(t *testing.T) {
+	b := &Builder{Rand: rand.New(rand.NewSource(1))}
+	written := sentence.Media[1].Name
+
+	got := b.BuildShotSection(sentence.Topics[1], []string{"อร่อย"}, written)
+	if got.Medium != written || strings.Contains(got.Context, "- 場面:") {
+		t.Errorf("解説文の例文になっていない: %+v", got)
+	}
+	if got := b.BuildShotSection(sentence.Topics[0], []string{"สวัสดี"}, written); got.Medium != sentence.Media[0].Name {
+		t.Errorf("あいさつが会話に戻っていない: %+v", got)
+	}
+	for topic, byMedium := range writtenShots {
+		for medium := range byMedium {
+			if medium != written {
+				t.Errorf("%s: Media に無い媒体 %q", topic, medium)
+			}
+		}
 	}
 }

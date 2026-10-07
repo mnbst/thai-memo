@@ -89,9 +89,10 @@ func TestResolveParamsGolden(t *testing.T) {
 				t.Errorf("[%d] relation=%q want %q", i, got.Relation, c.Relation)
 			}
 		} else {
-			status, intimacy, ok := strings.Cut(got.Relation, g.RelationSeparator)
-			if !ok || !contains(g.RelationStatuses, status) ||
-				!contains(g.RelationIntimacy, intimacy) {
+			parts := strings.Split(got.Relation, g.RelationSeparator)
+			if len(parts) != 3 || !contains(g.RelationStatuses, parts[0]) ||
+				!contains(g.RelationIntimacy, parts[1]) ||
+				!contains(relationSpeakers, parts[2]) {
 				t.Errorf("[%d] relation=%q が候補外", i, got.Relation)
 			}
 		}
@@ -104,7 +105,7 @@ func TestResolveParamsGolden(t *testing.T) {
 	t.Logf("%d ケース一致", len(g.Params))
 }
 
-// TestDrawRelationCoverage は抽選が地位×親密度を全て引けることを見る。
+// TestDrawRelationCoverage は抽選が地位×親密度×話し手の性別を全て引けることを見る。
 func TestDrawRelationCoverage(t *testing.T) {
 	g := loadResolveGolden(t)
 	r := &Resolver{Rand: rand.New(rand.NewSource(7))}
@@ -112,15 +113,17 @@ func TestDrawRelationCoverage(t *testing.T) {
 	for i := 0; i < 3000; i++ {
 		seen[r.DrawRelation()] = true
 	}
-	want := len(g.RelationStatuses) * len(g.RelationIntimacy)
+	want := len(g.RelationStatuses) * len(g.RelationIntimacy) * len(relationSpeakers)
 	if len(seen) != want {
 		t.Errorf("組み合わせ %d 種 want %d", len(seen), want)
 	}
 	for _, s := range g.RelationStatuses {
 		for _, in := range g.RelationIntimacy {
-			combo := s + g.RelationSeparator + in
-			if !seen[combo] {
-				t.Errorf("引かれない組み合わせ: %q", combo)
+			for _, sp := range relationSpeakers {
+				combo := s + g.RelationSeparator + in + g.RelationSeparator + sp
+				if !seen[combo] {
+					t.Errorf("引かれない組み合わせ: %q", combo)
+				}
 			}
 		}
 	}

@@ -882,8 +882,11 @@ BL以外の全テーマの参考例文ブロック。語に近い場面（embedd
 functions/go/internal/themeshots/data.go
 BL以外15テーマの参考例文758件と174場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等の字幕から Jev で振り分けて採取。文のみで人名・注釈なし）。
 
+functions/go/internal/themeshots/written.go
+媒体「解説・紹介文」の参考例文（BL・あいさつ以外14テーマ、Thai PBS ナレーター行と th.wikipedia の原文）。
+
 functions/go/internal/themeshots/themeshots_test.go
-参考例文データの形（英字・注釈なし、場面あり）と断片の組み立てのテスト。
+参考例文データの形（英字・注釈なし、場面あり）と断片の組み立て、解説文の例文の出し分けのテスト。
 
 functions/go/internal/sentence/shots_test.go
 テーマ回の参考例文がサブテーマと関係の指定を置き換えることのテスト。
