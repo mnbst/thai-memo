@@ -20,7 +20,6 @@
 /// - クイズ: Free / Premium とも回数上限なし
 /// - 選べる単語: Free=100語まで / Premium=無制限
 /// - テーマ: Free=3種 / Premium=15種
-/// - 文体: Free=2種 / Premium=5種
 /// - 広告: Free=あり / Premium=なし
 ///
 /// 【関連ファイル】
