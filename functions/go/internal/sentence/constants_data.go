@@ -69,6 +69,7 @@ var TimeFrames = []string{
 	"さっき起きた出来事",
 	"これからの予定",
 	"いつもの習慣",
+	"昨日や以前の出来事",
 }
 
 // topicLabelsEN はテーマの英語ラベル（constants.TOPIC_LABELS_EN）。
@@ -106,6 +107,7 @@ var timeFrameLabelsEN = map[string]string{
 	"さっき起きた出来事":   "Something that just happened",
 	"これからの予定":     "An upcoming plan",
 	"いつもの習慣":      "A regular habit",
+	"昨日や以前の出来事":   "Something from yesterday or earlier",
 }
 
 // subThemeLabelsEN はサブテーマの英語ラベル（constants.SUB_THEME_LABELS_EN）。

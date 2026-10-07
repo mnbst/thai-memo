@@ -9,7 +9,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
 )
 
-func TestCandidateFromSkipsNonPremium(t *testing.T) {
+func TestCandidateFromTiers(t *testing.T) {
 	created := time.Date(2026, 9, 1, 3, 0, 0, 0, time.UTC)
 	premium := map[string]any{
 		"generation_tier":      "premium",
@@ -30,12 +30,17 @@ func TestCandidateFromSkipsNonPremium(t *testing.T) {
 		t.Errorf("読み取りが欠けている: %+v", c)
 	}
 
-	free := map[string]any{"generation_tier": "free", "thai_text": "ผมกินข้าว"}
-	if _, ok := candidateFrom("u1", "s1", free); ok {
-		t.Error("free を対象にしている")
+	if c.GenerationTier != "premium" {
+		t.Errorf("tier = %q, want premium", c.GenerationTier)
 	}
 
-	// generation_tier を持たない旧 doc も対象外（premium と断定できない）。
+	// free の LLM 生成も対象（free のプールへ回す）。
+	free := map[string]any{"generation_tier": "free", "thai_text": "ผมกินข้าว"}
+	if c, ok := candidateFrom("u1", "s1", free); !ok || c.GenerationTier != "free" {
+		t.Errorf("free を tier 付きで対象にしていない: ok=%v %+v", ok, c)
+	}
+
+	// generation_tier を持たない旧 doc は対象外（どちらのプールか決められない）。
 	if _, ok := candidateFrom("u1", "s1", map[string]any{"thai_text": "ผมกินข้าว"}); ok {
 		t.Error("tier 不明の doc を対象にしている")
 	}

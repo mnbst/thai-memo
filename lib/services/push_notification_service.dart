@@ -165,6 +165,19 @@ class PushNotificationService {
     }
   }
 
+  /// OSの通知許可をまだ一度も求めていないか（notDetermined）。
+  ///
+  /// iOS は一度拒否されるとアプリから許可ダイアログを出せないため、再案内して
+  /// 意味があるのはこれが true の人だけ。取得に失敗したときは null。
+  Future<bool?> canRequestPermission() async {
+    try {
+      final settings = await _messaging.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.notDetermined;
+    } catch (_) {
+      return null;
+    }
+  }
+
   void dispose() {
     _tokenRefreshSubscription?.cancel();
     _tokenRefreshSubscription = null;
@@ -216,6 +229,33 @@ class PushNotificationService {
       await _disableRegistration(deleteDeviceToken: true);
     } catch (_) {
       // 失敗しても daily_reminder_enabled: false が書けていれば配信は止まる
+    }
+  }
+
+  /// サインイン中の uid。未サインインなら null。
+  String? get currentUid => _auth.currentUser?.uid;
+
+  /// 通知の再案内A/Bの割り当てを users/{uid} に残す。
+  ///
+  /// 継続率は Firestore の users（last_opened_at など）で比べるため、対象に
+  /// なった人と群を uid 単位で残す。最初の割り当てだけを残し、上書きしない。
+  Future<void> recordRepromptExperiment({
+    required String experimentId,
+    required String arm,
+  }) async {
+    try {
+      await _userDoc?.set(
+        {
+          'notif_reprompt_experiment': {
+            'id': experimentId,
+            'arm': arm,
+            'assigned_at': FieldValue.serverTimestamp(),
+          },
+        },
+        SetOptions(merge: true),
+      );
+    } catch (_) {
+      // 記録に失敗しても案内の出し分け自体は uid から再現できる。
     }
   }
 

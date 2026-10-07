@@ -57,12 +57,11 @@ func (r *Resolver) Resolve(
 		Topic:        strParam(params, "topic"),
 	}
 
-	// 2026-08-05 追加の直交軸。どちらも「何を言うか」ではなく「いつのことを、
-	// どういう構えで言うか」を決めるだけなので、確定済みの key_word とも
-	// テーマとも衝突しない。
+	// 2026-08-05 追加の軸。「いつのことを言うか」を決める。一様に引くと
+	// key_word と衝突する（พรุ่งนี้ に過去の時点）ので、語が自然に置ける時点から引く。
 	resolved.TimeFrame = strParam(params, "timeFrame")
 	if resolved.TimeFrame == "" {
-		resolved.TimeFrame = r.choice(TimeFrames)
+		resolved.TimeFrame = r.choice(TimeFrameCandidates(targetWords))
 	}
 
 	// 話し手と聞き手の関係。key_word ともテーマとも衝突しない直交軸

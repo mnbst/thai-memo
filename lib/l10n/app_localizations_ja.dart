@@ -1117,19 +1117,10 @@ class L10nJa extends L10n {
   String get philosophyStart => '使い方を見る';
 
   @override
-  String get notifCoachTitle => '通知でタイ語学習を習慣にしましょう';
+  String get notifCoachTitle => '毎日、例文が通知で届きます';
 
   @override
-  String get notifCoachStep1 => '通勤中や寝る前など、学習を続けやすい時刻を決めます';
-
-  @override
-  String get notifCoachStep2 => 'その時刻に、あなた向けの例文が自動で届きます';
-
-  @override
-  String get notifCoachHabit => '毎日同じ時間に開くので、無理なく続けられます';
-
-  @override
-  String get notifCoachPreviewLabel => '通知の例）';
+  String get notifCoachHabit => '同じ時間に届くので、続けやすくなります';
 
   @override
   String get notifCoachNow => '今';
@@ -1144,10 +1135,10 @@ class L10nJa extends L10n {
   String get notifCoachEnable => '通知をオンにする';
 
   @override
-  String get notifCoachLater => 'あとで';
+  String get notifCoachLater => '今はしない';
 
   @override
-  String get notifCoachEnabled => '毎日この時間に例文をお届けします。時刻は設定で変更できます。';
+  String get notifCoachEnabled => '毎日、決まった時間に例文をお届けします。時刻は設定で変更できます。';
 
   @override
   String get notifCoachStillQuiet => '通知はこれまでどおり、通知センターに静かに届きます。';

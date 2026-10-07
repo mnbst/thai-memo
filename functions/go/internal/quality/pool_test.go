@@ -51,9 +51,10 @@ func TestPoolThresholds(t *testing.T) {
 		scores map[string]float64
 		bad    bool
 	}{
-		{map[string]float64{"situation": 0.35, "tmean": 0.4}, false},
-		{map[string]float64{"situation": 0.36, "tmean": 0.1}, true},
-		{map[string]float64{"situation": 0.1, "tmean": 0.41}, true},
+		{map[string]float64{"situation": 0.35, "tmean": 0.4, "name": 0.4}, false},
+		{map[string]float64{"situation": 0.36, "tmean": 0.1, "name": 0.1}, true},
+		{map[string]float64{"situation": 0.1, "tmean": 0.41, "name": 0.1}, true},
+		{map[string]float64{"situation": 0.1, "tmean": 0.1, "name": 0.41}, true},
 	}
 	c := sample(1)[0]
 	for _, tc := range cases {

@@ -88,3 +88,6 @@ tools/x_post/fonts/
 # cmd 配下をローカルでビルドした実行ファイル
 functions/go/sample
 functions/go/usagefill
+
+# ストア用スクショの見出しフォント（fetch_fonts.sh が取得）
+tools/store_screenshots/fonts/

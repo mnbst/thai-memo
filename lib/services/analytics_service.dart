@@ -422,8 +422,13 @@ class AnalyticsService {
   /// [action] は shown（表示）/ accepted（わかった）/ dismissed（明示的な選択なし）。
   /// 実際に通知がオンになったかは change_setting(daily_reminder_enabled) で見る。
   /// shown を分母に、そこまでの離脱段階を切り分けるために出している。
-  Future<void> logNotificationCoach({required String action}) async {
-    await _logEvent('notification_coach', {'action': action});
+  /// [source] は first（初回）/ reprompt（断った人へのリリースごとの再案内）。
+  /// 再案内A/Bで出さない群に当たったときは action=holdout を出す。
+  Future<void> logNotificationCoach({
+    required String action,
+    required String source,
+  }) async {
+    await _logEvent('notification_coach', {'action': action, 'source': source});
   }
 
   /// プレミアム体験トライアル終了案内の表示と結果。
