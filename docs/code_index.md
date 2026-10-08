@@ -1077,6 +1077,9 @@ scripts/build_freq_rank.py
 scripts/export_corpus_bank.py
 コーパスのJSONLを例文バンク（GCS）の形へ言語別に書き出すスクリプト。word_denylist.json の語はここでも落とす。
 
+scripts/fw_trans_audit.py
+プール・静的コーパスの訳で機能語（ทัน・เพิ่ง・คง 等）の意味が落ちた文の候補をルールで拾い（scan）、確定した訳を当てる（apply）。手順は fw-trans-audit スキル。
+
 scripts/pack_corpus.py
 cmd/translate の最終JSONLを、アプリ同梱の読み取り専用SQLite（corpus_sentences / corpus_words / corpus_meta）にまとめる。列名はアプリ側の既存テーブルに合わせ、word_denylist.json の語は弾く。
 
