@@ -80,8 +80,10 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "com.thaimemo.thai_memo"
+        // tester は別アプリ（iOS の com.thaimemo.Test と同じ考え方）。同じパッケージと
+        // 署名鍵の Android OAuth クライアントは prod プロジェクトにしか作れないため、
+        // 同じパッケージのままでは tester の Google サインインが通らない。
+        applicationId dartEnv == 'tester' ? "com.thaimemo.thai_memo.test" : "com.thaimemo.thai_memo"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdkVersion flutter.minSdkVersion
