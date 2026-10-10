@@ -451,6 +451,12 @@ abstract class L10n {
   /// **'例文を復習する'**
   String get quizReviewSentence;
 
+  /// No description provided for @quizOpenSentenceDetail.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文の詳細を見る'**
+  String get quizOpenSentenceDetail;
+
   /// No description provided for @quizHint.
   ///
   /// In ja, this message translates to:

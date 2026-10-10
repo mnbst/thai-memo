@@ -110,6 +110,7 @@
   },
   "quizSentenceReviewed": "Sentence reviewed",
   "quizReviewSentence": "Review the sentence",
+  "quizOpenSentenceDetail": "View sentence details",
   "quizHint": "Hint",
   "quizHintPronunciation": "Hint 1: show pronunciation",
   "quizHintTranslation": "Hint 2: show translation",

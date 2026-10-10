@@ -176,6 +176,13 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<Map<String, Object?>> interviewEvents = [];
   final List<Map<String, Object?>> vocabTestEvents = [];
   final List<Map<String, String>> coachMarkEvents = [];
+  final List<String> viewDetailSources = [];
+
+  @override
+  Future<void> logViewDetail(
+      {String? sentenceId, required String source}) async {
+    viewDetailSources.add(source);
+  }
 
   @override
   Future<void> logCoachMark({
@@ -184,6 +191,7 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   }) async {
     coachMarkEvents.add({'id': id, 'action': action});
   }
+
   final List<String> notificationCoachEvents = [];
 
   /// 購入導線の計測。source を控えるだけ（月額／買い切りの判別に使う）。
