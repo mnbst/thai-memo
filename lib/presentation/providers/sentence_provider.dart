@@ -30,6 +30,38 @@ typedef GenerateSentenceCallback = Future<List<ThaiSentence>> Function({
 /// 毎日配信もアプリからの生成もこの本数でまとめる。サーバー側の
 /// `internal/sentence.SetSize` と必ず一致させること。
 const int learningSetSize = 5;
+
+/// [learningSetSize] へ戻す語彙スコア。
+const int beginnerRampVocab = 50;
+
+/// ヒアリング（interview.level）ごとの最初のセットの本数。載っていない回答
+/// （chars / conv / 未回答）は最初から [learningSetSize]。サーバーの
+/// `beginnerStartSizes` と同じ値にすること。
+const Map<String, int> beginnerStartSetSizes = {
+  'none': 2, // まったく初めて
+  'words': 3, // 単語や挨拶はわかる
+};
+
+/// そのユーザーの1セットの本数。users/{uid} の中身から決める。
+///
+/// サーバーの `internal/sentence.SetSizeFor` と必ず同じ式にすること。生成・配信の
+/// 本数はサーバーが決めるので、こちらは「読みかけの長いセットを縮める」ためだけに
+/// 使う（DailySetController.shrinkActiveSet）。
+/// 入門者は [beginnerStartSetSizes] の本数から始め、語彙スコア
+/// [beginnerRampVocab] で [learningSetSize] に届くよう等間隔に増やす。
+/// none は 0〜16 → 2本、17〜33 → 3本、34〜49 → 4本。words は 0〜24 → 3本、
+/// 25〜49 → 4本。
+int learningSetSizeFor(Map<String, dynamic>? userData) {
+  final interview = userData?['interview'];
+  final level = interview is Map ? interview['level'] : null;
+  final start = beginnerStartSetSizes[level];
+  if (start == null) return learningSetSize;
+  final raw = userData?['estimated_vocab'];
+  final vocab = raw is num ? raw.toInt().clamp(0, beginnerRampVocab) : 0;
+  if (vocab >= beginnerRampVocab) return learningSetSize;
+  return start + vocab * (learningSetSize - start) ~/ beginnerRampVocab;
+}
+
 typedef GetMostRecentSentenceCallback = Future<ThaiSentence?> Function();
 
 // ==================== Repository Provider ====================

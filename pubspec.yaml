@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.4.13+0
+version: 1.4.17+0
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -74,7 +74,7 @@ dependencies:
   # In-App Purchase
   in_app_purchase: ^3.2.0
   # 無料トライアルの判定（iOS: 対象者か / Android: 無料期間付きオファー）に使う。
-  in_app_purchase_android: ^0.4.0+8
+  in_app_purchase_android: ^0.5.0
   in_app_purchase_storekit: ^0.4.8+1
   url_launcher: ^6.3.2
 
@@ -111,6 +111,10 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/appicon.png"
   remove_alpha_ios: true
+  # Android の丸・角丸マスクで余白が出ないよう、青を背景色、図柄を前景に分ける。
+  adaptive_icon_background: "#012CE0"
+  adaptive_icon_foreground: "assets/appicon_foreground.png"
+  adaptive_icon_foreground_inset: 20
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

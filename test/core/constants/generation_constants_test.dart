@@ -5,10 +5,10 @@ import 'package:thai_memo/core/constants/generation_constants.dart';
 // 毎日配信はサーバーの対応表を使うので、両方を同じ内容に保つ。
 void main() {
   group('topicForInterviewGoal', () {
-    test('候補はテーマ一覧の中から選ぶ', () {
+    test('候補はテーマ選択の一覧の中から選ぶ', () {
       for (final candidates in GenerationConstants.interviewGoalTopics.values) {
         for (final topic in candidates) {
-          expect(GenerationConstants.topics, contains(topic));
+          expect(GenerationConstants.pickerTopics, contains(topic));
         }
       }
     });
@@ -26,18 +26,12 @@ void main() {
 
     test('考え方の画面が名指ししているテーマは必ず出せる', () {
       final promised = {
-        // 旅行・交通
-        'travel': [
-          GenerationConstants.topics[5],
-          GenerationConstants.topics[8],
-        ],
+        // タイ旅行
+        'travel': [GenerationConstants.travelTopic],
         // 仕事
         'work': [GenerationConstants.topics[2]],
-        // 買い物・家族
-        'live': [
-          GenerationConstants.topics[7],
-          GenerationConstants.topics[6],
-        ],
+        // タイ暮らし
+        'live': [GenerationConstants.lifeTopic],
         // BLドラマ・伝統・祭り
         'culture': [
           GenerationConstants.topics[0],
@@ -55,18 +49,32 @@ void main() {
     test('候補が複数あるものは1つに固定しない', () {
       final picked = {
         for (var i = 0; i < 100; i++)
-          GenerationConstants.topicForInterviewGoal('travel'),
+          GenerationConstants.topicForInterviewGoal('culture'),
       };
       expect(picked.length, greaterThan(1));
       expect(
         picked,
-        everyElement(isIn(GenerationConstants.interviewGoalTopics['travel']!)),
+        everyElement(isIn(GenerationConstants.interviewGoalTopics['culture']!)),
       );
     });
 
     test('未回答・未知の goal では null（サーバーの自動選出に任せる）', () {
       expect(GenerationConstants.topicForInterviewGoal(null), isNull);
       expect(GenerationConstants.topicForInterviewGoal('unknown'), isNull);
+    });
+  });
+
+  group('pickerTopics', () {
+    test('まとめたテーマを出し、その中身の個別テーマは出さない', () {
+      final picker = GenerationConstants.pickerTopics;
+      expect(picker, containsAll([
+        GenerationConstants.lifeTopic,
+        GenerationConstants.travelTopic,
+      ]));
+      for (final i in [4, 5, 6, 7, 8, 9, 10]) {
+        expect(picker, isNot(contains(GenerationConstants.topics[i])));
+      }
+      expect(picker.toSet().length, picker.length);
     });
   });
 }

@@ -87,7 +87,7 @@ void main() {
     expect(find.text('今日の1文から'), findsNothing);
     expect(find.text('つまずきは仕組みで越える'), findsNothing);
     // 「旅行で使いたい」と答えたので、テーマ選択の案内を返す。
-    expect(find.textContaining('「旅行」や「交通」'), findsOneWidget);
+    expect(find.textContaining('「タイ旅行」'), findsOneWidget);
     // 語彙推定の締め文はここに出さない（冗長になるため）。
     expect(find.textContaining('次の例文の難しさを調整'), findsNothing);
     // 強調マーカーは描画されない（パースされて色と太さになる）。
@@ -107,6 +107,7 @@ void main() {
       analytics.interviewEvents.map((e) => e['action']),
       containsAllInOrder(['start', 'answer', 'answer', 'answer', 'answer', 'complete']),
     );
+    expect(analytics.interviewLevels, ['none']);
   });
 
   testWidgets('考え方は上から1項目ずつ現れる', (tester) async {

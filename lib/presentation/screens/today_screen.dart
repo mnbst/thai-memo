@@ -1037,8 +1037,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
             ],
             // 上限に当たった瞬間は「なぜ premium が要るのか」が最も伝わる場面
-            // なので、ここでだけ割り込みなしに訴求する。free 5 に対して
-            // premium 20（2026-08-25 に 10→20）と差が付いたため噛み合う。
+            // なので、ここでだけ割り込みなしに訴求する。free は1日2セット、
+            // premium は無制限なので差が伝わりやすい。
             // premium で使い切った人には勧める先が無いので出さない。
             if (showUpgrade) ...[
               const SizedBox(height: 24),

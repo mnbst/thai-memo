@@ -209,6 +209,17 @@ var sylPhoneFix = map[string]string{
 	"แผล": "phlxx4", // phlɛ̌ɛ（傷）。誤: phxxn4
 }
 
+// sylPhoneRewrite は selectPhones が選んだ音素列を書き換える音節。
+//
+// tltk の音節辞書は ฆาต に khaat2'ka1 を与えており、末子音 ต をもう一度
+// 頭子音として読むつなぎの音節が ก になっていた（ฆาตกร -> khâat-kà-kɔɔn）。
+// 統計（PhS*gram）もこの誤った音素列で数えてあるため、辞書を直すと統計に
+// 当たらず連結なしの khaat2 が選ばれてしまう。そこで選択は元の音素列のまま
+// 行い、選ばれた後で正しい音素列に置き換える。
+var sylPhoneRewrite = map[string]map[string]string{
+	"ฆาต": {"khaat2'ka1": "khaat2'ta1"}, // khâat-tà（ฆาตกร 殺人者）
+}
+
 var reQuote = regexp.MustCompile(`'`)
 
 // selectPhones は SelectPhones:558。音節ごとに最尤の音素列を選ぶ。
@@ -245,6 +256,11 @@ func selectPhones(s *phoneStats, pronun map[string][]string, slst []string) stri
 			}
 		}
 		out = append(out, outp)
+	}
+	for i, syl := range slst {
+		if fix, ok := sylPhoneRewrite[syl][out[i]]; ok {
+			out[i] = fix
+		}
 	}
 	return strings.Join(out, sylSep)
 }

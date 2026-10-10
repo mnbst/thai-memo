@@ -129,7 +129,7 @@ func TestSelectSentencesBySRS(t *testing.T) {
 		}
 	}
 
-	sel := newSelection()
+	sel := newSelection(maxQuestions)
 	if err := selectSentencesBySRS(ctx, db, uid, jstNow, nil, true, sel); err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestSelectSentencesBySRSNoSentences(t *testing.T) {
 	db, ctx := liveFirestore(t)
 	fixedShuffle(t)
 
-	sel := newSelection()
+	sel := newSelection(maxQuestions)
 	if err := selectSentencesBySRS(ctx, db, "go-port-srs-empty-throwaway",
 		time.Now().UTC().Add(jstOffset), nil, true, sel); err != nil {
 		t.Fatal(err)

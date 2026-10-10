@@ -20,8 +20,9 @@
 //
 //   - trans_add（訳の加筆・欠落）だけ閾値を 0.6 に上げる。「最近」の補いや
 //     過去形など細かい揺れで 0.4〜0.6 に立つものが大半だった
-//   - 英訳の文には訳の観点（trans_add / trans_wrong）を聞かない。英訳は
-//     直訳・時制なしを仕様にしており、加筆・誤訳の問いと噛み合わない
+//   - 英訳の文には訳の観点（trans_add / trans_wrong）を聞かない。当時の英訳は
+//     直訳・時制なしを仕様にしており、加筆・誤訳の問いと噛み合わなかった。
+//     2026-10-04 に英訳も自然な訳へ戻したので、英訳に聞くかは測り直して決める
 //     Jev 生成ルール50本をそのまま         AUC 0.72。出力形式のルールが正常文でも
 //     0.66〜0.76 で立ち、判定に使えない
 //
@@ -111,6 +112,8 @@ type Aspect struct {
 	// Check があればコードで判定する観点（Jev には送らない）。真なら不合格。
 	// 文字種・記号のように確実に判定できるものは Jev に聞かない。
 	Check func(Candidate) bool
+	// Trigger があれば、真の文にだけ聞く（語ごとの用法の観点。rules.go）。
+	Trigger func(Candidate) bool
 }
 
 // aspectPreamble は全観点の先頭に付ける state の説明。
@@ -137,7 +140,7 @@ const aspectPreamble = "`thai_text` はタイ語学習用の例文、`japanese_t
 //	誤っている語を名指し  誤り 8/8（≥0.90）・正しい文 0/10（≤0.20）・prod 3/245（3本とも本物）
 //	正しい語も名指し      同じ罠で同等だが prod で境界の誤検出が +3
 //	タイ語の例なし        正しい文 5/10 を不合格にする。使えない
-var Aspects = []Aspect{
+var Aspects = append([]Aspect{
 	{ID: "collocation", Label: "共起", Threshold: Threshold,
 		Question: "`thai_text` の中に、タイ語母語話者が使わない語の組み合わせ（動詞と目的語、名詞と修飾語、副詞の係り先）があるか"},
 	{ID: "grammar", Label: "文法", Threshold: Threshold,
@@ -170,6 +173,22 @@ var Aspects = []Aspect{
 	{ID: "trans_paren", Label: "訳の括弧補足", JAOnly: true,
 		Note:  "japanese_translation に括弧で補足を書いていた。括弧を使わずに訳す",
 		Check: func(c Candidate) bool { return strings.ContainsAny(c.JapaneseTranslation, "（(") }},
+	// 以下4つは rules.go（測定値もそちら）。
+	{ID: "trans_term", Label: "訳に文法用語",
+		Note:  "japanese_translation に品詞名・文法用語や角括弧を書いていた。対応する語が無いものは訳さずに落とす",
+		Check: gramTerm},
+	{ID: "trans_bare_not", Label: "英訳の否定の形",
+		Note:  "japanese_translation の否定を助動詞なしの not で書いていた。do not / does not など自然な英語の否定にする",
+		Check: bareNot},
+	{ID: "trans_lexicon", Label: "既知の誤訳",
+		Note:  "japanese_translation で、thai_text の語を、それより狭い別の物を指す訳語で訳していた。thai_text の語が指す範囲のまま訳す",
+		Check: knownMistrans},
+	{ID: "word_misuse", Label: "語の場面違い",
+		Note:  "thai_text で、日本語訳が当てはまるだけの語を別の場面に当てていた（体調の語を物の感想に、山頂の語を物や体の上端に、推量の語を依頼の前置きに、乗り場の名を乗り物に）。その場面でタイ語の話者が実際に使う言い方にする",
+		Check: wordMisuse},
+	{ID: "concessive_head", Label: "譲歩の形",
+		Note:  "thai_text で、「〜であっても」を表す文末の語を、「たとえ／どんなに／何であれ」に当たる前置きなしで置いていた。前置きを足すか、文末の語を外す",
+		Check: concessiveNoHead},
 	// 呼称の音写は trans_vocative が見る。ここに例として残すと、あだ名の正しい
 	// カタカナ表記（カン先輩、マウィンさん）まで誤訳にされる（2026-09-26 評価セットで
 	// 正常の誤検出 14→8〜11/70、欠陥の検出 45/55 のまま）。
@@ -177,7 +196,13 @@ var Aspects = []Aspect{
 		Question: "`japanese_translation` が `thai_text` の語を誤訳している（別の意味の語で訳す、動作の主体を取り違える）か"},
 	{ID: "keyword", Label: "key_word の用法", Threshold: Threshold,
 		Question: "`key_word` が `thai_text` の中で不自然に、または本来と違う意味で使われているか"},
-}
+	// その場で作ったたとえ（×หัวใจผมวิ่งอยู่ในเลนเดียวกับคุณ）だけを落とし、定着した言い回しは
+	// 通す（2026-10-01）。BL罠と prod プールの目視ラベルで、不自然 16/18 検出・定着／字義どおり
+	// 2/20 誤検出・prod プール 3/233。定着側の語を名指ししないと検出が 14/18 に落ちる。
+	{ID: "metaphor", Label: "その場で作ったたとえ", Threshold: Threshold,
+		Question: "`thai_text` で、気持ち・関係・人生を物や場所に見立てたたとえのうち、タイ語の母語話者が普段使わない、その場で作ったたとえを使っているか。タイ語で定着した言い回し（อารมณ์ระเบิด、ข้ามเขตเพื่อน、หมูๆ、วงแขน 等）は含まない",
+		Note:     "thai_text で、気持ちや関係を物や場所に見立てた、タイ語の母語話者が普段使わないたとえを使っていた。語を字義どおりに使うか、タイ語で定着した言い回しにする"},
+}, wordUsageAspects()...)
 
 // Threshold は観点の既定の閾値。これを超えた観点が1つでもあれば不合格。
 // 0.4 で誤検出 0/21、0.35 で検出 +2 件・誤検出 +2〜3 件（2026-09-25）。
@@ -226,11 +251,19 @@ func jevAspects(aspects []Aspect) []Aspect {
 	return out
 }
 
-// aspectsFor は l の文に聞く観点を返す。
-func aspectsFor(l lang.Lang) []Aspect {
-	out := make([]Aspect, 0, len(Aspects))
-	for _, a := range Aspects {
-		if a.JAOnly && l == lang.EN {
+// aspectsFor は c に聞く観点を返す。
+func aspectsFor(c Candidate) []Aspect {
+	return aspectsIn(Aspects, c)
+}
+
+// aspectsIn は list のうち c に聞く観点を返す。
+func aspectsIn(list []Aspect, c Candidate) []Aspect {
+	out := make([]Aspect, 0, len(list))
+	for _, a := range list {
+		if a.JAOnly && c.Lang == lang.EN {
+			continue
+		}
+		if a.Trigger != nil && !a.Trigger(c) {
 			continue
 		}
 		out = append(out, a)
@@ -283,15 +316,21 @@ func (j *Judge) JudgeBatch(ctx context.Context, batch []Candidate) ([]Candidate,
 // 呼び出しに失敗した文はどちらにも入れない（無言の欠落を合格にしない）。
 // 失敗があっても判定できた分は返し、エラーはまとめて返す。
 func (j *Judge) Review(ctx context.Context, batch []Candidate) (Result, error) {
+	return j.review(ctx, batch, Aspects)
+}
+
+// review は list の観点で batch を判定する（Review / ReviewPool の本体）。
+func (j *Judge) review(ctx context.Context, batch []Candidate, list []Aspect) (Result, error) {
 	var res Result
 	var errs []error
 	for i, c := range batch {
-		scores, err := j.score(ctx, c)
+		aspects := aspectsIn(list, c)
+		scores, err := j.score(ctx, c, aspects)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", FlagID(c), err))
 			continue
 		}
-		if v, bad := verdictFrom(i, c.Lang, scores); bad {
+		if v, bad := verdictFrom(i, aspects, scores); bad {
 			res.Flagged = append(res.Flagged, c)
 			res.Verdicts = append(res.Verdicts, v)
 		} else {
@@ -301,10 +340,10 @@ func (j *Judge) Review(ctx context.Context, batch []Candidate) (Result, error) {
 	return res, errors.Join(errs...)
 }
 
-// verdictFrom は観点ごとの確率から合否を決める。
-func verdictFrom(index int, l lang.Lang, scores map[string]float64) (Verdict, bool) {
+// verdictFrom は観点ごとの確率から合否を決める。aspects はその文に聞いた観点。
+func verdictFrom(index int, aspects []Aspect, scores map[string]float64) (Verdict, bool) {
 	var hits []Aspect
-	for _, a := range aspectsFor(l) {
+	for _, a := range aspects {
 		if scores[a.ID] > a.Threshold {
 			hits = append(hits, a)
 		}
@@ -339,14 +378,18 @@ type jevState struct {
 // 0.16〜0.61 → map の辞書順＝japanese_translation 先頭 0.41〜0.87）。
 // 閾値は thai_text 先頭で測ったもの。criteria の順序はほぼ効かない。
 func RequestBody(model string, c Candidate) map[string]any {
+	return requestBody(model, c, aspectsFor(c))
+}
+
+// requestBody は aspects（その文に聞く観点）で本文を組む。
+func requestBody(model string, c Candidate, aspects []Aspect) map[string]any {
 	state := jevState{
 		ThaiText:            c.ThaiText,
 		JapaneseTranslation: c.JapaneseTranslation,
 		KeyWord:             c.KeyWord,
 	}
-	aspects := jevAspects(aspectsFor(c.Lang))
 	questions := make(map[string]any, len(aspects))
-	for _, a := range aspects {
+	for _, a := range jevAspects(aspects) {
 		questions[a.ID] = map[string]any{
 			"type":         "noul",
 			"instructions": aspectPreamble + a.Question,
@@ -359,10 +402,10 @@ func RequestBody(model string, c Candidate) map[string]any {
 	return map[string]any{"model": model, "state": state, "questions": questions}
 }
 
-// score は 1 文を判定し、観点 ID → はいの確率 を返す。
+// score は 1 文を aspects（その文に聞く観点）で判定し、観点 ID → はいの確率 を返す。
 // 429 / 529 は指数バックオフで数回だけ再試行する。
-func (j *Judge) score(ctx context.Context, c Candidate) (map[string]float64, error) {
-	body, err := json.Marshal(RequestBody(j.model(), c))
+func (j *Judge) score(ctx context.Context, c Candidate, aspects []Aspect) (map[string]float64, error) {
+	body, err := json.Marshal(requestBody(j.model(), c, aspects))
 	if err != nil {
 		return nil, err
 	}
@@ -404,12 +447,12 @@ func (j *Judge) score(ctx context.Context, c Candidate) (map[string]float64, err
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("jev: status %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
 		}
-		scores, err := ParseScores(raw, jevAspects(aspectsFor(c.Lang)))
+		scores, err := ParseScores(raw, jevAspects(aspects))
 		if err != nil {
 			return nil, err
 		}
 		// コードで判定する観点は 1（不合格）/ 0 で並べる。
-		for _, a := range aspectsFor(c.Lang) {
+		for _, a := range aspects {
 			if a.Check == nil {
 				continue
 			}

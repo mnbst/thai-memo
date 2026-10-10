@@ -94,8 +94,8 @@ func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 	if v.Index != 1 || v.Reason != "共起 0.62・文法 0.45" {
 		t.Errorf("verdict = %+v", v)
 	}
-	// 閾値未満の観点も scores に残す。
-	if len(v.Scores) != len(Aspects) {
+	// 閾値未満の観点も scores に残す（語の用法の観点は語が無い文には聞かない）。
+	if len(v.Scores) != len(Aspects)-len(wordUsages) {
 		t.Errorf("scores は全観点を持つ: %v", v.Scores)
 	}
 	if s.calls.Load() != 3 {
@@ -121,7 +121,7 @@ func TestTransAddUsesHigherThreshold(t *testing.T) {
 	}
 }
 
-// 英訳の文には訳の観点を聞かない（直訳・時制なしが仕様で、問いと噛み合わない）。
+// 英訳の文には訳の観点を聞かない（judge.go 先頭のコメント参照）。
 func TestEnglishSkipsTranslationAspects(t *testing.T) {
 	batch := sample(1)
 	batch[0].Lang = lang.EN
@@ -142,7 +142,7 @@ func TestEnglishSkipsTranslationAspects(t *testing.T) {
 	_ = json.Unmarshal(s.last.Load().([]byte), &body)
 	want := 0
 	for _, a := range Aspects {
-		if a.JAOnly || a.Check != nil {
+		if a.JAOnly || a.Check != nil || a.Trigger != nil {
 			if _, ok := body.Questions[a.ID]; ok {
 				t.Errorf("英訳の文に %s を送っている", a.ID)
 			}
@@ -292,6 +292,82 @@ func TestCodeChecks(t *testing.T) {
 	res, _ = newJudge(t, &jevServer{}).Review(context.Background(), en)
 	if len(res.Flagged) != 1 || res.Flagged[0].JapaneseTranslation != "I go with พี่" {
 		t.Errorf("英訳の判定が違う: %+v", res.Flagged)
+	}
+}
+
+// 訳の形のルール（rules.go）。例は prod プールと ablation で実際に出た訳。
+func TestTranslationRules(t *testing.T) {
+	cases := []struct {
+		l          lang.Lang
+		thai, tr   string
+		want       bool
+		check      func(Candidate) bool
+		checkLabel string
+	}{
+		{lang.EN, "", "I progressive go buy stuff work.", true, gramTerm, "gramTerm"},
+		{lang.EN, "", "Go order spicy less for [me] please.", true, gramTerm, "gramTerm"},
+		{lang.EN, "", "Is this a question?", false, gramTerm, "gramTerm"},
+		{lang.EN, "", "Now I not ache.", true, bareNot, "bareNot"},
+		{lang.EN, "", "If I not go you will sad?", true, bareNot, "bareNot"},
+		{lang.EN, "", "Do you not like it?", false, bareNot, "bareNot"},
+		{lang.EN, "", "I do not work tomorrow.", false, bareNot, "bareNot"},
+		{lang.JA, "", "私 not 行く。", false, bareNot, "bareNot"},
+		{lang.JA, "เย็นนี้จะไปซื้อเสื้อที่ตลาดนัด", "今晩ナイトマーケットでシャツを買う。", false, knownMistrans, "knownMistrans"},
+		{lang.JA, "ผมซื้อเสื้อที่ตลาดนัดบ่อย", "ナイトマーケットでよくシャツを買う。", true, knownMistrans, "knownMistrans"},
+		{lang.JA, "ผมซื้อเสื้อที่ตลาดนัดบ่อย", "市場でよくシャツを買う。", false, knownMistrans, "knownMistrans"},
+		{lang.EN, "ผมซื้อเสื้อที่ตลาดนัดบ่อย", "I often buy shirts at the night market.", true, knownMistrans, "knownMistrans"},
+		{lang.JA, "ผมจะขึ้นรถไฟฟ้า", "私はBTSに乗る。", true, knownMistrans, "knownMistrans"},
+		{lang.JA, "ผมจะขึ้นรถไฟฟ้าบีทีเอส", "私はBTSに乗る。", false, knownMistrans, "knownMistrans"},
+		{lang.JA, "เสื้อตัวนี้ใส่แล้วสบายดีผมชอบครับ", "", true, wordMisuse, "wordMisuse"},
+		{lang.JA, "คุณกินกุ้งแล้วสบายดีไหม", "", false, wordMisuse, "wordMisuse"},
+		{lang.JA, "คุณคงสบายดีหลังจากที่ย้ายไปที่อื่น", "", false, wordMisuse, "wordMisuse"},
+		{lang.JA, "มึงดูบนยอดชั้นนี้", "", true, wordMisuse, "wordMisuse"},
+		{lang.JA, "ทัวร์นี้ไปที่ยอดเขาประจำ", "", false, wordMisuse, "wordMisuse"},
+		{lang.JA, "บางทีคุณลดราคาให้ได้ไหมครับ", "", true, wordMisuse, "wordMisuse"},
+		{lang.JA, "บางทีผมก็ลืมขอบคุณครับ", "", false, wordMisuse, "wordMisuse"},
+		{lang.JA, "พี่อย่าขยับบนวินครับ", "", true, wordMisuse, "wordMisuse"},
+		{lang.JA, "พรุ่งนี้ทัวร์จะเลื่อนก็ตาม ผมก็ต้องไปที่นั่นครับ", "", true, concessiveNoHead, "concessiveNoHead"},
+		{lang.JA, "ถึงรู้ว่าอาหารนี้มีถั่ว ผมก็ยังทานไปก็ตาม", "", true, concessiveNoHead, "concessiveNoHead"},
+		{lang.JA, "ถึงพรุ่งนี้ทัวร์จะเลื่อนก็ตาม ผมก็ต้องไป", "", false, concessiveNoHead, "concessiveNoHead"},
+		{lang.JA, "เหนื่อยแค่ไหนก็ตามต้องสู้ต่อ", "", false, concessiveNoHead, "concessiveNoHead"},
+		{lang.JA, "มึงจะเชื่อหรือไม่ก็ตาม ดวงมึงแม่นนะ", "", false, concessiveNoHead, "concessiveNoHead"},
+		{lang.JA, "แผนงานนี้ชัดเจน อย่างไรก็ตามงบมีจำกัด", "", false, concessiveNoHead, "concessiveNoHead"},
+		{lang.JA, "มึงทายว่ากูชอบมึง งั้นก็ตามนั้นเลย", "", false, concessiveNoHead, "concessiveNoHead"},
+	}
+	for _, c := range cases {
+		got := c.check(Candidate{Lang: c.l, ThaiText: c.thai, JapaneseTranslation: c.tr})
+		if got != c.want {
+			t.Errorf("%s(%q) = %v, want %v", c.checkLabel, c.tr, got, c.want)
+		}
+	}
+}
+
+// 語の用法の観点は、その語がある文にだけ聞く。
+func TestWordUsageAspectsAreTriggered(t *testing.T) {
+	batch := sample(3)
+	batch[1].ThaiText = "ทางไปโรงแรมนี้ไปทีไรก็สบายดี"
+	batch[2].ThaiText = "รอแป๊บ ห้าวินาที"
+	s := &jevServer{scores: map[string]map[string]float64{
+		"ทางไปโรงแรมนี้ไปทีไรก็สบายดี": {"usage_sabaidee": 0.9},
+	}}
+	j := newJudge(t, s)
+	res, err := j.Review(context.Background(), batch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Flagged) != 1 || res.Flagged[0].ThaiText != "ทางไปโรงแรมนี้ไปทีไรก็สบายดี" {
+		t.Fatalf("สบายดี の文だけ不合格のはず: %+v", res.Verdicts)
+	}
+	for _, c := range batch {
+		body := RequestBody("m", c)["questions"].(map[string]any)
+		_, sabai := body["usage_sabaidee"]
+		_, win := body["usage_win"]
+		if sabai != strings.Contains(c.ThaiText, "สบายดี") || win {
+			t.Errorf("%s: usage_sabaidee=%v usage_win=%v", c.ThaiText, sabai, win)
+		}
+	}
+	if notes := res.Verdicts[0].RetryNotes(); len(notes) != 1 || !strings.Contains(notes[0], "体調") {
+		t.Errorf("notes = %v", notes)
 	}
 }
 

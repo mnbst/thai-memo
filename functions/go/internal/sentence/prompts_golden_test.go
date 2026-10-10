@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
@@ -190,6 +191,17 @@ func TestConstraintBlocksGolden(t *testing.T) {
 	}
 }
 
+// TestRelationConstraintSpeaker は3つ目の区切り（話し手の性別）が行頭に入ることを見る。
+func TestRelationConstraintSpeaker(t *testing.T) {
+	got := BuildRelationConstraint("自分と対等／顔見知り程度／女性")
+	if !strings.Contains(got, "\n話し手は女性。相手は自分と対等。親しさは顔見知り程度。\n") {
+		t.Errorf("話し手の行が無い:\n%s", got)
+	}
+	if strings.Contains(BuildRelationConstraint("自分と対等／顔見知り程度"), "話し手は") {
+		t.Error("2区切りの指定に話し手の行が出ている")
+	}
+}
+
 // TestRelationConstraintGolden は関係ブロックを突き合わせる。
 func TestRelationConstraintGolden(t *testing.T) {
 	golden := loadPromptsGolden(t)
@@ -359,5 +371,41 @@ func TestComputeLengthHintBoundary(t *testing.T) {
 		if got := computeLengthHint(tt.vocab); got != tt.want {
 			t.Errorf("computeLengthHint(%d) = %q, want %q", tt.vocab, got, tt.want)
 		}
+	}
+}
+
+// TestMediumConstraint は媒体ごとの末尾ブロックの出し分けを見る。
+func TestMediumConstraint(t *testing.T) {
+	build := func(medium string) (string, map[string]any) {
+		return BuildPrompt(ResolvedParams{
+			Topic: Topics[2], Relation: "自分と対等／顔見知り程度／女性", Medium: medium,
+			TimeFrame: TimeFrames[0],
+		}, []string{"ไป"}, 800, true, lang.JA, DramaSection{})
+	}
+
+	conv, _ := build(Media[0].Name)
+	if strings.Contains(conv, "【媒体】") || !strings.Contains(conv, "【話し手と聞き手】") {
+		t.Error("対面の会話のブロックが従来の形でない")
+	}
+	if !strings.Contains(conv, "- 話している時点: "+TimeFrames[0]) {
+		t.Error("対面の会話に時点の行が無い")
+	}
+	if !strings.Contains(conv, spokenRegisterRules[0]) {
+		t.Error("対面の会話に話し言葉のルールが無い")
+	}
+
+	news, ctx := build(Media[1].Name)
+	if strings.Contains(news, "【話し手と聞き手】") || strings.Contains(news, spokenRegisterRules[0]) ||
+		strings.Contains(news, formalPronounRule) {
+		t.Error("相手のいない媒体に関係ブロックか話し言葉のルールが残っている")
+	}
+	if !strings.Contains(news, "文は"+Media[1].Name+"に載るもの。") {
+		t.Error("媒体ブロックが無い")
+	}
+	if strings.Contains(news, "- 話している時点:") {
+		t.Error("相手のいない媒体に時点の行が残っている")
+	}
+	if _, ok := ctx["relation"]; ok || ctx["medium"] != Media[1].Name {
+		t.Errorf("context=%v", ctx)
 	}
 }

@@ -128,3 +128,20 @@ variable "enable_scheduled_jobs" {
   type        = bool
   default     = true
 }
+
+variable "github_dispatch_token" {
+  description = <<-EOT
+    X 投稿ワークフロー（post-daily-x.yml）を Cloud Scheduler から起動する
+    GitHub の fine-grained PAT。対象リポジトリだけ・Actions: Read and write。
+    secrets/prod.tfvars にだけ置く。空ならジョブを作らない。
+  EOT
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "x_post_themes" {
+  description = "X 投稿で抽選するテーマ（カンマ区切り。タイ旅行,タイ生活,恋愛,BLドラマ）。空なら全部。"
+  type        = string
+  default     = ""
+}

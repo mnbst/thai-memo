@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/data/models/thai_sentence.dart';
@@ -207,6 +209,37 @@ void main() {
     });
   });
 
+  group('runInitialGenerationAfterInterviewReport', () {
+    test('ヒアリング送信が終わるまで初回生成を始めない', () async {
+      final report = Completer<void>();
+      var generated = false;
+
+      final operation = runInitialGenerationAfterInterviewReport(
+        report: report.future,
+        generate: () async => generated = true,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(generated, isFalse);
+
+      report.complete();
+      await operation;
+
+      expect(generated, isTrue);
+    });
+
+    test('ヒアリング送信が失敗しても初回生成は続ける', () async {
+      var generated = false;
+
+      await runInitialGenerationAfterInterviewReport(
+        report: Future<void>.error(StateError('offline')),
+        generate: () async => generated = true,
+      );
+
+      expect(generated, isTrue);
+    });
+  });
+
   group('shouldAutoLoadAfterSentenceQuotaRefresh', () {
     test('0から正数に戻り、当日未生成なら自動ロードする', () {
       expect(
@@ -253,5 +286,4 @@ void main() {
       );
     });
   });
-
 }

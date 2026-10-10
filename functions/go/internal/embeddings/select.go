@@ -2,6 +2,7 @@ package embeddings
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strings"
 )
@@ -105,6 +106,84 @@ func (s *Store) FindBestDramaShot(
 		return items[s.pick(len(items), nil)], nil
 	}
 	return items[s.pick(len(items), weights)], nil
+}
+
+// Scene は場面の名前と、そこに属するショットの本文。
+type Scene struct {
+	Name  string
+	Texts []string
+}
+
+// FindNearScenes は類似度が threshold 以上の場面の名前を scenes の順で返す。
+// どれも届かなければ nil（呼び出し側は場面を問わず選ぶ）。
+//
+// 最も近い1つではなく足切りを通ったすべてを返し、呼び出し側が一様に選ぶ。
+// 最も近いものだけを採ると、どの語にも近く出る汎用的な場面へ集まる。
+//
+// 場面のベクトルは、属するショットの embedding を正規化して平均したもの。
+// 語をショット1文と比べると、短く汎用的な文がどの語にも近く出て選出が
+// 偏った（食べ物156語で実測）。場面単位の平均ならこの偏りが均される。
+func (s *Store) FindNearScenes(
+	ctx context.Context, word string, scenes []Scene, threshold float64,
+) ([]string, error) {
+	s.mu.Lock()
+	if err := s.loadLocked(ctx); err != nil {
+		s.mu.Unlock()
+		return nil, err
+	}
+	if err := s.loadJSONEmbeddings(ctx, &s.shotEmbs, shotEmbBlob); err != nil {
+		s.mu.Unlock()
+		return nil, err
+	}
+	s.mu.Unlock()
+
+	wordEmb := s.Embedding(word)
+	if wordEmb == nil {
+		return nil, nil
+	}
+	var near []string
+	for _, sc := range scenes {
+		centroid := s.centroid(sc.Texts, len(wordEmb))
+		if centroid == nil {
+			continue
+		}
+		if CosineSimilarity(wordEmb, centroid) >= threshold {
+			near = append(near, sc.Name)
+		}
+	}
+	return near, nil
+}
+
+// centroid はショットの embedding を正規化して平均する。1件も無ければ nil。
+func (s *Store) centroid(texts []string, dim int) []float32 {
+	sum := make([]float64, dim)
+	n := 0
+	for _, t := range texts {
+		emb, ok := s.shotEmbs[t]
+		if !ok || len(emb) != dim {
+			continue
+		}
+		var norm float64
+		for _, v := range emb {
+			norm += float64(v) * float64(v)
+		}
+		if norm == 0 {
+			continue
+		}
+		norm = math.Sqrt(norm)
+		for i, v := range emb {
+			sum[i] += float64(v) / norm
+		}
+		n++
+	}
+	if n == 0 {
+		return nil
+	}
+	out := make([]float32, dim)
+	for i, v := range sum {
+		out[i] = float32(v / float64(n))
+	}
+	return out
 }
 
 // FindBestTopic は key_word の embedding と各テーマ embedding の類似度から

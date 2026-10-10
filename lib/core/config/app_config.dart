@@ -38,10 +38,6 @@ class AppConfig {
   static const String secureStorageLastGeneration = 'last_generation_timestamp';
 
   /// Legal URLs
-  /// Apple の購読管理画面（解約・プラン変更）。アプリから直接開ける。
-  static const String appStoreSubscriptionsUrl =
-      'https://apps.apple.com/account/subscriptions';
-
   static const String privacyPolicyUrl =
       'https://thai-memo-prod.web.app/privacy-policy.html';
   static const String termsOfServiceUrl =
@@ -70,6 +66,20 @@ class AppConfig {
   /// 毎日例文通知のコーチングダイアログ表示済みフラグ（設定画面の初回表示時に出す）
   static const String prefKeyNotificationCoachShown =
       'notification_coach_shown';
+
+  /// 通知コーチングダイアログを再案内したときの [notificationCoachRepromptVersion]。
+  static const String prefKeyNotificationCoachRepromptedVersion =
+      'notification_coach_reprompted_version';
+
+  /// 通知コーチングを断った人へ、もう一度だけ案内するリリースの印。
+  ///
+  /// リリースごとに再案内するかを決め、するときだけこの値を新しいバージョン名に
+  /// 変える。端末に記録した値と違えば、まとめクイズ完了時に一度だけ出し直す。
+  /// null なら再案内しない。対象はOSの許可をまだ一度も求めていない人だけ
+  /// （iOS は一度拒否されるとアプリから再要求できない）。
+  // 再案内しないリリースでは null にするので nullable のまま置く。
+  // ignore: unnecessary_nullable_for_final_variable_declarations
+  static const String? notificationCoachRepromptVersion = '1.4.17';
 
   /// アプリの言語（UI文言と訳文の両方）。初回起動時にストア地域から決め、
   /// 以降はこの値が真実（設定画面から変更可能）。

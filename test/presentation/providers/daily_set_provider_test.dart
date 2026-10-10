@@ -57,6 +57,22 @@ class _MemoryProgressStore extends DailySetProgressStore {
 
   @override
   Future<RemoteSummaryQuiz?> fetchSummaryQuiz() async => summaryQuiz;
+
+  /// 別端末が答え終えた確認クイズ。
+  RemoteConfirmationQuiz? confirmationQuiz;
+
+  @override
+  Future<void> saveConfirmationQuiz(
+    String sentenceId,
+    Map<String, dynamic> quiz,
+  ) async {
+    confirmationQuiz =
+        RemoteConfirmationQuiz(sentenceId: sentenceId, quiz: quiz);
+  }
+
+  @override
+  Future<RemoteConfirmationQuiz?> fetchConfirmationQuiz() async =>
+      confirmationQuiz;
 }
 
 class _GatedProgressStore extends _MemoryProgressStore {
@@ -86,8 +102,10 @@ class _FakeSentenceRepository extends Fake implements SentenceRepository {
   Future<ThaiSentence?> getSentenceById(String id) async => byId[id];
 
   @override
-  Future<Set<String>> answeredSentenceIds(List<String> ids) async =>
-      {for (final id in ids) if (answered.contains(id)) id};
+  Future<Set<String>> answeredSentenceIds(List<String> ids) async => {
+        for (final id in ids)
+          if (answered.contains(id)) id
+      };
 }
 
 ThaiSentence _sentence(String id) => ThaiSentence(
@@ -213,6 +231,76 @@ void main() {
     expect(state.position, 2);
     expect(state.total, 3);
     expect(state.current?.id, 'b');
+  });
+
+  group('shrinkActiveSet', () {
+    test('1本目で止まっていれば指定の本数まで縮め、最後の1本でまとめへ進める', () async {
+      final container = containerWith({});
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c', 'd', 'e']), setId: 'A');
+
+      expect(await controller.shrinkActiveSet(2), isTrue);
+
+      final state = container.read(dailySetProvider);
+      expect(state.setId, 'A~2');
+      expect(state.total, 2);
+      expect(state.current?.id, 'a');
+      expect((await controller.advance())?.id, 'b');
+      expect(container.read(dailySetProvider).isLast, isTrue);
+    });
+
+    test('読んだ例文と読んでいる1本は落とさない', () async {
+      final container = containerWith({});
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c', 'd', 'e']), setId: 'A');
+      await controller.advance();
+      await controller.advance();
+      await controller.advance();
+
+      expect(await controller.shrinkActiveSet(2), isTrue);
+
+      final state = container.read(dailySetProvider);
+      expect(state.total, 4);
+      expect(state.current?.id, 'd');
+      expect(state.isLast, isTrue);
+    });
+
+    test('今の本数以下のセットは縮めない', () async {
+      final container = containerWith({});
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c', 'd', 'e']), setId: 'A');
+
+      expect(await controller.shrinkActiveSet(5), isFalse);
+      await controller.advance();
+      await controller.advance();
+      await controller.advance();
+      await controller.advance();
+      expect(await controller.shrinkActiveSet(2), isFalse);
+      expect(container.read(dailySetProvider).setId, 'A');
+    });
+
+    test('クラウドに元の5本が残っていても、同期で元の本数に戻らない', () async {
+      final byId = {
+        for (final id in ['a', 'b', 'c', 'd', 'e']) id: _sentence(id),
+      };
+      final store = _MemoryProgressStore(byId)
+        ..remote = DailySetProgressSnapshot(
+          active:
+              DailySetRef.fromSentences('A', _set(['a', 'b', 'c', 'd', 'e'])),
+          activeSentenceId: 'a',
+        );
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c', 'd', 'e']), setId: 'A');
+      await controller.settled;
+
+      await controller.shrinkActiveSet(2);
+      await controller.syncFromCloud(adopt: true);
+
+      final state = container.read(dailySetProvider);
+      expect(state.setId, 'A~2');
+      expect(state.total, 2);
+    });
   });
 
   test('欠けていた1本を拾い直しても読んでいる例文は動かない', () async {
@@ -361,10 +449,66 @@ void main() {
 
       await controller.syncFromCloud(adopt: true);
 
-      final record =
-          await container.read(learningProgressStoreProvider).load();
+      final record = await container.read(learningProgressStoreProvider).load();
       expect(record.stage, LearningStage.summaryQuiz);
       expect(record.summaryQuiz?['answers'], hasLength(2));
+    });
+
+    test('別端末で答え終えた確認クイズを、読んでいる1本なら引き継ぐ', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId)
+        ..remote = DailySetProgressSnapshot(
+          active: DailySetRef.fromSentences('A', _set(['a', 'b'])),
+          activeSentenceId: 'a',
+        )
+        ..confirmationQuiz = const RemoteConfirmationQuiz(
+          sentenceId: 'a',
+          quiz: {'phase': 'summary', 'sentence_id': 'a'},
+        );
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+      await controller.settled;
+
+      await controller.syncFromCloud(adopt: true);
+
+      final record = await container.read(learningProgressStoreProvider).load();
+      expect(record.confirmationQuizSentenceId, 'a');
+      expect(record.confirmationQuiz?['phase'], 'summary');
+    });
+
+    test('別の1本の確認クイズは引き継がない', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId)
+        ..confirmationQuiz = const RemoteConfirmationQuiz(
+          sentenceId: 'b',
+          quiz: {'phase': 'summary', 'sentence_id': 'b'},
+        );
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+      await controller.settled;
+
+      await controller.syncFromCloud(adopt: true);
+
+      final record = await container.read(learningProgressStoreProvider).load();
+      expect(record.confirmationQuizSentenceId, isNull);
+    });
+
+    test('答え終えた確認クイズは、読んでいる1本のものだけ送る', () async {
+      final byId = sentencesOf(['a', 'b']);
+      final store = _MemoryProgressStore(byId);
+      final container = containerWith(byId, progressStore: store);
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b']), setId: 'A');
+
+      controller.pushConfirmationQuiz('b', const {'phase': 'summary'});
+      await Future<void>.delayed(Duration.zero);
+      expect(store.confirmationQuiz, isNull);
+
+      controller.pushConfirmationQuiz('a', const {'phase': 'summary'});
+      await Future<void>.delayed(Duration.zero);
+      expect(store.confirmationQuiz?.sentenceId, 'a');
     });
 
     test('この端末のほうが先まで答えていれば、まとめクイズは上書きしない', () async {
@@ -383,8 +527,7 @@ void main() {
 
       await controller.syncFromCloud(adopt: true);
 
-      final record =
-          await container.read(learningProgressStoreProvider).load();
+      final record = await container.read(learningProgressStoreProvider).load();
       expect(record.summaryQuiz?['answers'], hasLength(3));
     });
 
@@ -401,8 +544,7 @@ void main() {
 
       await controller.syncFromCloud(adopt: true);
 
-      final record =
-          await container.read(learningProgressStoreProvider).load();
+      final record = await container.read(learningProgressStoreProvider).load();
       expect(record.summaryQuiz, isNull);
     });
 
@@ -491,7 +633,7 @@ void main() {
     );
   });
 
-  test('待機列は1セットまで。溢れた古いほうは完了扱いで捨てる', () async {
+  test('待機列は1セットまで。溢れた古いほうは捨てる', () async {
     final container = containerWith({});
     final controller = container.read(dailySetProvider.notifier);
     await controller.start(_set(['a', 'b']), setId: 'current');
@@ -510,7 +652,7 @@ void main() {
       ['new'],
     );
 
-    // 捨てたセットは完了として記録されるので、通知を開き直しても戻らない。
+    // 捨てたセットは端末に記録されるので、通知を開き直しても戻らない。
     final shown = await controller.acceptDeliveredSet(
       setId: 'old',
       sentences: _set(['c', 'd']),
@@ -520,6 +662,62 @@ void main() {
       container.read(dailySetProvider).pendingSets.map((set) => set.setId),
       ['new'],
     );
+  });
+
+  test('溢れて捨てたセットは完了として Firestore へ送らない', () async {
+    final byId = {
+      for (final id in ['a', 'b', 'c', 'e']) id: _sentence(id)
+    };
+    final store = _MemoryProgressStore(byId);
+    final container = containerWith(byId, progressStore: store);
+    final controller = container.read(dailySetProvider.notifier);
+    await controller.start(_set(['a', 'b']), setId: 'current');
+    await controller.acceptDeliveredSet(setId: 'old', sentences: _set(['c']));
+    await controller.acceptDeliveredSet(setId: 'new', sentences: _set(['e']));
+    await controller.settled;
+
+    expect(store.remote.completedSetIds, isNot(contains('old')));
+    expect(store.remote.droppedSetIds, isEmpty);
+    // 端末の記録には残し、再起動しても待機列へ戻さない。
+    final saved = await LearningProgressStore().load();
+    expect(saved.set.droppedSetIds, ['old']);
+  });
+
+  test('古いセットを持つ端末の同期で、別端末の読みかけセットを消さない', () async {
+    final ids = ['v1', 'v2', 'y1', 'y2', 'y3', 'z1', 'z2'];
+    final byId = {for (final id in ids) id: _sentence(id)};
+    // 別端末: Y を y2 まで読み、Z を待機させている。V は読み終えた。
+    final store = _MemoryProgressStore(byId)
+      ..remote = const DailySetProgressSnapshot(
+        active: DailySetRef(setId: 'Y', sentenceIds: ['y1', 'y2', 'y3']),
+        activeSentenceId: 'y2',
+        pending: [
+          DailySetRef(setId: 'Z', sentenceIds: ['z1', 'z2'])
+        ],
+        completedSetIds: ['V'],
+      );
+    // この端末: 前回 V の途中で閉じたまま。
+    await LearningProgressStore().update(
+      (current) => current.copyWith(
+        set: const DailySetProgressSnapshot(
+          active: DailySetRef(setId: 'V', sentenceIds: ['v1', 'v2']),
+          activeSentenceId: 'v1',
+        ),
+      ),
+    );
+    final container = containerWith(byId, progressStore: store);
+    final controller = container.read(dailySetProvider.notifier);
+
+    await controller.restore();
+    await controller.settled;
+    await controller.syncFromCloud(adopt: true);
+
+    expect(store.remote.completedSetIds, isNot(contains('Y')));
+    expect(store.remote.active?.setId, 'Y');
+    expect(store.remote.activeSentenceId, 'y2');
+    final state = container.read(dailySetProvider);
+    expect(state.setId, 'Y');
+    expect(state.current?.id, 'y2');
   });
 
   test('完了済みセットの古い通知を開いても再び待機列へ戻さない', () async {
@@ -731,8 +929,7 @@ void main() {
     test('全部答え終わっているセットは復活させない', () async {
       final byId = byIds(['a', 'b']);
       final store = _MemoryProgressStore(byId)
-        ..delivered =
-            const DailySetRef(setId: 'A', sentenceIds: ['a', 'b']);
+        ..delivered = const DailySetRef(setId: 'A', sentenceIds: ['a', 'b']);
       final container = containerWith(
         byId,
         progressStore: store,
@@ -751,8 +948,7 @@ void main() {
     test('例文がローカルに揃っていなければ取り込み経路に任せる', () async {
       final byId = byIds(['a']);
       final store = _MemoryProgressStore(byId)
-        ..delivered =
-            const DailySetRef(setId: 'A', sentenceIds: ['a', 'b']);
+        ..delivered = const DailySetRef(setId: 'A', sentenceIds: ['a', 'b']);
       final container = containerWith(byId, progressStore: store);
 
       await container.read(dailySetProvider.notifier).restored;
@@ -764,8 +960,7 @@ void main() {
     test('端末に記録が残っていれば配信docを見に行かない', () async {
       final byId = byIds(['a', 'b', 'x', 'y']);
       final store = _MemoryProgressStore(byId)
-        ..delivered =
-            const DailySetRef(setId: 'OLD', sentenceIds: ['x', 'y']);
+        ..delivered = const DailySetRef(setId: 'OLD', sentenceIds: ['x', 'y']);
       final container = containerWith(byId, progressStore: store);
       final controller = container.read(dailySetProvider.notifier);
 

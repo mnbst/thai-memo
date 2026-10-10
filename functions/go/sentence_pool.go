@@ -15,12 +15,17 @@ import (
 
 // 例文プール（dailyBatch のステップ6、品質監査と同じ周回）の設定。
 //
-// 静的コーパスは語×テーマで1本しか持たない。同じ key_word が再選出された人には
-// 同じ文が出るので、その穴を運用中の生成で埋める。judge を通った例文だけを
-// corpus_pool_<lang>.json へ貯め、CorpusBank が静的コーパスと同じ索引に重ねる。
+// 静的コーパス・free バンクは語×テーマで1本しか持たない。同じ key_word が
+// 再選出された人には同じ文が出るので、その穴を運用中の生成で埋める。judge を
+// 通った例文だけをティアごとのプールへ貯める。
 //
-// 貯める対象は premium 仕様で LLM 生成されたものだけ。free の文は語彙帯が
-// 別（FreeBank）で、バンク由来（from_cache=true）の文は既にコーパスにある。
+//	premium  corpus_pool_<lang>.json  CorpusBank が静的コーパスと同じ索引に重ねる
+//	free     free_pool_<lang>.json    FreeBank が free バンクに重ねる
+//
+// ティアで分けるのは、free と premium で語彙帯とプロンプトが違うため。
+// 混ぜると free に語彙帯の外の文が出る。ファイルが別なので洗い直し
+// （cmd/poolrecheck -tier）もティアごとにできる。
+// バンク由来（from_cache=true）の文は既にバンクにあるので貯めない。
 const (
 	// poolMaxEntries は1言語あたりの保持上限。超えたぶんは古い側から落とす。
 	// 1本 1〜2KB なので、2万本でも数十MB。CorpusBank はこれを
@@ -30,6 +35,8 @@ const (
 
 // poolEntry はプールへ入れる例文1件と、その振り分け先。
 type poolEntry struct {
+	// Tier は generation_tier の値（premium / free）。書き出すプールを決める。
+	Tier     string
 	Lang     lang.Lang
 	Sentence sentence.Sentence
 }
@@ -37,11 +44,16 @@ type poolEntry struct {
 // buildPoolEntry は保存済みの例文 doc をプールの1件へ変換する。
 //
 // 落とすもの:
+//   - generation_tier が premium / free のどちらでもない
 //   - lang が無い（このフィールドを付ける前に保存された doc。訳文の言語が
 //     決められないので、取り違えるくらいなら入れない）
 //   - key_word が無い / key_word から外した語（uvm.IsExcludedTargetWord）
 //   - 本文・訳文・word_breakdown のどれかが欠けている
 func buildPoolEntry(data map[string]any) (poolEntry, bool) {
+	tier, ok := poolTier(data)
+	if !ok {
+		return poolEntry{}, false
+	}
 	l, ok := lang.Parse(stringField(data["lang"]))
 	if !ok {
 		return poolEntry{}, false
@@ -62,10 +74,19 @@ func buildPoolEntry(data map[string]any) (poolEntry, bool) {
 	s.KeyWord = keyWord
 	// 出どころのティアはプールでは持たない。Pick した側が付け直す。
 	s.GenerationTier = ""
-	return poolEntry{Lang: l, Sentence: *s}, true
+	return poolEntry{Tier: tier, Lang: l, Sentence: *s}, true
 }
 
-// writeSentencePool は受理された例文を言語ごとのプールへ追記する。
+// poolTier は doc の generation_tier を返す。プールを持つティアでなければ false。
+func poolTier(data map[string]any) (string, bool) {
+	switch tier := stringField(data["generation_tier"]); tier {
+	case sentence.GenerationTier(true), sentence.GenerationTier(false):
+		return tier, true
+	}
+	return "", false
+}
+
+// writeSentencePool は受理された例文をティア×言語ごとのプールへ追記する。
 //
 // 既存のプールを読んで、thai_text が重複しないものだけを末尾へ足して書き戻す。
 // 書き手は dailyBatch だけ（1日1回・1インスタンス）なので、読んで書くだけで
@@ -76,9 +97,10 @@ func writeSentencePool(
 	if len(entries) == 0 {
 		return nil
 	}
-	byLang := map[lang.Lang][]sentence.Sentence{}
+	byObject := map[string][]sentence.Sentence{}
 	for _, e := range entries {
-		byLang[e.Lang] = append(byLang[e.Lang], e.Sentence)
+		name := sentence.PoolObjectFor(e.Tier, e.Lang)
+		byObject[name] = append(byObject[name], e.Sentence)
 	}
 
 	client, err := storage.NewClient(ctx)
@@ -88,21 +110,20 @@ func writeSentencePool(
 	defer client.Close()
 	bucket := client.Bucket(projectID + "-uvm-data")
 
-	langs := make([]lang.Lang, 0, len(byLang))
-	for l := range byLang {
-		langs = append(langs, l)
+	names := make([]string, 0, len(byObject))
+	for name := range byObject {
+		names = append(names, name)
 	}
-	sort.Slice(langs, func(i, j int) bool { return langs[i] < langs[j] })
+	sort.Strings(names)
 
-	for _, l := range langs {
-		name := sentence.PoolObject(l)
+	for _, name := range names {
 		existing, err := sentence.ReadSentences(ctx, bucket, name)
 		if err != nil {
 			return err
 		}
-		merged, added := mergePool(existing, byLang[l], maxEntries)
+		merged, added := mergePool(existing, byObject[name], maxEntries)
 		if added == 0 {
-			log.Printf("sentencePool: lang=%s no new sentences (pool=%d)", l, len(merged))
+			log.Printf("sentencePool: object=%s no new sentences (pool=%d)", name, len(merged))
 			continue
 		}
 		data, err := json.Marshal(merged)
@@ -118,7 +139,7 @@ func writeSentencePool(
 		if err := w.Close(); err != nil {
 			return err
 		}
-		log.Printf("sentencePool: lang=%s added=%d pool=%d", l, added, len(merged))
+		log.Printf("sentencePool: object=%s added=%d pool=%d", name, added, len(merged))
 	}
 	return nil
 }

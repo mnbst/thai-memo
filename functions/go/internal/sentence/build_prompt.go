@@ -19,6 +19,8 @@ type ResolvedParams struct {
 	SubTheme     string
 	TimeFrame    string
 	Relation     string
+	// Medium は Media の Name。空なら対面の会話と同じ扱い。
+	Medium string
 	// LengthHint は文の長さ指定の上書き。空なら estimated_vocab から決める。
 	// 静的コーパスの生成だけが使う。コーパスの長さはターゲット語の頻度ランクで
 	// 決まり、配信時の estimated_vocab では決まらないため。
@@ -30,6 +32,8 @@ type ResolvedParams struct {
 type DramaSection struct {
 	Context  string
 	Required string
+	// Medium は付けた参考例文の媒体（Media の Name）。空なら媒体を変えない。
+	Medium string
 }
 
 // BuildPrompt はプロンプトを構築する（free/premium 共通）。
@@ -54,13 +58,24 @@ func BuildPrompt(
 	subTheme := resolved.SubTheme
 	timeFrame := resolved.TimeFrame
 	relation := resolved.Relation
+	medium := findMedium(resolved.Medium)
+	if !promptIsPremium {
+		// free は関係ブロックを持たず、媒体の出し分けもしない。
+		medium = Media[0]
+	}
+	// 相手のいない媒体では関係と時点を外す。時点（さっき・昨日…）が残ると
+	// 出来事を語る文に寄り、解説文にならない（書き言葉判定 46% → 外して 78%）。
+	if !medium.Addressed {
+		relation = ""
+		timeFrame = ""
+	}
 
-	// 「さっき起きた出来事」だけ、相手の行動を求める文（依頼・指示・禁止）と
+	// 過去の時点（さっき・昨日や以前）だけ、相手の行動を求める文（依頼・指示・禁止）と
 	// 両立しない。【可能な限り反映】の逃げ道は「上位の指示と衝突する場合」に
 	// 限られ、文型の選択は LLM の自由なのでこの衝突を拾えない。
 	// 条件が確定している時点にだけ但し書きを付ける。
 	timeFrameNote := ""
-	if timeFrame == TimeFrames[1] {
+	if timeFrame == TimeFrames[1] || timeFrame == TimeFrames[4] {
 		timeFrameNote = "（すでに起きた出来事を述べる文に付ける。" +
 			"相手のこれからの行動を求める文にするなら、この時点は落とす）"
 	}
@@ -83,8 +98,15 @@ func BuildPrompt(
 		timeFrameLine = ""
 		timeFrame = ""
 		relation = ""
+		medium = Media[0]
 	case topic != "":
-		topicLine = fmt.Sprintf("- テーマ: %s\n", topic)
+		label := topic
+		if drama.Context != "" {
+			// 参考例文の回はカッコ内の下位項目（辛さ調整、アレルギー…）を出さない。
+			// 出すと場面よりそちらが効き、どの場面を渡しても同じ話題に寄った。
+			label, _, _ = strings.Cut(topic, "（")
+		}
+		topicLine = fmt.Sprintf("- テーマ: %s\n", label)
 	default:
 		// テーマ未確定。候補を列挙してターゲット単語に合うものを選ばせる。
 		// 選択肢を閉じることで estimated_vocab のレベル別ゲートは維持される。
@@ -117,6 +139,9 @@ func BuildPrompt(
 		if relation != "" {
 			context["relation"] = relation
 		}
+		if promptIsPremium && resolved.Medium != "" {
+			context["medium"] = medium.Name
+		}
 	}
 
 	// ブロックは "\n\n" で連結する。drama 未適用時に空行だけが残らないよう、
@@ -148,7 +173,8 @@ func BuildPrompt(
 
 	// 語彙レジスタ制約は末尾に置く（system prompt では守られなかったため）。
 	if promptIsPremium {
-		sections = append(sections, BuildRegisterConstraint(topic, targetWords, l))
+		sections = append(sections,
+			buildRegisterConstraint(topic, targetWords, l, medium.Addressed))
 	} else {
 		sections = append(sections, BuildFreeConstraint(targetWords, l))
 	}
@@ -156,7 +182,7 @@ func BuildPrompt(
 	// 話し手と聞き手の関係は premium のみ（free は入門帯で文が短く、
 	// 人称・文末詞を足す余地が無い）。
 	if promptIsPremium {
-		if block := BuildRelationConstraint(relation); block != "" {
+		if block := buildMediumConstraint(medium, relation); block != "" {
 			sections = append(sections, block)
 		}
 	}
@@ -167,4 +193,23 @@ func BuildPrompt(
 	}
 
 	return strings.Join(sections, "\n\n"), context
+}
+
+// findMedium は名前から媒体を引く。未知・空なら対面の会話。
+func findMedium(name string) Medium {
+	for _, m := range Media {
+		if m.Name == name {
+			return m
+		}
+	}
+	return Media[0]
+}
+
+// buildMediumConstraint は媒体に応じて末尾ブロックを返す。相手がいる媒体は
+// 関係ブロック、いない媒体は mediumBlock。
+func buildMediumConstraint(m Medium, relation string) string {
+	if !m.Addressed {
+		return strings.ReplaceAll(mediumBlock, "{medium}", m.Name)
+	}
+	return BuildRelationConstraint(relation)
 }

@@ -81,12 +81,21 @@ func ResolveInterviewTopic(userData map[string]any, randIntn func(int) int) stri
 	return candidates[randIntn(len(candidates))]
 }
 
+// GroupResolver はまとめたテーマ（TopicGroups）を、語に合う中身の個別テーマへ
+// 解決する。実装は themeshots.Builder（語に近い参考例文の場面から決める）。
+// 決められなければ "" を返す。
+type GroupResolver interface {
+	ResolveGroup(group, word string) string
+}
+
 // TargetWordSelector はターゲット語の選定に必要な依存をまとめる。
 type TargetWordSelector struct {
 	// Session は uvm 側の選定。Rand と Emb はここで注入する。
 	Session *uvm.SessionSelector
 	// Rand はテーマ抽選に使う。nil なら共有の乱数源。
 	Rand *rand.Rand
+	// Groups はまとめたテーマの解決に使う。nil か "" なら中身から一様に選ぶ。
+	Groups GroupResolver
 }
 
 // ErrNoTargetWords は UVM から 1 語も選べなかったとき
@@ -100,6 +109,9 @@ var ErrNoTargetWords = errors.New("No target words selected from UVM")
 type TargetWord struct {
 	Word  string
 	Topic string
+	// Group は頼まれたのがまとめたテーマのときその値。Topic は中身の1つに
+	// 解決済み。キャッシュを引くとき、Topic に無ければ Group の他の中身も見る。
+	Group string
 }
 
 // SelectTargetWords はテーマを決めたうえで UVM からターゲット語を選ぶ
@@ -147,7 +159,31 @@ func (s *TargetWordSelector) SelectTargetWords(
 		return nil, ErrNoTargetWords
 	}
 
-	return assignTopics(ctx, words, topic, choice, s.Session.Emb)
+	out, err := assignTopics(ctx, words, topic, choice, s.Session.Emb)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		s.resolveGroup(&out[i])
+	}
+	return out, nil
+}
+
+// resolveGroup はまとめたテーマを、語に合う中身の個別テーマへ置き換える。
+// まとめたテーマでなければ何もしない。
+func (s *TargetWordSelector) resolveGroup(tw *TargetWord) {
+	members := TopicGroups[tw.Topic]
+	if len(members) == 0 {
+		return
+	}
+	tw.Group = tw.Topic
+	if s.Groups != nil {
+		if t := s.Groups.ResolveGroup(tw.Group, tw.Word); t != "" {
+			tw.Topic = t
+			return
+		}
+	}
+	tw.Topic = members[s.intn(len(members))]
 }
 
 // assignTopics は選定した語にテーマを割り当てる。

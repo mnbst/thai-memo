@@ -574,8 +574,18 @@ class L10nJa extends L10n {
   String get lifetimeMigrationNoCharge => '追加のお支払いはありません';
 
   @override
-  String get lifetimeMigrationCancelNote =>
-      '移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。';
+  String lifetimeMigrationCancelNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            '移行後、月額の自動更新はお客様ご自身で停止してください（Google Playの定期購入の設定）。停止しないと月額の請求が続きます。',
+        'other':
+            '移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get lifetimeMigrationProgress => '移行しています…';
@@ -620,7 +630,7 @@ class L10nJa extends L10n {
 
   @override
   String trialEndedChangeQuotaFree(int free) {
-    return '1日$free回';
+    return '1日$freeセット';
   }
 
   @override
@@ -694,13 +704,13 @@ class L10nJa extends L10n {
   String get topicName_food => '食べ物';
 
   @override
-  String get topicSub_food => '注文、感想、屋台、辛さ調整、アレルギー';
+  String get topicSub_food => 'コラボカフェ、注文、感想、屋台、辛さ調整、アレルギー';
 
   @override
   String get topicName_travel => '旅行';
 
   @override
-  String get topicSub_travel => 'ホテル、道案内、観光地、空港、ツアー';
+  String get topicSub_travel => 'ロケ地めぐり、ホテル、道案内、観光地、空港、ツアー';
 
   @override
   String get topicName_family => '家族';
@@ -712,7 +722,7 @@ class L10nJa extends L10n {
   String get topicName_shopping => '買い物';
 
   @override
-  String get topicSub_shopping => '値段交渉、サイズ・色の確認、返品、ナイトマーケット';
+  String get topicSub_shopping => '推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット';
 
   @override
   String get topicName_transport => '交通';
@@ -736,7 +746,7 @@ class L10nJa extends L10n {
   String get topicName_hobbies => '趣味';
 
   @override
-  String get topicSub_hobbies => 'ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム';
+  String get topicSub_hobbies => '推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム';
 
   @override
   String get topicName_school => '学校';
@@ -748,7 +758,7 @@ class L10nJa extends L10n {
   String get topicName_religion => '宗教・信仰';
 
   @override
-  String get topicSub_religion => '寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事';
+  String get topicSub_religion => '推しの誕生日のタンブン、寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事';
 
   @override
   String get topicName_festivals => '伝統・祭り';
@@ -761,6 +771,18 @@ class L10nJa extends L10n {
 
   @override
   String get topicSub_etiquette => 'ワイの使い分け、敬語、タブー、食事マナー、贈り物';
+
+  @override
+  String get topicName_life => 'タイ暮らし';
+
+  @override
+  String get topicSub_life => '買い物、交通、健康、家族、天気、食べ物';
+
+  @override
+  String get topicName_thaiTravel => 'タイ旅行';
+
+  @override
+  String get topicSub_thaiTravel => '観光、ホテル、交通、買い物、食べ物';
 
   @override
   String get styleName_news => 'ニュース記事体';
@@ -859,12 +881,32 @@ class L10nJa extends L10n {
   String get paywallLifetimeNote => '1回きりの支払いです。更新はありません。';
 
   @override
-  String get paywallMonthlyToLifetimeNote =>
-      '買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。';
+  String paywallMonthlyToLifetimeNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            '買い切りの購入後も、現在のサブスクリプションは自動では解約されません。Google Playの定期購入の設定から解約してください。',
+        'other':
+            '買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
-  String get paywallLegal =>
-      'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。';
+  String paywallLegal(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            'サブスクリプションは自動更新です。次の更新日の前までにキャンセルしない限り、同じ料金で自動的に更新されます。管理・キャンセルはGoogle Playの定期購入の設定から行えます。',
+        'other':
+            'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get paywallTrialBadge => '初回限定';
@@ -899,12 +941,28 @@ class L10nJa extends L10n {
   String get paywallChangeToMonthlyCta => '月額プランに変更する';
 
   @override
-  String get paywallChangeToYearlyNote =>
-      'すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。';
+  String paywallChangeToYearlyNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android': 'すぐに年額プランへ切り替わり、年額の料金が請求されます。月額の残り期間ぶんは、年額プランの期間に上乗せされます。',
+        'other': 'すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
-  String get paywallChangeToMonthlyNote =>
-      '今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。';
+  String paywallChangeToMonthlyNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android': 'すぐに月額プランへ切り替わります。お支払い済みの年額の期間が終わるまでは請求されず、そのあと月額で更新されます。',
+        'other': '今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get paywallCancelSubscriptionNote =>
@@ -961,6 +1019,9 @@ class L10nJa extends L10n {
 
   @override
   String get onboardingNext => '次へ';
+
+  @override
+  String get onboardingHaveAccount => 'アカウントをお持ちの方はこちら';
 
   @override
   String get interviewIntroTitle => '4つ質問させてください';
@@ -1073,7 +1134,7 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy3Travel =>
-      '**プレミアム**なら、例文のテーマを自分で選べます。「旅行」や「交通」を選べば、現地で使う場面の例文が届きます。';
+      '**プレミアム**なら、例文のテーマを自分で選べます。「タイ旅行」を選べば、観光・移動・買い物など現地で使う場面の例文が届きます。';
 
   @override
   String get philosophy3Work =>
@@ -1081,7 +1142,7 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy3Live =>
-      '**プレミアム**なら、例文のテーマを自分で選べます。「買い物」や「家族」を選べば、暮らしの中で使う例文が届きます。';
+      '**プレミアム**なら、例文のテーマを自分で選べます。「タイ暮らし」を選べば、買い物・交通・家族など暮らしの中で使う例文が届きます。';
 
   @override
   String get philosophy3Culture =>
@@ -1102,19 +1163,10 @@ class L10nJa extends L10n {
   String get philosophyStart => '使い方を見る';
 
   @override
-  String get notifCoachTitle => '通知でタイ語学習を習慣にしましょう';
+  String get notifCoachTitle => '毎日、例文が通知で届きます';
 
   @override
-  String get notifCoachStep1 => '通勤中や寝る前など、学習を続けやすい時刻を決めます';
-
-  @override
-  String get notifCoachStep2 => 'その時刻に、あなた向けの例文が自動で届きます';
-
-  @override
-  String get notifCoachHabit => '毎日同じ時間に開くので、無理なく続けられます';
-
-  @override
-  String get notifCoachPreviewLabel => '通知の例）';
+  String get notifCoachHabit => '同じ時間に届くので、続けやすくなります';
 
   @override
   String get notifCoachNow => '今';
@@ -1129,10 +1181,10 @@ class L10nJa extends L10n {
   String get notifCoachEnable => '通知をオンにする';
 
   @override
-  String get notifCoachLater => 'あとで';
+  String get notifCoachLater => '今はしない';
 
   @override
-  String get notifCoachEnabled => '毎日この時間に例文をお届けします。時刻は設定で変更できます。';
+  String get notifCoachEnabled => '毎日、決まった時間に例文をお届けします。時刻は設定で変更できます。';
 
   @override
   String get notifCoachStillQuiet => '通知はこれまでどおり、通知センターに静かに届きます。';
@@ -1274,6 +1326,13 @@ class L10nJa extends L10n {
   String get pronunciationPermissionOpenSettings => '設定を開く';
 
   @override
+  String get ttsThaiVoiceMissing =>
+      '読み上げにタイ語の音声が入っていません。音声データをダウンロードすると、お手本を聞けるようになります。';
+
+  @override
+  String get ttsThaiVoiceInstall => 'ダウンロード';
+
+  @override
   String get pronunciationSpeechRecognized => '発音（子音・母音）：通じました';
 
   @override
@@ -1288,8 +1347,16 @@ class L10nJa extends L10n {
       'この端末にタイ語の音声入力が入っていないため、発音（子音・母音）は判定できません。声調だけを見ています';
 
   @override
-  String get pronunciationSpeechNoAssetHow =>
-      '「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。';
+  String pronunciationSpeechNoAssetHow(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android': '端末の設定で、音声入力（端末上の音声認識）にタイ語を追加すると使えるようになります。',
+        'other': '「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get pronunciationSpeechAuthDenied =>
@@ -1297,7 +1364,7 @@ class L10nJa extends L10n {
 
   @override
   String get pronunciationSpeechAndroid =>
-      'Android では発音（子音・母音）の判定に対応していません。声調だけを見ています';
+      'Android 13 より前のバージョンでは発音（子音・母音）を判定できません。声調だけを見ています';
 
   @override
   String get pronunciationCoachLead => '次はここを直す';
@@ -1471,7 +1538,16 @@ class L10nJa extends L10n {
   String get errPurchaseStartFailed => '購入を開始できませんでした';
 
   @override
-  String get errStoreUnavailable => 'App Storeに接続できませんでした';
+  String errStoreUnavailable(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android': 'Google Playに接続できませんでした',
+        'other': 'App Storeに接続できませんでした',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get errNothingToRestore => '復元できる購入が見つかりませんでした';
@@ -2360,7 +2436,7 @@ class L10nJa extends L10n {
   String get guideTitle => '使い方ガイド';
 
   @override
-  String get guideSettingsSubtitle => 'アプリの使い方をひと通り読む';
+  String get guideSettingsSubtitle => 'アプリの使い方をひと通り確認';
 
   @override
   String get guideSkip => 'スキップ';
@@ -2372,7 +2448,7 @@ class L10nJa extends L10n {
   String get guideClose => '閉じる';
 
   @override
-  String get guideLead => 'このアプリの使い方をまとめています。あとで設定からいつでも読み返せます。';
+  String get guideLead => '基本の使い方をまとめました。設定からいつでも読み返せます。';
 
   @override
   String get guideFigureLoopSentence => '例文';
@@ -2387,7 +2463,7 @@ class L10nJa extends L10n {
   String get guideFigureLoopSummary => 'まとめクイズ';
 
   @override
-  String get guideFigureLoopEvery => '例文5つごと';
+  String get guideFigureLoopEvery => '例文最大5つごと';
 
   @override
   String get guideFigureCardThai => 'タイ文字';
@@ -2418,80 +2494,83 @@ class L10nJa extends L10n {
 
   @override
   String get guideOverviewBody1 =>
-      'AIがあなたの語彙に合わせたタイ語の例文を、毎日つくります。読み終えたら、その場で追加することもできます。';
+      'AIがあなたのレベルに合った学習単語を選び、その単語を使ったタイ語の例文をつくります。';
 
   @override
-  String get guideOverviewBody2 => '例文で覚える → クイズで確かめる。これを5つくり返して1巡です。';
+  String get guideOverviewBody2 =>
+      '例文で学習単語を覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。';
 
   @override
   String get guideOverviewSummaryQuiz =>
-      '例文5つを学び終えると「まとめクイズ」に進みます。それまでに学んだ例文から出題され、迷ったらヒントや例文の見返しも使えます。';
+      '1セット学び終えると「まとめクイズ」に進みます。迷ったときは、ヒントを見たり例文を見返したりできます。';
 
   @override
   String get guideOverviewBody3 =>
-      '「まとめクイズ」に正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。';
+      'まとめクイズに正解すると語彙スコアが上がり、例文に出る単語も増えていきます。ヒントなしで正解すると、さらに上がりやすくなります。間違えた問題は、あとでもう一度出題されます。';
 
   @override
   String get guideRoleSentenceTitle => '例文';
 
   @override
   String get guideRoleSentenceBody =>
-      '詳細画面からタイ単語の使用例を確認しましょう。単語だけを覚えるより、使う場面ごと覚えるほうが記憶に残ります。';
+      '詳細画面で単語の使い方を確認できます。使う場面と一緒に覚えると、記憶に残りやすくなります。';
 
   @override
   String get guideRoleSoundTitle => '発音練習';
 
   @override
-  String get guideRoleSoundBody =>
-      '自分のイントネーションとお手本を聞き比べて、発音のコツを掴みましょう。タイ語は声調で意味が変わります。';
+  String get guideRoleSoundBody => '自分の発音や声調をお手本と比べられます。タイ語は声調で意味が変わります。';
 
   @override
   String get guideRoleQuizTitle => 'クイズ';
 
   @override
-  String get guideRoleQuizBody =>
-      'クイズは2種類あります。確認クイズは、次の例文に進む前に単語の意味を選ぶ1問です。5つ目を終えると、それまでに学んだ例文から下線部の単語を選ぶ「まとめクイズ」に進みます。';
+  String get guideRoleQuizCheck => '確認クイズ：例文ごとに、学習単語の意味を選びます。';
+
+  @override
+  String get guideRoleQuizSummary => 'まとめクイズ：例文最大5つごとに、下線部に入る単語を選びます。';
+
+  @override
+  String get guideRoleQuizSpelling =>
+      '綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。その学習単語について一度正解すると、以後は穴埋め問題が出ます。';
 
   @override
   String get guideRoleScoreTitle => '語彙スコア';
 
   @override
-  String get guideRoleScoreBody => 'クイズの結果から算出された、あなたの語彙量をあらわすスコアです。';
+  String get guideRoleScoreBody => '語彙測定テストとまとめクイズの結果から推定した、現在の語彙量です。';
 
   @override
   String get guideRoleVocabTestTitle => '語彙測定テスト';
 
   @override
   String get guideRoleVocabTestBody =>
-      '4択のテストで、いまの語彙量を測ります。結果は語彙スコアの出発点になり、例文とクイズの難易度に反映されます。設定画面から月1回まで受け直せます。';
+      '4択で現在の語彙量を測り、例文とクイズの難易度を決めます。設定から月1回まで受け直せます。';
 
   @override
   String get guideRoleRankingTitle => 'ランキング';
 
   @override
-  String get guideRoleRankingBody =>
-      '語彙スコア順にユーザーを並べた時の、あなたの順位を表示します。表示名は自動で割り当てられます。';
+  String get guideRoleRankingBody => '語彙スコアによる順位を確認できます。表示名は自動で割り当てられます。';
 
   @override
   String get guideRoleTopicTitle => 'テーマ';
 
   @override
-  String get guideRoleTopicBody =>
-      '色々な場面（祭り・寺院での作法・BLドラマなど）におけるタイ語に触れてみましょう。言葉と一緒にタイの文化に触れられます。';
+  String get guideRoleTopicBody => '祭り・寺院での作法・BLドラマなどを通して、タイ語と文化を学べます。';
 
   @override
   String get guideRoleNotificationTitle => '毎日の通知';
 
   @override
-  String get guideRoleNotificationBody =>
-      'タイ語学習を習慣化するために役立ちます。決めた時刻に、その日の例文が届きます。';
+  String get guideRoleNotificationBody => '決めた時刻にその日の例文が届き、学習の習慣化を助けます。';
 
   @override
   String get guideRolePremiumTitle => '無料版とプレミアム';
 
   @override
   String get guideRolePremiumBody =>
-      '無料版でも毎日の学習は続けられます。プレミアムでは例文の数・テーマ選び・語彙スコアの上限が広がります。';
+      '無料版でも毎日学べます。プレミアムでは例文数・テーマ選択・語彙スコアの上限が広がります。';
 
   @override
   String get guidePlanColItem => '項目';
@@ -2516,7 +2595,7 @@ class L10nJa extends L10n {
 
   @override
   String guidePlanSentences(int count) {
-    return '$count文';
+    return '$countセット';
   }
 
   @override
@@ -2544,7 +2623,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowSentenceStep1 =>
-      '学習タブを開くと、その日の例文が表示されます。例文は5つで1セットで、いま何本目かが上に出ます。';
+      '学習タブに、その日の例文が表示されます。例文は最大5つで1セットです。上部で進み具合を確認できます。';
 
   @override
   String get guideHowSentenceStep3 => '金色の語が学習単語です。クイズでここが問われます。';
@@ -2557,21 +2636,21 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowDetailLead =>
-      '詳細画面では、より深くタイ語例文を解説します。場面・文体・つづりと声調まで手がかりを増やすほど、その単語は記憶に残ります。';
+      '詳細画面では、例文の場面・文体・綴り・声調を確認できます。複数の手がかりと結びつけると、単語が記憶に残りやすくなります。';
 
   @override
   String get guideHowSoundTitle => '聞く・声に出す';
 
   @override
-  String get guideHowSoundStep1 => '「お手本を聞く」で、タイ語例文の音声をループ再生します。';
+  String get guideHowSoundStep1 => '「お手本を聞く」で、例文をループ再生します。';
 
   @override
   String get guideHowSoundStep2 =>
-      '詳細画面の「発音練習」では、ボタンを押したまま真似して読むと、声調が合っているかをその場で判定できます。';
+      '詳細画面の「発音練習」で「押したまま話す」を長押しし、例文を読みます。その場で声調を判定できます。';
 
   @override
   String get guideHowSoundStep3 =>
-      '発音練習の判定は緑が合っている、橙が惜しい、赤が違う。語をタップすると、お手本と自分の声のカーブと直し方が出ます。';
+      '各語の声調が合っていれば緑、惜しければ橙、違っていれば赤で表示されます。語をタップすると、お手本との声の高さの違いと直し方を確認できます。';
 
   @override
   String get guideHowQuizTitle => '確認クイズを解く';
@@ -2580,45 +2659,61 @@ class L10nJa extends L10n {
   String get guideHowQuizStep1 => '例文の下の「覚えたか確認」から確認クイズへ進みます。';
 
   @override
-  String get guideHowQuizStep2 => '直前に読んだ例文の学習単語（金色の語）について、その意味を4択で選びます。';
+  String get guideHowQuizStep2 => '直前の例文にある金色の語の意味を、4択で選びます。';
 
   @override
-  String get guideHowQuizStep3 => '答えると、その単語の意味や使い方の解説が出ます。';
+  String get guideHowQuizStep3 => '回答後に、単語の意味と使い方を確認できます。';
 
   @override
-  String get guideHowQuizStep4 =>
-      '結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。';
+  String get guideHowQuizStep4 => '結果画面から次の例文へ進みます。セットの最後の例文のあとは「まとめクイズ」です。';
 
   @override
   String get guideHowReviewQuizTitle => 'まとめクイズを解く';
 
   @override
   String get guideHowReviewQuizStep1 =>
-      '例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から、下線部に入る単語を選びます。';
+      '1セット（最大5つ）の例文を学ぶごとに、学習済みの例文から穴埋め問題が出ます。';
 
   @override
   String get guideHowReviewQuizStep2 =>
-      '出題される例文は、前日・3日前・1週間前…と日をあけて選ばれます。その中でも、まだ身についていない単語から先に出ます。';
+      'まとめクイズでは、前日・3日前・1週間前などに学んだ例文を、間隔をあけて復習します。まだ身についていない学習単語の問題が優先して出ます。';
 
   @override
   String get guideHowReviewQuizStep3 =>
-      'ヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。';
+      'ヒントは1回目に発音、2回目に訳が出ます。使わずに正解すると、語彙スコアが伸びやすくなります。';
 
   @override
   String get guideHowReviewQuizStep4 => '迷ったら「例文を確認」で例文に戻れます。';
 
   @override
-  String get guideHowReviewQuizStep5 => 'ここでの正解が語彙スコアに反映されます。';
+  String get guideHowReviewQuizStep5 => '正解すると語彙スコアに反映されます。';
 
   @override
   String get guideHowSettingsTitle => '設定でできること';
 
   @override
-  String get guideHowSettingsStep1 => '通知を受け取る時刻、表示フォント、訳と解説の言語を変えられます。';
+  String get guideHowSettingsStep1 => '通知時刻・表示フォント・訳と解説の言語を変更できます。';
 
   @override
-  String get guideHowSettingsStep2 => '次の例文のテーマの選択と、ランキングもここから開けます。';
+  String get guideHowSettingsStep2 => '次の例文のテーマを選び、ランキングを開くこともできます。';
 
   @override
   String get guideHowSettingsStep3 => 'このガイドは設定の「使い方ガイド」からいつでも開けます。';
+
+  @override
+  String get guideChapterTips => '学習のコツ';
+
+  @override
+  String get guideTipsTitle => '続けるためのコツ';
+
+  @override
+  String get guideTipsRepeat =>
+      'クイズは間違えても大丈夫です。例文を丸ごと覚えなくても、学習単語を何度も見るうちに自然と語彙が増えていきます。';
+
+  @override
+  String get guideTipsScript =>
+      'タイ文字は、まず単語全体の形をつかめれば十分です。見慣れてきたら、子音・母音・声調記号を少しずつ見分けていきましょう。';
+
+  @override
+  String get guideTipsSpeak => '覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。';
 }

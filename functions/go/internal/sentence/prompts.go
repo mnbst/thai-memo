@@ -153,7 +153,16 @@ func stepsFor(l lang.Lang) string {
 // 残る条件分岐はテーマ由来の1つと、ターゲット語がルールの禁止語と衝突する場合の
 // 除去（ruleBannedWords）だけ。
 func BuildRegisterConstraint(topic string, targetWords []string, l lang.Lang) string {
-	rules := append([]string(nil), spokenRegisterRules...)
+	return buildRegisterConstraint(topic, targetWords, l, true)
+}
+
+// buildRegisterConstraint は spoken=false（相手が特定されない媒体）のとき、
+// 話し言葉に限るルール（書き言葉の禁止・改まった敬称の禁止）を外す。
+func buildRegisterConstraint(topic string, targetWords []string, l lang.Lang, spoken bool) string {
+	var rules []string
+	if spoken {
+		rules = append(rules, spokenRegisterRules...)
+	}
 	rules = append(rules, translationRegisterRules[string(l)]...)
 	rules = append(rules, alwaysRules...)
 
@@ -161,9 +170,10 @@ func BuildRegisterConstraint(topic string, targetWords []string, l lang.Lang) st
 	if topic == Topics[14] || topic == Topics[15] {
 		rules = append(rules, romanceTopicRules...)
 	}
+
 	// 宗教・信仰 / 伝統・祭り / 礼儀作法 は僧侶・王族・高位の公職が相手になり
 	// ท่าน が正しい敬称になる。この3テーマだけ敬称の禁止を外す。
-	if topic != Topics[11] && topic != Topics[12] && topic != Topics[13] {
+	if spoken && topic != Topics[11] && topic != Topics[12] && topic != Topics[13] {
 		rules = append(rules, formalPronounRule)
 	}
 	rules = dropRulesBanningTargets(rules, targetWords)
@@ -191,9 +201,14 @@ func BuildRelationConstraint(relation string) string {
 	if relation == "" {
 		return ""
 	}
-	status, intimacy, _ := strings.Cut(relation, "／")
+	status, rest, _ := strings.Cut(relation, "／")
+	intimacy, speaker, _ := strings.Cut(rest, "／")
+	// 性別は「地位／親密度／性別」の3つ目。2区切りの指定では行を出さない。
+	if speaker != "" {
+		speaker = "話し手は" + speaker + "。"
+	}
 	return strings.NewReplacer(
-		"{status}", status, "{intimacy}", intimacy,
+		"{status}", status, "{intimacy}", intimacy, "{speaker}", speaker,
 	).Replace(relationBlock)
 }
 

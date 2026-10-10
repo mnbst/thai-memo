@@ -2,4 +2,7 @@
 <resources>
     <!-- アプリアイコンの青。起動時のネイティブ背景を Flutter 側スプラッシュと揃える。 -->
     <color name="brand_blue">#FF012CE0</color>
+    <!-- 通知アイコンの色（ステータスバー・通知の小アイコン）。 -->
+    <color name="notification_color">#FF012CE0</color>
+	<color name="ic_launcher_background">#012CE0</color>
 </resources>

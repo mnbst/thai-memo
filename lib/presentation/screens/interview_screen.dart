@@ -195,6 +195,11 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
             answeredCount: _answers.length,
           ),
     );
+    unawaited(
+      ref
+          .read(analyticsServiceProvider)
+          .setUserInterviewLevel(_answers['level'] ?? 'skipped'),
+    );
     // 回答は users doc にも送る（属性 × 定着の分析と、端末を経由しない
     // 毎日配信のテーマ決定に使う）。例文のテーマは端末側で決めるので、
     // 生成はこの書き込みの着地を待たない。
@@ -448,9 +453,9 @@ class _PhilosophyViewState extends State<_PhilosophyView>
   Widget _staggered(int index, Widget child) {
     final total = _controller.duration!.inMilliseconds;
     final begin = (_stagger.inMilliseconds * index) / total;
-    final end = ((_stagger.inMilliseconds * index + _fade.inMilliseconds) /
-            total)
-        .clamp(0.0, 1.0);
+    final end =
+        ((_stagger.inMilliseconds * index + _fade.inMilliseconds) / total)
+            .clamp(0.0, 1.0);
     final animation = CurvedAnimation(
       parent: _controller,
       curve: Interval(begin, end, curve: Curves.easeOut),

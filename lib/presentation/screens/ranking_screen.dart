@@ -96,8 +96,8 @@ class _RankingList extends ConsumerWidget {
                 itemBuilder: (context, index) {
                   final entry = entries[index];
                   // トップ3と自分の周辺が離れているときは、間を省略と分かるようにする
-                  final gap = index > 0 &&
-                      entry.rank > entries[index - 1].rank + 1;
+                  final gap =
+                      index > 0 && entry.rank > entries[index - 1].rank + 1;
                   if (!gap) return _RankRow(entry: entry);
                   return Column(
                     children: [
@@ -156,7 +156,8 @@ class _MyRankCard extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final vocab = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+    final vocab =
+        ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
     final rank = ref.watch(myRankProvider).valueOrNull;
 
     return Card(
@@ -320,8 +321,8 @@ class _DistributionCard extends ConsumerWidget {
       data: (distribution) {
         if (distribution.total <= 0) return const SizedBox.shrink();
         final percentile = distribution.percentile(rank);
-        final maxCount = distribution.bands
-            .fold<int>(0, (value, band) => band.count > value ? band.count : value);
+        final maxCount = distribution.bands.fold<int>(
+            0, (value, band) => band.count > value ? band.count : value);
 
         return Card(
           child: Padding(

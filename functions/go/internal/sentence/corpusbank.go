@@ -134,10 +134,21 @@ func (b *CorpusBank) Pick(
 	return &picked, nil
 }
 
-// CorpusObject / PoolObject は静的コーパスとプールの GCS オブジェクト名。
+// CorpusObject / PoolObject / FreePoolObject は静的コーパスとプールの GCS オブジェクト名。
 // dailyBatch の書き出し側と読み込み側で名前がずれないよう、ここで一元化する。
-func CorpusObject(l lang.Lang) string { return fmt.Sprintf("corpus_sentences_%s.json", l) }
-func PoolObject(l lang.Lang) string   { return fmt.Sprintf("corpus_pool_%s.json", l) }
+// プールはティアごとに分ける（premium は CorpusBank、free は FreeBank が重ねる）。
+func CorpusObject(l lang.Lang) string   { return fmt.Sprintf("corpus_sentences_%s.json", l) }
+func PoolObject(l lang.Lang) string     { return fmt.Sprintf("corpus_pool_%s.json", l) }
+func FreePoolObject(l lang.Lang) string { return fmt.Sprintf("free_pool_%s.json", l) }
+
+// PoolObjectFor はティア（generation_tier の値）のプールのオブジェクト名。
+// free 以外は premium のプールにする。
+func PoolObjectFor(tier string, l lang.Lang) string {
+	if tier == GenerationTier(false) {
+		return FreePoolObject(l)
+	}
+	return PoolObject(l)
+}
 
 // ReadSentences は GCS の JSON 配列を読む。オブジェクトが無ければ nil, nil。
 // プールを読み書きする dailyBatch 側（sentence_pool.go）も同じ入口を使う。

@@ -66,7 +66,8 @@ class PremiumTrialStartedDialog extends StatelessWidget {
 }
 
 class _Unlocked extends StatelessWidget {
-  const _Unlocked({required this.icon, required this.label, required this.text});
+  const _Unlocked(
+      {required this.icon, required this.label, required this.text});
 
   final IconData icon;
 

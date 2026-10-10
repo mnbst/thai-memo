@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/cloudevents/sdk-go/v2/event"
-	"google.golang.org/api/iterator"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/playbilling"
@@ -48,8 +48,18 @@ type rtdnMessage struct {
 		PurchaseToken  string `json:"purchaseToken"`
 		SubscriptionID string `json:"subscriptionId"`
 	} `json:"subscriptionNotification"`
-	PackageName string `json:"packageName"`
+	// VoidedPurchaseNotification は返金・取消。買い切りの権利を剥がすのに使う。
+	VoidedPurchaseNotification *voidedPurchase `json:"voidedPurchaseNotification"`
+	PackageName                string          `json:"packageName"`
 }
+
+// voidedPurchase は返金・取消された購入。ProductType は 1=定期購入, 2=一時購入。
+type voidedPurchase struct {
+	PurchaseToken string `json:"purchaseToken"`
+	ProductType   int    `json:"productType"`
+}
+
+const playProductTypeOneTime = 2
 
 func handlePlayNotificationEvent(ctx context.Context, e event.Event) error {
 	var data messagePublishedData
@@ -64,6 +74,10 @@ func handlePlayNotificationEvent(ctx context.Context, e event.Event) error {
 		}
 	}
 
+	if v := message.VoidedPurchaseNotification; v != nil {
+		log.Printf("RTDN voided: productType=%d", v.ProductType)
+		return revokePlayLifetime(ctx, v)
+	}
 	if message.SubscriptionNotification == nil {
 		log.Print("Non-subscription notification, skipping")
 		return nil
@@ -89,27 +103,10 @@ func processPlayNotification(
 	// verifySubscription で保存した purchase_token と照合する。
 	// 匿名ユーザーの再インストール等で同一サブスクの doc が複数残る可能性が
 	// あるため limit(1) にせず、該当する全 doc を更新する。
-	it := db.Collection("users").
-		Where("subscription.purchase_token", "==", purchaseToken).
-		Documents(ctx)
-	defer it.Stop()
-
-	var docs []*firestore.DocumentSnapshot
-	for {
-		doc, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		docs = append(docs, doc)
-	}
-
-	if len(docs) == 0 {
-		// 初回購入前の通知など
-		log.Print("No user found for purchaseToken")
-		return nil
+	docs, err := findUsersBySubscriptionField(
+		ctx, db, "subscription.purchase_token", purchaseToken)
+	if err != nil {
+		return err
 	}
 
 	result, err := playbilling.Default.VerifyPurchase(
@@ -118,6 +115,25 @@ func processPlayNotification(
 		log.Printf("Failed to verify Play purchase on RTDN: %v", err)
 		// エラーを Eventarc/Pub/Sub へ返し、一時的な Play API 障害なら再送させる。
 		return fmt.Errorf("Play purchase verification failed: %w", err)
+	}
+
+	// 月額↔年額の切り替えでは新しいトークンが発行され、linkedPurchaseToken が
+	// 元のトークンを指す。アプリが新しいトークンを検証する前（または検証に
+	// 失敗したまま）でも、元のトークンの持ち主を新しい購読へ付け替える。
+	// 付け替えないと、元のトークンの失効通知で free に落ちたまま戻らない。
+	replaced := false
+	if len(docs) == 0 && result.LinkedPurchaseToken != "" {
+		docs, err = findUsersBySubscriptionField(
+			ctx, db, "subscription.purchase_token", result.LinkedPurchaseToken)
+		if err != nil {
+			return err
+		}
+		replaced = len(docs) > 0
+	}
+	if len(docs) == 0 {
+		// 初回購入の検証前に届いた通知など
+		log.Print("No user found for purchaseToken")
+		return nil
 	}
 
 	// 検証結果に基づいて tier を決定（expired なら free、それ以外は premium）
@@ -138,7 +154,14 @@ func processPlayNotification(
 				userTier = "premium"
 			}
 		}
-		if _, err := doc.Ref.Update(ctx, playUpdates(result, userTier, currentTier),
+		updates := playUpdates(result, userTier, currentTier)
+		if replaced {
+			updates = append(updates,
+				firestore.Update{Path: "subscription.purchase_token", Value: purchaseToken},
+				firestore.Update{Path: "subscription.product_id", Value: subscriptionID},
+			)
+		}
+		if _, err := doc.Ref.Update(ctx, updates,
 			firestore.LastUpdateTime(doc.UpdateTime)); err != nil {
 			return err
 		}
@@ -182,4 +205,47 @@ func playUpdates(
 	}
 
 	return updates
+}
+
+// revokePlayLifetime は返金・取消された購入に紐づく買い切りの権利を剥がす。
+//
+// App Store の REFUND / REVOKE と同じ扱いにそろえる（lifetimeRevoked 参照）。
+//   - 一時購入: 買い切りそのものの返金
+//   - 定期購入: 無償移行（monthly_migration）の元になった月額の返金
+//
+// 定期購入そのものの失効は SUBSCRIPTION_REVOKED が別に届き、
+// processPlayNotification が再検証して落とす。
+func revokePlayLifetime(ctx context.Context, v *voidedPurchase) error {
+	if v.PurchaseToken == "" {
+		return nil
+	}
+	db, err := fbapp.Firestore(ctx)
+	if err != nil {
+		return err
+	}
+
+	oneTime := v.ProductType == playProductTypeOneTime
+	field := "subscription.lifetime_source_purchase_token"
+	if oneTime {
+		field = "subscription.lifetime_transaction_id"
+	}
+	docs, err := findUsersBySubscriptionField(ctx, db, field, v.PurchaseToken)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	for _, doc := range docs {
+		sub, _ := doc.Data()["subscription"].(map[string]any)
+		migrated := subscription.LifetimeSource(sub) == "monthly_migration"
+		if !subscription.IsLifetime(sub) || migrated == oneTime {
+			continue
+		}
+		if _, err := doc.Ref.Update(ctx, lifetimeReleaseUpdates(doc.Data(), now),
+			firestore.LastUpdateTime(doc.UpdateTime)); err != nil {
+			return err
+		}
+		log.Printf("Revoked Play lifetime for user %s", doc.Ref.ID)
+	}
+	return nil
 }

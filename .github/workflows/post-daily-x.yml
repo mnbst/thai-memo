@@ -1,15 +1,18 @@
 name: Post Daily Sentence to X
 
 on:
-  schedule:
-    # 07:00 JST。毎日例文の配信と同じ朝の時間帯に合わせる。
-    - cron: '0 22 * * *'
+  # 毎朝 06:47 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
+  # workflow_dispatch で起動する。GitHub の schedule は遅延・欠落が多いため使わない。
   workflow_dispatch:
     inputs:
       dry_run:
         description: '投稿せず、本文とメディアの確認だけ行う'
         type: boolean
         default: false
+      themes:
+        description: '抽選するテーマ（カンマ区切り。空なら全部: タイ旅行,タイ生活,恋愛）'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -70,9 +73,11 @@ jobs:
           X_API_SECRET: ${{ steps.secrets.outputs.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ steps.secrets.outputs.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ steps.secrets.outputs.X_ACCESS_TOKEN_SECRET }}
+          THEMES: ${{ inputs.themes }}
         run: |
           python tools/x_post/pick_sentence.py \
-            --project "$GCP_PROJECT" --out "$OUT_DIR" --seed "$(date -u +%F)"
+            --project "$GCP_PROJECT" --out "$OUT_DIR" --seed "$(date -u +%F)" \
+            --themes "$THEMES"
 
       - name: Synthesize pronunciation
         run: |

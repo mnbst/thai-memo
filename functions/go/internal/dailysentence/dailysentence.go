@@ -223,9 +223,10 @@ const DailyBatchSize = sentence.SetSize
 var DailyBatchMinVersion = [3]int{1, 4, 8}
 
 // BatchSize は配信本数。版が読めない・古い場合は従来どおり1本（安全側）。
+// それ以外はアプリからの生成と同じセット本数（入門者は2〜4本）。
 func BatchSize(userData map[string]any) int {
 	if !appver.AtLeast(userData, DailyBatchMinVersion) {
 		return 1
 	}
-	return DailyBatchSize
+	return sentence.SetSizeFor(userData)
 }

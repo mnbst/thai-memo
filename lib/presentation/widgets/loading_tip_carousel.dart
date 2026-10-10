@@ -132,8 +132,8 @@ class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
               const SizedBox(height: 4),
               Text(
                 currentTip.example != null
-                    ? L10n.of(context).tipWithExample(
-                        currentTip.content, currentTip.example!)
+                    ? L10n.of(context)
+                        .tipWithExample(currentTip.content, currentTip.example!)
                     : currentTip.content,
                 style: theme.textTheme.bodySmall,
               ),

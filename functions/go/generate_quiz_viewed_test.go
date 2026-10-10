@@ -26,7 +26,7 @@ func TestIsSentenceViewed(t *testing.T) {
 // TestSelectionSrsBudget は SRS 枠が周をまたいで数えられることを確かめる。
 // 既読だけの周で枠を使い切っていたら、未読の周では SRS から足さない。
 func TestSelectionSrsBudget(t *testing.T) {
-	sel := newSelection()
+	sel := newSelection(maxQuestions)
 	for i := 0; i < maxSrsSentences; i++ {
 		sel.add(selectedSentence{
 			ID: string(rune('a' + i)), Data: map[string]any{"key_word": "กิน"}, SrsInterval: 1,
@@ -50,5 +50,36 @@ func TestSelectionSrsBudget(t *testing.T) {
 	}
 	if !sel.full() {
 		t.Error("maxQuestions まで選んでも full にならない")
+	}
+}
+
+// TestSelectionLimit は入門者の短いクイズで、問題数と SRS 枠が
+// セット本数に合わせて縮むことを確かめる。
+func TestSelectionLimit(t *testing.T) {
+	cases := []struct {
+		limit, wantLimit, wantSrs int
+	}{
+		{2, 2, 1},
+		{3, 3, 1},
+		{4, 4, 2},
+		{5, 5, maxSrsSentences},
+		{9, maxQuestions, maxSrsSentences},
+	}
+	for _, c := range cases {
+		sel := newSelection(c.limit)
+		if sel.limit != c.wantLimit || sel.srsLimit() != c.wantSrs {
+			t.Errorf("limit=%d: got limit=%d srs=%d, want %d/%d",
+				c.limit, sel.limit, sel.srsLimit(), c.wantLimit, c.wantSrs)
+		}
+	}
+
+	sel := newSelection(2)
+	sel.add(selectedSentence{ID: "a", Data: map[string]any{}})
+	if sel.full() {
+		t.Error("1問で full")
+	}
+	sel.add(selectedSentence{ID: "b", Data: map[string]any{}})
+	if !sel.full() {
+		t.Error("2問で full にならない")
 	}
 }

@@ -12,8 +12,10 @@ import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/remaining_quota_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/subscription_provider.dart';
+import 'presentation/providers/tts_provider.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/splash_screen.dart';
+import 'presentation/widgets/tablet_width_limit.dart';
 import 'services/firebase_auth_service.dart';
 import 'services/anonymous_sign_in_coordinator.dart';
 
@@ -27,6 +29,8 @@ class ThaiMemoApp extends ConsumerStatefulWidget {
 
 class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
   StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<void>? _thaiVoiceSubscription;
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   late final AnonymousSignInCoordinator _anonymousSignIn;
 
   @override
@@ -64,12 +68,37 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
           .read(subscriptionControllerProvider.notifier)
           .applyUserDocument(uid, next.value!.data);
     });
+    _thaiVoiceSubscription = ref
+        .read(ttsServiceProvider)
+        .thaiVoiceMissing
+        .listen((_) => _showThaiVoiceMissing());
+  }
+
+  /// 読み上げにタイ語の声が無い（Android）。どの画面で鳴らしても出せるよう、
+  /// アプリ直下の ScaffoldMessenger から出す。
+  void _showThaiVoiceMissing() {
+    final messenger = _messengerKey.currentState;
+    final context = _messengerKey.currentContext;
+    if (messenger == null || context == null) return;
+    final l10n = L10n.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.ttsThaiVoiceMissing),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: l10n.ttsThaiVoiceInstall,
+          onPressed: () =>
+              unawaited(ref.read(ttsServiceProvider).openVoiceInstaller()),
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
     _anonymousSignIn.dispose();
     _authSubscription?.cancel();
+    _thaiVoiceSubscription?.cancel();
     super.dispose();
   }
 
@@ -83,6 +112,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
     final analytics = ref.watch(analyticsServiceProvider);
 
     return MaterialApp(
+      scaffoldMessengerKey: _messengerKey,
       debugShowCheckedModeBanner: false,
       // 端末ロケールは見ない。言語はアプリ内設定（初期値はストア地域）だけで決める。
       locale: appLanguage.locale,
@@ -99,6 +129,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
       themeMode: themeMode,
       theme: buildAppLightTheme(fontFamily),
       darkTheme: buildAppDarkTheme(fontFamily),
+      builder: (context, child) => TabletWidthLimit(child: child!),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {

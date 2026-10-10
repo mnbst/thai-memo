@@ -9,11 +9,13 @@ import '../../core/config/app_config.dart';
 import '../../core/constants/generation_constants.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/thai_sentence.dart';
+import '../../data/datasources/backend_api_service.dart';
+import '../providers/auth_provider.dart';
 import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
 import '../../services/interview_reporter.dart';
-import '../../services/push_notification_service.dart';
 import '../../services/sentence_view_marker.dart';
+import '../../services/uvm_update_queue.dart';
 import '../providers/daily_set_provider.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
@@ -21,7 +23,6 @@ import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
-import '../widgets/notification_coach_dialog.dart';
 import '../widgets/premium_lifetime_migration_dialog.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
@@ -47,9 +48,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver, RouteAware {
   int _currentIndex = 0;
-
-  /// 設定タブの位置。通知の案内はここへ移ってから出す。
-  static const int _settingsTabIndex = 2;
   bool _initialLoadCompleted = false;
   Future<void>? _initialLoadFuture;
   final _dailySentenceService = DailySentenceService();
@@ -73,8 +71,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       unawaited(InterviewReporter().report());
       // 通信できずに端末へ溜まった既読を流す。
       unawaited(SentenceViewMarker.instance.flush());
+      // 送れずに端末へ溜まったクイズ回答（語彙スコアの更新）を流す。
+      unawaited(
+          UvmUpdateQueue.instance.flush(BackendApiService().sendUvmPayload));
       _notificationOpenSubscription =
           FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
+      // 設定などから別アカウントへ切り替えたら、そのアカウントの続き
+      // （配信・進行位置）を読み込み直す。端末データは切替時に消えている。
+      ref.listenManual(accountSwitchEpochProvider, (_, __) {
+        if (_initialLoadCompleted && mounted) unawaited(_reloadToday());
+      });
       // 後ろで取り込んだ別端末の進行位置を、例文を読んでいる間だけ反映する。
       ref.listenManual(dailySetProvider, (previous, next) {
         if (!_initialLoadCompleted) return;
@@ -231,7 +237,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final adopt = _learningKey.currentState?.isOnSentenceStage ?? true;
     await ref.read(dailySetProvider.notifier).syncFromCloud(adopt: adopt);
     if (!mounted || !adopt) return;
+    await _shrinkSetToCurrentSize();
+    if (!mounted) return;
     await _learningKey.currentState?.restoreProgress();
+  }
+
+  /// 読みかけのセットが今の本数（入門者は語彙スコアに応じて2〜4本）より長ければ
+  /// 縮める。本数を減らす前の5本セットで止まっている人を、まとめクイズへ早く
+  /// 届かせるため。users doc が読めなければ何もしない。
+  Future<void> _shrinkSetToCurrentSize() async {
+    final UserDocSnapshot snapshot;
+    try {
+      snapshot = await ref.read(userDocSnapshotProvider.future);
+    } catch (_) {
+      return;
+    }
+    final data = snapshot.data;
+    if (data == null || !mounted) return;
+    await ref
+        .read(dailySetProvider.notifier)
+        .shrinkActiveSet(learningSetSizeFor(data));
   }
 
   /// 初回ロードと通知タップ処理を直列化する。
@@ -392,30 +417,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  /// 設定タブを開いたときに、通知の案内を出す。
-  ///
-  /// こちらから画面を動かして出すのはやめた。自分で設定を開いた人なら、
-  /// 案内を閉じた先に通知のトグルが見えていて、後から切り替える場所も分かる。
-  ///
-  /// 例文を1つも学習していないうちは出さない。毎日届く価値が伝わる前に
-  /// 聞くと断られる（iOSでは一度拒否されると二度と要求できない）。
-  Future<void> _maybeShowNotificationCoachOnSettingsOpen() async {
-    // 初期化前の state は「表示済み」側の既定値なので、読む前に必ず待つ。
-    await ref.read(settingsControllerProvider.notifier).initialized;
-    if (!mounted ||
-        ref.read(settingsControllerProvider).notificationCoachShown) {
-      return;
-    }
-    // 初回は例文が自動生成されるため、1つあるだけでは価値を体験したことに
-    // ならない。2つ目まで進んだ人にだけ聞く。
-    final sentences = await ref.read(allSentencesProvider.future);
-    if (sentences.length < 2 || !mounted) return;
-    // タブが描画されてから案内を重ねる。開いた直後に離れた人には出さない。
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    if (!mounted || _currentIndex != _settingsTabIndex) return;
-    await _maybeShowNotificationCoach();
-  }
-
   Future<void> _handleInitialNotificationOpen() async {
     final message = await FirebaseMessaging.instance.getInitialMessage();
     if (message != null) await _handleNotificationOpen(message);
@@ -445,76 +446,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _learningKey.currentState?.showSentenceStage();
   }
 
-  /// 例文の価値を体験した後に一度だけ、毎日例文通知を継続サポート機能として紹介する。
-  ///
-  /// 体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否されると
-  /// 二度と要求できない）ため、インストール直後には出さない。
-  /// 「通知をオンにする」を押したらその場でOSの許可要求まで出す。設定タブの
-  /// トグルまで自分で辿らせていた頃は、承諾してもトークン登録まで届いていなかった。
-  Future<void> _maybeShowNotificationCoach() async {
-    final controller = ref.read(settingsControllerProvider.notifier);
-    await controller.initialized;
-    if (!mounted) return;
-
-    final coachShown =
-        ref.read(settingsControllerProvider).notificationCoachShown;
-    final permissionGranted =
-        await controller.hasProminentNotificationPermission();
-    if (!shouldShowNotificationCoach(
-      coachShown: coachShown,
-      permissionGranted: permissionGranted,
-    )) {
-      // 許可済みだと確認できたときだけ、紹介不要として記録する。判定不能（null）
-      // で記録すると、一度の取得失敗でそのユーザーが恒久的に案内対象から外れる。
-      if (!coachShown && permissionGranted == true) {
-        await controller.markNotificationCoachShown();
-      }
-      return;
-    }
-    // 前面に別の画面がある間は出さない。ここで出さなくても表示済みフラグは
-    // 立たないため、次の起動で出し直される。
-    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
-
-    final analytics = ref.read(analyticsServiceProvider);
-    unawaited(analytics.logNotificationCoach(action: 'shown'));
-
-    final accepted = await showNotificationCoachDialog(context);
-    unawaited(
-      analytics.logNotificationCoach(
-        action: accepted ? 'accepted' : 'dismissed',
-      ),
-    );
-    // 出したら結果に関わらず記録する。断られた直後の出し直しは印象を悪くする。
-    await controller.markNotificationCoachShown();
-    if (!accepted || !mounted) return;
-
-    // ここでOSの許可ダイアログが出る。答えるまで下の await は返らないため、
-    // 要求に入ったこと自体を先に記録する。これが無いと「ダイアログを放置して
-    // アプリを離れた」と「許可後の登録が終わらなかった」を後から区別できない。
-    unawaited(analytics.logNotificationCoach(action: 'requesting'));
-    final result = await controller.setDailyReminderEnabled(true);
-    unawaited(
-      analytics.logNotificationCoach(action: result?.name ?? 'denied'),
-    );
-    if (!mounted) return;
-    // pending は許可が取れているので、登録待ちでも成功として伝える。
-    // quiet（昇格を断られた）は「届きます」と言うと嘘になるので分ける。
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(switch (result) {
-          PushEnableResult.denied =>
-            L10n.of(context).settingsAllowNotificationInOsSettings,
-          PushEnableResult.quiet => L10n.of(context).notifCoachStillQuiet,
-          _ => L10n.of(context).notifCoachEnabled,
-        }),
-      ),
-    );
-  }
-
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
   Future<void> _checkAndReloadIfNeeded() async {
     // 初回ロードが完了する前はスキップ（_checkFirstLaunchAndLoadSentenceとの二重生成を防ぐ）
     if (!_initialLoadCompleted) return;
+
+    // 圏外のあいだに溜まったクイズ回答を流す。
+    unawaited(
+        UvmUpdateQueue.instance.flush(BackendApiService().sendUvmPayload));
 
     // 別端末で進んだ位置は後ろで取り込む。待たないのは、通信が遅いあいだ
     // 端末の続きを表示できないほうが困るため。
@@ -556,6 +495,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
 
     if (isFirstLaunch) {
+      var existingAccount = false;
       if (mounted) {
         // まず機能紹介の3枚。何のアプリかを見せてから質問へ入る。
         await Navigator.push<void>(
@@ -563,74 +503,82 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           MaterialPageRoute(
             settings: const RouteSettings(name: OnboardingScreen.routeName),
             builder: (context) => OnboardingScreen(
-              onComplete: () {
+              onComplete: (existing) {
+                existingAccount = existing;
                 Navigator.pop(context);
               },
             ),
           ),
         );
       }
-      if (mounted) {
-        // 続けてヒアリング。本人の状況を聞いてから説明書・語彙テストへ入る。
-        await Navigator.push<void>(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: InterviewScreen.routeName),
-            builder: (context) => InterviewScreen(
-              onComplete: () {
-                Navigator.pop(context);
-              },
+      // 別の端末で使っていたアカウントで入った人は、ヒアリング・語彙テストを
+      // 済ませている。続きはクラウドから戻す（_loadTodaySentence）。
+      if (existingAccount) {
+        ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
+      } else {
+        if (mounted) {
+          // 続けてヒアリング。本人の状況を聞いてから説明書・語彙テストへ入る。
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: InterviewScreen.routeName),
+              builder: (context) => InterviewScreen(
+                onComplete: () {
+                  Navigator.pop(context);
+                },
+              ),
             ),
-          ),
+          );
+        }
+        // ガイド・語彙テストを進めている間に回答を送る。セット本数の判定にも
+        // interview.level を使うため、初回生成の直前ではこの着地を待つ。
+        final interviewReport = InterviewReporter().report();
+
+        if (mounted) {
+          // 先に使い方の説明書を先頭から読ませる。読みたくない人はスキップ
+          // できる。語彙テストは「何を測るのか」が分かってからのほうが、
+          // 意味の分からない4択を突然出されるより降りられにくい。
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: GuideScreen.routeName),
+              builder: (context) => GuideScreen(
+                isFirstLaunch: true,
+                onDone: () => Navigator.pop(context),
+              ),
+            ),
+          );
+        }
+
+        // 最後に語彙テスト（任意）。生成の開始はこの後まで待つ。key_word は
+        // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
+        // 0 語相当の難度で出てしまう。受けずに進んだ人は 0 語から始まる。
+        if (mounted) {
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: VocabTestScreen.routeName),
+              builder: (context) => VocabTestScreen(
+                source: 'onboarding',
+                onFinished: (_) => Navigator.pop(context),
+              ),
+            ),
+          );
+        }
+
+        // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
+        // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
+        // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
+        if (mounted) {
+          await PaywallScreen.show(context, source: 'onboarding');
+        }
+
+        // 生成開始。ここから先は学習画面のローディングで待たせる。
+        _initialLoadFuture ??= runInitialGenerationAfterInterviewReport(
+          report: interviewReport,
+          generate: () async => _applyInterviewTopicAndLoad(await _savedGoal()),
         );
       }
-      // 回答の送信は分析と毎日配信のため。テーマは端末側で決めるので、
-      // 書き込みの着地は待たない。語彙スコアには効かないので、着地の順序が
-      // 語彙テストと前後しても影響しない。
-      unawaited(InterviewReporter().report());
-
-      if (mounted) {
-        // 先に使い方の説明書を先頭から読ませる。読みたくない人はスキップ
-        // できる。語彙テストは「何を測るのか」が分かってからのほうが、
-        // 意味の分からない4択を突然出されるより降りられにくい。
-        await Navigator.push<void>(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: GuideScreen.routeName),
-            builder: (context) => GuideScreen(
-              isFirstLaunch: true,
-              onDone: () => Navigator.pop(context),
-            ),
-          ),
-        );
-      }
-
-      // 最後に語彙テスト。生成の開始はこの後まで待つ。key_word は
-      // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
-      // 0 語相当の難度で出てしまう。
-      if (mounted) {
-        await Navigator.push<void>(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: VocabTestScreen.routeName),
-            builder: (context) => VocabTestScreen(
-              mandatory: true,
-              source: 'onboarding',
-              onFinished: (_) => Navigator.pop(context),
-            ),
-          ),
-        );
-      }
-
-      // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
-      // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
-      // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
-      if (mounted) {
-        await PaywallScreen.show(context, source: 'onboarding');
-      }
-
-      // 生成開始。ここから先は学習画面のローディングで待たせる。
-      _initialLoadFuture ??= _applyInterviewTopicAndLoad(await _savedGoal());
 
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
@@ -679,6 +627,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 復元そのものは controller 側で1回に束ねている。
     await ref.read(dailySetProvider.notifier).restored;
 
+    // 配信を取り込む前に、別端末で進んだ位置・終えたセットを合わせる。端末の
+    // 記録が古いままだと、別端末で読み終えたセットを1本目から出し直したり、
+    // 取り込んだ配信で待機列が溢れて読みかけのセットを捨てたりする。
+    // 通信が遅いときは待たずに進む（合わせるのは後ろで続く）。
+    await ref
+        .read(dailySetProvider.notifier)
+        .syncFromCloud(
+          adopt: _learningKey.currentState?.isOnSentenceStage ?? true,
+        )
+        .timeout(const Duration(seconds: 3), onTimeout: () {});
+
     // 配信例文の取り込みを先に終わらせる。今日ぶんがあればそれが今日の例文なので、
     // 生成もローカル読み込みも走らせない（通知タップかどうかの判定は不要）。
     //
@@ -723,9 +682,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             _currentIndex = index;
           });
           _logCurrentTabScreen(index: index);
-          if (index == _settingsTabIndex) {
-            unawaited(_maybeShowNotificationCoachOnSettingsOpen());
-          }
         },
         destinations: [
           NavigationDestination(
@@ -775,6 +731,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 typedef DeliveredOutcome = ({bool displayed, bool imported});
 
 const DeliveredOutcome noDelivery = (displayed: false, imported: false);
+
+/// ヒアリング回答が users doc に着地してから初回セットを生成する。
+///
+/// 送信はガイド・語彙テストより前に始めておき、待つのは生成直前だけにする。
+/// 送信失敗で学習開始まで止めないため、予期しない例外でも生成は続ける。
+@visibleForTesting
+Future<void> runInitialGenerationAfterInterviewReport({
+  required Future<void> report,
+  required Future<void> Function() generate,
+}) async {
+  try {
+    await report;
+  } catch (e) {
+    debugPrint('HomeScreen: interview report failed before generation: $e');
+  }
+  await generate();
+}
 
 @visibleForTesting
 DeliveredOutcome mergeDeliveredOutcome(DeliveredOutcome a, DeliveredOutcome b) {

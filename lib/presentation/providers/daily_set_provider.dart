@@ -16,6 +16,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,6 +96,9 @@ class DailySetController extends StateNotifier<DailySetState> {
   /// 端末側の学習レコード（セット・段・クイズ）。
   final LearningProgressStore _progress;
   List<String> _completedSetIds = const [];
+
+  /// 待機列から溢れて捨てたセット。端末の中だけで持ち、Firestore へは送らない。
+  List<String> _droppedSetIds = const [];
   Future<void>? _remoteSyncFuture;
   bool _remoteSyncDirty = false;
   bool _syncPaused = false;
@@ -244,6 +248,7 @@ class DailySetController extends StateNotifier<DailySetState> {
   }) async {
     if (sentences.isEmpty) return false;
     if (_completedSetIds.contains(setId) ||
+        _droppedSetIds.contains(setId) ||
         state.setId == setId ||
         state.pendingSets.any((pending) => pending.setId == setId)) {
       return false;
@@ -288,6 +293,35 @@ class DailySetController extends StateNotifier<DailySetState> {
     return _acceptDeliveredSet(setId: setId, sentences: sentences);
   }
 
+  /// 読みかけのセットを [size] 本まで縮める。縮めたら true。
+  ///
+  /// 入門者のセット本数を減らす前に配られた5本セットの途中で止まっている人を、
+  /// 新しい本数のまとめクイズへ早く届かせるため。読んだ例文といま読んでいる
+  /// 1本は残し、その先だけを落とす（落とした例文も履歴には残る）。
+  ///
+  /// 縮めたセットには新しい ID を振り、元のセットは完了として記録する。
+  /// 同じ ID のままだと、マージが長いほうの並びを採るので（mergeDailySetProgress）
+  /// 次の同期で元の本数に戻ってしまう。
+  Future<bool> shrinkActiveSet(int size) =>
+      _serialized(() => _shrinkActiveSet(size));
+
+  Future<bool> _shrinkActiveSet(int size) async {
+    final setId = state.setId;
+    if (!state.isActive || setId == null) return false;
+    final length = math.max(state.index + 1, size);
+    // 2本未満にはしない（isLast が立たず、まとめクイズへ進めなくなる）。
+    if (length < 2 || length >= state.sentences.length) return false;
+    _markCompleted(setId);
+    state = DailySetState(
+      setId: '$setId~$length',
+      sentences: state.sentences.sublist(0, length),
+      index: state.index,
+      pendingSets: state.pendingSets,
+    );
+    await _persist();
+    return true;
+  }
+
   /// 次の1本へ進む。セットを使い切っていたら null を返す（生成へ落とす合図）。
   Future<ThaiSentence?> advance() => _serialized(_advance);
 
@@ -319,6 +353,7 @@ class DailySetController extends StateNotifier<DailySetState> {
   Future<void> _clear() async {
     state = const DailySetState();
     _completedSetIds = const [];
+    _droppedSetIds = const [];
     await _progress.clear();
   }
 
@@ -355,15 +390,22 @@ class DailySetController extends StateNotifier<DailySetState> {
 
   /// 待機列を上限（maxPendingSets）まで詰める。残すのは新しいほう。
   ///
-  /// 落としたセットは完了として記録する。記録しないと、Firestore に残った
-  /// 同じセットが merge で未完了の正本と見なされ、次の同期でまた積み直される。
+  /// 落としたセットは「捨てた」として端末にだけ記録する。記録しないと、
+  /// Firestore に残った同じセットが次の同期でまた積み直される。完了として
+  /// 記録してはいけない。完了は全端末に効くので、落としたのが別端末の
+  /// 読みかけセットだと、その続きが全端末から消える。
   List<PendingDailySet> _trimPending(List<PendingDailySet> pending) {
     if (pending.length <= maxPendingSets) return pending;
     final dropped = pending.take(pending.length - maxPendingSets);
     for (final set in dropped) {
-      _markCompleted(set.setId);
+      _markDropped(set.setId);
     }
     return pending.skip(pending.length - maxPendingSets).toList();
+  }
+
+  void _markDropped(String setId) {
+    if (_droppedSetIds.contains(setId)) return;
+    _droppedSetIds = trimCompletedSetIds([..._droppedSetIds, setId]);
   }
 
   /// セットから抜けるときは必ず完了として記録する。記録が漏れると、Firestore に
@@ -386,6 +428,7 @@ class DailySetController extends StateNotifier<DailySetState> {
             DailySetRef.fromSentences(pending.setId, pending.sentences),
         ],
         completedSetIds: _completedSetIds,
+        droppedSetIds: _droppedSetIds,
       );
 
   /// 端末の続きを確定させる。Firestore は待たない。
@@ -447,7 +490,43 @@ class DailySetController extends StateNotifier<DailySetState> {
       await _apply(reconciled);
       if (mounted) await _saveLocal();
     });
-    if (adopted) await _adoptRemoteSummaryQuiz(store);
+    if (adopted) {
+      await _adoptRemoteSummaryQuiz(store);
+      await _adoptRemoteConfirmationQuiz(store);
+    }
+  }
+
+  /// 別端末で答え終えた確認クイズを、この端末のレコードへ取り込む。
+  ///
+  /// 取り込むのは、いま読んでいる1本のものだけ。これで「次へ」がこの端末でも
+  /// 進めるようになり、同じ1本の確認クイズを出し直さない（答えを二重に
+  /// 語彙スコアへ送らない）。
+  Future<void> _adoptRemoteConfirmationQuiz(
+    DailySetProgressStore store,
+  ) async {
+    final currentId = state.current?.id;
+    if (!mounted || currentId == null) return;
+    final remote = await store.fetchConfirmationQuiz();
+    if (remote == null || !mounted) return;
+    await _serialized(() async {
+      if (!mounted || state.current?.id != remote.sentenceId) return;
+      await _progress.update((current) {
+        if (current.confirmationQuizSentenceId == remote.sentenceId &&
+            current.confirmationQuiz?['phase'] == 'summary') {
+          return current;
+        }
+        return current.copyWith(
+          confirmationQuizSentenceId: remote.sentenceId,
+          confirmationQuiz: remote.quiz,
+        );
+      });
+    });
+  }
+
+  /// 答え終えた確認クイズを別端末へ送る。持ち主はいま読んでいる1本。
+  void pushConfirmationQuiz(String sentenceId, Map<String, dynamic> quiz) {
+    if (_syncPaused || !mounted || state.current?.id != sentenceId) return;
+    unawaited(_progressStore.saveConfirmationQuiz(sentenceId, quiz));
   }
 
   /// 別端末で解きかけたまとめクイズを、この端末のレコードへ取り込む。
@@ -512,9 +591,16 @@ class DailySetController extends StateNotifier<DailySetState> {
     final repository = _repository;
     final progressStore = _progressStore;
     _completedSetIds = snapshot.completedSetIds;
+    // クラウドの正本は捨てたセットを持たない。端末の記録と合わせて持ち続ける。
+    _droppedSetIds = trimCompletedSetIds(
+      {..._droppedSetIds, ...snapshot.droppedSetIds},
+    );
 
     final pending = <PendingDailySet>[];
     for (final ref in snapshot.pending) {
+      // この端末が捨てたセットは待機列へ戻さない。読んでいるセット（active）は
+      // 別端末で読みかけのものかもしれないので、ここでは弾かない。
+      if (_droppedSetIds.contains(ref.setId)) continue;
       final sentences = await _resolve(
         ref.sentenceIds,
         repository,

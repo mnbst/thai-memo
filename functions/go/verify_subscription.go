@@ -38,8 +38,7 @@ const (
 	productIDPremiumYearly     = "premium_annual"
 	productIDPremiumYearlyTest = "premium_annual_test"
 
-	// 買い切り（非消費型）。期限を持たず、返金・取消でのみ無効になる。
-	// 現状 iOS のみ販売する（Play の一時購入は purchases.products API が別で未対応）。
+	// 買い切り（非消費型 / Play の一時購入）。期限を持たず、返金・取消でのみ無効になる。
 	productIDPremiumLifetime     = "premium_lifetime"
 	productIDPremiumLifetimeTest = "premium_lifetime_test"
 )
@@ -93,13 +92,14 @@ func verifySubscription(ctx context.Context, req *callable.Request) (any, error)
 		return nil, callable.Errorf(callable.InvalidArgument,
 			"許可されていないサブスクリプション商品です")
 	}
-	// 買い切りは Play の一時購入 API（purchases.products）が未実装なので iOS のみ。
-	if isLifetimeProduct(in.ProductID) && in.Platform != "ios" {
-		return nil, callable.Errorf(callable.InvalidArgument,
-			"この商品は iOS でのみご利用いただけます")
-	}
 
 	result, err := runVerification(ctx, uid, in.Platform, in.PurchaseToken, in.ProductID)
+	if errors.Is(err, playbilling.ErrPurchasePending) {
+		// 支払い前（コンビニ払いなど）。支払い後にストアが再配信するので、
+		// クライアントは取引を完了せずに待つ。
+		return nil, callable.Errorf(callable.FailedPrecondition,
+			"お支払いの完了を確認できませんでした")
+	}
 	if err != nil {
 		// JS 版は検証本体を try/catch でまとめて包み、中で起きた例外の中身を
 		// クライアントへ出さない。同じ扱いにする。
@@ -136,8 +136,12 @@ func runVerification(
 		if packageName == "" {
 			packageName = defaultAndroidPackageName
 		}
-		res, err := playbilling.Default.VerifyPurchase(
-			ctx, packageName, productID, purchaseToken)
+		// 買い切りは一時購入の API で引く（期限が無いのが正常）。
+		verify := playbilling.Default.VerifyPurchase
+		if isLifetimeProduct(productID) {
+			verify = playbilling.Default.VerifyOneTimePurchase
+		}
+		res, err := verify(ctx, packageName, productID, purchaseToken)
 		if err != nil {
 			return nil, err
 		}
@@ -305,8 +309,12 @@ func combineLifetimeVerification(
 	incomingID, _ := record["lifetime_transaction_id"].(string)
 	if incomingID == "" {
 		// 無効な買い切りは applyVerifiedLifetimeState が印を消しているため、
-		// 照合には検証済み original_transaction_id を使う。
+		// 照合には検証済みの ID（iOS は original_transaction_id、Android は
+		// purchase_token）を使う。
 		incomingID, _ = record["original_transaction_id"].(string)
+		if incomingID == "" {
+			incomingID, _ = record["purchase_token"].(string)
+		}
 	}
 	if newTier == "premium" {
 		out["lifetime"] = true

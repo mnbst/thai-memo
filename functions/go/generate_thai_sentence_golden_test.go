@@ -11,6 +11,7 @@ import (
 	"cloud.google.com/go/firestore"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/premium"
+	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
@@ -83,6 +84,16 @@ func TestEffectiveGenerationParamsRejectsPromptInjection(t *testing.T) {
 	}
 }
 
+// まとめたテーマ（タイ暮らし・タイ旅行）は premium の指定として通す。
+func TestEffectiveGenerationParamsKeepsTopicGroups(t *testing.T) {
+	for _, topic := range []string{sentence.LifeTopic, sentence.TravelTopic} {
+		got := effectiveGenerationParams(map[string]any{"topic": topic}, true)
+		if got["topic"] != topic {
+			t.Errorf("%s が落ちた: %#v", topic, got)
+		}
+	}
+}
+
 func TestCappedEstimatedVocabAgainstPythonGolden(t *testing.T) {
 	g := loadSentenceHandlersGolden(t)
 	for ci, c := range g.CappedEstimatedVocab {
@@ -112,7 +123,13 @@ func TestSentenceCommitUpdateAgainstPythonGolden(t *testing.T) {
 		if !equalStrs(keys, c.WantKeys) {
 			t.Fatalf("case %d: 更新キー = %v, want %v", ci, keys, c.WantKeys)
 		}
-		if !reflect.DeepEqual(byPath["remaining_sentences"], firestore.Increment(c.WantRemainingDelta)) {
+		// golden は本数ぶん減らしていた頃のもの。free の枠はセット数になり、
+		// 本数によらず1セットで1減らす。
+		wantRemaining := c.WantRemainingDelta
+		if wantRemaining < 0 {
+			wantRemaining = -1
+		}
+		if !reflect.DeepEqual(byPath["remaining_sentences"], firestore.Increment(wantRemaining)) {
 			t.Errorf("case %d: remaining_sentences の増減が違う", ci)
 		}
 		if !reflect.DeepEqual(byPath["sentence_generated_count"], firestore.Increment(c.WantCountDelta)) {

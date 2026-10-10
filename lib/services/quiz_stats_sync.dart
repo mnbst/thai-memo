@@ -31,6 +31,7 @@ class QuizStatsSnapshot {
     this.currentStreak = 0,
     this.bestStreak = 0,
     this.lastQuizDate,
+    this.recentDates = const [],
   });
 
   final int totalAnswered;
@@ -38,6 +39,12 @@ class QuizStatsSnapshot {
   final int currentStreak;
   final int bestStreak;
   final String? lastQuizDate;
+
+  /// 解いた日（昇順、直近 [recentDatesLimit] 日ぶん）。連続日数はここから数える。
+  ///
+  /// 端末ごとに溜めたセッションは日付順に届くとは限らない。最後の日付と連続日数
+  /// だけだと、あとから届いた間の1日を連続に数え直せない。
+  final List<String> recentDates;
 
   bool get isEmpty => totalAnswered == 0 && lastQuizDate == null;
 
@@ -50,6 +57,9 @@ class QuizStatsSnapshot {
       currentStreak: read('current_streak'),
       bestStreak: read('best_streak'),
       lastQuizDate: date is String ? date : null,
+      recentDates: ((data['recent_dates'] as List?) ?? const [])
+          .whereType<String>()
+          .toList(),
     );
   }
 
@@ -71,6 +81,7 @@ class QuizStatsSnapshot {
         'current_streak': currentStreak,
         'best_streak': bestStreak,
         'last_quiz_date': lastQuizDate,
+        'recent_dates': recentDates,
         'updated_at': FieldValue.serverTimestamp(),
       };
 }
@@ -112,30 +123,61 @@ bool _isNextDay(String prev, String current) {
   }
 }
 
-/// セッションを1つ足す。連続日数の数え方は端末の quiz_stats と同じ。
+/// 連続日数を数えるために持つ日付の数。
+const int recentDatesLimit = 60;
+
+/// 解いた日の記録。[recent_dates] を持たない旧データは、最後の日付と
+/// 連続日数から組み直す（連続していた日は分かっている）。
+List<String> _knownDates(QuizStatsSnapshot stats) {
+  if (stats.recentDates.isNotEmpty) return stats.recentDates;
+  final last = DateTime.tryParse(stats.lastQuizDate ?? '');
+  if (last == null) return const [];
+  final days = stats.currentStreak.clamp(1, recentDatesLimit);
+  return [
+    for (var i = days - 1; i >= 0; i--)
+      _formatDate(last.subtract(Duration(days: i))),
+  ];
+}
+
+String _formatDate(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// 日付の集合を昇順・重複なし・直近 [recentDatesLimit] 件にそろえる。
+List<String> _normalizeDates(Iterable<String> dates) {
+  final sorted = dates.toSet().toList()..sort();
+  return sorted.length <= recentDatesLimit
+      ? sorted
+      : sorted.sublist(sorted.length - recentDatesLimit);
+}
+
+/// いちばん新しい日から遡って、途切れずに続いた日数。
+int _streakOf(List<String> sortedDates) {
+  if (sortedDates.isEmpty) return 0;
+  var streak = 1;
+  for (var i = sortedDates.length - 1; i > 0; i--) {
+    if (!_isNextDay(sortedDates[i - 1], sortedDates[i])) break;
+    streak++;
+  }
+  return streak;
+}
+
+/// セッションを1つ足す。
 ///
-/// 溜めていたセッションが後から届いて日付が前後したときは、回数だけ足して
-/// 連続日数は動かさない（新しい日付で数えた連続を古い日付で切らない）。
+/// 連続日数は解いた日の記録から数え直す。溜めていたセッションが後から届いて
+/// 日付が前後しても、間を埋めた1日を連続として数える。
 QuizStatsSnapshot applyQuizSession(
   QuizStatsSnapshot prev,
   QuizSessionDelta session,
 ) {
-  final prevDate = prev.lastQuizDate;
-  var streak = prev.currentStreak;
-  var lastDate = prevDate;
-  if (prevDate == null) {
-    streak = 1;
-    lastDate = session.date;
-  } else if (session.date.compareTo(prevDate) > 0) {
-    streak = _isNextDay(prevDate, session.date) ? streak + 1 : 1;
-    lastDate = session.date;
-  }
+  final dates = _normalizeDates([..._knownDates(prev), session.date]);
+  final streak = _streakOf(dates);
   return QuizStatsSnapshot(
     totalAnswered: prev.totalAnswered + session.total,
     totalCorrect: prev.totalCorrect + session.correct,
     currentStreak: streak,
     bestStreak: streak > prev.bestStreak ? streak : prev.bestStreak,
-    lastQuizDate: lastDate,
+    lastQuizDate: dates.last,
+    recentDates: dates,
   );
 }
 
@@ -152,12 +194,20 @@ QuizStatsSnapshot mergeQuizStats(QuizStatsSnapshot a, QuizStatsSnapshot b) {
     latest = aDate.compareTo(bDate) > 0 ? a : b;
   }
   final best = a.bestStreak > b.bestStreak ? a.bestStreak : b.bestStreak;
+  final dates = _normalizeDates([..._knownDates(a), ..._knownDates(b)]);
+  // 両端末の日付を合わせると、別々に数えていた連続がつながることがある。
+  final streak = dates.isEmpty
+      ? latest.currentStreak
+      : _streakOf(dates) > latest.currentStreak
+          ? _streakOf(dates)
+          : latest.currentStreak;
   return QuizStatsSnapshot(
     totalAnswered: a.totalAnswered + b.totalAnswered,
     totalCorrect: a.totalCorrect + b.totalCorrect,
-    currentStreak: latest.currentStreak,
-    bestStreak: latest.currentStreak > best ? latest.currentStreak : best,
+    currentStreak: streak,
+    bestStreak: streak > best ? streak : best,
     lastQuizDate: latest.lastQuizDate,
+    recentDates: dates,
   );
 }
 

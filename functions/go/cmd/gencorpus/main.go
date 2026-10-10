@@ -7,6 +7,9 @@
 //	GOOGLE_CLOUD_PROJECT=thai-memo-dev go run ./cmd/gencorpus \
 //	  -in /tmp/manifest.jsonl -out /tmp/corpus_ja.jsonl -c 10
 //
+// -no-shots はマニフェストの sub_theme を場面として効かせる（参考例文が付くと
+// サブテーマは落ちる）。偏った場面を指定して作り直すときに使う。
+//
 // ブロック（既定200件）単位で 生成 → 判定 → 差し戻し → 再判定 まで通し、
 // 終わるごとに追記する。同じ -out を指して再実行すると、書けている
 // (key_word, topic) を飛ばして続きから流す。
@@ -32,11 +35,13 @@ import (
 	"time"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/bldrama"
+	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/llm"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
+	"github.com/mnbst/thai-memo/functions/go/internal/themeshots"
 )
 
 // judgeBatchSize は sentence_audit.go の auditBatchSize に合わせる。
@@ -52,6 +57,24 @@ type row struct {
 	SubThemeWeight float64 `json:"sub_theme_weight"`
 	LengthHint     string  `json:"length_hint"`
 	KnownRank      int     `json:"known_rank_max"`
+	// Scene は場面を指定して作り直すときの場面。BL は blScenes のキー、
+	// ほかのテーマは themeshots の場面名。空なら語に近い参考例文で決まる。
+	Scene string `json:"scene,omitempty"`
+}
+
+// blScenes は BL のサブテーマごとに、参考セリフを引くドラマの場面。
+// 参考セリフの場面は告白に偏っているので、場面を指定して作り直すときに使う。
+var blScenes = map[string][]string{
+	"告白":    {"好きだと素直に認める告白", "片想いを打ち明ける告白", "気持ちを探る告白"},
+	"すれ違い":  {"つれなくされるすれ違い", "避ける相手を問い詰めるすれ違い", "過去のトラウマで距離を置くすれ違い", "相手を好きにさせるミッションのすれ違い"},
+	"再会":    {"離れていた二人が再会して復縁する", "未練のある元恋人とやり直す", "すべてを受け入れて未来を一緒に歩む再会"},
+	"嫉妬":    {"新しい友達への嫉妬", "友情と恋の境界を超える嫉妬", "片想いの相手が気になる嫉妬"},
+	"裏切り":   {"浮気した恋人への怒りと復讐", "嘘がバレて信頼が崩れるすれ違い"},
+	"仲直り":   {"けんか後の仲直り", "やり直しを願い困難に立ち向かう"},
+	"壁ドン":   {"抑えきれない想い", "先輩に甘えるスキンシップ", "歌に想いを込めてキスを求める"},
+	"あだ名呼び": {"呼び方が変わって距離が縮まる", "照れ隠しと相手をからかう日常"},
+	"同棲":    {"呪いを解くため同居するルームメイト生活"},
+	"片想い":   {"片想いを打ち明ける告白", "片想いの相手が気になる嫉妬"},
 }
 
 // key は (語, テーマ) の組。マニフェストではこの組が1行に1つしかないので、
@@ -79,6 +102,8 @@ func main() {
 	limit := flag.Int("limit", 0, "先頭 N 件だけ流す（0 は全部）")
 	maxRank := flag.Int("max-rank", 0, "この頻度ランクまでで切る（0 は全部）")
 	redo := flag.Bool("redo-rejected", false, "判定を通らなかった行をもう一度流す")
+	embDir := flag.String("emb-dir", "../../scripts/corpus", "場面の選出に使う embedding のディレクトリ（空なら場面で絞らない）")
+	noShots := flag.Bool("no-shots", false, "参考例文を付けず、マニフェストのサブテーマで場面を決める（場面を指定して作り直すとき）")
 	flag.Parse()
 
 	rows, err := loadRows(*in)
@@ -120,6 +145,10 @@ func main() {
 		},
 		Resolver: &sentence.Resolver{},
 		Drama:    &bldrama.Builder{},
+	}
+	// 参考例文が付くとサブテーマは落ち、場面は語に近いショットで決まる。
+	if !*noShots {
+		svc.Shots = &themeshots.Builder{Scenes: sceneFinder(*embDir)}
 	}
 	l := lang.Lang(*langCode)
 
@@ -202,8 +231,10 @@ func generate(
 	resolved.LengthHint = r.LengthHint
 
 	var drama sentence.DramaSection
-	if r.Topic == sentence.Topics[15] {
-		drama = svc.Drama.BuildDramaSection(words)
+	if r.Scene != "" {
+		drama = sceneSection(&resolved, r)
+	} else {
+		drama = svc.SceneSection(&resolved, words)
 	}
 	prompt, rc := sentence.BuildPrompt(resolved, words, r.KnownRank, true, l, drama)
 	if block := sentence.BuildRetryConstraint(notes); block != "" {
@@ -236,6 +267,17 @@ func generate(
 		return nil, fmt.Errorf("LLM_API_ERROR: target word missing in text: %s", r.Word)
 	}
 	return s, nil
+}
+
+// sceneSection は指定の場面で参考例文を付ける。媒体は会話に揃える。
+func sceneSection(resolved *sentence.ResolvedParams, r row) sentence.DramaSection {
+	resolved.Medium = sentence.Media[0].Name
+	if r.Topic == sentence.Topics[15] {
+		resolved.SubTheme = r.Scene
+		return (&bldrama.Builder{}).BuildSceneSection(r.Scene, blScenes[r.Scene])
+	}
+	resolved.SubTheme = ""
+	return (&themeshots.Builder{}).BuildSceneSection(r.Topic, r.Scene)
 }
 
 // strip は連語の照合用に空白を落とす。分かち書きの位置が違っても、
@@ -434,4 +476,17 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// sceneFinder は -emb-dir のローカル embedding から場面の選出器を作る。
+// 空なら nil（場面で絞らずランダム）。本番は GCS の同じファイルを使う。
+func sceneFinder(dir string) themeshots.SceneFinder {
+	if dir == "" {
+		return nil
+	}
+	store, err := embeddings.LoadLocalShots(dir)
+	if err != nil {
+		log.Fatalf("embedding を読めない: %v", err)
+	}
+	return store
 }

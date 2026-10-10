@@ -313,7 +313,7 @@ class GuideQuizOfferFigure extends StatelessWidget {
 
 /// 無料版とプレミアムの差を並べた比較表。
 ///
-/// 文章で「無料は5文、プレミアムは20文」と書くと、項目が増えるほど
+/// 文章で「無料は2セット、プレミアムは無制限」と書くと、項目が増えるほど
 /// どちらの話か追えなくなる。列を固定して縦に読ませる。
 /// プレミアム側の列だけ金で沈めて、増える側がひと目で分かるようにする。
 class GuidePlanCompareFigure extends StatelessWidget {
@@ -379,7 +379,7 @@ class GuidePlanCompareFigure extends StatelessWidget {
           ),
           row(
             l10n.guidePlanRowSentences,
-            l10n.guidePlanSentences(freeDailySentences),
+            l10n.guidePlanSentences(freeDailySets),
             l10n.guidePlanSentencesUnlimited,
             null,
           ),

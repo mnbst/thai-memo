@@ -28,11 +28,13 @@ import (
 	"time"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/bldrama"
+	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/llm"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
+	"github.com/mnbst/thai-memo/functions/go/internal/themeshots"
 )
 
 // judgeBatchSize は sentence_audit.go の auditBatchSize に合わせる。
@@ -71,9 +73,12 @@ func main() {
 	seed := flag.Int64("seed", 1, "抽出のシード")
 	out := flag.String("out", "", "JSON の出力先")
 	dry := flag.Bool("dry", false, "抽出した行を出すだけで生成しない")
+	topic := flag.String("topic", "", "このテーマ（前方一致）の行だけ使う")
+	withShots := flag.Bool("shots", false, "テーマ回の参考例文（internal/themeshots）を付ける")
+	embDir := flag.String("emb-dir", "../../scripts/corpus", "場面の選出に使う embedding のディレクトリ（空なら場面で絞らない）")
 	flag.Parse()
 
-	rows, err := sampleRows(*in, *n, *seed)
+	rows, err := sampleRows(*in, *n, *seed, *topic)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,6 +102,9 @@ func main() {
 		},
 		Resolver: &sentence.Resolver{},
 		Drama:    &bldrama.Builder{},
+	}
+	if *withShots {
+		svc.Shots = &themeshots.Builder{Scenes: sceneFinder(*embDir)}
 	}
 	l := lang.Lang(*langCode)
 	fmt.Fprintf(os.Stderr, "n=%d lang=%s model=%s\n", len(rows), *langCode, model)
@@ -171,10 +179,7 @@ func generate(
 	resolved.SubTheme = r.SubTheme
 	resolved.LengthHint = r.LengthHint
 
-	var drama sentence.DramaSection
-	if r.Topic == sentence.Topics[15] {
-		drama = svc.Drama.BuildDramaSection(words)
-	}
+	drama := svc.SceneSection(&resolved, words)
 	prompt, rc := sentence.BuildPrompt(resolved, words, r.KnownRank, true, l, drama)
 	if block := sentence.BuildRetryConstraint(notes); block != "" {
 		prompt += "\n\n" + block
@@ -287,7 +292,7 @@ func report(recs []record, elapsed time.Duration) {
 
 // sampleRows はマニフェストから n 行を一様に抽出する。帯ごとに揃えないのは、
 // 全量生成したときの合格率を知りたいため（行数の多い帯が重く出るのが正しい）。
-func sampleRows(path string, n int, seed int64) ([]row, error) {
+func sampleRows(path string, n int, seed int64, topic string) ([]row, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -300,6 +305,9 @@ func sampleRows(path string, n int, seed int64) ([]row, error) {
 		var r row
 		if err := json.Unmarshal([]byte(line), &r); err != nil {
 			return nil, err
+		}
+		if topic != "" && !strings.HasPrefix(r.Topic, topic) {
+			continue
 		}
 		all = append(all, r)
 	}
@@ -343,4 +351,17 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// sceneFinder は -emb-dir のローカル embedding から場面の選出器を作る。
+// 空なら nil（場面で絞らずランダム）。本番は GCS の同じファイルを使う。
+func sceneFinder(dir string) themeshots.SceneFinder {
+	if dir == "" {
+		return nil
+	}
+	store, err := embeddings.LoadLocalShots(dir)
+	if err != nil {
+		log.Fatalf("embedding を読めない: %v", err)
+	}
+	return store
 }

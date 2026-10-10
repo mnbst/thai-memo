@@ -25,6 +25,8 @@ resource "google_project_service" "required_apis" {
     "monitoring.googleapis.com",
     "billingbudgets.googleapis.com",
     "firebaseappcheck.googleapis.com",
+    # Google Play の購入検証（verifySubscription / handlePlayNotification）
+    "androidpublisher.googleapis.com",
     # X 自動投稿の読み上げ音声（tools/x_post）
     "texttospeech.googleapis.com",
   ])
@@ -136,6 +138,15 @@ resource "google_pubsub_topic" "play_subscription_notifications" {
   project = var.project_id
 
   depends_on = [google_project_service.required_apis]
+}
+
+# Google Play が RTDN をこのトピックへ発行するための権限。
+# 無いと Play Console の「テスト通知を送信」も失敗し、更新・解約・返金が届かない。
+resource "google_pubsub_topic_iam_member" "play_rtdn_publisher" {
+  project = var.project_id
+  topic   = google_pubsub_topic.play_subscription_notifications.name
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:google-play-developer-notifications@system.gserviceaccount.com"
 }
 
 # Artifact Registry cleanup policy for Cloud Functions container images
@@ -384,6 +395,48 @@ resource "google_cloud_scheduler_job" "deliver_daily_sentence" {
     oidc_token {
       service_account_email = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
       audience              = "https://${var.region}-${var.project_id}.cloudfunctions.net/deliverDailySentence"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# X への毎日投稿 — GitHub Actions の post-daily-x.yml を起動する。
+#
+# GitHub の schedule は数時間遅れたり飛んだりするので、時刻は Scheduler が
+# 持ち、ワークフローは workflow_dispatch で起こす。本体は Flutter や ffmpeg が
+# 要るので Actions 上のまま動かす。
+resource "google_cloud_scheduler_job" "post_daily_x" {
+  count = var.github_dispatch_token != "" ? 1 : 0
+
+  name        = "post-daily-x"
+  project     = var.project_id
+  region      = var.region
+  description = "X への毎日投稿ワークフローを起動する"
+
+  # 06:47 JST。毎日例文の配信と同じ朝の時間帯。
+  schedule  = "47 6 * * *"
+  time_zone = "Asia/Tokyo"
+
+  attempt_deadline = "30s"
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
+    body = base64encode(jsonencode({
+      ref    = "main"
+      inputs = { themes = var.x_post_themes }
+    }))
+
+    headers = {
+      "Authorization"        = "Bearer ${var.github_dispatch_token}"
+      "Accept"               = "application/vnd.github+json"
+      "Content-Type"         = "application/json"
+      "X-GitHub-Api-Version" = "2022-11-28"
     }
   }
 

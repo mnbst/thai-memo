@@ -1,8 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+
+import '../core/platform/store_platform.dart';
 
 class TtsService {
   final FlutterTts _tts = FlutterTts();
@@ -11,6 +14,16 @@ class TtsService {
   List<Map<String, String>> _thaiVoices = [];
   Completer<void>? _cancelCompleter;
   int _session = 0;
+
+  /// Android の読み上げエンジンにタイ語が入っていないとき、最初の発話で1回だけ流れる。
+  /// iOS は標準でタイ語の声を持つので流れない。
+  final StreamController<void> _thaiVoiceMissing = StreamController.broadcast();
+  Stream<void> get thaiVoiceMissing => _thaiVoiceMissing.stream;
+  bool _thaiVoiceUnavailable = false;
+  bool _thaiVoiceMissingNotified = false;
+
+  static const MethodChannel _settingsChannel =
+      MethodChannel('thai_memo/tts_settings');
 
   /// 再生セッションの通し番号。[stopAll] のたびに進む。
   ///
@@ -29,7 +42,7 @@ class TtsService {
   /// playAndRecord に切り替える。収録側でも戻しているが、こちらでも
   /// 毎回かけ直して、誰が触った後でも発話が小さくならないようにする。
   Future<void> _applyIosAudioCategory() async {
-    if (!Platform.isIOS) return;
+    if (StorePlatform.current != StorePlatform.appStore) return;
     await _tts.setIosAudioCategory(
       IosTextToSpeechAudioCategory.playback,
       [
@@ -42,9 +55,14 @@ class TtsService {
   Future<void> _init() async {
     if (_isInitialized) return;
 
-    if (Platform.isIOS) {
-      await _applyIosAudioCategory();
-      await _tts.setSharedInstance(true);
+    switch (StorePlatform.current) {
+      case StorePlatform.appStore:
+        await _applyIosAudioCategory();
+        await _tts.setSharedInstance(true);
+      case StorePlatform.googlePlay:
+        // 端末の読み上げエンジン次第で、タイ語の音声データが無いことがある。
+        _thaiVoiceUnavailable =
+            await _tts.isLanguageAvailable('th-TH') != true;
     }
 
     await _tts.setLanguage('th-TH');
@@ -107,6 +125,10 @@ class TtsService {
     bool keepVoice = false,
   }) async {
     await _init();
+    if (_thaiVoiceUnavailable && !_thaiVoiceMissingNotified) {
+      _thaiVoiceMissingNotified = true;
+      _thaiVoiceMissing.add(null);
+    }
     await _applyIosAudioCategory();
     if (!keepVoice) await _pickRandomVoice();
     await _tts.setSpeechRate(slow ? 0.3 : 0.5);
@@ -146,8 +168,18 @@ class TtsService {
     await stop();
   }
 
+  /// 読み上げエンジンの音声データのダウンロード画面を開く（Android）。
+  Future<void> openVoiceInstaller() async {
+    try {
+      await _settingsChannel.invokeMethod<void>('openVoiceInstaller');
+    } on PlatformException catch (e) {
+      debugPrint('openVoiceInstaller failed: $e');
+    }
+  }
+
   void dispose() {
     _session++;
     _tts.stop();
+    _thaiVoiceMissing.close();
   }
 }

@@ -33,6 +33,23 @@ var Topics = []string{
 	"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）",
 }
 
+// LifeTopic と TravelTopic は、ヒアリングの用途（タイで暮らす／旅行）に合わせて
+// 個別テーマをまとめたテーマ。テーマ選択の画面にはこちらだけを出す。
+//
+// まとめたテーマは選定の入口だけで、例文は中身の個別テーマで作る
+// （TargetWordSelector が語ごとに中身の1つへ解決する）。キャッシュ・保存される
+// context.topic・参考例文は個別テーマのまま使う。
+const (
+	LifeTopic   = "タイ暮らし（買い物、交通、健康、家族、天気、食べ物）"
+	TravelTopic = "タイ旅行（観光、ホテル、交通、買い物、食べ物）"
+)
+
+// TopicGroups はまとめたテーマと、その中身の個別テーマ。
+var TopicGroups = map[string][]string{
+	LifeTopic:   {Topics[5], Topics[6], Topics[7], Topics[4], Topics[8], Topics[1]},
+	TravelTopic: {Topics[2], Topics[6], Topics[5], Topics[1]},
+}
+
 // GrammarFocuses は文法の焦点（constants.GRAMMAR_FOCUSES）。
 var GrammarFocuses = []string{
 	"平叙文（基本の肯定文）",
@@ -52,6 +69,7 @@ var TimeFrames = []string{
 	"さっき起きた出来事",
 	"これからの予定",
 	"いつもの習慣",
+	"昨日や以前の出来事",
 }
 
 // topicLabelsEN はテーマの英語ラベル（constants.TOPIC_LABELS_EN）。
@@ -89,6 +107,7 @@ var timeFrameLabelsEN = map[string]string{
 	"さっき起きた出来事":   "Something that just happened",
 	"これからの予定":     "An upcoming plan",
 	"いつもの習慣":      "A regular habit",
+	"昨日や以前の出来事":   "Something from yesterday or earlier",
 }
 
 // subThemeLabelsEN はサブテーマの英語ラベル（constants.SUB_THEME_LABELS_EN）。
@@ -104,18 +123,20 @@ var subThemeLabelsEN = map[string]map[string]string{
 		"電話":  "on the phone",
 	},
 	"食べ物（注文、感想、屋台、辛さ調整、アレルギー）": {
-		"注文":    "ordering",
-		"感想":    "giving impressions",
-		"屋台":    "street stalls",
-		"辛さ調整":  "adjusting spice level",
-		"アレルギー": "allergies",
+		"注文":     "ordering",
+		"感想":     "giving impressions",
+		"屋台":     "street stalls",
+		"辛さ調整":   "adjusting spice level",
+		"アレルギー":  "allergies",
+		"コラボカフェ": "a collab cafe",
 	},
 	"旅行（ホテル、道案内、観光地、空港、ツアー）": {
-		"ホテル": "hotels",
-		"道案内": "directions",
-		"観光地": "sights",
-		"空港":  "the airport",
-		"ツアー": "tours",
+		"ホテル":    "hotels",
+		"道案内":    "directions",
+		"観光地":    "sights",
+		"空港":     "the airport",
+		"ツアー":    "tours",
+		"ロケ地めぐり": "visiting filming locations",
 	},
 	"仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）": {
 		"報告・連絡・相談": "reporting and consulting",
@@ -135,6 +156,7 @@ var subThemeLabelsEN = map[string]map[string]string{
 		"サイズ・色の確認": "checking size and color",
 		"返品":       "returns",
 		"ナイトマーケット": "night markets",
+		"推しのコラボ商品": "merch featuring a favorite star",
 	},
 	"交通（Grab、BTS、バイタク、ソンテウ、渋滞）": {
 		"Grab": "Grab",
@@ -156,12 +178,16 @@ var subThemeLabelsEN = map[string]map[string]string{
 		"日焼け対策": "sun protection",
 	},
 	"趣味（ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム）": {
-		"ムエタイ": "Muay Thai",
-		"音楽":   "music",
-		"映画":   "movies",
-		"ゴルフ":  "golf",
-		"SNS":  "social media",
-		"ゲーム":  "games",
+		"ムエタイ":      "Muay Thai",
+		"音楽":        "music",
+		"映画":        "movies",
+		"ゴルフ":       "golf",
+		"SNS":       "social media",
+		"ゲーム":       "games",
+		"ライブ遠征":     "concert trips",
+		"推しの配信":     "a favorite star's livestream",
+		"推しに伝えたい言葉": "words for a favorite star",
+		"ファン同士の交流":  "chatting with other fans",
 	},
 	"学校（授業中、宿題、試験、放課後、語学学校）": {
 		"授業中":  "during class",
@@ -171,11 +197,12 @@ var subThemeLabelsEN = map[string]map[string]string{
 		"語学学校": "language school",
 	},
 	"宗教・信仰（寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事）": {
-		"寺院マナー":   "temple etiquette",
-		"托鉢":      "alms giving",
-		"お守り":     "amulets",
-		"僧侶への話し方": "speaking to monks",
-		"仏教行事":    "Buddhist holidays",
+		"寺院マナー":       "temple etiquette",
+		"托鉢":          "alms giving",
+		"お守り":         "amulets",
+		"僧侶への話し方":     "speaking to monks",
+		"仏教行事":        "Buddhist holidays",
+		"推しの誕生日のタンブン": "making merit for a favorite star's birthday",
 	},
 	"伝統・祭り（ソンクラーン、ロイクラトン、王室行事、地域の伝統料理）": {
 		"ソンクラーン":  "Songkran",
@@ -215,24 +242,12 @@ var subThemeLabelsEN = map[string]map[string]string{
 // InterviewGoalTopics はヒアリングの goal ごとのテーマ候補
 // （constants.INTERVIEW_GOAL_TOPICS）。値は TOPICS の要素。
 var InterviewGoalTopics = map[string][]string{
-	"travel": {
-		"旅行（ホテル、道案内、観光地、空港、ツアー）",
-		"交通（Grab、BTS、バイタク、ソンテウ、渋滞）",
-		"買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
-		"食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
-	},
+	"travel": {TravelTopic},
 	"work": {
 		"仕事（報告・連絡・相談、打ち合わせ、残業申請、同僚雑談）",
 		"あいさつ（朝・昼・夜、初対面、再会、別れ、電話）",
 	},
-	"live": {
-		"買い物（値段交渉、サイズ・色の確認、返品、ナイトマーケット）",
-		"家族（家族紹介、子育て、親への感謝、兄弟、家族行事）",
-		"健康（症状説明、薬局、マッサージ、健康診断）",
-		"天気（暑さ、雨季、台風、日焼け対策）",
-		"交通（Grab、BTS、バイタク、ソンテウ、渋滞）",
-		"食べ物（注文、感想、屋台、辛さ調整、アレルギー）",
-	},
+	"live": {LifeTopic},
 	"culture": {
 		"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）",
 		"伝統・祭り（ソンクラーン、ロイクラトン、王室行事、地域の伝統料理）",

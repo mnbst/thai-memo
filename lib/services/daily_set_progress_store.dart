@@ -76,6 +76,7 @@ class DailySetProgressSnapshot {
     this.activeSentenceId,
     this.pending = const [],
     this.completedSetIds = const [],
+    this.droppedSetIds = const [],
   });
 
   final DailySetRef? active;
@@ -89,8 +90,18 @@ class DailySetProgressSnapshot {
   final List<DailySetRef> pending;
   final List<String> completedSetIds;
 
+  /// 待機列から溢れて、この端末が捨てたセット。端末の中だけで持つ。
+  ///
+  /// 完了（[completedSetIds]）と分けるのは、完了は Firestore で全端末に効くため。
+  /// 溢れたのが別端末の読みかけセットだと、完了として送った時点でその続きが
+  /// 全端末から消える。捨てたセットは、この端末の待機列へ積み直さないためだけに使う。
+  final List<String> droppedSetIds;
+
   bool get isEmpty =>
-      active == null && pending.isEmpty && completedSetIds.isEmpty;
+      active == null &&
+      pending.isEmpty &&
+      completedSetIds.isEmpty &&
+      droppedSetIds.isEmpty;
 
   /// [active] の並びでの位置。表示と、番号しか読めない旧バージョン向け。
   int get activeIndex => active?.positionOf(activeSentenceId) ?? 0;
@@ -105,11 +116,13 @@ class DailySetProgressSnapshot {
         'active_sentence_id': activeSentenceId,
         'pending': [for (final set in pending) set.toJson()],
         'completed_set_ids': completedSetIds,
+        'dropped_set_ids': droppedSetIds,
       };
 
-  /// Firestore 用。更新時刻はサーバー側で打つ。
+  /// Firestore 用。更新時刻はサーバー側で打つ。捨てたセットは端末の中だけの
+  /// 記録なので送らない。
   Map<String, dynamic> toFirestore() => {
-        ...toJson(),
+        ...toJson()..remove('dropped_set_ids'),
         'updated_at': FieldValue.serverTimestamp(),
       };
 
@@ -133,6 +146,9 @@ class DailySetProgressSnapshot {
       activeSentenceId: anchorId,
       pending: pending,
       completedSetIds: ((data['completed_set_ids'] as List?) ?? const [])
+          .whereType<String>()
+          .toList(),
+      droppedSetIds: ((data['dropped_set_ids'] as List?) ?? const [])
           .whereType<String>()
           .toList(),
     );
@@ -160,6 +176,25 @@ abstract class DailySetProgressStore {
 
   /// 別端末が送ったまとめクイズの途中経過。無ければ・読めなければ null。
   Future<RemoteSummaryQuiz?> fetchSummaryQuiz() async => null;
+
+  /// 答え終えた確認クイズを送る。別端末が同じ1本で出し直さないように。
+  Future<void> saveConfirmationQuiz(
+    String sentenceId,
+    Map<String, dynamic> quiz,
+  ) async {}
+
+  /// 別端末が答え終えた確認クイズ。無ければ・読めなければ null。
+  Future<RemoteConfirmationQuiz?> fetchConfirmationQuiz() async => null;
+}
+
+/// 端末間で共有する、答え終えた確認クイズ。持ち主は例文ID。
+class RemoteConfirmationQuiz {
+  const RemoteConfirmationQuiz({required this.sentenceId, required this.quiz});
+
+  final String sentenceId;
+
+  /// 端末の学習レコードの confirmation_quiz と同じ形。
+  final Map<String, dynamic> quiz;
 }
 
 /// 端末間で共有するまとめクイズの途中経過。持ち主はセットID。
@@ -257,11 +292,48 @@ class FirestoreDailySetProgressStore implements DailySetProgressStore {
   }
 
   @override
+  Future<void> saveConfirmationQuiz(
+    String sentenceId,
+    Map<String, dynamic> quiz,
+  ) async {
+    final ref = _userCollection('learning_state')?.doc('confirmation_quiz');
+    if (ref == null) return;
+    try {
+      await ref.set({
+        'sentence_id': sentenceId,
+        'quiz_json': jsonEncode(quiz),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Future<RemoteConfirmationQuiz?> fetchConfirmationQuiz() async {
+    final ref = _userCollection('learning_state')?.doc('confirmation_quiz');
+    if (ref == null) return null;
+    try {
+      final data = (await ref.get()).data();
+      final sentenceId = data?['sentence_id'];
+      final encoded = data?['quiz_json'];
+      if (sentenceId is! String || encoded is! String) return null;
+      final quiz = jsonDecode(encoded);
+      if (quiz is! Map) return null;
+      return RemoteConfirmationQuiz(
+        sentenceId: sentenceId,
+        quiz: Map<String, dynamic>.from(quiz),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<ThaiSentence?> fetchSentence(String id) async {
     try {
       final doc = await _userCollection('sentences')?.doc(id).get();
       final data = doc?.data();
-      return data == null ? null : DailySentenceService.toSentence(id, data);
+      if (data == null || data['deleted'] == true) return null;
+      return DailySentenceService.toSentence(id, data);
     } catch (_) {
       return null;
     }
@@ -300,6 +372,10 @@ DailySetRef? latestDeliveredSetRef(
   List<MapEntry<String, Map<String, dynamic>>> docs,
 ) {
   final newest = <String, DateTime>{};
+  docs = [
+    for (final doc in docs)
+      if (doc.value['deleted'] != true) doc,
+  ];
   for (final doc in docs) {
     final setId = DailySentenceService.setIdOf(doc.key, doc.value);
     final createdAt = doc.value['created_at'];
@@ -311,9 +387,8 @@ DailySetRef? latestDeliveredSetRef(
   }
   if (newest.isEmpty) return null;
 
-  final latestSetId = newest.entries
-      .reduce((a, b) => a.value.isAfter(b.value) ? a : b)
-      .key;
+  final latestSetId =
+      newest.entries.reduce((a, b) => a.value.isAfter(b.value) ? a : b).key;
   final members = DailySentenceService.orderSetMembers(latestSetId, docs);
   final ids = [for (final member in members) member.key];
   if (ids.isEmpty) return null;

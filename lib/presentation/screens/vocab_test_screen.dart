@@ -24,15 +24,10 @@ class VocabTestScreen extends ConsumerStatefulWidget {
 
   const VocabTestScreen({
     super.key,
-    this.mandatory = false,
     required this.source,
     this.onFinished,
     this.api,
   });
-
-  /// 逃げ道を塞ぐか。オンボーディングでは必ず測ってから先へ進ませる
-  /// （戻る矢印・端末の戻る操作・「あとで」を全て出さない）。
-  final bool mandatory;
 
   /// 分析用の入口（onboarding / settings）。
   final String source;
@@ -116,7 +111,8 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
     }
   }
 
-  void _fail(String message, {required Future<VocabTestStep> Function()? retry}) {
+  void _fail(String message,
+      {required Future<VocabTestStep> Function()? retry}) {
     if (!mounted) return;
     setState(() {
       _errorMessage = message;
@@ -170,18 +166,11 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context);
     return PopScope(
-      // オンボーディングだけ塞ぐ。測る前に抜けられると estimated_vocab が
-      // 0 から始まり、初回の例文が入門者向けに固定される。設定からの
-      // 再試験では塞がない（途中で抜けてもセッションは次の開始で上書き）。
-      canPop: !widget.mandatory,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) _logLeave();
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(l10n.vocabTestTitle),
-          automaticallyImplyLeading: !widget.mandatory,
-        ),
+        appBar: AppBar(title: Text(l10n.vocabTestTitle)),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -223,8 +212,7 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Spacer(),
-        Icon(Icons.straighten,
-            size: 48, color: theme.colorScheme.primary),
+        Icon(Icons.straighten, size: 48, color: theme.colorScheme.primary),
         const SizedBox(height: 24),
         Text(l10n.vocabTestIntroBody, style: theme.textTheme.bodyLarge),
         const SizedBox(height: 16),
@@ -237,6 +225,12 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
         FilledButton(
           onPressed: _start,
           child: Text(l10n.vocabTestStart),
+        ),
+        // オンボーディングでも受けずに進める。必須にすると途中でアプリごと
+        // 閉じられ、初回の例文まで届かない人が出ていた。
+        TextButton(
+          onPressed: _close,
+          child: Text(l10n.commonLater),
         ),
       ],
     );
@@ -267,7 +261,8 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
     return ((step.stage + within) / step.totalStages).clamp(0.0, 1.0);
   }
 
-  Widget _questionBody(L10n l10n, VocabTestStep step, VocabTestQuestion question) {
+  Widget _questionBody(
+      L10n l10n, VocabTestStep step, VocabTestQuestion question) {
     final theme = Theme.of(context);
     // 何問目かも通し。段の中の番号だと 1〜6 を何度も繰り返すことになる。
     final asked = step.stage * step.questions.length + _index + 1;

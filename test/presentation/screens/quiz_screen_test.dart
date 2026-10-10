@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:thai_memo/core/config/app_config.dart';
 import 'package:thai_memo/data/datasources/backend_api_service.dart';
 import 'package:thai_memo/data/datasources/local/database_helper.dart';
 import 'package:thai_memo/data/models/quiz_question.dart';
@@ -166,6 +167,7 @@ Future<_QuizHarness> _pumpSummaryQuiz(
   List<QuizQuestion>? questions,
   double textScale = 1,
   bool showVocabScoreTransition = false,
+  _FakeSettingsController? settings,
 }) async {
   final database = _FakeDatabaseHelper(blockFirstInsert: blockFirstInsert);
   final analytics = FakeAnalyticsService();
@@ -174,8 +176,8 @@ Future<_QuizHarness> _pumpSummaryQuiz(
     analytics,
     () => lookupL10n(const Locale('ja')),
     databaseHelper: database,
-                       progressStore: LearningProgressStore(),
-                     );
+    progressStore: LearningProgressStore(),
+  );
   if (learningSentence != null) {
     await controller.startLearningQuiz(learningSentence);
   } else {
@@ -192,6 +194,9 @@ Future<_QuizHarness> _pumpSummaryQuiz(
         effectivePremiumProvider.overrideWithValue(false),
         analyticsServiceProvider.overrideWithValue(analytics),
         generationParamsProvider.overrideWithValue(const {'topic': null}),
+        settingsControllerProvider.overrideWith(
+          (ref) => settings ?? _FakeSettingsController(),
+        ),
       ],
       child: MaterialApp(
         locale: const Locale('ja'),
@@ -765,4 +770,191 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
   });
+
+  testWidgets('まとめクイズを終えると、通知が未許可なら通知の案内を出す', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final settings = _FakeSettingsController(coachShown: false);
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      showVocabScoreTransition: true,
+      onNextSentence: () async {},
+      settings: settings,
+    );
+
+    await _finishQuiz(tester, harness);
+
+    expect(find.text('毎日、例文が通知で届きます'), findsOneWidget);
+
+    await tester.tap(find.text('今はしない'));
+    await tester.pumpAndSettle();
+    expect(settings.state.notificationCoachShown, isTrue);
+  });
+
+  testWidgets('再案内A/Bで出さない群なら出さず、再案内済みにする', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final settings = _FakeSettingsController(
+      coachShown: true,
+      canRequest: true,
+      uid: 'uid-a', // holdout
+      repromptedVersion: 'old',
+    );
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      showVocabScoreTransition: true,
+      onNextSentence: () async {},
+      settings: settings,
+    );
+
+    await _finishQuiz(tester, harness);
+
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(settings.experiments.single, endsWith(':holdout'));
+    expect(
+      settings.state.notificationCoachRepromptedVersion,
+      AppConfig.notificationCoachRepromptVersion,
+    );
+  });
+
+  testWidgets('一度断った人にも、再案内のリリースならもう一度だけ出す', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final settings = _FakeSettingsController(
+      coachShown: true,
+      canRequest: true,
+      repromptedVersion: 'old',
+    );
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      showVocabScoreTransition: true,
+      onNextSentence: () async {},
+      settings: settings,
+    );
+
+    await _finishQuiz(tester, harness);
+
+    expect(find.text('毎日、例文が通知で届きます'), findsOneWidget);
+    await tester.tap(find.text('今はしない'));
+    await tester.pumpAndSettle();
+    expect(settings.experiments.single, endsWith(':show'));
+    expect(
+      settings.state.notificationCoachRepromptedVersion,
+      AppConfig.notificationCoachRepromptVersion,
+    );
+  });
+
+  testWidgets('OSで拒否済みなら、再案内のリリースでも出さない', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      showVocabScoreTransition: true,
+      onNextSentence: () async {},
+      settings: _FakeSettingsController(coachShown: true, canRequest: false),
+    );
+
+    await _finishQuiz(tester, harness);
+
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('通知を許可済みなら、まとめクイズ後も案内を出さない', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      showVocabScoreTransition: true,
+      onNextSentence: () async {},
+      settings: _FakeSettingsController(
+        coachShown: false,
+        permissionGranted: true,
+      ),
+    );
+
+    await _finishQuiz(tester, harness);
+
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('確認クイズの完了では通知の案内を出さない', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      onNextSentence: () async {},
+      settings: _FakeSettingsController(coachShown: false),
+    );
+
+    await _finishQuiz(tester, harness);
+
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+}
+
+/// 通知の案内の出し分けだけを差し替える。既定は「案内済み」で、案内は出ない。
+class _FakeSettingsController extends StateNotifier<SettingsState>
+    implements SettingsController {
+  _FakeSettingsController({
+    bool coachShown = true,
+    this.permissionGranted = false,
+    this.canRequest = false,
+    this.uid = 'uid-b',
+    String? repromptedVersion,
+  }) : super(
+          SettingsState.initial().copyWith(
+            notificationCoachShown: coachShown,
+            notificationCoachRepromptedVersion: repromptedVersion,
+          ),
+        );
+
+  final bool? permissionGranted;
+  final bool? canRequest;
+  final String? uid;
+  final experiments = <String>[];
+
+  @override
+  String? get currentUid => uid;
+
+  @override
+  Future<void> recordNotificationRepromptExperiment({
+    required String experimentId,
+    required String arm,
+  }) async {
+    experiments.add('$experimentId:$arm');
+  }
+
+  @override
+  Future<bool?> canRequestNotificationPermission() async => canRequest;
+
+  @override
+  Future<void> markNotificationCoachReprompted(String version) async {
+    state = state.copyWith(notificationCoachRepromptedVersion: version);
+  }
+
+  @override
+  Future<void> get initialized async {}
+
+  @override
+  Future<bool?> hasProminentNotificationPermission() async => permissionGranted;
+
+  @override
+  Future<void> markNotificationCoachShown() async {
+    state = state.copyWith(notificationCoachShown: true);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+Future<void> _finishQuiz(WidgetTester tester, _QuizHarness harness) async {
+  for (var i = 0; i < _questions.length; i++) {
+    await harness.controller.answerQuestion(1);
+    await tester.pump();
+    await harness.controller.nextQuestion();
+    await tester.pump();
+  }
+  // 結果を見せる間をおいてから案内を出す。
+  await tester.pump(const Duration(seconds: 2));
+  await tester.pump();
 }

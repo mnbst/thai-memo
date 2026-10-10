@@ -158,8 +158,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-          onTap: () =>
-              PaywallScreen.show(context, source: 'settings_pitch'),
+          onTap: () => PaywallScreen.show(context, source: 'settings_pitch'),
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
@@ -280,8 +279,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const Icon(Icons.chevron_right),
               ],
             ),
-            onTap: () =>
-                PaywallScreen.show(context, source: 'settings_plan'),
+            onTap: () => PaywallScreen.show(context, source: 'settings_plan'),
           );
         },
       ),
@@ -485,8 +483,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ) ??
                 false;
             if (!open || !mounted) return;
-            await PaywallScreen.show(context,
-                source: 'trial_ended_preview');
+            await PaywallScreen.show(context, source: 'trial_ended_preview');
           },
         ),
       // 買い切り移行の案内は、月額の課金者にしか出ない。見た目の確認用に
@@ -826,8 +823,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               size: 18, color: Theme.of(context).colorScheme.outline),
       onTap: canTake
           ? _openVocabTest
-          : () =>
-              PaywallScreen.show(context, source: 'settings_vocab_test'),
+          : () => PaywallScreen.show(context, source: 'settings_vocab_test'),
     );
   }
 

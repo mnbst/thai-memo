@@ -187,7 +187,7 @@ abstract class L10n {
   /// **'次の例文へ'**
   String get learnNextSentence;
 
-  /// まとめクイズを終えて、新しい5本のセットを始めるボタン
+  /// まとめクイズを終えて、新しいセット（最大5本）を始めるボタン
   ///
   /// In ja, this message translates to:
   /// **'次のセットへ'**
@@ -199,7 +199,7 @@ abstract class L10n {
   /// **'まとめクイズへ'**
   String get learnGoToSummaryQuiz;
 
-  /// セットの残り本数。5本を学び終えるとまとめクイズへ進む
+  /// セットの残り本数。セット（最大5本）を学び終えるとまとめクイズへ進む
   ///
   /// In ja, this message translates to:
   /// **'あと{count}本でまとめクイズ'**
@@ -1150,8 +1150,8 @@ abstract class L10n {
   /// No description provided for @lifetimeMigrationCancelNote.
   ///
   /// In ja, this message translates to:
-  /// **'移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。'**
-  String get lifetimeMigrationCancelNote;
+  /// **'{store, select, android{移行後、月額の自動更新はお客様ご自身で停止してください（Google Playの定期購入の設定）。停止しないと月額の請求が続きます。} other{移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。}}'**
+  String lifetimeMigrationCancelNote(String store);
 
   /// No description provided for @lifetimeMigrationProgress.
   ///
@@ -1234,7 +1234,7 @@ abstract class L10n {
   /// No description provided for @trialEndedChangeQuotaFree.
   ///
   /// In ja, this message translates to:
-  /// **'1日{free}回'**
+  /// **'1日{free}セット'**
   String trialEndedChangeQuotaFree(int free);
 
   /// No description provided for @trialEndedChangeVocabLabel.
@@ -1372,7 +1372,7 @@ abstract class L10n {
   /// No description provided for @topicSub_food.
   ///
   /// In ja, this message translates to:
-  /// **'注文、感想、屋台、辛さ調整、アレルギー'**
+  /// **'コラボカフェ、注文、感想、屋台、辛さ調整、アレルギー'**
   String get topicSub_food;
 
   /// No description provided for @topicName_travel.
@@ -1384,7 +1384,7 @@ abstract class L10n {
   /// No description provided for @topicSub_travel.
   ///
   /// In ja, this message translates to:
-  /// **'ホテル、道案内、観光地、空港、ツアー'**
+  /// **'ロケ地めぐり、ホテル、道案内、観光地、空港、ツアー'**
   String get topicSub_travel;
 
   /// No description provided for @topicName_family.
@@ -1408,7 +1408,7 @@ abstract class L10n {
   /// No description provided for @topicSub_shopping.
   ///
   /// In ja, this message translates to:
-  /// **'値段交渉、サイズ・色の確認、返品、ナイトマーケット'**
+  /// **'推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット'**
   String get topicSub_shopping;
 
   /// No description provided for @topicName_transport.
@@ -1456,7 +1456,7 @@ abstract class L10n {
   /// No description provided for @topicSub_hobbies.
   ///
   /// In ja, this message translates to:
-  /// **'ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム'**
+  /// **'推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム'**
   String get topicSub_hobbies;
 
   /// No description provided for @topicName_school.
@@ -1480,7 +1480,7 @@ abstract class L10n {
   /// No description provided for @topicSub_religion.
   ///
   /// In ja, this message translates to:
-  /// **'寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事'**
+  /// **'推しの誕生日のタンブン、寺院マナー、托鉢、お守り、僧侶への話し方、仏教行事'**
   String get topicSub_religion;
 
   /// No description provided for @topicName_festivals.
@@ -1506,6 +1506,30 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'ワイの使い分け、敬語、タブー、食事マナー、贈り物'**
   String get topicSub_etiquette;
+
+  /// No description provided for @topicName_life.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ暮らし'**
+  String get topicName_life;
+
+  /// No description provided for @topicSub_life.
+  ///
+  /// In ja, this message translates to:
+  /// **'買い物、交通、健康、家族、天気、食べ物'**
+  String get topicSub_life;
+
+  /// No description provided for @topicName_thaiTravel.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ旅行'**
+  String get topicName_thaiTravel;
+
+  /// No description provided for @topicSub_thaiTravel.
+  ///
+  /// In ja, this message translates to:
+  /// **'観光、ホテル、交通、買い物、食べ物'**
+  String get topicSub_thaiTravel;
 
   /// 文体ラベル。値は constants.STYLES の識別子で、表示だけ差し替える
   ///
@@ -1690,14 +1714,14 @@ abstract class L10n {
   /// No description provided for @paywallMonthlyToLifetimeNote.
   ///
   /// In ja, this message translates to:
-  /// **'買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。'**
-  String get paywallMonthlyToLifetimeNote;
+  /// **'{store, select, android{買い切りの購入後も、現在のサブスクリプションは自動では解約されません。Google Playの定期購入の設定から解約してください。} other{買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。}}'**
+  String paywallMonthlyToLifetimeNote(String store);
 
   /// No description provided for @paywallLegal.
   ///
   /// In ja, this message translates to:
-  /// **'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。'**
-  String get paywallLegal;
+  /// **'{store, select, android{サブスクリプションは自動更新です。次の更新日の前までにキャンセルしない限り、同じ料金で自動的に更新されます。管理・キャンセルはGoogle Playの定期購入の設定から行えます。} other{サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。}}'**
+  String paywallLegal(String store);
 
   /// ストアの無料トライアル（初回特典）の対象者にだけ出すバッジ。特典は1アカウント1回なので事実として書ける。期限を偽る「今だけ」は使わない。
   ///
@@ -1750,14 +1774,14 @@ abstract class L10n {
   /// No description provided for @paywallChangeToYearlyNote.
   ///
   /// In ja, this message translates to:
-  /// **'すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。'**
-  String get paywallChangeToYearlyNote;
+  /// **'{store, select, android{すぐに年額プランへ切り替わり、年額の料金が請求されます。月額の残り期間ぶんは、年額プランの期間に上乗せされます。} other{すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。}}'**
+  String paywallChangeToYearlyNote(String store);
 
   /// No description provided for @paywallChangeToMonthlyNote.
   ///
   /// In ja, this message translates to:
-  /// **'今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。'**
-  String get paywallChangeToMonthlyNote;
+  /// **'{store, select, android{すぐに月額プランへ切り替わります。お支払い済みの年額の期間が終わるまでは請求されず、そのあと月額で更新されます。} other{今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。}}'**
+  String paywallChangeToMonthlyNote(String store);
 
   /// No description provided for @paywallCancelSubscriptionNote.
   ///
@@ -1860,6 +1884,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'次へ'**
   String get onboardingNext;
+
+  /// No description provided for @onboardingHaveAccount.
+  ///
+  /// In ja, this message translates to:
+  /// **'アカウントをお持ちの方はこちら'**
+  String get onboardingHaveAccount;
 
   /// No description provided for @interviewIntroTitle.
   ///
@@ -2062,7 +2092,7 @@ abstract class L10n {
   /// No description provided for @philosophy3Travel.
   ///
   /// In ja, this message translates to:
-  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「旅行」や「交通」を選べば、現地で使う場面の例文が届きます。'**
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイ旅行」を選べば、観光・移動・買い物など現地で使う場面の例文が届きます。'**
   String get philosophy3Travel;
 
   /// No description provided for @philosophy3Work.
@@ -2074,7 +2104,7 @@ abstract class L10n {
   /// No description provided for @philosophy3Live.
   ///
   /// In ja, this message translates to:
-  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「買い物」や「家族」を選べば、暮らしの中で使う例文が届きます。'**
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイ暮らし」を選べば、買い物・交通・家族など暮らしの中で使う例文が届きます。'**
   String get philosophy3Live;
 
   /// No description provided for @philosophy3Culture.
@@ -2110,32 +2140,14 @@ abstract class L10n {
   /// No description provided for @notifCoachTitle.
   ///
   /// In ja, this message translates to:
-  /// **'通知でタイ語学習を習慣にしましょう'**
+  /// **'毎日、例文が通知で届きます'**
   String get notifCoachTitle;
-
-  /// No description provided for @notifCoachStep1.
-  ///
-  /// In ja, this message translates to:
-  /// **'通勤中や寝る前など、学習を続けやすい時刻を決めます'**
-  String get notifCoachStep1;
-
-  /// No description provided for @notifCoachStep2.
-  ///
-  /// In ja, this message translates to:
-  /// **'その時刻に、あなた向けの例文が自動で届きます'**
-  String get notifCoachStep2;
 
   /// No description provided for @notifCoachHabit.
   ///
   /// In ja, this message translates to:
-  /// **'毎日同じ時間に開くので、無理なく続けられます'**
+  /// **'同じ時間に届くので、続けやすくなります'**
   String get notifCoachHabit;
-
-  /// No description provided for @notifCoachPreviewLabel.
-  ///
-  /// In ja, this message translates to:
-  /// **'通知の例）'**
-  String get notifCoachPreviewLabel;
 
   /// No description provided for @notifCoachNow.
   ///
@@ -2164,13 +2176,13 @@ abstract class L10n {
   /// No description provided for @notifCoachLater.
   ///
   /// In ja, this message translates to:
-  /// **'あとで'**
+  /// **'今はしない'**
   String get notifCoachLater;
 
   /// No description provided for @notifCoachEnabled.
   ///
   /// In ja, this message translates to:
-  /// **'毎日この時間に例文をお届けします。時刻は設定で変更できます。'**
+  /// **'毎日、決まった時間に例文をお届けします。時刻は設定で変更できます。'**
   String get notifCoachEnabled;
 
   /// No description provided for @notifCoachStillQuiet.
@@ -2437,6 +2449,18 @@ abstract class L10n {
   /// **'設定を開く'**
   String get pronunciationPermissionOpenSettings;
 
+  /// No description provided for @ttsThaiVoiceMissing.
+  ///
+  /// In ja, this message translates to:
+  /// **'読み上げにタイ語の音声が入っていません。音声データをダウンロードすると、お手本を聞けるようになります。'**
+  String get ttsThaiVoiceMissing;
+
+  /// No description provided for @ttsThaiVoiceInstall.
+  ///
+  /// In ja, this message translates to:
+  /// **'ダウンロード'**
+  String get ttsThaiVoiceInstall;
+
   /// No description provided for @pronunciationSpeechRecognized.
   ///
   /// In ja, this message translates to:
@@ -2464,8 +2488,8 @@ abstract class L10n {
   /// No description provided for @pronunciationSpeechNoAssetHow.
   ///
   /// In ja, this message translates to:
-  /// **'「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。'**
-  String get pronunciationSpeechNoAssetHow;
+  /// **'{store, select, android{端末の設定で、音声入力（端末上の音声認識）にタイ語を追加すると使えるようになります。} other{「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。}}'**
+  String pronunciationSpeechNoAssetHow(String store);
 
   /// No description provided for @pronunciationSpeechAuthDenied.
   ///
@@ -2476,7 +2500,7 @@ abstract class L10n {
   /// No description provided for @pronunciationSpeechAndroid.
   ///
   /// In ja, this message translates to:
-  /// **'Android では発音（子音・母音）の判定に対応していません。声調だけを見ています'**
+  /// **'Android 13 より前のバージョンでは発音（子音・母音）を判定できません。声調だけを見ています'**
   String get pronunciationSpeechAndroid;
 
   /// No description provided for @pronunciationCoachLead.
@@ -2666,7 +2690,7 @@ abstract class L10n {
   /// **'今日の新しいクイズはここまでです。'**
   String get quotaQuizReached;
 
-  /// 上限回数は tier で異なる（free 5 / premium 無制限）ため文言に数字を含めない
+  /// 上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
   /// **'今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。'**
@@ -2747,8 +2771,8 @@ abstract class L10n {
   /// No description provided for @errStoreUnavailable.
   ///
   /// In ja, this message translates to:
-  /// **'App Storeに接続できませんでした'**
-  String get errStoreUnavailable;
+  /// **'{store, select, android{Google Playに接続できませんでした} other{App Storeに接続できませんでした}}'**
+  String errStoreUnavailable(String store);
 
   /// No description provided for @errNothingToRestore.
   ///
@@ -4379,7 +4403,7 @@ abstract class L10n {
   /// No description provided for @guideSettingsSubtitle.
   ///
   /// In ja, this message translates to:
-  /// **'アプリの使い方をひと通り読む'**
+  /// **'アプリの使い方をひと通り確認'**
   String get guideSettingsSubtitle;
 
   /// No description provided for @guideSkip.
@@ -4403,7 +4427,7 @@ abstract class L10n {
   /// No description provided for @guideLead.
   ///
   /// In ja, this message translates to:
-  /// **'このアプリの使い方をまとめています。あとで設定からいつでも読み返せます。'**
+  /// **'基本の使い方をまとめました。設定からいつでも読み返せます。'**
   String get guideLead;
 
   /// No description provided for @guideFigureLoopSentence.
@@ -4433,7 +4457,7 @@ abstract class L10n {
   /// No description provided for @guideFigureLoopEvery.
   ///
   /// In ja, this message translates to:
-  /// **'例文5つごと'**
+  /// **'例文最大5つごと'**
   String get guideFigureLoopEvery;
 
   /// No description provided for @guideFigureCardThai.
@@ -4493,25 +4517,25 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody1.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなたの語彙に合わせたタイ語の例文を、毎日つくります。読み終えたら、その場で追加することもできます。'**
+  /// **'AIがあなたのレベルに合った学習単語を選び、その単語を使ったタイ語の例文をつくります。'**
   String get guideOverviewBody1;
 
   /// No description provided for @guideOverviewBody2.
   ///
   /// In ja, this message translates to:
-  /// **'例文で覚える → クイズで確かめる。これを5つくり返して1巡です。'**
+  /// **'例文で学習単語を覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。'**
   String get guideOverviewBody2;
 
   /// No description provided for @guideOverviewSummaryQuiz.
   ///
   /// In ja, this message translates to:
-  /// **'例文5つを学び終えると「まとめクイズ」に進みます。それまでに学んだ例文から出題され、迷ったらヒントや例文の見返しも使えます。'**
+  /// **'1セット学び終えると「まとめクイズ」に進みます。迷ったときは、ヒントを見たり例文を見返したりできます。'**
   String get guideOverviewSummaryQuiz;
 
   /// No description provided for @guideOverviewBody3.
   ///
   /// In ja, this message translates to:
-  /// **'「まとめクイズ」に正解するほど語彙スコアが上がり、例文に出てくる単語の幅が広がります。間違えた例文は再出題されるので、覚え直す順番を自分で管理する必要はありません。'**
+  /// **'まとめクイズに正解すると語彙スコアが上がり、例文に出る単語も増えていきます。ヒントなしで正解すると、さらに上がりやすくなります。間違えた問題は、あとでもう一度出題されます。'**
   String get guideOverviewBody3;
 
   /// No description provided for @guideRoleSentenceTitle.
@@ -4523,7 +4547,7 @@ abstract class L10n {
   /// No description provided for @guideRoleSentenceBody.
   ///
   /// In ja, this message translates to:
-  /// **'詳細画面からタイ単語の使用例を確認しましょう。単語だけを覚えるより、使う場面ごと覚えるほうが記憶に残ります。'**
+  /// **'詳細画面で単語の使い方を確認できます。使う場面と一緒に覚えると、記憶に残りやすくなります。'**
   String get guideRoleSentenceBody;
 
   /// No description provided for @guideRoleSoundTitle.
@@ -4535,7 +4559,7 @@ abstract class L10n {
   /// No description provided for @guideRoleSoundBody.
   ///
   /// In ja, this message translates to:
-  /// **'自分のイントネーションとお手本を聞き比べて、発音のコツを掴みましょう。タイ語は声調で意味が変わります。'**
+  /// **'自分の発音や声調をお手本と比べられます。タイ語は声調で意味が変わります。'**
   String get guideRoleSoundBody;
 
   /// No description provided for @guideRoleQuizTitle.
@@ -4544,11 +4568,23 @@ abstract class L10n {
   /// **'クイズ'**
   String get guideRoleQuizTitle;
 
-  /// No description provided for @guideRoleQuizBody.
+  /// No description provided for @guideRoleQuizCheck.
   ///
   /// In ja, this message translates to:
-  /// **'クイズは2種類あります。確認クイズは、次の例文に進む前に単語の意味を選ぶ1問です。5つ目を終えると、それまでに学んだ例文から下線部の単語を選ぶ「まとめクイズ」に進みます。'**
-  String get guideRoleQuizBody;
+  /// **'確認クイズ：例文ごとに、学習単語の意味を選びます。'**
+  String get guideRoleQuizCheck;
+
+  /// No description provided for @guideRoleQuizSummary.
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズ：例文最大5つごとに、下線部に入る単語を選びます。'**
+  String get guideRoleQuizSummary;
+
+  /// No description provided for @guideRoleQuizSpelling.
+  ///
+  /// In ja, this message translates to:
+  /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。その学習単語について一度正解すると、以後は穴埋め問題が出ます。'**
+  String get guideRoleQuizSpelling;
 
   /// No description provided for @guideRoleScoreTitle.
   ///
@@ -4559,7 +4595,7 @@ abstract class L10n {
   /// No description provided for @guideRoleScoreBody.
   ///
   /// In ja, this message translates to:
-  /// **'クイズの結果から算出された、あなたの語彙量をあらわすスコアです。'**
+  /// **'語彙測定テストとまとめクイズの結果から推定した、現在の語彙量です。'**
   String get guideRoleScoreBody;
 
   /// No description provided for @guideRoleVocabTestTitle.
@@ -4571,7 +4607,7 @@ abstract class L10n {
   /// No description provided for @guideRoleVocabTestBody.
   ///
   /// In ja, this message translates to:
-  /// **'4択のテストで、いまの語彙量を測ります。結果は語彙スコアの出発点になり、例文とクイズの難易度に反映されます。設定画面から月1回まで受け直せます。'**
+  /// **'4択で現在の語彙量を測り、例文とクイズの難易度を決めます。設定から月1回まで受け直せます。'**
   String get guideRoleVocabTestBody;
 
   /// No description provided for @guideRoleRankingTitle.
@@ -4583,7 +4619,7 @@ abstract class L10n {
   /// No description provided for @guideRoleRankingBody.
   ///
   /// In ja, this message translates to:
-  /// **'語彙スコア順にユーザーを並べた時の、あなたの順位を表示します。表示名は自動で割り当てられます。'**
+  /// **'語彙スコアによる順位を確認できます。表示名は自動で割り当てられます。'**
   String get guideRoleRankingBody;
 
   /// No description provided for @guideRoleTopicTitle.
@@ -4595,7 +4631,7 @@ abstract class L10n {
   /// No description provided for @guideRoleTopicBody.
   ///
   /// In ja, this message translates to:
-  /// **'色々な場面（祭り・寺院での作法・BLドラマなど）におけるタイ語に触れてみましょう。言葉と一緒にタイの文化に触れられます。'**
+  /// **'祭り・寺院での作法・BLドラマなどを通して、タイ語と文化を学べます。'**
   String get guideRoleTopicBody;
 
   /// No description provided for @guideRoleNotificationTitle.
@@ -4607,7 +4643,7 @@ abstract class L10n {
   /// No description provided for @guideRoleNotificationBody.
   ///
   /// In ja, this message translates to:
-  /// **'タイ語学習を習慣化するために役立ちます。決めた時刻に、その日の例文が届きます。'**
+  /// **'決めた時刻にその日の例文が届き、学習の習慣化を助けます。'**
   String get guideRoleNotificationBody;
 
   /// No description provided for @guideRolePremiumTitle.
@@ -4619,7 +4655,7 @@ abstract class L10n {
   /// No description provided for @guideRolePremiumBody.
   ///
   /// In ja, this message translates to:
-  /// **'無料版でも毎日の学習は続けられます。プレミアムでは例文の数・テーマ選び・語彙スコアの上限が広がります。'**
+  /// **'無料版でも毎日学べます。プレミアムでは例文数・テーマ選択・語彙スコアの上限が広がります。'**
   String get guideRolePremiumBody;
 
   /// No description provided for @guidePlanColItem.
@@ -4667,7 +4703,7 @@ abstract class L10n {
   /// No description provided for @guidePlanSentences.
   ///
   /// In ja, this message translates to:
-  /// **'{count}文'**
+  /// **'{count}セット'**
   String guidePlanSentences(int count);
 
   /// No description provided for @guidePlanTopicFree.
@@ -4703,7 +4739,7 @@ abstract class L10n {
   /// No description provided for @guideHowSentenceStep1.
   ///
   /// In ja, this message translates to:
-  /// **'学習タブを開くと、その日の例文が表示されます。例文は5つで1セットで、いま何本目かが上に出ます。'**
+  /// **'学習タブに、その日の例文が表示されます。例文は最大5つで1セットです。上部で進み具合を確認できます。'**
   String get guideHowSentenceStep1;
 
   /// No description provided for @guideHowSentenceStep3.
@@ -4727,7 +4763,7 @@ abstract class L10n {
   /// No description provided for @guideHowDetailLead.
   ///
   /// In ja, this message translates to:
-  /// **'詳細画面では、より深くタイ語例文を解説します。場面・文体・つづりと声調まで手がかりを増やすほど、その単語は記憶に残ります。'**
+  /// **'詳細画面では、例文の場面・文体・綴り・声調を確認できます。複数の手がかりと結びつけると、単語が記憶に残りやすくなります。'**
   String get guideHowDetailLead;
 
   /// No description provided for @guideHowSoundTitle.
@@ -4739,19 +4775,19 @@ abstract class L10n {
   /// No description provided for @guideHowSoundStep1.
   ///
   /// In ja, this message translates to:
-  /// **'「お手本を聞く」で、タイ語例文の音声をループ再生します。'**
+  /// **'「お手本を聞く」で、例文をループ再生します。'**
   String get guideHowSoundStep1;
 
   /// No description provided for @guideHowSoundStep2.
   ///
   /// In ja, this message translates to:
-  /// **'詳細画面の「発音練習」では、ボタンを押したまま真似して読むと、声調が合っているかをその場で判定できます。'**
+  /// **'詳細画面の「発音練習」で「押したまま話す」を長押しし、例文を読みます。その場で声調を判定できます。'**
   String get guideHowSoundStep2;
 
   /// No description provided for @guideHowSoundStep3.
   ///
   /// In ja, this message translates to:
-  /// **'発音練習の判定は緑が合っている、橙が惜しい、赤が違う。語をタップすると、お手本と自分の声のカーブと直し方が出ます。'**
+  /// **'各語の声調が合っていれば緑、惜しければ橙、違っていれば赤で表示されます。語をタップすると、お手本との声の高さの違いと直し方を確認できます。'**
   String get guideHowSoundStep3;
 
   /// No description provided for @guideHowQuizTitle.
@@ -4769,19 +4805,19 @@ abstract class L10n {
   /// No description provided for @guideHowQuizStep2.
   ///
   /// In ja, this message translates to:
-  /// **'直前に読んだ例文の学習単語（金色の語）について、その意味を4択で選びます。'**
+  /// **'直前の例文にある金色の語の意味を、4択で選びます。'**
   String get guideHowQuizStep2;
 
   /// No description provided for @guideHowQuizStep3.
   ///
   /// In ja, this message translates to:
-  /// **'答えると、その単語の意味や使い方の解説が出ます。'**
+  /// **'回答後に、単語の意味と使い方を確認できます。'**
   String get guideHowQuizStep3;
 
   /// No description provided for @guideHowQuizStep4.
   ///
   /// In ja, this message translates to:
-  /// **'結果画面から次の例文へ進みます。5つ目を終えると、そのままの流れで「まとめクイズ」に入ります。'**
+  /// **'結果画面から次の例文へ進みます。セットの最後の例文のあとは「まとめクイズ」です。'**
   String get guideHowQuizStep4;
 
   /// No description provided for @guideHowReviewQuizTitle.
@@ -4793,19 +4829,19 @@ abstract class L10n {
   /// No description provided for @guideHowReviewQuizStep1.
   ///
   /// In ja, this message translates to:
-  /// **'例文5つを学び終えるごとに出る節目のクイズです。それまでに学んだ例文から、下線部に入る単語を選びます。'**
+  /// **'1セット（最大5つ）の例文を学ぶごとに、学習済みの例文から穴埋め問題が出ます。'**
   String get guideHowReviewQuizStep1;
 
   /// No description provided for @guideHowReviewQuizStep2.
   ///
   /// In ja, this message translates to:
-  /// **'出題される例文は、前日・3日前・1週間前…と日をあけて選ばれます。その中でも、まだ身についていない単語から先に出ます。'**
+  /// **'まとめクイズでは、前日・3日前・1週間前などに学んだ例文を、間隔をあけて復習します。まだ身についていない学習単語の問題が優先して出ます。'**
   String get guideHowReviewQuizStep2;
 
   /// No description provided for @guideHowReviewQuizStep3.
   ///
   /// In ja, this message translates to:
-  /// **'ヒントを使えます。1回押すと発音、もう1回で訳が出ます。慣れてきたら使わずに答えると語彙スコアが伸びやすくなります。'**
+  /// **'ヒントは1回目に発音、2回目に訳が出ます。使わずに正解すると、語彙スコアが伸びやすくなります。'**
   String get guideHowReviewQuizStep3;
 
   /// No description provided for @guideHowReviewQuizStep4.
@@ -4817,7 +4853,7 @@ abstract class L10n {
   /// No description provided for @guideHowReviewQuizStep5.
   ///
   /// In ja, this message translates to:
-  /// **'ここでの正解が語彙スコアに反映されます。'**
+  /// **'正解すると語彙スコアに反映されます。'**
   String get guideHowReviewQuizStep5;
 
   /// No description provided for @guideHowSettingsTitle.
@@ -4829,13 +4865,13 @@ abstract class L10n {
   /// No description provided for @guideHowSettingsStep1.
   ///
   /// In ja, this message translates to:
-  /// **'通知を受け取る時刻、表示フォント、訳と解説の言語を変えられます。'**
+  /// **'通知時刻・表示フォント・訳と解説の言語を変更できます。'**
   String get guideHowSettingsStep1;
 
   /// No description provided for @guideHowSettingsStep2.
   ///
   /// In ja, this message translates to:
-  /// **'次の例文のテーマの選択と、ランキングもここから開けます。'**
+  /// **'次の例文のテーマを選び、ランキングを開くこともできます。'**
   String get guideHowSettingsStep2;
 
   /// No description provided for @guideHowSettingsStep3.
@@ -4843,6 +4879,36 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'このガイドは設定の「使い方ガイド」からいつでも開けます。'**
   String get guideHowSettingsStep3;
+
+  /// No description provided for @guideChapterTips.
+  ///
+  /// In ja, this message translates to:
+  /// **'学習のコツ'**
+  String get guideChapterTips;
+
+  /// No description provided for @guideTipsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'続けるためのコツ'**
+  String get guideTipsTitle;
+
+  /// No description provided for @guideTipsRepeat.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズは間違えても大丈夫です。例文を丸ごと覚えなくても、学習単語を何度も見るうちに自然と語彙が増えていきます。'**
+  String get guideTipsRepeat;
+
+  /// No description provided for @guideTipsScript.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字は、まず単語全体の形をつかめれば十分です。見慣れてきたら、子音・母音・声調記号を少しずつ見分けていきましょう。'**
+  String get guideTipsScript;
+
+  /// No description provided for @guideTipsSpeak.
+  ///
+  /// In ja, this message translates to:
+  /// **'覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。'**
+  String get guideTipsSpeak;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

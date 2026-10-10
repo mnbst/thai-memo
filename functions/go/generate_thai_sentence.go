@@ -25,6 +25,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
+	"github.com/mnbst/thai-memo/functions/go/internal/themeshots"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
@@ -144,19 +145,20 @@ const generationLeaseDuration = 3 * time.Minute
 // requestedSetSize はクライアントが求める本数。
 //
 // 旧クライアントは count を送らないので1本（従来どおり）。上限は
-// sentence.SetSize で、これを超える値を送られても増やさない。
+// そのユーザーのセット本数（sentence.SetSizeFor）で、これを超える値を
+// 送られても増やさない。入門者はここで2〜4本に縮む。
 //
 // 数を読むのに callable.Int を使うこと。Flutter の Firebase SDK は Dart の
 // int を protobuf の Int64 ラッパー
 // （{"@type":".../google.protobuf.Int64Value","value":5}）に包んで送るので、
 // Firestore 用の intValue では map のまま読めず、常に既定値へ落ちる
 // （vocabtest.go の Answers と同じ理由）。
-func requestedSetSize(params map[string]any) int {
+func requestedSetSize(params, userData map[string]any) int {
 	count, ok := callable.Int(params["count"])
 	if !ok || count < 1 {
 		return 1
 	}
-	return min(count, sentence.SetSize)
+	return min(count, sentence.SetSizeFor(userData))
 }
 
 func runGenerateThaiSentence(
@@ -216,7 +218,7 @@ func runGenerateThaiSentence(
 
 	// premium（トライアル含む）は回数を消費しない。例文は静的コーパスから出す
 	// ようになり 1 本あたりの限界コストがほぼ 0 なので、残数を見る意味が無い。
-	// free だけが remaining_sentences で絞られる。
+	// free だけが remaining_sentences（残りセット数）で絞られる。
 	remaining := intValue(userData["remaining_sentences"])
 	if !usePremiumSpec && remaining <= 0 {
 		logData["error"] = "QUOTA_EXCEEDED"
@@ -248,11 +250,8 @@ func runGenerateThaiSentence(
 		return nil, err
 	}
 
-	// free は残りクォータを超えては作らない。足りなければ取れるぶんだけ返す。
-	count := requestedSetSize(params)
-	if !usePremiumSpec {
-		count = min(count, remaining)
-	}
+	// free の枠はセット数で数えるので、本数は残りに関係なく1セットぶん作る。
+	count := requestedSetSize(params, userData)
 
 	produced, err := producer.ProduceBatch(ctx, db, freqRank, sentence.ProduceRequest{
 		UID:            uid,
@@ -374,7 +373,7 @@ func commitSentences(
 		if err == nil && snap.Exists() {
 			userData = snap.Data()
 		}
-		if !usePremiumSpec && intValue(userData["remaining_sentences"]) < len(refs) {
+		if !usePremiumSpec && intValue(userData["remaining_sentences"]) < 1 {
 			return errQuotaExceeded
 		}
 		for i, ref := range refs {
@@ -399,7 +398,8 @@ func commitSentences(
 // （sentence_handlers.py:_build_sentence_commit_update:277）。
 //
 // consumeQuota が false（premium・トライアル）のときは remaining_sentences を
-// 触らない。生成本数の記録（sentence_generated_count）は tier によらず残す。
+// 触らない。free は本数によらず1セットで1減らす（remaining_sentences はセット数）。
+// 生成本数の記録（sentence_generated_count）は tier によらず残す。
 func sentenceCommitUpdate(
 	userData map[string]any, count int, consumeQuota bool,
 ) []firestore.Update {
@@ -411,7 +411,7 @@ func sentenceCommitUpdate(
 	}
 	if consumeQuota {
 		updates = append(updates,
-			firestore.Update{Path: "remaining_sentences", Value: firestore.Increment(-count)})
+			firestore.Update{Path: "remaining_sentences", Value: firestore.Increment(-1)})
 	}
 	if _, ok := userData["first_generated_at"]; !ok {
 		updates = append(updates,
@@ -645,6 +645,10 @@ func generationTopicAllowed(topic string) bool {
 	if topic == "" || slices.Contains(sentence.Topics, topic) {
 		return true
 	}
+	// まとめたテーマ（タイ暮らし・タイ旅行）。中身への解決は選定側で行う。
+	if _, ok := sentence.TopicGroups[topic]; ok {
+		return true
+	}
 	for _, configured := range sentence.Topics {
 		if head, _, ok := strings.Cut(configured, "（"); ok && topic == head {
 			return true
@@ -684,11 +688,14 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 	}
 
 	store := embeddings.Default
+	// 参考例文はプロンプトの断片と、まとめたテーマの解決の両方に使う。
+	shots := &themeshots.Builder{Ctx: ctx, Scenes: store}
 	return &sentence.Producer{
 		// 判定器が作れなくても生成は止めない（判定なしで動く）。
 		Checker: newQualityChecker(ctx),
 		Selector: &sentence.TargetWordSelector{
 			Session: &uvm.SessionSelector{Emb: store},
+			Groups:  shots,
 		},
 		Bank: &sentence.FreeBank{ProjectID: fbapp.ProjectID()},
 		// premium は静的コーパスから出す。無い語だけ Service（LLM）へ落ちる。
@@ -699,6 +706,7 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 			Gen:      client,
 			Resolver: &sentence.Resolver{SubThemes: store},
 			Drama:    &bldrama.Builder{Ctx: ctx, Shots: store},
+			Shots:    shots,
 		},
 	}, nil
 }

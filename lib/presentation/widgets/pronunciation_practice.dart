@@ -16,6 +16,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/platform/store_platform.dart';
 import '../../core/pronunciation/pronunciation_analyzer.dart';
 import '../../core/pronunciation/pronunciation_coach.dart';
 import '../../core/pronunciation/pronunciation_scorer.dart';
@@ -1184,7 +1185,7 @@ class _RecognitionNotice extends StatelessWidget {
       case 'no_on_device_asset':
         return (
           l10n.pronunciationSpeechNoAsset,
-          l10n.pronunciationSpeechNoAssetHow,
+          l10n.pronunciationSpeechNoAssetHow(StorePlatform.current.id),
         );
       case 'auth_denied':
         return (l10n.pronunciationSpeechAuthDenied, null);

@@ -6,6 +6,7 @@ import '../../data/datasources/local/database_helper.dart';
 import '../../services/quiz_stats_sync.dart';
 import '../../services/firebase_auth_service.dart';
 import '../../services/sentence_view_marker.dart';
+import '../../services/uvm_update_queue.dart';
 import 'daily_set_provider.dart';
 import 'leaderboard_provider.dart';
 import 'quiz_provider.dart';
@@ -97,6 +98,7 @@ class LearningDataReset {
     if (uid == null) return;
     // 送っていないクイズ統計は、消した学習データのぶんなので捨てる。
     await QuizStatsSync.instance.clear(uid);
+    await UvmUpdateQueue.instance.clear(uid);
     for (final key in prefs.getKeys()) {
       if (key.startsWith('vocab_stats_${uid}_')) await prefs.remove(key);
     }

@@ -20,11 +20,13 @@ import (
 	"sync"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/bldrama"
+	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/llm"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
+	"github.com/mnbst/thai-memo/functions/go/internal/themeshots"
 )
 
 const rankPath = "../../scripts/corpus/freq_rank_top10000.json"
@@ -41,6 +43,9 @@ type record struct {
 	Retried *sentence.Sentence `json:"retried,omitempty"`
 	// Notes は judge の指摘。差し戻しプロンプトへそのまま入れる。
 	Notes []string `json:"notes,omitempty"`
+	// RetryNotes は作り直した文の再判定の指摘。空なら作り直した文は合格
+	// （本番の Producer.checkAndRetry と同じく、不合格ならプールに入らない）。
+	RetryNotes []string `json:"retry_notes,omitempty"`
 	*sentence.Sentence
 }
 
@@ -56,7 +61,10 @@ func main() {
 	fix := flag.Bool("fix", false, "生成後に judge をかけ、不合格を指摘つきで差し戻す")
 	rankFile := flag.String("rank", rankPath, "freq_rank_top10000.json のパス")
 	wordList := flag.String("words", "", "key_word を固定する（カンマ区切り）。指定時は -n が語ごとの生成数")
+	shot := flag.String("shot", "", "BLドラマ回の参考セリフをショットIDで固定する（例: ub_05）。空ならランダム")
 	relation := flag.String("relation", "", "話し手と聞き手の関係を固定する（例: 自分より目上／ほとんど面識がない）")
+	medium := flag.String("medium", "", "文が載る媒体を固定する（例: 対面の会話）")
+	withShots := flag.Bool("shots", false, "テーマ回の参考例文（internal/themeshots）を付ける（本番と同じ。場面は絞らずランダム）")
 	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
 	flag.Parse()
 
@@ -86,6 +94,10 @@ func main() {
 		log.Fatalf("GEMINI_API_KEY か gemini-api-key が要る: %v", err)
 	}
 	model := envOr("GEMINI_MODEL", "gemini-3.1-flash-lite")
+	drama := &bldrama.Builder{}
+	if *shot != "" {
+		drama.Shots = fixedShot(*shot)
+	}
 	svc := &sentence.Service{
 		Gen: &llm.Client{
 			GeminiKey: key, Provider: "gemini", MaxTokens: 8192,
@@ -93,10 +105,14 @@ func main() {
 		},
 		Resolver: &sentence.Resolver{SubThemes: randomSubTheme{}},
 		// ドラマ回の専用ブロック。Shots が nil ならシーンをランダムに引く。
-		Drama: &bldrama.Builder{},
+		Drama: drama,
 	}
 	fmt.Fprintf(os.Stderr, "n=%d lang=%s tier=%s vocab=%d model=%s\n",
 		*n, *langCode, tierLabel(*free), *vocab, model)
+
+	if *withShots {
+		svc.Shots = &themeshots.Builder{}
+	}
 
 	recs := make([]record, len(words))
 	sem := make(chan struct{}, *conc)
@@ -118,6 +134,9 @@ func main() {
 			}
 			if *timeFrame != "" {
 				params["timeFrame"] = *timeFrame
+			}
+			if *medium != "" {
+				params["medium"] = *medium
 			}
 			s, err := svc.GenerateSentence(ctx, params, !*free,
 				[]string{w.Word}, *vocab, lang.Lang(*langCode))
@@ -217,6 +236,38 @@ func retry(
 	}
 	wg.Wait()
 	fmt.Fprintln(os.Stderr)
+	recheck(ctx, j, recs, l)
+}
+
+// recheck は作り直した文をもう一度判定し、不合格なら RetryNotes に指摘を残す。
+func recheck(ctx context.Context, j *quality.Judge, recs []record, l lang.Lang) {
+	var batch []quality.Candidate
+	var idx []int
+	for i, r := range recs {
+		if r.Retried == nil {
+			continue
+		}
+		batch = append(batch, quality.Candidate{
+			SentenceID:          fmt.Sprint(i),
+			ThaiText:            r.Retried.ThaiText,
+			Pronunciation:       r.Retried.Pronunciation,
+			JapaneseTranslation: r.Retried.JapaneseTranslation,
+			KeyWord:             r.Word,
+			Lang:                l,
+		})
+		idx = append(idx, i)
+	}
+	if len(batch) == 0 {
+		return
+	}
+	flagged, verdicts, err := j.JudgeBatch(ctx, batch)
+	if err != nil {
+		log.Printf("作り直した文の判定に失敗: %v", err)
+	}
+	for _, v := range verdicts {
+		recs[idx[v.Index]].RetryNotes = v.RetryNotes()
+	}
+	fmt.Fprintf(os.Stderr, "recheck: 作り直し %d件中 %d件が不合格\n", len(batch), len(flagged))
 }
 
 func regenerate(
@@ -368,4 +419,19 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// fixedShot は -shot で指定したセリフを常に選ぶ。新しく足したセリフの効きを見るため。
+type fixedShot string
+
+func (f fixedShot) FindBestDramaShot(
+	_ context.Context, _ string, shots []embeddings.Shot,
+) (string, error) {
+	want := string(f)
+	for _, shot := range shots {
+		if shot.ID == want {
+			return want, nil
+		}
+	}
+	return "", fmt.Errorf("unknown drama shot ID: %q", want)
 }

@@ -26,6 +26,7 @@ class AnalyticsService {
   String? _lastUserId;
   String? _lastTier;
   String? _lastAppLanguage;
+  String? _lastInterviewLevel;
 
   Future<void> setUserId(String? userId) async {
     if (_lastUserId == userId) return;
@@ -386,6 +387,21 @@ class AnalyticsService {
     }
   }
 
+  /// ヒアリングの level 回答をユーザープロパティにする。クイズ形式ごとの
+  /// 正答率などを入門者（none / words）で割るために使う。
+  /// level を飛ばした人は skipped。ヒアリング導入前のユーザーは送らない。
+  Future<void> setUserInterviewLevel(String level) async {
+    if (_lastInterviewLevel == level) return;
+    try {
+      await _analytics.setUserProperty(name: 'interview_level', value: level);
+      _lastInterviewLevel = level;
+    } on PlatformException catch (error, stackTrace) {
+      _logPlatformFailure('setUserProperty', error, stackTrace);
+    } catch (error, stackTrace) {
+      _logPlatformFailure('setUserProperty', error, stackTrace);
+    }
+  }
+
   /// 初回起動時の言語決定の結果。1ユーザーにつき1回だけ出る。
   ///
   /// [storefront] が unknown の割合＝ストア地域の取得失敗率。失敗すると日本の
@@ -406,8 +422,13 @@ class AnalyticsService {
   /// [action] は shown（表示）/ accepted（わかった）/ dismissed（明示的な選択なし）。
   /// 実際に通知がオンになったかは change_setting(daily_reminder_enabled) で見る。
   /// shown を分母に、そこまでの離脱段階を切り分けるために出している。
-  Future<void> logNotificationCoach({required String action}) async {
-    await _logEvent('notification_coach', {'action': action});
+  /// [source] は first（初回）/ reprompt（断った人へのリリースごとの再案内）。
+  /// 再案内A/Bで出さない群に当たったときは action=holdout を出す。
+  Future<void> logNotificationCoach({
+    required String action,
+    required String source,
+  }) async {
+    await _logEvent('notification_coach', {'action': action, 'source': source});
   }
 
   /// プレミアム体験トライアル終了案内の表示と結果。

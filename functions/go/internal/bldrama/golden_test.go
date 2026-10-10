@@ -15,6 +15,8 @@ import (
 // bldrama_golden.json は
 // functions/python/scripts/daily_golden/gen_bldrama_golden.py が
 // 本物の themes/bl_drama.py を呼んで書き出したもの。
+// Python 削除後に、人称ルールの出し分け（2026-10-01）に合わせて
+// กู/มึง を含まないセリフ47件の required だけ書き換えた。
 
 type golden struct {
 	Sections []struct {
@@ -49,11 +51,16 @@ func load(t *testing.T) *golden {
 // gen_bldrama.py の再実行を忘れると、ここで気付く。
 func TestDataGolden(t *testing.T) {
 	g := load(t)
-	if !reflect.DeepEqual(shots, g.Shots) {
-		t.Error("shots 不一致")
+	// golden は Python 時代の75件。その後に足したセリフは golden に無いので、
+	// 元の75件が先頭に同じ順・同じ値で残っていることだけを見る。
+	if len(shotIDs) < len(g.ShotIDs) ||
+		!reflect.DeepEqual(shotIDs[:len(g.ShotIDs)], g.ShotIDs) {
+		t.Errorf("shotIDs の先頭が golden と不一致\ngot  %v\nwant %v", shotIDs, g.ShotIDs)
 	}
-	if !reflect.DeepEqual(shotIDs, g.ShotIDs) {
-		t.Errorf("shotIDs 不一致\ngot  %v\nwant %v", shotIDs, g.ShotIDs)
+	for sid, want := range g.Shots {
+		if shots[sid] != want {
+			t.Errorf("%s のセリフが不一致: %q want %q", sid, shots[sid], want)
+		}
 	}
 	for sid, want := range g.ShotContext {
 		got, ok := shotContext[sid]
@@ -66,10 +73,37 @@ func TestDataGolden(t *testing.T) {
 			t.Errorf("%s の逆引きが不一致: %+v want %+v", sid, got, want)
 		}
 	}
-	if len(shotContext) != len(g.ShotContext) {
-		t.Errorf("shotContext の件数 %d want %d", len(shotContext), len(g.ShotContext))
+	t.Logf("golden %d 件が一致（全 %d 件）", len(g.Shots), len(shots))
+}
+
+// TestDataConsistent は shotIDs・shots・shotContext が同じIDの集合を指すことを見る。
+// どれかが欠けると、選ばれたショットのセリフや設定が空のままプロンプトに載る。
+func TestDataConsistent(t *testing.T) {
+	seenID := map[string]bool{}
+	seenText := map[string]string{}
+	for _, sid := range shotIDs {
+		if seenID[sid] {
+			t.Errorf("%s が shotIDs で重複", sid)
+		}
+		seenID[sid] = true
+		text, ok := shots[sid]
+		if !ok || text == "" {
+			t.Errorf("%s のセリフが無い", sid)
+		}
+		// embedding はセリフ本文で引くため、本文が重なると片方が選ばれない。
+		if other, dup := seenText[text]; dup {
+			t.Errorf("%s と %s のセリフが同じ: %q", sid, other, text)
+		}
+		seenText[text] = sid
+		c, ok := shotContext[sid]
+		if !ok || c.Drama == "" || c.Context == "" || c.Scene == "" {
+			t.Errorf("%s の設定が欠けている: %+v", sid, c)
+		}
 	}
-	t.Logf("セリフ %d 件、逆引き %d 件が一致", len(shots), len(shotContext))
+	if len(shots) != len(shotIDs) || len(shotContext) != len(shotIDs) {
+		t.Errorf("件数不一致 shotIDs=%d shots=%d shotContext=%d",
+			len(shotIDs), len(shots), len(shotContext))
+	}
 }
 
 // TestBuildDramaSectionGolden はプロンプト断片が Python と一字一句同じかを見る。

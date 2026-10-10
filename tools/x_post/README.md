@@ -8,7 +8,7 @@
 
 | 手順 | 中身 |
 | --- | --- |
-| `pick_sentence.py` | コーパスを恋愛と語数で絞り、Gemini に1件選ばせて本文を組む |
+| `pick_sentence.py` | コーパスをその日のテーマと語数で絞り、Gemini に1件選ばせて本文を組む |
 | `synth_tts.py` | Google Cloud TTS（th-TH）で読み上げ音声を作る（通常速度で1回） |
 | `test/screenshots/x_post_screenshot.dart` | `DetailScreen` を描画し、画像3枚と操作フレームを書き出す |
 | `build_media.py` | 操作フレームに音声を載せて mp4 にする |
@@ -18,10 +18,14 @@
 
 ## 例文のソース
 
-`gs://<project>-uvm-data/corpus_sentences_ja.json`（premium と同じ静的コーパス）
-だけを候補にする。恋愛のトピック（`恋愛・男女関係`）と語数で絞り、残りから
-Gemini に1件選ばせる。Gemini が応答しないときは同じ候補から抽選
-して投稿を止めない。
+`gs://<project>-uvm-data/` の `corpus_sentences_ja.json`（静的コーパス）と
+`corpus_pool_ja.json`（運用中に貯めたプール）を候補にする（premium の CorpusBank と同じ2本）。その日のテーマと語数で絞った残りから Gemini に1件選ばせる。Gemini が応答しないときは
+同じ候補から抽選して投稿を止めない。テーマに合う候補が無ければ投稿しない。
+
+テーマは Cloud Scheduler の起動リクエスト（`inputs.themes`）で決める。
+`タイ旅行` `タイ生活` `恋愛` `BLドラマ` をカンマ区切りで並べ、その中から毎日1つ抽選する
+（空なら全部）。変えるときは `terraform/prod.tfvars` の `x_post_themes` を直して
+`terraform apply` するか、コンソールでジョブの本文を直す。プッシュは要らない。
 
 前日に生成された例文は使わない。配信当時のコーパスに使い方が入っていなかった
 ものが混ざり、詳細画面の「使い方」が1項目だけになるため。

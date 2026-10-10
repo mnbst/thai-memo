@@ -2,6 +2,7 @@ package function
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -13,14 +14,16 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
+	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
 
 // 例文プールへの振り分け（dailyBatch のステップ6）。
 //
-// 品質の判定はここでは行わない。生成直後に Jev で判定し、不合格なら作り直して
-// 判定し直した結果が例文 doc の quality フィールドに入っている
-// （sentence.Producer.checkAndRetry）。ここでは quality.passed が真の文だけを
-// 例文プールへ回し、外した文をログに残す。
+// 生成直後に Jev で判定し、不合格なら作り直して判定し直した結果が例文 doc の
+// quality フィールドに入っている（sentence.Producer.checkAndRetry）。ここでは
+// quality.passed が真の文だけを候補にし、さらにプール用の観点（quality.PoolAspects）で
+// 判定し直して、通った文だけを例文プールへ回す。外した文はログに残す。
+// premium と free は同じ観点で判定し、ティアごとのプールへ書き分ける（sentence_pool.go）。
 //
 // 不合格の中身は sentence_flags にも判定ごとに残っている（stage=first / retry）。
 // stage=retry が「作り直しても不合格でプールに入らなかった文」。
@@ -43,7 +46,7 @@ const (
 	poolUnjudged
 )
 
-// runSentenceAudit は直近の premium 例文のうち、判定に合格したものを例文プールへ回す。
+// runSentenceAudit は直近の LLM 生成の例文のうち、判定に合格したものを例文プールへ回す。
 //
 // users は runDailyBatch が既に読んだものを使い回す（3度目の全走査を避ける）。
 func runSentenceAudit(
@@ -52,7 +55,7 @@ func runSentenceAudit(
 ) error {
 	candidates, docs := auditCandidates(ctx, db, users, now.Add(-auditWindow))
 	if len(candidates) == 0 {
-		log.Print("sentencePool: no premium LLM sentences in window")
+		log.Print("sentencePool: no LLM sentences in window")
 		return nil
 	}
 
@@ -65,12 +68,22 @@ func runSentenceAudit(
 		case poolPassed:
 			accepted = append(accepted, c)
 		case poolRejected:
-			log.Printf("sentencePool: rejected key_word=%s reason=%s thai=%q translation=%q",
-				c.KeyWord, reason, c.ThaiText, c.JapaneseTranslation)
+			log.Printf("sentencePool: rejected tier=%s key_word=%s reason=%s thai=%q translation=%q",
+				c.GenerationTier, c.KeyWord, reason, c.ThaiText, c.JapaneseTranslation)
 		}
 	}
-	log.Printf("sentencePool: candidates=%d passed=%d rejected=%d unjudged=%d",
-		len(candidates), counts[poolPassed], counts[poolRejected], counts[poolUnjudged])
+	log.Printf("sentencePool: candidates=%d (%s) passed=%d rejected=%d unjudged=%d",
+		len(candidates), tierCounts(candidates), counts[poolPassed], counts[poolRejected], counts[poolUnjudged])
+
+	if len(accepted) > 0 {
+		judge, err := quality.NewJudge(ctx)
+		if err != nil {
+			// 判定できないなら入れない（未判定の文と同じ扱い）。
+			log.Printf("sentencePool: judge unavailable, skip pooling: %v", err)
+			return nil
+		}
+		accepted = poolGate(ctx, judge, accepted)
+	}
 
 	// プールの書き出しに失敗しても生成済みの例文には影響しないので、
 	// エラーは返さず記録だけ残す。
@@ -78,6 +91,38 @@ func runSentenceAudit(
 		log.Printf("sentencePool: write failed: %v", err)
 	}
 	return nil
+}
+
+// poolReviewer はプール用の観点で判定するもの（quality.Judge。テストで差し替える）。
+type poolReviewer interface {
+	ReviewPool(ctx context.Context, batch []quality.Candidate) (quality.Result, error)
+}
+
+// poolGate は生成時の判定に合格した文を、プール用の観点で判定し直す。
+// 通った文だけを返す。判定に失敗した文は返さない（品質が分からない文は入れない）。
+func poolGate(ctx context.Context, r poolReviewer, accepted []quality.Candidate) []quality.Candidate {
+	res, err := r.ReviewPool(ctx, accepted)
+	if err != nil {
+		log.Printf("sentencePool: pool judge failed for some sentences: %v", err)
+	}
+	for i, c := range res.Flagged {
+		log.Printf("sentencePool: pool-rejected tier=%s key_word=%s reason=%s thai=%q translation=%q",
+			c.GenerationTier, c.KeyWord, res.Verdicts[i].Reason, c.ThaiText, c.JapaneseTranslation)
+	}
+	log.Printf("sentencePool: pool judge accepted=%d (%s) rejected=%d failed=%d",
+		len(res.Accepted), tierCounts(res.Accepted), len(res.Flagged),
+		len(accepted)-len(res.Accepted)-len(res.Flagged))
+	return res.Accepted
+}
+
+// tierCounts はティアごとの本数をログ用に並べる（premium=3 free=1）。
+func tierCounts(cs []quality.Candidate) string {
+	n := map[string]int{}
+	for _, c := range cs {
+		n[c.GenerationTier]++
+	}
+	return fmt.Sprintf("premium=%d free=%d",
+		n[sentence.GenerationTier(true)], n[sentence.GenerationTier(false)])
 }
 
 // poolVerdictOf は例文 doc の quality フィールドから振り分けを決める。
@@ -121,7 +166,7 @@ func poolAccepted(
 	return writeSentencePool(ctx, fbapp.ProjectID(), entries, maxEntries)
 }
 
-// auditCandidates は各ユーザーの直近の premium LLM 例文を集める。
+// auditCandidates は各ユーザーの直近の LLM 生成の例文（premium / free）を集める。
 //
 // クエリは created_at の範囲だけにして generation_tier はメモリで絞る。
 // 2フィールドの複合条件はサブコレクションの複合インデックスを要求するが、
@@ -178,17 +223,22 @@ func auditCandidates(
 	return out, docs
 }
 
-// candidateFrom は例文 doc をプールの候補へ変換する。premium 生成でないもの、
-// バンク由来のもの、本文が欠けているものは対象外。
+// candidateFrom は例文 doc をプールの候補へ変換する。ティアが premium / free で
+// ないもの、バンク由来のもの、本文が欠けているものは対象外。
 //
 // バンク由来（from_cache=true）を外すのは、既にバンクにある文をプールへ入れ直すと
 // 同じ文が二重に増えるため。フィールドが無い doc はこれを付ける前の保存で、
 // 当時は LLM 生成しか users/{uid}/sentences に入らなかったので対象のままでよい。
 func candidateFrom(uid, docID string, data map[string]any) (quality.Candidate, bool) {
-	if stringField(data["generation_tier"]) != "premium" {
+	tier, ok := poolTier(data)
+	if !ok {
 		return quality.Candidate{}, false
 	}
 	if cached, ok := data["from_cache"].(bool); ok && cached {
+		return quality.Candidate{}, false
+	}
+	// 本人が消した例文・洗い替えた未読セットは共有の在庫に回さない。
+	if isSentenceDeleted(data) {
 		return quality.Candidate{}, false
 	}
 	thai := stringField(data["thai_text"])
@@ -209,7 +259,7 @@ func candidateFrom(uid, docID string, data map[string]any) (quality.Candidate, b
 		KeyWord:             stringField(data["key_word"]),
 		Topic:               stringField(ctxMap["topic"]),
 		Emotion:             stringField(ctxMap["emotion"]),
-		GenerationTier:      "premium",
+		GenerationTier:      tier,
 		CreatedAt:           createdAt,
 	}, true
 }

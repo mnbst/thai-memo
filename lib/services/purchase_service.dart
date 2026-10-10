@@ -18,7 +18,11 @@
 ///   ※ buyNonConsumable() を使用しているが、サブスクリプションは
 ///     in_app_purchase パッケージでは nonConsumable として扱う仕様
 /// - premium_annual: 年額サブスクリプション（自動更新型）。iOS は月額と同じグループ。
-/// - premium_lifetime: 買い切り（非消費型・iOSのみ）。期限が無く、返金・取消でのみ失効する。
+/// - premium_lifetime: 買い切り（非消費型 / Play の一時購入）。期限が無く、返金・取消でのみ失効する。
+///
+/// 【ストアごとの違い】
+/// - 月額↔年額の切り替え: iOS は同じ購読グループなので StoreKit が自動で処理する。
+///   Android は今の購読を ChangeSubscriptionParam で渡さないと2本目の購読になる。
 ///
 /// 【関連ファイル】
 /// - subscription_provider.dart: 購入状態の Riverpod 状態管理
@@ -29,19 +33,21 @@
 library;
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart'
+    show ReplacementMode;
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 import 'package:in_app_purchase_storekit/store_kit_wrappers.dart';
 
 import '../core/config/firebase_config.dart';
+import '../core/platform/store_platform.dart';
 import 'analytics_service.dart';
 import 'firebase_auth_service.dart';
 
@@ -58,7 +64,6 @@ const String kProductIdPremiumYearly = String.fromEnvironment('ENV') == 'tester'
     : 'premium_annual';
 
 /// 買い切りプランの商品ID（非消費型）。
-/// Android は一時購入の検証API（purchases.products）が未実装なので iOS でのみ扱う。
 const String kProductIdPremiumLifetime =
     String.fromEnvironment('ENV') == 'tester'
         ? 'premium_lifetime_test'
@@ -85,8 +90,7 @@ class StoreTrial {
 
 /// ペイウォールに出す購入可能な商品。
 ///
-/// yearly はストアに未登録の環境で、lifetime は iOS 以外（Android 未販売）で
-/// null になりうる。
+/// yearly と lifetime は、ストアに未登録の環境で null になりうる。
 class PremiumProducts {
   const PremiumProducts({
     required this.monthly,
@@ -189,11 +193,13 @@ class PurchaseService {
   ///
   /// 月額・年額・買い切りを1回の問い合わせでまとめて引く。年額と買い切りは
   /// 見つからなくても失敗にはせず null を返す（月額だけで購入できる）。
-  /// 買い切りは iOS のみ販売。
   /// 月額が引けないときだけ、これまで通り例外にする。
   Future<PremiumProducts> fetchProducts() async {
-    final ids = <String>{kProductIdPremiumMonthly, kProductIdPremiumYearly};
-    if (Platform.isIOS) ids.add(kProductIdPremiumLifetime);
+    final ids = <String>{
+      kProductIdPremiumMonthly,
+      kProductIdPremiumYearly,
+      kProductIdPremiumLifetime,
+    };
 
     final response = await _iap.queryProductDetails(ids);
     if (response.error != null) {
@@ -205,7 +211,7 @@ class PurchaseService {
 
     if (response.notFoundIDs.contains(kProductIdPremiumMonthly)) {
       throw PurchaseProductLoadException(
-        'App Storeで課金商品 $kProductIdPremiumMonthly が見つかりませんでした',
+        'ストアで課金商品 $kProductIdPremiumMonthly が見つかりませんでした',
       );
     }
 
@@ -375,11 +381,50 @@ class PurchaseService {
   /// buyNonConsumable を使用するが、サブスクリプションも in_app_purchase では
   /// この API で処理する（consumable は消費型アイテム用）。
   Future<void> buy(ProductDetails product) async {
-    final purchaseParam = PurchaseParam(productDetails: product);
+    final purchaseParam = product is GooglePlayProductDetails
+        ? GooglePlayPurchaseParam(
+            productDetails: product,
+            changeSubscriptionParam: await _playSubscriptionChange(product),
+          )
+        : PurchaseParam(productDetails: product);
     final started = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
     if (!started) {
       throw StateError('Store did not accept the purchase request');
     }
+  }
+
+  /// Android で月額↔年額を切り替えるときの指定。切り替えでなければ null。
+  ///
+  /// iOS の振る舞い（ペイウォールの案内文）に合わせる。
+  /// - 年額へ: すぐ切り替えて年額を請求。月額の残りは年額の期間に上乗せ。
+  /// - 月額へ: すぐ切り替えるが、支払い済みの年額の期間が終わるまで請求しない。
+  ///   （deferred だと Play が新しい購入を返さず、検証できないまま年額が失効する）
+  Future<ChangeSubscriptionParam?> _playSubscriptionChange(
+    GooglePlayProductDetails product,
+  ) async {
+    const subscriptionIds = {kProductIdPremiumMonthly, kProductIdPremiumYearly};
+    if (!subscriptionIds.contains(product.id)) return null;
+
+    final addition =
+        _iap.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+    final response = await addition.queryPastPurchases();
+    if (response.error != null) {
+      // 今の購読が分からないまま買うと、切り替えではなく2本目の購読になる。
+      throw StateError('Failed to query past purchases: ${response.error}');
+    }
+    for (final purchase in response.pastPurchases) {
+      if (purchase.productID == product.id ||
+          !subscriptionIds.contains(purchase.productID)) {
+        continue;
+      }
+      return ChangeSubscriptionParam(
+        oldPurchaseDetails: purchase,
+        replacementMode: product.id == kProductIdPremiumYearly
+            ? ReplacementMode.chargeFullPrice
+            : ReplacementMode.withoutProration,
+      );
+    }
+    return null;
   }
 
   /// 購入を復元（機種変更・再インストール時に過去の購入を復元）
@@ -500,7 +545,7 @@ class PurchaseService {
         );
 
         await callable.call<dynamic>({
-          'platform': Platform.isIOS ? 'ios' : 'android',
+          'platform': StorePlatform.current.id,
           'purchase_token': purchase.verificationData.serverVerificationData,
           'product_id': purchase.productID,
         });

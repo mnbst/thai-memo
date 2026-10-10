@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import '../../core/platform/store_platform.dart';
 
 import '../../services/firebase_auth_service.dart';
 import '../providers/auth_provider.dart';
@@ -76,7 +76,7 @@ class _SignInSheet extends ConsumerWidget {
             const SizedBox(height: 24),
             if (authState.isLoading)
               const CircularProgressIndicator()
-            else if (Platform.isIOS)
+            else if (StorePlatform.current.supportsAppleSignIn)
               SizedBox(
                 width: double.infinity,
                 child: SignInWithAppleButton(

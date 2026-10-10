@@ -57,6 +57,69 @@ void main() {
         isTrue,
       );
     });
+
+    group('断った人への再案内', () {
+      bool reprompt({
+        bool? canRequest = true,
+        String? version = '1.4.17',
+        String? reprompted,
+        bool? permissionGranted = false,
+      }) =>
+          shouldShowNotificationCoach(
+            coachShown: true,
+            permissionGranted: permissionGranted,
+            canRequestPermission: canRequest,
+            repromptVersion: version,
+            repromptedVersion: reprompted,
+          );
+
+      test('このリリースでまだ再案内していなければ出す', () {
+        expect(reprompt(), isTrue);
+        expect(reprompt(reprompted: '1.4.16'), isTrue);
+      });
+
+      test('同じリリースでは二度出さない', () {
+        expect(reprompt(reprompted: '1.4.17'), isFalse);
+      });
+
+      test('再案内の印が無いリリースでは出さない', () {
+        expect(reprompt(version: null), isFalse);
+      });
+
+      test('OSで拒否済み・判定不能なら出さない（iOSは再要求できない）', () {
+        expect(reprompt(canRequest: false), isFalse);
+        expect(reprompt(canRequest: null), isFalse);
+      });
+
+      test('OS許可済みなら出さない', () {
+        expect(reprompt(permissionGranted: true), isFalse);
+      });
+    });
+  });
+
+  group('assignNotificationRepromptArm', () {
+    const exp = 'notif_reprompt_1.4.17';
+
+    test('分析スクリプト（Python）と同じ群になる', () {
+      // scripts/notif_reprompt_experiment.py の arm() で計算した値。
+      expect(assignNotificationRepromptArm('uid-a', exp),
+          NotificationRepromptArm.holdout);
+      expect(assignNotificationRepromptArm('uid-b', exp),
+          NotificationRepromptArm.show);
+      expect(assignNotificationRepromptArm('uid-c', exp),
+          NotificationRepromptArm.holdout);
+      expect(assignNotificationRepromptArm('uid-d', exp),
+          NotificationRepromptArm.show);
+    });
+
+    test('おおむね半々に分かれる', () {
+      final shown = List.generate(1000, (i) => 'user-$i')
+          .where((uid) =>
+              assignNotificationRepromptArm(uid, exp) ==
+              NotificationRepromptArm.show)
+          .length;
+      expect(shown, inInclusiveRange(450, 550));
+    });
   });
 
   group('NotificationCoachDialog', () {
@@ -70,25 +133,17 @@ void main() {
         ),
       );
 
-      expect(find.text('通知でタイ語学習を習慣にしましょう'), findsOneWidget);
+      expect(find.text('毎日、例文が通知で届きます'), findsOneWidget);
 
-      // 「時刻を決める → その時刻に届く」の順序が読める形で並んでいること。
-      // 文言そのものより、この2段構成が崩れていないことを見る。
-      expect(find.text('1'), findsOneWidget);
-      expect(find.textContaining('時刻を決めます'), findsOneWidget);
-      expect(find.text('2'), findsOneWidget);
-      expect(find.textContaining('自動で届きます'), findsOneWidget);
-
-      // 習慣化の理由づけと、通知の見た目のプレビュー。
-      expect(find.textContaining('無理なく続けられます'), findsOneWidget);
-      expect(find.text('通知の例）'), findsOneWidget);
+      // 続けやすい理由の1行と、通知の見た目のプレビュー。
+      expect(find.text('同じ時間に届くので、続けやすくなります'), findsOneWidget);
+      expect(find.text('ขอบคุณสำหรับกาแฟนะครับ'), findsOneWidget);
 
       // 主導線でその場でOS許可要求まで進む。設定画面へ辿らせる導線は持たない。
       expect(find.widgetWithText(FilledButton, '通知をオンにする'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'あとで'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, '今はしない'), findsOneWidget);
       expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);
     });
-
   });
 
   group('showNotificationCoachDialog', () {
@@ -111,7 +166,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('あとで'));
+      await tester.tap(find.text('今はしない'));
       await tester.pumpAndSettle();
 
       expect(result, isFalse);

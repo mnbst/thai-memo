@@ -282,4 +282,39 @@ void main() {
       expect(controller.state, isA<SentenceStateEmpty>());
     });
   });
+
+  group('learningSetSizeFor', () {
+    Map<String, dynamic> beginner(Object? vocab) => {
+          'interview': {'level': 'none'},
+          'estimated_vocab': vocab,
+        };
+
+    test('サーバーの SetSizeFor と同じ段階で増える', () {
+      expect(learningSetSizeFor(null), learningSetSize);
+      expect(
+        learningSetSizeFor({
+          'interview': {'level': 'chars'},
+          'estimated_vocab': 0,
+        }),
+        learningSetSize,
+      );
+      expect(learningSetSizeFor(beginner(null)), 2);
+      expect(learningSetSizeFor(beginner(16)), 2);
+      expect(learningSetSizeFor(beginner(17)), 3);
+      expect(learningSetSizeFor(beginner(33)), 3);
+      expect(learningSetSizeFor(beginner(34)), 4);
+      expect(learningSetSizeFor(beginner(49.0)), 4);
+      expect(learningSetSizeFor(beginner(50)), learningSetSize);
+      expect(learningSetSizeFor(beginner(300)), learningSetSize);
+      Map<String, dynamic> words(int vocab) => {
+            'interview': {'level': 'words'},
+            'estimated_vocab': vocab,
+          };
+      expect(learningSetSizeFor(words(0)), 3);
+      expect(learningSetSizeFor(words(24)), 3);
+      expect(learningSetSizeFor(words(25)), 4);
+      expect(learningSetSizeFor(words(49)), 4);
+      expect(learningSetSizeFor(words(50)), learningSetSize);
+    });
+  });
 }

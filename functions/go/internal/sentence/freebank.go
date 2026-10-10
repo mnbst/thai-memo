@@ -19,6 +19,10 @@ import (
 // バンクは言語ごとの JSON として GCS に配置する。
 // まだ無い言語（アップロード前・新言語の追加直後）は空で、呼び出し側が
 // LLM 生成へ落ちる。
+//
+// これに加えて、free で LLM 生成された例文のうち judge を通ったものを貯めた
+// プール（free_pool_<lang>.json、dailyBatch が毎日書き出す）も重ねる。
+// premium のプール（CorpusBank）とはファイルを分け、ティアごとに洗い直せるようにする。
 type FreeBank struct {
 	// ProjectID は GCS バケット名 {ProjectID}-uvm-data に使う。
 	ProjectID string
@@ -29,8 +33,8 @@ type FreeBank struct {
 	cache map[lang.Lang][]Sentence
 }
 
-// Sentences は GCS から free_sentences_<lang>.json を読み込みキャッシュする
-// （sentence_service.py:get_free_sentences:224）。
+// Sentences は GCS から free_sentences_<lang>.json とプール（free_pool_<lang>.json）を
+// 読み込みキャッシュする（sentence_service.py:get_free_sentences:224）。
 //
 // ja だけは旧ファイル名 free_sentences.json にも退避する（新バンクを上げる前に
 // デプロイしても free が止まらないため）。見つからなければ空を返し、それも
@@ -77,6 +81,16 @@ func (b *FreeBank) Sentences(ctx context.Context, l lang.Lang) ([]Sentence, erro
 		log.Printf("free bank missing for lang=%s; falling back to LLM", l)
 	}
 
+	// プールは運用が始まるまで存在しない。無ければ無いまま進む。
+	pool, err := ReadSentences(ctx, bucket, FreePoolObject(l))
+	if err != nil {
+		return nil, err
+	}
+	if pool != nil {
+		sentences = append(sentences, pool...)
+		log.Printf("free bank pool loaded: lang=%s sentences=%d", l, len(pool))
+	}
+
 	if b.cache == nil {
 		b.cache = map[lang.Lang][]Sentence{}
 	}
@@ -91,6 +105,9 @@ func (b *FreeBank) Sentences(ctx context.Context, l lang.Lang) ([]Sentence, erro
 // バンクは key_word × テーマの全組み合わせを持たないので、一致が無いときに
 // 諦めると配信が落ちる。一致が 1 件も無ければ nil（LLM 生成へ落ちる）。
 // strictTopic は見ない（free は指定テーマでも在庫を優先する）。
+//
+// ただしバンクに1本も無いテーマ（交通など）は nil を返し、その場で生成させる。
+// 別テーマの在庫で埋めると、そのテーマが free に一度も出なくなる。
 func (b *FreeBank) Pick(
 	ctx context.Context, targetWord string, l lang.Lang, topic string, _ bool,
 ) (*Sentence, error) {
@@ -99,10 +116,17 @@ func (b *FreeBank) Pick(
 		return nil, err
 	}
 	var candidates []Sentence
+	topicStocked := topic == ""
 	for _, s := range sentences {
 		if s.KeyWord == targetWord {
 			candidates = append(candidates, s)
 		}
+		if t, _ := s.Context["topic"].(string); t == topic {
+			topicStocked = true
+		}
+	}
+	if !topicStocked {
+		return nil, nil
 	}
 	if len(candidates) == 0 {
 		return nil, nil

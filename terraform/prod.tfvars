@@ -12,3 +12,6 @@ billing_account               = "0189A7-F96D31-DD85EC"
 budget_amount                 = 10000
 enable_firestore_protection   = true
 ios_app_id                    = "1:219961294368:ios:88e70ed652a72f10b70645"
+
+# X 投稿のテーマ。変えたら terraform apply するだけでよい（プッシュ不要）。
+x_post_themes = "BLドラマ"

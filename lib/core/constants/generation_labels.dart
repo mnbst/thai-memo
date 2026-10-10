@@ -32,6 +32,8 @@ const _topicKeys = {
   '宗教・信仰': 'religion',
   '伝統・祭り': 'festivals',
   '礼儀作法': 'etiquette',
+  'タイ暮らし': 'life',
+  'タイ旅行': 'thaiTravel',
 };
 
 /// 識別子を分解して素の名称・補足を返す（未知のテーマ用のフォールバック）。
@@ -96,6 +98,8 @@ String _topicName(L10n l10n, String key) => switch (key) {
       'school' => l10n.topicName_school,
       'religion' => l10n.topicName_religion,
       'festivals' => l10n.topicName_festivals,
+      'life' => l10n.topicName_life,
+      'thaiTravel' => l10n.topicName_thaiTravel,
       _ => l10n.topicName_etiquette,
     };
 
@@ -152,5 +156,7 @@ String _topicSub(L10n l10n, String key) => switch (key) {
       'school' => l10n.topicSub_school,
       'religion' => l10n.topicSub_religion,
       'festivals' => l10n.topicSub_festivals,
+      'life' => l10n.topicSub_life,
+      'thaiTravel' => l10n.topicSub_thaiTravel,
       _ => l10n.topicSub_etiquette,
     };

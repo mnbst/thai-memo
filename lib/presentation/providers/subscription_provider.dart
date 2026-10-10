@@ -16,11 +16,10 @@
 /// - premium_lifetime: 買い切り（iOSのみ）。どれも付与される権利は同じ premium。
 ///
 /// 【Free / Premium の機能差分】
-/// - 例文生成: Free=5回/日 / Premium=無制限（0時リセット）
-/// - クイズ: Free=1回/日 / Premium=5回/日（0時リセット）
+/// - 例文生成: Free=2セット/日 / Premium=無制限（0時リセット）
+/// - クイズ: Free / Premium とも回数上限なし
 /// - 選べる単語: Free=100語まで / Premium=無制限
 /// - テーマ: Free=3種 / Premium=15種
-/// - 文体: Free=2種 / Premium=5種
 /// - 広告: Free=あり / Premium=なし
 ///
 /// 【関連ファイル】
@@ -40,6 +39,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/firebase_config.dart';
+import '../../core/platform/store_platform.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
 import '../../services/purchase_service.dart';
@@ -308,7 +308,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       if (_purchaseService == null) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: _l10n().errStoreUnavailable,
+          errorMessage: _l10n().errStoreUnavailable(StorePlatform.current.id),
         );
         return;
       }
@@ -490,7 +490,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       if (!available) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: _l10n().errStoreUnavailable,
+          errorMessage: _l10n().errStoreUnavailable(StorePlatform.current.id),
         );
         return;
       }

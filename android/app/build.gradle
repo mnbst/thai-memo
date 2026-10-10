@@ -23,6 +23,31 @@ if (keystorePropertiesFile.exists()) {
     }
 }
 
+// --dart-define=ENV=<dev|tester|prod> に合わせて google-services.json を選ぶ。
+// Android の Firebase は google-services.json の設定で既定アプリを作るので、
+// Dart 側の firebase_options だけ prod にしても、このファイルが tester だと
+// tester の Firebase につながってしまう。
+// 環境別のファイルは app/google-services/<env>.json に置く（gitignore 済み）。
+def dartEnv = 'dev'
+if (project.hasProperty('dart-defines')) {
+    project.property('dart-defines').split(',').each { encoded ->
+        def define = new String(encoded.decodeBase64(), 'UTF-8')
+        if (define.startsWith('ENV=')) {
+            dartEnv = define.substring('ENV='.length())
+        }
+    }
+}
+def envGoogleServices = file("google-services/${dartEnv}.json")
+if (envGoogleServices.exists()) {
+    copy {
+        from envGoogleServices
+        into projectDir
+        rename { 'google-services.json' }
+    }
+} else {
+    logger.warn("google-services/${dartEnv}.json が無いため、既存の google-services.json を使います")
+}
+
 def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
 if (flutterVersionCode == null) {
     flutterVersionCode = '1'
@@ -91,5 +116,7 @@ flutter {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.0"
+    // アプリ内レビュー（ReviewPromptChannel）
+    implementation "com.google.android.play:review:2.0.2"
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }

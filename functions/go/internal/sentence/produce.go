@@ -2,7 +2,10 @@ package sentence
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
+	"math/rand"
 	"sync"
 
 	"cloud.google.com/go/firestore"
@@ -138,11 +141,17 @@ type ProduceRequest struct {
 	Lang        lang.Lang
 	// QualityCheck が真なら LLM 生成した文を Checker にかけ、不合格なら指摘を
 	// 付けて1回だけ作り直し、作り直した文をもう一度判定する（2026-09-25 の
-	// 実測で作り直し後の合格 7/8）。作り直しても不合格なら作り直した文を使い、
-	// Quality.Passed=false で保存する（プールに入らない）。元の文は不合格と
-	// 分かっているので戻さない。
+	// 実測で作り直し後の合格 7/8）。作り直しても不合格（作り直しの生成に失敗
+	// した場合を含む）の文はセットから外す（ErrQualityRejected）。セットが
+	// n 本に満たなくなるのは許容する（2026-09-30。語の用法の罠で 28/120 が
+	// 作り直し後も不合格で、その多くは誤用のままだった）。
+	// 判定そのものに失敗したときは元の文で続ける（Quality=nil、プールに入らない）。
 	QualityCheck bool
 }
+
+// ErrQualityRejected は作り直しても品質判定に通らず、文をセットから外したこと。
+// セットの全部が外れたときだけ ProduceBatch のエラーとして返る。
+var ErrQualityRejected = errors.New("sentence rejected by quality check")
 
 // Produced は Produce の結果。
 type Produced struct {
@@ -260,7 +269,7 @@ func (p *Producer) ProduceBatch(
 		if useBank {
 			missed = missed[:0:0]
 			for _, tw := range fresh {
-				cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic, strictTopic)
+				cached, topic, err := pickCached(ctx, bank, tw, req.Lang, strictTopic, seen)
 				if err != nil {
 					return nil, err
 				}
@@ -284,7 +293,7 @@ func (p *Producer) ProduceBatch(
 				results = append(results, &Produced{
 					Sentence:    cached,
 					TargetWords: []string{tw.Word},
-					ChosenTopic: tw.Topic,
+					ChosenTopic: topic,
 					FromCache:   true,
 				})
 			}
@@ -303,7 +312,7 @@ func (p *Producer) ProduceBatch(
 	}
 
 	// free の配信（CacheOnly）は LLM へ落とせないので、既出を避けきると
-	// 1本も作れないことがある。free バンクは 112 語 × 4 本しかなく、
+	// 1本も作れないことがある。free バンクは 112 語 × 4 本（＋free プール）しかなく、
 	// 続けている人はいずれ全部見る。配信を落とすより既出をもう一度出す
 	// ほうがましなので、最後に既出を無視して引き直す。
 	// premium は LLM 生成へ落ちるので、ここには来ない。
@@ -317,7 +326,7 @@ func (p *Producer) ProduceBatch(
 			return nil, err
 		}
 		for _, tw := range selected {
-			cached, err := bank.Pick(ctx, tw.Word, req.Lang, tw.Topic, strictTopic)
+			cached, topic, err := pickCached(ctx, bank, tw, req.Lang, strictTopic, setTexts)
 			if err != nil {
 				return nil, err
 			}
@@ -330,12 +339,58 @@ func (p *Producer) ProduceBatch(
 			results = append(results, &Produced{
 				Sentence:    cached,
 				TargetWords: []string{tw.Word},
-				ChosenTopic: tw.Topic,
+				ChosenTopic: topic,
 				FromCache:   true,
 			})
 		}
 	}
 	return results, nil
+}
+
+// pickCached は語の在庫を引き、文と、その文のテーマを返す。
+//
+// まとめたテーマ（tw.Group）のときは、解決した個別テーマを使わず、中身のうち
+// その語の在庫があるテーマから一様に選ぶ。中身の割合はコーパスの構成で
+// 均す（場面で解決したテーマを優先すると、汎用的な場面の多いテーマに偏る）。
+// 解決した個別テーマは在庫が無く LLM で生成するときだけ使う。
+//
+// skip（既出の本文）に当たる文は、まとめたテーマなら別の中身の在庫から選び直す。
+// どれも既出なら既出の1本を返し、呼び出し側が LLM へ落とす。個別テーマは
+// 頼まれたテーマから外れないよう、選び直さない。
+func pickCached(
+	ctx context.Context, bank CachedSentences, tw TargetWord, l lang.Lang, strictTopic bool,
+	skip map[string]bool,
+) (*Sentence, string, error) {
+	if tw.Group == "" {
+		cached, err := bank.Pick(ctx, tw.Word, l, tw.Topic, strictTopic)
+		return cached, tw.Topic, err
+	}
+	var picks, fresh []int
+	var sentences []*Sentence
+	var topics []string
+	for _, t := range TopicGroups[tw.Group] {
+		cached, err := bank.Pick(ctx, tw.Word, l, t, true)
+		if err != nil {
+			return nil, tw.Topic, err
+		}
+		if cached == nil {
+			continue
+		}
+		picks = append(picks, len(sentences))
+		if !skip[cached.ThaiText] {
+			fresh = append(fresh, len(sentences))
+		}
+		sentences = append(sentences, cached)
+		topics = append(topics, t)
+	}
+	if len(fresh) > 0 {
+		picks = fresh
+	}
+	if len(picks) == 0 {
+		return nil, tw.Topic, nil
+	}
+	i := picks[rand.Intn(len(picks))]
+	return sentences[i], topics[i], nil
 }
 
 // generate は語ごとに LLM 生成を並列で回す。戻り値は選定順。
@@ -371,6 +426,11 @@ func (p *Producer) generate(
 			var q *Quality
 			if req.QualityCheck {
 				s, q = p.checkAndRetry(ctx, req, callParams, pk, s)
+				if q != nil && !q.Passed {
+					log.Printf("produce: dropped after quality retry key_word=%s reason=%s", pk.Word, q.Reason)
+					errs[i] = fmt.Errorf("%w: key_word=%s", ErrQualityRejected, pk.Word)
+					return
+				}
 			}
 			s.GenerationTier = GenerationTier(req.UsePremiumSpec)
 			produced[i] = &Produced{

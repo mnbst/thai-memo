@@ -58,7 +58,6 @@ VocabTestStep _stage(int stage) => VocabTestStep(
 
 Widget _app(
   _FakeApi api, {
-  bool mandatory = false,
   void Function(int? vocab)? onFinished,
 }) {
   return ProviderScope(
@@ -76,7 +75,6 @@ Widget _app(
       locale: const Locale('ja'),
       home: VocabTestScreen(
         source: 'test',
-        mandatory: mandatory,
         onFinished: onFinished,
         api: api,
       ),
@@ -201,13 +199,15 @@ void main() {
     expect(find.textContaining('測定した300語から'), findsOneWidget);
   });
 
-  testWidgets('オンボーディングでは逃げ道を出さない', (tester) async {
+  testWidgets('「あとで」で受けずに閉じられる', (tester) async {
     final api = _FakeApi([_stage(0)]);
-    await tester.pumpWidget(_app(api, mandatory: true));
+    int? finished = -1;
+    await tester.pumpWidget(_app(api, onFinished: (v) => finished = v));
 
-    // 「あとで」も戻る矢印も出さない。測らないと先へ進めない。
-    expect(find.text('あとで'), findsNothing);
-    expect(find.byType(BackButton), findsNothing);
+    await tester.tap(find.text('あとで'));
+    await tester.pumpAndSettle();
+
+    expect(finished, isNull);
     expect(api.calls, 0);
   });
 

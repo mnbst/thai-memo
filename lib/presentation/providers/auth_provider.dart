@@ -68,6 +68,10 @@ class AuthController extends StateNotifier<AuthState> {
   /// 端末を空にした後で、新しいユーザーの例文を Firestore から戻す。
   final Future<void> Function() _restoreHistory;
 
+  /// 別のアカウントへ切り替わり、端末データの掃除が終わったとき。
+  /// 画面はこれを合図に、新しいアカウントの続きを読み込み直す。
+  final void Function() _onAccountSwitched;
+
   AuthController(
     this._authService,
     this._l10n, {
@@ -76,11 +80,13 @@ class AuthController extends StateNotifier<AuthState> {
     Future<String?> Function()? readDataOwner,
     Future<void> Function(String uid)? writeDataOwner,
     Future<void> Function()? restoreHistory,
+    void Function()? onAccountSwitched,
   })  : _clearLocalData = clearLocalData,
         _clearUserLocalData = clearUserLocalData ?? ((_) async {}),
         _readDataOwner = readDataOwner ?? (() async => null),
         _writeDataOwner = writeDataOwner ?? ((_) async {}),
         _restoreHistory = restoreHistory ?? (() async {}),
+        _onAccountSwitched = onAccountSwitched ?? (() {}),
         super(AuthState.fromService(_authService));
 
   Future<String?> signInWithGoogle() async {
@@ -185,11 +191,13 @@ class AuthController extends StateNotifier<AuthState> {
     final uid = _authService.currentUser?.uid;
     if (uid == null) return;
     final owner = await _readDataOwner() ?? previousUid;
-    if (owner != null && owner != uid) {
+    final switched = owner != null && owner != uid;
+    if (switched) {
       await _clearUserLocalData(owner);
       unawaited(_restoreHistory());
     }
     await _writeDataOwner(uid);
+    if (switched) _onAccountSwitched();
   }
 
   Future<String?> deleteAccount() async {
@@ -227,5 +235,11 @@ final authControllerProvider =
         ref.invalidate(sentenceCountProvider);
       }
     },
+    onAccountSwitched: () =>
+        ref.read(accountSwitchEpochProvider.notifier).state++,
   );
 });
+
+/// 別アカウントへの切替（端末データの掃除まで済んだもの）の回数。
+/// ホーム画面はこれを見て、新しいアカウントの続きを読み込み直す。
+final accountSwitchEpochProvider = StateProvider<int>((ref) => 0);
