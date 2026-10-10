@@ -74,8 +74,46 @@ func pickedID(t *testing.T, ctx string) string {
 
 type stubScenes struct{ scene string }
 
-func (f stubScenes) FindBestScene(context.Context, string, []embeddings.Scene, float64) (string, error) {
-	return f.scene, nil
+func (f stubScenes) FindNearScenes(context.Context, string, []embeddings.Scene, float64) ([]string, error) {
+	if f.scene == "" {
+		return nil, nil
+	}
+	return []string{f.scene}, nil
+}
+
+// multiScenes は足切りを通った場面を複数返す。
+type multiScenes []string
+
+func (f multiScenes) FindNearScenes(context.Context, string, []embeddings.Scene, float64) ([]string, error) {
+	return f, nil
+}
+
+// 足切りを通った場面が複数あれば、そのどれからも選ぶ。
+func TestPickShotAmongNearScenes(t *testing.T) {
+	b := &Builder{Rand: rand.New(rand.NewSource(1)), Scenes: multiScenes{"値段を聞く", "辛さを確かめる"}}
+	seen := map[string]int{}
+	for range 200 {
+		seen[shotScene[b.PickShot(sentence.Topics[1], []string{"ราคา"})]]++
+	}
+	if len(seen) != 2 || seen["値段を聞く"] < 60 || seen["辛さを確かめる"] < 60 {
+		t.Errorf("通った場面から一様に選んでいない: %v", seen)
+	}
+}
+
+// 近い場面が無ければ、ショットの数によらず場面を一様に選ぶ。
+func TestPickShotUniformScene(t *testing.T) {
+	names := sceneNames(foodShotIDs)
+	b := &Builder{Rand: rand.New(rand.NewSource(1)), Scenes: stubScenes{}}
+	seen := map[string]int{}
+	n := 300 * len(names)
+	for range n {
+		seen[shotScene[b.PickShot(sentence.Topics[1], []string{"รัฐมนตรี"})]]++
+	}
+	for _, name := range names {
+		if c := seen[name]; c < 200 || c > 400 {
+			t.Errorf("%s が %d 回（期待 300 前後）", name, c)
+		}
+	}
 }
 
 // 語に近い場面があればその場面のショットだけから選び、無ければ全体から選ぶ。

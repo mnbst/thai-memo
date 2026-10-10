@@ -8,10 +8,12 @@
 /// - 小さい iPhone（SE）でもはみ出さず、購入ボタンが画面内に残る
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:thai_memo/core/platform/store_platform.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/analytics_provider.dart';
 import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
@@ -258,7 +260,8 @@ void main() {
         'tier': 'premium',
         if (eligible) 'lifetime_migration_eligible': true,
         'subscription': {
-          'platform': 'ios',
+          // 切り替えられるのは、この端末と同じストアで買った購読だけ。
+          'platform': StorePlatform.current.id,
           'product_id': productId,
           'status': 'active',
           'auto_renewing': true,
@@ -275,13 +278,21 @@ void main() {
     expect(find.text('プレミアムプランに加入中です'), findsNothing);
     expect(find.text('ご利用中'), findsOneWidget);
     expect(find.text('年額プランに変更する'), findsOneWidget);
-    expect(find.textContaining('日割りで返金'), findsOneWidget);
+    // 切り替えの精算はストアごとに違うので、案内もストアに合わせる。
+    expect(
+      find.textContaining(defaultTargetPlatform == TargetPlatform.iOS
+          ? '日割りで返金'
+          : '年額プランの期間に上乗せ'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('年額プランに変更する'));
     await tester.pump();
 
     expect(purchase.lastBought?.id, 'premium_annual');
-  });
+  },
+      variant:
+          TargetPlatformVariant({TargetPlatform.iOS, TargetPlatform.android}));
 
   testWidgets('名簿外の月額加入者は期限切れを待たず買い切りへ変更できる', (tester) async {
     await _pump(tester,
@@ -313,13 +324,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('月額プランに変更する'), findsOneWidget);
-    expect(find.textContaining('期限が来たら、月額プランへ切り替わります'), findsOneWidget);
+    expect(
+      find.textContaining(defaultTargetPlatform == TargetPlatform.iOS
+          ? '期限が来たら、月額プランへ切り替わります'
+          : '年額の期間が終わるまでは請求されず'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('月額プランに変更する'));
     await tester.pump();
 
     expect(purchase.lastBought?.id, 'premium_monthly');
-  });
+  },
+      variant:
+          TargetPlatformVariant({TargetPlatform.iOS, TargetPlatform.android}));
 
   testWidgets('無償移行の名簿内ユーザーには買い切りを販売しない（年額への変更はできる）', (tester) async {
     await _pump(tester,

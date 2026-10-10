@@ -21,12 +21,12 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/platform/store_platform.dart';
 import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/firebase_auth_service.dart';
@@ -216,19 +216,18 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             subscription['platform'] == 'android') &&
         subscription['lifetime'] != true;
     // 無償移行の対象者に買い切りを購入させない。名簿外のサブスク加入者だけ、
-    // 有効期限を待たず買い切りへ変更できる。買い切りは現在iOSのみ販売。
+    // 有効期限を待たず買い切りへ変更できる。
     final canChangeMonthlyToLifetime = subState.isPremium &&
         hasStoreSubscription &&
         !ref.watch(lifetimeMigrationEligibleProvider) &&
         subState.lifetimeProduct != null;
 
-    // 加入中の自動更新プラン。月額⇄年額は同じ購読グループなので、もう一方を
-    // 買えば Apple が切り替えとして扱う（年額へは即時・月額へは次回更新から）。
-    // Android は Play 側の切り替え処理（ChangeSubscriptionParam）が未対応なので
-    // 出さない。
+    // 加入中の自動更新プラン。もう一方を買うと切り替えになる（iOS は同じ購読
+    // グループ、Android は PurchaseService が今の購読を引き継ぐ）。別のストアで
+    // 買った購読は、この端末のストアからは切り替えられないので出さない。
     final currentPlan = subState.isPremium &&
             hasStoreSubscription &&
-            subscription['platform'] == 'ios'
+            subscription['platform'] == StorePlatform.current.id
         ? switch (subscription['product_id']) {
             kProductIdPremiumMonthly => PremiumPlan.monthly,
             kProductIdPremiumYearly => PremiumPlan.yearly,
@@ -426,7 +425,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     );
   }
 
-  /// 買い切りを持っているのに、サブスクの自動更新が続いているか（iOS）。
+  /// 買い切りを持っているのに、サブスクの自動更新が続いているか。
   ///
   /// 買い切りはサブスクとは別の商品なので、買ってもサブスクは自動で
   /// 解約されない。放っておくと両方に課金され続ける。
@@ -435,12 +434,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ref.watch(userDocProvider).valueOrNull?['subscription'];
     return subscription is Map &&
         subscription['lifetime'] == true &&
-        subscription['platform'] == 'ios' &&
+        StorePlatform.fromId(subscription['platform']) != null &&
         subscription['auto_renewing'] == true &&
         subscription['status'] == 'active';
   }
 
-  /// サブスクの解約を促す。Apple の購読管理画面を直接開く。
+  /// サブスクの解約を促す。購読したストアの管理画面を直接開く。
   Widget _buildCancelSubscriptionNotice(BuildContext context) {
     final l10n = L10n.of(context);
     final theme = Theme.of(context);
@@ -460,7 +459,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           const SizedBox(height: 10),
           OutlinedButton(
             onPressed: () => launchUrl(
-              Uri.parse(AppConfig.appStoreSubscriptionsUrl),
+              Uri.parse(_subscriptionStore(ref).subscriptionsUrl),
               mode: LaunchMode.externalApplication,
             ),
             child: Text(l10n.paywallManageSubscriptions),
@@ -468,6 +467,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ],
       ),
     );
+  }
+
+  /// サブスクを買ったストア。別の OS の端末で開いても、買った側の画面へ案内する。
+  StorePlatform _subscriptionStore(WidgetRef ref) {
+    final subscription = ref.read(userDocProvider).valueOrNull?['subscription'];
+    final id = subscription is Map ? subscription['platform'] : null;
+    return StorePlatform.fromId(id) ?? StorePlatform.current;
   }
 
   /// 売るプランを選ぶ欄（新規購入とプラン変更）。
@@ -570,7 +576,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           const SizedBox(height: 6),
           Text(
             offer.changing
-                ? L10n.of(context).paywallMonthlyToLifetimeNote
+                ? L10n.of(context)
+                    .paywallMonthlyToLifetimeNote(StorePlatform.current.id)
                 : L10n.of(context).paywallLifetimeNote,
             style: noteStyle,
           ),
@@ -580,16 +587,18 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           const SizedBox(height: 6),
           Text(
             offer.plan == PremiumPlan.yearly
-                ? L10n.of(context).paywallChangeToYearlyNote
-                : L10n.of(context).paywallChangeToMonthlyNote,
+                ? L10n.of(context)
+                    .paywallChangeToYearlyNote(StorePlatform.current.id)
+                : L10n.of(context)
+                    .paywallChangeToMonthlyNote(StorePlatform.current.id),
             style: noteStyle,
           ),
         ],
-        // 自動更新サブスクリプション開示文（iOS: Apple ガイドライン 3.1.2 準拠）
-        if (!offer.lifetimeChosen &&
-            defaultTargetPlatform == TargetPlatform.iOS) ...[
+        // 自動更新サブスクリプションの開示文（App Store 3.1.2 / Play の定期購入ポリシー）
+        if (!offer.lifetimeChosen) ...[
           const SizedBox(height: 6),
-          Text(L10n.of(context).paywallLegal, style: noteStyle),
+          Text(L10n.of(context).paywallLegal(StorePlatform.current.id),
+              style: noteStyle),
         ],
         const SizedBox(height: 8),
         Wrap(

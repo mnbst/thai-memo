@@ -32,8 +32,9 @@ import requests
 from google.cloud import secretmanager, storage
 from requests_oauthlib import OAuth1Session
 
-# premium と同じ静的コーパス。free 例文バンクより広く、語数で絞っても残る。
-CORPUS_OBJECT = "corpus_sentences_ja.json"
+# premium と同じ静的コーパスと、運用中に貯めたプール（CorpusBank と同じ2本）。
+# 静的コーパスはプールへ移して空にしたので、両方を読む。
+CORPUS_OBJECTS = ("corpus_sentences_ja.json", "corpus_pool_ja.json")
 POSTED_OBJECT = "x_post/posted.json"
 
 # 投稿は日本時間の朝に出る。「前日」も日本時間で切る。
@@ -57,6 +58,7 @@ THEMES = {
     "タイ旅行": ("旅行", "交通", "買い物", "食べ物"),
     "タイ生活": ("買い物", "交通", "健康", "家族", "天気", "食べ物"),
     "恋愛": ("恋愛・男女関係",),
+    "BLドラマ": ("タイBLドラマ",),
 }
 
 GEMINI_SECRET = "gemini-api-key"
@@ -330,9 +332,16 @@ def main() -> int:
     posted = set(state.get("posted", []))
     now = datetime.now(timezone.utc)
 
-    corpus = load_json(bucket, CORPUS_OBJECT, [])
+    # 同じ本文が両方にあれば先に読んだほうを残す。
+    corpus = list(
+        {
+            sentence_key(s): s
+            for name in reversed(CORPUS_OBJECTS)
+            for s in load_json(bucket, name, [])
+        }.values()
+    )
     if not corpus:
-        print(f"コーパスが無い: gs://{bucket.name}/{CORPUS_OBJECT}", file=sys.stderr)
+        print(f"コーパスが無い: gs://{bucket.name}/{CORPUS_OBJECTS}", file=sys.stderr)
         return 1
 
     rng = random.Random(args.seed or None)

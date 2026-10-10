@@ -146,7 +146,7 @@ void main() {
     expect(calls, isEmpty);
   });
 
-  test('keeps Android as unsupported for future Play review work', () async {
+  test('skips platforms without a native review dialog', () async {
     SharedPreferences.setMockInitialValues({});
     final calls = <String>[];
     messenger.setMockMethodCallHandler(channel, (call) async {
@@ -154,7 +154,7 @@ void main() {
       return null;
     });
 
-    final reviewPromptService = await service(platform: TargetPlatform.android);
+    final reviewPromptService = await service(platform: TargetPlatform.windows);
 
     final outcome = await reviewPromptService.maybeRequestAfterQuizCompleted(
       sessionCorrect: 5,

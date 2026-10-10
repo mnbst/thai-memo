@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"sync"
 
 	"cloud.google.com/go/firestore"
@@ -268,7 +269,7 @@ func (p *Producer) ProduceBatch(
 		if useBank {
 			missed = missed[:0:0]
 			for _, tw := range fresh {
-				cached, topic, err := pickCached(ctx, bank, tw, req.Lang, strictTopic)
+				cached, topic, err := pickCached(ctx, bank, tw, req.Lang, strictTopic, seen)
 				if err != nil {
 					return nil, err
 				}
@@ -325,7 +326,7 @@ func (p *Producer) ProduceBatch(
 			return nil, err
 		}
 		for _, tw := range selected {
-			cached, topic, err := pickCached(ctx, bank, tw, req.Lang, strictTopic)
+			cached, topic, err := pickCached(ctx, bank, tw, req.Lang, strictTopic, setTexts)
 			if err != nil {
 				return nil, err
 			}
@@ -348,26 +349,48 @@ func (p *Producer) ProduceBatch(
 
 // pickCached は語の在庫を引き、文と、その文のテーマを返す。
 //
-// まとめたテーマ（tw.Group）のときは、解決した個別テーマに無ければ同じまとめの
-// 他の中身からも引く。どれもまとめた本人の指定の範囲なので、LLM へ落とすより
-// 在庫を使う。
+// まとめたテーマ（tw.Group）のときは、解決した個別テーマを使わず、中身のうち
+// その語の在庫があるテーマから一様に選ぶ。中身の割合はコーパスの構成で
+// 均す（場面で解決したテーマを優先すると、汎用的な場面の多いテーマに偏る）。
+// 解決した個別テーマは在庫が無く LLM で生成するときだけ使う。
+//
+// skip（既出の本文）に当たる文は、まとめたテーマなら別の中身の在庫から選び直す。
+// どれも既出なら既出の1本を返し、呼び出し側が LLM へ落とす。個別テーマは
+// 頼まれたテーマから外れないよう、選び直さない。
 func pickCached(
 	ctx context.Context, bank CachedSentences, tw TargetWord, l lang.Lang, strictTopic bool,
+	skip map[string]bool,
 ) (*Sentence, string, error) {
-	cached, err := bank.Pick(ctx, tw.Word, l, tw.Topic, strictTopic)
-	if err != nil || cached != nil || tw.Group == "" {
+	if tw.Group == "" {
+		cached, err := bank.Pick(ctx, tw.Word, l, tw.Topic, strictTopic)
 		return cached, tw.Topic, err
 	}
+	var picks, fresh []int
+	var sentences []*Sentence
+	var topics []string
 	for _, t := range TopicGroups[tw.Group] {
-		if t == tw.Topic {
+		cached, err := bank.Pick(ctx, tw.Word, l, t, true)
+		if err != nil {
+			return nil, tw.Topic, err
+		}
+		if cached == nil {
 			continue
 		}
-		cached, err := bank.Pick(ctx, tw.Word, l, t, true)
-		if err != nil || cached != nil {
-			return cached, t, err
+		picks = append(picks, len(sentences))
+		if !skip[cached.ThaiText] {
+			fresh = append(fresh, len(sentences))
 		}
+		sentences = append(sentences, cached)
+		topics = append(topics, t)
 	}
-	return nil, tw.Topic, nil
+	if len(fresh) > 0 {
+		picks = fresh
+	}
+	if len(picks) == 0 {
+		return nil, tw.Topic, nil
+	}
+	i := picks[rand.Intn(len(picks))]
+	return sentences[i], topics[i], nil
 }
 
 // generate は語ごとに LLM 生成を並列で回す。戻り値は選定順。

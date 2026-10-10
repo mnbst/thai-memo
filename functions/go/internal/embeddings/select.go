@@ -114,41 +114,44 @@ type Scene struct {
 	Texts []string
 }
 
-// FindBestScene は語に最も近い場面の名前を返す。最高の類似度が threshold に
-// 届かなければ ""（呼び出し側は場面を問わず選ぶ）。
+// FindNearScenes は類似度が threshold 以上の場面の名前を scenes の順で返す。
+// どれも届かなければ nil（呼び出し側は場面を問わず選ぶ）。
+//
+// 最も近い1つではなく足切りを通ったすべてを返し、呼び出し側が一様に選ぶ。
+// 最も近いものだけを採ると、どの語にも近く出る汎用的な場面へ集まる。
 //
 // 場面のベクトルは、属するショットの embedding を正規化して平均したもの。
 // 語をショット1文と比べると、短く汎用的な文がどの語にも近く出て選出が
 // 偏った（食べ物156語で実測）。場面単位の平均ならこの偏りが均される。
-func (s *Store) FindBestScene(
+func (s *Store) FindNearScenes(
 	ctx context.Context, word string, scenes []Scene, threshold float64,
-) (string, error) {
+) ([]string, error) {
 	s.mu.Lock()
 	if err := s.loadLocked(ctx); err != nil {
 		s.mu.Unlock()
-		return "", err
+		return nil, err
 	}
 	if err := s.loadJSONEmbeddings(ctx, &s.shotEmbs, shotEmbBlob); err != nil {
 		s.mu.Unlock()
-		return "", err
+		return nil, err
 	}
 	s.mu.Unlock()
 
 	wordEmb := s.Embedding(word)
 	if wordEmb == nil {
-		return "", nil
+		return nil, nil
 	}
-	best, bestSim := "", threshold
+	var near []string
 	for _, sc := range scenes {
 		centroid := s.centroid(sc.Texts, len(wordEmb))
 		if centroid == nil {
 			continue
 		}
-		if sim := CosineSimilarity(wordEmb, centroid); sim >= bestSim {
-			best, bestSim = sc.Name, sim
+		if CosineSimilarity(wordEmb, centroid) >= threshold {
+			near = append(near, sc.Name)
 		}
 	}
-	return best, nil
+	return near, nil
 }
 
 // centroid はショットの embedding を正規化して平均する。1件も無ければ nil。

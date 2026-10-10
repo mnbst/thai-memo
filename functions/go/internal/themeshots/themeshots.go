@@ -7,8 +7,11 @@
 //
 // 参考例文は1文だけ渡す。複数渡すと語を混ぜて合成した非文が出る（bldrama と同じ理由）。
 //
-// 選出は2段。語が場面（属するショットの embedding の平均）に十分近ければ
-// その場面のショットから、そうでなければ全ショットからランダムに選ぶ。
+// 選出は2段。まず場面を選び、その場面のショットから一様に選ぶ。場面は、語と
+// 場面（属するショットの embedding の平均）の類似度で足切りし、通った場面から
+// 一様に選ぶ。どれも通らなければ全場面から一様に選ぶ。最も近い場面を採ると
+// 汎用的な場面へ、ショットから一様に選ぶとショットの多い場面へ偏った
+// （コーパスの語で場面の分布を比較。学校は授業が65%→48%）。
 // 付ける回を類似度で絞ることはしない（絞るとサブテーマ由来の偏り＝辛さ・
 // アレルギーが戻った。食べ物156語の比較）。
 package themeshots
@@ -22,12 +25,12 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
 
-// SceneFinder は語に近い場面を選ぶ。実装は internal/embeddings.Store。
+// SceneFinder は語に近い場面を返す。実装は internal/embeddings.Store。
 type SceneFinder interface {
-	FindBestScene(ctx context.Context, word string, scenes []embeddings.Scene, threshold float64) (string, error)
+	FindNearScenes(ctx context.Context, word string, scenes []embeddings.Scene, threshold float64) ([]string, error)
 }
 
-// sceneThreshold は場面で絞る類似度の下限。食べ物156語のうち約3分の1が
+// sceneThreshold は場面を足切りする類似度の下限。食べ物156語のうち約3分の1が
 // 届き、届いた語の場面はほぼ妥当（ทอด→調理法、อิ่ม→量の多さ）。下回る語の
 // 最近傍は意味を持たない（รัฐมนตรี→昔ながらの味）。
 const sceneThreshold = 0.75
@@ -74,19 +77,34 @@ func (b *Builder) PickShot(topic string, targetWords []string) string {
 	if len(ids) == 0 {
 		return ""
 	}
-	if scene := b.findScene(ids, targetWords); scene != "" {
-		var in []string
-		for _, id := range ids {
-			if shotScene[id] == scene {
-				in = append(in, id)
-			}
-		}
-		return in[b.intn(len(in))]
+	scene := b.findScene(ids, targetWords)
+	if scene == "" {
+		names := sceneNames(ids)
+		scene = names[b.intn(len(names))]
 	}
-	return ids[b.intn(len(ids))]
+	var in []string
+	for _, id := range ids {
+		if shotScene[id] == scene {
+			in = append(in, id)
+		}
+	}
+	return in[b.intn(len(in))]
 }
 
-// findScene は語に十分近い場面を返す。無ければ ""。
+// sceneNames はショットの場面を重複なく、出てきた順で返す。
+func sceneNames(ids []string) []string {
+	var names []string
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if !seen[shotScene[id]] {
+			seen[shotScene[id]] = true
+			names = append(names, shotScene[id])
+		}
+	}
+	return names
+}
+
+// findScene は語に十分近い場面のどれかを一様に選んで返す。無ければ ""。
 func (b *Builder) findScene(ids, targetWords []string) string {
 	if b.Scenes == nil || len(targetWords) == 0 {
 		return ""
@@ -103,13 +121,16 @@ func (b *Builder) findScene(ids, targetWords []string) string {
 		}
 		scenes[i].Texts = append(scenes[i].Texts, shots[id])
 	}
-	scene, err := b.Scenes.FindBestScene(b.ctx(), targetWords[0], scenes, sceneThreshold)
+	near, err := b.Scenes.FindNearScenes(b.ctx(), targetWords[0], scenes, sceneThreshold)
 	if err != nil {
 		// 場面で絞れなくても回はショット付きのまま。ランダムへ縮退させる。
 		log.Printf("theme scene の選出に失敗: %v", err)
 		return ""
 	}
-	return scene
+	if len(near) == 0 {
+		return ""
+	}
+	return near[b.intn(len(near))]
 }
 
 func (b *Builder) ctx() context.Context {
@@ -143,6 +164,11 @@ func (b *Builder) BuildShotSection(topic string, targetWords []string, medium st
 	if id == "" {
 		return sentence.DramaSection{}
 	}
+	return b.shotSection(topic, id)
+}
+
+// shotSection は会話のショット1つを参考例文にした断片を返す。
+func (b *Builder) shotSection(topic, id string) sentence.DramaSection {
 	return sentence.DramaSection{
 		Medium: sentence.Media[0].Name,
 		Context: "- 場面: " + shotScene[id] + "\n" +
@@ -156,7 +182,7 @@ func (b *Builder) BuildShotSection(topic string, targetWords []string, medium st
 // ResolveGroup はまとめたテーマ（sentence.TopicGroups）を、語に近い場面を持つ
 // 中身の個別テーマへ解決する（sentence.GroupResolver）。
 //
-// 場面は中身すべてのショットから選ぶ。同じ名前の場面が複数のテーマにある
+// 場面は中身すべてのショットの場面から、足切りを通ったものを一様に選ぶ。同じ名前の場面が複数のテーマにある
 // （食べ物と買い物の「値段を聞く」など）ときは、その場面のショットを1つ引き、
 // その持ち主のテーマにする。語に十分近い場面が無ければ "" を返し、
 // 呼び出し側が中身から一様に選ぶ。
@@ -180,4 +206,30 @@ func (b *Builder) ResolveGroup(group, word string) string {
 		}
 	}
 	return owner[in[b.intn(len(in))]]
+}
+
+// SceneShots はテーマの場面ごとのショット文を返す。コーパスの場面を均すときの
+// 語と場面の近さの計算に使う。
+func SceneShots(topic string) map[string][]string {
+	out := map[string][]string{}
+	for _, id := range topicShots[topic].ids {
+		out[shotScene[id]] = append(out[shotScene[id]], shots[id])
+	}
+	return out
+}
+
+// BuildSceneSection は場面を指定してテーマ回のプロンプト断片を返す。
+// 語に近い場面は特定の場面へ集まるので、コーパスの場面を均して作り直すときに使う。
+// その場面のショットが無ければゼロ値。
+func (b *Builder) BuildSceneSection(topic, scene string) sentence.DramaSection {
+	var in []string
+	for _, id := range topicShots[topic].ids {
+		if shotScene[id] == scene {
+			in = append(in, id)
+		}
+	}
+	if len(in) == 0 {
+		return sentence.DramaSection{}
+	}
+	return b.shotSection(topic, in[b.intn(len(in))])
 }

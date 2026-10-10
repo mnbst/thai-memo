@@ -26,6 +26,13 @@ class ReviewPromptService {
         _now = now ?? DateTime.now;
 
   static const _channelName = 'thai_memo/review_prompt';
+
+  /// ネイティブ側に依頼ダイアログ（iOS: SKStoreReviewController、
+  /// Android: Play In-App Review）を実装しているプラットフォーム。
+  static const _supportedPlatforms = {
+    TargetPlatform.iOS,
+    TargetPlatform.android
+  };
   static const _completedQuizSessionsKey =
       'review_prompt_completed_quiz_sessions';
   static const _generatedSentencesKey = 'review_prompt_generated_sentences';
@@ -79,8 +86,7 @@ class ReviewPromptService {
       completedQuizSessions,
     );
 
-    if (_platform != TargetPlatform.iOS) {
-      // Android support can be added behind this same service later.
+    if (!_supportedPlatforms.contains(_platform)) {
       return ReviewPromptOutcome.skippedUnsupportedPlatform;
     }
 
@@ -120,7 +126,7 @@ class ReviewPromptService {
       );
     }
 
-    if (_platform != TargetPlatform.iOS) {
+    if (!_supportedPlatforms.contains(_platform)) {
       return ReviewPromptOutcome.skippedUnsupportedPlatform;
     }
 

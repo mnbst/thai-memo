@@ -11,6 +11,11 @@
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolrecheck -lang ja
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolrecheck -lang ja -tier free
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolrecheck -lang ja -write
+//
+// -in はローカルの JSON 配列（バンクと同じ形）を判定する。上げる前の
+// キャッシュ例文の確認用で、GCS には触らない（-write は効かない）。
+//
+//	go run ./cmd/poolrecheck -lang ja -in /tmp/corpus_sentences_ja.json
 package main
 
 import (
@@ -35,6 +40,7 @@ func main() {
 	tier := flag.String("tier", "premium", "プールのティア（premium / free）")
 	write := flag.Bool("write", false, "落とした結果を GCS へ書き戻す（バックアップを取ってから）")
 	conc := flag.Int("c", 8, "同時実行数")
+	in := flag.String("in", "", "GCS の代わりに判定するローカルの JSON 配列（dry run のみ）")
 	flag.Parse()
 
 	l, ok := lang.Parse(*langCode)
@@ -44,27 +50,42 @@ func main() {
 	if *tier != sentence.GenerationTier(true) && *tier != sentence.GenerationTier(false) {
 		log.Fatalf("-tier %q は premium / free のどちらか", *tier)
 	}
-	project := os.Getenv("GCLOUD_PROJECT")
-	if project == "" {
-		log.Fatal("GCLOUD_PROJECT が未設定")
-	}
-
 	ctx := context.Background()
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer client.Close()
-	bucket := client.Bucket(project + "-uvm-data")
-	name := sentence.PoolObjectFor(*tier, l)
+	var (
+		bucket *storage.BucketHandle
+		name   string
+		pool   []sentence.Sentence
+	)
+	if *in != "" {
+		name = *in
+		raw, err := os.ReadFile(*in)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := json.Unmarshal(raw, &pool); err != nil {
+			log.Fatalf("%s の JSON 解析に失敗: %v", *in, err)
+		}
+	} else {
+		project := os.Getenv("GCLOUD_PROJECT")
+		if project == "" {
+			log.Fatal("GCLOUD_PROJECT が未設定")
+		}
+		client, err := storage.NewClient(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer client.Close()
+		bucket = client.Bucket(project + "-uvm-data")
+		name = sentence.PoolObjectFor(*tier, l)
 
-	// ReadSentences は開けないとき nil を返す。空のまま書き戻さないよう止める。
-	pool, err := sentence.ReadSentences(ctx, bucket, name)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if pool == nil {
-		log.Fatalf("%s を開けない", name)
+		// ReadSentences は開けないとき nil を返す。空のまま書き戻さないよう止める。
+		pool, err = sentence.ReadSentences(ctx, bucket, name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if pool == nil {
+			log.Fatalf("%s を開けない", name)
+		}
 	}
 
 	judge, err := quality.NewJudge(ctx)
@@ -110,7 +131,7 @@ func main() {
 	}
 	fmt.Printf("\n%s: %d本 → %d本（落とす %d・判定失敗 %d）\n", name, len(pool), len(kept), len(pool)-len(kept), failed)
 
-	if !*write || len(kept) == len(pool) {
+	if !*write || *in != "" || len(kept) == len(pool) {
 		return
 	}
 	backup := fmt.Sprintf("%s.bak-%s", name, time.Now().Format("20060102"))

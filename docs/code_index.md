@@ -8,6 +8,9 @@ Firebase初期化（環境別オプション切替）、ProviderScopeでアプ�
 lib/app.dart
 ルートMaterialApp。テーマ、ナビゲーション、認証状態リスナー。
 
+lib/core/platform/store_platform.dart
+iOS/Android（App Store/Google Play）で違う振る舞い（購読管理URL・Appleサインイン可否・サーバーへ送る platform 値）の集約先。
+
 lib/core/config/app_config.dart
 アプリメタデータ、DB設定、ビルド環境設定。
 
@@ -257,7 +260,7 @@ lib/services/storefront_service.dart
 ダウンロード元のストア地域取得。初回起動時のアプリ言語決定にだけ使う。
 
 lib/services/tts_service.dart
-タイ語発音のText-to-Speechエンジン。
+タイ語発音のText-to-Speechエンジン。Android でタイ語の声が無いときは thaiVoiceMissing を流し、音声データの取得画面を開ける。
 
 lib/services/push_notification_service.dart
 FCMトークン・タイムゾーン・配信希望時刻をusers/{uid}に登録。OSの通知許可とアプリ内設定の突き合わせも行う。
@@ -269,7 +272,7 @@ lib/services/sentence_view_marker.dart
 画面に出した例文へ既読（viewed=true）を付ける。未送信ぶんは端末に溜め、起動時に流す。まとめクイズが未読の例文を出さないために要る。
 
 lib/services/review_prompt_service.dart
-App Storeのレビュー依頼をiOSのOSダイアログで出す。クイズ完走と例文生成の2経路から発火し、バージョン単位＋60日クールダウンで重複を防ぐ。
+ストアのレビュー依頼をOSダイアログで出す（iOS: AppDelegate、Android: ReviewPromptChannel.kt）。クイズ完走と例文生成の2経路から発火し、バージョン単位＋60日クールダウンで重複を防ぐ。
 
 lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
@@ -333,7 +336,7 @@ lib/core/pronunciation/segment_coach.dart
 通じなかった語の子音・母音の直し方を1つ選ぶ。日本語話者が外しやすい順の優先表。
 
 lib/services/speech_capture_service.dart
-ネイティブのマイク収録との橋渡し。マイクは1箇所だけが握り、PCMと音声認識へ分岐する。
+ネイティブのマイク収録との橋渡し。マイクは1箇所だけが握り、PCMと端末内音声認識へ分岐する（Android は API 33 以降）。
 
 lib/services/pitch_recorder_service.dart
 収録からF0抽出まで。YINは重いので抽出は必ず別isolate（compute）で回す。
@@ -655,7 +658,7 @@ functions/go/internal/appstore/types.go
 App Store 検証結果・トランザクション情報・更新情報の型。
 
 functions/go/internal/playbilling/playbilling.go
-Google Play Developer API v3(Subscriptions v2)クライアント。購入トークンから状態を4種にマッピング。
+Google Play Developer API v3(Subscriptions v2)クライアント。購入トークンから状態を4種にマッピング。買い切り（一時購入）は purchases.products で検証。
 
 functions/go/internal/secrets/secrets.go
 Secret Manager からシークレットを読む。環境変数による差し替えに対応。
@@ -988,7 +991,7 @@ functions/go/cmd/vetquizlang/main.go
 Firestore の quiz_questions を走査し、解説・ダミー理由が指定と違う言語の件を洗い出す。-delete で消すと次の出題で作り直される。
 
 functions/go/cmd/poolrecheck/main.go
-GCS の例文プールを今の判定（Aspects＋PoolAspects）でティア別（-tier premium / free）に洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。
+GCS の例文プールを今の判定（Aspects＋PoolAspects）でティア別（-tier premium / free）に洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。-in でローカルの JSON（上げる前のキャッシュ例文）を判定する。
 
 functions/go/cmd/pilot/main.go
 cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。
@@ -1003,7 +1006,7 @@ functions/go/internal/corpususage/usage.go
 usagefill の中身。プロンプトとスキーマ（説明文は配信経路の sentence.ContextFieldSchema から引く）。style は en のラベル差し替えのため選択肢を enum で閉じる。
 
 functions/go/cmd/gencorpus/main.go
-静的コーパスの全量生成コマンド。マニフェストを 生成→判定→差し戻し→再判定 まで通し、ブロック単位でJSONLに追記する。同じ出力先を指すと続きから流せる。
+静的コーパスの全量生成コマンド。マニフェストを 生成→判定→差し戻し→再判定 まで通し、ブロック単位でJSONLに追記する。同じ出力先を指すと続きから流せる。-no-shots でマニフェストのサブテーマを場面として効かせる。
 
 functions/go/cmd/freeregen/main.go
 free 例文バンク（free_sentences_<lang>.json）のうち指定テーマの項目だけを本番と同じ生成経路で作り直す（判定・差し戻し1回、通らなければ元の項目を残す）。プロンプトは premium と同じ。

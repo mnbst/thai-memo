@@ -2,6 +2,7 @@ package embeddings
 
 import (
 	"context"
+	"slices"
 	"testing"
 )
 
@@ -18,21 +19,25 @@ func sceneStore() *Store {
 	}
 }
 
-func TestFindBestScene(t *testing.T) {
+func TestFindNearScenes(t *testing.T) {
 	scenes := []Scene{
 		{Name: "辛さ", Texts: []string{"spicy1", "spicy2"}},
 		{Name: "値段", Texts: []string{"price1"}},
 		{Name: "未知", Texts: []string{"no-embedding"}},
 	}
 	s := sceneStore()
-	if got, _ := s.FindBestScene(context.Background(), "พริก", scenes, 0.9); got != "辛さ" {
-		t.Errorf("got %q, want 辛さ", got)
+	if got, _ := s.FindNearScenes(context.Background(), "พริก", scenes, 0.9); !slices.Equal(got, []string{"辛さ"}) {
+		t.Errorf("got %q, want [辛さ]", got)
+	}
+	// 下限を通った場面はすべて返す。
+	if got, _ := s.FindNearScenes(context.Background(), "พริก", scenes, -1); !slices.Equal(got, []string{"辛さ", "値段"}) {
+		t.Errorf("got %q, want [辛さ 値段]", got)
 	}
 	// 最も近い場面でも下限に届かなければ選ばない。
-	if got, _ := s.FindBestScene(context.Background(), "พริก", scenes, 0.9999); got != "" {
+	if got, _ := s.FindNearScenes(context.Background(), "พริก", scenes, 0.9999); got != nil {
 		t.Errorf("下限未満なのに %q", got)
 	}
-	if got, _ := s.FindBestScene(context.Background(), "ไม่มี", scenes, 0); got != "" {
+	if got, _ := s.FindNearScenes(context.Background(), "ไม่มี", scenes, 0); got != nil {
 		t.Errorf("未知語で %q", got)
 	}
 }
