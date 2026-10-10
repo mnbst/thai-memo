@@ -1,5 +1,10 @@
 import 'package:flutter/foundation.dart';
 
+/// Android のパッケージ名。tester は別アプリ（android/app/build.gradle と揃える）。
+const String _androidPackageName = String.fromEnvironment('ENV') == 'tester'
+    ? 'com.thaimemo.thai_memo.test'
+    : 'com.thaimemo.thai_memo';
+
 /// アプリを配布しているストア。iOS と Android で違う振る舞いはここに集める。
 ///
 /// 画面やサービスで `Platform.isIOS` を個別に見ると、片方だけ直す漏れが起きる。
@@ -13,7 +18,7 @@ enum StorePlatform {
   googlePlay(
     id: 'android',
     subscriptionsUrl: 'https://play.google.com/store/account/subscriptions'
-        '?package=com.thaimemo.thai_memo',
+        '?package=$_androidPackageName',
   );
 
   const StorePlatform({required this.id, required this.subscriptionsUrl});

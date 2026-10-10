@@ -30,6 +30,23 @@ import (
 // defaultAndroidPackageName は ANDROID_PACKAGE_NAME 未設定時のパッケージ名。
 const defaultAndroidPackageName = "com.thaimemo.thai_memo"
 
+// projectAndroidPackageNames は環境ごとの Android パッケージ名。tester は別アプリ
+// （android/app/build.gradle の applicationId と揃える）。載っていない環境は既定値。
+var projectAndroidPackageNames = map[string]string{
+	"thai-memo-67139": "com.thaimemo.thai_memo.test",
+}
+
+// androidPackageName は購入検証に使うパッケージ名。ANDROID_PACKAGE_NAME を優先する。
+func androidPackageName() string {
+	if v := os.Getenv("ANDROID_PACKAGE_NAME"); v != "" {
+		return v
+	}
+	if v, ok := projectAndroidPackageNames[fbapp.ProjectID()]; ok {
+		return v
+	}
+	return defaultAndroidPackageName
+}
+
 const (
 	productIDPremiumMonthly     = "premium_monthly"
 	productIDPremiumMonthlyTest = "premium_monthly_test"
@@ -132,10 +149,7 @@ func runVerification(
 	)
 
 	if platform == "android" {
-		packageName := os.Getenv("ANDROID_PACKAGE_NAME")
-		if packageName == "" {
-			packageName = defaultAndroidPackageName
-		}
+		packageName := androidPackageName()
 		// 買い切りは一時購入の API で引く（期限が無いのが正常）。
 		verify := playbilling.Default.VerifyPurchase
 		if isLifetimeProduct(productID) {
