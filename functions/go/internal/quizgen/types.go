@@ -7,6 +7,9 @@ const (
 	// ダミーは3件とも「音節としては有り得るが実在しない綴り」を
 	// spellunit がその場で作るので、この形式だけモデルを呼ばない。
 	FormatSpellingChoice = "spelling_choice"
+	// FormatWordOrder は key_word を含む連続した語を並べ替える問題。
+	// タイルも正解も word_breakdown から決まるのでモデルを呼ばない。
+	FormatWordOrder = "word_order"
 )
 
 // 意味当ての選択肢数。例文の語数が足りなければ択を減らす（穴埋めには落とさない）。

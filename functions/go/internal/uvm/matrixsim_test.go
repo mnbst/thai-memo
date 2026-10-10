@@ -51,6 +51,10 @@ type simUser struct {
 	worldSlip  float64 // 知っている語を落とす確率（誤タップ・読み違い）
 	worldGuess float64 // >0 ならヒント無しの実際の推測率をこの値にする
 
+	// 並び替え（word_order）をまとめクイズに混ぜる実験。wordOrder が nil なら混ぜない。
+	wordOrder    *wordOrderSim
+	curWordOrder bool // いま答えている問題が並び替えか
+
 	drops   int // 例文生成で est が下がった回数
 	dropSum int // その合計幅
 }
@@ -176,6 +180,10 @@ func (u *simUser) answer(rank int, learning bool) {
 	}
 	res := Result{HintLevel: hint}
 
+	if u.curWordOrder {
+		u.answerWordOrder(w, rank, hint)
+		return
+	}
 	correct := u.answers(rank, guessRate(hint))
 	res.IsCorrect = correct
 
@@ -247,10 +255,12 @@ func (u *simUser) summaryQuiz(n int) {
 	if len(pool) == 0 {
 		return
 	}
-	for range n {
+	for i := range n {
+		u.curWordOrder = u.wordOrder != nil && i < u.wordOrder.perQuiz
 		u.answer(pool[u.srsIdx%len(pool)], false)
 		u.srsIdx++
 	}
+	u.curWordOrder = false
 	u.sync()
 }
 

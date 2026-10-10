@@ -17,7 +17,7 @@ import 'thai_sentence.dart';
 /// correctAnswerMeaning: 正解単語の日本語の意味
 /// srsInterval: SRS復習間隔（日数）
 /// quizFormat: cloze_choice（穴埋め）/ meaning_choice（単語→意味）/
-///            spelling_choice（読み＋意味→綴り）
+///            spelling_choice（読み＋意味→綴り）/ word_order（並び替え）
 /// 綴り4択で見せる分解。Part は音の順（頭子音→母音→末子音→声調）、
 /// Glyph は書く順。タイ語は音の順に書かないので両方を使う。
 ///
@@ -72,7 +72,9 @@ class SpellingPart {
   }
 
   static bool _isCombining(int r) =>
-      r == 0x0E31 || (r >= 0x0E34 && r <= 0x0E3A) || (r >= 0x0E47 && r <= 0x0E4E);
+      r == 0x0E31 ||
+      (r >= 0x0E34 && r <= 0x0E3A) ||
+      (r >= 0x0E47 && r <= 0x0E4E);
 
   static bool _isThaiConsonant(int r) => r >= 0x0E01 && r <= 0x0E2E;
 }
@@ -132,6 +134,7 @@ class QuizQuestion {
   static const clozeChoiceFormat = 'cloze_choice';
   static const meaningChoiceFormat = 'meaning_choice';
   static const spellingChoiceFormat = 'spelling_choice';
+  static const wordOrderFormat = 'word_order';
 
   final String sentenceId;
   final String thaiText;
@@ -159,11 +162,47 @@ class QuizQuestion {
   /// 声調が決まる3要素。切り分けられない綴りでは null。
   final SpellingToneRule? spellingToneRule;
 
+  /// 並び替えの正しい並び。choices（混ぜたタイル）と同じ語の集まり。
+  final List<String> wordOrderAnswer;
+
+  /// 並び替えの枠の外。そのまま見せる。
+  final String wordOrderPrefix;
+  final String wordOrderSuffix;
+
+  /// タイルの読みを最初から見せるか（入門用の対象者。サーバーが決める）。
+  final bool wordOrderShowPronunciation;
+
   bool get isMeaningChoice => quizFormat == meaningChoiceFormat;
 
   /// 綴り4択。読みと意味を出題文にして、タイ語の綴りを4択から選ぶ。
   /// ダミー3件はサーバーがその場で作る非語なので、選択肢の発音は付かない。
   bool get isSpellingChoice => quizFormat == spellingChoiceFormat;
+
+  /// 並び替え。key_word を含む連続した語のタイルを正しい順に並べる。
+  bool get isWordOrder => quizFormat == wordOrderFormat;
+
+  /// [order]（choices の添字の並び）が正しい並びか。語の文字列で比べる。
+  bool isWordOrderCorrect(List<int> order) =>
+      order.length == wordOrderAnswer.length &&
+      order.map((i) => choices[i]).join() == wordOrderAnswer.join();
+
+  /// 並び替えの回答を、回答履歴（selectedIndices）の int 1つに詰める。
+  /// 4語なら各桁が添字の4進数。保存・復元の仕組みを形式ごとに増やさないため。
+  static int encodeWordOrder(List<int> order) =>
+      order.fold(0, (acc, i) => acc * order.length + i);
+
+  /// [encodeWordOrder] の逆。長さ [length] の並びに戻せなければ null。
+  static List<int>? decodeWordOrder(int encoded, int length) {
+    if (encoded < 0 || length <= 0) return null;
+    final order = List<int>.filled(length, 0);
+    var rest = encoded;
+    for (var i = length - 1; i >= 0; i--) {
+      order[i] = rest % length;
+      rest ~/= length;
+    }
+    if (rest != 0 || order.toSet().length != length) return null;
+    return order;
+  }
 
   /// 選択肢に実際に入る正解。意味4択でもUVMへ送る語はcorrectAnswerのまま。
   String get correctChoice =>
@@ -189,6 +228,10 @@ class QuizQuestion {
     this.spellingParts = const [],
     this.spellingGlyphs = const [],
     this.spellingToneRule,
+    this.wordOrderAnswer = const [],
+    this.wordOrderPrefix = '',
+    this.wordOrderSuffix = '',
+    this.wordOrderShowPronunciation = false,
   });
 
   factory QuizQuestion.fromJson(Map<String, dynamic> json) {
@@ -245,6 +288,13 @@ class QuizQuestion {
               .map((e) => SpellingGlyph.fromJson(Map<String, dynamic>.from(e)))
               .toList() ??
           const [],
+      wordOrderAnswer: (json['word_order_answer'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      wordOrderPrefix: json['word_order_prefix']?.toString() ?? '',
+      wordOrderSuffix: json['word_order_suffix']?.toString() ?? '',
+      wordOrderShowPronunciation: json['word_order_show_pronunciation'] == true,
     );
   }
 
@@ -290,5 +340,9 @@ class QuizQuestion {
           'spelling_glyphs': spellingGlyphs.map((g) => g.toJson()).toList(),
         if (spellingToneRule != null)
           'spelling_tone_rule': spellingToneRule!.toJson(),
+        if (wordOrderAnswer.isNotEmpty) 'word_order_answer': wordOrderAnswer,
+        if (wordOrderPrefix.isNotEmpty) 'word_order_prefix': wordOrderPrefix,
+        if (wordOrderSuffix.isNotEmpty) 'word_order_suffix': wordOrderSuffix,
+        if (wordOrderShowPronunciation) 'word_order_show_pronunciation': true,
       };
 }

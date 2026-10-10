@@ -178,6 +178,17 @@ class L10nJa extends L10n {
   String get quizSpellingPrompt => 'この読みの綴りを選んでください';
 
   @override
+  String get quizWordOrderPrompt => '正しい順に並べてください';
+
+  @override
+  String get quizWordOrderCheck => '答え合わせ';
+
+  @override
+  String quizWordOrderYourAnswer(String order) {
+    return 'あなたの並び: $order';
+  }
+
+  @override
   String get quizWordExplanation => '単語の解説';
 
   @override

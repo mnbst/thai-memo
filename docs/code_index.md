@@ -78,7 +78,7 @@ lib/data/models/syllable.dart
 音節構造（声調・子音・母音の分析データ）。
 
 lib/data/models/quiz_question.dart
-クイズ問題モデル（正解＋3つの不正解選択肢）。
+クイズ問題モデル（正解＋3つの不正解選択肢）。並び替えは choices が混ぜたタイル、回答の並びは int に詰めて回答履歴に残す。
 
 lib/data/models/quiz_result.dart
 クイズ回答・スコア記録モデル。
@@ -714,11 +714,20 @@ functions/go/internal/quizgen/sanitize.go
 functions/go/internal/quizgen/spelling.go
 綴り4択（読み＋意味→タイ語の綴り）の組み立てと検査。選択肢も解説も確定済みなのでモデルを呼ばない。
 
+functions/go/internal/quizgen/wordorder.go
+並び替えの組み立て。key_word を含む連続した4語（タイ文字のみ・重複なし）を切り出して混ぜ、枠の外の本文と読みを持たせる。
+
 functions/go/quiz_beginner.go
 入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値100未満のユーザーには出題できる問題を全部入門用にし、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
 
 functions/go/quiz_spelling.go
 入門用の形式のひとつ、綴り4択への差し替え。回答から部品データ（users/{uid}/units）を更新するのもここ。
+
+functions/go/quiz_word_order.go
+並び替え（word_order）をまとめクイズに1問差し込む層。穴埋めのままの問題から選び、入門用の対象者にはタイルの読みを最初から見せる。モデルは呼ばない。
+
+functions/go/quiz_word_order_test.go
+並び替えへの差し替えが穴埋め1問だけに効くこと、モデルを呼ばずに問題を作れることのテスト。
 
 functions/go/quiz_beginner_test.go
 対象ユーザーの線引き、クライアント未対応なら差し替えないこと、出題できる語が全部差し替わること、通過済みの語は戻さないことのテスト。
@@ -938,6 +947,9 @@ functions/go/internal/uvm/dropsim_test.go
 
 functions/go/internal/uvm/alphasim_test.go
 P 更新則の比較シミュレーション（尤度比 vs 旧 α 則 vs 不正解α強化）。世界側の推測率・slip を振って、推定誤差と「実際は知らないのに P>0.5 の語」の割合を測る。
+
+functions/go/internal/uvm/wordordersim_test.go
+並び替えをまとめクイズに混ぜたときの P 更新の決め方（等倍 / ×0.5 / s=0.40 / 更新しない）を、世界側の slip・推測率を振って比べる。
 
 functions/go/internal/uvm/migratesim_test.go
 旧 α 則で溜まった doc を引き継いで新更新則へ切り替えたときの estimated_vocab の推移。切替時に飛ばないこと、その後の補正が緩やかなことを確かめる。

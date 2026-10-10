@@ -93,10 +93,12 @@ class _FakeDatabaseHelper extends Fake implements DatabaseHelper {
 
   final Completer<int>? _insertCompleter;
   int insertCallCount = 0;
+  final insertedResults = <Map<String, dynamic>>[];
 
   @override
   Future<int> insertQuizResult(Map<String, dynamic> result) {
     insertCallCount += 1;
+    insertedResults.add(result);
     return _insertCompleter?.future ?? Future<int>.value(1);
   }
 
@@ -223,6 +225,33 @@ Future<_QuizHarness> _pumpSummaryQuiz(
     database: database,
     analytics: analytics,
   );
+}
+
+final _wordOrderQuestion = QuizQuestion(
+  sentenceId: 'word-order',
+  thaiText: 'ผมอยากไปทะเลครับ',
+  blankText: '___ ครับ',
+  correctAnswer: 'ทะเล',
+  correctAnswerMeaning: '海',
+  choices: const ['ทะเล', 'อยาก', 'ผม', 'ไป'],
+  choicePronunciations: const ['tha-le', 'yak', 'phom', 'pai'],
+  pronunciation: 'tha-le',
+  explanation: '正しい並び: ผม → อยาก → ไป → ทะเล',
+  japaneseTranslation: '私は海に行きたいです',
+  sentencePronunciation: 'phom yak pai tha-le khrap',
+  blankSentencePronunciation: '___ khrap',
+  quizFormat: QuizQuestion.wordOrderFormat,
+  wordOrderAnswer: const ['ผม', 'อยาก', 'ไป', 'ทะเล'],
+  wordOrderSuffix: 'ครับ',
+);
+
+Future<void> _placeTiles(WidgetTester tester, List<int> order) async {
+  for (final i in order) {
+    final tile = find.byKey(ValueKey('quiz_word_order_tile_$i'));
+    await tester.ensureVisible(tile);
+    await tester.tap(tile);
+    await tester.pump();
+  }
 }
 
 void main() {
@@ -889,6 +918,67 @@ void main() {
     await _finishQuiz(tester, harness);
 
     expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('並び替えは置いた順で答え合わせし、正解なら全部の枠を緑にする', (tester) async {
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      questions: [_wordOrderQuestion, ..._questions.skip(1)],
+    );
+
+    expect(find.text('正しい順に並べてください'), findsOneWidget);
+    // 読みはヒントを開くまで出さない
+    expect(find.text('phom'), findsNothing);
+
+    final check = find.byKey(const ValueKey('quiz_word_order_check'));
+    await _placeTiles(tester, [2, 1, 3]);
+    expect(tester.widget<FilledButton>(check).onPressed, isNull);
+
+    // 置いたタイルは押すと手元へ戻る
+    await tester.tap(find.byKey(const ValueKey('quiz_word_order_slot_2')));
+    await tester.pump();
+    await _placeTiles(tester, [3, 0]);
+
+    await tester.ensureVisible(check);
+    await tester.tap(check);
+    await tester.pump();
+
+    final state = harness.controller.state as QuizShowResult;
+    expect(state.isCorrect, isTrue);
+    expect(QuizQuestion.decodeWordOrder(state.selectedIndex, 4), [2, 1, 3, 0]);
+    expect(harness.database.insertedResults.single['user_answer'],
+        'ผม อยาก ไป ทะเล');
+    expect(find.text(_wordOrderQuestion.explanation), findsOneWidget);
+  });
+
+  testWidgets('並び替えは不正解でも同じ画面に正誤を重ねる', (tester) async {
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      questions: [_wordOrderQuestion, ..._questions.skip(1)],
+    );
+
+    await _placeTiles(tester, [1, 2, 3, 0]);
+    final check = find.byKey(const ValueKey('quiz_word_order_check'));
+    await tester.ensureVisible(check);
+    await tester.tap(check);
+    await tester.pump();
+
+    expect((harness.controller.state as QuizShowResult).isCorrect, isFalse);
+    expect(find.byKey(const ValueKey('quiz_inline_feedback')), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz_result_next_button')), findsNothing);
+    expect(find.byKey(const ValueKey('quiz_next_button')), findsOneWidget);
+  });
+
+  testWidgets('入門者には読みを最初から見せ、ヒントは訳だけにする', (tester) async {
+    final question = QuizQuestion.fromJson({
+      ..._wordOrderQuestion.toJson(),
+      'word_order_show_pronunciation': true,
+    });
+    await _pumpSummaryQuiz(tester,
+        questions: [question, ..._questions.skip(1)]);
+
+    expect(find.text('phom'), findsOneWidget);
+    expect(find.text('ヒント2: 日本語訳を見る'), findsOneWidget);
   });
 }
 

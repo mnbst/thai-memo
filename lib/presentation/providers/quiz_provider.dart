@@ -533,6 +533,15 @@ class QuizController extends StateNotifier<QuizState> {
       if (!_isThaiChoice(question.correctAnswer)) {
         return true;
       }
+      // 並び替えの正解は「並び」なので、タイルと正しい並びが同じ語の集まりかを見る。
+      // correct_answer（key_word）は ๆ の有無でタイルと表記が揺れうるので見ない。
+      if (question.isWordOrder) {
+        final tiles = question.choices.toSet();
+        return tiles.length != question.choices.length ||
+            question.wordOrderAnswer.length != question.choices.length ||
+            !question.wordOrderAnswer.every(tiles.contains) ||
+            question.choices.any((choice) => !_isThaiChoice(choice));
+      }
       if (question.correctChoice.trim().isEmpty ||
           !question.choices.contains(question.correctChoice)) {
         return true;
@@ -611,6 +620,11 @@ class QuizController extends StateNotifier<QuizState> {
       _pending.track(_answerQuestion(choiceIndex,
           hintLevel: hintLevel, reviewedSentence: reviewedSentence));
 
+  /// 並び替えの回答。[order] は choices（タイル）の添字を並べた順。
+  /// 回答履歴には [QuizQuestion.encodeWordOrder] で詰めて残す。
+  Future<void> answerWordOrder(List<int> order, {int hintLevel = 0}) =>
+      answerQuestion(QuizQuestion.encodeWordOrder(order), hintLevel: hintLevel);
+
   Future<void> _answerQuestion(
     int choiceIndex, {
     int hintLevel = 0,
@@ -619,12 +633,24 @@ class QuizController extends StateNotifier<QuizState> {
     if (_isAnswering || state is! QuizAnswering) return;
     final s = state as QuizAnswering;
     final question = s.questions[s.index];
-    if (choiceIndex < 0 || choiceIndex >= question.choices.length) return;
+    final wordOrder = question.isWordOrder
+        ? QuizQuestion.decodeWordOrder(choiceIndex, question.choices.length)
+        : null;
+    if (question.isWordOrder) {
+      if (wordOrder == null) return;
+    } else if (choiceIndex < 0 || choiceIndex >= question.choices.length) {
+      return;
+    }
+    final userAnswer = wordOrder != null
+        ? wordOrder.map((i) => question.choices[i]).join(' ')
+        : question.choices[choiceIndex];
 
     _isAnswering = true;
     try {
       final responseTimer = _questionResponseTimer?..stop();
-      final isCorrect = question.choices[choiceIndex] == question.correctChoice;
+      final isCorrect = wordOrder != null
+          ? question.isWordOrderCorrect(wordOrder)
+          : question.choices[choiceIndex] == question.correctChoice;
       final newAnswers = [...s.answers, isCorrect];
       final newSelectedIndices = [...s.selectedIndices, choiceIndex];
       final newHintLevels = <int>[...s.hintLevels ?? const [], hintLevel];
@@ -652,7 +678,7 @@ class QuizController extends StateNotifier<QuizState> {
         sentenceId: question.sentenceId,
         questionText: question.blankText,
         correctAnswer: question.correctAnswer,
-        userAnswer: question.choices[choiceIndex],
+        userAnswer: userAnswer,
         isCorrect: isCorrect,
         answeredAt: DateTime.now(),
       );
@@ -676,6 +702,8 @@ class QuizController extends StateNotifier<QuizState> {
                 'choices': question.choices,
                 'selected_answer': question.choices[choiceIndex],
               },
+              // 並び替えは語順を測る形式なので、サーバーが証拠を弱める。
+              if (question.isWordOrder) 'quiz_format': question.quizFormat,
             },
           ],
           quizType: _isLearningQuiz ? 'learning' : null,

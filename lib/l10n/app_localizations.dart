@@ -409,6 +409,24 @@ abstract class L10n {
   /// **'この読みの綴りを選んでください'**
   String get quizSpellingPrompt;
 
+  /// No description provided for @quizWordOrderPrompt.
+  ///
+  /// In ja, this message translates to:
+  /// **'正しい順に並べてください'**
+  String get quizWordOrderPrompt;
+
+  /// No description provided for @quizWordOrderCheck.
+  ///
+  /// In ja, this message translates to:
+  /// **'答え合わせ'**
+  String get quizWordOrderCheck;
+
+  /// No description provided for @quizWordOrderYourAnswer.
+  ///
+  /// In ja, this message translates to:
+  /// **'あなたの並び: {order}'**
+  String quizWordOrderYourAnswer(String order);
+
   /// No description provided for @quizWordExplanation.
   ///
   /// In ja, this message translates to:
