@@ -18,12 +18,12 @@
 
 ## 例文のソース
 
-`gs://<project>-uvm-data/corpus_sentences_ja.json`（premium と同じ静的コーパス）
-だけを候補にする。その日のテーマと語数で絞った残りから Gemini に1件選ばせる。Gemini が応答しないときは
+`gs://<project>-uvm-data/` の `corpus_sentences_ja.json`（静的コーパス）と
+`corpus_pool_ja.json`（運用中に貯めたプール）を候補にする（premium の CorpusBank と同じ2本）。その日のテーマと語数で絞った残りから Gemini に1件選ばせる。Gemini が応答しないときは
 同じ候補から抽選して投稿を止めない。テーマに合う候補が無ければ投稿しない。
 
 テーマは Cloud Scheduler の起動リクエスト（`inputs.themes`）で決める。
-`タイ旅行` `タイ生活` `恋愛` をカンマ区切りで並べ、その中から毎日1つ抽選する
+`タイ旅行` `タイ生活` `恋愛` `BLドラマ` をカンマ区切りで並べ、その中から毎日1つ抽選する
 （空なら全部）。変えるときは `terraform/prod.tfvars` の `x_post_themes` を直して
 `terraform apply` するか、コンソールでジョブの本文を直す。プッシュは要らない。
 
