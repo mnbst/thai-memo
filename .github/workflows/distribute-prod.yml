@@ -1,25 +1,9 @@
 name: Distribute to Production
 
+# push では動かさず、配信するときだけ手で起動する:
+#   gh workflow run distribute-prod.yml --ref main
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '*.md'
-      - 'LICENSE'
-      - '.claude/**'
-      - '.vscode/**'
-      - 'reports/**'
-      - 'scripts/**'
-      - 'terraform/**'
-      - 'test/**'
-      - 'web/**'
-      - 'linux/**'
-      - 'macos/**'
-      - 'windows/**'
-      - 'analysis_options.yaml'
-      - '.gitignore'
-      - '.metadata'
+  workflow_dispatch:
 
 permissions:
   contents: read
