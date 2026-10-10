@@ -242,6 +242,8 @@ lib/presentation/widgets/premium_trial_ended_dialog.dart
 lib/presentation/widgets/premium_trial_started_dialog.dart
 後から配られたプレミアム体験の開放を伝えるダイアログ（premium_trial_backfilled_at が目印）。課金は勧めない。
 
+lib/presentation/widgets/coach_mark_overlay.dart
+対象をスポットライトで光らせ吹き出しで案内する初回ガイド。今は確認クイズの導線（まだ解いたことがない人に1回だけ、today_screen）でのみ使う。
 lib/presentation/widgets/quiz_offer.dart
 1問確認クイズ導線の表示（現行はinlineカード。controlは実験再開用に残置）。
 

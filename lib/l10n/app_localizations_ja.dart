@@ -2727,4 +2727,20 @@ class L10nJa extends L10n {
 
   @override
   String get guideTipsSpeak => '覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。';
+
+  @override
+  String get coachQuizOfferTitle => '確認クイズはこちら';
+
+  @override
+  String get coachQuizOfferMessage =>
+      '例文を読み終えたら、このボタンから確認クイズを1問解き、学習単語を覚えたか確かめられます。';
+
+  @override
+  String get coachTapHere => '光っている場所をタップ';
+
+  @override
+  String get coachSkip => 'スキップ';
+
+  @override
+  String get coachGotIt => 'わかった';
 }

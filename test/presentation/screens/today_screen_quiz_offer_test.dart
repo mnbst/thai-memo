@@ -11,6 +11,7 @@ import 'package:thai_memo/domain/get_sentences_usecase.dart';
 import 'package:thai_memo/presentation/providers/analytics_provider.dart';
 import 'package:thai_memo/presentation/providers/auth_provider.dart';
 import 'package:thai_memo/presentation/providers/quiz_offer_experiment_provider.dart';
+import 'package:thai_memo/presentation/providers/quiz_provider.dart';
 import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
 import 'package:thai_memo/presentation/providers/sentence_provider.dart';
 import 'package:thai_memo/presentation/providers/settings_provider.dart';
@@ -75,6 +76,7 @@ Future<void> _pumpTodayScreen(
   required FakeAnalyticsService analytics,
   required SentenceController controller,
   LearningQuizStartCallback? onStartQuiz,
+  int totalAnswered = 0,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -97,6 +99,10 @@ Future<void> _pumpTodayScreen(
         premiumTrialExpiresAtProvider.overrideWithValue(const AsyncData(null)),
         vocabStatsProvider.overrideWith(
           (ref) => Stream.value(const VocabStats()),
+        ),
+        // 初回ガイドを出すかの判定が読む。素で読むと SQLite を開いてしまう。
+        quizStatsProvider.overrideWith(
+          (ref) async => QuizStatsData(totalAnswered: totalAnswered),
         ),
       ],
       child: MaterialApp(
@@ -253,5 +259,68 @@ void main() {
     await tester.pump();
     expect(tappedSource, isNull);
     expect(analytics.quizOfferEvents, isEmpty);
+  });
+
+  testWidgets('クイズを解いたことがない人には、例文が出たらすぐ導線を光らせて「わかった」で閉じる',
+      (tester) async {
+    final analytics = FakeAnalyticsService();
+    ThaiSentence? tappedSentence;
+    await _pumpTodayScreen(
+      tester,
+      variant: QuizOfferVariant.inlineOneQuestion,
+      analytics: analytics,
+      controller: _sentenceController(analytics),
+      onStartQuiz: (sentence, _) => tappedSentence = sentence,
+    );
+
+    // スポットは脈打ち続けるので、settle を待たずに時間で進める。
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('確認クイズはこちら'), findsOneWidget);
+    expect(analytics.coachMarkEvents, [
+      {'id': 'quiz_offer', 'action': 'shown'},
+    ]);
+
+    // 在り処を教えるだけで、クイズは始めない。
+    await tester.tap(find.text('わかった'));
+    await tester.pumpAndSettle();
+    expect(find.text('確認クイズはこちら'), findsNothing);
+    expect(tappedSentence, isNull);
+    expect(analytics.coachMarkEvents.last,
+        {'id': 'quiz_offer', 'action': 'confirmed'});
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('quiz_offer_coach_shown'), isTrue);
+  });
+
+  testWidgets('クイズを解いたことがある人には光らせない', (tester) async {
+    final analytics = FakeAnalyticsService();
+    await _pumpTodayScreen(
+      tester,
+      variant: QuizOfferVariant.inlineOneQuestion,
+      analytics: analytics,
+      controller: _sentenceController(analytics),
+      totalAnswered: 3,
+    );
+
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pumpAndSettle();
+    expect(find.text('確認クイズはこちら'), findsNothing);
+    expect(analytics.coachMarkEvents, isEmpty);
+  });
+
+  testWidgets('一度出した人には二度と光らせない', (tester) async {
+    SharedPreferences.setMockInitialValues({'quiz_offer_coach_shown': true});
+    final analytics = FakeAnalyticsService();
+    await _pumpTodayScreen(
+      tester,
+      variant: QuizOfferVariant.inlineOneQuestion,
+      analytics: analytics,
+      controller: _sentenceController(analytics),
+    );
+
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pumpAndSettle();
+    expect(analytics.coachMarkEvents, isEmpty);
   });
 }

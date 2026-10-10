@@ -131,4 +131,7 @@ class AppConfig {
   /// quiz_offer(assigned)を送信済みの実験群。画面再生成での重複を防ぐ。
   static const String prefKeyQuizOfferAssignmentLoggedV1 =
       'quiz_offer_assignment_logged_v1';
+
+  /// 確認クイズの導線を光らせる初回ガイドを出したか（自分で押した場合も立つ）。
+  static const String prefKeyQuizOfferCoachShown = 'quiz_offer_coach_shown';
 }
