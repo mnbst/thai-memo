@@ -77,13 +77,18 @@ func (b *Builder) intn(n int) int {
 // BuildDramaSection は BL ドラマ用のプロンプト断片を返す。
 func (b *Builder) BuildDramaSection(targetWords []string) sentence.DramaSection {
 	shotID := b.PickShot(targetWords)
+	return b.section(shotID, shotContext[shotID].Scene)
+}
+
+// section はショット1つを参考セリフにした断片を返す。scene は場面の行に出す。
+func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 	pick := shotContext[shotID]
 	shotText := shots[shotID]
 
 	contextLines := []string{
 		"BLドラマ（男性同士）。セリフをそのまま引用せず雰囲気を参考にすること",
 		"ドラマの設定: " + pick.Context,
-		"場面: " + pick.Scene,
+		"場面: " + scene,
 		"参考タイ語例（雰囲気・口語感の参考。この1文のみ）: " + shotText,
 		"usage_scenariosにはどんな場面かわかる説明を書くこと",
 	}
@@ -122,4 +127,23 @@ func bulletList(lines []string) string {
 		b.WriteString("\n")
 	}
 	return b.String()
+}
+
+// BuildSceneSection は場面を指定して BL ドラマ用のプロンプト断片を返す。
+// 参考セリフは scenes のどれかのショットから選び、場面の行は scene に置き換える。
+// 参考セリフの場面は告白に偏っているので、コーパスの場面を均して作り直すときに使う。
+// scenes に当たるショットが無ければゼロ値。
+func (b *Builder) BuildSceneSection(scene string, scenes []string) sentence.DramaSection {
+	var in []string
+	for _, sid := range shotIDs {
+		for _, sc := range scenes {
+			if shotContext[sid].Scene == sc {
+				in = append(in, sid)
+			}
+		}
+	}
+	if len(in) == 0 {
+		return sentence.DramaSection{}
+	}
+	return b.section(in[b.intn(len(in))], scene)
 }

@@ -25,6 +25,8 @@ resource "google_project_service" "required_apis" {
     "monitoring.googleapis.com",
     "billingbudgets.googleapis.com",
     "firebaseappcheck.googleapis.com",
+    # Google Play の購入検証（verifySubscription / handlePlayNotification）
+    "androidpublisher.googleapis.com",
     # X 自動投稿の読み上げ音声（tools/x_post）
     "texttospeech.googleapis.com",
   ])
@@ -136,6 +138,15 @@ resource "google_pubsub_topic" "play_subscription_notifications" {
   project = var.project_id
 
   depends_on = [google_project_service.required_apis]
+}
+
+# Google Play が RTDN をこのトピックへ発行するための権限。
+# 無いと Play Console の「テスト通知を送信」も失敗し、更新・解約・返金が届かない。
+resource "google_pubsub_topic_iam_member" "play_rtdn_publisher" {
+  project = var.project_id
+  topic   = google_pubsub_topic.play_subscription_notifications.name
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:google-play-developer-notifications@system.gserviceaccount.com"
 }
 
 # Artifact Registry cleanup policy for Cloud Functions container images

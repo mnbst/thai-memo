@@ -38,10 +38,6 @@ class AppConfig {
   static const String secureStorageLastGeneration = 'last_generation_timestamp';
 
   /// Legal URLs
-  /// Apple の購読管理画面（解約・プラン変更）。アプリから直接開ける。
-  static const String appStoreSubscriptionsUrl =
-      'https://apps.apple.com/account/subscriptions';
-
   static const String privacyPolicyUrl =
       'https://thai-memo-prod.web.app/privacy-policy.html';
   static const String termsOfServiceUrl =
@@ -135,4 +131,7 @@ class AppConfig {
   /// quiz_offer(assigned)を送信済みの実験群。画面再生成での重複を防ぐ。
   static const String prefKeyQuizOfferAssignmentLoggedV1 =
       'quiz_offer_assignment_logged_v1';
+
+  /// 確認クイズの導線を光らせる初回ガイドを出したか（自分で押した場合も立つ）。
+  static const String prefKeyQuizOfferCoachShown = 'quiz_offer_coach_shown';
 }

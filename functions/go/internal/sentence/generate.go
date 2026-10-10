@@ -273,7 +273,8 @@ type DramaBuilder interface {
 // ShotBuilder は BL 以外のテーマ回の参考例文ブロックを組み立てる。
 // 実装は internal/themeshots。ショットの無いテーマにはゼロ値を返す。
 type ShotBuilder interface {
-	BuildShotSection(topic string, targetWords []string) DramaSection
+	// medium は抽選した媒体。その媒体のショットが無ければ会話のショットを返す。
+	BuildShotSection(topic string, targetWords []string, medium string) DramaSection
 }
 
 // Service は例文生成の入口。
@@ -292,17 +293,26 @@ type Service struct {
 // プロンプトを自前で組む cmd/pilot・cmd/gencorpus もこれを通す。
 func (s *Service) SceneSection(resolved *ResolvedParams, targetWords []string) DramaSection {
 	if resolved.Topic == Topics[15] {
+		resolved.Medium = Media[0].Name
 		if s.Drama == nil {
 			return DramaSection{}
 		}
 		return s.Drama.BuildDramaSection(targetWords)
 	}
 	if s.Shots == nil || resolved.Topic == "" {
+		// 相手のいない媒体は参考例文とセットでしか使わない。付かないなら会話へ戻す。
+		resolved.Medium = Media[0].Name
 		return DramaSection{}
 	}
-	section := s.Shots.BuildShotSection(resolved.Topic, targetWords)
+	section := s.Shots.BuildShotSection(resolved.Topic, targetWords, resolved.Medium)
 	if section.Context != "" {
 		resolved.SubTheme = ""
+	}
+	// 文体は参考例文が決める。付けた例文の媒体に揃え、関係ブロック等の出し分けを合わせる。
+	if section.Medium != "" {
+		resolved.Medium = section.Medium
+	} else {
+		resolved.Medium = Media[0].Name
 	}
 	return section
 }

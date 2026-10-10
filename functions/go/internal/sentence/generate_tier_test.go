@@ -23,7 +23,7 @@ func TestFreeGeneratesWithPremiumPrompt(t *testing.T) {
 	for _, isPremium := range []bool{false, true} {
 		gen := &tierCapture{}
 		svc := &Service{Gen: gen, Resolver: &Resolver{}}
-		params := map[string]any{"topic": Topics[2]}
+		params := map[string]any{"topic": Topics[2], "medium": Media[0].Name}
 		_, _ = svc.GenerateSentence(context.Background(), params, isPremium, []string{"ไป"}, 50, "ja")
 
 		if gen.system != SystemPrompt(true, "ja") {

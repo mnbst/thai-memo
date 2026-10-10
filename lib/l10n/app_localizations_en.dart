@@ -190,6 +190,17 @@ class L10nEn extends L10n {
   String get quizSpellingPrompt => 'Choose the spelling for this pronunciation';
 
   @override
+  String get quizWordOrderPrompt => 'Put the words in the right order';
+
+  @override
+  String get quizWordOrderCheck => 'Check';
+
+  @override
+  String quizWordOrderYourAnswer(String order) {
+    return 'Your order: $order';
+  }
+
+  @override
   String get quizWordExplanation => 'Word explanation';
 
   @override
@@ -610,8 +621,18 @@ class L10nEn extends L10n {
   String get lifetimeMigrationNoCharge => 'No additional payment';
 
   @override
-  String get lifetimeMigrationCancelNote =>
-      'After switching, turn off monthly auto-renewal in your App Store account settings. Otherwise, monthly billing will continue.';
+  String lifetimeMigrationCancelNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            'After switching, turn off monthly auto-renewal in your Google Play subscriptions. Otherwise, monthly billing will continue.',
+        'other':
+            'After switching, turn off monthly auto-renewal in your App Store account settings. Otherwise, monthly billing will continue.',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get lifetimeMigrationProgress => 'Switching plans…';
@@ -933,12 +954,32 @@ class L10nEn extends L10n {
   String get paywallLifetimeNote => 'A one-time payment. No renewals.';
 
   @override
-  String get paywallMonthlyToLifetimeNote =>
-      'Buying the lifetime plan does not automatically cancel your current subscription. Cancel it separately in your App Store account settings.';
+  String paywallMonthlyToLifetimeNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            'Buying the lifetime plan does not automatically cancel your current subscription. Cancel it separately in your Google Play subscriptions.',
+        'other':
+            'Buying the lifetime plan does not automatically cancel your current subscription. Cancel it separately in your App Store account settings.',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
-  String get paywallLegal =>
-      'Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.';
+  String paywallLegal(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            'Your subscription renews automatically at the same price unless you cancel before the next renewal date. You can manage or cancel it in your Google Play subscriptions.',
+        'other':
+            'Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get paywallTrialBadge => 'First-time offer';
@@ -973,12 +1014,32 @@ class L10nEn extends L10n {
   String get paywallChangeToMonthlyCta => 'Switch to monthly';
 
   @override
-  String get paywallChangeToYearlyNote =>
-      'You\'ll switch to the yearly plan right away. Apple refunds the unused part of your monthly plan.';
+  String paywallChangeToYearlyNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            'You\'ll switch to the yearly plan right away and be charged the yearly price. The unused part of your monthly plan is added to your yearly plan.',
+        'other':
+            'You\'ll switch to the yearly plan right away. Apple refunds the unused part of your monthly plan.',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
-  String get paywallChangeToMonthlyNote =>
-      'You\'ll switch to the monthly plan when your current yearly plan ends. Until then, you keep the yearly plan.';
+  String paywallChangeToMonthlyNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            'You\'ll switch to the monthly plan right away. You won\'t be charged until your paid yearly period ends, then it renews monthly.',
+        'other':
+            'You\'ll switch to the monthly plan when your current yearly plan ends. Until then, you keep the yearly plan.',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get paywallCancelSubscriptionNote =>
@@ -1362,6 +1423,13 @@ class L10nEn extends L10n {
   String get pronunciationPermissionOpenSettings => 'Open Settings';
 
   @override
+  String get ttsThaiVoiceMissing =>
+      'Your text-to-speech engine has no Thai voice. Download the voice data to hear the examples.';
+
+  @override
+  String get ttsThaiVoiceInstall => 'Download';
+
+  @override
   String get pronunciationSpeechRecognized =>
       'Consonants and vowels: recognized';
 
@@ -1378,8 +1446,18 @@ class L10nEn extends L10n {
       'Thai dictation isn\'t installed on this device, so consonants and vowels can\'t be checked — showing tones only';
 
   @override
-  String get pronunciationSpeechNoAssetHow =>
-      'Add the Thai keyboard under Settings → General → Keyboard, then turn on Enable Dictation.';
+  String pronunciationSpeechNoAssetHow(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            'Add Thai to on-device speech recognition in your device settings to enable it.',
+        'other':
+            'Add the Thai keyboard under Settings → General → Keyboard, then turn on Enable Dictation.',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get pronunciationSpeechAuthDenied =>
@@ -1387,7 +1465,7 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationSpeechAndroid =>
-      'Checking consonants and vowels isn\'t supported on Android — showing tones only';
+      'Checking consonants and vowels needs Android 13 or later — showing tones only';
 
   @override
   String get pronunciationCoachLead => 'Fix this next';
@@ -1576,7 +1654,16 @@ class L10nEn extends L10n {
   String get errPurchaseStartFailed => 'Couldn\'t start the purchase';
 
   @override
-  String get errStoreUnavailable => 'Couldn\'t reach the App Store';
+  String errStoreUnavailable(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android': 'Couldn\'t reach Google Play',
+        'other': 'Couldn\'t reach the App Store',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get errNothingToRestore => 'No restorable purchases were found';
@@ -2830,4 +2917,20 @@ class L10nEn extends L10n {
   @override
   String get guideTipsSpeak =>
       'Try using the words and sentences you\'ve learned in conversation. Speaking aloud helps them stick.';
+
+  @override
+  String get coachQuizOfferTitle => 'Check what you learned';
+
+  @override
+  String get coachQuizOfferMessage =>
+      'After reading the sentence, use this button for a one-question quiz to see if you remember the target word.';
+
+  @override
+  String get coachTapHere => 'Tap the highlighted area';
+
+  @override
+  String get coachSkip => 'Skip';
+
+  @override
+  String get coachGotIt => 'Got it';
 }

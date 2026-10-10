@@ -3,4 +3,9 @@
     <!-- Home-screen app name. Android picks by device language; the in-app
          language is a separate axis (decided by storefront). -->
     <string name="app_name">Daily Thai</string>
+    <!-- Notification channel (created in MainActivity). Keep the id in sync
+         with the FCM default channel in AndroidManifest.xml. -->
+    <string name="notification_channel_id" translatable="false">daily_sentence</string>
+    <string name="notification_channel_name">Daily sentences</string>
+    <string name="notification_channel_description">New Thai sentences delivered each day</string>
 </resources>

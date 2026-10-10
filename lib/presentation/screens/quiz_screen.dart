@@ -531,7 +531,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final question = state.questions[state.index];
     // 1問の学習クイズは従来どおり結果画面を使う。まとめクイズは、正解時は
     // テンポを優先してインライン表示、不正解時は既存の結果画面で復習する。
-    if (widget.learningSentence != null || !state.isCorrect) {
+    // 並び替えは不正解でも同じ画面に正誤を重ねる（結果画面は4択前提）。
+    if (widget.learningSentence != null ||
+        (!state.isCorrect && !question.isWordOrder)) {
       return _QuizResultView(
         question: question,
         questionIndex: state.index,
@@ -1301,6 +1303,9 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
   bool _reviewedSentence = false;
   bool _isSubmitting = false;
   bool _isContinuing = false;
+
+  /// 並び替えで置いたタイル（choices の添字を置いた順）。
+  List<int> _placed = [];
   Timer? _autoAdvanceTimer;
   int _autoAdvanceGeneration = 0;
 
@@ -1331,6 +1336,7 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
       _reviewedSentence = false;
       _isSubmitting = false;
       _isContinuing = false;
+      _placed = [];
     }
     final resultChanged = oldWidget.questionIndex != widget.questionIndex ||
         oldWidget.selectedIndex != widget.selectedIndex ||
@@ -1380,8 +1386,13 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     if (_isSubmitting || _hasResult || onAnswer == null) return;
 
     setState(() => _isSubmitting = true);
+    // 並び替えで読みを最初から見せた回は、発音ヒントを開いたのと同じ扱い。
+    final hintLevel = widget.question.isWordOrder &&
+            widget.question.wordOrderShowPronunciation
+        ? math.max(_hintLevel, 1)
+        : _hintLevel;
     try {
-      await onAnswer(choiceIndex, _hintLevel, _reviewedSentence);
+      await onAnswer(choiceIndex, hintLevel, _reviewedSentence);
     } finally {
       if (mounted && !_hasResult) {
         setState(() => _isSubmitting = false);
@@ -1614,6 +1625,206 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
   }
 
   /// 選択肢1つ。タイ語とローマ字読みを1行に並べ、右端に正誤を出す。
+  /// 並び替えで読みを見せるか。入門用の対象者は最初から、それ以外はヒント1段から。
+  bool get _showWordOrderPronunciation =>
+      widget.question.wordOrderShowPronunciation ||
+      (widget.showHints && _hintLevel >= 1);
+
+  /// 枠に並んでいるタイル。回答後は回答履歴から戻す。
+  List<int> get _wordOrderShown => _hasResult
+      ? QuizQuestion.decodeWordOrder(
+              widget.selectedIndex!, widget.question.choices.length) ??
+          const []
+      : _placed;
+
+  /// タイル1枚。読みは見せる段になってから下に添える。
+  Widget _buildWordOrderTile(
+    BuildContext context,
+    int index, {
+    VoidCallback? onTap,
+    Color? accent,
+    Key? key,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final question = widget.question;
+    final pronunciation = index < question.choicePronunciations.length
+        ? question.choicePronunciations[index]
+        : '';
+    return Material(
+      key: key,
+      color: accent?.withValues(alpha: 0.08) ?? colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+        side: BorderSide(
+          color: accent ?? colorScheme.outlineVariant,
+          width: accent != null ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                question.choices[index],
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                  color: accent ?? colorScheme.onSurface,
+                ),
+              ),
+              if (_showWordOrderPronunciation && pronunciation.isNotEmpty)
+                Text(
+                  pronunciation,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontStyle: FontStyle.italic,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 並び替えの例文カード。枠の外はそのまま見せ、枠には置いた順にタイルを積む。
+  /// 置いたタイルを押すと手元へ戻す。回答後は位置ごとに正誤の色を付ける。
+  Widget _buildWordOrderCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final question = widget.question;
+    final shown = _wordOrderShown;
+    final base = (theme.textTheme.headlineMedium ?? const TextStyle()).copyWith(
+      fontSize: 28,
+      fontWeight: FontWeight.w500,
+      height: 1.6,
+    );
+    final locked = _isSubmitting || _hasResult;
+    final pronunciation = question.blankSentencePronunciation;
+
+    Widget slot(int position) {
+      if (position >= shown.length) {
+        // 空の枠は金の下線。穴埋めの空欄と同じ見た目にそろえる。
+        return Container(
+          width: 56,
+          height: 44,
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.gold, width: 2.5),
+            ),
+          ),
+        );
+      }
+      final index = shown[position];
+      Color? accent;
+      if (_hasResult) {
+        accent = position < question.wordOrderAnswer.length &&
+                question.choices[index] == question.wordOrderAnswer[position]
+            ? AppColors.jade
+            : AppColors.vermilion;
+      }
+      return _buildWordOrderTile(
+        context,
+        index,
+        key: ValueKey('quiz_word_order_slot_$position'),
+        accent: accent,
+        onTap: locked ? null : () => setState(() => _placed.remove(index)),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (question.wordOrderPrefix.isNotEmpty)
+                  Text(question.wordOrderPrefix, style: base),
+                for (var i = 0; i < question.choices.length; i++) slot(i),
+                if (question.wordOrderSuffix.isNotEmpty)
+                  Text(question.wordOrderSuffix, style: base),
+              ],
+            ),
+            if (_showWordOrderPronunciation &&
+                pronunciation.replaceAll('___', '').trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                pronunciation,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            if (widget.showHints &&
+                _hintLevel >= 2 &&
+                question.japaneseTranslation.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                question.japaneseTranslation,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 手元のタイルと答え合わせボタン。置いたタイルの場所は空けたまま残し、
+  /// 残りのタイルの位置がずれないようにする。
+  Widget _buildWordOrderPool(BuildContext context) {
+    final l10n = L10n.of(context);
+    final question = widget.question;
+    final locked = _isSubmitting || _hasResult;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
+          children: [
+            for (var i = 0; i < question.choices.length; i++)
+              Visibility(
+                visible: !_placed.contains(i),
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: _buildWordOrderTile(
+                  context,
+                  i,
+                  key: ValueKey('quiz_word_order_tile_$i'),
+                  onTap: locked || _placed.contains(i)
+                      ? null
+                      : () => setState(() => _placed.add(i)),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        FilledButton(
+          key: const ValueKey('quiz_word_order_check'),
+          onPressed: locked || _placed.length != question.choices.length
+              ? null
+              : () => _submitAnswer(QuizQuestion.encodeWordOrder(_placed)),
+          child: Text(l10n.quizWordOrderCheck),
+        ),
+      ],
+    );
+  }
+
   Widget _buildChoiceTile(BuildContext context, int index) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -1720,10 +1931,18 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     final question = widget.question;
     // ヒントは 1=発音 / 2=訳文 の2段階。片方しか無い例文でも段階の意味は
     // 変えず、使える段階だけを順に開示する（UVMのα倍率が段階に対応する）。
-    final availableHintLevels = <int>[
-      if (question.sentencePronunciation.isNotEmpty) 1,
-      if (question.japaneseTranslation.isNotEmpty) 2,
-    ];
+    // 並び替えの発音はタイルの読み。最初から見せる対象者には訳の1段だけ。
+    final availableHintLevels = question.isWordOrder
+        ? <int>[
+            if (!question.wordOrderShowPronunciation &&
+                question.choicePronunciations.any((p) => p.isNotEmpty))
+              1,
+            if (question.japaneseTranslation.isNotEmpty) 2,
+          ]
+        : <int>[
+            if (question.sentencePronunciation.isNotEmpty) 1,
+            if (question.japaneseTranslation.isNotEmpty) 2,
+          ];
     final nextHintLevel = availableHintLevels.firstWhere(
       (level) => level > _hintLevel,
       orElse: () => 0,
@@ -1732,8 +1951,9 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     final canReviewSentence = widget.totalQuestions > 1 &&
         sentenceDetail != null &&
         !question.isMeaningChoice &&
-        // 例文には正解の綴りがそのまま入っているので、綴り4択では戻せない。
-        !question.isSpellingChoice;
+        // 例文には正解の綴り・並びがそのまま入っているので戻せない。
+        !question.isSpellingChoice &&
+        !question.isWordOrder;
     final actionBar = _buildActionBar(context);
 
     return Listener(
@@ -1755,21 +1975,32 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                           ? l10n.quizMeaningPrompt
                           : question.isSpellingChoice
                               ? l10n.quizSpellingPrompt
-                              : l10n.quizPrompt,
+                              : question.isWordOrder
+                                  ? l10n.quizWordOrderPrompt
+                                  : l10n.quizPrompt,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildSentenceCard(context),
-                    const SizedBox(height: 16),
-                    ...List.generate(
-                      question.choices.length,
-                      (i) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildChoiceTile(context, i),
+                    if (question.isWordOrder) ...[
+                      _buildWordOrderCard(context),
+                      const SizedBox(height: 16),
+                      if (!_hasResult) ...[
+                        _buildWordOrderPool(context),
+                        const SizedBox(height: 12),
+                      ],
+                    ] else ...[
+                      _buildSentenceCard(context),
+                      const SizedBox(height: 16),
+                      ...List.generate(
+                        question.choices.length,
+                        (i) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildChoiceTile(context, i),
+                        ),
                       ),
-                    ),
+                    ],
                     if (_hasResult) ...[
                       const SizedBox(height: 4),
                       _buildFeedbackBox(context),
@@ -2838,7 +3069,16 @@ class _QuizResultDetail extends StatelessWidget {
           _QuizExplanationSection(question: question),
           const SizedBox(height: 16),
         ],
-        if (showExplanations)
+        if (question.isWordOrder) ...[
+          if (QuizQuestion.decodeWordOrder(
+                  selectedIndex, question.choices.length)
+              case final order?)
+            Text(
+              L10n.of(context).quizWordOrderYourAnswer(
+                  order.map((i) => question.choices[i]).join(' ')),
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+        ] else if (showExplanations)
           // 4択（正誤ハイライト付き）
           ...List.generate(question.choices.length, (i) {
             final isSelected = i == selectedIndex;

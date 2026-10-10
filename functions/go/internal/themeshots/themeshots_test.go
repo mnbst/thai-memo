@@ -40,7 +40,7 @@ func TestShotsArePlainThai(t *testing.T) {
 func TestBuildShotSection(t *testing.T) {
 	b := &Builder{Rand: rand.New(rand.NewSource(1))}
 
-	got := b.BuildShotSection(sentence.Topics[1], []string{"อร่อย"})
+	got := b.BuildShotSection(sentence.Topics[1], []string{"อร่อย"}, "")
 	id := pickedID(t, got.Context)
 	if !strings.Contains(got.Context, "- 場面: "+shotScene[id]) {
 		t.Errorf("場面の行が無い: %q", got.Context)
@@ -50,12 +50,12 @@ func TestBuildShotSection(t *testing.T) {
 	}
 
 	// 場面を落としたときのやり取りはテーマごとに変わる。
-	if s := b.BuildShotSection(sentence.Topics[5], []string{"ราคา"}); !strings.Contains(s.Required, "買い物のやり取りにする") {
+	if s := b.BuildShotSection(sentence.Topics[5], []string{"ราคา"}, ""); !strings.Contains(s.Required, "買い物のやり取りにする") {
 		t.Errorf("買い物のやり取りになっていない: %q", s.Required)
 	}
 
 	// ショットの無いテーマ（BL はドラマ側が持つ）には何も付けない。
-	if s := b.BuildShotSection(sentence.Topics[15], []string{"รัก"}); s != (sentence.DramaSection{}) {
+	if s := b.BuildShotSection(sentence.Topics[15], []string{"รัก"}, ""); s != (sentence.DramaSection{}) {
 		t.Errorf("ショットの無いテーマに付いた: %+v", s)
 	}
 }
@@ -74,8 +74,46 @@ func pickedID(t *testing.T, ctx string) string {
 
 type stubScenes struct{ scene string }
 
-func (f stubScenes) FindBestScene(context.Context, string, []embeddings.Scene, float64) (string, error) {
-	return f.scene, nil
+func (f stubScenes) FindNearScenes(context.Context, string, []embeddings.Scene, float64) ([]string, error) {
+	if f.scene == "" {
+		return nil, nil
+	}
+	return []string{f.scene}, nil
+}
+
+// multiScenes は足切りを通った場面を複数返す。
+type multiScenes []string
+
+func (f multiScenes) FindNearScenes(context.Context, string, []embeddings.Scene, float64) ([]string, error) {
+	return f, nil
+}
+
+// 足切りを通った場面が複数あれば、そのどれからも選ぶ。
+func TestPickShotAmongNearScenes(t *testing.T) {
+	b := &Builder{Rand: rand.New(rand.NewSource(1)), Scenes: multiScenes{"値段を聞く", "辛さを確かめる"}}
+	seen := map[string]int{}
+	for range 200 {
+		seen[shotScene[b.PickShot(sentence.Topics[1], []string{"ราคา"})]]++
+	}
+	if len(seen) != 2 || seen["値段を聞く"] < 60 || seen["辛さを確かめる"] < 60 {
+		t.Errorf("通った場面から一様に選んでいない: %v", seen)
+	}
+}
+
+// 近い場面が無ければ、ショットの数によらず場面を一様に選ぶ。
+func TestPickShotUniformScene(t *testing.T) {
+	names := sceneNames(foodShotIDs)
+	b := &Builder{Rand: rand.New(rand.NewSource(1)), Scenes: stubScenes{}}
+	seen := map[string]int{}
+	n := 300 * len(names)
+	for range n {
+		seen[shotScene[b.PickShot(sentence.Topics[1], []string{"รัฐมนตรี"})]]++
+	}
+	for _, name := range names {
+		if c := seen[name]; c < 200 || c > 400 {
+			t.Errorf("%s が %d 回（期待 300 前後）", name, c)
+		}
+	}
 }
 
 // 語に近い場面があればその場面のショットだけから選び、無ければ全体から選ぶ。
@@ -115,5 +153,26 @@ func TestResolveGroup(t *testing.T) {
 	b = &Builder{Scenes: stubScenes{}}
 	if got := b.ResolveGroup(sentence.LifeTopic, "x"); got != "" {
 		t.Errorf("= %q, want 空", got)
+	}
+}
+
+// 解説・紹介文の例文があるテーマはそれを付け、無いテーマ（あいさつ）は会話のショットに戻す。
+func TestBuildShotSectionWritten(t *testing.T) {
+	b := &Builder{Rand: rand.New(rand.NewSource(1))}
+	written := sentence.Media[1].Name
+
+	got := b.BuildShotSection(sentence.Topics[1], []string{"อร่อย"}, written)
+	if got.Medium != written || strings.Contains(got.Context, "- 場面:") {
+		t.Errorf("解説文の例文になっていない: %+v", got)
+	}
+	if got := b.BuildShotSection(sentence.Topics[0], []string{"สวัสดี"}, written); got.Medium != sentence.Media[0].Name {
+		t.Errorf("あいさつが会話に戻っていない: %+v", got)
+	}
+	for topic, byMedium := range writtenShots {
+		for medium := range byMedium {
+			if medium != written {
+				t.Errorf("%s: Media に無い媒体 %q", topic, medium)
+			}
+		}
 	}
 }

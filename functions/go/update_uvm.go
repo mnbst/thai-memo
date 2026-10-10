@@ -119,8 +119,11 @@ func parseResult(raw map[string]any) (uvm.Result, error) {
 
 	// 出題形式ごとの証拠の強さ。送ってこない形式は等倍。
 	scale := 0.0
-	if format, _ := raw["quiz_format"].(string); format == quizgen.FormatSpellingChoice {
+	switch format, _ := raw["quiz_format"].(string); format {
+	case quizgen.FormatSpellingChoice:
 		scale = uvm.SpellingChoiceScale
+	case quizgen.FormatWordOrder:
+		scale = uvm.WordOrderScale
 	}
 
 	return uvm.Result{

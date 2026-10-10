@@ -269,6 +269,22 @@ class AnalyticsService {
     });
   }
 
+  /// 初回ガイド（コーチマーク）1つぶんの結果。
+  ///
+  /// [id] はコーチマークの識別子（quiz_offer）。
+  /// action:
+  ///   shown     — 表示した
+  ///   tapped    — 案内した対象を押して進んだ（意図した通り）
+  ///   dismissed — 対象以外を押して抜けた
+  ///   skipped   — スキップを押した
+  ///   closed    — 押される前に画面が閉じられ、案内が届かなかった
+  Future<void> logCoachMark({
+    required String id,
+    required String action,
+  }) async {
+    await _logEvent('coach_mark', {'coach_id': id, 'action': action});
+  }
+
   /// オンボーディング（機能紹介3枚）を開いた。
   Future<void> logOnboardingStart() async {
     await _logEvent('onboarding_start', {});

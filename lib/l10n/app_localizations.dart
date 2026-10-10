@@ -409,6 +409,24 @@ abstract class L10n {
   /// **'この読みの綴りを選んでください'**
   String get quizSpellingPrompt;
 
+  /// No description provided for @quizWordOrderPrompt.
+  ///
+  /// In ja, this message translates to:
+  /// **'正しい順に並べてください'**
+  String get quizWordOrderPrompt;
+
+  /// No description provided for @quizWordOrderCheck.
+  ///
+  /// In ja, this message translates to:
+  /// **'答え合わせ'**
+  String get quizWordOrderCheck;
+
+  /// No description provided for @quizWordOrderYourAnswer.
+  ///
+  /// In ja, this message translates to:
+  /// **'あなたの並び: {order}'**
+  String quizWordOrderYourAnswer(String order);
+
   /// No description provided for @quizWordExplanation.
   ///
   /// In ja, this message translates to:
@@ -1150,8 +1168,8 @@ abstract class L10n {
   /// No description provided for @lifetimeMigrationCancelNote.
   ///
   /// In ja, this message translates to:
-  /// **'移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。'**
-  String get lifetimeMigrationCancelNote;
+  /// **'{store, select, android{移行後、月額の自動更新はお客様ご自身で停止してください（Google Playの定期購入の設定）。停止しないと月額の請求が続きます。} other{移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。}}'**
+  String lifetimeMigrationCancelNote(String store);
 
   /// No description provided for @lifetimeMigrationProgress.
   ///
@@ -1714,14 +1732,14 @@ abstract class L10n {
   /// No description provided for @paywallMonthlyToLifetimeNote.
   ///
   /// In ja, this message translates to:
-  /// **'買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。'**
-  String get paywallMonthlyToLifetimeNote;
+  /// **'{store, select, android{買い切りの購入後も、現在のサブスクリプションは自動では解約されません。Google Playの定期購入の設定から解約してください。} other{買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。}}'**
+  String paywallMonthlyToLifetimeNote(String store);
 
   /// No description provided for @paywallLegal.
   ///
   /// In ja, this message translates to:
-  /// **'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。'**
-  String get paywallLegal;
+  /// **'{store, select, android{サブスクリプションは自動更新です。次の更新日の前までにキャンセルしない限り、同じ料金で自動的に更新されます。管理・キャンセルはGoogle Playの定期購入の設定から行えます。} other{サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。}}'**
+  String paywallLegal(String store);
 
   /// ストアの無料トライアル（初回特典）の対象者にだけ出すバッジ。特典は1アカウント1回なので事実として書ける。期限を偽る「今だけ」は使わない。
   ///
@@ -1774,14 +1792,14 @@ abstract class L10n {
   /// No description provided for @paywallChangeToYearlyNote.
   ///
   /// In ja, this message translates to:
-  /// **'すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。'**
-  String get paywallChangeToYearlyNote;
+  /// **'{store, select, android{すぐに年額プランへ切り替わり、年額の料金が請求されます。月額の残り期間ぶんは、年額プランの期間に上乗せされます。} other{すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。}}'**
+  String paywallChangeToYearlyNote(String store);
 
   /// No description provided for @paywallChangeToMonthlyNote.
   ///
   /// In ja, this message translates to:
-  /// **'今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。'**
-  String get paywallChangeToMonthlyNote;
+  /// **'{store, select, android{すぐに月額プランへ切り替わります。お支払い済みの年額の期間が終わるまでは請求されず、そのあと月額で更新されます。} other{今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。}}'**
+  String paywallChangeToMonthlyNote(String store);
 
   /// No description provided for @paywallCancelSubscriptionNote.
   ///
@@ -2449,6 +2467,18 @@ abstract class L10n {
   /// **'設定を開く'**
   String get pronunciationPermissionOpenSettings;
 
+  /// No description provided for @ttsThaiVoiceMissing.
+  ///
+  /// In ja, this message translates to:
+  /// **'読み上げにタイ語の音声が入っていません。音声データをダウンロードすると、お手本を聞けるようになります。'**
+  String get ttsThaiVoiceMissing;
+
+  /// No description provided for @ttsThaiVoiceInstall.
+  ///
+  /// In ja, this message translates to:
+  /// **'ダウンロード'**
+  String get ttsThaiVoiceInstall;
+
   /// No description provided for @pronunciationSpeechRecognized.
   ///
   /// In ja, this message translates to:
@@ -2476,8 +2506,8 @@ abstract class L10n {
   /// No description provided for @pronunciationSpeechNoAssetHow.
   ///
   /// In ja, this message translates to:
-  /// **'「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。'**
-  String get pronunciationSpeechNoAssetHow;
+  /// **'{store, select, android{端末の設定で、音声入力（端末上の音声認識）にタイ語を追加すると使えるようになります。} other{「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。}}'**
+  String pronunciationSpeechNoAssetHow(String store);
 
   /// No description provided for @pronunciationSpeechAuthDenied.
   ///
@@ -2488,7 +2518,7 @@ abstract class L10n {
   /// No description provided for @pronunciationSpeechAndroid.
   ///
   /// In ja, this message translates to:
-  /// **'Android では発音（子音・母音）の判定に対応していません。声調だけを見ています'**
+  /// **'Android 13 より前のバージョンでは発音（子音・母音）を判定できません。声調だけを見ています'**
   String get pronunciationSpeechAndroid;
 
   /// No description provided for @pronunciationCoachLead.
@@ -2759,8 +2789,8 @@ abstract class L10n {
   /// No description provided for @errStoreUnavailable.
   ///
   /// In ja, this message translates to:
-  /// **'App Storeに接続できませんでした'**
-  String get errStoreUnavailable;
+  /// **'{store, select, android{Google Playに接続できませんでした} other{App Storeに接続できませんでした}}'**
+  String errStoreUnavailable(String store);
 
   /// No description provided for @errNothingToRestore.
   ///
@@ -4897,6 +4927,36 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。'**
   String get guideTipsSpeak;
+
+  /// No description provided for @coachQuizOfferTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'確認クイズはこちら'**
+  String get coachQuizOfferTitle;
+
+  /// No description provided for @coachQuizOfferMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文を読み終えたら、このボタンから確認クイズを1問解き、学習単語を覚えたか確かめられます。'**
+  String get coachQuizOfferMessage;
+
+  /// No description provided for @coachTapHere.
+  ///
+  /// In ja, this message translates to:
+  /// **'光っている場所をタップ'**
+  String get coachTapHere;
+
+  /// No description provided for @coachSkip.
+  ///
+  /// In ja, this message translates to:
+  /// **'スキップ'**
+  String get coachSkip;
+
+  /// No description provided for @coachGotIt.
+  ///
+  /// In ja, this message translates to:
+  /// **'わかった'**
+  String get coachGotIt;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

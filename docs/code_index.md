@@ -8,6 +8,9 @@ Firebase初期化（環境別オプション切替）、ProviderScopeでアプ�
 lib/app.dart
 ルートMaterialApp。テーマ、ナビゲーション、認証状態リスナー。
 
+lib/core/platform/store_platform.dart
+iOS/Android（App Store/Google Play）で違う振る舞い（購読管理URL・Appleサインイン可否・サーバーへ送る platform 値）の集約先。
+
 lib/core/config/app_config.dart
 アプリメタデータ、DB設定、ビルド環境設定。
 
@@ -75,7 +78,7 @@ lib/data/models/syllable.dart
 音節構造（声調・子音・母音の分析データ）。
 
 lib/data/models/quiz_question.dart
-クイズ問題モデル（正解＋3つの不正解選択肢）。
+クイズ問題モデル（正解＋3つの不正解選択肢）。並び替えは choices が混ぜたタイル、回答の並びは int に詰めて回答履歴に残す。
 
 lib/data/models/quiz_result.dart
 クイズ回答・スコア記録モデル。
@@ -239,6 +242,8 @@ lib/presentation/widgets/premium_trial_ended_dialog.dart
 lib/presentation/widgets/premium_trial_started_dialog.dart
 後から配られたプレミアム体験の開放を伝えるダイアログ（premium_trial_backfilled_at が目印）。課金は勧めない。
 
+lib/presentation/widgets/coach_mark_overlay.dart
+対象をスポットライトで光らせ吹き出しで案内する初回ガイド。今は確認クイズの導線（まだ解いたことがない人に1回だけ、today_screen）でのみ使う。
 lib/presentation/widgets/quiz_offer.dart
 1問確認クイズ導線の表示（現行はinlineカード。controlは実験再開用に残置）。
 
@@ -257,7 +262,7 @@ lib/services/storefront_service.dart
 ダウンロード元のストア地域取得。初回起動時のアプリ言語決定にだけ使う。
 
 lib/services/tts_service.dart
-タイ語発音のText-to-Speechエンジン。
+タイ語発音のText-to-Speechエンジン。Android でタイ語の声が無いときは thaiVoiceMissing を流し、音声データの取得画面を開ける。
 
 lib/services/push_notification_service.dart
 FCMトークン・タイムゾーン・配信希望時刻をusers/{uid}に登録。OSの通知許可とアプリ内設定の突き合わせも行う。
@@ -269,7 +274,7 @@ lib/services/sentence_view_marker.dart
 画面に出した例文へ既読（viewed=true）を付ける。未送信ぶんは端末に溜め、起動時に流す。まとめクイズが未読の例文を出さないために要る。
 
 lib/services/review_prompt_service.dart
-App Storeのレビュー依頼をiOSのOSダイアログで出す。クイズ完走と例文生成の2経路から発火し、バージョン単位＋60日クールダウンで重複を防ぐ。
+ストアのレビュー依頼をOSダイアログで出す（iOS: AppDelegate、Android: ReviewPromptChannel.kt）。クイズ完走と例文生成の2経路から発火し、バージョン単位＋60日クールダウンで重複を防ぐ。
 
 lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
@@ -333,7 +338,7 @@ lib/core/pronunciation/segment_coach.dart
 通じなかった語の子音・母音の直し方を1つ選ぶ。日本語話者が外しやすい順の優先表。
 
 lib/services/speech_capture_service.dart
-ネイティブのマイク収録との橋渡し。マイクは1箇所だけが握り、PCMと音声認識へ分岐する。
+ネイティブのマイク収録との橋渡し。マイクは1箇所だけが握り、PCMと端末内音声認識へ分岐する（Android は API 33 以降）。
 
 lib/services/pitch_recorder_service.dart
 収録からF0抽出まで。YINは重いので抽出は必ず別isolate（compute）で回す。
@@ -559,7 +564,7 @@ functions/go/internal/quality/judge.go
 例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
 
 functions/go/internal/quality/pool.go
-プールへ入れるときだけ足す Jev の観点（場面として言わない文・訳の意味のずれ・人名）と ReviewPool。生成時の作り直しには入れない。
+プールへ入れるときだけ足す Jev の観点（場面として言わない文・訳の意味のずれ）と ReviewPool。生成時の作り直しには入れない。
 
 functions/go/internal/quality/rules.go
 コードで判定する観点（訳の文法用語・英訳の助動詞なし not・既知の誤訳・語の誤用の正規表現・頭なしの ก็ตาม）と、語が文にあるときだけ Jev に用法を聞く語ごとの観点（wordUsages）。
@@ -655,7 +660,7 @@ functions/go/internal/appstore/types.go
 App Store 検証結果・トランザクション情報・更新情報の型。
 
 functions/go/internal/playbilling/playbilling.go
-Google Play Developer API v3(Subscriptions v2)クライアント。購入トークンから状態を4種にマッピング。
+Google Play Developer API v3(Subscriptions v2)クライアント。購入トークンから状態を4種にマッピング。買い切り（一時購入）は purchases.products で検証。
 
 functions/go/internal/secrets/secrets.go
 Secret Manager からシークレットを読む。環境変数による差し替えに対応。
@@ -711,11 +716,20 @@ functions/go/internal/quizgen/sanitize.go
 functions/go/internal/quizgen/spelling.go
 綴り4択（読み＋意味→タイ語の綴り）の組み立てと検査。選択肢も解説も確定済みなのでモデルを呼ばない。
 
+functions/go/internal/quizgen/wordorder.go
+並び替えの組み立て。key_word を含む連続した4語（タイ文字のみ・重複なし）を切り出して混ぜ、枠の外の本文と読みを持たせる。
+
 functions/go/quiz_beginner.go
 入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値100未満のユーザーには出題できる問題を全部入門用にし、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
 
 functions/go/quiz_spelling.go
 入門用の形式のひとつ、綴り4択への差し替え。回答から部品データ（users/{uid}/units）を更新するのもここ。
+
+functions/go/quiz_word_order.go
+並び替え（word_order）をまとめクイズに1問差し込む層。穴埋めのままの問題から選び、入門用の対象者にはタイルの読みを最初から見せる。モデルは呼ばない。
+
+functions/go/quiz_word_order_test.go
+並び替えへの差し替えが穴埋め1問だけに効くこと、モデルを呼ばずに問題を作れることのテスト。
 
 functions/go/quiz_beginner_test.go
 対象ユーザーの線引き、クライアント未対応なら差し替えないこと、出題できる語が全部差し替わること、通過済みの語は戻さないことのテスト。
@@ -882,8 +896,11 @@ BL以外の全テーマの参考例文ブロック。語に近い場面（embedd
 functions/go/internal/themeshots/data.go
 BL以外15テーマの参考例文758件と174場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等の字幕から Jev で振り分けて採取。文のみで人名・注釈なし）。
 
+functions/go/internal/themeshots/written.go
+媒体「解説・紹介文」の参考例文（BL・あいさつ以外14テーマ、Thai PBS ナレーター行と th.wikipedia の原文）。
+
 functions/go/internal/themeshots/themeshots_test.go
-参考例文データの形（英字・注釈なし、場面あり）と断片の組み立てのテスト。
+参考例文データの形（英字・注釈なし、場面あり）と断片の組み立て、解説文の例文の出し分けのテスト。
 
 functions/go/internal/sentence/shots_test.go
 テーマ回の参考例文がサブテーマと関係の指定を置き換えることのテスト。
@@ -932,6 +949,9 @@ functions/go/internal/uvm/dropsim_test.go
 
 functions/go/internal/uvm/alphasim_test.go
 P 更新則の比較シミュレーション（尤度比 vs 旧 α 則 vs 不正解α強化）。世界側の推測率・slip を振って、推定誤差と「実際は知らないのに P>0.5 の語」の割合を測る。
+
+functions/go/internal/uvm/wordordersim_test.go
+並び替えをまとめクイズに混ぜたときの P 更新の決め方（等倍 / ×0.5 / s=0.40 / 更新しない）を、世界側の slip・推測率を振って比べる。
 
 functions/go/internal/uvm/migratesim_test.go
 旧 α 則で溜まった doc を引き継いで新更新則へ切り替えたときの estimated_vocab の推移。切替時に飛ばないこと、その後の補正が緩やかなことを確かめる。
@@ -985,7 +1005,7 @@ functions/go/cmd/vetquizlang/main.go
 Firestore の quiz_questions を走査し、解説・ダミー理由が指定と違う言語の件を洗い出す。-delete で消すと次の出題で作り直される。
 
 functions/go/cmd/poolrecheck/main.go
-GCS の例文プールを今の判定（Aspects＋PoolAspects）でティア別（-tier premium / free）に洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。
+GCS の例文プールを今の判定（Aspects＋PoolAspects）でティア別（-tier premium / free）に洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。-in でローカルの JSON（上げる前のキャッシュ例文）を判定する。
 
 functions/go/cmd/pilot/main.go
 cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。
@@ -1000,7 +1020,7 @@ functions/go/internal/corpususage/usage.go
 usagefill の中身。プロンプトとスキーマ（説明文は配信経路の sentence.ContextFieldSchema から引く）。style は en のラベル差し替えのため選択肢を enum で閉じる。
 
 functions/go/cmd/gencorpus/main.go
-静的コーパスの全量生成コマンド。マニフェストを 生成→判定→差し戻し→再判定 まで通し、ブロック単位でJSONLに追記する。同じ出力先を指すと続きから流せる。
+静的コーパスの全量生成コマンド。マニフェストを 生成→判定→差し戻し→再判定 まで通し、ブロック単位でJSONLに追記する。同じ出力先を指すと続きから流せる。-no-shots でマニフェストのサブテーマを場面として効かせる。
 
 functions/go/cmd/freeregen/main.go
 free 例文バンク（free_sentences_<lang>.json）のうち指定テーマの項目だけを本番と同じ生成経路で作り直す（判定・差し戻し1回、通らなければ元の項目を残す）。プロンプトは premium と同じ。
@@ -1074,6 +1094,9 @@ scripts/build_freq_rank.py
 scripts/export_corpus_bank.py
 コーパスのJSONLを例文バンク（GCS）の形へ言語別に書き出すスクリプト。word_denylist.json の語はここでも落とす。
 
+scripts/fw_trans_audit.py
+プール・静的コーパスの訳で機能語（ทัน・เพิ่ง・คง 等）の意味が落ちた文の候補をルールで拾い（scan）、確定した訳を当てる（apply）。手順は fw-trans-audit スキル。
+
 scripts/pack_corpus.py
 cmd/translate の最終JSONLを、アプリ同梱の読み取り専用SQLite（corpus_sentences / corpus_words / corpus_meta）にまとめる。列名はアプリ側の既存テーブルに合わせ、word_denylist.json の語は弾く。
 
@@ -1124,6 +1147,9 @@ prod GA4 の初回起動時の言語決定の内訳（storefront取得失敗率�
 
 scripts/prod_quota_reach.py
 例文生成の日次上限への到達率をCloud Loggingから集計（tier別・人日ベース・生成数分布）。上限値を上下させる判断材料。ログ保持30日ぶんのみ。
+
+scripts/notif_reprompt_experiment.py
+通知コーチング再案内A/B（show / holdout）の群別トークン取得率と継続率を users.notif_reprompt_experiment から集計。
 
 ## Tests (Flutter)
 

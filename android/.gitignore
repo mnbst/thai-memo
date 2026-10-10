@@ -12,3 +12,5 @@ key.properties
 **/*.keystore
 **/*.jks
 app/google-services.json
+# 環境別の google-services.json（build.gradle が ENV で選んで app/google-services.json へ写す）
+app/google-services/

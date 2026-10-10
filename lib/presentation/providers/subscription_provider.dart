@@ -39,6 +39,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/firebase_config.dart';
+import '../../core/platform/store_platform.dart';
 import '../../services/analytics_service.dart';
 import '../../services/firebase_auth_service.dart';
 import '../../services/purchase_service.dart';
@@ -307,7 +308,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       if (_purchaseService == null) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: _l10n().errStoreUnavailable,
+          errorMessage: _l10n().errStoreUnavailable(StorePlatform.current.id),
         );
         return;
       }
@@ -489,7 +490,7 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       if (!available) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: _l10n().errStoreUnavailable,
+          errorMessage: _l10n().errStoreUnavailable(StorePlatform.current.id),
         );
         return;
       }

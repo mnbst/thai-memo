@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/platform/store_platform.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 
@@ -59,7 +60,7 @@ class PremiumLifetimeMigrationDialog extends StatelessWidget {
           const SizedBox(height: 12),
           // ここを落とすと「追加のお支払いはありません」が嘘になる。
           Text(
-            l10n.lifetimeMigrationCancelNote,
+            l10n.lifetimeMigrationCancelNote(StorePlatform.current.id),
             style: theme.textTheme.bodySmall?.copyWith(
               color: cs.onSurface.withValues(alpha: 0.7),
               height: 1.3,

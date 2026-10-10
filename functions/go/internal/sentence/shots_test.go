@@ -17,7 +17,7 @@ func (g *promptCapture) GenerateSentence(_ context.Context, _, userPrompt string
 
 type fixedShots struct{}
 
-func (fixedShots) BuildShotSection(topic string, _ []string) DramaSection {
+func (fixedShots) BuildShotSection(topic string, _ []string, _ string) DramaSection {
 	if topic != Topics[1] {
 		return DramaSection{}
 	}
@@ -29,7 +29,7 @@ func (fixedShots) BuildShotSection(topic string, _ []string) DramaSection {
 func TestShotSectionReplacesSubThemeAndRelation(t *testing.T) {
 	gen := &promptCapture{}
 	svc := &Service{Gen: gen, Resolver: &Resolver{}, Shots: fixedShots{}}
-	params := map[string]any{"topic": Topics[1]}
+	params := map[string]any{"topic": Topics[1], "medium": Media[0].Name}
 	_, _ = svc.GenerateSentence(context.Background(), params, true, []string{"อร่อย"}, 800, "ja")
 
 	for _, want := range []string{"- 場面: 注文する", "- 参考例の丁寧さに合わせる", "- テーマ: 食べ物\n"} {
@@ -54,5 +54,18 @@ func TestShotSectionReplacesSubThemeAndRelation(t *testing.T) {
 	}
 	if !strings.Contains(gen.prompt, "- テーマ: "+Topics[3]) {
 		t.Error("ショットの無いテーマのラベルが変わった")
+	}
+}
+
+// 相手のいない媒体は参考例文とセットでしか使わない。例文に媒体が付かない回
+// （会話のショット・ショットの無いテーマ・テーマ未確定）は対面の会話へ戻す。
+func TestSceneSectionFallsBackToConversation(t *testing.T) {
+	svc := &Service{Shots: fixedShots{}}
+	for _, topic := range []string{Topics[1], Topics[2], ""} {
+		r := ResolvedParams{Topic: topic, Medium: Media[1].Name}
+		svc.SceneSection(&r, []string{"ไป"})
+		if r.Medium != Media[0].Name {
+			t.Errorf("topic=%q: medium=%q のまま", topic, r.Medium)
+		}
 	}
 }

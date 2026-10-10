@@ -77,6 +77,14 @@ const (
 	// 正誤の片側だけを弱めないこと（Result.FormatScale のコメント参照）。
 	SpellingChoiceScale = 0.5
 
+	// WordOrderScale は並び替え（word_order）の証拠を弱める係数。正誤とも同じ。
+	//
+	// 並び替えは key_word の意味より語順を測るので、語を知っていても他の語で
+	// 落とすし、知らなくても消去法で当たる。wordordersim_test.go で
+	// 「等倍 / ×0.5 / s=0.40 / 更新しない」を比べ、d90 の差は ±3 で
+	// 見分けがつかなかったので、既存の仕組みに乗る ×0.5 にした。
+	WordOrderScale = 0.5
+
 	// BayesGuessTop はヒント無しの 4 択で「知らなくても当たる」確率 g。
 	//
 	// 素の 4 択なら 0.25 だが、まとめクイズは穴埋めでダミーが品詞・文法で

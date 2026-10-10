@@ -73,11 +73,11 @@ func (b *topicBank) Pick(
 	return &Sentence{ThaiText: w + topic, Context: map[string]any{"topic": topic}}, nil
 }
 
-// 解決した個別テーマに在庫が無ければ、同じまとめの他の中身から引く。
+// まとめたテーマは、解決した個別テーマに在庫が無くても同じまとめの中身から引く。
 func TestPickCachedFallsBackWithinGroup(t *testing.T) {
 	bank := &topicBank{stock: map[[2]string]bool{{"ราคา", Topics[1]}: true}}
 	tw := TargetWord{Word: "ราคา", Topic: Topics[6], Group: LifeTopic}
-	got, topic, err := pickCached(context.Background(), bank, tw, lang.JA, true)
+	got, topic, err := pickCached(context.Background(), bank, tw, lang.JA, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,10 +88,50 @@ func TestPickCachedFallsBackWithinGroup(t *testing.T) {
 	// まとめたテーマでなければ他のテーマを見ない。
 	bank.calls = nil
 	tw = TargetWord{Word: "ราคา", Topic: Topics[6]}
-	if got, _, _ := pickCached(context.Background(), bank, tw, lang.JA, true); got != nil {
+	if got, _, _ := pickCached(context.Background(), bank, tw, lang.JA, true, nil); got != nil {
 		t.Errorf("指定外のテーマから引いた: %v", got)
 	}
 	if len(bank.calls) != 1 {
 		t.Errorf("引いた回数 %d, want 1", len(bank.calls))
+	}
+}
+
+// まとめたテーマは、解決した個別テーマを優先せず、在庫のある中身から一様に選ぶ。
+func TestPickCachedUniformWithinGroup(t *testing.T) {
+	bank := &topicBank{stock: map[[2]string]bool{
+		{"ราคา", Topics[1]}: true,
+		{"ราคา", Topics[5]}: true,
+	}}
+	tw := TargetWord{Word: "ราคา", Topic: Topics[5], Group: LifeTopic}
+	count := map[string]int{}
+	for range 400 {
+		_, topic, err := pickCached(context.Background(), bank, tw, lang.JA, true, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		count[topic]++
+	}
+	if len(count) != 2 || count[Topics[1]] < 150 || count[Topics[5]] < 150 {
+		t.Errorf("在庫のある2テーマから一様に選んでいない: %v", count)
+	}
+}
+
+// まとめたテーマは既出の文を避けて別の中身の在庫から選ぶ。どれも既出なら既出を返す。
+func TestPickCachedSkipsSeenWithinGroup(t *testing.T) {
+	bank := &topicBank{stock: map[[2]string]bool{
+		{"ราคา", Topics[1]}: true,
+		{"ราคา", Topics[5]}: true,
+	}}
+	tw := TargetWord{Word: "ราคา", Topic: Topics[5], Group: LifeTopic}
+	seen := map[string]bool{"ราคา" + Topics[1]: true}
+	for range 50 {
+		got, topic, _ := pickCached(context.Background(), bank, tw, lang.JA, true, seen)
+		if got == nil || topic != Topics[5] {
+			t.Fatalf("= %v %q, want 未出の買い物", got, topic)
+		}
+	}
+	seen["ราคา"+Topics[5]] = true
+	if got, _, _ := pickCached(context.Background(), bank, tw, lang.JA, true, seen); got == nil || !seen[got.ThaiText] {
+		t.Errorf("全部既出なら既出の1本を返す: %v", got)
 	}
 }

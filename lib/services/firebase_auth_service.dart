@@ -5,13 +5,27 @@ import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../core/config/app_config.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// Service for managing Firebase Authentication
 class FirebaseAuthService {
   static final FirebaseAuthService instance = FirebaseAuthService._internal();
-  static const String _googleServerClientId =
-      '147810088545-4921rt150m9jtjate82nbol5q8hgoj3l.apps.googleusercontent.com';
+
+  /// Google サインインのサーバー用（Web）クライアント ID。環境の Firebase
+  /// プロジェクトのものを使う。
+  ///
+  /// Android は ID トークンの aud がこの値になり、Firebase Auth はそのプロジェクトの
+  /// クライアントしか受け付けない。dev の値で固定すると prod / tester の
+  /// Android ではサインインできない（iOS は aud が iOS クライアントなので影響しない）。
+  static String get _googleServerClientId => switch (AppConfig.env) {
+        'prod' =>
+          '219961294368-boa977qont6o95dl34vhl3o8v85uv7vh.apps.googleusercontent.com',
+        'tester' =>
+          '763566155520-anliuk00tk1fv4d0nou0o48dhroevlfg.apps.googleusercontent.com',
+        _ =>
+          '147810088545-4921rt150m9jtjate82nbol5q8hgoj3l.apps.googleusercontent.com',
+      };
 
   factory FirebaseAuthService() => instance;
 

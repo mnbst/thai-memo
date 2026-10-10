@@ -26,6 +26,7 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
+	"github.com/mnbst/thai-memo/functions/go/internal/themeshots"
 )
 
 const rankPath = "../../scripts/corpus/freq_rank_top10000.json"
@@ -62,6 +63,8 @@ func main() {
 	wordList := flag.String("words", "", "key_word を固定する（カンマ区切り）。指定時は -n が語ごとの生成数")
 	shot := flag.String("shot", "", "BLドラマ回の参考セリフをショットIDで固定する（例: ub_05）。空ならランダム")
 	relation := flag.String("relation", "", "話し手と聞き手の関係を固定する（例: 自分より目上／ほとんど面識がない）")
+	medium := flag.String("medium", "", "文が載る媒体を固定する（例: 対面の会話）")
+	withShots := flag.Bool("shots", false, "テーマ回の参考例文（internal/themeshots）を付ける（本番と同じ。場面は絞らずランダム）")
 	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
 	flag.Parse()
 
@@ -107,6 +110,10 @@ func main() {
 	fmt.Fprintf(os.Stderr, "n=%d lang=%s tier=%s vocab=%d model=%s\n",
 		*n, *langCode, tierLabel(*free), *vocab, model)
 
+	if *withShots {
+		svc.Shots = &themeshots.Builder{}
+	}
+
 	recs := make([]record, len(words))
 	sem := make(chan struct{}, *conc)
 	var wg sync.WaitGroup
@@ -127,6 +134,9 @@ func main() {
 			}
 			if *timeFrame != "" {
 				params["timeFrame"] = *timeFrame
+			}
+			if *medium != "" {
+				params["medium"] = *medium
 			}
 			s, err := svc.GenerateSentence(ctx, params, !*free,
 				[]string{w.Word}, *vocab, lang.Lang(*langCode))

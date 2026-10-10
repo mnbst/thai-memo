@@ -32,9 +32,32 @@ func (r *Resolver) choice(items []string) string {
 	return items[rand.Intn(len(items))]
 }
 
-// DrawRelation は地位×親密度を1つずつ引いて「地位／親密度」の形で返す。
+// DrawRelation は地位×親密度×話し手の性別を1つずつ引いて
+// 「地位／親密度／性別」の形で返す。
 func (r *Resolver) DrawRelation() string {
-	return r.choice(relationStatuses) + "／" + r.choice(relationIntimacy)
+	return r.choice(relationStatuses) + "／" + r.choice(relationIntimacy) +
+		"／" + r.choice(relationSpeakers)
+}
+
+// DrawMedium は Media を重み付きで1つ引く。
+func (r *Resolver) DrawMedium() string {
+	total := 0
+	for _, m := range Media {
+		total += m.Weight
+	}
+	var n int
+	if r.Rand != nil {
+		n = r.Rand.Intn(total)
+	} else {
+		n = rand.Intn(total)
+	}
+	for _, m := range Media {
+		if n < m.Weight {
+			return m.Name
+		}
+		n -= m.Weight
+	}
+	return Media[0].Name
 }
 
 // Resolve は例文生成パラメータを確定する。
@@ -69,6 +92,12 @@ func (r *Resolver) Resolve(
 	resolved.Relation = strParam(params, "relation")
 	if resolved.Relation == "" {
 		resolved.Relation = r.DrawRelation()
+	}
+
+	// 文が載る媒体（2026-10-07 追加）。書き言葉の文体はここからしか出ない。
+	resolved.Medium = strParam(params, "medium")
+	if resolved.Medium == "" {
+		resolved.Medium = r.DrawMedium()
 	}
 
 	subThemes := topicSubThemes[resolved.Topic]

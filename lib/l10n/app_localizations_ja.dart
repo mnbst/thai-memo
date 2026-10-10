@@ -178,6 +178,17 @@ class L10nJa extends L10n {
   String get quizSpellingPrompt => 'この読みの綴りを選んでください';
 
   @override
+  String get quizWordOrderPrompt => '正しい順に並べてください';
+
+  @override
+  String get quizWordOrderCheck => '答え合わせ';
+
+  @override
+  String quizWordOrderYourAnswer(String order) {
+    return 'あなたの並び: $order';
+  }
+
+  @override
   String get quizWordExplanation => '単語の解説';
 
   @override
@@ -574,8 +585,18 @@ class L10nJa extends L10n {
   String get lifetimeMigrationNoCharge => '追加のお支払いはありません';
 
   @override
-  String get lifetimeMigrationCancelNote =>
-      '移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。';
+  String lifetimeMigrationCancelNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            '移行後、月額の自動更新はお客様ご自身で停止してください（Google Playの定期購入の設定）。停止しないと月額の請求が続きます。',
+        'other':
+            '移行後、月額の自動更新はお客様ご自身で停止してください（App Storeのアカウント設定）。停止しないと月額の請求が続きます。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get lifetimeMigrationProgress => '移行しています…';
@@ -871,12 +892,32 @@ class L10nJa extends L10n {
   String get paywallLifetimeNote => '1回きりの支払いです。更新はありません。';
 
   @override
-  String get paywallMonthlyToLifetimeNote =>
-      '買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。';
+  String paywallMonthlyToLifetimeNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            '買い切りの購入後も、現在のサブスクリプションは自動では解約されません。Google Playの定期購入の設定から解約してください。',
+        'other':
+            '買い切りの購入後も、現在のサブスクリプションは自動では解約されません。App Storeのアカウント設定から解約してください。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
-  String get paywallLegal =>
-      'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。';
+  String paywallLegal(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android':
+            'サブスクリプションは自動更新です。次の更新日の前までにキャンセルしない限り、同じ料金で自動的に更新されます。管理・キャンセルはGoogle Playの定期購入の設定から行えます。',
+        'other':
+            'サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get paywallTrialBadge => '初回限定';
@@ -911,12 +952,28 @@ class L10nJa extends L10n {
   String get paywallChangeToMonthlyCta => '月額プランに変更する';
 
   @override
-  String get paywallChangeToYearlyNote =>
-      'すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。';
+  String paywallChangeToYearlyNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android': 'すぐに年額プランへ切り替わり、年額の料金が請求されます。月額の残り期間ぶんは、年額プランの期間に上乗せされます。',
+        'other': 'すぐに年額プランへ切り替わります。月額の残り期間の料金は、Appleが日割りで返金します。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
-  String get paywallChangeToMonthlyNote =>
-      '今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。';
+  String paywallChangeToMonthlyNote(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android': 'すぐに月額プランへ切り替わります。お支払い済みの年額の期間が終わるまでは請求されず、そのあと月額で更新されます。',
+        'other': '今の年額プランの期限が来たら、月額プランへ切り替わります。それまでは年額プランのままご利用いただけます。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get paywallCancelSubscriptionNote =>
@@ -1280,6 +1337,13 @@ class L10nJa extends L10n {
   String get pronunciationPermissionOpenSettings => '設定を開く';
 
   @override
+  String get ttsThaiVoiceMissing =>
+      '読み上げにタイ語の音声が入っていません。音声データをダウンロードすると、お手本を聞けるようになります。';
+
+  @override
+  String get ttsThaiVoiceInstall => 'ダウンロード';
+
+  @override
   String get pronunciationSpeechRecognized => '発音（子音・母音）：通じました';
 
   @override
@@ -1294,8 +1358,16 @@ class L10nJa extends L10n {
       'この端末にタイ語の音声入力が入っていないため、発音（子音・母音）は判定できません。声調だけを見ています';
 
   @override
-  String get pronunciationSpeechNoAssetHow =>
-      '「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。';
+  String pronunciationSpeechNoAssetHow(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android': '端末の設定で、音声入力（端末上の音声認識）にタイ語を追加すると使えるようになります。',
+        'other': '「設定」→「一般」→「キーボード」でタイ語のキーボードを追加し、音声入力をオンにすると使えるようになります。',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get pronunciationSpeechAuthDenied =>
@@ -1303,7 +1375,7 @@ class L10nJa extends L10n {
 
   @override
   String get pronunciationSpeechAndroid =>
-      'Android では発音（子音・母音）の判定に対応していません。声調だけを見ています';
+      'Android 13 より前のバージョンでは発音（子音・母音）を判定できません。声調だけを見ています';
 
   @override
   String get pronunciationCoachLead => '次はここを直す';
@@ -1477,7 +1549,16 @@ class L10nJa extends L10n {
   String get errPurchaseStartFailed => '購入を開始できませんでした';
 
   @override
-  String get errStoreUnavailable => 'App Storeに接続できませんでした';
+  String errStoreUnavailable(String store) {
+    String _temp0 = intl.Intl.selectLogic(
+      store,
+      {
+        'android': 'Google Playに接続できませんでした',
+        'other': 'App Storeに接続できませんでした',
+      },
+    );
+    return '$_temp0';
+  }
 
   @override
   String get errNothingToRestore => '復元できる購入が見つかりませんでした';
@@ -2646,4 +2727,20 @@ class L10nJa extends L10n {
 
   @override
   String get guideTipsSpeak => '覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。';
+
+  @override
+  String get coachQuizOfferTitle => '確認クイズはこちら';
+
+  @override
+  String get coachQuizOfferMessage =>
+      '例文を読み終えたら、このボタンから確認クイズを1問解き、学習単語を覚えたか確かめられます。';
+
+  @override
+  String get coachTapHere => '光っている場所をタップ';
+
+  @override
+  String get coachSkip => 'スキップ';
+
+  @override
+  String get coachGotIt => 'わかった';
 }
