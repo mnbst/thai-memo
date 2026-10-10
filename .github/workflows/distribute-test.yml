@@ -1,25 +1,9 @@
 name: Distribute to Testers
 
+# push では動かさず、配信するときだけ手で起動する:
+#   gh workflow run distribute-test.yml --ref test
 on:
-  push:
-    branches:
-      - test
-    paths-ignore:
-      - '*.md'
-      - 'LICENSE'
-      - '.claude/**'
-      - '.vscode/**'
-      - 'reports/**'
-      - 'scripts/**'
-      - 'terraform/**'
-      - 'test/**'
-      - 'web/**'
-      - 'linux/**'
-      - 'macos/**'
-      - 'windows/**'
-      - 'analysis_options.yaml'
-      - '.gitignore'
-      - '.metadata'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,7 +17,7 @@ env:
   GCP_PROJECT: thai-memo-67139
 
 jobs:
-  build-and-distribute-android:
+  build-android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -64,7 +48,6 @@ jobs:
             KEY_ALIAS:${{ env.GCP_PROJECT }}/ci-key-alias
             KEY_PASSWORD:${{ env.GCP_PROJECT }}/ci-key-password
             STORE_PASSWORD:${{ env.GCP_PROJECT }}/ci-store-password
-            GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:${{ env.GCP_PROJECT }}/ci-google-play-service-account
 
       - name: Restore google-services.json
         run: echo '${{ steps.secrets.outputs.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
@@ -86,12 +69,44 @@ jobs:
       - name: Build AAB
         run: flutter build appbundle --dart-define=ENV=tester --build-number=$((GITHUB_RUN_NUMBER + 100))
 
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aab-tester
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 5
+          if-no-files-found: error
+
+  # ビルド成功後にここだけ失敗した場合、"Re-run failed jobs" でこのジョブのみ再実行できる
+  upload-android:
+    needs: build-android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download AAB artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aab-tester
+          path: aab
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.CI_SERVICE_ACCOUNT }}
+
+      - name: Fetch secrets from Secret Manager
+        uses: google-github-actions/get-secretmanager-secrets@v2
+        id: secrets
+        with:
+          secrets: |-
+            GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:${{ env.GCP_PROJECT }}/ci-google-play-service-account
+
       - name: Upload to Google Play Internal Testing
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ steps.secrets.outputs.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.thaimemo.thai_memo
-          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          releaseFiles: aab/app-release.aab
           track: internal
           status: completed
 
