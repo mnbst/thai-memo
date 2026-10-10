@@ -252,11 +252,12 @@ class BackendApiService {
 
       final result = await callable.call({
         'lang': _lang(),
-        // 綴り4択に対応していることを伝える。送らない旧クライアントには
+        // 綴り4択・並び替えに対応していることを伝える。送らない旧クライアントには
         // サーバーが従来どおり穴埋めだけを返す。
         'supported_quiz_formats': [
           QuizQuestion.clozeChoiceFormat,
           QuizQuestion.spellingChoiceFormat,
+          QuizQuestion.wordOrderFormat,
         ],
       });
       final data = _deepCast(result.data) as Map<String, dynamic>;

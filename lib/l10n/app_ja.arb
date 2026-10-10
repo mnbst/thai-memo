@@ -107,6 +107,14 @@
   "quizPrompt": "下線部に入る単語を選んでください",
   "quizMeaningPrompt": "この単語の意味を選んでください",
   "quizSpellingPrompt": "この読みの綴りを選んでください",
+  "quizWordOrderPrompt": "正しい順に並べてください",
+  "quizWordOrderCheck": "答え合わせ",
+  "quizWordOrderYourAnswer": "あなたの並び: {order}",
+  "@quizWordOrderYourAnswer": {
+    "placeholders": {
+      "order": {"type": "String"}
+    }
+  },
   "quizWordExplanation": "単語の解説",
   "quizProgress": "問題 {index} / {total}",
   "@quizProgress": {

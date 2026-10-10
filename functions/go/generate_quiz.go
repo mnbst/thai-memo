@@ -67,6 +67,10 @@ type quizSeedSource struct {
 	JapaneseTranslation   string
 	SentencePronunciation string
 	SentenceDetail        map[string]any
+	// WordOrder は並び替えの問題（Seed.QuizFormat が word_order のときだけ）。
+	WordOrder *quizgen.WordOrder
+	// WordOrderShowPronunciation はタイルの読みを最初から見せるか。
+	WordOrderShowPronunciation bool
 }
 
 // quizQuestion はクライアントへ返す1問。
@@ -96,6 +100,14 @@ type quizQuestion struct {
 	// SpellingToneRule は声調が決まる3要素（頭子音の階級・生音/死音・
 	// 声調記号）。声調だけは字が1つに対応しないので、規則として見せる。
 	SpellingToneRule *spellunit.ToneRule `json:"spelling_tone_rule,omitempty"`
+	// 並び替え（word_order）だけが使う。choices が混ぜたタイル、
+	// word_order_answer が正しい並び。枠の外は prefix / suffix でそのまま見せる。
+	WordOrderAnswer []string `json:"word_order_answer,omitempty"`
+	WordOrderPrefix string   `json:"word_order_prefix,omitempty"`
+	WordOrderSuffix string   `json:"word_order_suffix,omitempty"`
+	// WordOrderShowPronunciation はタイルの読みを最初から見せるか（入門用の対象者）。
+	// 見せたぶんのヒントはクライアントが hint_level に入れて送る。
+	WordOrderShowPronunciation bool `json:"word_order_show_pronunciation,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +221,11 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 			beginnerPassedWords(ctx, db, uid, words))
 		log.Printf("beginner_quiz_formats_applied uid=%s applied=%d of=%d",
 			uid, applied, len(sources))
+	}
+	if supportsQuizFormat(in.SupportedQuizFormats, quizgen.FormatWordOrder) {
+		rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+		applied := applyWordOrder(sources, l, beginnerQuizEnabled(userData), rnd)
+		log.Printf("word_order_applied uid=%s applied=%d of=%d", uid, applied, len(sources))
 	}
 
 	// まとめクイズはダミーが確定していれば理由と解説を使い回せる。

@@ -93,6 +93,9 @@
   "quizPrompt": "Choose the word that goes in the blank",
   "quizMeaningPrompt": "Choose the meaning of this word",
   "quizSpellingPrompt": "Choose the spelling for this pronunciation",
+  "quizWordOrderPrompt": "Put the words in the right order",
+  "quizWordOrderCheck": "Check",
+  "quizWordOrderYourAnswer": "Your order: {order}",
   "quizWordExplanation": "Word explanation",
   "quizProgress": "Question {index} of {total}",
   "@quizProgress": {

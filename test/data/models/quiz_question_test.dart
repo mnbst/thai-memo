@@ -132,6 +132,48 @@ void main() {
       expect(roundtripped.dummyReasons, isEmpty);
     });
   });
+
+  group('並び替え', () {
+    QuizQuestion wordOrder() => QuizQuestion.fromJson(_baseJson()
+      ..['quiz_format'] = QuizQuestion.wordOrderFormat
+      ..['choices'] = ['ทะเล', 'อยาก', 'ผม', 'ไป']
+      ..['word_order_answer'] = ['ผม', 'อยาก', 'ไป', 'ทะเล']
+      ..['word_order_suffix'] = 'ครับ'
+      ..['word_order_show_pronunciation'] = true);
+
+    test('JSONを往復しても並び替えの項目が残る', () {
+      final q = QuizQuestion.fromJson(wordOrder().toJson());
+
+      expect(q.isWordOrder, isTrue);
+      expect(q.wordOrderAnswer, ['ผม', 'อยาก', 'ไป', 'ทะเล']);
+      expect(q.wordOrderPrefix, '');
+      expect(q.wordOrderSuffix, 'ครับ');
+      expect(q.wordOrderShowPronunciation, isTrue);
+    });
+
+    test('並びの正誤は語の文字列で判定する', () {
+      final q = wordOrder();
+
+      expect(q.isWordOrderCorrect([2, 1, 3, 0]), isTrue);
+      expect(q.isWordOrderCorrect([1, 2, 3, 0]), isFalse);
+      expect(q.isWordOrderCorrect([2, 1, 3]), isFalse);
+    });
+
+    test('回答の並びは int に詰めて戻せる', () {
+      for (final order in [
+        [0, 1, 2, 3],
+        [3, 2, 1, 0],
+        [2, 1, 3, 0],
+      ]) {
+        final encoded = QuizQuestion.encodeWordOrder(order);
+        expect(QuizQuestion.decodeWordOrder(encoded, 4), order);
+      }
+      // 添字が重なる・桁があふれる値は並びに戻さない
+      expect(QuizQuestion.decodeWordOrder(0, 4), isNull);
+      expect(QuizQuestion.decodeWordOrder(256, 4), isNull);
+      expect(QuizQuestion.decodeWordOrder(-1, 4), isNull);
+    });
+  });
 }
 
 Map<String, dynamic> _baseJson() => {

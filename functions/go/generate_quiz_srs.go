@@ -85,6 +85,7 @@ func generateQuestionsFromSources(
 		// 綴り4択のダミーは非語なので、穴埋めの選択肢に持ち越してはいけない。
 		fallback.Seed.FixedDummies = nil
 		fallback.Seed.FixedExplanation = ""
+		fallback.WordOrder = nil
 		results[i] = generateSingleQuizQuestion(ctx, service, fallback, 2)
 	}
 
@@ -107,6 +108,15 @@ func generateQuestionsFromSources(
 func generateSingleQuizQuestion(
 	ctx context.Context, service quizService, source quizSeedSource, attempt int,
 ) *quizQuestion {
+	// 並び替えはタイルも正解も切り出し時に確定しているのでモデルを呼ばない。
+	if source.Seed.QuizFormat == quizgen.FormatWordOrder {
+		if source.WordOrder == nil {
+			return nil
+		}
+		out := wordOrderQuestion(source)
+		return &out
+	}
+
 	// 綴り4択は選択肢も解説もルールベースで確定しているのでモデルを呼ばない。
 	if source.Seed.QuizFormat == quizgen.FormatSpellingChoice {
 		question, ok := quizgen.BuildSpellingQuestion(source.Seed)

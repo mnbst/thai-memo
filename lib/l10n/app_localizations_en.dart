@@ -190,6 +190,17 @@ class L10nEn extends L10n {
   String get quizSpellingPrompt => 'Choose the spelling for this pronunciation';
 
   @override
+  String get quizWordOrderPrompt => 'Put the words in the right order';
+
+  @override
+  String get quizWordOrderCheck => 'Check';
+
+  @override
+  String quizWordOrderYourAnswer(String order) {
+    return 'Your order: $order';
+  }
+
+  @override
   String get quizWordExplanation => 'Word explanation';
 
   @override
