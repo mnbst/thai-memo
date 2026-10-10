@@ -2004,6 +2004,12 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                     if (_hasResult) ...[
                       const SizedBox(height: 4),
                       _buildFeedbackBox(context),
+                      // 押すと上の Listener が自動で次へ進むのを止める。
+                      if (widget.showHints)
+                        _SentenceDetailLink(
+                          question: question,
+                          source: 'quiz_inline_result',
+                        ),
                     ],
                     if (!_hasResult &&
                         widget.showHints &&
@@ -2448,6 +2454,11 @@ class _QuizResultView extends StatelessWidget {
                     );
                   }),
                 ],
+                if (showExplanations)
+                  _SentenceDetailLink(
+                    question: question,
+                    source: 'quiz_result',
+                  ),
               ],
             ),
           ),
@@ -3127,7 +3138,49 @@ class _QuizResultDetail extends StatelessWidget {
               ),
             );
           }),
+        if (showExplanations)
+          _SentenceDetailLink(
+            question: question,
+            source: 'quiz_result_detail',
+          ),
       ],
+    );
+  }
+}
+
+/// 解答のあとに、出題元の例文の詳細（単語分解・発音・使い方）を開く導線。
+///
+/// 答えが出たあとなので、回答前の「例文を復習する」より広く出せる。
+/// 綴り4択は綴りそのものを問う問題で例文の出番が無いので出さない。例文の
+/// 中身が届いていない問題でも出さない。
+class _SentenceDetailLink extends StatelessWidget {
+  final QuizQuestion question;
+  final String source;
+
+  const _SentenceDetailLink({required this.question, required this.source});
+
+  @override
+  Widget build(BuildContext context) {
+    final sentence = question.sentenceDetail;
+    if (sentence == null || question.isSpellingChoice) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Center(
+        child: TextButton.icon(
+          key: const ValueKey('quiz_sentence_detail_link'),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              settings: const RouteSettings(name: DetailScreen.routeName),
+              builder: (_) => DetailScreen(sentence: sentence, source: source),
+            ),
+          ),
+          icon: const Icon(Icons.menu_book_outlined, size: 20),
+          label: Text(L10n.of(context).quizOpenSentenceDetail),
+        ),
+      ),
     );
   }
 }

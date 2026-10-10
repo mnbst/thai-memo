@@ -129,6 +129,7 @@
   },
   "quizSentenceReviewed": "例文を復習済み",
   "quizReviewSentence": "例文を復習する",
+  "quizOpenSentenceDetail": "例文の詳細を見る",
   "quizHint": "ヒント",
   "quizHintPronunciation": "ヒント1: 発音を見る",
   "quizHintTranslation": "ヒント2: 日本語訳を見る",
@@ -1498,5 +1499,10 @@
   "guideTipsTitle": "続けるためのコツ",
   "guideTipsRepeat": "クイズは間違えても大丈夫です。例文を丸ごと覚えなくても、学習単語を何度も見るうちに自然と語彙が増えていきます。",
   "guideTipsScript": "タイ文字は、まず単語全体の形をつかめれば十分です。見慣れてきたら、子音・母音・声調記号を少しずつ見分けていきましょう。",
-  "guideTipsSpeak": "覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。"
+  "guideTipsSpeak": "覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。",
+  "coachQuizOfferTitle": "確認クイズはこちら",
+  "coachQuizOfferMessage": "例文を読み終えたら、このボタンから確認クイズを1問解き、学習単語を覚えたか確かめられます。",
+  "coachTapHere": "光っている場所をタップ",
+  "coachSkip": "スキップ",
+  "coachGotIt": "わかった"
 }

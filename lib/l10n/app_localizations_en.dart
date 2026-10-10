@@ -215,6 +215,9 @@ class L10nEn extends L10n {
   String get quizReviewSentence => 'Review the sentence';
 
   @override
+  String get quizOpenSentenceDetail => 'View sentence details';
+
+  @override
   String get quizHint => 'Hint';
 
   @override
@@ -2917,4 +2920,20 @@ class L10nEn extends L10n {
   @override
   String get guideTipsSpeak =>
       'Try using the words and sentences you\'ve learned in conversation. Speaking aloud helps them stick.';
+
+  @override
+  String get coachQuizOfferTitle => 'Check what you learned';
+
+  @override
+  String get coachQuizOfferMessage =>
+      'After reading the sentence, use this button for a one-question quiz to see if you remember the target word.';
+
+  @override
+  String get coachTapHere => 'Tap the highlighted area';
+
+  @override
+  String get coachSkip => 'Skip';
+
+  @override
+  String get coachGotIt => 'Got it';
 }

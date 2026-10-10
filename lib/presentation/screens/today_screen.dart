@@ -14,10 +14,12 @@ import '../providers/daily_set_provider.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/quiz_offer_experiment_provider.dart';
+import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/vocab_stats_provider.dart';
+import '../widgets/coach_mark_overlay.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/quiz_offer.dart';
 import '../widgets/sentence_audio_section.dart';
@@ -206,6 +208,16 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   final Set<String> _handledQuizOfferTaps = {};
   bool _quizOfferAssignmentHandled = false;
 
+  /// 確認クイズの導線を光らせる初回ガイドを出せるかを見る間隔。
+  static const _quizOfferCoachTick = Duration(milliseconds: 500);
+
+  /// 例文が前面に出るのを待つタイマー。オンボーディング直後はペイウォールが
+  /// 上にあるので、閉じられるまで見続ける。出したか不要と分かった時点で止める。
+  Timer? _quizOfferCoachTimer;
+
+  /// ガイドを出した・不要と分かった。この State では数え直さない。
+  bool _quizOfferCoachDone = false;
+
   /// 再読み込み中か。押しっぱなしを防ぐためだけの状態。
   bool _reloading = false;
 
@@ -221,6 +233,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   @override
   void dispose() {
+    _quizOfferCoachTimer?.cancel();
+    CoachMarkOverlay.dismissFor(_quizButtonKey);
     _sentenceScrollController
       ..removeListener(_maybeLogVisibleQuizOffer)
       ..dispose();
@@ -368,6 +382,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     if (quizOfferVariant != null && quizOfferVariant.participatesInExperiment) {
       _scheduleQuizOfferShown(sentence, quizOfferVariant);
     }
+    if (quizOfferVariant != null) _startQuizOfferCoachTimer();
 
     return Column(
       children: [
@@ -549,10 +564,93 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     return true;
   }
 
+  /// 確認クイズを一度も解いていない人に、導線を1回だけ光らせる。
+  ///
+  /// 初日に案内カードを見た人の3割が押さずに離れていた。以前はガイドを
+  /// 何段も出して体験を損ねたので、ここ1か所・1回に絞る。例文が出たらすぐ
+  /// 在り処だけ教え、押させずに「わかった」で閉じる。先に例文を読ませたい。
+  void _startQuizOfferCoachTimer() {
+    if (_quizOfferCoachDone || _quizOfferCoachTimer != null) return;
+    _quizOfferCoachTimer = Timer.periodic(_quizOfferCoachTick, (_) {
+      unawaited(_tickQuizOfferCoach());
+    });
+  }
+
+  void _stopQuizOfferCoachTimer() {
+    _quizOfferCoachDone = true;
+    _quizOfferCoachTimer?.cancel();
+  }
+
+  bool _quizOfferCoachChecking = false;
+
+  Future<void> _tickQuizOfferCoach() async {
+    if (!mounted || _quizOfferCoachChecking) return;
+    // 詳細やクイズ、ペイウォールが前面にある間は数えない。
+    if (ModalRoute.of(context)?.isCurrent != true ||
+        !TickerMode.getValuesNotifier(context).value.enabled ||
+        CoachMarkOverlay.isVisible ||
+        ref.read(sentenceControllerProvider) is! SentenceStateSuccess) {
+      return;
+    }
+    _quizOfferCoachChecking = true;
+    try {
+      await _maybeShowQuizOfferCoach();
+    } finally {
+      _quizOfferCoachChecking = false;
+    }
+  }
+
+  Future<void> _maybeShowQuizOfferCoach() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConfig.prefKeyQuizOfferCoachShown) ?? false) {
+      _stopQuizOfferCoachTimer();
+      return;
+    }
+    // 既に解いたことがある人（アップデートした既存ユーザー・別端末）には出さない。
+    final stats = await ref.read(quizStatsProvider.future);
+    if (stats.totalAnswered > 0) {
+      await prefs.setBool(AppConfig.prefKeyQuizOfferCoachShown, true);
+      _stopQuizOfferCoachTimer();
+      return;
+    }
+
+    if (!mounted ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        CoachMarkOverlay.isVisible) {
+      return;
+    }
+    final sentenceState = ref.read(sentenceControllerProvider);
+    final variant = ref.read(quizOfferVariantProvider).valueOrNull;
+    if (sentenceState is! SentenceStateSuccess || variant == null) return;
+
+    final l10n = L10n.of(context);
+    final shown = CoachMarkOverlay.show(
+      context,
+      targetKey: _quizButtonKey,
+      id: 'quiz_offer',
+      analytics: ref.read(analyticsServiceProvider),
+      icon: Icons.quiz,
+      title: l10n.coachQuizOfferTitle,
+      message: l10n.coachQuizOfferMessage,
+      targetTappable: false,
+      confirmLabel: l10n.coachGotIt,
+    );
+    if (!shown) return;
+    _stopQuizOfferCoachTimer();
+    await prefs.setBool(AppConfig.prefKeyQuizOfferCoachShown, true);
+  }
+
   void _handleQuizOfferTap(
     ThaiSentence sentence,
     QuizOfferVariant variant,
   ) {
+    // 自分で押せた人にはガイドは要らない。
+    _stopQuizOfferCoachTimer();
+    unawaited(
+      SharedPreferences.getInstance().then(
+        (prefs) => prefs.setBool(AppConfig.prefKeyQuizOfferCoachShown, true),
+      ),
+    );
     if (variant.participatesInExperiment) {
       final eventKey = _quizOfferEventKey(sentence, variant);
       if (!_handledQuizOfferTaps.add(eventKey)) return;

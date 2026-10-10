@@ -451,6 +451,12 @@ abstract class L10n {
   /// **'例文を復習する'**
   String get quizReviewSentence;
 
+  /// No description provided for @quizOpenSentenceDetail.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文の詳細を見る'**
+  String get quizOpenSentenceDetail;
+
   /// No description provided for @quizHint.
   ///
   /// In ja, this message translates to:
@@ -4927,6 +4933,36 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。'**
   String get guideTipsSpeak;
+
+  /// No description provided for @coachQuizOfferTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'確認クイズはこちら'**
+  String get coachQuizOfferTitle;
+
+  /// No description provided for @coachQuizOfferMessage.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文を読み終えたら、このボタンから確認クイズを1問解き、学習単語を覚えたか確かめられます。'**
+  String get coachQuizOfferMessage;
+
+  /// No description provided for @coachTapHere.
+  ///
+  /// In ja, this message translates to:
+  /// **'光っている場所をタップ'**
+  String get coachTapHere;
+
+  /// No description provided for @coachSkip.
+  ///
+  /// In ja, this message translates to:
+  /// **'スキップ'**
+  String get coachSkip;
+
+  /// No description provided for @coachGotIt.
+  ///
+  /// In ja, this message translates to:
+  /// **'わかった'**
+  String get coachGotIt;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

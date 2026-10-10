@@ -110,6 +110,7 @@
   },
   "quizSentenceReviewed": "Sentence reviewed",
   "quizReviewSentence": "Review the sentence",
+  "quizOpenSentenceDetail": "View sentence details",
   "quizHint": "Hint",
   "quizHintPronunciation": "Hint 1: show pronunciation",
   "quizHintTranslation": "Hint 2: show translation",
@@ -1323,5 +1324,10 @@
   "guideTipsTitle": "Tips",
   "guideTipsRepeat": "Mistakes in quizzes are fine. You don’t need to memorize whole sentences; seeing the target words again and again will naturally grow your vocabulary.",
   "guideTipsScript": "With Thai script, getting the overall shape of each word is enough at first. As it becomes familiar, start telling apart the consonants, vowels, and tone marks little by little.",
-  "guideTipsSpeak": "Try using the words and sentences you've learned in conversation. Speaking aloud helps them stick."
+  "guideTipsSpeak": "Try using the words and sentences you've learned in conversation. Speaking aloud helps them stick.",
+  "coachQuizOfferTitle": "Check what you learned",
+  "coachQuizOfferMessage": "After reading the sentence, use this button for a one-question quiz to see if you remember the target word.",
+  "coachTapHere": "Tap the highlighted area",
+  "coachSkip": "Skip",
+  "coachGotIt": "Got it"
 }

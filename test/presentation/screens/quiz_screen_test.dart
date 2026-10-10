@@ -16,6 +16,7 @@ import 'package:thai_memo/services/learning_progress_store.dart';
 import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
 import 'package:thai_memo/presentation/providers/settings_provider.dart';
 import 'package:thai_memo/presentation/providers/vocab_stats_provider.dart';
+import 'package:thai_memo/presentation/screens/detail_screen.dart';
 import 'package:thai_memo/presentation/screens/quiz_screen.dart';
 
 import '../../helpers/fake_firebase.dart';
@@ -471,6 +472,12 @@ void main() {
     expect(find.text(_questions.first.blankText), findsNothing);
     expect(find.byKey(const ValueKey('quiz_choice_0')), findsNothing);
 
+    // 例文の中身が届いていない問題では、詳細への導線を出さない。
+    expect(
+      find.byKey(const ValueKey('quiz_sentence_detail_link')),
+      findsNothing,
+    );
+
     final nextButton = find.byKey(const ValueKey('quiz_result_next_button'));
     expect(nextButton, findsOneWidget);
 
@@ -491,6 +498,98 @@ void main() {
     expect(nextState, isA<QuizAnswering>());
     expect((nextState as QuizAnswering).index, 1);
     expect(find.text('2 / 5'), findsOneWidget);
+  });
+
+  testWidgets('まとめクイズの解答画面から例文の詳細を開ける', (tester) async {
+    final first = _questions.first;
+    final withDetail = QuizQuestion(
+      sentenceId: _learningSentence.id!,
+      thaiText: first.thaiText,
+      blankText: first.blankText,
+      correctAnswer: first.correctAnswer,
+      correctAnswerMeaning: first.correctAnswerMeaning,
+      choices: first.choices,
+      pronunciation: first.pronunciation,
+      explanation: first.explanation,
+      japaneseTranslation: first.japaneseTranslation,
+      sentencePronunciation: first.sentencePronunciation,
+      sentenceDetail: _learningSentence,
+    );
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      questions: [withDetail, ..._questions.skip(1)],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_1')));
+    await tester.pump();
+
+    final link = find.byKey(const ValueKey('quiz_sentence_detail_link'));
+    await tester.ensureVisible(link);
+    await tester.pumpAndSettle();
+    expect(find.text('例文の詳細を見る'), findsOneWidget);
+
+    await tester.tap(link);
+    await tester.pumpAndSettle();
+    expect(find.byType(DetailScreen), findsOneWidget);
+    expect(harness.analytics.viewDetailSources, ['quiz_result']);
+  });
+
+  testWidgets('まとめクイズは正解時も、自動で進まずに例文の詳細を開ける', (tester) async {
+    final first = _questions.first;
+    final withDetail = QuizQuestion(
+      sentenceId: _learningSentence.id!,
+      thaiText: first.thaiText,
+      blankText: first.blankText,
+      correctAnswer: first.correctAnswer,
+      correctAnswerMeaning: first.correctAnswerMeaning,
+      choices: first.choices,
+      pronunciation: first.pronunciation,
+      // 解説が空だと正解時に自動で次へ進む。それを止められるかを見る。
+      explanation: '',
+      japaneseTranslation: first.japaneseTranslation,
+      sentencePronunciation: first.sentencePronunciation,
+      sentenceDetail: _learningSentence,
+    );
+    final harness = await _pumpSummaryQuiz(
+      tester,
+      questions: [withDetail, ..._questions.skip(1)],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_0')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('quiz_inline_feedback')), findsOneWidget);
+
+    final link = find.byKey(const ValueKey('quiz_sentence_detail_link'));
+    expect(link, findsOneWidget);
+    await tester.ensureVisible(link);
+    await tester.pump();
+    await tester.tap(link);
+    await tester.pumpAndSettle();
+    expect(find.byType(DetailScreen), findsOneWidget);
+    expect(harness.analytics.viewDetailSources, ['quiz_inline_result']);
+
+    // 戻っても同じ問題のまま（自動で次へ進んでいない）。
+    Navigator.of(tester.element(find.byType(DetailScreen))).pop();
+    await tester.pumpAndSettle();
+    expect((harness.controller.state as QuizShowResult).index, 0);
+  });
+
+  testWidgets('綴り4択の解答には例文の詳細への導線を出さない', (tester) async {
+    final spelling = QuizQuestion.fromJson({
+      ..._spellingQuestion.toJson(),
+      'sentence_detail': _learningSentence.toJson(),
+    });
+    await _pumpSummaryQuiz(
+      tester,
+      questions: [spelling, ..._questions.skip(1)],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('quiz_choice_1')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('quiz_sentence_detail_link')),
+      findsNothing,
+    );
   });
 
   testWidgets('読まない字は専用のマスで見せる', (tester) async {
