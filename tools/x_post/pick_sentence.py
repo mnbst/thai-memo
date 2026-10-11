@@ -61,6 +61,26 @@ THEMES = {
     "BLドラマ": ("タイBLドラマ",),
 }
 
+# BLドラマの日は、作品の見当がつく例文だけ出す。作品ごとに、本文に出れば
+# その作品と分かる語（登場人物名・象徴的な小道具や場所）を並べる。一般語と
+# 紛れる語（หมู=豚、สไตล์、ดาว、พระเจ้า 等）は入れない。作品の設定は
+# functions/go/internal/bldrama/data.go の shotContext。
+BL_DRAMA_MARKERS = {
+    "Only Boo!": ("พี่แกง", "ข้าวแกง"),
+    "The Heart Killers": ("ไบซัน", "ฟาเดล", "คานต์", "นักฆ่า"),
+    "Peaceful Property": ("ผี", "พีช", "โฮม"),
+    "MuTeLuv": ("หมอดู", "ดูดวง", "มาวิน", "เอ้อ"),
+    "Cat for Cash": ("แมว", "ไทเกอร์", "ลิงซ์"),
+    "Unlucky Bae": ("คำสาป", "ขอบฟ้า", "ซวย"),
+    "Match Point": ("เทนนิส", "ติ่มซำ", "เบย์"),
+    "A Dog and A Plane": ("กัปตัน", "กู้ภัย", "คณิต", "โตโต้", "กระเป๋าเดินทาง"),
+    "When Oranges Fall": ("ส้ม", "โก๋"),
+    "Ticket to Heaven": ("บาทหลวง", "โบสถ์", "แทนรัก", "บาร์ธ"),
+    "WEIRDO-101": ("ยูโด", "นิรันดร์", "ชีวา"),
+    "You Maniac": ("ดีน", "มอธ"),
+    "Only Friends: Dream On": ("ละคร", "เวที", "แจ็ค"),
+}
+
 GEMINI_SECRET = "gemini-api-key"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
 GEMINI_ENDPOINT = (
@@ -163,6 +183,25 @@ def theme_only(pool: list[dict], theme: str) -> list[dict]:
     picked = [s for s in pool if in_theme(s)]
     print(f"{theme}に絞って {len(picked)}/{len(pool)} 件", file=sys.stderr)
     return picked
+
+
+def bl_drama_only(pool: list[dict], rng: random.Random) -> list[dict]:
+    """作品の見当がつく例文だけ残し、そのうち1作品に絞る。
+
+    作品で分けずに抽選すると例文の多い作品（猫・幽霊）ばかり出るので、
+    先に作品を抽選する。
+    """
+    by_drama: dict[str, list[dict]] = {}
+    for sentence in pool:
+        for drama, markers in BL_DRAMA_MARKERS.items():
+            if any(m in sentence["thai_text"] for m in markers):
+                by_drama.setdefault(drama, []).append(sentence)
+                break
+    if not by_drama:
+        return []
+    drama = rng.choice(sorted(by_drama))
+    print(f"作品: {drama}（{len(by_drama[drama])}件）", file=sys.stderr)
+    return by_drama[drama]
 
 
 def recent_performance(history: list[dict]) -> list[dict]:
@@ -355,6 +394,12 @@ def main() -> int:
         return 1
 
     candidates = [s for s in pool if sentence_key(s) not in posted]
+    if theme == "BLドラマ":
+        # 未投稿を先に絞る。作品を抽選してから未投稿が尽きるのを避ける。
+        candidates = bl_drama_only(candidates or pool, rng)
+        if not candidates:
+            print("作品の分かる候補が無い", file=sys.stderr)
+            return 1
     if not candidates:
         # 一巡したら投稿済みを無視して最初から回す。止まるよりは繰り返す。
         print("未投稿の例文が尽きたので全体から選ぶ", file=sys.stderr)
