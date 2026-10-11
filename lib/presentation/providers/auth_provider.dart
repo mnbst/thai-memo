@@ -72,6 +72,9 @@ class AuthController extends StateNotifier<AuthState> {
   /// 画面はこれを合図に、新しいアカウントの続きを読み込み直す。
   final void Function() _onAccountSwitched;
 
+  /// 持ち主合わせの直列化。サインイン操作と認証状態の監視の両方から呼ばれる。
+  Future<void> _ownerSync = Future.value();
+
   AuthController(
     this._authService,
     this._l10n, {
@@ -94,7 +97,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final previousUid = _authService.currentUser?.uid;
       await _authService.signInWithGoogle();
-      await _clearPreviousUserIfChanged(previousUid);
+      await syncLocalDataOwner(previousUid: previousUid);
       state = AuthState.fromService(_authService);
       return null;
     } on FirebaseAuthServiceException catch (e) {
@@ -113,7 +116,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final previousUid = _authService.currentUser?.uid;
       await _authService.signInWithApple();
-      await _clearPreviousUserIfChanged(previousUid);
+      await syncLocalDataOwner(previousUid: previousUid);
       state = AuthState.fromService(_authService);
       return null;
     } on FirebaseAuthServiceException catch (e) {
@@ -133,7 +136,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final previousUid = _authService.currentUser?.uid;
       await _authService.linkWithGoogle();
-      await _clearPreviousUserIfChanged(previousUid);
+      await syncLocalDataOwner(previousUid: previousUid);
       state = AuthState.fromService(_authService);
       return null;
     } on FirebaseAuthServiceException catch (e) {
@@ -153,7 +156,7 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final previousUid = _authService.currentUser?.uid;
       await _authService.linkWithApple();
-      await _clearPreviousUserIfChanged(previousUid);
+      await syncLocalDataOwner(previousUid: previousUid);
       state = AuthState.fromService(_authService);
       return null;
     } on FirebaseAuthServiceException catch (e) {
@@ -172,8 +175,8 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final uid = _authService.currentUser?.uid;
       await _authService.signOut();
-      // 端末の履歴は消さない。同じアカウントで戻れば続きから使える。
-      // 別アカウントでサインインしたときに _clearPreviousUserIfChanged で消す。
+      // 持ち主を記録しておく。続く匿名ユーザーへの切り替わりで
+      // syncLocalDataOwner が端末データを消す（続きはサーバーから戻る）。
       if (uid != null) await _writeDataOwner(uid);
       state = AuthState.fromService(_authService);
       return null;
@@ -183,11 +186,19 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  /// 端末データの持ち主と違うアカウントになったときだけ端末データを消す。
+  /// 端末データの持ち主を今の uid にそろえる。違えば端末データを消し、
+  /// 今の uid の例文をサーバーから戻す。
   ///
-  /// 持ち主はサインアウト後の匿名ユーザーではなく、最後にサインインしていた
-  /// アカウント。記録が無ければ（旧版から更新した直後）直前の uid で判定する。
-  Future<void> _clearPreviousUserIfChanged(String? previousUid) async {
+  /// サインイン操作に限らず uid が変わるたびに通す。サーバーで匿名ユーザーが
+  /// 消された後の新しい匿名 uid のように、操作を経ない切り替わりもあるため。
+  /// 記録が無ければ（旧版から更新した直後）直前の uid で判定する。
+  Future<void> syncLocalDataOwner({String? previousUid}) {
+    final next = _ownerSync.then((_) => _syncLocalDataOwner(previousUid));
+    _ownerSync = next.catchError((Object _) {});
+    return next;
+  }
+
+  Future<void> _syncLocalDataOwner(String? previousUid) async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) return;
     final owner = await _readDataOwner() ?? previousUid;
