@@ -33,6 +33,12 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   late final AnonymousSignInCoordinator _anonymousSignIn;
 
+  /// 最後に見えたサインイン中の uid。端末データの持ち主判定の手がかり。
+  String? _lastUid;
+
+  /// 端末データの持ち主を合わせ終えた uid。これと違う間は HomeScreen を出さない。
+  String? _ownerSyncedUid;
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +54,7 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
     // Analytics の userId を認証状態に追従させる。
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       unawaited(ref.read(analyticsServiceProvider).setUserId(user?.uid));
+      if (user != null) unawaited(_syncLocalDataOwner(user.uid));
       // サインイン直後は uid が確定した時点で通知トークンを users/{uid} に登録する。
       // 毎日例文の取り込みは表示と順序を揃える必要があるため HomeScreen が持つ。
       if (user != null) {
@@ -72,6 +79,22 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
         .read(ttsServiceProvider)
         .thaiVoiceMissing
         .listen((_) => _showThaiVoiceMissing());
+  }
+
+  /// uid が変わるたびに端末データの持ち主を合わせる。前のユーザーの例文が
+  /// 残ったままだと、サーバー側に例文が無くまとめクイズを作れない。
+  Future<void> _syncLocalDataOwner(String uid) async {
+    final previousUid = _lastUid;
+    _lastUid = uid;
+    try {
+      await ref
+          .read(authControllerProvider.notifier)
+          .syncLocalDataOwner(previousUid: previousUid);
+    } catch (e) {
+      debugPrint('端末データの持ち主合わせに失敗: $e');
+    }
+    if (!mounted || _lastUid != uid) return;
+    setState(() => _ownerSyncedUid = uid);
   }
 
   /// 読み上げにタイ語の声が無い（Android）。どの画面で鳴らしても出せるよう、
@@ -138,6 +161,10 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
             // 未認証なら匿名サインインを開始し、完了までローディング表示。
             // 匿名でも HomeScreen に進めるため、ログイン壁は出さない。
             _anonymousSignIn.ensureSignedIn();
+            return const _AuthLoadingScreen();
+          }
+          // 前のユーザーの端末データを消し終えるまで読み込ませない。
+          if (user.uid != _ownerSyncedUid) {
             return const _AuthLoadingScreen();
           }
           // 認証後にサブスクリプション状態をFirestoreから取得
