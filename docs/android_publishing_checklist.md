@@ -1,107 +1,77 @@
 # Android公開情報チェックリスト
 
-最終更新: 2026-04-01
+最終更新: 2026-10-11
 
-## 1. プライバシーポリシー
+本番アプリ: `com.thaimemo.thai_memo`（Play Console「まいにちタイ語 - 毎日の例文で単語が増える」）。
+tester 版は別アプリ `com.thaimemo.thai_memo.test`。
 
-`privacy-policy.md` がリポジトリ内にあり。Web上のURLへの公開が必要。
+## 状況
 
-- [ ] note / GitHub Pages / 独自サイト等に公開
-- [ ] 公開URLをGoogle Play Consoleに登録
+- [x] アプリのコンテンツ（下記）をすべて申告
+- [x] ストア掲載情報（ja-JP）を登録
+- [x] クローズドテスト（Alpha）1.4.18 を審査に送信（2026-10-11）
+- [ ] クローズドテストを 12 人以上 × 14 日間実施
+- [ ] 製品版へのアクセスを申請
+- [ ] ストア掲載情報の英語（en-US）を追加
 
-## 2. アプリのアクセス権
+## 配信
 
-**ログイン必須。** Google Sign-in（Android）が必要で、未ログインでは機能を使用できない。
+- ワークフロー: `.github/workflows/distribute-prod-android.yml`（main から手動起動）
+  - `gh workflow run distribute-prod-android.yml --ref main -f track=alpha`
+  - versionCode は実行番号 + 300（Play に手で上げた 201 / 203 より大きくするため）
+  - Play へは下書きで上がる。公開は Play Console で行う
+- シークレット: prod の Secret Manager（`ci-keystore` ほか。アップロード鍵は tester と共通）
+- アップロード用サービスアカウント: `github-actions-play-upload@thai-memo-prod.iam.gserviceaccount.com`
+- 「管理対象の公開」はオフ。どこかで「保存して公開」を押すと、保留中の変更もまとめて審査に送られる
 
-- [ ] テスト用Googleアカウント（ID/パスワード）を用意してGoogle Play Consoleに登録
+## 署名
 
-## 3. 広告の有無
+| 鍵 | SHA-1 | prod Firebase |
+|---|---|---|
+| アプリ署名鍵（Play） | `7E:25:49:C6…9F:47` | 登録済み |
+| アップロード鍵 | `32:13:47:FB…61:6A` | 登録済み |
 
-**あり。**
+## クローズドテスト
 
-- Freeプラン: バナー広告（AdMob）を表示
-- Premiumプラン: 広告非表示
+- テスター: Google グループ `thai-memo-testers@googlegroups.com`（誰でも参加可、メンバー一覧は管理者のみ）
+- 参加ページ: https://groups.google.com/g/thai-memo-testers
+- フィードバック: gcp.demo.776@gmail.com
+- 特典（14日プレミアム）: prod Firestore の `closed_testers/{メール小文字}` に登録すると、次の例文生成・語彙テスト時に一度だけ付く（`functions/go/closed_tester.go`）
 
-## 4. コンテンツのレーティング
+## アプリのコンテンツ（申告内容）
 
 | 項目 | 回答 |
 |------|------|
+| プライバシーポリシー | https://thai-memo-prod.web.app/privacy-policy.html |
+| ログインの詳細 | 審査用 Google アカウントを登録済み（2段階認証なし） |
+| 広告 | なし |
+| 広告 ID | 使用しない（AD_ID 系の権限はマニフェストで外している） |
+| ターゲットユーザー | 13〜15歳 / 16〜17歳 / 18歳以上 |
+| 行政・金融取引・健康 | 該当なし |
 | カテゴリ | 教育 |
-| 暴力 | なし |
-| 性的コンテンツ | なし |
-| 不適切な言語 | なし |
-| ユーザー間交流機能 | なし |
+| 連絡先 | gcp.demo.776@gmail.com / https://thai-memo-prod.web.app |
+| 価格 | 無料（サブスク: premium_monthly / premium_annual、各 1 週間の無料トライアルあり） |
 
-## 5. ターゲットユーザー
+### データセーフティ
 
-**13歳以上**（プライバシーポリシーに「13歳未満を対象としない」と明記済み）
+- 共有なし。送信時は暗号化。アカウント削除 URL: https://thai-memo-prod.web.app/account-deletion.html
+- 収集（すべて必須・一時処理ではない）
 
-## 6. データセーフティ
+| データ | 目的 |
+|---|---|
+| 名前・メールアドレス | アプリの機能、アカウント管理 |
+| ユーザー ID | アプリの機能、分析、アカウント管理 |
+| 購入履歴 | アプリの機能 |
+| その他のアプリ内メッセージ（お問い合わせ） | アプリの機能 |
+| アプリのインタラクション数 | 分析 |
+| その他の操作（学習データ） | アプリの機能、カスタマイズ |
+| デバイスまたはその他の ID（FCM トークン等） | アプリの機能、分析 |
 
-| データ種別 | 収集 | 共有先 | 目的 |
-|-----------|:----:|--------|------|
-| Firebase Auth UID | ◯ | Firebase（Google） | 認証 |
-| メールアドレス / 名前 | ◯ | Firebase | アカウント管理 |
-| 学習データ（例文・クイズ履歴） | ◯ | Firebase | 機能提供 |
-| 購入レシート | ◯ | Firebase / Google Play | サブスク検証 |
-| 広告識別子（GAID） | ◯（Freeのみ） | AdMob（Google） | 広告配信 |
-| Analyticsイベント | ◯ | Firebase Analytics | 分析 |
-| クラッシュログ | なし | — | Crashlytics未使用 |
+- 発音練習の録音は端末内処理のため申告しない（Android は OS の SpeechRecognizer を使う）
 
-- データは暗号化して転送: Yes（HTTPS）
-- ユーザーがデータ削除リクエスト可能: Yes（設定画面からアカウント削除）
-- データの販売: No
+## ストア掲載情報（ja-JP）
 
-## 7. 行政・金融・健康アプリ
-
-すべて**該当なし**
-
-## 8. カテゴリ・連絡先
-
-- カテゴリ: **教育**（Education）
-- タグ候補: タイ語、語学学習、AI学習、フラッシュカード
-- [ ] 公開用メールアドレスを用意・登録
-
-## 9. ストア掲載情報
-
-### アプリ名
-```
-まいにちタイ語
-```
-
-### 簡単な説明（80文字以内）
-```
-AIが毎日タイ語例文を生成。発音・文法・クイズで効率的にタイ語を学習できるアプリです。
-```
-
-### 詳しい説明
-```
-「まいにちタイ語」は、Google Gemini AIを活用して毎日新しいタイ語例文を自動生成するタイ語学習アプリです。
-
-【主な機能】
-• AIによるタイ語例文の自動生成（テーマ・文体を選択可能）
-• 単語ごとの発音（ローマ字）・意味・文法役割・声調ルールの詳細解説
-• タイ語ネイティブ音声での発音練習（TTS）
-• 生成した例文から出題されるクイズで理解度チェック
-• 学習ストリーク・語彙スコアによる進捗の可視化
-• 学習履歴の管理
-
-【対象ユーザー】
-タイ語を学びたい日本語話者。初心者から中級者まで対応。
-
-【Free / Premiumプラン】
-Freeプランでも基本機能を無料で利用できます。
-Premiumプランでは例文生成回数・テーマ・クイズ回数が増え、広告も非表示になります。
-
-※ご利用にはGoogleアカウントでのログインが必要です。
-※月額サブスクリプション（自動更新）を提供しています。
-```
-
----
-
-## 要対応事項
-
-- [ ] プライバシーポリシーをWeb上に公開してURLを取得
-- [ ] レビュー用Googleアカウント（テスト用）を用意
-- [ ] AdMobのテストIDを本番IDに切替（`lib/services/admob_service.dart`）
-- [ ] 公開用メールアドレスを登録
+- アプリ名: まいにちタイ語 - 毎日の例文で単語が増える
+- 簡単な説明: 今の語彙に合ったタイ語例文で、読める表現を毎日少しずつ。声調をその場で判定し、クイズで復習。旅行やBLドラマなど11テーマ。
+- 詳しい説明: App Store（ja）の説明文と同じ
+- 画像: `build/store_shots/out/android/`（`flutter test test/screenshots/store_mock_screens.dart` → `flutter test test/screenshots/store_screenshots.dart --dart-define=DEVICE=android`）
