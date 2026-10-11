@@ -301,7 +301,9 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
               l10n.guideRoleQuizCheck,
               l10n.guideRoleQuizSummary,
               l10n.guideRoleQuizSpelling,
+              l10n.guideRoleQuizWordOrder,
             ],
+            figure: const GuideWordOrderFigure(),
           ),
           _GuideSection(
             icon: Icons.trending_up,
@@ -395,6 +397,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
             lines: [
               l10n.guideHowSettingsStep1,
               l10n.guideHowSettingsStep2,
+              l10n.guideHowSettingsGuides,
               l10n.guideHowSettingsStep3,
             ],
           ),

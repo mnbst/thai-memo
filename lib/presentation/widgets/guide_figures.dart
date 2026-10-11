@@ -15,6 +15,7 @@ import '../../l10n/app_localizations.dart';
 import '../screens/paywall_screen.dart';
 import 'pronunciation_practice.dart';
 import 'vocab_level.dart';
+import 'word_order_example.dart';
 
 /// 学習のくり返しを1本の流れで示す図。
 /// 例文 → クイズのくり返しと、例文5つごとのまとめクイズ。
@@ -404,4 +405,23 @@ class GuidePlanCompareFigure extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         child: child,
       );
+}
+
+/// 並び替えクイズと語順ガイドの紹介。語順ガイドと同じ語のチップで、
+/// 話題が文頭に来る例を1つ見せる。
+class GuideWordOrderFigure extends StatelessWidget {
+  const GuideWordOrderFigure({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return WordOrderExampleView(
+      example: WordOrderExample(
+        const ['ทัวร์', 'นี้', 'คน', 'เยอะ'],
+        const ['thua', 'níi', 'khon', 'yə́'],
+        const {0, 1},
+        (l) => l.wordOrderEx1aGloss,
+        (l) => l.wordOrderEx1aMeaning,
+      ),
+    );
+  }
 }
