@@ -4963,6 +4963,174 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'わかった'**
   String get coachGotIt;
+
+  /// No description provided for @settingsWordOrderGuide.
+  ///
+  /// In ja, this message translates to:
+  /// **'語順ガイド'**
+  String get settingsWordOrderGuide;
+
+  /// No description provided for @settingsWordOrderGuideSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の語の並び方を学ぶ'**
+  String get settingsWordOrderGuideSubtitle;
+
+  /// No description provided for @wordOrderLearnMore.
+  ///
+  /// In ja, this message translates to:
+  /// **'語順について詳しく学ぶ'**
+  String get wordOrderLearnMore;
+
+  /// No description provided for @wordOrderGuideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の語順ガイド'**
+  String get wordOrderGuideTitle;
+
+  /// No description provided for @wordOrderGuideHeading.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の語順のきまり'**
+  String get wordOrderGuideHeading;
+
+  /// No description provided for @wordOrderGuideIntro.
+  ///
+  /// In ja, this message translates to:
+  /// **'並び替え問題で迷ったときの手がかりです。タイ語は、話題を先に出し、動詞を目的語の前に、説明する語を後ろに置くのが基本です。'**
+  String get wordOrderGuideIntro;
+
+  /// No description provided for @wordOrderRule1Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'話題（〜は）を文の最初に置く'**
+  String get wordOrderRule1Title;
+
+  /// No description provided for @wordOrderRule1Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'何について話すかを先に出し、その後で説明します。日本語の「〜は」に近い並びです。\nทัวร์นี้คนเยอะ（thua níi khon yə́）\nこのツアーは人が多い →「ツアー この／人 多い」\nสนามบินคนเยอะ（sà-nǎam-bin khon yə́）\n空港は人が多い\n話題になりやすいのは、場所や นี้・นั้น（この・その）が付いた名詞です。話題と同じものを、後ろで「彼ら」などと言い直さないのが自然です。'**
+  String get wordOrderRule1Body;
+
+  /// No description provided for @wordOrderRule2Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'特定した物を話題にして前に出す'**
+  String get wordOrderRule2Title;
+
+  /// No description provided for @wordOrderRule2Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'นี้・นั้น で特定した、すでに話に出ている物は、文頭に出して「それについて」述べることがあります。\nรายงานนี้พรุ่งนี้ใช้ได้ไหม（raai-ngaan níi phrûng-níi chái dâai mǎi）\nこの報告書、明日使える？ →「報告書 この／明日 使える ？」'**
+  String get wordOrderRule2Body;
+
+  /// No description provided for @wordOrderRule3Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'話題の後は「だれが → する → 何を」'**
+  String get wordOrderRule3Title;
+
+  /// No description provided for @wordOrderRule3Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'動詞は目的語より前に来ます。日本語と逆です。\nผมกินข้าว（phǒm kin khâaw）\n私はご飯を食べる →「私 食べる ご飯」\n分かりきった「だれが」「何を」はよく省かれます。'**
+  String get wordOrderRule3Body;
+
+  /// No description provided for @wordOrderRule4Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'名詞を説明する語は後ろ'**
+  String get wordOrderRule4Title;
+
+  /// No description provided for @wordOrderRule4Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'形容詞は名詞の後ろに付きます。\nบ้านใหญ่（bâan yài）大きい家 →「家 大きい」\n「〜の」も持ち主が後ろです。\nบ้าน(ของ)ผม（bâan (khɔ̌ɔng) phǒm）私の家 →「家 の 私」\nของ は省くこともあります。'**
+  String get wordOrderRule4Body;
+
+  /// No description provided for @wordOrderRule5Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'数える・指すときは「名詞 → 数 → 類別詞 → この」'**
+  String get wordOrderRule5Title;
+
+  /// No description provided for @wordOrderRule5Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'แมวสองตัว（mɛɛw sɔ̌ɔng tua）猫2匹 →「猫 2 匹」\nแมวตัวนี้（mɛɛw tua níi）この猫\nแมวสองตัวนี้（mɛɛw sɔ̌ɔng tua níi）この2匹の猫'**
+  String get wordOrderRule5Body;
+
+  /// No description provided for @wordOrderRule6Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'否定の ไม่ は、打ち消したい語句の前'**
+  String get wordOrderRule6Title;
+
+  /// No description provided for @wordOrderRule6Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'ไม่กิน（食べない）／ไม่ใหญ่（大きくない）\nจะไม่ไป（行かないつもり）／ไม่เคยไป（行ったことがない）\nไม่ได้＋動詞は「実際には〜しなかった・していない」：ผมไม่ได้ไป（私は行かなかった）\n今のことだとはっきりさせるときは อยู่ を足す：ผมไม่ได้ทำงานอยู่（今は働いていない）\n「〜できない」は動詞の後ろ：ไปไม่ได้（行けない）'**
+  String get wordOrderRule6Body;
+
+  /// No description provided for @wordOrderRule7Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'疑問詞は答えが入る場所にそのまま'**
+  String get wordOrderRule7Title;
+
+  /// No description provided for @wordOrderRule7Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'คุณกินอะไร（khun kin à-rai）何を食べる？ →「あなた 食べる 何」\nไปไหน（pai nǎi）どこへ行く？\nはい・いいえで答える質問は、文末に ไหม を付けます。'**
+  String get wordOrderRule7Body;
+
+  /// No description provided for @wordOrderRule8Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'時を表す語の位置'**
+  String get wordOrderRule8Title;
+
+  /// No description provided for @wordOrderRule8Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'動詞の前：จะ（これから〜する）・กำลัง（〜している）・เคย（〜したことがある）\n動詞（＋目的語）の後ろ：แล้ว（もう〜した・〜になった）\nผมจะไป（私は行きます）／กินแล้ว（もう食べた）'**
+  String get wordOrderRule8Body;
+
+  /// No description provided for @wordOrderRule9Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'時を表す語は文頭か文末、場所は動詞の後ろ'**
+  String get wordOrderRule9Title;
+
+  /// No description provided for @wordOrderRule9Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'พรุ่งนี้ผมจะไปเชียงใหม่（明日、チェンマイへ行きます）\nผมทำงานที่กรุงเทพฯ（私はバンコクで働いています）'**
+  String get wordOrderRule9Body;
+
+  /// No description provided for @wordOrderRule10Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'丁寧の語尾は一番最後'**
+  String get wordOrderRule10Title;
+
+  /// No description provided for @wordOrderRule10Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'男性は ครับ。女性はふつう ค่ะ、質問では คะ。\nไหม や แล้ว よりも後ろに付きます：กินไหมคะ／กินแล้วค่ะ'**
+  String get wordOrderRule10Body;
+
+  /// No description provided for @wordOrderTipsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'並び替えのコツ'**
+  String get wordOrderTipsTitle;
+
+  /// No description provided for @wordOrderTipsBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'1. 場所や「この〇〇」が文全体の話題で、後ろがそこでの出来事やその一部の説明なら、文頭に置く\n2. 動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n3. 説明する語・数・นี้ は、説明される名詞の後ろ\n4. ไหม・แล้ว・ครับ/ค่ะ/คะ は最後のほう'**
+  String get wordOrderTipsBody;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

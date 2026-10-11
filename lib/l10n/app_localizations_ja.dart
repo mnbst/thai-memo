@@ -2746,4 +2746,100 @@ class L10nJa extends L10n {
 
   @override
   String get coachGotIt => 'わかった';
+
+  @override
+  String get settingsWordOrderGuide => '語順ガイド';
+
+  @override
+  String get settingsWordOrderGuideSubtitle => 'タイ語の語の並び方を学ぶ';
+
+  @override
+  String get wordOrderLearnMore => '語順について詳しく学ぶ';
+
+  @override
+  String get wordOrderGuideTitle => 'タイ語の語順ガイド';
+
+  @override
+  String get wordOrderGuideHeading => 'タイ語の語順のきまり';
+
+  @override
+  String get wordOrderGuideIntro =>
+      '並び替え問題で迷ったときの手がかりです。タイ語は、話題を先に出し、動詞を目的語の前に、説明する語を後ろに置くのが基本です。';
+
+  @override
+  String get wordOrderRule1Title => '話題（〜は）を文の最初に置く';
+
+  @override
+  String get wordOrderRule1Body =>
+      '何について話すかを先に出し、その後で説明します。日本語の「〜は」に近い並びです。\nทัวร์นี้คนเยอะ（thua níi khon yə́）\nこのツアーは人が多い →「ツアー この／人 多い」\nสนามบินคนเยอะ（sà-nǎam-bin khon yə́）\n空港は人が多い\n話題になりやすいのは、場所や นี้・นั้น（この・その）が付いた名詞です。話題と同じものを、後ろで「彼ら」などと言い直さないのが自然です。';
+
+  @override
+  String get wordOrderRule2Title => '特定した物を話題にして前に出す';
+
+  @override
+  String get wordOrderRule2Body =>
+      'นี้・นั้น で特定した、すでに話に出ている物は、文頭に出して「それについて」述べることがあります。\nรายงานนี้พรุ่งนี้ใช้ได้ไหม（raai-ngaan níi phrûng-níi chái dâai mǎi）\nこの報告書、明日使える？ →「報告書 この／明日 使える ？」';
+
+  @override
+  String get wordOrderRule3Title => '話題の後は「だれが → する → 何を」';
+
+  @override
+  String get wordOrderRule3Body =>
+      '動詞は目的語より前に来ます。日本語と逆です。\nผมกินข้าว（phǒm kin khâaw）\n私はご飯を食べる →「私 食べる ご飯」\n分かりきった「だれが」「何を」はよく省かれます。';
+
+  @override
+  String get wordOrderRule4Title => '名詞を説明する語は後ろ';
+
+  @override
+  String get wordOrderRule4Body =>
+      '形容詞は名詞の後ろに付きます。\nบ้านใหญ่（bâan yài）大きい家 →「家 大きい」\n「〜の」も持ち主が後ろです。\nบ้าน(ของ)ผม（bâan (khɔ̌ɔng) phǒm）私の家 →「家 の 私」\nของ は省くこともあります。';
+
+  @override
+  String get wordOrderRule5Title => '数える・指すときは「名詞 → 数 → 類別詞 → この」';
+
+  @override
+  String get wordOrderRule5Body =>
+      'แมวสองตัว（mɛɛw sɔ̌ɔng tua）猫2匹 →「猫 2 匹」\nแมวตัวนี้（mɛɛw tua níi）この猫\nแมวสองตัวนี้（mɛɛw sɔ̌ɔng tua níi）この2匹の猫';
+
+  @override
+  String get wordOrderRule6Title => '否定の ไม่ は、打ち消したい語句の前';
+
+  @override
+  String get wordOrderRule6Body =>
+      'ไม่กิน（食べない）／ไม่ใหญ่（大きくない）\nจะไม่ไป（行かないつもり）／ไม่เคยไป（行ったことがない）\nไม่ได้＋動詞は「実際には〜しなかった・していない」：ผมไม่ได้ไป（私は行かなかった）\n今のことだとはっきりさせるときは อยู่ を足す：ผมไม่ได้ทำงานอยู่（今は働いていない）\n「〜できない」は動詞の後ろ：ไปไม่ได้（行けない）';
+
+  @override
+  String get wordOrderRule7Title => '疑問詞は答えが入る場所にそのまま';
+
+  @override
+  String get wordOrderRule7Body =>
+      'คุณกินอะไร（khun kin à-rai）何を食べる？ →「あなた 食べる 何」\nไปไหน（pai nǎi）どこへ行く？\nはい・いいえで答える質問は、文末に ไหม を付けます。';
+
+  @override
+  String get wordOrderRule8Title => '時を表す語の位置';
+
+  @override
+  String get wordOrderRule8Body =>
+      '動詞の前：จะ（これから〜する）・กำลัง（〜している）・เคย（〜したことがある）\n動詞（＋目的語）の後ろ：แล้ว（もう〜した・〜になった）\nผมจะไป（私は行きます）／กินแล้ว（もう食べた）';
+
+  @override
+  String get wordOrderRule9Title => '時を表す語は文頭か文末、場所は動詞の後ろ';
+
+  @override
+  String get wordOrderRule9Body =>
+      'พรุ่งนี้ผมจะไปเชียงใหม่（明日、チェンマイへ行きます）\nผมทำงานที่กรุงเทพฯ（私はバンコクで働いています）';
+
+  @override
+  String get wordOrderRule10Title => '丁寧の語尾は一番最後';
+
+  @override
+  String get wordOrderRule10Body =>
+      '男性は ครับ。女性はふつう ค่ะ、質問では คะ。\nไหม や แล้ว よりも後ろに付きます：กินไหมคะ／กินแล้วค่ะ';
+
+  @override
+  String get wordOrderTipsTitle => '並び替えのコツ';
+
+  @override
+  String get wordOrderTipsBody =>
+      '1. 場所や「この〇〇」が文全体の話題で、後ろがそこでの出来事やその一部の説明なら、文頭に置く\n2. 動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n3. 説明する語・数・นี้ は、説明される名詞の後ろ\n4. ไหม・แล้ว・ครับ/ค่ะ/คะ は最後のほう';
 }

@@ -1068,6 +1068,25 @@ void main() {
     expect(find.byKey(const ValueKey('quiz_next_button')), findsOneWidget);
   });
 
+  testWidgets('並び替えの解答から語順ガイドを開ける', (tester) async {
+    await _pumpSummaryQuiz(
+      tester,
+      questions: [_wordOrderQuestion, ..._questions.skip(1)],
+    );
+
+    await _placeTiles(tester, [1, 2, 3, 0]);
+    final check = find.byKey(const ValueKey('quiz_word_order_check'));
+    await tester.ensureVisible(check);
+    await tester.tap(check);
+    await tester.pump();
+
+    final guide = find.byKey(const ValueKey('quiz_word_order_guide_button'));
+    await tester.ensureVisible(guide);
+    await tester.tap(guide);
+    await tester.pumpAndSettle();
+    expect(find.text('タイ語の語順ガイド'), findsOneWidget);
+  });
+
   testWidgets('入門者には読みを最初から見せ、ヒントは訳だけにする', (tester) async {
     final question = QuizQuestion.fromJson({
       ..._wordOrderQuestion.toJson(),
