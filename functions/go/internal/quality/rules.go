@@ -173,7 +173,8 @@ var wordUsages = []wordUsage{
 		Question: "`thai_text` の บางที が「時々」または推量の「もしかすると」以外の使い方、特に依頼・誘い・提案の前置き（〜してもらえますか、〜しよう、〜しない？）として使われているか",
 		Note:     "thai_text で、「時々／もしかすると」を表す語を依頼・誘い・提案の前置きに使っていた。依頼や誘いには使わない"},
 	{ID: "usage_win", Word: "วิน", Threshold: 0.5,
-		Skip:     []string{"วินาที", "วินัย", "วินาศ", "วินิจฉัย"},
+		// มาวิน は BLドラマ回（MuTeLuv）の登場人物の名前。
+		Skip:     []string{"วินาที", "วินัย", "วินาศ", "วินิจฉัย", "มาวิน"},
 		Question: "`thai_text` の วิน が、バイクタクシー（乗り場・運転手・サービス）の意味以外（人名、秒の略、乗り物そのもの 等）で使われているか",
 		Note:     "thai_text で、バイクタクシーの乗り場・運転手を表す語を、人名・秒の略・乗り物そのものに使っていた。バイクタクシーの意味で使う"},
 }
@@ -217,6 +218,27 @@ func concessiveNoHead(c Candidate) bool {
 			if !kotamHeadRe.MatchString(part) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// latinWordRe は thai_text の小文字を含むローマ字の語。略語（BTS、TK、SNS）は大文字だけなので当たらない。
+var latinWordRe = regexp.MustCompile(`[A-Za-z]*[a-z][A-Za-z]*`)
+
+// latinBrands はローマ字のまま書くのが普通の商品・サービス名。
+var latinBrands = map[string]bool{
+	"TikTok": true, "Facebook": true, "Instagram": true, "YouTube": true, "Line": true,
+	"Grab": true, "Shopee": true, "Lazada": true, "Netflix": true, "iPhone": true, "iPad": true,
+}
+
+// latinName は thai_text に人名などをローマ字で書いているか（×ร้านของ Lynx、×พี่Kang）。
+// BLドラマ回で登場人物の名前を入れさせると出る（2026-10-11、103文中3件）。
+// prod プール 14,636 文で当たるのは Dean・Bison の 2 件だけ。
+func latinName(c Candidate) bool {
+	for _, w := range latinWordRe.FindAllString(c.ThaiText, -1) {
+		if !latinBrands[w] {
+			return true
 		}
 	}
 	return false

@@ -107,6 +107,7 @@ func main() {
 			c := []quality.Candidate{{
 				ThaiText: s.ThaiText, JapaneseTranslation: s.JapaneseTranslation,
 				KeyWord: s.KeyWord, Lang: l, GenerationTier: *tier,
+				Topic: topicOf(s.Context),
 			}}
 			reason, err := recheck(ctx, judge, c)
 			mu.Lock()
@@ -171,4 +172,10 @@ func recheck(ctx context.Context, judge *quality.Judge, c []quality.Candidate) (
 		return res.Verdicts[0].Reason, nil
 	}
 	return "", nil
+}
+
+// topicOf は context.topic を返す。BLドラマ回の判定に登場人物の名前を渡すのに使う。
+func topicOf(ctx map[string]any) string {
+	t, _ := ctx["topic"].(string)
+	return t
 }

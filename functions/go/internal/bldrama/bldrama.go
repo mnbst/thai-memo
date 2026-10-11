@@ -9,6 +9,7 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"regexp"
 	"strings"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
@@ -90,7 +91,9 @@ func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 		"ドラマの設定: " + pick.Context,
 		"場面: " + scene,
 		"参考タイ語例（雰囲気・口語感の参考。この1文のみ）: " + shotText,
-		"usage_scenariosにはどんな場面かわかる説明を書くこと",
+		// どの作品の場面かは使い方の名前で示す。thai_text に名前を必須にすると
+		// 名前を押し込んだ不自然な文が増える（2026-10-11、判定の作り直し後も外れる 10/102 → 2/103）。
+		"usage_scenariosには、登場人物の名前を入れて、誰が誰に言う場面かわかる説明を書くこと。" + namesNote(pick.Context),
 	}
 
 	// กู/มึง の指示は参考例にあるときだけ出す。常に名指しすると、
@@ -116,6 +119,7 @@ func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 	return sentence.DramaSection{
 		Context:  bulletList(contextLines),
 		Required: bulletList(requiredLines),
+		NameKana: nameKana,
 	}
 }
 
@@ -146,4 +150,43 @@ func (b *Builder) BuildSceneSection(scene string, scenes []string) sentence.Dram
 		return sentence.DramaSection{}
 	}
 	return b.section(in[b.intn(len(in))], scene)
+}
+
+// namePairRe は設定の「英字（タイ文字）」の名前（Kang（แกง））。
+var namePairRe = regexp.MustCompile(`([A-Za-z][A-Za-z ]*)（([\x{0E00}-\x{0E7F}]+)）`)
+
+// namesNote は使い方に書く名前の表記を、設定に出てくる登場人物ぶん並べる。
+// 表記を渡さないと、日本語でカタカナが揺れる（トト／トートー、コヌン／ゴーヌン）。
+func namesNote(context string) string {
+	var ja, en []string
+	for _, m := range namePairRe.FindAllStringSubmatch(context, -1) {
+		if k, ok := nameKana[m[2]]; ok {
+			ja = append(ja, k)
+			en = append(en, m[1])
+		}
+	}
+	if len(ja) == 0 {
+		return "名前は、usage_scenariosが日本語ならカタカナ、英語なら英字で書く"
+	}
+	return "名前は、usage_scenariosが日本語なら" + strings.Join(ja, "、") + "、英語なら" + strings.Join(en, ", ") + "と書く"
+}
+
+// nameRe は設定の括弧内にあるタイ文字の名前（Kang（แกง） の แกง）。
+var nameRe = regexp.MustCompile(`（([\x{0E00}-\x{0E7F}]+)）`)
+
+// Names は設定に出てくる登場人物のタイ文字の名前を返す。
+// แกง（カレー）・ขอบฟ้า（地平線）のように普通の語と同じ綴りの名前があるので、
+// 例文の判定で人名だと伝えるのに使う。ข้าวแกง のような設定中の物は括弧に入れていないので入らない。
+func Names() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, sid := range shotIDs {
+		for _, m := range nameRe.FindAllStringSubmatch(shotContext[sid].Context, -1) {
+			if !seen[m[1]] {
+				seen[m[1]] = true
+				out = append(out, m[1])
+			}
+		}
+	}
+	return out
 }
