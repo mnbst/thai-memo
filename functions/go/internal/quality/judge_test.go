@@ -73,10 +73,10 @@ func newJudge(t *testing.T, s *jevServer) *Judge {
 
 func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 	batch := sample(3)
-	batch[1].ThaiText = "bad"
+	batch[1].ThaiText = "BAD"
 	batch[1].SentenceID = "target"
 	s := &jevServer{scores: map[string]map[string]float64{
-		"bad": {"collocation": 0.62, "grammar": 0.45},
+		"BAD": {"collocation": 0.62, "grammar": 0.45},
 	}}
 
 	res, err := newJudge(t, s).Review(context.Background(), batch)
@@ -106,17 +106,17 @@ func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 // trans_add だけは閾値が高い。0.4〜0.6 は細かい揺れで立つ。
 func TestTransAddUsesHigherThreshold(t *testing.T) {
 	batch := sample(2)
-	batch[0].ThaiText = "mid"
-	batch[1].ThaiText = "high"
+	batch[0].ThaiText = "MID"
+	batch[1].ThaiText = "HIGH"
 	s := &jevServer{scores: map[string]map[string]float64{
-		"mid":  {"trans_add": 0.55},
-		"high": {"trans_add": 0.65},
+		"MID":  {"trans_add": 0.55},
+		"HIGH": {"trans_add": 0.65},
 	}}
 	res, err := newJudge(t, s).Review(context.Background(), batch)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Flagged) != 1 || res.Flagged[0].ThaiText != "high" {
+	if len(res.Flagged) != 1 || res.Flagged[0].ThaiText != "HIGH" {
 		t.Fatalf("trans_add 0.55 は合格・0.65 は不合格のはず: %+v", res.Flagged)
 	}
 }
@@ -410,5 +410,19 @@ func TestFlagDocCarriesSentenceBody(t *testing.T) {
 	}
 	if fmt.Sprint(doc["scores"]) != fmt.Sprint(v.Scores) {
 		t.Errorf("scores = %v", doc["scores"])
+	}
+}
+
+func TestLatinName(t *testing.T) {
+	for text, want := range map[string]bool{
+		"กฎที่ร้านของ Lynx มีแค่นี้":     true,
+		"ข้าวแกงนี่อร่อยมากนะพี่Kang":    true,
+		"หมอดู TK มาแรงที่สุดแล้วตอนนี้": false,
+		"เรียก Grab ไปสถานีดีกว่า":       false,
+		"มาวินชอบเพลงร็อค":               false,
+	} {
+		if got := latinName(Candidate{ThaiText: text}); got != want {
+			t.Errorf("latinName(%q) = %v, want %v", text, got, want)
+		}
 	}
 }
