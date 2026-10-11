@@ -75,8 +75,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # versionCode は Play に手で上げ済みの 201 を超えるよう、実行番号に 300 を足す。
+      # 実行番号のままだと既存のビルドより小さく、更新として配られない。
       - name: Build AAB
-        run: flutter build appbundle --dart-define=ENV=prod --build-number=${{ github.run_number }}
+        run: flutter build appbundle --dart-define=ENV=prod --build-number=$((GITHUB_RUN_NUMBER + 300))
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4

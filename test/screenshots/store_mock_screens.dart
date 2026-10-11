@@ -83,6 +83,8 @@ class _Device {
 const _devices = [
   _Device('iphone', Size(440, 956), 3, 62, 34), // 1320x2868
   _Device('ipad', Size(1032, 1376), 2, 24, 20), // 2064x2752
+  // Google Play 用。ストアの寸法には store_screenshots.dart で合わせる。
+  _Device('android', Size(412, 892), 3, 36, 24), // 1236x2676
 ];
 
 /// 自分の語彙スコアと順位。分布の総数と合わせて「上位7%」程度に見せる。
@@ -149,7 +151,7 @@ void main() {
           await shot.act?.call(tester, lookupL10n(Locale(lang)));
           await tester.pumpAndSettle();
           await _save(tester, device, lang, shot.id);
-        }, variant: _ios);
+        }, variant: device.id == 'android' ? _android : _ios);
       }
     }
   }
@@ -157,6 +159,7 @@ void main() {
 
 /// 戻るボタンの形などを iOS にそろえる。
 final _ios = TargetPlatformVariant.only(TargetPlatform.iOS);
+final _android = TargetPlatformVariant.only(TargetPlatform.android);
 
 void _setView(WidgetTester tester, _Device device) {
   tester.view.devicePixelRatio = device.ratio;
@@ -267,7 +270,10 @@ Widget _host(String lang, _Device device, _Shot shot, ThaiSentence sentence) {
         child: Stack(
           children: [
             TabletWidthLimit(child: child!),
-            _StatusBar(height: device.top, isPhone: device.id == 'iphone'),
+            if (device.id == 'android')
+              _AndroidStatusBar(height: device.top)
+            else
+              _StatusBar(height: device.top, isPhone: device.id == 'iphone'),
           ],
         ),
       ),
@@ -454,6 +460,47 @@ class _TopicPickerHostState extends ConsumerState<_TopicPickerHost> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(L10n.of(context).settingsTopic)),
+    );
+  }
+}
+
+/// Android のステータスバー（左に時刻、右に Wi-Fi・電波・電池満タン）。
+class _AndroidStatusBar extends StatelessWidget {
+  const _AndroidStatusBar({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xFF111111);
+    const size = 15.0;
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      height: height,
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24),
+        child: Row(
+          children: [
+            Text(
+              '9:30',
+              style: TextStyle(
+                fontFamily: 'NotoSans_600',
+                fontSize: size,
+                color: color,
+                decoration: TextDecoration.none,
+              ),
+            ),
+            Spacer(),
+            Icon(Icons.wifi, size: size + 2, color: color),
+            SizedBox(width: 4),
+            Icon(Icons.signal_cellular_4_bar, size: size + 1, color: color),
+            SizedBox(width: 4),
+            Icon(Icons.battery_full, size: size + 2, color: color),
+          ],
+        ),
+      ),
     );
   }
 }
