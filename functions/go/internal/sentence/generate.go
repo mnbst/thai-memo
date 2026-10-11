@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
+	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/thainlp"
@@ -187,6 +190,8 @@ type Request struct {
 
 	// Enrich は NLP 後処理の差し替え用。nil なら EnrichWithNLP。
 	Enrich func(*Sentence, lang.Lang)
+	// NameKana は日本語の使い方・文化メモで置き換える名前（DramaSection.NameKana）。
+	NameKana map[string]string
 }
 
 func (r *Request) enrich(s *Sentence) {
@@ -221,6 +226,9 @@ func GenerateSingle(ctx context.Context, gen Generator, req Request) (*Sentence,
 		ApplyResponseCompat(s, req.ResolvedContext)
 		// 軸ラベル（テーマ・文体など）はサーバー側の日本語定数なので、en は英語へ。
 		s.Context = LocalizeContext(s.Context, req.Lang)
+		if req.Lang == lang.JA {
+			replaceNames(s.Context, req.NameKana)
+		}
 
 		compacted := CompactYamok(s.ThaiText)
 		text, words := NormalizeThaiSpacing(s.ThaiText, s.BreakdownWords())
@@ -362,5 +370,34 @@ func (s *Service) GenerateSentenceWithNotes(
 		TargetWords:     targetWords,
 		ResolvedContext: resolvedContext,
 		Lang:            l,
+		NameKana:        drama.NameKana,
 	})
+}
+
+// replaceNames は使い方・文化メモに出た names のキー（タイ文字・英字の名前）を値に置き換える。
+// 長い名前から置き換え、短い名前が長い名前の一部（โก๋หนึ่ง の中の หนึ่ง 等）を壊さないようにする。
+// 英字は単語の途中（Er が Error の一部になる等）では置き換えない。
+func replaceNames(ctx map[string]any, names map[string]string) {
+	if len(names) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(names))
+	for k := range names {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return len(keys[i]) > len(keys[j]) })
+	for _, field := range []string{"usage_scenarios", "cultural_notes"} {
+		text, ok := ctx[field].(string)
+		if !ok || text == "" {
+			continue
+		}
+		for _, k := range keys {
+			if k[0] < utf8.RuneSelf {
+				text = regexp.MustCompile(`\b`+regexp.QuoteMeta(k)+`\b`).ReplaceAllString(text, names[k])
+			} else {
+				text = strings.ReplaceAll(text, k, names[k])
+			}
+		}
+		ctx[field] = text
+	}
 }

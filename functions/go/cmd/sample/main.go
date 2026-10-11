@@ -303,6 +303,7 @@ func regenerate(
 		TargetWords:     words,
 		ResolvedContext: rc,
 		Lang:            l,
+		NameKana:        drama.NameKana,
 	})
 }
 

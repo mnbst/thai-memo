@@ -21,12 +21,6 @@ type ShotContext struct {
 	Drama   string
 	Context string
 	Scene   string
-	// Props はこの場面の作品ならではの舞台・物（日本語、読点区切り）。
-	Props string
-	// UseProps は、作品の手がかりを登場人物の名前ではなく Props で示す場面か。
-	// 占いのカード・猫カフェ・スーツケースのように物だけで作品が分かる場面を true にする。
-	// false の場面は名前を入れる（小道具だけでは汎用的な文になりやすい）。
-	UseProps bool
 }
 
 // ShotFinder は単語に最も近いセリフを選ぶ。実装は internal/embeddings.Store。
@@ -97,7 +91,9 @@ func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 		"ドラマの設定: " + pick.Context,
 		"場面: " + scene,
 		"参考タイ語例（雰囲気・口語感の参考。この1文のみ）: " + shotText,
-		"usage_scenariosにはどんな場面かわかる説明を書くこと",
+		// どの作品の場面かは使い方の名前で示す。thai_text に名前を必須にすると
+		// 名前を押し込んだ不自然な文が増える（2026-10-11、判定の作り直し後も外れる 10/102 → 2/103）。
+		"usage_scenariosには、登場人物の名前を入れて、誰が誰に言う場面かわかる説明を書くこと。" + namesNote(pick.Context),
 	}
 
 	// กู/มึง の指示は参考例にあるときだけ出す。常に名指しすると、
@@ -108,21 +104,12 @@ func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 		pronounLine = "話し手・聞き手の人称代名詞は参考タイ語例と同じ丁寧度で統一すること。" +
 			"参考例でกู/มึงが使われていればthai_textでもกู/มึงを使う。ฉัน/คุณ/ผมへの置き換え禁止"
 	}
-	// 設定の分からない汎用的な文（「私が面倒を見るよ」）が多く、どの作品の回か伝わらない。
-	clueLine := "thai_textに、ドラマの設定に出てくる登場人物の名前を1つ入れる（相手への呼びかけか、話題の人として）。" +
-		"読んだ人がどの作品の場面か見当がつくようにする。名前はドラマの設定の括弧内にあるタイ文字の綴りのまま書く。" +
-		"作品の舞台・物は、ターゲット単語と同じ場面に自然に出てくるときだけ足す。japanese_translationでは名前をカタカナで書く"
-	if pick.UseProps {
-		clueLine = "thai_textに登場人物の名前は入れない。代わりに、この作品の舞台・物（" + pick.Props + "）のどれかを1つ入れ、" +
-			"読んだ人がどの作品の場面か見当がつくようにする"
-	}
 	requiredLines := []string{
 		pronounLine,
 		"相手の呼び方（二人称）も参考タイ語例に合わせること。" +
 			"参考例でพี่/เฮียなどが使われていればคุณに置き換えない",
 		"参考タイ語例の雰囲気・構文を参考にオリジナルのタイ語文を作ること。" +
 			"単語を部分的に差し替えて別の意味の語を作らない（例: ช่วยดูแล を ช่วยดู にするなど）",
-		clueLine,
 		// まれな key_word を恋愛感情へのたとえで押し込む（タイヤ痕→心の罪）のを止める。
 		// 定着した言い回しは残す（その場で作ったたとえは quality の metaphor 観点が落とす）。
 		"ターゲット単語を気持ちや関係のたとえに使うのは、タイ語で定着した言い回しのときだけ。その場でたとえを作らない。" +
@@ -132,6 +119,7 @@ func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 	return sentence.DramaSection{
 		Context:  bulletList(contextLines),
 		Required: bulletList(requiredLines),
+		NameKana: nameKana,
 	}
 }
 
@@ -162,6 +150,25 @@ func (b *Builder) BuildSceneSection(scene string, scenes []string) sentence.Dram
 		return sentence.DramaSection{}
 	}
 	return b.section(in[b.intn(len(in))], scene)
+}
+
+// namePairRe は設定の「英字（タイ文字）」の名前（Kang（แกง））。
+var namePairRe = regexp.MustCompile(`([A-Za-z][A-Za-z ]*)（([\x{0E00}-\x{0E7F}]+)）`)
+
+// namesNote は使い方に書く名前の表記を、設定に出てくる登場人物ぶん並べる。
+// 表記を渡さないと、日本語でカタカナが揺れる（トト／トートー、コヌン／ゴーヌン）。
+func namesNote(context string) string {
+	var ja, en []string
+	for _, m := range namePairRe.FindAllStringSubmatch(context, -1) {
+		if k, ok := nameKana[m[2]]; ok {
+			ja = append(ja, k)
+			en = append(en, m[1])
+		}
+	}
+	if len(ja) == 0 {
+		return "名前は、usage_scenariosが日本語ならカタカナ、英語なら英字で書く"
+	}
+	return "名前は、usage_scenariosが日本語なら" + strings.Join(ja, "、") + "、英語なら" + strings.Join(en, ", ") + "と書く"
 }
 
 // nameRe は設定の括弧内にあるタイ文字の名前（Kang（แกง） の แกง）。

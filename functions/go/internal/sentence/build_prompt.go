@@ -34,6 +34,9 @@ type DramaSection struct {
 	Required string
 	// Medium は付けた参考例文の媒体（Media の Name）。空なら媒体を変えない。
 	Medium string
+	// NameKana は登場人物の名前（タイ文字・英字）→ カタカナ。日本語の使い方・文化メモに
+	// 残った名前を生成後に置き換える（Request.NameKana へ渡す）。
+	NameKana map[string]string
 }
 
 // BuildPrompt はプロンプトを構築する（free/premium 共通）。

@@ -61,24 +61,26 @@ THEMES = {
     "BLドラマ": ("タイBLドラマ",),
 }
 
-# BLドラマの日は、作品の見当がつく例文だけ出す。作品ごとに、本文に出れば
-# その作品と分かる語（登場人物名・象徴的な小道具や場所）を並べる。一般語と
+# BLドラマの日は、作品の見当がつく例文だけ出す。作品ごとに、本文か使い方
+# （context.usage_scenarios）に出ればその作品と分かる語（登場人物名とそのカタカナ・
+# 象徴的な小道具や場所）を並べる。2026-10-11 から生成側は本文に名前を必須にせず、
+# 使い方に名前を書かせる。一般語と
 # 紛れる語（หมู=豚、สไตล์、ดาว、พระเจ้า 等）は入れない。作品の設定は
 # functions/go/internal/bldrama/data.go の shotContext。
 BL_DRAMA_MARKERS = {
-    "Only Boo!": ("พี่แกง", "ข้าวแกง"),
-    "The Heart Killers": ("ไบซัน", "ฟาเดล", "คานต์", "นักฆ่า"),
-    "Peaceful Property": ("ผี", "พีช", "โฮม"),
-    "MuTeLuv": ("หมอดู", "ดูดวง", "มาวิน", "เอ้อ"),
-    "Cat for Cash": ("แมว", "ไทเกอร์", "ลิงซ์"),
-    "Unlucky Bae": ("คำสาป", "ขอบฟ้า", "ซวย"),
+    "Only Boo!": ("พี่แกง", "ข้าวแกง", "カン", "ムー"),
+    "The Heart Killers": ("ไบซัน", "ฟาเดล", "คานต์", "นักฆ่า", "カーン", "バイソン", "ファデル"),
+    "Peaceful Property": ("ผี", "พีช", "โฮม", "ピーチ", "ホーム"),
+    "MuTeLuv": ("หมอดู", "ดูดวง", "มาวิน", "เอ้อ", "マーウィン"),
+    "Cat for Cash": ("แมว", "ไทเกอร์", "ลิงซ์", "タイガー", "リンクス"),
+    "Unlucky Bae": ("คำสาป", "ขอบฟ้า", "ซวย", "コープファー"),
     "Match Point": ("เทนนิส", "ติ่มซำ", "เบย์"),
-    "A Dog and A Plane": ("กัปตัน", "กู้ภัย", "คณิต", "โตโต้", "กระเป๋าเดินทาง"),
-    "When Oranges Fall": ("ส้ม", "โก๋"),
-    "Ticket to Heaven": ("บาทหลวง", "โบสถ์", "แทนรัก", "บาร์ธ"),
-    "WEIRDO-101": ("ยูโด", "นิรันดร์", "ชีวา"),
-    "You Maniac": ("ดีน", "มอธ"),
-    "Only Friends: Dream On": ("ละคร", "เวที", "แจ็ค"),
+    "A Dog and A Plane": ("กัปตัน", "กู้ภัย", "คณิต", "โตโต้", "กระเป๋าเดินทาง", "カニット", "トートー"),
+    "When Oranges Fall": ("ส้ม", "โก๋", "コーヌン", "コーソーン"),
+    "Ticket to Heaven": ("บาทหลวง", "โบสถ์", "แทนรัก", "บาร์ธ", "タンラック", "バース"),
+    "WEIRDO-101": ("ยูโด", "นิรันดร์", "ชีวา", "ニラン", "チーワー"),
+    "You Maniac": ("ดีน", "มอธ", "モス"),
+    "Only Friends: Dream On": ("ละคร", "เวที", "แจ็ค", "ジャック"),
 }
 
 GEMINI_SECRET = "gemini-api-key"
@@ -194,7 +196,10 @@ def bl_drama_only(pool: list[dict], rng: random.Random) -> list[dict]:
     by_drama: dict[str, list[dict]] = {}
     for sentence in pool:
         for drama, markers in BL_DRAMA_MARKERS.items():
-            if any(m in sentence["thai_text"] for m in markers):
+            text = sentence["thai_text"] + (
+                (sentence.get("context") or {}).get("usage_scenarios") or ""
+            )
+            if any(m in text for m in markers):
                 by_drama.setdefault(drama, []).append(sentence)
                 break
     if not by_drama:
