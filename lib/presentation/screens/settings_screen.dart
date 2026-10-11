@@ -31,6 +31,7 @@ import 'paywall_screen.dart';
 import 'ranking_screen.dart';
 import 'guide_screen.dart';
 import 'tone_guide_screen.dart';
+import 'word_order_guide_screen.dart';
 
 /// Settings screen
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -669,6 +670,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             CupertinoPageRoute(
               settings: const RouteSettings(name: ToneGuideScreen.routeName),
               builder: (context) => const ToneGuideScreen(),
+            ),
+          );
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.swap_horiz),
+        title: Text(l10n.settingsWordOrderGuide),
+        subtitle: Text(l10n.settingsWordOrderGuideSubtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              settings:
+                  const RouteSettings(name: WordOrderGuideScreen.routeName),
+              builder: (context) => const WordOrderGuideScreen(),
             ),
           );
         },

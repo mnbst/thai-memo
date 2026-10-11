@@ -198,6 +198,9 @@ lib/presentation/screens/vocab_test_screen.dart
 lib/presentation/screens/tone_guide_screen.dart
 タイ語声調システムのチュートリアル。
 
+lib/presentation/screens/word_order_guide_screen.dart
+タイ語の語順ガイド（主題・語順・否定・疑問・丁寧語尾）。設定と並び替え問題の解答から開く。
+
 ## Widgets
 
 lib/presentation/widgets/loading_tip_carousel.dart

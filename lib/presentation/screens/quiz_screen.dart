@@ -10,6 +10,7 @@ import '../../core/config/app_config.dart';
 import '../../core/quota_error.dart';
 import '../../core/thai_tone_analyzer.dart';
 import 'tone_guide_screen.dart';
+import 'word_order_guide_screen.dart';
 import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/models/quiz_question.dart';
@@ -2004,6 +2005,7 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                     if (_hasResult) ...[
                       const SizedBox(height: 4),
                       _buildFeedbackBox(context),
+                      if (question.isWordOrder) const _WordOrderGuideButton(),
                       // 押すと上の Listener が自動で次へ進むのを止める。
                       if (widget.showHints)
                         _SentenceDetailLink(
@@ -3089,6 +3091,7 @@ class _QuizResultDetail extends StatelessWidget {
                   order.map((i) => question.choices[i]).join(' ')),
               style: Theme.of(context).textTheme.bodyLarge,
             ),
+          const _WordOrderGuideButton(),
         ] else if (showExplanations)
           // 4択（正誤ハイライト付き）
           ...List.generate(question.choices.length, (i) {
@@ -3153,6 +3156,34 @@ class _QuizResultDetail extends StatelessWidget {
 /// 答えが出たあとなので、回答前の「例文を復習する」より広く出せる。
 /// 綴り4択は綴りそのものを問う問題で例文の出番が無いので出さない。例文の
 /// 中身が届いていない問題でも出さない。
+/// 並び替えの解答から語順ガイドへ送る。綴り4択の声調ガイドボタンと同じ形。
+class _WordOrderGuideButton extends StatelessWidget {
+  const _WordOrderGuideButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          key: const ValueKey('quiz_word_order_guide_button'),
+          onPressed: () => Navigator.push(
+            context,
+            CupertinoPageRoute(
+              settings:
+                  const RouteSettings(name: WordOrderGuideScreen.routeName),
+              builder: (context) => const WordOrderGuideScreen(),
+            ),
+          ),
+          icon: const Icon(Icons.school),
+          label: Text(L10n.of(context).wordOrderLearnMore),
+        ),
+      ),
+    );
+  }
+}
+
 class _SentenceDetailLink extends StatelessWidget {
   final QuizQuestion question;
   final String source;
