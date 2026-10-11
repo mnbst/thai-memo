@@ -2962,7 +2962,7 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderRule1Body =>
-      'Thai often names what you are talking about first, then says something about it.\nทัวร์นี้คนเยอะ (thua níi khon yə́)\nThis tour is crowded → \"tour this / people many\"\nสนามบินคนเยอะ (sà-nǎam-bin khon yə́)\nThe airport is crowded\nPlaces and nouns marked with นี้/นั้น (this/that) often serve as topics. Thai normally doesn\'t repeat the topic later with a pronoun like \"they\".';
+      'Thai often names what you are talking about first, then says something about it. Places and nouns marked with นี้/นั้น (this/that) often serve as topics.';
 
   @override
   String get wordOrderRule2Title =>
@@ -2970,21 +2970,21 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderRule2Body =>
-      'Something already mentioned and marked with นี้/นั้น can go at the start, and the rest of the sentence says something about it.\nรายงานนี้พรุ่งนี้ใช้ได้ไหม (raai-ngaan níi phrûng-níi chái dâai mǎi)\nCan we use this report tomorrow? → \"report this / tomorrow use can ?\"';
+      'Something already mentioned and marked with นี้/นั้น can go at the start, and the rest of the sentence says something about it.';
 
   @override
   String get wordOrderRule3Title => 'After the topic: who → does → what';
 
   @override
   String get wordOrderRule3Body =>
-      'The verb comes before its object, as in English.\nผมกินข้าว (phǒm kin khâaw)\nI eat rice → \"I eat rice\"\nThe \"who\" and \"what\" are often left out when they are obvious.';
+      'The verb comes before its object, as in English.';
 
   @override
   String get wordOrderRule4Title => 'Describing words come after the noun';
 
   @override
   String get wordOrderRule4Body =>
-      'Adjectives follow the noun.\nบ้านใหญ่ (bâan yài) a big house → \"house big\"\nThe owner also comes after the thing owned.\nบ้าน(ของ)ผม (bâan (khɔ̌ɔng) phǒm) my house → \"house of me\"\nของ can be left out.';
+      'Adjectives follow the noun. The owner also comes after the thing owned.';
 
   @override
   String get wordOrderRule5Title =>
@@ -2992,28 +2992,27 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderRule5Body =>
-      'แมวสองตัว (mɛɛw sɔ̌ɔng tua) two cats → \"cat two [classifier]\"\nแมวตัวนี้ (mɛɛw tua níi) this cat\nแมวสองตัวนี้ (mɛɛw sɔ̌ɔng tua níi) these two cats';
+      'Numbers follow the noun, together with a classifier (a counting word). \"This\" comes after that.';
 
   @override
   String get wordOrderRule6Title => 'ไม่ (not) goes before what it negates';
 
   @override
-  String get wordOrderRule6Body =>
-      'ไม่กิน (don\'t eat) / ไม่ใหญ่ (not big)\nจะไม่ไป (won\'t go) / ไม่เคยไป (have never been)\nไม่ได้ + verb often means \"didn\'t\" or \"am not doing\": ผมไม่ได้ไป (I didn\'t go)\nTo make clear it\'s about right now, you can add อยู่: ผมไม่ได้ทำงานอยู่ (I\'m not working now)\n\"Can\'t\" comes after the verb: ไปไม่ได้ (can\'t go)';
+  String get wordOrderRule6Body => 'ไม่ goes right before what it negates.';
 
   @override
   String get wordOrderRule7Title => 'Question words stay where the answer goes';
 
   @override
   String get wordOrderRule7Body =>
-      'คุณกินอะไร (khun kin à-rai) What do you eat? → \"you eat what\"\nไปไหน (pai nǎi) Where are you going?\nFor yes/no questions, add ไหม at the end.';
+      'Question words stay where the answer goes. For yes/no questions, add ไหม at the end.';
 
   @override
   String get wordOrderRule8Title => 'Where time and aspect words go';
 
   @override
   String get wordOrderRule8Body =>
-      'Before the verb: จะ (will) · กำลัง (be doing) · เคย (have ever)\nAfter the verb and its object: แล้ว (already / now)\nผมจะไป (I will go) / กินแล้ว (I\'ve already eaten)';
+      'จะ (will), กำลัง (be doing) and เคย (have ever) go before the verb. แล้ว (already) goes after the verb and its object.';
 
   @override
   String get wordOrderRule9Title =>
@@ -3021,19 +3020,162 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderRule9Body =>
-      'พรุ่งนี้ผมจะไปเชียงใหม่ (Tomorrow I\'ll go to Chiang Mai)\nผมทำงานที่กรุงเทพฯ (I work in Bangkok)';
+      'Time expressions go first or last. Places usually follow the verb.';
 
   @override
   String get wordOrderRule10Title => 'Polite endings come last';
 
   @override
   String get wordOrderRule10Body =>
-      'Men use ครับ. Women usually use ค่ะ, and คะ in questions.\nThey go after ไหม and แล้ว: กินไหมคะ / กินแล้วค่ะ';
+      'Men use ครับ. Women usually use ค่ะ, and คะ in questions. They go after ไหม and แล้ว.';
 
   @override
   String get wordOrderTipsTitle => 'Tips for word-order questions';
 
   @override
   String get wordOrderTipsBody =>
-      '1. If a place or \"this ...\" is the topic of the whole sentence, and the rest describes what happens there or a part of it, put it first\n2. Find the action or state word. \"Who\" goes before it; \"what\" and \"where\" go after it\n3. Describing words, numbers and นี้ go after the noun they describe\n4. ไหม, แล้ว and ครับ/ค่ะ/คะ go near the end';
+      'If a place or \"this ...\" is the topic of the whole sentence, put it first\nFind the action or state word. \"Who\" goes before it; \"what\" and \"where\" go after it\nDescribing words, numbers and นี้ go after the noun they describe\nไหม, แล้ว and ครับ/ค่ะ/คะ go near the end';
+
+  @override
+  String get wordOrderEx1aGloss => 'tour|this|people|many';
+
+  @override
+  String get wordOrderEx1aMeaning => 'This tour is crowded';
+
+  @override
+  String get wordOrderEx1bGloss => 'airport|people|many';
+
+  @override
+  String get wordOrderEx1bMeaning => 'The airport is crowded';
+
+  @override
+  String get wordOrderRule1Note =>
+      'Thai normally doesn\'t repeat the topic later with a pronoun like \"they\".';
+
+  @override
+  String get wordOrderEx2aGloss => 'report|this|tomorrow|use|can|?';
+
+  @override
+  String get wordOrderEx2aMeaning => 'Can we use this report tomorrow?';
+
+  @override
+  String get wordOrderEx3aGloss => 'I|eat|rice';
+
+  @override
+  String get wordOrderEx3aMeaning => 'I eat rice';
+
+  @override
+  String get wordOrderRule3Note =>
+      'The \"who\" and \"what\" are often left out when they are obvious.';
+
+  @override
+  String get wordOrderEx4aGloss => 'house|big';
+
+  @override
+  String get wordOrderEx4aMeaning => 'a big house';
+
+  @override
+  String get wordOrderEx4bGloss => 'house|of|me';
+
+  @override
+  String get wordOrderEx4bMeaning => 'my house';
+
+  @override
+  String get wordOrderRule4Note => 'ของ can be left out.';
+
+  @override
+  String get wordOrderEx5aGloss => 'cat|two|[classifier]';
+
+  @override
+  String get wordOrderEx5aMeaning => 'two cats';
+
+  @override
+  String get wordOrderEx5bGloss => 'cat|two|[classifier]|this';
+
+  @override
+  String get wordOrderEx5bMeaning => 'these two cats';
+
+  @override
+  String get wordOrderEx6aGloss => 'I|not|eat|spicy';
+
+  @override
+  String get wordOrderEx6aMeaning => 'I don\'t eat spicy food';
+
+  @override
+  String get wordOrderEx6bGloss => 'I|didn\'t|go';
+
+  @override
+  String get wordOrderEx6bMeaning => 'I didn\'t go';
+
+  @override
+  String get wordOrderEx6cGloss => 'go|can\'t';
+
+  @override
+  String get wordOrderEx6cMeaning => 'I can\'t go';
+
+  @override
+  String get wordOrderRule6Note =>
+      'ไม่ได้ + verb often means \"didn\'t\" or \"am not doing\". In \"can\'t\", ไม่ได้ comes after the verb.';
+
+  @override
+  String get wordOrderEx7aGloss => 'you|eat|what';
+
+  @override
+  String get wordOrderEx7aMeaning => 'What do you eat?';
+
+  @override
+  String get wordOrderEx7bGloss => 'go|where';
+
+  @override
+  String get wordOrderEx7bMeaning => 'Where are you going?';
+
+  @override
+  String get wordOrderEx7cGloss => 'eat|?';
+
+  @override
+  String get wordOrderEx7cMeaning => 'Will you eat?';
+
+  @override
+  String get wordOrderEx8aGloss => 'I|will|go';
+
+  @override
+  String get wordOrderEx8aMeaning => 'I will go';
+
+  @override
+  String get wordOrderEx8bGloss => 'eat|rice|already';
+
+  @override
+  String get wordOrderEx8bMeaning => 'I\'ve already eaten';
+
+  @override
+  String get wordOrderEx9aGloss => 'tomorrow|I|will|go|Chiang Mai';
+
+  @override
+  String get wordOrderEx9aMeaning => 'Tomorrow I\'ll go to Chiang Mai';
+
+  @override
+  String get wordOrderEx9bGloss => 'I|work|at|Bangkok';
+
+  @override
+  String get wordOrderEx9bMeaning => 'I work in Bangkok';
+
+  @override
+  String get wordOrderEx10aGloss => 'eat|?|polite (female)';
+
+  @override
+  String get wordOrderEx10aMeaning => 'Will you eat?';
+
+  @override
+  String get wordOrderEx10bGloss => 'eat|already|polite (female)';
+
+  @override
+  String get wordOrderEx10bMeaning => 'I\'ve already eaten';
+
+  @override
+  String get guideRoleQuizWordOrder =>
+      'Word-order quiz: some summary quiz questions ask you to put four words from the sentence in the right order. After answering, tap \"Learn more about word order\" to open the word order guide.';
+
+  @override
+  String get guideHowSettingsGuides =>
+      'Review the rules of Thai tones and word order in \"Tone guide\" and \"Word order guide\".';
 }

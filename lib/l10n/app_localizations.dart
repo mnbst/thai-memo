@@ -5009,7 +5009,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule1Body.
   ///
   /// In ja, this message translates to:
-  /// **'何について話すかを先に出し、その後で説明します。日本語の「〜は」に近い並びです。\nทัวร์นี้คนเยอะ（thua níi khon yə́）\nこのツアーは人が多い →「ツアー この／人 多い」\nสนามบินคนเยอะ（sà-nǎam-bin khon yə́）\n空港は人が多い\n話題になりやすいのは、場所や นี้・นั้น（この・その）が付いた名詞です。話題と同じものを、後ろで「彼ら」などと言い直さないのが自然です。'**
+  /// **'何について話すかを先に出し、その後で説明します。日本語の「〜は」に近い並びです。話題になりやすいのは、場所や นี้・นั้น（この・その）が付いた名詞です。'**
   String get wordOrderRule1Body;
 
   /// No description provided for @wordOrderRule2Title.
@@ -5021,7 +5021,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule2Body.
   ///
   /// In ja, this message translates to:
-  /// **'นี้・นั้น で特定した、すでに話に出ている物は、文頭に出して「それについて」述べることがあります。\nรายงานนี้พรุ่งนี้ใช้ได้ไหม（raai-ngaan níi phrûng-níi chái dâai mǎi）\nこの報告書、明日使える？ →「報告書 この／明日 使える ？」'**
+  /// **'นี้・นั้น で特定した、すでに話に出ている物は、文頭に出して「それについて」述べることがあります。'**
   String get wordOrderRule2Body;
 
   /// No description provided for @wordOrderRule3Title.
@@ -5033,7 +5033,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule3Body.
   ///
   /// In ja, this message translates to:
-  /// **'動詞は目的語より前に来ます。日本語と逆です。\nผมกินข้าว（phǒm kin khâaw）\n私はご飯を食べる →「私 食べる ご飯」\n分かりきった「だれが」「何を」はよく省かれます。'**
+  /// **'動詞は目的語より前に来ます。日本語と逆です。'**
   String get wordOrderRule3Body;
 
   /// No description provided for @wordOrderRule4Title.
@@ -5045,7 +5045,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule4Body.
   ///
   /// In ja, this message translates to:
-  /// **'形容詞は名詞の後ろに付きます。\nบ้านใหญ่（bâan yài）大きい家 →「家 大きい」\n「〜の」も持ち主が後ろです。\nบ้าน(ของ)ผม（bâan (khɔ̌ɔng) phǒm）私の家 →「家 の 私」\nของ は省くこともあります。'**
+  /// **'形容詞は名詞の後ろ。「〜の」も持ち主が後ろです。'**
   String get wordOrderRule4Body;
 
   /// No description provided for @wordOrderRule5Title.
@@ -5057,7 +5057,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule5Body.
   ///
   /// In ja, this message translates to:
-  /// **'แมวสองตัว（mɛɛw sɔ̌ɔng tua）猫2匹 →「猫 2 匹」\nแมวตัวนี้（mɛɛw tua níi）この猫\nแมวสองตัวนี้（mɛɛw sɔ̌ɔng tua níi）この2匹の猫'**
+  /// **'数は名詞の後ろに、類別詞（数える単位）と一緒に付けます。「この」はさらに後ろです。'**
   String get wordOrderRule5Body;
 
   /// No description provided for @wordOrderRule6Title.
@@ -5069,7 +5069,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule6Body.
   ///
   /// In ja, this message translates to:
-  /// **'ไม่กิน（食べない）／ไม่ใหญ่（大きくない）\nจะไม่ไป（行かないつもり）／ไม่เคยไป（行ったことがない）\nไม่ได้＋動詞は「実際には〜しなかった・していない」：ผมไม่ได้ไป（私は行かなかった）\n今のことだとはっきりさせるときは อยู่ を足す：ผมไม่ได้ทำงานอยู่（今は働いていない）\n「〜できない」は動詞の後ろ：ไปไม่ได้（行けない）'**
+  /// **'ไม่ は打ち消したい語句のすぐ前に置きます。'**
   String get wordOrderRule6Body;
 
   /// No description provided for @wordOrderRule7Title.
@@ -5081,7 +5081,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule7Body.
   ///
   /// In ja, this message translates to:
-  /// **'คุณกินอะไร（khun kin à-rai）何を食べる？ →「あなた 食べる 何」\nไปไหน（pai nǎi）どこへ行く？\nはい・いいえで答える質問は、文末に ไหม を付けます。'**
+  /// **'疑問詞は、答えが入る場所にそのまま置きます。はい・いいえの質問は文末に ไหม。'**
   String get wordOrderRule7Body;
 
   /// No description provided for @wordOrderRule8Title.
@@ -5093,7 +5093,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule8Body.
   ///
   /// In ja, this message translates to:
-  /// **'動詞の前：จะ（これから〜する）・กำลัง（〜している）・เคย（〜したことがある）\n動詞（＋目的語）の後ろ：แล้ว（もう〜した・〜になった）\nผมจะไป（私は行きます）／กินแล้ว（もう食べた）'**
+  /// **'จะ（これから〜する）・กำลัง（〜している）・เคย（〜したことがある）は動詞の前。แล้ว（もう〜した）は動詞と目的語の後ろです。'**
   String get wordOrderRule8Body;
 
   /// No description provided for @wordOrderRule9Title.
@@ -5105,7 +5105,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule9Body.
   ///
   /// In ja, this message translates to:
-  /// **'พรุ่งนี้ผมจะไปเชียงใหม่（明日、チェンマイへ行きます）\nผมทำงานที่กรุงเทพฯ（私はバンコクで働いています）'**
+  /// **'時を表す語は文頭か文末。場所は動詞の後ろに置きます。'**
   String get wordOrderRule9Body;
 
   /// No description provided for @wordOrderRule10Title.
@@ -5117,7 +5117,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule10Body.
   ///
   /// In ja, this message translates to:
-  /// **'男性は ครับ。女性はふつう ค่ะ、質問では คะ。\nไหม や แล้ว よりも後ろに付きます：กินไหมคะ／กินแล้วค่ะ'**
+  /// **'男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม や แล้ว よりも後ろに付きます。'**
   String get wordOrderRule10Body;
 
   /// No description provided for @wordOrderTipsTitle.
@@ -5129,8 +5129,284 @@ abstract class L10n {
   /// No description provided for @wordOrderTipsBody.
   ///
   /// In ja, this message translates to:
-  /// **'1. 場所や「この〇〇」が文全体の話題で、後ろがそこでの出来事やその一部の説明なら、文頭に置く\n2. 動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n3. 説明する語・数・นี้ は、説明される名詞の後ろ\n4. ไหม・แล้ว・ครับ/ค่ะ/คะ は最後のほう'**
+  /// **'場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้ は、説明される名詞の後ろ\nไหม・แล้ว・ครับ/ค่ะ/คะ は最後のほう'**
   String get wordOrderTipsBody;
+
+  /// No description provided for @wordOrderEx1aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'ツアー|この|人|多い'**
+  String get wordOrderEx1aGloss;
+
+  /// No description provided for @wordOrderEx1aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'このツアーは人が多い'**
+  String get wordOrderEx1aMeaning;
+
+  /// No description provided for @wordOrderEx1bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'空港|人|多い'**
+  String get wordOrderEx1bGloss;
+
+  /// No description provided for @wordOrderEx1bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'空港は人が多い'**
+  String get wordOrderEx1bMeaning;
+
+  /// No description provided for @wordOrderRule1Note.
+  ///
+  /// In ja, this message translates to:
+  /// **'話題と同じものを、後ろで「彼ら」などと言い直さないのが自然です。'**
+  String get wordOrderRule1Note;
+
+  /// No description provided for @wordOrderEx2aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'報告書|この|明日|使う|できる|？'**
+  String get wordOrderEx2aGloss;
+
+  /// No description provided for @wordOrderEx2aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'この報告書、明日使える？'**
+  String get wordOrderEx2aMeaning;
+
+  /// No description provided for @wordOrderEx3aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|食べる|ご飯'**
+  String get wordOrderEx3aGloss;
+
+  /// No description provided for @wordOrderEx3aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私はご飯を食べる'**
+  String get wordOrderEx3aMeaning;
+
+  /// No description provided for @wordOrderRule3Note.
+  ///
+  /// In ja, this message translates to:
+  /// **'分かりきった「だれが」「何を」はよく省かれます。'**
+  String get wordOrderRule3Note;
+
+  /// No description provided for @wordOrderEx4aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'家|大きい'**
+  String get wordOrderEx4aGloss;
+
+  /// No description provided for @wordOrderEx4aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'大きい家'**
+  String get wordOrderEx4aMeaning;
+
+  /// No description provided for @wordOrderEx4bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'家|〜の|私'**
+  String get wordOrderEx4bGloss;
+
+  /// No description provided for @wordOrderEx4bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私の家'**
+  String get wordOrderEx4bMeaning;
+
+  /// No description provided for @wordOrderRule4Note.
+  ///
+  /// In ja, this message translates to:
+  /// **'ของ は省くこともあります。'**
+  String get wordOrderRule4Note;
+
+  /// No description provided for @wordOrderEx5aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'猫|2|匹'**
+  String get wordOrderEx5aGloss;
+
+  /// No description provided for @wordOrderEx5aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'猫2匹'**
+  String get wordOrderEx5aMeaning;
+
+  /// No description provided for @wordOrderEx5bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'猫|2|匹|この'**
+  String get wordOrderEx5bGloss;
+
+  /// No description provided for @wordOrderEx5bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'この2匹の猫'**
+  String get wordOrderEx5bMeaning;
+
+  /// No description provided for @wordOrderEx6aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|〜ない|食べる|辛い'**
+  String get wordOrderEx6aGloss;
+
+  /// No description provided for @wordOrderEx6aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私は辛いものを食べない'**
+  String get wordOrderEx6aMeaning;
+
+  /// No description provided for @wordOrderEx6bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|〜しなかった|行く'**
+  String get wordOrderEx6bGloss;
+
+  /// No description provided for @wordOrderEx6bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私は行かなかった'**
+  String get wordOrderEx6bMeaning;
+
+  /// No description provided for @wordOrderEx6cGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'行く|できない'**
+  String get wordOrderEx6cGloss;
+
+  /// No description provided for @wordOrderEx6cMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'行けない'**
+  String get wordOrderEx6cMeaning;
+
+  /// No description provided for @wordOrderRule6Note.
+  ///
+  /// In ja, this message translates to:
+  /// **'ไม่ได้＋動詞は「実際には〜しなかった・していない」。「〜できない」の ไม่ได้ は動詞の後ろです。'**
+  String get wordOrderRule6Note;
+
+  /// No description provided for @wordOrderEx7aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'あなた|食べる|何'**
+  String get wordOrderEx7aGloss;
+
+  /// No description provided for @wordOrderEx7aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'何を食べる？'**
+  String get wordOrderEx7aMeaning;
+
+  /// No description provided for @wordOrderEx7bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'行く|どこ'**
+  String get wordOrderEx7bGloss;
+
+  /// No description provided for @wordOrderEx7bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'どこへ行く？'**
+  String get wordOrderEx7bMeaning;
+
+  /// No description provided for @wordOrderEx7cGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べる|？'**
+  String get wordOrderEx7cGloss;
+
+  /// No description provided for @wordOrderEx7cMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べる？'**
+  String get wordOrderEx7cMeaning;
+
+  /// No description provided for @wordOrderEx8aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|〜する予定|行く'**
+  String get wordOrderEx8aGloss;
+
+  /// No description provided for @wordOrderEx8aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私は行きます'**
+  String get wordOrderEx8aMeaning;
+
+  /// No description provided for @wordOrderEx8bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べる|ご飯|もう〜した'**
+  String get wordOrderEx8bGloss;
+
+  /// No description provided for @wordOrderEx8bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'もうご飯を食べた'**
+  String get wordOrderEx8bMeaning;
+
+  /// No description provided for @wordOrderEx9aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'明日|私|〜する予定|行く|チェンマイ'**
+  String get wordOrderEx9aGloss;
+
+  /// No description provided for @wordOrderEx9aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'明日、チェンマイへ行きます'**
+  String get wordOrderEx9aMeaning;
+
+  /// No description provided for @wordOrderEx9bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|働く|〜で|バンコク'**
+  String get wordOrderEx9bGloss;
+
+  /// No description provided for @wordOrderEx9bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私はバンコクで働いています'**
+  String get wordOrderEx9bMeaning;
+
+  /// No description provided for @wordOrderEx10aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べる|？|丁寧（女性）'**
+  String get wordOrderEx10aGloss;
+
+  /// No description provided for @wordOrderEx10aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べますか？'**
+  String get wordOrderEx10aMeaning;
+
+  /// No description provided for @wordOrderEx10bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べる|もう〜した|丁寧（女性）'**
+  String get wordOrderEx10bGloss;
+
+  /// No description provided for @wordOrderEx10bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'もう食べました'**
+  String get wordOrderEx10bMeaning;
+
+  /// No description provided for @guideRoleQuizWordOrder.
+  ///
+  /// In ja, this message translates to:
+  /// **'並び替えクイズ：まとめクイズの一部で、例文の4つの語を正しい順に並べます。解答後の「語順について詳しく学ぶ」から語順ガイドを開けます。'**
+  String get guideRoleQuizWordOrder;
+
+  /// No description provided for @guideHowSettingsGuides.
+  ///
+  /// In ja, this message translates to:
+  /// **'「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。'**
+  String get guideHowSettingsGuides;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

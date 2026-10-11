@@ -339,7 +339,8 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
     for (final range in ranges) {
       // 重なった指定は先に来た方を優先する。
       if (range.start < cursor) continue;
-      children.add(TextSpan(text: widget.message.substring(cursor, range.start)));
+      children
+          .add(TextSpan(text: widget.message.substring(cursor, range.start)));
       children.add(TextSpan(
         text: widget.message.substring(range.start, range.end),
         style: emphasisStyle,
@@ -437,7 +438,8 @@ class _CoachMarkContentState extends State<_CoachMarkContent>
 
     // 上端に固定する指定なら、対象の位置は見ない。上端から下へ流すので、
     // 長い吹き出しでも見出しだけは必ず読める。
-    final placeBelow = !widget.pinToTop && (fitsBelow || (!fitsAbove && roomBelow));
+    final placeBelow =
+        !widget.pinToTop && (fitsBelow || (!fitsAbove && roomBelow));
     final placeAbove =
         !widget.pinToTop && !placeBelow && (fitsAbove || roomAbove);
 
