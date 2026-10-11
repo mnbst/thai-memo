@@ -9,6 +9,7 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"regexp"
 	"strings"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
@@ -107,6 +108,10 @@ func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 			"参考例でพี่/เฮียなどが使われていればคุณに置き換えない",
 		"参考タイ語例の雰囲気・構文を参考にオリジナルのタイ語文を作ること。" +
 			"単語を部分的に差し替えて別の意味の語を作らない（例: ช่วยดูแล を ช่วยดู にするなど）",
+		// 設定の分からない汎用的な文（「私が面倒を見るよ」）が多く、どの作品の回か伝わらない。
+		"thai_textに、ドラマの設定に出てくる登場人物の名前を1つ入れる（相手への呼びかけか、話題の人として）。" +
+			"読んだ人がどの作品の場面か見当がつくようにする。名前はドラマの設定の括弧内にあるタイ文字の綴りのまま書く。" +
+			"作品の舞台・物は、ターゲット単語と同じ場面に自然に出てくるときだけ足す。japanese_translationでは名前をカタカナで書く",
 		// まれな key_word を恋愛感情へのたとえで押し込む（タイヤ痕→心の罪）のを止める。
 		// 定着した言い回しは残す（その場で作ったたとえは quality の metaphor 観点が落とす）。
 		"ターゲット単語を気持ちや関係のたとえに使うのは、タイ語で定着した言い回しのときだけ。その場でたとえを作らない。" +
@@ -146,4 +151,24 @@ func (b *Builder) BuildSceneSection(scene string, scenes []string) sentence.Dram
 		return sentence.DramaSection{}
 	}
 	return b.section(in[b.intn(len(in))], scene)
+}
+
+// nameRe は設定の括弧内にあるタイ文字の名前（Kang（แกง） の แกง）。
+var nameRe = regexp.MustCompile(`（([\x{0E00}-\x{0E7F}]+)）`)
+
+// Names は設定に出てくる登場人物のタイ文字の名前を返す。
+// แกง（カレー）・ขอบฟ้า（地平線）のように普通の語と同じ綴りの名前があるので、
+// 例文の判定で人名だと伝えるのに使う。ข้าวแกง のような設定中の物は括弧に入れていないので入らない。
+func Names() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, sid := range shotIDs {
+		for _, m := range nameRe.FindAllStringSubmatch(shotContext[sid].Context, -1) {
+			if !seen[m[1]] {
+				seen[m[1]] = true
+				out = append(out, m[1])
+			}
+		}
+	}
+	return out
 }

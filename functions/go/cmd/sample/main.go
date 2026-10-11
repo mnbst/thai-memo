@@ -190,6 +190,7 @@ func retry(
 			Pronunciation:       r.Pronunciation,
 			JapaneseTranslation: r.JapaneseTranslation,
 			KeyWord:             r.Word,
+			Topic:               contextTopic(r.Sentence.Context),
 			Lang:                l,
 		})
 		idx = append(idx, i)
@@ -253,6 +254,7 @@ func recheck(ctx context.Context, j *quality.Judge, recs []record, l lang.Lang) 
 			Pronunciation:       r.Retried.Pronunciation,
 			JapaneseTranslation: r.Retried.JapaneseTranslation,
 			KeyWord:             r.Word,
+			Topic:               contextTopic(r.Retried.Context),
 			Lang:                l,
 		})
 		idx = append(idx, i)
@@ -434,4 +436,10 @@ func (f fixedShot) FindBestDramaShot(
 		}
 	}
 	return "", fmt.Errorf("unknown drama shot ID: %q", want)
+}
+
+// contextTopic は context.topic を返す。BLドラマ回の判定に登場人物の名前を渡すのに使う。
+func contextTopic(ctx map[string]any) string {
+	t, _ := ctx["topic"].(string)
+	return t
 }
