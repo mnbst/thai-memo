@@ -199,7 +199,7 @@ lib/presentation/screens/tone_guide_screen.dart
 タイ語声調システムのチュートリアル。
 
 lib/presentation/screens/word_order_guide_screen.dart
-タイ語の語順ガイド（主題・語順・否定・疑問・丁寧語尾）。設定と並び替え問題の解答から開く。
+タイ語の語順ガイド（主題・語順・否定・疑問・丁寧語尾）。例文は語のチップで見せる。設定と並び替え問題の解答から開く。
 
 ## Widgets
 
@@ -229,6 +229,9 @@ lib/presentation/widgets/sentence_audio_section.dart
 
 lib/presentation/widgets/thai_highlight.dart
 例文中の学習単語を金で示す TextSpan 生成（深藍面の金地・紙面の色のみ・発音の3種）。
+
+lib/presentation/widgets/word_order_example.dart
+語順の例文を語ごとのチップ（タイ文字・読み・意味）で並べる表示。語順ガイドと使い方ガイドの図で使う。
 
 lib/presentation/widgets/guide_figures.dart
 使い方ガイドに載せる模式図（学習のくり返し・例文カードの構成・発音判定の色）。画面写真は使わず、文言はl10nから引く。
