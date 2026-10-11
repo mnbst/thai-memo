@@ -203,4 +203,90 @@ void main() {
     expect(await controller.linkWithGoogle(), isNull);
     expect(switched, isFalse);
   });
+
+  group('サインイン操作を経ない uid の切り替わり', () {
+    test('サーバーで消された匿名の後の新しい匿名 uid では前のデータを消す', () async {
+      String? clearedUid;
+      var restored = false;
+      String? owner;
+      final auth = _Auth()..user = _User('anonymous-new');
+      final controller = AuthController(
+        auth,
+        () => lookupL10n(const Locale('ja')),
+        clearLocalData: () async {},
+        clearUserLocalData: (uid) async => clearedUid = uid,
+        readDataOwner: () async => owner,
+        writeDataOwner: (uid) async => owner = uid,
+        restoreHistory: () async => restored = true,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.syncLocalDataOwner(previousUid: 'anonymous-old');
+      expect(clearedUid, 'anonymous-old');
+      expect(restored, isTrue);
+      expect(owner, 'anonymous-new');
+    });
+
+    test('サインアウト後の匿名 uid では、記録した持ち主のデータを消す', () async {
+      String? clearedUid;
+      String? owner = 'user-1';
+      final auth = _Auth()..user = _User('anonymous-2');
+      final controller = AuthController(
+        auth,
+        () => lookupL10n(const Locale('ja')),
+        clearLocalData: () async {},
+        clearUserLocalData: (uid) async => clearedUid = uid,
+        readDataOwner: () async => owner,
+        writeDataOwner: (uid) async => owner = uid,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.syncLocalDataOwner();
+      expect(clearedUid, 'user-1');
+      expect(owner, 'anonymous-2');
+    });
+
+    test('起動直後で手がかりが無ければ今の uid を持ち主として記録する', () async {
+      var cleared = false;
+      String? owner;
+      final auth = _Auth()..user = _User('user-1');
+      final controller = AuthController(
+        auth,
+        () => lookupL10n(const Locale('ja')),
+        clearLocalData: () async {},
+        clearUserLocalData: (_) async => cleared = true,
+        readDataOwner: () async => owner,
+        writeDataOwner: (uid) async => owner = uid,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.syncLocalDataOwner();
+      expect(cleared, isFalse);
+      expect(owner, 'user-1');
+    });
+
+    test('監視とサインイン操作から同時に呼ばれても掃除は1回', () async {
+      var clears = 0;
+      String? owner = 'user-1';
+      final auth = _Auth()..user = _User('user-2');
+      final controller = AuthController(
+        auth,
+        () => lookupL10n(const Locale('ja')),
+        clearLocalData: () async {},
+        clearUserLocalData: (_) async {
+          clears++;
+          await Future<void>.delayed(Duration.zero);
+        },
+        readDataOwner: () async => owner,
+        writeDataOwner: (uid) async => owner = uid,
+      );
+      addTearDown(controller.dispose);
+
+      await Future.wait([
+        controller.syncLocalDataOwner(previousUid: 'user-1'),
+        controller.syncLocalDataOwner(previousUid: 'user-1'),
+      ]);
+      expect(clears, 1);
+    });
+  });
 }

@@ -215,6 +215,9 @@ class L10nEn extends L10n {
   String get quizReviewSentence => 'Review the sentence';
 
   @override
+  String get quizOpenSentenceDetail => 'View sentence details';
+
+  @override
   String get quizHint => 'Hint';
 
   @override

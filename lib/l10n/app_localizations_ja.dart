@@ -203,6 +203,9 @@ class L10nJa extends L10n {
   String get quizReviewSentence => '例文を復習する';
 
   @override
+  String get quizOpenSentenceDetail => '例文の詳細を見る';
+
+  @override
   String get quizHint => 'ヒント';
 
   @override
