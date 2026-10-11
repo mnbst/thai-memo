@@ -99,6 +99,19 @@ const _devices = [
     cornerRatio: 0.035,
     isPhone: false,
   ),
+  // Google Play のスマホ用。縦横比は 2:1 まで（16:9 にする）。
+  _Device(
+    id: 'android',
+    size: Size(1080, 1920),
+    captionTop: 96,
+    fontSize: 132,
+    captionGap: 56,
+    bottomGap: 0,
+    bezelRatio: 0.03,
+    cornerRatio: 0.1,
+    isPhone: true,
+    phoneWidthRatio: 0.78,
+  ),
 ];
 
 void main() {
@@ -112,7 +125,9 @@ void main() {
         (config['ab_first'] as Map<String, dynamic>?) ?? const {};
 
     var written = 0;
-    for (final device in _devices) {
+    // --dart-define=DEVICE=android のように指定すると、その端末だけ書き出す。
+    const only = String.fromEnvironment('DEVICE');
+    for (final device in _devices.where((d) => only.isEmpty || d.id == only)) {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = device.size;
       for (final lang in _langs) {
@@ -128,8 +143,12 @@ void main() {
 
           // 言語で画面の並びが変わるものは「端末/言語」で上書きできる。
           final zooms = shot['zoom'] as Map<String, dynamic>?;
-          final zoom = (zooms?['${device.id}/$lang'] ?? zooms?[device.id])
-              as List<dynamic>?;
+          // Android は画面の並びが iPhone と同じなので、指定が無ければ iPhone の値を使う。
+          final zoom = (zooms?['${device.id}/$lang'] ??
+                  zooms?[device.id] ??
+                  (device.id == 'android'
+                      ? (zooms?['iphone/$lang'] ?? zooms?['iphone'])
+                      : null)) as List<dynamic>?;
           await tester.pumpWidget(
             _StoreShot(
               device: device,
@@ -150,7 +169,7 @@ void main() {
 
         // A/B テストの A 案: 旧1枚目を先頭に置き、枚数は B 案と同じにする。
         final legacy = abFirst[lang] as String?;
-        if (device.isPhone && legacy != null && composed.isNotEmpty) {
+        if (device.id == 'iphone' && legacy != null && composed.isNotEmpty) {
           final dir = '$_outAbDir/${device.id}/$lang';
           _write(dir, 1, 'jpg', File(legacy).readAsBytesSync());
           for (var i = 0; i < composed.length - 1; i++) {
@@ -363,7 +382,8 @@ class _DeviceFrame extends StatelessWidget {
                 Positioned.fill(
                   child: RawImage(image: screen, fit: BoxFit.fill),
                 ),
-                if (device.isPhone) _island(screenWidth),
+                if (device.id == 'iphone') _island(screenWidth),
+                if (device.id == 'android') _punchHole(screenWidth),
               ],
             ),
           ),
@@ -451,6 +471,23 @@ class _DeviceFrame extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black,
           borderRadius: BorderRadius.circular(19 * pt),
+        ),
+      ),
+    );
+  }
+
+  /// パンチホールのカメラ。論理幅 412dp の端末で直径 12dp、上端から 12dp。
+  Widget _punchHole(double screenWidth) {
+    final dp = screenWidth / 412;
+    return Positioned(
+      top: 12 * dp,
+      left: (screenWidth - 12 * dp) / 2,
+      child: Container(
+        width: 12 * dp,
+        height: 12 * dp,
+        decoration: const BoxDecoration(
+          color: Colors.black,
+          shape: BoxShape.circle,
         ),
       ),
     );
