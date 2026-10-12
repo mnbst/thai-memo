@@ -4,15 +4,19 @@
 （ルールだけの精度は 3〜5 割。正しい言い換えも拾う）。
 
 usage:
-  python3 scripts/fw_trans_audit.py scan --lang ja|en OUT.md FILE.json [FILE.json ...]
+  python3 scripts/fw_trans_audit.py scan --lang ja|en [--since CKPT.json] OUT.md FILE.json [FILE.json ...]
+  python3 scripts/fw_trans_audit.py checkpoint CKPT.json FILE.json [FILE.json ...]
   python3 scripts/fw_trans_audit.py apply FIXES.tsv IN.json OUT.json
 
 FILE.json は thai_text / japanese_translation を持つ文の配列（コーパス・プール。
 英訳ファイルも訳は japanese_translation に入っている）。
 FIXES.tsv は「タイ語<TAB>新しい訳」。apply は訳の項目だけを書き換え、
 元ファイルの区切り（コンパクト／空白あり）を保つ。
+CKPT.json は点検済みの文（タイ語＋訳のハッシュ）。checkpoint は FILE の全文を足して保存し、
+scan --since はそこに無い文（新しく入った文・訳が変わった文）だけを見る。
 """
 
+import hashlib
 import json
 import re
 import sys
@@ -112,11 +116,34 @@ RULES = {
 }
 
 
-def scan(lang, out, files):
-    rows = []
+def key(thai, trans):
+    return hashlib.sha1(f"{thai}\t{trans}".encode()).hexdigest()[:16]
+
+
+def load_ckpt(path):
+    p = Path(path)
+    return set(json.loads(p.read_text())) if p.exists() else set()
+
+
+def checkpoint(path, files):
+    done = load_ckpt(path)
+    before = len(done)
+    for f in files:
+        done |= {key(s["thai_text"], s["japanese_translation"]) for s in json.loads(Path(f).read_text())}
+    Path(path).write_text(json.dumps(sorted(done)))
+    print(f"{path}: {before} → {len(done)} 件", file=sys.stderr)
+
+
+def scan(lang, out, files, since=None):
+    done = load_ckpt(since) if since else set()
+    rows, total = [], 0
     for f in files:
         for s in json.loads(Path(f).read_text()):
-            rows.append((Path(f).stem, s["thai_text"], s["japanese_translation"]))
+            total += 1
+            if key(s["thai_text"], s["japanese_translation"]) not in done:
+                rows.append((Path(f).stem, s["thai_text"], s["japanese_translation"]))
+    if since:
+        print(f"未点検 {len(rows)} / {total} 文", file=sys.stderr)
     lines, seen, n = [], set(), 0
     for name, thai, skip, bad in RULES[lang]:
         hits = [r for r in rows if re.search(thai, r[1]) and not (skip and re.search(skip, r[1]))]
@@ -155,9 +182,17 @@ def apply(fixes, src, dst):
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-    if cmd == "scan" and len(sys.argv) >= 6 and sys.argv[2] == "--lang":
-        scan(sys.argv[3], sys.argv[4], sys.argv[5:])
-    elif cmd == "apply" and len(sys.argv) == 5:
-        apply(*sys.argv[2:])
+    args = sys.argv[2:]
+    since = None
+    if "--since" in args:
+        i = args.index("--since")
+        since = args[i + 1]
+        del args[i:i + 2]
+    if cmd == "scan" and len(args) >= 4 and args[0] == "--lang":
+        scan(args[1], args[2], args[3:], since)
+    elif cmd == "checkpoint" and len(args) >= 2:
+        checkpoint(args[0], args[1:])
+    elif cmd == "apply" and len(args) == 3:
+        apply(*args)
     else:
         sys.exit(__doc__)
