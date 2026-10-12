@@ -185,7 +185,7 @@ func (f fakeAppCheck) VerifyToken(_ string) (*appcheck.DecodedAppCheckToken, err
 	if f.err != nil {
 		return nil, f.err
 	}
-	return &appcheck.DecodedAppCheckToken{}, nil
+	return &appcheck.DecodedAppCheckToken{AppID: "1:1:android:a"}, nil
 }
 
 // App Check は結果を記録するだけで、無効でもハンドラまで届くこと。
@@ -204,8 +204,10 @@ func TestAppCheckStatusRecordedNotEnforced(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var got AppCheckStatus
+			var android bool
 			h := HTTP("t", nil, tc.v, func(_ context.Context, req *Request) (any, error) {
 				got = req.AppCheck
+				android = req.IsAndroidApp()
 				return nil, nil
 			})
 			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"data":{}}`))
@@ -219,6 +221,10 @@ func TestAppCheckStatusRecordedNotEnforced(t *testing.T) {
 			}
 			if got != tc.want {
 				t.Errorf("AppCheck = %s, want %s", got, tc.want)
+			}
+			// アプリ ID は検証できたときだけ信じる。
+			if want := tc.want == AppCheckValid; android != want {
+				t.Errorf("IsAndroidApp = %t, want %t", android, want)
 			}
 		})
 	}
