@@ -569,7 +569,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
         // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
         // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
-        if (mounted) {
+        // 語彙テストの開始時に体験を配られた人（クローズドテストのテスター）は
+        // すでにプレミアムなので、売り込みを出さない。
+        if (mounted && !ref.read(effectivePremiumProvider)) {
           await PaywallScreen.show(context, source: 'onboarding');
         }
 
