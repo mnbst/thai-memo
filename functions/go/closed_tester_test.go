@@ -31,3 +31,23 @@ func TestTokenEmail(t *testing.T) {
 		})
 	}
 }
+
+func TestClosedTestAutoGrantUntil(t *testing.T) {
+	tests := []struct {
+		name string
+		env  string
+		zero bool
+	}{
+		{"未設定なら配らない", "", true},
+		{"解釈できなければ配らない", "2026-11-30", true},
+		{"RFC3339 なら期限になる", "2026-11-30T23:59:59+09:00", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("CLOSED_TEST_AUTO_GRANT_UNTIL", tt.env)
+			if got := closedTestAutoGrantUntil(); got.IsZero() != tt.zero {
+				t.Errorf("closedTestAutoGrantUntil = %v, zero want %t", got, tt.zero)
+			}
+		})
+	}
+}
