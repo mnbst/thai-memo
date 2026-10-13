@@ -25,6 +25,8 @@ resource "google_project_service" "required_apis" {
     "monitoring.googleapis.com",
     "billingbudgets.googleapis.com",
     "firebaseappcheck.googleapis.com",
+    # Android の App Check（Play Integrity）。Play Console 側でもこのプロジェクトをリンクする
+    "playintegrity.googleapis.com",
     # Google Play の購入検証（verifySubscription / handlePlayNotification）
     "androidpublisher.googleapis.com",
     # X 自動投稿の読み上げ音声（tools/x_post）
