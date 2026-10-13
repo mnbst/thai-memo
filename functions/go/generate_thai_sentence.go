@@ -78,7 +78,7 @@ func generateThaiSentence(ctx context.Context, req *callable.Request) (any, erro
 	logData["userId"] = uid
 	log.Printf("Request started: %s", logJSON(logData))
 
-	result, err := runGenerateThaiSentence(ctx, req, params, l, logData, start)
+	result, err := runGenerateThaiSentence(ctx, req.Auth, params, l, logData, start)
 	if err != nil {
 		logData["success"] = false
 		logData["processingTimeMs"] = int(time.Since(start).Milliseconds())
@@ -162,10 +162,9 @@ func requestedSetSize(params, userData map[string]any) int {
 }
 
 func runGenerateThaiSentence(
-	ctx context.Context, req *callable.Request, params map[string]any, l lang.Lang,
+	ctx context.Context, auth *callable.Auth, params map[string]any, l lang.Lang,
 	logData map[string]any, start time.Time,
 ) ([]*sentence.Sentence, error) {
-	auth := req.Auth
 	uid := auth.UID
 	db, err := fbapp.Firestore(ctx)
 	if err != nil {
@@ -195,10 +194,6 @@ func runGenerateThaiSentence(
 			userData[k] = v
 		}
 	}
-
-	// クローズドテストのテスターに体験を配る（closed_tester.go）。旧アプリ向けの
-	// 体験より先に見る。体験の期限が入ると旧アプリ向けは配られない。
-	applyClosedTesterTrial(ctx, db, userRef, userData, req, time.Now())
 
 	// 旧アプリの新規ユーザーにだけ、これまでのプレミアム体験を配る
 	// （legacyTrialGrant のコメント）。

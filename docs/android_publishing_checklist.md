@@ -36,7 +36,7 @@ tester 版は別アプリ `com.thaimemo.thai_memo.test`。
 - テスター: Google グループ `thai-memo-testers@googlegroups.com`（誰でも参加可、メンバー一覧は管理者のみ）
 - 参加ページ: https://groups.google.com/g/thai-memo-testers
 - フィードバック: gcp.demo.776@gmail.com
-- 特典（14日プレミアム）: 次の例文生成・語彙テスト時に一度だけ付く（`functions/go/closed_tester.go`）
+- 特典（14日プレミアム）: Android アプリが `claimClosedTesterTrial` を呼んだとき（初回起動のペイウォール直前・以後の起動時）に一度だけ付く（`functions/go/closed_tester.go`）。1.4.19 以降のアプリが必要
   - 自動: `CLOSED_TEST_AUTO_GRANT_UNTIL`（RFC3339）までの間、App Check で Android アプリと確かめられた人。**製品版を公開したら外す**
     - 現在の値（暫定）: `2026-11-30T23:59:59+09:00`（prod の generateThaiSentence / startVocabTest）。延長・終了は `--update-env-vars` / `--remove-env-vars` で再デプロイ
   - 手動: prod Firestore の `closed_testers/{メール小文字}` に登録した人

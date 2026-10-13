@@ -583,12 +583,16 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   bool _quizOfferCoachChecking = false;
 
+  /// この画面が前面に見えているか。詳細やクイズ、ペイウォールが前面にある間と、
+  /// 別のタブ（隠れたタブは HomeScreen が TickerMode を切る）にいる間は出さない。
+  bool _canShowQuizOfferCoach() =>
+      ModalRoute.of(context)?.isCurrent == true &&
+      TickerMode.getValuesNotifier(context).value.enabled &&
+      !CoachMarkOverlay.isVisible;
+
   Future<void> _tickQuizOfferCoach() async {
     if (!mounted || _quizOfferCoachChecking) return;
-    // 詳細やクイズ、ペイウォールが前面にある間は数えない。
-    if (ModalRoute.of(context)?.isCurrent != true ||
-        !TickerMode.getValuesNotifier(context).value.enabled ||
-        CoachMarkOverlay.isVisible ||
+    if (!_canShowQuizOfferCoach() ||
         ref.read(sentenceControllerProvider) is! SentenceStateSuccess) {
       return;
     }
@@ -614,11 +618,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       return;
     }
 
-    if (!mounted ||
-        ModalRoute.of(context)?.isCurrent != true ||
-        CoachMarkOverlay.isVisible) {
-      return;
-    }
+    // 上の読み込みを待つ間に別の画面・タブへ移っていることがある。移った先に
+    // 出すとその画面の上に暗幕とスポットが重なるので、出す直前にも確かめる。
+    if (!mounted || !_canShowQuizOfferCoach()) return;
     final sentenceState = ref.read(sentenceControllerProvider);
     final variant = ref.read(quizOfferVariantProvider).valueOrNull;
     if (sentenceState is! SentenceStateSuccess || variant == null) return;

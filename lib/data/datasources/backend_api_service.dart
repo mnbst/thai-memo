@@ -425,6 +425,20 @@ class BackendApiService {
     }
   }
 
+  /// クローズドテストのテスター特典（プレミアム体験）を受け取る。
+  ///
+  /// [granted] は体験を持っているか（今回付いた・付与済み）。[active] は
+  /// サーバーが自動で配る期間中か。false なら以後呼ぶ必要は無い。
+  Future<({bool granted, bool active})> claimClosedTesterTrial() async {
+    final callable = _functions.httpsCallable(
+      FirebaseConfig.claimClosedTesterTrialFunctionName,
+      options: HttpsCallableOptions(timeout: const Duration(seconds: 10)),
+    );
+    final result = await callable.call<Object?>();
+    final data = result.data is Map ? result.data as Map : const {};
+    return (granted: data['granted'] == true, active: data['active'] == true);
+  }
+
   /// 語彙テストを開始し、最初の1段を受け取る。
   ///
   /// [level] はヒアリングの level 回答。開始段が決まるだけで結果には効かない。
