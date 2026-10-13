@@ -1,4 +1,5 @@
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -51,6 +52,15 @@ void main() async {
   } on FirebaseException catch (e) {
     if (e.code != 'duplicate-app') rethrow;
   }
+
+  // クラッシュと未処理の例外を Crashlytics に送る。debug は手元で見えるので送らない。
+  await FirebaseCrashlytics.instance
+      .setCrashlyticsCollectionEnabled(!kDebugMode);
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   // App Check（未 activate だとダミートークンが送られサーバ側の検証が失敗する）。
   // シミュレータは App Attest を使えないため debug provider を使う。SDK は
