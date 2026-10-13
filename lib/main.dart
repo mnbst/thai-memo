@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -77,10 +79,30 @@ void main() async {
           ? const AndroidDebugProvider(debugToken: _appCheckDebugToken)
           : const AndroidPlayIntegrityProvider(),
     );
-  } catch (e) {
+  } catch (e, stack) {
     debugPrint('App Check activation failed: $e');
+    FirebaseCrashlytics.instance
+        .recordError(e, stack, reason: 'App Check activate failed');
   }
+  // トークンを取れないと SDK はダミーを送り、サーバーには「invalid」としか
+  // 見えない。端末側の理由（App Attest / Play Integrity のエラー）を
+  // Crashlytics に残し、App Check を必須にできるか判断する材料にする。
+  unawaited(_reportAppCheckTokenFailure());
 
   // Run app with Riverpod
   runApp(const ProviderScope(child: ThaiMemoApp()));
+}
+
+/// App Check のトークンを一度取ってみて、取れなければ致命的でない例外として
+/// Crashlytics に送る。取れたトークンは SDK がキャッシュし、以後の呼び出しで使う。
+Future<void> _reportAppCheckTokenFailure() async {
+  try {
+    await FirebaseAppCheck.instance.getToken().timeout(
+          const Duration(seconds: 20),
+        );
+  } catch (e, stack) {
+    debugPrint('App Check token fetch failed: $e');
+    await FirebaseCrashlytics.instance
+        .recordError(e, stack, reason: 'App Check token fetch failed');
+  }
 }

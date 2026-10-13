@@ -220,9 +220,21 @@ func HTTP(name string, verify Verifier, appCheck AppCheckVerifier, h Handler) ht
 			req.Auth = &Auth{UID: decoded.UID, Token: decoded}
 		}
 
-		req.AppCheck, req.AppCheckAppID = verifyAppCheck(appCheck, r.Header.Get("X-Firebase-AppCheck"))
-		// 未証明の割合を測るため、全リクエストで結果を残す。
-		log.Printf("%s: appCheck=%s app=%s", name, req.AppCheck, req.AppCheckAppID)
+		var appCheckErr error
+		req.AppCheck, req.AppCheckAppID, appCheckErr = verifyAppCheck(appCheck, r.Header.Get("X-Firebase-AppCheck"))
+		// 未証明の割合を測るため、全リクエストで結果を残す。必須にできるか判断する
+		// 材料として、誰の・どの版の端末か（uid・UA）と、通らなかった理由も残す。
+		uid := ""
+		if req.Auth != nil {
+			uid = req.Auth.UID
+		}
+		if appCheckErr != nil {
+			log.Printf("%s: appCheck=%s app=%s uid=%s ua=%q reason=%q",
+				name, req.AppCheck, req.AppCheckAppID, uid, r.UserAgent(), appCheckErr.Error())
+		} else {
+			log.Printf("%s: appCheck=%s app=%s uid=%s ua=%q",
+				name, req.AppCheck, req.AppCheckAppID, uid, r.UserAgent())
+		}
 
 		result, err := h(ctx, req)
 		if err != nil {
@@ -237,18 +249,19 @@ func HTTP(name string, verify Verifier, appCheck AppCheckVerifier, h Handler) ht
 	}
 }
 
-func verifyAppCheck(v AppCheckVerifier, token string) (AppCheckStatus, string) {
+// verifyAppCheck は検証結果と発行先アプリを返す。invalid のときは理由の error も返す。
+func verifyAppCheck(v AppCheckVerifier, token string) (AppCheckStatus, string, error) {
 	if token == "" {
-		return AppCheckMissing, ""
+		return AppCheckMissing, "", nil
 	}
 	if v == nil {
-		return AppCheckUnchecked, ""
+		return AppCheckUnchecked, "", nil
 	}
 	decoded, err := v.VerifyToken(token)
 	if err != nil {
-		return AppCheckInvalid, ""
+		return AppCheckInvalid, "", err
 	}
-	return AppCheckValid, decoded.AppID
+	return AppCheckValid, decoded.AppID, nil
 }
 
 // IsAndroidApp は検証済みの App Check トークンが Android アプリから来たか。

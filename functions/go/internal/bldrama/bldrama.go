@@ -157,6 +157,8 @@ var namePairRe = regexp.MustCompile(`([A-Za-z][A-Za-z ]*)（([\x{0E00}-\x{0E7F}]
 
 // namesNote は使い方に書く名前の表記を、設定に出てくる登場人物ぶん並べる。
 // 表記を渡さないと、日本語でカタカナが揺れる（トト／トートー、コヌン／ゴーヌン）。
+// 訳文にも同じ表記を使わせる（訳文だけ揺れていた: แกง → ゲーン／ケーン／カン）。
+// 訳文に名前を書けとだけ言うと、本文に無い名前を訳へ足すので、本文にあるときに限る。
 func namesNote(context string) string {
 	var ja, en []string
 	for _, m := range namePairRe.FindAllStringSubmatch(context, -1) {
@@ -166,9 +168,10 @@ func namesNote(context string) string {
 		}
 	}
 	if len(ja) == 0 {
-		return "名前は、usage_scenariosが日本語ならカタカナ、英語なら英字で書く"
+		return "名前は、usage_scenariosが日本語ならカタカナ、英語なら英字で書く。japanese_translationに名前を書くのは、thai_textに名前があるときだけ"
 	}
-	return "名前は、usage_scenariosが日本語なら" + strings.Join(ja, "、") + "、英語なら" + strings.Join(en, ", ") + "と書く"
+	return "名前は、usage_scenariosが日本語なら" + strings.Join(ja, "、") + "、英語なら" + strings.Join(en, ", ") + "と書く。" +
+		"thai_textに名前があるときは、japanese_translationでも同じ表記にする。thai_textに無い名前はjapanese_translationに書かない"
 }
 
 // nameRe は設定の括弧内にあるタイ文字の名前（Kang（แกง） の แกง）。

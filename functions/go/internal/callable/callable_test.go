@@ -1,11 +1,14 @@
 package callable
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -227,5 +230,25 @@ func TestAppCheckStatusRecordedNotEnforced(t *testing.T) {
 				t.Errorf("IsAndroidApp = %t, want %t", android, want)
 			}
 		})
+	}
+}
+
+// 通らなかった App Check は、理由・uid・UA をログに残すこと。
+func TestAppCheckInvalidLogsReason(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	h := HTTP("t", nil, fakeAppCheck{err: errors.New("token has expired")},
+		func(_ context.Context, _ *Request) (any, error) { return nil, nil })
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"data":{}}`))
+	r.Header.Set("X-Firebase-AppCheck", "ac")
+	r.Header.Set("User-Agent", "okhttp/4.12.0")
+	h(httptest.NewRecorder(), r)
+
+	for _, want := range []string{"appCheck=invalid", `reason="token has expired"`, `ua="okhttp/4.12.0"`} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("log %q does not contain %q", buf.String(), want)
+		}
 	}
 }
