@@ -10,6 +10,7 @@ import (
 	"cloud.google.com/go/firestore"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/callable"
+	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/premium"
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 )
@@ -61,7 +62,7 @@ func closedTestAutoGrantUntil() time.Time {
 
 // grantClosedTesterTrial はテスターに、一度だけプレミアム体験を配る。
 //
-// 14日は付与した時（対象になったあと最初に生成・語彙テストを呼んだ時）から数える。
+// 14日は付与した時（対象になったあと最初に claimClosedTesterTrial を呼んだ時）から数える。
 // 付与済み（closed_tester あり）なら何もしない。Android 以外でリストに無い人は
 // 毎回1読み増えるだけ。戻り値は userData へ重ねるための書き込み内容（削除した
 // キーは含まない）。
@@ -129,23 +130,46 @@ func grantClosedTesterTrial(
 	return result, nil
 }
 
-// applyClosedTesterTrial は付与して userData に反映する。付与に失敗しても本処理は
-// 止めない（特典の付与漏れは次の呼び出しで取り戻せる）。
-func applyClosedTesterTrial(
-	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
-	userData map[string]any, req *callable.Request, now time.Time,
-) {
-	granted, err := grantClosedTesterTrial(
-		ctx, db, userRef, userData, tokenEmail(req.Auth), req.IsAndroidApp(), now)
+// claimClosedTesterTrial はテスターの体験を受け取る callable。
+//
+// アプリは Android で、初回起動の流れの始め（語彙テスト・ペイウォールより前）と
+// 起動のたびに呼ぶ。生成や語彙テストのついでに配ると、語彙テストを飛ばした人が
+// 配られる前にペイウォールを見てしまう。
+//
+// 返り値:
+//   - granted: 体験を持っている（今回付けた、または付与済み）
+//   - active:  自動で配る期間中か。false なら以後アプリは呼ばなくてよい
+func claimClosedTesterTrial(ctx context.Context, req *callable.Request) (any, error) {
+	uid, err := req.RequireAuth()
 	if err != nil {
-		log.Printf("closed tester trial: uid=%s error=%v", userRef.ID, err)
-		return
+		return nil, err
 	}
-	if len(granted) == 0 {
-		return
+	db, err := fbapp.Firestore(ctx)
+	if err != nil {
+		return nil, err
 	}
-	for k, v := range granted {
-		userData[k] = v
+	now := time.Now()
+	userRef := db.Collection("users").Doc(uid)
+	data := map[string]any{}
+	if snap, err := userRef.Get(ctx); err == nil && snap.Exists() {
+		data = snap.Data()
+	} else if err != nil && !isNotFoundErr(err) {
+		log.Printf("claimClosedTesterTrial: ユーザー doc を読めない: uid=%s error=%v", uid, err)
+		return nil, callable.Errorf(callable.Internal, "特典を確認できませんでした")
 	}
-	delete(userData, "premium_trial_ended_at")
+	if _, err := grantClosedTesterTrial(
+		ctx, db, userRef, data, tokenEmail(req.Auth), req.IsAndroidApp(), now); err != nil {
+		log.Printf("claimClosedTesterTrial: uid=%s error=%v", uid, err)
+		return nil, callable.Errorf(callable.Internal, "特典を確認できませんでした")
+	}
+	// 付与済みでも、トランザクション内で既に付いていたときは result が空になる。
+	// 体験を持っているかは doc を読み直して確かめる。
+	granted := false
+	if snap, err := userRef.Get(ctx); err == nil && snap.Exists() {
+		_, granted = snap.Data()["closed_tester"]
+	}
+	return map[string]any{
+		"granted": granted,
+		"active":  now.Before(closedTestAutoGrantUntil()),
+	}, nil
 }

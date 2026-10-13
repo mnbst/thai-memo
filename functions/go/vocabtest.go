@@ -131,9 +131,6 @@ func startVocabTest(ctx context.Context, req *callable.Request) (any, error) {
 		}
 	}
 
-	// オンボーディングは例文生成より先にここへ来る。テスターの体験はここでも配る。
-	applyClosedTesterTrial(ctx, db, userRef, data, req, now)
-
 	if !canStartVocabTest(data, now) {
 		return nil, callable.Errorf(callable.PermissionDenied,
 			"語彙テストはプレミアム限定です")

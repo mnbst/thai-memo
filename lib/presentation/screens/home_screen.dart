@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -569,9 +571,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
         // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
         // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
-        // 語彙テストの開始時に体験を配られた人（クローズドテストのテスター）は
-        // すでにプレミアムなので、売り込みを出さない。
-        if (mounted && !ref.read(effectivePremiumProvider)) {
+        // クローズドテストのテスターは、ここで体験を受け取ってプレミアムになる。
+        // すでにプレミアムの人に売り込みは出さない。
+        final testerTrial = await _claimClosedTesterTrial();
+        if (mounted && !testerTrial && !ref.read(effectivePremiumProvider)) {
           await PaywallScreen.show(context, source: 'onboarding');
         }
 
@@ -584,6 +587,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
+    } else if (!ref.read(effectivePremiumProvider)) {
+      // 初回起動を済ませたあとにテスターになった人にも配る。
+      unawaited(_claimClosedTesterTrial());
     }
 
     if (!mounted) return;
@@ -594,6 +600,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // 履歴を更新
     ref.invalidate(allSentencesProvider);
+  }
+
+  /// クローズドテストのテスター特典を受け取る。体験を持っていれば true。
+  ///
+  /// 製品版の公開前に本番アプリを Android に入れられるのはテスターだけなので、
+  /// サーバーは Android アプリからの呼び出しに体験を配る（closed_tester.go）。
+  /// 配る期間が終わったと返されたら、以後は問い合わせない。失敗しても学習は
+  /// 止めない（ペイウォールが出るだけ）。
+  Future<bool> _claimClosedTesterTrial() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(AppConfig.prefKeyClosedTesterClaimEnded) ?? false) {
+        return false;
+      }
+      if (FirebaseAuth.instance.currentUser == null) return false;
+      final result = await BackendApiService()
+          .claimClosedTesterTrial()
+          .timeout(const Duration(seconds: 10));
+      if (!result.active) {
+        await prefs.setBool(AppConfig.prefKeyClosedTesterClaimEnded, true);
+      }
+      return result.granted;
+    } catch (e) {
+      debugPrint('claimClosedTesterTrial failed: $e');
+      return false;
+    }
   }
 
   /// 端末に残っているヒアリングの用途（interview.goal）。未回答なら null。
@@ -673,7 +706,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     ];
 
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: screens),
+      // IndexedStack は隠れたタブのアニメーションを止めない（TickerMode が
+      // 有効のまま）。画面側は TickerMode で「見えているか」を判定するので、
+      // 隠れたタブでは明示的に切る。切らないと、別タブにいる間に学習タブの
+      // コーチマークが出て、いま見ている画面の上に暗幕が重なる。
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          for (final (i, screen) in screens.indexed)
+            TickerMode(enabled: i == _currentIndex, child: screen),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {

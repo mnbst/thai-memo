@@ -134,4 +134,8 @@ class AppConfig {
 
   /// 確認クイズの導線を光らせる初回ガイドを出したか（自分で押した場合も立つ）。
   static const String prefKeyQuizOfferCoachShown = 'quiz_offer_coach_shown';
+
+  /// クローズドテストの特典を自動で配る期間が終わった（以後問い合わせない）。
+  static const String prefKeyClosedTesterClaimEnded =
+      'closed_tester_claim_ended';
 }
