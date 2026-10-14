@@ -24,6 +24,12 @@ resource "google_identity_platform_config" "auth_config" {
     anonymous {
       enabled = true
     }
+
+    # ストア審査用アカウント専用（アプリに新規登録の導線はない）
+    email {
+      enabled           = true
+      password_required = true
+    }
   }
 
   depends_on = [google_firebase_project.default]

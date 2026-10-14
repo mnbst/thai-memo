@@ -55,12 +55,16 @@ class _SignInSheet extends ConsumerWidget {
               child: Image.asset('assets/appicon.png', width: 80, height: 80),
             ),
             const SizedBox(height: 16),
-            Text(
-              title,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+            // 長押しでストア審査用のメールサインインを開く（一般向けには出さない）
+            GestureDetector(
+              onLongPress: () => _signInWithEmail(context, ref),
+              child: Text(
+                title,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -102,6 +106,19 @@ class _SignInSheet extends ConsumerWidget {
     );
   }
 
+  Future<void> _signInWithEmail(BuildContext context, WidgetRef ref) async {
+    final credentials = await showDialog<(String, String)>(
+      context: context,
+      builder: (_) => const _EmailSignInDialog(),
+    );
+    if (credentials == null || !context.mounted) return;
+    final error = await ref
+        .read(authControllerProvider.notifier)
+        .signInWithEmail(credentials.$1, credentials.$2);
+    if (!context.mounted) return;
+    _finish(context, ref, error);
+  }
+
   Future<void> _authenticate(
     BuildContext context,
     WidgetRef ref, {
@@ -123,6 +140,10 @@ class _SignInSheet extends ConsumerWidget {
     }
 
     if (!context.mounted) return;
+    _finish(context, ref, error);
+  }
+
+  void _finish(BuildContext context, WidgetRef ref, String? error) {
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -139,5 +160,61 @@ class _SignInSheet extends ConsumerWidget {
       );
       Navigator.pop(context, true);
     }
+  }
+}
+
+/// ストア審査用アカウントの入力欄。審査担当向けなので英語で固定する。
+class _EmailSignInDialog extends StatefulWidget {
+  const _EmailSignInDialog();
+
+  @override
+  State<_EmailSignInDialog> createState() => _EmailSignInDialogState();
+}
+
+class _EmailSignInDialogState extends State<_EmailSignInDialog> {
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Sign in with email'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            decoration: const InputDecoration(labelText: 'Email'),
+          ),
+          TextField(
+            controller: _password,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Password'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            (_email.text.trim(), _password.text),
+          ),
+          child: const Text('Sign in'),
+        ),
+      ],
+    );
   }
 }

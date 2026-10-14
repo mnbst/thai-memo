@@ -92,6 +92,19 @@ class FirebaseAuthService {
     }
   }
 
+  /// メール+パスワードでサインイン。ストア審査用アカウント専用（新規登録はさせない）。
+  Future<User?> signInWithEmail(String email, String password) async {
+    try {
+      final result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return result.user;
+    } on FirebaseAuthException catch (e) {
+      throw FirebaseAuthServiceException('サインインに失敗しました: ${e.message}');
+    }
+  }
+
   /// Sign in with Apple（既存アカウントへのサインイン）
   Future<User?> signInWithApple() => _appleAuth(link: false);
 
