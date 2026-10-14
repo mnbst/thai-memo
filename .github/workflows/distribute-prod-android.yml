@@ -58,6 +58,7 @@ jobs:
             KEY_ALIAS:${{ env.GCP_PROJECT }}/ci-key-alias
             KEY_PASSWORD:${{ env.GCP_PROJECT }}/ci-key-password
             STORE_PASSWORD:${{ env.GCP_PROJECT }}/ci-store-password
+            GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:${{ env.GCP_PROJECT }}/ci-google-play-service-account
 
       - name: Restore google-services.json
         run: echo '${{ steps.secrets.outputs.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
@@ -75,10 +76,22 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # versionCode は Play に手で上げ済みの 201 を超えるよう、実行番号に 300 を足す。
-      # 実行番号のままだと既存のビルドより小さく、更新として配られない。
+      # versionCode は Play に上がっている最大の次。実行番号 + 300 で決めていた頃は
+      # 別経路で上がった番号とぶつかり、アップロードが成功表示のまま Play に
+      # 入らなかった（1.4.20 の 308）。
+      - name: Decide versionCode
+        id: version_code
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ steps.secrets.outputs.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 -m venv "$RUNNER_TEMP/play"
+          "$RUNNER_TEMP/play/bin/pip" install --quiet --disable-pip-version-check google-auth requests
+          code=$("$RUNNER_TEMP/play/bin/python" scripts/play_release.py next-code)
+          echo "versionCode=$code"
+          echo "value=$code" >> "$GITHUB_OUTPUT"
+
       - name: Build AAB
-        run: flutter build appbundle --dart-define=ENV=prod --build-number=$((GITHUB_RUN_NUMBER + 300))
+        run: flutter build appbundle --dart-define=ENV=prod --build-number=${{ steps.version_code.outputs.value }}
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
