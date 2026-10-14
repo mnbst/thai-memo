@@ -1097,6 +1097,9 @@ docs/infra_hardening.md
 
 ## Scripts
 
+scripts/play_release.py
+Google Play Developer API でトラック一覧・draft公開・トラック昇格・段階公開の操作をする。skill: play-release。
+
 scripts/sim_scan_floor.py
 key_word帯の後方下限・読み取り上限のシミュレーション（取りこぼし率・境界との差・Firestore読取数）。
 
