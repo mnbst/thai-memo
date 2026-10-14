@@ -452,6 +452,9 @@ updateUvm の Go 版。クイズ結果からUVMを更新する。uvm_handlers.py
 functions/go/vocabtest.go
 startVocabTest / submitVocabTest。語彙テストの出題・採点と estimated_vocab の書き込み。全員1段目から出題。プレミアム限定＋月1回（開始時刻を起点に30日、中断のやり直しのみ同一期間内3回まで）。
 
+functions/go/internal/uvm/decay.go
+dailyBatch がかける P の日次減衰（等倍・下限 PFloor）。休眠日数で速めない理由もここ。
+
 functions/go/internal/uvm/model.go
 UVMの純粋関数（UpdateP / GuessRate / MovingAvg / EstimateVocab）と定数。P の更新は尤度比（推測率 g・うっかり率 s）。旧 α 則は UpdatePAlpha として golden 用に残す。
 
@@ -949,6 +952,9 @@ functions/go/internal/uvm/downsim_test.go
 
 functions/go/internal/uvm/hybridsim_test.go
 階段（最初の数段）と IRT を繋いだハイブリッド測定のシミュレーション（SIM=1）。初級者は階段の打ち切りで早く終わり、通過者だけ IRT に切り替える構成の出題数と誤差を測る。
+
+functions/go/internal/uvm/idlesim_test.go
+90日使って休んだ人が戻った日に estimated_vocab がどこまで落ちるかのシミュレーション。
 
 functions/go/internal/uvm/matrixsim_test.go
 受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。母数の絞り方とヒント常用時の比較も含む。更新則・新語 prior・世界側の推測率/slip を差し替えるつまみを持つ。
