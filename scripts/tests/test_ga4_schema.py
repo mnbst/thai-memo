@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.ga4_funnel import parse_rows
+from scripts.ga4_funnel import parse_rows, step_filter
 from scripts.ga4_register_dimension import (
     DIMENSIONS,
     METRICS,
@@ -64,6 +64,26 @@ class Ga4SchemaTest(unittest.TestCase):
 
 
 class Ga4FunnelTest(unittest.TestCase):
+    def test_step_filter_without_params(self) -> None:
+        self.assertEqual(
+            step_filter("first_open", {}),
+            {"funnelEventFilter": {"eventName": "first_open"}},
+        )
+
+    def test_step_filter_ands_params_and_ors_values(self) -> None:
+        got = step_filter(
+            "vocab_test", {"action": ("complete", "skip"), "source": "onboarding"}
+        )["funnelEventFilter"]["funnelParameterFilterExpression"]
+        action, source = got["andGroup"]["expressions"]
+        self.assertEqual(
+            [e["funnelParameterFilter"]["stringFilter"]["value"]
+             for e in action["orGroup"]["expressions"]],
+            ["complete", "skip"],
+        )
+        self.assertEqual(
+            source["funnelParameterFilter"]["eventParameterName"], "source"
+        )
+
     def test_parse_rows_reads_closed_funnel_metrics(self) -> None:
         report = {
             "funnelTable": {
