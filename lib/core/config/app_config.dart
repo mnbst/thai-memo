@@ -128,6 +128,10 @@ class AppConfig {
   /// 立つまで起動のたびに送り直す。
   static const String prefKeyInterviewSynced = 'interview_synced';
 
+  /// ヒアリングで「声調が難しい」と答えた人へ声調ガイドを勧めるカードを、
+  /// 開いたか閉じたか。立ったら二度と出さない。
+  static const String prefKeyToneGuideOfferDone = 'tone_guide_offer_done';
+
   /// quiz_offer(assigned)を送信済みの実験群。画面再生成での重複を防ぐ。
   static const String prefKeyQuizOfferAssignmentLoggedV1 =
       'quiz_offer_assignment_logged_v1';

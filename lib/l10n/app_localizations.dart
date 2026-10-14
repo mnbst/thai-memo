@@ -3158,6 +3158,18 @@ abstract class L10n {
   /// **'例: {value}'**
   String toneExamplePrefix(String value);
 
+  /// No description provided for @toneGuideOfferTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調が難しいと答えた方へ'**
+  String get toneGuideOfferTitle;
+
+  /// No description provided for @toneGuideOfferBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'5つの声調と、声調の決まり方を図で確認できます'**
+  String get toneGuideOfferBody;
+
   /// No description provided for @toneGuideTitle.
   ///
   /// In ja, this message translates to:

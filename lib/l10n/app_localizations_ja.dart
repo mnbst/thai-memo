@@ -1766,6 +1766,12 @@ class L10nJa extends L10n {
   }
 
   @override
+  String get toneGuideOfferTitle => '声調が難しいと答えた方へ';
+
+  @override
+  String get toneGuideOfferBody => '5つの声調と、声調の決まり方を図で確認できます';
+
+  @override
   String get toneGuideTitle => 'タイ語の声調ガイド';
 
   @override
