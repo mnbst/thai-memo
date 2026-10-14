@@ -24,3 +24,19 @@ func TestResolveUpgraded(t *testing.T) {
 		t.Error("別の購読の取引には乗り換えない")
 	}
 }
+
+func TestIsFreeTrial(t *testing.T) {
+	for _, c := range []struct {
+		tx   TransactionInfo
+		want bool
+	}{
+		{TransactionInfo{OfferType: 1, OfferDiscountType: "FREE_TRIAL"}, true},
+		{TransactionInfo{OfferType: 1, OfferDiscountType: "PAY_AS_YOU_GO"}, false},
+		{TransactionInfo{OfferType: 2, OfferDiscountType: "FREE_TRIAL"}, false},
+		{TransactionInfo{}, false},
+	} {
+		if got := c.tx.IsFreeTrial(); got != c.want {
+			t.Errorf("%+v: got %v want %v", c.tx, got, c.want)
+		}
+	}
+}

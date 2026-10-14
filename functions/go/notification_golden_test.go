@@ -262,6 +262,8 @@ func TestPlayNotificationUpdatesGolden(t *testing.T) {
 				t.Fatalf("tier の決め方が違う: JS=%v Go=%s", want["tier"], tier)
 			}
 
+			// トライアル印は Go で足した（JS には無い）。
+			want["subscription.free_trial"] = false
 			got := updatesToMap(playUpdates(result, tier, derefOr(c.CurrentTier, "")))
 			if _, ok := want["remaining_sentences"]; ok {
 				quotaWritten++
@@ -321,6 +323,10 @@ func trackSubscriptionProduct(
 ) map[string]any {
 	if want["tier"] == "premium" && !isLifetimeProduct(n.TransactionInfo.ProductID) {
 		want["subscription.product_id"] = n.TransactionInfo.ProductID
+	}
+	// トライアル印は Go で足した（JS には無い）。
+	if !isLifetimeProduct(n.TransactionInfo.ProductID) {
+		want["subscription.free_trial"] = n.TransactionInfo.IsFreeTrial()
 	}
 	return want
 }
