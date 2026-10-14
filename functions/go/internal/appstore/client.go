@@ -244,6 +244,13 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 		return nil, err
 	}
 
+	// 検証に渡される取引は初回（トライアル）のことがあるので、トライアルかは
+	// 同じ購読の最新の取引で見る。
+	current := tx
+	if latest != nil && latest.OriginalTransactionID == tx.OriginalTransactionID {
+		current = latest
+	}
+
 	isExpired := true
 	if tx.ExpiresDate != nil {
 		isExpired = *tx.ExpiresDate < c.now().UnixMilli()
@@ -274,6 +281,7 @@ func (c *Client) VerifyPurchase(ctx context.Context, transactionID string) (*Ver
 		AutoRenewing:          autoRenewing,
 		Status:                status,
 		Sandbox:               tx.Environment == EnvironmentSandbox,
+		FreeTrial:             current.IsFreeTrial(),
 	}, nil
 }
 

@@ -62,6 +62,46 @@ func ScanBand(estimatedVocab int) (low, high int) {
 	return max(0, estimatedVocab-behind), estimatedVocab + int(ahead)
 }
 
+// CeilingAheadScale は語彙テストの上限（最上段の High）に届いた人の前方幅を
+// est に比例させる率。前方幅は max(ScanBand の前方, est×この率)。
+//
+// ScanBand の前方は est が上がるほど狭まり、測定値から 60 上がると 8 で固定
+// される。1 日の伸びがスコアによらず一定の順位数で頭打ちになるので、上限
+// 3000 で測定が止まった人は真値が上にあっても 90 日で 3500 付近までしか
+// 届かなかった（真値 6000 で d90 −2424）。
+//
+// 上限に届いた人だけに効かせる。測定値が上限未満の帯では、どの率でも
+// 広げるほど上振れが増え、現行が最適だった（ceilingsim_test.go の
+// TestAheadScaleByBand）。上限到達者は真値 3000〜6000 が同じ測定値に
+// 見えるので、そのどれでも外さない率を取った。d90 誤差（世界 推測0.25/slip0 と
+// 推測0.45/slip0.10）:
+//
+//	率     真値3000      3500       4500        6000
+//	0%     +85/+106     +11/−29   −924/−1007  −2424/−2507
+//	1%     +227/+595   +248/+329   +49/−170   −1267/−1665
+//	1.5%   +395/+892   +384/+700  +244/+394     −11/−381
+//	2%     +531/+1092  +354/+994  +315/+650    +171/+153
+//
+// 真値 3000 の上振れは、広い前方でまぐれ当たりした語が knownMaxRank を
+// 押し上げるため。
+const CeilingAheadScale = 0.015
+
+// KeyWordBand は key_word 候補のランク帯を返す。
+//
+// 測定値（tested）を原点として ScanBand を取り、測定値ぶん平行移動する
+// （EstimateVocab の floor と揃える）。測定値が語彙テストの上限に届いて
+// いる人は、前方を est×CeilingAheadScale まで広げる。未受験は tested=0。
+func KeyWordBand(estimatedVocab, tested int) (low, high int) {
+	tested = max(tested, 0)
+	low, high = ScanBand(max(estimatedVocab-tested, 0))
+	low += tested
+	high += tested
+	if tested >= TestStages[len(TestStages)-1].High {
+		high = max(high, estimatedVocab+int(CeilingAheadScale*float64(estimatedVocab)))
+	}
+	return low, high
+}
+
 // Candidate は key_word の候補 1 件。
 type Candidate struct {
 	Word string
@@ -270,9 +310,7 @@ func (s *SessionSelector) GetSessionWords(
 	if req.MaxVocab != nil {
 		tested = 0
 	}
-	scanLow, scanHigh := ScanBand(max(estimatedVocab-tested, 0))
-	scanLow += tested
-	scanHigh += tested
+	scanLow, scanHigh := KeyWordBand(estimatedVocab, tested)
 	if req.MaxVocab != nil {
 		scanHigh = min(scanHigh, *req.MaxVocab)
 		scanLow = min(scanLow, scanHigh)

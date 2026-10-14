@@ -103,18 +103,60 @@ func TestMapResultRejectsDifferentProduct(t *testing.T) {
 	data := &subscriptionPurchaseV2{
 		SubscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
 	}
-	data.LineItems = append(data.LineItems, struct {
-		ProductID        string `json:"productId"`
-		ExpiryTime       string `json:"expiryTime"`
-		AutoRenewingPlan *struct {
-			AutoRenewEnabled bool `json:"autoRenewEnabled"`
-		} `json:"autoRenewingPlan"`
-	}{
+	data.LineItems = append(data.LineItems, subscriptionLineItem{
 		ProductID:  "different_product",
 		ExpiryTime: "2030-01-01T00:00:00Z",
 	})
 
 	if _, err := mapResult("com.thaimemo.thai_memo", "premium_monthly", data); err == nil {
 		t.Fatal("要求商品と異なる lineItem が受理された")
+	}
+}
+
+func TestMapResultFreeTrialAndTestPurchase(t *testing.T) {
+	item := subscriptionLineItem{ProductID: "premium_monthly", ExpiryTime: "2030-01-01T00:00:00Z"}
+	item.OfferPhase = &struct {
+		FreeTrial *struct{} `json:"freeTrial"`
+	}{FreeTrial: &struct{}{}}
+	data := &subscriptionPurchaseV2{
+		SubscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+		LineItems:         []subscriptionLineItem{item},
+		TestPurchase:      &struct{}{},
+	}
+	res, err := mapResult("pkg", "premium_monthly", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.FreeTrial || !res.Sandbox {
+		t.Errorf("FreeTrial=%v Sandbox=%v, want both true", res.FreeTrial, res.Sandbox)
+	}
+
+	data.LineItems[0].OfferPhase = nil
+	data.TestPurchase = nil
+	res, err = mapResult("pkg", "premium_monthly", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.FreeTrial || res.Sandbox {
+		t.Errorf("FreeTrial=%v Sandbox=%v, want both false", res.FreeTrial, res.Sandbox)
+	}
+}
+
+func TestMapOneTimeResultTestPurchase(t *testing.T) {
+	purchased, test := 0, 0
+	res, err := mapOneTimeResult("premium_lifetime",
+		&productPurchase{PurchaseState: &purchased, PurchaseType: &test})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Sandbox {
+		t.Error("purchaseType=0 はテスト購入")
+	}
+	res, err = mapOneTimeResult("premium_lifetime", &productPurchase{PurchaseState: &purchased})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Sandbox {
+		t.Error("purchaseType が無ければ通常購入")
 	}
 }

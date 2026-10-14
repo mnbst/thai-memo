@@ -39,6 +39,10 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
   /// 端末データの持ち主を合わせ終えた uid。これと違う間は HomeScreen を出さない。
   String? _ownerSyncedUid;
 
+  /// 匿名サインインの開始・失敗は起動1回につき1回だけ送る（再試行で増やさない）。
+  bool _authStartLogged = false;
+  bool _authErrorLogged = false;
+
   @override
   void initState() {
     super.initState();
@@ -48,7 +52,23 @@ class _ThaiMemoAppState extends ConsumerState<ThaiMemoApp> {
           FirebaseAuth.instance.currentUser == null &&
           !ref.read(authControllerProvider).isLoading,
       signIn: () async {
-        await FirebaseAuthService.instance.signInAnonymously();
+        final analytics = ref.read(analyticsServiceProvider);
+        if (!_authStartLogged) {
+          _authStartLogged = true;
+          unawaited(analytics.logStartup(action: 'auth_start'));
+        }
+        try {
+          await FirebaseAuthService.instance.signInAnonymously();
+          unawaited(analytics.logStartup(action: 'auth_ok'));
+        } catch (error) {
+          if (!_authErrorLogged) {
+            _authErrorLogged = true;
+            unawaited(
+              analytics.logStartup(action: 'auth_error', value: '$error'),
+            );
+          }
+          rethrow;
+        }
       },
     );
     // Analytics の userId を認証状態に追従させる。

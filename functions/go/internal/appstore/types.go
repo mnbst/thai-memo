@@ -26,6 +26,8 @@ type VerificationResult struct {
 	Status       Status
 	// Sandbox は TestFlight / Sandbox の取引か。本番の売上ではないので集計から外す。
 	Sandbox bool
+	// FreeTrial は今の期間がストアの無料トライアルか。集計で課金者と分けるのに使う。
+	FreeTrial bool
 }
 
 // TransactionInfo は Apple のトランザクション情報（JWS デコード後）。
@@ -46,6 +48,15 @@ type TransactionInfo struct {
 	// Apple は切り替え元に revocationDate も付けるが、権利は新しい取引へ
 	// 引き継がれているので、取り消し（返金）と混同してはいけない。
 	IsUpgraded bool `json:"isUpgraded"`
+	// OfferType は適用中のオファー（1=お試しオファー）。OfferDiscountType が
+	// FREE_TRIAL なら無料トライアル。
+	OfferType         int    `json:"offerType"`
+	OfferDiscountType string `json:"offerDiscountType"`
+}
+
+// IsFreeTrial はこの取引の期間が無料トライアルか。
+func (t *TransactionInfo) IsFreeTrial() bool {
+	return t.OfferType == 1 && t.OfferDiscountType == "FREE_TRIAL"
 }
 
 // EnvironmentSandbox は TestFlight / Sandbox 取引の TransactionInfo.environment。

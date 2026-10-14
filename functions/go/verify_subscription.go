@@ -142,6 +142,7 @@ func runVerification(
 		status       string
 		expiresAt    *time.Time
 		autoRenewing bool
+		freeTrial    bool
 		// ストア通知でユーザーを引くためのキー
 		identifierField string
 		identifierValue string
@@ -166,9 +167,15 @@ func runVerification(
 		status = string(res.Status)
 		expiresAt = res.ExpiresAt
 		autoRenewing = res.AutoRenewing
+		freeTrial = res.FreeTrial
 		identifierField = "subscription.purchase_token"
 		identifierValue = purchaseToken
 		subscription = subscriptionRecord("android", productID, purchaseToken)
+		// iOS の Sandbox と同じく、ライセンステスターの購入に印を残す。
+		subscription["sandbox"] = res.Sandbox
+		if isLifetimeProduct(productID) {
+			subscription["lifetime_sandbox"] = res.Sandbox
+		}
 	} else {
 		lifetime := isLifetimeProduct(productID)
 
@@ -201,6 +208,7 @@ func runVerification(
 			expiresAt = &t
 		}
 		autoRenewing = res.AutoRenewing
+		freeTrial = res.FreeTrial
 		identifierField = "subscription.original_transaction_id"
 		identifierValue = res.OriginalTransactionID
 		subscription = subscriptionRecord("ios", productID, res.OriginalTransactionID)
@@ -221,6 +229,10 @@ func runVerification(
 
 	subscription["status"] = status
 	subscription["auto_renewing"] = autoRenewing
+	// 買い切りは月額の記録に重ねるので、月額側のトライアル印を書き換えない。
+	if !verifiedLifetime {
+		subscription["free_trial"] = freeTrial
+	}
 	subscription["updated_at"] = firestore.ServerTimestamp
 	if expiresAt != nil {
 		subscription["expires_at"] = *expiresAt

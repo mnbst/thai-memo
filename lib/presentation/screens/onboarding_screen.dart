@@ -128,6 +128,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 itemCount: _pages.length,
                 onPageChanged: (index) {
                   setState(() => _currentPage = index);
+                  unawaited(ref
+                      .read(analyticsServiceProvider)
+                      .logOnboardingPage(index + 1));
                 },
                 itemBuilder: (context, index) {
                   return _PageContent(page: _pages[index]);

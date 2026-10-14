@@ -495,6 +495,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 設定の読み込み完了を待ってから判定する
     await ref.read(settingsControllerProvider.notifier).initialized;
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
+    unawaited(ref.read(analyticsServiceProvider).logStartup(
+          action: 'home',
+          value: isFirstLaunch ? 'first_launch' : 'returning',
+        ));
 
     if (isFirstLaunch) {
       var existingAccount = false;
@@ -555,7 +559,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 最後に語彙テスト（任意）。生成の開始はこの後まで待つ。key_word は
         // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
         // 0 語相当の難度で出てしまう。受けずに進んだ人は 0 語から始まる。
-        if (mounted) {
+        //
+        // ヒアリングで「まったく初めて」と答えた人には出さない。prod では
+        // 受けた全員（17人）が 0 語で、測っても受けない人と同じ 0 語から
+        // 始まる。最初の体験が「0語」の結果画面になるだけなので省く。
+        // 設定からはいつでも受けられる。
+        if (mounted && await _savedLevel() == 'none') {
+          unawaited(ref
+              .read(analyticsServiceProvider)
+              .logVocabTest(action: 'auto_skip', source: 'onboarding'));
+        } else if (mounted) {
           await Navigator.push<void>(
             context,
             MaterialPageRoute(
@@ -630,6 +643,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   /// 端末に残っているヒアリングの用途（interview.goal）。未回答なら null。
+  Future<String?> _savedLevel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('${AppConfig.prefKeyInterviewPrefix}level');
+  }
+
   Future<String?> _savedGoal() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('${AppConfig.prefKeyInterviewPrefix}goal');

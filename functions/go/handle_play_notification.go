@@ -183,6 +183,7 @@ func playUpdates(
 		{Path: "tier", Value: tier},
 		{Path: "subscription.status", Value: string(result.Status)},
 		{Path: "subscription.auto_renewing", Value: result.AutoRenewing},
+		{Path: "subscription.free_trial", Value: result.FreeTrial},
 		{Path: "subscription.updated_at", Value: firestore.ServerTimestamp},
 	}
 	if result.ExpiresAt != nil {
