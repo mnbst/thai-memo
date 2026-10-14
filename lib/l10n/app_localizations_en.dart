@@ -1874,6 +1874,13 @@ class L10nEn extends L10n {
   }
 
   @override
+  String get toneGuideOfferTitle => 'You said tones are hard';
+
+  @override
+  String get toneGuideOfferBody =>
+      'See the five tones and how tones are decided, with charts';
+
+  @override
   String get toneGuideTitle => 'Guide to Thai tones';
 
   @override

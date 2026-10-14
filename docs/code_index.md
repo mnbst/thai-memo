@@ -206,6 +206,9 @@ lib/presentation/screens/word_order_guide_screen.dart
 lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセルと、それを載せる生成待ちの白カード（LoadingCard）。例文生成・クイズ生成で共用。
 
+lib/presentation/widgets/tone_guide_offer.dart
+ヒアリングで「声調が難しい」と答えた人へ声調ガイドを1回だけ勧めるカード（今日タブ、確認クイズを1問解いた後から）。
+
 lib/presentation/widgets/sign_in_reminder_banner.dart
 匿名ユーザーへ3日非アクティブでの進捗削除を警告しサインインを促すバナー（今日タブ）。告知は3日だが実削除は7日（ANON_INACTIVE_DAYS）で意図的にずらしている。
 

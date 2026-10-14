@@ -963,6 +963,8 @@
     }
   },
 
+  "toneGuideOfferTitle": "You said tones are hard",
+  "toneGuideOfferBody": "See the five tones and how tones are decided, with charts",
   "toneGuideTitle": "Guide to Thai tones",
   "toneGuideHeading": "About Thai tones",
   "toneGuideIntro": "Thai has five tones, and changing the tone can change a word's meaning. Tone is determined by consonant class (high, mid, or low), tone mark, and syllable type.",
