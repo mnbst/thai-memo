@@ -728,48 +728,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       const SettingsScreen(),
     ];
 
-    return Scaffold(
-      // IndexedStack は隠れたタブのアニメーションを止めない（TickerMode が
-      // 有効のまま）。画面側は TickerMode で「見えているか」を判定するので、
-      // 隠れたタブでは明示的に切る。切らないと、別タブにいる間に学習タブの
-      // コーチマークが出て、いま見ている画面の上に暗幕が重なる。
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          for (final (i, screen) in screens.indexed)
-            TickerMode(enabled: i == _currentIndex, child: screen),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          // IndexedStack は他タブを破棄しないため、再生中の例文が
-          // 鳴り続けてしまう。タブを離れたら明示的に止める。
-          unawaited(ref.read(ttsServiceProvider).stopAll());
-          setState(() {
-            _currentIndex = index;
-          });
-          _logCurrentTabScreen(index: index);
-        },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.school_outlined),
-            selectedIcon: const Icon(Icons.school),
-            label: l10n.navLearn,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.history_outlined),
-            selectedIcon: const Icon(Icons.history),
-            label: l10n.navHistory,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
-            label: l10n.navSettings,
-          ),
-        ],
+    // Android の戻るでアプリを閉じない。学習以外のタブなら学習タブへ戻し、
+    // 学習タブでは何もしない。
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _currentIndex != 0) _selectTab(0);
+      },
+      child: Scaffold(
+        // IndexedStack は隠れたタブのアニメーションを止めない（TickerMode が
+        // 有効のまま）。画面側は TickerMode で「見えているか」を判定するので、
+        // 隠れたタブでは明示的に切る。切らないと、別タブにいる間に学習タブの
+        // コーチマークが出て、いま見ている画面の上に暗幕が重なる。
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            for (final (i, screen) in screens.indexed)
+              TickerMode(enabled: i == _currentIndex, child: screen),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: _selectTab,
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.school_outlined),
+              selectedIcon: const Icon(Icons.school),
+              label: l10n.navLearn,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.history_outlined),
+              selectedIcon: const Icon(Icons.history),
+              label: l10n.navHistory,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.settings_outlined),
+              selectedIcon: const Icon(Icons.settings),
+              label: l10n.navSettings,
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _selectTab(int index) {
+    // IndexedStack は他タブを破棄しないため、再生中の例文が
+    // 鳴り続けてしまう。タブを離れたら明示的に止める。
+    unawaited(ref.read(ttsServiceProvider).stopAll());
+    setState(() {
+      _currentIndex = index;
+    });
+    _logCurrentTabScreen(index: index);
   }
 
   void _logCurrentTabScreen({int? index}) {
