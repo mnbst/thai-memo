@@ -1881,6 +1881,13 @@ class L10nEn extends L10n {
       'See the five tones and how tones are decided, with charts';
 
   @override
+  String get vocabRetestOfferTitle => 'Welcome back';
+
+  @override
+  String get vocabRetestOfferBody =>
+      'It\'s been a while. Retake the vocabulary test so sentences match your current level.';
+
+  @override
   String get toneGuideTitle => 'Guide to Thai tones';
 
   @override

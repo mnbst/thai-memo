@@ -1772,6 +1772,13 @@ class L10nJa extends L10n {
   String get toneGuideOfferBody => '5つの声調と、声調の決まり方を図で確認できます';
 
   @override
+  String get vocabRetestOfferTitle => 'おかえりなさい';
+
+  @override
+  String get vocabRetestOfferBody =>
+      'しばらく空いたので、語彙テストでいまの語彙量を測り直しませんか。例文の難しさが今のあなたに合います。';
+
+  @override
   String get toneGuideTitle => 'タイ語の声調ガイド';
 
   @override

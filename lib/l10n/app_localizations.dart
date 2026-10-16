@@ -3170,6 +3170,18 @@ abstract class L10n {
   /// **'5つの声調と、声調の決まり方を図で確認できます'**
   String get toneGuideOfferBody;
 
+  /// No description provided for @vocabRetestOfferTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'おかえりなさい'**
+  String get vocabRetestOfferTitle;
+
+  /// No description provided for @vocabRetestOfferBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'しばらく空いたので、語彙テストでいまの語彙量を測り直しませんか。例文の難しさが今のあなたに合います。'**
+  String get vocabRetestOfferBody;
+
   /// No description provided for @toneGuideTitle.
   ///
   /// In ja, this message translates to:
