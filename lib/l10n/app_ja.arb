@@ -1582,5 +1582,32 @@
   "wordOrderEx10bGloss": "食べる|もう〜した|丁寧（女性）",
   "wordOrderEx10bMeaning": "もう食べました",
   "guideRoleQuizWordOrder": "並び替えクイズ：まとめクイズの一部で、例文の4つの語を正しい順に並べます。解答後の「語順について詳しく学ぶ」から語順ガイドを開けます。",
-  "guideHowSettingsGuides": "「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。"
+  "guideHowSettingsGuides": "「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。",
+  "streakChipDays": "{count}日",
+  "@streakChipDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakChipStart": "今日から",
+  "streakTitle": "例文 {count}日連続",
+  "@streakTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakRestart": "1本作ると再スタート",
+  "streakStart": "今日の1本で記録を始めよう",
+  "streakBest": "最長 {count}日",
+  "@streakBest": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakNextMilestone": "{target}日まで あと{count}日",
+  "@streakNextMilestone": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "target": { "type": "int" }
+    }
+  },
+  "streakToday": "今日",
+  "streakWeekdayLetters": "月火水木金土日",
+  "@streakWeekdayLetters": {
+    "description": "月曜始まりの曜日1文字×7。1文字ずつ切って使う。"
+  }
 }

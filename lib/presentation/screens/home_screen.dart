@@ -19,6 +19,7 @@ import '../../services/interview_reporter.dart';
 import '../../services/sentence_view_marker.dart';
 import '../../services/uvm_update_queue.dart';
 import '../providers/daily_set_provider.dart';
+import '../providers/streak_provider.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
@@ -146,6 +147,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // 日をまたいで開き直したとき、連続日数の「今日」を進める。
+      unawaited(ref.read(streakProvider.notifier).refresh());
       _checkAndReloadIfNeeded();
     }
   }
@@ -202,6 +205,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (!mounted || !accepted) {
       return (displayed: false, imported: queued);
     }
+    // 新しい配信を受け取った日も「例文を作った日」として数える。
+    unawaited(ref.read(streakProvider.notifier).markToday());
     final shown = ref.read(dailySetProvider).current ?? delivered.first;
     return (
       displayed: _showIfNotVisible(shown, force: force),

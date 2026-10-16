@@ -5431,6 +5431,60 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。'**
   String get guideHowSettingsGuides;
+
+  /// No description provided for @streakChipDays.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}日'**
+  String streakChipDays(int count);
+
+  /// No description provided for @streakChipStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日から'**
+  String get streakChipStart;
+
+  /// No description provided for @streakTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文 {count}日連続'**
+  String streakTitle(int count);
+
+  /// No description provided for @streakRestart.
+  ///
+  /// In ja, this message translates to:
+  /// **'1本作ると再スタート'**
+  String get streakRestart;
+
+  /// No description provided for @streakStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の1本で記録を始めよう'**
+  String get streakStart;
+
+  /// No description provided for @streakBest.
+  ///
+  /// In ja, this message translates to:
+  /// **'最長 {count}日'**
+  String streakBest(int count);
+
+  /// No description provided for @streakNextMilestone.
+  ///
+  /// In ja, this message translates to:
+  /// **'{target}日まで あと{count}日'**
+  String streakNextMilestone(int count, int target);
+
+  /// No description provided for @streakToday.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日'**
+  String get streakToday;
+
+  /// 月曜始まりの曜日1文字×7。1文字ずつ切って使う。
+  ///
+  /// In ja, this message translates to:
+  /// **'月火水木金土日'**
+  String get streakWeekdayLetters;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

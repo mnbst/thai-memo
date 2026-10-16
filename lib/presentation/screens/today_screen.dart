@@ -19,6 +19,7 @@ import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/vocab_stats_provider.dart';
+import '../widgets/streak_widgets.dart';
 import '../widgets/coach_mark_overlay.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/quiz_offer.dart';
@@ -271,6 +272,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
         ),
         actions: [
+          const StreakChip(),
+          const SizedBox(width: 8),
           _buildVocabScoreChip(context),
           const SizedBox(width: AppConfig.screenPadding),
         ],

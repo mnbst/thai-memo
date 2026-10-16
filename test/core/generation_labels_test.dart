@@ -76,11 +76,11 @@ void main() {
   group('styleLabel', () {
     test('STYLES の全値が英語ラベルに変換される', () {
       const styles = {
-        'ニュース記事体（客観的・フォーマルな報道文体）': 'News article style',
-        '口語体（友達同士のカジュアルな話し言葉）': 'Colloquial style',
+        'ニュース記事体（客観的・フォーマルな報道文体）': 'News',
+        '口語体（友達同士のカジュアルな話し言葉）': 'Colloquial',
         '丁寧語（フォーマルな敬語・丁寧な表現）': 'Polite',
-        'SNS・テキストメッセージ（略語・絵文字・短い表現）': 'Texting and social media',
-        '物語・文学体（描写的・書き言葉的な表現）': 'Narrative and literary style',
+        'SNS・テキストメッセージ（略語・絵文字・短い表現）': 'Texts and social media',
+        '物語・文学体（描写的・書き言葉的な表現）': 'Narrative and literary',
       };
       styles.forEach((identifier, expected) {
         expect(styleLabel(en, identifier), expected, reason: identifier);
@@ -90,13 +90,13 @@ void main() {
     test('サーバーが返す英語ラベルも括弧の前だけにする', () {
       // constants_data.go:styleLabelsEN の全値。
       const labels = {
-        'News article style (objective, formal reporting)': 'News article style',
-        'Casual spoken style (how friends talk)': 'Colloquial style',
+        'News article style (objective, formal reporting)': 'News',
+        'Casual spoken style (how friends talk)': 'Colloquial',
         'Polite style (formal, respectful expressions)': 'Polite',
         'Social media / text message style (abbreviations, emoji, short phrases)':
-            'Texting and social media',
+            'Texts and social media',
         'Narrative / literary style (descriptive, written language)':
-            'Narrative and literary style',
+            'Narrative and literary',
       };
       labels.forEach((identifier, expected) {
         expect(styleLabel(en, identifier), expected, reason: identifier);

@@ -24,6 +24,7 @@ import '../widgets/premium_lifetime_migration_dialog.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import 'vocab_test_screen.dart';
 import '../widgets/sign_in_sheet.dart';
+import '../widgets/streak_widgets.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/vocab_level.dart';
 import 'contact_form_screen.dart';
@@ -88,6 +89,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           // 語彙スコアは設定ではなく成果なので、設定の並びの外に置く。
           _buildVocabScoreCard(),
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: StreakCard(),
+          ),
           _buildPremiumPitch(),
           _buildSection(l10n.settingsAccount, _buildAccountTiles()),
           _buildSection(l10n.settingsGuideSection, _buildGuideTiles()),
