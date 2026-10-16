@@ -2989,4 +2989,39 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowSettingsGuides => '「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。';
+
+  @override
+  String streakChipDays(int count) {
+    return '$count日';
+  }
+
+  @override
+  String get streakChipStart => '今日から';
+
+  @override
+  String streakTitle(int count) {
+    return '例文 $count日連続';
+  }
+
+  @override
+  String get streakRestart => '1本作ると再スタート';
+
+  @override
+  String get streakStart => '今日の1本で記録を始めよう';
+
+  @override
+  String streakBest(int count) {
+    return '最長 $count日';
+  }
+
+  @override
+  String streakNextMilestone(int count, int target) {
+    return '$target日まで あと$count日';
+  }
+
+  @override
+  String get streakToday => '今日';
+
+  @override
+  String get streakWeekdayLetters => '月火水木金土日';
 }

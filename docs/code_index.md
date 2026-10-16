@@ -145,6 +145,9 @@ lib/presentation/providers/leaderboard_provider.dart
 lib/presentation/providers/vocab_stats_provider.dart
 語彙スコア・語彙テストの受験日と測定値。users/{uid} の共有listenerから受け取る。
 
+lib/presentation/providers/streak_provider.dart
+連続日数（例文を作った・配信を受け取った日だけ数える。クイズは数えない）。端末の daily_activity に記録し、最長・直近7日・次の節目（7/14/30日）を出す。
+
 lib/presentation/providers/remaining_quota_provider.dart
 users/{uid} を監視する唯一のlistener（userDocSnapshotProvider）。残回数・Premium・体験トライアル・語彙がこの1本を共有する。
 
@@ -220,6 +223,9 @@ lib/presentation/widgets/level_up_dialog.dart
 
 lib/presentation/widgets/vocab_level.dart
 語彙レベルの区切り（入門〜上級）とラベル・アイコン、free の語彙スコア上限。
+
+lib/presentation/widgets/streak_widgets.dart
+連続日数の表示。学習画面ヘッダーのチップ（StreakChip）と設定画面の週の帯カード（StreakCard）。節目ごとに炎のチップが温まる。
 
 lib/presentation/widgets/tablet_width_limit.dart
 iPad など幅の広い画面で、アプリ全体を最大680ptの縦長の列にして中央に寄せる（MaterialApp.builder で適用）。

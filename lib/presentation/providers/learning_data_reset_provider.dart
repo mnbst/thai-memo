@@ -10,6 +10,7 @@ import '../../services/uvm_update_queue.dart';
 import 'daily_set_provider.dart';
 import 'leaderboard_provider.dart';
 import 'quiz_provider.dart';
+import 'streak_provider.dart';
 import 'sentence_provider.dart';
 import 'vocab_stats_provider.dart';
 
@@ -84,6 +85,7 @@ class LearningDataReset {
       _ref.invalidate(allSentencesProvider);
       _ref.invalidate(sentenceCountProvider);
       _ref.invalidate(quizStatsProvider);
+      _ref.invalidate(streakProvider);
       _ref.invalidate(vocabStatsProvider);
       _ref.read(leaderboardRefreshEpochProvider.notifier).state++;
     } finally {

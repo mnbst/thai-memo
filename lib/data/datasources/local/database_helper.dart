@@ -663,6 +663,40 @@ class DatabaseHelper {
     });
   }
 
+  /// 例文を作った（受け取った）日として [date]（yyyy-MM-dd）を記録する。
+  Future<void> markGenerationDone(String date) async {
+    final db = await database;
+    // UPSERT 構文は古い Android の SQLite に無いので、挿入と更新に分ける。
+    await db.transaction((txn) async {
+      await txn.insert(
+        DatabaseConstants.tableDailyActivity,
+        {DatabaseConstants.columnActivityDate: date},
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+      await txn.update(
+        DatabaseConstants.tableDailyActivity,
+        {DatabaseConstants.columnGenerationDone: 1},
+        where: '${DatabaseConstants.columnActivityDate} = ?',
+        whereArgs: [date],
+      );
+    });
+  }
+
+  /// 例文を作った日（yyyy-MM-dd）の一覧。昇順。
+  Future<List<String>> getGenerationDates() async {
+    final db = await database;
+    final rows = await db.query(
+      DatabaseConstants.tableDailyActivity,
+      columns: [DatabaseConstants.columnActivityDate],
+      where: '${DatabaseConstants.columnGenerationDone} = 1',
+      orderBy: '${DatabaseConstants.columnActivityDate} ASC',
+    );
+    return [
+      for (final row in rows)
+        row[DatabaseConstants.columnActivityDate] as String,
+    ];
+  }
+
   /// Per-tone accuracy so far.
   Future<List<Map<String, dynamic>>> getToneStats() async {
     final db = await database;
