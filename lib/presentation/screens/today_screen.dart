@@ -26,6 +26,7 @@ import '../widgets/sentence_audio_section.dart';
 import '../widgets/thai_highlight.dart';
 import '../widgets/sign_in_reminder_banner.dart';
 import '../widgets/tone_guide_offer.dart';
+import '../widgets/vocab_retest_offer.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/vocab_level.dart';
 import 'detail_screen.dart';
@@ -439,6 +440,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 ],
                 // ヒアリングで「声調が難しい」と答えた人にだけ1回出す。
                 const ToneGuideOffer(),
+                // 30日以上あけて戻ったプレミアムの人に、語彙テストの受け直しを勧める。
+                const VocabRetestOffer(),
               ],
             ),
           ),

@@ -132,6 +132,14 @@ class AppConfig {
   /// 開いたか閉じたか。立ったら二度と出さない。
   static const String prefKeyToneGuideOfferDone = 'tone_guide_offer_done';
 
+  /// 今日タブを最後に開いた日時（ミリ秒）。30日以上あいた復帰の判定に使う。
+  static const String prefKeyLastTodayVisitAt = 'last_today_visit_at';
+
+  /// 復帰者へ語彙テストの受け直しを勧めるカードを出す状態か。
+  /// 開くか閉じるまで立ったまま。
+  static const String prefKeyVocabRetestOfferPending =
+      'vocab_retest_offer_pending';
+
   /// quiz_offer(assigned)を送信済みの実験群。画面再生成での重複を防ぐ。
   static const String prefKeyQuizOfferAssignmentLoggedV1 =
       'quiz_offer_assignment_logged_v1';

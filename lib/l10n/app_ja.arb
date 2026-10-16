@@ -1070,6 +1070,8 @@
 
   "toneGuideOfferTitle": "声調が難しいと答えた方へ",
   "toneGuideOfferBody": "5つの声調と、声調の決まり方を図で確認できます",
+  "vocabRetestOfferTitle": "おかえりなさい",
+  "vocabRetestOfferBody": "しばらく空いたので、語彙テストでいまの語彙量を測り直しませんか。例文の難しさが今のあなたに合います。",
   "toneGuideTitle": "タイ語の声調ガイド",
   "toneGuideHeading": "タイ語の声調について",
   "toneGuideIntro": "タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、子音文字の種類（高・中・低）、声調記号、音節タイプによって決まります。",
