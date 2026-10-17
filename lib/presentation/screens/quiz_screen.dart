@@ -29,7 +29,23 @@ import 'detail_screen.dart';
 import 'paywall_screen.dart';
 
 const String _summaryQuizVocabBeforeKey = 'summary_quiz_vocab_before';
+const String _summaryQuizVocabSetKey = 'summary_quiz_vocab_before_set';
 const int _maxSummaryQuizVocabIncrease = 50;
+
+/// セットの最初の確認クイズで語彙スコアを控える。まとめクイズの結果は
+/// ここからの伸び（セット全体）を見せる。
+///
+/// スコアが動くのは境界付近の新しい語に初めて答えたときで、それは確認クイズ。
+/// まとめクイズは既習語の復習が中心なので、その開始時点を起点にすると
+/// 伸びがほぼ0になり、上昇の演出が出なかった。
+Future<void> rememberVocabAtSetStart(WidgetRef ref, String setId) async {
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getString(_summaryQuizVocabSetKey) == setId) return;
+  final vocab = ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ??
+      (await ref.read(vocabStatsProvider.future)).estimatedVocab;
+  await prefs.setInt(_summaryQuizVocabBeforeKey, vocab);
+  await prefs.setString(_summaryQuizVocabSetKey, setId);
+}
 const Duration _correctAnswerAutoAdvanceDelay = Duration(milliseconds: 1200);
 
 /// 出題中の位置。1問だけのクイズには進み具合が無いので持たせない。
@@ -276,6 +292,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Future<void> _captureVocabBeforeQuiz() async {
     if (_vocabBeforeQuiz != null) return;
+    if (widget.showVocabScoreTransition) {
+      // セット開始時に控えた値があればそれを起点にする（rememberVocabAtSetStart）。
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getInt(_summaryQuizVocabBeforeKey);
+      if (!mounted || _vocabBeforeQuiz != null) return;
+      if (saved != null) {
+        setState(() => _vocabBeforeQuiz = saved);
+        return;
+      }
+    }
     final vocab = ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ??
         (await ref.read(vocabStatsProvider.future)).estimatedVocab;
     if (!mounted || _vocabBeforeQuiz != null) return;
@@ -316,6 +342,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!widget.showVocabScoreTransition) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_summaryQuizVocabBeforeKey);
+    await prefs.remove(_summaryQuizVocabSetKey);
   }
 
   @override
