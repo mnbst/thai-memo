@@ -14,6 +14,7 @@ class _Rule {
   const _Rule(this.title, this.body, this.examples, [this.note]);
 }
 
+// 表示順はこの並び。キーの番号は追加順で、表示番号とは一致しない。
 final _rules = <_Rule>[
   _Rule(
     (l) => l.wordOrderRule1Title,
@@ -67,6 +68,18 @@ final _rules = <_Rule>[
     (l) => l.wordOrderRule4Note,
   ),
   _Rule(
+    (l) => l.wordOrderRule11Title,
+    (l) => l.wordOrderRule11Body,
+    [
+      WordOrderExample(
+          ['ร้าน', 'ที่', 'ผม', 'ชอบ'],
+          ['ráan', 'thîi', 'phǒm', 'chɔ̂ɔp'],
+          {1, 2, 3},
+          (l) => l.wordOrderEx11aGloss,
+          (l) => l.wordOrderEx11aMeaning),
+    ],
+  ),
+  _Rule(
     (l) => l.wordOrderRule5Title,
     (l) => l.wordOrderRule5Body,
     [
@@ -78,6 +91,55 @@ final _rules = <_Rule>[
           {1, 2, 3},
           (l) => l.wordOrderEx5bGloss,
           (l) => l.wordOrderEx5bMeaning),
+    ],
+    (l) => l.wordOrderRule5Note,
+  ),
+  _Rule(
+    (l) => l.wordOrderRule12Title,
+    (l) => l.wordOrderRule12Body,
+    [
+      WordOrderExample(
+          ['ผม', 'ไป', 'กับ', 'เพื่อน'],
+          ['phǒm', 'pai', 'kàp', 'phʉ̂an'],
+          {2, 3},
+          (l) => l.wordOrderEx12aGloss,
+          (l) => l.wordOrderEx12aMeaning),
+      WordOrderExample(
+          ['แมว', 'อยู่', 'บน', 'โต๊ะ'],
+          ['mɛɛw', 'yùu', 'bon', 'tó'],
+          {2, 3},
+          (l) => l.wordOrderEx12bGloss,
+          (l) => l.wordOrderEx12bMeaning),
+    ],
+  ),
+  _Rule(
+    (l) => l.wordOrderRule13Title,
+    (l) => l.wordOrderRule13Body,
+    [
+      WordOrderExample(
+          ['อาหาร', 'นี้', 'อร่อย', 'มาก'],
+          ['aa-hǎan', 'níi', 'à-rɔ̀i', 'mâak'],
+          {3},
+          (l) => l.wordOrderEx13aGloss,
+          (l) => l.wordOrderEx13aMeaning),
+    ],
+  ),
+  _Rule(
+    (l) => l.wordOrderRule14Title,
+    (l) => l.wordOrderRule14Body,
+    [
+      WordOrderExample(
+          ['วันนี้', 'ร้อน', 'กว่า', 'เมื่อวาน'],
+          ['wan-níi', 'rɔ́ɔn', 'kwàa', 'mʉ̂a-waan'],
+          {2, 3},
+          (l) => l.wordOrderEx14aGloss,
+          (l) => l.wordOrderEx14aMeaning),
+      WordOrderExample(
+          ['อัน', 'นี้', 'ดี', 'ที่สุด'],
+          ['an', 'níi', 'dii', 'thîi-sùt'],
+          {3},
+          (l) => l.wordOrderEx14bGloss,
+          (l) => l.wordOrderEx14bMeaning),
     ],
   ),
   _Rule(
@@ -120,6 +182,38 @@ final _rules = <_Rule>[
     ],
   ),
   _Rule(
+    (l) => l.wordOrderRule15Title,
+    (l) => l.wordOrderRule15Body,
+    [
+      WordOrderExample(
+          ['ผม', 'อยาก', 'กิน', 'ส้มตำ'],
+          ['phǒm', 'yàak', 'kin', 'sôm-tam'],
+          {1},
+          (l) => l.wordOrderEx15aGloss,
+          (l) => l.wordOrderEx15aMeaning),
+      WordOrderExample(
+          ['ผม', 'พูด', 'ภาษาไทย', 'ได้'],
+          ['phǒm', 'phûut', 'phaa-sǎa-thai', 'dâai'],
+          {3},
+          (l) => l.wordOrderEx15bGloss,
+          (l) => l.wordOrderEx15bMeaning),
+    ],
+  ),
+  _Rule(
+    (l) => l.wordOrderRule16Title,
+    (l) => l.wordOrderRule16Body,
+    [
+      WordOrderExample(
+          ['ผม', 'ไป', 'ซื้อ', 'ของ'],
+          ['phǒm', 'pai', 'sʉ́ʉ', 'khɔ̌ɔng'],
+          {1, 2},
+          (l) => l.wordOrderEx16aGloss,
+          (l) => l.wordOrderEx16aMeaning),
+      WordOrderExample(['เอา', 'น้ำ', 'มา'], ['ao', 'náam', 'maa'], {2},
+          (l) => l.wordOrderEx16bGloss, (l) => l.wordOrderEx16bMeaning),
+    ],
+  ),
+  _Rule(
     (l) => l.wordOrderRule9Title,
     (l) => l.wordOrderRule9Body,
     [
@@ -145,6 +239,8 @@ final _rules = <_Rule>[
           (l) => l.wordOrderEx10aGloss, (l) => l.wordOrderEx10aMeaning),
       WordOrderExample(['กิน', 'แล้ว', 'ค่ะ'], ['kin', 'lɛ́ɛw', 'khâ'], {2},
           (l) => l.wordOrderEx10bGloss, (l) => l.wordOrderEx10bMeaning),
+      WordOrderExample(['อร่อย', 'นะ', 'คะ'], ['à-rɔ̀i', 'ná', 'khá'], {1, 2},
+          (l) => l.wordOrderEx10cGloss, (l) => l.wordOrderEx10cMeaning),
     ],
   ),
 ];
@@ -376,6 +472,32 @@ const _readings = {
   'ค่ะ': 'khâ',
   'คะ': 'khá',
   'ของ': 'khɔ̌ɔng',
+  'ที่': 'thîi',
+  'กับ': 'kàp',
+  'ใน': 'nai',
+  'บน': 'bon',
+  'ให้': 'hâi',
+  'มาก': 'mâak',
+  'จริงๆ': 'jing-jing',
+  'นิดหน่อย': 'nít-nɔ̀i',
+  'กว่า': 'kwàa',
+  'ที่สุด': 'thîi-sùt',
+  'อยาก': 'yàak',
+  'ต้อง': 'tɔ̂ng',
+  'ควร': 'khuan',
+  'ได้': 'dâai',
+  'ไป': 'pai',
+  'ซื้อ': 'sʉ́ʉ',
+  'มา': 'maa',
+  'นะ': 'ná',
+  'เลย': 'ləəi',
+  'ด้วย': 'dûay',
+  'ทำไม': 'tham-mai',
+  'เป็น': 'pen',
+  'หนึ่ง': 'nʉ̀ng',
+  'นะคะ': 'ná khá',
+  'บ้านใหญ่': 'bâan yài',
+  'แมวตัวหนึ่ง': 'mɛɛw tua nʉ̀ng',
 };
 
 final _thaiRun = RegExp(r'[฀-๿]+');

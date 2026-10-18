@@ -1021,6 +1021,18 @@ abstract class L10n {
   /// **'タイ語の声調ルールを学ぶ'**
   String get settingsToneGuideSubtitle;
 
+  /// No description provided for @settingsPronGuide.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音ガイド'**
+  String get settingsPronGuide;
+
+  /// No description provided for @settingsPronGuideSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'読みの記号と、区別しにくい音を学ぶ'**
+  String get settingsPronGuideSubtitle;
+
   /// No description provided for @settingsResetLearningData.
   ///
   /// In ja, this message translates to:
@@ -2098,19 +2110,19 @@ abstract class L10n {
   /// No description provided for @philosophy2None.
   ///
   /// In ja, this message translates to:
-  /// **'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。'**
+  /// **'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。読み方に迷ったら、設定の発音ガイドも使えます。'**
   String get philosophy2None;
 
   /// No description provided for @philosophy2Script.
   ///
   /// In ja, this message translates to:
-  /// **'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。'**
+  /// **'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。アプリの読みの見方や区別しにくい音は、設定の発音ガイドで確認できます。'**
   String get philosophy2Script;
 
   /// No description provided for @philosophy2Tone.
   ///
   /// In ja, this message translates to:
-  /// **'**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。'**
+  /// **'**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。声調のきまりは、設定の声調ガイドで確認できます。'**
   String get philosophy2Tone;
 
   /// No description provided for @philosophy2Vocab.
@@ -5111,13 +5123,13 @@ abstract class L10n {
   /// No description provided for @wordOrderRule7Body.
   ///
   /// In ja, this message translates to:
-  /// **'疑問詞は、答えが入る場所にそのまま置きます。はい・いいえの質問は文末に ไหม。'**
+  /// **'疑問詞は、答えが入る場所にそのまま置きます。ただし ทำไม（なぜ）は文頭にもよく来ます。はい・いいえの質問は述語の後ろに ไหม を付けます（丁寧の語尾はさらに後ろ）。'**
   String get wordOrderRule7Body;
 
   /// No description provided for @wordOrderRule8Title.
   ///
   /// In ja, this message translates to:
-  /// **'時を表す語の位置'**
+  /// **'いつのことかを表す語（จะ・แล้ว など）'**
   String get wordOrderRule8Title;
 
   /// No description provided for @wordOrderRule8Body.
@@ -5147,7 +5159,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule10Body.
   ///
   /// In ja, this message translates to:
-  /// **'男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม や แล้ว よりも後ろに付きます。'**
+  /// **'男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม・แล้ว や、นะ（〜ね）・เลย・ด้วย などの文末の語よりも後ろに付きます。นะ の後の女性の語尾は คะ（นะคะ）です。'**
   String get wordOrderRule10Body;
 
   /// No description provided for @wordOrderTipsTitle.
@@ -5159,7 +5171,7 @@ abstract class L10n {
   /// No description provided for @wordOrderTipsBody.
   ///
   /// In ja, this message translates to:
-  /// **'場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้ は、説明される名詞の後ろ\nไหม・แล้ว・ครับ/ค่ะ/คะ は最後のほう'**
+  /// **'場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้・มาก は、説明される語の後ろ\nกับ・ใน などは名詞の前、อยาก・ต้อง は動詞の前\nไหม・แล้ว・นะ・ครับ/ค่ะ/คะ は最後のほう'**
   String get wordOrderTipsBody;
 
   /// No description provided for @wordOrderEx1aGloss.
@@ -5249,7 +5261,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule4Note.
   ///
   /// In ja, this message translates to:
-  /// **'ของ は省くこともあります。'**
+  /// **'บ้านใหญ่ は「家は大きい」という文にもなります。形容詞はそのまま述語になり、เป็น は要りません。ของ は省くこともあります。'**
   String get wordOrderRule4Note;
 
   /// No description provided for @wordOrderEx5aGloss.
@@ -5425,6 +5437,360 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'もう食べました'**
   String get wordOrderEx10bMeaning;
+
+  /// No description provided for @wordOrderRule5Note.
+  ///
+  /// In ja, this message translates to:
+  /// **'แมวตัวหนึ่ง のように類別詞の後ろに หนึ่ง を置くと、「ある猫」という意味になります。'**
+  String get wordOrderRule5Note;
+
+  /// No description provided for @wordOrderEx10cGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'おいしい|〜ね|丁寧（女性）'**
+  String get wordOrderEx10cGloss;
+
+  /// No description provided for @wordOrderEx10cMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'おいしいですね'**
+  String get wordOrderEx10cMeaning;
+
+  /// No description provided for @wordOrderRule11Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'文で説明するときは「名詞 → ที่ → 説明」'**
+  String get wordOrderRule11Title;
+
+  /// No description provided for @wordOrderRule11Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'「私が好きな店」のように文で名詞を説明するときも、説明は後ろです。名詞の後に ที่ を置き、その後ろに説明を続けるのが基本です。'**
+  String get wordOrderRule11Body;
+
+  /// No description provided for @wordOrderEx11aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'店|（つなぐ語）|私|好き'**
+  String get wordOrderEx11aGloss;
+
+  /// No description provided for @wordOrderEx11aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私が好きな店'**
+  String get wordOrderEx11aMeaning;
+
+  /// No description provided for @wordOrderRule12Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'「〜と」「〜の上に」などは名詞の前'**
+  String get wordOrderRule12Title;
+
+  /// No description provided for @wordOrderRule12Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'กับ（〜と）・ใน（〜の中で）・บน（〜の上に）・ให้（〜に）・ที่（〜で）は名詞の前に置きます。日本語の「〜と」「〜で」とは逆です。'**
+  String get wordOrderRule12Body;
+
+  /// No description provided for @wordOrderEx12aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|行く|〜と|友達'**
+  String get wordOrderEx12aGloss;
+
+  /// No description provided for @wordOrderEx12aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私は友達と行く'**
+  String get wordOrderEx12aMeaning;
+
+  /// No description provided for @wordOrderEx12bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'猫|いる|〜の上|机'**
+  String get wordOrderEx12bGloss;
+
+  /// No description provided for @wordOrderEx12bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'猫は机の上にいる'**
+  String get wordOrderEx12bMeaning;
+
+  /// No description provided for @wordOrderRule13Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'「とても」「少し」は後ろ'**
+  String get wordOrderRule13Title;
+
+  /// No description provided for @wordOrderRule13Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'มาก（とても）・จริงๆ（本当に）・นิดหน่อย（少し）は、形容詞や動詞の後ろに置きます。日本語と逆です。'**
+  String get wordOrderRule13Body;
+
+  /// No description provided for @wordOrderEx13aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'料理|この|おいしい|とても'**
+  String get wordOrderEx13aGloss;
+
+  /// No description provided for @wordOrderEx13aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'この料理はとてもおいしい'**
+  String get wordOrderEx13aMeaning;
+
+  /// No description provided for @wordOrderRule14Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'比べるときは「形容詞 → กว่า → 相手」'**
+  String get wordOrderRule14Title;
+
+  /// No description provided for @wordOrderRule14Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'「AはBより〜」は「A＋形容詞＋กว่า＋B」。「一番〜」は形容詞の後ろに ที่สุด を付けます。'**
+  String get wordOrderRule14Body;
+
+  /// No description provided for @wordOrderEx14aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日|暑い|〜より|昨日'**
+  String get wordOrderEx14aGloss;
+
+  /// No description provided for @wordOrderEx14aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日は昨日より暑い'**
+  String get wordOrderEx14aMeaning;
+
+  /// No description provided for @wordOrderEx14bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'もの|この|良い|一番'**
+  String get wordOrderEx14bGloss;
+
+  /// No description provided for @wordOrderEx14bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'これが一番いい'**
+  String get wordOrderEx14bMeaning;
+
+  /// No description provided for @wordOrderRule15Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'「〜したい」は動詞の前、「できる」は後ろ'**
+  String get wordOrderRule15Title;
+
+  /// No description provided for @wordOrderRule15Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'อยาก（〜したい）・ต้อง（〜しなければ）・ควร（〜したほうがいい）は動詞の前。ได้（できる）は動詞と目的語の後ろです。'**
+  String get wordOrderRule15Body;
+
+  /// No description provided for @wordOrderEx15aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|〜したい|食べる|ソムタム'**
+  String get wordOrderEx15aGloss;
+
+  /// No description provided for @wordOrderEx15aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私はソムタムを食べたい'**
+  String get wordOrderEx15aMeaning;
+
+  /// No description provided for @wordOrderEx15bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|話す|タイ語|できる'**
+  String get wordOrderEx15bGloss;
+
+  /// No description provided for @wordOrderEx15bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私はタイ語を話せる'**
+  String get wordOrderEx15bMeaning;
+
+  /// No description provided for @wordOrderRule16Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'動詞はそのまま続けて並べる'**
+  String get wordOrderRule16Title;
+
+  /// No description provided for @wordOrderRule16Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'「買い物に行く」は ไป（行く）＋ซื้อ（買う）のように、起きる順に動詞を並べます。ไป・มา が「〜て行く・〜て来る」の意味のときは後ろに付きます。'**
+  String get wordOrderRule16Body;
+
+  /// No description provided for @wordOrderEx16aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|行く|買う|物'**
+  String get wordOrderEx16aGloss;
+
+  /// No description provided for @wordOrderEx16aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私は買い物に行く'**
+  String get wordOrderEx16aMeaning;
+
+  /// No description provided for @wordOrderEx16bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'取る|水|来る'**
+  String get wordOrderEx16bGloss;
+
+  /// No description provided for @wordOrderEx16bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'水を持ってくる'**
+  String get wordOrderEx16bMeaning;
+
+  /// No description provided for @pronGuideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の発音ガイド'**
+  String get pronGuideTitle;
+
+  /// No description provided for @pronGuideHeading.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の発音のポイント'**
+  String get pronGuideHeading;
+
+  /// No description provided for @pronGuideIntro.
+  ///
+  /// In ja, this message translates to:
+  /// **'アプリの読みは、ローマ字に記号を足した表記です。日本語にない音の区別を、読みの記号と一緒に押さえましょう。声調は「声調ガイド」で説明しています。'**
+  String get pronGuideIntro;
+
+  /// No description provided for @pronSymbolsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'読みの記号'**
+  String get pronSymbolsTitle;
+
+  /// No description provided for @pronSymbolsBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'日本語のローマ字と違う記号だけをまとめました。'**
+  String get pronSymbolsBody;
+
+  /// No description provided for @pronSymbolsDescs.
+  ///
+  /// In ja, this message translates to:
+  /// **'ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる'**
+  String get pronSymbolsDescs;
+
+  /// No description provided for @pronAspTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'息を出す音・出さない音'**
+  String get pronAspTitle;
+
+  /// No description provided for @pronAspBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'kh・th・ph・ch は息を強く出し、k・t・p・j は息を出さずに言います。日本語では区別しませんが、タイ語では別の語になります。'**
+  String get pronAspBody;
+
+  /// No description provided for @pronAspMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'鶏|卵|目|塗る|投げる|連れて行く'**
+  String get pronAspMeanings;
+
+  /// No description provided for @pronAspNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'口の前に手をかざして言ってみましょう。kh・th・ph で息が当たり、k・t・p で当たらなければ区別できています。'**
+  String get pronAspNote;
+
+  /// No description provided for @pronLengthTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'長い母音・短い母音'**
+  String get pronLengthTitle;
+
+  /// No description provided for @pronLengthBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'aa・ii のように同じ母音が2つ並んだ読みは長くのばします。長さが違うだけで別の語になります。'**
+  String get pronLengthBody;
+
+  /// No description provided for @pronLengthMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'入る|ご飯|彼|白い'**
+  String get pronLengthMeanings;
+
+  /// No description provided for @pronVowelTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'似た母音を区別する'**
+  String get pronVowelTitle;
+
+  /// No description provided for @pronVowelBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'e と ɛ、o と ɔ、u と ʉ は日本語ではどちらも同じ音に聞こえます。ɛ・ɔ は口を大きく開け、ʉ は唇を丸めずに言います。'**
+  String get pronVowelBody;
+
+  /// No description provided for @pronVowelMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'子ども|日差し|机|部屋|見る|手|お金|歩く'**
+  String get pronVowelMeanings;
+
+  /// No description provided for @pronFinalTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の k・t・p は音を出さない'**
+  String get pronFinalTitle;
+
+  /// No description provided for @pronFinalBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の k・t・p は口の形だけ作って止め、「ク・ト・プ」とは言いません。n と ng も区別します。'**
+  String get pronFinalBody;
+
+  /// No description provided for @pronFinalMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'鳥|車|〜と|皿|薄い'**
+  String get pronFinalMeanings;
+
+  /// No description provided for @pronFinalNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字では、語末の ด・ส・ช なども t、บ・พ なども p の音になります。'**
+  String get pronFinalNote;
+
+  /// No description provided for @pronCasualTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'会話での崩れ'**
+  String get pronCasualTitle;
+
+  /// No description provided for @pronCasualBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'会話では読みどおりに言わないことがよくあります。r が l になる、子音が2つ続くと後ろが落ちる、声調が変わる、などです。'**
+  String get pronCasualBody;
+
+  /// No description provided for @pronCasualMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'愛する|丁寧（男性）|〜か？|私（女性）'**
+  String get pronCasualMeanings;
+
+  /// No description provided for @pronCasualNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'崩れた形は聞き取りの手がかりです。話すときは読みどおりで通じます。'**
+  String get pronCasualNote;
 
   /// No description provided for @guideRoleQuizWordOrder.
   ///

@@ -530,6 +530,12 @@ class L10nEn extends L10n {
   String get settingsToneGuideSubtitle => 'How Thai tones work';
 
   @override
+  String get settingsPronGuide => 'Pronunciation guide';
+
+  @override
+  String get settingsPronGuideSubtitle => 'Reading symbols and tricky sounds';
+
+  @override
   String get settingsResetLearningData => 'Reset learning data';
 
   @override
@@ -1202,15 +1208,15 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy2None =>
-      'No need to read Thai yet; you\'ll learn **how spelling affects tone**.';
+      'No need to read Thai yet; you\'ll learn **how spelling affects tone**. If readings are unclear, try the pronunciation guide in Settings.';
 
   @override
   String get philosophy2Script =>
-      'In Thai, **spelling determines tone**; see the rules for each word.';
+      'In Thai, **spelling determines tone**; see the rules for each word. The pronunciation guide in Settings explains the app\'s readings and tricky sounds.';
 
   @override
   String get philosophy2Tone =>
-      'Use **pronunciation practice** to compare your tones with the model.';
+      'Use **pronunciation practice** to compare your tones with the model. You can check the tone rules in the tone guide in Settings.';
 
   @override
   String get philosophy2Vocab =>
@@ -3001,10 +3007,10 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderRule7Body =>
-      'Question words stay where the answer goes. For yes/no questions, add ไหม at the end.';
+      'Question words stay where the answer goes, though ทำไม (why) often comes first. For yes/no questions, add ไหม after the predicate (polite endings go after it).';
 
   @override
-  String get wordOrderRule8Title => 'Time and aspect words';
+  String get wordOrderRule8Title => 'Words like จะ and แล้ว';
 
   @override
   String get wordOrderRule8Body =>
@@ -3022,14 +3028,14 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderRule10Body =>
-      'Men use ครับ. Women usually use ค่ะ, and คะ in questions. They go after ไหม and แล้ว.';
+      'Men use ครับ. Women usually use ค่ะ, and คะ in questions. They go after ไหม, แล้ว and sentence-final words like นะ, เลย and ด้วย. After นะ, women use คะ (นะคะ).';
 
   @override
   String get wordOrderTipsTitle => 'Word-order tips';
 
   @override
   String get wordOrderTipsBody =>
-      'If a place or \"this ...\" is the topic of the whole sentence, put it first\nFind the action or state word. \"Who\" goes before it; \"what\" and \"where\" go after it\nDescribing words, numbers and นี้ go after the noun they describe\nไหม, แล้ว and ครับ/ค่ะ/คะ go near the end';
+      'If a place or \"this ...\" is the topic of the whole sentence, put it first\nFind the action or state word. \"Who\" goes before it; \"what\" and \"where\" go after it\nDescribing words, numbers, นี้ and มาก go after what they describe\nกับ, ใน etc. go before the noun; อยาก and ต้อง go before the verb\nไหม, แล้ว, นะ and ครับ/ค่ะ/คะ go near the end';
 
   @override
   String get wordOrderEx1aGloss => 'tour|this|people|many';
@@ -3076,7 +3082,8 @@ class L10nEn extends L10n {
   String get wordOrderEx4bMeaning => 'my house';
 
   @override
-  String get wordOrderRule4Note => 'ของ can be left out.';
+  String get wordOrderRule4Note =>
+      'บ้านใหญ่ can also mean \"The house is big\": adjectives work as predicates without เป็น. ของ can be left out.';
 
   @override
   String get wordOrderEx5aGloss => 'cat|two|[classifier]';
@@ -3165,6 +3172,204 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderEx10bMeaning => 'I\'ve already eaten';
+
+  @override
+  String get wordOrderRule5Note =>
+      'หนึ่ง after the classifier, as in แมวตัวหนึ่ง, means \"a certain cat\".';
+
+  @override
+  String get wordOrderEx10cGloss => 'tasty|[softener]|polite (female)';
+
+  @override
+  String get wordOrderEx10cMeaning => 'It\'s tasty, isn\'t it?';
+
+  @override
+  String get wordOrderRule11Title => 'Clauses: noun → ที่ → description';
+
+  @override
+  String get wordOrderRule11Body =>
+      'When a clause describes a noun (\"the shop I like\"), it still comes after: usually put ที่ after the noun, then the clause.';
+
+  @override
+  String get wordOrderEx11aGloss => 'shop|that|I|like';
+
+  @override
+  String get wordOrderEx11aMeaning => 'the shop I like';
+
+  @override
+  String get wordOrderRule12Title => 'Prepositions come before the noun';
+
+  @override
+  String get wordOrderRule12Body =>
+      'กับ (with), ใน (in), บน (on), ให้ (to/for) and ที่ (at) go before the noun.';
+
+  @override
+  String get wordOrderEx12aGloss => 'I|go|with|friend';
+
+  @override
+  String get wordOrderEx12aMeaning => 'I\'m going with a friend';
+
+  @override
+  String get wordOrderEx12bGloss => 'cat|be|on|table';
+
+  @override
+  String get wordOrderEx12bMeaning => 'The cat is on the table';
+
+  @override
+  String get wordOrderRule13Title => '\"Very\" and \"a little\" come after';
+
+  @override
+  String get wordOrderRule13Body =>
+      'มาก (very), จริงๆ (really) and นิดหน่อย (a little) follow the adjective or verb.';
+
+  @override
+  String get wordOrderEx13aGloss => 'food|this|tasty|very';
+
+  @override
+  String get wordOrderEx13aMeaning => 'This food is very tasty';
+
+  @override
+  String get wordOrderRule14Title => 'Comparing: adjective → กว่า → other';
+
+  @override
+  String get wordOrderRule14Body =>
+      '\"A is more ... than B\" is A + adjective + กว่า + B. For \"the most ...\", add ที่สุด after the adjective.';
+
+  @override
+  String get wordOrderEx14aGloss => 'today|hot|more than|yesterday';
+
+  @override
+  String get wordOrderEx14aMeaning => 'Today is hotter than yesterday';
+
+  @override
+  String get wordOrderEx14bGloss => 'thing|this|good|most';
+
+  @override
+  String get wordOrderEx14bMeaning => 'This one is the best';
+
+  @override
+  String get wordOrderRule15Title => '\"Want\" before the verb, \"can\" after';
+
+  @override
+  String get wordOrderRule15Body =>
+      'อยาก (want to), ต้อง (must) and ควร (should) go before the verb. ได้ (can) goes after the verb and its object.';
+
+  @override
+  String get wordOrderEx15aGloss => 'I|want to|eat|som tam';
+
+  @override
+  String get wordOrderEx15aMeaning => 'I want to eat som tam';
+
+  @override
+  String get wordOrderEx15bGloss => 'I|speak|Thai|can';
+
+  @override
+  String get wordOrderEx15bMeaning => 'I can speak Thai';
+
+  @override
+  String get wordOrderRule16Title => 'Verbs line up in a row';
+
+  @override
+  String get wordOrderRule16Body =>
+      'Thai strings verbs together in the order things happen: ไป (go) + ซื้อ (buy) means \"go shopping\". ไป/มา meaning \"away from\" or \"toward the speaker\" come at the end.';
+
+  @override
+  String get wordOrderEx16aGloss => 'I|go|buy|things';
+
+  @override
+  String get wordOrderEx16aMeaning => 'I\'m going shopping';
+
+  @override
+  String get wordOrderEx16bGloss => 'take|water|come';
+
+  @override
+  String get wordOrderEx16bMeaning => 'Bring some water';
+
+  @override
+  String get pronGuideTitle => 'Thai pronunciation guide';
+
+  @override
+  String get pronGuideHeading => 'Key points of Thai pronunciation';
+
+  @override
+  String get pronGuideIntro =>
+      'The app\'s readings are romanization with a few extra symbols. Learn the sounds behind them here. Tones are covered in the tone guide.';
+
+  @override
+  String get pronSymbolsTitle => 'Reading symbols';
+
+  @override
+  String get pronSymbolsBody =>
+      'Only the symbols that differ from plain romanization.';
+
+  @override
+  String get pronSymbolsDescs =>
+      'ɛ is an open \"e\" as in \"bed\"; ɔ is an open \"o\" as in \"law\"|\"u\" said with spread lips, not rounded|A relaxed sound like the \"u\" in \"fur\", without the r|A doubled vowel is long|k has no puff of air and often sounds close to \"g\"; kh has a strong puff|With h, a strong puff of air. t and p have none|\"ng\" as in \"sing\". It can start a word|Tones: no mark is mid, à low, â falling, á high, ǎ rising';
+
+  @override
+  String get pronAspTitle => 'With or without a puff of air';
+
+  @override
+  String get pronAspBody =>
+      'kh, th, ph and ch have a strong puff of air; k, t, p and j have none, like the p in \"spin\" or the t in \"stop\". In Thai this difference changes the word.';
+
+  @override
+  String get pronAspMeanings =>
+      'chicken|egg|eye|to apply|to throw|to take along';
+
+  @override
+  String get pronAspNote =>
+      'Say them with your hand in front of your mouth: you should feel air on kh, th and ph, but not on k, t and p.';
+
+  @override
+  String get pronLengthTitle => 'Long and short vowels';
+
+  @override
+  String get pronLengthBody =>
+      'A doubled vowel such as aa or ii is long. Length alone can change the word.';
+
+  @override
+  String get pronLengthMeanings => 'to enter|rice|he/she|white';
+
+  @override
+  String get pronVowelTitle => 'Telling similar vowels apart';
+
+  @override
+  String get pronVowelBody =>
+      'e/ɛ, o/ɔ and u/ʉ are different vowels. Open your mouth wide for ɛ and ɔ, and keep your lips spread for ʉ.';
+
+  @override
+  String get pronVowelMeanings =>
+      'child|sunshine|table|room|to look|hand|money|to walk';
+
+  @override
+  String get pronFinalTitle => 'Final k, t, p are not released';
+
+  @override
+  String get pronFinalBody =>
+      'At the end of a word, k, t and p are stopped without releasing air. Also keep n and ng apart.';
+
+  @override
+  String get pronFinalMeanings => 'bird|car|with|plate|faded';
+
+  @override
+  String get pronFinalNote =>
+      'In Thai script, final ด, ส, ช etc. sound like t, and final บ, พ etc. like p.';
+
+  @override
+  String get pronCasualTitle => 'Casual speech';
+
+  @override
+  String get pronCasualBody =>
+      'In conversation, words often aren\'t said as written: r becomes l, the second consonant of a cluster drops, or the tone changes.';
+
+  @override
+  String get pronCasualMeanings =>
+      'to love|polite (male)|question particle|I (female)';
+
+  @override
+  String get pronCasualNote =>
+      'These forms help with listening. When speaking, the written reading is fine.';
 
   @override
   String get guideRoleQuizWordOrder =>
