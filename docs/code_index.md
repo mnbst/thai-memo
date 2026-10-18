@@ -183,6 +183,9 @@ lib/presentation/screens/paywall_screen.dart
 test/screenshots/paywall_review_screenshot.dart
 App Store 審査用スクショ（課金画面）の生成。商品を差し込んで描くので、ストア反映を待たずに買い切り込みの画面が撮れる。出力は build/appstore/paywall_review.png。
 
+test/screenshots/settings_screenshot.dart
+設定画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。プラン（trial/free/premium）・言語・高さを dart-define で切り替える。
+
 lib/presentation/screens/ranking_screen.dart
 語彙スコアの全期間ランキング。自分の順位カードを上に置き、その下に上位100人を張り出す。表示名はサーバー採番のタイ人名。
 

@@ -461,7 +461,10 @@ class L10nJa extends L10n {
   String get settingsPlan => 'プラン';
 
   @override
-  String get settingsPlanTrial => 'プレミアム体験中';
+  String get settingsPlanTrial => '無料体験中';
+
+  @override
+  String get settingsPlanTrialNoCharge => '自動課金なし';
 
   @override
   String get settingsDeleteAccount => 'アカウントを削除';

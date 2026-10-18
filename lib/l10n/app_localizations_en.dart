@@ -484,7 +484,10 @@ class L10nEn extends L10n {
   String get settingsPlan => 'Plan';
 
   @override
-  String get settingsPlanTrial => 'Premium trial';
+  String get settingsPlanTrial => 'Free trial';
+
+  @override
+  String get settingsPlanTrialNoCharge => 'No auto-charge';
 
   @override
   String get settingsDeleteAccount => 'Delete account';
