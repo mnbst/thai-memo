@@ -5819,7 +5819,7 @@ abstract class L10n {
   /// No description provided for @streakTitle.
   ///
   /// In ja, this message translates to:
-  /// **'例文 {count}日連続'**
+  /// **'例文 {count}日継続'**
   String streakTitle(int count);
 
   /// No description provided for @streakRestart.
