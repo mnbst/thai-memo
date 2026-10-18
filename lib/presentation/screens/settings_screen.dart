@@ -268,6 +268,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           return ListTile(
             leading: const Icon(Icons.workspace_premium_outlined),
             title: Text(l10n.settingsPlan),
+            // 体験は支払い登録なしでサーバーが付与するもの。ストアの無料トライアルと
+            // 違い終了後に課金されないので、それを明示して不安を消す。
+            subtitle: plan == PlanStatus.trial
+                ? Text(l10n.settingsPlanTrialNoCharge)
+                : null,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

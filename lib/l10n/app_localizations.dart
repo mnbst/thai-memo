@@ -934,8 +934,14 @@ abstract class L10n {
   /// No description provided for @settingsPlanTrial.
   ///
   /// In ja, this message translates to:
-  /// **'プレミアム体験中'**
+  /// **'無料体験中'**
   String get settingsPlanTrial;
+
+  /// No description provided for @settingsPlanTrialNoCharge.
+  ///
+  /// In ja, this message translates to:
+  /// **'自動課金なし'**
+  String get settingsPlanTrialNoCharge;
 
   /// No description provided for @settingsDeleteAccount.
   ///
