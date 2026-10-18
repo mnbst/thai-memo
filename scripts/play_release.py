@@ -44,20 +44,22 @@ def secret(name: str) -> str:
     return out.stdout
 
 
-def token() -> str:
+def token(scope: str = SCOPE) -> str:
     from google.auth.transport.requests import Request
     from google.oauth2 import service_account
 
     raw = os.environ.get("PLAY_SERVICE_ACCOUNT_JSON") or secret("ci-google-play-service-account")
     info = json.loads(raw)
-    creds = service_account.Credentials.from_service_account_info(info, scopes=[SCOPE])
+    creds = service_account.Credentials.from_service_account_info(info, scopes=[scope])
     creds.refresh(Request())
     return creds.token
 
 
 def call(tok: str, method: str, path: str, body: dict | None = None) -> dict:
+    """path は BASE からの相対。http から始まれば完全な URL として扱う。"""
     # asc_analytics.py と同じく証明書ストアの差を避けて curl を使う
-    cmd = ["curl", "-sS", "-X", method, f"{BASE}{path}",
+    url = path if path.startswith("http") else f"{BASE}{path}"
+    cmd = ["curl", "-sS", "-X", method, url,
            "-H", f"Authorization: Bearer {tok}", "-H", "Content-Type: application/json",
            "-w", "\n%{http_code}"]
     if body is not None:

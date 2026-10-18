@@ -42,9 +42,9 @@ func (r Result) scale() float64 {
 
 // IsGradedResult は「採点として扱えるクイズの回答」かを返す。
 //
-// 境界推定（SyncEstimatedVocab）の母数はこれが真の語だけ。確認クイズ
-// （quiz_type=="learning"）は例文を読んだ直後の1問で、答えが目の前にある。
-// 正解しても知っている証拠にならないので母数に入れない。
+// 確認クイズ（quiz_type=="learning"）だけが偽。境界推定の母数はもう graded で
+// 絞らず（evidence>0 なら確認クイズだけの語も入れる）、graded は evidence を
+// 持たない移行前の doc を evidenceField が読むときにだけ使う。
 //
 // ヒント・例文レビューはここでは外さない。GuessRate と
 // SentenceReviewCorrectMultiplier が既に P の動きを弱めて「弱い証拠」として
@@ -61,13 +61,13 @@ func IsGradedResult(quizType string, r Result) bool {
 // 累積したものが uvm doc の evidence で、境界推定の母数に入れるかを決める。
 //
 // **正誤を見てはいけない。** α 側の倍率は正解時だけ弱める（確認クイズの正解は
-// ×0.1 だが不正解は等倍）が、それを証拠量に流用すると「確認クイズは不正解だけ
+// ×0 だが不正解は等倍）が、それを証拠量に流用すると「確認クイズは不正解だけ
 // が境界推定に届く」となり、母数が結果で選別される＝下方バイアスになる。
 // ここは回答の条件（ヒント段階・quiz_type・例文レビュー）だけで決める。
 func ResultEvidence(quizType string, r Result) float64 {
 	ev := HintMultiplier(r.HintLevel) * r.scale()
 	if quizType == "learning" {
-		ev *= LearningCorrectMultiplier
+		ev *= LearningEvidenceScale
 	}
 	if r.SentenceReviewed {
 		ev *= SentenceReviewCorrectMultiplier

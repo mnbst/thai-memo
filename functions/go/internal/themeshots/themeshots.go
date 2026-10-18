@@ -8,10 +8,12 @@
 // 参考例文は1文だけ渡す。複数渡すと語を混ぜて合成した非文が出る（bldrama と同じ理由）。
 //
 // 選出は2段。まず場面を選び、その場面のショットから一様に選ぶ。場面は、語と
-// 場面（属するショットの embedding の平均）の類似度で足切りし、通った場面から
-// 一様に選ぶ。どれも通らなければ全場面から一様に選ぶ。最も近い場面を採ると
-// 汎用的な場面へ、ショットから一様に選ぶとショットの多い場面へ偏った
-// （コーパスの語で場面の分布を比較。学校は授業が65%→48%）。
+// 場面（属するショットの embedding の平均）の近さを場面ごとに標準化した z の
+// 重みつきランダムで選ぶ。ショットから一様に選ぶとショットの多い場面へ偏る。
+// 生の類似度で足切り（0.75）すると、テーマと無関係な語の大半がどの場面にも届かず、
+// 届いた語は汎用的な場面へ集まった（UI でテーマを指定した場合の無作為1500語で、
+// 学校は授業が46%、天気は空模様が40%）。z の重みなら全落ちが無く、場面の分布は
+// 一様とほぼ同じまま、語に合う場面がある語は7〜9割その場面に行く。
 // 付ける回を類似度で絞ることはしない（絞るとサブテーマ由来の偏り＝辛さ・
 // アレルギーが戻った。食べ物156語の比較）。
 package themeshots
@@ -19,20 +21,31 @@ package themeshots
 import (
 	"context"
 	"log"
+	"math"
 	"math/rand"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
 
-// SceneFinder は語に近い場面を返す。実装は internal/embeddings.Store。
+// SceneFinder は語と場面の近さを返す。実装は internal/embeddings.Store。
 type SceneFinder interface {
+	// SceneScores は場面ごとに標準化した近さ（z）を scenes の順に返す。
+	SceneScores(ctx context.Context, word string, scenes []embeddings.Scene) ([]float64, error)
+	// FindNearScenes は類似度が threshold 以上の場面を返す（まとめたテーマの解決用）。
 	FindNearScenes(ctx context.Context, word string, scenes []embeddings.Scene, threshold float64) ([]string, error)
 }
 
-// sceneThreshold は場面を足切りする類似度の下限。食べ物156語のうち約3分の1が
-// 届き、届いた語の場面はほぼ妥当（ทอด→調理法、อิ่ม→量の多さ）。下回る語の
-// 最近傍は意味を持たない（รัฐมนตรี→昔ながらの味）。
+// sceneTemp は場面の重み exp(z / sceneTemp) の温度。UI でテーマを指定した場合の
+// 無作為1500語で、0.3 なら最多の場面の割合が一様より1〜4ポイント増えるだけで、
+// z が2.5以上の語（สอน→授業、เปียก→雨）は67〜94%その場面に行く。1.0 では
+// 語に合う場面へ行くのが16〜75%に下がる。
+const sceneTemp = 0.3
+
+// sceneThreshold はまとめたテーマ（ResolveGroup）で場面を足切りする類似度の下限。
+// 食べ物156語のうち約3分の1が届き、届いた語の場面はほぼ妥当（ทอด→調理法、
+// อิ่ม→量の多さ）。下回る語の最近傍は意味を持たない（รัฐมนตรี→昔ながらの味）。
+// まとめたテーマは z の重みにしない。場面の多い中身（食べ物32場面）が選ばれやすくなる。
 const sceneThreshold = 0.75
 
 // topicShot はテーマごとのショットの候補と、場面を落としたときのやり取り。
@@ -77,7 +90,7 @@ func (b *Builder) PickShot(topic string, targetWords []string) string {
 	if len(ids) == 0 {
 		return ""
 	}
-	scene := b.findScene(ids, targetWords)
+	scene := b.weightedScene(ids, targetWords)
 	if scene == "" {
 		names := sceneNames(ids)
 		scene = names[b.intn(len(names))]
@@ -104,11 +117,8 @@ func sceneNames(ids []string) []string {
 	return names
 }
 
-// findScene は語に十分近い場面のどれかを一様に選んで返す。無ければ ""。
-func (b *Builder) findScene(ids, targetWords []string) string {
-	if b.Scenes == nil || len(targetWords) == 0 {
-		return ""
-	}
+// scenesOf はショットを場面ごとにまとめる（出てきた順）。
+func scenesOf(ids []string) []embeddings.Scene {
 	var scenes []embeddings.Scene
 	at := map[string]int{}
 	for _, id := range ids {
@@ -121,6 +131,50 @@ func (b *Builder) findScene(ids, targetWords []string) string {
 		}
 		scenes[i].Texts = append(scenes[i].Texts, shots[id])
 	}
+	return scenes
+}
+
+// weightedScene は語との z の重み exp(z / sceneTemp) で場面を1つ選ぶ。
+// embedding が引けなければ ""（呼び出し側が一様に選ぶ）。
+func (b *Builder) weightedScene(ids, targetWords []string) string {
+	if b.Scenes == nil || len(targetWords) == 0 {
+		return ""
+	}
+	scenes := scenesOf(ids)
+	z, err := b.Scenes.SceneScores(b.ctx(), targetWords[0], scenes)
+	if err != nil {
+		// 場面で絞れなくても回はショット付きのまま。ランダムへ縮退させる。
+		log.Printf("theme scene の選出に失敗: %v", err)
+		return ""
+	}
+	if len(z) != len(scenes) {
+		return ""
+	}
+	top := math.Inf(-1)
+	for _, v := range z {
+		top = math.Max(top, v)
+	}
+	weights := make([]float64, len(z))
+	var total float64
+	for i, v := range z {
+		weights[i] = math.Exp((v - top) / sceneTemp) // -Inf は 0
+		total += weights[i]
+	}
+	target := b.float64() * total
+	for i, w := range weights {
+		if target -= w; target < 0 {
+			return scenes[i].Name
+		}
+	}
+	return scenes[len(scenes)-1].Name
+}
+
+// findScene は語に十分近い場面のどれかを一様に選んで返す。無ければ ""。
+func (b *Builder) findScene(ids, targetWords []string) string {
+	if b.Scenes == nil || len(targetWords) == 0 {
+		return ""
+	}
+	scenes := scenesOf(ids)
 	near, err := b.Scenes.FindNearScenes(b.ctx(), targetWords[0], scenes, sceneThreshold)
 	if err != nil {
 		// 場面で絞れなくても回はショット付きのまま。ランダムへ縮退させる。
@@ -138,6 +192,13 @@ func (b *Builder) ctx() context.Context {
 		return b.Ctx
 	}
 	return context.Background()
+}
+
+func (b *Builder) float64() float64 {
+	if b.Rand != nil {
+		return b.Rand.Float64()
+	}
+	return rand.Float64()
 }
 
 func (b *Builder) intn(n int) int {

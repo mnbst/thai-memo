@@ -3203,7 +3203,7 @@ class L10nJa extends L10n {
 
   @override
   String streakTitle(int count) {
-    return '例文 $count日連続';
+    return '例文 $count日継続';
   }
 
   @override

@@ -43,6 +43,14 @@ type CachedSentences interface {
 	) (*Sentence, error)
 }
 
+// unseenSentences は語に紐づく文を未出のものから順に返すバンク（FreeBank）。
+// free はこちらで引き、テーマで在庫を絞らない。
+type unseenSentences interface {
+	PickUnseen(
+		ctx context.Context, targetWord string, l lang.Lang, seen map[string]bool,
+	) (*Sentence, string, error)
+}
+
 // SentenceGenerator は LLM 生成。実装は Service。
 type SentenceGenerator interface {
 	GenerateSentence(
@@ -269,7 +277,13 @@ func (p *Producer) ProduceBatch(
 		if useBank {
 			missed = missed[:0:0]
 			for _, tw := range fresh {
-				cached, topic, err := pickCached(ctx, bank, tw, req.Lang, strictTopic, seen)
+				var cached *Sentence
+				var topic string
+				if ub, ok := bank.(unseenSentences); ok && !req.UsePremiumSpec {
+					cached, topic, err = ub.PickUnseen(ctx, tw.Word, req.Lang, seen)
+				} else {
+					cached, topic, err = pickCached(ctx, bank, tw, req.Lang, strictTopic, seen)
+				}
 				if err != nil {
 					return nil, err
 				}

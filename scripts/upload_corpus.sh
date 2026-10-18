@@ -21,6 +21,13 @@ if [[ -f "${CORPUS_DIR}/sub_theme_embeddings.json" ]]; then
 else
   echo "Skipping sub_theme_embeddings.json (not found)"
 fi
+if [[ -f "${CORPUS_DIR}/shot_embeddings.npy" ]]; then
+  gcloud storage cp "${CORPUS_DIR}/shot_embeddings.npy" "gs://${BUCKET}/shot_embeddings.npy"
+  gcloud storage cp "${CORPUS_DIR}/shot_texts.json" "gs://${BUCKET}/shot_texts.json"
+else
+  echo "Skipping shot_embeddings.npy (not found)"
+fi
+# JSON 版は .npy を読む前の関数のため。全環境が .npy 版に入れ替わったら消す。
 if [[ -f "${CORPUS_DIR}/shot_embeddings.json" ]]; then
   gcloud storage cp "${CORPUS_DIR}/shot_embeddings.json" "gs://${BUCKET}/shot_embeddings.json"
 else

@@ -1,7 +1,9 @@
 """prod Firestore 全ユーザー集計スクリプト
 
 usage:
-  uv run --with firebase-admin --with google-cloud-storage python scripts/prod_analytics.py
+  uv run --with firebase-admin --with google-cloud-storage python scripts/prod_analytics.py [--exclude-anonymous]
+
+  --exclude-anonymous  匿名ユーザー（Auth のプロバイダ無し）を除外する。GA4 コホートには効かない。
 """
 
 import os
@@ -18,6 +20,7 @@ from google.cloud import storage
 
 JST = timezone(timedelta(hours=9))
 NOW = datetime.now(JST)
+EXCLUDE_ANONYMOUS = '--exclude-anonymous' in sys.argv[1:]
 
 app = firebase_admin.initialize_app(options={'projectId': 'thai-memo-prod'})
 db = firestore.client()
@@ -33,6 +36,10 @@ freq_rank: dict[str, int] = json.loads(blob.download_as_text())
 # -------------------------
 print("Fetching all users...", flush=True)
 user_docs = list(db.collection('users').stream())
+if EXCLUDE_ANONYMOUS:
+    named_uids = {u.uid for u in auth.list_users().iterate_all() if u.provider_data}
+    user_docs = [d for d in user_docs if d.id in named_uids]
+    print("(anonymous users excluded)")
 print(f"Total users: {len(user_docs)}\n")
 
 tiers = Counter()
@@ -263,6 +270,8 @@ for user_doc in user_docs:
 
 conv = defaultdict(lambda: {'signups': 0, 'generated': 0, 'hrs': []})
 for u in auth.list_users().iterate_all():
+    if EXCLUDE_ANONYMOUS and not u.provider_data:
+        continue
     ts = u.user_metadata.creation_timestamp
     if not ts:
         continue

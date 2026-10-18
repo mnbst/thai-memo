@@ -1650,7 +1650,7 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "streakChipStart": "今日から",
-  "streakTitle": "例文 {count}日連続",
+  "streakTitle": "例文 {count}日継続",
   "@streakTitle": {
     "placeholders": { "count": { "type": "int" } }
   },

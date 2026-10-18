@@ -109,11 +109,10 @@ func TestUpdatePDirection(t *testing.T) {
 		}
 		prev = got
 	}
-	// weight は証拠の重み。確認クイズ（0.1）はほとんど動かさない。
-	// 21 ランクの窓の平均に効くのは 1/21 なので、prior + 0.03 以内に収まれば
-	// 単独で cutoff を割らせる/越えさせることはない。
-	if got := UpdateP(NewWordP, true, 0, LearningCorrectMultiplier); got > NewWordP+0.03 {
-		t.Errorf("確認クイズ 1 問で動きすぎ: %v", got)
+	// weight は証拠の重み。確認クイズの正解（0）は P を動かさない。
+	// 少しでも上げると、繰り返し正解するうちに cutoff(0.42) を越える。
+	if got := UpdateP(NewWordP, true, 0, LearningCorrectMultiplier); got != NewWordP {
+		t.Errorf("確認クイズの正解で P が動いた: %v", got)
 	}
 }
 

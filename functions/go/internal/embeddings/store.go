@@ -22,7 +22,10 @@ const (
 	wordsBlob       = "vocab_words.json"
 	topicEmbBlob    = "topic_embeddings.json"
 	subThemeEmbBlob = "sub_theme_embeddings.json"
-	shotEmbBlob     = "shot_embeddings.json"
+	// ショットは件数が多く JSON のパースが重いので、embedding を .npy、本文を
+	// 同じ並びの JSON 配列で持つ（scripts/build_shot_embeddings.py が書く）。
+	shotEmbBlob   = "shot_embeddings.npy"
+	shotTextsBlob = "shot_texts.json"
 )
 
 // Store は embedding データを保持する。
@@ -39,6 +42,9 @@ type Store struct {
 	topicEmbs    map[string][]float32
 	subThemeEmbs map[string][]float32
 	shotEmbs     map[string][]float32
+
+	// sceneStats は場面ごとの centroid と基準語との類似度の分布（SceneScores）。
+	sceneStats map[string]sceneStat
 
 	// Rand は抽選に使う。nil なら共有の乱数源。テストで固定する。
 	Rand *rand.Rand
@@ -135,6 +141,47 @@ func (s *Store) loadJSONEmbeddings(
 	return nil
 }
 
+// loadShotEmbeddings はショットの embedding を読む（ロード済みなら何もしない）。
+func (s *Store) loadShotEmbeddings(ctx context.Context) error {
+	if s.shotEmbs != nil {
+		return nil
+	}
+	npy, err := s.download(ctx, shotEmbBlob)
+	if err != nil {
+		return err
+	}
+	texts, err := s.download(ctx, shotTextsBlob)
+	if err != nil {
+		return err
+	}
+	shots, err := parseShotEmbeddings(npy, texts)
+	if err != nil {
+		return err
+	}
+	s.shotEmbs = shots
+	return nil
+}
+
+// parseShotEmbeddings は .npy の行と本文の配列を突き合わせて、本文 → embedding にする。
+func parseShotEmbeddings(npy, textsRaw []byte) (map[string][]float32, error) {
+	matrix, err := parseNPY(npy)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", shotEmbBlob, err)
+	}
+	var texts []string
+	if err := json.Unmarshal(textsRaw, &texts); err != nil {
+		return nil, fmt.Errorf("%s のパースに失敗: %w", shotTextsBlob, err)
+	}
+	if len(texts) != len(matrix) {
+		return nil, fmt.Errorf("%s（%d行）と %s（%d件）の件数が合わない", shotEmbBlob, len(matrix), shotTextsBlob, len(texts))
+	}
+	out := make(map[string][]float32, len(texts))
+	for i, t := range texts {
+		out[t] = matrix[i]
+	}
+	return out, nil
+}
+
 // Embedding は語の embedding を返す。語彙リストに無い未知語は nil。
 func (s *Store) Embedding(word string) []float32 {
 	s.mu.Lock()
@@ -221,8 +268,16 @@ func LoadLocalShots(dir string) (*Store, error) {
 	if err := readJSONFile(filepath.Join(dir, wordsBlob), &words); err != nil {
 		return nil, err
 	}
-	shots := map[string][]float32{}
-	if err := readJSONFile(filepath.Join(dir, shotEmbBlob), &shots); err != nil {
+	shotNPY, err := os.ReadFile(filepath.Join(dir, shotEmbBlob))
+	if err != nil {
+		return nil, err
+	}
+	shotTexts, err := os.ReadFile(filepath.Join(dir, shotTextsBlob))
+	if err != nil {
+		return nil, err
+	}
+	shots, err := parseShotEmbeddings(shotNPY, shotTexts)
+	if err != nil {
 		return nil, err
 	}
 	s := &Store{}

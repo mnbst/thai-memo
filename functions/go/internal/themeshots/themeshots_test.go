@@ -2,8 +2,10 @@ package themeshots
 
 import (
 	"context"
+	"math"
 	"math/rand"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -55,7 +57,7 @@ func TestBuildShotSection(t *testing.T) {
 	}
 
 	// ショットの無いテーマ（BL はドラマ側が持つ）には何も付けない。
-	if s := b.BuildShotSection(sentence.Topics[15], []string{"รัก"}, ""); s != (sentence.DramaSection{}) {
+	if s := b.BuildShotSection(sentence.Topics[15], []string{"รัก"}, ""); s.Context != "" || s.Required != "" || s.Medium != "" || len(s.NameKana) > 0 {
 		t.Errorf("ショットの無いテーマに付いた: %+v", s)
 	}
 }
@@ -81,14 +83,64 @@ func (f stubScenes) FindNearScenes(context.Context, string, []embeddings.Scene, 
 	return []string{f.scene}, nil
 }
 
-// multiScenes は足切りを通った場面を複数返す。
+func (f stubScenes) SceneScores(_ context.Context, _ string, scenes []embeddings.Scene) ([]float64, error) {
+	if f.scene == "" {
+		return nil, nil
+	}
+	return multiScenes{f.scene}.SceneScores(context.Background(), "", scenes)
+}
+
+// multiScenes は挙げた場面だけ z を大きく返す（足切りでは通った場面）。
 type multiScenes []string
 
 func (f multiScenes) FindNearScenes(context.Context, string, []embeddings.Scene, float64) ([]string, error) {
 	return f, nil
 }
 
-// 足切りを通った場面が複数あれば、そのどれからも選ぶ。
+func (f multiScenes) SceneScores(_ context.Context, _ string, scenes []embeddings.Scene) ([]float64, error) {
+	z := make([]float64, len(scenes))
+	for i, sc := range scenes {
+		if slices.Contains(f, sc.Name) {
+			z[i] = 10
+		}
+	}
+	return z, nil
+}
+
+// zScenes は場面ごとに決めた z を返す。挙げていない場面は 0。
+type zScenes map[string]float64
+
+func (f zScenes) FindNearScenes(context.Context, string, []embeddings.Scene, float64) ([]string, error) {
+	return nil, nil
+}
+
+func (f zScenes) SceneScores(_ context.Context, _ string, scenes []embeddings.Scene) ([]float64, error) {
+	z := make([]float64, len(scenes))
+	for i, sc := range scenes {
+		z[i] = f[sc.Name]
+	}
+	return z, nil
+}
+
+// 場面は exp(z / sceneTemp) の重みで選ぶ。z が sceneTemp だけ高い場面は e 倍出る。
+func TestPickShotWeightedByZ(t *testing.T) {
+	b := &Builder{Rand: rand.New(rand.NewSource(1)), Scenes: zScenes{"値段を聞く": sceneTemp}}
+	names := sceneNames(foodShotIDs)
+	n := 200000
+	seen := map[string]int{}
+	for range n {
+		seen[shotScene[b.PickShot(sentence.Topics[1], []string{"ราคา"})]]++
+	}
+	want := math.E / (math.E + float64(len(names)-1))
+	if got := float64(seen["値段を聞く"]) / float64(n); math.Abs(got-want) > 0.01 {
+		t.Errorf("値段を聞く = %.3f, want %.3f", got, want)
+	}
+	if len(seen) != len(names) {
+		t.Errorf("z の低い場面も出るはずが %d/%d 種", len(seen), len(names))
+	}
+}
+
+// z の大きい場面が複数あれば、そのどれからも選ぶ。
 func TestPickShotAmongNearScenes(t *testing.T) {
 	b := &Builder{Rand: rand.New(rand.NewSource(1)), Scenes: multiScenes{"値段を聞く", "辛さを確かめる"}}
 	seen := map[string]int{}

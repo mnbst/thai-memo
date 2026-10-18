@@ -3,6 +3,7 @@ package sentence
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"cloud.google.com/go/firestore"
@@ -212,4 +213,43 @@ func (b *singleBank) Pick(
 ) (*Sentence, error) {
 	b.calls++
 	return &Sentence{ThaiText: b.text, KeyWord: w}, nil
+}
+
+// TestProduceFreeUnseenInOrder は free のアプリ生成。語の選定はそのままで、語に
+// 紐づく文を未出のものから順に出し、出し切った語だけ LLM で作る。
+func TestProduceFreeUnseenInOrder(t *testing.T) {
+	bank := &FreeBank{cache: map[lang.Lang][]Sentence{lang.JA: {
+		{ThaiText: "w1-a", KeyWord: "w1", Context: map[string]any{"topic": "旅行"}},
+		{ThaiText: "w1-b", KeyWord: "w1", Context: map[string]any{"topic": "食べ物"}},
+		{ThaiText: "w2-a", KeyWord: "w2", Context: map[string]any{"topic": "旅行"}},
+	}}}
+	sel := &batchSelector{sharedTopic: true}
+	svc := &batchService{}
+	hist := &stubHistory{texts: map[string]bool{"w1-a": true, "w2-a": true}}
+	p := &Producer{Selector: sel, Bank: bank, History: hist, Service: svc}
+
+	got, err := p.ProduceBatch(context.Background(), nil, nil, batchRequest(false, false, 1), 3)
+	if err != nil {
+		t.Fatalf("生成に失敗: %v", err)
+	}
+	byWord := map[string]*Produced{}
+	for _, pr := range got {
+		byWord[pr.TargetWords[0]] = pr
+	}
+	// w1 は2本目、w2 は出し切ったので LLM、w3 はバンクに無いので LLM。
+	if pr := byWord["w1"]; pr == nil || !pr.FromCache || pr.Sentence.ThaiText != "w1-b" || pr.ChosenTopic != "食べ物" {
+		t.Errorf("w1 = %+v, want バンクの w1-b（食べ物）", pr)
+	}
+	var llm []string
+	for _, c := range svc.calls {
+		llm = append(llm, c.targetWords[0])
+	}
+	slices.Sort(llm)
+	if !slices.Equal(llm, []string{"w2", "w3"}) {
+		t.Errorf("LLM で作った語 %v, want [w2 w3]", llm)
+	}
+	// 語は引き直さない。
+	if len(sel.counts) != 1 {
+		t.Errorf("選定 %v, want 1回", sel.counts)
+	}
 }

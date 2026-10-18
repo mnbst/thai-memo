@@ -8,7 +8,7 @@ func TestDecayP(t *testing.T) {
 		name    string
 		p, want float64
 	}{
-		{"等倍で下がる", 0.8, 0.799},
+		{"等倍で下がる", 0.8, 0.8 - DecayPerDay},
 		{"下限で止まる", PFloor + 0.0005, PFloor},
 		{"下限以下は触らない", 0.1, 0.1},
 	}

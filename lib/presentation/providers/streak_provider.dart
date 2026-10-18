@@ -91,7 +91,7 @@ int _daysBetween(DateTime a, DateTime b) => DateTime.utc(b.year, b.month, b.day)
     .inDays;
 
 class StreakController extends StateNotifier<StreakSummary> {
-  StreakController(this._db, {DateTime Function()? clock})
+  StreakController(this._db, {DateTime Function()? clock, this.onExtended})
       : _clock = clock ?? DateTime.now,
         super(StreakSummary.empty((clock ?? DateTime.now)())) {
     refresh();
@@ -99,6 +99,9 @@ class StreakController extends StateNotifier<StreakSummary> {
 
   final DatabaseHelper _db;
   final DateTime Function() _clock;
+
+  /// 今日が未達から達成に変わったとき（＝連続が伸びたとき）に呼ぶ。
+  final void Function()? onExtended;
 
   Future<void> refresh() async {
     try {
@@ -112,18 +115,27 @@ class StreakController extends StateNotifier<StreakSummary> {
 
   /// 今日を「例文を作った日」として記録する。
   Future<void> markToday() async {
+    final key = streakDateKey(_clock());
+    bool already;
     try {
-      await _db.markGenerationDone(streakDateKey(_clock()));
+      // state は起動直後だと読み込み前の空なので、DB を見て判定する。
+      already = (await _db.getGenerationDates()).contains(key);
+      if (!already) await _db.markGenerationDone(key);
     } catch (_) {
       return;
     }
+    if (already) return;
     await refresh();
+    if (mounted) onExtended?.call();
   }
 }
 
 final streakProvider =
     StateNotifierProvider<StreakController, StreakSummary>((ref) {
-  final controller = StreakController(DatabaseHelper.instance);
+  final controller = StreakController(
+    DatabaseHelper.instance,
+    onExtended: () => ref.read(streakCelebrationProvider.notifier).state++,
+  );
   // 生成に成功したら（手動・起動時の自動とも）今日を記録する。
   // 配信の受け取りは home_screen の取り込みで記録する。
   ref.listen<SentenceState>(sentenceControllerProvider, (prev, next) {
@@ -135,3 +147,6 @@ final streakProvider =
   });
   return controller;
 });
+
+/// 連続が伸びたときの演出を出す合図。値が変わるたびに学習画面のチップが祝う。
+final streakCelebrationProvider = StateProvider<int>((ref) => 0);

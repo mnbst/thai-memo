@@ -536,6 +536,9 @@ functions/go/internal/spellunit/eligible_manual_test.go
 functions/go/set_user_tier.go
 setUserTier の Go 版。管理者がtierを切り替える。setUserTier.ts と等価。
 
+functions/go/unverified_limit.go
+App Check を通らない LLM 呼び出しの日次回数上限（1人20回・全体200回、JST日付のカウンター）。
+
 functions/go/send_contact_email.go
 sendContactEmail の Go 版。Secret Managerのgmail-app-passwordでGmail SMTP送信。
 
@@ -924,10 +927,10 @@ functions/go/internal/bldrama/golden_test.go
 bl_drama.py とプロンプト断片・データを突き合わせる差分テスト。
 
 functions/go/internal/themeshots/themeshots.go
-BL以外の全テーマの参考例文ブロック。語に近い場面（embedding、閾値0.75）か全体からの1文の選出と、テーマ別の代わりのやり取りを含む断片の組み立て。
+BL以外の全テーマの参考例文ブロック。語との近さ（場面ごとに標準化した z）の重みつきランダムで場面を選んだ1文の選出と、テーマ別の代わりのやり取りを含む断片の組み立て。
 
 functions/go/internal/themeshots/data.go
-BL以外15テーマの参考例文758件と174場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等の字幕から Jev で振り分けて採取。文のみで人名・注釈なし）。
+BL以外15テーマの参考例文2027件と270場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
 
 functions/go/internal/themeshots/written.go
 媒体「解説・紹介文」の参考例文（BL・あいさつ以外14テーマ、Thai PBS ナレーター行と th.wikipedia の原文）。
@@ -996,7 +999,7 @@ functions/go/internal/uvm/graded_test.go
 IsGradedResult（採点区分）・ResultEvidence・UpdateP の向き（正解で上がり不正解で下がる）と、evidence を持たない既存 doc の移行のテスト。
 
 functions/go/internal/sentence/freebank.go
-free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。バンクに無いテーマは nil で生成へ落とす。
+free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、テーマで絞らない）で引き、出し切った語だけ LLM へ落とす。
 
 functions/go/internal/sentence/freebank_test.go
 free例文バンクの抽選（テーマ一致の優先・在庫の無いテーマの扱い）のテスト。
@@ -1120,6 +1123,9 @@ docs/infra_hardening.md
 
 scripts/play_release.py
 Google Play Developer API でトラック一覧・draft公開・トラック昇格・段階公開の操作をする。skill: play-release。
+
+scripts/play_console.py
+Play Console のリリース以外（テスター・掲載文・画像・レビュー返信・商品・クラッシュ率）を API で扱う。skill: play-release。
 
 scripts/sim_scan_floor.py
 key_word帯の後方下限・読み取り上限のシミュレーション（取りこぼし率・境界との差・Firestore読取数）。
