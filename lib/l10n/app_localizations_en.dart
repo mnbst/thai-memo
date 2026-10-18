@@ -1069,24 +1069,25 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get paywallFeatureQuotaTitle => 'Practice more Thai';
+  String get paywallFeatureQuotaTitle => 'Grow past a vocab score of 100';
 
   @override
-  String get paywallFeatureQuotaPremium => 'Unlimited sentences · no vocab cap';
+  String get paywallFeatureQuotaPremium =>
+      'Unlimited sentences · no vocab score cap';
 
   @override
-  String get paywallFeatureTopicTitle => 'Choose topics · explore Thai culture';
+  String get paywallFeatureTopicTitle => 'Start with scenes you care about';
 
   @override
   String get paywallFeatureTopicPremium =>
-      'Festivals, temple etiquette, BL dramas and more';
+      'Choose from travel, life in Thailand, BL dramas and more';
 
   @override
-  String get onboarding1Title => 'Daily AI sentences at your level';
+  String get onboarding1Title => 'Can\'t read Thai yet? No problem';
 
   @override
   String get onboarding1Body =>
-      'Create more anytime.\nTap a card to review its words and meaning.';
+      'Sentences matched to your level, every day.\nTap a card to see how to read it and what it means.';
 
   @override
   String get onboarding2Title => 'Practice sounds and tones';
@@ -1100,7 +1101,7 @@ class L10nEn extends L10n {
 
   @override
   String get onboarding3Body =>
-      'Missed words return for review.\nSentences get harder as your score grows.';
+      'Missed words come back.\nSentences use more words as your score grows.';
 
   @override
   String get onboardingSkip => 'Skip';
@@ -1236,7 +1237,7 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy3Culture =>
-      '**With Premium**, choose “Thai BL dramas” or “Traditions and festivals” to learn expressions from Thai media and culture.';
+      '**With Premium**, choose “Thai BL dramas” to learn expressions from the shows.';
 
   @override
   String get philosophy3TimeShort =>
@@ -1288,11 +1289,11 @@ class L10nEn extends L10n {
   String get commonGotIt => 'Got it';
 
   @override
-  String get premiumHint1Title => 'Choose topics · explore Thai culture';
+  String get premiumHint1Title => 'Start with scenes you care about';
 
   @override
   String get premiumHint1Body =>
-      'Learn through festivals, temple etiquette, BL dramas, and more';
+      'Choose sentence topics like travel, life in Thailand, BL dramas and more';
 
   @override
   String get signInReminderTitle => 'Protect your progress';
@@ -2698,7 +2699,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideOverviewBody3 =>
-      'Summary quiz answers raise your score and add new words. No-hint answers raise it faster, and misses return later.';
+      'Your summary quiz answers adjust your vocabulary score and the difficulty of future sentences, and your sentences gradually use more words. Correct answers without hints have more impact, and missed questions return later.';
 
   @override
   String get guideRoleSentenceTitle => 'Sentences';
@@ -2727,7 +2728,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleQuizSpelling =>
-      'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word\'s spelling from its pronunciation and meaning. After you answer correctly once for a target word, later questions for it become fill-in-the-blank.';
+      'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word’s spelling from its pronunciation and meaning. After you answer correctly once, that word appears in other formats, such as fill-in-the-blank or word order.';
 
   @override
   String get guideRoleScoreTitle => 'Vocabulary score';
@@ -2758,11 +2759,11 @@ class L10nEn extends L10n {
       'Learn through festivals, temple etiquette, BL dramas, and more.';
 
   @override
-  String get guideRoleNotificationTitle => 'Daily notifications';
+  String get guideRoleNotificationTitle => 'Study reminders';
 
   @override
   String get guideRoleNotificationBody =>
-      'Get the daily sentence at your chosen time.';
+      'Get a sentence at your chosen time. If you don\'t open the app for a while, reminders automatically become less frequent.';
 
   @override
   String get guideRolePremiumTitle => 'Free and Premium';
@@ -2847,7 +2848,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowSoundStep2 =>
-      'In “Pronunciation practice,” hold “Hold to speak” and read aloud for an instant tone check.';
+      'In “Pronunciation practice,” hold “Hold to speak” and say the sentence aloud while following the pronunciation shown. You do not need to read Thai script yet. Your tones are checked instantly.';
 
   @override
   String get guideHowSoundStep3 =>
@@ -2891,7 +2892,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowReviewQuizStep5 =>
-      'Correct answers raise your vocabulary score.';
+      'Your answers adjust your vocabulary score and the difficulty of future sentences.';
 
   @override
   String get guideHowSettingsTitle => 'Settings';
