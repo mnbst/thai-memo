@@ -1858,37 +1858,37 @@ abstract class L10n {
   /// No description provided for @paywallFeatureQuotaTitle.
   ///
   /// In ja, this message translates to:
-  /// **'良質なタイ語に大量に触れられる'**
+  /// **'語彙スコア100の先も伸ばせる'**
   String get paywallFeatureQuotaTitle;
 
   /// No description provided for @paywallFeatureQuotaPremium.
   ///
   /// In ja, this message translates to:
-  /// **'例文は無制限・単語の上限なし'**
+  /// **'例文は無制限・語彙スコアの上限なし'**
   String get paywallFeatureQuotaPremium;
 
   /// No description provided for @paywallFeatureTopicTitle.
   ///
   /// In ja, this message translates to:
-  /// **'テーマを選んでタイ文化に親しむ'**
+  /// **'好きな場面のタイ語から始める'**
   String get paywallFeatureTopicTitle;
 
   /// No description provided for @paywallFeatureTopicPremium.
   ///
   /// In ja, this message translates to:
-  /// **'祭り・寺院の作法・BLドラマなど'**
+  /// **'旅行・暮らし・BLドラマなどから自分で選べる'**
   String get paywallFeatureTopicPremium;
 
   /// No description provided for @onboarding1Title.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなた専用の例文を毎日お届け'**
+  /// **'タイ文字が読めなくても大丈夫'**
   String get onboarding1Title;
 
   /// No description provided for @onboarding1Body.
   ///
   /// In ja, this message translates to:
-  /// **'毎日の例文に加えて、その場で追加生成も。\nカードをタップで単語・意味を確認。'**
+  /// **'あなたのレベルに合った例文を毎日お届け。\nカードをタップで読み方と意味を確認。'**
   String get onboarding1Body;
 
   /// No description provided for @onboarding2Title.
@@ -1912,7 +1912,7 @@ abstract class L10n {
   /// No description provided for @onboarding3Body.
   ///
   /// In ja, this message translates to:
-  /// **'間違えた単語はくり返し出題。\nスコアに応じて例文のレベルが上がります。'**
+  /// **'間違えた単語はくり返し出題。\nスコアに合わせて、例文に出る単語が増えます。'**
   String get onboarding3Body;
 
   /// No description provided for @onboardingSkip.
@@ -2152,7 +2152,7 @@ abstract class L10n {
   /// No description provided for @philosophy3Culture.
   ///
   /// In ja, this message translates to:
-  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「伝統・祭り」を選べば、作品や文化に出てくる表現が届きます。'**
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」を選べば、作品に出てくる表現が届きます。'**
   String get philosophy3Culture;
 
   /// No description provided for @philosophy3TimeShort.
@@ -2242,13 +2242,13 @@ abstract class L10n {
   /// No description provided for @premiumHint1Title.
   ///
   /// In ja, this message translates to:
-  /// **'テーマを選んでタイ文化に親しむ'**
+  /// **'好きな場面のタイ語から始める'**
   String get premiumHint1Title;
 
   /// No description provided for @premiumHint1Body.
   ///
   /// In ja, this message translates to:
-  /// **'祭り・寺院での作法・BLドラマなど、言葉と一緒に文化が身につきます'**
+  /// **'旅行・暮らし・BLドラマなどから、例文のテーマを自分で選べます'**
   String get premiumHint1Body;
 
   /// No description provided for @signInReminderTitle.
@@ -4601,7 +4601,7 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody3.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズに正解すると語彙スコアが上がり、例文に出る単語も増えていきます。ヒントなしで正解すると、さらに上がりやすくなります。間違えた問題は、あとでもう一度出題されます。'**
+  /// **'まとめクイズの答えをもとに、語彙スコアと次の例文の難しさが調整され、例文に出る単語も増えていきます。ヒントなしの正解は反映されやすく、間違えた問題はあとでもう一度出題されます。'**
   String get guideOverviewBody3;
 
   /// No description provided for @guideRoleSentenceTitle.
@@ -4649,7 +4649,7 @@ abstract class L10n {
   /// No description provided for @guideRoleQuizSpelling.
   ///
   /// In ja, this message translates to:
-  /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。その学習単語について一度正解すると、以後は穴埋め問題が出ます。'**
+  /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。'**
   String get guideRoleQuizSpelling;
 
   /// No description provided for @guideRoleScoreTitle.
@@ -4703,13 +4703,13 @@ abstract class L10n {
   /// No description provided for @guideRoleNotificationTitle.
   ///
   /// In ja, this message translates to:
-  /// **'毎日の通知'**
+  /// **'学習のお知らせ'**
   String get guideRoleNotificationTitle;
 
   /// No description provided for @guideRoleNotificationBody.
   ///
   /// In ja, this message translates to:
-  /// **'決めた時刻にその日の例文が届き、学習の習慣化を助けます。'**
+  /// **'決めた時刻に例文が届きます。しばらくアプリを開かない日が続くと、通知の回数を自動で減らします。'**
   String get guideRoleNotificationBody;
 
   /// No description provided for @guideRolePremiumTitle.
@@ -4847,7 +4847,7 @@ abstract class L10n {
   /// No description provided for @guideHowSoundStep2.
   ///
   /// In ja, this message translates to:
-  /// **'詳細画面の「発音練習」で「押したまま話す」を長押しし、例文を読みます。その場で声調を判定できます。'**
+  /// **'詳細画面の「発音練習」で「押したまま話す」を長押しし、表示された読み方を見ながら例文を声に出します。タイ文字がまだ読めなくても大丈夫です。その場で声調を判定できます。'**
   String get guideHowSoundStep2;
 
   /// No description provided for @guideHowSoundStep3.
@@ -4919,7 +4919,7 @@ abstract class L10n {
   /// No description provided for @guideHowReviewQuizStep5.
   ///
   /// In ja, this message translates to:
-  /// **'正解すると語彙スコアに反映されます。'**
+  /// **'答えをもとに、語彙スコアと次の例文の難しさが調整されます。'**
   String get guideHowReviewQuizStep5;
 
   /// No description provided for @guideHowSettingsTitle.
