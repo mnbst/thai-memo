@@ -22,8 +22,9 @@
  *
  * 注意: Cloud Functions v1 の auth トリガーを使用（v2 ではまだ非サポート）
  */
-import * as functions from 'firebase-functions/v1';
-import * as admin from 'firebase-admin';
+import * as functions from "firebase-functions/v1";
+import * as admin from "firebase-admin";
+import { RUNTIME_SERVICE_ACCOUNT } from "./constants/runtime";
 
 /** Firestore インスタンス */
 const db = admin.firestore();
@@ -43,11 +44,15 @@ export async function deleteUserFirestoreData(uid: string): Promise<number> {
   const refs: admin.firestore.DocumentReference[] = [];
 
   // users/{uid}/sentences サブコレクション（学習した例文データ）
-  const sentences = await db.collection(`users/${uid}/sentences`).listDocuments();
+  const sentences = await db
+    .collection(`users/${uid}/sentences`)
+    .listDocuments();
   refs.push(...sentences);
 
   // users/{uid}/quiz_answers サブコレクション（クイズの回答履歴）
-  const quizAnswers = await db.collection(`users/${uid}/quiz_answers`).listDocuments();
+  const quizAnswers = await db
+    .collection(`users/${uid}/quiz_answers`)
+    .listDocuments();
   refs.push(...quizAnswers);
 
   // users/{uid}/uvm サブコレクション（語彙習得モデル）
@@ -58,8 +63,8 @@ export async function deleteUserFirestoreData(uid: string): Promise<number> {
   const units = await db.collection(`users/${uid}/units`).listDocuments();
   refs.push(...units);
 
-  for (const sub of ['learning_state', 'generation_locks']) {
-    refs.push(...await db.collection(`users/${uid}/${sub}`).listDocuments());
+  for (const sub of ["learning_state", "generation_locks"]) {
+    refs.push(...(await db.collection(`users/${uid}/${sub}`).listDocuments()));
   }
   refs.push(db.doc(`contact_rate_limits/${uid}`));
 
@@ -76,15 +81,17 @@ export async function deleteUserFirestoreData(uid: string): Promise<number> {
   refs.push(db.doc(`leaderboard/${uid}`));
 
   // quiz_queue 内の該当ユーザーのドキュメント
-  const quizQueue = await db.collection('quiz_queue')
-    .where('uid', '==', uid)
+  const quizQueue = await db
+    .collection("quiz_queue")
+    .where("uid", "==", uid)
     .get();
   for (const doc of quizQueue.docs) {
     refs.push(doc.ref);
   }
 
-  const owners = await db.collection('subscription_owners')
-    .where('uid', '==', uid)
+  const owners = await db
+    .collection("subscription_owners")
+    .where("uid", "==", uid)
     .get();
   for (const doc of owners.docs) {
     refs.push(doc.ref);
@@ -111,9 +118,13 @@ export async function deleteUserFirestoreData(uid: string): Promise<number> {
  *
  * @param user - 削除されたユーザーの情報（uid を含む）
  */
-export const deleteUserData = functions.region('asia-northeast1').auth.user().onDelete(async (user) => {
-  const uid = user.uid;
-  console.log(`Deleting data for user: ${uid}`);
-  const count = await deleteUserFirestoreData(uid);
-  console.log(`Deleted ${count} document(s) for user: ${uid}`);
-});
+export const deleteUserData = functions
+  .region("asia-northeast1")
+  .runWith({ serviceAccount: RUNTIME_SERVICE_ACCOUNT })
+  .auth.user()
+  .onDelete(async (user) => {
+    const uid = user.uid;
+    console.log(`Deleting data for user: ${uid}`);
+    const count = await deleteUserFirestoreData(uid);
+    console.log(`Deleted ${count} document(s) for user: ${uid}`);
+  });
