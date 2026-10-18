@@ -53,7 +53,10 @@ jobs:
             PROVISIONING_PROFILE_BASE64:${{ env.GCP_PROJECT }}/ci-provisioning-profile
 
       - name: Restore GoogleService-Info.plist
-        run: echo '${{ steps.secrets.outputs.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}' | base64 --decode > ios/Runner/GoogleService-Info.plist
+        # secret は式でシェル本文に埋め込まず、環境変数で渡す（値に引用符や $() があっても実行されない）。
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ steps.secrets.outputs.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 --decode > ios/Runner/GoogleService-Info.plist
 
       - name: Install Apple certificate and provisioning profile
         env:
