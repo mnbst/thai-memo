@@ -1,0 +1,419 @@
+import 'package:flutter/material.dart';
+
+import '../../core/config/app_config.dart';
+import '../../l10n/app_localizations.dart';
+import '../widgets/swipe_back.dart';
+
+/// 例に出す語。意味は節ごとの `|` 区切りの文言から、出てくる順に引く。
+class _Word {
+  final String thai;
+  final String reading;
+
+  /// 会話で崩れたときの読み。会話の節だけで使う。
+  final String? spoken;
+
+  const _Word(this.thai, this.reading, [this.spoken]);
+}
+
+/// 例の1行。[contrast] なら「A ↔ B」の比べる形、そうでなければ並べるだけ。
+class _Row {
+  final List<_Word> words;
+  final bool contrast;
+
+  const _Row(this.words, {this.contrast = false});
+}
+
+class _Section {
+  final IconData icon;
+  final String Function(L10n) title;
+  final String Function(L10n) body;
+  final List<_Row> rows;
+  final String Function(L10n)? meanings;
+  final String Function(L10n)? note;
+
+  const _Section(this.icon, this.title, this.body, this.rows,
+      {this.meanings, this.note});
+}
+
+/// 読みの記号の一覧。説明は pronSymbolsDescs を `|` で区切って同じ順に引く。
+const _symbols = [
+  'ɛ  ɔ',
+  'ʉ',
+  'ə',
+  'aa  ii',
+  'k  kh',
+  'th  ph',
+  'ng',
+  'à  â  á  ǎ'
+];
+
+final _sections = <_Section>[
+  _Section(
+    Icons.compare_arrows,
+    (l) => l.pronAspTitle,
+    (l) => l.pronAspBody,
+    const [
+      _Row([_Word('ไก่', 'kài'), _Word('ไข่', 'khài')], contrast: true),
+      _Row([_Word('ตา', 'taa'), _Word('ทา', 'thaa')], contrast: true),
+      _Row([_Word('ปา', 'paa'), _Word('พา', 'phaa')], contrast: true),
+    ],
+    meanings: (l) => l.pronAspMeanings,
+    note: (l) => l.pronAspNote,
+  ),
+  _Section(
+    Icons.straighten,
+    (l) => l.pronLengthTitle,
+    (l) => l.pronLengthBody,
+    const [
+      _Row([_Word('เข้า', 'khâw'), _Word('ข้าว', 'khâaw')], contrast: true),
+      _Row([_Word('เขา', 'khǎw'), _Word('ขาว', 'khǎaw')], contrast: true),
+    ],
+    meanings: (l) => l.pronLengthMeanings,
+  ),
+  _Section(
+    Icons.record_voice_over_outlined,
+    (l) => l.pronVowelTitle,
+    (l) => l.pronVowelBody,
+    const [
+      _Row([_Word('เด็ก', 'dèk'), _Word('แดด', 'dɛ̀ɛt')], contrast: true),
+      _Row([_Word('โต๊ะ', 'tó'), _Word('ห้อง', 'hɔ̂ng')], contrast: true),
+      _Row([_Word('ดู', 'duu'), _Word('มือ', 'mʉʉ')], contrast: true),
+      _Row([_Word('เงิน', 'ngən'), _Word('เดิน', 'dəən')]),
+    ],
+    meanings: (l) => l.pronVowelMeanings,
+  ),
+  _Section(
+    Icons.stop_circle_outlined,
+    (l) => l.pronFinalTitle,
+    (l) => l.pronFinalBody,
+    const [
+      _Row([_Word('นก', 'nók'), _Word('รถ', 'rót'), _Word('กับ', 'kàp')]),
+      _Row([_Word('จาน', 'jaan'), _Word('จาง', 'jaang')], contrast: true),
+    ],
+    meanings: (l) => l.pronFinalMeanings,
+    note: (l) => l.pronFinalNote,
+  ),
+  _Section(
+    Icons.forum_outlined,
+    (l) => l.pronCasualTitle,
+    (l) => l.pronCasualBody,
+    const [
+      _Row([_Word('รัก', 'rák', 'lák')]),
+      _Row([_Word('ครับ', 'khráp', 'kháp')]),
+      _Row([_Word('ไหม', 'mǎi', 'mái')]),
+      _Row([_Word('ฉัน', 'chǎn', 'chán')]),
+    ],
+    meanings: (l) => l.pronCasualMeanings,
+    note: (l) => l.pronCasualNote,
+  ),
+];
+
+/// タイ語の発音ガイド画面。読みの記号と、日本語話者が区別しにくい音をまとめる。
+/// 声調は声調ガイドに任せる。
+class PronunciationGuideScreen extends StatelessWidget {
+  static const routeName = 'pronunciation_guide';
+
+  const PronunciationGuideScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.pronGuideTitle)),
+      body: SwipeBack(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConfig.defaultPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _IntroCard(
+                heading: l10n.pronGuideHeading,
+                body: l10n.pronGuideIntro,
+              ),
+              const SizedBox(height: 16),
+              const _SymbolsCard(),
+              for (final section in _sections) ...[
+                const SizedBox(height: 12),
+                _SectionCard(section: section),
+              ],
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IntroCard extends StatelessWidget {
+  final String heading;
+  final String body;
+
+  const _IntroCard({required this.heading, required this.body});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onColor = theme.colorScheme.onPrimaryContainer;
+    return Card(
+      color: theme.colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: onColor, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    heading,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: onColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              body,
+              style: theme.textTheme.bodyMedium?.copyWith(color: onColor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CardTitle extends StatelessWidget {
+  final IconData icon;
+  final String title;
+
+  const _CardTitle(this.icon, this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, color: theme.colorScheme.primary, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 読みの記号と、その音の説明を表にする。
+class _SymbolsCard extends StatelessWidget {
+  const _SymbolsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
+    final theme = Theme.of(context);
+    final descs = l10n.pronSymbolsDescs.split('|');
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CardTitle(Icons.abc, l10n.pronSymbolsTitle),
+            const SizedBox(height: 8),
+            Text(l10n.pronSymbolsBody, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            for (final (i, symbol) in _symbols.indexed) ...[
+              if (i > 0) const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 92,
+                      child: Text(
+                        symbol,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        i < descs.length ? descs[i] : '',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final _Section section;
+
+  const _SectionCard({required this.section});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
+    final theme = Theme.of(context);
+    final meanings = section.meanings?.call(l10n).split('|') ?? const [];
+    final note = section.note?.call(l10n);
+    var index = 0;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CardTitle(section.icon, section.title(l10n)),
+            const SizedBox(height: 8),
+            Text(section.body(l10n), style: theme.textTheme.bodyMedium),
+            for (final row in section.rows) ...[
+              const SizedBox(height: 10),
+              _ExampleRow(
+                row: row,
+                meanings: [
+                  for (var i = 0; i < row.words.length; i++)
+                    index < meanings.length ? meanings[index++] : '',
+                ],
+              ),
+            ],
+            if (note != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 16, color: theme.colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      note,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExampleRow extends StatelessWidget {
+  final _Row row;
+  final List<String> meanings;
+
+  const _ExampleRow({required this.row, required this.meanings});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tiles = [
+      for (final (i, word) in row.words.indexed)
+        Expanded(child: _WordTile(word: word, meaning: meanings[i])),
+    ];
+    return Row(
+      children: [
+        for (final (i, tile) in tiles.indexed) ...[
+          if (i > 0)
+            row.contrast
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Icon(Icons.swap_horiz,
+                        size: 18, color: theme.colorScheme.outline),
+                  )
+                : const SizedBox(width: 8),
+          tile,
+        ],
+      ],
+    );
+  }
+}
+
+/// 語1つ。タイ文字・読み・意味を縦に積む。崩れた読みがあれば「読み → 崩れ」。
+class _WordTile extends StatelessWidget {
+  final _Word word;
+  final String meaning;
+
+  const _WordTile({required this.word, required this.meaning});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final readingStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w600,
+    );
+    final spoken = word.spoken;
+    final thai = Text(word.thai,
+        style: theme.textTheme.titleLarge?.copyWith(fontSize: 24, height: 1.3));
+    final reading = spoken == null
+        ? Text(word.reading, style: readingStyle)
+        : Text.rich(TextSpan(style: readingStyle, children: [
+            TextSpan(
+              text: word.reading,
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+            const TextSpan(text: '  →  '),
+            TextSpan(text: spoken),
+          ]));
+    final meaningText = Text(
+      meaning,
+      style: theme.textTheme.bodySmall
+          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      // 崩れの行は語が1つなので横に並べ、比べる行は縦に積む。
+      child: spoken == null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [thai, reading, meaningText],
+            )
+          : Row(
+              children: [
+                thai,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [reading, meaningText],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}

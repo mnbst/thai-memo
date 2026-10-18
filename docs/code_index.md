@@ -183,6 +183,9 @@ lib/presentation/screens/paywall_screen.dart
 test/screenshots/paywall_review_screenshot.dart
 App Store 審査用スクショ（課金画面）の生成。商品を差し込んで描くので、ストア反映を待たずに買い切り込みの画面が撮れる。出力は build/appstore/paywall_review.png。
 
+test/screenshots/guide_screenshot.dart
+ガイド画面（発音・語順・声調）を PNG に書き出す見た目確認用モック。SCREEN・言語・高さを dart-define で切り替える。
+
 test/screenshots/settings_screenshot.dart
 設定画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。プラン（trial/free/premium）・言語・高さを dart-define で切り替える。
 
@@ -204,8 +207,11 @@ lib/presentation/screens/vocab_test_screen.dart
 lib/presentation/screens/tone_guide_screen.dart
 タイ語声調システムのチュートリアル。
 
+lib/presentation/screens/pronunciation_guide_screen.dart
+タイ語の発音ガイド（読みの記号・有気/無気・母音の長短・似た母音・語末子音・会話での崩れ）。設定から開く。
+
 lib/presentation/screens/word_order_guide_screen.dart
-タイ語の語順ガイド（主題・語順・否定・疑問・丁寧語尾）。例文は語のチップで見せる。設定と並び替え問題の解答から開く。
+タイ語の語順ガイド（話題・語順・修飾・前置詞・比較・否定・疑問・助動詞・動詞連続・丁寧語尾）。例文は語のチップで見せる。設定と並び替え問題の解答から開く。
 
 ## Widgets
 

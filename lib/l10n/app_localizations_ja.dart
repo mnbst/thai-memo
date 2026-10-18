@@ -507,6 +507,12 @@ class L10nJa extends L10n {
   String get settingsToneGuideSubtitle => 'タイ語の声調ルールを学ぶ';
 
   @override
+  String get settingsPronGuide => '発音ガイド';
+
+  @override
+  String get settingsPronGuideSubtitle => '読みの記号と、区別しにくい音を学ぶ';
+
+  @override
   String get settingsResetLearningData => '学習データをリセット';
 
   @override
@@ -1136,15 +1142,15 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy2None =>
-      'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。';
+      'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。読み方に迷ったら、設定の発音ガイドも使えます。';
 
   @override
   String get philosophy2Script =>
-      'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。';
+      'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。アプリの読みの見方や区別しにくい音は、設定の発音ガイドで確認できます。';
 
   @override
   String get philosophy2Tone =>
-      '**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。';
+      '**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。声調のきまりは、設定の声調ガイドで確認できます。';
 
   @override
   String get philosophy2Vocab => '**クイズ**が単語ごとの覚え具合を測ります。あいまいな単語は後で再出題されます。';
@@ -2824,10 +2830,11 @@ class L10nJa extends L10n {
   String get wordOrderRule7Title => '疑問詞は答えが入る場所にそのまま';
 
   @override
-  String get wordOrderRule7Body => '疑問詞は、答えが入る場所にそのまま置きます。はい・いいえの質問は文末に ไหม。';
+  String get wordOrderRule7Body =>
+      '疑問詞は、答えが入る場所にそのまま置きます。ただし ทำไม（なぜ）は文頭にもよく来ます。はい・いいえの質問は述語の後ろに ไหม を付けます（丁寧の語尾はさらに後ろ）。';
 
   @override
-  String get wordOrderRule8Title => '時を表す語の位置';
+  String get wordOrderRule8Title => 'いつのことかを表す語（จะ・แล้ว など）';
 
   @override
   String get wordOrderRule8Body =>
@@ -2844,14 +2851,14 @@ class L10nJa extends L10n {
 
   @override
   String get wordOrderRule10Body =>
-      '男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม や แล้ว よりも後ろに付きます。';
+      '男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม・แล้ว や、นะ（〜ね）・เลย・ด้วย などの文末の語よりも後ろに付きます。นะ の後の女性の語尾は คะ（นะคะ）です。';
 
   @override
   String get wordOrderTipsTitle => '並び替えのコツ';
 
   @override
   String get wordOrderTipsBody =>
-      '場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้ は、説明される名詞の後ろ\nไหม・แล้ว・ครับ/ค่ะ/คะ は最後のほう';
+      '場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้・มาก は、説明される語の後ろ\nกับ・ใน などは名詞の前、อยาก・ต้อง は動詞の前\nไหม・แล้ว・นะ・ครับ/ค่ะ/คะ は最後のほう';
 
   @override
   String get wordOrderEx1aGloss => 'ツアー|この|人|多い';
@@ -2896,7 +2903,8 @@ class L10nJa extends L10n {
   String get wordOrderEx4bMeaning => '私の家';
 
   @override
-  String get wordOrderRule4Note => 'ของ は省くこともあります。';
+  String get wordOrderRule4Note =>
+      'บ้านใหญ่ は「家は大きい」という文にもなります。形容詞はそのまま述語になり、เป็น は要りません。ของ は省くこともあります。';
 
   @override
   String get wordOrderEx5aGloss => '猫|2|匹';
@@ -2985,6 +2993,198 @@ class L10nJa extends L10n {
 
   @override
   String get wordOrderEx10bMeaning => 'もう食べました';
+
+  @override
+  String get wordOrderRule5Note =>
+      'แมวตัวหนึ่ง のように類別詞の後ろに หนึ่ง を置くと、「ある猫」という意味になります。';
+
+  @override
+  String get wordOrderEx10cGloss => 'おいしい|〜ね|丁寧（女性）';
+
+  @override
+  String get wordOrderEx10cMeaning => 'おいしいですね';
+
+  @override
+  String get wordOrderRule11Title => '文で説明するときは「名詞 → ที่ → 説明」';
+
+  @override
+  String get wordOrderRule11Body =>
+      '「私が好きな店」のように文で名詞を説明するときも、説明は後ろです。名詞の後に ที่ を置き、その後ろに説明を続けるのが基本です。';
+
+  @override
+  String get wordOrderEx11aGloss => '店|（つなぐ語）|私|好き';
+
+  @override
+  String get wordOrderEx11aMeaning => '私が好きな店';
+
+  @override
+  String get wordOrderRule12Title => '「〜と」「〜の上に」などは名詞の前';
+
+  @override
+  String get wordOrderRule12Body =>
+      'กับ（〜と）・ใน（〜の中で）・บน（〜の上に）・ให้（〜に）・ที่（〜で）は名詞の前に置きます。日本語の「〜と」「〜で」とは逆です。';
+
+  @override
+  String get wordOrderEx12aGloss => '私|行く|〜と|友達';
+
+  @override
+  String get wordOrderEx12aMeaning => '私は友達と行く';
+
+  @override
+  String get wordOrderEx12bGloss => '猫|いる|〜の上|机';
+
+  @override
+  String get wordOrderEx12bMeaning => '猫は机の上にいる';
+
+  @override
+  String get wordOrderRule13Title => '「とても」「少し」は後ろ';
+
+  @override
+  String get wordOrderRule13Body =>
+      'มาก（とても）・จริงๆ（本当に）・นิดหน่อย（少し）は、形容詞や動詞の後ろに置きます。日本語と逆です。';
+
+  @override
+  String get wordOrderEx13aGloss => '料理|この|おいしい|とても';
+
+  @override
+  String get wordOrderEx13aMeaning => 'この料理はとてもおいしい';
+
+  @override
+  String get wordOrderRule14Title => '比べるときは「形容詞 → กว่า → 相手」';
+
+  @override
+  String get wordOrderRule14Body =>
+      '「AはBより〜」は「A＋形容詞＋กว่า＋B」。「一番〜」は形容詞の後ろに ที่สุด を付けます。';
+
+  @override
+  String get wordOrderEx14aGloss => '今日|暑い|〜より|昨日';
+
+  @override
+  String get wordOrderEx14aMeaning => '今日は昨日より暑い';
+
+  @override
+  String get wordOrderEx14bGloss => 'もの|この|良い|一番';
+
+  @override
+  String get wordOrderEx14bMeaning => 'これが一番いい';
+
+  @override
+  String get wordOrderRule15Title => '「〜したい」は動詞の前、「できる」は後ろ';
+
+  @override
+  String get wordOrderRule15Body =>
+      'อยาก（〜したい）・ต้อง（〜しなければ）・ควร（〜したほうがいい）は動詞の前。ได้（できる）は動詞と目的語の後ろです。';
+
+  @override
+  String get wordOrderEx15aGloss => '私|〜したい|食べる|ソムタム';
+
+  @override
+  String get wordOrderEx15aMeaning => '私はソムタムを食べたい';
+
+  @override
+  String get wordOrderEx15bGloss => '私|話す|タイ語|できる';
+
+  @override
+  String get wordOrderEx15bMeaning => '私はタイ語を話せる';
+
+  @override
+  String get wordOrderRule16Title => '動詞はそのまま続けて並べる';
+
+  @override
+  String get wordOrderRule16Body =>
+      '「買い物に行く」は ไป（行く）＋ซื้อ（買う）のように、起きる順に動詞を並べます。ไป・มา が「〜て行く・〜て来る」の意味のときは後ろに付きます。';
+
+  @override
+  String get wordOrderEx16aGloss => '私|行く|買う|物';
+
+  @override
+  String get wordOrderEx16aMeaning => '私は買い物に行く';
+
+  @override
+  String get wordOrderEx16bGloss => '取る|水|来る';
+
+  @override
+  String get wordOrderEx16bMeaning => '水を持ってくる';
+
+  @override
+  String get pronGuideTitle => 'タイ語の発音ガイド';
+
+  @override
+  String get pronGuideHeading => 'タイ語の発音のポイント';
+
+  @override
+  String get pronGuideIntro =>
+      'アプリの読みは、ローマ字に記号を足した表記です。日本語にない音の区別を、読みの記号と一緒に押さえましょう。声調は「声調ガイド」で説明しています。';
+
+  @override
+  String get pronSymbolsTitle => '読みの記号';
+
+  @override
+  String get pronSymbolsBody => '日本語のローマ字と違う記号だけをまとめました。';
+
+  @override
+  String get pronSymbolsDescs =>
+      'ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる';
+
+  @override
+  String get pronAspTitle => '息を出す音・出さない音';
+
+  @override
+  String get pronAspBody =>
+      'kh・th・ph・ch は息を強く出し、k・t・p・j は息を出さずに言います。日本語では区別しませんが、タイ語では別の語になります。';
+
+  @override
+  String get pronAspMeanings => '鶏|卵|目|塗る|投げる|連れて行く';
+
+  @override
+  String get pronAspNote =>
+      '口の前に手をかざして言ってみましょう。kh・th・ph で息が当たり、k・t・p で当たらなければ区別できています。';
+
+  @override
+  String get pronLengthTitle => '長い母音・短い母音';
+
+  @override
+  String get pronLengthBody =>
+      'aa・ii のように同じ母音が2つ並んだ読みは長くのばします。長さが違うだけで別の語になります。';
+
+  @override
+  String get pronLengthMeanings => '入る|ご飯|彼|白い';
+
+  @override
+  String get pronVowelTitle => '似た母音を区別する';
+
+  @override
+  String get pronVowelBody =>
+      'e と ɛ、o と ɔ、u と ʉ は日本語ではどちらも同じ音に聞こえます。ɛ・ɔ は口を大きく開け、ʉ は唇を丸めずに言います。';
+
+  @override
+  String get pronVowelMeanings => '子ども|日差し|机|部屋|見る|手|お金|歩く';
+
+  @override
+  String get pronFinalTitle => '語末の k・t・p は音を出さない';
+
+  @override
+  String get pronFinalBody =>
+      '語末の k・t・p は口の形だけ作って止め、「ク・ト・プ」とは言いません。n と ng も区別します。';
+
+  @override
+  String get pronFinalMeanings => '鳥|車|〜と|皿|薄い';
+
+  @override
+  String get pronFinalNote => 'タイ文字では、語末の ด・ส・ช なども t、บ・พ なども p の音になります。';
+
+  @override
+  String get pronCasualTitle => '会話での崩れ';
+
+  @override
+  String get pronCasualBody =>
+      '会話では読みどおりに言わないことがよくあります。r が l になる、子音が2つ続くと後ろが落ちる、声調が変わる、などです。';
+
+  @override
+  String get pronCasualMeanings => '愛する|丁寧（男性）|〜か？|私（女性）';
+
+  @override
+  String get pronCasualNote => '崩れた形は聞き取りの手がかりです。話すときは読みどおりで通じます。';
 
   @override
   String get guideRoleQuizWordOrder =>

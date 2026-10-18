@@ -28,6 +28,7 @@ import '../widgets/streak_widgets.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/vocab_level.dart';
 import 'contact_form_screen.dart';
+import 'pronunciation_guide_screen.dart';
 import 'paywall_screen.dart';
 import 'ranking_screen.dart';
 import 'guide_screen.dart';
@@ -680,6 +681,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             CupertinoPageRoute(
               settings: const RouteSettings(name: ToneGuideScreen.routeName),
               builder: (context) => const ToneGuideScreen(),
+            ),
+          );
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.record_voice_over_outlined),
+        title: Text(l10n.settingsPronGuide),
+        subtitle: Text(l10n.settingsPronGuideSubtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              settings:
+                  const RouteSettings(name: PronunciationGuideScreen.routeName),
+              builder: (context) => const PronunciationGuideScreen(),
             ),
           );
         },
