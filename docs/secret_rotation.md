@@ -51,17 +51,16 @@ terraform apply -var-file=<env>.tfvars -var-file=secrets/<env>.tfvars
      サイドで、リファラー/IP/アプリ ID のいずれも該当しない（IP 制限には VPC コネクタ +
      Cloud NAT による固定 egress IP が必要で、この規模では過剰）。
      コンソールの警告はこの理由で無視してよい
-3. `terraform/secrets/<env>.tfvars` の `gemini_api_key` を新しい値に更新
-4. `terraform apply`（上記コマンド）
-5. `firebase deploy --only functions` で再デプロイ
+3. Secret Manager に新しい版を足す（値は Terraform 管理外。tfstate に平文で残さないため）:
+   `printf %s '<新しいキー>' | gcloud secrets versions add gemini-api-key --data-file=- --project <ID>`
+4. 関数は起動ごとに `latest` を読むので再デプロイは不要（念のためインスタンスが入れ替わるまで待つ）
 6. 動作確認後、**旧キーを削除**（Credentials 画面から削除。全環境の差し替えが済むまで消さないこと）
 
 ## 2. OpenAI API キー
 
 1. [OpenAI Platform > API keys](https://platform.openai.com/api-keys) で環境ごとにキーを作成
    - プロジェクトを分けて **Usage limits（月額上限）** を設定しておくと濫用時の被害が限定される
-2. `terraform/secrets/<env>.tfvars` の `openai_api_key` を更新
-3. `terraform apply` → `firebase deploy --only functions`
+2. `printf %s '<新しいキー>' | gcloud secrets versions add openai-api-key --data-file=- --project <ID>`
 4. 動作確認後、旧キーを **Revoke**
 
 ## 3. Google OAuth client secret

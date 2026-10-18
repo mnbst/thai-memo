@@ -168,3 +168,39 @@ resource "google_monitoring_alert_policy" "generation_spike" {
     auto_close = "3600s"
   }
 }
+
+# App Check 未証明の呼び出しが全体の日次上限に達した
+resource "google_monitoring_alert_policy" "appcheck_unverified_cap" {
+  count = local.alerts_enabled
+
+  project      = var.project_id
+  display_name = "App Check 未証明の呼び出しが日次上限に到達"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "appcheck_unverified_cap > 0 / 5min"
+
+    condition_threshold {
+      filter = join(" AND ", [
+        "resource.type = \"cloud_run_revision\"",
+        "metric.type = \"logging.googleapis.com/user/appcheck_unverified_cap\"",
+      ])
+
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period     = "300s"
+        per_series_aligner   = "ALIGN_SUM"
+        cross_series_reducer = "REDUCE_SUM"
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.email[0].id]
+
+  alert_strategy {
+    auto_close = "86400s"
+  }
+}

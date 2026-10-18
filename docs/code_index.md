@@ -530,6 +530,9 @@ functions/go/internal/spellunit/eligible_manual_test.go
 functions/go/set_user_tier.go
 setUserTier の Go 版。管理者がtierを切り替える。setUserTier.ts と等価。
 
+functions/go/unverified_limit.go
+App Check を通らない LLM 呼び出しの日次回数上限（1人20回・全体200回、JST日付のカウンター）。
+
 functions/go/send_contact_email.go
 sendContactEmail の Go 版。Secret Managerのgmail-app-passwordでGmail SMTP送信。
 

@@ -19,8 +19,9 @@ permissions:
   id-token: write  # WIF認証に必要
 
 env:
-  WIF_PROVIDER: projects/219961294368/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc-provider
-  CI_SERVICE_ACCOUNT: github-actions-deployer@thai-memo-prod.iam.gserviceaccount.com
+  # 配信用とは別のプール・SA（terraform/main.tf の x_post）。署名鍵には届かない。
+  WIF_PROVIDER: projects/219961294368/locations/global/workloadIdentityPools/github-x-post-pool/providers/github-oidc-provider
+  CI_SERVICE_ACCOUNT: github-actions-x-post@thai-memo-prod.iam.gserviceaccount.com
   GCP_PROJECT: thai-memo-prod
   OUT_DIR: build/x_post
 
@@ -28,26 +29,25 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
-          flutter-version: "3.x"
+          flutter-version: "3.41.5"
           channel: stable
           cache: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
 
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.CI_SERVICE_ACCOUNT }}
 
       - name: Fetch X credentials from Secret Manager
-        uses: google-github-actions/get-secretmanager-secrets@v2
+        uses: google-github-actions/get-secretmanager-secrets@2b5f97c5a4b9c105e64646762ad4fc3f5128e6f5 # v2
         id: secrets
         with:
           secrets: |-
@@ -99,7 +99,7 @@ jobs:
         run: python tools/x_post/build_media.py --out "$OUT_DIR"
 
       - name: Upload media as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: x-post-media
           path: |

@@ -7,6 +7,7 @@ apple_client_id               = "com.thaimemo.thaiMemo"
 apple_team_id                 = "5KTT2C466P"
 apple_key_id                  = "JGPGZZ5HRP"
 github_repo                   = "mnbst/thai-memo" # TODO: GitHubのリポジトリ名に変更 (例: gaku0/thai-memo)
+github_allowed_refs           = ["refs/heads/test"]
 alert_email                   = "gcp.demo.776@gmail.com"
 billing_account               = "0189A7-F96D31-DD85EC"
 budget_amount                 = 3000
