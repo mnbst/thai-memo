@@ -8,15 +8,21 @@ variable "project_number" {
   type        = string
 }
 
-variable "gemini_api_key" {
-  description = "Gemini API Key"
+variable "runtime_service_account_email" {
+  description = "Cloud Functions ランタイム SA。空なら secret を許可しない。"
   type        = string
-  sensitive   = true
+  default     = ""
 }
 
-variable "openai_api_key" {
-  description = "OpenAI API Key"
+variable "ci_service_account_email" {
+  description = "配信ワークフローの SA。空なら secret を許可しない。"
   type        = string
-  sensitive   = true
+  default     = ""
+}
+
+variable "x_post_service_account_email" {
+  description = "X 投稿ワークフローの SA。空なら secret を許可しない。"
+  type        = string
+  default     = ""
 }
 

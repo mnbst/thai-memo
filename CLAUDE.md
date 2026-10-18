@@ -110,3 +110,4 @@ SQLite (`thai_memo.db`) with tables: `sentences`, `word_breakdowns`, `generation
 - Terraform IaC in `terraform/` for GCP resources (3環境: dev/tester/prod、backend configで切り替え)
 - Region: asia-northeast1 (Tokyo)
 - Go 関数は `gcloud functions deploy --gen2`、JS AuthトリガーはFirebase CLIで個別デプロイする。
+- Go 関数のデプロイには `--service-account=functions-runtime@<project>.iam.gserviceaccount.com` を必ず付ける（詳細は `functions/go/functions.go` 冒頭）。

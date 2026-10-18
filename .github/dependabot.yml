@@ -1,0 +1,7 @@
+# SHA 固定した Actions を Dependabot で更新する（タグの付け替えによる乗っ取り対策）。
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

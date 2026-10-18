@@ -7,6 +7,7 @@ apple_team_id                 = "5KTT2C466P"
 apple_key_id                  = "JGPGZZ5HRP"
 ci_service_account_email      = "github-actions-deployer@thai-memo-prod.iam.gserviceaccount.com"
 github_repo                   = "mnbst/thai-memo"
+github_allowed_refs           = ["refs/heads/main"]
 alert_email                   = "gcp.demo.776@gmail.com"
 billing_account               = "0189A7-F96D31-DD85EC"
 budget_amount                 = 10000

@@ -24,10 +24,9 @@ output "firebase_config" {
   sensitive   = true
 }
 
-output "github_actions_play_upload_key" {
-  description = "GitHub Actions Play アップロード用サービスアカウントキー (JSON) — GitHub Secret GOOGLE_PLAY_SERVICE_ACCOUNT_JSON にそのまま貼り付ける"
-  value       = base64decode(google_service_account_key.github_actions_play_upload.private_key)
-  sensitive   = true
+output "x_post_wif_provider" {
+  description = "X 投稿ワークフロー（post-daily-x.yml）の workload_identity_provider"
+  value       = length(google_iam_workload_identity_pool_provider.github_x_post) > 0 ? google_iam_workload_identity_pool_provider.github_x_post[0].name : ""
 }
 
 output "wif_provider" {
