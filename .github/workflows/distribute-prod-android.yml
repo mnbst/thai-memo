@@ -60,17 +60,21 @@ jobs:
             GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:${{ env.GCP_PROJECT }}/ci-google-play-service-account
 
       - name: Restore google-services.json
-        run: echo '${{ steps.secrets.outputs.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+        # secret は式でシェル本文に埋め込まず、環境変数で渡す（値に引用符や $() があっても実行されない）。
+        env:
+          GOOGLE_SERVICES_JSON: ${{ steps.secrets.outputs.GOOGLE_SERVICES_JSON }}
+        run: printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       - name: Restore keystore
+        env:
+          KEYSTORE_BASE64: ${{ steps.secrets.outputs.KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ steps.secrets.outputs.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ steps.secrets.outputs.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ steps.secrets.outputs.STORE_PASSWORD }}
         run: |
-          echo "${{ steps.secrets.outputs.KEYSTORE_BASE64 }}" | base64 --decode > android/app/thai-memo-release.jks
-          cat <<EOF > android/app/key.properties
-          keyAlias=${{ steps.secrets.outputs.KEY_ALIAS }}
-          keyPassword=${{ steps.secrets.outputs.KEY_PASSWORD }}
-          storeFile=thai-memo-release.jks
-          storePassword=${{ steps.secrets.outputs.STORE_PASSWORD }}
-          EOF
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/thai-memo-release.jks
+          printf 'keyAlias=%s\nkeyPassword=%s\nstoreFile=thai-memo-release.jks\nstorePassword=%s\n' \
+            "$KEY_ALIAS" "$KEY_PASSWORD" "$STORE_PASSWORD" > android/app/key.properties
 
       - name: Install dependencies
         run: flutter pub get
