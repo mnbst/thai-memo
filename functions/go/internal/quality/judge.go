@@ -158,7 +158,7 @@ var Aspects = append([]Aspect{
 		Question: "`thai_text` で、くだけた人称（มึง、กู、แก 等）を使う文の中に、改まった語・書き言葉（ยอดเยี่ยม、ดำเนินการ、สามารถ、ต้องการ、เนื่องจาก、อย่างไร、รับประทาน、ขอบพระคุณ 等）を混ぜているか",
 		Note:     "くだけた人称を使う文に、改まった語・書き言葉を混ぜていた。くだけた文には口語の語を使う"},
 	{ID: "trans_add", Label: "訳の加筆", Threshold: transAddThreshold, JAOnly: true,
-		Question: "`japanese_translation` に `thai_text` に無い情報（時制、場所、理由、括弧の補足）が足されているか"},
+		Question: "`japanese_translation` に `thai_text` に無い情報（時制、場所、理由）が足されているか。括弧の補足は含まない"},
 	{ID: "trans_drop", Label: "訳の欠落", Threshold: transDropThreshold, JAOnly: true,
 		Question: "`japanese_translation` から、`thai_text` にある目的・条件・否定・可能性・義務・譲歩を表す語（เพื่อ、เพื่อให้、ถ้า、ไม่、อาจจะ、ต้อง、ทั้งที่ など）の意味が抜けているか。「〜ために」を「〜し、」と並べただけの訳も抜けに含む",
 		Note:     "japanese_translation から、thai_text にある目的・条件・否定・可能性・義務・譲歩の意味が抜けていた。「〜ために」を「〜し、」と並べただけの訳も抜けに含む"},
@@ -171,9 +171,6 @@ var Aspects = append([]Aspect{
 	{ID: "trans_thai", Label: "訳にタイ文字", JAOnly: false,
 		Note:  "japanese_translation にタイ文字が残っていた。訳にはタイ文字を書かない",
 		Check: func(c Candidate) bool { return containsThai(c.JapaneseTranslation) }},
-	{ID: "trans_paren", Label: "訳の括弧補足", JAOnly: true,
-		Note:  "japanese_translation に括弧で補足を書いていた。括弧を使わずに訳す",
-		Check: func(c Candidate) bool { return strings.ContainsAny(c.JapaneseTranslation, "（(") }},
 	// 以下6つは rules.go（測定値もそちら）。
 	{ID: "trans_term", Label: "訳に文法用語",
 		Note:  "japanese_translation に品詞名・文法用語や角括弧を書いていた。対応する語が無いものは訳さずに落とす",
@@ -323,7 +320,7 @@ func (j *Judge) Review(ctx context.Context, batch []Candidate) (Result, error) {
 	return j.review(ctx, batch, Aspects)
 }
 
-// review は list の観点で batch を判定する（Review / ReviewPool の本体）。
+// review は list の観点で batch を判定する（Review / ReviewAll / ReviewPool の本体）。
 func (j *Judge) review(ctx context.Context, batch []Candidate, list []Aspect) (Result, error) {
 	var res Result
 	var errs []error

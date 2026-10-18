@@ -59,7 +59,7 @@ type SentenceGenerator interface {
 	) (*Sentence, error)
 }
 
-// CheckInput は判定1回ぶんの入力。UID・Topic・Tier・Stage は記録用。
+// CheckInput は判定1回ぶんの入力。UID・Topic・Tier は記録用。
 type CheckInput struct {
 	UID      string
 	Sentence *Sentence
@@ -67,13 +67,11 @@ type CheckInput struct {
 	Topic    string
 	Tier     string
 	Lang     lang.Lang
-	// Stage は "first"（生成直後）か "retry"（作り直し後）。
-	Stage string
 }
 
 // CheckResult は判定1回ぶんの結果。Notes が空なら合格。
 type CheckResult struct {
-	// Notes は差し戻しプロンプトへ渡す指摘。
+	// Notes は引っかかった観点の指摘。
 	Notes []string
 	// Reason は閾値を超えた観点と確率（例: "共起 0.62"）。
 	Reason string
@@ -95,23 +93,13 @@ type Checker interface {
 // nil は「判定していない／判定に失敗した」で、プールには入れない。
 type Quality struct {
 	Passed bool
-	// Retried は不合格で作り直した文かどうか。Passed はその作り直し後の判定。
-	Retried bool
-	Reason  string
-	Scores  map[string]float64
-	Model   string
+	Reason string
+	Scores map[string]float64
+	Model  string
 }
 
-func qualityFrom(r CheckResult, retried bool) *Quality {
-	return &Quality{Passed: r.Passed(), Retried: retried, Reason: r.Reason, Scores: r.Scores, Model: r.Model}
-}
-
-// notesGenerator は差し戻しの指摘つきで作り直せる生成器。実装は Service。
-type notesGenerator interface {
-	GenerateSentenceWithNotes(
-		ctx context.Context, params map[string]any, isPremium bool,
-		targetWords []string, estimatedVocab int, l lang.Lang, notes []string,
-	) (*Sentence, error)
+func qualityFrom(r CheckResult) *Quality {
+	return &Quality{Passed: r.Passed(), Reason: r.Reason, Scores: r.Scores, Model: r.Model}
 }
 
 // Producer は単語選定からキャッシュ／LLM 生成までをまとめた生成コア。
@@ -147,17 +135,15 @@ type ProduceRequest struct {
 	// SelectRetry は CacheOnly でキャッシュミスしたときの引き直し回数。
 	SelectRetry int
 	Lang        lang.Lang
-	// QualityCheck が真なら LLM 生成した文を Checker にかけ、不合格なら指摘を
-	// 付けて1回だけ作り直し、作り直した文をもう一度判定する（2026-09-25 の
-	// 実測で作り直し後の合格 7/8）。作り直しても不合格（作り直しの生成に失敗
-	// した場合を含む）の文はセットから外す（ErrQualityRejected）。セットが
-	// n 本に満たなくなるのは許容する（2026-09-30。語の用法の罠で 28/120 が
-	// 作り直し後も不合格で、その多くは誤用のままだった）。
+	// QualityCheck が真なら LLM 生成した文を Checker に1回だけかけ、不合格の文は
+	// 作り直さずセットから外す（ErrQualityRejected）。この判定が表示とプールの
+	// 共通の基準で、Jev は1文につきここでしか呼ばない。セットが n 本に満たなく
+	// なるのは許容する。
 	// 判定そのものに失敗したときは元の文で続ける（Quality=nil、プールに入らない）。
 	QualityCheck bool
 }
 
-// ErrQualityRejected は作り直しても品質判定に通らず、文をセットから外したこと。
+// ErrQualityRejected は品質判定に通らず、文をセットから外したこと。
 // セットの全部が外れたときだけ ProduceBatch のエラーとして返る。
 var ErrQualityRejected = errors.New("sentence rejected by quality check")
 
@@ -439,9 +425,9 @@ func (p *Producer) generate(
 			}
 			var q *Quality
 			if req.QualityCheck {
-				s, q = p.checkAndRetry(ctx, req, callParams, pk, s)
+				q = p.check(ctx, req, pk, s)
 				if q != nil && !q.Passed {
-					log.Printf("produce: dropped after quality retry key_word=%s reason=%s", pk.Word, q.Reason)
+					log.Printf("produce: dropped by quality check key_word=%s reason=%s", pk.Word, q.Reason)
 					errs[i] = fmt.Errorf("%w: key_word=%s", ErrQualityRejected, pk.Word)
 					return
 				}
@@ -471,40 +457,21 @@ func (p *Producer) generate(
 	return out, firstErr
 }
 
-// checkAndRetry は s を判定し、不合格なら指摘つきで1回だけ作り直して判定し直す。
+// check は s を1回だけ判定する。
 //
 // 返す Quality が nil なのは、判定器が無い・判定に失敗したとき（プールに入れない）。
-// 作り直しの生成に失敗したら元の文を不合格のまま返す。どの失敗でも生成・配信は止めない。
-func (p *Producer) checkAndRetry(
-	ctx context.Context, req ProduceRequest, params map[string]any, pk TargetWord, s *Sentence,
-) (*Sentence, *Quality) {
-	rg, ok := p.Service.(notesGenerator)
-	if p.Checker == nil || !ok {
-		return s, nil
+// どの失敗でも生成・配信は止めない。
+func (p *Producer) check(ctx context.Context, req ProduceRequest, pk TargetWord, s *Sentence) *Quality {
+	if p.Checker == nil {
+		return nil
 	}
-	in := CheckInput{
+	r, err := p.Checker.Check(ctx, CheckInput{
 		UID: req.UID, Sentence: s, KeyWord: pk.Word, Topic: pk.Topic,
-		Tier: GenerationTier(req.UsePremiumSpec), Lang: req.Lang, Stage: "first",
-	}
-	first, err := p.Checker.Check(ctx, in)
+		Tier: GenerationTier(req.UsePremiumSpec), Lang: req.Lang,
+	})
 	if err != nil {
 		log.Printf("produce: quality check failed key_word=%s: %v", pk.Word, err)
-		return s, nil
+		return nil
 	}
-	if first.Passed() {
-		return s, qualityFrom(first, false)
-	}
-	retried, err := rg.GenerateSentenceWithNotes(
-		ctx, params, req.UsePremiumSpec, []string{pk.Word}, req.EstimatedVocab, req.Lang, first.Notes)
-	if err != nil {
-		log.Printf("produce: quality retry failed key_word=%s: %v", pk.Word, err)
-		return s, qualityFrom(first, false)
-	}
-	in.Sentence, in.Stage = retried, "retry"
-	second, err := p.Checker.Check(ctx, in)
-	if err != nil {
-		log.Printf("produce: quality recheck failed key_word=%s: %v", pk.Word, err)
-		return retried, nil
-	}
-	return retried, qualityFrom(second, true)
+	return qualityFrom(r)
 }

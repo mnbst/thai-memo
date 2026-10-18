@@ -14,11 +14,11 @@ import (
 
 // qualityChecker は quality.Judge（Jev）を sentence.Checker として使う包み。
 //
-// 生成直後に1文ずつ判定する。Jev は1文 0.5 秒前後（p95 0.6 秒）で、
-// 不合格なら Producer が指摘つきで1回作り直し、もう一度ここを通す。
+// 生成直後に1文ずつ、1回だけ判定する（Aspects と PoolAspects の両方）。
+// Jev は1文 0.5 秒前後（p95 0.6 秒）。不合格の文は作り直さずセットから外れ、
+// プールにも入らない。
 //
-// 不合格の判定はそのつど sentence_flags へ1件書く（stage=first / retry）。
-// stage=retry の記録が「作り直しても不合格でプールに入らなかった文」になる。
+// 不合格の判定はそのつど sentence_flags へ1件書く。
 type qualityChecker struct {
 	judge *quality.Judge
 	// db が nil なら sentence_flags へは書かない（判定だけ行う）。
@@ -54,20 +54,20 @@ func (c *qualityChecker) Check(ctx context.Context, in sentence.CheckInput) (sen
 		Lang:                in.Lang,
 		CreatedAt:           time.Now(),
 	}
-	res, err := c.judge.Review(ctx, []quality.Candidate{cand})
+	res, err := c.judge.ReviewAll(ctx, []quality.Candidate{cand})
 	if err != nil {
 		return sentence.CheckResult{}, err
 	}
 	if len(res.Verdicts) == 0 {
-		// 合格も1行残す。作り直し率（flagged / checked）をログから数えるため。
-		log.Printf("qualityCheck: passed stage=%s key_word=%s", in.Stage, in.KeyWord)
+		// 合格も1行残す。除外率（flagged / checked）をログから数えるため。
+		log.Printf("qualityCheck: passed key_word=%s", in.KeyWord)
 		// 合格時は Verdict が無いので確率は持たない（保存は passed だけで足りる）。
 		return sentence.CheckResult{Model: c.judge.Model}, nil
 	}
 	v := res.Verdicts[0]
-	log.Printf("qualityCheck: flagged stage=%s key_word=%s reason=%s thai=%q",
-		in.Stage, in.KeyWord, v.Reason, cand.ThaiText)
-	c.writeFlag(ctx, cand, v, in.Stage)
+	log.Printf("qualityCheck: flagged key_word=%s reason=%s thai=%q",
+		in.KeyWord, v.Reason, cand.ThaiText)
+	c.writeFlag(ctx, cand, v)
 	return sentence.CheckResult{
 		Notes:  v.RetryNotes(),
 		Reason: v.Reason,
@@ -81,13 +81,12 @@ func (c *qualityChecker) Check(ctx context.Context, in sentence.CheckInput) (sen
 // doc ID は自動採番。生成時は同じ文を二度判定しない（バッチの流し直しが無い）ので、
 // 固定 ID で重複を防ぐ必要がない。例文 doc はこの時点ではまだ書かれていない。
 func (c *qualityChecker) writeFlag(
-	ctx context.Context, cand quality.Candidate, v quality.Verdict, stage string,
+	ctx context.Context, cand quality.Candidate, v quality.Verdict,
 ) {
 	if c.db == nil {
 		return
 	}
 	doc := quality.FlagDoc(cand, v, c.judge.Model, time.Now())
-	doc["stage"] = stage
 	doc["lang"] = string(cand.Lang)
 	if _, _, err := c.db.Collection("sentence_flags").Add(ctx, doc); err != nil {
 		log.Printf("qualityCheck: write flag failed: %v", err)

@@ -105,11 +105,10 @@ func (s *Sentence) BuildSentenceDoc(m DocMeta) map[string]any {
 	}
 	if q := m.Quality; q != nil {
 		doc["quality"] = map[string]any{
-			"passed":  q.Passed,
-			"retried": q.Retried,
-			"reason":  q.Reason,
-			"scores":  q.Scores,
-			"model":   q.Model,
+			"passed": q.Passed,
+			"reason": q.Reason,
+			"scores": q.Scores,
+			"model":  q.Model,
 		}
 	}
 	return doc

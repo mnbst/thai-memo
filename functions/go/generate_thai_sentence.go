@@ -261,7 +261,7 @@ func runGenerateThaiSentence(
 		EstimatedVocab: estimatedVocab,
 		TestedVocab:    intValue(userData["vocab_test_vocab"]),
 		Lang:           l,
-		// LLM 生成分を判定し、不合格なら作り直す（待ち時間 +0.5 秒、作り直し時 +5 秒前後）。
+		// LLM 生成分を1回判定し、不合格の文はセットから外す（待ち時間 +0.5 秒前後）。
 		QualityCheck: generationQualityCheck(),
 	}, count)
 	if err != nil {
