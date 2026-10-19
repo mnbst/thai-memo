@@ -6,7 +6,9 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.speech.tts.TextToSpeech
+import com.google.firebase.analytics.FirebaseAnalytics
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -15,6 +17,8 @@ class MainActivity: FlutterActivity() {
     private lateinit var speechCapture: SpeechCaptureChannel
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Manifest で止めてある収集を、Test Lab（Play のプレリリースレポート）以外で有効にする。
+        FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(!isTestLab())
         super.onCreate(savedInstanceState)
         createNotificationChannel()
     }
@@ -36,6 +40,9 @@ class MainActivity: FlutterActivity() {
             }
         }
     }
+
+    private fun isTestLab(): Boolean =
+        Settings.System.getString(contentResolver, "firebase.test.lab") == "true"
 
     /** 読み上げエンジンの音声データのダウンロード画面。無ければ読み上げの設定画面。 */
     private fun openVoiceInstaller() {
