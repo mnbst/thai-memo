@@ -8,6 +8,8 @@
 //   timezone                  … IANA名。ローカル時刻の判定に使う
 //   preferred_generation_hour … 配信希望時刻（時のみ）
 //   notify_utc_hour           … 上記2つから導く配信対象クエリ用の絞り込みキー
+//   fcm_platform              … 最後に通知登録した端末のOS（ios/android）。集計用で、
+//                               トークンが消えても残す
 //
 // 通知本文は例文そのものだが、表示はペイロードではなく Firestore から行う
 // （DailySentenceService）。通知を開かなくても例文が手元に揃うようにするため。
@@ -19,6 +21,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+
+import '../core/platform/store_platform.dart';
 
 /// 配信希望時刻のデフォルト（ユーザーのローカル10時）
 const int kDefaultGenerationHour = 10;
@@ -387,6 +391,7 @@ class PushNotificationService {
       {
         'daily_reminder_enabled': true,
         'fcm_token': token,
+        'fcm_platform': StorePlatform.current.id,
         'timezone': await _resolveTimezone(),
       },
       SetOptions(merge: true),
