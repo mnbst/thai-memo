@@ -1,6 +1,8 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ContactFormScreen extends StatefulWidget {
   static const routeName = 'contact_form';
@@ -79,6 +81,23 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // アンケートは日本語フォームしかないので、日本語のときだけ出す。
+              if (Localizations.localeOf(context).languageCode == 'ja') ...[
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: ListTile(
+                    leading: const Icon(Icons.assignment_outlined),
+                    title: Text(L10n.of(context).contactSurveyTitle),
+                    subtitle: Text(L10n.of(context).contactSurveySubtitle),
+                    trailing: const Icon(Icons.open_in_new, size: 18),
+                    onTap: () => launchUrl(
+                      Uri.parse(AppConfig.feedbackSurveyUrl),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
@@ -86,23 +105,20 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
                   border: const OutlineInputBorder(),
                 ),
                 textInputAction: TextInputAction.next,
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? L10n.of(context).contactNameRequired
-                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: L10n.of(context).contactEmail,
+                  helperText: L10n.of(context).contactAnonymousHint,
+                  helperMaxLines: 2,
                   border: const OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return L10n.of(context).contactEmailRequired;
-                  }
+                  if (v == null || v.trim().isEmpty) return null;
                   if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v.trim())) {
                     return L10n.of(context).contactEmailInvalid;
                   }

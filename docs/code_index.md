@@ -189,6 +189,9 @@ test/screenshots/guide_screenshot.dart
 test/screenshots/settings_screenshot.dart
 設定画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。プラン（trial/free/premium）・言語・高さを dart-define で切り替える。
 
+test/screenshots/contact_form_screenshot.dart
+ご意見・お問い合わせ画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。言語を dart-define で切り替える。
+
 lib/presentation/screens/ranking_screen.dart
 語彙スコアの全期間ランキング。自分の順位カードを上に置き、その下に上位100人を張り出す。表示名はサーバー採番のタイ人名。
 
@@ -540,7 +543,7 @@ functions/go/unverified_limit.go
 App Check を通らない LLM 呼び出しの日次回数上限（1人20回・全体200回、JST日付のカウンター）。
 
 functions/go/send_contact_email.go
-sendContactEmail の Go 版。Secret Managerのgmail-app-passwordでGmail SMTP送信。
+sendContactEmail の Go 版。Secret Managerのgmail-app-passwordでGmail SMTP送信。メール未入力は匿名扱い（ユーザーIDを載せない）。
 
 functions/go/internal/tier/tier.go
 tier手動付与の中核（applyTier）。tierService.ts の移植。tier_grantsに監査ログを残す。

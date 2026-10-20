@@ -578,7 +578,7 @@ class L10nJa extends L10n {
   String get settingsTerms => '利用規約';
 
   @override
-  String get settingsContact => 'お問い合わせ';
+  String get settingsContact => 'ご意見・お問い合わせ';
 
   @override
   String get settingsLifetimeMigration => '買い切りプランへ移行';
@@ -1626,34 +1626,37 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get contactSent => 'お問い合わせを送信しました。ありがとうございます。';
+  String get contactSent => '送信しました。ありがとうございます。';
 
   @override
   String get contactFailed => '送信に失敗しました。しばらくしてから再度お試しください。';
 
   @override
-  String get contactName => 'お名前';
+  String get contactName => 'お名前（任意）';
 
   @override
-  String get contactNameRequired => 'お名前を入力してください';
-
-  @override
-  String get contactEmail => 'メールアドレス';
-
-  @override
-  String get contactEmailRequired => 'メールアドレスを入力してください';
+  String get contactEmail => 'メールアドレス（任意）';
 
   @override
   String get contactEmailInvalid => '正しいメールアドレスを入力してください';
 
   @override
-  String get contactBody => 'お問い合わせ内容';
+  String get contactBody => 'ご意見・お問い合わせ内容';
 
   @override
-  String get contactBodyRequired => 'お問い合わせ内容を入力してください';
+  String get contactBodyRequired => '内容を入力してください';
 
   @override
   String get contactSubmit => '送信する';
+
+  @override
+  String get contactAnonymousHint => 'メールアドレスを入れずに送ると匿名で届きます。その場合は返信できません。';
+
+  @override
+  String get contactSurveyTitle => 'アンケートに答える（1分）';
+
+  @override
+  String get contactSurveySubtitle => 'アプリの改善にご協力ください';
 
   @override
   String get consonantClassHigh => '高子音';
