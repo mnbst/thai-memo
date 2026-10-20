@@ -573,8 +573,8 @@ resource "google_cloud_scheduler_job" "post_daily_x" {
   region      = var.region
   description = "X への毎日投稿ワークフローを起動する"
 
-  # 06:47 JST。毎日例文の配信と同じ朝の時間帯。
-  schedule  = "47 6 * * *"
+  # 07:00 JST。x_post_extra_slots と合わせて 5 時間おきに並べる。
+  schedule  = "0 7 * * *"
   time_zone = "Asia/Tokyo"
 
   attempt_deadline = "30s"
