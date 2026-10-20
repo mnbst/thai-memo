@@ -1156,7 +1156,7 @@ abstract class L10n {
   /// No description provided for @settingsContact.
   ///
   /// In ja, this message translates to:
-  /// **'お問い合わせ'**
+  /// **'ご意見・お問い合わせ'**
   String get settingsContact;
 
   /// No description provided for @settingsLifetimeMigration.
@@ -2897,7 +2897,7 @@ abstract class L10n {
   /// No description provided for @contactSent.
   ///
   /// In ja, this message translates to:
-  /// **'お問い合わせを送信しました。ありがとうございます。'**
+  /// **'送信しました。ありがとうございます。'**
   String get contactSent;
 
   /// No description provided for @contactFailed.
@@ -2909,26 +2909,14 @@ abstract class L10n {
   /// No description provided for @contactName.
   ///
   /// In ja, this message translates to:
-  /// **'お名前'**
+  /// **'お名前（任意）'**
   String get contactName;
-
-  /// No description provided for @contactNameRequired.
-  ///
-  /// In ja, this message translates to:
-  /// **'お名前を入力してください'**
-  String get contactNameRequired;
 
   /// No description provided for @contactEmail.
   ///
   /// In ja, this message translates to:
-  /// **'メールアドレス'**
+  /// **'メールアドレス（任意）'**
   String get contactEmail;
-
-  /// No description provided for @contactEmailRequired.
-  ///
-  /// In ja, this message translates to:
-  /// **'メールアドレスを入力してください'**
-  String get contactEmailRequired;
 
   /// No description provided for @contactEmailInvalid.
   ///
@@ -2939,13 +2927,13 @@ abstract class L10n {
   /// No description provided for @contactBody.
   ///
   /// In ja, this message translates to:
-  /// **'お問い合わせ内容'**
+  /// **'ご意見・お問い合わせ内容'**
   String get contactBody;
 
   /// No description provided for @contactBodyRequired.
   ///
   /// In ja, this message translates to:
-  /// **'お問い合わせ内容を入力してください'**
+  /// **'内容を入力してください'**
   String get contactBodyRequired;
 
   /// No description provided for @contactSubmit.
@@ -2953,6 +2941,24 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'送信する'**
   String get contactSubmit;
+
+  /// No description provided for @contactAnonymousHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'メールアドレスを入れずに送ると匿名で届きます。その場合は返信できません。'**
+  String get contactAnonymousHint;
+
+  /// No description provided for @contactSurveyTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'アンケートに答える（1分）'**
+  String get contactSurveyTitle;
+
+  /// No description provided for @contactSurveySubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'アプリの改善にご協力ください'**
+  String get contactSurveySubtitle;
 
   /// No description provided for @consonantClassHigh.
   ///
