@@ -14,7 +14,7 @@
 | `build_media.py` | 操作フレームに音声を載せて mp4 にする |
 | `post_to_x.py` | X に投稿し、投稿済みを GCS に記録する |
 
-実行は `.github/workflows/post-daily-x.yml`（毎日 06:47 JST。`x_post_extra_slots` で枠を足せる。prod は 15:00 仕事・18:00 恋愛）。
+実行は `.github/workflows/post-daily-x.yml`（毎日 06:47 JST。`x_post_extra_slots` で枠を足せる。prod は 10:00 タイ生活・15:00 仕事・18:00 恋愛）。
 
 ## 例文のソース
 
