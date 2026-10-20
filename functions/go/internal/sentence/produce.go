@@ -416,6 +416,11 @@ func (p *Producer) generate(
 				callParams[k] = v
 			}
 			callParams["topic"] = pk.Topic
+			if pk.Matched {
+				// 選定時に場面合致で決めたショットをそのまま使う（L4 で引き直さない）。
+				callParams[sceneMatchedParam] = true
+				callParams[shotIDParam] = pk.ShotID
+			}
 
 			s, err := p.Service.GenerateSentence(
 				ctx, callParams, req.UsePremiumSpec, []string{pk.Word}, req.EstimatedVocab, req.Lang)

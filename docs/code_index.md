@@ -543,7 +543,7 @@ functions/go/unverified_limit.go
 App Check を通らない LLM 呼び出しの日次回数上限（1人20回・全体200回、JST日付のカウンター）。
 
 functions/go/send_contact_email.go
-sendContactEmail の Go 版。Secret Managerのgmail-app-passwordでGmail SMTP送信。
+sendContactEmail の Go 版。Secret Managerのgmail-app-passwordでGmail SMTP送信。メール未入力は匿名扱い（ユーザーIDを載せない）。
 
 functions/go/internal/tier/tier.go
 tier手動付与の中核（applyTier）。tierService.ts の移植。tier_grantsに監査ログを残す。
@@ -759,13 +759,13 @@ functions/go/internal/quizgen/wordorder.go
 並び替えの組み立て。key_word を含む連続した4語（タイ文字のみ・重複なし）を切り出して混ぜ、枠の外の本文と読みを持たせる。
 
 functions/go/quiz_beginner.go
-入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値100未満のユーザーには出題できる問題を全部入門用にし、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
+入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値・語彙スコアがともに100未満のユーザーには出題できる問題を全部入門用にし（どちらかが越えたらユーザー doc の quiz_advanced を立てて卒業、片方向）、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
 
 functions/go/quiz_spelling.go
 入門用の形式のひとつ、綴り4択への差し替え。回答から部品データ（users/{uid}/units）を更新するのもここ。
 
 functions/go/quiz_word_order.go
-並び替え（word_order）をまとめクイズに1問差し込む層。穴埋めのままの問題から選び、入門用の対象者にはタイルの読みを最初から見せる。モデルは呼ばない。
+並び替え（word_order）をまとめクイズに差し込む層。入門用の卒業者は問題数の半分（5問なら2）、それ以外は1問。穴埋めのままの問題から選び、入門用の対象者にはタイルの読みを最初から見せる。モデルは呼ばない。
 
 functions/go/quiz_word_order_test.go
 並び替えへの差し替えが穴埋め1問だけに効くこと、モデルを呼ばずに問題を作れることのテスト。
@@ -932,6 +932,21 @@ bl_drama.py とプロンプト断片・データを突き合わせる差分テ�
 functions/go/internal/themeshots/themeshots.go
 BL以外の全テーマの参考例文ブロック。語との近さ（場面ごとに標準化した z）の重みつきランダムで場面を選んだ1文の選出と、テーマ別の代わりのやり取りを含む断片の組み立て。
 
+functions/go/internal/themeshots/match.go
+premium の場面合致（SceneMatch）。BLを含む全テーマの場面を、場面 z とショット単体 z の両方で足切りし、テーマ→場面→ショットの順に一様に選ぶ。
+
+functions/go/internal/themeshots/match_test.go
+場面合致の足切り（場面 z・ショット z）、テーマ単位の一様抽選、BL を含むこと、ショット ID からの断片のテスト。
+
+functions/go/internal/sentence/scene_match_test.go
+premium の場面合致によるテーマ・ショットの割り当て、ショット無しの扱い（会話へ戻す・BL はテーマ行を出す）のテスト。
+
+functions/go/internal/uvm/lean_test.go
+テーマ寄せ（帯全体でテーマに合う未出語を先に選ぶ）のテスト。
+
+functions/go/internal/uvm/themesim_test.go
+テーマ寄せの90日シミュレーション。合う語の割合・寄せる範囲（帯全体／est 以下）ごとの est と素通りを比べる。
+
 functions/go/internal/themeshots/data.go
 BL以外15テーマの参考例文2027件と270場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
 
@@ -948,7 +963,7 @@ functions/go/internal/sentence/topic_group_test.go
 まとめたテーマ（タイ暮らし・タイ旅行）の中身の検証、語ごとの解決、在庫を中身の他テーマから引くフォールバックのテスト。
 
 functions/go/internal/uvm/session.go
-key_word候補のランク帯算出・重み付き抽選・テーマ未指定時のテーマ決定（uvm.py:get_session_words）。
+key_word候補のランク帯算出・重み付き抽選・テーマ寄せ・テーマ未指定時のテーマ決定（uvm.py:get_session_words）。
 
 functions/go/internal/uvm/excluded.go
 key_wordにしない語（単独では古語・方言・単位でしか使わない語）の除外リスト。
@@ -1108,6 +1123,9 @@ git履歴に露出したシークレット（Gemini/OpenAIキー、OAuth secret�
 
 docs/public_repo_checklist.md
 リポジトリpublic化の前提作業（履歴パージ、stateバケット堅牢化、WIF制約、GitHub設定）。
+
+docs/pool_fix_log.md
+prod 例文プールを手で直した（削除・訳・空白）・見送った履歴。
 
 ---
 

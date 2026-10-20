@@ -162,6 +162,8 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	}
 	defer releaseOperationLease(ctx, db, userRef, "quiz", leaseToken)
 	userData := userDocData(ctx, userRef)
+	advanced := quizAdvanced(userData)
+	latchQuizAdvanced(ctx, userRef, uid, userData)
 
 	// トライアル中も premium と同じ品質で出す。
 	service, err := newQuizService(ctx, uid, premium.IsEffectivePremium(userData, time.Now()), l)
@@ -171,17 +173,18 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 
 	// SRS ベースでリアルタイムに復習対象例文を選出
 	filter := quizKeyWordFilter(ctx, userData)
+	bandWords := quizBandWords(ctx, userData)
 	sel := newSelection(sentence.SetSizeFor(userData))
 	// 語彙テストの測定値で絞り、空なら絞らずにやり直す（1周ぶん）。
 	selectPass := func(viewedOnly bool) error {
 		if err := selectSentencesBySRS(
-			ctx, db, uid, nowJST(), filter, viewedOnly, sel); err != nil {
+			ctx, db, uid, nowJST(), filter, bandWords, viewedOnly, sel); err != nil {
 			return err
 		}
 		if len(sel.sentences) == 0 && filter != nil {
 			// 測定値より上の例文がまだ無いユーザーを無出題にしない。
 			log.Printf("quiz_vocab_floor_filter_empty uid=%s", uid)
-			return selectSentencesBySRS(ctx, db, uid, nowJST(), nil, viewedOnly, sel)
+			return selectSentencesBySRS(ctx, db, uid, nowJST(), nil, bandWords, viewedOnly, sel)
 		}
 		return nil
 	}
@@ -212,7 +215,7 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	}
 
 	sources := buildQuizSources(selected, sel.limit)
-	if beginnerQuizEnabled(userData) {
+	if !advanced {
 		words := make([]string, 0, len(sources))
 		for _, source := range sources {
 			words = append(words, source.Seed.KeyWord)
@@ -224,7 +227,7 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	}
 	if supportsQuizFormat(in.SupportedQuizFormats, quizgen.FormatWordOrder) {
 		rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-		applied := applyWordOrder(sources, l, beginnerQuizEnabled(userData), rnd)
+		applied := applyWordOrder(sources, wordOrderLimit(advanced, len(sources)), l, !advanced, rnd)
 		log.Printf("word_order_applied uid=%s applied=%d of=%d", uid, applied, len(sources))
 	}
 
@@ -353,6 +356,24 @@ func quizKeyWordFilter(ctx context.Context, userData map[string]any) keyWordFilt
 		return nil
 	}
 	return vocabFloorFilter(freqRank, floor)
+}
+
+// quizBandWords はまとめクイズのスコア枠で見る語（uvm.QuizScoreBand）を返す。
+// 正解が estimated_vocab に効く語を先に出すために使う。
+// 順位表を読めなければ nil（スコア枠なし）にする。
+func quizBandWords(ctx context.Context, userData map[string]any) []string {
+	freqRank, err := uvm.GetFreqRank(ctx, fbapp.ProjectID())
+	if err != nil || len(freqRank) == 0 {
+		log.Printf("quiz_band_words_unavailable error=%v", err)
+		return nil
+	}
+	low, high := uvm.QuizScoreBand(userData, time.Now())
+	cands := uvm.BandCandidates(freqRank, low, high)
+	words := make([]string, len(cands))
+	for i, c := range cands {
+		words[i] = c.Word
+	}
+	return words
 }
 
 // vocabFloorFilter は rank が floor 以上の語だけを通す。

@@ -25,6 +25,10 @@ type ResolvedParams struct {
 	// 静的コーパスの生成だけが使う。コーパスの長さはターゲット語の頻度ランクで
 	// 決まり、配信時の estimated_vocab では決まらないため。
 	LengthHint string
+	// SceneMatched は選定時に場面合致でショットを決めた回（premium）。
+	// ShotID が空ならショット無し。
+	SceneMatched bool
+	ShotID       string
 }
 
 // DramaSection は BL ドラマ回の専用ブロック。
@@ -37,6 +41,9 @@ type DramaSection struct {
 	// NameKana は登場人物の名前（タイ文字・英字）→ カタカナ。日本語の使い方・文化メモに
 	// 残った名前を生成後に置き換える（Request.NameKana へ渡す）。
 	NameKana map[string]string
+	// Scene と ShotID は付けたショットの場面と ID。例文 doc に記録して分布を測る。
+	Scene  string
+	ShotID string
 }
 
 // BuildPrompt はプロンプトを構築する（free/premium 共通）。
@@ -91,7 +98,9 @@ func BuildPrompt(
 		subThemeLine = fmt.Sprintf("- サブテーマ: %s\n", subTheme)
 	}
 
-	isDrama := topic == Topics[15]
+	// 場面合致で BL にショットが付かなかった回は、ドラマのブロックが無いので
+	// ほかのテーマと同じくテーマ・時点・関係の行を出す。
+	isDrama := topic == Topics[15] && !(resolved.SceneMatched && drama.Context == "")
 	var topicLine string
 	switch {
 	case isDrama:
@@ -103,22 +112,17 @@ func BuildPrompt(
 		relation = ""
 		medium = Media[0]
 	case topic != "":
-		label := topic
-		if drama.Context != "" {
-			// 参考例文の回はカッコ内の下位項目（辛さ調整、アレルギー…）を出さない。
-			// 出すと場面よりそちらが効き、どの場面を渡しても同じ話題に寄った。
-			label, _, _ = strings.Cut(topic, "（")
-		}
-		topicLine = fmt.Sprintf("- テーマ: %s\n", label)
+		topicLine = fmt.Sprintf("- テーマ: %s\n", TopicLabel(topic))
 	default:
 		// テーマ未確定。候補を列挙してターゲット単語に合うものを選ばせる。
 		// 選択肢を閉じることで estimated_vocab のレベル別ゲートは維持される。
 		// BLドラマだけは除く。専用ブロックがサーバー側の topic 確定を
 		// 前提にしており、LLM が選んでも発火しない。
+		// 返ってきた名前は canonicalizeTopic が正式名へ戻す。
 		var opts []string
 		for _, t := range resolved.TopicOptions {
 			if t != Topics[15] {
-				opts = append(opts, t)
+				opts = append(opts, TopicLabel(t))
 			}
 		}
 		topicLine = "- テーマ: 次から1つ選ぶ（ターゲット単語が最も自然に収まるもの）\n" +

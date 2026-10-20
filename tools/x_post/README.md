@@ -14,7 +14,7 @@
 | `build_media.py` | 操作フレームに音声を載せて mp4 にする |
 | `post_to_x.py` | X に投稿し、投稿済みを GCS に記録する |
 
-実行は `.github/workflows/post-daily-x.yml`（毎日 07:00 JST）。
+実行は `.github/workflows/post-daily-x.yml`（毎日 06:47 JST。`x_post_extra_slots` で枠を足せる。prod は 15:00 仕事・18:00 恋愛）。
 
 ## 例文のソース
 
@@ -23,7 +23,7 @@
 同じ候補から抽選して投稿を止めない。テーマに合う候補が無ければ投稿しない。
 
 テーマは Cloud Scheduler の起動リクエスト（`inputs.themes`）で決める。
-`タイ旅行` `タイ生活` `恋愛` `BLドラマ` をカンマ区切りで並べ、その中から毎日1つ抽選する
+`タイ旅行` `タイ生活` `恋愛` `BLドラマ` `仕事` をカンマ区切りで並べ、その中から毎日1つ抽選する
 （空なら全部）。変えるときは `terraform/prod.tfvars` の `x_post_themes` を直して
 `terraform apply` するか、コンソールでジョブの本文を直す。プッシュは要らない。
 

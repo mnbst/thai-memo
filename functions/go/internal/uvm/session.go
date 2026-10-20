@@ -218,6 +218,26 @@ func (s *SessionSelector) weightedPick(weights []float64) int {
 }
 
 // SelectWeighted は weights に従って非復元で count 件引く（引いた添字を返す）。
+// selectLeaning は prefer が真の未出語を先に、残りを未出語から選ぶ。
+// どちらの中でも重みは ZeroPWeights（低ランク優先）のまま。
+func (s *SessionSelector) selectLeaning(
+	zeroP []Candidate, prefer func(string) bool, count int,
+) []Candidate {
+	var lean, rest []Candidate
+	for _, c := range zeroP {
+		if prefer(c.Word) {
+			lean = append(lean, c)
+		} else {
+			rest = append(rest, c)
+		}
+	}
+	picked := s.SelectWeighted(lean, ZeroPWeights(lean), count)
+	if len(picked) < count && len(rest) > 0 {
+		picked = append(picked, s.SelectWeighted(rest, ZeroPWeights(rest), count-len(picked))...)
+	}
+	return picked
+}
+
 func (s *SessionSelector) SelectWeighted(cands []Candidate, weights []float64, count int) []Candidate {
 	pool := append([]Candidate(nil), cands...)
 	w := append([]float64(nil), weights...)
@@ -270,6 +290,14 @@ type SessionRequest struct {
 	// TestedVocab は語彙テストの測定値（原点）。帯の下端はここより下へ行かない。
 	// 未受験は 0 で、その場合の帯は従来どおり。
 	TestedVocab int
+	// Prefer はテーマ寄せ（ThemeLean）。nil でなければ、帯の未出語のうち
+	// Prefer が真の語を先に選ぶ。est 以下だけに寄せると前方の語がほぼ出ず
+	// est が進まない。帯全体に寄せると素通りは増える（themesim_test.go。
+	// 真値350・合う語18%で 36→113 語）が、テーマ指定時の進みを優先する。
+	Prefer func(word string) bool
+	// SkipTopicMatch が真なら、テーマ未指定でも FindBestTopic でテーマを決めない
+	// （呼び出し側が場面合致でテーマを決める）。
+	SkipTopicMatch bool
 }
 
 // GetSessionWords は統合スキャン方式でセッション単語を選定する
@@ -338,7 +366,9 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	var selected []Candidate
-	if len(zeroP) > 0 {
+	if len(zeroP) > 0 && req.Prefer != nil {
+		selected = s.selectLeaning(zeroP, req.Prefer, req.Count)
+	} else if len(zeroP) > 0 {
 		selected = s.SelectWeighted(zeroP, ZeroPWeights(zeroP), req.Count)
 	} else {
 		selected = s.selectUnknown(candidates, pMap, req.Count)
@@ -378,7 +408,7 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	chosenTopic := topic
-	if chosenTopic == "" && s.Emb != nil && len(words) > 0 {
+	if chosenTopic == "" && !req.SkipTopicMatch && s.Emb != nil && len(words) > 0 {
 		// 閾値未達（＝key_word がどのテーマとも結びつかない機能語など）は
 		// "" のまま返し、テーマを LLM に決めさせる。ランダムに埋めない。
 		chosenTopic, err = s.Emb.FindBestTopic(

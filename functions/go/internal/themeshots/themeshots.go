@@ -213,19 +213,42 @@ func (b *Builder) intn(n int) int {
 // medium が会話以外で、そのテーマにその媒体の例文（writtenShots）があればそちらを付ける。
 // 無ければ会話のショットを付け、媒体を対面の会話に戻す。
 func (b *Builder) BuildShotSection(topic string, targetWords []string, medium string) sentence.DramaSection {
-	if texts := writtenShots[topic][medium]; len(texts) > 0 {
-		return sentence.DramaSection{
-			Context: "- 参考タイ語例（言い回しの参考。この1文のみ）: " + texts[b.intn(len(texts))] + "\n",
-			Required: "- 参考タイ語例をそのまま使わず、オリジナルの1文を作る。" +
-				"参考例の語を部分的に差し替えて別の意味の語を作らない\n",
-			Medium: medium,
-		}
+	if section, ok := b.writtenSection(topic, medium); ok {
+		return section
 	}
 	id := b.PickShot(topic, targetWords)
 	if id == "" {
 		return sentence.DramaSection{}
 	}
 	return b.shotSection(topic, id)
+}
+
+// ShotSection は選定時に場面合致で決めたショットの断片を返す（premium）。
+// 媒体の例文は BuildShotSection と同じく先に見る。shotID が空なら付けない。
+func (b *Builder) ShotSection(topic, shotID, medium string) sentence.DramaSection {
+	if section, ok := b.writtenSection(topic, medium); ok {
+		return section
+	}
+	if shotID == "" || shots[shotID] == "" {
+		return sentence.DramaSection{}
+	}
+	section := b.shotSection(topic, shotID)
+	section.Scene, section.ShotID = shotScene[shotID], shotID
+	return section
+}
+
+// writtenSection は会話以外の媒体の例文の断片。そのテーマにその媒体の例文が無ければ false。
+func (b *Builder) writtenSection(topic, medium string) (sentence.DramaSection, bool) {
+	texts := writtenShots[topic][medium]
+	if len(texts) == 0 {
+		return sentence.DramaSection{}, false
+	}
+	return sentence.DramaSection{
+		Context: "- 参考タイ語例（言い回しの参考。この1文のみ）: " + texts[b.intn(len(texts))] + "\n",
+		Required: "- 参考タイ語例をそのまま使わず、オリジナルの1文を作る。" +
+			"参考例の語を部分的に差し替えて別の意味の語を作らない\n",
+		Medium: medium,
+	}, true
 }
 
 // shotSection は会話のショット1つを参考例文にした断片を返す。

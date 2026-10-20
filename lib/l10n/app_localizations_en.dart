@@ -609,7 +609,7 @@ class L10nEn extends L10n {
   String get settingsTerms => 'Terms of service';
 
   @override
-  String get settingsContact => 'Contact us';
+  String get settingsContact => 'Feedback & contact';
 
   @override
   String get settingsLifetimeMigration => 'Switch to lifetime';
@@ -1727,16 +1727,10 @@ class L10nEn extends L10n {
   String get contactFailed => 'Couldn\'t send message. Try again later.';
 
   @override
-  String get contactName => 'Your name';
+  String get contactName => 'Your name (optional)';
 
   @override
-  String get contactNameRequired => 'Enter your name';
-
-  @override
-  String get contactEmail => 'Email address';
-
-  @override
-  String get contactEmailRequired => 'Enter your email';
+  String get contactEmail => 'Email (optional)';
 
   @override
   String get contactEmailInvalid => 'Enter a valid email';
@@ -1749,6 +1743,16 @@ class L10nEn extends L10n {
 
   @override
   String get contactSubmit => 'Send';
+
+  @override
+  String get contactAnonymousHint =>
+      'Leave email blank to send anonymously. We won\'t be able to reply.';
+
+  @override
+  String get contactSurveyTitle => 'Take a 1-minute survey';
+
+  @override
+  String get contactSurveySubtitle => 'Help us improve the app';
 
   @override
   String get consonantClassHigh => 'High class';

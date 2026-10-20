@@ -100,6 +100,14 @@ func (r *Resolver) Resolve(
 		resolved.Medium = r.DrawMedium()
 	}
 
+	// 場面合致の回（premium）は選定時に決めたショットを使い、サブテーマは引かない
+	// （場面に一本化）。ショットが空ならショット無しで作る。
+	if matched, _ := params[sceneMatchedParam].(bool); matched {
+		resolved.SceneMatched = true
+		resolved.ShotID = strParam(params, shotIDParam)
+		return resolved
+	}
+
 	subThemes := topicSubThemes[resolved.Topic]
 	if len(subThemes) > 0 && len(targetWords) > 0 && r.SubThemes != nil {
 		sub, err := r.SubThemes.FindBestSubTheme(ctx, targetWords[0], subThemes)
@@ -113,6 +121,13 @@ func (r *Resolver) Resolve(
 
 	return resolved
 }
+
+// 選定から生成へショットを渡すパラメータ名。クライアントの params は
+// effectiveGenerationParams が許可したキーしか通さないので、外からは入らない。
+const (
+	sceneMatchedParam = "sceneMatched"
+	shotIDParam       = "shotID"
+)
 
 // strParam は params[key] を文字列で取り出す。Python の
 // params.get(key) or "" と同じ。

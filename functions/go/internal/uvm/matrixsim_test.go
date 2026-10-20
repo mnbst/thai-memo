@@ -60,6 +60,13 @@ type simUser struct {
 	cutoff         float64 // >0 なら EstimateVocab の打ち切り閾値（既定 0.42）
 	knownP         float64 // >0 なら knownMaxRank に数える P の下限（既定 0.5）
 
+	// テーマ指定時に「テーマの場面に合う語」を優先する案（themesim_test.go）。
+	themeRate     float64 // >0 なら rank のうちこの割合をテーマに合う語とする
+	themePriority int     // 1日の生成のうち先頭この本数だけ、合う語を優先する
+	themeBehind   bool    // 優先を est 以下（帯の後方）の語に限る
+	themeDay      int
+	themeGen      int
+
 	// --- 世界側（ユーザーの実際の振る舞い）のつまみ ---
 	worldSlip  float64 // 知っている語を落とす確率（誤タップ・読み違い）
 	worldGuess float64 // >0 ならヒント無しの実際の推測率をこの値にする
@@ -169,6 +176,23 @@ func (u *simUser) generate(learningQuiz bool) {
 	for _, c := range cands {
 		if _, ok := u.words[c.Rank]; !ok {
 			zero = append(zero, c)
+		}
+	}
+	if u.themeRate > 0 {
+		if u.themeDay != u.day {
+			u.themeDay, u.themeGen = u.day, 0
+		}
+		u.themeGen++
+		if u.themeGen <= u.themePriority {
+			var matched []Candidate
+			for _, c := range zero {
+				if themeMatched(c.Rank, u.themeRate) && (!u.themeBehind || c.Rank <= u.est) {
+					matched = append(matched, c)
+				}
+			}
+			if len(matched) > 0 {
+				zero = matched
+			}
 		}
 	}
 	var picked []Candidate

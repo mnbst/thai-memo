@@ -15,18 +15,25 @@ import (
 // 並べ替え問題と同じ形で、語彙スコアで下限は設けない（5級もカタカナ・
 // ローマ字で出る）。入門用の形式（綴り4択）に変わった問題には触らない。
 
-// wordOrderPerQuiz はまとめクイズ1回に混ぜる並び替えの数。
-const wordOrderPerQuiz = 1
+// wordOrderLimit はまとめクイズ1回に混ぜる並び替えの上限。
+// 入門用を卒業した人（quizAdvanced）は問題数の半分（5問なら2）、
+// それ以外は1問。
+func wordOrderLimit(advanced bool, questions int) int {
+	if !advanced {
+		return 1
+	}
+	return max(1, questions/2)
+}
 
-// applyWordOrder は従来の穴埋めのままの問題から wordOrderPerQuiz 問を並び替えに
+// applyWordOrder は従来の穴埋めのままの問題から limit 問まで並び替えに
 // 変える。showPronunciation はタイルの読みを最初から見せるか（入門用の対象者）。
 // 差し替えた問題数を返す。
 func applyWordOrder(
-	sources []quizSeedSource, l lang.Lang, showPronunciation bool, rnd *rand.Rand,
+	sources []quizSeedSource, limit int, l lang.Lang, showPronunciation bool, rnd *rand.Rand,
 ) int {
 	applied := 0
 	for _, i := range rnd.Perm(len(sources)) {
-		if applied >= wordOrderPerQuiz {
+		if applied >= limit {
 			break
 		}
 		if sources[i].Seed.QuizFormat != quizgen.FormatClozeChoice {

@@ -43,6 +43,10 @@ class AppConfig {
   static const String termsOfServiceUrl =
       'https://thai-memo-prod.web.app/terms.html';
 
+  /// ご意見画面から開くアンケート（Google フォーム・日本語のみ）
+  static const String feedbackSurveyUrl =
+      'https://docs.google.com/forms/d/e/1FAIpQLSfZTGTaLV09snrns9prCrDq1k6y0Ln7A2kpLeV1wBkA-M5yGQ/viewform';
+
   /// Shared preferences keys
   static const String prefKeyFirstLaunch = 'is_first_launch';
   static const String prefKeyThemeMode = 'theme_mode';

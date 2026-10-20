@@ -103,6 +103,11 @@ func (s *Sentence) BuildSentenceDoc(m DocMeta) map[string]any {
 	if m.TrackViewed {
 		doc["viewed"] = false
 	}
+	// 付けた参考例文。場面の分布を本番で測るために残す（付けていなければ書かない）。
+	if s.ShotID != "" {
+		doc["scene"] = s.Scene
+		doc["shot_id"] = s.ShotID
+	}
 	if q := m.Quality; q != nil {
 		doc["quality"] = map[string]any{
 			"passed": q.Passed,

@@ -15,3 +15,9 @@ ios_app_id                    = "1:219961294368:ios:88e70ed652a72f10b70645"
 
 # X 投稿のテーマ。変えたら terraform apply するだけでよい（プッシュ不要）。
 x_post_themes = "BLドラマ"
+
+# 朝以外の X 投稿枠。Actions の実行に数分かかるので、投稿は指定時刻の数分後になる。
+x_post_extra_slots = {
+  "1500" = { schedule = "0 15 * * *", themes = "仕事" }
+  "1800" = { schedule = "0 18 * * *", themes = "恋愛" }
+}
