@@ -135,7 +135,16 @@ variable "github_dispatch_token" {
 }
 
 variable "x_post_themes" {
-  description = "X 投稿で抽選するテーマ（カンマ区切り。タイ旅行,タイ生活,恋愛,BLドラマ）。空なら全部。"
+  description = "X 投稿で抽選するテーマ（カンマ区切り。タイ旅行,タイ生活,恋愛,BLドラマ,仕事）。空なら全部。"
   type        = string
   default     = ""
+}
+
+variable "x_post_extra_slots" {
+  description = "朝の投稿に加える X 投稿の枠。キーはジョブ名の接尾辞、schedule は JST の cron、themes は x_post_themes と同じ書式。"
+  type = map(object({
+    schedule = string
+    themes   = string
+  }))
+  default = {}
 }
