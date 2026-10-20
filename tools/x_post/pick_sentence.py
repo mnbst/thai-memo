@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import random
 import re
 import ssl
@@ -28,9 +27,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import certifi
-import requests
 from google.cloud import secretmanager, storage
-from requests_oauthlib import OAuth1Session
 
 # premium と同じ静的コーパスと、運用中に貯めたプール（CorpusBank と同じ2本）。
 # 静的コーパスはプールへ移して空にしたので、両方を読む。
@@ -42,9 +39,6 @@ JST = timezone(timedelta(hours=9))
 
 # Gemini に渡す候補の上限。前日分が多くてもプロンプトが膨らみすぎないようにする。
 MAX_CANDIDATES = 60
-
-# 反応を参照する直近の投稿数。だいたい10日ぶん。
-RECENT_POSTS = 10
 
 # 投稿に回す例文の語数。短すぎると学びが薄く、長すぎると詳細画面に収まらない。
 MIN_WORDS = 7
@@ -93,14 +87,6 @@ GEMINI_ENDPOINT = (
 
 # 選定プロンプトは外に置く。書き換えて選び方を変えられるようにするため。
 PROMPT_FILE = Path(__file__).with_name("select_prompt.txt")
-
-RECENT_SECTION = """
-参考までに、このアカウントの直近の投稿と反応です。伸びたものに近い題材や
-語り口を優先してください（そのまま真似る必要はありません）。
-
-{lines}
-"""
-
 
 def load_prompt(path: Path) -> str:
     """プロンプトを読む。`#` で始まる行は覚え書きとして落とす。"""
@@ -214,79 +200,6 @@ def bl_drama_only(pool: list[dict], rng: random.Random) -> list[dict]:
     return by_drama[drama]
 
 
-def recent_performance(history: list[dict]) -> list[dict]:
-    """直近の投稿に反応の数を突き合わせて返す。引けなければ空。
-
-    X の読み取りは PPU のクレジットを消費する。クレジットが無い（402）・
-    鍵が無い・そもそも履歴がまだ無いといった場合は黙って諦め、反応を
-    参照しない選定に落とす。投稿を止めないことを優先する。
-    """
-    recent = [h for h in history if h.get("tweet_id")][-RECENT_POSTS:]
-    if not recent:
-        return []
-
-    keys = [
-        "X_API_KEY",
-        "X_API_SECRET",
-        "X_ACCESS_TOKEN",
-        "X_ACCESS_TOKEN_SECRET",
-    ]
-    if any(not os.environ.get(k) for k in keys):
-        return []
-
-    session = OAuth1Session(*(os.environ[k] for k in keys))
-    try:
-        response = session.get(
-            "https://api.x.com/2/tweets",
-            params={
-                "ids": ",".join(h["tweet_id"] for h in recent),
-                "tweet.fields": "public_metrics",
-            },
-            timeout=30,
-        )
-        if response.status_code != 200:
-            print(
-                f"反応の取得を諦める: {response.status_code} "
-                f"{response.text[:120]}",
-                file=sys.stderr,
-            )
-            return []
-        metrics = {
-            t["id"]: t.get("public_metrics", {})
-            for t in response.json().get("data", [])
-        }
-    except requests.RequestException as error:
-        print(f"反応の取得に失敗: {error}", file=sys.stderr)
-        return []
-
-    scored = []
-    for entry in recent:
-        m = metrics.get(entry["tweet_id"])
-        if m is None:
-            continue
-        # いいね・リポスト・返信を同じ重みで足す。表示回数は投稿時刻に
-        # 引きずられるので使わない。
-        score = (
-            m.get("like_count", 0)
-            + m.get("retweet_count", 0)
-            + m.get("reply_count", 0)
-        )
-        scored.append({**entry, "score": score})
-    return scored
-
-
-def performance_section(history: list[dict]) -> str:
-    """履歴に反応を突き合わせて、プロンプトに差し込む節を組む。"""
-    if not history:
-        return ""
-    ranked = sorted(history, key=lambda h: -h["score"])
-    lines = "\n".join(
-        f"- 反応 {h['score']:>4} / {h['thai_text']} / {h['japanese_translation']}"
-        for h in ranked
-    )
-    return RECENT_SECTION.format(lines=lines)
-
-
 def gemini_key(project: str) -> str:
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{project}/secrets/{GEMINI_SECRET}/versions/latest"
@@ -296,7 +209,7 @@ def gemini_key(project: str) -> str:
 
 
 def choose_with_gemini(
-    project: str, candidates: list[dict], recent: str, prompt: str, theme: str
+    project: str, candidates: list[dict], prompt: str, theme: str
 ) -> dict | None:
     """Gemini に1件選ばせる。失敗したら None を返して呼び出し側で抽選に落とす。"""
     listed = "\n".join(
@@ -312,7 +225,7 @@ def choose_with_gemini(
                     "parts": [
                         {
                             "text": prompt.format(
-                                candidates=listed, recent=recent, theme=theme
+                                candidates=listed, theme=theme
                             )
                         }
                     ],
@@ -418,9 +331,8 @@ def main() -> int:
     if len(candidates) > MAX_CANDIDATES:
         candidates = rng.sample(candidates, MAX_CANDIDATES)
 
-    recent = performance_section(recent_performance(state.get("history", [])))
     picked = choose_with_gemini(
-        args.project, candidates, recent, load_prompt(Path(args.prompt)), theme
+        args.project, candidates, load_prompt(Path(args.prompt)), theme
     ) or rng.choice(candidates)
 
     # 詳細画面は作成日を出す。Firestore の Timestamp はそのままでは JSON に
