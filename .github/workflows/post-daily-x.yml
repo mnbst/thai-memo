@@ -1,7 +1,7 @@
 name: Post Daily Sentence to X
 
 on:
-  # 毎朝 06:47 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
+  # 毎朝 07:00 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
   # workflow_dispatch で起動する。GitHub の schedule は遅延・欠落が多いため使わない。
   workflow_dispatch:
     inputs:
