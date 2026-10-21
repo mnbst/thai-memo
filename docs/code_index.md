@@ -1112,6 +1112,9 @@ sentence_handlers.py のクォータ・トライアル・生成条件と突き�
 scripts/ga4_quiz_offer_experiment.py
 1問確認クイズ導線A/BテストのGA4ファネルを実験群別に集計する。
 
+scripts/deploy_go_functions.sh
+Go の Cloud Functions を origin/main の worktree からデプロイする（dev/tester/prod。dev だけ --local で作業ツリーから）。
+
 docs/estimated_vocab_logic.md
 estimated_vocab算出ロジックの詳細ドキュメント（estimate_vocab・moving_avg・sync_estimated_vocab）。
 
