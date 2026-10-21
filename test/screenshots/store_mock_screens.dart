@@ -367,6 +367,9 @@ class _NoopDatabase extends Fake implements DatabaseHelper {
   Future<Map<String, dynamic>?> getSpeakerPitchProfile() async => null;
 
   @override
+  Future<double?> getBestPronunciationScore(String sentenceId) async => null;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
 }
 

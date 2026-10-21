@@ -622,6 +622,18 @@ class DatabaseHelper {
     });
   }
 
+  /// この例文でこれまでに出した最高点。まだ1回も記録が無ければ null。
+  Future<double?> getBestPronunciationScore(String sentenceId) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT MAX(${DatabaseConstants.columnPronunciationScore}) AS best '
+      'FROM ${DatabaseConstants.tablePronunciationAttempts} '
+      'WHERE ${DatabaseConstants.columnPronunciationSentenceId} = ?',
+      [sentenceId],
+    );
+    return (rows.first['best'] as num?)?.toDouble();
+  }
+
   /// Accumulate per-tone outcomes.
   ///
   /// 声調ごとの試行数と正解数を積み上げる。「上昇声が苦手」レポートの原資。

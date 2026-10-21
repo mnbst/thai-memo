@@ -14,9 +14,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/platform/store_platform.dart';
+import '../../core/pronunciation/pass_tier.dart';
 import '../../core/pronunciation/pronunciation_analyzer.dart';
 import '../../core/pronunciation/pronunciation_coach.dart';
 import '../../core/pronunciation/pronunciation_scorer.dart';
@@ -212,6 +214,7 @@ class _PracticeBody extends ConsumerWidget {
               result: result,
               recognition: state.recognition,
               recognitionStatus: state.recognitionStatus,
+              previousBestScore: state.previousBestScore,
               spans: spans,
               selectedWordIndex: state.selectedWordIndex,
               onSelectWord: controller.toggleWord,
@@ -511,6 +514,7 @@ class _ResultView extends StatelessWidget {
     required this.result,
     required this.recognition,
     required this.recognitionStatus,
+    required this.previousBestScore,
     required this.spans,
     required this.selectedWordIndex,
     required this.onSelectWord,
@@ -522,6 +526,9 @@ class _ResultView extends StatelessWidget {
 
   /// 発音の判定が使えなかった理由コード。案内の出し分けに使う。
   final String recognitionStatus;
+
+  /// この結果より前の、同じ例文での最高点。初めて段に届いた回かの判定に使う。
+  final double? previousBestScore;
   final SentenceToneSpans spans;
   final int? selectedWordIndex;
   final void Function(int) onSelectWord;
@@ -568,7 +575,11 @@ class _ResultView extends StatelessWidget {
           )
         else
           _ScoreHeader(
+            // 結果ごとに作り直して演出を1回だけ流す。語のタップで
+            // 組み直されても同じ結果なら流し直さない。
+            key: ObjectKey(result),
             result: result,
+            previousBestScore: previousBestScore,
             recognition: recognition,
             spans: spans,
             l10n: l10n,
@@ -654,24 +665,79 @@ List<ToneVerdict> _wordVerdicts(
 ///
 /// 数字だけでは「何語通じたのか」「次にどこを直すのか」が分からない。
 /// 点数・通じた語数・次の1語を、この1ブロックで返す。
-class _ScoreHeader extends StatelessWidget {
+///
+/// 出たときに一度だけ、リングを点数まで伸ばす。80点（合格）・90点
+/// （タイ人レベル）に届いていれば、伸び切ったところで称号を出す。
+/// その例文で初めて届いた回だけ、リングを膨らませて振動を返す。
+class _ScoreHeader extends StatefulWidget {
   const _ScoreHeader({
+    super.key,
     required this.result,
+    required this.previousBestScore,
     required this.recognition,
     required this.spans,
     required this.l10n,
   });
 
   final PronunciationResult result;
+  final double? previousBestScore;
   final List<WordRecognition> recognition;
   final SentenceToneSpans spans;
   final L10n l10n;
 
   @override
+  State<_ScoreHeader> createState() => _ScoreHeaderState();
+}
+
+class _ScoreHeaderState extends State<_ScoreHeader>
+    with SingleTickerProviderStateMixin {
+  // 0〜0.5: リングが伸びる / 0.5〜: 称号と、初めて届いた回の演出
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  );
+
+  late final bool _eligible =
+      canEarnPassTier(widget.result, widget.recognition);
+  late final PassTier _tier =
+      _eligible ? passTierOf(widget.result.overallScore) : PassTier.none;
+  late final bool _firstReach = _tier != PassTier.none &&
+      passTierOf(widget.previousBestScore ?? 0).index < _tier.index;
+
+  bool _hapticFired = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onTick);
+    _controller.forward();
+  }
+
+  void _onTick() {
+    if (_hapticFired || _tier == PassTier.none || _controller.value < 0.5) {
+      return;
+    }
+    _hapticFired = true;
+    if (_tier == PassTier.native) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final verdicts = _wordVerdicts(result, spans, recognition);
+    final l10n = widget.l10n;
+    final spans = widget.spans;
+    final verdicts = _wordVerdicts(widget.result, spans, widget.recognition);
 
     int countOf(ToneVerdict verdict) =>
         verdicts.where((v) => v == verdict).length;
@@ -684,61 +750,229 @@ class _ScoreHeader extends StatelessWidget {
         ? verdicts.indexOf(ToneVerdict.wrong)
         : verdicts.indexOf(ToneVerdict.close);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _ScoreRing(score: result.overallScore, l10n: l10n),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.pronunciationSummaryRecognized(
-                  correct,
-                  verdicts.length,
-                ),
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              if (focusIndex >= 0) ...[
-                const SizedBox(height: 2),
-                Text(
-                  l10n.pronunciationNextFocus(spans.words[focusIndex].wordText),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 10,
-                runSpacing: 2,
+    final shown = widget.result.overallScore.round();
+    final goal = _goalMessage(shown, l10n);
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = _controller.value;
+        // 称号は伸び切った直後に下から出し、一言はその後に重ねる。
+        final badgeIn = _interval(t, 0.55, 0.75, Curves.easeOutBack);
+        final goalIn = _interval(t, 0.7, 0.85, Curves.linear);
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _ScoreRing(
+              score: widget.result.overallScore,
+              t: t,
+              tier: _tier,
+              firstReach: _firstReach,
+              marker: _eligible ? _nextLine : null,
+              l10n: l10n,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (correct > 0)
-                    _CountChip(
-                      color: verdictColor(ToneVerdict.correct, scheme),
-                      label: l10n.pronunciationCountCorrect,
-                      count: correct,
+                  if (_tier != PassTier.none) ...[
+                    Opacity(
+                      opacity: badgeIn.clamp(0.0, 1.0),
+                      child: Transform.translate(
+                        offset: Offset(0, 10 * (1 - badgeIn)),
+                        child: _PassBadge(
+                          tier: _tier,
+                          prominent: _firstReach,
+                          l10n: l10n,
+                        ),
+                      ),
                     ),
-                  if (close > 0)
-                    _CountChip(
-                      color: verdictColor(ToneVerdict.close, scheme),
-                      label: l10n.pronunciationCountClose,
-                      count: close,
+                    const SizedBox(height: 6),
+                  ],
+                  Text(
+                    l10n.pronunciationSummaryRecognized(
+                      correct,
+                      verdicts.length,
                     ),
-                  if (wrong > 0)
-                    _CountChip(
-                      color: verdictColor(ToneVerdict.wrong, scheme),
-                      label: l10n.pronunciationCountWrong,
-                      count: wrong,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (focusIndex >= 0) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.pronunciationNextFocus(
+                        spans.words[focusIndex].wordText,
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
+                  ],
+                  if (goal != null) ...[
+                    const SizedBox(height: 2),
+                    Opacity(
+                      opacity: goalIn,
+                      child: Text(
+                        goal,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: _tier == PassTier.native
+                              ? scheme.onSurfaceVariant
+                              : scheme.tertiary,
+                          fontWeight:
+                              _tier == PassTier.native ? null : FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 2,
+                    children: [
+                      if (correct > 0)
+                        _CountChip(
+                          color: verdictColor(ToneVerdict.correct, scheme),
+                          label: l10n.pronunciationCountCorrect,
+                          count: correct,
+                        ),
+                      if (close > 0)
+                        _CountChip(
+                          color: verdictColor(ToneVerdict.close, scheme),
+                          label: l10n.pronunciationCountClose,
+                          count: close,
+                        ),
+                      if (wrong > 0)
+                        _CountChip(
+                          color: verdictColor(ToneVerdict.wrong, scheme),
+                          label: l10n.pronunciationCountWrong,
+                          count: wrong,
+                        ),
+                    ],
+                  ),
                 ],
               ),
-            ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 次に目指す点数。タイ人レベルに届いていれば無い。
+  int? get _nextLine => switch (_tier) {
+        PassTier.none => kPassScore,
+        PassTier.pass => kNativeScore,
+        PassTier.native => null,
+      };
+
+  /// 次の段までの残りか、タイ人レベルに届いたことの一言。
+  /// 称号を出せない端末では、届かない目標を見せないよう何も出さない。
+  String? _goalMessage(int shown, L10n l10n) {
+    if (!_eligible) return null;
+    return switch (_tier) {
+      PassTier.none => l10n.pronunciationToPass(kPassScore - shown),
+      PassTier.pass => l10n.pronunciationToNative(kNativeScore - shown),
+      PassTier.native => _firstReach
+          ? l10n.pronunciationNativeFirst(kNativeScore)
+          : l10n.pronunciationNativeAgain,
+    };
+  }
+}
+
+double _interval(double t, double begin, double end, Curve curve) =>
+    curve.transform(((t - begin) / (end - begin)).clamp(0.0, 1.0));
+
+/// 合格・タイ人レベルの称号。
+///
+/// 合格は淡い翡翠、タイ人レベルは金で格を分ける。その例文で初めて届いた回は
+/// 面を塗り、2回目以降は線だけにして控えめにする。語のチップ（角丸の四角）と
+/// 見分けられるよう、丸い札にして背を低くする。
+class _PassBadge extends StatelessWidget {
+  const _PassBadge({
+    required this.tier,
+    required this.prominent,
+    required this.l10n,
+  });
+
+  final PassTier tier;
+  final bool prominent;
+  final L10n l10n;
+
+  static const _jadeInk = Color(0xFF2F6A58);
+  static const _jadeLine = Color(0xFF9DB5A6);
+  static const _jadeFace = Color(0xFFE2E8DF);
+  static const _jadeInkDark = Color(0xFF9CCBB8);
+  static const _goldLight = Color(0xFFD9B86A);
+  static const _gold = Color(0xFFC39A4E);
+  static const _goldDeep = Color(0xFFA8823C);
+  static const _navy = Color(0xFF16243F);
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final native = tier == PassTier.native;
+    final filledNative = native && prominent;
+
+    final Color fg;
+    if (native) {
+      fg = filledNative ? _navy : _gold;
+    } else {
+      fg = dark ? _jadeInkDark : _jadeInk;
+    }
+
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: filledNative ? 12 : 10,
+        vertical: filledNative ? 4 : 2,
+      ),
+      decoration: BoxDecoration(
+        gradient: filledNative
+            ? const LinearGradient(colors: [_goldLight, _gold, _goldDeep])
+            : null,
+        color: prominent && !native
+            ? (dark ? _jadeInkDark.withValues(alpha: 0.14) : _jadeFace)
+            : null,
+        border: filledNative
+            ? null
+            : Border.all(
+                color: native ? _gold : (dark ? _jadeInkDark : _jadeLine),
+              ),
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: filledNative
+            ? const [
+                BoxShadow(
+                  color: Color(0x55C39A4E),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ]
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            native
+                ? Icons.workspace_premium_rounded
+                : Icons.check_circle_outline_rounded,
+            size: filledNative ? 18 : 15,
+            color: fg,
           ),
-        ),
-      ],
+          const SizedBox(width: 4),
+          Text(
+            native ? l10n.pronunciationTierNative : l10n.pronunciationTierPass,
+            style: (native ? textTheme.labelLarge : textTheme.labelMedium)
+                ?.copyWith(
+              color: fg,
+              fontWeight: native ? FontWeight.w800 : FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -777,34 +1011,98 @@ class _CountChip extends StatelessWidget {
 }
 
 /// 点数をリングで見せる。数字だけの1行より、良し悪しが一目で分かる。
+///
+/// [t] は見出しの演出の進み（0〜1）。前半でリングと数字を点数まで伸ばす。
+/// タイ人レベルでは後半でリングを太らせて金の濃淡で塗り、初めて届いた回は
+/// 膨らませて光の粒を散らす。合格の初回は小さく膨らむだけ。
 class _ScoreRing extends StatelessWidget {
-  const _ScoreRing({required this.score, required this.l10n});
+  const _ScoreRing({
+    required this.score,
+    required this.t,
+    required this.tier,
+    required this.firstReach,
+    required this.marker,
+    required this.l10n,
+  });
 
   final double score;
+  final double t;
+  final PassTier tier;
+  final bool firstReach;
+
+  /// 次に目指す点数の目盛り。無ければ打たない。
+  final int? marker;
   final L10n l10n;
+
+  static const _size = 62.0;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final rounded = score.round();
+    final native = tier == PassTier.native;
+    final reached = tier != PassTier.none;
+
+    final fill = _interval(t, 0, 0.5, Curves.easeOutCubic);
+    final shown = score * fill;
+
+    final shine = native ? _interval(t, 0.5, 0.7, Curves.linear) : 0.0;
+    final pulse = reached && firstReach
+        ? math.sin(math.pi * _interval(t, 0.5, 0.72, Curves.linear))
+        : 0.0;
+    final scale = 1 + (native ? 0.15 : 0.07) * pulse;
+    final sparkle =
+        native && firstReach ? _interval(t, 0.5, 0.95, Curves.easeOut) : 0.0;
+    final glowPeak = native && firstReach
+        ? math.sin(math.pi * _interval(t, 0.5, 0.85, Curves.linear))
+        : 0.0;
+    final glow = math.max(glowPeak * 0.7, 0.3 * shine);
 
     return Semantics(
       label: l10n.pronunciationScore(rounded),
       child: SizedBox(
-        width: 62,
-        height: 62,
-        child: CustomPaint(
-          painter: _ScoreRingPainter(
-            progress: (score / 100).clamp(0.0, 1.0),
-            trackColor: scheme.outlineVariant,
-            color: scheme.tertiary,
-          ),
-          child: Center(
-            child: Text(
-              '$rounded',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
+        width: _size,
+        height: _size,
+        child: Transform.scale(
+          scale: scale,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: native
+                  ? scheme.tertiary.withValues(alpha: 0.06 * shine)
+                  : null,
+              boxShadow: [
+                if (glow > 0)
+                  BoxShadow(
+                    color: scheme.tertiary.withValues(alpha: glow),
+                    blurRadius: 10 + 18 * glowPeak,
+                    spreadRadius: 2 * glowPeak,
+                  ),
+              ],
+            ),
+            child: CustomPaint(
+              painter: _ScoreRingPainter(
+                progress: (shown / 100).clamp(0.0, 1.0),
+                trackColor: scheme.outlineVariant,
+                color: scheme.tertiary,
+                shine: shine,
+                marker: marker,
+                markerColor: scheme.primary,
+                sparkle: sparkle,
+              ),
+              child: Center(
+                child: Text(
+                  '${shown.round()}',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Color.lerp(
+                      scheme.onSurface,
+                      const Color(0xFFA8823C),
+                      shine,
+                    ),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
               ),
             ),
           ),
@@ -819,15 +1117,27 @@ class _ScoreRingPainter extends CustomPainter {
     required this.progress,
     required this.trackColor,
     required this.color,
+    required this.shine,
+    required this.marker,
+    required this.markerColor,
+    required this.sparkle,
   });
 
   final double progress;
   final Color trackColor;
   final Color color;
 
+  /// 0〜1。タイ人レベルで、太さと金の濃淡を足す量。
+  final double shine;
+  final int? marker;
+  final Color markerColor;
+
+  /// 0〜1。光の粒の進み。0 と 1 では描かない。
+  final double sparkle;
+
   @override
   void paint(Canvas canvas, Size size) {
-    const stroke = 5.0;
+    final stroke = 5.0 + 2.5 * shine;
     final rect = Offset(stroke / 2, stroke / 2) &
         Size(size.width - stroke, size.height - stroke);
 
@@ -841,24 +1151,71 @@ class _ScoreRingPainter extends CustomPainter {
         ..strokeWidth = stroke
         ..style = PaintingStyle.stroke,
     );
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      math.pi * 2 * progress,
-      false,
-      Paint()
-        ..color = color
-        ..strokeWidth = stroke
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke,
-    );
+
+    final arc = Paint()
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    if (shine > 0) {
+      arc.shader = SweepGradient(
+        colors: [
+          Color.lerp(color, const Color(0xFFF0D58C), shine)!,
+          color,
+          Color.lerp(color, const Color(0xFFA8823C), shine)!,
+        ],
+        transform: const GradientRotation(-math.pi / 2),
+      ).createShader(rect);
+    } else {
+      arc.color = color;
+    }
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 2 * progress, false, arc);
+
+    final center = size.center(Offset.zero);
+    final radius = rect.width / 2;
+
+    if (marker case final line?) {
+      final angle = -math.pi / 2 + math.pi * 2 * line / 100;
+      final direction = Offset(math.cos(angle), math.sin(angle));
+      canvas.drawLine(
+        center + direction * (radius - 5),
+        center + direction * (radius + 5),
+        Paint()
+          ..color = markerColor
+          ..strokeWidth = 2.5
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    // リングの縁から外へ飛んで消える光の粒。枠の外まで描く。
+    if (sparkle > 0 && sparkle < 1) {
+      final paint = Paint()..color = color.withValues(alpha: 1 - sparkle);
+      for (var i = 0; i < 10; i++) {
+        final angle = -math.pi / 2 + i * math.pi / 5 + 0.15;
+        final distance = radius + 4 + 12 * sparkle + (i.isEven ? 2 : -2);
+        final p = center + Offset(math.cos(angle), math.sin(angle)) * distance;
+        final s = (i.isEven ? 4.0 : 2.6) * (1 - 0.5 * sparkle);
+        canvas.drawPath(
+          Path()
+            ..moveTo(p.dx, p.dy - s)
+            ..quadraticBezierTo(p.dx, p.dy, p.dx + s, p.dy)
+            ..quadraticBezierTo(p.dx, p.dy, p.dx, p.dy + s)
+            ..quadraticBezierTo(p.dx, p.dy, p.dx - s, p.dy)
+            ..quadraticBezierTo(p.dx, p.dy, p.dx, p.dy - s),
+          paint,
+        );
+      }
+    }
   }
 
   @override
   bool shouldRepaint(_ScoreRingPainter oldDelegate) =>
       oldDelegate.progress != progress ||
       oldDelegate.color != color ||
-      oldDelegate.trackColor != trackColor;
+      oldDelegate.trackColor != trackColor ||
+      oldDelegate.shine != shine ||
+      oldDelegate.marker != marker ||
+      oldDelegate.markerColor != markerColor ||
+      oldDelegate.sparkle != sparkle;
 }
 
 List<SyllableScore> _scoresOfWord(

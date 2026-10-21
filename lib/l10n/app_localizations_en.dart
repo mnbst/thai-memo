@@ -1609,6 +1609,30 @@ class L10nEn extends L10n {
   }
 
   @override
+  String get pronunciationTierPass => 'Passed';
+
+  @override
+  String get pronunciationTierNative => 'Native level';
+
+  @override
+  String pronunciationToPass(int points) {
+    return '$points more to pass';
+  }
+
+  @override
+  String pronunciationToNative(int points) {
+    return '$points more to native level';
+  }
+
+  @override
+  String pronunciationNativeFirst(int score) {
+    return 'First time scoring $score+ on this sentence';
+  }
+
+  @override
+  String get pronunciationNativeAgain => 'Already reached on this sentence';
+
+  @override
   String get pronunciationCountCorrect => 'OK';
 
   @override

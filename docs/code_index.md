@@ -195,6 +195,9 @@ test/screenshots/guide_screenshot.dart
 test/screenshots/listen_mock_screenshot.dart
 聞き流し再生（トラック版）のUI案（履歴から追加・トラック一覧・中身とミニバー・再生画面）を1枚のPNGに並べるモック。
 
+test/screenshots/pass_effect_mock_app.dart
+合格演出のアニメーションを例文詳細の見た目でシミュレーターに出すモック（flutter run -t、場面・スロー切替）。
+
 test/screenshots/notif_coach_mock_app.dart
 通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
 
@@ -379,6 +382,9 @@ lib/core/pronunciation/transcript_match.dart
 lib/core/pronunciation/word_verdict.dart
 語ごとの声調判定と、声調＋発音を1本の帯にまとめる総合判定。
 
+lib/core/pronunciation/pass_tier.dart
+発音練習の到達段階（80点で合格・90点でタイ人レベル）と、称号を出してよい結果か（音声認識が使えた回だけ）。
+
 lib/core/pronunciation/pronunciation_coach.dart
 採点結果から「次の1回で直す点」を1つだけ選ぶ。判定の2軸（形・入り方）をそのまま使う。
 
@@ -395,7 +401,7 @@ lib/presentation/providers/pronunciation_provider.dart
 発音練習の状態管理（録音→判定→永続化）と、声調別集計・最弱声調の算出。
 
 lib/presentation/widgets/pronunciation_practice.dart
-例文詳細の発音練習セクション。点数リングと語ごとの判定チップ、選択した語のピッチカーブ・お手本再生・直し方。
+例文詳細の発音練習セクション。点数リング（合格・タイ人レベルの演出付き）と語ごとの判定チップ、選択した語のピッチカーブ・お手本再生・直し方。
 
 ---
 
