@@ -1518,6 +1518,30 @@ class L10nJa extends L10n {
   }
 
   @override
+  String get pronunciationTierPass => '合格';
+
+  @override
+  String get pronunciationTierNative => 'タイ人レベル';
+
+  @override
+  String pronunciationToPass(int points) {
+    return 'あと$points点で合格';
+  }
+
+  @override
+  String pronunciationToNative(int points) {
+    return 'あと$points点でタイ人レベル';
+  }
+
+  @override
+  String pronunciationNativeFirst(int score) {
+    return 'この例文で初めて$score点を超えました';
+  }
+
+  @override
+  String get pronunciationNativeAgain => 'この例文は達成済み';
+
+  @override
   String get pronunciationCountCorrect => 'OK';
 
   @override

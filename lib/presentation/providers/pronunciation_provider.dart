@@ -60,12 +60,17 @@ class PronunciationState {
   /// タイ語の音声入力を入れれば使えるようになる端末が大半。
   final String recognitionStatus;
 
+  /// この結果より前に、同じ例文で出した最高点。記録が無ければ null。
+  /// 合格・タイ人レベルに初めて届いた回かどうかの判定に使う。
+  final double? previousBestScore;
+
   const PronunciationState({
     this.phase = PronunciationPhase.idle,
     this.result,
     this.recognition = const [],
     this.selectedWordIndex,
     this.recognitionStatus = 'not_started',
+    this.previousBestScore,
   });
 
   PronunciationState copyWith({
@@ -84,6 +89,7 @@ class PronunciationState {
             ? null
             : (selectedWordIndex ?? this.selectedWordIndex),
         recognitionStatus: recognitionStatus ?? this.recognitionStatus,
+        previousBestScore: previousBestScore,
       );
 }
 
@@ -353,6 +359,11 @@ class PronunciationController extends StateNotifier<PronunciationState> {
     // );
     // }
 
+    // 今回の分を書き込む前に引く。後に引くと今回の点が最高点に混ざる。
+    final previousBest = result.isScored
+        ? await _database.getBestPronunciationScore(sentenceId)
+        : null;
+
     if (!mounted) return;
 
     state = PronunciationState(
@@ -360,6 +371,7 @@ class PronunciationController extends StateNotifier<PronunciationState> {
       result: result,
       recognition: recognition,
       recognitionStatus: capture.recognitionStatus,
+      previousBestScore: previousBest,
     );
 
     if (result.isScored) {

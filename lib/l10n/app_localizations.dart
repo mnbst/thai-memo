@@ -2726,6 +2726,42 @@ abstract class L10n {
   /// **'「{word}」を直そう'**
   String pronunciationNextFocus(String word);
 
+  /// No description provided for @pronunciationTierPass.
+  ///
+  /// In ja, this message translates to:
+  /// **'合格'**
+  String get pronunciationTierPass;
+
+  /// No description provided for @pronunciationTierNative.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ人レベル'**
+  String get pronunciationTierNative;
+
+  /// No description provided for @pronunciationToPass.
+  ///
+  /// In ja, this message translates to:
+  /// **'あと{points}点で合格'**
+  String pronunciationToPass(int points);
+
+  /// No description provided for @pronunciationToNative.
+  ///
+  /// In ja, this message translates to:
+  /// **'あと{points}点でタイ人レベル'**
+  String pronunciationToNative(int points);
+
+  /// No description provided for @pronunciationNativeFirst.
+  ///
+  /// In ja, this message translates to:
+  /// **'この例文で初めて{score}点を超えました'**
+  String pronunciationNativeFirst(int score);
+
+  /// No description provided for @pronunciationNativeAgain.
+  ///
+  /// In ja, this message translates to:
+  /// **'この例文は達成済み'**
+  String get pronunciationNativeAgain;
+
   /// No description provided for @pronunciationCountCorrect.
   ///
   /// In ja, this message translates to:

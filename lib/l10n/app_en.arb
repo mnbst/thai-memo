@@ -792,6 +792,33 @@
       }
     }
   },
+  "pronunciationTierPass": "Passed",
+  "pronunciationTierNative": "Native level",
+  "pronunciationToPass": "{points} more to pass",
+  "@pronunciationToPass": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationToNative": "{points} more to native level",
+  "@pronunciationToNative": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationNativeFirst": "First time scoring {score}+ on this sentence",
+  "@pronunciationNativeFirst": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationNativeAgain": "Already reached on this sentence",
   "pronunciationCountCorrect": "OK",
   "pronunciationCountClose": "Close",
   "pronunciationCountWrong": "Fix",
