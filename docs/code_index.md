@@ -193,7 +193,7 @@ test/screenshots/guide_screenshot.dart
 ガイド画面（発音・語順・声調）を PNG に書き出す見た目確認用モック。SCREEN・言語・高さを dart-define で切り替える。
 
 test/screenshots/listen_mock_screenshot.dart
-聞き流し再生のUI案（入口・再生画面・ミニバー）を1枚の PNG に並べる設計用モック。
+聞き流し再生（トラック版）のUI案（履歴から追加・トラック一覧・中身とミニバー・再生画面）を1枚のPNGに並べるモック。
 
 test/screenshots/notif_coach_mock_app.dart
 通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
@@ -307,7 +307,10 @@ lib/services/storefront_service.dart
 ダウンロード元のストア地域取得。初回起動時のアプリ言語決定にだけ使う。
 
 lib/services/tts_service.dart
-タイ語発音のText-to-Speechエンジン。Android でタイ語の声が無いときは thaiVoiceMissing を流し、音声データの取得画面を開ける。
+タイ語発音のText-to-Speechエンジン。Android でタイ語の声が無いときは thaiVoiceMissing を流し、音声データの取得画面を開ける。お手本の全文（speakSentence）はサーバー音声を just_audio で鳴らし、取れなければ端末の読み上げに戻す。
+
+lib/services/sentence_audio_cache.dart
+お手本のサーバー音声（getSentenceAudio）を取って端末に保存する（30MB を超えたら最後に聞いたのが古い順に消す）。保存済みならオフラインでも鳴る。取れなければ null。
 
 lib/services/push_notification_service.dart
 FCMトークン・タイムゾーン・配信時刻（notify_hours / notify_utc_hours と先頭の preferred_generation_hour）をusers/{uid}に登録。OSの通知許可とアプリ内設定の突き合わせも行う。
@@ -579,16 +582,31 @@ functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch のステップ6。直近24時間の LLM 生成例文（premium / free）のうち、生成時の判定で quality.passed=true の文だけを Jev を呼び直さずティアごとの例文プールへ回す（表示とプールは同じ基準）。外した文はログに出す。
+dailyBatch のステップ6。直近24時間の LLM 生成例文（premium / free）のうち、生成時の判定で quality.passed=true の文だけを Jev を呼び直さず確認待ち（pool_review）へ回す。外した文はログに出す。
+
+functions/go/pool_review.go
+確認待ち（Firestore pool_review、1文1 doc・ID はティア・言語・thai_text のハッシュ）への書き込み。本番プールと同じ形の例文・tier・lang・judge 結果・元 doc を持つ。既にある文（確認済み含む）は飛ばす。
+
+functions/go/sentence_audio.go
+getSentenceAudio callable。例文の全文のお手本音声（Cloud TTS Chirp3-HD の MP3）を返す。GCS に無ければ作って置く（新しく作るのは1人1日100文まで、tts_usage で数える）。
+
+functions/go/internal/ttsaudio/
+お手本音声の声の選択（文末→一人称→BL→ハッシュ）・ファイル名（中身のハッシュ）・生成と GCS 保存（無いときだけ書く）。
+
+functions/go/internal/poolreview/
+確認待ちのコレクション名・状態・doc ID と、OK の文を本番プールへ足す処理（重複排除・2万本上限）。
+
+functions/go/cmd/poolreview/main.go
+pool-review スキルの道具。list（確認待ちを JSON に）・apply（OK をプールへ足して音声を作る・NG を rejected）・audio（prod のプール全文の音声を一括で作る）。
 
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文1回きりの判定（ReviewAll）で、不合格なら sentence_flags へ1件書く。キーが無ければ nil（判定なしで動く）。
 
 functions/go/sentence_pool.go
-judge を通った例文を GCS のティア別例文プール（premium: corpus_pool_<lang>.json / free: free_pool_<lang>.json）へ追記する。thai_text で重複排除、上限超過分は古い側から捨てる（SENTENCE_POOL_MAX=0 で無効化）。
+プールの1件（poolEntry）の組み立て。ティア別プール（premium: corpus_pool_<lang>.json / free: free_pool_<lang>.json）の振り分け先を持つ。
 
 functions/go/sentence_pool_test.go
-プール項目への変換（lang不明・除外語・欠損の除外）と、重複排除・上限での切り詰めのテスト。
+プール項目への変換（lang不明・除外語・欠損の除外）のテスト。
 
 functions/go/sentence_audit_test.go
 プール候補の抽出条件（premium限定・バンク除外・本文必須）、quality による振り分け、束分けのテスト。

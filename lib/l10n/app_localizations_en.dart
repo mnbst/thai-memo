@@ -1360,6 +1360,9 @@ class L10nEn extends L10n {
   String get audioOnce => 'Once';
 
   @override
+  String get audioSpeed => 'Playback speed';
+
+  @override
   String get audioPause => 'Pause';
 
   @override

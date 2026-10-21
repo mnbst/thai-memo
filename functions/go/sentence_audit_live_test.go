@@ -230,7 +230,7 @@ func TestSentencePoolBackfillLive(t *testing.T) {
 		t.Log("dry run（POOL_BACKFILL_WRITE=1 で書く）")
 		return
 	}
-	if err := poolAccepted(ctx, accepted, docs); err != nil {
+	if err := queuePoolReview(ctx, db, accepted, docs, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 }

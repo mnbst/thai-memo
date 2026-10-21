@@ -11,7 +11,6 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 
-	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
@@ -21,8 +20,8 @@ import (
 //
 // 生成直後に Jev で1回だけ判定した結果が例文 doc の quality フィールドに入っている
 // （sentence.Producer.check）。ここでは Jev を呼び直さず、quality.passed が真の文だけを
-// 例文プールへ回す（表示とプールは同じ基準）。外した文はログに残す。
-// premium と free はティアごとのプールへ書き分ける（sentence_pool.go）。
+// 確認待ち（pool_review.go）へ回す。人が OK した文だけが本番プールに入る。
+// 外した文はログに残す。
 //
 // 不合格の文はセットから外れて例文 doc にならず、中身は sentence_flags に残っている。
 const (
@@ -73,10 +72,10 @@ func runSentenceAudit(
 	log.Printf("sentencePool: candidates=%d (%s) passed=%d rejected=%d unjudged=%d",
 		len(candidates), tierCounts(candidates), counts[poolPassed], counts[poolRejected], counts[poolUnjudged])
 
-	// プールの書き出しに失敗しても生成済みの例文には影響しないので、
-	// エラーは返さず記録だけ残す。
-	if err := poolAccepted(ctx, accepted, docs); err != nil {
-		log.Printf("sentencePool: write failed: %v", err)
+	// 本番プールへは直接足さず、確認待ちへ入れる（pool_review.go）。
+	// 失敗しても生成済みの例文には影響しないので、エラーは返さず記録だけ残す。
+	if err := queuePoolReview(ctx, db, accepted, docs, now); err != nil {
+		log.Printf("poolReview: write failed: %v", err)
 	}
 	return nil
 }
@@ -106,30 +105,6 @@ func poolVerdictOf(data map[string]any) (poolVerdict, string) {
 		return poolPassed, ""
 	}
 	return poolRejected, stringField(q["reason"])
-}
-
-// poolAccepted は判定を通った例文を GCS のプールへ足す。
-//
-// SENTENCE_POOL_MAX=0 で止められる（プール自体を使わない運用に戻せる）。
-func poolAccepted(
-	ctx context.Context, accepted []quality.Candidate, docs map[string]map[string]any,
-) error {
-	maxEntries := intEnvOr("SENTENCE_POOL_MAX", poolMaxEntries)
-	if maxEntries <= 0 {
-		log.Print("sentencePool: disabled (SENTENCE_POOL_MAX=0)")
-		return nil
-	}
-	entries := make([]poolEntry, 0, len(accepted))
-	for _, c := range accepted {
-		data, ok := docs[quality.FlagID(c)]
-		if !ok {
-			continue
-		}
-		if e, ok := buildPoolEntry(data); ok {
-			entries = append(entries, e)
-		}
-	}
-	return writeSentencePool(ctx, fbapp.ProjectID(), entries, maxEntries)
 }
 
 // auditCandidates は各ユーザーの直近の LLM 生成の例文（premium / free）を集める。

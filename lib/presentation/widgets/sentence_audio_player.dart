@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/sentence_audio_cache.dart';
 import '../../services/tts_service.dart';
 import '../providers/tts_provider.dart';
 
@@ -23,6 +24,7 @@ class SentenceAudioPlayer extends ConsumerStatefulWidget {
     super.key,
     required this.text,
     this.words = const [],
+    this.source,
     this.onPlay,
     this.trailing,
     this.repeatInterval = const Duration(milliseconds: 1000),
@@ -37,6 +39,10 @@ class SentenceAudioPlayer extends ConsumerStatefulWidget {
 
   /// 頭出しの単位となる単語列（[text] に出現する順）。空なら頭出しバーは出さない。
   final List<String> words;
+
+  /// サーバー音声を取るための例文の中身。あればサーバー音声で読み、
+  /// 取れないときと null のときは端末の読み上げで読む。
+  final SentenceAudioSource? source;
 
   /// 再生開始時に呼ばれる（アナリティクス用）。リピートでは呼ばない。
   final VoidCallback? onPlay;
@@ -77,6 +83,9 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
   late List<int> _wordOffsets;
 
   bool _playing = false;
+
+  /// サーバー音声を取りに行っていて、まだ鳴っていない。
+  bool _loading = false;
   bool _repeatEnabled = true;
 
   /// 再生位置（0.0〜1.0）。
@@ -146,12 +155,35 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
           () => _progress = ((offset + start) / widget.text.length).clamp(0, 1),
         );
       };
-      await _tts.speak(
-        _textFromWord(cycleStartWord),
-        keepVoice: cycleStartWord != 0,
-      );
+      final source = widget.source;
+      var finished = true;
+      if (source != null) {
+        finished = await _tts.speakSentence(
+          source,
+          fromChar: _charOfWord(cycleStartWord),
+          keepVoice: cycleStartWord != 0,
+          speed: ref.read(ttsSpeedProvider),
+          stillWanted: () => mounted && generation == _generation,
+          onLoading: (loading) {
+            if (mounted && generation == _generation) {
+              setState(() => _loading = loading);
+            }
+          },
+        );
+      } else {
+        await _tts.speak(
+          _textFromWord(cycleStartWord),
+          keepVoice: cycleStartWord != 0,
+          speed: ref.read(ttsSpeedProvider),
+        );
+      }
       if (!mounted || generation != _generation) return;
       if (_abortedBySession(session)) return;
+      // OS に中断された（着信・ヘッドホンを抜いた等）。1周終えたことにせず、そこで止める。
+      if (!finished) {
+        _stop(resetProgress: false);
+        return;
+      }
 
       // 読み上げ完了後は、再生モードに関係なく次回に備えて先頭へ戻す。
       setState(() => _progress = 0);
@@ -190,6 +222,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
     if (mounted) {
       setState(() {
         _playing = false;
+        _loading = false;
         _progress = 0;
       });
     }
@@ -204,6 +237,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
     if (mounted) {
       setState(() {
         _playing = false;
+        _loading = false;
         if (resetProgress) _progress = 0;
         _dragValue = null;
       });
@@ -213,9 +247,11 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
     if (wasPlaying) widget.onPlaybackEnded?.call();
   }
 
-  String _textFromWord(int index) {
-    if (index <= 0 || index >= _wordOffsets.length) return widget.text;
-    return widget.text.substring(_wordOffsets[index]);
+  String _textFromWord(int index) => widget.text.substring(_charOfWord(index));
+
+  int _charOfWord(int index) {
+    if (index <= 0 || index >= _wordOffsets.length) return 0;
+    return _wordOffsets[index];
   }
 
   double _progressOfWord(int index) {
@@ -248,6 +284,18 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
     if (_playing) {
       unawaited(_seekAndResume(index));
     }
+  }
+
+  /// 速度を次の段に進める。再生中なら、いま読んでいる単語から新しい速度で読み直す。
+  void _cycleSpeed() {
+    final notifier = ref.read(ttsSpeedProvider.notifier);
+    notifier.state = notifier.state.next;
+    if (!_playing) return;
+    unawaited(_seekAndResume(wordIndexAtProgress(
+      offsets: _wordOffsets,
+      textLength: widget.text.length,
+      progress: _progress,
+    )));
   }
 
   Future<void> _choosePlaybackMode() async {
@@ -305,6 +353,7 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
   @override
   Widget build(BuildContext context) {
     final progress = _dragValue ?? _progress;
+    final speed = ref.watch(ttsSpeedProvider);
 
     final playButton = Semantics(
       button: true,
@@ -317,7 +366,13 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
         key: _playButtonKey,
         onLongPress: _choosePlaybackMode,
         child: IconButton.filledTonal(
-          icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
+          // 取得待ちは回るインジケーター。押せば一時停止と同じく止まる。
+          icon: _playing && _loading
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                )
+              : Icon(_playing ? Icons.pause : Icons.play_arrow),
           onPressed: () {
             if (_playing) {
               _stop(resetProgress: false);
@@ -358,6 +413,24 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
                 onChangeEnd: _seekable ? _onSeekEnd : null,
               ),
             ),
+          ),
+        ),
+        Semantics(
+          button: true,
+          label: L10n.of(context).audioSpeed,
+          value: speed.label,
+          excludeSemantics: true,
+          child: TextButton(
+            onPressed: _cycleSpeed,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+            child: Text(speed.label),
           ),
         ),
         if (widget.trailing != null) ...[
