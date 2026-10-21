@@ -129,9 +129,8 @@ HASHTAGS = "#タイ語 #タイ語勉強"
 
 
 def build_text(sentence: dict) -> str:
-    """投稿本文。手で出していた形をそのまま踏襲する。"""
-    lines = ["今日のタイ語", ""]
-    lines.append(sentence["thai_text"])
+    """投稿本文。"""
+    lines = [sentence["thai_text"]]
     if sentence.get("pronunciation"):
         lines.append(sentence["pronunciation"])
     lines += ["", sentence["japanese_translation"], "", HASHTAGS]
