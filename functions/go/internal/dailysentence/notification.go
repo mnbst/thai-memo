@@ -9,9 +9,12 @@ import (
 
 // 通知タイトルの言語別テンプレート。本文は例文そのもの（タイ文・発音・訳）なので
 // 訳文の言語で決まるが、タイトルはサーバー側の文言なのでここで出し分ける。
-var notificationTitle = map[lang.Lang]struct{ plain, withWord string }{
-	lang.JA: {"🇹🇭 今日のタイ語", "🇹🇭 今日のタイ語 · %s（%s）"},
-	lang.EN: {"🇹🇭 Thai of the Day", "🇹🇭 Thai of the Day · %s (%s)"},
+//
+// 「今日のタイ語」は1日1回を思わせ、1日に何度も届く premium の配信と
+// 食い違うので使わない。キーワードがあればそれから始める。
+var notificationTitle = map[lang.Lang]struct{ plain, wordOnly, withWord string }{
+	lang.JA: {"🇹🇭 タイ語の例文", "🇹🇭 %s", "🇹🇭 %s（%s）"},
+	lang.EN: {"🇹🇭 Thai practice", "🇹🇭 %s", "🇹🇭 %s (%s)"},
 }
 
 // セット配信のときにタイトルへ添える本数。1本目の key_word しか本文に出ないので、
@@ -24,8 +27,8 @@ var notificationSetSuffix = map[lang.Lang]struct{ plain, withWord string }{
 
 // BuildNotificationText は通知のタイトルと本文を組み立てる。
 //
-// タイ文字だけだと通知一覧で何のアプリか判別しづらいので、タイトルに
-// キーワードとその意味を載せて「今日の学習が届いた」と一目で分かるようにする。
+// タイ文字だけだと何の通知か判別しづらいので、タイトルにキーワードと
+// その意味を載せて「新しい例文が届いた」と一目で分かるようにする。
 // 本文は タイ文 / 発音 / 訳 の3行。3行は並列な項目ではなく1つの例文の3側面なので、
 // 同じ記号を並べず、発音は括弧・訳は矢印で役割を書き分ける。
 // 発音が無い例文もあるので行ごとに省く。
@@ -49,7 +52,7 @@ func BuildNotificationText(
 	case keyWord != "" && meaning != "":
 		title = fmt.Sprintf(tmpl.withWord, keyWord, meaning)
 	case keyWord != "":
-		title = tmpl.plain + " · " + keyWord
+		title = fmt.Sprintf(tmpl.wordOnly, keyWord)
 	default:
 		title = tmpl.plain
 	}

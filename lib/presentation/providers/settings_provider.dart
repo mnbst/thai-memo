@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/l10n/app_language.dart';
+import '../../core/notify_slots.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../services/analytics_service.dart';
 import '../../services/push_notification_service.dart';
@@ -56,6 +58,10 @@ class SettingsState {
   /// 毎日例文のプッシュ通知を受け取るか
   final bool dailyReminderEnabled;
 
+  /// 通知時刻の枠（時刻順）。free は1枠、premium は3枠。
+  /// 通知そのもののオン・オフは [dailyReminderEnabled] が受け持つ。
+  final List<NotifySlot> notifySlots;
+
   /// 通知コーチングダイアログを一度でも表示したか
   final bool notificationCoachShown;
 
@@ -70,6 +76,7 @@ class SettingsState {
     this.fontFamily = ThaiFont.sarabun,
     this.appLanguage = AppLanguage.ja,
     this.dailyReminderEnabled = true,
+    this.notifySlots = const [NotifySlot(kDefaultGenerationHour)],
     this.notificationCoachShown = true,
     this.notificationCoachRepromptedVersion,
   });
@@ -96,6 +103,7 @@ class SettingsState {
     ThaiFont? fontFamily,
     AppLanguage? appLanguage,
     bool? dailyReminderEnabled,
+    List<NotifySlot>? notifySlots,
     bool? notificationCoachShown,
     String? notificationCoachRepromptedVersion,
   }) {
@@ -108,6 +116,7 @@ class SettingsState {
       fontFamily: fontFamily ?? this.fontFamily,
       appLanguage: appLanguage ?? this.appLanguage,
       dailyReminderEnabled: dailyReminderEnabled ?? this.dailyReminderEnabled,
+      notifySlots: notifySlots ?? this.notifySlots,
       notificationCoachShown:
           notificationCoachShown ?? this.notificationCoachShown,
       notificationCoachRepromptedVersion: notificationCoachRepromptedVersion ??
@@ -193,6 +202,10 @@ class SettingsController extends StateNotifier<SettingsState> {
     final timeString =
         _prefs!.getString(AppConfig.prefKeyPreferredGenerationTime);
     final preferredTime = timeString != null ? _parseTime(timeString) : null;
+    // 複数時刻に対応する前の端末は配信希望時刻の1枠だけを持っていたことにする。
+    final notifySlots =
+        decodeNotifySlots(_prefs!.getString(AppConfig.prefKeyNotifySlots)) ??
+            [NotifySlot(preferredTime?.hour ?? kDefaultGenerationHour)];
 
     // Load generation params
     final params = <String, String?>{};
@@ -225,6 +238,7 @@ class SettingsController extends StateNotifier<SettingsState> {
       fontFamily: fontFamily,
       appLanguage: appLanguage,
       dailyReminderEnabled: dailyReminderEnabled,
+      notifySlots: notifySlots,
       notificationCoachShown: notificationCoachShown,
       notificationCoachRepromptedVersion: _prefs!
           .getString(AppConfig.prefKeyNotificationCoachRepromptedVersion),
@@ -469,22 +483,53 @@ class SettingsController extends StateNotifier<SettingsState> {
     state = state.copyWith(notificationCoachRepromptedVersion: version);
   }
 
-  /// 配信希望時刻を設定する。サーバーは時単位でしか配信しないため分は捨てる。
-  Future<void> setPreferredGenerationTime(TimeOfDay time) async {
-    final hour = time.hour;
-    final normalized = TimeOfDay(hour: hour, minute: 0);
+  /// 通知時刻の枠を保存し、オンの時刻をサーバーへ送る。
+  ///
+  /// いちばん早いオンの時刻を従来の配信希望時刻（preferred_generation_hour）
+  /// としても持つ。旧版の端末やサーバーの既存経路はこの1つだけを見る。
+  Future<void> setNotifySlots(List<NotifySlot> slots) async {
+    final sorted = sortNotifySlots(slots);
+    final hours = enabledNotifyHours(sorted);
+    await _prefs?.setString(
+      AppConfig.prefKeyNotifySlots,
+      encodeNotifySlots(sorted),
+    );
+    if (hours.isEmpty) {
+      state = state.copyWith(notifySlots: sorted);
+      return;
+    }
     await _prefs?.setString(
       AppConfig.prefKeyPreferredGenerationTime,
-      '$hour:00',
+      '${hours.first}:00',
     );
-    state = state.copyWith(preferredGenerationTime: normalized);
-    await _push.setPreferredHour(hour);
+    state = state.copyWith(
+      notifySlots: sorted,
+      preferredGenerationTime: TimeOfDay(hour: hours.first, minute: 0),
+    );
+    await _push.setNotifyHours(hours);
     unawaited(
       _analytics.logChangeSetting(
-        key: 'preferred_generation_hour',
-        value: hour.toString(),
+        key: 'notify_hours',
+        value: hours.join(','),
       ),
     );
+  }
+
+  /// プランが前回見たときと変わっていたら、通知時刻の枠を作り直す。
+  ///
+  /// free になったら1枠、premium になったら3枠。初めて呼ばれたとき
+  /// （複数時刻に対応する前からの端末）は今のプランの形にそろえるだけ。
+  Future<void> syncNotifySlotsPlan({required bool premium}) async {
+    final plan = premium ? 'premium' : 'free';
+    if (_prefs?.getString(AppConfig.prefKeyNotifySlotsPlan) == plan) return;
+    await _prefs?.setString(AppConfig.prefKeyNotifySlotsPlan, plan);
+    final next = notifySlotsForPlan(
+      state.notifySlots,
+      premium: premium,
+      fallbackHour: state.preferredGenerationHour,
+    );
+    if (listEquals(next, state.notifySlots)) return;
+    await setNotifySlots(next);
   }
 
   /// Set a generation parameter (null = random)
@@ -577,6 +622,11 @@ final appLanguageProvider = Provider<AppLanguage>((ref) {
 /// Provider for daily sentence notification toggle
 final dailyReminderEnabledProvider = Provider<bool>((ref) {
   return ref.watch(settingsControllerProvider).dailyReminderEnabled;
+});
+
+/// Provider for notification time slots
+final notifySlotsProvider = Provider<List<NotifySlot>>((ref) {
+  return ref.watch(settingsControllerProvider).notifySlots;
 });
 
 /// Provider for notification coaching dialog shown flag

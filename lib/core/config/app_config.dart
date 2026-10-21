@@ -53,6 +53,10 @@ class AppConfig {
   static const String prefKeyPreferredGenerationTime =
       'preferred_generation_time';
 
+  /// 通知時刻の枠（"7:0,10:1,20:0"）と、それを最後にそろえたプラン（free/premium）
+  static const String prefKeyNotifySlots = 'notify_slots';
+  static const String prefKeyNotifySlotsPlan = 'notify_slots_plan';
+
   /// 毎日例文のプッシュ通知を受け取るか（サーバー側 daily_reminder_enabled のミラー）
   static const String prefKeyDailyReminderEnabled = 'daily_reminder_enabled';
 

@@ -10,6 +10,8 @@ import (
 
 // TestNotificationGolden は通知の文面が Python 実装と一致することを確かめる。
 // golden は scripts/daily_golden/gen_notification_golden.py が生成する。
+// タイトルだけは 2026-10 に「今日のタイ語」を外したため、golden の title を
+// Go 側の新しい文面に書き換えてある（本文は Python と同じ）。
 func TestNotificationGolden(t *testing.T) {
 	raw, err := os.ReadFile("../../testdata/python/daily_golden/notification_golden.json")
 	if err != nil {

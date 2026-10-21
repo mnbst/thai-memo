@@ -35,6 +35,9 @@ lib/core/constants/generation_labels.dart
 lib/core/quota_error.dart
 エラーメッセージが生成上限によるものかの判定（「上限」/「limit」）。
 
+lib/core/notify_slots.dart
+毎日例文の通知時刻の枠（free 1枠・premium 3枠）。プランに合わせた作り直し、オンの時刻の抽出、prefs 用の文字列化。
+
 lib/l10n/app_ja.arb / app_en.arb / app_localizations*.dart
 UI文言のARBと gen_l10n 生成物（`flutter gen-l10n` で再生成）。
 
@@ -175,7 +178,10 @@ lib/presentation/screens/quiz_screen.dart
 クイズ画面（問題出題、回答、結果確認）。進み具合は上端の金の帯とAppBarの「2 / 5」（QuizProgressCounter）で示し、正誤は緑と朱、進む導線は下端の固定バー。ヒント（発音→訳文の2段階、使い切っても不活性で残す）は5問テストのみ。確認クイズはヒント無しで例文へ戻るだけ。
 
 lib/presentation/screens/settings_screen.dart
-設定画面。語彙スコアの深藍カード＋Free向け課金導線を先頭に置き、以下はアカウント/学習設定/表示/アプリについての4カード（見出し＋罫線区切り）。学習設定の先頭は読み物（使い方ガイド・声調ガイド）。
+設定画面。語彙スコアの深藍カード＋Free向け課金導線を先頭に置き、以下はアカウント/学習設定/表示/アプリについての4カード（見出し＋罫線区切り）。学習設定の先頭は読み物（使い方ガイド・声調ガイド）。毎日例文の通知はオンの時刻を並べた1行で、通知時刻一覧へ入る。
+
+lib/presentation/screens/notification_schedule_screen.dart
+毎日例文の通知時刻一覧（アラーム風）。トグルでオン・オフ、行タップで時刻変更。free は1枠＋プレミアム案内、premium は3枠＋例文セット入れ替えの注意書き。開いたときにプラン変更を検知して枠を作り直す。
 
 lib/presentation/screens/paywall_screen.dart
 プレミアム課金UI（全画面ページ PaywallScreen）。深藍の表題カード＋特典＋プラン選択（月額／年額／買い切り。月額しか引けない環境では選択を出さず従来の1本道）＋開示文・復元リンクを1本のスクロールに載せ、購入ボタンだけ下端に固定。導線は設定・クイズ画面配下。自動表示はトライアルの開放案内・終了案内（source=trial_ended）のみで、他は全てタップ起点。
@@ -188,6 +194,12 @@ test/screenshots/guide_screenshot.dart
 
 test/screenshots/listen_mock_screenshot.dart
 聞き流し再生のUI案（入口・再生画面・ミニバー）を1枚の PNG に並べる設計用モック。
+
+test/screenshots/notif_coach_mock_app.dart
+通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
+
+test/screenshots/review_notify_mock_app.dart
+通知を1日に複数回設定するUI案（アラーム風の3枠固定・トグルで出し入れと届く通知）をシミュレーターで触るモック（flutter run -t）。
 
 test/screenshots/settings_screenshot.dart
 設定画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。プラン（trial/free/premium）・言語・高さを dart-define で切り替える。
@@ -298,7 +310,7 @@ lib/services/tts_service.dart
 タイ語発音のText-to-Speechエンジン。Android でタイ語の声が無いときは thaiVoiceMissing を流し、音声データの取得画面を開ける。
 
 lib/services/push_notification_service.dart
-FCMトークン・タイムゾーン・配信希望時刻をusers/{uid}に登録。OSの通知許可とアプリ内設定の突き合わせも行う。
+FCMトークン・タイムゾーン・配信時刻（notify_hours / notify_utc_hours と先頭の preferred_generation_hour）をusers/{uid}に登録。OSの通知許可とアプリ内設定の突き合わせも行う。
 
 lib/services/app_version_reporter.dart
 起動時に users doc へ app_version / app_build_number / last_opened_at を記録。サーバー側の機能出し分け判定に使う。
@@ -313,7 +325,7 @@ lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
 lib/services/daily_sentence_service.dart
-users/{uid}/sentences を updated_at の差分同期でローカルSQLiteへ反映する（配信・自分で生成した例文の取り込み、ほかの端末でのお気に入り・削除）。まっさらな端末だけ全件読む。未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at`（配信バックオフの開封シグナル）も更新する。アカウント切替時は自分で生成した例文を取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。
+users/{uid}/sentences を updated_at の差分同期でローカルSQLiteへ反映する（配信・自分で生成した例文の取り込み、ほかの端末でのお気に入り・削除）。まっさらな端末だけ全件読む。未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at` と配信バックオフの段階リセット（開いたら毎日に戻す）も更新する。アカウント切替時は自分で生成した例文を取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。
 
 lib/services/sentence_remote_state.dart
 お気に入り・削除を Firestore の例文docへ書き、ほかの端末へ伝える（favorite / deleted / updated_at）。
@@ -618,7 +630,7 @@ functions/go/internal/quality/judge_test.go
 Jevスタブでの合否振り分け・観点別閾値・英訳で訳の観点を外すこと・失敗時の扱い・再試行のテスト。
 
 functions/go/deliver_daily_sentence.go
-daily_sentence_handlers.py の Go 版。毎時起動し、配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、実効プレミアム（premium.IsEffectivePremium）はLLM生成。通知成功後に、1本も読まれなかった過去の配信セットを消す（洗い替え）。
+daily_sentence_handlers.py の Go 版。毎時起動し、notify_utc_hour と notify_utc_hours（複数時刻）で引いた配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、実効プレミアム（premium.IsEffectivePremium）はLLM生成。通知成功後に、1本も読まれなかった過去の配信セットを消す（洗い替え）。
 
 functions/go/deliver_daily_sentence_golden_test.go
 配信の生成分岐・コミット時の更新内容・ロールバックの更新内容をPython実装の出力と突き合わせる。
@@ -804,19 +816,22 @@ functions/go/internal/lang/drift.go
 LLM出力の言語ずれ（ja 指定で韓国語など）の文字による判定。生成経路すべてで共通に使う。
 
 functions/go/internal/dailysentence/dailysentence.go
-daily_sentence.py の Go 版。毎日例文の配信判定（段階バックオフ・見送り理由・現地時刻）とバージョン別の配信本数（BatchSize）。権利の判定は持たない（internal/premium）。
+daily_sentence.py の Go 版。毎日例文の配信判定（段階バックオフ・見送り理由・現地時刻・複数時刻の何番目か）とバージョン別の配信本数（BatchSize）。dailyBatch が毎日書き直す notify_hours の整え（NotifyHoursRefresh）もここ。権利の判定は持たない（internal/premium）。
 
 functions/go/internal/dailysentence/batch_test.go
 app_version による配信本数の判定と、セット本数を添えた通知タイトルのテスト。
+
+functions/go/internal/dailysentence/slots_test.go
+複数時刻（notify_hours）の配信判定・期日・free への戻しのテスト。
 
 functions/go/internal/dailysentence/golden_test.go
 配信判定をPython実装の出力と突き合わせる（6000ケース + タイムゾーン112ケース）。
 
 functions/go/internal/dailysentence/notification.go
-毎日例文のFCM通知タイトル・本文の組み立て。タイトルは言語別（セット配信は本数を付与）、本文はタイ文/発音/訳の3行。
+毎日例文のFCM通知タイトル・本文の組み立て。タイトルはキーワードから始める言語別（セット配信は本数を付与）、本文はタイ文/発音/訳の3行。
 
 functions/go/internal/dailysentence/notification_golden_test.go
-通知文面をPython実装の出力と突き合わせる（53ケース）。
+通知文面をPython実装の出力と突き合わせる（53ケース。タイトルは「今日のタイ語」を外した新しい文面に書き換え済み）。
 
 functions/go/internal/sentence/constants.go
 constants.py の Go 版。モデル設定・context英語化・レスポンススキーマ組み立て（クォータ定数は internal/quota に一本化）。

@@ -133,10 +133,10 @@ void main() {
         ),
       );
 
-      expect(find.text('毎日、例文が通知で届きます'), findsOneWidget);
+      expect(find.text('通知で学習を毎日の習慣に'), findsOneWidget);
 
       // 続けやすい理由の1行と、通知の見た目のプレビュー。
-      expect(find.text('同じ時間に届くので、続けやすくなります'), findsOneWidget);
+      expect(find.text('決めた時間に新しい例文が届き、続けるきっかけになります'), findsOneWidget);
       expect(find.text('ขอบคุณสำหรับกาแฟนะครับ'), findsOneWidget);
 
       // 主導線でその場でOS許可要求まで進む。設定画面へ辿らせる導線は持たない。

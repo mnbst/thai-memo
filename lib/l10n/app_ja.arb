@@ -316,6 +316,19 @@
   "settingsDailyNotificationSubtitle": "例文をお知らせします",
   "settingsAllowNotificationInOsSettings": "端末の設定で通知を許可してください",
   "settingsNotificationTime": "通知する時刻",
+  "notifyScheduleOff": "オフ",
+  "notifySchedulePremiumUpsell": "プレミアムでは、例文通知を1日{count}回まで設定できます",
+  "@notifySchedulePremiumUpsell": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifyScheduleReplaceNote": "通知ごとに新しい例文セットが届きます。次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。",
+  "notifyScheduleChangeTime": "時刻を変更",
+  "notifyScheduleTimeTaken": "その時刻はもう設定されています",
+  "notifyScheduleSave": "保存",
   "settingsTopic": "テーマ",
   "settingsTopicRandom": "おまかせ",
   "settingsNextLevelIn": "次のレベルまで あと{count}語",
@@ -644,10 +657,10 @@
 
   "philosophyStart": "使い方を見る",
 
-  "notifCoachTitle": "毎日、例文が通知で届きます",
-  "notifCoachHabit": "同じ時間に届くので、続けやすくなります",
+  "notifCoachTitle": "通知で学習を毎日の習慣に",
+  "notifCoachHabit": "決めた時間に新しい例文が届き、続けるきっかけになります",
   "notifCoachNow": "今",
-  "notifCoachSampleTitle": "🇹🇭 今日のタイ語 · ขอบคุณ（ありがとう）",
+  "notifCoachSampleTitle": "🇹🇭 ขอบคุณ（ありがとう）",
   "notifCoachSampleBody": "→ コーヒーをありがとうございます",
   "notifCoachEnable": "通知をオンにする",
   "notifCoachLater": "今はしない",
