@@ -431,26 +431,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// 通知タップ時は配信例文を取得できた場合だけ画面を切り替える。
   /// 取得前に切り替えると、オフライン等で失敗したときにクイズの進行だけが失われる。
+  ///
+  /// クイズ中は表示を差し替えず、学習タブへ戻すだけにする。切り替えると
+  /// reset() でまとめクイズの途中経過が消える（圏外から戻った直後に、溜まって
+  /// いた通知を開くと起きる）。配信は取り込んであるので、クイズのあとに出る。
   Future<void> _handleNotificationOpen(RemoteMessage message) async {
     if (!_isDailySentenceNotification(message) || !mounted) return;
     final sentenceId = message.data['sentence_id']?.toString();
-    final delivered =
-        await _showDeliveredIfAny(sentenceId: sentenceId, force: true);
-    if (!delivered.displayed || !mounted) return;
-    _openLearningSentenceStage();
+    final delivered = await _showDeliveredIfAny(
+      sentenceId: sentenceId,
+      force: _isOnLearningSentenceStage,
+    );
+    if (!mounted) return;
+    // 取り込みを待つあいだにクイズへ進んでいることもあるので、ここで見直す。
+    if (!_isOnLearningSentenceStage) {
+      _openLearningTab();
+      return;
+    }
+    if (!delivered.displayed) return;
+    _openLearningTab();
+    _learningKey.currentState?.showSentenceStage();
   }
+
+  bool get _isOnLearningSentenceStage =>
+      _learningKey.currentState?.isOnSentenceStage ?? true;
 
   bool _isDailySentenceNotification(RemoteMessage message) {
     return message.data['type'] == 'daily_sentence';
   }
 
-  void _openLearningSentenceStage() {
+  void _openLearningTab() {
     Navigator.of(context).popUntil((route) => route.isFirst);
     if (_currentIndex != 0) {
       setState(() => _currentIndex = 0);
       _logCurrentTabScreen(index: 0);
     }
-    _learningKey.currentState?.showSentenceStage();
   }
 
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
