@@ -603,7 +603,7 @@ functions/go/internal/poolreview/
 確認待ちのコレクション名・状態・doc ID と、OK の文を本番プールへ足す処理（重複排除・2万本上限）。
 
 functions/go/cmd/poolreview/main.go
-pool-review スキルの道具。list（確認待ちを JSON に）・apply（OK をプールへ足して音声を作る・NG を rejected）・audio（prod のプール全文の音声を一括で作る）。
+pool-review スキルの道具。list（確認待ちを JSON に）・apply（OK を本番プールへ足す・NG を rejected）。
 
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文1回きりの判定（ReviewAll）で、不合格なら sentence_flags へ1件書く。キーが無ければ nil（判定なしで動く）。
