@@ -63,9 +63,18 @@ logs=()
 for fn in "$@"; do
   log="$(mktemp)"
   logs+=("$fn:$log")
+  # トリガーは引き継がれないので、今の関数から読んで同じものを付け直す。
+  # Pub/Sub の関数に --trigger-http を付けると 400 で落ちる。
+  topic="$(gcloud functions describe "$fn" --project "$project" \
+    --region asia-northeast1 --format="value(eventTrigger.pubsubTopic)")"
+  if [ -n "$topic" ]; then
+    trigger=(--trigger-topic="${topic##*/}")
+  else
+    trigger=(--trigger-http)
+  fi
   gcloud functions deploy "$fn" --project "$project" --gen2 --runtime=go126 \
     --region=asia-northeast1 --source="$src/functions/go" --entry-point="$fn" \
-    --trigger-http --quiet >"$log" 2>&1 &
+    "${trigger[@]}" --quiet >"$log" 2>&1 &
   pids+=($!)
 done
 

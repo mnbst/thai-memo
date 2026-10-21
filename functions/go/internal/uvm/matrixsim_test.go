@@ -518,3 +518,10 @@ func TestEvidenceKSweep(t *testing.T) {
 		}
 	}
 }
+
+// themeMatched は rank がテーマに合う語かを rate の割合で決める。
+// rank と相関しないよう Knuth 乗算ハッシュで散らす。
+func themeMatched(rank int, rate float64) bool {
+	h := uint32(rank) * 2654435761
+	return float64(h)/float64(1<<32) < rate
+}

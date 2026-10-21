@@ -21,5 +21,4 @@ x_post_themes = "BLドラマ"
 x_post_extra_slots = {
   "1200" = { schedule = "0 12 * * *", themes = "仕事" }
   "1700" = { schedule = "0 17 * * *", themes = "タイ生活" }
-  "2200" = { schedule = "0 22 * * *", themes = "恋愛" }
 }
