@@ -230,7 +230,7 @@ func (d *deliverer) buildSentences(
 			// premium は LLM 生成なので引き直さない（Produce の既定と同じ 1 周）。
 			SelectRetry: 1,
 			Lang:        l,
-			// 配信はユーザーを待たせないので、LLM 生成分を判定して不合格なら作り直す。
+			// LLM 生成分を1回判定し、不合格の文はセットから外す。
 			QualityCheck: deliveryQualityCheck(),
 		}, n)
 		if err != nil {

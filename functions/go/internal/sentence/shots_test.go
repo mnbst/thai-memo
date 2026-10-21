@@ -52,8 +52,8 @@ func TestShotSectionReplacesSubThemeAndRelation(t *testing.T) {
 	if strings.Contains(gen.prompt, "- 場面:") {
 		t.Error("ショットの無いテーマに場面が付いた")
 	}
-	if !strings.Contains(gen.prompt, "- テーマ: "+Topics[3]) {
-		t.Error("ショットの無いテーマのラベルが変わった")
+	if !strings.Contains(gen.prompt, "- テーマ: "+TopicLabel(Topics[3])+"\n") {
+		t.Error("ショットの無いテーマもカッコ内を外して出す")
 	}
 }
 

@@ -261,7 +261,7 @@ func runGenerateThaiSentence(
 		EstimatedVocab: estimatedVocab,
 		TestedVocab:    intValue(userData["vocab_test_vocab"]),
 		Lang:           l,
-		// LLM 生成分を判定し、不合格なら作り直す（待ち時間 +0.5 秒、作り直し時 +5 秒前後）。
+		// LLM 生成分を1回判定し、不合格の文はセットから外す（待ち時間 +0.5 秒前後）。
 		QualityCheck: generationQualityCheck(),
 	}, count)
 	if err != nil {
@@ -689,7 +689,8 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 	}
 
 	store := embeddings.Default
-	// 参考例文はプロンプトの断片と、まとめたテーマの解決の両方に使う。
+	// 参考例文はプロンプトの断片、まとめたテーマの解決（free）、premium の
+	// 場面合致（テーマ・場面・ショットを選定時に決める）に使う。
 	shots := &themeshots.Builder{Ctx: ctx, Scenes: store}
 	return &sentence.Producer{
 		// 判定器が作れなくても生成は止めない（判定なしで動く）。
@@ -697,6 +698,7 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 		Selector: &sentence.TargetWordSelector{
 			Session: &uvm.SessionSelector{Emb: store},
 			Groups:  shots,
+			Scenes:  shots,
 		},
 		Bank: &sentence.FreeBank{ProjectID: fbapp.ProjectID()},
 		// premium は静的コーパスから出す。無い語だけ Service（LLM）へ落ちる。

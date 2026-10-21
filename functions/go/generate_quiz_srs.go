@@ -215,7 +215,12 @@ func isSentenceViewed(data map[string]any) bool {
 //
 // 選出の優先順位:
 //  1. srsDays をランダム順に見て、ジャスト日付ごとに P 値最低の1文を最大2文選出
-//  2. ①で埋まらなかった枠を、UVM の P 値が低いキーワード順に1語1文で補充
+//  2. ①で埋まらなかった枠を、UVM のキーワードから1語1文で補充
+//     （苦手枠: 範囲外の苦手な語を1本 → スコア枠: bandWords の P 昇順
+//     → 低P枠: それ以外の P 昇順）
+//
+// bandWords はスコア枠で見る語（uvm.QuizScoreBand）。
+// nil（順位表を読めないとき）はスコア枠が空になり、苦手枠のあとは低P枠で埋める。
 //
 // filter は語彙テスト受験後に測定値より下の key_word を落とすために使う
 // （quizKeyWordFilter を参照）。呼び出し側は、絞った結果が空になったら
@@ -226,7 +231,7 @@ func isSentenceViewed(data map[string]any) bool {
 // 問題数が埋まらないことがあるため、呼び出し側が偽でもう1周する。
 func selectSentencesBySRS(
 	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time,
-	filter keyWordFilter, viewedOnly bool, sel *selection,
+	filter keyWordFilter, bandWords []string, viewedOnly bool, sel *selection,
 ) error {
 	srsSentences, err := selectSrsSentences(ctx, db, uid, jstNow, filter, viewedOnly, sel)
 	if err != nil {
@@ -238,7 +243,7 @@ func selectSentencesBySRS(
 
 	if remaining := sel.limit - len(sel.sentences); remaining > 0 {
 		fillers, err := selectFillerSentencesByUvm(
-			ctx, db, uid, jstNow, remaining, sel.usedIDs, sel.usedKeyWords, filter, viewedOnly)
+			ctx, db, uid, jstNow, remaining, sel.usedIDs, sel.usedKeyWords, filter, bandWords, viewedOnly)
 		if err != nil {
 			return err
 		}
@@ -368,17 +373,21 @@ func fetchSrsCandidatesForInterval(
 // weakPThreshold はこれを下回り、かつ複数回間違えている語を優先する境目。
 const weakPThreshold = 0.3
 
+// maxWeakFillerSentences は補充のうち苦手枠（範囲外の苦手な語）の上限。
+// 残りはスコア枠に回す。
+const maxWeakFillerSentences = 1
+
 func selectFillerSentencesByUvm(
 	ctx context.Context, db *firestore.Client, uid string, jstNow time.Time, needed int,
-	usedIDs, usedKeyWords map[string]bool, filter keyWordFilter, viewedOnly bool,
+	usedIDs, usedKeyWords map[string]bool, filter keyWordFilter, bandWords []string, viewedOnly bool,
 ) ([]selectedSentence, error) {
 	var selected []selectedSentence
 	if needed <= 0 {
 		return selected, nil
 	}
 
-	it := db.Collection("users").Doc(uid).Collection("uvm").
-		OrderBy("p", firestore.Asc).
+	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
+	it := uvmRef.OrderBy("p", firestore.Asc).
 		Limit(uvmFillerPageSize).
 		Documents(ctx)
 	defer it.Stop()
@@ -395,60 +404,119 @@ func selectFillerSentencesByUvm(
 		uvmDocs = append(uvmDocs, doc)
 	}
 
-	// 「2回以上出題して、それでも P が低い」語を先頭へ。次に P の低い順。
-	isWeak := func(doc *firestore.DocumentSnapshot) bool {
-		data := doc.Data()
-		return floatField(data["quiz_attempts"]) >= 2 && floatField(data["p"]) < weakPThreshold
-	}
-	sort.SliceStable(uvmDocs, func(i, j int) bool {
-		wi, wj := isWeak(uvmDocs[i]), isWeak(uvmDocs[j])
-		if wi != wj {
-			return wi
+	// スコアの再計算範囲の語。ここで正解すると estimated_vocab に効く。
+	// P の低い順だけだと、範囲外の P=prior の語と同点で並び（同点は doc ID
+	// ＝文字コード順）、スコアのすぐ上の語がいつまでも出題されなかった。
+	var bandDocs []*firestore.DocumentSnapshot
+	if len(bandWords) > 0 {
+		refs := make([]*firestore.DocumentRef, len(bandWords))
+		for i, word := range bandWords {
+			refs[i] = uvmRef.Doc(word)
 		}
-		return floatField(uvmDocs[i].Data()["p"]) < floatField(uvmDocs[j].Data()["p"])
-	})
-
-	for i := 0; i < len(uvmDocs) && len(selected) < needed; i += keywordInQueryLimit {
-		end := min(i+keywordInQueryLimit, len(uvmDocs))
-
-		var keyWords []string
-		for _, doc := range uvmDocs[i:end] {
-			if !usedKeyWords[doc.Ref.ID] && filter.allows(doc.Ref.ID) {
-				keyWords = append(keyWords, doc.Ref.ID)
-			}
-		}
-		if len(keyWords) == 0 {
-			continue
-		}
-
-		byKeyWord, err := fetchSentenceCandidatesByKeyWords(
-			ctx, db, uid, jstNow, keyWords, usedIDs, viewedOnly)
+		snaps, err := db.GetAll(ctx, refs)
 		if err != nil {
 			return nil, err
 		}
-
-		for _, keyWord := range keyWords {
-			if len(selected) >= needed {
-				break
+		for _, snap := range snaps {
+			if snap.Exists() {
+				bandDocs = append(bandDocs, snap)
 			}
-			if usedKeyWords[keyWord] {
-				continue
-			}
-			candidates := byKeyWord[keyWord]
-			if len(candidates) == 0 {
-				continue
-			}
-			shuffleN(len(candidates), func(a, b int) {
-				candidates[a], candidates[b] = candidates[b], candidates[a]
-			})
-
-			sentence := candidates[0]
-			selected = append(selected, selectedSentence{
-				ID: sentence.Ref.ID, Data: sentence.Data(), SrsInterval: -1,
-			})
-			usedIDs[sentence.Ref.ID] = true
-			usedKeyWords[keyWord] = true
 		}
+	}
+
+	// 苦手枠: 「2回以上出題して、それでも P が低い」語のうち範囲外のもの。
+	// 範囲外はほぼ estimated_vocab より下の基本語で、間違えたままの語を
+	// 出し直す。範囲内の苦手な語は P が最も低いのでスコア枠の先頭に来る。
+	// スコア枠: 範囲内の P の低い順（同点はランダム）。正解がスコアに効く。
+	// 低P枠: 範囲内に例文が足りないときだけ、残りを P の低い順で埋める。
+	inBand := make(map[string]bool, len(bandDocs))
+	for _, doc := range bandDocs {
+		inBand[doc.Ref.ID] = true
+	}
+	p := func(doc *firestore.DocumentSnapshot) float64 { return floatField(doc.Data()["p"]) }
+	isWeak := func(doc *firestore.DocumentSnapshot) bool {
+		return floatField(doc.Data()["quiz_attempts"]) >= 2 && p(doc) < weakPThreshold
+	}
+	var weak, rest []string
+	// Firestore は同点を doc ID（文字コード）順で返す。苦手な語は PFloor に
+	// 張り付いて同点になりやすいので、シャッフルしてから並べて偏りを消す。
+	shuffleN(len(uvmDocs), func(a, b int) {
+		uvmDocs[a], uvmDocs[b] = uvmDocs[b], uvmDocs[a]
+	})
+	sort.SliceStable(uvmDocs, func(i, j int) bool { return p(uvmDocs[i]) < p(uvmDocs[j]) })
+	for _, doc := range uvmDocs {
+		switch {
+		case inBand[doc.Ref.ID]:
+		case isWeak(doc):
+			weak = append(weak, doc.Ref.ID)
+		default:
+			rest = append(rest, doc.Ref.ID)
+		}
+	}
+	shuffleN(len(bandDocs), func(a, b int) {
+		bandDocs[a], bandDocs[b] = bandDocs[b], bandDocs[a]
+	})
+	sort.SliceStable(bandDocs, func(i, j int) bool { return p(bandDocs[i]) < p(bandDocs[j]) })
+	band := make([]string, len(bandDocs))
+	for i, doc := range bandDocs {
+		band[i] = doc.Ref.ID
+	}
+
+	// pick は words を先頭から見て、例文のある語を limit 本まで selected に足す。
+	pick := func(words []string, limit int) error {
+		for i := 0; i < len(words) && len(selected) < limit; i += keywordInQueryLimit {
+			end := min(i+keywordInQueryLimit, len(words))
+
+			var keyWords []string
+			for _, word := range words[i:end] {
+				if !usedKeyWords[word] && filter.allows(word) {
+					keyWords = append(keyWords, word)
+				}
+			}
+			if len(keyWords) == 0 {
+				continue
+			}
+
+			byKeyWord, err := fetchSentenceCandidatesByKeyWords(
+				ctx, db, uid, jstNow, keyWords, usedIDs, viewedOnly)
+			if err != nil {
+				return err
+			}
+
+			for _, keyWord := range keyWords {
+				if len(selected) >= limit {
+					break
+				}
+				if usedKeyWords[keyWord] {
+					continue
+				}
+				candidates := byKeyWord[keyWord]
+				if len(candidates) == 0 {
+					continue
+				}
+				shuffleN(len(candidates), func(a, b int) {
+					candidates[a], candidates[b] = candidates[b], candidates[a]
+				})
+
+				sentence := candidates[0]
+				selected = append(selected, selectedSentence{
+					ID: sentence.Ref.ID, Data: sentence.Data(), SrsInterval: -1,
+				})
+				usedIDs[sentence.Ref.ID] = true
+				usedKeyWords[keyWord] = true
+			}
+		}
+		return nil
+	}
+
+	if err := pick(weak, min(needed, maxWeakFillerSentences)); err != nil {
+		return nil, err
+	}
+	if err := pick(band, needed); err != nil {
+		return nil, err
+	}
+	if err := pick(rest, needed); err != nil {
+		return nil, err
 	}
 
 	return selected, nil

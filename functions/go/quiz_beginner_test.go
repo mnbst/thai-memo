@@ -12,19 +12,20 @@ import (
 func TestBeginnerQuizEnabled(t *testing.T) {
 	cases := []struct {
 		name     string
-		vocab    any
+		userData map[string]any
 		expected bool
 	}{
-		{"未受験は対象", nil, true},
-		{"99は対象", int64(99), true},
-		{"100は対象外", int64(100), false},
+		{"未受験は対象", map[string]any{}, true},
+		{"測定値99は対象", map[string]any{"vocab_test_vocab": int64(99)}, true},
+		{"測定値100は対象外", map[string]any{"vocab_test_vocab": int64(100)}, false},
+		{"語彙スコア99は対象", map[string]any{"estimated_vocab": int64(99)}, true},
+		{"語彙スコア100は対象外", map[string]any{"estimated_vocab": int64(100)}, false},
+		{"卒業済みはスコアが下がっても対象外", map[string]any{
+			quizAdvancedField: true, "estimated_vocab": int64(80), "vocab_test_vocab": int64(30),
+		}, false},
 	}
 	for _, c := range cases {
-		userData := map[string]any{}
-		if c.vocab != nil {
-			userData["vocab_test_vocab"] = c.vocab
-		}
-		if got := beginnerQuizEnabled(userData); got != c.expected {
+		if got := beginnerQuizEnabled(c.userData); got != c.expected {
 			t.Errorf("%s: %v", c.name, got)
 		}
 	}

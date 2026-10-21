@@ -19,14 +19,12 @@ import (
 
 // 例文プールへの振り分け（dailyBatch のステップ6）。
 //
-// 生成直後に Jev で判定し、不合格なら作り直して判定し直した結果が例文 doc の
-// quality フィールドに入っている（sentence.Producer.checkAndRetry）。ここでは
-// quality.passed が真の文だけを候補にし、さらにプール用の観点（quality.PoolAspects）で
-// 判定し直して、通った文だけを例文プールへ回す。外した文はログに残す。
-// premium と free は同じ観点で判定し、ティアごとのプールへ書き分ける（sentence_pool.go）。
+// 生成直後に Jev で1回だけ判定した結果が例文 doc の quality フィールドに入っている
+// （sentence.Producer.check）。ここでは Jev を呼び直さず、quality.passed が真の文だけを
+// 例文プールへ回す（表示とプールは同じ基準）。外した文はログに残す。
+// premium と free はティアごとのプールへ書き分ける（sentence_pool.go）。
 //
-// 不合格の中身は sentence_flags にも判定ごとに残っている（stage=first / retry）。
-// stage=retry が「作り直しても不合格でプールに入らなかった文」。
+// 不合格の文はセットから外れて例文 doc にならず、中身は sentence_flags に残っている。
 const (
 	// auditWindow は対象の生成時刻の範囲（直近この時間ぶん）。
 	// dailyBatch は JST 0:00 に回るので、実質「前日ぶん」になる。
@@ -39,7 +37,7 @@ type poolVerdict int
 const (
 	// poolPassed は判定に合格した文。プールへ回す。
 	poolPassed poolVerdict = iota
-	// poolRejected は作り直しても不合格だった文。プールへ回さない。
+	// poolRejected は不合格だった文。プールへ回さない（いまは不合格の文は保存されない）。
 	poolRejected
 	// poolUnjudged は判定していない文（判定の失敗・判定を止めていた期間）。
 	// 品質が分からないのでプールへ回さない。
@@ -75,44 +73,12 @@ func runSentenceAudit(
 	log.Printf("sentencePool: candidates=%d (%s) passed=%d rejected=%d unjudged=%d",
 		len(candidates), tierCounts(candidates), counts[poolPassed], counts[poolRejected], counts[poolUnjudged])
 
-	if len(accepted) > 0 {
-		judge, err := quality.NewJudge(ctx)
-		if err != nil {
-			// 判定できないなら入れない（未判定の文と同じ扱い）。
-			log.Printf("sentencePool: judge unavailable, skip pooling: %v", err)
-			return nil
-		}
-		accepted = poolGate(ctx, judge, accepted)
-	}
-
 	// プールの書き出しに失敗しても生成済みの例文には影響しないので、
 	// エラーは返さず記録だけ残す。
 	if err := poolAccepted(ctx, accepted, docs); err != nil {
 		log.Printf("sentencePool: write failed: %v", err)
 	}
 	return nil
-}
-
-// poolReviewer はプール用の観点で判定するもの（quality.Judge。テストで差し替える）。
-type poolReviewer interface {
-	ReviewPool(ctx context.Context, batch []quality.Candidate) (quality.Result, error)
-}
-
-// poolGate は生成時の判定に合格した文を、プール用の観点で判定し直す。
-// 通った文だけを返す。判定に失敗した文は返さない（品質が分からない文は入れない）。
-func poolGate(ctx context.Context, r poolReviewer, accepted []quality.Candidate) []quality.Candidate {
-	res, err := r.ReviewPool(ctx, accepted)
-	if err != nil {
-		log.Printf("sentencePool: pool judge failed for some sentences: %v", err)
-	}
-	for i, c := range res.Flagged {
-		log.Printf("sentencePool: pool-rejected tier=%s key_word=%s reason=%s thai=%q translation=%q",
-			c.GenerationTier, c.KeyWord, res.Verdicts[i].Reason, c.ThaiText, c.JapaneseTranslation)
-	}
-	log.Printf("sentencePool: pool judge accepted=%d (%s) rejected=%d failed=%d",
-		len(res.Accepted), tierCounts(res.Accepted), len(res.Flagged),
-		len(accepted)-len(res.Accepted)-len(res.Flagged))
-	return res.Accepted
 }
 
 // tierCounts はティアごとの本数をログ用に並べる（premium=3 free=1）。

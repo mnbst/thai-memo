@@ -81,6 +81,32 @@ func (b *Builder) BuildDramaSection(targetWords []string) sentence.DramaSection 
 	return b.section(shotID, shotContext[shotID].Scene)
 }
 
+// SectionFor は選定時に場面合致で決めたショットの断片を返す（premium）。
+// 知らない ID ならゼロ値。
+func (b *Builder) SectionFor(shotID string) sentence.DramaSection {
+	pick, ok := shotContext[shotID]
+	if !ok {
+		return sentence.DramaSection{}
+	}
+	section := b.section(shotID, pick.Scene)
+	section.Scene, section.ShotID = pick.Scene, shotID
+	return section
+}
+
+// SceneShot はショット1つの ID・本文・場面。
+type SceneShot struct {
+	ID, Text, Scene string
+}
+
+// SceneShots は全ショットを shotIDs の順で返す（場面合致の候補に使う）。
+func SceneShots() []SceneShot {
+	out := make([]SceneShot, 0, len(shotIDs))
+	for _, id := range shotIDs {
+		out = append(out, SceneShot{ID: id, Text: shots[id], Scene: shotContext[id].Scene})
+	}
+	return out
+}
+
 // section はショット1つを参考セリフにした断片を返す。scene は場面の行に出す。
 func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 	pick := shotContext[shotID]

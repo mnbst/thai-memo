@@ -197,7 +197,7 @@ func TestSentencePoolBackfillLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(unjudged) > 0 {
-		res, err := judge.Review(ctx, unjudged)
+		res, err := judge.ReviewAll(ctx, unjudged)
 		if err != nil {
 			t.Logf("未判定の判定に一部失敗: %v", err)
 		}
@@ -207,7 +207,16 @@ func TestSentencePoolBackfillLive(t *testing.T) {
 		}
 		passed = append(passed, res.Accepted...)
 	}
-	accepted := poolGate(ctx, judge, passed)
+	// 合格済みの文は Aspects だけで判定された古い doc がありうるので、PoolAspects を足す。
+	res, err := judge.ReviewPool(ctx, passed)
+	if err != nil {
+		t.Logf("プール観点の判定に一部失敗: %v", err)
+	}
+	for i, c := range res.Flagged {
+		fmt.Printf("drop(プールの観点) key_word=%s %s | %s | %s\n",
+			c.KeyWord, res.Verdicts[i].Reason, c.ThaiText, c.JapaneseTranslation)
+	}
+	accepted := res.Accepted
 
 	entries := 0
 	for _, c := range accepted {

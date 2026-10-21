@@ -96,6 +96,40 @@ type TargetWordSelector struct {
 	Rand *rand.Rand
 	// Groups はまとめたテーマの解決に使う。nil か "" なら中身から一様に選ぶ。
 	Groups GroupResolver
+	// Scenes は premium の場面合致（SceneMatch）。nil なら premium も free と同じ
+	// 従来の選び方（FindBestTopic・ResolveGroup）になる。
+	Scenes SceneMatcher
+}
+
+// 場面合致の閾値。z は、語と場面（またはショット）の類似度を、語彙全体との
+// 類似度の平均・標準偏差で標準化した値。prod の埋め込み・rank 3464 までの語で
+// 7パターンを比べて決めた（2026-10-20）。
+const (
+	// SceneZOmakase はおまかせの場面 z。テーマも場面から決めるので厳しめにする。
+	SceneZOmakase = 3.0
+	// SceneZPinned はテーマ指定の場面 z。テーマは決まっているので合う語の数を優先する。
+	SceneZPinned = 2.5
+	// ShotZ はショット単体の z。場面の重心だけだと、雰囲気は近いのに参考になる
+	// 文が1つも無い場面が残る。ショット単位だけで選ぶと綴りの一致による誤爆が
+	// 半分ほど混ざった（มีด→値段を聞く）。
+	ShotZ = 3.5
+)
+
+// ScenePick は場面合致で選んだテーマ・場面・ショット。
+type ScenePick struct {
+	Topic  string
+	Scene  string
+	ShotID string
+}
+
+// SceneMatcher は語に合う場面を選ぶ。実装は themeshots.Builder。
+type SceneMatcher interface {
+	// PickScene は topics の場面のうち、場面 z ≥ minSceneZ で、場面内に
+	// ショット z ≥ ShotZ の文があるものから、テーマ → 場面 → ショットの順に
+	// 一様に選ぶ。合う場面が無ければ false。
+	PickScene(word string, topics []string, minSceneZ float64) (ScenePick, bool)
+	// HasScene は PickScene が選べる場面があるかだけを返す（抽選しない）。
+	HasScene(word string, topics []string, minSceneZ float64) bool
 }
 
 // ErrNoTargetWords は UVM から 1 語も選べなかったとき
@@ -112,6 +146,9 @@ type TargetWord struct {
 	// Group は頼まれたのがまとめたテーマのときその値。Topic は中身の1つに
 	// 解決済み。キャッシュを引くとき、Topic に無ければ Group の他の中身も見る。
 	Group string
+	// Matched は場面合致で選んだ語（premium）。ShotID が空ならショットを付けない。
+	Matched bool
+	ShotID  string
 }
 
 // SelectTargetWords はテーマを決めたうえで UVM からターゲット語を選ぶ
@@ -143,7 +180,7 @@ func (s *TargetWordSelector) SelectTargetWords(
 	}
 	choice := ChooseTopic(strParam(params, "topic"), isPremium, vocab, s.float64n, s.intn)
 
-	words, topic, err := s.Session.GetSessionWords(ctx, db, freqRank, uvm.SessionRequest{
+	req := uvm.SessionRequest{
 		UID:            uid,
 		Topic:          choice.Topic,
 		Count:          count,
@@ -151,12 +188,27 @@ func (s *TargetWordSelector) SelectTargetWords(
 		TopicsPool:     choice.Pool,
 		EstimatedVocab: estimatedVocab,
 		TestedVocab:    testedVocab,
-	})
+	}
+	// free は従来どおり（テーマは一様抽選、場面は themeshots の z 重み）。
+	matched := isPremium && s.Scenes != nil
+	if matched {
+		if choice.Topic != "" {
+			allowed := pinnedTopics(choice.Topic)
+			req.Prefer = func(w string) bool { return s.Scenes.HasScene(w, allowed, SceneZPinned) }
+		} else {
+			req.SkipTopicMatch = true
+		}
+	}
+
+	words, topic, err := s.Session.GetSessionWords(ctx, db, freqRank, req)
 	if err != nil {
 		return nil, err
 	}
 	if len(words) == 0 {
 		return nil, ErrNoTargetWords
+	}
+	if matched {
+		return s.assignScenes(words, choice), nil
 	}
 
 	out, err := assignTopics(ctx, words, topic, choice, s.Session.Emb)
@@ -184,6 +236,40 @@ func (s *TargetWordSelector) resolveGroup(tw *TargetWord) {
 		}
 	}
 	tw.Topic = members[s.intn(len(members))]
+}
+
+// pinnedTopics は指定テーマの場面を探す範囲。まとめたテーマは中身すべて。
+func pinnedTopics(topic string) []string {
+	if members := TopicGroups[topic]; len(members) > 0 {
+		return members
+	}
+	return []string{topic}
+}
+
+// assignScenes は premium の語ごとに場面合致でテーマとショットを決める。
+//
+//	テーマ指定 : 指定テーマ（まとめたテーマは中身）の場面から。合わなければ
+//	             ショット無しで指定テーマのまま（まとめたテーマは中身から一様）
+//	おまかせ   : 語彙ゲートを通った全テーマの場面から。テーマは場面の持ち主。
+//	             合わなければテーマも空にして LLM に候補から選ばせる
+func (s *TargetWordSelector) assignScenes(words []string, choice TopicChoice) []TargetWord {
+	out := make([]TargetWord, len(words))
+	for i, w := range words {
+		tw := TargetWord{Word: w, Topic: choice.Topic, Matched: true}
+		topics, minZ := choice.Pool, SceneZOmakase
+		if choice.Topic != "" {
+			topics, minZ = pinnedTopics(choice.Topic), SceneZPinned
+			if members := TopicGroups[choice.Topic]; len(members) > 0 {
+				tw.Group = choice.Topic
+				tw.Topic = members[s.intn(len(members))]
+			}
+		}
+		if pick, ok := s.Scenes.PickScene(w, topics, minZ); ok {
+			tw.Topic, tw.ShotID = pick.Topic, pick.ShotID
+		}
+		out[i] = tw
+	}
+	return out
 }
 
 // assignTopics は選定した語にテーマを割り当てる。

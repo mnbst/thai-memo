@@ -42,9 +42,9 @@ func (r Result) scale() float64 {
 
 // IsGradedResult は「採点として扱えるクイズの回答」かを返す。
 //
-// 境界推定（SyncEstimatedVocab）の母数はこれが真の語だけ。確認クイズ
-// （quiz_type=="learning"）は例文を読んだ直後の1問で、答えが目の前にある。
-// 正解しても知っている証拠にならないので母数に入れない。
+// 確認クイズ（quiz_type=="learning"）だけが偽。境界推定の母数はもう graded で
+// 絞らず（evidence>0 なら確認クイズだけの語も入れる）、graded は evidence を
+// 持たない移行前の doc を evidenceField が読むときにだけ使う。
 //
 // ヒント・例文レビューはここでは外さない。GuessRate と
 // SentenceReviewCorrectMultiplier が既に P の動きを弱めて「弱い証拠」として
@@ -61,13 +61,13 @@ func IsGradedResult(quizType string, r Result) bool {
 // 累積したものが uvm doc の evidence で、境界推定の母数に入れるかを決める。
 //
 // **正誤を見てはいけない。** α 側の倍率は正解時だけ弱める（確認クイズの正解は
-// ×0.1 だが不正解は等倍）が、それを証拠量に流用すると「確認クイズは不正解だけ
+// ×0 だが不正解は等倍）が、それを証拠量に流用すると「確認クイズは不正解だけ
 // が境界推定に届く」となり、母数が結果で選別される＝下方バイアスになる。
 // ここは回答の条件（ヒント段階・quiz_type・例文レビュー）だけで決める。
 func ResultEvidence(quizType string, r Result) float64 {
 	ev := HintMultiplier(r.HintLevel) * r.scale()
 	if quizType == "learning" {
-		ev *= LearningCorrectMultiplier
+		ev *= LearningEvidenceScale
 	}
 	if r.SentenceReviewed {
 		ev *= SentenceReviewCorrectMultiplier
@@ -213,17 +213,12 @@ func SyncEstimatedVocab(
 		return
 	}
 	userData := snap.Data()
-	current := intField(userData, "estimated_vocab", 0)
-	// 語彙テストの測定値は「原点」。これ以下の rank は存在しないものとして扱う
-	// （EstimateVocab の floor）。未受験は 0。
-	tested := intField(userData, "vocab_test_vocab", 0)
+	stored := intField(userData, "estimated_vocab", 0)
 	isPremium := estimatedVocabCap(userData, time.Now()) < 0
-	if !isPremium {
-		// free の key_word 帯は原点シフトしないため、走査帯も同じ基準に揃える。
-		tested = 0
-	}
-	scanLow := max(tested, current-50)
-	scanHigh := current + 51
+	tested, scanLow, scanHigh := EstimateRange(userData, time.Now())
+	// 下限より下に落ちたまま残っている人（free の floor が 0 だった頃に
+	// 落ちた分）を下限まで戻す。
+	current := max(stored, tested)
 
 	uvmRef := userRef.Collection("uvm")
 	var refs []*firestore.DocumentRef
@@ -281,6 +276,16 @@ func SyncEstimatedVocab(
 			PublishLeaderboardVocab(ctx, db, uid, FreeTierMaxVocab)
 			return
 		}
+		if current != stored {
+			log.Printf("sync_estimated_vocab: 下限まで戻す: uid=%s %d -> %d", uid, stored, current)
+			if _, err := userRef.Set(ctx,
+				map[string]any{"estimated_vocab": current}, firestore.MergeAll); err != nil {
+				log.Printf("sync_estimated_vocab: 書き込みに失敗: uid=%s error=%v", uid, err)
+				return
+			}
+			PublishLeaderboardVocab(ctx, db, uid, current)
+			return
+		}
 		log.Printf("sync_estimated_vocab: 帯に証拠が無いため据え置き: uid=%s current=%d floor=%d",
 			uid, current, tested)
 		return
@@ -304,6 +309,42 @@ func SyncEstimatedVocab(
 		return
 	}
 	PublishLeaderboardVocab(ctx, db, uid, estimated)
+}
+
+// EstimateRange は SyncEstimatedVocab が estimated_vocab の再計算に使う
+// rank の範囲 [low, high) と、そのときの floor（tested）を返す。
+//
+// 語彙テストの測定値は「原点」。これ以下の rank は存在しないものとして扱う
+// （EstimateVocab の floor）。未受験は 0。free は上限（100）で切った値を使う。
+// 以前は free の floor を 0 にしていて、測定 500 以上の人がクイズで1〜2語
+// 間違えただけで estimated_vocab が 0 まで落ち、入門者のセット本数
+// （sentence.SetSizeFor）が途中で 5 から 3 に減っていた。
+func EstimateRange(userData map[string]any, now time.Time) (tested, low, high int) {
+	tested = intField(userData, "vocab_test_vocab", 0)
+	if limit := estimatedVocabCap(userData, now); limit >= 0 {
+		tested = min(tested, limit)
+	}
+	current := max(intField(userData, "estimated_vocab", 0), tested)
+	return tested, max(tested, current-50), current + 51
+}
+
+// QuizScoreBand はまとめクイズのスコア枠で見る rank の範囲 [low, high] を返す。
+//
+// EstimateRange のうち、key_word の帯（KeyWordBand）の上端までに絞る。
+// それより上に例文があるのは帯を前方へ広げた（ForwardTopUpDepth）ときだけで、
+// 当たると estimated_vocab が大きく跳ねるうえ、doc の無い語を読むだけになる。
+func QuizScoreBand(userData map[string]any, now time.Time) (low, high int) {
+	tested, low, high := EstimateRange(userData, now)
+	limit := estimatedVocabCap(userData, now)
+	if limit >= 0 {
+		// free の key_word 帯は原点シフトしない（GetSessionWords と同じ）。
+		tested = 0
+	}
+	_, kwHigh := KeyWordBand(intField(userData, "estimated_vocab", 0), tested)
+	if limit >= 0 {
+		kwHigh = min(kwHigh, limit)
+	}
+	return low, min(high-1, kwHigh)
 }
 
 // estimatedVocabCap は永続化する語彙推定値の上限。負値は上限なし。

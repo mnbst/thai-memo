@@ -14,6 +14,7 @@ usage:
 
 import json
 import re
+import struct
 import sys
 from pathlib import Path
 
@@ -25,6 +26,9 @@ DATA = [
     ROOT / "functions" / "go" / "internal" / "themeshots" / "data.go",
 ]
 OUT = ROOT / "scripts" / "corpus" / "shot_embeddings.json"
+# 関数が読むのはバイナリ。JSON はパースが重いので、差分の元として手元にだけ使う。
+OUT_NPY = OUT.with_suffix(".npy")
+OUT_TEXTS = ROOT / "scripts" / "corpus" / "shot_texts.json"
 DIM = 768  # vocab_embeddings.npy と揃える。ずれると次元不一致で候補から落ちる
 MODEL = "gemini-embedding-001"
 
@@ -39,6 +43,19 @@ def load_shots() -> list[str]:
     return out
 
 
+def write_binary(embs: dict[str, list[float]]) -> None:
+    """embedding を float32 の .npy（行 = shot_texts.json の順）に書く。"""
+    texts = list(embs)
+    header = f"{{'descr': '<f4', 'fortran_order': False, 'shape': ({len(texts)}, {DIM}), }}"
+    header += " " * (63 - (10 + len(header)) % 64) + "\n"
+    with OUT_NPY.open("wb") as f:
+        f.write(b"\x93NUMPY\x01\x00" + struct.pack("<H", len(header)) + header.encode("latin1"))
+        for t in texts:
+            assert len(embs[t]) == DIM, t
+            f.write(struct.pack(f"<{DIM}f", *embs[t]))
+    OUT_TEXTS.write_text(json.dumps(texts, ensure_ascii=False), encoding="utf-8")
+
+
 def main() -> None:
     rebuild = "--all" in sys.argv[1:]
     shots = load_shots()
@@ -46,6 +63,7 @@ def main() -> None:
     stale = sorted(set(current) - set(shots))
     missing = [s for s in shots if rebuild or s not in current]
     if not missing and not stale:
+        write_binary(current)
         print(f"変更なし（{len(current)}件）")
         return
 
@@ -59,6 +77,7 @@ def main() -> None:
 
     ordered = {s: kept[s] for s in shots if s in kept}
     OUT.write_text(json.dumps(ordered, ensure_ascii=False), encoding="utf-8")
+    write_binary(ordered)
     print(f"+{len(missing)} -{len(stale)} -> {len(ordered)}件 {OUT}")
     for s in stale:
         print(f"    削除: {s}")

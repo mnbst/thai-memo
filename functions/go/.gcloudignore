@@ -6,3 +6,6 @@
 **/*_test.go
 testdata/
 cmd/
+# cmd/ をローカルでビルドしたバイナリ（.gitignore 済みだが、ここは .gitignore を流用しない）。
+/sample
+/usagefill

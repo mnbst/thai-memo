@@ -269,23 +269,24 @@ func TestCodeChecks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Flagged) != 2 || len(res.Accepted) != 1 {
-		t.Fatalf("タイ文字・括弧の文だけ不合格のはず: %+v", res)
+	// 括弧の補足は許容する（2026-10-19）。
+	if len(res.Flagged) != 1 || len(res.Accepted) != 2 {
+		t.Fatalf("タイ文字の文だけ不合格のはず: %+v", res)
 	}
-	if res.Verdicts[0].Reason != "訳にタイ文字 1.00" || res.Verdicts[1].Reason != "訳の括弧補足 1.00" {
-		t.Errorf("reason = %q / %q", res.Verdicts[0].Reason, res.Verdicts[1].Reason)
+	if res.Verdicts[0].Reason != "訳にタイ文字 1.00" {
+		t.Errorf("reason = %q", res.Verdicts[0].Reason)
 	}
 	var body struct {
 		Questions map[string]any `json:"questions"`
 	}
 	_ = json.Unmarshal(s.last.Load().([]byte), &body)
-	for _, id := range []string{"trans_thai", "trans_paren"} {
+	for _, id := range []string{"trans_thai"} {
 		if _, ok := body.Questions[id]; ok {
 			t.Errorf("コード判定の %s を Jev に送っている", id)
 		}
 	}
 
-	// 英訳でもタイ文字は判定する。括弧は英語では普通に使うので見ない。
+	// 英訳でもタイ文字は判定する。
 	en := sample(2)
 	en[0].Lang, en[0].JapaneseTranslation = lang.EN, "I go with พี่"
 	en[1].Lang, en[1].JapaneseTranslation = lang.EN, "I (really) like it"

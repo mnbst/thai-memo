@@ -33,7 +33,7 @@ func TestApplyWordOrderConvertsOneClozeOnly(t *testing.T) {
 		spelling,
 		wordOrderTestSource("เพื่อน", "เขา", "เป็น", "เพื่อน", "ของ", "ฉัน"),
 	}
-	applied := applyWordOrder(sources, lang.JA, true, rand.New(rand.NewSource(1)))
+	applied := applyWordOrder(sources, 1, lang.JA, true, rand.New(rand.NewSource(1)))
 	if applied != 1 {
 		t.Fatalf("applied=%d", applied)
 	}
@@ -49,6 +49,41 @@ func TestApplyWordOrderConvertsOneClozeOnly(t *testing.T) {
 	if n != 1 || sources[1].Seed.QuizFormat != quizgen.FormatClozeChoice ||
 		sources[2].Seed.QuizFormat != quizgen.FormatSpellingChoice {
 		t.Fatalf("変えてはいけない問題が変わった")
+	}
+}
+
+func TestWordOrderLimit(t *testing.T) {
+	cases := []struct {
+		advanced  bool
+		questions int
+		expected  int
+	}{
+		{false, 5, 1},
+		{true, 5, 2},
+		{true, 3, 1},
+		{true, 1, 1},
+	}
+	for _, c := range cases {
+		if got := wordOrderLimit(c.advanced, c.questions); got != c.expected {
+			t.Errorf("advanced=%v questions=%d: %d", c.advanced, c.questions, got)
+		}
+	}
+}
+
+func TestApplyWordOrderUpToLimit(t *testing.T) {
+	sources := []quizSeedSource{
+		wordOrderTestSource("ทะเล", "ผม", "อยาก", "ไป", "ทะเล", "ครับ"),
+		wordOrderTestSource("เพื่อน", "เขา", "เป็น", "เพื่อน", "ของ", "ฉัน"),
+		wordOrderTestSource("กิน", "ผม", "กิน", "ข้าว"), // 短くて作れない
+	}
+	applied := applyWordOrder(sources, 2, lang.JA, false, rand.New(rand.NewSource(1)))
+	if applied != 2 || sources[2].Seed.QuizFormat != quizgen.FormatClozeChoice {
+		t.Fatalf("applied=%d", applied)
+	}
+	for _, s := range sources[:2] {
+		if s.Seed.QuizFormat != quizgen.FormatWordOrder || s.WordOrderShowPronunciation {
+			t.Fatalf("読みなしの並び替えになっていない %+v", s)
+		}
 	}
 }
 

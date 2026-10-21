@@ -53,14 +53,45 @@ var beginnerFormats = []beginnerFormat{
 	{Format: quizgen.FormatSpellingChoice, Convert: toSpellingSource},
 }
 
-// beginnerQuizEnabled は入門用の形式を出す対象ユーザーか。
+// quizAdvancedField はユーザー doc に持つ「入門用を卒業した」フラグ。
 //
-// 見るのは vocab_test_vocab（語彙テストの測定値）で、estimated_vocab では
-// ない。推定値は回答のたびに動くので、それで形式を切り替えると
-// 「回答 → 推定 → 出題 → 回答」の自己参照になる（generate_quiz.go の
-// quizKeyWordFilter に同じ事故の記録がある）。未受験（0）は対象に含める。
+// **一度立ったら下ろさない。** estimated_vocab は回答のたびに動くので、
+// 閾値と直接比べると境界の前後にいる人は日ごとに形式が切り替わる。
+// 越えた時点でフラグに写し、以後はフラグだけを見る。
+const quizAdvancedField = "quiz_advanced"
+
+// quizAdvanced は入門用の形式を卒業したユーザーか。
+//
+// 語彙テストの測定値（vocab_test_vocab）か語彙スコア（estimated_vocab）の
+// どちらかが beginnerQuizMaxVocab 以上なら卒業。受け直さない人の測定値は
+// 古いままなので、語彙スコアでも越えられるようにする。
+// free の estimated_vocab は FreeTierMaxVocab(100) で止まるので、
+// 閾値をそれより上にすると free は語彙スコアで卒業できなくなる。
+func quizAdvanced(userData map[string]any) bool {
+	if latched, _ := userData[quizAdvancedField].(bool); latched {
+		return true
+	}
+	return intOf(userData["vocab_test_vocab"]) >= beginnerQuizMaxVocab ||
+		intOf(userData["estimated_vocab"]) >= beginnerQuizMaxVocab
+}
+
+// beginnerQuizEnabled は入門用の形式を出す対象ユーザーか。
 func beginnerQuizEnabled(userData map[string]any) bool {
-	return intOf(userData["vocab_test_vocab"]) < beginnerQuizMaxVocab
+	return !quizAdvanced(userData)
+}
+
+// latchQuizAdvanced は卒業した時点で quizAdvancedField を立てる。
+// 書けなくても今回の出題は quizAdvanced の判定どおりに進める。
+func latchQuizAdvanced(
+	ctx context.Context, userRef *firestore.DocumentRef, uid string, userData map[string]any,
+) {
+	if latched, _ := userData[quizAdvancedField].(bool); latched || !quizAdvanced(userData) {
+		return
+	}
+	if _, err := userRef.Set(ctx,
+		map[string]any{quizAdvancedField: true}, firestore.MergeAll); err != nil {
+		log.Printf("quiz_advanced_latch_failed uid=%s error=%v", uid, err)
+	}
 }
 
 // applyBeginnerFormats はまとめクイズの問題を入門用の形式へ差し替える。

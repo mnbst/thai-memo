@@ -68,6 +68,43 @@ func ApplyResponseCompat(s *Sentence, resolvedContext map[string]any) {
 	}
 }
 
+// canonicalizeTopic は LLM が候補から選んだテーマ（カッコを外した名前で渡して
+// いる）を正式名へ戻す。在庫はテーマを正式名の完全一致で引くため。候補に無い
+// テーマを作った場合（「人生・哲学」）は捨てる。サーバーで確定したテーマは触らない。
+func canonicalizeTopic(s *Sentence, resolvedContext map[string]any) {
+	if _, fixed := resolvedContext["topic"]; !fixed {
+		if t, ok := s.Context["topic"].(string); ok {
+			if full := CanonicalTopic(t); full != "" {
+				s.Context["topic"] = full
+			} else {
+				delete(s.Context, "topic")
+			}
+		}
+	}
+}
+
+// TopicLabel はテーマのカッコ内（下位項目）を外した名前。LLM にはこれを渡す。
+// カッコ内を出すと、先頭の項目（趣味ならムエタイ）や場面より下位項目へ寄った。
+func TopicLabel(topic string) string {
+	label, _, _ := strings.Cut(topic, "（")
+	return label
+}
+
+// CanonicalTopic は LLM が返したテーマ名を正式名（Topics の値）に戻す。
+// カッコを外した名前・正式名・英語ラベルのどれでも引ける。該当が無ければ ""。
+func CanonicalTopic(name string) string {
+	name = strings.TrimSpace(name)
+	for _, t := range Topics {
+		label := TopicLabel(t)
+		en, _, _ := strings.Cut(topicLabelsEN[t], " (")
+		if name == t || name == label || strings.HasPrefix(name, label+"（") ||
+			(en != "" && strings.EqualFold(name, en)) {
+			return t
+		}
+	}
+	return ""
+}
+
 // EnrichWithNLP は音節分割・発音・品詞を word_breakdown に足し、
 // 文全体の発音を組み立てる。
 func EnrichWithNLP(s *Sentence, l lang.Lang) {
@@ -224,6 +261,7 @@ func GenerateSingle(ctx context.Context, gen Generator, req Request) (*Sentence,
 		}
 
 		ApplyResponseCompat(s, req.ResolvedContext)
+		canonicalizeTopic(s, req.ResolvedContext)
 		// 軸ラベル（テーマ・文体など）はサーバー側の日本語定数なので、en は英語へ。
 		s.Context = LocalizeContext(s.Context, req.Lang)
 		if req.Lang == lang.JA {
@@ -285,6 +323,18 @@ type ShotBuilder interface {
 	BuildShotSection(topic string, targetWords []string, medium string) DramaSection
 }
 
+// shotSectioner は選定時に決めたショット ID から参考例文ブロックを作る
+// （場面合致の回）。themeshots.Builder が実装する。
+type shotSectioner interface {
+	// shotID が空なら媒体の例文だけを見て、無ければゼロ値を返す。
+	ShotSection(topic, shotID, medium string) DramaSection
+}
+
+// dramaSectioner は BL のショット ID からドラマのブロックを作る。bldrama.Builder が実装する。
+type dramaSectioner interface {
+	SectionFor(shotID string) DramaSection
+}
+
 // Service は例文生成の入口。
 type Service struct {
 	Gen      Generator
@@ -300,6 +350,9 @@ type Service struct {
 //
 // プロンプトを自前で組む cmd/pilot・cmd/gencorpus もこれを通す。
 func (s *Service) SceneSection(resolved *ResolvedParams, targetWords []string) DramaSection {
+	if resolved.SceneMatched {
+		return s.matchedSection(resolved)
+	}
 	if resolved.Topic == Topics[15] {
 		resolved.Medium = Media[0].Name
 		if s.Drama == nil {
@@ -317,6 +370,33 @@ func (s *Service) SceneSection(resolved *ResolvedParams, targetWords []string) D
 		resolved.SubTheme = ""
 	}
 	// 文体は参考例文が決める。付けた例文の媒体に揃え、関係ブロック等の出し分けを合わせる。
+	if section.Medium != "" {
+		resolved.Medium = section.Medium
+	} else {
+		resolved.Medium = Media[0].Name
+	}
+	return section
+}
+
+// matchedSection は場面合致の回（premium）のブロック。選定時に決めたショットを
+// そのまま使い、ここでは引き直さない。ショットが無ければ付けない（語と合わない
+// ショットは付けない）。会話以外の媒体の例文は従来どおり媒体で付ける。
+func (s *Service) matchedSection(resolved *ResolvedParams) DramaSection {
+	resolved.SubTheme = ""
+	if resolved.Topic == Topics[15] {
+		resolved.Medium = Media[0].Name
+		d, ok := s.Drama.(dramaSectioner)
+		if !ok || resolved.ShotID == "" {
+			return DramaSection{}
+		}
+		return d.SectionFor(resolved.ShotID)
+	}
+	sh, ok := s.Shots.(shotSectioner)
+	if !ok || resolved.Topic == "" {
+		resolved.Medium = Media[0].Name
+		return DramaSection{}
+	}
+	section := sh.ShotSection(resolved.Topic, resolved.ShotID, resolved.Medium)
 	if section.Medium != "" {
 		resolved.Medium = section.Medium
 	} else {
@@ -362,7 +442,7 @@ func (s *Service) GenerateSentenceWithNotes(
 		prompt += "\n\n" + block
 	}
 
-	return GenerateSingle(ctx, s.Gen, Request{
+	out, err := GenerateSingle(ctx, s.Gen, Request{
 		SystemPrompt:    SystemPrompt(true, l),
 		Prompt:          prompt,
 		IsPremium:       true,
@@ -372,6 +452,10 @@ func (s *Service) GenerateSentenceWithNotes(
 		Lang:            l,
 		NameKana:        drama.NameKana,
 	})
+	if out != nil {
+		out.Scene, out.ShotID = drama.Scene, drama.ShotID
+	}
+	return out, err
 }
 
 // replaceNames は使い方・文化メモに出た names のキー（タイ文字・英字の名前）を値に置き換える。

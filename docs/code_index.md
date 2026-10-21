@@ -186,6 +186,9 @@ App Store 審査用スクショ（課金画面）の生成。商品を差し込�
 test/screenshots/guide_screenshot.dart
 ガイド画面（発音・語順・声調）を PNG に書き出す見た目確認用モック。SCREEN・言語・高さを dart-define で切り替える。
 
+test/screenshots/listen_mock_screenshot.dart
+聞き流し再生のUI案（入口・再生画面・ミニバー）を1枚の PNG に並べる設計用モック。
+
 test/screenshots/settings_screenshot.dart
 設定画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。プラン（trial/free/premium）・言語・高さを dart-define で切り替える。
 
@@ -564,10 +567,10 @@ functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch のステップ6。直近24時間の LLM 生成例文（premium / free）のうち、生成時の判定で quality.passed=true の文をプール用の観点（quality.PoolAspects）で判定し直し、通った文だけをティアごとの例文プールへ回す。外した文はログに出す。
+dailyBatch のステップ6。直近24時間の LLM 生成例文（premium / free）のうち、生成時の判定で quality.passed=true の文だけを Jev を呼び直さずティアごとの例文プールへ回す（表示とプールは同じ基準）。外した文はログに出す。
 
 functions/go/quality_check.go
-quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文判定で、不合格なら差し戻し用の指摘を返し sentence_flags へ1件書く（stage=first/retry）。キーが無ければ nil（判定なしで動く）。
+quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文1回きりの判定（ReviewAll）で、不合格なら sentence_flags へ1件書く。キーが無ければ nil（判定なしで動く）。
 
 functions/go/sentence_pool.go
 judge を通った例文を GCS のティア別例文プール（premium: corpus_pool_<lang>.json / free: free_pool_<lang>.json）へ追記する。thai_text で重複排除、上限超過分は古い側から捨てる（SENTENCE_POOL_MAX=0 で無効化）。
@@ -582,7 +585,7 @@ functions/go/sentence_audit_live_test.go
 Jev judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
 
 functions/go/internal/sentence/produce_check_test.go
-生成直後の品質判定（QualityCheck）のテスト。不合格だけ作り直して再判定・作り直しても不合格ならセットから外す・判定失敗時は元の文・バンク由来は判定しない。
+生成直後の品質判定（QualityCheck）のテスト。1文1回だけ判定・不合格は作り直さずセットから外す・判定失敗時は元の文・バンク由来は判定しない。
 
 functions/go/internal/sentence/corpusbank.go
 静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
@@ -597,10 +600,10 @@ functions/go/internal/corpustrans/validate_en_test.go
 英訳の機械チェック（品詞名の混入・スラッシュ併記の三人称・タイ文字残留・句点）の単体テスト。
 
 functions/go/internal/quality/judge.go
-例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・括弧補足・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
+例文品質judge。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
 
 functions/go/internal/quality/pool.go
-プールへ入れるときだけ足す Jev の観点（場面として言わない文・訳の意味のずれ）と ReviewPool。生成時の作り直しには入れない。
+Aspects に足す Jev の観点（場面として言わない文・訳の意味のずれ）。ReviewAll（生成直後に Aspects と合わせて判定）と ReviewPool。
 
 functions/go/internal/quality/rules.go
 コードで判定する観点（訳の文法用語・英訳の助動詞なし not・既知の誤訳・語の誤用の正規表現・頭なしの ก็ตาม）と、語が文にあるときだけ Jev に用法を聞く語ごとの観点（wordUsages）。
@@ -759,13 +762,13 @@ functions/go/internal/quizgen/wordorder.go
 並び替えの組み立て。key_word を含む連続した4語（タイ文字のみ・重複なし）を切り出して混ぜ、枠の外の本文と読みを持たせる。
 
 functions/go/quiz_beginner.go
-入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値100未満のユーザーには出題できる問題を全部入門用にし、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
+入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値・語彙スコアがともに100未満のユーザーには出題できる問題を全部入門用にし（どちらかが越えたらユーザー doc の quiz_advanced を立てて卒業、片方向）、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
 
 functions/go/quiz_spelling.go
 入門用の形式のひとつ、綴り4択への差し替え。回答から部品データ（users/{uid}/units）を更新するのもここ。
 
 functions/go/quiz_word_order.go
-並び替え（word_order）をまとめクイズに1問差し込む層。穴埋めのままの問題から選び、入門用の対象者にはタイルの読みを最初から見せる。モデルは呼ばない。
+並び替え（word_order）をまとめクイズに差し込む層。入門用の卒業者は問題数の半分（5問なら2）、それ以外は1問。穴埋めのままの問題から選び、入門用の対象者にはタイルの読みを最初から見せる。モデルは呼ばない。
 
 functions/go/quiz_word_order_test.go
 並び替えへの差し替えが穴埋め1問だけに効くこと、モデルを呼ばずに問題を作れることのテスト。
@@ -930,10 +933,25 @@ functions/go/internal/bldrama/golden_test.go
 bl_drama.py とプロンプト断片・データを突き合わせる差分テスト。
 
 functions/go/internal/themeshots/themeshots.go
-BL以外の全テーマの参考例文ブロック。語に近い場面（embedding、閾値0.75）か全体からの1文の選出と、テーマ別の代わりのやり取りを含む断片の組み立て。
+BL以外の全テーマの参考例文ブロック。語との近さ（場面ごとに標準化した z）の重みつきランダムで場面を選んだ1文の選出と、テーマ別の代わりのやり取りを含む断片の組み立て。
+
+functions/go/internal/themeshots/match.go
+premium の場面合致（SceneMatch）。BLを含む全テーマの場面を、場面 z とショット単体 z の両方で足切りし、テーマ→場面→ショットの順に一様に選ぶ。
+
+functions/go/internal/themeshots/match_test.go
+場面合致の足切り（場面 z・ショット z）、テーマ単位の一様抽選、BL を含むこと、ショット ID からの断片のテスト。
+
+functions/go/internal/sentence/scene_match_test.go
+premium の場面合致によるテーマ・ショットの割り当て、ショット無しの扱い（会話へ戻す・BL はテーマ行を出す）のテスト。
+
+functions/go/internal/uvm/lean_test.go
+テーマ寄せ（帯全体でテーマに合う未出語を先に選ぶ）のテスト。
+
+functions/go/internal/uvm/themesim_test.go
+テーマ寄せの90日シミュレーション。合う語の割合・寄せる範囲（帯全体／est 以下）ごとの est と素通りを比べる。
 
 functions/go/internal/themeshots/data.go
-BL以外15テーマの参考例文758件と174場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等の字幕から Jev で振り分けて採取。文のみで人名・注釈なし）。
+BL以外15テーマの参考例文2027件と270場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
 
 functions/go/internal/themeshots/written.go
 媒体「解説・紹介文」の参考例文（BL・あいさつ以外14テーマ、Thai PBS ナレーター行と th.wikipedia の原文）。
@@ -948,7 +966,7 @@ functions/go/internal/sentence/topic_group_test.go
 まとめたテーマ（タイ暮らし・タイ旅行）の中身の検証、語ごとの解決、在庫を中身の他テーマから引くフォールバックのテスト。
 
 functions/go/internal/uvm/session.go
-key_word候補のランク帯算出・重み付き抽選・テーマ未指定時のテーマ決定（uvm.py:get_session_words）。
+key_word候補のランク帯算出・重み付き抽選・テーマ寄せ・テーマ未指定時のテーマ決定（uvm.py:get_session_words）。
 
 functions/go/internal/uvm/excluded.go
 key_wordにしない語（単独では古語・方言・単位でしか使わない語）の除外リスト。
@@ -1002,7 +1020,7 @@ functions/go/internal/uvm/graded_test.go
 IsGradedResult（採点区分）・ResultEvidence・UpdateP の向き（正解で上がり不正解で下がる）と、evidence を持たない既存 doc の移行のテスト。
 
 functions/go/internal/sentence/freebank.go
-free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。バンクに無いテーマは nil で生成へ落とす。
+free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、テーマで絞らない）で引き、出し切った語だけ LLM へ落とす。
 
 functions/go/internal/sentence/freebank_test.go
 free例文バンクの抽選（テーマ一致の優先・在庫の無いテーマの扱い）のテスト。
@@ -1097,6 +1115,9 @@ docs/design_daily_sentence_batch.md
 docs/design_pronunciation_practice.md
 発音練習（声調）の設計。例文詳細でお手本と自分の声のピッチを比較する。F0抽出・自己正規化・DTW対応づけ・採点。
 
+docs/design_listening_playback.md
+聞き流し再生と Cloud TTS（Chirp3-HD）音声の設計。部品ごとの中身ハッシュでファイル名を決め、just_audio のプレイリストで流す。
+
 docs/quiz_generation_logic.md
 クイズ生成ロジック（SRS例文選出→Gemini穴埋め生成→サニタイズ→デフォルト補填）。
 
@@ -1105,6 +1126,9 @@ git履歴に露出したシークレット（Gemini/OpenAIキー、OAuth secret�
 
 docs/public_repo_checklist.md
 リポジトリpublic化の前提作業（履歴パージ、stateバケット堅牢化、WIF制約、GitHub設定）。
+
+docs/pool_fix_log.md
+prod 例文プールを手で直した（削除・訳・空白）・見送った履歴。
 
 ---
 
@@ -1126,6 +1150,9 @@ docs/infra_hardening.md
 
 scripts/play_release.py
 Google Play Developer API でトラック一覧・draft公開・トラック昇格・段階公開の操作をする。skill: play-release。
+
+scripts/play_console.py
+Play Console のリリース以外（テスター・掲載文・画像・レビュー返信・商品・クラッシュ率）を API で扱う。skill: play-release。
 
 scripts/sim_scan_floor.py
 key_word帯の後方下限・読み取り上限のシミュレーション（取りこぼし率・境界との差・Firestore読取数）。

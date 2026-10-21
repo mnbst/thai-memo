@@ -76,7 +76,7 @@ func (s *Store) FindBestDramaShot(
 		s.mu.Unlock()
 		return "", err
 	}
-	if err := s.loadJSONEmbeddings(ctx, &s.shotEmbs, shotEmbBlob); err != nil {
+	if err := s.loadShotEmbeddings(ctx); err != nil {
 		s.mu.Unlock()
 		return "", err
 	}
@@ -131,7 +131,7 @@ func (s *Store) FindNearScenes(
 		s.mu.Unlock()
 		return nil, err
 	}
-	if err := s.loadJSONEmbeddings(ctx, &s.shotEmbs, shotEmbBlob); err != nil {
+	if err := s.loadShotEmbeddings(ctx); err != nil {
 		s.mu.Unlock()
 		return nil, err
 	}
@@ -152,6 +152,94 @@ func (s *Store) FindNearScenes(
 		}
 	}
 	return near, nil
+}
+
+// SceneScores は語と各場面の近さを、場面ごとに標準化した値（z）で scenes の順に返す。
+// z は「その場面が語彙全体に対して普段どれだけ近いか」からのずれで、
+// 汎用的な場面（授業・空模様など）がどの語にも近く出る癖を打ち消す。
+// 生のコサイン類似度で比べると、テーマと無関係な語ほどその汎用的な場面へ集まった
+// （UI でテーマを指定した場合の無作為1500語で、学校は授業が99%）。
+//
+// embedding の無い場面は -Inf。語の embedding が無いか、どの場面も引けなければ nil。
+func (s *Store) SceneScores(ctx context.Context, word string, scenes []Scene) ([]float64, error) {
+	s.mu.Lock()
+	if err := s.loadLocked(ctx); err != nil {
+		s.mu.Unlock()
+		return nil, err
+	}
+	if err := s.loadShotEmbeddings(ctx); err != nil {
+		s.mu.Unlock()
+		return nil, err
+	}
+	s.mu.Unlock()
+
+	wordEmb := s.Embedding(word)
+	if wordEmb == nil {
+		return nil, nil
+	}
+	out := make([]float64, len(scenes))
+	found := false
+	for i, sc := range scenes {
+		st, ok := s.sceneStat(sc, len(wordEmb))
+		if !ok {
+			out[i] = math.Inf(-1)
+			continue
+		}
+		out[i] = (CosineSimilarity(wordEmb, st.centroid) - st.mean) / st.sd
+		found = true
+	}
+	if !found {
+		return nil, nil
+	}
+	return out, nil
+}
+
+// sceneRefStride は場面の平均・標準偏差を取る基準語の間引き幅。語彙1万語から
+// 2000語を頻度順に満遍なく取る。
+const sceneRefStride = 5
+
+// sceneStat は場面の centroid と、基準語との類似度の平均・標準偏差。
+type sceneStat struct {
+	centroid []float32
+	mean, sd float64
+}
+
+// sceneStat は場面の統計を返す。場面は固定なので、同じ場面は初回だけ計算する。
+// 同じ名前でもテーマごとにショットが違う（食べ物と買い物の「値段を聞く」）ので、
+// 名前ではなくショットの本文まで含めて引く。
+func (s *Store) sceneStat(sc Scene, dim int) (sceneStat, bool) {
+	key := sc.Name + "\x00" + strings.Join(sc.Texts, "\x00")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if st, ok := s.sceneStats[key]; ok {
+		return st, st.centroid != nil
+	}
+	st := sceneStat{centroid: s.centroid(sc.Texts, dim)}
+	if st.centroid != nil {
+		var sum, sq float64
+		n := 0
+		for i := 0; i < len(s.matrix); i += sceneRefStride {
+			if len(s.matrix[i]) != dim {
+				continue
+			}
+			v := CosineSimilarity(s.matrix[i], st.centroid)
+			sum += v
+			sq += v * v
+			n++
+		}
+		if n > 1 {
+			st.mean = sum / float64(n)
+			st.sd = math.Sqrt(math.Max(sq/float64(n)-st.mean*st.mean, 0))
+		}
+		if st.sd == 0 {
+			st.centroid = nil
+		}
+	}
+	if s.sceneStats == nil {
+		s.sceneStats = map[string]sceneStat{}
+	}
+	s.sceneStats[key] = st
+	return st, st.centroid != nil
 }
 
 // centroid はショットの embedding を正規化して平均する。1件も無ければ nil。
