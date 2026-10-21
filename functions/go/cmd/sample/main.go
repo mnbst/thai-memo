@@ -66,9 +66,6 @@ func main() {
 	medium := flag.String("medium", "", "文が載る媒体を固定する（例: 対面の会話）")
 	withShots := flag.Bool("shots", false, "テーマ回の参考例文（internal/themeshots）を付ける（本番と同じ。場面は絞らずランダム）")
 	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
-	trans := flag.String("trans", "", "訳を別リクエストに分ける2段構成で生成する。訳のモデル（OpenAI のモデル名か gemini-<名前>:<thinkingBudget>）")
-	retrans := flag.String("retrans", "", "既存の -out の JSON のタイ語だけを使い、-trans のモデルで訳を作り直す（-out に書く）")
-	compact := flag.Bool("compact", false, "-retrans で2段目専用に書き直した訳のプロンプトを使う")
 	flag.Parse()
 
 	var words []wordRank
@@ -115,13 +112,6 @@ func main() {
 
 	if *withShots {
 		svc.Shots = &themeshots.Builder{}
-	}
-	if *retrans != "" {
-		runRetrans(ctx, *retrans, *out, transClient(ctx, *trans, key), lang.Lang(*langCode), *compact, *conc)
-		return
-	}
-	if *trans != "" {
-		svc.Gen = &twoStage{gen: svc.Gen, trans: transClient(ctx, *trans, key), lang: lang.Lang(*langCode)}
 	}
 
 	recs := make([]record, len(words))
