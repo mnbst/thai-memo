@@ -19,7 +19,7 @@ x_post_themes = "BLドラマ"
 
 # 朝以外の X 投稿枠。Actions の実行に数分かかるので、投稿は指定時刻の数分後になる。
 x_post_extra_slots = {
-  "1200" = { schedule = "0 12 * * *", themes = "タイ生活" }
-  "1700" = { schedule = "0 17 * * *", themes = "仕事" }
+  "1200" = { schedule = "0 12 * * *", themes = "仕事" }
+  "1700" = { schedule = "0 17 * * *", themes = "タイ生活" }
   "2200" = { schedule = "0 22 * * *", themes = "恋愛" }
 }
