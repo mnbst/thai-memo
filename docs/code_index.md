@@ -192,6 +192,9 @@ test/screenshots/listen_mock_screenshot.dart
 test/screenshots/settings_screenshot.dart
 設定画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。プラン（trial/free/premium）・言語・高さを dart-define で切り替える。
 
+test/screenshots/contact_form_screenshot.dart
+ご意見・お問い合わせ画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。言語を dart-define で切り替える。
+
 lib/presentation/screens/ranking_screen.dart
 語彙スコアの全期間ランキング。自分の順位カードを上に置き、その下に上位100人を張り出す。表示名はサーバー採番のタイ人名。
 

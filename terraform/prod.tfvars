@@ -7,6 +7,7 @@ apple_team_id                 = "5KTT2C466P"
 apple_key_id                  = "JGPGZZ5HRP"
 ci_service_account_email      = "github-actions-deployer@thai-memo-prod.iam.gserviceaccount.com"
 github_repo                   = "mnbst/thai-memo"
+github_allowed_refs           = ["refs/heads/main"]
 alert_email                   = "gcp.demo.776@gmail.com"
 billing_account               = "0189A7-F96D31-DD85EC"
 budget_amount                 = 10000
@@ -18,6 +19,7 @@ x_post_themes = "BLドラマ"
 
 # 朝以外の X 投稿枠。Actions の実行に数分かかるので、投稿は指定時刻の数分後になる。
 x_post_extra_slots = {
-  "1500" = { schedule = "0 15 * * *", themes = "仕事" }
-  "1800" = { schedule = "0 18 * * *", themes = "恋愛" }
+  "1200" = { schedule = "0 12 * * *", themes = "タイ生活" }
+  "1700" = { schedule = "0 17 * * *", themes = "仕事" }
+  "2200" = { schedule = "0 22 * * *", themes = "恋愛" }
 }

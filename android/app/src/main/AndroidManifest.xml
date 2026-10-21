@@ -23,6 +23,11 @@
         <meta-data
             android:name="google_analytics_adid_collection_enabled"
             android:value="false" />
+        <!-- 収集は止めて起動し、MainActivity で Test Lab 以外なら有効にする。
+             Play のプレリリースレポート端末が新規ユーザーに数えられるのを防ぐ。 -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -10,18 +10,6 @@ variable "region" {
   default     = "asia-northeast1"
 }
 
-variable "gemini_api_key" {
-  description = "Gemini API Key (sensitive)"
-  type        = string
-  sensitive   = true
-}
-
-variable "openai_api_key" {
-  description = "OpenAI API Key (sensitive)"
-  type        = string
-  sensitive   = true
-}
-
 variable "firebase_project_display_name" {
   description = "Firebase project display name"
   type        = string
@@ -71,6 +59,12 @@ variable "github_repo" {
   description = "GitHub リポジトリ (owner/repo 形式)。WIF設定に使用。空の場合はWIF未設定。"
   type        = string
   default     = ""
+}
+
+variable "github_allowed_refs" {
+  description = "配信用 WIF が OIDC トークンを受け付けるブランチ。環境ごとに1本へ絞る。"
+  type        = list(string)
+  default     = ["refs/heads/main", "refs/heads/test"]
 }
 
 variable "alert_email" {

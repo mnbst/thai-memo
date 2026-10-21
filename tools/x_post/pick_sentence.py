@@ -43,8 +43,8 @@ JST = timezone(timedelta(hours=9))
 # Gemini に渡す候補の上限。前日分が多くてもプロンプトが膨らみすぎないようにする。
 MAX_CANDIDATES = 60
 
-# 反応を参照する直近の投稿数。だいたい10日ぶん。
-RECENT_POSTS = 10
+# 反応を参照する直近の投稿数（同じテーマの中で数える）。
+RECENT_POSTS = 5
 
 # 投稿に回す例文の語数。短すぎると学びが薄く、長すぎると詳細画面に収まらない。
 MIN_WORDS = 7
@@ -213,14 +213,19 @@ def bl_drama_only(pool: list[dict], rng: random.Random) -> list[dict]:
     return by_drama[drama]
 
 
-def recent_performance(history: list[dict]) -> list[dict]:
-    """直近の投稿に反応の数を突き合わせて返す。引けなければ空。
+def recent_performance(history: list[dict], theme: str) -> list[dict]:
+    """同じテーマの直近の投稿に反応の数を突き合わせて返す。引けなければ空。
+
+    テーマごとに伸びる題材が違うので、他テーマの反応は混ぜない。テーマを
+    記録する前の履歴は対象外。
 
     X の読み取りは PPU のクレジットを消費する。クレジットが無い（402）・
     鍵が無い・そもそも履歴がまだ無いといった場合は黙って諦め、反応を
     参照しない選定に落とす。投稿を止めないことを優先する。
     """
-    recent = [h for h in history if h.get("tweet_id")][-RECENT_POSTS:]
+    recent = [
+        h for h in history if h.get("tweet_id") and h.get("theme") == theme
+    ][-RECENT_POSTS:]
     if not recent:
         return []
 
@@ -417,7 +422,9 @@ def main() -> int:
     if len(candidates) > MAX_CANDIDATES:
         candidates = rng.sample(candidates, MAX_CANDIDATES)
 
-    recent = performance_section(recent_performance(state.get("history", [])))
+    recent = performance_section(
+        recent_performance(state.get("history", []), theme)
+    )
     picked = choose_with_gemini(
         args.project, candidates, recent, load_prompt(Path(args.prompt)), theme
     ) or rng.choice(candidates)
@@ -436,6 +443,7 @@ def main() -> int:
     )
     (out / "text.txt").write_text(build_text(picked), encoding="utf-8")
     (out / "key.txt").write_text(sentence_key(picked), encoding="utf-8")
+    (out / "theme.txt").write_text(theme, encoding="utf-8")
 
     print(picked["thai_text"])
     return 0

@@ -121,5 +121,8 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.0"
     // アプリ内レビュー（ReviewPromptChannel）
     implementation "com.google.android.play:review:2.0.2"
+    // MainActivity で Analytics の収集を切り替える。版は firebase_core の FirebaseSDKVersion に合わせる
+    implementation platform("com.google.firebase:firebase-bom:34.15.0")
+    implementation "com.google.firebase:firebase-analytics"
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
