@@ -590,6 +590,7 @@
 
   "audioRepeat": "Repeat",
   "audioOnce": "Once",
+  "audioSpeed": "Playback speed",
   "audioPause": "Pause",
   "audioPlay": "Play",
   "audioModeHint": "{mode}. Hold to change playback mode",

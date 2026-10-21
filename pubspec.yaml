@@ -83,6 +83,9 @@ dependencies:
   flutter_timezone: ^5.1.0
   firebase_app_check: ^0.4.5+2
   firebase_crashlytics: ^5.2.6
+  # お手本のサーバー音声（Cloud TTS の MP3）の再生と端末保存
+  just_audio: ^0.10.6
+  path_provider: ^2.1.6
 
 
 

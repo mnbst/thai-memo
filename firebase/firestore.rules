@@ -181,6 +181,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // 例文プールの確認待ち（dailyBatch が書き、cmd/poolreview が OK / NG を付ける）。
+    // 他人の例文本文が入るので read も塞ぐ。
+    match /pool_review/{reviewId} {
+      allow read, write: if false;
+    }
+
+    // お手本音声を新しく作った数（getSentenceAudio の1人1日の上限）。サーバーだけが読み書きする。
+    match /tts_usage/{userId} {
+      allow read, write: if false;
+    }
+
     // 意味4択の単語解説キャッシュ（generateLearningQuiz が書く）。全ユーザー共有で
     // 個人情報は入らないが、読み書きはサーバー（Admin SDK）だけに限る。
     match /word_explanations/{wordKey} {

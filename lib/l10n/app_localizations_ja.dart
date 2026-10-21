@@ -1287,6 +1287,9 @@ class L10nJa extends L10n {
   String get audioOnce => '1回だけ';
 
   @override
+  String get audioSpeed => '再生速度';
+
+  @override
   String get audioPause => '一時停止';
 
   @override

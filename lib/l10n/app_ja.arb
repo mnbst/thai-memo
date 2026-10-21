@@ -687,6 +687,7 @@
 
   "audioRepeat": "リピート",
   "audioOnce": "1回だけ",
+  "audioSpeed": "再生速度",
   "audioPause": "一時停止",
   "audioPlay": "再生",
   "audioModeHint": "現在は{mode}。長押しで再生モードを変更",

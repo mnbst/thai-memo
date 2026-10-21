@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/sentence_audio_cache.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/tts_provider.dart';
 import 'pronunciation_practice.dart';
@@ -195,6 +196,7 @@ class SentenceAudioSectionState extends ConsumerState<SentenceAudioSection> {
                     text: sentence.thaiText,
                     words:
                         sentence.wordBreakdowns.map((w) => w.wordText).toList(),
+                    source: SentenceAudioSource.of(sentence),
                     onPlay: () {
                       unawaited(
                         ref.read(analyticsServiceProvider).logPlayTts(

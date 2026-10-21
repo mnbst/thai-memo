@@ -40,6 +40,7 @@ import 'package:thai_memo/presentation/providers/tts_provider.dart';
 import 'package:thai_memo/presentation/screens/detail_screen.dart';
 import 'package:thai_memo/services/analytics_service.dart';
 import 'package:thai_memo/services/daily_sentence_service.dart';
+import 'package:thai_memo/services/sentence_audio_cache.dart';
 import 'package:thai_memo/services/tts_service.dart';
 
 /// 端末の論理幅（iPhone 15 Pro 相当）と描画倍率。
@@ -469,10 +470,24 @@ class _ScriptedTtsService extends Fake implements TtsService {
   int get session => 0;
 
   @override
+  Future<bool> speakSentence(
+    SentenceAudioSource source, {
+    int fromChar = 0,
+    bool keepVoice = false,
+    TtsSpeed speed = TtsSpeed.normal,
+    void Function(bool loading)? onLoading,
+    bool Function()? stillWanted,
+  }) async {
+    await speak(source.text);
+    return true;
+  }
+
+  @override
   Future<void> speak(
     String text, {
     bool slow = false,
     bool keepVoice = false,
+    TtsSpeed speed = TtsSpeed.normal,
   }) async {
     const steps = 24;
     for (var i = 1; i <= steps; i++) {

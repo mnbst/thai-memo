@@ -2371,6 +2371,12 @@ abstract class L10n {
   /// **'1回だけ'**
   String get audioOnce;
 
+  /// No description provided for @audioSpeed.
+  ///
+  /// In ja, this message translates to:
+  /// **'再生速度'**
+  String get audioSpeed;
+
   /// No description provided for @audioPause.
   ///
   /// In ja, this message translates to:

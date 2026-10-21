@@ -1,23 +1,17 @@
 package function
 
 import (
-	"context"
-	"encoding/json"
-	"log"
-	"sort"
-
-	"cloud.google.com/go/storage"
-
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
-// 例文プール（dailyBatch のステップ6、品質監査と同じ周回）の設定。
+// 例文プール（dailyBatch のステップ6で確認待ちへ入れ、OK の文だけを
+// cmd/poolreview が足す。internal/poolreview）の1件の組み立て。
 //
 // 静的コーパス・free バンクは語×テーマで1本しか持たない。同じ key_word が
 // 再選出された人には同じ文が出るので、その穴を運用中の生成で埋める。judge を
-// 通った例文だけをティアごとのプールへ貯める。
+// 通り、人が OK した例文だけをティアごとのプールへ貯める。
 //
 //	premium  corpus_pool_<lang>.json  CorpusBank が静的コーパスと同じ索引に重ねる
 //	free     free_pool_<lang>.json    FreeBank が free バンクに重ねる
@@ -26,12 +20,6 @@ import (
 // 混ぜると free に語彙帯の外の文が出る。ファイルが別なので洗い直し
 // （cmd/poolrecheck -tier）もティアごとにできる。
 // バンク由来（from_cache=true）の文は既にバンクにあるので貯めない。
-const (
-	// poolMaxEntries は1言語あたりの保持上限。超えたぶんは古い側から落とす。
-	// 1本 1〜2KB なので、2万本でも数十MB。CorpusBank はこれを
-	// 静的コーパス（15,864本）と一緒にインスタンスへ載せる。
-	poolMaxEntries = 20000
-)
 
 // poolEntry はプールへ入れる例文1件と、その振り分け先。
 type poolEntry struct {
@@ -84,88 +72,4 @@ func poolTier(data map[string]any) (string, bool) {
 		return tier, true
 	}
 	return "", false
-}
-
-// writeSentencePool は受理された例文をティア×言語ごとのプールへ追記する。
-//
-// 既存のプールを読んで、thai_text が重複しないものだけを末尾へ足して書き戻す。
-// 書き手は dailyBatch だけ（1日1回・1インスタンス）なので、読んで書くだけで
-// 競合しない。CorpusBank 側は起動時に読むので、反映は翌日になる。
-func writeSentencePool(
-	ctx context.Context, projectID string, entries []poolEntry, maxEntries int,
-) error {
-	if len(entries) == 0 {
-		return nil
-	}
-	byObject := map[string][]sentence.Sentence{}
-	for _, e := range entries {
-		name := sentence.PoolObjectFor(e.Tier, e.Lang)
-		byObject[name] = append(byObject[name], e.Sentence)
-	}
-
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-	bucket := client.Bucket(projectID + "-uvm-data")
-
-	names := make([]string, 0, len(byObject))
-	for name := range byObject {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		existing, err := sentence.ReadSentences(ctx, bucket, name)
-		if err != nil {
-			return err
-		}
-		merged, added := mergePool(existing, byObject[name], maxEntries)
-		if added == 0 {
-			log.Printf("sentencePool: object=%s no new sentences (pool=%d)", name, len(merged))
-			continue
-		}
-		data, err := json.Marshal(merged)
-		if err != nil {
-			return err
-		}
-		w := bucket.Object(name).NewWriter(ctx)
-		w.ContentType = "application/json"
-		if _, err := w.Write(data); err != nil {
-			w.Close()
-			return err
-		}
-		if err := w.Close(); err != nil {
-			return err
-		}
-		log.Printf("sentencePool: object=%s added=%d pool=%d", name, added, len(merged))
-	}
-	return nil
-}
-
-// mergePool は既存プールへ新しい例文を足す。
-//
-// thai_text が既にあるものは飛ばす（同じ文を2本持っても抽選が偏るだけ）。
-// 上限を超えたら古い側（先頭）から落とす。古い文ほど、そのとき直した
-// プロンプトより前の出来なので、落とす向きはこちらでよい。
-func mergePool(existing, incoming []sentence.Sentence, maxEntries int) ([]sentence.Sentence, int) {
-	seen := make(map[string]bool, len(existing))
-	for _, s := range existing {
-		seen[s.ThaiText] = true
-	}
-	merged := existing
-	added := 0
-	for _, s := range incoming {
-		if seen[s.ThaiText] {
-			continue
-		}
-		seen[s.ThaiText] = true
-		merged = append(merged, s)
-		added++
-	}
-	if len(merged) > maxEntries {
-		merged = merged[len(merged)-maxEntries:]
-	}
-	return merged, added
 }

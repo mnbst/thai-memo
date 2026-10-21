@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../domain/sentence_tone_spans.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/sentence_audio_cache.dart';
 import 'pronunciation_practice.dart';
 import 'sentence_audio_player.dart';
 
@@ -98,6 +99,7 @@ class _PronunciationSheet extends StatelessWidget {
                       words: sentence.wordBreakdowns
                           .map((w) => w.wordText)
                           .toList(),
+                      source: SentenceAudioSource.of(sentence),
                     ),
                     const SizedBox(height: 12),
                     PronunciationPractice(

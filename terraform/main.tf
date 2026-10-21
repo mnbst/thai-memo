@@ -99,6 +99,29 @@ resource "google_storage_bucket_iam_member" "uvm_data_runtime_pool_writer" {
   }
 }
 
+# お手本の音声（Cloud TTS の MP3、functions/go/internal/ttsaudio）
+#
+# ファイル名は中身のハッシュで、一度置いたら変えない。getSentenceAudio が無いときだけ作って置き、
+# 音声のバイト列をそのまま返すのでバケットは非公開のまま。
+resource "google_storage_bucket" "tts_audio" {
+  name     = "${var.project_id}-tts-audio"
+  project  = var.project_id
+  location = var.region
+
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# 読むのと「無いときだけ作る」だけ。上書き・削除はさせない。
+resource "google_storage_bucket_iam_member" "tts_audio_runtime" {
+  for_each = toset(["roles/storage.objectViewer", "roles/storage.objectCreator"])
+  bucket   = google_storage_bucket.tts_audio.name
+  role     = each.value
+  member   = "serviceAccount:${google_service_account.functions_runtime.email}"
+}
+
 # Secret Manager module
 module "secret_manager" {
   source = "./modules/secret-manager"
