@@ -10,8 +10,10 @@
 // 読み、配信・自分で生成した例文・ほかの端末でのお気に入りと削除をまとめて
 // 反映する。まっさらな端末（再インストール・アカウント切替）だけは全件読む。
 //
-// 同じタイミングで users/{uid}.last_opened_at を書く。配信バックオフの「開封」判定に
-// 使われる副シグナルで、これが動いている限り配信頻度は落ちない。
+// 同じタイミングで users/{uid}.last_opened_at を書き、配信バックオフの段階
+// （notify_tier / notify_tier_misses）を0に戻す。アプリを開いた時点で通知は
+// 毎日に戻る（反応が無いまま進むと 毎日×3回 → 3日ごと×3回 → 10日ごと×3回 →
+// 30日ごと×3回 → 停止）。
 // =============================================================================
 
 import 'dart:async';
@@ -90,7 +92,7 @@ class DailySentenceService {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return const SentenceSyncResult();
 
-    // last_opened_at は表示に関係しない副シグナルなので待たない。
+    // 開封の記録は表示に関係しないので待たない。
     // 待つとサーバー往復ぶんだけ通知タップからの表示が遅れる。
     unawaited(_touchLastOpenedAt(uid));
     return _syncDeliveredSets(uid, sentenceId: sentenceId);
@@ -212,7 +214,12 @@ class DailySentenceService {
   Future<void> _touchLastOpenedAt(String uid) async {
     try {
       await _firestore.collection('users').doc(uid).set(
-        {'last_opened_at': FieldValue.serverTimestamp()},
+        {
+          'last_opened_at': FieldValue.serverTimestamp(),
+          // 開いた時点で通知を毎日に戻す。ルール上クライアントは0へのリセットのみ書ける。
+          'notify_tier': 0,
+          'notify_tier_misses': 0,
+        },
         SetOptions(merge: true),
       );
     } catch (_) {

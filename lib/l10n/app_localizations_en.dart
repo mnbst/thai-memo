@@ -572,6 +572,27 @@ class L10nEn extends L10n {
   String get settingsNotificationTime => 'Notification time';
 
   @override
+  String get notifyScheduleOff => 'Off';
+
+  @override
+  String notifySchedulePremiumUpsell(int count) {
+    return 'With Premium, set up to $count notifications a day';
+  }
+
+  @override
+  String get notifyScheduleReplaceNote =>
+      'Each notification brings a new sentence set. If you don\'t read any sentence in a set before the next notification, it is replaced with a new one.';
+
+  @override
+  String get notifyScheduleChangeTime => 'Change time';
+
+  @override
+  String get notifyScheduleTimeTaken => 'That time is already set';
+
+  @override
+  String get notifyScheduleSave => 'Save';
+
+  @override
   String get settingsTopic => 'Topic';
 
   @override
@@ -1255,18 +1276,17 @@ class L10nEn extends L10n {
   String get philosophyStart => 'See how it works';
 
   @override
-  String get notifCoachTitle => 'Get a daily Thai sentence';
+  String get notifCoachTitle => 'Make Thai practice a daily habit';
 
   @override
   String get notifCoachHabit =>
-      'Get it at the same time daily to build a learning habit.';
+      'Get new example sentences at your chosen time to help you keep learning';
 
   @override
   String get notifCoachNow => 'now';
 
   @override
-  String get notifCoachSampleTitle =>
-      '🇹🇭 Thai of the Day · ขอบคุณ (thank you)';
+  String get notifCoachSampleTitle => '🇹🇭 ขอบคุณ (thank you)';
 
   @override
   String get notifCoachSampleBody => '→ Thank you for the coffee';

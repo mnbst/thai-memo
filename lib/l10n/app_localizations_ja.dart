@@ -547,6 +547,27 @@ class L10nJa extends L10n {
   String get settingsNotificationTime => '通知する時刻';
 
   @override
+  String get notifyScheduleOff => 'オフ';
+
+  @override
+  String notifySchedulePremiumUpsell(int count) {
+    return 'プレミアムでは、例文通知を1日$count回まで設定できます';
+  }
+
+  @override
+  String get notifyScheduleReplaceNote =>
+      '通知ごとに新しい例文セットが届きます。次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。';
+
+  @override
+  String get notifyScheduleChangeTime => '時刻を変更';
+
+  @override
+  String get notifyScheduleTimeTaken => 'その時刻はもう設定されています';
+
+  @override
+  String get notifyScheduleSave => '保存';
+
+  @override
   String get settingsTopic => 'テーマ';
 
   @override
@@ -1186,16 +1207,16 @@ class L10nJa extends L10n {
   String get philosophyStart => '使い方を見る';
 
   @override
-  String get notifCoachTitle => '毎日、例文が通知で届きます';
+  String get notifCoachTitle => '通知で学習を毎日の習慣に';
 
   @override
-  String get notifCoachHabit => '同じ時間に届くので、続けやすくなります';
+  String get notifCoachHabit => '決めた時間に新しい例文が届き、続けるきっかけになります';
 
   @override
   String get notifCoachNow => '今';
 
   @override
-  String get notifCoachSampleTitle => '🇹🇭 今日のタイ語 · ขอบคุณ（ありがとう）';
+  String get notifCoachSampleTitle => '🇹🇭 ขอบคุณ（ありがとう）';
 
   @override
   String get notifCoachSampleBody => '→ コーヒーをありがとうございます';

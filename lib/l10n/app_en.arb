@@ -295,6 +295,19 @@
   "settingsDailyNotificationSubtitle": "Get a daily reminder",
   "settingsAllowNotificationInOsSettings": "Enable notifications in device settings",
   "settingsNotificationTime": "Notification time",
+  "notifyScheduleOff": "Off",
+  "notifySchedulePremiumUpsell": "With Premium, set up to {count} notifications a day",
+  "@notifySchedulePremiumUpsell": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifyScheduleReplaceNote": "Each notification brings a new sentence set. If you don't read any sentence in a set before the next notification, it is replaced with a new one.",
+  "notifyScheduleChangeTime": "Change time",
+  "notifyScheduleTimeTaken": "That time is already set",
+  "notifyScheduleSave": "Save",
   "settingsTopic": "Topic",
   "settingsTopicRandom": "Chosen for you",
   "settingsNextLevelIn": "{count, plural, =1{Next level in 1 word} other{Next level in {count} words}}",
@@ -547,10 +560,10 @@
 
   "philosophyStart": "See how it works",
 
-  "notifCoachTitle": "Get a daily Thai sentence",
-  "notifCoachHabit": "Get it at the same time daily to build a learning habit.",
+  "notifCoachTitle": "Make Thai practice a daily habit",
+  "notifCoachHabit": "Get new example sentences at your chosen time to help you keep learning",
   "notifCoachNow": "now",
-  "notifCoachSampleTitle": "🇹🇭 Thai of the Day · ขอบคุณ (thank you)",
+  "notifCoachSampleTitle": "🇹🇭 ขอบคุณ (thank you)",
   "notifCoachSampleBody": "→ Thank you for the coffee",
   "notifCoachEnable": "Enable notifications",
   "notifCoachLater": "Not now",

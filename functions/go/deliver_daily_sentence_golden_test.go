@@ -222,6 +222,8 @@ func TestDeliveryBuildSentenceGolden(t *testing.T) {
 	}
 }
 
+// TestDeliveryCommitGolden の「開封済みなら段階0に戻す」は 2026-10 の変更で
+// Python に無い。golden の期待値（notify_tier）を書き換えてある。
 func TestDeliveryCommitGolden(t *testing.T) {
 	golden := loadDeliveryGolden(t)
 	now, err := time.Parse(time.RFC3339, golden.Now)

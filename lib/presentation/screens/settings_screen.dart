@@ -9,6 +9,7 @@ import 'dart:async';
 
 import '../../core/config/app_config.dart';
 import '../../core/l10n/app_language.dart';
+import '../../core/notify_slots.dart';
 import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -19,7 +20,6 @@ import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/vocab_stats_provider.dart';
-import '../../services/push_notification_service.dart';
 import '../widgets/premium_lifetime_migration_dialog.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import 'vocab_test_screen.dart';
@@ -28,6 +28,7 @@ import '../widgets/streak_widgets.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/vocab_level.dart';
 import 'contact_form_screen.dart';
+import 'notification_schedule_screen.dart';
 import 'pronunciation_guide_screen.dart';
 import 'paywall_screen.dart';
 import 'ranking_screen.dart';
@@ -726,8 +727,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return [
       _buildVocabTestTile(),
       _buildTopicSelectTile(),
-      _buildDailyReminderTile(),
-      _buildReminderTimeTile(),
+      _buildNotificationScheduleTile(),
       ListTile(
         leading: const Icon(Icons.leaderboard_outlined),
         title: Text(l10n.settingsRanking),
@@ -758,87 +758,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ];
   }
 
-  /// 毎日例文のプッシュ通知トグル。
-  ///
-  /// OSの通知許可が拒否されている場合はアプリ側では有効にできないため、
-  /// 状態をオフのままにして端末設定への案内を出す。
-  Widget _buildDailyReminderTile() {
+  /// 毎日例文の通知。オンの時刻を並べ、タップで時刻一覧（アラーム風）へ。
+  Widget _buildNotificationScheduleTile() {
+    final l10n = L10n.of(context);
     final enabled = ref.watch(dailyReminderEnabledProvider);
-
-    return SwitchListTile(
-      secondary: const Icon(Icons.notifications_active_outlined),
-      title: Text(L10n.of(context).settingsDailyNotification),
-      subtitle: Text(L10n.of(context).settingsDailyNotificationSubtitle),
-      value: enabled,
-      onChanged: (value) async {
-        final result = await ref
-            .read(settingsControllerProvider.notifier)
-            .setDailyReminderEnabled(value);
-        // pending（許可済み・登録待ち）でOS設定へ誘導すると誤解を招く。
-        if (result == PushEnableResult.denied && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content:
-                  Text(L10n.of(context).settingsAllowNotificationInOsSettings),
-            ),
-          );
-        }
-      },
-    );
-  }
-
-  /// 配信時刻の選択。サーバーは時単位で配信するため分は切り捨てる。
-  Widget _buildReminderTimeTile() {
-    final enabled = ref.watch(dailyReminderEnabledProvider);
-    final hour = ref.watch(settingsControllerProvider).preferredGenerationHour;
+    final premium = ref.watch(effectivePremiumProvider);
+    var hours = enabledNotifyHours(ref.watch(notifySlotsProvider));
+    // free は先頭の1つしか届かない（枠の作り直しは一覧を開いたときに行う）。
+    if (!premium) hours = hours.take(1).toList();
 
     return ListTile(
-      enabled: enabled,
-      leading: Icon(
-        Icons.schedule,
-        color: enabled
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.outline,
+      leading: const Icon(Icons.notifications_active_outlined),
+      title: Text(l10n.settingsDailyNotification),
+      subtitle: Text(
+        enabled && hours.isNotEmpty
+            ? hours.map((h) => '${h.toString().padLeft(2, '0')}:00').join('・')
+            : l10n.notifyScheduleOff,
       ),
-      title: Text(L10n.of(context).settingsNotificationTime),
-      subtitle: Text('${hour.toString().padLeft(2, '0')}:00'),
       trailing: const Icon(Icons.chevron_right),
-      onTap: enabled
-          ? () async {
-              final picked = await _pickReminderHour(hour);
-              if (picked == null) return;
-              await ref
-                  .read(settingsControllerProvider.notifier)
-                  .setPreferredGenerationTime(
-                    TimeOfDay(hour: picked, minute: 0),
-                  );
-            }
-          : null,
-    );
-  }
-
-  /// 配信は時単位なので、分を選ばせずに「時」だけ選ばせる。
-  Future<int?> _pickReminderHour(int current) {
-    return showDialog<int>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(L10n.of(context).settingsNotificationTime),
-        children: [
-          SizedBox(
-            width: double.maxFinite,
-            height: 320,
-            child: ListView.builder(
-              itemCount: 24,
-              itemBuilder: (context, hour) => ListTile(
-                selected: hour == current,
-                title: Text('${hour.toString().padLeft(2, '0')}:00'),
-                trailing: hour == current ? const Icon(Icons.check) : null,
-                onTap: () => Navigator.pop(context, hour),
-              ),
-            ),
+      onTap: () {
+        Navigator.push(
+          context,
+          CupertinoPageRoute(
+            settings:
+                const RouteSettings(name: NotificationScheduleScreen.routeName),
+            builder: (context) => const NotificationScheduleScreen(),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

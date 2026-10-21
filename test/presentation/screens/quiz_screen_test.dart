@@ -912,7 +912,7 @@ void main() {
 
     await _finishQuiz(tester, harness);
 
-    expect(find.text('毎日、例文が通知で届きます'), findsOneWidget);
+    expect(find.text('通知で学習を毎日の習慣に'), findsOneWidget);
 
     await tester.tap(find.text('今はしない'));
     await tester.pumpAndSettle();
@@ -962,7 +962,7 @@ void main() {
 
     await _finishQuiz(tester, harness);
 
-    expect(find.text('毎日、例文が通知で届きます'), findsOneWidget);
+    expect(find.text('通知で学習を毎日の習慣に'), findsOneWidget);
     await tester.tap(find.text('今はしない'));
     await tester.pumpAndSettle();
     expect(settings.experiments.single, endsWith(':show'));

@@ -13,6 +13,7 @@ import (
 	"firebase.google.com/go/v4/auth"
 	"google.golang.org/api/iterator"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/dailysentence"
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/notify"
 	"github.com/mnbst/thai-memo/functions/go/internal/premium"
@@ -423,6 +424,14 @@ func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[s
 		userData["timezone"], userData["preferred_generation_hour"], now,
 	); ok {
 		payload["notify_utc_hour"] = utcHour
+	}
+	// 複数時刻（notify_hours）も同じく毎日作り直す。premium でなくなった人は
+	// ここで先頭の1つに戻る。nil はフィールドを消す合図。
+	for k, v := range dailysentence.NotifyHoursRefresh(userData, effectivePremium, now) {
+		if v == nil {
+			v = firestore.Delete
+		}
+		payload[k] = v
 	}
 
 	// 体験終了ダイアログは「回数が free に戻ってから」出したい。期限切れ後の最初の

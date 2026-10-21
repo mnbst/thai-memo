@@ -95,6 +95,9 @@ func withinDueSlack(data map[string]any, now time.Time) bool {
 // （scripts/daily_golden/gen_golden.py）。見送り理由の文字列まで比べるので、
 // 判定順序が入れ替わっただけでも落ちる。
 //
+// 開封（last_opened_at）で段階0に戻すのは 2026-10 の変更で Python に無い。
+// golden の evaluate_response はその分だけ新しい期待値に書き換えてある。
+//
 // 期日の前倒し（DueSlack）だけは Python に無い。毎時起動の揺れで1日飛ぶのを
 // 止めるために足したものなので、その窓に入るケースは差を認める
 // （withinDueSlack）。

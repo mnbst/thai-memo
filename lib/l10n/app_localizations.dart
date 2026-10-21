@@ -1099,6 +1099,42 @@ abstract class L10n {
   /// **'通知する時刻'**
   String get settingsNotificationTime;
 
+  /// No description provided for @notifyScheduleOff.
+  ///
+  /// In ja, this message translates to:
+  /// **'オフ'**
+  String get notifyScheduleOff;
+
+  /// No description provided for @notifySchedulePremiumUpsell.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムでは、例文通知を1日{count}回まで設定できます'**
+  String notifySchedulePremiumUpsell(int count);
+
+  /// No description provided for @notifyScheduleReplaceNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知ごとに新しい例文セットが届きます。次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。'**
+  String get notifyScheduleReplaceNote;
+
+  /// No description provided for @notifyScheduleChangeTime.
+  ///
+  /// In ja, this message translates to:
+  /// **'時刻を変更'**
+  String get notifyScheduleChangeTime;
+
+  /// No description provided for @notifyScheduleTimeTaken.
+  ///
+  /// In ja, this message translates to:
+  /// **'その時刻はもう設定されています'**
+  String get notifyScheduleTimeTaken;
+
+  /// No description provided for @notifyScheduleSave.
+  ///
+  /// In ja, this message translates to:
+  /// **'保存'**
+  String get notifyScheduleSave;
+
   /// No description provided for @settingsTopic.
   ///
   /// In ja, this message translates to:
@@ -2182,13 +2218,13 @@ abstract class L10n {
   /// No description provided for @notifCoachTitle.
   ///
   /// In ja, this message translates to:
-  /// **'毎日、例文が通知で届きます'**
+  /// **'通知で学習を毎日の習慣に'**
   String get notifCoachTitle;
 
   /// No description provided for @notifCoachHabit.
   ///
   /// In ja, this message translates to:
-  /// **'同じ時間に届くので、続けやすくなります'**
+  /// **'決めた時間に新しい例文が届き、続けるきっかけになります'**
   String get notifCoachHabit;
 
   /// No description provided for @notifCoachNow.
@@ -2200,7 +2236,7 @@ abstract class L10n {
   /// No description provided for @notifCoachSampleTitle.
   ///
   /// In ja, this message translates to:
-  /// **'🇹🇭 今日のタイ語 · ขอบคุณ（ありがとう）'**
+  /// **'🇹🇭 ขอบคุณ（ありがとう）'**
   String get notifCoachSampleTitle;
 
   /// No description provided for @notifCoachSampleBody.
