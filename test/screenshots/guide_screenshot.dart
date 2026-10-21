@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:thai_memo/core/theme/app_theme.dart';
@@ -49,7 +50,8 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
       debugShowCheckedModeBanner: false,
       locale: const Locale(_lang),
       localizationsDelegates: L10n.localizationsDelegates,
@@ -59,7 +61,7 @@ void main() {
       builder: (context, child) =>
           RepaintBoundary(key: const ValueKey('shot'), child: child),
       home: const Scaffold(),
-    ));
+    )));
     final navigator = tester.state<NavigatorState>(find.byType(Navigator));
     navigator.push(MaterialPageRoute<void>(builder: (_) => _screens[_screen]!));
     await tester.pumpAndSettle();

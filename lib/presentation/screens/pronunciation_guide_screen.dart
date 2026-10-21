@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
+import '../providers/analytics_provider.dart';
+import '../providers/tts_provider.dart';
 import '../widgets/swipe_back.dart';
 
 /// 例に出す語。意味は節ごとの `|` 区切りの文言から、出てくる順に引く。
@@ -356,22 +361,38 @@ class _ExampleRow extends StatelessWidget {
 }
 
 /// 語1つ。タイ文字・読み・意味を縦に積む。崩れた読みがあれば「読み → 崩れ」。
-class _WordTile extends StatelessWidget {
+/// 札全体を押すとその語を読み上げる。
+class _WordTile extends ConsumerWidget {
   final _Word word;
   final String meaning;
 
   const _WordTile({required this.word, required this.meaning});
 
+  void _speak(WidgetRef ref) {
+    unawaited(
+      ref.read(analyticsServiceProvider).logPlayTts(
+            contentType: 'word',
+            text: word.thai,
+            source: 'pronunciation_guide',
+          ),
+    );
+    // 比べる2語を同じ声で聞き比べられるよう、話者を変えない。
+    // 長短の違いを聞かせたいので、ゆっくり読みにはしない。
+    unawaited(ref.read(ttsServiceProvider).speak(word.thai, keepVoice: true));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final readingStyle = theme.textTheme.bodyMedium?.copyWith(
       color: theme.colorScheme.primary,
       fontWeight: FontWeight.w600,
     );
     final spoken = word.spoken;
-    final thai = Text(word.thai,
+    final thaiText = Text(word.thai,
         style: theme.textTheme.titleLarge?.copyWith(fontSize: 24, height: 1.3));
+    final speaker = Icon(Icons.volume_up_outlined,
+        size: 18, color: theme.colorScheme.primary);
     final reading = spoken == null
         ? Text(word.reading, style: readingStyle)
         : Text.rich(TextSpan(style: readingStyle, children: [
@@ -390,30 +411,48 @@ class _WordTile extends StatelessWidget {
       style: theme.textTheme.bodySmall
           ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
     );
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      // 崩れの行は語が1つなので横に並べ、比べる行は縦に積む。
-      child: spoken == null
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [thai, reading, meaningText],
-            )
-          : Row(
-              children: [
-                thai,
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
+    return Material(
+      color: theme.colorScheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _speak(ref),
+        child: Semantics(
+          button: true,
+          label: L10n.of(context).playPronunciation,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            // 崩れの行は語が1つなので横に並べ、比べる行は縦に積む。
+            child: spoken == null
+                ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [reading, meaningText],
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: thaiText),
+                          speaker,
+                        ],
+                      ),
+                      reading,
+                      meaningText,
+                    ],
+                  )
+                : Row(
+                    children: [
+                      thaiText,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [reading, meaningText],
+                        ),
+                      ),
+                      speaker,
+                    ],
                   ),
-                ),
-              ],
-            ),
+          ),
+        ),
+      ),
     );
   }
 }
