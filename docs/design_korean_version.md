@@ -114,7 +114,7 @@ ja に無い文は ko にも無い。ja に後から足された文（pool revie
 ### Phase 1（済）
 
 - `AppLanguage.ko`、`lib/l10n/app_ko.arb`（Codex 作成、1,083キー）、`ios/Runner/ko.lproj/InfoPlist.strings`。
-- `fromStorefront` はまだ触っていない（ko は dev の言語ピッカーからだけ選べる）。
+- `fromStorefront` で KR/KOR → ko（2026-10-22、サーバーの本番デプロイと同時に入れた）。
 
 ### Phase 2（済・未デプロイ）
 

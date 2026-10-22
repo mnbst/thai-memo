@@ -25,7 +25,7 @@ enum AppLanguage {
       );
 
   /// ダウンロード元のストア地域から初期言語を決める。**既定は ja**。
-  /// 日本以外のストアだと確認できたときだけ en に倒す。
+  /// 韓国のストアなら ko、それ以外の日本以外のストアだと確認できたときだけ en に倒す。
   ///
   /// 端末ロケールは使わない。ロケールで判定すると海外在住の日本語話者が ja 側に
   /// 入り、日本市場のセグメントに混ざるため、判定軸はストア地域に一本化する。
@@ -36,6 +36,8 @@ enum AppLanguage {
   static AppLanguage fromStorefront(String? countryCode) {
     final code = countryCode?.trim().toUpperCase() ?? '';
     if (code.isEmpty) return AppLanguage.ja;
-    return const {'JP', 'JPN'}.contains(code) ? AppLanguage.ja : AppLanguage.en;
+    if (const {'JP', 'JPN'}.contains(code)) return AppLanguage.ja;
+    if (const {'KR', 'KOR'}.contains(code)) return AppLanguage.ko;
+    return AppLanguage.en;
   }
 }

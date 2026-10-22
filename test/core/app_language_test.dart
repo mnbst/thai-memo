@@ -24,7 +24,13 @@ void main() {
       expect(AppLanguage.fromStorefront(' jp '), AppLanguage.ja);
     });
 
-    test('日本以外のストアは en', () {
+    test('韓国のストアは ko（iOS の KOR / Android の KR）', () {
+      expect(AppLanguage.fromStorefront('KOR'), AppLanguage.ko);
+      expect(AppLanguage.fromStorefront('KR'), AppLanguage.ko);
+      expect(AppLanguage.fromStorefront(' kr '), AppLanguage.ko);
+    });
+
+    test('日本・韓国以外のストアは en', () {
       expect(AppLanguage.fromStorefront('USA'), AppLanguage.en);
       expect(AppLanguage.fromStorefront('TH'), AppLanguage.en);
     });
