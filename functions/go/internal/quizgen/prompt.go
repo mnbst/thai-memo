@@ -20,11 +20,13 @@ import (
 var dummyReasonFormat = map[lang.Lang]string{
 	lang.JA: `dummy_reasons: 各ダミーを「単語（ローマ字 / 日本語）：不正解理由」の形式で1行ずつ書く`,
 	lang.EN: `dummy_reasons: 各ダミーを "word (romaji / English meaning): reason" の形式で1行ずつ書く`,
+	lang.KO: `dummy_reasons: 各ダミーを "단어 (romaji / 한국어 뜻): 이유" の形式で1行ずつ書く`,
 }
 
 var explanationRule = map[lang.Lang]string{
 	lang.JA: `explanation: correct_answer が入る理由だけを日本語で簡潔に書く。ダミーには触れない`,
 	lang.EN: `explanation: correct_answer が入る理由だけを英語で簡潔に書く。ダミーには触れない`,
+	lang.KO: `explanation: correct_answer が入る理由だけを韓国語で簡潔に書く。ダミーには触れない`,
 }
 
 // visibilityRule は「訳文を見なくても解ける問題にする」という制約。
@@ -36,11 +38,15 @@ var visibilityRule = map[lang.Lang]string{
 	lang.EN: `【最重要ルール】
 ヒント表示前に見えるのは blank_text と「correct_answer + dummies」のタイ語だけ。
 訳文・語句・発音・解説なしでも、周辺タイ語だけで3ダミーを除外できる必要がある。`,
+	lang.KO: `【最重要ルール】
+ヒント表示前に見えるのは blank_text と「correct_answer + dummies」のタイ語だけ。
+訳文・語句・発音・解説なしでも、周辺タイ語だけで3ダミーを除外できる必要がある。`,
 }
 
 var translationOnlyRule = map[lang.Lang]string{
 	lang.JA: `- 日本語訳、話者性別、敬意、人称だけで区別する語は不可`,
 	lang.EN: `- 訳文、話者性別、敬意、人称だけで区別する語は不可`,
+	lang.KO: `- 訳文、話者性別、敬意、人称だけで区別する語は不可`,
 }
 
 // bannedReasonPhrases は禁止表現。出力言語の文字列でないと機能しない
@@ -54,6 +60,10 @@ dummy_reasons に「元の文」「文脈」「質問文」「合わない」「
 dummy_reasons に "the original sentence" / "context" / "the question" / "does not fit" /
 "a different meaning" / "means something else" / "more common" / "more natural" は書かない。
 "does not fit the context of ..." や "this one is more natural" と説明したくなる候補は、意味上入りうるため不可。`,
+	lang.KO: `【理由の禁止表現】
+dummy_reasons に "원문" / "문맥" / "질문" / "맞지 않는다" / "어울리지 않는다" /
+"뜻이 다르다" / "다른 뜻이 된다" / "더 일반적이다" / "더 자연스럽다" は書かない。
+"~을 나타내는 문맥에는 맞지 않는다" や "이쪽이 더 자연스럽다" と説明したくなる候補は、意味上入りうるため不可。`,
 }
 
 var goodReasonExamples = map[lang.Lang]string{
@@ -69,6 +79,12 @@ var goodReasonExamples = map[lang.Lang]string{
 - เสื้อ (sʉ̂a / shirt): a clothing noun cannot be the object of a motion verb
 - ช้า (cháa / slow): an adjective cannot fill an object slot
 - สอง (sɔ̌ɔng / two): a numeral cannot fill a locative prepositional phrase`,
+	lang.KO: `【良い理由例】
+- แกง (kɛɛng / 카레): 동사가 올 자리에 명사가 와서 문법적으로 어색함
+- เบื่อ (bʉ̀a / 지겹다): 목적어 자리에 동사가 와서 문법적으로 어색함
+- เสื้อ (sʉ̂a / 옷): 이동 동사의 목적어로 의류 명사가 올 수 없음
+- ช้า (cháa / 느리다): 목적어 자리에 형용사가 올 수 없음
+- สอง (sɔ̌ɔng / 둘): 장소를 나타내는 전치사구에 수사가 올 수 없음`,
 }
 
 const systemPromptTemplate = `確定済みのタイ語穴埋め問題1問について、ダミー選択肢・理由・解説だけを作成してください。
@@ -156,6 +172,27 @@ explanation / dummy_reasons の2項目のみ。
 
 【最終確認】
 dummy_reasons 3件、dummies と同じ語・同じ順。`,
+	lang.KO: `確定済みのタイ語穴埋め問題1問について、ダミーの不正解理由と解説だけを作成してください。
+blank_text / correct_answer / dummies は変更しません。
+
+【出力】
+explanation / dummy_reasons の2項目のみ。
+- {{EXPLANATION_RULE}}
+- {{DUMMY_REASON_FORMAT}}
+
+{{VISIBILITY_RULE}}
+
+【理由の書き方】
+- 渡された dummies 3件それぞれについて、その語がその位置に入らない理由を書く
+- 品詞と位置で説明する（動詞の位置に名詞、目的語に形容詞、など）
+- dummies の語を書き換えない。3行は互いに異なる理由にする
+
+{{BANNED_REASON_PHRASES}}
+
+{{GOOD_REASON_EXAMPLES}}
+
+【最終確認】
+dummy_reasons 3件、dummies と同じ語・同じ順。`,
 }
 
 var meaningSystemPrompt = map[lang.Lang]string{
@@ -179,13 +216,29 @@ Return only explanation.
 
 【Final check】
 Return only explanation.`,
+	lang.KO: `確定済みのタイ語単語の意味4択問題1問について、対象単語そのものの解説だけを作成してください。
+正解と選択肢は変更しません。
+
+【出力】
+explanation のみ。
+- explanation: 対象単語の意味・ニュアンス・使い方を、韓国語100字以内で簡潔に説明する
+- 出題に使った例文の解説、不正解候補の理由、新しい例文は書かない
+
+【最終確認】
+explanation だけを返す。`,
+}
+
+// supported はプロンプトを持たない言語を ja に倒す。
+func supported(l lang.Lang) lang.Lang {
+	if _, ok := explanationRule[l]; ok {
+		return l
+	}
+	return lang.JA
 }
 
 // SystemPrompt は言語ごとのシステムプロンプト。
 func SystemPrompt(l lang.Lang) string {
-	if l != lang.EN {
-		l = lang.JA
-	}
+	l = supported(l)
 	return strings.NewReplacer(
 		"{{EXPLANATION_RULE}}", explanationRule[l],
 		"{{DUMMY_REASON_FORMAT}}", dummyReasonFormat[l],
@@ -200,10 +253,7 @@ func SystemPrompt(l lang.Lang) string {
 // golden互換を保つため穴埋め専用のまま残す。
 func SystemPromptFor(sentences []QuizSentenceSeed, l lang.Lang) string {
 	if len(sentences) == 1 && quizFormatOf(sentences[0]) == FormatMeaningChoice {
-		if l != lang.EN {
-			l = lang.JA
-		}
-		return meaningSystemPrompt[l]
+		return meaningSystemPrompt[supported(l)]
 	}
 	if AllHaveFixedDummies(sentences) {
 		return fixedDummyPrompt(l)
@@ -228,9 +278,7 @@ func AllHaveFixedDummies(sentences []QuizSentenceSeed) bool {
 }
 
 func fixedDummyPrompt(l lang.Lang) string {
-	if l != lang.EN {
-		l = lang.JA
-	}
+	l = supported(l)
 	return strings.NewReplacer(
 		"{{EXPLANATION_RULE}}", explanationRule[l],
 		"{{DUMMY_REASON_FORMAT}}", dummyReasonFormat[l],
@@ -263,8 +311,11 @@ func buildPreparedSentenceList(sentences []QuizSentenceSeed, l lang.Lang) string
 	// japanese_translation の中身は lang に従った訳文（フィールド名だけが据え置き）。
 	// ラベルまで「日本語訳」のままだと、英訳を日本語だと言って渡すことになる。
 	translationLabel := "日本語訳"
-	if l == lang.EN {
+	switch l {
+	case lang.EN:
 		translationLabel = "translation"
+	case lang.KO:
+		translationLabel = "韓国語訳"
 	}
 
 	entries := make([]string, 0, len(prepared))

@@ -74,6 +74,7 @@ var knownMistranslations = []mistrans{
 		Bad: map[lang.Lang]*regexp.Regexp{
 			lang.JA: regexp.MustCompile(`ナイト|夜市|フリーマーケット|フリマ`),
 			lang.EN: regexp.MustCompile(`(?i)night market|flea market`),
+			lang.KO: regexp.MustCompile(`야시장|벼룩시장|플리마켓`),
 		}},
 	// รถไฟฟ้า は電車一般。路線名にしない（prompt-effect-ledger「2段構成」）。
 	{Word: "รถไฟฟ้า",
@@ -81,6 +82,7 @@ var knownMistranslations = []mistrans{
 		Bad: map[lang.Lang]*regexp.Regexp{
 			lang.JA: regexp.MustCompile(`BTS|MRT`),
 			lang.EN: regexp.MustCompile(`BTS|MRT`),
+			lang.KO: regexp.MustCompile(`BTS|MRT`),
 		}},
 }
 

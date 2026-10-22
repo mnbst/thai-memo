@@ -41,6 +41,7 @@ void main() {
     test('保存済みの値を復元する', () {
       expect(AppLanguage.fromCode('en'), AppLanguage.en);
       expect(AppLanguage.fromCode('ja'), AppLanguage.ja);
+      expect(AppLanguage.fromCode('ko'), AppLanguage.ko);
     });
 
     test('未知・null は ja', () {

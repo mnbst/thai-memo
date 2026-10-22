@@ -89,8 +89,11 @@ func wordOrderWordsOf(detail map[string]any) []quizgen.WordOrderWord {
 // wordOrderExplanation は解説。モデルを呼ばないのでここで書く。
 func wordOrderExplanation(l lang.Lang, wo quizgen.WordOrder) string {
 	order := strings.Join(wo.Answer, " → ")
-	if l == lang.EN {
+	switch l {
+	case lang.EN:
 		return fmt.Sprintf("Correct order: %s", order)
+	case lang.KO:
+		return fmt.Sprintf("올바른 순서: %s", order)
 	}
 	return fmt.Sprintf("正しい並び: %s", order)
 }

@@ -58,7 +58,7 @@ func LanguageDrift(s *Sentence, l lang.Lang) Drift {
 	return drift
 }
 
-var driftLanguageName = map[lang.Lang]string{lang.JA: "日本語", lang.EN: "英語"}
+var driftLanguageName = map[lang.Lang]string{lang.JA: "日本語", lang.EN: "英語", lang.KO: "韓国語"}
 
 // RepairLanguage は言語がずれたフィールドだけ書き直させる。
 //
@@ -145,7 +145,7 @@ func applyLanguageRepair(
 
 // LanguageRepairSystemPrompt は書き直しクエリのシステムプロンプト。
 func LanguageRepairSystemPrompt(l lang.Lang) string {
-	if l != lang.EN {
+	if _, ok := driftLanguageName[l]; !ok {
 		l = lang.JA
 	}
 	return fmt.Sprintf(

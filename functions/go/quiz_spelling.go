@@ -50,8 +50,12 @@ func toSpellingSource(
 // 部品ごとの違いは spelling_parts を見て画面が組み立てるので、
 // ここでは「ほかは実在しない綴り」だけを言う。
 func spellingExplanation(l lang.Lang, seed quizgen.QuizSentenceSeed) string {
-	if l == lang.EN {
+	switch l {
+	case lang.EN:
 		return fmt.Sprintf("%s is the real spelling. The other three do not exist in Thai.",
+			seed.KeyWord)
+	case lang.KO:
+		return fmt.Sprintf("실제로 있는 철자는 %s뿐이에요. 나머지 3개는 태국어에 없는 철자예요.",
 			seed.KeyWord)
 	}
 	return fmt.Sprintf("実在する綴りは %s だけで、ほかの3つはタイ語にありません。",

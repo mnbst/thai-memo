@@ -31,6 +31,9 @@ func IsWrongLanguage(text string, l Lang) bool {
 	if strings.TrimSpace(text) == "" {
 		return false
 	}
+	if l == KO {
+		return isWrongKorean(text)
+	}
 	hasKana, hasLetter := false, false
 	hanRunMax, hanRun, latin, latinWords := 0, 0, 0, 0
 	inLatinWord := false
@@ -80,6 +83,25 @@ func IsWrongLanguage(text string, l Lang) bool {
 	}
 	// 日本語文字もラテン文字も無い文字列（タイ語だけなど）。
 	return hasLetter && hanRunMax == 0 && latin == 0
+}
+
+// isWrongKorean は韓国語の欄に仮名・漢字・キリル文字が混ざるか、文字が
+// あるのにハングルが1文字も無いか（タイ語だけ・英文だけ）。
+func isWrongKorean(text string) bool {
+	hasHangul, hasLetter := false, false
+	for _, r := range text {
+		switch {
+		case unicode.Is(unicode.Hangul, r):
+			hasHangul = true
+		case unicode.Is(unicode.Hiragana, r), unicode.Is(unicode.Katakana, r),
+			unicode.Is(unicode.Han, r), unicode.Is(unicode.Cyrillic, r):
+			return true
+		}
+		if unicode.IsLetter(r) {
+			hasLetter = true
+		}
+	}
+	return hasLetter && !hasHangul
 }
 
 // AnyWrongLanguage は1つでも l で書かれていない文字列があるか。

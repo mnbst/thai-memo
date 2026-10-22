@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
 import 'app_localizations_ja.dart';
+import 'app_localizations_ko.dart';
 
 // ignore_for_file: type=lint
 
@@ -94,7 +95,8 @@ abstract class L10n {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('ja')
+    Locale('ja'),
+    Locale('ko')
   ];
 
   /// アプリ名。タスクスイッチャーとタイトルバーに出る
@@ -5953,7 +5955,7 @@ class _L10nDelegate extends LocalizationsDelegate<L10n> {
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'ja'].contains(locale.languageCode);
+      <String>['en', 'ja', 'ko'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_L10nDelegate old) => false;
@@ -5966,6 +5968,8 @@ L10n lookupL10n(Locale locale) {
       return L10nEn();
     case 'ja':
       return L10nJa();
+    case 'ko':
+      return L10nKo();
   }
 
   throw FlutterError(

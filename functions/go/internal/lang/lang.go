@@ -11,6 +11,7 @@ type Lang string
 const (
 	JA Lang = "ja"
 	EN Lang = "en"
+	KO Lang = "ko"
 
 	// Default は既定言語。
 	Default = JA
@@ -30,6 +31,8 @@ func Resolve(value any) Lang {
 		return JA
 	case EN:
 		return EN
+	case KO:
+		return KO
 	}
 	return Default
 }
@@ -45,6 +48,8 @@ func Parse(s string) (Lang, bool) {
 		return JA, true
 	case EN:
 		return EN, true
+	case KO:
+		return KO, true
 	}
 	return "", false
 }

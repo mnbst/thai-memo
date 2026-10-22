@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 /// UI言語と訳文言語は分けない。
 enum AppLanguage {
   ja,
-  en;
+  en,
+  ko;
 
   /// SharedPreferences / Firestore / CF 引数に載せる値
   String get code => name;
@@ -15,6 +16,7 @@ enum AppLanguage {
   String get displayName => switch (this) {
         AppLanguage.ja => '日本語',
         AppLanguage.en => 'English',
+        AppLanguage.ko => '한국어',
       };
 
   static AppLanguage fromCode(String? code) => AppLanguage.values.firstWhere(
