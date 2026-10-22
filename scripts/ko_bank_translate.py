@@ -356,6 +356,70 @@ def normalize(text):
     return text
 
 
+def load_fixes(work):
+    """目視の修正（work/fixes.json）。{id: {"ko": 部分, "ja": 部分, "drop": bool}}。
+
+    部分は {"ko" または "japanese_translation": 訳, "meanings": {語の番号: 意味}, "notes": {番号: 補足},
+    "ctx": {項目: 値}}。drop は ko に入れない（タイ語自体がおかしい文など）。
+    """
+    p = work / "fixes.json"
+    return load(p) if p.exists() else {}
+
+
+def apply_fix(o, part):
+    """訳 o（ko の訳か ja の文）に部分の修正を当てたコピーを返す。"""
+    o = json.loads(json.dumps(o))
+    for f in ("ko", "japanese_translation"):
+        if f in part:
+            o[f] = part[f]
+    if "word_breakdown" in o:  # ja の文
+        for n, v in part.get("meanings", {}).items():
+            o["word_breakdown"][int(n)]["meaning"] = v
+        for n, v in part.get("notes", {}).items():
+            o["word_breakdown"][int(n)]["notes"] = v
+        o.setdefault("context", {}).update(part.get("ctx", {}))
+    else:
+        for n, v in part.get("meanings", {}).items():
+            o["meanings"][int(n)] = v
+        for n, v in part.get("notes", {}).items():
+            o["notes"][int(n)] = v
+        o.setdefault("ctx", {}).update(part.get("ctx", {}))
+    return o
+
+
+def cmd_jafix(a):
+    """fixes.json の ja の修正を本番の ja のファイルに当てる（取り直し→バックアップ→上げる）。
+
+    pool review で文が足されていてもよいように、ファイルは毎回取り直して文のキーで当てる。
+    """
+    work = Path(a.work)
+    fixes = {i: f["ja"] for i, f in load_fixes(work).items() if f.get("ja")}
+    items = {x["id"]: x for p in (work / "batches").glob("*.in.json") for x in load(p)}
+    bucket = f"gs://{a.project}-uvm-data"
+    stamp = __import__("datetime").date.today().strftime("%Y%m%d")
+    for f in FILES:
+        mine = {items[i]["key"]: fx for i, fx in fixes.items() if i.startswith(f + ":")}
+        if not mine:
+            continue
+        cur = work / "src" / f"{f}_ja.current.json"
+        subprocess.run(["gcloud", "storage", "cp", "-q", f"{bucket}/{f}_ja.json", str(cur)], check=True)
+        data = load(cur)
+        hit = 0
+        for n, s in enumerate(data):
+            if key(s) in mine:
+                data[n] = apply_fix(s, mine[key(s)])
+                hit += 1
+        print(f"{f}_ja.json: 修正 {hit} / {len(mine)} 本")
+        if not a.write:
+            continue
+        subprocess.run(["gcloud", "storage", "cp", "-q", f"{bucket}/{f}_ja.json",
+                        f"{bucket}/{f}_ja.json.bak-{stamp}-kofix"], check=True)
+        dump(cur, data)
+        subprocess.run(["gcloud", "storage", "cp", "-q", str(cur), f"{bucket}/{f}_ja.json"], check=True)
+    if not a.write:
+        print("dry run（--write で上げる）")
+
+
 def cmd_merge(a):
     work = Path(a.work)
     good, bad = {}, []
@@ -366,6 +430,13 @@ def cmd_merge(a):
                 good[item["key"]] = got[item["id"]]
             else:
                 bad.append({"id": item["id"], "batch": p.name, "thai": item["thai"]})
+    key_of = {x["id"]: x["key"] for p in (work / "batches").glob("*.in.json") for x in load(p)}
+    for i, fix in load_fixes(work).items():
+        k = key_of[i]
+        if fix.get("drop"):
+            good.pop(k, None)
+        elif k in good:
+            good[k] = apply_fix(good[k], fix.get("ko", {}))
 
     (work / "out").mkdir(exist_ok=True)
     for f in FILES:
@@ -452,6 +523,10 @@ def main():
         if name == "translate":
             p.add_argument("-j", type=int, default=4)
             p.add_argument("--limit", type=int, default=0, help="訳すバッチ数の上限（試し用）")
+    j = sub.add_parser("jafix")
+    j.add_argument("--work", required=True)
+    j.add_argument("--project", required=True)
+    j.add_argument("--write", action="store_true")
     g = sub.add_parser("gemini")
     g.add_argument("--work", required=True)
     g.add_argument("--project", default="thai-memo-dev", help="gemini-api-key を読む GCP プロジェクト")
