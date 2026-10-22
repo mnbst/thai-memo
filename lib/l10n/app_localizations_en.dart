@@ -2814,7 +2814,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleNotificationBody =>
-      'Get a sentence at your chosen time. If you don\'t open the app for a while, reminders automatically become less frequent.';
+      'Get a new sentence set at your chosen time. If you stay away, reminders slow down and eventually stop; open the app to make them daily again.';
 
   @override
   String get guideRolePremiumTitle => 'Free and Premium';
@@ -2944,6 +2944,29 @@ class L10nEn extends L10n {
   @override
   String get guideHowReviewQuizStep5 =>
       'Your answers adjust your vocabulary score and the difficulty of future sentences.';
+
+  @override
+  String get guideHowNotifyTitle => 'Set up reminders';
+
+  @override
+  String get guideHowNotifyStep1 =>
+      'In Settings > \"Daily sentence\", toggle each reminder on or off, or tap a time to change it.';
+
+  @override
+  String get guideHowNotifyStep2 =>
+      'Free: 1 reminder a day; Premium: up to 3. Each brings a new set.';
+
+  @override
+  String get guideHowNotifyStep3 =>
+      'Delivered sets appear in the Learn tab even if you skip the notification.';
+
+  @override
+  String get guideHowNotifyStep4 =>
+      'An unread set is replaced at the next reminder.';
+
+  @override
+  String get guideHowNotifyStep5 =>
+      'No reminders? Check that notifications are allowed in your device settings. On Free, none comes once you\'ve finished the day\'s sets.';
 
   @override
   String get guideHowSettingsTitle => 'Settings';

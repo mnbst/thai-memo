@@ -4795,7 +4795,7 @@ abstract class L10n {
   /// No description provided for @guideRoleNotificationBody.
   ///
   /// In ja, this message translates to:
-  /// **'決めた時刻に例文が届きます。しばらくアプリを開かない日が続くと、通知の回数を自動で減らします。'**
+  /// **'決めた時刻に新しい例文セットが届きます。しばらくアプリを開かないと通知の間隔が少しずつ広がり、最後は止まります。アプリを開けば毎日の通知に戻ります。'**
   String get guideRoleNotificationBody;
 
   /// No description provided for @guideRolePremiumTitle.
@@ -5007,6 +5007,42 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'答えをもとに、語彙スコアと次の例文の難しさが調整されます。'**
   String get guideHowReviewQuizStep5;
+
+  /// No description provided for @guideHowNotifyTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知を設定する'**
+  String get guideHowNotifyTitle;
+
+  /// No description provided for @guideHowNotifyStep1.
+  ///
+  /// In ja, this message translates to:
+  /// **'設定の「毎日の例文通知」で、通知の時刻を確認できます。スイッチでオン・オフ、時刻をタップすると変更できます。'**
+  String get guideHowNotifyStep1;
+
+  /// No description provided for @guideHowNotifyStep2.
+  ///
+  /// In ja, this message translates to:
+  /// **'無料版は1日1回、プレミアムは1日3回まで設定できます。通知ごとに新しい例文セットが届きます。'**
+  String get guideHowNotifyStep2;
+
+  /// No description provided for @guideHowNotifyStep3.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知を開かなくても、アプリを開けば届いた例文セットが学習タブに表示されます。'**
+  String get guideHowNotifyStep3;
+
+  /// No description provided for @guideHowNotifyStep4.
+  ///
+  /// In ja, this message translates to:
+  /// **'次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。'**
+  String get guideHowNotifyStep4;
+
+  /// No description provided for @guideHowNotifyStep5.
+  ///
+  /// In ja, this message translates to:
+  /// **'届かないときは、端末の設定で通知が許可されているか確認してください。無料版では、通知の前にその日の例文セットをすべて学んだ日は届きません。'**
+  String get guideHowNotifyStep5;
 
   /// No description provided for @guideHowSettingsTitle.
   ///

@@ -2651,7 +2651,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideRoleNotificationBody =>
-      '決めた時刻に例文が届きます。しばらくアプリを開かない日が続くと、通知の回数を自動で減らします。';
+      '決めた時刻に新しい例文セットが届きます。しばらくアプリを開かないと通知の間隔が少しずつ広がり、最後は止まります。アプリを開けば毎日の通知に戻ります。';
 
   @override
   String get guideRolePremiumTitle => '無料版とプレミアム';
@@ -2775,6 +2775,27 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowReviewQuizStep5 => '答えをもとに、語彙スコアと次の例文の難しさが調整されます。';
+
+  @override
+  String get guideHowNotifyTitle => '通知を設定する';
+
+  @override
+  String get guideHowNotifyStep1 =>
+      '設定の「毎日の例文通知」で、通知の時刻を確認できます。スイッチでオン・オフ、時刻をタップすると変更できます。';
+
+  @override
+  String get guideHowNotifyStep2 =>
+      '無料版は1日1回、プレミアムは1日3回まで設定できます。通知ごとに新しい例文セットが届きます。';
+
+  @override
+  String get guideHowNotifyStep3 => '通知を開かなくても、アプリを開けば届いた例文セットが学習タブに表示されます。';
+
+  @override
+  String get guideHowNotifyStep4 => '次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。';
+
+  @override
+  String get guideHowNotifyStep5 =>
+      '届かないときは、端末の設定で通知が許可されているか確認してください。無料版では、通知の前にその日の例文セットをすべて学んだ日は届きません。';
 
   @override
   String get guideHowSettingsTitle => '設定でできること';

@@ -66,6 +66,7 @@ const String _rawDir = 'build/store_shots/raw';
 const List<String> _fallbacks = [
   'NotoSans_regular',
   'NotoSansJP',
+  'NotoSansKR',
   'Sarabun_regular',
 ];
 
@@ -138,7 +139,7 @@ void main() {
   });
 
   for (final device in _devices) {
-    for (final lang in ['ja', 'en']) {
+    for (final lang in ['ja', 'en', 'ko']) {
       for (final shot in _shots) {
         testWidgets('${device.id}/$lang ${shot.id}', (tester) async {
           _setView(tester, device);
@@ -701,6 +702,8 @@ Future<void> _loadFonts() async {
   }
   await load('MaterialIcons', _materialIconsCandidates(), firstOnly: true);
   await load('NotoSansJP', ['tools/x_post/fonts/NotoSansJP-Regular.otf']);
+  await load(
+      'NotoSansKR', ['tools/store_screenshots/fonts/NotoSansKR-Regular.otf']);
 }
 
 List<String> _materialIconsCandidates() {

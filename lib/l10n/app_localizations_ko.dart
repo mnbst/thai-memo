@@ -2683,7 +2683,7 @@ class L10nKo extends L10n {
 
   @override
   String get guideRoleNotificationBody =>
-      '정해진 시간에 예문이 도착해요. 한동안 앱을 열지 않는 날이 이어지면 알림 횟수를 자동으로 줄여요.';
+      '정해진 시간에 새 예문 세트가 도착해요. 한동안 앱을 열지 않으면 알림 간격이 조금씩 넓어지다가 결국 멈춰요. 앱을 열면 다시 매일 알림이 와요.';
 
   @override
   String get guideRolePremiumTitle => '무료 버전과 Premium';
@@ -2808,6 +2808,27 @@ class L10nKo extends L10n {
 
   @override
   String get guideHowReviewQuizStep5 => '답변을 바탕으로 어휘 점수와 다음 예문의 난이도가 조정돼요.';
+
+  @override
+  String get guideHowNotifyTitle => '알림 설정하기';
+
+  @override
+  String get guideHowNotifyStep1 =>
+      '설정의 \'매일 예문 알림\'에서 알림 시간을 확인할 수 있어요. 스위치로 켜고 끄고, 시간을 탭하면 바꿀 수 있어요.';
+
+  @override
+  String get guideHowNotifyStep2 =>
+      '무료 버전은 하루 1번, Premium은 하루 3번까지 설정할 수 있어요. 알림마다 새 예문 세트가 도착해요.';
+
+  @override
+  String get guideHowNotifyStep3 => '알림을 열지 않아도, 앱을 열면 도착한 예문 세트가 학습 탭에 표시돼요.';
+
+  @override
+  String get guideHowNotifyStep4 => '다음 알림 전까지 하나도 읽지 않은 예문 세트는 새 세트로 교체돼요.';
+
+  @override
+  String get guideHowNotifyStep5 =>
+      '알림이 오지 않으면 기기 설정에서 알림이 허용되어 있는지 확인해 주세요. 무료 버전에서는 알림 전에 그날의 예문 세트를 모두 학습한 날에는 알림이 오지 않아요.';
 
   @override
   String get guideHowSettingsTitle => '설정에서 할 수 있는 것';

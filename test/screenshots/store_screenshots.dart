@@ -30,8 +30,9 @@ const String _outDir = 'build/store_shots/out';
 const String _outAbDir = 'build/store_shots/out_a';
 const String _captionsPath = 'tools/store_screenshots/captions.json';
 const String _font = 'StoreCaption';
+const String _fontKo = 'StoreCaptionKo';
 
-const List<String> _langs = ['ja', 'en'];
+const List<String> _langs = ['ja', 'en', 'ko'];
 
 // アプリの深藍（AppColors.indigo）を背景に敷き、金を強調色にする。
 const Color _text = Color(0xFFF6F2EA);
@@ -309,6 +310,7 @@ class _StoreShot extends StatelessWidget {
 TextSpan _captionSpan(String caption, double fontSize) {
   TextStyle style(double size, Color color) => TextStyle(
         fontFamily: _font,
+        fontFamilyFallback: const [_fontKo],
         fontSize: size,
         height: 1.28,
         letterSpacing: size * 0.01,
@@ -553,14 +555,19 @@ Future<ui.Image> _decode(File file) async {
 }
 
 Future<void> _loadFont() async {
-  const path = 'tools/store_screenshots/fonts/NotoSansJP-Black.otf';
-  final file = File(path);
-  if (!file.existsSync()) {
-    fail('$path がない。tools/store_screenshots/fetch_fonts.sh を先に実行する');
+  const fonts = {
+    _font: 'tools/store_screenshots/fonts/NotoSansJP-Black.otf',
+    _fontKo: 'tools/store_screenshots/fonts/NotoSansKR-Black.otf',
+  };
+  for (final entry in fonts.entries) {
+    final file = File(entry.value);
+    if (!file.existsSync()) {
+      fail('${entry.value} がない。tools/store_screenshots/fetch_fonts.sh を先に実行する');
+    }
+    final loader = FontLoader(entry.key)
+      ..addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
+    await loader.load();
   }
-  final loader = FontLoader(_font)
-    ..addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
-  await loader.load();
 }
 
 Future<Uint8List> _capture(WidgetTester tester) async {
