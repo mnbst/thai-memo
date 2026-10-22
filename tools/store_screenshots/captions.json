@@ -6,6 +6,7 @@
       "screen": "学習タブ（今日の例文）。例文カードと学習単語が見える状態",
       "ja": "今の語彙に合わせた\n**タイ語例文**",
       "en": "Thai sentences\n**at your level**",
+      "ko": "지금 어휘에 맞춘\n**태국어 예문**",
       "zoom": {
         "iphone": [
           0.03,
@@ -26,6 +27,7 @@
       "screen": "発音練習の結果（スコアと音の高さのグラフ）",
       "ja": "その場で発音を採点\n**声調を直せる**",
       "en": "Get a tone score\n**Fix your tones**",
+      "ko": "그 자리에서 발음 채점\n**성조를 고쳐요**",
       "zoom": {
         "iphone": [
           0.03,
@@ -46,6 +48,7 @@
       "screen": "例文の詳細。単語の分解が見える位置までスクロール",
       "ja": "単語・発音・使い方まで\n**例文を分解**",
       "en": "Words, tones & real usage\n**See every word**",
+      "ko": "단어・발음・쓰임까지\n**예문을 분해**",
       "zoom": {
         "iphone": [
           0.03,
@@ -71,13 +74,15 @@
       "id": "04_quiz",
       "screen": "クイズで正解した直後（解説が出ている状態）",
       "ja": "覚えたつもりを\n**クイズで確認**",
-      "en": "Think you know it?\n**Quiz yourself**"
+      "en": "Think you know it?\n**Quiz yourself**",
+      "ko": "외운 줄 알았다면\n**퀴즈로 확인**"
     },
     {
       "id": "05_topics",
       "screen": "設定 → テーマ選択の一覧",
       "ja": "BLドラマも旅行も\n**好きで学べる**",
-      "en": "From BL dramas to travel\n**Learn by topic**"
+      "en": "From BL dramas to travel\n**Learn by topic**",
+      "ko": "BL 드라마도 여행도\n**주제별로 배워요**"
     }
   ]
 }

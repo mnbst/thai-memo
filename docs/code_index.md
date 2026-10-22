@@ -1339,19 +1339,22 @@ DetailScreen を flutter_test 上で描画し、動画の続きからスクロ�
 ## App Store スクリーンショット
 
 tools/store_screenshots/captions.json
-ストア用スクショの並び順・撮る画面・見出し（ja/en、`**` で強調）。
+ストア用スクショの並び順・撮る画面・見出し（ja/en/ko、`**` で強調）。
 
 tools/store_screenshots/capture.sh
 シミュレータ（iPhone 6.9／iPad 13）をステータスバー固定で起動し、captions.json の順に素材を build/store_shots/raw へ撮る。
 
 tools/store_screenshots/fetch_fonts.sh
-見出し用の太字日本語フォント（NotoSansJP-Black）を取得する。
+見出し・ヘッダー用の日本語・韓国語フォント（NotoSansJP/KR）を取得する。
+
+tools/store_screenshots/header.py
+商品ページヘッダー（3840x1646）を言語ごとに描く。背景のタイ語は pango-view で描く。
 
 test/screenshots/store_mock_screens.dart
-ストア用スクショの素材6画面（ja/en × iPhone/iPad）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。
+ストア用スクショの素材6画面（ja/en/ko × iPhone/iPad）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。
 
 test/screenshots/store_mock_data.dart
-上記に描く例文・クイズの見本データ（ja/en）。
+上記に描く例文・クイズの見本データ（ja/en/ko）。
 
 test/screenshots/store_screenshots.dart
 素材に見出し・端末の枠を合成し build/store_shots/out へ書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
