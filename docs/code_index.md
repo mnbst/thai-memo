@@ -603,7 +603,7 @@ functions/go/internal/poolreview/
 確認待ちのコレクション名・状態・doc ID と、OK の文を本番プールへ足す処理（重複排除・2万本上限）。
 
 functions/go/cmd/poolreview/main.go
-pool-review スキルの道具。list（確認待ちを JSON に）・apply（OK を本番プールへ足す・NG を rejected）。
+pool-review スキルの道具。list（確認待ちを JSON に）・apply（OK を本番プールへ足す・fix があれば直した文を入れる・NG を rejected）。
 
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文1回きりの判定（ReviewAll）で、不合格なら sentence_flags へ1件書く。キーが無ければ nil（判定なしで動く）。
@@ -1162,6 +1162,9 @@ docs/design_pronunciation_practice.md
 
 docs/design_listening_playback.md
 聞き流し再生と Cloud TTS（Chirp3-HD）音声の設計。部品ごとの中身ハッシュでファイル名を決め、just_audio のプレイリストで流す。
+
+docs/pool_review_log.md
+例文プール確認（pool-review）の回ごとの集計と、NG・修正した文の明細。分類別の傾向を追う。
 
 docs/quiz_generation_logic.md
 クイズ生成ロジック（SRS例文選出→Gemini穴埋め生成→サニタイズ→デフォルト補填）。

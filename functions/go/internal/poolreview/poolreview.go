@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"cloud.google.com/go/storage"
 
@@ -68,6 +69,49 @@ func MergePool(existing, incoming []sentence.Sentence, maxEntries int) ([]senten
 		merged = merged[len(merged)-maxEntries:]
 	}
 	return merged, added
+}
+
+// ApplyFix は確認待ちの文 orig に人の修正 fix を重ねる。
+//
+// fix は sentence と同じ形の一部（thai_text・pronunciation・japanese_translation・
+// word_breakdown 等）で、書いたキーだけを丸ごと差し替える（word_breakdown は配列ごと）。
+// 直した結果は CheckFixed を通らなければ返さない。
+func ApplyFix(orig, fix map[string]any) (sentence.Sentence, error) {
+	merged := make(map[string]any, len(orig)+len(fix))
+	for k, v := range orig {
+		merged[k] = v
+	}
+	for k, v := range fix {
+		merged[k] = v
+	}
+	b, err := json.Marshal(merged)
+	if err != nil {
+		return sentence.Sentence{}, err
+	}
+	var s sentence.Sentence
+	if err := json.Unmarshal(b, &s); err != nil {
+		return sentence.Sentence{}, err
+	}
+	return s, CheckFixed(s)
+}
+
+// CheckFixed は手で直した文がプールの1件として崩れていないかを見る。
+// 語の分解をつなげると本文になること、key_word が本文にあること。
+func CheckFixed(s sentence.Sentence) error {
+	if s.ThaiText == "" || s.Pronunciation == "" || s.JapaneseTranslation == "" {
+		return errors.New("thai_text・pronunciation・訳のどれかが空")
+	}
+	var b strings.Builder
+	for _, w := range s.WordBreakdown {
+		b.WriteString(w.Word)
+	}
+	if sentence.StripSpaces(b.String()) != sentence.StripSpaces(s.ThaiText) {
+		return fmt.Errorf("word_breakdown をつなげても thai_text にならない: %q", b.String())
+	}
+	if s.KeyWord != "" && !strings.Contains(s.ThaiText, s.KeyWord) {
+		return fmt.Errorf("key_word %q が thai_text にない", s.KeyWord)
+	}
+	return nil
 }
 
 // AppendPool は本番プール name へ incoming を足して書き戻す。足した本数を返す。

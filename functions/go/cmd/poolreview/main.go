@@ -10,7 +10,9 @@
 //	GCLOUD_PROJECT=thai-memo-dev go run ./cmd/poolreview list -out /tmp/pending.json
 //	GCLOUD_PROJECT=thai-memo-dev go run ./cmd/poolreview apply -in /tmp/decisions.json -write
 //
-// decisions.json は {"ok": [doc ID...], "ng": [doc ID...]}。
+// decisions.json は {"ok": [doc ID...], "ng": [doc ID...], "fix": {doc ID: {...}}}。
+// fix は OK の文の直し（sentence と同じ形の一部。書いたキーだけ差し替える）。
+// 直した文をプールへ入れ、元の文は sentence に、直した文は sentence_fixed に残す。
 package main
 
 import (
@@ -112,8 +114,9 @@ func runApply(ctx context.Context, project string, args []string) error {
 		return err
 	}
 	var dec struct {
-		OK []string `json:"ok"`
-		NG []string `json:"ng"`
+		OK  []string                  `json:"ok"`
+		NG  []string                  `json:"ng"`
+		Fix map[string]map[string]any `json:"fix"`
 	}
 	if err := json.Unmarshal(raw, &dec); err != nil {
 		return err
@@ -125,6 +128,11 @@ func runApply(ctx context.Context, project string, args []string) error {
 	for _, id := range dec.NG {
 		if okSet[id] {
 			return fmt.Errorf("%s が OK と NG の両方にある", id)
+		}
+	}
+	for id := range dec.Fix {
+		if !okSet[id] {
+			return fmt.Errorf("%s は fix があるのに OK にない", id)
 		}
 	}
 
@@ -151,6 +159,7 @@ func runApply(ctx context.Context, project string, args []string) error {
 	// OK の文をプールごとに束ねる。
 	byPool := map[string][]sentence.Sentence{}
 	var okSnaps, ngSnaps []*firestore.DocumentSnapshot
+	fixed := map[string]map[string]any{}
 	for _, id := range dec.OK {
 		snap, err := pending(id)
 		if err != nil {
@@ -167,10 +176,18 @@ func runApply(ctx context.Context, project string, args []string) error {
 		if !ok {
 			return fmt.Errorf("%s: lang %q", id, it.Lang)
 		}
-		b, _ := json.Marshal(it.Sentence)
-		var s sentence.Sentence
-		if err := json.Unmarshal(b, &s); err != nil {
+		s, err := poolreview.ApplyFix(it.Sentence, dec.Fix[id])
+		if err != nil {
 			return fmt.Errorf("%s: %w", id, err)
+		}
+		if dec.Fix[id] != nil {
+			// Sentence は json タグしか持たないので、Firestore へは JSON の形の map で書く。
+			b, _ := json.Marshal(s)
+			var m map[string]any
+			if err := json.Unmarshal(b, &m); err != nil {
+				return fmt.Errorf("%s: %w", id, err)
+			}
+			fixed[snap.Ref.ID] = m
 		}
 		name := sentence.PoolObjectFor(it.Tier, l)
 		byPool[name] = append(byPool[name], s)
@@ -188,6 +205,7 @@ func runApply(ctx context.Context, project string, args []string) error {
 	for name, ss := range byPool {
 		log.Printf("ok: %s +%d", name, len(ss))
 	}
+	log.Printf("fixed: %d", len(fixed))
 	log.Printf("ng: %d", len(ngSnaps))
 	if !*write {
 		log.Print("dry run（-write で書く）")
@@ -214,10 +232,14 @@ func runApply(ctx context.Context, project string, args []string) error {
 	now := time.Now()
 	mark := func(snaps []*firestore.DocumentSnapshot, st string) error {
 		for _, snap := range snaps {
-			if _, err := snap.Ref.Update(ctx, []firestore.Update{
+			ups := []firestore.Update{
 				{Path: "status", Value: st},
 				{Path: "reviewed_at", Value: now},
-			}, firestore.LastUpdateTime(snap.UpdateTime)); err != nil {
+			}
+			if s, ok := fixed[snap.Ref.ID]; ok {
+				ups = append(ups, firestore.Update{Path: "sentence_fixed", Value: s})
+			}
+			if _, err := snap.Ref.Update(ctx, ups, firestore.LastUpdateTime(snap.UpdateTime)); err != nil {
 				return fmt.Errorf("%s: %w", snap.Ref.ID, err)
 			}
 		}
