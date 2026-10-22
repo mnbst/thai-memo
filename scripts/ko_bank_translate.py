@@ -148,6 +148,13 @@ def check(item, out):
         errs.append("meanings に 해요체/반말")
     if any(";" in m for m in out.get("meanings", [])):
         errs.append("meanings に複数の意味")
+    # プロンプトで禁じている形。cmd_qa と同じ規則で、ここで落として訳し直させる。
+    if POLITE_TH.search(item["thai"]) and not POLITE_KO.search(ko.strip()):
+        errs.append("丁寧なのにため口")
+    if CASUAL_TH.search(item["thai"]) and not POLITE_TH.search(item["thai"]) and POLITE_KO.search(ko.strip()):
+        errs.append("ため口なのに敬語")
+    if KIN_KO.search(ko) and not KIN_TH.search(item["thai"]):
+        errs.append("性別・血縁の決めつけ")
     n = len(item["words"])
     if len(out.get("meanings", [])) != n or len(out.get("notes", [])) != n:
         errs.append("words の数")
@@ -198,24 +205,167 @@ def cmd_translate(a):
             print(f"{name}: rc={rc} out={'あり' if ok else 'なし'}", flush=True)
 
 
+GEMINI_RULES = PROMPT.split("規則:\n", 1)[1].rsplit("- 全件を出力する", 1)[0]
+
+GEMINI_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "ko": {"type": "string"},
+            "meanings": {"type": "array", "items": {"type": "string"}},
+            "notes": {"type": "array", "items": {"type": "string"}},
+            "ctx": {
+                "type": "object",
+                "properties": {c: {"type": "string"} for c in CTX_FIELDS},
+                # 必須にしないと flash-lite は usage_scenarios 以外を落とす。入力に無い項目は "" で返り、
+                # merge は元の文にある項目だけを使う。
+                "required": CTX_FIELDS,
+            },
+        },
+        "required": ["id", "ko", "meanings", "notes", "ctx"],
+    },
+}
+
+
+def _write_body(body):
+    """リクエスト本文を一時ファイルに書いてパスを返す（curl に渡す）。"""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+        json.dump(body, fh, ensure_ascii=False)
+    return fh.name
+
+
+def gemini_translate(items, model, api_key):
+    """items を1リクエストで訳す。戻り値は (訳の配列, usageMetadata)。"""
+    prompt = (
+        "タイ語学習アプリ（韓国語話者向け）の例文データの訳を作る。各文（thai=タイ語、ja=日本語訳、"
+        "en=英訳（あれば）、words=[タイ語, 日本語の意味, 日本語の補足]、ctx=日本語の使用場面・文化メモ・感情）を"
+        "韓国語にする。各要素の meanings・notes は words と同じ数・同じ順。日本語の補足が空なら notes は \"\"。"
+        "ctx は入力にある項目だけ。\n\n規則:\n" + GEMINI_RULES +
+        "\n入力:\n" + json.dumps([{k: v for k, v in x.items() if k != "key"} for x in items], ensure_ascii=False)
+    )
+    body = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        # 上限なしだと1リクエストの出力が暴走して $1 かかった（2026-10-22）。10本の訳は通常 8k トークン前後。
+        "generationConfig": {"responseMimeType": "application/json", "responseSchema": GEMINI_SCHEMA,
+                             "maxOutputTokens": 16000,
+                             # 暴走は thinking 側で起きる（思考トークンは maxOutputTokens の外で課金される）。
+                             "thinkingConfig": {"thinkingBudget": 0}},
+    }
+    # macOS の python.org 版は証明書が入っていないことがあるので curl で送る。
+    # キーはヘッダーで渡す（URL に載せるとプロセス一覧に出る）。
+    r = subprocess.run(
+        ["curl", "-sS", "--max-time", "300", "-H", "Content-Type: application/json",
+         "-H", "@-", "--data-binary", "@" + _write_body(body),
+         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"],
+        input=f"x-goog-api-key: {api_key}\n", capture_output=True, text=True, check=True)
+    res = json.loads(r.stdout)
+    if "error" in res:
+        raise RuntimeError(res["error"].get("message"))
+    text = res["candidates"][0]["content"]["parts"][-1]["text"]
+    return json.loads(text), res.get("usageMetadata", {})
+
+
+# 100万トークンあたりの単価（USD）。flash-lite は internal/gemini/quiz.go と同じ値。
+GEMINI_PRICE = {"gemini-3.1-flash-lite": (0.25, 1.50), "gemini-3.8-flash": (0.75, 3.75)}
+
+
+def outputs(p):
+    """バッチ p の訳を、検査に通ったものだけ id → 訳で返す。Codex の訳を優先し、無ければ Gemini。"""
+    items = {x["id"]: x for x in load(p)}
+    good = {}
+    for out in [p.with_name(p.name.replace(".in", ".out"))] + sorted(p.parent.glob(p.name.replace(".in.json", ".gemini-*.json"))):
+        if not out.exists():
+            continue
+        try:
+            got = load(out)
+        except json.JSONDecodeError:
+            continue
+        for o in got if isinstance(got, list) else []:
+            i = o.get("id") if isinstance(o, dict) else None
+            if i in items and i not in good and not check(items[i], o):
+                good[i] = o
+    return good
+
+
+def cmd_gemini(a):
+    """Codex で訳せていない文を Gemini で訳す（出力は batches/*.gemini-<model>.json）。
+
+    バッチごとに累計の費用を出し、--budget（USD）を超えたら新しいバッチを始めない。
+    """
+    work = Path(a.work)
+    key_ = subprocess.run(
+        ["gcloud", "secrets", "versions", "access", "latest", "--secret", "gemini-api-key",
+         "--project", a.project], capture_output=True, text=True, check=True).stdout.strip()
+    price_in, price_out = GEMINI_PRICE[a.model]
+    batches = [p for p in sorted((work / "batches").glob("*.in.json"))
+               if len(outputs(p)) < len(load(p))][: a.limit or None]
+    print(f"{len(batches)} バッチを訳す", flush=True)
+    lock = __import__("threading").Lock()
+    spent = {"usd": 0.0, "in": 0, "out": 0}
+
+    def run(p):
+        if spent["usd"] >= a.budget:
+            return p.name, None
+        done = outputs(p)
+        items = [x for x in load(p) if x["id"] not in done]
+        dst = p.with_name(p.name.replace(".in.json", f".gemini-{a.model}.json"))
+        outs = load(dst) if dst.exists() else []
+        for n in range(0, len(items), a.per_request):
+            for attempt in range(3):
+                try:
+                    out, usage = gemini_translate(items[n:n + a.per_request], a.model, key_)
+                    break
+                except Exception as e:  # noqa: BLE001 再試行して最後は諦める
+                    out, usage = [], {}
+                    if attempt == 2:
+                        print(f"{p.name}[{n}]: {e}", flush=True)
+            # 前回の訳より新しい訳を先に置く（outputs は先に見つけた合格の訳を使う）。
+            outs = out + outs
+            with lock:
+                t_in = usage.get("promptTokenCount", 0)
+                t_out = usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0)
+                spent["in"] += t_in
+                spent["out"] += t_out
+                cost = (t_in * price_in + t_out * price_out) / 1e6
+                spent["usd"] += cost
+                if cost > 0.05:
+                    print(f"{p.name}[{n}]: 1リクエスト ${cost:.3f} {usage}", flush=True)
+        dump(dst, outs)
+        return p.name, len(outputs(p))
+
+    with concurrent.futures.ThreadPoolExecutor(a.j) as ex:
+        for name, n in ex.map(run, batches):
+            if n is None:
+                print(f"{name}: 予算 ${a.budget} に達したので飛ばした", flush=True)
+            else:
+                print(f"{name}: 合格 {n} 本 / 累計 ${spent['usd']:.3f}", flush=True)
+    print(f"費用 ${spent['usd']:.3f}（入力 {spent['in']} / 出力 {spent['out']} トークン）")
+
+
+# 祭りの名前の表記を app_ko.arb・constants_data_ko.go にそろえる（訳では3通りに揺れた）。
+SPELLING = {"송크란": "송끄란", "쏭끄란": "송끄란", "로이끄라통": "러이끄라통", "로이크라통": "러이끄라통"}
+
+
+def normalize(text):
+    for a, b in SPELLING.items():
+        text = text.replace(a, b)
+    return text
+
+
 def cmd_merge(a):
     work = Path(a.work)
     good, bad = {}, []
     for p in sorted((work / "batches").glob("*.in.json")):
-        out = p.with_name(p.name.replace(".in", ".out"))
-        got = {}
-        if out.exists():
-            try:
-                got = {x["id"]: x for x in load(out)}
-            except (json.JSONDecodeError, KeyError, TypeError):
-                pass
+        got = outputs(p)
         for item in load(p):
-            o = got.get(item["id"])
-            errs = ["未出力"] if o is None else check(item, o)
-            if errs:
-                bad.append({"id": item["id"], "batch": p.name, "thai": item["thai"], "errs": errs})
+            if item["id"] in got:
+                good[item["key"]] = got[item["id"]]
             else:
-                good[item["key"]] = o
+                bad.append({"id": item["id"], "batch": p.name, "thai": item["thai"]})
 
     (work / "out").mkdir(exist_ok=True)
     for f in FILES:
@@ -226,7 +376,7 @@ def cmd_merge(a):
             k = key(s)
             if k in have or k not in good:
                 continue
-            o = good[k]
+            o = json.loads(normalize(json.dumps(good[k], ensure_ascii=False)))
             s = json.loads(json.dumps(s))
             s["japanese_translation"] = o["ko"]
             for w, m, note in zip(s["word_breakdown"], o["meanings"], o["notes"]):
@@ -240,7 +390,47 @@ def cmd_merge(a):
         dump(work / "out" / f"{f}_ko.json", existing + added)
         print(f"{f}_ko.json: 既存 {len(existing)} + 追加 {len(added)}")
     dump(work / "report.json", bad)
-    print(f"不合格 {len(bad)} 本（report.json。translate を再実行するとそのバッチを訳し直す）")
+    print(f"不合格 {len(bad)} 本（report.json。translate / gemini を再実行すると訳し直す）")
+
+
+# 文末詞は語の一部（เขา の ขา、เจ้าของ の จ้า）と区別するため、句の終わりにあるものだけ数える。
+_END = r"(?=$|\s|[?!.,ๆ])"
+POLITE_TH = re.compile(r"(ครับ|คับ|ค่ะ|คะ|(?<!เ)ขา|ขอรับ|นะคะ)" + _END)
+CASUAL_TH = re.compile(r"มึง|(?<![\u0e01-\u0e4e])กู(?![\u0e01-\u0e4e])|(ว่ะ|วะ|เว้ย|จ้ะ|จ้า|เนอะ)" + _END)
+POLITE_KO = re.compile(r"(요|니다|니까|세요|십시오|죠)[.?!…~]*$")
+# 형 は 인형・형태 などの一部と区別するため、単独の呼びかけ・名前の後ろだけ数える。
+KIN_KO = re.compile(r"오빠|누나|언니|그녀|(?<![가-힣])형(?=$|[\s,.!?]|님|이|아|은|도|한테|에게)")
+KIN_TH = re.compile(r"พี่ชาย|พี่สาว|น้องชาย|น้องสาว|ผู้หญิง|ผู้ชาย|ลูกสาว|ลูกชาย|สาว|หนุ่ม|เฮีย|เจ๊")
+JA_LEFT = re.compile(r"일본어|일본인|가타카나|히라가나|한자")
+
+
+def cmd_qa(a):
+    """検査に通った訳を、規則で拾える品質の問題で洗う（全件）。抜き取りの目視とは別。"""
+    work = Path(a.work)
+    hits = {k: [] for k in ["丁寧なのにため口", "ため口なのに敬語", "性別・血縁の決めつけ", "日本語向けの説明", "長さの極端な差"]}
+    total = 0
+    for p in sorted((work / "batches").glob("*.in.json")):
+        items = {x["id"]: x for x in load(p)}
+        for i, o in outputs(p).items():
+            it, ko = items[i], o["ko"].strip()
+            total += 1
+            row = {"id": i, "thai": it["thai"], "ja": it["ja"], "ko": ko}
+            if POLITE_TH.search(it["thai"]) and not POLITE_KO.search(ko):
+                hits["丁寧なのにため口"].append(row)
+            if CASUAL_TH.search(it["thai"]) and not POLITE_TH.search(it["thai"]) and POLITE_KO.search(ko):
+                hits["ため口なのに敬語"].append(row)
+            if KIN_KO.search(ko) and not KIN_TH.search(it["thai"]):
+                hits["性別・血縁の決めつけ"].append(row)
+            if JA_LEFT.search(" ".join(o["notes"]) + " ".join((o.get("ctx") or {}).values())):
+                hits["日本語向けの説明"].append(row)
+            r = len(ko) / max(len(it["ja"]), 1)
+            if r < 0.4 or r > 2.5:
+                hits["長さの極端な差"].append(row)
+    dump(work / "qa.json", hits)
+    print(f"検査済み {total} 本")
+    for k, v in hits.items():
+        print(f"  {k}: {len(v)} 本（{100 * len(v) / max(total, 1):.1f}%）")
+    print("一覧は qa.json")
 
 
 def cmd_upload(a):
@@ -254,7 +444,7 @@ def cmd_upload(a):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ["fetch", "prepare", "translate", "merge", "upload"]:
+    for name in ["fetch", "prepare", "translate", "merge", "qa", "upload"]:
         p = sub.add_parser(name)
         p.add_argument("--work", required=True)
         if name in ("fetch", "upload"):
@@ -262,6 +452,14 @@ def main():
         if name == "translate":
             p.add_argument("-j", type=int, default=4)
             p.add_argument("--limit", type=int, default=0, help="訳すバッチ数の上限（試し用）")
+    g = sub.add_parser("gemini")
+    g.add_argument("--work", required=True)
+    g.add_argument("--project", default="thai-memo-dev", help="gemini-api-key を読む GCP プロジェクト")
+    g.add_argument("--model", default="gemini-3.1-flash-lite")
+    g.add_argument("--limit", type=int, default=0, help="訳すバッチ数の上限（0 は全部）")
+    g.add_argument("--budget", type=float, default=1.0, help="この費用（USD）に達したら止める")
+    g.add_argument("--per-request", type=int, default=10, help="1リクエストに入れる文の数")
+    g.add_argument("-j", type=int, default=4)
     a = ap.parse_args()
     globals()[f"cmd_{a.cmd}"](a)
 
