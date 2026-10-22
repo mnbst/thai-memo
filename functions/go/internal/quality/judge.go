@@ -261,7 +261,7 @@ func aspectsFor(c Candidate) []Aspect {
 func aspectsIn(list []Aspect, c Candidate) []Aspect {
 	out := make([]Aspect, 0, len(list))
 	for _, a := range list {
-		if a.JAOnly && c.Lang == lang.EN {
+		if a.JAOnly && c.Lang != "" && c.Lang != lang.JA {
 			continue
 		}
 		if a.Trigger != nil && !a.Trigger(c) {

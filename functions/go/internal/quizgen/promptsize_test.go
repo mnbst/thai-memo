@@ -13,7 +13,7 @@ import (
 // 訳文だけで区別する語の禁止）。選定がコード側へ移ったので、守らせる相手が
 // いない。残したのは dummy_reasons の書式と、訳文なしで解けることの確認。
 func TestFixedDummyPromptIsShorter(t *testing.T) {
-	for _, l := range []lang.Lang{lang.JA, lang.EN} {
+	for _, l := range []lang.Lang{lang.JA, lang.EN, lang.KO} {
 		old := []rune(SystemPrompt(l))
 		fixed := []rune(fixedDummyPrompt(l))
 		t.Logf("%s: 従来 %d文字 → ダミー確定 %d文字（%.0f%%減）",
@@ -27,7 +27,7 @@ func TestFixedDummyPromptIsShorter(t *testing.T) {
 // 書式に関わる指示は落とさない。dummy_reasons の「語（ローマ字 / 意味）：理由」は
 // extractDummyPronunciation が依存していて、崩すと4択の発音表示が空になる。
 func TestFixedDummyPromptKeepsReasonFormat(t *testing.T) {
-	for _, l := range []lang.Lang{lang.JA, lang.EN} {
+	for _, l := range []lang.Lang{lang.JA, lang.EN, lang.KO} {
 		p := fixedDummyPrompt(l)
 		if !strings.Contains(p, dummyReasonFormat[l]) {
 			t.Errorf("%s: dummy_reasons の書式が落ちている", l)

@@ -20,6 +20,7 @@
 	<array>
 		<string>ja</string>
 		<string>en</string>
+		<string>ko</string>
 	</array>
 	<key>CFBundleName</key>
 	<string>thai_memo</string>

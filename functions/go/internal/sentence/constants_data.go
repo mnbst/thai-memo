@@ -4,6 +4,8 @@
 
 package sentence
 
+import "github.com/mnbst/thai-memo/functions/go/internal/lang"
+
 // Styles は生成する例文の文体バリエーション（constants.STYLES）。
 var Styles = []string{
 	"ニュース記事体（客観的・フォーマルな報道文体）",
@@ -270,18 +272,35 @@ const responseJSONSchemaJSON = `{"type": "object", "additionalProperties": false
 // contextGeneratableFieldsJSON は constants._CONTEXT_GENERATABLE_FIELDS。
 const contextGeneratableFieldsJSON = `{"topic": {"type": "string", "description": "テーマ（例: あいさつ）"}, "style": {"type": "string", "description": "実際に書いた thai_text の文体を短く書く"}, "emotion": {"type": "string", "description": "感情・トーン"}}`
 
-// schemaDescriptionsEN は constants._SCHEMA_DESCRIPTIONS_EN。
-var schemaDescriptionsEN = map[string]string{
-	"japanese_translation": "例文の英訳。フィールド名は japanese だが必ず英語で書くこと（日本語不可）",
-	"word_breakdown":       "例文を構成する各単語と英語の意味。最大20件。",
-	"meaning":              "単語の意味を必ず英語で記述すること（日本語不可）",
-	"note":                 "用法・ニュアンス・類語との違い（英語、50語以内）",
-	"usage_scenarios":      "使用場面の説明。英語で、25語以内（タイ語・日本語不可）。",
-	"cultural_notes":       "文化的な補足情報。英語で、25語以内（タイ語・日本語不可）。",
+// schemaDescriptions は ja 以外の言語のスキーマ description（constants._SCHEMA_DESCRIPTIONS_EN）。
+// ja はスキーマ本体（responseJSONSchemaJSON）の description をそのまま使う。
+var schemaDescriptions = map[lang.Lang]map[string]string{
+	lang.EN: {
+		"japanese_translation": "例文の英訳。フィールド名は japanese だが必ず英語で書くこと（日本語不可）",
+		"word_breakdown":       "例文を構成する各単語と英語の意味。最大20件。",
+		"meaning":              "単語の意味を必ず英語で記述すること（日本語不可）",
+		"note":                 "用法・ニュアンス・類語との違い（英語、50語以内）",
+		"usage_scenarios":      "使用場面の説明。英語で、25語以内（タイ語・日本語不可）。",
+		"cultural_notes":       "文化的な補足情報。英語で、25語以内（タイ語・日本語不可）。",
+	},
+	lang.KO: {
+		"japanese_translation": "例文の韓国語訳。フィールド名は japanese だが必ず韓国語（ハングル）で書くこと（日本語・英語不可）",
+		"word_breakdown":       "例文を構成する各単語と韓国語の意味。最大20件。",
+		"meaning":              "単語の意味を必ず韓国語（ハングル）で記述すること（日本語・英語・漢字不可）",
+		"note":                 "用法・ニュアンス・類語との違い（韓国語、50字以内）",
+		"usage_scenarios":      "使用場面の説明。韓国語で、50字以内（タイ語・日本語・英語不可）。",
+		"cultural_notes":       "文化的な補足情報。韓国語で、50字以内（タイ語・日本語・英語不可）。",
+	},
 }
 
-// contextDescriptionsEN は constants._CONTEXT_DESCRIPTIONS_EN。
-var contextDescriptionsEN = map[string]string{
-	"style":   "文体（英語で。実際に書いた thai_text の文体を短く）",
-	"emotion": "感情・トーン（英語で）",
+// contextDescriptions は ja 以外の言語の context フィールドの description（constants._CONTEXT_DESCRIPTIONS_EN）。
+var contextDescriptions = map[lang.Lang]map[string]string{
+	lang.EN: {
+		"style":   "文体（英語で。実際に書いた thai_text の文体を短く）",
+		"emotion": "感情・トーン（英語で）",
+	},
+	lang.KO: {
+		"style":   "文体（韓国語で。実際に書いた thai_text の文体を短く）",
+		"emotion": "感情・トーン（韓国語で）",
+	},
 }

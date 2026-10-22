@@ -15,6 +15,7 @@ import (
 var notificationTitle = map[lang.Lang]struct{ plain, wordOnly, withWord string }{
 	lang.JA: {"🇹🇭 タイ語の例文", "🇹🇭 %s", "🇹🇭 %s（%s）"},
 	lang.EN: {"🇹🇭 Thai practice", "🇹🇭 %s", "🇹🇭 %s (%s)"},
+	lang.KO: {"🇹🇭 태국어 예문", "🇹🇭 %s", "🇹🇭 %s (%s)"},
 }
 
 // セット配信のときにタイトルへ添える本数。1本目の key_word しか本文に出ないので、
@@ -23,6 +24,7 @@ var notificationTitle = map[lang.Lang]struct{ plain, wordOnly, withWord string }
 var notificationSetSuffix = map[lang.Lang]struct{ plain, withWord string }{
 	lang.JA: {" · %d本", " ほか%d本"},
 	lang.EN: {" · %d sentences", " +%d more"},
+	lang.KO: {" · %d문장", " 외 %d문장"},
 }
 
 // BuildNotificationText は通知のタイトルと本文を組み立てる。

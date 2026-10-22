@@ -16,6 +16,8 @@ func responseSchema(l lang.Lang, isMeaningChoice, hasFixedDummies bool) map[stri
 		explanation := "Concise Japanese explanation of the target word itself, at most 140 Japanese characters; do not explain the source sentence, discuss wrong choices, or add examples"
 		if l == lang.EN {
 			explanation = "Concise English explanation of the target word itself, at most 80 words; do not explain the source sentence, discuss wrong choices, or add examples"
+		} else if l == lang.KO {
+			explanation = "Concise Korean explanation of the target word itself, at most 100 Korean characters; do not explain the source sentence, discuss wrong choices, or add examples"
 		}
 		return map[string]any{
 			"type": "object",
@@ -35,6 +37,9 @@ func responseSchema(l lang.Lang, isMeaningChoice, hasFixedDummies bool) map[stri
 	if l == lang.EN {
 		explanation = "Brief explanation in English of why this word fits"
 		dummyReasons = "One line in English per wrong choice, explaining why it does not fit"
+	} else if l == lang.KO {
+		explanation = "Brief explanation in Korean of why this word fits"
+		dummyReasons = "One line in Korean per wrong choice, explaining why it does not fit"
 	}
 	properties := map[string]any{
 		"explanation": map[string]any{

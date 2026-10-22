@@ -38,7 +38,7 @@ lib/core/quota_error.dart
 lib/core/notify_slots.dart
 毎日例文の通知時刻の枠（free 1枠・premium 3枠）。プランに合わせた作り直し、オンの時刻の抽出、prefs 用の文字列化。
 
-lib/l10n/app_ja.arb / app_en.arb / app_localizations*.dart
+lib/l10n/app_ja.arb / app_en.arb / app_ko.arb / app_localizations*.dart
 UI文言のARBと gen_l10n 生成物（`flutter gen-l10n` で再生成）。
 
 lib/firebase_options_dev.dart / firebase_options_tester.dart / firebase_options_prod.dart
@@ -1147,6 +1147,9 @@ docs/sentence_generation_logic.md
 
 docs/design_english_version.md
 英語版（app_language による UI・訳文の同時切替）の設計。l10n・プロンプト・free例文バンク・課金/分析への影響と段階リリース計画。
+
+docs/design_korean_version.md
+韓国語版（ko を3つ目の言語として追加）の設計。英語版との差分・リリース順・段階計画。
 
 docs/design_daily_sentence.md
 毎日例文の配信＋プッシュ通知の設計（配信ターゲティング、段階バックオフ、反応シグナル、必要フィールド）。

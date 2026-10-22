@@ -143,11 +143,8 @@ func (b *FreeBank) Pick(
 		}
 	}
 
-	// バンクはプロセス内でキャッシュしているので、返す前にコピーする
-	// （呼び出し側が generation_tier 等を足してもバンクを汚さない）。
 	picked := candidates[b.intn(len(candidates))]
-	picked.WordBreakdown = append([]Word(nil), picked.WordBreakdown...)
-	picked.Context = LocalizeContext(picked.Context, l)
+	localizeBanked(&picked, l)
 	return &picked, nil
 }
 
@@ -171,9 +168,7 @@ func (b *FreeBank) PickUnseen(
 			continue
 		}
 		topic, _ := s.Context["topic"].(string)
-		// バンクはプロセス内でキャッシュしているので、返す前にコピーする。
-		s.WordBreakdown = append([]Word(nil), s.WordBreakdown...)
-		s.Context = LocalizeContext(s.Context, l)
+		localizeBanked(&s, l)
 		return &s, topic, nil
 	}
 	return nil, "", nil

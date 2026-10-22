@@ -27,15 +27,36 @@ var posLabelEN = map[string]string{
 	"その他":  "other",
 }
 
+// posLabelKO は品詞ラベルの韓国語訳。
+var posLabelKO = map[string]string{
+	"名詞":   "명사",
+	"動詞":   "동사",
+	"形容詞":  "형용사",
+	"副詞":   "부사",
+	"代名詞":  "대명사",
+	"限定詞":  "한정사",
+	"前置詞":  "전치사",
+	"助動詞":  "조동사",
+	"接続詞":  "접속사",
+	"助詞":   "조사",
+	"感嘆詞":  "감탄사",
+	"数詞":   "수사",
+	"固有名詞": "고유 명사",
+	"句読点":  "문장 부호",
+	"類別詞":  "분류사",
+	"否定詞":  "부정어",
+	"その他":  "기타",
+}
+
+// posLabels は ja 以外の言語の品詞ラベル。ja は日本語のラベルをそのまま出す。
+var posLabels = map[lang.Lang]map[string]string{lang.EN: posLabelEN, lang.KO: posLabelKO}
+
 // LocalizePOS は品詞ラベルを訳文の言語に合わせる。未知のラベルはそのまま返す。
 //
-// Python 版は "ja" 以外を全て英訳に倒すが、ここは lang.Lang（ja/en）で受ける。
+// Python 版は "ja" 以外を全て英訳に倒すが、ここは lang.Lang ごとの表で引く。
 // lang はハンドラ側で正規化済みなので実入力に差は無い。
 func LocalizePOS(label string, l lang.Lang) string {
-	if l != lang.EN {
-		return label
-	}
-	if v, ok := posLabelEN[label]; ok {
+	if v, ok := posLabels[l][label]; ok {
 		return v
 	}
 	return label

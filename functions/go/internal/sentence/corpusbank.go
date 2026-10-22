@@ -12,6 +12,7 @@ import (
 	"cloud.google.com/go/storage"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
+	"github.com/mnbst/thai-memo/functions/go/internal/thainlp"
 )
 
 // CorpusBank は静的コーパス（GCS）。全ティア共通の例文の出どころ。
@@ -126,12 +127,25 @@ func (b *CorpusBank) Pick(
 		}
 	}
 
-	// バンクはプロセス内でキャッシュしているので、返す前にコピーする
-	// （呼び出し側が generation_tier 等を足してもバンクを汚さない）。
 	picked := candidates[b.intn(len(candidates))]
-	picked.WordBreakdown = append([]Word(nil), picked.WordBreakdown...)
-	picked.Context = LocalizeContext(picked.Context, l)
+	localizeBanked(&picked, l)
 	return &picked, nil
+}
+
+// localizeBanked はバンクから引いた文をコピーし、軸ラベルと品詞を訳文の言語に合わせる。
+//
+// バンクの文は言語によらず日本語のラベル（topic・style・grammatical_role）で
+// 保存してある。品詞を差し替えないと en / ko のユーザーに「代名詞」と出る。
+// バンクはプロセス内でキャッシュしているので、書き換える前に必ずコピーする
+// （呼び出し側が generation_tier 等を足してもバンクを汚さない）。
+func localizeBanked(s *Sentence, l lang.Lang) {
+	words := make([]Word, len(s.WordBreakdown))
+	for i, w := range s.WordBreakdown {
+		w.GrammaticalRole = thainlp.LocalizePOS(w.GrammaticalRole, l)
+		words[i] = w
+	}
+	s.WordBreakdown = words
+	s.Context = LocalizeContext(s.Context, l)
 }
 
 // CorpusObject / PoolObject / FreePoolObject は静的コーパスとプールの GCS オブジェクト名。

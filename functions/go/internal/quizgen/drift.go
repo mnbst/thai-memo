@@ -30,14 +30,14 @@ func DriftedFields(draft Draft, l lang.Lang) []string {
 	return fields
 }
 
-var repairLanguageName = map[lang.Lang]string{lang.JA: "日本語", lang.EN: "英語"}
+var repairLanguageName = map[lang.Lang]string{lang.JA: "日本語", lang.EN: "英語", lang.KO: "韓国語"}
 
 // RepairSystemPrompt は言語がずれたフィールドだけ書き直させる指示。
 //
 // 書式はそのまま残させる。dummy_reasons の「語（ローマ字 / 意味）：理由」は
 // extractDummyPronunciation が依存しており、崩すと4択の発音が空になる。
 func RepairSystemPrompt(fields []string, l lang.Lang) string {
-	if l != lang.EN {
+	if _, ok := repairLanguageName[l]; !ok {
 		l = lang.JA
 	}
 	var rules []string

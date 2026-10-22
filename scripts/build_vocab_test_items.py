@@ -70,7 +70,7 @@ ENDPOINT = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 )
 
-LANG_NAME = {"ja": "日本語", "en": "English"}
+LANG_NAME = {"ja": "日本語", "en": "English", "ko": "한국어"}
 
 PROMPT = """\
 次のタイ語の単語それぞれに、{lang_name}の訳を1つだけ付けてください。

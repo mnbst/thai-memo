@@ -24,7 +24,13 @@ void main() {
       expect(AppLanguage.fromStorefront(' jp '), AppLanguage.ja);
     });
 
-    test('日本以外のストアは en', () {
+    test('韓国のストアは ko（iOS の KOR / Android の KR）', () {
+      expect(AppLanguage.fromStorefront('KOR'), AppLanguage.ko);
+      expect(AppLanguage.fromStorefront('KR'), AppLanguage.ko);
+      expect(AppLanguage.fromStorefront(' kr '), AppLanguage.ko);
+    });
+
+    test('日本・韓国以外のストアは en', () {
       expect(AppLanguage.fromStorefront('USA'), AppLanguage.en);
       expect(AppLanguage.fromStorefront('TH'), AppLanguage.en);
     });
@@ -41,6 +47,7 @@ void main() {
     test('保存済みの値を復元する', () {
       expect(AppLanguage.fromCode('en'), AppLanguage.en);
       expect(AppLanguage.fromCode('ja'), AppLanguage.ja);
+      expect(AppLanguage.fromCode('ko'), AppLanguage.ko);
     });
 
     test('未知・null は ja', () {

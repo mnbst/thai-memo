@@ -91,15 +91,19 @@ func TopicLabel(topic string) string {
 }
 
 // CanonicalTopic は LLM が返したテーマ名を正式名（Topics の値）に戻す。
-// カッコを外した名前・正式名・英語ラベルのどれでも引ける。該当が無ければ ""。
+// カッコを外した名前・正式名・各言語のラベルのどれでも引ける。該当が無ければ ""。
 func CanonicalTopic(name string) string {
 	name = strings.TrimSpace(name)
 	for _, t := range Topics {
 		label := TopicLabel(t)
-		en, _, _ := strings.Cut(topicLabelsEN[t], " (")
-		if name == t || name == label || strings.HasPrefix(name, label+"（") ||
-			(en != "" && strings.EqualFold(name, en)) {
+		if name == t || name == label || strings.HasPrefix(name, label+"（") {
 			return t
+		}
+		for _, labels := range contextLabelsByLang {
+			head, _, _ := strings.Cut(labels.topics[t], " (")
+			if head != "" && strings.EqualFold(name, head) {
+				return t
+			}
 		}
 	}
 	return ""
