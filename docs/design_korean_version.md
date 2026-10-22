@@ -81,6 +81,16 @@ Python の `constants.resolve_lang` / JS の `utils/lang.ts` の `resolveLang` �
 言語ごとのファイルなので、ko のファイルが無ければ LLM 生成に回る（英語版の当初と同じ）。
 free 経路と毎日例文の `cache_only` 経路は、ko バンクが揃うまで ko では配信しない。
 
+**ko のプール・バンクは ja と同じタイ語の文を使い、訳だけ韓国語にする**（2026-10-22 決定）。
+訳は `scripts/ko_bank_translate.py` で Codex に書かせる（fetch → prepare → translate → merge → upload）。
+ja に無い文は ko にも無い。ja に後から足された文（pool review の OK）は、同じ手順を回すと
+既存の ko に無いものだけ訳して足す。
+
+- 訳すのは訳文・語義・語の補足・使用場面・文化メモ・感情。topic・style・grammatical_role は
+  日本語のキーのまま残し、配信時に差し替える（`localizeBanked`）。
+- 1バッチ100本だと Codex が1件ずつ訳さず、定型文とスクリプトで埋めた。40本にし、
+  「スクリプトで訳を作らない」と指示し、定型文・句点抜け・複数の語義を検査で落とす。
+
 ## 4. ストア・分析
 
 - App Store Connect / Play Console に `ko` のメタデータ（名前・サブタイトル・説明・キーワード）と

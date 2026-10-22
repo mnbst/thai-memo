@@ -73,3 +73,19 @@ func TestLocalizeContextKO(t *testing.T) {
 		t.Errorf("CanonicalTopic(%q) = %q, want %q", head, CanonicalTopic(head), topic)
 	}
 }
+
+// TestLocalizeBankedPOS はバンクの文の品詞が訳文の言語に差し替わり、
+// バンク側（キャッシュ）は日本語のまま残ること。
+func TestLocalizeBankedPOS(t *testing.T) {
+	bank := Sentence{WordBreakdown: []Word{{Word: "ฉัน", GrammaticalRole: "代名詞"}}}
+	for l, want := range map[lang.Lang]string{lang.JA: "代名詞", lang.EN: "pronoun", lang.KO: "대명사"} {
+		s := bank
+		localizeBanked(&s, l)
+		if got := s.WordBreakdown[0].GrammaticalRole; got != want {
+			t.Errorf("%s: got %q, want %q", l, got, want)
+		}
+	}
+	if bank.WordBreakdown[0].GrammaticalRole != "代名詞" {
+		t.Error("バンクの文を書き換えた")
+	}
+}
