@@ -425,9 +425,11 @@ class _SentenceAudioPlayerState extends ConsumerState<SentenceAudioPlayer> {
             style: TextButton.styleFrom(
               minimumSize: const Size(48, 40),
               padding: const EdgeInsets.symmetric(horizontal: 6),
-              textStyle: const TextStyle(
+              // テーマの labelLarge を土台にする（family なしの TextStyle だと
+              // テーマのフォント指定が外れ、投稿用の描画で豆腐になる）。
+              textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
-                fontFeatures: [FontFeature.tabularFigures()],
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
             child: Text(speed.label),
