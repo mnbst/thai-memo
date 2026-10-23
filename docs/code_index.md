@@ -1319,7 +1319,7 @@ tools/x_post/select_prompt.txt
 例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
 
 tools/x_post/synth_tts.py
-Google Cloud TTS（th-TH）で例文の読み上げ音声を作る。通常速度で1回だけ。
+Google Cloud TTS（Chirp3-HD）で例文の読み上げ音声を作る。声は本番（ttsaudio/voice.go）と同じ男女判定で選ぶ。通常速度で1回だけ。
 
 tools/x_post/build_media.py
 「お手本を聞く」操作の連番PNGと音声を ffmpeg で mp4 にする。フレームが無ければ1枚目の画像で静止動画。
