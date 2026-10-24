@@ -53,6 +53,7 @@ func (c *qualityChecker) Check(ctx context.Context, in sentence.CheckInput) (sen
 		GenerationTier:      in.Tier,
 		Lang:                in.Lang,
 		CreatedAt:           time.Now(),
+		Words:               qualityWords(in.Sentence.WordBreakdown),
 	}
 	res, err := c.judge.ReviewAll(ctx, []quality.Candidate{cand})
 	if err != nil {
@@ -91,4 +92,13 @@ func (c *qualityChecker) writeFlag(
 	if _, _, err := c.db.Collection("sentence_flags").Add(ctx, doc); err != nil {
 		log.Printf("qualityCheck: write flag failed: %v", err)
 	}
+}
+
+// qualityWords は word_breakdown を判定用の語と意味へ写す。
+func qualityWords(ws []sentence.Word) []quality.Word {
+	out := make([]quality.Word, len(ws))
+	for i, w := range ws {
+		out[i] = quality.Word{Word: w.Word, Meaning: w.Meaning}
+	}
+	return out
 }

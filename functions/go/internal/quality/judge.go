@@ -64,6 +64,14 @@ type Candidate struct {
 	// Lang は訳文の言語。英語なら訳の観点を聞かない。
 	Lang      lang.Lang
 	CreatedAt time.Time
+	// Words は word_breakdown の語と意味。コードで判定する観点だけが見る（Jev には送らない）。
+	Words []Word
+}
+
+// Word は word_breakdown の1語。
+type Word struct {
+	Word    string
+	Meaning string
 }
 
 // Verdict は不合格と判定した 1 件。
@@ -171,7 +179,7 @@ var Aspects = append([]Aspect{
 	{ID: "trans_thai", Label: "訳にタイ文字", JAOnly: false,
 		Note:  "japanese_translation にタイ文字が残っていた。訳にはタイ文字を書かない",
 		Check: func(c Candidate) bool { return containsThai(c.JapaneseTranslation) }},
-	// 以下6つは rules.go（測定値もそちら）。
+	// 以下7つは rules.go（測定値もそちら）。
 	{ID: "trans_term", Label: "訳に文法用語",
 		Note:  "japanese_translation に品詞名・文法用語や角括弧を書いていた。対応する語が無いものは訳さずに落とす",
 		Check: gramTerm},
@@ -190,6 +198,9 @@ var Aspects = append([]Aspect{
 	{ID: "concessive_head", Label: "譲歩の形",
 		Note:  "thai_text で、「〜であっても」を表す文末の語を、「たとえ／どんなに／何であれ」に当たる前置きなしで置いていた。前置きを足すか、文末の語を外す",
 		Check: concessiveNoHead},
+	{ID: "casual_pronoun", Label: "人称の口語つづり",
+		Note:  "thai_text で、人称代名詞を声調の崩れに合わせた口語のつづりで書いていた。辞書どおりの標準のつづりで書く",
+		Check: casualPronoun},
 	// 呼称の音写は trans_vocative が見る。ここに例として残すと、あだ名の正しい
 	// カタカナ表記（カン先輩、マウィンさん）まで誤訳にされる（2026-09-26 評価セットで
 	// 正常の誤検出 14→8〜11/70、欠陥の検出 45/55 のまま）。

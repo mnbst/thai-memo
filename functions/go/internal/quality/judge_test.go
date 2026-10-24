@@ -427,3 +427,26 @@ func TestLatinName(t *testing.T) {
 		}
 	}
 }
+
+func TestCasualPronoun(t *testing.T) {
+	cases := []struct {
+		w    Word
+		want bool
+	}{
+		{Word{"เค้า", "彼"}, true},
+		{Word{"เค้า", "私（親しい間柄で使う一人称）"}, true},
+		{Word{"ชั้น", "私（カジュアル）"}, true},
+		{Word{"ชั้น", "I (female, informal)"}, true},
+		{Word{"ชั้น", "나(여성 1인칭)"}, true},
+		{Word{"ชั้น", "階"}, false},
+		{Word{"ชั้น", "shelf"}, false},
+		{Word{"ชั้น", "level"}, false},
+		{Word{"ฉัน", "私"}, false},
+		{Word{"เขา", "彼"}, false},
+	}
+	for _, c := range cases {
+		if got := casualPronoun(Candidate{Words: []Word{c.w}}); got != c.want {
+			t.Errorf("casualPronoun(%v) = %v, want %v", c.w, got, c.want)
+		}
+	}
+}
