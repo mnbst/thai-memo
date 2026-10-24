@@ -192,6 +192,7 @@ func retry(
 			KeyWord:             r.Word,
 			Topic:               contextTopic(r.Sentence.Context),
 			Lang:                l,
+			Words:               qualityWords(r.Sentence.WordBreakdown),
 		})
 		idx = append(idx, i)
 	}
@@ -256,6 +257,7 @@ func recheck(ctx context.Context, j *quality.Judge, recs []record, l lang.Lang) 
 			KeyWord:             r.Word,
 			Topic:               contextTopic(r.Retried.Context),
 			Lang:                l,
+			Words:               qualityWords(r.Retried.WordBreakdown),
 		})
 		idx = append(idx, i)
 	}
@@ -443,4 +445,13 @@ func (f fixedShot) FindBestDramaShot(
 func contextTopic(ctx map[string]any) string {
 	t, _ := ctx["topic"].(string)
 	return t
+}
+
+// qualityWords は word_breakdown を判定用の語と意味へ写す。
+func qualityWords(ws []sentence.Word) []quality.Word {
+	out := make([]quality.Word, len(ws))
+	for i, w := range ws {
+		out[i] = quality.Word{Word: w.Word, Meaning: w.Meaning}
+	}
+	return out
 }

@@ -202,6 +202,7 @@ func candidateFrom(uid, docID string, data map[string]any) (quality.Candidate, b
 		Emotion:             stringField(ctxMap["emotion"]),
 		GenerationTier:      tier,
 		CreatedAt:           createdAt,
+		Words:               wordsField(data["word_breakdown"]),
 	}, true
 }
 
@@ -237,4 +238,15 @@ func intEnvOr(key string, fallback int) int {
 func stringField(v any) string {
 	s, _ := v.(string)
 	return s
+}
+
+// wordsField は Firestore の word_breakdown（map の配列）を判定用の語と意味へ写す。
+func wordsField(v any) []quality.Word {
+	items, _ := v.([]any)
+	out := make([]quality.Word, 0, len(items))
+	for _, it := range items {
+		m, _ := it.(map[string]any)
+		out = append(out, quality.Word{Word: stringField(m["word"]), Meaning: stringField(m["meaning"])})
+	}
+	return out
 }

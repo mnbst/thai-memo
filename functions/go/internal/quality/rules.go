@@ -16,6 +16,8 @@ import (
 //	bareNot        英訳 6 件・誤検出 0（主語の直前が助動詞の疑問文は除く）
 //	knownMistrans  日本語訳 10 件・誤検出 0
 //
+// casualPronoun は 2026-10-24 に静的コーパス・プールから該当文を消したときの判定と同じ。
+//
 // 見送ったもの:
 //   - 英訳の語の羅列を広く拾う正規表現（文末の very/already、want＋原形 等）は
 //     再現率 25/80・誤検出 15/160 で使えない
@@ -240,6 +242,25 @@ var latinBrands = map[string]bool{
 func latinName(c Candidate) bool {
 	for _, w := range latinWordRe.FindAllString(c.ThaiText, -1) {
 		if !latinBrands[w] {
+			return true
+		}
+	}
+	return false
+}
+
+// casualPronounMeaningRe は ชั้น の語義が一人称のときに当たる（ja / en / ko）。
+// 階・棚・クラス等の名詞の ชั้น は当たらない。
+var casualPronounMeaningRe = regexp.MustCompile(`私|自分|僕|俺|^\s*(나|저)|(?i)^\s*(I|me|my)\b`)
+
+// casualPronoun は人称代名詞を口語つづりで書いているか（เค้า＝เขา、一人称の ชั้น＝ฉัน）。
+// 学習者には標準形と別の語に見えて紛らわしいので、標準形だけを出す。
+// word_breakdown で見る（ชั้น は「階」と同形で、本文だけでは分けられない）。
+//
+// 2026-10-24、静的コーパス 19,404 文で 16 文、prod の premium プール ja/en/ko で各 8 文、
+// free バンクで 2〜3 文が当たった。目視で全て人称の用法（เค้า は「彼・彼女」と「私」の両方）。
+func casualPronoun(c Candidate) bool {
+	for _, w := range c.Words {
+		if w.Word == "เค้า" || (w.Word == "ชั้น" && casualPronounMeaningRe.MatchString(w.Meaning)) {
 			return true
 		}
 	}
