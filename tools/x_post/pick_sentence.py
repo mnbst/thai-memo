@@ -63,34 +63,34 @@ THEMES = {
 }
 
 # BLドラマの日は、作品の見当がつく例文だけ出す。作品ごとに、本文か使い方
-# （context.usage_scenarios）に出ればその作品と分かる語を (人物名, 小道具・場所)
-# で並べる。人物名はタイ語とカタカナの両方。2026-10-11 から生成側は本文に名前を
-# 必須にせず、使い方に名前を書かせる。一般語と紛れる語（หมู=豚、สไตล์、ดาว、
+# （context.usage_scenarios）に出ればその作品と分かる語（登場人物名とそのカタカナ・
+# 象徴的な小道具や場所）を並べる。人物名は必須にしない。2026-10-11 から生成側は
+# 本文に名前を必須にせず、使い方に名前を書かせる。一般語と紛れる語（หมู=豚、สไตล์、ดาว、
 # พระเจ้า 等）は入れない。作品の設定は functions/go/internal/bldrama/data.go の
 # shotContext。
 BL_DRAMA_MARKERS = {
-    "Only Boo!": (("พี่แกง", "カン", "ムー"), ("ข้าวแกง",)),
+    "Only Boo!": ("พี่แกง", "カン", "ムー", "ข้าวแกง"),
     "The Heart Killers": (
-        ("ไบซัน", "ฟาเดล", "คานต์", "カーン", "バイソン", "ファデル"),
-        ("นักฆ่า",),
+        "ไบซัน", "ฟาเดล", "คานต์", "カーン",
+        "バイソン", "ファデル", "นักฆ่า",
     ),
-    "Peaceful Property": (("พีช", "โฮม", "ピーチ", "ホーム"), ("ผี",)),
-    "MuTeLuv": (("มาวิน", "เอ้อ", "マーウィン"), ("หมอดู", "ดูดวง")),
-    "Cat for Cash": (("ไทเกอร์", "ลิงซ์", "タイガー", "リンクス"), ("แมว",)),
-    "Unlucky Bae": (("ขอบฟ้า", "コープファー"), ("คำสาป", "ซวย")),
-    "Match Point": (("เบย์",), ("เทนนิส", "ติ่มซำ")),
+    "Peaceful Property": ("พีช", "โฮม", "ピーチ", "ホーム", "ผี"),
+    "MuTeLuv": ("มาวิน", "เอ้อ", "マーウィン", "หมอดู", "ดูดวง"),
+    "Cat for Cash": ("ไทเกอร์", "ลิงซ์", "タイガー", "リンクス", "แมว"),
+    "Unlucky Bae": ("ขอบฟ้า", "コープファー", "คำสาป", "ซวย"),
+    "Match Point": ("เบย์", "เทนนิส", "ติ่มซำ"),
     "A Dog and A Plane": (
-        ("คณิต", "โตโต้", "カニット", "トートー"),
-        ("กัปตัน", "กู้ภัย", "กระเป๋าเดินทาง"),
+        "คณิต", "โตโต้", "カニット", "トートー",
+        "กัปตัน", "กู้ภัย", "กระเป๋าเดินทาง",
     ),
-    "When Oranges Fall": (("โก๋", "コーヌン", "コーソーン"), ("ส้ม",)),
+    "When Oranges Fall": ("โก๋", "コーヌン", "コーソーン", "ส้ม"),
     "Ticket to Heaven": (
-        ("แทนรัก", "บาร์ธ", "タンラック", "バース"),
-        ("บาทหลวง", "โบสถ์"),
+        "แทนรัก", "บาร์ธ", "タンラック",
+        "バース", "บาทหลวง", "โบสถ์",
     ),
-    "WEIRDO-101": (("นิรันดร์", "ชีวา", "ニラン", "チーワー"), ("ยูโด",)),
-    "You Maniac": (("ดีน", "มอธ", "モス"), ()),
-    "Only Friends: Dream On": (("แจ็ค", "ジャック"), ("ละคร", "เวที")),
+    "WEIRDO-101": ("นิรันดร์", "ชีวา", "ニラン", "チーワー", "ยูโด"),
+    "You Maniac": ("ดีน", "มอธ", "モス"),
+    "Only Friends: Dream On": ("แจ็ค", "ジャック", "ละคร", "เวที"),
 }
 
 GEMINI_SECRET = "gemini-api-key"
@@ -204,29 +204,22 @@ def bl_drama_only(pool: list[dict], rng: random.Random) -> list[dict]:
     """作品の見当がつく例文だけ残し、そのうち1作品に絞る。
 
     作品で分けずに抽選すると例文の多い作品（猫・幽霊）ばかり出るので、
-    先に作品を抽選する。投稿本文（タイ語・訳）に人物名が出る例文があれば、
-    それだけに絞る。名前があると見る人に作品が伝わる。
+    先に作品を抽選する。
     """
     by_drama: dict[str, list[dict]] = {}
-    named: dict[str, list[dict]] = {}
     for sentence in pool:
-        for drama, (names, props) in BL_DRAMA_MARKERS.items():
+        for drama, markers in BL_DRAMA_MARKERS.items():
             text = sentence["thai_text"] + (
                 (sentence.get("context") or {}).get("usage_scenarios") or ""
             )
-            if any(m in text for m in names + props):
+            if any(m in text for m in markers):
                 by_drama.setdefault(drama, []).append(sentence)
-                posted_text = sentence["thai_text"] + sentence["japanese_translation"]
-                if any(n in posted_text for n in names):
-                    named.setdefault(drama, []).append(sentence)
                 break
-    groups = named or by_drama
-    if not groups:
+    if not by_drama:
         return []
-    drama = rng.choice(sorted(groups))
-    label = "人物名あり" if named else "人物名なし"
-    print(f"作品: {drama}（{label} {len(groups[drama])}件）", file=sys.stderr)
-    return groups[drama]
+    drama = rng.choice(sorted(by_drama))
+    print(f"作品: {drama}（{len(by_drama[drama])}件）", file=sys.stderr)
+    return by_drama[drama]
 
 
 def recent_performance(history: list[dict], theme: str) -> list[dict]:
