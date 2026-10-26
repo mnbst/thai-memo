@@ -2,19 +2,17 @@
 // pool-review スキルから使う。設計は docs/design_listening_playback.md「プールへの追加」。
 //
 //	list   確認待ち（pending）を JSON で書き出す。Artifact ページの元データ
-//	apply  OK / NG の結果を反映する。OK は本番プールへ足し、お手本の音声を作る。NG は rejected
-//	audio  本番プールの全文のお手本の音声を作る（最初に1回だけ。既にあるものは作らない）
+//	apply  OK / NG の結果を反映する。OK は本番プールへ足し、NG は rejected
 //
-// apply と audio は既定で dry run。-write で書く。
-// 音声を先に作るのは prod だけ（dev・tester は再生時に callable が作る分だけ）。
-// Cloud TTS は1分あたりの呼び出し数に割り当てがあるので、audio は -rpm で均し、
-// 超えたら待ってやり直す。
+// apply は既定で dry run。-write で書く。
+// お手本の音声は先に作らない。再生されたときに getSentenceAudio が作る（2026-10-21）。
 //
 //	GCLOUD_PROJECT=thai-memo-dev go run ./cmd/poolreview list -out /tmp/pending.json
 //	GCLOUD_PROJECT=thai-memo-dev go run ./cmd/poolreview apply -in /tmp/decisions.json -write
-//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolreview audio -lang ja -tier premium -write
 //
-// decisions.json は {"ok": [doc ID...], "ng": [doc ID...]}。
+// decisions.json は {"ok": [doc ID...], "ng": [doc ID...], "fix": {doc ID: {...}}}。
+// fix は OK の文の直し（sentence と同じ形の一部。書いたキーだけ差し替える）。
+// 直した文をプールへ入れ、元の文は sentence に、直した文は sentence_fixed に残す。
 package main
 
 import (
@@ -26,27 +24,19 @@ import (
 	"log"
 	"os"
 	"sort"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/storage"
-	"google.golang.org/api/googleapi"
-	texttospeech "google.golang.org/api/texttospeech/v1"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/poolreview"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
-	"github.com/mnbst/thai-memo/functions/go/internal/ttsaudio"
 )
-
-// prodProject は音声を先に作る唯一の環境。
-const prodProject = "thai-memo-prod"
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("usage: poolreview list|apply|audio [flags]")
+		log.Fatal("usage: poolreview list|apply [flags]")
 	}
 	project := os.Getenv("GCLOUD_PROJECT")
 	if project == "" {
@@ -60,8 +50,6 @@ func main() {
 		err = runList(ctx, project, args)
 	case "apply":
 		err = runApply(ctx, project, args)
-	case "audio":
-		err = runAudio(ctx, project, args)
 	default:
 		err = fmt.Errorf("不明なサブコマンド %q", cmd)
 	}
@@ -126,8 +114,9 @@ func runApply(ctx context.Context, project string, args []string) error {
 		return err
 	}
 	var dec struct {
-		OK []string `json:"ok"`
-		NG []string `json:"ng"`
+		OK  []string                  `json:"ok"`
+		NG  []string                  `json:"ng"`
+		Fix map[string]map[string]any `json:"fix"`
 	}
 	if err := json.Unmarshal(raw, &dec); err != nil {
 		return err
@@ -139,6 +128,11 @@ func runApply(ctx context.Context, project string, args []string) error {
 	for _, id := range dec.NG {
 		if okSet[id] {
 			return fmt.Errorf("%s が OK と NG の両方にある", id)
+		}
+	}
+	for id := range dec.Fix {
+		if !okSet[id] {
+			return fmt.Errorf("%s は fix があるのに OK にない", id)
 		}
 	}
 
@@ -165,6 +159,7 @@ func runApply(ctx context.Context, project string, args []string) error {
 	// OK の文をプールごとに束ねる。
 	byPool := map[string][]sentence.Sentence{}
 	var okSnaps, ngSnaps []*firestore.DocumentSnapshot
+	fixed := map[string]map[string]any{}
 	for _, id := range dec.OK {
 		snap, err := pending(id)
 		if err != nil {
@@ -181,10 +176,18 @@ func runApply(ctx context.Context, project string, args []string) error {
 		if !ok {
 			return fmt.Errorf("%s: lang %q", id, it.Lang)
 		}
-		b, _ := json.Marshal(it.Sentence)
-		var s sentence.Sentence
-		if err := json.Unmarshal(b, &s); err != nil {
+		s, err := poolreview.ApplyFix(it.Sentence, dec.Fix[id])
+		if err != nil {
 			return fmt.Errorf("%s: %w", id, err)
+		}
+		if dec.Fix[id] != nil {
+			// Sentence は json タグしか持たないので、Firestore へは JSON の形の map で書く。
+			b, _ := json.Marshal(s)
+			var m map[string]any
+			if err := json.Unmarshal(b, &m); err != nil {
+				return fmt.Errorf("%s: %w", id, err)
+			}
+			fixed[snap.Ref.ID] = m
 		}
 		name := sentence.PoolObjectFor(it.Tier, l)
 		byPool[name] = append(byPool[name], s)
@@ -202,6 +205,7 @@ func runApply(ctx context.Context, project string, args []string) error {
 	for name, ss := range byPool {
 		log.Printf("ok: %s +%d", name, len(ss))
 	}
+	log.Printf("fixed: %d", len(fixed))
 	log.Printf("ng: %d", len(ngSnaps))
 	if !*write {
 		log.Print("dry run（-write で書く）")
@@ -214,15 +218,6 @@ func runApply(ctx context.Context, project string, args []string) error {
 	}
 	defer gcs.Close()
 	poolBucket := gcs.Bucket(project + "-uvm-data")
-	var (
-		store ttsaudio.Store
-		synth ttsaudio.Synthesizer
-	)
-	if project == prodProject {
-		if store, synth, err = audioDeps(ctx, gcs, project); err != nil {
-			return err
-		}
-	}
 
 	// プールへ足してから状態を書く。途中で落ちても OK の文は pending のまま残り、
 	// やり直せば重複なく足される（MergePool が thai_text で重複を飛ばす）。
@@ -232,28 +227,19 @@ func runApply(ctx context.Context, project string, args []string) error {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 		log.Printf("pool %s added=%d", name, added)
-		// 音声は失敗してもプールの追加は止めない。再生時に callable が埋める。
-		if synth == nil {
-			continue
-		}
-		for _, s := range ss {
-			res, err := ttsaudio.Ensure(ctx, store, synth, audioInput(s))
-			if err == nil {
-				err = res.StoreErr
-			}
-			if err != nil {
-				log.Printf("audio failed %q: %v", s.ThaiText, err)
-			}
-		}
 	}
 	// 読んだときから変わっていない doc だけを書き換える（並行して流した apply と食い違わない）。
 	now := time.Now()
 	mark := func(snaps []*firestore.DocumentSnapshot, st string) error {
 		for _, snap := range snaps {
-			if _, err := snap.Ref.Update(ctx, []firestore.Update{
+			ups := []firestore.Update{
 				{Path: "status", Value: st},
 				{Path: "reviewed_at", Value: now},
-			}, firestore.LastUpdateTime(snap.UpdateTime)); err != nil {
+			}
+			if s, ok := fixed[snap.Ref.ID]; ok {
+				ups = append(ups, firestore.Update{Path: "sentence_fixed", Value: s})
+			}
+			if _, err := snap.Ref.Update(ctx, ups, firestore.LastUpdateTime(snap.UpdateTime)); err != nil {
 				return fmt.Errorf("%s: %w", snap.Ref.ID, err)
 			}
 		}
@@ -267,124 +253,4 @@ func runApply(ctx context.Context, project string, args []string) error {
 	}
 	log.Printf("approved=%d rejected=%d", len(okSnaps), len(ngSnaps))
 	return nil
-}
-
-func runAudio(ctx context.Context, project string, args []string) error {
-	fs := flag.NewFlagSet("audio", flag.ExitOnError)
-	langCode := fs.String("lang", "ja", "プールの言語（ja / en）")
-	tier := fs.String("tier", "premium", "プールのティア（premium / free）")
-	conc := fs.Int("c", 4, "同時実行数")
-	rpm := fs.Int("rpm", 100, "1分あたりの Cloud TTS 呼び出しの上限（プロジェクトの割り当てより下に置く）")
-	write := fs.Bool("write", false, "作る（既定は件数と文字数だけ出す）")
-	fs.Parse(args)
-	l, ok := lang.Parse(*langCode)
-	if !ok {
-		return fmt.Errorf("-lang %q", *langCode)
-	}
-	gcs, err := storage.NewClient(ctx)
-	if err != nil {
-		return err
-	}
-	defer gcs.Close()
-	name := sentence.PoolObjectFor(*tier, l)
-	pool, err := sentence.ReadSentences(ctx, gcs.Bucket(project+"-uvm-data"), name)
-	if err != nil {
-		return err
-	}
-	chars := 0
-	for _, s := range pool {
-		chars += len([]rune(ttsaudio.Normalize(s.ThaiText)))
-	}
-	log.Printf("%s: %d文・%d文字", name, len(pool), chars)
-	if !*write {
-		log.Print("dry run（-write で作る）")
-		return nil
-	}
-	if project != prodProject {
-		return fmt.Errorf("音声を先に作るのは %s だけ", prodProject)
-	}
-	store, synth, err := audioDeps(ctx, gcs, project)
-	if err != nil {
-		return err
-	}
-	synth = &paced{inner: synth, tick: time.NewTicker(time.Minute / time.Duration(*rpm))}
-
-	var created, existed, failed atomic.Int64
-	jobs := make(chan sentence.Sentence)
-	var wg sync.WaitGroup
-	for range *conc {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for s := range jobs {
-				res, err := ttsaudio.Ensure(ctx, store, synth, audioInput(s))
-				if err == nil {
-					err = res.StoreErr
-				}
-				switch {
-				case err != nil:
-					failed.Add(1)
-					log.Printf("failed %q: %v", s.ThaiText, err)
-				case res.Created:
-					created.Add(1)
-				default:
-					existed.Add(1)
-				}
-				if n := created.Load() + existed.Load() + failed.Load(); n%500 == 0 {
-					log.Printf("%d/%d", n, len(pool))
-				}
-			}
-		}()
-	}
-	for _, s := range pool {
-		jobs <- s
-	}
-	close(jobs)
-	wg.Wait()
-	log.Printf("created=%d existed=%d failed=%d", created.Load(), existed.Load(), failed.Load())
-	return nil
-}
-
-func audioDeps(ctx context.Context, gcs *storage.Client, project string) (ttsaudio.Store, ttsaudio.Synthesizer, error) {
-	svc, err := texttospeech.NewService(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	return ttsaudio.GCSStore{Bucket: gcs.Bucket(ttsaudio.BucketName(project))},
-		retrying{ttsaudio.CloudSynthesizer{Service: svc}}, nil
-}
-
-// paced は Cloud TTS の呼び出しを一定間隔に均す（1分あたりの割り当てに当てない）。
-// GCS に既にあって作らない文は待たない。
-type paced struct {
-	inner ttsaudio.Synthesizer
-	tick  *time.Ticker
-}
-
-func (p *paced) Synthesize(ctx context.Context, voice, text string) ([]byte, error) {
-	<-p.tick.C
-	return p.inner.Synthesize(ctx, voice, text)
-}
-
-// retrying は割り当て超過（429）のとき待ってやり直す。
-type retrying struct{ inner ttsaudio.Synthesizer }
-
-func (r retrying) Synthesize(ctx context.Context, voice, text string) ([]byte, error) {
-	for attempt := 0; ; attempt++ {
-		data, err := r.inner.Synthesize(ctx, voice, text)
-		var gerr *googleapi.Error
-		if err == nil || !errors.As(err, &gerr) || gerr.Code != 429 || attempt == 5 {
-			return data, err
-		}
-		time.Sleep(time.Duration(1<<attempt) * 5 * time.Second)
-	}
-}
-
-func audioInput(s sentence.Sentence) ttsaudio.Input {
-	topic, _ := s.Context["topic"].(string)
-	words := make([]ttsaudio.Word, len(s.WordBreakdown))
-	for i, w := range s.WordBreakdown {
-		words[i] = ttsaudio.Word{Word: w.Word, Meaning: w.Meaning, GrammaticalRole: w.GrammaticalRole}
-	}
-	return ttsaudio.Input{ThaiText: s.ThaiText, Topic: topic, Words: words}
 }
