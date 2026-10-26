@@ -29,6 +29,8 @@ type TopicChoice struct {
 // 82.7%。テーマ embedding は語彙全体への平均類似度に差があり、重心の高い BL が
 // 全語で argmax になる。BL は刺さる層には強いが大半には刺さらないので、
 // free は分布を均等にする。
+//
+// 推し活は premium だけのテーマなので、free の抽選からは外す。
 func ChooseTopic(
 	topic string, isPremium bool, estimatedVocab int,
 	randFloat func() float64, randIntn func(int) int,
@@ -47,7 +49,7 @@ func ChooseTopic(
 	}
 	var rest []string
 	for _, t := range pool {
-		if t != BLTopic {
+		if t != BLTopic && t != OshiTopic {
 			rest = append(rest, t)
 		}
 	}

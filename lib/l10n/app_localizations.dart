@@ -1488,7 +1488,7 @@ abstract class L10n {
   /// No description provided for @topicSub_shopping.
   ///
   /// In ja, this message translates to:
-  /// **'推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット'**
+  /// **'値段交渉、サイズ・色の確認、返品、ナイトマーケット'**
   String get topicSub_shopping;
 
   /// No description provided for @topicName_transport.
@@ -1536,7 +1536,7 @@ abstract class L10n {
   /// No description provided for @topicSub_hobbies.
   ///
   /// In ja, this message translates to:
-  /// **'推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム'**
+  /// **'ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム'**
   String get topicSub_hobbies;
 
   /// No description provided for @topicName_school.
@@ -1610,6 +1610,18 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'観光、ホテル、交通、買い物、食べ物'**
   String get topicSub_thaiTravel;
+
+  /// No description provided for @topicName_oshi.
+  ///
+  /// In ja, this message translates to:
+  /// **'推し活'**
+  String get topicName_oshi;
+
+  /// No description provided for @topicSub_oshi.
+  ///
+  /// In ja, this message translates to:
+  /// **'ライブ、チケット、グッズ、握手会、出待ち'**
+  String get topicSub_oshi;
 
   /// 文体ラベル。値は constants.STYLES の識別子で、表示だけ差し替える
   ///

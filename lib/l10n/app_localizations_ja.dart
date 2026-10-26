@@ -766,7 +766,7 @@ class L10nJa extends L10n {
   String get topicName_shopping => '買い物';
 
   @override
-  String get topicSub_shopping => '推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット';
+  String get topicSub_shopping => '値段交渉、サイズ・色の確認、返品、ナイトマーケット';
 
   @override
   String get topicName_transport => '交通';
@@ -790,7 +790,7 @@ class L10nJa extends L10n {
   String get topicName_hobbies => '趣味';
 
   @override
-  String get topicSub_hobbies => '推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム';
+  String get topicSub_hobbies => 'ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム';
 
   @override
   String get topicName_school => '学校';
@@ -827,6 +827,12 @@ class L10nJa extends L10n {
 
   @override
   String get topicSub_thaiTravel => '観光、ホテル、交通、買い物、食べ物';
+
+  @override
+  String get topicName_oshi => '推し活';
+
+  @override
+  String get topicSub_oshi => 'ライブ、チケット、グッズ、握手会、出待ち';
 
   @override
   String get styleName_news => 'ニュース記事体';
