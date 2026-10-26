@@ -34,6 +34,7 @@ const _topicKeys = {
   '礼儀作法': 'etiquette',
   'タイ暮らし': 'life',
   'タイ旅行': 'thaiTravel',
+  '推し活': 'oshi',
 };
 
 /// 識別子を分解して素の名称・補足を返す（未知のテーマ用のフォールバック）。
@@ -100,6 +101,7 @@ String _topicName(L10n l10n, String key) => switch (key) {
       'festivals' => l10n.topicName_festivals,
       'life' => l10n.topicName_life,
       'thaiTravel' => l10n.topicName_thaiTravel,
+      'oshi' => l10n.topicName_oshi,
       _ => l10n.topicName_etiquette,
     };
 
@@ -158,5 +160,6 @@ String _topicSub(L10n l10n, String key) => switch (key) {
       'festivals' => l10n.topicSub_festivals,
       'life' => l10n.topicSub_life,
       'thaiTravel' => l10n.topicSub_thaiTravel,
+      'oshi' => l10n.topicSub_oshi,
       _ => l10n.topicSub_etiquette,
     };

@@ -812,7 +812,7 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_shopping =>
-      'fan merch, haggling, sizes and colors, returns, night markets';
+      'haggling, sizes and colors, returns, night markets';
 
   @override
   String get topicName_transport => 'Transport';
@@ -839,7 +839,7 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_hobbies =>
-      'fandom, Muay Thai, music, movies, golf, social media, games';
+      'Muay Thai, music, movies, golf, social media, games';
 
   @override
   String get topicName_school => 'School';
@@ -882,6 +882,13 @@ class L10nEn extends L10n {
   @override
   String get topicSub_thaiTravel =>
       'sightseeing, hotels, transport, shopping, food';
+
+  @override
+  String get topicName_oshi => 'Fan life';
+
+  @override
+  String get topicSub_oshi =>
+      'concerts, tickets, merch, handshake events, waiting for idols';
 
   @override
   String get styleName_news => 'News';

@@ -428,7 +428,7 @@
   "topicName_family": "家族",
   "topicSub_family": "家族紹介、子育て、親への感謝、兄弟、家族行事",
   "topicName_shopping": "買い物",
-  "topicSub_shopping": "推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット",
+  "topicSub_shopping": "値段交渉、サイズ・色の確認、返品、ナイトマーケット",
   "topicName_transport": "交通",
   "topicSub_transport": "Grab、BTS、バイタク、ソンテウ、渋滞",
   "topicName_health": "健康",
@@ -436,7 +436,7 @@
   "topicName_weather": "天気",
   "topicSub_weather": "暑さ、雨季、台風、日焼け対策",
   "topicName_hobbies": "趣味",
-  "topicSub_hobbies": "推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム",
+  "topicSub_hobbies": "ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム",
   "topicName_school": "学校",
   "topicSub_school": "授業中、宿題、試験、放課後、語学学校",
   "topicName_religion": "宗教・信仰",
@@ -449,6 +449,8 @@
   "topicSub_life": "買い物、交通、健康、家族、天気、食べ物",
   "topicName_thaiTravel": "タイ旅行",
   "topicSub_thaiTravel": "観光、ホテル、交通、買い物、食べ物",
+  "topicName_oshi": "推し活",
+  "topicSub_oshi": "ライブ、チケット、グッズ、握手会、出待ち",
 
   "styleName_news": "ニュース記事体",
   "@styleName_news": {

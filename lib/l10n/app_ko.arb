@@ -429,7 +429,7 @@
   "topicName_family": "가족",
   "topicSub_family": "가족 소개, 육아, 부모님께 감사, 형제자매, 가족 행사",
   "topicName_shopping": "쇼핑",
-  "topicSub_shopping": "최애 굿즈, 가격 흥정, 크기·색상 확인, 반품, 야시장",
+  "topicSub_shopping": "가격 흥정, 크기·색상 확인, 반품, 야시장",
   "topicName_transport": "교통",
   "topicSub_transport": "Grab, BTS, 오토바이 택시, 썽태우, 교통 체증",
   "topicName_health": "건강",
@@ -437,7 +437,7 @@
   "topicName_weather": "날씨",
   "topicSub_weather": "더위, 우기, 태풍, 자외선 대책",
   "topicName_hobbies": "취미",
-  "topicSub_hobbies": "덕질, 무에타이, 음악, 영화, 골프, SNS, 게임",
+  "topicSub_hobbies": "무에타이, 음악, 영화, 골프, SNS, 게임",
   "topicName_school": "학교",
   "topicSub_school": "수업, 숙제, 시험, 방과 후, 어학원",
   "topicName_religion": "종교·신앙",
@@ -450,6 +450,8 @@
   "topicSub_life": "쇼핑, 교통, 건강, 가족, 날씨, 음식",
   "topicName_thaiTravel": "태국 여행",
   "topicSub_thaiTravel": "관광, 호텔, 교통, 쇼핑, 음식",
+  "topicName_oshi": "덕질",
+  "topicSub_oshi": "콘서트, 티켓팅, 굿즈, 악수회, 공항 마중",
   "styleName_news": "뉴스 기사체",
   "@styleName_news": {
     "description": "文体ラベル。値は constants.STYLES の識別子で、表示だけ差し替える"

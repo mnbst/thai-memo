@@ -768,7 +768,7 @@ class L10nKo extends L10n {
   String get topicName_shopping => '쇼핑';
 
   @override
-  String get topicSub_shopping => '최애 굿즈, 가격 흥정, 크기·색상 확인, 반품, 야시장';
+  String get topicSub_shopping => '가격 흥정, 크기·색상 확인, 반품, 야시장';
 
   @override
   String get topicName_transport => '교통';
@@ -792,7 +792,7 @@ class L10nKo extends L10n {
   String get topicName_hobbies => '취미';
 
   @override
-  String get topicSub_hobbies => '덕질, 무에타이, 음악, 영화, 골프, SNS, 게임';
+  String get topicSub_hobbies => '무에타이, 음악, 영화, 골프, SNS, 게임';
 
   @override
   String get topicName_school => '학교';
@@ -829,6 +829,12 @@ class L10nKo extends L10n {
 
   @override
   String get topicSub_thaiTravel => '관광, 호텔, 교통, 쇼핑, 음식';
+
+  @override
+  String get topicName_oshi => '덕질';
+
+  @override
+  String get topicSub_oshi => '콘서트, 티켓팅, 굿즈, 악수회, 공항 마중';
 
   @override
   String get styleName_news => '뉴스 기사체';

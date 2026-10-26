@@ -33,6 +33,7 @@ var Topics = []string{
 	"礼儀作法（ワイの使い分け、敬語、タブー、食事マナー、贈り物）",
 	"恋愛・男女関係（告白、デート、甘い言葉、遠距離、別れ、仲直り）",
 	"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）",
+	"推し活（ライブ、チケット、グッズ、握手会、出待ち）",
 }
 
 // LifeTopic と TravelTopic は、ヒアリングの用途（タイで暮らす／旅行）に合わせて
@@ -92,6 +93,7 @@ var topicLabelsEN = map[string]string{
 	"礼儀作法（ワイの使い分け、敬語、タブー、食事マナー、贈り物）":           "Etiquette (the wai, honorifics, taboos, table manners, gifts)",
 	"恋愛・男女関係（告白、デート、甘い言葉、遠距離、別れ、仲直り）":          "Romance (confessions, dates, sweet talk, long distance, breakups, making up)",
 	"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)",
+	"推し活（ライブ、チケット、グッズ、握手会、出待ち）":                "Fan life (concerts, tickets, merch, handshake events, waiting for idols)",
 }
 
 // styleLabelsEN は文体の英語ラベル（constants.STYLE_LABELS_EN）。
@@ -264,6 +266,10 @@ const BLTopic = "タイBLドラマ（告白、すれ違い、再会、嫉妬、�
 // FreeBLTopicRate は free ティアで BL テーマを引く確率
 // （constants.FREE_BL_TOPIC_RATE）。
 const FreeBLTopicRate = 0.1
+
+// OshiTopic は推し活のテーマ（Topics[16]）。premium だけに出す。free の自動選択の
+// 候補には入れない（ChooseTopic）。
+const OshiTopic = "推し活（ライブ、チケット、グッズ、握手会、出待ち）"
 
 // responseJSONSchemaJSON は constants.RESPONSE_JSON_SCHEMA。
 // 構造が深いので JSON のまま持ち、必要なときにデコードして組み立てる。

@@ -27,6 +27,8 @@ void main() {
       expect(topicLabel(en, '仕事（同僚雑談）').name, 'Work');
       expect(topicLabel(en, '仕事').name, 'Work');
       expect(topicLabel(ja, '仕事（同僚雑談）').name, '仕事');
+      expect(topicLabel(ja, '推し活（ライブ、チケット、グッズ、握手会、出待ち）').name, '推し活');
+      expect(topicLabel(en, '推し活（ライブ、チケット、グッズ、握手会、出待ち）').name, 'Fan life');
     });
 
     test('未知のテーマはそのまま出す（訳せないより日本語で出る方がまし）', () {
@@ -66,6 +68,8 @@ void main() {
             'Dating and romance',
         'Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)':
             'Thai BL dramas',
+        'Fan life (concerts, tickets, merch, handshake events, waiting for idols)':
+            'Fan life',
       };
       labels.forEach((identifier, expected) {
         expect(topicLabel(en, identifier).name, expected, reason: identifier);

@@ -72,6 +72,7 @@ var topicShots = map[string]topicShot{
 	sentence.Topics[12]: {traditionShotIDs, "伝統や行事の会話"},
 	sentence.Topics[13]: {mannersShotIDs, "礼儀を意識したやり取り"},
 	sentence.Topics[14]: {romanceShotIDs, "恋人や好きな人との会話"},
+	sentence.Topics[16]: {oshiShotIDs, "推し活の会話"},
 }
 
 // Builder はテーマ回のプロンプト断片を作る。
