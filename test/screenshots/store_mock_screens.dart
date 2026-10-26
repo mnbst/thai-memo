@@ -10,7 +10,7 @@
 // - 03_pronunciation: 発音練習の結果（1音節だけ惜しい）。判定は本物の採点に
 //                     合成したピッチを通して出す
 // - 04_quiz:          まとめクイズで正解した直後
-// - 05_topics:        テーマ選択（タイBLドラマを選択中）
+// - 05_topics:        テーマ選択（推し活を選択中）
 // - 06_ranking:       語彙ランキング（学習者が十分いる状態）
 //
 // 例文・クイズの中身は store_mock_data.dart。出力は
@@ -126,7 +126,7 @@ final _shots = [
   _Shot(
     '05_topics',
     (s, lang) => const _TopicPickerHost(),
-    topic: GenerationConstants.pickerTopics.first,
+    topic: GenerationConstants.topics[16], // 推し活
   ),
   _Shot('06_ranking', (s, lang) => const RankingScreen()),
 ];

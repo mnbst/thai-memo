@@ -1203,7 +1203,7 @@ class L10nKo extends L10n {
 
   @override
   String get philosophy3Culture =>
-      '**Premium**에서는 예문 주제를 직접 선택할 수 있어요. ‘태국 BL 드라마’를 선택하면 작품에 나오는 표현이 도착해요.';
+      '**Premium**에서는 예문 주제를 직접 선택할 수 있어요. ‘태국 BL 드라마’나 ‘덕질’을 선택하면 작품이나 팬 활동에서 쓰는 표현이 도착해요.';
 
   @override
   String get philosophy3TimeShort => '**몇 분이면** 예문 하나를 읽고 확인 퀴즈까지 풀 수 있어요.';

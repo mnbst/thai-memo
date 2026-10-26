@@ -77,6 +77,6 @@ tester 版は別アプリ `com.thaimemo.thai_memo.test`。
 ## ストア掲載情報（ja-JP）
 
 - アプリ名: まいにちタイ語 - 毎日の例文で単語が増える
-- 簡単な説明: 今の語彙に合ったタイ語例文で、読める表現を毎日少しずつ。声調をその場で判定し、クイズで復習。旅行やBLドラマなど11テーマ。
+- 簡単な説明: 今の語彙に合ったタイ語例文で、読める表現を毎日少しずつ。声調をその場で判定し、クイズで復習。旅行・BLドラマ・推し活など12テーマ。
 - 詳しい説明: App Store（ja）の説明文と同じ
 - 画像: `build/store_shots/out/android/`（`flutter test test/screenshots/store_mock_screens.dart` → `flutter test test/screenshots/store_screenshots.dart --dart-define=DEVICE=android`）
