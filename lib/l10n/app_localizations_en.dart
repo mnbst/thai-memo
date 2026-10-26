@@ -1265,7 +1265,7 @@ class L10nEn extends L10n {
 
   @override
   String get philosophy3Culture =>
-      '**With Premium**, choose “Thai BL dramas” to learn expressions from the shows.';
+      '**With Premium**, choose “Thai BL dramas” or “Fan life” to learn expressions from shows and fan activities.';
 
   @override
   String get philosophy3TimeShort =>

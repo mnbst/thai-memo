@@ -1196,7 +1196,7 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy3Culture =>
-      '**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」を選べば、作品に出てくる表現が届きます。';
+      '**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「推し活」を選べば、作品やファン活動で使う表現が届きます。';
 
   @override
   String get philosophy3TimeShort => '**数分あれば**、例文を1つ読んで確認クイズまで進められます。';

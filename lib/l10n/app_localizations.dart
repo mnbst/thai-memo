@@ -2202,7 +2202,7 @@ abstract class L10n {
   /// No description provided for @philosophy3Culture.
   ///
   /// In ja, this message translates to:
-  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」を選べば、作品に出てくる表現が届きます。'**
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「推し活」を選べば、作品やファン活動で使う表現が届きます。'**
   String get philosophy3Culture;
 
   /// No description provided for @philosophy3TimeShort.
