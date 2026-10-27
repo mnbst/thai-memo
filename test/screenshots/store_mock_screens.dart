@@ -10,7 +10,7 @@
 // - 03_pronunciation: 発音練習の結果（1音節だけ惜しい）。判定は本物の採点に
 //                     合成したピッチを通して出す
 // - 04_quiz:          まとめクイズで正解した直後
-// - 05_topics:        テーマ選択（推し活を選択中）
+// - 05_topics:        テーマ選択（推し活を選択中。英語はタイ暮らし）
 // - 06_ranking:       語彙ランキング（学習者が十分いる状態）
 //
 // 例文・クイズの中身は store_mock_data.dart。出力は
@@ -94,13 +94,16 @@ const int _myRank = 86;
 
 /// 1枚ぶんの描き方。[act] は描いた後の操作（スクロール・録音など）。
 class _Shot {
-  const _Shot(this.id, this.build, {this.topic, this.act});
+  const _Shot(this.id, this.build, {this.topic, this.topicByLang, this.act});
 
   final String id;
   final Widget Function(ThaiSentence sentence, String lang) build;
 
   /// 「次のテーマ」に出すテーマ。
   final String? topic;
+
+  /// 言語ごとに [topic] を差し替える。英語圏はタイ暮らしの人が中心なので暮らしを出す。
+  final Map<String, String>? topicByLang;
   final Future<void> Function(WidgetTester tester, L10n l10n)? act;
 }
 
@@ -127,6 +130,7 @@ final _shots = [
     '05_topics',
     (s, lang) => const _TopicPickerHost(),
     topic: GenerationConstants.topics[16], // 推し活
+    topicByLang: {'en': GenerationConstants.lifeTopic},
   ),
   _Shot('06_ranking', (s, lang) => const RankingScreen()),
 ];
@@ -219,7 +223,8 @@ Widget _host(String lang, _Device device, _Shot shot, ThaiSentence sentence) {
       effectivePremiumProvider.overrideWithValue(true),
       planStatusProvider
           .overrideWithValue(const AsyncValue.data(PlanStatus.premium)),
-      generationParamsProvider.overrideWithValue({'topic': shot.topic}),
+      generationParamsProvider.overrideWithValue(
+          {'topic': shot.topicByLang?[lang] ?? shot.topic}),
       vocabStatsProvider.overrideWith(
         (ref) => Stream.value(const VocabStats(estimatedVocab: _myVocab)),
       ),
