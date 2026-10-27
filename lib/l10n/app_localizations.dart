@@ -1035,6 +1035,18 @@ abstract class L10n {
   /// **'読みの記号と、区別しにくい音を学ぶ'**
   String get settingsPronGuideSubtitle;
 
+  /// No description provided for @settingsThaiScriptGuide.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字ガイド'**
+  String get settingsThaiScriptGuide;
+
+  /// No description provided for @settingsThaiScriptGuideSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'よく使う文字と、綴りの読み方を学ぶ'**
+  String get settingsThaiScriptGuideSubtitle;
+
   /// No description provided for @settingsResetLearningData.
   ///
   /// In ja, this message translates to:
@@ -5781,6 +5793,174 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'水を持ってくる'**
   String get wordOrderEx16bMeaning;
+
+  /// No description provided for @thaiScriptGuideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字ガイド'**
+  String get thaiScriptGuideTitle;
+
+  /// No description provided for @thaiScriptGuideHeading.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字を部品に分けて読む'**
+  String get thaiScriptGuideHeading;
+
+  /// No description provided for @thaiScriptGuideIntro.
+  ///
+  /// In ja, this message translates to:
+  /// **'全部を暗記しなくても大丈夫です。よく出る子音と母音から、単語の中で見つけられるようになりましょう。札を押すと音を聞けます。'**
+  String get thaiScriptGuideIntro;
+
+  /// No description provided for @thaiScriptBasicsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'1. タイ文字のしくみ'**
+  String get thaiScriptBasicsTitle;
+
+  /// No description provided for @thaiScriptBasicsBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'1つの音節は、主に子音字＋母音記号＋声調記号でできています。末子音が付くこともあります。'**
+  String get thaiScriptBasicsBody;
+
+  /// No description provided for @thaiScriptBasicsDirection.
+  ///
+  /// In ja, this message translates to:
+  /// **'文は左から右へ読みます。英語のように単語ごとにはスペースを空けず、文やまとまりの切れ目で空けます。'**
+  String get thaiScriptBasicsDirection;
+
+  /// No description provided for @thaiScriptBasicsVowelPosition.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音記号は子音の後ろだけでなく、前・上・下、または子音を囲む位置に付きます。書く位置と、読む音の順番は同じとは限りません。'**
+  String get thaiScriptBasicsVowelPosition;
+
+  /// No description provided for @thaiScriptConsonantsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'2. よく使う子音'**
+  String get thaiScriptConsonantsTitle;
+
+  /// No description provided for @thaiScriptConsonantsBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'大きな字が子音字、その下が字の名前です。「頭」は音節の最初、「末」は最後に来たときの音。高・中・低のクラスは声調を決める手がかりです。札を押して字の名前を聞けます。'**
+  String get thaiScriptConsonantsBody;
+
+  /// No description provided for @thaiScriptConsonantCarrierNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'อ は音を持たない子音です。母音だけの音を書くとき、母音記号を付ける台になります（อา＝aa、อิ＝i）。'**
+  String get thaiScriptConsonantCarrierNote;
+
+  /// No description provided for @thaiScriptConsonantSounds.
+  ///
+  /// In ja, this message translates to:
+  /// **'頭 {initial}・末 {finalSound}'**
+  String thaiScriptConsonantSounds(String initial, String finalSound);
+
+  /// No description provided for @thaiScriptVowelsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'3. 母音記号の位置と長さ'**
+  String get thaiScriptVowelsTitle;
+
+  /// No description provided for @thaiScriptVowelsBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'อ を子音の代わりの台にして、記号の位置を見ます。母音には短い音と長い音があり、長さが違うと別の語になります。'**
+  String get thaiScriptVowelsBody;
+
+  /// No description provided for @thaiScriptVowelPositions.
+  ///
+  /// In ja, this message translates to:
+  /// **'子音の前|子音の後ろ|子音の上|子音の下|子音を囲む'**
+  String get thaiScriptVowelPositions;
+
+  /// No description provided for @thaiScriptVowelPairsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'短母音と長母音'**
+  String get thaiScriptVowelPairsTitle;
+
+  /// No description provided for @thaiScriptVowelPairsBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'読みで同じ母音が2つ並ぶものは、長く伸ばします。短い形では ะ が付いたり、単語の中で形が変わったりします。'**
+  String get thaiScriptVowelPairsBody;
+
+  /// No description provided for @thaiScriptToneMarksTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'4. 声調記号'**
+  String get thaiScriptToneMarksTitle;
+
+  /// No description provided for @thaiScriptToneMarksBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'子音の上に付く4つの記号です。記号そのものが声の上げ下げを直接表すのではなく、子音クラスとの組み合わせで声調が決まります。'**
+  String get thaiScriptToneMarksBody;
+
+  /// No description provided for @thaiScriptToneRule.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調は、子音クラス（高・中・低）×声調記号×音節の種類（母音の長短・末子音）から決まります。記号がない音節にも声調があります。'**
+  String get thaiScriptToneRule;
+
+  /// No description provided for @thaiScriptOpenToneGuide.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調の決まり方を詳しく見る'**
+  String get thaiScriptOpenToneGuide;
+
+  /// No description provided for @thaiScriptToneGuideNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'まずは声調記号を見つけられれば十分です。組み合わせの表は声調ガイドで確認できます。'**
+  String get thaiScriptToneGuideNote;
+
+  /// No description provided for @thaiScriptWordsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'5. 単語を分解して読む'**
+  String get thaiScriptWordsTitle;
+
+  /// No description provided for @thaiScriptWordsBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'書かれた順ではなく、子音・母音・声調記号を探します。同じ色の札が同じ役割です。単語を押すと音を聞けます。'**
+  String get thaiScriptWordsBody;
+
+  /// No description provided for @thaiScriptWordMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'〜ない|良い|私たち・私|食べる|来る'**
+  String get thaiScriptWordMeanings;
+
+  /// No description provided for @thaiScriptConsonantLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'子音'**
+  String get thaiScriptConsonantLabel;
+
+  /// No description provided for @thaiScriptFinalConsonantLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'末子音'**
+  String get thaiScriptFinalConsonantLabel;
+
+  /// No description provided for @thaiScriptVowelLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音'**
+  String get thaiScriptVowelLabel;
+
+  /// No description provided for @thaiScriptToneMarkLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調記号'**
+  String get thaiScriptToneMarkLabel;
 
   /// No description provided for @pronGuideTitle.
   ///

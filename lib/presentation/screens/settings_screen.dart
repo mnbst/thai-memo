@@ -33,6 +33,7 @@ import 'pronunciation_guide_screen.dart';
 import 'paywall_screen.dart';
 import 'ranking_screen.dart';
 import 'guide_screen.dart';
+import 'thai_script_guide_screen.dart';
 import 'tone_guide_screen.dart';
 import 'word_order_guide_screen.dart';
 
@@ -650,7 +651,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// 読み物（使い方ガイド・声調ガイド）。設定ではないので学習設定から分け、
+  /// 学習用の読み物。設定ではないので学習設定から分け、
   /// 項目数が増えすぎた学習設定を短く保つ。
   List<Widget> _buildGuideTiles() {
     final l10n = L10n.of(context);
@@ -671,17 +672,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         },
       ),
       ListTile(
-        leading: const Icon(Icons.graphic_eq),
-        title: Text(l10n.settingsToneGuide),
-        subtitle: Text(l10n.settingsToneGuideSubtitle),
+        leading: const Icon(Icons.translate),
+        title: Text(l10n.settingsThaiScriptGuide),
+        subtitle: Text(l10n.settingsThaiScriptGuideSubtitle),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
-          // Cupertino ルートにすると Android でも右スワイプで戻れる
           Navigator.push(
             context,
             CupertinoPageRoute(
-              settings: const RouteSettings(name: ToneGuideScreen.routeName),
-              builder: (context) => const ToneGuideScreen(),
+              settings:
+                  const RouteSettings(name: ThaiScriptGuideScreen.routeName),
+              builder: (context) => const ThaiScriptGuideScreen(),
             ),
           );
         },
@@ -698,6 +699,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               settings:
                   const RouteSettings(name: PronunciationGuideScreen.routeName),
               builder: (context) => const PronunciationGuideScreen(),
+            ),
+          );
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.graphic_eq),
+        title: Text(l10n.settingsToneGuide),
+        subtitle: Text(l10n.settingsToneGuideSubtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          // Cupertino ルートにすると Android でも右スワイプで戻れる
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              settings: const RouteSettings(name: ToneGuideScreen.routeName),
+              builder: (context) => const ToneGuideScreen(),
             ),
           );
         },

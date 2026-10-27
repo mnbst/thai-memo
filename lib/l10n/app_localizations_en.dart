@@ -536,6 +536,13 @@ class L10nEn extends L10n {
   String get settingsPronGuideSubtitle => 'Reading symbols and tricky sounds';
 
   @override
+  String get settingsThaiScriptGuide => 'Thai script guide';
+
+  @override
+  String get settingsThaiScriptGuideSubtitle =>
+      'Common letters and how to read Thai spelling';
+
+  @override
   String get settingsResetLearningData => 'Reset learning data';
 
   @override
@@ -3366,6 +3373,105 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderEx16bMeaning => 'Bring some water';
+
+  @override
+  String get thaiScriptGuideTitle => 'Thai script guide';
+
+  @override
+  String get thaiScriptGuideHeading => 'Read Thai by breaking it into parts';
+
+  @override
+  String get thaiScriptGuideIntro =>
+      'You do not need to memorize everything at once. Start with common consonants and vowels and learn to spot them in words. Tap a tile to hear it.';
+
+  @override
+  String get thaiScriptBasicsTitle => '1. How Thai script works';
+
+  @override
+  String get thaiScriptBasicsBody =>
+      'A syllable is mainly built from a consonant, a vowel sign, and a tone mark. It may also have a final consonant.';
+
+  @override
+  String get thaiScriptBasicsDirection =>
+      'Thai is read from left to right. Spaces usually separate phrases or sentences, not every word as in English.';
+
+  @override
+  String get thaiScriptBasicsVowelPosition =>
+      'Vowel signs can appear after, before, above, or below a consonant, or surround it. Written order and sound order are not always the same.';
+
+  @override
+  String get thaiScriptConsonantsTitle => '2. Common consonants';
+
+  @override
+  String get thaiScriptConsonantsBody =>
+      'The large character is the consonant and the line below is its letter name. “Initial” is its sound at the start of a syllable; “final” is its sound at the end. High, mid, and low classes help determine tone. Tap a tile to hear the letter name.';
+
+  @override
+  String get thaiScriptConsonantCarrierNote =>
+      'อ is a silent consonant. When a syllable is just a vowel sound, the vowel mark is written on อ (อา = aa, อิ = i).';
+
+  @override
+  String thaiScriptConsonantSounds(String initial, String finalSound) {
+    return 'Initial $initial · final $finalSound';
+  }
+
+  @override
+  String get thaiScriptVowelsTitle => '3. Vowel position and length';
+
+  @override
+  String get thaiScriptVowelsBody =>
+      'Here อ is a placeholder consonant that shows where each sign goes. Vowels can be short or long, and changing the length can change the word.';
+
+  @override
+  String get thaiScriptVowelPositions =>
+      'Before the consonant|After the consonant|Above the consonant|Below the consonant|Around the consonant';
+
+  @override
+  String get thaiScriptVowelPairsTitle => 'Short and long vowels';
+
+  @override
+  String get thaiScriptVowelPairsBody =>
+      'A doubled vowel in the reading is held longer. Short forms may use ะ or change shape inside a word.';
+
+  @override
+  String get thaiScriptToneMarksTitle => '4. Tone marks';
+
+  @override
+  String get thaiScriptToneMarksBody =>
+      'These four marks sit above a consonant. A mark does not directly name the pitch by itself: the tone comes from its combination with the consonant class.';
+
+  @override
+  String get thaiScriptToneRule =>
+      'Tone is determined by consonant class (high, mid, or low) × tone mark × syllable type (vowel length and final consonant). Syllables without a mark also have a tone.';
+
+  @override
+  String get thaiScriptOpenToneGuide => 'See the tone rules in detail';
+
+  @override
+  String get thaiScriptToneGuideNote =>
+      'For now, simply learn to spot a tone mark. The Tone Guide has the full combination tables.';
+
+  @override
+  String get thaiScriptWordsTitle => '5. Break down real words';
+
+  @override
+  String get thaiScriptWordsBody =>
+      'Look for the consonant, vowel, and tone mark rather than reading only in written order. Tiles with the same color have the same role. Tap a word to hear it.';
+
+  @override
+  String get thaiScriptWordMeanings => 'not|good|we / I|eat|come';
+
+  @override
+  String get thaiScriptConsonantLabel => 'Consonant';
+
+  @override
+  String get thaiScriptFinalConsonantLabel => 'Final';
+
+  @override
+  String get thaiScriptVowelLabel => 'Vowel';
+
+  @override
+  String get thaiScriptToneMarkLabel => 'Tone mark';
 
   @override
   String get pronGuideTitle => 'Thai pronunciation guide';

@@ -513,6 +513,12 @@ class L10nJa extends L10n {
   String get settingsPronGuideSubtitle => '読みの記号と、区別しにくい音を学ぶ';
 
   @override
+  String get settingsThaiScriptGuide => 'タイ文字ガイド';
+
+  @override
+  String get settingsThaiScriptGuideSubtitle => 'よく使う文字と、綴りの読み方を学ぶ';
+
+  @override
   String get settingsResetLearningData => '学習データをリセット';
 
   @override
@@ -3184,6 +3190,104 @@ class L10nJa extends L10n {
 
   @override
   String get wordOrderEx16bMeaning => '水を持ってくる';
+
+  @override
+  String get thaiScriptGuideTitle => 'タイ文字ガイド';
+
+  @override
+  String get thaiScriptGuideHeading => 'タイ文字を部品に分けて読む';
+
+  @override
+  String get thaiScriptGuideIntro =>
+      '全部を暗記しなくても大丈夫です。よく出る子音と母音から、単語の中で見つけられるようになりましょう。札を押すと音を聞けます。';
+
+  @override
+  String get thaiScriptBasicsTitle => '1. タイ文字のしくみ';
+
+  @override
+  String get thaiScriptBasicsBody =>
+      '1つの音節は、主に子音字＋母音記号＋声調記号でできています。末子音が付くこともあります。';
+
+  @override
+  String get thaiScriptBasicsDirection =>
+      '文は左から右へ読みます。英語のように単語ごとにはスペースを空けず、文やまとまりの切れ目で空けます。';
+
+  @override
+  String get thaiScriptBasicsVowelPosition =>
+      '母音記号は子音の後ろだけでなく、前・上・下、または子音を囲む位置に付きます。書く位置と、読む音の順番は同じとは限りません。';
+
+  @override
+  String get thaiScriptConsonantsTitle => '2. よく使う子音';
+
+  @override
+  String get thaiScriptConsonantsBody =>
+      '大きな字が子音字、その下が字の名前です。「頭」は音節の最初、「末」は最後に来たときの音。高・中・低のクラスは声調を決める手がかりです。札を押して字の名前を聞けます。';
+
+  @override
+  String get thaiScriptConsonantCarrierNote =>
+      'อ は音を持たない子音です。母音だけの音を書くとき、母音記号を付ける台になります（อา＝aa、อิ＝i）。';
+
+  @override
+  String thaiScriptConsonantSounds(String initial, String finalSound) {
+    return '頭 $initial・末 $finalSound';
+  }
+
+  @override
+  String get thaiScriptVowelsTitle => '3. 母音記号の位置と長さ';
+
+  @override
+  String get thaiScriptVowelsBody =>
+      'อ を子音の代わりの台にして、記号の位置を見ます。母音には短い音と長い音があり、長さが違うと別の語になります。';
+
+  @override
+  String get thaiScriptVowelPositions => '子音の前|子音の後ろ|子音の上|子音の下|子音を囲む';
+
+  @override
+  String get thaiScriptVowelPairsTitle => '短母音と長母音';
+
+  @override
+  String get thaiScriptVowelPairsBody =>
+      '読みで同じ母音が2つ並ぶものは、長く伸ばします。短い形では ะ が付いたり、単語の中で形が変わったりします。';
+
+  @override
+  String get thaiScriptToneMarksTitle => '4. 声調記号';
+
+  @override
+  String get thaiScriptToneMarksBody =>
+      '子音の上に付く4つの記号です。記号そのものが声の上げ下げを直接表すのではなく、子音クラスとの組み合わせで声調が決まります。';
+
+  @override
+  String get thaiScriptToneRule =>
+      '声調は、子音クラス（高・中・低）×声調記号×音節の種類（母音の長短・末子音）から決まります。記号がない音節にも声調があります。';
+
+  @override
+  String get thaiScriptOpenToneGuide => '声調の決まり方を詳しく見る';
+
+  @override
+  String get thaiScriptToneGuideNote =>
+      'まずは声調記号を見つけられれば十分です。組み合わせの表は声調ガイドで確認できます。';
+
+  @override
+  String get thaiScriptWordsTitle => '5. 単語を分解して読む';
+
+  @override
+  String get thaiScriptWordsBody =>
+      '書かれた順ではなく、子音・母音・声調記号を探します。同じ色の札が同じ役割です。単語を押すと音を聞けます。';
+
+  @override
+  String get thaiScriptWordMeanings => '〜ない|良い|私たち・私|食べる|来る';
+
+  @override
+  String get thaiScriptConsonantLabel => '子音';
+
+  @override
+  String get thaiScriptFinalConsonantLabel => '末子音';
+
+  @override
+  String get thaiScriptVowelLabel => '母音';
+
+  @override
+  String get thaiScriptToneMarkLabel => '声調記号';
 
   @override
   String get pronGuideTitle => 'タイ語の発音ガイド';

@@ -1,10 +1,10 @@
 // =============================================================================
 // guide_screenshot.dart
-// 読み物のガイド画面（発音・語順・声調）を PNG に書き出す見た目確認用モック。
+// 読み物のガイド画面（タイ文字・発音・語順・声調）を PNG に書き出す見た目確認用モック。
 // `_test.dart` ではないので通常の `flutter test` では走らない。
 //
 //   flutter test test/screenshots/guide_screenshot.dart \
-//     --dart-define=SCREEN=pron  # pron / word_order / tone
+//     --dart-define=SCREEN=script  # script / pron / word_order / tone
 //     --dart-define=OUT=build/guide.png \
 //     --dart-define=LANG=ja      # ja / en
 //     --dart-define=H=4000       # 論理高さ。大きくすると全体を1枚に収める
@@ -26,6 +26,7 @@ import 'package:thai_memo/core/theme/app_theme.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/settings_provider.dart';
 import 'package:thai_memo/presentation/screens/pronunciation_guide_screen.dart';
+import 'package:thai_memo/presentation/screens/thai_script_guide_screen.dart';
 import 'package:thai_memo/presentation/screens/tone_guide_screen.dart';
 import 'package:thai_memo/presentation/screens/word_order_guide_screen.dart';
 
@@ -35,6 +36,7 @@ const _out = String.fromEnvironment('OUT', defaultValue: 'build/guide.png');
 const _lang = String.fromEnvironment('LANG', defaultValue: 'ja');
 
 const _screens = <String, Widget>{
+  'script': ThaiScriptGuideScreen(),
   'pron': PronunciationGuideScreen(),
   'word_order': WordOrderGuideScreen(),
   'tone': ToneGuideScreen(),

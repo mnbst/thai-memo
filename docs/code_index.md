@@ -231,6 +231,9 @@ lib/presentation/screens/tone_guide_screen.dart
 lib/presentation/screens/pronunciation_guide_screen.dart
 タイ語の発音ガイド（読みの記号・有気/無気・母音の長短・似た母音・語末子音・会話での崩れ）。設定から開く。語の札を押すと読み上げる。
 
+lib/presentation/screens/thai_script_guide_screen.dart
+タイ文字ガイド（文字のしくみ・よく使う子音・母音の位置と長短・声調記号・単語の分解）。設定から開く。文字と語の札を押すと読み上げる。
+
 lib/presentation/screens/word_order_guide_screen.dart
 タイ語の語順ガイド（話題・語順・修飾・前置詞・比較・否定・疑問・助動詞・動詞連続・丁寧語尾）。例文は語のチップで見せる。設定と並び替え問題の解答から開く。
 
