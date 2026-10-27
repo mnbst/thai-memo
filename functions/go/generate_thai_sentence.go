@@ -691,7 +691,7 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 	store := embeddings.Default
 	// 参考例文はプロンプトの断片、まとめたテーマの解決（free）、premium の
 	// 場面合致（テーマ・場面・ショットを選定時に決める）に使う。
-	shots := &themeshots.Builder{Ctx: ctx, Scenes: store}
+	shots := &themeshots.Builder{Ctx: ctx, Scenes: store, Tables: store}
 	return &sentence.Producer{
 		// 判定器が作れなくても生成は止めない（判定なしで動く）。
 		Checker: newQualityChecker(ctx),

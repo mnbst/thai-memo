@@ -17,6 +17,10 @@ import (
 // （閾値はテーマごとに sentence.SceneThresholds）、
 // テーマ → 場面 → ショットの順に一様に選ぶ。
 //
+// 語ごとの近さは事前に表（MatchTable、cmd/scenetable が作る）にしておき、本番は
+// 表を引くだけにする。その場の計算は BL 1語 約1.2ms・初回の場面統計 約0.7秒で、
+// テーマ指定の回は帯の未出語すべて（数百〜千語）を判定するため（2026-10-27）。
+//
 // 一様に選ぶのは偏りを減らすため。z の重みや生の類似度の最大を採ると、どの語にも
 // 近く出る場面（ムエタイ、BL の重心）や場面の多いテーマ（仕事58・食べ物40場面）に寄る。
 // prod の埋め込み・rank 3464 までの語で、付いたショットが語に合う割合（ショット
@@ -78,44 +82,29 @@ type matched struct {
 }
 
 // matchScenes は topics の場面のうち場面合致を通ったものを、テーマごとに返す
-// （topics の順。通った場面の無いテーマは入らない）。
+// （topics の順。通った場面の無いテーマは入らない）。近さは表（MatchTable）が
+// あれば表から引き、無ければその場で計算する。
 func (b *Builder) matchScenes(word string, topics []string, minSceneZ float64) [][]matched {
 	if b.Scenes == nil {
 		return nil
 	}
 	var out [][]matched
 	for _, topic := range topics {
-		scenes := sceneCatalog()[topic]
-		if len(scenes) == 0 {
-			continue
-		}
-		emb := make([]embeddings.Scene, len(scenes))
-		for i, sc := range scenes {
-			emb[i] = sc.scene
-		}
-		z, err := b.Scenes.SceneScores(b.ctx(), word, emb)
-		if err != nil {
-			log.Printf("scene match の場面 z に失敗 word=%s: %v", word, err)
-			return nil
-		}
-		if len(z) != len(scenes) {
+		scores, ok := b.topicScores(word, topic)
+		if !ok {
 			// 語の embedding が無い。どのテーマでも同じなので打ち切る。
 			return nil
 		}
 		sceneMin, shotMin := sentence.SceneThresholds(topic, minSceneZ)
 		var hits []matched
-		for i, sc := range scenes {
-			if z[i] < sceneMin {
-				continue
-			}
-			shotZ, err := b.Scenes.SceneScores(b.ctx(), word, sc.shots)
-			if err != nil || len(shotZ) != len(sc.ids) {
+		for _, sc := range scores {
+			if sc.z < sceneMin {
 				continue
 			}
 			var good []string
-			for j, v := range shotZ {
-				if v >= shotMin {
-					good = append(good, sc.ids[j])
+			for _, sh := range sc.shots {
+				if sh.z >= shotMin {
+					good = append(good, sh.id)
 				}
 			}
 			if len(good) > 0 {
@@ -127,6 +116,64 @@ func (b *Builder) matchScenes(word string, topics []string, minSceneZ float64) [
 		}
 	}
 	return out
+}
+
+// minShotZ は表に残すショット z の下限。どのテーマの閾値（SceneThresholds）より低くする。
+const minShotZ = sentence.ShotZ
+
+// sceneScore は語と場面1つの近さと、ショット z が minShotZ 以上のショット（場面内の順）。
+type sceneScore struct {
+	name  string
+	z     float64
+	shots []shotScore
+}
+
+type shotScore struct {
+	id string
+	z  float64
+}
+
+// topicScores は topic の場面ごとの近さを場面の並び順で返す。表があれば表から引く。
+// 語の embedding が無ければ false。ショットの無いテーマは空で true。
+func (b *Builder) topicScores(word, topic string) ([]sceneScore, bool) {
+	if idx := b.matchIndex(); idx != nil {
+		return idx.scores(word, topic)
+	}
+	return b.liveScores(word, topic)
+}
+
+// liveScores は topicScores をその場で計算する。
+func (b *Builder) liveScores(word, topic string) ([]sceneScore, bool) {
+	scenes := sceneCatalog()[topic]
+	if len(scenes) == 0 {
+		return nil, true
+	}
+	emb := make([]embeddings.Scene, len(scenes))
+	for i, sc := range scenes {
+		emb[i] = sc.scene
+	}
+	z, err := b.Scenes.SceneScores(b.ctx(), word, emb)
+	if err != nil {
+		log.Printf("scene match の場面 z に失敗 word=%s: %v", word, err)
+		return nil, false
+	}
+	if len(z) != len(scenes) {
+		return nil, false
+	}
+	out := make([]sceneScore, len(scenes))
+	for i, sc := range scenes {
+		out[i] = sceneScore{name: sc.name, z: z[i]}
+		shotZ, err := b.Scenes.SceneScores(b.ctx(), word, sc.shots)
+		if err != nil || len(shotZ) != len(sc.ids) {
+			continue
+		}
+		for j, v := range shotZ {
+			if v >= minShotZ {
+				out[i].shots = append(out[i].shots, shotScore{id: sc.ids[j], z: v})
+			}
+		}
+	}
+	return out, true
 }
 
 // PickScene は場面合致を通った候補から、テーマ → 場面 → ショットの順に一様に選ぶ。
