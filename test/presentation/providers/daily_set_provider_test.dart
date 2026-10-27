@@ -249,6 +249,18 @@ void main() {
       expect(container.read(dailySetProvider).isLast, isTrue);
     });
 
+    test('縮めたセットも元のセットIDに戻せる', () async {
+      final container = containerWith({});
+      final controller = container.read(dailySetProvider.notifier);
+      await controller.start(_set(['a', 'b', 'c', 'd', 'e']), setId: 'A');
+      await controller.shrinkActiveSet(3);
+      await controller.shrinkActiveSet(2);
+
+      final setId = container.read(dailySetProvider).setId!;
+      expect(DailySetController.baseSetId(setId), 'A');
+      expect(DailySetController.baseSetId('A'), 'A');
+    });
+
     test('読んだ例文と読んでいる1本は落とさない', () async {
       final container = containerWith({});
       final controller = container.read(dailySetProvider.notifier);

@@ -461,7 +461,10 @@ class L10nJa extends L10n {
   String get settingsPlan => 'プラン';
 
   @override
-  String get settingsPlanTrial => 'プレミアム体験中';
+  String get settingsPlanTrial => '無料体験中';
+
+  @override
+  String get settingsPlanTrialNoCharge => '自動課金なし';
 
   @override
   String get settingsDeleteAccount => 'アカウントを削除';
@@ -504,6 +507,12 @@ class L10nJa extends L10n {
   String get settingsToneGuideSubtitle => 'タイ語の声調ルールを学ぶ';
 
   @override
+  String get settingsPronGuide => '発音ガイド';
+
+  @override
+  String get settingsPronGuideSubtitle => '読みの記号と、区別しにくい音を学ぶ';
+
+  @override
   String get settingsResetLearningData => '学習データをリセット';
 
   @override
@@ -538,6 +547,27 @@ class L10nJa extends L10n {
   String get settingsNotificationTime => '通知する時刻';
 
   @override
+  String get notifyScheduleOff => 'オフ';
+
+  @override
+  String notifySchedulePremiumUpsell(int count) {
+    return 'プレミアムでは、例文通知を1日$count回まで設定できます';
+  }
+
+  @override
+  String get notifyScheduleReplaceNote =>
+      '通知ごとに新しい例文セットが届きます。次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。';
+
+  @override
+  String get notifyScheduleChangeTime => '時刻を変更';
+
+  @override
+  String get notifyScheduleTimeTaken => 'その時刻はもう設定されています';
+
+  @override
+  String get notifyScheduleSave => '保存';
+
+  @override
   String get settingsTopic => 'テーマ';
 
   @override
@@ -569,7 +599,7 @@ class L10nJa extends L10n {
   String get settingsTerms => '利用規約';
 
   @override
-  String get settingsContact => 'お問い合わせ';
+  String get settingsContact => 'ご意見・お問い合わせ';
 
   @override
   String get settingsLifetimeMigration => '買い切りプランへ移行';
@@ -736,7 +766,7 @@ class L10nJa extends L10n {
   String get topicName_shopping => '買い物';
 
   @override
-  String get topicSub_shopping => '推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット';
+  String get topicSub_shopping => '値段交渉、サイズ・色の確認、返品、ナイトマーケット';
 
   @override
   String get topicName_transport => '交通';
@@ -760,7 +790,7 @@ class L10nJa extends L10n {
   String get topicName_hobbies => '趣味';
 
   @override
-  String get topicSub_hobbies => '推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム';
+  String get topicSub_hobbies => 'ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム';
 
   @override
   String get topicName_school => '学校';
@@ -797,6 +827,12 @@ class L10nJa extends L10n {
 
   @override
   String get topicSub_thaiTravel => '観光、ホテル、交通、買い物、食べ物';
+
+  @override
+  String get topicName_oshi => '推し活';
+
+  @override
+  String get topicSub_oshi => 'ライブ、チケット、グッズ、握手会、出待ち';
 
   @override
   String get styleName_news => 'ニュース記事体';
@@ -999,22 +1035,22 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get paywallFeatureQuotaTitle => '良質なタイ語に大量に触れられる';
+  String get paywallFeatureQuotaTitle => '語彙スコア100の先も伸ばせる';
 
   @override
-  String get paywallFeatureQuotaPremium => '例文は無制限・単語の上限なし';
+  String get paywallFeatureQuotaPremium => '例文は無制限・語彙スコアの上限なし';
 
   @override
-  String get paywallFeatureTopicTitle => 'テーマを選んでタイ文化に親しむ';
+  String get paywallFeatureTopicTitle => '好きな場面のタイ語から始める';
 
   @override
-  String get paywallFeatureTopicPremium => '祭り・寺院の作法・BLドラマなど';
+  String get paywallFeatureTopicPremium => '旅行・暮らし・BLドラマなどから自分で選べる';
 
   @override
-  String get onboarding1Title => 'AIがあなた専用の例文を毎日お届け';
+  String get onboarding1Title => 'タイ文字が読めなくても大丈夫';
 
   @override
-  String get onboarding1Body => '毎日の例文に加えて、その場で追加生成も。\nカードをタップで単語・意味を確認。';
+  String get onboarding1Body => 'あなたのレベルに合った例文を毎日お届け。\nカードをタップで読み方と意味を確認。';
 
   @override
   String get onboarding2Title => '声調を含めた発音練習';
@@ -1026,7 +1062,7 @@ class L10nJa extends L10n {
   String get onboarding3Title => 'クイズで語彙スコアUP';
 
   @override
-  String get onboarding3Body => '間違えた単語はくり返し出題。\nスコアに応じて例文のレベルが上がります。';
+  String get onboarding3Body => '間違えた単語はくり返し出題。\nスコアに合わせて、例文に出る単語が増えます。';
 
   @override
   String get onboardingSkip => 'スキップ';
@@ -1133,15 +1169,15 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy2None =>
-      'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。';
+      'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。読み方に迷ったら、設定の発音ガイドも使えます。';
 
   @override
   String get philosophy2Script =>
-      'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。';
+      'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。アプリの読みの見方や区別しにくい音は、設定の発音ガイドで確認できます。';
 
   @override
   String get philosophy2Tone =>
-      '**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。';
+      '**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。声調のきまりは、設定の声調ガイドで確認できます。';
 
   @override
   String get philosophy2Vocab => '**クイズ**が単語ごとの覚え具合を測ります。あいまいな単語は後で再出題されます。';
@@ -1160,7 +1196,7 @@ class L10nJa extends L10n {
 
   @override
   String get philosophy3Culture =>
-      '**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「伝統・祭り」を選べば、作品や文化に出てくる表現が届きます。';
+      '**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「推し活」を選べば、作品やファン活動で使う表現が届きます。';
 
   @override
   String get philosophy3TimeShort => '**数分あれば**、例文を1つ読んで確認クイズまで進められます。';
@@ -1177,16 +1213,16 @@ class L10nJa extends L10n {
   String get philosophyStart => '使い方を見る';
 
   @override
-  String get notifCoachTitle => '毎日、例文が通知で届きます';
+  String get notifCoachTitle => '通知で学習を毎日の習慣に';
 
   @override
-  String get notifCoachHabit => '同じ時間に届くので、続けやすくなります';
+  String get notifCoachHabit => '決めた時間に新しい例文が届き、続けるきっかけになります';
 
   @override
   String get notifCoachNow => '今';
 
   @override
-  String get notifCoachSampleTitle => '🇹🇭 今日のタイ語 · ขอบคุณ（ありがとう）';
+  String get notifCoachSampleTitle => '🇹🇭 ขอบคุณ（ありがとう）';
 
   @override
   String get notifCoachSampleBody => '→ コーヒーをありがとうございます';
@@ -1207,10 +1243,10 @@ class L10nJa extends L10n {
   String get commonGotIt => 'わかった';
 
   @override
-  String get premiumHint1Title => 'テーマを選んでタイ文化に親しむ';
+  String get premiumHint1Title => '好きな場面のタイ語から始める';
 
   @override
-  String get premiumHint1Body => '祭り・寺院での作法・BLドラマなど、言葉と一緒に文化が身につきます';
+  String get premiumHint1Body => '旅行・暮らし・BLドラマなどから、例文のテーマを自分で選べます';
 
   @override
   String get signInReminderTitle => '学習の進捗を保護';
@@ -1255,6 +1291,9 @@ class L10nJa extends L10n {
 
   @override
   String get audioOnce => '1回だけ';
+
+  @override
+  String get audioSpeed => '再生速度';
 
   @override
   String get audioPause => '一時停止';
@@ -1485,6 +1524,30 @@ class L10nJa extends L10n {
   }
 
   @override
+  String get pronunciationTierPass => '合格';
+
+  @override
+  String get pronunciationTierNative => 'タイ人レベル';
+
+  @override
+  String pronunciationToPass(int points) {
+    return 'あと$points点で合格';
+  }
+
+  @override
+  String pronunciationToNative(int points) {
+    return 'あと$points点でタイ人レベル';
+  }
+
+  @override
+  String pronunciationNativeFirst(int score) {
+    return 'この例文で初めて$score点を超えました';
+  }
+
+  @override
+  String get pronunciationNativeAgain => 'この例文は達成済み';
+
+  @override
   String get pronunciationCountCorrect => 'OK';
 
   @override
@@ -1617,34 +1680,37 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get contactSent => 'お問い合わせを送信しました。ありがとうございます。';
+  String get contactSent => '送信しました。ありがとうございます。';
 
   @override
   String get contactFailed => '送信に失敗しました。しばらくしてから再度お試しください。';
 
   @override
-  String get contactName => 'お名前';
+  String get contactName => 'お名前（任意）';
 
   @override
-  String get contactNameRequired => 'お名前を入力してください';
-
-  @override
-  String get contactEmail => 'メールアドレス';
-
-  @override
-  String get contactEmailRequired => 'メールアドレスを入力してください';
+  String get contactEmail => 'メールアドレス（任意）';
 
   @override
   String get contactEmailInvalid => '正しいメールアドレスを入力してください';
 
   @override
-  String get contactBody => 'お問い合わせ内容';
+  String get contactBody => 'ご意見・お問い合わせ内容';
 
   @override
-  String get contactBodyRequired => 'お問い合わせ内容を入力してください';
+  String get contactBodyRequired => '内容を入力してください';
 
   @override
   String get contactSubmit => '送信する';
+
+  @override
+  String get contactAnonymousHint => 'メールアドレスを入れずに送ると匿名で届きます。その場合は返信できません。';
+
+  @override
+  String get contactSurveyTitle => 'アンケートに答える（1分）';
+
+  @override
+  String get contactSurveySubtitle => 'アプリの改善にご協力ください';
 
   @override
   String get consonantClassHigh => '高子音';
@@ -1764,6 +1830,19 @@ class L10nJa extends L10n {
   String toneExamplePrefix(String value) {
     return '例: $value';
   }
+
+  @override
+  String get toneGuideOfferTitle => '声調が難しいと答えた方へ';
+
+  @override
+  String get toneGuideOfferBody => '5つの声調と、声調の決まり方を図で確認できます';
+
+  @override
+  String get vocabRetestOfferTitle => 'おかえりなさい';
+
+  @override
+  String get vocabRetestOfferBody =>
+      'しばらく空いたので、語彙テストでいまの語彙量を測り直しませんか。例文の難しさが今のあなたに合います。';
 
   @override
   String get toneGuideTitle => 'タイ語の声調ガイド';
@@ -2520,7 +2599,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideOverviewBody3 =>
-      'まとめクイズに正解すると語彙スコアが上がり、例文に出る単語も増えていきます。ヒントなしで正解すると、さらに上がりやすくなります。間違えた問題は、あとでもう一度出題されます。';
+      'まとめクイズの答えをもとに、語彙スコアと次の例文の難しさが調整され、例文に出る単語も増えていきます。ヒントなしの正解は反映されやすく、間違えた問題はあとでもう一度出題されます。';
 
   @override
   String get guideRoleSentenceTitle => '例文';
@@ -2546,7 +2625,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideRoleQuizSpelling =>
-      '綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。その学習単語について一度正解すると、以後は穴埋め問題が出ます。';
+      '綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。';
 
   @override
   String get guideRoleScoreTitle => '語彙スコア';
@@ -2574,10 +2653,11 @@ class L10nJa extends L10n {
   String get guideRoleTopicBody => '祭り・寺院での作法・BLドラマなどを通して、タイ語と文化を学べます。';
 
   @override
-  String get guideRoleNotificationTitle => '毎日の通知';
+  String get guideRoleNotificationTitle => '学習のお知らせ';
 
   @override
-  String get guideRoleNotificationBody => '決めた時刻にその日の例文が届き、学習の習慣化を助けます。';
+  String get guideRoleNotificationBody =>
+      '決めた時刻に新しい例文セットが届きます。しばらくアプリを開かないと通知の間隔が少しずつ広がり、最後は止まります。アプリを開けば毎日の通知に戻ります。';
 
   @override
   String get guideRolePremiumTitle => '無料版とプレミアム';
@@ -2660,7 +2740,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowSoundStep2 =>
-      '詳細画面の「発音練習」で「押したまま話す」を長押しし、例文を読みます。その場で声調を判定できます。';
+      '詳細画面の「発音練習」で「押したまま話す」を長押しし、表示された読み方を見ながら例文を声に出します。タイ文字がまだ読めなくても大丈夫です。その場で声調を判定できます。';
 
   @override
   String get guideHowSoundStep3 =>
@@ -2700,7 +2780,28 @@ class L10nJa extends L10n {
   String get guideHowReviewQuizStep4 => '迷ったら「例文を確認」で例文に戻れます。';
 
   @override
-  String get guideHowReviewQuizStep5 => '正解すると語彙スコアに反映されます。';
+  String get guideHowReviewQuizStep5 => '答えをもとに、語彙スコアと次の例文の難しさが調整されます。';
+
+  @override
+  String get guideHowNotifyTitle => '通知を設定する';
+
+  @override
+  String get guideHowNotifyStep1 =>
+      '設定の「毎日の例文通知」で、通知の時刻を確認できます。スイッチでオン・オフ、時刻をタップすると変更できます。';
+
+  @override
+  String get guideHowNotifyStep2 =>
+      '無料版は1日1回、プレミアムは1日3回まで設定できます。通知ごとに新しい例文セットが届きます。';
+
+  @override
+  String get guideHowNotifyStep3 => '通知を開かなくても、アプリを開けば届いた例文セットが学習タブに表示されます。';
+
+  @override
+  String get guideHowNotifyStep4 => '次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。';
+
+  @override
+  String get guideHowNotifyStep5 =>
+      '届かないときは、端末の設定で通知が許可されているか確認してください。無料版では、通知の前にその日の例文セットをすべて学んだ日は届きません。';
 
   @override
   String get guideHowSettingsTitle => '設定でできること';
@@ -2808,10 +2909,11 @@ class L10nJa extends L10n {
   String get wordOrderRule7Title => '疑問詞は答えが入る場所にそのまま';
 
   @override
-  String get wordOrderRule7Body => '疑問詞は、答えが入る場所にそのまま置きます。はい・いいえの質問は文末に ไหม。';
+  String get wordOrderRule7Body =>
+      '疑問詞は、答えが入る場所にそのまま置きます。ただし ทำไม（なぜ）は文頭にもよく来ます。はい・いいえの質問は述語の後ろに ไหม を付けます（丁寧の語尾はさらに後ろ）。';
 
   @override
-  String get wordOrderRule8Title => '時を表す語の位置';
+  String get wordOrderRule8Title => 'いつのことかを表す語（จะ・แล้ว など）';
 
   @override
   String get wordOrderRule8Body =>
@@ -2828,14 +2930,14 @@ class L10nJa extends L10n {
 
   @override
   String get wordOrderRule10Body =>
-      '男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม や แล้ว よりも後ろに付きます。';
+      '男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม・แล้ว や、นะ（〜ね）・เลย・ด้วย などの文末の語よりも後ろに付きます。นะ の後の女性の語尾は คะ（นะคะ）です。';
 
   @override
   String get wordOrderTipsTitle => '並び替えのコツ';
 
   @override
   String get wordOrderTipsBody =>
-      '場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้ は、説明される名詞の後ろ\nไหม・แล้ว・ครับ/ค่ะ/คะ は最後のほう';
+      '場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้・มาก は、説明される語の後ろ\nกับ・ใน などは名詞の前、อยาก・ต้อง は動詞の前\nไหม・แล้ว・นะ・ครับ/ค่ะ/คะ は最後のほう';
 
   @override
   String get wordOrderEx1aGloss => 'ツアー|この|人|多い';
@@ -2880,7 +2982,8 @@ class L10nJa extends L10n {
   String get wordOrderEx4bMeaning => '私の家';
 
   @override
-  String get wordOrderRule4Note => 'ของ は省くこともあります。';
+  String get wordOrderRule4Note =>
+      'บ้านใหญ่ は「家は大きい」という文にもなります。形容詞はそのまま述語になり、เป็น は要りません。ของ は省くこともあります。';
 
   @override
   String get wordOrderEx5aGloss => '猫|2|匹';
@@ -2971,9 +3074,236 @@ class L10nJa extends L10n {
   String get wordOrderEx10bMeaning => 'もう食べました';
 
   @override
+  String get wordOrderRule5Note =>
+      'แมวตัวหนึ่ง のように類別詞の後ろに หนึ่ง を置くと、「ある猫」という意味になります。';
+
+  @override
+  String get wordOrderEx10cGloss => 'おいしい|〜ね|丁寧（女性）';
+
+  @override
+  String get wordOrderEx10cMeaning => 'おいしいですね';
+
+  @override
+  String get wordOrderRule11Title => '文で説明するときは「名詞 → ที่ → 説明」';
+
+  @override
+  String get wordOrderRule11Body =>
+      '「私が好きな店」のように文で名詞を説明するときも、説明は後ろです。名詞の後に ที่ を置き、その後ろに説明を続けるのが基本です。';
+
+  @override
+  String get wordOrderEx11aGloss => '店|（つなぐ語）|私|好き';
+
+  @override
+  String get wordOrderEx11aMeaning => '私が好きな店';
+
+  @override
+  String get wordOrderRule12Title => '「〜と」「〜の上に」などは名詞の前';
+
+  @override
+  String get wordOrderRule12Body =>
+      'กับ（〜と）・ใน（〜の中で）・บน（〜の上に）・ให้（〜に）・ที่（〜で）は名詞の前に置きます。日本語の「〜と」「〜で」とは逆です。';
+
+  @override
+  String get wordOrderEx12aGloss => '私|行く|〜と|友達';
+
+  @override
+  String get wordOrderEx12aMeaning => '私は友達と行く';
+
+  @override
+  String get wordOrderEx12bGloss => '猫|いる|〜の上|机';
+
+  @override
+  String get wordOrderEx12bMeaning => '猫は机の上にいる';
+
+  @override
+  String get wordOrderRule13Title => '「とても」「少し」は後ろ';
+
+  @override
+  String get wordOrderRule13Body =>
+      'มาก（とても）・จริงๆ（本当に）・นิดหน่อย（少し）は、形容詞や動詞の後ろに置きます。日本語と逆です。';
+
+  @override
+  String get wordOrderEx13aGloss => '料理|この|おいしい|とても';
+
+  @override
+  String get wordOrderEx13aMeaning => 'この料理はとてもおいしい';
+
+  @override
+  String get wordOrderRule14Title => '比べるときは「形容詞 → กว่า → 相手」';
+
+  @override
+  String get wordOrderRule14Body =>
+      '「AはBより〜」は「A＋形容詞＋กว่า＋B」。「一番〜」は形容詞の後ろに ที่สุด を付けます。';
+
+  @override
+  String get wordOrderEx14aGloss => '今日|暑い|〜より|昨日';
+
+  @override
+  String get wordOrderEx14aMeaning => '今日は昨日より暑い';
+
+  @override
+  String get wordOrderEx14bGloss => 'もの|この|良い|一番';
+
+  @override
+  String get wordOrderEx14bMeaning => 'これが一番いい';
+
+  @override
+  String get wordOrderRule15Title => '「〜したい」は動詞の前、「できる」は後ろ';
+
+  @override
+  String get wordOrderRule15Body =>
+      'อยาก（〜したい）・ต้อง（〜しなければ）・ควร（〜したほうがいい）は動詞の前。ได้（できる）は動詞と目的語の後ろです。';
+
+  @override
+  String get wordOrderEx15aGloss => '私|〜したい|食べる|ソムタム';
+
+  @override
+  String get wordOrderEx15aMeaning => '私はソムタムを食べたい';
+
+  @override
+  String get wordOrderEx15bGloss => '私|話す|タイ語|できる';
+
+  @override
+  String get wordOrderEx15bMeaning => '私はタイ語を話せる';
+
+  @override
+  String get wordOrderRule16Title => '動詞はそのまま続けて並べる';
+
+  @override
+  String get wordOrderRule16Body =>
+      '「買い物に行く」は ไป（行く）＋ซื้อ（買う）のように、起きる順に動詞を並べます。ไป・มา が「〜て行く・〜て来る」の意味のときは後ろに付きます。';
+
+  @override
+  String get wordOrderEx16aGloss => '私|行く|買う|物';
+
+  @override
+  String get wordOrderEx16aMeaning => '私は買い物に行く';
+
+  @override
+  String get wordOrderEx16bGloss => '取る|水|来る';
+
+  @override
+  String get wordOrderEx16bMeaning => '水を持ってくる';
+
+  @override
+  String get pronGuideTitle => 'タイ語の発音ガイド';
+
+  @override
+  String get pronGuideHeading => 'タイ語の発音のポイント';
+
+  @override
+  String get pronGuideIntro =>
+      'アプリの読みは、ローマ字に記号を足した表記です。日本語にない音の区別を、読みの記号と一緒に押さえましょう。声調は「声調ガイド」で説明しています。';
+
+  @override
+  String get pronSymbolsTitle => '読みの記号';
+
+  @override
+  String get pronSymbolsBody => '日本語のローマ字と違う記号だけをまとめました。';
+
+  @override
+  String get pronSymbolsDescs =>
+      'ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる';
+
+  @override
+  String get pronAspTitle => '息を出す音・出さない音';
+
+  @override
+  String get pronAspBody =>
+      'kh・th・ph・ch は息を強く出し、k・t・p・j は息を出さずに言います。日本語では区別しませんが、タイ語では別の語になります。';
+
+  @override
+  String get pronAspMeanings => '鶏|卵|目|塗る|投げる|連れて行く';
+
+  @override
+  String get pronAspNote =>
+      '口の前に手をかざして言ってみましょう。kh・th・ph で息が当たり、k・t・p で当たらなければ区別できています。';
+
+  @override
+  String get pronLengthTitle => '長い母音・短い母音';
+
+  @override
+  String get pronLengthBody =>
+      'aa・ii のように同じ母音が2つ並んだ読みは長くのばします。長さが違うだけで別の語になります。';
+
+  @override
+  String get pronLengthMeanings => '入る|ご飯|彼|白い';
+
+  @override
+  String get pronVowelTitle => '似た母音を区別する';
+
+  @override
+  String get pronVowelBody =>
+      'e と ɛ、o と ɔ、u と ʉ は日本語ではどちらも同じ音に聞こえます。ɛ・ɔ は口を大きく開け、ʉ は唇を丸めずに言います。';
+
+  @override
+  String get pronVowelMeanings => '子ども|日差し|机|部屋|見る|手|お金|歩く';
+
+  @override
+  String get pronFinalTitle => '語末の k・t・p は音を出さない';
+
+  @override
+  String get pronFinalBody =>
+      '語末の k・t・p は口の形だけ作って止め、「ク・ト・プ」とは言いません。n と ng も区別します。';
+
+  @override
+  String get pronFinalMeanings => '鳥|車|〜と|皿|薄い';
+
+  @override
+  String get pronFinalNote => 'タイ文字では、語末の ด・ส・ช なども t、บ・พ なども p の音になります。';
+
+  @override
+  String get pronCasualTitle => '会話での崩れ';
+
+  @override
+  String get pronCasualBody =>
+      '会話では読みどおりに言わないことがよくあります。r が l になる、子音が2つ続くと後ろが落ちる、声調が変わる、などです。';
+
+  @override
+  String get pronCasualMeanings => '愛する|丁寧（男性）|〜か？|私（女性）';
+
+  @override
+  String get pronCasualNote => '崩れた形は聞き取りの手がかりです。話すときは読みどおりで通じます。';
+
+  @override
   String get guideRoleQuizWordOrder =>
       '並び替えクイズ：まとめクイズの一部で、例文の4つの語を正しい順に並べます。解答後の「語順について詳しく学ぶ」から語順ガイドを開けます。';
 
   @override
   String get guideHowSettingsGuides => '「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。';
+
+  @override
+  String streakChipDays(int count) {
+    return '$count日';
+  }
+
+  @override
+  String get streakChipStart => '今日から';
+
+  @override
+  String streakTitle(int count) {
+    return '例文 $count日継続';
+  }
+
+  @override
+  String get streakRestart => '1本作ると再スタート';
+
+  @override
+  String get streakStart => '今日の1本で記録を始めよう';
+
+  @override
+  String streakBest(int count) {
+    return '最長 $count日';
+  }
+
+  @override
+  String streakNextMilestone(int count, int target) {
+    return '$target日まで あと$count日';
+  }
+
+  @override
+  String get streakToday => '今日';
+
+  @override
+  String get streakWeekdayLetters => '月火水木金土日';
 }

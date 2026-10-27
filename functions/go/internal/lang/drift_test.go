@@ -17,6 +17,30 @@ func TestIsWrongLanguage(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "ko の通常の文",
+			text: "นี่(nîi)는 가까운 것을 가리키는 지시 대명사예요",
+			lang: KO,
+			want: false,
+		},
+		{
+			name: "ko に日本語",
+			text: "主語の位置に指示代名詞 นี่ を置く",
+			lang: KO,
+			want: true,
+		},
+		{
+			name: "ko に英文だけ",
+			text: "I am going to the market.",
+			lang: KO,
+			want: true,
+		},
+		{
+			name: "ko にタイ語だけ",
+			text: "ไปตลาด",
+			lang: KO,
+			want: true,
+		},
+		{
 			name: "ja の通常の文",
 			text: "主語の位置に指示代名詞 นี่ を置いて「これは〜だ」を作る",
 			lang: JA,

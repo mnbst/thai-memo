@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -52,6 +55,15 @@ void main() async {
     if (e.code != 'duplicate-app') rethrow;
   }
 
+  // クラッシュと未処理の例外を Crashlytics に送る。debug は手元で見えるので送らない。
+  await FirebaseCrashlytics.instance
+      .setCrashlyticsCollectionEnabled(!kDebugMode);
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+
   // App Check（未 activate だとダミートークンが送られサーバ側の検証が失敗する）。
   // シミュレータは App Attest を使えないため debug provider を使う。SDK は
   // デバッグトークンをプロセス環境変数からしか読まず flutter run では渡せないので、
@@ -67,10 +79,30 @@ void main() async {
           ? const AndroidDebugProvider(debugToken: _appCheckDebugToken)
           : const AndroidPlayIntegrityProvider(),
     );
-  } catch (e) {
+  } catch (e, stack) {
     debugPrint('App Check activation failed: $e');
+    FirebaseCrashlytics.instance
+        .recordError(e, stack, reason: 'App Check activate failed');
   }
+  // トークンを取れないと SDK はダミーを送り、サーバーには「invalid」としか
+  // 見えない。端末側の理由（App Attest / Play Integrity のエラー）を
+  // Crashlytics に残し、App Check を必須にできるか判断する材料にする。
+  unawaited(_reportAppCheckTokenFailure());
 
   // Run app with Riverpod
   runApp(const ProviderScope(child: ThaiMemoApp()));
+}
+
+/// App Check のトークンを一度取ってみて、取れなければ致命的でない例外として
+/// Crashlytics に送る。取れたトークンは SDK がキャッシュし、以後の呼び出しで使う。
+Future<void> _reportAppCheckTokenFailure() async {
+  try {
+    await FirebaseAppCheck.instance.getToken().timeout(
+          const Duration(seconds: 20),
+        );
+  } catch (e, stack) {
+    debugPrint('App Check token fetch failed: $e');
+    await FirebaseCrashlytics.instance
+        .recordError(e, stack, reason: 'App Check token fetch failed');
+  }
 }

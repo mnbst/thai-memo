@@ -46,6 +46,9 @@ type Sentence struct {
 	KeyWord string `json:"key_word,omitempty"`
 	// GenerationTier は "premium" / "free"。生成後にハンドラが付ける。
 	GenerationTier string `json:"generation_tier,omitempty"`
+	// Scene と ShotID は生成時に付けた参考例文の場面と ID。付けていなければ空。
+	Scene  string `json:"scene,omitempty"`
+	ShotID string `json:"shot_id,omitempty"`
 }
 
 // FromMap は LLM のレスポンス map を Sentence に読み込む。

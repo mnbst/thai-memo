@@ -57,12 +57,14 @@ func TestNotificationSetSize(t *testing.T) {
 		l        lang.Lang
 		want     string
 	}{
-		{withWord, 1, lang.JA, "🇹🇭 今日のタイ語 · กิน（食べる）"},
-		{withWord, 5, lang.JA, "🇹🇭 今日のタイ語 · กิน（食べる） ほか4本"},
-		{withWord, 5, lang.EN, "🇹🇭 Thai of the Day · กิน (食べる) +4 more"},
+		{withWord, 1, lang.JA, "🇹🇭 กิน（食べる）"},
+		{withWord, 5, lang.JA, "🇹🇭 กิน（食べる） ほか4本"},
+		{withWord, 5, lang.EN, "🇹🇭 กิน (食べる) +4 more"},
+		{withWord, 5, lang.KO, "🇹🇭 กิน (食べる) 외 4문장"},
 		// key_word が無ければ「ほか」の起点が無いので総数を出す。
-		{noWord, 5, lang.JA, "🇹🇭 今日のタイ語 · 5本"},
-		{noWord, 5, lang.EN, "🇹🇭 Thai of the Day · 5 sentences"},
+		{noWord, 5, lang.JA, "🇹🇭 タイ語の例文 · 5本"},
+		{noWord, 5, lang.EN, "🇹🇭 Thai practice · 5 sentences"},
+		{noWord, 5, lang.KO, "🇹🇭 태국어 예문 · 5문장"},
 	}
 	for _, c := range cases {
 		got, _ := BuildNotificationText(c.sentence, c.size, c.l)

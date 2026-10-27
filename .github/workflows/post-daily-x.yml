@@ -1,7 +1,7 @@
 name: Post Daily Sentence to X
 
 on:
-  # 毎朝 06:47 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
+  # 毎朝 07:00 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
   # workflow_dispatch で起動する。GitHub の schedule は遅延・欠落が多いため使わない。
   workflow_dispatch:
     inputs:
@@ -19,8 +19,9 @@ permissions:
   id-token: write  # WIF認証に必要
 
 env:
-  WIF_PROVIDER: projects/219961294368/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc-provider
-  CI_SERVICE_ACCOUNT: github-actions-deployer@thai-memo-prod.iam.gserviceaccount.com
+  # 配信用とは別のプール・SA（terraform/main.tf の x_post）。署名鍵には届かない。
+  WIF_PROVIDER: projects/219961294368/locations/global/workloadIdentityPools/github-x-post-pool/providers/github-oidc-provider
+  CI_SERVICE_ACCOUNT: github-actions-x-post@thai-memo-prod.iam.gserviceaccount.com
   GCP_PROJECT: thai-memo-prod
   OUT_DIR: build/x_post
 
@@ -28,26 +29,25 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
-          flutter-version: "3.x"
+          flutter-version: "3.47.8"
           channel: stable
           cache: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.CI_SERVICE_ACCOUNT }}
 
       - name: Fetch X credentials from Secret Manager
-        uses: google-github-actions/get-secretmanager-secrets@v2
+        uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
         id: secrets
         with:
           secrets: |-
@@ -99,7 +99,7 @@ jobs:
         run: python tools/x_post/build_media.py --out "$OUT_DIR"
 
       - name: Upload media as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: x-post-media
           path: |

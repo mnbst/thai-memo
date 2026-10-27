@@ -30,8 +30,9 @@ const String _outDir = 'build/store_shots/out';
 const String _outAbDir = 'build/store_shots/out_a';
 const String _captionsPath = 'tools/store_screenshots/captions.json';
 const String _font = 'StoreCaption';
+const String _fontKo = 'StoreCaptionKo';
 
-const List<String> _langs = ['ja', 'en'];
+const List<String> _langs = ['ja', 'en', 'ko'];
 
 // アプリの深藍（AppColors.indigo）を背景に敷き、金を強調色にする。
 const Color _text = Color(0xFFF6F2EA);
@@ -99,6 +100,19 @@ const _devices = [
     cornerRatio: 0.035,
     isPhone: false,
   ),
+  // Google Play のスマホ用。縦横比は 2:1 まで（16:9 にする）。
+  _Device(
+    id: 'android',
+    size: Size(1080, 1920),
+    captionTop: 96,
+    fontSize: 132,
+    captionGap: 56,
+    bottomGap: 0,
+    bezelRatio: 0.03,
+    cornerRatio: 0.1,
+    isPhone: true,
+    phoneWidthRatio: 0.78,
+  ),
 ];
 
 void main() {
@@ -112,7 +126,9 @@ void main() {
         (config['ab_first'] as Map<String, dynamic>?) ?? const {};
 
     var written = 0;
-    for (final device in _devices) {
+    // --dart-define=DEVICE=android のように指定すると、その端末だけ書き出す。
+    const only = String.fromEnvironment('DEVICE');
+    for (final device in _devices.where((d) => only.isEmpty || d.id == only)) {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = device.size;
       for (final lang in _langs) {
@@ -128,8 +144,12 @@ void main() {
 
           // 言語で画面の並びが変わるものは「端末/言語」で上書きできる。
           final zooms = shot['zoom'] as Map<String, dynamic>?;
-          final zoom = (zooms?['${device.id}/$lang'] ?? zooms?[device.id])
-              as List<dynamic>?;
+          // Android は画面の並びが iPhone と同じなので、指定が無ければ iPhone の値を使う。
+          final zoom = (zooms?['${device.id}/$lang'] ??
+                  zooms?[device.id] ??
+                  (device.id == 'android'
+                      ? (zooms?['iphone/$lang'] ?? zooms?['iphone'])
+                      : null)) as List<dynamic>?;
           await tester.pumpWidget(
             _StoreShot(
               device: device,
@@ -150,7 +170,7 @@ void main() {
 
         // A/B テストの A 案: 旧1枚目を先頭に置き、枚数は B 案と同じにする。
         final legacy = abFirst[lang] as String?;
-        if (device.isPhone && legacy != null && composed.isNotEmpty) {
+        if (device.id == 'iphone' && legacy != null && composed.isNotEmpty) {
           final dir = '$_outAbDir/${device.id}/$lang';
           _write(dir, 1, 'jpg', File(legacy).readAsBytesSync());
           for (var i = 0; i < composed.length - 1; i++) {
@@ -290,6 +310,7 @@ class _StoreShot extends StatelessWidget {
 TextSpan _captionSpan(String caption, double fontSize) {
   TextStyle style(double size, Color color) => TextStyle(
         fontFamily: _font,
+        fontFamilyFallback: const [_fontKo],
         fontSize: size,
         height: 1.28,
         letterSpacing: size * 0.01,
@@ -363,7 +384,8 @@ class _DeviceFrame extends StatelessWidget {
                 Positioned.fill(
                   child: RawImage(image: screen, fit: BoxFit.fill),
                 ),
-                if (device.isPhone) _island(screenWidth),
+                if (device.id == 'iphone') _island(screenWidth),
+                if (device.id == 'android') _punchHole(screenWidth),
               ],
             ),
           ),
@@ -456,6 +478,23 @@ class _DeviceFrame extends StatelessWidget {
     );
   }
 
+  /// パンチホールのカメラ。論理幅 412dp の端末で直径 12dp、上端から 12dp。
+  Widget _punchHole(double screenWidth) {
+    final dp = screenWidth / 412;
+    return Positioned(
+      top: 12 * dp,
+      left: (screenWidth - 12 * dp) / 2,
+      child: Container(
+        width: 12 * dp,
+        height: 12 * dp,
+        decoration: const BoxDecoration(
+          color: Colors.black,
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+
   /// 側面のボタン。iPhone は左に音量など、右に電源。iPad は上面に電源。
   List<Widget> _buttons(double screenWidth, double bezel) {
     final w = bezel * 0.32;
@@ -516,14 +555,19 @@ Future<ui.Image> _decode(File file) async {
 }
 
 Future<void> _loadFont() async {
-  const path = 'tools/store_screenshots/fonts/NotoSansJP-Black.otf';
-  final file = File(path);
-  if (!file.existsSync()) {
-    fail('$path がない。tools/store_screenshots/fetch_fonts.sh を先に実行する');
+  const fonts = {
+    _font: 'tools/store_screenshots/fonts/NotoSansJP-Black.otf',
+    _fontKo: 'tools/store_screenshots/fonts/NotoSansKR-Black.otf',
+  };
+  for (final entry in fonts.entries) {
+    final file = File(entry.value);
+    if (!file.existsSync()) {
+      fail('${entry.value} がない。tools/store_screenshots/fetch_fonts.sh を先に実行する');
+    }
+    final loader = FontLoader(entry.key)
+      ..addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
+    await loader.load();
   }
-  final loader = FontLoader(_font)
-    ..addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
-  await loader.load();
 }
 
 Future<Uint8List> _capture(WidgetTester tester) async {

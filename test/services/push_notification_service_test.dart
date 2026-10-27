@@ -109,6 +109,8 @@ void main() {
 
     expect(result, PushEnableResult.enabled);
     expect(firestore.users['u1']?['fcm_token'], 'tok-1');
+    // flutter test の既定プラットフォームは Android
+    expect(firestore.users['u1']?['fcm_platform'], 'android');
     expect(firestore.users['u1']?['daily_reminder_enabled'], true);
   });
 

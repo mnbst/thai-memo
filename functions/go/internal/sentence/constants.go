@@ -52,17 +52,33 @@ const (
 // 必ず一致させること。docs/design_daily_sentence_batch.md を参照。
 const SetSize = 5
 
-// topicHeadsEN は括弧の例示を落とした短縮形（「食べ物」「旅行」）からの引き当て表。
-//
-// サーバーがテーマを決めなかった回は LLM が選んで書くので短縮形が返る。
-// 完全一致だけだとそこが日本語のまま残る。
-var topicHeadsEN = func() map[string]string {
-	out := make(map[string]string, len(topicLabelsEN))
-	for topic, label := range topicLabelsEN {
-		out[topicHead(topic)] = label
+// contextLabels は context の軸ラベル（サーバー側の日本語定数）の、1言語ぶんの表示名。
+type contextLabels struct {
+	topics     map[string]string
+	topicHeads map[string]string
+	styles     map[string]string
+	timeFrames map[string]string
+	subThemes  map[string]map[string]string
+}
+
+// contextLabelsByLang は ja 以外の言語のラベル表。ja は日本語定数をそのまま出す。
+var contextLabelsByLang = map[lang.Lang]contextLabels{
+	lang.EN: newContextLabels(topicLabelsEN, styleLabelsEN, timeFrameLabelsEN, subThemeLabelsEN),
+	lang.KO: newContextLabels(topicLabelsKO, styleLabelsKO, timeFrameLabelsKO, subThemeLabelsKO),
+}
+
+func newContextLabels(
+	topics, styles, timeFrames map[string]string, subThemes map[string]map[string]string,
+) contextLabels {
+	// topicHeads は括弧の例示を落とした短縮形（「食べ物」「旅行」）からの引き当て表。
+	// サーバーがテーマを決めなかった回は LLM が選んで書くので短縮形が返る。
+	// 完全一致だけだとそこが日本語のまま残る。
+	heads := make(map[string]string, len(topics))
+	for topic, label := range topics {
+		heads[topicHead(topic)] = label
 	}
-	return out
-}()
+	return contextLabels{topics, heads, styles, timeFrames, subThemes}
+}
 
 // topicHead は Python の topic.split("（")[0]。
 func topicHead(topic string) string {
@@ -72,11 +88,11 @@ func topicHead(topic string) string {
 	return topic
 }
 
-func localizeTopic(topic string) string {
-	if label, ok := topicLabelsEN[topic]; ok {
+func (c contextLabels) topic(topic string) string {
+	if label, ok := c.topics[topic]; ok {
 		return label
 	}
-	if label, ok := topicHeadsEN[topicHead(topic)]; ok {
+	if label, ok := c.topicHeads[topicHead(topic)]; ok {
 		return label
 	}
 	return topic
@@ -84,11 +100,12 @@ func localizeTopic(topic string) string {
 
 // LocalizeContext は context の軸ラベルを訳文の言語に合わせる。
 //
-// ja はそのまま返す。en は既知の日本語ラベルだけ差し替え、未知の値
-// （LLM が自由記述する emotion・usage_scenarios や、既に英語のもの）は触らない。
-// 冪等なので、英語化済みの例文にもう一度かけても壊れない。
+// ja はそのまま返す。他の言語は既知の日本語ラベルだけ差し替え、未知の値
+// （LLM が自由記述する emotion・usage_scenarios や、既に訳したもの）は触らない。
+// 冪等なので、訳したあとの例文にもう一度かけても壊れない。
 func LocalizeContext(context map[string]any, l lang.Lang) map[string]any {
-	if context == nil || l != lang.EN {
+	labels, ok := contextLabelsByLang[l]
+	if context == nil || !ok {
 		return context
 	}
 
@@ -99,20 +116,20 @@ func LocalizeContext(context map[string]any, l lang.Lang) map[string]any {
 
 	topic, hasTopic := context["topic"].(string)
 	if hasTopic {
-		localized["topic"] = localizeTopic(topic)
+		localized["topic"] = labels.topic(topic)
 	}
 	if style, ok := context["style"].(string); ok {
-		if label, found := styleLabelsEN[style]; found {
+		if label, found := labels.styles[style]; found {
 			localized["style"] = label
 		}
 	}
 	if subTheme, ok := context["subTheme"].(string); ok && hasTopic {
-		if label, found := subThemeLabelsEN[topic][subTheme]; found {
+		if label, found := labels.subThemes[topic][subTheme]; found {
 			localized["subTheme"] = label
 		}
 	}
 	if timeFrame, ok := context["timeFrame"].(string); ok {
-		if label, found := timeFrameLabelsEN[timeFrame]; found {
+		if label, found := labels.timeFrames[timeFrame]; found {
 			localized["timeFrame"] = label
 		}
 	}
@@ -146,12 +163,9 @@ func ContextFieldSchema(name string, l lang.Lang) map[string]any {
 	if !ok {
 		return nil
 	}
-	if l == lang.Default {
-		return field
-	}
-	if desc, found := schemaDescriptionsEN[name]; found {
+	if desc, found := schemaDescriptions[l][name]; found {
 		field["description"] = desc
-	} else if desc, found := contextDescriptionsEN[name]; found {
+	} else if desc, found := contextDescriptions[l][name]; found {
 		field["description"] = desc
 	}
 	return field
@@ -161,12 +175,12 @@ func ContextFieldSchema(name string, l lang.Lang) map[string]any {
 //
 // askContextFields は LLM に生成させる context フィールド名。
 // プロンプトで値を指定しなかったものだけを渡すこと。
-// l が en のときは description のみ差し替える（構造は変えない）。
+// l が ja 以外のときは description のみ差し替える（構造は変えない）。
 func BuildResponseSchema(askContextFields []string, l lang.Lang) map[string]any {
 	schema := decodeJSON(responseJSONSchemaJSON)
 
-	if l != lang.Default {
-		applyLangDescriptions(schema)
+	if descs, ok := schemaDescriptions[l]; ok {
+		applyLangDescriptions(schema, descs)
 	}
 
 	if len(askContextFields) == 0 {
@@ -183,10 +197,8 @@ func BuildResponseSchema(askContextFields []string, l lang.Lang) map[string]any 
 			continue
 		}
 		field := cloneAny(raw).(map[string]any)
-		if l != lang.Default {
-			if desc, found := contextDescriptionsEN[name]; found {
-				field["description"] = desc
-			}
+		if desc, found := contextDescriptions[l][name]; found {
+			field["description"] = desc
 		}
 		contextProps[name] = field
 		context["required"] = append(context["required"].([]any), name)
@@ -194,12 +206,12 @@ func BuildResponseSchema(askContextFields []string, l lang.Lang) map[string]any 
 	return schema
 }
 
-// applyLangDescriptions は en 用に description を差し替える（構造は変えない）。
-func applyLangDescriptions(schema map[string]any) {
+// applyLangDescriptions は ja 以外の言語の description に差し替える（構造は変えない）。
+func applyLangDescriptions(schema map[string]any, descs map[string]string) {
 	props := schema["properties"].(map[string]any)
 
 	setDesc := func(m map[string]any, key string) {
-		m["description"] = schemaDescriptionsEN[key]
+		m["description"] = descs[key]
 	}
 
 	setDesc(props["japanese_translation"].(map[string]any), "japanese_translation")

@@ -293,6 +293,10 @@ class DailySetController extends StateNotifier<DailySetState> {
     return _acceptDeliveredSet(setId: setId, sentences: sentences);
   }
 
+  /// 縮める前のセットID。縮めたセットは同じセットの続きとして扱う
+  /// （まとめクイズの語彙スコアの起点など）。
+  static String baseSetId(String setId) => setId.split('~').first;
+
   /// 読みかけのセットを [size] 本まで縮める。縮めたら true。
   ///
   /// 入門者のセット本数を減らす前に配られた5本セットの途中で止まっている人を、

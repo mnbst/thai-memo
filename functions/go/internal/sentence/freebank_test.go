@@ -48,3 +48,36 @@ func TestFreeBankPickTopic(t *testing.T) {
 		t.Fatalf("語の在庫が無いのに返した: %+v", s)
 	}
 }
+
+// TestFreeBankPickUnseen は語に紐づく文をバンクの並び順で、未出のものから返すこと。
+// テーマでは絞らない。
+func TestFreeBankPickUnseen(t *testing.T) {
+	b := &FreeBank{cache: map[lang.Lang][]Sentence{lang.JA: {
+		{ThaiText: "a", KeyWord: "ไป", Context: map[string]any{"topic": "旅行"}},
+		{ThaiText: "x", KeyWord: "กิน", Context: map[string]any{"topic": "食べ物"}},
+		{ThaiText: "b", KeyWord: "ไป", Context: map[string]any{"topic": "食べ物"}},
+	}}}
+	pick := func(seen map[string]bool) (string, string) {
+		t.Helper()
+		s, topic, err := b.PickUnseen(context.Background(), "ไป", lang.JA, seen)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if s == nil {
+			return "", topic
+		}
+		return s.ThaiText, topic
+	}
+	if got, topic := pick(nil); got != "a" || topic != "旅行" {
+		t.Errorf("1本目 = %q (%s), want a (旅行)", got, topic)
+	}
+	if got, topic := pick(map[string]bool{"a": true}); got != "b" || topic != "食べ物" {
+		t.Errorf("a が既出なら = %q (%s), want b (食べ物)", got, topic)
+	}
+	if got, _ := pick(map[string]bool{"a": true, "b": true}); got != "" {
+		t.Errorf("全部既出なのに %q", got)
+	}
+	if s, _, _ := b.PickUnseen(context.Background(), "นอน", lang.JA, nil); s != nil {
+		t.Errorf("バンクに無い語で %q", s.ThaiText)
+	}
+}

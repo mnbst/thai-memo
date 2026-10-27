@@ -20,16 +20,15 @@ jobs:
   build-ios:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
-          flutter-version: "3.x"
+          flutter-version: "3.47.8"
           channel: stable
           cache: true
 
       - name: Cache CocoaPods
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ios/Pods
           # Podfile.lock が変わったら Pods は作り直す。古いキャッシュを
@@ -38,13 +37,13 @@ jobs:
           key: pods-${{ hashFiles('ios/Podfile.lock') }}
 
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.CI_SERVICE_ACCOUNT }}
 
       - name: Fetch secrets from Secret Manager
-        uses: google-github-actions/get-secretmanager-secrets@v2
+        uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
         id: secrets
         with:
           secrets: |-
@@ -54,7 +53,10 @@ jobs:
             PROVISIONING_PROFILE_BASE64:${{ env.GCP_PROJECT }}/ci-provisioning-profile
 
       - name: Restore GoogleService-Info.plist
-        run: echo '${{ steps.secrets.outputs.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}' | base64 --decode > ios/Runner/GoogleService-Info.plist
+        # secret は式でシェル本文に埋め込まず、環境変数で渡す（値に引用符や $() があっても実行されない）。
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ steps.secrets.outputs.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 --decode > ios/Runner/GoogleService-Info.plist
 
       - name: Install Apple certificate and provisioning profile
         env:
@@ -127,7 +129,7 @@ jobs:
         run: flutter build ipa --dart-define=ENV=tester --build-number=${{ github.run_number }} --export-options-plist=ios/ExportOptions.tester.plist
 
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ipa-tester
           path: build/ios/ipa/*.ipa
@@ -144,19 +146,19 @@ jobs:
     runs-on: macos-26
     steps:
       - name: Download IPA artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ipa-tester
           path: ipa
 
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.CI_SERVICE_ACCOUNT }}
 
       - name: Fetch secrets from Secret Manager
-        uses: google-github-actions/get-secretmanager-secrets@v2
+        uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
         id: secrets
         with:
           secrets: |-

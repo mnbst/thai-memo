@@ -1,0 +1,9 @@
+/* Home-screen app name. iOS picks this file by the device language,
+   which is a different axis from the in-app language (decided by storefront). */
+"CFBundleDisplayName" = "매일 태국어";
+
+/* Microphone permission prompt. Used only for pronunciation practice. */
+"NSMicrophoneUsageDescription" = "발음을 평가하기 위해 마이크를 사용합니다. 녹음된 음성은 기기 내에서만 처리되며 외부로 전송되지 않습니다.";
+
+/* Speech recognition permission prompt. Used to check intelligibility, on-device. */
+"NSSpeechRecognitionUsageDescription" = "태국어 발음을 알아들을 수 있는지 평가하는 데 사용합니다. 평가 결과는 이 앱의 발음 연습에만 사용됩니다.";

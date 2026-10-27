@@ -85,10 +85,23 @@ class FirebaseAuthService {
       final credential = GoogleAuthProvider.credential(
         idToken: googleUser.authentication.idToken,
       );
-      return authenticateWithCredential(credential, link: link);
+      return await authenticateWithCredential(credential, link: link);
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
       rethrow;
+    }
+  }
+
+  /// メール+パスワードでサインイン。ストア審査用アカウント専用（新規登録はさせない）。
+  Future<User?> signInWithEmail(String email, String password) async {
+    try {
+      final result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return result.user;
+    } on FirebaseAuthException catch (e) {
+      throw FirebaseAuthServiceException('サインインに失敗しました: ${e.message}');
     }
   }
 

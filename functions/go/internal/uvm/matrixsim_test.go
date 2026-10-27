@@ -7,7 +7,9 @@ import (
 	"testing"
 )
 
-const simMaxRank = 3000
+// simMaxRank は freq_rank_top10000 に合わせる。語彙テストの上限 3000 より上の
+// 層（ceilingsim）を測るため。
+const simMaxRank = 10000
 
 func pKnow(rank, trueVocab int) float64 {
 	return 1.0 / (1.0 + math.Exp(float64(rank-trueVocab)/60.0))
@@ -31,12 +33,21 @@ type simUser struct {
 	srsIdx int
 
 	// --- 実験用のつまみ（0/false は現行実装どおり） ---
-	aheadOverride  int     // >0 なら前方幅をこの値に固定する
-	answeredOnly   bool    // 推定の母数を回答済み（quiz_attempts>0）の語だけにする
-	legacyUngraded bool    // graded 導入前の挙動（採点区分を見ずに全部を母数に入れる）
-	binaryGraded   bool    // evidence 導入前の挙動（graded の二値ゲート）
-	evidenceK      float64 // >0 なら旧 ShrinkP を K=この値で掛ける
-	summaryHint    int     // まとめクイズで常用するヒント段階
+	aheadOverride  int         // >0 なら前方幅をこの値に固定する
+	aheadScale     float64     // >0 なら前方幅を max(現行, est×この値) に広げる
+	startEst       int         // >0 なら受験後の est をこの値から始める（床は測定値のまま）
+	ceilingOnly    bool        // aheadScale を語彙テストの上限に届いた人だけに効かせる
+	noCeilingScale bool        // 本番の上限到達者の拡幅（CeilingAheadScale）を外す（旧現行の再現）
+	answeredOnly   bool        // 推定の母数を回答済み（quiz_attempts>0）の語だけにする
+	legacyUngraded bool        // graded 導入前の挙動（採点区分を見ずに全部を母数に入れる）
+	binaryGraded   bool        // evidence 導入前の挙動（graded の二値ゲート）
+	evidenceK      float64     // >0 なら旧 ShrinkP を K=この値で掛ける
+	summaryHint    int         // まとめクイズで常用するヒント段階
+	learningInPool bool        // 確認クイズだけで答えた語も推定の母数に入れる（2026-10 までの挙動）
+	bandSummary    bool        // prodSummary の補充枠を、推定の走査帯（est±50）の語から先に選ぶ（案）
+	prodSummary    bool        // まとめクイズの出題を本番の選び方（SRS 2問 + P の低い順の補充）にする
+	day            int         // 今日（prodSummary の SRS 用）
+	bornDay        map[int]int // key_word として初めて出た日（prodSummary の SRS 用）
 
 	// P 更新則の差し替え（どちらも 0 なら本番の UpdateP）。
 	incorrectScale float64 // 不正解 α の上限に掛ける倍率
@@ -46,6 +57,15 @@ type simUser struct {
 	alphaUntilDay  int     // この日まで旧 α 則、翌日から新実装（移行の再現）
 	totalDays      int     // 0 なら 90
 	newP           float64 // >0 なら新語の初期 P をこの値にする（既定 NewWordP）
+	cutoff         float64 // >0 なら EstimateVocab の打ち切り閾値（既定 0.42）
+	knownP         float64 // >0 なら knownMaxRank に数える P の下限（既定 0.5）
+
+	// テーマ指定時に「テーマの場面に合う語」を優先する案（themesim_test.go）。
+	themeRate     float64 // >0 なら rank のうちこの割合をテーマに合う語とする
+	themePriority int     // 1日の生成のうち先頭この本数だけ、合う語を優先する
+	themeBehind   bool    // 優先を est 以下（帯の後方）の語に限る
+	themeDay      int
+	themeGen      int
 
 	// --- 世界側（ユーザーの実際の振る舞い）のつまみ ---
 	worldSlip  float64 // 知っている語を落とす確率（誤タップ・読み違い）
@@ -57,6 +77,9 @@ type simUser struct {
 
 	drops   int // 例文生成で est が下がった回数
 	dropSum int // その合計幅
+
+	genGain int // 例文生成（確認クイズ込み）の sync で est が動いた合計
+	sumGain int // まとめクイズの sync で est が動いた合計
 }
 
 // answers は正誤を引く。guess は知らないときに当たる確率で、ヒントを出すほど
@@ -104,6 +127,9 @@ func (u *simUser) sync() {
 				if w.evidence <= 0 {
 					continue
 				}
+				if !w.graded && !u.learningInPool { // 確認クイズだけの語は入れない
+					continue
+				}
 				if u.evidenceK > 0 { // 旧 ShrinkP の比較用
 					wt := math.Min(1, w.evidence/u.evidenceK)
 					p = wt*p + (1-wt)*UnknownWordP
@@ -112,17 +138,33 @@ func (u *simUser) sync() {
 			entries = append(entries, RankedP{Rank: r, P: p})
 		}
 	}
-	u.est = max(0, EstimateVocab(entries, u.est, u.floor))
+	cutoff, knownP := 0.42, 0.5
+	if u.cutoff > 0 {
+		cutoff = u.cutoff
+	}
+	if u.knownP > 0 {
+		knownP = u.knownP
+	}
+	u.est = max(0, estimateVocab(entries, u.est, u.floor, cutoff, knownP))
 }
 
 // generate は例文生成 1 回（key_word 選定 → 露出登録 → 確認クイズ → sync）。
 func (u *simUser) generate(learningQuiz bool) {
 	tested := u.floor
-	lo, hi := ScanBand(max(u.est-tested, 0))
-	if u.aheadOverride > 0 {
-		hi = max(u.est-tested, 0) + u.aheadOverride
+	var lo, hi int
+	if u.aheadOverride > 0 || u.aheadScale > 0 || u.noCeilingScale {
+		// 実験: 本番の上限到達者の拡幅（KeyWordBand）を外し、つまみで置き換える。
+		lo, hi = ScanBand(max(u.est-tested, 0))
+		if u.aheadOverride > 0 {
+			hi = max(u.est-tested, 0) + u.aheadOverride
+		}
+		if u.aheadScale > 0 && (!u.ceilingOnly || u.floor >= TestStages[len(TestStages)-1].High) {
+			hi = max(hi, max(u.est-tested, 0)+int(u.aheadScale*float64(u.est)))
+		}
+		lo, hi = lo+tested, hi+tested
+	} else {
+		lo, hi = KeyWordBand(u.est, tested)
 	}
-	lo, hi = lo+tested, hi+tested
 	var cands []Candidate
 	for r := lo; r <= min(hi, simMaxRank); r++ {
 		cands = append(cands, Candidate{Word: fmt.Sprintf("w%d", r), Rank: r})
@@ -134,6 +176,23 @@ func (u *simUser) generate(learningQuiz bool) {
 	for _, c := range cands {
 		if _, ok := u.words[c.Rank]; !ok {
 			zero = append(zero, c)
+		}
+	}
+	if u.themeRate > 0 {
+		if u.themeDay != u.day {
+			u.themeDay, u.themeGen = u.day, 0
+		}
+		u.themeGen++
+		if u.themeGen <= u.themePriority {
+			var matched []Candidate
+			for _, c := range zero {
+				if themeMatched(c.Rank, u.themeRate) && (!u.themeBehind || c.Rank <= u.est) {
+					matched = append(matched, c)
+				}
+			}
+			if len(matched) > 0 {
+				zero = matched
+			}
 		}
 	}
 	var picked []Candidate
@@ -157,12 +216,16 @@ func (u *simUser) generate(learningQuiz bool) {
 		}
 		u.words[rank] = &simWord{p: np}
 		u.seen = append(u.seen, rank)
+		if u.bornDay != nil {
+			u.bornDay[rank] = u.day
+		}
 	}
 	if learningQuiz {
 		u.answer(rank, true)
 	}
 	before := u.est
 	u.sync()
+	u.genGain += u.est - before
 	if u.est < before {
 		u.drops++
 		u.dropSum += before - u.est
@@ -245,6 +308,17 @@ func bayesUpdate(p float64, correct bool, g, s, weight float64) float64 {
 
 // summaryQuiz はまとめクイズ n 問（SRS ＝ 出題済みを古い順に巡回）。
 func (u *simUser) summaryQuiz(n int) {
+	before := u.est
+	defer func() { u.sumGain += u.est - before }()
+	if u.prodSummary {
+		for i, r := range u.prodSummaryPick(n) {
+			u.curWordOrder = u.wordOrder != nil && i < u.wordOrder.perQuiz
+			u.answer(r, false)
+		}
+		u.curWordOrder = false
+		u.sync()
+		return
+	}
 	var pool []int
 	for _, r := range u.seen {
 		if u.floor > 0 && r < u.floor { // premium × 受験者のフィルタ
@@ -315,6 +389,9 @@ func runCellUser(seed, truth int, tested, summary bool, stopDay int,
 	if tested {
 		u.floor = takeVocabTest(rnd, truth)
 		u.est = u.floor
+		if u.startEst > 0 && u.floor >= TestStages[len(TestStages)-1].High {
+			u.est = u.startEst
+		}
 	}
 	total := u.totalDays
 	if total <= 0 {
@@ -322,6 +399,7 @@ func runCellUser(seed, truth int, tested, summary bool, stopDay int,
 	}
 	out := map[int]int{0: u.est}
 	for day := 1; day <= total; day++ {
+		u.day = day
 		if u.alphaUntilDay > 0 {
 			// 旧本番は α 則 + NewWordP=0.1 の組。切替日に両方まとめて変える。
 			u.alphaRule = day <= u.alphaUntilDay
@@ -439,4 +517,11 @@ func TestEvidenceKSweep(t *testing.T) {
 			t.Logf("%-12s %6d %6d %6d %6d %6d %6d", row...) // d30 d90 の3組
 		}
 	}
+}
+
+// themeMatched は rank がテーマに合う語かを rate の割合で決める。
+// rank と相関しないよう Knuth 乗算ハッシュで散らす。
+func themeMatched(rank int, rate float64) bool {
+	h := uint32(rank) * 2654435761
+	return float64(h)/float64(1<<32) < rate
 }

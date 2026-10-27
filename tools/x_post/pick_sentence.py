@@ -43,8 +43,8 @@ JST = timezone(timedelta(hours=9))
 # Gemini に渡す候補の上限。前日分が多くてもプロンプトが膨らみすぎないようにする。
 MAX_CANDIDATES = 60
 
-# 反応を参照する直近の投稿数。だいたい10日ぶん。
-RECENT_POSTS = 10
+# 反応を参照する直近の投稿数（同じテーマの中で数える）。
+RECENT_POSTS = 5
 
 # 投稿に回す例文の語数。短すぎると学びが薄く、長すぎると詳細画面に収まらない。
 MIN_WORDS = 7
@@ -58,7 +58,39 @@ THEMES = {
     "タイ旅行": ("旅行", "交通", "買い物", "食べ物"),
     "タイ生活": ("買い物", "交通", "健康", "家族", "天気", "食べ物"),
     "恋愛": ("恋愛・男女関係",),
+    "仕事": ("仕事",),
     "BLドラマ": ("タイBLドラマ",),
+}
+
+# BLドラマの日は、作品の見当がつく例文だけ出す。作品ごとに、本文か使い方
+# （context.usage_scenarios）に出ればその作品と分かる語（登場人物名とそのカタカナ・
+# 象徴的な小道具や場所）を並べる。人物名は必須にしない。2026-10-11 から生成側は
+# 本文に名前を必須にせず、使い方に名前を書かせる。一般語と紛れる語（หมู=豚、สไตล์、ดาว、
+# พระเจ้า 等）は入れない。作品の設定は functions/go/internal/bldrama/data.go の
+# shotContext。
+BL_DRAMA_MARKERS = {
+    "Only Boo!": ("พี่แกง", "カン", "ムー", "ข้าวแกง"),
+    "The Heart Killers": (
+        "ไบซัน", "ฟาเดล", "คานต์", "カーン",
+        "バイソン", "ファデル", "นักฆ่า",
+    ),
+    "Peaceful Property": ("พีช", "โฮม", "ピーチ", "ホーム", "ผี"),
+    "MuTeLuv": ("มาวิน", "เอ้อ", "マーウィン", "หมอดู", "ดูดวง"),
+    "Cat for Cash": ("ไทเกอร์", "ลิงซ์", "タイガー", "リンクス", "แมว"),
+    "Unlucky Bae": ("ขอบฟ้า", "コープファー", "คำสาป", "ซวย"),
+    "Match Point": ("เบย์", "เทนนิส", "ติ่มซำ"),
+    "A Dog and A Plane": (
+        "คณิต", "โตโต้", "カニット", "トートー",
+        "กัปตัน", "กู้ภัย", "กระเป๋าเดินทาง",
+    ),
+    "When Oranges Fall": ("โก๋", "コーヌン", "コーソーン", "ส้ม"),
+    "Ticket to Heaven": (
+        "แทนรัก", "บาร์ธ", "タンラック",
+        "バース", "บาทหลวง", "โบสถ์",
+    ),
+    "WEIRDO-101": ("นิรันดร์", "ชีวา", "ニラン", "チーワー", "ยูโด"),
+    "You Maniac": ("ดีน", "มอธ", "モス"),
+    "Only Friends: Dream On": ("แจ็ค", "ジャック", "ละคร", "เวที"),
 }
 
 GEMINI_SECRET = "gemini-api-key"
@@ -101,13 +133,16 @@ def load_json(bucket: storage.Bucket, name: str, fallback):
     return json.loads(blob.download_as_bytes())
 
 
+# 投稿の末尾に付けるハッシュタグ。テスター募集の投稿と揃える。
+HASHTAGS = "#タイ語 #タイ語勉強"
+
+
 def build_text(sentence: dict) -> str:
-    """投稿本文。手で出していた形をそのまま踏襲する。"""
-    lines = ["今日のタイ語", ""]
-    lines.append(sentence["thai_text"])
+    """投稿本文。"""
+    lines = [sentence["thai_text"]]
     if sentence.get("pronunciation"):
         lines.append(sentence["pronunciation"])
-    lines += ["", sentence["japanese_translation"]]
+    lines += ["", sentence["japanese_translation"], "", HASHTAGS]
     return "\n".join(lines)
 
 
@@ -165,14 +200,41 @@ def theme_only(pool: list[dict], theme: str) -> list[dict]:
     return picked
 
 
-def recent_performance(history: list[dict]) -> list[dict]:
-    """直近の投稿に反応の数を突き合わせて返す。引けなければ空。
+def bl_drama_only(pool: list[dict], rng: random.Random) -> list[dict]:
+    """作品の見当がつく例文だけ残し、そのうち1作品に絞る。
+
+    作品で分けずに抽選すると例文の多い作品（猫・幽霊）ばかり出るので、
+    先に作品を抽選する。
+    """
+    by_drama: dict[str, list[dict]] = {}
+    for sentence in pool:
+        for drama, markers in BL_DRAMA_MARKERS.items():
+            text = sentence["thai_text"] + (
+                (sentence.get("context") or {}).get("usage_scenarios") or ""
+            )
+            if any(m in text for m in markers):
+                by_drama.setdefault(drama, []).append(sentence)
+                break
+    if not by_drama:
+        return []
+    drama = rng.choice(sorted(by_drama))
+    print(f"作品: {drama}（{len(by_drama[drama])}件）", file=sys.stderr)
+    return by_drama[drama]
+
+
+def recent_performance(history: list[dict], theme: str) -> list[dict]:
+    """同じテーマの直近の投稿に反応の数を突き合わせて返す。引けなければ空。
+
+    テーマごとに伸びる題材が違うので、他テーマの反応は混ぜない。テーマを
+    記録する前の履歴は対象外。
 
     X の読み取りは PPU のクレジットを消費する。クレジットが無い（402）・
     鍵が無い・そもそも履歴がまだ無いといった場合は黙って諦め、反応を
     参照しない選定に落とす。投稿を止めないことを優先する。
     """
-    recent = [h for h in history if h.get("tweet_id")][-RECENT_POSTS:]
+    recent = [
+        h for h in history if h.get("tweet_id") and h.get("theme") == theme
+    ][-RECENT_POSTS:]
     if not recent:
         return []
 
@@ -355,6 +417,12 @@ def main() -> int:
         return 1
 
     candidates = [s for s in pool if sentence_key(s) not in posted]
+    if theme == "BLドラマ":
+        # 未投稿を先に絞る。作品を抽選してから未投稿が尽きるのを避ける。
+        candidates = bl_drama_only(candidates or pool, rng)
+        if not candidates:
+            print("作品の分かる候補が無い", file=sys.stderr)
+            return 1
     if not candidates:
         # 一巡したら投稿済みを無視して最初から回す。止まるよりは繰り返す。
         print("未投稿の例文が尽きたので全体から選ぶ", file=sys.stderr)
@@ -363,7 +431,9 @@ def main() -> int:
     if len(candidates) > MAX_CANDIDATES:
         candidates = rng.sample(candidates, MAX_CANDIDATES)
 
-    recent = performance_section(recent_performance(state.get("history", [])))
+    recent = performance_section(
+        recent_performance(state.get("history", []), theme)
+    )
     picked = choose_with_gemini(
         args.project, candidates, recent, load_prompt(Path(args.prompt)), theme
     ) or rng.choice(candidates)
@@ -382,6 +452,7 @@ def main() -> int:
     )
     (out / "text.txt").write_text(build_text(picked), encoding="utf-8")
     (out / "key.txt").write_text(sentence_key(picked), encoding="utf-8")
+    (out / "theme.txt").write_text(theme, encoding="utf-8")
 
     print(picked["thai_text"])
     return 0

@@ -130,6 +130,22 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// ストア審査用アカウントでサインイン（匿名 uid は昇格せず切り替える）
+  Future<String?> signInWithEmail(String email, String password) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final previousUid = _authService.currentUser?.uid;
+      await _authService.signInWithEmail(email, password);
+      await syncLocalDataOwner(previousUid: previousUid);
+      state = AuthState.fromService(_authService);
+      return null;
+    } catch (e) {
+      // 審査用の隠し導線なので、原因が分かるよう診断文言をそのまま返す。
+      state = AuthState.fromService(_authService);
+      return e is FirebaseAuthServiceException ? e.message : '$e';
+    }
+  }
+
   /// 匿名ユーザーを Google アカウントに昇格（uid・データ保持）
   Future<String?> linkWithGoogle() async {
     state = state.copyWith(isLoading: true);

@@ -63,7 +63,15 @@ const (
 	FreeTierMaxVocab = 100
 
 	// LearningCorrectMultiplier は quiz_type=="learning" の正解を弱める係数。
-	LearningCorrectMultiplier = 0.1
+	// 0 ＝正解では P を動かさない。読んだ直後で答えが目の前にあるので、正解は
+	// 知っている証拠にならない。0.1 だった頃は prior 0.4 → 0.4215 と cutoff(0.42)
+	// を越え、同じ語で繰り返し正解すればどの係数でもいずれ越えた。不正解は
+	// 等倍のまま（読んだ直後でも間違えるのは知らない強い証拠で、PFloor まで
+	// 落として復習優先に回す）。
+	LearningCorrectMultiplier = 0.0
+	// LearningEvidenceScale は確認クイズ 1 問の証拠量（ResultEvidence）の係数。
+	// 正誤に関係なく掛ける。0 より大きいので、確認クイズだけの語も母数に入る。
+	LearningEvidenceScale = 0.1
 	// SentenceReviewCorrectMultiplier は例文レビュー由来の正解を弱める係数。
 	SentenceReviewCorrectMultiplier = 0.1
 
@@ -189,6 +197,12 @@ type RankedP struct {
 // 0 へ崩れていく（測定100 が数分で 91 まで落ちる）。0 から始めた人が崩れないのは
 // 下限 0 に張り付いているからで、その下限を M に置き換えるのがこの引数。
 func EstimateVocab(entries []RankedP, center, floor int) int {
+	return estimateVocab(entries, center, floor, 0.42, 0.5)
+}
+
+// estimateVocab は EstimateVocab の閾値をシミュレーション用に外へ出したもの。
+// cutoff は MovingAvg の打ち切り、knownP は knownMaxRank に数える P の下限。
+func estimateVocab(entries []RankedP, center, floor int, cutoff, knownP float64) int {
 	floor = max(floor, 0)
 
 	wordsByRank := make(map[int]float64, len(entries))
@@ -204,7 +218,7 @@ func EstimateVocab(entries []RankedP, center, floor int) int {
 		}
 		n++
 		wordsByRank[e.Rank] = e.P
-		if e.P > 0.5 && e.Rank > knownMaxRank {
+		if e.P > knownP && e.Rank > knownMaxRank {
 			knownMaxRank = e.Rank
 		}
 		totalP += e.P
@@ -223,7 +237,7 @@ func EstimateVocab(entries []RankedP, center, floor int) int {
 	}
 
 	for r := max(center-50, floor); r <= center+50; r++ {
-		if MovingAvg(wordsByRank, r, 10) < 0.42 {
+		if MovingAvg(wordsByRank, r, 10) < cutoff {
 			return max(knownMaxRank, max(r, floor))
 		}
 	}

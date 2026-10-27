@@ -19,12 +19,15 @@ import '../providers/settings_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/vocab_stats_provider.dart';
+import '../widgets/streak_widgets.dart';
 import '../widgets/coach_mark_overlay.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/quiz_offer.dart';
 import '../widgets/sentence_audio_section.dart';
 import '../widgets/thai_highlight.dart';
 import '../widgets/sign_in_reminder_banner.dart';
+import '../widgets/tone_guide_offer.dart';
+import '../widgets/vocab_retest_offer.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/vocab_level.dart';
 import 'detail_screen.dart';
@@ -269,6 +272,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
         ),
         actions: [
+          const StreakChip(),
+          const SizedBox(width: 8),
           _buildVocabScoreChip(context),
           const SizedBox(width: AppConfig.screenPadding),
         ],
@@ -436,6 +441,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         _handleQuizOfferTap(sentence, quizOfferVariant),
                   ),
                 ],
+                // ヒアリングで「声調が難しい」と答えた人にだけ1回出す。
+                const ToneGuideOffer(),
+                // 30日以上あけて戻ったプレミアムの人に、語彙テストの受け直しを勧める。
+                const VocabRetestOffer(),
               ],
             ),
           ),
@@ -583,12 +592,16 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   bool _quizOfferCoachChecking = false;
 
+  /// この画面が前面に見えているか。詳細やクイズ、ペイウォールが前面にある間と、
+  /// 別のタブ（隠れたタブは HomeScreen が TickerMode を切る）にいる間は出さない。
+  bool _canShowQuizOfferCoach() =>
+      ModalRoute.of(context)?.isCurrent == true &&
+      TickerMode.getValuesNotifier(context).value.enabled &&
+      !CoachMarkOverlay.isVisible;
+
   Future<void> _tickQuizOfferCoach() async {
     if (!mounted || _quizOfferCoachChecking) return;
-    // 詳細やクイズ、ペイウォールが前面にある間は数えない。
-    if (ModalRoute.of(context)?.isCurrent != true ||
-        !TickerMode.getValuesNotifier(context).value.enabled ||
-        CoachMarkOverlay.isVisible ||
+    if (!_canShowQuizOfferCoach() ||
         ref.read(sentenceControllerProvider) is! SentenceStateSuccess) {
       return;
     }
@@ -614,11 +627,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       return;
     }
 
-    if (!mounted ||
-        ModalRoute.of(context)?.isCurrent != true ||
-        CoachMarkOverlay.isVisible) {
-      return;
-    }
+    // 上の読み込みを待つ間に別の画面・タブへ移っていることがある。移った先に
+    // 出すとその画面の上に暗幕とスポットが重なるので、出す直前にも確かめる。
+    if (!mounted || !_canShowQuizOfferCoach()) return;
     final sentenceState = ref.read(sentenceControllerProvider);
     final variant = ref.read(quizOfferVariantProvider).valueOrNull;
     if (sentenceState is! SentenceStateSuccess || variant == null) return;

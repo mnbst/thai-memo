@@ -304,6 +304,7 @@ func judge(
 			JapaneseTranslation: s.JapaneseTranslation,
 			KeyWord:             recs[i].Word,
 			Lang:                l,
+			Words:               qualityWords(s.WordBreakdown),
 		})
 		idx = append(idx, i)
 	}
@@ -489,4 +490,13 @@ func sceneFinder(dir string) themeshots.SceneFinder {
 		log.Fatalf("embedding を読めない: %v", err)
 	}
 	return store
+}
+
+// qualityWords は word_breakdown を判定用の語と意味へ写す。
+func qualityWords(ws []sentence.Word) []quality.Word {
+	out := make([]quality.Word, len(ws))
+	for i, w := range ws {
+		out[i] = quality.Word{Word: w.Word, Meaning: w.Meaning}
+	}
+	return out
 }

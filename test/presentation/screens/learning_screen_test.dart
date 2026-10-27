@@ -142,6 +142,7 @@ class _FakeTtsService extends Fake implements TtsService {
     String text, {
     bool slow = false,
     bool keepVoice = false,
+    TtsSpeed speed = TtsSpeed.normal,
   }) async {}
 }
 

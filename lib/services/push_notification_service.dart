@@ -6,8 +6,12 @@
 // users/{uid} に書く役割を持つ:
 //   fcm_token                 … 送信先。これが無いユーザーには配信されない
 //   timezone                  … IANA名。ローカル時刻の判定に使う
-//   preferred_generation_hour … 配信希望時刻（時のみ）
+//   preferred_generation_hour … 配信希望時刻（時のみ）。複数あるときはいちばん早い時刻
 //   notify_utc_hour           … 上記2つから導く配信対象クエリ用の絞り込みキー
+//   notify_hours              … 配信時刻すべて（早い順。premium は最大3つ）
+//   notify_utc_hours          … notify_hours を UTC に直したもの（array-contains で絞る）
+//   fcm_platform              … 最後に通知登録した端末のOS（ios/android）。集計用で、
+//                               トークンが消えても残す
 //
 // 通知本文は例文そのものだが、表示はペイロードではなく Firestore から行う
 // （DailySentenceService）。通知を開かなくても例文が手元に揃うようにするため。
@@ -19,6 +23,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+
+import '../core/platform/store_platform.dart';
 
 /// 配信希望時刻のデフォルト（ユーザーのローカル10時）
 const int kDefaultGenerationHour = 10;
@@ -259,17 +265,23 @@ class PushNotificationService {
     }
   }
 
-  /// 配信希望時刻（時のみ）を保存する。
-  Future<void> setPreferredHour(int hour) async {
+  /// 配信時刻（時のみ・早い順・1つ以上）を保存する。
+  ///
+  /// 先頭は従来の preferred_generation_hour としても書く。旧版の端末と
+  /// サーバーの既存経路（dailyBatch の notify_utc_hour 再計算）はこれだけを見る。
+  Future<void> setNotifyHours(List<int> hours) async {
+    if (hours.isEmpty) return;
+    final first = hours.first;
+    final firstUtc = notifyUtcHour(first);
     await _userDoc?.set(
       {
-        'preferred_generation_hour': hour,
+        'preferred_generation_hour': first,
+        'notify_hours': hours,
+        // 算出できない時刻（DST春の飛び時刻）はその日だけ外す。
+        'notify_utc_hours': hours.map(notifyUtcHour).whereType<int>().toList(),
         'timezone': await _resolveTimezone(),
-        // 算出できない日（DST春の飛び時刻）は書かず、既存値を残す。
-        ...(() {
-          final utcHour = notifyUtcHour(hour);
-          return utcHour == null ? {} : {'notify_utc_hour': utcHour};
-        }()),
+        // 算出できない日は書かず、既存値を残す。
+        if (firstUtc != null) 'notify_utc_hour': firstUtc,
       },
       SetOptions(merge: true),
     );
@@ -311,8 +323,8 @@ class PushNotificationService {
 
   /// 通知トグルON＝再開の意思表示として、配信バックオフの段階を0に戻す。
   ///
-  /// 停止段階（notify_tier == 4）まで進んだユーザーは自分で例文を生成しない限り
-  /// 配信が再開されないため、トグル操作を解除の入口にする。
+  /// アプリを開いた時点でも戻る（DailySentenceService）。ここで戻すのは、
+  /// 開いたその場でトグルをオンにした人の配信を次の時刻から確実に再開するため。
   /// ルール上クライアントは0へのリセットのみ書ける。
   Future<void> _resetNotifyBackoff() async {
     try {
@@ -387,6 +399,7 @@ class PushNotificationService {
       {
         'daily_reminder_enabled': true,
         'fcm_token': token,
+        'fcm_platform': StorePlatform.current.id,
         'timezone': await _resolveTimezone(),
       },
       SetOptions(merge: true),

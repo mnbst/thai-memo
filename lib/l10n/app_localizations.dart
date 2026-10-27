@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
 import 'app_localizations_ja.dart';
+import 'app_localizations_ko.dart';
 
 // ignore_for_file: type=lint
 
@@ -94,7 +95,8 @@ abstract class L10n {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('ja')
+    Locale('ja'),
+    Locale('ko')
   ];
 
   /// アプリ名。タスクスイッチャーとタイトルバーに出る
@@ -934,8 +936,14 @@ abstract class L10n {
   /// No description provided for @settingsPlanTrial.
   ///
   /// In ja, this message translates to:
-  /// **'プレミアム体験中'**
+  /// **'無料体験中'**
   String get settingsPlanTrial;
+
+  /// No description provided for @settingsPlanTrialNoCharge.
+  ///
+  /// In ja, this message translates to:
+  /// **'自動課金なし'**
+  String get settingsPlanTrialNoCharge;
 
   /// No description provided for @settingsDeleteAccount.
   ///
@@ -1015,6 +1023,18 @@ abstract class L10n {
   /// **'タイ語の声調ルールを学ぶ'**
   String get settingsToneGuideSubtitle;
 
+  /// No description provided for @settingsPronGuide.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音ガイド'**
+  String get settingsPronGuide;
+
+  /// No description provided for @settingsPronGuideSubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'読みの記号と、区別しにくい音を学ぶ'**
+  String get settingsPronGuideSubtitle;
+
   /// No description provided for @settingsResetLearningData.
   ///
   /// In ja, this message translates to:
@@ -1081,6 +1101,42 @@ abstract class L10n {
   /// **'通知する時刻'**
   String get settingsNotificationTime;
 
+  /// No description provided for @notifyScheduleOff.
+  ///
+  /// In ja, this message translates to:
+  /// **'オフ'**
+  String get notifyScheduleOff;
+
+  /// No description provided for @notifySchedulePremiumUpsell.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムでは、例文通知を1日{count}回まで設定できます'**
+  String notifySchedulePremiumUpsell(int count);
+
+  /// No description provided for @notifyScheduleReplaceNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知ごとに新しい例文セットが届きます。次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。'**
+  String get notifyScheduleReplaceNote;
+
+  /// No description provided for @notifyScheduleChangeTime.
+  ///
+  /// In ja, this message translates to:
+  /// **'時刻を変更'**
+  String get notifyScheduleChangeTime;
+
+  /// No description provided for @notifyScheduleTimeTaken.
+  ///
+  /// In ja, this message translates to:
+  /// **'その時刻はもう設定されています'**
+  String get notifyScheduleTimeTaken;
+
+  /// No description provided for @notifyScheduleSave.
+  ///
+  /// In ja, this message translates to:
+  /// **'保存'**
+  String get notifyScheduleSave;
+
   /// No description provided for @settingsTopic.
   ///
   /// In ja, this message translates to:
@@ -1138,7 +1194,7 @@ abstract class L10n {
   /// No description provided for @settingsContact.
   ///
   /// In ja, this message translates to:
-  /// **'お問い合わせ'**
+  /// **'ご意見・お問い合わせ'**
   String get settingsContact;
 
   /// No description provided for @settingsLifetimeMigration.
@@ -1432,7 +1488,7 @@ abstract class L10n {
   /// No description provided for @topicSub_shopping.
   ///
   /// In ja, this message translates to:
-  /// **'推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット'**
+  /// **'値段交渉、サイズ・色の確認、返品、ナイトマーケット'**
   String get topicSub_shopping;
 
   /// No description provided for @topicName_transport.
@@ -1480,7 +1536,7 @@ abstract class L10n {
   /// No description provided for @topicSub_hobbies.
   ///
   /// In ja, this message translates to:
-  /// **'推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム'**
+  /// **'ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム'**
   String get topicSub_hobbies;
 
   /// No description provided for @topicName_school.
@@ -1554,6 +1610,18 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'観光、ホテル、交通、買い物、食べ物'**
   String get topicSub_thaiTravel;
+
+  /// No description provided for @topicName_oshi.
+  ///
+  /// In ja, this message translates to:
+  /// **'推し活'**
+  String get topicName_oshi;
+
+  /// No description provided for @topicSub_oshi.
+  ///
+  /// In ja, this message translates to:
+  /// **'ライブ、チケット、グッズ、握手会、出待ち'**
+  String get topicSub_oshi;
 
   /// 文体ラベル。値は constants.STYLES の識別子で、表示だけ差し替える
   ///
@@ -1840,37 +1908,37 @@ abstract class L10n {
   /// No description provided for @paywallFeatureQuotaTitle.
   ///
   /// In ja, this message translates to:
-  /// **'良質なタイ語に大量に触れられる'**
+  /// **'語彙スコア100の先も伸ばせる'**
   String get paywallFeatureQuotaTitle;
 
   /// No description provided for @paywallFeatureQuotaPremium.
   ///
   /// In ja, this message translates to:
-  /// **'例文は無制限・単語の上限なし'**
+  /// **'例文は無制限・語彙スコアの上限なし'**
   String get paywallFeatureQuotaPremium;
 
   /// No description provided for @paywallFeatureTopicTitle.
   ///
   /// In ja, this message translates to:
-  /// **'テーマを選んでタイ文化に親しむ'**
+  /// **'好きな場面のタイ語から始める'**
   String get paywallFeatureTopicTitle;
 
   /// No description provided for @paywallFeatureTopicPremium.
   ///
   /// In ja, this message translates to:
-  /// **'祭り・寺院の作法・BLドラマなど'**
+  /// **'旅行・暮らし・BLドラマなどから自分で選べる'**
   String get paywallFeatureTopicPremium;
 
   /// No description provided for @onboarding1Title.
   ///
   /// In ja, this message translates to:
-  /// **'AIがあなた専用の例文を毎日お届け'**
+  /// **'タイ文字が読めなくても大丈夫'**
   String get onboarding1Title;
 
   /// No description provided for @onboarding1Body.
   ///
   /// In ja, this message translates to:
-  /// **'毎日の例文に加えて、その場で追加生成も。\nカードをタップで単語・意味を確認。'**
+  /// **'あなたのレベルに合った例文を毎日お届け。\nカードをタップで読み方と意味を確認。'**
   String get onboarding1Body;
 
   /// No description provided for @onboarding2Title.
@@ -1894,7 +1962,7 @@ abstract class L10n {
   /// No description provided for @onboarding3Body.
   ///
   /// In ja, this message translates to:
-  /// **'間違えた単語はくり返し出題。\nスコアに応じて例文のレベルが上がります。'**
+  /// **'間違えた単語はくり返し出題。\nスコアに合わせて、例文に出る単語が増えます。'**
   String get onboarding3Body;
 
   /// No description provided for @onboardingSkip.
@@ -2092,19 +2160,19 @@ abstract class L10n {
   /// No description provided for @philosophy2None.
   ///
   /// In ja, this message translates to:
-  /// **'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。'**
+  /// **'タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。読み方に迷ったら、設定の発音ガイドも使えます。'**
   String get philosophy2None;
 
   /// No description provided for @philosophy2Script.
   ///
   /// In ja, this message translates to:
-  /// **'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。'**
+  /// **'タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。アプリの読みの見方や区別しにくい音は、設定の発音ガイドで確認できます。'**
   String get philosophy2Script;
 
   /// No description provided for @philosophy2Tone.
   ///
   /// In ja, this message translates to:
-  /// **'**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。'**
+  /// **'**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。声調のきまりは、設定の声調ガイドで確認できます。'**
   String get philosophy2Tone;
 
   /// No description provided for @philosophy2Vocab.
@@ -2134,7 +2202,7 @@ abstract class L10n {
   /// No description provided for @philosophy3Culture.
   ///
   /// In ja, this message translates to:
-  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「伝統・祭り」を選べば、作品や文化に出てくる表現が届きます。'**
+  /// **'**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「推し活」を選べば、作品やファン活動で使う表現が届きます。'**
   String get philosophy3Culture;
 
   /// No description provided for @philosophy3TimeShort.
@@ -2164,13 +2232,13 @@ abstract class L10n {
   /// No description provided for @notifCoachTitle.
   ///
   /// In ja, this message translates to:
-  /// **'毎日、例文が通知で届きます'**
+  /// **'通知で学習を毎日の習慣に'**
   String get notifCoachTitle;
 
   /// No description provided for @notifCoachHabit.
   ///
   /// In ja, this message translates to:
-  /// **'同じ時間に届くので、続けやすくなります'**
+  /// **'決めた時間に新しい例文が届き、続けるきっかけになります'**
   String get notifCoachHabit;
 
   /// No description provided for @notifCoachNow.
@@ -2182,7 +2250,7 @@ abstract class L10n {
   /// No description provided for @notifCoachSampleTitle.
   ///
   /// In ja, this message translates to:
-  /// **'🇹🇭 今日のタイ語 · ขอบคุณ（ありがとう）'**
+  /// **'🇹🇭 ขอบคุณ（ありがとう）'**
   String get notifCoachSampleTitle;
 
   /// No description provided for @notifCoachSampleBody.
@@ -2224,13 +2292,13 @@ abstract class L10n {
   /// No description provided for @premiumHint1Title.
   ///
   /// In ja, this message translates to:
-  /// **'テーマを選んでタイ文化に親しむ'**
+  /// **'好きな場面のタイ語から始める'**
   String get premiumHint1Title;
 
   /// No description provided for @premiumHint1Body.
   ///
   /// In ja, this message translates to:
-  /// **'祭り・寺院での作法・BLドラマなど、言葉と一緒に文化が身につきます'**
+  /// **'旅行・暮らし・BLドラマなどから、例文のテーマを自分で選べます'**
   String get premiumHint1Body;
 
   /// No description provided for @signInReminderTitle.
@@ -2316,6 +2384,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'1回だけ'**
   String get audioOnce;
+
+  /// No description provided for @audioSpeed.
+  ///
+  /// In ja, this message translates to:
+  /// **'再生速度'**
+  String get audioSpeed;
 
   /// No description provided for @audioPause.
   ///
@@ -2666,6 +2740,42 @@ abstract class L10n {
   /// **'「{word}」を直そう'**
   String pronunciationNextFocus(String word);
 
+  /// No description provided for @pronunciationTierPass.
+  ///
+  /// In ja, this message translates to:
+  /// **'合格'**
+  String get pronunciationTierPass;
+
+  /// No description provided for @pronunciationTierNative.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ人レベル'**
+  String get pronunciationTierNative;
+
+  /// No description provided for @pronunciationToPass.
+  ///
+  /// In ja, this message translates to:
+  /// **'あと{points}点で合格'**
+  String pronunciationToPass(int points);
+
+  /// No description provided for @pronunciationToNative.
+  ///
+  /// In ja, this message translates to:
+  /// **'あと{points}点でタイ人レベル'**
+  String pronunciationToNative(int points);
+
+  /// No description provided for @pronunciationNativeFirst.
+  ///
+  /// In ja, this message translates to:
+  /// **'この例文で初めて{score}点を超えました'**
+  String pronunciationNativeFirst(int score);
+
+  /// No description provided for @pronunciationNativeAgain.
+  ///
+  /// In ja, this message translates to:
+  /// **'この例文は達成済み'**
+  String get pronunciationNativeAgain;
+
   /// No description provided for @pronunciationCountCorrect.
   ///
   /// In ja, this message translates to:
@@ -2879,7 +2989,7 @@ abstract class L10n {
   /// No description provided for @contactSent.
   ///
   /// In ja, this message translates to:
-  /// **'お問い合わせを送信しました。ありがとうございます。'**
+  /// **'送信しました。ありがとうございます。'**
   String get contactSent;
 
   /// No description provided for @contactFailed.
@@ -2891,26 +3001,14 @@ abstract class L10n {
   /// No description provided for @contactName.
   ///
   /// In ja, this message translates to:
-  /// **'お名前'**
+  /// **'お名前（任意）'**
   String get contactName;
-
-  /// No description provided for @contactNameRequired.
-  ///
-  /// In ja, this message translates to:
-  /// **'お名前を入力してください'**
-  String get contactNameRequired;
 
   /// No description provided for @contactEmail.
   ///
   /// In ja, this message translates to:
-  /// **'メールアドレス'**
+  /// **'メールアドレス（任意）'**
   String get contactEmail;
-
-  /// No description provided for @contactEmailRequired.
-  ///
-  /// In ja, this message translates to:
-  /// **'メールアドレスを入力してください'**
-  String get contactEmailRequired;
 
   /// No description provided for @contactEmailInvalid.
   ///
@@ -2921,13 +3019,13 @@ abstract class L10n {
   /// No description provided for @contactBody.
   ///
   /// In ja, this message translates to:
-  /// **'お問い合わせ内容'**
+  /// **'ご意見・お問い合わせ内容'**
   String get contactBody;
 
   /// No description provided for @contactBodyRequired.
   ///
   /// In ja, this message translates to:
-  /// **'お問い合わせ内容を入力してください'**
+  /// **'内容を入力してください'**
   String get contactBodyRequired;
 
   /// No description provided for @contactSubmit.
@@ -2935,6 +3033,24 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'送信する'**
   String get contactSubmit;
+
+  /// No description provided for @contactAnonymousHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'メールアドレスを入れずに送ると匿名で届きます。その場合は返信できません。'**
+  String get contactAnonymousHint;
+
+  /// No description provided for @contactSurveyTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'アンケートに答える（1分）'**
+  String get contactSurveyTitle;
+
+  /// No description provided for @contactSurveySubtitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'アプリの改善にご協力ください'**
+  String get contactSurveySubtitle;
 
   /// No description provided for @consonantClassHigh.
   ///
@@ -3157,6 +3273,30 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'例: {value}'**
   String toneExamplePrefix(String value);
+
+  /// No description provided for @toneGuideOfferTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調が難しいと答えた方へ'**
+  String get toneGuideOfferTitle;
+
+  /// No description provided for @toneGuideOfferBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'5つの声調と、声調の決まり方を図で確認できます'**
+  String get toneGuideOfferBody;
+
+  /// No description provided for @vocabRetestOfferTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'おかえりなさい'**
+  String get vocabRetestOfferTitle;
+
+  /// No description provided for @vocabRetestOfferBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'しばらく空いたので、語彙テストでいまの語彙量を測り直しませんか。例文の難しさが今のあなたに合います。'**
+  String get vocabRetestOfferBody;
 
   /// No description provided for @toneGuideTitle.
   ///
@@ -4559,7 +4699,7 @@ abstract class L10n {
   /// No description provided for @guideOverviewBody3.
   ///
   /// In ja, this message translates to:
-  /// **'まとめクイズに正解すると語彙スコアが上がり、例文に出る単語も増えていきます。ヒントなしで正解すると、さらに上がりやすくなります。間違えた問題は、あとでもう一度出題されます。'**
+  /// **'まとめクイズの答えをもとに、語彙スコアと次の例文の難しさが調整され、例文に出る単語も増えていきます。ヒントなしの正解は反映されやすく、間違えた問題はあとでもう一度出題されます。'**
   String get guideOverviewBody3;
 
   /// No description provided for @guideRoleSentenceTitle.
@@ -4607,7 +4747,7 @@ abstract class L10n {
   /// No description provided for @guideRoleQuizSpelling.
   ///
   /// In ja, this message translates to:
-  /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。その学習単語について一度正解すると、以後は穴埋め問題が出ます。'**
+  /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。'**
   String get guideRoleQuizSpelling;
 
   /// No description provided for @guideRoleScoreTitle.
@@ -4661,13 +4801,13 @@ abstract class L10n {
   /// No description provided for @guideRoleNotificationTitle.
   ///
   /// In ja, this message translates to:
-  /// **'毎日の通知'**
+  /// **'学習のお知らせ'**
   String get guideRoleNotificationTitle;
 
   /// No description provided for @guideRoleNotificationBody.
   ///
   /// In ja, this message translates to:
-  /// **'決めた時刻にその日の例文が届き、学習の習慣化を助けます。'**
+  /// **'決めた時刻に新しい例文セットが届きます。しばらくアプリを開かないと通知の間隔が少しずつ広がり、最後は止まります。アプリを開けば毎日の通知に戻ります。'**
   String get guideRoleNotificationBody;
 
   /// No description provided for @guideRolePremiumTitle.
@@ -4805,7 +4945,7 @@ abstract class L10n {
   /// No description provided for @guideHowSoundStep2.
   ///
   /// In ja, this message translates to:
-  /// **'詳細画面の「発音練習」で「押したまま話す」を長押しし、例文を読みます。その場で声調を判定できます。'**
+  /// **'詳細画面の「発音練習」で「押したまま話す」を長押しし、表示された読み方を見ながら例文を声に出します。タイ文字がまだ読めなくても大丈夫です。その場で声調を判定できます。'**
   String get guideHowSoundStep2;
 
   /// No description provided for @guideHowSoundStep3.
@@ -4877,8 +5017,44 @@ abstract class L10n {
   /// No description provided for @guideHowReviewQuizStep5.
   ///
   /// In ja, this message translates to:
-  /// **'正解すると語彙スコアに反映されます。'**
+  /// **'答えをもとに、語彙スコアと次の例文の難しさが調整されます。'**
   String get guideHowReviewQuizStep5;
+
+  /// No description provided for @guideHowNotifyTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知を設定する'**
+  String get guideHowNotifyTitle;
+
+  /// No description provided for @guideHowNotifyStep1.
+  ///
+  /// In ja, this message translates to:
+  /// **'設定の「毎日の例文通知」で、通知の時刻を確認できます。スイッチでオン・オフ、時刻をタップすると変更できます。'**
+  String get guideHowNotifyStep1;
+
+  /// No description provided for @guideHowNotifyStep2.
+  ///
+  /// In ja, this message translates to:
+  /// **'無料版は1日1回、プレミアムは1日3回まで設定できます。通知ごとに新しい例文セットが届きます。'**
+  String get guideHowNotifyStep2;
+
+  /// No description provided for @guideHowNotifyStep3.
+  ///
+  /// In ja, this message translates to:
+  /// **'通知を開かなくても、アプリを開けば届いた例文セットが学習タブに表示されます。'**
+  String get guideHowNotifyStep3;
+
+  /// No description provided for @guideHowNotifyStep4.
+  ///
+  /// In ja, this message translates to:
+  /// **'次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。'**
+  String get guideHowNotifyStep4;
+
+  /// No description provided for @guideHowNotifyStep5.
+  ///
+  /// In ja, this message translates to:
+  /// **'届かないときは、端末の設定で通知が許可されているか確認してください。無料版では、通知の前にその日の例文セットをすべて学んだ日は届きません。'**
+  String get guideHowNotifyStep5;
 
   /// No description provided for @guideHowSettingsTitle.
   ///
@@ -5081,13 +5257,13 @@ abstract class L10n {
   /// No description provided for @wordOrderRule7Body.
   ///
   /// In ja, this message translates to:
-  /// **'疑問詞は、答えが入る場所にそのまま置きます。はい・いいえの質問は文末に ไหม。'**
+  /// **'疑問詞は、答えが入る場所にそのまま置きます。ただし ทำไม（なぜ）は文頭にもよく来ます。はい・いいえの質問は述語の後ろに ไหม を付けます（丁寧の語尾はさらに後ろ）。'**
   String get wordOrderRule7Body;
 
   /// No description provided for @wordOrderRule8Title.
   ///
   /// In ja, this message translates to:
-  /// **'時を表す語の位置'**
+  /// **'いつのことかを表す語（จะ・แล้ว など）'**
   String get wordOrderRule8Title;
 
   /// No description provided for @wordOrderRule8Body.
@@ -5117,7 +5293,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule10Body.
   ///
   /// In ja, this message translates to:
-  /// **'男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม や แล้ว よりも後ろに付きます。'**
+  /// **'男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม・แล้ว や、นะ（〜ね）・เลย・ด้วย などの文末の語よりも後ろに付きます。นะ の後の女性の語尾は คะ（นะคะ）です。'**
   String get wordOrderRule10Body;
 
   /// No description provided for @wordOrderTipsTitle.
@@ -5129,7 +5305,7 @@ abstract class L10n {
   /// No description provided for @wordOrderTipsBody.
   ///
   /// In ja, this message translates to:
-  /// **'場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้ は、説明される名詞の後ろ\nไหม・แล้ว・ครับ/ค่ะ/คะ は最後のほう'**
+  /// **'場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้・มาก は、説明される語の後ろ\nกับ・ใน などは名詞の前、อยาก・ต้อง は動詞の前\nไหม・แล้ว・นะ・ครับ/ค่ะ/คะ は最後のほう'**
   String get wordOrderTipsBody;
 
   /// No description provided for @wordOrderEx1aGloss.
@@ -5219,7 +5395,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule4Note.
   ///
   /// In ja, this message translates to:
-  /// **'ของ は省くこともあります。'**
+  /// **'บ้านใหญ่ は「家は大きい」という文にもなります。形容詞はそのまま述語になり、เป็น は要りません。ของ は省くこともあります。'**
   String get wordOrderRule4Note;
 
   /// No description provided for @wordOrderEx5aGloss.
@@ -5396,6 +5572,360 @@ abstract class L10n {
   /// **'もう食べました'**
   String get wordOrderEx10bMeaning;
 
+  /// No description provided for @wordOrderRule5Note.
+  ///
+  /// In ja, this message translates to:
+  /// **'แมวตัวหนึ่ง のように類別詞の後ろに หนึ่ง を置くと、「ある猫」という意味になります。'**
+  String get wordOrderRule5Note;
+
+  /// No description provided for @wordOrderEx10cGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'おいしい|〜ね|丁寧（女性）'**
+  String get wordOrderEx10cGloss;
+
+  /// No description provided for @wordOrderEx10cMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'おいしいですね'**
+  String get wordOrderEx10cMeaning;
+
+  /// No description provided for @wordOrderRule11Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'文で説明するときは「名詞 → ที่ → 説明」'**
+  String get wordOrderRule11Title;
+
+  /// No description provided for @wordOrderRule11Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'「私が好きな店」のように文で名詞を説明するときも、説明は後ろです。名詞の後に ที่ を置き、その後ろに説明を続けるのが基本です。'**
+  String get wordOrderRule11Body;
+
+  /// No description provided for @wordOrderEx11aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'店|（つなぐ語）|私|好き'**
+  String get wordOrderEx11aGloss;
+
+  /// No description provided for @wordOrderEx11aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私が好きな店'**
+  String get wordOrderEx11aMeaning;
+
+  /// No description provided for @wordOrderRule12Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'「〜と」「〜の上に」などは名詞の前'**
+  String get wordOrderRule12Title;
+
+  /// No description provided for @wordOrderRule12Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'กับ（〜と）・ใน（〜の中で）・บน（〜の上に）・ให้（〜に）・ที่（〜で）は名詞の前に置きます。日本語の「〜と」「〜で」とは逆です。'**
+  String get wordOrderRule12Body;
+
+  /// No description provided for @wordOrderEx12aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|行く|〜と|友達'**
+  String get wordOrderEx12aGloss;
+
+  /// No description provided for @wordOrderEx12aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私は友達と行く'**
+  String get wordOrderEx12aMeaning;
+
+  /// No description provided for @wordOrderEx12bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'猫|いる|〜の上|机'**
+  String get wordOrderEx12bGloss;
+
+  /// No description provided for @wordOrderEx12bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'猫は机の上にいる'**
+  String get wordOrderEx12bMeaning;
+
+  /// No description provided for @wordOrderRule13Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'「とても」「少し」は後ろ'**
+  String get wordOrderRule13Title;
+
+  /// No description provided for @wordOrderRule13Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'มาก（とても）・จริงๆ（本当に）・นิดหน่อย（少し）は、形容詞や動詞の後ろに置きます。日本語と逆です。'**
+  String get wordOrderRule13Body;
+
+  /// No description provided for @wordOrderEx13aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'料理|この|おいしい|とても'**
+  String get wordOrderEx13aGloss;
+
+  /// No description provided for @wordOrderEx13aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'この料理はとてもおいしい'**
+  String get wordOrderEx13aMeaning;
+
+  /// No description provided for @wordOrderRule14Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'比べるときは「形容詞 → กว่า → 相手」'**
+  String get wordOrderRule14Title;
+
+  /// No description provided for @wordOrderRule14Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'「AはBより〜」は「A＋形容詞＋กว่า＋B」。「一番〜」は形容詞の後ろに ที่สุด を付けます。'**
+  String get wordOrderRule14Body;
+
+  /// No description provided for @wordOrderEx14aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日|暑い|〜より|昨日'**
+  String get wordOrderEx14aGloss;
+
+  /// No description provided for @wordOrderEx14aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日は昨日より暑い'**
+  String get wordOrderEx14aMeaning;
+
+  /// No description provided for @wordOrderEx14bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'もの|この|良い|一番'**
+  String get wordOrderEx14bGloss;
+
+  /// No description provided for @wordOrderEx14bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'これが一番いい'**
+  String get wordOrderEx14bMeaning;
+
+  /// No description provided for @wordOrderRule15Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'「〜したい」は動詞の前、「できる」は後ろ'**
+  String get wordOrderRule15Title;
+
+  /// No description provided for @wordOrderRule15Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'อยาก（〜したい）・ต้อง（〜しなければ）・ควร（〜したほうがいい）は動詞の前。ได้（できる）は動詞と目的語の後ろです。'**
+  String get wordOrderRule15Body;
+
+  /// No description provided for @wordOrderEx15aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|〜したい|食べる|ソムタム'**
+  String get wordOrderEx15aGloss;
+
+  /// No description provided for @wordOrderEx15aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私はソムタムを食べたい'**
+  String get wordOrderEx15aMeaning;
+
+  /// No description provided for @wordOrderEx15bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|話す|タイ語|できる'**
+  String get wordOrderEx15bGloss;
+
+  /// No description provided for @wordOrderEx15bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私はタイ語を話せる'**
+  String get wordOrderEx15bMeaning;
+
+  /// No description provided for @wordOrderRule16Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'動詞はそのまま続けて並べる'**
+  String get wordOrderRule16Title;
+
+  /// No description provided for @wordOrderRule16Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'「買い物に行く」は ไป（行く）＋ซื้อ（買う）のように、起きる順に動詞を並べます。ไป・มา が「〜て行く・〜て来る」の意味のときは後ろに付きます。'**
+  String get wordOrderRule16Body;
+
+  /// No description provided for @wordOrderEx16aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'私|行く|買う|物'**
+  String get wordOrderEx16aGloss;
+
+  /// No description provided for @wordOrderEx16aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'私は買い物に行く'**
+  String get wordOrderEx16aMeaning;
+
+  /// No description provided for @wordOrderEx16bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'取る|水|来る'**
+  String get wordOrderEx16bGloss;
+
+  /// No description provided for @wordOrderEx16bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'水を持ってくる'**
+  String get wordOrderEx16bMeaning;
+
+  /// No description provided for @pronGuideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の発音ガイド'**
+  String get pronGuideTitle;
+
+  /// No description provided for @pronGuideHeading.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の発音のポイント'**
+  String get pronGuideHeading;
+
+  /// No description provided for @pronGuideIntro.
+  ///
+  /// In ja, this message translates to:
+  /// **'アプリの読みは、ローマ字に記号を足した表記です。日本語にない音の区別を、読みの記号と一緒に押さえましょう。声調は「声調ガイド」で説明しています。'**
+  String get pronGuideIntro;
+
+  /// No description provided for @pronSymbolsTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'読みの記号'**
+  String get pronSymbolsTitle;
+
+  /// No description provided for @pronSymbolsBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'日本語のローマ字と違う記号だけをまとめました。'**
+  String get pronSymbolsBody;
+
+  /// No description provided for @pronSymbolsDescs.
+  ///
+  /// In ja, this message translates to:
+  /// **'ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる'**
+  String get pronSymbolsDescs;
+
+  /// No description provided for @pronAspTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'息を出す音・出さない音'**
+  String get pronAspTitle;
+
+  /// No description provided for @pronAspBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'kh・th・ph・ch は息を強く出し、k・t・p・j は息を出さずに言います。日本語では区別しませんが、タイ語では別の語になります。'**
+  String get pronAspBody;
+
+  /// No description provided for @pronAspMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'鶏|卵|目|塗る|投げる|連れて行く'**
+  String get pronAspMeanings;
+
+  /// No description provided for @pronAspNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'口の前に手をかざして言ってみましょう。kh・th・ph で息が当たり、k・t・p で当たらなければ区別できています。'**
+  String get pronAspNote;
+
+  /// No description provided for @pronLengthTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'長い母音・短い母音'**
+  String get pronLengthTitle;
+
+  /// No description provided for @pronLengthBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'aa・ii のように同じ母音が2つ並んだ読みは長くのばします。長さが違うだけで別の語になります。'**
+  String get pronLengthBody;
+
+  /// No description provided for @pronLengthMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'入る|ご飯|彼|白い'**
+  String get pronLengthMeanings;
+
+  /// No description provided for @pronVowelTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'似た母音を区別する'**
+  String get pronVowelTitle;
+
+  /// No description provided for @pronVowelBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'e と ɛ、o と ɔ、u と ʉ は日本語ではどちらも同じ音に聞こえます。ɛ・ɔ は口を大きく開け、ʉ は唇を丸めずに言います。'**
+  String get pronVowelBody;
+
+  /// No description provided for @pronVowelMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'子ども|日差し|机|部屋|見る|手|お金|歩く'**
+  String get pronVowelMeanings;
+
+  /// No description provided for @pronFinalTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の k・t・p は音を出さない'**
+  String get pronFinalTitle;
+
+  /// No description provided for @pronFinalBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の k・t・p は口の形だけ作って止め、「ク・ト・プ」とは言いません。n と ng も区別します。'**
+  String get pronFinalBody;
+
+  /// No description provided for @pronFinalMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'鳥|車|〜と|皿|薄い'**
+  String get pronFinalMeanings;
+
+  /// No description provided for @pronFinalNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字では、語末の ด・ส・ช なども t、บ・พ なども p の音になります。'**
+  String get pronFinalNote;
+
+  /// No description provided for @pronCasualTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'会話での崩れ'**
+  String get pronCasualTitle;
+
+  /// No description provided for @pronCasualBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'会話では読みどおりに言わないことがよくあります。r が l になる、子音が2つ続くと後ろが落ちる、声調が変わる、などです。'**
+  String get pronCasualBody;
+
+  /// No description provided for @pronCasualMeanings.
+  ///
+  /// In ja, this message translates to:
+  /// **'愛する|丁寧（男性）|〜か？|私（女性）'**
+  String get pronCasualMeanings;
+
+  /// No description provided for @pronCasualNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'崩れた形は聞き取りの手がかりです。話すときは読みどおりで通じます。'**
+  String get pronCasualNote;
+
   /// No description provided for @guideRoleQuizWordOrder.
   ///
   /// In ja, this message translates to:
@@ -5407,6 +5937,60 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。'**
   String get guideHowSettingsGuides;
+
+  /// No description provided for @streakChipDays.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}日'**
+  String streakChipDays(int count);
+
+  /// No description provided for @streakChipStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日から'**
+  String get streakChipStart;
+
+  /// No description provided for @streakTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文 {count}日継続'**
+  String streakTitle(int count);
+
+  /// No description provided for @streakRestart.
+  ///
+  /// In ja, this message translates to:
+  /// **'1本作ると再スタート'**
+  String get streakRestart;
+
+  /// No description provided for @streakStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の1本で記録を始めよう'**
+  String get streakStart;
+
+  /// No description provided for @streakBest.
+  ///
+  /// In ja, this message translates to:
+  /// **'最長 {count}日'**
+  String streakBest(int count);
+
+  /// No description provided for @streakNextMilestone.
+  ///
+  /// In ja, this message translates to:
+  /// **'{target}日まで あと{count}日'**
+  String streakNextMilestone(int count, int target);
+
+  /// No description provided for @streakToday.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日'**
+  String get streakToday;
+
+  /// 月曜始まりの曜日1文字×7。1文字ずつ切って使う。
+  ///
+  /// In ja, this message translates to:
+  /// **'月火水木金土日'**
+  String get streakWeekdayLetters;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {
@@ -5419,7 +6003,7 @@ class _L10nDelegate extends LocalizationsDelegate<L10n> {
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'ja'].contains(locale.languageCode);
+      <String>['en', 'ja', 'ko'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_L10nDelegate old) => false;
@@ -5432,6 +6016,8 @@ L10n lookupL10n(Locale locale) {
       return L10nEn();
     case 'ja':
       return L10nJa();
+    case 'ko':
+      return L10nKo();
   }
 
   throw FlutterError(

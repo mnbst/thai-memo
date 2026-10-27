@@ -6,7 +6,14 @@
 //	gcloud functions deploy resetLearningData \
 //	  --gen2 --runtime=go126 --region=asia-northeast1 \
 //	  --source=functions/go --entry-point=resetLearningData \
-//	  --trigger-http --allow-unauthenticated
+//	  --trigger-http --allow-unauthenticated \
+//	  --service-account=functions-runtime@<project>.iam.gserviceaccount.com
+//
+// --service-account は必ず付ける（省略するとプロジェクトの Editor を持つ compute SA で
+// 動く）。例外は Play の購入検証（verifySubscription / handlePlayNotification）で、
+// functions-runtime を Play Console に招待するまでは compute SA のまま。
+// --allow-unauthenticated は callable だけ。Scheduler が叩く HTTP 関数
+// （dailyBatch / deliverDailySentence / subscriptionStatus）には付けない。
 //
 // 2nd gen は https://<region>-<project>.cloudfunctions.net/<name> の URL を保つので、
 // JS/Python から Go へ差し替えてもクライアント（cloud_functions プラグイン）は無改修。
@@ -29,11 +36,15 @@ func init() {
 	registerCallable("sendContactEmail", sendContactEmail)
 	registerCallable("verifySubscription", verifySubscription)
 	registerCallable("migrateToLifetime", migrateToLifetime)
-	registerCallable("generateQuiz", generateQuiz)
-	registerCallable("generateLearningQuiz", generateLearningQuiz)
-	registerCallable("generateThaiSentence", generateThaiSentence)
-	registerCallable("startVocabTest", startVocabTest)
+	// LLM を呼ぶものは App Check を通らない呼び出しを回数で絞る（unverified_limit.go）。
+	registerCallable("generateQuiz", limitUnverified("generateQuiz", generateQuiz))
+	registerCallable("generateLearningQuiz", limitUnverified("generateLearningQuiz", generateLearningQuiz))
+	registerCallable("generateThaiSentence", limitUnverified("generateThaiSentence", generateThaiSentence))
+	registerCallable("startVocabTest", limitUnverified("startVocabTest", startVocabTest))
 	registerCallable("submitVocabTest", submitVocabTest)
+	registerCallable("claimClosedTesterTrial", claimClosedTesterTrial)
+	// Cloud TTS を呼ぶので LLM と同じく未検証の呼び出しを絞る。
+	registerCallable("getSentenceAudio", limitUnverified("getSentenceAudio", getSentenceAudio))
 
 	// 定期実行のバッチ。HTTP トリガーのままにして、tester/prod では
 	// Cloud Scheduler が OIDC トークン付きで叩く（Terraform 管理）。

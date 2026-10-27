@@ -288,7 +288,8 @@
   "settingsRankingName": "ランキングでの表示名",
   "settingsNotSignedIn": "サインインしていません",
   "settingsPlan": "プラン",
-  "settingsPlanTrial": "プレミアム体験中",
+  "settingsPlanTrial": "無料体験中",
+  "settingsPlanTrialNoCharge": "自動課金なし",
   "settingsDeleteAccount": "アカウントを削除",
   "settingsSignOut": "サインアウト",
   "settingsSignInToSave": "サインインして進捗を保存",
@@ -302,6 +303,8 @@
   "settingsLearningSection": "学習設定",
   "settingsToneGuide": "声調ガイド",
   "settingsToneGuideSubtitle": "タイ語の声調ルールを学ぶ",
+  "settingsPronGuide": "発音ガイド",
+  "settingsPronGuideSubtitle": "読みの記号と、区別しにくい音を学ぶ",
   "settingsResetLearningData": "学習データをリセット",
   "settingsResetLearningDataSubtitle": "端末の例文・クイズ履歴を削除",
   "settingsResetTitle": "学習データのリセット",
@@ -313,6 +316,19 @@
   "settingsDailyNotificationSubtitle": "例文をお知らせします",
   "settingsAllowNotificationInOsSettings": "端末の設定で通知を許可してください",
   "settingsNotificationTime": "通知する時刻",
+  "notifyScheduleOff": "オフ",
+  "notifySchedulePremiumUpsell": "プレミアムでは、例文通知を1日{count}回まで設定できます",
+  "@notifySchedulePremiumUpsell": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifyScheduleReplaceNote": "通知ごとに新しい例文セットが届きます。次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。",
+  "notifyScheduleChangeTime": "時刻を変更",
+  "notifyScheduleTimeTaken": "その時刻はもう設定されています",
+  "notifyScheduleSave": "保存",
   "settingsTopic": "テーマ",
   "settingsTopicRandom": "おまかせ",
   "settingsNextLevelIn": "次のレベルまで あと{count}語",
@@ -336,7 +352,7 @@
   "settingsTagline": "タイ語に、たっぷりふれよう",
   "settingsPrivacyPolicy": "プライバシーポリシー",
   "settingsTerms": "利用規約",
-  "settingsContact": "お問い合わせ",
+  "settingsContact": "ご意見・お問い合わせ",
   "settingsLifetimeMigration": "買い切りプランへ移行",
   "settingsLifetimeMigrationSubtitle": "追加のお支払いはありません",
   "lifetimeMigrationTitle": "買い切りプランを新設しました",
@@ -412,7 +428,7 @@
   "topicName_family": "家族",
   "topicSub_family": "家族紹介、子育て、親への感謝、兄弟、家族行事",
   "topicName_shopping": "買い物",
-  "topicSub_shopping": "推しグッズ、値段交渉、サイズ・色の確認、返品、ナイトマーケット",
+  "topicSub_shopping": "値段交渉、サイズ・色の確認、返品、ナイトマーケット",
   "topicName_transport": "交通",
   "topicSub_transport": "Grab、BTS、バイタク、ソンテウ、渋滞",
   "topicName_health": "健康",
@@ -420,7 +436,7 @@
   "topicName_weather": "天気",
   "topicSub_weather": "暑さ、雨季、台風、日焼け対策",
   "topicName_hobbies": "趣味",
-  "topicSub_hobbies": "推し活、ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム",
+  "topicSub_hobbies": "ムエタイ、音楽、映画、ゴルフ、SNS、ゲーム",
   "topicName_school": "学校",
   "topicSub_school": "授業中、宿題、試験、放課後、語学学校",
   "topicName_religion": "宗教・信仰",
@@ -433,6 +449,8 @@
   "topicSub_life": "買い物、交通、健康、家族、天気、食べ物",
   "topicName_thaiTravel": "タイ旅行",
   "topicSub_thaiTravel": "観光、ホテル、交通、買い物、食べ物",
+  "topicName_oshi": "推し活",
+  "topicSub_oshi": "ライブ、チケット、グッズ、握手会、出待ち",
 
   "styleName_news": "ニュース記事体",
   "@styleName_news": {
@@ -568,17 +586,17 @@
       }
     }
   },
-  "paywallFeatureQuotaTitle": "良質なタイ語に大量に触れられる",
-  "paywallFeatureQuotaPremium": "例文は無制限・単語の上限なし",
-  "paywallFeatureTopicTitle": "テーマを選んでタイ文化に親しむ",
-  "paywallFeatureTopicPremium": "祭り・寺院の作法・BLドラマなど",
+  "paywallFeatureQuotaTitle": "語彙スコア100の先も伸ばせる",
+  "paywallFeatureQuotaPremium": "例文は無制限・語彙スコアの上限なし",
+  "paywallFeatureTopicTitle": "好きな場面のタイ語から始める",
+  "paywallFeatureTopicPremium": "旅行・暮らし・BLドラマなどから自分で選べる",
 
-  "onboarding1Title": "AIがあなた専用の例文を毎日お届け",
-  "onboarding1Body": "毎日の例文に加えて、その場で追加生成も。\nカードをタップで単語・意味を確認。",
+  "onboarding1Title": "タイ文字が読めなくても大丈夫",
+  "onboarding1Body": "あなたのレベルに合った例文を毎日お届け。\nカードをタップで読み方と意味を確認。",
   "onboarding2Title": "声調を含めた発音練習",
   "onboarding2Body": "お手本を聞いて自分の声を録音。\n声調のズレをその場で確認できます。",
   "onboarding3Title": "クイズで語彙スコアUP",
-  "onboarding3Body": "間違えた単語はくり返し出題。\nスコアに応じて例文のレベルが上がります。",
+  "onboarding3Body": "間違えた単語はくり返し出題。\nスコアに合わせて、例文に出る単語が増えます。",
   "onboardingSkip": "スキップ",
   "onboardingNext": "次へ",
   "onboardingHaveAccount": "アカウントをお持ちの方はこちら",
@@ -626,25 +644,25 @@
 
   "philosophyKeyWord": "例文には毎回、**中心になる単語が1つ**あります。その単語が実際にどう使われるかを例文で覚えていきましょう。",
 
-  "philosophy2None": "タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。",
-  "philosophy2Script": "タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。",
-  "philosophy2Tone": "**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。",
+  "philosophy2None": "タイ文字は最初は読めなくても大丈夫です。このアプリでは**タイ文字と声調の関係**も学べます。読み方に迷ったら、設定の発音ガイドも使えます。",
+  "philosophy2Script": "タイ文字は、**つづりで声調が決まります**。このアプリでは、その仕組みを単語ごとに確認できます。アプリの読みの見方や区別しにくい音は、設定の発音ガイドで確認できます。",
+  "philosophy2Tone": "**発音練習機能**を活用しましょう。お手本と自分の声を比べて、単語のどこで声調がズレているかがわかります。声調のきまりは、設定の声調ガイドで確認できます。",
   "philosophy2Vocab": "**クイズ**が単語ごとの覚え具合を測ります。あいまいな単語は後で再出題されます。",
 
   "philosophy3Travel": "**プレミアム**なら、例文のテーマを自分で選べます。「タイ旅行」を選べば、観光・移動・買い物など現地で使う場面の例文が届きます。",
   "philosophy3Work": "**プレミアム**なら、例文のテーマを自分で選べます。「仕事」を選べば、職場で使う場面の例文が届きます。",
   "philosophy3Live": "**プレミアム**なら、例文のテーマを自分で選べます。「タイ暮らし」を選べば、買い物・交通・家族など暮らしの中で使う例文が届きます。",
-  "philosophy3Culture": "**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「伝統・祭り」を選べば、作品や文化に出てくる表現が届きます。",
+  "philosophy3Culture": "**プレミアム**なら、例文のテーマを自分で選べます。「タイBLドラマ」や「推し活」を選べば、作品やファン活動で使う表現が届きます。",
   "philosophy3TimeShort": "**数分あれば**、例文を1つ読んで確認クイズまで進められます。",
   "philosophy3TimeMedium": "**10分あれば**、例文を追加しながら、発音練習やこれまでの単語の復習まで進められます。",
   "philosophy3TimeLong": "**30分あれば**、例文の追加と発音練習に加えて、過去の例文の復習や声調の学習まで手が回ります。",
 
   "philosophyStart": "使い方を見る",
 
-  "notifCoachTitle": "毎日、例文が通知で届きます",
-  "notifCoachHabit": "同じ時間に届くので、続けやすくなります",
+  "notifCoachTitle": "通知で学習を毎日の習慣に",
+  "notifCoachHabit": "決めた時間に新しい例文が届き、続けるきっかけになります",
   "notifCoachNow": "今",
-  "notifCoachSampleTitle": "🇹🇭 今日のタイ語 · ขอบคุณ（ありがとう）",
+  "notifCoachSampleTitle": "🇹🇭 ขอบคุณ（ありがとう）",
   "notifCoachSampleBody": "→ コーヒーをありがとうございます",
   "notifCoachEnable": "通知をオンにする",
   "notifCoachLater": "今はしない",
@@ -652,8 +670,8 @@
   "notifCoachStillQuiet": "通知はこれまでどおり、通知センターに静かに届きます。",
   "commonGotIt": "わかった",
 
-  "premiumHint1Title": "テーマを選んでタイ文化に親しむ",
-  "premiumHint1Body": "祭り・寺院での作法・BLドラマなど、言葉と一緒に文化が身につきます",
+  "premiumHint1Title": "好きな場面のタイ語から始める",
+  "premiumHint1Body": "旅行・暮らし・BLドラマなどから、例文のテーマを自分で選べます",
 
   "signInReminderTitle": "学習の進捗を保護",
   "signInReminderMessage": "サインインすると進捗が保存され、機種変更後も学習を続けられます。サインインしない場合、3日間ご利用がないと学習の進捗は削除されます。",
@@ -671,6 +689,7 @@
 
   "audioRepeat": "リピート",
   "audioOnce": "1回だけ",
+  "audioSpeed": "再生速度",
   "audioPause": "一時停止",
   "audioPlay": "再生",
   "audioModeHint": "現在は{mode}。長押しで再生モードを変更",
@@ -873,6 +892,33 @@
       }
     }
   },
+  "pronunciationTierPass": "合格",
+  "pronunciationTierNative": "タイ人レベル",
+  "pronunciationToPass": "あと{points}点で合格",
+  "@pronunciationToPass": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationToNative": "あと{points}点でタイ人レベル",
+  "@pronunciationToNative": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationNativeFirst": "この例文で初めて{score}点を超えました",
+  "@pronunciationNativeFirst": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationNativeAgain": "この例文は達成済み",
   "pronunciationCountCorrect": "OK",
   "pronunciationCountClose": "惜しい",
   "pronunciationCountWrong": "直す",
@@ -990,16 +1036,17 @@
     }
   },
 
-  "contactSent": "お問い合わせを送信しました。ありがとうございます。",
+  "contactSent": "送信しました。ありがとうございます。",
   "contactFailed": "送信に失敗しました。しばらくしてから再度お試しください。",
-  "contactName": "お名前",
-  "contactNameRequired": "お名前を入力してください",
-  "contactEmail": "メールアドレス",
-  "contactEmailRequired": "メールアドレスを入力してください",
+  "contactName": "お名前（任意）",
+  "contactEmail": "メールアドレス（任意）",
   "contactEmailInvalid": "正しいメールアドレスを入力してください",
-  "contactBody": "お問い合わせ内容",
-  "contactBodyRequired": "お問い合わせ内容を入力してください",
+  "contactBody": "ご意見・お問い合わせ内容",
+  "contactBodyRequired": "内容を入力してください",
   "contactSubmit": "送信する",
+  "contactAnonymousHint": "メールアドレスを入れずに送ると匿名で届きます。その場合は返信できません。",
+  "contactSurveyTitle": "アンケートに答える（1分）",
+  "contactSurveySubtitle": "アプリの改善にご協力ください",
 
   "consonantClassHigh": "高子音",
   "consonantClassMiddle": "中子音",
@@ -1068,6 +1115,10 @@
     }
   },
 
+  "toneGuideOfferTitle": "声調が難しいと答えた方へ",
+  "toneGuideOfferBody": "5つの声調と、声調の決まり方を図で確認できます",
+  "vocabRetestOfferTitle": "おかえりなさい",
+  "vocabRetestOfferBody": "しばらく空いたので、語彙テストでいまの語彙量を測り直しませんか。例文の難しさが今のあなたに合います。",
   "toneGuideTitle": "タイ語の声調ガイド",
   "toneGuideHeading": "タイ語の声調について",
   "toneGuideIntro": "タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、子音文字の種類（高・中・低）、声調記号、音節タイプによって決まります。",
@@ -1412,7 +1463,7 @@
   "guideOverviewBody1": "AIがあなたのレベルに合った学習単語を選び、その単語を使ったタイ語の例文をつくります。",
   "guideOverviewBody2": "例文で学習単語を覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。",
   "guideOverviewSummaryQuiz": "1セット学び終えると「まとめクイズ」に進みます。迷ったときは、ヒントを見たり例文を見返したりできます。",
-  "guideOverviewBody3": "まとめクイズに正解すると語彙スコアが上がり、例文に出る単語も増えていきます。ヒントなしで正解すると、さらに上がりやすくなります。間違えた問題は、あとでもう一度出題されます。",
+  "guideOverviewBody3": "まとめクイズの答えをもとに、語彙スコアと次の例文の難しさが調整され、例文に出る単語も増えていきます。ヒントなしの正解は反映されやすく、間違えた問題はあとでもう一度出題されます。",
   "guideRoleSentenceTitle": "例文",
   "guideRoleSentenceBody": "詳細画面で単語の使い方を確認できます。使う場面と一緒に覚えると、記憶に残りやすくなります。",
   "guideRoleSoundTitle": "発音練習",
@@ -1420,7 +1471,7 @@
   "guideRoleQuizTitle": "クイズ",
   "guideRoleQuizCheck": "確認クイズ：例文ごとに、学習単語の意味を選びます。",
   "guideRoleQuizSummary": "まとめクイズ：例文最大5つごとに、下線部に入る単語を選びます。",
-  "guideRoleQuizSpelling": "綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。その学習単語について一度正解すると、以後は穴埋め問題が出ます。",
+  "guideRoleQuizSpelling": "綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。",
   "guideRoleScoreTitle": "語彙スコア",
   "guideRoleScoreBody": "語彙測定テストとまとめクイズの結果から推定した、現在の語彙量です。",
   "guideRoleVocabTestTitle": "語彙測定テスト",
@@ -1429,8 +1480,8 @@
   "guideRoleRankingBody": "語彙スコアによる順位を確認できます。表示名は自動で割り当てられます。",
   "guideRoleTopicTitle": "テーマ",
   "guideRoleTopicBody": "祭り・寺院での作法・BLドラマなどを通して、タイ語と文化を学べます。",
-  "guideRoleNotificationTitle": "毎日の通知",
-  "guideRoleNotificationBody": "決めた時刻にその日の例文が届き、学習の習慣化を助けます。",
+  "guideRoleNotificationTitle": "学習のお知らせ",
+  "guideRoleNotificationBody": "決めた時刻に新しい例文セットが届きます。しばらくアプリを開かないと通知の間隔が少しずつ広がり、最後は止まります。アプリを開けば毎日の通知に戻ります。",
   "guideRolePremiumTitle": "無料版とプレミアム",
   "guideRolePremiumBody": "無料版でも毎日学べます。プレミアムでは例文数・テーマ選択・語彙スコアの上限が広がります。",
   "guidePlanColItem": "項目",
@@ -1478,7 +1529,7 @@
   "guideHowDetailLead": "詳細画面では、例文の場面・文体・綴り・声調を確認できます。複数の手がかりと結びつけると、単語が記憶に残りやすくなります。",
   "guideHowSoundTitle": "聞く・声に出す",
   "guideHowSoundStep1": "「お手本を聞く」で、例文をループ再生します。",
-  "guideHowSoundStep2": "詳細画面の「発音練習」で「押したまま話す」を長押しし、例文を読みます。その場で声調を判定できます。",
+  "guideHowSoundStep2": "詳細画面の「発音練習」で「押したまま話す」を長押しし、表示された読み方を見ながら例文を声に出します。タイ文字がまだ読めなくても大丈夫です。その場で声調を判定できます。",
   "guideHowSoundStep3": "各語の声調が合っていれば緑、惜しければ橙、違っていれば赤で表示されます。語をタップすると、お手本との声の高さの違いと直し方を確認できます。",
   "guideHowQuizTitle": "確認クイズを解く",
   "guideHowQuizStep1": "例文の下の「覚えたか確認」から確認クイズへ進みます。",
@@ -1490,7 +1541,13 @@
   "guideHowReviewQuizStep2": "まとめクイズでは、前日・3日前・1週間前などに学んだ例文を、間隔をあけて復習します。まだ身についていない学習単語の問題が優先して出ます。",
   "guideHowReviewQuizStep3": "ヒントは1回目に発音、2回目に訳が出ます。使わずに正解すると、語彙スコアが伸びやすくなります。",
   "guideHowReviewQuizStep4": "迷ったら「例文を確認」で例文に戻れます。",
-  "guideHowReviewQuizStep5": "正解すると語彙スコアに反映されます。",
+  "guideHowReviewQuizStep5": "答えをもとに、語彙スコアと次の例文の難しさが調整されます。",
+  "guideHowNotifyTitle": "通知を設定する",
+  "guideHowNotifyStep1": "設定の「毎日の例文通知」で、通知の時刻を確認できます。スイッチでオン・オフ、時刻をタップすると変更できます。",
+  "guideHowNotifyStep2": "無料版は1日1回、プレミアムは1日3回まで設定できます。通知ごとに新しい例文セットが届きます。",
+  "guideHowNotifyStep3": "通知を開かなくても、アプリを開けば届いた例文セットが学習タブに表示されます。",
+  "guideHowNotifyStep4": "次の通知までに1本も読まなかった例文セットは、新しいものに入れ替わります。",
+  "guideHowNotifyStep5": "届かないときは、端末の設定で通知が許可されているか確認してください。無料版では、通知の前にその日の例文セットをすべて学んだ日は届きません。",
   "guideHowSettingsTitle": "設定でできること",
   "guideHowSettingsStep1": "通知時刻・表示フォント・訳と解説の言語を変更できます。",
   "guideHowSettingsStep2": "次の例文のテーマを選び、ランキングを開くこともできます。",
@@ -1524,15 +1581,15 @@
   "wordOrderRule6Title": "否定の ไม่ は、打ち消したい語句の前",
   "wordOrderRule6Body": "ไม่ は打ち消したい語句のすぐ前に置きます。",
   "wordOrderRule7Title": "疑問詞は答えが入る場所にそのまま",
-  "wordOrderRule7Body": "疑問詞は、答えが入る場所にそのまま置きます。はい・いいえの質問は文末に ไหม。",
-  "wordOrderRule8Title": "時を表す語の位置",
+  "wordOrderRule7Body": "疑問詞は、答えが入る場所にそのまま置きます。ただし ทำไม（なぜ）は文頭にもよく来ます。はい・いいえの質問は述語の後ろに ไหม を付けます（丁寧の語尾はさらに後ろ）。",
+  "wordOrderRule8Title": "いつのことかを表す語（จะ・แล้ว など）",
   "wordOrderRule8Body": "จะ（これから〜する）・กำลัง（〜している）・เคย（〜したことがある）は動詞の前。แล้ว（もう〜した）は動詞と目的語の後ろです。",
   "wordOrderRule9Title": "時を表す語は文頭か文末、場所は動詞の後ろ",
   "wordOrderRule9Body": "時を表す語は文頭か文末。場所は動詞の後ろに置きます。",
   "wordOrderRule10Title": "丁寧の語尾は一番最後",
-  "wordOrderRule10Body": "男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม や แล้ว よりも後ろに付きます。",
+  "wordOrderRule10Body": "男性は ครับ。女性はふつう ค่ะ、質問では คะ。ไหม・แล้ว や、นะ（〜ね）・เลย・ด้วย などの文末の語よりも後ろに付きます。นะ の後の女性の語尾は คะ（นะคะ）です。",
   "wordOrderTipsTitle": "並び替えのコツ",
-  "wordOrderTipsBody": "場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้ は、説明される名詞の後ろ\nไหม・แล้ว・ครับ/ค่ะ/คะ は最後のほう",
+  "wordOrderTipsBody": "場所や「この〇〇」が文全体の話題なら、文頭に置く\n動作・状態を表す語を探す。「だれが」はその前、「何を」「どこへ」はその後ろ\n説明する語・数・นี้・มาก は、説明される語の後ろ\nกับ・ใน などは名詞の前、อยาก・ต้อง は動詞の前\nไหม・แล้ว・นะ・ครับ/ค่ะ/คะ は最後のほう",
   "wordOrderEx1aGloss": "ツアー|この|人|多い",
   "wordOrderEx1aMeaning": "このツアーは人が多い",
   "wordOrderEx1bGloss": "空港|人|多い",
@@ -1547,7 +1604,7 @@
   "wordOrderEx4aMeaning": "大きい家",
   "wordOrderEx4bGloss": "家|〜の|私",
   "wordOrderEx4bMeaning": "私の家",
-  "wordOrderRule4Note": "ของ は省くこともあります。",
+  "wordOrderRule4Note": "บ้านใหญ่ は「家は大きい」という文にもなります。形容詞はそのまま述語になり、เป็น は要りません。ของ は省くこともあります。",
   "wordOrderEx5aGloss": "猫|2|匹",
   "wordOrderEx5aMeaning": "猫2匹",
   "wordOrderEx5bGloss": "猫|2|匹|この",
@@ -1577,6 +1634,92 @@
   "wordOrderEx10aMeaning": "食べますか？",
   "wordOrderEx10bGloss": "食べる|もう〜した|丁寧（女性）",
   "wordOrderEx10bMeaning": "もう食べました",
+  "wordOrderRule5Note": "แมวตัวหนึ่ง のように類別詞の後ろに หนึ่ง を置くと、「ある猫」という意味になります。",
+  "wordOrderEx10cGloss": "おいしい|〜ね|丁寧（女性）",
+  "wordOrderEx10cMeaning": "おいしいですね",
+  "wordOrderRule11Title": "文で説明するときは「名詞 → ที่ → 説明」",
+  "wordOrderRule11Body": "「私が好きな店」のように文で名詞を説明するときも、説明は後ろです。名詞の後に ที่ を置き、その後ろに説明を続けるのが基本です。",
+  "wordOrderEx11aGloss": "店|（つなぐ語）|私|好き",
+  "wordOrderEx11aMeaning": "私が好きな店",
+  "wordOrderRule12Title": "「〜と」「〜の上に」などは名詞の前",
+  "wordOrderRule12Body": "กับ（〜と）・ใน（〜の中で）・บน（〜の上に）・ให้（〜に）・ที่（〜で）は名詞の前に置きます。日本語の「〜と」「〜で」とは逆です。",
+  "wordOrderEx12aGloss": "私|行く|〜と|友達",
+  "wordOrderEx12aMeaning": "私は友達と行く",
+  "wordOrderEx12bGloss": "猫|いる|〜の上|机",
+  "wordOrderEx12bMeaning": "猫は机の上にいる",
+  "wordOrderRule13Title": "「とても」「少し」は後ろ",
+  "wordOrderRule13Body": "มาก（とても）・จริงๆ（本当に）・นิดหน่อย（少し）は、形容詞や動詞の後ろに置きます。日本語と逆です。",
+  "wordOrderEx13aGloss": "料理|この|おいしい|とても",
+  "wordOrderEx13aMeaning": "この料理はとてもおいしい",
+  "wordOrderRule14Title": "比べるときは「形容詞 → กว่า → 相手」",
+  "wordOrderRule14Body": "「AはBより〜」は「A＋形容詞＋กว่า＋B」。「一番〜」は形容詞の後ろに ที่สุด を付けます。",
+  "wordOrderEx14aGloss": "今日|暑い|〜より|昨日",
+  "wordOrderEx14aMeaning": "今日は昨日より暑い",
+  "wordOrderEx14bGloss": "もの|この|良い|一番",
+  "wordOrderEx14bMeaning": "これが一番いい",
+  "wordOrderRule15Title": "「〜したい」は動詞の前、「できる」は後ろ",
+  "wordOrderRule15Body": "อยาก（〜したい）・ต้อง（〜しなければ）・ควร（〜したほうがいい）は動詞の前。ได้（できる）は動詞と目的語の後ろです。",
+  "wordOrderEx15aGloss": "私|〜したい|食べる|ソムタム",
+  "wordOrderEx15aMeaning": "私はソムタムを食べたい",
+  "wordOrderEx15bGloss": "私|話す|タイ語|できる",
+  "wordOrderEx15bMeaning": "私はタイ語を話せる",
+  "wordOrderRule16Title": "動詞はそのまま続けて並べる",
+  "wordOrderRule16Body": "「買い物に行く」は ไป（行く）＋ซื้อ（買う）のように、起きる順に動詞を並べます。ไป・มา が「〜て行く・〜て来る」の意味のときは後ろに付きます。",
+  "wordOrderEx16aGloss": "私|行く|買う|物",
+  "wordOrderEx16aMeaning": "私は買い物に行く",
+  "wordOrderEx16bGloss": "取る|水|来る",
+  "wordOrderEx16bMeaning": "水を持ってくる",
+  "pronGuideTitle": "タイ語の発音ガイド",
+  "pronGuideHeading": "タイ語の発音のポイント",
+  "pronGuideIntro": "アプリの読みは、ローマ字に記号を足した表記です。日本語にない音の区別を、読みの記号と一緒に押さえましょう。声調は「声調ガイド」で説明しています。",
+  "pronSymbolsTitle": "読みの記号",
+  "pronSymbolsBody": "日本語のローマ字と違う記号だけをまとめました。",
+  "pronSymbolsDescs": "ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる",
+  "pronAspTitle": "息を出す音・出さない音",
+  "pronAspBody": "kh・th・ph・ch は息を強く出し、k・t・p・j は息を出さずに言います。日本語では区別しませんが、タイ語では別の語になります。",
+  "pronAspMeanings": "鶏|卵|目|塗る|投げる|連れて行く",
+  "pronAspNote": "口の前に手をかざして言ってみましょう。kh・th・ph で息が当たり、k・t・p で当たらなければ区別できています。",
+  "pronLengthTitle": "長い母音・短い母音",
+  "pronLengthBody": "aa・ii のように同じ母音が2つ並んだ読みは長くのばします。長さが違うだけで別の語になります。",
+  "pronLengthMeanings": "入る|ご飯|彼|白い",
+  "pronVowelTitle": "似た母音を区別する",
+  "pronVowelBody": "e と ɛ、o と ɔ、u と ʉ は日本語ではどちらも同じ音に聞こえます。ɛ・ɔ は口を大きく開け、ʉ は唇を丸めずに言います。",
+  "pronVowelMeanings": "子ども|日差し|机|部屋|見る|手|お金|歩く",
+  "pronFinalTitle": "語末の k・t・p は音を出さない",
+  "pronFinalBody": "語末の k・t・p は口の形だけ作って止め、「ク・ト・プ」とは言いません。n と ng も区別します。",
+  "pronFinalMeanings": "鳥|車|〜と|皿|薄い",
+  "pronFinalNote": "タイ文字では、語末の ด・ส・ช なども t、บ・พ なども p の音になります。",
+  "pronCasualTitle": "会話での崩れ",
+  "pronCasualBody": "会話では読みどおりに言わないことがよくあります。r が l になる、子音が2つ続くと後ろが落ちる、声調が変わる、などです。",
+  "pronCasualMeanings": "愛する|丁寧（男性）|〜か？|私（女性）",
+  "pronCasualNote": "崩れた形は聞き取りの手がかりです。話すときは読みどおりで通じます。",
   "guideRoleQuizWordOrder": "並び替えクイズ：まとめクイズの一部で、例文の4つの語を正しい順に並べます。解答後の「語順について詳しく学ぶ」から語順ガイドを開けます。",
-  "guideHowSettingsGuides": "「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。"
+  "guideHowSettingsGuides": "「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。",
+  "streakChipDays": "{count}日",
+  "@streakChipDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakChipStart": "今日から",
+  "streakTitle": "例文 {count}日継続",
+  "@streakTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakRestart": "1本作ると再スタート",
+  "streakStart": "今日の1本で記録を始めよう",
+  "streakBest": "最長 {count}日",
+  "@streakBest": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakNextMilestone": "{target}日まで あと{count}日",
+  "@streakNextMilestone": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "target": { "type": "int" }
+    }
+  },
+  "streakToday": "今日",
+  "streakWeekdayLetters": "月火水木金土日",
+  "@streakWeekdayLetters": {
+    "description": "月曜始まりの曜日1文字×7。1文字ずつ切って使う。"
+  }
 }

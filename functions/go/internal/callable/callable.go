@@ -113,6 +113,9 @@ type Request struct {
 	Data json.RawMessage
 	// AppCheck は App Check トークンの検証結果。現状は記録するだけで弾かない。
 	AppCheck AppCheckStatus
+	// AppCheckAppID は検証できた App Check トークンの発行先アプリ
+	// （Firebase のアプリ ID。例 1:123:android:abc）。検証できなければ空。
+	AppCheckAppID string
 	// Raw は稀に header などが要るハンドラ向け。通常は使わない。
 	Raw *http.Request
 }
@@ -217,9 +220,21 @@ func HTTP(name string, verify Verifier, appCheck AppCheckVerifier, h Handler) ht
 			req.Auth = &Auth{UID: decoded.UID, Token: decoded}
 		}
 
-		req.AppCheck = verifyAppCheck(appCheck, r.Header.Get("X-Firebase-AppCheck"))
-		// 未証明の割合を測るため、全リクエストで結果を残す。
-		log.Printf("%s: appCheck=%s", name, req.AppCheck)
+		var appCheckErr error
+		req.AppCheck, req.AppCheckAppID, appCheckErr = verifyAppCheck(appCheck, r.Header.Get("X-Firebase-AppCheck"))
+		// 未証明の割合を測るため、全リクエストで結果を残す。必須にできるか判断する
+		// 材料として、誰の・どの版の端末か（uid・UA）と、通らなかった理由も残す。
+		uid := ""
+		if req.Auth != nil {
+			uid = req.Auth.UID
+		}
+		if appCheckErr != nil {
+			log.Printf("%s: appCheck=%s app=%s uid=%s ua=%q reason=%q",
+				name, req.AppCheck, req.AppCheckAppID, uid, r.UserAgent(), appCheckErr.Error())
+		} else {
+			log.Printf("%s: appCheck=%s app=%s uid=%s ua=%q",
+				name, req.AppCheck, req.AppCheckAppID, uid, r.UserAgent())
+		}
 
 		result, err := h(ctx, req)
 		if err != nil {
@@ -234,17 +249,25 @@ func HTTP(name string, verify Verifier, appCheck AppCheckVerifier, h Handler) ht
 	}
 }
 
-func verifyAppCheck(v AppCheckVerifier, token string) AppCheckStatus {
+// verifyAppCheck は検証結果と発行先アプリを返す。invalid のときは理由の error も返す。
+func verifyAppCheck(v AppCheckVerifier, token string) (AppCheckStatus, string, error) {
 	if token == "" {
-		return AppCheckMissing
+		return AppCheckMissing, "", nil
 	}
 	if v == nil {
-		return AppCheckUnchecked
+		return AppCheckUnchecked, "", nil
 	}
-	if _, err := v.VerifyToken(token); err != nil {
-		return AppCheckInvalid
+	decoded, err := v.VerifyToken(token)
+	if err != nil {
+		return AppCheckInvalid, "", err
 	}
-	return AppCheckValid
+	return AppCheckValid, decoded.AppID, nil
+}
+
+// IsAndroidApp は検証済みの App Check トークンが Android アプリから来たか。
+// Firebase のアプリ ID は「1:<番号>:android:<ハッシュ>」の形。
+func (r *Request) IsAndroidApp() bool {
+	return r.AppCheck == AppCheckValid && strings.Contains(r.AppCheckAppID, ":android:")
 }
 
 func bearerToken(r *http.Request) string {

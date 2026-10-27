@@ -51,6 +51,23 @@ type VerificationResult struct {
 	Status       Status
 	// LinkedPurchaseToken はプラン切り替え前の購入トークン（切り替えでなければ空）。
 	LinkedPurchaseToken string
+	// FreeTrial は今の期間がストアの無料トライアルか。集計で課金者と分けるのに使う。
+	FreeTrial bool
+	// Sandbox はライセンステスターのテスト購入か。本番の売上ではないので集計から外す。
+	Sandbox bool
+}
+
+// subscriptionLineItem は subscriptionPurchaseV2 の商品ごとの明細。
+type subscriptionLineItem struct {
+	ProductID        string `json:"productId"`
+	ExpiryTime       string `json:"expiryTime"`
+	AutoRenewingPlan *struct {
+		AutoRenewEnabled bool `json:"autoRenewEnabled"`
+	} `json:"autoRenewingPlan"`
+	// OfferPhase は今の期間の段階。FreeTrial があれば無料トライアル中。
+	OfferPhase *struct {
+		FreeTrial *struct{} `json:"freeTrial"`
+	} `json:"offerPhase"`
 }
 
 // subscriptionPurchaseV2 は Subscriptions v2 API のレスポンス。
@@ -63,16 +80,12 @@ type VerificationResult struct {
 //   - PAUSED: 一時停止（ユーザーが自ら一時停止した）
 //   - EXPIRED: 期限切れ（完全に終了）
 type subscriptionPurchaseV2 struct {
-	Kind      string `json:"kind"`
-	LineItems []struct {
-		ProductID        string `json:"productId"`
-		ExpiryTime       string `json:"expiryTime"`
-		AutoRenewingPlan *struct {
-			AutoRenewEnabled bool `json:"autoRenewEnabled"`
-		} `json:"autoRenewingPlan"`
-	} `json:"lineItems"`
-	SubscriptionState   string `json:"subscriptionState"`
-	LinkedPurchaseToken string `json:"linkedPurchaseToken"`
+	Kind                string                 `json:"kind"`
+	LineItems           []subscriptionLineItem `json:"lineItems"`
+	SubscriptionState   string                 `json:"subscriptionState"`
+	LinkedPurchaseToken string                 `json:"linkedPurchaseToken"`
+	// TestPurchase はライセンステスターの購入なら付く（中身は空）。
+	TestPurchase *struct{} `json:"testPurchase"`
 }
 
 // Client は Play Developer API を叩く。
@@ -117,6 +130,8 @@ type productPurchase struct {
 	PurchaseState *int   `json:"purchaseState"`
 	ProductID     string `json:"productId"`
 	OrderID       string `json:"orderId"`
+	// PurchaseType は通常購入なら付かない。0=ライセンステスターのテスト購入。
+	PurchaseType *int `json:"purchaseType"`
 }
 
 // ErrPurchasePending は支払いが済んでいない一時購入。権利は付けずに
@@ -157,6 +172,7 @@ func mapOneTimeResult(productID string, data *productPurchase) (*VerificationRes
 	}
 	return &VerificationResult{
 		Valid: true, ProductID: productID, Status: status,
+		Sandbox: data.PurchaseType != nil && *data.PurchaseType == 0,
 	}, nil
 }
 
@@ -205,6 +221,7 @@ func mapResult(
 	// クライアント申告の商品ではなく、Play が返した同一商品だけを採用する。
 	var expiresAt *time.Time
 	autoRenewing := false
+	freeTrial := false
 	foundProduct := false
 	for _, item := range data.LineItems {
 		if item.ProductID != subscriptionID {
@@ -221,6 +238,7 @@ func mapResult(
 		if item.AutoRenewingPlan != nil {
 			autoRenewing = item.AutoRenewingPlan.AutoRenewEnabled
 		}
+		freeTrial = item.OfferPhase != nil && item.OfferPhase.FreeTrial != nil
 		break
 	}
 	if !foundProduct {
@@ -263,6 +281,8 @@ func mapResult(
 		Valid: true, ProductID: subscriptionID, ExpiresAt: expiresAt,
 		AutoRenewing: autoRenewing, Status: status,
 		LinkedPurchaseToken: data.LinkedPurchaseToken,
+		FreeTrial:           freeTrial,
+		Sandbox:             data.TestPurchase != nil,
 	}, nil
 }
 

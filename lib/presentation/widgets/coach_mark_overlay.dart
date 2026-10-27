@@ -78,12 +78,9 @@ class CoachMarkOverlay {
       return false;
     }
 
-    final topLeft = targetBox.localToGlobal(Offset.zero, ancestor: overlayBox);
-    final rect = topLeft & targetBox.size;
-
     void dismissWith(String action) {
       _log(action);
-      _entry?.remove();
+      _removeEntry();
       _entry = null;
       _ownerKey = null;
       _visibleId = null;
@@ -91,7 +88,11 @@ class CoachMarkOverlay {
       onDismiss?.call(action);
     }
 
-    _entry = OverlayEntry(
+    // 暗幕を出す時点の対象の位置。先にスクロールしたときは寄せ終わってから測る。
+    var rect = targetBox.localToGlobal(Offset.zero, ancestor: overlayBox) &
+        targetBox.size;
+
+    final entry = OverlayEntry(
       builder: (_) => _CoachMarkContent(
         targetKey: targetKey,
         overlayState: overlay,
@@ -110,15 +111,53 @@ class CoachMarkOverlay {
         onConfirm: () => dismissWith('confirmed'),
       ),
     );
-    overlay.insert(_entry!);
-    // 吹き出しが入るだけの余白を作る。スポットはスクロールに追従するので、
-    // 出したあとに寄せても案内が置き去りにならない。
-    _scrollIntoView(context, targetKey);
+    _entry = entry;
     _ownerKey = targetKey;
     _visibleId = id;
     _analytics = analytics;
-    _log('shown');
+
+    void insert() {
+      overlay.insert(entry);
+      _log('shown');
+    }
+
+    // 吹き出しが入るだけの余白を作ってから暗幕を出す。出してから寄せると、
+    // 光った対象が暗幕の上を滑っていくように見えて、どこを指しているのか
+    // 追いにくい。寄せる必要が無ければすぐ出す。
+    final scrolling = _scrollIntoView(context, targetKey);
+    if (scrolling == null) {
+      insert();
+      return true;
+    }
+    unawaited(scrolling.whenComplete(() {
+      // 寄せている間に閉じられた・別の案内に替わった・対象が消えた・別の画面へ
+      // 移った場合は出さない。移った先の画面に暗幕だけが重なってしまう。
+      if (!identical(_entry, entry)) return;
+      final targetCtx = targetKey.currentContext;
+      final box = targetCtx?.findRenderObject() as RenderBox?;
+      if (targetCtx == null ||
+          !targetCtx.mounted ||
+          box == null ||
+          !box.attached ||
+          !box.hasSize ||
+          ModalRoute.of(targetCtx)?.isCurrent == false ||
+          !TickerMode.getValuesNotifier(targetCtx).value.enabled) {
+        _entry = null;
+        _ownerKey = null;
+        _visibleId = null;
+        _analytics = null;
+        return;
+      }
+      rect = box.localToGlobal(Offset.zero, ancestor: overlayBox) & box.size;
+      insert();
+    }));
     return true;
+  }
+
+  /// 表示中の暗幕を外す。スクロールを待っていてまだ出していないこともある。
+  static void _removeEntry() {
+    final entry = _entry;
+    if (entry != null && entry.mounted) entry.remove();
   }
 
   /// 吹き出しに要る高さの見積もり。置き場を決める側（260）より少し多く見る。
@@ -130,17 +169,22 @@ class CoachMarkOverlay {
   /// 画面の低い端末（iPhone mini など）では、対象がそのままの位置だと上下
   /// どちらにも吹き出しが収まらず、帯からあふれた見出しが見切れる。対象を
   /// 動かせる（スクロールの中にいる）ときは先に寄せてしまう。
-  static void _scrollIntoView(BuildContext context, GlobalKey targetKey) {
+  ///
+  /// 寄せたときはスクロールの完了を返す。寄せる必要が無ければ null。
+  static Future<void>? _scrollIntoView(
+    BuildContext context,
+    GlobalKey targetKey,
+  ) {
     final ctx = targetKey.currentContext;
-    if (ctx == null) return;
+    if (ctx == null) return null;
     final position = Scrollable.maybeOf(ctx)?.position;
     if (position == null ||
         !position.hasPixels ||
         !position.hasContentDimensions) {
-      return;
+      return null;
     }
     final box = ctx.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return;
+    if (box == null || !box.hasSize) return null;
 
     final media = MediaQuery.of(context);
     final safeTop = media.padding.top + 12;
@@ -155,7 +199,7 @@ class CoachMarkOverlay {
     final spaceBelow = safeBottom - bottom;
     final fullyVisible = top >= safeTop && bottom <= safeBottom;
     if (fullyVisible && math.max(spaceAbove, spaceBelow) >= _bubbleSpace) {
-      return;
+      return null;
     }
 
     // 下に吹き出しを置けるところまで対象を上げる。対象が高くてそれでも
@@ -166,14 +210,12 @@ class CoachMarkOverlay {
         fitsWithBubble ? bottom - (safeBottom - _bubbleSpace) : top - safeTop;
     final to = (position.pixels + delta)
         .clamp(position.minScrollExtent, position.maxScrollExtent);
-    if ((to - position.pixels).abs() < 1) return;
+    if ((to - position.pixels).abs() < 1) return null;
 
-    unawaited(
-      position.animateTo(
-        to,
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOut,
-      ),
+    return position.animateTo(
+      to,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
     );
   }
 
@@ -191,7 +233,7 @@ class CoachMarkOverlay {
   /// ここが多いならツアーの出し所がずれている。
   static void dismiss() {
     _log('closed');
-    _entry?.remove();
+    _removeEntry();
     _entry = null;
     _ownerKey = null;
     _visibleId = null;

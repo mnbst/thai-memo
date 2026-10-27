@@ -45,6 +45,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/bldrama"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/secrets"
 )
@@ -63,6 +64,14 @@ type Candidate struct {
 	// Lang は訳文の言語。英語なら訳の観点を聞かない。
 	Lang      lang.Lang
 	CreatedAt time.Time
+	// Words は word_breakdown の語と意味。コードで判定する観点だけが見る（Jev には送らない）。
+	Words []Word
+}
+
+// Word は word_breakdown の1語。
+type Word struct {
+	Word    string
+	Meaning string
 }
 
 // Verdict は不合格と判定した 1 件。
@@ -157,7 +166,7 @@ var Aspects = append([]Aspect{
 		Question: "`thai_text` で、くだけた人称（มึง、กู、แก 等）を使う文の中に、改まった語・書き言葉（ยอดเยี่ยม、ดำเนินการ、สามารถ、ต้องการ、เนื่องจาก、อย่างไร、รับประทาน、ขอบพระคุณ 等）を混ぜているか",
 		Note:     "くだけた人称を使う文に、改まった語・書き言葉を混ぜていた。くだけた文には口語の語を使う"},
 	{ID: "trans_add", Label: "訳の加筆", Threshold: transAddThreshold, JAOnly: true,
-		Question: "`japanese_translation` に `thai_text` に無い情報（時制、場所、理由、括弧の補足）が足されているか"},
+		Question: "`japanese_translation` に `thai_text` に無い情報（時制、場所、理由）が足されているか。括弧の補足は含まない"},
 	{ID: "trans_drop", Label: "訳の欠落", Threshold: transDropThreshold, JAOnly: true,
 		Question: "`japanese_translation` から、`thai_text` にある目的・条件・否定・可能性・義務・譲歩を表す語（เพื่อ、เพื่อให้、ถ้า、ไม่、อาจจะ、ต้อง、ทั้งที่ など）の意味が抜けているか。「〜ために」を「〜し、」と並べただけの訳も抜けに含む",
 		Note:     "japanese_translation から、thai_text にある目的・条件・否定・可能性・義務・譲歩の意味が抜けていた。「〜ために」を「〜し、」と並べただけの訳も抜けに含む"},
@@ -170,10 +179,7 @@ var Aspects = append([]Aspect{
 	{ID: "trans_thai", Label: "訳にタイ文字", JAOnly: false,
 		Note:  "japanese_translation にタイ文字が残っていた。訳にはタイ文字を書かない",
 		Check: func(c Candidate) bool { return containsThai(c.JapaneseTranslation) }},
-	{ID: "trans_paren", Label: "訳の括弧補足", JAOnly: true,
-		Note:  "japanese_translation に括弧で補足を書いていた。括弧を使わずに訳す",
-		Check: func(c Candidate) bool { return strings.ContainsAny(c.JapaneseTranslation, "（(") }},
-	// 以下4つは rules.go（測定値もそちら）。
+	// 以下7つは rules.go（測定値もそちら）。
 	{ID: "trans_term", Label: "訳に文法用語",
 		Note:  "japanese_translation に品詞名・文法用語や角括弧を書いていた。対応する語が無いものは訳さずに落とす",
 		Check: gramTerm},
@@ -186,9 +192,15 @@ var Aspects = append([]Aspect{
 	{ID: "word_misuse", Label: "語の場面違い",
 		Note:  "thai_text で、日本語訳が当てはまるだけの語を別の場面に当てていた（体調の語を物の感想に、山頂の語を物や体の上端に、推量の語を依頼の前置きに、乗り場の名を乗り物に）。その場面でタイ語の話者が実際に使う言い方にする",
 		Check: wordMisuse},
+	{ID: "thai_latin", Label: "本文にローマ字",
+		Note:  "thai_text に人名などをローマ字で書いていた。タイ文字で書く",
+		Check: latinName},
 	{ID: "concessive_head", Label: "譲歩の形",
 		Note:  "thai_text で、「〜であっても」を表す文末の語を、「たとえ／どんなに／何であれ」に当たる前置きなしで置いていた。前置きを足すか、文末の語を外す",
 		Check: concessiveNoHead},
+	{ID: "casual_pronoun", Label: "人称の口語つづり",
+		Note:  "thai_text で、人称代名詞を声調の崩れに合わせた口語のつづりで書いていた。辞書どおりの標準のつづりで書く",
+		Check: casualPronoun},
 	// 呼称の音写は trans_vocative が見る。ここに例として残すと、あだ名の正しい
 	// カタカナ表記（カン先輩、マウィンさん）まで誤訳にされる（2026-09-26 評価セットで
 	// 正常の誤検出 14→8〜11/70、欠陥の検出 45/55 のまま）。
@@ -260,7 +272,7 @@ func aspectsFor(c Candidate) []Aspect {
 func aspectsIn(list []Aspect, c Candidate) []Aspect {
 	out := make([]Aspect, 0, len(list))
 	for _, a := range list {
-		if a.JAOnly && c.Lang == lang.EN {
+		if a.JAOnly && c.Lang != "" && c.Lang != lang.JA {
 			continue
 		}
 		if a.Trigger != nil && !a.Trigger(c) {
@@ -319,7 +331,7 @@ func (j *Judge) Review(ctx context.Context, batch []Candidate) (Result, error) {
 	return j.review(ctx, batch, Aspects)
 }
 
-// review は list の観点で batch を判定する（Review / ReviewPool の本体）。
+// review は list の観点で batch を判定する（Review / ReviewAll / ReviewPool の本体）。
 func (j *Judge) review(ctx context.Context, batch []Candidate, list []Aspect) (Result, error) {
 	var res Result
 	var errs []error
@@ -366,6 +378,31 @@ type jevState struct {
 	ThaiText            string `json:"thai_text"`
 	JapaneseTranslation string `json:"japanese_translation"`
 	KeyWord             string `json:"key_word,omitempty"`
+	// CharacterNames は BLドラマ回の文に出てくる登場人物の名前。
+	CharacterNames []string `json:"character_names,omitempty"`
+}
+
+// namesPreamble は character_names があるときだけ aspectPreamble に足す。
+// แกง（カレー）・ขอบฟ้า（地平線）のように普通の語と同じ綴りの名前を、Jev が語として
+// 読んで共起・文法・意味の観点で落としていた（2026-10-11、名前を入れた BL 回 103 文）。
+const namesPreamble = "`character_names` は thai_text に出てくる登場人物の名前。普通の語と同じ綴りでも人名として読む。"
+
+// bldramaNames は BLドラマ回の登場人物の名前。
+var bldramaNames = bldrama.Names()
+
+// characterNames は c が BLドラマ回の文なら、thai_text に出てくる登場人物の名前を返す。
+// 他のテーマでは返さない（แกง・หมู・ซัน は普通の語として出る）。
+func characterNames(c Candidate) []string {
+	if !strings.Contains(c.Topic, "BLドラマ") {
+		return nil
+	}
+	var out []string
+	for _, n := range bldramaNames {
+		if strings.Contains(c.ThaiText, n) {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 // RequestBody は Jev へ送る本文を組む。
@@ -387,12 +424,17 @@ func requestBody(model string, c Candidate, aspects []Aspect) map[string]any {
 		ThaiText:            c.ThaiText,
 		JapaneseTranslation: c.JapaneseTranslation,
 		KeyWord:             c.KeyWord,
+		CharacterNames:      characterNames(c),
+	}
+	preamble := aspectPreamble
+	if len(state.CharacterNames) > 0 {
+		preamble += namesPreamble
 	}
 	questions := make(map[string]any, len(aspects))
 	for _, a := range jevAspects(aspects) {
 		questions[a.ID] = map[string]any{
 			"type":         "noul",
-			"instructions": aspectPreamble + a.Question,
+			"instructions": preamble + a.Question,
 			"criteria": map[string]string{
 				"true":  "はい、問題がある",
 				"false": "いいえ、問題はない",

@@ -143,12 +143,35 @@ func (b *FreeBank) Pick(
 		}
 	}
 
-	// バンクはプロセス内でキャッシュしているので、返す前にコピーする
-	// （呼び出し側が generation_tier 等を足してもバンクを汚さない）。
 	picked := candidates[b.intn(len(candidates))]
-	picked.WordBreakdown = append([]Word(nil), picked.WordBreakdown...)
-	picked.Context = LocalizeContext(picked.Context, l)
+	localizeBanked(&picked, l)
 	return &picked, nil
+}
+
+// PickUnseen は target_word に紐づく free 例文を、バンクの並び順で未出（seen に無い）の
+// ものから1件返す。テーマは見ない。全部既出か、語の例文が無ければ nil
+// （呼び出し側が LLM で作る）。
+//
+// Pick は候補から一様に引くので、未出の文が残っていても既出の文を引けば LLM へ
+// 落ちていた。free のテーマはおまかせの一様抽選なので、在庫の無いテーマを
+// 引いたときも同じく LLM へ落ちていた。語の選定はそのままに、語に紐づく文を
+// 順に出し切ってから LLM を呼ぶ。
+func (b *FreeBank) PickUnseen(
+	ctx context.Context, targetWord string, l lang.Lang, seen map[string]bool,
+) (*Sentence, string, error) {
+	sentences, err := b.Sentences(ctx, l)
+	if err != nil {
+		return nil, "", err
+	}
+	for _, s := range sentences {
+		if s.KeyWord != targetWord || seen[s.ThaiText] {
+			continue
+		}
+		topic, _ := s.Context["topic"].(string)
+		localizeBanked(&s, l)
+		return &s, topic, nil
+	}
+	return nil, "", nil
 }
 
 func (b *FreeBank) intn(n int) int {

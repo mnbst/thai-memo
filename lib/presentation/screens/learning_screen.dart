@@ -251,6 +251,13 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
           onReload: widget.onReload,
           onStartQuiz: (sentence, offerSource) {
             _rememberConfirmationQuiz(sentence);
+            final setId = ref.read(dailySetProvider).setId;
+            if (setId != null) {
+              unawaited(rememberVocabAtSetStart(
+                ref,
+                DailySetController.baseSetId(setId),
+              ));
+            }
             final quizNotifier = ref.read(quizControllerProvider.notifier);
             final quizState = ref.read(quizControllerProvider);
 

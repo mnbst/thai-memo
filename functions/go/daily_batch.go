@@ -13,6 +13,7 @@ import (
 	"firebase.google.com/go/v4/auth"
 	"google.golang.org/api/iterator"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/dailysentence"
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/notify"
 	"github.com/mnbst/thai-memo/functions/go/internal/premium"
@@ -52,20 +53,6 @@ const anonInactiveDays = 7
 
 // maxAnonDeletionsPerRun は1回の実行で削除する匿名ユーザーの上限（負荷平準化）。
 const maxAnonDeletionsPerRun = 500
-
-// UVM P値減衰の定数。
-//
-// key_word の候補が未出題語（UVM 未登録 or P=0）で埋まらなくなると、
-// GetSessionWords は 1-p 重み（UnknownWeights）にフォールバックして既習語から
-// 引き直す。P を毎日 pDecayPerDay ずつ減衰させておくと、そのとき放置された語が
-// 復習されたばかりの語より優先される。全登録単語に適用する。
-const (
-	pDecayPerDay = 0.001
-	// 減衰の下限は uvm.PFloor と揃える。ここだけ 0 にすると、間違えた語が
-	// 150 日かけて PFloor の下へ沈み、「2 回連続正解で P>0.5 に戻る」保証が
-	// 崩れる（uvm.PFloor のコメントを参照）。
-	pDecayMin = uvm.PFloor
-)
 
 func dailyBatchHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -438,6 +425,14 @@ func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[s
 	); ok {
 		payload["notify_utc_hour"] = utcHour
 	}
+	// 複数時刻（notify_hours）も同じく毎日作り直す。premium でなくなった人は
+	// ここで先頭の1つに戻る。nil はフィールドを消す合図。
+	for k, v := range dailysentence.NotifyHoursRefresh(userData, effectivePremium, now) {
+		if v == nil {
+			v = firestore.Delete
+		}
+		payload[k] = v
+	}
 
 	// 体験終了ダイアログは「回数が free に戻ってから」出したい。期限切れ後の最初の
 	// リセットでここに刻み、クライアントはこの時刻の有無だけを見る。
@@ -500,11 +495,11 @@ func decayUvmP(ctx context.Context, db *firestore.Client, uid string) error {
 		}
 
 		p := floatField(doc.Data()["p"])
-		if p <= pDecayMin {
+		if p <= uvm.PFloor {
 			continue
 		}
 
-		newP := max(pDecayMin, p-pDecayPerDay)
+		newP := uvm.DecayP(p)
 		if _, err := bw.Update(doc.Ref, []firestore.Update{
 			{Path: "p", Value: newP},
 		}); err != nil {

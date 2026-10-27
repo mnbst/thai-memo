@@ -81,3 +81,21 @@ resource "google_logging_metric" "processing_time" {
     }
   }
 }
+
+# App Check を通らない呼び出しが全体の日次上限に達した回数（functions/go/unverified_limit.go）。
+# 達していればユーザー量産による LLM 課金の攻撃か、Play Integrity の大規模な不調。
+resource "google_logging_metric" "appcheck_unverified_cap" {
+  name    = "appcheck_unverified_cap"
+  project = var.project_id
+
+  filter = <<-EOT
+    resource.type="cloud_run_revision"
+    textPayload:"unverified limit reached reason=total"
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+}

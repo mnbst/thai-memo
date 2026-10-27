@@ -168,6 +168,8 @@ def main() -> int:
     print(f"投稿した: https://x.com/i/status/{tweet_id}")
 
     sentence = json.loads((out / "sentence.json").read_text(encoding="utf-8"))
+    theme_file = out / "theme.txt"
+    theme = theme_file.read_text(encoding="utf-8") if theme_file.exists() else ""
     mark_posted(
         args.project,
         key,
@@ -176,6 +178,7 @@ def main() -> int:
             "tweet_id": str(tweet_id),
             "thai_text": sentence.get("thai_text", ""),
             "japanese_translation": sentence.get("japanese_translation", ""),
+            "theme": theme,
             "posted_at": datetime.now(timezone.utc).isoformat(),
         },
     )

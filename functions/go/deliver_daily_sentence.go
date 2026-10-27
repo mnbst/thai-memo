@@ -162,12 +162,36 @@ func runDeliverDailySentence(ctx context.Context, now time.Time) error {
 // ローカル時刻比較が最終判定を行う（値が古くても誤配信にはならない）。
 // フィールドは dailyBatch が毎日全ユーザーに書き直すため、旧クライアントでも
 // 1日以内に埋まる。
+//
+// 複数時刻を設定した人は notify_utc_hours（配列）にも載る。先頭の時刻は
+// notify_utc_hour と同じなので両方のクエリに出るが、uid で1回にまとめる。
 func (d *deliverer) eachCandidate(
 	ctx context.Context, now time.Time, fn func(uid string, userData map[string]any),
 ) error {
-	it := d.DB.Collection("users").
-		Where("notify_utc_hour", "==", now.UTC().Hour()).
-		Documents(ctx)
+	hour := now.UTC().Hour()
+	users := d.DB.Collection("users")
+	seen := map[string]bool{}
+	for _, q := range []firestore.Query{
+		users.Where("notify_utc_hour", "==", hour),
+		users.Where("notify_utc_hours", "array-contains", hour),
+	} {
+		if err := eachDoc(ctx, q, func(doc *firestore.DocumentSnapshot) {
+			if seen[doc.Ref.ID] {
+				return
+			}
+			seen[doc.Ref.ID] = true
+			fn(doc.Ref.ID, doc.Data())
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func eachDoc(
+	ctx context.Context, q firestore.Query, fn func(doc *firestore.DocumentSnapshot),
+) error {
+	it := q.Documents(ctx)
 	defer it.Stop()
 	for {
 		doc, err := it.Next()
@@ -177,7 +201,7 @@ func (d *deliverer) eachCandidate(
 		if err != nil {
 			return err
 		}
-		fn(doc.Ref.ID, doc.Data())
+		fn(doc)
 	}
 }
 
@@ -230,7 +254,7 @@ func (d *deliverer) buildSentences(
 			// premium は LLM 生成なので引き直さない（Produce の既定と同じ 1 周）。
 			SelectRetry: 1,
 			Lang:        l,
-			// 配信はユーザーを待たせないので、LLM 生成分を判定して不合格なら作り直す。
+			// LLM 生成分を1回判定し、不合格の文はセットから外す。
 			QualityCheck: deliveryQualityCheck(),
 		}, n)
 		if err != nil {
@@ -347,7 +371,7 @@ func dailyCommitPlanForEntitlement(
 		return "", nil, nil, errEntitlementChanged
 	}
 
-	tierUpdate := dailysentence.EvaluateResponse(userData)
+	tierUpdate := dailysentence.EvaluateResponseAt(userData, now)
 	if tierUpdate.NotifyTier >= dailysentence.TierStopped {
 		return "", nil, nil, &deliveryStoppedError{updates: append(
 			[]firestore.Update{{Path: "last_notified_at", Value: firestore.ServerTimestamp}},
@@ -522,6 +546,12 @@ func (d *deliverer) deliverOne(
 
 	// premium・トライアルは回数を消費しないので、残数で絞らない。
 	consumeQuota := !premium.IsEffectivePremium(userData, now)
+
+	// 2つ目以降の時刻は premium だけ。プランが切れた日の dailyBatch より前に
+	// 来ることがあるので、ここでも弾く。
+	if consumeQuota && dailysentence.SlotIndex(userData, now) > 0 {
+		return "free_extra_slot"
+	}
 
 	// free の枠はセット数で数える。残りが1以上なら1セットぶん配信する
 	// （残りが0の日は DeliverySkipReason が quota_exhausted で外している）。

@@ -285,6 +285,26 @@ class AnalyticsService {
     await _logEvent('coach_mark', {'coach_id': id, 'action': action});
   }
 
+  /// 起動から初回導線（機能紹介）に入るまでの進み。first_open から
+  /// onboarding_start までの離脱がどこで起きるかを見る。
+  ///
+  /// action:
+  ///   auth_start — 匿名サインインを始めた（起動1回につき1回）
+  ///   auth_ok    — 匿名サインインが通った
+  ///   auth_error — 匿名サインインに失敗した（起動1回につき最初の1回。
+  ///                value はエラー文。失敗は3秒ごとに再試行するので毎回は送らない）
+  ///   home       — ホームに入り初回起動かを判定した
+  ///                （value: first_launch / returning）
+  Future<void> logStartup({required String action, String? value}) async {
+    await _logEvent('startup', {'action': action, 'value': value});
+  }
+
+  /// 機能紹介で [page] 枚目（1始まり）を表示した。2枚目以降だけ送る
+  /// （1枚目は onboarding_start と同じ）。どの枚で降りたかを見る。
+  Future<void> logOnboardingPage(int page) async {
+    await _logEvent('onboarding_page', {'value': page.toString()});
+  }
+
   /// オンボーディング（機能紹介3枚）を開いた。
   Future<void> logOnboardingStart() async {
     await _logEvent('onboarding_start', {});
@@ -337,7 +357,8 @@ class AnalyticsService {
 
   /// 語彙テスト（オンボーディング末尾・設定からの再試験）の進行。
   ///
-  /// action: start / skip / stage / complete / error
+  /// action: start / skip / stage / complete / error / auto_skip
+  ///   auto_skip — 初回導線で、ヒアリングが「まったく初めて」なので出さなかった
   /// source: onboarding / settings（どちらから入ったか）
   /// value: complete では測定した語彙数、stage では段の番号。
   ///

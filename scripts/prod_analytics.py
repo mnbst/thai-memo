@@ -1,7 +1,9 @@
 """prod Firestore 全ユーザー集計スクリプト
 
 usage:
-  uv run --with firebase-admin --with google-cloud-storage python scripts/prod_analytics.py
+  uv run --with firebase-admin --with google-cloud-storage python scripts/prod_analytics.py [--exclude-anonymous]
+
+  --exclude-anonymous  匿名ユーザー（Auth のプロバイダ無し）を除外する。GA4 コホートには効かない。
 """
 
 import os
@@ -18,6 +20,7 @@ from google.cloud import storage
 
 JST = timezone(timedelta(hours=9))
 NOW = datetime.now(JST)
+EXCLUDE_ANONYMOUS = '--exclude-anonymous' in sys.argv[1:]
 
 app = firebase_admin.initialize_app(options={'projectId': 'thai-memo-prod'})
 db = firestore.client()
@@ -33,6 +36,10 @@ freq_rank: dict[str, int] = json.loads(blob.download_as_text())
 # -------------------------
 print("Fetching all users...", flush=True)
 user_docs = list(db.collection('users').stream())
+if EXCLUDE_ANONYMOUS:
+    named_uids = {u.uid for u in auth.list_users().iterate_all() if u.provider_data}
+    user_docs = [d for d in user_docs if d.id in named_uids]
+    print("(anonymous users excluded)")
 print(f"Total users: {len(user_docs)}\n")
 
 tiers = Counter()
@@ -94,6 +101,69 @@ print(f"  Paid ever:        {paid_ever}")
 print(f"  Premium (paid):   {paid_premium}")
 print(f"  Premium (sandbox only): {sandbox_premium}")
 print(f"  Lifetime buyers:  {lifetime_buyers}")
+
+# -------------------------
+# プラン内訳（premium のみ）
+# 本番の購入とテスト購入（iOS Sandbox / Play ライセンステスター）を分ける。
+# 無償移行（lifetime_source=monthly_migration）は買い切りの購入と分ける。
+# free_trial はストアの無料トライアル中（2026-10 以降の検証・通知から記録）。
+# -------------------------
+print("\n=== Plan Breakdown (premium) ===")
+TRIAL_DAYS = timedelta(days=7)
+
+
+def looks_like_free_trial(sub: dict) -> bool:
+    """登録から7日以内（期限まで7日以内）で、今の期間が7日しかないか。
+
+    free_trial が記録される前の購読向けの推定。期限は登録＋7日になり、
+    購入時に書いた updated_at から期限までも7日以内になる。月額の最終週は
+    updated_at が更新時（期限の約1か月前）なので外れる。
+    """
+    exp, upd = sub.get('expires_at'), sub.get('updated_at')
+    if not exp or not upd or sub.get('status') == 'expired':
+        return False
+    return exp - NOW <= TRIAL_DAYS and exp - upd <= TRIAL_DAYS + timedelta(hours=1)
+
+
+plans = {'prod': Counter(), 'test': Counter()}
+for user_doc in user_docs:
+    d = user_doc.to_dict() or {}
+    if d.get('tier') != 'premium':
+        continue
+    sub = d.get('subscription') or {}
+    if sub.get('platform') not in ('ios', 'android'):
+        plans['prod']['(購読記録なし)'] += 1
+        continue
+    if sub.get('lifetime_source') == 'monthly_migration':
+        env = 'test' if sub.get('sandbox') is True else 'prod'
+        plan = '買い切り（月額から無償移行）'
+    elif sub.get('lifetime_transaction_id'):
+        env = 'test' if sub.get('lifetime_sandbox') is True else 'prod'
+        plan = '買い切り'
+    else:
+        env = 'test' if sub.get('sandbox') is True else 'prod'
+        name = {'premium_monthly': '月額', 'premium_annual': '年額'}.get(
+            sub.get('product_id'), sub.get('product_id'))
+        if sub.get('free_trial') is True or looks_like_free_trial(sub):
+            plan = f'{name}（無料トライアル中）'
+        elif sub.get('status') == 'canceled':
+            plan = f'{name}（解約済み・期限まで有効）'
+        else:
+            plan = name
+    plans[env][f"{plan} [{sub.get('platform')}]"] += 1
+for env, counter in plans.items():
+    print(f"  {env}: {sum(counter.values())}")
+    for plan, n in sorted(counter.items()):
+        print(f"    {plan:30s} {n}")
+
+# アプリが配る体験（新規・テスター特典）。ストアの課金とは別。
+in_app_trial = Counter()
+for user_doc in user_docs:
+    d = user_doc.to_dict() or {}
+    exp = d.get('premium_trial_expires_at')
+    if exp and exp > NOW:
+        in_app_trial['テスター特典' if d.get('closed_tester') else '新規体験'] += 1
+print("  アプリ内体験中:", dict(in_app_trial) or 0)
 
 # -------------------------
 # estimated_vocab 分布
@@ -200,6 +270,8 @@ for user_doc in user_docs:
 
 conv = defaultdict(lambda: {'signups': 0, 'generated': 0, 'hrs': []})
 for u in auth.list_users().iterate_all():
+    if EXCLUDE_ANONYMOUS and not u.provider_data:
+        continue
     ts = u.user_metadata.creation_timestamp
     if not ts:
         continue

@@ -62,6 +62,46 @@ func ScanBand(estimatedVocab int) (low, high int) {
 	return max(0, estimatedVocab-behind), estimatedVocab + int(ahead)
 }
 
+// CeilingAheadScale は語彙テストの上限（最上段の High）に届いた人の前方幅を
+// est に比例させる率。前方幅は max(ScanBand の前方, est×この率)。
+//
+// ScanBand の前方は est が上がるほど狭まり、測定値から 60 上がると 8 で固定
+// される。1 日の伸びがスコアによらず一定の順位数で頭打ちになるので、上限
+// 3000 で測定が止まった人は真値が上にあっても 90 日で 3500 付近までしか
+// 届かなかった（真値 6000 で d90 −2424）。
+//
+// 上限に届いた人だけに効かせる。測定値が上限未満の帯では、どの率でも
+// 広げるほど上振れが増え、現行が最適だった（ceilingsim_test.go の
+// TestAheadScaleByBand）。上限到達者は真値 3000〜6000 が同じ測定値に
+// 見えるので、そのどれでも外さない率を取った。d90 誤差（世界 推測0.25/slip0 と
+// 推測0.45/slip0.10）:
+//
+//	率     真値3000      3500       4500        6000
+//	0%     +85/+106     +11/−29   −924/−1007  −2424/−2507
+//	1%     +227/+595   +248/+329   +49/−170   −1267/−1665
+//	1.5%   +395/+892   +384/+700  +244/+394     −11/−381
+//	2%     +531/+1092  +354/+994  +315/+650    +171/+153
+//
+// 真値 3000 の上振れは、広い前方でまぐれ当たりした語が knownMaxRank を
+// 押し上げるため。
+const CeilingAheadScale = 0.015
+
+// KeyWordBand は key_word 候補のランク帯を返す。
+//
+// 測定値（tested）を原点として ScanBand を取り、測定値ぶん平行移動する
+// （EstimateVocab の floor と揃える）。測定値が語彙テストの上限に届いて
+// いる人は、前方を est×CeilingAheadScale まで広げる。未受験は tested=0。
+func KeyWordBand(estimatedVocab, tested int) (low, high int) {
+	tested = max(tested, 0)
+	low, high = ScanBand(max(estimatedVocab-tested, 0))
+	low += tested
+	high += tested
+	if tested >= TestStages[len(TestStages)-1].High {
+		high = max(high, estimatedVocab+int(CeilingAheadScale*float64(estimatedVocab)))
+	}
+	return low, high
+}
+
 // Candidate は key_word の候補 1 件。
 type Candidate struct {
 	Word string
@@ -178,6 +218,26 @@ func (s *SessionSelector) weightedPick(weights []float64) int {
 }
 
 // SelectWeighted は weights に従って非復元で count 件引く（引いた添字を返す）。
+// selectLeaning は prefer が真の未出語を先に、残りを未出語から選ぶ。
+// どちらの中でも重みは ZeroPWeights（低ランク優先）のまま。
+func (s *SessionSelector) selectLeaning(
+	zeroP []Candidate, prefer func(string) bool, count int,
+) []Candidate {
+	var lean, rest []Candidate
+	for _, c := range zeroP {
+		if prefer(c.Word) {
+			lean = append(lean, c)
+		} else {
+			rest = append(rest, c)
+		}
+	}
+	picked := s.SelectWeighted(lean, ZeroPWeights(lean), count)
+	if len(picked) < count && len(rest) > 0 {
+		picked = append(picked, s.SelectWeighted(rest, ZeroPWeights(rest), count-len(picked))...)
+	}
+	return picked
+}
+
 func (s *SessionSelector) SelectWeighted(cands []Candidate, weights []float64, count int) []Candidate {
 	pool := append([]Candidate(nil), cands...)
 	w := append([]float64(nil), weights...)
@@ -230,6 +290,14 @@ type SessionRequest struct {
 	// TestedVocab は語彙テストの測定値（原点）。帯の下端はここより下へ行かない。
 	// 未受験は 0 で、その場合の帯は従来どおり。
 	TestedVocab int
+	// Prefer はテーマ寄せ（ThemeLean）。nil でなければ、帯の未出語のうち
+	// Prefer が真の語を先に選ぶ。est 以下だけに寄せると前方の語がほぼ出ず
+	// est が進まない。帯全体に寄せると素通りは増える（themesim_test.go。
+	// 真値350・合う語18%で 36→113 語）が、テーマ指定時の進みを優先する。
+	Prefer func(word string) bool
+	// SkipTopicMatch が真なら、テーマ未指定でも FindBestTopic でテーマを決めない
+	// （呼び出し側が場面合致でテーマを決める）。
+	SkipTopicMatch bool
 }
 
 // GetSessionWords は統合スキャン方式でセッション単語を選定する
@@ -270,9 +338,7 @@ func (s *SessionSelector) GetSessionWords(
 	if req.MaxVocab != nil {
 		tested = 0
 	}
-	scanLow, scanHigh := ScanBand(max(estimatedVocab-tested, 0))
-	scanLow += tested
-	scanHigh += tested
+	scanLow, scanHigh := KeyWordBand(estimatedVocab, tested)
 	if req.MaxVocab != nil {
 		scanHigh = min(scanHigh, *req.MaxVocab)
 		scanLow = min(scanLow, scanHigh)
@@ -300,7 +366,9 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	var selected []Candidate
-	if len(zeroP) > 0 {
+	if len(zeroP) > 0 && req.Prefer != nil {
+		selected = s.selectLeaning(zeroP, req.Prefer, req.Count)
+	} else if len(zeroP) > 0 {
 		selected = s.SelectWeighted(zeroP, ZeroPWeights(zeroP), req.Count)
 	} else {
 		selected = s.selectUnknown(candidates, pMap, req.Count)
@@ -340,7 +408,7 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	chosenTopic := topic
-	if chosenTopic == "" && s.Emb != nil && len(words) > 0 {
+	if chosenTopic == "" && !req.SkipTopicMatch && s.Emb != nil && len(words) > 0 {
 		// 閾値未達（＝key_word がどのテーマとも結びつかない機能語など）は
 		// "" のまま返し、テーマを LLM に決めさせる。ランダムに埋めない。
 		chosenTopic, err = s.Emb.FindBestTopic(

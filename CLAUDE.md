@@ -59,7 +59,9 @@ cd functions/javascript && npm run deploy
 
 # Cloud Functions - Go
 cd functions/go && go test ./...
-# デプロイ引数は functions.go の例と稼働環境の設定を参照する
+# デプロイは必ず origin/main から（tester / prod は作業ツリーから出さない）
+scripts/deploy_go_functions.sh prod deliverDailySentence dailyBatch
+scripts/deploy_go_functions.sh dev --local deliverDailySentence   # dev の動作確認だけ作業ツリーから
 
 # Firestore Rules デプロイ
 firebase deploy --only firestore:rules
@@ -109,4 +111,5 @@ SQLite (`thai_memo.db`) with tables: `sentences`, `word_breakdowns`, `generation
   - `functions/javascript/` — TypeScript (Node.js 22): `onUserCreate`、`deleteUserData` のAuthトリガー2関数
 - Terraform IaC in `terraform/` for GCP resources (3環境: dev/tester/prod、backend configで切り替え)
 - Region: asia-northeast1 (Tokyo)
-- Go 関数は `gcloud functions deploy --gen2`、JS AuthトリガーはFirebase CLIで個別デプロイする。
+- Go 関数は `scripts/deploy_go_functions.sh`（origin/main を取り出した worktree から `gcloud functions deploy --gen2`）、JS AuthトリガーはFirebase CLIで個別デプロイする。ローカルの作業ツリーから tester / prod に出すと main の変更が抜けることがある。
+- Go 関数のデプロイには `--service-account=functions-runtime@<project>.iam.gserviceaccount.com` を必ず付ける（詳細は `functions/go/functions.go` 冒頭）。

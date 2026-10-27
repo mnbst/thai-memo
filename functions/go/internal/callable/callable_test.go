@@ -1,11 +1,14 @@
 package callable
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -185,7 +188,7 @@ func (f fakeAppCheck) VerifyToken(_ string) (*appcheck.DecodedAppCheckToken, err
 	if f.err != nil {
 		return nil, f.err
 	}
-	return &appcheck.DecodedAppCheckToken{}, nil
+	return &appcheck.DecodedAppCheckToken{AppID: "1:1:android:a"}, nil
 }
 
 // App Check は結果を記録するだけで、無効でもハンドラまで届くこと。
@@ -204,8 +207,10 @@ func TestAppCheckStatusRecordedNotEnforced(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var got AppCheckStatus
+			var android bool
 			h := HTTP("t", nil, tc.v, func(_ context.Context, req *Request) (any, error) {
 				got = req.AppCheck
+				android = req.IsAndroidApp()
 				return nil, nil
 			})
 			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"data":{}}`))
@@ -220,6 +225,30 @@ func TestAppCheckStatusRecordedNotEnforced(t *testing.T) {
 			if got != tc.want {
 				t.Errorf("AppCheck = %s, want %s", got, tc.want)
 			}
+			// アプリ ID は検証できたときだけ信じる。
+			if want := tc.want == AppCheckValid; android != want {
+				t.Errorf("IsAndroidApp = %t, want %t", android, want)
+			}
 		})
+	}
+}
+
+// 通らなかった App Check は、理由・uid・UA をログに残すこと。
+func TestAppCheckInvalidLogsReason(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	h := HTTP("t", nil, fakeAppCheck{err: errors.New("token has expired")},
+		func(_ context.Context, _ *Request) (any, error) { return nil, nil })
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"data":{}}`))
+	r.Header.Set("X-Firebase-AppCheck", "ac")
+	r.Header.Set("User-Agent", "okhttp/4.12.0")
+	h(httptest.NewRecorder(), r)
+
+	for _, want := range []string{"appCheck=invalid", `reason="token has expired"`, `ua="okhttp/4.12.0"`} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("log %q does not contain %q", buf.String(), want)
+		}
 	}
 }

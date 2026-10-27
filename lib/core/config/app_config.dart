@@ -43,11 +43,19 @@ class AppConfig {
   static const String termsOfServiceUrl =
       'https://thai-memo-prod.web.app/terms.html';
 
+  /// ご意見画面から開くアンケート（Google フォーム・日本語のみ）
+  static const String feedbackSurveyUrl =
+      'https://docs.google.com/forms/d/e/1FAIpQLSfZTGTaLV09snrns9prCrDq1k6y0Ln7A2kpLeV1wBkA-M5yGQ/viewform';
+
   /// Shared preferences keys
   static const String prefKeyFirstLaunch = 'is_first_launch';
   static const String prefKeyThemeMode = 'theme_mode';
   static const String prefKeyPreferredGenerationTime =
       'preferred_generation_time';
+
+  /// 通知時刻の枠（"7:0,10:1,20:0"）と、それを最後にそろえたプラン（free/premium）
+  static const String prefKeyNotifySlots = 'notify_slots';
+  static const String prefKeyNotifySlotsPlan = 'notify_slots_plan';
 
   /// 毎日例文のプッシュ通知を受け取るか（サーバー側 daily_reminder_enabled のミラー）
   static const String prefKeyDailyReminderEnabled = 'daily_reminder_enabled';
@@ -128,10 +136,26 @@ class AppConfig {
   /// 立つまで起動のたびに送り直す。
   static const String prefKeyInterviewSynced = 'interview_synced';
 
+  /// ヒアリングで「声調が難しい」と答えた人へ声調ガイドを勧めるカードを、
+  /// 開いたか閉じたか。立ったら二度と出さない。
+  static const String prefKeyToneGuideOfferDone = 'tone_guide_offer_done';
+
+  /// 今日タブを最後に開いた日時（ミリ秒）。30日以上あいた復帰の判定に使う。
+  static const String prefKeyLastTodayVisitAt = 'last_today_visit_at';
+
+  /// 復帰者へ語彙テストの受け直しを勧めるカードを出す状態か。
+  /// 開くか閉じるまで立ったまま。
+  static const String prefKeyVocabRetestOfferPending =
+      'vocab_retest_offer_pending';
+
   /// quiz_offer(assigned)を送信済みの実験群。画面再生成での重複を防ぐ。
   static const String prefKeyQuizOfferAssignmentLoggedV1 =
       'quiz_offer_assignment_logged_v1';
 
   /// 確認クイズの導線を光らせる初回ガイドを出したか（自分で押した場合も立つ）。
   static const String prefKeyQuizOfferCoachShown = 'quiz_offer_coach_shown';
+
+  /// クローズドテストの特典を自動で配る期間が終わった（以後問い合わせない）。
+  static const String prefKeyClosedTesterClaimEnded =
+      'closed_tester_claim_ended';
 }

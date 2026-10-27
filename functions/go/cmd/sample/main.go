@@ -190,7 +190,9 @@ func retry(
 			Pronunciation:       r.Pronunciation,
 			JapaneseTranslation: r.JapaneseTranslation,
 			KeyWord:             r.Word,
+			Topic:               contextTopic(r.Sentence.Context),
 			Lang:                l,
+			Words:               qualityWords(r.Sentence.WordBreakdown),
 		})
 		idx = append(idx, i)
 	}
@@ -253,7 +255,9 @@ func recheck(ctx context.Context, j *quality.Judge, recs []record, l lang.Lang) 
 			Pronunciation:       r.Retried.Pronunciation,
 			JapaneseTranslation: r.Retried.JapaneseTranslation,
 			KeyWord:             r.Word,
+			Topic:               contextTopic(r.Retried.Context),
 			Lang:                l,
+			Words:               qualityWords(r.Retried.WordBreakdown),
 		})
 		idx = append(idx, i)
 	}
@@ -301,6 +305,7 @@ func regenerate(
 		TargetWords:     words,
 		ResolvedContext: rc,
 		Lang:            l,
+		NameKana:        drama.NameKana,
 	})
 }
 
@@ -434,4 +439,19 @@ func (f fixedShot) FindBestDramaShot(
 		}
 	}
 	return "", fmt.Errorf("unknown drama shot ID: %q", want)
+}
+
+// contextTopic は context.topic を返す。BLドラマ回の判定に登場人物の名前を渡すのに使う。
+func contextTopic(ctx map[string]any) string {
+	t, _ := ctx["topic"].(string)
+	return t
+}
+
+// qualityWords は word_breakdown を判定用の語と意味へ写す。
+func qualityWords(ws []sentence.Word) []quality.Word {
+	out := make([]quality.Word, len(ws))
+	for i, w := range ws {
+		out[i] = quality.Word{Word: w.Word, Meaning: w.Meaning}
+	}
+	return out
 }

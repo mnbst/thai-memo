@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,6 +19,7 @@ import '../../services/interview_reporter.dart';
 import '../../services/sentence_view_marker.dart';
 import '../../services/uvm_update_queue.dart';
 import '../providers/daily_set_provider.dart';
+import '../providers/streak_provider.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/settings_provider.dart';
@@ -144,6 +147,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // 日をまたいで開き直したとき、連続日数の「今日」を進める。
+      unawaited(ref.read(streakProvider.notifier).refresh());
       _checkAndReloadIfNeeded();
     }
   }
@@ -200,6 +205,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (!mounted || !accepted) {
       return (displayed: false, imported: queued);
     }
+    // 新しい配信を受け取った日も「例文を作った日」として数える。
+    unawaited(ref.read(streakProvider.notifier).markToday());
     final shown = ref.read(dailySetProvider).current ?? delivered.first;
     return (
       displayed: _showIfNotVisible(shown, force: force),
@@ -424,26 +431,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   /// 通知タップ時は配信例文を取得できた場合だけ画面を切り替える。
   /// 取得前に切り替えると、オフライン等で失敗したときにクイズの進行だけが失われる。
+  ///
+  /// クイズ中は表示を差し替えず、学習タブへ戻すだけにする。切り替えると
+  /// reset() でまとめクイズの途中経過が消える（圏外から戻った直後に、溜まって
+  /// いた通知を開くと起きる）。配信は取り込んであるので、クイズのあとに出る。
   Future<void> _handleNotificationOpen(RemoteMessage message) async {
     if (!_isDailySentenceNotification(message) || !mounted) return;
     final sentenceId = message.data['sentence_id']?.toString();
-    final delivered =
-        await _showDeliveredIfAny(sentenceId: sentenceId, force: true);
-    if (!delivered.displayed || !mounted) return;
-    _openLearningSentenceStage();
+    final delivered = await _showDeliveredIfAny(
+      sentenceId: sentenceId,
+      force: _isOnLearningSentenceStage,
+    );
+    if (!mounted) return;
+    // 取り込みを待つあいだにクイズへ進んでいることもあるので、ここで見直す。
+    if (!_isOnLearningSentenceStage) {
+      _openLearningTab();
+      return;
+    }
+    if (!delivered.displayed) return;
+    _openLearningTab();
+    _learningKey.currentState?.showSentenceStage();
   }
+
+  bool get _isOnLearningSentenceStage =>
+      _learningKey.currentState?.isOnSentenceStage ?? true;
 
   bool _isDailySentenceNotification(RemoteMessage message) {
     return message.data['type'] == 'daily_sentence';
   }
 
-  void _openLearningSentenceStage() {
+  void _openLearningTab() {
     Navigator.of(context).popUntil((route) => route.isFirst);
     if (_currentIndex != 0) {
       setState(() => _currentIndex = 0);
       _logCurrentTabScreen(index: 0);
     }
-    _learningKey.currentState?.showSentenceStage();
   }
 
   /// アプリ復帰時にFirestoreフラグを確認し、未生成なら再ロード
@@ -493,6 +515,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // 設定の読み込み完了を待ってから判定する
     await ref.read(settingsControllerProvider.notifier).initialized;
     final isFirstLaunch = ref.read(isFirstLaunchProvider);
+    unawaited(ref.read(analyticsServiceProvider).logStartup(
+          action: 'home',
+          value: isFirstLaunch ? 'first_launch' : 'returning',
+        ));
 
     if (isFirstLaunch) {
       var existingAccount = false;
@@ -553,7 +579,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 最後に語彙テスト（任意）。生成の開始はこの後まで待つ。key_word は
         // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
         // 0 語相当の難度で出てしまう。受けずに進んだ人は 0 語から始まる。
-        if (mounted) {
+        //
+        // ヒアリングで「まったく初めて」と答えた人には出さない。prod では
+        // 受けた全員（17人）が 0 語で、測っても受けない人と同じ 0 語から
+        // 始まる。最初の体験が「0語」の結果画面になるだけなので省く。
+        // 設定からはいつでも受けられる。
+        if (mounted && await _savedLevel() == 'none') {
+          unawaited(ref
+              .read(analyticsServiceProvider)
+              .logVocabTest(action: 'auto_skip', source: 'onboarding'));
+        } else if (mounted) {
           await Navigator.push<void>(
             context,
             MaterialPageRoute(
@@ -569,7 +604,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
         // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
         // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
-        if (mounted) {
+        // クローズドテストのテスターは、ここで体験を受け取ってプレミアムになる。
+        // すでにプレミアムの人に売り込みは出さない。
+        final testerTrial = await _claimClosedTesterTrial();
+        if (mounted && !testerTrial && !ref.read(effectivePremiumProvider)) {
           await PaywallScreen.show(context, source: 'onboarding');
         }
 
@@ -582,6 +620,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       // 初回起動完了を記録
       ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
+    } else if (!ref.read(effectivePremiumProvider)) {
+      // 初回起動を済ませたあとにテスターになった人にも配る。
+      unawaited(_claimClosedTesterTrial());
     }
 
     if (!mounted) return;
@@ -594,7 +635,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     ref.invalidate(allSentencesProvider);
   }
 
+  /// クローズドテストのテスター特典を受け取る。体験を持っていれば true。
+  ///
+  /// 製品版の公開前に本番アプリを Android に入れられるのはテスターだけなので、
+  /// サーバーは Android アプリからの呼び出しに体験を配る（closed_tester.go）。
+  /// 配る期間が終わったと返されたら、以後は問い合わせない。失敗しても学習は
+  /// 止めない（ペイウォールが出るだけ）。
+  Future<bool> _claimClosedTesterTrial() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(AppConfig.prefKeyClosedTesterClaimEnded) ?? false) {
+        return false;
+      }
+      if (FirebaseAuth.instance.currentUser == null) return false;
+      final result = await BackendApiService()
+          .claimClosedTesterTrial()
+          .timeout(const Duration(seconds: 10));
+      if (!result.active) {
+        await prefs.setBool(AppConfig.prefKeyClosedTesterClaimEnded, true);
+      }
+      return result.granted;
+    } catch (e) {
+      debugPrint('claimClosedTesterTrial failed: $e');
+      return false;
+    }
+  }
+
   /// 端末に残っているヒアリングの用途（interview.goal）。未回答なら null。
+  Future<String?> _savedLevel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('${AppConfig.prefKeyInterviewPrefix}level');
+  }
+
   Future<String?> _savedGoal() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('${AppConfig.prefKeyInterviewPrefix}goal');
@@ -670,38 +743,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       const SettingsScreen(),
     ];
 
-    return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          // IndexedStack は他タブを破棄しないため、再生中の例文が
-          // 鳴り続けてしまう。タブを離れたら明示的に止める。
-          unawaited(ref.read(ttsServiceProvider).stopAll());
-          setState(() {
-            _currentIndex = index;
-          });
-          _logCurrentTabScreen(index: index);
-        },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.school_outlined),
-            selectedIcon: const Icon(Icons.school),
-            label: l10n.navLearn,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.history_outlined),
-            selectedIcon: const Icon(Icons.history),
-            label: l10n.navHistory,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
-            label: l10n.navSettings,
-          ),
-        ],
+    // Android の戻るでアプリを閉じない。学習以外のタブなら学習タブへ戻し、
+    // 学習タブでは何もしない。
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _currentIndex != 0) _selectTab(0);
+      },
+      child: Scaffold(
+        // IndexedStack は隠れたタブのアニメーションを止めない（TickerMode が
+        // 有効のまま）。画面側は TickerMode で「見えているか」を判定するので、
+        // 隠れたタブでは明示的に切る。切らないと、別タブにいる間に学習タブの
+        // コーチマークが出て、いま見ている画面の上に暗幕が重なる。
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            for (final (i, screen) in screens.indexed)
+              TickerMode(enabled: i == _currentIndex, child: screen),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: _selectTab,
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.school_outlined),
+              selectedIcon: const Icon(Icons.school),
+              label: l10n.navLearn,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.history_outlined),
+              selectedIcon: const Icon(Icons.history),
+              label: l10n.navHistory,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.settings_outlined),
+              selectedIcon: const Icon(Icons.settings),
+              label: l10n.navSettings,
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _selectTab(int index) {
+    // IndexedStack は他タブを破棄しないため、再生中の例文が
+    // 鳴り続けてしまう。タブを離れたら明示的に止める。
+    unawaited(ref.read(ttsServiceProvider).stopAll());
+    setState(() {
+      _currentIndex = index;
+    });
+    _logCurrentTabScreen(index: index);
   }
 
   void _logCurrentTabScreen({int? index}) {

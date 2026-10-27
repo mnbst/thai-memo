@@ -1,19 +1,21 @@
-import * as functions from 'firebase-functions/v1';
-import * as admin from 'firebase-admin';
-import { FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES } from './constants/quota';
-import { notifyUtcHour } from './utils/notifyUtcHour';
+import * as functions from "firebase-functions/v1";
+import * as admin from "firebase-admin";
+import { FREE_DAILY_SENTENCES, FREE_DAILY_QUIZZES } from "./constants/quota";
+import { notifyUtcHour } from "./utils/notifyUtcHour";
+import { RUNTIME_SERVICE_ACCOUNT } from "./constants/runtime";
 
 /**
  * Firebase Auth の onCreate トリガー
  * 新規ユーザー作成時にクォータを付与する
  */
 export const onUserCreate = functions
-  .region('asia-northeast1')
+  .region("asia-northeast1")
+  .runWith({ serviceAccount: RUNTIME_SERVICE_ACCOUNT })
   .auth.user()
   .onCreate(async (user) => {
     await admin
       .firestore()
-      .collection('users')
+      .collection("users")
       .doc(user.uid)
       .set(
         {

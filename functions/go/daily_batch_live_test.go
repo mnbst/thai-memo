@@ -105,9 +105,9 @@ func TestDailyBatchDecayUvmP(t *testing.T) {
 	seeds := map[string]any{
 		"w-high":     0.9,
 		"w-mid":      0.5,
-		"w-tiny":     0.0005, // 減衰すると下限に張り付く
+		"w-tiny":     0.0005, // 対象外（p <= uvm.PFloor）
 		"w-zero":     0.0,    // 対象外
-		"w-negative": -0.5,   // 対象外（p <= 0）
+		"w-negative": -0.5,   // 対象外
 	}
 	// int で入っている語（Firestore からは int64 で返る）も混ぜる
 	intSeeds := map[string]any{"w-int": int64(1)}
@@ -144,7 +144,7 @@ func TestDailyBatchDecayUvmP(t *testing.T) {
 	want := map[string]float64{
 		"w-high":     0.899,
 		"w-mid":      0.499,
-		"w-tiny":     0.0, // max(0, 0.0005-0.001)
+		"w-tiny":     0.0005, // 触らない
 		"w-zero":     0.0,
 		"w-negative": -0.5, // 触らない
 		"w-int":      0.999,

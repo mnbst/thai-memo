@@ -332,6 +332,13 @@ func appStoreUpdates(
 			Path: "subscription.product_id", Value: n.TransactionInfo.ProductID,
 		})
 	}
+	// トライアルから課金へ移ると更新通知の取引からオファーが消える。買い切りの
+	// 通知では月額側の印を触らない。
+	if !isLifetimeProduct(n.TransactionInfo.ProductID) {
+		updates = append(updates, firestore.Update{
+			Path: "subscription.free_trial", Value: n.TransactionInfo.IsFreeTrial(),
+		})
+	}
 
 	// expires_at は premium の期限切れフォールバック（dailyBatch /
 	// subscriptionStatus）の判定材料。premium のまま null で上書きすると

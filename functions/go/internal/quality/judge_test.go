@@ -73,10 +73,10 @@ func newJudge(t *testing.T, s *jevServer) *Judge {
 
 func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 	batch := sample(3)
-	batch[1].ThaiText = "bad"
+	batch[1].ThaiText = "BAD"
 	batch[1].SentenceID = "target"
 	s := &jevServer{scores: map[string]map[string]float64{
-		"bad": {"collocation": 0.62, "grammar": 0.45},
+		"BAD": {"collocation": 0.62, "grammar": 0.45},
 	}}
 
 	res, err := newJudge(t, s).Review(context.Background(), batch)
@@ -106,17 +106,17 @@ func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 // trans_add だけは閾値が高い。0.4〜0.6 は細かい揺れで立つ。
 func TestTransAddUsesHigherThreshold(t *testing.T) {
 	batch := sample(2)
-	batch[0].ThaiText = "mid"
-	batch[1].ThaiText = "high"
+	batch[0].ThaiText = "MID"
+	batch[1].ThaiText = "HIGH"
 	s := &jevServer{scores: map[string]map[string]float64{
-		"mid":  {"trans_add": 0.55},
-		"high": {"trans_add": 0.65},
+		"MID":  {"trans_add": 0.55},
+		"HIGH": {"trans_add": 0.65},
 	}}
 	res, err := newJudge(t, s).Review(context.Background(), batch)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Flagged) != 1 || res.Flagged[0].ThaiText != "high" {
+	if len(res.Flagged) != 1 || res.Flagged[0].ThaiText != "HIGH" {
 		t.Fatalf("trans_add 0.55 は合格・0.65 は不合格のはず: %+v", res.Flagged)
 	}
 }
@@ -269,23 +269,24 @@ func TestCodeChecks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Flagged) != 2 || len(res.Accepted) != 1 {
-		t.Fatalf("タイ文字・括弧の文だけ不合格のはず: %+v", res)
+	// 括弧の補足は許容する（2026-10-19）。
+	if len(res.Flagged) != 1 || len(res.Accepted) != 2 {
+		t.Fatalf("タイ文字の文だけ不合格のはず: %+v", res)
 	}
-	if res.Verdicts[0].Reason != "訳にタイ文字 1.00" || res.Verdicts[1].Reason != "訳の括弧補足 1.00" {
-		t.Errorf("reason = %q / %q", res.Verdicts[0].Reason, res.Verdicts[1].Reason)
+	if res.Verdicts[0].Reason != "訳にタイ文字 1.00" {
+		t.Errorf("reason = %q", res.Verdicts[0].Reason)
 	}
 	var body struct {
 		Questions map[string]any `json:"questions"`
 	}
 	_ = json.Unmarshal(s.last.Load().([]byte), &body)
-	for _, id := range []string{"trans_thai", "trans_paren"} {
+	for _, id := range []string{"trans_thai"} {
 		if _, ok := body.Questions[id]; ok {
 			t.Errorf("コード判定の %s を Jev に送っている", id)
 		}
 	}
 
-	// 英訳でもタイ文字は判定する。括弧は英語では普通に使うので見ない。
+	// 英訳でもタイ文字は判定する。
 	en := sample(2)
 	en[0].Lang, en[0].JapaneseTranslation = lang.EN, "I go with พี่"
 	en[1].Lang, en[1].JapaneseTranslation = lang.EN, "I (really) like it"
@@ -410,5 +411,42 @@ func TestFlagDocCarriesSentenceBody(t *testing.T) {
 	}
 	if fmt.Sprint(doc["scores"]) != fmt.Sprint(v.Scores) {
 		t.Errorf("scores = %v", doc["scores"])
+	}
+}
+
+func TestLatinName(t *testing.T) {
+	for text, want := range map[string]bool{
+		"กฎที่ร้านของ Lynx มีแค่นี้":     true,
+		"ข้าวแกงนี่อร่อยมากนะพี่Kang":    true,
+		"หมอดู TK มาแรงที่สุดแล้วตอนนี้": false,
+		"เรียก Grab ไปสถานีดีกว่า":       false,
+		"มาวินชอบเพลงร็อค":               false,
+	} {
+		if got := latinName(Candidate{ThaiText: text}); got != want {
+			t.Errorf("latinName(%q) = %v, want %v", text, got, want)
+		}
+	}
+}
+
+func TestCasualPronoun(t *testing.T) {
+	cases := []struct {
+		w    Word
+		want bool
+	}{
+		{Word{"เค้า", "彼"}, true},
+		{Word{"เค้า", "私（親しい間柄で使う一人称）"}, true},
+		{Word{"ชั้น", "私（カジュアル）"}, true},
+		{Word{"ชั้น", "I (female, informal)"}, true},
+		{Word{"ชั้น", "나(여성 1인칭)"}, true},
+		{Word{"ชั้น", "階"}, false},
+		{Word{"ชั้น", "shelf"}, false},
+		{Word{"ชั้น", "level"}, false},
+		{Word{"ฉัน", "私"}, false},
+		{Word{"เขา", "彼"}, false},
+	}
+	for _, c := range cases {
+		if got := casualPronoun(Candidate{Words: []Word{c.w}}); got != c.want {
+			t.Errorf("casualPronoun(%v) = %v, want %v", c.w, got, c.want)
+		}
 	}
 }

@@ -78,16 +78,19 @@ func sendContactEmail(ctx context.Context, req *callable.Request) (any, error) {
 		return nil, err
 	}
 
-	if in.Name == "" || in.Email == "" || in.Message == "" {
+	// お名前・メールアドレスは任意。メールアドレスが空なら匿名として扱う。
+	if in.Message == "" {
 		return nil, callable.Errorf(callable.InvalidArgument, "必須項目が不足しています")
 	}
 	if utf16Len(in.Name) > contactNameMax || len(in.Email) > contactEmailMax ||
 		strings.ContainsAny(in.Name, "\r\n") {
 		return nil, callable.Errorf(callable.InvalidArgument, "お名前またはメールアドレスが不正です")
 	}
-	parsedAddress, err := mail.ParseAddress(in.Email)
-	if err != nil || parsedAddress.Address != in.Email {
-		return nil, callable.Errorf(callable.InvalidArgument, "メールアドレスが不正です")
+	if in.Email != "" {
+		parsedAddress, err := mail.ParseAddress(in.Email)
+		if err != nil || parsedAddress.Address != in.Email {
+			return nil, callable.Errorf(callable.InvalidArgument, "メールアドレスが不正です")
+		}
 	}
 	// JS の String#length は UTF-16 コードユニット数。ルーン数だと絵文字などで
 	// 判定がずれるので、同じ数え方に合わせる。
@@ -108,20 +111,13 @@ func sendContactEmail(ctx context.Context, req *callable.Request) (any, error) {
 		return nil, callable.Errorf(callable.Internal, "メール送信に失敗しました")
 	}
 
-	body := strings.Join([]string{
-		"お名前: " + in.Name,
-		"メールアドレス: " + in.Email,
-		"ユーザーID: " + uid,
-		"",
-		"--- メッセージ ---",
-		in.Message,
-	}, "\n")
+	subject, body := contactMail(in.Name, in.Email, uid, in.Message)
 
 	if err := mailer.Send(mailer.Message{
 		FromName: contactFromName,
 		From:     contactAddress,
 		To:       contactAddress,
-		Subject:  fmt.Sprintf("【お問い合わせ】%s様より", in.Name),
+		Subject:  subject,
 		Body:     body,
 	}, password); err != nil {
 		log.Printf("sendContactEmail: %v", err)
@@ -130,6 +126,25 @@ func sendContactEmail(ctx context.Context, req *callable.Request) (any, error) {
 
 	// JS 版は何も返さない（クライアントには result: null が届く）。
 	return nil, nil
+}
+
+// contactMail は件名と本文を作る。メールアドレスが空なら返信できない匿名の
+// ご意見として扱い、送り主を辿れないようにユーザーIDも本文に入れない。
+func contactMail(name, email, uid, message string) (subject, body string) {
+	who := name
+	if who == "" {
+		who = "匿名"
+	}
+	lines := []string{"お名前: " + who}
+	if email == "" {
+		subject = fmt.Sprintf("【ご意見】%s", who)
+		lines = append(lines, "メールアドレス: なし（返信不可）")
+	} else {
+		subject = fmt.Sprintf("【お問い合わせ】%s様より", who)
+		lines = append(lines, "メールアドレス: "+email, "ユーザーID: "+uid)
+	}
+	lines = append(lines, "", "--- メッセージ ---", message)
+	return subject, strings.Join(lines, "\n")
 }
 
 func reserveContactSend(ctx context.Context, uid string) error {

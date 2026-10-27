@@ -25,8 +25,12 @@ resource "google_project_service" "required_apis" {
     "monitoring.googleapis.com",
     "billingbudgets.googleapis.com",
     "firebaseappcheck.googleapis.com",
+    # Android の App Check（Play Integrity）。Play Console 側でもこのプロジェクトをリンクする
+    "playintegrity.googleapis.com",
     # Google Play の購入検証（verifySubscription / handlePlayNotification）
     "androidpublisher.googleapis.com",
+    # Play のクラッシュ率・ANR率（scripts/play_console.py vitals）
+    "playdeveloperreporting.googleapis.com",
     # X 自動投稿の読み上げ音声（tools/x_post）
     "texttospeech.googleapis.com",
   ])
@@ -48,16 +52,93 @@ resource "google_project_iam_member" "functions_runtime_firebase_admin" {
   depends_on = [google_project_service.required_apis]
 }
 
+# Cloud Functions 専用ランタイム SA
+#
+# デフォルトの compute SA はプロジェクトの Editor を持ち、tfstate を含む全バケットや
+# 全 secret に届く。公開関数1本の侵害が全体に波及しないよう、関数はこの SA で動かし、
+# 必要な権限だけを付ける（secret は modules/secret-manager、バケットは下の uvm_data_*）。
+#
+# Google Play の購入検証（verifySubscription / handlePlayNotification）は ADC で
+# Android Publisher API を呼ぶので、この SA を Play Console のユーザーに招待するまでは
+# compute SA のまま動かす。
+resource "google_service_account" "functions_runtime" {
+  account_id   = "functions-runtime"
+  display_name = "Cloud Functions runtime"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "functions_runtime" {
+  for_each = toset([
+    "roles/datastore.user",               # Firestore
+    "roles/firebaseauth.admin",           # 匿名ユーザーの削除・ユーザー一覧（dailyBatch 等）
+    "roles/firebasecloudmessaging.admin", # FCM 送信（cloudmessaging.messages.create）
+    "roles/serviceusage.serviceUsageConsumer",
+    "roles/logging.logWriter",
+  ])
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.functions_runtime.email}"
+}
+
+resource "google_storage_bucket_iam_member" "uvm_data_runtime_reader" {
+  bucket = module.uvm_data.bucket_name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.functions_runtime.email}"
+}
+
+# 例文プールだけ書き換えを許す（modules/uvm-data の cf_pool_writer と同じ条件）。
+resource "google_storage_bucket_iam_member" "uvm_data_runtime_pool_writer" {
+  bucket = module.uvm_data.bucket_name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.functions_runtime.email}"
+
+  condition {
+    title       = "corpus_pool_objects_only"
+    description = "例文プールのオブジェクトだけ書き換えを許す"
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${module.uvm_data.bucket_name}/objects/corpus_pool_\")"
+  }
+}
+
+# お手本の音声（Cloud TTS の MP3、functions/go/internal/ttsaudio）
+#
+# ファイル名は中身のハッシュで、一度置いたら変えない。getSentenceAudio が無いときだけ作って置き、
+# 音声のバイト列をそのまま返すのでバケットは非公開のまま。
+resource "google_storage_bucket" "tts_audio" {
+  name     = "${var.project_id}-tts-audio"
+  project  = var.project_id
+  location = var.region
+
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# 読むのと「無いときだけ作る」だけ。上書き・削除はさせない。
+resource "google_storage_bucket_iam_member" "tts_audio_runtime" {
+  for_each = toset(["roles/storage.objectViewer", "roles/storage.objectCreator"])
+  bucket   = google_storage_bucket.tts_audio.name
+  role     = each.value
+  member   = "serviceAccount:${google_service_account.functions_runtime.email}"
+}
+
 # Secret Manager module
 module "secret_manager" {
   source = "./modules/secret-manager"
 
   project_id     = var.project_id
   project_number = data.google_project.project.number
-  gemini_api_key = var.gemini_api_key
-  openai_api_key = var.openai_api_key
 
-  depends_on = [google_project_service.required_apis]
+  # for_each の判定に使うので、apply 前に決まる形（SA の属性ではなく組み立てた文字列）で渡す。
+  runtime_service_account_email = "functions-runtime@${var.project_id}.iam.gserviceaccount.com"
+  ci_service_account_email      = var.ci_service_account_email
+  x_post_service_account_email  = var.github_repo != "" && nonsensitive(var.github_dispatch_token != "") ? "github-actions-x-post@${var.project_id}.iam.gserviceaccount.com" : ""
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_service_account.functions_runtime,
+    google_service_account.x_post,
+  ]
 }
 
 # Firebase module
@@ -177,13 +258,14 @@ resource "google_artifact_registry_repository" "gcf_artifacts" {
 
 # CI/CD service account IAM bindings
 locals {
+  # 配信ワークフローは Secret Manager から署名鍵などを読むだけ。
+  # secret は1本ずつ許可する（modules/secret-manager の deploy_ci_accessor）。
   ci_sa_roles = var.ci_service_account_email != "" ? [
-    "roles/iam.serviceAccountUser",
     "roles/serviceusage.serviceUsageConsumer",
-    "roles/cloudscheduler.admin",
-    "roles/firebase.admin",
-    "roles/secretmanager.secretAccessor",
   ] : []
+
+  # X 投稿ワークフロー。別の WIF プール・別の SA に分け、配信用の鍵に届かせない。
+  x_post_workflow_ref_prefix = "${var.github_repo}/.github/workflows/post-daily-x.yml@"
 }
 
 resource "google_project_iam_member" "ci_service_account" {
@@ -222,9 +304,13 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 
   # リポジトリに加えてブランチも固定する。
   # public 化するとフォークから任意のワークフローが読めるようになるため、
-  # デプロイ用ブランチ（distribute-prod: main / distribute-test: test）以外からは
-  # OIDC トークンを受け付けない。
-  attribute_condition = "assertion.repository == '${var.github_repo}' && assertion.ref in ['refs/heads/main', 'refs/heads/test']"
+  # 環境ごとのデプロイ用ブランチ（prod: main / tester: test）以外からは
+  # OIDC トークンを受け付けない。X 投稿ワークフローは専用プールに分けたので弾く。
+  attribute_condition = join(" && ", [
+    "assertion.repository == '${var.github_repo}'",
+    "assertion.ref in ${jsonencode(var.github_allowed_refs)}",
+    "!assertion.workflow_ref.startsWith('${local.x_post_workflow_ref_prefix}')",
+  ])
 }
 
 resource "google_service_account_iam_member" "github_actions_wif" {
@@ -266,14 +352,26 @@ resource "google_cloud_run_service_iam_member" "callable_invoker" {
   member   = "allUsers"
 }
 
-resource "google_cloud_run_service_iam_member" "scheduled_invoker" {
+# 関数側は呼び出し元を検証しないので、invoker は Scheduler の SA だけに限る。
+# _member（追加型）だと --allow-unauthenticated で付いた allUsers が残るため
+# （prod で dailybatch / deliverdailysentence が公開されていた）、_binding で上書きする。
+# 旧 _member は消さずに管理から外す。destroy させると、同じメンバーを持つ
+# _binding の作成と順序が前後したときに Scheduler の invoker が消える。
+removed {
+  from = google_cloud_run_service_iam_member.scheduled_invoker
+  lifecycle {
+    destroy = false
+  }
+}
+
+resource "google_cloud_run_service_iam_binding" "scheduled_invoker" {
   for_each = local.scheduled_functions
 
   project  = var.project_id
   location = var.region
   service  = each.key
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  members  = ["serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"]
 }
 
 # GitHub Actions 用 Google Play アップロードサービスアカウント
@@ -283,8 +381,92 @@ resource "google_service_account" "github_actions_play_upload" {
   project      = var.project_id
 }
 
-resource "google_service_account_key" "github_actions_play_upload" {
-  service_account_id = google_service_account.github_actions_play_upload.name
+# 鍵は terraform 管理外（gcloud iam service-accounts keys create で作り、
+# Secret Manager の ci-google-play-service-account に入れる）。
+# Terraform で作ると秘密鍵が tfstate に残るため、管理から外した。
+removed {
+  from = google_service_account_key.github_actions_play_upload
+  lifecycle {
+    destroy = false
+  }
+}
+
+# --- X 投稿ワークフロー（post-daily-x.yml）---
+# 配信用と同じプールだと、X のジョブ（pip 依存やフォント取得を含む）から
+# 署名鍵を読める SA に成り代われる。プールごと分け、このワークフローの
+# main 実行だけを受け付ける。
+resource "google_service_account" "x_post" {
+  count        = var.github_repo != "" && var.github_dispatch_token != "" ? 1 : 0
+  account_id   = "github-actions-x-post"
+  display_name = "GitHub Actions - X post"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "x_post_usage" {
+  count   = length(google_service_account.x_post)
+  project = var.project_id
+  role    = "roles/serviceusage.serviceUsageConsumer"
+  member  = "serviceAccount:${google_service_account.x_post[0].email}"
+}
+
+# コーパスを読み、投稿済み記録（x_post/）だけ書く。
+resource "google_storage_bucket_iam_member" "x_post_reader" {
+  count  = length(google_service_account.x_post)
+  bucket = module.uvm_data.bucket_name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.x_post[0].email}"
+}
+
+resource "google_storage_bucket_iam_member" "x_post_writer" {
+  count  = length(google_service_account.x_post)
+  bucket = module.uvm_data.bucket_name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.x_post[0].email}"
+
+  condition {
+    title       = "x_post_objects_only"
+    description = "X 投稿の記録だけ書き換えを許す"
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${module.uvm_data.bucket_name}/objects/x_post/\")"
+  }
+}
+
+resource "google_iam_workload_identity_pool" "github_x_post" {
+  count                     = length(google_service_account.x_post)
+  project                   = var.project_id
+  workload_identity_pool_id = "github-x-post-pool"
+  display_name              = "GitHub Actions X post"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_x_post" {
+  count                              = length(google_service_account.x_post)
+  project                            = var.project_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_x_post[0].workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-oidc-provider"
+  display_name                       = "GitHub OIDC Provider"
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+  }
+
+  attribute_condition = join(" && ", [
+    "assertion.repository == '${var.github_repo}'",
+    "assertion.ref == 'refs/heads/main'",
+    "assertion.workflow_ref.startsWith('${local.x_post_workflow_ref_prefix}')",
+  ])
+}
+
+resource "google_service_account_iam_member" "x_post_wif" {
+  count              = length(google_service_account.x_post)
+  service_account_id = google_service_account.x_post[0].name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_x_post[0].name}/attribute.repository/${var.github_repo}"
 }
 
 # Cloud Functions module will be added after Functions code is ready
@@ -414,8 +596,8 @@ resource "google_cloud_scheduler_job" "post_daily_x" {
   region      = var.region
   description = "X への毎日投稿ワークフローを起動する"
 
-  # 06:47 JST。毎日例文の配信と同じ朝の時間帯。
-  schedule  = "47 6 * * *"
+  # 07:00 JST。x_post_extra_slots と合わせて 5 時間おきに並べる。
+  schedule  = "0 7 * * *"
   time_zone = "Asia/Tokyo"
 
   attempt_deadline = "30s"
@@ -430,6 +612,43 @@ resource "google_cloud_scheduler_job" "post_daily_x" {
     body = base64encode(jsonencode({
       ref    = "main"
       inputs = { themes = var.x_post_themes }
+    }))
+
+    headers = {
+      "Authorization"        = "Bearer ${var.github_dispatch_token}"
+      "Accept"               = "application/vnd.github+json"
+      "Content-Type"         = "application/json"
+      "X-GitHub-Api-Version" = "2022-11-28"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# 朝以外の X 投稿枠（var.x_post_extra_slots）。中身は post_daily_x と同じ。
+resource "google_cloud_scheduler_job" "post_daily_x_extra" {
+  for_each = nonsensitive(var.github_dispatch_token != "") ? var.x_post_extra_slots : {}
+
+  name        = "post-daily-x-${each.key}"
+  project     = var.project_id
+  region      = var.region
+  description = "X への投稿ワークフローを起動する（${each.value.themes}）"
+
+  schedule  = each.value.schedule
+  time_zone = "Asia/Tokyo"
+
+  attempt_deadline = "30s"
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
+    body = base64encode(jsonencode({
+      ref    = "main"
+      inputs = { themes = each.value.themes }
     }))
 
     headers = {

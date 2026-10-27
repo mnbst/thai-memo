@@ -25,6 +25,7 @@ var classOrder = []string{
 	"function_other",
 	"second_person_or_title",
 	"ambiguous_first_person",
+	"gender_modifier",
 }
 
 // classes はクラスIDから定義への表。
@@ -277,6 +278,15 @@ var classes = map[string]Class{
 		Rule:         "話し手自身を指す一人称として使う。相手や第三者を指す語にしない",
 		Words: []string{
 			"หนู",
+		},
+	},
+	"gender_modifier": {
+		Label:        "性別を表す修飾語",
+		FunctionWord: false,
+		Rule:         "名詞の後ろに付けて「男性用・女性用」を表す修飾語（ห้องน้ำชาย のような形）か、คน＋指示詞を伴って特定の人を指す形で使う。男女一般や持ち主は ผู้ชาย/ผู้หญิง で表し、この語を単独の名詞にしない",
+		Words: []string{
+			"ชาย",
+			"หญิง",
 		},
 	},
 }

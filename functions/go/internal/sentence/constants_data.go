@@ -4,6 +4,8 @@
 
 package sentence
 
+import "github.com/mnbst/thai-memo/functions/go/internal/lang"
+
 // Styles は生成する例文の文体バリエーション（constants.STYLES）。
 var Styles = []string{
 	"ニュース記事体（客観的・フォーマルな報道文体）",
@@ -31,6 +33,7 @@ var Topics = []string{
 	"礼儀作法（ワイの使い分け、敬語、タブー、食事マナー、贈り物）",
 	"恋愛・男女関係（告白、デート、甘い言葉、遠距離、別れ、仲直り）",
 	"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）",
+	"推し活（ライブ、チケット、グッズ、握手会、出待ち）",
 }
 
 // LifeTopic と TravelTopic は、ヒアリングの用途（タイで暮らす／旅行）に合わせて
@@ -90,6 +93,7 @@ var topicLabelsEN = map[string]string{
 	"礼儀作法（ワイの使い分け、敬語、タブー、食事マナー、贈り物）":           "Etiquette (the wai, honorifics, taboos, table manners, gifts)",
 	"恋愛・男女関係（告白、デート、甘い言葉、遠距離、別れ、仲直り）":          "Romance (confessions, dates, sweet talk, long distance, breakups, making up)",
 	"タイBLドラマ（告白、すれ違い、再会、嫉妬、裏切り、仲直り、壁ドン、あだ名呼び）": "Thai BL drama (confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, nicknames)",
+	"推し活（ライブ、チケット、グッズ、握手会、出待ち）":                "Fan life (concerts, tickets, merch, handshake events, waiting for idols)",
 }
 
 // styleLabelsEN は文体の英語ラベル（constants.STYLE_LABELS_EN）。
@@ -263,6 +267,10 @@ const BLTopic = "タイBLドラマ（告白、すれ違い、再会、嫉妬、�
 // （constants.FREE_BL_TOPIC_RATE）。
 const FreeBLTopicRate = 0.1
 
+// OshiTopic は推し活のテーマ（Topics[16]）。premium だけに出す。free の自動選択の
+// 候補には入れない（ChooseTopic）。
+const OshiTopic = "推し活（ライブ、チケット、グッズ、握手会、出待ち）"
+
 // responseJSONSchemaJSON は constants.RESPONSE_JSON_SCHEMA。
 // 構造が深いので JSON のまま持ち、必要なときにデコードして組み立てる。
 const responseJSONSchemaJSON = `{"type": "object", "additionalProperties": false, "properties": {"thai_text": {"type": "string", "description": "タイ語の例文テキスト（例: สวัสดีครับ）"}, "japanese_translation": {"type": "string", "description": "例文の日本語訳"}, "word_breakdown": {"type": "array", "description": "例文を構成する各単語と日本語の意味。最大20件。", "items": {"type": "object", "additionalProperties": false, "properties": {"word": {"type": "string", "description": "タイ語の単語（例: สวัสดี）"}, "meaning": {"type": "string", "description": "単語の意味を必ず日本語で記述すること（英語不可）"}}, "required": ["word", "meaning"]}}, "target_notes": {"type": "array", "description": "ターゲット単語のみの補足。ターゲット単語が無ければ空配列。", "items": {"type": "object", "additionalProperties": false, "properties": {"word": {"type": "string", "description": "対象のタイ語単語（word_breakdown の word と一致させる）"}, "note": {"type": "string", "description": "用法・ニュアンス・類語との違い（日本語、50文字以内）"}}, "required": ["word", "note"]}}, "context": {"type": "object", "additionalProperties": false, "properties": {"usage_scenarios": {"type": "string", "description": "使用場面の説明。日本語で、50文字以内（タイ語・英語不可）。"}, "cultural_notes": {"type": "string", "description": "文化的な補足情報。日本語で、50文字以内（タイ語・英語不可）。"}}, "required": ["usage_scenarios", "cultural_notes"]}}, "required": ["thai_text", "japanese_translation", "word_breakdown", "target_notes", "context"]}`
@@ -270,18 +278,35 @@ const responseJSONSchemaJSON = `{"type": "object", "additionalProperties": false
 // contextGeneratableFieldsJSON は constants._CONTEXT_GENERATABLE_FIELDS。
 const contextGeneratableFieldsJSON = `{"topic": {"type": "string", "description": "テーマ（例: あいさつ）"}, "style": {"type": "string", "description": "実際に書いた thai_text の文体を短く書く"}, "emotion": {"type": "string", "description": "感情・トーン"}}`
 
-// schemaDescriptionsEN は constants._SCHEMA_DESCRIPTIONS_EN。
-var schemaDescriptionsEN = map[string]string{
-	"japanese_translation": "例文の英訳。フィールド名は japanese だが必ず英語で書くこと（日本語不可）",
-	"word_breakdown":       "例文を構成する各単語と英語の意味。最大20件。",
-	"meaning":              "単語の意味を必ず英語で記述すること（日本語不可）",
-	"note":                 "用法・ニュアンス・類語との違い（英語、50語以内）",
-	"usage_scenarios":      "使用場面の説明。英語で、25語以内（タイ語・日本語不可）。",
-	"cultural_notes":       "文化的な補足情報。英語で、25語以内（タイ語・日本語不可）。",
+// schemaDescriptions は ja 以外の言語のスキーマ description（constants._SCHEMA_DESCRIPTIONS_EN）。
+// ja はスキーマ本体（responseJSONSchemaJSON）の description をそのまま使う。
+var schemaDescriptions = map[lang.Lang]map[string]string{
+	lang.EN: {
+		"japanese_translation": "例文の英訳。フィールド名は japanese だが必ず英語で書くこと（日本語不可）",
+		"word_breakdown":       "例文を構成する各単語と英語の意味。最大20件。",
+		"meaning":              "単語の意味を必ず英語で記述すること（日本語不可）",
+		"note":                 "用法・ニュアンス・類語との違い（英語、50語以内）",
+		"usage_scenarios":      "使用場面の説明。英語で、25語以内（タイ語・日本語不可）。",
+		"cultural_notes":       "文化的な補足情報。英語で、25語以内（タイ語・日本語不可）。",
+	},
+	lang.KO: {
+		"japanese_translation": "例文の韓国語訳。フィールド名は japanese だが必ず韓国語（ハングル）で書くこと（日本語・英語不可）",
+		"word_breakdown":       "例文を構成する各単語と韓国語の意味。最大20件。",
+		"meaning":              "単語の意味を必ず韓国語（ハングル）で記述すること（日本語・英語・漢字不可）",
+		"note":                 "用法・ニュアンス・類語との違い（韓国語、50字以内）",
+		"usage_scenarios":      "使用場面の説明。韓国語で、50字以内（タイ語・日本語・英語不可）。",
+		"cultural_notes":       "文化的な補足情報。韓国語で、50字以内（タイ語・日本語・英語不可）。",
+	},
 }
 
-// contextDescriptionsEN は constants._CONTEXT_DESCRIPTIONS_EN。
-var contextDescriptionsEN = map[string]string{
-	"style":   "文体（英語で。実際に書いた thai_text の文体を短く）",
-	"emotion": "感情・トーン（英語で）",
+// contextDescriptions は ja 以外の言語の context フィールドの description（constants._CONTEXT_DESCRIPTIONS_EN）。
+var contextDescriptions = map[lang.Lang]map[string]string{
+	lang.EN: {
+		"style":   "文体（英語で。実際に書いた thai_text の文体を短く）",
+		"emotion": "感情・トーン（英語で）",
+	},
+	lang.KO: {
+		"style":   "文体（韓国語で。実際に書いた thai_text の文体を短く）",
+		"emotion": "感情・トーン（韓国語で）",
+	},
 }

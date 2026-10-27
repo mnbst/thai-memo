@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,16 +7,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
 import 'package:thai_memo/presentation/providers/tts_provider.dart';
 import 'package:thai_memo/presentation/widgets/sentence_audio_player.dart';
+import 'package:thai_memo/services/sentence_audio_cache.dart';
 import 'package:thai_memo/services/tts_service.dart';
 
 /// 発話は stop されるまで終わらない、という実機の挙動だけを再現する。
 class _FakeTtsService extends TtsService {
+  _FakeTtsService({super.audioCache});
+
   final List<String> spoken = [];
   Completer<void>? _speaking;
   bool waitedForCancel = false;
 
   @override
-  Future<void> speak(String text, {bool slow = false, bool keepVoice = false}) {
+  Future<void> speak(
+    String text, {
+    bool slow = false,
+    bool keepVoice = false,
+    TtsSpeed speed = TtsSpeed.normal,
+  }) {
     spoken.add(text);
     return (_speaking = Completer<void>()).future;
   }
@@ -29,6 +38,32 @@ class _FakeTtsService extends TtsService {
 
   @override
   void dispose() {}
+}
+
+/// サーバー音声が OS に中断された（着信等）ように、1周を終えずに返る。
+class _InterruptedTtsService extends _FakeTtsService {
+  int calls = 0;
+
+  @override
+  Future<bool> speakSentence(
+    SentenceAudioSource source, {
+    int fromChar = 0,
+    bool keepVoice = false,
+    TtsSpeed speed = TtsSpeed.normal,
+    void Function(bool loading)? onLoading,
+    bool Function()? stillWanted,
+  }) async {
+    calls++;
+    return false;
+  }
+}
+
+/// サーバー音声の取得を、テストが完了させるまで待たせる。
+class _PendingAudioCache extends SentenceAudioCache {
+  final pending = Completer<File?>();
+
+  @override
+  Future<File?> fileFor(SentenceAudioSource source) => pending.future;
 }
 
 Widget _host(_FakeTtsService tts, {required Widget child}) {
@@ -332,6 +367,78 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.pause));
       await tester.pump();
+    });
+
+    testWidgets('サーバー音声が取れないときは端末の読み上げで同じ位置から読む', (tester) async {
+      final tts = _FakeTtsService();
+      await tester.pumpWidget(_host(
+        tts,
+        child: const SentenceAudioPlayer(
+          text: 'ผมกินข้าว',
+          words: ['ผม', 'กิน', 'ข้าว'],
+          source: SentenceAudioSource(text: 'ผมกินข้าว'),
+        ),
+      ));
+
+      await tester.tap(find.byIcon(Icons.play_arrow));
+      await tester.pump();
+      final slider = tester.getCenter(find.byType(Slider));
+      await tester.dragFrom(slider, const Offset(500, 0));
+      await tester.pump();
+
+      expect(tts.spoken, ['ผมกินข้าว', 'ข้าว']);
+
+      await tester.tap(find.byIcon(Icons.pause));
+      await tester.pump();
+    });
+
+    testWidgets('取得に時間がかかるとローディングを出し、待つあいだに止めたら鳴らさない',
+        (tester) async {
+      final cache = _PendingAudioCache();
+      final tts = _FakeTtsService(audioCache: cache);
+      await tester.pumpWidget(_host(
+        tts,
+        child: const SentenceAudioPlayer(
+          text: 'ผมกินข้าว',
+          source: SentenceAudioSource(text: 'ผมกินข้าว'),
+        ),
+      ));
+
+      await tester.tap(find.byIcon(Icons.play_arrow));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(CircularProgressIndicator), findsNothing,
+          reason: 'すぐ鳴るならちらつかせない');
+      await tester.pump(TtsService.loadingDelay);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      await tester.tap(find.byType(CircularProgressIndicator));
+      await tester.pump();
+      expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+
+      cache.pending.complete(null);
+      await tester.pump();
+      expect(tts.spoken, isEmpty);
+    });
+
+    testWidgets('OS に中断されたら1周終えたことにせず、リピートせずに止まる', (tester) async {
+      final tts = _InterruptedTtsService();
+      var ended = 0;
+      await tester.pumpWidget(_host(
+        tts,
+        child: SentenceAudioPlayer(
+          text: 'ผมกินข้าว',
+          source: const SentenceAudioSource(text: 'ผมกินข้าว'),
+          onPlaybackEnded: () => ended++,
+        ),
+      ));
+
+      await tester.tap(find.byIcon(Icons.play_arrow));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(tts.calls, 1);
+      expect(ended, 1);
+      expect(find.byIcon(Icons.play_arrow), findsOneWidget);
     });
   });
 }

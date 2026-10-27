@@ -1,16 +1,18 @@
 package quality
 
-import "context"
+import (
+	"context"
+	"slices"
+)
 
-// プールへ入れるときだけ足す観点（dailyBatch のステップ6）。
+// Aspects に足す観点。生成直後の判定（ReviewAll）で Aspects と一緒に聞く。
 //
-// 生成直後の判定（Aspects）に合格した文のうち、場面として言わない文と、意味が
-// ずれた訳をここで落とす。どちらも文法・共起の誤りではないので Aspects では
-// 拾えない（prod プールの目視で欠陥と決めた 20本のうち、Aspects で落ちたのは 3本）。
+// 場面として言わない文と、意味がずれた訳を落とす。どちらも文法・共起の誤りでは
+// ないので Aspects では拾えない（prod プールの目視で欠陥と決めた 20本のうち、
+// Aspects で落ちたのは 3本）。
 //
-// 生成直後の判定（作り直し）には入れない。作り直しはユーザーを待たせる経路で、
-// 誤検出は正しい文の作り直し・セットからの除外になる。プールなら落としても
-// その語が LLM 生成へ回るだけなので、検出側に倒した閾値で使える。
+// 2026-10-19 から表示とプールを同じ基準にしたので、誤検出はその文がセットから
+// 外れることになるが、悪い文を拾う方を優先して検出側の閾値のまま使う。
 //
 // 2026-10-04 の実測（situation 0.35 / tmean 0.4、どちらか超えたら不合格）:
 //
@@ -45,6 +47,12 @@ const (
 	situationThreshold = 0.35
 	tmeanThreshold     = 0.4
 )
+
+// ReviewAll は batch を Aspects と PoolAspects の両方で判定する。
+// 生成直後の1回きりの判定で、表示とプールの共通の基準。
+func (j *Judge) ReviewAll(ctx context.Context, batch []Candidate) (Result, error) {
+	return j.review(ctx, batch, slices.Concat(Aspects, PoolAspects))
+}
 
 // ReviewPool は batch を PoolAspects だけで判定する。Review と同じく、
 // 呼び出しに失敗した文は Flagged にも Accepted にも入れない。
