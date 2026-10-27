@@ -44,7 +44,7 @@ JST = timezone(timedelta(hours=9))
 MAX_CANDIDATES = 60
 
 # 反応を参照する直近の投稿数（同じテーマの中で数える）。
-RECENT_POSTS = 5
+RECENT_POSTS = 10
 
 # 投稿に回す例文の語数。短すぎると学びが薄く、長すぎると詳細画面に収まらない。
 MIN_WORDS = 7

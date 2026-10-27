@@ -190,7 +190,7 @@ test/screenshots/paywall_review_screenshot.dart
 App Store 審査用スクショ（課金画面）の生成。商品を差し込んで描くので、ストア反映を待たずに買い切り込みの画面が撮れる。出力は build/appstore/paywall_review.png。
 
 test/screenshots/guide_screenshot.dart
-ガイド画面（発音・語順・声調）を PNG に書き出す見た目確認用モック。SCREEN・言語・高さを dart-define で切り替える。
+ガイド画面（タイ文字・発音・語順・声調）を PNG に書き出す。SCREEN・言語・高さを dart-define で切り替え、FROM で見出しの欄だけを切り出す（X のガイド投稿でも使う）。
 
 test/screenshots/listen_mock_screenshot.dart
 聞き流し再生（トラック版）のUI案（履歴から追加・トラック一覧・中身とミニバー・再生画面）を1枚のPNGに並べるモック。
@@ -1321,6 +1321,12 @@ X（@everydaythai775）へ毎日の例文を自動投稿する仕組みの全体
 tools/x_post/pick_sentence.py
 静的コーパスを日替わりテーマ（Scheduler から渡したものから抽選）と語数で絞り、Geminiに1件選ばせる。投稿済みと履歴は x_post/posted.json で管理。
 
+tools/x_post/pick_study_post.py
+Tips・ガイドの枠で study_posts.json から投稿文を1件抽選する（一巡するまで重複なし）。ガイドは貼る欄を guide_shot.env に書く。
+
+tools/x_post/study_posts.json
+Tips・ガイドの X 投稿文（アプリの Tips とガイドから書き起こした確認済みの完成文）。
+
 tools/x_post/select_prompt.txt
 例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
 
@@ -1340,7 +1346,7 @@ test/screenshots/x_post_screenshot.dart
 DetailScreen を flutter_test 上で描画し、動画の続きからスクロールした画像3枚までと、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
 
 .github/workflows/post-daily-x.yml
-毎日07:00 JSTに上記を通しで実行するワークフロー。dry_run で投稿せず確認できる。
+X 投稿のワークフロー。kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
 
 ## App Store スクリーンショット
 

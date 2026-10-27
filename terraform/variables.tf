@@ -141,10 +141,11 @@ variable "x_post_themes" {
 }
 
 variable "x_post_extra_slots" {
-  description = "朝の投稿に加える X 投稿の枠。キーはジョブ名の接尾辞、schedule は JST の cron、themes は x_post_themes と同じ書式。"
+  description = "朝の投稿に加える X 投稿の枠。キーはジョブ名の接尾辞、schedule は JST の cron、themes は x_post_themes と同じ書式、kind は sentence（例文）/ tip / guide。"
   type = map(object({
     schedule = string
-    themes   = string
+    themes   = optional(string, "")
+    kind     = optional(string, "sentence")
   }))
   default = {}
 }

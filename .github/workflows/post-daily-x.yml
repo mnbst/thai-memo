@@ -1,5 +1,9 @@
 name: Post Daily Sentence to X
 
+# kind=sentence は例文（動画＋画面）、tip / guide は tools/x_post/study_posts.json の
+# 投稿文（ガイドはガイド画面の該当欄の画像付き）。枠ごとの kind は Terraform の
+# x_post_extra_slots で決める。
+
 on:
   # 毎朝 07:00 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
   # workflow_dispatch で起動する。GitHub の schedule は遅延・欠落が多いため使わない。
@@ -13,6 +17,11 @@ on:
         description: '抽選するテーマ（カンマ区切り。空なら全部: タイ旅行,タイ生活,恋愛）'
         type: string
         default: ''
+      kind:
+        description: '出すもの（sentence: 例文 / tip: Tips / guide: ガイド）'
+        type: choice
+        options: [sentence, tip, guide]
+        default: sentence
 
 permissions:
   contents: read
@@ -24,6 +33,7 @@ env:
   CI_SERVICE_ACCOUNT: github-actions-x-post@thai-memo-prod.iam.gserviceaccount.com
   GCP_PROJECT: thai-memo-prod
   OUT_DIR: build/x_post
+  KIND: ${{ inputs.kind || 'sentence' }}
 
 jobs:
   post:
@@ -60,12 +70,15 @@ jobs:
         run: |
           flutter pub get
           pip install -r tools/x_post/requirements.txt
-          sudo apt-get update && sudo apt-get install -y ffmpeg
+          if [ "$KIND" = sentence ]; then
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+          fi
 
       - name: Fetch Japanese font
         run: tools/x_post/fetch_fonts.sh
 
       - name: Pick sentence
+        if: env.KIND == 'sentence'
         # X の鍵は直近投稿の反応を引くのに使う。クレジットが無い間は
         # 引けずに諦めるだけで、選定も投稿も止まらない。
         env:
@@ -79,13 +92,34 @@ jobs:
             --project "$GCP_PROJECT" --out "$OUT_DIR" --seed "$(date -u +%F)" \
             --themes "$THEMES"
 
+      - name: Pick tip or guide
+        if: env.KIND != 'sentence'
+        run: |
+          python tools/x_post/pick_study_post.py \
+            --project "$GCP_PROJECT" --out "$OUT_DIR" --kind "$KIND"
+
+      # ガイドはアプリのガイド画面から、該当する欄（Card）だけを切り出して貼る。
+      # 描けなくても本文だけで出す。
+      - name: Render guide section
+        if: env.KIND == 'guide'
+        continue-on-error: true
+        run: |
+          set -a; . "$OUT_DIR/guide_shot.env"; set +a
+          flutter test test/screenshots/guide_screenshot.dart \
+            --dart-define=SCREEN="$SCREEN" \
+            --dart-define=FROM="$FROM" \
+            --dart-define=H=12000 \
+            --dart-define=OUT="$OUT_DIR/image_1.png"
+
       - name: Synthesize pronunciation
+        if: env.KIND == 'sentence'
         run: |
           python tools/x_post/synth_tts.py \
             --sentence "$OUT_DIR/sentence.json" --out "$OUT_DIR"
 
       # 画面の録画は読み上げの尺に合わせるので、音声を先に作る。
       - name: Render screenshots and frames
+        if: env.KIND == 'sentence'
         run: |
           AUDIO_MS=$(ffprobe -v error -show_entries format=duration \
             -of csv=p=0 "$OUT_DIR/audio.mp3" | awk '{printf "%d", $1 * 1000}')
@@ -96,6 +130,7 @@ jobs:
             --dart-define=X_POST_AUDIO_MS=$AUDIO_MS
 
       - name: Build media
+        if: env.KIND == 'sentence'
         run: python tools/x_post/build_media.py --out "$OUT_DIR"
 
       - name: Upload media as artifact
