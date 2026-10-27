@@ -21,6 +21,6 @@ x_post_themes = "BLドラマ"
 # 12:00 と 21:00 は例文ではなく Tips・ガイド（tools/x_post/study_posts.json）を出す。
 x_post_extra_slots = {
   "1200" = { schedule = "0 12 * * *", kind = "tip" }
-  "1700" = { schedule = "0 17 * * *", themes = "仕事" }
+  "1700" = { schedule = "0 17 * * *", themes = "推し活" }
   "2100" = { schedule = "0 21 * * *", kind = "guide" }
 }
