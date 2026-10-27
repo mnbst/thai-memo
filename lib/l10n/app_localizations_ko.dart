@@ -515,6 +515,12 @@ class L10nKo extends L10n {
   String get settingsPronGuideSubtitle => '발음 표기와 구별하기 어려운 소리 알아보기';
 
   @override
+  String get settingsThaiScriptGuide => '태국 문자 가이드';
+
+  @override
+  String get settingsThaiScriptGuideSubtitle => '자주 쓰는 문자와 철자 읽는 법 알아보기';
+
+  @override
   String get settingsResetLearningData => '학습 데이터 초기화';
 
   @override
@@ -3220,6 +3226,104 @@ class L10nKo extends L10n {
 
   @override
   String get wordOrderEx16bMeaning => '물을 가져오다';
+
+  @override
+  String get thaiScriptGuideTitle => '태국 문자 가이드';
+
+  @override
+  String get thaiScriptGuideHeading => '태국 문자를 구성 요소로 나누어 읽기';
+
+  @override
+  String get thaiScriptGuideIntro =>
+      '처음부터 모두 외우지 않아도 괜찮아요. 자주 나오는 자음과 모음부터 단어 속에서 찾아보세요. 카드를 누르면 소리를 들을 수 있어요.';
+
+  @override
+  String get thaiScriptBasicsTitle => '1. 태국 문자의 구조';
+
+  @override
+  String get thaiScriptBasicsBody =>
+      '한 음절은 주로 자음자+모음 기호+성조 기호로 이루어져요. 받침 자음이 붙기도 해요.';
+
+  @override
+  String get thaiScriptBasicsDirection =>
+      '글은 왼쪽에서 오른쪽으로 읽어요. 영어처럼 단어마다 띄어 쓰지 않고 문장이나 의미 단위 사이를 띄어요.';
+
+  @override
+  String get thaiScriptBasicsVowelPosition =>
+      '모음 기호는 자음의 뒤뿐 아니라 앞·위·아래 또는 자음을 둘러싸는 위치에 붙어요. 쓰인 순서와 소리 순서는 항상 같지 않아요.';
+
+  @override
+  String get thaiScriptConsonantsTitle => '2. 자주 쓰는 자음';
+
+  @override
+  String get thaiScriptConsonantsBody =>
+      '큰 글자는 자음자이고 그 아래는 글자 이름이에요. ‘첫소리’는 음절 처음, ‘끝소리’는 마지막에 올 때의 소리예요. 고·중·저자음 분류는 성조를 정하는 단서예요. 카드를 눌러 글자 이름을 들어 보세요.';
+
+  @override
+  String get thaiScriptConsonantCarrierNote =>
+      'อ는 소리가 없는 자음이에요. 모음만 있는 소리를 쓸 때 모음 기호를 붙이는 받침대가 돼요 (อา = aa, อิ = i).';
+
+  @override
+  String thaiScriptConsonantSounds(String initial, String finalSound) {
+    return '첫소리 $initial · 끝소리 $finalSound';
+  }
+
+  @override
+  String get thaiScriptVowelsTitle => '3. 모음 기호의 위치와 길이';
+
+  @override
+  String get thaiScriptVowelsBody =>
+      'อ를 자음 대신 받침대로 삼아 기호의 위치를 봐요. 모음에는 짧은소리와 긴소리가 있으며 길이가 달라지면 다른 단어가 돼요.';
+
+  @override
+  String get thaiScriptVowelPositions => '자음 앞|자음 뒤|자음 위|자음 아래|자음을 둘러쌈';
+
+  @override
+  String get thaiScriptVowelPairsTitle => '짧은 모음과 긴 모음';
+
+  @override
+  String get thaiScriptVowelPairsBody =>
+      '읽기에 같은 모음이 두 번 쓰이면 길게 늘여요. 짧은 형태에는 ะ가 붙거나 단어 안에서 모양이 달라지기도 해요.';
+
+  @override
+  String get thaiScriptToneMarksTitle => '4. 성조 기호';
+
+  @override
+  String get thaiScriptToneMarksBody =>
+      '자음 위에 붙는 네 가지 기호예요. 기호 하나가 음의 오르내림을 직접 나타내는 것이 아니라 자음 분류와의 조합으로 성조가 정해져요.';
+
+  @override
+  String get thaiScriptToneRule =>
+      '성조는 자음 분류(고·중·저)×성조 기호×음절 종류(모음 길이·받침 자음)로 정해져요. 기호가 없는 음절에도 성조가 있어요.';
+
+  @override
+  String get thaiScriptOpenToneGuide => '성조 규칙 자세히 보기';
+
+  @override
+  String get thaiScriptToneGuideNote =>
+      '우선 성조 기호를 찾을 수 있으면 충분해요. 조합표는 성조 가이드에서 확인할 수 있어요.';
+
+  @override
+  String get thaiScriptWordsTitle => '5. 실제 단어를 나누어 읽기';
+
+  @override
+  String get thaiScriptWordsBody =>
+      '적힌 순서만 보지 말고 자음·모음·성조 기호를 찾아보세요. 같은 색 카드는 같은 역할이에요. 단어를 누르면 소리를 들을 수 있어요.';
+
+  @override
+  String get thaiScriptWordMeanings => '~않다|좋다|우리·나|먹다|오다';
+
+  @override
+  String get thaiScriptConsonantLabel => '자음';
+
+  @override
+  String get thaiScriptFinalConsonantLabel => '받침 자음';
+
+  @override
+  String get thaiScriptVowelLabel => '모음';
+
+  @override
+  String get thaiScriptToneMarkLabel => '성조 기호';
 
   @override
   String get pronGuideTitle => '태국어 발음 가이드';
