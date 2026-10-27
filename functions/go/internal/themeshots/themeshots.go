@@ -23,6 +23,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"sync"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
@@ -83,6 +84,11 @@ type Builder struct {
 	Scenes SceneFinder
 	// Ctx は embedding の取得に使う。nil なら context.Background()。
 	Ctx context.Context
+	// Tables は場面合致の表（MatchTableBlob）を読む。nil か読めなければその場で計算する。
+	Tables BlobSource
+
+	tableOnce sync.Once
+	table     *matchIndex
 }
 
 // PickShot はテーマの候補から参考にするショットを1つ選ぶ。候補が無いテーマなら "" を返す。

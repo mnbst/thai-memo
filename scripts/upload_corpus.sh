@@ -24,6 +24,10 @@ fi
 if [[ -f "${CORPUS_DIR}/shot_embeddings.npy" ]]; then
   gcloud storage cp "${CORPUS_DIR}/shot_embeddings.npy" "gs://${BUCKET}/shot_embeddings.npy"
   gcloud storage cp "${CORPUS_DIR}/shot_texts.json" "gs://${BUCKET}/shot_texts.json"
+  # 場面合致の表（functions/go/cmd/scenetable が作る）。ショットと版が合わないと本番は使わない。
+  if [[ -f "${CORPUS_DIR}/scene_match_table.json" ]]; then
+    gcloud storage cp "${CORPUS_DIR}/scene_match_table.json" "gs://${BUCKET}/scene_match_table.json"
+  fi
 else
   echo "Skipping shot_embeddings.npy (not found)"
 fi

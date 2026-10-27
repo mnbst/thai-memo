@@ -51,6 +51,8 @@ type Store struct {
 
 	// Bucket は差し替え用。空なら環境変数から決める。
 	Bucket string
+	// dir は LoadLocalShots の読み込み元。空でなければ GCS ではなくここから読む。
+	dir string
 }
 
 // Default は本番用のストア。
@@ -65,6 +67,14 @@ func (s *Store) bucketName() string {
 		return b
 	}
 	return fbapp.ProjectID() + "-uvm-data"
+}
+
+// Blob は uvm-data バケットのオブジェクトを読む（LoadLocalShots の Store はローカルから）。
+func (s *Store) Blob(ctx context.Context, name string) ([]byte, error) {
+	if s.dir != "" {
+		return os.ReadFile(filepath.Join(s.dir, name))
+	}
+	return s.download(ctx, name)
 }
 
 func (s *Store) download(ctx context.Context, name string) ([]byte, error) {
@@ -280,7 +290,7 @@ func LoadLocalShots(dir string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Store{}
+	s := &Store{dir: dir}
 	if err := s.LoadFromBytes(npy, words); err != nil {
 		return nil, err
 	}

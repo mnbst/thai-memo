@@ -1,6 +1,6 @@
 // BLドラマの参考セリフとドラマ設定。生成元の gen_bldrama.py / bl_drama.py は削除済みで、
 // ここが正本。直接編集してよい。2026年作品のセリフは GMMTV 公式 YouTube の名場面クリップ題名から採った（2026-10 に15作品を追加。題名のうち場面の説明ではなく口にするセリフだけ）。
-// セリフを足したら shot_embeddings.json も作り直す（無いセリフは embedding 選出の候補に入らない）。
+// セリフを足したら shot_embeddings.json と場面合致の表（cmd/scenetable）も作り直す（無いセリフは embedding 選出の候補に入らない）。
 
 package bldrama
 

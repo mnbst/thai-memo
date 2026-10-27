@@ -983,6 +983,15 @@ BL以外の全テーマの参考例文ブロック。語との近さ（場面ご
 functions/go/internal/themeshots/match.go
 premium の場面合致（SceneMatch）。BLを含む全テーマの場面を、場面 z とショット単体 z の両方で足切りし、テーマ→場面→ショットの順に一様に選ぶ。
 
+functions/go/internal/themeshots/table.go
+場面合致の表（語ごとの場面 z・ショット z を事前計算した scene_match_table.json）の作成・読み込み。版が合わなければその場の計算に戻す。
+
+functions/go/internal/themeshots/table_test.go
+表を引いた結果がその場の計算と同じこと、版違い・読めない表での縮退のテスト。
+
+functions/go/cmd/scenetable/main.go
+ショットを足したあとに場面合致の表を作り scripts/corpus に書く（upload_corpus.sh で GCS へ）。
+
 functions/go/internal/themeshots/match_test.go
 場面合致の足切り（場面 z・ショット z）、テーマ単位の一様抽選、BL を含むこと、ショット ID からの断片のテスト。
 
