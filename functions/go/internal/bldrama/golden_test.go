@@ -157,7 +157,7 @@ func TestPickShotFallback(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			b := &Builder{Rand: rand.New(rand.NewSource(1)), Shots: tc.finder}
 			seen := map[string]bool{}
-			for i := 0; i < 2000; i++ {
+			for i := 0; i < 20000; i++ {
 				id := b.PickShot(tc.targetWords)
 				if _, ok := shotContext[id]; !ok {
 					t.Fatalf("知らないショットID: %q", id)
