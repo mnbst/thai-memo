@@ -46,10 +46,10 @@ func TestAssignScenes(t *testing.T) {
 		t.Errorf("おまかせで合わない語はテーマも空: %+v", got[0])
 	}
 
-	// 推し活で合わない語はおまかせと同じ扱い（推し活の場面を無理に付けない）。
+	// 推し活も合わない語は推し活のまま（テーマ以外の例文を混ぜない）。
 	got = s.assignScenes([]string{"แต่"}, TopicChoice{Topic: OshiTopic, Pool: Topics})
-	if got[0].Topic != "" || got[0].ShotID != "" {
-		t.Errorf("推し活で合わない語はテーマも空: %+v", got[0])
+	if got[0].Topic != OshiTopic || got[0].ShotID != "" {
+		t.Errorf("推し活で合わない語も推し活のまま: %+v", got[0])
 	}
 }
 
