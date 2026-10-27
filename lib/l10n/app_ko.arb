@@ -1482,7 +1482,7 @@
   "guideRoleQuizTitle": "퀴즈",
   "guideRoleQuizCheck": "확인 퀴즈: 예문마다 학습 단어의 뜻을 선택해요.",
   "guideRoleQuizSummary": "종합 퀴즈: 예문 최대 5개마다 밑줄에 들어갈 단어를 선택해요.",
-  "guideRoleQuizSpelling": "철자 퀴즈: 어휘 측정 결과가 100단어 미만일 때 나와요. 학습 단어의 발음과 뜻을 보고 올바른 철자를 선택해요. 한 번 맞힌 단어는 이후 빈칸 채우기나 순서 맞추기 등 다른 형식으로 출제돼요.",
+  "guideRoleQuizSpelling": "철자 퀴즈: 어휘 측정 결과가 100단어 미만일 때 나와요. 학습 단어의 발음과 뜻을 보고 올바른 철자를 선택해요. 한 번 맞힌 단어는 이후 빈칸 채우기나 순서 맞추기 등 다른 형식으로 출제돼요. 틀렸을 때는 ‘태국 문자 자세히 알아보기’에서 태국 문자 가이드를 열 수 있어요.",
   "guideRoleScoreTitle": "어휘 점수",
   "guideRoleScoreBody": "어휘 측정 테스트와 종합 퀴즈 결과로 추정한 현재 어휘량이에요.",
   "guideRoleVocabTestTitle": "어휘 측정 테스트",
@@ -1576,6 +1576,7 @@
   "settingsWordOrderGuide": "어순 가이드",
   "settingsWordOrderGuideSubtitle": "태국어 단어 배열 알아보기",
   "wordOrderLearnMore": "어순 자세히 알아보기",
+  "thaiScriptLearnMore": "태국 문자 자세히 알아보기",
   "wordOrderGuideTitle": "태국어 어순 가이드",
   "wordOrderGuideHeading": "태국어 어순 규칙",
   "wordOrderGuideIntro": "순서 맞추기 문제에서 헷갈릴 때 참고하세요. 태국어는 화제를 먼저 제시하고, 동사는 목적어 앞에, 수식하는 말은 뒤에 놓는 것이 기본이에요.",
@@ -1739,7 +1740,7 @@
   "pronCasualMeanings": "사랑하다|공손함(남성)|~인가요?|나(여성)",
   "pronCasualNote": "줄어든 발음 형태를 알면 듣기에 도움이 돼요. 말할 때는 표기된 대로 발음해도 통해요.",
   "guideRoleQuizWordOrder": "순서 맞추기 퀴즈: 종합 퀴즈의 일부로 예문에 있는 네 단어를 올바른 순서로 배열해요. 답변 후 ‘어순 자세히 알아보기’에서 어순 가이드를 열 수 있어요.",
-  "guideHowSettingsGuides": "‘성조 가이드’와 ‘어순 가이드’에서 성조와 어순 규칙을 다시 볼 수 있어요.",
+  "guideHowSettingsGuides": "‘태국 문자 가이드’, ‘발음 가이드’, ‘성조 가이드’, ‘어순 가이드’에서 문자·발음·성조·어순 규칙을 다시 볼 수 있어요.",
   "streakChipDays": "{count}일",
   "@streakChipDays": {
     "placeholders": {

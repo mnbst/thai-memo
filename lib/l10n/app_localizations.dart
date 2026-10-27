@@ -4759,7 +4759,7 @@ abstract class L10n {
   /// No description provided for @guideRoleQuizSpelling.
   ///
   /// In ja, this message translates to:
-  /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。'**
+  /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。間違えたときは「タイ文字について詳しく学ぶ」からタイ文字ガイドを開けます。'**
   String get guideRoleQuizSpelling;
 
   /// No description provided for @guideRoleScoreTitle.
@@ -5169,6 +5169,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'語順について詳しく学ぶ'**
   String get wordOrderLearnMore;
+
+  /// No description provided for @thaiScriptLearnMore.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字について詳しく学ぶ'**
+  String get thaiScriptLearnMore;
 
   /// No description provided for @wordOrderGuideTitle.
   ///
@@ -6115,7 +6121,7 @@ abstract class L10n {
   /// No description provided for @guideHowSettingsGuides.
   ///
   /// In ja, this message translates to:
-  /// **'「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。'**
+  /// **'「タイ文字ガイド」「発音ガイド」「声調ガイド」「語順ガイド」で、文字・読み・声調・語順のきまりを読み返せます。'**
   String get guideHowSettingsGuides;
 
   /// No description provided for @streakChipDays.

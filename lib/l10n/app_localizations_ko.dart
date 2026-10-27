@@ -2662,7 +2662,7 @@ class L10nKo extends L10n {
 
   @override
   String get guideRoleQuizSpelling =>
-      '철자 퀴즈: 어휘 측정 결과가 100단어 미만일 때 나와요. 학습 단어의 발음과 뜻을 보고 올바른 철자를 선택해요. 한 번 맞힌 단어는 이후 빈칸 채우기나 순서 맞추기 등 다른 형식으로 출제돼요.';
+      '철자 퀴즈: 어휘 측정 결과가 100단어 미만일 때 나와요. 학습 단어의 발음과 뜻을 보고 올바른 철자를 선택해요. 한 번 맞힌 단어는 이후 빈칸 채우기나 순서 맞추기 등 다른 형식으로 출제돼요. 틀렸을 때는 ‘태국 문자 자세히 알아보기’에서 태국 문자 가이드를 열 수 있어요.';
 
   @override
   String get guideRoleScoreTitle => '어휘 점수';
@@ -2896,6 +2896,9 @@ class L10nKo extends L10n {
 
   @override
   String get wordOrderLearnMore => '어순 자세히 알아보기';
+
+  @override
+  String get thaiScriptLearnMore => '태국 문자 자세히 알아보기';
 
   @override
   String get wordOrderGuideTitle => '태국어 어순 가이드';
@@ -3412,7 +3415,7 @@ class L10nKo extends L10n {
 
   @override
   String get guideHowSettingsGuides =>
-      '‘성조 가이드’와 ‘어순 가이드’에서 성조와 어순 규칙을 다시 볼 수 있어요.';
+      '‘태국 문자 가이드’, ‘발음 가이드’, ‘성조 가이드’, ‘어순 가이드’에서 문자·발음·성조·어순 규칙을 다시 볼 수 있어요.';
 
   @override
   String streakChipDays(int count) {
