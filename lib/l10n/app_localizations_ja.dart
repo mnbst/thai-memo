@@ -2080,7 +2080,7 @@ class L10nJa extends L10n {
   String get tip_vowelLength_content => 'タイ語は母音の長さが重要。短母音と長母音で別の単語になります。';
 
   @override
-  String get tip_vowelLength_example => 'ปะ（pà＝出会う） / ป้า（pâa＝おばさん）';
+  String get tip_vowelLength_example => 'เข้า（khâw＝入る） / ข้าว（khâaw＝ご飯）';
 
   @override
   String get tip_cultureWai_title => 'wâi（合掌・ไหว้）';
@@ -2244,7 +2244,7 @@ class L10nJa extends L10n {
       'タイ語は息の有無で子音を区別。ป（無気音 p）と พ（有気音 ph）は別の音。';
 
   @override
-  String get tip_consonantAspiration_example => 'ปลา（plaa＝魚） / พลา（phlaa＝失敗する）';
+  String get tip_consonantAspiration_example => 'ปา（paa＝投げる） / พา（phaa＝連れて行く）';
 
   @override
   String get tip_consonantSilent_title => '黙字記号 ์（kaa-ran）';

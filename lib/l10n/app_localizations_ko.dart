@@ -2095,7 +2095,7 @@ class L10nKo extends L10n {
       '태국어에서는 모음 길이가 중요해요. 단모음과 장모음은 서로 다른 단어가 돼요.';
 
   @override
-  String get tip_vowelLength_example => 'ปะ(pà=만나다) / ป้า(pâa=아주머니)';
+  String get tip_vowelLength_example => 'เข้า(khâw=들어가다) / ข้าว(khâaw=밥)';
 
   @override
   String get tip_cultureWai_title => 'wâi(합장 인사·ไหว้)';
@@ -2266,8 +2266,7 @@ class L10nKo extends L10n {
       '태국어는 숨의 세기로 자음을 구별해요. ป(무기음 p)와 พ(유기음 ph)는 서로 다른 소리예요.';
 
   @override
-  String get tip_consonantAspiration_example =>
-      'ปลา(plaa=물고기) / พลา(phlaa=실패하다)';
+  String get tip_consonantAspiration_example => 'ปา(paa=던지다) / พา(phaa=데려가다)';
 
   @override
   String get tip_consonantSilent_title => '묵음 부호 ์(kaa-ran)';

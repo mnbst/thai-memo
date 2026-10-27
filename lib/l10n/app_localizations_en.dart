@@ -2207,7 +2207,8 @@ class L10nEn extends L10n {
       'Length matters in Thai: a short vowel and a long one are different words.';
 
   @override
-  String get tip_vowelLength_example => 'ปะ (pà = to meet) / ป้า (pâa = aunt)';
+  String get tip_vowelLength_example =>
+      'เข้า (khâw = to enter) / ข้าว (khâaw = rice)';
 
   @override
   String get tip_cultureWai_title => 'wâi (ไหว้)';
@@ -2385,7 +2386,7 @@ class L10nEn extends L10n {
 
   @override
   String get tip_consonantAspiration_example =>
-      'ปลา (plaa = fish) / พลา (phlaa = to fail)';
+      'ปา (paa = to throw) / พา (phaa = to take someone)';
 
   @override
   String get tip_consonantSilent_title => 'The silent mark ์ (kaa-ran)';
