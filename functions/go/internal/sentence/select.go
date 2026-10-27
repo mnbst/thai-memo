@@ -115,7 +115,29 @@ const (
 	// 文が1つも無い場面が残る。ショット単位だけで選ぶと綴りの一致による誤爆が
 	// 半分ほど混ざった（มีด→値段を聞く）。
 	ShotZ = 3.5
+	// SceneZShotFirst・ShotZShotFirst は ShotFirstTopics をテーマ指定したときの閾値。
+	// 場面 z は場面ごとに上位数%しか通らないので、合う語の数は場面の数に比例する。
+	// 場面の少ないテーマは 2.5 だと語彙の数%しか合わない（推し活 12場面で 1〜3000位の
+	// 145語）。場面は緩めてショットで絞る。推し活は 145→463語、綴りの一致による誤爆は
+	// 1〜2割（2026-10-27）。
+	SceneZShotFirst = 1.0
+	ShotZShotFirst  = 4.0
 )
+
+// ShotFirstTopics は場面が少なく、テーマ指定では場面 z を緩めてショットで絞るテーマ。
+// 推し活・天気・趣味・伝統（8〜12場面）。
+var ShotFirstTopics = map[string]bool{
+	OshiTopic: true, Topics[8]: true, Topics[9]: true, Topics[12]: true,
+}
+
+// SceneThresholds は topic の場面 z とショット z の閾値を返す。
+// テーマ指定（minSceneZ == SceneZPinned）の ShotFirstTopics だけ緩める。
+func SceneThresholds(topic string, minSceneZ float64) (sceneZ, shotZ float64) {
+	if minSceneZ == SceneZPinned && ShotFirstTopics[topic] {
+		return SceneZShotFirst, ShotZShotFirst
+	}
+	return minSceneZ, ShotZ
+}
 
 // ScenePick は場面合致で選んだテーマ・場面・ショット。
 type ScenePick struct {
@@ -128,7 +150,7 @@ type ScenePick struct {
 type SceneMatcher interface {
 	// PickScene は topics の場面のうち、場面 z ≥ minSceneZ で、場面内に
 	// ショット z ≥ ShotZ の文があるものから、テーマ → 場面 → ショットの順に
-	// 一様に選ぶ。合う場面が無ければ false。
+	// 一様に選ぶ（閾値はテーマごとに SceneThresholds で決める）。合う場面が無ければ false。
 	PickScene(word string, topics []string, minSceneZ float64) (ScenePick, bool)
 	// HasScene は PickScene が選べる場面があるかだけを返す（抽選しない）。
 	HasScene(word string, topics []string, minSceneZ float64) bool
