@@ -101,7 +101,7 @@ func (r *Resolver) Resolve(
 	}
 
 	// 場面合致の回（premium）は選定時に決めたショットを使い、サブテーマは引かない
-	// （場面に一本化）。ショットが空ならショット無しで作る。
+	// （場面に一本化）。ショットが空なら雰囲気の数文で作る。
 	if matched, _ := params[sceneMatchedParam].(bool); matched {
 		resolved.SceneMatched = true
 		resolved.ShotID = strParam(params, shotIDParam)

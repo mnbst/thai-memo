@@ -2,6 +2,7 @@ package themeshots
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/bldrama"
@@ -89,16 +90,17 @@ func TestPickSceneIncludesBL(t *testing.T) {
 	}
 }
 
-// 選定時に決めたショットの断片には、場面と ID が付く。ID が無ければ付けない。
+// 選定時に決めたショットの断片には、場面と ID が付く。ID が無ければ雰囲気の3文を付ける。
 func TestShotSectionByID(t *testing.T) {
 	food := sentence.Topics[1]
 	id := firstShot(t, food, "値段を聞く")
-	b := &Builder{}
+	b := &Builder{Rand: rand.New(rand.NewSource(1))}
 	sec := b.ShotSection(food, id, sentence.Media[0].Name)
 	if sec.Scene != "値段を聞く" || sec.ShotID != id || sec.Context == "" {
 		t.Errorf("ショットの断片が違う: %+v", sec)
 	}
-	if sec := b.ShotSection(food, "", sentence.Media[0].Name); sec.Context != "" {
-		t.Errorf("ショット無しなのに断片が付いた: %q", sec.Context)
+	sec = b.ShotSection(food, "", sentence.Media[0].Name)
+	if strings.Count(sec.Context, "\n  - ") != moodShots || sec.ShotID != "" || sec.Scene != "" {
+		t.Errorf("雰囲気の3文になっていない: %+v", sec)
 	}
 }
