@@ -13,7 +13,8 @@ import (
 //
 // 場面は属するショットの重心、ショットは1文ずつを、語彙全体との類似度で標準化した
 // z で語と比べる（SceneScores。1文のショットは「1文だけの場面」として渡す）。
-// 場面 z が閾値以上で、場面内にショット z ≥ sentence.ShotZ の文がある場面だけを残し、
+// 場面 z が閾値以上で、場面内にショット z が閾値以上の文がある場面だけを残し
+// （閾値はテーマごとに sentence.SceneThresholds）、
 // テーマ → 場面 → ショットの順に一様に選ぶ。
 //
 // 一様に選ぶのは偏りを減らすため。z の重みや生の類似度の最大を採ると、どの語にも
@@ -101,9 +102,10 @@ func (b *Builder) matchScenes(word string, topics []string, minSceneZ float64) [
 			// 語の embedding が無い。どのテーマでも同じなので打ち切る。
 			return nil
 		}
+		sceneMin, shotMin := sentence.SceneThresholds(topic, minSceneZ)
 		var hits []matched
 		for i, sc := range scenes {
-			if z[i] < minSceneZ {
+			if z[i] < sceneMin {
 				continue
 			}
 			shotZ, err := b.Scenes.SceneScores(b.ctx(), word, sc.shots)
@@ -112,7 +114,7 @@ func (b *Builder) matchScenes(word string, topics []string, minSceneZ float64) [
 			}
 			var good []string
 			for j, v := range shotZ {
-				if v >= sentence.ShotZ {
+				if v >= shotMin {
 					good = append(good, sc.ids[j])
 				}
 			}

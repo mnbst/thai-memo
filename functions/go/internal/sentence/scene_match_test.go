@@ -101,3 +101,16 @@ func TestCanonicalizeTopic(t *testing.T) {
 		t.Error("確定済みのテーマを書き換えた")
 	}
 }
+
+// 場面の少ないテーマはテーマ指定のときだけ場面を緩めてショットで絞る。
+func TestSceneThresholds(t *testing.T) {
+	if sc, sh := SceneThresholds(OshiTopic, SceneZPinned); sc != SceneZShotFirst || sh != ShotZShotFirst {
+		t.Errorf("推し活のテーマ指定: %v %v", sc, sh)
+	}
+	if sc, sh := SceneThresholds(OshiTopic, SceneZOmakase); sc != SceneZOmakase || sh != ShotZ {
+		t.Errorf("おまかせは従来どおり: %v %v", sc, sh)
+	}
+	if sc, sh := SceneThresholds(BLTopic, SceneZPinned); sc != SceneZPinned || sh != ShotZ {
+		t.Errorf("場面の多いテーマは従来どおり: %v %v", sc, sh)
+	}
+}
