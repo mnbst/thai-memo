@@ -29,7 +29,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           # 3.x の最新は Gradle 8.14 以上を要求する。手元と同じ版に固定する。
-          flutter-version: "3.41.5"
+          flutter-version: "3.47.8"
           channel: stable
 
       - name: Authenticate to GCP
