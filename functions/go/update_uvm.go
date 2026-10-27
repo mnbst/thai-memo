@@ -2,7 +2,9 @@ package function
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 
 	"cloud.google.com/go/firestore"
 
@@ -61,7 +63,8 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 		return nil, callable.Errorf(callable.Internal, "語彙データを読み込めませんでした")
 	}
 
-	log.Printf("updateUvm: uid=%s, quiz_type=%s, results=%d", uid, in.QuizType, len(results))
+	log.Printf("updateUvm: uid=%s, quiz_type=%s, results=%d, items=%s",
+		uid, in.QuizType, len(results), formatResults(results))
 
 	if err := uvm.BatchUpdate(ctx, db, uid, results, freqRank, in.QuizType); err != nil {
 		log.Printf("updateUvm: uid=%s error=%v", uid, err)
@@ -91,6 +94,28 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 
 	log.Printf("updateUvm completed: uid=%s, updated=%d", uid, len(results))
 	return map[string]any{"success": true, "updated": len(results)}, nil
+}
+
+// formatResults は回答をログ用に「語:正誤:ヒント段階」で並べる（例: กี่:x:h2）。
+// ヒント段階は uvm doc に残らないので、P が伸びない原因を追うときにここで見る。
+// 例文レビュー後の回答には :r、綴り4択・並び替えには :s<係数> を付ける。
+func formatResults(results []uvm.Result) string {
+	items := make([]string, 0, len(results))
+	for _, r := range results {
+		mark := "x"
+		if r.IsCorrect {
+			mark = "o"
+		}
+		item := fmt.Sprintf("%s:%s:h%d", r.Word, mark, r.HintLevel)
+		if r.SentenceReviewed {
+			item += ":r"
+		}
+		if r.FormatScale > 0 {
+			item += fmt.Sprintf(":s%g", r.FormatScale)
+		}
+		items = append(items, item)
+	}
+	return "[" + strings.Join(items, " ") + "]"
 }
 
 // parseResult は results の1要素を解釈する。
