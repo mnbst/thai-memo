@@ -18,7 +18,7 @@
 // 誤検出が見えていなかった。そこで次の2点を変えた（正解セットの検出は 11/20 の
 // まま、prod の不合格は日本語訳 14%・英訳 11% に下がる）:
 //
-//   - trans_add（訳の加筆・欠落）だけ閾値を 0.6 に上げる。「最近」の補いや
+//   - trans_add（訳の加筆・欠落）だけ閾値を 0.65 に上げる（当初 0.6）。「最近」の補いや
 //     過去形など細かい揺れで 0.4〜0.6 に立つものが大半だった
 //   - 英訳の文には訳の観点（trans_add / trans_wrong）を聞かない。当時の英訳は
 //     直訳・時制なしを仕様にしており、加筆・誤訳の問いと噛み合わなかった。
@@ -150,9 +150,9 @@ const aspectPreamble = "`thai_text` はタイ語学習用の例文、`japanese_t
 //	正しい語も名指し      同じ罠で同等だが prod で境界の誤検出が +3
 //	タイ語の例なし        正しい文 5/10 を不合格にする。使えない
 var Aspects = append([]Aspect{
-	{ID: "collocation", Label: "共起", Threshold: Threshold,
+	{ID: "collocation", Label: "共起", Threshold: collocationThreshold,
 		Question: "`thai_text` の中に、タイ語母語話者が使わない語の組み合わせ（動詞と目的語、名詞と修飾語、副詞の係り先）があるか"},
-	{ID: "grammar", Label: "文法", Threshold: Threshold,
+	{ID: "grammar", Label: "文法", Threshold: grammarThreshold,
 		Question: "`thai_text` に文法の誤り（語の重複、類別詞の誤用、語順の誤り）があるか"},
 	{ID: "coherence", Label: "意味・接続", Threshold: coherenceThreshold,
 		Question: "`thai_text` をタイ語の母語話者が読んだとき、何を言いたい文なのかが分からない、または前半と後半が別々の話になっているか（あいさつ・前置きと無関係な用件をつなげる、比喩や理由が成り立たない、時を表す語と述語が噛み合わない等）"},
@@ -222,7 +222,18 @@ var Aspects = append([]Aspect{
 const Threshold = 0.4
 
 // transAddThreshold は trans_add だけの閾値（パッケージ先頭のコメント参照）。
-const transAddThreshold = 0.6
+// 0.6 では自然な訳（推しが新しい曲を〜と言っていた 等）が 0.61〜0.65 で落ちていた。
+// 0.65 にしても評価セットの欠陥 50/60 の検出は変わらない（2026-10-27）。
+const transAddThreshold = 0.65
+
+// collocationThreshold・grammarThreshold は collocation・grammar の閾値。
+// 0.4 では自然な文（ฝ่าคนไปหาเมน・ทาสีเล็บ 等）が 0.41〜0.5 で落ちていた。上げても
+// 評価セットで取りこぼす欠陥は無い（その欠陥は他の観点でも立つ）。prod 7日の
+// 不合格143本のうち、3観点の変更で通るのは13本で、ほぼ正常（2026-10-27）。
+const (
+	collocationThreshold = 0.45
+	grammarThreshold     = 0.5
+)
 
 // transDropThreshold は trans_drop の閾値（Aspects のコメント参照）。
 const transDropThreshold = 0.45

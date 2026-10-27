@@ -210,6 +210,9 @@ func (s *TargetWordSelector) SelectTargetWords(
 		return nil, ErrNoTargetWords
 	}
 	if matched {
+		if narrowTopics[choice.Topic] {
+			choice.Pool = withoutTopic(GateTopicsForVocab(append([]string(nil), Topics...), vocab), choice.Topic)
+		}
 		return s.assignScenes(words, choice), nil
 	}
 
@@ -248,10 +251,26 @@ func pinnedTopics(topic string) []string {
 	return []string{topic}
 }
 
+// narrowTopics は語の幅が狭く、場面に合わない語を指定テーマのまま作ると不自然な文に
+// なりやすいテーマ。推し活に 学校・塗る 等を当てると Jev に落とされ、5本中3本が
+// 消えていた（2026-10-27 prod）。合わない語はおまかせと同じ扱いにする。
+var narrowTopics = map[string]bool{OshiTopic: true}
+
+func withoutTopic(topics []string, topic string) []string {
+	out := topics[:0]
+	for _, t := range topics {
+		if t != topic {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // assignScenes は premium の語ごとに場面合致でテーマとショットを決める。
 //
 //	テーマ指定 : 指定テーマ（まとめたテーマは中身）の場面から。合わなければ
-//	             ショット無しで指定テーマのまま（まとめたテーマは中身から一様）
+//	             ショット無しで指定テーマのまま（まとめたテーマは中身から一様）。
+//	             narrowTopics は合わなければ choice.Pool でおまかせと同じ扱い
 //	おまかせ   : 語彙ゲートを通った全テーマの場面から。テーマは場面の持ち主。
 //	             合わなければテーマも空にして LLM に候補から選ばせる
 func (s *TargetWordSelector) assignScenes(words []string, choice TopicChoice) []TargetWord {
@@ -268,6 +287,11 @@ func (s *TargetWordSelector) assignScenes(words []string, choice TopicChoice) []
 		}
 		if pick, ok := s.Scenes.PickScene(w, topics, minZ); ok {
 			tw.Topic, tw.ShotID = pick.Topic, pick.ShotID
+		} else if narrowTopics[choice.Topic] {
+			tw.Topic = ""
+			if pick, ok := s.Scenes.PickScene(w, choice.Pool, SceneZOmakase); ok {
+				tw.Topic, tw.ShotID = pick.Topic, pick.ShotID
+			}
 		}
 		out[i] = tw
 	}
