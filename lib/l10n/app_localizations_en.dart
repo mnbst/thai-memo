@@ -2793,7 +2793,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleQuizSpelling =>
-      'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word’s spelling from its pronunciation and meaning. After you answer correctly once, that word appears in other formats, such as fill-in-the-blank or word order.';
+      'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word’s spelling from its pronunciation and meaning. After you answer correctly once, that word appears in other formats, such as fill-in-the-blank or word order. If you miss one, tap “More on Thai script” to open the Thai script guide.';
 
   @override
   String get guideRoleScoreTitle => 'Vocabulary score';
@@ -3039,6 +3039,9 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderLearnMore => 'More on word order';
+
+  @override
+  String get thaiScriptLearnMore => 'More on Thai script';
 
   @override
   String get wordOrderGuideTitle => 'Thai word order guide';
@@ -3565,7 +3568,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowSettingsGuides =>
-      'Review tone and word-order rules in their guides.';
+      'Review script, pronunciation, tone, and word-order rules in their guides.';
 
   @override
   String streakChipDays(int count) {

@@ -2631,7 +2631,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideRoleQuizSpelling =>
-      '綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。';
+      '綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。間違えたときは「タイ文字について詳しく学ぶ」からタイ文字ガイドを開けます。';
 
   @override
   String get guideRoleScoreTitle => '語彙スコア';
@@ -2862,6 +2862,9 @@ class L10nJa extends L10n {
 
   @override
   String get wordOrderLearnMore => '語順について詳しく学ぶ';
+
+  @override
+  String get thaiScriptLearnMore => 'タイ文字について詳しく学ぶ';
 
   @override
   String get wordOrderGuideTitle => 'タイ語の語順ガイド';
@@ -3374,7 +3377,8 @@ class L10nJa extends L10n {
       '並び替えクイズ：まとめクイズの一部で、例文の4つの語を正しい順に並べます。解答後の「語順について詳しく学ぶ」から語順ガイドを開けます。';
 
   @override
-  String get guideHowSettingsGuides => '「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。';
+  String get guideHowSettingsGuides =>
+      '「タイ文字ガイド」「発音ガイド」「声調ガイド」「語順ガイド」で、文字・読み・声調・語順のきまりを読み返せます。';
 
   @override
   String streakChipDays(int count) {

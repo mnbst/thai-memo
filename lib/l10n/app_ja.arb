@@ -1473,7 +1473,7 @@
   "guideRoleQuizTitle": "クイズ",
   "guideRoleQuizCheck": "確認クイズ：例文ごとに、学習単語の意味を選びます。",
   "guideRoleQuizSummary": "まとめクイズ：例文最大5つごとに、下線部に入る単語を選びます。",
-  "guideRoleQuizSpelling": "綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。",
+  "guideRoleQuizSpelling": "綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。間違えたときは「タイ文字について詳しく学ぶ」からタイ文字ガイドを開けます。",
   "guideRoleScoreTitle": "語彙スコア",
   "guideRoleScoreBody": "語彙測定テストとまとめクイズの結果から推定した、現在の語彙量です。",
   "guideRoleVocabTestTitle": "語彙測定テスト",
@@ -1567,6 +1567,7 @@
   "settingsWordOrderGuide": "語順ガイド",
   "settingsWordOrderGuideSubtitle": "タイ語の語の並び方を学ぶ",
   "wordOrderLearnMore": "語順について詳しく学ぶ",
+  "thaiScriptLearnMore": "タイ文字について詳しく学ぶ",
   "wordOrderGuideTitle": "タイ語の語順ガイド",
   "wordOrderGuideHeading": "タイ語の語順のきまり",
   "wordOrderGuideIntro": "並び替え問題で迷ったときの手がかりです。タイ語は、話題を先に出し、動詞を目的語の前に、説明する語を後ろに置くのが基本です。",
@@ -1730,7 +1731,7 @@
   "pronCasualMeanings": "愛する|丁寧（男性）|〜か？|私（女性）",
   "pronCasualNote": "崩れた形は聞き取りの手がかりです。話すときは読みどおりで通じます。",
   "guideRoleQuizWordOrder": "並び替えクイズ：まとめクイズの一部で、例文の4つの語を正しい順に並べます。解答後の「語順について詳しく学ぶ」から語順ガイドを開けます。",
-  "guideHowSettingsGuides": "「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。",
+  "guideHowSettingsGuides": "「タイ文字ガイド」「発音ガイド」「声調ガイド」「語順ガイド」で、文字・読み・声調・語順のきまりを読み返せます。",
   "streakChipDays": "{count}日",
   "@streakChipDays": {
     "placeholders": { "count": { "type": "int" } }

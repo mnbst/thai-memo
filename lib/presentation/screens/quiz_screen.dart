@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
 import '../../core/quota_error.dart';
 import '../../core/thai_tone_analyzer.dart';
+import 'thai_script_guide_screen.dart';
 import 'tone_guide_screen.dart';
 import 'word_order_guide_screen.dart';
 import '../../core/theme/app_colors.dart';
@@ -2415,8 +2416,10 @@ class _QuizResultView extends StatelessWidget {
                         showCorrectAnswerLabel: showExplanations && !isCorrect,
                         largeWord: true,
                       ),
-                    )
-                  else
+                    ),
+                  if (question.isSpellingChoice && !isCorrect)
+                    const _ThaiScriptGuideButton(),
+                  if (!question.isSpellingChoice)
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(
@@ -3088,8 +3091,10 @@ class _QuizResultDetail extends StatelessWidget {
               showSentenceContext: false,
               largeWord: true,
             ),
-          )
-        else
+          ),
+        if (question.isSpellingChoice && !isCorrect)
+          const _ThaiScriptGuideButton(),
+        if (!question.isSpellingChoice)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(AppConfig.defaultPadding * 1.5),
@@ -3205,6 +3210,34 @@ class _WordOrderGuideButton extends StatelessWidget {
           ),
           icon: const Icon(Icons.school),
           label: Text(L10n.of(context).wordOrderLearnMore),
+        ),
+      ),
+    );
+  }
+}
+
+/// 綴り4択を間違えたときにタイ文字ガイドへ送る。語順ガイドボタンと同じ形。
+class _ThaiScriptGuideButton extends StatelessWidget {
+  const _ThaiScriptGuideButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          key: const ValueKey('quiz_thai_script_guide_button'),
+          onPressed: () => Navigator.push(
+            context,
+            CupertinoPageRoute(
+              settings:
+                  const RouteSettings(name: ThaiScriptGuideScreen.routeName),
+              builder: (context) => const ThaiScriptGuideScreen(),
+            ),
+          ),
+          icon: const Icon(Icons.school),
+          label: Text(L10n.of(context).thaiScriptLearnMore),
         ),
       ),
     );
