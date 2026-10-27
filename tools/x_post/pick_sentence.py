@@ -51,7 +51,7 @@ MIN_WORDS = 7
 MAX_WORDS = 11
 
 # 投稿のテーマ。--themes で渡したものから毎日1つ抽選し、コーパスの
-# context.topic が挙げた個別テーマで始まるものだけを候補にする。旅行・生活の
+# context.topic か subTheme が挙げた個別テーマで始まるものだけを候補にする。旅行・生活の
 # 中身はアプリの「タイ旅行」「タイ暮らし」（GenerationConstants.travelTopic /
 # lifeTopic）に揃える。--themes は Cloud Scheduler の起動リクエストから来る。
 THEMES = {
@@ -60,6 +60,8 @@ THEMES = {
     "恋愛": ("恋愛・男女関係",),
     "仕事": ("仕事",),
     "BLドラマ": ("タイBLドラマ",),
+    # 独立テーマ「推し活」に加え、趣味・買い物・宗教の subTheme（推しの配信 等）も拾う。
+    "推し活": ("推し",),
 }
 
 # BLドラマの日は、作品の見当がつく例文だけ出す。作品ごとに、本文か使い方
@@ -192,8 +194,10 @@ def theme_only(pool: list[dict], theme: str) -> list[dict]:
     prefixes = THEMES[theme]
 
     def in_theme(sentence: dict) -> bool:
-        topic = (sentence.get("context") or {}).get("topic") or ""
-        return topic.startswith(prefixes)
+        context = sentence.get("context") or {}
+        topic = context.get("topic") or ""
+        sub_theme = context.get("subTheme") or ""
+        return topic.startswith(prefixes) or sub_theme.startswith(prefixes)
 
     picked = [s for s in pool if in_theme(s)]
     print(f"{theme}に絞って {len(picked)}/{len(pool)} 件", file=sys.stderr)
