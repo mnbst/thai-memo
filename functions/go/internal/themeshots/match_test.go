@@ -104,3 +104,24 @@ func TestShotSectionByID(t *testing.T) {
 		t.Errorf("雰囲気の3文になっていない: %+v", sec)
 	}
 }
+
+// BL は性的な語にセリフを結びつけない（ショット無しで作る）。
+func TestBLNoShotWords(t *testing.T) {
+	id := sentence.Topics[15]
+	var any string
+	for _, sc := range sceneCatalog()[id] {
+		any = "shot:" + sc.ids[0]
+		break
+	}
+	z := zScenes{any: 9}
+	for _, sc := range sceneCatalog()[id] {
+		z[sc.name] = 9
+	}
+	b := &Builder{Scenes: z}
+	if b.HasScene("ร่วมเพศ", []string{id}, sentence.SceneZPinned) {
+		t.Error("性的な語に BL のセリフが付いた")
+	}
+	if !b.HasScene("กิน", []string{id}, sentence.SceneZPinned) {
+		t.Error("ふつうの語に BL のセリフが付かない")
+	}
+}
