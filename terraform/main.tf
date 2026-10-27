@@ -596,7 +596,7 @@ resource "google_cloud_scheduler_job" "post_daily_x" {
   region      = var.region
   description = "X への毎日投稿ワークフローを起動する"
 
-  # 07:00 JST。x_post_extra_slots と合わせて 5 時間おきに並べる。
+  # 07:00 JST。ほかの枠は x_post_extra_slots。
   schedule  = "0 7 * * *"
   time_zone = "Asia/Tokyo"
 
@@ -632,7 +632,7 @@ resource "google_cloud_scheduler_job" "post_daily_x_extra" {
   name        = "post-daily-x-${each.key}"
   project     = var.project_id
   region      = var.region
-  description = "X への投稿ワークフローを起動する（${each.value.themes}）"
+  description = "X への投稿ワークフローを起動する（${each.value.kind == "sentence" ? each.value.themes : each.value.kind}）"
 
   schedule  = each.value.schedule
   time_zone = "Asia/Tokyo"
@@ -648,7 +648,7 @@ resource "google_cloud_scheduler_job" "post_daily_x_extra" {
     uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
     body = base64encode(jsonencode({
       ref    = "main"
-      inputs = { themes = each.value.themes }
+      inputs = { themes = each.value.themes, kind = each.value.kind }
     }))
 
     headers = {

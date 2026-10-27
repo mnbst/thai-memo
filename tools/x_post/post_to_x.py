@@ -1,5 +1,7 @@
 """X へ投稿し、投稿済みの記録を GCS に書き戻す。
 
+例文（pick_sentence.py）と Tips・ガイド（pick_study_post.py）のどちらの出力も受ける。
+
 添付は「お手本を聞く操作の動画」1本と画面の画像3枚。X が動画と画像の同時添付を
 受け付けない場合に備えて、動画だけ → 画像だけ → テキストだけ、と落としていく。
 読み上げや画像が載らなくても、その日の投稿は出す方を選ぶ。
@@ -23,8 +25,9 @@ from google.cloud import storage
 POSTED_OBJECT = "x_post/posted.json"
 # 投稿済みキーの保持数。バンクの規模より十分大きければ一巡を検知できる。
 POSTED_LIMIT = 5000
-# 反応の参照に使う履歴の保持数。直近10日ぶんあれば足りるが余裕を持たせる。
-HISTORY_LIMIT = 60
+# 反応の参照に使う履歴の保持数。1日4件を出し、同じテーマの直近10件を引くので
+# 10日ぶん（40件）あれば足りるが余裕を持たせる。
+HISTORY_LIMIT = 120
 # 添付できるメディアは4件まで。1件は読み上げ動画に使う。
 IMAGE_LIMIT = 3
 
@@ -167,7 +170,13 @@ def main() -> int:
     tweet_id = response.data["id"]
     print(f"投稿した: https://x.com/i/status/{tweet_id}")
 
-    sentence = json.loads((out / "sentence.json").read_text(encoding="utf-8"))
+    # Tips・ガイドには例文が無い。履歴には本文の1行目を残す。
+    sentence_file = out / "sentence.json"
+    sentence = (
+        json.loads(sentence_file.read_text(encoding="utf-8"))
+        if sentence_file.exists()
+        else {"thai_text": text.splitlines()[0]}
+    )
     theme_file = out / "theme.txt"
     theme = theme_file.read_text(encoding="utf-8") if theme_file.exists() else ""
     mark_posted(
