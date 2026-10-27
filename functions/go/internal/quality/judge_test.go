@@ -76,7 +76,7 @@ func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 	batch[1].ThaiText = "BAD"
 	batch[1].SentenceID = "target"
 	s := &jevServer{scores: map[string]map[string]float64{
-		"BAD": {"collocation": 0.62, "grammar": 0.45},
+		"BAD": {"collocation": 0.62, "grammar": 0.55},
 	}}
 
 	res, err := newJudge(t, s).Review(context.Background(), batch)
@@ -91,7 +91,7 @@ func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 	}
 	v := res.Verdicts[0]
 	// 確率の高い順に、閾値を超えた観点だけが理由になる。
-	if v.Index != 1 || v.Reason != "共起 0.62・文法 0.45" {
+	if v.Index != 1 || v.Reason != "共起 0.62・文法 0.55" {
 		t.Errorf("verdict = %+v", v)
 	}
 	// 閾値未満の観点も scores に残す（語の用法の観点は語が無い文には聞かない）。
@@ -103,21 +103,21 @@ func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 	}
 }
 
-// trans_add だけは閾値が高い。0.4〜0.6 は細かい揺れで立つ。
+// trans_add だけは閾値が高い。0.4〜0.65 は細かい揺れで立つ。
 func TestTransAddUsesHigherThreshold(t *testing.T) {
 	batch := sample(2)
 	batch[0].ThaiText = "MID"
 	batch[1].ThaiText = "HIGH"
 	s := &jevServer{scores: map[string]map[string]float64{
 		"MID":  {"trans_add": 0.55},
-		"HIGH": {"trans_add": 0.65},
+		"HIGH": {"trans_add": 0.7},
 	}}
 	res, err := newJudge(t, s).Review(context.Background(), batch)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(res.Flagged) != 1 || res.Flagged[0].ThaiText != "HIGH" {
-		t.Fatalf("trans_add 0.55 は合格・0.65 は不合格のはず: %+v", res.Flagged)
+		t.Fatalf("trans_add 0.55 は合格・0.7 は不合格のはず: %+v", res.Flagged)
 	}
 }
 

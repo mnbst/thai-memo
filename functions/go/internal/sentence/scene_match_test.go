@@ -44,6 +44,12 @@ func TestAssignScenes(t *testing.T) {
 	if got[0].Topic != "" || got[0].ShotID != "" {
 		t.Errorf("おまかせで合わない語はテーマも空: %+v", got[0])
 	}
+
+	// 推し活で合わない語はおまかせと同じ扱い（推し活の場面を無理に付けない）。
+	got = s.assignScenes([]string{"แต่"}, TopicChoice{Topic: OshiTopic, Pool: Topics})
+	if got[0].Topic != "" || got[0].ShotID != "" {
+		t.Errorf("推し活で合わない語はテーマも空: %+v", got[0])
+	}
 }
 
 // 場面合致の回はサブテーマを引かず、選定時のショットをそのまま使う。
