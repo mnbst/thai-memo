@@ -2,6 +2,7 @@ package sentence
 
 import (
 	"context"
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -102,9 +103,9 @@ func TestCanonicalizeTopic(t *testing.T) {
 	}
 }
 
-// 場面の少ないテーマはテーマ指定のときだけ場面を緩めてショットで絞る。
+// 場面の少ないテーマはテーマ指定のときだけ場面で絞らずショットで比べる。
 func TestSceneThresholds(t *testing.T) {
-	if sc, sh := SceneThresholds(OshiTopic, SceneZPinned); sc != SceneZShotFirst || sh != ShotZShotFirst {
+	if sc, sh := SceneThresholds(OshiTopic, SceneZPinned); !math.IsInf(sc, -1) || sh != ShotZShotFirst {
 		t.Errorf("推し活のテーマ指定: %v %v", sc, sh)
 	}
 	if sc, sh := SceneThresholds(OshiTopic, SceneZOmakase); sc != SceneZOmakase || sh != ShotZ {

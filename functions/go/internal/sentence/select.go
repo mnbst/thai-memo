@@ -3,6 +3,7 @@ package sentence
 import (
 	"context"
 	"errors"
+	"math"
 	"math/rand"
 
 	"cloud.google.com/go/firestore"
@@ -115,26 +116,27 @@ const (
 	// 文が1つも無い場面が残る。ショット単位だけで選ぶと綴りの一致による誤爆が
 	// 半分ほど混ざった（มีด→値段を聞く）。
 	ShotZ = 3.5
-	// SceneZShotFirst・ShotZShotFirst は ShotFirstTopics をテーマ指定したときの閾値。
-	// 場面 z は場面ごとに上位数%しか通らないので、合う語の数は場面の数に比例する。
-	// 場面の少ないテーマは 2.5 だと語彙の数%しか合わない（推し活 12場面で 1〜3000位の
-	// 145語）。場面は緩めてショットで絞る。推し活は 145→463語、綴りの一致による誤爆は
-	// 1〜2割（2026-10-27）。
-	SceneZShotFirst = 1.0
-	ShotZShotFirst  = 4.0
+	// ShotZShotFirst は ShotFirstTopics をテーマ指定したときのショット z。場面では絞らない。
+	// 場面 z は場面ごとに上位数%しか通らないので、合う語の数は場面の数に比例し、場面の
+	// 少ないテーマは語彙の数%しか合わなかった（推し活 12場面で 1〜3000位の145語）。
+	// 場面 z の下限（1.0）を残しても、落ちる語の7割は良い語で誤爆を選んで落とせて
+	// いなかったので、ショットだけで比べる（推し活 145→611語、2026-10-27）。
+	ShotZShotFirst = 4.0
 )
 
-// ShotFirstTopics は場面が少なく、テーマ指定では場面 z を緩めてショットで絞るテーマ。
-// 推し活・天気・趣味・伝統（8〜12場面）。
+// ShotFirstTopics は場面が少なく、テーマ指定では場面で絞らずショットだけで比べるテーマ。
+// 推し活・天気・趣味・伝統（8〜12場面）と家族（15場面。ショットだけで 183→623語）。
+// 場面の多いテーマ（仕事・食べ物・BL）は増える語が少なく、誤爆（BL の性的な語など）が
+// 目立つので入れない。おまかせはテーマを場面で決めるので対象外。
 var ShotFirstTopics = map[string]bool{
-	OshiTopic: true, Topics[8]: true, Topics[9]: true, Topics[12]: true,
+	OshiTopic: true, Topics[4]: true, Topics[8]: true, Topics[9]: true, Topics[12]: true,
 }
 
 // SceneThresholds は topic の場面 z とショット z の閾値を返す。
-// テーマ指定（minSceneZ == SceneZPinned）の ShotFirstTopics だけ緩める。
+// テーマ指定（minSceneZ == SceneZPinned）の ShotFirstTopics だけ場面で絞らない（-Inf）。
 func SceneThresholds(topic string, minSceneZ float64) (sceneZ, shotZ float64) {
 	if minSceneZ == SceneZPinned && ShotFirstTopics[topic] {
-		return SceneZShotFirst, ShotZShotFirst
+		return math.Inf(-1), ShotZShotFirst
 	}
 	return minSceneZ, ShotZ
 }
