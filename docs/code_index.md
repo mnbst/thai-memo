@@ -204,6 +204,9 @@ test/screenshots/notif_coach_mock_app.dart
 test/screenshots/review_notify_mock_app.dart
 通知を1日に複数回設定するUI案（アラーム風の3枠固定・トグルで出し入れと届く通知）をシミュレーターで触るモック（flutter run -t）。
 
+test/screenshots/notify_schedule_screenshot.dart
+通知時刻の設定画面を Firebase なしで描画して PNG に書き出すモック（X 告知・見た目確認用）。プラン（premium/free）・言語を dart-define で切り替える。
+
 test/screenshots/settings_screenshot.dart
 設定画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。プラン（trial/free/premium）・言語・高さを dart-define で切り替える。
 
@@ -1141,6 +1144,9 @@ scripts/ga4_quiz_offer_experiment.py
 
 scripts/deploy_go_functions.sh
 Go の Cloud Functions を origin/main の worktree からデプロイする（dev/tester/prod。dev だけ --local で作業ツリーから）。
+
+scripts/yt_th_subs.sh
+YouTube 動画のタイ語字幕の有無を1本ずつ待機を入れて確かめ、vtt を落とす（並列禁止、429 で止まる）。
 
 docs/estimated_vocab_logic.md
 estimated_vocab算出ロジックの詳細ドキュメント（estimate_vocab・moving_avg・sync_estimated_vocab）。

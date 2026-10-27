@@ -3763,7 +3763,7 @@ abstract class L10n {
   /// No description provided for @tip_vowelLength_example.
   ///
   /// In ja, this message translates to:
-  /// **'ปะ（pà＝出会う） / ป้า（pâa＝おばさん）'**
+  /// **'เข้า（khâw＝入る） / ข้าว（khâaw＝ご飯）'**
   String get tip_vowelLength_example;
 
   /// No description provided for @tip_cultureWai_title.
@@ -4063,7 +4063,7 @@ abstract class L10n {
   /// No description provided for @tip_consonantAspiration_example.
   ///
   /// In ja, this message translates to:
-  /// **'ปลา（plaa＝魚） / พลา（phlaa＝失敗する）'**
+  /// **'ปา（paa＝投げる） / พา（phaa＝連れて行く）'**
   String get tip_consonantAspiration_example;
 
   /// No description provided for @tip_consonantSilent_title.
