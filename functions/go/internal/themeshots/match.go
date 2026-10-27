@@ -90,6 +90,9 @@ func (b *Builder) matchScenes(word string, topics []string, minSceneZ float64) [
 	}
 	var out [][]matched
 	for _, topic := range topics {
+		if topic == sentence.Topics[15] && blNoShotWords[word] {
+			continue
+		}
 		scores, ok := b.topicScores(word, topic)
 		if !ok {
 			// 語の embedding が無い。どのテーマでも同じなので打ち切る。
@@ -116,6 +119,15 @@ func (b *Builder) matchScenes(word string, topics []string, minSceneZ float64) [
 		}
 	}
 	return out
+}
+
+// blNoShotWords は BL のセリフに結びつけない性的な語。語彙1万語で BL のショットに
+// 当たっていた（ช่วยตัวเอง 26文・ร่วมรัก 127文・ร่วมเพศ→「ไม่นอนกอดกันแบบนี้…」、2026-10-27）。
+// 添い寝・キスの場面に寄せると性的な文になる。語は選ばれうるのでショット無しで作る。
+var blNoShotWords = map[string]bool{
+	"ทางเพศ": true, "ร่วมเพศ": true, "เพศสัมพันธ์": true, "ร่วมรัก": true, "หลับนอน": true,
+	"ช่วยตัวเอง": true, "เพศ": true, "โป๊": true, "ยั่ว": true, "ขายตัว": true, "ใคร่": true,
+	"ล่วงละเมิด": true, "ปล้ำ": true, "ลูบ": true, "สวาท": true, "ข่มขืน": true,
 }
 
 // minShotZ は表に残すショット z の下限。どのテーマの閾値（SceneThresholds）より低くする。
