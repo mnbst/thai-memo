@@ -48,9 +48,11 @@ const (
 )
 
 // TopicGroups はまとめたテーマと、その中身の個別テーマ。
+// タイ旅行の天気・健康は名前に出さない（識別子は端末と共有のため変えない）。
+// 入れると場面の付く語（頻度上位5000語）が 49% → 58% になる（2026-10-29）。
 var TopicGroups = map[string][]string{
 	LifeTopic:   {Topics[5], Topics[6], Topics[7], Topics[4], Topics[8], Topics[1]},
-	TravelTopic: {Topics[2], Topics[6], Topics[5], Topics[1]},
+	TravelTopic: {Topics[2], Topics[6], Topics[5], Topics[1], Topics[8], Topics[7]},
 }
 
 // GrammarFocuses は文法の焦点（constants.GRAMMAR_FOCUSES）。
