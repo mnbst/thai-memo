@@ -204,8 +204,12 @@ NotificationRepromptArm assignNotificationRepromptArm(
       : NotificationRepromptArm.holdout;
 }
 
-/// まとめクイズを終えたときに、毎日例文通知を継続サポート機能として
-/// 紹介する。出したら true。
+/// 毎日例文通知を継続サポート機能として紹介する。出したら true。
+///
+/// 出す場面は [trigger] で記録する。summary_quiz（まとめクイズ完了時）と
+/// confirmation_quiz（確認クイズを終えて次の例文が出たとき）。5本終える前に
+/// やめる人が多く、まとめクイズだけでは大半が一度も案内を見ないため、
+/// 確認クイズのあとでも初回だけ出す（[firstOnly]）。再案内はまとめクイズに限る。
 ///
 /// 体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否されると
 /// 二度と要求できない）ため、インストール直後には出さない。設定タブを開いた
@@ -215,8 +219,10 @@ NotificationRepromptArm assignNotificationRepromptArm(
 /// 断った人への再案内はリリースごとに [AppConfig.notificationCoachRepromptVersion] で決める。
 Future<bool> maybeShowNotificationCoach(
   BuildContext context,
-  WidgetRef ref,
-) async {
+  WidgetRef ref, {
+  required String trigger,
+  bool firstOnly = false,
+}) async {
   final controller = ref.read(settingsControllerProvider.notifier);
   // 初期化前の state は「表示済み」側の既定値なので、読む前に必ず待つ。
   await controller.initialized;
@@ -224,6 +230,7 @@ Future<bool> maybeShowNotificationCoach(
 
   final settings = ref.read(settingsControllerProvider);
   final coachShown = settings.notificationCoachShown;
+  if (firstOnly && coachShown) return false;
   const repromptVersion = AppConfig.notificationCoachRepromptVersion;
   final permissionGranted =
       await controller.hasProminentNotificationPermission();
@@ -273,19 +280,22 @@ Future<bool> maybeShowNotificationCoach(
     );
     if (arm == NotificationRepromptArm.holdout) {
       unawaited(
-        analytics.logNotificationCoach(action: 'holdout', source: source),
+        analytics.logNotificationCoach(
+            action: 'holdout', source: source, trigger: trigger),
       );
       await controller.markNotificationCoachReprompted(repromptVersion);
       return false;
     }
   }
-  unawaited(analytics.logNotificationCoach(action: 'shown', source: source));
+  unawaited(analytics.logNotificationCoach(
+      action: 'shown', source: source, trigger: trigger));
 
   final accepted = await showNotificationCoachDialog(context);
   unawaited(
     analytics.logNotificationCoach(
       action: accepted ? 'accepted' : 'dismissed',
       source: source,
+      trigger: trigger,
     ),
   );
   // 出したら結果に関わらず記録する。初回もこのリリースの再案内を済ませた
@@ -299,12 +309,12 @@ Future<bool> maybeShowNotificationCoach(
   // ここでOSの許可ダイアログが出る。答えるまで下の await は返らないため、
   // 要求に入ったこと自体を先に記録する。これが無いと「ダイアログを放置して
   // アプリを離れた」と「許可後の登録が終わらなかった」を後から区別できない。
-  unawaited(
-      analytics.logNotificationCoach(action: 'requesting', source: source));
+  unawaited(analytics.logNotificationCoach(
+      action: 'requesting', source: source, trigger: trigger));
   final result = await controller.setDailyReminderEnabled(true);
   unawaited(
     analytics.logNotificationCoach(
-        action: result?.name ?? 'denied', source: source),
+        action: result?.name ?? 'denied', source: source, trigger: trigger),
   );
   if (!context.mounted) return true;
   // pending は許可が取れているので、登録待ちでも成功として伝える。
