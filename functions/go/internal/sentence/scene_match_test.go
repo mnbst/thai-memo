@@ -111,7 +111,13 @@ func TestSceneThresholds(t *testing.T) {
 	if sc, sh := SceneThresholds(OshiTopic, SceneZOmakase); sc != SceneZOmakase || sh != ShotZ {
 		t.Errorf("おまかせは従来どおり: %v %v", sc, sh)
 	}
-	if sc, sh := SceneThresholds(BLTopic, SceneZPinned); sc != SceneZPinned || sh != ShotZ {
-		t.Errorf("場面の多いテーマは従来どおり: %v %v", sc, sh)
+	if sc, sh := SceneThresholds(BLTopic, SceneZPinned); sc != 2.5 || sh != ShotZ {
+		t.Errorf("BL は 2.5 のまま: %v %v", sc, sh)
+	}
+	if sc, _ := SceneThresholds(Topics[14], SceneZPinned); sc != 1.5 {
+		t.Errorf("恋愛は 1.5: %v", sc)
+	}
+	if sc, _ := SceneThresholds(Topics[1], SceneZPinned); sc != SceneZPinned {
+		t.Errorf("食べ物は既定値: %v", sc)
 	}
 }
