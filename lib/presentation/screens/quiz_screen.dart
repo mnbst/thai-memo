@@ -47,6 +47,7 @@ Future<void> rememberVocabAtSetStart(WidgetRef ref, String setId) async {
   await prefs.setInt(_summaryQuizVocabBeforeKey, vocab);
   await prefs.setString(_summaryQuizVocabSetKey, setId);
 }
+
 const Duration _correctAnswerAutoAdvanceDelay = Duration(milliseconds: 1200);
 
 /// 出題中の位置。1問だけのクイズには進み具合が無いので持たせない。
@@ -361,7 +362,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
     if (widget.showVocabScoreTransition &&
-        await maybeShowNotificationCoach(context, ref)) {
+        await maybeShowNotificationCoach(
+          context,
+          ref,
+          trigger: 'summary_quiz',
+        )) {
       return;
     }
     if (!mounted) return;

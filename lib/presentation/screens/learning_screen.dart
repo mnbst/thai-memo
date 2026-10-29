@@ -11,6 +11,7 @@ import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../services/learning_progress_store.dart';
 import '../providers/review_prompt_provider.dart';
+import '../widgets/notification_coach_dialog.dart';
 import 'quiz_screen.dart';
 import 'today_screen.dart';
 
@@ -176,6 +177,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
   /// 消費しない）。使い切ったら従来どおり生成へ落ちる。テーマの適用可否・
   /// トライアル消費は controller 側で判定する。
   Future<void> _proceedToNextSentence() async {
+    final fromConfirmation = _stage == LearningStage.confirmationQuiz;
     final set = ref.read(dailySetProvider);
     final current = set.current;
     if (!shouldAdvanceDailySetCursor(
@@ -188,6 +190,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
       _setStage(LearningStage.sentence);
       ref.read(sentenceControllerProvider.notifier).showSentence(current);
       ref.read(quizControllerProvider.notifier).prepareQuiz(current);
+      if (fromConfirmation) unawaited(_offerNotificationCoach());
       return;
     }
 
@@ -200,6 +203,25 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
     _setStage(LearningStage.sentence);
     ref.read(sentenceControllerProvider.notifier).showSentence(next);
     ref.read(quizControllerProvider.notifier).prepareQuiz(next);
+    if (fromConfirmation) unawaited(_offerNotificationCoach());
+  }
+
+  /// 確認クイズを終えて次の例文が出たところで、通知を初めて案内する。
+  /// 5本終える前にやめる人はまとめクイズの案内を見ないため、1本目のあとで
+  /// 拾う。例文が出きってから出し、読み込み中の画面には重ねない。
+  Future<void> _offerNotificationCoach() async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted ||
+        _stage != LearningStage.sentence ||
+        ref.read(sentenceControllerProvider) is! SentenceStateSuccess) {
+      return;
+    }
+    await maybeShowNotificationCoach(
+      context,
+      ref,
+      trigger: 'confirmation_quiz',
+      firstOnly: true,
+    );
   }
 
   Future<void> _generateNextLearningSentence() async {
