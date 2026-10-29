@@ -105,8 +105,8 @@ func TestCanonicalizeTopic(t *testing.T) {
 
 // 場面の少ないテーマはテーマ指定のときだけ場面で絞らずショットで比べる。
 func TestSceneThresholds(t *testing.T) {
-	if sc, sh := SceneThresholds(OshiTopic, SceneZPinned); !math.IsInf(sc, -1) || sh != ShotZShotFirst {
-		t.Errorf("推し活のテーマ指定: %v %v", sc, sh)
+	if sc, sh := SceneThresholds(Topics[4], SceneZPinned); !math.IsInf(sc, -1) || sh != ShotZShotFirst {
+		t.Errorf("家族のテーマ指定: %v %v", sc, sh)
 	}
 	if sc, sh := SceneThresholds(OshiTopic, SceneZOmakase); sc != SceneZOmakase || sh != ShotZ {
 		t.Errorf("おまかせは従来どおり: %v %v", sc, sh)
