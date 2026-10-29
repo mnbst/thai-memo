@@ -110,8 +110,9 @@ type TargetWordSelector struct {
 const (
 	// SceneZOmakase はおまかせの場面 z。テーマも場面から決めるので厳しめにする。
 	SceneZOmakase = 3.0
-	// SceneZPinned はテーマ指定の場面 z。テーマは決まっているので合う語の数を優先する。
-	SceneZPinned = 2.5
+	// SceneZPinned はテーマ指定の場面 z（テーマごとの値は sceneZPinnedByTopic）。
+	// テーマは決まっているので合う語の数を優先する。
+	SceneZPinned = 2.0
 	// ShotZ はショット単体の z。場面の重心だけだと、雰囲気は近いのに参考になる
 	// 文が1つも無い場面が残る。ショット単位だけで選ぶと綴りの一致による誤爆が
 	// 半分ほど混ざった（มีด→値段を聞く）。
@@ -125,18 +126,36 @@ const (
 )
 
 // ShotFirstTopics は場面が少なく、テーマ指定では場面で絞らずショットだけで比べるテーマ。
-// 推し活・天気・趣味・伝統（8〜12場面）と家族（15場面。ショットだけで 183→623語）。
+// 推し活・天気・伝統（8〜12場面）と家族（15場面。ショットだけで 183→623語）。
 // 場面の多いテーマ（仕事・食べ物・BL）は増える語が少なく、誤爆（BL の性的な語など）が
 // 目立つので入れない。おまかせはテーマを場面で決めるので対象外。
+// 趣味は物語のショットで場面が増えたので外した。ショットだけだと綴りの一致
+// （พัด→ฟาด、หลุมศพ→หลุม）が半分ほど混ざった（2026-10-29）。
 var ShotFirstTopics = map[string]bool{
-	OshiTopic: true, Topics[4]: true, Topics[8]: true, Topics[9]: true, Topics[12]: true,
+	OshiTopic: true, Topics[4]: true, Topics[8]: true, Topics[12]: true,
+}
+
+// sceneZPinnedByTopic はテーマ指定の場面 z を SceneZPinned から変えるテーマ。
+// 場面 z 1.5〜2.0 の帯で付くショットを Codex に判定させ、合わない率が 2.5 以上
+// （8〜15%）と同じくらいのテーマはゆるめ、高いテーマは残した（恋愛・趣味・仕事 13〜17%、
+// BL 35%）。合わないショットでも例文はほぼ崩れなかった（12語中1語が誤用、2026-10-30）。
+var sceneZPinnedByTopic = map[string]float64{
+	Topics[14]: 1.5, Topics[9]: 1.5, Topics[3]: 1.5,
+	BLTopic: 2.5,
 }
 
 // SceneThresholds は topic の場面 z とショット z の閾値を返す。
-// テーマ指定（minSceneZ == SceneZPinned）の ShotFirstTopics だけ場面で絞らない（-Inf）。
+// テーマ指定（minSceneZ == SceneZPinned）は ShotFirstTopics なら場面で絞らず（-Inf）、
+// ほかは sceneZPinnedByTopic の値にする。
 func SceneThresholds(topic string, minSceneZ float64) (sceneZ, shotZ float64) {
-	if minSceneZ == SceneZPinned && ShotFirstTopics[topic] {
+	if minSceneZ != SceneZPinned {
+		return minSceneZ, ShotZ
+	}
+	if ShotFirstTopics[topic] {
 		return math.Inf(-1), ShotZShotFirst
+	}
+	if z, ok := sceneZPinnedByTopic[topic]; ok {
+		return z, ShotZ
 	}
 	return minSceneZ, ShotZ
 }
