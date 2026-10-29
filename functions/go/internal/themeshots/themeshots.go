@@ -293,10 +293,15 @@ func (b *Builder) writtenSection(topic, medium string) (sentence.DramaSection, b
 }
 
 // shotSection は会話のショット1つを参考例文にした断片を返す。
+// 場面の行は、具体的な状況（shotSituation）があればそれを、無ければ場面名を置く。
 func (b *Builder) shotSection(topic, id string) sentence.DramaSection {
+	situation := shotScene[id]
+	if s, ok := shotSituation[id]; ok {
+		situation = s
+	}
 	return sentence.DramaSection{
 		Medium: sentence.Media[0].Name,
-		Context: "- 場面: " + shotScene[id] + "\n" +
+		Context: "- 場面: " + situation + "\n" +
 			"- 参考タイ語例（話し言葉の言い回しの参考。この1文のみ）: " + shots[id] + "\n",
 		Required: "- 参考タイ語例をそのまま使わず、同じ場面のオリジナルの1文を作る。" +
 			"参考例の語を部分的に差し替えて別の意味の語を作らない\n" +
