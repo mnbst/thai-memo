@@ -17,14 +17,17 @@ type TopicChoice struct {
 	Topic string
 	// Pool は自動選択の候補。nil なら全テーマから選ぶ。
 	Pool []string
+	// Slots は premium おまかせの枠ごとのテーマ（Pool から一様に選んだもの）。
+	// i 番目の語はテーマ指定 Slots[i] と同じ扱いで選ぶ。
+	Slots []string
 }
 
 // ChooseTopic は語彙レベルに応じたテーマ候補を作り、free では 1 つに決める
 // （sentence_service.py:select_uvm_target_words:294 の前半）。
 //
 // 候補プールは free / premium 共通（TOPICS を TOPIC_MIN_VOCAB でゲート）。
-// 違うのは選び方だけで、free は一様抽選、premium は embedding で key_word に
-// 最も近いテーマを選ぶ。
+// 違うのは選び方だけで、free はここで一様抽選、premium は選定時に枠ごとに一様抽選
+// する（SelectTargetWords。場面合致が無ければ embedding で key_word に最も近いテーマ）。
 //
 // 2026-08-14 実測: free の旧プール4件で find_best_topic を使うと BLドラマが
 // 82.7%。テーマ embedding は語彙全体への平均類似度に差があり、重心の高い BL が
@@ -108,7 +111,8 @@ type TargetWordSelector struct {
 // 類似度の平均・標準偏差で標準化した値。prod の埋め込み・rank 3464 までの語で
 // 7パターンを比べて決めた（2026-10-20）。
 const (
-	// SceneZOmakase はおまかせの場面 z。テーマも場面から決めるので厳しめにする。
+	// SceneZOmakase は旧おまかせ（全テーマの場面からテーマも決めた）の場面 z。
+	// おまかせは枠ごとにテーマを先に決めるようにしたので、今は照合表の検査だけで使う。
 	SceneZOmakase = 3.0
 	// SceneZPinned はテーマ指定の場面 z（テーマごとの値は sceneZPinnedByTopic）。
 	// テーマは決まっているので合う語の数を優先する。
@@ -209,12 +213,13 @@ type TargetWord struct {
 //
 //	テーマ指定あり : 指定値。全部の語が同じテーマ
 //	free おまかせ  : 一様抽選で1つ。全部の語が同じテーマ
-//	premium おまかせ: 語ごとに embedding で決める
+//	premium おまかせ: 枠ごとに一様抽選（重ならないように）。枠ごとにテーマ指定と同じ選び方
 //
-// key_word はどの場合もテーマで絞らない（語の選定はテーマに依らない）。
-// premium だけ語ごとになるのは、ChooseTopic が premium にはテーマを確定せず
-// 候補プールだけ渡すため。free を同じ形にすると、テーマ分布が embedding の
-// 重心に引きずられて BLドラマへ偏る（ChooseTopic のコメント参照）。
+// premium（場面合致あり）はテーマに合う語を先に選ぶ。free は語をテーマで絞らない。
+// premium おまかせは以前、語を先に選んで全テーマの場面からテーマを決めていたが、
+// 参考文の多いテーマへ偏った（頻度上位5000語で BL 29%・テーマ無し 18%、
+// 宗教・礼儀・学校・あいさつは各1%未満）。枠ごとにテーマを先に決めると、帯の未出
+// 15語でも無作為テーマに合う語がある枠が 94%（旧の合う語 82%）だった（2026-10-30）。
 func (s *TargetWordSelector) SelectTargetWords(
 	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
 	uid string, params map[string]any,
@@ -243,6 +248,12 @@ func (s *TargetWordSelector) SelectTargetWords(
 			allowed := pinnedTopics(choice.Topic)
 			req.Prefer = func(w string) bool { return s.Scenes.HasScene(w, allowed, SceneZPinned) }
 		} else {
+			choice.Slots = s.omakaseTopics(choice.Pool, count)
+			req.PreferEach = make([]func(string) bool, len(choice.Slots))
+			for i, topic := range choice.Slots {
+				allowed := []string{topic}
+				req.PreferEach[i] = func(w string) bool { return s.Scenes.HasScene(w, allowed, SceneZPinned) }
+			}
 			req.SkipTopicMatch = true
 		}
 	}
@@ -298,14 +309,18 @@ func pinnedTopics(topic string) []string {
 //	テーマ指定 : 指定テーマ（まとめたテーマは中身）の場面から。合わなければ
 //	             ショット無しで指定テーマのまま（まとめたテーマは中身から一様）。
 //	             生成時にテーマのショットを雰囲気として付ける（BL を除く）
-//	おまかせ   : 語彙ゲートを通った全テーマの場面から。テーマは場面の持ち主。
-//	             合わなければテーマも空にして LLM に候補から選ばせる
+//	おまかせ   : 枠ごとのテーマ（choice.Slots）をテーマ指定と同じ扱いにする。
+//	             枠の無い語（Slots が足りない）は Pool の場面から選び、合わなければ
+//	             テーマも空にして LLM に候補から選ばせる
 func (s *TargetWordSelector) assignScenes(words []string, choice TopicChoice) []TargetWord {
 	out := make([]TargetWord, len(words))
 	for i, w := range words {
 		tw := TargetWord{Word: w, Topic: choice.Topic, Matched: true}
 		topics, minZ := choice.Pool, SceneZOmakase
-		if choice.Topic != "" {
+		if choice.Topic == "" && i < len(choice.Slots) {
+			tw.Topic = choice.Slots[i]
+			topics, minZ = []string{tw.Topic}, SceneZPinned
+		} else if choice.Topic != "" {
 			topics, minZ = pinnedTopics(choice.Topic), SceneZPinned
 			if members := TopicGroups[choice.Topic]; len(members) > 0 {
 				tw.Group = choice.Topic
@@ -353,6 +368,24 @@ func (s *TargetWordSelector) float64n() float64 {
 		return s.Rand.Float64()
 	}
 	return rand.Float64()
+}
+
+// omakaseTopics は premium おまかせの枠ごとのテーマ。pool から一様に、重ならない
+// ように count 個選ぶ（pool より多ければ一巡してから重ねる）。
+func (s *TargetWordSelector) omakaseTopics(pool []string, count int) []string {
+	if len(pool) == 0 {
+		pool = Topics
+	}
+	out := make([]string, 0, count)
+	for len(out) < count {
+		rest := append([]string(nil), pool...)
+		for len(rest) > 0 && len(out) < count {
+			i := s.intn(len(rest))
+			out = append(out, rest[i])
+			rest = append(rest[:i], rest[i+1:]...)
+		}
+	}
+	return out
 }
 
 func (s *TargetWordSelector) intn(n int) int {
