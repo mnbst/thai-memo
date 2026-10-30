@@ -2,6 +2,8 @@ package uvm
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"math"
@@ -168,15 +170,6 @@ func ZeroPWeights(cands []Candidate) []float64 {
 	return weights
 }
 
-// UnknownWeights は全候補が既習のときの抽選重み。P が低い語ほど重い。
-func UnknownWeights(cands []Candidate, pMap map[string]float64) []float64 {
-	weights := make([]float64, len(cands))
-	for i, c := range cands {
-		weights[i] = math.Max(0, 1.0-pMap[c.Word])
-	}
-	return weights
-}
-
 // SessionSelector は key_word の選定に必要な外部依存をまとめる。
 type SessionSelector struct {
 	// Rand は抽選に使う。nil なら共有の乱数源。テストで固定する。
@@ -251,27 +244,31 @@ func (s *SessionSelector) SelectWeighted(cands []Candidate, weights []float64, c
 	return out
 }
 
-// selectUnknown は全候補が既習のときの抽選（uvm.py:get_session_words:445 の else）。
-// 重みの合計が 0 なら一様抽選に落とす。
-func (s *SessionSelector) selectUnknown(cands []Candidate, pMap map[string]float64, count int) []Candidate {
-	pool := append([]Candidate(nil), cands...)
-	w := UnknownWeights(pool, pMap)
-	var out []Candidate
-	for range min(count, len(cands)) {
-		var total float64
-		for _, x := range w {
-			total += x
+// selectUnknown は帯に未出語が無いときの選び方。last_seen の古い語から順に取る
+// （同時刻はランクの小さい側から）。
+//
+// 以前は 1-P 重みの抽選だったが、帯が動かない間は同じ数十語が数日おきに
+// 出続けた（prod 2026-10-15〜29: est 435〜445 で止まった premium ユーザーに、
+// 延べ 470 語のうち 98 種類、同じ語が平均 5 回）。帯は 50〜60 語しか無いので
+// 回数は減らせないが、古い順にすると間隔が最大になる。90日シミュレーション
+// （TestSeenOrder。last_seen は key_word にした日とクイズに答えた日）で、
+// 7 日以内に見た語をまた選ぶ割合が 50〜60% → 6〜33%、d90 の推定値は −15〜0。
+// 帯を前方へ広げて未出を出す案は、推定値が真値より 250〜360 上振れたので採らない。
+func (s *SessionSelector) selectUnknown(cands []Candidate, lastSeen map[string]float64, count int) []Candidate {
+	pool := oldestFirst(cands, lastSeen)
+	return pool[:min(count, len(pool))]
+}
+
+// oldestFirst は last_seen の古い順（同時刻はランク順）に並べ替えた写しを返す。
+func oldestFirst(cands []Candidate, lastSeen map[string]float64) []Candidate {
+	out := append([]Candidate(nil), cands...)
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := lastSeen[out[i].Word], lastSeen[out[j].Word]
+		if a != b {
+			return a < b
 		}
-		i := 0
-		if total <= 0 {
-			i = s.intn(len(pool))
-		} else {
-			i = s.weightedPick(w)
-		}
-		out = append(out, pool[i])
-		pool = append(pool[:i], pool[i+1:]...)
-		w = append(w[:i], w[i+1:]...)
-	}
+		return out[i].Rank < out[j].Rank
+	})
 	return out
 }
 
@@ -353,7 +350,7 @@ func (s *SessionSelector) GetSessionWords(
 		return nil, topic, nil
 	}
 
-	pMap, err := s.fetchP(ctx, db, req.UID, candidates)
+	pMap, lastSeen, err := s.fetchP(ctx, db, req.UID, candidates)
 	if err != nil {
 		return nil, "", err
 	}
@@ -371,7 +368,7 @@ func (s *SessionSelector) GetSessionWords(
 	} else if len(zeroP) > 0 {
 		selected = s.SelectWeighted(zeroP, ZeroPWeights(zeroP), req.Count)
 	} else {
-		selected = s.selectUnknown(candidates, pMap, req.Count)
+		selected = s.selectUnknown(candidates, lastSeen, req.Count)
 	}
 
 	// 選出が req.Count に足りないと、セットがその本数で欠ける（例文5本が
@@ -394,11 +391,11 @@ func (s *SessionSelector) GetSessionWords(
 		forward := BandCandidates(freqRank, scanHigh+1, forwardHigh)
 		if len(rest)+len(forward) > 0 {
 			// P を読み直すのは、足りないと分かったときだけ。
-			restP, err := s.fetchP(ctx, db, req.UID, append(append([]Candidate(nil), rest...), forward...))
+			restP, restSeen, err := s.fetchP(ctx, db, req.UID, append(append([]Candidate(nil), rest...), forward...))
 			if err != nil {
 				return nil, "", err
 			}
-			selected = TopUpFromBand(selected, rest, forward, restP, req.Count)
+			selected = TopUpFromBand(selected, rest, forward, restP, restSeen, req.Count)
 		}
 	}
 
@@ -420,6 +417,7 @@ func (s *SessionSelector) GetSessionWords(
 
 	if line, err := json.Marshal(map[string]any{
 		"message":         "get_session_words",
+		"user":            userHash(req.UID),
 		"topic":           chosenTopic,
 		"estimated_vocab": estimatedVocab,
 		"scan":            []int{scanLow, scanHigh},
@@ -429,6 +427,12 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	return words, chosenTopic, nil
+}
+
+// userHash はログで同じ人の選出を追うための uid の短いハッシュ。uid そのものは残さない。
+func userHash(uid string) string {
+	sum := sha256.Sum256([]byte("get_session_words\x00" + uid))
+	return hex.EncodeToString(sum[:6])
 }
 
 // remaining は band から selected の語を除いたもの。
@@ -456,13 +460,14 @@ func remaining(band, selected []Candidate) []Candidate {
 //     帯の中では 5 本に届かない人—帯を使い切った premium ユーザーや、テーマ
 //     一致語が数語しかない場合—はここで埋まる。帯の上端から 1 ランクずつ前へ
 //     進む形なので難度は跳ばない。
-//  3. 帯の既出。ランクの小さい側から。既出を key_word にするのは最後の手段。
+//  3. 帯の既出。last_seen の古い側から（selectUnknown と同じ）。既出を
+//     key_word にするのは最後の手段。
 //
 // テーマの閾値は見ない。閾値を満たす語が帯に 1 つも無いときに ClosestToTopic で
 // 埋めるのと同じ扱いで、「テーマから少し離れた語」より「本数が欠けたセット」の
 // ほうが困るという判断。
 func TopUpFromBand(
-	selected, rest, forward []Candidate, pMap map[string]float64, count int,
+	selected, rest, forward []Candidate, pMap, lastSeen map[string]float64, count int,
 ) []Candidate {
 	ordered := append([]Candidate(nil), rest...)
 	sort.SliceStable(ordered, func(i, j int) bool {
@@ -490,7 +495,7 @@ func TopUpFromBand(
 	}
 
 	out := selected
-	for _, pool := range [][]Candidate{zeroP, fwdZeroP, known} {
+	for _, pool := range [][]Candidate{zeroP, fwdZeroP, oldestFirst(known, lastSeen)} {
 		for _, c := range pool {
 			if len(out) >= count {
 				return out
@@ -501,11 +506,11 @@ func TopUpFromBand(
 	return out
 }
 
-// fetchP は候補語の UVM ドキュメントを一括で読み、p を集める。
+// fetchP は候補語の UVM ドキュメントを一括で読み、p と last_seen（Unix 秒）を集める。
 // 数値でない p は Python の isinstance チェックと同じく無視する。
 func (s *SessionSelector) fetchP(
 	ctx context.Context, db *firestore.Client, uid string, candidates []Candidate,
-) (map[string]float64, error) {
+) (map[string]float64, map[string]float64, error) {
 	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
 	seen := map[string]bool{}
 	var refs []*firestore.DocumentRef
@@ -518,9 +523,10 @@ func (s *SessionSelector) fetchP(
 	}
 	snaps, err := db.GetAll(ctx, refs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pMap := map[string]float64{}
+	lastSeen := map[string]float64{}
 	for _, snap := range snaps {
 		if !snap.Exists() {
 			continue
@@ -533,6 +539,12 @@ func (s *SessionSelector) fetchP(
 				pMap[snap.Ref.ID] = float64(n)
 			}
 		}
+		switch n := snap.Data()["last_seen"].(type) {
+		case float64:
+			lastSeen[snap.Ref.ID] = n
+		case int64:
+			lastSeen[snap.Ref.ID] = float64(n)
+		}
 	}
-	return pMap, nil
+	return pMap, lastSeen, nil
 }
