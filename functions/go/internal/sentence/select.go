@@ -131,9 +131,10 @@ const (
 // 目立つので入れない。おまかせはテーマを場面で決めるので対象外。
 // 趣味・推し活は物語のショットで場面が増えたので外した。ショットだけだと綴りの一致
 // （พัด→ฟาด、หลุมศพ→หลุม）が混ざった（趣味は半分ほど 2026-10-29、推し活は
-// ショットだけで増える語の合わない率 10%、2026-10-30）。
+// ショットだけで増える語の合わない率 10%、2026-10-30）。伝統も物語のショットで
+// 場面で絞るほうが多く付くようになったので外した（46.8% 対 44.9%、2026-10-30）。
 var ShotFirstTopics = map[string]bool{
-	Topics[4]: true, Topics[8]: true, Topics[12]: true,
+	Topics[4]: true, Topics[8]: true,
 }
 
 // sceneZPinnedByTopic はテーマ指定の場面 z を SceneZPinned から変えるテーマ。
@@ -141,7 +142,7 @@ var ShotFirstTopics = map[string]bool{
 // （8〜15%）と同じくらいのテーマはゆるめ、高いテーマは残した（恋愛・趣味・仕事 13〜17%、
 // 推し活 7%、BL 35%）。合わないショットでも例文はほぼ崩れなかった（12語中1語が誤用、2026-10-30）。
 var sceneZPinnedByTopic = map[string]float64{
-	Topics[14]: 1.5, Topics[9]: 1.5, Topics[3]: 1.5, OshiTopic: 1.5,
+	Topics[14]: 1.5, Topics[9]: 1.5, Topics[3]: 1.5, OshiTopic: 1.5, Topics[12]: 1.5,
 	BLTopic: 2.5,
 }
 
