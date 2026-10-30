@@ -44,7 +44,10 @@ JST = timezone(timedelta(hours=9))
 MAX_CANDIDATES = 60
 
 # 反応を参照する直近の投稿数（同じテーマの中で数える）。
-RECENT_POSTS = 10
+RECENT_POSTS = 20
+# X から数字を取り直す直近の投稿数。表示回数は2〜3日で頭打ちになるので、
+# それより古い投稿は posted.json に残した値を使い、読み取りの課金を抑える。
+REFRESH_POSTS = 5
 
 # 投稿に回す例文の語数。短すぎると学びが薄く、長すぎると詳細画面に収まらない。
 MIN_WORDS = 7
@@ -106,8 +109,9 @@ GEMINI_ENDPOINT = (
 PROMPT_FILE = Path(__file__).with_name("select_prompt.txt")
 
 RECENT_SECTION = """
-参考までに、このアカウントの直近の投稿と反応です。伸びたものに近い題材や
-語り口を優先してください（そのまま真似る必要はありません）。
+参考までに、このアカウントで同じテーマの直近の投稿と、表示回数・反応です。
+表示回数の多い順に並べてあります。伸びたものに近い題材や語り口を優先して
+ください（そのまま真似る必要はありません）。
 
 {lines}
 """
@@ -227,13 +231,17 @@ def bl_drama_only(pool: list[dict], rng: random.Random) -> list[dict]:
 
 
 def recent_performance(history: list[dict], theme: str) -> list[dict]:
-    """同じテーマの直近の投稿に反応の数を突き合わせて返す。引けなければ空。
+    """同じテーマの直近の投稿に表示回数と反応の数を突き合わせて返す。
 
     テーマごとに伸びる題材が違うので、他テーマの反応は混ぜない。テーマを
-    記録する前の履歴は対象外。
+    記録する前の履歴は対象外。テーマごとに投稿の時間帯が決まっているので、
+    同じテーマの中なら表示回数を比べられる。
+
+    X から取り直すのは直近 REFRESH_POSTS 件と、まだ数字を持っていない投稿だけ。
+    残りは履歴に残した値を使う。取り直した値は post_to_x.py が履歴へ書き戻す。
 
     X の読み取りは PPU のクレジットを消費する。クレジットが無い（402）・
-    鍵が無い・そもそも履歴がまだ無いといった場合は黙って諦め、反応を
+    鍵が無いといった場合は履歴に残した値だけで組み、それも無ければ反応を
     参照しない選定に落とす。投稿を止めないことを優先する。
     """
     recent = [
@@ -242,6 +250,27 @@ def recent_performance(history: list[dict], theme: str) -> list[dict]:
     if not recent:
         return []
 
+    stale = [
+        h["tweet_id"]
+        for i, h in enumerate(recent)
+        if i >= len(recent) - REFRESH_POSTS or "impressions" not in h
+    ]
+    fetched = fetch_metrics(stale)
+    scored = []
+    for entry in recent:
+        m = fetched.get(entry["tweet_id"])
+        if m is not None:
+            entry = {**entry, **m}
+        if "impressions" in entry:
+            scored.append(entry)
+    return scored
+
+
+def fetch_metrics(tweet_ids: list[str]) -> dict[str, dict]:
+    """投稿ごとの表示回数と反応の数を X から引く。引けなければ空。"""
+    if not tweet_ids:
+        return {}
+
     keys = [
         "X_API_KEY",
         "X_API_SECRET",
@@ -249,14 +278,14 @@ def recent_performance(history: list[dict], theme: str) -> list[dict]:
         "X_ACCESS_TOKEN_SECRET",
     ]
     if any(not os.environ.get(k) for k in keys):
-        return []
+        return {}
 
     session = OAuth1Session(*(os.environ[k] for k in keys))
     try:
         response = session.get(
             "https://api.x.com/2/tweets",
             params={
-                "ids": ",".join(h["tweet_id"] for h in recent),
+                "ids": ",".join(tweet_ids),
                 "tweet.fields": "public_metrics",
             },
             timeout=30,
@@ -267,38 +296,35 @@ def recent_performance(history: list[dict], theme: str) -> list[dict]:
                 f"{response.text[:120]}",
                 file=sys.stderr,
             )
-            return []
+            return {}
         metrics = {
             t["id"]: t.get("public_metrics", {})
             for t in response.json().get("data", [])
         }
     except requests.RequestException as error:
         print(f"反応の取得に失敗: {error}", file=sys.stderr)
-        return []
+        return {}
 
-    scored = []
-    for entry in recent:
-        m = metrics.get(entry["tweet_id"])
-        if m is None:
-            continue
-        # いいね・リポスト・返信を同じ重みで足す。表示回数は投稿時刻に
-        # 引きずられるので使わない。
-        score = (
-            m.get("like_count", 0)
+    # いいね・リポスト・返信を同じ重みで足す。
+    return {
+        tweet_id: {
+            "impressions": m.get("impression_count", 0),
+            "score": m.get("like_count", 0)
             + m.get("retweet_count", 0)
-            + m.get("reply_count", 0)
-        )
-        scored.append({**entry, "score": score})
-    return scored
+            + m.get("reply_count", 0),
+        }
+        for tweet_id, m in metrics.items()
+    }
 
 
 def performance_section(history: list[dict]) -> str:
     """履歴に反応を突き合わせて、プロンプトに差し込む節を組む。"""
     if not history:
         return ""
-    ranked = sorted(history, key=lambda h: -h["score"])
+    ranked = sorted(history, key=lambda h: (-h["impressions"], -h["score"]))
     lines = "\n".join(
-        f"- 反応 {h['score']:>4} / {h['thai_text']} / {h['japanese_translation']}"
+        f"- 表示 {h['impressions']:>6} / 反応 {h['score']:>4} / "
+        f"{h['thai_text']} / {h['japanese_translation']}"
         for h in ranked
     )
     return RECENT_SECTION.format(lines=lines)
@@ -435,9 +461,8 @@ def main() -> int:
     if len(candidates) > MAX_CANDIDATES:
         candidates = rng.sample(candidates, MAX_CANDIDATES)
 
-    recent = performance_section(
-        recent_performance(state.get("history", []), theme)
-    )
+    performance = recent_performance(state.get("history", []), theme)
+    recent = performance_section(performance)
     picked = choose_with_gemini(
         args.project, candidates, recent, load_prompt(Path(args.prompt)), theme
     ) or rng.choice(candidates)
@@ -457,6 +482,16 @@ def main() -> int:
     (out / "text.txt").write_text(build_text(picked), encoding="utf-8")
     (out / "key.txt").write_text(sentence_key(picked), encoding="utf-8")
     (out / "theme.txt").write_text(theme, encoding="utf-8")
+    # 取り直した数字は post_to_x.py が posted.json の履歴へ書き戻す。
+    (out / "metrics.json").write_text(
+        json.dumps(
+            {
+                h["tweet_id"]: {"impressions": h["impressions"], "score": h["score"]}
+                for h in performance
+            }
+        ),
+        encoding="utf-8",
+    )
 
     print(picked["thai_text"])
     return 0
