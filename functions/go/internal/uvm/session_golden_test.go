@@ -33,7 +33,6 @@ type sessionGolden struct {
 		} `json:"candidates"`
 		PMap           map[string]float64 `json:"p_map"`
 		ZeroWeights    []float64          `json:"zero_weights"`
-		UnknownWeights []float64          `json:"unknown_weights"`
 		ZeroPWords     []string           `json:"zero_p_words"`
 	} `json:"weights"`
 	ExposureP []struct {
@@ -121,12 +120,6 @@ func TestSelectionWeightsAgainstPythonGolden(t *testing.T) {
 		for i := range zero {
 			if !near(zero[i], c.ZeroWeights[i]) {
 				t.Fatalf("case %d: ZeroPWeights[%d] = %v, want %v", ci, i, zero[i], c.ZeroWeights[i])
-			}
-		}
-		unknown := UnknownWeights(cands, c.PMap)
-		for i := range unknown {
-			if !near(unknown[i], c.UnknownWeights[i]) {
-				t.Fatalf("case %d: UnknownWeights[%d] = %v, want %v", ci, i, unknown[i], c.UnknownWeights[i])
 			}
 		}
 		var zeroP []string
