@@ -25,9 +25,9 @@ from google.cloud import storage
 POSTED_OBJECT = "x_post/posted.json"
 # 投稿済みキーの保持数。バンクの規模より十分大きければ一巡を検知できる。
 POSTED_LIMIT = 5000
-# 反応の参照に使う履歴の保持数。1日4件を出し、同じテーマの直近10件を引くので
-# 10日ぶん（40件）あれば足りるが余裕を持たせる。
-HISTORY_LIMIT = 120
+# 反応の参照に使う履歴の保持数。1日5件を出し、同じテーマの直近20件を引くので
+# 20日ぶん（100件）あれば足りるが余裕を持たせる。
+HISTORY_LIMIT = 200
 # 添付できるメディアは4件まで。1件は読み上げ動画に使う。
 IMAGE_LIMIT = 3
 
@@ -85,11 +85,12 @@ def media_candidates(video_id: str | None, image_ids: list[str]) -> list[list[st
     return sets
 
 
-def mark_posted(project: str, key: str, entry: dict) -> None:
+def mark_posted(project: str, key: str, entry: dict, metrics: dict) -> None:
     """投稿済みキーと、後で反応を引くための履歴を書き戻す。
 
     履歴は pick_sentence.py が「伸びた投稿に近いもの」を選ぶのに使う。
     tweet_id が無いと反応を引けないので、投稿が通ってから呼ぶこと。
+    metrics は pick_sentence.py が取り直した表示回数と反応（tweet_id ごと）。
     """
     bucket = storage.Client(project=project).bucket(f"{project}-uvm-data")
     blob = bucket.blob(POSTED_OBJECT)
@@ -98,7 +99,11 @@ def mark_posted(project: str, key: str, entry: dict) -> None:
     posted = [k for k in state.get("posted", []) if k != key]
     posted.append(key)
 
-    history = [h for h in state.get("history", []) if h.get("key") != key]
+    history = [
+        {**h, **metrics.get(h.get("tweet_id"), {})}
+        for h in state.get("history", [])
+        if h.get("key") != key
+    ]
     history.append(entry)
 
     blob.upload_from_string(
@@ -179,6 +184,12 @@ def main() -> int:
     )
     theme_file = out / "theme.txt"
     theme = theme_file.read_text(encoding="utf-8") if theme_file.exists() else ""
+    metrics_file = out / "metrics.json"
+    metrics = (
+        json.loads(metrics_file.read_text(encoding="utf-8"))
+        if metrics_file.exists()
+        else {}
+    )
     mark_posted(
         args.project,
         key,
@@ -190,6 +201,7 @@ def main() -> int:
             "theme": theme,
             "posted_at": datetime.now(timezone.utc).isoformat(),
         },
+        metrics,
     )
     return 0
 
