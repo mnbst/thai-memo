@@ -52,6 +52,66 @@ void main() {
       expect(_highlighted(span), ['และ']);
     });
 
+    test('単語分解が ๆ を付けていれば ๆ まで光る', () {
+      final span = buildHighlightedThaiText(
+        'ผมแพ้สายตาอ่อนๆของคุณ',
+        const ['อ่อน'],
+        _base,
+        gold,
+        words: [
+          _word('ผม', 'phǒm'),
+          _word('แพ้', 'phɛ́ɛ'),
+          _word('สายตา', 'sǎai-taa'),
+          _word('อ่อนๆ', 'ɔ̀ɔn-ɔ̀ɔn'),
+          _word('ของ', 'khɔ̌ɔng'),
+          _word('คุณ', 'khun'),
+        ],
+      );
+
+      expect(_highlighted(span), ['อ่อนๆ']);
+    });
+
+    test('学習単語が単語分解で複数の語に分かれていても光る', () {
+      final span = buildHighlightedThaiText(
+        'ดูเหมือนว่าพี่จะไม่สบาย',
+        const ['ดูเหมือนว่า'],
+        _base,
+        gold,
+        words: [
+          _word('ดู', 'duu'),
+          _word('เหมือน', 'mʉ̌an'),
+          _word('ว่า', 'wâa'),
+          _word('พี่', 'phîi'),
+          _word('จะ', 'jà'),
+          _word('ไม่สบาย', 'mâi sà-baai'),
+        ],
+      );
+
+      expect(_highlighted(span), ['ดูเหมือนว่า']);
+    });
+
+    test('語をまたいでも、切れ目に乗らない一致は光らない', () {
+      // หลังเลิก の中に ลังเล が現れるが、หลัง / เลิก の切れ目に乗らない。
+      final span = buildHighlightedThaiText(
+        'หลังเลิกเรียนผมลังเลเลยเวลาลา',
+        const ['ลังเล', 'ลา'],
+        _base,
+        gold,
+        words: [
+          _word('หลัง', 'lǎng'),
+          _word('เลิก', 'lə̂ək'),
+          _word('เรียน', 'rian'),
+          _word('ผม', 'phǒm'),
+          _word('ลังเล', 'lang-lee'),
+          _word('เลย', 'ləəi'),
+          _word('เวลา', 'wee-laa'),
+          _word('ลา', 'laa'),
+        ],
+      );
+
+      expect(_highlighted(span), ['ลังเล', 'ลา']);
+    });
+
     test('ไม้ยมก（ๆ）の前のスペースが食い違っても光る', () {
       // 例文は「จริงๆ」（詰める）、学習単語と単語分解は「จริง ๆ」（空ける）と
       // 表記が割れることがある。タイ語ではどちらも同じ語なので、スペースの
