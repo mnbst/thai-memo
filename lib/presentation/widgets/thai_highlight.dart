@@ -43,30 +43,72 @@ RegExp _flexibleWords(List<String> words) {
   return RegExp(sorted.map((w) => _flexibleWord(w).pattern).join('|'));
 }
 
-/// 学習単語が「語として」出てくる位置だけを返す。
-///
-/// 文字列の部分一致だけで光らせると、長い語の中に短い学習単語が含まれる
-/// ときに途中まで光る（แล้ว の中の แล、lɛ́ɛw の中の lɛ́ など）。単語分解が
-/// 分かっていれば語の切れ目が取れるので、そこに乗った一致だけを採る。
-///
-/// 単語分解が無いときは空を返す。呼び出し側は従来どおり全ての一致を採る。
-Map<int, int> _wordRanges(String text, List<WordBreakdown> words) {
-  final ranges = <int, int>{};
+/// 単語分解から取った語の切れ目（本文中の位置）。分解が無ければ空。
+Set<int> _wordBoundaries(String text, List<WordBreakdown> words) {
+  final boundaries = <int>{};
   var cursor = 0;
   for (final word in words) {
     final wordText = word.wordText;
     if (wordText.isEmpty) continue;
     final match = _flexibleWord(wordText).firstMatch(text.substring(cursor));
     if (match == null) continue;
-    ranges[cursor + match.start] = cursor + match.end;
+    boundaries
+      ..add(cursor + match.start)
+      ..add(cursor + match.end);
     cursor += match.end;
+  }
+  return boundaries;
+}
+
+/// 学習単語を光らせる範囲（開始, 終了）を出現順に返す。
+///
+/// 文字列の部分一致だけで光らせると、長い語の中に短い学習単語が含まれる
+/// ときに途中まで光る（แล้ว の中の แล、เวลา の中の ลา など）。単語分解が
+/// 分かっていれば、始まりと終わりが語の切れ目に乗った一致だけを採る。
+/// 途中で語をまたぐのはよい（ดูเหมือนว่า が ดู / เหมือน / ว่า に分かれていても光る）。
+/// 単語分解が語の後ろに ๆ を付けている（อ่อนๆ）ときは ๆ まで含めて光らせる。
+///
+/// 単語分解が無いときは語の切れ目が分からないので、全ての一致を採る。
+List<(int, int)> _targetRanges(
+  String text,
+  List<String> targetWords,
+  List<WordBreakdown> words,
+) {
+  final targets = targetWords.where((w) => w.trim().isNotEmpty).toList();
+  if (targets.isEmpty) return const [];
+
+  final boundaries = _wordBoundaries(text, words);
+  if (boundaries.isEmpty) {
+    return [
+      for (final m in _flexibleWords(targets).allMatches(text))
+        (m.start, m.end),
+    ];
+  }
+
+  final patterns = [
+    for (final w in targets) ...[
+      _flexibleWord(w),
+      if (!w.trim().endsWith(_maiYamok))
+        RegExp('${_flexibleWord(w).pattern}\\s*$_maiYamok'),
+    ],
+  ];
+  final ranges = <(int, int)>[];
+  var lastEnd = 0;
+  for (final start in boundaries.toList()..sort()) {
+    if (start < lastEnd) continue;
+    // 同じ位置から複数の学習単語が当たるときは、切れ目に乗る中で一番長いものを採る。
+    int? end;
+    for (final pattern in patterns) {
+      final match = pattern.matchAsPrefix(text, start);
+      if (match == null || !boundaries.contains(match.end)) continue;
+      if (end == null || match.end > end) end = match.end;
+    }
+    if (end == null) continue;
+    ranges.add((start, end));
+    lastEnd = end;
   }
   return ranges;
 }
-
-/// 一致が語1つ分に収まっているか。[ranges] が空なら判定せず全て通す。
-bool _isWholeWord(Map<int, int> ranges, int start, int end) =>
-    ranges.isEmpty || ranges[start] == end;
 
 /// 発音行で語の切れ目になる文字。
 ///
@@ -93,23 +135,21 @@ TextSpan buildHighlightedThaiText(
   if (targetWords.isEmpty) {
     return TextSpan(text: text, style: baseStyle);
   }
-  final regex = _flexibleWords(targetWords);
-  final ranges = _wordRanges(text, words);
   final spans = <InlineSpan>[];
   var lastEnd = 0;
   final highlightStyle = baseStyle.copyWith(
     color: highlightColor,
     fontWeight: FontWeight.bold,
   );
-  for (final match in regex.allMatches(text)) {
-    if (!_isWholeWord(ranges, match.start, match.end)) continue;
-    if (match.start > lastEnd) {
-      spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+  for (final (start, end) in _targetRanges(text, targetWords, words)) {
+    if (start > lastEnd) {
+      spans.add(TextSpan(text: text.substring(lastEnd, start)));
     }
     // 面も下線も持たせない。金の字と太さだけで示す。深藍の上では
     // それだけで十分に立ち、タイ文字の声調記号も隠れない。
-    spans.add(TextSpan(text: match.group(0)!, style: highlightStyle));
-    lastEnd = match.end;
+    spans
+        .add(TextSpan(text: text.substring(start, end), style: highlightStyle));
+    lastEnd = end;
   }
   if (lastEnd < text.length) {
     spans.add(TextSpan(text: text.substring(lastEnd)));
@@ -131,19 +171,19 @@ TextSpan buildTintedThaiText(
   if (targetWords.isEmpty) {
     return TextSpan(text: text, style: baseStyle);
   }
-  final regex = _flexibleWords(targetWords);
-  final ranges = _wordRanges(text, words);
   final spans = <InlineSpan>[];
   var lastEnd = 0;
-  for (final match in regex.allMatches(text)) {
-    if (!_isWholeWord(ranges, match.start, match.end)) continue;
-    if (match.start > lastEnd) {
-      spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+  for (final (start, end) in _targetRanges(text, targetWords, words)) {
+    if (start > lastEnd) {
+      spans.add(TextSpan(text: text.substring(lastEnd, start)));
     }
     spans.add(
-      TextSpan(text: match.group(0), style: baseStyle.copyWith(color: tint)),
+      TextSpan(
+        text: text.substring(start, end),
+        style: baseStyle.copyWith(color: tint),
+      ),
     );
-    lastEnd = match.end;
+    lastEnd = end;
   }
   if (lastEnd < text.length) {
     spans.add(TextSpan(text: text.substring(lastEnd)));
