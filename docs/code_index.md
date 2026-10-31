@@ -1005,7 +1005,7 @@ functions/go/internal/uvm/themesim_test.go
 テーマ寄せの90日シミュレーション。合う語の割合・寄せる範囲（帯全体／est 以下）ごとの est と素通りを比べる。
 
 functions/go/internal/themeshots/data.go
-BL以外15テーマの参考例文14686件（正本。タイ暮らし・タイ旅行の7テーマと恋愛はエピソードを時系列で書かせた行を含み（旅行は旅の雑談・旅先の交流・旅のトラブルも、恋愛・趣味・推し活・仕事・伝統は12章の物語も）、その行は具体的な状況 shotSituation をプロンプトの場面の行に使う。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
+BL以外15テーマの参考例文16147件（正本。タイ暮らし・タイ旅行の7テーマと恋愛はエピソードを時系列で書かせた行を含み（旅行は旅の雑談・旅先の交流・旅のトラブルも、恋愛・趣味・推し活・仕事・伝統・あいさつは12章の物語も）、その行は具体的な状況 shotSituation をプロンプトの場面の行に使う。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
 
 functions/go/internal/themeshots/written.go
 媒体「解説・紹介文」の参考例文（BL・あいさつ以外14テーマ、Thai PBS ナレーター行と th.wikipedia の原文）。
