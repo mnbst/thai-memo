@@ -15,12 +15,14 @@ enable_firestore_protection   = true
 ios_app_id                    = "1:219961294368:ios:88e70ed652a72f10b70645"
 
 # X 投稿のテーマ。変えたら terraform apply するだけでよい（プッシュ不要）。
-x_post_themes = "BLドラマ"
+# 空なら全テーマから、枠ごとの表示回数を見て選ぶ（tools/x_post/README.md）。
+x_post_themes = ""
 
 # 朝以外の X 投稿枠。Actions の実行に数分かかるので、投稿は指定時刻の数分後になる。
-# 12:00 と 21:00 は例文ではなく Tips・ガイド（tools/x_post/study_posts.json）を出す。
+# 10:00 と 15:00 は例文ではなく Tips・ガイド（tools/x_post/study_posts.json）を出す。
 x_post_extra_slots = {
-  "1200" = { schedule = "0 12 * * *", kind = "tip" }
-  "1700" = { schedule = "0 17 * * *", themes = "仕事" }
-  "2100" = { schedule = "0 21 * * *", kind = "guide" }
+  "1000" = { schedule = "0 10 * * *", kind = "tip" }
+  "1200" = { schedule = "0 12 * * *" }
+  "1500" = { schedule = "0 15 * * *", kind = "guide" }
+  "1700" = { schedule = "0 17 * * *" }
 }

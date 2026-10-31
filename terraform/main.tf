@@ -611,7 +611,7 @@ resource "google_cloud_scheduler_job" "post_daily_x" {
     uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
     body = base64encode(jsonencode({
       ref    = "main"
-      inputs = { themes = var.x_post_themes }
+      inputs = { themes = var.x_post_themes, slot = "0700" }
     }))
 
     headers = {
@@ -632,7 +632,7 @@ resource "google_cloud_scheduler_job" "post_daily_x_extra" {
   name        = "post-daily-x-${each.key}"
   project     = var.project_id
   region      = var.region
-  description = "X への投稿ワークフローを起動する（${each.value.kind == "sentence" ? each.value.themes : each.value.kind}）"
+  description = "X への投稿ワークフローを起動する（${each.value.kind != "sentence" ? each.value.kind : each.value.themes != "" ? each.value.themes : "全テーマ"}）"
 
   schedule  = each.value.schedule
   time_zone = "Asia/Tokyo"
@@ -648,7 +648,7 @@ resource "google_cloud_scheduler_job" "post_daily_x_extra" {
     uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
     body = base64encode(jsonencode({
       ref    = "main"
-      inputs = { themes = each.value.themes, kind = each.value.kind }
+      inputs = { themes = each.value.themes, kind = each.value.kind, slot = each.key }
     }))
 
     headers = {
