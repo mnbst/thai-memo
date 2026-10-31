@@ -1334,7 +1334,7 @@ tools/x_post/README.md
 X（@everydaythai775）へ毎日の例文を自動投稿する仕組みの全体像と、必要なシークレットの手順。
 
 tools/x_post/pick_sentence.py
-静的コーパスを日替わりテーマ（Scheduler から渡したものから抽選）と語数で絞り、Geminiに1件選ばせる。投稿済みと履歴は x_post/posted.json で管理。
+枠ごとにテーマを表示回数から決め、候補を20件に絞り、同じ枠の過去10件の理由と表示回数を添えてGeminiに1件選ばせる。投稿済みと履歴は x_post/posted.json で管理。
 
 tools/x_post/pick_study_post.py
 Tips・ガイドの枠で study_posts.json から投稿文を1件抽選する（一巡するまで重複なし）。ガイドは貼る欄を guide_shot.env に書く。

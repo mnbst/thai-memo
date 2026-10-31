@@ -25,9 +25,12 @@ from google.cloud import storage
 POSTED_OBJECT = "x_post/posted.json"
 # 投稿済みキーの保持数。バンクの規模より十分大きければ一巡を検知できる。
 POSTED_LIMIT = 5000
-# 反応の参照に使う履歴の保持数。1日5件を出し、同じテーマの直近20件を引くので
-# 20日ぶん（100件）あれば足りるが余裕を持たせる。
-HISTORY_LIMIT = 200
+# 反応の参照に使う履歴の保持数。pick_sentence.py が枠×テーマ・曜日×テーマの
+# 表示回数を集計するので、半年ぶん程度を残す。
+HISTORY_LIMIT = 1000
+# 選んだ理由の文章は、枠ごとに直近この件数だけ残す（pick_sentence.py の RECENT_POSTS）。
+# それより古い投稿は数字と特徴だけ残す。
+REASON_LIMIT = 10
 # 添付できるメディアは4件まで。1件は読み上げ動画に使う。
 IMAGE_LIMIT = 3
 
@@ -85,6 +88,24 @@ def media_candidates(video_id: str | None, image_ids: list[str]) -> list[list[st
     return sets
 
 
+def drop_old_reasons(history: list[dict]) -> list[dict]:
+    """枠ごとに直近 REASON_LIMIT 件より古い投稿から、理由の文章を落とす。"""
+    seen: dict[str, int] = {}
+    kept = []
+    for entry in reversed(history):
+        slot = entry.get("slot")
+        if slot and "reason" in entry:
+            seen[slot] = seen.get(slot, 0) + 1
+            if seen[slot] > REASON_LIMIT:
+                entry = {
+                    k: v
+                    for k, v in entry.items()
+                    if k not in ("reason", "theme_reason")
+                }
+        kept.append(entry)
+    return kept[::-1]
+
+
 def mark_posted(project: str, key: str, entry: dict, metrics: dict) -> None:
     """投稿済みキーと、後で反応を引くための履歴を書き戻す。
 
@@ -105,6 +126,7 @@ def mark_posted(project: str, key: str, entry: dict, metrics: dict) -> None:
         if h.get("key") != key
     ]
     history.append(entry)
+    history = drop_old_reasons(history)
 
     blob.upload_from_string(
         json.dumps(
@@ -190,6 +212,13 @@ def main() -> int:
         if metrics_file.exists()
         else {}
     )
+    # 例文のときだけある。枠・曜日・選んだ理由・例文の特徴。
+    selection_file = out / "selection.json"
+    selection = (
+        json.loads(selection_file.read_text(encoding="utf-8"))
+        if selection_file.exists()
+        else {}
+    )
     mark_posted(
         args.project,
         key,
@@ -200,6 +229,7 @@ def main() -> int:
             "japanese_translation": sentence.get("japanese_translation", ""),
             "theme": theme,
             "posted_at": datetime.now(timezone.utc).isoformat(),
+            **selection,
         },
         metrics,
     )
