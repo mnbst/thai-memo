@@ -29,7 +29,6 @@ from google.cloud import storage
 
 POSTS_FILE = Path(__file__).with_name("study_posts.json")
 POSTED_OBJECT = "x_post/posted.json"
-HASHTAGS = "#タイ語 #タイ語勉強"
 
 # 履歴に残すテーマ名。例文のテーマと混ざらないようにする。
 KIND_THEMES = {"tip": "Tips", "guide": "ガイド"}
@@ -48,7 +47,8 @@ def weighted_length(text: str) -> int:
 
 
 def build_text(post: dict) -> str:
-    return f"{post['text'].rstrip()}\n\n{HASHTAGS}"
+    # ハッシュタグは付けない（例文の投稿と揃える）。
+    return post["text"].rstrip()
 
 
 def load_posts(kind: str | None = None) -> list[dict]:
