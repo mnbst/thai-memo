@@ -32,6 +32,8 @@ import requests
 from google.cloud import secretmanager, storage
 from requests_oauthlib import OAuth1Session
 
+from pick_study_post import TWEET_LIMIT, weighted_length
+
 # premium と同じ静的コーパスと、運用中に貯めたプール（CorpusBank と同じ2本）。
 # 静的コーパスはプールへ移して空にしたので、両方を読む。
 CORPUS_OBJECTS = ("corpus_sentences_ja.json", "corpus_pool_ja.json")
@@ -126,6 +128,7 @@ RECENT_SECTION = """
 この時間帯の過去の投稿です（古い順、最大{count}件）。「理由」はそのとき選んだ根拠です。
 理由ごとに、表示回数がこの時間帯の中央値（{median}）より伸びたか外れたかを見て、
 当たった理由・長さ・文法に近い候補を優先し、外れた理由と同じ狙いは避けてください。
+「書き出し」（投稿の1行目）も同じように、伸びた書き方に寄せてください。
 「暫定」は投稿から{settle}日以内でまだ伸びる数字なので軽く見てください。
 
 {lines}
@@ -176,17 +179,42 @@ def load_json(bucket: storage.Bucket, name: str, fallback):
     return json.loads(blob.download_as_bytes())
 
 
-# 投稿の末尾に付けるハッシュタグ。テスター募集の投稿と揃える。
-HASHTAGS = "#タイ語 #タイ語勉強"
+# 1行目の書き出し（場面のフック）の上限。タイムラインで1行に収まる長さ。
+HOOK_MAX = 30
+_THAI = re.compile("[\u0e00-\u0e7f]")
 
 
-def build_text(sentence: dict) -> str:
-    """投稿本文。"""
-    lines = [sentence["thai_text"]]
+def clean_hook(hook: str, theme: str) -> str:
+    """Gemini の書き出しを確かめる。使えなければ空を返し、訳から始める。
+
+    BLドラマ回は作品名・登場人物名を出さない。プロンプトでも禁じているが、
+    作品の手がかり（カタカナ名・英題）が混ざったら落とす。
+    """
+    hook = hook.strip().splitlines()[0].strip() if hook.strip() else ""
+    if not hook or len(hook) > HOOK_MAX or "#" in hook or _THAI.search(hook):
+        return ""
+    if theme == "BLドラマ":
+        clues = [t for t in BL_DRAMA_MARKERS] + [
+            m for ms in BL_DRAMA_MARKERS.values() for m in ms if not _THAI.search(m)
+        ]
+        if any(c.lower() in hook.lower() for c in clues):
+            return ""
+    return hook
+
+
+def build_text(sentence: dict, hook: str = "") -> str:
+    """投稿本文。タイ語から始めず、書き出し（場面）→ 訳 → タイ語・発音の順。
+
+    ハッシュタグは付けない（2026-11 から。表示はおすすめ欄が中心で効きが薄い）。
+    """
+    lines = [hook, ""] if hook else []
+    lines += [sentence["japanese_translation"], "", sentence["thai_text"]]
     if sentence.get("pronunciation"):
         lines.append(sentence["pronunciation"])
-    lines += ["", sentence["japanese_translation"], "", HASHTAGS]
-    return "\n".join(lines)
+    text = "\n".join(lines)
+    if hook and weighted_length(text) > TWEET_LIMIT:
+        return build_text(sentence)
+    return text
 
 
 # 発音表記に算用数字が残っていたら、数字が読みに変換されていない
@@ -528,9 +556,10 @@ def recent_section(mine: list[dict], now: datetime) -> str:
         else:
             numbers = "表示 未取得"
         reason = h.get("reason") or "記録なし"
+        hook = f" / 書き出し: {h['hook']}" if h.get("hook") else ""
         lines.append(
             f"- {day} {h['theme']} {length} {grammar} {numbers} / "
-            f"{h.get('japanese_translation', '')} / 理由: {reason}"
+            f"{h.get('japanese_translation', '')}{hook} / 理由: {reason}"
         )
     median = _median_impressions(mine)
     return RECENT_SECTION.format(
@@ -581,16 +610,16 @@ def gemini_key(project: str) -> str:
 
 def choose_with_gemini(
     project: str, candidates: list[dict], prompt: str
-) -> tuple[dict, str] | None:
-    """Gemini に1件選ばせ、選んだ例文と理由を返す。失敗したら None を返して
-    呼び出し側で抽選に落とす。"""
+) -> tuple[dict, str, str] | None:
+    """Gemini に1件選ばせ、選んだ例文・理由・1行目の書き出しを返す。失敗したら
+    None を返して呼び出し側で抽選に落とす。"""
     body = json.dumps(
         {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {
                 "temperature": 0.4,
-                # 理由は60字まで。思考は使わず、出力の上限で費用を抑える。
-                "maxOutputTokens": 256,
+                # 理由は60字・書き出しは30字まで。思考は使わず、出力の上限で費用を抑える。
+                "maxOutputTokens": 384,
                 "thinkingConfig": {"thinkingLevel": "minimal"},
                 "responseMimeType": "application/json",
                 "responseSchema": {
@@ -598,8 +627,9 @@ def choose_with_gemini(
                     "properties": {
                         "index": {"type": "integer"},
                         "reason": {"type": "string"},
+                        "hook": {"type": "string"},
                     },
-                    "required": ["index", "reason"],
+                    "required": ["index", "reason", "hook"],
                 },
             },
         }
@@ -625,7 +655,11 @@ def choose_with_gemini(
         index = int(answer["index"])
         if not 0 <= index < len(candidates):
             raise IndexError(index)
-        return candidates[index], str(answer["reason"]).strip()
+        return (
+            candidates[index],
+            str(answer["reason"]).strip(),
+            str(answer.get("hook") or ""),
+        )
     except (
         urllib.error.URLError,
         KeyError,
@@ -648,7 +682,8 @@ def build_prompt(
     listed = "\n".join(
         f"{i}. {c['thai_text']} / {c['japanese_translation']} / "
         f"{word_count(c)}語 / {scene_of(c) or '-'} / "
-        f"{','.join(grammar_tags(c)) or '-'}"
+        f"{','.join(grammar_tags(c)) or '-'} / "
+        f"{(c.get('context') or {}).get('usage_scenarios') or '-'}"
         for i, c in enumerate(candidates)
     )
     # プロンプトには JSON の例を書くので format は使わず、差し込み口だけ置き換える。
@@ -760,11 +795,13 @@ def main() -> int:
     )
     chosen = choose_with_gemini(args.project, candidates, prompt)
     if chosen:
-        picked, reason = chosen
+        picked, reason, hook = chosen
         chooser = "gemini"
     else:
-        picked, reason, chooser = rng.choice(candidates), "", "抽選"
+        picked, reason, hook, chooser = rng.choice(candidates), "", "", "抽選"
+    hook = clean_hook(hook, theme)
     print(f"理由: {reason or '-'}（{chooser}）", file=sys.stderr)
+    print(f"書き出し: {hook or '-（訳から始める）'}", file=sys.stderr)
 
     # 詳細画面は作成日を出す。Firestore の Timestamp はそのままでは JSON に
     # できないので、投稿日に置き換えて「不明」を出さない。
@@ -778,7 +815,10 @@ def main() -> int:
     (out / "sentence.json").write_text(
         json.dumps(picked, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    (out / "text.txt").write_text(build_text(picked), encoding="utf-8")
+    text = build_text(picked, hook)
+    if not text.startswith(hook):
+        hook = ""
+    (out / "text.txt").write_text(text, encoding="utf-8")
     (out / "key.txt").write_text(sentence_key(picked), encoding="utf-8")
     (out / "theme.txt").write_text(theme, encoding="utf-8")
     # 取り直した数字は post_to_x.py が posted.json の履歴へ書き戻す。
@@ -791,6 +831,7 @@ def main() -> int:
                 "weekday": weekday,
                 "theme_reason": theme_reason,
                 "reason": reason,
+                "hook": hook,
                 "chooser": chooser,
                 **features(picked),
             },
