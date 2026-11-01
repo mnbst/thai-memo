@@ -1948,49 +1948,23 @@ class L10nJa extends L10n {
   String get tipCatStudy => '学習のコツ';
 
   @override
-  String get tip_vowelA_title => 'อะ / อา （a / aa）';
+  String get tipCatGrammar => '文法';
 
   @override
-  String get tip_vowelA_content => '短母音 อะ は「a」、長母音 อา は「aa」。長さで意味が変わります。';
+  String get tipCatPronunciation => '発音';
 
   @override
-  String get tip_vowelA_example => 'จะ（jà＝〜する） / จา（jaa＝皿）';
+  String get tipCatScript => '文字';
 
   @override
-  String get tip_vowelI_title => 'อิ / อี （i / ii）';
+  String tipWordExample(String thai, String reading, String meaning) {
+    return '$thai（$reading＝$meaning）';
+  }
 
   @override
-  String get tip_vowelI_content => '短母音 อิ は短い「i」、長母音 อี は長い「ii」。';
-
-  @override
-  String get tip_vowelI_example => 'นิด（nít＝少し） / นี่（nîi＝これ）';
-
-  @override
-  String get tip_vowelU_title => 'อุ / อู （u / uu）';
-
-  @override
-  String get tip_vowelU_content => '短母音 อุ は短い「u」、長母音 อู は長い「uu」。';
-
-  @override
-  String get tip_vowelU_example => 'รุ่น（rûn＝世代） / รู้（rúu＝知る）';
-
-  @override
-  String get tip_vowelE_title => 'เอ / แอ （ee / ɛɛ）';
-
-  @override
-  String get tip_vowelE_content => 'เอ は「ee」、แอ は口を大きく開けた「ɛɛ」。';
-
-  @override
-  String get tip_vowelE_example => 'เก่ง（kèeng＝上手） / แก่（kɛ̀ɛ＝老いた）';
-
-  @override
-  String get tip_vowelO_title => 'โอ / ออ （oo / ɔɔ）';
-
-  @override
-  String get tip_vowelO_content => 'โอ は口をすぼめた「oo」、ออ は口を開けた「ɔɔ」。';
-
-  @override
-  String get tip_vowelO_example => 'โต（too＝大きい） / ต่อ（tɔ̀ɔ＝続ける）';
+  String tipGrammarExample(String thai, String meaning) {
+    return '$thai（$meaning）';
+  }
 
   @override
   String get tip_vowelUea_title => 'เอือ （ʉa）';
@@ -2000,15 +1974,6 @@ class L10nJa extends L10n {
 
   @override
   String get tip_vowelUea_example => 'เมือง（mʉʉang＝街・国）';
-
-  @override
-  String get tip_vowelUu_title => 'อือ / อื （ʉ / ʉʉ）';
-
-  @override
-  String get tip_vowelUu_content => '日本語にない音。「i」の口で「u」と発音するイメージ。';
-
-  @override
-  String get tip_vowelUu_example => 'คือ（khʉʉ＝〜である） / ฝืน（fʉ̌ʉn＝無理する）';
 
   @override
   String get tip_vowelIa_title => 'เอีย （ia）';
@@ -2045,42 +2010,6 @@ class L10nJa extends L10n {
 
   @override
   String get tip_vowelAi_example => 'ไป（pai＝行く） / ใจ（jai＝心）';
-
-  @override
-  String get tip_vowelShortE_title => 'เอ็（短母音 e）';
-
-  @override
-  String get tip_vowelShortE_content => '短い「e」。เ〜็ の形で表記されます。';
-
-  @override
-  String get tip_vowelShortE_example => 'เก็บ（kèp＝拾う・保管する）';
-
-  @override
-  String get tip_vowelShortAe_title => 'แอ็（短母音 ɛ）';
-
-  @override
-  String get tip_vowelShortAe_content => '短い「ɛ」（口を大きく開ける）。แ〜็ の形。';
-
-  @override
-  String get tip_vowelShortAe_example => 'แบ็ก（bɛ̀k＝バッグ）';
-
-  @override
-  String get tip_vowelOe_title => 'เออ （əə）';
-
-  @override
-  String get tip_vowelOe_content => 'เออ は曖昧な母音「əə」。口を半開きにして発音。';
-
-  @override
-  String get tip_vowelOe_example => 'เธอ（thəə＝あなた・彼女）';
-
-  @override
-  String get tip_vowelLength_title => '母音の長短で意味が変わる';
-
-  @override
-  String get tip_vowelLength_content => 'タイ語は母音の長さが重要。短母音と長母音で別の単語になります。';
-
-  @override
-  String get tip_vowelLength_example => 'เข้า（khâw＝入る） / ข้าว（khâaw＝ご飯）';
 
   @override
   String get tip_cultureWai_title => 'wâi（合掌・ไหว้）';
@@ -2121,76 +2050,11 @@ class L10nJa extends L10n {
       '「気にしないで・大丈夫」。タイ人の寛容さを表す代表的フレーズです。';
 
   @override
-  String get tip_toneFive_title => 'タイ語は5つの声調';
-
-  @override
-  String get tip_toneFive_content => '平声・低声・下降声・高声・上昇声の5つ。声調が違うと全く別の単語になります。';
-
-  @override
-  String get tip_toneFive_example =>
-      'ไหม（mǎi＝絹） / ใหม่（mài＝新しい） / ไม่（mâi＝〜ない）';
-
-  @override
-  String get tip_toneMaiEk_title => '声調記号 ่ （mái èek）';
-
-  @override
-  String get tip_toneMaiEk_content => '文字の上に付く第1声調記号。中子音・高子音に付くと低声になります。';
-
-  @override
-  String get tip_toneMaiEk_example => 'เก่า（kàw＝古い）、ข่าว（khàaw＝ニュース）';
-
-  @override
-  String get tip_toneMaiTho_title => '声調記号 ้ （mái thoo）';
-
-  @override
-  String get tip_toneMaiTho_content => '文字の上に付く第2声調記号。中子音に付くと下降声になります。';
-
-  @override
-  String get tip_toneMaiTho_example => 'น้ำ（náam＝水）、บ้าน（bâan＝家）';
-
-  @override
-  String get tip_toneMaiTriChat_title => '声調記号 ๊ と ๋';
-
-  @override
-  String get tip_toneMaiTriChat_content =>
-      '๊（mái trii）は高声、๋（mái jàttawaa）は上昇声を示します。使用頻度は低め。';
-
-  @override
-  String get tip_toneMaiTriChat_example => 'โน๊ต（nóot＝ノート）、จ๋า（jǎa＝はいよ）';
-
-  @override
-  String get tip_toneClassRelation_title => '子音クラスと声調の関係';
-
-  @override
-  String get tip_toneClassRelation_content =>
-      '声調は子音クラス（高・中・低）×母音の長短×末子音×声調記号で決まります。';
-
-  @override
   String get tip_toneMistake_title => '声調を間違えると…';
 
   @override
   String get tip_toneMistake_content =>
       'สวย（sǔuai＝美しい）と ซวย（suuai＝ついてない）のように声調で意味が激変。';
-
-  @override
-  String get tip_toneMidExplain_title => '平声（sǎa-man）';
-
-  @override
-  String get tip_toneMidExplain_content =>
-      '中くらいの高さで平らに発音。中子音＋長母音（声調記号なし）が基本パターン。';
-
-  @override
-  String get tip_toneMidExplain_example => 'กา（kaa＝カラス）、ดี（dii＝良い）';
-
-  @override
-  String get tip_toneRisingExplain_title => '上昇声（jàttawaa）';
-
-  @override
-  String get tip_toneRisingExplain_content =>
-      '低い音から高い音へ上がる声調。日本語の疑問文の語尾上げに少し似ています。';
-
-  @override
-  String get tip_toneRisingExplain_example => 'สวย（sǔuai＝美しい）、หนาว（nǎaw＝寒い）';
 
   @override
   String get tip_toneRelative_title => '声調は相対的な高さ';
@@ -2225,26 +2089,6 @@ class L10nJa extends L10n {
   @override
   String get tip_consonantLow_content =>
       '残り24文字が低子音。対応する高子音がある「対応字」と「単独字」に分かれます。';
-
-  @override
-  String get tip_consonantFinal_title => '末子音の発音ルール';
-
-  @override
-  String get tip_consonantFinal_content =>
-      '末子音は k, t, p, n, m, ng, i, o の8音のみ。元の子音と違う音になることも。';
-
-  @override
-  String get tip_consonantFinal_example => 'บ,ป,พ,ภ,ฟ → 末子音ではすべて -p';
-
-  @override
-  String get tip_consonantAspiration_title => '有気音と無気音';
-
-  @override
-  String get tip_consonantAspiration_content =>
-      'タイ語は息の有無で子音を区別。ป（無気音 p）と พ（有気音 ph）は別の音。';
-
-  @override
-  String get tip_consonantAspiration_example => 'ปา（paa＝投げる） / พา（phaa＝連れて行く）';
 
   @override
   String get tip_consonantSilent_title => '黙字記号 ์（kaa-ran）';
@@ -2293,16 +2137,6 @@ class L10nJa extends L10n {
       '11は sìp èt、21は yîi sìp èt。1の位と2の十の位が特殊。';
 
   @override
-  String get tip_numberClassifier_title => '類別詞（láksanànaam）';
-
-  @override
-  String get tip_numberClassifier_content =>
-      '数を数えるとき「数詞＋類別詞」が必要。日本語の「〜本」「〜枚」と同じ仕組み。';
-
-  @override
-  String get tip_numberClassifier_example => 'khon（人）、tua（動物）、an（小物）';
-
-  @override
   String get tip_numberBig_title => '百・千・万の位';
 
   @override
@@ -2318,16 +2152,6 @@ class L10nJa extends L10n {
 
   @override
   String get tip_numberPrice_example => 'an-níi thâo rài（これいくら？）';
-
-  @override
-  String get tip_dailyPolite_title => 'ครับ / ค่ะ（khráp / khâ）';
-
-  @override
-  String get tip_dailyPolite_content =>
-      '男性は khráp（ครับ）、女性は khâ（ค่ะ）を文末に付けて丁寧にします。タイ語の基本マナー。';
-
-  @override
-  String get tip_dailyPolite_example => 'khɔ̀ɔp khun khráp / khɔ̀ɔp khun khâ';
 
   @override
   String get tip_dailyHello_title => 'สวัสดี（sà-wàt-dii）';
@@ -3180,7 +3004,7 @@ class L10nJa extends L10n {
 
   @override
   String get wordOrderRule16Body =>
-      '「買い物に行く」は ไป（行く）＋ซื้อ（買う）のように、起きる順に動詞を並べます。ไป・มา が「〜て行く・〜て来る」の意味のときは後ろに付きます。';
+      '動詞を続けると、目的（ไป + ซื้อ + ของ）・順序（อาบน้ำ + นอน）・方法（เดิน + กลับ + บ้าน）を表せます。基本は意味の流れに沿って並べます。';
 
   @override
   String get wordOrderEx16aGloss => '私|行く|買う|物';
@@ -3193,6 +3017,66 @@ class L10nJa extends L10n {
 
   @override
   String get wordOrderEx16bMeaning => '水を持ってくる';
+
+  @override
+  String get wordOrderEx16cGloss => '歩く|戻る|家';
+
+  @override
+  String get wordOrderEx16cMeaning => '歩いて家に帰る';
+
+  @override
+  String get wordOrderRule17Title => '後ろの動詞で結果・続きを表す';
+
+  @override
+  String get wordOrderRule17Body =>
+      '動詞の後ろに หมด（すべて〜する）・เสร็จ（〜し終える）を置くと、動作の結果を表します。ต่อ（続ける）なら、その動作を続ける意味です。';
+
+  @override
+  String get wordOrderEx17aGloss => '食べる|なくなる';
+
+  @override
+  String get wordOrderEx17aMeaning => '全部食べる';
+
+  @override
+  String get wordOrderEx17bGloss => '食べる|終わる';
+
+  @override
+  String get wordOrderEx17bMeaning => '食べ終わる';
+
+  @override
+  String get wordOrderEx17cGloss => '食べる|続ける';
+
+  @override
+  String get wordOrderEx17cMeaning => '食べ続ける';
+
+  @override
+  String get wordOrderRule18Title => '同じ動詞を重ねる（ๆ）';
+
+  @override
+  String get wordOrderRule18Body =>
+      'ๆ は直前の語を繰り返す記号です。動詞を重ねると、軽く（ลองๆ ดู）・〜たり〜たり（เดินๆ หยุดๆ）・なんとなくやしばらく（ดูๆ ไปก่อน）を表せます。';
+
+  @override
+  String get wordOrderEx18aGloss => 'ちょっと試す|みる';
+
+  @override
+  String get wordOrderEx18aMeaning => 'ちょっと試してみる';
+
+  @override
+  String get wordOrderEx18bGloss => '歩いたり|止まったり';
+
+  @override
+  String get wordOrderEx18bMeaning => '歩いたり止まったりする';
+
+  @override
+  String get wordOrderEx18cGloss => 'しばらく見る|〜していく|ひとまず';
+
+  @override
+  String get wordOrderEx18cMeaning => 'とりあえず様子を見る';
+
+  @override
+  String get wordOrderRule18Note =>
+      '動詞以外も重ねます。เร็วๆ（速く）・บ่อยๆ（よく）のほか、名詞では เด็กๆ（子どもたち）などがあります。';
 
   @override
   String get thaiScriptGuideTitle => 'タイ文字ガイド';

@@ -56,7 +56,13 @@ lib/core/constants/generation_constants.dart
 日次生成上限（free/premium別クォータ値）。
 
 lib/core/constants/loading_tips.dart
-ローディング画面のヒントメッセージ。
+ローディング画面のヒントメッセージ。ガイド（語順・発音・声調・タイ文字・使い方のコツ）の文言から組み立てる分と、ガイドにない固有Tips（文化・数字・日常表現など）からなる。
+
+lib/core/constants/word_order_rules.dart
+語順ガイドの項目データ（WordOrderRule・WordOrderExample）。ガイド画面とローディングTipsで共用。
+
+lib/core/constants/pronunciation_guide_sections.dart
+発音ガイドの節データ（PronSection・PronRow・PronWord）。ガイド画面とローディングTipsで共用。
 
 ## Authentication
 
@@ -238,7 +244,7 @@ lib/presentation/screens/thai_script_guide_screen.dart
 タイ文字ガイド（文字のしくみ・よく使う子音・母音の位置と長短・声調記号・単語の分解）。設定から開く。文字と語の札を押すと読み上げる。
 
 lib/presentation/screens/word_order_guide_screen.dart
-タイ語の語順ガイド（話題・語順・修飾・前置詞・比較・否定・疑問・助動詞・動詞連続・丁寧語尾）。例文は語のチップで見せる。設定と並び替え問題の解答から開く。
+タイ語の語順ガイド（話題・語順・修飾・前置詞・比較・否定・疑問・助動詞・動詞連続・結果の動詞・動詞の重ね（ๆ）・丁寧語尾）。例文は語のチップで見せる。設定と並び替え問題の解答から開く。
 
 ## Widgets
 
