@@ -87,7 +87,7 @@ tweet_id・本文・訳・テーマ・投稿日時に加え、`slot` `weekday` `
 
 選定プロンプトは `select_prompt.txt` に置いてある。ここを書き換えれば選び方を
 変えられる（コードは触らなくてよい）。`#` で始まる行は無視される。
-差し込み口は `{theme}` `{when}` `{recent}` `{trend}` `{candidates}`（ファイル冒頭に説明）。
+差し込み口は `{theme}` `{when}` `{recent}` `{trend}` `{top_hooks}` `{candidates}`（ファイル冒頭に説明）。
 
 ## 破綻の除外
 
