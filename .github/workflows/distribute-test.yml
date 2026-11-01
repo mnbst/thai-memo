@@ -141,14 +141,14 @@ jobs:
           echo "::error::upload-symbols が見つからない"; exit 1
 
       - name: Upload dSYM artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dsyms-tester
           path: build/ios/archive/Runner.xcarchive/dSYMs
           retention-days: 90
 
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ipa-tester
           path: build/ios/ipa/*.ipa
