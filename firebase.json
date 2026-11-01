@@ -7,6 +7,10 @@
         ],
         "rewrites": [
             {
+                "source": "/app",
+                "destination": "/app.html"
+            },
+            {
                 "source": "/",
                 "destination": "/privacy-policy.html"
             }

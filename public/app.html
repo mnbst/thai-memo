@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>まいにちタイ語 ダウンロード</title>
+  <meta name="description" content="毎日の例文でタイ語の単語が増える。まいにちタイ語のダウンロードページ。" />
+  <meta property="og:title" content="まいにちタイ語" />
+  <meta property="og:description" content="毎日の例文でタイ語の単語が増える" />
+  <meta property="og:image" content="/appicon.png" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="icon" href="/appicon.png" />
+  <script>
+    (function () {
+      var IOS = 'https://apps.apple.com/jp/app/id6759669680';
+      var ANDROID = 'https://play.google.com/store/apps/details?id=com.thaimemo.thai_memo';
+      var ua = navigator.userAgent;
+      // iPadOS は Mac と同じ UA を名乗るので、タッチ対応かどうかで見分ける
+      var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+        (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      if (isIOS) location.replace(IOS);
+      else if (/Android/.test(ua)) location.replace(ANDROID);
+    })();
+  </script>
+  <style>
+    :root { --bg: #f8f9fa; --card: #fff; --text: #1a1a2e; --muted: #6c757d; --blue: #4a7fc1; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #14161c; --card: #1f222b; --text: #eef0f4; --muted: #a0a6b2; }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    main { background: var(--card); border-radius: 20px; padding: 40px 24px; width: 100%; max-width: 380px; text-align: center; }
+    img { width: 88px; height: 88px; border-radius: 20px; margin-bottom: 16px; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+    a.btn {
+      display: block; padding: 14px; border-radius: 12px; margin-top: 12px;
+      background: var(--blue); color: #fff; text-decoration: none; font-weight: 700; font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/appicon.png" alt="" />
+    <h1>まいにちタイ語</h1>
+    <p>毎日の例文でタイ語の単語が増える</p>
+    <a class="btn" href="https://apps.apple.com/jp/app/id6759669680">App Store（iPhone / iPad）</a>
+    <a class="btn" href="https://play.google.com/store/apps/details?id=com.thaimemo.thai_memo">Google Play（Android）</a>
+  </main>
+</body>
+</html>
