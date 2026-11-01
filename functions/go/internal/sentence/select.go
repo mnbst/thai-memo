@@ -87,6 +87,29 @@ func ResolveInterviewTopic(userData map[string]any, randIntn func(int) int) stri
 	return candidates[randIntn(len(candidates))]
 }
 
+// InterviewGoalTopicSet はヒアリングの goal に当たる個別テーマの集合を返す。
+// まとめたテーマ（タイ旅行・タイ暮らし）は中身へ広げる。free バンクで用途に
+// 合う文を先に出すのに使う。未回答・未知の goal では nil。
+func InterviewGoalTopicSet(userData map[string]any) map[string]bool {
+	interview, _ := userData["interview"].(map[string]any)
+	goal, _ := interview["goal"].(string)
+	candidates := InterviewGoalTopics[goal]
+	if len(candidates) == 0 {
+		return nil
+	}
+	set := map[string]bool{}
+	for _, t := range candidates {
+		if members, ok := TopicGroups[t]; ok {
+			for _, m := range members {
+				set[m] = true
+			}
+			continue
+		}
+		set[t] = true
+	}
+	return set
+}
+
 // GroupResolver はまとめたテーマ（TopicGroups）を、語に合う中身の個別テーマへ
 // 解決する。実装は themeshots.Builder（語に近い参考例文の場面から決める）。
 // 決められなければ "" を返す。
