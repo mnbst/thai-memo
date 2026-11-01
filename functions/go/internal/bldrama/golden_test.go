@@ -17,6 +17,7 @@ import (
 // 本物の themes/bl_drama.py を呼んで書き出したもの。
 // Python 削除後に、人称ルールの出し分け（2026-10-01）に合わせて
 // กู/มึง を含まないセリフ47件の required だけ書き換えた。
+// 名前の表記を断片から外し、訳の言語ごとにプロンプト側で渡す形（2026-11-01）に合わせて context も書き換えた。
 
 type golden struct {
 	Sections []struct {

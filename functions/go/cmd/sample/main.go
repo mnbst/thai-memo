@@ -66,6 +66,8 @@ func main() {
 	medium := flag.String("medium", "", "文が載る媒体を固定する（例: 対面の会話）")
 	withShots := flag.Bool("shots", false, "テーマ回の参考例文（internal/themeshots）を付ける（本番と同じ。場面は絞らずランダム）")
 	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
+	matched := flag.Bool("matched", false, "場面合致で外れた回（premium、ショット無し）として生成する")
+	blMood := flag.Bool("blmood", true, "-matched の BL 回に同じ作品の3文と設定を付ける（false で従来どおり付けない）")
 	flag.Parse()
 
 	var words []wordRank
@@ -107,6 +109,9 @@ func main() {
 		// ドラマ回の専用ブロック。Shots が nil ならシーンをランダムに引く。
 		Drama: drama,
 	}
+	if !*blMood {
+		svc.Drama = noMood{drama}
+	}
 	fmt.Fprintf(os.Stderr, "n=%d lang=%s tier=%s vocab=%d model=%s\n",
 		*n, *langCode, tierLabel(*free), *vocab, model)
 
@@ -137,6 +142,9 @@ func main() {
 			}
 			if *medium != "" {
 				params["medium"] = *medium
+			}
+			if *matched {
+				params["sceneMatched"] = true
 			}
 			s, err := svc.GenerateSentence(ctx, params, !*free,
 				[]string{w.Word}, *vocab, lang.Lang(*langCode))
@@ -455,3 +463,9 @@ func qualityWords(ws []sentence.Word) []quality.Word {
 	}
 	return out
 }
+
+// noMood は MoodSection を隠した bldrama.Builder（-blmood=false の対照用）。
+type noMood struct{ b *bldrama.Builder }
+
+func (n noMood) BuildDramaSection(w []string) sentence.DramaSection { return n.b.BuildDramaSection(w) }
+func (n noMood) SectionFor(id string) sentence.DramaSection         { return n.b.SectionFor(id) }
