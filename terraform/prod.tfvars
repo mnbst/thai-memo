@@ -26,3 +26,7 @@ x_post_extra_slots = {
   "1500" = { schedule = "0 15 * * *", kind = "guide" }
   "1700" = { schedule = "0 17 * * *" }
 }
+
+# Threads への自動投稿（X と同じ枠で、例文は別の文）。threads-access-token に
+# トークンを入れてから true にする（tools/x_post/README.md の「Threads」）。
+threads_post_enabled = false

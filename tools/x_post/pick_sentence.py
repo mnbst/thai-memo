@@ -5,7 +5,9 @@
 「選んだ理由・表示回数」と比べさせて Gemini に選ばせ、理由も書かせる。Gemini が使えない
 ときは同じ候補から抽選して投稿を止めない。
 
-投稿済みと履歴は gs://<project>-uvm-data/x_post/posted.json で管理する。
+投稿済みと履歴は gs://<project>-uvm-data/x_post/posted.json（X）と
+x_post/threads/posted.json（Threads）で管理する（--platform で切り替える）。
+例文は X と Threads で別の文にするので、両方の投稿済みを外して選ぶ。
 選んだ例文は <out>/sentence.json、投稿本文は <out>/text.txt、選んだ文脈は
 <out>/selection.json に書く。実際に投稿できたかは post_to_x.py が確かめてから
 posted.json を更新する。
@@ -33,11 +35,11 @@ from google.cloud import secretmanager, storage
 from requests_oauthlib import OAuth1Session
 
 from pick_study_post import TWEET_LIMIT, weighted_length
+from platforms import PLATFORMS, post_id, posted_object
 
 # premium と同じ静的コーパスと、運用中に貯めたプール（CorpusBank と同じ2本）。
 # 静的コーパスはプールへ移して空にしたので、両方を読む。
 CORPUS_OBJECTS = ("corpus_sentences_ja.json", "corpus_pool_ja.json")
-POSTED_OBJECT = "x_post/posted.json"
 
 # 投稿は日本時間の朝に出る。「前日」も日本時間で切る。
 JST = timezone(timedelta(hours=9))
@@ -202,19 +204,36 @@ def clean_hook(hook: str, theme: str) -> str:
     return hook
 
 
-def build_text(sentence: dict, hook: str = "") -> str:
-    """投稿本文。タイ語から始めず、書き出し（場面）→ 訳 → タイ語・発音の順。
+# 書き出しが使えなかったときの代わり。1行目がタイ語だと読み飛ばされるので必ず入れる。
+FALLBACK_HOOKS = {
+    "タイ旅行": "タイ旅行の時のひとこと",
+    "タイ生活": "タイ暮らしの時のひとこと",
+    "恋愛": "恋人と話す時のひとこと",
+    "仕事": "職場で話す時のひとこと",
+    "BLドラマ": "BLドラマのあの場面のセリフ",
+    "推し活": "推し活の時のひとこと",
+}
+DEFAULT_HOOK = "タイで話す時のひとこと"
 
+
+def build_text(sentence: dict, hook: str = "", theme: str = "") -> str:
+    """投稿本文。「書き出し👇 → タイ語・読み → 訳」の順に揃える。
+
+    書き出しが空か、入れると280字を超えるときはテーマの決まり文句に替える。
     ハッシュタグは付けない（2026-11 から。表示はおすすめ欄が中心で効きが薄い）。
     """
-    lines = [hook, ""] if hook else []
-    lines += [sentence["japanese_translation"], "", sentence["thai_text"]]
+    body = [sentence["thai_text"]]
     if sentence.get("pronunciation"):
-        lines.append(sentence["pronunciation"])
-    text = "\n".join(lines)
-    if hook and weighted_length(text) > TWEET_LIMIT:
-        return build_text(sentence)
-    return text
+        body.append(sentence["pronunciation"])
+    body += ["", sentence["japanese_translation"]]
+    text = ""
+    for h in (hook, FALLBACK_HOOKS.get(theme, DEFAULT_HOOK)):
+        if not h:
+            continue
+        text = "\n".join([h.rstrip("👇") + "👇", ""] + body)
+        if weighted_length(text) <= TWEET_LIMIT:
+            return text
+    return "\n".join(body)
 
 
 # 発音表記に算用数字が残っていたら、数字が読みに変換されていない
@@ -362,18 +381,65 @@ def slot_history(history: list[dict], slot: str) -> list[dict]:
     return [
         h
         for h in history
-        if h.get("tweet_id") and h.get("theme") in THEMES and post_slot(h) == slot
+        if post_id(h) and h.get("theme") in THEMES and post_slot(h) == slot
     ]
 
 
-def refresh_metrics(history: list[dict], slot: str, now: datetime) -> dict:
+def refresh_metrics(
+    history: list[dict], slot: str, now: datetime, platform: str
+) -> dict:
     """同じ枠で、表示回数が未取得か、まだ確定していない投稿の数字を取り直す。"""
     stale = [
-        h["tweet_id"]
+        post_id(h)
         for h in slot_history(history, slot)
         if "impressions" not in h or not settled(h, now)
     ][-FETCH_LIMIT:]
+    if platform == "threads":
+        return fetch_threads_metrics(stale)
     return fetch_metrics(stale)
+
+
+def fetch_threads_metrics(post_ids: list[str]) -> dict[str, dict]:
+    """投稿ごとの表示回数と反応の数を Threads のインサイトから引く。引けなければ空。
+
+    1件ずつ問い合わせる（まとめて引く口が無い）。読み取りは無料。
+    """
+    token = os.environ.get("THREADS_ACCESS_TOKEN")
+    if not post_ids or not token:
+        return {}
+    result = {}
+    for pid in post_ids:
+        try:
+            response = requests.get(
+                f"https://graph.threads.net/v1.0/{pid}/insights",
+                params={
+                    "metric": "views,likes,replies,reposts",
+                    "access_token": token,
+                },
+                timeout=30,
+            )
+        except requests.RequestException as error:
+            print(f"反応の取得に失敗: {error}", file=sys.stderr)
+            return result
+        if response.status_code != 200:
+            print(
+                f"反応の取得を諦める: {response.status_code} "
+                f"{response.text[:120]}",
+                file=sys.stderr,
+            )
+            return result
+        values = {}
+        for metric in response.json().get("data", []):
+            points = metric.get("values") or [metric.get("total_value") or {}]
+            values[metric.get("name")] = points[0].get("value", 0) if points else 0
+        # X と同じく、いいね・リポスト・返信を同じ重みで足す。
+        result[pid] = {
+            "impressions": values.get("views", 0),
+            "score": values.get("likes", 0)
+            + values.get("reposts", 0)
+            + values.get("replies", 0),
+        }
+    return result
 
 
 def fetch_metrics(tweet_ids: list[str]) -> dict[str, dict]:
@@ -722,6 +788,7 @@ def main() -> int:
         default="",
         help="投稿の枠（0700 など）。空なら今の JST の時から決める。",
     )
+    parser.add_argument("--platform", choices=PLATFORMS, default="x")
     args = parser.parse_args()
 
     themes = [t.strip() for t in args.themes.split(",") if t.strip()] or list(
@@ -735,8 +802,15 @@ def main() -> int:
     bucket = storage.Client(project=args.project).bucket(
         f"{args.project}-uvm-data"
     )
-    state = load_json(bucket, POSTED_OBJECT, {})
-    posted = set(state.get("posted", []))
+    state = load_json(bucket, posted_object(args.platform), {})
+    # 例文は投稿先ごとに別の文にする。ほかの投稿先で出した文も外す。
+    posted = set(state.get("posted", [])).union(
+        *(
+            load_json(bucket, posted_object(p), {}).get("posted", [])
+            for p in PLATFORMS
+            if p != args.platform
+        )
+    )
     now = datetime.now(JST)
     slot = args.slot or f"{now.hour:02d}00"
     weekday = now.weekday()
@@ -755,10 +829,8 @@ def main() -> int:
     sound = sound_only(corpus)
 
     # 取り直した数字を先に履歴へ重ねる。テーマの点数も過去の投稿の並びも新しい値で見る。
-    fetched = refresh_metrics(state.get("history", []), slot, now)
-    history = [
-        {**h, **fetched.get(h.get("tweet_id"), {})} for h in state.get("history", [])
-    ]
+    fetched = refresh_metrics(state.get("history", []), slot, now, args.platform)
+    history = [{**h, **fetched.get(post_id(h), {})} for h in state.get("history", [])]
 
     rng = random.Random(args.seed or None)
     order, theme_reason = choose_theme(history, slot, weekday, themes, rng)
@@ -801,7 +873,7 @@ def main() -> int:
         picked, reason, hook, chooser = rng.choice(candidates), "", "", "抽選"
     hook = clean_hook(hook, theme)
     print(f"理由: {reason or '-'}（{chooser}）", file=sys.stderr)
-    print(f"書き出し: {hook or '-（訳から始める）'}", file=sys.stderr)
+    print(f"書き出し: {hook or '-（テーマの決まり文句を使う）'}", file=sys.stderr)
 
     # 詳細画面は作成日を出す。Firestore の Timestamp はそのままでは JSON に
     # できないので、投稿日に置き換えて「不明」を出さない。
@@ -815,13 +887,14 @@ def main() -> int:
     (out / "sentence.json").write_text(
         json.dumps(picked, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    text = build_text(picked, hook)
-    if not text.startswith(hook):
-        hook = ""
+    text = build_text(picked, hook, theme)
+    # 実際に使った書き出し（決まり文句に替わった場合も含む）を履歴に残す。
+    first = text.splitlines()[0]
+    hook = first if first.endswith("👇") else ""
     (out / "text.txt").write_text(text, encoding="utf-8")
     (out / "key.txt").write_text(sentence_key(picked), encoding="utf-8")
     (out / "theme.txt").write_text(theme, encoding="utf-8")
-    # 取り直した数字は post_to_x.py が posted.json の履歴へ書き戻す。
+    # 取り直した数字は post_to_x.py / post_to_threads.py が posted.json の履歴へ書き戻す。
     (out / "metrics.json").write_text(json.dumps(fetched), encoding="utf-8")
     # 選んだ文脈。post_to_x.py が履歴に残し、次の回の判断材料にする。
     (out / "selection.json").write_text(

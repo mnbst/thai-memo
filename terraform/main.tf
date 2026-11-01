@@ -409,7 +409,16 @@ resource "google_project_iam_member" "x_post_usage" {
   member  = "serviceAccount:${google_service_account.x_post[0].email}"
 }
 
-# コーパスを読み、投稿済み記録（x_post/）だけ書く。
+# Threads はメディアを URL で取りに来る。GCS に置いたメディアの署名付き URL を
+# 鍵ファイルなしで作るため、SA が自分自身で signBlob できるようにする。
+resource "google_service_account_iam_member" "x_post_self_sign" {
+  count              = length(google_service_account.x_post)
+  service_account_id = google_service_account.x_post[0].name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.x_post[0].email}"
+}
+
+# コーパスを読み、投稿済み記録（x_post/。Threads の記録とメディアも x_post/threads/）だけ書く。
 resource "google_storage_bucket_iam_member" "x_post_reader" {
   count  = length(google_service_account.x_post)
   bucket = module.uvm_data.bucket_name
@@ -649,6 +658,52 @@ resource "google_cloud_scheduler_job" "post_daily_x_extra" {
     body = base64encode(jsonencode({
       ref    = "main"
       inputs = { themes = each.value.themes, kind = each.value.kind, slot = each.key }
+    }))
+
+    headers = {
+      "Authorization"        = "Bearer ${var.github_dispatch_token}"
+      "Accept"               = "application/vnd.github+json"
+      "Content-Type"         = "application/json"
+      "X-GitHub-Api-Version" = "2022-11-28"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Threads への投稿枠。X と同じ時刻・同じ中身の種類で、例文は別の文を選ぶ
+# （tools/x_post/README.md の「Threads」）。同じ枠の X と Threads はワークフローの
+# concurrency で順に走る。
+locals {
+  threads_post_slots = var.threads_post_enabled && nonsensitive(var.github_dispatch_token != "") ? merge(
+    { "0700" = { schedule = "0 7 * * *", themes = var.x_post_themes, kind = "sentence" } },
+    var.x_post_extra_slots,
+  ) : {}
+}
+
+resource "google_cloud_scheduler_job" "post_daily_threads" {
+  for_each = local.threads_post_slots
+
+  name        = "post-daily-threads-${each.key}"
+  project     = var.project_id
+  region      = var.region
+  description = "Threads への投稿ワークフローを起動する（${each.value.kind != "sentence" ? each.value.kind : each.value.themes != "" ? each.value.themes : "全テーマ"}）"
+
+  schedule  = each.value.schedule
+  time_zone = "Asia/Tokyo"
+
+  attempt_deadline = "30s"
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
+    body = base64encode(jsonencode({
+      ref    = "main"
+      inputs = { themes = each.value.themes, kind = each.value.kind, slot = each.key, platform = "threads" }
     }))
 
     headers = {

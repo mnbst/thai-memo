@@ -149,3 +149,9 @@ variable "x_post_extra_slots" {
   }))
   default = {}
 }
+
+variable "threads_post_enabled" {
+  description = "Threads への自動投稿を出すか。X と同じ枠（07:00 と x_post_extra_slots）に Threads 用のジョブを作る。トークンを Secret Manager に入れてから true にする。"
+  type        = bool
+  default     = false
+}

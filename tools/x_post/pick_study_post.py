@@ -27,8 +27,9 @@ from pathlib import Path
 
 from google.cloud import storage
 
+from platforms import PLATFORMS, posted_object
+
 POSTS_FILE = Path(__file__).with_name("study_posts.json")
-POSTED_OBJECT = "x_post/posted.json"
 
 # 履歴に残すテーマ名。例文のテーマと混ざらないようにする。
 KIND_THEMES = {"tip": "Tips", "guide": "ガイド"}
@@ -92,6 +93,8 @@ def main() -> int:
     parser.add_argument("--out", default="build/x_post")
     parser.add_argument("--kind", choices=sorted(KIND_THEMES))
     parser.add_argument("--seed", default="")
+    # 一巡の数え方は投稿先ごと（Tips・ガイドは X と Threads で同じ文を出してよい）。
+    parser.add_argument("--platform", choices=PLATFORMS, default="x")
     parser.add_argument(
         "--check",
         action="store_true",
@@ -111,7 +114,7 @@ def main() -> int:
     bucket = storage.Client(project=args.project).bucket(
         f"{args.project}-uvm-data"
     )
-    blob = bucket.blob(POSTED_OBJECT)
+    blob = bucket.blob(posted_object(args.platform))
     state = json.loads(blob.download_as_bytes()) if blob.exists() else {}
     posted = state.get("posted", [])
 
