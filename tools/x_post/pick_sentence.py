@@ -136,6 +136,13 @@ RECENT_SECTION = """
 {lines}
 """
 
+TOP_HOOKS = 5
+TOP_HOOKS_SECTION = """
+これまでで表示回数が多かった投稿の書き出し（全時間帯・全テーマ、多い順）。
+語の選び方・長さ・場面の切り取り方を参考にしてください。文言をそのまま使い回さないこと。
+{lines}
+"""
+
 TREND_SECTION = """
 この時間帯の長い期間の傾向（表示回数の中央値との比較）:
 {lines}
@@ -636,6 +643,21 @@ def recent_section(mine: list[dict], now: datetime) -> str:
     )
 
 
+def top_hooks_section(history: list[dict], now: datetime) -> str:
+    """表示回数が確定した例文の投稿から、伸びた書き出しを上から並べる。"""
+    done = [
+        h
+        for h in history
+        if h.get("hook") and "impressions" in h and h.get("theme") in THEMES
+        and settled(h, now)
+    ]
+    top = sorted(done, key=lambda h: h["impressions"], reverse=True)[:TOP_HOOKS]
+    if not top:
+        return ""
+    lines = [f"- {h['hook']}（{h['theme']}・表示 {h['impressions']}）" for h in top]
+    return TOP_HOOKS_SECTION.format(lines="\n".join(lines))
+
+
 def trend_section(mine: list[dict]) -> str:
     """枠全体で、長さ・文法ごとに中央値より伸びたもの・伸びなかったものを数行で。"""
     overall = _median_impressions(mine)
@@ -744,6 +766,7 @@ def build_prompt(
     when: str,
     recent: str,
     trend: str,
+    top_hooks: str,
 ) -> str:
     listed = "\n".join(
         f"{i}. {c['thai_text']} / {c['japanese_translation']} / "
@@ -758,6 +781,7 @@ def build_prompt(
         ("{when}", when),
         ("{recent}", recent),
         ("{trend}", trend),
+        ("{top_hooks}", top_hooks),
         ("{candidates}", listed),
     ):
         template = template.replace(name, value)
@@ -864,6 +888,7 @@ def main() -> int:
         when_label(slot, weekday),
         recent_section(mine, now),
         trend_section(mine),
+        top_hooks_section(history, now),
     )
     chosen = choose_with_gemini(args.project, candidates, prompt)
     if chosen:
