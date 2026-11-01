@@ -1,5 +1,8 @@
 name: Post Daily Sentence to X
 
+# platform=x は X、threads は Threads に出す。枠の時刻は同じで、例文は別の文を選ぶ
+# （pick_sentence.py が両方の投稿済みを外す）。同じ枠の2本は concurrency で順番に走らせ、
+# 後に走る方が先の投稿を見て選べるようにする。
 # kind=sentence は例文（動画＋画面）、tip / guide は tools/x_post/study_posts.json の
 # 投稿文（ガイドはガイド画面の該当欄の画像付き）。枠ごとの kind は Terraform の
 # x_post_extra_slots で決める。
@@ -26,6 +29,16 @@ on:
         type: choice
         options: [sentence, tip, guide]
         default: sentence
+      platform:
+        description: '投稿先（x / threads）'
+        type: choice
+        options: [x, threads]
+        default: x
+
+concurrency:
+  # 同じ枠の X と Threads を並べて走らせない（同じ例文を選ばないように）。
+  group: post-daily-${{ inputs.slot || github.run_id }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -38,6 +51,7 @@ env:
   GCP_PROJECT: thai-memo-prod
   OUT_DIR: build/x_post
   KIND: ${{ inputs.kind || 'sentence' }}
+  PLATFORM: ${{ inputs.platform || 'x' }}
 
 jobs:
   post:
@@ -61,6 +75,7 @@ jobs:
           service_account: ${{ env.CI_SERVICE_ACCOUNT }}
 
       - name: Fetch X credentials from Secret Manager
+        if: env.PLATFORM == 'x'
         uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
         id: secrets
         with:
@@ -69,6 +84,14 @@ jobs:
             X_API_SECRET:${{ env.GCP_PROJECT }}/x-api-secret
             X_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/x-access-token
             X_ACCESS_TOKEN_SECRET:${{ env.GCP_PROJECT }}/x-access-token-secret
+
+      - name: Fetch Threads credentials from Secret Manager
+        if: env.PLATFORM == 'threads'
+        uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
+        id: threads_secrets
+        with:
+          secrets: |-
+            THREADS_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/threads-access-token
 
       - name: Install dependencies
         run: |
@@ -90,19 +113,22 @@ jobs:
           X_API_SECRET: ${{ steps.secrets.outputs.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ steps.secrets.outputs.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ steps.secrets.outputs.X_ACCESS_TOKEN_SECRET }}
+          THREADS_ACCESS_TOKEN: ${{ steps.threads_secrets.outputs.THREADS_ACCESS_TOKEN }}
           THEMES: ${{ inputs.themes }}
           SLOT: ${{ inputs.slot }}
         # 種は枠ごとに変える。同じ日の枠で同じ抽選にならないように。
         run: |
           python tools/x_post/pick_sentence.py \
             --project "$GCP_PROJECT" --out "$OUT_DIR" \
-            --seed "$(date -u +%F)-$SLOT" --themes "$THEMES" --slot "$SLOT"
+            --seed "$(date -u +%F)-$SLOT-$PLATFORM" --themes "$THEMES" --slot "$SLOT" \
+            --platform "$PLATFORM"
 
       - name: Pick tip or guide
         if: env.KIND != 'sentence'
         run: |
           python tools/x_post/pick_study_post.py \
-            --project "$GCP_PROJECT" --out "$OUT_DIR" --kind "$KIND"
+            --project "$GCP_PROJECT" --out "$OUT_DIR" --kind "$KIND" \
+            --platform "$PLATFORM"
 
       # ガイドはアプリのガイド画面から、該当する欄（Card）だけを切り出して貼る。
       # 描けなくても本文だけで出す。
@@ -142,7 +168,7 @@ jobs:
       - name: Upload media as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: x-post-media
+          name: ${{ env.PLATFORM }}-post-media
           path: |
             ${{ env.OUT_DIR }}/image_*.png
             ${{ env.OUT_DIR }}/post.mp4
@@ -150,6 +176,7 @@ jobs:
           retention-days: 7
 
       - name: Post to X
+        if: env.PLATFORM == 'x'
         env:
           X_API_KEY: ${{ steps.secrets.outputs.X_API_KEY }}
           X_API_SECRET: ${{ steps.secrets.outputs.X_API_SECRET }}
@@ -158,4 +185,16 @@ jobs:
         run: |
           python tools/x_post/post_to_x.py \
             --project "$GCP_PROJECT" --out "$OUT_DIR" \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Post to Threads
+        if: env.PLATFORM == 'threads'
+        env:
+          THREADS_ACCESS_TOKEN: ${{ steps.threads_secrets.outputs.THREADS_ACCESS_TOKEN }}
+          # メディアの署名付き URL を作る SA（自分への signBlob を Terraform で許可済み）。
+          THREADS_SIGNER: ${{ env.CI_SERVICE_ACCOUNT }}
+        run: |
+          python tools/x_post/post_to_threads.py \
+            --project "$GCP_PROJECT" --out "$OUT_DIR" \
+            --token-secret "projects/$GCP_PROJECT/secrets/threads-access-token" \
             ${{ inputs.dry_run && '--dry-run' || '' }}

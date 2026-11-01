@@ -140,6 +140,8 @@ locals {
     "x-api-secret",
     "x-access-token",
     "x-access-token-secret",
+    # Threads 自動投稿の長期アクセストークン（投稿のたびに古ければ延長して版を足す）
+    "threads-access-token",
   ]
 }
 
@@ -173,11 +175,14 @@ locals {
     "typesafe-api-key",
   ]
 
-  # 配信ワークフロー（distribute-*）が読む secret。X の鍵は渡さない。
-  deploy_ci_secrets = [for s in local.ci_secrets : s if !startswith(s, "x-")]
+  # SNS 投稿（X / Threads）の鍵。投稿ワークフローだけが読む。
+  sns_post_secrets = [for s in local.ci_secrets : s if startswith(s, "x-") || startswith(s, "threads-")]
+
+  # 配信ワークフロー（distribute-*）が読む secret。SNS の鍵は渡さない。
+  deploy_ci_secrets = [for s in local.ci_secrets : s if !contains(local.sns_post_secrets, s)]
 
   # X 投稿ワークフローが読む secret。
-  x_post_secrets = concat([for s in local.ci_secrets : s if startswith(s, "x-")], ["gemini-api-key"])
+  x_post_secrets = concat(local.sns_post_secrets, ["gemini-api-key"])
 }
 
 resource "google_secret_manager_secret_iam_member" "runtime_accessor" {
@@ -215,4 +220,13 @@ resource "google_secret_manager_secret_iam_member" "x_post_accessor" {
     google_secret_manager_secret.ci_secrets,
     google_secret_manager_secret.gemini_api_key,
   ]
+}
+
+# Threads のトークンは投稿ワークフローが延長し、新しい版を足して古い版を無効にする。
+resource "google_secret_manager_secret_iam_member" "x_post_threads_token_manager" {
+  count     = var.x_post_service_account_email != "" ? 1 : 0
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.ci_secrets["threads-access-token"].secret_id
+  role      = "roles/secretmanager.secretVersionManager"
+  member    = "serviceAccount:${var.x_post_service_account_email}"
 }

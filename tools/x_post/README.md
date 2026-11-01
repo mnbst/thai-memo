@@ -66,16 +66,16 @@ Gemini には1回だけ問い合わせる。渡すのは観点（プロンプト
 ### 投稿本文
 
 ```
-書き出し（Gemini の hook。場面と気持ちの1行）
-
-日本語訳
+〜の時の〇〇👇（Gemini の hook）
 
 タイ語
 発音
+
+日本語訳
 ```
 
-1行目からタイ語だと読み飛ばされるので、日本語の書き出しから始める。ハッシュタグは付けない。
-書き出しが30字を超える・タイ文字を含む・280字に収まらないときは書き出しを落とし、訳から始める。
+1行目からタイ語だと読み飛ばされるので、日本語の書き出しから始める。訳を最後に置き、先にタイ語を読ませる。ハッシュタグは付けない。
+書き出しが30字を超える・タイ文字を含む・280字に収まらないときは、テーマの決まり文句（`FALLBACK_HOOKS`）に替える。
 BLドラマ回は作品名・登場人物名を出さない（プロンプトで禁止し、`BL_DRAMA_MARKERS` のカタカナ名・英題が混ざったら落とす）。
 
 投稿済みと、投稿の履歴は `gs://<project>-uvm-data/x_post/posted.json` に持つ。履歴の1件には
@@ -181,3 +181,39 @@ python tools/x_post/post_to_x.py --project thai-memo-prod --out build/x_post --d
 
 GitHub Actions からは `workflow_dispatch` の `dry_run` で同じ確認ができる。
 生成物は artifact `x-post-media` に上がる。
+
+## Threads
+
+X と同じワークフローを `platform=threads` で動かし、同じ枠の時刻に Threads にも出す。
+
+- 中身の作りは X と同じ（例文は動画＋画像3枚、Tips・ガイドは同じ投稿文）。
+- 例文は X と別の文にする。`pick_sentence.py --platform threads` は X と Threads の両方の
+  投稿済みを外して選ぶ。同じ枠の2本はワークフローの `concurrency` で順に走るので、
+  後の方が先の投稿を見て選べる（その分、後の方は数分遅れる）。
+- 記録は `x_post/threads/posted.json`。テーマの点数は Threads 自身の表示回数（インサイトの views）で付ける。
+- 投稿は `post_to_threads.py`。Threads はメディアを URL で取りに来るので、`x_post/threads/media/` に
+  置いて署名付き URL を渡し、投稿後に消す。動画＋画像はカルーセルにする。
+- トークンは長期トークン（60日）。投稿のたびに、Secret Manager の最新版が7日より古ければ延長して版を足す。
+- Scheduler のジョブは `threads_post_enabled = true` で `post-daily-threads-<枠>` が作られる。
+
+### 始めるまで（本人の作業）
+
+1. Threads アカウントを作る（Instagram アカウントから）。
+2. [Meta for Developers](https://developers.facebook.com/apps) でアプリを作り、ユースケースに
+   「Threads API にアクセス」を選ぶ。権限は `threads_basic` `threads_content_publish` `threads_manage_insights`。
+3. アプリの「役割」で投稿する Threads アカウントを Threads テスターに追加し、Threads の
+   設定 → アカウント → ウェブサイトのアクセス許可 → 招待 で承認する
+   （自分のアカウントにだけ出すので、アプリ審査は要らない）。
+4. ユースケースの設定画面の「User Token Generator」で短期トークンを出し、長期トークンに替える。
+
+   ```bash
+   curl -s "https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=<アプリシークレット>&access_token=<短期トークン>"
+   ```
+5. 長期トークンを Secret Manager に入れる（枠は Terraform が作る）。
+
+   ```bash
+   printf '%s' '<長期トークン>' | gcloud secrets versions add threads-access-token \
+     --project=thai-memo-prod --data-file=-
+   ```
+6. `workflow_dispatch` で `platform=threads` `dry_run=false` を1回手で流して確かめ、
+   `terraform/prod.tfvars` の `threads_post_enabled = true` にして `terraform apply`。

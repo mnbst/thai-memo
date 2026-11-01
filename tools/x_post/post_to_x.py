@@ -22,7 +22,7 @@ from pathlib import Path
 import tweepy
 from google.cloud import storage
 
-POSTED_OBJECT = "x_post/posted.json"
+from platforms import post_id, posted_object
 # 投稿済みキーの保持数。バンクの規模より十分大きければ一巡を検知できる。
 POSTED_LIMIT = 5000
 # 反応の参照に使う履歴の保持数。pick_sentence.py が枠×テーマ・曜日×テーマの
@@ -106,22 +106,24 @@ def drop_old_reasons(history: list[dict]) -> list[dict]:
     return kept[::-1]
 
 
-def mark_posted(project: str, key: str, entry: dict, metrics: dict) -> None:
+def mark_posted(
+    project: str, key: str, entry: dict, metrics: dict, platform: str = "x"
+) -> None:
     """投稿済みキーと、後で反応を引くための履歴を書き戻す。
 
     履歴は pick_sentence.py が「伸びた投稿に近いもの」を選ぶのに使う。
-    tweet_id が無いと反応を引けないので、投稿が通ってから呼ぶこと。
-    metrics は pick_sentence.py が取り直した表示回数と反応（tweet_id ごと）。
+    投稿 ID が無いと反応を引けないので、投稿が通ってから呼ぶこと。
+    metrics は pick_sentence.py が取り直した表示回数と反応（投稿 ID ごと）。
     """
     bucket = storage.Client(project=project).bucket(f"{project}-uvm-data")
-    blob = bucket.blob(POSTED_OBJECT)
+    blob = bucket.blob(posted_object(platform))
     state = json.loads(blob.download_as_bytes()) if blob.exists() else {}
 
     posted = [k for k in state.get("posted", []) if k != key]
     posted.append(key)
 
     history = [
-        {**h, **metrics.get(h.get("tweet_id"), {})}
+        {**h, **metrics.get(post_id(h), {})}
         for h in state.get("history", [])
         if h.get("key") != key
     ]
@@ -137,6 +139,41 @@ def mark_posted(project: str, key: str, entry: dict, metrics: dict) -> None:
             ensure_ascii=False,
         ),
         content_type="application/json",
+    )
+
+
+def _read_json(path: Path, fallback):
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else fallback
+
+
+def record_post(
+    project: str, out: Path, key: str, text: str, ids: dict, platform: str = "x"
+) -> None:
+    """選んだときの出力（<out>）から履歴の1件を組み、posted.json に書き戻す。
+
+    ids は投稿 ID（X は {"tweet_id": ...}、Threads は {"post_id": ...}）。
+    """
+    # Tips・ガイドには例文が無い。履歴には本文の1行目を残す。
+    sentence = _read_json(
+        out / "sentence.json", {"thai_text": text.splitlines()[0]}
+    )
+    theme_file = out / "theme.txt"
+    theme = theme_file.read_text(encoding="utf-8") if theme_file.exists() else ""
+    mark_posted(
+        project,
+        key,
+        {
+            "key": key,
+            **ids,
+            "thai_text": sentence.get("thai_text", ""),
+            "japanese_translation": sentence.get("japanese_translation", ""),
+            "theme": theme,
+            "posted_at": datetime.now(timezone.utc).isoformat(),
+            # 例文のときだけある。枠・曜日・選んだ理由・例文の特徴。
+            **_read_json(out / "selection.json", {}),
+        },
+        _read_json(out / "metrics.json", {}),
+        platform,
     )
 
 
@@ -197,42 +234,7 @@ def main() -> int:
     tweet_id = response.data["id"]
     print(f"投稿した: https://x.com/i/status/{tweet_id}")
 
-    # Tips・ガイドには例文が無い。履歴には本文の1行目を残す。
-    sentence_file = out / "sentence.json"
-    sentence = (
-        json.loads(sentence_file.read_text(encoding="utf-8"))
-        if sentence_file.exists()
-        else {"thai_text": text.splitlines()[0]}
-    )
-    theme_file = out / "theme.txt"
-    theme = theme_file.read_text(encoding="utf-8") if theme_file.exists() else ""
-    metrics_file = out / "metrics.json"
-    metrics = (
-        json.loads(metrics_file.read_text(encoding="utf-8"))
-        if metrics_file.exists()
-        else {}
-    )
-    # 例文のときだけある。枠・曜日・選んだ理由・例文の特徴。
-    selection_file = out / "selection.json"
-    selection = (
-        json.loads(selection_file.read_text(encoding="utf-8"))
-        if selection_file.exists()
-        else {}
-    )
-    mark_posted(
-        args.project,
-        key,
-        {
-            "key": key,
-            "tweet_id": str(tweet_id),
-            "thai_text": sentence.get("thai_text", ""),
-            "japanese_translation": sentence.get("japanese_translation", ""),
-            "theme": theme,
-            "posted_at": datetime.now(timezone.utc).isoformat(),
-            **selection,
-        },
-        metrics,
-    )
+    record_post(args.project, out, key, text, {"tweet_id": str(tweet_id)})
     return 0
 
 

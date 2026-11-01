@@ -1354,6 +1354,12 @@ tools/x_post/build_media.py
 tools/x_post/post_to_x.py
 Xへ投稿し、投稿済みをGCSへ記録する。動画1本＋画像3枚。拒まれたら動画のみ→画像のみ→テキストのみへ退避する。
 
+tools/x_post/post_to_threads.py
+Threadsへ投稿し、投稿済みを x_post/threads/posted.json へ記録する。メディアはGCSの署名付きURLで渡し、動画＋画像はカルーセル。長期トークンを古ければ延長する。
+
+tools/x_post/platforms.py
+投稿先（X / Threads）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
+
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
 
@@ -1361,7 +1367,7 @@ test/screenshots/x_post_screenshot.dart
 DetailScreen を flutter_test 上で描画し、動画の続きからスクロールした画像3枚までと、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
 
 .github/workflows/post-daily-x.yml
-X 投稿のワークフロー。kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
+X / Threads 投稿のワークフロー。platform で投稿先、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
 
 ## App Store スクリーンショット
 
