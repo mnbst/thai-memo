@@ -2691,22 +2691,6 @@ class L10nKo extends L10n {
       '외운 단어나 예문을 대화에서 사용해 보세요. 소리 내어 말할수록 더 잘 익힐 수 있어요.';
 
   @override
-  String get coachQuizOfferTitle => '확인 퀴즈는 여기예요';
-
-  @override
-  String get coachQuizOfferMessage =>
-      '예문을 다 읽은 뒤 이 버튼에서 확인 퀴즈 한 문제를 풀어 학습 단어를 외웠는지 확인할 수 있어요.';
-
-  @override
-  String get coachTapHere => '빛나는 곳을 누르세요';
-
-  @override
-  String get coachSkip => '건너뛰기';
-
-  @override
-  String get coachGotIt => '확인';
-
-  @override
   String get settingsWordOrderGuide => '어순 가이드';
 
   @override
@@ -3329,4 +3313,52 @@ class L10nKo extends L10n {
 
   @override
   String get streakWeekdayLetters => '월화수목금토일';
+
+  @override
+  String get firstStepsTitle => '학습 순서';
+
+  @override
+  String get firstStepsListenSentence => '예문 음성 듣기';
+
+  @override
+  String get firstStepsListenSentenceHint => '예문 아래의 ‘모범 발음 듣기’를 눌러요';
+
+  @override
+  String get firstStepsOpenDetail => '예문 카드를 눌러 ‘상세’ 보기';
+
+  @override
+  String get firstStepsOpenDetailHint => '발음 연습과 단어별 성조를 볼 수 있어요';
+
+  @override
+  String get firstStepsQuiz => '확인 퀴즈 풀기';
+
+  @override
+  String get firstStepsQuizHint => '한 문제로 익혔는지 확인해요';
+
+  @override
+  String get firstStepsQuizStart => '풀기';
+
+  @override
+  String get detailGuideTitle => '이 화면에서 할 수 있어요';
+
+  @override
+  String get detailGuidePractice => '발음 연습하기';
+
+  @override
+  String get detailGuidePracticeHint => '모범 발음을 듣고 녹음하면 성조가 맞는지 확인해요';
+
+  @override
+  String get detailGuideWords => '단어를 눌러 성조 규칙 보기';
+
+  @override
+  String get detailGuideWordsHint => '글자 조합으로 이 성조가 되는 이유를 설명해요';
+
+  @override
+  String get detailGuideUsage => '사용법 읽기';
+
+  @override
+  String get detailGuideUsageHint => '어떤 상황에서 누구에게 쓰는지 알 수 있어요';
+
+  @override
+  String get detailGuideBackToQuiz => '학습으로 돌아가 확인 퀴즈 풀기';
 }

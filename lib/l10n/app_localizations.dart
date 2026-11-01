@@ -4780,36 +4780,6 @@ abstract class L10n {
   /// **'覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。'**
   String get guideTipsSpeak;
 
-  /// No description provided for @coachQuizOfferTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'確認クイズはこちら'**
-  String get coachQuizOfferTitle;
-
-  /// No description provided for @coachQuizOfferMessage.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文を読み終えたら、このボタンから確認クイズを1問解き、学習単語を覚えたか確かめられます。'**
-  String get coachQuizOfferMessage;
-
-  /// No description provided for @coachTapHere.
-  ///
-  /// In ja, this message translates to:
-  /// **'光っている場所をタップ'**
-  String get coachTapHere;
-
-  /// No description provided for @coachSkip.
-  ///
-  /// In ja, this message translates to:
-  /// **'スキップ'**
-  String get coachSkip;
-
-  /// No description provided for @coachGotIt.
-  ///
-  /// In ja, this message translates to:
-  /// **'わかった'**
-  String get coachGotIt;
-
   /// No description provided for @settingsWordOrderGuide.
   ///
   /// In ja, this message translates to:
@@ -5949,6 +5919,102 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'月火水木金土日'**
   String get streakWeekdayLetters;
+
+  /// 初級者の初回セット1本目の手順カード（FirstSetSteps）
+  ///
+  /// In ja, this message translates to:
+  /// **'学習の手順'**
+  String get firstStepsTitle;
+
+  /// 初級者の初回セット1本目の手順カード（FirstSetSteps）
+  ///
+  /// In ja, this message translates to:
+  /// **'例文の音声を聞く'**
+  String get firstStepsListenSentence;
+
+  /// 初級者の初回セット1本目の手順カード（FirstSetSteps）
+  ///
+  /// In ja, this message translates to:
+  /// **'例文の下の「お手本を聞く」を押す'**
+  String get firstStepsListenSentenceHint;
+
+  /// 初級者の初回セット1本目の手順カード（FirstSetSteps）
+  ///
+  /// In ja, this message translates to:
+  /// **'例文カードをタップして詳細を見る'**
+  String get firstStepsOpenDetail;
+
+  /// No description provided for @firstStepsOpenDetailHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音練習や、単語ごとの声調が見られる'**
+  String get firstStepsOpenDetailHint;
+
+  /// 初級者の初回セット1本目の手順カード（FirstSetSteps）
+  ///
+  /// In ja, this message translates to:
+  /// **'確認クイズを解く'**
+  String get firstStepsQuiz;
+
+  /// 初級者の初回セット1本目の手順カード（FirstSetSteps）
+  ///
+  /// In ja, this message translates to:
+  /// **'1問だけ。覚えたか確かめる'**
+  String get firstStepsQuizHint;
+
+  /// 初級者の初回セット1本目の手順カード（FirstSetSteps）
+  ///
+  /// In ja, this message translates to:
+  /// **'解く'**
+  String get firstStepsQuizStart;
+
+  /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
+  ///
+  /// In ja, this message translates to:
+  /// **'この画面でできること'**
+  String get detailGuideTitle;
+
+  /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
+  ///
+  /// In ja, this message translates to:
+  /// **'発音を練習する'**
+  String get detailGuidePractice;
+
+  /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
+  ///
+  /// In ja, this message translates to:
+  /// **'お手本を聞いて録音すると、声調が合っているか判定'**
+  String get detailGuidePracticeHint;
+
+  /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
+  ///
+  /// In ja, this message translates to:
+  /// **'単語をタップして声調ルールを見る'**
+  String get detailGuideWords;
+
+  /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
+  ///
+  /// In ja, this message translates to:
+  /// **'なぜこの声調になるのかを、文字の組み合わせから解説'**
+  String get detailGuideWordsHint;
+
+  /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
+  ///
+  /// In ja, this message translates to:
+  /// **'使い方を読む'**
+  String get detailGuideUsage;
+
+  /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
+  ///
+  /// In ja, this message translates to:
+  /// **'どんな場面で、誰に使うかがわかる'**
+  String get detailGuideUsageHint;
+
+  /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
+  ///
+  /// In ja, this message translates to:
+  /// **'学習に戻って確認クイズを解く'**
+  String get detailGuideBackToQuiz;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

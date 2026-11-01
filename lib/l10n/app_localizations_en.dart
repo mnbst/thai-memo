@@ -2819,22 +2819,6 @@ class L10nEn extends L10n {
       'Use learned words and sentences in conversation; saying them aloud helps them stick.';
 
   @override
-  String get coachQuizOfferTitle => 'Quick check';
-
-  @override
-  String get coachQuizOfferMessage =>
-      'After reading, tap here for a one-question target-word quiz.';
-
-  @override
-  String get coachTapHere => 'Tap the highlight';
-
-  @override
-  String get coachSkip => 'Skip';
-
-  @override
-  String get coachGotIt => 'Got it';
-
-  @override
   String get settingsWordOrderGuide => 'Word order guide';
 
   @override
@@ -3468,4 +3452,53 @@ class L10nEn extends L10n {
 
   @override
   String get streakWeekdayLetters => 'MTWTFSS';
+
+  @override
+  String get firstStepsTitle => 'Study steps';
+
+  @override
+  String get firstStepsListenSentence => 'Listen to the sentence';
+
+  @override
+  String get firstStepsListenSentenceHint => 'Tap “Listen” below the sentence';
+
+  @override
+  String get firstStepsOpenDetail => 'Tap the sentence card for details';
+
+  @override
+  String get firstStepsOpenDetailHint =>
+      'Practice pronunciation and check word tones';
+
+  @override
+  String get firstStepsQuiz => 'Take the check quiz';
+
+  @override
+  String get firstStepsQuizHint => 'Just one question to see if it stuck';
+
+  @override
+  String get firstStepsQuizStart => 'Start';
+
+  @override
+  String get detailGuideTitle => 'What you can do here';
+
+  @override
+  String get detailGuidePractice => 'Practice pronunciation';
+
+  @override
+  String get detailGuidePracticeHint => 'Listen, record, and check your tones';
+
+  @override
+  String get detailGuideWords => 'Tap a word for its tone rule';
+
+  @override
+  String get detailGuideWordsHint => 'See how its spelling determines the tone';
+
+  @override
+  String get detailGuideUsage => 'Read how it’s used';
+
+  @override
+  String get detailGuideUsageHint => 'When and with whom to say it';
+
+  @override
+  String get detailGuideBackToQuiz => 'Back to Learn for the check quiz';
 }

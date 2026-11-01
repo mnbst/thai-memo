@@ -2663,22 +2663,6 @@ class L10nJa extends L10n {
   String get guideTipsSpeak => '覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。';
 
   @override
-  String get coachQuizOfferTitle => '確認クイズはこちら';
-
-  @override
-  String get coachQuizOfferMessage =>
-      '例文を読み終えたら、このボタンから確認クイズを1問解き、学習単語を覚えたか確かめられます。';
-
-  @override
-  String get coachTapHere => '光っている場所をタップ';
-
-  @override
-  String get coachSkip => 'スキップ';
-
-  @override
-  String get coachGotIt => 'わかった';
-
-  @override
   String get settingsWordOrderGuide => '語順ガイド';
 
   @override
@@ -3298,4 +3282,52 @@ class L10nJa extends L10n {
 
   @override
   String get streakWeekdayLetters => '月火水木金土日';
+
+  @override
+  String get firstStepsTitle => '学習の手順';
+
+  @override
+  String get firstStepsListenSentence => '例文の音声を聞く';
+
+  @override
+  String get firstStepsListenSentenceHint => '例文の下の「お手本を聞く」を押す';
+
+  @override
+  String get firstStepsOpenDetail => '例文カードをタップして詳細を見る';
+
+  @override
+  String get firstStepsOpenDetailHint => '発音練習や、単語ごとの声調が見られる';
+
+  @override
+  String get firstStepsQuiz => '確認クイズを解く';
+
+  @override
+  String get firstStepsQuizHint => '1問だけ。覚えたか確かめる';
+
+  @override
+  String get firstStepsQuizStart => '解く';
+
+  @override
+  String get detailGuideTitle => 'この画面でできること';
+
+  @override
+  String get detailGuidePractice => '発音を練習する';
+
+  @override
+  String get detailGuidePracticeHint => 'お手本を聞いて録音すると、声調が合っているか判定';
+
+  @override
+  String get detailGuideWords => '単語をタップして声調ルールを見る';
+
+  @override
+  String get detailGuideWordsHint => 'なぜこの声調になるのかを、文字の組み合わせから解説';
+
+  @override
+  String get detailGuideUsage => '使い方を読む';
+
+  @override
+  String get detailGuideUsageHint => 'どんな場面で、誰に使うかがわかる';
+
+  @override
+  String get detailGuideBackToQuiz => '学習に戻って確認クイズを解く';
 }
