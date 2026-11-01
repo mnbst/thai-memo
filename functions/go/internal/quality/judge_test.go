@@ -428,6 +428,20 @@ func TestLatinName(t *testing.T) {
 	}
 }
 
+func TestForeignScript(t *testing.T) {
+	for text, want := range map[string]bool{
+		"พี่มูนファーครับ": true,
+		"ผมชอบ寿司":       true,
+		"오빠ครับ":        true,
+		"พี่หมื่นฟ้าครับ ไปดูบอร์ดกัน": false,
+		"เรียก Grab ไปสถานีดีกว่า":     false,
+	} {
+		if got := foreignScript(Candidate{ThaiText: text}); got != want {
+			t.Errorf("foreignScript(%q) = %v, want %v", text, got, want)
+		}
+	}
+}
+
 func TestCasualPronoun(t *testing.T) {
 	cases := []struct {
 		w    Word

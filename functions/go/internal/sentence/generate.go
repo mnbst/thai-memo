@@ -339,6 +339,12 @@ type dramaSectioner interface {
 	SectionFor(shotID string) DramaSection
 }
 
+// dramaMooder は BL で語に近いセリフが無い回に、同じ作品の数文と設定のブロックを作る。
+// bldrama.Builder が実装する。実装しなければ従来どおりブロックを付けない。
+type dramaMooder interface {
+	MoodSection() DramaSection
+}
+
 // Service は例文生成の入口。
 type Service struct {
 	Gen      Generator
@@ -389,8 +395,14 @@ func (s *Service) matchedSection(resolved *ResolvedParams) DramaSection {
 	resolved.SubTheme = ""
 	if resolved.Topic == Topics[15] {
 		resolved.Medium = Media[0].Name
+		if resolved.ShotID == "" {
+			if m, ok := s.Drama.(dramaMooder); ok {
+				return m.MoodSection()
+			}
+			return DramaSection{}
+		}
 		d, ok := s.Drama.(dramaSectioner)
-		if !ok || resolved.ShotID == "" {
+		if !ok {
 			return DramaSection{}
 		}
 		return d.SectionFor(resolved.ShotID)

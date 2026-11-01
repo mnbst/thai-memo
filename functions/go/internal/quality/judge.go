@@ -179,7 +179,7 @@ var Aspects = append([]Aspect{
 	{ID: "trans_thai", Label: "訳にタイ文字", JAOnly: false,
 		Note:  "japanese_translation にタイ文字が残っていた。訳にはタイ文字を書かない",
 		Check: func(c Candidate) bool { return containsThai(c.JapaneseTranslation) }},
-	// 以下7つは rules.go（測定値もそちら）。
+	// 以下8つは rules.go（測定値もそちら）。
 	{ID: "trans_term", Label: "訳に文法用語",
 		Note:  "japanese_translation に品詞名・文法用語や角括弧を書いていた。対応する語が無いものは訳さずに落とす",
 		Check: gramTerm},
@@ -192,6 +192,9 @@ var Aspects = append([]Aspect{
 	{ID: "word_misuse", Label: "語の場面違い",
 		Note:  "thai_text で、日本語訳が当てはまるだけの語を別の場面に当てていた（体調の語を物の感想に、山頂の語を物や体の上端に、推量の語を依頼の前置きに、乗り場の名を乗り物に）。その場面でタイ語の話者が実際に使う言い方にする",
 		Check: wordMisuse},
+	{ID: "thai_foreign", Label: "本文に日本語の文字",
+		Note:  "thai_text に日本語・韓国語の文字（カタカナ等）が混ざっていた。thai_text はタイ文字で書く",
+		Check: foreignScript},
 	{ID: "thai_latin", Label: "本文にローマ字",
 		Note:  "thai_text に人名などをローマ字で書いていた。タイ文字で書く",
 		Check: latinName},

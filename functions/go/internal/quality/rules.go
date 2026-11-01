@@ -248,6 +248,16 @@ func latinName(c Candidate) bool {
 	return false
 }
 
+// foreignScriptRe は thai_text に混ざった日本語・韓国語の文字。
+var foreignScriptRe = regexp.MustCompile(`[\p{Hiragana}\p{Katakana}\p{Han}\p{Hangul}]`)
+
+// foreignScript は thai_text に日本語・韓国語の文字が混ざっているか（×พี่มูนファーครับ）。
+// trans_thai（訳にタイ文字）の逆向き。BLドラマ回で登場人物の名前の対応（タイ文字：日本語）を
+// 渡すと出た（2026-11-01、80文中1件）。
+func foreignScript(c Candidate) bool {
+	return foreignScriptRe.MatchString(c.ThaiText)
+}
+
 // casualPronounMeaningRe は ชั้น の語義が一人称のときに当たる（ja / en / ko）。
 // 階・棚・クラス等の名詞の ชั้น は当たらない。
 var casualPronounMeaningRe = regexp.MustCompile(`私|自分|僕|俺|^\s*(나|저)|(?i)^\s*(I|me|my)\b`)
