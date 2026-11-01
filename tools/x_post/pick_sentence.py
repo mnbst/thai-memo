@@ -181,8 +181,8 @@ def load_json(bucket: storage.Bucket, name: str, fallback):
     return json.loads(blob.download_as_bytes())
 
 
-# 1行目の書き出し（場面のフック）の上限。タイムラインで1行に収まる長さ。
-HOOK_MAX = 30
+# 1行目の書き出し（場面のフック）の上限。スマホのタイムラインで1行に収まる長さ。
+HOOK_MAX = 20
 _THAI = re.compile("[\u0e00-\u0e7f]")
 
 
@@ -684,7 +684,7 @@ def choose_with_gemini(
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {
                 "temperature": 0.4,
-                # 理由は60字・書き出しは30字まで。思考は使わず、出力の上限で費用を抑える。
+                # 理由は60字・書き出しは20字まで。思考は使わず、出力の上限で費用を抑える。
                 "maxOutputTokens": 384,
                 "thinkingConfig": {"thinkingLevel": "minimal"},
                 "responseMimeType": "application/json",
