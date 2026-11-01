@@ -1086,7 +1086,7 @@ functions/go/internal/sentence/freebank_test.go
 free例文バンクの抽選（テーマ一致の優先・在庫の無いテーマの扱い）のテスト。
 
 functions/go/internal/sentence/select.go
-テーマ候補プールの決定とUVMからのターゲット語選定（sentence_service.py:select_uvm_target_words）。
+テーマ候補プールの決定とUVMからのターゲット語選定（sentence_service.py:select_uvm_target_words）。premium おまかせは枠ごとにテーマを無作為に決め、合う語を先に選ぶ。
 
 functions/go/internal/sentence/history.go
 users/{uid}/sentences から既出例文の本文（直近300件）を読む。バンクに同じ文を二度出させないための除外集合。

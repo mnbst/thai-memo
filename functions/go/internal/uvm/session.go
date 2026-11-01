@@ -231,6 +231,40 @@ func (s *SessionSelector) selectLeaning(
 	return picked
 }
 
+// selectLeaningEach は枠ごとに寄せ先が違う selectLeaning。i 番目の枠は
+// prefers[i] が真の未出語から1語、無ければ残りの未出語から1語選ぶ。
+// 選んだ語は以降の枠の候補から外す。
+func (s *SessionSelector) selectLeaningEach(
+	zeroP []Candidate, prefers []func(string) bool, count int,
+) []Candidate {
+	pool := append([]Candidate(nil), zeroP...)
+	var picked []Candidate
+	for i := 0; i < count && len(pool) > 0; i++ {
+		var lean []int
+		if i < len(prefers) && prefers[i] != nil {
+			for j, c := range pool {
+				if prefers[i](c.Word) {
+					lean = append(lean, j)
+				}
+			}
+		}
+		if len(lean) == 0 {
+			lean = make([]int, len(pool))
+			for j := range pool {
+				lean[j] = j
+			}
+		}
+		cands := make([]Candidate, len(lean))
+		for k, j := range lean {
+			cands[k] = pool[j]
+		}
+		j := lean[s.weightedPick(ZeroPWeights(cands))]
+		picked = append(picked, pool[j])
+		pool = append(pool[:j], pool[j+1:]...)
+	}
+	return picked
+}
+
 func (s *SessionSelector) SelectWeighted(cands []Candidate, weights []float64, count int) []Candidate {
 	pool := append([]Candidate(nil), cands...)
 	w := append([]float64(nil), weights...)
@@ -292,6 +326,9 @@ type SessionRequest struct {
 	// est が進まない。帯全体に寄せると素通りは増える（themesim_test.go。
 	// 真値350・合う語18%で 36→113 語）が、テーマ指定時の進みを優先する。
 	Prefer func(word string) bool
+	// PreferEach は枠ごとのテーマ寄せ（premium おまかせ）。i 番目の語は
+	// PreferEach[i] が真の未出語から先に選ぶ。Prefer より優先する。
+	PreferEach []func(word string) bool
 	// SkipTopicMatch が真なら、テーマ未指定でも FindBestTopic でテーマを決めない
 	// （呼び出し側が場面合致でテーマを決める）。
 	SkipTopicMatch bool
@@ -363,7 +400,9 @@ func (s *SessionSelector) GetSessionWords(
 	}
 
 	var selected []Candidate
-	if len(zeroP) > 0 && req.Prefer != nil {
+	if len(zeroP) > 0 && req.PreferEach != nil {
+		selected = s.selectLeaningEach(zeroP, req.PreferEach, req.Count)
+	} else if len(zeroP) > 0 && req.Prefer != nil {
 		selected = s.selectLeaning(zeroP, req.Prefer, req.Count)
 	} else if len(zeroP) > 0 {
 		selected = s.SelectWeighted(zeroP, ZeroPWeights(zeroP), req.Count)
