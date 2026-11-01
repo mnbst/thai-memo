@@ -175,7 +175,7 @@ lib/presentation/screens/today_screen.dart
 例文表示の本体（例文カード・クイズ導線・語彙スコアチップ・セットの進み具合 DailySetProgress）。
 
 lib/presentation/screens/detail_screen.dart
-例文詳細表示（例文カード・聞く／話す・使い方・単語・声調ガイド導線）。
+例文詳細表示（初回の案内カード・例文カード・聞く／話す・使い方・単語・語順ガイド導線）。
 
 lib/presentation/screens/history_screen.dart
 保存済み例文一覧（検索・すべて/お気に入りのチップ絞り込み・スワイプ/一括削除）。1枚のカードに罫線区切りで積む。
@@ -203,6 +203,9 @@ test/screenshots/listen_mock_screenshot.dart
 
 test/screenshots/pass_effect_mock_app.dart
 合格演出のアニメーションを例文詳細の見た目でシミュレーターに出すモック（flutter run -t、場面・スロー切替）。
+
+test/screenshots/first_set_steps_mock_app.dart
+学習の手順カードと詳細の案内カードを、本物の学習タブ・詳細画面に載せて Firebase なしでシミュレーターに出すモック（flutter run -t、下のボタンで場面切替）。
 
 test/screenshots/notif_coach_mock_app.dart
 通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
@@ -302,8 +305,11 @@ lib/presentation/widgets/premium_trial_ended_dialog.dart
 lib/presentation/widgets/premium_trial_started_dialog.dart
 後から配られたプレミアム体験の開放を伝えるダイアログ（premium_trial_backfilled_at が目印）。課金は勧めない。
 
-lib/presentation/widgets/coach_mark_overlay.dart
-対象をスポットライトで光らせ吹き出しで案内する初回ガイド。今は確認クイズの導線（まだ解いたことがない人に1回だけ、today_screen）でのみ使う。
+lib/presentation/widgets/first_set_steps.dart
+最初の例文（端末で1つ決める）でだけ学習タブに出す「学習の手順」カード（聞く→詳細→確認クイズ）と、最初の例文IDと済んだ手順の保持。
+
+lib/presentation/widgets/detail_guide_card.dart
+最初の例文の詳細でだけ出す「この画面でできること」カード（発音・使い方・声調ルール、押すとその場所へ寄せる）。
 lib/presentation/widgets/quiz_offer.dart
 1問確認クイズ導線の表示（現行はinlineカード。controlは実験再開用に残置）。
 

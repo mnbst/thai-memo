@@ -20,7 +20,7 @@ import '../providers/tts_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/streak_widgets.dart';
-import '../widgets/coach_mark_overlay.dart';
+import '../widgets/first_set_steps.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/quiz_offer.dart';
 import '../widgets/sentence_audio_section.dart';
@@ -211,16 +211,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   final Set<String> _handledQuizOfferTaps = {};
   bool _quizOfferAssignmentHandled = false;
 
-  /// 確認クイズの導線を光らせる初回ガイドを出せるかを見る間隔。
-  static const _quizOfferCoachTick = Duration(milliseconds: 500);
-
-  /// 例文が前面に出るのを待つタイマー。オンボーディング直後はペイウォールが
-  /// 上にあるので、閉じられるまで見続ける。出したか不要と分かった時点で止める。
-  Timer? _quizOfferCoachTimer;
-
-  /// ガイドを出した・不要と分かった。この State では数え直さない。
-  bool _quizOfferCoachDone = false;
-
   /// 再読み込み中か。押しっぱなしを防ぐためだけの状態。
   bool _reloading = false;
 
@@ -236,8 +226,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   @override
   void dispose() {
-    _quizOfferCoachTimer?.cancel();
-    CoachMarkOverlay.dismissFor(_quizButtonKey);
     _sentenceScrollController
       ..removeListener(_maybeLogVisibleQuizOffer)
       ..dispose();
@@ -387,7 +375,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     if (quizOfferVariant != null && quizOfferVariant.participatesInExperiment) {
       _scheduleQuizOfferShown(sentence, quizOfferVariant);
     }
-    if (quizOfferVariant != null) _startQuizOfferCoachTimer();
+    // 最初の例文を決める（学習の手順カードはこの例文でだけ出る）。
+    _scheduleFirstSentenceClaim(sentence);
 
     return Column(
       children: [
@@ -415,6 +404,13 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   readOnly: true,
                 ),
                 const SizedBox(height: 14),
+                // 初級者の初回セット1本目だけ、例文の上に手順を出す。
+                FirstSetSteps(
+                  sentenceId: sentence.id,
+                  onStartQuiz: quizOfferVariant == null
+                      ? null
+                      : () => _handleQuizOfferTap(sentence, quizOfferVariant),
+                ),
                 _buildSentenceCard(context, sentence),
                 // 聞くは例文の付属。ここだけ詰めて1組に見せる。
                 const SizedBox(height: 8),
@@ -422,6 +418,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   sentence: sentence,
                   analyticsSource: 'today_sentence',
                   practiceScope: 'home_card',
+                  onListen: () => markFirstStep(
+                      ref, sentence.id, FirstSetStep.listenSentence),
                   // 発音練習は詳細画面だけに置く。学習タブは
                   // 読む → 覚えたか確認 の一本道に保つ。
                   showPractice: false,
@@ -573,95 +571,32 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     return true;
   }
 
-  /// 確認クイズを一度も解いていない人に、導線を1回だけ光らせる。
-  ///
-  /// 初日に案内カードを見た人の3割が押さずに離れていた。以前はガイドを
-  /// 何段も出して体験を損ねたので、ここ1か所・1回に絞る。例文が出たらすぐ
-  /// 在り処だけ教え、押させずに「わかった」で閉じる。先に例文を読ませたい。
-  void _startQuizOfferCoachTimer() {
-    if (_quizOfferCoachDone || _quizOfferCoachTimer != null) return;
-    _quizOfferCoachTimer = Timer.periodic(_quizOfferCoachTick, (_) {
-      unawaited(_tickQuizOfferCoach());
+  bool _firstSentenceClaimScheduled = false;
+
+  /// 学習タブに初めて出た例文を「最初の例文」に決める。確認クイズを解いた
+  /// ことがある人（アップデートした既存ユーザー・別端末）は対象外にする。
+  void _scheduleFirstSentenceClaim(ThaiSentence sentence) {
+    final id = sentence.id;
+    if (_firstSentenceClaimScheduled || id == null) return;
+    if (ref.read(firstSentenceIdProvider) != null) return;
+    _firstSentenceClaimScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(ref.read(firstSentenceIdProvider.notifier).claim(
+        id,
+        isNewLearner: () async {
+          final stats = await ref.read(quizStatsProvider.future);
+          return stats.totalAnswered == 0;
+        },
+      ));
     });
-  }
-
-  void _stopQuizOfferCoachTimer() {
-    _quizOfferCoachDone = true;
-    _quizOfferCoachTimer?.cancel();
-  }
-
-  bool _quizOfferCoachChecking = false;
-
-  /// この画面が前面に見えているか。詳細やクイズ、ペイウォールが前面にある間と、
-  /// 別のタブ（隠れたタブは HomeScreen が TickerMode を切る）にいる間は出さない。
-  bool _canShowQuizOfferCoach() =>
-      ModalRoute.of(context)?.isCurrent == true &&
-      TickerMode.getValuesNotifier(context).value.enabled &&
-      !CoachMarkOverlay.isVisible;
-
-  Future<void> _tickQuizOfferCoach() async {
-    if (!mounted || _quizOfferCoachChecking) return;
-    if (!_canShowQuizOfferCoach() ||
-        ref.read(sentenceControllerProvider) is! SentenceStateSuccess) {
-      return;
-    }
-    _quizOfferCoachChecking = true;
-    try {
-      await _maybeShowQuizOfferCoach();
-    } finally {
-      _quizOfferCoachChecking = false;
-    }
-  }
-
-  Future<void> _maybeShowQuizOfferCoach() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(AppConfig.prefKeyQuizOfferCoachShown) ?? false) {
-      _stopQuizOfferCoachTimer();
-      return;
-    }
-    // 既に解いたことがある人（アップデートした既存ユーザー・別端末）には出さない。
-    final stats = await ref.read(quizStatsProvider.future);
-    if (stats.totalAnswered > 0) {
-      await prefs.setBool(AppConfig.prefKeyQuizOfferCoachShown, true);
-      _stopQuizOfferCoachTimer();
-      return;
-    }
-
-    // 上の読み込みを待つ間に別の画面・タブへ移っていることがある。移った先に
-    // 出すとその画面の上に暗幕とスポットが重なるので、出す直前にも確かめる。
-    if (!mounted || !_canShowQuizOfferCoach()) return;
-    final sentenceState = ref.read(sentenceControllerProvider);
-    final variant = ref.read(quizOfferVariantProvider).valueOrNull;
-    if (sentenceState is! SentenceStateSuccess || variant == null) return;
-
-    final l10n = L10n.of(context);
-    final shown = CoachMarkOverlay.show(
-      context,
-      targetKey: _quizButtonKey,
-      id: 'quiz_offer',
-      analytics: ref.read(analyticsServiceProvider),
-      icon: Icons.quiz,
-      title: l10n.coachQuizOfferTitle,
-      message: l10n.coachQuizOfferMessage,
-      targetTappable: false,
-      confirmLabel: l10n.coachGotIt,
-    );
-    if (!shown) return;
-    _stopQuizOfferCoachTimer();
-    await prefs.setBool(AppConfig.prefKeyQuizOfferCoachShown, true);
   }
 
   void _handleQuizOfferTap(
     ThaiSentence sentence,
     QuizOfferVariant variant,
   ) {
-    // 自分で押せた人にはガイドは要らない。
-    _stopQuizOfferCoachTimer();
-    unawaited(
-      SharedPreferences.getInstance().then(
-        (prefs) => prefs.setBool(AppConfig.prefKeyQuizOfferCoachShown, true),
-      ),
-    );
+    markFirstStep(ref, sentence.id, FirstSetStep.quiz);
     if (variant.participatesInExperiment) {
       final eventKey = _quizOfferEventKey(sentence, variant);
       if (!_handledQuizOfferTaps.add(eventKey)) return;

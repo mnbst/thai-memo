@@ -1511,11 +1511,6 @@
   "guideTipsRepeat": "퀴즈는 틀려도 괜찮아요. 예문 전체를 외우지 않아도 학습 단어를 여러 번 보다 보면 자연스럽게 어휘가 늘어요.",
   "guideTipsScript": "태국 문자는 먼저 단어 전체의 모양을 익히는 것만으로도 충분해요. 눈에 익으면 자음, 모음, 성조 부호를 조금씩 구별해 보세요.",
   "guideTipsSpeak": "외운 단어나 예문을 대화에서 사용해 보세요. 소리 내어 말할수록 더 잘 익힐 수 있어요.",
-  "coachQuizOfferTitle": "확인 퀴즈는 여기예요",
-  "coachQuizOfferMessage": "예문을 다 읽은 뒤 이 버튼에서 확인 퀴즈 한 문제를 풀어 학습 단어를 외웠는지 확인할 수 있어요.",
-  "coachTapHere": "빛나는 곳을 누르세요",
-  "coachSkip": "건너뛰기",
-  "coachGotIt": "확인",
   "settingsWordOrderGuide": "어순 가이드",
   "settingsWordOrderGuideSubtitle": "태국어 단어 배열 알아보기",
   "wordOrderLearnMore": "어순 자세히 알아보기",
@@ -1745,5 +1740,21 @@
   "streakWeekdayLetters": "월화수목금토일",
   "@streakWeekdayLetters": {
     "description": "月曜始まりの曜日1文字×7。1文字ずつ切って使う。"
-  }
+  },
+  "firstStepsTitle": "학습 순서",
+  "firstStepsListenSentence": "예문 음성 듣기",
+  "firstStepsListenSentenceHint": "예문 아래의 ‘모범 발음 듣기’를 눌러요",
+  "firstStepsOpenDetail": "예문 카드를 눌러 ‘상세’ 보기",
+  "firstStepsOpenDetailHint": "발음 연습과 단어별 성조를 볼 수 있어요",
+  "firstStepsQuiz": "확인 퀴즈 풀기",
+  "firstStepsQuizHint": "한 문제로 익혔는지 확인해요",
+  "firstStepsQuizStart": "풀기",
+  "detailGuideTitle": "이 화면에서 할 수 있어요",
+  "detailGuidePractice": "발음 연습하기",
+  "detailGuidePracticeHint": "모범 발음을 듣고 녹음하면 성조가 맞는지 확인해요",
+  "detailGuideWords": "단어를 눌러 성조 규칙 보기",
+  "detailGuideWordsHint": "글자 조합으로 이 성조가 되는 이유를 설명해요",
+  "detailGuideUsage": "사용법 읽기",
+  "detailGuideUsageHint": "어떤 상황에서 누구에게 쓰는지 알 수 있어요",
+  "detailGuideBackToQuiz": "학습으로 돌아가 확인 퀴즈 풀기"
 }
