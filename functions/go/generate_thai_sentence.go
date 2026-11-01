@@ -254,13 +254,20 @@ func runGenerateThaiSentence(
 	// free の枠はセット数で数えるので、本数は残りに関係なく1セットぶん作る。
 	count := requestedSetSize(params, userData)
 
+	// free はテーマ指定を受けないので、ヒアリングの用途に合うテーマの在庫を先に出す。
+	var preferredTopics map[string]bool
+	if !usePremiumSpec {
+		preferredTopics = sentence.InterviewGoalTopicSet(userData)
+	}
+
 	produced, err := producer.ProduceBatch(ctx, db, freqRank, sentence.ProduceRequest{
-		UID:            uid,
-		Params:         effectiveGenerationParams(params, usePremiumSpec),
-		UsePremiumSpec: usePremiumSpec,
-		EstimatedVocab: estimatedVocab,
-		TestedVocab:    intValue(userData["vocab_test_vocab"]),
-		Lang:           l,
+		UID:             uid,
+		PreferredTopics: preferredTopics,
+		Params:          effectiveGenerationParams(params, usePremiumSpec),
+		UsePremiumSpec:  usePremiumSpec,
+		EstimatedVocab:  estimatedVocab,
+		TestedVocab:     intValue(userData["vocab_test_vocab"]),
+		Lang:            l,
 		// LLM 生成分を1回判定し、不合格の文はセットから外す（待ち時間 +0.5 秒前後）。
 		QualityCheck: generationQualityCheck(),
 	}, count)

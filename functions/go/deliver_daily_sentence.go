@@ -275,6 +275,8 @@ func (d *deliverer) buildSentences(
 		// キャッシュミス分は語を引き直す。n 本ぶん埋めるので周回数も本数に比例させる。
 		SelectRetry: dailysentence.MaxTargetWordRetry * n,
 		Lang:        l,
+		// ヒアリングの用途に合うテーマの文を先に出す。
+		PreferredTopics: sentence.InterviewGoalTopicSet(userData),
 	}, n)
 	if err != nil {
 		log.Printf("daily_sentence: cached generation failed for %s: %v", uid, err)

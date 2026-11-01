@@ -1080,7 +1080,7 @@ functions/go/internal/uvm/graded_test.go
 IsGradedResult（採点区分）・ResultEvidence・UpdateP の向き（正解で上がり不正解で下がる）と、evidence を持たない既存 doc の移行のテスト。
 
 functions/go/internal/sentence/freebank.go
-free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、テーマで絞らない）で引き、出し切った語だけ LLM へ落とす。
+free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、ヒアリングの用途に合うテーマを先に）で引き、出し切った語だけ LLM へ落とす。
 
 functions/go/internal/sentence/freebank_test.go
 free例文バンクの抽選（テーマ一致の優先・在庫の無いテーマの扱い）のテスト。
