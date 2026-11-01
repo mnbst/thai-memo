@@ -3496,95 +3496,35 @@ abstract class L10n {
   /// **'学習のコツ'**
   String get tipCatStudy;
 
-  /// No description provided for @tip_vowelA_title.
+  /// No description provided for @tipCatGrammar.
   ///
   /// In ja, this message translates to:
-  /// **'อะ / อา （a / aa）'**
-  String get tip_vowelA_title;
+  /// **'文法'**
+  String get tipCatGrammar;
 
-  /// No description provided for @tip_vowelA_content.
+  /// No description provided for @tipCatPronunciation.
   ///
   /// In ja, this message translates to:
-  /// **'短母音 อะ は「a」、長母音 อา は「aa」。長さで意味が変わります。'**
-  String get tip_vowelA_content;
+  /// **'発音'**
+  String get tipCatPronunciation;
 
-  /// No description provided for @tip_vowelA_example.
+  /// No description provided for @tipCatScript.
   ///
   /// In ja, this message translates to:
-  /// **'จะ（jà＝〜する） / จา（jaa＝皿）'**
-  String get tip_vowelA_example;
+  /// **'文字'**
+  String get tipCatScript;
 
-  /// No description provided for @tip_vowelI_title.
+  /// No description provided for @tipWordExample.
   ///
   /// In ja, this message translates to:
-  /// **'อิ / อี （i / ii）'**
-  String get tip_vowelI_title;
+  /// **'{thai}（{reading}＝{meaning}）'**
+  String tipWordExample(String thai, String reading, String meaning);
 
-  /// No description provided for @tip_vowelI_content.
+  /// No description provided for @tipGrammarExample.
   ///
   /// In ja, this message translates to:
-  /// **'短母音 อิ は短い「i」、長母音 อี は長い「ii」。'**
-  String get tip_vowelI_content;
-
-  /// No description provided for @tip_vowelI_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'นิด（nít＝少し） / นี่（nîi＝これ）'**
-  String get tip_vowelI_example;
-
-  /// No description provided for @tip_vowelU_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'อุ / อู （u / uu）'**
-  String get tip_vowelU_title;
-
-  /// No description provided for @tip_vowelU_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'短母音 อุ は短い「u」、長母音 อู は長い「uu」。'**
-  String get tip_vowelU_content;
-
-  /// No description provided for @tip_vowelU_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'รุ่น（rûn＝世代） / รู้（rúu＝知る）'**
-  String get tip_vowelU_example;
-
-  /// No description provided for @tip_vowelE_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'เอ / แอ （ee / ɛɛ）'**
-  String get tip_vowelE_title;
-
-  /// No description provided for @tip_vowelE_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'เอ は「ee」、แอ は口を大きく開けた「ɛɛ」。'**
-  String get tip_vowelE_content;
-
-  /// No description provided for @tip_vowelE_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'เก่ง（kèeng＝上手） / แก่（kɛ̀ɛ＝老いた）'**
-  String get tip_vowelE_example;
-
-  /// No description provided for @tip_vowelO_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'โอ / ออ （oo / ɔɔ）'**
-  String get tip_vowelO_title;
-
-  /// No description provided for @tip_vowelO_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'โอ は口をすぼめた「oo」、ออ は口を開けた「ɔɔ」。'**
-  String get tip_vowelO_content;
-
-  /// No description provided for @tip_vowelO_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'โต（too＝大きい） / ต่อ（tɔ̀ɔ＝続ける）'**
-  String get tip_vowelO_example;
+  /// **'{thai}（{meaning}）'**
+  String tipGrammarExample(String thai, String meaning);
 
   /// No description provided for @tip_vowelUea_title.
   ///
@@ -3603,24 +3543,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'เมือง（mʉʉang＝街・国）'**
   String get tip_vowelUea_example;
-
-  /// No description provided for @tip_vowelUu_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'อือ / อื （ʉ / ʉʉ）'**
-  String get tip_vowelUu_title;
-
-  /// No description provided for @tip_vowelUu_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'日本語にない音。「i」の口で「u」と発音するイメージ。'**
-  String get tip_vowelUu_content;
-
-  /// No description provided for @tip_vowelUu_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'คือ（khʉʉ＝〜である） / ฝืน（fʉ̌ʉn＝無理する）'**
-  String get tip_vowelUu_example;
 
   /// No description provided for @tip_vowelIa_title.
   ///
@@ -3694,78 +3616,6 @@ abstract class L10n {
   /// **'ไป（pai＝行く） / ใจ（jai＝心）'**
   String get tip_vowelAi_example;
 
-  /// No description provided for @tip_vowelShortE_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'เอ็（短母音 e）'**
-  String get tip_vowelShortE_title;
-
-  /// No description provided for @tip_vowelShortE_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'短い「e」。เ〜็ の形で表記されます。'**
-  String get tip_vowelShortE_content;
-
-  /// No description provided for @tip_vowelShortE_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'เก็บ（kèp＝拾う・保管する）'**
-  String get tip_vowelShortE_example;
-
-  /// No description provided for @tip_vowelShortAe_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'แอ็（短母音 ɛ）'**
-  String get tip_vowelShortAe_title;
-
-  /// No description provided for @tip_vowelShortAe_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'短い「ɛ」（口を大きく開ける）。แ〜็ の形。'**
-  String get tip_vowelShortAe_content;
-
-  /// No description provided for @tip_vowelShortAe_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'แบ็ก（bɛ̀k＝バッグ）'**
-  String get tip_vowelShortAe_example;
-
-  /// No description provided for @tip_vowelOe_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'เออ （əə）'**
-  String get tip_vowelOe_title;
-
-  /// No description provided for @tip_vowelOe_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'เออ は曖昧な母音「əə」。口を半開きにして発音。'**
-  String get tip_vowelOe_content;
-
-  /// No description provided for @tip_vowelOe_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'เธอ（thəə＝あなた・彼女）'**
-  String get tip_vowelOe_example;
-
-  /// No description provided for @tip_vowelLength_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'母音の長短で意味が変わる'**
-  String get tip_vowelLength_title;
-
-  /// No description provided for @tip_vowelLength_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'タイ語は母音の長さが重要。短母音と長母音で別の単語になります。'**
-  String get tip_vowelLength_content;
-
-  /// No description provided for @tip_vowelLength_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'เข้า（khâw＝入る） / ข้าว（khâaw＝ご飯）'**
-  String get tip_vowelLength_example;
-
   /// No description provided for @tip_cultureWai_title.
   ///
   /// In ja, this message translates to:
@@ -3838,90 +3688,6 @@ abstract class L10n {
   /// **'「気にしないで・大丈夫」。タイ人の寛容さを表す代表的フレーズです。'**
   String get tip_cultureMaiPenRai_content;
 
-  /// No description provided for @tip_toneFive_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'タイ語は5つの声調'**
-  String get tip_toneFive_title;
-
-  /// No description provided for @tip_toneFive_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'平声・低声・下降声・高声・上昇声の5つ。声調が違うと全く別の単語になります。'**
-  String get tip_toneFive_content;
-
-  /// No description provided for @tip_toneFive_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'ไหม（mǎi＝絹） / ใหม่（mài＝新しい） / ไม่（mâi＝〜ない）'**
-  String get tip_toneFive_example;
-
-  /// No description provided for @tip_toneMaiEk_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調記号 ่ （mái èek）'**
-  String get tip_toneMaiEk_title;
-
-  /// No description provided for @tip_toneMaiEk_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'文字の上に付く第1声調記号。中子音・高子音に付くと低声になります。'**
-  String get tip_toneMaiEk_content;
-
-  /// No description provided for @tip_toneMaiEk_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'เก่า（kàw＝古い）、ข่าว（khàaw＝ニュース）'**
-  String get tip_toneMaiEk_example;
-
-  /// No description provided for @tip_toneMaiTho_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調記号 ้ （mái thoo）'**
-  String get tip_toneMaiTho_title;
-
-  /// No description provided for @tip_toneMaiTho_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'文字の上に付く第2声調記号。中子音に付くと下降声になります。'**
-  String get tip_toneMaiTho_content;
-
-  /// No description provided for @tip_toneMaiTho_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'น้ำ（náam＝水）、บ้าน（bâan＝家）'**
-  String get tip_toneMaiTho_example;
-
-  /// No description provided for @tip_toneMaiTriChat_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調記号 ๊ と ๋'**
-  String get tip_toneMaiTriChat_title;
-
-  /// No description provided for @tip_toneMaiTriChat_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'๊（mái trii）は高声、๋（mái jàttawaa）は上昇声を示します。使用頻度は低め。'**
-  String get tip_toneMaiTriChat_content;
-
-  /// No description provided for @tip_toneMaiTriChat_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'โน๊ต（nóot＝ノート）、จ๋า（jǎa＝はいよ）'**
-  String get tip_toneMaiTriChat_example;
-
-  /// No description provided for @tip_toneClassRelation_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'子音クラスと声調の関係'**
-  String get tip_toneClassRelation_title;
-
-  /// No description provided for @tip_toneClassRelation_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調は子音クラス（高・中・低）×母音の長短×末子音×声調記号で決まります。'**
-  String get tip_toneClassRelation_content;
-
   /// No description provided for @tip_toneMistake_title.
   ///
   /// In ja, this message translates to:
@@ -3933,42 +3699,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'สวย（sǔuai＝美しい）と ซวย（suuai＝ついてない）のように声調で意味が激変。'**
   String get tip_toneMistake_content;
-
-  /// No description provided for @tip_toneMidExplain_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'平声（sǎa-man）'**
-  String get tip_toneMidExplain_title;
-
-  /// No description provided for @tip_toneMidExplain_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'中くらいの高さで平らに発音。中子音＋長母音（声調記号なし）が基本パターン。'**
-  String get tip_toneMidExplain_content;
-
-  /// No description provided for @tip_toneMidExplain_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'กา（kaa＝カラス）、ดี（dii＝良い）'**
-  String get tip_toneMidExplain_example;
-
-  /// No description provided for @tip_toneRisingExplain_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'上昇声（jàttawaa）'**
-  String get tip_toneRisingExplain_title;
-
-  /// No description provided for @tip_toneRisingExplain_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'低い音から高い音へ上がる声調。日本語の疑問文の語尾上げに少し似ています。'**
-  String get tip_toneRisingExplain_content;
-
-  /// No description provided for @tip_toneRisingExplain_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'สวย（sǔuai＝美しい）、หนาว（nǎaw＝寒い）'**
-  String get tip_toneRisingExplain_example;
 
   /// No description provided for @tip_toneRelative_title.
   ///
@@ -4029,42 +3759,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'残り24文字が低子音。対応する高子音がある「対応字」と「単独字」に分かれます。'**
   String get tip_consonantLow_content;
-
-  /// No description provided for @tip_consonantFinal_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'末子音の発音ルール'**
-  String get tip_consonantFinal_title;
-
-  /// No description provided for @tip_consonantFinal_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'末子音は k, t, p, n, m, ng, i, o の8音のみ。元の子音と違う音になることも。'**
-  String get tip_consonantFinal_content;
-
-  /// No description provided for @tip_consonantFinal_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'บ,ป,พ,ภ,ฟ → 末子音ではすべて -p'**
-  String get tip_consonantFinal_example;
-
-  /// No description provided for @tip_consonantAspiration_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'有気音と無気音'**
-  String get tip_consonantAspiration_title;
-
-  /// No description provided for @tip_consonantAspiration_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'タイ語は息の有無で子音を区別。ป（無気音 p）と พ（有気音 ph）は別の音。'**
-  String get tip_consonantAspiration_content;
-
-  /// No description provided for @tip_consonantAspiration_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'ปา（paa＝投げる） / พา（phaa＝連れて行く）'**
-  String get tip_consonantAspiration_example;
 
   /// No description provided for @tip_consonantSilent_title.
   ///
@@ -4150,24 +3844,6 @@ abstract class L10n {
   /// **'11は sìp èt、21は yîi sìp èt。1の位と2の十の位が特殊。'**
   String get tip_number11and21_content;
 
-  /// No description provided for @tip_numberClassifier_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'類別詞（láksanànaam）'**
-  String get tip_numberClassifier_title;
-
-  /// No description provided for @tip_numberClassifier_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'数を数えるとき「数詞＋類別詞」が必要。日本語の「〜本」「〜枚」と同じ仕組み。'**
-  String get tip_numberClassifier_content;
-
-  /// No description provided for @tip_numberClassifier_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'khon（人）、tua（動物）、an（小物）'**
-  String get tip_numberClassifier_example;
-
   /// No description provided for @tip_numberBig_title.
   ///
   /// In ja, this message translates to:
@@ -4197,24 +3873,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'an-níi thâo rài（これいくら？）'**
   String get tip_numberPrice_example;
-
-  /// No description provided for @tip_dailyPolite_title.
-  ///
-  /// In ja, this message translates to:
-  /// **'ครับ / ค่ะ（khráp / khâ）'**
-  String get tip_dailyPolite_title;
-
-  /// No description provided for @tip_dailyPolite_content.
-  ///
-  /// In ja, this message translates to:
-  /// **'男性は khráp（ครับ）、女性は khâ（ค่ะ）を文末に付けて丁寧にします。タイ語の基本マナー。'**
-  String get tip_dailyPolite_content;
-
-  /// No description provided for @tip_dailyPolite_example.
-  ///
-  /// In ja, this message translates to:
-  /// **'khɔ̀ɔp khun khráp / khɔ̀ɔp khun khâ'**
-  String get tip_dailyPolite_example;
 
   /// No description provided for @tip_dailyHello_title.
   ///
@@ -5773,7 +5431,7 @@ abstract class L10n {
   /// No description provided for @wordOrderRule16Body.
   ///
   /// In ja, this message translates to:
-  /// **'「買い物に行く」は ไป（行く）＋ซื้อ（買う）のように、起きる順に動詞を並べます。ไป・มา が「〜て行く・〜て来る」の意味のときは後ろに付きます。'**
+  /// **'動詞を続けると、目的（ไป + ซื้อ + ของ）・順序（อาบน้ำ + นอน）・方法（เดิน + กลับ + บ้าน）を表せます。基本は意味の流れに沿って並べます。'**
   String get wordOrderRule16Body;
 
   /// No description provided for @wordOrderEx16aGloss.
@@ -5799,6 +5457,120 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'水を持ってくる'**
   String get wordOrderEx16bMeaning;
+
+  /// No description provided for @wordOrderEx16cGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'歩く|戻る|家'**
+  String get wordOrderEx16cGloss;
+
+  /// No description provided for @wordOrderEx16cMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'歩いて家に帰る'**
+  String get wordOrderEx16cMeaning;
+
+  /// No description provided for @wordOrderRule17Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'後ろの動詞で結果・続きを表す'**
+  String get wordOrderRule17Title;
+
+  /// No description provided for @wordOrderRule17Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'動詞の後ろに หมด（すべて〜する）・เสร็จ（〜し終える）を置くと、動作の結果を表します。ต่อ（続ける）なら、その動作を続ける意味です。'**
+  String get wordOrderRule17Body;
+
+  /// No description provided for @wordOrderEx17aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べる|なくなる'**
+  String get wordOrderEx17aGloss;
+
+  /// No description provided for @wordOrderEx17aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'全部食べる'**
+  String get wordOrderEx17aMeaning;
+
+  /// No description provided for @wordOrderEx17bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べる|終わる'**
+  String get wordOrderEx17bGloss;
+
+  /// No description provided for @wordOrderEx17bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べ終わる'**
+  String get wordOrderEx17bMeaning;
+
+  /// No description provided for @wordOrderEx17cGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べる|続ける'**
+  String get wordOrderEx17cGloss;
+
+  /// No description provided for @wordOrderEx17cMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'食べ続ける'**
+  String get wordOrderEx17cMeaning;
+
+  /// No description provided for @wordOrderRule18Title.
+  ///
+  /// In ja, this message translates to:
+  /// **'同じ動詞を重ねる（ๆ）'**
+  String get wordOrderRule18Title;
+
+  /// No description provided for @wordOrderRule18Body.
+  ///
+  /// In ja, this message translates to:
+  /// **'ๆ は直前の語を繰り返す記号です。動詞を重ねると、軽く（ลองๆ ดู）・〜たり〜たり（เดินๆ หยุดๆ）・なんとなくやしばらく（ดูๆ ไปก่อน）を表せます。'**
+  String get wordOrderRule18Body;
+
+  /// No description provided for @wordOrderEx18aGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'ちょっと試す|みる'**
+  String get wordOrderEx18aGloss;
+
+  /// No description provided for @wordOrderEx18aMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'ちょっと試してみる'**
+  String get wordOrderEx18aMeaning;
+
+  /// No description provided for @wordOrderEx18bGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'歩いたり|止まったり'**
+  String get wordOrderEx18bGloss;
+
+  /// No description provided for @wordOrderEx18bMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'歩いたり止まったりする'**
+  String get wordOrderEx18bMeaning;
+
+  /// No description provided for @wordOrderEx18cGloss.
+  ///
+  /// In ja, this message translates to:
+  /// **'しばらく見る|〜していく|ひとまず'**
+  String get wordOrderEx18cGloss;
+
+  /// No description provided for @wordOrderEx18cMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'とりあえず様子を見る'**
+  String get wordOrderEx18cMeaning;
+
+  /// No description provided for @wordOrderRule18Note.
+  ///
+  /// In ja, this message translates to:
+  /// **'動詞以外も重ねます。เร็วๆ（速く）・บ่อยๆ（よく）のほか、名詞では เด็กๆ（子どもたち）などがあります。'**
+  String get wordOrderRule18Note;
 
   /// No description provided for @thaiScriptGuideTitle.
   ///

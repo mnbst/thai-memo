@@ -1960,50 +1960,23 @@ class L10nKo extends L10n {
   String get tipCatStudy => '학습 팁';
 
   @override
-  String get tip_vowelA_title => 'อะ / อา (a / aa)';
+  String get tipCatGrammar => '문법';
 
   @override
-  String get tip_vowelA_content =>
-      '단모음 อะ는 ‘a’, 장모음 อา는 ‘aa’예요. 길이에 따라 뜻이 달라져요.';
+  String get tipCatPronunciation => '발음';
 
   @override
-  String get tip_vowelA_example => 'จะ(jà=~하다) / จา(jaa=접시)';
+  String get tipCatScript => '문자';
 
   @override
-  String get tip_vowelI_title => 'อิ / อี (i / ii)';
+  String tipWordExample(String thai, String reading, String meaning) {
+    return '$thai($reading=$meaning)';
+  }
 
   @override
-  String get tip_vowelI_content => '단모음 อิ는 짧은 ‘i’, 장모음 อี는 긴 ‘ii’예요.';
-
-  @override
-  String get tip_vowelI_example => 'นิด(nít=조금) / นี่(nîi=이것)';
-
-  @override
-  String get tip_vowelU_title => 'อุ / อู (u / uu)';
-
-  @override
-  String get tip_vowelU_content => '단모음 อุ는 짧은 ‘u’, 장모음 อู는 긴 ‘uu’예요.';
-
-  @override
-  String get tip_vowelU_example => 'รุ่น(rûn=세대) / รู้(rúu=알다)';
-
-  @override
-  String get tip_vowelE_title => 'เอ / แอ (ee / ɛɛ)';
-
-  @override
-  String get tip_vowelE_content => 'เอ는 ‘ee’, แอ는 입을 크게 벌리는 ‘ɛɛ’예요.';
-
-  @override
-  String get tip_vowelE_example => 'เก่ง(kèeng=잘하다) / แก่(kɛ̀ɛ=늙은)';
-
-  @override
-  String get tip_vowelO_title => 'โอ / ออ (oo / ɔɔ)';
-
-  @override
-  String get tip_vowelO_content => 'โอ는 입술을 오므리는 ‘oo’, ออ는 입을 크게 벌리는 ‘ɔɔ’예요.';
-
-  @override
-  String get tip_vowelO_example => 'โต(too=크다) / ต่อ(tɔ̀ɔ=계속하다)';
+  String tipGrammarExample(String thai, String meaning) {
+    return '$thai($meaning)';
+  }
 
   @override
   String get tip_vowelUea_title => 'เอือ (ʉa)';
@@ -2013,16 +1986,6 @@ class L10nKo extends L10n {
 
   @override
   String get tip_vowelUea_example => 'เมือง(mʉʉang=도시·나라)';
-
-  @override
-  String get tip_vowelUu_title => 'อือ / อื (ʉ / ʉʉ)';
-
-  @override
-  String get tip_vowelUu_content =>
-      '한국어에 없는 소리예요. ‘i’를 발음할 때의 입 모양으로 ‘u’를 낸다고 생각해 보세요.';
-
-  @override
-  String get tip_vowelUu_example => 'คือ(khʉʉ=~이다) / ฝืน(fʉ̌ʉn=억지로 하다)';
 
   @override
   String get tip_vowelIa_title => 'เอีย (ia)';
@@ -2059,43 +2022,6 @@ class L10nKo extends L10n {
 
   @override
   String get tip_vowelAi_example => 'ไป(pai=가다) / ใจ(jai=마음)';
-
-  @override
-  String get tip_vowelShortE_title => 'เอ็(단모음 e)';
-
-  @override
-  String get tip_vowelShortE_content => '짧은 ‘e’예요. เ~็ 형태로 표기해요.';
-
-  @override
-  String get tip_vowelShortE_example => 'เก็บ(kèp=줍다·보관하다)';
-
-  @override
-  String get tip_vowelShortAe_title => 'แอ็(단모음 ɛ)';
-
-  @override
-  String get tip_vowelShortAe_content => '짧은 ‘ɛ’로 입을 크게 벌려요. แ~็ 형태예요.';
-
-  @override
-  String get tip_vowelShortAe_example => 'แบ็ก(bɛ̀k=가방)';
-
-  @override
-  String get tip_vowelOe_title => 'เออ (əə)';
-
-  @override
-  String get tip_vowelOe_content => 'เออ는 중성 모음 ‘əə’예요. 입을 반쯤 벌리고 힘을 빼서 발음해요.';
-
-  @override
-  String get tip_vowelOe_example => 'เธอ(thəə=너·그녀)';
-
-  @override
-  String get tip_vowelLength_title => '모음 길이에 따라 달라지는 뜻';
-
-  @override
-  String get tip_vowelLength_content =>
-      '태국어에서는 모음 길이가 중요해요. 단모음과 장모음은 서로 다른 단어가 돼요.';
-
-  @override
-  String get tip_vowelLength_example => 'เข้า(khâw=들어가다) / ข้าว(khâaw=밥)';
 
   @override
   String get tip_cultureWai_title => 'wâi(합장 인사·ไหว้)';
@@ -2140,78 +2066,11 @@ class L10nKo extends L10n {
       '‘신경 쓰지 마세요·괜찮아요’라는 뜻으로, 태국인의 관용적인 태도를 보여 주는 대표 표현이에요.';
 
   @override
-  String get tip_toneFive_title => '태국어의 다섯 가지 성조';
-
-  @override
-  String get tip_toneFive_content =>
-      '평성·저성·하강성·고성·상승성의 다섯 가지예요. 성조가 다르면 전혀 다른 단어가 돼요.';
-
-  @override
-  String get tip_toneFive_example =>
-      'ไหม(mǎi=비단) / ใหม่(mài=새로운) / ไม่(mâi=~않다)';
-
-  @override
-  String get tip_toneMaiEk_title => '성조 부호 ่ (mái èek)';
-
-  @override
-  String get tip_toneMaiEk_content =>
-      '문자 위에 붙는 제1성조 부호예요. 중자음·고자음에 붙으면 저성이 돼요.';
-
-  @override
-  String get tip_toneMaiEk_example => 'เก่า(kàw=오래된), ข่าว(khàaw=뉴스)';
-
-  @override
-  String get tip_toneMaiTho_title => '성조 부호 ้ (mái thoo)';
-
-  @override
-  String get tip_toneMaiTho_content => '문자 위에 붙는 제2성조 부호예요. 중자음에 붙으면 하강성이 돼요.';
-
-  @override
-  String get tip_toneMaiTho_example => 'น้ำ(náam=물), บ้าน(bâan=집)';
-
-  @override
-  String get tip_toneMaiTriChat_title => '성조 부호 ๊와 ๋';
-
-  @override
-  String get tip_toneMaiTriChat_content =>
-      '๊(mái trii)는 고성, ๋(mái jàttawaa)는 상승성을 나타내요. 사용 빈도는 낮은 편이에요.';
-
-  @override
-  String get tip_toneMaiTriChat_example => 'โน๊ต(nóot=노트), จ๋า(jǎa=응)';
-
-  @override
-  String get tip_toneClassRelation_title => '자음 등급과 성조의 관계';
-
-  @override
-  String get tip_toneClassRelation_content =>
-      '성조는 자음 등급(고·중·저)×모음 길이×종성×성조 부호로 정해져요.';
-
-  @override
   String get tip_toneMistake_title => '성조를 틀리면…';
 
   @override
   String get tip_toneMistake_content =>
       'สวย(sǔuai=아름답다)와 ซวย(suuai=운이 나쁘다)처럼 성조에 따라 뜻이 크게 달라져요.';
-
-  @override
-  String get tip_toneMidExplain_title => '평성(sǎa-man)';
-
-  @override
-  String get tip_toneMidExplain_content =>
-      '중간 높이에서 평평하게 발음해요. 중자음+장모음(성조 부호 없음)이 기본 형태예요.';
-
-  @override
-  String get tip_toneMidExplain_example => 'กา(kaa=까마귀), ดี(dii=좋다)';
-
-  @override
-  String get tip_toneRisingExplain_title => '상승성(jàttawaa)';
-
-  @override
-  String get tip_toneRisingExplain_content =>
-      '낮은 음에서 높은 음으로 올라가는 성조예요. 한국어에서 되묻거나 놀랄 때 문장 끝을 올리는 억양과 조금 비슷해요.';
-
-  @override
-  String get tip_toneRisingExplain_example => 'สวย(sǔuai=아름답다), หนาว(nǎaw=춥다)';
 
   @override
   String get tip_toneRelative_title => '성조는 상대적인 음높이';
@@ -2247,26 +2106,6 @@ class L10nKo extends L10n {
   @override
   String get tip_consonantLow_content =>
       '나머지 24개가 저자음이에요. 대응하는 고자음이 있는 ‘짝자음’과 ‘단독 자음’으로 나뉘어요.';
-
-  @override
-  String get tip_consonantFinal_title => '종성 발음 규칙';
-
-  @override
-  String get tip_consonantFinal_content =>
-      '종성은 k, t, p, n, m, ng, i, o의 여덟 소리뿐이에요. 원래 자음과 다른 소리가 나기도 해요.';
-
-  @override
-  String get tip_consonantFinal_example => 'บ,ป,พ,ภ,ฟ → 종성에서는 모두 -p';
-
-  @override
-  String get tip_consonantAspiration_title => '유기음과 무기음';
-
-  @override
-  String get tip_consonantAspiration_content =>
-      '태국어는 숨의 세기로 자음을 구별해요. ป(무기음 p)와 พ(유기음 ph)는 서로 다른 소리예요.';
-
-  @override
-  String get tip_consonantAspiration_example => 'ปา(paa=던지다) / พา(phaa=데려가다)';
 
   @override
   String get tip_consonantSilent_title => '묵음 부호 ์(kaa-ran)';
@@ -2316,16 +2155,6 @@ class L10nKo extends L10n {
       '11은 sìp èt, 21은 yîi sìp èt이에요. 일의 자리 1과 십의 자리 2를 특별하게 읽어요.';
 
   @override
-  String get tip_numberClassifier_title => '분류사(láksanànaam)';
-
-  @override
-  String get tip_numberClassifier_content =>
-      '수를 셀 때 ‘수사+분류사’가 필요해요. 한국어의 ‘~명’, ‘~개’와 비슷한 원리예요.';
-
-  @override
-  String get tip_numberClassifier_example => 'khon(사람), tua(동물), an(작은 물건)';
-
-  @override
   String get tip_numberBig_title => '백·천·만 단위';
 
   @override
@@ -2341,16 +2170,6 @@ class L10nKo extends L10n {
 
   @override
   String get tip_numberPrice_example => 'an-níi thâo rài(이거 얼마예요?)';
-
-  @override
-  String get tip_dailyPolite_title => 'ครับ / ค่ะ(khráp / khâ)';
-
-  @override
-  String get tip_dailyPolite_content =>
-      '남성은 khráp(ครับ), 여성은 khâ(ค่ะ)를 문장 끝에 붙여 공손하게 말해요. 태국어의 기본 예절이에요.';
-
-  @override
-  String get tip_dailyPolite_example => 'khɔ̀ɔp khun khráp / khɔ̀ɔp khun khâ';
 
   @override
   String get tip_dailyHello_title => 'สวัสดี(sà-wàt-dii)';
@@ -3215,7 +3034,7 @@ class L10nKo extends L10n {
 
   @override
   String get wordOrderRule16Body =>
-      '‘쇼핑하러 가다’는 ไป(가다)+ซื้อ(사다)처럼 일어나는 순서대로 동사를 놓아요. ไป·มา가 ‘~해 가다·~해 오다’라는 뜻일 때는 뒤에 붙어요.';
+      '동사를 이어 놓으면 목적(ไป + ซื้อ + ของ)·순서(อาบน้ำ + นอน)·방법(เดิน + กลับ + บ้าน)을 나타낼 수 있어요. 기본적으로 의미의 흐름에 따라 배열해요.';
 
   @override
   String get wordOrderEx16aGloss => '나|가다|사다|물건';
@@ -3228,6 +3047,66 @@ class L10nKo extends L10n {
 
   @override
   String get wordOrderEx16bMeaning => '물을 가져오다';
+
+  @override
+  String get wordOrderEx16cGloss => '걷다|돌아가다|집';
+
+  @override
+  String get wordOrderEx16cMeaning => '걸어서 집에 돌아가다';
+
+  @override
+  String get wordOrderRule17Title => '뒤의 동사로 결과·계속을 나타내기';
+
+  @override
+  String get wordOrderRule17Body =>
+      '동사 뒤에 หมด(모두 ~하다)·เสร็จ(~을 마치다)를 놓으면 동작의 결과를 나타내요. ต่อ(계속하다)는 그 동작을 이어 간다는 뜻이에요.';
+
+  @override
+  String get wordOrderEx17aGloss => '먹다|다 없어지다';
+
+  @override
+  String get wordOrderEx17aMeaning => '전부 먹다';
+
+  @override
+  String get wordOrderEx17bGloss => '먹다|끝내다';
+
+  @override
+  String get wordOrderEx17bMeaning => '다 먹다';
+
+  @override
+  String get wordOrderEx17cGloss => '먹다|계속하다';
+
+  @override
+  String get wordOrderEx17cMeaning => '계속 먹다';
+
+  @override
+  String get wordOrderRule18Title => '같은 동사를 반복하기(ๆ)';
+
+  @override
+  String get wordOrderRule18Body =>
+      'ๆ는 바로 앞말을 반복하는 기호예요. 동사를 겹치면 가볍게(ลองๆ ดู)·~했다 ~했다(เดินๆ หยุดๆ)·별생각 없이 또는 잠시(ดูๆ ไปก่อน)라는 뜻을 나타낼 수 있어요.';
+
+  @override
+  String get wordOrderEx18aGloss => '가볍게 시도하다|보다';
+
+  @override
+  String get wordOrderEx18aMeaning => '가볍게 한번 해 보다';
+
+  @override
+  String get wordOrderEx18bGloss => '걷기도 하다|멈추기도 하다';
+
+  @override
+  String get wordOrderEx18bMeaning => '걷다가 멈추기를 반복하다';
+
+  @override
+  String get wordOrderEx18cGloss => '잠시 지켜보다|이어 가다|우선';
+
+  @override
+  String get wordOrderEx18cMeaning => '일단 지켜보다';
+
+  @override
+  String get wordOrderRule18Note =>
+      '동사 외의 말도 겹쳐 써요. เร็วๆ(빨리)·บ่อยๆ(자주), 명사인 เด็กๆ(아이들) 등이 있어요.';
 
   @override
   String get thaiScriptGuideTitle => '태국 문자 가이드';
