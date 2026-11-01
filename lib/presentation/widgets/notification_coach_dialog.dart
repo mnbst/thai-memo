@@ -206,10 +206,10 @@ NotificationRepromptArm assignNotificationRepromptArm(
 
 /// 毎日例文通知を継続サポート機能として紹介する。出したら true。
 ///
-/// 出す場面は [trigger] で記録する。summary_quiz（まとめクイズ完了時）と
-/// confirmation_quiz（確認クイズを終えて次の例文が出たとき）。5本終える前に
-/// やめる人が多く、まとめクイズだけでは大半が一度も案内を見ないため、
-/// 確認クイズのあとでも初回だけ出す（[firstOnly]）。再案内はまとめクイズに限る。
+/// 出す場面は [trigger] で記録する。今はまとめクイズ完了時（summary_quiz）だけ。
+/// 2026-10-29〜 は確認クイズのあと（次の例文が出たとき）にも初回だけ出して
+/// いたが、読み始めた2本目をさえぎるうえ、まとめクイズまでの導線は最初の例文の
+/// 「学習の手順」カードに任せることにしたのでやめた（2026-11）。
 ///
 /// 体験する前に出すと通知そのものを断られやすい（iOSでは一度拒否されると
 /// 二度と要求できない）ため、インストール直後には出さない。設定タブを開いた
@@ -221,7 +221,6 @@ Future<bool> maybeShowNotificationCoach(
   BuildContext context,
   WidgetRef ref, {
   required String trigger,
-  bool firstOnly = false,
 }) async {
   final controller = ref.read(settingsControllerProvider.notifier);
   // 初期化前の state は「表示済み」側の既定値なので、読む前に必ず待つ。
@@ -230,7 +229,6 @@ Future<bool> maybeShowNotificationCoach(
 
   final settings = ref.read(settingsControllerProvider);
   final coachShown = settings.notificationCoachShown;
-  if (firstOnly && coachShown) return false;
   const repromptVersion = AppConfig.notificationCoachRepromptVersion;
   final permissionGranted =
       await controller.hasProminentNotificationPermission();
