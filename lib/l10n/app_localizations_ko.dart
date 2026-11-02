@@ -3293,6 +3293,40 @@ class L10nKo extends L10n {
   }
 
   @override
+  String streakBurstDays(int count) {
+    return '$count일';
+  }
+
+  @override
+  String streakBurstWeeks(int count) {
+    return '$count주';
+  }
+
+  @override
+  String get streakBurstMonth => '1개월';
+
+  @override
+  String get streakBurstDone => '연속 달성!';
+
+  @override
+  String get streakBurstStart => '기록 시작!';
+
+  @override
+  String get streakPraiseFight => '화이팅';
+
+  @override
+  String get streakPraiseGreat => '대단해요';
+
+  @override
+  String get streakPraiseAwesome => '최고!';
+
+  @override
+  String get streakPraiseExcellent => '훌륭해요';
+
+  @override
+  String get streakPraiseLegend => '신의 경지';
+
+  @override
   String get streakRestart => '1개 만들면 다시 시작';
 
   @override

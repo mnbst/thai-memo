@@ -5884,6 +5884,66 @@ abstract class L10n {
   /// **'例文 {count}日継続'**
   String streakTitle(int count);
 
+  /// No description provided for @streakBurstDays.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}日'**
+  String streakBurstDays(int count);
+
+  /// No description provided for @streakBurstWeeks.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}週間'**
+  String streakBurstWeeks(int count);
+
+  /// No description provided for @streakBurstMonth.
+  ///
+  /// In ja, this message translates to:
+  /// **'1か月'**
+  String get streakBurstMonth;
+
+  /// No description provided for @streakBurstDone.
+  ///
+  /// In ja, this message translates to:
+  /// **'続きました！'**
+  String get streakBurstDone;
+
+  /// No description provided for @streakBurstStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'記録スタート！'**
+  String get streakBurstStart;
+
+  /// No description provided for @streakPraiseFight.
+  ///
+  /// In ja, this message translates to:
+  /// **'がんばれ'**
+  String get streakPraiseFight;
+
+  /// No description provided for @streakPraiseGreat.
+  ///
+  /// In ja, this message translates to:
+  /// **'すごいね'**
+  String get streakPraiseGreat;
+
+  /// No description provided for @streakPraiseAwesome.
+  ///
+  /// In ja, this message translates to:
+  /// **'最高！'**
+  String get streakPraiseAwesome;
+
+  /// No description provided for @streakPraiseExcellent.
+  ///
+  /// In ja, this message translates to:
+  /// **'素晴らしい'**
+  String get streakPraiseExcellent;
+
+  /// No description provided for @streakPraiseLegend.
+  ///
+  /// In ja, this message translates to:
+  /// **'神レベル'**
+  String get streakPraiseLegend;
+
   /// No description provided for @streakRestart.
   ///
   /// In ja, this message translates to:

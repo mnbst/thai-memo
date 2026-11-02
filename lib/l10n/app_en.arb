@@ -1524,6 +1524,22 @@
   "@streakTitle": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "streakBurstDays": "{count} days",
+  "@streakBurstDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstWeeks": "{count, plural, =1{1 week} other{{count} weeks}}",
+  "@streakBurstWeeks": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstMonth": "1 month",
+  "streakBurstDone": "in a row!",
+  "streakBurstStart": "Streak started!",
+  "streakPraiseFight": "Keep it up",
+  "streakPraiseGreat": "Great job",
+  "streakPraiseAwesome": "Awesome!",
+  "streakPraiseExcellent": "Excellent",
+  "streakPraiseLegend": "Legendary",
   "streakRestart": "Make 1 sentence to restart",
   "streakStart": "Make a sentence today to start",
   "streakBest": "Best {count}",
