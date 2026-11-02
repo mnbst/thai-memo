@@ -1,4 +1,7 @@
 - 出力する情報は常に必要最小限ででわかりやすいものにしてください
+- デプロイ（firebase deploy / terraform apply / deploy スクリプト）の前に、出し先の環境（dev/tester/prod）をユーザーに確認する
+- `flutter run` やシミュレータでのビルド確認はしない（ユーザーが自分で確かめる）。コード変更後は `flutter analyze` だけ
+- サーバー側の動作を変える（削除・上限変更など）ときは、旧クライアントのためにユーザーdocのフラグ等で分岐し、旧ユーザーには従来の動作を残す
 
 # CLAUDE.md
 
@@ -111,5 +114,6 @@ SQLite (`thai_memo.db`) with tables: `sentences`, `word_breakdowns`, `generation
   - `functions/javascript/` — TypeScript (Node.js 22): `onUserCreate`、`deleteUserData` のAuthトリガー2関数
 - Terraform IaC in `terraform/` for GCP resources (3環境: dev/tester/prod、backend configで切り替え)
 - Region: asia-northeast1 (Tokyo)
-- Go 関数は `scripts/deploy_go_functions.sh`（origin/main を取り出した worktree から `gcloud functions deploy --gen2`）、JS AuthトリガーはFirebase CLIで個別デプロイする。ローカルの作業ツリーから tester / prod に出すと main の変更が抜けることがある。
+- GCP プロジェクト: dev=`thai-memo-dev` / tester=`thai-memo-67139` / prod=`thai-memo-prod`。CI の SA は `github-actions-deployer@<project>.iam.gserviceaccount.com`（tester/prod）
+- Go 関数は `scripts/deploy_go_functions.sh`（origin/main を取り出した worktree から `gcloud functions deploy --gen2`）、JS AuthトリガーはFirebase CLIで個別デプロイする（`firebase deploy --only "functions:js-functions:<関数名>"`。codebase名を省くと No function matches）。ローカルの作業ツリーから tester / prod に出すと main の変更が抜けることがある。
 - Go 関数のデプロイには `--service-account=functions-runtime@<project>.iam.gserviceaccount.com` を必ず付ける（詳細は `functions/go/functions.go` 冒頭）。
