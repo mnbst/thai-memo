@@ -132,6 +132,7 @@ module "secret_manager" {
   # for_each の判定に使うので、apply 前に決まる形（SA の属性ではなく組み立てた文字列）で渡す。
   runtime_service_account_email = "functions-runtime@${var.project_id}.iam.gserviceaccount.com"
   ci_service_account_email      = var.ci_service_account_email
+  deploy_ci_secrets             = var.deploy_ci_secrets
   x_post_service_account_email  = var.github_repo != "" && nonsensitive(var.github_dispatch_token != "") ? "github-actions-x-post@${var.project_id}.iam.gserviceaccount.com" : ""
 
   depends_on = [

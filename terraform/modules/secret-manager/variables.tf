@@ -26,3 +26,9 @@ variable "x_post_service_account_email" {
   default     = ""
 }
 
+
+variable "deploy_ci_secrets" {
+  description = "Secret Manager に置く配信用 ci-* secret。null なら全部、[] なら作らない。"
+  type        = list(string)
+  default     = null
+}

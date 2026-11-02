@@ -122,7 +122,10 @@ resource "google_secret_manager_secret_iam_member" "typesafe_api_key_accessor" {
 # 値は terraform 管理外: gcloud secrets versions add <name> --data-file=- で手動設定
 
 locals {
-  ci_secrets = [
+  # 配信ワークフロー（distribute-*）が読んでいた secret の全体。
+  # 配信の鍵は GitHub の Environment secrets へ移したので、var.deploy_ci_secrets で
+  # まだ Secret Manager に置くものだけを選ぶ（null なら全部）。
+  all_deploy_ci_secrets = [
     "ci-apple-id",
     "ci-app-specific-password",
     "ci-google-play-service-account",
@@ -135,6 +138,10 @@ locals {
     "ci-p12-password",
     "ci-provisioning-profile",
     "ci-store-password",
+  ]
+
+  # SNS 投稿（X / Threads）の鍵。投稿ワークフローだけが読む。
+  sns_post_secrets = [
     # X（Twitter）自動投稿の OAuth 1.0a 認証情報
     "x-api-key",
     "x-api-secret",
@@ -143,6 +150,13 @@ locals {
     # Threads 自動投稿の長期アクセストークン（投稿のたびに古ければ延長して版を足す）
     "threads-access-token",
   ]
+
+  deploy_ci_secrets = var.deploy_ci_secrets == null ? local.all_deploy_ci_secrets : var.deploy_ci_secrets
+
+  ci_secrets = concat(
+    local.deploy_ci_secrets,
+    local.sns_post_secrets,
+  )
 }
 
 resource "google_secret_manager_secret" "ci_secrets" {
@@ -174,12 +188,6 @@ locals {
     "gmail-app-password",
     "typesafe-api-key",
   ]
-
-  # SNS 投稿（X / Threads）の鍵。投稿ワークフローだけが読む。
-  sns_post_secrets = [for s in local.ci_secrets : s if startswith(s, "x-") || startswith(s, "threads-")]
-
-  # 配信ワークフロー（distribute-*）が読む secret。SNS の鍵は渡さない。
-  deploy_ci_secrets = [for s in local.ci_secrets : s if !contains(local.sns_post_secrets, s)]
 
   # X 投稿ワークフローが読む secret。
   x_post_secrets = concat(local.sns_post_secrets, ["gemini-api-key"])

@@ -22,6 +22,12 @@ variable "ci_service_account_email" {
   default     = ""
 }
 
+variable "deploy_ci_secrets" {
+  description = "Secret Manager に置く配信用 ci-* secret。null なら全部。配信の鍵は GitHub の Environment secrets にある。"
+  type        = list(string)
+  default     = null
+}
+
 variable "google_client_id" {
   description = "Google Sign-In OAuth client ID"
   type        = string
