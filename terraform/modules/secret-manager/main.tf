@@ -122,7 +122,8 @@ resource "google_secret_manager_secret_iam_member" "typesafe_api_key_accessor" {
 # 値は terraform 管理外: gcloud secrets versions add <name> --data-file=- で手動設定
 
 locals {
-  ci_secrets = [
+  # 配信ワークフロー（distribute-*）が読む secret。配信 SA を持たない環境（dev）には作らない。
+  deploy_ci_secrets = [
     "ci-apple-id",
     "ci-app-specific-password",
     "ci-google-play-service-account",
@@ -135,12 +136,23 @@ locals {
     "ci-p12-password",
     "ci-provisioning-profile",
     "ci-store-password",
+  ]
+
+  # SNS 投稿（X / Threads）の鍵。投稿ワークフローだけが読む。
+  sns_post_secrets = [
     # X（Twitter）自動投稿の OAuth 1.0a 認証情報
     "x-api-key",
     "x-api-secret",
     "x-access-token",
     "x-access-token-secret",
+    # Threads 自動投稿の長期アクセストークン（投稿のたびに古ければ延長して版を足す）
+    "threads-access-token",
   ]
+
+  ci_secrets = concat(
+    var.ci_service_account_email != "" ? local.deploy_ci_secrets : [],
+    local.sns_post_secrets,
+  )
 }
 
 resource "google_secret_manager_secret" "ci_secrets" {
@@ -173,11 +185,8 @@ locals {
     "typesafe-api-key",
   ]
 
-  # 配信ワークフロー（distribute-*）が読む secret。X の鍵は渡さない。
-  deploy_ci_secrets = [for s in local.ci_secrets : s if !startswith(s, "x-")]
-
   # X 投稿ワークフローが読む secret。
-  x_post_secrets = concat([for s in local.ci_secrets : s if startswith(s, "x-")], ["gemini-api-key"])
+  x_post_secrets = concat(local.sns_post_secrets, ["gemini-api-key"])
 }
 
 resource "google_secret_manager_secret_iam_member" "runtime_accessor" {
@@ -215,4 +224,13 @@ resource "google_secret_manager_secret_iam_member" "x_post_accessor" {
     google_secret_manager_secret.ci_secrets,
     google_secret_manager_secret.gemini_api_key,
   ]
+}
+
+# Threads のトークンは投稿ワークフローが延長し、新しい版を足して古い版を無効にする。
+resource "google_secret_manager_secret_iam_member" "x_post_threads_token_manager" {
+  count     = var.x_post_service_account_email != "" ? 1 : 0
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.ci_secrets["threads-access-token"].secret_id
+  role      = "roles/secretmanager.secretVersionManager"
+  member    = "serviceAccount:${var.x_post_service_account_email}"
 }

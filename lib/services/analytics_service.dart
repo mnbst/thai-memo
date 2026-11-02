@@ -461,11 +461,17 @@ class AnalyticsService {
   /// shown を分母に、そこまでの離脱段階を切り分けるために出している。
   /// [source] は first（初回）/ reprompt（断った人へのリリースごとの再案内）。
   /// 再案内A/Bで出さない群に当たったときは action=holdout を出す。
+  /// [trigger] は出した場面で、summary_quiz / confirmation_quiz。
   Future<void> logNotificationCoach({
     required String action,
     required String source,
+    required String trigger,
   }) async {
-    await _logEvent('notification_coach', {'action': action, 'source': source});
+    await _logEvent('notification_coach', {
+      'action': action,
+      'source': source,
+      'trigger': trigger,
+    });
   }
 
   /// プレミアム体験トライアル終了案内の表示と結果。

@@ -2,6 +2,7 @@ package sentence
 
 import (
 	"context"
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -43,6 +44,21 @@ func TestAssignScenes(t *testing.T) {
 	got = s.assignScenes([]string{"แต่"}, TopicChoice{Pool: Topics})
 	if got[0].Topic != "" || got[0].ShotID != "" {
 		t.Errorf("おまかせで合わない語はテーマも空: %+v", got[0])
+	}
+
+	// おまかせの枠のテーマはテーマ指定と同じ扱い（合わなくても枠のテーマのまま）。
+	got = s.assignScenes([]string{"กิน", "แต่"}, TopicChoice{Pool: Topics, Slots: []string{Topics[1], Topics[12]}})
+	if got[0].Topic != Topics[1] || got[0].ShotID != "food_001" {
+		t.Errorf("おまかせの枠で合う語: %+v", got[0])
+	}
+	if got[1].Topic != Topics[12] || got[1].ShotID != "" || !got[1].Matched {
+		t.Errorf("おまかせの枠で合わない語は枠のテーマのままショット無し: %+v", got[1])
+	}
+
+	// 推し活も合わない語は推し活のまま（テーマ以外の例文を混ぜない）。
+	got = s.assignScenes([]string{"แต่"}, TopicChoice{Topic: OshiTopic, Pool: Topics})
+	if got[0].Topic != OshiTopic || got[0].ShotID != "" {
+		t.Errorf("推し活で合わない語も推し活のまま: %+v", got[0])
 	}
 }
 
@@ -93,5 +109,46 @@ func TestCanonicalizeTopic(t *testing.T) {
 	canonicalizeTopic(s, map[string]any{"topic": "x"})
 	if s.Context["topic"] != "x" {
 		t.Error("確定済みのテーマを書き換えた")
+	}
+}
+
+// 場面の少ないテーマはテーマ指定のときだけ場面で絞らずショットで比べる。
+func TestSceneThresholds(t *testing.T) {
+	if sc, sh := SceneThresholds(Topics[4], SceneZPinned); !math.IsInf(sc, -1) || sh != ShotZShotFirst {
+		t.Errorf("家族のテーマ指定: %v %v", sc, sh)
+	}
+	if sc, sh := SceneThresholds(OshiTopic, SceneZOmakase); sc != SceneZOmakase || sh != ShotZ {
+		t.Errorf("おまかせは従来どおり: %v %v", sc, sh)
+	}
+	if sc, sh := SceneThresholds(BLTopic, SceneZPinned); sc != 2.5 || sh != ShotZ {
+		t.Errorf("BL は 2.5 のまま: %v %v", sc, sh)
+	}
+	if sc, _ := SceneThresholds(Topics[14], SceneZPinned); sc != 1.5 {
+		t.Errorf("恋愛は 1.5: %v", sc)
+	}
+	if sc, _ := SceneThresholds(Topics[1], SceneZPinned); sc != SceneZPinned {
+		t.Errorf("食べ物は既定値: %v", sc)
+	}
+}
+
+// おまかせの枠のテーマはプールから重ならないように選び、一巡したら重ねる。
+func TestOmakaseTopics(t *testing.T) {
+	s := &TargetWordSelector{}
+	pool := []string{Topics[0], Topics[1], Topics[2]}
+	got := s.omakaseTopics(pool, 5)
+	if len(got) != 5 {
+		t.Fatalf("枠の数 %d, want 5", len(got))
+	}
+	first := slices.Clone(got[:3])
+	slices.Sort(first)
+	want := slices.Clone(pool)
+	slices.Sort(want)
+	if !slices.Equal(first, want) {
+		t.Errorf("一巡目に重なりがある: %v", got)
+	}
+	for _, topic := range got {
+		if !slices.Contains(pool, topic) {
+			t.Errorf("プール外のテーマ: %s", topic)
+		}
 	}
 }

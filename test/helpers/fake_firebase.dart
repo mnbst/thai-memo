@@ -260,6 +260,7 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   Future<void> logNotificationCoach({
     required String action,
     required String source,
+    required String trigger,
   }) async {
     notificationCoachEvents.add(action);
   }

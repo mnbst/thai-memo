@@ -1,24 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/word_order_rules.dart';
 import '../../l10n/app_localizations.dart';
 
-/// 例文1つ。語ごとにタイ文字・読み・意味を並べ、その項目で見てほしい語を
-/// [focus] で色付きにする。意味は `|` 区切りで語と同じ数だけ持つ。
-class WordOrderExample {
-  final List<String> words;
-  final List<String> readings;
-  final Set<int> focus;
-  final String Function(L10n) gloss;
-  final String Function(L10n) meaning;
-
-  const WordOrderExample(
-    this.words,
-    this.readings,
-    this.focus,
-    this.gloss,
-    this.meaning,
-  );
-}
+export '../../core/constants/word_order_rules.dart' show WordOrderExample;
 
 /// 例文を語のチップで左から並べ、下に訳を出す。
 class WordOrderExampleView extends StatelessWidget {

@@ -119,7 +119,7 @@ func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 		"参考タイ語例（雰囲気・口語感の参考。この1文のみ）: " + shotText,
 		// どの作品の場面かは使い方の名前で示す。thai_text に名前を必須にすると
 		// 名前を押し込んだ不自然な文が増える（2026-10-11、判定の作り直し後も外れる 10/102 → 2/103）。
-		"usage_scenariosには、登場人物の名前を入れて、誰が誰に言う場面かわかる説明を書くこと。" + namesNote(pick.Context),
+		"usage_scenariosには、登場人物の名前を入れて、誰が誰に言う場面かわかる説明を書くこと",
 	}
 
 	// กู/มึง の指示は参考例にあるときだけ出す。常に名指しすると、
@@ -146,6 +146,7 @@ func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 		Context:  bulletList(contextLines),
 		Required: bulletList(requiredLines),
 		NameKana: nameKana,
+		Names:    names(pick.Context),
 	}
 }
 
@@ -181,23 +182,25 @@ func (b *Builder) BuildSceneSection(scene string, scenes []string) sentence.Dram
 // namePairRe は設定の「英字（タイ文字）」の名前（Kang（แกง））。
 var namePairRe = regexp.MustCompile(`([A-Za-z][A-Za-z ]*)（([\x{0E00}-\x{0E7F}]+)）`)
 
-// namesNote は使い方に書く名前の表記を、設定に出てくる登場人物ぶん並べる。
-// 表記を渡さないと、日本語でカタカナが揺れる（トト／トートー、コヌン／ゴーヌン）。
-// 訳文にも同じ表記を使わせる（訳文だけ揺れていた: แกง → ゲーン／ケーン／カン）。
-// 訳文に名前を書けとだけ言うと、本文に無い名前を訳へ足すので、本文にあるときに限る。
-func namesNote(context string) string {
-	var ja, en []string
+// names は設定に出てくる登場人物の名前を、タイ文字・日本語・英語の表記で返す。
+// 普通の語と同じ綴りの名前（ปราการ・ด้วง 等）は置き換えの誤爆を避けて nameKana に
+// 英字だけで置いてあるので、英字でも引く。表記の無い名前は入れない。
+func names(context string) []sentence.DramaName {
+	var out []sentence.DramaName
+	seen := map[string]bool{}
 	for _, m := range namePairRe.FindAllStringSubmatch(context, -1) {
-		if k, ok := nameKana[m[2]]; ok {
-			ja = append(ja, k)
-			en = append(en, m[1])
+		lat, th := strings.TrimSpace(m[1]), m[2]
+		k, ok := nameKana[th]
+		if !ok {
+			k, ok = nameKana[lat]
 		}
+		if !ok || seen[th] {
+			continue
+		}
+		seen[th] = true
+		out = append(out, sentence.DramaName{Thai: th, Ja: k, En: lat})
 	}
-	if len(ja) == 0 {
-		return "名前は、usage_scenariosが日本語ならカタカナ、英語なら英字で書く。japanese_translationに名前を書くのは、thai_textに名前があるときだけ"
-	}
-	return "名前は、usage_scenariosが日本語なら" + strings.Join(ja, "、") + "、英語なら" + strings.Join(en, ", ") + "と書く。" +
-		"thai_textに名前があるときは、japanese_translationでも同じ表記にする。thai_textに無い名前はjapanese_translationに書かない"
+	return out
 }
 
 // nameRe は設定の括弧内にあるタイ文字の名前（Kang（แกง） の แกง）。
@@ -218,4 +221,65 @@ func Names() []string {
 		}
 	}
 	return out
+}
+
+// moodShots は語に近いセリフが無い回に付ける、同じ作品のセリフの数。
+const moodShots = 3
+
+// MoodSection は語に近いセリフが無い回（premium の場面合致で外れた回）の断片。
+// 作品を1つ一様に選び、その設定と同じ作品のセリフ moodShots 文を雰囲気として付ける。
+// 1文だけだと語を混ぜて合成した非文が出るので、内容や語は使わせない。
+// セリフが moodShots 文に満たない作品は選ばない。
+func (b *Builder) MoodSection() sentence.DramaSection {
+	byDrama := map[string][]string{}
+	var dramas []string
+	for _, sid := range shotIDs {
+		d := shotContext[sid].Drama
+		if _, ok := byDrama[d]; !ok {
+			dramas = append(dramas, d)
+		}
+		byDrama[d] = append(byDrama[d], sid)
+	}
+	var eligible []string
+	for _, d := range dramas {
+		if len(byDrama[d]) >= moodShots {
+			eligible = append(eligible, d)
+		}
+	}
+	if len(eligible) == 0 {
+		return sentence.DramaSection{}
+	}
+	ids := byDrama[eligible[b.intn(len(eligible))]]
+	pick := shotContext[ids[0]]
+
+	var ref strings.Builder
+	for _, i := range b.perm(len(ids))[:moodShots] {
+		ref.WriteString("  - " + shots[ids[i]] + "\n")
+	}
+	contextLines := []string{
+		"BLドラマ（男性同士）。セリフをそのまま引用せず雰囲気を参考にすること",
+		"ドラマの設定: " + pick.Context,
+		"usage_scenariosには、登場人物の名前を入れて、誰が誰に言う場面かわかる説明を書くこと",
+	}
+	requiredLines := []string{
+		"場面は参考の3文に合わせず、ドラマの設定の中でターゲット単語が字義どおり自然に出てくる場面を作ること",
+		"話し手・聞き手の人称代名詞と呼び方は、参考の3文の丁寧度の範囲で登場人物の関係に合わせる。参考より乱暴な人称にしない",
+		"参考の3文をそのまま使わず、オリジナルの1文を作ること。参考の語を部分的に差し替えて別の意味の語を作らない",
+		"ターゲット単語を気持ちや関係のたとえに使うのは、タイ語で定着した言い回しのときだけ。その場でたとえを作らない。" +
+			"気持ちと結びつかない語なら、その語が字義どおり出てくる日常のやり取りを場面にする",
+	}
+	return sentence.DramaSection{
+		Context: bulletList(contextLines) +
+			"- このドラマの話し言葉の参考（雰囲気・口語感だけ。内容や語は使わない）:\n" + ref.String(),
+		Required: bulletList(requiredLines),
+		NameKana: nameKana,
+		Names:    names(pick.Context),
+	}
+}
+
+func (b *Builder) perm(n int) []int {
+	if b.Rand != nil {
+		return b.Rand.Perm(n)
+	}
+	return rand.Perm(n)
 }

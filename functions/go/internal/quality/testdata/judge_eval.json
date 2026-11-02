@@ -1231,5 +1231,32 @@
   "label": "good",
   "class": "",
   "source": "罠 2026-09-27"
+ },
+ {
+  "thai_text": "พรุ่งนี้จะฝ่าคนไปหาเมนนะ",
+  "translation": "明日は人混みをかき分けて推しに会いに行くね。",
+  "key_word": "ฝ่า",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod誤検出 2026-10-27"
+ },
+ {
+  "thai_text": "ผมทาสีเล็บตามศิลปินเมื่อวานครับ",
+  "translation": "昨日、アーティストに合わせてネイルを塗りました。",
+  "key_word": "ทา",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod誤検出 2026-10-27"
+ },
+ {
+  "thai_text": "เมนพูดว่าชอบเพลงใหม่มาก",
+  "translation": "推しが新しい曲をとても気に入ったと言っていた。",
+  "key_word": "",
+  "lang": "ja",
+  "label": "good",
+  "class": "",
+  "source": "prod誤検出 2026-10-27"
  }
 ]

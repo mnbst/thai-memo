@@ -262,7 +262,7 @@ void main() {
     expect(analytics.quizOfferEvents, isEmpty);
   });
 
-  testWidgets('クイズを解いたことがない人には、例文が出たらすぐ導線を光らせて「わかった」で閉じる',
+  testWidgets('最初の例文に学習の手順を出し、「解く」でそのままクイズを始める',
       (tester) async {
     final analytics = FakeAnalyticsService();
     ThaiSentence? tappedSentence;
@@ -273,28 +273,55 @@ void main() {
       controller: _sentenceController(analytics),
       onStartQuiz: (sentence, _) => tappedSentence = sentence,
     );
-
-    // スポットは脈打ち続けるので、settle を待たずに時間で進める。
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('確認クイズはこちら'), findsOneWidget);
-    expect(analytics.coachMarkEvents, [
-      {'id': 'quiz_offer', 'action': 'shown'},
-    ]);
-
-    // 在り処を教えるだけで、クイズは始めない。
-    await tester.tap(find.text('わかった'));
     await tester.pumpAndSettle();
-    expect(find.text('確認クイズはこちら'), findsNothing);
-    expect(tappedSentence, isNull);
-    expect(analytics.coachMarkEvents.last,
-        {'id': 'quiz_offer', 'action': 'confirmed'});
 
+    expect(find.text('学習の手順'), findsOneWidget);
+    expect(find.text('0 / 3'), findsOneWidget);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool('quiz_offer_coach_shown'), isTrue);
+    expect(prefs.getString('first_sentence_id'), 'sentence-quiz-offer');
+    expect(
+      analytics.coachMarkEvents.any(
+          (e) => e['id'] == 'first_steps' && e['action'] == 'shown'),
+      isTrue,
+    );
+
+    // 暗幕の案内は出さない。
+    expect(find.text('確認クイズはこちら'), findsNothing);
+
+    expect(tappedSentence, isNull);
   });
 
-  testWidgets('クイズを解いたことがある人には光らせない', (tester) async {
+  testWidgets('済んだ手順はチェックが付き、③で「解く」からクイズを始める',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'first_sentence_id': 'sentence-quiz-offer',
+      'first_steps_done': ['listenSentence', 'openDetail'],
+    });
+    final analytics = FakeAnalyticsService();
+    ThaiSentence? tappedSentence;
+    await _pumpTodayScreen(
+      tester,
+      variant: QuizOfferVariant.inlineOneQuestion,
+      analytics: analytics,
+      controller: _sentenceController(analytics),
+      onStartQuiz: (sentence, _) => tappedSentence = sentence,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 3'), findsOneWidget);
+    await tester.tap(find.text('解く'));
+    await tester.pumpAndSettle();
+    expect(tappedSentence?.id, 'sentence-quiz-offer');
+    expect(
+      analytics.coachMarkEvents.any(
+          (e) => e['id'] == 'first_steps' && e['action'] == 'quiz'),
+      isTrue,
+    );
+    // 最初の例文を見ている間は、済んでもカードを出したまま。
+    expect(find.text('3 / 3'), findsOneWidget);
+  });
+
+  testWidgets('クイズを解いたことがある人には学習の手順を出さない', (tester) async {
     final analytics = FakeAnalyticsService();
     await _pumpTodayScreen(
       tester,
@@ -303,15 +330,16 @@ void main() {
       controller: _sentenceController(analytics),
       totalAnswered: 3,
     );
-
-    await tester.pump(const Duration(seconds: 10));
     await tester.pumpAndSettle();
-    expect(find.text('確認クイズはこちら'), findsNothing);
-    expect(analytics.coachMarkEvents, isEmpty);
+
+    expect(find.text('学習の手順'), findsNothing);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('first_sentence_id'), '');
   });
 
-  testWidgets('一度出した人には二度と光らせない', (tester) async {
-    SharedPreferences.setMockInitialValues({'quiz_offer_coach_shown': true});
+  testWidgets('最初の例文でなければ学習の手順を出さない', (tester) async {
+    SharedPreferences.setMockInitialValues(
+        {'first_sentence_id': 'another-sentence'});
     final analytics = FakeAnalyticsService();
     await _pumpTodayScreen(
       tester,
@@ -319,9 +347,8 @@ void main() {
       analytics: analytics,
       controller: _sentenceController(analytics),
     );
-
-    await tester.pump(const Duration(seconds: 10));
     await tester.pumpAndSettle();
-    expect(analytics.coachMarkEvents, isEmpty);
+
+    expect(find.text('学習の手順'), findsNothing);
   });
 }

@@ -3,9 +3,7 @@ package uvm
 // DecayPerDay は dailyBatch が全登録語の P に毎日かける減衰幅。
 //
 // key_word の候補が未出題語（UVM 未登録 or P=0）で埋まらなくなると、
-// GetSessionWords は 1-p 重み（UnknownWeights）にフォールバックして既習語から
-// 引き直す。P を毎日減衰させておくと、そのとき放置された語が
-// 復習されたばかりの語より優先される。
+// GetSessionWords は last_seen の古い既習語から選ぶ（selectUnknown）。
 //
 // 休眠日数（last_seen からの日数）で速める案は採らない。語彙スコアの走査帯
 // ごと P が沈み、未受験者の estimated_vocab が sync のたびに 50 ずつ崩れる

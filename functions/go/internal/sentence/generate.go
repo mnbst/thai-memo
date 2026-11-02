@@ -330,13 +330,19 @@ type ShotBuilder interface {
 // shotSectioner は選定時に決めたショット ID から参考例文ブロックを作る
 // （場面合致の回）。themeshots.Builder が実装する。
 type shotSectioner interface {
-	// shotID が空なら媒体の例文だけを見て、無ければゼロ値を返す。
+	// shotID が空なら媒体の例文、無ければテーマのショットを雰囲気として返す。
 	ShotSection(topic, shotID, medium string) DramaSection
 }
 
 // dramaSectioner は BL のショット ID からドラマのブロックを作る。bldrama.Builder が実装する。
 type dramaSectioner interface {
 	SectionFor(shotID string) DramaSection
+}
+
+// dramaMooder は BL で語に近いセリフが無い回に、同じ作品の数文と設定のブロックを作る。
+// bldrama.Builder が実装する。実装しなければ従来どおりブロックを付けない。
+type dramaMooder interface {
+	MoodSection() DramaSection
 }
 
 // Service は例文生成の入口。
@@ -383,14 +389,20 @@ func (s *Service) SceneSection(resolved *ResolvedParams, targetWords []string) D
 }
 
 // matchedSection は場面合致の回（premium）のブロック。選定時に決めたショットを
-// そのまま使い、ここでは引き直さない。ショットが無ければ付けない（語と合わない
-// ショットは付けない）。会話以外の媒体の例文は従来どおり媒体で付ける。
+// そのまま使い、ここでは引き直さない。ショットが無ければ語と合わない1文は付けず、
+// テーマのショットを雰囲気として数文付ける（BL はドラマの場面が大事なので付けない）。会話以外の媒体の例文は従来どおり媒体で付ける。
 func (s *Service) matchedSection(resolved *ResolvedParams) DramaSection {
 	resolved.SubTheme = ""
 	if resolved.Topic == Topics[15] {
 		resolved.Medium = Media[0].Name
+		if resolved.ShotID == "" {
+			if m, ok := s.Drama.(dramaMooder); ok {
+				return m.MoodSection()
+			}
+			return DramaSection{}
+		}
 		d, ok := s.Drama.(dramaSectioner)
-		if !ok || resolved.ShotID == "" {
+		if !ok {
 			return DramaSection{}
 		}
 		return d.SectionFor(resolved.ShotID)

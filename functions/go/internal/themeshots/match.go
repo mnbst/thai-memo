@@ -13,8 +13,13 @@ import (
 //
 // 場面は属するショットの重心、ショットは1文ずつを、語彙全体との類似度で標準化した
 // z で語と比べる（SceneScores。1文のショットは「1文だけの場面」として渡す）。
-// 場面 z が閾値以上で、場面内にショット z ≥ sentence.ShotZ の文がある場面だけを残し、
+// 場面 z が閾値以上で、場面内にショット z が閾値以上の文がある場面だけを残し
+// （閾値はテーマごとに sentence.SceneThresholds）、
 // テーマ → 場面 → ショットの順に一様に選ぶ。
+//
+// 語ごとの近さは事前に表（MatchTable、cmd/scenetable が作る）にしておき、本番は
+// 表を引くだけにする。その場の計算は BL 1語 約1.2ms・初回の場面統計 約0.7秒で、
+// テーマ指定の回は帯の未出語すべて（数百〜千語）を判定するため（2026-10-27）。
 //
 // 一様に選ぶのは偏りを減らすため。z の重みや生の類似度の最大を採ると、どの語にも
 // 近く出る場面（ムエタイ、BL の重心）や場面の多いテーマ（仕事58・食べ物40場面）に寄る。
@@ -77,43 +82,32 @@ type matched struct {
 }
 
 // matchScenes は topics の場面のうち場面合致を通ったものを、テーマごとに返す
-// （topics の順。通った場面の無いテーマは入らない）。
+// （topics の順。通った場面の無いテーマは入らない）。近さは表（MatchTable）が
+// あれば表から引き、無ければその場で計算する。
 func (b *Builder) matchScenes(word string, topics []string, minSceneZ float64) [][]matched {
 	if b.Scenes == nil {
 		return nil
 	}
 	var out [][]matched
 	for _, topic := range topics {
-		scenes := sceneCatalog()[topic]
-		if len(scenes) == 0 {
+		if topic == sentence.Topics[15] && blNoShotWords[word] {
 			continue
 		}
-		emb := make([]embeddings.Scene, len(scenes))
-		for i, sc := range scenes {
-			emb[i] = sc.scene
-		}
-		z, err := b.Scenes.SceneScores(b.ctx(), word, emb)
-		if err != nil {
-			log.Printf("scene match の場面 z に失敗 word=%s: %v", word, err)
-			return nil
-		}
-		if len(z) != len(scenes) {
+		scores, ok := b.topicScores(word, topic)
+		if !ok {
 			// 語の embedding が無い。どのテーマでも同じなので打ち切る。
 			return nil
 		}
+		sceneMin, shotMin := sentence.SceneThresholds(topic, minSceneZ)
 		var hits []matched
-		for i, sc := range scenes {
-			if z[i] < minSceneZ {
-				continue
-			}
-			shotZ, err := b.Scenes.SceneScores(b.ctx(), word, sc.shots)
-			if err != nil || len(shotZ) != len(sc.ids) {
+		for _, sc := range scores {
+			if sc.z < sceneMin {
 				continue
 			}
 			var good []string
-			for j, v := range shotZ {
-				if v >= sentence.ShotZ {
-					good = append(good, sc.ids[j])
+			for _, sh := range sc.shots {
+				if sh.z >= shotMin {
+					good = append(good, sh.id)
 				}
 			}
 			if len(good) > 0 {
@@ -125,6 +119,74 @@ func (b *Builder) matchScenes(word string, topics []string, minSceneZ float64) [
 		}
 	}
 	return out
+}
+
+// blNoShotWords は BL のセリフに結びつけない性的な語。語彙1万語で BL のショットに
+// 当たっていた（ช่วยตัวเอง 26文・ร่วมรัก 127文・ร่วมเพศ→「ไม่นอนกอดกันแบบนี้…」、2026-10-27）。
+// 添い寝・キスの場面に寄せると性的な文になる。2026-11-01 に出題からも外した（uvm/excluded.go）。
+// ここは出題以外の経路（語の固定・既存データ）でショットを付けないための残し。
+var blNoShotWords = map[string]bool{
+	"ทางเพศ": true, "ร่วมเพศ": true, "เพศสัมพันธ์": true, "ร่วมรัก": true, "หลับนอน": true,
+	"ช่วยตัวเอง": true, "เพศ": true, "โป๊": true, "ยั่ว": true, "ขายตัว": true, "ใคร่": true,
+	"ล่วงละเมิด": true, "ปล้ำ": true, "ลูบ": true, "สวาท": true, "ข่มขืน": true,
+}
+
+// minShotZ は表に残すショット z の下限。どのテーマの閾値（SceneThresholds）より低くする。
+const minShotZ = sentence.ShotZ
+
+// sceneScore は語と場面1つの近さと、ショット z が minShotZ 以上のショット（場面内の順）。
+type sceneScore struct {
+	name  string
+	z     float64
+	shots []shotScore
+}
+
+type shotScore struct {
+	id string
+	z  float64
+}
+
+// topicScores は topic の場面ごとの近さを場面の並び順で返す。表があれば表から引く。
+// 語の embedding が無ければ false。ショットの無いテーマは空で true。
+func (b *Builder) topicScores(word, topic string) ([]sceneScore, bool) {
+	if idx := b.matchIndex(); idx != nil {
+		return idx.scores(word, topic)
+	}
+	return b.liveScores(word, topic)
+}
+
+// liveScores は topicScores をその場で計算する。
+func (b *Builder) liveScores(word, topic string) ([]sceneScore, bool) {
+	scenes := sceneCatalog()[topic]
+	if len(scenes) == 0 {
+		return nil, true
+	}
+	emb := make([]embeddings.Scene, len(scenes))
+	for i, sc := range scenes {
+		emb[i] = sc.scene
+	}
+	z, err := b.Scenes.SceneScores(b.ctx(), word, emb)
+	if err != nil {
+		log.Printf("scene match の場面 z に失敗 word=%s: %v", word, err)
+		return nil, false
+	}
+	if len(z) != len(scenes) {
+		return nil, false
+	}
+	out := make([]sceneScore, len(scenes))
+	for i, sc := range scenes {
+		out[i] = sceneScore{name: sc.name, z: z[i]}
+		shotZ, err := b.Scenes.SceneScores(b.ctx(), word, sc.shots)
+		if err != nil || len(shotZ) != len(sc.ids) {
+			continue
+		}
+		for j, v := range shotZ {
+			if v >= minShotZ {
+				out[i].shots = append(out[i].shots, shotScore{id: sc.ids[j], z: v})
+			}
+		}
+	}
+	return out, true
 }
 
 // PickScene は場面合致を通った候補から、テーマ → 場面 → ショットの順に一様に選ぶ。

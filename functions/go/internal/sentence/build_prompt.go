@@ -41,6 +41,9 @@ type DramaSection struct {
 	// NameKana は登場人物の名前（タイ文字・英字）→ カタカナ。日本語の使い方・文化メモに
 	// 残った名前を生成後に置き換える（Request.NameKana へ渡す）。
 	NameKana map[string]string
+	// Names は作品の登場人物の名前。訳の言語に合わせてタイ文字との対応を1行で渡す（dramaNamesLine）。
+	// BL ドラマ回だけ。断片は言語を知らずに作るので、行はここで組む。
+	Names []DramaName
 	// Scene と ShotID は付けたショットの場面と ID。例文 doc に記録して分布を測る。
 	Scene  string
 	ShotID string
@@ -160,7 +163,7 @@ func BuildPrompt(
 				"<target_words>\n"+strings.Join(targetWords, ", ")+"\n</target_words>")
 	}
 	if drama.Context != "" {
-		sections = append(sections, strings.TrimSpace(drama.Context))
+		sections = append(sections, strings.TrimSpace(drama.Context)+dramaNamesLine(drama.Names, l))
 	}
 	// 「- 長さ」は難易度制御の実体。外すと帯の差が消える。消さないこと。
 	sections = append(sections, fmt.Sprintf(
@@ -219,4 +222,33 @@ func buildMediumConstraint(m Medium, relation string) string {
 		return strings.ReplaceAll(mediumBlock, "{medium}", m.Name)
 	}
 	return BuildRelationConstraint(relation)
+}
+
+// DramaName は登場人物1人の名前（タイ文字・日本語・英語の表記）。
+type DramaName struct {
+	Thai, Ja, En string
+}
+
+// dramaNamesLine は登場人物の名前を、訳の言語の表記とタイ文字の対応で1行にする。
+// 対応を渡さないと、カタカナが揺れる（トト／トートー）、名前を普通の語として訳す
+// （ซีอิ๊ว→醤油、เค้ก→ケーキ）。「本文に無い名前は訳に書かない」と禁止で書くと、
+// 人称・呼称を名前に置き換える訳が増えた（2026-11-01）ので、訳し方だけを渡す。
+func dramaNamesLine(names []DramaName, l lang.Lang) string {
+	if len(names) == 0 {
+		return ""
+	}
+	label := "日本語"
+	if l != lang.JA {
+		label = "英語"
+	}
+	pairs := make([]string, len(names))
+	for i, n := range names {
+		v := n.Ja
+		if l != lang.JA {
+			v = n.En
+		}
+		pairs[i] = n.Thai + "：" + v
+	}
+	return "\n- 登場人物の名前は次のように訳す（タイ文字：" + label + "）: " + strings.Join(pairs, "、") +
+		"\n- japanese_translationはthai_textの文だけを訳す（場面の説明を書かない）。thai_textの人称代名詞・呼称を登場人物の名前に置き換えない"
 }

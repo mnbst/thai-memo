@@ -65,6 +65,7 @@ DIMENSIONS = (
     Dimension("outcome", "EVENT", "Review prompt outcome"),
     Dimension("lang", "EVENT", "Resolved app language"),
     Dimension("storefront", "EVENT", "App Store storefront"),
+    Dimension("trigger", "EVENT", "Notification coach trigger"),
     Dimension("tier", "USER", "User tier"),
     Dimension("app_language", "USER", "User app language"),
     Dimension("interview_level", "USER", "User interview level"),

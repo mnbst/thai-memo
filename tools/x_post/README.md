@@ -8,39 +8,86 @@
 
 | 手順 | 中身 |
 | --- | --- |
-| `pick_sentence.py` | コーパスをその日のテーマと語数で絞り、Gemini に1件選ばせて本文を組む |
+| `pick_sentence.py` | 枠のテーマを決め、候補を20件に絞り、過去10件と比べて Gemini に1件選ばせる |
 | `synth_tts.py` | Google Cloud TTS（th-TH）で読み上げ音声を作る（通常速度で1回） |
 | `test/screenshots/x_post_screenshot.dart` | `DetailScreen` を描画し、画像3枚と操作フレームを書き出す |
 | `build_media.py` | 操作フレームに音声を載せて mp4 にする |
 | `post_to_x.py` | X に投稿し、投稿済みを GCS に記録する |
 
-実行は `.github/workflows/post-daily-x.yml`（毎日 07:00 JST。`x_post_extra_slots` で枠を足せる。prod は 12:00 タイ生活・17:00 仕事・22:00 恋愛）。
+実行は `.github/workflows/post-daily-x.yml`（毎日 07:00 JST。`x_post_extra_slots` で枠を足せる）。
+
+prod の1日の枠:
+
+| 時刻 | 中身 |
+| --- | --- |
+| 07:00 | 例文（テーマは下記「テーマの決め方」） |
+| 10:00 | Tips（下記「Tips・ガイド」） |
+| 12:00 | 例文 |
+| 15:00 | ガイド（ガイド画面の1欄の画像付き） |
+| 17:00 | 例文 |
+
+Scheduler は枠の名前（`slot`: 0700 / 1200 / 1700）をワークフローに渡す。
 
 ## 例文のソース
 
 `gs://<project>-uvm-data/` の `corpus_sentences_ja.json`（静的コーパス）と
-`corpus_pool_ja.json`（運用中に貯めたプール）を候補にする（premium の CorpusBank と同じ2本）。その日のテーマと語数で絞った残りから Gemini に1件選ばせる。Gemini が応答しないときは
-同じ候補から抽選して投稿を止めない。テーマに合う候補が無ければ投稿しない。
+`corpus_pool_ja.json`（運用中に貯めたプール）を候補にする（premium の CorpusBank と同じ2本）。
 
-テーマは Cloud Scheduler の起動リクエスト（`inputs.themes`）で決める。
-`タイ旅行` `タイ生活` `恋愛` `BLドラマ` `仕事` をカンマ区切りで並べ、その中から毎日1つ抽選する
-（空なら全部）。変えるときは `terraform/prod.tfvars` の `x_post_themes` を直して
-`terraform apply` するか、コンソールでジョブの本文を直す。プッシュは要らない。
+### テーマの決め方（コード）
 
-`BLドラマ` の日は、本文か使い方に作品の見当がつく語（登場人物名やそのカタカナ、猫・幽霊・占いなど）が
+`inputs.themes`（`terraform/prod.tfvars` の `x_post_themes` / 枠ごとの `themes`）に並べたテーマから、
+枠ごとに選ぶ。空なら全6テーマ（`タイ旅行` `タイ生活` `恋愛` `BLドラマ` `仕事` `推し活`）。
+
+1. その枠で投稿が3件未満のテーマがあれば、その中から抽選する（探索）
+2. 試し終えたら2割は抽選、8割は点数の高いテーマにする。
+   点数 ＝ 枠×テーマの表示回数の中央値 × 曜日の補正（そのテーマの曜日、薄ければ平日／週末の中央値の全体比。3件以上あるときだけ）
+3. 候補が残らないテーマは飛ばして次の順位へ
+
+### 候補の絞り込み（コード）
+
+破綻の除外（下記）→ テーマ → 投稿済みを外す（尽きたら戻す）→ BLドラマは作品で絞る、のあと、
+Gemini に渡す20件を選ぶ。長さの3帯（7–8語 / 9–10語 / 11語）から同じ数ずつ、同じ場面は2件まで、
+その枠の直近10件と同じ場面は後回しにする。
+
+各候補には語数・場面（`subTheme`、無ければ `topic`）・文法の特徴を付ける。文法の特徴は
+単語分解の語が `GRAMMAR_MARKERS` と完全に一致したときだけ付ける（疑問・依頼・否定・勧誘・丁寧語尾・
+くだけた語尾・時制・比較・程度）。
+
+`BLドラマ` は、本文か使い方に作品の見当がつく語（登場人物名やそのカタカナ、猫・幽霊・占いなど）が
 ある例文だけを候補にし、さらに作品を1つ抽選して絞る（`BL_DRAMA_MARKERS`）。
 
-前日に生成された例文は使わない。配信当時のコーパスに使い方が入っていなかった
-ものが混ざり、詳細画面の「使い方」が1項目だけになるため。
+### 1件の選定（Gemini）
 
-投稿済みと、投稿の履歴（tweet_id とタイ語本文）は
-`gs://<project>-uvm-data/x_post/posted.json` に持つ。
+Gemini には1回だけ問い合わせる。渡すのは観点（プロンプトに書くだけ）、曜日・時間帯、
+その枠の直近10件の「選んだ理由・表示回数・反応」、長さ・文法ごとの伸びやすさの要約、候補20件。
+答えは `{"index", "reason", "hook"}`（理由は60字・書き出しは20字以内）。思考は使わない。
+応答しない・番号がおかしいときは同じ20件から抽選し、`chooser` に `抽選` と残す。
+
+### 投稿本文
+
+```
+〜の時の〇〇👇（Gemini の hook）
+
+タイ語
+発音
+
+日本語訳
+```
+
+1行目からタイ語だと読み飛ばされるので、日本語の書き出しから始める。訳を最後に置き、先にタイ語を読ませる。ハッシュタグは付けない。
+書き出しが20字を超える・タイ文字を含む・280字に収まらないときは、テーマの決まり文句（`FALLBACK_HOOKS`）に替える。
+BLドラマ回は作品名・登場人物名を出さない（プロンプトで禁止し、`BL_DRAMA_MARKERS` のカタカナ名・英題が混ざったら落とす）。
+
+投稿済みと、投稿の履歴は `gs://<project>-uvm-data/x_post/posted.json` に持つ。履歴の1件には
+tweet_id・本文・訳・テーマ・投稿日時に加え、`slot` `weekday` `theme_reason` `reason` `hook` `chooser`
+`word_count` `char_count` `scene` `grammar` と表示回数・反応を残す。理由の文章は枠ごとに直近10件だけ残し、
+数字と特徴は集計用に1000件まで残す。枠を記録する前の投稿は、投稿時刻から枠と曜日を割り出す。
 
 ## 選び方を変える
 
 選定プロンプトは `select_prompt.txt` に置いてある。ここを書き換えれば選び方を
 変えられる（コードは触らなくてよい）。`#` で始まる行は無視される。
-差し込み口は `{candidates}`（候補一覧）と `{recent}`（直近の反応。下記）。
+差し込み口は `{theme}` `{when}` `{recent}` `{trend}` `{top_hooks}` `{candidates}`（ファイル冒頭に説明）。
 
 ## 破綻の除外
 
@@ -54,14 +101,29 @@ Gemini に渡す前に、機械的に分かるものだけ落とす。
 
 自然さや訳の妥当性はプロンプト側で Gemini に見させる。
 
-## 直近の反応の参照
+## 表示回数の取り直し
 
-`posted.json` の履歴にある tweet_id で、その日と同じテーマの直近5件の反応（いいね・リポスト・
-返信の合計）を引き、伸びたものをプロンプトに添える。テーマを記録する前の履歴は使わない。
+その枠の投稿のうち、表示回数をまだ持っていないものと、投稿から3日以内（まだ伸びる）のものだけを
+X から取り直す。取り直した値は `post_to_x.py` が `posted.json` の履歴に書き戻し、それより古い投稿はその値を使う。
 
-X の読み取りは PPU のクレジットを消費する。クレジットが無い（402）・鍵が無い・
-履歴がまだ無い場合は黙って諦め、反応を参照しない選定に落ちる。当面は手元の
-感触を `select_prompt.txt` に直接書く運用でよい。
+X の読み取りは PPU のクレジットを消費する。クレジットが無い（402）・鍵が無い場合は
+履歴に残した値だけを使う。
+
+## Tips・ガイド
+
+ワークフローの `kind` が `tip` / `guide` の枠は、例文の代わりに `study_posts.json` の
+投稿文を出す（`pick_study_post.py`）。投稿文はアプリの Tips（ローディング画面）と
+ガイド（タイ文字・発音・語順・声調）から書き起こした完成文で、その場で生成はしない
+（タイ語の誤りを避けるため）。足す・直すときはこのファイルを編集する。
+
+- 同じ kind の中から抽選する。一巡するまで同じ文は出さず、全部出したら最初から繰り返す
+  （投稿済みキー `study:<id>:<回数>` を posted.json に積み、回数が一番少ないものから選ぶ）。
+- ガイドの文は `image.screen`（script / pron / word_order / tone）の画面から、`image.from`
+  の見出しを含む欄（Card）を `test/screenshots/guide_screenshot.dart` で切り出して1枚貼る。
+  見出しにタイ文字が入るもの（語順ガイドなど）は、日本語だけの部分を `from` に書く。
+  描けなかったときは本文だけで出す。
+- 本文の長さ（X の 280）と書式は
+  `python tools/x_post/pick_study_post.py --check` で確かめられる。
 
 ## 画面の描画
 
@@ -119,3 +181,39 @@ python tools/x_post/post_to_x.py --project thai-memo-prod --out build/x_post --d
 
 GitHub Actions からは `workflow_dispatch` の `dry_run` で同じ確認ができる。
 生成物は artifact `x-post-media` に上がる。
+
+## Threads
+
+X と同じワークフローを `platform=threads` で動かし、同じ枠の時刻に Threads にも出す。
+
+- 中身の作りは X と同じ（例文は動画＋画像3枚、Tips・ガイドは同じ投稿文）。
+- 例文は X と別の文にする。`pick_sentence.py --platform threads` は X と Threads の両方の
+  投稿済みを外して選ぶ。同じ枠の2本はワークフローの `concurrency` で順に走るので、
+  後の方が先の投稿を見て選べる（その分、後の方は数分遅れる）。
+- 記録は `x_post/threads/posted.json`。テーマの点数は Threads 自身の表示回数（インサイトの views）で付ける。
+- 投稿は `post_to_threads.py`。Threads はメディアを URL で取りに来るので、`x_post/threads/media/` に
+  置いて署名付き URL を渡し、投稿後に消す。動画＋画像はカルーセルにする。
+- トークンは長期トークン（60日）。投稿のたびに、Secret Manager の最新版が7日より古ければ延長して版を足す。
+- Scheduler のジョブは `threads_post_enabled = true` で `post-daily-threads-<枠>` が作られる。
+
+### 始めるまで（本人の作業）
+
+1. Threads アカウントを作る（Instagram アカウントから）。
+2. [Meta for Developers](https://developers.facebook.com/apps) でアプリを作り、ユースケースに
+   「Threads API にアクセス」を選ぶ。権限は `threads_basic` `threads_content_publish` `threads_manage_insights`。
+3. アプリの「役割」で投稿する Threads アカウントを Threads テスターに追加し、Threads の
+   設定 → アカウント → ウェブサイトのアクセス許可 → 招待 で承認する
+   （自分のアカウントにだけ出すので、アプリ審査は要らない）。
+4. ユースケースの設定画面の「User Token Generator」で短期トークンを出し、長期トークンに替える。
+
+   ```bash
+   curl -s "https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=<アプリシークレット>&access_token=<短期トークン>"
+   ```
+5. 長期トークンを Secret Manager に入れる（枠は Terraform が作る）。
+
+   ```bash
+   printf '%s' '<長期トークン>' | gcloud secrets versions add threads-access-token \
+     --project=thai-memo-prod --data-file=-
+   ```
+6. `workflow_dispatch` で `platform=threads` `dry_run=false` を1回手で流して確かめ、
+   `terraform/prod.tfvars` の `threads_post_enabled = true` にして `terraform apply`。

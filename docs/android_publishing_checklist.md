@@ -1,6 +1,6 @@
 # Android公開情報チェックリスト
 
-最終更新: 2026-10-11
+最終更新: 2026-11-01
 
 本番アプリ: `com.thaimemo.thai_memo`（Play Console「まいにちタイ語 - 毎日の例文で単語が増える」）。
 tester 版は別アプリ `com.thaimemo.thai_memo.test`。
@@ -69,8 +69,8 @@ tester 版は別アプリ `com.thaimemo.thai_memo.test`。
 | アプリのインタラクション数 | 分析 |
 | その他の操作（学習データ） | アプリの機能、カスタマイズ |
 | デバイスまたはその他の ID（FCM トークン等） | アプリの機能、分析 |
-| クラッシュログ（Crashlytics）※未申告 | 分析 |
-| その他のアプリのパフォーマンス データ（Crashlytics の非致命的エラー）※未申告 | 分析 |
+| クラッシュログ（Crashlytics） | 分析 |
+| その他のアプリのパフォーマンス データ（Crashlytics の非致命的エラー） | 分析 |
 
 - 発音練習の録音は端末内処理のため申告しない（Android は OS の SpeechRecognizer を使う）
 

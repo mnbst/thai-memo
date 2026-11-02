@@ -107,7 +107,7 @@ class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
         transitionBuilder: (child, animation) {
-          final isEntering = child.key == ValueKey(currentTip.title);
+          final isEntering = child.key == ValueKey(_currentTipIndex);
           final offset = _swipingRight
               ? (isEntering ? const Offset(1, 0) : const Offset(-1, 0))
               : (isEntering ? const Offset(-1, 0) : const Offset(1, 0));
@@ -118,7 +118,7 @@ class _LoadingTipCarouselState extends State<LoadingTipCarousel> {
           );
         },
         child: Padding(
-          key: ValueKey(currentTip.title),
+          key: ValueKey(_currentTipIndex),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,

@@ -4,41 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/pronunciation_guide_sections.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/tts_provider.dart';
 import '../widgets/swipe_back.dart';
-
-/// 例に出す語。意味は節ごとの `|` 区切りの文言から、出てくる順に引く。
-class _Word {
-  final String thai;
-  final String reading;
-
-  /// 会話で崩れたときの読み。会話の節だけで使う。
-  final String? spoken;
-
-  const _Word(this.thai, this.reading, [this.spoken]);
-}
-
-/// 例の1行。[contrast] なら「A ↔ B」の比べる形、そうでなければ並べるだけ。
-class _Row {
-  final List<_Word> words;
-  final bool contrast;
-
-  const _Row(this.words, {this.contrast = false});
-}
-
-class _Section {
-  final IconData icon;
-  final String Function(L10n) title;
-  final String Function(L10n) body;
-  final List<_Row> rows;
-  final String Function(L10n)? meanings;
-  final String Function(L10n)? note;
-
-  const _Section(this.icon, this.title, this.body, this.rows,
-      {this.meanings, this.note});
-}
 
 /// 読みの記号の一覧。説明は pronSymbolsDescs を `|` で区切って同じ順に引く。
 const _symbols = [
@@ -50,67 +20,6 @@ const _symbols = [
   'th  ph',
   'ng',
   'à  â  á  ǎ'
-];
-
-final _sections = <_Section>[
-  _Section(
-    Icons.compare_arrows,
-    (l) => l.pronAspTitle,
-    (l) => l.pronAspBody,
-    const [
-      _Row([_Word('ไก่', 'kài'), _Word('ไข่', 'khài')], contrast: true),
-      _Row([_Word('ตา', 'taa'), _Word('ทา', 'thaa')], contrast: true),
-      _Row([_Word('ปา', 'paa'), _Word('พา', 'phaa')], contrast: true),
-    ],
-    meanings: (l) => l.pronAspMeanings,
-    note: (l) => l.pronAspNote,
-  ),
-  _Section(
-    Icons.straighten,
-    (l) => l.pronLengthTitle,
-    (l) => l.pronLengthBody,
-    const [
-      _Row([_Word('เข้า', 'khâw'), _Word('ข้าว', 'khâaw')], contrast: true),
-      _Row([_Word('เขา', 'khǎw'), _Word('ขาว', 'khǎaw')], contrast: true),
-    ],
-    meanings: (l) => l.pronLengthMeanings,
-  ),
-  _Section(
-    Icons.record_voice_over_outlined,
-    (l) => l.pronVowelTitle,
-    (l) => l.pronVowelBody,
-    const [
-      _Row([_Word('เด็ก', 'dèk'), _Word('แดด', 'dɛ̀ɛt')], contrast: true),
-      _Row([_Word('โต๊ะ', 'tó'), _Word('ห้อง', 'hɔ̂ng')], contrast: true),
-      _Row([_Word('ดู', 'duu'), _Word('มือ', 'mʉʉ')], contrast: true),
-      _Row([_Word('เงิน', 'ngən'), _Word('เดิน', 'dəən')]),
-    ],
-    meanings: (l) => l.pronVowelMeanings,
-  ),
-  _Section(
-    Icons.stop_circle_outlined,
-    (l) => l.pronFinalTitle,
-    (l) => l.pronFinalBody,
-    const [
-      _Row([_Word('นก', 'nók'), _Word('รถ', 'rót'), _Word('กับ', 'kàp')]),
-      _Row([_Word('จาน', 'jaan'), _Word('จาง', 'jaang')], contrast: true),
-    ],
-    meanings: (l) => l.pronFinalMeanings,
-    note: (l) => l.pronFinalNote,
-  ),
-  _Section(
-    Icons.forum_outlined,
-    (l) => l.pronCasualTitle,
-    (l) => l.pronCasualBody,
-    const [
-      _Row([_Word('รัก', 'rák', 'lák')]),
-      _Row([_Word('ครับ', 'khráp', 'kháp')]),
-      _Row([_Word('ไหม', 'mǎi', 'mái')]),
-      _Row([_Word('ฉัน', 'chǎn', 'chán')]),
-    ],
-    meanings: (l) => l.pronCasualMeanings,
-    note: (l) => l.pronCasualNote,
-  ),
 ];
 
 /// タイ語の発音ガイド画面。読みの記号と、日本語話者が区別しにくい音をまとめる。
@@ -137,7 +46,7 @@ class PronunciationGuideScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const _SymbolsCard(),
-              for (final section in _sections) ...[
+              for (final section in pronunciationSections) ...[
                 const SizedBox(height: 12),
                 _SectionCard(section: section),
               ],
@@ -273,7 +182,7 @@ class _SymbolsCard extends StatelessWidget {
 }
 
 class _SectionCard extends StatelessWidget {
-  final _Section section;
+  final PronSection section;
 
   const _SectionCard({required this.section});
 
@@ -330,7 +239,7 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _ExampleRow extends StatelessWidget {
-  final _Row row;
+  final PronRow row;
   final List<String> meanings;
 
   const _ExampleRow({required this.row, required this.meanings});
@@ -363,7 +272,7 @@ class _ExampleRow extends StatelessWidget {
 /// 語1つ。タイ文字・読み・意味を縦に積む。崩れた読みがあれば「読み → 崩れ」。
 /// 札全体を押すとその語を読み上げる。
 class _WordTile extends ConsumerWidget {
-  final _Word word;
+  final PronWord word;
   final String meaning;
 
   const _WordTile({required this.word, required this.meaning});

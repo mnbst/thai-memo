@@ -152,8 +152,12 @@ class AppConfig {
   static const String prefKeyQuizOfferAssignmentLoggedV1 =
       'quiz_offer_assignment_logged_v1';
 
-  /// 確認クイズの導線を光らせる初回ガイドを出したか（自分で押した場合も立つ）。
-  static const String prefKeyQuizOfferCoachShown = 'quiz_offer_coach_shown';
+  /// 最初の例文の ID（学習の手順カード・詳細の案内カードを出す例文）。
+  /// 空文字は対象外（既存ユーザー）。
+  static const String prefKeyFirstSentenceId = 'first_sentence_id';
+
+  /// 学習の手順カードで済んだ手順（FirstSetStep.name の並び）。
+  static const String prefKeyFirstStepsDone = 'first_steps_done';
 
   /// クローズドテストの特典を自動で配る期間が終わった（以後問い合わせない）。
   static const String prefKeyClosedTesterClaimEnded =

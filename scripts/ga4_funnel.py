@@ -18,6 +18,8 @@ import sys
 PROP = "534357716"
 SA = "ga4-analytics@thai-memo-prod.iam.gserviceaccount.com"
 DEFAULT_DAYS = 35
+# 審査（米国の iOS）と Play プレリリースレポートの bot（国が (not set) の Android）を除く。
+EXCLUDE_COUNTRIES = ("United States", "(not set)")
 # (表示名, イベント名, {パラメータ: 値 | (値, ...)})。値を並べたものはどれか一つに一致。
 # 初回導線の順: 機能紹介 → ヒアリング → 使い方ガイド → 語彙テスト → ペイウォール → 生成。
 # 別端末のアカウントで入った人はヒアリング以降を通らないので、ここで落ちて見える。
@@ -28,11 +30,15 @@ STEPS = (
     ("interview_start", "interview", {"action": "start"}),
     ("interview_complete", "interview", {"action": ("complete", "skip")}),
     ("guide_open", "guide", {"action": "open", "source": "first_launch"}),
-    # auto_skip はヒアリングが「まったく初めて」で出さなかった人。start と end の両方に数える。
+    # auto_skip はヒアリングが「まったく初めて」で出さなかった人。閉じたファネルでは
+    # 1つのイベントが2つの段を満たせないので、end は直後の初回ペイウォールでも満たす。
+    # 途中でやめた（abandon）人も導線は先へ進むので、ペイウォールに着けば end に入る。
     ("vocab_test_start", "vocab_test",
      {"action": ("start", "auto_skip"), "source": "onboarding"}),
-    ("vocab_test_end", "vocab_test",
-     {"action": ("complete", "skip", "auto_skip"), "source": "onboarding"}),
+    ("vocab_test_end", [
+        ("vocab_test", {"action": ("complete", "skip"), "source": "onboarding"}),
+        ("paywall_view", {"source": "onboarding"}),
+    ], {}),
     ("generate_sentence", "generate_sentence", {}),
 )
 
@@ -69,7 +75,12 @@ def token() -> str:
     return value
 
 
-def step_filter(event_name: str, params: dict) -> dict:
+def step_filter(event_name: str | list, params: dict) -> dict:
+    """event_name に (イベント名, パラメータ) の list を渡すと、どれか一つに一致。"""
+    if isinstance(event_name, list):
+        return {"orGroup": {"expressions": [
+            step_filter(name, alt_params) for name, alt_params in event_name
+        ]}}
     event_filter: dict = {"eventName": event_name}
     exprs = []
     for key, value in params.items():
@@ -97,6 +108,14 @@ def run_report(access_token: str, days: int, steps: tuple = STEPS) -> dict:
                 {"name": name, "filterExpression": step_filter(event_name, params)}
                 for name, event_name, params in steps
             ],
+        },
+        "dimensionFilter": {
+            "notExpression": {
+                "filter": {
+                    "fieldName": "country",
+                    "inListFilter": {"values": list(EXCLUDE_COUNTRIES)},
+                }
+            }
         },
     }
     url = (
@@ -163,6 +182,7 @@ def main() -> None:
 
     base = parsed[0][1]
     print(f"=== GA4 Activation Funnel (closed, last {days}d) ===")
+    print(f"(excluded countries: {', '.join(EXCLUDE_COUNTRIES)})")
     print(f"{'step':<24} {'users':>7} {'from first':>11} {'to next':>9} {'drop':>7}")
     for step, users, completion_rate, abandonments in parsed:
         from_first = users / base if base else 0

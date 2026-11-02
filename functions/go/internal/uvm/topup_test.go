@@ -24,7 +24,7 @@ func TestTopUpFromBandTakesLowRankFirst(t *testing.T) {
 	selected := []Candidate{cand("sel", 420)}
 	rest := []Candidate{cand("低", 415), cand("中", 440), cand("高", 468)}
 
-	got := TopUpFromBand(selected, rest, nil, map[string]float64{}, 3)
+	got := TopUpFromBand(selected, rest, nil, map[string]float64{}, nil, 3)
 	if len(got) != 3 {
 		t.Fatalf("本数 %d, want 3: %v", len(got), words(got))
 	}
@@ -43,7 +43,7 @@ func TestTopUpFromBandPrefersUnexposed(t *testing.T) {
 	rest := []Candidate{cand("低ランク既出", 415), cand("高ランク未出", 468)}
 	pMap := map[string]float64{"低ランク既出": 0.8}
 
-	got := TopUpFromBand(selected, rest, nil, pMap, 2)
+	got := TopUpFromBand(selected, rest, nil, pMap, nil, 2)
 	if len(got) != 2 || got[1].Word != "高ランク未出" {
 		t.Fatalf("未出を先に使うこと: %v", words(got))
 	}
@@ -54,7 +54,7 @@ func TestTopUpFromBandUsesExposedWhenNoneLeft(t *testing.T) {
 	rest := []Candidate{cand("既出低", 415), cand("既出高", 468)}
 	pMap := map[string]float64{"既出低": 0.4, "既出高": 0.8}
 
-	got := TopUpFromBand(selected, rest, nil, pMap, 3)
+	got := TopUpFromBand(selected, rest, nil, pMap, nil, 3)
 	if len(got) != 3 {
 		t.Fatalf("既出からでも埋めること: %v", words(got))
 	}
@@ -68,7 +68,7 @@ func TestTopUpFromBandStopsAtBandEdge(t *testing.T) {
 	selected := []Candidate{cand("sel", 420)}
 	rest := []Candidate{cand("唯一", 430)}
 
-	got := TopUpFromBand(selected, rest, nil, map[string]float64{}, 5)
+	got := TopUpFromBand(selected, rest, nil, map[string]float64{}, nil, 5)
 	if len(got) != 2 {
 		t.Fatalf("帯の外から取ってはいけない: %v", words(got))
 	}
@@ -78,7 +78,7 @@ func TestTopUpFromBandNoShortfallKeepsSelection(t *testing.T) {
 	selected := []Candidate{cand("a", 420), cand("b", 421), cand("c", 422)}
 	rest := []Candidate{cand("d", 468)}
 
-	got := TopUpFromBand(selected, rest, nil, map[string]float64{}, 3)
+	got := TopUpFromBand(selected, rest, nil, map[string]float64{}, nil, 3)
 	if len(got) != 3 {
 		t.Fatalf("足りているのに足している: %v", words(got))
 	}
@@ -87,7 +87,7 @@ func TestTopUpFromBandNoShortfallKeepsSelection(t *testing.T) {
 // 呼び出し側の rest を並べ替えないこと（帯は後続の処理でも使う）。
 func TestTopUpFromBandDoesNotReorderInput(t *testing.T) {
 	rest := []Candidate{cand("低", 415), cand("高", 468)}
-	TopUpFromBand(nil, rest, nil, map[string]float64{}, 2)
+	TopUpFromBand(nil, rest, nil, map[string]float64{}, nil, 2)
 	if rest[0].Word != "低" {
 		t.Errorf("入力が並べ替えられている: %v", words(rest))
 	}
@@ -113,7 +113,7 @@ func TestTopUpFromBandFillsWhenUnexposedRunsOut(t *testing.T) {
 
 	// zeroP は1語だけ。テーマで絞っていないので candidates == band。
 	selected := []Candidate{cand("未出", 473)}
-	got := TopUpFromBand(selected, remaining(band, selected), nil, pMap, 5)
+	got := TopUpFromBand(selected, remaining(band, selected), nil, pMap, nil, 5)
 
 	if len(got) != 5 {
 		t.Fatalf("本数 %d, want 5: %v", len(got), words(got))
@@ -138,7 +138,7 @@ func TestTopUpFromBandUsesForwardBeforeExposed(t *testing.T) {
 	forward := []Candidate{cand("前方遠い", 500), cand("前方近い", 474), cand("前方既出", 480)}
 	pMap := map[string]float64{"帯既出": 0.8, "前方既出": 0.6}
 
-	got := TopUpFromBand(selected, rest, forward, pMap, 3)
+	got := TopUpFromBand(selected, rest, forward, pMap, nil, 3)
 	if len(got) != 3 {
 		t.Fatalf("本数 %d, want 3: %v", len(got), words(got))
 	}
@@ -154,11 +154,33 @@ func TestTopUpFromBandFallsBackToExposed(t *testing.T) {
 	forward := []Candidate{cand("前方既出", 474)}
 	pMap := map[string]float64{"帯既出低": 0.4, "帯既出高": 0.8, "前方既出": 0.6}
 
-	got := TopUpFromBand(selected, rest, forward, pMap, 3)
+	got := TopUpFromBand(selected, rest, forward, pMap, nil, 3)
 	if len(got) != 3 {
 		t.Fatalf("本数 %d, want 3: %v", len(got), words(got))
 	}
 	if got[1].Word != "帯既出低" || got[2].Word != "帯既出高" {
 		t.Fatalf("既出も帯の中は低ランクから使うこと: %v", words(got))
+	}
+}
+
+func TestSelectUnknownOldestFirst(t *testing.T) {
+	cands := []Candidate{{"a", 1}, {"b", 2}, {"c", 3}, {"d", 4}}
+	lastSeen := map[string]float64{"a": 300, "b": 100, "c": 200, "d": 100}
+	got := (&SessionSelector{}).selectUnknown(cands, lastSeen, 3)
+	want := []string{"b", "d", "c"} // 同時刻はランク順
+	for i, w := range want {
+		if got[i].Word != w {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestTopUpFromBandExposedOldestFirst(t *testing.T) {
+	rest := []Candidate{{"a", 1}, {"b", 2}}
+	pMap := map[string]float64{"a": 0.6, "b": 0.6}
+	lastSeen := map[string]float64{"a": 200, "b": 100}
+	got := TopUpFromBand(nil, rest, nil, pMap, lastSeen, 1)
+	if len(got) != 1 || got[0].Word != "b" {
+		t.Fatalf("got %v, want [b]", got)
 	}
 }

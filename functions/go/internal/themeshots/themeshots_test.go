@@ -44,7 +44,11 @@ func TestBuildShotSection(t *testing.T) {
 
 	got := b.BuildShotSection(sentence.Topics[1], []string{"อร่อย"}, "")
 	id := pickedID(t, got.Context)
-	if !strings.Contains(got.Context, "- 場面: "+shotScene[id]) {
+	situation := shotScene[id]
+	if s, ok := shotSituation[id]; ok {
+		situation = s
+	}
+	if !strings.Contains(got.Context, "- 場面: "+situation) {
 		t.Errorf("場面の行が無い: %q", got.Context)
 	}
 	if !strings.Contains(got.Required, "食事・注文のやり取りにする") {

@@ -1,249 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/word_order_rules.dart';
 import '../../l10n/app_localizations.dart';
 import '../widgets/swipe_back.dart';
 import '../widgets/word_order_example.dart';
-
-class _Rule {
-  final String Function(L10n) title;
-  final String Function(L10n) body;
-  final List<WordOrderExample> examples;
-  final String Function(L10n)? note;
-
-  const _Rule(this.title, this.body, this.examples, [this.note]);
-}
-
-// 表示順はこの並び。キーの番号は追加順で、表示番号とは一致しない。
-final _rules = <_Rule>[
-  _Rule(
-    (l) => l.wordOrderRule1Title,
-    (l) => l.wordOrderRule1Body,
-    [
-      WordOrderExample(
-          ['ทัวร์', 'นี้', 'คน', 'เยอะ'],
-          ['thua', 'níi', 'khon', 'yə́'],
-          {0, 1},
-          (l) => l.wordOrderEx1aGloss,
-          (l) => l.wordOrderEx1aMeaning),
-      WordOrderExample(
-          ['สนามบิน', 'คน', 'เยอะ'],
-          ['sà-nǎam-bin', 'khon', 'yə́'],
-          {0},
-          (l) => l.wordOrderEx1bGloss,
-          (l) => l.wordOrderEx1bMeaning),
-    ],
-    (l) => l.wordOrderRule1Note,
-  ),
-  _Rule(
-    (l) => l.wordOrderRule2Title,
-    (l) => l.wordOrderRule2Body,
-    [
-      WordOrderExample(
-          ['รายงาน', 'นี้', 'พรุ่งนี้', 'ใช้', 'ได้', 'ไหม'],
-          ['raai-ngaan', 'níi', 'phrûng-níi', 'chái', 'dâai', 'mǎi'],
-          {0, 1},
-          (l) => l.wordOrderEx2aGloss,
-          (l) => l.wordOrderEx2aMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule3Title,
-    (l) => l.wordOrderRule3Body,
-    [
-      WordOrderExample(['ผม', 'กิน', 'ข้าว'], ['phǒm', 'kin', 'khâaw'], {1},
-          (l) => l.wordOrderEx3aGloss, (l) => l.wordOrderEx3aMeaning),
-    ],
-    (l) => l.wordOrderRule3Note,
-  ),
-  _Rule(
-    (l) => l.wordOrderRule4Title,
-    (l) => l.wordOrderRule4Body,
-    [
-      WordOrderExample(['บ้าน', 'ใหญ่'], ['bâan', 'yài'], {1},
-          (l) => l.wordOrderEx4aGloss, (l) => l.wordOrderEx4aMeaning),
-      WordOrderExample(['บ้าน', 'ของ', 'ผม'], ['bâan', 'khɔ̌ɔng', 'phǒm'],
-          {1, 2}, (l) => l.wordOrderEx4bGloss, (l) => l.wordOrderEx4bMeaning),
-    ],
-    (l) => l.wordOrderRule4Note,
-  ),
-  _Rule(
-    (l) => l.wordOrderRule11Title,
-    (l) => l.wordOrderRule11Body,
-    [
-      WordOrderExample(
-          ['ร้าน', 'ที่', 'ผม', 'ชอบ'],
-          ['ráan', 'thîi', 'phǒm', 'chɔ̂ɔp'],
-          {1, 2, 3},
-          (l) => l.wordOrderEx11aGloss,
-          (l) => l.wordOrderEx11aMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule5Title,
-    (l) => l.wordOrderRule5Body,
-    [
-      WordOrderExample(['แมว', 'สอง', 'ตัว'], ['mɛɛw', 'sɔ̌ɔng', 'tua'], {1, 2},
-          (l) => l.wordOrderEx5aGloss, (l) => l.wordOrderEx5aMeaning),
-      WordOrderExample(
-          ['แมว', 'สอง', 'ตัว', 'นี้'],
-          ['mɛɛw', 'sɔ̌ɔng', 'tua', 'níi'],
-          {1, 2, 3},
-          (l) => l.wordOrderEx5bGloss,
-          (l) => l.wordOrderEx5bMeaning),
-    ],
-    (l) => l.wordOrderRule5Note,
-  ),
-  _Rule(
-    (l) => l.wordOrderRule12Title,
-    (l) => l.wordOrderRule12Body,
-    [
-      WordOrderExample(
-          ['ผม', 'ไป', 'กับ', 'เพื่อน'],
-          ['phǒm', 'pai', 'kàp', 'phʉ̂an'],
-          {2, 3},
-          (l) => l.wordOrderEx12aGloss,
-          (l) => l.wordOrderEx12aMeaning),
-      WordOrderExample(
-          ['แมว', 'อยู่', 'บน', 'โต๊ะ'],
-          ['mɛɛw', 'yùu', 'bon', 'tó'],
-          {2, 3},
-          (l) => l.wordOrderEx12bGloss,
-          (l) => l.wordOrderEx12bMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule13Title,
-    (l) => l.wordOrderRule13Body,
-    [
-      WordOrderExample(
-          ['อาหาร', 'นี้', 'อร่อย', 'มาก'],
-          ['aa-hǎan', 'níi', 'à-rɔ̀i', 'mâak'],
-          {3},
-          (l) => l.wordOrderEx13aGloss,
-          (l) => l.wordOrderEx13aMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule14Title,
-    (l) => l.wordOrderRule14Body,
-    [
-      WordOrderExample(
-          ['วันนี้', 'ร้อน', 'กว่า', 'เมื่อวาน'],
-          ['wan-níi', 'rɔ́ɔn', 'kwàa', 'mʉ̂a-waan'],
-          {2, 3},
-          (l) => l.wordOrderEx14aGloss,
-          (l) => l.wordOrderEx14aMeaning),
-      WordOrderExample(
-          ['อัน', 'นี้', 'ดี', 'ที่สุด'],
-          ['an', 'níi', 'dii', 'thîi-sùt'],
-          {3},
-          (l) => l.wordOrderEx14bGloss,
-          (l) => l.wordOrderEx14bMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule6Title,
-    (l) => l.wordOrderRule6Body,
-    [
-      WordOrderExample(
-          ['ผม', 'ไม่', 'กิน', 'เผ็ด'],
-          ['phǒm', 'mâi', 'kin', 'phèt'],
-          {1},
-          (l) => l.wordOrderEx6aGloss,
-          (l) => l.wordOrderEx6aMeaning),
-      WordOrderExample(['ผม', 'ไม่ได้', 'ไป'], ['phǒm', 'mâi dâai', 'pai'], {1},
-          (l) => l.wordOrderEx6bGloss, (l) => l.wordOrderEx6bMeaning),
-      WordOrderExample(['ไป', 'ไม่ได้'], ['pai', 'mâi dâai'], {1},
-          (l) => l.wordOrderEx6cGloss, (l) => l.wordOrderEx6cMeaning),
-    ],
-    (l) => l.wordOrderRule6Note,
-  ),
-  _Rule(
-    (l) => l.wordOrderRule7Title,
-    (l) => l.wordOrderRule7Body,
-    [
-      WordOrderExample(['คุณ', 'กิน', 'อะไร'], ['khun', 'kin', 'à-rai'], {2},
-          (l) => l.wordOrderEx7aGloss, (l) => l.wordOrderEx7aMeaning),
-      WordOrderExample(['ไป', 'ไหน'], ['pai', 'nǎi'], {1},
-          (l) => l.wordOrderEx7bGloss, (l) => l.wordOrderEx7bMeaning),
-      WordOrderExample(['กิน', 'ไหม'], ['kin', 'mǎi'], {1},
-          (l) => l.wordOrderEx7cGloss, (l) => l.wordOrderEx7cMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule8Title,
-    (l) => l.wordOrderRule8Body,
-    [
-      WordOrderExample(['ผม', 'จะ', 'ไป'], ['phǒm', 'jà', 'pai'], {1},
-          (l) => l.wordOrderEx8aGloss, (l) => l.wordOrderEx8aMeaning),
-      WordOrderExample(['กิน', 'ข้าว', 'แล้ว'], ['kin', 'khâaw', 'lɛ́ɛw'], {2},
-          (l) => l.wordOrderEx8bGloss, (l) => l.wordOrderEx8bMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule15Title,
-    (l) => l.wordOrderRule15Body,
-    [
-      WordOrderExample(
-          ['ผม', 'อยาก', 'กิน', 'ส้มตำ'],
-          ['phǒm', 'yàak', 'kin', 'sôm-tam'],
-          {1},
-          (l) => l.wordOrderEx15aGloss,
-          (l) => l.wordOrderEx15aMeaning),
-      WordOrderExample(
-          ['ผม', 'พูด', 'ภาษาไทย', 'ได้'],
-          ['phǒm', 'phûut', 'phaa-sǎa-thai', 'dâai'],
-          {3},
-          (l) => l.wordOrderEx15bGloss,
-          (l) => l.wordOrderEx15bMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule16Title,
-    (l) => l.wordOrderRule16Body,
-    [
-      WordOrderExample(
-          ['ผม', 'ไป', 'ซื้อ', 'ของ'],
-          ['phǒm', 'pai', 'sʉ́ʉ', 'khɔ̌ɔng'],
-          {1, 2},
-          (l) => l.wordOrderEx16aGloss,
-          (l) => l.wordOrderEx16aMeaning),
-      WordOrderExample(['เอา', 'น้ำ', 'มา'], ['ao', 'náam', 'maa'], {2},
-          (l) => l.wordOrderEx16bGloss, (l) => l.wordOrderEx16bMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule9Title,
-    (l) => l.wordOrderRule9Body,
-    [
-      WordOrderExample(
-          ['พรุ่งนี้', 'ผม', 'จะ', 'ไป', 'เชียงใหม่'],
-          ['phrûng-níi', 'phǒm', 'jà', 'pai', 'chiang-mài'],
-          {0, 4},
-          (l) => l.wordOrderEx9aGloss,
-          (l) => l.wordOrderEx9aMeaning),
-      WordOrderExample(
-          ['ผม', 'ทำงาน', 'ที่', 'กรุงเทพฯ'],
-          ['phǒm', 'tham-ngaan', 'thîi', 'krung-thêep'],
-          {2, 3},
-          (l) => l.wordOrderEx9bGloss,
-          (l) => l.wordOrderEx9bMeaning),
-    ],
-  ),
-  _Rule(
-    (l) => l.wordOrderRule10Title,
-    (l) => l.wordOrderRule10Body,
-    [
-      WordOrderExample(['กิน', 'ไหม', 'คะ'], ['kin', 'mǎi', 'khá'], {2},
-          (l) => l.wordOrderEx10aGloss, (l) => l.wordOrderEx10aMeaning),
-      WordOrderExample(['กิน', 'แล้ว', 'ค่ะ'], ['kin', 'lɛ́ɛw', 'khâ'], {2},
-          (l) => l.wordOrderEx10bGloss, (l) => l.wordOrderEx10bMeaning),
-      WordOrderExample(['อร่อย', 'นะ', 'คะ'], ['à-rɔ̀i', 'ná', 'khá'], {1, 2},
-          (l) => l.wordOrderEx10cGloss, (l) => l.wordOrderEx10cMeaning),
-    ],
-  ),
-];
 
 /// タイ語の語順ガイド画面。並び替え問題の補助として、設定と解答画面から開く。
 class WordOrderGuideScreen extends StatelessWidget {
@@ -267,7 +28,7 @@ class WordOrderGuideScreen extends StatelessWidget {
                 body: l10n.wordOrderGuideIntro,
               ),
               const SizedBox(height: 16),
-              for (final (i, rule) in _rules.indexed) ...[
+              for (final (i, rule) in wordOrderRules.indexed) ...[
                 _RuleCard(number: i + 1, rule: rule),
                 const SizedBox(height: 12),
               ],
@@ -331,7 +92,7 @@ class _IntroCard extends StatelessWidget {
 
 class _RuleCard extends StatelessWidget {
   final int number;
-  final _Rule rule;
+  final WordOrderRule rule;
 
   const _RuleCard({required this.number, required this.rule});
 
@@ -496,6 +257,23 @@ const _readings = {
   'เป็น': 'pen',
   'หนึ่ง': 'nʉ̀ng',
   'นะคะ': 'ná khá',
+  'อาบน้ำ': 'àap-náam',
+  'นอน': 'nɔɔn',
+  'เดิน': 'dəən',
+  'กลับ': 'klàp',
+  'บ้าน': 'bâan',
+  'หมด': 'mòt',
+  'เสร็จ': 'sèt',
+  'ต่อ': 'tɔ̀ɔ',
+  'ลองๆ': 'lɔɔng-lɔɔng',
+  'ดู': 'duu',
+  'เดินๆ': 'dəən-dəən',
+  'หยุดๆ': 'yùt-yùt',
+  'ดูๆ': 'duu-duu',
+  'ก่อน': 'kɔ̀ɔn',
+  'เร็วๆ': 'reo-reo',
+  'บ่อยๆ': 'bɔ̀i-bɔ̀i',
+  'เด็กๆ': 'dèk-dèk',
   'บ้านใหญ่': 'bâan yài',
   'แมวตัวหนึ่ง': 'mɛɛw tua nʉ̀ng',
 };

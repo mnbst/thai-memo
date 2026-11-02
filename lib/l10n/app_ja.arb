@@ -305,6 +305,8 @@
   "settingsToneGuideSubtitle": "タイ語の声調ルールを学ぶ",
   "settingsPronGuide": "発音ガイド",
   "settingsPronGuideSubtitle": "読みの記号と、区別しにくい音を学ぶ",
+  "settingsThaiScriptGuide": "タイ文字ガイド",
+  "settingsThaiScriptGuideSubtitle": "よく使う文字と、綴りの読み方を学ぶ",
   "settingsResetLearningData": "学習データをリセット",
   "settingsResetLearningDataSubtitle": "端末の例文・クイズ履歴を削除",
   "settingsResetTitle": "学習データのリセット",
@@ -1157,27 +1159,27 @@
   "tipCatNumber": "数字",
   "tipCatDaily": "日常表現",
   "tipCatStudy": "学習のコツ",
-  "tip_vowelA_title": "อะ / อา （a / aa）",
-  "tip_vowelA_content": "短母音 อะ は「a」、長母音 อา は「aa」。長さで意味が変わります。",
-  "tip_vowelA_example": "จะ（jà＝〜する） / จา（jaa＝皿）",
-  "tip_vowelI_title": "อิ / อี （i / ii）",
-  "tip_vowelI_content": "短母音 อิ は短い「i」、長母音 อี は長い「ii」。",
-  "tip_vowelI_example": "นิด（nít＝少し） / นี่（nîi＝これ）",
-  "tip_vowelU_title": "อุ / อู （u / uu）",
-  "tip_vowelU_content": "短母音 อุ は短い「u」、長母音 อู は長い「uu」。",
-  "tip_vowelU_example": "รุ่น（rûn＝世代） / รู้（rúu＝知る）",
-  "tip_vowelE_title": "เอ / แอ （ee / ɛɛ）",
-  "tip_vowelE_content": "เอ は「ee」、แอ は口を大きく開けた「ɛɛ」。",
-  "tip_vowelE_example": "เก่ง（kèeng＝上手） / แก่（kɛ̀ɛ＝老いた）",
-  "tip_vowelO_title": "โอ / ออ （oo / ɔɔ）",
-  "tip_vowelO_content": "โอ は口をすぼめた「oo」、ออ は口を開けた「ɔɔ」。",
-  "tip_vowelO_example": "โต（too＝大きい） / ต่อ（tɔ̀ɔ＝続ける）",
+  "tipCatGrammar": "文法",
+  "tipCatPronunciation": "発音",
+  "tipCatScript": "文字",
+  "tipWordExample": "{thai}（{reading}＝{meaning}）",
+  "@tipWordExample": {
+    "placeholders": {
+      "thai": { "type": "String" },
+      "reading": { "type": "String" },
+      "meaning": { "type": "String" }
+    }
+  },
+  "tipGrammarExample": "{thai}（{meaning}）",
+  "@tipGrammarExample": {
+    "placeholders": {
+      "thai": { "type": "String" },
+      "meaning": { "type": "String" }
+    }
+  },
   "tip_vowelUea_title": "เอือ （ʉa）",
   "tip_vowelUea_content": "เอือ は日本語にない母音。「ʉa」と表記されます。",
   "tip_vowelUea_example": "เมือง（mʉʉang＝街・国）",
-  "tip_vowelUu_title": "อือ / อื （ʉ / ʉʉ）",
-  "tip_vowelUu_content": "日本語にない音。「i」の口で「u」と発音するイメージ。",
-  "tip_vowelUu_example": "คือ（khʉʉ＝〜である） / ฝืน（fʉ̌ʉn＝無理する）",
   "tip_vowelIa_title": "เอีย （ia）",
   "tip_vowelIa_content": "เอีย は「ia」。i から a へ滑らかにつなげます。",
   "tip_vowelIa_example": "เรียน（riian＝学ぶ）",
@@ -1190,18 +1192,6 @@
   "tip_vowelAi_title": "ไอ / ใอ （ai）",
   "tip_vowelAi_content": "ไอ と ใอ は同じ「ai」の発音。ใ を使う語は20語だけ。",
   "tip_vowelAi_example": "ไป（pai＝行く） / ใจ（jai＝心）",
-  "tip_vowelShortE_title": "เอ็（短母音 e）",
-  "tip_vowelShortE_content": "短い「e」。เ〜็ の形で表記されます。",
-  "tip_vowelShortE_example": "เก็บ（kèp＝拾う・保管する）",
-  "tip_vowelShortAe_title": "แอ็（短母音 ɛ）",
-  "tip_vowelShortAe_content": "短い「ɛ」（口を大きく開ける）。แ〜็ の形。",
-  "tip_vowelShortAe_example": "แบ็ก（bɛ̀k＝バッグ）",
-  "tip_vowelOe_title": "เออ （əə）",
-  "tip_vowelOe_content": "เออ は曖昧な母音「əə」。口を半開きにして発音。",
-  "tip_vowelOe_example": "เธอ（thəə＝あなた・彼女）",
-  "tip_vowelLength_title": "母音の長短で意味が変わる",
-  "tip_vowelLength_content": "タイ語は母音の長さが重要。短母音と長母音で別の単語になります。",
-  "tip_vowelLength_example": "ปะ（pà＝出会う） / ป้า（pâa＝おばさん）",
   "tip_cultureWai_title": "wâi（合掌・ไหว้）",
   "tip_cultureWai_content": "両手を合わせるタイ式挨拶。目上の人には鼻の高さ、同年代は胸の高さで。",
   "tip_cultureTemple_title": "寺院参拝のマナー",
@@ -1214,28 +1204,8 @@
   "tip_cultureEating_content": "フォークとスプーンを使い、スプーンで口に運びます。箸は麺料理の時だけ。",
   "tip_cultureMaiPenRai_title": "ไม่เป็นไร（mâi pen rai）",
   "tip_cultureMaiPenRai_content": "「気にしないで・大丈夫」。タイ人の寛容さを表す代表的フレーズです。",
-  "tip_toneFive_title": "タイ語は5つの声調",
-  "tip_toneFive_content": "平声・低声・下降声・高声・上昇声の5つ。声調が違うと全く別の単語になります。",
-  "tip_toneFive_example": "ไหม（mǎi＝絹） / ใหม่（mài＝新しい） / ไม่（mâi＝〜ない）",
-  "tip_toneMaiEk_title": "声調記号 ่ （mái èek）",
-  "tip_toneMaiEk_content": "文字の上に付く第1声調記号。中子音・高子音に付くと低声になります。",
-  "tip_toneMaiEk_example": "เก่า（kàw＝古い）、ข่าว（khàaw＝ニュース）",
-  "tip_toneMaiTho_title": "声調記号 ้ （mái thoo）",
-  "tip_toneMaiTho_content": "文字の上に付く第2声調記号。中子音に付くと下降声になります。",
-  "tip_toneMaiTho_example": "น้ำ（náam＝水）、บ้าน（bâan＝家）",
-  "tip_toneMaiTriChat_title": "声調記号 ๊ と ๋",
-  "tip_toneMaiTriChat_content": "๊（mái trii）は高声、๋（mái jàttawaa）は上昇声を示します。使用頻度は低め。",
-  "tip_toneMaiTriChat_example": "โน๊ต（nóot＝ノート）、จ๋า（jǎa＝はいよ）",
-  "tip_toneClassRelation_title": "子音クラスと声調の関係",
-  "tip_toneClassRelation_content": "声調は子音クラス（高・中・低）×母音の長短×末子音×声調記号で決まります。",
   "tip_toneMistake_title": "声調を間違えると…",
   "tip_toneMistake_content": "สวย（sǔuai＝美しい）と ซวย（suuai＝ついてない）のように声調で意味が激変。",
-  "tip_toneMidExplain_title": "平声（sǎa-man）",
-  "tip_toneMidExplain_content": "中くらいの高さで平らに発音。中子音＋長母音（声調記号なし）が基本パターン。",
-  "tip_toneMidExplain_example": "กา（kaa＝カラス）、ดี（dii＝良い）",
-  "tip_toneRisingExplain_title": "上昇声（jàttawaa）",
-  "tip_toneRisingExplain_content": "低い音から高い音へ上がる声調。日本語の疑問文の語尾上げに少し似ています。",
-  "tip_toneRisingExplain_example": "สวย（sǔuai＝美しい）、หนาว（nǎaw＝寒い）",
   "tip_toneRelative_title": "声調は相対的な高さ",
   "tip_toneRelative_content": "声調の高さは前の音節で変わります。フレーズごと覚えるのが効果的。",
   "tip_consonant44_title": "タイ語は44の子音字",
@@ -1246,12 +1216,6 @@
   "tip_consonantMid_content": "ก จ ฎ ฏ ด ต บ ป อ の9文字。声調記号がそのまま反映される基本グループ。",
   "tip_consonantLow_title": "低子音（àksɔ̌ɔn tàm）",
   "tip_consonantLow_content": "残り24文字が低子音。対応する高子音がある「対応字」と「単独字」に分かれます。",
-  "tip_consonantFinal_title": "末子音の発音ルール",
-  "tip_consonantFinal_content": "末子音は k, t, p, n, m, ng, i, o の8音のみ。元の子音と違う音になることも。",
-  "tip_consonantFinal_example": "บ,ป,พ,ภ,ฟ → 末子音ではすべて -p",
-  "tip_consonantAspiration_title": "有気音と無気音",
-  "tip_consonantAspiration_content": "タイ語は息の有無で子音を区別。ป（無気音 p）と พ（有気音 ph）は別の音。",
-  "tip_consonantAspiration_example": "ปลา（plaa＝魚） / พลา（phlaa＝失敗する）",
   "tip_consonantSilent_title": "黙字記号 ์（kaa-ran）",
   "tip_consonantSilent_content": "文字の上に付く ์ は「この子音は読まない」という記号。外来語に多いです。",
   "tip_consonantSilent_example": "จันทร์（jan＝月） ← ร์ は読まない",
@@ -1266,17 +1230,11 @@
   "tip_number6to10_content": "๖ hòk、๗ jèt、๘ pɛ̀ɛt、๙ kâw、๑๐ sìp",
   "tip_number11and21_title": "11と21の特殊な読み方",
   "tip_number11and21_content": "11は sìp èt、21は yîi sìp èt。1の位と2の十の位が特殊。",
-  "tip_numberClassifier_title": "類別詞（láksanànaam）",
-  "tip_numberClassifier_content": "数を数えるとき「数詞＋類別詞」が必要。日本語の「〜本」「〜枚」と同じ仕組み。",
-  "tip_numberClassifier_example": "khon（人）、tua（動物）、an（小物）",
   "tip_numberBig_title": "百・千・万の位",
   "tip_numberBig_content": "rɔ́ɔi（百）、phan（千）、mʉ̀ʉn（万）、sǎen（十万）、láan（百万）",
   "tip_numberPrice_title": "値段の聞き方",
   "tip_numberPrice_content": "「いくらですか？」は thâo rài。raakhaa（価格）と合わせて覚えましょう。",
   "tip_numberPrice_example": "an-níi thâo rài（これいくら？）",
-  "tip_dailyPolite_title": "ครับ / ค่ะ（khráp / khâ）",
-  "tip_dailyPolite_content": "男性は khráp（ครับ）、女性は khâ（ค่ะ）を文末に付けて丁寧にします。タイ語の基本マナー。",
-  "tip_dailyPolite_example": "khɔ̀ɔp khun khráp / khɔ̀ɔp khun khâ",
   "tip_dailyHello_title": "สวัสดี（sà-wàt-dii）",
   "tip_dailyHello_content": "「こんにちは」朝昼夜いつでも使える万能挨拶。別れ際にも使います。",
   "tip_dailyThanks_title": "ขอบคุณ（khɔ̀ɔp khun）",
@@ -1471,7 +1429,7 @@
   "guideRoleQuizTitle": "クイズ",
   "guideRoleQuizCheck": "確認クイズ：例文ごとに、学習単語の意味を選びます。",
   "guideRoleQuizSummary": "まとめクイズ：例文最大5つごとに、下線部に入る単語を選びます。",
-  "guideRoleQuizSpelling": "綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。",
+  "guideRoleQuizSpelling": "綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。間違えたときは「タイ文字について詳しく学ぶ」からタイ文字ガイドを開けます。",
   "guideRoleScoreTitle": "語彙スコア",
   "guideRoleScoreBody": "語彙測定テストとまとめクイズの結果から推定した、現在の語彙量です。",
   "guideRoleVocabTestTitle": "語彙測定テスト",
@@ -1557,14 +1515,10 @@
   "guideTipsRepeat": "クイズは間違えても大丈夫です。例文を丸ごと覚えなくても、学習単語を何度も見るうちに自然と語彙が増えていきます。",
   "guideTipsScript": "タイ文字は、まず単語全体の形をつかめれば十分です。見慣れてきたら、子音・母音・声調記号を少しずつ見分けていきましょう。",
   "guideTipsSpeak": "覚えた単語や例文を、会話で使ってみましょう。声に出すほど身につきます。",
-  "coachQuizOfferTitle": "確認クイズはこちら",
-  "coachQuizOfferMessage": "例文を読み終えたら、このボタンから確認クイズを1問解き、学習単語を覚えたか確かめられます。",
-  "coachTapHere": "光っている場所をタップ",
-  "coachSkip": "スキップ",
-  "coachGotIt": "わかった",
   "settingsWordOrderGuide": "語順ガイド",
   "settingsWordOrderGuideSubtitle": "タイ語の語の並び方を学ぶ",
   "wordOrderLearnMore": "語順について詳しく学ぶ",
+  "thaiScriptLearnMore": "タイ文字について詳しく学ぶ",
   "wordOrderGuideTitle": "タイ語の語順ガイド",
   "wordOrderGuideHeading": "タイ語の語順のきまり",
   "wordOrderGuideIntro": "並び替え問題で迷ったときの手がかりです。タイ語は、話題を先に出し、動詞を目的語の前に、説明する語を後ろに置くのが基本です。",
@@ -1664,11 +1618,64 @@
   "wordOrderEx15bGloss": "私|話す|タイ語|できる",
   "wordOrderEx15bMeaning": "私はタイ語を話せる",
   "wordOrderRule16Title": "動詞はそのまま続けて並べる",
-  "wordOrderRule16Body": "「買い物に行く」は ไป（行く）＋ซื้อ（買う）のように、起きる順に動詞を並べます。ไป・มา が「〜て行く・〜て来る」の意味のときは後ろに付きます。",
+  "wordOrderRule16Body": "動詞を続けると、目的（ไป + ซื้อ + ของ）・順序（อาบน้ำ + นอน）・方法（เดิน + กลับ + บ้าน）を表せます。基本は意味の流れに沿って並べます。",
   "wordOrderEx16aGloss": "私|行く|買う|物",
   "wordOrderEx16aMeaning": "私は買い物に行く",
   "wordOrderEx16bGloss": "取る|水|来る",
   "wordOrderEx16bMeaning": "水を持ってくる",
+  "wordOrderEx16cGloss": "歩く|戻る|家",
+  "wordOrderEx16cMeaning": "歩いて家に帰る",
+  "wordOrderRule17Title": "後ろの動詞で結果・続きを表す",
+  "wordOrderRule17Body": "動詞の後ろに หมด（すべて〜する）・เสร็จ（〜し終える）を置くと、動作の結果を表します。ต่อ（続ける）なら、その動作を続ける意味です。",
+  "wordOrderEx17aGloss": "食べる|なくなる",
+  "wordOrderEx17aMeaning": "全部食べる",
+  "wordOrderEx17bGloss": "食べる|終わる",
+  "wordOrderEx17bMeaning": "食べ終わる",
+  "wordOrderEx17cGloss": "食べる|続ける",
+  "wordOrderEx17cMeaning": "食べ続ける",
+  "wordOrderRule18Title": "同じ動詞を重ねる（ๆ）",
+  "wordOrderRule18Body": "ๆ は直前の語を繰り返す記号です。動詞を重ねると、軽く（ลองๆ ดู）・〜たり〜たり（เดินๆ หยุดๆ）・なんとなくやしばらく（ดูๆ ไปก่อน）を表せます。",
+  "wordOrderEx18aGloss": "ちょっと試す|みる",
+  "wordOrderEx18aMeaning": "ちょっと試してみる",
+  "wordOrderEx18bGloss": "歩いたり|止まったり",
+  "wordOrderEx18bMeaning": "歩いたり止まったりする",
+  "wordOrderEx18cGloss": "しばらく見る|〜していく|ひとまず",
+  "wordOrderEx18cMeaning": "とりあえず様子を見る",
+  "wordOrderRule18Note": "動詞以外も重ねます。เร็วๆ（速く）・บ่อยๆ（よく）のほか、名詞では เด็กๆ（子どもたち）などがあります。",
+  "thaiScriptGuideTitle": "タイ文字ガイド",
+  "thaiScriptGuideHeading": "タイ文字を部品に分けて読む",
+  "thaiScriptGuideIntro": "全部を暗記しなくても大丈夫です。よく出る子音と母音から、単語の中で見つけられるようになりましょう。札を押すと音を聞けます。",
+  "thaiScriptBasicsTitle": "1. タイ文字のしくみ",
+  "thaiScriptBasicsBody": "1つの音節は、主に子音字＋母音記号＋声調記号でできています。末子音が付くこともあります。",
+  "thaiScriptBasicsDirection": "文は左から右へ読みます。英語のように単語ごとにはスペースを空けず、文やまとまりの切れ目で空けます。",
+  "thaiScriptBasicsVowelPosition": "母音記号は子音の後ろだけでなく、前・上・下、または子音を囲む位置に付きます。書く位置と、読む音の順番は同じとは限りません。",
+  "thaiScriptConsonantsTitle": "2. よく使う子音",
+  "thaiScriptConsonantsBody": "大きな字が子音字、その下が字の名前です。「頭」は音節の最初、「末」は最後に来たときの音。高・中・低のクラスは声調を決める手がかりです。札を押して字の名前を聞けます。",
+  "thaiScriptConsonantCarrierNote": "อ は音を持たない子音です。母音だけの音を書くとき、母音記号を付ける台になります（อา＝aa、อิ＝i）。",
+  "thaiScriptConsonantSounds": "頭 {initial}・末 {finalSound}",
+  "@thaiScriptConsonantSounds": {
+    "placeholders": {
+      "initial": { "type": "String" },
+      "finalSound": { "type": "String" }
+    }
+  },
+  "thaiScriptVowelsTitle": "3. 母音記号の位置と長さ",
+  "thaiScriptVowelsBody": "อ を子音の代わりの台にして、記号の位置を見ます。母音には短い音と長い音があり、長さが違うと別の語になります。",
+  "thaiScriptVowelPositions": "子音の前|子音の後ろ|子音の上|子音の下|子音を囲む",
+  "thaiScriptVowelPairsTitle": "短母音と長母音",
+  "thaiScriptVowelPairsBody": "読みで同じ母音が2つ並ぶものは、長く伸ばします。短い形では ะ が付いたり、単語の中で形が変わったりします。",
+  "thaiScriptToneMarksTitle": "4. 声調記号",
+  "thaiScriptToneMarksBody": "子音の上に付く4つの記号です。記号そのものが声の上げ下げを直接表すのではなく、子音クラスとの組み合わせで声調が決まります。",
+  "thaiScriptToneRule": "声調は、子音クラス（高・中・低）×声調記号×音節の種類（母音の長短・末子音）から決まります。記号がない音節にも声調があります。",
+  "thaiScriptOpenToneGuide": "声調の決まり方を詳しく見る",
+  "thaiScriptToneGuideNote": "まずは声調記号を見つけられれば十分です。組み合わせの表は声調ガイドで確認できます。",
+  "thaiScriptWordsTitle": "5. 単語を分解して読む",
+  "thaiScriptWordsBody": "書かれた順ではなく、子音・母音・声調記号を探します。同じ色の札が同じ役割です。単語を押すと音を聞けます。",
+  "thaiScriptWordMeanings": "〜ない|良い|私たち・私|食べる|来る",
+  "thaiScriptConsonantLabel": "子音",
+  "thaiScriptFinalConsonantLabel": "末子音",
+  "thaiScriptVowelLabel": "母音",
+  "thaiScriptToneMarkLabel": "声調記号",
   "pronGuideTitle": "タイ語の発音ガイド",
   "pronGuideHeading": "タイ語の発音のポイント",
   "pronGuideIntro": "アプリの読みは、ローマ字に記号を足した表記です。日本語にない音の区別を、読みの記号と一緒に押さえましょう。声調は「声調ガイド」で説明しています。",
@@ -1694,7 +1701,7 @@
   "pronCasualMeanings": "愛する|丁寧（男性）|〜か？|私（女性）",
   "pronCasualNote": "崩れた形は聞き取りの手がかりです。話すときは読みどおりで通じます。",
   "guideRoleQuizWordOrder": "並び替えクイズ：まとめクイズの一部で、例文の4つの語を正しい順に並べます。解答後の「語順について詳しく学ぶ」から語順ガイドを開けます。",
-  "guideHowSettingsGuides": "「声調ガイド」「語順ガイド」で、声調と語順のきまりを読み返せます。",
+  "guideHowSettingsGuides": "「タイ文字ガイド」「発音ガイド」「声調ガイド」「語順ガイド」で、文字・読み・声調・語順のきまりを読み返せます。",
   "streakChipDays": "{count}日",
   "@streakChipDays": {
     "placeholders": { "count": { "type": "int" } }
@@ -1721,5 +1728,69 @@
   "streakWeekdayLetters": "月火水木金土日",
   "@streakWeekdayLetters": {
     "description": "月曜始まりの曜日1文字×7。1文字ずつ切って使う。"
+  },
+  "firstStepsTitle": "学習の手順",
+  "@firstStepsTitle": {
+    "description": "初級者の初回セット1本目の手順カード（FirstSetSteps）"
+  },
+  "firstStepsListenSentence": "例文の音声を聞く",
+  "@firstStepsListenSentence": {
+    "description": "初級者の初回セット1本目の手順カード（FirstSetSteps）"
+  },
+  "firstStepsListenSentenceHint": "例文の下の「お手本を聞く」を押す",
+  "@firstStepsListenSentenceHint": {
+    "description": "初級者の初回セット1本目の手順カード（FirstSetSteps）"
+  },
+  "firstStepsOpenDetail": "例文カードをタップして詳細を見る",
+  "@firstStepsOpenDetail": {
+    "description": "初級者の初回セット1本目の手順カード（FirstSetSteps）"
+  },
+  "firstStepsOpenDetailHint": "発音練習や、単語ごとの声調が見られる",
+  "@firstStepsListenWordHint": {
+    "description": "初級者の初回セット1本目の手順カード（FirstSetSteps）"
+  },
+  "firstStepsQuiz": "確認クイズを解く",
+  "@firstStepsQuiz": {
+    "description": "初級者の初回セット1本目の手順カード（FirstSetSteps）"
+  },
+  "firstStepsQuizHint": "1問だけ。覚えたか確かめる",
+  "@firstStepsQuizHint": {
+    "description": "初級者の初回セット1本目の手順カード（FirstSetSteps）"
+  },
+  "firstStepsQuizStart": "解く",
+  "@firstStepsQuizStart": {
+    "description": "初級者の初回セット1本目の手順カード（FirstSetSteps）"
+  },
+  "detailGuideTitle": "この画面でできること",
+  "@detailGuideTitle": {
+    "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
+  },
+  "detailGuidePractice": "発音を練習する",
+  "@detailGuidePractice": {
+    "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
+  },
+  "detailGuidePracticeHint": "お手本を聞いて録音すると、声調が合っているか判定",
+  "@detailGuidePracticeHint": {
+    "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
+  },
+  "detailGuideWords": "単語をタップして声調ルールを見る",
+  "@detailGuideWords": {
+    "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
+  },
+  "detailGuideWordsHint": "なぜこの声調になるのかを、文字の組み合わせから解説",
+  "@detailGuideWordsHint": {
+    "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
+  },
+  "detailGuideUsage": "使い方を読む",
+  "@detailGuideUsage": {
+    "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
+  },
+  "detailGuideUsageHint": "どんな場面で、誰に使うかがわかる",
+  "@detailGuideUsageHint": {
+    "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
+  },
+  "detailGuideBackToQuiz": "学習に戻って確認クイズを解く",
+  "@detailGuideBackToQuiz": {
+    "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   }
 }

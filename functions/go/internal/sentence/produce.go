@@ -44,10 +44,11 @@ type CachedSentences interface {
 }
 
 // unseenSentences は語に紐づく文を未出のものから順に返すバンク（FreeBank）。
-// free はこちらで引き、テーマで在庫を絞らない。
+// free はこちらで引く。preferred のテーマを先に出すが、在庫は絞らない。
 type unseenSentences interface {
 	PickUnseen(
 		ctx context.Context, targetWord string, l lang.Lang, seen map[string]bool,
+		preferred map[string]bool,
 	) (*Sentence, string, error)
 }
 
@@ -141,6 +142,9 @@ type ProduceRequest struct {
 	// なるのは許容する。
 	// 判定そのものに失敗したときは元の文で続ける（Quality=nil、プールに入らない）。
 	QualityCheck bool
+	// PreferredTopics は free バンクで先に出すテーマ（日本語ラベル）。free は
+	// テーマ指定を受けないので、ヒアリングの用途から決める（InterviewGoalTopicSet）。
+	PreferredTopics map[string]bool
 }
 
 // ErrQualityRejected は品質判定に通らず、文をセットから外したこと。
@@ -266,7 +270,7 @@ func (p *Producer) ProduceBatch(
 				var cached *Sentence
 				var topic string
 				if ub, ok := bank.(unseenSentences); ok && !req.UsePremiumSpec {
-					cached, topic, err = ub.PickUnseen(ctx, tw.Word, req.Lang, seen)
+					cached, topic, err = ub.PickUnseen(ctx, tw.Word, req.Lang, seen, req.PreferredTopics)
 				} else {
 					cached, topic, err = pickCached(ctx, bank, tw, req.Lang, strictTopic, seen)
 				}

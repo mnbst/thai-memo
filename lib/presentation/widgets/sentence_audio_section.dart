@@ -27,6 +27,7 @@ class SentenceAudioSection extends ConsumerStatefulWidget {
     required this.analyticsSource,
     required this.practiceScope,
     this.showPractice = true,
+    this.onListen,
   });
 
   final ThaiSentence sentence;
@@ -42,6 +43,9 @@ class SentenceAudioSection extends ConsumerStatefulWidget {
   /// 録音は押しっぱなし・判定の読み込みまで含めて縦を大きく取る操作なので、
   /// 詳細画面に一本化する。学習タブは 読む → 覚えたか確認 の一本道に保つ。
   final bool showPractice;
+
+  /// 「お手本を聞く」でプレイヤーを開いたとき。
+  final VoidCallback? onListen;
 
   @override
   ConsumerState<SentenceAudioSection> createState() =>
@@ -93,6 +97,7 @@ class SentenceAudioSectionState extends ConsumerState<SentenceAudioSection> {
       _playerOpen = true;
       _expanded = false;
     });
+    widget.onListen?.call();
   }
 
   /// 「お手本を聞く」。開いている間だけ金にする。金はアプリ全体で

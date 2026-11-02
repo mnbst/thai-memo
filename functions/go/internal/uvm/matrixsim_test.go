@@ -78,6 +78,11 @@ type simUser struct {
 	drops   int // 例文生成で est が下がった回数
 	dropSum int // その合計幅
 
+	weightedSeen bool            // 帯に未出が無いとき旧来の 1-P 重み抽選で既出を選ぶ（2026-10-30 まで）
+	lastSeen     map[int]float64 // rank -> last_seen（日。key_word にした日・クイズに答えた日）
+	picks        int             // key_word を選んだ回数
+	nearRepeats  int             // そのうち 7 日以内に last_seen がある既出語だった回数
+
 	genGain int // 例文生成（確認クイズ込み）の sync で est が動いた合計
 	sumGain int // まとめクイズの sync で est が動いた合計
 }
@@ -199,16 +204,29 @@ func (u *simUser) generate(learningQuiz bool) {
 	if len(zero) > 0 {
 		picked = u.sel.SelectWeighted(zero, ZeroPWeights(zero), 1)
 	} else {
-		pMap := map[string]float64{}
-		for _, c := range cands {
-			pMap[c.Word] = u.words[c.Rank].p
+		if u.weightedSeen {
+			w := make([]float64, len(cands))
+			for i, c := range cands {
+				w[i] = math.Max(0, 1-u.words[c.Rank].p)
+			}
+			picked = u.sel.SelectWeighted(cands, w, 1)
+		} else {
+			seen := map[string]float64{}
+			for _, c := range cands {
+				seen[c.Word] = u.lastSeen[c.Rank]
+			}
+			picked = u.sel.selectUnknown(cands, seen, 1)
 		}
-		picked = u.sel.selectUnknown(cands, pMap, 1)
 	}
 	if len(picked) == 0 {
 		return
 	}
 	rank := picked[0].Rank
+	u.picks++
+	if last, ok := u.lastSeen[rank]; ok && float64(u.day)-last <= 7 {
+		u.nearRepeats++
+	}
+	u.touch(rank)
 	if _, ok := u.words[rank]; !ok {
 		np := NewWordP
 		if u.newP > 0 {
@@ -232,8 +250,17 @@ func (u *simUser) generate(learningQuiz bool) {
 	}
 }
 
+// touch は last_seen を今日にする（露出・回答で本番も更新する）。
+func (u *simUser) touch(rank int) {
+	if u.lastSeen == nil {
+		u.lastSeen = map[int]float64{}
+	}
+	u.lastSeen[rank] = float64(u.day)
+}
+
 // answer は 1 問ぶんの P 更新。learning は正解時 α ×0.1。
 func (u *simUser) answer(rank int, learning bool) {
+	u.touch(rank)
 	w := u.words[rank]
 	quizType := ""
 	hint := u.summaryHint // 確認クイズにヒントは無い
@@ -524,4 +551,29 @@ func TestEvidenceKSweep(t *testing.T) {
 func themeMatched(rank int, rate float64) bool {
 	h := uint32(rank) * 2654435761
 	return float64(h)/float64(1<<32) < rate
+}
+
+// 帯に未出が無いときの既出の選び方。旧来の 1-P 重み抽選と、last_seen の古い順
+// （現行）で、7 日以内に見た語をまた key_word にした割合と d90 を比べる。
+func TestSeenOrder(t *testing.T) {
+	trials := 20
+	for _, truth := range []int{350, 700, 1500, 3000} {
+		for _, weighted := range []bool{true, false} {
+			var d90, picks, near int
+			for s := range trials {
+				r, u := runCellUser(s+1, truth, true, true, 90, func(u *simUser) {
+					u.weightedSeen = weighted
+				})
+				d90 += r[90]
+				picks += u.picks
+				near += u.nearRepeats
+			}
+			label := "古い順"
+			if weighted {
+				label = "1-P抽選"
+			}
+			t.Logf("真値%d %s: 7日以内の再出 %.1f%% d90=%d",
+				truth, label, 100*float64(near)/float64(picks), d90/trials)
+		}
+	}
 }

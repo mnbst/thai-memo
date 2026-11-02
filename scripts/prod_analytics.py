@@ -36,8 +36,36 @@ freq_rank: dict[str, int] = json.loads(blob.download_as_text())
 # -------------------------
 print("Fetching all users...", flush=True)
 user_docs = list(db.collection('users').stream())
+auth_users = list(auth.list_users().iterate_all())
+
+# App Store 審査のアカウント（未リリース版を存在しない型番の端末から呼んでいた）。
+REVIEW_UIDS = {'EcVbEtIFnxc65X8EuLpP8hxhZFG3'}
+# Play のプレリリースレポート（Firebase Test Lab）の bot。Android 公開（2026-10）以降の
+# 登録で、アプリを開いた記録（app_version・app_language・last_opened_at）が無く、
+# 生成は5か10回まで。2026-07 以前の実ユーザーもこの3項目が無いので登録日で区切る。
+BOT_SINCE = datetime(2026, 10, 1, tzinfo=JST)
+
+
+def is_bot(d: dict, created: datetime | None) -> bool:
+    if not created or created < BOT_SINCE:
+        return False
+    if d.get('app_version') or d.get('app_language') or d.get('last_opened_at'):
+        return False
+    return (d.get('sentence_generated_count') or 0) <= 10
+
+
+created_by_uid = {
+    u.uid: datetime.fromtimestamp(u.user_metadata.creation_timestamp / 1000, JST)
+    for u in auth_users if u.user_metadata.creation_timestamp
+}
+excluded_uids = set(REVIEW_UIDS)
+for d in user_docs:
+    if is_bot(d.to_dict() or {}, created_by_uid.get(d.id)):
+        excluded_uids.add(d.id)
+user_docs = [d for d in user_docs if d.id not in excluded_uids]
+print(f"(review/bot excluded: {len(excluded_uids)})")
 if EXCLUDE_ANONYMOUS:
-    named_uids = {u.uid for u in auth.list_users().iterate_all() if u.provider_data}
+    named_uids = {u.uid for u in auth_users if u.provider_data}
     user_docs = [d for d in user_docs if d.id in named_uids]
     print("(anonymous users excluded)")
 print(f"Total users: {len(user_docs)}\n")
@@ -269,8 +297,8 @@ for user_doc in user_docs:
         first_gen_by_uid[user_doc.id] = fg.replace(tzinfo=timezone.utc).astimezone(JST)
 
 conv = defaultdict(lambda: {'signups': 0, 'generated': 0, 'hrs': []})
-for u in auth.list_users().iterate_all():
-    if EXCLUDE_ANONYMOUS and not u.provider_data:
+for u in auth_users:
+    if u.uid in excluded_uids or (EXCLUDE_ANONYMOUS and not u.provider_data):
         continue
     ts = u.user_metadata.creation_timestamp
     if not ts:

@@ -23,11 +23,13 @@ import '../../services/sentence_view_marker.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/tts_provider.dart';
+import '../widgets/detail_guide_card.dart';
+import '../widgets/first_set_steps.dart';
 import '../widgets/topic_picker.dart';
 import '../tone_explanation_dialog.dart';
 import '../widgets/sentence_audio_section.dart';
 import '../widgets/thai_highlight.dart';
-import 'tone_guide_screen.dart';
+import 'word_order_guide_screen.dart';
 
 /// 例文の詳細表示画面。
 ///
@@ -65,6 +67,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   /// お気に入りの状態。AppBar のハートで切り替える。
   late bool _isFavorite = widget.sentence.isFavorite;
 
+  /// 案内カードの項目から寄せる先。
+  final _audioKey = GlobalKey<SentenceAudioSectionState>();
+  final _usageKey = GlobalKey();
+  final _wordsKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +83,28 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     );
     // 履歴から開いた例文もここで既読になる（学習タブ以外の読み口）。
     SentenceViewMarker.instance.markViewed(widget.sentence.id);
+    // 学習の手順の②（最初の例文の詳細を開いた）。
+    markFirstStep(ref, widget.sentence.id, FirstSetStep.openDetail);
+  }
+
+  /// 案内カードの項目を押したら、その場所まで寄せる。発音は練習も開く。
+  void _scrollToGuideItem(DetailGuideItem item) {
+    final key = switch (item) {
+      DetailGuideItem.practice => _audioKey,
+      DetailGuideItem.usage => _usageKey,
+      DetailGuideItem.words => _wordsKey,
+    };
+    if (item == DetailGuideItem.practice) {
+      _audioKey.currentState?.openPractice();
+    }
+    final target = key.currentContext;
+    if (target == null) return;
+    unawaited(Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      alignment: 0.1,
+    ));
   }
 
   @override
@@ -117,20 +146,27 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // 最初の例文の詳細でだけ、この画面でできることを並べる。
+              DetailGuideCard(
+                sentenceId: widget.sentence.id,
+                onItemTap: _scrollToGuideItem,
+                onBackToLearn: () => Navigator.of(context).maybePop(),
+              ),
               // 例文カード（タイ語・発音・日本語訳）。学習タブと同じ深藍の面。
               _buildMainSentenceCard(),
               const SizedBox(height: 14),
               // 聞く／話すはカードの外。学習タブと同じ並び。
               SentenceAudioSection(
+                key: _audioKey,
                 sentence: widget.sentence,
                 analyticsSource: 'detail_sentence',
                 practiceScope: 'detail',
               ),
               const SizedBox(height: 20),
-              _buildContextSection(),
-              _buildWordSection(),
+              KeyedSubtree(key: _usageKey, child: _buildContextSection()),
+              KeyedSubtree(key: _wordsKey, child: _buildWordSection()),
               const SizedBox(height: 16),
-              _buildToneGuideLink(),
+              _buildWordOrderGuideLink(),
               const SizedBox(height: 12),
               _buildCreatedAtLabel(),
             ],
@@ -522,7 +558,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
   }
 
   /// 声調ガイドへの導線。単語を見て「なぜこの声調か」が気になった流れで開ける。
-  Widget _buildToneGuideLink() {
+  /// 末尾の読み物は語順ガイド。声調は単語をタップすると解説が開くので、
+  /// ここは例文全体の並び方を学ぶ入口にする。
+  Widget _buildWordOrderGuideLink() {
     final theme = Theme.of(context);
     final l10n = L10n.of(context);
     return Card(
@@ -531,25 +569,25 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
       child: InkWell(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            settings: const RouteSettings(name: ToneGuideScreen.routeName),
-            builder: (context) => const ToneGuideScreen(),
+            settings: const RouteSettings(name: WordOrderGuideScreen.routeName),
+            builder: (context) => const WordOrderGuideScreen(),
           ),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
           child: Row(
             children: [
-              const Icon(Icons.show_chart, size: 20, color: AppColors.gold),
+              const Icon(Icons.swap_horiz, size: 20, color: AppColors.gold),
               const SizedBox(width: 12),
               Text(
-                l10n.settingsToneGuide,
+                l10n.settingsWordOrderGuide,
                 style: theme.textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  l10n.settingsToneGuideSubtitle,
+                  l10n.settingsWordOrderGuideSubtitle,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant),

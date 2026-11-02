@@ -23,6 +23,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"sync"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
@@ -83,6 +84,11 @@ type Builder struct {
 	Scenes SceneFinder
 	// Ctx は embedding の取得に使う。nil なら context.Background()。
 	Ctx context.Context
+	// Tables は場面合致の表（MatchTableBlob）を読む。nil か読めなければその場で計算する。
+	Tables BlobSource
+
+	tableOnce sync.Once
+	table     *matchIndex
 }
 
 // PickShot はテーマの候補から参考にするショットを1つ選ぶ。候補が無いテーマなら "" を返す。
@@ -202,6 +208,13 @@ func (b *Builder) float64() float64 {
 	return rand.Float64()
 }
 
+func (b *Builder) perm(n int) []int {
+	if b.Rand != nil {
+		return b.Rand.Perm(n)
+	}
+	return rand.Perm(n)
+}
+
 func (b *Builder) intn(n int) int {
 	if b.Rand != nil {
 		return b.Rand.Intn(n)
@@ -225,17 +238,44 @@ func (b *Builder) BuildShotSection(topic string, targetWords []string, medium st
 }
 
 // ShotSection は選定時に場面合致で決めたショットの断片を返す（premium）。
-// 媒体の例文は BuildShotSection と同じく先に見る。shotID が空なら付けない。
+// 媒体の例文は BuildShotSection と同じく先に見る。shotID が空なら雰囲気の数文を付ける。
 func (b *Builder) ShotSection(topic, shotID, medium string) sentence.DramaSection {
 	if section, ok := b.writtenSection(topic, medium); ok {
 		return section
 	}
-	if shotID == "" || shots[shotID] == "" {
+	if shotID == "" {
+		return b.moodSection(topic)
+	}
+	if shots[shotID] == "" {
 		return sentence.DramaSection{}
 	}
 	section := b.shotSection(topic, shotID)
 	section.Scene, section.ShotID = shotScene[shotID], shotID
 	return section
+}
+
+// moodShots は語に近いショットが無い回に雰囲気として付けるショットの数。
+const moodShots = 3
+
+// moodSection は語に近いショットが無い回の断片。テーマのショットを無作為に
+// moodShots 文、話し言葉の雰囲気として付ける。付けないと場面がテーマから外れやすい。
+// 本番の学習語で近いショットが無い語（推し活30・他7テーマ各20語）で、Jev の合格は
+// 付けない 79%（135/170）→ 付ける 85%（145/170）。テーマから外れた文はどちらもほぼ無い
+// （2026-10-27）。1文だけだと語を混ぜて合成した非文が出るので、内容や語は使わせない。
+func (b *Builder) moodSection(topic string) sentence.DramaSection {
+	ids := topicShots[topic].ids
+	if len(ids) < moodShots {
+		return sentence.DramaSection{}
+	}
+	ctx := "- このテーマの話し言葉の参考（雰囲気だけ。内容や語は使わない）:\n"
+	for _, i := range b.perm(len(ids))[:moodShots] {
+		ctx += "  - " + shots[ids[i]] + "\n"
+	}
+	return sentence.DramaSection{
+		Medium:   sentence.Media[0].Name,
+		Context:  ctx,
+		Required: "- 参考例をそのまま使わず、ターゲット単語が字義どおり自然に入る、このテーマの場面のオリジナルの1文を作る\n",
+	}
 }
 
 // writtenSection は会話以外の媒体の例文の断片。そのテーマにその媒体の例文が無ければ false。
@@ -253,10 +293,15 @@ func (b *Builder) writtenSection(topic, medium string) (sentence.DramaSection, b
 }
 
 // shotSection は会話のショット1つを参考例文にした断片を返す。
+// 場面の行は、具体的な状況（shotSituation）があればそれを、無ければ場面名を置く。
 func (b *Builder) shotSection(topic, id string) sentence.DramaSection {
+	situation := shotScene[id]
+	if s, ok := shotSituation[id]; ok {
+		situation = s
+	}
 	return sentence.DramaSection{
 		Medium: sentence.Media[0].Name,
-		Context: "- 場面: " + shotScene[id] + "\n" +
+		Context: "- 場面: " + situation + "\n" +
 			"- 参考タイ語例（話し言葉の言い回しの参考。この1文のみ）: " + shots[id] + "\n",
 		Required: "- 参考タイ語例をそのまま使わず、同じ場面のオリジナルの1文を作る。" +
 			"参考例の語を部分的に差し替えて別の意味の語を作らない\n" +

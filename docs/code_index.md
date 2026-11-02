@@ -56,7 +56,13 @@ lib/core/constants/generation_constants.dart
 日次生成上限（free/premium別クォータ値）。
 
 lib/core/constants/loading_tips.dart
-ローディング画面のヒントメッセージ。
+ローディング画面のヒントメッセージ。ガイド（語順・発音・声調・タイ文字・使い方のコツ）の文言から組み立てる分と、ガイドにない固有Tips（文化・数字・日常表現など）からなる。
+
+lib/core/constants/word_order_rules.dart
+語順ガイドの項目データ（WordOrderRule・WordOrderExample）。ガイド画面とローディングTipsで共用。
+
+lib/core/constants/pronunciation_guide_sections.dart
+発音ガイドの節データ（PronSection・PronRow・PronWord）。ガイド画面とローディングTipsで共用。
 
 ## Authentication
 
@@ -169,7 +175,7 @@ lib/presentation/screens/today_screen.dart
 例文表示の本体（例文カード・クイズ導線・語彙スコアチップ・セットの進み具合 DailySetProgress）。
 
 lib/presentation/screens/detail_screen.dart
-例文詳細表示（例文カード・聞く／話す・使い方・単語・声調ガイド導線）。
+例文詳細表示（初回の案内カード・例文カード・聞く／話す・使い方・単語・語順ガイド導線）。
 
 lib/presentation/screens/history_screen.dart
 保存済み例文一覧（検索・すべて/お気に入りのチップ絞り込み・スワイプ/一括削除）。1枚のカードに罫線区切りで積む。
@@ -190,7 +196,7 @@ test/screenshots/paywall_review_screenshot.dart
 App Store 審査用スクショ（課金画面）の生成。商品を差し込んで描くので、ストア反映を待たずに買い切り込みの画面が撮れる。出力は build/appstore/paywall_review.png。
 
 test/screenshots/guide_screenshot.dart
-ガイド画面（発音・語順・声調）を PNG に書き出す見た目確認用モック。SCREEN・言語・高さを dart-define で切り替える。
+ガイド画面（タイ文字・発音・語順・声調）を PNG に書き出す。SCREEN・言語・高さを dart-define で切り替え、FROM で見出しの欄だけを切り出す（X のガイド投稿でも使う）。
 
 test/screenshots/listen_mock_screenshot.dart
 聞き流し再生（トラック版）のUI案（履歴から追加・トラック一覧・中身とミニバー・再生画面）を1枚のPNGに並べるモック。
@@ -198,11 +204,17 @@ test/screenshots/listen_mock_screenshot.dart
 test/screenshots/pass_effect_mock_app.dart
 合格演出のアニメーションを例文詳細の見た目でシミュレーターに出すモック（flutter run -t、場面・スロー切替）。
 
+test/screenshots/first_set_steps_mock_app.dart
+学習の手順カードと詳細の案内カードを、本物の学習タブ・詳細画面に載せて Firebase なしでシミュレーターに出すモック（flutter run -t、下のボタンで場面切替）。
+
 test/screenshots/notif_coach_mock_app.dart
 通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
 
 test/screenshots/review_notify_mock_app.dart
 通知を1日に複数回設定するUI案（アラーム風の3枠固定・トグルで出し入れと届く通知）をシミュレーターで触るモック（flutter run -t）。
+
+test/screenshots/notify_schedule_screenshot.dart
+通知時刻の設定画面を Firebase なしで描画して PNG に書き出すモック（X 告知・見た目確認用）。プラン（premium/free）・言語を dart-define で切り替える。
 
 test/screenshots/settings_screenshot.dart
 設定画面を Firebase なしで描画して PNG に書き出す見た目確認用モック。プラン（trial/free/premium）・言語・高さを dart-define で切り替える。
@@ -231,8 +243,11 @@ lib/presentation/screens/tone_guide_screen.dart
 lib/presentation/screens/pronunciation_guide_screen.dart
 タイ語の発音ガイド（読みの記号・有気/無気・母音の長短・似た母音・語末子音・会話での崩れ）。設定から開く。語の札を押すと読み上げる。
 
+lib/presentation/screens/thai_script_guide_screen.dart
+タイ文字ガイド（文字のしくみ・よく使う子音・母音の位置と長短・声調記号・単語の分解）。設定から開く。文字と語の札を押すと読み上げる。
+
 lib/presentation/screens/word_order_guide_screen.dart
-タイ語の語順ガイド（話題・語順・修飾・前置詞・比較・否定・疑問・助動詞・動詞連続・丁寧語尾）。例文は語のチップで見せる。設定と並び替え問題の解答から開く。
+タイ語の語順ガイド（話題・語順・修飾・前置詞・比較・否定・疑問・助動詞・動詞連続・結果の動詞・動詞の重ね（ๆ）・丁寧語尾）。例文は語のチップで見せる。設定と並び替え問題の解答から開く。
 
 ## Widgets
 
@@ -290,8 +305,11 @@ lib/presentation/widgets/premium_trial_ended_dialog.dart
 lib/presentation/widgets/premium_trial_started_dialog.dart
 後から配られたプレミアム体験の開放を伝えるダイアログ（premium_trial_backfilled_at が目印）。課金は勧めない。
 
-lib/presentation/widgets/coach_mark_overlay.dart
-対象をスポットライトで光らせ吹き出しで案内する初回ガイド。今は確認クイズの導線（まだ解いたことがない人に1回だけ、today_screen）でのみ使う。
+lib/presentation/widgets/first_set_steps.dart
+最初の例文（端末で1つ決める）でだけ学習タブに出す「学習の手順」カード（聞く→詳細→確認クイズ）と、最初の例文IDと済んだ手順の保持。
+
+lib/presentation/widgets/detail_guide_card.dart
+最初の例文の詳細でだけ出す「この画面でできること」カード（発音・使い方・声調ルール、押すとその場所へ寄せる）。
 lib/presentation/widgets/quiz_offer.dart
 1問確認クイズ導線の表示（現行はinlineカード。controlは実験再開用に残置）。
 
@@ -977,6 +995,15 @@ BL以外の全テーマの参考例文ブロック。語との近さ（場面ご
 functions/go/internal/themeshots/match.go
 premium の場面合致（SceneMatch）。BLを含む全テーマの場面を、場面 z とショット単体 z の両方で足切りし、テーマ→場面→ショットの順に一様に選ぶ。
 
+functions/go/internal/themeshots/table.go
+場面合致の表（語ごとの場面 z・ショット z を事前計算した scene_match_table.json）の作成・読み込み。版が合わなければその場の計算に戻す。
+
+functions/go/internal/themeshots/table_test.go
+表を引いた結果がその場の計算と同じこと、版違い・読めない表での縮退のテスト。
+
+functions/go/cmd/scenetable/main.go
+ショットを足したあとに場面合致の表を作り scripts/corpus に書く（upload_corpus.sh で GCS へ）。
+
 functions/go/internal/themeshots/match_test.go
 場面合致の足切り（場面 z・ショット z）、テーマ単位の一様抽選、BL を含むこと、ショット ID からの断片のテスト。
 
@@ -990,7 +1017,7 @@ functions/go/internal/uvm/themesim_test.go
 テーマ寄せの90日シミュレーション。合う語の割合・寄せる範囲（帯全体／est 以下）ごとの est と素通りを比べる。
 
 functions/go/internal/themeshots/data.go
-BL以外15テーマの参考例文2027件と270場面（正本。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
+BL以外15テーマの参考例文19130件（正本。タイ暮らし・タイ旅行の7テーマと恋愛はエピソードを時系列で書かせた行を含み（旅行は旅の雑談・旅先の交流・旅のトラブルも、恋愛・趣味・推し活・仕事・伝統・あいさつ・礼儀作法・宗教は12章の物語も）、その行は具体的な状況 shotSituation をプロンプトの場面の行に使う。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
 
 functions/go/internal/themeshots/written.go
 媒体「解説・紹介文」の参考例文（BL・あいさつ以外14テーマ、Thai PBS ナレーター行と th.wikipedia の原文）。
@@ -1059,13 +1086,13 @@ functions/go/internal/uvm/graded_test.go
 IsGradedResult（採点区分）・ResultEvidence・UpdateP の向き（正解で上がり不正解で下がる）と、evidence を持たない既存 doc の移行のテスト。
 
 functions/go/internal/sentence/freebank.go
-free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、テーマで絞らない）で引き、出し切った語だけ LLM へ落とす。
+free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、ヒアリングの用途に合うテーマを先に）で引き、出し切った語だけ LLM へ落とす。
 
 functions/go/internal/sentence/freebank_test.go
 free例文バンクの抽選（テーマ一致の優先・在庫の無いテーマの扱い）のテスト。
 
 functions/go/internal/sentence/select.go
-テーマ候補プールの決定とUVMからのターゲット語選定（sentence_service.py:select_uvm_target_words）。
+テーマ候補プールの決定とUVMからのターゲット語選定（sentence_service.py:select_uvm_target_words）。premium おまかせは枠ごとにテーマを無作為に決め、合う語を先に選ぶ。
 
 functions/go/internal/sentence/history.go
 users/{uid}/sentences から既出例文の本文（直近300件）を読む。バンクに同じ文を二度出させないための除外集合。
@@ -1138,6 +1165,9 @@ scripts/ga4_quiz_offer_experiment.py
 
 scripts/deploy_go_functions.sh
 Go の Cloud Functions を origin/main の worktree からデプロイする（dev/tester/prod。dev だけ --local で作業ツリーから）。
+
+scripts/yt_th_subs.sh
+YouTube 動画のタイ語字幕の有無を1本ずつ待機を入れて確かめ、vtt を落とす（並列禁止、429 で止まる）。
 
 docs/estimated_vocab_logic.md
 estimated_vocab算出ロジックの詳細ドキュメント（estimate_vocab・moving_avg・sync_estimated_vocab）。
@@ -1316,7 +1346,13 @@ tools/x_post/README.md
 X（@everydaythai775）へ毎日の例文を自動投稿する仕組みの全体像と、必要なシークレットの手順。
 
 tools/x_post/pick_sentence.py
-静的コーパスを日替わりテーマ（Scheduler から渡したものから抽選）と語数で絞り、Geminiに1件選ばせる。投稿済みと履歴は x_post/posted.json で管理。
+枠ごとにテーマを表示回数から決め、候補を20件に絞り、同じ枠の過去10件の理由と表示回数を添えてGeminiに1件選ばせる。投稿済みと履歴は x_post/posted.json で管理。
+
+tools/x_post/pick_study_post.py
+Tips・ガイドの枠で study_posts.json から投稿文を1件抽選する（一巡するまで重複なし）。ガイドは貼る欄を guide_shot.env に書く。
+
+tools/x_post/study_posts.json
+Tips・ガイドの X 投稿文（アプリの Tips とガイドから書き起こした確認済みの完成文）。
 
 tools/x_post/select_prompt.txt
 例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
@@ -1330,6 +1366,12 @@ tools/x_post/build_media.py
 tools/x_post/post_to_x.py
 Xへ投稿し、投稿済みをGCSへ記録する。動画1本＋画像3枚。拒まれたら動画のみ→画像のみ→テキストのみへ退避する。
 
+tools/x_post/post_to_threads.py
+Threadsへ投稿し、投稿済みを x_post/threads/posted.json へ記録する。メディアはGCSの署名付きURLで渡し、動画＋画像はカルーセル。長期トークンを古ければ延長する。
+
+tools/x_post/platforms.py
+投稿先（X / Threads）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
+
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
 
@@ -1337,7 +1379,7 @@ test/screenshots/x_post_screenshot.dart
 DetailScreen を flutter_test 上で描画し、動画の続きからスクロールした画像3枚までと、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
 
 .github/workflows/post-daily-x.yml
-毎日07:00 JSTに上記を通しで実行するワークフロー。dry_run で投稿せず確認できる。
+X / Threads 投稿のワークフロー。platform で投稿先、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
 
 ## App Store スクリーンショット
 

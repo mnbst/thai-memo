@@ -536,6 +536,13 @@ class L10nEn extends L10n {
   String get settingsPronGuideSubtitle => 'Reading symbols and tricky sounds';
 
   @override
+  String get settingsThaiScriptGuide => 'Thai script guide';
+
+  @override
+  String get settingsThaiScriptGuideSubtitle =>
+      'Common letters and how to read Thai spelling';
+
+  @override
   String get settingsResetLearningData => 'Reset learning data';
 
   @override
@@ -2051,55 +2058,23 @@ class L10nEn extends L10n {
   String get tipCatStudy => 'Study tips';
 
   @override
-  String get tip_vowelA_title => 'อะ / อา (a / aa)';
+  String get tipCatGrammar => 'Grammar';
 
   @override
-  String get tip_vowelA_content =>
-      'Short อะ is \"a\"; long อา is \"aa\". Length alone changes the meaning.';
+  String get tipCatPronunciation => 'Pronunciation';
 
   @override
-  String get tip_vowelA_example => 'จะ (jà = will) / จา (jaa = plate)';
+  String get tipCatScript => 'Script';
 
   @override
-  String get tip_vowelI_title => 'อิ / อี (i / ii)';
+  String tipWordExample(String thai, String reading, String meaning) {
+    return '$thai ($reading = $meaning)';
+  }
 
   @override
-  String get tip_vowelI_content =>
-      'Short อิ is a clipped \"i\"; long อี is a drawn-out \"ii\".';
-
-  @override
-  String get tip_vowelI_example => 'นิด (nít = a little) / นี่ (nîi = this)';
-
-  @override
-  String get tip_vowelU_title => 'อุ / อู (u / uu)';
-
-  @override
-  String get tip_vowelU_content =>
-      'Short อุ is a clipped \"u\"; long อู is a drawn-out \"uu\".';
-
-  @override
-  String get tip_vowelU_example =>
-      'รุ่น (rûn = generation) / รู้ (rúu = to know)';
-
-  @override
-  String get tip_vowelE_title => 'เอ / แอ (ee / ɛɛ)';
-
-  @override
-  String get tip_vowelE_content =>
-      'เอ is \"ee\"; แอ is \"ɛɛ\", with your mouth open wider.';
-
-  @override
-  String get tip_vowelE_example => 'เก่ง (kèeng = skilled) / แก่ (kɛ̀ɛ = old)';
-
-  @override
-  String get tip_vowelO_title => 'โอ / ออ (oo / ɔɔ)';
-
-  @override
-  String get tip_vowelO_content =>
-      'โอ is a rounded \"oo\"; ออ is an open \"ɔɔ\".';
-
-  @override
-  String get tip_vowelO_example => 'โต (too = big) / ต่อ (tɔ̀ɔ = to continue)';
+  String tipGrammarExample(String thai, String meaning) {
+    return '$thai ($meaning)';
+  }
 
   @override
   String get tip_vowelUea_title => 'เอือ (ʉa)';
@@ -2110,17 +2085,6 @@ class L10nEn extends L10n {
 
   @override
   String get tip_vowelUea_example => 'เมือง (mʉʉang = city, country)';
-
-  @override
-  String get tip_vowelUu_title => 'อือ / อื (ʉ / ʉʉ)';
-
-  @override
-  String get tip_vowelUu_content =>
-      'No English equivalent: shape your mouth for \"i\" but say \"u\".';
-
-  @override
-  String get tip_vowelUu_example =>
-      'คือ (khʉʉ = to be) / ฝืน (fʉ̌ʉn = to force oneself)';
 
   @override
   String get tip_vowelIa_title => 'เอีย (ia)';
@@ -2161,46 +2125,6 @@ class L10nEn extends L10n {
 
   @override
   String get tip_vowelAi_example => 'ไป (pai = to go) / ใจ (jai = heart)';
-
-  @override
-  String get tip_vowelShortE_title => 'เอ็ (short e)';
-
-  @override
-  String get tip_vowelShortE_content =>
-      'A clipped \"e\", written in the เ〜็ shape.';
-
-  @override
-  String get tip_vowelShortE_example => 'เก็บ (kèp = to pick up, to keep)';
-
-  @override
-  String get tip_vowelShortAe_title => 'แอ็ (short ɛ)';
-
-  @override
-  String get tip_vowelShortAe_content =>
-      'A clipped \"ɛ\" with the mouth wide open, in the แ〜็ shape.';
-
-  @override
-  String get tip_vowelShortAe_example => 'แบ็ก (bɛ̀k = bag)';
-
-  @override
-  String get tip_vowelOe_title => 'เออ (əə)';
-
-  @override
-  String get tip_vowelOe_content =>
-      'เออ is the neutral vowel \"əə\". Keep your mouth half open.';
-
-  @override
-  String get tip_vowelOe_example => 'เธอ (thəə = you, she)';
-
-  @override
-  String get tip_vowelLength_title => 'Vowel length changes meaning';
-
-  @override
-  String get tip_vowelLength_content =>
-      'Length matters in Thai: a short vowel and a long one are different words.';
-
-  @override
-  String get tip_vowelLength_example => 'ปะ (pà = to meet) / ป้า (pâa = aunt)';
 
   @override
   String get tip_cultureWai_title => 'wâi (ไหว้)';
@@ -2246,82 +2170,11 @@ class L10nEn extends L10n {
       'Means “don\'t worry” or “it\'s fine.” It\'s one of the most common Thai expressions.';
 
   @override
-  String get tip_toneFive_title => 'Thai has five tones';
-
-  @override
-  String get tip_toneFive_content =>
-      'Mid, low, falling, high, and rising. Change the tone and you have a different word.';
-
-  @override
-  String get tip_toneFive_example =>
-      'ไหม (mǎi = silk) / ใหม่ (mài = new) / ไม่ (mâi = not)';
-
-  @override
-  String get tip_toneMaiEk_title => 'Tone mark ่ (mái èek)';
-
-  @override
-  String get tip_toneMaiEk_content =>
-      'The first tone mark, written above the letter. On mid- and high-class consonants it gives a low tone.';
-
-  @override
-  String get tip_toneMaiEk_example => 'เก่า (kàw = old), ข่าว (khàaw = news)';
-
-  @override
-  String get tip_toneMaiTho_title => 'Tone mark ้ (mái thoo)';
-
-  @override
-  String get tip_toneMaiTho_content =>
-      'The second tone mark. On a mid-class consonant it gives a falling tone.';
-
-  @override
-  String get tip_toneMaiTho_example =>
-      'น้ำ (náam = water), บ้าน (bâan = house)';
-
-  @override
-  String get tip_toneMaiTriChat_title => 'Tone marks ๊ and ๋';
-
-  @override
-  String get tip_toneMaiTriChat_content =>
-      '๊ (mái trii) marks a high tone, ๋ (mái jàttawaa) a rising one. Both are uncommon.';
-
-  @override
-  String get tip_toneMaiTriChat_example =>
-      'โน๊ต (nóot = note), จ๋า (jǎa = yes?)';
-
-  @override
-  String get tip_toneClassRelation_title => 'Consonant class and tone';
-
-  @override
-  String get tip_toneClassRelation_content =>
-      'The tone comes from the consonant class (high, mid, low), vowel length, final consonant, and tone mark together.';
-
-  @override
   String get tip_toneMistake_title => 'Get the tone wrong and…';
 
   @override
   String get tip_toneMistake_content =>
       'สวย (sǔuai = beautiful) and ซวย (suuai = unlucky): the tone changes the meaning completely.';
-
-  @override
-  String get tip_toneMidExplain_title => 'Mid tone (sǎa-man)';
-
-  @override
-  String get tip_toneMidExplain_content =>
-      'Flat, at your normal pitch. The default for a mid-class consonant with a long vowel and no tone mark.';
-
-  @override
-  String get tip_toneMidExplain_example => 'กา (kaa = crow), ดี (dii = good)';
-
-  @override
-  String get tip_toneRisingExplain_title => 'Rising tone (jàttawaa)';
-
-  @override
-  String get tip_toneRisingExplain_content =>
-      'Starts low and climbs — a bit like the way a question rises in English.';
-
-  @override
-  String get tip_toneRisingExplain_example =>
-      'สวย (sǔuai = beautiful), หนาว (nǎaw = cold)';
 
   @override
   String get tip_toneRelative_title => 'Tone is relative';
@@ -2357,28 +2210,6 @@ class L10nEn extends L10n {
   @override
   String get tip_consonantLow_content =>
       'The remaining 24 letters. Some pair with high-class letters; others stand alone.';
-
-  @override
-  String get tip_consonantFinal_title => 'Final consonant rules';
-
-  @override
-  String get tip_consonantFinal_content =>
-      'Only 8 sounds can end a syllable: k, t, p, n, m, ng, i, o. A letter often changes sound in final position.';
-
-  @override
-  String get tip_consonantFinal_example =>
-      'บ, ป, พ, ภ, ฟ all become -p at the end of a syllable';
-
-  @override
-  String get tip_consonantAspiration_title => 'Aspirated and unaspirated';
-
-  @override
-  String get tip_consonantAspiration_content =>
-      'Thai distinguishes consonants by the puff of air. ป (unaspirated p) and พ (aspirated ph) are different sounds.';
-
-  @override
-  String get tip_consonantAspiration_example =>
-      'ปลา (plaa = fish) / พลา (phlaa = to fail)';
 
   @override
   String get tip_consonantSilent_title => 'The silent mark ์ (kaa-ran)';
@@ -2430,17 +2261,6 @@ class L10nEn extends L10n {
       '11 is sìp èt and 21 is yîi sìp èt — both the ones digit and the twenties are irregular.';
 
   @override
-  String get tip_numberClassifier_title => 'Classifiers (láksanànaam)';
-
-  @override
-  String get tip_numberClassifier_content =>
-      'Thai uses a number plus a classifier, similar to “two sheets of paper” in English.';
-
-  @override
-  String get tip_numberClassifier_example =>
-      'khon (people), tua (animals), an (small objects)';
-
-  @override
   String get tip_numberBig_title => 'Hundreds and thousands';
 
   @override
@@ -2456,16 +2276,6 @@ class L10nEn extends L10n {
 
   @override
   String get tip_numberPrice_example => 'an-níi thâo rài (how much is this?)';
-
-  @override
-  String get tip_dailyPolite_title => 'ครับ / ค่ะ (khráp / khâ)';
-
-  @override
-  String get tip_dailyPolite_content =>
-      'Men add khráp and women add khâ to the end of sentences to sound polite.';
-
-  @override
-  String get tip_dailyPolite_example => 'khɔ̀ɔp khun khráp / khɔ̀ɔp khun khâ';
 
   @override
   String get tip_dailyHello_title => 'สวัสดี (sà-wàt-dii)';
@@ -2786,7 +2596,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRoleQuizSpelling =>
-      'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word’s spelling from its pronunciation and meaning. After you answer correctly once, that word appears in other formats, such as fill-in-the-blank or word order.';
+      'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word’s spelling from its pronunciation and meaning. After you answer correctly once, that word appears in other formats, such as fill-in-the-blank or word order. If you miss one, tap “More on Thai script” to open the Thai script guide.';
 
   @override
   String get guideRoleScoreTitle => 'Vocabulary score';
@@ -3009,22 +2819,6 @@ class L10nEn extends L10n {
       'Use learned words and sentences in conversation; saying them aloud helps them stick.';
 
   @override
-  String get coachQuizOfferTitle => 'Quick check';
-
-  @override
-  String get coachQuizOfferMessage =>
-      'After reading, tap here for a one-question target-word quiz.';
-
-  @override
-  String get coachTapHere => 'Tap the highlight';
-
-  @override
-  String get coachSkip => 'Skip';
-
-  @override
-  String get coachGotIt => 'Got it';
-
-  @override
   String get settingsWordOrderGuide => 'Word order guide';
 
   @override
@@ -3032,6 +2826,9 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderLearnMore => 'More on word order';
+
+  @override
+  String get thaiScriptLearnMore => 'More on Thai script';
 
   @override
   String get wordOrderGuideTitle => 'Thai word order guide';
@@ -3353,7 +3150,7 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderRule16Body =>
-      'Thai strings verbs together in the order things happen: ไป (go) + ซื้อ (buy) means \"go shopping\". ไป/มา meaning \"away from\" or \"toward the speaker\" come at the end.';
+      'Verbs can line up to show purpose (ไป + ซื้อ + ของ), sequence (อาบน้ำ + นอน), or manner (เดิน + กลับ + บ้าน). Their order follows the flow of meaning.';
 
   @override
   String get wordOrderEx16aGloss => 'I|go|buy|things';
@@ -3366,6 +3163,166 @@ class L10nEn extends L10n {
 
   @override
   String get wordOrderEx16bMeaning => 'Bring some water';
+
+  @override
+  String get wordOrderEx16cGloss => 'walk|return|home';
+
+  @override
+  String get wordOrderEx16cMeaning => 'Walk home';
+
+  @override
+  String get wordOrderRule17Title =>
+      'A following verb shows the result or continuation';
+
+  @override
+  String get wordOrderRule17Body =>
+      'After a verb, หมด (all gone) and เสร็จ (finish) show its result. ต่อ (continue) means to keep doing the action.';
+
+  @override
+  String get wordOrderEx17aGloss => 'eat|all gone';
+
+  @override
+  String get wordOrderEx17aMeaning => 'Eat it all';
+
+  @override
+  String get wordOrderEx17bGloss => 'eat|finish';
+
+  @override
+  String get wordOrderEx17bMeaning => 'Finish eating';
+
+  @override
+  String get wordOrderEx17cGloss => 'eat|continue';
+
+  @override
+  String get wordOrderEx17cMeaning => 'Keep eating';
+
+  @override
+  String get wordOrderRule18Title => 'Repeat the same verb with ๆ';
+
+  @override
+  String get wordOrderRule18Body =>
+      'ๆ repeats the word just before it. Repeating a verb can make it light (ลองๆ ดู), show alternation (เดินๆ หยุดๆ), or suggest doing it casually or for a while (ดูๆ ไปก่อน).';
+
+  @override
+  String get wordOrderEx18aGloss => 'try lightly|see';
+
+  @override
+  String get wordOrderEx18aMeaning => 'Just give it a try';
+
+  @override
+  String get wordOrderEx18bGloss => 'walk on and off|stop on and off';
+
+  @override
+  String get wordOrderEx18bMeaning => 'Walk and stop repeatedly';
+
+  @override
+  String get wordOrderEx18cGloss => 'watch for a while|go on|for now';
+
+  @override
+  String get wordOrderEx18cMeaning => 'Wait and see for now';
+
+  @override
+  String get wordOrderRule18Note =>
+      'Words besides verbs also repeat: เร็วๆ (quickly), บ่อยๆ (often), and nouns such as เด็กๆ (children).';
+
+  @override
+  String get thaiScriptGuideTitle => 'Thai script guide';
+
+  @override
+  String get thaiScriptGuideHeading => 'Read Thai by breaking it into parts';
+
+  @override
+  String get thaiScriptGuideIntro =>
+      'You do not need to memorize everything at once. Start with common consonants and vowels and learn to spot them in words. Tap a tile to hear it.';
+
+  @override
+  String get thaiScriptBasicsTitle => '1. How Thai script works';
+
+  @override
+  String get thaiScriptBasicsBody =>
+      'A syllable is mainly built from a consonant, a vowel sign, and a tone mark. It may also have a final consonant.';
+
+  @override
+  String get thaiScriptBasicsDirection =>
+      'Thai is read from left to right. Spaces usually separate phrases or sentences, not every word as in English.';
+
+  @override
+  String get thaiScriptBasicsVowelPosition =>
+      'Vowel signs can appear after, before, above, or below a consonant, or surround it. Written order and sound order are not always the same.';
+
+  @override
+  String get thaiScriptConsonantsTitle => '2. Common consonants';
+
+  @override
+  String get thaiScriptConsonantsBody =>
+      'The large character is the consonant and the line below is its letter name. “Initial” is its sound at the start of a syllable; “final” is its sound at the end. High, mid, and low classes help determine tone. Tap a tile to hear the letter name.';
+
+  @override
+  String get thaiScriptConsonantCarrierNote =>
+      'อ is a silent consonant. When a syllable is just a vowel sound, the vowel mark is written on อ (อา = aa, อิ = i).';
+
+  @override
+  String thaiScriptConsonantSounds(String initial, String finalSound) {
+    return 'Initial $initial · final $finalSound';
+  }
+
+  @override
+  String get thaiScriptVowelsTitle => '3. Vowel position and length';
+
+  @override
+  String get thaiScriptVowelsBody =>
+      'Here อ is a placeholder consonant that shows where each sign goes. Vowels can be short or long, and changing the length can change the word.';
+
+  @override
+  String get thaiScriptVowelPositions =>
+      'Before the consonant|After the consonant|Above the consonant|Below the consonant|Around the consonant';
+
+  @override
+  String get thaiScriptVowelPairsTitle => 'Short and long vowels';
+
+  @override
+  String get thaiScriptVowelPairsBody =>
+      'A doubled vowel in the reading is held longer. Short forms may use ะ or change shape inside a word.';
+
+  @override
+  String get thaiScriptToneMarksTitle => '4. Tone marks';
+
+  @override
+  String get thaiScriptToneMarksBody =>
+      'These four marks sit above a consonant. A mark does not directly name the pitch by itself: the tone comes from its combination with the consonant class.';
+
+  @override
+  String get thaiScriptToneRule =>
+      'Tone is determined by consonant class (high, mid, or low) × tone mark × syllable type (vowel length and final consonant). Syllables without a mark also have a tone.';
+
+  @override
+  String get thaiScriptOpenToneGuide => 'See the tone rules in detail';
+
+  @override
+  String get thaiScriptToneGuideNote =>
+      'For now, simply learn to spot a tone mark. The Tone Guide has the full combination tables.';
+
+  @override
+  String get thaiScriptWordsTitle => '5. Break down real words';
+
+  @override
+  String get thaiScriptWordsBody =>
+      'Look for the consonant, vowel, and tone mark rather than reading only in written order. Tiles with the same color have the same role. Tap a word to hear it.';
+
+  @override
+  String get thaiScriptWordMeanings => 'not|good|we / I|eat|come';
+
+  @override
+  String get thaiScriptConsonantLabel => 'Consonant';
+
+  @override
+  String get thaiScriptFinalConsonantLabel => 'Final';
+
+  @override
+  String get thaiScriptVowelLabel => 'Vowel';
+
+  @override
+  String get thaiScriptToneMarkLabel => 'Tone mark';
 
   @override
   String get pronGuideTitle => 'Thai pronunciation guide';
@@ -3459,7 +3416,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowSettingsGuides =>
-      'Review tone and word-order rules in their guides.';
+      'Review script, pronunciation, tone, and word-order rules in their guides.';
 
   @override
   String streakChipDays(int count) {
@@ -3495,4 +3452,53 @@ class L10nEn extends L10n {
 
   @override
   String get streakWeekdayLetters => 'MTWTFSS';
+
+  @override
+  String get firstStepsTitle => 'Study steps';
+
+  @override
+  String get firstStepsListenSentence => 'Listen to the sentence';
+
+  @override
+  String get firstStepsListenSentenceHint => 'Tap “Listen” below the sentence';
+
+  @override
+  String get firstStepsOpenDetail => 'Tap the sentence card for details';
+
+  @override
+  String get firstStepsOpenDetailHint =>
+      'Practice pronunciation and check word tones';
+
+  @override
+  String get firstStepsQuiz => 'Take the check quiz';
+
+  @override
+  String get firstStepsQuizHint => 'Just one question to see if it stuck';
+
+  @override
+  String get firstStepsQuizStart => 'Start';
+
+  @override
+  String get detailGuideTitle => 'What you can do here';
+
+  @override
+  String get detailGuidePractice => 'Practice pronunciation';
+
+  @override
+  String get detailGuidePracticeHint => 'Listen, record, and check your tones';
+
+  @override
+  String get detailGuideWords => 'Tap a word for its tone rule';
+
+  @override
+  String get detailGuideWordsHint => 'See how its spelling determines the tone';
+
+  @override
+  String get detailGuideUsage => 'Read how it’s used';
+
+  @override
+  String get detailGuideUsageHint => 'When and with whom to say it';
+
+  @override
+  String get detailGuideBackToQuiz => 'Back to Learn for the check quiz';
 }

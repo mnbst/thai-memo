@@ -3,7 +3,8 @@
 セリフの正本は functions/go/internal/bldrama/data.go と
 functions/go/internal/themeshots/data.go の shots。
 FindBestDramaShot はセリフ本文で embedding を引き、無いセリフは候補から外すので、
-セリフを足したらこれを流して upload_corpus.sh で GCS に上げる。
+セリフを足したらこれを流し、functions/go で go run ./cmd/scenetable（場面合致の表）を
+作ってから upload_corpus.sh で GCS に上げる。
 
 既定は差分だけ。既存の値には触らない。
 

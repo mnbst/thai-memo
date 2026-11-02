@@ -3,13 +3,13 @@
 first_open を起点に、N日後/N週後に実際に戻ってきた割合を出す。
 Firestore版（prod_analytics.py）の「生存期間>=N日」とは定義が違うので注意。
 
-既定で米国を除外する。米国は日本とほぼ同数の新規が入るが再訪がほぼゼロで
+既定で米国と country=(not set)（Play のプレリリースレポート端末）を除外する。米国は日本とほぼ同数の新規が入るが再訪がほぼゼロで
 （2026-09 時点で80人中1人）、含めると全コホートが希釈され定着の変化を読み違える。
 英語版をリリースして米国流入が意味を持つようになったら EXCLUDE_COUNTRIES を見直す。
 
 usage:
   uv run python scripts/ga4_retention.py [weekly|daily]       # default weekly、米国除外
-  uv run python scripts/ga4_retention.py weekly --all         # 除外なし（全世界）
+  uv run python scripts/ga4_retention.py weekly --all         # 除外なし（全世界・bot込み）
   uv run python scripts/ga4_retention.py weekly --only=Japan  # 指定国のみ
   uv run python scripts/ga4_retention.py weekly --exclude="United States,India"
   # 認証は SA インパーソネーション（project_ga4_data_api 参照）
@@ -26,6 +26,9 @@ SA = "ga4-analytics@thai-memo-prod.iam.gserviceaccount.com"
 
 # GA4 の country 値は英語表記。
 EXCLUDE_COUNTRIES = ["United States"]
+# Play のプレリリースレポート（Firebase Test Lab）の端末は country が (not set) になり、
+# 再訪は0。2026-10 の Android 公開後はコホートの半分近くを占めるので、--all 以外では常に外す。
+BOT_COUNTRIES = ["(not set)"]
 
 args = sys.argv[1:]
 MODE = next((a for a in args if not a.startswith("-")), "weekly")
@@ -39,6 +42,8 @@ for a in args:
         exclude = []
     elif a.startswith("--exclude="):
         exclude = [c.strip() for c in a.split("=", 1)[1].split(",") if c.strip()]
+if "--all" not in args and not only:
+    exclude = exclude + BOT_COUNTRIES
 
 
 def country_filter() -> dict | None:
@@ -51,6 +56,13 @@ def country_filter() -> dict | None:
             "filter": {"fieldName": "country",
                        "inListFilter": {"values": exclude}}}}
     return None
+
+
+def is_complete(end: str, nth: int, span: int) -> bool:
+    """cohortNth は各ユーザーの初回日起点なので、コホート最終日に入った人の
+    nth 期間が昨日までに終わっていれば確定（今日の分は GA4 に揃っていない）。"""
+    last_day = date.fromisoformat(end) + timedelta(days=span * nth + span - 1)
+    return last_day < date.today()
 
 
 def scope_label() -> str:
@@ -161,12 +173,12 @@ def main():
         for i in cols:
             if i == 0:
                 cells.append("100% ")
-            elif i in row:
-                cells.append(f"{row[i] / base * 100:3.0f}% ")
-            else:
+            elif not is_complete(e, i, span):
                 cells.append("  -  ")
+            else:
+                cells.append(f"{row.get(i, 0) / base * 100:3.0f}% ")
         print(f"{s.replace('daysAgo', 'd'):>16} {base:5d} " + " ".join(cells))
-    print("\n注: 列は起点からの経過(週/日)。空欄は未到達期間。N<10 はノイズ。")
+    print("\n注: 列は起点からの経過(週/日)。空欄は未確定期間（コホート全員の該当期間が終わっていない）。N<10 はノイズ。")
 
 
 if __name__ == "__main__":
