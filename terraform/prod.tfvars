@@ -30,3 +30,7 @@ x_post_extra_slots = {
 # Threads への自動投稿（X と同じ枠で、例文は別の文）。threads-access-token に
 # トークンを入れてから true にする（tools/x_post/README.md の「Threads」）。
 threads_post_enabled = false
+
+# 配信の鍵は GitHub の prod 環境（Environment secrets）にある。
+# ci-google-play-service-account は scripts/play_release.py が読むので残す。
+deploy_ci_secrets = ["ci-google-play-service-account"]
