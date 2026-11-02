@@ -12,3 +12,6 @@ ios_app_id                    = "1:147810088545:ios:c023f84f36af09f6c09c20"
 
 # dev はスケジューラを持たない（subscriptionStatus 等は手で叩く）
 enable_scheduled_jobs = false
+
+# 配信の鍵は持たない
+deploy_ci_secrets = []
