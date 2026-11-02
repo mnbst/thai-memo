@@ -19,12 +19,13 @@ ios_app_id                    = "1:219961294368:ios:88e70ed652a72f10b70645"
 x_post_themes = ""
 
 # 朝以外の X 投稿枠。Actions の実行に数分かかるので、投稿は指定時刻の数分後になる。
-# 10:00 と 15:00 は例文ではなく Tips・ガイド（tools/x_post/study_posts.json）を出す。
+# 10:00 と 15:00 は例文ではなく Tips・ガイド、20:00 は機能紹介（tools/x_post/study_posts.json）を出す。
 x_post_extra_slots = {
   "1000" = { schedule = "0 10 * * *", kind = "tip" }
   "1200" = { schedule = "0 12 * * *" }
   "1500" = { schedule = "0 15 * * *", kind = "guide" }
   "1700" = { schedule = "0 17 * * *" }
+  "2000" = { schedule = "0 20 * * *", kind = "feature" }
 }
 
 # Threads への自動投稿（X と同じ枠で、例文は別の文）。threads-access-token に
