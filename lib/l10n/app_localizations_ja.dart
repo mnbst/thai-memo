@@ -3262,6 +3262,40 @@ class L10nJa extends L10n {
   }
 
   @override
+  String streakBurstDays(int count) {
+    return '$count日';
+  }
+
+  @override
+  String streakBurstWeeks(int count) {
+    return '$count週間';
+  }
+
+  @override
+  String get streakBurstMonth => '1か月';
+
+  @override
+  String get streakBurstDone => '続きました！';
+
+  @override
+  String get streakBurstStart => '記録スタート！';
+
+  @override
+  String get streakPraiseFight => 'がんばれ';
+
+  @override
+  String get streakPraiseGreat => 'すごいね';
+
+  @override
+  String get streakPraiseAwesome => '最高！';
+
+  @override
+  String get streakPraiseExcellent => '素晴らしい';
+
+  @override
+  String get streakPraiseLegend => '神レベル';
+
+  @override
   String get streakRestart => '1本作ると再スタート';
 
   @override

@@ -1715,6 +1715,22 @@
       }
     }
   },
+  "streakBurstDays": "{count}일",
+  "@streakBurstDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstWeeks": "{count}주",
+  "@streakBurstWeeks": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstMonth": "1개월",
+  "streakBurstDone": "연속 달성!",
+  "streakBurstStart": "기록 시작!",
+  "streakPraiseFight": "화이팅",
+  "streakPraiseGreat": "대단해요",
+  "streakPraiseAwesome": "최고!",
+  "streakPraiseExcellent": "훌륭해요",
+  "streakPraiseLegend": "신의 경지",
   "streakRestart": "1개 만들면 다시 시작",
   "streakStart": "오늘 예문 하나로 기록을 시작해요",
   "streakBest": "최장 {count}일",

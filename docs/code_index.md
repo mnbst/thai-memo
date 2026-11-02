@@ -213,6 +213,12 @@ test/screenshots/notif_coach_mock_app.dart
 test/screenshots/review_notify_mock_app.dart
 通知を1日に複数回設定するUI案（アラーム風の3枠固定・トグルで出し入れと届く通知）をシミュレーターで触るモック（flutter run -t）。
 
+test/screenshots/streak_burst_screenshot.dart
+連続日数が伸びたときの炎の演出を、日数（3/7/14/30/100）ごとに PNG に書き出す（見た目確認用）。
+
+test/screenshots/streak_burst_mock_app.dart
+連続日数の炎の演出を、日数ボタンで何度でも出してシミュレーターで確かめるモック（flutter run -t）。
+
 test/screenshots/notify_schedule_screenshot.dart
 通知時刻の設定画面を Firebase なしで描画して PNG に書き出すモック（X 告知・見た目確認用）。プラン（premium/free）・言語を dart-define で切り替える。
 
@@ -270,7 +276,7 @@ lib/presentation/widgets/vocab_level.dart
 語彙レベルの区切り（入門〜上級）とラベル・アイコン、free の語彙スコア上限。
 
 lib/presentation/widgets/streak_widgets.dart
-連続日数の表示。学習画面ヘッダーのチップ（StreakChip）と設定画面の週の帯カード（StreakCard）。節目ごとに炎のチップが温まる。
+連続日数の表示。学習画面ヘッダーのチップ（StreakChip）と設定画面の週の帯カード（StreakCard）。節目ごとに炎のチップが温まる。連続が伸びた日は中央に達成カード（StreakBurst）を出し、7/14/30/50/100日は光の筋・紙吹雪・振動で祝う。
 
 lib/presentation/widgets/tablet_width_limit.dart
 iPad など幅の広い画面で、アプリ全体を最大680ptの縦長の列にして中央に寄せる（MaterialApp.builder で適用）。

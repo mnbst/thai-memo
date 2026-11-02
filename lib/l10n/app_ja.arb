@@ -1711,6 +1711,22 @@
   "@streakTitle": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "streakBurstDays": "{count}日",
+  "@streakBurstDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstWeeks": "{count}週間",
+  "@streakBurstWeeks": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstMonth": "1か月",
+  "streakBurstDone": "続きました！",
+  "streakBurstStart": "記録スタート！",
+  "streakPraiseFight": "がんばれ",
+  "streakPraiseGreat": "すごいね",
+  "streakPraiseAwesome": "最高！",
+  "streakPraiseExcellent": "素晴らしい",
+  "streakPraiseLegend": "神レベル",
   "streakRestart": "1本作ると再スタート",
   "streakStart": "今日の1本で記録を始めよう",
   "streakBest": "最長 {count}日",

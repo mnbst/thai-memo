@@ -3432,6 +3432,46 @@ class L10nEn extends L10n {
   }
 
   @override
+  String streakBurstDays(int count) {
+    return '$count days';
+  }
+
+  @override
+  String streakBurstWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count weeks',
+      one: '1 week',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get streakBurstMonth => '1 month';
+
+  @override
+  String get streakBurstDone => 'in a row!';
+
+  @override
+  String get streakBurstStart => 'Streak started!';
+
+  @override
+  String get streakPraiseFight => 'Keep it up';
+
+  @override
+  String get streakPraiseGreat => 'Great job';
+
+  @override
+  String get streakPraiseAwesome => 'Awesome!';
+
+  @override
+  String get streakPraiseExcellent => 'Excellent';
+
+  @override
+  String get streakPraiseLegend => 'Legendary';
+
+  @override
   String get streakRestart => 'Make 1 sentence to restart';
 
   @override
