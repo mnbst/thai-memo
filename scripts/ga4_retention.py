@@ -3,12 +3,12 @@
 first_open を起点に、N日後/N週後に実際に戻ってきた割合を出す。
 Firestore版（prod_analytics.py）の「生存期間>=N日」とは定義が違うので注意。
 
-既定で米国と country=(not set)（Play のプレリリースレポート端末）を除外する。米国は日本とほぼ同数の新規が入るが再訪がほぼゼロで
-（2026-09 時点で80人中1人）、含めると全コホートが希釈され定着の変化を読み違える。
-英語版をリリースして米国流入が意味を持つようになったら EXCLUDE_COUNTRIES を見直す。
+既定で App Store 審査の端末（米国の REVIEW_CITIES）と country=(not set)（Play のプレリリースレポート端末）を除外する。
+審査端末は日本の新規の半分ほど入るが全員セッション1回で、含めると全コホートが希釈され定着の変化を読み違える。
+米国のそれ以外の都市は英語版の実ユーザーなので残す。
 
 usage:
-  uv run python scripts/ga4_retention.py [weekly|daily]       # default weekly、米国除外
+  uv run python scripts/ga4_retention.py [weekly|daily]       # default weekly、審査端末・bot 除外
   uv run python scripts/ga4_retention.py weekly --all         # 除外なし（全世界・bot込み）
   uv run python scripts/ga4_retention.py weekly --only=Japan  # 指定国のみ
   uv run python scripts/ga4_retention.py weekly --exclude="United States,India"
@@ -25,7 +25,12 @@ PROP = "534357716"  # thai-memo-prod GA4
 SA = "ga4-analytics@thai-memo-prod.iam.gserviceaccount.com"
 
 # GA4 の country 値は英語表記。
-EXCLUDE_COUNTRIES = ["United States"]
+EXCLUDE_COUNTRIES: list[str] = []
+# App Store 審査の端末が出てくる米国の都市（2026-11 時点の直近90日で米国新規127人中約105人、
+# 全員セッション1回、実在しない機種 iPhone99,7 を含む）。他国の同名都市を巻き込まないよう米国に限る。
+# 審査端末の場所が変わると古くなるので、米国でセッション1回の新規が増えていないかときどき見る。
+REVIEW_CITIES = ["Cupertino", "Santa Clara", "Saratoga", "San Jose", "Sunnyvale", "Los Gatos",
+                 "Mountain View", "Los Altos", "Los Altos Hills", "Los Angeles"]
 # Play のプレリリースレポート（Firebase Test Lab）の端末は country が (not set) になり、
 # 再訪は0。2026-10 の Android 公開後はコホートの半分近くを占めるので、--all 以外では常に外す。
 BOT_COUNTRIES = ["(not set)"]
@@ -46,16 +51,29 @@ if "--all" not in args and not only:
     exclude = exclude + BOT_COUNTRIES
 
 
+def review_filter() -> dict:
+    """米国の REVIEW_CITIES（審査端末）を除く。"""
+    return {"notExpression": {"andGroup": {"expressions": [
+        {"filter": {"fieldName": "country", "stringFilter": {"value": "United States"}}},
+        {"filter": {"fieldName": "city", "inListFilter": {"values": REVIEW_CITIES}}},
+    ]}}}
+
+
 def country_filter() -> dict | None:
-    """only 指定があればそれだけ、なければ exclude を除いた全世界。"""
+    """only 指定があればそれだけ、なければ exclude を除いた全世界。--all 以外は審査端末も除く。"""
+    exprs = []
     if only:
-        return {"filter": {"fieldName": "country",
-                           "inListFilter": {"values": only}}}
-    if exclude:
-        return {"notExpression": {
+        exprs.append({"filter": {"fieldName": "country",
+                                 "inListFilter": {"values": only}}})
+    elif exclude:
+        exprs.append({"notExpression": {
             "filter": {"fieldName": "country",
-                       "inListFilter": {"values": exclude}}}}
-    return None
+                       "inListFilter": {"values": exclude}}}})
+    if "--all" not in args:
+        exprs.append(review_filter())
+    if not exprs:
+        return None
+    return exprs[0] if len(exprs) == 1 else {"andGroup": {"expressions": exprs}}
 
 
 def is_complete(end: str, nth: int, span: int) -> bool:
@@ -67,9 +85,9 @@ def is_complete(end: str, nth: int, span: int) -> bool:
 
 def scope_label() -> str:
     if only:
-        return "only " + "+".join(only)
+        return "only " + "+".join(only) + " excl 審査端末"
     if exclude:
-        return "excl " + "+".join(exclude)
+        return "excl " + "+".join(exclude) + "+審査端末"
     return "全世界"
 
 
