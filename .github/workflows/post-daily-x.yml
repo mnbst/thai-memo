@@ -3,8 +3,8 @@ name: Post Daily Sentence to X
 # platform=x は X、threads は Threads に出す。枠の時刻は同じで、例文は別の文を選ぶ
 # （pick_sentence.py が両方の投稿済みを外す）。同じ枠の2本は concurrency で順番に走らせ、
 # 後に走る方が先の投稿を見て選べるようにする。
-# kind=sentence は例文（動画＋画面）、tip / guide は tools/x_post/study_posts.json の
-# 投稿文（ガイドはガイド画面の該当欄の画像付き）。枠ごとの kind は Terraform の
+# kind=sentence は例文（動画＋画面）、tip / guide / feature は tools/x_post/study_posts.json の
+# 投稿文（ガイドはガイド画面の該当欄、機能紹介はストア用スクショの画像付き）。枠ごとの kind は Terraform の
 # x_post_extra_slots で決める。
 
 on:
@@ -25,9 +25,9 @@ on:
         type: string
         default: ''
       kind:
-        description: '出すもの（sentence: 例文 / tip: Tips / guide: ガイド）'
+        description: '出すもの（sentence: 例文 / tip: Tips / guide: ガイド / feature: 機能紹介）'
         type: choice
-        options: [sentence, tip, guide]
+        options: [sentence, tip, guide, feature]
         default: sentence
       platform:
         description: '投稿先（x / threads）'
