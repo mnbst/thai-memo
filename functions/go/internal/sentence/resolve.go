@@ -90,6 +90,7 @@ func (r *Resolver) Resolve(
 	// 話し手と聞き手の関係。key_word ともテーマとも衝突しない直交軸
 	// （2026-08-22 追加）。
 	resolved.Relation = strParam(params, "relation")
+	resolved.RelationGiven = resolved.Relation != ""
 	if resolved.Relation == "" {
 		resolved.Relation = r.DrawRelation()
 	}

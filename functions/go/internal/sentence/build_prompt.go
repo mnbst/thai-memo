@@ -19,6 +19,9 @@ type ResolvedParams struct {
 	SubTheme     string
 	TimeFrame    string
 	Relation     string
+	// RelationGiven は Relation を呼び出し側が指定した（抽選していない）回。
+	// 指定があればショットの関係で上書きしない。
+	RelationGiven bool
 	// Medium は Media の Name。空なら対面の会話と同じ扱い。
 	Medium string
 	// LengthHint は文の長さ指定の上書き。空なら estimated_vocab から決める。
@@ -47,6 +50,29 @@ type DramaSection struct {
 	// Scene と ShotID は付けたショットの場面と ID。例文 doc に記録して分布を測る。
 	Scene  string
 	ShotID string
+	// Relation は付けたショットの話し手から見た聞き手の地位・親しさ・話し手の性別。
+	// 地位と親しさが決まるショットだけ。抽選した関係の代わりに使う（場面の行が
+	// 人物の関係を決めていて、抽選とぶつかるため）。性別が空なら抽選のまま。
+	Relation [3]string
+}
+
+// ApplyShotRelation は付けたショットの関係を Relation に入れる。
+// 呼び出し側が関係を指定した回とショットに関係が無い回は何もしない。
+func (r *ResolvedParams) ApplyShotRelation(section DramaSection) {
+	rel := section.Relation
+	if r.RelationGiven || rel[0] == "" || rel[1] == "" {
+		return
+	}
+	speaker := rel[2]
+	if speaker == "" {
+		if parts := strings.Split(r.Relation, "／"); len(parts) == 3 {
+			speaker = parts[2]
+		}
+	}
+	r.Relation = rel[0] + "／" + rel[1]
+	if speaker != "" {
+		r.Relation += "／" + speaker
+	}
 }
 
 // BuildPrompt はプロンプトを構築する（free/premium 共通）。
