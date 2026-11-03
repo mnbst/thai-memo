@@ -121,6 +121,43 @@ BL_DRAMA_MARKERS = {
     "Only Friends: Dream On": ("แจ็ค", "ジャック", "ละคร", "เวที"),
 }
 
+# 品詞ラベル。プールは言語によらず日本語の品詞で持つので、ja 以外は投稿画面に出す前に
+# 差し替える。functions/go/internal/thainlp/enrich.go の posLabelEN / posLabelKO の写し。
+POS_LABELS = {
+    "en": {
+        "名詞": "noun", "動詞": "verb", "形容詞": "adjective", "副詞": "adverb",
+        "代名詞": "pronoun", "限定詞": "determiner", "前置詞": "preposition",
+        "助動詞": "auxiliary", "接続詞": "conjunction", "助詞": "particle",
+        "感嘆詞": "interjection", "数詞": "numeral", "固有名詞": "proper noun",
+        "句読点": "punctuation", "類別詞": "classifier", "否定詞": "negator",
+        "その他": "other",
+    },
+    "ko": {
+        "名詞": "명사", "動詞": "동사", "形容詞": "형용사", "副詞": "부사",
+        "代名詞": "대명사", "限定詞": "한정사", "前置詞": "전치사",
+        "助動詞": "조동사", "接続詞": "접속사", "助詞": "조사",
+        "感嘆詞": "감탄사", "数詞": "수사", "固有名詞": "고유 명사",
+        "句読点": "문장 부호", "類別詞": "분류사", "否定詞": "부정어",
+        "その他": "기타",
+    },
+}
+
+
+def localize_pos(sentence: dict, lang: str) -> dict:
+    """単語分解の品詞を訳文の言語に合わせる。知らないラベルはそのまま。"""
+    labels = POS_LABELS.get(lang)
+    if not labels:
+        return sentence
+    words = []
+    for word in sentence.get("word_breakdown") or []:
+        word = dict(word or {})
+        role = word.get("grammatical_role")
+        if role in labels:
+            word["grammatical_role"] = labels[role]
+        words.append(word)
+    return {**sentence, "word_breakdown": words}
+
+
 GEMINI_SECRET = "gemini-api-key"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
 GEMINI_ENDPOINT = (
@@ -941,6 +978,7 @@ def main() -> int:
     picked["created_at"] = now.isoformat()
     # UVM 由来の内部フィールドは投稿画面に出ないので落とす。
     picked = {k: v for k, v in picked.items() if _serializable(v)}
+    picked = localize_pos(picked, lang)
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
