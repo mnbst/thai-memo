@@ -682,9 +682,9 @@ resource "google_cloud_scheduler_job" "post_daily_x_en" {
   region      = var.region
   description = "X 英語アカウントへの投稿ワークフローを起動する（${each.value.themes != "" ? each.value.themes : "全テーマ"}）"
 
-  # 読者は米国が中心なので米国東部の時刻で出す（夏時間も Scheduler が追う）。
+  # 読者は米国が中心なので米国西部の時刻で出す（夏時間も Scheduler が追う）。
   schedule  = each.value.schedule
-  time_zone = "America/New_York"
+  time_zone = "America/Los_Angeles"
 
   attempt_deadline = "30s"
 

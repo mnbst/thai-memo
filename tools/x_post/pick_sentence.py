@@ -835,7 +835,7 @@ def main() -> int:
         default="",
         help="投稿の枠（0700 など）。空なら今の --tz の時から決める。",
     )
-    # 枠・曜日を数える時間帯。英語アカウントは米国東部に合わせる。
+    # 枠・曜日を数える時間帯。英語アカウントは米国西部に合わせる。
     parser.add_argument("--tz", default="Asia/Tokyo")
     parser.add_argument("--platform", choices=PLATFORMS, default="x")
     parser.add_argument("--lang", choices=LANGS, default="ja")

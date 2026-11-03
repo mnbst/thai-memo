@@ -234,7 +234,7 @@ X と同じワークフローを `platform=threads` で動かし、同じ枠の�
   `x-access-token-en` / `x-access-token-secret-en` に分ける。発行は
   `python tools/x_post/issue_x_token.py --project thai-memo-prod --lang en --expect daily_thai11`
   （ブラウザで @daily_thai11 として許可し、PIN を入れる。トークンは Secret Manager に直接入る）。
-- 枠は Terraform の `x_post_en_slots`（米国東部の時刻。枠と曜日も `--tz America/New_York` で数える）。鍵を入れてから足して `terraform apply` する。
+- 枠は Terraform の `x_post_en_slots`（米国西部の時刻。枠と曜日も `--tz America/Los_Angeles` で数える）。鍵を入れてから足して `terraform apply` する。
 
 ダウンロードページ（`public/app.html`）は端末の言語（日本語・韓国語）、それ以外は時間帯
 （Asia/Tokyo・Asia/Seoul）で ja / ko を選び、残りは en で出す。App Store は国を付けない

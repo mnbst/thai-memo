@@ -62,8 +62,8 @@ env:
   PLATFORM: ${{ inputs.platform || 'x' }}
   LANG_CODE: ${{ inputs.lang || 'ja' }}
   # アカウントの鍵の接尾辞。API Key / Secret（アプリ）は共通で、Access Token だけ言語ごと。
-  # 枠・曜日の時間帯。英語アカウントは米国東部（Scheduler の x_post_en_slots も同じ）。
-  POST_TZ: ${{ (inputs.lang || 'ja') == 'en' && 'America/New_York' || 'Asia/Tokyo' }}
+  # 枠・曜日の時間帯。英語アカウントは米国西部（Scheduler の x_post_en_slots も同じ）。
+  POST_TZ: ${{ (inputs.lang || 'ja') == 'en' && 'America/Los_Angeles' || 'Asia/Tokyo' }}
   TOKEN_SUFFIX: ${{ (inputs.lang || 'ja') != 'ja' && format('-{0}', inputs.lang) || '' }}
 
 jobs:
