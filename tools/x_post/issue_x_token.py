@@ -4,18 +4,25 @@
 そのアカウントに投稿の許可をもらう。トークンは画面にもファイルにも出さない。
 
   python tools/x_post/issue_x_token.py --project thai-memo-prod --lang en --expect daily_thai11
+  python tools/x_post/issue_x_token.py --project thai-memo-prod --lang en --expect daily_thai11 --pin <PIN>
 
-1. ブラウザで許可の画面が開く。投稿させたいアカウント（--expect）でログインした状態で「許可」を押す
-2. 表示された PIN を入力する
+1. 1回目でブラウザに許可の画面が開く。投稿させたいアカウント（--expect）でログインした状態で「許可」を押す
+2. 表示された PIN を --pin に付けてもう一度実行する（入力待ちにしないのは、Claude Code の ! から動かすため）
 3. 許可したアカウントが --expect と一致したときだけ、x-access-token-<lang> と
    x-access-token-secret-<lang> に新しい版を足す
+
+1回目の request token は一時フォルダに本人だけ読める形で置き、2回目で消す。
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sys
+import tempfile
 import webbrowser
+from pathlib import Path
 
 from google.cloud import secretmanager
 from requests_oauthlib import OAuth1Session
@@ -44,21 +51,40 @@ def main() -> int:
     parser.add_argument("--project", required=True)
     parser.add_argument("--lang", required=True, help="シークレット名の接尾辞（en など）")
     parser.add_argument("--expect", required=True, help="許可するアカウントのユーザー名（@なし）")
+    parser.add_argument("--pin", default="", help="許可の画面に出た PIN（2回目）")
     args = parser.parse_args()
     expect = args.expect.lstrip("@").lower()
+    state = Path(tempfile.gettempdir()) / f"x_request_token_{args.lang}.json"
 
     client = secretmanager.SecretManagerServiceClient()
     key = read_secret(client, args.project, "x-api-key")
     secret = read_secret(client, args.project, "x-api-secret")
 
-    session = OAuth1Session(key, client_secret=secret, callback_uri="oob")
-    session.fetch_request_token(REQUEST_TOKEN_URL)
-    url = session.authorization_url(AUTHORIZE_URL)
-    print(f"@{expect} でログインした状態で許可してください:\n{url}")
-    webbrowser.open(url)
+    if not args.pin:
+        session = OAuth1Session(key, client_secret=secret, callback_uri="oob")
+        request = session.fetch_request_token(REQUEST_TOKEN_URL)
+        state.touch(mode=0o600)
+        state.write_text(json.dumps(request))
+        url = session.authorization_url(AUTHORIZE_URL)
+        print(f"@{expect} でログインした状態で許可し、出た PIN を --pin に付けてもう一度実行:\n{url}")
+        webbrowser.open(url)
+        return 0
 
-    pin = input("PIN: ").strip()
-    tokens = session.fetch_access_token(ACCESS_TOKEN_URL, verifier=pin)
+    if not state.exists():
+        print("先に --pin なしで実行して許可の画面を開く", file=sys.stderr)
+        return 1
+    request = json.loads(state.read_text())
+    session = OAuth1Session(
+        key,
+        client_secret=secret,
+        resource_owner_key=request["oauth_token"],
+        resource_owner_secret=request["oauth_token_secret"],
+        verifier=args.pin.strip(),
+    )
+    try:
+        tokens = session.fetch_access_token(ACCESS_TOKEN_URL)
+    finally:
+        os.remove(state)
     screen_name = str(tokens.get("screen_name", ""))
     if screen_name.lower() != expect:
         print(
