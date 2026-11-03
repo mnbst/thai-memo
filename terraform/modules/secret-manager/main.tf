@@ -147,6 +147,9 @@ locals {
     "x-api-secret",
     "x-access-token",
     "x-access-token-secret",
+    # 英語アカウント（@daily_thai11）の Access Token。API Key / Secret は上の共通のもの
+    "x-access-token-en",
+    "x-access-token-secret-en",
     # Threads 自動投稿の長期アクセストークン（投稿のたびに古ければ延長して版を足す）
     "threads-access-token",
   ]

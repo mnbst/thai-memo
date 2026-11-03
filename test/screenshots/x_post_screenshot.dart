@@ -6,7 +6,8 @@
 //   flutter test test/screenshots/x_post_screenshot.dart \
 //     --dart-define=X_POST_SENTENCE=build/x_post/sentence.json \
 //     --dart-define=X_POST_OUT=build/x_post \
-//     --dart-define=X_POST_AUDIO_MS=4200
+//     --dart-define=X_POST_AUDIO_MS=4200 \
+//     --dart-define=X_POST_LANG=en   # 画面の言語（既定 ja）
 //
 // 実機ではなく flutter_test 上で DetailScreen をそのまま描画するので、
 // サインインもシミュレータも要らずに実UIのピクセルが得られる。
@@ -33,7 +34,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thai_memo/core/theme/app_theme.dart';
 import 'package:thai_memo/data/models/thai_sentence.dart';
 import 'package:thai_memo/l10n/app_localizations.dart';
-import 'package:thai_memo/l10n/app_localizations_ja.dart';
 import 'package:thai_memo/presentation/providers/analytics_provider.dart';
 import 'package:thai_memo/presentation/providers/settings_provider.dart';
 import 'package:thai_memo/presentation/providers/tts_provider.dart';
@@ -71,7 +71,9 @@ const int _leadFrames = 12;
 const int _pressFrames = 5;
 const int _tailFrames = 12;
 
-final _l10n = L10nJa();
+/// 画面の言語。投稿するアカウントの言語（訳の言語）に合わせる。
+const String _lang = String.fromEnvironment('X_POST_LANG', defaultValue: 'ja');
+final _l10n = lookupL10n(const Locale(_lang));
 
 void main() {
   const sentencePath = String.fromEnvironment(
@@ -280,7 +282,7 @@ Widget _host(
     ],
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      locale: const Locale('ja'),
+      locale: const Locale(_lang),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       theme: _themeWithFallbacks(buildAppLightTheme(ThaiFont.sarabun)),

@@ -1366,6 +1366,12 @@ Tips・ガイドの X 投稿文（アプリの Tips とガイドから書き起�
 tools/x_post/select_prompt.txt
 例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
 
+tools/x_post/select_prompt_en.txt
+英語アカウント（@daily_thai11）の例文選定プロンプト。
+
+tools/x_post/issue_x_token.py
+別の X アカウントの Access Token を PIN 方式で発行し、Secret Manager の x-access-token-<lang> へ直接入れる。
+
 tools/x_post/synth_tts.py
 Google Cloud TTS（Chirp3-HD）で例文の読み上げ音声を作る。声は本番（ttsaudio/voice.go）と同じ男女判定で選ぶ。通常速度で1回だけ。
 
@@ -1379,7 +1385,7 @@ tools/x_post/post_to_threads.py
 Threadsへ投稿し、投稿済みを x_post/threads/posted.json へ記録する。メディアはGCSの署名付きURLで渡し、動画＋画像はカルーセル。長期トークンを古ければ延長する。
 
 tools/x_post/platforms.py
-投稿先（X / Threads）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
+投稿先（X / Threads）と言語（ja / en のアカウント）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
 
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
@@ -1388,7 +1394,7 @@ test/screenshots/x_post_screenshot.dart
 DetailScreen を flutter_test 上で描画し、動画の続きからスクロールした画像3枚までと、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
 
 .github/workflows/post-daily-x.yml
-X / Threads 投稿のワークフロー。platform で投稿先、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
+X / Threads 投稿のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
 
 ## App Store スクリーンショット
 

@@ -22,7 +22,8 @@ from pathlib import Path
 import tweepy
 from google.cloud import storage
 
-from platforms import post_id, posted_object
+from platforms import LANGS, post_id, posted_object
+
 # 投稿済みキーの保持数。バンクの規模より十分大きければ一巡を検知できる。
 POSTED_LIMIT = 5000
 # 反応の参照に使う履歴の保持数。pick_sentence.py が枠×テーマ・曜日×テーマの
@@ -107,7 +108,12 @@ def drop_old_reasons(history: list[dict]) -> list[dict]:
 
 
 def mark_posted(
-    project: str, key: str, entry: dict, metrics: dict, platform: str = "x"
+    project: str,
+    key: str,
+    entry: dict,
+    metrics: dict,
+    platform: str = "x",
+    lang: str = "ja",
 ) -> None:
     """投稿済みキーと、後で反応を引くための履歴を書き戻す。
 
@@ -116,7 +122,7 @@ def mark_posted(
     metrics は pick_sentence.py が取り直した表示回数と反応（投稿 ID ごと）。
     """
     bucket = storage.Client(project=project).bucket(f"{project}-uvm-data")
-    blob = bucket.blob(posted_object(platform))
+    blob = bucket.blob(posted_object(platform, lang))
     state = json.loads(blob.download_as_bytes()) if blob.exists() else {}
 
     posted = [k for k in state.get("posted", []) if k != key]
@@ -147,7 +153,13 @@ def _read_json(path: Path, fallback):
 
 
 def record_post(
-    project: str, out: Path, key: str, text: str, ids: dict, platform: str = "x"
+    project: str,
+    out: Path,
+    key: str,
+    text: str,
+    ids: dict,
+    platform: str = "x",
+    lang: str = "ja",
 ) -> None:
     """選んだときの出力（<out>）から履歴の1件を組み、posted.json に書き戻す。
 
@@ -174,6 +186,7 @@ def record_post(
         },
         _read_json(out / "metrics.json", {}),
         platform,
+        lang,
     )
 
 
@@ -181,6 +194,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", required=True)
     parser.add_argument("--out", default="build/x_post")
+    # 投稿するアカウントの言語。鍵（X_ACCESS_TOKEN 等）もその言語のものを渡すこと。
+    parser.add_argument("--lang", choices=LANGS, default="ja")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -234,7 +249,9 @@ def main() -> int:
     tweet_id = response.data["id"]
     print(f"投稿した: https://x.com/i/status/{tweet_id}")
 
-    record_post(args.project, out, key, text, {"tweet_id": str(tweet_id)})
+    record_post(
+        args.project, out, key, text, {"tweet_id": str(tweet_id)}, lang=args.lang
+    )
     return 0
 
 

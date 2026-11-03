@@ -17,11 +17,34 @@
       // Android は Play のインストールリファラ（utm_*）で GA4 の firstUserSource / Campaign に出る。
       var PT = '128590636';
       var c = (new URLSearchParams(location.search).get('c') || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 40) || 'x_bio';
-      var IOS = 'https://apps.apple.com/jp/app/id6759669680?pt=' + PT + '&ct=' + c + '&mt=8';
+      // 国を付けない URL にして、App Store が開いた人の国のストアへ振り分ける。
+      var IOS = 'https://apps.apple.com/app/id6759669680?pt=' + PT + '&ct=' + c + '&mt=8';
       var ANDROID = 'https://play.google.com/store/apps/details?id=com.thaimemo.thai_memo&referrer=' +
         encodeURIComponent('utm_source=x&utm_medium=social&utm_campaign=' + c);
       // 振り分けない端末（PC など）のボタンにも同じ目印を付ける
+      // 表示の言語。端末の言語が日本語・韓国語ならそれに、それ以外は時間帯で
+      // 日本・韓国を見分け、残りは英語にする（タイ在住の日本人は日本語のまま）。
+      var LANG = (function () {
+        var langs = navigator.languages || [navigator.language || ''];
+        var first = String(langs[0] || '').toLowerCase();
+        if (first.indexOf('ja') === 0) return 'ja';
+        if (first.indexOf('ko') === 0) return 'ko';
+        var tz = '';
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+        if (tz === 'Asia/Tokyo') return 'ja';
+        if (tz === 'Asia/Seoul') return 'ko';
+        return 'en';
+      })();
+      var TEXT = {
+        ja: { title: 'まいにちタイ語', lead: '毎日の例文でタイ語の単語が増える' },
+        en: { title: 'Daily Thai', lead: 'Grow your Thai vocabulary with daily example sentences' },
+        ko: { title: '매일 태국어', lead: '매일 예문으로 태국어 단어가 늘어요' }
+      }[LANG];
+      document.documentElement.lang = LANG;
       document.addEventListener('DOMContentLoaded', function () {
+        document.title = TEXT.title;
+        document.getElementById('title').textContent = TEXT.title;
+        document.getElementById('lead').textContent = TEXT.lead;
         document.getElementById('ios').href = IOS;
         document.getElementById('android').href = ANDROID;
       });
@@ -57,10 +80,10 @@
 <body>
   <main>
     <img src="/appicon.png" alt="" />
-    <h1>まいにちタイ語</h1>
-    <p>毎日の例文でタイ語の単語が増える</p>
-    <a class="btn" id="ios" href="https://apps.apple.com/jp/app/id6759669680">App Store（iPhone / iPad）</a>
-    <a class="btn" id="android" href="https://play.google.com/store/apps/details?id=com.thaimemo.thai_memo">Google Play（Android）</a>
+    <h1 id="title">まいにちタイ語</h1>
+    <p id="lead">毎日の例文でタイ語の単語が増える</p>
+    <a class="btn" id="ios" href="https://apps.apple.com/app/id6759669680">App Store (iPhone / iPad)</a>
+    <a class="btn" id="android" href="https://play.google.com/store/apps/details?id=com.thaimemo.thai_memo">Google Play (Android)</a>
   </main>
 </body>
 </html>

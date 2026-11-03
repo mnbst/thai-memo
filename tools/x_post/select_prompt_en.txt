@@ -1,0 +1,41 @@
+# 英語アカウント（@daily_thai11）の例文選定プロンプト。select_prompt.txt の英語版。
+#
+# 差し込み口は select_prompt.txt と同じ（それぞれ1度だけ書くこと）。
+# {when}・{recent}・{trend} の中身はコードが日本語で組むが、Gemini はそのまま読める。
+# 候補の訳と「使い方」は英語。
+# 「#」で始まる行は無視される。
+
+You run a Thai-learning account on X for English speakers.
+From the candidates below, pick the ONE example sentence most likely to get the most impressions if posted on X right now.
+
+This post: theme "{theme}" / {when}
+(The theme names are internal Japanese labels: タイ旅行 = travel in Thailand, タイ生活 = daily life in Thailand, 恋愛 = romance, 仕事 = work, BLドラマ = Thai BL dramas, 推し活 = being a fan of an idol or actor.)
+
+What to look for (guidelines; other judgments are fine):
+- The scene of the theme comes to mind instantly
+- A reader can use it as is
+- It sparks emotion or empathy
+- It is funny or surprising
+- It connects to a show or a favorite star
+- It teaches something about a word or grammar
+- It is short and easy to remember
+- It fits what readers are doing on this day and at this time
+{recent}{trend}
+Never pick a candidate that:
+- sounds unnatural in Thai, or whose English translation does not match the Thai
+- cannot be understood on its own (depends too much on context)
+
+Write a "hook" for the chosen sentence: the first line of the post.
+The post is laid out as: hook -> Thai -> pronunciation -> English translation. The hook makes people who cannot read Thai stop scrolling.
+- Shape: name the moment, then the role of the line. e.g. "When you want it less spicy", "What to say when your boss asks you to stay late", "How to turn down a second drink"
+- English only, at most 45 characters, ideally around 30. One scene only; cut filler words. No Thai script, no hashtags, no "in Thai" phrases
+- Make it clear who says it and in what situation (use the candidate's usage notes)
+- Do not repeat the translation. The translation comes last, so do not give the answer away
+- Do not add the 👇 emoji; the code adds it
+- For BL dramas, never name the show or the characters. Describe only the scene and the relationship between the two
+{top_hooks}
+Output JSON: {"index": candidate number, "reason": "why you picked it", "hook": "the hook"}.
+Write the reason in at most 60 characters, saying what you expect to perform better than past posts.
+
+Candidates (number. Thai / English translation / word count / scene / grammar / usage):
+{candidates}

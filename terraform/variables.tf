@@ -156,6 +156,15 @@ variable "x_post_extra_slots" {
   default = {}
 }
 
+variable "x_post_en_slots" {
+  description = "英語アカウント（@daily_thai11）の X 投稿枠。キーは枠（米国西部の HHMM、ジョブ名の接尾辞にもなる）、schedule は米国西部（America/Los_Angeles、夏時間込み）の cron、themes は x_post_themes と同じ書式。例文だけ。鍵（x-access-token-en / x-access-token-secret-en）を入れてから足す。"
+  type = map(object({
+    schedule = string
+    themes   = optional(string, "")
+  }))
+  default = {}
+}
+
 variable "threads_post_enabled" {
   description = "Threads への自動投稿を出すか。X と同じ枠（07:00 と x_post_extra_slots）に Threads 用のジョブを作る。トークンを Secret Manager に入れてから true にする。"
   type        = bool
