@@ -32,7 +32,7 @@ The post is laid out as: hook -> Thai -> pronunciation -> English translation. T
 - Make it clear who says it and in what situation (use the candidate's usage notes)
 - Do not repeat the translation. The translation comes last, so do not give the answer away
 - Do not add the 👇 emoji; the code adds it
-- For BL dramas, never name the show or the characters. Describe only the scene and the relationship between the two
+- For BL dramas, never name the show or the characters. Describe only the scene and the relationship between the two. Refer to the other person by that relationship (senior, junior, boyfriend, childhood friend, etc.)
 {top_hooks}
 Output JSON: {"index": candidate number, "reason": "why you picked it", "hook": "the hook"}.
 Write the reason in at most 60 characters, saying what you expect to perform better than past posts.

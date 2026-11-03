@@ -240,7 +240,8 @@ def clean_hook(hook: str, theme: str, lang: str = "ja") -> str:
     """Gemini の書き出しを確かめる。使えなければ空を返し、訳から始める。
 
     BLドラマ回は作品名・登場人物名を出さない。プロンプトでも禁じているが、
-    作品の手がかり（カタカナ名・英題）が混ざったら落とす。
+    作品の手がかり（カタカナ名・英題）が混ざったら落とす。登場人物を「推し」と
+    言い換えると推し活の話に読めるので、それも落とす（2026-11-03 に出た）。
     """
     hook = hook.strip().splitlines()[0].strip() if hook.strip() else ""
     if not hook or len(hook) > HOOK_MAX[lang] or "#" in hook or _THAI.search(hook):
@@ -249,9 +250,14 @@ def clean_hook(hook: str, theme: str, lang: str = "ja") -> str:
         clues = [t for t in BL_DRAMA_MARKERS] + [
             m for ms in BL_DRAMA_MARKERS.values() for m in ms if not _THAI.search(m)
         ]
+        clues += BL_OFF_THEME_WORDS
         if any(c.lower() in hook.lower() for c in clues):
             return ""
     return hook
+
+
+# BLドラマ回の書き出しに入れない語（作品の手がかりのほか）。
+BL_OFF_THEME_WORDS = ["推し"]
 
 
 # 書き出しが使えなかったときの代わり。1行目がタイ語だと読み飛ばされるので必ず入れる。
