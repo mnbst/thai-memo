@@ -221,3 +221,21 @@ X と同じワークフローを `platform=threads` で動かし、同じ枠の�
    ```
 6. `workflow_dispatch` で `platform=threads` `dry_run=false` を1回手で流して確かめ、
    `terraform/prod.tfvars` の `threads_post_enabled = true` にして `terraform apply`。
+
+## 英語アカウント
+
+英語の X アカウント（@daily_thai11）にも例文を出す。ワークフローの `lang=en` で切り替える。
+
+- 候補は `corpus_pool_en.json`（訳は英語、テーマ名は日本語のまま）。選定プロンプトは
+  `select_prompt_en.txt`、画面は英語の UI で撮る（`X_POST_LANG`）。
+- 投稿済みと履歴は `x_post/en/posted.json`。日本語アカウントとは別に選ぶので、同じタイ語が両方に出ることはある。
+- 出すのは例文だけ（Tips・ガイド・機能紹介と Threads は日本語だけ）。
+- 開発者アプリ（`x-api-key` / `x-api-secret`）は共通で、Access Token だけ
+  `x-access-token-en` / `x-access-token-secret-en` に分ける。発行は
+  `python tools/x_post/issue_x_token.py --project thai-memo-prod --lang en --expect daily_thai11`
+  （ブラウザで @daily_thai11 として許可し、PIN を入れる。トークンは Secret Manager に直接入る）。
+- 枠は Terraform の `x_post_en_slots`（米国東部の時刻。枠と曜日も `--tz America/New_York` で数える）。鍵を入れてから足して `terraform apply` する。
+
+ダウンロードページ（`public/app.html`）は端末の言語（日本語・韓国語）、それ以外は時間帯
+（Asia/Tokyo・Asia/Seoul）で ja / ko を選び、残りは en で出す。App Store は国を付けない
+URL で、開いた人の国のストアへ飛ぶ。英語アカウントの BIO からは `?c=x_en_bio` で計測する。

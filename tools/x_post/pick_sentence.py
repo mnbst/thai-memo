@@ -8,6 +8,8 @@
 投稿済みと履歴は gs://<project>-uvm-data/x_post/posted.json（X）と
 x_post/threads/posted.json（Threads）で管理する（--platform で切り替える）。
 例文は X と Threads で別の文にするので、両方の投稿済みを外して選ぶ。
+--lang で投稿するアカウントの言語（訳の言語）を切り替える。ja 以外は記録を
+x_post/<lang>/ に分け、候補はその言語のコーパス、プロンプトは select_prompt_<lang>.txt。
 選んだ例文は <out>/sentence.json、投稿本文は <out>/text.txt、選んだ文脈は
 <out>/selection.json に書く。実際に投稿できたかは post_to_x.py が確かめてから
 posted.json を更新する。
@@ -28,6 +30,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import certifi
 import requests
@@ -35,11 +38,13 @@ from google.cloud import secretmanager, storage
 from requests_oauthlib import OAuth1Session
 
 from pick_study_post import TWEET_LIMIT, weighted_length
-from platforms import PLATFORMS, post_id, posted_object
+from platforms import LANGS, PLATFORMS, post_id, posted_object
 
 # premium と同じ静的コーパスと、運用中に貯めたプール（CorpusBank と同じ2本）。
-# 静的コーパスはプールへ移して空にしたので、両方を読む。
-CORPUS_OBJECTS = ("corpus_sentences_ja.json", "corpus_pool_ja.json")
+# 静的コーパスはプールへ移して空にしたので、両方を読む。訳はどの言語でも
+# japanese_translation に入り、context.topic は日本語のテーマ名のまま。
+def corpus_objects(lang: str) -> tuple[str, str]:
+    return (f"corpus_sentences_{lang}.json", f"corpus_pool_{lang}.json")
 
 # 投稿は日本時間の朝に出る。「前日」も日本時間で切る。
 JST = timezone(timedelta(hours=9))
@@ -189,18 +194,19 @@ def load_json(bucket: storage.Bucket, name: str, fallback):
 
 
 # 1行目の書き出し（場面のフック）の上限。スマホのタイムラインで1行に収まる長さ。
-HOOK_MAX = 20
+# 英語は1字が細いので長めに取る。
+HOOK_MAX = {"ja": 20, "en": 45}
 _THAI = re.compile("[\u0e00-\u0e7f]")
 
 
-def clean_hook(hook: str, theme: str) -> str:
+def clean_hook(hook: str, theme: str, lang: str = "ja") -> str:
     """Gemini の書き出しを確かめる。使えなければ空を返し、訳から始める。
 
     BLドラマ回は作品名・登場人物名を出さない。プロンプトでも禁じているが、
     作品の手がかり（カタカナ名・英題）が混ざったら落とす。
     """
     hook = hook.strip().splitlines()[0].strip() if hook.strip() else ""
-    if not hook or len(hook) > HOOK_MAX or "#" in hook or _THAI.search(hook):
+    if not hook or len(hook) > HOOK_MAX[lang] or "#" in hook or _THAI.search(hook):
         return ""
     if theme == "BLドラマ":
         clues = [t for t in BL_DRAMA_MARKERS] + [
@@ -213,17 +219,32 @@ def clean_hook(hook: str, theme: str) -> str:
 
 # 書き出しが使えなかったときの代わり。1行目がタイ語だと読み飛ばされるので必ず入れる。
 FALLBACK_HOOKS = {
-    "タイ旅行": "タイ旅行の時のひとこと",
-    "タイ生活": "タイ暮らしの時のひとこと",
-    "恋愛": "恋人と話す時のひとこと",
-    "仕事": "職場で話す時のひとこと",
-    "BLドラマ": "BLドラマのあの場面のセリフ",
-    "推し活": "推し活の時のひとこと",
+    "ja": {
+        "タイ旅行": "タイ旅行の時のひとこと",
+        "タイ生活": "タイ暮らしの時のひとこと",
+        "恋愛": "恋人と話す時のひとこと",
+        "仕事": "職場で話す時のひとこと",
+        "BLドラマ": "BLドラマのあの場面のセリフ",
+        "推し活": "推し活の時のひとこと",
+    },
+    "en": {
+        "タイ旅行": "A phrase for your Thailand trip",
+        "タイ生活": "A phrase for daily life in Thailand",
+        "恋愛": "Something to say to your partner",
+        "仕事": "A phrase for the office",
+        "BLドラマ": "A line straight out of a Thai BL drama",
+        "推し活": "A phrase for fans",
+    },
 }
-DEFAULT_HOOK = "タイで話す時のひとこと"
+DEFAULT_HOOK = {
+    "ja": "タイで話す時のひとこと",
+    "en": "A phrase to use in Thailand",
+}
 
 
-def build_text(sentence: dict, hook: str = "", theme: str = "") -> str:
+def build_text(
+    sentence: dict, hook: str = "", theme: str = "", lang: str = "ja"
+) -> str:
     """投稿本文。「書き出し👇 → タイ語・読み → 訳」の順に揃える。
 
     書き出しが空か、入れると280字を超えるときはテーマの決まり文句に替える。
@@ -234,10 +255,12 @@ def build_text(sentence: dict, hook: str = "", theme: str = "") -> str:
         body.append(sentence["pronunciation"])
     body += ["", sentence["japanese_translation"]]
     text = ""
-    for h in (hook, FALLBACK_HOOKS.get(theme, DEFAULT_HOOK)):
+    # 英語は語と絵文字の間を空ける。
+    point = " 👇" if lang == "en" else "👇"
+    for h in (hook, FALLBACK_HOOKS[lang].get(theme, DEFAULT_HOOK[lang])):
         if not h:
             continue
-        text = "\n".join([h.rstrip("👇") + "👇", ""] + body)
+        text = "\n".join([h.rstrip("👇").rstrip() + point, ""] + body)
         if weighted_length(text) <= TWEET_LIMIT:
             return text
     return "\n".join(body)
@@ -799,8 +822,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--prompt",
-        default=str(PROMPT_FILE),
-        help="選定プロンプトのファイル。",
+        default="",
+        help="選定プロンプトのファイル。空なら言語の既定（select_prompt[_<lang>].txt）。",
     )
     parser.add_argument(
         "--themes",
@@ -810,10 +833,19 @@ def main() -> int:
     parser.add_argument(
         "--slot",
         default="",
-        help="投稿の枠（0700 など）。空なら今の JST の時から決める。",
+        help="投稿の枠（0700 など）。空なら今の --tz の時から決める。",
     )
+    # 枠・曜日を数える時間帯。英語アカウントは米国東部に合わせる。
+    parser.add_argument("--tz", default="Asia/Tokyo")
     parser.add_argument("--platform", choices=PLATFORMS, default="x")
+    parser.add_argument("--lang", choices=LANGS, default="ja")
     args = parser.parse_args()
+    lang = args.lang
+    prompt_file = Path(args.prompt) if args.prompt else (
+        PROMPT_FILE
+        if lang == "ja"
+        else PROMPT_FILE.with_name(f"select_prompt_{lang}.txt")
+    )
 
     themes = [t.strip() for t in args.themes.split(",") if t.strip()] or list(
         THEMES
@@ -826,16 +858,16 @@ def main() -> int:
     bucket = storage.Client(project=args.project).bucket(
         f"{args.project}-uvm-data"
     )
-    state = load_json(bucket, posted_object(args.platform), {})
-    # 例文は投稿先ごとに別の文にする。ほかの投稿先で出した文も外す。
+    state = load_json(bucket, posted_object(args.platform, lang), {})
+    # 例文は投稿先ごとに別の文にする。同じ言語のほかの投稿先で出した文も外す。
     posted = set(state.get("posted", [])).union(
         *(
-            load_json(bucket, posted_object(p), {}).get("posted", [])
+            load_json(bucket, posted_object(p, lang), {}).get("posted", [])
             for p in PLATFORMS
             if p != args.platform
         )
     )
-    now = datetime.now(JST)
+    now = datetime.now(ZoneInfo(args.tz))
     slot = args.slot or f"{now.hour:02d}00"
     weekday = now.weekday()
 
@@ -843,12 +875,15 @@ def main() -> int:
     corpus = list(
         {
             sentence_key(s): s
-            for name in reversed(CORPUS_OBJECTS)
+            for name in reversed(corpus_objects(lang))
             for s in load_json(bucket, name, [])
         }.values()
     )
     if not corpus:
-        print(f"コーパスが無い: gs://{bucket.name}/{CORPUS_OBJECTS}", file=sys.stderr)
+        print(
+            f"コーパスが無い: gs://{bucket.name}/{corpus_objects(lang)}",
+            file=sys.stderr,
+        )
         return 1
     sound = sound_only(corpus)
 
@@ -882,7 +917,7 @@ def main() -> int:
     candidates = diverse_sample(candidates, recent_scenes, rng)
 
     prompt = build_prompt(
-        load_prompt(Path(args.prompt)),
+        load_prompt(prompt_file),
         candidates,
         theme,
         when_label(slot, weekday),
@@ -896,7 +931,7 @@ def main() -> int:
         chooser = "gemini"
     else:
         picked, reason, hook, chooser = rng.choice(candidates), "", "", "抽選"
-    hook = clean_hook(hook, theme)
+    hook = clean_hook(hook, theme, lang)
     print(f"理由: {reason or '-'}（{chooser}）", file=sys.stderr)
     print(f"書き出し: {hook or '-（テーマの決まり文句を使う）'}", file=sys.stderr)
 
@@ -912,7 +947,7 @@ def main() -> int:
     (out / "sentence.json").write_text(
         json.dumps(picked, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    text = build_text(picked, hook, theme)
+    text = build_text(picked, hook, theme, lang)
     # 実際に使った書き出し（決まり文句に替わった場合も含む）を履歴に残す。
     first = text.splitlines()[0]
     hook = first if first.endswith("👇") else ""

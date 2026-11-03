@@ -28,6 +28,15 @@ x_post_extra_slots = {
   "2000" = { schedule = "0 20 * * *", kind = "feature" }
 }
 
+# 英語アカウント（@daily_thai11）の例文枠（米国東部の時刻）。昼休みと夜。
+# 鍵を入れてから足す（tools/x_post/README.md の「英語アカウント」）。
+x_post_en_slots = {}
+# 鍵を入れたらこれにする:
+# x_post_en_slots = {
+#   "1200" = { schedule = "0 12 * * *" }
+#   "2000" = { schedule = "0 20 * * *" }
+# }
+
 # Threads への自動投稿（X と同じ枠で、例文は別の文）。threads-access-token に
 # トークンを入れてから true にする（tools/x_post/README.md の「Threads」）。
 threads_post_enabled = false

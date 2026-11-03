@@ -6,6 +6,8 @@ name: Post Daily Sentence to X
 # kind=sentence は例文（動画＋画面）、tip / guide / feature は tools/x_post/study_posts.json の
 # 投稿文（ガイドはガイド画面の該当欄、機能紹介はストア用スクショの画像付き）。枠ごとの kind は Terraform の
 # x_post_extra_slots で決める。
+# lang は投稿するアカウントの言語（ja: @everydaythai775 / en: @daily_thai11）。en は
+# 例文の X 投稿だけ（Tips・ガイド・機能紹介と Threads は日本語だけ）。枠は Terraform の x_post_en_slots。
 
 on:
   # 毎朝 07:00 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
@@ -34,10 +36,16 @@ on:
         type: choice
         options: [x, threads]
         default: x
+      lang:
+        description: 'アカウントの言語（ja / en）'
+        type: choice
+        options: [ja, en]
+        default: ja
 
 concurrency:
   # 同じ枠の X と Threads を並べて走らせない（同じ例文を選ばないように）。
-  group: post-daily-${{ inputs.slot || github.run_id }}
+  # 言語が違えば記録も別なので並べてよい。
+  group: post-daily-${{ inputs.lang || 'ja' }}-${{ inputs.slot || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -52,11 +60,21 @@ env:
   OUT_DIR: build/x_post
   KIND: ${{ inputs.kind || 'sentence' }}
   PLATFORM: ${{ inputs.platform || 'x' }}
+  LANG_CODE: ${{ inputs.lang || 'ja' }}
+  # アカウントの鍵の接尾辞。API Key / Secret（アプリ）は共通で、Access Token だけ言語ごと。
+  # 枠・曜日の時間帯。英語アカウントは米国東部（Scheduler の x_post_en_slots も同じ）。
+  POST_TZ: ${{ (inputs.lang || 'ja') == 'en' && 'America/New_York' || 'Asia/Tokyo' }}
+  TOKEN_SUFFIX: ${{ (inputs.lang || 'ja') != 'ja' && format('-{0}', inputs.lang) || '' }}
 
 jobs:
   post:
     runs-on: ubuntu-latest
     steps:
+      - name: Check inputs
+        if: env.LANG_CODE != 'ja' && (env.KIND != 'sentence' || env.PLATFORM != 'x')
+        run: |
+          echo "lang=$LANG_CODE は例文の X 投稿だけ（kind=$KIND platform=$PLATFORM）"
+          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
@@ -82,8 +100,8 @@ jobs:
           secrets: |-
             X_API_KEY:${{ env.GCP_PROJECT }}/x-api-key
             X_API_SECRET:${{ env.GCP_PROJECT }}/x-api-secret
-            X_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/x-access-token
-            X_ACCESS_TOKEN_SECRET:${{ env.GCP_PROJECT }}/x-access-token-secret
+            X_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/x-access-token${{ env.TOKEN_SUFFIX }}
+            X_ACCESS_TOKEN_SECRET:${{ env.GCP_PROJECT }}/x-access-token-secret${{ env.TOKEN_SUFFIX }}
 
       - name: Fetch Threads credentials from Secret Manager
         if: env.PLATFORM == 'threads'
@@ -120,8 +138,8 @@ jobs:
         run: |
           python tools/x_post/pick_sentence.py \
             --project "$GCP_PROJECT" --out "$OUT_DIR" \
-            --seed "$(date -u +%F)-$SLOT-$PLATFORM" --themes "$THEMES" --slot "$SLOT" \
-            --platform "$PLATFORM"
+            --seed "$(date -u +%F)-$SLOT-$PLATFORM-$LANG_CODE" --themes "$THEMES" --slot "$SLOT" \
+            --platform "$PLATFORM" --lang "$LANG_CODE" --tz "$POST_TZ"
 
       - name: Pick tip or guide
         if: env.KIND != 'sentence'
@@ -159,7 +177,8 @@ jobs:
           flutter test test/screenshots/x_post_screenshot.dart \
             --dart-define=X_POST_SENTENCE=$OUT_DIR/sentence.json \
             --dart-define=X_POST_OUT=$OUT_DIR \
-            --dart-define=X_POST_AUDIO_MS=$AUDIO_MS
+            --dart-define=X_POST_AUDIO_MS=$AUDIO_MS \
+            --dart-define=X_POST_LANG=$LANG_CODE
 
       - name: Build media
         if: env.KIND == 'sentence'
@@ -168,7 +187,7 @@ jobs:
       - name: Upload media as artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ${{ env.PLATFORM }}-post-media
+          name: ${{ env.PLATFORM }}-${{ env.LANG_CODE }}-post-media
           path: |
             ${{ env.OUT_DIR }}/image_*.png
             ${{ env.OUT_DIR }}/post.mp4
@@ -184,7 +203,7 @@ jobs:
           X_ACCESS_TOKEN_SECRET: ${{ steps.secrets.outputs.X_ACCESS_TOKEN_SECRET }}
         run: |
           python tools/x_post/post_to_x.py \
-            --project "$GCP_PROJECT" --out "$OUT_DIR" \
+            --project "$GCP_PROJECT" --out "$OUT_DIR" --lang "$LANG_CODE" \
             ${{ inputs.dry_run && '--dry-run' || '' }}
 
       - name: Post to Threads

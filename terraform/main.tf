@@ -672,6 +672,45 @@ resource "google_cloud_scheduler_job" "post_daily_x_extra" {
   depends_on = [google_project_service.required_apis]
 }
 
+# 英語アカウント（@daily_thai11）の X 投稿枠（var.x_post_en_slots）。例文だけ。
+# 記録は x_post/en/ に分かれ、日本語アカウントとは別に例文を選ぶ。
+resource "google_cloud_scheduler_job" "post_daily_x_en" {
+  for_each = nonsensitive(var.github_dispatch_token != "") ? var.x_post_en_slots : {}
+
+  name        = "post-daily-x-en-${each.key}"
+  project     = var.project_id
+  region      = var.region
+  description = "X 英語アカウントへの投稿ワークフローを起動する（${each.value.themes != "" ? each.value.themes : "全テーマ"}）"
+
+  # 読者は米国が中心なので米国東部の時刻で出す（夏時間も Scheduler が追う）。
+  schedule  = each.value.schedule
+  time_zone = "America/New_York"
+
+  attempt_deadline = "30s"
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
+    body = base64encode(jsonencode({
+      ref    = "main"
+      inputs = { themes = each.value.themes, kind = "sentence", slot = each.key, lang = "en" }
+    }))
+
+    headers = {
+      "Authorization"        = "Bearer ${var.github_dispatch_token}"
+      "Accept"               = "application/vnd.github+json"
+      "Content-Type"         = "application/json"
+      "X-GitHub-Api-Version" = "2022-11-28"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
 # Threads への投稿枠。X と同じ時刻・同じ中身の種類で、例文は別の文を選ぶ
 # （tools/x_post/README.md の「Threads」）。同じ枠の X と Threads はワークフローの
 # concurrency で順に走る。
