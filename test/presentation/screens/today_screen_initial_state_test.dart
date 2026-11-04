@@ -53,7 +53,7 @@ class _FakeTtsService extends Fake implements TtsService {
 }
 
 const _loadingText = '例文を準備中...';
-const _sampleNotice = 'サンプル例文（履歴には保存されません）';
+const _sampleNotice = 'サンプル例文（保存されません）';
 const _reloadLabel = '今日の例文を読み込む';
 
 SentenceController _controller({

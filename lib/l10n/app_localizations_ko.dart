@@ -37,7 +37,7 @@ class L10nKo extends L10n {
   String get navLearn => '학습';
 
   @override
-  String get navHistory => '기록';
+  String get navHistory => '성적';
 
   @override
   String get navSettings => '설정';
@@ -111,7 +111,7 @@ class L10nKo extends L10n {
   String get badgeFreeSentence => 'Free 예문';
 
   @override
-  String get sampleSentenceNotice => '샘플 예문(기록에 저장되지 않아요)';
+  String get sampleSentenceNotice => '샘플 예문(저장되지 않아요)';
 
   @override
   String get sampleReload => '오늘의 예문 불러오기';
@@ -304,7 +304,7 @@ class L10nKo extends L10n {
   }
 
   @override
-  String get historyTitle => '기록';
+  String get historyTitle => '성적';
 
   @override
   String get historyFavoritesOnly => '즐겨찾기만 표시';
@@ -1590,7 +1590,7 @@ class L10nKo extends L10n {
 
   @override
   String get quotaSentenceReached =>
-      '오늘의 새 예문은 여기까지예요.\n기록에서 이전 예문을 다시 읽을 수 있어요.';
+      '오늘의 새 예문은 여기까지예요.\n성적 오른쪽 위에서 이전 예문을 다시 읽을 수 있어요.';
 
   @override
   String get quotaSentenceUpgradeCta => 'Premium은 예문 무제한';
@@ -2640,11 +2640,11 @@ class L10nKo extends L10n {
   String get guideHowReviewQuizStep5 => '답변을 바탕으로 어휘 점수와 다음 예문의 난이도가 조정돼요.';
 
   @override
-  String get guideHowHistoryTitle => '기록에서 단어 복습하기';
+  String get guideHowHistoryTitle => '성적에서 단어 복습하기';
 
   @override
   String get guideHowHistoryStep1 =>
-      '기록에는 만난 단어가 어휘 순위가 높은 순으로 표시돼요. 어휘 점수의 위치도 목록에 표시돼요.';
+      '성적에는 만난 단어가 어휘 순위가 높은 순으로 표시돼요. 어휘 점수의 위치도 목록에 표시돼요.';
 
   @override
   String get guideHowHistoryStep2 =>
@@ -3415,6 +3415,29 @@ class L10nKo extends L10n {
 
   @override
   String get vocabAllSentences => '모든 예문';
+
+  @override
+  String get vocabGuideTitle => '게이지 보는 법';
+
+  @override
+  String get vocabGuideMeaning => '게이지는 단어의 암기 정도';
+
+  @override
+  String get vocabGuideMeaningHint => '퀴즈 결과에 따라 오르내려요';
+
+  @override
+  String get vocabGuideQuiz => '게이지가 낮은 단어일수록 퀴즈에 잘 나와요';
+
+  @override
+  String get vocabGuideQuizHint => '어려운 단어를 우선해요';
+
+  @override
+  String get vocabGuideTapWord => '단어를 눌러 예문 확인';
+
+  @override
+  String vocabGuideTapWordHint(String icon) {
+    return '오른쪽 위 $icon에서 예문 목록 보기';
+  }
 
   @override
   String get vocabWordsMet => '단어를 만났어요';

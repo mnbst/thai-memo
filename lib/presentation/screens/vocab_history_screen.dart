@@ -1,19 +1,24 @@
 // =============================================================================
 // vocab_history_screen.dart
-// 履歴タブ。出会った語を語彙ランクの大きい順に並べ、覚え具合をゲージで示す。
+// 成績タブ。出会った語を語彙ランクの大きい順に並べ、覚え具合をゲージで示す。
 // 語をタップすると語の詳細、右上のアイコンから全例文の一覧（HistoryScreen）へ。
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/vocab_word.dart';
 import '../../l10n/app_localizations.dart';
+import '../providers/analytics_provider.dart';
 import '../providers/vocab_progress_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/vocab_gauge.dart';
+import '../widgets/vocab_guide_card.dart';
 import 'history_screen.dart';
 import 'vocab_word_screen.dart';
 
@@ -48,6 +53,31 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
 
   /// 開いたときに自分の位置へ一度だけ動かす。
   bool _positioned = false;
+
+  bool _showGuide = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadGuide());
+  }
+
+  Future<void> _loadGuide() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted || (prefs.getBool(AppConfig.prefKeyVocabGuideDismissed) ?? false)) {
+      return;
+    }
+    setState(() => _showGuide = true);
+  }
+
+  Future<void> _closeGuide() async {
+    setState(() => _showGuide = false);
+    unawaited(ref
+        .read(analyticsServiceProvider)
+        .logCoachMark(id: 'vocab_guide', action: 'dismiss'));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConfig.prefKeyVocabGuideDismissed, true);
+  }
 
   @override
   void dispose() {
@@ -123,6 +153,7 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_showGuide) VocabGuideCard(onClose: _closeGuide),
             _Summary(entries: all, score: score),
             const SizedBox(height: 10),
             Row(

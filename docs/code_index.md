@@ -166,7 +166,7 @@ lib/presentation/screens/splash_screen.dart
 アプリ初期化中のローディング画面。
 
 lib/presentation/screens/home_screen.dart
-メイン画面。3タブナビゲーション（今日/履歴/設定）、配信例文の取り込みと通知タップの受け口、起動時の初回ロード。
+メイン画面。3タブナビゲーション（今日/成績/設定）、配信例文の取り込みと通知タップの受け口、起動時の初回ロード。
 
 lib/presentation/screens/learning_screen.dart
 学習タブの段（例文→確認クイズ→まとめクイズ）の進行。カーソルを進めてよいかの判定（shouldAdvanceDailySetCursor）はここ。
@@ -1460,6 +1460,9 @@ lib/presentation/screens/vocab_word_screen.dart
 
 lib/presentation/widgets/vocab_gauge.dart
 覚え具合のゲージと状態ラベル・色
+
+lib/presentation/widgets/vocab_guide_card.dart
+成績タブの上に閉じるまで出すゲージの案内カード
 
 lib/presentation/widgets/learned_word_card.dart
 クイズで「覚えた」に入った語を知らせるカード

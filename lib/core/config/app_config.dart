@@ -140,6 +140,9 @@ class AppConfig {
   /// 開いたか閉じたか。立ったら二度と出さない。
   static const String prefKeyToneGuideOfferDone = 'tone_guide_offer_done';
 
+  /// 成績タブのゲージの案内を閉じたか。立ったら二度と出さない。
+  static const String prefKeyVocabGuideDismissed = 'vocab_guide_dismissed';
+
   /// 今日タブを最後に開いた日時（ミリ秒）。30日以上あいた復帰の判定に使う。
   static const String prefKeyLastTodayVisitAt = 'last_today_visit_at';
 
