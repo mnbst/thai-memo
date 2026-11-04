@@ -43,8 +43,8 @@ void main() {
     await tester.scrollUntilVisible(find.text('操作のしかた'), 400);
     expect(find.text('操作のしかた'), findsOneWidget);
 
-    await tester.scrollUntilVisible(find.text('成績で単語を振り返る'), 400);
-    expect(find.text('成績で単語を振り返る'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('復習タブで単語を振り返る'), 400);
+    expect(find.text('復習タブで単語を振り返る'), findsOneWidget);
     expect(find.textContaining('語彙スコアの位置'), findsOneWidget);
     expect(find.textContaining('「見ただけ」「覚えかけ」「覚えた」'), findsOneWidget);
     expect(find.textContaining('例文の一覧が'), findsOneWidget);

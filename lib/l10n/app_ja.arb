@@ -19,7 +19,7 @@
   },
 
   "navLearn": "学習",
-  "navHistory": "成績",
+  "navHistory": "復習",
   "navSettings": "設定",
   "learnOpenDetail": "詳細",
 
@@ -185,7 +185,7 @@
     }
   },
 
-  "historyTitle": "成績",
+  "historyTitle": "復習",
   "historyFavoritesOnly": "お気に入りのみ表示",
   "historyDeleteAll": "すべて削除",
   "historyFilterAll": "すべて",
@@ -941,7 +941,7 @@
 
   "errQuizGenerationFailed": "クイズの生成に失敗しました。もう一度お試しください。",
   "quotaQuizReached": "今日の新しいクイズはここまでです。",
-  "quotaSentenceReached": "今日の新しい例文はここまでです。\n成績の右上から、これまでの例文を読み返せます。",
+  "quotaSentenceReached": "今日の新しい例文はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。",
   "@quotaSentenceReached": {
     "description": "上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない"
   },
@@ -1500,8 +1500,8 @@
   "guideHowReviewQuizStep3": "ヒントは1回目に発音、2回目に訳が出ます。使わずに正解すると、語彙スコアが伸びやすくなります。",
   "guideHowReviewQuizStep4": "迷ったら「例文を確認」で例文に戻れます。",
   "guideHowReviewQuizStep5": "答えをもとに、語彙スコアと次の例文の難しさが調整されます。",
-  "guideHowHistoryTitle": "成績で単語を振り返る",
-  "guideHowHistoryStep1": "成績には、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。",
+  "guideHowHistoryTitle": "復習タブで単語を振り返る",
+  "guideHowHistoryStep1": "復習タブには、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。",
   "guideHowHistoryStep2": "ゲージは覚え具合です。上部で「見ただけ」「覚えかけ」「覚えた」に絞り込めます。",
   "guideHowHistoryStep3": "単語をタップすると例文の一覧が、例文をタップすると詳細画面が開きます。",
   "guideHowHistoryStep4": "全例文の検索・お気に入り・削除は、右上のアイコンから行えます。",
@@ -1815,13 +1815,13 @@
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   },
   "vocabAllSentences": "すべての例文",
-  "vocabGuideTitle": "ゲージの見かた",
-  "vocabGuideMeaning": "ゲージは単語の覚え具合",
+  "vocabGuideTitle": "復習のしかた",
+  "vocabGuideMeaning": "各ゲージは単語の覚え具合",
   "vocabGuideMeaningHint": "クイズの結果で増減します",
-  "vocabGuideQuiz": "少ない語ほどクイズに出やすい",
-  "vocabGuideQuizHint": "苦手な単語を優先します",
+  "vocabGuideQuiz": "まとめクイズに向けて復習",
+  "vocabGuideQuizHint": "ゲージが少ない単語から出題します",
   "vocabGuideTapWord": "単語をタップして例文を確認",
-  "vocabGuideTapWordHint": "右上の{icon}から例文一覧を表示",
+  "vocabGuideTapWordHint": "右上の{icon}で例文一覧も見れます",
   "@vocabGuideTapWordHint": {
     "description": "{icon} には AppBar の例文一覧アイコンが入る",
     "placeholders": {

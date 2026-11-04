@@ -36,7 +36,7 @@ class L10nJa extends L10n {
   String get navLearn => '学習';
 
   @override
-  String get navHistory => '成績';
+  String get navHistory => '復習';
 
   @override
   String get navSettings => '設定';
@@ -302,7 +302,7 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get historyTitle => '成績';
+  String get historyTitle => '復習';
 
   @override
   String get historyFavoritesOnly => 'お気に入りのみ表示';
@@ -1581,7 +1581,7 @@ class L10nJa extends L10n {
 
   @override
   String get quotaSentenceReached =>
-      '今日の新しい例文はここまでです。\n成績の右上から、これまでの例文を読み返せます。';
+      '今日の新しい例文はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。';
 
   @override
   String get quotaSentenceUpgradeCta => 'Premiumなら例文は無制限';
@@ -2614,11 +2614,11 @@ class L10nJa extends L10n {
   String get guideHowReviewQuizStep5 => '答えをもとに、語彙スコアと次の例文の難しさが調整されます。';
 
   @override
-  String get guideHowHistoryTitle => '成績で単語を振り返る';
+  String get guideHowHistoryTitle => '復習タブで単語を振り返る';
 
   @override
   String get guideHowHistoryStep1 =>
-      '成績には、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。';
+      '復習タブには、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。';
 
   @override
   String get guideHowHistoryStep2 => 'ゲージは覚え具合です。上部で「見ただけ」「覚えかけ」「覚えた」に絞り込めます。';
@@ -3386,26 +3386,26 @@ class L10nJa extends L10n {
   String get vocabAllSentences => 'すべての例文';
 
   @override
-  String get vocabGuideTitle => 'ゲージの見かた';
+  String get vocabGuideTitle => '復習のしかた';
 
   @override
-  String get vocabGuideMeaning => 'ゲージは単語の覚え具合';
+  String get vocabGuideMeaning => '各ゲージは単語の覚え具合';
 
   @override
   String get vocabGuideMeaningHint => 'クイズの結果で増減します';
 
   @override
-  String get vocabGuideQuiz => '少ない語ほどクイズに出やすい';
+  String get vocabGuideQuiz => 'まとめクイズに向けて復習';
 
   @override
-  String get vocabGuideQuizHint => '苦手な単語を優先します';
+  String get vocabGuideQuizHint => 'ゲージが少ない単語から出題します';
 
   @override
   String get vocabGuideTapWord => '単語をタップして例文を確認';
 
   @override
   String vocabGuideTapWordHint(String icon) {
-    return '右上の$iconから例文一覧を表示';
+    return '右上の$iconで例文一覧も見れます';
   }
 
   @override
