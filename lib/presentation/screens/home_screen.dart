@@ -773,8 +773,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               label: l10n.navLearn,
             ),
             NavigationDestination(
-              icon: const Icon(Icons.bar_chart_outlined),
-              selectedIcon: const Icon(Icons.bar_chart),
+              icon: const Icon(Icons.menu_book_outlined),
+              selectedIcon: const Icon(Icons.menu_book),
               label: l10n.navHistory,
             ),
             NavigationDestination(

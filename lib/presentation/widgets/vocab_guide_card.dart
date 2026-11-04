@@ -1,6 +1,6 @@
 // =============================================================================
 // vocab_guide_card.dart
-// 成績タブの上に、閉じるまで出すゲージの案内。見た目は例文詳細の案内
+// 復習タブの上に、閉じるまで出す案内。見た目は例文詳細の案内
 // （DetailGuideCard）にそろえる。
 // =============================================================================
 
@@ -27,16 +27,6 @@ class VocabGuideCard extends StatelessWidget {
     final tapHint = l10n.vocabGuideTapWordHint(iconMark).split(iconMark);
     final items = <(IconData, String, Widget)>[
       (
-        Icons.linear_scale_rounded,
-        l10n.vocabGuideMeaning,
-        Text(l10n.vocabGuideMeaningHint, style: hintStyle),
-      ),
-      (
-        Icons.quiz_outlined,
-        l10n.vocabGuideQuiz,
-        Text(l10n.vocabGuideQuizHint, style: hintStyle),
-      ),
-      (
         Icons.touch_app_outlined,
         l10n.vocabGuideTapWord,
         Text.rich(
@@ -57,6 +47,16 @@ class VocabGuideCard extends StatelessWidget {
           ]),
           style: hintStyle,
         ),
+      ),
+      (
+        Icons.linear_scale_rounded,
+        l10n.vocabGuideMeaning,
+        Text(l10n.vocabGuideMeaningHint, style: hintStyle),
+      ),
+      (
+        Icons.quiz_outlined,
+        l10n.vocabGuideQuiz,
+        Text(l10n.vocabGuideQuizHint, style: hintStyle),
       ),
     ];
     return Card(
