@@ -184,6 +184,9 @@ Future<void> _loadFonts() async {
     }
   }
   await load('NotoSansJP', 'tools/x_post/fonts/NotoSansJP-Regular.otf');
+  // 声調ガイドの記号（— \ ^ / v）は fontFamily: 'monospace' 指定。テスト環境には
+  // その名前のフォントが無く豆腐になるので、太字の NotoSans を当てる。
+  await load('monospace', 'google_fonts/NotoSans-Bold.ttf');
 }
 
 /// MaterialIcons-Regular.otf の在り処。実行形態でパスが変わるので、
