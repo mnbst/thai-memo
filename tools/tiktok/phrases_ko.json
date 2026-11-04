@@ -1,0 +1,82 @@
+[
+  {
+    "id": "phrase_how_to_go",
+    "hook": "길을 물을 때 한마디👇",
+    "thai": "ไปยังไง",
+    "roman": "pai yang-ngai",
+    "ja": "어떻게 가요?",
+    "end": "topics"
+  },
+  {
+    "id": "phrase_stop_here",
+    "hook": "택시에서 내릴 때 한마디👇",
+    "thai": "จอดตรงนี้",
+    "roman": "jɔ̀ɔt trong-níi",
+    "ja": "여기 세워 주세요",
+    "end": "daily"
+  },
+  {
+    "id": "phrase_take_this",
+    "hook": "메뉴를 고를 때 한마디👇",
+    "thai": "เอาอันนี้",
+    "roman": "aw an-níi",
+    "ja": "이걸로 할게요",
+    "end": "breakdown"
+  },
+  {
+    "id": "phrase_not_spicy",
+    "hook": "안 맵게 주문할 때 한마디👇",
+    "thai": "ไม่เผ็ด",
+    "roman": "mâi phèt",
+    "ja": "안 맵게 해 주세요",
+    "end": "pron"
+  },
+  {
+    "id": "phrase_miss_you",
+    "hook": "친구와 재회할 때 한마디👇",
+    "thai": "คิดถึงจัง",
+    "roman": "khít-thʉ̌ng jang",
+    "ja": "정말 보고 싶었어요",
+    "end": "pron"
+  },
+  {
+    "id": "phrase_so_cute",
+    "hook": "아이 옷을 칭찬할 때 한마디👇",
+    "thai": "น่ารักมาก",
+    "roman": "nâa-rák mâak",
+    "ja": "정말 귀여워요",
+    "end": "daily"
+  },
+  {
+    "id": "phrase_send_later",
+    "hook": "나중에 보낼 때 한마디👇",
+    "thai": "เดี๋ยวส่งให้",
+    "roman": "dǐiaw sòng hâi",
+    "ja": "이따 보내 줄게요",
+    "end": "breakdown"
+  },
+  {
+    "id": "phrase_finished",
+    "hook": "일을 마쳤을 때 한마디👇",
+    "thai": "เสร็จแล้ว",
+    "roman": "sèt lɛ́ɛw",
+    "ja": "다 끝났어요",
+    "end": "quiz"
+  },
+  {
+    "id": "phrase_hungry",
+    "hook": "배고플 때 한마디👇",
+    "thai": "หิวแล้ว",
+    "roman": "hǐw lɛ́ɛw",
+    "ja": "배고파졌어요",
+    "end": "quiz"
+  },
+  {
+    "id": "phrase_leave_first",
+    "hook": "먼저 집에 갈 때 한마디👇",
+    "thai": "กลับก่อนนะ",
+    "roman": "klàp kɔ̀ɔn ná",
+    "ja": "먼저 갈게요",
+    "end": "daily"
+  }
+]
