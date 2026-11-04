@@ -48,7 +48,7 @@ class VocabGauge extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            ColoredBox(color: Theme.of(context).colorScheme.surfaceContainerHigh),
+            ColoredBox(color: Theme.of(context).colorScheme.outlineVariant),
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: word.gauge,

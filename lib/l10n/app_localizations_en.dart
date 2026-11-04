@@ -37,7 +37,7 @@ class L10nEn extends L10n {
   String get navLearn => 'Learn';
 
   @override
-  String get navHistory => 'History';
+  String get navHistory => 'Progress';
 
   @override
   String get navSettings => 'Settings';
@@ -118,7 +118,7 @@ class L10nEn extends L10n {
   String get badgeFreeSentence => 'Free';
 
   @override
-  String get sampleSentenceNotice => 'Sample (not saved to History)';
+  String get sampleSentenceNotice => 'Sample sentence (not saved)';
 
   @override
   String get sampleReload => 'Load today\'s sentence';
@@ -317,7 +317,7 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get historyTitle => 'History';
+  String get historyTitle => 'Progress';
 
   @override
   String get historyFavoritesOnly => 'Favorites only';
@@ -1675,7 +1675,7 @@ class L10nEn extends L10n {
 
   @override
   String get quotaSentenceReached =>
-      'No more new sentences today.\nYou can still review past ones in History.';
+      'That\'s all the new sentences for today.\nReview past sentences from the top right of Progress.';
 
   @override
   String get quotaSentenceUpgradeCta => 'Unlock unlimited sentences';
@@ -2763,11 +2763,11 @@ class L10nEn extends L10n {
       'Your answers adjust your vocabulary score and the difficulty of future sentences.';
 
   @override
-  String get guideHowHistoryTitle => 'Review words in History';
+  String get guideHowHistoryTitle => 'Review words in Progress';
 
   @override
   String get guideHowHistoryStep1 =>
-      'History lists words you\'ve encountered, highest rank first. Your vocabulary score also appears in the list.';
+      'Progress lists words you\'ve encountered, highest vocabulary rank first. It also shows where your vocabulary score falls.';
 
   @override
   String get guideHowHistoryStep2 =>
@@ -3563,6 +3563,29 @@ class L10nEn extends L10n {
 
   @override
   String get vocabAllSentences => 'All sentences';
+
+  @override
+  String get vocabGuideTitle => 'Understanding the gauge';
+
+  @override
+  String get vocabGuideMeaning => 'The gauge shows word mastery';
+
+  @override
+  String get vocabGuideMeaningHint => 'It changes with quiz results';
+
+  @override
+  String get vocabGuideQuiz => 'Low-gauge words appear more in quizzes';
+
+  @override
+  String get vocabGuideQuizHint => 'Prioritizes words you find difficult';
+
+  @override
+  String get vocabGuideTapWord => 'Tap a word to see examples';
+
+  @override
+  String vocabGuideTapWordHint(String icon) {
+    return 'Open all examples from $icon at top right';
+  }
 
   @override
   String get vocabWordsMet => 'Words encountered';

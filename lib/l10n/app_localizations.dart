@@ -156,7 +156,7 @@ abstract class L10n {
   /// No description provided for @navHistory.
   ///
   /// In ja, this message translates to:
-  /// **'履歴'**
+  /// **'成績'**
   String get navHistory;
 
   /// No description provided for @navSettings.
@@ -282,7 +282,7 @@ abstract class L10n {
   /// No description provided for @sampleSentenceNotice.
   ///
   /// In ja, this message translates to:
-  /// **'サンプル例文（履歴には保存されません）'**
+  /// **'サンプル例文（保存されません）'**
   String get sampleSentenceNotice;
 
   /// No description provided for @sampleReload.
@@ -642,7 +642,7 @@ abstract class L10n {
   /// No description provided for @historyTitle.
   ///
   /// In ja, this message translates to:
-  /// **'履歴'**
+  /// **'成績'**
   String get historyTitle;
 
   /// No description provided for @historyFavoritesOnly.
@@ -2839,7 +2839,7 @@ abstract class L10n {
   /// 上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
-  /// **'今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。'**
+  /// **'今日の新しい例文はここまでです。\n成績の右上から、これまでの例文を読み返せます。'**
   String get quotaSentenceReached;
 
   /// 上限に当たった free ユーザーだけに出すペイウォール導線。premium の例文は無制限なので数字を含めない
@@ -4693,13 +4693,13 @@ abstract class L10n {
   /// No description provided for @guideHowHistoryTitle.
   ///
   /// In ja, this message translates to:
-  /// **'履歴で単語を振り返る'**
+  /// **'成績で単語を振り返る'**
   String get guideHowHistoryTitle;
 
   /// No description provided for @guideHowHistoryStep1.
   ///
   /// In ja, this message translates to:
-  /// **'履歴には、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。'**
+  /// **'成績には、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。'**
   String get guideHowHistoryStep1;
 
   /// No description provided for @guideHowHistoryStep2.
@@ -6111,6 +6111,48 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'すべての例文'**
   String get vocabAllSentences;
+
+  /// No description provided for @vocabGuideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'ゲージの見かた'**
+  String get vocabGuideTitle;
+
+  /// No description provided for @vocabGuideMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'ゲージは単語の覚え具合'**
+  String get vocabGuideMeaning;
+
+  /// No description provided for @vocabGuideMeaningHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズの結果で増減します'**
+  String get vocabGuideMeaningHint;
+
+  /// No description provided for @vocabGuideQuiz.
+  ///
+  /// In ja, this message translates to:
+  /// **'少ない語ほどクイズに出やすい'**
+  String get vocabGuideQuiz;
+
+  /// No description provided for @vocabGuideQuizHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'苦手な単語を優先します'**
+  String get vocabGuideQuizHint;
+
+  /// No description provided for @vocabGuideTapWord.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語をタップして例文を確認'**
+  String get vocabGuideTapWord;
+
+  /// {icon} には AppBar の例文一覧アイコンが入る
+  ///
+  /// In ja, this message translates to:
+  /// **'右上の{icon}から例文一覧を表示'**
+  String vocabGuideTapWordHint(String icon);
 
   /// No description provided for @vocabWordsMet.
   ///
