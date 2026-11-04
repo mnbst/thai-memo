@@ -28,11 +28,13 @@ x_post_extra_slots = {
   "2000" = { schedule = "0 20 * * *", kind = "feature" }
 }
 
-# 英語アカウント（@daily_thai11）の例文枠（米国西部の時刻）。昼休みと夜（東部の 15 時・22 時）。
-x_post_en_slots = {
-  "1200" = { schedule = "0 12 * * *" }
-  "1900" = { schedule = "0 19 * * *" }
-}
+# 英語アカウント（@daily_thai11）の例文枠（米国西部の時刻）。2026-11-04 に投稿を停止。
+# 再開するときはこれにする（昼休みと夜。東部の 15 時・22 時）:
+# x_post_en_slots = {
+#   "1200" = { schedule = "0 12 * * *" }
+#   "1900" = { schedule = "0 19 * * *" }
+# }
+x_post_en_slots = {}
 
 # Threads への自動投稿（X と同じ枠で、例文は別の文）。threads-access-token に
 # トークンを入れてから true にする（tools/x_post/README.md の「Threads」）。
