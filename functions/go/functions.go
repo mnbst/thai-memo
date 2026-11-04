@@ -32,6 +32,7 @@ import (
 func init() {
 	registerCallable("resetLearningData", resetLearningData)
 	registerCallable("updateUvm", updateUvm)
+	registerCallable("getVocabProgress", getVocabProgress)
 	registerCallable("setUserTier", setUserTier)
 	registerCallable("sendContactEmail", sendContactEmail)
 	registerCallable("verifySubscription", verifySubscription)

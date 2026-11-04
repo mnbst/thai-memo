@@ -392,6 +392,16 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
             ],
           ),
           _GuideSection(
+            icon: Icons.history_outlined,
+            title: l10n.guideHowHistoryTitle,
+            lines: [
+              l10n.guideHowHistoryStep1,
+              l10n.guideHowHistoryStep2,
+              l10n.guideHowHistoryStep3,
+              l10n.guideHowHistoryStep4,
+            ],
+          ),
+          _GuideSection(
             icon: Icons.notifications_active_outlined,
             title: l10n.guideHowNotifyTitle,
             lines: [

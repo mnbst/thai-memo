@@ -1,6 +1,6 @@
 // =============================================================================
 // history_screen.dart
-// 過去に生成されたタイ語例文の一覧（履歴）画面。
+// 過去に生成されたタイ語例文の一覧画面（履歴タブの右上から開く）。
 // 検索・お気に入り絞り込み・個別/一括削除に対応。
 // 各行をタップすると詳細画面（DetailScreen）へ遷移する。
 // 左スワイプで個別削除も可能。
@@ -58,7 +58,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.historyTitle),
+        title: Text(l10n.vocabAllSentences),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline),

@@ -13,6 +13,7 @@ class FirebaseConfig {
   static const String migrateToLifetimeFunctionName = 'migrateToLifetime';
   static const String subscriptionStatusFunctionName = 'subscriptionStatus';
   static const String updateUvmFunctionName = 'updateUvm';
+  static const String getVocabProgressFunctionName = 'getVocabProgress';
   static const String resetLearningDataFunctionName = 'resetLearningData';
   static const String startVocabTestFunctionName = 'startVocabTest';
   static const String submitVocabTestFunctionName = 'submitVocabTest';

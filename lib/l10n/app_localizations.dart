@@ -4690,6 +4690,36 @@ abstract class L10n {
   /// **'答えをもとに、語彙スコアと次の例文の難しさが調整されます。'**
   String get guideHowReviewQuizStep5;
 
+  /// No description provided for @guideHowHistoryTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'履歴で単語を振り返る'**
+  String get guideHowHistoryTitle;
+
+  /// No description provided for @guideHowHistoryStep1.
+  ///
+  /// In ja, this message translates to:
+  /// **'履歴には、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。'**
+  String get guideHowHistoryStep1;
+
+  /// No description provided for @guideHowHistoryStep2.
+  ///
+  /// In ja, this message translates to:
+  /// **'ゲージは覚え具合です。上部で「見ただけ」「覚えかけ」「覚えた」に絞り込めます。'**
+  String get guideHowHistoryStep2;
+
+  /// No description provided for @guideHowHistoryStep3.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語をタップすると例文の一覧が、例文をタップすると詳細画面が開きます。'**
+  String get guideHowHistoryStep3;
+
+  /// No description provided for @guideHowHistoryStep4.
+  ///
+  /// In ja, this message translates to:
+  /// **'全例文の検索・お気に入り・削除は、右上のアイコンから行えます。'**
+  String get guideHowHistoryStep4;
+
   /// No description provided for @guideHowNotifyTitle.
   ///
   /// In ja, this message translates to:
@@ -6075,6 +6105,90 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'学習に戻って確認クイズを解く'**
   String get detailGuideBackToQuiz;
+
+  /// No description provided for @vocabAllSentences.
+  ///
+  /// In ja, this message translates to:
+  /// **'すべての例文'**
+  String get vocabAllSentences;
+
+  /// No description provided for @vocabWordsMet.
+  ///
+  /// In ja, this message translates to:
+  /// **'語に出会いました'**
+  String get vocabWordsMet;
+
+  /// No description provided for @vocabScoreValue.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコア {score}'**
+  String vocabScoreValue(int score);
+
+  /// No description provided for @vocabRankHeader.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙ランク'**
+  String get vocabRankHeader;
+
+  /// No description provided for @vocabRankValue.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙ランク {rank}'**
+  String vocabRankValue(int rank);
+
+  /// No description provided for @vocabFilterAll.
+  ///
+  /// In ja, this message translates to:
+  /// **'すべて'**
+  String get vocabFilterAll;
+
+  /// No description provided for @vocabMasterySeen.
+  ///
+  /// In ja, this message translates to:
+  /// **'見ただけ'**
+  String get vocabMasterySeen;
+
+  /// No description provided for @vocabMasteryLearning.
+  ///
+  /// In ja, this message translates to:
+  /// **'覚えかけ'**
+  String get vocabMasteryLearning;
+
+  /// No description provided for @vocabMasteryLearned.
+  ///
+  /// In ja, this message translates to:
+  /// **'覚えた'**
+  String get vocabMasteryLearned;
+
+  /// No description provided for @vocabExamples.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文 {count}'**
+  String vocabExamples(int count);
+
+  /// No description provided for @vocabEmpty.
+  ///
+  /// In ja, this message translates to:
+  /// **'まだ単語がありません'**
+  String get vocabEmpty;
+
+  /// No description provided for @vocabSearchHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語を検索'**
+  String get vocabSearchHint;
+
+  /// No description provided for @vocabSearchEmpty.
+  ///
+  /// In ja, this message translates to:
+  /// **'見つかりませんでした'**
+  String get vocabSearchEmpty;
+
+  /// No description provided for @vocabLearnedAdded.
+  ///
+  /// In ja, this message translates to:
+  /// **'覚えたに追加されました！'**
+  String get vocabLearnedAdded;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

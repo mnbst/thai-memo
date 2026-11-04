@@ -95,11 +95,22 @@ func nowSeconds() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
 }
 
+// LearnedP は語ごとの「覚えた」の境目。P がこれを超えた語を覚えたと数える
+// （EstimateVocab の knownP と同じ値）。
+const LearnedP = 0.5
+
+// IsNewlyLearned は1回の更新で語が「覚えた」に入ったかを返す。
+// 確認クイズは答えが目の前にあるので、知っている証拠として数えない。
+func IsNewlyLearned(oldP, newP float64, quizType string) bool {
+	return quizType != "learning" && oldP <= LearnedP && newP > LearnedP
+}
+
 // BatchUpdate はクイズ/例文の正誤結果をもとに UVM を一括更新する
 // （uvm.py:batch_update_uvm）。
 //
 // 既存の UVM ドキュメントがあれば P を更新、なければ新規作成する。
 // freqRank が非 nil のときは続けて estimated_vocab を同期する。
+// 戻り値は、この更新で「覚えた」に入った語。
 func BatchUpdate(
 	ctx context.Context,
 	db *firestore.Client,
@@ -107,7 +118,8 @@ func BatchUpdate(
 	results []Result,
 	freqRank map[string]int,
 	quizType string,
-) error {
+) ([]string, error) {
+	var learned []string
 	now := nowSeconds()
 	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
 
@@ -118,7 +130,7 @@ func BatchUpdate(
 	}
 	snaps, err := db.GetAll(ctx, refs)
 	if err != nil {
-		return fmt.Errorf("uvm の一括取得に失敗: %w", err)
+		return nil, fmt.Errorf("uvm の一括取得に失敗: %w", err)
 	}
 	existing := make(map[string]map[string]any, len(snaps))
 	for _, s := range snaps {
@@ -149,6 +161,9 @@ func BatchUpdate(
 			oldP := floatField(data, "p", NewWordP)
 			attempts := intField(data, "quiz_attempts", 0)
 			newP := UpdateP(oldP, r.IsCorrect, r.HintLevel, weight)
+			if IsNewlyLearned(oldP, newP, quizType) {
+				learned = append(learned, r.Word)
+			}
 			updates := []firestore.Update{
 				{Path: "p", Value: newP},
 				{Path: "quiz_attempts", Value: attempts + 1},
@@ -161,11 +176,14 @@ func BatchUpdate(
 				updates = append(updates, firestore.Update{Path: "graded", Value: true})
 			}
 			if _, err := batch.Update(docRef, updates); err != nil {
-				return fmt.Errorf("uvm の更新に失敗 (%s): %w", r.Word, err)
+				return nil, fmt.Errorf("uvm の更新に失敗 (%s): %w", r.Word, err)
 			}
 		} else {
 			// --- 新規単語の作成（初めて見た単語） ---
 			newP := UpdateP(NewWordP, r.IsCorrect, r.HintLevel, weight)
+			if IsNewlyLearned(NewWordP, newP, quizType) {
+				learned = append(learned, r.Word)
+			}
 			if _, err := batch.Set(docRef, map[string]any{
 				"word":          r.Word,
 				"p":             newP,
@@ -175,7 +193,7 @@ func BatchUpdate(
 				"last_result":   r.IsCorrect,
 				"graded":        graded,
 			}); err != nil {
-				return fmt.Errorf("uvm の作成に失敗 (%s): %w", r.Word, err)
+				return nil, fmt.Errorf("uvm の作成に失敗 (%s): %w", r.Word, err)
 			}
 		}
 	}
@@ -184,7 +202,7 @@ func BatchUpdate(
 	if freqRank != nil {
 		SyncEstimatedVocab(ctx, db, uid, freqRank)
 	}
-	return nil
+	return learned, nil
 }
 
 // SyncEstimatedVocab は users/{uid} の estimated_vocab を更新する

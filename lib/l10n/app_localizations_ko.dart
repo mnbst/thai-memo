@@ -2640,6 +2640,23 @@ class L10nKo extends L10n {
   String get guideHowReviewQuizStep5 => '답변을 바탕으로 어휘 점수와 다음 예문의 난이도가 조정돼요.';
 
   @override
+  String get guideHowHistoryTitle => '기록에서 단어 복습하기';
+
+  @override
+  String get guideHowHistoryStep1 =>
+      '기록에는 만난 단어가 어휘 순위가 높은 순으로 표시돼요. 어휘 점수의 위치도 목록에 표시돼요.';
+
+  @override
+  String get guideHowHistoryStep2 =>
+      '게이지는 암기 상태를 나타내요. 위에서 ‘보기만 함’, ‘외우는 중’, ‘외움’으로 필터링할 수 있어요.';
+
+  @override
+  String get guideHowHistoryStep3 => '단어를 누르면 예문 목록이, 예문을 누르면 상세 화면이 열려요.';
+
+  @override
+  String get guideHowHistoryStep4 => '모든 예문의 검색·즐겨찾기·삭제는 오른쪽 위 아이콘에서 할 수 있어요.';
+
+  @override
   String get guideHowNotifyTitle => '알림 설정하기';
 
   @override
@@ -3395,4 +3412,52 @@ class L10nKo extends L10n {
 
   @override
   String get detailGuideBackToQuiz => '학습으로 돌아가 확인 퀴즈 풀기';
+
+  @override
+  String get vocabAllSentences => '모든 예문';
+
+  @override
+  String get vocabWordsMet => '단어를 만났어요';
+
+  @override
+  String vocabScoreValue(int score) {
+    return '어휘 점수 $score';
+  }
+
+  @override
+  String get vocabRankHeader => '어휘 순위';
+
+  @override
+  String vocabRankValue(int rank) {
+    return '어휘 순위 $rank';
+  }
+
+  @override
+  String get vocabFilterAll => '전체';
+
+  @override
+  String get vocabMasterySeen => '보기만 함';
+
+  @override
+  String get vocabMasteryLearning => '외우는 중';
+
+  @override
+  String get vocabMasteryLearned => '외움';
+
+  @override
+  String vocabExamples(int count) {
+    return '예문 $count개';
+  }
+
+  @override
+  String get vocabEmpty => '아직 단어가 없어요';
+
+  @override
+  String get vocabSearchHint => '단어 검색';
+
+  @override
+  String get vocabSearchEmpty => '검색 결과가 없어요';
+
+  @override
+  String get vocabLearnedAdded => '‘외움’에 추가됐어요!';
 }

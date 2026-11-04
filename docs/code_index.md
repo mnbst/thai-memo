@@ -178,7 +178,7 @@ lib/presentation/screens/detail_screen.dart
 例文詳細表示（初回の案内カード・例文カード・聞く／話す・使い方・単語・語順ガイド導線）。
 
 lib/presentation/screens/history_screen.dart
-保存済み例文一覧（検索・すべて/お気に入りのチップ絞り込み・スワイプ/一括削除）。1枚のカードに罫線区切りで積む。
+すべての例文（検索・お気に入り・削除）。履歴タブの右上から開く。
 
 lib/presentation/screens/quiz_screen.dart
 クイズ画面（問題出題、回答、結果確認）。進み具合は上端の金の帯とAppBarの「2 / 5」（QuizProgressCounter）で示し、正誤は緑と朱、進む導線は下端の固定バー。ヒント（発音→訳文の2段階、使い切っても不活性で残す）は5問テストのみ。確認クイズはヒント無しで例文へ戻るだけ。
@@ -1449,3 +1449,29 @@ test/screenshots/store_screenshots.dart
 
 .maestro/README.md
 Maestroの実行手順（起動コマンド、studio、スクショの出力先）。
+
+## 語彙一覧（履歴タブ）
+
+lib/presentation/screens/vocab_history_screen.dart
+出会った語を語彙ランク順に並べる履歴タブ本体
+
+lib/presentation/screens/vocab_word_screen.dart
+語の詳細と、その語を含む例文の一覧
+
+lib/presentation/widgets/vocab_gauge.dart
+覚え具合のゲージと状態ラベル・色
+
+lib/presentation/widgets/learned_word_card.dart
+クイズで「覚えた」に入った語を知らせるカード
+
+lib/presentation/providers/vocab_progress_provider.dart
+語彙一覧の取得と例文情報の結合
+
+lib/services/vocab_progress_sync.dart
+getVocabProgress の差分同期（カーソルとアカウント切替）
+
+lib/data/models/vocab_word.dart
+VocabWord / VocabEntry / 状態判定
+
+functions/go/get_vocab_progress.go
+語彙一覧の差分を返す callable

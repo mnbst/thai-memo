@@ -220,6 +220,40 @@ class DatabaseHelper {
             .replaceFirst('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'),
       );
     }
+
+    // Migrate from version 13 to 14: Add vocab_progress table
+    if (oldVersion < 14) {
+      await db.execute(
+        DatabaseConstants.createVocabProgressTable
+            .replaceFirst('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'),
+      );
+    }
+  }
+
+  // ==================== Vocab Progress ====================
+
+  Future<List<Map<String, dynamic>>> getVocabProgress() async {
+    final db = await database;
+    return db.query(DatabaseConstants.tableVocabProgress);
+  }
+
+  Future<void> upsertVocabProgress(List<Map<String, dynamic>> rows) async {
+    if (rows.isEmpty) return;
+    final db = await database;
+    final batch = db.batch();
+    for (final row in rows) {
+      batch.insert(
+        DatabaseConstants.tableVocabProgress,
+        row,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> clearVocabProgress() async {
+    final db = await database;
+    await db.delete(DatabaseConstants.tableVocabProgress);
   }
 
   // ==================== Sentences CRUD Operations ====================

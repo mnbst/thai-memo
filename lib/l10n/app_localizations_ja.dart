@@ -2613,6 +2613,22 @@ class L10nJa extends L10n {
   String get guideHowReviewQuizStep5 => '答えをもとに、語彙スコアと次の例文の難しさが調整されます。';
 
   @override
+  String get guideHowHistoryTitle => '履歴で単語を振り返る';
+
+  @override
+  String get guideHowHistoryStep1 =>
+      '履歴には、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。';
+
+  @override
+  String get guideHowHistoryStep2 => 'ゲージは覚え具合です。上部で「見ただけ」「覚えかけ」「覚えた」に絞り込めます。';
+
+  @override
+  String get guideHowHistoryStep3 => '単語をタップすると例文の一覧が、例文をタップすると詳細画面が開きます。';
+
+  @override
+  String get guideHowHistoryStep4 => '全例文の検索・お気に入り・削除は、右上のアイコンから行えます。';
+
+  @override
   String get guideHowNotifyTitle => '通知を設定する';
 
   @override
@@ -3364,4 +3380,52 @@ class L10nJa extends L10n {
 
   @override
   String get detailGuideBackToQuiz => '学習に戻って確認クイズを解く';
+
+  @override
+  String get vocabAllSentences => 'すべての例文';
+
+  @override
+  String get vocabWordsMet => '語に出会いました';
+
+  @override
+  String vocabScoreValue(int score) {
+    return '語彙スコア $score';
+  }
+
+  @override
+  String get vocabRankHeader => '語彙ランク';
+
+  @override
+  String vocabRankValue(int rank) {
+    return '語彙ランク $rank';
+  }
+
+  @override
+  String get vocabFilterAll => 'すべて';
+
+  @override
+  String get vocabMasterySeen => '見ただけ';
+
+  @override
+  String get vocabMasteryLearning => '覚えかけ';
+
+  @override
+  String get vocabMasteryLearned => '覚えた';
+
+  @override
+  String vocabExamples(int count) {
+    return '例文 $count';
+  }
+
+  @override
+  String get vocabEmpty => 'まだ単語がありません';
+
+  @override
+  String get vocabSearchHint => '単語を検索';
+
+  @override
+  String get vocabSearchEmpty => '見つかりませんでした';
+
+  @override
+  String get vocabLearnedAdded => '覚えたに追加されました！';
 }

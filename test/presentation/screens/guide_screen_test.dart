@@ -43,6 +43,13 @@ void main() {
     await tester.scrollUntilVisible(find.text('操作のしかた'), 400);
     expect(find.text('操作のしかた'), findsOneWidget);
 
+    await tester.scrollUntilVisible(find.text('履歴で単語を振り返る'), 400);
+    expect(find.text('履歴で単語を振り返る'), findsOneWidget);
+    expect(find.textContaining('語彙スコアの位置'), findsOneWidget);
+    expect(find.textContaining('「見ただけ」「覚えかけ」「覚えた」'), findsOneWidget);
+    expect(find.textContaining('例文の一覧が'), findsOneWidget);
+    expect(find.textContaining('右上のアイコン'), findsOneWidget);
+
     // 例文カードの図・判定の色の図まで描けている。
     await tester.scrollUntilVisible(find.text('タイ文字'), 400);
     await tester.scrollUntilVisible(find.text('惜しい'), 400);
