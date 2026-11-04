@@ -66,7 +66,8 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 	log.Printf("updateUvm: uid=%s, quiz_type=%s, results=%d, items=%s",
 		uid, in.QuizType, len(results), formatResults(results))
 
-	if err := uvm.BatchUpdate(ctx, db, uid, results, freqRank, in.QuizType); err != nil {
+	learned, err := uvm.BatchUpdate(ctx, db, uid, results, freqRank, in.QuizType)
+	if err != nil {
 		log.Printf("updateUvm: uid=%s error=%v", uid, err)
 		return nil, callable.Errorf(callable.Internal, "学習データの更新に失敗しました")
 	}
@@ -93,7 +94,12 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 	applySpellingObservations(ctx, db, uid, in.Results)
 
 	log.Printf("updateUvm completed: uid=%s, updated=%d", uid, len(results))
-	return map[string]any{"success": true, "updated": len(results)}, nil
+	resp := map[string]any{"success": true, "updated": len(results)}
+	// 旧クライアントは読まないキーなので、足しても挙動は変わらない。
+	if len(learned) > 0 {
+		resp["learned"] = learned
+	}
+	return resp, nil
 }
 
 // formatResults は回答をログ用に「語:正誤:ヒント段階」で並べる（例: กี่:x:h2）。

@@ -13,7 +13,7 @@ class AppConfig {
 
   /// Database configuration
   static const String databaseName = 'thai_memo.db';
-  static const int databaseVersion = 13;
+  static const int databaseVersion = 14;
 
   /// Background task configuration
   static const Duration backgroundTaskFrequency = Duration(hours: 24);

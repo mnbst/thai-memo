@@ -22,6 +22,7 @@ import '../providers/daily_set_provider.dart';
 import '../providers/streak_provider.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
+import '../providers/vocab_progress_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/tts_provider.dart';
@@ -29,7 +30,7 @@ import '../providers/remaining_quota_provider.dart';
 import '../widgets/premium_lifetime_migration_dialog.dart';
 import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
-import 'history_screen.dart';
+import 'vocab_history_screen.dart';
 import 'interview_screen.dart';
 import 'onboarding_screen.dart';
 import 'vocab_test_screen.dart';
@@ -739,7 +740,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final l10n = L10n.of(context);
     final screens = [
       LearningScreen(key: _learningKey, onReload: _reloadToday),
-      const HistoryScreen(),
+      const VocabHistoryScreen(),
       const SettingsScreen(),
     ];
 
@@ -788,6 +789,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _selectTab(int index) {
+    // クイズで変わった習熟度を、履歴を開くたびに取り直す。
+    if (index == 1 && _currentIndex != 1) {
+      ref.invalidate(vocabProgressProvider);
+    }
     // IndexedStack は他タブを破棄しないため、再生中の例文が
     // 鳴り続けてしまう。タブを離れたら明示的に止める。
     unawaited(ref.read(ttsServiceProvider).stopAll());

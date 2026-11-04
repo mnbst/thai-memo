@@ -17,10 +17,12 @@
 //   UI層でユーザーフレンドリーなメッセージを表示できるようにする。
 // =============================================================================
 
+import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/config/firebase_config.dart';
+import '../models/vocab_word.dart';
 import '../../../services/uvm_update_queue.dart';
 import '../models/quiz_question.dart';
 import '../models/vocab_test_step.dart';
@@ -398,7 +400,35 @@ class BackendApiService {
         timeout: const Duration(seconds: 30),
       ),
     );
-    await callable.call(payload);
+    final response = await callable.call(payload);
+    final data = response.data;
+    if (data is Map && data['learned'] is List) {
+      for (final word in data['learned'] as List) {
+        if (word is String) _learnedWords.add(word);
+      }
+    }
+  }
+
+  /// 回答で「覚えた」に入った語。回答は待ち行列からも送られるので、
+  /// インスタンスをまたいで1本にまとめる。
+  static final StreamController<String> _learnedWords =
+      StreamController<String>.broadcast();
+  static Stream<String> get learnedWords => _learnedWords.stream;
+
+  /// 語彙一覧の差分を1ページ取得する。[cursor] は前回の next_cursor。
+  Future<VocabProgressPage> getVocabProgress(String? cursor) async {
+    final callable = _functions.httpsCallable(
+      FirebaseConfig.getVocabProgressFunctionName,
+      options: HttpsCallableOptions(
+        timeout: const Duration(seconds: 30),
+      ),
+    );
+    final response = await callable.call(<String, dynamic>{
+      if (cursor != null) 'cursor': cursor,
+    });
+    return VocabProgressPage.fromMap(
+      Map<String, dynamic>.from(response.data as Map),
+    );
   }
 
   Future<void> resetLearningData() async {

@@ -264,6 +264,22 @@ class DatabaseConstants {
     )
   ''';
 
+  /// 語彙一覧に出す語の習熟度（サーバーの uvm の写し）。
+  static const String tableVocabProgress = 'vocab_progress';
+  static const String columnVocabWord = 'word';
+  static const String columnVocabRank = 'rank';
+  static const String columnVocabP = 'p';
+  static const String columnVocabAnswered = 'answered';
+
+  static const String createVocabProgressTable = '''
+    CREATE TABLE $tableVocabProgress (
+      $columnVocabWord TEXT PRIMARY KEY,
+      $columnVocabRank INTEGER NOT NULL,
+      $columnVocabP REAL NOT NULL,
+      $columnVocabAnswered INTEGER NOT NULL
+    )
+  ''';
+
   /// List of all create table statements
   static const List<String> createTableStatements = [
     createSentencesTable,
@@ -277,6 +293,7 @@ class DatabaseConstants {
     createToneStatsTable,
     createSpeakerPitchProfileTable,
     createDeletedSentencesTable,
+    createVocabProgressTable,
   ];
 
   /// List of all create index statements

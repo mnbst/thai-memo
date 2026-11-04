@@ -2763,6 +2763,25 @@ class L10nEn extends L10n {
       'Your answers adjust your vocabulary score and the difficulty of future sentences.';
 
   @override
+  String get guideHowHistoryTitle => 'Review words in History';
+
+  @override
+  String get guideHowHistoryStep1 =>
+      'History lists words you\'ve encountered, highest rank first. Your vocabulary score also appears in the list.';
+
+  @override
+  String get guideHowHistoryStep2 =>
+      'The gauge shows mastery. Filter by “Seen,” “Learning,” or “Learned” at the top.';
+
+  @override
+  String get guideHowHistoryStep3 =>
+      'Tap a word for its sentences, then a sentence for details.';
+
+  @override
+  String get guideHowHistoryStep4 =>
+      'Use the top-right icon to search, favorite, or delete all sentences.';
+
+  @override
   String get guideHowNotifyTitle => 'Set up reminders';
 
   @override
@@ -3541,4 +3560,52 @@ class L10nEn extends L10n {
 
   @override
   String get detailGuideBackToQuiz => 'Back to Learn for the check quiz';
+
+  @override
+  String get vocabAllSentences => 'All sentences';
+
+  @override
+  String get vocabWordsMet => 'Words encountered';
+
+  @override
+  String vocabScoreValue(int score) {
+    return 'Score $score';
+  }
+
+  @override
+  String get vocabRankHeader => 'Rank';
+
+  @override
+  String vocabRankValue(int rank) {
+    return 'Rank $rank';
+  }
+
+  @override
+  String get vocabFilterAll => 'All';
+
+  @override
+  String get vocabMasterySeen => 'Seen';
+
+  @override
+  String get vocabMasteryLearning => 'Learning';
+
+  @override
+  String get vocabMasteryLearned => 'Learned';
+
+  @override
+  String vocabExamples(int count) {
+    return 'Examples $count';
+  }
+
+  @override
+  String get vocabEmpty => 'No words yet';
+
+  @override
+  String get vocabSearchHint => 'Search words';
+
+  @override
+  String get vocabSearchEmpty => 'No matches found';
+
+  @override
+  String get vocabLearnedAdded => 'Marked as Learned!';
 }

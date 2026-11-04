@@ -1500,6 +1500,11 @@
   "guideHowReviewQuizStep3": "ヒントは1回目に発音、2回目に訳が出ます。使わずに正解すると、語彙スコアが伸びやすくなります。",
   "guideHowReviewQuizStep4": "迷ったら「例文を確認」で例文に戻れます。",
   "guideHowReviewQuizStep5": "答えをもとに、語彙スコアと次の例文の難しさが調整されます。",
+  "guideHowHistoryTitle": "履歴で単語を振り返る",
+  "guideHowHistoryStep1": "履歴には、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。",
+  "guideHowHistoryStep2": "ゲージは覚え具合です。上部で「見ただけ」「覚えかけ」「覚えた」に絞り込めます。",
+  "guideHowHistoryStep3": "単語をタップすると例文の一覧が、例文をタップすると詳細画面が開きます。",
+  "guideHowHistoryStep4": "全例文の検索・お気に入り・削除は、右上のアイコンから行えます。",
   "guideHowNotifyTitle": "通知を設定する",
   "guideHowNotifyStep1": "設定の「毎日の例文通知」で、通知の時刻を確認できます。スイッチでオン・オフ、時刻をタップすると変更できます。",
   "guideHowNotifyStep2": "無料版は1日1回、プレミアムは1日3回まで設定できます。通知ごとに新しい例文セットが届きます。",
@@ -1808,5 +1813,40 @@
   "detailGuideBackToQuiz": "学習に戻って確認クイズを解く",
   "@detailGuideBackToQuiz": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
-  }
+  },
+  "vocabAllSentences": "すべての例文",
+  "vocabWordsMet": "語に出会いました",
+  "vocabScoreValue": "語彙スコア {score}",
+  "@vocabScoreValue": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabRankHeader": "語彙ランク",
+  "vocabRankValue": "語彙ランク {rank}",
+  "@vocabRankValue": {
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabFilterAll": "すべて",
+  "vocabMasterySeen": "見ただけ",
+  "vocabMasteryLearning": "覚えかけ",
+  "vocabMasteryLearned": "覚えた",
+  "vocabExamples": "例文 {count}",
+  "@vocabExamples": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabEmpty": "まだ単語がありません",
+  "vocabSearchHint": "単語を検索",
+  "vocabSearchEmpty": "見つかりませんでした",
+  "vocabLearnedAdded": "覚えたに追加されました！"
 }
