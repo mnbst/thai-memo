@@ -1396,6 +1396,29 @@ DetailScreen を flutter_test 上で描画し、動画の続きからスクロ�
 .github/workflows/post-daily-x.yml
 X / Threads 投稿のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
 
+## TikTok 動画（試作）
+
+tools/tiktok/common.py
+TikTok 用の縦動画（1080x1920）を組む共通部品。
+
+tools/tiktok/sentence.py
+例文の X 投稿の素材（text.txt・post.mp4）から縦動画を組む。
+
+tools/tiktok/tip.py
+Tips の台本（scripts.json の kind=tip）から縦動画を組む。
+
+tools/tiktok/feature.py
+機能紹介の台本（scripts.json の kind=feature）から縦動画を組む。
+
+tools/tiktok/phrase.py
+短いひとこと（phrases.json）から縦動画を組む。
+
+tools/tiktok/scripts.json / scripts_ko.json / phrases.json / phrases_ko.json
+Tips・機能紹介の台本と、ひとことの文面（日本語・韓国語）。
+
+tools/tiktok/shots/
+機能紹介で使うアプリ画面のスクショ（en / ko）。
+
 ## App Store スクリーンショット
 
 tools/store_screenshots/captions.json

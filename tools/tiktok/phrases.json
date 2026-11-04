@@ -1,0 +1,82 @@
+[
+  {
+    "id": "phrase_how_to_go",
+    "hook": "行き方を聞く時のひとこと👇",
+    "thai": "ไปยังไง",
+    "roman": "pai yang-ngai",
+    "ja": "どう行けばいいですか",
+    "end": "topics"
+  },
+  {
+    "id": "phrase_stop_here",
+    "hook": "タクシーを降りる時のひとこと👇",
+    "thai": "จอดตรงนี้",
+    "roman": "jɔ̀ɔt trong-níi",
+    "ja": "ここで止めてください",
+    "end": "daily"
+  },
+  {
+    "id": "phrase_take_this",
+    "hook": "注文を決めた時のひとこと👇",
+    "thai": "เอาอันนี้",
+    "roman": "aw an-níi",
+    "ja": "これにします",
+    "end": "breakdown"
+  },
+  {
+    "id": "phrase_not_spicy",
+    "hook": "辛さを伝える時のひとこと👇",
+    "thai": "ไม่เผ็ด",
+    "roman": "mâi phèt",
+    "ja": "辛くしないでください",
+    "end": "pron"
+  },
+  {
+    "id": "phrase_miss_you",
+    "hook": "友人と再会した時のひとこと👇",
+    "thai": "คิดถึงจัง",
+    "roman": "khít-thʉ̌ng jang",
+    "ja": "会いたかったです",
+    "end": "pron"
+  },
+  {
+    "id": "phrase_so_cute",
+    "hook": "子どもの服を褒める時のひとこと👇",
+    "thai": "น่ารักมาก",
+    "roman": "nâa-rák mâak",
+    "ja": "とてもかわいいです",
+    "end": "daily"
+  },
+  {
+    "id": "phrase_send_later",
+    "hook": "あとで送る時のひとこと👇",
+    "thai": "เดี๋ยวส่งให้",
+    "roman": "dǐiaw sòng hâi",
+    "ja": "あとで送ります",
+    "end": "breakdown"
+  },
+  {
+    "id": "phrase_finished",
+    "hook": "仕事が終わった時のひとこと👇",
+    "thai": "เสร็จแล้ว",
+    "roman": "sèt lɛ́ɛw",
+    "ja": "終わりました",
+    "end": "quiz"
+  },
+  {
+    "id": "phrase_hungry",
+    "hook": "お腹が空いた時のひとこと👇",
+    "thai": "หิวแล้ว",
+    "roman": "hǐw lɛ́ɛw",
+    "ja": "お腹が空きました",
+    "end": "quiz"
+  },
+  {
+    "id": "phrase_leave_first",
+    "hook": "先に帰る時のひとこと👇",
+    "thai": "กลับก่อนนะ",
+    "roman": "klàp kɔ̀ɔn ná",
+    "ja": "先に帰りますね",
+    "end": "daily"
+  }
+]
