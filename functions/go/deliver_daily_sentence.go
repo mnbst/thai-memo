@@ -239,6 +239,9 @@ func (d *deliverer) buildSentences(
 		params := map[string]any{}
 		// 本人が選んだテーマ > ヒアリングの用途 > key_word 起点の自動選出。
 		preferred, _ := userData["preferred_topic"].(string)
+		if sentence.GreetingGenerationStopped(userData, preferred) {
+			preferred = ""
+		}
 		if preferred == "" {
 			preferred = sentence.ResolveInterviewTopic(userData, d.intn)
 		}

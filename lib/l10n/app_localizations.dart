@@ -2649,11 +2649,23 @@ abstract class L10n {
   /// **'上昇声は、一度下げてから上げ切る'**
   String get pronunciationCoachShapeRising;
 
+  /// No description provided for @pronunciationCoachStepRising.
+  ///
+  /// In ja, this message translates to:
+  /// **'上昇声は、低いところから入って上げ切る'**
+  String get pronunciationCoachStepRising;
+
   /// No description provided for @pronunciationCoachStepUp.
   ///
   /// In ja, this message translates to:
   /// **'{tone}は、直前の音より高いところから入る'**
   String pronunciationCoachStepUp(String tone);
+
+  /// No description provided for @pronunciationCoachStepSame.
+  ///
+  /// In ja, this message translates to:
+  /// **'{tone}は、直前の音と同じくらいの高さから入る'**
+  String pronunciationCoachStepSame(String tone);
 
   /// No description provided for @pronunciationCoachStepDown.
   ///
@@ -3339,6 +3351,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'子音クラス'**
   String get toneGuideConsonantClasses;
+
+  /// No description provided for @toneLeadingHBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'一部の低子音の前に ห がつくと、発音せず高子音の声調規則に従います。'**
+  String get toneLeadingHBody;
 
   /// No description provided for @toneGuideToneMarks.
   ///
@@ -5785,13 +5803,13 @@ abstract class L10n {
   /// No description provided for @pronSymbolsBody.
   ///
   /// In ja, this message translates to:
-  /// **'日本語のローマ字と違う記号だけをまとめました。'**
+  /// **'日本語のローマ字と読み方が違うものだけをまとめました。'**
   String get pronSymbolsBody;
 
   /// No description provided for @pronSymbolsDescs.
   ///
   /// In ja, this message translates to:
-  /// **'ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる'**
+  /// **'ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|日本語より口をすぼめて言う「オ」「ウ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる'**
   String get pronSymbolsDescs;
 
   /// No description provided for @pronAspTitle.
@@ -6091,7 +6109,7 @@ abstract class L10n {
   /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
   ///
   /// In ja, this message translates to:
-  /// **'お手本を聞いて録音すると、声調が合っているか判定'**
+  /// **'お手本を聞いて録音すると、声調と発音が合っているか判定'**
   String get detailGuidePracticeHint;
 
   /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
@@ -6115,7 +6133,7 @@ abstract class L10n {
   /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
   ///
   /// In ja, this message translates to:
-  /// **'どんな場面で、誰に使うかがわかる'**
+  /// **'どんな場面で使うか、文体や文化の背景がわかる'**
   String get detailGuideUsageHint;
 
   /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）

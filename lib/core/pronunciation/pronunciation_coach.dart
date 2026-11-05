@@ -26,6 +26,21 @@ enum CoachIssue {
   notRecognized,
 }
 
+/// [CoachIssue.step] で何と言うか。
+enum CoachStepAdvice {
+  /// 直前の音より高いところから入る。
+  up,
+
+  /// 直前の音より低いところから入る。
+  down,
+
+  /// 直前の音と同じくらいの高さから入る。
+  same,
+
+  /// 低いところから入って上げ切る（上昇声）。
+  riseFromLow,
+}
+
 /// 次の1回で直す点。
 class CoachingTip {
   const CoachingTip({
@@ -33,6 +48,7 @@ class CoachingTip {
     this.tone,
     this.syllableIndex,
     this.stepUp = false,
+    this.stepFlat = false,
     this.wordText,
     this.toneMark = '',
     this.roman = '',
@@ -51,6 +67,22 @@ class CoachingTip {
   /// [CoachIssue.step] のとき、お手本が直前より高く入るなら true。
   /// 他の [issue] では意味を持たない。
   final bool stepUp;
+
+  /// [CoachIssue.step] のとき、お手本の段差が同じ入り方とみなす幅に収まるなら true。
+  final bool stepFlat;
+
+  /// 段差は音節の中心で測るので、向きをそのまま「入り方」とは言えないことがある。
+  ///
+  /// 上昇声は声域の底へ沈むので、向きが「下がる」以外はどれも低く入ると言う。
+  /// 直前が低声でも、それより高く入れという助言にはしない。
+  /// 差が小さければ、符号で上下を言い切らず同じくらいの高さと言う。
+  CoachStepAdvice get stepAdvice {
+    if (tone == ThaiTone.rising && (stepUp || stepFlat)) {
+      return CoachStepAdvice.riseFromLow;
+    }
+    if (stepFlat) return CoachStepAdvice.same;
+    return stepUp ? CoachStepAdvice.up : CoachStepAdvice.down;
+  }
 
   /// [CoachIssue.notRecognized] で名指しする語。他では null。
   final String? wordText;
@@ -95,8 +127,8 @@ CoachingTip? coachingTipOf(
 }) {
   final list = scores.toList();
 
-  final tip = _tipAmong(list, ToneVerdict.wrong) ??
-      _tipAmong(list, ToneVerdict.close);
+  final tip =
+      _tipAmong(list, ToneVerdict.wrong) ?? _tipAmong(list, ToneVerdict.close);
   if (tip != null) return _withSyllableLabels(tip, toneMarks, romans);
 
   // 声調は通っているのに帯が赤い場合がここ。**帯が赤いのに助言が空**という
@@ -116,14 +148,14 @@ CoachingTip _withSyllableLabels(
   final index = tip.syllableIndex;
   if (index == null || index < 0) return tip;
 
-  String at(List<String> source) =>
-      index < source.length ? source[index] : '';
+  String at(List<String> source) => index < source.length ? source[index] : '';
 
   return CoachingTip(
     issue: tip.issue,
     tone: tip.tone,
     syllableIndex: index,
     stepUp: tip.stepUp,
+    stepFlat: tip.stepFlat,
     wordText: tip.wordText,
     toneMark: at(toneMarks),
     roman: at(romans),
@@ -141,8 +173,9 @@ CoachingTip? _notRecognizedTip(
   List<String> wordTexts,
   List<SegmentPoint> Function(int wordIndex)? segmentPointsOfWord,
 ) {
-  final count =
-      recognition.length < wordTexts.length ? recognition.length : wordTexts.length;
+  final count = recognition.length < wordTexts.length
+      ? recognition.length
+      : wordTexts.length;
   for (var i = 0; i < count; i++) {
     if (recognition[i] != WordRecognition.missing) continue;
     final text = wordTexts[i].trim();
@@ -209,6 +242,8 @@ CoachingTip? _tipAmong(List<SyllableScore> scores, ToneVerdict verdict) {
     issue: issueOf[bestKey]!,
     syllableIndex: representative.syllableIndex,
     stepUp: representative.referenceStep > 0,
+    stepFlat:
+        stepDirectionOf(representative.referenceStep) == ToneDirection.flat,
   );
 }
 

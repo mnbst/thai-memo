@@ -38,8 +38,29 @@ void main() {
     ]);
   });
 
+  test('segmented は1単位を字まで切れたときだけ返す', () {
+    expect(index.segmented('กิน')?.glyphs, isNotEmpty);
+    // 2音で読む単位は1枚のカードに収まらない。
+    expect(index.segmented('ตลาด'), isNull);
+    // 表に無い綴り。
+    expect(index.segmented('ไม่มีคำนี้'), isNull);
+  });
+
   test('読まない字は別の枠にする', () {
     expect(cells('จริง').last, 'silent:ร:');
+  });
+
+  test('์ の付いた字は母音に混ぜず、読まない字の枠にする', () {
+    String texts(String word) => one(word)
+        .parts
+        .where((p) => p.text.isNotEmpty)
+        .map((p) => '${p.role}:${p.text}')
+        .join(' ');
+
+    expect(texts('เสาร์'), 'onset:ส vowel:เา silent:ร์');
+    expect(texts('ไมล์'), 'onset:ม vowel:ไ silent:ล์');
+    expect(texts('โพธิ์'), 'onset:พ vowel:โ silent:ธิ์');
+    expect(texts('เบิร์ก'), 'onset:บ vowel:เิ coda:ก silent:ร์');
   });
 
   test('書く順の字と声調の3要素を返す', () {

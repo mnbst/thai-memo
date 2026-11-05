@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -55,9 +56,14 @@ func TestTopicOptionsGolden(t *testing.T) {
 	r := &Resolver{Rand: rand.New(rand.NewSource(1))}
 	for _, c := range g.TopicOptions {
 		got := r.Resolve(context.Background(), nil, nil, c.EstimatedVocab)
-		if !reflect.DeepEqual(got.TopicOptions, c.Options) {
+		// 語彙100以上のおまかせ候補からあいさつを外した（2026-11-06）。ゴールデンは移植元の値のまま。
+		want := c.Options
+		if c.EstimatedVocab >= omakaseGreetingMaxVocab {
+			want = slices.DeleteFunc(slices.Clone(c.Options), func(t string) bool { return t == Topics[0] })
+		}
+		if !reflect.DeepEqual(got.TopicOptions, want) {
 			t.Errorf("vocab=%d\ngot  %v\nwant %v",
-				c.EstimatedVocab, got.TopicOptions, c.Options)
+				c.EstimatedVocab, got.TopicOptions, want)
 		}
 	}
 	t.Logf("%d ケース一致", len(g.TopicOptions))

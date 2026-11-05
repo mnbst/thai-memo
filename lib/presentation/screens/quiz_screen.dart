@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
 import '../../core/quota_error.dart';
+import '../../core/spelling_breakdown.dart';
 import 'thai_script_guide_screen.dart';
 import 'word_order_guide_screen.dart';
 import '../../core/theme/app_colors.dart';
@@ -2640,9 +2641,31 @@ class _SpellingBreakdownCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 端末の分解を優先する。修正がサーバーのデプロイを待たずに届き、ほかの画面と
+    // 同じ分解になる。読み込み中と端末で切れない綴りは、サーバーの分解を出す。
+    return FutureBuilder<SpellingIndex>(
+      future: SpellingIndex.load(),
+      builder: (context, snapshot) {
+        final local = snapshot.data?.segmented(question.correctAnswer);
+        return _buildCard(
+          context,
+          parts: local?.parts ?? question.spellingParts,
+          glyphs: local?.glyphs ?? question.spellingGlyphs,
+          toneRule: local != null ? local.toneRule : question.spellingToneRule,
+        );
+      },
+    );
+  }
+
+  Widget _buildCard(
+    BuildContext context, {
+    required List<SpellingPart> parts,
+    required List<SpellingGlyph> glyphs,
+    required SpellingToneRule? toneRule,
+  }) {
     final l10n = L10n.of(context);
     final theme = Theme.of(context);
-    if (question.spellingParts.isEmpty) return const SizedBox.shrink();
+    if (parts.isEmpty) return const SizedBox.shrink();
 
     return Card(
       child: Padding(
@@ -2659,16 +2682,13 @@ class _SpellingBreakdownCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             SpellingPartsRow(
-              parts: question.spellingParts,
-              glyphs: question.spellingGlyphs,
-              toneRule: question.spellingToneRule,
+              parts: parts,
+              glyphs: glyphs,
+              toneRule: toneRule,
             ),
-            if (question.spellingToneRule != null) ...[
+            if (toneRule != null) ...[
               const SizedBox(height: 12),
-              SpellingToneRuleTile(
-                parts: question.spellingParts,
-                rule: question.spellingToneRule!,
-              ),
+              SpellingToneRuleTile(parts: parts, rule: toneRule),
             ],
           ],
         ),

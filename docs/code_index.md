@@ -322,6 +322,9 @@ lib/presentation/widgets/first_set_steps.dart
 
 lib/presentation/widgets/detail_guide_card.dart
 最初の例文の詳細でだけ出す「この画面でできること」カード（発音・使い方・声調ルール、押すとその場所へ寄せる）。
+test/presentation/widgets/detail_guide_card_test.dart
+案内カードの戻る導線の出し分け（学習タブから・クイズ未完了のときだけ）のテスト。
+
 lib/presentation/widgets/quiz_offer.dart
 1問確認クイズ導線の表示（現行はinlineカード。controlは実験再開用に残置）。
 
@@ -1449,10 +1452,10 @@ tools/store_screenshots/header.py
 商品ページヘッダー（3840x1646）を言語ごとに描く。背景のタイ語は pango-view で描く。
 
 test/screenshots/store_mock_screens.dart
-ストア用スクショの素材6画面（ja/en/ko × iPhone/iPad）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。
+ストア用スクショの素材7画面（ja/en/ko × iPhone/iPad）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。
 
 test/screenshots/store_mock_data.dart
-上記に描く例文・クイズの見本データ（ja/en/ko）。
+上記に描く例文・クイズ・復習タブの語の見本データ（ja/en/ko）。
 
 test/screenshots/store_screenshots.dart
 素材に見出し・端末の枠を合成し build/store_shots/out へ書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。

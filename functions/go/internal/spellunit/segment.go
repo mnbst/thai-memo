@@ -93,6 +93,38 @@ func hasPronouncedConsonant(r []rune) bool {
 	return false
 }
 
+// markKaran は ์ とそれが消す字を読まない字にする（เสาร์ の ร์、โพธิ์ の ธิ์）。
+// 母音の綴りや末子音の判定に混ざらないよう、ほかの部品より先に決める。
+func markKaran(r []rune, owner []int) {
+	for j, ch := range r {
+		if ch != thaiThanthakhat {
+			continue
+		}
+		owner[j] = dimSilent
+		k := j - 1
+		for k >= 0 && isCombining(r[k]) {
+			if owner[k] < 0 {
+				owner[k] = dimSilent
+			}
+			k--
+		}
+		if k >= 0 && isConsonant(r[k]) && owner[k] < 0 {
+			owner[k] = dimSilent
+		}
+	}
+}
+
+// pronounced は読まない字を除いた綴り。
+func pronounced(r []rune, owner []int) string {
+	var b strings.Builder
+	for j, ch := range r {
+		if owner[j] != dimSilent {
+			b.WriteRune(ch)
+		}
+	}
+	return b.String()
+}
+
 // segment は綴りを部品ごとの文字に切る。切れなければ ok=false。
 //
 // 返すのは runes の添字の割り当て（0=頭子音 1=母音 2=末子音 3=声調）。
@@ -110,6 +142,8 @@ func segmentOwners(word string, code Code) ([]int, bool) {
 		}
 	}
 
+	markKaran(r, owner)
+
 	// 頭子音。前置母音（เ แ โ ใ ไ）を飛ばした先の子音字から。
 	i := 0
 	for i < len(r) && (strings.ContainsRune(leadingVowels, r[i]) || owner[i] >= 0) {
@@ -124,7 +158,7 @@ func segmentOwners(word string, code Code) ([]int, bool) {
 	owner[i] = int(DimOnset)
 	onsetLen := 1
 	// 2文字で書く頭子音（二重子音と、ห・อ を前に置くもの）。
-	if i+1 < len(r) && isConsonant(r[i+1]) {
+	if i+1 < len(r) && isConsonant(r[i+1]) && owner[i+1] < 0 {
 		lead := r[i]
 		if clusterOnsets[code.Onset] ||
 			((lead == 'ห' || lead == 'อ') && sonorantOnsets[code.Onset]) {
@@ -139,7 +173,7 @@ func segmentOwners(word string, code Code) ([]int, bool) {
 
 	// รร（หันอากาศ）は母音 a を子音字で書く綴り。後ろに字が続けば รร で a、
 	// รร で終われば2つめが末子音 n を兼ねる（กรรม = ก + รร + ม）。
-	if i+1 < len(r) && r[i] == 'ร' && r[i+1] == 'ร' {
+	if i+1 < len(r) && r[i] == 'ร' && r[i+1] == 'ร' && owner[i] < 0 && owner[i+1] < 0 {
 		owner[i] = int(DimVowel)
 		// 後ろに末子音を書く字が残っていなければ、2つめの ร が末子音 n を
 		// 兼ねる（กรรม์ のように後ろが読まない字だけの綴りを含む）。
@@ -150,7 +184,7 @@ func segmentOwners(word string, code Code) ([]int, bool) {
 			codaAssigned, codaPos = true, i+1
 		}
 		i += 2
-	} else if i < len(r) && r[i] == 'ร' && code.Coda != "" &&
+	} else if i < len(r) && r[i] == 'ร' && owner[i] < 0 && code.Coda != "" &&
 		!hasPronouncedConsonant(r[i+1:]) {
 		// 単独の ร は母音と末子音をまとめて書く（กร = kɔɔn）。
 		// 1文字を2つの部品に分けられないので、母音の側に置いて
@@ -158,7 +192,7 @@ func segmentOwners(word string, code Code) ([]int, bool) {
 		owner[i] = int(DimVowel)
 		codaAssigned, codaPos = true, i
 		i++
-	} else if i < len(r) && r[i] == 'ร' &&
+	} else if i < len(r) && r[i] == 'ร' && owner[i] < 0 &&
 		!strings.Contains(code.Onset, "r") && code.Coda != "r" {
 		// 頭子音のすぐ後の ร は読まない綴りがある（จริง・สร้าง・เสร็จ）。
 		// 頭子音の音に r が無いのにそこに ร があれば、読まない字。
@@ -204,7 +238,7 @@ func segmentOwners(word string, code Code) ([]int, bool) {
 			for j := last + 1; j < len(r) && isCombining(r[j]); j++ {
 				owner[j] = dimSilent
 			}
-		} else if !hasCodaInVowel(word) {
+		} else if !hasCodaInVowel(pronounced(r, owner)) {
 			// 末子音があるはずなのに、それを書く字が見つからない。
 			return nil, false
 		}

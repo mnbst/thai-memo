@@ -749,8 +749,17 @@
   "pronunciationCoachShapeFalling": "下降声は、高いところから始めて最後まで下げ切る",
   "pronunciationCoachShapeHigh": "高声は、上げたところで止めずに最後まで上げ続ける",
   "pronunciationCoachShapeRising": "上昇声は、一度下げてから上げ切る",
+  "pronunciationCoachStepRising": "上昇声は、低いところから入って上げ切る",
   "pronunciationCoachStepUp": "{tone}は、直前の音より高いところから入る",
   "@pronunciationCoachStepUp": {
+    "placeholders": {
+      "tone": {
+        "type": "String"
+      }
+    }
+  },
+  "pronunciationCoachStepSame": "{tone}は、直前の音と同じくらいの高さから入る",
+  "@pronunciationCoachStepSame": {
     "placeholders": {
       "tone": {
         "type": "String"
@@ -1126,6 +1135,7 @@
   "toneGuideIntro": "タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、子音文字の種類（高・中・低）、声調記号、音節タイプによって決まります。",
   "toneGuideFiveTones": "5つの声調",
   "toneGuideConsonantClasses": "子音クラス",
+  "toneLeadingHBody": "一部の低子音の前に ห がつくと、発音せず高子音の声調規則に従います。",
   "toneGuideToneMarks": "声調記号",
   "toneGuideSyllableTypes": "音節タイプ",
   "toneGuideShiftTable": "声調変化表",
@@ -1688,8 +1698,8 @@
   "pronGuideHeading": "タイ語の発音のポイント",
   "pronGuideIntro": "アプリの読みは、ローマ字に記号を足した表記です。日本語にない音の区別を、読みの記号と一緒に押さえましょう。声調は「声調ガイド」で説明しています。",
   "pronSymbolsTitle": "読みの記号",
-  "pronSymbolsBody": "日本語のローマ字と違う記号だけをまとめました。",
-  "pronSymbolsDescs": "ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる",
+  "pronSymbolsBody": "日本語のローマ字と読み方が違うものだけをまとめました。",
+  "pronSymbolsDescs": "ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|日本語より口をすぼめて言う「オ」「ウ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる",
   "pronAspTitle": "息を出す音・出さない音",
   "pronAspBody": "kh・th・ph・ch は息を強く出し、k・t・p・j は息を出さずに言います。日本語では区別しませんが、タイ語では別の語になります。",
   "pronAspMeanings": "鶏|卵|目|塗る|投げる|連れて行く",
@@ -1793,7 +1803,7 @@
   "@detailGuidePractice": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   },
-  "detailGuidePracticeHint": "お手本を聞いて録音すると、声調が合っているか判定",
+  "detailGuidePracticeHint": "お手本を聞いて録音すると、声調と発音が合っているか判定",
   "@detailGuidePracticeHint": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   },
@@ -1809,7 +1819,7 @@
   "@detailGuideUsage": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   },
-  "detailGuideUsageHint": "どんな場面で、誰に使うかがわかる",
+  "detailGuideUsageHint": "どんな場面で使うか、文体や文化の背景がわかる",
   "@detailGuideUsageHint": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   },

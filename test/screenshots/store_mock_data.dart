@@ -5,6 +5,7 @@
 // =============================================================================
 
 import 'package:thai_memo/core/constants/generation_constants.dart';
+import 'package:thai_memo/data/models/vocab_word.dart';
 
 /// 例文のタイ語。発音練習の合成音声もこの並びから作る。
 const String storeThaiText = 'ร้านนี้อร่อยมากเลยนะ';
@@ -113,4 +114,48 @@ Map<String, dynamic> storeQuizJson(String lang) {
     'blank_sentence_pronunciation': 'ráan níi ___ mâak ləəi ná',
     'quiz_format': 'cloze_choice',
   };
+}
+
+/// 復習タブで画面に映る語（語彙ランクの大きい順）。p が 0 の語は「見ただけ」。
+const List<(String, int, String, String, String, String, double)> _reviewWords = [
+  ('ค่อย', 650, 'khɔ̂i', 'だんだん', 'gradually', '점점', 0),
+  ('นักเรียน', 648, 'nák-rian', '生徒', 'student', '학생', 0.42),
+  ('ป้า', 647, 'pâa', 'おば', 'aunt', '이모', 0),
+  ('หนุ่ม', 644, 'nùm', '若い男性', 'young man', '젊은 남자', 0.38),
+  ('เงียบ', 642, 'ngîap', '静かな', 'quiet', '조용하다', 0.46),
+  ('ถนน', 629, 'thà-nǒn', '道路', 'road', '도로', 0.82),
+  ('ประเทศ', 626, 'prà-thêet', '国', 'country', '나라', 0.94),
+  ('กระเป๋า', 623, 'krà-pǎo', 'かばん', 'bag', '가방', 0.74),
+  ('เดินทาง', 621, 'dəən-thaang', '旅行する', 'to travel', '여행하다', 0.34),
+  ('สบาย', 619, 'sà-baai', '快適な', 'comfortable', '편안하다', 0.88),
+  ('มั่นใจ', 610, 'mân-jai', '自信がある', 'confident', '자신 있다', 0),
+  ('ไกล', 609, 'klai', '遠い', 'far', '멀다', 0.9),
+  ('อันตราย', 605, 'an-tà-raai', '危険な', 'dangerous', '위험하다', 0.66),
+  ('ปกติ', 604, 'pòk-kà-tì', '普通の', 'normal', '보통', 0.71),
+  ('คำถาม', 598, 'kham-thǎam', '質問', 'question', '질문', 0.78),
+  ('ภาพ', 596, 'phâap', '絵、画像', 'picture', '그림', 0.44),
+  ('ร้องไห้', 595, 'rɔ́ɔng-hâi', '泣く', 'to cry', '울다', 0.85),
+  ('ตก', 593, 'tòk', '落ちる', 'to fall', '떨어지다', 0.79),
+  ('หนัง', 583, 'nǎng', '映画', 'movie', '영화', 0.92),
+  ('อาทิตย์', 576, 'aa-thít', '週', 'week', '주', 0.87),
+  ('ตอบ', 575, 'tɔ̀ɔp', '答える', 'to answer', '대답하다', 0.76),
+];
+
+/// 復習タブの一覧。画面に映らない前後は埋め草で、上の集計の語数と割合だけを作る。
+List<VocabEntry> storeVocabEntries(String lang) {
+  VocabEntry filler(int rank, double p) => VocabEntry(
+        progress: VocabWord(word: 'w$rank', rank: rank, p: p, answered: p > 0),
+      );
+  return [
+    // スコアより上の語は、まだ見ただけ・覚えかけが多い。
+    for (var i = 0; i < 30; i++) filler(1200 - i * 18, i.isEven ? 0 : 0.4),
+    for (final (word, rank, pronunciation, ja, en, ko, p) in _reviewWords)
+      VocabEntry(
+        progress: VocabWord(word: word, rank: rank, p: p, answered: p > 0),
+        pronunciation: pronunciation,
+        meaning: _pick(lang, ja, en, ko),
+      ),
+    // スコアより下の語は、ほとんど覚えている。
+    for (var i = 0; i < 260; i++) filler(560 - i * 2, i % 5 == 0 ? 0.4 : 0.8),
+  ];
 }

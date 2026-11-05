@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thai_memo/data/models/quiz_question.dart';
 
@@ -15,6 +17,37 @@ void main() {
       expect(q.correctAnswer, 'กิน');
       expect(q.correctChoice, '食べる');
       expect(q.toJson()['quiz_format'], QuizQuestion.meaningChoiceFormat);
+    });
+
+    test('例文詳細の音節が文字列の配列でも、音節ごとに読む', () {
+      final json = _baseJson()
+        ..['sentence_detail'] = {
+          'id': 's1',
+          'thai_text': 'ผมอยากไปตลาด',
+          'japanese_translation': '市場に行きたい',
+          'pronunciation': 'phǒm yàak pai tà-làat',
+          'word_breakdown': [
+            {
+              'word': 'สวัสดี',
+              'pronunciation': 'sà-wàt-dii',
+              'meaning': 'こんにちは',
+              'syllables': ['สะ', 'หวัด', 'ดี'],
+            },
+          ],
+        };
+
+      final q = QuizQuestion.fromJson(json);
+      final word = q.sentenceDetail!.wordBreakdowns.single;
+
+      expect(word.syllables!.map((s) => s.text), ['สะ', 'หวัด', 'ดี']);
+      // 端末に保存して読み直しても音節が残る。
+      final restored = QuizQuestion.fromJson(
+        jsonDecode(jsonEncode(q.toJson())) as Map<String, dynamic>,
+      );
+      expect(
+        restored.sentenceDetail!.wordBreakdowns.single.syllables!.length,
+        3,
+      );
     });
 
     test('spelling_choice は正解の分解と書く順の字を読む', () {

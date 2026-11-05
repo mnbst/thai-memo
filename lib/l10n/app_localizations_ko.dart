@@ -1452,8 +1452,16 @@ class L10nKo extends L10n {
   String get pronunciationCoachShapeRising => '상승성은 한 번 낮춘 뒤 끝까지 올리세요';
 
   @override
+  String get pronunciationCoachStepRising => '상승성은 낮은 위치에서 시작해 끝까지 올리세요';
+
+  @override
   String pronunciationCoachStepUp(String tone) {
     return '$tone은 직전 소리보다 높은 위치에서 시작하세요';
+  }
+
+  @override
+  String pronunciationCoachStepSame(String tone) {
+    return '$tone은 직전 소리와 비슷한 높이에서 시작하세요';
   }
 
   @override
@@ -1876,6 +1884,9 @@ class L10nKo extends L10n {
 
   @override
   String get toneGuideConsonantClasses => '자음 등급';
+
+  @override
+  String get toneLeadingHBody => '일부 저자음 앞에 ห가 붙으면 발음하지 않고 고자음 성조 규칙을 따라요.';
 
   @override
   String get toneGuideToneMarks => '성조 부호';
@@ -3232,11 +3243,11 @@ class L10nKo extends L10n {
   String get pronSymbolsTitle => '발음 기호';
 
   @override
-  String get pronSymbolsBody => '한국에서 일반적으로 쓰는 로마자 표기와 다른 기호만 모았어요.';
+  String get pronSymbolsBody => '한국에서 일반적으로 쓰는 로마자 표기와 읽는 법이 다른 기호만 모았어요.';
 
   @override
   String get pronSymbolsDescs =>
-      'ɛ는 ‘에’보다 입을 크게 벌린 소리, ɔ는 ‘오’보다 입을 둥글고 크게 벌린 소리|입술을 좌우로 편 채 내는 ‘우’ 소리|입을 반쯤 벌리고 힘을 빼서 내는 ‘으’와 ‘어’ 사이의 소리|같은 모음이 두 번 이어지면 길게 늘이기|k는 숨을 거의 내보내지 않는 ‘ㄲ’에 가까운 소리, kh는 숨을 세게 내보내는 ‘ㅋ’ 소리|h가 붙으면 숨을 세게 내보내기. t·p는 숨을 내보내지 않기|코로 울리는 ‘ㅇ’ 받침 소리. 단어 첫머리에도 옴|성조. 기호가 없으면 평평하게, à는 낮게, â는 내려가게, á는 높게, ǎ는 올라가게';
+      'ɛ는 ‘에’보다 입을 크게 벌린 소리, ɔ는 ‘오’보다 입을 둥글고 크게 벌린 소리|입술을 둥글게 오므려 내는 ‘오’, ‘우’ 소리|입술을 좌우로 편 채 내는 ‘우’ 소리|입을 반쯤 벌리고 힘을 빼서 내는 ‘으’와 ‘어’ 사이의 소리|같은 모음이 두 번 이어지면 길게 늘이기|k는 숨을 거의 내보내지 않는 ‘ㄲ’에 가까운 소리, kh는 숨을 세게 내보내는 ‘ㅋ’ 소리|h가 붙으면 숨을 세게 내보내기. t·p는 숨을 내보내지 않기|코로 울리는 ‘ㅇ’ 받침 소리. 단어 첫머리에도 옴|성조. 기호가 없으면 평평하게, à는 낮게, â는 내려가게, á는 높게, ǎ는 올라가게';
 
   @override
   String get pronAspTitle => '숨을 내보내는 소리와 내보내지 않는 소리';
@@ -3407,7 +3418,7 @@ class L10nKo extends L10n {
   String get detailGuidePractice => '발음 연습하기';
 
   @override
-  String get detailGuidePracticeHint => '모범 발음을 듣고 녹음하면 성조가 맞는지 확인해요';
+  String get detailGuidePracticeHint => '모범 발음을 듣고 녹음하면 성조와 발음이 맞는지 확인해요';
 
   @override
   String get detailGuideWords => '단어를 눌러 성조 규칙 보기';
@@ -3419,7 +3430,7 @@ class L10nKo extends L10n {
   String get detailGuideUsage => '사용법 읽기';
 
   @override
-  String get detailGuideUsageHint => '어떤 상황에서 누구에게 쓰는지 알 수 있어요';
+  String get detailGuideUsageHint => '어떤 상황에서 쓰는지, 문체와 문화적 배경을 알 수 있어요';
 
   @override
   String get detailGuideBackToQuiz => '학습으로 돌아가 확인 퀴즈 풀기';

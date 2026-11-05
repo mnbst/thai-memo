@@ -1444,8 +1444,16 @@ class L10nJa extends L10n {
   String get pronunciationCoachShapeRising => '上昇声は、一度下げてから上げ切る';
 
   @override
+  String get pronunciationCoachStepRising => '上昇声は、低いところから入って上げ切る';
+
+  @override
   String pronunciationCoachStepUp(String tone) {
     return '$toneは、直前の音より高いところから入る';
+  }
+
+  @override
+  String pronunciationCoachStepSame(String tone) {
+    return '$toneは、直前の音と同じくらいの高さから入る';
   }
 
   @override
@@ -1866,6 +1874,9 @@ class L10nJa extends L10n {
 
   @override
   String get toneGuideConsonantClasses => '子音クラス';
+
+  @override
+  String get toneLeadingHBody => '一部の低子音の前に ห がつくと、発音せず高子音の声調規則に従います。';
 
   @override
   String get toneGuideToneMarks => '声調記号';
@@ -3201,11 +3212,11 @@ class L10nJa extends L10n {
   String get pronSymbolsTitle => '読みの記号';
 
   @override
-  String get pronSymbolsBody => '日本語のローマ字と違う記号だけをまとめました。';
+  String get pronSymbolsBody => '日本語のローマ字と読み方が違うものだけをまとめました。';
 
   @override
   String get pronSymbolsDescs =>
-      'ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる';
+      'ɛ は口を大きく開けた「エ」、ɔ は口を丸く大きく開けた「オ」|日本語より口をすぼめて言う「オ」「ウ」|口を横に引いたまま言う「ウ」|口を半開きにした、力の抜けた「ウ」と「ア」の間|同じ母音が2つ並んだら長くのばす|k は息を出さない「カ」（「ガ」に近く聞こえる）、kh は息を強く出す「カ」|h が付くと息を強く出す。t・p は息を出さない|鼻に抜く「ン」。語頭にも来る|声調。記号なしは平ら、à 低い、â 下がる、á 高い、ǎ 上がる';
 
   @override
   String get pronAspTitle => '息を出す音・出さない音';
@@ -3375,7 +3386,7 @@ class L10nJa extends L10n {
   String get detailGuidePractice => '発音を練習する';
 
   @override
-  String get detailGuidePracticeHint => 'お手本を聞いて録音すると、声調が合っているか判定';
+  String get detailGuidePracticeHint => 'お手本を聞いて録音すると、声調と発音が合っているか判定';
 
   @override
   String get detailGuideWords => '単語をタップして声調ルールを見る';
@@ -3387,7 +3398,7 @@ class L10nJa extends L10n {
   String get detailGuideUsage => '使い方を読む';
 
   @override
-  String get detailGuideUsageHint => 'どんな場面で、誰に使うかがわかる';
+  String get detailGuideUsageHint => 'どんな場面で使うか、文体や文化の背景がわかる';
 
   @override
   String get detailGuideBackToQuiz => '学習に戻って確認クイズを解く';
