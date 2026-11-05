@@ -4,6 +4,8 @@
 // 例文をタップすると例文の詳細画面（DetailScreen）へ。
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +13,7 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/vocab_word.dart';
 import '../../l10n/app_localizations.dart';
+import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_progress_provider.dart';
@@ -41,6 +44,11 @@ class VocabWordScreen extends ConsumerWidget {
         entry;
     final word = current.progress;
     final mastery = word.mastery;
+    void logReview(String action) => unawaited(
+          ref
+              .read(analyticsServiceProvider)
+              .logReviewTab(action: action, value: mastery.name),
+        );
 
     return Scaffold(
       appBar: AppBar(),
@@ -94,6 +102,7 @@ class VocabWordScreen extends ConsumerWidget {
                           IconButton.filledTonal(
                             icon: const Icon(Icons.volume_up),
                             onPressed: () {
+                              logReview('word_tts');
                               ref
                                   .read(ttsServiceProvider)
                                   .speak(word.word, slow: true);
@@ -182,6 +191,7 @@ class VocabWordScreen extends ConsumerWidget {
                           ],
                         ),
                         onTap: () async {
+                          logReview('sentence_open');
                           await Navigator.push(
                             context,
                             MaterialPageRoute(

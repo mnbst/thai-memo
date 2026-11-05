@@ -71,6 +71,8 @@ void main() {
     expect(done, 1);
 
     await tester.scrollUntilVisible(find.text('語彙力を測る'), 400);
+    await tester.ensureVisible(find.text('語彙力を測る'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('語彙力を測る'));
     await tester.pump();
     expect(done, 2);

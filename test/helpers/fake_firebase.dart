@@ -177,6 +177,7 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
   final List<Map<String, Object?>> vocabTestEvents = [];
   final List<Map<String, String>> coachMarkEvents = [];
   final List<String> viewDetailSources = [];
+  final List<Map<String, String?>> reviewTabEvents = [];
 
   @override
   Future<void> logViewDetail(
@@ -226,6 +227,11 @@ class FakeAnalyticsService extends Fake implements AnalyticsService {
     required String source,
     required String outcome,
   }) async {}
+
+  @override
+  Future<void> logReviewTab({required String action, String? value}) async {
+    reviewTabEvents.add({'action': action, 'value': value});
+  }
 
   @override
   Future<void> logGuide({
