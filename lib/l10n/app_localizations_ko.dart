@@ -1452,8 +1452,16 @@ class L10nKo extends L10n {
   String get pronunciationCoachShapeRising => '상승성은 한 번 낮춘 뒤 끝까지 올리세요';
 
   @override
+  String get pronunciationCoachStepRising => '상승성은 낮은 위치에서 시작해 끝까지 올리세요';
+
+  @override
   String pronunciationCoachStepUp(String tone) {
     return '$tone은 직전 소리보다 높은 위치에서 시작하세요';
+  }
+
+  @override
+  String pronunciationCoachStepSame(String tone) {
+    return '$tone은 직전 소리와 비슷한 높이에서 시작하세요';
   }
 
   @override

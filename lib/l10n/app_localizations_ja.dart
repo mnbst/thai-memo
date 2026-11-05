@@ -1444,8 +1444,16 @@ class L10nJa extends L10n {
   String get pronunciationCoachShapeRising => '上昇声は、一度下げてから上げ切る';
 
   @override
+  String get pronunciationCoachStepRising => '上昇声は、低いところから入って上げ切る';
+
+  @override
   String pronunciationCoachStepUp(String tone) {
     return '$toneは、直前の音より高いところから入る';
+  }
+
+  @override
+  String pronunciationCoachStepSame(String tone) {
+    return '$toneは、直前の音と同じくらいの高さから入る';
   }
 
   @override

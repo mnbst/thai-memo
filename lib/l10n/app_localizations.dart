@@ -2649,11 +2649,23 @@ abstract class L10n {
   /// **'上昇声は、一度下げてから上げ切る'**
   String get pronunciationCoachShapeRising;
 
+  /// No description provided for @pronunciationCoachStepRising.
+  ///
+  /// In ja, this message translates to:
+  /// **'上昇声は、低いところから入って上げ切る'**
+  String get pronunciationCoachStepRising;
+
   /// No description provided for @pronunciationCoachStepUp.
   ///
   /// In ja, this message translates to:
   /// **'{tone}は、直前の音より高いところから入る'**
   String pronunciationCoachStepUp(String tone);
+
+  /// No description provided for @pronunciationCoachStepSame.
+  ///
+  /// In ja, this message translates to:
+  /// **'{tone}は、直前の音と同じくらいの高さから入る'**
+  String pronunciationCoachStepSame(String tone);
 
   /// No description provided for @pronunciationCoachStepDown.
   ///
