@@ -1582,6 +1582,8 @@
   "vocabGuideMeaningHint": "They change with quiz results",
   "vocabGuideQuiz": "Review for the summary quiz",
   "vocabGuideQuizHint": "Low-gauge words come first",
+  "vocabGuideRangeHint": "Quiz range is approximate",
+  "vocabQuizRange": "Quiz range",
   "vocabGuideTapWord": "Tap a word for examples",
   "vocabGuideTapWordHint": "See examples via {icon} at top right",
   "vocabWordsMet": "Words encountered",

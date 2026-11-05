@@ -5,6 +5,7 @@
 // =============================================================================
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/vocab_word.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
+import '../providers/remaining_quota_provider.dart';
 import '../providers/vocab_progress_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/vocab_gauge.dart';
@@ -35,6 +37,76 @@ int? scoreMarkerIndex(List<VocabEntry> entries, int score) {
   return entries.length;
 }
 
+/// まとめクイズのスコア枠（low〜high）。サーバーの uvm.QuizScoreBand と同じ計算。
+///
+/// 復習枠・苦手枠は範囲外からも出るので、画面では目安として見せる。
+@visibleForTesting
+(int, int) quizScoreBand({
+  required int score,
+  required int tested,
+  required bool premium,
+}) {
+  const freeLimit = 100;
+  const testCeiling = 3000;
+  final floor = premium ? tested : min(tested, freeLimit);
+  final current = max(score, floor);
+  final low = max(floor, current - 50);
+
+  // free の key_word 帯は測定値で平行移動しない。
+  final shift = premium ? floor : 0;
+  final e = max(score - shift, 0);
+  var keyWordHigh = e + max(8.0, 20 - e / 5).toInt() + shift;
+  if (shift >= testCeiling) {
+    keyWordHigh = max(keyWordHigh, score + (0.015 * score).toInt());
+  }
+  if (!premium) keyWordHigh = min(keyWordHigh, freeLimit);
+  return (low, min(current + 50, keyWordHigh));
+}
+
+enum VocabListMarker { rangeTop, score, rangeBottom }
+
+/// 語の間にスコア行と出題範囲の区切りを挟んだ、一覧の行を返す。
+///
+/// [entries] は語彙ランクの大きい順。範囲内の語が無ければ区切りは出さない。
+@visibleForTesting
+List<Object> vocabListRows(
+  List<VocabEntry> entries,
+  int score,
+  (int, int)? band,
+) {
+  final marks = <(int, int, VocabListMarker)>[];
+  final scoreAt = scoreMarkerIndex(entries, score);
+  if (scoreAt != null) marks.add((scoreAt, score, VocabListMarker.score));
+  if (band != null) {
+    final (low, high) = band;
+    bool isBelow(VocabEntry e) => e.progress.rank < low;
+    final top = entries.indexWhere(
+      (e) => e.progress.rank > 0 && e.progress.rank <= high,
+    );
+    final below = entries.indexWhere(isBelow);
+    final bottom = below < 0 ? entries.length : below;
+    if (top >= 0 && top < bottom) {
+      marks.add((top, high, VocabListMarker.rangeTop));
+      marks.add((bottom, low - 1, VocabListMarker.rangeBottom));
+    }
+  }
+  // 同じ位置なら語彙ランクの大きい順に並べる。
+  marks.sort((a, b) {
+    final byIndex = a.$1.compareTo(b.$1);
+    return byIndex != 0 ? byIndex : b.$2.compareTo(a.$2);
+  });
+
+  final rows = <Object>[];
+  var next = 0;
+  for (var i = 0; i <= entries.length; i++) {
+    while (next < marks.length && marks[next].$1 == i) {
+      rows.add(marks[next++].$3);
+    }
+    if (i < entries.length) rows.add(entries[i]);
+  }
+  return rows;
+}
+
 class VocabHistoryScreen extends ConsumerStatefulWidget {
   static const routeName = 'vocab_history';
 
@@ -45,7 +117,7 @@ class VocabHistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
-  final ScrollController _scroll = ScrollController();
+  final GlobalKey<NestedScrollViewState> _nestedKey = GlobalKey();
   final TextEditingController _searchController = TextEditingController();
   VocabMastery? _filter;
   bool _searching = false;
@@ -54,6 +126,7 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
   /// 開いたときに自分の位置へ一度だけ動かす。
   bool _positioned = false;
 
+  bool _guideChecked = false;
   bool _showGuide = false;
 
   @override
@@ -64,10 +137,11 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
 
   Future<void> _loadGuide() async {
     final prefs = await SharedPreferences.getInstance();
-    if (!mounted || (prefs.getBool(AppConfig.prefKeyVocabGuideDismissed) ?? false)) {
-      return;
-    }
-    setState(() => _showGuide = true);
+    if (!mounted) return;
+    setState(() {
+      _guideChecked = true;
+      _showGuide = !(prefs.getBool(AppConfig.prefKeyVocabGuideDismissed) ?? false);
+    });
   }
 
   Future<void> _closeGuide() async {
@@ -81,7 +155,6 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
 
   @override
   void dispose() {
-    _scroll.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -119,7 +192,16 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
     final l10n = L10n.of(context);
     final entriesAsync = ref.watch(vocabEntriesProvider);
     final all = entriesAsync.valueOrNull ?? const <VocabEntry>[];
-    final score = ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+    final stats = ref.watch(vocabStatsProvider).valueOrNull;
+    final score = stats?.estimatedVocab ?? 0;
+    final premium = ref.watch(effectivePremiumProvider);
+    final band = stats == null
+        ? null
+        : quizScoreBand(
+            score: score,
+            tested: stats.testedVocab,
+            premium: premium,
+          );
 
     return Scaffold(
       appBar: AppBar(
@@ -147,40 +229,53 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(
-            AppConfig.screenPadding, 4, AppConfig.screenPadding, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_showGuide) VocabGuideCard(onClose: _closeGuide),
-            _Summary(entries: all, score: score),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _chip(l10n.vocabFilterAll, all.length, null),
-                for (final m in VocabMastery.values) ...[
-                  const SizedBox(width: 6),
-                  _chip(
-                    m.label(l10n),
-                    all.where((e) => e.progress.mastery == m).length,
-                    m,
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 6),
-              child: Text(
-                l10n.vocabRankHeader,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+      // 案内カードだけを見出しとして一緒に流し、下の一覧の高さはカードの有無で変えない。
+      body: NestedScrollView(
+        key: _nestedKey,
+        headerSliverBuilder: (context, _) => [
+          if (_showGuide)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppConfig.screenPadding, 4, AppConfig.screenPadding, 0),
+                child: VocabGuideCard(onClose: _closeGuide),
               ),
             ),
-            Expanded(child: _buildList(entriesAsync, all, score, l10n)),
-          ],
+        ],
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppConfig.screenPadding, 4, AppConfig.screenPadding, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _Summary(entries: all, score: score),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _chip(l10n.vocabFilterAll, all.length, null),
+                  for (final m in VocabMastery.values) ...[
+                    const SizedBox(width: 6),
+                    _chip(
+                      m.label(l10n),
+                      all.where((e) => e.progress.mastery == m).length,
+                      m,
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 6),
+                child: Text(
+                  l10n.vocabRankHeader,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ),
+              Expanded(child: _buildList(entriesAsync, all, score, band, l10n)),
+            ],
+          ),
         ),
       ),
     );
@@ -243,6 +338,7 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
     AsyncValue<List<VocabEntry>> async,
     List<VocabEntry> all,
     int score,
+    (int, int)? band,
     L10n l10n,
   ) {
     if (all.isEmpty && async.isLoading) {
@@ -263,16 +359,30 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
         28 + scaler.scale(18) * 1.5 + scaler.scale(bodySize) * 1.5 + 1;
     final markerExtent = 16 + scaler.scale(bodySize) * 1.5;
 
-    final marker = scoreMarkerIndex(visible, score);
-    final count = visible.length + (marker == null ? 0 : 1);
+    final rows = vocabListRows(visible, score, band);
+    final count = rows.length;
+    double extentOf(Object row) =>
+        row is VocabEntry ? rowExtent : markerExtent;
+    final marker = rows.indexOf(VocabListMarker.score);
 
-    if (!_positioned && marker != null && _filter == null && _query.isEmpty) {
+    // NestedScrollView は一覧を動かすと見出しも畳むので、案内を閉じるまで飛ばない。
+    if (!_positioned &&
+        _guideChecked &&
+        !_showGuide &&
+        marker >= 0 &&
+        _filter == null &&
+        _query.isEmpty) {
       _positioned = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_scroll.hasClients) return;
-        final target = marker * rowExtent - rowExtent * 2;
-        _scroll.jumpTo(
-          target.clamp(0.0, _scroll.position.maxScrollExtent),
+        final scroll = _nestedKey.currentState?.innerController;
+        if (scroll == null || !scroll.hasClients) return;
+        final target = rows.take(marker).fold<double>(
+                  0,
+                  (sum, row) => sum + extentOf(row),
+                ) -
+            rowExtent * 2;
+        scroll.jumpTo(
+          target.clamp(0.0, scroll.position.maxScrollExtent),
         );
       });
     }
@@ -287,27 +397,31 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
           await ref.read(vocabEntriesProvider.future);
         },
         child: ListView.builder(
-          controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
           itemCount: count,
           itemExtentBuilder: (i, _) {
             if (i >= count) return null;
-            return i == marker ? markerExtent : rowExtent;
+            return extentOf(rows[i]);
           },
           itemBuilder: (context, i) {
-            if (i == marker) return _ScoreMarker(score: score);
-            final index = marker != null && i > marker ? i - 1 : i;
-            return _VocabRow(
-              entry: visible[index],
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  settings: const RouteSettings(name: VocabWordScreen.routeName),
-                  builder: (_) => VocabWordScreen(entry: visible[index]),
+            final row = rows[i];
+            return switch (row) {
+              VocabListMarker.score => _ScoreMarker(score: score),
+              VocabListMarker.rangeTop => const _RangeEdge(top: true),
+              VocabListMarker.rangeBottom => const _RangeEdge(top: false),
+              _ => _VocabRow(
+                  entry: row as VocabEntry,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      settings:
+                          const RouteSettings(name: VocabWordScreen.routeName),
+                      builder: (_) => VocabWordScreen(entry: row),
+                    ),
+                  ),
                 ),
-              ),
-            );
+            };
           },
         ),
       ),
@@ -421,6 +535,45 @@ class _ScoreMarker extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: ink,
                   ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// まとめクイズの出題範囲の上端・下端を示す区切り。
+class _RangeEdge extends StatelessWidget {
+  final bool top;
+
+  const _RangeEdge({required this.top});
+
+  @override
+  Widget build(BuildContext context) {
+    const ink = Color(0xFF2E7D66);
+    return ColoredBox(
+      color: const Color(0xFFE3F1EC),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: [
+            Icon(
+              top ? Icons.arrow_downward : Icons.arrow_upward,
+              size: 15,
+              color: ink,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                L10n.of(context).vocabQuizRange,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: ink,
+                    ),
+              ),
             ),
           ],
         ),
