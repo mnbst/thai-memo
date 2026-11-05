@@ -12,6 +12,7 @@
 // - 04_quiz:          まとめクイズで正解した直後
 // - 05_topics:        テーマ選択（推し活を選択中。英語はタイ暮らし）
 // - 06_ranking:       語彙ランキング（学習者が十分いる状態）
+// - 07_review:        復習タブ（語彙スコアの位置まで送った語の一覧）
 //
 // 例文・クイズの中身は store_mock_data.dart。出力は
 // build/store_shots/raw/<device>/<lang>/<id>.png で、その後
@@ -29,6 +30,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:thai_memo/core/config/app_config.dart';
 import 'package:thai_memo/core/constants/generation_constants.dart';
 import 'package:thai_memo/domain/sentence_tone_spans.dart';
 import 'package:thai_memo/core/theme/app_theme.dart';
@@ -47,11 +49,13 @@ import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
 import 'package:thai_memo/presentation/providers/sentence_provider.dart';
 import 'package:thai_memo/presentation/providers/settings_provider.dart';
 import 'package:thai_memo/presentation/providers/tts_provider.dart';
+import 'package:thai_memo/presentation/providers/vocab_progress_provider.dart';
 import 'package:thai_memo/presentation/providers/vocab_stats_provider.dart';
 import 'package:thai_memo/presentation/screens/detail_screen.dart';
 import 'package:thai_memo/presentation/screens/quiz_screen.dart';
 import 'package:thai_memo/presentation/screens/ranking_screen.dart';
 import 'package:thai_memo/presentation/screens/today_screen.dart';
+import 'package:thai_memo/presentation/screens/vocab_history_screen.dart';
 import 'package:thai_memo/presentation/widgets/tablet_width_limit.dart';
 import 'package:thai_memo/presentation/widgets/topic_picker.dart';
 import 'package:thai_memo/services/analytics_service.dart';
@@ -133,11 +137,20 @@ final _shots = [
     topicByLang: {'en': GenerationConstants.lifeTopic},
   ),
   _Shot('06_ranking', (s, lang) => const RankingScreen()),
+  _Shot(
+    '07_review',
+    (s, lang) => const _TabShell(tab: 1, child: VocabHistoryScreen()),
+    act: _alignReviewList,
+  ),
 ];
 
 void main() {
   setUpAll(() async {
-    SharedPreferences.setMockInitialValues({});
+    // 初回向けの案内カード（学習の手順・詳細・復習タブ）は写さない。
+    SharedPreferences.setMockInitialValues({
+      AppConfig.prefKeyVocabGuideDismissed: true,
+      AppConfig.prefKeyFirstSentenceId: '',
+    });
     GoogleFonts.config.allowRuntimeFetching = false;
     await _loadFonts();
   });
@@ -213,6 +226,23 @@ Future<void> _practice(WidgetTester tester, L10n l10n) async {
   await _scrollTo(tester, find.text(l10n.pronunciationTitle));
 }
 
+/// 上端に貼り付く区切りで行が半分切れないよう、次の行の頭まで送る。
+/// 送る量は語の行と区切りの高さの差で、文字の大きさによらず 40。
+Future<void> _alignReviewList(WidgetTester tester, L10n l10n) async {
+  final position = tester
+      .state<ScrollableState>(
+        find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      )
+      .position;
+  position.jumpTo(position.pixels + 40);
+  await tester.pumpAndSettle();
+}
+
 Widget _host(String lang, _Device device, _Shot shot, ThaiSentence sentence) {
   final quiz = QuizQuestion.fromJson(storeQuizJson(lang));
   return ProviderScope(
@@ -228,6 +258,8 @@ Widget _host(String lang, _Device device, _Shot shot, ThaiSentence sentence) {
       vocabStatsProvider.overrideWith(
         (ref) => Stream.value(const VocabStats(estimatedVocab: _myVocab)),
       ),
+      vocabEntriesProvider.overrideWith((ref) async => storeVocabEntries(lang)),
+      quizStatsProvider.overrideWith((ref) async => const QuizStatsData()),
       myRankProvider.overrideWith((ref) async => _myRank),
       leaderboardRowsProvider.overrideWith((ref) async => _rows),
       vocabDistributionProvider.overrideWith((ref) async => _distribution),
@@ -293,11 +325,12 @@ Widget _host(String lang, _Device device, _Shot shot, ThaiSentence sentence) {
   );
 }
 
-/// 下のタブ（学習／履歴／設定）。HomeScreen と同じ並びで、学習を選んだ状態。
+/// 下のタブ（学習／復習／設定）。HomeScreen と同じ並び。
 class _TabShell extends StatelessWidget {
-  const _TabShell({required this.child});
+  const _TabShell({required this.child, this.tab = 0});
 
   final Widget child;
+  final int tab;
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +338,7 @@ class _TabShell extends StatelessWidget {
     return Scaffold(
       body: child,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
+        selectedIndex: tab,
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.school_outlined),
