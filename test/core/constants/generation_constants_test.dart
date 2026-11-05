@@ -64,13 +64,32 @@ void main() {
     });
   });
 
+  test('isGreetingTopic は正式名と旧版の短い名前をあいさつと判定する', () {
+    expect(GenerationConstants.isGreetingTopic(GenerationConstants.topics[3]),
+        isTrue);
+    expect(GenerationConstants.isGreetingTopic('あいさつ'), isTrue);
+    expect(GenerationConstants.isGreetingTopic(GenerationConstants.topics[2]),
+        isFalse);
+    expect(GenerationConstants.isGreetingTopic(null), isFalse);
+  });
+
   group('pickerTopics', () {
+    test('あいさつはテーマ選択にもヒアリングの候補にも出さない', () {
+      final greeting = GenerationConstants.topics[3];
+      expect(GenerationConstants.pickerTopics, isNot(contains(greeting)));
+      for (final topics in GenerationConstants.interviewGoalTopics.values) {
+        expect(topics, isNot(contains(greeting)));
+      }
+    });
+
     test('まとめたテーマを出し、その中身の個別テーマは出さない', () {
       final picker = GenerationConstants.pickerTopics;
-      expect(picker, containsAll([
-        GenerationConstants.lifeTopic,
-        GenerationConstants.travelTopic,
-      ]));
+      expect(
+          picker,
+          containsAll([
+            GenerationConstants.lifeTopic,
+            GenerationConstants.travelTopic,
+          ]));
       for (final i in [4, 5, 6, 7, 8, 9, 10]) {
         expect(picker, isNot(contains(GenerationConstants.topics[i])));
       }

@@ -260,10 +260,15 @@ func runGenerateThaiSentence(
 		preferredTopics = sentence.InterviewGoalTopicSet(userData)
 	}
 
+	generationParams := effectiveGenerationParams(params, usePremiumSpec)
+	if topic, _ := generationParams["topic"].(string); sentence.GreetingGenerationStopped(userData, topic) {
+		delete(generationParams, "topic")
+	}
+
 	produced, err := producer.ProduceBatch(ctx, db, freqRank, sentence.ProduceRequest{
 		UID:             uid,
 		PreferredTopics: preferredTopics,
-		Params:          effectiveGenerationParams(params, usePremiumSpec),
+		Params:          generationParams,
 		UsePremiumSpec:  usePremiumSpec,
 		EstimatedVocab:  estimatedVocab,
 		TestedVocab:     intValue(userData["vocab_test_vocab"]),

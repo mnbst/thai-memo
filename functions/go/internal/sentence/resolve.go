@@ -76,7 +76,7 @@ func (r *Resolver) Resolve(
 	resolved := ResolvedParams{
 		// 2026-08-14: free 専用プール（FREE_TOPICS）は廃止。クライアントは
 		// テーマを送らないので、tier でプールを分けても選択肢の差にならなかった。
-		TopicOptions: GateTopicsForVocab(append([]string(nil), Topics...), estimatedVocab),
+		TopicOptions: OmakaseTopicPool(estimatedVocab),
 		Topic:        strParam(params, "topic"),
 	}
 

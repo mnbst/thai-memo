@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/generation_constants.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/notify_slots.dart';
 import '../../data/datasources/local/database_helper.dart';
@@ -211,6 +212,12 @@ class SettingsController extends StateNotifier<SettingsState> {
     final params = <String, String?>{};
     for (final key in _generationParamKeys) {
       params[key] = _prefs!.getString(_prefKey(key));
+    }
+    // あいさつはテーマ選択から外した。サーバーも新規生成を止めるので、残っている
+    // 設定は解除する（表示と届く文がずれる）。サーバーのミラーは起動時の同期で消える。
+    if (GenerationConstants.isGreetingTopic(params['topic'])) {
+      await _prefs!.remove(_prefKey('topic'));
+      params['topic'] = null;
     }
 
     // Load font family
