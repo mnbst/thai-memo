@@ -56,7 +56,10 @@ class VocabGuideCard extends StatelessWidget {
       (
         Icons.quiz_outlined,
         l10n.vocabGuideQuiz,
-        Text(l10n.vocabGuideQuizHint, style: hintStyle),
+        Text(
+          '${l10n.vocabGuideQuizHint}\n${l10n.vocabGuideRangeHint}',
+          style: hintStyle,
+        ),
       ),
     ];
     return Card(

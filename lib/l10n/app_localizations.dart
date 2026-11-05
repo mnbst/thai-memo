@@ -6142,6 +6142,18 @@ abstract class L10n {
   /// **'ゲージが少ない単語から出題します'**
   String get vocabGuideQuizHint;
 
+  /// No description provided for @vocabGuideRangeHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズ出題範囲は目安です'**
+  String get vocabGuideRangeHint;
+
+  /// No description provided for @vocabQuizRange.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズ出題範囲'**
+  String get vocabQuizRange;
+
   /// No description provided for @vocabGuideTapWord.
   ///
   /// In ja, this message translates to:

@@ -1784,6 +1784,8 @@
   "vocabGuideMeaningHint": "퀴즈 결과에 따라 오르내려요",
   "vocabGuideQuiz": "종합 퀴즈에 대비해 복습해요",
   "vocabGuideQuizHint": "게이지가 낮은 단어가 먼저 출제돼요",
+  "vocabGuideRangeHint": "퀴즈 출제 범위는 대략적인 기준이에요",
+  "vocabQuizRange": "퀴즈 출제 범위",
   "vocabGuideTapWord": "단어를 눌러 예문 확인",
   "vocabGuideTapWordHint": "오른쪽 위 {icon}에서 예문 목록도 볼 수 있어요",
   "vocabWordsMet": "단어를 만났어요",

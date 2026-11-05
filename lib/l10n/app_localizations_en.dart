@@ -3580,6 +3580,12 @@ class L10nEn extends L10n {
   String get vocabGuideQuizHint => 'Low-gauge words come first';
 
   @override
+  String get vocabGuideRangeHint => 'Quiz range is approximate';
+
+  @override
+  String get vocabQuizRange => 'Quiz range';
+
+  @override
   String get vocabGuideTapWord => 'Tap a word for examples';
 
   @override
