@@ -2623,11 +2623,11 @@ class L10nKo extends L10n {
 
   @override
   String get guideHowReviewQuizStep1 =>
-      '한 세트(최대 5개)의 예문을 학습할 때마다 이미 학습한 예문에서 빈칸 채우기 문제가 나와요.';
+      '한 세트(최대 5개)의 예문을 학습할 때마다 빈칸 채우기, 순서 맞추기 등의 문제가 나와요.';
 
   @override
   String get guideHowReviewQuizStep2 =>
-      '종합 퀴즈에서는 전날, 3일 전, 일주일 전 등에 학습한 예문을 일정한 간격으로 복습해요. 아직 익히지 못한 학습 단어의 문제가 우선 출제돼요.';
+      '어휘 점수 전후의 단어를 중심으로 전날, 3일 전, 일주일 전 등에 학습한 단어나 어려워하는 단어도 나와요.';
 
   @override
   String get guideHowReviewQuizStep3 =>
@@ -2640,11 +2640,15 @@ class L10nKo extends L10n {
   String get guideHowReviewQuizStep5 => '답변을 바탕으로 어휘 점수와 다음 예문의 난이도가 조정돼요.';
 
   @override
+  String get guideHowReviewQuizStep6 =>
+      '단어가 ‘외움’에 들어가면 카드로 알려줘요. 복습 탭에서 확인할 수 있어요.';
+
+  @override
   String get guideHowHistoryTitle => '복습 탭에서 단어 돌아보기';
 
   @override
   String get guideHowHistoryStep1 =>
-      '복습 탭에는 만난 단어가 어휘 순위가 높은 순으로 표시돼요. 어휘 점수의 위치도 목록에 표시돼요.';
+      '복습 탭에는 만난 단어가 어휘 순위가 높은 순으로 표시돼요. 어휘 점수와 퀴즈 출제 범위의 기준도 표시돼요.';
 
   @override
   String get guideHowHistoryStep2 =>
