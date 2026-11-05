@@ -1300,9 +1300,12 @@ class _CoachCard extends StatelessWidget {
       case CoachIssue.step:
         final tone = tip.tone!.displayName(l10n);
         return [
-          tip.stepUp
-              ? l10n.pronunciationCoachStepUp(tone)
-              : l10n.pronunciationCoachStepDown(tone),
+          switch (tip.stepAdvice) {
+            CoachStepAdvice.up => l10n.pronunciationCoachStepUp(tone),
+            CoachStepAdvice.down => l10n.pronunciationCoachStepDown(tone),
+            CoachStepAdvice.same => l10n.pronunciationCoachStepSame(tone),
+            CoachStepAdvice.riseFromLow => l10n.pronunciationCoachStepRising,
+          },
         ];
     }
   }

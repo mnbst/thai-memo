@@ -1531,8 +1531,17 @@ class L10nEn extends L10n {
       'Rising tone: dip, then rise fully';
 
   @override
+  String get pronunciationCoachStepRising =>
+      'Rising tone: start low, then rise fully';
+
+  @override
   String pronunciationCoachStepUp(String tone) {
     return '$tone: start higher than the sound before it';
+  }
+
+  @override
+  String pronunciationCoachStepSame(String tone) {
+    return '$tone: start at about the same height as the sound before';
   }
 
   @override

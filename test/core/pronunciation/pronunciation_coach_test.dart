@@ -100,6 +100,38 @@ void main() {
       expect(tip!.stepUp, isTrue);
     });
 
+    group('入り方の助言', () {
+      CoachStepAdvice adviceOf(ThaiTone tone, double referenceStep) =>
+          coachingTipOf([
+            _score(
+              index: 1,
+              tone: tone,
+              verdict: ToneVerdict.wrong,
+              shapeAgrees: true,
+              stepAgrees: false,
+              referenceStep: referenceStep,
+            ),
+          ])!
+              .stepAdvice;
+
+      test('差がはっきりしていれば向きをそのまま言う', () {
+        expect(adviceOf(ThaiTone.high, 0.84), CoachStepAdvice.up);
+        expect(adviceOf(ThaiTone.low, -0.47), CoachStepAdvice.down);
+      });
+
+      test('差が小さければ同じくらいの高さと言う', () {
+        expect(adviceOf(ThaiTone.falling, -0.25), CoachStepAdvice.same);
+        expect(adviceOf(ThaiTone.high, 0.02), CoachStepAdvice.same);
+      });
+
+      test('上昇声は下がって入るとき以外、低く入ると言う', () {
+        expect(adviceOf(ThaiTone.rising, 0.14), CoachStepAdvice.riseFromLow);
+        expect(adviceOf(ThaiTone.rising, -0.09), CoachStepAdvice.riseFromLow);
+        expect(adviceOf(ThaiTone.rising, 0.4), CoachStepAdvice.riseFromLow);
+        expect(adviceOf(ThaiTone.rising, -0.49), CoachStepAdvice.down);
+      });
+    });
+
     test('wrong が無ければ close を見る', () {
       final tip = coachingTipOf([
         _score(

@@ -651,8 +651,17 @@
   "pronunciationCoachShapeFalling": "Falling tone: start high and fall fully",
   "pronunciationCoachShapeHigh": "High tone: keep rising to the end",
   "pronunciationCoachShapeRising": "Rising tone: dip, then rise fully",
+  "pronunciationCoachStepRising": "Rising tone: start low, then rise fully",
   "pronunciationCoachStepUp": "{tone}: start higher than the sound before it",
   "@pronunciationCoachStepUp": {
+    "placeholders": {
+      "tone": {
+        "type": "String"
+      }
+    }
+  },
+  "pronunciationCoachStepSame": "{tone}: start at about the same height as the sound before",
+  "@pronunciationCoachStepSame": {
     "placeholders": {
       "tone": {
         "type": "String"
