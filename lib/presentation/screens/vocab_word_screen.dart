@@ -1,6 +1,7 @@
 // =============================================================================
 // vocab_word_screen.dart
-// 語の詳細。発音・意味・語彙ランク・覚え具合と、その語を含む例文の一覧を出す。
+// 語の詳細。発音・意味・語彙ランク・覚え具合・綴りの分解と、その語を含む例文の
+// 一覧を出す。
 // 例文をタップすると例文の詳細画面（DetailScreen）へ。
 // =============================================================================
 
@@ -11,12 +12,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
+import '../../data/models/thai_sentence.dart';
 import '../../data/models/vocab_word.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/sentence_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_progress_provider.dart';
+import '../widgets/spelling_breakdown_view.dart';
 import '../widgets/vocab_gauge.dart';
 import 'detail_screen.dart';
 
@@ -44,6 +47,14 @@ class VocabWordScreen extends ConsumerWidget {
         entry;
     final word = current.progress;
     final mastery = word.mastery;
+    final syllables = current.sentences
+            .expand((s) => s.wordBreakdowns)
+            .where((b) => b.wordText == word.word)
+            .firstOrNull
+            ?.syllables
+            ?.map((s) => s.text)
+            .toList() ??
+        const <String>[];
     void logReview(String action) => unawaited(
           ref
               .read(analyticsServiceProvider)
@@ -54,7 +65,8 @@ class VocabWordScreen extends ConsumerWidget {
       appBar: AppBar(),
       body: SafeArea(
         top: false,
-        child: Padding(
+        // 綴りの分解で上が伸びるので、例文の一覧ごと画面全体でスクロールする。
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
               AppConfig.screenPadding, 0, AppConfig.screenPadding, 8),
           child: Column(
@@ -141,6 +153,7 @@ class VocabWordScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 14),
+              WordSpellingSection(word: word.word, syllables: syllables),
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 6),
                 child: Text(
@@ -148,73 +161,78 @@ class VocabWordScreen extends ConsumerWidget {
                   style: muted,
                 ),
               ),
-              Expanded(
-                child: Material(
-                  color: cs.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  clipBehavior: Clip.antiAlias,
-                  child: ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: current.sentences.length,
-                    separatorBuilder: (_, __) =>
-                        Divider(height: 1, color: cs.outlineVariant),
-                    itemBuilder: (context, i) {
-                      final sentence = current.sentences[i];
-                      return ListTile(
-                        title: Text(
-                          sentence.thaiText,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            height: 1.5,
-                          ),
-                        ),
-                        subtitle: Text(
-                          sentence.japaneseTranslation,
-                          style: muted,
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              sentence.isFavorite
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              size: 20,
-                              color: sentence.isFavorite
-                                  ? AppColors.vermilion
-                                  : cs.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(Icons.chevron_right,
-                                color: cs.onSurfaceVariant),
-                          ],
-                        ),
-                        onTap: () async {
-                          logReview('sentence_open');
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              settings: const RouteSettings(
-                                name: DetailScreen.routeName,
-                              ),
-                              builder: (_) => DetailScreen(
-                                sentence: sentence,
-                                source: 'history',
-                              ),
-                            ),
-                          );
-                          ref.invalidate(allSentencesProvider);
-                        },
-                      );
-                    },
-                  ),
+              Material(
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(14),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < current.sentences.length; i++) ...[
+                      if (i > 0) Divider(height: 1, color: cs.outlineVariant),
+                      _sentenceTile(
+                          context, ref, current.sentences[i], logReview, muted),
+                    ],
+                  ],
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _sentenceTile(
+    BuildContext context,
+    WidgetRef ref,
+    ThaiSentence sentence,
+    void Function(String) logReview,
+    TextStyle? muted,
+  ) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return ListTile(
+      title: Text(
+        sentence.thaiText,
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontSize: 18,
+          fontWeight: FontWeight.w500,
+          height: 1.5,
+        ),
+      ),
+      subtitle: Text(
+        sentence.japaneseTranslation,
+        style: muted,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            sentence.isFavorite ? Icons.favorite : Icons.favorite_border,
+            size: 20,
+            color:
+                sentence.isFavorite ? AppColors.vermilion : cs.onSurfaceVariant,
+          ),
+          const SizedBox(width: 4),
+          Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
+        ],
+      ),
+      onTap: () async {
+        logReview('sentence_open');
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(
+              name: DetailScreen.routeName,
+            ),
+            builder: (_) => DetailScreen(
+              sentence: sentence,
+              source: 'history',
+            ),
+          ),
+        );
+        ref.invalidate(allSentencesProvider);
+      },
     );
   }
 }

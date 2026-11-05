@@ -3199,7 +3199,7 @@ abstract class L10n {
   /// No description provided for @toneDialogTitle.
   ///
   /// In ja, this message translates to:
-  /// **'声調の解説'**
+  /// **'文字の解説'**
   String get toneDialogTitle;
 
   /// No description provided for @toneSyllableBreakdown.
@@ -3238,12 +3238,6 @@ abstract class L10n {
   /// **'声調記号'**
   String get toneMarkLabel;
 
-  /// No description provided for @toneMarkPrefix.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調記号: '**
-  String get toneMarkPrefix;
-
   /// No description provided for @toneResultTone.
   ///
   /// In ja, this message translates to:
@@ -3279,6 +3273,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'声調について詳しく学ぶ'**
   String get toneLearnMore;
+
+  /// No description provided for @toneRuleException.
+  ///
+  /// In ja, this message translates to:
+  /// **'（例外）'**
+  String get toneRuleException;
 
   /// No description provided for @toneExamplePrefix.
   ///

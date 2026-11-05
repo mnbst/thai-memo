@@ -83,7 +83,8 @@ class VocabProgressPage {
   factory VocabProgressPage.fromMap(Map<String, dynamic> map) =>
       VocabProgressPage(
         words: (map['words'] as List? ?? const [])
-            .map((e) => VocabWord.fromServer(Map<String, dynamic>.from(e as Map)))
+            .map((e) =>
+                VocabWord.fromServer(Map<String, dynamic>.from(e as Map)))
             .toList(),
         nextCursor: map['next_cursor'] as String?,
         done: map['done'] != false,
@@ -105,6 +106,9 @@ class VocabEntry {
   });
 
   /// 語彙ランクの大きい順に並べた一覧を作る。ランクの無い語は最後。
+  ///
+  /// 端末に例文が無い語は載せない。読まれずに消えた配信セットの語は uvm に
+  /// 残るので、そのまま出すと一度も見ていない語が「見ただけ」で並ぶ。
   static List<VocabEntry> build(
     List<VocabWord> words,
     List<ThaiSentence> sentences,
@@ -125,12 +129,13 @@ class VocabEntry {
     }
     final entries = [
       for (final w in words)
-        VocabEntry(
-          progress: w,
-          pronunciation: pronunciation[w.word] ?? '',
-          meaning: meaning[w.word] ?? '',
-          sentences: bySentence[w.word] ?? const [],
-        ),
+        if (bySentence[w.word] case final inWord?)
+          VocabEntry(
+            progress: w,
+            pronunciation: pronunciation[w.word] ?? '',
+            meaning: meaning[w.word] ?? '',
+            sentences: inWord,
+          ),
     ];
     entries.sort((a, b) {
       final ra = a.progress.rank, rb = b.progress.rank;

@@ -695,8 +695,12 @@ void main() {
     expect(find.text('-ิ'), findsOneWidget);
 
     // 声調は字1つに対応しないので、階級の規則としてまとめる。
+    // 頭子音のマスに、子音の階級を添える。
+    expect(find.text('中子音'), findsOneWidget);
     expect(find.text('中子音の声調規則'), findsOneWidget);
-    expect(find.text('生音節 × 声調記号なし → 平声'), findsOneWidget);
+    expect(find.text('生音節'), findsOneWidget);
+    expect(find.text('× 声調記号なし'), findsOneWidget);
+    expect(find.text('→ 平声'), findsOneWidget);
     // 開くと、その階級の声調表と声調ガイドへの導線が出る。
     expect(find.text('結果の声調'), findsNothing);
     final tile = find.byKey(const ValueKey('quiz_spelling_tone_rule'));

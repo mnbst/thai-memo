@@ -968,7 +968,7 @@
   "toneRising": "Rising tone",
   "toneAnalyzerEmptyWord": "The word is empty",
 
-  "toneDialogTitle": "Tone details",
+  "toneDialogTitle": "Script details",
   "toneSyllableBreakdown": "Syllables",
   "toneSyllableNumber": "Syllable {number}",
   "@toneSyllableNumber": {
@@ -982,7 +982,6 @@
   "toneSyllableType": "Syllable type",
   "toneResultPrefix": "Result: ",
   "toneMarkLabel": "Tone mark",
-  "toneMarkPrefix": "Tone mark: ",
   "toneResultTone": "Result",
   "toneShiftFor": "Tone shifts for {consonantClass}",
   "@toneShiftFor": {
@@ -1003,6 +1002,7 @@
   "toneRareUsage": "Exception (rare in modern Thai)",
   "toneAppliedRule": "= rule used for this word",
   "toneLearnMore": "More about tones",
+  "toneRuleException": "(exception)",
   "toneExamplePrefix": "Example: {value}",
   "@toneExamplePrefix": {
     "placeholders": {

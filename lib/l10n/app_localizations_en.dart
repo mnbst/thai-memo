@@ -1884,7 +1884,7 @@ class L10nEn extends L10n {
   String get toneAnalyzerEmptyWord => 'The word is empty';
 
   @override
-  String get toneDialogTitle => 'Tone details';
+  String get toneDialogTitle => 'Script details';
 
   @override
   String get toneSyllableBreakdown => 'Syllables';
@@ -1907,9 +1907,6 @@ class L10nEn extends L10n {
   String get toneMarkLabel => 'Tone mark';
 
   @override
-  String get toneMarkPrefix => 'Tone mark: ';
-
-  @override
   String get toneResultTone => 'Result';
 
   @override
@@ -1930,6 +1927,9 @@ class L10nEn extends L10n {
 
   @override
   String get toneLearnMore => 'More about tones';
+
+  @override
+  String get toneRuleException => '(exception)';
 
   @override
   String toneExamplePrefix(String value) {
