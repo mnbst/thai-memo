@@ -2597,11 +2597,11 @@ class L10nJa extends L10n {
 
   @override
   String get guideHowReviewQuizStep1 =>
-      '1セット（最大5つ）の例文を学ぶごとに、学習済みの例文から穴埋め問題が出ます。';
+      '1セット（最大5つ）の例文を学ぶごとに、穴埋めや並び替えなどの問題が出ます。';
 
   @override
   String get guideHowReviewQuizStep2 =>
-      'まとめクイズでは、前日・3日前・1週間前などに学んだ例文を、間隔をあけて復習します。まだ身についていない学習単語の問題が優先して出ます。';
+      '語彙スコア前後の単語を中心に、前日・3日前・1週間前などに学んだ単語や苦手な単語も出ます。';
 
   @override
   String get guideHowReviewQuizStep3 =>
@@ -2614,11 +2614,14 @@ class L10nJa extends L10n {
   String get guideHowReviewQuizStep5 => '答えをもとに、語彙スコアと次の例文の難しさが調整されます。';
 
   @override
+  String get guideHowReviewQuizStep6 => '単語が「覚えた」に入るとカードでお知らせします。復習タブで確認できます。';
+
+  @override
   String get guideHowHistoryTitle => '復習タブで単語を振り返る';
 
   @override
   String get guideHowHistoryStep1 =>
-      '復習タブには、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。';
+      '復習タブには、出会った単語が語彙ランクの大きい順に並びます。語彙スコアとクイズ出題範囲の目安も表示されます。';
 
   @override
   String get guideHowHistoryStep2 => 'ゲージは覚え具合です。上部で「見ただけ」「覚えかけ」「覚えた」に絞り込めます。';

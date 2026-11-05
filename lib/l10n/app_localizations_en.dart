@@ -2744,11 +2744,11 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowReviewQuizStep1 =>
-      'After each set, choose missing words from sentences you studied.';
+      'After each set (up to five sentences), you’ll get fill-in-the-blank, reordering, and other questions.';
 
   @override
   String get guideHowReviewQuizStep2 =>
-      'Sentences return after one day, three days, one week, then longer. Unmastered words appear first.';
+      'Questions focus on words near your vocabulary score, plus weak words and words learned one day, three days, or one week ago.';
 
   @override
   String get guideHowReviewQuizStep3 =>
@@ -2763,11 +2763,15 @@ class L10nEn extends L10n {
       'Your answers adjust your vocabulary score and the difficulty of future sentences.';
 
   @override
+  String get guideHowReviewQuizStep6 =>
+      'When a word becomes “Learned,” a card lets you know. You can check it in the Review tab.';
+
+  @override
   String get guideHowHistoryTitle => 'Revisit words in Review';
 
   @override
   String get guideHowHistoryStep1 =>
-      'The Review tab lists words you\'ve seen, highest vocabulary rank first. It also shows where your vocabulary score falls.';
+      'The Review tab lists words you’ve seen, highest vocabulary rank first. It also shows your vocabulary score and quiz range.';
 
   @override
   String get guideHowHistoryStep2 =>

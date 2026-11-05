@@ -22,7 +22,7 @@ Future<void> showLearnedWordCard(
     barrierDismissible: true,
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
     barrierColor: Colors.black.withValues(alpha: 0.6),
-    transitionDuration: const Duration(milliseconds: 320),
+    transitionDuration: const Duration(milliseconds: 200),
     transitionBuilder: (_, animation, __, child) => FadeTransition(
       opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
       child: ScaleTransition(
@@ -82,8 +82,6 @@ class _LearnedWordCardState extends State<LearnedWordCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final detail =
-        '${widget.pronunciation}  ${widget.meaning}'.trim();
     return Align(
       alignment: const Alignment(0, -0.3),
       child: Padding(
@@ -112,22 +110,42 @@ class _LearnedWordCardState extends State<LearnedWordCard> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    widget.word,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontSize: 64,
-                      // タイ文字は太らせると声調記号が潰れる。
-                      fontWeight: FontWeight.w500,
-                      height: 1.4,
+                  // 長い語は折り返さず、1行に収まるまで縮める。
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      widget.word,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontSize: 64,
+                        // タイ文字は太らせると声調記号が潰れる。
+                        fontWeight: FontWeight.w500,
+                        height: 1.4,
+                      ),
                     ),
                   ),
-                  if (detail.isNotEmpty)
+                  if (widget.pronunciation.isNotEmpty)
                     Text(
-                      detail,
+                      widget.pronunciation,
                       textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  if (widget.meaning.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.meaning,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleLarge,
                     ),
+                  ],
                 ],
               ),
             ),

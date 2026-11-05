@@ -389,10 +389,11 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
               l10n.guideHowReviewQuizStep3,
               l10n.guideHowReviewQuizStep4,
               l10n.guideHowReviewQuizStep5,
+              l10n.guideHowReviewQuizStep6,
             ],
           ),
           _GuideSection(
-            icon: Icons.history_outlined,
+            icon: Icons.menu_book,
             title: l10n.guideHowHistoryTitle,
             lines: [
               l10n.guideHowHistoryStep1,

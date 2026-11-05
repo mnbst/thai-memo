@@ -41,7 +41,6 @@ class VocabWordScreen extends ConsumerWidget {
         entry;
     final word = current.progress;
     final mastery = word.mastery;
-    final detail = '${current.pronunciation}  ${current.meaning}'.trim();
 
     return Scaffold(
       appBar: AppBar(),
@@ -62,15 +61,34 @@ class VocabWordScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // タイ語と訳は別の列にして、それぞれの列の中で折り返す。
                           Expanded(
-                            child: Text(
-                              word.word,
-                              style: const TextStyle(
-                                fontSize: 34,
-                                // タイ文字は太らせると声調記号が潰れる。
-                                fontWeight: FontWeight.w500,
-                              ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    word.word,
+                                    style: const TextStyle(
+                                      fontSize: 34,
+                                      // タイ文字は太らせると声調記号が潰れる。
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                if (current.meaning.isNotEmpty) ...[
+                                  const SizedBox(width: 12),
+                                  Flexible(
+                                    child: Text(
+                                      current.meaning,
+                                      style: const TextStyle(fontSize: 20),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                           IconButton.filledTonal(
@@ -83,8 +101,14 @@ class VocabWordScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      if (detail.isNotEmpty)
-                        Text(detail, style: const TextStyle(fontSize: 17)),
+                      if (current.pronunciation.isNotEmpty)
+                        Text(
+                          current.pronunciation,
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
