@@ -6109,7 +6109,7 @@ abstract class L10n {
   /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
   ///
   /// In ja, this message translates to:
-  /// **'お手本を聞いて録音すると、声調が合っているか判定'**
+  /// **'お手本を聞いて録音すると、声調と発音が合っているか判定'**
   String get detailGuidePracticeHint;
 
   /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
@@ -6133,7 +6133,7 @@ abstract class L10n {
   /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）
   ///
   /// In ja, this message translates to:
-  /// **'どんな場面で、誰に使うかがわかる'**
+  /// **'どんな場面で使うか、文体や文化の背景がわかる'**
   String get detailGuideUsageHint;
 
   /// 例文詳細を初めて開いた人への案内カード（DetailGuideCard）

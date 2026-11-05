@@ -33,7 +33,7 @@ class DetailGuideCard extends ConsumerStatefulWidget {
   /// 項目を押したとき。その場所までスクロールする想定。
   final ValueChanged<DetailGuideItem>? onItemTap;
 
-  /// 「学習に戻って確認クイズを解く」。
+  /// 「学習に戻って確認クイズを解く」。null なら出さない（学習タブ以外から開いたとき）。
   final VoidCallback? onBackToLearn;
 
   @override
@@ -57,6 +57,9 @@ class _DetailGuideCardState extends ConsumerState<DetailGuideCard> {
       _log('shown');
     }
     final onItemTap = widget.onItemTap;
+    final onBackToLearn = widget.onBackToLearn;
+    final quizDone =
+        ref.watch(firstStepsDoneProvider).contains(FirstSetStep.quiz);
 
     final l10n = L10n.of(context);
     final theme = Theme.of(context);
@@ -144,21 +147,21 @@ class _DetailGuideCardState extends ConsumerState<DetailGuideCard> {
                   ),
                 ),
               ),
-            Divider(height: 12, color: cs.outlineVariant),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: widget.onBackToLearn == null
-                    ? null
-                    : () {
-                        _log('back_to_learn');
-                        widget.onBackToLearn!();
-                      },
-                style: TextButton.styleFrom(foregroundColor: AppColors.jade),
-                icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                label: Text(l10n.detailGuideBackToQuiz),
+            if (onBackToLearn != null && !quizDone) ...[
+              Divider(height: 12, color: cs.outlineVariant),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () {
+                    _log('back_to_learn');
+                    onBackToLearn();
+                  },
+                  style: TextButton.styleFrom(foregroundColor: AppColors.jade),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: Text(l10n.detailGuideBackToQuiz),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

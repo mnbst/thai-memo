@@ -3568,7 +3568,8 @@ class L10nEn extends L10n {
   String get detailGuidePractice => 'Practice pronunciation';
 
   @override
-  String get detailGuidePracticeHint => 'Listen, record, and check your tones';
+  String get detailGuidePracticeHint =>
+      'Listen, record, and check your tones and sounds';
 
   @override
   String get detailGuideWords => 'Tap a word for its tone rule';
@@ -3580,7 +3581,8 @@ class L10nEn extends L10n {
   String get detailGuideUsage => 'Read how it’s used';
 
   @override
-  String get detailGuideUsageHint => 'When and with whom to say it';
+  String get detailGuideUsageHint =>
+      'When to say it, its style, and cultural notes';
 
   @override
   String get detailGuideBackToQuiz => 'Back to Learn for the check quiz';
