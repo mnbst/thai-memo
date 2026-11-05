@@ -1786,7 +1786,7 @@ class L10nJa extends L10n {
   String get toneAnalyzerEmptyWord => '単語が空です';
 
   @override
-  String get toneDialogTitle => '声調の解説';
+  String get toneDialogTitle => '文字の解説';
 
   @override
   String get toneSyllableBreakdown => '音節分解';
@@ -1809,9 +1809,6 @@ class L10nJa extends L10n {
   String get toneMarkLabel => '声調記号';
 
   @override
-  String get toneMarkPrefix => '声調記号: ';
-
-  @override
   String get toneResultTone => '結果の声調';
 
   @override
@@ -1832,6 +1829,9 @@ class L10nJa extends L10n {
 
   @override
   String get toneLearnMore => '声調について詳しく学ぶ';
+
+  @override
+  String get toneRuleException => '（例外）';
 
   @override
   String toneExamplePrefix(String value) {

@@ -17,7 +17,8 @@ void main() {
       expect(_w('ก', 1, p: 0.51, answered: true).mastery, VocabMastery.learned);
     });
     test('不正解で下がった語は覚えかけ', () {
-      expect(_w('ก', 1, p: 0.15, answered: true).mastery, VocabMastery.learning);
+      expect(
+          _w('ก', 1, p: 0.15, answered: true).mastery, VocabMastery.learning);
     });
   });
 
@@ -35,6 +36,7 @@ void main() {
       thaiText: 'ไปตลาด',
       pronunciation: 'pai ta-làat',
       japaneseTranslation: '市場へ行く',
+      targetWords: const ['ไม่มี', 'น้ำ'],
       wordBreakdowns: [
         WordBreakdown(wordText: 'ไป', pronunciation: 'pai', meaning: '行く'),
       ],
@@ -48,7 +50,22 @@ void main() {
     expect(pai.pronunciation, 'pai');
     expect(pai.meaning, '行く');
     expect(pai.sentences, [sentence]);
-    expect(entries[0].sentences, isEmpty);
+  });
+
+  test('build は端末に例文が無い語を載せない', () {
+    final sentence = ThaiSentence(
+      thaiText: 'ไปตลาด',
+      pronunciation: 'pai ta-làat',
+      japaneseTranslation: '市場へ行く',
+      wordBreakdowns: [
+        WordBreakdown(wordText: 'ไป', pronunciation: 'pai', meaning: '行く'),
+      ],
+    );
+    final entries = VocabEntry.build(
+      [_w('ไป', 8), _w('อะไร', 14)],
+      [sentence],
+    );
+    expect(entries.map((e) => e.progress.word), ['ไป']);
   });
 
   group('quizScoreBand', () {
@@ -73,9 +90,8 @@ void main() {
 
   group('vocabListRows', () {
     List<Object> rows(List<int> ranks, int score, (int, int)? band) {
-      final entries = ranks
-          .map((r) => VocabEntry(progress: _w('w$r', r)))
-          .toList();
+      final entries =
+          ranks.map((r) => VocabEntry(progress: _w('w$r', r))).toList();
       return vocabListRows(entries, score, band)
           .map((e) => e is VocabEntry ? e.progress.rank : e)
           .toList();

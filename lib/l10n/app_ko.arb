@@ -1085,7 +1085,7 @@
   "toneHigh": "고성",
   "toneRising": "상승성",
   "toneAnalyzerEmptyWord": "단어가 비어 있어요",
-  "toneDialogTitle": "성조 해설",
+  "toneDialogTitle": "문자 해설",
   "toneSyllableBreakdown": "음절 분석",
   "toneSyllableNumber": "음절 {number}",
   "@toneSyllableNumber": {
@@ -1099,7 +1099,6 @@
   "toneSyllableType": "음절 유형",
   "toneResultPrefix": "결과: ",
   "toneMarkLabel": "성조 부호",
-  "toneMarkPrefix": "성조 부호: ",
   "toneResultTone": "결과 성조",
   "toneShiftFor": "{consonantClass} 성조 변화",
   "@toneShiftFor": {
@@ -1120,6 +1119,7 @@
   "toneRareUsage": "예외적인 용법(현대에는 드묾)",
   "toneAppliedRule": "= 이 단어에 적용된 규칙",
   "toneLearnMore": "성조 자세히 알아보기",
+  "toneRuleException": "(예외)",
   "toneExamplePrefix": "예: {value}",
   "@toneExamplePrefix": {
     "placeholders": {

@@ -1796,7 +1796,7 @@ class L10nKo extends L10n {
   String get toneAnalyzerEmptyWord => '단어가 비어 있어요';
 
   @override
-  String get toneDialogTitle => '성조 해설';
+  String get toneDialogTitle => '문자 해설';
 
   @override
   String get toneSyllableBreakdown => '음절 분석';
@@ -1819,9 +1819,6 @@ class L10nKo extends L10n {
   String get toneMarkLabel => '성조 부호';
 
   @override
-  String get toneMarkPrefix => '성조 부호: ';
-
-  @override
   String get toneResultTone => '결과 성조';
 
   @override
@@ -1842,6 +1839,9 @@ class L10nKo extends L10n {
 
   @override
   String get toneLearnMore => '성조 자세히 알아보기';
+
+  @override
+  String get toneRuleException => '(예외)';
 
   @override
   String toneExamplePrefix(String value) {

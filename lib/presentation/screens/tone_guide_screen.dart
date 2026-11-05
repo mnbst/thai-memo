@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../core/config/app_config.dart';
 import '../../core/thai_tone_analyzer.dart';
 import '../widgets/swipe_back.dart';
+import '../widgets/tone_shift_table.dart';
 
 /// タイ語の声調ガイド画面
 class ToneGuideScreen extends StatefulWidget {
@@ -621,8 +622,6 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
 
   /// 声調変化表の展開パネル
   Widget _buildToneTableExpansion(ConsonantClass consonantClass) {
-    final toneRules = ThaiToneAnalyzer.getToneTable(consonantClass);
-
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 8),
       shape: RoundedRectangleBorder(
@@ -647,123 +646,9 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.all(12),
-          child: Table(
-            border: TableBorder.all(
-              color: Theme.of(context).dividerColor,
-              width: 1,
-            ),
-            columnWidths: const {
-              0: FlexColumnWidth(2),
-              1: FlexColumnWidth(2),
-              2: FlexColumnWidth(2),
-            },
-            children: [
-              _buildTableHeaderRow(),
-              ...toneRules.map((rule) => _buildTableDataRow(rule)),
-            ],
-          ),
+          child: ToneShiftTable(consonantClass: consonantClass),
         ),
       ],
-    );
-  }
-
-  /// テーブルヘッダー行
-  TableRow _buildTableHeaderRow() {
-    return TableRow(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-      ),
-      children: [
-        _buildTableCell(L10n.of(context).toneMarkLabel, isHeader: true),
-        _buildTableCell(L10n.of(context).toneSyllableType, isHeader: true),
-        _buildTableCell(L10n.of(context).toneResultTone, isHeader: true),
-      ],
-    );
-  }
-
-  /// テーブルデータ行
-  TableRow _buildTableDataRow(ToneRule rule) {
-    // 音節タイプの表示（低子音の死音節は母音の長短を表示）
-    String syllableTypeDisplay;
-    if (rule.syllableType == SyllableType.dead && rule.isShortVowel != null) {
-      syllableTypeDisplay = rule.syllableType.getDisplayNameWithVowel(
-          L10n.of(context),
-          hasShortVowel: rule.isShortVowel);
-    } else {
-      syllableTypeDisplay = rule.syllableType.displayName(L10n.of(context));
-    }
-
-    return TableRow(
-      children: [
-        _buildToneMarkCell(rule.toneMark),
-        _buildTableCell(syllableTypeDisplay),
-        _buildToneResultCell(rule.resultingTone),
-      ],
-    );
-  }
-
-  /// テーブルセル
-  Widget _buildTableCell(String text, {bool isHeader = false}) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-              fontSize: 14,
-              color: isHeader
-                  ? Theme.of(context).colorScheme.onSecondaryContainer
-                  : Theme.of(context).colorScheme.onSurface,
-            ),
-      ),
-    );
-  }
-
-  /// 声調記号セル
-  Widget _buildToneMarkCell(ToneMark toneMark) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Text(
-        toneMark.symbol(L10n.of(context)),
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontSize: toneMark == ToneMark.none ? 14 : 24,
-              color: Theme.of(context).colorScheme.onSurface,
-              height: 1.2,
-            ),
-      ),
-    );
-  }
-
-  /// 声調結果セル
-  Widget _buildToneResultCell(ThaiTone tone) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            tone.displayName(L10n.of(context)),
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            tone.symbol,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontSize: 20,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontFamily: 'monospace',
-                  height: 1.2,
-                ),
-          ),
-        ],
-      ),
     );
   }
 }
