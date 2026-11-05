@@ -322,6 +322,9 @@ lib/presentation/widgets/first_set_steps.dart
 
 lib/presentation/widgets/detail_guide_card.dart
 最初の例文の詳細でだけ出す「この画面でできること」カード（発音・使い方・声調ルール、押すとその場所へ寄せる）。
+test/presentation/widgets/detail_guide_card_test.dart
+案内カードの戻る導線の出し分け（学習タブから・クイズ未完了のときだけ）のテスト。
+
 lib/presentation/widgets/quiz_offer.dart
 1問確認クイズ導線の表示（現行はinlineカード。controlは実験再開用に残置）。
 

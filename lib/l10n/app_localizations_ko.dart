@@ -3418,7 +3418,7 @@ class L10nKo extends L10n {
   String get detailGuidePractice => '발음 연습하기';
 
   @override
-  String get detailGuidePracticeHint => '모범 발음을 듣고 녹음하면 성조가 맞는지 확인해요';
+  String get detailGuidePracticeHint => '모범 발음을 듣고 녹음하면 성조와 발음이 맞는지 확인해요';
 
   @override
   String get detailGuideWords => '단어를 눌러 성조 규칙 보기';
@@ -3430,7 +3430,7 @@ class L10nKo extends L10n {
   String get detailGuideUsage => '사용법 읽기';
 
   @override
-  String get detailGuideUsageHint => '어떤 상황에서 누구에게 쓰는지 알 수 있어요';
+  String get detailGuideUsageHint => '어떤 상황에서 쓰는지, 문체와 문화적 배경을 알 수 있어요';
 
   @override
   String get detailGuideBackToQuiz => '학습으로 돌아가 확인 퀴즈 풀기';

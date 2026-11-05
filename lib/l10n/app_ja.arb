@@ -1803,7 +1803,7 @@
   "@detailGuidePractice": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   },
-  "detailGuidePracticeHint": "お手本を聞いて録音すると、声調が合っているか判定",
+  "detailGuidePracticeHint": "お手本を聞いて録音すると、声調と発音が合っているか判定",
   "@detailGuidePracticeHint": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   },
@@ -1819,7 +1819,7 @@
   "@detailGuideUsage": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   },
-  "detailGuideUsageHint": "どんな場面で、誰に使うかがわかる",
+  "detailGuideUsageHint": "どんな場面で使うか、文体や文化の背景がわかる",
   "@detailGuideUsageHint": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
   },

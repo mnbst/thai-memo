@@ -3386,7 +3386,7 @@ class L10nJa extends L10n {
   String get detailGuidePractice => '発音を練習する';
 
   @override
-  String get detailGuidePracticeHint => 'お手本を聞いて録音すると、声調が合っているか判定';
+  String get detailGuidePracticeHint => 'お手本を聞いて録音すると、声調と発音が合っているか判定';
 
   @override
   String get detailGuideWords => '単語をタップして声調ルールを見る';
@@ -3398,7 +3398,7 @@ class L10nJa extends L10n {
   String get detailGuideUsage => '使い方を読む';
 
   @override
-  String get detailGuideUsageHint => 'どんな場面で、誰に使うかがわかる';
+  String get detailGuideUsageHint => 'どんな場面で使うか、文体や文化の背景がわかる';
 
   @override
   String get detailGuideBackToQuiz => '学習に戻って確認クイズを解く';

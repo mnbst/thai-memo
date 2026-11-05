@@ -150,7 +150,10 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
               DetailGuideCard(
                 sentenceId: widget.sentence.id,
                 onItemTap: _scrollToGuideItem,
-                onBackToLearn: () => Navigator.of(context).maybePop(),
+                // 確認クイズは学習タブにあるので、そこから開いたときだけ戻る導線を出す。
+                onBackToLearn: widget.source == 'today'
+                    ? () => Navigator.of(context).maybePop()
+                    : null,
               ),
               // 例文カード（タイ語・発音・日本語訳）。学習タブと同じ深藍の面。
               _buildMainSentenceCard(),
