@@ -22,6 +22,12 @@ variable "ci_service_account_email" {
   default     = ""
 }
 
+variable "deploy_ci_secrets" {
+  description = "Secret Manager に置く配信用 ci-* secret。null なら全部。配信の鍵は GitHub の Environment secrets にある。"
+  type        = list(string)
+  default     = null
+}
+
 variable "google_client_id" {
   description = "Google Sign-In OAuth client ID"
   type        = string
@@ -141,11 +147,20 @@ variable "x_post_themes" {
 }
 
 variable "x_post_extra_slots" {
-  description = "朝の投稿に加える X 投稿の枠。キーはジョブ名の接尾辞、schedule は JST の cron、themes は x_post_themes と同じ書式、kind は sentence（例文）/ tip / guide。"
+  description = "朝の投稿に加える X 投稿の枠。キーはジョブ名の接尾辞、schedule は JST の cron、themes は x_post_themes と同じ書式、kind は sentence（例文）/ tip / guide / feature（機能紹介）。"
   type = map(object({
     schedule = string
     themes   = optional(string, "")
     kind     = optional(string, "sentence")
+  }))
+  default = {}
+}
+
+variable "x_post_en_slots" {
+  description = "英語アカウント（@daily_thai11）の X 投稿枠。キーは枠（米国西部の HHMM、ジョブ名の接尾辞にもなる）、schedule は米国西部（America/Los_Angeles、夏時間込み）の cron、themes は x_post_themes と同じ書式。例文だけ。鍵（x-access-token-en / x-access-token-secret-en）を入れてから足す。"
+  type = map(object({
+    schedule = string
+    themes   = optional(string, "")
   }))
   default = {}
 }

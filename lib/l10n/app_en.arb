@@ -13,7 +13,7 @@
   "settingsLanguageNote": "Changes translations and explanations. Existing sentence translations keep their original language.",
 
   "navLearn": "Learn",
-  "navHistory": "History",
+  "navHistory": "Review",
   "navSettings": "Settings",
   "learnOpenDetail": "Details",
 
@@ -62,7 +62,7 @@
   "sentenceUsingWord": "Example with this word",
   "badgePremiumSentence": "Premium",
   "badgeFreeSentence": "Free",
-  "sampleSentenceNotice": "Sample (not saved to History)",
+  "sampleSentenceNotice": "Sample sentence (not saved)",
   "sampleReload": "Load today's sentence",
 
   "sampleGreetingTranslation": "Hello (said by a man)",
@@ -164,7 +164,7 @@
     }
   },
 
-  "historyTitle": "History",
+  "historyTitle": "Review",
   "historyFavoritesOnly": "Favorites only",
   "historyDeleteAll": "Delete all",
   "historyFilterAll": "All",
@@ -843,7 +843,7 @@
 
   "errQuizGenerationFailed": "Couldn't create quiz. Try again.",
   "quotaQuizReached": "No more new quizzes today.",
-  "quotaSentenceReached": "No more new sentences today.\nYou can still review past ones in History.",
+  "quotaSentenceReached": "That's all the new sentences for today.\nReread past sentences from the top right of the Review tab.",
   "quotaSentenceUpgradeCta": "Unlock unlimited sentences",
   "errAuth": "Authentication failed. Restart the app.",
   "errNetwork": "Couldn't connect. Check your internet.",
@@ -1312,6 +1312,11 @@
   "guideHowReviewQuizStep3": "Tap Hint once for pronunciation, twice for translation. No-hint answers raise your score faster.",
   "guideHowReviewQuizStep4": "Not sure? “Check sentence” takes you back.",
   "guideHowReviewQuizStep5": "Your answers adjust your vocabulary score and the difficulty of future sentences.",
+  "guideHowHistoryTitle": "Revisit words in Review",
+  "guideHowHistoryStep1": "The Review tab lists words you've seen, highest vocabulary rank first. It also shows where your vocabulary score falls.",
+  "guideHowHistoryStep2": "The gauge shows mastery. Filter by “Seen,” “Learning,” or “Learned” at the top.",
+  "guideHowHistoryStep3": "Tap a word for its sentences, then a sentence for details.",
+  "guideHowHistoryStep4": "Use the top-right icon to search, favorite, or delete all sentences.",
   "guideHowNotifyTitle": "Set up reminders",
   "guideHowNotifyStep1": "In Settings > \"Daily sentence\", toggle each reminder on or off, or tap a time to change it.",
   "guideHowNotifyStep2": "Free: 1 reminder a day; Premium: up to 3. Each brings a new set.",
@@ -1524,6 +1529,22 @@
   "@streakTitle": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "streakBurstDays": "{count} days",
+  "@streakBurstDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstWeeks": "{count, plural, =1{1 week} other{{count} weeks}}",
+  "@streakBurstWeeks": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstMonth": "1 month",
+  "streakBurstDone": "in a row!",
+  "streakBurstStart": "Streak started!",
+  "streakPraiseFight": "Keep it up",
+  "streakPraiseGreat": "Great job",
+  "streakPraiseAwesome": "Awesome!",
+  "streakPraiseExcellent": "Excellent",
+  "streakPraiseLegend": "Legendary",
   "streakRestart": "Make 1 sentence to restart",
   "streakStart": "Make a sentence today to start",
   "streakBest": "Best {count}",
@@ -1554,5 +1575,26 @@
   "detailGuideWordsHint": "See how its spelling determines the tone",
   "detailGuideUsage": "Read how it’s used",
   "detailGuideUsageHint": "When and with whom to say it",
-  "detailGuideBackToQuiz": "Back to Learn for the check quiz"
+  "detailGuideBackToQuiz": "Back to Learn for the check quiz",
+  "vocabAllSentences": "All sentences",
+  "vocabGuideTitle": "How to use Review",
+  "vocabGuideMeaning": "Gauges show word mastery",
+  "vocabGuideMeaningHint": "They change with quiz results",
+  "vocabGuideQuiz": "Review for the summary quiz",
+  "vocabGuideQuizHint": "Low-gauge words come first",
+  "vocabGuideTapWord": "Tap a word for examples",
+  "vocabGuideTapWordHint": "See examples via {icon} at top right",
+  "vocabWordsMet": "Words encountered",
+  "vocabScoreValue": "Score {score}",
+  "vocabRankHeader": "Rank",
+  "vocabRankValue": "Rank {rank}",
+  "vocabFilterAll": "All",
+  "vocabMasterySeen": "Seen",
+  "vocabMasteryLearning": "Learning",
+  "vocabMasteryLearned": "Learned",
+  "vocabExamples": "Examples {count}",
+  "vocabEmpty": "No words yet",
+  "vocabSearchHint": "Search words",
+  "vocabSearchEmpty": "No matches found",
+  "vocabLearnedAdded": "Marked as Learned!"
 }

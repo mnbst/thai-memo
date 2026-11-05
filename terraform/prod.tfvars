@@ -19,14 +19,27 @@ ios_app_id                    = "1:219961294368:ios:88e70ed652a72f10b70645"
 x_post_themes = ""
 
 # 朝以外の X 投稿枠。Actions の実行に数分かかるので、投稿は指定時刻の数分後になる。
-# 10:00 と 15:00 は例文ではなく Tips・ガイド（tools/x_post/study_posts.json）を出す。
+# 10:00 と 15:00 は例文ではなく Tips・ガイド、20:00 は機能紹介（tools/x_post/study_posts.json）を出す。
 x_post_extra_slots = {
   "1000" = { schedule = "0 10 * * *", kind = "tip" }
   "1200" = { schedule = "0 12 * * *" }
   "1500" = { schedule = "0 15 * * *", kind = "guide" }
   "1700" = { schedule = "0 17 * * *" }
+  "2000" = { schedule = "0 20 * * *", kind = "feature" }
 }
+
+# 英語アカウント（@daily_thai11）の例文枠（米国西部の時刻）。2026-11-04 に投稿を停止。
+# 再開するときはこれにする（昼休みと夜。東部の 15 時・22 時）:
+# x_post_en_slots = {
+#   "1200" = { schedule = "0 12 * * *" }
+#   "1900" = { schedule = "0 19 * * *" }
+# }
+x_post_en_slots = {}
 
 # Threads への自動投稿（X と同じ枠で、例文は別の文）。threads-access-token に
 # トークンを入れてから true にする（tools/x_post/README.md の「Threads」）。
 threads_post_enabled = false
+
+# 配信の鍵は GitHub の prod 環境（Environment secrets）にある。
+# ci-google-play-service-account は scripts/play_release.py が読むので残す。
+deploy_ci_secrets = ["ci-google-play-service-account"]

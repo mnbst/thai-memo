@@ -1,7 +1,7 @@
 """X 投稿に使う Tips・ガイドの投稿文を1件選ぶ。
 
 投稿文は study_posts.json に確認済みの完成文として置く（その場で書かせると
-タイ語の誤りが混ざるため）。--kind で tip / guide を選び、その中から抽選する。
+タイ語の誤りが混ざるため）。--kind で tip / guide / feature を選び、その中から抽選する。
 
 一巡するまで同じ文は出さない。投稿済みのキーを「study:<id>:<回数>」にして
 posted.json に積み、出した回数が一番少ない文から抽選する。全部出し終えたら
@@ -9,7 +9,8 @@ posted.json に積み、出した回数が一番少ない文から抽選する�
 
 ガイドの文には、アプリのガイド画面の該当する欄を画像で付ける。描画は
 test/screenshots/guide_screenshot.dart に任せ、ここでは <out>/guide_shot.env に
-SCREEN と FROM を書くだけ。
+SCREEN と FROM を書くだけ。機能紹介（feature）の文には、image_file に書いた
+固定の画像（ストア用スクショ）を <out>/image_1.png に置く。
 
 出力は pick_sentence.py と同じく <out>/text.txt・key.txt・theme.txt。
 実際に投稿できたかは post_to_x.py が確かめてから posted.json を更新する。
@@ -22,6 +23,7 @@ import json
 import random
 import re
 import shlex
+import shutil
 import sys
 from pathlib import Path
 
@@ -32,7 +34,7 @@ from platforms import PLATFORMS, posted_object
 POSTS_FILE = Path(__file__).with_name("study_posts.json")
 
 # 履歴に残すテーマ名。例文のテーマと混ざらないようにする。
-KIND_THEMES = {"tip": "Tips", "guide": "ガイド"}
+KIND_THEMES = {"tip": "Tips", "guide": "ガイド", "feature": "機能紹介"}
 GUIDE_SCREENS = ("script", "pron", "word_order", "tone")
 
 # X の文字数の上限（重み付き）。日本語・タイ文字・絵文字は2、ASCII などは1。
@@ -77,6 +79,11 @@ def load_posts(kind: str | None = None) -> list[dict]:
         elif image and "," in image["from"]:
             # flutter の --dart-define はカンマで値を区切ってしまう。
             errors.append(f"{pid}: 画像の見出しにカンマは使えない")
+        image_file = post.get("image_file")
+        if post.get("kind") == "feature" and not image_file:
+            errors.append(f"{pid}: 機能紹介なのに image_file が無い")
+        if image_file and not (POSTS_FILE.parent / image_file).is_file():
+            errors.append(f"{pid}: image_file が見つからない: {image_file}")
     if errors:
         raise SystemExit("study_posts.json が不正:\n" + "\n".join(errors))
     return [p for p in posts if kind is None or p["kind"] == kind]
@@ -134,6 +141,9 @@ def main() -> int:
         f"study:{picked['id']}:{fewest}", encoding="utf-8"
     )
     (out / "theme.txt").write_text(KIND_THEMES[args.kind], encoding="utf-8")
+    image_file = picked.get("image_file")
+    if image_file:
+        shutil.copyfile(POSTS_FILE.parent / image_file, out / "image_1.png")
     image = picked.get("image")
     if image:
         (out / "guide_shot.env").write_text(

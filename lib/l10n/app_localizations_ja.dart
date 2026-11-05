@@ -36,7 +36,7 @@ class L10nJa extends L10n {
   String get navLearn => '学習';
 
   @override
-  String get navHistory => '履歴';
+  String get navHistory => '復習';
 
   @override
   String get navSettings => '設定';
@@ -110,7 +110,7 @@ class L10nJa extends L10n {
   String get badgeFreeSentence => 'Free例文';
 
   @override
-  String get sampleSentenceNotice => 'サンプル例文（履歴には保存されません）';
+  String get sampleSentenceNotice => 'サンプル例文（保存されません）';
 
   @override
   String get sampleReload => '今日の例文を読み込む';
@@ -302,7 +302,7 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get historyTitle => '履歴';
+  String get historyTitle => '復習';
 
   @override
   String get historyFavoritesOnly => 'お気に入りのみ表示';
@@ -1580,7 +1580,8 @@ class L10nJa extends L10n {
   String get quotaQuizReached => '今日の新しいクイズはここまでです。';
 
   @override
-  String get quotaSentenceReached => '今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。';
+  String get quotaSentenceReached =>
+      '今日の新しい例文はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。';
 
   @override
   String get quotaSentenceUpgradeCta => 'Premiumなら例文は無制限';
@@ -2613,6 +2614,22 @@ class L10nJa extends L10n {
   String get guideHowReviewQuizStep5 => '答えをもとに、語彙スコアと次の例文の難しさが調整されます。';
 
   @override
+  String get guideHowHistoryTitle => '復習タブで単語を振り返る';
+
+  @override
+  String get guideHowHistoryStep1 =>
+      '復習タブには、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。';
+
+  @override
+  String get guideHowHistoryStep2 => 'ゲージは覚え具合です。上部で「見ただけ」「覚えかけ」「覚えた」に絞り込めます。';
+
+  @override
+  String get guideHowHistoryStep3 => '単語をタップすると例文の一覧が、例文をタップすると詳細画面が開きます。';
+
+  @override
+  String get guideHowHistoryStep4 => '全例文の検索・お気に入り・削除は、右上のアイコンから行えます。';
+
+  @override
   String get guideHowNotifyTitle => '通知を設定する';
 
   @override
@@ -3262,6 +3279,40 @@ class L10nJa extends L10n {
   }
 
   @override
+  String streakBurstDays(int count) {
+    return '$count日';
+  }
+
+  @override
+  String streakBurstWeeks(int count) {
+    return '$count週間';
+  }
+
+  @override
+  String get streakBurstMonth => '1か月';
+
+  @override
+  String get streakBurstDone => '続きました！';
+
+  @override
+  String get streakBurstStart => '記録スタート！';
+
+  @override
+  String get streakPraiseFight => 'がんばれ';
+
+  @override
+  String get streakPraiseGreat => 'すごいね';
+
+  @override
+  String get streakPraiseAwesome => '最高！';
+
+  @override
+  String get streakPraiseExcellent => '素晴らしい';
+
+  @override
+  String get streakPraiseLegend => '神レベル';
+
+  @override
   String get streakRestart => '1本作ると再スタート';
 
   @override
@@ -3330,4 +3381,75 @@ class L10nJa extends L10n {
 
   @override
   String get detailGuideBackToQuiz => '学習に戻って確認クイズを解く';
+
+  @override
+  String get vocabAllSentences => 'すべての例文';
+
+  @override
+  String get vocabGuideTitle => '復習のしかた';
+
+  @override
+  String get vocabGuideMeaning => '各ゲージは単語の覚え具合';
+
+  @override
+  String get vocabGuideMeaningHint => 'クイズの結果で増減します';
+
+  @override
+  String get vocabGuideQuiz => 'まとめクイズに向けて復習';
+
+  @override
+  String get vocabGuideQuizHint => 'ゲージが少ない単語から出題します';
+
+  @override
+  String get vocabGuideTapWord => '単語をタップして例文を確認';
+
+  @override
+  String vocabGuideTapWordHint(String icon) {
+    return '右上の$iconで例文一覧も見れます';
+  }
+
+  @override
+  String get vocabWordsMet => '語に出会いました';
+
+  @override
+  String vocabScoreValue(int score) {
+    return '語彙スコア $score';
+  }
+
+  @override
+  String get vocabRankHeader => '語彙ランク';
+
+  @override
+  String vocabRankValue(int rank) {
+    return '語彙ランク $rank';
+  }
+
+  @override
+  String get vocabFilterAll => 'すべて';
+
+  @override
+  String get vocabMasterySeen => '見ただけ';
+
+  @override
+  String get vocabMasteryLearning => '覚えかけ';
+
+  @override
+  String get vocabMasteryLearned => '覚えた';
+
+  @override
+  String vocabExamples(int count) {
+    return '例文 $count';
+  }
+
+  @override
+  String get vocabEmpty => 'まだ単語がありません';
+
+  @override
+  String get vocabSearchHint => '単語を検索';
+
+  @override
+  String get vocabSearchEmpty => '見つかりませんでした';
+
+  @override
+  String get vocabLearnedAdded => '覚えたに追加されました！';
 }

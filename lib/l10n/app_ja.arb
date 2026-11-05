@@ -19,7 +19,7 @@
   },
 
   "navLearn": "学習",
-  "navHistory": "履歴",
+  "navHistory": "復習",
   "navSettings": "設定",
   "learnOpenDetail": "詳細",
 
@@ -76,7 +76,7 @@
   "sentenceUsingWord": "この単語を使った例文",
   "badgePremiumSentence": "Premium例文",
   "badgeFreeSentence": "Free例文",
-  "sampleSentenceNotice": "サンプル例文（履歴には保存されません）",
+  "sampleSentenceNotice": "サンプル例文（保存されません）",
   "sampleReload": "今日の例文を読み込む",
 
   "sampleGreetingTranslation": "こんにちは（男性の場合）",
@@ -185,7 +185,7 @@
     }
   },
 
-  "historyTitle": "履歴",
+  "historyTitle": "復習",
   "historyFavoritesOnly": "お気に入りのみ表示",
   "historyDeleteAll": "すべて削除",
   "historyFilterAll": "すべて",
@@ -941,7 +941,7 @@
 
   "errQuizGenerationFailed": "クイズの生成に失敗しました。もう一度お試しください。",
   "quotaQuizReached": "今日の新しいクイズはここまでです。",
-  "quotaSentenceReached": "今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。",
+  "quotaSentenceReached": "今日の新しい例文はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。",
   "@quotaSentenceReached": {
     "description": "上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない"
   },
@@ -1500,6 +1500,11 @@
   "guideHowReviewQuizStep3": "ヒントは1回目に発音、2回目に訳が出ます。使わずに正解すると、語彙スコアが伸びやすくなります。",
   "guideHowReviewQuizStep4": "迷ったら「例文を確認」で例文に戻れます。",
   "guideHowReviewQuizStep5": "答えをもとに、語彙スコアと次の例文の難しさが調整されます。",
+  "guideHowHistoryTitle": "復習タブで単語を振り返る",
+  "guideHowHistoryStep1": "復習タブには、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。",
+  "guideHowHistoryStep2": "ゲージは覚え具合です。上部で「見ただけ」「覚えかけ」「覚えた」に絞り込めます。",
+  "guideHowHistoryStep3": "単語をタップすると例文の一覧が、例文をタップすると詳細画面が開きます。",
+  "guideHowHistoryStep4": "全例文の検索・お気に入り・削除は、右上のアイコンから行えます。",
   "guideHowNotifyTitle": "通知を設定する",
   "guideHowNotifyStep1": "設定の「毎日の例文通知」で、通知の時刻を確認できます。スイッチでオン・オフ、時刻をタップすると変更できます。",
   "guideHowNotifyStep2": "無料版は1日1回、プレミアムは1日3回まで設定できます。通知ごとに新しい例文セットが届きます。",
@@ -1711,6 +1716,22 @@
   "@streakTitle": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "streakBurstDays": "{count}日",
+  "@streakBurstDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstWeeks": "{count}週間",
+  "@streakBurstWeeks": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstMonth": "1か月",
+  "streakBurstDone": "続きました！",
+  "streakBurstStart": "記録スタート！",
+  "streakPraiseFight": "がんばれ",
+  "streakPraiseGreat": "すごいね",
+  "streakPraiseAwesome": "最高！",
+  "streakPraiseExcellent": "素晴らしい",
+  "streakPraiseLegend": "神レベル",
   "streakRestart": "1本作ると再スタート",
   "streakStart": "今日の1本で記録を始めよう",
   "streakBest": "最長 {count}日",
@@ -1792,5 +1813,55 @@
   "detailGuideBackToQuiz": "学習に戻って確認クイズを解く",
   "@detailGuideBackToQuiz": {
     "description": "例文詳細を初めて開いた人への案内カード（DetailGuideCard）"
-  }
+  },
+  "vocabAllSentences": "すべての例文",
+  "vocabGuideTitle": "復習のしかた",
+  "vocabGuideMeaning": "各ゲージは単語の覚え具合",
+  "vocabGuideMeaningHint": "クイズの結果で増減します",
+  "vocabGuideQuiz": "まとめクイズに向けて復習",
+  "vocabGuideQuizHint": "ゲージが少ない単語から出題します",
+  "vocabGuideTapWord": "単語をタップして例文を確認",
+  "vocabGuideTapWordHint": "右上の{icon}で例文一覧も見れます",
+  "@vocabGuideTapWordHint": {
+    "description": "{icon} には AppBar の例文一覧アイコンが入る",
+    "placeholders": {
+      "icon": {
+        "type": "String"
+      }
+    }
+  },
+  "vocabWordsMet": "語に出会いました",
+  "vocabScoreValue": "語彙スコア {score}",
+  "@vocabScoreValue": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabRankHeader": "語彙ランク",
+  "vocabRankValue": "語彙ランク {rank}",
+  "@vocabRankValue": {
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabFilterAll": "すべて",
+  "vocabMasterySeen": "見ただけ",
+  "vocabMasteryLearning": "覚えかけ",
+  "vocabMasteryLearned": "覚えた",
+  "vocabExamples": "例文 {count}",
+  "@vocabExamples": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabEmpty": "まだ単語がありません",
+  "vocabSearchHint": "単語を検索",
+  "vocabSearchEmpty": "見つかりませんでした",
+  "vocabLearnedAdded": "覚えたに追加されました！"
 }

@@ -37,7 +37,7 @@ class L10nEn extends L10n {
   String get navLearn => 'Learn';
 
   @override
-  String get navHistory => 'History';
+  String get navHistory => 'Review';
 
   @override
   String get navSettings => 'Settings';
@@ -118,7 +118,7 @@ class L10nEn extends L10n {
   String get badgeFreeSentence => 'Free';
 
   @override
-  String get sampleSentenceNotice => 'Sample (not saved to History)';
+  String get sampleSentenceNotice => 'Sample sentence (not saved)';
 
   @override
   String get sampleReload => 'Load today\'s sentence';
@@ -317,7 +317,7 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get historyTitle => 'History';
+  String get historyTitle => 'Review';
 
   @override
   String get historyFavoritesOnly => 'Favorites only';
@@ -1675,7 +1675,7 @@ class L10nEn extends L10n {
 
   @override
   String get quotaSentenceReached =>
-      'No more new sentences today.\nYou can still review past ones in History.';
+      'That\'s all the new sentences for today.\nReread past sentences from the top right of the Review tab.';
 
   @override
   String get quotaSentenceUpgradeCta => 'Unlock unlimited sentences';
@@ -2763,6 +2763,25 @@ class L10nEn extends L10n {
       'Your answers adjust your vocabulary score and the difficulty of future sentences.';
 
   @override
+  String get guideHowHistoryTitle => 'Revisit words in Review';
+
+  @override
+  String get guideHowHistoryStep1 =>
+      'The Review tab lists words you\'ve seen, highest vocabulary rank first. It also shows where your vocabulary score falls.';
+
+  @override
+  String get guideHowHistoryStep2 =>
+      'The gauge shows mastery. Filter by “Seen,” “Learning,” or “Learned” at the top.';
+
+  @override
+  String get guideHowHistoryStep3 =>
+      'Tap a word for its sentences, then a sentence for details.';
+
+  @override
+  String get guideHowHistoryStep4 =>
+      'Use the top-right icon to search, favorite, or delete all sentences.';
+
+  @override
   String get guideHowNotifyTitle => 'Set up reminders';
 
   @override
@@ -3432,6 +3451,46 @@ class L10nEn extends L10n {
   }
 
   @override
+  String streakBurstDays(int count) {
+    return '$count days';
+  }
+
+  @override
+  String streakBurstWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count weeks',
+      one: '1 week',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get streakBurstMonth => '1 month';
+
+  @override
+  String get streakBurstDone => 'in a row!';
+
+  @override
+  String get streakBurstStart => 'Streak started!';
+
+  @override
+  String get streakPraiseFight => 'Keep it up';
+
+  @override
+  String get streakPraiseGreat => 'Great job';
+
+  @override
+  String get streakPraiseAwesome => 'Awesome!';
+
+  @override
+  String get streakPraiseExcellent => 'Excellent';
+
+  @override
+  String get streakPraiseLegend => 'Legendary';
+
+  @override
   String get streakRestart => 'Make 1 sentence to restart';
 
   @override
@@ -3501,4 +3560,75 @@ class L10nEn extends L10n {
 
   @override
   String get detailGuideBackToQuiz => 'Back to Learn for the check quiz';
+
+  @override
+  String get vocabAllSentences => 'All sentences';
+
+  @override
+  String get vocabGuideTitle => 'How to use Review';
+
+  @override
+  String get vocabGuideMeaning => 'Gauges show word mastery';
+
+  @override
+  String get vocabGuideMeaningHint => 'They change with quiz results';
+
+  @override
+  String get vocabGuideQuiz => 'Review for the summary quiz';
+
+  @override
+  String get vocabGuideQuizHint => 'Low-gauge words come first';
+
+  @override
+  String get vocabGuideTapWord => 'Tap a word for examples';
+
+  @override
+  String vocabGuideTapWordHint(String icon) {
+    return 'See examples via $icon at top right';
+  }
+
+  @override
+  String get vocabWordsMet => 'Words encountered';
+
+  @override
+  String vocabScoreValue(int score) {
+    return 'Score $score';
+  }
+
+  @override
+  String get vocabRankHeader => 'Rank';
+
+  @override
+  String vocabRankValue(int rank) {
+    return 'Rank $rank';
+  }
+
+  @override
+  String get vocabFilterAll => 'All';
+
+  @override
+  String get vocabMasterySeen => 'Seen';
+
+  @override
+  String get vocabMasteryLearning => 'Learning';
+
+  @override
+  String get vocabMasteryLearned => 'Learned';
+
+  @override
+  String vocabExamples(int count) {
+    return 'Examples $count';
+  }
+
+  @override
+  String get vocabEmpty => 'No words yet';
+
+  @override
+  String get vocabSearchHint => 'Search words';
+
+  @override
+  String get vocabSearchEmpty => 'No matches found';
+
+  @override
+  String get vocabLearnedAdded => 'Marked as Learned!';
 }

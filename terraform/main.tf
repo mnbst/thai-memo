@@ -132,6 +132,7 @@ module "secret_manager" {
   # for_each の判定に使うので、apply 前に決まる形（SA の属性ではなく組み立てた文字列）で渡す。
   runtime_service_account_email = "functions-runtime@${var.project_id}.iam.gserviceaccount.com"
   ci_service_account_email      = var.ci_service_account_email
+  deploy_ci_secrets             = var.deploy_ci_secrets
   x_post_service_account_email  = var.github_repo != "" && nonsensitive(var.github_dispatch_token != "") ? "github-actions-x-post@${var.project_id}.iam.gserviceaccount.com" : ""
 
   depends_on = [
@@ -658,6 +659,45 @@ resource "google_cloud_scheduler_job" "post_daily_x_extra" {
     body = base64encode(jsonencode({
       ref    = "main"
       inputs = { themes = each.value.themes, kind = each.value.kind, slot = each.key }
+    }))
+
+    headers = {
+      "Authorization"        = "Bearer ${var.github_dispatch_token}"
+      "Accept"               = "application/vnd.github+json"
+      "Content-Type"         = "application/json"
+      "X-GitHub-Api-Version" = "2022-11-28"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# 英語アカウント（@daily_thai11）の X 投稿枠（var.x_post_en_slots）。例文だけ。
+# 記録は x_post/en/ に分かれ、日本語アカウントとは別に例文を選ぶ。
+resource "google_cloud_scheduler_job" "post_daily_x_en" {
+  for_each = nonsensitive(var.github_dispatch_token != "") ? var.x_post_en_slots : {}
+
+  name        = "post-daily-x-en-${each.key}"
+  project     = var.project_id
+  region      = var.region
+  description = "X 英語アカウントへの投稿ワークフローを起動する（${each.value.themes != "" ? each.value.themes : "全テーマ"}）"
+
+  # 読者は米国が中心なので米国西部の時刻で出す（夏時間も Scheduler が追う）。
+  schedule  = each.value.schedule
+  time_zone = "America/Los_Angeles"
+
+  attempt_deadline = "30s"
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
+    body = base64encode(jsonencode({
+      ref    = "main"
+      inputs = { themes = each.value.themes, kind = "sentence", slot = each.key, lang = "en" }
     }))
 
     headers = {

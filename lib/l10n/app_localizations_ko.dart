@@ -37,7 +37,7 @@ class L10nKo extends L10n {
   String get navLearn => '학습';
 
   @override
-  String get navHistory => '기록';
+  String get navHistory => '복습';
 
   @override
   String get navSettings => '설정';
@@ -111,7 +111,7 @@ class L10nKo extends L10n {
   String get badgeFreeSentence => 'Free 예문';
 
   @override
-  String get sampleSentenceNotice => '샘플 예문(기록에 저장되지 않아요)';
+  String get sampleSentenceNotice => '샘플 예문(저장되지 않아요)';
 
   @override
   String get sampleReload => '오늘의 예문 불러오기';
@@ -304,7 +304,7 @@ class L10nKo extends L10n {
   }
 
   @override
-  String get historyTitle => '기록';
+  String get historyTitle => '복습';
 
   @override
   String get historyFavoritesOnly => '즐겨찾기만 표시';
@@ -1590,7 +1590,7 @@ class L10nKo extends L10n {
 
   @override
   String get quotaSentenceReached =>
-      '오늘의 새 예문은 여기까지예요.\n기록에서 이전 예문을 다시 읽을 수 있어요.';
+      '오늘의 새 예문은 여기까지예요.\n복습 탭 오른쪽 위에서 지금까지의 예문을 다시 읽을 수 있어요.';
 
   @override
   String get quotaSentenceUpgradeCta => 'Premium은 예문 무제한';
@@ -2640,6 +2640,23 @@ class L10nKo extends L10n {
   String get guideHowReviewQuizStep5 => '답변을 바탕으로 어휘 점수와 다음 예문의 난이도가 조정돼요.';
 
   @override
+  String get guideHowHistoryTitle => '복습 탭에서 단어 돌아보기';
+
+  @override
+  String get guideHowHistoryStep1 =>
+      '복습 탭에는 만난 단어가 어휘 순위가 높은 순으로 표시돼요. 어휘 점수의 위치도 목록에 표시돼요.';
+
+  @override
+  String get guideHowHistoryStep2 =>
+      '게이지는 암기 상태를 나타내요. 위에서 ‘보기만 함’, ‘외우는 중’, ‘외움’으로 필터링할 수 있어요.';
+
+  @override
+  String get guideHowHistoryStep3 => '단어를 누르면 예문 목록이, 예문을 누르면 상세 화면이 열려요.';
+
+  @override
+  String get guideHowHistoryStep4 => '모든 예문의 검색·즐겨찾기·삭제는 오른쪽 위 아이콘에서 할 수 있어요.';
+
+  @override
   String get guideHowNotifyTitle => '알림 설정하기';
 
   @override
@@ -3293,6 +3310,40 @@ class L10nKo extends L10n {
   }
 
   @override
+  String streakBurstDays(int count) {
+    return '$count일';
+  }
+
+  @override
+  String streakBurstWeeks(int count) {
+    return '$count주';
+  }
+
+  @override
+  String get streakBurstMonth => '1개월';
+
+  @override
+  String get streakBurstDone => '연속 달성!';
+
+  @override
+  String get streakBurstStart => '기록 시작!';
+
+  @override
+  String get streakPraiseFight => '화이팅';
+
+  @override
+  String get streakPraiseGreat => '대단해요';
+
+  @override
+  String get streakPraiseAwesome => '최고!';
+
+  @override
+  String get streakPraiseExcellent => '훌륭해요';
+
+  @override
+  String get streakPraiseLegend => '신의 경지';
+
+  @override
   String get streakRestart => '1개 만들면 다시 시작';
 
   @override
@@ -3361,4 +3412,75 @@ class L10nKo extends L10n {
 
   @override
   String get detailGuideBackToQuiz => '학습으로 돌아가 확인 퀴즈 풀기';
+
+  @override
+  String get vocabAllSentences => '모든 예문';
+
+  @override
+  String get vocabGuideTitle => '복습하는 법';
+
+  @override
+  String get vocabGuideMeaning => '각 게이지는 단어를 외운 정도';
+
+  @override
+  String get vocabGuideMeaningHint => '퀴즈 결과에 따라 오르내려요';
+
+  @override
+  String get vocabGuideQuiz => '종합 퀴즈에 대비해 복습해요';
+
+  @override
+  String get vocabGuideQuizHint => '게이지가 낮은 단어가 먼저 출제돼요';
+
+  @override
+  String get vocabGuideTapWord => '단어를 눌러 예문 확인';
+
+  @override
+  String vocabGuideTapWordHint(String icon) {
+    return '오른쪽 위 $icon에서 예문 목록도 볼 수 있어요';
+  }
+
+  @override
+  String get vocabWordsMet => '단어를 만났어요';
+
+  @override
+  String vocabScoreValue(int score) {
+    return '어휘 점수 $score';
+  }
+
+  @override
+  String get vocabRankHeader => '어휘 순위';
+
+  @override
+  String vocabRankValue(int rank) {
+    return '어휘 순위 $rank';
+  }
+
+  @override
+  String get vocabFilterAll => '전체';
+
+  @override
+  String get vocabMasterySeen => '보기만 함';
+
+  @override
+  String get vocabMasteryLearning => '외우는 중';
+
+  @override
+  String get vocabMasteryLearned => '외움';
+
+  @override
+  String vocabExamples(int count) {
+    return '예문 $count개';
+  }
+
+  @override
+  String get vocabEmpty => '아직 단어가 없어요';
+
+  @override
+  String get vocabSearchHint => '단어 검색';
+
+  @override
+  String get vocabSearchEmpty => '검색 결과가 없어요';
+
+  @override
+  String get vocabLearnedAdded => '‘외움’에 추가됐어요!';
 }

@@ -17,6 +17,8 @@ import '../../l10n/app_localizations.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/thai_sentence.dart';
 import '../../services/analytics_service.dart';
+import '../../data/datasources/backend_api_service.dart';
+import '../widgets/learned_word_card.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/remaining_quota_provider.dart';
@@ -177,10 +179,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Stopwatch? _confirmationResponseTimer;
   bool _confirmationQuestionActive = false;
   String _confirmationQuizFormat = QuizQuestion.clozeChoiceFormat;
+  StreamSubscription<String>? _learnedWords;
+
+  /// 回答した語が「覚えた」に入ったらカードを出す。回答から応答まで間があり、
+  /// 待ち行列の古い回答も届くので、いま結果を見ている問題の語だけに絞る。
+  void _onWordLearned(String word) {
+    if (!mounted || ModalRoute.of(context)?.isCurrent == false) return;
+    final state = ref.read(quizControllerProvider);
+    if (state is! QuizShowResult) return;
+    final question = state.questions[state.index];
+    if (question.correctAnswer != word) return;
+    unawaited(showLearnedWordCard(
+      context,
+      word: word,
+      pronunciation: question.pronunciation,
+      meaning: question.correctAnswerMeaning,
+    ));
+  }
 
   @override
   void initState() {
     super.initState();
+    _learnedWords = BackendApiService.learnedWords.listen(_onWordLearned);
     _analytics = ref.read(analyticsServiceProvider);
     final rng = math.Random(7);
     _celebrationController = AnimationController(
@@ -349,6 +369,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   void dispose() {
+    unawaited(_learnedWords?.cancel());
     _logConfirmationQuestionAbandoned(exitReason: 'screen_disposed');
     _celebrationController.dispose();
     super.dispose();

@@ -18,8 +18,11 @@ import sys
 PROP = "534357716"
 SA = "ga4-analytics@thai-memo-prod.iam.gserviceaccount.com"
 DEFAULT_DAYS = 35
-# 審査（米国の iOS）と Play プレリリースレポートの bot（国が (not set) の Android）を除く。
-EXCLUDE_COUNTRIES = ("United States", "(not set)")
+# Play プレリリースレポートの bot（国が (not set) の Android）と、App Store 審査の端末
+# （米国の REVIEW_CITIES。根拠は ga4_retention.py）を除く。米国のそれ以外は英語版の実ユーザー。
+EXCLUDE_COUNTRIES = ("(not set)",)
+REVIEW_CITIES = ("Cupertino", "Santa Clara", "Saratoga", "San Jose", "Sunnyvale", "Los Gatos",
+                 "Mountain View", "Los Altos", "Los Altos Hills", "Los Angeles")
 # (表示名, イベント名, {パラメータ: 値 | (値, ...)})。値を並べたものはどれか一つに一致。
 # 初回導線の順: 機能紹介 → ヒアリング → 使い方ガイド → 語彙テスト → ペイウォール → 生成。
 # 別端末のアカウントで入った人はヒアリング以降を通らないので、ここで落ちて見える。
@@ -109,14 +112,18 @@ def run_report(access_token: str, days: int, steps: tuple = STEPS) -> dict:
                 for name, event_name, params in steps
             ],
         },
-        "dimensionFilter": {
-            "notExpression": {
-                "filter": {
-                    "fieldName": "country",
-                    "inListFilter": {"values": list(EXCLUDE_COUNTRIES)},
-                }
-            }
-        },
+        "dimensionFilter": {"andGroup": {"expressions": [
+            {"notExpression": {"filter": {
+                "fieldName": "country",
+                "inListFilter": {"values": list(EXCLUDE_COUNTRIES)},
+            }}},
+            {"notExpression": {"andGroup": {"expressions": [
+                {"filter": {"fieldName": "country",
+                            "stringFilter": {"value": "United States"}}},
+                {"filter": {"fieldName": "city",
+                            "inListFilter": {"values": list(REVIEW_CITIES)}}},
+            ]}}},
+        ]}},
     }
     url = (
         "https://analyticsdata.googleapis.com/v1alpha/properties/"
@@ -182,7 +189,7 @@ def main() -> None:
 
     base = parsed[0][1]
     print(f"=== GA4 Activation Funnel (closed, last {days}d) ===")
-    print(f"(excluded countries: {', '.join(EXCLUDE_COUNTRIES)})")
+    print(f"(excluded: country {', '.join(EXCLUDE_COUNTRIES)} / US review cities)")
     print(f"{'step':<24} {'users':>7} {'from first':>11} {'to next':>9} {'drop':>7}")
     for step, users, completion_rate, abandonments in parsed:
         from_first = users / base if base else 0

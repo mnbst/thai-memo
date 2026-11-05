@@ -122,8 +122,10 @@ resource "google_secret_manager_secret_iam_member" "typesafe_api_key_accessor" {
 # 値は terraform 管理外: gcloud secrets versions add <name> --data-file=- で手動設定
 
 locals {
-  # 配信ワークフロー（distribute-*）が読む secret。配信 SA を持たない環境（dev）には作らない。
-  deploy_ci_secrets = [
+  # 配信ワークフロー（distribute-*）が読んでいた secret の全体。
+  # 配信の鍵は GitHub の Environment secrets へ移したので、var.deploy_ci_secrets で
+  # まだ Secret Manager に置くものだけを選ぶ（null なら全部）。
+  all_deploy_ci_secrets = [
     "ci-apple-id",
     "ci-app-specific-password",
     "ci-google-play-service-account",
@@ -145,12 +147,17 @@ locals {
     "x-api-secret",
     "x-access-token",
     "x-access-token-secret",
+    # 英語アカウント（@daily_thai11）の Access Token。API Key / Secret は上の共通のもの
+    "x-access-token-en",
+    "x-access-token-secret-en",
     # Threads 自動投稿の長期アクセストークン（投稿のたびに古ければ延長して版を足す）
     "threads-access-token",
   ]
 
+  deploy_ci_secrets = var.deploy_ci_secrets == null ? local.all_deploy_ci_secrets : var.deploy_ci_secrets
+
   ci_secrets = concat(
-    var.ci_service_account_email != "" ? local.deploy_ci_secrets : [],
+    local.deploy_ci_secrets,
     local.sns_post_secrets,
   )
 }

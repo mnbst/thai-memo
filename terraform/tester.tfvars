@@ -12,3 +12,6 @@ alert_email                   = "gcp.demo.776@gmail.com"
 billing_account               = "0189A7-F96D31-DD85EC"
 budget_amount                 = 3000
 ios_app_id                    = "1:763566155520:ios:e67c20712b76f0a0beb5e5"
+
+# 配信の鍵は GitHub の tester 環境（Environment secrets）にある
+deploy_ci_secrets = []

@@ -15,7 +15,7 @@
     "description": "言語切替ダイアログの補足。履歴が書き換わらないことを伝える"
   },
   "navLearn": "학습",
-  "navHistory": "기록",
+  "navHistory": "복습",
   "navSettings": "설정",
   "learnOpenDetail": "상세",
   "learnQuizTitle": "확인 퀴즈",
@@ -78,7 +78,7 @@
   "sentenceUsingWord": "이 단어를 사용한 예문",
   "badgePremiumSentence": "Premium 예문",
   "badgeFreeSentence": "Free 예문",
-  "sampleSentenceNotice": "샘플 예문(기록에 저장되지 않아요)",
+  "sampleSentenceNotice": "샘플 예문(저장되지 않아요)",
   "sampleReload": "오늘의 예문 불러오기",
   "sampleGreetingTranslation": "안녕하세요(남성 화자)",
   "sampleGreetingWord1Meaning": "안녕하세요, 안녕히 가세요",
@@ -185,7 +185,7 @@
       }
     }
   },
-  "historyTitle": "기록",
+  "historyTitle": "복습",
   "historyFavoritesOnly": "즐겨찾기만 표시",
   "historyDeleteAll": "모두 삭제",
   "historyFilterAll": "전체",
@@ -953,7 +953,7 @@
   },
   "errQuizGenerationFailed": "퀴즈를 만들지 못했어요. 다시 시도해 주세요.",
   "quotaQuizReached": "오늘의 새 퀴즈는 여기까지예요.",
-  "quotaSentenceReached": "오늘의 새 예문은 여기까지예요.\n기록에서 이전 예문을 다시 읽을 수 있어요.",
+  "quotaSentenceReached": "오늘의 새 예문은 여기까지예요.\n복습 탭 오른쪽 위에서 지금까지의 예문을 다시 읽을 수 있어요.",
   "@quotaSentenceReached": {
     "description": "上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない"
   },
@@ -1496,6 +1496,11 @@
   "guideHowReviewQuizStep3": "힌트는 첫 번째에 발음, 두 번째에 번역이 나와요. 힌트 없이 맞히면 어휘 점수가 더 잘 올라요.",
   "guideHowReviewQuizStep4": "헷갈리면 ‘예문 확인’으로 예문을 다시 볼 수 있어요.",
   "guideHowReviewQuizStep5": "답변을 바탕으로 어휘 점수와 다음 예문의 난이도가 조정돼요.",
+  "guideHowHistoryTitle": "복습 탭에서 단어 돌아보기",
+  "guideHowHistoryStep1": "복습 탭에는 만난 단어가 어휘 순위가 높은 순으로 표시돼요. 어휘 점수의 위치도 목록에 표시돼요.",
+  "guideHowHistoryStep2": "게이지는 암기 상태를 나타내요. 위에서 ‘보기만 함’, ‘외우는 중’, ‘외움’으로 필터링할 수 있어요.",
+  "guideHowHistoryStep3": "단어를 누르면 예문 목록이, 예문을 누르면 상세 화면이 열려요.",
+  "guideHowHistoryStep4": "모든 예문의 검색·즐겨찾기·삭제는 오른쪽 위 아이콘에서 할 수 있어요.",
   "guideHowNotifyTitle": "알림 설정하기",
   "guideHowNotifyStep1": "설정의 '매일 예문 알림'에서 알림 시간을 확인할 수 있어요. 스위치로 켜고 끄고, 시간을 탭하면 바꿀 수 있어요.",
   "guideHowNotifyStep2": "무료 버전은 하루 1번, Premium은 하루 3번까지 설정할 수 있어요. 알림마다 새 예문 세트가 도착해요.",
@@ -1715,6 +1720,22 @@
       }
     }
   },
+  "streakBurstDays": "{count}일",
+  "@streakBurstDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstWeeks": "{count}주",
+  "@streakBurstWeeks": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "streakBurstMonth": "1개월",
+  "streakBurstDone": "연속 달성!",
+  "streakBurstStart": "기록 시작!",
+  "streakPraiseFight": "화이팅",
+  "streakPraiseGreat": "대단해요",
+  "streakPraiseAwesome": "최고!",
+  "streakPraiseExcellent": "훌륭해요",
+  "streakPraiseLegend": "신의 경지",
   "streakRestart": "1개 만들면 다시 시작",
   "streakStart": "오늘 예문 하나로 기록을 시작해요",
   "streakBest": "최장 {count}일",
@@ -1756,5 +1777,26 @@
   "detailGuideWordsHint": "글자 조합으로 이 성조가 되는 이유를 설명해요",
   "detailGuideUsage": "사용법 읽기",
   "detailGuideUsageHint": "어떤 상황에서 누구에게 쓰는지 알 수 있어요",
-  "detailGuideBackToQuiz": "학습으로 돌아가 확인 퀴즈 풀기"
+  "detailGuideBackToQuiz": "학습으로 돌아가 확인 퀴즈 풀기",
+  "vocabAllSentences": "모든 예문",
+  "vocabGuideTitle": "복습하는 법",
+  "vocabGuideMeaning": "각 게이지는 단어를 외운 정도",
+  "vocabGuideMeaningHint": "퀴즈 결과에 따라 오르내려요",
+  "vocabGuideQuiz": "종합 퀴즈에 대비해 복습해요",
+  "vocabGuideQuizHint": "게이지가 낮은 단어가 먼저 출제돼요",
+  "vocabGuideTapWord": "단어를 눌러 예문 확인",
+  "vocabGuideTapWordHint": "오른쪽 위 {icon}에서 예문 목록도 볼 수 있어요",
+  "vocabWordsMet": "단어를 만났어요",
+  "vocabScoreValue": "어휘 점수 {score}",
+  "vocabRankHeader": "어휘 순위",
+  "vocabRankValue": "어휘 순위 {rank}",
+  "vocabFilterAll": "전체",
+  "vocabMasterySeen": "보기만 함",
+  "vocabMasteryLearning": "외우는 중",
+  "vocabMasteryLearned": "외움",
+  "vocabExamples": "예문 {count}개",
+  "vocabEmpty": "아직 단어가 없어요",
+  "vocabSearchHint": "단어 검색",
+  "vocabSearchEmpty": "검색 결과가 없어요",
+  "vocabLearnedAdded": "‘외움’에 추가됐어요!"
 }

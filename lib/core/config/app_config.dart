@@ -13,7 +13,7 @@ class AppConfig {
 
   /// Database configuration
   static const String databaseName = 'thai_memo.db';
-  static const int databaseVersion = 13;
+  static const int databaseVersion = 14;
 
   /// Background task configuration
   static const Duration backgroundTaskFrequency = Duration(hours: 24);
@@ -139,6 +139,9 @@ class AppConfig {
   /// ヒアリングで「声調が難しい」と答えた人へ声調ガイドを勧めるカードを、
   /// 開いたか閉じたか。立ったら二度と出さない。
   static const String prefKeyToneGuideOfferDone = 'tone_guide_offer_done';
+
+  /// 復習タブの案内を閉じたか。立ったら二度と出さない。
+  static const String prefKeyVocabGuideDismissed = 'vocab_guide_dismissed';
 
   /// 今日タブを最後に開いた日時（ミリ秒）。30日以上あいた復帰の判定に使う。
   static const String prefKeyLastTodayVisitAt = 'last_today_visit_at';

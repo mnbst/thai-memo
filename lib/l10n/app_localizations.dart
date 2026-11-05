@@ -156,7 +156,7 @@ abstract class L10n {
   /// No description provided for @navHistory.
   ///
   /// In ja, this message translates to:
-  /// **'履歴'**
+  /// **'復習'**
   String get navHistory;
 
   /// No description provided for @navSettings.
@@ -282,7 +282,7 @@ abstract class L10n {
   /// No description provided for @sampleSentenceNotice.
   ///
   /// In ja, this message translates to:
-  /// **'サンプル例文（履歴には保存されません）'**
+  /// **'サンプル例文（保存されません）'**
   String get sampleSentenceNotice;
 
   /// No description provided for @sampleReload.
@@ -642,7 +642,7 @@ abstract class L10n {
   /// No description provided for @historyTitle.
   ///
   /// In ja, this message translates to:
-  /// **'履歴'**
+  /// **'復習'**
   String get historyTitle;
 
   /// No description provided for @historyFavoritesOnly.
@@ -2839,7 +2839,7 @@ abstract class L10n {
   /// 上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない
   ///
   /// In ja, this message translates to:
-  /// **'今日の新しい例文はここまでです。\n履歴から、これまでの例文を読み返せます。'**
+  /// **'今日の新しい例文はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。'**
   String get quotaSentenceReached;
 
   /// 上限に当たった free ユーザーだけに出すペイウォール導線。premium の例文は無制限なので数字を含めない
@@ -4690,6 +4690,36 @@ abstract class L10n {
   /// **'答えをもとに、語彙スコアと次の例文の難しさが調整されます。'**
   String get guideHowReviewQuizStep5;
 
+  /// No description provided for @guideHowHistoryTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'復習タブで単語を振り返る'**
+  String get guideHowHistoryTitle;
+
+  /// No description provided for @guideHowHistoryStep1.
+  ///
+  /// In ja, this message translates to:
+  /// **'復習タブには、出会った語が語彙ランクの大きい順に並びます。語彙スコアの位置も一覧に表示されます。'**
+  String get guideHowHistoryStep1;
+
+  /// No description provided for @guideHowHistoryStep2.
+  ///
+  /// In ja, this message translates to:
+  /// **'ゲージは覚え具合です。上部で「見ただけ」「覚えかけ」「覚えた」に絞り込めます。'**
+  String get guideHowHistoryStep2;
+
+  /// No description provided for @guideHowHistoryStep3.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語をタップすると例文の一覧が、例文をタップすると詳細画面が開きます。'**
+  String get guideHowHistoryStep3;
+
+  /// No description provided for @guideHowHistoryStep4.
+  ///
+  /// In ja, this message translates to:
+  /// **'全例文の検索・お気に入り・削除は、右上のアイコンから行えます。'**
+  String get guideHowHistoryStep4;
+
   /// No description provided for @guideHowNotifyTitle.
   ///
   /// In ja, this message translates to:
@@ -5884,6 +5914,66 @@ abstract class L10n {
   /// **'例文 {count}日継続'**
   String streakTitle(int count);
 
+  /// No description provided for @streakBurstDays.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}日'**
+  String streakBurstDays(int count);
+
+  /// No description provided for @streakBurstWeeks.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}週間'**
+  String streakBurstWeeks(int count);
+
+  /// No description provided for @streakBurstMonth.
+  ///
+  /// In ja, this message translates to:
+  /// **'1か月'**
+  String get streakBurstMonth;
+
+  /// No description provided for @streakBurstDone.
+  ///
+  /// In ja, this message translates to:
+  /// **'続きました！'**
+  String get streakBurstDone;
+
+  /// No description provided for @streakBurstStart.
+  ///
+  /// In ja, this message translates to:
+  /// **'記録スタート！'**
+  String get streakBurstStart;
+
+  /// No description provided for @streakPraiseFight.
+  ///
+  /// In ja, this message translates to:
+  /// **'がんばれ'**
+  String get streakPraiseFight;
+
+  /// No description provided for @streakPraiseGreat.
+  ///
+  /// In ja, this message translates to:
+  /// **'すごいね'**
+  String get streakPraiseGreat;
+
+  /// No description provided for @streakPraiseAwesome.
+  ///
+  /// In ja, this message translates to:
+  /// **'最高！'**
+  String get streakPraiseAwesome;
+
+  /// No description provided for @streakPraiseExcellent.
+  ///
+  /// In ja, this message translates to:
+  /// **'素晴らしい'**
+  String get streakPraiseExcellent;
+
+  /// No description provided for @streakPraiseLegend.
+  ///
+  /// In ja, this message translates to:
+  /// **'神レベル'**
+  String get streakPraiseLegend;
+
   /// No description provided for @streakRestart.
   ///
   /// In ja, this message translates to:
@@ -6015,6 +6105,132 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'学習に戻って確認クイズを解く'**
   String get detailGuideBackToQuiz;
+
+  /// No description provided for @vocabAllSentences.
+  ///
+  /// In ja, this message translates to:
+  /// **'すべての例文'**
+  String get vocabAllSentences;
+
+  /// No description provided for @vocabGuideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'復習のしかた'**
+  String get vocabGuideTitle;
+
+  /// No description provided for @vocabGuideMeaning.
+  ///
+  /// In ja, this message translates to:
+  /// **'各ゲージは単語の覚え具合'**
+  String get vocabGuideMeaning;
+
+  /// No description provided for @vocabGuideMeaningHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'クイズの結果で増減します'**
+  String get vocabGuideMeaningHint;
+
+  /// No description provided for @vocabGuideQuiz.
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズに向けて復習'**
+  String get vocabGuideQuiz;
+
+  /// No description provided for @vocabGuideQuizHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'ゲージが少ない単語から出題します'**
+  String get vocabGuideQuizHint;
+
+  /// No description provided for @vocabGuideTapWord.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語をタップして例文を確認'**
+  String get vocabGuideTapWord;
+
+  /// {icon} には AppBar の例文一覧アイコンが入る
+  ///
+  /// In ja, this message translates to:
+  /// **'右上の{icon}で例文一覧も見れます'**
+  String vocabGuideTapWordHint(String icon);
+
+  /// No description provided for @vocabWordsMet.
+  ///
+  /// In ja, this message translates to:
+  /// **'語に出会いました'**
+  String get vocabWordsMet;
+
+  /// No description provided for @vocabScoreValue.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコア {score}'**
+  String vocabScoreValue(int score);
+
+  /// No description provided for @vocabRankHeader.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙ランク'**
+  String get vocabRankHeader;
+
+  /// No description provided for @vocabRankValue.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙ランク {rank}'**
+  String vocabRankValue(int rank);
+
+  /// No description provided for @vocabFilterAll.
+  ///
+  /// In ja, this message translates to:
+  /// **'すべて'**
+  String get vocabFilterAll;
+
+  /// No description provided for @vocabMasterySeen.
+  ///
+  /// In ja, this message translates to:
+  /// **'見ただけ'**
+  String get vocabMasterySeen;
+
+  /// No description provided for @vocabMasteryLearning.
+  ///
+  /// In ja, this message translates to:
+  /// **'覚えかけ'**
+  String get vocabMasteryLearning;
+
+  /// No description provided for @vocabMasteryLearned.
+  ///
+  /// In ja, this message translates to:
+  /// **'覚えた'**
+  String get vocabMasteryLearned;
+
+  /// No description provided for @vocabExamples.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文 {count}'**
+  String vocabExamples(int count);
+
+  /// No description provided for @vocabEmpty.
+  ///
+  /// In ja, this message translates to:
+  /// **'まだ単語がありません'**
+  String get vocabEmpty;
+
+  /// No description provided for @vocabSearchHint.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語を検索'**
+  String get vocabSearchHint;
+
+  /// No description provided for @vocabSearchEmpty.
+  ///
+  /// In ja, this message translates to:
+  /// **'見つかりませんでした'**
+  String get vocabSearchEmpty;
+
+  /// No description provided for @vocabLearnedAdded.
+  ///
+  /// In ja, this message translates to:
+  /// **'覚えたに追加されました！'**
+  String get vocabLearnedAdded;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

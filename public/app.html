@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>まいにちタイ語 ダウンロード</title>
+  <meta name="description" content="毎日の例文でタイ語の単語が増える。まいにちタイ語のダウンロードページ。" />
+  <meta property="og:title" content="まいにちタイ語" />
+  <meta property="og:description" content="毎日の例文でタイ語の単語が増える" />
+  <meta property="og:image" content="/appicon.png" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="icon" href="/appicon.png" />
+  <script>
+    (function () {
+      // 流入元の計測。?c=<名前> で呼び分け、無ければ BIO（x_bio）として数える。
+      // iOS は App Store のキャンペーンリンク（pt=プロバイダID, ct=名前）で App Analytics の Campaigns に、
+      // Android は Play のインストールリファラ（utm_*）で GA4 の firstUserSource / Campaign に出る。
+      var PT = '128590636';
+      var c = (new URLSearchParams(location.search).get('c') || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 40) || 'x_bio';
+      // 国を付けない URL にして、App Store が開いた人の国のストアへ振り分ける。
+      var IOS = 'https://apps.apple.com/app/id6759669680?pt=' + PT + '&ct=' + c + '&mt=8';
+      var ANDROID = 'https://play.google.com/store/apps/details?id=com.thaimemo.thai_memo&referrer=' +
+        encodeURIComponent('utm_source=x&utm_medium=social&utm_campaign=' + c);
+      // 振り分けない端末（PC など）のボタンにも同じ目印を付ける
+      // 表示の言語。端末の言語が日本語・韓国語ならそれに、それ以外は時間帯で
+      // 日本・韓国を見分け、残りは英語にする（タイ在住の日本人は日本語のまま）。
+      var LANG = (function () {
+        var langs = navigator.languages || [navigator.language || ''];
+        var first = String(langs[0] || '').toLowerCase();
+        if (first.indexOf('ja') === 0) return 'ja';
+        if (first.indexOf('ko') === 0) return 'ko';
+        var tz = '';
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+        if (tz === 'Asia/Tokyo') return 'ja';
+        if (tz === 'Asia/Seoul') return 'ko';
+        return 'en';
+      })();
+      var TEXT = {
+        ja: { title: 'まいにちタイ語', lead: '毎日の例文でタイ語の単語が増える' },
+        en: { title: 'Daily Thai', lead: 'Grow your Thai vocabulary with daily example sentences' },
+        ko: { title: '매일 태국어', lead: '매일 예문으로 태국어 단어가 늘어요' }
+      }[LANG];
+      document.documentElement.lang = LANG;
+      document.addEventListener('DOMContentLoaded', function () {
+        document.title = TEXT.title;
+        document.getElementById('title').textContent = TEXT.title;
+        document.getElementById('lead').textContent = TEXT.lead;
+        document.getElementById('ios').href = IOS;
+        document.getElementById('android').href = ANDROID;
+      });
+      var ua = navigator.userAgent;
+      // iPadOS は Mac と同じ UA を名乗るので、タッチ対応かどうかで見分ける
+      var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+        (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      if (isIOS) location.replace(IOS);
+      else if (/Android/.test(ua)) location.replace(ANDROID);
+    })();
+  </script>
+  <style>
+    :root { --bg: #f8f9fa; --card: #fff; --text: #1a1a2e; --muted: #6c757d; --blue: #4a7fc1; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #14161c; --card: #1f222b; --text: #eef0f4; --muted: #a0a6b2; }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    main { background: var(--card); border-radius: 20px; padding: 40px 24px; width: 100%; max-width: 380px; text-align: center; }
+    img { width: 88px; height: 88px; border-radius: 20px; margin-bottom: 16px; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+    a.btn {
+      display: block; padding: 14px; border-radius: 12px; margin-top: 12px;
+      background: var(--blue); color: #fff; text-decoration: none; font-weight: 700; font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/appicon.png" alt="" />
+    <h1 id="title">まいにちタイ語</h1>
+    <p id="lead">毎日の例文でタイ語の単語が増える</p>
+    <a class="btn" id="ios" href="https://apps.apple.com/app/id6759669680">App Store (iPhone / iPad)</a>
+    <a class="btn" id="android" href="https://play.google.com/store/apps/details?id=com.thaimemo.thai_memo">Google Play (Android)</a>
+  </main>
+</body>
+</html>

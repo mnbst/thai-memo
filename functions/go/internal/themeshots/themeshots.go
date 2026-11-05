@@ -23,6 +23,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"os"
 	"sync"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
@@ -234,7 +235,9 @@ func (b *Builder) BuildShotSection(topic string, targetWords []string, medium st
 	if id == "" {
 		return sentence.DramaSection{}
 	}
-	return b.shotSection(topic, id)
+	section := b.shotSection(topic, id)
+	section.Scene, section.ShotID = shotScene[id], id
+	return section
 }
 
 // ShotSection は選定時に場面合致で決めたショットの断片を返す（premium）。
@@ -299,9 +302,18 @@ func (b *Builder) shotSection(topic, id string) sentence.DramaSection {
 	if s, ok := shotSituation[id]; ok {
 		situation = s
 	}
+	var rel [3]string
+	roles := ""
+	if useShotRelation {
+		rel = shotRelation[id]
+		if r, ok := shotRoles[id]; ok && useShotRoles {
+			roles = "- 話し手: " + r[0] + "／聞き手: " + r[1] + "\n"
+		}
+	}
 	return sentence.DramaSection{
-		Medium: sentence.Media[0].Name,
-		Context: "- 場面: " + situation + "\n" +
+		Medium:   sentence.Media[0].Name,
+		Relation: rel,
+		Context: "- 場面: " + situation + "\n" + roles +
 			"- 参考タイ語例（話し言葉の言い回しの参考。この1文のみ）: " + shots[id] + "\n",
 		Required: "- 参考タイ語例をそのまま使わず、同じ場面のオリジナルの1文を作る。" +
 			"参考例の語を部分的に差し替えて別の意味の語を作らない\n" +
@@ -364,3 +376,11 @@ func (b *Builder) BuildSceneSection(topic, scene string) sentence.DramaSection {
 	}
 	return b.shotSection(topic, in[b.intn(len(in))])
 }
+
+// useShotRelation はショットの関係（shotRelation）を抽選の代わりに使うか。
+// SHOT_RELATION=0 で止める（比較の測定用）。
+var useShotRelation = os.Getenv("SHOT_RELATION") != "0"
+
+// useShotRoles は場面の行の下に話し手と聞き手（shotRoles）を出すか。
+// SHOT_ROLES=0 で止める（比較の測定用）。
+var useShotRoles = os.Getenv("SHOT_ROLES") != "0"

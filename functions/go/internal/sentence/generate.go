@@ -379,6 +379,7 @@ func (s *Service) SceneSection(resolved *ResolvedParams, targetWords []string) D
 	if section.Context != "" {
 		resolved.SubTheme = ""
 	}
+	resolved.ApplyShotRelation(section)
 	// 文体は参考例文が決める。付けた例文の媒体に揃え、関係ブロック等の出し分けを合わせる。
 	if section.Medium != "" {
 		resolved.Medium = section.Medium
@@ -413,6 +414,7 @@ func (s *Service) matchedSection(resolved *ResolvedParams) DramaSection {
 		return DramaSection{}
 	}
 	section := sh.ShotSection(resolved.Topic, resolved.ShotID, resolved.Medium)
+	resolved.ApplyShotRelation(section)
 	if section.Medium != "" {
 		resolved.Medium = section.Medium
 	} else {

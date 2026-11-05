@@ -166,7 +166,7 @@ lib/presentation/screens/splash_screen.dart
 アプリ初期化中のローディング画面。
 
 lib/presentation/screens/home_screen.dart
-メイン画面。3タブナビゲーション（今日/履歴/設定）、配信例文の取り込みと通知タップの受け口、起動時の初回ロード。
+メイン画面。3タブナビゲーション（今日/復習/設定）、配信例文の取り込みと通知タップの受け口、起動時の初回ロード。
 
 lib/presentation/screens/learning_screen.dart
 学習タブの段（例文→確認クイズ→まとめクイズ）の進行。カーソルを進めてよいかの判定（shouldAdvanceDailySetCursor）はここ。
@@ -178,7 +178,7 @@ lib/presentation/screens/detail_screen.dart
 例文詳細表示（初回の案内カード・例文カード・聞く／話す・使い方・単語・語順ガイド導線）。
 
 lib/presentation/screens/history_screen.dart
-保存済み例文一覧（検索・すべて/お気に入りのチップ絞り込み・スワイプ/一括削除）。1枚のカードに罫線区切りで積む。
+すべての例文（検索・お気に入り・削除）。履歴タブの右上から開く。
 
 lib/presentation/screens/quiz_screen.dart
 クイズ画面（問題出題、回答、結果確認）。進み具合は上端の金の帯とAppBarの「2 / 5」（QuizProgressCounter）で示し、正誤は緑と朱、進む導線は下端の固定バー。ヒント（発音→訳文の2段階、使い切っても不活性で残す）は5問テストのみ。確認クイズはヒント無しで例文へ戻るだけ。
@@ -212,6 +212,12 @@ test/screenshots/notif_coach_mock_app.dart
 
 test/screenshots/review_notify_mock_app.dart
 通知を1日に複数回設定するUI案（アラーム風の3枠固定・トグルで出し入れと届く通知）をシミュレーターで触るモック（flutter run -t）。
+
+test/screenshots/streak_burst_screenshot.dart
+連続日数が伸びたときの炎の演出を、日数（3/7/14/30/100）ごとに PNG に書き出す（見た目確認用）。
+
+test/screenshots/streak_burst_mock_app.dart
+連続日数の炎の演出を、日数ボタンで何度でも出してシミュレーターで確かめるモック（flutter run -t）。
 
 test/screenshots/notify_schedule_screenshot.dart
 通知時刻の設定画面を Firebase なしで描画して PNG に書き出すモック（X 告知・見た目確認用）。プラン（premium/free）・言語を dart-define で切り替える。
@@ -270,7 +276,7 @@ lib/presentation/widgets/vocab_level.dart
 語彙レベルの区切り（入門〜上級）とラベル・アイコン、free の語彙スコア上限。
 
 lib/presentation/widgets/streak_widgets.dart
-連続日数の表示。学習画面ヘッダーのチップ（StreakChip）と設定画面の週の帯カード（StreakCard）。節目ごとに炎のチップが温まる。
+連続日数の表示。学習画面ヘッダーのチップ（StreakChip）と設定画面の週の帯カード（StreakCard）。節目ごとに炎のチップが温まる。連続が伸びた日は中央に達成カード（StreakBurst）を出し、7/14/30/50/100日は光の筋・紙吹雪・振動で祝う。
 
 lib/presentation/widgets/tablet_width_limit.dart
 iPad など幅の広い画面で、アプリ全体を最大680ptの縦長の列にして中央に寄せる（MaterialApp.builder で適用）。
@@ -1019,6 +1025,9 @@ functions/go/internal/uvm/themesim_test.go
 functions/go/internal/themeshots/data.go
 BL以外15テーマの参考例文19130件（正本。タイ暮らし・タイ旅行の7テーマと恋愛はエピソードを時系列で書かせた行を含み（旅行は旅の雑談・旅先の交流・旅のトラブルも、恋愛・趣味・推し活・仕事・伝統・あいさつ・礼儀作法・宗教は12章の物語も）、その行は具体的な状況 shotSituation をプロンプトの場面の行に使う。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
 
+functions/go/internal/themeshots/relation_data.go
+場面の行が付くショット13462件の話し手から見た関係（地位・親しさ・性別）と話し手・聞き手の役（生成コード）。抽選の関係の代わりに使う。
+
 functions/go/internal/themeshots/written.go
 媒体「解説・紹介文」の参考例文（BL・あいさつ以外14テーマ、Thai PBS ナレーター行と th.wikipedia の原文）。
 
@@ -1357,6 +1366,12 @@ Tips・ガイドの X 投稿文（アプリの Tips とガイドから書き起�
 tools/x_post/select_prompt.txt
 例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
 
+tools/x_post/select_prompt_en.txt
+英語アカウント（@daily_thai11）の例文選定プロンプト。
+
+tools/x_post/issue_x_token.py
+別の X アカウントの Access Token を PIN 方式で発行し、Secret Manager の x-access-token-<lang> へ直接入れる。
+
 tools/x_post/synth_tts.py
 Google Cloud TTS（Chirp3-HD）で例文の読み上げ音声を作る。声は本番（ttsaudio/voice.go）と同じ男女判定で選ぶ。通常速度で1回だけ。
 
@@ -1370,7 +1385,7 @@ tools/x_post/post_to_threads.py
 Threadsへ投稿し、投稿済みを x_post/threads/posted.json へ記録する。メディアはGCSの署名付きURLで渡し、動画＋画像はカルーセル。長期トークンを古ければ延長する。
 
 tools/x_post/platforms.py
-投稿先（X / Threads）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
+投稿先（X / Threads）と言語（ja / en のアカウント）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
 
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
@@ -1379,7 +1394,30 @@ test/screenshots/x_post_screenshot.dart
 DetailScreen を flutter_test 上で描画し、動画の続きからスクロールした画像3枚までと、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
 
 .github/workflows/post-daily-x.yml
-X / Threads 投稿のワークフロー。platform で投稿先、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
+X / Threads 投稿のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
+
+## TikTok 動画（試作）
+
+tools/tiktok/common.py
+TikTok 用の縦動画（1080x1920）を組む共通部品。
+
+tools/tiktok/sentence.py
+例文の X 投稿の素材（text.txt・post.mp4）から縦動画を組む。
+
+tools/tiktok/tip.py
+Tips の台本（scripts.json の kind=tip）から縦動画を組む。
+
+tools/tiktok/feature.py
+機能紹介の台本（scripts.json の kind=feature）から縦動画を組む。
+
+tools/tiktok/phrase.py
+短いひとこと（phrases.json）から縦動画を組む。
+
+tools/tiktok/scripts.json / scripts_ko.json / phrases.json / phrases_ko.json
+Tips・機能紹介の台本と、ひとことの文面（日本語・韓国語）。
+
+tools/tiktok/shots/
+機能紹介で使うアプリ画面のスクショ（en / ko）。
 
 ## App Store スクリーンショット
 
@@ -1411,3 +1449,32 @@ test/screenshots/store_screenshots.dart
 
 .maestro/README.md
 Maestroの実行手順（起動コマンド、studio、スクショの出力先）。
+
+## 語彙一覧（履歴タブ）
+
+lib/presentation/screens/vocab_history_screen.dart
+出会った語を語彙ランク順に並べる履歴タブ本体
+
+lib/presentation/screens/vocab_word_screen.dart
+語の詳細と、その語を含む例文の一覧
+
+lib/presentation/widgets/vocab_gauge.dart
+覚え具合のゲージと状態ラベル・色
+
+lib/presentation/widgets/vocab_guide_card.dart
+復習タブの上に閉じるまで出す案内カード
+
+lib/presentation/widgets/learned_word_card.dart
+クイズで「覚えた」に入った語を知らせるカード
+
+lib/presentation/providers/vocab_progress_provider.dart
+語彙一覧の取得と例文情報の結合
+
+lib/services/vocab_progress_sync.dart
+getVocabProgress の差分同期（カーソルとアカウント切替）
+
+lib/data/models/vocab_word.dart
+VocabWord / VocabEntry / 状態判定
+
+functions/go/get_vocab_progress.go
+語彙一覧の差分を返す callable
