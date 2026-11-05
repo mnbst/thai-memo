@@ -1820,6 +1820,8 @@
   "vocabGuideMeaningHint": "クイズの結果で増減します",
   "vocabGuideQuiz": "まとめクイズに向けて復習",
   "vocabGuideQuizHint": "ゲージが少ない単語から出題します",
+  "vocabGuideRangeHint": "クイズ出題範囲は目安です",
+  "vocabQuizRange": "クイズ出題範囲",
   "vocabGuideTapWord": "単語をタップして例文を確認",
   "vocabGuideTapWordHint": "右上の{icon}で例文一覧も見れます",
   "@vocabGuideTapWordHint": {

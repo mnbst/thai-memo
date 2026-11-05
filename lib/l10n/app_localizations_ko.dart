@@ -3432,6 +3432,12 @@ class L10nKo extends L10n {
   String get vocabGuideQuizHint => '게이지가 낮은 단어가 먼저 출제돼요';
 
   @override
+  String get vocabGuideRangeHint => '퀴즈 출제 범위는 대략적인 기준이에요';
+
+  @override
+  String get vocabQuizRange => '퀴즈 출제 범위';
+
+  @override
   String get vocabGuideTapWord => '단어를 눌러 예문 확인';
 
   @override

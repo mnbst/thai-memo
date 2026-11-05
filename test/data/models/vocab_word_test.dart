@@ -51,6 +51,73 @@ void main() {
     expect(entries[0].sentences, isEmpty);
   });
 
+  group('quizScoreBand', () {
+    test('未受験はスコアの下50と前方の帯', () {
+      expect(quizScoreBand(score: 30, tested: 0, premium: true), (0, 44));
+      expect(quizScoreBand(score: 300, tested: 0, premium: true), (250, 308));
+    });
+    test('受験者は測定値より下を出さず、前方は測定値から数える', () {
+      expect(quizScoreBand(score: 320, tested: 300, premium: true), (300, 336));
+    });
+    test('free は100語で頭打ちにする', () {
+      expect(quizScoreBand(score: 95, tested: 500, premium: false), (100, 100));
+      expect(quizScoreBand(score: 50, tested: 0, premium: false), (0, 60));
+    });
+    test('測定値の上限に達した人は前方を広げる', () {
+      expect(
+        quizScoreBand(score: 4000, tested: 3000, premium: true),
+        (3950, 4050),
+      );
+    });
+  });
+
+  group('vocabListRows', () {
+    List<Object> rows(List<int> ranks, int score, (int, int)? band) {
+      final entries = ranks
+          .map((r) => VocabEntry(progress: _w('w$r', r)))
+          .toList();
+      return vocabListRows(entries, score, band)
+          .map((e) => e is VocabEntry ? e.progress.rank : e)
+          .toList();
+    }
+
+    test('範囲の上端・スコア・下端を語の間に挟む', () {
+      expect(rows([342, 306, 296, 240], 300, (250, 308)), [
+        342,
+        VocabListMarker.rangeTop,
+        306,
+        VocabListMarker.score,
+        296,
+        VocabListMarker.rangeBottom,
+        240,
+      ]);
+    });
+    test('範囲内の語が無ければ区切りを出さない', () {
+      expect(rows([400, 100], 300, (250, 308)), [
+        400,
+        VocabListMarker.score,
+        100,
+      ]);
+    });
+    test('下端より下の語が無ければ末尾に下端を置く', () {
+      expect(rows([300, 280], 0, (250, 308)), [
+        VocabListMarker.rangeTop,
+        300,
+        280,
+        VocabListMarker.rangeBottom,
+      ]);
+    });
+    test('スコアが範囲の下にあれば下端の後に置く', () {
+      expect(rows([120, 80], 90, (100, 130)), [
+        VocabListMarker.rangeTop,
+        120,
+        VocabListMarker.rangeBottom,
+        VocabListMarker.score,
+        80,
+      ]);
+    });
+  });
+
   group('scoreMarkerIndex', () {
     List<VocabEntry> list(List<int> ranks) => [
           for (final r in ranks) VocabEntry(progress: _w('w$r', r)),

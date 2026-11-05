@@ -3401,6 +3401,12 @@ class L10nJa extends L10n {
   String get vocabGuideQuizHint => 'ゲージが少ない単語から出題します';
 
   @override
+  String get vocabGuideRangeHint => 'クイズ出題範囲は目安です';
+
+  @override
+  String get vocabQuizRange => 'クイズ出題範囲';
+
+  @override
   String get vocabGuideTapWord => '単語をタップして例文を確認';
 
   @override
