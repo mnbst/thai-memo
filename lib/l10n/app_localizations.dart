@@ -4420,6 +4420,18 @@ abstract class L10n {
   /// **'綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。間違えたときは「タイ文字について詳しく学ぶ」からタイ文字ガイドを開けます。'**
   String get guideRoleQuizSpelling;
 
+  /// No description provided for @guideRoleReviewTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'復習'**
+  String get guideRoleReviewTitle;
+
+  /// No description provided for @guideRoleReviewBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'出会った単語の覚え具合を確認できます。ゲージが少ない単語は、まとめクイズで優先して出題されます。'**
+  String get guideRoleReviewBody;
+
   /// No description provided for @guideRoleScoreTitle.
   ///
   /// In ja, this message translates to:

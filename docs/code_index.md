@@ -1292,6 +1292,9 @@ UVMデータ（embeddings, vocab_words, freq_rank, topic_embeddings）をGCSに�
 scripts/ga4_acquisition.py
 prod GA4 の流入分析（日次新規・流入元・国・OS/バージョン別）。SAインパーソネーションで認証。
 
+scripts/ga4_review_tab.py
+prod GA4 の復習タブ利用状況（タブ表示・語の詳細と review_tab イベントのユーザー数・回数）をバージョン別に出す。
+
 scripts/ga4_retention.py
 prod GA4 の first_open 起点コホートリテンション（weekly/daily）。既定で米国を除外、--all/--only/--exclude で範囲変更。
 

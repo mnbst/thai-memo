@@ -306,6 +306,11 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
             figure: const GuideWordOrderFigure(),
           ),
           _GuideSection(
+            icon: Icons.menu_book,
+            title: l10n.guideRoleReviewTitle,
+            lines: [l10n.guideRoleReviewBody],
+          ),
+          _GuideSection(
             icon: Icons.trending_up,
             title: l10n.guideRoleScoreTitle,
             lines: [l10n.guideRoleScoreBody],

@@ -72,6 +72,23 @@ void main() {
       expect(topOf(tester, down), lessThan(30));
     });
 
+    testWidgets('範囲の中では上向きを一覧の一番下で止める', (tester) async {
+      await open(tester);
+      await tester.drag(find.byType(ListView), const Offset(0, -200));
+      await tester.pumpAndSettle();
+      final up = find.byIcon(Icons.arrow_upward).hitTestable();
+      expect(up, findsOneWidget);
+      final listBottom = tester.getBottomLeft(find.byType(ListView)).dy;
+      expect((listBottom - tester.getBottomLeft(up).dy).abs(), lessThan(30));
+    });
+
+    testWidgets('範囲より上では上向きを止めない', (tester) async {
+      await open(tester);
+      await tester.drag(find.byType(ListView), const Offset(0, 5000));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.arrow_upward).hitTestable(), findsNothing);
+    });
+
     testWidgets('範囲を過ぎたら上向きだけを上端に貼る', (tester) async {
       await open(tester);
       await tester.drag(find.byType(ListView), const Offset(0, -2500));

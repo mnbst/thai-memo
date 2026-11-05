@@ -2599,6 +2599,13 @@ class L10nEn extends L10n {
       'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word’s spelling from its pronunciation and meaning. After you answer correctly once, that word appears in other formats, such as fill-in-the-blank or word order. If you miss one, tap “More on Thai script” to open the Thai script guide.';
 
   @override
+  String get guideRoleReviewTitle => 'Review';
+
+  @override
+  String get guideRoleReviewBody =>
+      'Check how well you remember words you’ve seen. Low-gauge words appear first in summary quizzes.';
+
+  @override
   String get guideRoleScoreTitle => 'Vocabulary score';
 
   @override
