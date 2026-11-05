@@ -7,6 +7,7 @@
 // =============================================================================
 
 import '../../core/pronunciation_text.dart';
+import 'syllable.dart';
 import 'thai_sentence.dart';
 
 /// クイズ問題モデル
@@ -306,8 +307,11 @@ class QuizQuestion {
       if (entry is! Map) return <String, dynamic>{};
       final normalized = Map<String, dynamic>.from(entry);
       final syllables = normalized['syllables'];
-      if (syllables is List && syllables.any((syllable) => syllable is! Map)) {
-        normalized.remove('syllables');
+      // サーバーは音節を文字列の配列で返す。捨てると語全体が1音節の扱いになり、
+      // 複数音節の語だけ綴りの分解が出なくなる。
+      if (syllables is List) {
+        normalized['syllables'] =
+            parseSyllables(syllables)!.map((s) => s.toJson()).toList();
       }
       return normalized;
     }).where((entry) {

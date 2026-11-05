@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:thai_memo/core/spelling_breakdown.dart';
 import 'package:thai_memo/core/config/app_config.dart';
 import 'package:thai_memo/data/datasources/backend_api_service.dart';
 import 'package:thai_memo/data/datasources/local/database_helper.dart';
@@ -628,6 +631,57 @@ void main() {
     expect(find.text('ค์'), findsOneWidget);
     // 末子音は読む字だけ。
     expect(find.text('ง'), findsOneWidget);
+  });
+
+  group('綴りの分解は端末を優先する', () {
+    QuizQuestion questionFor(String answer) => QuizQuestion(
+          sentenceId: 'sentence-0',
+          thaiText: answer,
+          blankText: '___',
+          correctAnswer: answer,
+          correctAnswerMeaning: '土曜',
+          choices: [answer, 'กา', 'กี', 'กู'],
+          pronunciation: 'sǎo',
+          explanation: '',
+          quizFormat: QuizQuestion.spellingChoiceFormat,
+          // 修正前のサーバーの分解（ガーランが母音に混ざる）。
+          spellingParts: const [
+            SpellingPart(role: 'onset', text: 'ส', sound: 's'),
+            SpellingPart(role: 'vowel', text: 'เาร์', sound: 'a'),
+            SpellingPart(role: 'coda', sound: 'w'),
+            SpellingPart(role: 'tone', tone: 'rising'),
+          ],
+          spellingGlyphs: const [
+            SpellingGlyph(role: 'vowel', text: 'เ'),
+            SpellingGlyph(role: 'onset', text: 'ส'),
+            SpellingGlyph(role: 'vowel', text: 'าร์'),
+          ],
+        );
+
+    Future<void> answer(WidgetTester tester, String word) async {
+      SpellingIndex.debugSetLoaded(SpellingIndex.fromJson(
+        jsonDecode(File('assets/spelling_forms.json').readAsStringSync())
+            as Map<String, dynamic>,
+      ));
+      await _pumpSummaryQuiz(tester, questions: [questionFor(word)]);
+      await tester.tap(find.byKey(const ValueKey('quiz_choice_1')));
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('端末で切れる綴りは端末の分解を出す', (tester) async {
+      await answer(tester, 'เสาร์');
+
+      expect(find.text('ガーラン'), findsOneWidget);
+      expect(find.text('ร์'), findsOneWidget);
+    });
+
+    testWidgets('端末で切れない綴りはサーバーの分解を出す', (tester) async {
+      await answer(tester, 'ไม่มีคำนี้');
+
+      expect(find.text('ガーラン'), findsNothing);
+      expect(find.text('綴りの分解'), findsOneWidget);
+    });
   });
 
   testWidgets('母音字が末子音を兼ねる綴りは1マスにまとめる', (tester) async {

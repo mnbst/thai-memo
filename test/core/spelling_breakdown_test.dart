@@ -38,6 +38,14 @@ void main() {
     ]);
   });
 
+  test('segmented は1単位を字まで切れたときだけ返す', () {
+    expect(index.segmented('กิน')?.glyphs, isNotEmpty);
+    // 2音で読む単位は1枚のカードに収まらない。
+    expect(index.segmented('ตลาด'), isNull);
+    // 表に無い綴り。
+    expect(index.segmented('ไม่มีคำนี้'), isNull);
+  });
+
   test('読まない字は別の枠にする', () {
     expect(cells('จริง').last, 'silent:ร:');
   });
