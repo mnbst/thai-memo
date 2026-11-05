@@ -13,6 +13,7 @@ import '../widgets/swipe_back.dart';
 /// 読みの記号の一覧。説明は pronSymbolsDescs を `|` で区切って同じ順に引く。
 const _symbols = [
   'ɛ  ɔ',
+  'o  u',
   'ʉ',
   'ə',
   'aa  ii',

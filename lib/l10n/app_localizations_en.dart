@@ -3373,11 +3373,11 @@ class L10nEn extends L10n {
 
   @override
   String get pronSymbolsBody =>
-      'Only the symbols that differ from plain romanization.';
+      'Only the symbols that read differently from plain romanization.';
 
   @override
   String get pronSymbolsDescs =>
-      'ɛ is an open \"e\" as in \"bed\"; ɔ is an open \"o\" as in \"law\"|\"u\" said with spread lips, not rounded|A relaxed sound like the \"u\" in \"fur\", without the r|A doubled vowel is long|k has no puff of air and often sounds close to \"g\"; kh has a strong puff|With h, a strong puff of air. t and p have none|\"ng\" as in \"sing\". It can start a word|Tones: no mark is mid, à low, â falling, á high, ǎ rising';
+      'ɛ is an open \"e\" as in \"bed\"; ɔ is an open \"o\" as in \"law\"|Said with rounded lips, as in \"go\" and \"too\"|\"u\" said with spread lips, not rounded|A relaxed sound like the \"u\" in \"fur\", without the r|A doubled vowel is long|k has no puff of air and often sounds close to \"g\"; kh has a strong puff|With h, a strong puff of air. t and p have none|\"ng\" as in \"sing\". It can start a word|Tones: no mark is mid, à low, â falling, á high, ǎ rising';
 
   @override
   String get pronAspTitle => 'With or without a puff of air';
