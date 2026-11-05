@@ -5,9 +5,11 @@ import (
 	"errors"
 	"math"
 	"math/rand"
+	"slices"
 
 	"cloud.google.com/go/firestore"
 
+	"github.com/mnbst/thai-memo/functions/go/internal/appver"
 	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
@@ -20,6 +22,32 @@ type TopicChoice struct {
 	// Slots は premium おまかせの枠ごとのテーマ（Pool から一様に選んだもの）。
 	// i 番目の語はテーマ指定 Slots[i] と同じ扱いで選ぶ。
 	Slots []string
+}
+
+// GreetingStopMinVersion はあいさつの新規生成を止める最初のアプリ版。テーマ選択と
+// ヒアリングからあいさつを外した版で、これより前のアプリには従来どおり生成する。
+var GreetingStopMinVersion = [3]int{1, 4, 29}
+
+// GreetingGenerationStopped は topic があいさつで、その新規生成を止めるユーザーか。
+// 止めたときはテーマ未指定として扱う（プール・バンクから出るのは止めない）。
+func GreetingGenerationStopped(userData map[string]any, topic string) bool {
+	return topic != "" && CanonicalTopic(topic) == Topics[0] && appver.AtLeast(userData, GreetingStopMinVersion)
+}
+
+// omakaseGreetingMaxVocab 以上の語彙では、おまかせの候補からあいさつを外す。
+const omakaseGreetingMaxVocab = 100
+
+// OmakaseTopicPool はテーマ未指定（おまかせ）で選ぶテーマの候補を語彙でゲートして返す。
+//
+// あいさつ（Topics[0]）は語彙 omakaseGreetingMaxVocab 未満の入門者にだけ残す。それ以上では
+// あいさつに関係の無い学習語と組むと「こんにちは。昨日のことは秘密です。」のような文に
+// なりやすい（2026-11-06）。テーマとして指定されたときは語彙によらず従来どおり生成する。
+func OmakaseTopicPool(estimatedVocab int) []string {
+	pool := slices.Clone(Topics)
+	if estimatedVocab >= omakaseGreetingMaxVocab {
+		pool = slices.DeleteFunc(pool, func(t string) bool { return t == Topics[0] })
+	}
+	return GateTopicsForVocab(pool, estimatedVocab)
 }
 
 // ChooseTopic は語彙レベルに応じたテーマ候補を作り、free では 1 つに決める
@@ -42,7 +70,7 @@ func ChooseTopic(
 	if topic != "" {
 		return TopicChoice{Topic: topic}
 	}
-	pool := GateTopicsForVocab(append([]string(nil), Topics...), estimatedVocab)
+	pool := OmakaseTopicPool(estimatedVocab)
 	if isPremium {
 		return TopicChoice{Pool: pool}
 	}
@@ -81,6 +109,9 @@ func ResolveInterviewTopic(userData map[string]any, randIntn func(int) int) stri
 	// INTERVIEW_GOAL_TOPICS の値は必ず 1 件以上あるので、len(...) == 0 に
 	// なるのは goal が未知（map ミス）のときだけ。
 	candidates := InterviewGoalTopics[goal]
+	if appver.AtLeast(userData, GreetingStopMinVersion) {
+		candidates = slices.DeleteFunc(slices.Clone(candidates), func(t string) bool { return t == Topics[0] })
+	}
 	if len(candidates) == 0 {
 		return ""
 	}

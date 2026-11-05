@@ -48,7 +48,7 @@ class GenerationConstants {
   static const travelTopic = 'タイ旅行（観光、ホテル、交通、買い物、食べ物）';
 
   /// テーマ選択の画面に出す一覧。まとめたテーマの中身（食べ物・旅行・家族・
-  /// 買い物・交通・健康・天気）は出さない。すでにそれを選んでいる人の設定は
+  /// 買い物・交通・健康・天気）とあいさつは出さない。すでにそれを選んでいる人の設定は
   /// そのまま効く（サーバーは個別テーマも受け付ける）。
   static final pickerTopics = [
     topics[0], // タイBLドラマ
@@ -57,13 +57,16 @@ class GenerationConstants {
     travelTopic,
     topics[1], // 恋愛・男女関係
     topics[2], // 仕事
-    topics[3], // あいさつ
     topics[11], // 趣味
     topics[12], // 学校
     topics[13], // 宗教・信仰
     topics[14], // 伝統・祭り
     topics[15], // 礼儀作法
   ];
+
+  /// [topic] があいさつか。旧版が保存した短い名前も含む。
+  static bool isGreetingTopic(String? topic) =>
+      topic == topics[3] || topic == 'あいさつ';
 
   // ---------------------------------------------------------------------------
   // ヒアリング（オンボーディングの4問）の goal → テーマ候補
@@ -83,12 +86,13 @@ class GenerationConstants {
   ///
   /// 端末を経由しない毎日配信（deliverDailySentence）だけはサーバー側で同じ
   /// 対応表を使う（constants.py: INTERVIEW_GOAL_TOPICS）。並びを変えるときは
-  /// 両方直すこと。
+  /// 両方直すこと。あいさつはサーバー側では旧アプリ向けに残し、版で外している
+  /// （select.go: GreetingStopMinVersion）。
   static final interviewGoalTopics = <String, List<String>>{
     // タイ旅行（旅行・交通・買い物・食べ物をまとめたテーマ）
     'travel': [travelTopic],
-    // 仕事（+あいさつ）
-    'work': [topics[2], topics[3]],
+    // 仕事
+    'work': [topics[2]],
     // タイ暮らし（買い物・家族・健康・天気・交通・食べ物をまとめたテーマ）
     'live': [lifeTopic],
     // タイBLドラマ・伝統・祭り（+趣味/恋愛）
