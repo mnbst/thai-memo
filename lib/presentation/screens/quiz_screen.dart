@@ -8,9 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
 import '../../core/quota_error.dart';
-import '../../core/thai_tone_analyzer.dart';
 import 'thai_script_guide_screen.dart';
-import 'tone_guide_screen.dart';
 import 'word_order_guide_screen.dart';
 import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
@@ -27,6 +25,7 @@ import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
 import '../widgets/notification_coach_dialog.dart';
+import '../widgets/spelling_breakdown_view.dart';
 import '../widgets/topic_picker.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
@@ -2629,30 +2628,8 @@ class _MeaningQuizIncorrectReview extends StatelessWidget {
 
 // ==================== 綴り4択の分解カード ====================
 
-/// 綴り4択の答え合わせで、正解と選んだ綴りを部品ごとに並べる。
-///
-/// 文字のどこがどの部品かまでは出さない（タイ語は頭子音の階級で声調記号が
-/// 動くので、文字単位の対応付けは当てにならない）。音と役割だけ並べて、
 /// 綴り4択の答え合わせ。正解の綴りと、その字が何に当たるかを並べて見せる。
-///
-/// 綴りは1つの Text のまま出す（部品ごとに Text を割ると、母音記号や
-/// 声調記号が土台の子音から外れて崩れる）。対応は下のカードで、
-/// **書く順**に並べて示す。間違えた選択肢は実在しない綴りなので出さない。
-/// 分解カードの1マス。役割・見出し・字・読み。
-class _BreakdownCell {
-  final String role;
-  final String label;
-  final String glyph;
-  final String value;
-
-  const _BreakdownCell({
-    required this.role,
-    required this.label,
-    required this.glyph,
-    required this.value,
-  });
-}
-
+/// 間違えた選択肢は実在しない綴りなので出さない。
 class _SpellingBreakdownCard extends StatelessWidget {
   final QuizQuestion question;
 
@@ -2661,124 +2638,11 @@ class _SpellingBreakdownCard extends StatelessWidget {
 
   const _SpellingBreakdownCard({required this.question, required this.header});
 
-  /// 部品ごとの色。深藍の面でも紙の面でも読める明度に振り分ける。
-  static Color _roleColor(String role, bool dark) {
-    return switch (role) {
-      'onset' => dark ? const Color(0xFF8FB4F0) : const Color(0xFF2F5AA8),
-      'vowel' => dark ? const Color(0xFFE2BE76) : AppColors.goldInk,
-      'coda' => dark ? const Color(0xFF74C4A8) : AppColors.jade,
-      // 読まない字は音が無いので、色を持たせず沈めておく。
-      'silent' => dark ? const Color(0xFF8A8F9E) : const Color(0xFF7A7F8C),
-      _ => dark ? const Color(0xFFCB9BDD) : const Color(0xFF8A4FA0),
-    };
-  }
-
-  String _roleLabel(L10n l10n, String role) => switch (role) {
-        'onset' => l10n.quizPartOnset,
-        'vowel' => l10n.quizPartVowel,
-        'coda' => l10n.quizPartCoda,
-        _ => l10n.quizPartToneLabel,
-      };
-
-  /// 表示するセルを作る。書く順に並べ、母音字が末子音を兼ねる綴り
-  /// （ทำ の ำ = am、ไม่ の ไ = ai）は1つのセットとして1マスにまとめる。
-  List<_BreakdownCell> _cells(
-    L10n l10n,
-    List<SpellingPart> parts,
-    List<SpellingGlyph> glyphs,
-  ) {
-    final ordered = _inWritingOrder(parts, glyphs);
-    final coda = parts.firstWhere((p) => p.role == 'coda',
-        orElse: () => const SpellingPart(role: 'coda'));
-    // 末子音に字が無く、母音の字がそれを兼ねているとき（母音に字がある）。
-    final vowel = parts.firstWhere((p) => p.role == 'vowel',
-        orElse: () => const SpellingPart(role: 'vowel'));
-    final merged =
-        coda.text.isEmpty && coda.sound.isNotEmpty && vowel.text.isNotEmpty;
-
-    final cells = <_BreakdownCell>[];
-    for (final part in ordered) {
-      if (merged && part.role == 'coda') continue;
-      if (merged && part.role == 'vowel') {
-        cells.add(_BreakdownCell(
-          role: 'vowel',
-          label: l10n.quizPartVowelCoda,
-          glyph: part.displayText,
-          value: '${part.sound}${coda.sound}',
-        ));
-        continue;
-      }
-      cells.add(_BreakdownCell(
-        // 読まない字の見出しは記号の名前。記号そのもの（์）は単体だと
-        // 土台が無くて豆腐になるので出さない。
-        label: part.role == 'silent'
-            ? (part.text.contains('\u0E4C')
-                ? l10n.quizPartKaran
-                : l10n.quizPartSilent)
-            : _roleLabel(l10n, part.role),
-        role: part.role,
-        glyph: part.displayText,
-        value: switch (part.role) {
-          // 読まない字（องค์ の ค์、จันทร์ の ทร์）は音を持たない。
-          'silent' => l10n.quizPartSilentValue,
-          'tone' => _toneOf(part.tone).displayName(l10n),
-          _ => part.sound.isEmpty ? l10n.quizPartNone : part.sound,
-        },
-      ));
-    }
-    return cells;
-  }
-
-  /// 部品を綴りを書く順に並べ替える。
-  ///
-  /// 字を持たない部品（書かない母音・母音字が兼ねる末子音）は書く位置が
-  /// 無いので、音の並び（頭子音→母音→末子音→声調→読まない字）で
-  /// 前後の部品の間に入れる。末尾に寄せると คน の母音が末子音より後ろに
-  /// 来て、読みの順と食い違う。
-  List<SpellingPart> _inWritingOrder(
-    List<SpellingPart> parts,
-    List<SpellingGlyph> glyphs,
-  ) {
-    if (glyphs.isEmpty) return parts;
-    const soundOrder = ['onset', 'vowel', 'coda', 'tone', 'silent'];
-    final writtenAt = <String, double>{};
-    for (var i = 0; i < glyphs.length; i++) {
-      writtenAt.putIfAbsent(glyphs[i].role, () => i.toDouble());
-    }
-
-    final sorted = [...parts]..sort((a, b) =>
-        soundOrder.indexOf(a.role).compareTo(soundOrder.indexOf(b.role)));
-    final keys = <String, double>{};
-    var prev = -1.0;
-    for (var i = 0; i < sorted.length; i++) {
-      final role = sorted[i].role;
-      var key = writtenAt[role];
-      if (key == null) {
-        // 次に字を持つ部品の位置との間に置く。
-        var next = glyphs.length.toDouble();
-        for (var j = i + 1; j < sorted.length; j++) {
-          final at = writtenAt[sorted[j].role];
-          if (at != null) {
-            next = at;
-            break;
-          }
-        }
-        key = (prev + next) / 2;
-      }
-      keys[role] = key;
-      prev = key;
-    }
-    sorted.sort((a, b) => keys[a.role]!.compareTo(keys[b.role]!));
-    return sorted;
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context);
     final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
     if (question.spellingParts.isEmpty) return const SizedBox.shrink();
-    final cells = _cells(l10n, question.spellingParts, question.spellingGlyphs);
 
     return Card(
       child: Padding(
@@ -2794,243 +2658,20 @@ class _SpellingBreakdownCard extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
-            // セルは高さを揃えて、役割ラベルと読みが同じ行に並ぶようにする。
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < cells.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 8),
-                    Expanded(child: _partCell(context, cells[i], dark)),
-                  ],
-                ],
-              ),
+            SpellingPartsRow(
+              parts: question.spellingParts,
+              glyphs: question.spellingGlyphs,
+              toneRule: question.spellingToneRule,
             ),
             if (question.spellingToneRule != null) ...[
               const SizedBox(height: 12),
-              _toneRuleTile(context, question.spellingToneRule!, dark),
+              SpellingToneRuleTile(
+                parts: question.spellingParts,
+                rule: question.spellingToneRule!,
+              ),
             ],
           ],
         ),
-      ),
-    );
-  }
-
-  static ThaiTone _toneOf(String tone) => switch (tone) {
-        'low' => ThaiTone.low,
-        'falling' => ThaiTone.falling,
-        'high' => ThaiTone.high,
-        'rising' => ThaiTone.rising,
-        _ => ThaiTone.mid,
-      };
-
-  static ConsonantClass _classOf(String value) => switch (value) {
-        'mid' => ConsonantClass.middle,
-        'high' => ConsonantClass.high,
-        _ => ConsonantClass.low,
-      };
-
-  static ToneMark _markOf(String value) => switch (value) {
-        '\u0E48' => ToneMark.maiEk,
-        '\u0E49' => ToneMark.maiTho,
-        '\u0E4A' => ToneMark.maiTri,
-        '\u0E4B' => ToneMark.maiChattawa,
-        _ => ToneMark.none,
-      };
-
-  /// 声調は字1つに対応しないので、決まり方（階級 × 生音/死音 × 記号）を
-  /// 1行で見せる。開くと、その階級の声調表を該当行を光らせて出す。
-  /// 表そのものは声調ガイドと同じ ThaiToneAnalyzer から引く。
-  Widget _toneRuleTile(BuildContext context, SpellingToneRule rule, bool dark) {
-    final l10n = L10n.of(context);
-    final theme = Theme.of(context);
-    final color = _roleColor('tone', dark);
-    final klass = _classOf(rule.consonantClass);
-    final mark = _markOf(rule.mark);
-    final syllable =
-        rule.syllable == 'dead' ? SyllableType.dead : SyllableType.live;
-    final tone = _toneOf(
-      question.spellingParts
-          .firstWhere((p) => p.role == 'tone',
-              orElse: () => const SpellingPart(role: 'tone'))
-          .tone,
-    );
-    final rows = ThaiToneAnalyzer.getToneTable(klass);
-
-    return Theme(
-      // 区切り線を消して、カードの中の表に見えるようにする。
-      data: theme.copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        key: const ValueKey('quiz_spelling_tone_rule'),
-        tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-          side: BorderSide(color: color.withValues(alpha: 0.4)),
-        ),
-        collapsedShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-          side: BorderSide(color: color.withValues(alpha: 0.4)),
-        ),
-        title: Text(
-          l10n.quizToneRuleFor(klass.displayName(l10n)),
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
-        ),
-        // この語がどの行に当たるかは畳んだままでも読めるようにする。
-        subtitle: Text(
-          '${syllable.displayName(l10n)} × ${mark.displayName(l10n)}'
-          ' → ${tone.displayName(l10n)}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        children: [
-          Table(
-            border: TableBorder.all(color: theme.colorScheme.outlineVariant),
-            columnWidths: const {
-              0: FlexColumnWidth(3),
-              1: FlexColumnWidth(3),
-              2: FlexColumnWidth(2),
-            },
-            children: [
-              TableRow(
-                decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHigh),
-                children: [
-                  _tableCell(context, l10n.toneMarkLabel, header: true),
-                  _tableCell(context, l10n.toneSyllableType, header: true),
-                  _tableCell(context, l10n.toneResultTone, header: true),
-                ],
-              ),
-              for (final row in rows)
-                _toneTableRow(context, row, color,
-                    hit: row.matches(mark, syllable,
-                        hasShortVowel: rule.shortVowel)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // 表だけで足りないときは声調ガイドへ送る。
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              key: const ValueKey('quiz_spelling_tone_guide_button'),
-              onPressed: () => Navigator.push(
-                context,
-                CupertinoPageRoute(
-                  settings:
-                      const RouteSettings(name: ToneGuideScreen.routeName),
-                  builder: (context) => const ToneGuideScreen(),
-                ),
-              ),
-              icon: const Icon(Icons.school),
-              label: Text(l10n.toneLearnMore),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  TableRow _toneTableRow(
-    BuildContext context,
-    ToneRule row,
-    Color color, {
-    required bool hit,
-  }) {
-    final l10n = L10n.of(context);
-    // 低子音の死音だけは母音の長短で行が分かれる。
-    final syllable = row.isShortVowel != null
-        ? row.syllableType
-            .getDisplayNameWithVowel(l10n, hasShortVowel: row.isShortVowel)
-        : row.syllableType.displayName(l10n);
-    return TableRow(
-      decoration: hit
-          ? BoxDecoration(color: color.withValues(alpha: 0.14))
-          : const BoxDecoration(),
-      children: [
-        _tableCell(context, row.toneMark.displayName(l10n), hit: hit),
-        _tableCell(context, syllable, hit: hit),
-        _tableCell(context, row.resultingTone.displayName(l10n), hit: hit),
-      ],
-    );
-  }
-
-  Widget _tableCell(
-    BuildContext context,
-    String text, {
-    bool header = false,
-    bool hit = false,
-  }) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: theme.textTheme.bodySmall?.copyWith(
-          fontWeight: header || hit ? FontWeight.w700 : FontWeight.w400,
-        ),
-      ),
-    );
-  }
-
-  Widget _partCell(BuildContext context, _BreakdownCell cell, bool dark) {
-    final theme = Theme.of(context);
-    final color = _roleColor(cell.role, dark);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: dark ? 0.16 : 0.07),
-        borderRadius: BorderRadius.circular(AppConfig.cardBorderRadius),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 字の高さは綴りによって変わる（声調記号が乗る・乗らない）ので、
-          // 箱で固定して下のラベルを揃える。字にならない部品は — で示す。
-          SizedBox(
-            height: 40,
-            child: Center(
-              child: Text(
-                cell.glyph.isEmpty ? '\u2014' : cell.glyph,
-                maxLines: 1,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w500,
-                  color: cell.glyph.isEmpty
-                      ? theme.colorScheme.outlineVariant
-                      : color,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          // 読まない字が増えると5マスになるので、はみ出す前に縮める。
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              cell.label,
-              maxLines: 1,
-              style: theme.textTheme.labelSmall?.copyWith(color: color),
-            ),
-          ),
-          const SizedBox(height: 2),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              cell.value,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

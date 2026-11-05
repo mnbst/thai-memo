@@ -1073,7 +1073,7 @@
   "toneRising": "上昇声",
   "toneAnalyzerEmptyWord": "単語が空です",
 
-  "toneDialogTitle": "声調の解説",
+  "toneDialogTitle": "文字の解説",
   "toneSyllableBreakdown": "音節分解",
   "toneSyllableNumber": "音節 {number}",
   "@toneSyllableNumber": {
@@ -1087,7 +1087,6 @@
   "toneSyllableType": "音節タイプ",
   "toneResultPrefix": "結果: ",
   "toneMarkLabel": "声調記号",
-  "toneMarkPrefix": "声調記号: ",
   "toneResultTone": "結果の声調",
   "toneShiftFor": "{consonantClass}の声調変化",
   "@toneShiftFor": {
@@ -1108,6 +1107,7 @@
   "toneRareUsage": "例外的な使用（現代では稀）",
   "toneAppliedRule": "= この単語に適用されている規則",
   "toneLearnMore": "声調について詳しく学ぶ",
+  "toneRuleException": "（例外）",
   "toneExamplePrefix": "例: {value}",
   "@toneExamplePrefix": {
     "placeholders": {

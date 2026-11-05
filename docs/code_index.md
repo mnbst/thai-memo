@@ -290,6 +290,12 @@ lib/presentation/widgets/sentence_audio_player.dart
 lib/presentation/widgets/sentence_audio_section.dart
 例文の下の「お手本を聞く／発音練習」2ボタンと、押したときに開く再生バー・録音UI。学習タブと例文詳細で共用。
 
+lib/presentation/widgets/spelling_breakdown_view.dart
+綴りの分解のマス・声調の決まり方・語の詳細に載せる節。クイズの答え合わせ・声調ダイアログ・復習の語の詳細で共用。
+
+lib/presentation/widgets/tone_shift_table.dart
+子音の階級ごとの声調変化表。声調ダイアログ・声調ガイド・綴りの分解で共用。
+
 lib/presentation/widgets/thai_highlight.dart
 例文中の学習単語を金で示す TextSpan 生成（深藍面の金地・紙面の色のみ・発音の3種）。
 
@@ -323,7 +329,7 @@ lib/presentation/widgets/swipe_back.dart
 右フリックで前画面へ戻すラッパー。Cupertinoの戻るジェスチャが左端20px限定なので、その補助として全面で拾う。
 
 lib/presentation/tone_explanation_dialog.dart
-タイ語声調の解説ダイアログ。
+語の文字の解説ダイアログ（音節分解・綴りの分解・声調）。
 
 ## Services
 
@@ -373,6 +379,9 @@ lib/services/daily_set_progress_store.dart
 
 lib/core/thai_tone_analyzer.dart
 ルールベースのタイ語声調分析（子音クラス、音節タイプ、声調記号）。
+
+lib/core/spelling_breakdown.dart
+単音節の綴りを頭子音・母音・末子音・声調に分ける（サーバーの spellunit の移植）。対応表は assets/spelling_forms.json。
 
 lib/core/pronunciation_text.dart
 ローマ字発音表記のサニタイズ（TLTK由来のバックスラッシュ混入を除去）。
@@ -505,6 +514,9 @@ callable の data に載る整数を読む。Flutter SDK が int を包む Int64
 
 functions/go/internal/appver/appver.go
 クライアントの app_version（"1.4.11" 形式）による機能出し分けの比較。配信本数・既読トラッキングの可否判定で共用する。
+
+functions/go/cmd/spellforms/main.go
+アプリ同梱の綴りの対応表（assets/spelling_forms.json）を書き出す。spellunit の読みを優先し、無い音節は G2P で読む。
 
 functions/go/internal/fbapp/fbapp.go
 Firebase Admin(Firestore/Auth)クライアントの遅延生成シングルトン。
