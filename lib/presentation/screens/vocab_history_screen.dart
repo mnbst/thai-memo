@@ -143,7 +143,8 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
     if (!mounted) return;
     setState(() {
       _guideChecked = true;
-      _showGuide = !(prefs.getBool(AppConfig.prefKeyVocabGuideDismissed) ?? false);
+      _showGuide =
+          !(prefs.getBool(AppConfig.prefKeyVocabGuideDismissed) ?? false);
     });
   }
 
@@ -181,7 +182,16 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
     });
   }
 
+  void _logReview(String action, {String? value}) {
+    unawaited(
+      ref
+          .read(analyticsServiceProvider)
+          .logReviewTab(action: action, value: value),
+    );
+  }
+
   void _openAllSentences() {
+    _logReview('all_sentences');
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -224,7 +234,8 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
                 controller: _searchController,
                 autofocus: true,
                 decoration: InputDecoration(hintText: l10n.vocabSearchHint),
-                onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                onChanged: (v) =>
+                    setState(() => _query = v.trim().toLowerCase()),
               )
             : Text(l10n.historyTitle),
         actions: [
@@ -233,7 +244,10 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
             tooltip: l10n.vocabSearchHint,
             onPressed: _searching
                 ? _closeSearch
-                : () => setState(() => _searching = true),
+                : () {
+                    _logReview('search');
+                    setState(() => _searching = true);
+                  },
           ),
           IconButton(
             icon: const Icon(Icons.article_outlined),
@@ -311,7 +325,10 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
         color: selected ? fill : cs.surface,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: () => setState(() => _filter = value),
+          onTap: () {
+            _logReview('filter', value: value?.name ?? 'all');
+            setState(() => _filter = value);
+          },
           borderRadius: BorderRadius.circular(14),
           child: Ink(
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
@@ -375,16 +392,15 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
 
     final rows = vocabListRows(visible, score, band);
     final count = rows.length;
-    double extentOf(Object row) =>
-        row is VocabEntry ? rowExtent : markerExtent;
-    double offsetOf(int index) => rows
-        .take(index)
-        .fold<double>(0, (sum, row) => sum + extentOf(row));
+    double extentOf(Object row) => row is VocabEntry ? rowExtent : markerExtent;
+    double offsetOf(int index) =>
+        rows.take(index).fold<double>(0, (sum, row) => sum + extentOf(row));
     final marker = rows.indexOf(VocabListMarker.score);
     final rangeTop = rows.indexOf(VocabListMarker.rangeTop);
     final rangeTopOffset = rangeTop < 0 ? 0.0 : offsetOf(rangeTop);
-    final rangeBottomOffset =
-        rangeTop < 0 ? 0.0 : offsetOf(rows.indexOf(VocabListMarker.rangeBottom));
+    final rangeBottomOffset = rangeTop < 0
+        ? 0.0
+        : offsetOf(rows.indexOf(VocabListMarker.rangeBottom));
 
     // NestedScrollView は一覧を動かすと見出しも畳むので、案内を閉じるまで飛ばない。
     if (!_positioned &&
@@ -408,67 +424,98 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
       color: theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(vocabProgressProvider);
-              await ref.read(vocabEntriesProvider.future);
-            },
-            child: NotificationListener<Notification>(
-              onNotification: _onListNotification,
-              child: ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                itemCount: count,
-                itemExtentBuilder: (i, _) {
-                  if (i >= count) return null;
-                  return extentOf(rows[i]);
-                },
-                itemBuilder: (context, i) {
-                  final row = rows[i];
-                  return switch (row) {
-                    VocabListMarker.score => _ScoreMarker(score: score),
-                    VocabListMarker.rangeTop => const _RangeEdge(top: true),
-                    VocabListMarker.rangeBottom => const _RangeEdge(top: false),
-                    _ => _VocabRow(
-                        entry: row as VocabEntry,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            settings: const RouteSettings(
-                              name: VocabWordScreen.routeName,
-                            ),
-                            builder: (_) => VocabWordScreen(entry: row),
-                          ),
+      child: LayoutBuilder(
+        builder: (context, constraints) => Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(vocabProgressProvider);
+                await ref.read(vocabEntriesProvider.future);
+              },
+              child: NotificationListener<Notification>(
+                onNotification: _onListNotification,
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  itemCount: count,
+                  itemExtentBuilder: (i, _) {
+                    if (i >= count) return null;
+                    return extentOf(rows[i]);
+                  },
+                  itemBuilder: (context, i) {
+                    final row = rows[i];
+                    return switch (row) {
+                      VocabListMarker.score => _ScoreMarker(score: score),
+                      VocabListMarker.rangeTop => const _RangeEdge(top: true),
+                      VocabListMarker.rangeBottom =>
+                        const _RangeEdge(top: false),
+                      _ => _VocabRow(
+                          entry: row as VocabEntry,
+                          onTap: () {
+                            _logReview(
+                              'word_open',
+                              value: row.progress.mastery.name,
+                            );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                settings: const RouteSettings(
+                                  name: VocabWordScreen.routeName,
+                                ),
+                                builder: (_) => VocabWordScreen(entry: row),
+                              ),
+                            );
+                          },
                         ),
-                      ),
-                  };
-                },
+                    };
+                  },
+                ),
               ),
             ),
-          ),
-          if (rangeTop >= 0)
-            ValueListenableBuilder<double>(
-              valueListenable: _listPixels,
-              builder: (context, pixels, _) {
-                if (pixels < rangeTopOffset) return const SizedBox.shrink();
-                final past = pixels >= rangeBottomOffset;
-                // 上端の区切りは、下端の区切りに押し出されて入れ替わる。
-                final y = past
-                    ? 0.0
-                    : (rangeBottomOffset - pixels - markerExtent)
-                        .clamp(-markerExtent, 0.0);
-                return Positioned(
-                  top: y,
-                  left: 0,
-                  right: 0,
-                  height: markerExtent,
-                  child: _RangeEdge(top: !past),
-                );
-              },
-            ),
-        ],
+            if (rangeTop >= 0)
+              ValueListenableBuilder<double>(
+                valueListenable: _listPixels,
+                builder: (context, pixels, _) {
+                  if (pixels < rangeTopOffset) return const SizedBox.shrink();
+                  final past = pixels >= rangeBottomOffset;
+                  // 上端の区切りは、下端の区切りに押し出されて入れ替わる。
+                  final y = past
+                      ? 0.0
+                      : (rangeBottomOffset - pixels - markerExtent)
+                          .clamp(-markerExtent, 0.0);
+                  return Positioned(
+                    top: y,
+                    left: 0,
+                    right: 0,
+                    height: markerExtent,
+                    child: _RangeEdge(top: !past),
+                  );
+                },
+              ),
+            // 範囲を見ている間は、下端の区切りを一覧の一番下で止めておく。
+            if (rangeTop >= 0)
+              ValueListenableBuilder<double>(
+                valueListenable: _listPixels,
+                builder: (context, pixels, _) {
+                  final viewport = constraints.maxHeight;
+                  final topInView =
+                      pixels + viewport >= rangeTopOffset + markerExtent;
+                  final bottomInView =
+                      rangeBottomOffset - pixels <= viewport - markerExtent;
+                  if (!topInView || bottomInView) {
+                    return const SizedBox.shrink();
+                  }
+                  return Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: markerExtent,
+                    child: const _RangeEdge(top: false),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

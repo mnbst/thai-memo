@@ -285,6 +285,19 @@ class AnalyticsService {
     await _logEvent('coach_mark', {'coach_id': id, 'action': action});
   }
 
+  /// 復習タブの使われ方。タブ自体の表示は screen_view（history）で見る。
+  ///
+  /// action:
+  ///   filter        — 状態で絞り込んだ（value は all / seen / learning / learned）
+  ///   search        — 検索欄を開いた
+  ///   all_sentences — 右上から全例文の一覧を開いた
+  ///   word_open     — 語の詳細を開いた（value は語の状態）
+  ///   word_tts      — 語の詳細で発音を聞いた（value は語の状態）
+  ///   sentence_open — 語の詳細から例文を開いた（value は語の状態）
+  Future<void> logReviewTab({required String action, String? value}) async {
+    await _logEvent('review_tab', {'action': action, 'value': value});
+  }
+
   /// 起動から初回導線（機能紹介）に入るまでの進み。first_open から
   /// onboarding_start までの離脱がどこで起きるかを見る。
   ///

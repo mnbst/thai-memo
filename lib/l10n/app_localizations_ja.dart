@@ -2459,6 +2459,13 @@ class L10nJa extends L10n {
       '綴りクイズ：語彙測定の結果が100語未満の場合に出ます。学習単語の読みと意味から正しい綴りを選びます。一度正解した単語は、以後は穴埋めや並び替えなど別の形式で出題されます。間違えたときは「タイ文字について詳しく学ぶ」からタイ文字ガイドを開けます。';
 
   @override
+  String get guideRoleReviewTitle => '復習';
+
+  @override
+  String get guideRoleReviewBody =>
+      '出会った単語の覚え具合を確認できます。ゲージが少ない単語は、まとめクイズで優先して出題されます。';
+
+  @override
   String get guideRoleScoreTitle => '語彙スコア';
 
   @override

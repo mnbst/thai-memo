@@ -1245,6 +1245,8 @@
   "guideRoleQuizCheck": "Check quiz: choose the target word's meaning.",
   "guideRoleQuizSummary": "Summary quiz: choose missing words after each set.",
   "guideRoleQuizSpelling": "Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word’s spelling from its pronunciation and meaning. After you answer correctly once, that word appears in other formats, such as fill-in-the-blank or word order. If you miss one, tap “More on Thai script” to open the Thai script guide.",
+  "guideRoleReviewTitle": "Review",
+  "guideRoleReviewBody": "Check how well you remember words you’ve seen. Low-gauge words appear first in summary quizzes.",
   "guideRoleScoreTitle": "Vocabulary score",
   "guideRoleScoreBody": "An estimate based on your vocabulary test and summary quizzes.",
   "guideRoleVocabTestTitle": "Vocabulary test",
