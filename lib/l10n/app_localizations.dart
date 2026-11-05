@@ -3340,6 +3340,12 @@ abstract class L10n {
   /// **'子音クラス'**
   String get toneGuideConsonantClasses;
 
+  /// No description provided for @toneLeadingHBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'一部の低子音の前に ห がつくと、発音せず高子音の声調規則に従います。'**
+  String get toneLeadingHBody;
+
   /// No description provided for @toneGuideToneMarks.
   ///
   /// In ja, this message translates to:

@@ -1868,6 +1868,9 @@ class L10nJa extends L10n {
   String get toneGuideConsonantClasses => '子音クラス';
 
   @override
+  String get toneLeadingHBody => '一部の低子音の前に ห がつくと、発音せず高子音の声調規則に従います。';
+
+  @override
   String get toneGuideToneMarks => '声調記号';
 
   @override
