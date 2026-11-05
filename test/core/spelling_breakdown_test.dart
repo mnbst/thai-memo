@@ -42,6 +42,19 @@ void main() {
     expect(cells('จริง').last, 'silent:ร:');
   });
 
+  test('์ の付いた字は母音に混ぜず、読まない字の枠にする', () {
+    String texts(String word) => one(word)
+        .parts
+        .where((p) => p.text.isNotEmpty)
+        .map((p) => '${p.role}:${p.text}')
+        .join(' ');
+
+    expect(texts('เสาร์'), 'onset:ส vowel:เา silent:ร์');
+    expect(texts('ไมล์'), 'onset:ม vowel:ไ silent:ล์');
+    expect(texts('โพธิ์'), 'onset:พ vowel:โ silent:ธิ์');
+    expect(texts('เบิร์ก'), 'onset:บ vowel:เิ coda:ก silent:ร์');
+  });
+
   test('書く順の字と声調の3要素を返す', () {
     final b = one('เพื่อน');
     expect(b.glyphs.first.text, 'เ');

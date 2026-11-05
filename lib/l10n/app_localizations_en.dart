@@ -1967,6 +1967,10 @@ class L10nEn extends L10n {
   String get toneGuideConsonantClasses => 'Consonant classes';
 
   @override
+  String get toneLeadingHBody =>
+      'When ห comes before certain low-class consonants, it\'s silent and high-class tone rules apply.';
+
+  @override
   String get toneGuideToneMarks => 'Tone marks';
 
   @override

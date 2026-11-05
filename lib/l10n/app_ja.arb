@@ -1126,6 +1126,7 @@
   "toneGuideIntro": "タイ語には5つの声調があり、同じ綴りでも声調によって意味が変わります。声調は、子音文字の種類（高・中・低）、声調記号、音節タイプによって決まります。",
   "toneGuideFiveTones": "5つの声調",
   "toneGuideConsonantClasses": "子音クラス",
+  "toneLeadingHBody": "一部の低子音の前に ห がつくと、発音せず高子音の声調規則に従います。",
   "toneGuideToneMarks": "声調記号",
   "toneGuideSyllableTypes": "音節タイプ",
   "toneGuideShiftTable": "声調変化表",

@@ -1137,6 +1137,7 @@
   "toneGuideIntro": "태국어에는 다섯 가지 성조가 있으며, 철자가 같아도 성조에 따라 뜻이 달라져요. 성조는 자음 문자의 종류(고·중·저), 성조 부호, 음절 유형에 따라 정해져요.",
   "toneGuideFiveTones": "다섯 가지 성조",
   "toneGuideConsonantClasses": "자음 등급",
+  "toneLeadingHBody": "일부 저자음 앞에 ห가 붙으면 발음하지 않고 고자음 성조 규칙을 따라요.",
   "toneGuideToneMarks": "성조 부호",
   "toneGuideSyllableTypes": "음절 유형",
   "toneGuideShiftTable": "성조 변화표",

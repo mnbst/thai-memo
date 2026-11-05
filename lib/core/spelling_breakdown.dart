@@ -350,6 +350,23 @@ bool _hasPronouncedConsonant(List<int> r, int from) {
   return false;
 }
 
+/// ์ とそれが消す字を読まない字にする（เสาร์ の ร์、โพธิ์ の ธิ์）。
+/// 母音の綴りや末子音の判定に混ざらないよう、ほかの部品より先に決める。
+void _markKaran(List<int> r, List<int> owner) {
+  for (var j = 0; j < r.length; j++) {
+    if (r[j] != _thanthakhat) continue;
+    owner[j] = _dimSilent;
+    var k = j - 1;
+    while (k >= 0 && _isCombining(r[k])) {
+      if (owner[k] < 0) owner[k] = _dimSilent;
+      k--;
+    }
+    if (k >= 0 && _isConsonant(r[k]) && owner[k] < 0) {
+      owner[k] = _dimSilent;
+    }
+  }
+}
+
 /// 各字の役割（0=頭子音 1=母音 2=末子音 3=声調 4=読まない字）。
 /// 切り分けられなければ null（間違った対応を教えるより文字を出さない）。
 List<int>? _segmentOwners(List<int> r, _Code code) {
@@ -358,6 +375,8 @@ List<int>? _segmentOwners(List<int> r, _Code code) {
   for (var i = 0; i < r.length; i++) {
     if (_isToneMark(r[i])) owner[i] = _dimTone;
   }
+
+  _markKaran(r, owner);
 
   // 頭子音。前置母音を飛ばした先の子音字から。
   var i = 0;
@@ -369,7 +388,7 @@ List<int>? _segmentOwners(List<int> r, _Code code) {
   owner[i] = _dimOnset;
   var onsetLen = 1;
   // 2文字で書く頭子音（二重子音と、ห・อ を前に置くもの）。
-  if (i + 1 < r.length && _isConsonant(r[i + 1])) {
+  if (i + 1 < r.length && _isConsonant(r[i + 1]) && owner[i + 1] < 0) {
     final lead = r[i];
     if (_clusterOnsets.contains(code.onset) ||
         ((lead == _ho || lead == _o) && _sonorantOnsets.contains(code.onset))) {
@@ -382,7 +401,11 @@ List<int>? _segmentOwners(List<int> r, _Code code) {
   var codaAssigned = false;
   var codaPos = -1;
 
-  if (i + 1 < r.length && r[i] == _ro && r[i + 1] == _ro) {
+  if (i + 1 < r.length &&
+      r[i] == _ro &&
+      r[i + 1] == _ro &&
+      owner[i] < 0 &&
+      owner[i + 1] < 0) {
     // รร は母音 a を子音字で書く綴り。後ろに読む字がなければ2つめが末子音 n。
     owner[i] = _dimVowel;
     if (_hasPronouncedConsonant(r, i + 2)) {
@@ -395,6 +418,7 @@ List<int>? _segmentOwners(List<int> r, _Code code) {
     i += 2;
   } else if (i < r.length &&
       r[i] == _ro &&
+      owner[i] < 0 &&
       code.coda.isNotEmpty &&
       !_hasPronouncedConsonant(r, i + 1)) {
     // 単独の ร は母音と末子音をまとめて書く（กร = kɔɔn）。
@@ -404,6 +428,7 @@ List<int>? _segmentOwners(List<int> r, _Code code) {
     i++;
   } else if (i < r.length &&
       r[i] == _ro &&
+      owner[i] < 0 &&
       !code.onset.contains('r') &&
       code.coda != 'r') {
     // 頭子音のすぐ後の ร は読まない綴りがある（จริง・สร้าง・เสร็จ）。
@@ -435,7 +460,10 @@ List<int>? _segmentOwners(List<int> r, _Code code) {
       for (var j = last + 1; j < r.length && _isCombining(r[j]); j++) {
         owner[j] = _dimSilent;
       }
-    } else if (!_hasCodaInVowel(r)) {
+    } else if (!_hasCodaInVowel([
+      for (var j = 0; j < r.length; j++)
+        if (owner[j] != _dimSilent) r[j],
+    ])) {
       return null;
     }
   }

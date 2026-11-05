@@ -269,12 +269,33 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
                     isDark ? Colors.green.shade900 : Colors.green.shade100,
                     ThaiToneAnalyzer.lowConsonants,
                   ),
+                  const SizedBox(height: 12),
+                  _buildLeadingHNote(),
                 ],
               );
             }),
           ],
         ),
       ),
+    );
+  }
+
+  /// ห が先頭につくと高子音の規則になることの説明
+  Widget _buildLeadingHNote() {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurfaceVariant;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.info_outline, size: 16, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            L10n.of(context).toneLeadingHBody,
+            style: theme.textTheme.bodySmall?.copyWith(color: color),
+          ),
+        ),
+      ],
     );
   }
 

@@ -1878,6 +1878,9 @@ class L10nKo extends L10n {
   String get toneGuideConsonantClasses => '자음 등급';
 
   @override
+  String get toneLeadingHBody => '일부 저자음 앞에 ห가 붙으면 발음하지 않고 고자음 성조 규칙을 따라요.';
+
+  @override
   String get toneGuideToneMarks => '성조 부호';
 
   @override

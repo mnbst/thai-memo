@@ -1021,6 +1021,7 @@
   "toneGuideIntro": "Thai has five meaning-changing tones, determined by consonant class, tone mark, and syllable type.",
   "toneGuideFiveTones": "The five tones",
   "toneGuideConsonantClasses": "Consonant classes",
+  "toneLeadingHBody": "When ห comes before certain low-class consonants, it's silent and high-class tone rules apply.",
   "toneGuideToneMarks": "Tone marks",
   "toneGuideSyllableTypes": "Syllable types",
   "toneGuideShiftTable": "Tone chart",
