@@ -8,6 +8,7 @@
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../data/models/quiz_question.dart';
@@ -79,6 +80,12 @@ class SpellingIndex {
             jsonDecode(raw) as Map<String, dynamic>,
           ));
 
+  /// テストで使う表を渡す。ウィジェットテストの中ではアセットの読み込みが終わらない。
+  @visibleForTesting
+  static void debugSetLoaded(SpellingIndex index) {
+    _loaded = Future.value(index);
+  }
+
   /// コード -> 綴りの一覧から組む。
   factory SpellingIndex.fromJson(Map<String, dynamic> json) {
     final codes = <String, _Code>{};
@@ -127,6 +134,14 @@ class SpellingIndex {
         breakdown: _build(rest, pair.$2, lead: lead),
       ),
     ];
+  }
+
+  /// 1単位の綴りを字まで切り分けられたときの分解。それ以外は null。
+  SpellingBreakdown? segmented(String word) {
+    final found = items(word);
+    if (found.length != 1) return null;
+    final breakdown = found.single.breakdown;
+    return breakdown.glyphs.isEmpty ? null : breakdown;
   }
 
   /// 語全体を分解できればそれを、できなければ音節ごとに分解して返す。
