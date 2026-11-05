@@ -119,6 +119,9 @@ class VocabHistoryScreen extends ConsumerStatefulWidget {
 class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
   final GlobalKey<NestedScrollViewState> _nestedKey = GlobalKey();
   final TextEditingController _searchController = TextEditingController();
+
+  /// 一覧のスクロール位置。出題範囲の貼り付け表示だけが購読する。
+  final ValueNotifier<double> _listPixels = ValueNotifier(0);
   VocabMastery? _filter;
   bool _searching = false;
   String _query = '';
@@ -156,7 +159,18 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _listPixels.dispose();
     super.dispose();
+  }
+
+  bool _onListNotification(Notification n) {
+    // 絞り込みで一覧が縮むと、スクロールせずに位置だけが変わることがある。
+    if (n is ScrollNotification && n.depth == 0) {
+      _listPixels.value = n.metrics.pixels;
+    } else if (n is ScrollMetricsNotification && n.depth == 0) {
+      _listPixels.value = n.metrics.pixels;
+    }
+    return false;
   }
 
   void _closeSearch() {
@@ -363,7 +377,14 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
     final count = rows.length;
     double extentOf(Object row) =>
         row is VocabEntry ? rowExtent : markerExtent;
+    double offsetOf(int index) => rows
+        .take(index)
+        .fold<double>(0, (sum, row) => sum + extentOf(row));
     final marker = rows.indexOf(VocabListMarker.score);
+    final rangeTop = rows.indexOf(VocabListMarker.rangeTop);
+    final rangeTopOffset = rangeTop < 0 ? 0.0 : offsetOf(rangeTop);
+    final rangeBottomOffset =
+        rangeTop < 0 ? 0.0 : offsetOf(rows.indexOf(VocabListMarker.rangeBottom));
 
     // NestedScrollView は一覧を動かすと見出しも畳むので、案内を閉じるまで飛ばない。
     if (!_positioned &&
@@ -376,11 +397,7 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final scroll = _nestedKey.currentState?.innerController;
         if (scroll == null || !scroll.hasClients) return;
-        final target = rows.take(marker).fold<double>(
-                  0,
-                  (sum, row) => sum + extentOf(row),
-                ) -
-            rowExtent * 2;
+        final target = offsetOf(marker) - rowExtent * 2;
         scroll.jumpTo(
           target.clamp(0.0, scroll.position.maxScrollExtent),
         );
@@ -391,39 +408,67 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
       color: theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
-      child: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(vocabProgressProvider);
-          await ref.read(vocabEntriesProvider.future);
-        },
-        child: ListView.builder(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          itemCount: count,
-          itemExtentBuilder: (i, _) {
-            if (i >= count) return null;
-            return extentOf(rows[i]);
-          },
-          itemBuilder: (context, i) {
-            final row = rows[i];
-            return switch (row) {
-              VocabListMarker.score => _ScoreMarker(score: score),
-              VocabListMarker.rangeTop => const _RangeEdge(top: true),
-              VocabListMarker.rangeBottom => const _RangeEdge(top: false),
-              _ => _VocabRow(
-                  entry: row as VocabEntry,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      settings:
-                          const RouteSettings(name: VocabWordScreen.routeName),
-                      builder: (_) => VocabWordScreen(entry: row),
-                    ),
-                  ),
-                ),
-            };
-          },
-        ),
+      child: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(vocabProgressProvider);
+              await ref.read(vocabEntriesProvider.future);
+            },
+            child: NotificationListener<Notification>(
+              onNotification: _onListNotification,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                itemCount: count,
+                itemExtentBuilder: (i, _) {
+                  if (i >= count) return null;
+                  return extentOf(rows[i]);
+                },
+                itemBuilder: (context, i) {
+                  final row = rows[i];
+                  return switch (row) {
+                    VocabListMarker.score => _ScoreMarker(score: score),
+                    VocabListMarker.rangeTop => const _RangeEdge(top: true),
+                    VocabListMarker.rangeBottom => const _RangeEdge(top: false),
+                    _ => _VocabRow(
+                        entry: row as VocabEntry,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            settings: const RouteSettings(
+                              name: VocabWordScreen.routeName,
+                            ),
+                            builder: (_) => VocabWordScreen(entry: row),
+                          ),
+                        ),
+                      ),
+                  };
+                },
+              ),
+            ),
+          ),
+          if (rangeTop >= 0)
+            ValueListenableBuilder<double>(
+              valueListenable: _listPixels,
+              builder: (context, pixels, _) {
+                if (pixels < rangeTopOffset) return const SizedBox.shrink();
+                final past = pixels >= rangeBottomOffset;
+                // 上端の区切りは、下端の区切りに押し出されて入れ替わる。
+                final y = past
+                    ? 0.0
+                    : (rangeBottomOffset - pixels - markerExtent)
+                        .clamp(-markerExtent, 0.0);
+                return Positioned(
+                  top: y,
+                  left: 0,
+                  right: 0,
+                  height: markerExtent,
+                  child: _RangeEdge(top: !past),
+                );
+              },
+            ),
+        ],
       ),
     );
   }
