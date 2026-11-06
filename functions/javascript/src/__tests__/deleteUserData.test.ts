@@ -30,7 +30,7 @@ const mockDb = {
 
 jest.mock('firebase-admin', () => ({firestore: () => mockDb}));
 jest.mock('firebase-functions/v1', () => ({
-  region: () => ({auth: {user: () => ({onDelete: (fn: unknown) => fn})}}),
+  region: () => ({runWith: () => ({auth: {user: () => ({onDelete: (fn: unknown) => fn})}})}),
 }));
 
 import {deleteUserFirestoreData} from '../deleteUserData';
