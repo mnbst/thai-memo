@@ -114,7 +114,7 @@ func guessRate(hintLevel int) float64 {
 // sync は SyncEstimatedVocab の計算部分を再現する（premium・上限なし）。
 func (u *simUser) sync() {
 	low := max(u.floor, u.est-50)
-	high := u.est + 51
+	high := u.est + 51 + VocabForwardWidth
 	var entries []RankedP
 	for r, w := range u.words {
 		if r >= low && r < high {
@@ -150,7 +150,11 @@ func (u *simUser) sync() {
 	if u.knownP > 0 {
 		knownP = u.knownP
 	}
-	u.est = max(0, estimateVocab(entries, u.est, u.floor, cutoff, knownP))
+	if u.cutoff > 0 || u.knownP > 0 { // 旧式の閾値を振る比較用
+		u.est = max(0, estimateVocab(entries, u.est, u.floor, cutoff, knownP))
+		return
+	}
+	u.est = max(0, EstimateVocab(entries, u.est, u.floor))
 }
 
 // generate は例文生成 1 回（key_word 選定 → 露出登録 → 確認クイズ → sync）。

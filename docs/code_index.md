@@ -542,6 +542,9 @@ startVocabTest / submitVocabTest。語彙テストの出題・採点と estimate
 functions/go/internal/uvm/decay.go
 dailyBatch がかける P の日次減衰（等倍・下限 PFloor）。休眠日数で速めない理由もここ。
 
+functions/go/cmd/resyncvocab/main.go
+全ユーザーの estimated_vocab を今の推定式で計算し直す（既定は dry run、-write で元の値を保存してから書く）。
+
 functions/go/internal/uvm/model.go
 UVMの純粋関数（UpdateP / GuessRate / MovingAvg / EstimateVocab）と定数。P の更新は尤度比（推測率 g・うっかり率 s）。旧 α 則は UpdatePAlpha として golden 用に残す。
 
