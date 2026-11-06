@@ -1157,6 +1157,9 @@ Firestore の quiz_questions を走査し、解説・ダミー理由が指定と
 functions/go/cmd/poolrecheck/main.go
 GCS の例文プールを今の判定（Aspects＋PoolAspects）でティア別（-tier premium / free）に洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。-in でローカルの JSON（上げる前のキャッシュ例文）を判定する。
 
+functions/go/cmd/poolretag/main.go
+GCS の例文プールの品詞を今のタガーで付け直すコマンド。確度の高い語だけを変え、手で直した文は -skip で外す。既定は dry run、-write でバックアップを取ってから書き戻す。
+
 functions/go/cmd/pilot/main.go
 cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。
 
