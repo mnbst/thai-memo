@@ -114,12 +114,21 @@ func TestEstimateVocabMatchesPython(t *testing.T) {
 	t.Logf("%d 件一致", len(g.EstimateVocab))
 }
 
+// correctWords は rank from〜to の語を 1 問正解（P=0.618）で返す。
+func correctWords(from, to int) []RankedP {
+	out := make([]RankedP, 0, to-from+1)
+	for r := from; r <= to; r++ {
+		out = append(out, RankedP{Rank: r, P: 0.618})
+	}
+	return out
+}
+
 // 測定値（floor）を原点にすると、受験者は 0 から始めた人と同じ挙動になる。
 //
 // floor 以下の rank は存在しないものとして扱うので、
 //   - 証拠が無ければ floor から動かない（0 スタートが 0 で止まるのと同じ）
 //   - floor より下の古い doc は境界を引き戻さない
-//   - floor より上の正解（P>0.5）はこれまでどおり境界を押し上げる
+//   - floor より上の正解はこれまでどおり境界を押し上げる
 func TestEstimateVocabFloor(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -137,23 +146,33 @@ func TestEstimateVocabFloor(t *testing.T) {
 		},
 		{
 			"floor より上の正解は押し上げる",
-			[]RankedP{{Rank: 130, P: 0.618}, {Rank: 131, P: 0.618}},
-			100, 100, 129,
+			correctWords(130, 135),
+			100, 100, 140,
 		},
 		{
 			"未受験は floor=0 で従来の挙動",
-			[]RankedP{{Rank: 30, P: 0.618}, {Rank: 31, P: 0.618}},
-			20, 0, 29,
+			correctWords(30, 35),
+			20, 0, 40,
 		},
 		{
-			"前方に 1 問正解の語が 1 語だけなら上がらない",
+			"窓に 1 問正解の語が 1 語だけなら上がらない",
 			[]RankedP{{Rank: 130, P: 0.618}},
 			100, 100, 100,
 		},
 		{
-			"前方の平均を割るところまで下がる",
-			[]RankedP{{Rank: 100, P: 0.618}, {Rank: 101, P: 0.618}, {Rank: 90, P: 0.15}},
-			120, 0, 99,
+			"窓の平均を割るところまで下がる",
+			append(correctWords(95, 100), RankedP{Rank: 90, P: 0.15}),
+			120, 0, 105,
+		},
+		{
+			"スコアより後ろの語の正解でも上がる",
+			correctWords(191, 196),
+			200, 0, 201,
+		},
+		{
+			"原点より下は窓に入れない",
+			append(correctWords(101, 105), RankedP{Rank: 95, P: 0.9}),
+			100, 100, 108,
 		},
 	}
 	for _, c := range cases {

@@ -395,7 +395,7 @@ func EstimateRange(userData map[string]any, now time.Time) (tested, low, high in
 		tested = min(tested, limit)
 	}
 	current := max(intField(userData, "estimated_vocab", 0), tested)
-	return tested, max(tested, current-50), current + 51 + VocabForwardWidth
+	return tested, max(tested, current-50-VocabWindowRadius), current + 51 + VocabWindowRadius
 }
 
 const (

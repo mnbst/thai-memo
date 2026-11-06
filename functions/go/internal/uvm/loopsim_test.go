@@ -36,7 +36,7 @@ func runLoop(t *testing.T, tested int, floorMode string, rounds int) []int {
 		for s := 0; s < 6; s++ {
 			var entries []RankedP
 			for r, p := range pByRank {
-				if r >= max(tested, est-50) && r < est+51+VocabForwardWidth {
+				if r >= max(tested, est-50-VocabWindowRadius) && r < est+51+VocabWindowRadius {
 					entries = append(entries, RankedP{Rank: r, P: p})
 				}
 			}
@@ -52,7 +52,7 @@ func runLoop(t *testing.T, tested int, floorMode string, rounds int) []int {
 // 軌道と平行移動を除いて一致することを確認する。
 //
 // 旧式では下端を estimated_vocab にすると自己参照の正のフィードバックで
-// 2 倍以上の速度で発散した。前方の平均で決める今の式では 0 スタートより速くならない。
+// 2 倍以上の速度で発散した。前後の平均で決める今の式では 0 スタートの 1.5 倍に収まる。
 func TestQuizFloorLoop(t *testing.T) {
 	const rounds = 40
 	base := runLoop(t, 0, "none", rounds)
@@ -70,7 +70,7 @@ func TestQuizFloorLoop(t *testing.T) {
 
 	// 下端を estimated_vocab にしても発散しない。
 	runaway := runLoop(t, 250, "est", rounds)
-	if runaway[rounds-1]-250 > base[rounds-1] {
+	if float64(runaway[rounds-1]-250) > 1.5*float64(base[rounds-1]) {
 		t.Errorf("floor=estimated_vocab が発散している: %d（0スタート %d）",
 			runaway[rounds-1]-250, base[rounds-1])
 	}

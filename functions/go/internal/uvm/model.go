@@ -173,20 +173,20 @@ type RankedP struct {
 }
 
 const (
-	// VocabForwardWidth はスコアの判定で見る前方の語数。
-	VocabForwardWidth = 20
-	// VocabForwardCutoffP は前方の平均 P の基準。未回答は UnknownWordP で数える。
-	// 前方 20 語に P=0.618（1 問正解）の語が 2 語あると満たし、1 語では満たさない。
-	VocabForwardCutoffP = 0.42
+	// VocabWindowRadius はスコアの判定で見る前後の語数。
+	VocabWindowRadius = 10
+	// VocabCutoffP は窓の平均 P の基準。未回答は UnknownWordP で数える。
+	// 21 語の窓では P=0.618（1 問正解）の語が 6 語あると満たし、5 語では満たさない。
+	VocabCutoffP = 0.46
 )
 
 // EstimateVocab は語彙スコアを求める。
 //
-// center（今のスコア）±50 の中で、前方 VocabForwardWidth 語の平均 P が
-// VocabForwardCutoffP 以上の最大の rank を返す。無ければ走査の下端を返す。
+// center（今のスコア）±50 の中で、前後 VocabWindowRadius 語の平均 P が
+// VocabCutoffP 以上の最大の rank を返す。無ければ走査の下端を返す。
 //
-// floor は語彙テストの測定値（未受験は 0）。floor より下の rank は存在しない
-// ものとして扱うので、返り値は floor を下回らない。
+// floor は語彙テストの測定値（未受験は 0）。floor 以下の rank は存在しない
+// ものとして窓に入れないので、返り値は floor を下回らない。
 func EstimateVocab(entries []RankedP, center, floor int) int {
 	floor = max(floor, 0)
 	center = max(center, floor)
@@ -204,14 +204,15 @@ func EstimateVocab(entries []RankedP, center, floor int) int {
 	low := max(center-50, floor)
 	for r := center + 50; r >= low; r-- {
 		total := 0.0
-		for q := r + 1; q <= r+VocabForwardWidth; q++ {
+		start := max(r-VocabWindowRadius, floor+1)
+		for q := start; q <= r+VocabWindowRadius; q++ {
 			if p, ok := wordsByRank[q]; ok {
 				total += p
 			} else {
 				total += UnknownWordP
 			}
 		}
-		if total/VocabForwardWidth >= VocabForwardCutoffP {
+		if total/float64(r+VocabWindowRadius-start+1) >= VocabCutoffP {
 			return r
 		}
 	}

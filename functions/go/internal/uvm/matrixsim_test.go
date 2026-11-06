@@ -113,8 +113,8 @@ func guessRate(hintLevel int) float64 {
 
 // sync は SyncEstimatedVocab の計算部分を再現する（premium・上限なし）。
 func (u *simUser) sync() {
-	low := max(u.floor, u.est-50)
-	high := u.est + 51 + VocabForwardWidth
+	low := max(u.floor, u.est-50-VocabWindowRadius)
+	high := u.est + 51 + VocabWindowRadius
 	var entries []RankedP
 	for r, w := range u.words {
 		if r >= low && r < high {
