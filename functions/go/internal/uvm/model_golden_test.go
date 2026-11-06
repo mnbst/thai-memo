@@ -104,7 +104,8 @@ func TestEstimateVocabMatchesPython(t *testing.T) {
 		for _, e := range c.Entries {
 			entries = append(entries, RankedP{Rank: e.Rank, P: e.P})
 		}
-		got := EstimateVocab(entries, c.Center, 0)
+		// golden は 2026-11 までの推定式の値。
+		got := estimateVocab(entries, c.Center, 0, 0.42, 0.5)
 		if got != c.Want {
 			t.Fatalf("case %d (center=%d, %d entries): EstimateVocab = %d, want %d",
 				i, c.Center, len(entries), got, c.Want)
@@ -136,13 +137,23 @@ func TestEstimateVocabFloor(t *testing.T) {
 		},
 		{
 			"floor より上の正解は押し上げる",
-			[]RankedP{{Rank: 130, P: 0.58}},
-			100, 100, 130,
+			[]RankedP{{Rank: 130, P: 0.618}, {Rank: 131, P: 0.618}},
+			100, 100, 129,
 		},
 		{
 			"未受験は floor=0 で従来の挙動",
-			[]RankedP{{Rank: 30, P: 0.58}},
-			20, 0, 30,
+			[]RankedP{{Rank: 30, P: 0.618}, {Rank: 31, P: 0.618}},
+			20, 0, 29,
+		},
+		{
+			"前方に 1 問正解の語が 1 語だけなら上がらない",
+			[]RankedP{{Rank: 130, P: 0.618}},
+			100, 100, 100,
+		},
+		{
+			"前方の平均を割るところまで下がる",
+			[]RankedP{{Rank: 100, P: 0.618}, {Rank: 101, P: 0.618}, {Rank: 90, P: 0.15}},
+			120, 0, 99,
 		},
 	}
 	for _, c := range cases {

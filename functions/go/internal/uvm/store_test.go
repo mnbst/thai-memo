@@ -45,9 +45,9 @@ func TestQuizScoreBand(t *testing.T) {
 		low, high int
 	}{
 		{
-			name: "未受験premiumは後方50・前方は key_word 帯の上端まで",
+			name: "未受験premiumは後方30・前方8",
 			data: map[string]any{"tier": "premium", "estimated_vocab": int64(252)},
-			low:  202, high: 260,
+			low:  222, high: 260,
 		},
 		{
 			name: "freeは上限100で切る",
@@ -56,13 +56,13 @@ func TestQuizScoreBand(t *testing.T) {
 		},
 		{
 			name: "freeの測定値が上限より下ならそこから見る",
-			data: map[string]any{"tier": "free", "estimated_vocab": int64(60), "vocab_test_vocab": int64(40)},
-			low:  40, high: 68,
+			data: map[string]any{"tier": "free", "estimated_vocab": int64(45), "vocab_test_vocab": int64(40)},
+			low:  40, high: 53,
 		},
 		{
 			name: "受験者は測定値より下を見ない",
-			data: map[string]any{"tier": "premium", "estimated_vocab": int64(520), "vocab_test_vocab": int64(500)},
-			low:  500, high: 536,
+			data: map[string]any{"tier": "premium", "estimated_vocab": int64(505), "vocab_test_vocab": int64(500)},
+			low:  500, high: 513,
 		},
 		{
 			name: "上限到達者は前方が est×1.5% まで広がる",

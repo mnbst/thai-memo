@@ -238,46 +238,10 @@ func SyncEstimatedVocab(
 	// 落ちた分）を下限まで戻す。
 	current := max(stored, tested)
 
-	uvmRef := userRef.Collection("uvm")
-	var refs []*firestore.DocumentRef
-	rankOf := map[string]int{}
-	for word, rank := range freqRank {
-		if rank >= scanLow && rank < scanHigh {
-			refs = append(refs, uvmRef.Doc(word))
-			rankOf[word] = rank
-		}
-	}
-
-	var entries []RankedP
-	if len(refs) > 0 {
-		snaps, err := db.GetAll(ctx, refs)
-		if err != nil {
-			log.Printf("sync_estimated_vocab: uvm の取得に失敗: uid=%s error=%v", uid, err)
-			return
-		}
-		for _, s := range snaps {
-			if !s.Exists() {
-				continue
-			}
-			// 一度も答えていない語（例文に出ただけ）は母数から外す。P は
-			// prior のままなので、MovingAvg に prior を埋めさせるのと同じ
-			// 寄与になる。EstimateVocab 側の n や中心計算を揺らさないよう
-			// 明示的に落とす。
-			//
-			// 証拠の弱さは P そのものが持っている。UpdateP は尤度比の指数に
-			// weight を、推測率に GuessRate を使うので、ヒント付きや確認クイズ
-			// だけの語は prior 付近から動かない。ここでさらに prior へ寄せる
-			// （旧 ShrinkP）と二重の割引になり、ヒントを常用するユーザーの
-			// estimated_vocab が実力より低く出ていた（真値350・ヒント2段で
-			// d90 129 対 167）。
-			if evidenceField(s.Data()) <= 0 {
-				continue
-			}
-			entries = append(entries, RankedP{
-				Rank: rankOf[s.Ref.ID],
-				P:    floatField(s.Data(), "p", NewWordP),
-			})
-		}
+	entries, err := loadVocabEntries(ctx, db, userRef, scanLow, scanHigh, freqRank)
+	if err != nil {
+		log.Printf("sync_estimated_vocab: uvm の取得に失敗: uid=%s error=%v", uid, err)
+		return
 	}
 
 	// 帯に証拠が1つも無ければ触らない。EstimateVocab は母数ゼロのとき floor
@@ -329,6 +293,94 @@ func SyncEstimatedVocab(
 	PublishLeaderboardVocab(ctx, db, uid, estimated)
 }
 
+// loadVocabEntries は rank が [low, high) の語のうち、一度でも答えた語を読む。
+func loadVocabEntries(
+	ctx context.Context,
+	db *firestore.Client,
+	userRef *firestore.DocumentRef,
+	low, high int,
+	freqRank map[string]int,
+) ([]RankedP, error) {
+	uvmRef := userRef.Collection("uvm")
+	var refs []*firestore.DocumentRef
+	rankOf := map[string]int{}
+	for word, rank := range freqRank {
+		if rank >= low && rank < high {
+			refs = append(refs, uvmRef.Doc(word))
+			rankOf[word] = rank
+		}
+	}
+	if len(refs) == 0 {
+		return nil, nil
+	}
+	snaps, err := db.GetAll(ctx, refs)
+	if err != nil {
+		return nil, err
+	}
+	var entries []RankedP
+	for _, s := range snaps {
+		if !s.Exists() {
+			continue
+		}
+		// 一度も答えていない語（例文に出ただけ）は母数から外す。P は prior の
+		// ままなので、未登録の語と同じ扱いになる。証拠の弱さは P そのものが
+		// 持っている（UpdateP の weight と GuessRate）。
+		if evidenceField(s.Data()) <= 0 {
+			continue
+		}
+		entries = append(entries, RankedP{
+			Rank: rankOf[s.Ref.ID],
+			P:    floatField(s.Data(), "p", NewWordP),
+		})
+	}
+	return entries, nil
+}
+
+// PreviewEstimatedVocab は SyncEstimatedVocab を落ち着くまで繰り返したときの
+// スコアを、何も書かずに返す。
+func PreviewEstimatedVocab(
+	ctx context.Context,
+	db *firestore.Client,
+	uid string,
+	freqRank map[string]int,
+) (stored, next int, err error) {
+	userRef := db.Collection("users").Doc(uid)
+	snap, err := userRef.Get(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	data := make(map[string]any, len(snap.Data()))
+	for k, v := range snap.Data() {
+		data[k] = v
+	}
+	stored = intField(data, "estimated_vocab", 0)
+	next = stored
+	now := time.Now()
+	for range 10 {
+		tested, low, high := EstimateRange(data, now)
+		current := max(intField(data, "estimated_vocab", 0), tested)
+		entries, err := loadVocabEntries(ctx, db, userRef, low, high, freqRank)
+		if err != nil {
+			return 0, 0, err
+		}
+		limit := estimatedVocabCap(data, now)
+		value := current
+		if len(entries) > 0 {
+			value = max(0, EstimateVocab(entries, current, tested))
+		}
+		if limit >= 0 {
+			value = min(value, limit)
+		}
+		settled := value == next
+		next = value
+		data["estimated_vocab"] = int64(value)
+		if settled {
+			break
+		}
+	}
+	return stored, next, nil
+}
+
 // EstimateRange は SyncEstimatedVocab が estimated_vocab の再計算に使う
 // rank の範囲 [low, high) と、そのときの floor（tested）を返す。
 //
@@ -343,16 +395,25 @@ func EstimateRange(userData map[string]any, now time.Time) (tested, low, high in
 		tested = min(tested, limit)
 	}
 	current := max(intField(userData, "estimated_vocab", 0), tested)
-	return tested, max(tested, current-50), current + 51
+	return tested, max(tested, current-50), current + 51 + VocabForwardWidth
 }
+
+const (
+	// QuizScoreBehind はまとめクイズのスコア枠でスコアより下を見る深さ。
+	QuizScoreBehind = 30
+	// QuizScoreAhead はまとめクイズのスコア枠でスコアより上を見る幅。
+	QuizScoreAhead = 8
+)
 
 // QuizScoreBand はまとめクイズのスコア枠で見る rank の範囲 [low, high] を返す。
 //
-// EstimateRange のうち、key_word の帯（KeyWordBand）の上端までに絞る。
-// それより上に例文があるのは帯を前方へ広げた（ForwardTopUpDepth）ときだけで、
-// 当たると estimated_vocab が大きく跳ねるうえ、doc の無い語を読むだけになる。
+// スコアの後ろ QuizScoreBehind 〜 前 QuizScoreAhead。下端は測定値を下回らず、
+// 上端は key_word の帯（KeyWordBand）を超えない。語彙テストの上限に届いた人は
+// key_word の前方を広げて伸ばしているので、スコア枠の上端もそこまで取る。
 func QuizScoreBand(userData map[string]any, now time.Time) (low, high int) {
-	tested, low, high := EstimateRange(userData, now)
+	tested, _, _ := EstimateRange(userData, now)
+	current := max(intField(userData, "estimated_vocab", 0), tested)
+	low = max(tested, current-QuizScoreBehind)
 	limit := estimatedVocabCap(userData, now)
 	if limit >= 0 {
 		// free の key_word 帯は原点シフトしない（GetSessionWords と同じ）。
@@ -362,7 +423,10 @@ func QuizScoreBand(userData map[string]any, now time.Time) (low, high int) {
 	if limit >= 0 {
 		kwHigh = min(kwHigh, limit)
 	}
-	return low, min(high-1, kwHigh)
+	if tested >= TestStages[len(TestStages)-1].High {
+		return low, kwHigh
+	}
+	return low, min(current+QuizScoreAhead, kwHigh)
 }
 
 // estimatedVocabCap は永続化する語彙推定値の上限。負値は上限なし。

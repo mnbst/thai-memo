@@ -180,27 +180,54 @@ type RankedP struct {
 	P    float64
 }
 
-// EstimateVocab は語彙境界（P ≈ 0.5 となる rank）を推定する（uvm.py:estimate_vocab）。
+const (
+	// VocabForwardWidth はスコアの判定で見る前方の語数。
+	VocabForwardWidth = 20
+	// VocabForwardCutoffP は前方の平均 P の基準。未回答は UnknownWordP で数える。
+	// 前方 20 語に P=0.618（1 問正解）の語が 2 語あると満たし、1 語では満たさない。
+	VocabForwardCutoffP = 0.42
+)
+
+// EstimateVocab は語彙スコアを求める。
 //
-// center ± 50 を走査し MovingAvg が 0.42 を下回る最初の rank を返す。
-// データがスパースなときは P > 0.5 の語の最大 rank をフォールバックに使う。
+// center（今のスコア）±50 の中で、前方 VocabForwardWidth 語の平均 P が
+// VocabForwardCutoffP 以上の最大の rank を返す。無ければ走査の下端を返す。
 //
-// floor は語彙テストの測定値（vocab_test_vocab）。**floor 以下の rank は存在
-// しないものとして扱う**。未受験は floor=0 で、その場合の挙動は従来と同一。
-//
-// 語彙テストを受けた人の出発点を 0 から測定値 M へずらす、という考え方。
-// 0 から始めた人が rank<0 を見ないのと同じく、測定値を持つ人は rank<M を見ない。
-// これで受験者と未受験者の挙動が「原点が違うだけ」で揃う。
-//
-// floor を入れないと、受験直後は走査帯に証拠（P>0.5 の語）が 1 つも無いので
-// knownMaxRank=0、返り値が center-50 側になり、測定値から
-// 0 へ崩れていく（測定100 が数分で 91 まで落ちる）。0 から始めた人が崩れないのは
-// 下限 0 に張り付いているからで、その下限を M に置き換えるのがこの引数。
+// floor は語彙テストの測定値（未受験は 0）。floor より下の rank は存在しない
+// ものとして扱うので、返り値は floor を下回らない。
 func EstimateVocab(entries []RankedP, center, floor int) int {
-	return estimateVocab(entries, center, floor, 0.42, 0.5)
+	floor = max(floor, 0)
+	center = max(center, floor)
+
+	wordsByRank := make(map[int]float64, len(entries))
+	for _, e := range entries {
+		if e.Rank >= floor {
+			wordsByRank[e.Rank] = e.P
+		}
+	}
+	if len(wordsByRank) == 0 {
+		return floor
+	}
+
+	low := max(center-50, floor)
+	for r := center + 50; r >= low; r-- {
+		total := 0.0
+		for q := r + 1; q <= r+VocabForwardWidth; q++ {
+			if p, ok := wordsByRank[q]; ok {
+				total += p
+			} else {
+				total += UnknownWordP
+			}
+		}
+		if total/VocabForwardWidth >= VocabForwardCutoffP {
+			return r
+		}
+	}
+	return low
 }
 
-// estimateVocab は EstimateVocab の閾値をシミュレーション用に外へ出したもの。
+// estimateVocab は 2026-11 までの推定式（golden と比較シミュレーション用に残す）。
+// 平均が cutoff を割った最初の rank と、P>knownP の語の最大 rank の大きいほう。
 // cutoff は MovingAvg の打ち切り、knownP は knownMaxRank に数える P の下限。
 func estimateVocab(entries []RankedP, center, floor int, cutoff, knownP float64) int {
 	floor = max(floor, 0)
