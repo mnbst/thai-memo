@@ -45,9 +45,9 @@ func TestQuizScoreBand(t *testing.T) {
 		low, high int
 	}{
 		{
-			name: "未受験premiumは後方40・前方8",
+			name: "未受験premiumは後方30・前方8",
 			data: map[string]any{"tier": "premium", "estimated_vocab": int64(252)},
-			low:  212, high: 260,
+			low:  222, high: 260,
 		},
 		{
 			name: "freeは上限100で切る",

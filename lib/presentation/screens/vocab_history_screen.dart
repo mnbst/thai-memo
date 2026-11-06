@@ -50,7 +50,7 @@ int? scoreMarkerIndex(List<VocabEntry> entries, int score) {
   const testCeiling = 3000;
   final floor = premium ? tested : min(tested, freeLimit);
   final current = max(score, floor);
-  final low = max(floor, current - 40);
+  final low = max(floor, current - 30);
 
   // free の key_word 帯は測定値で平行移動しない。
   final shift = premium ? floor : 0;
