@@ -69,21 +69,21 @@ void main() {
   });
 
   group('quizScoreBand', () {
-    test('未受験はスコアの下50と前方の帯', () {
-      expect(quizScoreBand(score: 30, tested: 0, premium: true), (0, 44));
-      expect(quizScoreBand(score: 300, tested: 0, premium: true), (250, 308));
+    test('未受験はスコアの下30と上8', () {
+      expect(quizScoreBand(score: 30, tested: 0, premium: true), (0, 38));
+      expect(quizScoreBand(score: 300, tested: 0, premium: true), (270, 308));
     });
-    test('受験者は測定値より下を出さず、前方は測定値から数える', () {
-      expect(quizScoreBand(score: 320, tested: 300, premium: true), (300, 336));
+    test('受験者は測定値より下を出さない', () {
+      expect(quizScoreBand(score: 320, tested: 300, premium: true), (300, 328));
     });
     test('free は100語で頭打ちにする', () {
       expect(quizScoreBand(score: 95, tested: 500, premium: false), (100, 100));
-      expect(quizScoreBand(score: 50, tested: 0, premium: false), (0, 60));
+      expect(quizScoreBand(score: 50, tested: 0, premium: false), (20, 58));
     });
-    test('測定値の上限に達した人は前方を広げる', () {
+    test('測定値の上限に達した人は key_word の帯の上端まで', () {
       expect(
         quizScoreBand(score: 4000, tested: 3000, premium: true),
-        (3950, 4050),
+        (3970, 4060),
       );
     });
   });

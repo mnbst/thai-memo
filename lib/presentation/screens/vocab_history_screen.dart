@@ -50,7 +50,7 @@ int? scoreMarkerIndex(List<VocabEntry> entries, int score) {
   const testCeiling = 3000;
   final floor = premium ? tested : min(tested, freeLimit);
   final current = max(score, floor);
-  final low = max(floor, current - 50);
+  final low = max(floor, current - 30);
 
   // free の key_word 帯は測定値で平行移動しない。
   final shift = premium ? floor : 0;
@@ -60,7 +60,8 @@ int? scoreMarkerIndex(List<VocabEntry> entries, int score) {
     keyWordHigh = max(keyWordHigh, score + (0.015 * score).toInt());
   }
   if (!premium) keyWordHigh = min(keyWordHigh, freeLimit);
-  return (low, min(current + 50, keyWordHigh));
+  if (shift >= testCeiling) return (low, keyWordHigh);
+  return (low, min(current + 8, keyWordHigh));
 }
 
 enum VocabListMarker { rangeTop, score, rangeBottom }
