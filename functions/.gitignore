@@ -2,6 +2,7 @@
 lib/
 **/*.js
 **/*.js.map
+!javascript/jest.config.js
 
 # TypeScript cache
 *.tsbuildinfo
