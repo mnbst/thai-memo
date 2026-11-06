@@ -400,7 +400,7 @@ func EstimateRange(userData map[string]any, now time.Time) (tested, low, high in
 
 const (
 	// QuizScoreBehind はまとめクイズのスコア枠でスコアより下を見る深さ。
-	QuizScoreBehind = 40
+	QuizScoreBehind = 30
 	// QuizScoreAhead はまとめクイズのスコア枠でスコアより上を見る幅。
 	QuizScoreAhead = 8
 )
