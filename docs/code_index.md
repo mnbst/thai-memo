@@ -551,6 +551,9 @@ UVMの純粋関数（UpdateP / GuessRate / MovingAvg / EstimateVocab）と定数
 functions/go/internal/uvm/store.go
 UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。出題形式ごとの証拠の強さ（Result.FormatScale）もここで効かせる。
 
+functions/go/internal/uvm/adaptivesim_test.go
+語彙スコア・key_word 帯・まとめクイズの範囲を学習状況で動かす案の比較シミュレーション（ADAPTIVE_SIM=1 で実行）。
+
 functions/go/internal/uvm/spellingsim_test.go
 綴り4択の証拠係数が estimated_vocab の伸びをどれだけ鈍らせるかのシミュレーション（SIM=1 で実行）。実測の重複（平均3.0回/語）で d30 が2%遅くなる程度。
 
@@ -664,6 +667,9 @@ Jev judgeを実際に叩くdry run。実Firestoreの直近の例文、または 
 
 functions/go/internal/sentence/produce_check_test.go
 生成直後の品質判定（QualityCheck）のテスト。1文1回だけ判定・不合格は作り直さずセットから外す・判定失敗時は元の文・バンク由来は判定しない。
+
+functions/go/internal/sentence/reuse.go
+未出語だけで例文を作る版（UsesUnseenOnly）で、最低2本に足りないぶんを本人の既出例文（帯で P<=0.5 の語）で埋める。LLM を呼ばない。
 
 functions/go/internal/sentence/corpusbank.go
 静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。

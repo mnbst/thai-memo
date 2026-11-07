@@ -174,7 +174,7 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	// SRS ベースでリアルタイムに復習対象例文を選出
 	filter := quizKeyWordFilter(ctx, userData)
 	bandWords := quizBandWords(ctx, userData)
-	sel := newSelection(sentence.SetSizeFor(userData))
+	sel := newSelection(sentence.QuizSizeFor(userData))
 	// 語彙テストの測定値で絞り、空なら絞らずにやり直す（1周ぶん）。
 	selectPass := func(viewedOnly bool) error {
 		if err := selectSentencesBySRS(

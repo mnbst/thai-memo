@@ -275,6 +275,7 @@ func runGenerateThaiSentence(
 		Lang:            l,
 		// LLM 生成分を1回判定し、不合格の文はセットから外す（待ち時間 +0.5 秒前後）。
 		QualityCheck: generationQualityCheck(),
+		UnseenOnly:   sentence.UsesUnseenOnly(userData),
 	}, count)
 	if err != nil {
 		return nil, err
@@ -429,6 +430,9 @@ func sentenceCommitUpdate(
 	if _, ok := userData["first_generated_at"]; !ok {
 		updates = append(updates,
 			firestore.Update{Path: "first_generated_at", Value: firestore.ServerTimestamp})
+	}
+	if sentence.UsesUnseenOnly(userData) {
+		updates = append(updates, firestore.Update{Path: sentence.LastSetSizeField, Value: count})
 	}
 	return updates
 }

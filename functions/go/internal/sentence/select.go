@@ -280,6 +280,28 @@ func (s *TargetWordSelector) SelectTargetWords(
 	maxVocab *int, count int, isPremium bool, estimatedVocab *int,
 	testedVocab int,
 ) ([]TargetWord, error) {
+	return s.selectTargetWords(ctx, db, freqRank, uid, params,
+		maxVocab, count, isPremium, estimatedVocab, testedVocab, false)
+}
+
+// SelectUnseenTargetWords は SelectTargetWords の未出語だけ版。帯に未出語が無ければ
+// ErrNoTargetWords を返す。
+func (s *TargetWordSelector) SelectUnseenTargetWords(
+	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
+	uid string, params map[string]any,
+	maxVocab *int, count int, isPremium bool, estimatedVocab *int,
+	testedVocab int,
+) ([]TargetWord, error) {
+	return s.selectTargetWords(ctx, db, freqRank, uid, params,
+		maxVocab, count, isPremium, estimatedVocab, testedVocab, true)
+}
+
+func (s *TargetWordSelector) selectTargetWords(
+	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
+	uid string, params map[string]any,
+	maxVocab *int, count int, isPremium bool, estimatedVocab *int,
+	testedVocab int, unseenOnly bool,
+) ([]TargetWord, error) {
 	vocab := 0
 	if estimatedVocab != nil {
 		vocab = *estimatedVocab
@@ -294,6 +316,7 @@ func (s *TargetWordSelector) SelectTargetWords(
 		TopicsPool:     choice.Pool,
 		EstimatedVocab: estimatedVocab,
 		TestedVocab:    testedVocab,
+		UnseenOnly:     unseenOnly,
 	}
 	// free は従来どおり（テーマは一様抽選、場面は themeshots の z 重み）。
 	matched := isPremium && s.Scenes != nil

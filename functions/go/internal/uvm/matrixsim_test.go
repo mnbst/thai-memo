@@ -70,6 +70,9 @@ type simUser struct {
 	// --- 世界側（ユーザーの実際の振る舞い）のつまみ ---
 	worldSlip  float64 // 知っている語を落とす確率（誤タップ・読み違い）
 	worldGuess float64 // >0 ならヒント無しの実際の推測率をこの値にする
+	learnRate  float64 // >0 なら語に触れるたびこの確率で覚える（真値が固定でなくなる）
+	learned    map[int]bool
+	lastAnswer bool // 直前の回答の正誤
 
 	// 並び替え（word_order）をまとめクイズに混ぜる実験。wordOrder が nil なら混ぜない。
 	wordOrder    *wordOrderSim
@@ -93,7 +96,7 @@ func (u *simUser) answers(rank int, guess float64) bool {
 	if u.worldGuess > 0 { // 素の 0.25 を worldGuess に置き換え、ヒントの比は保つ
 		guess *= u.worldGuess / guessRate(0)
 	}
-	if u.rnd.Float64() < pKnow(rank, u.truth) {
+	if u.learned[rank] || u.rnd.Float64() < pKnow(rank, u.truth) {
 		return u.rnd.Float64() >= u.worldSlip // 知っていてもうっかり落とす
 	}
 	return u.rnd.Float64() < guess
@@ -260,6 +263,12 @@ func (u *simUser) touch(rank int) {
 		u.lastSeen = map[int]float64{}
 	}
 	u.lastSeen[rank] = float64(u.day)
+	if u.learnRate > 0 && u.rnd.Float64() < u.learnRate {
+		if u.learned == nil {
+			u.learned = map[int]bool{}
+		}
+		u.learned[rank] = true
+	}
 }
 
 // answer は 1 問ぶんの P 更新。learning は正解時 α ×0.1。
@@ -280,6 +289,7 @@ func (u *simUser) answer(rank int, learning bool) {
 	}
 	correct := u.answers(rank, guessRate(hint))
 	res.IsCorrect = correct
+	u.lastAnswer = correct
 
 	mult := HintMultiplier(hint)
 	if learning && correct {
