@@ -154,7 +154,7 @@ func merge(a, b map[string]any) map[string]any {
 
 func TestQuizSizeFor(t *testing.T) {
 	interview := map[string]any{"level": "none"}
-	newApp, oldApp := "1.4.31", "1.4.30"
+	newApp, oldApp := "1.4.29", "1.4.28"
 	for _, c := range []struct {
 		name string
 		user map[string]any

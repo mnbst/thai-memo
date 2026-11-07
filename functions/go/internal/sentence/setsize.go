@@ -66,7 +66,7 @@ func numberToInt(v any) int {
 
 // UnseenOnlyMinVersion は例文を未出語だけで作る最初のアプリ版。これより前の版には
 // 従来どおり帯の前方や既出語で本数を埋める。
-var UnseenOnlyMinVersion = [3]int{1, 4, 31}
+var UnseenOnlyMinVersion = [3]int{1, 4, 29}
 
 // UsesUnseenOnly は例文を未出語だけで作るユーザーか（free も同じ）。
 func UsesUnseenOnly(userData map[string]any) bool {
