@@ -1,5 +1,7 @@
 package sentence
 
+import "github.com/mnbst/thai-memo/functions/go/internal/appver"
+
 // 入門者のセットの本数。
 //
 // ヒアリングで「まったく初めて」と答えた層は、1セット5本の途中で離れやすい
@@ -60,4 +62,31 @@ func numberToInt(v any) int {
 		return int(n)
 	}
 	return 0
+}
+
+// UnseenOnlyMinVersion は例文を未出語だけで作る最初のアプリ版。これより前の版には
+// 従来どおり帯の前方や既出語で本数を埋める。
+var UnseenOnlyMinVersion = [3]int{1, 4, 31}
+
+// UsesUnseenOnly は例文を未出語だけで作るユーザーか（free も同じ）。
+func UsesUnseenOnly(userData map[string]any) bool {
+	return appver.AtLeast(userData, UnseenOnlyMinVersion)
+}
+
+// LastSetSizeField は直近のセットの本数（users/{uid}）。
+const LastSetSizeField = "last_set_size"
+
+// QuizSizeFor はまとめクイズの問題数。
+//
+// 通常はセット本数（SetSizeFor）。入門者は本数が SetSize に戻るまで、未出語が
+// 尽きて縮んだ実際の本数に合わせる。戻ったあとは例文が2本でも SetSize 問出す。
+func QuizSizeFor(userData map[string]any) int {
+	size := SetSizeFor(userData)
+	if size >= SetSize || !UsesUnseenOnly(userData) {
+		return size
+	}
+	if last := numberToInt(userData[LastSetSizeField]); last >= BeginnerMinSetSize {
+		return min(size, last)
+	}
+	return size
 }

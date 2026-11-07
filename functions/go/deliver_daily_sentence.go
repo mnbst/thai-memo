@@ -259,6 +259,7 @@ func (d *deliverer) buildSentences(
 			Lang:        l,
 			// LLM 生成分を1回判定し、不合格の文はセットから外す。
 			QualityCheck: deliveryQualityCheck(),
+			UnseenOnly:   sentence.UsesUnseenOnly(userData),
 		}, n)
 		if err != nil {
 			log.Printf("daily_sentence: premium generation failed for %s: %v", uid, err)
@@ -280,6 +281,7 @@ func (d *deliverer) buildSentences(
 		Lang:        l,
 		// ヒアリングの用途に合うテーマの文を先に出す。
 		PreferredTopics: sentence.InterviewGoalTopicSet(userData),
+		UnseenOnly:      sentence.UsesUnseenOnly(userData),
 	}, n)
 	if err != nil {
 		log.Printf("daily_sentence: cached generation failed for %s: %v", uid, err)
@@ -341,6 +343,10 @@ func (d *deliverer) commitDailySentence(
 			return perr
 		}
 		token, restore = tok, rest
+		if sentence.UsesUnseenOnly(userData) {
+			update = append(update, firestore.Update{
+				Path: sentence.LastSetSizeField, Value: len(sentenceRefs)})
+		}
 
 		for i, ref := range sentenceRefs {
 			if serr := tx.Set(ref, sentenceData[i]); serr != nil {
