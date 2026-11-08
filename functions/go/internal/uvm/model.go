@@ -187,8 +187,36 @@ const (
 //
 // floor は語彙テストの測定値（未受験は 0）。floor 以下の rank は存在しない
 // ものとして窓に入れないので、返り値は floor を下回らない。
+//
+// 原点（floor）から OriginKnownSpan までは、P>LearnedP の語の最大 rank も
+// 候補にする（11-07 までの推定式と同じ決め方）。窓の平均は未回答の 0.4 に
+// 引っぱられるので、1 セット 2〜3 問の入門者は綴りで全問正解しても初回に
+// 動かなかった。幅を原点の key_word 帯（KeyWordBand の前方）と揃え、初回に
+// 出る語ならどれに正解してもスコアに出るようにする。原点から離れれば窓の
+// 値が上回るので、1 語の当たりで進みすぎる旧式の問題は原点付近に限られる。
 func EstimateVocab(entries []RankedP, center, floor int) int {
 	floor = max(floor, 0)
+	return max(estimateWindowed(entries, center, floor), originKnownMax(entries, floor))
+}
+
+// OriginKnownSpan は EstimateVocab が覚えた語の最大 rank を見る、原点からの幅。
+// 原点（進み 0）での key_word 帯の前方と同じ。
+const OriginKnownSpan = ScanBandWidth
+
+// originKnownMax は (floor, floor+OriginKnownSpan] で P>LearnedP の語の最大 rank。
+// 無ければ floor。
+func originKnownMax(entries []RankedP, floor int) int {
+	known := floor
+	for _, e := range entries {
+		if e.Rank > floor && e.Rank <= floor+OriginKnownSpan && e.P > LearnedP {
+			known = max(known, e.Rank)
+		}
+	}
+	return known
+}
+
+// estimateWindowed は窓の平均 P だけで決めたスコア（EstimateVocab の本体）。
+func estimateWindowed(entries []RankedP, center, floor int) int {
 	center = max(center, floor)
 
 	wordsByRank := make(map[int]float64, len(entries))

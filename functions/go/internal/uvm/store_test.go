@@ -114,3 +114,25 @@ func TestEstimateVocabFreeFloorKeepsScore(t *testing.T) {
 		t.Fatalf("EstimateVocab = %d, want >= 100", got)
 	}
 }
+
+// 原点から OriginKnownSpan までは、覚えた語の最大 rank がスコアになる。
+// 窓の平均がまだ届かない入門者の初回（綴り2問）でもスコアが動くことを固定する。
+func TestEstimateVocabOriginKnownMax(t *testing.T) {
+	cases := []struct {
+		name          string
+		entries       []RankedP
+		center, floor int
+		want          int
+	}{
+		{"未受験・15位を覚えた", []RankedP{{Rank: 3, P: 0.51}, {Rank: 15, P: 0.51}}, 0, 0, 15},
+		{"未受験・帯の外は見ない", []RankedP{{Rank: 21, P: 0.62}}, 0, 0, 0},
+		{"未受験・0.5以下は数えない", []RankedP{{Rank: 10, P: 0.5}}, 0, 0, 0},
+		{"受験者は測定値が原点", []RankedP{{Rank: 512, P: 0.62}, {Rank: 530, P: 0.62}}, 500, 500, 512},
+		{"測定値以下は見ない", []RankedP{{Rank: 495, P: 0.9}}, 500, 500, 500},
+	}
+	for _, c := range cases {
+		if got := EstimateVocab(c.entries, c.center, c.floor); got != c.want {
+			t.Errorf("%s: EstimateVocab = %d, want %d", c.name, got, c.want)
+		}
+	}
+}
