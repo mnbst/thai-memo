@@ -200,8 +200,9 @@ func EstimateVocab(entries []RankedP, center, floor int) int {
 }
 
 // OriginKnownSpan は EstimateVocab が覚えた語の最大 rank を見る、原点からの幅。
-// 原点（進み 0）での key_word 帯の前方と同じ。
-const OriginKnownSpan = ScanBandWidth
+// 入門者の初回セット（key_word の 9 割が原点から 20 位以内）に合わせた値で、
+// key_word 帯の前方幅（ScanBandWidth）とは独立に持つ。
+const OriginKnownSpan = 20
 
 // originKnownMax は (floor, floor+OriginKnownSpan] で P>LearnedP の語の最大 rank。
 // 無ければ floor。

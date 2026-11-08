@@ -202,7 +202,7 @@ func TestKeyWordBand(t *testing.T) {
 	for _, c := range []struct {
 		est, tested, low, high int
 	}{
-		{0, 0, 0, 20},                             // 未受験・新規
+		{0, 0, 0, 8},                              // 未受験・新規
 		{500, 0, 450, 508},                        // 未受験は ScanBand そのまま
 		{1500, 1200, 1450, 1508},                  // 上限未満の受験者は平行移動だけ
 		{ceiling, ceiling, ceiling, ceiling + 45}, // 上限到達: 3000×1.5%

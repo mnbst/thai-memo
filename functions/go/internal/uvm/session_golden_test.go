@@ -63,16 +63,16 @@ func loadSessionGolden(t *testing.T) *sessionGolden {
 
 func near(a, b float64) bool { return math.Abs(a-b) < 1e-12 }
 
-// 前方幅のチューニングは Python から意図的に変えた（入り 50→20、逓減 2→5）。
+// 前方幅のチューニングは Python から意図的に変えた（入り 50→20→8、逓減 2→5）。
 // 後方（low）は変えていないので Python golden と突き合わせ続ける。前方（high）は
 // 現行定数での期待値を明示表で置く。
 func TestScanBandAgainstPythonGolden(t *testing.T) {
 	g := loadSessionGolden(t)
 
-	// ahead = max(8, 20 - est/5)
+	// ahead = max(8, 8 - est/5) ＝ 常に 8
 	wantHigh := map[int]int{
-		0: 20, 1: 20, 2: 21, 7: 25, 8: 26, 15: 32, 16: 32,
-		49: 59, 50: 60, 51: 60, 84: 92, 85: 93, 99: 107, 100: 108,
+		0: 8, 1: 9, 2: 10, 7: 15, 8: 16, 15: 23, 16: 24,
+		49: 57, 50: 58, 51: 59, 84: 92, 85: 93, 99: 107, 100: 108,
 		101: 109, 500: 508, 1000: 1008, 9999: 10007,
 	}
 	for _, c := range g.ScanBand {
@@ -189,8 +189,8 @@ func TestScanBandOriginShift(t *testing.T) {
 			}
 		}
 	}
-	// 測定直後は前方 20 幅（0 スタートと同じ）。ScanBand(0) = [0,20]。
-	if lo, hi := band(250, 250); lo != 250 || hi != 270 {
-		t.Errorf("測定250直後: got [%d,%d], want [250,270]", lo, hi)
+	// 測定直後は前方 8 幅（0 スタートと同じ）。ScanBand(0) = [0,8]。
+	if lo, hi := band(250, 250); lo != 250 || hi != 258 {
+		t.Errorf("測定250直後: got [%d,%d], want [250,258]", lo, hi)
 	}
 }
