@@ -25,6 +25,10 @@ func TestHighConfidence(t *testing.T) {
 		{"มา", "来る", "助動詞", lang.JA, true},
 		{"ขึ้น", "上がる", "動詞", lang.JA, false},
 		{"พวกนี้", "これらの", "名詞", lang.JA, false},
+		{"ใบ", "（バケツの）個数詞", "類別詞", lang.JA, true},
+		{"ฉัน", "召し上がる", "動詞", lang.JA, true},
+		{"ฉัน", "私", "名詞", lang.JA, false},
+		{"ทัวร์", "ツアー", "名詞", lang.JA, true},
 	}
 	for _, c := range cases {
 		if got := highConfidence(c.word, c.meaning, c.tag, c.l); got != c.want {

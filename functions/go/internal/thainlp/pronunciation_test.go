@@ -54,8 +54,7 @@ func TestClusterIsNotSplitIntoFinal(t *testing.T) {
 		{"แผน", "phɛ̌ɛn"},
 		{"ผล", "phǒn"},
 		{"เจล", "jeen"},
-		// 同型で元から結合が残る綴り
-		{"เพล", "phlee"},
+		// 同型で元から結合が残る綴り（เพล は綴りどおりに読まない語なので pronunciationOverrides で pheen）
 		{"แปล", "plɛɛ"},
 		{"เผลอ", "phlə̌ə"},
 	}
@@ -90,6 +89,23 @@ func TestLinkingSyllableTakesFinalConsonant(t *testing.T) {
 		if err != nil {
 			t.Errorf("ThaiToPronunciation(%q): %v", c.in, err)
 			continue
+		}
+		if got != c.want {
+			t.Errorf("ThaiToPronunciation(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// TestPronunciationOverrides は綴りどおりに読まない語（pronunciationOverrides）を見る。
+func TestPronunciationOverrides(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"เพล", "pheen"},
+		{"คลิป", "khlíp"},
+	}
+	for _, c := range cases {
+		got, err := ThaiToPronunciation(c.in)
+		if err != nil {
+			t.Fatal(err)
 		}
 		if got != c.want {
 			t.Errorf("ThaiToPronunciation(%q) = %q, want %q", c.in, got, c.want)

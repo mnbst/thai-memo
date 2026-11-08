@@ -74,7 +74,52 @@ func TagWords(words []string) (map[int]string, error) {
 	tagAuxVerbs(words, result)
 	tagKhong(words, result)
 	tagThii(words, result)
+	tagClassifiers(words, result)
+	tagMonkEat(words, result)
 	return result, nil
+}
+
+// classifierWords は名詞の後ろで類別詞になる語。unigram は ใบ・คน・ตัว を一律に名詞にする
+// （ถังใบนี้ の ใบ、นักร้องคนนี้ の คน）。
+var classifierWords = map[string]bool{
+	"ใบ": true, "ตัว": true, "คน": true, "อัน": true, "ชิ้น": true, "เล่ม": true, "คัน": true,
+	"หลัง": true, "ดอก": true, "ขวด": true, "แก้ว": true, "เครื่อง": true,
+}
+
+// classifierFollowers は類別詞の後ろに来る指示語。
+var classifierFollowers = map[string]bool{
+	"นี้": true, "นั้น": true, "โน้น": true, "ไหน": true, "เดียว": true,
+}
+
+// tagClassifiers は classifierWords の語を、数詞の後ろ（สองตัว）か、
+// 名詞の後ろで指示語が続くとき（ถังใบนี้）に類別詞にする。
+func tagClassifiers(words []string, result map[int]string) {
+	for i, w := range words {
+		if !classifierWords[w] || i == 0 {
+			continue
+		}
+		prev := result[i-1]
+		// หลัง は数詞の後ろでも「〜の後で」になる（ชั้นสามหลังเลิกเรียน）ので、指示語が続くときだけ。
+		afterNum := prev == "数詞" && w != "หลัง"
+		nounThenDemo := isNominal(prev) && i+1 < len(words) && classifierFollowers[words[i+1]]
+		if afterNum || nounThenDemo {
+			result[i] = "類別詞"
+		}
+	}
+}
+
+// monkMeals は僧侶の食事を表す語。直前の ฉัน は一人称ではなく「（僧侶が）食べる」。
+var monkMeals = map[string]bool{"เพล": true, "ภัตตาหาร": true, "จังหัน": true}
+
+// tagMonkEat は ฉันเพล の ฉัน を動詞、เพล を名詞にする。pos_override は ฉัน を常に代名詞にする。
+func tagMonkEat(words []string, result map[int]string) {
+	for i, w := range words {
+		if w != "ฉัน" || i+1 >= len(words) || !monkMeals[words[i+1]] {
+			continue
+		}
+		result[i] = "動詞"
+		result[i+1] = "名詞"
+	}
 }
 
 // isNominal は名詞・固有名詞のラベルか。
