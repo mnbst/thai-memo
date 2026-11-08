@@ -75,8 +75,22 @@ func highConfidence(word, meaning, tag string, l lang.Lang) bool {
 		return !bareGoMeaning[l].MatchString(meaning)
 	case complementWords[word]:
 		return tag == "助動詞"
+	case tag == "類別詞":
+		// 名詞＋類別詞＋指示語・数詞＋類別詞の並びだけで付くので、並びが合えば類別詞で確定する。
+		return true
+	case word == "ฉัน" && tag == "動詞":
+		// ฉันเพล 等、僧侶の食事の語が続くときだけ付く。
+		return true
+	case fixedPOSWords[word]:
+		return true
 	}
 	return false
+}
+
+// fixedPOSWords は pos_override で品詞を固定した語のうち、旧タガーが誤っていたもの（2026-11-08）。
+var fixedPOSWords = map[string]bool{
+	"ทัวร์": true, "เหนือกว่า": true, "บอกว่า": true, "บทลงโทษ": true, "ไม่ต้องการ": true,
+	"แน่ๆ": true, "วันเกิด": true, "คลิป": true, "เป็นมิตร": true, "พื้นบ้าน": true,
 }
 
 // retag は pool の品詞を確度の高い語だけ書き換え、変えた語を返す。

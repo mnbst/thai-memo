@@ -128,8 +128,18 @@ func convertSyllable(ipaSyl string) string {
 // Python の \s に合わせる（pySpace の理由は th2ipa.go を参照）。
 var reSyllableSplit = regexp.MustCompile(`[.+` + pySpace + `]+`)
 
+// pronunciationOverrides は綴りどおりに読まない語の発音。G2P は規則どおりに読む
+// （เพล→phlee、คลิป→khá-líp）。語単位で完全一致したときだけ使う。
+var pronunciationOverrides = map[string]string{
+	"เพล":  "pheen",
+	"คลิป": "khlíp",
+}
+
 // ThaiToPronunciation は pronunciation.py:thai_to_pronunciation:211。
 func ThaiToPronunciation(thaiText string) (string, error) {
+	if p, ok := pronunciationOverrides[thaiText]; ok {
+		return p, nil
+	}
 	normalizedText := strings.Map(func(r rune) rune {
 		if strings.ContainsRune(silentThaiMarks, r) {
 			return -1
