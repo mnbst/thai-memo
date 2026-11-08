@@ -307,11 +307,28 @@ func GenerateSingle(ctx context.Context, gen Generator, req Request) (*Sentence,
 			currentPrompt = req.Prompt
 			continue
 		}
+		alignTargetSpelling(s, req.TargetWords)
 		return s, nil
 	}
 
 	return nil, fmt.Errorf("LLM_API_ERROR: target words missing after retries: %s",
 		strings.Join(missing, ", "))
+}
+
+// alignTargetSpelling は ๆ の前の空白だけが違う語を、単語リストの表記
+// （ターゲット語）にそろえる。NormalizeThaiSpacing が語の「เร็ว ๆ」を
+// 「เร็วๆ」に詰めるため、単語リストに空白入りで載っている語は分解の表記が
+// ずれる。本文は詰めたまま（語の突き合わせは空白を無視する）。
+func alignTargetSpelling(s *Sentence, targets []string) {
+	for _, t := range targets {
+		t = strings.TrimSpace(t)
+		for i := range s.WordBreakdown {
+			w := strings.TrimSpace(s.WordBreakdown[i].Word)
+			if w != t && CompactYamok(w) == CompactYamok(t) {
+				s.WordBreakdown[i].Word = t
+			}
+		}
+	}
 }
 
 // DramaBuilder は BL ドラマ回の専用ブロックを組み立てる。
