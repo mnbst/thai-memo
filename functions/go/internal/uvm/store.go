@@ -277,13 +277,14 @@ func SyncEstimatedVocab(
 	// 刻んでも行き先は変わらず、到達までの十数回の sync に効果が分散する
 	// だけだった。クイズ 1 回の結果が、そのあとの例文生成のたびに少しずつ
 	// スコアを動かしているように見えていたのはこのため。
-	raw := EstimateVocab(entries, current, tested)
+	cutoff := SummaryCutoff(userData)
+	raw := EstimateVocabAt(entries, current, tested, cutoff)
 	estimated := max(0, raw)
 	if !isPremium {
 		estimated = min(estimated, FreeTierMaxVocab)
 	}
-	log.Printf("sync_estimated_vocab: uid=%s current=%d floor=%d entries=%d raw=%d -> %d",
-		uid, current, tested, len(entries), raw, estimated)
+	log.Printf("sync_estimated_vocab: uid=%s current=%d floor=%d entries=%d cutoff=%.2f raw=%d -> %d",
+		uid, current, tested, len(entries), cutoff, raw, estimated)
 
 	if _, err := userRef.Set(ctx, map[string]any{"estimated_vocab": estimated},
 		firestore.MergeAll); err != nil {
@@ -366,7 +367,7 @@ func PreviewEstimatedVocab(
 		limit := estimatedVocabCap(data, now)
 		value := current
 		if len(entries) > 0 {
-			value = max(0, EstimateVocab(entries, current, tested))
+			value = max(0, EstimateVocabAt(entries, current, tested, SummaryCutoff(data)))
 		}
 		if limit >= 0 {
 			value = min(value, limit)

@@ -10,6 +10,8 @@ service cloud.firestore {
       // サーバーが複製する）。書けると順位を自己申告できるので塞ぐ。
       // vocab_floor_applied は旧・下限の適用済み印。サーバーはもう書かないが、
       // クライアントに書かせる理由も無いので塞いだままにする。
+      // summary_recent はまとめクイズの直近の正誤で、語彙スコアの基準を決める。
+      // 書けると基準を下げて estimated_vocab を釣り上げられるので塞ぐ。
       // vocab_test_at / vocab_test_vocab は語彙テストの測定結果、
       // vocab_test_window_at / vocab_test_count は受験間隔の記録。書けると制限を外して
       // estimated_vocab を任意の値まで釣り上げられるので塞ぐ。
@@ -21,12 +23,12 @@ service cloud.firestore {
         // 作成時も update と同じサーバー管理フィールドを塞ぐ。onUserCreate より先に
         // クライアントが作成すると、ここが唯一の関門になる（subscription を書けると
         // IsEffectivePremium を通ってプレミアムを自己付与できる）。
-        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'last_sentence_generated_at', 'last_notified_at', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'lifetime_migration_eligible', 'closed_tester', 'closed_tester_granted_at', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at'])
+        && !request.resource.data.keys().hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'last_sentence_generated_at', 'last_notified_at', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'lifetime_migration_eligible', 'closed_tester', 'closed_tester_granted_at', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at', 'summary_recent'])
         && (!request.resource.data.keys().hasAny(['vocab_floor'])
             || request.resource.data.vocab_floor in [0, 100, 300, 600]);
       allow update: if request.auth != null && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'lifetime_migration_eligible', 'closed_tester', 'closed_tester_granted_at', 'last_sentence_generated_at', 'last_notified_at', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at'])
+            .hasAny(['tier', 'daily_generation_count', 'daily_quiz_count', 'last_generation_date', 'last_quiz_date', 'subscription', 'remaining_sentences', 'remaining_quizzes', 'premium_trial_remaining', 'premium_trial_expires_at', 'premium_trial_ended_at', 'lifetime_migration_eligible', 'closed_tester', 'closed_tester_granted_at', 'last_sentence_generated_at', 'last_notified_at', 'estimated_vocab', 'vocab_floor_applied', 'vocab_test_at', 'vocab_test_vocab', 'vocab_test_count', 'vocab_test_window_at', 'summary_recent'])
         // vocab_floor は「申告レベルを語彙スコアの下限にする」旧仕様の名残。
         // サーバーはもう読まない（語彙スコアは語彙テストの測定値だけで決まる）。
         // 旧バージョンのアプリがヒアリング送信でこれを含めてくるので、書き込み
