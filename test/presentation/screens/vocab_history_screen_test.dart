@@ -73,9 +73,8 @@ void main() {
     });
 
     testWidgets('範囲の中では上向きを一覧の一番下で止める', (tester) async {
+      // 開いた直後は範囲の中で、下端の区切りはまだ一覧の外にある。
       await open(tester);
-      await tester.drag(find.byType(ListView), const Offset(0, -200));
-      await tester.pumpAndSettle();
       final up = find.byIcon(Icons.arrow_upward).hitTestable();
       expect(up, findsOneWidget);
       final listBottom = tester.getBottomLeft(find.byType(ListView)).dy;
