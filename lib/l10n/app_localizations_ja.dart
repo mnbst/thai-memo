@@ -3482,4 +3482,157 @@ class L10nJa extends L10n {
 
   @override
   String get vocabLearnedAdded => '覚えたに追加されました！';
+
+  @override
+  String get tipQuizPromptPron => '発音のコツ';
+
+  @override
+  String get tipQuizPromptTone => '声調のコツ';
+
+  @override
+  String get tipQuizPromptScript => 'タイ文字のコツ';
+
+  @override
+  String get tipQuizPromptWordOrder => '語順のコツ';
+
+  @override
+  String tipQuizWordOrderQuestion(String meaning) {
+    return '「$meaning」を表す並びは？';
+  }
+
+  @override
+  String get tipQuizW7Question => '「行かなかった」ではなく「行けない」はどっち？';
+
+  @override
+  String get pronLearnMore => '発音について詳しく学ぶ';
+
+  @override
+  String get tipQuizP1Question => '「鶏」と「卵」。2つの語の違いは？';
+
+  @override
+  String get tipQuizP1Choices => '息を強く出すかどうか|声調の高さ|母音の長さ|最後の子音';
+
+  @override
+  String get tipQuizP2Question => 'th の h は何を表す？';
+
+  @override
+  String get tipQuizP2Choices => '息を強く出す印|舌を歯の間に挟む（英語の th）|音をのばす印|発音しない';
+
+  @override
+  String get tipQuizP3Question => '「入る」と「ご飯」。2つの語の違いは？';
+
+  @override
+  String get tipQuizP3Choices => '母音の長さ|息を強く出すかどうか|声調の高さ|最後の子音';
+
+  @override
+  String get tipQuizP4Question => '読みで aa のように同じ母音が2つ並んだら？';
+
+  @override
+  String get tipQuizP4Choices => '長くのばす|2回に区切って言う|強く言う|高く言う';
+
+  @override
+  String get tipQuizP5Question => '「日差し」の ɛ はどんな音？';
+
+  @override
+  String get tipQuizP5Choices => '口を大きく開けた「エ」|口をすぼめた「エ」|「イ」に近い音|鼻に抜く「エ」';
+
+  @override
+  String get tipQuizP6Question => '「手」の ʉ はどんな音？';
+
+  @override
+  String get tipQuizP6Choices =>
+      '口を横に引いたまま言う「ウ」|唇を丸めた「ウ」|「イ」と「ウ」を続けて言う|鼻に抜く「ウ」';
+
+  @override
+  String get tipQuizP7Question => '語末の k・t はどう言う？';
+
+  @override
+  String get tipQuizP7Choices =>
+      '閉じて止める。「ク」「ト」と母音を足さない|「ク」「ト」とはっきり言う|「グ」「ド」と濁らせる|長くのばす';
+
+  @override
+  String get tipQuizP8Question => '「皿」と「薄い」。2つの語の違いは？';
+
+  @override
+  String get tipQuizP8Choices => '語末の n と ng|声調の高さ|母音の長さ|息を強く出すかどうか';
+
+  @override
+  String get tipQuizP9Question => '「お金」の頭の ng はどう言う？';
+
+  @override
+  String get tipQuizP9Choices =>
+      '口を開けたまま鼻へ抜く。「ン」を前に付けない|「ン」と言ってから「ガ」|「グ」と言う|発音しない';
+
+  @override
+  String get tipQuizP11Question => '丁寧の語尾 ครับ は、会話でどう聞こえやすい？';
+
+  @override
+  String get tipQuizP11Choices =>
+      'kháp（r が落ちる）|khrâp（声調が下がる）|khráap（のびる）|kráp（息が消える）';
+
+  @override
+  String get tipQuizT1Question => 'タイ語の声調はいくつ？';
+
+  @override
+  String get tipQuizT1Choices => '5つ|4つ|6つ|9つ';
+
+  @override
+  String get tipQuizT5Question => '声調を決めるのは？';
+
+  @override
+  String get tipQuizT5Choices => '子音クラス×声調記号×音節タイプ|声調記号だけ|母音だけ|文の中の位置';
+
+  @override
+  String get tipQuizT6Question => '声調記号が付いていない音節は？';
+
+  @override
+  String get tipQuizT6Choices => '声調がある（組み合わせで決まる）|声調がない|必ず平声|必ず低声';
+
+  @override
+  String get tipQuizT7Question => '「犬」の ห は？';
+
+  @override
+  String get tipQuizT7Choices => '発音せず、高子音の声調規則に従わせる|h と発音する|母音を長くする|語末の音になる';
+
+  @override
+  String get tipQuizS1Question => 'タイ語の文の書き方は？';
+
+  @override
+  String get tipQuizS1Choices => '左から右。単語ごとにはスペースを空けない|右から左|単語ごとにスペースを空ける|上から下';
+
+  @override
+  String get tipQuizS2Question => '母音記号が付く位置は？';
+
+  @override
+  String get tipQuizS2Choices => '子音の前・後ろ・上・下・囲む|子音の後ろだけ|子音の上だけ|子音の前だけ';
+
+  @override
+  String get tipQuizS3Question => '「子ども」の เ は ด の前に書く。読む順は？';
+
+  @override
+  String get tipQuizS3Choices => 'd を読んでから e|e を読んでから d';
+
+  @override
+  String get tipQuizS4Question => 'อา の อ の役割は？';
+
+  @override
+  String get tipQuizS4Choices => '音を持たない、母音記号の台|「オ」と読む|語末の n|声調記号';
+
+  @override
+  String get tipQuizS5Question => 'ะ が付いた母音は？';
+
+  @override
+  String get tipQuizS5Choices => '短い母音|長い母音|高い声調|読まない';
+
+  @override
+  String get tipQuizS6Question => '語末の ด はどの音？';
+
+  @override
+  String get tipQuizS6Choices => 't|d|n|読まない';
+
+  @override
+  String get tipQuizS7Question => '声調記号はいくつ？';
+
+  @override
+  String get tipQuizS7Choices => '4つ|2つ|3つ|5つ';
 }

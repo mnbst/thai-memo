@@ -112,6 +112,8 @@ QuizController _controller({
     () => lookupL10n(const Locale('ja')),
     databaseHelper: _FakeDatabaseHelper(cachedStats: cachedStats),
     progressStore: LearningProgressStore(),
+    // サーバーの問題数をそのまま見る（コツ問題で埋めない）。
+    summaryQuizSize: 0,
   );
 }
 

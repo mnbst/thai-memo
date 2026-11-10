@@ -3514,4 +3514,161 @@ class L10nKo extends L10n {
 
   @override
   String get vocabLearnedAdded => '‘외움’에 추가됐어요!';
+
+  @override
+  String get tipQuizPromptPron => '발음 팁';
+
+  @override
+  String get tipQuizPromptTone => '성조 팁';
+
+  @override
+  String get tipQuizPromptScript => '태국 문자 팁';
+
+  @override
+  String get tipQuizPromptWordOrder => '어순 팁';
+
+  @override
+  String tipQuizWordOrderQuestion(String meaning) {
+    return '‘$meaning’을 나타내는 어순은?';
+  }
+
+  @override
+  String get tipQuizW7Question => '‘가지 않았다’가 아니라 ‘갈 수 없다’는 어느 쪽일까요?';
+
+  @override
+  String get pronLearnMore => '발음 자세히 알아보기';
+
+  @override
+  String get tipQuizP1Question => '‘닭’과 ‘달걀’. 두 단어의 차이는 무엇일까요?';
+
+  @override
+  String get tipQuizP1Choices => '숨을 세게 내보내는지 여부|성조 높이|모음 길이|받침 자음';
+
+  @override
+  String get tipQuizP2Question => 'th의 h는 무엇을 나타낼까요?';
+
+  @override
+  String get tipQuizP2Choices =>
+      '숨을 세게 내보내라는 표시|혀를 이 사이에 끼우기(영어의 th)|소리를 길게 내라는 표시|발음하지 않음';
+
+  @override
+  String get tipQuizP3Question => '‘들어가다’와 ‘밥’. 두 단어의 차이는 무엇일까요?';
+
+  @override
+  String get tipQuizP3Choices => '모음 길이|숨을 세게 내보내는지 여부|성조 높이|받침 자음';
+
+  @override
+  String get tipQuizP4Question => '읽기에서 aa처럼 같은 모음이 두 번 이어지면 어떻게 할까요?';
+
+  @override
+  String get tipQuizP4Choices => '길게 늘여 발음하기|두 번 끊어서 발음하기|세게 발음하기|높게 발음하기';
+
+  @override
+  String get tipQuizP5Question => '‘햇빛’의 ɛ는 어떤 소리일까요?';
+
+  @override
+  String get tipQuizP5Choices =>
+      '‘에’보다 입을 크게 벌린 소리|입술을 오므린 ‘에’ 소리|‘이’에 가까운 소리|코로 내는 ‘에’ 소리';
+
+  @override
+  String get tipQuizP6Question => '‘손’의 ʉ는 어떤 소리일까요?';
+
+  @override
+  String get tipQuizP6Choices =>
+      '입술을 좌우로 편 채 내는 ‘우’ 소리|입술을 둥글게 오므린 ‘우’ 소리|‘이’와 ‘우’를 이어서 내는 소리|코로 내는 ‘우’ 소리';
+
+  @override
+  String get tipQuizP7Question => '받침 k와 t는 어떻게 발음할까요?';
+
+  @override
+  String get tipQuizP7Choices =>
+      '터뜨리지 않고 막아서 끝내며 모음을 붙이지 않기|뒤에 모음을 붙여 또렷하게 발음하기|g와 d처럼 유성음으로 발음하기|길게 늘여 발음하기';
+
+  @override
+  String get tipQuizP8Question => '‘접시’와 ‘연하다’. 두 단어의 차이는 무엇일까요?';
+
+  @override
+  String get tipQuizP8Choices => '받침 n과 ng|성조 높이|모음 길이|숨을 세게 내보내는지 여부';
+
+  @override
+  String get tipQuizP9Question => '‘돈’의 첫소리 ng는 어떻게 발음할까요?';
+
+  @override
+  String get tipQuizP9Choices =>
+      '입을 벌린 채 코로 소리 내며 앞에 n 소리를 붙이지 않기|n 다음에 g 발음하기|g로 발음하기|발음하지 않기';
+
+  @override
+  String get tipQuizP11Question => '정중한 종결 표현 ครับ은 대화에서 어떻게 들리기 쉬울까요?';
+
+  @override
+  String get tipQuizP11Choices =>
+      'kháp(r가 탈락)|khrâp(성조가 내려감)|khráap(길게 늘어남)|kráp(거센소리가 사라짐)';
+
+  @override
+  String get tipQuizT1Question => '태국어의 성조는 몇 개일까요?';
+
+  @override
+  String get tipQuizT1Choices => '5개|4개|6개|9개';
+
+  @override
+  String get tipQuizT5Question => '성조를 결정하는 것은 무엇일까요?';
+
+  @override
+  String get tipQuizT5Choices => '자음 분류×성조 기호×음절 유형|성조 기호만|모음만|문장 속 위치';
+
+  @override
+  String get tipQuizT6Question => '성조 기호가 없는 음절은 어떨까요?';
+
+  @override
+  String get tipQuizT6Choices => '조합에 따라 정해지는 성조가 있음|성조가 없음|항상 평성|항상 저성';
+
+  @override
+  String get tipQuizT7Question => '‘개’의 ห는 어떤 역할을 할까요?';
+
+  @override
+  String get tipQuizT7Choices =>
+      '발음하지 않고 고자음 성조 규칙을 따르게 함|h로 발음함|모음을 길게 함|받침소리가 됨';
+
+  @override
+  String get tipQuizS1Question => '태국어 문장은 어떻게 쓸까요?';
+
+  @override
+  String get tipQuizS1Choices =>
+      '왼쪽에서 오른쪽으로 쓰고 단어마다 띄어 쓰지 않음|오른쪽에서 왼쪽으로 씀|단어마다 띄어 씀|위에서 아래로 씀';
+
+  @override
+  String get tipQuizS2Question => '모음 기호는 어디에 붙을까요?';
+
+  @override
+  String get tipQuizS2Choices => '자음의 앞·뒤·위·아래 또는 자음을 둘러쌈|자음 뒤에만|자음 위에만|자음 앞에만';
+
+  @override
+  String get tipQuizS3Question => '‘아이’의 เ는 ด 앞에 써요. 소리는 어떤 순서로 읽을까요?';
+
+  @override
+  String get tipQuizS3Choices => 'd 다음에 e|e 다음에 d';
+
+  @override
+  String get tipQuizS4Question => 'อา에서 อ의 역할은 무엇일까요?';
+
+  @override
+  String get tipQuizS4Choices => '소리 없이 모음 기호를 받치는 자음|‘오’로 읽음|받침 n|성조 기호';
+
+  @override
+  String get tipQuizS5Question => 'ะ가 붙은 모음은 어떤 모음일까요?';
+
+  @override
+  String get tipQuizS5Choices => '짧은 모음|긴 모음|높은 성조|읽지 않음';
+
+  @override
+  String get tipQuizS6Question => '받침 ด는 어떤 소리일까요?';
+
+  @override
+  String get tipQuizS6Choices => 't|d|n|읽지 않음';
+
+  @override
+  String get tipQuizS7Question => '성조 기호는 몇 개일까요?';
+
+  @override
+  String get tipQuizS7Choices => '4개|2개|3개|5개';
 }

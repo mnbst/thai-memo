@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/guide_sections.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/tts_provider.dart';
+import '../widgets/guide_section_anchor.dart';
 import '../widgets/swipe_back.dart';
 import 'tone_guide_screen.dart';
 
@@ -143,7 +145,13 @@ const _words = [
 class ThaiScriptGuideScreen extends StatelessWidget {
   static const routeName = 'thai_script_guide';
 
-  const ThaiScriptGuideScreen({super.key});
+  const ThaiScriptGuideScreen({super.key, this.focusSection});
+
+  /// 開いた直後に送る節。
+  final ThaiScriptGuideSection? focusSection;
+
+  Widget _anchor(ThaiScriptGuideSection section, Widget child) =>
+      GuideSectionAnchor(active: focusSection == section, child: child);
 
   @override
   Widget build(BuildContext context) {
@@ -161,15 +169,17 @@ class ThaiScriptGuideScreen extends StatelessWidget {
                 body: l10n.thaiScriptGuideIntro,
               ),
               const SizedBox(height: 12),
-              const _BasicsCard(),
+              _anchor(ThaiScriptGuideSection.basics, const _BasicsCard()),
               const SizedBox(height: 12),
-              const _ConsonantsCard(),
+              _anchor(
+                  ThaiScriptGuideSection.consonants, const _ConsonantsCard()),
               const SizedBox(height: 12),
-              const _VowelsCard(),
+              _anchor(ThaiScriptGuideSection.vowels, const _VowelsCard()),
               const SizedBox(height: 12),
-              const _ToneMarksCard(),
+              _anchor(
+                  ThaiScriptGuideSection.toneMarks, const _ToneMarksCard()),
               const SizedBox(height: 12),
-              const _WordsCard(),
+              _anchor(ThaiScriptGuideSection.words, const _WordsCard()),
               const SizedBox(height: 24),
             ],
           ),

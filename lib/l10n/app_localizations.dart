@@ -6285,6 +6285,300 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'覚えたに追加されました！'**
   String get vocabLearnedAdded;
+
+  /// No description provided for @tipQuizPromptPron.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音のコツ'**
+  String get tipQuizPromptPron;
+
+  /// No description provided for @tipQuizPromptTone.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調のコツ'**
+  String get tipQuizPromptTone;
+
+  /// No description provided for @tipQuizPromptScript.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字のコツ'**
+  String get tipQuizPromptScript;
+
+  /// No description provided for @tipQuizPromptWordOrder.
+  ///
+  /// In ja, this message translates to:
+  /// **'語順のコツ'**
+  String get tipQuizPromptWordOrder;
+
+  /// No description provided for @tipQuizWordOrderQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{meaning}」を表す並びは？'**
+  String tipQuizWordOrderQuestion(String meaning);
+
+  /// No description provided for @tipQuizW7Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「行かなかった」ではなく「行けない」はどっち？'**
+  String get tipQuizW7Question;
+
+  /// No description provided for @pronLearnMore.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音について詳しく学ぶ'**
+  String get pronLearnMore;
+
+  /// No description provided for @tipQuizP1Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「鶏」と「卵」。2つの語の違いは？'**
+  String get tipQuizP1Question;
+
+  /// No description provided for @tipQuizP1Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'息を強く出すかどうか|声調の高さ|母音の長さ|最後の子音'**
+  String get tipQuizP1Choices;
+
+  /// No description provided for @tipQuizP2Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'th の h は何を表す？'**
+  String get tipQuizP2Question;
+
+  /// No description provided for @tipQuizP2Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'息を強く出す印|舌を歯の間に挟む（英語の th）|音をのばす印|発音しない'**
+  String get tipQuizP2Choices;
+
+  /// No description provided for @tipQuizP3Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「入る」と「ご飯」。2つの語の違いは？'**
+  String get tipQuizP3Question;
+
+  /// No description provided for @tipQuizP3Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音の長さ|息を強く出すかどうか|声調の高さ|最後の子音'**
+  String get tipQuizP3Choices;
+
+  /// No description provided for @tipQuizP4Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'読みで aa のように同じ母音が2つ並んだら？'**
+  String get tipQuizP4Question;
+
+  /// No description provided for @tipQuizP4Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'長くのばす|2回に区切って言う|強く言う|高く言う'**
+  String get tipQuizP4Choices;
+
+  /// No description provided for @tipQuizP5Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「日差し」の ɛ はどんな音？'**
+  String get tipQuizP5Question;
+
+  /// No description provided for @tipQuizP5Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'口を大きく開けた「エ」|口をすぼめた「エ」|「イ」に近い音|鼻に抜く「エ」'**
+  String get tipQuizP5Choices;
+
+  /// No description provided for @tipQuizP6Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「手」の ʉ はどんな音？'**
+  String get tipQuizP6Question;
+
+  /// No description provided for @tipQuizP6Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'口を横に引いたまま言う「ウ」|唇を丸めた「ウ」|「イ」と「ウ」を続けて言う|鼻に抜く「ウ」'**
+  String get tipQuizP6Choices;
+
+  /// No description provided for @tipQuizP7Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の k・t はどう言う？'**
+  String get tipQuizP7Question;
+
+  /// No description provided for @tipQuizP7Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'閉じて止める。「ク」「ト」と母音を足さない|「ク」「ト」とはっきり言う|「グ」「ド」と濁らせる|長くのばす'**
+  String get tipQuizP7Choices;
+
+  /// No description provided for @tipQuizP8Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「皿」と「薄い」。2つの語の違いは？'**
+  String get tipQuizP8Question;
+
+  /// No description provided for @tipQuizP8Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の n と ng|声調の高さ|母音の長さ|息を強く出すかどうか'**
+  String get tipQuizP8Choices;
+
+  /// No description provided for @tipQuizP9Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「お金」の頭の ng はどう言う？'**
+  String get tipQuizP9Question;
+
+  /// No description provided for @tipQuizP9Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'口を開けたまま鼻へ抜く。「ン」を前に付けない|「ン」と言ってから「ガ」|「グ」と言う|発音しない'**
+  String get tipQuizP9Choices;
+
+  /// No description provided for @tipQuizP11Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'丁寧の語尾 ครับ は、会話でどう聞こえやすい？'**
+  String get tipQuizP11Question;
+
+  /// No description provided for @tipQuizP11Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'kháp（r が落ちる）|khrâp（声調が下がる）|khráap（のびる）|kráp（息が消える）'**
+  String get tipQuizP11Choices;
+
+  /// No description provided for @tipQuizT1Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の声調はいくつ？'**
+  String get tipQuizT1Question;
+
+  /// No description provided for @tipQuizT1Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'5つ|4つ|6つ|9つ'**
+  String get tipQuizT1Choices;
+
+  /// No description provided for @tipQuizT5Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調を決めるのは？'**
+  String get tipQuizT5Question;
+
+  /// No description provided for @tipQuizT5Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'子音クラス×声調記号×音節タイプ|声調記号だけ|母音だけ|文の中の位置'**
+  String get tipQuizT5Choices;
+
+  /// No description provided for @tipQuizT6Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調記号が付いていない音節は？'**
+  String get tipQuizT6Question;
+
+  /// No description provided for @tipQuizT6Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調がある（組み合わせで決まる）|声調がない|必ず平声|必ず低声'**
+  String get tipQuizT6Choices;
+
+  /// No description provided for @tipQuizT7Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「犬」の ห は？'**
+  String get tipQuizT7Question;
+
+  /// No description provided for @tipQuizT7Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音せず、高子音の声調規則に従わせる|h と発音する|母音を長くする|語末の音になる'**
+  String get tipQuizT7Choices;
+
+  /// No description provided for @tipQuizS1Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の文の書き方は？'**
+  String get tipQuizS1Question;
+
+  /// No description provided for @tipQuizS1Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'左から右。単語ごとにはスペースを空けない|右から左|単語ごとにスペースを空ける|上から下'**
+  String get tipQuizS1Choices;
+
+  /// No description provided for @tipQuizS2Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音記号が付く位置は？'**
+  String get tipQuizS2Question;
+
+  /// No description provided for @tipQuizS2Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'子音の前・後ろ・上・下・囲む|子音の後ろだけ|子音の上だけ|子音の前だけ'**
+  String get tipQuizS2Choices;
+
+  /// No description provided for @tipQuizS3Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「子ども」の เ は ด の前に書く。読む順は？'**
+  String get tipQuizS3Question;
+
+  /// No description provided for @tipQuizS3Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'d を読んでから e|e を読んでから d'**
+  String get tipQuizS3Choices;
+
+  /// No description provided for @tipQuizS4Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'อา の อ の役割は？'**
+  String get tipQuizS4Question;
+
+  /// No description provided for @tipQuizS4Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'音を持たない、母音記号の台|「オ」と読む|語末の n|声調記号'**
+  String get tipQuizS4Choices;
+
+  /// No description provided for @tipQuizS5Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'ะ が付いた母音は？'**
+  String get tipQuizS5Question;
+
+  /// No description provided for @tipQuizS5Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'短い母音|長い母音|高い声調|読まない'**
+  String get tipQuizS5Choices;
+
+  /// No description provided for @tipQuizS6Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の ด はどの音？'**
+  String get tipQuizS6Question;
+
+  /// No description provided for @tipQuizS6Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'t|d|n|読まない'**
+  String get tipQuizS6Choices;
+
+  /// No description provided for @tipQuizS7Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調記号はいくつ？'**
+  String get tipQuizS7Question;
+
+  /// No description provided for @tipQuizS7Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'4つ|2つ|3つ|5つ'**
+  String get tipQuizS7Choices;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {
