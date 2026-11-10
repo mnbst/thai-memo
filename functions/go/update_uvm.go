@@ -66,6 +66,12 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 	log.Printf("updateUvm: uid=%s, quiz_type=%s, results=%d, items=%s",
 		uid, in.QuizType, len(results), formatResults(results))
 
+	// まとめクイズの直近の正誤（スコアの基準に使う）。BatchUpdate の最後で
+	// スコアを再計算するので、その前に書く。失敗しても UVM 更新は続ける。
+	if err := uvm.RecordSummaryResults(ctx, db, uid, in.QuizType, results); err != nil {
+		log.Printf("updateUvm summary_recent update failed: uid=%s, error=%v", uid, err)
+	}
+
 	learned, err := uvm.BatchUpdate(ctx, db, uid, results, freqRank, in.QuizType)
 	if err != nil {
 		log.Printf("updateUvm: uid=%s error=%v", uid, err)

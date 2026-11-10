@@ -49,12 +49,18 @@ type adaptCfg struct {
 	accelGap   int     // 飛ばすときの前方の距離
 	// 未出語だけを例文にする案。尽きたら P<=reuseX の語の既出例文を1本だけ出す
 	sparse bool
+	// 直近のまとめクイズの正答率（0〜1）と回答数からスコアの基準を決める案。0 を返せば既定。
+	cutFn func(acc float64, n int) float64
+	// cutFn に渡す正答率の範囲。0 は直近20問、-1 は最後のまとめクイズ1回分、
+	// 正なら直近この問数。
+	cutWindow int
 }
 
 type adaptState struct {
 	cfg      adaptCfg
 	capVocab int
 	recent   []bool // 直近のまとめクイズの正誤（新しい順ではなく追記）
+	lastSet  []bool // 最後のまとめクイズ1回分の正誤
 	answerD  map[int]int
 	// 指標
 	newPicks, hardPicks, repeat7, picks int
@@ -129,6 +135,22 @@ func (a *adaptState) band(u *simUser) (int, int) {
 
 // sync は推定の再計算（free は上限で切る）。
 func (a *adaptState) sync(u *simUser) {
+	if a.cfg.cutFn != nil {
+		win := a.recent
+		switch {
+		case a.cfg.cutWindow < 0:
+			win = a.lastSet
+		case a.cfg.cutWindow > 0 && len(win) > a.cfg.cutWindow:
+			win = win[len(win)-a.cfg.cutWindow:]
+		}
+		c := 0
+		for _, ok := range win {
+			if ok {
+				c++
+			}
+		}
+		u.dynCutoff = a.cfg.cutFn(float64(c)/float64(max(len(win), 1)), len(win))
+	}
 	u.sync()
 	if a.capVocab > 0 {
 		u.est = min(u.est, a.capVocab)
@@ -296,6 +318,7 @@ func runAdaptive(seed int, p adaptPersona, cfg adaptCfg, days int) adaptResult {
 			a.sync(u)
 		}
 		for range max(1, p.gens/5) {
+			a.lastSet = nil
 			for _, r := range a.pickQuiz(u, setSize(p, u.est)) {
 				a.quizN++
 				if d, ok := a.answerD[r]; ok && day-d <= 3 {
@@ -307,6 +330,7 @@ func runAdaptive(seed int, p adaptPersona, cfg adaptCfg, days int) adaptResult {
 					a.quizCorrect++
 				}
 				a.recent = append(a.recent, u.lastAnswer)
+				a.lastSet = append(a.lastSet, u.lastAnswer)
 				if len(a.recent) > 20 {
 					a.recent = a.recent[1:]
 				}
@@ -533,6 +557,7 @@ func (a *adaptState) sparseSet(u *simUser, p adaptPersona) {
 	if n == 0 {
 		return
 	}
+	a.lastSet = nil
 	for _, r := range a.pickQuiz(u, n) {
 		a.quizN++
 		if d, ok := a.answerD[r]; ok && u.day-d <= 3 {
@@ -544,6 +569,7 @@ func (a *adaptState) sparseSet(u *simUser, p adaptPersona) {
 			a.quizCorrect++
 		}
 		a.recent = append(a.recent, u.lastAnswer)
+		a.lastSet = append(a.lastSet, u.lastAnswer)
 		if len(a.recent) > 20 {
 			a.recent = a.recent[1:]
 		}

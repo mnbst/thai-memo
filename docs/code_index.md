@@ -566,6 +566,12 @@ UVMの純粋関数（UpdateP / GuessRate / MovingAvg / EstimateVocab）と定数
 functions/go/internal/uvm/store.go
 UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。出題形式ごとの証拠の強さ（Result.FormatScale）もここで効かせる。
 
+functions/go/internal/uvm/accuracy.go
+まとめクイズの直近20問の正誤（users の summary_recent）を記録し、正答率でスコアの基準を 0.41〜0.49 の4段に変える。
+
+functions/go/internal/uvm/acccutoffsim_test.go
+正答率でスコアの基準を変える案（段の数・見る問数）の比較シミュレーション（ACC_CUTOFF_SIM=1 で実行）。
+
 functions/go/internal/uvm/adaptivesim_test.go
 語彙スコア・key_word 帯・まとめクイズの範囲を学習状況で動かす案の比較シミュレーション（ADAPTIVE_SIM=1 で実行）。
 

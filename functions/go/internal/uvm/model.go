@@ -179,6 +179,8 @@ const (
 	// 21 語の窓では P=0.618（1 問正解）の語が 5 語あると満たし、4 語では満たさない。
 	// 0.46→0.45（2026-11）: 未受験の伸びる人の下振れ（d90 −55→−37）を縮める。
 	// 代わりに詰まる人の上振れが +10〜30 増える（TestAdaptiveBand、推測0.45/slip0.10）。
+	// 本番はまとめクイズの直近の正答率で 0.41〜0.49 に変える（SummaryCutoff）。
+	// この値は正答率 60〜80% の人と、記録の無い人の基準。
 	VocabCutoffP = 0.45
 )
 
@@ -198,7 +200,13 @@ const (
 // 値が上回るので、1 語の当たりで進みすぎる旧式の問題は原点付近に限られる。
 func EstimateVocab(entries []RankedP, center, floor int) int {
 	floor = max(floor, 0)
-	return max(estimateWindowed(entries, center, floor), originKnownMax(entries, floor))
+	return EstimateVocabAt(entries, center, floor, VocabCutoffP)
+}
+
+// EstimateVocabAt は窓の平均 P の基準を cutoff にした EstimateVocab。
+func EstimateVocabAt(entries []RankedP, center, floor int, cutoff float64) int {
+	floor = max(floor, 0)
+	return max(estimateWindowed(entries, center, floor, cutoff), originKnownMax(entries, floor))
 }
 
 // OriginKnownSpan は EstimateVocab が覚えた語の最大 rank を見る、原点からの幅。
@@ -219,7 +227,7 @@ func originKnownMax(entries []RankedP, floor int) int {
 }
 
 // estimateWindowed は窓の平均 P だけで決めたスコア（EstimateVocab の本体）。
-func estimateWindowed(entries []RankedP, center, floor int) int {
+func estimateWindowed(entries []RankedP, center, floor int, cutoff float64) int {
 	center = max(center, floor)
 
 	wordsByRank := make(map[int]float64, len(entries))
@@ -243,7 +251,7 @@ func estimateWindowed(entries []RankedP, center, floor int) int {
 				total += UnknownWordP
 			}
 		}
-		if total/float64(r+VocabWindowRadius-start+1) >= VocabCutoffP {
+		if total/float64(r+VocabWindowRadius-start+1) >= cutoff {
 			return r
 		}
 	}

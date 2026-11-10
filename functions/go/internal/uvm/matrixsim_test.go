@@ -58,6 +58,7 @@ type simUser struct {
 	totalDays      int     // 0 なら 90
 	newP           float64 // >0 なら新語の初期 P をこの値にする（既定 NewWordP）
 	cutoff         float64 // >0 なら EstimateVocab の打ち切り閾値（既定 0.42）
+	dynCutoff      float64 // >0 なら今の推定式（EstimateVocabAt）の基準をこの値にする
 	knownP         float64 // >0 なら knownMaxRank に数える P の下限（既定 0.5）
 
 	// テーマ指定時に「テーマの場面に合う語」を優先する案（themesim_test.go）。
@@ -155,6 +156,10 @@ func (u *simUser) sync() {
 	}
 	if u.cutoff > 0 || u.knownP > 0 { // 旧式の閾値を振る比較用
 		u.est = max(0, estimateVocab(entries, u.est, u.floor, cutoff, knownP))
+		return
+	}
+	if u.dynCutoff > 0 {
+		u.est = max(0, EstimateVocabAt(entries, u.est, u.floor, u.dynCutoff))
 		return
 	}
 	u.est = max(0, EstimateVocab(entries, u.est, u.floor))
