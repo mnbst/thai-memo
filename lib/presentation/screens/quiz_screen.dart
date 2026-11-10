@@ -152,6 +152,9 @@ class QuizScreen extends ConsumerStatefulWidget {
   final String? nextButtonLabel;
   final bool showVocabScoreTransition;
 
+  /// 確認クイズの結果から、まとめクイズの出題範囲を開く。null なら出さない。
+  final VoidCallback? onReviewRange;
+
   const QuizScreen({
     super.key,
     this.showAppBar = true,
@@ -161,6 +164,7 @@ class QuizScreen extends ConsumerStatefulWidget {
     this.onNextSentence,
     this.nextButtonLabel,
     this.showVocabScoreTransition = false,
+    this.onReviewRange,
   });
 
   @override
@@ -744,6 +748,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // 主ボタンに引き上げ、「例文に戻る」は控えめな導線に下げた。
           // セットの最後だけはラベルが「まとめクイズへ」に変わる（呼び出し側）。
           if (widget.onBackToLearningStart != null) ...[
+            // まとめクイズの手前だけ。出題範囲を先に見て、復習してから挑める。
+            if (widget.onReviewRange != null) ...[
+              TextButton.icon(
+                key: const ValueKey('quiz_review_range_button'),
+                onPressed: widget.onReviewRange,
+                // 復習タブと同じ本のアイコン。押すとそのタブへ切り替わる。
+                icon: const Icon(Icons.menu_book_outlined, size: 18),
+                label: Text(L10n.of(context).learnReviewQuizRange),
+              ),
+              const SizedBox(height: 4),
+            ],
             Builder(
               builder: (context) {
                 final label = Text(

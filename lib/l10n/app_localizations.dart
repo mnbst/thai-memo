@@ -201,6 +201,12 @@ abstract class L10n {
   /// **'まとめクイズへ'**
   String get learnGoToSummaryQuiz;
 
+  /// まとめクイズの前に、復習タブへ切り替えて過去の例文の語を見直すリンク
+  ///
+  /// In ja, this message translates to:
+  /// **'先に復習する'**
+  String get learnReviewQuizRange;
+
   /// セットの残り本数。セット（最大5本）を学び終えるとまとめクイズへ進む
   ///
   /// In ja, this message translates to:

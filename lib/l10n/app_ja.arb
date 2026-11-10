@@ -34,6 +34,10 @@
   "@learnGoToSummaryQuiz": {
     "description": "セットの最後の確認クイズの後、まとめクイズへ進むボタン"
   },
+  "learnReviewQuizRange": "先に復習する",
+  "@learnReviewQuizRange": {
+    "description": "まとめクイズの前に、復習タブへ切り替えて過去の例文の語を見直すリンク"
+  },
   "learnDailySetRemaining": "あと{count}本でまとめクイズ",
   "@learnDailySetRemaining": {
     "description": "セットの残り本数。セット（最大5本）を学び終えるとまとめクイズへ進む",

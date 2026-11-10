@@ -61,6 +61,9 @@ class L10nKo extends L10n {
   String get learnGoToSummaryQuiz => '종합 퀴즈로';
 
   @override
+  String get learnReviewQuizRange => '먼저 복습하기';
+
+  @override
   String learnDailySetRemaining(int count) {
     return '$count개 더 학습하면 종합 퀴즈';
   }

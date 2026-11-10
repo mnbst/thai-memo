@@ -61,6 +61,9 @@ class L10nEn extends L10n {
   String get learnGoToSummaryQuiz => 'Start summary quiz';
 
   @override
+  String get learnReviewQuizRange => 'Review first';
+
+  @override
   String learnDailySetRemaining(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

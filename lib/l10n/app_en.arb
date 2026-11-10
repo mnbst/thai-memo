@@ -28,6 +28,10 @@
   "@learnGoToSummaryQuiz": {
     "description": "Button after the last confirmation quiz of a set"
   },
+  "learnReviewQuizRange": "Review first",
+  "@learnReviewQuizRange": {
+    "description": "Link before the summary quiz that switches to the review tab"
+  },
   "learnDailySetRemaining": "{count, plural, =1{1 sentence to summary quiz} other{{count} sentences to summary quiz}}",
   "@learnDailySetRemaining": {
     "description": "Sentences left in the set before the summary quiz",
