@@ -65,9 +65,9 @@ func TestVocabHoldsAfterQuiz(t *testing.T) {
 	for i := 0; i < 30; i++ { // 目的地まで歩く
 		est = syncOnce(pByRank, est, tested)
 	}
-	// 窓に P=0.55 の語が 9 語（274〜290）入る 284 まで進む。
-	if est != tested+34 {
-		t.Fatalf("到達点が違う: %d（期待 %d）", est, tested+34)
+	// 窓に P=0.55 の語が 7 語（278〜290）入る 288 まで進む。
+	if est != tested+38 {
+		t.Fatalf("到達点が違う: %d（期待 %d）", est, tested+38)
 	}
 
 	peak := est
