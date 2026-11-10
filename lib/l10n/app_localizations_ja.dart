@@ -60,6 +60,9 @@ class L10nJa extends L10n {
   String get learnGoToSummaryQuiz => 'まとめクイズへ';
 
   @override
+  String get learnReviewQuizRange => '先に復習する';
+
+  @override
   String learnDailySetRemaining(int count) {
     return 'あと$count本でまとめクイズ';
   }

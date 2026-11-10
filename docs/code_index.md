@@ -207,6 +207,9 @@ test/screenshots/pass_effect_mock_app.dart
 test/screenshots/first_set_steps_mock_app.dart
 学習の手順カードと詳細の案内カードを、本物の学習タブ・詳細画面に載せて Firebase なしでシミュレーターに出すモック（flutter run -t、下のボタンで場面切替）。
 
+test/screenshots/quiz_range_mock_app.dart
+セット最後の確認クイズの結果（「先に復習する」と「まとめクイズへ」）と、そこから復習タブへ切り替えた一覧を Firebase なしでシミュレーターに出すモック（flutter run -t）。
+
 test/screenshots/notif_coach_mock_app.dart
 通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
 
@@ -1483,7 +1486,7 @@ Maestroの実行手順（起動コマンド、studio、スクショの出力先�
 ## 語彙一覧（履歴タブ）
 
 lib/presentation/screens/vocab_history_screen.dart
-出会った語を語彙ランク順に並べる履歴タブ本体
+出会った語を語彙ランク順に並べる履歴タブ本体。絞り込みは複数選択。タブ切り替え・絞り込みのたびに語彙スコアを真ん中へ送る（vocabTabRequestProvider で絞り込みも渡せる）
 
 lib/presentation/screens/vocab_word_screen.dart
 語の詳細と、その語を含む例文の一覧

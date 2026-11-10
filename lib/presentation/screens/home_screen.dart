@@ -1,3 +1,4 @@
+import '../../data/models/vocab_word.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -739,7 +740,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     final l10n = L10n.of(context);
     final screens = [
-      LearningScreen(key: _learningKey, onReload: _reloadToday),
+      LearningScreen(
+        key: _learningKey,
+        onReload: _reloadToday,
+        // まとめクイズに出るのは、まだ覚えていない語。
+        onOpenQuizRange: () => _selectTab(
+          1,
+          filters: const {VocabMastery.seen, VocabMastery.learning},
+        ),
+      ),
       const VocabHistoryScreen(),
       const SettingsScreen(),
     ];
@@ -788,10 +797,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  void _selectTab(int index) {
+  void _selectTab(int index, {Set<VocabMastery>? filters}) {
     // クイズで変わった習熟度を、履歴を開くたびに取り直す。
     if (index == 1 && _currentIndex != 1) {
       ref.invalidate(vocabProgressProvider);
+      // 切り替えのたびに語彙スコアを一覧の真ん中へ送り直す。
+      final req = ref.read(vocabTabRequestProvider.notifier);
+      req.state = VocabTabRequest(req.state.seq + 1, filters: filters);
     }
     // IndexedStack は他タブを破棄しないため、再生中の例文が
     // 鳴り続けてしまう。タブを離れたら明示的に止める。
