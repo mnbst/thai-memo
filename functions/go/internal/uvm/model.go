@@ -176,8 +176,10 @@ const (
 	// VocabWindowRadius はスコアの判定で見る前後の語数。
 	VocabWindowRadius = 10
 	// VocabCutoffP は窓の平均 P の基準。未回答は UnknownWordP で数える。
-	// 21 語の窓では P=0.618（1 問正解）の語が 6 語あると満たし、5 語では満たさない。
-	VocabCutoffP = 0.46
+	// 21 語の窓では P=0.618（1 問正解）の語が 5 語あると満たし、4 語では満たさない。
+	// 0.46→0.45（2026-11）: 未受験の伸びる人の下振れ（d90 −55→−37）を縮める。
+	// 代わりに詰まる人の上振れが +10〜30 増える（TestAdaptiveBand、推測0.45/slip0.10）。
+	VocabCutoffP = 0.45
 )
 
 // EstimateVocab は語彙スコアを求める。

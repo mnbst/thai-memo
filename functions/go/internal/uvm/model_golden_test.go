@@ -147,12 +147,12 @@ func TestEstimateVocabFloor(t *testing.T) {
 		{
 			"floor より上の正解は押し上げる",
 			correctWords(130, 135),
-			100, 100, 140,
+			100, 100, 141,
 		},
 		{
 			"未受験は floor=0 で従来の挙動",
 			correctWords(30, 35),
-			20, 0, 40,
+			20, 0, 41,
 		},
 		{
 			"窓に 1 問正解の語が 1 語だけなら上がらない",
@@ -162,17 +162,17 @@ func TestEstimateVocabFloor(t *testing.T) {
 		{
 			"窓の平均を割るところまで下がる",
 			append(correctWords(95, 100), RankedP{Rank: 90, P: 0.15}),
-			120, 0, 105,
+			120, 0, 106,
 		},
 		{
 			"スコアより後ろの語の正解でも上がる",
 			correctWords(191, 196),
-			200, 0, 201,
+			200, 0, 202,
 		},
 		{
 			"原点より下は窓に入れない",
 			append(correctWords(101, 105), RankedP{Rank: 95, P: 0.9}),
-			100, 100, 108,
+			100, 100, 111,
 		},
 	}
 	for _, c := range cases {
