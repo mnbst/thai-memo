@@ -11,7 +11,6 @@ import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../services/learning_progress_store.dart';
 import '../providers/review_prompt_provider.dart';
-import '../widgets/notification_coach_dialog.dart';
 import 'quiz_screen.dart';
 import 'today_screen.dart';
 
