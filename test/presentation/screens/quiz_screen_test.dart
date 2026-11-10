@@ -183,6 +183,8 @@ Future<_QuizHarness> _pumpSummaryQuiz(
     () => lookupL10n(const Locale('ja')),
     databaseHelper: database,
     progressStore: LearningProgressStore(),
+    // サーバーの問題数をそのまま見る（コツ問題で埋めない）。
+    summaryQuizSize: 0,
   );
   if (learningSentence != null) {
     await controller.startLearningQuiz(learningSentence);

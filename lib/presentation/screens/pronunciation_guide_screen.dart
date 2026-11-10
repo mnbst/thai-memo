@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/guide_sections.dart';
 import '../../core/constants/pronunciation_guide_sections.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/tts_provider.dart';
+import '../widgets/guide_section_anchor.dart';
 import '../widgets/swipe_back.dart';
 
 /// 読みの記号の一覧。説明は pronSymbolsDescs を `|` で区切って同じ順に引く。
@@ -28,7 +30,10 @@ const _symbols = [
 class PronunciationGuideScreen extends StatelessWidget {
   static const routeName = 'pronunciation_guide';
 
-  const PronunciationGuideScreen({super.key});
+  const PronunciationGuideScreen({super.key, this.focusSection});
+
+  /// 開いた直後に送る節。pronunciationSections の添字か [pronSymbolsSection]。
+  final int? focusSection;
 
   @override
   Widget build(BuildContext context) {
@@ -46,10 +51,16 @@ class PronunciationGuideScreen extends StatelessWidget {
                 body: l10n.pronGuideIntro,
               ),
               const SizedBox(height: 16),
-              const _SymbolsCard(),
-              for (final section in pronunciationSections) ...[
+              GuideSectionAnchor(
+                active: focusSection == pronSymbolsSection,
+                child: const _SymbolsCard(),
+              ),
+              for (final (i, section) in pronunciationSections.indexed) ...[
                 const SizedBox(height: 12),
-                _SectionCard(section: section),
+                GuideSectionAnchor(
+                  active: focusSection == i,
+                  child: _SectionCard(section: section),
+                ),
               ],
               const SizedBox(height: 24),
             ],

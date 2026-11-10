@@ -61,6 +61,12 @@ lib/core/constants/loading_tips.dart
 lib/core/constants/word_order_rules.dart
 語順ガイドの項目データ（WordOrderRule・WordOrderExample）。ガイド画面とローディングTipsで共用。
 
+lib/core/constants/tips_quiz.dart
+コツ問題（ガイド出典の4択）のデータと出題の選び方。まとめクイズが5問に満たないとき端末で1問だけ足し、出した問題は一巡するまで重ねない。一覧は docs/tips_quiz_questions.md。
+
+lib/core/constants/guide_sections.dart
+ガイド画面の節の名前（声調・タイ文字）と発音ガイドの「読みの記号」の番号。コツ問題から出典の節を開くのに使う。
+
 lib/core/constants/pronunciation_guide_sections.dart
 発音ガイドの節データ（PronSection・PronRow・PronWord）。ガイド画面とローディングTipsで共用。
 
@@ -210,6 +216,9 @@ test/screenshots/first_set_steps_mock_app.dart
 test/screenshots/quiz_range_mock_app.dart
 セット最後の確認クイズの結果（「先に復習する」と「まとめクイズへ」）と、そこから復習タブへ切り替えた一覧を Firebase なしでシミュレーターに出すモック（flutter run -t）。
 
+test/screenshots/tips_quiz_mock_app.dart
+コツ問題の初期案（発音・語順の2問）を、まとめクイズの見た目でシミュレーターに出すモック（flutter run -t）。
+
 test/screenshots/notif_coach_mock_app.dart
 通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
 
@@ -259,6 +268,9 @@ lib/presentation/screens/word_order_guide_screen.dart
 タイ語の語順ガイド（話題・語順・修飾・前置詞・比較・否定・疑問・助動詞・動詞連続・結果の動詞・動詞の重ね（ๆ）・丁寧語尾）。例文は語のチップで見せる。設定と並び替え問題の解答から開く。
 
 ## Widgets
+
+lib/presentation/widgets/guide_section_anchor.dart
+ガイド画面の節を包み、指定された節なら開いた直後にそこまでスクロールする。
 
 lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセルと、それを載せる生成待ちの白カード（LoadingCard）。例文生成・クイズ生成で共用。
