@@ -156,10 +156,8 @@ class _MyRankCard extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final realVocab =
-        ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
     final vocab =
-        kMockLeaderboard ? mockLeaderboardVocab(realVocab) : realVocab;
+        ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
     final rank = ref.watch(myRankProvider).valueOrNull;
 
     return Card(

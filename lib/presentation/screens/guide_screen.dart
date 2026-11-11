@@ -20,6 +20,7 @@ import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
 import '../widgets/guide_figures.dart';
+import '../widgets/plan_compare_table.dart';
 
 /// 説明書の1節。見出し＋本文の行。
 class _GuideSection {
@@ -339,7 +340,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
             icon: Icons.bolt,
             title: l10n.guideRolePremiumTitle,
             lines: [l10n.guideRolePremiumBody],
-            figure: const GuidePlanCompareFigure(),
+            figure: const PlanCompareTable(),
           ),
         ],
       ),

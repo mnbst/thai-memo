@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../providers/pronunciation_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../screens/paywall_screen.dart';
 import 'vocab_level.dart';
@@ -52,6 +53,13 @@ class PremiumTrialEndedDialog extends ConsumerWidget {
                 label: l10n.trialEndedChangeQuotaLabel,
                 premium: l10n.trialEndedChangeQuotaPremium,
                 free: l10n.trialEndedChangeQuotaFree(freeDailySets),
+              ),
+              _Change(
+                icon: Icons.mic_none,
+                label: l10n.trialEndedChangePronunciationLabel,
+                premium: l10n.trialEndedChangePronunciationPremium,
+                free: l10n.trialEndedChangePronunciationFree(
+                    freePronunciationDailyLimit),
               ),
               if (measured > freeVocabScoreLimit)
                 _Change(

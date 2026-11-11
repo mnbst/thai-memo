@@ -297,6 +297,43 @@ class L10nKo extends L10n {
   String get vocabScorePremiumPitch => 'Premium으로 계속 성장 기록하기';
 
   @override
+  String vocabWordsRange(int min, int max) {
+    return '$min~$max단어';
+  }
+
+  @override
+  String vocabWordsOver(int min) {
+    return '$min단어~';
+  }
+
+  @override
+  String get vocabCapSheetTitle => '무료 플랜 상한에 도달!';
+
+  @override
+  String get vocabCapSheetBody => '프리미엄이라면 계속 늘릴 수 있어요.';
+
+  @override
+  String get vocabCapSheetHere => '현재 위치';
+
+  @override
+  String get vocabCapSheetPremium => '프리미엄';
+
+  @override
+  String get vocabCapSheetFeatureCap => '100단어를 넘어 어휘 점수가 늘어나요';
+
+  @override
+  String get vocabCapSheetFeatureTopic => '예문 테마를 직접 고를 수 있어요';
+
+  @override
+  String get vocabCapSheetFeatureUnlimited => '예문 무제한, 발음 채점도 몇 번이든';
+
+  @override
+  String get vocabCapSheetCta => '프리미엄으로 계속하기';
+
+  @override
+  String get vocabCapSheetLater => '나중에';
+
+  @override
   String vocabWords(int count) {
     return '$count단어';
   }
@@ -311,9 +348,6 @@ class L10nKo extends L10n {
 
   @override
   String get historyFavoritesOnly => '즐겨찾기만 표시';
-
-  @override
-  String get historyDeleteAll => '모두 삭제';
 
   @override
   String get historyFilterAll => '전체';
@@ -353,12 +387,6 @@ class L10nKo extends L10n {
   String get historyEmptyHint => '새 예문을 만들어 보세요';
 
   @override
-  String get historyDeleteAllConfirm => '모든 예문 기록을 삭제할까요? 이 작업은 취소할 수 없어요.';
-
-  @override
-  String get historyDeletedAll => '모든 예문을 삭제했어요';
-
-  @override
   String historyDeleteFailed(String error) {
     return '삭제하지 못했어요: $error';
   }
@@ -371,6 +399,35 @@ class L10nKo extends L10n {
 
   @override
   String get historyDeletedOne => '예문을 삭제했어요';
+
+  @override
+  String get historySelectToDelete => '선택해서 삭제';
+
+  @override
+  String historySelectedCount(int count) {
+    return '$count개 선택';
+  }
+
+  @override
+  String get historySelectAll => '모두 선택';
+
+  @override
+  String get historyDeselectAll => '선택 해제';
+
+  @override
+  String historyDeleteSelected(int count) {
+    return '$count개 삭제';
+  }
+
+  @override
+  String historyDeleteSelectedConfirm(int count) {
+    return '선택한 예문 $count개를 삭제할까요? 이 작업은 취소할 수 없어요.';
+  }
+
+  @override
+  String historyDeletedCount(int count) {
+    return '예문 $count개를 삭제했어요';
+  }
 
   @override
   String historyWordCount(int count) {
@@ -690,6 +747,17 @@ class L10nKo extends L10n {
 
   @override
   String get trialEndedChangeVocabLabel => '어휘 점수';
+
+  @override
+  String get trialEndedChangePronunciationLabel => '발음 채점';
+
+  @override
+  String get trialEndedChangePronunciationPremium => '무제한';
+
+  @override
+  String trialEndedChangePronunciationFree(int free) {
+    return '하루 $free회';
+  }
 
   @override
   String get trialEndedChangeVocabPremium => '상한 없음';
@@ -1048,18 +1116,6 @@ class L10nKo extends L10n {
   }
 
   @override
-  String get paywallFeatureQuotaTitle => '어휘 점수 100 이상으로 성장';
-
-  @override
-  String get paywallFeatureQuotaPremium => '예문 무제한·어휘 점수 상한 없음';
-
-  @override
-  String get paywallFeatureTopicTitle => '좋아하는 상황의 태국어부터 시작';
-
-  @override
-  String get paywallFeatureTopicPremium => '여행·생활·BL 드라마 등에서 직접 선택';
-
-  @override
   String get onboarding1Title => '태국 문자를 읽지 못해도 괜찮아요';
 
   @override
@@ -1259,10 +1315,10 @@ class L10nKo extends L10n {
   String get commonGotIt => '확인';
 
   @override
-  String get premiumHint1Title => '좋아하는 상황의 태국어부터 시작';
+  String get premiumHint1Title => '발음도, 어휘도, 원하는 만큼';
 
   @override
-  String get premiumHint1Body => '여행·생활·BL 드라마 등에서 예문 주제를 직접 선택할 수 있어요';
+  String get premiumHint1Body => '예문·발음 채점·어휘 점수는 상한 없음. 테마도 고를 수 있어요';
 
   @override
   String get signInReminderTitle => '학습 진도 보호';
@@ -1345,6 +1401,24 @@ class L10nKo extends L10n {
 
   @override
   String get pronunciationRetry => '다시';
+
+  @override
+  String pronunciationCapTitle(int count) {
+    return '오늘의 발음 채점은 $count회까지';
+  }
+
+  @override
+  String pronunciationCapBody(int count) {
+    return '내일 다시 $count회 할 수 있어요.\n프리미엄은 횟수 제한이 없어요.';
+  }
+
+  @override
+  String get pronunciationCapCta => '프리미엄으로 계속하기';
+
+  @override
+  String pronunciationRemainingToday(int count) {
+    return '오늘 채점 $count회 남음';
+  }
 
   @override
   String get pronunciationReference => '모범 발음';
@@ -2541,10 +2615,7 @@ class L10nKo extends L10n {
 
   @override
   String get guideRolePremiumBody =>
-      '무료 버전으로도 매일 학습할 수 있어요. Premium에서는 예문 수, 주제 선택, 어휘 점수의 한도가 늘어나요.';
-
-  @override
-  String get guidePlanColItem => '항목';
+      '무료 플랜으로도 매일 배울 수 있고, 모범 음성은 몇 번이든 재생할 수 있어요. 프리미엄은 예문·발음 채점·어휘 점수가 무제한이고 테마도 고를 수 있어요.';
 
   @override
   String get guidePlanColFree => '무료 버전';
@@ -2556,10 +2627,10 @@ class L10nKo extends L10n {
   String get guidePlanRowSentences => '하루 예문';
 
   @override
-  String get guidePlanRowTopic => '주제';
+  String get guidePlanRowTopic => '예문 테마';
 
   @override
-  String get guidePlanRowVocab => '어휘 점수 상한';
+  String get guidePlanRowVocab => '어휘 점수';
 
   @override
   String get guidePlanSentencesUnlimited => '무제한';
@@ -2581,13 +2652,18 @@ class L10nKo extends L10n {
   }
 
   @override
-  String guidePlanVocabPremium(int count) {
-    final intl.NumberFormat countNumberFormat =
-        intl.NumberFormat.decimalPattern(localeName);
-    final String countString = countNumberFormat.format(count);
+  String get guidePlanVocabUnlimited => '상한 없음';
 
-    return '약 $countString단어';
+  @override
+  String get guidePlanRowPronunciation => '하루 발음 채점';
+
+  @override
+  String guidePlanPronunciationFree(int count) {
+    return '$count회';
   }
+
+  @override
+  String get guidePlanPronunciationUnlimited => '무제한';
 
   @override
   String get guideHowSentenceTitle => '오늘의 예문 읽기';

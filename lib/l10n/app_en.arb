@@ -151,6 +151,34 @@
   "vocabScoreUp": "Vocabulary score up!",
   "vocabScoreCapped": "Vocabulary score limit reached",
   "vocabScorePremiumPitch": "Go Premium to keep tracking progress",
+  "vocabWordsRange": "{min}–{max} words",
+  "@vocabWordsRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabWordsOver": "{min}+ words",
+  "@vocabWordsOver": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapSheetTitle": "Free plan limit reached!",
+  "vocabCapSheetBody": "Go Premium to keep growing.",
+  "vocabCapSheetHere": "You are here",
+  "vocabCapSheetPremium": "Premium",
+  "vocabCapSheetFeatureCap": "Grow your vocabulary score past 100 words",
+  "vocabCapSheetFeatureTopic": "Choose your sentence themes",
+  "vocabCapSheetFeatureUnlimited": "Unlimited sentences and pronunciation checks",
+  "vocabCapSheetCta": "Continue with Premium",
+  "vocabCapSheetLater": "Later",
   "vocabWords": "{count, plural, =1{1 word} other{{count} words}}",
   "@vocabWords": {
     "placeholders": {
@@ -170,7 +198,6 @@
 
   "historyTitle": "Review",
   "historyFavoritesOnly": "Favorites only",
-  "historyDeleteAll": "Delete all",
   "historyFilterAll": "All",
   "historyFilterFavorites": "Favorites",
   "historyDateWithYear": "{year}/{month}/{day}",
@@ -205,8 +232,6 @@
   "historyEmptyFavoritesHint": "Tap a sentence's heart to add it here",
   "historyEmptySearchHint": "Try another keyword",
   "historyEmptyHint": "Create a new sentence",
-  "historyDeleteAllConfirm": "Delete all sentence history? This can't be undone.",
-  "historyDeletedAll": "History deleted",
   "historyDeleteFailed": "Couldn't delete: {error}",
   "@historyDeleteFailed": {
     "placeholders": {
@@ -218,6 +243,13 @@
   "historyDeleteConfirmTitle": "Confirm deletion",
   "historyDeleteConfirm": "Delete this sentence?",
   "historyDeletedOne": "Sentence deleted",
+  "historySelectToDelete": "Select to delete",
+  "historySelectedCount": "{count} selected",
+  "historySelectAll": "Select all",
+  "historyDeselectAll": "Deselect all",
+  "historyDeleteSelected": "Delete {count}",
+  "historyDeleteSelectedConfirm": "Delete {count} selected sentences? This can't be undone.",
+  "historyDeletedCount": "Deleted {count} sentences",
   "historyWordCount": "{count, plural, =1{1 word} other{{count} words}}",
   "@historyWordCount": {
     "placeholders": {
@@ -315,7 +347,7 @@
   "notifyScheduleTimeTaken": "That time is already set",
   "notifyScheduleSave": "Save",
   "settingsTopic": "Topic",
-  "settingsTopicRandom": "Chosen for you",
+  "settingsTopicRandom": "Random",
   "settingsNextLevelIn": "{count, plural, =1{Next level in 1 word} other{Next level in {count} words}}",
   "@settingsNextLevelIn": {
     "placeholders": {
@@ -366,6 +398,9 @@
     }
   },
   "trialEndedChangeVocabLabel": "Vocabulary score",
+  "trialEndedChangePronunciationLabel": "Pronunciation checks",
+  "trialEndedChangePronunciationPremium": "Unlimited",
+  "trialEndedChangePronunciationFree": "{free} a day",
   "trialEndedChangeVocabPremium": "No cap",
   "trialEndedChangeVocabFree": "Up to {free} words",
   "@trialEndedChangeVocabFree": {
@@ -495,10 +530,6 @@
       }
     }
   },
-  "paywallFeatureQuotaTitle": "Grow past a vocab score of 100",
-  "paywallFeatureQuotaPremium": "Unlimited sentences · no vocab score cap",
-  "paywallFeatureTopicTitle": "Start with scenes you care about",
-  "paywallFeatureTopicPremium": "Choose from travel, life in Thailand, BL dramas and more",
 
   "onboarding1Title": "Can't read Thai yet? No problem",
   "onboarding1Body": "Sentences matched to your level, every day.\nTap a card to see how to read it and what it means.",
@@ -579,8 +610,8 @@
   "notifCoachStillQuiet": "Notifications will arrive quietly in Notification Center.",
   "commonGotIt": "Got it",
 
-  "premiumHint1Title": "Start with scenes you care about",
-  "premiumHint1Body": "Choose sentence topics like travel, life in Thailand, BL dramas and more",
+  "premiumHint1Title": "Pronunciation and vocabulary, as much as you like",
+  "premiumHint1Body": "No limits on sentences, pronunciation checks, or vocabulary score. Pick your themes too",
 
   "signInReminderTitle": "Protect your progress",
   "signInReminderMessage": "Sign in to save progress across devices; without an account, it's deleted after three inactive days.",
@@ -618,6 +649,10 @@
   "pronunciationRecording": "Recording… release to check",
   "pronunciationAnalyzing": "Checking…",
   "pronunciationRetry": "Try again",
+  "pronunciationCapTitle": "Up to {count} pronunciation checks a day",
+  "pronunciationCapBody": "You get {count} more tomorrow.\nPremium has no limit.",
+  "pronunciationCapCta": "Continue with Premium",
+  "pronunciationRemainingToday": "{count} checks left today",
   "pronunciationReference": "Model",
   "pronunciationYours": "You",
   "pronunciationScore": "Score {score}",
@@ -1272,13 +1307,12 @@
   "guideRoleNotificationTitle": "Study reminders",
   "guideRoleNotificationBody": "Get a new sentence set at your chosen time. If you stay away, reminders slow down and eventually stop; open the app to make them daily again.",
   "guideRolePremiumTitle": "Free and Premium",
-  "guideRolePremiumBody": "Free supports daily study; Premium adds more sentences, topic choice, and a higher vocabulary limit.",
-  "guidePlanColItem": "Item",
+  "guideRolePremiumBody": "The free plan lets you learn every day, and model audio plays as often as you like. Premium removes the limits on sentences, pronunciation checks, and vocabulary score, and lets you pick themes.",
   "guidePlanColFree": "Free",
   "guidePlanColPremium": "Premium",
   "guidePlanRowSentences": "Daily sentences",
-  "guidePlanRowTopic": "Topics",
-  "guidePlanRowVocab": "Vocabulary cap",
+  "guidePlanRowTopic": "Sentence themes",
+  "guidePlanRowVocab": "Vocabulary score",
   "guidePlanSentencesUnlimited": "Unlimited",
   "guidePlanSentences": "{count} sets",
   "@guidePlanSentences": {
@@ -1288,7 +1322,7 @@
       }
     }
   },
-  "guidePlanTopicFree": "Chosen for you",
+  "guidePlanTopicFree": "Random",
   "guidePlanTopicPremium": "You choose",
   "guidePlanVocabFree": "{count} words",
   "@guidePlanVocabFree": {
@@ -1298,15 +1332,10 @@
       }
     }
   },
-  "guidePlanVocabPremium": "About {count} words",
-  "@guidePlanVocabPremium": {
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "format": "decimalPattern"
-      }
-    }
-  },
+  "guidePlanVocabUnlimited": "Unlimited",
+  "guidePlanRowPronunciation": "Pronunciation checks a day",
+  "guidePlanPronunciationFree": "{count}",
+  "guidePlanPronunciationUnlimited": "Unlimited",
   "guideHowSentenceTitle": "Read today's sentence",
   "guideHowSentenceStep1": "Open Learn for today's sentence. Sets contain up to five, with progress shown at the top.",
   "guideHowSentenceStep3": "Gold marks target words used in quizzes.",

@@ -32,6 +32,8 @@ import '../widgets/loading_tip_carousel.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/spelling_breakdown_view.dart';
 import '../widgets/topic_picker.dart';
+import '../widgets/vocab_cap_sheet.dart';
+import '../widgets/vocab_level.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
 
@@ -184,6 +186,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   late final List<_ConfettiParticle> _confettiParticles;
   late final AnalyticsService _analytics;
   int? _vocabBeforeQuiz;
+
+  /// 上限到達のシートを出すか判定したか（再描画のたびに判定しない）
+  bool _vocabCapSheetChecked = false;
   Stopwatch? _confirmationResponseTimer;
   bool _confirmationQuestionActive = false;
   String _confirmationQuizFormat = QuizQuestion.clozeChoiceFormat;
@@ -907,7 +912,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final isPremium = ref.watch(effectivePremiumProvider);
     return vocabAsync.when(
       data: (vocab) {
-        final cap = isPremium ? (1 << 31) : 100;
+        final cap = isPremium ? (1 << 31) : freeVocabScoreLimit;
         final after = vocab.estimatedVocab.clamp(0, cap);
         final savedBefore = before.clamp(0, cap);
         final displayBefore =
@@ -915,6 +920,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ? after
                 : savedBefore;
         final diff = after - displayBefore;
+        // free がこのクイズで上限に届いた回だけ、全画面のシートで先が premium だと
+        // 見せる（端末につき1度）。下の小さな1行はそのまま残す。
+        if (!isPremium &&
+            !_vocabCapSheetChecked &&
+            displayBefore < freeVocabScoreLimit &&
+            after >= freeVocabScoreLimit) {
+          _vocabCapSheetChecked = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) unawaited(VocabCapSheet.showOnce(context));
+          });
+        }
         return Card(
           color:
               diff > 0 ? Theme.of(context).colorScheme.primaryContainer : null,
@@ -2095,12 +2111,12 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                       _tip != null
                           ? tipPromptLabel(l10n, _tip!.kind)
                           : question.isMeaningChoice
-                          ? l10n.quizMeaningPrompt
-                          : question.isSpellingChoice
-                              ? l10n.quizSpellingPrompt
-                              : question.isWordOrder
-                                  ? l10n.quizWordOrderPrompt
-                                  : l10n.quizPrompt,
+                              ? l10n.quizMeaningPrompt
+                              : question.isSpellingChoice
+                                  ? l10n.quizSpellingPrompt
+                                  : question.isWordOrder
+                                      ? l10n.quizWordOrderPrompt
+                                      : l10n.quizPrompt,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

@@ -34,6 +34,7 @@ import '../../services/purchase_service.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/subscription_provider.dart';
+import '../widgets/plan_compare_table.dart';
 import '../widgets/sign_in_sheet.dart';
 
 /// free の1日あたりのセット数。サーバ側の quota.FreeDailySentences と一致させること。
@@ -175,7 +176,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   children: [
                     _buildHero(context, offer),
                     const SizedBox(height: 20),
-                    _buildMainBenefits(context),
+                    // ガイドと同じ比較表。
+                    const PlanCompareTable(),
                     const SizedBox(height: 20),
                     _buildPlanSection(context, ref, offer),
                   ],
@@ -854,86 +856,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// 何がどう変わるかを3つだけ並べる。
-  ///
-  /// Free の現状 → プレミアムの姿、の対比を1行ずつ。金は「増える側」
-  /// にだけ使い、いま持っているものは沈めて置く。
-  Widget _buildMainBenefits(BuildContext context) {
-    final l10n = L10n.of(context);
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          // テーマを先頭に置く。「自分で選べる」が一番わかりやすい変化なので、
-          // ここから読ませる。
-          _buildBenefitRow(
-            context,
-            icon: Icons.local_offer_outlined,
-            title: l10n.paywallFeatureTopicTitle,
-            premiumText: l10n.paywallFeatureTopicPremium,
-          ),
-          const Divider(
-            height: 1,
-            indent: AppConfig.defaultPadding,
-            endIndent: AppConfig.defaultPadding,
-          ),
-          _buildBenefitRow(
-            context,
-            icon: Icons.menu_book_outlined,
-            title: l10n.paywallFeatureQuotaTitle,
-            // 例文の回数と語彙スコアの上限を1行にまとめる。どちらも
-            // 「どれだけ触れられるか」の話なので、行を分けると差が薄まる。
-            premiumText: l10n.paywallFeatureQuotaPremium,
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 特典1つぶん。見出し（太字）と、プレミアムで何が変わるか（金）の2行だけ。
-  ///
-  /// free の値を並べていたが、プランの比較は下の選択カードの仕事になった。
-  /// ここで二重に比べさせると、読む量が増えるわりに差が薄まる。
-  Widget _buildBenefitRow(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String premiumText,
-  }) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 22, color: AppColors.goldInk),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  premiumText,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.goldInk,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

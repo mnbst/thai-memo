@@ -225,6 +225,21 @@ test/screenshots/notif_coach_mock_app.dart
 test/screenshots/review_notify_mock_app.dart
 通知を1日に複数回設定するUI案（アラーム風の3枠固定・トグルで出し入れと届く通知）をシミュレーターで触るモック（flutter run -t）。
 
+test/screenshots/ranking_mock_app.dart
+ランキング画面を Firestore なしのダミーで出し、自分のスコアを切り替えて帯の表示を確かめるモック（flutter run -t）。
+
+test/screenshots/vocab_cap_sheet_mock_app.dart
+語彙スコア100到達の課金シート（VocabCapSheet）を ja/en/ko 切替で出し直し、ペイウォールまで進めるモック（flutter run -t）。
+
+test/screenshots/paywall_mock_app.dart
+ペイウォールを Firebase・ストアなしでシミュレーターに出すモック（商品は差し込み、flutter run -t）。
+
+test/screenshots/premium_copy_screenshot.dart
+有料版の説明（ペイウォール・プラン表・体験終了ダイアログ・語彙100シート）を PNG に書き出す見比べ用。
+
+test/screenshots/pronunciation_cap_mock_app.dart
+free が発音採点を1日10回使い切ったときの発音練習シートの案（残り回数表示／上限カード）を出すモック（flutter run -t）。
+
 test/screenshots/streak_burst_screenshot.dart
 連続日数が伸びたときの炎の演出を、日数（3/7/14/30/100）ごとに PNG に書き出す（見た目確認用）。
 
@@ -287,6 +302,9 @@ lib/presentation/widgets/sign_in_reminder_banner.dart
 lib/presentation/widgets/level_up_dialog.dart
 語彙レベルアップ時のお祝いアニメーションダイアログ。
 
+lib/presentation/widgets/vocab_cap_sheet.dart
+free がまとめクイズで語彙スコア100に届いたとき1度だけ出す課金シート（到達の祝い・段・特典・ペイウォール導線）。
+
 lib/presentation/widgets/vocab_level.dart
 語彙レベルの区切り（入門〜上級）とラベル・アイコン、free の語彙スコア上限。
 
@@ -319,6 +337,9 @@ lib/presentation/widgets/word_order_example.dart
 
 lib/presentation/widgets/guide_figures.dart
 使い方ガイドに載せる模式図（学習のくり返し・例文カードの構成・発音判定の色）。画面写真は使わず、文言はl10nから引く。
+
+lib/presentation/widgets/plan_compare_table.dart
+無料版とプレミアムの比較表（例文・テーマ・語彙スコア・発音採点）。使い方ガイドとペイウォールで共通に使う。
 
 lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ、表示判定、まとめクイズ完了時に出す流れ（maybeShowNotificationCoach）。
