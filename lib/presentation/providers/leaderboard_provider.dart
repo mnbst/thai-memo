@@ -1,11 +1,56 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'remaining_quota_provider.dart';
 import 'vocab_stats_provider.dart';
+
+/// `--dart-define=MOCK_RANKING=true` で起動すると、ランキング画面を Firestore なしの
+/// ダミーで出す（debug ビルドのみ）。表示崩れをシミュレータで確かめる用。
+const bool kMockLeaderboard =
+    kDebugMode && bool.fromEnvironment('MOCK_RANKING');
+
+/// モックで使う自分のスコア。手元のスコアが0なら free 上限の 100 にする。
+int mockLeaderboardVocab(int myVocab) => myVocab > 0 ? myVocab : 100;
+
+/// モックの全体人数のうち、各帯の人数（vocabBands と同じ並び）
+const List<int> _mockBandCounts = [412, 1873, 236, 98, 31, 14, 6, 4, 1];
+
+int _mockRankOf(int vocab) {
+  var above = 0;
+  for (var i = 0; i < vocabBands.length; i++) {
+    if (vocabBands[i].min > vocab) above += _mockBandCounts[i];
+  }
+  return above + 1;
+}
+
+List<LeaderboardEntry> _mockRows(int myVocab) {
+  LeaderboardEntry other(String uid, String? name, int vocab) =>
+      LeaderboardEntry(
+        uid: uid,
+        nickname: name,
+        vocab: vocab,
+        rank: _mockRankOf(vocab),
+        isMe: false,
+      );
+  return [
+    other('mock-top1-AAAA', 'สมชาย', 2480),
+    other('mock-top2-BBBB', 'มาลี', 1932),
+    other('mock-top3-CCCC', null, 1510),
+    other('mock-up-DDDD', 'ประเสริฐ', myVocab + 1),
+    LeaderboardEntry(
+      uid: 'mock-me-EEEE',
+      nickname: null,
+      vocab: myVocab,
+      rank: _mockRankOf(myVocab),
+      isMe: true,
+    ),
+    other('mock-down-FFFF', null, myVocab - 1),
+  ]..sort((a, b) => b.vocab.compareTo(a.vocab));
+}
 
 /// 自分の上下に何人ぶん見せるか
 const int leaderboardNeighborCount = 1;
@@ -22,7 +67,8 @@ const Duration leaderboardCacheTtl = Duration(hours: 6);
 // 全体順位に戻したので鍵を変える。前の鍵のままだと、更新直後の6時間は
 // 端末に残った帯の中の順位がそのまま出てしまう。
 const _rowsCacheKey = 'leaderboard_rows_cache_all';
-const _distributionCacheKey = 'leaderboard_distribution_cache_all';
+// 帯を 3000 まで細かくしたので鍵を変える（前の帯の分け方が6時間残らないように）
+const _distributionCacheKey = 'leaderboard_distribution_cache_v2';
 const _myRankCacheKey = 'leaderboard_my_rank_cache_all';
 
 /// 引っ張って更新の回数。1以上なら、その起動中はキャッシュを使わない。
@@ -138,6 +184,7 @@ final myNicknameProvider = StreamProvider<String?>((ref) {
 final myRankProvider = FutureProvider<int?>((ref) async {
   final myVocab =
       ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
+  if (kMockLeaderboard) return _mockRankOf(mockLeaderboardVocab(myVocab));
   final uid = ref.watch(authUidProvider).valueOrNull;
   if (uid == null || myVocab <= 0) return null;
 
@@ -171,7 +218,10 @@ const List<({int min, int? max})> vocabBands = [
   (min: 101, max: 300),
   (min: 301, max: 600),
   (min: 601, max: 1000),
-  (min: 1001, max: null),
+  (min: 1001, max: 1500),
+  (min: 1501, max: 2000),
+  (min: 2001, max: 3000),
+  (min: 3001, max: null),
 ];
 
 /// 分布1帯ぶん
@@ -236,6 +286,23 @@ final vocabDistributionProvider =
   final myVocab =
       ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
 
+  if (kMockLeaderboard) {
+    final vocab = mockLeaderboardVocab(myVocab);
+    final mine = bandOf(vocab);
+    return VocabDistribution(
+      total: _mockBandCounts.fold(0, (a, b) => a + b),
+      bands: [
+        for (var i = 0; i < vocabBands.length; i++)
+          VocabBand(
+            min: vocabBands[i].min,
+            max: vocabBands[i].max,
+            count: _mockBandCounts[i],
+            isMine: vocabBands[i] == mine,
+          ),
+      ],
+    );
+  }
+
   final skipCache = ref.watch(leaderboardRefreshEpochProvider) > 0;
   if (uid != null && !skipCache) {
     final cached = await _readCache(_distributionCacheKey, uid, myVocab);
@@ -297,6 +364,7 @@ final leaderboardRowsProvider =
   final myVocab =
       ref.watch(vocabStatsProvider).valueOrNull?.estimatedVocab ?? 0;
   final myNickname = ref.watch(myNicknameProvider).valueOrNull;
+  if (kMockLeaderboard) return _mockRows(mockLeaderboardVocab(myVocab));
   if (uid == null || myVocab <= 0) return const [];
 
   // 起動のたびに数え直さない。nickname だけは stream で来た最新に差し替える。
