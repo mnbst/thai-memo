@@ -633,6 +633,72 @@ abstract class L10n {
   /// **'Premiumで続きの成長を記録しよう'**
   String get vocabScorePremiumPitch;
 
+  /// No description provided for @vocabWordsRange.
+  ///
+  /// In ja, this message translates to:
+  /// **'{min}〜{max}語'**
+  String vocabWordsRange(int min, int max);
+
+  /// No description provided for @vocabWordsOver.
+  ///
+  /// In ja, this message translates to:
+  /// **'{min}語〜'**
+  String vocabWordsOver(int min);
+
+  /// No description provided for @vocabCapSheetTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'無料プランの上限に到達！'**
+  String get vocabCapSheetTitle;
+
+  /// No description provided for @vocabCapSheetBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムなら、この先も伸ばせます。'**
+  String get vocabCapSheetBody;
+
+  /// No description provided for @vocabCapSheetHere.
+  ///
+  /// In ja, this message translates to:
+  /// **'いまここ'**
+  String get vocabCapSheetHere;
+
+  /// No description provided for @vocabCapSheetPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアム'**
+  String get vocabCapSheetPremium;
+
+  /// No description provided for @vocabCapSheetFeatureCap.
+  ///
+  /// In ja, this message translates to:
+  /// **'100語を超えて語彙スコアが伸びる'**
+  String get vocabCapSheetFeatureCap;
+
+  /// No description provided for @vocabCapSheetFeatureTopic.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文のテーマを自分で選べる'**
+  String get vocabCapSheetFeatureTopic;
+
+  /// No description provided for @vocabCapSheetFeatureUnlimited.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文は無制限、発音採点も何度でも'**
+  String get vocabCapSheetFeatureUnlimited;
+
+  /// No description provided for @vocabCapSheetCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムで続ける'**
+  String get vocabCapSheetCta;
+
+  /// No description provided for @vocabCapSheetLater.
+  ///
+  /// In ja, this message translates to:
+  /// **'あとで'**
+  String get vocabCapSheetLater;
+
   /// 語彙スコアの語数表示
   ///
   /// In ja, this message translates to:
@@ -656,12 +722,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'お気に入りのみ表示'**
   String get historyFavoritesOnly;
-
-  /// No description provided for @historyDeleteAll.
-  ///
-  /// In ja, this message translates to:
-  /// **'すべて削除'**
-  String get historyDeleteAll;
 
   /// No description provided for @historyFilterAll.
   ///
@@ -729,18 +789,6 @@ abstract class L10n {
   /// **'新しい例文を生成してみましょう'**
   String get historyEmptyHint;
 
-  /// No description provided for @historyDeleteAllConfirm.
-  ///
-  /// In ja, this message translates to:
-  /// **'すべての例文履歴を削除しますか？この操作は取り消せません。'**
-  String get historyDeleteAllConfirm;
-
-  /// No description provided for @historyDeletedAll.
-  ///
-  /// In ja, this message translates to:
-  /// **'すべての例文を削除しました'**
-  String get historyDeletedAll;
-
   /// No description provided for @historyDeleteFailed.
   ///
   /// In ja, this message translates to:
@@ -764,6 +812,48 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'例文を削除しました'**
   String get historyDeletedOne;
+
+  /// No description provided for @historySelectToDelete.
+  ///
+  /// In ja, this message translates to:
+  /// **'選択して削除'**
+  String get historySelectToDelete;
+
+  /// No description provided for @historySelectedCount.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}件選択'**
+  String historySelectedCount(int count);
+
+  /// No description provided for @historySelectAll.
+  ///
+  /// In ja, this message translates to:
+  /// **'すべて選択'**
+  String get historySelectAll;
+
+  /// No description provided for @historyDeselectAll.
+  ///
+  /// In ja, this message translates to:
+  /// **'選択を解除'**
+  String get historyDeselectAll;
+
+  /// No description provided for @historyDeleteSelected.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}件を削除'**
+  String historyDeleteSelected(int count);
+
+  /// No description provided for @historyDeleteSelectedConfirm.
+  ///
+  /// In ja, this message translates to:
+  /// **'選んだ{count}件の例文を削除しますか？この操作は取り消せません。'**
+  String historyDeleteSelectedConfirm(int count);
+
+  /// No description provided for @historyDeletedCount.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}件の例文を削除しました'**
+  String historyDeletedCount(int count);
 
   /// No description provided for @historyWordCount.
   ///
@@ -1340,6 +1430,24 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'語彙スコア'**
   String get trialEndedChangeVocabLabel;
+
+  /// No description provided for @trialEndedChangePronunciationLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音採点'**
+  String get trialEndedChangePronunciationLabel;
+
+  /// No description provided for @trialEndedChangePronunciationPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'無制限'**
+  String get trialEndedChangePronunciationPremium;
+
+  /// No description provided for @trialEndedChangePronunciationFree.
+  ///
+  /// In ja, this message translates to:
+  /// **'1日{free}回'**
+  String trialEndedChangePronunciationFree(int free);
 
   /// No description provided for @trialEndedChangeVocabPremium.
   ///
@@ -1923,30 +2031,6 @@ abstract class L10n {
   /// **'{currency} {amount} / 月'**
   String paywallPrice(String currency, String amount);
 
-  /// No description provided for @paywallFeatureQuotaTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'語彙スコア100の先も伸ばせる'**
-  String get paywallFeatureQuotaTitle;
-
-  /// No description provided for @paywallFeatureQuotaPremium.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文は無制限・語彙スコアの上限なし'**
-  String get paywallFeatureQuotaPremium;
-
-  /// No description provided for @paywallFeatureTopicTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'好きな場面のタイ語から始める'**
-  String get paywallFeatureTopicTitle;
-
-  /// No description provided for @paywallFeatureTopicPremium.
-  ///
-  /// In ja, this message translates to:
-  /// **'旅行・暮らし・BLドラマなどから自分で選べる'**
-  String get paywallFeatureTopicPremium;
-
   /// No description provided for @onboarding1Title.
   ///
   /// In ja, this message translates to:
@@ -2310,13 +2394,13 @@ abstract class L10n {
   /// No description provided for @premiumHint1Title.
   ///
   /// In ja, this message translates to:
-  /// **'好きな場面のタイ語から始める'**
+  /// **'発音も、語彙も、好きなだけ'**
   String get premiumHint1Title;
 
   /// No description provided for @premiumHint1Body.
   ///
   /// In ja, this message translates to:
-  /// **'旅行・暮らし・BLドラマなどから、例文のテーマを自分で選べます'**
+  /// **'例文・発音採点・語彙スコアは上限なし。テーマも選べます'**
   String get premiumHint1Body;
 
   /// No description provided for @signInReminderTitle.
@@ -2474,6 +2558,30 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'もう一度'**
   String get pronunciationRetry;
+
+  /// No description provided for @pronunciationCapTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の発音採点は{count}回まで'**
+  String pronunciationCapTitle(int count);
+
+  /// No description provided for @pronunciationCapBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'明日また{count}回できます。\nプレミアムなら回数は無制限です。'**
+  String pronunciationCapBody(int count);
+
+  /// No description provided for @pronunciationCapCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムで続ける'**
+  String get pronunciationCapCta;
+
+  /// No description provided for @pronunciationRemainingToday.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の採点 あと{count}回'**
+  String pronunciationRemainingToday(int count);
 
   /// No description provided for @pronunciationReference.
   ///
@@ -4525,14 +4633,8 @@ abstract class L10n {
   /// No description provided for @guideRolePremiumBody.
   ///
   /// In ja, this message translates to:
-  /// **'無料版でも毎日学べます。プレミアムでは例文数・テーマ選択・語彙スコアの上限が広がります。'**
+  /// **'無料版でも毎日学べ、お手本音声は何度でも再生できます。プレミアムは例文・発音採点・語彙スコアが無制限で、テーマも選べます。'**
   String get guideRolePremiumBody;
-
-  /// No description provided for @guidePlanColItem.
-  ///
-  /// In ja, this message translates to:
-  /// **'項目'**
-  String get guidePlanColItem;
 
   /// No description provided for @guidePlanColFree.
   ///
@@ -4555,13 +4657,13 @@ abstract class L10n {
   /// No description provided for @guidePlanRowTopic.
   ///
   /// In ja, this message translates to:
-  /// **'テーマ'**
+  /// **'例文テーマ'**
   String get guidePlanRowTopic;
 
   /// No description provided for @guidePlanRowVocab.
   ///
   /// In ja, this message translates to:
-  /// **'語彙スコアの上限'**
+  /// **'語彙スコア'**
   String get guidePlanRowVocab;
 
   /// プラン比較表の premium 側。例文は無制限
@@ -4585,7 +4687,7 @@ abstract class L10n {
   /// No description provided for @guidePlanTopicPremium.
   ///
   /// In ja, this message translates to:
-  /// **'自分で選べる'**
+  /// **'選べる'**
   String get guidePlanTopicPremium;
 
   /// No description provided for @guidePlanVocabFree.
@@ -4594,11 +4696,29 @@ abstract class L10n {
   /// **'{count}語'**
   String guidePlanVocabFree(int count);
 
-  /// No description provided for @guidePlanVocabPremium.
+  /// No description provided for @guidePlanVocabUnlimited.
   ///
   /// In ja, this message translates to:
-  /// **'約{count}語'**
-  String guidePlanVocabPremium(int count);
+  /// **'上限なし'**
+  String get guidePlanVocabUnlimited;
+
+  /// No description provided for @guidePlanRowPronunciation.
+  ///
+  /// In ja, this message translates to:
+  /// **'1日の発音採点'**
+  String get guidePlanRowPronunciation;
+
+  /// No description provided for @guidePlanPronunciationFree.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}回'**
+  String guidePlanPronunciationFree(int count);
+
+  /// No description provided for @guidePlanPronunciationUnlimited.
+  ///
+  /// In ja, this message translates to:
+  /// **'無制限'**
+  String get guidePlanPronunciationUnlimited;
 
   /// No description provided for @guideHowSentenceTitle.
   ///

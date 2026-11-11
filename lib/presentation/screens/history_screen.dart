@@ -1,7 +1,8 @@
 // =============================================================================
 // history_screen.dart
 // 過去に生成されたタイ語例文の一覧画面（履歴タブの右上から開く）。
-// 検索・お気に入り絞り込み・個別/一括削除に対応。
+// 検索・お気に入り絞り込み・選択削除に対応。
+// 絞り込みの行のゴミ箱で選択モードに入り、選んだ例文をまとめて削除する。
 // 各行をタップすると詳細画面（DetailScreen）へ遷移する。
 // 左スワイプで個別削除も可能。
 // =============================================================================
@@ -44,6 +45,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// 検索バーのテキストコントローラ
   final TextEditingController _searchController = TextEditingController();
 
+  /// 選択して削除するモードか。
+  bool _selecting = false;
+
+  /// 選択モードで選んだ例文のID。
+  final Set<String> _selectedIds = {};
+
+  /// いま一覧に出ている例文（絞り込み・検索後）。「すべて選択」の対象。
+  List<ThaiSentence> _visible = const [];
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -57,17 +67,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final all = sentencesAsync.valueOrNull ?? const <ThaiSentence>[];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.vocabAllSentences),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: l10n.historyDeleteAll,
-            onPressed: all.isEmpty ? null : _showDeleteAllConfirmation,
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
+      appBar: _selecting
+          ? _buildSelectionAppBar(l10n)
+          : AppBar(
+              title: Text(l10n.vocabAllSentences),
+            ),
       body: Column(
         children: [
           _buildSearchBar(l10n),
@@ -76,6 +80,71 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           const SizedBox(height: 12),
           Expanded(child: _buildSentenceList(sentencesAsync)),
         ],
+      ),
+      bottomNavigationBar: _selecting ? _buildDeleteBar(l10n) : null,
+    );
+  }
+
+  void _enterSelection() => setState(() {
+        _selecting = true;
+        _selectedIds.clear();
+      });
+
+  void _exitSelection() => setState(() {
+        _selecting = false;
+        _selectedIds.clear();
+      });
+
+  void _toggleSelected(String id) => setState(() {
+        if (!_selectedIds.remove(id)) _selectedIds.add(id);
+      });
+
+  /// 選択中の見出し。左上は通常どおり戻る。選択をやめるのは絞り込みの行の
+  /// 「キャンセル」。右で一覧に出ている分をまとめて選ぶ。
+  PreferredSizeWidget _buildSelectionAppBar(L10n l10n) {
+    final visibleIds = _visible.map((s) => s.id).whereType<String>().toSet();
+    final allSelected =
+        visibleIds.isNotEmpty && _selectedIds.containsAll(visibleIds);
+    return AppBar(
+      title: Text(l10n.historySelectedCount(_selectedIds.length)),
+      actions: [
+        TextButton(
+          onPressed: visibleIds.isEmpty
+              ? null
+              : () => setState(() {
+                    if (allSelected) {
+                      _selectedIds.removeAll(visibleIds);
+                    } else {
+                      _selectedIds.addAll(visibleIds);
+                    }
+                  }),
+          child: Text(
+            allSelected ? l10n.historyDeselectAll : l10n.historySelectAll,
+          ),
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
+  /// 選択中だけ下に出す削除ボタン。指の届く位置に置き、1件も選んで
+  /// いなければ押せない。
+  Widget _buildDeleteBar(L10n l10n) {
+    final cs = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppConfig.screenPadding, 8, AppConfig.screenPadding, 8),
+        child: FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: cs.error,
+            foregroundColor: cs.onError,
+            minimumSize: const Size.fromHeight(48),
+          ),
+          onPressed: _selectedIds.isEmpty ? null : _confirmDeleteSelected,
+          icon: const Icon(Icons.delete_outline),
+          label: Text(l10n.historyDeleteSelected(_selectedIds.length)),
+        ),
       ),
     );
   }
@@ -113,31 +182,50 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// 件数を添えるのは、お気に入りが0件のときに空の一覧へ飛ばさないため。
   Widget _buildFilterChips(L10n l10n, List<ThaiSentence> all) {
     final favoriteCount = all.where((s) => s.isFavorite).length;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding:
-            const EdgeInsets.symmetric(horizontal: AppConfig.screenPadding),
-        child: Row(
-          children: [
-            _buildFilterChip(
-              label: l10n.historyFilterAll,
-              count: all.length,
-              selected: !_showFavoritesOnly,
-              onTap: () => setState(() => _showFavoritesOnly = false),
+    return Padding(
+      padding: const EdgeInsets.only(left: AppConfig.screenPadding, right: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterChip(
+                    label: l10n.historyFilterAll,
+                    count: all.length,
+                    selected: !_showFavoritesOnly,
+                    onTap: () => setState(() => _showFavoritesOnly = false),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    label: l10n.historyFilterFavorites,
+                    count: favoriteCount,
+                    selected: _showFavoritesOnly,
+                    icon: Icons.favorite,
+                    iconColor: AppColors.vermilion,
+                    onTap: () => setState(() => _showFavoritesOnly = true),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 8),
-            _buildFilterChip(
-              label: l10n.historyFilterFavorites,
-              count: favoriteCount,
-              selected: _showFavoritesOnly,
-              icon: Icons.favorite,
-              iconColor: AppColors.vermilion,
-              onTap: () => setState(() => _showFavoritesOnly = true),
+          ),
+          // 削除の入口は戻る（左上）と同じ帯に置かない。指が行き来する
+          // 位置にあると誤って押す。絞り込みの行の右端に寄せ、押しても
+          // すぐには消さず選択モードに入るだけにする。
+          // 選択中は同じ位置で選択をやめられるようにする。
+          if (_selecting)
+            TextButton(
+              onPressed: _exitSelection,
+              child: Text(l10n.commonCancel),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: l10n.historySelectToDelete,
+              onPressed: all.isEmpty ? null : _enterSelection,
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -219,6 +307,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           }).toList();
         }
 
+        _visible = filtered;
         if (filtered.isEmpty) return _buildEmptyState();
 
         final cs = Theme.of(context).colorScheme;
@@ -342,14 +431,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  /// 全件削除の確認ダイアログを表示する。
-  Future<void> _showDeleteAllConfirmation() async {
+  /// 選んだ例文の削除を確認して消す。
+  Future<void> _confirmDeleteSelected() async {
     final l10n = L10n.of(context);
+    final count = _selectedIds.length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(l10n.historyDeleteAll),
-        content: Text(l10n.historyDeleteAllConfirm),
+        title: Text(l10n.historyDeleteConfirmTitle),
+        content: Text(l10n.historyDeleteSelectedConfirm(count)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -367,11 +457,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
 
     if (confirmed != true) return;
+    final controller = ref.read(sentenceControllerProvider.notifier);
     try {
-      await ref.read(sentenceControllerProvider.notifier).deleteAllSentences();
+      for (final id in _selectedIds.toList()) {
+        await controller.deleteSentence(id);
+      }
       ref.invalidate(allSentencesProvider);
-      if (mounted) _showSnack(l10n.historyDeletedAll);
+      if (mounted) {
+        _exitSelection();
+        _showSnack(l10n.historyDeletedCount(count));
+      }
     } catch (e) {
+      ref.invalidate(allSentencesProvider);
       if (mounted) _showSnack(l10n.historyDeleteFailed('$e'), isError: true);
     }
   }
@@ -398,6 +495,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final cardRadius = Radius.circular(AppConfig.cardBorderRadius);
+
+    final id = sentence.id;
+    if (_selecting) {
+      final selected = id != null && _selectedIds.contains(id);
+      return InkWell(
+        onTap: id == null ? null : () => _toggleSelected(id),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 14, 14, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Checkbox(
+                value: selected,
+                onChanged: id == null ? null : (_) => _toggleSelected(id),
+              ),
+              Expanded(child: _buildSentenceBody(sentence)),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Dismissible(
       key: Key(sentence.id ?? ''),
@@ -434,48 +552,53 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text.rich(
-                      buildTintedThaiText(
-                        sentence.thaiText,
-                        sentence.targetWords ?? const [],
-                        theme.textTheme.titleMedium?.copyWith(
-                              fontSize: 18,
-                              // タイ文字は太らせると声調記号が潰れる。
-                              fontWeight: FontWeight.w500,
-                              height: 1.5,
-                              color: cs.onSurface,
-                            ) ??
-                            const TextStyle(fontSize: 18),
-                        AppColors.goldInk,
-                        words: sentence.wordBreakdowns,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      sentence.japaneseTranslation,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildMetaRow(sentence),
-                  ],
-                ),
-              ),
+              Expanded(child: _buildSentenceBody(sentence)),
               const SizedBox(width: 8),
               _buildFavoriteButton(sentence),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// 例文の中身（タイ語・訳・テーマと日付）。通常時と選択時で共通。
+  Widget _buildSentenceBody(ThaiSentence sentence) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          buildTintedThaiText(
+            sentence.thaiText,
+            sentence.targetWords ?? const [],
+            theme.textTheme.titleMedium?.copyWith(
+                  fontSize: 18,
+                  // タイ文字は太らせると声調記号が潰れる。
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                  color: cs.onSurface,
+                ) ??
+                const TextStyle(fontSize: 18),
+            AppColors.goldInk,
+            words: sentence.wordBreakdowns,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          sentence.japaneseTranslation,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 8),
+        _buildMetaRow(sentence),
+      ],
     );
   }
 

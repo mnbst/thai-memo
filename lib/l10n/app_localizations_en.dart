@@ -304,6 +304,45 @@ class L10nEn extends L10n {
   String get vocabScorePremiumPitch => 'Go Premium to keep tracking progress';
 
   @override
+  String vocabWordsRange(int min, int max) {
+    return '$min–$max words';
+  }
+
+  @override
+  String vocabWordsOver(int min) {
+    return '$min+ words';
+  }
+
+  @override
+  String get vocabCapSheetTitle => 'Free plan limit reached!';
+
+  @override
+  String get vocabCapSheetBody => 'Go Premium to keep growing.';
+
+  @override
+  String get vocabCapSheetHere => 'You are here';
+
+  @override
+  String get vocabCapSheetPremium => 'Premium';
+
+  @override
+  String get vocabCapSheetFeatureCap =>
+      'Grow your vocabulary score past 100 words';
+
+  @override
+  String get vocabCapSheetFeatureTopic => 'Choose your sentence themes';
+
+  @override
+  String get vocabCapSheetFeatureUnlimited =>
+      'Unlimited sentences and pronunciation checks';
+
+  @override
+  String get vocabCapSheetCta => 'Continue with Premium';
+
+  @override
+  String get vocabCapSheetLater => 'Later';
+
+  @override
   String vocabWords(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -324,9 +363,6 @@ class L10nEn extends L10n {
 
   @override
   String get historyFavoritesOnly => 'Favorites only';
-
-  @override
-  String get historyDeleteAll => 'Delete all';
 
   @override
   String get historyFilterAll => 'All';
@@ -367,13 +403,6 @@ class L10nEn extends L10n {
   String get historyEmptyHint => 'Create a new sentence';
 
   @override
-  String get historyDeleteAllConfirm =>
-      'Delete all sentence history? This can\'t be undone.';
-
-  @override
-  String get historyDeletedAll => 'History deleted';
-
-  @override
   String historyDeleteFailed(String error) {
     return 'Couldn\'t delete: $error';
   }
@@ -386,6 +415,35 @@ class L10nEn extends L10n {
 
   @override
   String get historyDeletedOne => 'Sentence deleted';
+
+  @override
+  String get historySelectToDelete => 'Select to delete';
+
+  @override
+  String historySelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get historySelectAll => 'Select all';
+
+  @override
+  String get historyDeselectAll => 'Deselect all';
+
+  @override
+  String historyDeleteSelected(int count) {
+    return 'Delete $count';
+  }
+
+  @override
+  String historyDeleteSelectedConfirm(int count) {
+    return 'Delete $count selected sentences? This can\'t be undone.';
+  }
+
+  @override
+  String historyDeletedCount(int count) {
+    return 'Deleted $count sentences';
+  }
 
   @override
   String historyWordCount(int count) {
@@ -606,7 +664,7 @@ class L10nEn extends L10n {
   String get settingsTopic => 'Topic';
 
   @override
-  String get settingsTopicRandom => 'Chosen for you';
+  String get settingsTopicRandom => 'Random';
 
   @override
   String settingsNextLevelIn(int count) {
@@ -720,6 +778,17 @@ class L10nEn extends L10n {
 
   @override
   String get trialEndedChangeVocabLabel => 'Vocabulary score';
+
+  @override
+  String get trialEndedChangePronunciationLabel => 'Pronunciation checks';
+
+  @override
+  String get trialEndedChangePronunciationPremium => 'Unlimited';
+
+  @override
+  String trialEndedChangePronunciationFree(int free) {
+    return '$free a day';
+  }
 
   @override
   String get trialEndedChangeVocabPremium => 'No cap';
@@ -1107,20 +1176,6 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get paywallFeatureQuotaTitle => 'Grow past a vocab score of 100';
-
-  @override
-  String get paywallFeatureQuotaPremium =>
-      'Unlimited sentences · no vocab score cap';
-
-  @override
-  String get paywallFeatureTopicTitle => 'Start with scenes you care about';
-
-  @override
-  String get paywallFeatureTopicPremium =>
-      'Choose from travel, life in Thailand, BL dramas and more';
-
-  @override
   String get onboarding1Title => 'Can\'t read Thai yet? No problem';
 
   @override
@@ -1326,11 +1381,12 @@ class L10nEn extends L10n {
   String get commonGotIt => 'Got it';
 
   @override
-  String get premiumHint1Title => 'Start with scenes you care about';
+  String get premiumHint1Title =>
+      'Pronunciation and vocabulary, as much as you like';
 
   @override
   String get premiumHint1Body =>
-      'Choose sentence topics like travel, life in Thailand, BL dramas and more';
+      'No limits on sentences, pronunciation checks, or vocabulary score. Pick your themes too';
 
   @override
   String get signInReminderTitle => 'Protect your progress';
@@ -1413,6 +1469,24 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationRetry => 'Try again';
+
+  @override
+  String pronunciationCapTitle(int count) {
+    return 'Up to $count pronunciation checks a day';
+  }
+
+  @override
+  String pronunciationCapBody(int count) {
+    return 'You get $count more tomorrow.\nPremium has no limit.';
+  }
+
+  @override
+  String get pronunciationCapCta => 'Continue with Premium';
+
+  @override
+  String pronunciationRemainingToday(int count) {
+    return '$count checks left today';
+  }
 
   @override
   String get pronunciationReference => 'Model';
@@ -2661,10 +2735,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRolePremiumBody =>
-      'Free supports daily study; Premium adds more sentences, topic choice, and a higher vocabulary limit.';
-
-  @override
-  String get guidePlanColItem => 'Item';
+      'The free plan lets you learn every day, and model audio plays as often as you like. Premium removes the limits on sentences, pronunciation checks, and vocabulary score, and lets you pick themes.';
 
   @override
   String get guidePlanColFree => 'Free';
@@ -2676,10 +2747,10 @@ class L10nEn extends L10n {
   String get guidePlanRowSentences => 'Daily sentences';
 
   @override
-  String get guidePlanRowTopic => 'Topics';
+  String get guidePlanRowTopic => 'Sentence themes';
 
   @override
-  String get guidePlanRowVocab => 'Vocabulary cap';
+  String get guidePlanRowVocab => 'Vocabulary score';
 
   @override
   String get guidePlanSentencesUnlimited => 'Unlimited';
@@ -2690,7 +2761,7 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get guidePlanTopicFree => 'Chosen for you';
+  String get guidePlanTopicFree => 'Random';
 
   @override
   String get guidePlanTopicPremium => 'You choose';
@@ -2701,13 +2772,18 @@ class L10nEn extends L10n {
   }
 
   @override
-  String guidePlanVocabPremium(int count) {
-    final intl.NumberFormat countNumberFormat =
-        intl.NumberFormat.decimalPattern(localeName);
-    final String countString = countNumberFormat.format(count);
+  String get guidePlanVocabUnlimited => 'Unlimited';
 
-    return 'About $countString words';
+  @override
+  String get guidePlanRowPronunciation => 'Pronunciation checks a day';
+
+  @override
+  String guidePlanPronunciationFree(int count) {
+    return '$count';
   }
+
+  @override
+  String get guidePlanPronunciationUnlimited => 'Unlimited';
 
   @override
   String get guideHowSentenceTitle => 'Read today\'s sentence';

@@ -170,6 +170,34 @@
   "vocabScoreUp": "語彙スコアアップ！",
   "vocabScoreCapped": "語彙スコアが上限に達しました",
   "vocabScorePremiumPitch": "Premiumで続きの成長を記録しよう",
+  "vocabWordsRange": "{min}〜{max}語",
+  "@vocabWordsRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabWordsOver": "{min}語〜",
+  "@vocabWordsOver": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapSheetTitle": "無料プランの上限に到達！",
+  "vocabCapSheetBody": "プレミアムなら、この先も伸ばせます。",
+  "vocabCapSheetHere": "いまここ",
+  "vocabCapSheetPremium": "プレミアム",
+  "vocabCapSheetFeatureCap": "100語を超えて語彙スコアが伸びる",
+  "vocabCapSheetFeatureTopic": "例文のテーマを自分で選べる",
+  "vocabCapSheetFeatureUnlimited": "例文は無制限、発音採点も何度でも",
+  "vocabCapSheetCta": "プレミアムで続ける",
+  "vocabCapSheetLater": "あとで",
   "vocabWords": "{count}語",
   "@vocabWords": {
     "description": "語彙スコアの語数表示",
@@ -191,7 +219,6 @@
 
   "historyTitle": "復習",
   "historyFavoritesOnly": "お気に入りのみ表示",
-  "historyDeleteAll": "すべて削除",
   "historyFilterAll": "すべて",
   "historyFilterFavorites": "お気に入り",
   "historyDateWithYear": "{year}年{month}月{day}日",
@@ -226,8 +253,6 @@
   "historyEmptyFavoritesHint": "例文のハートアイコンをタップしてお気に入りに追加できます",
   "historyEmptySearchHint": "別のキーワードで検索してみてください",
   "historyEmptyHint": "新しい例文を生成してみましょう",
-  "historyDeleteAllConfirm": "すべての例文履歴を削除しますか？この操作は取り消せません。",
-  "historyDeletedAll": "すべての例文を削除しました",
   "historyDeleteFailed": "削除に失敗しました: {error}",
   "@historyDeleteFailed": {
     "placeholders": {
@@ -239,6 +264,41 @@
   "historyDeleteConfirmTitle": "削除の確認",
   "historyDeleteConfirm": "この例文を削除しますか？",
   "historyDeletedOne": "例文を削除しました",
+  "historySelectToDelete": "選択して削除",
+  "historySelectedCount": "{count}件選択",
+  "@historySelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historySelectAll": "すべて選択",
+  "historyDeselectAll": "選択を解除",
+  "historyDeleteSelected": "{count}件を削除",
+  "@historyDeleteSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyDeleteSelectedConfirm": "選んだ{count}件の例文を削除しますか？この操作は取り消せません。",
+  "@historyDeleteSelectedConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyDeletedCount": "{count}件の例文を削除しました",
+  "@historyDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "historyWordCount": "{count} 単語",
   "@historyWordCount": {
     "placeholders": {
@@ -388,6 +448,16 @@
     }
   },
   "trialEndedChangeVocabLabel": "語彙スコア",
+  "trialEndedChangePronunciationLabel": "発音採点",
+  "trialEndedChangePronunciationPremium": "無制限",
+  "trialEndedChangePronunciationFree": "1日{free}回",
+  "@trialEndedChangePronunciationFree": {
+    "placeholders": {
+      "free": {
+        "type": "int"
+      }
+    }
+  },
   "trialEndedChangeVocabPremium": "上限なし",
   "trialEndedChangeVocabFree": "{free}語まで",
   "@trialEndedChangeVocabFree": {
@@ -592,10 +662,6 @@
       }
     }
   },
-  "paywallFeatureQuotaTitle": "語彙スコア100の先も伸ばせる",
-  "paywallFeatureQuotaPremium": "例文は無制限・語彙スコアの上限なし",
-  "paywallFeatureTopicTitle": "好きな場面のタイ語から始める",
-  "paywallFeatureTopicPremium": "旅行・暮らし・BLドラマなどから自分で選べる",
 
   "onboarding1Title": "タイ文字が読めなくても大丈夫",
   "onboarding1Body": "あなたのレベルに合った例文を毎日お届け。\nカードをタップで読み方と意味を確認。",
@@ -676,8 +742,8 @@
   "notifCoachStillQuiet": "通知はこれまでどおり、通知センターに静かに届きます。",
   "commonGotIt": "わかった",
 
-  "premiumHint1Title": "好きな場面のタイ語から始める",
-  "premiumHint1Body": "旅行・暮らし・BLドラマなどから、例文のテーマを自分で選べます",
+  "premiumHint1Title": "発音も、語彙も、好きなだけ",
+  "premiumHint1Body": "例文・発音採点・語彙スコアは上限なし。テーマも選べます",
 
   "signInReminderTitle": "学習の進捗を保護",
   "signInReminderMessage": "サインインすると進捗が保存され、機種変更後も学習を続けられます。サインインしない場合、3日間ご利用がないと学習の進捗は削除されます。",
@@ -715,6 +781,31 @@
   "pronunciationRecording": "録音中… 指を離すと判定",
   "pronunciationAnalyzing": "判定中…",
   "pronunciationRetry": "もう一度",
+  "pronunciationCapTitle": "今日の発音採点は{count}回まで",
+  "@pronunciationCapTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationCapBody": "明日また{count}回できます。\nプレミアムなら回数は無制限です。",
+  "@pronunciationCapBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationCapCta": "プレミアムで続ける",
+  "pronunciationRemainingToday": "今日の採点 あと{count}回",
+  "@pronunciationRemainingToday": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "pronunciationReference": "お手本",
   "pronunciationYours": "あなた",
   "pronunciationScore": "{score}点",
@@ -1457,13 +1548,12 @@
   "guideRoleNotificationTitle": "学習のお知らせ",
   "guideRoleNotificationBody": "決めた時刻に新しい例文セットが届きます。しばらくアプリを開かないと通知の間隔が少しずつ広がり、最後は止まります。アプリを開けば毎日の通知に戻ります。",
   "guideRolePremiumTitle": "無料版とプレミアム",
-  "guideRolePremiumBody": "無料版でも毎日学べます。プレミアムでは例文数・テーマ選択・語彙スコアの上限が広がります。",
-  "guidePlanColItem": "項目",
+  "guideRolePremiumBody": "無料版でも毎日学べ、お手本音声は何度でも再生できます。プレミアムは例文・発音採点・語彙スコアが無制限で、テーマも選べます。",
   "guidePlanColFree": "無料版",
   "guidePlanColPremium": "プレミアム",
   "guidePlanRowSentences": "1日の例文",
-  "guidePlanRowTopic": "テーマ",
-  "guidePlanRowVocab": "語彙スコアの上限",
+  "guidePlanRowTopic": "例文テーマ",
+  "guidePlanRowVocab": "語彙スコア",
   "guidePlanSentencesUnlimited": "無制限",
   "@guidePlanSentencesUnlimited": {
     "description": "プラン比較表の premium 側。例文は無制限"
@@ -1477,7 +1567,7 @@
     }
   },
   "guidePlanTopicFree": "おまかせ",
-  "guidePlanTopicPremium": "自分で選べる",
+  "guidePlanTopicPremium": "選べる",
   "guidePlanVocabFree": "{count}語",
   "@guidePlanVocabFree": {
     "placeholders": {
@@ -1486,15 +1576,17 @@
       }
     }
   },
-  "guidePlanVocabPremium": "約{count}語",
-  "@guidePlanVocabPremium": {
+  "guidePlanVocabUnlimited": "上限なし",
+  "guidePlanRowPronunciation": "1日の発音採点",
+  "guidePlanPronunciationFree": "{count}回",
+  "@guidePlanPronunciationFree": {
     "placeholders": {
       "count": {
-        "type": "int",
-        "format": "decimalPattern"
+        "type": "int"
       }
     }
   },
+  "guidePlanPronunciationUnlimited": "無制限",
   "guideHowSentenceTitle": "今日の例文を読む",
   "guideHowSentenceStep1": "学習タブに、その日の例文が表示されます。例文は最大5つで1セットです。上部で進み具合を確認できます。",
   "guideHowSentenceStep3": "金色の語が学習単語です。クイズでここが問われます。",

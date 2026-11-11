@@ -171,6 +171,34 @@
   "vocabScoreUp": "어휘 점수 상승!",
   "vocabScoreCapped": "어휘 점수가 상한에 도달했어요",
   "vocabScorePremiumPitch": "Premium으로 계속 성장 기록하기",
+  "vocabWordsRange": "{min}~{max}단어",
+  "@vocabWordsRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabWordsOver": "{min}단어~",
+  "@vocabWordsOver": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapSheetTitle": "무료 플랜 상한에 도달!",
+  "vocabCapSheetBody": "프리미엄이라면 계속 늘릴 수 있어요.",
+  "vocabCapSheetHere": "현재 위치",
+  "vocabCapSheetPremium": "프리미엄",
+  "vocabCapSheetFeatureCap": "100단어를 넘어 어휘 점수가 늘어나요",
+  "vocabCapSheetFeatureTopic": "예문 테마를 직접 고를 수 있어요",
+  "vocabCapSheetFeatureUnlimited": "예문 무제한, 발음 채점도 몇 번이든",
+  "vocabCapSheetCta": "프리미엄으로 계속하기",
+  "vocabCapSheetLater": "나중에",
   "vocabWords": "{count}단어",
   "@vocabWords": {
     "description": "語彙スコアの語数表示",
@@ -191,7 +219,6 @@
   },
   "historyTitle": "복습",
   "historyFavoritesOnly": "즐겨찾기만 표시",
-  "historyDeleteAll": "모두 삭제",
   "historyFilterAll": "전체",
   "historyFilterFavorites": "즐겨찾기",
   "historyDateWithYear": "{year}년 {month}월 {day}일",
@@ -226,8 +253,6 @@
   "historyEmptyFavoritesHint": "예문의 하트 아이콘을 눌러 즐겨찾기에 추가할 수 있어요",
   "historyEmptySearchHint": "다른 검색어로 검색해 보세요",
   "historyEmptyHint": "새 예문을 만들어 보세요",
-  "historyDeleteAllConfirm": "모든 예문 기록을 삭제할까요? 이 작업은 취소할 수 없어요.",
-  "historyDeletedAll": "모든 예문을 삭제했어요",
   "historyDeleteFailed": "삭제하지 못했어요: {error}",
   "@historyDeleteFailed": {
     "placeholders": {
@@ -239,6 +264,13 @@
   "historyDeleteConfirmTitle": "삭제 확인",
   "historyDeleteConfirm": "이 예문을 삭제할까요?",
   "historyDeletedOne": "예문을 삭제했어요",
+  "historySelectToDelete": "선택해서 삭제",
+  "historySelectedCount": "{count}개 선택",
+  "historySelectAll": "모두 선택",
+  "historyDeselectAll": "선택 해제",
+  "historyDeleteSelected": "{count}개 삭제",
+  "historyDeleteSelectedConfirm": "선택한 예문 {count}개를 삭제할까요? 이 작업은 취소할 수 없어요.",
+  "historyDeletedCount": "예문 {count}개를 삭제했어요",
   "historyWordCount": "{count}단어",
   "@historyWordCount": {
     "placeholders": {
@@ -391,6 +423,9 @@
     }
   },
   "trialEndedChangeVocabLabel": "어휘 점수",
+  "trialEndedChangePronunciationLabel": "발음 채점",
+  "trialEndedChangePronunciationPremium": "무제한",
+  "trialEndedChangePronunciationFree": "하루 {free}회",
   "trialEndedChangeVocabPremium": "상한 없음",
   "trialEndedChangeVocabFree": "{free}단어까지",
   "@trialEndedChangeVocabFree": {
@@ -614,10 +649,6 @@
       }
     }
   },
-  "paywallFeatureQuotaTitle": "어휘 점수 100 이상으로 성장",
-  "paywallFeatureQuotaPremium": "예문 무제한·어휘 점수 상한 없음",
-  "paywallFeatureTopicTitle": "좋아하는 상황의 태국어부터 시작",
-  "paywallFeatureTopicPremium": "여행·생활·BL 드라마 등에서 직접 선택",
   "onboarding1Title": "태국 문자를 읽지 못해도 괜찮아요",
   "onboarding1Body": "내 수준에 맞는 예문을 매일 받아 보세요.\n카드를 누르면 읽는 법과 뜻을 확인할 수 있어요.",
   "onboarding2Title": "성조까지 익히는 발음 연습",
@@ -688,8 +719,8 @@
   "notifCoachEnabled": "매일 정해진 시간에 예문을 보내 드려요. 시간은 설정에서 변경할 수 있어요.",
   "notifCoachStillQuiet": "알림은 지금처럼 알림 센터에 조용히 도착해요.",
   "commonGotIt": "확인",
-  "premiumHint1Title": "좋아하는 상황의 태국어부터 시작",
-  "premiumHint1Body": "여행·생활·BL 드라마 등에서 예문 주제를 직접 선택할 수 있어요",
+  "premiumHint1Title": "발음도, 어휘도, 원하는 만큼",
+  "premiumHint1Body": "예문·발음 채점·어휘 점수는 상한 없음. 테마도 고를 수 있어요",
   "signInReminderTitle": "학습 진도 보호",
   "signInReminderMessage": "로그인하면 진도가 저장되어 기기를 바꾼 뒤에도 계속 학습할 수 있어요. 로그인하지 않은 상태에서 3일 동안 이용하지 않으면 학습 진도가 삭제돼요.",
   "signInReminderBanner": "학습 데이터를 보호하세요\n로그인하지 않고 3일 동안 이용하지 않으면 학습 진도가 삭제돼요.",
@@ -723,6 +754,10 @@
   "pronunciationRecording": "녹음 중… 손을 떼면 판정해요",
   "pronunciationAnalyzing": "판정 중…",
   "pronunciationRetry": "다시",
+  "pronunciationCapTitle": "오늘의 발음 채점은 {count}회까지",
+  "pronunciationCapBody": "내일 다시 {count}회 할 수 있어요.\n프리미엄은 횟수 제한이 없어요.",
+  "pronunciationCapCta": "프리미엄으로 계속하기",
+  "pronunciationRemainingToday": "오늘 채점 {count}회 남음",
   "pronunciationReference": "모범 발음",
   "pronunciationYours": "내 발음",
   "pronunciationScore": "{score}점",
@@ -1453,13 +1488,12 @@
   "guideRoleNotificationTitle": "학습 알림",
   "guideRoleNotificationBody": "정해진 시간에 새 예문 세트가 도착해요. 한동안 앱을 열지 않으면 알림 간격이 조금씩 넓어지다가 결국 멈춰요. 앱을 열면 다시 매일 알림이 와요.",
   "guideRolePremiumTitle": "무료 버전과 Premium",
-  "guideRolePremiumBody": "무료 버전으로도 매일 학습할 수 있어요. Premium에서는 예문 수, 주제 선택, 어휘 점수의 한도가 늘어나요.",
-  "guidePlanColItem": "항목",
+  "guideRolePremiumBody": "무료 플랜으로도 매일 배울 수 있고, 모범 음성은 몇 번이든 재생할 수 있어요. 프리미엄은 예문·발음 채점·어휘 점수가 무제한이고 테마도 고를 수 있어요.",
   "guidePlanColFree": "무료 버전",
   "guidePlanColPremium": "Premium",
   "guidePlanRowSentences": "하루 예문",
-  "guidePlanRowTopic": "주제",
-  "guidePlanRowVocab": "어휘 점수 상한",
+  "guidePlanRowTopic": "예문 테마",
+  "guidePlanRowVocab": "어휘 점수",
   "guidePlanSentencesUnlimited": "무제한",
   "@guidePlanSentencesUnlimited": {
     "description": "プラン比較表の premium 側。例文は無制限"
@@ -1482,15 +1516,10 @@
       }
     }
   },
-  "guidePlanVocabPremium": "약 {count}단어",
-  "@guidePlanVocabPremium": {
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "format": "decimalPattern"
-      }
-    }
-  },
+  "guidePlanVocabUnlimited": "상한 없음",
+  "guidePlanRowPronunciation": "하루 발음 채점",
+  "guidePlanPronunciationFree": "{count}회",
+  "guidePlanPronunciationUnlimited": "무제한",
   "guideHowSentenceTitle": "오늘의 예문 읽기",
   "guideHowSentenceStep1": "학습 탭에 그날의 예문이 표시돼요. 예문은 최대 5개가 한 세트예요. 위쪽에서 진도를 확인할 수 있어요.",
   "guideHowSentenceStep3": "금색 단어가 학습 단어예요. 퀴즈에서 이 단어가 출제돼요.",

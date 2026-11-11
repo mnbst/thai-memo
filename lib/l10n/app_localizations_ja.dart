@@ -295,6 +295,43 @@ class L10nJa extends L10n {
   String get vocabScorePremiumPitch => 'Premiumで続きの成長を記録しよう';
 
   @override
+  String vocabWordsRange(int min, int max) {
+    return '$min〜$max語';
+  }
+
+  @override
+  String vocabWordsOver(int min) {
+    return '$min語〜';
+  }
+
+  @override
+  String get vocabCapSheetTitle => '無料プランの上限に到達！';
+
+  @override
+  String get vocabCapSheetBody => 'プレミアムなら、この先も伸ばせます。';
+
+  @override
+  String get vocabCapSheetHere => 'いまここ';
+
+  @override
+  String get vocabCapSheetPremium => 'プレミアム';
+
+  @override
+  String get vocabCapSheetFeatureCap => '100語を超えて語彙スコアが伸びる';
+
+  @override
+  String get vocabCapSheetFeatureTopic => '例文のテーマを自分で選べる';
+
+  @override
+  String get vocabCapSheetFeatureUnlimited => '例文は無制限、発音採点も何度でも';
+
+  @override
+  String get vocabCapSheetCta => 'プレミアムで続ける';
+
+  @override
+  String get vocabCapSheetLater => 'あとで';
+
+  @override
   String vocabWords(int count) {
     return '$count語';
   }
@@ -309,9 +346,6 @@ class L10nJa extends L10n {
 
   @override
   String get historyFavoritesOnly => 'お気に入りのみ表示';
-
-  @override
-  String get historyDeleteAll => 'すべて削除';
 
   @override
   String get historyFilterAll => 'すべて';
@@ -351,12 +385,6 @@ class L10nJa extends L10n {
   String get historyEmptyHint => '新しい例文を生成してみましょう';
 
   @override
-  String get historyDeleteAllConfirm => 'すべての例文履歴を削除しますか？この操作は取り消せません。';
-
-  @override
-  String get historyDeletedAll => 'すべての例文を削除しました';
-
-  @override
   String historyDeleteFailed(String error) {
     return '削除に失敗しました: $error';
   }
@@ -369,6 +397,35 @@ class L10nJa extends L10n {
 
   @override
   String get historyDeletedOne => '例文を削除しました';
+
+  @override
+  String get historySelectToDelete => '選択して削除';
+
+  @override
+  String historySelectedCount(int count) {
+    return '$count件選択';
+  }
+
+  @override
+  String get historySelectAll => 'すべて選択';
+
+  @override
+  String get historyDeselectAll => '選択を解除';
+
+  @override
+  String historyDeleteSelected(int count) {
+    return '$count件を削除';
+  }
+
+  @override
+  String historyDeleteSelectedConfirm(int count) {
+    return '選んだ$count件の例文を削除しますか？この操作は取り消せません。';
+  }
+
+  @override
+  String historyDeletedCount(int count) {
+    return '$count件の例文を削除しました';
+  }
 
   @override
   String historyWordCount(int count) {
@@ -688,6 +745,17 @@ class L10nJa extends L10n {
 
   @override
   String get trialEndedChangeVocabLabel => '語彙スコア';
+
+  @override
+  String get trialEndedChangePronunciationLabel => '発音採点';
+
+  @override
+  String get trialEndedChangePronunciationPremium => '無制限';
+
+  @override
+  String trialEndedChangePronunciationFree(int free) {
+    return '1日$free回';
+  }
 
   @override
   String get trialEndedChangeVocabPremium => '上限なし';
@@ -1044,18 +1112,6 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get paywallFeatureQuotaTitle => '語彙スコア100の先も伸ばせる';
-
-  @override
-  String get paywallFeatureQuotaPremium => '例文は無制限・語彙スコアの上限なし';
-
-  @override
-  String get paywallFeatureTopicTitle => '好きな場面のタイ語から始める';
-
-  @override
-  String get paywallFeatureTopicPremium => '旅行・暮らし・BLドラマなどから自分で選べる';
-
-  @override
   String get onboarding1Title => 'タイ文字が読めなくても大丈夫';
 
   @override
@@ -1252,10 +1308,10 @@ class L10nJa extends L10n {
   String get commonGotIt => 'わかった';
 
   @override
-  String get premiumHint1Title => '好きな場面のタイ語から始める';
+  String get premiumHint1Title => '発音も、語彙も、好きなだけ';
 
   @override
-  String get premiumHint1Body => '旅行・暮らし・BLドラマなどから、例文のテーマを自分で選べます';
+  String get premiumHint1Body => '例文・発音採点・語彙スコアは上限なし。テーマも選べます';
 
   @override
   String get signInReminderTitle => '学習の進捗を保護';
@@ -1338,6 +1394,24 @@ class L10nJa extends L10n {
 
   @override
   String get pronunciationRetry => 'もう一度';
+
+  @override
+  String pronunciationCapTitle(int count) {
+    return '今日の発音採点は$count回まで';
+  }
+
+  @override
+  String pronunciationCapBody(int count) {
+    return '明日また$count回できます。\nプレミアムなら回数は無制限です。';
+  }
+
+  @override
+  String get pronunciationCapCta => 'プレミアムで続ける';
+
+  @override
+  String pronunciationRemainingToday(int count) {
+    return '今日の採点 あと$count回';
+  }
 
   @override
   String get pronunciationReference => 'お手本';
@@ -2516,10 +2590,7 @@ class L10nJa extends L10n {
 
   @override
   String get guideRolePremiumBody =>
-      '無料版でも毎日学べます。プレミアムでは例文数・テーマ選択・語彙スコアの上限が広がります。';
-
-  @override
-  String get guidePlanColItem => '項目';
+      '無料版でも毎日学べ、お手本音声は何度でも再生できます。プレミアムは例文・発音採点・語彙スコアが無制限で、テーマも選べます。';
 
   @override
   String get guidePlanColFree => '無料版';
@@ -2531,10 +2602,10 @@ class L10nJa extends L10n {
   String get guidePlanRowSentences => '1日の例文';
 
   @override
-  String get guidePlanRowTopic => 'テーマ';
+  String get guidePlanRowTopic => '例文テーマ';
 
   @override
-  String get guidePlanRowVocab => '語彙スコアの上限';
+  String get guidePlanRowVocab => '語彙スコア';
 
   @override
   String get guidePlanSentencesUnlimited => '無制限';
@@ -2548,7 +2619,7 @@ class L10nJa extends L10n {
   String get guidePlanTopicFree => 'おまかせ';
 
   @override
-  String get guidePlanTopicPremium => '自分で選べる';
+  String get guidePlanTopicPremium => '選べる';
 
   @override
   String guidePlanVocabFree(int count) {
@@ -2556,13 +2627,18 @@ class L10nJa extends L10n {
   }
 
   @override
-  String guidePlanVocabPremium(int count) {
-    final intl.NumberFormat countNumberFormat =
-        intl.NumberFormat.decimalPattern(localeName);
-    final String countString = countNumberFormat.format(count);
+  String get guidePlanVocabUnlimited => '上限なし';
 
-    return '約$countString語';
+  @override
+  String get guidePlanRowPronunciation => '1日の発音採点';
+
+  @override
+  String guidePlanPronunciationFree(int count) {
+    return '$count回';
   }
+
+  @override
+  String get guidePlanPronunciationUnlimited => '無制限';
 
   @override
   String get guideHowSentenceTitle => '今日の例文を読む';
