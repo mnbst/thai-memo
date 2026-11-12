@@ -24,11 +24,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _rawDir = 'build/store_shots/raw';
-const String _outDir = 'build/store_shots/out';
+// X の機能紹介用は --dart-define=CAPTIONS=tools/x_post/feature_captions.json
+// --dart-define=OUT=build/x_post_feature のように見出しの一覧と出力先を替える。
+const String _outDir =
+    String.fromEnvironment('OUT', defaultValue: 'build/store_shots/out');
 
 /// A/B テストの A 案（旧1枚目が先頭）。iPhone だけ。
 const String _outAbDir = 'build/store_shots/out_a';
-const String _captionsPath = 'tools/store_screenshots/captions.json';
+const String _captionsPath = String.fromEnvironment(
+  'CAPTIONS',
+  defaultValue: 'tools/store_screenshots/captions.json',
+);
 const String _font = 'StoreCaption';
 const String _fontKo = 'StoreCaptionKo';
 

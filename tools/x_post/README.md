@@ -124,8 +124,15 @@ X の読み取りは PPU のクレジットを消費する。クレジットが�
   見出しにタイ文字が入るもの（語順ガイドなど）は、日本語だけの部分を `from` に書く。
   描けなかったときは本文だけで出す。
 - 機能紹介（`feature`）はアプリの機能を1つずつ紹介する文で、`image_file` に書いた固定の画像
-  （`feature_images/`、ストア用スクショ `build/store_shots/out/iphone/ja/` の写し）を1枚貼る。
-  ストアのスクショを撮り直したら写し直す。
+  （`feature_images/`）を1枚貼る。ストア用スクショと同じ素材・同じ合成で、ストアから外した画面
+  （例文の分解・復習タブ）も残すので枚数はストアより多い。並びと見出しは `feature_captions.json`。
+  ストアの素材を撮り直したら作り直して写す。
+
+  ```bash
+  flutter test test/screenshots/store_screenshots.dart --dart-define=DEVICE=iphone \
+    --dart-define=CAPTIONS=tools/x_post/feature_captions.json --dart-define=OUT=build/x_post_feature
+  cp build/x_post_feature/iphone/ja/*.png tools/x_post/feature_images/
+  ```
 - 本文の長さ（X の 280）と書式は
   `python tools/x_post/pick_study_post.py --check` で確かめられる。
 
