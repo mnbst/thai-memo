@@ -1435,6 +1435,9 @@ Tips・ガイドの枠で study_posts.json から投稿文を1件抽選する（
 tools/x_post/study_posts.json
 Tips・ガイドの X 投稿文（アプリの Tips とガイドから書き起こした確認済みの完成文）。
 
+tools/x_post/feature_captions.json
+機能紹介（20時枠）に貼る画像の並びと見出し。ストア用スクショの合成（store_screenshots.dart の CAPTIONS / OUT）に渡して feature_images/ を作る。
+
 tools/x_post/select_prompt.txt
 例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
 
