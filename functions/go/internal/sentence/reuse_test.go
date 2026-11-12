@@ -2,7 +2,9 @@ package sentence
 
 import (
 	"context"
+	"reflect"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/firestore"
 
@@ -131,7 +133,8 @@ func TestPickReusableDoc(t *testing.T) {
 		{"訳の言語が違う", merge(good, map[string]any{"lang": "en"}), false},
 		{"単語分解なし", merge(good, map[string]any{"word_breakdown": []any{}}), false},
 	} {
-		got := pickReusableDoc([]map[string]any{c.doc}, lang.Lang("ja"), func(int) int { return 0 })
+		got, _ := pickReusableDoc([]sentenceDoc{{ID: "a", Data: c.doc}}, lang.Lang("ja"),
+			func(int) int { return 0 }, time.Now())
 		if (got != nil) != c.want {
 			t.Errorf("%s: %v", c.name, got)
 		}
@@ -169,5 +172,39 @@ func TestQuizSizeFor(t *testing.T) {
 		if got := QuizSizeFor(c.user); got != c.want {
 			t.Errorf("%s: %d, want %d", c.name, got, c.want)
 		}
+	}
+}
+
+// 出し直す文と同じ本文の doc を置き換え対象にし、未読の配信・別の文・本人が消した文は残す。
+func TestPickReusableDocReuse(t *testing.T) {
+	now := time.Now()
+	base := map[string]any{
+		"thai_text": "ไป", "japanese_translation": "行く", "lang": "ja",
+		"word_breakdown": []any{map[string]any{"word": "ไป", "meaning": "行く", "notes": ""}},
+	}
+	docs := []sentenceDoc{
+		{ID: "picked", Data: base},
+		{ID: "dupFavorite", Data: merge(base, map[string]any{"favorite": true, "viewed": true})},
+		{ID: "dupReadDelivery", Data: merge(base, map[string]any{"daily": true, "viewed": true})},
+		{ID: "dupUnreadDelivery", Data: merge(base, map[string]any{"daily": true, "viewed": false})},
+		{ID: "otherText", Data: merge(base, map[string]any{"thai_text": "มา"})},
+		{ID: "userDeleted", Data: merge(base, map[string]any{"deleted": true})},
+		{ID: "retiredFresh", Data: merge(base, map[string]any{
+			"deleted": true, "purged_at": now.Add(-RetiredSentenceRetention + time.Hour)})},
+		{ID: "retiredExpired", Data: merge(base, map[string]any{
+			"deleted": true, "purged_at": now.Add(-RetiredSentenceRetention)})},
+	}
+	got, reuse := pickReusableDoc(docs, lang.Lang("ja"), func(int) int { return 0 }, now)
+	if got == nil || got.ThaiText != "ไป" || got.ID != "" {
+		t.Fatalf("選んだ文 %+v", got)
+	}
+	if want := []string{"picked", "dupFavorite", "dupReadDelivery"}; !reflect.DeepEqual(reuse.Replaces, want) {
+		t.Errorf("Replaces %v, want %v", reuse.Replaces, want)
+	}
+	if want := []string{"retiredExpired"}; !reflect.DeepEqual(reuse.Expired, want) {
+		t.Errorf("Expired %v, want %v", reuse.Expired, want)
+	}
+	if !reuse.Favorite {
+		t.Error("お気に入りを引き継いでいない")
 	}
 }

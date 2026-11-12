@@ -601,6 +601,16 @@ func (d *deliverer) deliverOne(
 		data["daily_set_id"] = setID
 		data["daily_set_index"] = i
 		data["daily_set_size"] = size
+		// 出し直した既出例文。元の doc は読まれてから置き換える（未読のまま
+		// 洗い替えで消えると、元の例文ごと失うため）。retireReadReplacements。
+		if r := produced.Reuse; r != nil {
+			if r.Favorite {
+				data["favorite"] = true
+			}
+			if len(r.Replaces) > 0 {
+				data[replacesField] = r.Replaces
+			}
+		}
 		sentenceData[i] = data
 	}
 
@@ -650,7 +660,81 @@ func (d *deliverer) deliverOne(
 	// 通知が届いたあとで、前回までの未読セットを洗い替える。送信前に消すと、
 	// 通知失敗でロールバックしたとき手元から例文だけが消える。
 	d.purgeUnreadDeliveredSets(ctx, userRef, setID)
+	for _, produced := range p.Produced {
+		if produced.Reuse != nil {
+			retireSentences(ctx, d.DB, userRef, nil, produced.Reuse.Expired)
+		}
+	}
 	return ""
+}
+
+// replacesField は配信 doc が置き換える元の例文 doc の ID（出し直した既出例文）。
+const replacesField = "replaces"
+
+// readReplacements は読まれた配信 doc が置き換える元の doc を返す。
+// 戻り値は 元の doc ID の一覧と、replaces を外す配信 doc ID の一覧（どちらも昇順）。
+func readReplacements(docs []deliveredDoc) (replaced, holders []string) {
+	seen := map[string]bool{}
+	for _, doc := range docs {
+		ids, _ := doc.Data[replacesField].([]any)
+		if len(ids) == 0 || isSentenceDeleted(doc.Data) || !isSentenceViewed(doc.Data) {
+			continue
+		}
+		holders = append(holders, doc.ID)
+		for _, v := range ids {
+			if id, ok := v.(string); ok && id != "" && id != doc.ID && !seen[id] {
+				seen[id] = true
+				replaced = append(replaced, id)
+			}
+		}
+	}
+	sort.Strings(replaced)
+	sort.Strings(holders)
+	return replaced, holders
+}
+
+// retireReadReplacements は、読まれた出し直しの例文について元の doc に削除印を付ける。
+//
+// 配信では出し直した時点で元を消さない。未読のまま次の配信で洗い替えられると、
+// 新旧どちらも消えて履歴から例文が無くなる。読まれたのを確かめてから置き換える。
+func (d *deliverer) retireReadReplacements(
+	ctx context.Context, userRef *firestore.DocumentRef, docs []deliveredDoc,
+) {
+	replaced, holders := readReplacements(docs)
+	if len(holders) == 0 {
+		return
+	}
+	col := userRef.Collection("sentences")
+	// すでに消えている・削除印つきの元 doc には書かない（updated_at を動かすと
+	// 端末の差分同期が読み直す）。
+	var live []string
+	if len(replaced) > 0 {
+		refs := make([]*firestore.DocumentRef, len(replaced))
+		for i, id := range replaced {
+			refs[i] = col.Doc(id)
+		}
+		snaps, err := d.DB.GetAll(ctx, refs)
+		if err != nil {
+			log.Printf("daily_sentence: 置き換え元の取得に失敗 %s: %v", userRef.ID, err)
+			return
+		}
+		for _, snap := range snaps {
+			if snap.Exists() && !isSentenceDeleted(snap.Data()) {
+				live = append(live, snap.Ref.ID)
+			}
+		}
+	}
+	retireSentences(ctx, d.DB, userRef, live, nil)
+
+	bw := d.DB.BulkWriter(ctx)
+	for _, id := range holders {
+		if _, err := bw.Update(col.Doc(id), []firestore.Update{
+			{Path: replacesField, Value: firestore.Delete},
+		}); err != nil {
+			log.Printf("daily_sentence: replaces の削除に失敗 %s: %v", userRef.ID, err)
+		}
+	}
+	bw.End()
 }
 
 // deliveredDoc は洗い替えの判定に使う配信docの最小形。
@@ -701,12 +785,9 @@ func unreadDeliveredSetIDs(docs []deliveredDoc, keepSetID string) []string {
 	return ids
 }
 
-// purgedSentenceRetention は洗い替えで削除印を付けた doc を物理削除するまでの猶予。
-//
-// 端末は updated_at の差分で例文を取り込むので、doc をいきなり消すと削除が
-// 伝わらず、別端末の履歴・待機列に残り続ける。印を付けて updated_at を進め、
-// 端末が読みに来る時間を置いてから消す。
-const purgedSentenceRetention = 14 * 24 * time.Hour
+// purgedSentenceRetention は洗い替えで削除印を付けた doc を物理削除するまでの猶予
+// （理由は sentence.RetiredSentenceRetention）。
+const purgedSentenceRetention = sentence.RetiredSentenceRetention
 
 // isSentenceDeleted は削除印（本人の削除・洗い替え）が付いた例文か。
 func isSentenceDeleted(data map[string]any) bool {
@@ -746,6 +827,8 @@ func (d *deliverer) purgeUnreadDeliveredSets(
 		}
 		docs = append(docs, deliveredDoc{ID: doc.Ref.ID, Data: doc.Data()})
 	}
+
+	d.retireReadReplacements(ctx, userRef, docs)
 
 	stale := map[string]bool{}
 	for _, setID := range unreadDeliveredSetIDs(docs, keepSetID) {

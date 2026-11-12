@@ -363,6 +363,9 @@ func commitSentences(
 			TrackViewed:    trackViewed,
 			Quality:        p.Quality,
 		})
+		if p.Reuse != nil && p.Reuse.Favorite {
+			docs[i]["favorite"] = true
+		}
 	}
 
 	if err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
@@ -389,7 +392,46 @@ func commitSentences(
 	for i, p := range produced {
 		p.Sentence.ID = refs[i].ID
 	}
+
+	// 出し直した既出例文は、元の doc を新しい doc で置き換える。
+	for _, p := range produced {
+		if p.Reuse != nil {
+			retireSentences(ctx, db, userRef, p.Reuse.Replaces, p.Reuse.Expired)
+		}
+	}
 	return nil
+}
+
+// retireSentences は置き換えられた例文 doc に削除印を付け、猶予を過ぎた doc を消す。
+//
+// 削除印は洗い替え（purgeUnreadDeliveredSets）と同じ形で、端末は差分同期で
+// 手元の例文を消す。失敗しても新しい例文は保存済みなのでログだけ残す
+// （同じ文の doc が残るだけで、次に出し直すときにまた対象になる）。
+func retireSentences(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+	replaces, expired []string,
+) {
+	if len(replaces) == 0 && len(expired) == 0 {
+		return
+	}
+	col := userRef.Collection("sentences")
+	bw := db.BulkWriter(ctx)
+	for _, id := range replaces {
+		if _, err := bw.Update(col.Doc(id), []firestore.Update{
+			{Path: "deleted", Value: true},
+			{Path: "purged_at", Value: firestore.ServerTimestamp},
+			{Path: "updated_at", Value: firestore.ServerTimestamp},
+		}); err != nil {
+			log.Printf("retire_sentences: 削除印に失敗 uid=%s: %v", userRef.ID, err)
+		}
+	}
+	for _, id := range expired {
+		if _, err := bw.Delete(col.Doc(id)); err != nil {
+			log.Printf("retire_sentences: 削除に失敗 uid=%s: %v", userRef.ID, err)
+		}
+	}
+	bw.End()
+	log.Printf("retire_sentences: uid=%s marked=%d removed=%d", userRef.ID, len(replaces), len(expired))
 }
 
 // sentenceCommitUpdate は例文コミット時の users ドキュメント更新内容

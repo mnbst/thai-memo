@@ -708,7 +708,7 @@ functions/go/internal/sentence/produce_check_test.go
 生成直後の品質判定（QualityCheck）のテスト。1文1回だけ判定・不合格は作り直さずセットから外す・判定失敗時は元の文・バンク由来は判定しない。
 
 functions/go/internal/sentence/reuse.go
-未出語だけで例文を作る版（UsesUnseenOnly）で、最低2本に足りないぶんを本人の既出例文（帯の既出語を P の小さい順）で埋める。LLM を呼ばない。
+未出語だけで例文を作る版（UsesUnseenOnly）で、最低2本に足りないぶんを本人の既出例文（帯の既出語を P の小さい順）で埋める。LLM を呼ばない。出し直しは新しい doc を作り、同じ本文の元 doc に削除印を付けて置き換える（配信は読まれてから）。
 
 functions/go/internal/sentence/corpusbank.go
 静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
