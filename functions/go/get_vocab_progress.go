@@ -25,8 +25,7 @@ type getVocabProgressRequest struct {
 // getVocabProgress は履歴の語彙一覧に使う語の習熟度と語彙ランクを返す。
 //
 // last_seen の古い順に返すので、端末は next_cursor を覚えておけば次回から
-// 変わった語だけを受け取れる。日次の P 減衰は last_seen を動かさないので、
-// 減衰だけの語は送らない（表示には効かないほど小さい）。
+// 変わった語だけを受け取れる。
 func getVocabProgress(ctx context.Context, req *callable.Request) (any, error) {
 	uid, err := req.RequireAuth()
 	if err != nil {

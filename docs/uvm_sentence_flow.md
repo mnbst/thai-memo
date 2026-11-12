@@ -72,12 +72,13 @@ P値が同値の場合は `estimated_vocab` に rank が近い単語（習熟境
 
 ### 1e. exposure更新（`_register_sentence_exposure`）
 
-生成された例文の `word_breakdown` を走査し、2種類の露出を登録する：
+記録するのは key_word（target_words と一致し、例文に実際に出た語）だけ。
 
-1. **ターゲット語**: target_words と一致した単語 → `register_exposure` で P 微増・`last_seen` 更新
-2. **その他の単語**: 例文中の残りの単語も同様に露出登録
+- 未登録なら `p=0.4`（`NewWordP`）で新規作成
+- 登録済みなら `last_seen` を更新し、`p` に `KeyWordExposureStep`（0.01）を足す。
+  既出例文の出し直しが P の小さい順に語を選ぶので、出した語を後ろへ回すための加算
 
-露出による P 更新式: `p = p + ALPHA_EXPOSURE * (1 - p)`（`ALPHA_EXPOSURE=0.03`）
+例文にたまたま含まれた語は P も `last_seen` も動かさない。
 
 exposure 登録後、`sync_estimated_vocab` で `estimated_vocab` を再計算・更新する。
 

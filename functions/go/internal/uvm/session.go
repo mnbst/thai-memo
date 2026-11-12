@@ -346,10 +346,6 @@ type SessionRequest struct {
 	UnseenOnly bool
 }
 
-// ReuseMaxP は既出例文を出し直す語の P の上限。未回答の語（NewWordP）を含める。
-// 0.3 だと出せる語が無くなり、入門者のセットの 75〜78% が空になった（adaptivesim_test.go）。
-const ReuseMaxP = 0.5
-
 // sessionBand は key_word 候補のランク帯を返す。
 //
 // free（maxVocab あり）は測定値を使わず、上限で切る。
@@ -375,8 +371,12 @@ func sessionBand(estimatedVocab, testedVocab int, maxVocab *int) (low, high int)
 	return low, high
 }
 
-// ReusableWords は既出例文を出し直す語を、出す順に返す。帯の既出語のうち
-// P<=ReuseMaxP をランダムに並べ、そのあとに残りを last_seen の古い順に続ける。
+// ReusableWords は既出例文を出し直す語を、出す順に返す。帯の既出語を P の
+// 小さい順（同点はランダム）に並べる。出した語は RegisterExposure が P を
+// KeyWordExposureStep 上げるので、次は後ろへ回る。
+//
+// P で分けて上限を置くことはしない。P<=0.3 だけに絞ると出せる語が無くなり、
+// 入門者のセットの 75〜78% が空になった（adaptivesim_test.go）。
 func (s *SessionSelector) ReusableWords(
 	ctx context.Context, db *firestore.Client, freqRank FreqRank, req SessionRequest,
 ) ([]string, error) {
@@ -392,11 +392,11 @@ func (s *SessionSelector) ReusableWords(
 	if len(candidates) == 0 {
 		return nil, nil
 	}
-	pMap, lastSeen, err := s.fetchP(ctx, db, req.UID, candidates)
+	pMap, _, err := s.fetchP(ctx, db, req.UID, candidates)
 	if err != nil {
 		return nil, err
 	}
-	return reusableOrder(candidates, pMap, lastSeen, func(n int, swap func(i, j int)) {
+	return reusableOrder(candidates, pMap, func(n int, swap func(i, j int)) {
 		for i := n - 1; i > 0; i-- {
 			swap(i, s.intn(i+1))
 		}
@@ -405,26 +405,22 @@ func (s *SessionSelector) ReusableWords(
 
 // reusableOrder は ReusableWords の並べ方。P が無い・0 の語は未出なので除く。
 func reusableOrder(
-	candidates []Candidate, pMap, lastSeen map[string]float64,
+	candidates []Candidate, pMap map[string]float64,
 	shuffle func(n int, swap func(i, j int)),
 ) []string {
-	var weak []string
-	var rest []Candidate
+	var seen []Candidate
 	for _, c := range candidates {
-		p, ok := pMap[c.Word]
-		switch {
-		case !ok || p == 0.0:
-		case p <= ReuseMaxP:
-			weak = append(weak, c.Word)
-		default:
-			rest = append(rest, c)
+		if p, ok := pMap[c.Word]; ok && p != 0.0 {
+			seen = append(seen, c)
 		}
 	}
-	shuffle(len(weak), func(i, j int) { weak[i], weak[j] = weak[j], weak[i] })
-	for _, c := range oldestFirst(rest, lastSeen) {
-		weak = append(weak, c.Word)
+	shuffle(len(seen), func(i, j int) { seen[i], seen[j] = seen[j], seen[i] })
+	sort.SliceStable(seen, func(i, j int) bool { return pMap[seen[i].Word] < pMap[seen[j].Word] })
+	out := make([]string, len(seen))
+	for i, c := range seen {
+		out[i] = c.Word
 	}
-	return weak
+	return out
 }
 
 // GetSessionWords は統合スキャン方式でセッション単語を選定する
