@@ -575,9 +575,6 @@ updateUvm の Go 版。クイズ結果からUVMを更新する。uvm_handlers.py
 functions/go/vocabtest.go
 startVocabTest / submitVocabTest。語彙テストの出題・採点と estimated_vocab の書き込み。全員1段目から出題。プレミアム限定＋月1回（開始時刻を起点に30日、中断のやり直しのみ同一期間内3回まで）。
 
-functions/go/internal/uvm/decay.go
-dailyBatch がかける P の日次減衰（等倍・下限 PFloor）。休眠日数で速めない理由もここ。
-
 functions/go/cmd/resyncvocab/main.go
 全ユーザーの estimated_vocab を今の推定式で計算し直す（既定は dry run、-write で元の値を保存してから書く）。
 
@@ -669,7 +666,7 @@ functions/go/subscription_status_live_test.go
 落とす/残すの判定表を実Firestoreで1件ずつ確認する。全体スキャンは走らせない。
 
 functions/go/daily_batch.go
-dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_tokenの掃除、生成例文の品質監査。常にHTTPトリガー。
+dailyBatch の Go 版。日次クォータのリセット、匿名ユーザー・重複fcm_tokenの掃除、生成例文の品質監査。常にHTTPトリガー。
 
 functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
@@ -711,7 +708,7 @@ functions/go/internal/sentence/produce_check_test.go
 生成直後の品質判定（QualityCheck）のテスト。1文1回だけ判定・不合格は作り直さずセットから外す・判定失敗時は元の文・バンク由来は判定しない。
 
 functions/go/internal/sentence/reuse.go
-未出語だけで例文を作る版（UsesUnseenOnly）で、最低2本に足りないぶんを本人の既出例文（帯で P<=0.5 の語）で埋める。LLM を呼ばない。
+未出語だけで例文を作る版（UsesUnseenOnly）で、最低2本に足りないぶんを本人の既出例文（帯の既出語を P の小さい順）で埋める。LLM を呼ばない。
 
 functions/go/internal/sentence/corpusbank.go
 静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
@@ -1113,7 +1110,7 @@ functions/go/internal/uvm/excluded.go
 key_wordにしない語（単独では古語・方言・単位でしか使わない語）の除外リスト。
 
 functions/go/internal/uvm/exposure.go
-例文に出た語の露出をUVMへ記録する（uvm.py:register_exposure / get_sentence_words）。
+例文の key_word の露出をUVMへ記録する（新規登録、既出は last_seen 更新と P の微増）。
 
 functions/go/internal/uvm/session_golden_test.go
 uvm.py の選定・露出まわりと突き合わせる差分テスト。
@@ -1138,9 +1135,6 @@ functions/go/internal/uvm/downsim_test.go
 
 functions/go/internal/uvm/hybridsim_test.go
 階段（最初の数段）と IRT を繋いだハイブリッド測定のシミュレーション（SIM=1）。初級者は階段の打ち切りで早く終わり、通過者だけ IRT に切り替える構成の出題数と誤差を測る。
-
-functions/go/internal/uvm/idlesim_test.go
-90日使って休んだ人が戻った日に estimated_vocab がどこまで落ちるかのシミュレーション。
 
 functions/go/internal/uvm/matrixsim_test.go
 受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。母数の絞り方とヒント常用時の比較も含む。更新則・新語 prior・世界側の推測率/slip を差し替えるつまみを持つ。

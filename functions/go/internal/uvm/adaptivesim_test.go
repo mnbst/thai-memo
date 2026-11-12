@@ -488,27 +488,24 @@ func (a *adaptState) nextUnseen(u *simUser) (int, bool) {
 // MinSetSizeSim はセットの最低本数（sentence.MinSetSize の写し）。
 const MinSetSizeSim = 2
 
-// reusePick は既出例文を出す語。P<=ReuseMaxP をランダムに、無ければ最も古く見た語。
+// reusePick は既出例文を出す語。帯の既出語を P の小さい順（同点はランダム）に
+// 選ぶ（reusableOrder の写し）。
 func (a *adaptState) reusePick(u *simUser, used map[int]bool) (int, bool) {
 	lo, hi := a.band(u)
-	var weak []int
-	best, bestSeen := -1, math.Inf(1)
+	var seen []int
 	for r := max(lo, 1); r <= hi; r++ {
-		w, ok := u.words[r]
-		if !ok || used[r] {
-			continue
-		}
-		if w.p <= ReuseMaxP {
-			weak = append(weak, r)
-		}
-		if u.lastSeen[r] < bestSeen {
-			best, bestSeen = r, u.lastSeen[r]
+		if _, ok := u.words[r]; ok && !used[r] {
+			seen = append(seen, r)
 		}
 	}
-	if len(weak) > 0 {
-		return weak[u.rnd.Intn(len(weak))], true
+	if len(seen) == 0 {
+		return -1, false
 	}
-	return best, best >= 0
+	u.rnd.Shuffle(len(seen), func(i, j int) { seen[i], seen[j] = seen[j], seen[i] })
+	sort.SliceStable(seen, func(i, j int) bool {
+		return u.words[seen[i]].p < u.words[seen[j]].p
+	})
+	return seen[0], true
 }
 
 // sparseSet はセット 1 回ぶん。未出語だけを最大 5 本、最低本数に足りなければ既出例文で埋める。
@@ -544,6 +541,8 @@ func (a *adaptState) sparseSet(u *simUser, p adaptPersona) {
 		}
 		used[r] = true
 		u.touch(r)
+		// 本番は key_word として出すたびに P を少し上げる（RegisterExposure）。
+		u.words[r].p = KeyWordExposureP(u.words[r].p)
 		a.sync(u)
 		a.picks++
 		a.reuses++

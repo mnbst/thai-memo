@@ -324,36 +324,20 @@ func runGenerateThaiSentence(
 	return sentences, nil
 }
 
-// registerSentenceExposure は例文に出た語の露出を UVM に記録する
+// registerSentenceExposure は例文の key_word の露出を UVM に記録する
 // （sentence_handlers.py:_register_sentence_exposure:151）。
 //
-// ターゲット語は新規作成も許すが、それ以外の語は既存ドキュメントの更新だけ。
+// 記録するのは key_word だけ。例文にたまたま含まれた語は P も last_seen も
+// 動かさない（last_seen は key_word にした日とクイズに答えた日）。
 func registerSentenceExposure(
 	ctx context.Context, db *firestore.Client, uid string, produced *sentence.Produced,
 ) {
-	allWords := uvm.SentenceWords(produced.Sentence.BreakdownWords())
 	exposed := uvm.ExposedWords(produced.Sentence.BreakdownWords(), produced.TargetWords)
-	if len(exposed) > 0 {
-		if err := uvm.RegisterExposure(ctx, db, uid, exposed, produced.TargetWords); err != nil {
-			log.Printf("register_sentence_exposure failed: %v", err)
-			return
-		}
+	if len(exposed) == 0 {
+		return
 	}
-
-	targets := map[string]bool{}
-	for _, t := range produced.TargetWords {
-		targets[t] = true
-	}
-	var others []string
-	for _, w := range allWords {
-		if !targets[w] {
-			others = append(others, w)
-		}
-	}
-	if len(others) > 0 {
-		if err := uvm.RegisterExposure(ctx, db, uid, others, nil); err != nil {
-			log.Printf("register_sentence_exposure failed: %v", err)
-		}
+	if err := uvm.RegisterExposure(ctx, db, uid, exposed, produced.TargetWords); err != nil {
+		log.Printf("register_sentence_exposure failed: %v", err)
 	}
 }
 

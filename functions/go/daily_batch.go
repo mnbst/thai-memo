@@ -20,7 +20,6 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/quota"
 	"github.com/mnbst/thai-memo/functions/go/internal/subscription"
 	"github.com/mnbst/thai-memo/functions/go/internal/userdata"
-	"github.com/mnbst/thai-memo/functions/go/internal/uvm"
 )
 
 // dailyBatch は functions/javascript/src/dailyBatch.ts の移植。
@@ -29,7 +28,6 @@ import (
 //  1. 非アクティブな匿名ユーザーと孤児 doc の削除
 //  2. 重複 fcm_token の掃除
 //  3. ユーザーごとの日次クォータをリセット
-//  4. UVM の P 値を減衰
 //
 // subscriptionStatus と同じく常に HTTP トリガーで、定期実行するかどうかは
 // Cloud Scheduler ジョブ（Terraform 管理）の有無だけで決める。
@@ -109,9 +107,6 @@ func runDailyBatch(ctx context.Context) error {
 				if err := resetQuota(ctx, db, doc, now); err != nil {
 					log.Printf("resetQuota failed uid=%s: %v", doc.Ref.ID, err)
 					continue
-				}
-				if err := decayUvmP(ctx, db, doc.Ref.ID); err != nil {
-					log.Printf("decayUvmP failed uid=%s: %v", doc.Ref.ID, err)
 				}
 			}
 		}()
@@ -471,50 +466,6 @@ func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[s
 	}
 
 	return payload
-}
-
-// ---------------------------------------------------------------------------
-// 4. UVM の P 値減衰
-// ---------------------------------------------------------------------------
-
-// decayUvmP は全登録 UVM 語に対し P 減衰を適用する。
-func decayUvmP(ctx context.Context, db *firestore.Client, uid string) error {
-	it := db.Collection("users").Doc(uid).Collection("uvm").Documents(ctx)
-	defer it.Stop()
-
-	bw := db.BulkWriter(ctx)
-	var total int
-
-	for {
-		doc, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		p := floatField(doc.Data()["p"])
-		if p <= uvm.PFloor {
-			continue
-		}
-
-		newP := uvm.DecayP(p)
-		if _, err := bw.Update(doc.Ref, []firestore.Update{
-			{Path: "p", Value: newP},
-		}); err != nil {
-			return err
-		}
-		total++
-	}
-
-	// BulkWriter は 500 件制限を自分でさばくので、JS のような手動分割は要らない。
-	bw.End()
-
-	if total > 0 {
-		log.Printf("decayUvmP: uid=%s, updated %d word(s)", uid, total)
-	}
-	return nil
 }
 
 // floatField は Firestore の数値を float64 にする。整数は int64 で返るため。
