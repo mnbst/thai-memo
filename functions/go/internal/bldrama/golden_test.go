@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/embeddings"
@@ -158,7 +159,7 @@ func TestPickShotFallback(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			b := &Builder{Rand: rand.New(rand.NewSource(1)), Shots: tc.finder}
 			seen := map[string]bool{}
-			for i := 0; i < 20000; i++ {
+			for i := 0; i < 60000; i++ {
 				id := b.PickShot(tc.targetWords)
 				if _, ok := shotContext[id]; !ok {
 					t.Fatalf("知らないショットID: %q", id)
@@ -199,4 +200,29 @@ func (r *recordingShot) FindBestDramaShot(
 	r.word = word
 	r.shots = shots
 	return r.result, nil
+}
+
+// TestSceneLabelDropsSplitNumber は2文ずつに分けた場面の番号が、プロンプトと保存の場面名に出ないことを見る。
+func TestSceneLabelDropsSplitNumber(t *testing.T) {
+	var id string
+	for _, sid := range shotIDs {
+		if sceneSplitRe.MatchString(shotContext[sid].Scene) {
+			id = sid
+			break
+		}
+	}
+	if id == "" {
+		t.Fatal("番号つきの場面が無い")
+	}
+	want := sceneSplitRe.ReplaceAllString(shotContext[id].Scene, "")
+	sec := (&Builder{}).SectionFor(id)
+	if sec.Scene != want {
+		t.Errorf("Scene=%q want %q", sec.Scene, want)
+	}
+	if !strings.Contains(sec.Context, "- 場面: "+want+"\n") {
+		t.Errorf("場面の行に番号が残っている: %s", sec.Context)
+	}
+	if got := sceneLabel("告白（屋上）"); got != "告白（屋上）" {
+		t.Errorf("番号でない括弧を落とした: %q", got)
+	}
 }
