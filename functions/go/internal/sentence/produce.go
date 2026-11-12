@@ -164,6 +164,9 @@ type Produced struct {
 	FromCache bool
 	// Quality は判定結果。判定していなければ nil。
 	Quality *Quality
+	// Reuse は本人の既出例文を出し直したときの、置き換える元の doc。
+	// それ以外は nil。
+	Reuse *Reuse
 }
 
 // Produce は単語選定 → キャッシュ/LLM → generation_tier 付与までを行う

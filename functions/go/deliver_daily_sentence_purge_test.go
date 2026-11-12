@@ -129,3 +129,27 @@ func TestExpiredPurgedDocIDs(t *testing.T) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 }
+
+// 読まれた出し直しだけが元の doc を置き換える。未読・洗い替え済みは元を残す。
+func TestReadReplacements(t *testing.T) {
+	with := func(setID string, viewed bool, replaces ...any) map[string]any {
+		data := daily(setID, viewed)
+		data[replacesField] = replaces
+		return data
+	}
+	purged := with("s3", true, "old3")
+	purged["deleted"] = true
+	docs := []deliveredDoc{
+		{ID: "read", Data: with("s1", true, "old1", "old1b", "old1")},
+		{ID: "unread", Data: with("s2", false, "old2")},
+		{ID: "purged", Data: purged},
+		{ID: "plain", Data: daily("s1", true)},
+	}
+	replaced, holders := readReplacements(docs)
+	if want := []string{"old1", "old1b"}; !reflect.DeepEqual(replaced, want) {
+		t.Errorf("replaced %v, want %v", replaced, want)
+	}
+	if want := []string{"read"}; !reflect.DeepEqual(holders, want) {
+		t.Errorf("holders %v, want %v", holders, want)
+	}
+}
