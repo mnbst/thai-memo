@@ -1,7 +1,11 @@
-// Command vetquizlang は Firestore の穴埋めクイズキャッシュを走査し、
+// Command vetquizlang は Firestore のクイズ解説キャッシュを走査し、
 // 解説・ダミー理由が指定と違う言語で書かれた件を洗い出す。
 //
-// quiz_questions は (lang, thai_text) 単位で全ユーザー共有・TTL 無しなので、
+// 対象は -collection で選ぶ。
+//   - quiz_questions（既定）: 穴埋め。(lang, thai_text) 単位
+//   - word_explanations: 意味4択の解説。(lang, word, meaning) 単位
+//
+// どちらも言語別のキーで全ユーザー共有・TTL 無しなので、
 // 1回のドリフトがその例文を受け取る全員に配られ続ける（SRS で1人あたり
 // 最大5回）。生成側の検査（internal/gemini/repair.go）はこれから作る分に
 // しか効かないため、既存分はここで消して作り直させる。
@@ -11,6 +15,9 @@
 //
 //	# 消す。消したキーは次の出題で作り直される（Load がキャッシュミス扱い）
 //	GOOGLE_CLOUD_PROJECT=thai-memo-prod go run ./cmd/vetquizlang -delete
+//
+//	# 意味4択の解説キャッシュ
+//	GOOGLE_CLOUD_PROJECT=thai-memo-prod go run ./cmd/vetquizlang -collection word_explanations
 //
 // 判定はランタイムと同じ lang.IsWrongLanguage。ここだけ基準がずれると、
 // 消した端から同じものが書き戻る。
@@ -31,14 +38,24 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-const collection = "quiz_questions"
+// 走査できるコレクション。quiz_cloze_cache.go / word_explanation_cache.go の名前。
+const (
+	clozeCollection   = "quiz_questions"
+	meaningCollection = "word_explanations"
+)
 
-// entry は quiz_cloze_cache.go の quizClozeEntry のうち言語を見る項目。
+// collection は -collection で選んだ走査対象。
+var collection = clozeCollection
+
+// entry は quizClozeEntry / wordExplanationEntry のうち言語を見る項目。
 // あちらは package main なので import できず、ここに持つ。
+// コレクションに無い項目は空のまま読まれる。
 type entry struct {
 	Lang          string   `firestore:"lang"`
 	ThaiText      string   `firestore:"thai_text"`
 	CorrectAnswer string   `firestore:"correct_answer"`
+	Word          string   `firestore:"word"`
+	Meaning       string   `firestore:"meaning"`
 	Explanation   string   `firestore:"explanation"`
 	DummyReasons  []string `firestore:"dummy_reasons"`
 }
@@ -47,8 +64,10 @@ type entry struct {
 type finding struct {
 	Key           string   `json:"key"`
 	Lang          string   `json:"lang"`
-	ThaiText      string   `json:"thai_text"`
-	CorrectAnswer string   `json:"correct_answer"`
+	ThaiText      string   `json:"thai_text,omitempty"`
+	CorrectAnswer string   `json:"correct_answer,omitempty"`
+	Word          string   `json:"word,omitempty"`
+	Meaning       string   `json:"meaning,omitempty"`
 	Fields        []string `json:"fields"`
 	Explanation   string   `json:"explanation"`
 	DummyReasons  []string `json:"dummy_reasons"`
@@ -60,7 +79,13 @@ func main() {
 	limit := flag.Int("limit", 0, "走査する件数の上限（0 で全件）")
 	keys := flag.String("keys", "",
 		"消すキーをカンマ区切りで名指しする。走査せず、このキーだけ消す")
+	coll := flag.String("collection", clozeCollection,
+		"走査するコレクション（quiz_questions / word_explanations）")
 	flag.Parse()
+	if *coll != clozeCollection && *coll != meaningCollection {
+		log.Fatalf("-collection は %s か %s", clozeCollection, meaningCollection)
+	}
+	collection = *coll
 
 	ctx := context.Background()
 	if fbapp.ProjectID() == "" {
@@ -132,6 +157,8 @@ func scan(
 				Lang:          e.Lang,
 				ThaiText:      e.ThaiText,
 				CorrectAnswer: e.CorrectAnswer,
+				Word:          e.Word,
+				Meaning:       e.Meaning,
 				Fields:        fields,
 				Explanation:   e.Explanation,
 				DummyReasons:  e.DummyReasons,
@@ -181,7 +208,11 @@ func report(findings []finding, scanned int) {
 			fmt.Printf("  ...ほか %d 件\n", len(findings)-5)
 			break
 		}
-		fmt.Printf("  - %s / %s / %q\n", f.Key, f.ThaiText, f.Explanation)
+		subject := f.ThaiText
+		if subject == "" {
+			subject = f.Word + "（" + f.Meaning + "）"
+		}
+		fmt.Printf("  - %s / %s / %q\n", f.Key, subject, f.Explanation)
 	}
 }
 

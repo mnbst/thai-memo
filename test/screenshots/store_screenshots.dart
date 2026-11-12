@@ -149,13 +149,24 @@ void main() {
           final image = (await tester.runAsync(() => _decode(raw)))!;
 
           // 言語で画面の並びが変わるものは「端末/言語」で上書きできる。
-          final zooms = shot['zoom'] as Map<String, dynamic>?;
           // Android は画面の並びが iPhone と同じなので、指定が無ければ iPhone の値を使う。
-          final zoom = (zooms?['${device.id}/$lang'] ??
-                  zooms?[device.id] ??
-                  (device.id == 'android'
-                      ? (zooms?['iphone/$lang'] ?? zooms?['iphone'])
-                      : null)) as List<dynamic>?;
+          T? pick<T>(String key) {
+            final byDevice = shot[key] as Map<String, dynamic>?;
+            return (byDevice?['${device.id}/$lang'] ??
+                byDevice?[device.id] ??
+                (device.id == 'android'
+                    ? (byDevice?['iphone/$lang'] ?? byDevice?['iphone'])
+                    : null)) as T?;
+          }
+
+          final zoom = pick<List<dynamic>>('zoom');
+          final tap = pick<List<dynamic>>('tap');
+          // zoom_src があれば、切り抜きは別の素材（押して開いた画面など）から取る。
+          final zoomSrc = shot['zoom_src'] as String?;
+          final zoomFile = File('$_rawDir/${device.id}/$lang/$zoomSrc.png');
+          final zoomImage = zoomSrc != null && zoomFile.existsSync()
+              ? (await tester.runAsync(() => _decode(zoomFile)))!
+              : null;
           await tester.pumpWidget(
             _StoreShot(
               device: device,
@@ -163,12 +174,21 @@ void main() {
               fontSize: fontSize,
               screen: image,
               zoom: zoom == null ? null : _rect(zoom.cast<num>()),
+              zoomImage: zoomImage,
+              zoomTop: pick<num>('zoom_top')?.toDouble(),
+              tap: tap == null
+                  ? null
+                  : Offset(
+                      (tap[0] as num).toDouble(),
+                      (tap[1] as num).toDouble(),
+                    ),
             ),
           );
           await tester.pump();
 
           final png = (await tester.runAsync(() => _capture(tester)))!;
           image.dispose();
+          zoomImage?.dispose();
           composed.add(png);
           _write('$_outDir/${device.id}/$lang', composed.length, 'png', png);
           written++;
@@ -231,6 +251,9 @@ class _StoreShot extends StatelessWidget {
     required this.fontSize,
     required this.screen,
     this.zoom,
+    this.zoomImage,
+    this.zoomTop,
+    this.tap,
   });
 
   final _Device device;
@@ -240,6 +263,15 @@ class _StoreShot extends StatelessWidget {
 
   /// 拡大して重ねる範囲（素材に対する割合）。
   final Rect? zoom;
+
+  /// 切り抜きを取る素材。無ければ [screen] から取る。
+  final ui.Image? zoomImage;
+
+  /// 切り抜きの上端を置く高さ（画面に対する割合）。無ければ元の位置に重ねる。
+  final double? zoomTop;
+
+  /// 押した位置（画面に対する割合）。波紋を描く。
+  final Offset? tap;
 
   @override
   Widget build(BuildContext context) {
@@ -301,6 +333,9 @@ class _StoreShot extends StatelessWidget {
                     device: device,
                     screen: screen,
                     zoom: zoom,
+                    zoomImage: zoomImage,
+                    zoomTop: zoomTop,
+                    tap: tap,
                   ),
                 ),
               ),
@@ -338,11 +373,21 @@ TextSpan _captionSpan(String caption, double fontSize) {
 /// 端末の枠。残りの高さに収まる大きさで、画面の縦横比を保つ。
 /// [zoom] があれば、その範囲を端末より広く拡大して同じ高さに重ねる。
 class _DeviceFrame extends StatelessWidget {
-  const _DeviceFrame({required this.device, required this.screen, this.zoom});
+  const _DeviceFrame({
+    required this.device,
+    required this.screen,
+    this.zoom,
+    this.zoomImage,
+    this.zoomTop,
+    this.tap,
+  });
 
   final _Device device;
   final ui.Image screen;
   final Rect? zoom;
+  final ui.Image? zoomImage;
+  final double? zoomTop;
+  final Offset? tap;
 
   @override
   Widget build(BuildContext context) {
@@ -390,6 +435,7 @@ class _DeviceFrame extends StatelessWidget {
                 Positioned.fill(
                   child: RawImage(image: screen, fit: BoxFit.fill),
                 ),
+                if (tap != null) _tapRipple(tap!, screenWidth, screenHeight),
                 if (device.id == 'iphone') _island(screenWidth),
                 if (device.id == 'android') _punchHole(screenWidth),
               ],
@@ -431,19 +477,23 @@ class _DeviceFrame extends StatelessWidget {
     required double bezel,
   }) {
     final width = canvasWidth * 0.94;
+    final source = zoomImage ?? screen;
     final src = Rect.fromLTWH(
-      zoom.left * screen.width,
-      zoom.top * screen.height,
-      zoom.width * screen.width,
-      zoom.height * screen.height,
+      zoom.left * source.width,
+      zoom.top * source.height,
+      zoom.width * source.width,
+      zoom.height * source.height,
     );
     final height = width * src.height / src.width;
     final centerY =
         bezel + (zoom.top + zoom.height / 2) * screenSize.height;
     final radius = width * 0.04;
+    final zoomTop = this.zoomTop;
     return Positioned(
       left: (frameWidth - width) / 2,
-      top: centerY - height / 2,
+      top: zoomTop != null
+          ? bezel + zoomTop * screenSize.height
+          : centerY - height / 2,
       child: Container(
         width: width,
         height: height,
@@ -460,8 +510,42 @@ class _DeviceFrame extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(radius),
-          child: CustomPaint(painter: _CropPainter(screen, src)),
+          child: CustomPaint(painter: _CropPainter(source, src)),
         ),
+      ),
+    );
+  }
+
+  /// 押した位置の波紋。指や手の絵は置かず、記号だけで「ここを押す」と示す。
+  Widget _tapRipple(Offset tap, double screenWidth, double screenHeight) {
+    final r = screenWidth * 0.036;
+    Widget ring(double scale, double alpha, {bool filled = false}) => Container(
+          width: r * 2 * scale,
+          height: r * 2 * scale,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: filled ? _accent.withValues(alpha: alpha) : null,
+            border: filled
+                ? null
+                : Border.all(
+                    color: _accent.withValues(alpha: alpha),
+                    width: r * 0.16,
+                  ),
+          ),
+        );
+    final extent = r * 2 * 2.7;
+    return Positioned(
+      left: tap.dx * screenWidth - extent / 2,
+      top: tap.dy * screenHeight - extent / 2,
+      width: extent,
+      height: extent,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          ring(2.7, 0.45),
+          ring(1.85, 0.85),
+          ring(1, 0.85, filled: true),
+        ],
       ),
     );
   }

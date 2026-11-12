@@ -13,12 +13,15 @@
 // - 05_topics:        テーマ選択（推し活を選択中。英語はタイ暮らし）
 // - 06_ranking:       語彙ランキング（学習者が十分いる状態）
 // - 07_review:        復習タブ（語彙スコアの位置まで送った語の一覧）
+// - 08_word:          例文の詳細を単語の一覧まで送ったところ
+// - 08_word_dialog:   そこで語を押して開く文字の解説（08_word に重ねる切り抜きの素材）
 //
 // 例文・クイズの中身は store_mock_data.dart。出力は
 // build/store_shots/raw/<device>/<lang>/<id>.png で、その後
 // store_screenshots.dart で見出しと端末の枠を合成する。
 // =============================================================================
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -32,6 +35,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thai_memo/core/config/app_config.dart';
 import 'package:thai_memo/core/constants/generation_constants.dart';
+import 'package:thai_memo/core/spelling_breakdown.dart';
 import 'package:thai_memo/domain/sentence_tone_spans.dart';
 import 'package:thai_memo/core/theme/app_theme.dart';
 import 'package:thai_memo/core/thai_tone_analyzer.dart';
@@ -142,6 +146,16 @@ final _shots = [
     (s, lang) => const _TabShell(tab: 1, child: VocabHistoryScreen()),
     act: _alignReviewList,
   ),
+  _Shot(
+    '08_word',
+    (s, lang) => DetailScreen(sentence: s, source: 'store'),
+    act: _showWords,
+  ),
+  _Shot(
+    '08_word_dialog',
+    (s, lang) => DetailScreen(sentence: s, source: 'store'),
+    act: _openWord,
+  ),
 ];
 
 void main() {
@@ -160,10 +174,14 @@ void main() {
       for (final shot in _shots) {
         testWidgets('${device.id}/$lang ${shot.id}', (tester) async {
           _setView(tester, device);
-          final sentence = DailySentenceService.toSentence(
+          var sentence = DailySentenceService.toSentence(
             'store-sentence',
             storeSentenceJson(lang),
           );
+          // 1枚目は入門の人に向けた枚なので、有料の人だけの例文に見せない。
+          if (shot.id == '01_today') {
+            sentence = sentence.copyWith(generationTier: 'free');
+          }
           await tester.pumpWidget(_host(lang, device, shot, sentence));
           await tester.pumpAndSettle();
           await shot.act?.call(tester, lookupL10n(Locale(lang)));
@@ -190,13 +208,17 @@ void _setView(WidgetTester tester, _Device device) {
 }
 
 /// 対象の要素がアプリバーのすぐ下に来るまでスクロールする。
-Future<void> _scrollTo(WidgetTester tester, Finder target) async {
+Future<void> _scrollTo(
+  WidgetTester tester,
+  Finder target, {
+  double offset = 230,
+}) async {
   final position =
       tester.state<ScrollableState>(find.byType(Scrollable).first).position;
   final top = tester.getTopLeft(target.first).dy;
   final viewportTop = tester.getTopLeft(find.byType(Scrollable).first).dy;
   position.jumpTo(
-    (position.pixels + top - viewportTop - 230)
+    (position.pixels + top - viewportTop - offset)
         .clamp(0.0, position.maxScrollExtent),
   );
   await tester.pumpAndSettle();
@@ -224,6 +246,27 @@ Future<void> _practice(WidgetTester tester, L10n l10n) async {
       .toggleWord(2);
   await tester.pumpAndSettle();
   await _scrollTo(tester, find.text(l10n.pronunciationTitle));
+}
+
+/// 文字の解説を開く語。1音節で、頭子音・母音・末子音・声調記号がそろっている。
+const String _explainedWord = 'ร้าน';
+
+/// 単語の一覧の先頭まで送る。
+Future<void> _showWords(WidgetTester tester, L10n l10n) async {
+  // 切り抜きを行のすぐ下に重ねるので、行はアプリバーの近くまで上げる。
+  await _scrollTo(tester, find.text(_explainedWord).last, offset: 60);
+}
+
+/// 単語の行を押して、文字の解説を開く。
+Future<void> _openWord(WidgetTester tester, L10n l10n) async {
+  // ウィジェットテストの中ではアセットの読み込みが終わらないので、表を先に渡す。
+  SpellingIndex.debugSetLoaded(SpellingIndex.fromJson(
+    json.decode(File('assets/spelling_forms.json').readAsStringSync())
+        as Map<String, dynamic>,
+  ));
+  await _showWords(tester, l10n);
+  await tester.tap(find.text(_explainedWord).last);
+  await tester.pumpAndSettle();
 }
 
 /// 上端に貼り付く区切りで行が半分切れないよう、次の行の頭まで送る。
@@ -739,6 +782,12 @@ Future<void> _loadFonts() async {
         'NotoSans_${entry.value}', ['google_fonts/NotoSans-${entry.key}.ttf']);
   }
   await load('MaterialIcons', _materialIconsCandidates(), firstOnly: true);
+  // 声調の記号（/ や ^）は等幅の指定。読み込まないと豆腐になる。
+  await load(
+    'monospace',
+    ['/System/Library/Fonts/Monaco.ttf', 'google_fonts/NotoSans-Regular.ttf'],
+    firstOnly: true,
+  );
   await load('NotoSansJP', ['tools/x_post/fonts/NotoSansJP-Regular.otf']);
   await load(
       'NotoSansKR', ['tools/store_screenshots/fonts/NotoSansKR-Regular.otf']);
