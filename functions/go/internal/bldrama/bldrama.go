@@ -89,7 +89,7 @@ func (b *Builder) SectionFor(shotID string) sentence.DramaSection {
 		return sentence.DramaSection{}
 	}
 	section := b.section(shotID, pick.Scene)
-	section.Scene, section.ShotID = pick.Scene, shotID
+	section.Scene, section.ShotID = sceneLabel(pick.Scene), shotID
 	return section
 }
 
@@ -107,6 +107,16 @@ func SceneShots() []SceneShot {
 	return out
 }
 
+// sceneSplitRe は本編の字幕から採った場面の末尾の番号（「契約書の不明点を確認する（2）」）。
+var sceneSplitRe = regexp.MustCompile(`（\d+）$`)
+
+// sceneLabel はプロンプトと保存に出す場面名。本編の場面は、文が多いと重心がぼやけて
+// 語が付かないので2文ずつに分けて番号を付けている（50場面のまま +53語、分けて +191語、
+// 2026-11-12）。番号は場面合致の区別にだけ使い、外へは出さない。
+func sceneLabel(scene string) string {
+	return sceneSplitRe.ReplaceAllString(scene, "")
+}
+
 // section はショット1つを参考セリフにした断片を返す。scene は場面の行に出す。
 func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 	pick := shotContext[shotID]
@@ -115,7 +125,7 @@ func (b *Builder) section(shotID, scene string) sentence.DramaSection {
 	contextLines := []string{
 		"BLドラマ（男性同士）。セリフをそのまま引用せず雰囲気を参考にすること",
 		"ドラマの設定: " + pick.Context,
-		"場面: " + scene,
+		"場面: " + sceneLabel(scene),
 		"参考タイ語例（雰囲気・口語感の参考。この1文のみ）: " + shotText,
 		// どの作品の場面かは使い方の名前で示す。thai_text に名前を必須にすると
 		// 名前を押し込んだ不自然な文が増える（2026-10-11、判定の作り直し後も外れる 10/102 → 2/103）。

@@ -1056,7 +1056,7 @@ functions/go/internal/bldrama/bldrama.go
 BLドラマ回の専用プロンプト断片。参考セリフの選出（embedding／ランダム）と断片の組み立て。
 
 functions/go/internal/bldrama/data.go
-BLドラマの設定・セリフ177件（正本。直接編集。2026年作品はGMMTV公式クリップ題名から採取）。
+BLドラマの設定・セリフ2723件（正本。直接編集。2026年作品はGMMTV公式クリップ題名から、3作品は公式本編の自動字幕からも採取）。
 
 functions/go/internal/bldrama/golden_test.go
 bl_drama.py とプロンプト断片・データを突き合わせる差分テスト。
@@ -1089,7 +1089,7 @@ functions/go/internal/uvm/themesim_test.go
 テーマ寄せの90日シミュレーション。合う語の割合・寄せる範囲（帯全体／est 以下）ごとの est と素通りを比べる。
 
 functions/go/internal/themeshots/data.go
-BL以外15テーマの参考例文19656件（正本。タイ暮らし・タイ旅行の7テーマと恋愛はエピソードを時系列で書かせた行を含み（旅行は旅の雑談・旅先の交流・旅のトラブルも、恋愛・趣味・推し活・仕事・伝統・あいさつ・礼儀作法・宗教は12章の物語も）、その行は具体的な状況 shotSituation をプロンプトの場面の行に使う。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
+BL以外15テーマの参考例文19981件（正本。タイ暮らし・タイ旅行の7テーマと恋愛はエピソードを時系列で書かせた行を含み（旅行は旅の雑談・旅先の交流・旅のトラブルも、恋愛・趣味・推し活・仕事・伝統・あいさつ・礼儀作法・宗教は12章の物語も、推し活は出演作・推しの素顔・ロケ地巡りの会話も）、その行は具体的な状況 shotSituation をプロンプトの場面の行に使う。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
 
 functions/go/internal/themeshots/relation_data.go
 場面の行が付くショット13462件の話し手から見た関係（地位・親しさ・性別）と話し手・聞き手の役（生成コード）。抽選の関係の代わりに使う。
