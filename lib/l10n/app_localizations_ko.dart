@@ -3424,25 +3424,61 @@ class L10nKo extends L10n {
   String get streakBurstMonth => '1개월';
 
   @override
-  String get streakBurstDone => '연속 달성!';
+  String get streakBurstDay1 => '멋진 시작이에요!';
 
   @override
-  String get streakBurstStart => '기록 시작!';
+  String get streakBurstDay2 => '오늘도 해냈어요!';
 
   @override
-  String get streakPraiseFight => '화이팅';
+  String get streakBurstDay3 => '3일 연속, 멋져요!';
 
   @override
-  String get streakPraiseGreat => '대단해요';
+  String get streakBurstBack => '다시 와서 반가워요!';
 
   @override
-  String get streakPraiseAwesome => '최고!';
+  String get streakBurstKeep => '이대로 쭉!';
 
   @override
-  String get streakPraiseExcellent => '훌륭해요';
+  String get streakBurstHabit => '습관이 되어 가요!';
 
   @override
-  String get streakPraiseLegend => '신의 경지';
+  String get streakBurstHabitSolid => '이제 완전히 습관!';
+
+  @override
+  String get streakBurstBuilt => '꾸준함이 대단해요!';
+
+  @override
+  String get streakBurstRecord => '엄청난 기록이에요!';
+
+  @override
+  String get streakBurstLegend => '전설은 계속돼요!';
+
+  @override
+  String get streakPraiseWell => '잘했어요!';
+
+  @override
+  String get streakPraiseGreat => '대단해요!';
+
+  @override
+  String get streakPraiseAwesome => '최고예요!';
+
+  @override
+  String get streakPraiseSuper => '정말 최고예요!';
+
+  @override
+  String get streakPraiseAmazing => '정말 대단해요!';
+
+  @override
+  String get streakPraiseExcellent => '정말 훌륭해요!';
+
+  @override
+  String get streakPraiseRare => '보통이 아니에요!';
+
+  @override
+  String get streakPraiseGodTier => '신의 경지예요!';
+
+  @override
+  String get streakPraiseLegend => '이제 전설이에요!';
 
   @override
   String get streakRestart => '1개 만들면 다시 시작';
