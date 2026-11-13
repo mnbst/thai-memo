@@ -16,15 +16,14 @@ class FirebaseAuthService {
   /// プロジェクトのものを使う。
   ///
   /// Android は ID トークンの aud がこの値になり、Firebase Auth はそのプロジェクトの
-  /// クライアントしか受け付けない。dev の値で固定すると prod / tester の
+  /// クライアントしか受け付けない。1つの値で固定すると他の環境の
   /// Android ではサインインできない（iOS は aud が iOS クライアントなので影響しない）。
   static String get _googleServerClientId => switch (AppConfig.env) {
         'prod' =>
           '219961294368-boa977qont6o95dl34vhl3o8v85uv7vh.apps.googleusercontent.com',
-        'tester' =>
-          '763566155520-anliuk00tk1fv4d0nou0o48dhroevlfg.apps.googleusercontent.com',
+        // 手元のデバッグビルド（dev）も tester プロジェクトを使う。
         _ =>
-          '147810088545-4921rt150m9jtjate82nbol5q8hgoj3l.apps.googleusercontent.com',
+          '763566155520-anliuk00tk1fv4d0nou0o48dhroevlfg.apps.googleusercontent.com',
       };
 
   factory FirebaseAuthService() => instance;

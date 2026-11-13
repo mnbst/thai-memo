@@ -6,7 +6,7 @@
 // （時点と関係だけ Resolver に引かせる）。
 //
 //	go run ./cmd/corpus -out /tmp/manifest.jsonl
-//	GOOGLE_CLOUD_PROJECT=thai-memo-dev go run ./cmd/pilot -n 200 -out /tmp/pilot.json
+//	GOOGLE_CLOUD_PROJECT=thai-memo-67139 go run ./cmd/pilot -n 200 -out /tmp/pilot.json
 //
 // 出す数字は 3 つ。
 //

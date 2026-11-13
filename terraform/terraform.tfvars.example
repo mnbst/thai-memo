@@ -1,11 +1,11 @@
 # 公開設定のサンプル（環境ごとの実ファイルは dev.tfvars / tester.tfvars / prod.tfvars）
 # シークレットを含む変数はこのファイルに書かず、secrets/<env>.tfvars に置くこと。
 
-project_id                    = "thai-memo-dev"
+project_id                    = "thai-memo-67139"
 region                        = "asia-northeast1"
 firebase_project_display_name = "Thai Memo Dev"
 
-ci_service_account_email = "github-actions-deployer@thai-memo-dev.iam.gserviceaccount.com"
+ci_service_account_email = "github-actions-deployer@thai-memo-67139.iam.gserviceaccount.com"
 github_repo              = "mnbst/thai-memo"
 
 google_client_id = "000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"

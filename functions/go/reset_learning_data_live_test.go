@@ -14,7 +14,7 @@ import (
 //
 // 既定ではスキップする。実行するとき:
 //
-//	GCLOUD_PROJECT=thai-memo-dev LIVE_FIRESTORE_TEST=1 \
+//	GCLOUD_PROJECT=thai-memo-67139 LIVE_FIRESTORE_TEST=1 \
 //	  go test -run TestResetLearningDataLive -v .
 //
 // callable の電文と ID トークン検証は internal/callable のテストで固定済みなので、

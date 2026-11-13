@@ -20,7 +20,6 @@ cutoff = (datetime.now(JST) - timedelta(days=DAYS)).replace(
 PROJECTS = {
     "prod": "thai-memo-prod",
     "tester": "thai-memo-67139",
-    "dev": "thai-memo-dev",
 }
 
 out = []

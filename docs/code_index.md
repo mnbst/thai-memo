@@ -42,7 +42,7 @@ lib/l10n/app_ja.arb / app_en.arb / app_ko.arb / app_localizations*.dart
 UI文言のARBと gen_l10n 生成物（`flutter gen-l10n` で再生成）。
 
 lib/firebase_options_dev.dart / firebase_options_tester.dart / firebase_options_prod.dart
-環境別Firebase設定（dev/tester/prod）。
+環境別Firebase設定。dev（ENV 未指定の手元ビルド）は tester プロジェクトの手元用アプリ ID を指す。
 
 web/
 Flutter Web / PWA のホストページ。manifest.json、sqflite_sw.js・sqlite3.wasm（sqflite_common_ffi_web の生成物）。

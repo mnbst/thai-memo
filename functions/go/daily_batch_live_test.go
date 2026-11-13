@@ -18,7 +18,7 @@ import (
 // ため、dev の実データを巻き込む。ここでは書き込みを行う各関数を捨て uid に
 // 対して個別に呼ぶ。
 //
-//	GCLOUD_PROJECT=thai-memo-dev LIVE_FIRESTORE_TEST=1 \
+//	GCLOUD_PROJECT=thai-memo-67139 LIVE_FIRESTORE_TEST=1 \
 //	  go test -run TestDailyBatch -v .
 
 // TestDailyBatchResetQuotaWrites は resetQuota の書き込みが merge であること、

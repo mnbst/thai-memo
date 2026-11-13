@@ -6,7 +6,7 @@
 // いくら直しても自然な例文にならない（cmd/pilot の実測で、差し戻しても
 // 直らなかった12本のうち9本がこの型）。
 //
-//	GOOGLE_CLOUD_PROJECT=thai-memo-dev go run ./cmd/vetwords -out /tmp/vet.json
+//	GOOGLE_CLOUD_PROJECT=thai-memo-67139 go run ./cmd/vetwords -out /tmp/vet.json
 //
 // 出力はあくまで提案。scripts/word_denylist.json への反映は人が見て決める。
 package main

@@ -36,7 +36,7 @@ gcloud auth application-default login
 
 ### 4. 変数ファイルを用意
 
-環境ごとに 2 ファイルに分かれている（環境: `dev` / `tester` / `prod`）。
+環境ごとに 2 ファイルに分かれている（環境: `tester` / `prod`。dev は 2026-11 に tester へ統合）。
 
 | ファイル | 内容 | git |
 |---|---|---|
