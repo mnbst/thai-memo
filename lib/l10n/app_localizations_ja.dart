@@ -3392,13 +3392,37 @@ class L10nJa extends L10n {
   String get streakBurstMonth => '1か月';
 
   @override
-  String get streakBurstDone => '続きました！';
+  String get streakBurstDay1 => '最高のスタート！';
 
   @override
-  String get streakBurstStart => '記録スタート！';
+  String get streakBurstDay2 => '今日もできた！';
 
   @override
-  String get streakPraiseFight => 'がんばれ';
+  String get streakBurstDay3 => '3日連続、すごい！';
+
+  @override
+  String get streakBurstBack => 'おかえりなさい！';
+
+  @override
+  String get streakBurstKeep => 'その調子！';
+
+  @override
+  String get streakBurstHabit => 'いい習慣になってきた！';
+
+  @override
+  String get streakBurstHabitSolid => 'もう立派な習慣！';
+
+  @override
+  String get streakBurstBuilt => '積み重ねがすごい！';
+
+  @override
+  String get streakBurstRecord => 'ものすごい記録！';
+
+  @override
+  String get streakBurstLegend => '伝説はまだ続く！';
+
+  @override
+  String get streakPraiseWell => 'よくできたね';
 
   @override
   String get streakPraiseGreat => 'すごいね';
@@ -3407,10 +3431,22 @@ class L10nJa extends L10n {
   String get streakPraiseAwesome => '最高！';
 
   @override
-  String get streakPraiseExcellent => '素晴らしい';
+  String get streakPraiseSuper => '最高すぎる！';
 
   @override
-  String get streakPraiseLegend => '神レベル';
+  String get streakPraiseAmazing => 'とびきりすごい！';
+
+  @override
+  String get streakPraiseExcellent => '本当に素晴らしい！';
+
+  @override
+  String get streakPraiseRare => '並じゃない！';
+
+  @override
+  String get streakPraiseGodTier => '神レベルにすごい！';
+
+  @override
+  String get streakPraiseLegend => 'もう伝説！';
 
   @override
   String get streakRestart => '1本作ると再スタート';

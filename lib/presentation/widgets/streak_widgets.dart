@@ -49,13 +49,43 @@ _Look _lookFor(int streak, ColorScheme cs) {
       AppColors.indigo, AppColors.gold, Color(0xFFF4EFE4));
 }
 
-/// 節目のタイ語のほめ言葉と、その訳（表示言語）。節目が進むほど強くする。
-(String, String) _praiseFor(int streak, L10n l10n) {
-  if (streak <= 1) return ('สู้ๆ 💪', l10n.streakPraiseFight);
-  if (streak < 7) return ('เก่งมาก 👍', l10n.streakPraiseGreat);
-  if (streak < 14) return ('สุดยอด 🎉', l10n.streakPraiseAwesome);
-  if (streak < 30) return ('ยอดเยี่ยม 🏆', l10n.streakPraiseExcellent);
-  return ('เทพมาก 👑', l10n.streakPraiseLegend);
+/// 達成カードの添え書きと、タイ語のほめ言葉・その訳（表示言語）。
+/// 最初の3日は1日ずつ言い分け、その先は節目が進むほど強くする。
+/// [restart] は途切れた後の1日目。
+(String, String, String) _burstText(int streak, bool restart, L10n l10n) {
+  if (streak <= 1) {
+    return (
+      restart ? l10n.streakBurstBack : l10n.streakBurstDay1,
+      'ดีมาก 👏',
+      l10n.streakPraiseWell,
+    );
+  }
+  if (streak == 2) {
+    return (l10n.streakBurstDay2, 'เก่งมาก 👍', l10n.streakPraiseGreat);
+  }
+  if (streak == 3) {
+    return (l10n.streakBurstDay3, 'สุดยอด 🎉', l10n.streakPraiseAwesome);
+  }
+  if (streak < 7) {
+    return (l10n.streakBurstKeep, 'สุดยอดไปเลย ✨', l10n.streakPraiseSuper);
+  }
+  if (streak < 14) {
+    return (l10n.streakBurstHabit, 'เก่งสุดๆ 🔥', l10n.streakPraiseAmazing);
+  }
+  if (streak < 30) {
+    return (
+      l10n.streakBurstHabitSolid,
+      'ยอดเยี่ยมจริงๆ 🏆',
+      l10n.streakPraiseExcellent,
+    );
+  }
+  if (streak < 50) {
+    return (l10n.streakBurstBuilt, 'ไม่ธรรมดาเลย 💫', l10n.streakPraiseRare);
+  }
+  if (streak < 100) {
+    return (l10n.streakBurstRecord, 'เก่งขั้นเทพ 👑', l10n.streakPraiseGodTier);
+  }
+  return (l10n.streakBurstLegend, 'เป็นตำนานแล้ว 💎', l10n.streakPraiseLegend);
 }
 
 /// 紙吹雪と光で派手に祝う節目。7・14・30・50・100日、その先は100日ごと。
@@ -123,7 +153,8 @@ class _StreakChipState extends ConsumerState<StreakChip>
     _bounce.forward(from: 0);
   }
 
-  void _celebrate(int streak) {
+  void _celebrate(StreakSummary summary) {
+    final streak = summary.current;
     if (MediaQuery.of(context).disableAnimations) return;
     final overlay = Overlay.maybeOf(context);
     // 中央のカードは毎日出す。出せないときはチップが弾むだけ。
@@ -136,12 +167,15 @@ class _StreakChipState extends ConsumerState<StreakChip>
     }
     _removeBurst();
     final l10n = L10n.of(context);
-    final (praise, praiseMeaning) = _praiseFor(streak, l10n);
+    // 初めて記録した日が今日でない1日目は、途切れた後の再開。
+    final restart =
+        summary.firstDate != null && summary.firstDate != summary.today;
+    final (done, praise, praiseMeaning) = _burstText(streak, restart, l10n);
     final festive = isStreakMilestone(streak);
     final entry = OverlayEntry(
       builder: (_) => _StreakBurst(
         milestone: _milestoneLabel(streak, l10n),
-        done: streak == 1 ? l10n.streakBurstStart : l10n.streakBurstDone,
+        done: done,
         praise: praise,
         praiseMeaning: praiseMeaning,
         look: _lookFor(streak, Theme.of(context).colorScheme),
@@ -166,7 +200,7 @@ class _StreakChipState extends ConsumerState<StreakChip>
   @override
   Widget build(BuildContext context) {
     ref.listen<int>(streakCelebrationProvider, (_, __) {
-      _celebrate(ref.read(streakProvider).current);
+      _celebrate(ref.read(streakProvider));
     });
     final streak = _held ?? ref.watch(streakProvider).current;
     final l10n = L10n.of(context);

@@ -29,7 +29,7 @@ import 'package:thai_memo/presentation/widgets/streak_widgets.dart';
 
 const _fallbacks = ['NotoSans_regular', 'NotoSansJP'];
 const _out = String.fromEnvironment('OUT', defaultValue: 'build/streak_burst');
-const _days = [3, 7, 14, 30, 100];
+const _days = [1, 2, 3, 5, 7, 14, 30, 50, 100];
 
 void main() {
   for (final days in _days) {

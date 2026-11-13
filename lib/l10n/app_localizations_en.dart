@@ -3555,7 +3555,13 @@ class L10nEn extends L10n {
 
   @override
   String streakBurstDays(int count) {
-    return '$count days';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '1 day',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -3573,25 +3579,61 @@ class L10nEn extends L10n {
   String get streakBurstMonth => '1 month';
 
   @override
-  String get streakBurstDone => 'in a row!';
+  String get streakBurstDay1 => 'A great start!';
 
   @override
-  String get streakBurstStart => 'Streak started!';
+  String get streakBurstDay2 => 'You did it again!';
 
   @override
-  String get streakPraiseFight => 'Keep it up';
+  String get streakBurstDay3 => 'Three days—amazing!';
 
   @override
-  String get streakPraiseGreat => 'Great job';
+  String get streakBurstBack => 'Welcome back!';
+
+  @override
+  String get streakBurstKeep => 'Keep it going!';
+
+  @override
+  String get streakBurstHabit => 'A habit is forming!';
+
+  @override
+  String get streakBurstHabitSolid => 'It\'s a real habit now!';
+
+  @override
+  String get streakBurstBuilt => 'What an achievement!';
+
+  @override
+  String get streakBurstRecord => 'What an incredible record!';
+
+  @override
+  String get streakBurstLegend => 'The legend continues!';
+
+  @override
+  String get streakPraiseWell => 'Well done!';
+
+  @override
+  String get streakPraiseGreat => 'Great job!';
 
   @override
   String get streakPraiseAwesome => 'Awesome!';
 
   @override
-  String get streakPraiseExcellent => 'Excellent';
+  String get streakPraiseSuper => 'Absolutely awesome!';
 
   @override
-  String get streakPraiseLegend => 'Legendary';
+  String get streakPraiseAmazing => 'Amazing!';
+
+  @override
+  String get streakPraiseExcellent => 'Truly excellent!';
+
+  @override
+  String get streakPraiseRare => 'Extraordinary!';
+
+  @override
+  String get streakPraiseGodTier => 'God-tier!';
+
+  @override
+  String get streakPraiseLegend => 'You\'re a legend now!';
 
   @override
   String get streakRestart => 'Make 1 sentence to restart';
