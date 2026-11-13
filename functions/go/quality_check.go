@@ -63,7 +63,7 @@ func (c *qualityChecker) Check(ctx context.Context, in sentence.CheckInput) (sen
 		// 合格も1行残す。除外率（flagged / checked）をログから数えるため。
 		log.Printf("qualityCheck: passed key_word=%s", in.KeyWord)
 		// 合格時は Verdict が無いので確率は持たない（保存は passed だけで足りる）。
-		return sentence.CheckResult{Model: c.judge.Model}, nil
+		return sentence.CheckResult{Model: c.judge.Name()}, nil
 	}
 	v := res.Verdicts[0]
 	log.Printf("qualityCheck: flagged key_word=%s reason=%s thai=%q",
@@ -73,7 +73,7 @@ func (c *qualityChecker) Check(ctx context.Context, in sentence.CheckInput) (sen
 		Notes:  v.RetryNotes(),
 		Reason: v.Reason,
 		Scores: v.Scores,
-		Model:  c.judge.Model,
+		Model:  c.judge.Name(),
 	}, nil
 }
 
@@ -87,7 +87,7 @@ func (c *qualityChecker) writeFlag(
 	if c.db == nil {
 		return
 	}
-	doc := quality.FlagDoc(cand, v, c.judge.Model, time.Now())
+	doc := quality.FlagDoc(cand, v, c.judge.Name(), time.Now())
 	doc["lang"] = string(cand.Lang)
 	if _, _, err := c.db.Collection("sentence_flags").Add(ctx, doc); err != nil {
 		log.Printf("qualityCheck: write flag failed: %v", err)
