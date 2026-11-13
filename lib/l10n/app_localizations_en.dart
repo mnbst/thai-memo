@@ -61,6 +61,9 @@ class L10nEn extends L10n {
   String get learnGoToSummaryQuiz => 'Start summary quiz';
 
   @override
+  String get learnReviewQuizRange => 'Review first';
+
+  @override
   String learnDailySetRemaining(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -301,6 +304,45 @@ class L10nEn extends L10n {
   String get vocabScorePremiumPitch => 'Go Premium to keep tracking progress';
 
   @override
+  String vocabWordsRange(int min, int max) {
+    return '$min–$max words';
+  }
+
+  @override
+  String vocabWordsOver(int min) {
+    return '$min+ words';
+  }
+
+  @override
+  String get vocabCapSheetTitle => 'Free plan limit reached!';
+
+  @override
+  String get vocabCapSheetBody => 'Go Premium to keep growing.';
+
+  @override
+  String get vocabCapSheetHere => 'You are here';
+
+  @override
+  String get vocabCapSheetPremium => 'Premium';
+
+  @override
+  String get vocabCapSheetFeatureCap =>
+      'Grow your vocabulary score past 100 words';
+
+  @override
+  String get vocabCapSheetFeatureTopic => 'Choose your sentence themes';
+
+  @override
+  String get vocabCapSheetFeatureUnlimited =>
+      'Unlimited sentences and pronunciation checks';
+
+  @override
+  String get vocabCapSheetCta => 'Continue with Premium';
+
+  @override
+  String get vocabCapSheetLater => 'Later';
+
+  @override
   String vocabWords(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -321,9 +363,6 @@ class L10nEn extends L10n {
 
   @override
   String get historyFavoritesOnly => 'Favorites only';
-
-  @override
-  String get historyDeleteAll => 'Delete all';
 
   @override
   String get historyFilterAll => 'All';
@@ -364,13 +403,6 @@ class L10nEn extends L10n {
   String get historyEmptyHint => 'Create a new sentence';
 
   @override
-  String get historyDeleteAllConfirm =>
-      'Delete all sentence history? This can\'t be undone.';
-
-  @override
-  String get historyDeletedAll => 'History deleted';
-
-  @override
   String historyDeleteFailed(String error) {
     return 'Couldn\'t delete: $error';
   }
@@ -383,6 +415,35 @@ class L10nEn extends L10n {
 
   @override
   String get historyDeletedOne => 'Sentence deleted';
+
+  @override
+  String get historySelectToDelete => 'Select to delete';
+
+  @override
+  String historySelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get historySelectAll => 'Select all';
+
+  @override
+  String get historyDeselectAll => 'Deselect all';
+
+  @override
+  String historyDeleteSelected(int count) {
+    return 'Delete $count';
+  }
+
+  @override
+  String historyDeleteSelectedConfirm(int count) {
+    return 'Delete $count selected sentences? This can\'t be undone.';
+  }
+
+  @override
+  String historyDeletedCount(int count) {
+    return 'Deleted $count sentences';
+  }
 
   @override
   String historyWordCount(int count) {
@@ -603,7 +664,7 @@ class L10nEn extends L10n {
   String get settingsTopic => 'Topic';
 
   @override
-  String get settingsTopicRandom => 'Chosen for you';
+  String get settingsTopicRandom => 'Random';
 
   @override
   String settingsNextLevelIn(int count) {
@@ -717,6 +778,17 @@ class L10nEn extends L10n {
 
   @override
   String get trialEndedChangeVocabLabel => 'Vocabulary score';
+
+  @override
+  String get trialEndedChangePronunciationLabel => 'Pronunciation checks';
+
+  @override
+  String get trialEndedChangePronunciationPremium => 'Unlimited';
+
+  @override
+  String trialEndedChangePronunciationFree(int free) {
+    return '$free a day';
+  }
 
   @override
   String get trialEndedChangeVocabPremium => 'No cap';
@@ -1104,20 +1176,6 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get paywallFeatureQuotaTitle => 'Grow past a vocab score of 100';
-
-  @override
-  String get paywallFeatureQuotaPremium =>
-      'Unlimited sentences · no vocab score cap';
-
-  @override
-  String get paywallFeatureTopicTitle => 'Start with scenes you care about';
-
-  @override
-  String get paywallFeatureTopicPremium =>
-      'Choose from travel, life in Thailand, BL dramas and more';
-
-  @override
   String get onboarding1Title => 'Can\'t read Thai yet? No problem';
 
   @override
@@ -1323,11 +1381,12 @@ class L10nEn extends L10n {
   String get commonGotIt => 'Got it';
 
   @override
-  String get premiumHint1Title => 'Start with scenes you care about';
+  String get premiumHint1Title =>
+      'Pronunciation and vocabulary, as much as you like';
 
   @override
   String get premiumHint1Body =>
-      'Choose sentence topics like travel, life in Thailand, BL dramas and more';
+      'No limits on sentences, pronunciation checks, or vocabulary score. Pick your themes too';
 
   @override
   String get signInReminderTitle => 'Protect your progress';
@@ -1410,6 +1469,24 @@ class L10nEn extends L10n {
 
   @override
   String get pronunciationRetry => 'Try again';
+
+  @override
+  String pronunciationCapTitle(int count) {
+    return 'Up to $count pronunciation checks a day';
+  }
+
+  @override
+  String pronunciationCapBody(int count) {
+    return 'You get $count more tomorrow.\nPremium has no limit.';
+  }
+
+  @override
+  String get pronunciationCapCta => 'Continue with Premium';
+
+  @override
+  String pronunciationRemainingToday(int count) {
+    return '$count checks left today';
+  }
 
   @override
   String get pronunciationReference => 'Model';
@@ -2658,10 +2735,7 @@ class L10nEn extends L10n {
 
   @override
   String get guideRolePremiumBody =>
-      'Free supports daily study; Premium adds more sentences, topic choice, and a higher vocabulary limit.';
-
-  @override
-  String get guidePlanColItem => 'Item';
+      'The free plan lets you learn every day, and model audio plays as often as you like. Premium removes the limits on sentences, pronunciation checks, and vocabulary score, and lets you pick themes.';
 
   @override
   String get guidePlanColFree => 'Free';
@@ -2673,10 +2747,10 @@ class L10nEn extends L10n {
   String get guidePlanRowSentences => 'Daily sentences';
 
   @override
-  String get guidePlanRowTopic => 'Topics';
+  String get guidePlanRowTopic => 'Sentence themes';
 
   @override
-  String get guidePlanRowVocab => 'Vocabulary cap';
+  String get guidePlanRowVocab => 'Vocabulary score';
 
   @override
   String get guidePlanSentencesUnlimited => 'Unlimited';
@@ -2687,7 +2761,7 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get guidePlanTopicFree => 'Chosen for you';
+  String get guidePlanTopicFree => 'Random';
 
   @override
   String get guidePlanTopicPremium => 'You choose';
@@ -2698,13 +2772,18 @@ class L10nEn extends L10n {
   }
 
   @override
-  String guidePlanVocabPremium(int count) {
-    final intl.NumberFormat countNumberFormat =
-        intl.NumberFormat.decimalPattern(localeName);
-    final String countString = countNumberFormat.format(count);
+  String get guidePlanVocabUnlimited => 'Unlimited';
 
-    return 'About $countString words';
+  @override
+  String get guidePlanRowPronunciation => 'Pronunciation checks a day';
+
+  @override
+  String guidePlanPronunciationFree(int count) {
+    return '$count';
   }
+
+  @override
+  String get guidePlanPronunciationUnlimited => 'Unlimited';
 
   @override
   String get guideHowSentenceTitle => 'Read today\'s sentence';
@@ -3476,7 +3555,13 @@ class L10nEn extends L10n {
 
   @override
   String streakBurstDays(int count) {
-    return '$count days';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '1 day',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -3494,25 +3579,61 @@ class L10nEn extends L10n {
   String get streakBurstMonth => '1 month';
 
   @override
-  String get streakBurstDone => 'in a row!';
+  String get streakBurstDay1 => 'A great start!';
 
   @override
-  String get streakBurstStart => 'Streak started!';
+  String get streakBurstDay2 => 'You did it again!';
 
   @override
-  String get streakPraiseFight => 'Keep it up';
+  String get streakBurstDay3 => 'Three days—amazing!';
 
   @override
-  String get streakPraiseGreat => 'Great job';
+  String get streakBurstBack => 'Welcome back!';
+
+  @override
+  String get streakBurstKeep => 'Keep it going!';
+
+  @override
+  String get streakBurstHabit => 'A habit is forming!';
+
+  @override
+  String get streakBurstHabitSolid => 'It\'s a real habit now!';
+
+  @override
+  String get streakBurstBuilt => 'What an achievement!';
+
+  @override
+  String get streakBurstRecord => 'What an incredible record!';
+
+  @override
+  String get streakBurstLegend => 'The legend continues!';
+
+  @override
+  String get streakPraiseWell => 'Well done!';
+
+  @override
+  String get streakPraiseGreat => 'Great job!';
 
   @override
   String get streakPraiseAwesome => 'Awesome!';
 
   @override
-  String get streakPraiseExcellent => 'Excellent';
+  String get streakPraiseSuper => 'Absolutely awesome!';
 
   @override
-  String get streakPraiseLegend => 'Legendary';
+  String get streakPraiseAmazing => 'Amazing!';
+
+  @override
+  String get streakPraiseExcellent => 'Truly excellent!';
+
+  @override
+  String get streakPraiseRare => 'Extraordinary!';
+
+  @override
+  String get streakPraiseGodTier => 'God-tier!';
+
+  @override
+  String get streakPraiseLegend => 'You\'re a legend now!';
 
   @override
   String get streakRestart => 'Make 1 sentence to restart';
@@ -3663,4 +3784,177 @@ class L10nEn extends L10n {
 
   @override
   String get vocabLearnedAdded => 'Marked as Learned!';
+
+  @override
+  String get tipQuizPromptPron => 'Pronunciation tip';
+
+  @override
+  String get tipQuizPromptTone => 'Tone tip';
+
+  @override
+  String get tipQuizPromptScript => 'Thai script tip';
+
+  @override
+  String get tipQuizPromptWordOrder => 'Word-order tip';
+
+  @override
+  String tipQuizWordOrderQuestion(String meaning) {
+    return 'Which order means “$meaning”?';
+  }
+
+  @override
+  String get tipQuizW7Question => 'Which means “can\'t go,” not “didn\'t go”?';
+
+  @override
+  String get pronLearnMore => 'More about pronunciation';
+
+  @override
+  String get tipQuizP1Question =>
+      '“Chicken” and “egg”: what distinguishes the two words?';
+
+  @override
+  String get tipQuizP1Choices =>
+      'Whether there is a strong puff of air|The tone|The vowel length|The final consonant';
+
+  @override
+  String get tipQuizP2Question => 'What does the h in th indicate?';
+
+  @override
+  String get tipQuizP2Choices =>
+      'A strong puff of air|Put your tongue between your teeth (English th)|Hold the sound longer|It is silent';
+
+  @override
+  String get tipQuizP3Question =>
+      '“Enter” and “rice”: what distinguishes the two words?';
+
+  @override
+  String get tipQuizP3Choices =>
+      'The vowel length|Whether there is a strong puff of air|The tone|The final consonant';
+
+  @override
+  String get tipQuizP4Question =>
+      'When the same vowel appears twice in a reading, as in aa, what do you do?';
+
+  @override
+  String get tipQuizP4Choices =>
+      'Hold it longer|Say it as two separate sounds|Say it more forcefully|Say it at a higher pitch';
+
+  @override
+  String get tipQuizP5Question => 'What kind of sound is the ɛ in “sunlight”?';
+
+  @override
+  String get tipQuizP5Choices =>
+      'An open “e” with the mouth wide|An “e” with rounded lips|A sound close to “ee”|A nasal “e”';
+
+  @override
+  String get tipQuizP6Question => 'What kind of sound is the ʉ in “hand”?';
+
+  @override
+  String get tipQuizP6Choices =>
+      '“oo” said with spread lips|“oo” said with rounded lips|“ee” followed by “oo”|A nasal “oo”';
+
+  @override
+  String get tipQuizP7Question => 'How do you pronounce final k and t?';
+
+  @override
+  String get tipQuizP7Choices =>
+      'Stop without releasing or adding a vowel|Release them clearly with a vowel|Voice them like g and d|Hold them longer';
+
+  @override
+  String get tipQuizP8Question =>
+      '“Plate” and “pale”: what distinguishes the two words?';
+
+  @override
+  String get tipQuizP8Choices =>
+      'Final n and ng|The tone|The vowel length|Whether there is a strong puff of air';
+
+  @override
+  String get tipQuizP9Question =>
+      'How do you pronounce the initial ng in “money”?';
+
+  @override
+  String get tipQuizP9Choices =>
+      'Send it through the nose with your mouth open; do not add n before it|Say n, then g|Say g|Do not pronounce it';
+
+  @override
+  String get tipQuizP11Question =>
+      'How is the polite ending ครับ often heard in conversation?';
+
+  @override
+  String get tipQuizP11Choices =>
+      'kháp (the r drops)|khrâp (the tone falls)|khráap (it is lengthened)|kráp (the puff disappears)';
+
+  @override
+  String get tipQuizT1Question => 'How many tones does Thai have?';
+
+  @override
+  String get tipQuizT1Choices => '5|4|6|9';
+
+  @override
+  String get tipQuizT5Question => 'What determines the tone?';
+
+  @override
+  String get tipQuizT5Choices =>
+      'Consonant class × tone mark × syllable type|The tone mark alone|The vowel alone|Position in the sentence';
+
+  @override
+  String get tipQuizT6Question => 'What about a syllable with no tone mark?';
+
+  @override
+  String get tipQuizT6Choices =>
+      'It still has a tone, determined by the combination|It has no tone|It is always mid tone|It is always low tone';
+
+  @override
+  String get tipQuizT7Question => 'What does ห do in “dog”?';
+
+  @override
+  String get tipQuizT7Choices =>
+      'It is silent and makes the syllable follow high-class tone rules|It is pronounced h|It lengthens the vowel|It becomes the final sound';
+
+  @override
+  String get tipQuizS1Question => 'How is Thai written?';
+
+  @override
+  String get tipQuizS1Choices =>
+      'Left to right, without spaces between every word|Right to left|With spaces between every word|Top to bottom';
+
+  @override
+  String get tipQuizS2Question => 'Where can a vowel sign appear?';
+
+  @override
+  String get tipQuizS2Choices =>
+      'Before, after, above, or below a consonant, or surrounding it|Only after a consonant|Only above a consonant|Only before a consonant';
+
+  @override
+  String get tipQuizS3Question =>
+      'In “child,” เ is written before ด. Which sound comes first?';
+
+  @override
+  String get tipQuizS3Choices => 'd, then e|e, then d';
+
+  @override
+  String get tipQuizS4Question => 'What is the role of อ in อา?';
+
+  @override
+  String get tipQuizS4Choices =>
+      'A silent carrier for the vowel sign|It is pronounced “o”|A final n|A tone mark';
+
+  @override
+  String get tipQuizS5Question => 'What does ะ indicate on a vowel?';
+
+  @override
+  String get tipQuizS5Choices =>
+      'A short vowel|A long vowel|A high tone|It is not read';
+
+  @override
+  String get tipQuizS6Question => 'What sound does final ด make?';
+
+  @override
+  String get tipQuizS6Choices => 't|d|n|It is silent';
+
+  @override
+  String get tipQuizS7Question => 'How many tone marks are there?';
+
+  @override
+  String get tipQuizS7Choices => '4|2|3|5';
 }

@@ -485,6 +485,17 @@ String worstToneOf(List<SyllableScore> scores) {
   return worst;
 }
 
+/// free が1日に採点できる発音練習の回数。お手本の再生は数えない。
+const int freePronunciationDailyLimit = 10;
+
+/// 今日（端末の暦日）採点できた発音練習の回数。採点のたびに invalidate する。
+final pronunciationTodayCountProvider = FutureProvider.autoDispose<int>((ref) {
+  final now = DateTime.now();
+  return DatabaseHelper.instance.countPronunciationAttemptsSince(
+    DateTime(now.year, now.month, now.day),
+  );
+});
+
 /// 発音練習コントローラの識別子。
 ///
 /// 同じ例文でも置き場所ごとに別インスタンスにするため、[scope] を鍵に含める。

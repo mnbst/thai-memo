@@ -22,7 +22,8 @@ const Duration leaderboardCacheTtl = Duration(hours: 6);
 // 全体順位に戻したので鍵を変える。前の鍵のままだと、更新直後の6時間は
 // 端末に残った帯の中の順位がそのまま出てしまう。
 const _rowsCacheKey = 'leaderboard_rows_cache_all';
-const _distributionCacheKey = 'leaderboard_distribution_cache_all';
+// 帯を 3000 まで細かくしたので鍵を変える（前の帯の分け方が6時間残らないように）
+const _distributionCacheKey = 'leaderboard_distribution_cache_v2';
 const _myRankCacheKey = 'leaderboard_my_rank_cache_all';
 
 /// 引っ張って更新の回数。1以上なら、その起動中はキャッシュを使わない。
@@ -171,7 +172,10 @@ const List<({int min, int? max})> vocabBands = [
   (min: 101, max: 300),
   (min: 301, max: 600),
   (min: 601, max: 1000),
-  (min: 1001, max: null),
+  (min: 1001, max: 1500),
+  (min: 1501, max: 2000),
+  (min: 2001, max: 3000),
+  (min: 3001, max: null),
 ];
 
 /// 分布1帯ぶん

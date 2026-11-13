@@ -13,12 +13,21 @@
 // - 05_topics:        テーマ選択（推し活を選択中。英語はタイ暮らし）
 // - 06_ranking:       語彙ランキング（学習者が十分いる状態）
 // - 07_review:        復習タブ（語彙スコアの位置まで送った語の一覧）
+// - 08_word:          例文の詳細を単語の一覧まで送ったところ
+// - 08_word_dialog:   そこで語を押して開く文字の解説（08_word に重ねる切り抜きの素材）
+// - 09_audio:         例文の詳細で「お手本を聞く」を押し、再生バーが出ている状態
+// - 10_notify:        通知時刻の設定（プレミアムの3枠）
+// - 11_streak:        設定タブ（語彙スコアと連続日数のカード）
+//
+// 09 以降はストアには出さず、X の機能紹介（tools/x_post/feature_captions.json）で使う。
 //
 // 例文・クイズの中身は store_mock_data.dart。出力は
 // build/store_shots/raw/<device>/<lang>/<id>.png で、その後
 // store_screenshots.dart で見出しと端末の枠を合成する。
 // =============================================================================
 
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -29,9 +38,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thai_memo/core/config/app_config.dart';
 import 'package:thai_memo/core/constants/generation_constants.dart';
+import 'package:thai_memo/core/notify_slots.dart';
+import 'package:thai_memo/core/spelling_breakdown.dart';
 import 'package:thai_memo/domain/sentence_tone_spans.dart';
 import 'package:thai_memo/core/theme/app_theme.dart';
 import 'package:thai_memo/core/thai_tone_analyzer.dart';
@@ -48,12 +60,15 @@ import 'package:thai_memo/presentation/providers/quiz_provider.dart';
 import 'package:thai_memo/presentation/providers/remaining_quota_provider.dart';
 import 'package:thai_memo/presentation/providers/sentence_provider.dart';
 import 'package:thai_memo/presentation/providers/settings_provider.dart';
+import 'package:thai_memo/presentation/providers/streak_provider.dart';
 import 'package:thai_memo/presentation/providers/tts_provider.dart';
 import 'package:thai_memo/presentation/providers/vocab_progress_provider.dart';
 import 'package:thai_memo/presentation/providers/vocab_stats_provider.dart';
 import 'package:thai_memo/presentation/screens/detail_screen.dart';
+import 'package:thai_memo/presentation/screens/notification_schedule_screen.dart';
 import 'package:thai_memo/presentation/screens/quiz_screen.dart';
 import 'package:thai_memo/presentation/screens/ranking_screen.dart';
+import 'package:thai_memo/presentation/screens/settings_screen.dart';
 import 'package:thai_memo/presentation/screens/today_screen.dart';
 import 'package:thai_memo/presentation/screens/vocab_history_screen.dart';
 import 'package:thai_memo/presentation/widgets/tablet_width_limit.dart';
@@ -61,6 +76,7 @@ import 'package:thai_memo/presentation/widgets/topic_picker.dart';
 import 'package:thai_memo/services/analytics_service.dart';
 import 'package:thai_memo/services/daily_sentence_service.dart';
 import 'package:thai_memo/services/pitch_recorder_service.dart';
+import 'package:thai_memo/services/sentence_audio_cache.dart';
 import 'package:thai_memo/services/tts_service.dart';
 
 import '../helpers/f0_synthesizer.dart';
@@ -98,7 +114,14 @@ const int _myRank = 86;
 
 /// 1枚ぶんの描き方。[act] は描いた後の操作（スクロール・録音など）。
 class _Shot {
-  const _Shot(this.id, this.build, {this.topic, this.topicByLang, this.act});
+  const _Shot(
+    this.id,
+    this.build, {
+    this.topic,
+    this.topicByLang,
+    this.act,
+    this.overrides,
+  });
 
   final String id;
   final Widget Function(ThaiSentence sentence, String lang) build;
@@ -109,6 +132,9 @@ class _Shot {
   /// 言語ごとに [topic] を差し替える。英語圏はタイ暮らしの人が中心なので暮らしを出す。
   final Map<String, String>? topicByLang;
   final Future<void> Function(WidgetTester tester, L10n l10n)? act;
+
+  /// この枚だけに足す差し替え（共通の差し替えと重ならないもの）。
+  final List<Override> Function()? overrides;
 }
 
 final _shots = [
@@ -142,7 +168,61 @@ final _shots = [
     (s, lang) => const _TabShell(tab: 1, child: VocabHistoryScreen()),
     act: _alignReviewList,
   ),
+  _Shot(
+    '08_word',
+    (s, lang) => DetailScreen(sentence: s, source: 'store'),
+    act: _showWords,
+  ),
+  _Shot(
+    '08_word_dialog',
+    (s, lang) => DetailScreen(sentence: s, source: 'store'),
+    act: _openWord,
+  ),
+  _Shot(
+    '09_audio',
+    (s, lang) => DetailScreen(sentence: s, source: 'store'),
+    act: _listen,
+  ),
+  _Shot(
+    '10_notify',
+    (s, lang) => const NotificationScheduleScreen(),
+    overrides: _settingsOverrides,
+  ),
+  _Shot(
+    '11_streak',
+    (s, lang) => const _TabShell(tab: 2, child: SettingsScreen()),
+    overrides: _settingsOverrides,
+  ),
 ];
+
+/// 設定まわりの画面に要る差し替え。通知は3枠、連続日数は12日。
+List<Override> _settingsOverrides() {
+  final now = DateTime.now();
+  return [
+    settingsControllerProvider.overrideWith((ref) => _StubSettingsController()),
+    userDocSnapshotProvider.overrideWith(
+      (ref) => Stream.value(
+        UserDocSnapshot(
+          data: {'premium_trial_expires_at': null},
+          isFromCache: false,
+        ),
+      ),
+    ),
+    lifetimeMigrationOfferedProvider.overrideWith((ref) async => false),
+    myNicknameProvider.overrideWith((ref) => Stream.value('Fah Rattana')),
+    streakProvider.overrideWith(
+      (ref) => _StubStreakController(
+        StreakSummary.compute(
+          [
+            for (var i = 0; i < 12; i++)
+              now.subtract(Duration(days: i)).toIso8601String().substring(0, 10),
+          ],
+          now,
+        ),
+      ),
+    ),
+  ];
+}
 
 void main() {
   setUpAll(() async {
@@ -151,6 +231,13 @@ void main() {
       AppConfig.prefKeyVocabGuideDismissed: true,
       AppConfig.prefKeyFirstSentenceId: '',
     });
+    PackageInfo.setMockInitialValues(
+      appName: 'thai_memo',
+      packageName: 'thai_memo',
+      version: '1.0.0',
+      buildNumber: '1',
+      buildSignature: '',
+    );
     GoogleFonts.config.allowRuntimeFetching = false;
     await _loadFonts();
   });
@@ -160,10 +247,14 @@ void main() {
       for (final shot in _shots) {
         testWidgets('${device.id}/$lang ${shot.id}', (tester) async {
           _setView(tester, device);
-          final sentence = DailySentenceService.toSentence(
+          var sentence = DailySentenceService.toSentence(
             'store-sentence',
             storeSentenceJson(lang),
           );
+          // 1枚目は入門の人に向けた枚なので、有料の人だけの例文に見せない。
+          if (shot.id == '01_today') {
+            sentence = sentence.copyWith(generationTier: 'free');
+          }
           await tester.pumpWidget(_host(lang, device, shot, sentence));
           await tester.pumpAndSettle();
           await shot.act?.call(tester, lookupL10n(Locale(lang)));
@@ -190,13 +281,17 @@ void _setView(WidgetTester tester, _Device device) {
 }
 
 /// 対象の要素がアプリバーのすぐ下に来るまでスクロールする。
-Future<void> _scrollTo(WidgetTester tester, Finder target) async {
+Future<void> _scrollTo(
+  WidgetTester tester,
+  Finder target, {
+  double offset = 230,
+}) async {
   final position =
       tester.state<ScrollableState>(find.byType(Scrollable).first).position;
   final top = tester.getTopLeft(target.first).dy;
   final viewportTop = tester.getTopLeft(find.byType(Scrollable).first).dy;
   position.jumpTo(
-    (position.pixels + top - viewportTop - 230)
+    (position.pixels + top - viewportTop - offset)
         .clamp(0.0, position.maxScrollExtent),
   );
   await tester.pumpAndSettle();
@@ -226,6 +321,33 @@ Future<void> _practice(WidgetTester tester, L10n l10n) async {
   await _scrollTo(tester, find.text(l10n.pronunciationTitle));
 }
 
+/// 「お手本を聞く」を押して再生バーを開く。読み上げは文の途中で止めてある。
+Future<void> _listen(WidgetTester tester, L10n l10n) async {
+  await tester.tap(find.text(l10n.sentenceListenModel).first);
+  await tester.pump(const Duration(milliseconds: 600));
+}
+
+/// 文字の解説を開く語。1音節で、頭子音・母音・末子音・声調記号がそろっている。
+const String _explainedWord = 'ร้าน';
+
+/// 単語の一覧の先頭まで送る。
+Future<void> _showWords(WidgetTester tester, L10n l10n) async {
+  // 切り抜きを行のすぐ下に重ねるので、行はアプリバーの近くまで上げる。
+  await _scrollTo(tester, find.text(_explainedWord).last, offset: 60);
+}
+
+/// 単語の行を押して、文字の解説を開く。
+Future<void> _openWord(WidgetTester tester, L10n l10n) async {
+  // ウィジェットテストの中ではアセットの読み込みが終わらないので、表を先に渡す。
+  SpellingIndex.debugSetLoaded(SpellingIndex.fromJson(
+    json.decode(File('assets/spelling_forms.json').readAsStringSync())
+        as Map<String, dynamic>,
+  ));
+  await _showWords(tester, l10n);
+  await tester.tap(find.text(_explainedWord).last);
+  await tester.pumpAndSettle();
+}
+
 /// 上端に貼り付く区切りで行が半分切れないよう、次の行の頭まで送る。
 /// 送る量は語の行と区切りの高さの差で、文字の大きさによらず 40。
 Future<void> _alignReviewList(WidgetTester tester, L10n l10n) async {
@@ -248,7 +370,11 @@ Widget _host(String lang, _Device device, _Shot shot, ThaiSentence sentence) {
   return ProviderScope(
     overrides: [
       analyticsServiceProvider.overrideWithValue(_NoopAnalytics()),
-      ttsServiceProvider.overrideWithValue(_SilentTtsService()),
+      ttsServiceProvider.overrideWithValue(
+        shot.id == '09_audio'
+            ? _HeldTtsService(sentence.thaiText.length) as TtsService
+            : _SilentTtsService(),
+      ),
       authControllerProvider.overrideWith((ref) => _StubAuthController()),
       effectivePremiumProvider.overrideWithValue(true),
       planStatusProvider
@@ -296,6 +422,7 @@ Widget _host(String lang, _Device device, _Shot shot, ThaiSentence sentence) {
           scope: key.scope,
         ),
       ),
+      ...?shot.overrides?.call(),
     ],
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -452,6 +579,63 @@ class _SilentTtsService extends Fake implements TtsService {
 
   @override
   void dispose() {}
+}
+
+/// 読み上げを文の途中まで進めたところで止める（再生中の画面を撮るため）。
+class _HeldTtsService extends Fake implements TtsService {
+  _HeldTtsService(this.textLength);
+
+  final int textLength;
+
+  @override
+  void Function(int start, int end)? onProgress;
+
+  @override
+  int get session => 0;
+
+  @override
+  Future<bool> speakSentence(
+    SentenceAudioSource source, {
+    int fromChar = 0,
+    bool keepVoice = false,
+    TtsSpeed speed = TtsSpeed.normal,
+    void Function(bool loading)? onLoading,
+    bool Function()? stillWanted,
+  }) {
+    final at = textLength ~/ 2;
+    onProgress?.call(at, at);
+    return Completer<bool>().future;
+  }
+
+  @override
+  Future<void> stop({bool waitForCancel = false}) async {}
+
+  @override
+  Future<void> stopAll() async {}
+
+  @override
+  void dispose() {}
+}
+
+class _StubSettingsController extends StateNotifier<SettingsState>
+    implements SettingsController {
+  _StubSettingsController()
+      : super(SettingsState.initial().copyWith(
+          isFirstLaunch: false,
+          dailyReminderEnabled: true,
+          notifySlots: const [NotifySlot(7), NotifySlot(12), NotifySlot(21)],
+        ));
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
+}
+
+class _StubStreakController extends StateNotifier<StreakSummary>
+    implements StreakController {
+  _StubStreakController(super.state);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
 }
 
 const _rows = [
@@ -739,6 +923,12 @@ Future<void> _loadFonts() async {
         'NotoSans_${entry.value}', ['google_fonts/NotoSans-${entry.key}.ttf']);
   }
   await load('MaterialIcons', _materialIconsCandidates(), firstOnly: true);
+  // 声調の記号（/ や ^）は等幅の指定。読み込まないと豆腐になる。
+  await load(
+    'monospace',
+    ['/System/Library/Fonts/Monaco.ttf', 'google_fonts/NotoSans-Regular.ttf'],
+    firstOnly: true,
+  );
   await load('NotoSansJP', ['tools/x_post/fonts/NotoSansJP-Regular.otf']);
   await load(
       'NotoSansKR', ['tools/store_screenshots/fonts/NotoSansKR-Regular.otf']);

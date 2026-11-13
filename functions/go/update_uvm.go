@@ -66,6 +66,12 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 	log.Printf("updateUvm: uid=%s, quiz_type=%s, results=%d, items=%s",
 		uid, in.QuizType, len(results), formatResults(results))
 
+	// まとめクイズの直近の正誤（スコアの基準に使う）。BatchUpdate の最後で
+	// スコアを再計算するので、その前に書く。失敗しても UVM 更新は続ける。
+	if err := uvm.RecordSummaryResults(ctx, db, uid, in.QuizType, results); err != nil {
+		log.Printf("updateUvm summary_recent update failed: uid=%s, error=%v", uid, err)
+	}
+
 	learned, err := uvm.BatchUpdate(ctx, db, uid, results, freqRank, in.QuizType)
 	if err != nil {
 		log.Printf("updateUvm: uid=%s error=%v", uid, err)
@@ -104,7 +110,7 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 
 // formatResults は回答をログ用に「語:正誤:ヒント段階」で並べる（例: กี่:x:h2）。
 // ヒント段階は uvm doc に残らないので、P が伸びない原因を追うときにここで見る。
-// 例文レビュー後の回答には :r、綴り4択・並び替えには :s<係数> を付ける。
+// 例文レビュー後の回答には :r、綴り4択には :s<係数> を付ける。
 func formatResults(results []uvm.Result) string {
 	items := make([]string, 0, len(results))
 	for _, r := range results {
@@ -150,11 +156,8 @@ func parseResult(raw map[string]any) (uvm.Result, error) {
 
 	// 出題形式ごとの証拠の強さ。送ってこない形式は等倍。
 	scale := 0.0
-	switch format, _ := raw["quiz_format"].(string); format {
-	case quizgen.FormatSpellingChoice:
+	if format, _ := raw["quiz_format"].(string); format == quizgen.FormatSpellingChoice {
 		scale = uvm.SpellingChoiceScale
-	case quizgen.FormatWordOrder:
-		scale = uvm.WordOrderScale
 	}
 
 	return uvm.Result{

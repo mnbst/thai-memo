@@ -9,7 +9,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/config/app_config.dart';
 import '../../core/quota_error.dart';
 import '../../core/spelling_breakdown.dart';
+import '../../core/constants/guide_sections.dart';
+import '../../core/constants/tips_quiz.dart';
+import 'pronunciation_guide_screen.dart';
 import 'thai_script_guide_screen.dart';
+import 'tone_guide_screen.dart';
 import 'word_order_guide_screen.dart';
 import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
@@ -28,6 +32,8 @@ import '../widgets/loading_tip_carousel.dart';
 import '../widgets/notification_coach_dialog.dart';
 import '../widgets/spelling_breakdown_view.dart';
 import '../widgets/topic_picker.dart';
+import '../widgets/vocab_cap_sheet.dart';
+import '../widgets/vocab_level.dart';
 import 'detail_screen.dart';
 import 'paywall_screen.dart';
 
@@ -152,6 +158,9 @@ class QuizScreen extends ConsumerStatefulWidget {
   final String? nextButtonLabel;
   final bool showVocabScoreTransition;
 
+  /// 確認クイズの結果から、まとめクイズの出題範囲を開く。null なら出さない。
+  final VoidCallback? onReviewRange;
+
   const QuizScreen({
     super.key,
     this.showAppBar = true,
@@ -161,6 +170,7 @@ class QuizScreen extends ConsumerStatefulWidget {
     this.onNextSentence,
     this.nextButtonLabel,
     this.showVocabScoreTransition = false,
+    this.onReviewRange,
   });
 
   @override
@@ -176,6 +186,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   late final List<_ConfettiParticle> _confettiParticles;
   late final AnalyticsService _analytics;
   int? _vocabBeforeQuiz;
+
+  /// 上限到達のシートを出すか判定したか（再描画のたびに判定しない）
+  bool _vocabCapSheetChecked = false;
   Stopwatch? _confirmationResponseTimer;
   bool _confirmationQuestionActive = false;
   String _confirmationQuizFormat = QuizQuestion.clozeChoiceFormat;
@@ -569,7 +582,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       // 綴り4択のヒントは中身が出題文と重なる（1段=発音、2段=訳）ので出さない。
       showHints: widget.learningSentence == null &&
           !question.isMeaningChoice &&
-          !question.isSpellingChoice,
+          !question.isSpellingChoice &&
+          !question.isTip,
       onShowSentence: widget.onBackToLearningStart,
       onAnswer: (choiceIndex, hintLevel, reviewedSentence) async {
         _logConfirmationQuestionAnswered(question, choiceIndex);
@@ -587,8 +601,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // 1問の学習クイズは従来どおり結果画面を使う。まとめクイズは、正解時は
     // テンポを優先してインライン表示、不正解時は既存の結果画面で復習する。
     // 並び替えは不正解でも同じ画面に正誤を重ねる（結果画面は4択前提）。
+    // コツ問題も同じ画面に正誤と解説を重ねる（結果画面は例文の語の解説）。
     if (widget.learningSentence != null ||
-        (!state.isCorrect && !question.isWordOrder)) {
+        (!state.isCorrect && !question.isWordOrder && !question.isTip)) {
       return _QuizResultView(
         question: question,
         questionIndex: state.index,
@@ -612,7 +627,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       totalQuestions: state.questions.length,
       selectedIndex: state.selectedIndex,
       isCorrect: state.isCorrect,
-      showHints: widget.learningSentence == null,
+      showHints: widget.learningSentence == null && !question.isTip,
       autoAdvanceCorrect: widget.learningSentence == null,
       onShowSentence: widget.onBackToLearningStart,
       onAnswer: null,
@@ -660,6 +675,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               final selectedIdx = i < state.selectedIndices.length
                   ? state.selectedIndices[i]
                   : -1;
+              final tip = q.isTip ? tipQuizItemById(q.tipId) : null;
+              final l10n = L10n.of(context);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Card(
@@ -679,14 +696,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           ? Theme.of(context).colorScheme.primary
                           : Theme.of(context).colorScheme.error,
                     ),
-                    title: Text(
-                      q.correctAnswer,
-                      style: const TextStyle(fontSize: 18),
-                    ),
+                    // コツ問題は問いを出し、押すと出典のガイドの節を開く。
+                    title: tip != null
+                        ? Text(
+                            tip.question(l10n),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 15),
+                          )
+                        : Text(
+                            q.correctAnswer,
+                            style: const TextStyle(fontSize: 18),
+                          ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (q.correctAnswerMeaning.isNotEmpty)
+                        if (tip != null)
+                          Text(tipPromptLabel(l10n, tip.kind))
+                        else if (q.correctAnswerMeaning.isNotEmpty)
                           Text(
                             q.correctAnswerMeaning,
                             maxLines: 1,
@@ -696,6 +723,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
+                      if (tip != null) {
+                        openTipGuide(context, tip.guide);
+                        return;
+                      }
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -744,6 +775,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           // 主ボタンに引き上げ、「例文に戻る」は控えめな導線に下げた。
           // セットの最後だけはラベルが「まとめクイズへ」に変わる（呼び出し側）。
           if (widget.onBackToLearningStart != null) ...[
+            // まとめクイズの手前だけ。出題範囲を先に見て、復習してから挑める。
+            if (widget.onReviewRange != null) ...[
+              TextButton.icon(
+                key: const ValueKey('quiz_review_range_button'),
+                onPressed: widget.onReviewRange,
+                // 復習タブと同じ本のアイコン。押すとそのタブへ切り替わる。
+                icon: const Icon(Icons.menu_book_outlined, size: 18),
+                label: Text(L10n.of(context).learnReviewQuizRange),
+              ),
+              const SizedBox(height: 4),
+            ],
             Builder(
               builder: (context) {
                 final label = Text(
@@ -870,7 +912,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final isPremium = ref.watch(effectivePremiumProvider);
     return vocabAsync.when(
       data: (vocab) {
-        final cap = isPremium ? (1 << 31) : 100;
+        final cap = isPremium ? (1 << 31) : freeVocabScoreLimit;
         final after = vocab.estimatedVocab.clamp(0, cap);
         final savedBefore = before.clamp(0, cap);
         final displayBefore =
@@ -878,6 +920,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ? after
                 : savedBefore;
         final diff = after - displayBefore;
+        // free がこのクイズで上限に届いた回だけ、全画面のシートで先が premium だと
+        // 見せる（端末につき1度）。下の小さな1行はそのまま残す。
+        if (!isPremium &&
+            !_vocabCapSheetChecked &&
+            displayBefore < freeVocabScoreLimit &&
+            after >= freeVocabScoreLimit) {
+          _vocabCapSheetChecked = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) unawaited(VocabCapSheet.showOnce(context));
+          });
+        }
         return Card(
           color:
               diff > 0 ? Theme.of(context).colorScheme.primaryContainer : null,
@@ -1367,11 +1420,25 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
   bool get _hasResult =>
       widget.selectedIndex != null && widget.isCorrect != null;
 
+  /// コツ問題の出典。コツ問題でなければ null。
+  TipQuizItem? get _tip =>
+      widget.question.isTip ? tipQuizItemById(widget.question.tipId) : null;
+
+  TipChoice? _tipChoice(BuildContext context, int index) {
+    final tip = _tip;
+    if (tip == null) return null;
+    final choices = tip.choices(L10n.of(context));
+    final i = int.tryParse(widget.question.choices[index]) ?? -1;
+    return i >= 0 && i < choices.length ? choices[i] : null;
+  }
+
   bool get _canAutoAdvance =>
       _hasResult &&
       widget.isCorrect == true &&
       // 解説を出す回は自分で読み終えてから進む。1.2秒で流すなら出す意味がない。
       widget.question.explanation.trim().isEmpty &&
+      // コツ問題は解説（ガイドの本文）を読ませるのが目的。
+      !widget.question.isTip &&
       widget.autoAdvanceCorrect &&
       widget.questionIndex + 1 < widget.totalQuestions &&
       widget.onNext != null;
@@ -1500,15 +1567,22 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
         pronunciation,
     ].join(' · ');
     final resultLabel = isCorrect ? l10n.quizCorrect : l10n.quizIncorrect;
+    final tip = _tip;
     // 読ませたいのは「なぜその語なのか」。解説が無い問題だけ、正解語と意味で
-    // 埋め合わせる。
-    final explanation = widget.question.explanation.trim();
-    final body = explanation.isNotEmpty ? explanation : answerDetails;
+    // 埋め合わせる。コツ問題の解説はガイドの本文。
+    final explanation = tip != null
+        ? tip.explanation(l10n).trim()
+        : widget.question.explanation.trim();
+    final body = explanation.isNotEmpty
+        ? explanation
+        : tip != null
+            ? tip.choices(l10n).first.text
+            : answerDetails;
     return Semantics(
       key: const ValueKey('quiz_inline_feedback'),
       container: true,
       liveRegion: true,
-      label: '$resultLabel $answerDetails',
+      label: '$resultLabel $body',
       child: ExcludeSemantics(
         child: Container(
           width: double.infinity,
@@ -1588,6 +1662,8 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
 
   /// 穴埋め例文のカード。ヒントで開く発音と訳文もこの中に積む。
   Widget _buildSentenceCard(BuildContext context) {
+    final tip = _tip;
+    if (tip != null) return _TipQuestionCard(item: tip);
     final theme = Theme.of(context);
     final question = widget.question;
     final hasPronunciation = question.sentencePronunciation.isNotEmpty;
@@ -1884,11 +1960,17 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final question = widget.question;
-    final choicePronunciation = index < question.choicePronunciations.length
-        ? question.choicePronunciations[index]
-        : '';
-    final showChoicePronunciation =
-        widget.showHints && _hintLevel >= 1 && choicePronunciation.isNotEmpty;
+    // コツ問題の choices は出典の選択肢の添字。文言は今の言語で引く。
+    final tipChoice = _tipChoice(context, index);
+    final choicePronunciation = tipChoice != null
+        ? tipChoice.reading
+        : index < question.choicePronunciations.length
+            ? question.choicePronunciations[index]
+            : '';
+    final showChoicePronunciation = choicePronunciation.isNotEmpty &&
+        (tipChoice != null || (widget.showHints && _hintLevel >= 1));
+    // 日本語などの文の選択肢は長いので、横幅いっぱいに折り返す。
+    final isTextChoice = tipChoice != null && tipChoice.reading.isEmpty;
     final isSelected = _hasResult && widget.selectedIndex == index;
     final isCorrectChoice =
         _hasResult && question.choices[index] == question.correctChoice;
@@ -1939,12 +2021,12 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
       ),
       child: Row(
         children: [
-          Flexible(
+          (isTextChoice ? Expanded.new : Flexible.new)(
             child: Text(
-              question.choices[index],
+              tipChoice?.text ?? question.choices[index],
               // タイ文字は太字にすると声調記号と頭のループが潰れるので w500 まで。
               style: TextStyle(
-                fontSize: question.isMeaningChoice ? 18 : 24,
+                fontSize: question.isMeaningChoice || isTextChoice ? 18 : 24,
                 fontWeight: FontWeight.w500,
                 color: foreground,
               ),
@@ -1963,7 +2045,7 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
               ),
             ),
           ],
-          const Spacer(),
+          if (!isTextChoice) const Spacer(),
           if (resultIcon != null) ...[
             const SizedBox(width: 8),
             Icon(
@@ -2026,13 +2108,15 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      question.isMeaningChoice
-                          ? l10n.quizMeaningPrompt
-                          : question.isSpellingChoice
-                              ? l10n.quizSpellingPrompt
-                              : question.isWordOrder
-                                  ? l10n.quizWordOrderPrompt
-                                  : l10n.quizPrompt,
+                      _tip != null
+                          ? tipPromptLabel(l10n, _tip!.kind)
+                          : question.isMeaningChoice
+                              ? l10n.quizMeaningPrompt
+                              : question.isSpellingChoice
+                                  ? l10n.quizSpellingPrompt
+                                  : question.isWordOrder
+                                      ? l10n.quizWordOrderPrompt
+                                      : l10n.quizPrompt,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -2060,6 +2144,7 @@ class _QuizQuestionViewState extends ConsumerState<_QuizQuestionView>
                       const SizedBox(height: 4),
                       _buildFeedbackBox(context),
                       if (question.isWordOrder) const _WordOrderGuideButton(),
+                      if (_tip != null) _TipGuideButton(link: _tip!.guide),
                       // 押すと上の Listener が自動で次へ進むのを止める。
                       if (widget.showHints)
                         _SentenceDetailLink(
@@ -2957,6 +3042,139 @@ class _SentenceDetailLink extends StatelessWidget {
           ),
           icon: const Icon(Icons.menu_book_outlined, size: 20),
           label: Text(L10n.of(context).quizOpenSentenceDetail),
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== コツ問題 ====================
+
+/// 出題の見出し（「発音のコツ」など）。まとめ画面の一覧でも使う。
+String tipPromptLabel(L10n l10n, TipKind kind) => switch (kind) {
+      TipKind.pronunciation => l10n.tipQuizPromptPron,
+      TipKind.tone => l10n.tipQuizPromptTone,
+      TipKind.thaiScript => l10n.tipQuizPromptScript,
+      TipKind.wordOrder => l10n.tipQuizPromptWordOrder,
+    };
+
+/// 出典のガイドを開き、問題の元になった節まで送る。
+void openTipGuide(BuildContext context, TipGuideLink link) {
+  final (name, Widget screen) = switch (link.guide) {
+    TipKind.pronunciation => (
+        PronunciationGuideScreen.routeName,
+        PronunciationGuideScreen(focusSection: link.section),
+      ),
+    TipKind.tone => (
+        ToneGuideScreen.routeName,
+        ToneGuideScreen(focusSection: ToneGuideSection.values[link.section]),
+      ),
+    TipKind.thaiScript => (
+        ThaiScriptGuideScreen.routeName,
+        ThaiScriptGuideScreen(
+            focusSection: ThaiScriptGuideSection.values[link.section]),
+      ),
+    TipKind.wordOrder => (
+        WordOrderGuideScreen.routeName,
+        WordOrderGuideScreen(focusRule: link.section),
+      ),
+  };
+  Navigator.push(
+    context,
+    CupertinoPageRoute(
+      settings: RouteSettings(name: name),
+      builder: (_) => screen,
+    ),
+  );
+}
+
+/// コツ問題の出題カード。タイ語の組（読み付き）を意味4択の出題語と同じ級数で
+/// 並べ、その下に問いを置く。比べる問題は発音ガイドと同じ印で挟む。
+class _TipQuestionCard extends StatelessWidget {
+  final TipQuizItem item;
+
+  const _TipQuestionCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final base = (theme.textTheme.headlineMedium ?? const TextStyle()).copyWith(
+      fontSize: 28,
+      fontWeight: FontWeight.w500,
+      height: 1.6,
+    );
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (item.words.isNotEmpty) ...[
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  for (final (i, w) in item.words.indexed) ...[
+                    if (i > 0)
+                      item.contrast
+                          ? Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              child: Icon(Icons.swap_horiz,
+                                  size: 22, color: theme.colorScheme.outline),
+                            )
+                          : const SizedBox(width: 20),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(w.thai, style: base),
+                        Text(
+                          w.reading,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 14),
+            ],
+            Text(
+              item.question(L10n.of(context)),
+              style: theme.textTheme.titleMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 解答の下に出す、出典のガイドへのボタン。語順ガイドボタンと同じ形。
+class _TipGuideButton extends StatelessWidget {
+  final TipGuideLink link;
+
+  const _TipGuideButton({required this.link});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          key: const ValueKey('quiz_tip_guide_button'),
+          onPressed: () => openTipGuide(context, link),
+          icon: const Icon(Icons.school),
+          label: Text(switch (link.guide) {
+            TipKind.pronunciation => l10n.pronLearnMore,
+            TipKind.tone => l10n.toneLearnMore,
+            TipKind.thaiScript => l10n.thaiScriptLearnMore,
+            TipKind.wordOrder => l10n.wordOrderLearnMore,
+          }),
         ),
       ),
     );

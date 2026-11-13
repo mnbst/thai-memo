@@ -58,6 +58,7 @@ type simUser struct {
 	totalDays      int     // 0 なら 90
 	newP           float64 // >0 なら新語の初期 P をこの値にする（既定 NewWordP）
 	cutoff         float64 // >0 なら EstimateVocab の打ち切り閾値（既定 0.42）
+	dynCutoff      float64 // >0 なら今の推定式（EstimateVocabAt）の基準をこの値にする
 	knownP         float64 // >0 なら knownMaxRank に数える P の下限（既定 0.5）
 
 	// テーマ指定時に「テーマの場面に合う語」を優先する案（themesim_test.go）。
@@ -70,6 +71,9 @@ type simUser struct {
 	// --- 世界側（ユーザーの実際の振る舞い）のつまみ ---
 	worldSlip  float64 // 知っている語を落とす確率（誤タップ・読み違い）
 	worldGuess float64 // >0 ならヒント無しの実際の推測率をこの値にする
+	learnRate  float64 // >0 なら語に触れるたびこの確率で覚える（真値が固定でなくなる）
+	learned    map[int]bool
+	lastAnswer bool // 直前の回答の正誤
 
 	// 並び替え（word_order）をまとめクイズに混ぜる実験。wordOrder が nil なら混ぜない。
 	wordOrder    *wordOrderSim
@@ -93,7 +97,7 @@ func (u *simUser) answers(rank int, guess float64) bool {
 	if u.worldGuess > 0 { // 素の 0.25 を worldGuess に置き換え、ヒントの比は保つ
 		guess *= u.worldGuess / guessRate(0)
 	}
-	if u.rnd.Float64() < pKnow(rank, u.truth) {
+	if u.learned[rank] || u.rnd.Float64() < pKnow(rank, u.truth) {
 		return u.rnd.Float64() >= u.worldSlip // 知っていてもうっかり落とす
 	}
 	return u.rnd.Float64() < guess
@@ -113,8 +117,8 @@ func guessRate(hintLevel int) float64 {
 
 // sync は SyncEstimatedVocab の計算部分を再現する（premium・上限なし）。
 func (u *simUser) sync() {
-	low := max(u.floor, u.est-50)
-	high := u.est + 51
+	low := max(u.floor, u.est-50-VocabWindowRadius)
+	high := u.est + 51 + VocabWindowRadius
 	var entries []RankedP
 	for r, w := range u.words {
 		if r >= low && r < high {
@@ -150,7 +154,15 @@ func (u *simUser) sync() {
 	if u.knownP > 0 {
 		knownP = u.knownP
 	}
-	u.est = max(0, estimateVocab(entries, u.est, u.floor, cutoff, knownP))
+	if u.cutoff > 0 || u.knownP > 0 { // 旧式の閾値を振る比較用
+		u.est = max(0, estimateVocab(entries, u.est, u.floor, cutoff, knownP))
+		return
+	}
+	if u.dynCutoff > 0 {
+		u.est = max(0, EstimateVocabAt(entries, u.est, u.floor, u.dynCutoff))
+		return
+	}
+	u.est = max(0, EstimateVocab(entries, u.est, u.floor))
 }
 
 // generate は例文生成 1 回（key_word 選定 → 露出登録 → 確認クイズ → sync）。
@@ -256,6 +268,12 @@ func (u *simUser) touch(rank int) {
 		u.lastSeen = map[int]float64{}
 	}
 	u.lastSeen[rank] = float64(u.day)
+	if u.learnRate > 0 && u.rnd.Float64() < u.learnRate {
+		if u.learned == nil {
+			u.learned = map[int]bool{}
+		}
+		u.learned[rank] = true
+	}
 }
 
 // answer は 1 問ぶんの P 更新。learning は正解時 α ×0.1。
@@ -276,6 +294,7 @@ func (u *simUser) answer(rank int, learning bool) {
 	}
 	correct := u.answers(rank, guessRate(hint))
 	res.IsCorrect = correct
+	u.lastAnswer = correct
 
 	mult := HintMultiplier(hint)
 	if learning && correct {

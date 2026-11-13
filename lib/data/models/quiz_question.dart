@@ -137,6 +137,10 @@ class QuizQuestion {
   static const spellingChoiceFormat = 'spelling_choice';
   static const wordOrderFormat = 'word_order';
 
+  /// コツ問題。まとめクイズが 5問に満たないとき、足りない分を
+  /// ガイドの内容から端末で作る。例文・語彙スコアには結び付かない。
+  static const tipFormat = 'tip';
+
   final String sentenceId;
   final String thaiText;
   final String blankText;
@@ -172,6 +176,12 @@ class QuizQuestion {
 
   /// タイルの読みを最初から見せるか（入門用の対象者。サーバーが決める）。
   final bool wordOrderShowPronunciation;
+
+  /// コツ問題の出典（TipQuizItem.id）。文言は表示時に今の言語で引く。
+  /// choices には出典の選択肢の添字（文字列）を混ぜた順で入れ、正解は '0'。
+  final String tipId;
+
+  bool get isTip => quizFormat == tipFormat;
 
   bool get isMeaningChoice => quizFormat == meaningChoiceFormat;
 
@@ -233,6 +243,7 @@ class QuizQuestion {
     this.wordOrderPrefix = '',
     this.wordOrderSuffix = '',
     this.wordOrderShowPronunciation = false,
+    this.tipId = '',
   });
 
   factory QuizQuestion.fromJson(Map<String, dynamic> json) {
@@ -296,6 +307,7 @@ class QuizQuestion {
       wordOrderPrefix: json['word_order_prefix']?.toString() ?? '',
       wordOrderSuffix: json['word_order_suffix']?.toString() ?? '',
       wordOrderShowPronunciation: json['word_order_show_pronunciation'] == true,
+      tipId: json['tip_id']?.toString() ?? '',
     );
   }
 
@@ -348,5 +360,6 @@ class QuizQuestion {
         if (wordOrderPrefix.isNotEmpty) 'word_order_prefix': wordOrderPrefix,
         if (wordOrderSuffix.isNotEmpty) 'word_order_suffix': wordOrderSuffix,
         if (wordOrderShowPronunciation) 'word_order_show_pronunciation': true,
+        if (tipId.isNotEmpty) 'tip_id': tipId,
       };
 }

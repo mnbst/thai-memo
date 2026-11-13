@@ -14,24 +14,51 @@ const _flame = Color(0xFFB9852E);
 const _flameDeep = Color(0xFFA06A1E);
 
 class _Look {
-  const _Look(this.icon, this.iconColor, this.bg, this.border, this.text);
+  const _Look(
+    this.icon,
+    this.iconColor,
+    this.bg,
+    this.border,
+    this.text, {
+    this.scale = 1,
+    this.ring = false,
+  });
   final IconData icon;
   final Color iconColor;
   final Color bg;
   final Color border;
   final Color text;
+
+  /// アイコンの大きさの倍率（2日目の小さい炎）。
+  final double scale;
+
+  /// 外側にもう1本、金の輪を足す（100日〜。達成カードと設定のカードだけ）。
+  final bool ring;
 }
 
-/// 炎は1系統のまま、節目ごとにチップが温まる。
+/// 最初の3日は芽から炎へ育ち、その先は節目ごとにチップが温まる。
 ///   0日      : 白抜きの炎（灰）
-///   1〜6日   : 炎（金）
+///   1日      : 芽（金）
+///   2日      : 小さい炎（金）
+///   3〜6日   : 炎（金）
 ///   7〜13日  : ＋淡い金の地
 ///   14〜29日 : ＋金の縁
-///   30日〜   : 深藍の地に金の炎（例文カードと同じ組み合わせ）
+///   30〜49日 : 深藍の地に金の炎（例文カードと同じ組み合わせ）
+///   50〜99日 : 深藍の地に金の王冠
+///   100日〜  : 深藍の地に金のダイヤ＋外側の金の輪
 _Look _lookFor(int streak, ColorScheme cs) {
   if (streak == 0) {
     return _Look(Icons.local_fire_department_outlined, cs.onSurfaceVariant,
         cs.surface, cs.outlineVariant, cs.onSurfaceVariant);
+  }
+  if (streak == 1) {
+    return _Look(
+        Icons.eco, _flame, cs.surface, cs.outlineVariant, cs.onSurface);
+  }
+  if (streak == 2) {
+    return _Look(Icons.local_fire_department, _flame, cs.surface,
+        cs.outlineVariant, cs.onSurface,
+        scale: 0.78);
   }
   if (streak < 7) {
     return _Look(Icons.local_fire_department, _flame, cs.surface,
@@ -45,17 +72,57 @@ _Look _lookFor(int streak, ColorScheme cs) {
     return _Look(Icons.local_fire_department, _flameDeep, cs.tertiaryContainer,
         AppColors.gold, cs.onTertiaryContainer);
   }
-  return const _Look(Icons.local_fire_department, AppColors.gold,
-      AppColors.indigo, AppColors.gold, Color(0xFFF4EFE4));
+  const text = Color(0xFFF4EFE4);
+  if (streak < 50) {
+    return const _Look(Icons.local_fire_department, AppColors.gold,
+        AppColors.indigo, AppColors.gold, text);
+  }
+  if (streak < 100) {
+    return const _Look(Icons.workspace_premium, AppColors.gold,
+        AppColors.indigo, AppColors.gold, text);
+  }
+  return const _Look(
+      Icons.diamond, AppColors.gold, AppColors.indigo, AppColors.gold, text,
+      scale: 0.9, ring: true);
 }
 
-/// 節目のタイ語のほめ言葉と、その訳（表示言語）。節目が進むほど強くする。
-(String, String) _praiseFor(int streak, L10n l10n) {
-  if (streak <= 1) return ('สู้ๆ 💪', l10n.streakPraiseFight);
-  if (streak < 7) return ('เก่งมาก 👍', l10n.streakPraiseGreat);
-  if (streak < 14) return ('สุดยอด 🎉', l10n.streakPraiseAwesome);
-  if (streak < 30) return ('ยอดเยี่ยม 🏆', l10n.streakPraiseExcellent);
-  return ('เทพมาก 👑', l10n.streakPraiseLegend);
+/// 達成カードの添え書きと、タイ語のほめ言葉・その訳（表示言語）。
+/// 最初の3日は1日ずつ言い分け、その先は節目が進むほど強くする。
+/// [restart] は途切れた後の1日目。
+(String, String, String) _burstText(int streak, bool restart, L10n l10n) {
+  if (streak <= 1) {
+    return (
+      restart ? l10n.streakBurstBack : l10n.streakBurstDay1,
+      'ดีมาก 👏',
+      l10n.streakPraiseWell,
+    );
+  }
+  if (streak == 2) {
+    return (l10n.streakBurstDay2, 'เก่งมาก 👍', l10n.streakPraiseGreat);
+  }
+  if (streak == 3) {
+    return (l10n.streakBurstDay3, 'สุดยอด 🎉', l10n.streakPraiseAwesome);
+  }
+  if (streak < 7) {
+    return (l10n.streakBurstKeep, 'สุดยอดไปเลย ✨', l10n.streakPraiseSuper);
+  }
+  if (streak < 14) {
+    return (l10n.streakBurstHabit, 'เก่งสุดๆ 🔥', l10n.streakPraiseAmazing);
+  }
+  if (streak < 30) {
+    return (
+      l10n.streakBurstHabitSolid,
+      'ยอดเยี่ยมจริงๆ 🏆',
+      l10n.streakPraiseExcellent,
+    );
+  }
+  if (streak < 50) {
+    return (l10n.streakBurstBuilt, 'ไม่ธรรมดาเลย 💫', l10n.streakPraiseRare);
+  }
+  if (streak < 100) {
+    return (l10n.streakBurstRecord, 'เก่งขั้นเทพ 👑', l10n.streakPraiseGodTier);
+  }
+  return (l10n.streakBurstLegend, 'เป็นตำนานแล้ว 💎', l10n.streakPraiseLegend);
 }
 
 /// 紙吹雪と光で派手に祝う節目。7・14・30・50・100日、その先は100日ごと。
@@ -123,7 +190,8 @@ class _StreakChipState extends ConsumerState<StreakChip>
     _bounce.forward(from: 0);
   }
 
-  void _celebrate(int streak) {
+  void _celebrate(StreakSummary summary) {
+    final streak = summary.current;
     if (MediaQuery.of(context).disableAnimations) return;
     final overlay = Overlay.maybeOf(context);
     // 中央のカードは毎日出す。出せないときはチップが弾むだけ。
@@ -136,12 +204,15 @@ class _StreakChipState extends ConsumerState<StreakChip>
     }
     _removeBurst();
     final l10n = L10n.of(context);
-    final (praise, praiseMeaning) = _praiseFor(streak, l10n);
+    // 初めて記録した日が今日でない1日目は、途切れた後の再開。
+    final restart =
+        summary.firstDate != null && summary.firstDate != summary.today;
+    final (done, praise, praiseMeaning) = _burstText(streak, restart, l10n);
     final festive = isStreakMilestone(streak);
     final entry = OverlayEntry(
       builder: (_) => _StreakBurst(
         milestone: _milestoneLabel(streak, l10n),
-        done: streak == 1 ? l10n.streakBurstStart : l10n.streakBurstDone,
+        done: done,
         praise: praise,
         praiseMeaning: praiseMeaning,
         look: _lookFor(streak, Theme.of(context).colorScheme),
@@ -166,7 +237,7 @@ class _StreakChipState extends ConsumerState<StreakChip>
   @override
   Widget build(BuildContext context) {
     ref.listen<int>(streakCelebrationProvider, (_, __) {
-      _celebrate(ref.read(streakProvider).current);
+      _celebrate(ref.read(streakProvider));
     });
     final streak = _held ?? ref.watch(streakProvider).current;
     final l10n = L10n.of(context);
@@ -198,7 +269,9 @@ class _StreakChipState extends ConsumerState<StreakChip>
                 child: child,
               ),
               child: Icon(look.icon,
-                  key: ValueKey(look.icon), size: 16, color: look.iconColor),
+                  key: ValueKey((look.icon, look.scale)),
+                  size: 16 * look.scale,
+                  color: look.iconColor),
             ),
             const SizedBox(width: 5),
             // 日数は下からせり上がって入れ替える。
@@ -363,14 +436,19 @@ class _StreakBurstState extends State<_StreakBurst>
                             shape: BoxShape.circle,
                             border: Border.all(color: look.border, width: 2),
                             boxShadow: [
+                              if (look.ring) ...[
+                                const BoxShadow(
+                                    color: AppColors.gold, spreadRadius: 7),
+                                BoxShadow(color: cs.surface, spreadRadius: 4.5),
+                              ],
                               BoxShadow(
                                 color: look.iconColor.withValues(alpha: 0.35),
                                 blurRadius: 24,
                               ),
                             ],
                           ),
-                          child:
-                              Icon(look.icon, size: 52, color: look.iconColor),
+                          child: Icon(look.icon,
+                              size: 52 * look.scale, color: look.iconColor),
                         ),
                         const SizedBox(height: 8),
                         Material(
@@ -590,8 +668,16 @@ class StreakCard extends ConsumerWidget {
                     color: look.bg,
                     shape: BoxShape.circle,
                     border: Border.all(color: look.border, width: 1.2),
+                    boxShadow: [
+                      if (look.ring) ...[
+                        const BoxShadow(
+                            color: AppColors.gold, spreadRadius: 3.5),
+                        BoxShadow(color: cs.surface, spreadRadius: 2.2),
+                      ],
+                    ],
                   ),
-                  child: Icon(look.icon, size: 18, color: look.iconColor),
+                  child: Icon(look.icon,
+                      size: 18 * look.scale, color: look.iconColor),
                 ),
                 const SizedBox(width: 8),
                 Expanded(

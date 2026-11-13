@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/word_order_rules.dart';
 import '../../l10n/app_localizations.dart';
+import '../widgets/guide_section_anchor.dart';
 import '../widgets/swipe_back.dart';
 import '../widgets/word_order_example.dart';
 
@@ -10,7 +11,10 @@ import '../widgets/word_order_example.dart';
 class WordOrderGuideScreen extends StatelessWidget {
   static const routeName = 'word_order_guide';
 
-  const WordOrderGuideScreen({super.key});
+  const WordOrderGuideScreen({super.key, this.focusRule});
+
+  /// 開いた直後に送る項目（wordOrderRules の添字）。
+  final int? focusRule;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +33,10 @@ class WordOrderGuideScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               for (final (i, rule) in wordOrderRules.indexed) ...[
-                _RuleCard(number: i + 1, rule: rule),
+                GuideSectionAnchor(
+                  active: focusRule == i,
+                  child: _RuleCard(number: i + 1, rule: rule),
+                ),
                 const SizedBox(height: 12),
               ],
               const SizedBox(height: 12),

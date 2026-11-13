@@ -14,10 +14,9 @@ import (
 //
 // ๆ（繰り返し記号）の有無は同一視する。LLM は「คนๆ」を語として返すことも
 // 「คน」と返すこともあり、どちらでも同じ語として扱いたい。
+// ๆ の前の空白（単語リストの「เร็ว ๆ」と分解の「เร็วๆ」）も同一視する。
 func matchKeyWord(wordText, keyWord string) bool {
-	w := strings.TrimSpace(wordText)
-	k := strings.TrimSpace(keyWord)
-	return w == k || w == k+"ๆ" || w+"ๆ" == k
+	return MatchWord(wordText, strings.TrimSpace(keyWord))
 }
 
 // KeyWordPronunciation は key_word の発音を word_breakdown から引く。

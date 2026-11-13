@@ -41,6 +41,7 @@ import '../../data/datasources/backend_api_service.dart'
 import '../../core/l10n/l10n_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/datasources/local/database_helper.dart';
+import '../../core/constants/tips_quiz.dart';
 import '../../data/models/quiz_question.dart';
 import '../../data/models/quiz_result.dart';
 import '../../data/models/thai_sentence.dart';
@@ -48,6 +49,7 @@ import '../../services/analytics_service.dart';
 import '../../services/learning_progress_store.dart';
 import 'daily_set_provider.dart';
 import 'analytics_provider.dart';
+import 'sentence_provider.dart' show learningSetSize;
 import 'settings_provider.dart';
 
 /// タイ文字のUnicode範囲にマッチする正規表現（選択肢バリデーション用）
@@ -267,11 +269,16 @@ class QuizController extends StateNotifier<QuizState> {
     void Function(Map<String, dynamic> quiz)? onSummaryQuizSaved,
     void Function(String sentenceId, Map<String, dynamic> quiz)?
         onConfirmationQuizAnswered,
+    this.summaryQuizSize = learningSetSize,
   })  : _db = databaseHelper ?? DatabaseHelper.instance,
         _progress = progressStore,
         _onSummaryQuizSaved = onSummaryQuizSaved,
         _onConfirmationQuizAnswered = onConfirmationQuizAnswered,
         super(const QuizInitial());
+
+  /// まとめクイズの本来の問題数。サーバーの問題がこれに満たなければコツ問題を
+  /// 1問足す。0 なら足さない（サーバーの問題数をそのまま見るテスト用）。
+  final int summaryQuizSize;
 
   /// まとめクイズを保存したあとに呼ぶ。別端末へ途中経過を送るため。
   final void Function(Map<String, dynamic> quiz)? _onSummaryQuizSaved;
@@ -454,11 +461,18 @@ class QuizController extends StateNotifier<QuizState> {
 
     try {
       state = const QuizGenerating();
-      final questions = await _apiService.generateQuiz();
-      if (questions.isEmpty || _hasInvalidQuizChoices(questions)) {
+      final generated = await _apiService.generateQuiz();
+      if (generated.isEmpty || _hasInvalidQuizChoices(generated)) {
         state = QuizError(_l10n().errQuizGenerationFailed);
         return;
       }
+      // 5問に届かない（多くは入門者。サーバーがセットの本数に合わせて
+      // 2〜4問にしている）ときは、ガイドのコツ問題を1問だけ足す。
+      // 足りない分を全部埋めると、入門者のサイクルを短くした意図が崩れる。
+      // 端末だけで作り、スコアには入れない。
+      final questions = generated.length < summaryQuizSize
+          ? await TipQuizPicker.fill(generated, generated.length + 1)
+          : generated;
 
       _enterAnswering(questions);
     } on BackendApiNoUserSentencesException {
@@ -524,6 +538,16 @@ class QuizController extends StateNotifier<QuizState> {
   /// Gemini APIが稀に不正な選択肢を返すことがあるため、この検証が必要。
   bool _hasInvalidQuizChoices(List<QuizQuestion> questions) {
     return questions.any((question) {
+      // コツ問題の choices は出典の選択肢の添字。出典が今の版にあり、
+      // 添字がそろっているかだけを見る。
+      if (question.isTip) {
+        final item = tipQuizItemById(question.tipId);
+        if (item == null) return true;
+        final count = TipQuizPicker.choiceCount(item);
+        final expected = List.generate(count, (i) => '$i').toSet();
+        return question.choices.length != count ||
+            !question.choices.toSet().containsAll(expected);
+      }
       // 意味当ては同じ例文の語から選択肢を作るので、語の少ない例文では
       // 4件に満たない。択を減らしてでも意味当てで出す（穴埋めにしない）。
       final minChoices = question.isMeaningChoice ? 2 : 4;
@@ -672,6 +696,33 @@ class QuizController extends StateNotifier<QuizState> {
         );
       }
 
+      // コツ問題は例文・語彙に結び付かないので、正誤を見せるだけにする。
+      // 回答履歴（DB）にも語彙スコア（UVM）にも入れない。
+      if (question.isTip) {
+        final resultState = QuizShowResult(
+          s.questions,
+          s.index,
+          newAnswers,
+          choiceIndex,
+          isCorrect,
+          newSelectedIndices,
+          newHintLevels,
+          newSentenceReviewFlags,
+        );
+        state = resultState;
+        unawaited(_enqueueQuizStateSave(_QuizSlot.summary, resultState));
+        unawaited(
+          _analytics.logQuizAnswer(
+            correct: isCorrect,
+            category: 'summary',
+            questionIndex: s.index + 1,
+            quizFormat: question.quizFormat,
+            responseMs: responseTimer?.elapsedMilliseconds,
+          ),
+        );
+        return;
+      }
+
       // ローカルDBに回答結果を保存
       final result = QuizResult(
         id: '${question.sentenceId}_${DateTime.now().millisecondsSinceEpoch}',
@@ -802,16 +853,25 @@ class QuizController extends StateNotifier<QuizState> {
     final totalCorrect = s.answers.where((a) => a).length;
     final today = _todayString();
 
+    // 累積の正答率にはコツ問題を入れない（例文のクイズの成績だけを残す）。
+    var statsCorrect = 0;
+    var statsTotal = 0;
+    for (var i = 0; i < s.questions.length; i++) {
+      if (s.questions[i].isTip) continue;
+      statsTotal++;
+      if (i < s.answers.length && s.answers[i]) statsCorrect++;
+    }
+
     // quiz_statsテーブルの累積統計を更新（連続日数の計算含む）
     await _db.updateQuizStats(
-      sessionCorrect: totalCorrect,
-      sessionTotal: s.questions.length,
+      sessionCorrect: statsCorrect,
+      sessionTotal: statsTotal,
       quizDate: today,
     );
     // ほかの端末にも伝える。表示は上の端末側の値で済むので待たない。
     unawaited(QuizStatsSync.instance.recordSession(QuizSessionDelta(
-      correct: totalCorrect,
-      total: s.questions.length,
+      correct: statsCorrect,
+      total: statsTotal,
       date: today,
     )));
 
@@ -900,6 +960,16 @@ class QuizController extends StateNotifier<QuizState> {
   /// 保存完了を待つ。学習データの掃除もこの待ち行列の後で行う。
   Future<void> waitForSavedQuizWrites() => _waitForQuizStateWrites();
 
+  static bool _containsTip(QuizState quizState) {
+    final questions = switch (quizState) {
+      QuizAnswering s => s.questions,
+      QuizShowResult s => s.questions,
+      QuizSummary s => s.questions,
+      _ => const <QuizQuestion>[],
+    };
+    return questions.any((q) => q.isTip);
+  }
+
   /// 現在のクイズ状態を学習レコードへ保存する。
   Future<void> _saveQuizState(
     _QuizSlot slot,
@@ -950,7 +1020,11 @@ class QuizController extends StateNotifier<QuizState> {
         _QuizSlot.summary => current.copyWith(summaryQuiz: snapshot),
       },
     );
-    if (slot == _QuizSlot.summary) _onSummaryQuizSaved?.call(snapshot);
+    // コツ問題を含むクイズは別端末へ送らない。旧版のアプリが受け取ると、
+    // コツ問題を穴埋めとして描いてしまう。
+    if (slot == _QuizSlot.summary && !_containsTip(quizState)) {
+      _onSummaryQuizSaved?.call(snapshot);
+    }
     if (slot == _QuizSlot.confirmation &&
         sentenceId != null &&
         snapshot['phase'] == 'summary') {

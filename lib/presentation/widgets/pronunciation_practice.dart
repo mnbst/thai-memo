@@ -29,7 +29,10 @@ import '../../core/thai_tone_analyzer.dart';
 import '../../data/models/word_breakdown.dart';
 import '../../domain/sentence_tone_spans.dart';
 import '../../l10n/app_localizations.dart';
+import '../../core/theme/app_colors.dart';
 import '../providers/pronunciation_provider.dart';
+import '../providers/remaining_quota_provider.dart';
+import '../screens/paywall_screen.dart';
 import '../providers/tts_provider.dart';
 
 /// 判定の3段階に対応する色。
@@ -169,6 +172,14 @@ class _PracticeBody extends ConsumerWidget {
     final result =
         state.phase == PronunciationPhase.result ? state.result : null;
 
+    // free の1日の採点回数。数え終わるまでは制限しない（押せない一瞬を作らない）。
+    final isPremium = ref.watch(effectivePremiumProvider);
+    final usedToday = ref.watch(pronunciationTodayCountProvider).valueOrNull;
+    final remaining = isPremium || usedToday == null
+        ? null
+        : (freePronunciationDailyLimit - usedToday).clamp(0, 1 << 30);
+    final capped = remaining == 0;
+
     // 結果を畳むのは「もう一度」を押したときだけにする。押しっぱなしの録音と
     // 同じボタンに載せると、押した瞬間に結果が畳まれてボタンごと動き、
     // 指を離していないのに離した扱いになる。畳む操作と話す操作は分ける。
@@ -197,6 +208,7 @@ class _PracticeBody extends ConsumerWidget {
             syllableLabels: spans.syllableLabels,
             expectedWords: spans.words.map((w) => w.wordText).toList(),
           );
+          ref.invalidate(pronunciationTodayCountProvider);
         },
         l10n: l10n,
       );
@@ -233,8 +245,87 @@ class _PracticeBody extends ConsumerWidget {
                   label: l10n.pronunciationRetry,
                   onTap: collapseResult,
                 ),
+              // 録音中に上限へ変わることはない（数えるのは採点のあと）。
+              _ when capped => _PronunciationCapCard(l10n: l10n),
               _ => speakButton(),
             },
+          ),
+          if (remaining != null &&
+              remaining > 0 &&
+              remaining <= _remainingNoticeFrom &&
+              state.phase != PronunciationPhase.result) ...[
+            const SizedBox(height: 6),
+            Center(
+              child: Text(
+                l10n.pronunciationRemainingToday(remaining),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// free の残り回数を録音ボタンの下に出し始める残数。最初から出すと練習の邪魔になる。
+const int _remainingNoticeFrom = 3;
+
+/// free が今日の採点回数を使い切ったとき、録音ボタンの位置に出すカード。
+/// お手本の再生は上限の外なので、ここでは録音だけを止める。
+class _PronunciationCapCard extends StatelessWidget {
+  const _PronunciationCapCard({required this.l10n});
+
+  final L10n l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.gold.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.mic_off_outlined, color: AppColors.gold, size: 28),
+          const SizedBox(height: 6),
+          Text(
+            l10n.pronunciationCapTitle(freePronunciationDailyLimit),
+            textAlign: TextAlign.center,
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l10n.pronunciationCapBody(freePronunciationDailyLimit),
+            textAlign: TextAlign.center,
+            style:
+                textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: () =>
+                  PaywallScreen.show(context, source: 'pronunciation_cap'),
+              child: Text(
+                l10n.pronunciationCapCta,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ],
       ),

@@ -57,7 +57,7 @@ func TestExposureDoesNotMoveVocab(t *testing.T) {
 func TestVocabHoldsAfterQuiz(t *testing.T) {
 	const tested = 250
 	pByRank := map[int]float64{}
-	for _, off := range []int{20, 25, 30, 35, 40} {
+	for off := 20; off <= 40; off += 2 {
 		pByRank[tested+off] = 0.55 // まとめクイズ全問正解
 	}
 
@@ -65,8 +65,9 @@ func TestVocabHoldsAfterQuiz(t *testing.T) {
 	for i := 0; i < 30; i++ { // 目的地まで歩く
 		est = syncOnce(pByRank, est, tested)
 	}
-	if est != tested+40 {
-		t.Fatalf("到達点が違う: %d（期待 %d）", est, tested+40)
+	// 窓に P=0.55 の語が 7 語（278〜290）入る 288 まで進む。
+	if est != tested+38 {
+		t.Fatalf("到達点が違う: %d（期待 %d）", est, tested+38)
 	}
 
 	peak := est

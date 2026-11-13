@@ -34,6 +34,10 @@
   "@learnGoToSummaryQuiz": {
     "description": "セットの最後の確認クイズの後、まとめクイズへ進むボタン"
   },
+  "learnReviewQuizRange": "先に復習する",
+  "@learnReviewQuizRange": {
+    "description": "まとめクイズの前に、復習タブへ切り替えて過去の例文の語を見直すリンク"
+  },
   "learnDailySetRemaining": "あと{count}本でまとめクイズ",
   "@learnDailySetRemaining": {
     "description": "セットの残り本数。セット（最大5本）を学び終えるとまとめクイズへ進む",
@@ -166,6 +170,34 @@
   "vocabScoreUp": "語彙スコアアップ！",
   "vocabScoreCapped": "語彙スコアが上限に達しました",
   "vocabScorePremiumPitch": "Premiumで続きの成長を記録しよう",
+  "vocabWordsRange": "{min}〜{max}語",
+  "@vocabWordsRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabWordsOver": "{min}語〜",
+  "@vocabWordsOver": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapSheetTitle": "無料プランの上限に到達！",
+  "vocabCapSheetBody": "プレミアムなら、この先も伸ばせます。",
+  "vocabCapSheetHere": "いまここ",
+  "vocabCapSheetPremium": "プレミアム",
+  "vocabCapSheetFeatureCap": "100語を超えて語彙スコアが伸びる",
+  "vocabCapSheetFeatureTopic": "例文のテーマを自分で選べる",
+  "vocabCapSheetFeatureUnlimited": "例文は無制限、発音採点も何度でも",
+  "vocabCapSheetCta": "プレミアムで続ける",
+  "vocabCapSheetLater": "あとで",
   "vocabWords": "{count}語",
   "@vocabWords": {
     "description": "語彙スコアの語数表示",
@@ -187,7 +219,6 @@
 
   "historyTitle": "復習",
   "historyFavoritesOnly": "お気に入りのみ表示",
-  "historyDeleteAll": "すべて削除",
   "historyFilterAll": "すべて",
   "historyFilterFavorites": "お気に入り",
   "historyDateWithYear": "{year}年{month}月{day}日",
@@ -222,8 +253,6 @@
   "historyEmptyFavoritesHint": "例文のハートアイコンをタップしてお気に入りに追加できます",
   "historyEmptySearchHint": "別のキーワードで検索してみてください",
   "historyEmptyHint": "新しい例文を生成してみましょう",
-  "historyDeleteAllConfirm": "すべての例文履歴を削除しますか？この操作は取り消せません。",
-  "historyDeletedAll": "すべての例文を削除しました",
   "historyDeleteFailed": "削除に失敗しました: {error}",
   "@historyDeleteFailed": {
     "placeholders": {
@@ -235,6 +264,41 @@
   "historyDeleteConfirmTitle": "削除の確認",
   "historyDeleteConfirm": "この例文を削除しますか？",
   "historyDeletedOne": "例文を削除しました",
+  "historySelectToDelete": "選択して削除",
+  "historySelectedCount": "{count}件選択",
+  "@historySelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historySelectAll": "すべて選択",
+  "historyDeselectAll": "選択を解除",
+  "historyDeleteSelected": "{count}件を削除",
+  "@historyDeleteSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyDeleteSelectedConfirm": "選んだ{count}件の例文を削除しますか？この操作は取り消せません。",
+  "@historyDeleteSelectedConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyDeletedCount": "{count}件の例文を削除しました",
+  "@historyDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "historyWordCount": "{count} 単語",
   "@historyWordCount": {
     "placeholders": {
@@ -384,6 +448,16 @@
     }
   },
   "trialEndedChangeVocabLabel": "語彙スコア",
+  "trialEndedChangePronunciationLabel": "発音採点",
+  "trialEndedChangePronunciationPremium": "無制限",
+  "trialEndedChangePronunciationFree": "1日{free}回",
+  "@trialEndedChangePronunciationFree": {
+    "placeholders": {
+      "free": {
+        "type": "int"
+      }
+    }
+  },
   "trialEndedChangeVocabPremium": "上限なし",
   "trialEndedChangeVocabFree": "{free}語まで",
   "@trialEndedChangeVocabFree": {
@@ -588,10 +662,6 @@
       }
     }
   },
-  "paywallFeatureQuotaTitle": "語彙スコア100の先も伸ばせる",
-  "paywallFeatureQuotaPremium": "例文は無制限・語彙スコアの上限なし",
-  "paywallFeatureTopicTitle": "好きな場面のタイ語から始める",
-  "paywallFeatureTopicPremium": "旅行・暮らし・BLドラマなどから自分で選べる",
 
   "onboarding1Title": "タイ文字が読めなくても大丈夫",
   "onboarding1Body": "あなたのレベルに合った例文を毎日お届け。\nカードをタップで読み方と意味を確認。",
@@ -672,8 +742,8 @@
   "notifCoachStillQuiet": "通知はこれまでどおり、通知センターに静かに届きます。",
   "commonGotIt": "わかった",
 
-  "premiumHint1Title": "好きな場面のタイ語から始める",
-  "premiumHint1Body": "旅行・暮らし・BLドラマなどから、例文のテーマを自分で選べます",
+  "premiumHint1Title": "発音も、語彙も、好きなだけ",
+  "premiumHint1Body": "例文・発音採点・語彙スコアは上限なし。テーマも選べます",
 
   "signInReminderTitle": "学習の進捗を保護",
   "signInReminderMessage": "サインインすると進捗が保存され、機種変更後も学習を続けられます。サインインしない場合、3日間ご利用がないと学習の進捗は削除されます。",
@@ -711,6 +781,31 @@
   "pronunciationRecording": "録音中… 指を離すと判定",
   "pronunciationAnalyzing": "判定中…",
   "pronunciationRetry": "もう一度",
+  "pronunciationCapTitle": "今日の発音採点は{count}回まで",
+  "@pronunciationCapTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationCapBody": "明日また{count}回できます。\nプレミアムなら回数は無制限です。",
+  "@pronunciationCapBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pronunciationCapCta": "プレミアムで続ける",
+  "pronunciationRemainingToday": "今日の採点 あと{count}回",
+  "@pronunciationRemainingToday": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "pronunciationReference": "お手本",
   "pronunciationYours": "あなた",
   "pronunciationScore": "{score}点",
@@ -1453,13 +1548,12 @@
   "guideRoleNotificationTitle": "学習のお知らせ",
   "guideRoleNotificationBody": "決めた時刻に新しい例文セットが届きます。しばらくアプリを開かないと通知の間隔が少しずつ広がり、最後は止まります。アプリを開けば毎日の通知に戻ります。",
   "guideRolePremiumTitle": "無料版とプレミアム",
-  "guideRolePremiumBody": "無料版でも毎日学べます。プレミアムでは例文数・テーマ選択・語彙スコアの上限が広がります。",
-  "guidePlanColItem": "項目",
+  "guideRolePremiumBody": "無料版でも毎日学べ、お手本音声は何度でも再生できます。プレミアムは例文・発音採点・語彙スコアが無制限で、テーマも選べます。",
   "guidePlanColFree": "無料版",
   "guidePlanColPremium": "プレミアム",
   "guidePlanRowSentences": "1日の例文",
-  "guidePlanRowTopic": "テーマ",
-  "guidePlanRowVocab": "語彙スコアの上限",
+  "guidePlanRowTopic": "例文テーマ",
+  "guidePlanRowVocab": "語彙スコア",
   "guidePlanSentencesUnlimited": "無制限",
   "@guidePlanSentencesUnlimited": {
     "description": "プラン比較表の premium 側。例文は無制限"
@@ -1473,7 +1567,7 @@
     }
   },
   "guidePlanTopicFree": "おまかせ",
-  "guidePlanTopicPremium": "自分で選べる",
+  "guidePlanTopicPremium": "選べる",
   "guidePlanVocabFree": "{count}語",
   "@guidePlanVocabFree": {
     "placeholders": {
@@ -1482,15 +1576,17 @@
       }
     }
   },
-  "guidePlanVocabPremium": "約{count}語",
-  "@guidePlanVocabPremium": {
+  "guidePlanVocabUnlimited": "上限なし",
+  "guidePlanRowPronunciation": "1日の発音採点",
+  "guidePlanPronunciationFree": "{count}回",
+  "@guidePlanPronunciationFree": {
     "placeholders": {
       "count": {
-        "type": "int",
-        "format": "decimalPattern"
+        "type": "int"
       }
     }
   },
+  "guidePlanPronunciationUnlimited": "無制限",
   "guideHowSentenceTitle": "今日の例文を読む",
   "guideHowSentenceStep1": "学習タブに、その日の例文が表示されます。例文は最大5つで1セットです。上部で進み具合を確認できます。",
   "guideHowSentenceStep3": "金色の語が学習単語です。クイズでここが問われます。",
@@ -1738,13 +1834,25 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "streakBurstMonth": "1か月",
-  "streakBurstDone": "続きました！",
-  "streakBurstStart": "記録スタート！",
-  "streakPraiseFight": "がんばれ",
+  "streakBurstDay1": "最高のスタート！",
+  "streakBurstDay2": "今日もできた！",
+  "streakBurstDay3": "3日連続、すごい！",
+  "streakBurstBack": "おかえりなさい！",
+  "streakBurstKeep": "その調子！",
+  "streakBurstHabit": "いい習慣になってきた！",
+  "streakBurstHabitSolid": "もう立派な習慣！",
+  "streakBurstBuilt": "積み重ねがすごい！",
+  "streakBurstRecord": "ものすごい記録！",
+  "streakBurstLegend": "伝説はまだ続く！",
+  "streakPraiseWell": "よくできたね",
   "streakPraiseGreat": "すごいね",
   "streakPraiseAwesome": "最高！",
-  "streakPraiseExcellent": "素晴らしい",
-  "streakPraiseLegend": "神レベル",
+  "streakPraiseSuper": "最高すぎる！",
+  "streakPraiseAmazing": "とびきりすごい！",
+  "streakPraiseExcellent": "本当に素晴らしい！",
+  "streakPraiseRare": "並じゃない！",
+  "streakPraiseGodTier": "神レベルにすごい！",
+  "streakPraiseLegend": "もう伝説！",
   "streakRestart": "1本作ると再スタート",
   "streakStart": "今日の1本で記録を始めよう",
   "streakBest": "最長 {count}日",
@@ -1878,5 +1986,61 @@
   "vocabEmpty": "まだ単語がありません",
   "vocabSearchHint": "単語を検索",
   "vocabSearchEmpty": "見つかりませんでした",
-  "vocabLearnedAdded": "覚えたに追加されました！"
+  "vocabLearnedAdded": "覚えたに追加されました！",
+  "tipQuizPromptPron": "発音のコツ",
+  "tipQuizPromptTone": "声調のコツ",
+  "tipQuizPromptScript": "タイ文字のコツ",
+  "tipQuizPromptWordOrder": "語順のコツ",
+  "tipQuizWordOrderQuestion": "「{meaning}」を表す並びは？",
+  "@tipQuizWordOrderQuestion": {
+    "placeholders": {
+      "meaning": {
+        "type": "String"
+      }
+    }
+  },
+  "tipQuizW7Question": "「行かなかった」ではなく「行けない」はどっち？",
+  "pronLearnMore": "発音について詳しく学ぶ",
+  "tipQuizP1Question": "「鶏」と「卵」。2つの語の違いは？",
+  "tipQuizP1Choices": "息を強く出すかどうか|声調の高さ|母音の長さ|最後の子音",
+  "tipQuizP2Question": "th の h は何を表す？",
+  "tipQuizP2Choices": "息を強く出す印|舌を歯の間に挟む（英語の th）|音をのばす印|発音しない",
+  "tipQuizP3Question": "「入る」と「ご飯」。2つの語の違いは？",
+  "tipQuizP3Choices": "母音の長さ|息を強く出すかどうか|声調の高さ|最後の子音",
+  "tipQuizP4Question": "読みで aa のように同じ母音が2つ並んだら？",
+  "tipQuizP4Choices": "長くのばす|2回に区切って言う|強く言う|高く言う",
+  "tipQuizP5Question": "「日差し」の ɛ はどんな音？",
+  "tipQuizP5Choices": "口を大きく開けた「エ」|口をすぼめた「エ」|「イ」に近い音|鼻に抜く「エ」",
+  "tipQuizP6Question": "「手」の ʉ はどんな音？",
+  "tipQuizP6Choices": "口を横に引いたまま言う「ウ」|唇を丸めた「ウ」|「イ」と「ウ」を続けて言う|鼻に抜く「ウ」",
+  "tipQuizP7Question": "語末の k・t はどう言う？",
+  "tipQuizP7Choices": "閉じて止める。「ク」「ト」と母音を足さない|「ク」「ト」とはっきり言う|「グ」「ド」と濁らせる|長くのばす",
+  "tipQuizP8Question": "「皿」と「薄い」。2つの語の違いは？",
+  "tipQuizP8Choices": "語末の n と ng|声調の高さ|母音の長さ|息を強く出すかどうか",
+  "tipQuizP9Question": "「お金」の頭の ng はどう言う？",
+  "tipQuizP9Choices": "口を開けたまま鼻へ抜く。「ン」を前に付けない|「ン」と言ってから「ガ」|「グ」と言う|発音しない",
+  "tipQuizP11Question": "丁寧の語尾 ครับ は、会話でどう聞こえやすい？",
+  "tipQuizP11Choices": "kháp（r が落ちる）|khrâp（声調が下がる）|khráap（のびる）|kráp（息が消える）",
+  "tipQuizT1Question": "タイ語の声調はいくつ？",
+  "tipQuizT1Choices": "5つ|4つ|6つ|9つ",
+  "tipQuizT5Question": "声調を決めるのは？",
+  "tipQuizT5Choices": "子音クラス×声調記号×音節タイプ|声調記号だけ|母音だけ|文の中の位置",
+  "tipQuizT6Question": "声調記号が付いていない音節は？",
+  "tipQuizT6Choices": "声調がある（組み合わせで決まる）|声調がない|必ず平声|必ず低声",
+  "tipQuizT7Question": "「犬」の ห は？",
+  "tipQuizT7Choices": "発音せず、高子音の声調規則に従わせる|h と発音する|母音を長くする|語末の音になる",
+  "tipQuizS1Question": "タイ語の文の書き方は？",
+  "tipQuizS1Choices": "左から右。単語ごとにはスペースを空けない|右から左|単語ごとにスペースを空ける|上から下",
+  "tipQuizS2Question": "母音記号が付く位置は？",
+  "tipQuizS2Choices": "子音の前・後ろ・上・下・囲む|子音の後ろだけ|子音の上だけ|子音の前だけ",
+  "tipQuizS3Question": "「子ども」の เ は ด の前に書く。読む順は？",
+  "tipQuizS3Choices": "d を読んでから e|e を読んでから d",
+  "tipQuizS4Question": "อา の อ の役割は？",
+  "tipQuizS4Choices": "音を持たない、母音記号の台|「オ」と読む|語末の n|声調記号",
+  "tipQuizS5Question": "ะ が付いた母音は？",
+  "tipQuizS5Choices": "短い母音|長い母音|高い声調|読まない",
+  "tipQuizS6Question": "語末の ด はどの音？",
+  "tipQuizS6Choices": "t|d|n|読まない",
+  "tipQuizS7Question": "声調記号はいくつ？",
+  "tipQuizS7Choices": "4つ|2つ|3つ|5つ"
 }

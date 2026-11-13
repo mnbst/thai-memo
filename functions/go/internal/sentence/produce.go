@@ -145,6 +145,9 @@ type ProduceRequest struct {
 	// PreferredTopics は free バンクで先に出すテーマ（日本語ラベル）。free は
 	// テーマ指定を受けないので、ヒアリングの用途から決める（InterviewGoalTopicSet）。
 	PreferredTopics map[string]bool
+	// UnseenOnly が真なら例文は帯の未出語だけで作り、最低本数（MinSetSize）に
+	// 足りないぶんを既出例文で埋める（UsesUnseenOnly）。
+	UnseenOnly bool
 }
 
 // ErrQualityRejected は品質判定に通らず、文をセットから外したこと。
@@ -161,6 +164,9 @@ type Produced struct {
 	FromCache bool
 	// Quality は判定結果。判定していなければ nil。
 	Quality *Quality
+	// Reuse は本人の既出例文を出し直したときの、置き換える元の doc。
+	// それ以外は nil。
+	Reuse *Reuse
 }
 
 // Produce は単語選定 → キャッシュ/LLM → generation_tier 付与までを行う
@@ -191,6 +197,9 @@ func (p *Producer) Produce(
 //
 // 戻り値は選定順。n 本に満たなくても揃ったぶんを返し、1本も作れなければ
 // 空スライスを返す（CacheOnly の全ミス）。生成が全滅したときだけエラーを返す。
+//
+// UnseenOnly では、未出語の生成が足りない・失敗したぶんを既出例文で埋める。
+// 既出例文も無ければ、生成の失敗はそのまま返し、失敗でなければ従来の選び方に戻す。
 func (p *Producer) ProduceBatch(
 	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
 	req ProduceRequest, n int,
@@ -198,6 +207,39 @@ func (p *Producer) ProduceBatch(
 	if n < 1 {
 		n = 1
 	}
+	unseen, ok := p.Selector.(unseenWordSelector)
+	if !req.UnseenOnly || !ok {
+		req.UnseenOnly = false
+		return p.produceBatch(ctx, db, freqRank, req, n)
+	}
+
+	results, genErr := p.produceBatch(ctx, db, freqRank, req, n)
+	if want := min(n, MinSetSize); len(results) < want {
+		skip := map[string]bool{}
+		for _, r := range results {
+			skip[r.TargetWords[0]] = true
+		}
+		reused, err := unseen.PickReused(ctx, db, freqRank, req, want-len(results), skip)
+		if err != nil {
+			log.Printf("produce: 既出例文の取得に失敗 uid=%s: %v", req.UID, err)
+		}
+		results = append(results, reused...)
+	}
+	if len(results) > 0 {
+		return results, nil
+	}
+	if genErr != nil {
+		return nil, genErr
+	}
+	log.Printf("produce: 未出語も既出例文も無い uid=%s。従来の選び方に戻す", req.UID)
+	req.UnseenOnly = false
+	return p.produceBatch(ctx, db, freqRank, req, n)
+}
+
+func (p *Producer) produceBatch(
+	ctx context.Context, db *firestore.Client, freqRank uvm.FreqRank,
+	req ProduceRequest, n int,
+) ([]*Produced, error) {
 	// UsePremiumPromptForVocab は今は req.UsePremiumSpec をそのまま返すので、
 	// この呼び出しを外しても結果は変わらない（語彙による出し分けは廃止済み）。
 	// Python 側も同じ形で呼び続けているので、対応を追えるよう残す。
@@ -246,10 +288,17 @@ func (p *Producer) ProduceBatch(
 		if want <= 0 {
 			break
 		}
-		selected, err := p.Selector.SelectTargetWords(
+		selectWords := p.Selector.SelectTargetWords
+		if unseen, ok := p.Selector.(unseenWordSelector); ok && req.UnseenOnly {
+			selectWords = unseen.SelectUnseenTargetWords
+		}
+		selected, err := selectWords(
 			ctx, db, freqRank, req.UID, req.Params,
 			maxVocab, want, usePremiumPrompt, &req.EstimatedVocab, req.TestedVocab,
 		)
+		if req.UnseenOnly && errors.Is(err, ErrNoTargetWords) {
+			break // 帯の未出語が尽きた。埋めるのは ProduceBatch の既出例文。
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -320,7 +369,7 @@ func (p *Producer) ProduceBatch(
 	// 続けている人はいずれ全部見る。配信を落とすより既出をもう一度出す
 	// ほうがましなので、最後に既出を無視して引き直す。
 	// premium は LLM 生成へ落ちるので、ここには来ない。
-	if req.CacheOnly && useBank && len(results) == 0 && len(seen) > 0 {
+	if req.CacheOnly && useBank && len(results) == 0 && len(seen) > 0 && !req.UnseenOnly {
 		log.Printf("produce: 未出の在庫が尽きた uid=%s。既出を許して引き直す", req.UID)
 		selected, err := p.Selector.SelectTargetWords(
 			ctx, db, freqRank, req.UID, req.Params,

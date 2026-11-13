@@ -104,7 +104,8 @@ func TestEstimateVocabMatchesPython(t *testing.T) {
 		for _, e := range c.Entries {
 			entries = append(entries, RankedP{Rank: e.Rank, P: e.P})
 		}
-		got := EstimateVocab(entries, c.Center, 0)
+		// golden は 2026-11 までの推定式の値。
+		got := estimateVocab(entries, c.Center, 0, 0.42, 0.5)
 		if got != c.Want {
 			t.Fatalf("case %d (center=%d, %d entries): EstimateVocab = %d, want %d",
 				i, c.Center, len(entries), got, c.Want)
@@ -113,12 +114,21 @@ func TestEstimateVocabMatchesPython(t *testing.T) {
 	t.Logf("%d 件一致", len(g.EstimateVocab))
 }
 
+// correctWords は rank from〜to の語を 1 問正解（P=0.618）で返す。
+func correctWords(from, to int) []RankedP {
+	out := make([]RankedP, 0, to-from+1)
+	for r := from; r <= to; r++ {
+		out = append(out, RankedP{Rank: r, P: 0.618})
+	}
+	return out
+}
+
 // 測定値（floor）を原点にすると、受験者は 0 から始めた人と同じ挙動になる。
 //
 // floor 以下の rank は存在しないものとして扱うので、
 //   - 証拠が無ければ floor から動かない（0 スタートが 0 で止まるのと同じ）
 //   - floor より下の古い doc は境界を引き戻さない
-//   - floor より上の正解（P>0.5）はこれまでどおり境界を押し上げる
+//   - floor より上の正解はこれまでどおり境界を押し上げる
 func TestEstimateVocabFloor(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -136,13 +146,33 @@ func TestEstimateVocabFloor(t *testing.T) {
 		},
 		{
 			"floor より上の正解は押し上げる",
-			[]RankedP{{Rank: 130, P: 0.58}},
-			100, 100, 130,
+			correctWords(130, 135),
+			100, 100, 141,
 		},
 		{
 			"未受験は floor=0 で従来の挙動",
-			[]RankedP{{Rank: 30, P: 0.58}},
-			20, 0, 30,
+			correctWords(30, 35),
+			20, 0, 41,
+		},
+		{
+			"窓に 1 問正解の語が 1 語だけなら上がらない",
+			[]RankedP{{Rank: 130, P: 0.618}},
+			100, 100, 100,
+		},
+		{
+			"窓の平均を割るところまで下がる",
+			append(correctWords(95, 100), RankedP{Rank: 90, P: 0.15}),
+			120, 0, 106,
+		},
+		{
+			"スコアより後ろの語の正解でも上がる",
+			correctWords(191, 196),
+			200, 0, 202,
+		},
+		{
+			"原点より下は窓に入れない",
+			append(correctWords(101, 105), RankedP{Rank: 95, P: 0.9}),
+			100, 100, 111,
 		},
 	}
 	for _, c := range cases {

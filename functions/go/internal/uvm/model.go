@@ -85,14 +85,6 @@ const (
 	// 正誤の片側だけを弱めないこと（Result.FormatScale のコメント参照）。
 	SpellingChoiceScale = 0.5
 
-	// WordOrderScale は並び替え（word_order）の証拠を弱める係数。正誤とも同じ。
-	//
-	// 並び替えは key_word の意味より語順を測るので、語を知っていても他の語で
-	// 落とすし、知らなくても消去法で当たる。wordordersim_test.go で
-	// 「等倍 / ×0.5 / s=0.40 / 更新しない」を比べ、d90 の差は ±3 で
-	// 見分けがつかなかったので、既存の仕組みに乗る ×0.5 にした。
-	WordOrderScale = 0.5
-
 	// BayesGuessTop はヒント無しの 4 択で「知らなくても当たる」確率 g。
 	//
 	// 素の 4 択なら 0.25 だが、まとめクイズは穴埋めでダミーが品詞・文法で
@@ -180,27 +172,94 @@ type RankedP struct {
 	P    float64
 }
 
-// EstimateVocab は語彙境界（P ≈ 0.5 となる rank）を推定する（uvm.py:estimate_vocab）。
+const (
+	// VocabWindowRadius はスコアの判定で見る前後の語数。
+	VocabWindowRadius = 10
+	// VocabCutoffP は窓の平均 P の基準。未回答は UnknownWordP で数える。
+	// 21 語の窓では P=0.618（1 問正解）の語が 5 語あると満たし、4 語では満たさない。
+	// 0.46→0.45（2026-11）: 未受験の伸びる人の下振れ（d90 −55→−37）を縮める。
+	// 代わりに詰まる人の上振れが +10〜30 増える（TestAdaptiveBand、推測0.45/slip0.10）。
+	// 本番はまとめクイズの直近の正答率で 0.41〜0.49 に変える（SummaryCutoff）。
+	// この値は正答率 60〜80% の人と、記録の無い人の基準。
+	VocabCutoffP = 0.45
+)
+
+// EstimateVocab は語彙スコアを求める。
 //
-// center ± 50 を走査し MovingAvg が 0.42 を下回る最初の rank を返す。
-// データがスパースなときは P > 0.5 の語の最大 rank をフォールバックに使う。
+// center（今のスコア）±50 の中で、前後 VocabWindowRadius 語の平均 P が
+// VocabCutoffP 以上の最大の rank を返す。無ければ走査の下端を返す。
 //
-// floor は語彙テストの測定値（vocab_test_vocab）。**floor 以下の rank は存在
-// しないものとして扱う**。未受験は floor=0 で、その場合の挙動は従来と同一。
+// floor は語彙テストの測定値（未受験は 0）。floor 以下の rank は存在しない
+// ものとして窓に入れないので、返り値は floor を下回らない。
 //
-// 語彙テストを受けた人の出発点を 0 から測定値 M へずらす、という考え方。
-// 0 から始めた人が rank<0 を見ないのと同じく、測定値を持つ人は rank<M を見ない。
-// これで受験者と未受験者の挙動が「原点が違うだけ」で揃う。
-//
-// floor を入れないと、受験直後は走査帯に証拠（P>0.5 の語）が 1 つも無いので
-// knownMaxRank=0、返り値が center-50 側になり、測定値から
-// 0 へ崩れていく（測定100 が数分で 91 まで落ちる）。0 から始めた人が崩れないのは
-// 下限 0 に張り付いているからで、その下限を M に置き換えるのがこの引数。
+// 原点（floor）から OriginKnownSpan までは、P>LearnedP の語の最大 rank も
+// 候補にする（11-07 までの推定式と同じ決め方）。窓の平均は未回答の 0.4 に
+// 引っぱられるので、1 セット 2〜3 問の入門者は綴りで全問正解しても初回に
+// 動かなかった。幅を原点の key_word 帯（KeyWordBand の前方）と揃え、初回に
+// 出る語ならどれに正解してもスコアに出るようにする。原点から離れれば窓の
+// 値が上回るので、1 語の当たりで進みすぎる旧式の問題は原点付近に限られる。
 func EstimateVocab(entries []RankedP, center, floor int) int {
-	return estimateVocab(entries, center, floor, 0.42, 0.5)
+	floor = max(floor, 0)
+	return EstimateVocabAt(entries, center, floor, VocabCutoffP)
 }
 
-// estimateVocab は EstimateVocab の閾値をシミュレーション用に外へ出したもの。
+// EstimateVocabAt は窓の平均 P の基準を cutoff にした EstimateVocab。
+func EstimateVocabAt(entries []RankedP, center, floor int, cutoff float64) int {
+	floor = max(floor, 0)
+	return max(estimateWindowed(entries, center, floor, cutoff), originKnownMax(entries, floor))
+}
+
+// OriginKnownSpan は EstimateVocab が覚えた語の最大 rank を見る、原点からの幅。
+// 入門者の初回セット（key_word の 9 割が原点から 20 位以内）に合わせた値で、
+// key_word 帯の前方幅（ScanBandWidth）とは独立に持つ。
+const OriginKnownSpan = 20
+
+// originKnownMax は (floor, floor+OriginKnownSpan] で P>LearnedP の語の最大 rank。
+// 無ければ floor。
+func originKnownMax(entries []RankedP, floor int) int {
+	known := floor
+	for _, e := range entries {
+		if e.Rank > floor && e.Rank <= floor+OriginKnownSpan && e.P > LearnedP {
+			known = max(known, e.Rank)
+		}
+	}
+	return known
+}
+
+// estimateWindowed は窓の平均 P だけで決めたスコア（EstimateVocab の本体）。
+func estimateWindowed(entries []RankedP, center, floor int, cutoff float64) int {
+	center = max(center, floor)
+
+	wordsByRank := make(map[int]float64, len(entries))
+	for _, e := range entries {
+		if e.Rank >= floor {
+			wordsByRank[e.Rank] = e.P
+		}
+	}
+	if len(wordsByRank) == 0 {
+		return floor
+	}
+
+	low := max(center-50, floor)
+	for r := center + 50; r >= low; r-- {
+		total := 0.0
+		start := max(r-VocabWindowRadius, floor+1)
+		for q := start; q <= r+VocabWindowRadius; q++ {
+			if p, ok := wordsByRank[q]; ok {
+				total += p
+			} else {
+				total += UnknownWordP
+			}
+		}
+		if total/float64(r+VocabWindowRadius-start+1) >= cutoff {
+			return r
+		}
+	}
+	return low
+}
+
+// estimateVocab は 2026-11 までの推定式（golden と比較シミュレーション用に残す）。
+// 平均が cutoff を割った最初の rank と、P>knownP の語の最大 rank の大きいほう。
 // cutoff は MovingAvg の打ち切り、knownP は knownMaxRank に数える P の下限。
 func estimateVocab(entries []RankedP, center, floor int, cutoff, knownP float64) int {
 	floor = max(floor, 0)

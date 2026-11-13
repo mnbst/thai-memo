@@ -30,13 +30,22 @@ const (
 	// 素通りが 24語(8%) → 16語(5%)、受験者はほぼ 0 になり、d90 の推定値は
 	// 不変（±5）。効くのは ahead が下限 8 に落ちる前、est<60 の区間だけ
 	// （25 のときは est<85）。
-	ScanBandWidth = 20
+	//
+	// さらに 20→8（2026-11）で、前方は最初から ScanAheadMin に固定される。
+	// 原点の 20 語は覚えた語の最大 rank もスコアにする（OriginKnownSpan）ので、
+	// 前方 20 だと初回の 1〜2 セットで 13〜16 まで跳ね、その後 8 セットほど
+	// ほぼ動かなかった。前方 8 なら 1 セットごとに 5→8→11→15 と刻んで進み、
+	// d90 は全ペルソナで ±10 以内（TestAdaptiveBand）。当て推量の上振れも減る。
+	//
+	// 8→10（2026-11、VocabCutoffP 0.46→0.45 と同時）。まとめクイズの前方
+	// （QuizScoreAhead）は 8 のまま。
+	ScanBandWidth = 10
 	ScanBandDecay = 5
-	ScanAheadMin  = 8 // 前方スキャンの下限（未習語が必ず候補に入るようにする）
+	ScanAheadMin  = 10 // 前方スキャンの下限（未習語が必ず候補に入るようにする）
 
 	// ForwardTopUpDepth は、帯の中で本数が埋まらないときに前方へ広げる深さ。
 	//
-	// 帯（幅は後方 50 + 前方 8〜20）を使い切るのは、est が伸びないまま生成を
+	// 帯（幅は後方 50 + 前方 10）を使い切るのは、est が伸びないまま生成を
 	// 続けた人。そこで既出を key_word に戻すと同じ語が何度も出るので、帯の
 	// 続きから未出を取る。深さは後方スキャン（GapScanDepth）と同じ 50。
 	// 1 セット 5 本ぶんを賄うには十分広く、難度が跳ぶほど遠くもない。
@@ -332,6 +341,86 @@ type SessionRequest struct {
 	// SkipTopicMatch が真なら、テーマ未指定でも FindBestTopic でテーマを決めない
 	// （呼び出し側が場面合致でテーマを決める）。
 	SkipTopicMatch bool
+	// UnseenOnly が真なら帯の未出語だけを返す。足りなくても前方や既出で埋めない
+	// （sentence.UsesUnseenOnly。埋めるのは呼び出し側の既出例文）。
+	UnseenOnly bool
+}
+
+// sessionBand は key_word 候補のランク帯を返す。
+//
+// free（maxVocab あり）は測定値を使わず、上限で切る。
+func sessionBand(estimatedVocab, testedVocab int, maxVocab *int) (low, high int) {
+	// 測定値を原点として帯を取る（EstimateVocab の floor と揃える）。
+	// ScanBand を「測定値からの相対位置」で計算し、あとで測定値ぶん平行移動する。
+	// 単に下端を測定値で切り上げると後方ぶん（最大 GapScanDepth）が丸ごと消え、
+	// 測定 250 のとき幅 9 しか残らない。0 から始めた人は前方 51 幅を持つので、
+	// 原点をずらすだけで同じ幅になるようにする。未受験（0）は従来と完全に同一。
+	//
+	// ただし free（MaxVocab あり）は測定値を使わない。上限 100 と原点シフトを
+	// 併用すると帯が上限に潰れるため（測定 250 で [100,100] の幅 1、測定 100
+	// でも幅 1）。free は未受験者とまったく同じ挙動にし、上限側だけで抑える。
+	tested := max(testedVocab, 0)
+	if maxVocab != nil {
+		tested = 0
+	}
+	low, high = KeyWordBand(estimatedVocab, tested)
+	if maxVocab != nil {
+		high = min(high, *maxVocab)
+		low = min(low, high)
+	}
+	return low, high
+}
+
+// ReusableWords は既出例文を出し直す語を、出す順に返す。帯の既出語を P の
+// 小さい順（同点はランダム）に並べる。出した語は RegisterExposure が P を
+// KeyWordExposureStep 上げるので、次は後ろへ回る。
+//
+// P で分けて上限を置くことはしない。P<=0.3 だけに絞ると出せる語が無くなり、
+// 入門者のセットの 75〜78% が空になった（adaptivesim_test.go）。
+func (s *SessionSelector) ReusableWords(
+	ctx context.Context, db *firestore.Client, freqRank FreqRank, req SessionRequest,
+) ([]string, error) {
+	estimatedVocab := 0
+	if req.EstimatedVocab != nil {
+		estimatedVocab = *req.EstimatedVocab
+	}
+	if req.MaxVocab != nil {
+		estimatedVocab = min(estimatedVocab, *req.MaxVocab)
+	}
+	low, high := sessionBand(estimatedVocab, req.TestedVocab, req.MaxVocab)
+	candidates := BandCandidates(freqRank, low, high)
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+	pMap, _, err := s.fetchP(ctx, db, req.UID, candidates)
+	if err != nil {
+		return nil, err
+	}
+	return reusableOrder(candidates, pMap, func(n int, swap func(i, j int)) {
+		for i := n - 1; i > 0; i-- {
+			swap(i, s.intn(i+1))
+		}
+	}), nil
+}
+
+// reusableOrder は ReusableWords の並べ方。P が無い・0 の語は未出なので除く。
+func reusableOrder(
+	candidates []Candidate, pMap map[string]float64,
+	shuffle func(n int, swap func(i, j int)),
+) []string {
+	var seen []Candidate
+	for _, c := range candidates {
+		if p, ok := pMap[c.Word]; ok && p != 0.0 {
+			seen = append(seen, c)
+		}
+	}
+	shuffle(len(seen), func(i, j int) { seen[i], seen[j] = seen[j], seen[i] })
+	sort.SliceStable(seen, func(i, j int) bool { return pMap[seen[i].Word] < pMap[seen[j].Word] })
+	out := make([]string, len(seen))
+	for i, c := range seen {
+		out[i] = c.Word
+	}
+	return out
 }
 
 // GetSessionWords は統合スキャン方式でセッション単語を選定する
@@ -359,24 +448,7 @@ func (s *SessionSelector) GetSessionWords(
 		estimatedVocab = min(estimatedVocab, *req.MaxVocab)
 	}
 
-	// 測定値を原点として帯を取る（EstimateVocab の floor と揃える）。
-	// ScanBand を「測定値からの相対位置」で計算し、あとで測定値ぶん平行移動する。
-	// 単に下端を測定値で切り上げると後方ぶん（最大 GapScanDepth）が丸ごと消え、
-	// 測定 250 のとき幅 9 しか残らない。0 から始めた人は前方 51 幅を持つので、
-	// 原点をずらすだけで同じ幅になるようにする。未受験（0）は従来と完全に同一。
-	//
-	// ただし free（MaxVocab あり）は測定値を使わない。上限 100 と原点シフトを
-	// 併用すると帯が上限に潰れるため（測定 250 で [100,100] の幅 1、測定 100
-	// でも幅 1）。free は未受験者とまったく同じ挙動にし、上限側だけで抑える。
-	tested := max(req.TestedVocab, 0)
-	if req.MaxVocab != nil {
-		tested = 0
-	}
-	scanLow, scanHigh := KeyWordBand(estimatedVocab, tested)
-	if req.MaxVocab != nil {
-		scanHigh = min(scanHigh, *req.MaxVocab)
-		scanLow = min(scanLow, scanHigh)
-	}
+	scanLow, scanHigh := sessionBand(estimatedVocab, req.TestedVocab, req.MaxVocab)
 
 	candidates := BandCandidates(freqRank, scanLow, scanHigh)
 	topic := req.Topic
@@ -399,6 +471,10 @@ func (s *SessionSelector) GetSessionWords(
 		}
 	}
 
+	if req.UnseenOnly && len(zeroP) == 0 {
+		return nil, topic, nil
+	}
+
 	var selected []Candidate
 	if len(zeroP) > 0 && req.PreferEach != nil {
 		selected = s.selectLeaningEach(zeroP, req.PreferEach, req.Count)
@@ -416,7 +492,7 @@ func (s *SessionSelector) GetSessionWords(
 	// prod 2026-09-12: 帯59語のうち未出が1語だけ残った premium ユーザーが、
 	// おまかせで1本しか受け取れなかった。
 	// 足りなければ帯の残りから埋める（未出→既出の順は TopUpFromBand）。
-	if len(selected) < req.Count {
+	if len(selected) < req.Count && !req.UnseenOnly {
 		rest := remaining(candidates, selected)
 		// 帯の中で埋まらないときのために、帯の前方（ランクの大きい側）へ
 		// ForwardTopUpDepth ぶん広げた語も一緒に見る。帯の既出を使い回すより、

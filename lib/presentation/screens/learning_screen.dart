@@ -11,7 +11,6 @@ import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../services/learning_progress_store.dart';
 import '../providers/review_prompt_provider.dart';
-import '../widgets/notification_coach_dialog.dart';
 import 'quiz_screen.dart';
 import 'today_screen.dart';
 
@@ -47,10 +46,14 @@ class LearningScreen extends ConsumerStatefulWidget {
   const LearningScreen({
     super.key,
     this.onReload,
+    this.onOpenQuizRange,
   });
 
   /// 今日の例文を取り直す（配信の取り込みからやり直す）。
   final Future<void> Function()? onReload;
+
+  /// まとめクイズの手前で、復習タブへ切り替えて出題範囲を見せる。
+  final VoidCallback? onOpenQuizRange;
 
   @override
   ConsumerState<LearningScreen> createState() => LearningScreenState();
@@ -293,6 +296,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
                 : l10n.learnNextSentence,
             onNextSentence:
                 offerSummaryQuiz ? _startSummaryQuiz : _proceedToNextSentence,
+            onReviewRange: offerSummaryQuiz ? widget.onOpenQuizRange : null,
           ),
         ),
       LearningStage.summaryQuiz => Scaffold(

@@ -656,6 +656,18 @@ class DatabaseHelper {
     });
   }
 
+  /// [since] 以降に採点できた発音練習の回数（例文を問わない）。
+  Future<int> countPronunciationAttemptsSince(DateTime since) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS n '
+      'FROM ${DatabaseConstants.tablePronunciationAttempts} '
+      'WHERE ${DatabaseConstants.columnPronunciationAttemptedAt} >= ?',
+      [since.millisecondsSinceEpoch],
+    );
+    return (rows.first['n'] as int?) ?? 0;
+  }
+
   /// この例文でこれまでに出した最高点。まだ1回も記録が無ければ null。
   Future<double?> getBestPronunciationScore(String sentenceId) async {
     final db = await database;

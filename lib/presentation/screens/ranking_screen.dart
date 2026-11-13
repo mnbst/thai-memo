@@ -209,10 +209,12 @@ class _MyRankCard extends ConsumerWidget {
   }
 }
 
-/// 帯の表示名（「301〜600」「1001〜」）。順位カードと分布バーで同じ言い方をする。
+/// 帯の表示名（「301〜600」「1001〜」、1点だけの帯は「100」）。
 String _bandLabel(L10n l10n, ({int min, int? max}) band) => band.max == null
     ? l10n.rankingBandOver(band.min)
-    : l10n.rankingBandRange(band.min, band.max!);
+    : band.max == band.min
+        ? '${band.min}'
+        : l10n.rankingBandRange(band.min, band.max!);
 
 class _RankRow extends StatelessWidget {
   const _RankRow({required this.entry});
@@ -361,8 +363,20 @@ class _DistributionCard extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                for (final band in distribution.bands)
-                  _BandBar(band: band, maxCount: maxCount),
+                // ラベルと人数の列は中身の幅に合わせ、残りをバーに回す（固定幅だと
+                // 「601〜1000」や4桁の人数が折り返す）
+                Table(
+                  columnWidths: const {
+                    0: IntrinsicColumnWidth(),
+                    1: FlexColumnWidth(),
+                    2: IntrinsicColumnWidth(),
+                  },
+                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                  children: [
+                    for (final band in distribution.bands)
+                      _bandRow(context, band, maxCount),
+                  ],
+                ),
               ],
             ),
           ),
@@ -373,84 +387,63 @@ class _DistributionCard extends ConsumerWidget {
 }
 
 /// 分布の1行。バーは横向き（帯ラベルが縦に読めるほうが対応づけやすい）。
-class _BandBar extends StatelessWidget {
-  const _BandBar({required this.band, required this.maxCount});
+TableRow _bandRow(BuildContext context, VocabBand band, int maxCount) {
+  final l10n = L10n.of(context);
+  final colorScheme = Theme.of(context).colorScheme;
+  final textTheme = Theme.of(context).textTheme;
 
-  final VocabBand band;
-  final int maxCount;
+  final label = _bandLabel(l10n, (min: band.min, max: band.max));
+  // 0人の帯も存在が分かるよう、ごく細い下地を残す
+  final ratio = maxCount <= 0 ? 0.0 : band.count / maxCount;
+  final textStyle = textTheme.bodySmall?.copyWith(
+    color: band.isMine ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
+    fontWeight: band.isMine ? FontWeight.w600 : FontWeight.normal,
+  );
 
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    final label = _bandLabel(l10n, (min: band.min, max: band.max));
-    // 0人の帯も存在が分かるよう、ごく細い下地を残す
-    final ratio = maxCount <= 0 ? 0.0 : band.count / maxCount;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 64,
-            child: Text(
-              label,
-              style: textTheme.bodySmall?.copyWith(
-                color: band.isMine
-                    ? colorScheme.onSurface
-                    : colorScheme.onSurfaceVariant,
-                fontWeight: band.isMine ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) => Stack(
-                children: [
-                  Container(
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  Container(
-                    height: 10,
-                    width: (constraints.maxWidth * ratio).clamp(
-                      band.count > 0 ? 4.0 : 0.0,
-                      constraints.maxWidth,
-                    ),
-                    decoration: BoxDecoration(
-                      color: band.isMine
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 36,
-            child: Text(
-              '${band.count}',
-              textAlign: TextAlign.right,
-              style: textTheme.bodySmall?.copyWith(
-                color: band.isMine
-                    ? colorScheme.onSurface
-                    : colorScheme.onSurfaceVariant,
-                fontWeight: band.isMine ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ),
-        ],
+  return TableRow(
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(top: 3, bottom: 3, right: 12),
+        child: Text(label, maxLines: 1, softWrap: false, style: textStyle),
       ),
-    );
-  }
+      LayoutBuilder(
+        builder: (context, constraints) => Stack(
+          children: [
+            Container(
+              height: 10,
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Container(
+              height: 10,
+              width: (constraints.maxWidth * ratio).clamp(
+                band.count > 0 ? 4.0 : 0.0,
+                constraints.maxWidth,
+              ),
+              decoration: BoxDecoration(
+                color: band.isMine
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ],
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: Text(
+          '${band.count}',
+          maxLines: 1,
+          softWrap: false,
+          textAlign: TextAlign.right,
+          style: textStyle,
+        ),
+      ),
+    ],
+  );
 }
 
 /// free の語彙スコア上限の注記とプレミアム導線（タップ起点）

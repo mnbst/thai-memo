@@ -72,7 +72,113 @@ func TagWords(words []string) (map[int]string, error) {
 		return nil, err
 	}
 	tagAuxVerbs(words, result)
+	tagKhong(words, result)
+	tagThii(words, result)
+	tagClassifiers(words, result)
+	tagMonkEat(words, result)
 	return result, nil
+}
+
+// classifierWords は名詞の後ろで類別詞になる語。unigram は ใบ・คน・ตัว を一律に名詞にする
+// （ถังใบนี้ の ใบ、นักร้องคนนี้ の คน）。
+var classifierWords = map[string]bool{
+	"ใบ": true, "ตัว": true, "คน": true, "อัน": true, "ชิ้น": true, "เล่ม": true, "คัน": true,
+	"หลัง": true, "ดอก": true, "ขวด": true, "แก้ว": true, "เครื่อง": true,
+}
+
+// classifierFollowers は類別詞の後ろに来る指示語。
+var classifierFollowers = map[string]bool{
+	"นี้": true, "นั้น": true, "โน้น": true, "ไหน": true, "เดียว": true,
+}
+
+// tagClassifiers は classifierWords の語を、数詞の後ろ（สองตัว）か、
+// 名詞の後ろで指示語が続くとき（ถังใบนี้）に類別詞にする。
+func tagClassifiers(words []string, result map[int]string) {
+	for i, w := range words {
+		if !classifierWords[w] || i == 0 {
+			continue
+		}
+		prev := result[i-1]
+		// หลัง は数詞の後ろでも「〜の後で」になる（ชั้นสามหลังเลิกเรียน）ので、指示語が続くときだけ。
+		afterNum := prev == "数詞" && w != "หลัง"
+		nounThenDemo := isNominal(prev) && i+1 < len(words) && classifierFollowers[words[i+1]]
+		if afterNum || nounThenDemo {
+			result[i] = "類別詞"
+		}
+	}
+}
+
+// monkMeals は僧侶の食事を表す語。直前の ฉัน は一人称ではなく「（僧侶が）食べる」。
+var monkMeals = map[string]bool{"เพล": true, "ภัตตาหาร": true, "จังหัน": true}
+
+// tagMonkEat は ฉันเพล の ฉัน を動詞、เพล を名詞にする。pos_override は ฉัน を常に代名詞にする。
+func tagMonkEat(words []string, result map[int]string) {
+	for i, w := range words {
+		if w != "ฉัน" || i+1 >= len(words) || !monkMeals[words[i+1]] {
+			continue
+		}
+		result[i] = "動詞"
+		result[i+1] = "名詞"
+	}
+}
+
+// isNominal は名詞・固有名詞のラベルか。
+func isNominal(tag string) bool {
+	return tag == "名詞" || tag == "固有名詞"
+}
+
+// tagKhong は ของ を、後ろに持ち主が続くなら前置詞（〜の）、それ以外は名詞（物）にする。
+// unigram は文脈を見ないので、ซื้อของ・ของหมด の ของ まで一律に前置詞にする。
+func tagKhong(words []string, result map[int]string) {
+	for i, w := range words {
+		if w != "ของ" {
+			continue
+		}
+		next, nextTag := "", ""
+		if i+1 < len(words) {
+			next, nextTag = words[i+1], result[i+1]
+		}
+		afterVerb := i > 0 && result[i-1] == "動詞"
+		switch {
+		case khongThingFollowers[next]:
+			result[i] = "名詞"
+		case nextTag == "代名詞":
+			// เดินทางของฉัน: 動詞の直後でも代名詞が続けば持ち主。
+			result[i] = "前置詞"
+		case isNominal(nextTag) && !afterVerb:
+			result[i] = "前置詞"
+		default:
+			result[i] = "名詞"
+		}
+	}
+}
+
+// khongThingFollowers は直後に来ると ของ が「物」になる語（ของชิ้นนี้・ของที่ซื้อ）。
+var khongThingFollowers = map[string]bool{
+	"ที่": true, "ชิ้น": true, "อัน": true, "นี้": true, "นั้น": true, "พวกนี้": true, "พวกนั้น": true,
+}
+
+// thiiClauseHeads は直後の ที่ が節を導く語（ตามที่พี่สอน・ตอนที่แมวอ้อน・ที่ที่คนมาเจอกัน）。
+var thiiClauseHeads = map[string]bool{
+	"ตาม": true, "ตอน": true, "ครั้ง": true, "ทุกครั้ง": true, "วัน": true, "เวลา": true, "ที่": true,
+}
+
+// tagThii は場所を示す ที่（ที่โต๊ะ）を前置詞にする。関係節の ที่ は代名詞のまま残す。
+// 名詞が前にあり、後ろが「名詞＋動詞」なら関係節（ร้านที่คนรู้จักแนะนำ）とみなす。
+func tagThii(words []string, result map[int]string) {
+	for i, w := range words {
+		if w != "ที่" || i+1 >= len(words) || !isNominal(result[i+1]) {
+			continue
+		}
+		if i > 0 && thiiClauseHeads[words[i-1]] {
+			continue
+		}
+		afterNoun := i > 0 && (isNominal(result[i-1]) || result[i-1] == "限定詞")
+		beforeVerb := i+2 < len(words) && (result[i+2] == "動詞" || result[i+2] == "助動詞")
+		if !(afterNoun && beforeVerb) {
+			result[i] = "前置詞"
+		}
+	}
 }
 
 // auxVerbs は動詞の直後で方向・継続・完了を添える語。
@@ -87,7 +193,8 @@ var preVerbs = map[string]bool{
 	"ได้": true, "อยาก": true, "ชอบ": true, "ช่วย": true, "ลอง": true, "เริ่ม": true, "เพิ่ง": true, "ยัง": true,
 }
 
-// tagAuxVerbs は auxVerbs の語を、動詞（または助動詞）の直後なら助動詞、それ以外は動詞にする。
+// tagAuxVerbs は auxVerbs の語を、動詞・助動詞・形容詞（ดีขึ้น・มากไป）の直後なら助動詞、
+// それ以外は動詞にする。
 func tagAuxVerbs(words []string, result map[int]string) {
 	for i, w := range words {
 		if !auxVerbs[w] {
@@ -97,7 +204,7 @@ func tagAuxVerbs(words []string, result map[int]string) {
 		if i > 0 {
 			prev = result[i-1]
 		}
-		if (prev == "動詞" || prev == "助動詞") && !preVerbs[words[i-1]] {
+		if (prev == "動詞" || prev == "助動詞" || prev == "形容詞" || (i > 0 && words[i-1] == "มาก")) && !(i > 0 && preVerbs[words[i-1]]) {
 			result[i] = "助動詞"
 		} else {
 			result[i] = "動詞"

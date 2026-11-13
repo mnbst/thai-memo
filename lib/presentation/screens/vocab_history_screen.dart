@@ -50,7 +50,7 @@ int? scoreMarkerIndex(List<VocabEntry> entries, int score) {
   const testCeiling = 3000;
   final floor = premium ? tested : min(tested, freeLimit);
   final current = max(score, floor);
-  final low = max(floor, current - 50);
+  final low = max(floor, current - 30);
 
   // free の key_word 帯は測定値で平行移動しない。
   final shift = premium ? floor : 0;
@@ -60,7 +60,8 @@ int? scoreMarkerIndex(List<VocabEntry> entries, int score) {
     keyWordHigh = max(keyWordHigh, score + (0.015 * score).toInt());
   }
   if (!premium) keyWordHigh = min(keyWordHigh, freeLimit);
-  return (low, min(current + 50, keyWordHigh));
+  if (shift >= testCeiling) return (low, keyWordHigh);
+  return (low, min(current + 8, keyWordHigh));
 }
 
 enum VocabListMarker { rangeTop, score, rangeBottom }
@@ -107,6 +108,18 @@ List<Object> vocabListRows(
   return rows;
 }
 
+/// 復習タブへ切り替えた知らせ。切り替えのたびに [seq] を進め、語彙スコアを
+/// 一覧の真ん中へ送り直す。[filters] があればその絞り込みにする。
+class VocabTabRequest {
+  final int seq;
+  final Set<VocabMastery>? filters;
+
+  const VocabTabRequest(this.seq, {this.filters});
+}
+
+final vocabTabRequestProvider =
+    StateProvider<VocabTabRequest>((ref) => const VocabTabRequest(0));
+
 class VocabHistoryScreen extends ConsumerStatefulWidget {
   static const routeName = 'vocab_history';
 
@@ -122,7 +135,12 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
 
   /// 一覧のスクロール位置。出題範囲の貼り付け表示だけが購読する。
   final ValueNotifier<double> _listPixels = ValueNotifier(0);
-  VocabMastery? _filter;
+
+  /// 絞り込み（複数選択）。空なら「すべて」。
+  Set<VocabMastery> _filters = {};
+
+  /// タブ切り替えで、次の描画時にスコアを真ん中へ送る。
+  bool _centerScore = false;
   bool _searching = false;
   String _query = '';
 
@@ -203,7 +221,9 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
 
   List<VocabEntry> _visible(List<VocabEntry> all) {
     return all.where((e) {
-      if (_filter != null && e.progress.mastery != _filter) return false;
+      if (_filters.isNotEmpty && !_filters.contains(e.progress.mastery)) {
+        return false;
+      }
       if (_query.isEmpty) return true;
       return e.progress.word.contains(_query) ||
           e.pronunciation.toLowerCase().contains(_query) ||
@@ -213,6 +233,13 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<VocabTabRequest>(vocabTabRequestProvider, (_, next) {
+      setState(() {
+        if (next.filters != null) _filters = {...next.filters!};
+        _positioned = false;
+        _centerScore = true;
+      });
+    });
     final l10n = L10n.of(context);
     final entriesAsync = ref.watch(vocabEntriesProvider);
     final all = entriesAsync.valueOrNull ?? const <VocabEntry>[];
@@ -312,7 +339,8 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
   Widget _chip(String label, int count, VocabMastery? value) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final selected = _filter == value;
+    final selected =
+        value == null ? _filters.isEmpty : _filters.contains(value);
     final ink = value?.inkColor(context);
     final fill = ink ?? cs.primary;
     final foreground = selected ? cs.onPrimary : (ink ?? cs.onSurfaceVariant);
@@ -327,7 +355,20 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
         child: InkWell(
           onTap: () {
             _logReview('filter', value: value?.name ?? 'all');
-            setState(() => _filter = value);
+            setState(() {
+              if (value == null) {
+                _filters = {};
+              } else if (!_filters.remove(value)) {
+                _filters.add(value);
+                // 全部選んだら「すべて」と同じなので、そちらに寄せる。
+                if (_filters.length == VocabMastery.values.length) {
+                  _filters = {};
+                }
+              }
+              // 一覧が入れ替わるので、スコアを真ん中へ送り直す。
+              _positioned = false;
+              _centerScore = true;
+            });
           },
           borderRadius: BorderRadius.circular(14),
           child: Ink(
@@ -407,16 +448,30 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
         _guideChecked &&
         !_showGuide &&
         marker >= 0 &&
-        _filter == null &&
+        (_filters.isEmpty || _centerScore) &&
         _query.isEmpty) {
       _positioned = true;
+      final center = _centerScore;
+      _centerScore = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final scroll = _nestedKey.currentState?.innerController;
         if (scroll == null || !scroll.hasClients) return;
-        final target = offsetOf(marker) - rowExtent * 2;
-        scroll.jumpTo(
-          target.clamp(0.0, scroll.position.maxScrollExtent),
-        );
+        // タブ切り替えでは、スコアの行を一覧の縦の真ん中に置く。
+        final target = center
+            ? offsetOf(marker) -
+                (scroll.position.viewportDimension - markerExtent) / 2
+            : offsetOf(marker) - rowExtent * 2;
+        final to = target.clamp(0.0, scroll.position.maxScrollExtent);
+        if (center) {
+          // タブ切り替えでは、スコアまで流れて見せる（飛ぶと位置関係が分からない）。
+          unawaited(scroll.animateTo(
+            to,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+          ));
+        } else {
+          scroll.jumpTo(to);
+        }
       });
     }
 

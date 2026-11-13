@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/config/app_config.dart';
 import '../../core/thai_tone_analyzer.dart';
+import '../../core/constants/guide_sections.dart';
+import '../widgets/guide_section_anchor.dart';
 import '../widgets/swipe_back.dart';
 import '../widgets/tone_shift_table.dart';
 
@@ -10,13 +12,21 @@ import '../widgets/tone_shift_table.dart';
 class ToneGuideScreen extends StatefulWidget {
   static const routeName = 'tone_guide';
 
-  const ToneGuideScreen({super.key});
+  const ToneGuideScreen({super.key, this.focusSection});
+
+  /// 開いた直後に送る節。
+  final ToneGuideSection? focusSection;
 
   @override
   State<ToneGuideScreen> createState() => _ToneGuideScreenState();
 }
 
 class _ToneGuideScreenState extends State<ToneGuideScreen> {
+  Widget _anchor(ToneGuideSection section, Widget child) => GuideSectionAnchor(
+        active: widget.focusSection == section,
+        child: child,
+      );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,15 +42,17 @@ class _ToneGuideScreenState extends State<ToneGuideScreen> {
               children: [
                 _buildIntroductionSection(),
                 const SizedBox(height: 24),
-                _buildFiveTonesSection(),
+                _anchor(ToneGuideSection.fiveTones, _buildFiveTonesSection()),
                 const SizedBox(height: 24),
-                _buildConsonantClassSection(),
+                _anchor(ToneGuideSection.consonantClasses,
+                    _buildConsonantClassSection()),
                 const SizedBox(height: 24),
-                _buildToneMarksSection(),
+                _anchor(ToneGuideSection.toneMarks, _buildToneMarksSection()),
                 const SizedBox(height: 24),
-                _buildSyllableTypesSection(),
+                _anchor(ToneGuideSection.syllableTypes,
+                    _buildSyllableTypesSection()),
                 const SizedBox(height: 24),
-                _buildToneTablesSection(),
+                _anchor(ToneGuideSection.shiftTable, _buildToneTablesSection()),
                 const SizedBox(height: 24),
               ],
             ),

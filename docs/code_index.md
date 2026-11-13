@@ -61,6 +61,12 @@ lib/core/constants/loading_tips.dart
 lib/core/constants/word_order_rules.dart
 語順ガイドの項目データ（WordOrderRule・WordOrderExample）。ガイド画面とローディングTipsで共用。
 
+lib/core/constants/tips_quiz.dart
+コツ問題（ガイド出典の4択）のデータと出題の選び方。まとめクイズが5問に満たないとき端末で1問だけ足し、出した問題は一巡するまで重ねない。一覧は docs/tips_quiz_questions.md。
+
+lib/core/constants/guide_sections.dart
+ガイド画面の節の名前（声調・タイ文字）と発音ガイドの「読みの記号」の番号。コツ問題から出典の節を開くのに使う。
+
 lib/core/constants/pronunciation_guide_sections.dart
 発音ガイドの節データ（PronSection・PronRow・PronWord）。ガイド画面とローディングTipsで共用。
 
@@ -207,11 +213,32 @@ test/screenshots/pass_effect_mock_app.dart
 test/screenshots/first_set_steps_mock_app.dart
 学習の手順カードと詳細の案内カードを、本物の学習タブ・詳細画面に載せて Firebase なしでシミュレーターに出すモック（flutter run -t、下のボタンで場面切替）。
 
+test/screenshots/quiz_range_mock_app.dart
+セット最後の確認クイズの結果（「先に復習する」と「まとめクイズへ」）と、そこから復習タブへ切り替えた一覧を Firebase なしでシミュレーターに出すモック（flutter run -t）。
+
+test/screenshots/tips_quiz_mock_app.dart
+コツ問題の初期案（発音・語順の2問）を、まとめクイズの見た目でシミュレーターに出すモック（flutter run -t）。
+
 test/screenshots/notif_coach_mock_app.dart
 通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
 
 test/screenshots/review_notify_mock_app.dart
 通知を1日に複数回設定するUI案（アラーム風の3枠固定・トグルで出し入れと届く通知）をシミュレーターで触るモック（flutter run -t）。
+
+test/screenshots/ranking_mock_app.dart
+ランキング画面を Firestore なしのダミーで出し、自分のスコアを切り替えて帯の表示を確かめるモック（flutter run -t）。
+
+test/screenshots/vocab_cap_sheet_mock_app.dart
+語彙スコア100到達の課金シート（VocabCapSheet）を ja/en/ko 切替で出し直し、ペイウォールまで進めるモック（flutter run -t）。
+
+test/screenshots/paywall_mock_app.dart
+ペイウォールを Firebase・ストアなしでシミュレーターに出すモック（商品は差し込み、flutter run -t）。
+
+test/screenshots/premium_copy_screenshot.dart
+有料版の説明（ペイウォール・プラン表・体験終了ダイアログ・語彙100シート）を PNG に書き出す見比べ用。
+
+test/screenshots/pronunciation_cap_mock_app.dart
+free が発音採点を1日10回使い切ったときの発音練習シートの案（残り回数表示／上限カード）を出すモック（flutter run -t）。
 
 test/screenshots/streak_burst_screenshot.dart
 連続日数が伸びたときの炎の演出を、日数（3/7/14/30/100）ごとに PNG に書き出す（見た目確認用）。
@@ -257,6 +284,9 @@ lib/presentation/screens/word_order_guide_screen.dart
 
 ## Widgets
 
+lib/presentation/widgets/guide_section_anchor.dart
+ガイド画面の節を包み、指定された節なら開いた直後にそこまでスクロールする。
+
 lib/presentation/widgets/loading_tip_carousel.dart
 API呼び出し中のヒントカルーセルと、それを載せる生成待ちの白カード（LoadingCard）。例文生成・クイズ生成で共用。
 
@@ -271,6 +301,9 @@ lib/presentation/widgets/sign_in_reminder_banner.dart
 
 lib/presentation/widgets/level_up_dialog.dart
 語彙レベルアップ時のお祝いアニメーションダイアログ。
+
+lib/presentation/widgets/vocab_cap_sheet.dart
+free がまとめクイズで語彙スコア100に届いたとき1度だけ出す課金シート（到達の祝い・段・特典・ペイウォール導線）。
 
 lib/presentation/widgets/vocab_level.dart
 語彙レベルの区切り（入門〜上級）とラベル・アイコン、free の語彙スコア上限。
@@ -304,6 +337,9 @@ lib/presentation/widgets/word_order_example.dart
 
 lib/presentation/widgets/guide_figures.dart
 使い方ガイドに載せる模式図（学習のくり返し・例文カードの構成・発音判定の色）。画面写真は使わず、文言はl10nから引く。
+
+lib/presentation/widgets/plan_compare_table.dart
+無料版とプレミアムの比較表（例文・テーマ・語彙スコア・発音採点）。使い方ガイドとペイウォールで共通に使う。
 
 lib/presentation/widgets/notification_coach_dialog.dart
 毎日例文通知を継続サポート機能として紹介するコーチングダイアログ、表示判定、まとめクイズ完了時に出す流れ（maybeShowNotificationCoach）。
@@ -539,14 +575,23 @@ updateUvm の Go 版。クイズ結果からUVMを更新する。uvm_handlers.py
 functions/go/vocabtest.go
 startVocabTest / submitVocabTest。語彙テストの出題・採点と estimated_vocab の書き込み。全員1段目から出題。プレミアム限定＋月1回（開始時刻を起点に30日、中断のやり直しのみ同一期間内3回まで）。
 
-functions/go/internal/uvm/decay.go
-dailyBatch がかける P の日次減衰（等倍・下限 PFloor）。休眠日数で速めない理由もここ。
+functions/go/cmd/resyncvocab/main.go
+全ユーザーの estimated_vocab を今の推定式で計算し直す（既定は dry run、-write で元の値を保存してから書く）。
 
 functions/go/internal/uvm/model.go
 UVMの純粋関数（UpdateP / GuessRate / MovingAvg / EstimateVocab）と定数。P の更新は尤度比（推測率 g・うっかり率 s）。旧 α 則は UpdatePAlpha として golden 用に残す。
 
 functions/go/internal/uvm/store.go
 UVMのFirestore層。batch_update_uvm / sync_estimated_vocab / publish_leaderboard_vocab。出題形式ごとの証拠の強さ（Result.FormatScale）もここで効かせる。
+
+functions/go/internal/uvm/accuracy.go
+まとめクイズの直近20問の正誤（users の summary_recent）を記録し、正答率でスコアの基準を 0.41〜0.49 の4段に変える。
+
+functions/go/internal/uvm/acccutoffsim_test.go
+正答率でスコアの基準を変える案（段の数・見る問数）の比較シミュレーション（ACC_CUTOFF_SIM=1 で実行）。
+
+functions/go/internal/uvm/adaptivesim_test.go
+語彙スコア・key_word 帯・まとめクイズの範囲を学習状況で動かす案の比較シミュレーション（ADAPTIVE_SIM=1 で実行）。
 
 functions/go/internal/uvm/spellingsim_test.go
 綴り4択の証拠係数が estimated_vocab の伸びをどれだけ鈍らせるかのシミュレーション（SIM=1 で実行）。実測の重複（平均3.0回/語）で d30 が2%遅くなる程度。
@@ -621,7 +666,7 @@ functions/go/subscription_status_live_test.go
 落とす/残すの判定表を実Firestoreで1件ずつ確認する。全体スキャンは走らせない。
 
 functions/go/daily_batch.go
-dailyBatch の Go 版。日次クォータのリセット、UVMのP減衰、匿名ユーザー・重複fcm_tokenの掃除、生成例文の品質監査。常にHTTPトリガー。
+dailyBatch の Go 版。日次クォータのリセット、匿名ユーザー・重複fcm_tokenの掃除、生成例文の品質監査。常にHTTPトリガー。
 
 functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
@@ -661,6 +706,9 @@ Jev judgeを実際に叩くdry run。実Firestoreの直近の例文、または 
 
 functions/go/internal/sentence/produce_check_test.go
 生成直後の品質判定（QualityCheck）のテスト。1文1回だけ判定・不合格は作り直さずセットから外す・判定失敗時は元の文・バンク由来は判定しない。
+
+functions/go/internal/sentence/reuse.go
+未出語だけで例文を作る版（UsesUnseenOnly）で、最低2本に足りないぶんを本人の既出例文（帯の既出語を P の小さい順）で埋める。LLM を呼ばない。出し直しは新しい doc を作り、同じ本文の元 doc に削除印を付けて置き換える（配信は読まれてから）。
 
 functions/go/internal/sentence/corpusbank.go
 静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
@@ -1005,7 +1053,7 @@ functions/go/internal/bldrama/bldrama.go
 BLドラマ回の専用プロンプト断片。参考セリフの選出（embedding／ランダム）と断片の組み立て。
 
 functions/go/internal/bldrama/data.go
-BLドラマの設定・セリフ177件（正本。直接編集。2026年作品はGMMTV公式クリップ題名から採取）。
+BLドラマの設定・セリフ2723件（正本。直接編集。2026年作品はGMMTV公式クリップ題名から、3作品は公式本編の自動字幕からも採取）。
 
 functions/go/internal/bldrama/golden_test.go
 bl_drama.py とプロンプト断片・データを突き合わせる差分テスト。
@@ -1038,7 +1086,7 @@ functions/go/internal/uvm/themesim_test.go
 テーマ寄せの90日シミュレーション。合う語の割合・寄せる範囲（帯全体／est 以下）ごとの est と素通りを比べる。
 
 functions/go/internal/themeshots/data.go
-BL以外15テーマの参考例文19130件（正本。タイ暮らし・タイ旅行の7テーマと恋愛はエピソードを時系列で書かせた行を含み（旅行は旅の雑談・旅先の交流・旅のトラブルも、恋愛・趣味・推し活・仕事・伝統・あいさつ・礼儀作法・宗教は12章の物語も）、その行は具体的な状況 shotSituation をプロンプトの場面の行に使う。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
+BL以外15テーマの参考例文22699件（正本。タイ暮らし・タイ旅行の7テーマと恋愛はエピソードを時系列で書かせた行を含み（旅行は旅の雑談・旅先の交流・旅のトラブルも、恋愛・趣味・推し活・仕事・伝統・あいさつ・礼儀作法・宗教・学校は12章の物語も、推し活は出演作・推しの素顔・ロケ地巡りの会話も、タイ暮らし・タイ旅行の7テーマと恋愛・仕事・趣味・伝統・宗教・礼儀作法はテーマの中心から少し外れた会話も）、その行は具体的な状況 shotSituation をプロンプトの場面の行に使う。Thai PBS [CC] の Foodwork・シットコム・Dohiru 等、短編映画 The Ghost Studio の字幕、Thai PBS ドラマ抜粋の自動字幕から採取。文のみで人名・注釈なし）。
 
 functions/go/internal/themeshots/relation_data.go
 場面の行が付くショット13462件の話し手から見た関係（地位・親しさ・性別）と話し手・聞き手の役（生成コード）。抽選の関係の代わりに使う。
@@ -1062,7 +1110,7 @@ functions/go/internal/uvm/excluded.go
 key_wordにしない語（単独では古語・方言・単位でしか使わない語）の除外リスト。
 
 functions/go/internal/uvm/exposure.go
-例文に出た語の露出をUVMへ記録する（uvm.py:register_exposure / get_sentence_words）。
+例文の key_word の露出をUVMへ記録する（新規登録、既出は last_seen 更新と P の微増）。
 
 functions/go/internal/uvm/session_golden_test.go
 uvm.py の選定・露出まわりと突き合わせる差分テスト。
@@ -1087,9 +1135,6 @@ functions/go/internal/uvm/downsim_test.go
 
 functions/go/internal/uvm/hybridsim_test.go
 階段（最初の数段）と IRT を繋いだハイブリッド測定のシミュレーション（SIM=1）。初級者は階段の打ち切りで早く終わり、通過者だけ IRT に切り替える構成の出題数と誤差を測る。
-
-functions/go/internal/uvm/idlesim_test.go
-90日使って休んだ人が戻った日に estimated_vocab がどこまで落ちるかのシミュレーション。
 
 functions/go/internal/uvm/matrixsim_test.go
 受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。母数の絞り方とヒント常用時の比較も含む。更新則・新語 prior・世界側の推測率/slip を差し替えるつまみを持つ。
@@ -1156,6 +1201,9 @@ Firestore の quiz_questions を走査し、解説・ダミー理由が指定と
 
 functions/go/cmd/poolrecheck/main.go
 GCS の例文プールを今の判定（Aspects＋PoolAspects）でティア別（-tier premium / free）に洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。-in でローカルの JSON（上げる前のキャッシュ例文）を判定する。
+
+functions/go/cmd/poolretag/main.go
+GCS の例文プールの品詞を今のタガーで付け直すコマンド。確度の高い語だけを変え、手で直した文は -skip で外す。既定は dry run、-write でバックアップを取ってから書き戻す。
 
 functions/go/cmd/pilot/main.go
 cmd/corpus のマニフェストから本番と同じ経路で例文を生成し、judge の通過率と差し戻しの成功率を実測するコマンド。
@@ -1381,6 +1429,9 @@ Tips・ガイドの枠で study_posts.json から投稿文を1件抽選する（
 tools/x_post/study_posts.json
 Tips・ガイドの X 投稿文（アプリの Tips とガイドから書き起こした確認済みの完成文）。
 
+tools/x_post/feature_captions.json
+機能紹介（20時枠）に貼る画像の並びと見出し。ストア用スクショの合成（store_screenshots.dart の CAPTIONS / OUT）に渡して feature_images/ を作る。
+
 tools/x_post/select_prompt.txt
 例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
 
@@ -1452,13 +1503,13 @@ tools/store_screenshots/header.py
 商品ページヘッダー（3840x1646）を言語ごとに描く。背景のタイ語は pango-view で描く。
 
 test/screenshots/store_mock_screens.dart
-ストア用スクショの素材7画面（ja/en/ko × iPhone/iPad）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。
+ストア用スクショと X の機能紹介の素材12画面（ja/en/ko × iPhone/iPad/Android）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。09以降（お手本再生・通知時刻・連続日数）は X 用。
 
 test/screenshots/store_mock_data.dart
 上記に描く例文・クイズ・復習タブの語の見本データ（ja/en/ko）。
 
 test/screenshots/store_screenshots.dart
-素材に見出し・端末の枠を合成し build/store_shots/out へ書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
+素材に見出し・端末の枠を合成し build/store_shots/out へ書き出す。切り抜きは別の素材からも取れ、押した位置に波紋を描ける。`_test.dart` ではないので通常の `flutter test` では走らない。
 
 ## E2E (Maestro)
 
@@ -1471,7 +1522,7 @@ Maestroの実行手順（起動コマンド、studio、スクショの出力先�
 ## 語彙一覧（履歴タブ）
 
 lib/presentation/screens/vocab_history_screen.dart
-出会った語を語彙ランク順に並べる履歴タブ本体
+出会った語を語彙ランク順に並べる履歴タブ本体。絞り込みは複数選択。タブ切り替え・絞り込みのたびに語彙スコアを真ん中へ送る（vocabTabRequestProvider で絞り込みも渡せる）
 
 lib/presentation/screens/vocab_word_screen.dart
 語の詳細と、その語を含む例文の一覧

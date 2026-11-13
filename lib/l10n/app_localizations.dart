@@ -201,6 +201,12 @@ abstract class L10n {
   /// **'まとめクイズへ'**
   String get learnGoToSummaryQuiz;
 
+  /// まとめクイズの前に、復習タブへ切り替えて過去の例文の語を見直すリンク
+  ///
+  /// In ja, this message translates to:
+  /// **'先に復習する'**
+  String get learnReviewQuizRange;
+
   /// セットの残り本数。セット（最大5本）を学び終えるとまとめクイズへ進む
   ///
   /// In ja, this message translates to:
@@ -627,6 +633,72 @@ abstract class L10n {
   /// **'Premiumで続きの成長を記録しよう'**
   String get vocabScorePremiumPitch;
 
+  /// No description provided for @vocabWordsRange.
+  ///
+  /// In ja, this message translates to:
+  /// **'{min}〜{max}語'**
+  String vocabWordsRange(int min, int max);
+
+  /// No description provided for @vocabWordsOver.
+  ///
+  /// In ja, this message translates to:
+  /// **'{min}語〜'**
+  String vocabWordsOver(int min);
+
+  /// No description provided for @vocabCapSheetTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'無料プランの上限に到達！'**
+  String get vocabCapSheetTitle;
+
+  /// No description provided for @vocabCapSheetBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムなら、この先も伸ばせます。'**
+  String get vocabCapSheetBody;
+
+  /// No description provided for @vocabCapSheetHere.
+  ///
+  /// In ja, this message translates to:
+  /// **'いまここ'**
+  String get vocabCapSheetHere;
+
+  /// No description provided for @vocabCapSheetPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアム'**
+  String get vocabCapSheetPremium;
+
+  /// No description provided for @vocabCapSheetFeatureCap.
+  ///
+  /// In ja, this message translates to:
+  /// **'100語を超えて語彙スコアが伸びる'**
+  String get vocabCapSheetFeatureCap;
+
+  /// No description provided for @vocabCapSheetFeatureTopic.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文のテーマを自分で選べる'**
+  String get vocabCapSheetFeatureTopic;
+
+  /// No description provided for @vocabCapSheetFeatureUnlimited.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文は無制限、発音採点も何度でも'**
+  String get vocabCapSheetFeatureUnlimited;
+
+  /// No description provided for @vocabCapSheetCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムで続ける'**
+  String get vocabCapSheetCta;
+
+  /// No description provided for @vocabCapSheetLater.
+  ///
+  /// In ja, this message translates to:
+  /// **'あとで'**
+  String get vocabCapSheetLater;
+
   /// 語彙スコアの語数表示
   ///
   /// In ja, this message translates to:
@@ -650,12 +722,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'お気に入りのみ表示'**
   String get historyFavoritesOnly;
-
-  /// No description provided for @historyDeleteAll.
-  ///
-  /// In ja, this message translates to:
-  /// **'すべて削除'**
-  String get historyDeleteAll;
 
   /// No description provided for @historyFilterAll.
   ///
@@ -723,18 +789,6 @@ abstract class L10n {
   /// **'新しい例文を生成してみましょう'**
   String get historyEmptyHint;
 
-  /// No description provided for @historyDeleteAllConfirm.
-  ///
-  /// In ja, this message translates to:
-  /// **'すべての例文履歴を削除しますか？この操作は取り消せません。'**
-  String get historyDeleteAllConfirm;
-
-  /// No description provided for @historyDeletedAll.
-  ///
-  /// In ja, this message translates to:
-  /// **'すべての例文を削除しました'**
-  String get historyDeletedAll;
-
   /// No description provided for @historyDeleteFailed.
   ///
   /// In ja, this message translates to:
@@ -758,6 +812,48 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'例文を削除しました'**
   String get historyDeletedOne;
+
+  /// No description provided for @historySelectToDelete.
+  ///
+  /// In ja, this message translates to:
+  /// **'選択して削除'**
+  String get historySelectToDelete;
+
+  /// No description provided for @historySelectedCount.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}件選択'**
+  String historySelectedCount(int count);
+
+  /// No description provided for @historySelectAll.
+  ///
+  /// In ja, this message translates to:
+  /// **'すべて選択'**
+  String get historySelectAll;
+
+  /// No description provided for @historyDeselectAll.
+  ///
+  /// In ja, this message translates to:
+  /// **'選択を解除'**
+  String get historyDeselectAll;
+
+  /// No description provided for @historyDeleteSelected.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}件を削除'**
+  String historyDeleteSelected(int count);
+
+  /// No description provided for @historyDeleteSelectedConfirm.
+  ///
+  /// In ja, this message translates to:
+  /// **'選んだ{count}件の例文を削除しますか？この操作は取り消せません。'**
+  String historyDeleteSelectedConfirm(int count);
+
+  /// No description provided for @historyDeletedCount.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}件の例文を削除しました'**
+  String historyDeletedCount(int count);
 
   /// No description provided for @historyWordCount.
   ///
@@ -1334,6 +1430,24 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'語彙スコア'**
   String get trialEndedChangeVocabLabel;
+
+  /// No description provided for @trialEndedChangePronunciationLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音採点'**
+  String get trialEndedChangePronunciationLabel;
+
+  /// No description provided for @trialEndedChangePronunciationPremium.
+  ///
+  /// In ja, this message translates to:
+  /// **'無制限'**
+  String get trialEndedChangePronunciationPremium;
+
+  /// No description provided for @trialEndedChangePronunciationFree.
+  ///
+  /// In ja, this message translates to:
+  /// **'1日{free}回'**
+  String trialEndedChangePronunciationFree(int free);
 
   /// No description provided for @trialEndedChangeVocabPremium.
   ///
@@ -1917,30 +2031,6 @@ abstract class L10n {
   /// **'{currency} {amount} / 月'**
   String paywallPrice(String currency, String amount);
 
-  /// No description provided for @paywallFeatureQuotaTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'語彙スコア100の先も伸ばせる'**
-  String get paywallFeatureQuotaTitle;
-
-  /// No description provided for @paywallFeatureQuotaPremium.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文は無制限・語彙スコアの上限なし'**
-  String get paywallFeatureQuotaPremium;
-
-  /// No description provided for @paywallFeatureTopicTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'好きな場面のタイ語から始める'**
-  String get paywallFeatureTopicTitle;
-
-  /// No description provided for @paywallFeatureTopicPremium.
-  ///
-  /// In ja, this message translates to:
-  /// **'旅行・暮らし・BLドラマなどから自分で選べる'**
-  String get paywallFeatureTopicPremium;
-
   /// No description provided for @onboarding1Title.
   ///
   /// In ja, this message translates to:
@@ -2304,13 +2394,13 @@ abstract class L10n {
   /// No description provided for @premiumHint1Title.
   ///
   /// In ja, this message translates to:
-  /// **'好きな場面のタイ語から始める'**
+  /// **'発音も、語彙も、好きなだけ'**
   String get premiumHint1Title;
 
   /// No description provided for @premiumHint1Body.
   ///
   /// In ja, this message translates to:
-  /// **'旅行・暮らし・BLドラマなどから、例文のテーマを自分で選べます'**
+  /// **'例文・発音採点・語彙スコアは上限なし。テーマも選べます'**
   String get premiumHint1Body;
 
   /// No description provided for @signInReminderTitle.
@@ -2468,6 +2558,30 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'もう一度'**
   String get pronunciationRetry;
+
+  /// No description provided for @pronunciationCapTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の発音採点は{count}回まで'**
+  String pronunciationCapTitle(int count);
+
+  /// No description provided for @pronunciationCapBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'明日また{count}回できます。\nプレミアムなら回数は無制限です。'**
+  String pronunciationCapBody(int count);
+
+  /// No description provided for @pronunciationCapCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムで続ける'**
+  String get pronunciationCapCta;
+
+  /// No description provided for @pronunciationRemainingToday.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の採点 あと{count}回'**
+  String pronunciationRemainingToday(int count);
 
   /// No description provided for @pronunciationReference.
   ///
@@ -4519,14 +4633,8 @@ abstract class L10n {
   /// No description provided for @guideRolePremiumBody.
   ///
   /// In ja, this message translates to:
-  /// **'無料版でも毎日学べます。プレミアムでは例文数・テーマ選択・語彙スコアの上限が広がります。'**
+  /// **'無料版でも毎日学べ、お手本音声は何度でも再生できます。プレミアムは例文・発音採点・語彙スコアが無制限で、テーマも選べます。'**
   String get guideRolePremiumBody;
-
-  /// No description provided for @guidePlanColItem.
-  ///
-  /// In ja, this message translates to:
-  /// **'項目'**
-  String get guidePlanColItem;
 
   /// No description provided for @guidePlanColFree.
   ///
@@ -4549,13 +4657,13 @@ abstract class L10n {
   /// No description provided for @guidePlanRowTopic.
   ///
   /// In ja, this message translates to:
-  /// **'テーマ'**
+  /// **'例文テーマ'**
   String get guidePlanRowTopic;
 
   /// No description provided for @guidePlanRowVocab.
   ///
   /// In ja, this message translates to:
-  /// **'語彙スコアの上限'**
+  /// **'語彙スコア'**
   String get guidePlanRowVocab;
 
   /// プラン比較表の premium 側。例文は無制限
@@ -4579,7 +4687,7 @@ abstract class L10n {
   /// No description provided for @guidePlanTopicPremium.
   ///
   /// In ja, this message translates to:
-  /// **'自分で選べる'**
+  /// **'選べる'**
   String get guidePlanTopicPremium;
 
   /// No description provided for @guidePlanVocabFree.
@@ -4588,11 +4696,29 @@ abstract class L10n {
   /// **'{count}語'**
   String guidePlanVocabFree(int count);
 
-  /// No description provided for @guidePlanVocabPremium.
+  /// No description provided for @guidePlanVocabUnlimited.
   ///
   /// In ja, this message translates to:
-  /// **'約{count}語'**
-  String guidePlanVocabPremium(int count);
+  /// **'上限なし'**
+  String get guidePlanVocabUnlimited;
+
+  /// No description provided for @guidePlanRowPronunciation.
+  ///
+  /// In ja, this message translates to:
+  /// **'1日の発音採点'**
+  String get guidePlanRowPronunciation;
+
+  /// No description provided for @guidePlanPronunciationFree.
+  ///
+  /// In ja, this message translates to:
+  /// **'{count}回'**
+  String guidePlanPronunciationFree(int count);
+
+  /// No description provided for @guidePlanPronunciationUnlimited.
+  ///
+  /// In ja, this message translates to:
+  /// **'無制限'**
+  String get guidePlanPronunciationUnlimited;
 
   /// No description provided for @guideHowSentenceTitle.
   ///
@@ -5968,23 +6094,71 @@ abstract class L10n {
   /// **'1か月'**
   String get streakBurstMonth;
 
-  /// No description provided for @streakBurstDone.
+  /// No description provided for @streakBurstDay1.
   ///
   /// In ja, this message translates to:
-  /// **'続きました！'**
-  String get streakBurstDone;
+  /// **'最高のスタート！'**
+  String get streakBurstDay1;
 
-  /// No description provided for @streakBurstStart.
+  /// No description provided for @streakBurstDay2.
   ///
   /// In ja, this message translates to:
-  /// **'記録スタート！'**
-  String get streakBurstStart;
+  /// **'今日もできた！'**
+  String get streakBurstDay2;
 
-  /// No description provided for @streakPraiseFight.
+  /// No description provided for @streakBurstDay3.
   ///
   /// In ja, this message translates to:
-  /// **'がんばれ'**
-  String get streakPraiseFight;
+  /// **'3日連続、すごい！'**
+  String get streakBurstDay3;
+
+  /// No description provided for @streakBurstBack.
+  ///
+  /// In ja, this message translates to:
+  /// **'おかえりなさい！'**
+  String get streakBurstBack;
+
+  /// No description provided for @streakBurstKeep.
+  ///
+  /// In ja, this message translates to:
+  /// **'その調子！'**
+  String get streakBurstKeep;
+
+  /// No description provided for @streakBurstHabit.
+  ///
+  /// In ja, this message translates to:
+  /// **'いい習慣になってきた！'**
+  String get streakBurstHabit;
+
+  /// No description provided for @streakBurstHabitSolid.
+  ///
+  /// In ja, this message translates to:
+  /// **'もう立派な習慣！'**
+  String get streakBurstHabitSolid;
+
+  /// No description provided for @streakBurstBuilt.
+  ///
+  /// In ja, this message translates to:
+  /// **'積み重ねがすごい！'**
+  String get streakBurstBuilt;
+
+  /// No description provided for @streakBurstRecord.
+  ///
+  /// In ja, this message translates to:
+  /// **'ものすごい記録！'**
+  String get streakBurstRecord;
+
+  /// No description provided for @streakBurstLegend.
+  ///
+  /// In ja, this message translates to:
+  /// **'伝説はまだ続く！'**
+  String get streakBurstLegend;
+
+  /// No description provided for @streakPraiseWell.
+  ///
+  /// In ja, this message translates to:
+  /// **'よくできたね'**
+  String get streakPraiseWell;
 
   /// No description provided for @streakPraiseGreat.
   ///
@@ -5998,16 +6172,40 @@ abstract class L10n {
   /// **'最高！'**
   String get streakPraiseAwesome;
 
+  /// No description provided for @streakPraiseSuper.
+  ///
+  /// In ja, this message translates to:
+  /// **'最高すぎる！'**
+  String get streakPraiseSuper;
+
+  /// No description provided for @streakPraiseAmazing.
+  ///
+  /// In ja, this message translates to:
+  /// **'とびきりすごい！'**
+  String get streakPraiseAmazing;
+
   /// No description provided for @streakPraiseExcellent.
   ///
   /// In ja, this message translates to:
-  /// **'素晴らしい'**
+  /// **'本当に素晴らしい！'**
   String get streakPraiseExcellent;
+
+  /// No description provided for @streakPraiseRare.
+  ///
+  /// In ja, this message translates to:
+  /// **'並じゃない！'**
+  String get streakPraiseRare;
+
+  /// No description provided for @streakPraiseGodTier.
+  ///
+  /// In ja, this message translates to:
+  /// **'神レベルにすごい！'**
+  String get streakPraiseGodTier;
 
   /// No description provided for @streakPraiseLegend.
   ///
   /// In ja, this message translates to:
-  /// **'神レベル'**
+  /// **'もう伝説！'**
   String get streakPraiseLegend;
 
   /// No description provided for @streakRestart.
@@ -6279,6 +6477,300 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'覚えたに追加されました！'**
   String get vocabLearnedAdded;
+
+  /// No description provided for @tipQuizPromptPron.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音のコツ'**
+  String get tipQuizPromptPron;
+
+  /// No description provided for @tipQuizPromptTone.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調のコツ'**
+  String get tipQuizPromptTone;
+
+  /// No description provided for @tipQuizPromptScript.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ文字のコツ'**
+  String get tipQuizPromptScript;
+
+  /// No description provided for @tipQuizPromptWordOrder.
+  ///
+  /// In ja, this message translates to:
+  /// **'語順のコツ'**
+  String get tipQuizPromptWordOrder;
+
+  /// No description provided for @tipQuizWordOrderQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'「{meaning}」を表す並びは？'**
+  String tipQuizWordOrderQuestion(String meaning);
+
+  /// No description provided for @tipQuizW7Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「行かなかった」ではなく「行けない」はどっち？'**
+  String get tipQuizW7Question;
+
+  /// No description provided for @pronLearnMore.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音について詳しく学ぶ'**
+  String get pronLearnMore;
+
+  /// No description provided for @tipQuizP1Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「鶏」と「卵」。2つの語の違いは？'**
+  String get tipQuizP1Question;
+
+  /// No description provided for @tipQuizP1Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'息を強く出すかどうか|声調の高さ|母音の長さ|最後の子音'**
+  String get tipQuizP1Choices;
+
+  /// No description provided for @tipQuizP2Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'th の h は何を表す？'**
+  String get tipQuizP2Question;
+
+  /// No description provided for @tipQuizP2Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'息を強く出す印|舌を歯の間に挟む（英語の th）|音をのばす印|発音しない'**
+  String get tipQuizP2Choices;
+
+  /// No description provided for @tipQuizP3Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「入る」と「ご飯」。2つの語の違いは？'**
+  String get tipQuizP3Question;
+
+  /// No description provided for @tipQuizP3Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音の長さ|息を強く出すかどうか|声調の高さ|最後の子音'**
+  String get tipQuizP3Choices;
+
+  /// No description provided for @tipQuizP4Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'読みで aa のように同じ母音が2つ並んだら？'**
+  String get tipQuizP4Question;
+
+  /// No description provided for @tipQuizP4Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'長くのばす|2回に区切って言う|強く言う|高く言う'**
+  String get tipQuizP4Choices;
+
+  /// No description provided for @tipQuizP5Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「日差し」の ɛ はどんな音？'**
+  String get tipQuizP5Question;
+
+  /// No description provided for @tipQuizP5Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'口を大きく開けた「エ」|口をすぼめた「エ」|「イ」に近い音|鼻に抜く「エ」'**
+  String get tipQuizP5Choices;
+
+  /// No description provided for @tipQuizP6Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「手」の ʉ はどんな音？'**
+  String get tipQuizP6Question;
+
+  /// No description provided for @tipQuizP6Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'口を横に引いたまま言う「ウ」|唇を丸めた「ウ」|「イ」と「ウ」を続けて言う|鼻に抜く「ウ」'**
+  String get tipQuizP6Choices;
+
+  /// No description provided for @tipQuizP7Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の k・t はどう言う？'**
+  String get tipQuizP7Question;
+
+  /// No description provided for @tipQuizP7Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'閉じて止める。「ク」「ト」と母音を足さない|「ク」「ト」とはっきり言う|「グ」「ド」と濁らせる|長くのばす'**
+  String get tipQuizP7Choices;
+
+  /// No description provided for @tipQuizP8Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「皿」と「薄い」。2つの語の違いは？'**
+  String get tipQuizP8Question;
+
+  /// No description provided for @tipQuizP8Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の n と ng|声調の高さ|母音の長さ|息を強く出すかどうか'**
+  String get tipQuizP8Choices;
+
+  /// No description provided for @tipQuizP9Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「お金」の頭の ng はどう言う？'**
+  String get tipQuizP9Question;
+
+  /// No description provided for @tipQuizP9Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'口を開けたまま鼻へ抜く。「ン」を前に付けない|「ン」と言ってから「ガ」|「グ」と言う|発音しない'**
+  String get tipQuizP9Choices;
+
+  /// No description provided for @tipQuizP11Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'丁寧の語尾 ครับ は、会話でどう聞こえやすい？'**
+  String get tipQuizP11Question;
+
+  /// No description provided for @tipQuizP11Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'kháp（r が落ちる）|khrâp（声調が下がる）|khráap（のびる）|kráp（息が消える）'**
+  String get tipQuizP11Choices;
+
+  /// No description provided for @tipQuizT1Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の声調はいくつ？'**
+  String get tipQuizT1Question;
+
+  /// No description provided for @tipQuizT1Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'5つ|4つ|6つ|9つ'**
+  String get tipQuizT1Choices;
+
+  /// No description provided for @tipQuizT5Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調を決めるのは？'**
+  String get tipQuizT5Question;
+
+  /// No description provided for @tipQuizT5Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'子音クラス×声調記号×音節タイプ|声調記号だけ|母音だけ|文の中の位置'**
+  String get tipQuizT5Choices;
+
+  /// No description provided for @tipQuizT6Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調記号が付いていない音節は？'**
+  String get tipQuizT6Question;
+
+  /// No description provided for @tipQuizT6Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調がある（組み合わせで決まる）|声調がない|必ず平声|必ず低声'**
+  String get tipQuizT6Choices;
+
+  /// No description provided for @tipQuizT7Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「犬」の ห は？'**
+  String get tipQuizT7Question;
+
+  /// No description provided for @tipQuizT7Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'発音せず、高子音の声調規則に従わせる|h と発音する|母音を長くする|語末の音になる'**
+  String get tipQuizT7Choices;
+
+  /// No description provided for @tipQuizS1Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'タイ語の文の書き方は？'**
+  String get tipQuizS1Question;
+
+  /// No description provided for @tipQuizS1Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'左から右。単語ごとにはスペースを空けない|右から左|単語ごとにスペースを空ける|上から下'**
+  String get tipQuizS1Choices;
+
+  /// No description provided for @tipQuizS2Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'母音記号が付く位置は？'**
+  String get tipQuizS2Question;
+
+  /// No description provided for @tipQuizS2Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'子音の前・後ろ・上・下・囲む|子音の後ろだけ|子音の上だけ|子音の前だけ'**
+  String get tipQuizS2Choices;
+
+  /// No description provided for @tipQuizS3Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'「子ども」の เ は ด の前に書く。読む順は？'**
+  String get tipQuizS3Question;
+
+  /// No description provided for @tipQuizS3Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'d を読んでから e|e を読んでから d'**
+  String get tipQuizS3Choices;
+
+  /// No description provided for @tipQuizS4Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'อา の อ の役割は？'**
+  String get tipQuizS4Question;
+
+  /// No description provided for @tipQuizS4Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'音を持たない、母音記号の台|「オ」と読む|語末の n|声調記号'**
+  String get tipQuizS4Choices;
+
+  /// No description provided for @tipQuizS5Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'ะ が付いた母音は？'**
+  String get tipQuizS5Question;
+
+  /// No description provided for @tipQuizS5Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'短い母音|長い母音|高い声調|読まない'**
+  String get tipQuizS5Choices;
+
+  /// No description provided for @tipQuizS6Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'語末の ด はどの音？'**
+  String get tipQuizS6Question;
+
+  /// No description provided for @tipQuizS6Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'t|d|n|読まない'**
+  String get tipQuizS6Choices;
+
+  /// No description provided for @tipQuizS7Question.
+  ///
+  /// In ja, this message translates to:
+  /// **'声調記号はいくつ？'**
+  String get tipQuizS7Question;
+
+  /// No description provided for @tipQuizS7Choices.
+  ///
+  /// In ja, this message translates to:
+  /// **'4つ|2つ|3つ|5つ'**
+  String get tipQuizS7Choices;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

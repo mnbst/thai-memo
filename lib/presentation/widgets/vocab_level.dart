@@ -4,8 +4,6 @@ import '../../l10n/app_localizations.dart';
 
 const int freeVocabScoreLimit = 100;
 
-/// プレミアムで到達しうる語彙スコアの目安。上限ではなく案内用の概算値。
-const int premiumVocabScoreGuide = 10000;
 
 /// 語彙レベルの識別子。prefs に保存され `_thresholdForLevel` の判定にも使うため
 /// 日本語のまま変えない。表示には [vocabLevelLabel] を使うこと。

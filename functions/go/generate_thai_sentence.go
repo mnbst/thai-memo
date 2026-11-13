@@ -275,6 +275,7 @@ func runGenerateThaiSentence(
 		Lang:            l,
 		// LLM 生成分を1回判定し、不合格の文はセットから外す（待ち時間 +0.5 秒前後）。
 		QualityCheck: generationQualityCheck(),
+		UnseenOnly:   sentence.UsesUnseenOnly(userData),
 	}, count)
 	if err != nil {
 		return nil, err
@@ -323,36 +324,20 @@ func runGenerateThaiSentence(
 	return sentences, nil
 }
 
-// registerSentenceExposure は例文に出た語の露出を UVM に記録する
+// registerSentenceExposure は例文の key_word の露出を UVM に記録する
 // （sentence_handlers.py:_register_sentence_exposure:151）。
 //
-// ターゲット語は新規作成も許すが、それ以外の語は既存ドキュメントの更新だけ。
+// 記録するのは key_word だけ。例文にたまたま含まれた語は P も last_seen も
+// 動かさない（last_seen は key_word にした日とクイズに答えた日）。
 func registerSentenceExposure(
 	ctx context.Context, db *firestore.Client, uid string, produced *sentence.Produced,
 ) {
-	allWords := uvm.SentenceWords(produced.Sentence.BreakdownWords())
 	exposed := uvm.ExposedWords(produced.Sentence.BreakdownWords(), produced.TargetWords)
-	if len(exposed) > 0 {
-		if err := uvm.RegisterExposure(ctx, db, uid, exposed, produced.TargetWords); err != nil {
-			log.Printf("register_sentence_exposure failed: %v", err)
-			return
-		}
+	if len(exposed) == 0 {
+		return
 	}
-
-	targets := map[string]bool{}
-	for _, t := range produced.TargetWords {
-		targets[t] = true
-	}
-	var others []string
-	for _, w := range allWords {
-		if !targets[w] {
-			others = append(others, w)
-		}
-	}
-	if len(others) > 0 {
-		if err := uvm.RegisterExposure(ctx, db, uid, others, nil); err != nil {
-			log.Printf("register_sentence_exposure failed: %v", err)
-		}
+	if err := uvm.RegisterExposure(ctx, db, uid, exposed, produced.TargetWords); err != nil {
+		log.Printf("register_sentence_exposure failed: %v", err)
 	}
 }
 
@@ -378,6 +363,9 @@ func commitSentences(
 			TrackViewed:    trackViewed,
 			Quality:        p.Quality,
 		})
+		if p.Reuse != nil && p.Reuse.Favorite {
+			docs[i]["favorite"] = true
+		}
 	}
 
 	if err := db.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
@@ -404,7 +392,46 @@ func commitSentences(
 	for i, p := range produced {
 		p.Sentence.ID = refs[i].ID
 	}
+
+	// 出し直した既出例文は、元の doc を新しい doc で置き換える。
+	for _, p := range produced {
+		if p.Reuse != nil {
+			retireSentences(ctx, db, userRef, p.Reuse.Replaces, p.Reuse.Expired)
+		}
+	}
 	return nil
+}
+
+// retireSentences は置き換えられた例文 doc に削除印を付け、猶予を過ぎた doc を消す。
+//
+// 削除印は洗い替え（purgeUnreadDeliveredSets）と同じ形で、端末は差分同期で
+// 手元の例文を消す。失敗しても新しい例文は保存済みなのでログだけ残す
+// （同じ文の doc が残るだけで、次に出し直すときにまた対象になる）。
+func retireSentences(
+	ctx context.Context, db *firestore.Client, userRef *firestore.DocumentRef,
+	replaces, expired []string,
+) {
+	if len(replaces) == 0 && len(expired) == 0 {
+		return
+	}
+	col := userRef.Collection("sentences")
+	bw := db.BulkWriter(ctx)
+	for _, id := range replaces {
+		if _, err := bw.Update(col.Doc(id), []firestore.Update{
+			{Path: "deleted", Value: true},
+			{Path: "purged_at", Value: firestore.ServerTimestamp},
+			{Path: "updated_at", Value: firestore.ServerTimestamp},
+		}); err != nil {
+			log.Printf("retire_sentences: 削除印に失敗 uid=%s: %v", userRef.ID, err)
+		}
+	}
+	for _, id := range expired {
+		if _, err := bw.Delete(col.Doc(id)); err != nil {
+			log.Printf("retire_sentences: 削除に失敗 uid=%s: %v", userRef.ID, err)
+		}
+	}
+	bw.End()
+	log.Printf("retire_sentences: uid=%s marked=%d removed=%d", userRef.ID, len(replaces), len(expired))
 }
 
 // sentenceCommitUpdate は例文コミット時の users ドキュメント更新内容
@@ -429,6 +456,9 @@ func sentenceCommitUpdate(
 	if _, ok := userData["first_generated_at"]; !ok {
 		updates = append(updates,
 			firestore.Update{Path: "first_generated_at", Value: firestore.ServerTimestamp})
+	}
+	if sentence.UsesUnseenOnly(userData) {
+		updates = append(updates, firestore.Update{Path: sentence.LastSetSizeField, Value: count})
 	}
 	return updates
 }
