@@ -1503,7 +1503,7 @@ tools/store_screenshots/header.py
 商品ページヘッダー（3840x1646）を言語ごとに描く。背景のタイ語は pango-view で描く。
 
 test/screenshots/store_mock_screens.dart
-ストア用スクショの素材9画面（ja/en/ko × iPhone/iPad/Android）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。
+ストア用スクショと X の機能紹介の素材12画面（ja/en/ko × iPhone/iPad/Android）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。09以降（お手本再生・通知時刻・連続日数）は X 用。
 
 test/screenshots/store_mock_data.dart
 上記に描く例文・クイズ・復習タブの語の見本データ（ja/en/ko）。

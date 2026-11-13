@@ -147,6 +147,56 @@
           0.215
         ]
       }
+    },
+    {
+      "id": "06_ranking",
+      "screen": "設定 → 語彙ランキング（自分の順位・上位・分布）",
+      "ja": "語彙スコアで\n**順位がわかる**",
+      "en": "See where you stand\n**Vocab ranking**",
+      "ko": "외운 어휘로\n**순위를 확인**"
+    },
+    {
+      "id": "09_audio",
+      "screen": "例文の詳細で「お手本を聞く」を押し、再生バーが出ている状態",
+      "ja": "お手本の音声を\n**何度でも聞ける**",
+      "en": "Listen to the model\n**Again and again**",
+      "ko": "모범 음성을\n**몇 번이든 듣기**",
+      "zoom": {
+        "iphone": [
+          0.03,
+          0.335,
+          0.94,
+          0.12
+        ]
+      },
+      "tap": {
+        "iphone": [
+          0.27,
+          0.37
+        ]
+      }
+    },
+    {
+      "id": "10_notify",
+      "screen": "設定 → 毎日の例文通知（プレミアムの3枠）",
+      "ja": "決めた時間に\n**例文が届く**",
+      "en": "Pick your times\n**Get daily sentences**",
+      "ko": "정한 시간에\n**예문이 도착**"
+    },
+    {
+      "id": "11_streak",
+      "screen": "設定タブ。語彙スコアと連続日数のカード",
+      "ja": "続けた日数が\n**記録に残る**",
+      "en": "Keep your streak\n**Day after day**",
+      "ko": "이어 온 날이\n**기록으로 남아요**",
+      "zoom": {
+        "iphone": [
+          0.03,
+          0.255,
+          0.94,
+          0.185
+        ]
+      }
     }
   ]
 }
