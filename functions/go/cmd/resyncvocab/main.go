@@ -3,8 +3,8 @@
 // 既定は dry run で、何も書かずに変わる人数と一覧を出す。-write で書く。
 // 書くときは先に元の値を -backup へ保存し、ランキングも SyncEstimatedVocab が更新する。
 //
-//	GCLOUD_PROJECT=thai-memo-dev go run ./cmd/resyncvocab -out /tmp/plan.json
-//	GCLOUD_PROJECT=thai-memo-dev go run ./cmd/resyncvocab -write -backup /tmp/before.json
+//	GCLOUD_PROJECT=thai-memo-67139 go run ./cmd/resyncvocab -out /tmp/plan.json
+//	GCLOUD_PROJECT=thai-memo-67139 go run ./cmd/resyncvocab -write -backup /tmp/before.json
 package main
 
 import (

@@ -39,8 +39,8 @@
         "platforms": {
             "ios": {
                 "default": {
-                    "projectId": "thai-memo-dev",
-                    "appId": "1:147810088545:ios:c023f84f36af09f6c09c20",
+                    "projectId": "thai-memo-67139",
+                    "appId": "1:763566155520:ios:34f63afce221b228beb5e5",
                     "uploadDebugSymbols": false,
                     "fileOutput": "ios/Runner/GoogleService-Info.plist"
                 }
@@ -54,17 +54,17 @@
                     }
                 },
                 "lib/firebase_options_dev.dart": {
-                    "projectId": "thai-memo-dev",
+                    "projectId": "thai-memo-67139",
                     "configurations": {
-                        "android": "1:147810088545:android:880d5b4669246accc09c20",
-                        "ios": "1:147810088545:ios:c023f84f36af09f6c09c20"
+                        "android": "1:763566155520:android:34165e13f45eb11bbeb5e5",
+                        "ios": "1:763566155520:ios:34f63afce221b228beb5e5"
                     }
                 }
             },
             "android": {
                 "default": {
-                    "projectId": "thai-memo-dev",
-                    "appId": "1:147810088545:android:880d5b4669246accc09c20",
+                    "projectId": "thai-memo-67139",
+                    "appId": "1:763566155520:android:34165e13f45eb11bbeb5e5",
                     "fileOutput": "android/app/google-services.json"
                 }
             }

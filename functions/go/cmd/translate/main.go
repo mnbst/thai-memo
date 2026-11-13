@@ -4,7 +4,7 @@
 // 訳と語義だけを internal/corpustrans の専用プロンプトで作り直す。
 // 生成時に付いた日本語訳は判定に使った下書き扱いで、ここで置き換える。
 //
-//	GOOGLE_CLOUD_PROJECT=thai-memo-dev go run ./cmd/translate \
+//	GOOGLE_CLOUD_PROJECT=thai-memo-67139 go run ./cmd/translate \
 //	  -in /tmp/corpus_ja.jsonl -out /tmp/corpus.jsonl -c 10
 //
 // -en-only は完成コーパスを入力に取り、英訳だけ作り直す。日本語訳と

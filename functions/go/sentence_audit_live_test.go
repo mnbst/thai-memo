@@ -71,7 +71,7 @@ func TestSentenceAuditLive(t *testing.T) {
 // Firestore を通さないので、プロンプトを直す→生成→判定のループに使える。
 //
 //	go run ./cmd/sample -words "ลอง,แต่ว่า" -vocab 200,800 -n 5 -out /tmp/s.json
-//	AUDIT_LIVE_FILE=/tmp/s.json LIVE_FIRESTORE_TEST=1 GCLOUD_PROJECT=thai-memo-dev \
+//	AUDIT_LIVE_FILE=/tmp/s.json LIVE_FIRESTORE_TEST=1 GCLOUD_PROJECT=thai-memo-67139 \
 //	  go test -run TestSentenceAuditFileLive -v -timeout 10m .
 func TestSentenceAuditFileLive(t *testing.T) {
 	path := os.Getenv("AUDIT_LIVE_FILE")

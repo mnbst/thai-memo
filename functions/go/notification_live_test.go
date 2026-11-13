@@ -12,7 +12,7 @@ import (
 // 更新内容そのものは golden テストで JS と突き合わせているので、ここで見るのは
 // 「クエリが当たるか」「複数 doc に効くか」「無関係な doc を触らないか」。
 //
-//	GCLOUD_PROJECT=thai-memo-dev LIVE_FIRESTORE_TEST=1 \
+//	GCLOUD_PROJECT=thai-memo-67139 LIVE_FIRESTORE_TEST=1 \
 //	  go test -run TestNotification -v .
 
 // TestNotificationPlayUpdatesAllMatchingDocs は同じ purchase_token を持つ

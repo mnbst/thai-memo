@@ -4,7 +4,7 @@ sentence_flags で不合格になったものは除外する。
 
 usage:
   uv run --with firebase-admin python scripts/harvest_sentences.py [env ...]
-  # 既定は prod tester dev の全環境
+  # 既定は prod tester の全環境
 出力:
   scripts/bank_out/harvest_{ja,en}.json   例文本体（thai_text で重複排除）
   scripts/bank_out/harvest_report.json    収集統計
@@ -26,7 +26,6 @@ RANK_PATH = os.path.join(ROOT, "scripts", "corpus", "freq_rank_top10000.json")
 PROJECTS = {
     "prod": "thai-memo-prod",
     "tester": "thai-memo-67139",
-    "dev": "thai-memo-dev",
 }
 envs = sys.argv[1:] or list(PROJECTS)
 

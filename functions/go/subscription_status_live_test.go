@@ -18,7 +18,7 @@ import (
 // 走らせない。ここでは expireUser を種ごとに直接呼ぶ。
 // クエリ条件そのものは TestSubscriptionStatusQuery で別に見る。
 //
-//	GCLOUD_PROJECT=thai-memo-dev LIVE_FIRESTORE_TEST=1 \
+//	GCLOUD_PROJECT=thai-memo-67139 LIVE_FIRESTORE_TEST=1 \
 //	  go test -run TestSubscriptionStatus -v .
 func TestSubscriptionStatusDecision(t *testing.T) {
 	db, ctx := liveFirestore(t)

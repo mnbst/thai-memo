@@ -25,7 +25,7 @@ usage:
   # 4. 検査して ko のファイルを組み立てる（落ちた文は report に出る。3 を再実行すれば訳し直す）
   python scripts/ko_bank_translate.py merge --work $W
   # 5. 目視してから上げる
-  python scripts/ko_bank_translate.py upload --project thai-memo-dev --work $W
+  python scripts/ko_bank_translate.py upload --project thai-memo-67139 --work $W
 """
 
 import argparse
@@ -529,7 +529,7 @@ def main():
     j.add_argument("--write", action="store_true")
     g = sub.add_parser("gemini")
     g.add_argument("--work", required=True)
-    g.add_argument("--project", default="thai-memo-dev", help="gemini-api-key を読む GCP プロジェクト")
+    g.add_argument("--project", default="thai-memo-67139", help="gemini-api-key を読む GCP プロジェクト")
     g.add_argument("--model", default="gemini-3.1-flash-lite")
     g.add_argument("--limit", type=int, default=0, help="訳すバッチ数の上限（0 は全部）")
     g.add_argument("--budget", type=float, default=1.0, help="この費用（USD）に達したら止める")

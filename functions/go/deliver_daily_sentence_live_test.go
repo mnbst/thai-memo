@@ -22,7 +22,7 @@ import (
 // 通知だけは差し替える。実 FCM へ送ると実機にプッシュが飛ぶうえ、捨てトークンでは
 // 必ず失敗してロールバックが走り、確かめたい書き込みごと消えてしまう。
 //
-//	GCLOUD_PROJECT=thai-memo-dev LIVE_FIRESTORE_TEST=1 \
+//	GCLOUD_PROJECT=thai-memo-67139 LIVE_FIRESTORE_TEST=1 \
 //	  go test -run TestDeliverDailySentenceSetLive -v -timeout 300s .
 func TestDeliverDailySentenceSetLive(t *testing.T) {
 	db, ctx := liveFirestore(t)

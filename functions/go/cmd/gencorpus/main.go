@@ -4,7 +4,7 @@
 // 経路は cmd/pilot と同じで、規模と中断復帰だけが違う。
 //
 //	go run ./cmd/corpus -out /tmp/manifest.jsonl
-//	GOOGLE_CLOUD_PROJECT=thai-memo-dev go run ./cmd/gencorpus \
+//	GOOGLE_CLOUD_PROJECT=thai-memo-67139 go run ./cmd/gencorpus \
 //	  -in /tmp/manifest.jsonl -out /tmp/corpus_ja.jsonl -c 10
 //
 // -no-shots はマニフェストの sub_theme を場面として効かせる（参考例文が付くと
