@@ -91,7 +91,13 @@ type Verdict struct {
 // 前回の文は載せない（BuildRetryConstraint のコメント参照）。
 func (v Verdict) RetryNotes() []string {
 	notes := make([]string, 0, len(v.Hits))
+	seen := map[string]bool{}
 	for _, id := range v.Hits {
+		id = strings.TrimPrefix(id, jevPrefix)
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
 		for _, a := range Aspects {
 			if a.ID == id {
 				text := a.Note
@@ -302,21 +308,28 @@ const (
 	DefaultModel    = "jev-latest"
 )
 
-// NewJudge は Secret Manager の typesafe-api-key で Judge を組み立てる。
-// ローカルでは環境変数 TYPESAFE_API_KEY が優先される（secrets.Get）。
+// NewJudge は Secret Manager の typesafe-api-key と openai-api-key で Judge を組み立てる
+// （判定は Luna が主、Jev は jevAlso の観点だけ。luna.go）。
+// ローカルでは環境変数 TYPESAFE_API_KEY・OPENAI_API_KEY が優先される（secrets.Get）。
 func NewJudge(ctx context.Context) (*Judge, error) {
 	key, err := secrets.Get(ctx, "typesafe-api-key")
 	if err != nil {
 		return nil, err
 	}
-	return &Judge{APIKey: key, Model: DefaultModel}, nil
+	okey, err := secrets.Get(ctx, "openai-api-key")
+	if err != nil {
+		return nil, err
+	}
+	return &Judge{APIKey: key, Model: DefaultModel, Luna: &Luna{APIKey: okey}}, nil
 }
 
-// Judge は例文を Jev で判定する。
+// Judge は例文を判定する。Luna が nil なら Jev だけで全観点を判定する（テスト・旧来の形）。
 type Judge struct {
 	APIKey string
 	// Model は Jev のモデル名。空なら jev-latest。
 	Model string
+	// Luna があれば Luna を主に判定する（luna.go）。
+	Luna *Luna
 	// Endpoint と HTTP はテストで差し替える。空なら既定値。
 	Endpoint string
 	HTTP     *http.Client
@@ -351,7 +364,13 @@ func (j *Judge) review(ctx context.Context, batch []Candidate, list []Aspect) (R
 	var errs []error
 	for i, c := range batch {
 		aspects := aspectsIn(list, c)
-		scores, err := j.score(ctx, c, aspects)
+		var scores map[string]float64
+		var err error
+		if j.Luna != nil {
+			aspects, scores, err = j.hybridScore(ctx, c, aspects)
+		} else {
+			scores, err = j.score(ctx, c, aspects)
+		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", FlagID(c), err))
 			continue
@@ -541,6 +560,14 @@ func ParseScores(raw []byte, aspects []Aspect) (map[string]float64, error) {
 		out[a.ID] = *ans.Noul
 	}
 	return out, nil
+}
+
+// Name は判定に使ったモデル名（sentence_flags・例文 doc の judge_model に書く）。
+func (j *Judge) Name() string {
+	if j.Luna != nil {
+		return j.Luna.model() + "+" + j.model()
+	}
+	return j.model()
 }
 
 func (j *Judge) model() string {
