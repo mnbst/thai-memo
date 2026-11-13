@@ -14,24 +14,51 @@ const _flame = Color(0xFFB9852E);
 const _flameDeep = Color(0xFFA06A1E);
 
 class _Look {
-  const _Look(this.icon, this.iconColor, this.bg, this.border, this.text);
+  const _Look(
+    this.icon,
+    this.iconColor,
+    this.bg,
+    this.border,
+    this.text, {
+    this.scale = 1,
+    this.ring = false,
+  });
   final IconData icon;
   final Color iconColor;
   final Color bg;
   final Color border;
   final Color text;
+
+  /// アイコンの大きさの倍率（2日目の小さい炎）。
+  final double scale;
+
+  /// 外側にもう1本、金の輪を足す（100日〜。達成カードと設定のカードだけ）。
+  final bool ring;
 }
 
-/// 炎は1系統のまま、節目ごとにチップが温まる。
+/// 最初の3日は芽から炎へ育ち、その先は節目ごとにチップが温まる。
 ///   0日      : 白抜きの炎（灰）
-///   1〜6日   : 炎（金）
+///   1日      : 芽（金）
+///   2日      : 小さい炎（金）
+///   3〜6日   : 炎（金）
 ///   7〜13日  : ＋淡い金の地
 ///   14〜29日 : ＋金の縁
-///   30日〜   : 深藍の地に金の炎（例文カードと同じ組み合わせ）
+///   30〜49日 : 深藍の地に金の炎（例文カードと同じ組み合わせ）
+///   50〜99日 : 深藍の地に金の王冠
+///   100日〜  : 深藍の地に金のダイヤ＋外側の金の輪
 _Look _lookFor(int streak, ColorScheme cs) {
   if (streak == 0) {
     return _Look(Icons.local_fire_department_outlined, cs.onSurfaceVariant,
         cs.surface, cs.outlineVariant, cs.onSurfaceVariant);
+  }
+  if (streak == 1) {
+    return _Look(
+        Icons.eco, _flame, cs.surface, cs.outlineVariant, cs.onSurface);
+  }
+  if (streak == 2) {
+    return _Look(Icons.local_fire_department, _flame, cs.surface,
+        cs.outlineVariant, cs.onSurface,
+        scale: 0.78);
   }
   if (streak < 7) {
     return _Look(Icons.local_fire_department, _flame, cs.surface,
@@ -45,8 +72,18 @@ _Look _lookFor(int streak, ColorScheme cs) {
     return _Look(Icons.local_fire_department, _flameDeep, cs.tertiaryContainer,
         AppColors.gold, cs.onTertiaryContainer);
   }
-  return const _Look(Icons.local_fire_department, AppColors.gold,
-      AppColors.indigo, AppColors.gold, Color(0xFFF4EFE4));
+  const text = Color(0xFFF4EFE4);
+  if (streak < 50) {
+    return const _Look(Icons.local_fire_department, AppColors.gold,
+        AppColors.indigo, AppColors.gold, text);
+  }
+  if (streak < 100) {
+    return const _Look(Icons.workspace_premium, AppColors.gold,
+        AppColors.indigo, AppColors.gold, text);
+  }
+  return const _Look(
+      Icons.diamond, AppColors.gold, AppColors.indigo, AppColors.gold, text,
+      scale: 0.9, ring: true);
 }
 
 /// 達成カードの添え書きと、タイ語のほめ言葉・その訳（表示言語）。
@@ -232,7 +269,9 @@ class _StreakChipState extends ConsumerState<StreakChip>
                 child: child,
               ),
               child: Icon(look.icon,
-                  key: ValueKey(look.icon), size: 16, color: look.iconColor),
+                  key: ValueKey((look.icon, look.scale)),
+                  size: 16 * look.scale,
+                  color: look.iconColor),
             ),
             const SizedBox(width: 5),
             // 日数は下からせり上がって入れ替える。
@@ -397,14 +436,19 @@ class _StreakBurstState extends State<_StreakBurst>
                             shape: BoxShape.circle,
                             border: Border.all(color: look.border, width: 2),
                             boxShadow: [
+                              if (look.ring) ...[
+                                const BoxShadow(
+                                    color: AppColors.gold, spreadRadius: 7),
+                                BoxShadow(color: cs.surface, spreadRadius: 4.5),
+                              ],
                               BoxShadow(
                                 color: look.iconColor.withValues(alpha: 0.35),
                                 blurRadius: 24,
                               ),
                             ],
                           ),
-                          child:
-                              Icon(look.icon, size: 52, color: look.iconColor),
+                          child: Icon(look.icon,
+                              size: 52 * look.scale, color: look.iconColor),
                         ),
                         const SizedBox(height: 8),
                         Material(
@@ -624,8 +668,16 @@ class StreakCard extends ConsumerWidget {
                     color: look.bg,
                     shape: BoxShape.circle,
                     border: Border.all(color: look.border, width: 1.2),
+                    boxShadow: [
+                      if (look.ring) ...[
+                        const BoxShadow(
+                            color: AppColors.gold, spreadRadius: 3.5),
+                        BoxShadow(color: cs.surface, spreadRadius: 2.2),
+                      ],
+                    ],
                   ),
-                  child: Icon(look.icon, size: 18, color: look.iconColor),
+                  child: Icon(look.icon,
+                      size: 18 * look.scale, color: look.iconColor),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
