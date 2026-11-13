@@ -62,6 +62,10 @@ func ApplyResponseCompat(s *Sentence, resolvedContext map[string]any) {
 			merged[k] = v
 		}
 		for k, v := range resolvedContext {
+			if _, ask := v.(RelationAsk); ask {
+				// LLM に選ばせたキー（SchemaFor）。生成値を残す。
+				continue
+			}
 			merged[k] = v
 		}
 		s.Context = merged
