@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"strings"
 )
 
 // SubThemeFinder はテーマのサブテーマを 1 つ選ぶ。
@@ -37,6 +38,23 @@ func (r *Resolver) choice(items []string) string {
 func (r *Resolver) DrawRelation() string {
 	return r.choice(relationStatuses) + "／" + r.choice(relationIntimacy) +
 		"／" + r.choice(relationSpeakers)
+}
+
+// genderedTargets は話し手の性別を決めるターゲット語。抽選の性別とぶつかると
+// 「女性が ผม/ครับ を使う」文になる。
+var genderedTargets = map[string]string{
+	"ผม": "男性", "ครับ": "男性",
+	"ดิฉัน": "女性", "ค่ะ": "女性", "คะ": "女性",
+}
+
+// speakerForTargets はターゲット語が決める話し手の性別を返す。決まらなければ空。
+func speakerForTargets(targetWords []string) string {
+	for _, w := range targetWords {
+		if s := genderedTargets[strings.TrimSpace(w)]; s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 // DrawMedium は Media を重み付きで1つ引く。
@@ -91,8 +109,15 @@ func (r *Resolver) Resolve(
 	// （2026-08-22 追加）。
 	resolved.Relation = strParam(params, "relation")
 	resolved.RelationGiven = resolved.Relation != ""
+	// 指定が無ければ、地位は抽選した値を既定にし、ターゲット語とぶつかるときだけ
+	// LLM が変える（2026-11-13。抽選の固定だと มึง・ที่รัก 等と食い違い、全部任せると
+	// 「対等」に寄る）。親しさは渡さない。性別は LLM に任せると男性に偏るので抽選。
 	if resolved.Relation == "" {
-		resolved.Relation = r.DrawRelation()
+		resolved.RelationStatus = r.choice(relationStatuses)
+		resolved.RelationSpeaker = speakerForTargets(targetWords)
+		if resolved.RelationSpeaker == "" {
+			resolved.RelationSpeaker = r.choice(relationSpeakers)
+		}
 	}
 
 	// 文が載る媒体（2026-10-07 追加）。書き言葉の文体はここからしか出ない。

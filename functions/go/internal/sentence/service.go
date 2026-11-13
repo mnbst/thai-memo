@@ -97,7 +97,17 @@ func SchemaFor(resolvedContext map[string]any, l lang.Lang) map[string]any {
 		}
 		ask = append(ask, f)
 	}
-	return BuildResponseSchema(ask, l)
+	// RelationAsk は BuildPrompt が付ける「関係を LLM に選ばせる」の印。
+	ra, pick := resolvedContext["relation"].(RelationAsk)
+	if pick {
+		ask = append(ask, "relation")
+	}
+	schema := BuildResponseSchema(ask, l)
+	if pick {
+		ctx := schema["properties"].(map[string]any)["context"].(map[string]any)
+		ctx["properties"].(map[string]any)["relation"].(map[string]any)["enum"] = ra.Options()
+	}
+	return schema
 }
 
 // isTruthy は Python の真偽値評価（空文字・0・nil は偽）。

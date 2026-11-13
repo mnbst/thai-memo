@@ -7,7 +7,6 @@ import (
 	"os"
 	"reflect"
 	"slices"
-	"strings"
 	"testing"
 )
 
@@ -94,13 +93,11 @@ func TestResolveParamsGolden(t *testing.T) {
 			if got.Relation != c.Relation {
 				t.Errorf("[%d] relation=%q want %q", i, got.Relation, c.Relation)
 			}
-		} else {
-			parts := strings.Split(got.Relation, g.RelationSeparator)
-			if len(parts) != 3 || !contains(g.RelationStatuses, parts[0]) ||
-				!contains(g.RelationIntimacy, parts[1]) ||
-				!contains(relationSpeakers, parts[2]) {
-				t.Errorf("[%d] relation=%q が候補外", i, got.Relation)
-			}
+		} else if got.Relation != "" || !contains(g.RelationStatuses, got.RelationStatus) ||
+			!contains(relationSpeakers, got.RelationSpeaker) {
+			// 指定が無ければ地位と性別だけ引き、関係は LLM が決める。
+			t.Errorf("[%d] relation=%q status=%q speaker=%q が候補外",
+				i, got.Relation, got.RelationStatus, got.RelationSpeaker)
 		}
 
 		// SubThemes を渡していないのでサブテーマは付かない。
