@@ -2,7 +2,7 @@
 # UVMデータをGCSバケットにアップロードする
 #
 # Usage: ./upload_corpus.sh [project_id]
-# Example: ./upload_corpus.sh thai-memo-dev
+# Example: ./upload_corpus.sh thai-memo-67139
 
 set -euo pipefail
 

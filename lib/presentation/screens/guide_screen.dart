@@ -1,7 +1,8 @@
 // =============================================================================
 // guide_screen.dart
-// アプリの使い方をまとめた1枚の説明書。
-// 初回起動では先頭から全文を読ませ（スキップ可）、以後は設定からいつでも開ける。
+// アプリの使い方をまとめた1枚の説明書。設定からいつでも開ける。
+// 初回起動では出さず、簡易版（QuickGuideScreen）からここへ案内する。
+// 概要は学習の流れ3段（LearningFlowSteps）で、簡易版と共用する。
 // 画面の上に案内を重ねるコーチマークは持たない。読む場所はここ1つに集める。
 //
 // 並びは 概要 → 学習のコツ → それぞれの機能の役割 → 操作のしかた。
@@ -20,6 +21,7 @@ import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
 import '../widgets/guide_figures.dart';
+import '../widgets/learning_flow_steps.dart';
 import '../widgets/plan_compare_table.dart';
 
 /// 説明書の1節。見出し＋本文の行。
@@ -45,12 +47,17 @@ class _GuideSection {
   final int? figureAfterLine;
 }
 
-/// 章。見出しの下に節を積む。
+/// 章。見出しの下に節を積む。[body] があれば節の代わりにそれを置く。
 class _GuideChapter {
-  const _GuideChapter({required this.title, required this.sections});
+  const _GuideChapter({
+    required this.title,
+    this.sections = const [],
+    this.body,
+  });
 
   final String title;
   final List<_GuideSection> sections;
+  final Widget? body;
 }
 
 class GuideScreen extends ConsumerStatefulWidget {
@@ -117,6 +124,16 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
             ),
             for (final chapter in _chapters(l10n)) ...[
               _buildChapterHeading(context, chapter.title),
+              if (chapter.body != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppConfig.defaultPadding),
+                      child: chapter.body,
+                    ),
+                  ),
+                ),
               for (final section in chapter.sections)
                 _buildSection(context, section),
             ],
@@ -252,21 +269,10 @@ class _GuideScreenState extends ConsumerState<GuideScreen> {
 
   List<_GuideChapter> _chapters(L10n l10n) {
     return [
+      // 概要は学習の流れ3段。初回の簡易ガイドと同じ部品を使う。
       _GuideChapter(
         title: l10n.guideChapterOverview,
-        sections: [
-          _GuideSection(
-            icon: Icons.auto_awesome,
-            title: l10n.guideOverviewTitle,
-            lines: [
-              l10n.guideOverviewBody1,
-              l10n.guideOverviewBody2,
-              l10n.guideOverviewSummaryQuiz,
-              l10n.guideOverviewBody3,
-            ],
-            figure: const GuideLoopFigure(),
-          ),
-        ],
+        body: const LearningFlowSteps(),
       ),
       _GuideChapter(
         title: l10n.guideChapterTips,

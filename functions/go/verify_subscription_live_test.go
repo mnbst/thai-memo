@@ -19,7 +19,7 @@ import (
 // verifySubscription を dev の実 Firestore に対して確かめる。
 // ストア API は差し替える（本物の購入トークンは持てないため）。
 //
-//	GCLOUD_PROJECT=thai-memo-dev LIVE_FIRESTORE_TEST=1 \
+//	GCLOUD_PROJECT=thai-memo-67139 LIVE_FIRESTORE_TEST=1 \
 //	  go test -run TestVerifySubscription -v .
 
 // playStub は Play API のレスポンスを固定で返す。
@@ -62,7 +62,7 @@ func playResponse(state, expiryTime string, autoRenew bool) string {
 // Firestore にもストアにも触れないので、実行に外部依存がない。
 func TestVerifySubscriptionValidation(t *testing.T) {
 	ctx := context.Background()
-	setProjectEnv(t, "thai-memo-dev")
+	setProjectEnv(t, "thai-memo-67139")
 	t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
 
 	cases := []struct {
@@ -139,25 +139,13 @@ func TestAllowedSubscriptionProducts(t *testing.T) {
 		}
 	})
 
-	t.Run("tester はテスト商品のみ", func(t *testing.T) {
+	// tester は手元のデバッグビルド（本番と同じ商品 ID）も受ける。
+	t.Run("tester は両方許可", func(t *testing.T) {
 		setProjectEnv(t, "thai-memo-67139")
-		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
-		if !isAllowedSubscriptionProduct("premium_monthly_test") ||
-			!isAllowedSubscriptionProduct("premium_annual_test") {
-			t.Fatal("tester 商品が拒否された")
-		}
-		if isAllowedSubscriptionProduct("premium_monthly") ||
-			isAllowedSubscriptionProduct("premium_annual") {
-			t.Fatal("tester で本番商品が許可された")
-		}
-	})
-
-	t.Run("dev は両方許可", func(t *testing.T) {
-		setProjectEnv(t, "thai-memo-dev")
 		t.Setenv("SUBSCRIPTION_PRODUCT_IDS", "")
 		if !isAllowedSubscriptionProduct("premium_monthly") ||
 			!isAllowedSubscriptionProduct("premium_monthly_test") {
-			t.Fatal("dev で商品が拒否された")
+			t.Fatal("tester で商品が拒否された")
 		}
 	})
 

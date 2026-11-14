@@ -4,7 +4,40 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"strings"
+
+	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 )
+
+// fanSubThemes は日本のファン向けに足したサブテーマ（コラボカフェ・ロケ地・
+// 推しの誕生日のタンブン等）。英語版では引かない。英語の利用者はタイ在住・
+// 旅行が中心で、推し活の文脈が通じにくい（2026-11-14）。推し活テーマ自体は
+// 明示して選んだ人にだけ出るので残す。韓国語版はファン文化が通じるので残す。
+var fanSubThemes = map[string]bool{
+	"コラボカフェ":      true,
+	"ロケ地めぐり":      true,
+	"推しのコラボ商品":    true,
+	"ライブ遠征":       true,
+	"推しの配信":       true,
+	"推しに伝えたい言葉":   true,
+	"ファン同士の交流":    true,
+	"推しの誕生日のタンブン": true,
+}
+
+// subThemesFor は [topic] のサブテーマ候補を [l] の利用者向けに返す。
+func subThemesFor(topic string, l lang.Lang) []string {
+	subs := topicSubThemes[topic]
+	if l != lang.EN {
+		return subs
+	}
+	kept := make([]string, 0, len(subs))
+	for _, s := range subs {
+		if !fanSubThemes[s] {
+			kept = append(kept, s)
+		}
+	}
+	return kept
+}
 
 // SubThemeFinder はテーマのサブテーマを 1 つ選ぶ。
 // 実装は internal/embeddings.Store。
@@ -37,6 +70,23 @@ func (r *Resolver) choice(items []string) string {
 func (r *Resolver) DrawRelation() string {
 	return r.choice(relationStatuses) + "／" + r.choice(relationIntimacy) +
 		"／" + r.choice(relationSpeakers)
+}
+
+// genderedTargets は話し手の性別を決めるターゲット語。抽選の性別とぶつかると
+// 「女性が ผม/ครับ を使う」文になる。
+var genderedTargets = map[string]string{
+	"ผม": "男性", "ครับ": "男性",
+	"ดิฉัน": "女性", "ค่ะ": "女性", "คะ": "女性",
+}
+
+// speakerForTargets はターゲット語が決める話し手の性別を返す。決まらなければ空。
+func speakerForTargets(targetWords []string) string {
+	for _, w := range targetWords {
+		if s := genderedTargets[strings.TrimSpace(w)]; s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 // DrawMedium は Media を重み付きで1つ引く。
@@ -73,6 +123,15 @@ func (r *Resolver) Resolve(
 	ctx context.Context, params map[string]any,
 	targetWords []string, estimatedVocab int,
 ) ResolvedParams {
+	return r.ResolveFor(ctx, params, targetWords, estimatedVocab, lang.JA)
+}
+
+// ResolveFor は [l] の利用者向けに Resolve する。言語で変わるのはサブテーマの
+// 候補だけ（英語版はファン向けのサブテーマを外す。subThemesFor）。
+func (r *Resolver) ResolveFor(
+	ctx context.Context, params map[string]any,
+	targetWords []string, estimatedVocab int, l lang.Lang,
+) ResolvedParams {
 	resolved := ResolvedParams{
 		// 2026-08-14: free 専用プール（FREE_TOPICS）は廃止。クライアントは
 		// テーマを送らないので、tier でプールを分けても選択肢の差にならなかった。
@@ -91,8 +150,15 @@ func (r *Resolver) Resolve(
 	// （2026-08-22 追加）。
 	resolved.Relation = strParam(params, "relation")
 	resolved.RelationGiven = resolved.Relation != ""
+	// 指定が無ければ、地位は抽選した値を既定にし、ターゲット語とぶつかるときだけ
+	// LLM が変える（2026-11-13。抽選の固定だと มึง・ที่รัก 等と食い違い、全部任せると
+	// 「対等」に寄る）。親しさは渡さない。性別は LLM に任せると男性に偏るので抽選。
 	if resolved.Relation == "" {
-		resolved.Relation = r.DrawRelation()
+		resolved.RelationStatus = r.choice(relationStatuses)
+		resolved.RelationSpeaker = speakerForTargets(targetWords)
+		if resolved.RelationSpeaker == "" {
+			resolved.RelationSpeaker = r.choice(relationSpeakers)
+		}
 	}
 
 	// 文が載る媒体（2026-10-07 追加）。書き言葉の文体はここからしか出ない。
@@ -109,7 +175,7 @@ func (r *Resolver) Resolve(
 		return resolved
 	}
 
-	subThemes := topicSubThemes[resolved.Topic]
+	subThemes := subThemesFor(resolved.Topic, l)
 	if len(subThemes) > 0 && len(targetWords) > 0 && r.SubThemes != nil {
 		sub, err := r.SubThemes.FindBestSubTheme(ctx, targetWords[0], subThemes)
 		if err != nil {

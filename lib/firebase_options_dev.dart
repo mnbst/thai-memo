@@ -4,7 +4,8 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
-/// Default [FirebaseOptions] for use with your Firebase apps.
+/// 手元のデバッグビルド（ENV 未指定）用。dev プロジェクトは tester（thai-memo-67139）に
+/// 統合したので、tester プロジェクトに登録した手元用のアプリ ID を指す。
 ///
 /// Example:
 /// ```dart
@@ -50,19 +51,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCvVZhSI7joKl8DbVaN45A9krcoCCsLuAM',
-    appId: '1:147810088545:android:880d5b4669246accc09c20',
-    messagingSenderId: '147810088545',
-    projectId: 'thai-memo-dev',
-    storageBucket: 'thai-memo-dev.firebasestorage.app',
+    apiKey: 'AIzaSyCp582Rarddot3NqqBIZTzV_PwRD-8hFtY',
+    appId: '1:763566155520:android:34165e13f45eb11bbeb5e5',
+    messagingSenderId: '763566155520',
+    projectId: 'thai-memo-67139',
+    storageBucket: 'thai-memo-67139.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCbgXpcRzEmbXkNjhZ45JHoWcq8V_Ua6VY',
-    appId: '1:147810088545:ios:c023f84f36af09f6c09c20',
-    messagingSenderId: '147810088545',
-    projectId: 'thai-memo-dev',
-    storageBucket: 'thai-memo-dev.firebasestorage.app',
+    apiKey: 'AIzaSyDx77dgIGbYgvcLLR9jGLe_XYFPB48iB10',
+    appId: '1:763566155520:ios:34f63afce221b228beb5e5',
+    messagingSenderId: '763566155520',
+    projectId: 'thai-memo-67139',
+    storageBucket: 'thai-memo-67139.firebasestorage.app',
     iosBundleId: 'com.thaimemo.thaiMemo',
   );
 }

@@ -43,7 +43,7 @@ terraform apply -var-file=<env>.tfvars -var-file=secrets/<env>.tfvars
 環境ごとに別キーを発行する（dev の漏洩が prod の課金被害にならないようにする）。
 
 1. [Google AI Studio](https://aistudio.google.com/apikey) で対象 GCP プロジェクトを選び「Create API key」
-   - dev = `thai-memo-dev` / tester = `thai-memo-67139` / prod = `thai-memo-prod`
+   - tester = `thai-memo-67139` / prod = `thai-memo-prod`（dev は 2026-11 に tester へ統合）
 2. GCP Console > APIs & Services > Credentials で作成されたキーを開き、
    **「API の制限の選択」を「1 個の API」→ `Gemini API`**（`generativelanguage.googleapis.com`）に設定
    - 「サービスアカウントにバインド」は**しない**（Functions 側は API キー渡しの実装のため）

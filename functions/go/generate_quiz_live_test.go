@@ -9,7 +9,7 @@ import (
 // SRS 例文選出を dev の実 Firestore で確かめる。
 // Firestore のクエリ（日付範囲・in・orderBy）が絡むので、実データで見る。
 //
-//	GCLOUD_PROJECT=thai-memo-dev LIVE_FIRESTORE_TEST=1 \
+//	GCLOUD_PROJECT=thai-memo-67139 LIVE_FIRESTORE_TEST=1 \
 //	  go test -run TestSelectSentences -v .
 
 // fixedShuffle は並べ替えを恒等にする（選出の順序依存を消す）。

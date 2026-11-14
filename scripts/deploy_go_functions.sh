@@ -3,12 +3,12 @@
 # deploy_go_functions.sh
 # Go の Cloud Functions を origin/main からデプロイする。
 #
-#   scripts/deploy_go_functions.sh <dev|tester|prod> <関数名>...
-#   scripts/deploy_go_functions.sh dev --local <関数名>...   # dev の動作確認だけ作業ツリーから
+#   scripts/deploy_go_functions.sh <tester|prod> <関数名>...
+#   scripts/deploy_go_functions.sh tester --local <関数名>...   # tester の動作確認だけ作業ツリーから
 #
 # ローカルの作業ツリーからデプロイすると、main にある変更が抜けたり未コミットの
 # ファイルが混ざったりする（2026-10 に App Check の回数上限が本番から外れていた）。
-# そのため tester / prod は必ず origin/main を detached で取り出した worktree から出す。
+# そのため prod は必ず、tester も配布前には origin/main を detached で取り出した worktree から出す。
 #
 # 既存の関数の設定（メモリ・タイムアウト・サービスアカウント・環境変数・公開設定）は
 # gcloud が引き継ぐので、ここでは指定しない。新しい関数を作るときは functions.go の
@@ -17,14 +17,13 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: $0 <dev|tester|prod> [--local] <function>..." >&2
+  echo "usage: $0 <tester|prod> [--local] <function>..." >&2
   exit 1
 }
 
 [ $# -ge 2 ] || usage
 env="$1"; shift
 case "$env" in
-  dev) project=thai-memo-dev ;;
   tester) project=thai-memo-67139 ;;
   prod) project=thai-memo-prod ;;
   *) usage ;;
@@ -32,7 +31,7 @@ esac
 
 local_tree=false
 if [ "${1:-}" = "--local" ]; then
-  [ "$env" = dev ] || { echo "--local は dev だけ" >&2; exit 1; }
+  [ "$env" = tester ] || { echo "--local は tester だけ" >&2; exit 1; }
   local_tree=true
   shift
 fi

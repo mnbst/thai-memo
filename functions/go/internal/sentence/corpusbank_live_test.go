@@ -12,7 +12,7 @@ import (
 // 実 GCS のコーパスバンクを読み、語が引けることと読み込みの重さを確かめる。
 // 書き込みはしない。
 //
-//	CORPUS_BANK_PROJECT=thai-memo-dev LIVE_CORPUS_BANK_TEST=1 \
+//	CORPUS_BANK_PROJECT=thai-memo-67139 LIVE_CORPUS_BANK_TEST=1 \
 //	  go test -run TestCorpusBankLive -v -timeout 5m ./internal/sentence
 //
 // 認証は gcloud auth application-default login 済みであること。

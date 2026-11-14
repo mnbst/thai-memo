@@ -7,8 +7,8 @@
 // apply は既定で dry run。-write で書く。
 // お手本の音声は先に作らない。再生されたときに getSentenceAudio が作る（2026-10-21）。
 //
-//	GCLOUD_PROJECT=thai-memo-dev go run ./cmd/poolreview list -out /tmp/pending.json
-//	GCLOUD_PROJECT=thai-memo-dev go run ./cmd/poolreview apply -in /tmp/decisions.json -write
+//	GCLOUD_PROJECT=thai-memo-67139 go run ./cmd/poolreview list -out /tmp/pending.json
+//	GCLOUD_PROJECT=thai-memo-67139 go run ./cmd/poolreview apply -in /tmp/decisions.json -write
 //
 // decisions.json は {"ok": [doc ID...], "ng": [doc ID...], "fix": {doc ID: {...}}}。
 // fix は OK の文の直し（sentence と同じ形の一部。書いたキーだけ差し替える）。

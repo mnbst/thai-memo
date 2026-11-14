@@ -24,7 +24,7 @@ import (
 //
 //   - 選択肢の発音（dummy_reasons から切り出す）が埋まるか
 //
-//     GOOGLE_CLOUD_PROJECT=thai-memo-dev QUIZ_DISTRACTOR_LIVE=1 \
+//     GOOGLE_CLOUD_PROJECT=thai-memo-67139 QUIZ_DISTRACTOR_LIVE=1 \
 //     go test ./ -run TestFixedDummyQuizLive -v
 func TestFixedDummyQuizLive(t *testing.T) {
 	if os.Getenv("QUIZ_DISTRACTOR_LIVE") == "" {

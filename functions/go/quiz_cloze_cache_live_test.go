@@ -29,7 +29,7 @@ func (s *countingInner) GenerateQuizQuestions(
 // TestQuizClozeCacheLive は実 Firestore と実 Gemini でキャッシュの往復を見る。
 // 1回目は生成して保存し、2回目はモデルを呼ばずに同じ問題が戻ること。
 //
-//	GOOGLE_CLOUD_PROJECT=thai-memo-dev QUIZ_DISTRACTOR_LIVE=1 \
+//	GOOGLE_CLOUD_PROJECT=thai-memo-67139 QUIZ_DISTRACTOR_LIVE=1 \
 //	  go test ./ -run TestQuizClozeCacheLive -v
 func TestQuizClozeCacheLive(t *testing.T) {
 	if os.Getenv("QUIZ_DISTRACTOR_LIVE") == "" {

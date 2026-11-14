@@ -5,7 +5,7 @@
 // cultural_notes）だけを internal/corpususage で作る。出力は本体とは別の
 // サイドカー JSONL で、scripts/export_corpus_bank.py が context へ合成する。
 //
-//	GOOGLE_CLOUD_PROJECT=thai-memo-dev go run ./cmd/usagefill \
+//	GOOGLE_CLOUD_PROJECT=thai-memo-67139 go run ./cmd/usagefill \
 //	  -in scripts/corpus/corpus.jsonl -out scripts/corpus/usage.jsonl -c 10
 //
 // 同じ -out を指して再実行すると、書けている行を飛ばして続きから流す。

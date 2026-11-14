@@ -2031,60 +2031,6 @@ abstract class L10n {
   /// **'{currency} {amount} / 月'**
   String paywallPrice(String currency, String amount);
 
-  /// No description provided for @onboarding1Title.
-  ///
-  /// In ja, this message translates to:
-  /// **'タイ文字が読めなくても大丈夫'**
-  String get onboarding1Title;
-
-  /// No description provided for @onboarding1Body.
-  ///
-  /// In ja, this message translates to:
-  /// **'あなたのレベルに合った例文を毎日お届け。\nカードをタップで読み方と意味を確認。'**
-  String get onboarding1Body;
-
-  /// No description provided for @onboarding2Title.
-  ///
-  /// In ja, this message translates to:
-  /// **'声調を含めた発音練習'**
-  String get onboarding2Title;
-
-  /// No description provided for @onboarding2Body.
-  ///
-  /// In ja, this message translates to:
-  /// **'お手本を聞いて自分の声を録音。\n声調のズレをその場で確認できます。'**
-  String get onboarding2Body;
-
-  /// No description provided for @onboarding3Title.
-  ///
-  /// In ja, this message translates to:
-  /// **'クイズで語彙スコアUP'**
-  String get onboarding3Title;
-
-  /// No description provided for @onboarding3Body.
-  ///
-  /// In ja, this message translates to:
-  /// **'間違えた単語はくり返し出題。\nスコアに合わせて、例文に出る単語が増えます。'**
-  String get onboarding3Body;
-
-  /// No description provided for @onboardingSkip.
-  ///
-  /// In ja, this message translates to:
-  /// **'スキップ'**
-  String get onboardingSkip;
-
-  /// No description provided for @onboardingNext.
-  ///
-  /// In ja, this message translates to:
-  /// **'次へ'**
-  String get onboardingNext;
-
-  /// No description provided for @onboardingHaveAccount.
-  ///
-  /// In ja, this message translates to:
-  /// **'アカウントをお持ちの方はこちら'**
-  String get onboardingHaveAccount;
-
   /// No description provided for @interviewIntroTitle.
   ///
   /// In ja, this message translates to:
@@ -2096,6 +2042,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'答えに合わせて、このアプリの学び方をお伝えします。すぐ終わります。'**
   String get interviewIntroBody;
+
+  /// No description provided for @interviewHaveAccount.
+  ///
+  /// In ja, this message translates to:
+  /// **'アカウントをお持ちの方はこちら'**
+  String get interviewHaveAccount;
 
   /// No description provided for @interviewIntroStart.
   ///
@@ -4360,6 +4312,66 @@ abstract class L10n {
   /// **'語彙スコアで他の学習者と比べる'**
   String get settingsRankingSubtitle;
 
+  /// No description provided for @quickGuideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'こんなふうに学びます'**
+  String get quickGuideTitle;
+
+  /// No description provided for @quickGuideStepRead.
+  ///
+  /// In ja, this message translates to:
+  /// **'レベルに合った例文を読む'**
+  String get quickGuideStepRead;
+
+  /// No description provided for @quickGuideOptSpeak.
+  ///
+  /// In ja, this message translates to:
+  /// **'声に出して声調をチェック'**
+  String get quickGuideOptSpeak;
+
+  /// No description provided for @quickGuideOptSpelling.
+  ///
+  /// In ja, this message translates to:
+  /// **'単語をタップして綴りを確認'**
+  String get quickGuideOptSpelling;
+
+  /// No description provided for @quickGuideStepCheck.
+  ///
+  /// In ja, this message translates to:
+  /// **'例文ごとに確認クイズ'**
+  String get quickGuideStepCheck;
+
+  /// 初回の簡易ガイド2段目の添え書き。tab は単語タブの名前（navHistory）
+  ///
+  /// In ja, this message translates to:
+  /// **'出会った単語は「{tab}」タブで見返せる'**
+  String quickGuideOptReview(String tab);
+
+  /// No description provided for @quickGuideStepQuiz.
+  ///
+  /// In ja, this message translates to:
+  /// **'まとめクイズでスコアを更新'**
+  String get quickGuideStepQuiz;
+
+  /// No description provided for @quickGuideNextSentences.
+  ///
+  /// In ja, this message translates to:
+  /// **'スコアアップで新しい単語が登場'**
+  String get quickGuideNextSentences;
+
+  /// No description provided for @quickGuideOptSummaryEvery.
+  ///
+  /// In ja, this message translates to:
+  /// **'数文読むごとに出てくる'**
+  String get quickGuideOptSummaryEvery;
+
+  /// No description provided for @quickGuideMore.
+  ///
+  /// In ja, this message translates to:
+  /// **'使い方ガイドを詳しく読む'**
+  String get quickGuideMore;
+
   /// No description provided for @guideTitle.
   ///
   /// In ja, this message translates to:
@@ -4395,36 +4407,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'基本の使い方をまとめました。設定からいつでも読み返せます。'**
   String get guideLead;
-
-  /// No description provided for @guideFigureLoopSentence.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文'**
-  String get guideFigureLoopSentence;
-
-  /// No description provided for @guideFigureLoopQuiz.
-  ///
-  /// In ja, this message translates to:
-  /// **'クイズ'**
-  String get guideFigureLoopQuiz;
-
-  /// No description provided for @guideFigureLoopRepeat.
-  ///
-  /// In ja, this message translates to:
-  /// **'くり返す'**
-  String get guideFigureLoopRepeat;
-
-  /// No description provided for @guideFigureLoopSummary.
-  ///
-  /// In ja, this message translates to:
-  /// **'まとめクイズ'**
-  String get guideFigureLoopSummary;
-
-  /// No description provided for @guideFigureLoopEvery.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文最大5つごと'**
-  String get guideFigureLoopEvery;
 
   /// No description provided for @guideFigureCardThai.
   ///
@@ -4473,36 +4455,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'操作のしかた'**
   String get guideChapterHowTo;
-
-  /// No description provided for @guideOverviewTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'このアプリでやること'**
-  String get guideOverviewTitle;
-
-  /// No description provided for @guideOverviewBody1.
-  ///
-  /// In ja, this message translates to:
-  /// **'AIがあなたのレベルに合った学習単語を選び、その単語を使ったタイ語の例文をつくります。'**
-  String get guideOverviewBody1;
-
-  /// No description provided for @guideOverviewBody2.
-  ///
-  /// In ja, this message translates to:
-  /// **'例文で学習単語を覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。'**
-  String get guideOverviewBody2;
-
-  /// No description provided for @guideOverviewSummaryQuiz.
-  ///
-  /// In ja, this message translates to:
-  /// **'1セット学び終えると「まとめクイズ」に進みます。迷ったときは、ヒントを見たり例文を見返したりできます。'**
-  String get guideOverviewSummaryQuiz;
-
-  /// No description provided for @guideOverviewBody3.
-  ///
-  /// In ja, this message translates to:
-  /// **'まとめクイズの答えをもとに、語彙スコアと次の例文の難しさが調整され、例文に出る単語も増えていきます。ヒントなしの正解は反映されやすく、間違えた問題はあとでもう一度出題されます。'**
-  String get guideOverviewBody3;
 
   /// No description provided for @guideRoleSentenceTitle.
   ///

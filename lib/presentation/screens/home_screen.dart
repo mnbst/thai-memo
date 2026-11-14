@@ -33,9 +33,8 @@ import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
 import 'vocab_history_screen.dart';
 import 'interview_screen.dart';
-import 'onboarding_screen.dart';
+import 'quick_guide_screen.dart';
 import 'vocab_test_screen.dart';
-import 'guide_screen.dart';
 import 'paywall_screen.dart';
 import 'learning_screen.dart';
 import 'settings_screen.dart';
@@ -272,7 +271,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   ///
   /// 並行させると sync() が二重に走り、通知経由で表示した配信例文を
   /// 初回ロード側の loadOrGenerateToday が上書きしてしまう。
-  /// 初回起動時は onboarding の push 中に popUntil が走る危険もある。
+  /// 初回起動時はヒアリング等の push 中に popUntil が走る危険もある。
   Future<void> _loadInitialSentenceThenHandleNotification() async {
     await runInitialLoad(
       load: _checkFirstLaunchAndLoadSentence,
@@ -525,14 +524,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (isFirstLaunch) {
       var existingAccount = false;
       if (mounted) {
-        // まず機能紹介の3枚。何のアプリかを見せてから質問へ入る。
+        // まずヒアリング。本人の状況を聞いてから説明書・語彙テストへ入る。
+        // 前置きの1枚から既存アカウントにも入れる。
         await Navigator.push<void>(
           context,
           MaterialPageRoute(
-            settings: const RouteSettings(name: OnboardingScreen.routeName),
-            builder: (context) => OnboardingScreen(
-              onComplete: (existing) {
-                existingAccount = existing;
+            settings: const RouteSettings(name: InterviewScreen.routeName),
+            builder: (context) => InterviewScreen(
+              onComplete: () => Navigator.pop(context),
+              onExistingAccount: () {
+                existingAccount = true;
                 Navigator.pop(context);
               },
             ),
@@ -544,34 +545,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (existingAccount) {
         ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
       } else {
-        if (mounted) {
-          // 続けてヒアリング。本人の状況を聞いてから説明書・語彙テストへ入る。
-          await Navigator.push<void>(
-            context,
-            MaterialPageRoute(
-              settings: const RouteSettings(name: InterviewScreen.routeName),
-              builder: (context) => InterviewScreen(
-                onComplete: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          );
-        }
         // ガイド・語彙テストを進めている間に回答を送る。セット本数の判定にも
         // interview.level を使うため、初回生成の直前ではこの着地を待つ。
         final interviewReport = InterviewReporter().report();
 
         if (mounted) {
-          // 先に使い方の説明書を先頭から読ませる。読みたくない人はスキップ
-          // できる。語彙テストは「何を測るのか」が分かってからのほうが、
-          // 意味の分からない4択を突然出されるより降りられにくい。
+          // 先に使い方の簡易版（1画面）を見せる。語彙テストは「何を測るのか」が
+          // 分かってからのほうが、意味の分からない4択を突然出されるより降りられにくい。
+          // 全文のガイドは初回に出すと読まれずに飛ばされていた（英語62%）ので、
+          // 簡易版から第3章へ案内し、設定からも読めるようにしてある。
           await Navigator.push<void>(
             context,
             MaterialPageRoute(
-              settings: const RouteSettings(name: GuideScreen.routeName),
-              builder: (context) => GuideScreen(
-                isFirstLaunch: true,
+              settings: const RouteSettings(name: QuickGuideScreen.routeName),
+              builder: (context) => QuickGuideScreen(
                 onDone: () => Navigator.pop(context),
               ),
             ),

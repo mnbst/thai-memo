@@ -7,7 +7,7 @@
 // それ以外の項目には触らない。
 //
 //	gcloud storage cp gs://thai-memo-prod-uvm-data/free_sentences_ja.json /tmp/
-//	GOOGLE_CLOUD_PROJECT=thai-memo-dev go run ./cmd/freeregen \
+//	GOOGLE_CLOUD_PROJECT=thai-memo-67139 go run ./cmd/freeregen \
 //	  -in /tmp/free_sentences_ja.json -out /tmp/free_sentences_ja.new.json -lang ja -topic 1
 package main
 

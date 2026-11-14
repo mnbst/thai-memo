@@ -22,6 +22,10 @@ type ResolvedParams struct {
 	// RelationGiven は Relation を呼び出し側が指定した（抽選していない）回。
 	// 指定があればショットの関係で上書きしない。
 	RelationGiven bool
+	// RelationStatus・RelationSpeaker は Relation を指定しなかった回に引いた
+	// 相手の地位（LLM が変えうる既定値）と話し手の性別。Relation は空のまま。
+	RelationStatus  string
+	RelationSpeaker string
 	// Medium は Media の Name。空なら対面の会話と同じ扱い。
 	Medium string
 	// LengthHint は文の長さ指定の上書き。空なら estimated_vocab から決める。
@@ -56,6 +60,29 @@ type DramaSection struct {
 	Relation [3]string
 }
 
+// RelationAsk は context.relation を LLM に選ばせる回の印（値は BuildPrompt が入れる）。
+type RelationAsk struct{ Speaker string }
+
+// Options は context.relation の選択肢（「地位／性別」）。性別が空なら地位だけ。
+func (a RelationAsk) Options() []any {
+	opts := make([]any, 0, len(relationStatuses))
+	for _, s := range relationStatuses {
+		if a.Speaker != "" {
+			s += "／" + a.Speaker
+		}
+		opts = append(opts, s)
+	}
+	return opts
+}
+
+// buildRelationPickBlock は関係を LLM に選ばせる回の関係ブロック。
+func buildRelationPickBlock(status, speaker string) string {
+	if speaker != "" {
+		speaker = "話し手は" + speaker + "。"
+	}
+	return strings.NewReplacer("{speaker}", speaker, "{status}", status).Replace(relationPickBlock)
+}
+
 // ApplyShotRelation は付けたショットの関係を Relation に入れる。
 // 呼び出し側が関係を指定した回とショットに関係が無い回は何もしない。
 func (r *ResolvedParams) ApplyShotRelation(section DramaSection) {
@@ -67,6 +94,8 @@ func (r *ResolvedParams) ApplyShotRelation(section DramaSection) {
 	if speaker == "" {
 		if parts := strings.Split(r.Relation, "／"); len(parts) == 3 {
 			speaker = parts[2]
+		} else {
+			speaker = r.RelationSpeaker
 		}
 	}
 	r.Relation = rel[0] + "／" + rel[1]
@@ -158,6 +187,12 @@ func BuildPrompt(
 			"  " + strings.Join(opts, "／") + "\n"
 	}
 
+	// 関係を指定しなかった回は、抽選した地位を既定に LLM に地位を選ばせ、
+	// 「地位／性別」を context.relation に書かせる。RelationAsk は「LLM に生成させる」
+	// の印で、SchemaFor が選択肢を enum にしてスキーマに足し、ApplyResponseCompat は上書きしない。
+	pickRelation := promptIsPremium && medium.Addressed && !isDrama &&
+		relation == "" && resolved.RelationStatus != ""
+
 	// プロンプトで指定した値のみ確定値として記録する。
 	// 欠けたキーは呼び出し側が LLM に生成させる（BuildResponseSchema）。
 	context := map[string]any{}
@@ -174,6 +209,8 @@ func BuildPrompt(
 		}
 		if relation != "" {
 			context["relation"] = relation
+		} else if pickRelation {
+			context["relation"] = RelationAsk{Speaker: resolved.RelationSpeaker}
 		}
 		if promptIsPremium && resolved.Medium != "" {
 			context["medium"] = medium.Name
@@ -218,7 +255,11 @@ func BuildPrompt(
 	// 話し手と聞き手の関係は premium のみ（free は入門帯で文が短く、
 	// 人称・文末詞を足す余地が無い）。
 	if promptIsPremium {
-		if block := buildMediumConstraint(medium, relation); block != "" {
+		block := buildMediumConstraint(medium, relation)
+		if pickRelation {
+			block = buildRelationPickBlock(resolved.RelationStatus, resolved.RelationSpeaker)
+		}
+		if block != "" {
 			sections = append(sections, block)
 		}
 	}

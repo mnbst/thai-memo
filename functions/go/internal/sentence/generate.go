@@ -62,6 +62,10 @@ func ApplyResponseCompat(s *Sentence, resolvedContext map[string]any) {
 			merged[k] = v
 		}
 		for k, v := range resolvedContext {
+			if _, ask := v.(RelationAsk); ask {
+				// LLM に選ばせたキー（SchemaFor）。生成値を残す。
+				continue
+			}
 			merged[k] = v
 		}
 		s.Context = merged
@@ -461,7 +465,7 @@ func (s *Service) GenerateSentenceWithNotes(
 		tierLabel = "premium"
 	}
 
-	resolved := s.Resolver.Resolve(ctx, params, targetWords, estimatedVocab)
+	resolved := s.Resolver.ResolveFor(ctx, params, targetWords, estimatedVocab, l)
 
 	// ドラマ回は場面をドラマ側のブロックが決めるので、テーマ・サブテーマ・
 	// 時点・関係の行を出さない（BuildPrompt 側で落とす）。

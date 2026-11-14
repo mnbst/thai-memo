@@ -369,16 +369,12 @@ func combineLifetimeVerification(
 }
 
 // projectIDPremiumProducts は環境（GCP プロジェクト）ごとに販売している商品 ID。
-// dev は両ストア設定を検証するため両方を許可する。
+// tester は手元のデバッグビルド（本番と同じ商品 ID）も受けるので両方を許可する。
 var projectIDPremiumProducts = map[string][]string{
 	"thai-memo-prod": {
 		productIDPremiumMonthly, productIDPremiumYearly, productIDPremiumLifetime,
 	},
 	"thai-memo-67139": {
-		productIDPremiumMonthlyTest, productIDPremiumYearlyTest,
-		productIDPremiumLifetimeTest,
-	},
-	"thai-memo-dev": {
 		productIDPremiumMonthly, productIDPremiumMonthlyTest,
 		productIDPremiumYearly, productIDPremiumYearlyTest,
 		productIDPremiumLifetime, productIDPremiumLifetimeTest,
