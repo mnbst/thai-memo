@@ -5,7 +5,39 @@ import (
 	"log"
 	"math/rand"
 	"strings"
+
+	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 )
+
+// fanSubThemes は日本のファン向けに足したサブテーマ（コラボカフェ・ロケ地・
+// 推しの誕生日のタンブン等）。英語版では引かない。英語の利用者はタイ在住・
+// 旅行が中心で、推し活の文脈が通じにくい（2026-11-14）。推し活テーマ自体は
+// 明示して選んだ人にだけ出るので残す。韓国語版はファン文化が通じるので残す。
+var fanSubThemes = map[string]bool{
+	"コラボカフェ":      true,
+	"ロケ地めぐり":      true,
+	"推しのコラボ商品":    true,
+	"ライブ遠征":       true,
+	"推しの配信":       true,
+	"推しに伝えたい言葉":   true,
+	"ファン同士の交流":    true,
+	"推しの誕生日のタンブン": true,
+}
+
+// subThemesFor は [topic] のサブテーマ候補を [l] の利用者向けに返す。
+func subThemesFor(topic string, l lang.Lang) []string {
+	subs := topicSubThemes[topic]
+	if l != lang.EN {
+		return subs
+	}
+	kept := make([]string, 0, len(subs))
+	for _, s := range subs {
+		if !fanSubThemes[s] {
+			kept = append(kept, s)
+		}
+	}
+	return kept
+}
 
 // SubThemeFinder はテーマのサブテーマを 1 つ選ぶ。
 // 実装は internal/embeddings.Store。
@@ -91,6 +123,15 @@ func (r *Resolver) Resolve(
 	ctx context.Context, params map[string]any,
 	targetWords []string, estimatedVocab int,
 ) ResolvedParams {
+	return r.ResolveFor(ctx, params, targetWords, estimatedVocab, lang.JA)
+}
+
+// ResolveFor は [l] の利用者向けに Resolve する。言語で変わるのはサブテーマの
+// 候補だけ（英語版はファン向けのサブテーマを外す。subThemesFor）。
+func (r *Resolver) ResolveFor(
+	ctx context.Context, params map[string]any,
+	targetWords []string, estimatedVocab int, l lang.Lang,
+) ResolvedParams {
 	resolved := ResolvedParams{
 		// 2026-08-14: free 専用プール（FREE_TOPICS）は廃止。クライアントは
 		// テーマを送らないので、tier でプールを分けても選択肢の差にならなかった。
@@ -134,7 +175,7 @@ func (r *Resolver) Resolve(
 		return resolved
 	}
 
-	subThemes := topicSubThemes[resolved.Topic]
+	subThemes := subThemesFor(resolved.Topic, l)
 	if len(subThemes) > 0 && len(targetWords) > 0 && r.SubThemes != nil {
 		sub, err := r.SubThemes.FindBestSubTheme(ctx, targetWords[0], subThemes)
 		if err != nil {

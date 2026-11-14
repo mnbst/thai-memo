@@ -298,8 +298,9 @@ class AnalyticsService {
     await _logEvent('review_tab', {'action': action, 'value': value});
   }
 
-  /// 起動から初回導線（機能紹介）に入るまでの進み。first_open から
-  /// onboarding_start までの離脱がどこで起きるかを見る。
+  /// 起動から初回導線（ヒアリング）に入るまでの進み。first_open から
+  /// interview(start) までの離脱がどこで起きるかを見る（1.4.32 以前は
+  /// 機能紹介の onboarding_start まで）。
   ///
   /// action:
   ///   auth_start — 匿名サインインを始めた（起動1回につき1回）
@@ -312,27 +313,6 @@ class AnalyticsService {
     await _logEvent('startup', {'action': action, 'value': value});
   }
 
-  /// 機能紹介で [page] 枚目（1始まり）を表示した。2枚目以降だけ送る
-  /// （1枚目は onboarding_start と同じ）。どの枚で降りたかを見る。
-  Future<void> logOnboardingPage(int page) async {
-    await _logEvent('onboarding_page', {'value': page.toString()});
-  }
-
-  /// オンボーディング（機能紹介3枚）を開いた。
-  Future<void> logOnboardingStart() async {
-    await _logEvent('onboarding_start', {});
-  }
-
-  /// オンボーディング終了。[skipped] は最後まで読まずに飛ばしたか。
-  ///
-  /// 真偽値は登録済みの文字列ディメンション `value` に載せる。数値で送ると
-  /// 文字列として登録した側では (not set) になり、後から直せない。
-  Future<void> logOnboardingComplete({required bool skipped}) async {
-    await _logEvent('onboarding_complete', {
-      'value': skipped ? 'skipped' : 'completed',
-    });
-  }
-
   /// 使い方の説明書（説明書1枚）の読まれ方。
   ///
   /// [source] は出どころ（first_launch / settings）。
@@ -340,6 +320,7 @@ class AnalyticsService {
   ///   open      — 開いた
   ///   skipped   — 初回導線でスキップして閉じた
   ///   completed — 末尾のボタンで閉じた
+  ///   open_full — 初回の簡易ガイド（QuickGuideScreen）から全文を開いた
   Future<void> logGuide({
     required String action,
     required String source,

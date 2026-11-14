@@ -37,8 +37,10 @@ void main() {
     expect(find.text('概要'), findsOneWidget);
     expect(find.text('それぞれの機能の役割'), findsOneWidget);
 
-    // 概要の図（学習のくり返し）は先頭の章に出る。
-    expect(find.text('まとめクイズ'), findsWidgets);
+    // 概要は学習の流れ3段（初回の簡易ガイドと共用）。
+    expect(find.text('レベルに合った例文を読む'), findsOneWidget);
+    expect(find.text('例文ごとに確認クイズ'), findsOneWidget);
+    expect(find.text('まとめクイズでスコアを更新'), findsOneWidget);
 
     await tester.scrollUntilVisible(find.text('操作のしかた'), 400);
     expect(find.text('操作のしかた'), findsOneWidget);

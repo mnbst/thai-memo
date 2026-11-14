@@ -24,12 +24,11 @@ EXCLUDE_COUNTRIES = ("(not set)",)
 REVIEW_CITIES = ("Cupertino", "Santa Clara", "Saratoga", "San Jose", "Sunnyvale", "Los Gatos",
                  "Mountain View", "Los Altos", "Los Altos Hills", "Los Angeles")
 # (表示名, イベント名, {パラメータ: 値 | (値, ...)})。値を並べたものはどれか一つに一致。
-# 初回導線の順: 機能紹介 → ヒアリング → 使い方ガイド → 語彙テスト → ペイウォール → 生成。
-# 別端末のアカウントで入った人はヒアリング以降を通らないので、ここで落ちて見える。
+# 初回導線の順: ヒアリング → 使い方ガイド → 語彙テスト → ペイウォール → 生成。
+# 1.4.32 以前はヒアリングの前に機能紹介3枚（onboarding_start / onboarding_complete）があった。
+# 別端末のアカウントで入った人はヒアリングの途中で抜けるので、ここで落ちて見える。
 STEPS = (
     ("first_open", "first_open", {}),
-    ("onboarding_start", "onboarding_start", {}),
-    ("onboarding_complete", "onboarding_complete", {}),
     ("interview_start", "interview", {"action": "start"}),
     ("interview_complete", "interview", {"action": ("complete", "skip")}),
     ("guide_open", "guide", {"action": "open", "source": "first_launch"}),
@@ -45,17 +44,15 @@ STEPS = (
     ("generate_sentence", "generate_sentence", {}),
 )
 
-# --startup: first_open から機能紹介を読み終えるまで。startup / onboarding_page は
-# 2026-10 のビルドから送るので、それより前に入った人はここで落ちて見える。
+# --startup: first_open からヒアリングに入るまで。startup は 2026-10 のビルドから
+# 送るので、それより前に入った人はここで落ちて見える。1.4.32 以前のビルドは間に
+# 機能紹介3枚（onboarding_start / onboarding_page / onboarding_complete）を挟む。
 STARTUP_STEPS = (
     ("first_open", "first_open", {}),
     ("auth_start", "startup", {"action": "auth_start"}),
     ("auth_ok", "startup", {"action": "auth_ok"}),
     ("home_first_launch", "startup", {"action": "home", "value": "first_launch"}),
-    ("onboarding_start", "onboarding_start", {}),
-    ("onboarding_page_2", "onboarding_page", {"value": "2"}),
-    ("onboarding_page_3", "onboarding_page", {"value": "3"}),
-    ("onboarding_complete", "onboarding_complete", {}),
+    ("interview_start", "interview", {"action": "start"}),
 )
 
 

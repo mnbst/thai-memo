@@ -3,6 +3,7 @@ package sentence
 import (
 	"context"
 	"encoding/json"
+	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"math/rand"
 	"os"
 	"reflect"
@@ -196,4 +197,46 @@ func contains(items []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// 英語版はファン向けのサブテーマを候補から外す。日本語版・韓国語版は従来どおり。
+func TestSubThemeSelectionDropsFanThemesForEN(t *testing.T) {
+	const food = "食べ物（注文、感想、屋台、辛さ調整、アレルギー）"
+	for _, name := range []string{"コラボカフェ", "ロケ地めぐり"} {
+		if !fanSubThemes[name] {
+			t.Fatalf("%s がファン向けに入っていない", name)
+		}
+	}
+	for fan := range fanSubThemes {
+		found := false
+		for _, subs := range topicSubThemes {
+			for _, s := range subs {
+				found = found || s == fan
+			}
+		}
+		if !found {
+			t.Errorf("fanSubThemes の %q がどのテーマの候補にも無い", fan)
+		}
+	}
+
+	for _, tc := range []struct {
+		l       lang.Lang
+		wantFan bool
+	}{{lang.JA, true}, {lang.KO, true}, {lang.EN, false}} {
+		finder := &fakeSubThemes{}
+		r := &Resolver{Rand: rand.New(rand.NewSource(3)), SubThemes: finder}
+		r.ResolveFor(context.Background(),
+			map[string]any{"topic": food}, []string{"กิน"}, 1000, tc.l)
+		hasFan := false
+		for _, s := range finder.subThemes {
+			hasFan = hasFan || fanSubThemes[s]
+		}
+		if hasFan != tc.wantFan {
+			t.Errorf("%s: 候補にファン向けがある=%v want %v (%v)",
+				tc.l, hasFan, tc.wantFan, finder.subThemes)
+		}
+		if len(finder.subThemes) == 0 {
+			t.Errorf("%s: 候補が空", tc.l)
+		}
+	}
 }

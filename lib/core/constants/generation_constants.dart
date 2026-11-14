@@ -64,6 +64,21 @@ class GenerationConstants {
     topics[15], // 礼儀作法
   ];
 
+  /// [languageCode] の利用者向けに並べた [pickerTopics]。
+  ///
+  /// 英語版は暮らし・旅行を先頭にし、BL・推し活を末尾へ回す。英語の利用者は
+  /// タイ在住・旅行が中心で、BL の需要は見えない（2026-11-14）。項目は同じで、
+  /// 並びだけ変える。日本語版・韓国語版は [pickerTopics] のまま。
+  static List<String> pickerTopicsFor(String languageCode) {
+    if (languageCode != 'en') return pickerTopics;
+    final fan = {topics[0], topics[16]};
+    return [
+      ...pickerTopics.where((t) => !fan.contains(t)),
+      topics[0], // タイBLドラマ
+      topics[16], // 推し活
+    ];
+  }
+
   /// [topic] があいさつか。旧版が保存した短い名前も含む。
   static bool isGreetingTopic(String? topic) =>
       topic == topics[3] || topic == 'あいさつ';
