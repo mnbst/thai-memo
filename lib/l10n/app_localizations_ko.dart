@@ -1116,39 +1116,13 @@ class L10nKo extends L10n {
   }
 
   @override
-  String get onboarding1Title => '태국 문자를 읽지 못해도 괜찮아요';
-
-  @override
-  String get onboarding1Body =>
-      '내 수준에 맞는 예문을 매일 받아 보세요.\n카드를 누르면 읽는 법과 뜻을 확인할 수 있어요.';
-
-  @override
-  String get onboarding2Title => '성조까지 익히는 발음 연습';
-
-  @override
-  String get onboarding2Body =>
-      '모범 발음을 듣고 내 목소리를 녹음해요.\n성조가 어긋난 부분을 바로 확인할 수 있어요.';
-
-  @override
-  String get onboarding3Title => '퀴즈로 어휘 점수 UP';
-
-  @override
-  String get onboarding3Body => '틀린 단어는 반복해서 출제돼요.\n점수에 따라 예문에 나오는 단어가 늘어나요.';
-
-  @override
-  String get onboardingSkip => '건너뛰기';
-
-  @override
-  String get onboardingNext => '다음';
-
-  @override
-  String get onboardingHaveAccount => '이미 계정이 있나요?';
-
-  @override
   String get interviewIntroTitle => '질문 4개에 답해 주세요';
 
   @override
   String get interviewIntroBody => '답변에 맞춰 이 앱으로 학습하는 방법을 알려 드릴게요. 금방 끝나요.';
+
+  @override
+  String get interviewHaveAccount => '이미 계정이 있나요?';
 
   @override
   String get interviewIntroStart => '시작';
@@ -2468,6 +2442,38 @@ class L10nKo extends L10n {
   String get settingsRankingSubtitle => '어휘 점수로 다른 학습자와 비교';
 
   @override
+  String get quickGuideTitle => '이렇게 배워요';
+
+  @override
+  String get quickGuideStepRead => '내 수준에 맞는 예문 읽기';
+
+  @override
+  String get quickGuideOptSpeak => '소리 내어 성조 확인';
+
+  @override
+  String get quickGuideOptSpelling => '단어를 눌러 철자 확인';
+
+  @override
+  String get quickGuideStepCheck => '예문마다 확인 퀴즈';
+
+  @override
+  String quickGuideOptReview(String tab) {
+    return '만난 단어는 \'$tab\' 탭에서 다시 보기';
+  }
+
+  @override
+  String get quickGuideStepQuiz => '종합 퀴즈로 점수 갱신';
+
+  @override
+  String get quickGuideNextSentences => '점수가 오르면 새로운 단어를 만날 수 있어요';
+
+  @override
+  String get quickGuideOptSummaryEvery => '몇 문장마다 나와요';
+
+  @override
+  String get quickGuideMore => '사용법 가이드 자세히 보기';
+
+  @override
   String get guideTitle => '사용법 가이드';
 
   @override
@@ -2484,21 +2490,6 @@ class L10nKo extends L10n {
 
   @override
   String get guideLead => '기본 사용법을 정리했어요. 설정에서 언제든 다시 볼 수 있어요.';
-
-  @override
-  String get guideFigureLoopSentence => '예문';
-
-  @override
-  String get guideFigureLoopQuiz => '퀴즈';
-
-  @override
-  String get guideFigureLoopRepeat => '반복';
-
-  @override
-  String get guideFigureLoopSummary => '종합 퀴즈';
-
-  @override
-  String get guideFigureLoopEvery => '예문 최대 5개마다';
 
   @override
   String get guideFigureCardThai => '태국 문자';
@@ -2523,25 +2514,6 @@ class L10nKo extends L10n {
 
   @override
   String get guideChapterHowTo => '사용 방법';
-
-  @override
-  String get guideOverviewTitle => '이 앱에서 학습하는 것';
-
-  @override
-  String get guideOverviewBody1 =>
-      'AI가 내 수준에 맞는 학습 단어를 고르고, 그 단어를 사용한 태국어 예문을 만들어요.';
-
-  @override
-  String get guideOverviewBody2 =>
-      '예문으로 학습 단어 익히기 → 확인 퀴즈로 점검하기. 이 과정을 최대 5번 반복하면 한 세트예요.';
-
-  @override
-  String get guideOverviewSummaryQuiz =>
-      '한 세트를 모두 학습하면 ‘종합 퀴즈’로 넘어가요. 헷갈릴 때는 힌트를 보거나 예문을 다시 확인할 수 있어요.';
-
-  @override
-  String get guideOverviewBody3 =>
-      '종합 퀴즈 답변을 바탕으로 어휘 점수와 다음 예문의 난이도가 조정되고, 예문에 나오는 단어도 늘어나요. 힌트 없이 맞힌 답은 더 잘 반영되며, 틀린 문제는 나중에 다시 출제돼요.';
 
   @override
   String get guideRoleSentenceTitle => '예문';

@@ -15,88 +15,6 @@ import '../../l10n/app_localizations.dart';
 import 'pronunciation_practice.dart';
 import 'word_order_example.dart';
 
-/// 学習のくり返しを1本の流れで示す図。
-/// 例文 → クイズのくり返しと、例文5つごとのまとめクイズ。
-class GuideLoopFigure extends StatelessWidget {
-  const GuideLoopFigure({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context);
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    Widget node(String label) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(label, style: theme.textTheme.labelMedium),
-        );
-
-    Widget arrow() => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Icon(Icons.arrow_forward, size: 14, color: cs.outline),
-        );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 折り返しても読めるよう Wrap で置く。端末の文字サイズが大きいと
-        // 1行には収まらない。
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            node(l10n.guideFigureLoopSentence),
-            arrow(),
-            node(l10n.guideFigureLoopQuiz),
-            // くり返しであることは記号だけでは伝わらないので、語を添える。
-            Padding(
-              padding: const EdgeInsets.only(left: 2),
-              child: Icon(Icons.repeat, size: 14, color: cs.outline),
-            ),
-            Text(
-              l10n.guideFigureLoopRepeat,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: cs.onSurfaceVariant),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        // 条件（例文5つごと）を先に置き、その結果としてまとめクイズが来る。
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 8,
-          runSpacing: 6,
-          children: [
-            Icon(Icons.subdirectory_arrow_right, size: 16, color: cs.outline),
-            Text(
-              l10n.guideFigureLoopEvery,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: cs.onSurfaceVariant),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.gold.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                l10n.guideFigureLoopSummary,
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(color: AppColors.goldInk),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
 /// 例文カードの並びを示す図。深藍の面に3段、学習単語だけ金。
 /// 実物と同じ配色にして、画面で見たときに同じものだと分かるようにする。
 class GuideSentenceCardFigure extends StatelessWidget {
@@ -117,11 +35,17 @@ class GuideSentenceCardFigure extends StatelessWidget {
               const SizedBox(width: 10),
               SizedBox(
                 width: 88,
-                child: Text(
-                  caption,
-                  textAlign: TextAlign.right,
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: cs.onSurfaceVariant),
+                // 長い見出し（英語の Pronunciation）は折り返さず縮めて1行に収める。
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    caption,
+                    maxLines: 1,
+                    textAlign: TextAlign.right,
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: cs.onSurfaceVariant),
+                  ),
                 ),
               ),
             ],

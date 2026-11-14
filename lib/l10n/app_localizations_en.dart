@@ -37,7 +37,7 @@ class L10nEn extends L10n {
   String get navLearn => 'Learn';
 
   @override
-  String get navHistory => 'Review';
+  String get navHistory => 'Words';
 
   @override
   String get navSettings => 'Settings';
@@ -359,7 +359,7 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get historyTitle => 'Review';
+  String get historyTitle => 'Words';
 
   @override
   String get historyFavoritesOnly => 'Favorites only';
@@ -842,7 +842,7 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_blDrama =>
-      'confessions, misunderstandings, reunions, jealousy, betrayal, making up, kabedon, pet names';
+      'confessions, misunderstandings, reunions, jealousy, betrayal, making up, pet names';
 
   @override
   String get topicName_romance => 'Dating and romance';
@@ -870,14 +870,13 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_food =>
-      'collab cafes, ordering, reactions, street stalls, spice levels, allergies';
+      'ordering, reactions, street stalls, spice levels, allergies';
 
   @override
   String get topicName_travel => 'Travel';
 
   @override
-  String get topicSub_travel =>
-      'filming locations, hotels, directions, sights, airports, tours';
+  String get topicSub_travel => 'hotels, directions, sights, airports, tours';
 
   @override
   String get topicName_family => 'Family';
@@ -932,7 +931,7 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_religion =>
-      'merit-making for idols\' birthdays, temple etiquette, almsgiving, amulets, speaking to monks, Buddhist holidays';
+      'temple etiquette, almsgiving, amulets, speaking to monks, Buddhist holidays';
 
   @override
   String get topicName_festivals => 'Traditions and festivals';
@@ -967,7 +966,7 @@ class L10nEn extends L10n {
 
   @override
   String get topicSub_oshi =>
-      'concerts, tickets, merch, handshake events, waiting for idols';
+      'concerts, tickets, merch, fan meets, waiting for idols';
 
   @override
   String get styleName_news => 'News';
@@ -1176,41 +1175,14 @@ class L10nEn extends L10n {
   }
 
   @override
-  String get onboarding1Title => 'Can\'t read Thai yet? No problem';
-
-  @override
-  String get onboarding1Body =>
-      'Sentences matched to your level, every day.\nTap a card to see how to read it and what it means.';
-
-  @override
-  String get onboarding2Title => 'Practice sounds and tones';
-
-  @override
-  String get onboarding2Body =>
-      'Listen, then record yourself.\nSee which tones need work.';
-
-  @override
-  String get onboarding3Title => 'Build vocabulary with quizzes';
-
-  @override
-  String get onboarding3Body =>
-      'Missed words come back.\nSentences use more words as your score grows.';
-
-  @override
-  String get onboardingSkip => 'Skip';
-
-  @override
-  String get onboardingNext => 'Next';
-
-  @override
-  String get onboardingHaveAccount => 'Have an account? Sign in';
-
-  @override
   String get interviewIntroTitle => 'Four quick questions';
 
   @override
   String get interviewIntroBody =>
       'Answer four questions for personalized learning tips.';
+
+  @override
+  String get interviewHaveAccount => 'Have an account? Sign in';
 
   @override
   String get interviewIntroStart => 'Start';
@@ -1761,7 +1733,7 @@ class L10nEn extends L10n {
 
   @override
   String get quotaSentenceReached =>
-      'That\'s all the new sentences for today.\nReread past sentences from the top right of the Review tab.';
+      'That\'s all the new sentences for today.\nReread past sentences from the top right of the Words tab.';
 
   @override
   String get quotaSentenceUpgradeCta => 'Unlock unlimited sentences';
@@ -2583,6 +2555,38 @@ class L10nEn extends L10n {
   String get settingsRankingSubtitle => 'Compare vocabulary scores';
 
   @override
+  String get quickGuideTitle => 'How you\'ll learn';
+
+  @override
+  String get quickGuideStepRead => 'Read sentences at your level';
+
+  @override
+  String get quickGuideOptSpeak => 'Say it aloud to check your tones';
+
+  @override
+  String get quickGuideOptSpelling => 'Tap a word to see its spelling';
+
+  @override
+  String get quickGuideStepCheck => 'Quick quiz after each sentence';
+
+  @override
+  String quickGuideOptReview(String tab) {
+    return 'Revisit words in the $tab tab';
+  }
+
+  @override
+  String get quickGuideStepQuiz => 'Summary quizzes update your score';
+
+  @override
+  String get quickGuideNextSentences => 'Raise your score to unlock new words';
+
+  @override
+  String get quickGuideOptSummaryEvery => 'Pops up every few sentences';
+
+  @override
+  String get quickGuideMore => 'See the full App guide';
+
+  @override
   String get guideTitle => 'App guide';
 
   @override
@@ -2602,21 +2606,6 @@ class L10nEn extends L10n {
       'Learn the basics; reopen this guide anytime from Settings.';
 
   @override
-  String get guideFigureLoopSentence => 'Sentence';
-
-  @override
-  String get guideFigureLoopQuiz => 'Quiz';
-
-  @override
-  String get guideFigureLoopRepeat => 'repeat';
-
-  @override
-  String get guideFigureLoopSummary => 'Summary quiz';
-
-  @override
-  String get guideFigureLoopEvery => 'after up to five';
-
-  @override
   String get guideFigureCardThai => 'Thai script';
 
   @override
@@ -2629,7 +2618,7 @@ class L10nEn extends L10n {
   String get guideFigureCardTranslationSample => 'I like coffee.';
 
   @override
-  String get guideFigureCardTargetWord => 'Gold = target';
+  String get guideFigureCardTargetWord => 'Gold = target word';
 
   @override
   String get guideChapterOverview => 'Overview';
@@ -2639,25 +2628,6 @@ class L10nEn extends L10n {
 
   @override
   String get guideChapterHowTo => 'How to';
-
-  @override
-  String get guideOverviewTitle => 'How it works';
-
-  @override
-  String get guideOverviewBody1 =>
-      'AI chooses words for your level and uses them in Thai sentences.';
-
-  @override
-  String get guideOverviewBody2 =>
-      'Learn a target word in a sentence → take a quiz. Complete up to five to finish a set.';
-
-  @override
-  String get guideOverviewSummaryQuiz =>
-      'After each set, take a summary quiz; use a hint or review the sentence if needed.';
-
-  @override
-  String get guideOverviewBody3 =>
-      'Your summary quiz answers adjust your vocabulary score and the difficulty of future sentences, and your sentences gradually use more words. Correct answers without hints have more impact, and missed questions return later.';
 
   @override
   String get guideRoleSentenceTitle => 'Sentences';
@@ -2689,7 +2659,7 @@ class L10nEn extends L10n {
       'Spelling quiz: shown when your vocabulary test result is under 100 words. Choose the target word’s spelling from its pronunciation and meaning. After you answer correctly once, that word appears in other formats, such as fill-in-the-blank or word order. If you miss one, tap “More on Thai script” to open the Thai script guide.';
 
   @override
-  String get guideRoleReviewTitle => 'Review';
+  String get guideRoleReviewTitle => 'Words';
 
   @override
   String get guideRoleReviewBody =>
@@ -2863,14 +2833,14 @@ class L10nEn extends L10n {
 
   @override
   String get guideHowReviewQuizStep6 =>
-      'When a word becomes “Learned,” a card lets you know. You can check it in the Review tab.';
+      'When a word becomes “Learned,” a card lets you know. You can check it in the Words tab.';
 
   @override
-  String get guideHowHistoryTitle => 'Revisit words in Review';
+  String get guideHowHistoryTitle => 'Look back at your words';
 
   @override
   String get guideHowHistoryStep1 =>
-      'The Review tab lists words you’ve seen, highest vocabulary rank first. It also shows your vocabulary score and quiz range.';
+      'The Words tab lists words you’ve seen, highest vocabulary rank first. It also shows your vocabulary score and quiz range.';
 
   @override
   String get guideHowHistoryStep2 =>
@@ -3712,7 +3682,7 @@ class L10nEn extends L10n {
   String get vocabAllSentences => 'All sentences';
 
   @override
-  String get vocabGuideTitle => 'How to use Review';
+  String get vocabGuideTitle => 'How to use Words';
 
   @override
   String get vocabGuideMeaning => 'Gauges show word mastery';

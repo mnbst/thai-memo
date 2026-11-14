@@ -259,13 +259,13 @@ lib/presentation/screens/ranking_screen.dart
 語彙スコアの全期間ランキング。自分の順位カードを上に置き、その下に上位100人を張り出す。表示名はサーバー採番のタイ人名。
 
 lib/presentation/screens/guide_screen.dart
-アプリの使い方を1枚にまとめた説明書。並びは 概要 → 学習のコツ → 各機能の役割 → 操作のしかた。初回起動ではヒアリングの後・語彙テストの前に全文表示（スキップ可）、以後は設定「使い方ガイド」から読み返す。画面に重ねるコーチマークは持たない。要所には guide_figures.dart の図を挟む。
+アプリの使い方を1枚にまとめた説明書。並びは 概要 → 学習のコツ → 各機能の役割 → 操作のしかた。初回起動では出さず（簡易版 quick_guide_screen.dart から開ける）、設定「使い方ガイド」から読む。概要は learning_flow_steps.dart を簡易版と共用。画面に重ねるコーチマークは持たない。要所には guide_figures.dart の図を挟む。
 
-lib/presentation/screens/onboarding_screen.dart
-初回起動時の機能紹介3枚（戻る不可・スキップ可）。この後にヒアリング→使い方ガイド→語彙テスト。
+lib/presentation/screens/quick_guide_screen.dart
+初回起動の使い方の簡易版（1画面）。学習の流れ3段（learning_flow_steps.dart）を見せ、全文のガイドへ案内する。ヒアリングの後・語彙テストの前。
 
 lib/presentation/screens/interview_screen.dart
-初回起動時のヒアリング4問（この後に使い方ガイド→語彙テスト）（スキップ不可）。応答は挟まず、最後に1画面だけ回答に寄せた考え方を出す。回答は端末保存＋users docで、level は語彙テストの開始段に使う。
+初回起動で最初に出すヒアリング4問（この後に使い方ガイド→語彙テスト）（スキップ不可）。前置きの1枚に既存アカウントのサインイン入口。応答は挟まず、最後に1画面だけ回答に寄せた考え方を出す。回答は端末保存＋users docで、level は語彙テストの開始段に使う。
 
 lib/presentation/screens/vocab_test_screen.dart
 語彙テスト。4択を1段（4問）ずつサーバーから受け取り、落ちた段で終わる（初心者は4問）。初回は使い方ガイドの直後（mandatory: 戻る・スキップ無しで必ず測る）、以後は設定から。プレミアム限定。
@@ -335,8 +335,11 @@ lib/presentation/widgets/thai_highlight.dart
 lib/presentation/widgets/word_order_example.dart
 語順の例文を語ごとのチップ（タイ文字・読み・意味）で並べる表示。語順ガイドと使い方ガイドの図で使う。
 
+lib/presentation/widgets/learning_flow_steps.dart
+学習の流れ3段（例文を読む→確認クイズ→まとめクイズ）。初回の簡易ガイドと使い方ガイドの概要で共用。
+
 lib/presentation/widgets/guide_figures.dart
-使い方ガイドに載せる模式図（学習のくり返し・例文カードの構成・発音判定の色）。画面写真は使わず、文言はl10nから引く。
+使い方ガイドに載せる模式図（例文カードの構成・発音判定の色・確認クイズの導線・語順）。画面写真は使わず、文言はl10nから引く。
 
 lib/presentation/widgets/plan_compare_table.dart
 無料版とプレミアムの比較表（例文・テーマ・語彙スコア・発音採点）。使い方ガイドとペイウォールで共通に使う。
@@ -574,6 +577,9 @@ updateUvm の Go 版。クイズ結果からUVMを更新する。uvm_handlers.py
 
 functions/go/vocabtest.go
 startVocabTest / submitVocabTest。語彙テストの出題・採点と estimated_vocab の書き込み。全員1段目から出題。プレミアム限定＋月1回（開始時刻を起点に30日、中断のやり直しのみ同一期間内3回まで）。
+
+functions/go/cmd/dedupsentences/main.go
+同じ key_word・同じ本文の例文 doc が複数ある人について、新しい1本を残して残りに削除印を付ける一回きりの掃除（既定は dry run）。
 
 functions/go/cmd/resyncvocab/main.go
 全ユーザーの estimated_vocab を今の推定式で計算し直す（既定は dry run、-write で元の値を保存してから書く）。

@@ -95,5 +95,26 @@ void main() {
       }
       expect(picker.toSet().length, picker.length);
     });
+
+    test('英語版は暮らし・旅行を先頭、BL・推し活を末尾にし、項目は変えない', () {
+      final en = GenerationConstants.pickerTopicsFor('en');
+      expect(en.toSet(), GenerationConstants.pickerTopics.toSet());
+      expect(en.length, GenerationConstants.pickerTopics.length);
+      expect(en.take(2), [
+        GenerationConstants.lifeTopic,
+        GenerationConstants.travelTopic,
+      ]);
+      expect(en.skip(en.length - 2), [
+        GenerationConstants.topics[0],
+        GenerationConstants.topics[16],
+      ]);
+    });
+
+    test('日本語版・韓国語版の並びは変えない', () {
+      for (final code in ['ja', 'ko']) {
+        expect(GenerationConstants.pickerTopicsFor(code),
+            GenerationConstants.pickerTopics);
+      }
+    });
   });
 }

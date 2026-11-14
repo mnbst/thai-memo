@@ -202,7 +202,9 @@ Future<void> showTopicPicker(BuildContext context, WidgetRef ref) async {
               ),
             ),
           ),
-          ...GenerationConstants.pickerTopics.map((topic) {
+          ...GenerationConstants.pickerTopicsFor(
+                  Localizations.localeOf(context).languageCode)
+              .map((topic) {
             final isSelected = topic == currentTopic;
             final label = topicLabel(L10n.of(context), topic);
             final name = label.name;

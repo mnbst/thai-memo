@@ -6,10 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/firebase_auth_service.dart';
 import '../../services/interview_reporter.dart';
 import '../providers/analytics_provider.dart';
+import '../widgets/sign_in_sheet.dart';
 
-/// オンボーディングとコーチマークの間に挟む、タイ語との距離のヒアリング。
+/// 初回起動で最初に出す、タイ語との距離のヒアリング。
+///
+/// 前置きの1枚に「アカウントをお持ちの方」を置く。別の端末で使っていた人は
+/// ここで入り、設問・語彙テストを飛ばす（[onExistingAccount]）。
+/// 以前は前に機能紹介3枚があったが、英語圏では16%がそこで降り、33%が
+/// 読まずに飛ばしていたので外した（2026-11-14）。
 ///
 /// 設問を4問続けて聞き、最後に1画面だけ返す。1問ごとに応答を挟むと画面数が
 /// 倍になり、読ませたい肝心の1画面に届く前に離脱する。返す内容も、答えに
@@ -31,9 +38,13 @@ class InterviewScreen extends ConsumerStatefulWidget {
   const InterviewScreen({
     super.key,
     required this.onComplete,
+    this.onExistingAccount,
   });
 
   final VoidCallback onComplete;
+
+  /// 前置きから既存アカウントにサインインして抜けたとき。null なら入口を出さない。
+  final VoidCallback? onExistingAccount;
 
   @override
   ConsumerState<InterviewScreen> createState() => _InterviewScreenState();
@@ -206,6 +217,20 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
     unawaited(InterviewReporter().report());
   }
 
+  /// 別の端末で使っていたアカウントで入る。
+  ///
+  /// 新しい端末は匿名で始まるので、ここで入らないと、ヒアリングと語彙テストを
+  /// 捨てアカウントでやり直し、そのあいだの学習もサインイン時に捨てることになる。
+  /// uid が変わったときだけ既存アカウントとみなす。変わらなければ（匿名を
+  /// そのまま昇格した＝新規）、ふつうにヒアリングを続ける。
+  Future<void> _signInExisting() async {
+    final before = FirebaseAuthService.instance.currentUser?.uid;
+    final signedIn = await showSignInSheet(context);
+    if (!mounted || !signedIn) return;
+    final after = FirebaseAuthService.instance.currentUser?.uid;
+    if (after != null && after != before) widget.onExistingAccount?.call();
+  }
+
   Future<void> _complete() async {
     if (_completing) return;
     _completing = true;
@@ -243,6 +268,9 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
               (false, _) => _IntroView(
                   key: const ValueKey('intro'),
                   onStart: () => setState(() => _started = true),
+                  onHaveAccount: widget.onExistingAccount == null
+                      ? null
+                      : _signInExisting,
                 ),
               (_, true) => _PhilosophyView(
                   key: const ValueKey('philosophy'),
@@ -265,9 +293,10 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
 
 /// 設問に入る前の前置き。何問あるか、何のために聞くかだけを伝える。
 class _IntroView extends StatelessWidget {
-  const _IntroView({super.key, required this.onStart});
+  const _IntroView({super.key, required this.onStart, this.onHaveAccount});
 
   final VoidCallback onStart;
+  final VoidCallback? onHaveAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -322,6 +351,13 @@ class _IntroView extends StatelessWidget {
             onPressed: onStart,
             child: Text(l10n.interviewIntroStart),
           ),
+          if (onHaveAccount != null) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: onHaveAccount,
+              child: Text(l10n.interviewHaveAccount),
+            ),
+          ],
         ],
       ),
     );

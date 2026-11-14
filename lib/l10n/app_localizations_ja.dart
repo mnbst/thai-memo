@@ -1112,37 +1112,13 @@ class L10nJa extends L10n {
   }
 
   @override
-  String get onboarding1Title => 'タイ文字が読めなくても大丈夫';
-
-  @override
-  String get onboarding1Body => 'あなたのレベルに合った例文を毎日お届け。\nカードをタップで読み方と意味を確認。';
-
-  @override
-  String get onboarding2Title => '声調を含めた発音練習';
-
-  @override
-  String get onboarding2Body => 'お手本を聞いて自分の声を録音。\n声調のズレをその場で確認できます。';
-
-  @override
-  String get onboarding3Title => 'クイズで語彙スコアUP';
-
-  @override
-  String get onboarding3Body => '間違えた単語はくり返し出題。\nスコアに合わせて、例文に出る単語が増えます。';
-
-  @override
-  String get onboardingSkip => 'スキップ';
-
-  @override
-  String get onboardingNext => '次へ';
-
-  @override
-  String get onboardingHaveAccount => 'アカウントをお持ちの方はこちら';
-
-  @override
   String get interviewIntroTitle => '4つ質問させてください';
 
   @override
   String get interviewIntroBody => '答えに合わせて、このアプリの学び方をお伝えします。すぐ終わります。';
+
+  @override
+  String get interviewHaveAccount => 'アカウントをお持ちの方はこちら';
 
   @override
   String get interviewIntroStart => 'はじめる';
@@ -2445,6 +2421,38 @@ class L10nJa extends L10n {
   String get settingsRankingSubtitle => '語彙スコアで他の学習者と比べる';
 
   @override
+  String get quickGuideTitle => 'こんなふうに学びます';
+
+  @override
+  String get quickGuideStepRead => 'レベルに合った例文を読む';
+
+  @override
+  String get quickGuideOptSpeak => '声に出して声調をチェック';
+
+  @override
+  String get quickGuideOptSpelling => '単語をタップして綴りを確認';
+
+  @override
+  String get quickGuideStepCheck => '例文ごとに確認クイズ';
+
+  @override
+  String quickGuideOptReview(String tab) {
+    return '出会った単語は「$tab」タブで見返せる';
+  }
+
+  @override
+  String get quickGuideStepQuiz => 'まとめクイズでスコアを更新';
+
+  @override
+  String get quickGuideNextSentences => 'スコアアップで新しい単語が登場';
+
+  @override
+  String get quickGuideOptSummaryEvery => '数文読むごとに出てくる';
+
+  @override
+  String get quickGuideMore => '使い方ガイドを詳しく読む';
+
+  @override
   String get guideTitle => '使い方ガイド';
 
   @override
@@ -2461,21 +2469,6 @@ class L10nJa extends L10n {
 
   @override
   String get guideLead => '基本の使い方をまとめました。設定からいつでも読み返せます。';
-
-  @override
-  String get guideFigureLoopSentence => '例文';
-
-  @override
-  String get guideFigureLoopQuiz => 'クイズ';
-
-  @override
-  String get guideFigureLoopRepeat => 'くり返す';
-
-  @override
-  String get guideFigureLoopSummary => 'まとめクイズ';
-
-  @override
-  String get guideFigureLoopEvery => '例文最大5つごと';
 
   @override
   String get guideFigureCardThai => 'タイ文字';
@@ -2500,25 +2493,6 @@ class L10nJa extends L10n {
 
   @override
   String get guideChapterHowTo => '操作のしかた';
-
-  @override
-  String get guideOverviewTitle => 'このアプリでやること';
-
-  @override
-  String get guideOverviewBody1 =>
-      'AIがあなたのレベルに合った学習単語を選び、その単語を使ったタイ語の例文をつくります。';
-
-  @override
-  String get guideOverviewBody2 =>
-      '例文で学習単語を覚える → 確認クイズで確かめる。これを最大5回くり返して1セットです。';
-
-  @override
-  String get guideOverviewSummaryQuiz =>
-      '1セット学び終えると「まとめクイズ」に進みます。迷ったときは、ヒントを見たり例文を見返したりできます。';
-
-  @override
-  String get guideOverviewBody3 =>
-      'まとめクイズの答えをもとに、語彙スコアと次の例文の難しさが調整され、例文に出る単語も増えていきます。ヒントなしの正解は反映されやすく、間違えた問題はあとでもう一度出題されます。';
 
   @override
   String get guideRoleSentenceTitle => '例文';
