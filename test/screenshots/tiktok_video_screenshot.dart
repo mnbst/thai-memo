@@ -62,6 +62,15 @@ const int _plays = 3;
 const double _usageSeconds = _lang == 'en' ? 6.0 : 5.0;
 const double _wordsTotalSeconds = 21;
 
+/// 動画全体の上限。単語の欄の1語の時間をここから逆算して詰める。
+const int _maxTotalMs = 60000;
+
+/// 単語の欄のあとに残す時間の見込み（多めに取る）。学習単語の詳細は
+/// 開く・下まで送る・閉じるまで、クイズは考える間・正解後の間まで。
+const int _detailReserveMs = 10200;
+const int _quizReserveMs = 9200;
+const int _scrollReserveMs = 900;
+
 const _contentKey = ValueKey('tiktok-content');
 
 void main() {
@@ -151,17 +160,30 @@ void main() {
     final keyWordText =
         sentence.targetWords?.firstOrNull ?? quiz?.correctAnswer;
     final words = sentence.wordBreakdowns;
-    // 単語の数が違っても、全体がおよそ1分に収まるように1語の時間を決める。
-    final wordSeconds = (_wordsTotalSeconds / words.length).clamp(1.8, 3.0);
-    for (final word in words) {
+    // 1語の時間は、残りの語と後ろの場面（詳細・クイズ）を 60 秒から引いて
+    // 均等に割る。長くても 3 秒（かつ単語の欄全体で約 21 秒）、短くても 1.5 秒。
+    final maxWordMs =
+        (_wordsTotalSeconds * 1000 / words.length).clamp(1500.0, 3000.0);
+    var detailDone = !words.any((w) => w.wordText == keyWordText);
+    for (var i = 0; i < words.length; i++) {
+      final word = words[i];
       final row = _wordRow(word.wordText);
       if (row.evaluate().isEmpty) continue;
       await rec.scrollTo(
         position,
         _centerOffset(tester, position, tester.getRect(row)),
       );
-      await rec.hold(_f(wordSeconds));
-      if (word.wordText == keyWordText) await _openWordDetail(rec, finger, row);
+      final left = words.length - i;
+      final reserve = (quiz != null ? _quizReserveMs : 1000) +
+          (detailDone ? 0 : _detailReserveMs) +
+          _scrollReserveMs * (left - 1);
+      final wordMs = ((_maxTotalMs - reserve - rec.ms) / left)
+          .clamp(1500.0, maxWordMs);
+      await rec.hold((wordMs / _frameGap.inMilliseconds).round());
+      if (word.wordText == keyWordText && !detailDone) {
+        await _openWordDetail(rec, finger, row);
+        detailDone = true;
+      }
     }
 
     // ---- 3. 確認クイズに答える ----
