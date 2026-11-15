@@ -33,6 +33,8 @@ resource "google_project_service" "required_apis" {
     "playdeveloperreporting.googleapis.com",
     # X 自動投稿の読み上げ音声（tools/x_post）
     "texttospeech.googleapis.com",
+    # TikTok 用の素材を Google Drive に置く（tools/x_post/upload_to_drive.py）
+    "drive.googleapis.com",
   ])
 
   project = var.project_id

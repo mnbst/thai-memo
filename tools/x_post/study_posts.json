@@ -6,7 +6,8 @@
     "image": {
       "screen": "pron",
       "from": "息を出す音・出さない音"
-    }
+    },
+    "text_en": "Ask for \"kai\" and you might get a chicken—or an egg🐔🥚\n\nไก่ kài＝chicken\nไข่ khài＝egg\n\nFor kh, release a strong puff of air; for k, don't.\nตา taa eye／ทา thaa apply\nปา paa throw／พา phaa take someone along"
   },
   {
     "id": "guide_pron_length",
@@ -15,7 +16,8 @@
     "image": {
       "screen": "pron",
       "from": "長い母音・短い母音"
-    }
+    },
+    "text_en": "Four words that may sound like \"khao\"—all with different meanings🍚\n\nเข้า khâw enter\nข้าว khâaw rice\nเขา khǎw he／she\nขาว khǎaw white\n\nEach pair has the same tone; only the vowel length differs. Stretch the vowel in the word for rice."
   },
   {
     "id": "guide_pron_vowels",
@@ -24,7 +26,8 @@
     "image": {
       "screen": "pron",
       "from": "似た母音を区別する"
-    }
+    },
+    "text_en": "Three Thai vowel pairs English speakers often mix up👂\n\ne／ɛ　เด็ก dèk child／แดด dɛ̀ɛt sunshine\no／ɔ　โต๊ะ tó table／ห้อง hɔ̂ng room\nu／ʉ　ดู duu look／มือ mʉʉ hand\n\nOpen your mouth wider for ɛ and ɔ. For ʉ, say \"oo\" with unrounded lips."
   },
   {
     "id": "guide_pron_final",
@@ -33,7 +36,8 @@
     "image": {
       "screen": "pron",
       "from": "語末の k・t・p は音を出さない"
-    }
+    },
+    "text_en": "Are you pronouncing นก (bird) like \"knock\"?🐦\n\nFor final k, t, and p, move your mouth into position and stop—don't release the sound.\nนก nók／รถ rót car／กับ kàp with\n\nAt the end of a word, ด・ส・ช become t sounds, while บ・พ become p sounds."
   },
   {
     "id": "guide_pron_casual",
@@ -42,7 +46,8 @@
     "image": {
       "screen": "pron",
       "from": "会話での崩れ"
-    }
+    },
+    "text_en": "If spoken Thai doesn't sound like the textbook, it's not your ears🙆\n\nรัก rák → lák love\nครับ khráp → kháp\nไหม mǎi → mái question particle\nฉัน chǎn → chán I／me\n\nIn conversation, r may become l and tones may shift. Using the textbook pronunciation is still understood."
   },
   {
     "id": "guide_tone_five",
@@ -51,7 +56,8 @@
     "image": {
       "screen": "tone",
       "from": "5つの声調"
-    }
+    },
+    "text_en": "One syllable, three meanings—depending on the tone🐕🐴\n\nมา maa (mid)＝come\nหมา mǎa (rising)＝dog\nม้า máa (high)＝horse\n\nThai has five tones: mid, low, falling, high, and rising. The tone decides whether a dog or a horse came."
   },
   {
     "id": "guide_tone_marks",
@@ -60,7 +66,8 @@
     "image": {
       "screen": "tone",
       "from": "声調記号"
-    }
+    },
+    "text_en": "The same mark ่, but a different tone😵\n\nไก่ kài chicken → low tone\nไม่ mâi not → falling tone\n\nก is a mid-class consonant; ม is low-class. The consonant class changes the tone even when the mark is the same."
   },
   {
     "id": "guide_tone_classes",
@@ -69,7 +76,8 @@
     "image": {
       "screen": "tone",
       "from": "子音クラス"
-    }
+    },
+    "text_en": "Thai consonants fall into three classes: high, mid, and low🔤\n\nMid: ก จ ด ต บ ป อ and 2 more\nHigh: ข ฉ ถ ผ ฝ ส ห and 4 more\nLow: ค ง ช ท น ม ร ล and the rest\n\nClass determines the tone rules. Start with the mid class—it has just nine letters."
   },
   {
     "id": "guide_script_basics",
@@ -78,7 +86,8 @@
     "image": {
       "screen": "script",
       "from": "1. タイ文字のしくみ"
-    }
+    },
+    "text_en": "Half the challenge of reading Thai is where the vowels are written👀\n\nเ・แ・โ・ไ appear before a consonant, but the consonant is pronounced first.\n\nไป → p＋ai＝pai go\nเก่ง → k＋e＋ng＝kèng skilled\n\nThere are no spaces between words either, so start by finding the consonants."
   },
   {
     "id": "guide_script_vowels",
@@ -87,7 +96,8 @@
     "image": {
       "screen": "script",
       "from": "3. 母音記号の位置と長さ"
-    }
+    },
+    "text_en": "Thai vowel signs can go in five places: before, after, above, below, or around a consonant🌀\n\nอา aa (after)\nอิ i (above)\nอุ u (below)\nเอ ee (before)\nเอีย ia (around)\n\nอ is a silent carrier here—perfect for practicing where vowel signs appear."
   },
   {
     "id": "guide_script_tone_marks",
@@ -96,7 +106,8 @@
     "image": {
       "screen": "script",
       "from": "4. 声調記号"
-    }
+    },
+    "text_en": "There are only four little tone marks above consonants✍️\n\n่ mái èek\n้ mái thoo\n๊ mái trii\n๋ mái jàttawaa\n\nBut a mark doesn't directly equal a pitch. The tone depends on its combination with the consonant class. For now, just learn to spot them."
   },
   {
     "id": "guide_script_words",
@@ -105,7 +116,8 @@
     "image": {
       "screen": "script",
       "from": "5. 単語を分解して読む"
-    }
+    },
+    "text_en": "Thai becomes readable when you break it into parts🧩\n\nไม่ ＝ ไ (vowel) ＋ ม (consonant) ＋ ่ (tone mark)\n→ mâi \"not\"\n\nDon't read symbols strictly from left to right. Find the consonant, vowel, and tone mark first."
   },
   {
     "id": "guide_wo_topic",
@@ -114,7 +126,8 @@
     "image": {
       "screen": "word_order",
       "from": "を文の最初に置く"
-    }
+    },
+    "text_en": "In Thai, the topic comes first and the comment follows🗣\n\nทัวร์นี้ คนเยอะ\nthis tour｜people many\n＝This tour is crowded\n\nThink of it as \"As for this tour...\" Places and phrases with \"this\" often become the topic."
   },
   {
     "id": "guide_wo_modifier",
@@ -123,7 +136,8 @@
     "image": {
       "screen": "word_order",
       "from": "名詞を説明する語は後ろ"
-    }
+    },
+    "text_en": "Thai modifiers usually come after the word they describe🔄\n\nบ้านใหญ่\nhouse big → a big house\n\nบ้านของฉัน\nhouse of me → my house\n\nDescriptive words follow the noun. บ้านใหญ่ can also form the sentence \"The house is big.\""
   },
   {
     "id": "guide_wo_count",
@@ -132,7 +146,8 @@
     "image": {
       "screen": "word_order",
       "from": "数える・指すときは"
-    }
+    },
+    "text_en": "In Thai, every part of \"these two cats\" follows the noun🐈🐈\n\nแมว สอง ตัว นี้\ncat → two → classifier → this\n\nแมวตัวหนึ่ง (cat classifier one) often means \"a certain cat\" rather than simply \"one cat.\""
   },
   {
     "id": "guide_wo_negation",
@@ -141,7 +156,8 @@
     "image": {
       "screen": "word_order",
       "from": "打ち消したい語句の前"
-    }
+    },
+    "text_en": "The position of ไม่ได้ changes the meaning⚠️\n\nไม่ได้ไป＝didn't go\nไปไม่ได้＝can't go\n\nBefore a verb, it means the action didn't happen. After a verb, it means the action isn't possible."
   },
   {
     "id": "guide_wo_question",
@@ -150,7 +166,8 @@
     "image": {
       "screen": "word_order",
       "from": "疑問詞は答えが入る場所に"
-    }
+    },
+    "text_en": "In Thai questions, put the question word where the answer would go❓\n\nคุณกินอะไร\nyou eat what＝What do you eat?\n\nไปไหน\ngo where＝Where are you going?\n\nFor yes-or-no questions, add ไหม at the end."
   },
   {
     "id": "guide_wo_tense",
@@ -159,7 +176,8 @@
     "image": {
       "screen": "word_order",
       "from": "いつのことかを表す語"
-    }
+    },
+    "text_en": "Thai verbs never change form. Other words show the time⏰\n\nจะ＋verb＝will／going to\nกำลัง＋verb＝be doing\nเคย＋verb＝have ever done\nverb＋แล้ว＝already did\n\nกินข้าวแล้ว＝already ate"
   },
   {
     "id": "guide_wo_polite",
@@ -168,7 +186,8 @@
     "image": {
       "screen": "word_order",
       "from": "丁寧の語尾は一番最後"
-    }
+    },
+    "text_en": "ครับ・ค่ะ go at the very end of a sentence🙏\n\nกินไหมคะ＝Would you like to eat?\nอร่อยนะคะ＝It's delicious, isn't it?\n\nThey come even after ไหม・แล้ว・นะ. After a question or นะ, women use คะ (high tone)."
   },
   {
     "id": "guide_wo_relative",
@@ -177,7 +196,8 @@
     "image": {
       "screen": "word_order",
       "from": "文で説明するときは"
-    }
+    },
+    "text_en": "\"The restaurant I like\" becomes \"restaurant ที่ I like\" in Thai🏪\n\nร้านที่ฉันชอบ\n\nWhen a clause describes a noun, the description still comes after it. Just put ที่ after the noun and continue with the clause."
   },
   {
     "id": "guide_wo_preposition",
@@ -186,7 +206,8 @@
     "image": {
       "screen": "word_order",
       "from": "などは名詞の前"
-    }
+    },
+    "text_en": "In Thai, prepositions come before nouns—just like in English👫\n\nไปกับเพื่อน＝go with friend\nแมวอยู่บนโต๊ะ＝cat is on table\n\nกับ (with), ใน (in), and บน (on) all come before the noun."
   },
   {
     "id": "guide_wo_very",
@@ -195,7 +216,8 @@
     "image": {
       "screen": "word_order",
       "from": "「少し」は後ろ"
-    }
+    },
+    "text_en": "In Thai, \"very\" comes last😋\n\nอาหารนี้อร่อยมาก\nfood this delicious very\n＝This food is very delicious\n\nมาก (very), จริงๆ (really), and นิดหน่อย (a little) follow the adjective or verb."
   },
   {
     "id": "guide_wo_compare",
@@ -204,7 +226,8 @@
     "image": {
       "screen": "word_order",
       "from": "比べるときは"
-    }
+    },
+    "text_en": "To compare, use \"adjective＋กว่า＋the other thing\"🌡\n\nวันนี้ร้อนกว่าเมื่อวาน\ntoday hot more-than yesterday\n＝Today is hotter than yesterday\n\nFor \"the most,\" add ที่สุด after the adjective.\nอันนี้ดีที่สุด＝This one is the best"
   },
   {
     "id": "guide_wo_want_can",
@@ -213,7 +236,8 @@
     "image": {
       "screen": "word_order",
       "from": "「できる」は後ろ"
-    }
+    },
+    "text_en": "\"Want to\" goes before the verb; \"can\" goes after🇹🇭\n\nฉันอยากกินส้มตำ\nI want eat som tam\n\nฉันพูดภาษาไทยได้\nI speak Thai can\n\nอยาก・ต้อง・ควร come before the verb, while ได้ goes at the end."
   },
   {
     "id": "guide_wo_serial",
@@ -222,127 +246,152 @@
     "image": {
       "screen": "word_order",
       "from": "動詞はそのまま続けて並べる"
-    }
+    },
+    "text_en": "Thai simply lines up verbs in the order things happen🛒\n\nไปซื้อของ\ngo buy things＝go shopping\n\nเอาน้ำมา\ntake water come＝bring water\n\nNo extra words like \"to\" or \"and\" are needed."
   },
   {
     "id": "tip_tone_suay",
     "kind": "tip",
-    "text": "タイ人に「キレイ」と言ったつもりが「ついてないね」になる話😇\n\nสวย sǔai（上がる）＝美しい\nซวย suai（平ら）＝ついてない\n\n違いは声調だけ。褒めるときは語尾をくいっと上げて。"
+    "text": "タイ人に「キレイ」と言ったつもりが「ついてないね」になる話😇\n\nสวย sǔai（上がる）＝美しい\nซวย suai（平ら）＝ついてない\n\n違いは声調だけ。褒めるときは語尾をくいっと上げて。",
+    "text_en": "Try to say \"beautiful\" and you might accidentally say \"unlucky\"😇\n\nสวย sǔai (rising)＝beautiful\nซวย suai (mid)＝unlucky\n\nThe only difference is the tone. When giving the compliment, let your pitch rise at the end."
   },
   {
     "id": "tip_mai_pen_rai",
     "kind": "tip",
-    "text": "タイで一番聞く言葉、ไม่เป็นไร（マイペンライ）🙏\n\n「大丈夫」「気にしないで」「どういたしまして」まで、これ1つ。\n\nぶつかっても、遅れても、お礼を言われても、マイペンライ。"
+    "text": "タイで一番聞く言葉、ไม่เป็นไร（マイペンライ）🙏\n\n「大丈夫」「気にしないで」「どういたしまして」まで、これ1つ。\n\nぶつかっても、遅れても、お礼を言われても、マイペンライ。",
+    "text_en": "The phrase you'll hear everywhere in Thailand: ไม่เป็นไร🙏\n\nIt can mean \"It's okay,\" \"Don't worry,\" or even \"You're welcome.\"\n\nA bump, a delay, or a thank-you—the same phrase works for them all."
   },
   {
     "id": "tip_silent_mark",
     "kind": "tip",
-    "text": "タイ語には「この文字は読まない」という印がある🤫\n\nจันทร์ jan（月）\n→ ทร์ は読まない\n\n文字の上の ์ が目印。外来語によく出てきます。"
+    "text": "タイ語には「この文字は読まない」という印がある🤫\n\nจันทร์ jan（月）\n→ ทร์ は読まない\n\n文字の上の ์ が目印。外来語によく出てきます。",
+    "text_en": "Thai has a mark that tells you, \"Don't pronounce these letters\"🤫\n\nจันทร์ jan (moon)\n→ ทร์ is silent\n\nLook for ์ above the letters. It's especially common in loanwords."
   },
   {
     "id": "tip_number_11",
     "kind": "tip",
-    "text": "タイ語の数字、末尾の1に注意🔢\n\n1＝หนึ่ง nʉ̀ng\n11＝สิบเอ็ด sìp èt\n21＝ยี่สิบเอ็ด yîi sìp èt\n\n2桁以上で末尾の1は「エット」、20は「ソーン」ではなく「イー」。値段で必ず出てきます。"
+    "text": "タイ語の数字、末尾の1に注意🔢\n\n1＝หนึ่ง nʉ̀ng\n11＝สิบเอ็ด sìp èt\n21＝ยี่สิบเอ็ด yîi sìp èt\n\n2桁以上で末尾の1は「エット」、20は「ソーン」ではなく「イー」。値段で必ず出てきます。",
+    "text_en": "Watch out for 1 at the end of Thai numbers🔢\n\n1＝หนึ่ง nʉ̀ng\n11＝สิบเอ็ด sìp èt\n21＝ยี่สิบเอ็ด yîi sìp èt\n\nAbove 10, a final 1 sounds like \"et.\" And 20 starts with \"yee,\" not the regular word for two. You'll hear both constantly when discussing prices."
   },
   {
     "id": "tip_classifier",
     "kind": "tip",
-    "text": "タイ語にも「〜本」「〜枚」がある📏\n\nคน khon 人\nตัว tua 動物・服\nอัน an 小物\n\nหมาสองตัว＝犬 2 匹\n\n仕組みは日本語と同じで、置く場所が後ろなだけ。"
+    "text": "タイ語にも「〜本」「〜枚」がある📏\n\nคน khon 人\nตัว tua 動物・服\nอัน an 小物\n\nหมาสองตัว＝犬 2 匹\n\n仕組みは日本語と同じで、置く場所が後ろなだけ。",
+    "text_en": "Thai uses classifier words for counting too📏\n\nคน khon people\nตัว tua animals／clothes\nอัน an small objects\n\nหมาสองตัว＝dog two classifier\n\nThe classifier comes after the number: noun＋number＋classifier."
   },
   {
     "id": "tip_price",
     "kind": "tip",
-    "text": "市場で一番使うひとこと🛍\n\nอันนี้เท่าไร\nan-níi thâw rài\n＝これいくら？\n\n最後に ครับ／คะ を付ければ丁寧に。\n聞き取れなかったら電卓を差し出すのも定番です。"
+    "text": "市場で一番使うひとこと🛍\n\nอันนี้เท่าไร\nan-níi thâw rài\n＝これいくら？\n\n最後に ครับ／คะ を付ければ丁寧に。\n聞き取れなかったら電卓を差し出すのも定番です。",
+    "text_en": "The most useful phrase at a market🛍\n\nอันนี้เท่าไร\nan-níi thâw rài\n＝How much is this?\n\nAdd ครับ／คะ at the end to be polite. If you miss the answer, handing over a calculator is completely normal."
   },
   {
     "id": "tip_wai",
     "kind": "tip",
-    "text": "タイの合掌あいさつ「ワイ」🙏 手の高さで相手が変わります。\n\n同年代 → 胸の高さ\n目上 → 鼻の高さ\n\n年下からワイされたら、軽く手を合わせて返せばOK。"
+    "text": "タイの合掌あいさつ「ワイ」🙏 手の高さで相手が変わります。\n\n同年代 → 胸の高さ\n目上 → 鼻の高さ\n\n年下からワイされたら、軽く手を合わせて返せばOK。",
+    "text_en": "Thailand's palms-together greeting is called the wai🙏 Hand height depends on the person.\n\nSomeone your age → chest level\nSomeone senior → nose level\n\nIf someone younger gives you a wai, briefly press your palms together in return."
   },
   {
     "id": "tip_final_eight",
     "kind": "tip",
-    "text": "タイ文字の子音は44字あるのに、語末の音は8つだけ🤔\n\nk／t／p／n／m／ng／y／w\n\nบ・ป・พ・ภ・ฟ は語末では全部 p。\n綴りが違っても同じ音に聞こえるのはこのせいです。"
+    "text": "タイ文字の子音は44字あるのに、語末の音は8つだけ🤔\n\nk／t／p／n／m／ng／y／w\n\nบ・ป・พ・ภ・ฟ は語末では全部 p。\n綴りが違っても同じ音に聞こえるのはこのせいです。",
+    "text_en": "Thai has 44 consonant letters, but only eight possible final sounds🤔\n\nk／t／p／n／m／ng／y／w\n\nAt the end of a word, บ・ป・พ・ภ・ฟ all become p. That's why different spellings can sound identical."
   },
   {
     "id": "tip_pronoun",
     "kind": "tip",
-    "text": "タイ語の「私」は男女で違う👫\n\nผม phǒm＝私（男性）\nดิฉัน dì-chǎn＝私（女性・改まった場面）\nฉัน chǎn＝私（くだけた場面）\n\n自己紹介の最初の一語で、性別も場面も出ます。"
+    "text": "タイ語の「私」は男女で違う👫\n\nผม phǒm＝私（男性）\nดิฉัน dì-chǎn＝私（女性・改まった場面）\nฉัน chǎn＝私（くだけた場面）\n\n自己紹介の最初の一語で、性別も場面も出ます。",
+    "text_en": "The Thai word for \"I\" changes with gender and context👫\n\nผม phǒm＝I (male)\nดิฉัน dì-chǎn＝I (female／formal)\nฉัน chǎn＝I (casual)\n\nThe first word of your introduction can signal both your gender and the setting."
   },
   {
     "id": "tip_polite_ending",
     "kind": "tip",
-    "text": "女性の丁寧な語尾 ค่ะ、質問のときだけ形が変わる⚠️\n\n答える：ค่ะ khâ（下がる）\n聞く：คะ khá（高い）\n\nกินไหมคะ＝食べますか？\nกินแล้วค่ะ＝もう食べました\n\n男性は ครับ のままでOK。"
+    "text": "女性の丁寧な語尾 ค่ะ、質問のときだけ形が変わる⚠️\n\n答える：ค่ะ khâ（下がる）\n聞く：คะ khá（高い）\n\nกินไหมคะ＝食べますか？\nกินแล้วค่ะ＝もう食べました\n\n男性は ครับ のままでOK。",
+    "text_en": "The polite ending ค่ะ changes form when a woman asks a question⚠️\n\nAnswering: ค่ะ khâ (falling)\nAsking: คะ khá (high)\n\nกินไหมคะ＝Would you like to eat?\nกินแล้วค่ะ＝I've already eaten\n\nFor men, ครับ stays the same."
   },
   {
     "id": "tip_ai_two_letters",
     "kind": "tip",
-    "text": "タイ語の「アイ」には字が2つある✍️\n\nไ（ไป pai 行く）\nใ（ใจ jai 心）\n\n音はまったく同じ。ใ を使う単語は20語だけなので、そっちを覚えれば残りは全部 ไ です。"
+    "text": "タイ語の「アイ」には字が2つある✍️\n\nไ（ไป pai 行く）\nใ（ใจ jai 心）\n\n音はまったく同じ。ใ を使う単語は20語だけなので、そっちを覚えれば残りは全部 ไ です。",
+    "text_en": "Thai has two letters for the \"ai\" sound✍️\n\nไ (ไป pai go)\nใ (ใจ jai heart)\n\nThey sound exactly the same. Only 20 words use ใ, so learn those and use ไ for the rest."
   },
   {
     "id": "tip_thai_digits",
     "kind": "tip",
-    "text": "タイには独自の数字もある🔢\n\n๐ ๑ ๒ ๓ ๔ ๕ ๖ ๗ ๘ ๙\n0 1 2 3 4 5 6 7 8 9\n\nふだんは算用数字が多いけど、お寺や公文書、値札で見かけます。\n๒๕ は25。"
+    "text": "タイには独自の数字もある🔢\n\n๐ ๑ ๒ ๓ ๔ ๕ ๖ ๗ ๘ ๙\n0 1 2 3 4 5 6 7 8 9\n\nふだんは算用数字が多いけど、お寺や公文書、値札で見かけます。\n๒๕ は25。",
+    "text_en": "Thailand has its own set of numerals too🔢\n\n๐ ๑ ๒ ๓ ๔ ๕ ๖ ๗ ๘ ๙\n0 1 2 3 4 5 6 7 8 9\n\nArabic numerals are more common day to day, but you'll see Thai numerals at temples, in official documents, and on price signs.\n๒๕ is 25."
   },
   {
     "id": "tip_kin_khaaw",
     "kind": "tip",
-    "text": "タイの「こんにちは」代わりのひとこと🍚\n\nกินข้าวหรือยัง\nkin khâaw rʉ̌ʉ yang\n＝ご飯食べた？\n\n本当に食事の誘いとは限りません。「食べたよ」なら กินแล้ว で返せばOK。"
+    "text": "タイの「こんにちは」代わりのひとこと🍚\n\nกินข้าวหรือยัง\nkin khâaw rʉ̌ʉ yang\n＝ご飯食べた？\n\n本当に食事の誘いとは限りません。「食べたよ」なら กินแล้ว で返せばOK。",
+    "text_en": "A Thai alternative to saying \"How are you?\"🍚\n\nกินข้าวหรือยัง\nkin khâaw rʉ̌ʉ yang\n＝Have you eaten yet?\n\nIt isn't always a literal meal invitation. If you have eaten, simply answer กินแล้ว."
   },
   {
     "id": "tip_aroi",
     "kind": "tip",
-    "text": "タイ料理を食べたら、まずこれ😋\n\nอร่อย à-ròi＝おいしい\nอร่อยมาก＝とてもおいしい\n\nマー（mâak）を後ろに付けるだけ。お店の人がかなり喜んでくれます。"
+    "text": "タイ料理を食べたら、まずこれ😋\n\nอร่อย à-ròi＝おいしい\nอร่อยมาก＝とてもおいしい\n\nマー（mâak）を後ろに付けるだけ。お店の人がかなり喜んでくれます。",
+    "text_en": "Eating Thai food? Say this first😋\n\nอร่อย à-ròi＝delicious\nอร่อยมาก＝very delicious\n\nJust add \"mahk\" (mâak) at the end. The people at the restaurant will love hearing it."
   },
   {
     "id": "tip_khothot",
     "kind": "tip",
-    "text": "ขอโทษ khɔ̌ɔ thôot は「ごめんなさい」だけじゃない🙇\n\n・謝るとき\n・「すみません」と人を呼ぶとき\n・人の前を通るとき\n\n日本語の「すみません」とほぼ同じ感覚で使えます。"
+    "text": "ขอโทษ khɔ̌ɔ thôot は「ごめんなさい」だけじゃない🙇\n\n・謝るとき\n・「すみません」と人を呼ぶとき\n・人の前を通るとき\n\n日本語の「すみません」とほぼ同じ感覚で使えます。",
+    "text_en": "ขอโทษ khɔ̌ɔ thôot means more than just \"I'm sorry\"🙇\n\n・to apologize\n・to get someone's attention\n・to pass in front of someone\n\nIt covers both \"sorry\" and \"excuse me\" in English."
   },
   {
     "id": "tip_chai_mai",
     "kind": "tip",
-    "text": "タイ語の「はい」は、質問の動詞で答える🙆\n\nใช่ไหม châi mǎi＝そうですか？\n→ ใช่ châi＝そうです\n\nไปไหม＝行く？\n→ ไป＝行く\n→ ไม่ไป＝行かない\n\n「はい」の一語より、動詞をくり返すのが自然です。"
+    "text": "タイ語の「はい」は、質問の動詞で答える🙆\n\nใช่ไหม châi mǎi＝そうですか？\n→ ใช่ châi＝そうです\n\nไปไหม＝行く？\n→ ไป＝行く\n→ ไม่ไป＝行かない\n\n「はい」の一語より、動詞をくり返すのが自然です。",
+    "text_en": "In Thai, answer a yes-or-no question with its verb🙆\n\nใช่ไหม châi mǎi＝Is that right?\n→ ใช่ châi＝That's right\n\nไปไหม＝Are you going?\n→ ไป＝I'm going\n→ ไม่ไป＝I'm not going\n\nRepeating the verb sounds more natural than using one universal word for \"yes.\""
   },
   {
     "id": "tip_mai_ek_tho",
     "kind": "tip",
-    "text": "声調記号 ้ は、子音で声が変わる🎵\n\nบ้าน bâan 家 → 下がる（中子音）\nน้ำ náam 水 → 高い（低子音）\n\n同じ記号でも、付く子音のグループで声調が違います。"
+    "text": "声調記号 ้ は、子音で声が変わる🎵\n\nบ้าน bâan 家 → 下がる（中子音）\nน้ำ náam 水 → 高い（低子音）\n\n同じ記号でも、付く子音のグループで声調が違います。",
+    "text_en": "The tone mark ้ produces different tones with different consonants🎵\n\nบ้าน bâan house → falling (mid-class consonant)\nน้ำ náam water → high (low-class consonant)\n\nEven with the same mark, the tone changes according to the consonant class."
   },
   {
     "id": "tip_eating",
     "kind": "tip",
-    "text": "タイ料理の食べ方🍛\n\n右手にスプーン、左手にフォーク。\nフォークでスプーンに寄せて、スプーンで口へ。\n\n箸を使うのは麺料理のときだけ。\nフォークを口に入れないのがマナーです。"
+    "text": "タイ料理の食べ方🍛\n\n右手にスプーン、左手にフォーク。\nフォークでスプーンに寄せて、スプーンで口へ。\n\n箸を使うのは麺料理のときだけ。\nフォークを口に入れないのがマナーです。",
+    "text_en": "How to eat Thai food🍛\n\nHold a spoon in your right hand and a fork in your left.\nUse the fork to push food onto the spoon, then eat from the spoon.\n\nChopsticks are mainly for noodle dishes. It's polite not to put the fork in your mouth."
   },
   {
     "id": "tip_temple",
     "kind": "tip",
-    "text": "タイのお寺に行くときの3つのマナー🛕\n\n・靴を脱ぐ\n・肩と膝を隠す服で\n・仏像より高い位置に座らない\n\n短パン・タンクトップだと入れないお寺もあります。"
+    "text": "タイのお寺に行くときの3つのマナー🛕\n\n・靴を脱ぐ\n・肩と膝を隠す服で\n・仏像より高い位置に座らない\n\n短パン・タンクトップだと入れないお寺もあります。",
+    "text_en": "Three etiquette tips for visiting a Thai temple🛕\n\n・remove your shoes\n・cover your shoulders and knees\n・don't sit higher than a Buddha image\n\nSome temples won't admit visitors in shorts or tank tops."
   },
   {
     "id": "tip_songkran",
     "kind": "tip",
-    "text": "タイのお正月は4月🎉\n\nสงกรานต์ sǒngkraan（ソンクラーン）\n毎年4月13〜15日\n\n水をかけ合って新年を祝うお祭り。\n街中で水をかけられても、笑って สุขสันต์วันสงกรานต์（ソンクラーンおめでとう）。"
+    "text": "タイのお正月は4月🎉\n\nสงกรานต์ sǒngkraan（ソンクラーン）\n毎年4月13〜15日\n\n水をかけ合って新年を祝うお祭り。\n街中で水をかけられても、笑って สุขสันต์วันสงกรานต์（ソンクラーンおめでとう）。",
+    "text_en": "Thai New Year is in April🎉\n\nสงกรานต์ sǒngkraan (Songkran)\nEvery year, April 13–15\n\nIt's a festival where people splash water to celebrate the new year. If you get soaked in the street, smile and say สุขสันต์วันสงกรานต์ (Happy Songkran!)."
   },
   {
     "id": "tip_loy_krathong",
     "kind": "tip",
-    "text": "タイの灯篭流し「ローイクラトン」🏮\n\nลอยกระทง lɔɔi kràthong\nลอย＝浮かべる\nกระทง＝灯篭\n\n陰暦12月の満月の夜、川に灯篭を流して水の精霊に感謝します。"
+    "text": "タイの灯篭流し「ローイクラトン」🏮\n\nลอยกระทง lɔɔi kràthong\nลอย＝浮かべる\nกระทง＝灯篭\n\n陰暦12月の満月の夜、川に灯篭を流して水の精霊に感謝します。",
+    "text_en": "Thailand's floating-lantern festival: Loy Krathong🏮\n\nลอยกระทง lɔɔi kràthong\nลอย＝float\nกระทง＝floating basket\n\nOn the full moon of the 12th lunar month, people float decorated baskets on rivers to thank the water spirits."
   },
   {
     "id": "tip_cluster",
     "kind": "tip",
-    "text": "タイ語には子音2つを続けて読む音がある🐟\n\nปลา plaa 魚\nกรุง krung 都\nขวา khwǎa 右\n\n「プ・ラー」と分けず「プラー」と一息で。\n会話ではよく後ろが落ちて「パー」に聞こえます。"
+    "text": "タイ語には子音2つを続けて読む音がある🐟\n\nปลา plaa 魚\nกรุง krung 都\nขวา khwǎa 右\n\n「プ・ラー」と分けず「プラー」と一息で。\n会話ではよく後ろが落ちて「パー」に聞こえます。",
+    "text_en": "Some Thai words pronounce two consonants together🐟\n\nปลา plaa fish\nกรุง krung city／capital\nขวา khwǎa right\n\nSay \"plaa\" in one smooth syllable, not \"puh-laa.\" In casual speech, the second consonant often disappears, so it may sound like \"paa.\""
   },
   {
     "id": "tip_uea_vowel",
     "kind": "tip",
-    "text": "日本人が一番苦手なタイ語の母音、เอือ ʉa🌀\n\nเมือง mʉang 街・国\nเรือ rʉa 船\nเสือ sʉ̌a 虎\n\n唇を丸めずに「ウ」と言ってから「ア」へ。"
+    "text": "日本人が一番苦手なタイ語の母音、เอือ ʉa🌀\n\nเมือง mʉang 街・国\nเรือ rʉa 船\nเสือ sʉ̌a 虎\n\n唇を丸めずに「ウ」と言ってから「ア」へ。",
+    "text_en": "One of the trickiest Thai vowels for English speakers: เอือ ʉa🌀\n\nเมือง mʉang city／country\nเรือ rʉa boat\nเสือ sʉ̌a tiger\n\nStart with an \"oo\" sound without rounding your lips, then glide into \"ah.\""
   },
   {
     "id": "tip_tha",
     "kind": "tip",
-    "text": "タイ語の「彼女」と「あなた」は同じ単語💬\n\nเธอ thəə\n\n恋人や親しい相手への「あなた」にも、話題の「彼女」にも使います。\n歌やドラマのセリフで本当によく出てきます。"
+    "text": "タイ語の「彼女」と「あなた」は同じ単語💬\n\nเธอ thəə\n\n恋人や親しい相手への「あなた」にも、話題の「彼女」にも使います。\n歌やドラマのセリフで本当によく出てきます。",
+    "text_en": "In Thai, \"she\" and an intimate \"you\" can be the same word💬\n\nเธอ thəə\n\nIt can mean \"you\" when addressing a partner or someone close, and \"she\" when talking about someone. You'll hear it constantly in songs and dramas."
   },
   {
     "id": "feature_daily",
