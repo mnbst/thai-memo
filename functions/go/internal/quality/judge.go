@@ -39,6 +39,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -178,10 +179,12 @@ var Aspects = append([]Aspect{
 		Note:     "japanese_translation から、thai_text にある目的・条件・否定・可能性・義務・譲歩の意味が抜けていた。「〜ために」を「〜し、」と並べただけの訳も抜けに含む"},
 	{ID: "trans_conj", Label: "訳の接続", Threshold: Threshold, JAOnly: true,
 		Question: "`japanese_translation` が、`thai_text` の接続語（เพราะ=理由、แต่・แม้ว่า=逆接、ถ้า=条件 等）と違う関係で前後をつないでいるか（理由の เพราะ を「〜が」「〜のに」と逆接で訳す等）",
-		Note:     "japanese_translation が、thai_text の接続語と違う関係（理由を逆接で訳す等）で前後をつないでいた"},
+		Note:     "japanese_translation が、thai_text の接続語と違う関係（理由を逆接で訳す等）で前後をつないでいた",
+		Trigger:  func(c Candidate) bool { return thaiConnectorRe.MatchString(c.ThaiText) }},
 	{ID: "trans_vocative", Label: "呼称の音写", Threshold: vocativeThreshold, JAOnly: true,
 		Question: "`japanese_translation` に、`thai_text` の呼称（เฮีย、เจ๊、พี่、น้อง 等）をカタカナで音を写した語（ヘイ、ヒア、ヘイア、ジェー、ピー 等）が入っているか。人名・あだ名（カン、ホーム 等）をカタカナで書いたものは含まない",
-		Note:     "japanese_translation で、thai_text の呼称をカタカナで音写していた。呼称は音写せず、日本語の呼び方にするか省く"},
+		Note:     "japanese_translation で、thai_text の呼称をカタカナで音写していた。呼称は音写せず、日本語の呼び方にするか省く",
+		Trigger:  func(c Candidate) bool { return katakanaRe.MatchString(c.JapaneseTranslation) }},
 	{ID: "trans_thai", Label: "訳にタイ文字", JAOnly: false,
 		Note:  "japanese_translation にタイ文字が残っていた。訳にはタイ文字を書かない",
 		Check: func(c Candidate) bool { return containsThai(c.JapaneseTranslation) }},
@@ -261,6 +264,15 @@ const conjunctionThreshold = 0.3
 // vocativeThreshold は trans_vocative の閾値。罠179件で 0.6 以上なら音写 42/42・
 // 誤検出 0/137 だが、prod で正しいあだ名表記（カン先輩）が 0.64 になったので 0.7。
 const vocativeThreshold = 0.7
+
+// thaiConnectorRe は trans_conj を聞く文の接続語（広めに取る）。接続語の無い文にも
+// Luna は 0.67〜0.98 を付けていた（prod 11/13〜15 の訳の接続 5件中4件。
+// ×คดีนี้ร้ายแรงกว่าที่เราคิดไว้มาก 0.96）。
+var thaiConnectorRe = regexp.MustCompile(`เพราะ|เลย|ดังนั้น|แต่|แม้|ถึง|ถ้า|หาก|จึง|เนื่องจาก|ทั้งที่|ทำให้|ก็|งั้น|เมื่อ|พอ|จน|หรือ|และ|แล้ว`)
+
+// katakanaRe は trans_vocative を聞く訳のカタカナ。音写はカタカナでしか起きないのに、
+// Luna は「先輩」としか書いていない訳にも 0.65〜0.99 を付けていた（prod 11/13〜15）。
+var katakanaRe = regexp.MustCompile(`[ァ-ヺー]`)
 
 // containsThai は s にタイ文字があるか。
 func containsThai(s string) bool {
