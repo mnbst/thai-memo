@@ -3,11 +3,13 @@ name: Post Daily Sentence to X
 # platform=x は X、threads は Threads に出す。枠の時刻は同じで、例文は別の文を選ぶ
 # （pick_sentence.py が両方の投稿済みを外す）。同じ枠の2本は concurrency で順番に走らせ、
 # 後に走る方が先の投稿を見て選べるようにする。
-# kind=sentence は例文（例文→各欄→単語の詳細→確認クイズの縦動画1本。TikTok と共通）、tip / guide / feature は tools/x_post/study_posts.json の
+# kind=sentence は例文（例文→各欄→単語の詳細→確認クイズの縦動画。X は 4:5、Threads・TikTok は 9:16）、tip / guide / feature は tools/x_post/study_posts.json の
 # 投稿文（ガイドはガイド画面の該当欄、機能紹介はストア用スクショの画像付き）。枠ごとの kind は Terraform の
 # x_post_extra_slots で決める。
 # lang は投稿するアカウントの言語（ja: @everydaythai775 / en: @daily_thai11）。en は
 # 例文の X 投稿だけ（Tips・ガイド・機能紹介と Threads は日本語だけ）。枠は Terraform の x_post_en_slots。
+# platform=tiktok は投稿せず、英語の例文の縦動画（9:16）を1本作って Google Drive に置く（tiktok ジョブ。
+# 枠は Terraform の tiktok_daily）。WIF がこのファイルに限られるので、ワークフローは分けずにジョブで分ける。
 
 on:
   # 毎朝 07:00 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
@@ -32,9 +34,10 @@ on:
         options: [sentence, tip, guide, feature]
         default: sentence
       platform:
-        description: '投稿先（x / threads）'
+        description: '投稿先（x / tiktok: Drive に英語の例文動画を置くだけ）'
         type: choice
-        options: [x, threads]
+        # threads は止めている。
+        options: [x, tiktok]
         default: x
       lang:
         description: 'アカウントの言語（ja / en）'
@@ -68,6 +71,7 @@ env:
 
 jobs:
   post:
+    if: (inputs.platform || 'x') != 'tiktok'
     runs-on: ubuntu-latest
     steps:
       - name: Check inputs
@@ -103,23 +107,14 @@ jobs:
             X_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/x-access-token${{ env.TOKEN_SUFFIX }}
             X_ACCESS_TOKEN_SECRET:${{ env.GCP_PROJECT }}/x-access-token-secret${{ env.TOKEN_SUFFIX }}
 
-      # Drive の鍵は別に取る。まだ入っていなくても X の投稿は止めない。
-      - name: Fetch Google Drive credentials from Secret Manager
-        if: env.PLATFORM == 'x'
-        continue-on-error: true
-        uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
-        id: drive_secrets
-        with:
-          secrets: |-
-            GOOGLE_DRIVE_UPLOAD:${{ env.GCP_PROJECT }}/google-drive-upload
-
-      - name: Fetch Threads credentials from Secret Manager
-        if: env.PLATFORM == 'threads'
-        uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
-        id: threads_secrets
-        with:
-          secrets: |-
-            THREADS_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/threads-access-token
+      # Threads は止めている（再開するときはコメントを外し、platform の options に threads を戻す）。
+      # - name: Fetch Threads credentials from Secret Manager
+        # if: env.PLATFORM == 'threads'
+        # uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
+        # id: threads_secrets
+        # with:
+          # secrets: |-
+            # THREADS_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/threads-access-token
 
       - name: Install dependencies
         run: |
@@ -141,7 +136,7 @@ jobs:
           X_API_SECRET: ${{ steps.secrets.outputs.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ steps.secrets.outputs.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ steps.secrets.outputs.X_ACCESS_TOKEN_SECRET }}
-          THREADS_ACCESS_TOKEN: ${{ steps.threads_secrets.outputs.THREADS_ACCESS_TOKEN }}
+          # THREADS_ACCESS_TOKEN: ${{ steps.threads_secrets.outputs.THREADS_ACCESS_TOKEN }}
           THEMES: ${{ inputs.themes }}
           SLOT: ${{ inputs.slot }}
         # 種は枠ごとに変える。同じ日の枠で同じ抽選にならないように。
@@ -184,42 +179,24 @@ jobs:
             --sentence "$OUT_DIR/sentence.json" --out "$OUT_DIR"
 
       # 画面の録画は読み上げの尺に合わせるので、音声を先に作る。
-      # 例文→各欄→学習単語の詳細→確認クイズの縦動画1本。X・Threads・TikTok で共通。
-      - name: Render video frames
+      # 例文→各欄→学習単語の詳細→確認クイズの縦動画1本。
+      # X は 4:5（タイムラインで上下が切れないように）、Threads は 9:16。
+      - name: Render video
         if: env.KIND == 'sentence'
         run: |
           AUDIO_MS=$(ffprobe -v error -show_entries format=duration \
             -of csv=p=0 "$OUT_DIR/audio.mp3" | awk '{printf "%d", $1 * 1000}')
           echo "読み上げ ${AUDIO_MS}ms"
+          FORMAT=tiktok; [ "$PLATFORM" = x ] && FORMAT=x
           flutter test test/screenshots/tiktok_video_screenshot.dart \
             --dart-define=X_POST_SENTENCE=$OUT_DIR/sentence.json \
             --dart-define=TIKTOK_QUIZ=$OUT_DIR/quiz.json \
-            --dart-define=TIKTOK_OUT=$OUT_DIR \
+            --dart-define=TIKTOK_OUT=$OUT_DIR/video_$FORMAT \
             --dart-define=X_POST_AUDIO_MS=$AUDIO_MS \
-            --dart-define=X_POST_LANG=$LANG_CODE
-
-      - name: Build video
-        if: env.KIND == 'sentence'
-        run: python tools/x_post/build_video.py --out "$OUT_DIR"
-
-      # TikTok の写真投稿用に、Tips・ガイドの文字カードを日英で作る（X の枠のときだけ）。
-      - name: Render study images for TikTok
-        if: (env.KIND == 'tip' || env.KIND == 'guide') && env.PLATFORM == 'x'
-        continue-on-error: true
-        run: |
-          LABEL=Tips; [ "$KIND" = guide ] && LABEL=Guide
-          for L in ja en; do
-            TEXT="$OUT_DIR/text.txt"; [ "$L" = en ] && TEXT="$OUT_DIR/text_en.txt"
-            [ -f "$TEXT" ] || continue
-            flutter test test/screenshots/tip_card_screenshot.dart \
-              --dart-define=TIP_TEXT="$TEXT" \
-              --dart-define=TIP_OUT="$OUT_DIR/tiktok/${KIND}_$L.png" \
-              --dart-define=TIP_LABEL=$LABEL \
-              --dart-define=X_POST_LANG=$L
-          done
-          cp "$OUT_DIR/text.txt" "$OUT_DIR/tiktok/caption_ja.txt"
-          [ -f "$OUT_DIR/text_en.txt" ] && cp "$OUT_DIR/text_en.txt" "$OUT_DIR/tiktok/caption_en.txt"
-          true
+            --dart-define=X_POST_LANG=$LANG_CODE \
+            --dart-define=VIDEO_FORMAT=$FORMAT
+          python tools/x_post/build_video.py --out "$OUT_DIR" \
+            --frames "$OUT_DIR/video_$FORMAT" --format "$FORMAT"
 
       - name: Upload media as artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -229,7 +206,6 @@ jobs:
             ${{ env.OUT_DIR }}/image_*.png
             ${{ env.OUT_DIR }}/post.mp4
             ${{ env.OUT_DIR }}/text.txt
-            ${{ env.OUT_DIR }}/tiktok/
           retention-days: 7
 
       - name: Post to X
@@ -244,32 +220,140 @@ jobs:
             --project "$GCP_PROJECT" --out "$OUT_DIR" --lang "$LANG_CODE" \
             ${{ inputs.dry_run && '--dry-run' || '' }}
 
-      - name: Post to Threads
-        if: env.PLATFORM == 'threads'
-        env:
-          THREADS_ACCESS_TOKEN: ${{ steps.threads_secrets.outputs.THREADS_ACCESS_TOKEN }}
-          # メディアの署名付き URL を作る SA（自分への signBlob を Terraform で許可済み）。
-          THREADS_SIGNER: ${{ env.CI_SERVICE_ACCOUNT }}
-        run: |
-          python tools/x_post/post_to_threads.py \
-            --project "$GCP_PROJECT" --out "$OUT_DIR" \
-            --token-secret "projects/$GCP_PROJECT/secrets/threads-access-token" \
-            ${{ inputs.dry_run && '--dry-run' || '' }}
+      # Threads は止めている。
+      # - name: Post to Threads
+        # if: env.PLATFORM == 'threads'
+        # env:
+          # THREADS_ACCESS_TOKEN: ${{ steps.threads_secrets.outputs.THREADS_ACCESS_TOKEN }}
+          # # メディアの署名付き URL を作る SA（自分への signBlob を Terraform で許可済み）。
+          # THREADS_SIGNER: ${{ env.CI_SERVICE_ACCOUNT }}
+        # run: |
+          # python tools/x_post/post_to_threads.py \
+            # --project "$GCP_PROJECT" --out "$OUT_DIR" \
+            # --token-secret "projects/$GCP_PROJECT/secrets/threads-access-token" \
+            # ${{ inputs.dry_run && '--dry-run' || '' }}
 
-      # TikTok 用の素材を Google Drive に置く。X の枠だけ（Threads と二重にしない）。dry_run では置かない。
-      # 置けなくても投稿は済んでいるので、ジョブは落とさない。
-      - name: Upload to Google Drive
-        if: env.PLATFORM == 'x' && !inputs.dry_run && (env.KIND == 'sentence' || env.KIND == 'tip' || env.KIND == 'guide')
+
+  # TikTok 用（英語だけ、投稿はしない）。Drive に置くもの:
+  #  - 例文: 英語のコーパスから選んだ例文の 9:16 の縦動画
+  #  - Tips かガイド（1日おきに交互）: 英語の文字カード画像と説明文
+  # 置けたら x_post/en/tiktok/posted.json に記録して、同じものを重ねない（例文は英語の X 枠とも重ねない）。
+  tiktok:
+    if: inputs.platform == 'tiktok'
+    runs-on: ubuntu-latest
+    env:
+      OUT_DIR: build/tiktok
+      STUDY_DIR: build/tiktok_study
+      TIKTOK_TZ: America/Los_Angeles
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: "3.47.8"
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.CI_SERVICE_ACCOUNT }}
+
+      - name: Fetch Google Drive credentials from Secret Manager
+        if: ${{ !inputs.dry_run }}
+        uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
+        id: drive_secrets
+        with:
+          secrets: |-
+            GOOGLE_DRIVE_UPLOAD:${{ env.GCP_PROJECT }}/google-drive-upload
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          pip install -r tools/x_post/requirements.txt
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Fetch fonts
+        run: tools/x_post/fetch_fonts.sh
+
+      - name: Pick sentence
+        env:
+          THEMES: ${{ inputs.themes }}
+          SLOT: ${{ inputs.slot }}
+        run: |
+          python tools/x_post/pick_sentence.py \
+            --project "$GCP_PROJECT" --out "$OUT_DIR" \
+            --seed "$(date -u +%F)-$SLOT-tiktok-en" --themes "$THEMES" --slot "$SLOT" \
+            --platform tiktok --lang en --tz "$TIKTOK_TZ"
+
+      - name: Build quiz
+        run: python tools/x_post/build_quiz.py --out "$OUT_DIR" || true
+
+      - name: Synthesize pronunciation
+        run: |
+          python tools/x_post/synth_tts.py \
+            --sentence "$OUT_DIR/sentence.json" --out "$OUT_DIR"
+
+      - name: Render video
+        run: |
+          AUDIO_MS=$(ffprobe -v error -show_entries format=duration \
+            -of csv=p=0 "$OUT_DIR/audio.mp3" | awk '{printf "%d", $1 * 1000}')
+          echo "読み上げ ${AUDIO_MS}ms"
+          flutter test test/screenshots/tiktok_video_screenshot.dart \
+            --dart-define=X_POST_SENTENCE=$OUT_DIR/sentence.json \
+            --dart-define=TIKTOK_QUIZ=$OUT_DIR/quiz.json \
+            --dart-define=TIKTOK_OUT=$OUT_DIR/video_tiktok \
+            --dart-define=X_POST_AUDIO_MS=$AUDIO_MS \
+            --dart-define=X_POST_LANG=en \
+            --dart-define=VIDEO_FORMAT=tiktok
+          python tools/x_post/build_video.py --out "$OUT_DIR" \
+            --frames "$OUT_DIR/video_tiktok" --format tiktok
+
+      # Tips かガイドを1日おきに交互に。作れなくても例文の動画は置く。
+      - name: Pick and render tip or guide
+        id: study
         continue-on-error: true
+        run: |
+          KIND=tip; [ $(( 10#$(TZ=$TIKTOK_TZ date +%j) % 2 )) = 1 ] && KIND=guide
+          echo "kind=$KIND" >> "$GITHUB_OUTPUT"
+          python tools/x_post/pick_study_post.py \
+            --project "$GCP_PROJECT" --out "$STUDY_DIR" --kind "$KIND" \
+            --platform tiktok --seed "$(date -u +%F)-tiktok-$KIND"
+          LABEL=Tips; [ "$KIND" = guide ] && LABEL=Guide
+          flutter test test/screenshots/tip_card_screenshot.dart \
+            --dart-define=TIP_TEXT="$STUDY_DIR/text_en.txt" \
+            --dart-define=TIP_OUT="$STUDY_DIR/media/${KIND}_en.png" \
+            --dart-define=TIP_LABEL=$LABEL \
+            --dart-define=X_POST_LANG=en
+          cp "$STUDY_DIR/text_en.txt" "$STUDY_DIR/media/caption_en.txt"
+
+      - name: Upload media as artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tiktok-en-media
+          path: |
+            ${{ env.OUT_DIR }}/post.mp4
+            ${{ env.OUT_DIR }}/text.txt
+            ${{ env.STUDY_DIR }}/media/
+          retention-days: 7
+
+      - name: Upload to Google Drive
+        if: ${{ !inputs.dry_run }}
         env:
           GOOGLE_DRIVE_UPLOAD: ${{ steps.drive_secrets.outputs.GOOGLE_DRIVE_UPLOAD }}
           SLOT: ${{ inputs.slot }}
         run: |
-          PREFIX="$(TZ=$POST_TZ date +%F)_${SLOT:-$(TZ=$POST_TZ date +%H%M)}"
-          if [ "$KIND" = sentence ]; then
-            python tools/x_post/upload_to_drive.py --prefix "${PREFIX}_${LANG_CODE}" \
-              "$OUT_DIR/post.mp4"
-          else
-            python tools/x_post/upload_to_drive.py --prefix "${PREFIX}_${KIND}" \
-              "$OUT_DIR"/tiktok/*
+          PREFIX="$(TZ=$TIKTOK_TZ date +%F)_${SLOT:-$(TZ=$TIKTOK_TZ date +%H%M)}_en"
+          python tools/x_post/upload_to_drive.py --prefix "$PREFIX" \
+            --record "$OUT_DIR" --project "$GCP_PROJECT" --lang en \
+            "$OUT_DIR/post.mp4"
+          if [ "${{ steps.study.outcome }}" = success ]; then
+            python tools/x_post/upload_to_drive.py \
+              --prefix "$(TZ=$TIKTOK_TZ date +%F)_${{ steps.study.outputs.kind }}" \
+              --record "$STUDY_DIR" --project "$GCP_PROJECT" --lang en \
+              "$STUDY_DIR"/media/*
           fi

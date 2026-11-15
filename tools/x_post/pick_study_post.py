@@ -13,7 +13,8 @@ SCREEN と FROM を書くだけ。機能紹介（feature）の文には、image_
 固定の画像（ストア用スクショ）を <out>/image_1.png に置く。
 
 出力は pick_sentence.py と同じく <out>/text.txt・key.txt・theme.txt。TikTok 用に
-英語の文を <out>/text_en.txt に書く。
+英語の文を <out>/text_en.txt に書く。--platform tiktok は英語の文がある投稿だけから選び、
+一巡は x_post/en/tiktok/posted.json で数える。
 実際に投稿できたかは post_to_x.py が確かめてから posted.json を更新する。
 """
 
@@ -121,10 +122,18 @@ def main() -> int:
         parser.error("--project と --kind が要る")
 
     posts = load_posts(args.kind)
+    # TikTok は英語だけなので、英語の文がある投稿から選ぶ。記録も英語（x_post/en/tiktok/）。
+    lang = "ja"
+    if args.platform == "tiktok":
+        posts = [p for p in posts if p.get("text_en")]
+        lang = "en"
+        if not posts:
+            print(f"{args.kind}: 英語の文が無い", file=sys.stderr)
+            return 1
     bucket = storage.Client(project=args.project).bucket(
         f"{args.project}-uvm-data"
     )
-    blob = bucket.blob(posted_object(args.platform))
+    blob = bucket.blob(posted_object(args.platform, lang))
     state = json.loads(blob.download_as_bytes()) if blob.exists() else {}
     posted = state.get("posted", [])
 
