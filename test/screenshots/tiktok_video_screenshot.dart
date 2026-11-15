@@ -1,14 +1,16 @@
 // =============================================================================
 // tiktok_video_screenshot.dart
-// TikTok 用の縦動画のフレームを書き出す。例文詳細でお手本を聞き、各欄を
+// 例文の縦動画のフレームを書き出す。例文詳細でお手本を聞き、各欄を
 // スクロールして見せ、学習単語の詳細を開き、確認クイズに答えるまでを1本にする。
+// VIDEO_FORMAT で画面の比率を変える（tiktok=9:16、x=4:5）。
 // 通常の `flutter test` では拾われない（_test.dart で終わらない）。
 //
 //   flutter test test/screenshots/tiktok_video_screenshot.dart \
 //     --dart-define=X_POST_SENTENCE=build/tiktok/sentence.json \
 //     --dart-define=TIKTOK_QUIZ=build/tiktok/quiz.json \
 //     --dart-define=TIKTOK_OUT=build/tiktok \
-//     --dart-define=X_POST_AUDIO_MS=4200
+//     --dart-define=X_POST_AUDIO_MS=4200 \
+//     --dart-define=VIDEO_FORMAT=tiktok
 //
 // 出力:
 //   frames/frame_0001.png ...  連番フレーム
@@ -45,13 +47,20 @@ int _f(double seconds) => (seconds * _fps).round();
 const String _lang = String.fromEnvironment('X_POST_LANG', defaultValue: 'ja');
 final _l10n = lookupL10n(const Locale(_lang));
 
-/// 例文を読ませる秒数。再生を始めてから、1回目の読み上げのあとに置く。
-/// 英語は訳が長くなりがちなので長めに取る。
-const double _readSeconds = _lang == 'en' ? 5.0 : 4.0;
+/// 画面の比率。tiktok は 9:16（1080x1920）、x は 4:5（1080x1350）。
+/// X のタイムラインは縦長の動画の上下を切って見せるので、X だけ低くする。
+const String _format =
+    String.fromEnvironment('VIDEO_FORMAT', defaultValue: 'tiktok');
+const double _viewHeight =
+    postLogicalWidth * (_format == 'x' ? 5 / 4 : 16 / 9);
+
+/// お手本を読み上げる回数（リピート再生のまま流す）。
+const int _plays = 3;
 
 /// 使い方の欄を見せる秒数と、単語の欄全体に使う秒数。全体で約1分にする。
-const double _usageSeconds = _lang == 'en' ? 8.0 : 7.0;
-const double _wordsTotalSeconds = 24;
+/// 英語は訳が長くなりがちなので使い方を長めに取る。
+const double _usageSeconds = _lang == 'en' ? 6.0 : 5.0;
+const double _wordsTotalSeconds = 21;
 
 const _contentKey = ValueKey('tiktok-content');
 
@@ -80,7 +89,7 @@ void main() {
             json.decode(quizFile.readAsStringSync()) as Map<String, dynamic>,
           )
         : null;
-    setPostView(tester);
+    setPostView(tester, height: _viewHeight);
 
     final frames = Directory('$outDir/frames');
     if (frames.existsSync()) frames.deleteSync(recursive: true);
@@ -104,18 +113,20 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await rec.hold(_f(1.0));
+    // 冒頭の間は置かず、1フレーム目からお手本を押しにいく。
     final listen = find.text(_l10n.sentenceListenModel).first;
     // アプリはリピート再生が既定。クイズに移るまで流しっぱなしにし、
     // 読み上げが始まった位置を全部記録して音声を重ねる。
     final speaks = <int>[];
     tts.onSpeak = () => speaks.add(rec.ms);
     await rec.tap(finger, listen, then: () => tester.tap(listen));
-    await rec
-        .hold((audioMs / _frameGap.inMilliseconds).ceil() + _f(_readSeconds));
-
-    // 使い方に移る前に再生を止める。読み上げの途中なら言い終わるまで待つ
-    // （途中で切ると頭の一音だけ鳴って聞き苦しい）。
+    // [_plays] 回目の読み上げが始まるまで待ち、言い終わってから止める
+    // （途中で切ると頭の一音だけ鳴って聞き苦しい）。リピートが回らなくても
+    // 止まらないよう、1周（読み上げ＋間1秒）×回数の倍を上限にする。
+    final playsDeadline = rec.ms + (audioMs + 1000) * _plays * 2;
+    while (speaks.length < _plays && rec.ms < playsDeadline) {
+      await rec.hold(1);
+    }
     final spokenUntil = speaks.last + audioMs;
     if (rec.ms < spokenUntil) {
       await rec
@@ -141,7 +152,7 @@ void main() {
         sentence.targetWords?.firstOrNull ?? quiz?.correctAnswer;
     final words = sentence.wordBreakdowns;
     // 単語の数が違っても、全体がおよそ1分に収まるように1語の時間を決める。
-    final wordSeconds = (_wordsTotalSeconds / words.length).clamp(2.0, 3.5);
+    final wordSeconds = (_wordsTotalSeconds / words.length).clamp(1.8, 3.0);
     for (final word in words) {
       final row = _wordRow(word.wordText);
       if (row.evaluate().isEmpty) continue;
@@ -207,9 +218,22 @@ Future<void> _answerQuiz(
   await tester.pump();
   await rec.hold(_f(1.2));
 
+  // 低い画面（X の 4:5）では下の選択肢が切れるので、考える間に下まで送って
+  // 全部見せる。
+  final quizScroll = find.descendant(
+    of: find.byType(QuizScreen),
+    matching: find.byType(Scrollable),
+  );
+  if (quizScroll.evaluate().isNotEmpty) {
+    final position = tester.state<ScrollableState>(quizScroll.first).position;
+    if (position.maxScrollExtent > 0) {
+      await rec.scrollTo(position, position.maxScrollExtent);
+    }
+  }
+
   // 考える間を置いてから正解を押す。指マークを選択肢の上に止めると
   // 押したように見えるので、押す直前まで出さない。
-  await rec.hold(_f(2.5));
+  await rec.hold(_f(2.0));
   final correct = find.text(quiz.correctChoice).first;
   finger.value = tester.getCenter(correct);
   await rec.hold(_f(0.5));

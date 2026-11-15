@@ -45,11 +45,10 @@ Future<ThaiSentence> preparePostSentence(String sentencePath) async {
   );
 }
 
-/// 描画面を端末1画面ぶんにする。
-void setPostView(WidgetTester tester) {
+/// 描画面を端末1画面ぶんにする。[height] を渡すとその高さ（論理）にする。
+void setPostView(WidgetTester tester, {double height = postTileHeight}) {
   tester.view.devicePixelRatio = postPixelRatio;
-  tester.view.physicalSize =
-      const Size(postLogicalWidth, postTileHeight) * postPixelRatio;
+  tester.view.physicalSize = Size(postLogicalWidth, height) * postPixelRatio;
   addTearDown(tester.view.reset);
 }
 

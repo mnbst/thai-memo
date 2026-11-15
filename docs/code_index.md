@@ -1454,13 +1454,13 @@ tools/x_post/synth_tts.py
 Google Cloud TTS（Chirp3-HD）で例文の読み上げ音声を作る。声は本番（ttsaudio/voice.go）と同じ男女判定で選ぶ。通常速度で1回だけ。
 
 tools/x_post/build_video.py
-例文の縦動画（X・Threads・TikTok 共通）の連番フレームに frames.json の音声を重ね、幅1080の post.mp4 にする。
+例文の縦動画の連番フレームに frames.json の音声を重ね、mp4 にする（tiktok=1080x1920、x=1080x1350）。
 
 tools/x_post/build_quiz.py
 動画の確認クイズ（単語→意味の4択）を例文の単語分解から作る。ダミーは同じ例文のほかの語の意味。
 
 tools/x_post/upload_to_drive.py
-TikTok 用の素材（例文の動画、Tips・ガイドの日英の画像と説明文）を Google Drive のフォルダに置く。
+TikTok 用の素材（英語の例文の動画、Tips かガイドの英語の画像と説明文。tiktok ジョブが1日1回）を Google Drive のフォルダに置く。--record で TikTok の投稿済みに記録する。
 
 tools/x_post/issue_drive_token.py
 Drive に置くための OAuth（drive.file）を本人のアカウントで許可し、フォルダを作って secret google-drive-upload に入れる。
@@ -1472,7 +1472,7 @@ tools/x_post/post_to_threads.py
 Threadsへ投稿し、投稿済みを x_post/threads/posted.json へ記録する。メディアはGCSの署名付きURLで渡し、動画＋画像はカルーセル。長期トークンを古ければ延長する。
 
 tools/x_post/platforms.py
-投稿先（X / Threads）と言語（ja / en のアカウント）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
+投稿先（X / Threads / TikTok〈Drive に置いた分〉）と言語（ja / en）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
 
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
@@ -1484,10 +1484,10 @@ test/screenshots/x_post_common.dart
 SNS 投稿用の画面書き出し（例文の動画・Tips のカード）で共有する部品（フォント・テーマのフォールバック・描画の取り出し・指マーク・TTS 差し替え）。
 
 test/screenshots/tiktok_video_screenshot.dart
-例文の縦動画（X・Threads・TikTok 共通）。例文詳細でお手本を聞く→各欄をスクロール→学習単語の詳細→確認クイズに迷って正解、までの連番フレームを書き出す。
+例文の縦動画（VIDEO_FORMAT で X は 4:5、Threads・TikTok は 9:16）。例文詳細でお手本を聞く→各欄をスクロール→学習単語の詳細→確認クイズに迷って正解、までの連番フレームを書き出す。
 
 .github/workflows/post-daily-x.yml
-X / Threads 投稿のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
+X / Threads 投稿と TikTok 素材（platform=tiktok は英語の例文動画を Drive に置く別ジョブ）のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
 
 ## TikTok 動画（試作）
 

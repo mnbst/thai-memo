@@ -1,10 +1,11 @@
-"""例文の縦動画を組む（X・Threads・TikTok で共通）。
+"""例文の縦動画を組む。
 
-test/screenshots/tiktok_video_screenshot.dart が書き出した連番フレームに、
-frames.json の audio（ファイル・鳴らし始める位置・切る位置）を重ねて mp4 にする。
-幅 1080 に縮める（端末の縦長のまま。TikTok は画面収録と同じ比率で出せる）。
+test/screenshots/tiktok_video_screenshot.dart が書き出した連番フレーム
+（<frames>/frames/、<frames>/frames.json）に、frames.json の audio
+（<out> にあるファイル・鳴らし始める位置・切る位置）を重ねて mp4 にする。
+--format で大きさを変える（tiktok=1080x1920、x=1080x1350）。
 
-出力: <out>/post.mp4
+出力: <out>/<target>（既定 post.mp4）
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-WIDTH = 1080
+SIZES = {"tiktok": (1080, 1920), "x": (1080, 1350)}
 
 
 def _place(index: int, clip: dict, label: int) -> str:
@@ -28,18 +29,20 @@ def _place(index: int, clip: dict, label: int) -> str:
     return f"[{index}:a]{trim}adelay=delays={at}:all=1[a{label}]"
 
 
-def build(out: Path) -> Path | None:
-    meta = json.loads((out / "frames.json").read_text())
+def build(out: Path, frames: Path, fmt: str, target: Path) -> Path | None:
+    width, height = SIZES[fmt]
+    meta = json.loads((frames / "frames.json").read_text())
     fps = int(meta["fps"])
     total_ms = round(int(meta["count"]) * 1000 / fps)
     clips = [c for c in meta.get("audio", []) if (out / c["file"]).exists()]
 
     command = ["ffmpeg", "-y", "-framerate", str(fps),
-               "-i", str(out / "frames" / "frame_%04d.png")]
+               "-i", str(frames / "frames" / "frame_%04d.png")]
     for clip in clips:
         command += ["-i", str(out / clip["file"])]
 
-    video = f"[0:v]scale={WIDTH}:-2:flags=lanczos[v]"
+    # 書き出しの高さは論理座標の端数で1〜2px ずれることがあるので、大きさを決め打ちする。
+    video = f"[0:v]scale={width}:{height}:flags=lanczos,setsar=1[v]"
     if clips:
         delayed = [_place(i + 1, c, i) for i, c in enumerate(clips)]
         mixed = "".join(f"[a{i}]" for i in range(len(clips)))
@@ -51,7 +54,6 @@ def build(out: Path) -> Path | None:
         command += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
         graph = f"{video};[1:a]anull[a]"
 
-    target = out / "post.mp4"
     command += [
         "-filter_complex", graph,
         "-map", "[v]", "-map", "[a]",
@@ -71,8 +73,15 @@ def build(out: Path) -> Path | None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default="build/x_post")
+    parser.add_argument("--frames", help="連番フレームの置き場（既定は --out）")
+    parser.add_argument("--format", choices=sorted(SIZES), default="tiktok")
+    parser.add_argument("--target", default="post.mp4", help="--out からの出力先")
     args = parser.parse_args()
-    return 0 if build(Path(args.out)) else 1
+    out = Path(args.out)
+    target = out / args.target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    frames = Path(args.frames) if args.frames else out
+    return 0 if build(out, frames, args.format, target) else 1
 
 
 if __name__ == "__main__":

@@ -182,13 +182,14 @@ MaterialIcons を明示的に読み込んでいる。
 
 ## TikTok 用の素材（Google Drive）
 
-X の枠のジョブが、投稿のあとに Drive のフォルダ（`issue_drive_token.py` が作る）へ置く。
-Threads の枠は置かない（二重にしない）。置けなくても投稿は止めない。
+TikTok は英語だけ。Drive のフォルダ（`issue_drive_token.py` が作る）へ置く。
 
 | 枠 | 置くもの |
 | --- | --- |
-| 例文（ja / en） | `<日付>_<枠>_<言語>_post.mp4` |
-| Tips・ガイド | 日英の文字カード画像（`tip_card_screenshot.dart`。見出しは Tips / Guide）と説明文 |
+| 例文（1日1回、Terraform の `tiktok_daily_schedule`） | `<日付>_<枠>_en_post.mp4`（9:16）。ワークフローの `platform=tiktok`（tiktok ジョブ）が英語のコーパスから選び、置けたら `x_post/en/tiktok/posted.json` に記録して重ねない |
+| Tips かガイド（同じ tiktok ジョブ、1日おきに交互） | `<日付>_<tip|guide>_*`: 英語の文字カード画像（`tip_card_screenshot.dart`。見出しは Tips / Guide）と説明文。英語の文がある投稿から選び、置けたら同じ記録に積む |
+
+X に出す例文の動画は 4:5（日本語）、Threads は 9:16。
 
 Tips・ガイドの英語の文は `study_posts.json` の `text_en`（Codex が書いた）。
 カード画像には絵文字のフォントが無いので、絵文字は落とす（説明文には残る）。
@@ -218,8 +219,9 @@ flutter test test/screenshots/tiktok_video_screenshot.dart \
   --dart-define=X_POST_SENTENCE=build/x_post/sentence.json \
   --dart-define=TIKTOK_QUIZ=build/x_post/quiz.json \
   --dart-define=TIKTOK_OUT=build/x_post \
-  --dart-define=X_POST_AUDIO_MS=4000 --dart-define=X_POST_LANG=ja
-python tools/x_post/build_video.py --out build/x_post
+  --dart-define=X_POST_AUDIO_MS=4000 --dart-define=X_POST_LANG=ja \
+  --dart-define=VIDEO_FORMAT=x
+python tools/x_post/build_video.py --out build/x_post --format x
 python tools/x_post/post_to_x.py --project thai-memo-prod --out build/x_post --dry-run
 ```
 
