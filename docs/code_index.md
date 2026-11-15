@@ -1453,8 +1453,17 @@ tools/x_post/issue_x_token.py
 tools/x_post/synth_tts.py
 Google Cloud TTS（Chirp3-HD）で例文の読み上げ音声を作る。声は本番（ttsaudio/voice.go）と同じ男女判定で選ぶ。通常速度で1回だけ。
 
-tools/x_post/build_media.py
-「お手本を聞く」操作の連番PNGと音声を ffmpeg で mp4 にする。フレームが無ければ1枚目の画像で静止動画。
+tools/x_post/build_video.py
+例文の縦動画（X・Threads・TikTok 共通）の連番フレームに frames.json の音声を重ね、幅1080の post.mp4 にする。
+
+tools/x_post/build_quiz.py
+動画の確認クイズ（単語→意味の4択）を例文の単語分解から作る。ダミーは同じ例文のほかの語の意味。
+
+tools/x_post/upload_to_drive.py
+TikTok 用の素材（例文の動画、Tips・ガイドの日英の画像と説明文）を Google Drive のフォルダに置く。
+
+tools/x_post/issue_drive_token.py
+Drive に置くための OAuth（drive.file）を本人のアカウントで許可し、フォルダを作って secret google-drive-upload に入れる。
 
 tools/x_post/post_to_x.py
 Xへ投稿し、投稿済みをGCSへ記録する。動画1本＋画像3枚。拒まれたら動画のみ→画像のみ→テキストのみへ退避する。
@@ -1468,8 +1477,14 @@ tools/x_post/platforms.py
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
 
-test/screenshots/x_post_screenshot.dart
-DetailScreen を flutter_test 上で描画し、動画の続きからスクロールした画像3枚までと、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
+test/screenshots/tip_card_screenshot.dart
+Tips・ガイドの投稿文をアプリと同じ色・フォントの 9:16 カード画像にする（TikTok の写真投稿用、日英）。
+
+test/screenshots/x_post_common.dart
+SNS 投稿用の画面書き出し（例文の動画・Tips のカード）で共有する部品（フォント・テーマのフォールバック・描画の取り出し・指マーク・TTS 差し替え）。
+
+test/screenshots/tiktok_video_screenshot.dart
+例文の縦動画（X・Threads・TikTok 共通）。例文詳細でお手本を聞く→各欄をスクロール→学習単語の詳細→確認クイズに迷って正解、までの連番フレームを書き出す。
 
 .github/workflows/post-daily-x.yml
 X / Threads 投稿のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。

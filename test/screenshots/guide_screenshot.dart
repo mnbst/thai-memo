@@ -190,7 +190,7 @@ Future<void> _loadFonts() async {
 }
 
 /// MaterialIcons-Regular.otf の在り処。実行形態でパスが変わるので、
-/// dart 実行ファイルから上へ辿りつつ FLUTTER_ROOT も見る（x_post_screenshot.dart と同じ）。
+/// dart 実行ファイルから上へ辿りつつ FLUTTER_ROOT も見る（x_post_common.dart と同じ）。
 List<String> _materialIconsCandidates() {
   const relative = 'artifacts/material_fonts/MaterialIcons-Regular.otf';
   final paths = <String>[];

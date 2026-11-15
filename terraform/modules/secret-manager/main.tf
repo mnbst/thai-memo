@@ -152,6 +152,8 @@ locals {
     "x-access-token-secret-en",
     # Threads 自動投稿の長期アクセストークン（投稿のたびに古ければ延長して版を足す）
     "threads-access-token",
+    # TikTok 用の素材を置く Google Drive の OAuth（tools/x_post/issue_drive_token.py が版を足す）
+    "google-drive-upload",
   ]
 
   deploy_ci_secrets = var.deploy_ci_secrets == null ? local.all_deploy_ci_secrets : var.deploy_ci_secrets
