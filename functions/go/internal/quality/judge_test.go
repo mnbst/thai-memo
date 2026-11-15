@@ -94,8 +94,9 @@ func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 	if v.Index != 1 || v.Reason != "共起 0.62・文法 0.55" {
 		t.Errorf("verdict = %+v", v)
 	}
-	// 閾値未満の観点も scores に残す（語の用法の観点は語が無い文には聞かない）。
-	if len(v.Scores) != len(Aspects)-len(wordUsages) {
+	// 閾値未満の観点も scores に残す（語の用法・訳の接続・呼称の音写は、
+	// 語・接続語・カタカナが無い文には聞かない）。
+	if len(v.Scores) != len(Aspects)-len(wordUsages)-2 {
 		t.Errorf("scores は全観点を持つ: %v", v.Scores)
 	}
 	if s.calls.Load() != 3 {
@@ -334,11 +335,32 @@ func TestTranslationRules(t *testing.T) {
 		{lang.JA, "มึงจะเชื่อหรือไม่ก็ตาม ดวงมึงแม่นนะ", "", false, concessiveNoHead, "concessiveNoHead"},
 		{lang.JA, "แผนงานนี้ชัดเจน อย่างไรก็ตามงบมีจำกัด", "", false, concessiveNoHead, "concessiveNoHead"},
 		{lang.JA, "มึงทายว่ากูชอบมึง งั้นก็ตามนั้นเลย", "", false, concessiveNoHead, "concessiveNoHead"},
+		{lang.JA, "ตั้งแต่เริ่มชอบ ก็ตามดูผลงานเขาเรื่อยๆ ค่ะ", "", false, concessiveNoHead, "concessiveNoHead"},
 	}
 	for _, c := range cases {
 		got := c.check(Candidate{Lang: c.l, ThaiText: c.thai, JapaneseTranslation: c.tr})
 		if got != c.want {
 			t.Errorf("%s(%q) = %v, want %v", c.checkLabel, c.tr, got, c.want)
+		}
+	}
+}
+
+// 訳の接続は接続語がある文に、呼称の音写はカタカナがある訳にだけ聞く。
+func TestConjVocativeTriggers(t *testing.T) {
+	cases := []struct {
+		thai, tr  string
+		conj, voc bool
+	}{
+		{"คดีนี้ร้ายแรงกว่าที่เราคิดไว้มาก", "この事件は思っていたよりずっと深刻だ。", false, false},
+		{"ไปไม่ทันเพราะตื่นสาย", "寝坊したので間に合わなかった。", true, false},
+		{"เฮีย ช่วยหน่อย", "ヘイ、手伝って。", false, true},
+	}
+	for _, c := range cases {
+		body := RequestBody("m", Candidate{ThaiText: c.thai, JapaneseTranslation: c.tr, Lang: lang.JA})["questions"].(map[string]any)
+		_, conj := body["trans_conj"]
+		_, voc := body["trans_vocative"]
+		if conj != c.conj || voc != c.voc {
+			t.Errorf("%s: trans_conj=%v trans_vocative=%v", c.thai, conj, voc)
 		}
 	}
 }
