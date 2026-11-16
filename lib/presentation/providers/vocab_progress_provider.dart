@@ -13,13 +13,17 @@ import '../../data/models/vocab_word.dart';
 import '../../services/vocab_progress_sync.dart';
 import 'sentence_provider.dart';
 
-/// 語ごとの習熟度。読むたびにサーバーとの差分を取り込む。
-final vocabProgressProvider = FutureProvider<List<VocabWord>>((ref) async {
+/// 語ごとの習熟度と、まとめクイズのスコア枠（取れなければ null）。
+typedef VocabProgress = ({List<VocabWord> words, (int, int)? quizBand});
+
+/// 語ごとの習熟度。読むたびにサーバーとの差分を取り込み、スコア枠も取り直す。
+final vocabProgressProvider = FutureProvider<VocabProgress>((ref) async {
   final db = DatabaseHelper.instance;
   final uid = FirebaseAuth.instance.currentUser?.uid;
+  (int, int)? band;
   if (uid != null) {
     final api = BackendApiService();
-    await VocabProgressSync.run(
+    band = await VocabProgressSync.run(
       uid: uid,
       prefs: await SharedPreferences.getInstance(),
       fetch: api.getVocabProgress,
@@ -29,12 +33,20 @@ final vocabProgressProvider = FutureProvider<List<VocabWord>>((ref) async {
     );
   }
   final rows = await db.getVocabProgress();
-  return rows.map(VocabWord.fromDatabase).toList();
+  return (
+    words: rows.map(VocabWord.fromDatabase).toList(),
+    quizBand: band,
+  );
+});
+
+/// サーバーが単語一覧と一緒に返したまとめクイズのスコア枠。
+final quizBandProvider = FutureProvider<(int, int)?>((ref) async {
+  return (await ref.watch(vocabProgressProvider.future)).quizBand;
 });
 
 /// 一覧に出す行（語彙ランクの大きい順）。
 final vocabEntriesProvider = FutureProvider<List<VocabEntry>>((ref) async {
-  final words = await ref.watch(vocabProgressProvider.future);
+  final words = (await ref.watch(vocabProgressProvider.future)).words;
   final sentences = await ref.watch(allSentencesProvider.future);
   return VocabEntry.build(words, sentences);
 });

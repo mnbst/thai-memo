@@ -22,8 +22,9 @@ class VocabProgressSync {
     await prefs.remove(cursorKey);
   }
 
-  /// [uid] の差分を取り込む。通信に失敗しても端末の内容はそのまま残す。
-  static Future<void> run({
+  /// [uid] の差分を取り込み、サーバーが返したまとめクイズのスコア枠を返す。
+  /// 通信に失敗しても端末の内容はそのまま残す（枠は null）。
+  static Future<(int, int)?> run({
     required String uid,
     required SharedPreferences prefs,
     required Future<VocabProgressPage> Function(String? cursor) fetch,
@@ -37,10 +38,12 @@ class VocabProgressSync {
       await prefs.setString(ownerKey, uid);
     }
     var cursor = prefs.getString(cursorKey);
+    (int, int)? band;
     try {
       for (var i = 0; i < maxPages; i++) {
         final page = await fetch(cursor);
         await save(page.words);
+        band = page.quizBand ?? band;
         cursor = page.nextCursor;
         if (cursor != null) await prefs.setString(cursorKey, cursor);
         if (page.done) break;
@@ -48,5 +51,6 @@ class VocabProgressSync {
     } catch (e) {
       debugPrint('VocabProgressSync: $e');
     }
+    return band;
   }
 }

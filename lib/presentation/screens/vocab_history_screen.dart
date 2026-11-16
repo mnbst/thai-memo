@@ -38,6 +38,7 @@ int? scoreMarkerIndex(List<VocabEntry> entries, int score) {
 }
 
 /// まとめクイズのスコア枠（low〜high）。サーバーの uvm.QuizScoreBand と同じ計算。
+/// サーバーから枠を取れなかったとき（通信失敗・旧サーバー）だけ使う。
 ///
 /// 復習枠・苦手枠は範囲外からも出るので、画面では目安として見せる。
 @visibleForTesting
@@ -246,13 +247,14 @@ class _VocabHistoryScreenState extends ConsumerState<VocabHistoryScreen> {
     final stats = ref.watch(vocabStatsProvider).valueOrNull;
     final score = stats?.estimatedVocab ?? 0;
     final premium = ref.watch(effectivePremiumProvider);
-    final band = stats == null
-        ? null
-        : quizScoreBand(
-            score: score,
-            tested: stats.testedVocab,
-            premium: premium,
-          );
+    final band = ref.watch(quizBandProvider).valueOrNull ??
+        (stats == null
+            ? null
+            : quizScoreBand(
+                score: score,
+                tested: stats.testedVocab,
+                premium: premium,
+              ));
 
     return Scaffold(
       appBar: AppBar(
