@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
@@ -25,7 +26,8 @@ type getVocabProgressRequest struct {
 // getVocabProgress は履歴の語彙一覧に使う語の習熟度と語彙ランクを返す。
 //
 // last_seen の古い順に返すので、端末は next_cursor を覚えておけば次回から
-// 変わった語だけを受け取れる。
+// 変わった語だけを受け取れる。quiz_band はまとめクイズのスコア枠
+// （uvm.QuizScoreBand）で、端末は一覧に出題範囲の目安として引く。
 func getVocabProgress(ctx context.Context, req *callable.Request) (any, error) {
 	uid, err := req.RequireAuth()
 	if err != nil {
@@ -72,10 +74,12 @@ func getVocabProgress(ctx context.Context, req *callable.Request) (any, error) {
 		cursor = formatVocabCursor(floatField(data["last_seen"]), doc.Ref.ID)
 	}
 
+	low, high := uvm.QuizScoreBand(userDocData(ctx, db.Collection("users").Doc(uid)), time.Now())
 	return map[string]any{
 		"words":       words,
 		"next_cursor": cursor,
 		"done":        len(words) < vocabProgressPageSize,
+		"quiz_band":   map[string]any{"low": low, "high": high},
 	}, nil
 }
 
