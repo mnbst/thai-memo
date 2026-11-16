@@ -540,7 +540,10 @@ functions/go/internal/thainlp/tokenize.go
 単語分割(newmm)・音節分割のGo版。TCC・Trie・最長一致・rejoin_formatted_num。移植済み。
 
 functions/go/internal/thainlp/posjapanese.go
-nlp.py の _tag_words/get_pos_japanese のGo版。override→形容詞辞書→unigram→perceptronの4段階。移植済み。
+nlp.py の _tag_words/get_pos_japanese のGo版。override→形容詞辞書→pos_lexicon→unigram→perceptronの順。หก・คืน・แบบนี้ は前後の語で分ける。
+
+functions/go/internal/thainlp/data/pos_lexicon.json
+tud に無い語の品詞（UD タグ）。prod プールの未知語を Codex で品詞付けしたもの（2026-11-16）。
 
 functions/go/functions.go
 Cloud Functions(2nd gen, goランタイム)のエントリポイント登録。gcloudの--entry-pointがここの名前を指す。
