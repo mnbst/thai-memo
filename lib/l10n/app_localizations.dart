@@ -4324,6 +4324,12 @@ abstract class L10n {
   /// **'語彙スコアで他の学習者と比べる'**
   String get settingsRankingSubtitle;
 
+  /// No description provided for @quickGuideTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'こんなふうに学びます'**
+  String get quickGuideTitle;
+
   /// No description provided for @quickGuideStepRead.
   ///
   /// In ja, this message translates to:
@@ -4372,6 +4378,12 @@ abstract class L10n {
   /// **'数文読むごとに出てくる'**
   String get quickGuideOptSummaryEvery;
 
+  /// No description provided for @quickGuideMore.
+  ///
+  /// In ja, this message translates to:
+  /// **'使い方ガイドを詳しく読む'**
+  String get quickGuideMore;
+
   /// No description provided for @guideTitle.
   ///
   /// In ja, this message translates to:
@@ -4389,6 +4401,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'スキップ'**
   String get guideSkip;
+
+  /// 初回の簡易ガイドの主ボタン。語彙テストを出さない人（ヒアリングで「まったく初めて」）向け。押すと最初の例文へ進む。
+  ///
+  /// In ja, this message translates to:
+  /// **'学習をはじめる'**
+  String get quickGuideStartLearning;
 
   /// No description provided for @guideStart.
   ///

@@ -206,7 +206,9 @@ NotificationRepromptArm assignNotificationRepromptArm(
 
 /// 毎日例文通知を継続サポート機能として紹介する。出したら true。
 ///
-/// 出す場面は [trigger] で記録する。今はまとめクイズ完了時（summary_quiz）だけ。
+/// 出す場面は [trigger] で記録する。今は設定タブを開いたとき（settings_tab）だけ。
+/// 2026-11 にまとめクイズ完了時から移した。初回のペイウォールを最初の
+/// まとめクイズのあとに出すことにしたので、お願いを続けて重ねないため。
 /// 2026-10-29〜 は確認クイズのあと（次の例文が出たとき）にも初回だけ出して
 /// いたが、読み始めた2本目をさえぎるうえ、まとめクイズまでの導線は最初の例文の
 /// 「学習の手順」カードに任せることにしたのでやめた（2026-11）。
@@ -254,7 +256,7 @@ Future<bool> maybeShowNotificationCoach(
     return false;
   }
   // 前面に別の画面がある間は出さない。ここで出さなくても表示済みフラグは
-  // 立たないため、次のまとめクイズで出し直される。
+  // 立たないため、次に設定タブを開いたときに出し直される。
   if (!context.mounted || ModalRoute.of(context)?.isCurrent != true) {
     return false;
   }

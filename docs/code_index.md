@@ -231,9 +231,6 @@ test/screenshots/ranking_mock_app.dart
 test/screenshots/vocab_cap_sheet_mock_app.dart
 語彙スコア100到達の課金シート（VocabCapSheet）を ja/en/ko 切替で出し直し、ペイウォールまで進めるモック（flutter run -t）。
 
-test/screenshots/onboarding_flow_mock_app.dart
-新しい初回導線の案（ヒアリング→手順カードの1・2本目→まとめクイズ結果→一言付きペイウォール）を、本物の画面で Firebase なしで出すモック（flutter run -t、下のチップで場面切替）。
-
 test/screenshots/paywall_mock_app.dart
 ペイウォールを Firebase・ストアなしでシミュレーターに出すモック（商品は差し込み、flutter run -t）。
 
@@ -263,6 +260,9 @@ lib/presentation/screens/ranking_screen.dart
 
 lib/presentation/screens/guide_screen.dart
 アプリの使い方を1枚にまとめた説明書。並びは 概要 → 学習のコツ → 各機能の役割 → 操作のしかた。初回起動では出さず（簡易版 quick_guide_screen.dart から開ける）、設定「使い方ガイド」から読む。概要は learning_flow_steps.dart を簡易版と共用。画面に重ねるコーチマークは持たない。要所には guide_figures.dart の図を挟む。
+
+lib/presentation/screens/quick_guide_screen.dart
+初回起動の使い方の簡易版（1画面）。学習の流れ3段（learning_flow_steps.dart）を見せ、全文のガイドへ案内する。ヒアリングの後・語彙テストの前。
 
 lib/presentation/screens/interview_screen.dart
 初回起動で最初に出すヒアリング4問（この後に使い方ガイド→語彙テスト）（スキップ不可）。前置きの1枚に既存アカウントのサインイン入口。応答は挟まず、最後に1画面だけ回答に寄せた考え方を出す。回答は端末保存＋users docで、level は語彙テストの開始段に使う。
@@ -403,7 +403,7 @@ lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
 lib/services/onboarding_progress_reporter.dart
-初回導線の各画面（語彙テスト・生成開始・最初のまとめクイズ後のペイウォール）に入った／抜けた時刻を users doc の onboarding へ記録。生成前にどこで閉じたかを1人ずつ追う。
+初回導線の各画面（ガイド・語彙テスト・生成開始・最初のまとめクイズ後のペイウォール）に入った／抜けた時刻を users doc の onboarding へ記録。生成前にどこで閉じたかを1人ずつ追う。
 
 lib/services/onboarding_paywall.dart
 初回のペイウォールを最初のまとめクイズの「次のセットへ」で一度だけ出す（初回導線の終わりに端末へ保留を立てる）。スコアの伸びで見出しの一言を変える。

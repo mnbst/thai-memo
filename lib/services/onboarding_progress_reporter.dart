@@ -2,7 +2,8 @@
 // onboarding_progress_reporter.dart
 // 初回導線の各画面に入った・抜けた時刻を users/{uid}.onboarding に残す。
 //
-// GA4 のファネルは人数しか出ず、どの画面で閉じたかを1人ずつ追えない。users doc に段ごとの
+// GA4 のファネルは人数しか出ず、生成まで届かなかった人が使い方ガイドと
+// ペイウォールのどちらで閉じたかを1人ずつ追えない。users doc に段ごとの
 // 時刻を置けば、`*_open` はあるのに対の `*_done` が無い段で抜けたと分かる。
 //
 // 値は serverTimestamp。オフラインで書いたものは送れた時刻になる。
@@ -16,8 +17,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 class OnboardingProgressReporter {
   const OnboardingProgressReporter();
 
-  /// step: vocab_test_open / vocab_test_done / vocab_test_auto_skip /
-  /// generate_start / paywall_open / paywall_done（最初のまとめクイズのあと）
+  /// step: guide_open / guide_done / vocab_test_open / vocab_test_done /
+  /// vocab_test_auto_skip / generate_start / paywall_open / paywall_done
+  /// （ペイウォールは最初のまとめクイズのあと）
   Future<void> mark(String step) async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;

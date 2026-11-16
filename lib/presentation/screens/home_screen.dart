@@ -35,6 +35,8 @@ import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
 import 'vocab_history_screen.dart';
 import 'interview_screen.dart';
+import '../widgets/notification_coach_dialog.dart';
+import 'quick_guide_screen.dart';
 import 'vocab_test_screen.dart';
 import 'paywall_screen.dart';
 import 'learning_screen.dart';
@@ -546,15 +548,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (existingAccount) {
         ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
       } else {
-        // 語彙テストを進めている間に回答を送る。セット本数の判定にも
+        // ガイド・語彙テストを進めている間に回答を送る。セット本数の判定にも
         // interview.level を使うため、初回生成の直前ではこの着地を待つ。
         final interviewReport = InterviewReporter().report();
         // 生成まで届かなかった人がどの画面で閉じたかを1人ずつ追うための記録。
         const progress = OnboardingProgressReporter();
 
-        // 使い方の説明は画面で読ませず、最初の例文の上の手順カード
-        // （FirstSetSteps）で実際に操作させる。読み物の説明は機能紹介3枚も
-        // 全文・簡易版のガイドも、読まずに飛ばされるか、そこで閉じられていた。
+        // 「まったく初めて」の人には語彙テストを出さない（下）。
+        final skipVocabTest = await _savedLevel() == 'none';
+
+        if (mounted) {
+          unawaited(progress.mark('guide_open'));
+          // 先に使い方の簡易版（1画面）を見せる。語彙テストは「何を測るのか」が
+          // 分かってからのほうが、意味の分からない4択を突然出されるより降りられにくい。
+          // 全文のガイドは初回に出すと読まれずに飛ばされていた（英語62%）ので、
+          // 簡易版から第3章へ案内し、設定からも読めるようにしてある。
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: QuickGuideScreen.routeName),
+              builder: (context) => QuickGuideScreen(
+                measureNext: !skipVocabTest,
+                onDone: () => Navigator.pop(context),
+              ),
+            ),
+          );
+          unawaited(progress.mark('guide_done'));
+        }
 
         // 最後に語彙テスト（任意）。生成の開始はこの後まで待つ。key_word は
         // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
@@ -564,7 +584,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 受けた全員（17人）が 0 語で、測っても受けない人と同じ 0 語から
         // 始まる。最初の体験が「0語」の結果画面になるだけなので省く。
         // 設定からはいつでも受けられる。
-        if (mounted && await _savedLevel() == 'none') {
+        if (mounted && skipVocabTest) {
           unawaited(progress.mark('vocab_test_auto_skip'));
           unawaited(ref
               .read(analyticsServiceProvider)
@@ -788,10 +808,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // IndexedStack は他タブを破棄しないため、再生中の例文が
     // 鳴り続けてしまう。タブを離れたら明示的に止める。
     unawaited(ref.read(ttsServiceProvider).stopAll());
+    final openingSettings = index == 2 && _currentIndex != 2;
     setState(() {
       _currentIndex = index;
     });
     _logCurrentTabScreen(index: index);
+    // 通知の案内は設定タブを開いたときに出す（端末につき1度。断った人への
+    // 再案内はリリースごと）。まとめクイズのあとは初回のペイウォールを出すので、
+    // お願いを続けて重ねない。
+    if (openingSettings) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _currentIndex != 2) return;
+        unawaited(
+          maybeShowNotificationCoach(context, ref, trigger: 'settings_tab'),
+        );
+      });
+    }
   }
 
   void _logCurrentTabScreen({int? index}) {
