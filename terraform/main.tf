@@ -33,6 +33,8 @@ resource "google_project_service" "required_apis" {
     "playdeveloperreporting.googleapis.com",
     # X 自動投稿の読み上げ音声（tools/x_post）
     "texttospeech.googleapis.com",
+    # TikTok 用の素材を Google Drive に置く（tools/x_post/upload_to_drive.py）
+    "drive.googleapis.com",
   ])
 
   project = var.project_id
@@ -698,6 +700,45 @@ resource "google_cloud_scheduler_job" "post_daily_x_en" {
     body = base64encode(jsonencode({
       ref    = "main"
       inputs = { themes = each.value.themes, kind = "sentence", slot = each.key, lang = "en" }
+    }))
+
+    headers = {
+      "Authorization"        = "Bearer ${var.github_dispatch_token}"
+      "Accept"               = "application/vnd.github+json"
+      "Content-Type"         = "application/json"
+      "X-GitHub-Api-Version" = "2022-11-28"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# TikTok 用の素材（英語の例文の縦動画）を1日1回作って Drive に置く（post-daily-x.yml の
+# tiktok ジョブ。投稿はしない）。var.tiktok_daily_schedule が空なら作らない。
+resource "google_cloud_scheduler_job" "tiktok_daily" {
+  count = nonsensitive(var.github_dispatch_token != "") && var.tiktok_daily_schedule != "" ? 1 : 0
+
+  name        = "tiktok-daily"
+  project     = var.project_id
+  region      = var.region
+  description = "TikTok 用の英語の例文動画を作って Drive に置くワークフローを起動する"
+
+  # 英語の例文なので枠は米国西部で数える（x_post_en_slots と同じ）。
+  schedule  = var.tiktok_daily_schedule
+  time_zone = "America/Los_Angeles"
+
+  attempt_deadline = "30s"
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
+    body = base64encode(jsonencode({
+      ref    = "main"
+      inputs = { platform = "tiktok", lang = "en", slot = "1200" }
     }))
 
     headers = {

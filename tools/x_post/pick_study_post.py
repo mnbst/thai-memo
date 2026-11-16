@@ -12,7 +12,9 @@ test/screenshots/guide_screenshot.dart に任せ、ここでは <out>/guide_shot
 SCREEN と FROM を書くだけ。機能紹介（feature）の文には、image_file に書いた
 固定の画像（ストア用スクショ）を <out>/image_1.png に置く。
 
-出力は pick_sentence.py と同じく <out>/text.txt・key.txt・theme.txt。
+出力は pick_sentence.py と同じく <out>/text.txt・key.txt・theme.txt。TikTok 用に
+英語の文を <out>/text_en.txt に書く。--platform tiktok は英語の文がある投稿だけから選び、
+一巡は x_post/en/tiktok/posted.json で数える。
 実際に投稿できたかは post_to_x.py が確かめてから posted.json を更新する。
 """
 
@@ -79,6 +81,8 @@ def load_posts(kind: str | None = None) -> list[dict]:
         elif image and "," in image["from"]:
             # flutter の --dart-define はカンマで値を区切ってしまう。
             errors.append(f"{pid}: 画像の見出しにカンマは使えない")
+        if post.get("kind") in ("tip", "guide") and not post.get("text_en"):
+            errors.append(f"{pid}: 英語版（text_en）が無い")
         image_file = post.get("image_file")
         if post.get("kind") == "feature" and not image_file:
             errors.append(f"{pid}: 機能紹介なのに image_file が無い")
@@ -118,10 +122,18 @@ def main() -> int:
         parser.error("--project と --kind が要る")
 
     posts = load_posts(args.kind)
+    # TikTok は英語だけなので、英語の文がある投稿から選ぶ。記録も英語（x_post/en/tiktok/）。
+    lang = "ja"
+    if args.platform == "tiktok":
+        posts = [p for p in posts if p.get("text_en")]
+        lang = "en"
+        if not posts:
+            print(f"{args.kind}: 英語の文が無い", file=sys.stderr)
+            return 1
     bucket = storage.Client(project=args.project).bucket(
         f"{args.project}-uvm-data"
     )
-    blob = bucket.blob(posted_object(args.platform))
+    blob = bucket.blob(posted_object(args.platform, lang))
     state = json.loads(blob.download_as_bytes()) if blob.exists() else {}
     posted = state.get("posted", [])
 
@@ -141,6 +153,9 @@ def main() -> int:
         f"study:{picked['id']}:{fewest}", encoding="utf-8"
     )
     (out / "theme.txt").write_text(KIND_THEMES[args.kind], encoding="utf-8")
+    # TikTok 用の英語版（画像・説明文）。英語の文がある Tips・ガイドだけ。
+    if picked.get("text_en"):
+        (out / "text_en.txt").write_text(picked["text_en"].rstrip(), encoding="utf-8")
     image_file = picked.get("image_file")
     if image_file:
         shutil.copyfile(POSTS_FILE.parent / image_file, out / "image_1.png")

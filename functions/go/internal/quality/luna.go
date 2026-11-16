@@ -42,6 +42,10 @@ const (
 	lunaThreshold = 0.6
 )
 
+// lunaThresholds は Luna で lunaThreshold と別の閾値にする観点。
+// 呼称の音写は正しいあだ名表記（マウィンさん 0.66、prod の「先輩」0.65）が 0.6 を超えていた。
+var lunaThresholds = map[string]float64{"trans_vocative": vocativeThreshold}
+
 // lunaSkip は Luna に聞かない観点。訳の加筆は Luna で正常 5/48・欠陥 5/51 と見分けがつかない。
 var lunaSkip = map[string]bool{"trans_add": true}
 
@@ -196,6 +200,9 @@ func (j *Judge) hybridScore(ctx context.Context, c Candidate, aspects []Aspect) 
 		default:
 			la := a
 			la.Threshold = lunaThreshold
+			if th, ok := lunaThresholds[a.ID]; ok {
+				la.Threshold = th
+			}
 			lunaAsp = append(lunaAsp, la)
 			judged = append(judged, la)
 			if th, ok := jevAlso[a.ID]; ok {

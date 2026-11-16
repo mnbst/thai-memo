@@ -16,7 +16,7 @@ import (
 )
 
 //go:embed data/sylrule.lts data/BEST.dict data/sylform_var.json data/sylseg_3g.jsonl.gz data/words_th.txt data/syllables_th.txt
-//go:embed data/pos_tud_unigram.json data/pos_orchid_perceptron.json.gz data/orchid_maps.json data/pos_project.json data/sylrule_pron.json data/tdict.txt.gz
+//go:embed data/pos_tud_unigram.json data/pos_orchid_perceptron.json.gz data/orchid_maps.json data/pos_project.json data/pos_lexicon.json data/sylrule_pron.json data/tdict.txt.gz
 //go:embed data/PhSTrigram.jsonl.gz data/FrmSTrigram.jsonl.gz data/PhSBigram.jsonl.gz data/FrmSBigram.jsonl.gz
 //go:embed data/PhSUnigram.jsonl.gz data/FrmSUnigram.jsonl.gz data/AbsUnigram.jsonl.gz data/AbsFrmSUnigram.jsonl.gz
 var dataFS embed.FS

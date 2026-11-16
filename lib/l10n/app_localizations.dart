@@ -1941,6 +1941,18 @@ abstract class L10n {
   /// **'{store, select, android{サブスクリプションは自動更新です。次の更新日の前までにキャンセルしない限り、同じ料金で自動的に更新されます。管理・キャンセルはGoogle Playの定期購入の設定から行えます。} other{サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。}}'**
   String paywallLegal(String store);
 
+  /// 初回のまとめクイズでスコアが上がった人に、ペイウォールの見出しの上に出す一言。
+  ///
+  /// In ja, this message translates to:
+  /// **'{diff}語アップ！\nプレミアムなら制限なし'**
+  String paywallLeadScoreUp(int diff);
+
+  /// 初回のまとめクイズでスコアが上がらなかった人に、ペイウォールの見出しの上に出す一言。
+  ///
+  /// In ja, this message translates to:
+  /// **'今日はあと1セット無料。\nプレミアムなら制限なし'**
+  String get paywallLeadFirstSet;
+
   /// ストアの無料トライアル（初回特典）の対象者にだけ出すバッジ。特典は1アカウント1回なので事実として書ける。期限を偽る「今だけ」は使わない。
   ///
   /// In ja, this message translates to:
@@ -4312,12 +4324,6 @@ abstract class L10n {
   /// **'語彙スコアで他の学習者と比べる'**
   String get settingsRankingSubtitle;
 
-  /// No description provided for @quickGuideTitle.
-  ///
-  /// In ja, this message translates to:
-  /// **'こんなふうに学びます'**
-  String get quickGuideTitle;
-
   /// No description provided for @quickGuideStepRead.
   ///
   /// In ja, this message translates to:
@@ -4365,12 +4371,6 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'数文読むごとに出てくる'**
   String get quickGuideOptSummaryEvery;
-
-  /// No description provided for @quickGuideMore.
-  ///
-  /// In ja, this message translates to:
-  /// **'使い方ガイドを詳しく読む'**
-  String get quickGuideMore;
 
   /// No description provided for @guideTitle.
   ///

@@ -165,6 +165,12 @@ variable "x_post_en_slots" {
   default = {}
 }
 
+variable "tiktok_daily_schedule" {
+  description = "TikTok 用の英語の例文動画を作って Drive に置く時刻（米国西部 America/Los_Angeles の cron。1日1回）。空なら作らない。"
+  type        = string
+  default     = ""
+}
+
 variable "threads_post_enabled" {
   description = "Threads への自動投稿を出すか。X と同じ枠（07:00 と x_post_extra_slots）に Threads 用のジョブを作る。トークンを Secret Manager に入れてから true にする。"
   type        = bool

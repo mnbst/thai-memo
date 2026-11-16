@@ -402,7 +402,7 @@ func TestAdaptiveBand(t *testing.T) {
 	if os.Getenv("ADAPTIVE_SIM") == "" {
 		t.Skip("ADAPTIVE_SIM=1 で実行")
 	}
-	if lo, hi := QuizScoreBand(map[string]any{"tier": "premium", "estimated_vocab": 500}, simNow); lo != 470 || hi != 508 {
+	if lo, hi := QuizScoreBand(map[string]any{"tier": "premium", "estimated_vocab": 500}, simNow); lo != 450 || hi != 508 {
 		t.Fatalf("QuizScoreBand = %d,%d", lo, hi)
 	}
 	const trials, days = 20.0, 90

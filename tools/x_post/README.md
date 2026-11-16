@@ -1,8 +1,8 @@
 # X（Twitter）自動投稿
 
 `@everydaythai775` に毎日の例文を自動投稿する。手で出していた
-「今日のタイ語＋アプリ画面のスクショ」を、お手本再生を操作する動画1本と
-画面の画像3枚にして出す。
+「今日のタイ語＋アプリ画面のスクショ」を、アプリを操作する縦動画1本にして出す。
+同じ動画を TikTok（@daily_thai4）にも使うので、Google Drive に置く（下記「TikTok 用の素材」）。
 
 ## 流れ
 
@@ -10,9 +10,11 @@
 | --- | --- |
 | `pick_sentence.py` | 枠のテーマを決め、候補を20件に絞り、過去10件と比べて Gemini に1件選ばせる |
 | `synth_tts.py` | Google Cloud TTS（th-TH）で読み上げ音声を作る（通常速度で1回） |
-| `test/screenshots/x_post_screenshot.dart` | `DetailScreen` を描画し、画像3枚と操作フレームを書き出す |
-| `build_media.py` | 操作フレームに音声を載せて mp4 にする |
+| `build_quiz.py` | 動画の確認クイズ（単語→意味の4択）を単語分解から作る |
+| `test/screenshots/tiktok_video_screenshot.dart` | 例文詳細と確認クイズを描画し、操作の連番フレームを書き出す |
+| `build_video.py` | 連番フレームに音声を重ねて mp4 にする |
 | `post_to_x.py` | X に投稿し、投稿済みを GCS に記録する |
+| `upload_to_drive.py` | 動画（Tips・ガイドの枠は日英の画像と説明文）を Google Drive に置く |
 
 実行は `.github/workflows/post-daily-x.yml`（毎日 07:00 JST。`x_post_extra_slots` で枠を足せる）。
 
@@ -140,7 +142,7 @@ X の読み取りは PPU のクレジットを消費する。クレジットが�
 
 ## 画面の描画
 
-シミュレータではなく `flutter test` 上で `DetailScreen` を描画する。サインインも
+シミュレータではなく `flutter test` 上で `DetailScreen`・`QuizScreen` を描画する。サインインも
 実機も要らず、実UIのピクセルがそのまま得られる。テスト環境にはシステムフォントが
 無いので、タイ語（`google_fonts/`）・日本語（`fetch_fonts.sh` が取得）・
 MaterialIcons を明示的に読み込んでいる。
@@ -164,18 +166,45 @@ MaterialIcons を明示的に読み込んでいる。
 
 ## 添付するもの
 
-動画1本＋画像3枚（Xの添付上限は4件）。
+縦動画1本（約1分、幅1080）。X・Threads・TikTok で共通。
 
-- 動画は「お手本を聞く」を押してから読み上げが終わるまでの画面。実際に操作した
-  ときと同じ描画を `flutter_test` 上で1コマずつ撮り、音声はタップした位置から
-  重ねる。読み上げは通常速度で1回だけ。
-- 画像は動画が映した1画面目の続きから撮る。見出しや単語の区切りで送るので、
-  直前の画面で見切れた要素の頭が次の1枚の先頭に来る。最後の1枚だけは切れ目に
-  揃えず下端まで送り、単語カードの末尾を必ず入れる（最大3枚）。
-- タイ語フォントはアプリ既定の Sarabun に固定する。
+1. 例文詳細で「お手本を聞く」を押し、読み上げを繰り返しながら例文を読む間を置く
+   （英語版は長め）。読み上げが言い終わったところで止める
+2. 「使い方」の欄 → 単語を1語ずつ、画面の中央に送って見せる（語数で1語の秒数を決め、全体で約1分）
+3. 学習単語の行で単語の詳細（声調解説）を開く。収まらなければ中を下まで送る
+4. 確認クイズに切り替え、考える間を置いて正解を押す。`build_quiz.py` がクイズを
+   作れなかった例文は、3 で終える
 
-X が動画と画像の同時添付を拒む場合に備えて、`post_to_x.py` は動画のみ →
-画像のみ → テキストのみ、の順に落として投稿を止めない。
+実際に操作したときと同じ描画を `flutter_test` 上で1コマずつ撮り、音声は読み上げが
+始まった位置ごとに重ねる。タイ語フォントはアプリ既定の Sarabun に固定する。
+
+確認クイズのダミーは、同じ例文のほかの語の意味から選ぶ（生成しないので費用はかからない）。
+
+## TikTok 用の素材（Google Drive）
+
+TikTok は英語だけ。Drive のフォルダ（`issue_drive_token.py` が作る）へ置く。
+
+| 枠 | 置くもの |
+| --- | --- |
+| 例文（1日1回、Terraform の `tiktok_daily_schedule`） | `<日付>_<枠>_en_post.mp4`（9:16）。ワークフローの `platform=tiktok`（tiktok ジョブ）が英語のコーパスから選び、置けたら `x_post/en/tiktok/posted.json` に記録して重ねない |
+| Tips かガイド（同じ tiktok ジョブ、1日おきに交互） | `<日付>_<tip|guide>_*`: 英語の文字カード画像（`tip_card_screenshot.dart`。見出しは Tips / Guide）と説明文。英語の文がある投稿から選び、置けたら同じ記録に積む |
+
+例文の動画は X・Threads とも 9:16。
+
+Tips・ガイドの英語の文は `study_posts.json` の `text_en`（Codex が書いた）。
+カード画像には絵文字のフォントが無いので、絵文字は落とす（説明文には残る）。
+
+### 始めるまで（本人の作業）
+
+1. `terraform apply`（Drive API の有効化と secret `google-drive-upload` の枠）
+2. GCP コンソールで OAuth クライアント ID（デスクトップ アプリ）を作り、JSON を落とす
+3. 本人のアカウントで許可して鍵を入れる（フォルダもここで作る）
+
+   ```bash
+   uv run --with google-auth-oauthlib --with google-cloud-secret-manager --with requests \
+     python tools/x_post/issue_drive_token.py --project thai-memo-prod \
+     --client-secret ~/Downloads/client_secret_xxx.json
+   ```
 
 ## ローカルでの確認
 
@@ -184,11 +213,14 @@ pip install -r tools/x_post/requirements.txt
 tools/x_post/fetch_fonts.sh
 
 python tools/x_post/pick_sentence.py --project thai-memo-prod --out build/x_post
-flutter test test/screenshots/x_post_screenshot.dart \
+python tools/x_post/build_quiz.py --out build/x_post
+python tools/x_post/synth_tts.py --sentence build/x_post/sentence.json --out build/x_post
+flutter test test/screenshots/tiktok_video_screenshot.dart \
   --dart-define=X_POST_SENTENCE=build/x_post/sentence.json \
-  --dart-define=X_POST_OUT=build/x_post
-python tools/x_post/synth_tts.py --out build/x_post
-python tools/x_post/build_media.py --out build/x_post
+  --dart-define=TIKTOK_QUIZ=build/x_post/quiz.json \
+  --dart-define=TIKTOK_OUT=build/x_post \
+  --dart-define=X_POST_AUDIO_MS=4000 --dart-define=X_POST_LANG=ja
+python tools/x_post/build_video.py --out build/x_post
 python tools/x_post/post_to_x.py --project thai-memo-prod --out build/x_post --dry-run
 ```
 

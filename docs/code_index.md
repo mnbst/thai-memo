@@ -231,6 +231,9 @@ test/screenshots/ranking_mock_app.dart
 test/screenshots/vocab_cap_sheet_mock_app.dart
 語彙スコア100到達の課金シート（VocabCapSheet）を ja/en/ko 切替で出し直し、ペイウォールまで進めるモック（flutter run -t）。
 
+test/screenshots/onboarding_flow_mock_app.dart
+新しい初回導線の案（ヒアリング→手順カードの1・2本目→まとめクイズ結果→一言付きペイウォール）を、本物の画面で Firebase なしで出すモック（flutter run -t、下のチップで場面切替）。
+
 test/screenshots/paywall_mock_app.dart
 ペイウォールを Firebase・ストアなしでシミュレーターに出すモック（商品は差し込み、flutter run -t）。
 
@@ -260,9 +263,6 @@ lib/presentation/screens/ranking_screen.dart
 
 lib/presentation/screens/guide_screen.dart
 アプリの使い方を1枚にまとめた説明書。並びは 概要 → 学習のコツ → 各機能の役割 → 操作のしかた。初回起動では出さず（簡易版 quick_guide_screen.dart から開ける）、設定「使い方ガイド」から読む。概要は learning_flow_steps.dart を簡易版と共用。画面に重ねるコーチマークは持たない。要所には guide_figures.dart の図を挟む。
-
-lib/presentation/screens/quick_guide_screen.dart
-初回起動の使い方の簡易版（1画面）。学習の流れ3段（learning_flow_steps.dart）を見せ、全文のガイドへ案内する。ヒアリングの後・語彙テストの前。
 
 lib/presentation/screens/interview_screen.dart
 初回起動で最初に出すヒアリング4問（この後に使い方ガイド→語彙テスト）（スキップ不可）。前置きの1枚に既存アカウントのサインイン入口。応答は挟まず、最後に1画面だけ回答に寄せた考え方を出す。回答は端末保存＋users docで、level は語彙テストの開始段に使う。
@@ -402,6 +402,12 @@ lib/services/review_prompt_service.dart
 lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
+lib/services/onboarding_progress_reporter.dart
+初回導線の各画面（語彙テスト・生成開始・最初のまとめクイズ後のペイウォール）に入った／抜けた時刻を users doc の onboarding へ記録。生成前にどこで閉じたかを1人ずつ追う。
+
+lib/services/onboarding_paywall.dart
+初回のペイウォールを最初のまとめクイズの「次のセットへ」で一度だけ出す（初回導線の終わりに端末へ保留を立てる）。スコアの伸びで見出しの一言を変える。
+
 lib/services/daily_sentence_service.dart
 users/{uid}/sentences を updated_at の差分同期でローカルSQLiteへ反映する（配信・自分で生成した例文の取り込み、ほかの端末でのお気に入り・削除）。まっさらな端末だけ全件読む。未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at` と配信バックオフの段階リセット（開いたら毎日に戻す）も更新する。アカウント切替時は自分で生成した例文を取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。
 
@@ -540,7 +546,10 @@ functions/go/internal/thainlp/tokenize.go
 単語分割(newmm)・音節分割のGo版。TCC・Trie・最長一致・rejoin_formatted_num。移植済み。
 
 functions/go/internal/thainlp/posjapanese.go
-nlp.py の _tag_words/get_pos_japanese のGo版。override→形容詞辞書→unigram→perceptronの4段階。移植済み。
+nlp.py の _tag_words/get_pos_japanese のGo版。override→形容詞辞書→pos_lexicon→unigram→perceptronの順。หก・คืน・แบบนี้ は前後の語で分ける。
+
+functions/go/internal/thainlp/data/pos_lexicon.json
+tud に無い語の品詞（UD タグ）。prod プールの未知語を Codex で品詞付けしたもの（2026-11-16）。
 
 functions/go/functions.go
 Cloud Functions(2nd gen, goランタイム)のエントリポイント登録。gcloudの--entry-pointがここの名前を指す。
@@ -1453,8 +1462,17 @@ tools/x_post/issue_x_token.py
 tools/x_post/synth_tts.py
 Google Cloud TTS（Chirp3-HD）で例文の読み上げ音声を作る。声は本番（ttsaudio/voice.go）と同じ男女判定で選ぶ。通常速度で1回だけ。
 
-tools/x_post/build_media.py
-「お手本を聞く」操作の連番PNGと音声を ffmpeg で mp4 にする。フレームが無ければ1枚目の画像で静止動画。
+tools/x_post/build_video.py
+例文の縦動画の連番フレームに frames.json の音声を重ね、mp4 にする（1080x1920）。
+
+tools/x_post/build_quiz.py
+動画の確認クイズ（単語→意味の4択）を例文の単語分解から作る。ダミーは同じ例文のほかの語の意味。
+
+tools/x_post/upload_to_drive.py
+TikTok 用の素材（英語の例文の動画、Tips かガイドの英語の画像と説明文。tiktok ジョブが1日1回）を Google Drive のフォルダに置く。--record で TikTok の投稿済みに記録する。
+
+tools/x_post/issue_drive_token.py
+Drive に置くための OAuth（drive.file）を本人のアカウントで許可し、フォルダを作って secret google-drive-upload に入れる。
 
 tools/x_post/post_to_x.py
 Xへ投稿し、投稿済みをGCSへ記録する。動画1本＋画像3枚。拒まれたら動画のみ→画像のみ→テキストのみへ退避する。
@@ -1463,16 +1481,22 @@ tools/x_post/post_to_threads.py
 Threadsへ投稿し、投稿済みを x_post/threads/posted.json へ記録する。メディアはGCSの署名付きURLで渡し、動画＋画像はカルーセル。長期トークンを古ければ延長する。
 
 tools/x_post/platforms.py
-投稿先（X / Threads）と言語（ja / en のアカウント）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
+投稿先（X / Threads / TikTok〈Drive に置いた分〉）と言語（ja / en）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
 
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
 
-test/screenshots/x_post_screenshot.dart
-DetailScreen を flutter_test 上で描画し、動画の続きからスクロールした画像3枚までと、「お手本を聞く」操作の動画フレームを書き出す。`_test.dart` ではないので通常の `flutter test` では走らない。
+test/screenshots/tip_card_screenshot.dart
+Tips・ガイドの投稿文をアプリと同じ色・フォントの 9:16 カード画像にする（TikTok の写真投稿用、日英）。
+
+test/screenshots/x_post_common.dart
+SNS 投稿用の画面書き出し（例文の動画・Tips のカード）で共有する部品（フォント・テーマのフォールバック・描画の取り出し・指マーク・TTS 差し替え）。
+
+test/screenshots/tiktok_video_screenshot.dart
+例文の縦動画（9:16）。例文詳細でお手本を聞く→各欄をスクロール→学習単語の詳細→確認クイズに迷って正解、までの連番フレームを書き出す。
 
 .github/workflows/post-daily-x.yml
-X / Threads 投稿のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
+X / Threads 投稿と TikTok 素材（platform=tiktok は英語の例文動画を Drive に置く別ジョブ）のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
 
 ## TikTok 動画（試作）
 

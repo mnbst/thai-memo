@@ -465,7 +465,7 @@ func (s *Service) GenerateSentenceWithNotes(
 		tierLabel = "premium"
 	}
 
-	resolved := s.Resolver.ResolveFor(ctx, params, targetWords, estimatedVocab, l)
+	resolved := s.Resolver.Resolve(ctx, params, targetWords, estimatedVocab)
 
 	// ドラマ回は場面をドラマ側のブロックが決めるので、テーマ・サブテーマ・
 	// 時点・関係の行を出さない（BuildPrompt 側で落とす）。

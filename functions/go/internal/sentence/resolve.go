@@ -5,39 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"strings"
-
-	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 )
-
-// fanSubThemes は日本のファン向けに足したサブテーマ（コラボカフェ・ロケ地・
-// 推しの誕生日のタンブン等）。英語版では引かない。英語の利用者はタイ在住・
-// 旅行が中心で、推し活の文脈が通じにくい（2026-11-14）。推し活テーマ自体は
-// 明示して選んだ人にだけ出るので残す。韓国語版はファン文化が通じるので残す。
-var fanSubThemes = map[string]bool{
-	"コラボカフェ":      true,
-	"ロケ地めぐり":      true,
-	"推しのコラボ商品":    true,
-	"ライブ遠征":       true,
-	"推しの配信":       true,
-	"推しに伝えたい言葉":   true,
-	"ファン同士の交流":    true,
-	"推しの誕生日のタンブン": true,
-}
-
-// subThemesFor は [topic] のサブテーマ候補を [l] の利用者向けに返す。
-func subThemesFor(topic string, l lang.Lang) []string {
-	subs := topicSubThemes[topic]
-	if l != lang.EN {
-		return subs
-	}
-	kept := make([]string, 0, len(subs))
-	for _, s := range subs {
-		if !fanSubThemes[s] {
-			kept = append(kept, s)
-		}
-	}
-	return kept
-}
 
 // SubThemeFinder はテーマのサブテーマを 1 つ選ぶ。
 // 実装は internal/embeddings.Store。
@@ -89,11 +57,23 @@ func speakerForTargets(targetWords []string) string {
 	return ""
 }
 
+// writtenHeavyTopics は解説・紹介文を対面の会話と同じ重みで引くテーマ。
+// 祭り・寺の専門語は会話の形だと連語が崩れやすい（2026-11-16、会話 8/33・解説文 1/17）。
+var writtenHeavyTopics = map[string]bool{Topics[11]: true, Topics[12]: true}
+
+// mediumWeight は topic での m の重み。
+func mediumWeight(m Medium, topic string) int {
+	if writtenHeavyTopics[topic] && m.Name != Media[0].Name {
+		return Media[0].Weight
+	}
+	return m.Weight
+}
+
 // DrawMedium は Media を重み付きで1つ引く。
-func (r *Resolver) DrawMedium() string {
+func (r *Resolver) DrawMedium(topic string) string {
 	total := 0
 	for _, m := range Media {
-		total += m.Weight
+		total += mediumWeight(m, topic)
 	}
 	var n int
 	if r.Rand != nil {
@@ -102,10 +82,11 @@ func (r *Resolver) DrawMedium() string {
 		n = rand.Intn(total)
 	}
 	for _, m := range Media {
-		if n < m.Weight {
+		w := mediumWeight(m, topic)
+		if n < w {
 			return m.Name
 		}
-		n -= m.Weight
+		n -= w
 	}
 	return Media[0].Name
 }
@@ -122,15 +103,6 @@ func (r *Resolver) DrawMedium() string {
 func (r *Resolver) Resolve(
 	ctx context.Context, params map[string]any,
 	targetWords []string, estimatedVocab int,
-) ResolvedParams {
-	return r.ResolveFor(ctx, params, targetWords, estimatedVocab, lang.JA)
-}
-
-// ResolveFor は [l] の利用者向けに Resolve する。言語で変わるのはサブテーマの
-// 候補だけ（英語版はファン向けのサブテーマを外す。subThemesFor）。
-func (r *Resolver) ResolveFor(
-	ctx context.Context, params map[string]any,
-	targetWords []string, estimatedVocab int, l lang.Lang,
 ) ResolvedParams {
 	resolved := ResolvedParams{
 		// 2026-08-14: free 専用プール（FREE_TOPICS）は廃止。クライアントは
@@ -164,7 +136,7 @@ func (r *Resolver) ResolveFor(
 	// 文が載る媒体（2026-10-07 追加）。書き言葉の文体はここからしか出ない。
 	resolved.Medium = strParam(params, "medium")
 	if resolved.Medium == "" {
-		resolved.Medium = r.DrawMedium()
+		resolved.Medium = r.DrawMedium(resolved.Topic)
 	}
 
 	// 場面合致の回（premium）は選定時に決めたショットを使い、サブテーマは引かない
@@ -175,7 +147,7 @@ func (r *Resolver) ResolveFor(
 		return resolved
 	}
 
-	subThemes := subThemesFor(resolved.Topic, l)
+	subThemes := topicSubThemes[resolved.Topic]
 	if len(subThemes) > 0 && len(targetWords) > 0 && r.SubThemes != nil {
 		sub, err := r.SubThemes.FindBestSubTheme(ctx, targetWords[0], subThemes)
 		if err != nil {

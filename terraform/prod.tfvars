@@ -36,6 +36,9 @@ x_post_extra_slots = {
 # }
 x_post_en_slots = {}
 
+# TikTok 用の英語の例文動画（Drive に置くだけ）。12:00 PT ＝ 翌 05:00 JST（夏時間は 04:00）。
+tiktok_daily_schedule = "0 12 * * *"
+
 # Threads への自動投稿（X と同じ枠で、例文は別の文）。threads-access-token に
 # トークンを入れてから true にする（tools/x_post/README.md の「Threads」）。
 threads_post_enabled = false
