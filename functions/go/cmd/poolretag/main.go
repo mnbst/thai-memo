@@ -9,6 +9,7 @@
 //
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolretag -lang ja -skip skip_ja.json -out diff.json
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolretag -lang en -tier free -labels en -skip skip_en.json -write
+//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolretag -lang ja -lexicon-only -out diff.json   # pos_lexicon.json の語だけ
 package main
 
 import (
@@ -83,8 +84,16 @@ func highConfidence(word, meaning, tag string, l lang.Lang) bool {
 		return true
 	case fixedPOSWords[word]:
 		return true
+	case lexiconWord(word):
+		return true
 	}
 	return false
+}
+
+// lexiconWord は pos_lexicon.json で品詞を決めた語か、前後で品詞を分ける同綴語（หก・คืน・แบบนี้ 等）か。
+// tud に無い語は perceptron の当て推量で、同じ語でも文ごとに品詞が割れていた（2026-11-16）。
+func lexiconWord(word string) bool {
+	return thainlp.HomographWords[word] || thainlp.InLexicon(word)
 }
 
 // fixedPOSWords は pos_override で品詞を固定した語のうち、旧タガーが誤っていたもの（2026-11-08）。
@@ -94,7 +103,9 @@ var fixedPOSWords = map[string]bool{
 }
 
 // retag は pool の品詞を確度の高い語だけ書き換え、変えた語を返す。
-func retag(pool []sentence.Sentence, skip map[string]bool, l, labels lang.Lang) ([]change, error) {
+// lexiconOnly なら lexiconWord の語だけを変える。辞書の語の品詞が変わると、隣の ที่・ของ の
+// 文脈判定も連鎖して変わり、その半分ほどが悪くなった（2026-11-16 の抜き取り）。
+func retag(pool []sentence.Sentence, skip map[string]bool, l, labels lang.Lang, lexiconOnly bool) ([]change, error) {
 	changes := []change{}
 	for n := range pool {
 		s := &pool[n]
@@ -116,7 +127,7 @@ func retag(pool []sentence.Sentence, skip map[string]bool, l, labels lang.Lang) 
 				continue
 			}
 			label := thainlp.LocalizePOS(tag, labels)
-			if label == w.GrammaticalRole || !highConfidence(w.Word, w.Meaning, tag, l) {
+			if label == w.GrammaticalRole || !highConfidence(w.Word, w.Meaning, tag, l) || (lexiconOnly && !lexiconWord(w.Word)) {
 				continue
 			}
 			changes = append(changes, change{s.ThaiText, i, w.Word, w.Meaning, w.GrammaticalRole, label})
@@ -145,6 +156,7 @@ func main() {
 	skipPath := flag.String("skip", "", "付け直さない文（thai_text の JSON 配列）")
 	out := flag.String("out", "", "変える語を書き出す JSON")
 	write := flag.Bool("write", false, "GCS へ書き戻す（バックアップを取ってから）")
+	lexiconOnly := flag.Bool("lexicon-only", false, "pos_lexicon.json の語と同綴語だけを付け直す")
 	flag.Parse()
 
 	l, ok := lang.Parse(*langCode)
@@ -209,7 +221,7 @@ func main() {
 		log.Fatalf("%s は読み書きで内容が変わる（書き戻さない）: %v", name, err)
 	}
 
-	changes, err := retag(pool, skip, l, labelLang)
+	changes, err := retag(pool, skip, l, labelLang, *lexiconOnly)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -23,6 +23,9 @@ type projectPOS struct {
 	override map[string]string
 	// adjectives は形容詞辞書（pos_adjectives.ADJECTIVES）。
 	adjectives map[string]bool
+	// lexicon は tud に無い語の品詞（data/pos_lexicon.json、UD タグ）。
+	// tud に無い語は perceptron の当て推量になり、同じ語でも文ごとに品詞が割れていた（2026-11-16）。
+	lexicon map[string]string
 }
 
 func loadProjectPOS() (*projectPOS, error) {
@@ -45,7 +48,17 @@ func loadProjectPOS() (*projectPOS, error) {
 		for _, a := range f.Adjectives {
 			adj[a] = true
 		}
-		projData = &projectPOS{tagMap: f.TagMap, override: f.Override, adjectives: adj}
+		lexRaw, err := dataFS.ReadFile("data/pos_lexicon.json")
+		if err != nil {
+			projErr = err
+			return
+		}
+		var lex map[string]string
+		if err := json.Unmarshal(lexRaw, &lex); err != nil {
+			projErr = err
+			return
+		}
+		projData = &projectPOS{tagMap: f.TagMap, override: f.Override, adjectives: adj, lexicon: lex}
 	})
 	return projData, projErr
 }
@@ -76,7 +89,70 @@ func TagWords(words []string) (map[int]string, error) {
 	tagThii(words, result)
 	tagClassifiers(words, result)
 	tagMonkEat(words, result)
+	tagHomographs(words, result)
 	return result, nil
+}
+
+// numberUnits は数詞の後ろに来る単位・類別詞（หกโมง・หกคน）。
+var numberUnits = map[string]bool{
+	"โมง": true, "ทุ่ม": true, "คน": true, "ตัว": true, "อัน": true, "ใบ": true, "ชิ้น": true, "เล่ม": true,
+	"คัน": true, "หลัง": true, "ขวด": true, "แก้ว": true, "บาท": true, "ปี": true, "เดือน": true,
+	"วัน": true, "คืน": true, "ชั่วโมง": true, "นาที": true, "วินาที": true, "ครั้ง": true, "ข้อ": true,
+	"ห้อง": true, "ชั้น": true, "จาน": true, "ชาม": true, "กิโล": true, "เมตร": true, "ขวบ": true,
+	"สัปดาห์": true, "อาทิตย์": true, "ที่": true, "รอบ": true, "แห่ง": true, "เรื่อง": true, "ร้อย": true,
+	"พัน": true, "หมื่น": true, "แสน": true, "ล้าน": true, "สิบ": true,
+}
+
+// numberMarkers は直後の数詞が番号・順序を表す語（ข้อหก・ที่หก）。
+var numberMarkers = map[string]bool{"ที่": true, "ข้อ": true, "เลข": true, "ห้อง": true, "ชั้น": true, "ครั้งที่": true, "อันดับ": true}
+
+// nightBefore は直後の คืน が「夜」になる語（ทั้งคืน・ทุกคืน）。
+var nightBefore = map[string]bool{
+	"ทั้ง": true, "ทุก": true, "ตอน": true, "กลาง": true, "เมื่อ": true, "หลาย": true, "บาง": true, "ค่ำ": true,
+}
+
+// nightAfter は直前の คืน が「夜」になる語（คืนนั้น）。
+var nightAfter = map[string]bool{"นี้": true, "นั้น": true, "วันศุกร์": true, "วันเสาร์": true, "สุดท้าย": true, "แรก": true}
+
+// mannerWords は名詞の後ろなら「こういう〜」（限定詞）、それ以外は「このように」（副詞）になる語。
+var mannerWords = map[string]bool{"แบบนี้": true, "แบบนั้น": true, "อย่างนี้": true, "อย่างนั้น": true}
+
+// HomographWords は tagHomographs が前後で品詞を分ける語。
+var HomographWords = map[string]bool{"หก": true, "คืน": true, "แบบนี้": true, "แบบนั้น": true, "อย่างนี้": true, "อย่างนั้น": true}
+
+// tagHomographs は辞書が1つの品詞に決めている語を前後で分ける。
+// หก は数詞「6」と動詞「こぼれる」、คืน は動詞「返す」と名詞「夜」。
+// แบบนี้ 等は名詞の後ろなら限定詞（งานเลี้ยงแบบนี้）、それ以外は副詞（เล่นแบบนี้）。
+func tagHomographs(words []string, result map[int]string) {
+	for i, w := range words {
+		prev, next := "", ""
+		if i > 0 {
+			prev = words[i-1]
+		}
+		if i+1 < len(words) {
+			next = words[i+1]
+		}
+		if mannerWords[w] {
+			if i > 0 && isNominal(result[i-1]) {
+				result[i] = "限定詞"
+			} else {
+				result[i] = "副詞"
+			}
+			continue
+		}
+		switch w {
+		case "หก":
+			if numberUnits[next] || numberMarkers[prev] || (i > 0 && result[i-1] == "数詞") || result[i+1] == "数詞" || result[i+1] == "類別詞" {
+				result[i] = "数詞"
+			} else {
+				result[i] = "動詞"
+			}
+		case "คืน":
+			if nightBefore[prev] || nightAfter[next] || (i > 0 && result[i-1] == "数詞") {
+				result[i] = "名詞"
+			}
+		}
+	}
 }
 
 // classifierWords は名詞の後ろで類別詞になる語。unigram は ใบ・คน・ตัว を一律に名詞にする
@@ -230,6 +306,8 @@ func tagWordsBase(words []string) (map[int]string, error) {
 			result[i] = mapTag(p, tag)
 		} else if p.adjectives[w] {
 			result[i] = "形容詞"
+		} else if tag := p.lexicon[w]; tag != "" {
+			result[i] = mapTag(p, tag)
 		} else {
 			unresolvedIdx = append(unresolvedIdx, i)
 		}
@@ -324,6 +402,8 @@ func tagCompoundHeads(p *projectPOS, words []string, still []int, result map[int
 			result[i] = mapTag(p, p.override[head])
 		case p.adjectives[head]:
 			result[i] = "形容詞"
+		case p.lexicon[head] != "":
+			result[i] = mapTag(p, p.lexicon[head])
 		case t.tud[head] != "":
 			result[i] = mapTag(p, t.tud[head])
 		default:
@@ -331,4 +411,14 @@ func tagCompoundHeads(p *projectPOS, words []string, still []int, result map[int
 		}
 	}
 	return rest
+}
+
+// InLexicon は word の品詞が pos_lexicon.json で決まっているか。
+// poolretag が、付け直してよい語かを見分けるのに使う。
+func InLexicon(word string) bool {
+	p, err := loadProjectPOS()
+	if err != nil {
+		return false
+	}
+	return p.override[word] == "" && !p.adjectives[word] && p.lexicon[word] != ""
 }
