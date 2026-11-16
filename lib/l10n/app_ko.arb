@@ -566,6 +566,15 @@
       }
     }
   },
+  "paywallLeadScoreUp": "{diff}단어 상승!\n프리미엄은 제한 없음",
+  "@paywallLeadScoreUp": {
+    "placeholders": {
+      "diff": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallLeadFirstSet": "오늘은 1세트 더 무료.\n프리미엄은 제한 없음",
   "paywallTrialBadge": "첫 이용 한정",
   "@paywallTrialBadge": {
     "description": "ストアの無料トライアル（初回特典）の対象者にだけ出すバッジ。特典は1アカウント1回なので事実として書ける。期限を偽る「今だけ」は使わない。"

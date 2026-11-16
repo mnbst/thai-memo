@@ -1039,6 +1039,14 @@ class L10nKo extends L10n {
   }
 
   @override
+  String paywallLeadScoreUp(int diff) {
+    return '$diff단어 상승!\n프리미엄은 제한 없음';
+  }
+
+  @override
+  String get paywallLeadFirstSet => '오늘은 1세트 더 무료.\n프리미엄은 제한 없음';
+
+  @override
   String get paywallTrialBadge => '첫 이용 한정';
 
   @override

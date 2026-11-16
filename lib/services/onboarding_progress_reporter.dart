@@ -18,7 +18,8 @@ class OnboardingProgressReporter {
   const OnboardingProgressReporter();
 
   /// step: guide_open / guide_done / vocab_test_open / vocab_test_done /
-  /// vocab_test_auto_skip / paywall_open / paywall_done / generate_start
+  /// vocab_test_auto_skip / generate_start / paywall_open / paywall_done
+  /// （ペイウォールは最初のまとめクイズのあと）
   Future<void> mark(String step) async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
