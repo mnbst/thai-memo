@@ -17,6 +17,8 @@ import '../providers/auth_provider.dart';
 import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
 import '../../services/interview_reporter.dart';
+import '../../services/onboarding_paywall.dart';
+import '../../services/onboarding_progress_reporter.dart';
 import '../../services/sentence_view_marker.dart';
 import '../../services/uvm_update_queue.dart';
 import '../providers/daily_set_provider.dart';
@@ -33,7 +35,6 @@ import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
 import 'vocab_history_screen.dart';
 import 'interview_screen.dart';
-import 'quick_guide_screen.dart';
 import 'vocab_test_screen.dart';
 import 'paywall_screen.dart';
 import 'learning_screen.dart';
@@ -545,25 +546,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (existingAccount) {
         ref.read(settingsControllerProvider.notifier).completeFirstLaunch();
       } else {
-        // ガイド・語彙テストを進めている間に回答を送る。セット本数の判定にも
+        // 語彙テストを進めている間に回答を送る。セット本数の判定にも
         // interview.level を使うため、初回生成の直前ではこの着地を待つ。
         final interviewReport = InterviewReporter().report();
+        // 生成まで届かなかった人がどの画面で閉じたかを1人ずつ追うための記録。
+        const progress = OnboardingProgressReporter();
 
-        if (mounted) {
-          // 先に使い方の簡易版（1画面）を見せる。語彙テストは「何を測るのか」が
-          // 分かってからのほうが、意味の分からない4択を突然出されるより降りられにくい。
-          // 全文のガイドは初回に出すと読まれずに飛ばされていた（英語62%）ので、
-          // 簡易版から第3章へ案内し、設定からも読めるようにしてある。
-          await Navigator.push<void>(
-            context,
-            MaterialPageRoute(
-              settings: const RouteSettings(name: QuickGuideScreen.routeName),
-              builder: (context) => QuickGuideScreen(
-                onDone: () => Navigator.pop(context),
-              ),
-            ),
-          );
-        }
+        // 使い方の説明は画面で読ませず、最初の例文の上の手順カード
+        // （FirstSetSteps）で実際に操作させる。読み物の説明は機能紹介3枚も
+        // 全文・簡易版のガイドも、読まずに飛ばされるか、そこで閉じられていた。
 
         // 最後に語彙テスト（任意）。生成の開始はこの後まで待つ。key_word は
         // estimated_vocab の帯から選ぶので、測る前に始めると初回の1文だけ
@@ -574,10 +565,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // 始まる。最初の体験が「0語」の結果画面になるだけなので省く。
         // 設定からはいつでも受けられる。
         if (mounted && await _savedLevel() == 'none') {
+          unawaited(progress.mark('vocab_test_auto_skip'));
           unawaited(ref
               .read(analyticsServiceProvider)
               .logVocabTest(action: 'auto_skip', source: 'onboarding'));
         } else if (mounted) {
+          unawaited(progress.mark('vocab_test_open'));
           await Navigator.push<void>(
             context,
             MaterialPageRoute(
@@ -588,17 +581,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
           );
+          unawaited(progress.mark('vocab_test_done'));
         }
 
-        // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
-        // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
-        // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
         // クローズドテストのテスターは、ここで体験を受け取ってプレミアムになる。
-        // すでにプレミアムの人に売り込みは出さない。
-        final testerTrial = await _claimClosedTesterTrial();
-        if (mounted && !testerTrial && !ref.read(effectivePremiumProvider)) {
-          await PaywallScreen.show(context, source: 'onboarding');
-        }
+        // ペイウォールはここでは出さず、最初のまとめクイズのあとで出す
+        // （onboarding_paywall.dart）。何も体験する前に値段を見せると、
+        // 最初の例文に届く前に閉じられていた。
+        await _claimClosedTesterTrial();
+        await markOnboardingPaywallPending();
+
+        unawaited(progress.mark('generate_start'));
 
         // 生成開始。ここから先は学習画面のローディングで待たせる。
         _initialLoadFuture ??= runInitialGenerationAfterInterviewReport(
