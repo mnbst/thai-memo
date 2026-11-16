@@ -1036,14 +1036,6 @@ class L10nJa extends L10n {
   }
 
   @override
-  String paywallLeadScoreUp(int diff) {
-    return '$diff語アップ！\nプレミアムなら制限なし';
-  }
-
-  @override
-  String get paywallLeadFirstSet => '今日はあと1セット無料。\nプレミアムなら制限なし';
-
-  @override
   String get paywallTrialBadge => '初回限定';
 
   @override
@@ -2429,6 +2421,9 @@ class L10nJa extends L10n {
   String get settingsRankingSubtitle => '語彙スコアで他の学習者と比べる';
 
   @override
+  String get quickGuideTitle => 'こんなふうに学びます';
+
+  @override
   String get quickGuideStepRead => 'レベルに合った例文を読む';
 
   @override
@@ -2455,6 +2450,9 @@ class L10nJa extends L10n {
   String get quickGuideOptSummaryEvery => '数文読むごとに出てくる';
 
   @override
+  String get quickGuideMore => '使い方ガイドを詳しく読む';
+
+  @override
   String get guideTitle => '使い方ガイド';
 
   @override
@@ -2462,6 +2460,9 @@ class L10nJa extends L10n {
 
   @override
   String get guideSkip => 'スキップ';
+
+  @override
+  String get quickGuideStartLearning => '学習をはじめる';
 
   @override
   String get guideStart => '語彙力を測る';

@@ -1039,14 +1039,6 @@ class L10nKo extends L10n {
   }
 
   @override
-  String paywallLeadScoreUp(int diff) {
-    return '$diff단어 상승!\n프리미엄은 제한 없음';
-  }
-
-  @override
-  String get paywallLeadFirstSet => '오늘은 1세트 더 무료.\n프리미엄은 제한 없음';
-
-  @override
   String get paywallTrialBadge => '첫 이용 한정';
 
   @override
@@ -2450,6 +2442,9 @@ class L10nKo extends L10n {
   String get settingsRankingSubtitle => '어휘 점수로 다른 학습자와 비교';
 
   @override
+  String get quickGuideTitle => '이렇게 배워요';
+
+  @override
   String get quickGuideStepRead => '내 수준에 맞는 예문 읽기';
 
   @override
@@ -2476,6 +2471,9 @@ class L10nKo extends L10n {
   String get quickGuideOptSummaryEvery => '몇 문장마다 나와요';
 
   @override
+  String get quickGuideMore => '사용법 가이드 자세히 보기';
+
+  @override
   String get guideTitle => '사용법 가이드';
 
   @override
@@ -2483,6 +2481,9 @@ class L10nKo extends L10n {
 
   @override
   String get guideSkip => '건너뛰기';
+
+  @override
+  String get quickGuideStartLearning => '학습 시작';
 
   @override
   String get guideStart => '어휘력 측정';

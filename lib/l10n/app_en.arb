@@ -498,15 +498,6 @@
   "paywallLifetimeNote": "A one-time payment. No renewals.",
   "paywallMonthlyToLifetimeNote": "{store, select, android{Buying the lifetime plan does not automatically cancel your current subscription. Cancel it separately in your Google Play subscriptions.} other{Buying the lifetime plan does not automatically cancel your current subscription. Cancel it separately in your App Store account settings.}}",
   "paywallLegal": "{store, select, android{Your subscription renews automatically at the same price unless you cancel before the next renewal date. You can manage or cancel it in your Google Play subscriptions.} other{Your subscription renews automatically. You can cancel up to 24 hours before the period ends. Renewals are charged within 24 hours of the period ending, and you can manage or cancel from your App Store account settings.}}",
-  "paywallLeadScoreUp": "+{diff} words!\nNo limits with Premium.",
-  "@paywallLeadScoreUp": {
-    "placeholders": {
-      "diff": {
-        "type": "int"
-      }
-    }
-  },
-  "paywallLeadFirstSet": "One more set is free today.\nNo limits with Premium.",
   "paywallTrialBadge": "First-time offer",
   "paywallTrialHeadline": "{days}-day free Premium trial",
   "paywallTrialCta": "Start {days}-day free trial",
@@ -1263,6 +1254,7 @@
   "rankingFreeCapNote": "Free score limit: {limit} words",
   "settingsRanking": "Ranking",
   "settingsRankingSubtitle": "Compare vocabulary scores",
+  "quickGuideTitle": "How you'll learn",
   "quickGuideStepRead": "Read sentences at your level",
   "quickGuideOptSpeak": "Say it aloud to check your tones",
   "quickGuideOptSpelling": "Tap a word to see its spelling",
@@ -1271,9 +1263,11 @@
   "quickGuideStepQuiz": "Summary quizzes update your score",
   "quickGuideNextSentences": "Raise your score to unlock new words",
   "quickGuideOptSummaryEvery": "Pops up every few sentences",
+  "quickGuideMore": "See the full App guide",
   "guideTitle": "App guide",
   "guideSettingsSubtitle": "Quick app tour",
   "guideSkip": "Skip",
+  "quickGuideStartLearning": "Start learning",
   "guideStart": "Measure your vocabulary",
   "guideClose": "Close",
   "guideLead": "Learn the basics; reopen this guide anytime from Settings.",

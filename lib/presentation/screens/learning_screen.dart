@@ -10,7 +10,6 @@ import '../providers/sentence_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../services/learning_progress_store.dart';
-import '../../services/onboarding_paywall.dart';
 import '../providers/review_prompt_provider.dart';
 import 'quiz_screen.dart';
 import 'today_screen.dart';
@@ -313,12 +312,7 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
             // ここを抜けるとセットを使い切っているので、次は新しい5本を作る。
             // 「次の例文へ」だと1本だけ足すように読めるので名前を分ける。
             nextButtonLabel: l10n.learnNextSet,
-            onNextSentence: () async {
-              // 初回だけ、次のセットへ進む前にペイウォールを挟む。
-              await maybeShowOnboardingPaywall(context, ref);
-              if (!mounted) return;
-              await _proceedToNextSentence();
-            },
+            onNextSentence: _proceedToNextSentence,
           ),
         ),
     };

@@ -54,19 +54,14 @@ class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
     super.key,
     required this.source,
-    this.lead,
   });
 
   final String source;
-
-  /// 見出しの上に出す一言（初回のまとめクイズの結果など）。null なら出さない。
-  final String? lead;
 
   /// ペイウォールを全画面で開く
   static Future<void> show(
     BuildContext context, {
     String source = 'unknown',
-    String? lead,
   }) async {
     final container = ProviderScope.containerOf(context, listen: false);
     final analytics = container.read(analyticsServiceProvider);
@@ -93,10 +88,7 @@ class PaywallScreen extends ConsumerStatefulWidget {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (context) => PaywallScreen(
-          source: source,
-          lead: lead,
-        ),
+        builder: (context) => PaywallScreen(source: source),
       ),
     );
   }
@@ -302,17 +294,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.lead != null) ...[
-                    Text(
-                      widget.lead!,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
                   if (offer.anyTrial) ...[
                     Center(child: _buildTrialBadge(context)),
                     const SizedBox(height: 10),

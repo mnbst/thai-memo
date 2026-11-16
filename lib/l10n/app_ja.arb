@@ -591,19 +591,6 @@
   "@paywallMonthlyToLifetimeNote": { "placeholders": { "store": { "type": "String" } } },
   "paywallLegal": "{store, select, android{サブスクリプションは自動更新です。次の更新日の前までにキャンセルしない限り、同じ料金で自動的に更新されます。管理・キャンセルはGoogle Playの定期購入の設定から行えます。} other{サブスクリプションは自動更新です。期間終了24時間前までにキャンセルできます。更新料金は終了24時間以内に請求され、管理・キャンセルはApp Storeのアカウント設定から行えます。}}",
   "@paywallLegal": { "placeholders": { "store": { "type": "String" } } },
-  "paywallLeadScoreUp": "{diff}語アップ！\nプレミアムなら制限なし",
-  "@paywallLeadScoreUp": {
-    "description": "初回のまとめクイズでスコアが上がった人に、ペイウォールの見出しの上に出す一言。",
-    "placeholders": {
-      "diff": {
-        "type": "int"
-      }
-    }
-  },
-  "paywallLeadFirstSet": "今日はあと1セット無料。\nプレミアムなら制限なし",
-  "@paywallLeadFirstSet": {
-    "description": "初回のまとめクイズでスコアが上がらなかった人に、ペイウォールの見出しの上に出す一言。"
-  },
   "paywallTrialBadge": "初回限定",
   "@paywallTrialBadge": {
     "description": "ストアの無料トライアル（初回特典）の対象者にだけ出すバッジ。特典は1アカウント1回なので事実として書ける。期限を偽る「今だけ」は使わない。"
@@ -1508,6 +1495,7 @@
   },
   "settingsRanking": "ランキング",
   "settingsRankingSubtitle": "語彙スコアで他の学習者と比べる",
+  "quickGuideTitle": "こんなふうに学びます",
   "quickGuideStepRead": "レベルに合った例文を読む",
   "quickGuideOptSpeak": "声に出して声調をチェック",
   "quickGuideOptSpelling": "単語をタップして綴りを確認",
@@ -1520,9 +1508,14 @@
   "quickGuideStepQuiz": "まとめクイズでスコアを更新",
   "quickGuideNextSentences": "スコアアップで新しい単語が登場",
   "quickGuideOptSummaryEvery": "数文読むごとに出てくる",
+  "quickGuideMore": "使い方ガイドを詳しく読む",
   "guideTitle": "使い方ガイド",
   "guideSettingsSubtitle": "アプリの使い方をひと通り確認",
   "guideSkip": "スキップ",
+  "quickGuideStartLearning": "学習をはじめる",
+  "@quickGuideStartLearning": {
+    "description": "初回の簡易ガイドの主ボタン。語彙テストを出さない人（ヒアリングで「まったく初めて」）向け。押すと最初の例文へ進む。"
+  },
   "guideStart": "語彙力を測る",
   "guideClose": "閉じる",
   "guideLead": "基本の使い方をまとめました。設定からいつでも読み返せます。",
