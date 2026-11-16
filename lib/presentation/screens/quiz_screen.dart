@@ -56,6 +56,25 @@ Future<void> rememberVocabAtSetStart(WidgetRef ref, String setId) async {
   await prefs.setString(_summaryQuizVocabSetKey, setId);
 }
 
+/// まとめクイズの結果画面に出したスコアの伸び（セット開始時から）。
+/// 結果カード（_buildVocabTransitionCard）と同じ数え方。下がった・控えが
+/// 無いときは 0。
+Future<int> summaryQuizVocabGain(WidgetRef ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final before = prefs.getInt(_summaryQuizVocabBeforeKey);
+  if (before == null) return 0;
+  final vocab = ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ??
+      (await ref.read(vocabStatsProvider.future)).estimatedVocab;
+  final cap =
+      ref.read(effectivePremiumProvider) ? (1 << 31) : freeVocabScoreLimit;
+  final after = vocab.clamp(0, cap);
+  final savedBefore = before.clamp(0, cap);
+  final displayBefore = savedBefore == 0 && after > _maxSummaryQuizVocabIncrease
+      ? after
+      : savedBefore;
+  return math.max(0, after - displayBefore);
+}
+
 const Duration _correctAnswerAutoAdvanceDelay = Duration(milliseconds: 1200);
 
 /// 出題中の位置。1問だけのクイズには進み具合が無いので持たせない。

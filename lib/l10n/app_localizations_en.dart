@@ -1095,6 +1095,15 @@ class L10nEn extends L10n {
   }
 
   @override
+  String paywallLeadScoreUp(int diff) {
+    return '+$diff words!\nNo limits with Premium.';
+  }
+
+  @override
+  String get paywallLeadFirstSet =>
+      'One more set is free today.\nNo limits with Premium.';
+
+  @override
   String get paywallTrialBadge => 'First-time offer';
 
   @override
@@ -2555,9 +2564,6 @@ class L10nEn extends L10n {
   String get settingsRankingSubtitle => 'Compare vocabulary scores';
 
   @override
-  String get quickGuideTitle => 'How you\'ll learn';
-
-  @override
   String get quickGuideStepRead => 'Read sentences at your level';
 
   @override
@@ -2582,9 +2588,6 @@ class L10nEn extends L10n {
 
   @override
   String get quickGuideOptSummaryEvery => 'Pops up every few sentences';
-
-  @override
-  String get quickGuideMore => 'See the full App guide';
 
   @override
   String get guideTitle => 'App guide';
