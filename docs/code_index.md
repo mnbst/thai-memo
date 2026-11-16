@@ -402,6 +402,9 @@ lib/services/review_prompt_service.dart
 lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
+lib/services/onboarding_progress_reporter.dart
+初回導線の各画面（ガイド・語彙テスト・ペイウォール・生成開始）に入った／抜けた時刻を users doc の onboarding へ記録。生成前にどこで閉じたかを1人ずつ追う。
+
 lib/services/daily_sentence_service.dart
 users/{uid}/sentences を updated_at の差分同期でローカルSQLiteへ反映する（配信・自分で生成した例文の取り込み、ほかの端末でのお気に入り・削除）。まっさらな端末だけ全件読む。未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at` と配信バックオフの段階リセット（開いたら毎日に戻す）も更新する。アカウント切替時は自分で生成した例文を取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。
 
@@ -1457,7 +1460,7 @@ tools/x_post/synth_tts.py
 Google Cloud TTS（Chirp3-HD）で例文の読み上げ音声を作る。声は本番（ttsaudio/voice.go）と同じ男女判定で選ぶ。通常速度で1回だけ。
 
 tools/x_post/build_video.py
-例文の縦動画の連番フレームに frames.json の音声を重ね、mp4 にする（tiktok=1080x1920、x=1080x1350）。
+例文の縦動画の連番フレームに frames.json の音声を重ね、mp4 にする（1080x1920）。
 
 tools/x_post/build_quiz.py
 動画の確認クイズ（単語→意味の4択）を例文の単語分解から作る。ダミーは同じ例文のほかの語の意味。
@@ -1487,7 +1490,7 @@ test/screenshots/x_post_common.dart
 SNS 投稿用の画面書き出し（例文の動画・Tips のカード）で共有する部品（フォント・テーマのフォールバック・描画の取り出し・指マーク・TTS 差し替え）。
 
 test/screenshots/tiktok_video_screenshot.dart
-例文の縦動画（VIDEO_FORMAT で X は 4:5、Threads・TikTok は 9:16）。例文詳細でお手本を聞く→各欄をスクロール→学習単語の詳細→確認クイズに迷って正解、までの連番フレームを書き出す。
+例文の縦動画（9:16）。例文詳細でお手本を聞く→各欄をスクロール→学習単語の詳細→確認クイズに迷って正解、までの連番フレームを書き出す。
 
 .github/workflows/post-daily-x.yml
 X / Threads 投稿と TikTok 素材（platform=tiktok は英語の例文動画を Drive に置く別ジョブ）のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
