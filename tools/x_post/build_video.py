@@ -3,7 +3,7 @@
 test/screenshots/tiktok_video_screenshot.dart が書き出した連番フレーム
 （<frames>/frames/、<frames>/frames.json）に、frames.json の audio
 （<out> にあるファイル・鳴らし始める位置・切る位置）を重ねて mp4 にする。
---format で大きさを変える（tiktok=1080x1920、x=1080x1350）。
+大きさは 1080x1920（9:16）。
 
 出力: <out>/<target>（既定 post.mp4）
 """
@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SIZES = {"tiktok": (1080, 1920), "x": (1080, 1350)}
+SIZES = {"tiktok": (1080, 1920)}
 
 
 def _place(index: int, clip: dict, label: int) -> str:

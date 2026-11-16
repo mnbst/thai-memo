@@ -3,7 +3,7 @@ name: Post Daily Sentence to X
 # platform=x は X、threads は Threads に出す。枠の時刻は同じで、例文は別の文を選ぶ
 # （pick_sentence.py が両方の投稿済みを外す）。同じ枠の2本は concurrency で順番に走らせ、
 # 後に走る方が先の投稿を見て選べるようにする。
-# kind=sentence は例文（例文→各欄→単語の詳細→確認クイズの縦動画。X は 4:5、Threads・TikTok は 9:16）、tip / guide / feature は tools/x_post/study_posts.json の
+# kind=sentence は例文（例文→各欄→単語の詳細→確認クイズの縦動画。9:16）、tip / guide / feature は tools/x_post/study_posts.json の
 # 投稿文（ガイドはガイド画面の該当欄、機能紹介はストア用スクショの画像付き）。枠ごとの kind は Terraform の
 # x_post_extra_slots で決める。
 # lang は投稿するアカウントの言語（ja: @everydaythai775 / en: @daily_thai11）。en は
@@ -180,21 +180,20 @@ jobs:
 
       # 画面の録画は読み上げの尺に合わせるので、音声を先に作る。
       # 例文→各欄→学習単語の詳細→確認クイズの縦動画1本。
-      # X は 4:5（タイムラインで上下が切れないように）、Threads は 9:16。
+      # X・Threads とも 9:16。
       - name: Render video
         if: env.KIND == 'sentence'
         run: |
           AUDIO_MS=$(ffprobe -v error -show_entries format=duration \
             -of csv=p=0 "$OUT_DIR/audio.mp3" | awk '{printf "%d", $1 * 1000}')
           echo "読み上げ ${AUDIO_MS}ms"
-          FORMAT=tiktok; [ "$PLATFORM" = x ] && FORMAT=x
+          FORMAT=tiktok
           flutter test test/screenshots/tiktok_video_screenshot.dart \
             --dart-define=X_POST_SENTENCE=$OUT_DIR/sentence.json \
             --dart-define=TIKTOK_QUIZ=$OUT_DIR/quiz.json \
             --dart-define=TIKTOK_OUT=$OUT_DIR/video_$FORMAT \
             --dart-define=X_POST_AUDIO_MS=$AUDIO_MS \
-            --dart-define=X_POST_LANG=$LANG_CODE \
-            --dart-define=VIDEO_FORMAT=$FORMAT
+            --dart-define=X_POST_LANG=$LANG_CODE
           python tools/x_post/build_video.py --out "$OUT_DIR" \
             --frames "$OUT_DIR/video_$FORMAT" --format "$FORMAT"
 
@@ -308,8 +307,7 @@ jobs:
             --dart-define=TIKTOK_QUIZ=$OUT_DIR/quiz.json \
             --dart-define=TIKTOK_OUT=$OUT_DIR/video_tiktok \
             --dart-define=X_POST_AUDIO_MS=$AUDIO_MS \
-            --dart-define=X_POST_LANG=en \
-            --dart-define=VIDEO_FORMAT=tiktok
+            --dart-define=X_POST_LANG=en
           python tools/x_post/build_video.py --out "$OUT_DIR" \
             --frames "$OUT_DIR/video_tiktok" --format tiktok
 

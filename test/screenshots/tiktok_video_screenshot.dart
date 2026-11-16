@@ -2,15 +2,13 @@
 // tiktok_video_screenshot.dart
 // 例文の縦動画のフレームを書き出す。例文詳細でお手本を聞き、各欄を
 // スクロールして見せ、学習単語の詳細を開き、確認クイズに答えるまでを1本にする。
-// VIDEO_FORMAT で画面の比率を変える（tiktok=9:16、x=4:5）。
 // 通常の `flutter test` では拾われない（_test.dart で終わらない）。
 //
 //   flutter test test/screenshots/tiktok_video_screenshot.dart \
 //     --dart-define=X_POST_SENTENCE=build/tiktok/sentence.json \
 //     --dart-define=TIKTOK_QUIZ=build/tiktok/quiz.json \
 //     --dart-define=TIKTOK_OUT=build/tiktok \
-//     --dart-define=X_POST_AUDIO_MS=4200 \
-//     --dart-define=VIDEO_FORMAT=tiktok
+//     --dart-define=X_POST_AUDIO_MS=4200
 //
 // 出力:
 //   frames/frame_0001.png ...  連番フレーム
@@ -47,12 +45,8 @@ int _f(double seconds) => (seconds * _fps).round();
 const String _lang = String.fromEnvironment('X_POST_LANG', defaultValue: 'ja');
 final _l10n = lookupL10n(const Locale(_lang));
 
-/// 画面の比率。tiktok は 9:16（1080x1920）、x は 4:5（1080x1350）。
-/// X のタイムラインは縦長の動画の上下を切って見せるので、X だけ低くする。
-const String _format =
-    String.fromEnvironment('VIDEO_FORMAT', defaultValue: 'tiktok');
-const double _viewHeight =
-    postLogicalWidth * (_format == 'x' ? 5 / 4 : 16 / 9);
+/// 画面の比率は 9:16（1080x1920）。X・Threads・TikTok で共通。
+const double _viewHeight = postLogicalWidth * 16 / 9;
 
 /// お手本を読み上げる回数（リピート再生のまま流す）。
 const int _plays = 3;
@@ -240,8 +234,7 @@ Future<void> _answerQuiz(
   await tester.pump();
   await rec.hold(_f(1.2));
 
-  // 低い画面（X の 4:5）では下の選択肢が切れるので、考える間に下まで送って
-  // 全部見せる。
+  // 選択肢が長くて下が切れるときは、考える間に下まで送って全部見せる。
   final quizScroll = find.descendant(
     of: find.byType(QuizScreen),
     matching: find.byType(Scrollable),
