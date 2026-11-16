@@ -1095,6 +1095,15 @@ class L10nEn extends L10n {
   }
 
   @override
+  String paywallLeadScoreUp(int diff) {
+    return '+$diff words!\nNo limits with Premium.';
+  }
+
+  @override
+  String get paywallLeadFirstSet =>
+      'One more set is free today.\nNo limits with Premium.';
+
+  @override
   String get paywallTrialBadge => 'First-time offer';
 
   @override

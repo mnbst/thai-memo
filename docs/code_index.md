@@ -403,7 +403,10 @@ lib/services/interview_reporter.dart
 初回ヒアリングの回答を users doc へ記録（interview / interview_answer_count）。属性別の定着分析に使う。送信できるまで起動のたびに再送。
 
 lib/services/onboarding_progress_reporter.dart
-初回導線の各画面（ガイド・語彙テスト・ペイウォール・生成開始）に入った／抜けた時刻を users doc の onboarding へ記録。生成前にどこで閉じたかを1人ずつ追う。
+初回導線の各画面（ガイド・語彙テスト・生成開始・最初のまとめクイズ後のペイウォール）に入った／抜けた時刻を users doc の onboarding へ記録。生成前にどこで閉じたかを1人ずつ追う。
+
+lib/services/onboarding_paywall.dart
+初回のペイウォールを最初のまとめクイズの「次のセットへ」で一度だけ出す（初回導線の終わりに端末へ保留を立てる）。スコアの伸びで見出しの一言を変える。
 
 lib/services/daily_sentence_service.dart
 users/{uid}/sentences を updated_at の差分同期でローカルSQLiteへ反映する（配信・自分で生成した例文の取り込み、ほかの端末でのお気に入り・削除）。まっさらな端末だけ全件読む。未取り込みの配信セット（DailySentenceSet）を古い順に返す。`last_opened_at` と配信バックオフの段階リセット（開いたら毎日に戻す）も更新する。アカウント切替時は自分で生成した例文を取り込み直す（restoreHistory）。ユーザーが消した例文（deleted_sentences）は取り込まない。

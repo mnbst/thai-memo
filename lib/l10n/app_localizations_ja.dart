@@ -1036,6 +1036,14 @@ class L10nJa extends L10n {
   }
 
   @override
+  String paywallLeadScoreUp(int diff) {
+    return '$diff語アップ！\nプレミアムなら制限なし';
+  }
+
+  @override
+  String get paywallLeadFirstSet => '今日はあと1セット無料。\nプレミアムなら制限なし';
+
+  @override
   String get paywallTrialBadge => '初回限定';
 
   @override

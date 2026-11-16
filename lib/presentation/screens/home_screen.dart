@@ -17,6 +17,7 @@ import '../providers/auth_provider.dart';
 import '../../services/app_version_reporter.dart';
 import '../../services/daily_sentence_service.dart';
 import '../../services/interview_reporter.dart';
+import '../../services/onboarding_paywall.dart';
 import '../../services/onboarding_progress_reporter.dart';
 import '../../services/sentence_view_marker.dart';
 import '../../services/uvm_update_queue.dart';
@@ -34,6 +35,7 @@ import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
 import 'vocab_history_screen.dart';
 import 'interview_screen.dart';
+import '../widgets/notification_coach_dialog.dart';
 import 'quick_guide_screen.dart';
 import 'vocab_test_screen.dart';
 import 'paywall_screen.dart';
@@ -602,17 +604,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           unawaited(progress.mark('vocab_test_done'));
         }
 
-        // 測り終えた直後にプランを見せる。何ができるアプリかを一通り知った
-        // ここが一番買う気の高いところ。新規の人はストアの無料トライアルが
-        // 使えるので、ペイウォールは「初回限定」で出る。×で閉じれば学習へ進む。
         // クローズドテストのテスターは、ここで体験を受け取ってプレミアムになる。
-        // すでにプレミアムの人に売り込みは出さない。
-        final testerTrial = await _claimClosedTesterTrial();
-        if (mounted && !testerTrial && !ref.read(effectivePremiumProvider)) {
-          unawaited(progress.mark('paywall_open'));
-          await PaywallScreen.show(context, source: 'onboarding');
-          unawaited(progress.mark('paywall_done'));
-        }
+        // ペイウォールはここでは出さず、最初のまとめクイズのあとで出す
+        // （onboarding_paywall.dart）。何も体験する前に値段を見せると、
+        // 最初の例文に届く前に閉じられていた。
+        await _claimClosedTesterTrial();
+        await markOnboardingPaywallPending();
 
         unawaited(progress.mark('generate_start'));
 
@@ -811,10 +808,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // IndexedStack は他タブを破棄しないため、再生中の例文が
     // 鳴り続けてしまう。タブを離れたら明示的に止める。
     unawaited(ref.read(ttsServiceProvider).stopAll());
+    final openingSettings = index == 2 && _currentIndex != 2;
     setState(() {
       _currentIndex = index;
     });
     _logCurrentTabScreen(index: index);
+    // 通知の案内は設定タブを開いたときに出す（端末につき1度。断った人への
+    // 再案内はリリースごと）。まとめクイズのあとは初回のペイウォールを出すので、
+    // お願いを続けて重ねない。
+    if (openingSettings) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _currentIndex != 2) return;
+        unawaited(
+          maybeShowNotificationCoach(context, ref, trigger: 'settings_tab'),
+        );
+      });
+    }
   }
 
   void _logCurrentTabScreen({int? index}) {

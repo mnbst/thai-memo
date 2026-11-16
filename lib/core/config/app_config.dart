@@ -82,12 +82,12 @@ class AppConfig {
   /// 通知コーチングを断った人へ、もう一度だけ案内するリリースの印。
   ///
   /// リリースごとに再案内するかを決め、するときだけこの値を新しいバージョン名に
-  /// 変える。端末に記録した値と違えば、まとめクイズ完了時に一度だけ出し直す。
-  /// null なら再案内しない。対象はOSの許可をまだ一度も求めていない人だけ
+  /// 変える。端末に記録した値と違えば、設定タブを開いたときに一度だけ出し直す。
+  /// null なら再案内しない。2026-11 に再案内は廃止した（案内は初回の1度だけ）。対象はOSの許可をまだ一度も求めていない人だけ
   /// （iOS は一度拒否されるとアプリから再要求できない）。
   // 再案内しないリリースでは null にするので nullable のまま置く。
   // ignore: unnecessary_nullable_for_final_variable_declarations
-  static const String? notificationCoachRepromptVersion = '1.4.17';
+  static const String? notificationCoachRepromptVersion = null;
 
   /// アプリの言語（UI文言と訳文の両方）。初回起動時にストア地域から決め、
   /// 以降はこの値が真実（設定画面から変更可能）。

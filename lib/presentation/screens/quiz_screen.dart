@@ -29,7 +29,6 @@ import '../providers/review_prompt_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/vocab_stats_provider.dart';
 import '../widgets/loading_tip_carousel.dart';
-import '../widgets/notification_coach_dialog.dart';
 import '../widgets/spelling_breakdown_view.dart';
 import '../widgets/topic_picker.dart';
 import '../widgets/vocab_cap_sheet.dart';
@@ -54,6 +53,25 @@ Future<void> rememberVocabAtSetStart(WidgetRef ref, String setId) async {
       (await ref.read(vocabStatsProvider.future)).estimatedVocab;
   await prefs.setInt(_summaryQuizVocabBeforeKey, vocab);
   await prefs.setString(_summaryQuizVocabSetKey, setId);
+}
+
+/// まとめクイズの結果画面に出したスコアの伸び（セット開始時から）。
+/// 結果カード（_buildVocabTransitionCard）と同じ数え方。下がった・控えが
+/// 無いときは 0。
+Future<int> summaryQuizVocabGain(WidgetRef ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final before = prefs.getInt(_summaryQuizVocabBeforeKey);
+  if (before == null) return 0;
+  final vocab = ref.read(vocabStatsProvider).valueOrNull?.estimatedVocab ??
+      (await ref.read(vocabStatsProvider.future)).estimatedVocab;
+  final cap =
+      ref.read(effectivePremiumProvider) ? (1 << 31) : freeVocabScoreLimit;
+  final after = vocab.clamp(0, cap);
+  final savedBefore = before.clamp(0, cap);
+  final displayBefore = savedBefore == 0 && after > _maxSummaryQuizVocabIncrease
+      ? after
+      : savedBefore;
+  return math.max(0, after - displayBefore);
 }
 
 const Duration _correctAnswerAutoAdvanceDelay = Duration(milliseconds: 1200);
@@ -388,22 +406,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     super.dispose();
   }
 
-  /// 結果を見せてから、まとめクイズなら通知の案内、出なければレビュー依頼を出す。
-  /// 同じ完了で両方を重ねると、どちらも断られやすい。
+  /// 結果を見せてから、レビュー依頼を出す。通知の案内は設定タブを開いた
+  /// ときに出す（まとめクイズのあとは初回のペイウォールと重なるため）。
   Future<void> _afterQuizCompleted(QuizSummary summary) async {
     await Future<void>.delayed(const Duration(seconds: 2));
     if (!mounted || ref.read(quizControllerProvider) is! QuizSummary) {
       return;
     }
-    if (widget.showVocabScoreTransition &&
-        await maybeShowNotificationCoach(
-          context,
-          ref,
-          trigger: 'summary_quiz',
-        )) {
-      return;
-    }
-    if (!mounted) return;
 
     final statsData = QuizStatsData.fromDatabase(summary.stats);
     final outcome = await ref
