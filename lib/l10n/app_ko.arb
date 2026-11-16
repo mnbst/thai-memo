@@ -566,15 +566,6 @@
       }
     }
   },
-  "paywallLeadScoreUp": "{diff}단어 상승!\n프리미엄은 제한 없음",
-  "@paywallLeadScoreUp": {
-    "placeholders": {
-      "diff": {
-        "type": "int"
-      }
-    }
-  },
-  "paywallLeadFirstSet": "오늘은 1세트 더 무료.\n프리미엄은 제한 없음",
   "paywallTrialBadge": "첫 이용 한정",
   "@paywallTrialBadge": {
     "description": "ストアの無料トライアル（初回特典）の対象者にだけ出すバッジ。特典は1アカウント1回なので事実として書ける。期限を偽る「今だけ」は使わない。"
@@ -1444,6 +1435,7 @@
   },
   "settingsRanking": "랭킹",
   "settingsRankingSubtitle": "어휘 점수로 다른 학습자와 비교",
+  "quickGuideTitle": "이렇게 배워요",
   "quickGuideStepRead": "내 수준에 맞는 예문 읽기",
   "quickGuideOptSpeak": "소리 내어 성조 확인",
   "quickGuideOptSpelling": "단어를 눌러 철자 확인",
@@ -1452,9 +1444,11 @@
   "quickGuideStepQuiz": "종합 퀴즈로 점수 갱신",
   "quickGuideNextSentences": "점수가 오르면 새로운 단어를 만날 수 있어요",
   "quickGuideOptSummaryEvery": "몇 문장마다 나와요",
+  "quickGuideMore": "사용법 가이드 자세히 보기",
   "guideTitle": "사용법 가이드",
   "guideSettingsSubtitle": "앱 사용법 한눈에 보기",
   "guideSkip": "건너뛰기",
+  "quickGuideStartLearning": "학습 시작",
   "guideStart": "어휘력 측정",
   "guideClose": "닫기",
   "guideLead": "기본 사용법을 정리했어요. 설정에서 언제든 다시 볼 수 있어요.",
