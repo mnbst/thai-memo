@@ -57,11 +57,23 @@ func speakerForTargets(targetWords []string) string {
 	return ""
 }
 
+// writtenHeavyTopics は解説・紹介文を対面の会話と同じ重みで引くテーマ。
+// 祭り・寺の専門語は会話の形だと連語が崩れやすい（2026-11-16、会話 8/33・解説文 1/17）。
+var writtenHeavyTopics = map[string]bool{Topics[11]: true, Topics[12]: true}
+
+// mediumWeight は topic での m の重み。
+func mediumWeight(m Medium, topic string) int {
+	if writtenHeavyTopics[topic] && m.Name != Media[0].Name {
+		return Media[0].Weight
+	}
+	return m.Weight
+}
+
 // DrawMedium は Media を重み付きで1つ引く。
-func (r *Resolver) DrawMedium() string {
+func (r *Resolver) DrawMedium(topic string) string {
 	total := 0
 	for _, m := range Media {
-		total += m.Weight
+		total += mediumWeight(m, topic)
 	}
 	var n int
 	if r.Rand != nil {
@@ -70,10 +82,11 @@ func (r *Resolver) DrawMedium() string {
 		n = rand.Intn(total)
 	}
 	for _, m := range Media {
-		if n < m.Weight {
+		w := mediumWeight(m, topic)
+		if n < w {
 			return m.Name
 		}
-		n -= m.Weight
+		n -= w
 	}
 	return Media[0].Name
 }
@@ -123,7 +136,7 @@ func (r *Resolver) Resolve(
 	// 文が載る媒体（2026-10-07 追加）。書き言葉の文体はここからしか出ない。
 	resolved.Medium = strParam(params, "medium")
 	if resolved.Medium == "" {
-		resolved.Medium = r.DrawMedium()
+		resolved.Medium = r.DrawMedium(resolved.Topic)
 	}
 
 	// 場面合致の回（premium）は選定時に決めたショットを使い、サブテーマは引かない
