@@ -121,6 +121,7 @@ func ResolveInterviewTopic(userData map[string]any, randIntn func(int) int) stri
 // InterviewGoalTopicSet はヒアリングの goal に当たる個別テーマの集合を返す。
 // まとめたテーマ（タイ旅行・タイ暮らし）は中身へ広げる。free バンクで用途に
 // 合う文を先に出すのに使う。未回答・未知の goal では nil。
+// freeGoalTopicExcludes の個別テーマは外す。
 func InterviewGoalTopicSet(userData map[string]any) map[string]bool {
 	interview, _ := userData["interview"].(map[string]any)
 	goal, _ := interview["goal"].(string)
@@ -138,7 +139,17 @@ func InterviewGoalTopicSet(userData map[string]any) map[string]bool {
 		}
 		set[t] = true
 	}
+	for _, t := range freeGoalTopicExcludes[goal] {
+		delete(set, t)
+	}
 	return set
+}
+
+// freeGoalTopicExcludes は free の用途テーマから外す個別テーマ（goal ごと）。
+// タイ旅行の天気は premium の場面判定のため TopicGroups に残すが、free バンクでは
+// 「毎朝空を見ます」のような旅先で使わない文が1本目に並んでいた（2026-11-17）。
+var freeGoalTopicExcludes = map[string][]string{
+	"travel": {Topics[8]},
 }
 
 // GroupResolver はまとめたテーマ（TopicGroups）を、語に合う中身の個別テーマへ

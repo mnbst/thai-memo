@@ -176,3 +176,63 @@ func TestCorpusBankPickDoesNotShareState(t *testing.T) {
 		t.Errorf("word_breakdown が書き換わっている: %q", second.WordBreakdown[0].Meaning)
 	}
 }
+
+// TestProduceFreeUsesCorpus は free も Bank ではなくコーパスを引くこと。
+func TestProduceFreeUsesCorpus(t *testing.T) {
+	corpus := corpusBankStub(corpusSentence("w1", "旅行", "pool"))
+	free := &stubBank{hits: []bool{true}}
+	p := &Producer{Selector: &stubSelector{}, Bank: free, Corpus: corpus, Service: &stubService{}}
+
+	got, err := p.Produce(context.Background(), nil, nil, ProduceRequest{
+		UID:            "uid",
+		Params:         map[string]any{},
+		EstimatedVocab: 42,
+		SelectRetry:    1,
+		Lang:           lang.JA,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(free.calls) != 0 {
+		t.Errorf("free 例文バンクを %d 回引いている", len(free.calls))
+	}
+	if got == nil || got.Sentence.ThaiText != "pool" || got.Sentence.GenerationTier != "free" {
+		t.Errorf("got = %+v", got)
+	}
+}
+
+// TestCorpusBankPickUnseen は用途のテーマの未出を先に、無ければ別テーマの未出を返すこと。
+func TestCorpusBankPickUnseen(t *testing.T) {
+	bank := corpusBankStub(
+		corpusSentence("ฉัน", "天気", "sky"),
+		corpusSentence("ฉัน", "旅行", "trip1"),
+		corpusSentence("ฉัน", "交通", "bus"),
+	)
+	ctx := context.Background()
+	pref := map[string]bool{"旅行": true, "交通": true}
+	pick := func(seen map[string]bool) string {
+		t.Helper()
+		got, _, err := bank.PickUnseen(ctx, "ฉัน", lang.JA, seen, pref)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got == nil {
+			return ""
+		}
+		return got.ThaiText
+	}
+	for range 20 {
+		if got := pick(nil); got != "trip1" && got != "bus" {
+			t.Fatalf("用途のテーマがあるのに %q", got)
+		}
+	}
+	if got := pick(map[string]bool{"trip1": true}); got != "bus" {
+		t.Errorf("既出を避けて = %q, want bus", got)
+	}
+	if got := pick(map[string]bool{"trip1": true, "bus": true}); got != "sky" {
+		t.Errorf("用途を出し切ったら = %q, want sky", got)
+	}
+	if got := pick(map[string]bool{"trip1": true, "bus": true, "sky": true}); got != "" {
+		t.Errorf("全部既出なのに %q", got)
+	}
+}
