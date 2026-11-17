@@ -95,6 +95,15 @@ func ApplyFix(orig, fix map[string]any) (sentence.Sentence, error) {
 	return s, CheckFixed(s)
 }
 
+// PoolLabels はプールに書く品詞ラベルの言語。プールは言語によらず日本語のラベルで持ち、
+// free_pool_en だけ英語（corpusbank.go の localizeBanked、cmd/poolretag の -labels）。
+func PoolLabels(tier string, l lang.Lang) lang.Lang {
+	if tier == "free" && l == lang.EN {
+		return lang.EN
+	}
+	return lang.JA
+}
+
 // CheckFixed は手で直した文がプールの1件として崩れていないかを見る。
 // 語の分解をつなげると本文になること、key_word が本文にあること。
 func CheckFixed(s sentence.Sentence) error {

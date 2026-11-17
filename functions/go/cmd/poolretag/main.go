@@ -10,6 +10,7 @@
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolretag -lang ja -skip skip_ja.json -out diff.json
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolretag -lang en -tier free -labels en -skip skip_en.json -write
 //	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolretag -lang ja -lexicon-only -out diff.json   # pos_lexicon.json の語だけ
+//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolretag -lang ja -nonstandard-only -write       # タガーに無いラベルだけ
 package main
 
 import (
@@ -23,6 +24,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -105,7 +107,11 @@ var fixedPOSWords = map[string]bool{
 // retag は pool の品詞を確度の高い語だけ書き換え、変えた語を返す。
 // lexiconOnly なら lexiconWord の語だけを変える。辞書の語の品詞が変わると、隣の ที่・ของ の
 // 文脈判定も連鎖して変わり、その半分ほどが悪くなった（2026-11-16 の抜き取り）。
-func retag(pool []sentence.Sentence, skip map[string]bool, l, labels lang.Lang, lexiconOnly bool) ([]change, error) {
+//
+// タガーに無いラベル（プール確認で入った「文末詞」「受益標識」等）は確度によらず必ずタガーの品詞にする。
+// nonstandardOnly ならそれだけを変える（2026-11-17）。
+// exclude の語は（標準外のラベルを除き）付け直さない。
+func retag(pool []sentence.Sentence, skip, exclude map[string]bool, l, labels lang.Lang, lexiconOnly, nonstandardOnly bool) ([]change, error) {
 	changes := []change{}
 	for n := range pool {
 		s := &pool[n]
@@ -123,7 +129,16 @@ func retag(pool []sentence.Sentence, skip map[string]bool, l, labels lang.Lang, 
 		for i := range s.WordBreakdown {
 			w := &s.WordBreakdown[i]
 			tag, ok := tags[i]
-			if !ok || w.Word == "" {
+			if !thainlp.IsPOSLabel(w.GrammaticalRole) {
+				if !ok || w.Word == "" {
+					tag = "その他"
+				}
+				label := thainlp.LocalizePOS(tag, labels)
+				changes = append(changes, change{s.ThaiText, i, w.Word, w.Meaning, w.GrammaticalRole, label})
+				w.GrammaticalRole = label
+				continue
+			}
+			if !ok || w.Word == "" || nonstandardOnly || exclude[w.Word] {
 				continue
 			}
 			label := thainlp.LocalizePOS(tag, labels)
@@ -157,6 +172,8 @@ func main() {
 	out := flag.String("out", "", "変える語を書き出す JSON")
 	write := flag.Bool("write", false, "GCS へ書き戻す（バックアップを取ってから）")
 	lexiconOnly := flag.Bool("lexicon-only", false, "pos_lexicon.json の語と同綴語だけを付け直す")
+	excludeWords := flag.String("exclude", "", "付け直さない語（カンマ区切り。例: ของ）")
+	nonstandardOnly := flag.Bool("nonstandard-only", false, "タガーに無いラベル（文末詞 等）だけをタガーの品詞にする")
 	flag.Parse()
 
 	l, ok := lang.Parse(*langCode)
@@ -221,7 +238,13 @@ func main() {
 		log.Fatalf("%s は読み書きで内容が変わる（書き戻さない）: %v", name, err)
 	}
 
-	changes, err := retag(pool, skip, l, labelLang, *lexiconOnly)
+	exclude := map[string]bool{}
+	for _, w := range strings.Split(*excludeWords, ",") {
+		if w != "" {
+			exclude[w] = true
+		}
+	}
+	changes, err := retag(pool, skip, exclude, l, labelLang, *lexiconOnly, *nonstandardOnly)
 	if err != nil {
 		log.Fatal(err)
 	}
