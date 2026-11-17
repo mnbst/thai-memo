@@ -728,6 +728,12 @@ functions/go/internal/sentence/reuse.go
 functions/go/internal/sentence/corpusbank.go
 静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す例文バンク（free・premium 共通）。premium は Pick、free は PickUnseen（用途テーマの未出から抽選）で引く。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）。
 
+functions/go/internal/sentence/normalize_pos.go
+word_breakdown のタガーに無い品詞ラベル（文末詞・受益標識 等）をタガーの品詞に置き換える（poolreview apply・poolretag が使う）。
+
+functions/go/internal/sentence/normalize_pos_test.go
+NormalizePOS のテスト（標準外だけ置き換え、標準ラベルは残す、en ラベル）。
+
 functions/go/internal/sentence/corpusbank_test.go
 premium がコーパス・free が従来バンクという分岐、テーマ優先と指定時だけの諦め、キャッシュ汚染防止のテスト。
 

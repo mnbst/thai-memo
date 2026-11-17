@@ -2,6 +2,7 @@ package thainlp
 
 import (
 	"encoding/json"
+	"slices"
 	"sync"
 )
 
@@ -90,7 +91,74 @@ func TagWords(words []string) (map[int]string, error) {
 	tagClassifiers(words, result)
 	tagMonkEat(words, result)
 	tagHomographs(words, result)
+	tagByNeighbors(words, result)
 	return result, nil
+}
+
+// clauseEndTags は直後に来ると前の語が節の終わりになる品詞。
+var clauseEndTags = map[string]bool{"": true, "助詞": true, "副詞": true, "句読点": true}
+
+// demonstratives は直後に来ると รอบ が「回」（名詞）になる語（รอบนี้・รอบหน้า）。
+var demonstratives = map[string]bool{"นี้": true, "นั้น": true, "หน้า": true, "ที่แล้ว": true, "ก่อน": true}
+
+// tagByNeighbors は unigram が1つの品詞に決めている語を、前後の品詞で分ける（2026-11-17 プール確認）。
+//   - กำหนด: ก่อน・ตาม の後は「予定・期限」（名詞）。先に決めて、下の ก่อน の判定に使う
+//   - ช่าง: 形容詞・副詞の前は「なんて〜」（副詞）、ช่างมัน・ช่างเถอะ は動詞、それ以外は「職人」（名詞）。unigram は助動詞にする
+//   - ให้: 名詞・動詞の後で「代名詞＋節の終わり」が続くなら「〜のために」（前置詞）。
+//     使役（สอนให้เรารู้จัก）は代名詞の後に動詞が来るので接続詞のまま
+//   - ถึง: 文頭で後ろに แต่ があれば譲歩「たとえ〜でも」（接続詞）
+//   - ก่อน: 節の終わりなら「先に」（副詞）、名詞の前なら「〜より前に」（前置詞）。動詞の前は接続詞のまま
+//   - รอบ: 指示語の前は「回」（名詞）。unigram は前置詞にする
+//   - ได้: 動詞の後でなく名詞の前なら「得る」（動詞）
+func tagByNeighbors(words []string, result map[int]string) {
+	n := len(words)
+	tagAt := func(i int) string {
+		if i < 0 || i >= n {
+			return ""
+		}
+		return result[i]
+	}
+	for i, w := range words {
+		if w == "กำหนด" && i > 0 && (words[i-1] == "ก่อน" || words[i-1] == "ตาม") {
+			result[i] = "名詞"
+		}
+	}
+	for i, w := range words {
+		prev, next := tagAt(i-1), tagAt(i+1)
+		switch w {
+		case "ช่าง":
+			if i+1 < n && (words[i+1] == "มัน" || words[i+1] == "เถอะ") {
+				result[i] = "動詞" // ช่างมัน・ช่างเถอะ「放っておく」
+			} else if next == "形容詞" || next == "副詞" {
+				result[i] = "副詞"
+			} else {
+				result[i] = "名詞"
+			}
+		case "ให้":
+			if (isNominal(prev) || prev == "動詞") && next == "代名詞" && clauseEndTags[tagAt(i+2)] {
+				result[i] = "前置詞"
+			}
+		case "ถึง":
+			if i == 0 && slices.Contains(words[1:], "แต่") {
+				result[i] = "接続詞"
+			}
+		case "ก่อน":
+			switch {
+			case i > 0 && clauseEndTags[next]:
+				result[i] = "副詞"
+			case isNominal(next):
+				result[i] = "前置詞"
+			}
+		case "รอบ":
+			if i+1 < n && demonstratives[words[i+1]] {
+				result[i] = "名詞"
+			}
+		case "ได้":
+			if prev != "動詞" && prev != "助動詞" && isNominal(next) {
+				result[i] = "動詞"
+			}
+		}
+	}
 }
 
 // numberUnits は数詞の後ろに来る単位・類別詞（หกโมง・หกคน）。
@@ -234,9 +302,9 @@ var khongThingFollowers = map[string]bool{
 	"ที่": true, "ชิ้น": true, "อัน": true, "นี้": true, "นั้น": true, "พวกนี้": true, "พวกนั้น": true,
 }
 
-// thiiClauseHeads は直後の ที่ が節を導く語（ตามที่พี่สอน・ตอนที่แมวอ้อน・ที่ที่คนมาเจอกัน）。
+// thiiClauseHeads は直後の ที่ が節を導く語（ตามที่พี่สอน・ตอนที่แมวอ้อน・ที่ที่คนมาเจอกัน・ก่อนที่จุดจบจะมาถึง）。
 var thiiClauseHeads = map[string]bool{
-	"ตาม": true, "ตอน": true, "ครั้ง": true, "ทุกครั้ง": true, "วัน": true, "เวลา": true, "ที่": true,
+	"ตาม": true, "ตอน": true, "ครั้ง": true, "ทุกครั้ง": true, "วัน": true, "เวลา": true, "ที่": true, "ก่อน": true,
 }
 
 // tagThii は場所を示す ที่（ที่โต๊ะ）を前置詞にする。関係節の ที่ は代名詞のまま残す。
