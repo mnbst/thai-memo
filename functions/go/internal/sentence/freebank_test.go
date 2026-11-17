@@ -125,9 +125,18 @@ func TestFreeBankPickUnseenPreferred(t *testing.T) {
 func TestInterviewGoalTopicSet(t *testing.T) {
 	set := InterviewGoalTopicSet(map[string]any{"interview": map[string]any{"goal": "travel"}})
 	for _, m := range TopicGroups[TravelTopic] {
+		if m == Topics[8] {
+			if set[m] {
+				t.Errorf("travel に天気 %q が残っている", m)
+			}
+			continue
+		}
 		if !set[m] {
 			t.Errorf("travel に %q が無い", m)
 		}
+	}
+	if live := InterviewGoalTopicSet(map[string]any{"interview": map[string]any{"goal": "live"}}); !live[Topics[8]] {
+		t.Error("live から天気が消えた")
 	}
 	if set[TravelTopic] {
 		t.Error("まとめたテーマの名前そのものが残っている")

@@ -43,7 +43,7 @@ type CachedSentences interface {
 	) (*Sentence, error)
 }
 
-// unseenSentences は語に紐づく文を未出のものから順に返すバンク（FreeBank）。
+// unseenSentences は語に紐づく文を未出のものから返すバンク（CorpusBank・FreeBank）。
 // free はこちらで引く。preferred のテーマを先に出すが、在庫は絞らない。
 type unseenSentences interface {
 	PickUnseen(
@@ -108,9 +108,9 @@ func qualityFrom(r CheckResult) *Quality {
 // 通常生成（generateThaiSentence）と毎日配信（deliverDailySentence）の共通経路。
 type Producer struct {
 	Selector WordSelector
-	// Bank は free 例文バンク（GCS）。free のときだけ引く。
+	// Bank は Corpus が無いときだけ引く在庫（テスト用。本番は Corpus のみ）。
 	Bank CachedSentences
-	// Corpus は premium の静的コーパス（GCS）。premium のときだけ引く。
+	// Corpus は静的コーパス＋プール（GCS）。free・premium とも引く。
 	// 当たらない語＝コーパスのランク上限より先へ進んだ人は LLM 生成へ落ちる。
 	Corpus CachedSentences
 	// History は既出例文の取得。nil なら既出を見ない（同じ文が再び出うる）。
@@ -251,13 +251,17 @@ func (p *Producer) produceBatch(
 		maxVocab = &v
 	}
 
-	// 事前生成した例文はティアで出どころが違う。free は従来どおり free
-	// 例文バンク、premium は静的コーパス（設計 §3.4）。どちらも言語ごとの
-	// ファイルで、まだ無ければ空で返るので下の LLM 生成へ落ちる。
+	// 事前生成した例文はティアによらずコーパス（静的コーパス＋プール）から引く。
+	// free も 2026-11-17 に free 例文バンクからこちらへ移した。free バンクは
+	// 下の帯の語に旅行の文が多い代わりに、並び順で同じ文が1本目に並び、
+	// 用途と関係の無い文（天気・家族）も多かった。プールは語あたりの旅行の文が
+	// 2本前後で、free の帯（rank 1〜110）でも足りる。
+	// Corpus が無い構成（テスト）だけ Bank を使う。言語ごとのファイルで、
+	// まだ無ければ空で返るので下の LLM 生成へ落ちる。
 	// CacheOnly（毎日配信の free 経路）でバンクが無ければ配信しない。
-	bank := p.Bank
-	if req.UsePremiumSpec {
-		bank = p.Corpus
+	bank := p.Corpus
+	if bank == nil && !req.UsePremiumSpec {
+		bank = p.Bank
 	}
 	useBank := bank != nil
 	// おまかせのテーマは語に近い上位5テーマからの抽選で、コーパスの

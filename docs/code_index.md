@@ -726,7 +726,7 @@ functions/go/internal/sentence/reuse.go
 未出語だけで例文を作る版（UsesUnseenOnly）で、最低2本に足りないぶんを本人の既出例文（帯の既出語を P の小さい順）で埋める。LLM を呼ばない。出し直しは新しい doc を作り、同じ本文の元 doc に削除印を付けて置き換える（配信は読まれてから）。
 
 functions/go/internal/sentence/corpusbank.go
-静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
+静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す例文バンク（free・premium 共通）。premium は Pick、free は PickUnseen（用途テーマの未出から抽選）で引く。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）。
 
 functions/go/internal/sentence/corpusbank_test.go
 premium がコーパス・free が従来バンクという分岐、テーマ優先と指定時だけの諦め、キャッシュ汚染防止のテスト。
@@ -1173,7 +1173,7 @@ functions/go/internal/uvm/graded_test.go
 IsGradedResult（採点区分）・ResultEvidence・UpdateP の向き（正解で上がり不正解で下がる）と、evidence を持たない既存 doc の移行のテスト。
 
 functions/go/internal/sentence/freebank.go
-free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、ヒアリングの用途に合うテーマを先に）で引き、出し切った語だけ LLM へ落とす。
+（2026-11-17 から本番では未使用。free も CorpusBank から引く）free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、ヒアリングの用途に合うテーマを先に）で引き、出し切った語だけ LLM へ落とす。
 
 functions/go/internal/sentence/freebank_test.go
 free例文バンクの抽選（テーマ一致の優先・在庫の無いテーマの扱い）のテスト。

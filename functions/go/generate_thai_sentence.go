@@ -742,8 +742,8 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 			Groups:  shots,
 			Scenes:  shots,
 		},
-		Bank: &sentence.FreeBank{ProjectID: fbapp.ProjectID()},
-		// premium は静的コーパスから出す。無い語だけ Service（LLM）へ落ちる。
+		// free・premium とも静的コーパス＋プールから出す。無い語だけ Service（LLM）へ落ちる。
+		// free 例文バンク（FreeBank）は 2026-11-17 に使うのをやめた。
 		Corpus: &sentence.CorpusBank{ProjectID: fbapp.ProjectID()},
 		// バンクの在庫が既出だった語も LLM 生成へ落とす（同じ文を二度出さない）。
 		History: &sentence.FirestoreHistory{},
