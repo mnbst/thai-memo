@@ -1133,6 +1133,10 @@ class L10nKo extends L10n {
   String get interviewHaveAccount => '이미 계정이 있나요?';
 
   @override
+  String get interviewNoExistingAccount =>
+      '이 계정의 이용 기록을 찾지 못했어요. 처음이라면 「시작」을 눌러 주세요(로그인은 나중에 설정에서도 할 수 있어요).';
+
+  @override
   String get interviewIntroStart => '시작';
 
   @override

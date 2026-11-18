@@ -1129,6 +1129,10 @@ class L10nJa extends L10n {
   String get interviewHaveAccount => 'アカウントをお持ちの方はこちら';
 
   @override
+  String get interviewNoExistingAccount =>
+      'このアカウントでの利用記録が見つかりませんでした。初めての方は「はじめる」から進めてください（サインインはあとから設定でもできます）';
+
+  @override
   String get interviewIntroStart => 'はじめる';
 
   @override

@@ -680,6 +680,7 @@
   "interviewIntroTitle": "4つ質問させてください",
   "interviewIntroBody": "答えに合わせて、このアプリの学び方をお伝えします。すぐ終わります。",
   "interviewHaveAccount": "アカウントをお持ちの方はこちら",
+  "interviewNoExistingAccount": "このアカウントでの利用記録が見つかりませんでした。初めての方は「はじめる」から進めてください（サインインはあとから設定でもできます）",
   "interviewIntroStart": "はじめる",
   "interviewStepLabel": "{current} / {total}",
   "@interviewStepLabel": {
