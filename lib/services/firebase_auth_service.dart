@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../core/config/app_config.dart';
+import '../core/config/firebase_config.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// Service for managing Firebase Authentication
@@ -88,6 +90,74 @@ class FirebaseAuthService {
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
       rethrow;
+    }
+  }
+
+  /// 既存アカウントにだけ Apple でサインインする（初回画面の「アカウントをお持ちの方」）。
+  ///
+  /// Firebase に credential を渡す前にサーバーで登録済みかを確かめ、未登録なら
+  /// アカウントを作らずに [NoExistingAccountException] を投げる。今の匿名ユーザーには触らない。
+  /// キャンセルなら null。
+  Future<User?> signInExistingWithApple() async {
+    final rawNonce = _generateNonce();
+    final AuthorizationCredentialAppleID appleCredential;
+    try {
+      appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [],
+        nonce: _sha256ofString(rawNonce),
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) return null;
+      rethrow;
+    }
+    final idToken = appleCredential.identityToken;
+    if (idToken == null) {
+      throw FirebaseAuthServiceException('Apple の ID トークンがありません');
+    }
+    await _requireExistingAccount('apple', idToken);
+    final credential = OAuthProvider('apple.com').credential(
+      idToken: idToken,
+      rawNonce: rawNonce,
+      accessToken: appleCredential.authorizationCode,
+    );
+    return authenticateWithCredential(credential, link: false);
+  }
+
+  /// 既存アカウントにだけ Google でサインインする。考え方は [signInExistingWithApple]。
+  /// キャンセルなら null。
+  Future<User?> signInExistingWithGoogle() async {
+    try {
+      await _ensureGoogleSignInInitialized();
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final idToken = googleUser.authentication.idToken;
+      if (idToken == null) {
+        throw FirebaseAuthServiceException('Google の ID トークンがありません');
+      }
+      try {
+        await _requireExistingAccount('google', idToken);
+      } on NoExistingAccountException {
+        // 次に別の Google アカウントを選べるよう、端末側の選択を外しておく。
+        await GoogleSignIn.instance.signOut();
+        rethrow;
+      }
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
+      return await authenticateWithCredential(credential, link: false);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      rethrow;
+    }
+  }
+
+  /// ID トークンの持ち主がアカウントを持っているかをサーバーに問い合わせる。
+  Future<void> _requireExistingAccount(String provider, String idToken) async {
+    final result = await FirebaseFunctions.instanceFor(
+      region: FirebaseConfig.functionsRegion,
+    )
+        .httpsCallable(FirebaseConfig.checkAccountExistsFunctionName)
+        .call<Object?>({'provider': provider, 'idToken': idToken});
+    final data = result.data;
+    if (data is! Map || data['exists'] != true) {
+      throw const NoExistingAccountException();
     }
   }
 
@@ -185,12 +255,6 @@ class FirebaseAuthService {
     }
   }
 
-  /// サインイン直後に作られたばかりのアカウントを消す（再認証しない）。
-  /// 消えると起動時の流れで新しい匿名ユーザーが作り直される。
-  Future<void> discardFreshAccount() async {
-    await _auth.currentUser?.delete();
-  }
-
   /// Delete account (re-authenticates before deletion)
   Future<void> deleteAccount() async {
     try {
@@ -277,4 +341,9 @@ class FirebaseAuthServiceException implements Exception {
 
   @override
   String toString() => 'FirebaseAuthServiceException: $message';
+}
+
+/// 既存アカウント用の入口で、そのアカウントがまだ登録されていなかった。
+class NoExistingAccountException implements Exception {
+  const NoExistingAccountException();
 }

@@ -812,6 +812,9 @@ deleteUserFirestoreData の Go 版。ユーザーのFirestoreデータ（サブ�
 functions/go/closed_tester.go
 クローズドテストのテスター特典（callable claimClosedTesterTrial）。公開前の Android アプリ（App Check で判定）か closed_testers/{メール} に載った人へ、14日のプレミアム体験と closed_tester 印を一度だけ付ける。
 
+functions/go/check_account_exists.go
+callable checkAccountExists。Apple/Google の ID トークンを検証し、その持ち主がアカウントを持つかを返す（初回画面の「アカウントをお持ちの方」で、作らずに確かめる）。
+
 functions/go/lifetime.go
 買い切り（購入・無償移行）の権利をどう残し、どう剥がすかの集約。期限切れで落とさない判定（keepPremiumForLifetime）、剥がすときの更新内容（tier・印・クォータを必ず一緒に動かす）、返金通知用キーの埋め戻し、旧データ向け subscription_owners フォールバック。
 
