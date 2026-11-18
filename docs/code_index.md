@@ -222,6 +222,9 @@ test/screenshots/tips_quiz_mock_app.dart
 test/screenshots/notif_coach_mock_app.dart
 通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
 
+test/screenshots/first_set_notif_mock_app.dart
+初回まとめクイズ後の「次のセットへ」→ペイウォール→閉じて読み込み中に通知の案内、の流れを確かめるモック（flutter run -t、プレミアム切替あり）。
+
 test/screenshots/review_notify_mock_app.dart
 通知を1日に複数回設定するUI案（アラーム風の3枠固定・トグルで出し入れと届く通知）をシミュレーターで触るモック（flutter run -t）。
 
