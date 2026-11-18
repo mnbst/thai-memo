@@ -4,9 +4,9 @@
     {
       "id": "01_today",
       "screen": "学習タブ（今日の例文）。例文カードと学習単語が見える状態",
-      "ja": "タイ語が読めなくても\n**今日から学べる**",
-      "en": "Can't read Thai yet?\n**Start today**",
-      "ko": "태국어를 못 읽어도\n**오늘부터 시작**",
+      "ja": "タイ語を知らなくても\n**今日から読める**",
+      "en": "New to Thai?\n**Start reading today**",
+      "ko": "태국어를 몰라도\n**오늘부터 읽을 수 있어요**",
       "zoom": {
         "iphone": [
           0.03,
