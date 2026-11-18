@@ -544,6 +544,7 @@
   "interviewIntroTitle": "Four quick questions",
   "interviewIntroBody": "Answer four questions for personalized learning tips.",
   "interviewHaveAccount": "Have an account? Sign in",
+  "interviewNoExistingAccount": "We couldn't find any history for this account. If you're new, tap Start to begin (you can sign in later in Settings).",
   "interviewIntroStart": "Start",
   "interviewStepLabel": "{current} / {total}",
   "@interviewStepLabel": {

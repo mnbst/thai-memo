@@ -227,6 +227,16 @@ class AuthController extends StateNotifier<AuthState> {
     if (switched) _onAccountSwitched();
   }
 
+  /// サインイン直後に作られたばかりのアカウントを取り消す（初回画面の
+  /// 「アカウントをお持ちの方」で、利用記録のない新規だったとき）。
+  Future<void> discardFreshAccount() async {
+    try {
+      await _authService.discardFreshAccount();
+    } finally {
+      state = AuthState.fromService(_authService);
+    }
+  }
+
   Future<String?> deleteAccount() async {
     state = state.copyWith(isLoading: true);
     try {

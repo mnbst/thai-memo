@@ -185,6 +185,12 @@ class FirebaseAuthService {
     }
   }
 
+  /// サインイン直後に作られたばかりのアカウントを消す（再認証しない）。
+  /// 消えると起動時の流れで新しい匿名ユーザーが作り直される。
+  Future<void> discardFreshAccount() async {
+    await _auth.currentUser?.delete();
+  }
+
   /// Delete account (re-authenticates before deletion)
   Future<void> deleteAccount() async {
     try {
