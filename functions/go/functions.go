@@ -44,6 +44,7 @@ func init() {
 	registerCallable("startVocabTest", limitUnverified("startVocabTest", startVocabTest))
 	registerCallable("submitVocabTest", submitVocabTest)
 	registerCallable("claimClosedTesterTrial", claimClosedTesterTrial)
+	registerCallable("checkAccountExists", checkAccountExists)
 	// Cloud TTS を呼ぶので LLM と同じく未検証の呼び出しを絞る。
 	registerCallable("getSentenceAudio", limitUnverified("getSentenceAudio", getSentenceAudio))
 
