@@ -39,12 +39,17 @@ class InterviewScreen extends ConsumerStatefulWidget {
     super.key,
     required this.onComplete,
     this.onExistingAccount,
+    this.onNoExistingAccount,
   });
 
   final VoidCallback onComplete;
 
   /// 前置きから既存アカウントにサインインして抜けたとき。null なら入口を出さない。
   final VoidCallback? onExistingAccount;
+
+  /// 前置きからサインインしたが、利用記録のない新規アカウントだったとき。
+  /// 呼び出し側で画面を閉じ、作られたアカウントを取り消す。
+  final VoidCallback? onNoExistingAccount;
 
   @override
   ConsumerState<InterviewScreen> createState() => _InterviewScreenState();
@@ -222,13 +227,19 @@ class _InterviewScreenState extends ConsumerState<InterviewScreen> {
   /// 新しい端末は匿名で始まるので、ここで入らないと、ヒアリングと語彙テストを
   /// 捨てアカウントでやり直し、そのあいだの学習もサインイン時に捨てることになる。
   /// uid が変わったときだけ既存アカウントとみなす。変わらなければ（匿名を
-  /// そのまま昇格した＝新規）、ふつうにヒアリングを続ける。
+  /// そのまま昇格した＝利用記録のない新規）、ここは既存アカウント用の入口なので
+  /// 昇格を取り消してエラーを出す（[onNoExistingAccount]）。何も言わずに
+  /// 導入画面へ留めると、サインインしたのに入口へ戻されたように見える（審査で却下）。
   Future<void> _signInExisting() async {
     final before = FirebaseAuthService.instance.currentUser?.uid;
     final signedIn = await showSignInSheet(context);
     if (!mounted || !signedIn) return;
     final after = FirebaseAuthService.instance.currentUser?.uid;
-    if (after != null && after != before) widget.onExistingAccount?.call();
+    if (after != null && after != before) {
+      widget.onExistingAccount?.call();
+    } else {
+      widget.onNoExistingAccount?.call();
+    }
   }
 
   Future<void> _complete() async {

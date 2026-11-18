@@ -2061,6 +2061,12 @@ abstract class L10n {
   /// **'アカウントをお持ちの方はこちら'**
   String get interviewHaveAccount;
 
+  /// No description provided for @interviewNoExistingAccount.
+  ///
+  /// In ja, this message translates to:
+  /// **'このアカウントでの利用記録が見つかりませんでした。初めての方は「はじめる」から進めてください（サインインはあとから設定でもできます）'**
+  String get interviewNoExistingAccount;
+
   /// No description provided for @interviewIntroStart.
   ///
   /// In ja, this message translates to:

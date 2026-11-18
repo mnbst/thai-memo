@@ -1194,6 +1194,10 @@ class L10nEn extends L10n {
   String get interviewHaveAccount => 'Have an account? Sign in';
 
   @override
+  String get interviewNoExistingAccount =>
+      'We couldn\'t find any history for this account. If you\'re new, tap Start to begin (you can sign in later in Settings).';
+
+  @override
   String get interviewIntroStart => 'Start';
 
   @override
