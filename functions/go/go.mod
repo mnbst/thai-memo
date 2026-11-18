@@ -10,6 +10,7 @@ require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
 	github.com/cloudevents/sdk-go/v2 v2.15.2
 	github.com/dlclark/regexp2 v1.12.0
+	github.com/go-jose/go-jose/v4 v4.1.4
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/text v0.43.0
 	google.golang.org/api v0.287.1
@@ -36,7 +37,6 @@ require (
 	github.com/envoyproxy/go-control-plane/envoy v1.39.1-0.20260819172001-e6e3fd93e4be // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect

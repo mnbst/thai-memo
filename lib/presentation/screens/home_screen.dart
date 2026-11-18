@@ -525,7 +525,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     if (isFirstLaunch) {
       var existingAccount = false;
-      var noExistingAccount = false;
       if (mounted) {
         // まずヒアリング。本人の状況を聞いてから説明書・語彙テストへ入る。
         // 前置きの1枚から既存アカウントにも入れる。
@@ -539,33 +538,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 existingAccount = true;
                 Navigator.pop(context);
               },
-              onNoExistingAccount: () {
-                noExistingAccount = true;
-                Navigator.pop(context);
-              },
             ),
           ),
         );
-      }
-      // 「アカウントをお持ちの方」で入ったのに利用記録のない新規だった。
-      // 匿名の昇格を取り消して知らせる。取り消しは unlink でなく削除で行う
-      // （iOS の SDK は unlink 後も isAnonymous を true に戻さず、次のサインインが
-      // 昇格でなく切り替えになる）。削除で認証が外れるとこの画面は作り直され、
-      // 新しい匿名ユーザーでヒアリングの入口から始まる。ヒアリング画面を先に
-      // 閉じておかないと、作り直しで積まれる新しい画面の下に残る。
-      if (noExistingAccount) {
-        if (!mounted) return;
-        final messenger = ScaffoldMessenger.of(context);
-        final message = L10n.of(context).interviewNoExistingAccount;
-        try {
-          await ref.read(authControllerProvider.notifier).discardFreshAccount();
-        } catch (e) {
-          debugPrint('新規アカウントの取り消しに失敗: $e');
-        }
-        messenger.showSnackBar(
-          SnackBar(content: Text(message), duration: const Duration(seconds: 8)),
-        );
-        return;
       }
       // 別の端末で使っていたアカウントで入った人は、ヒアリング・語彙テストを
       // 済ませている。続きはクラウドから戻す（_loadTodaySentence）。

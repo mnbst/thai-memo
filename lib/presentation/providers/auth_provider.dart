@@ -51,6 +51,9 @@ class AuthState {
   }
 }
 
+/// 既存アカウントへのサインイン（[AuthController.signInExisting]）の結果。
+enum ExistingSignInResult { signedIn, noAccount, cancelled, failed }
+
 // ==================== Auth Controller ====================
 
 class AuthController extends StateNotifier<AuthState> {
@@ -127,6 +130,28 @@ class AuthController extends StateNotifier<AuthState> {
     } catch (e) {
       state = AuthState.fromService(_authService);
       return _l10n().errAppleSignInFailed;
+    }
+  }
+
+  /// 既存アカウントにだけサインインする（初回画面の「アカウントをお持ちの方」）。
+  /// 未登録ならアカウントを作らずに [ExistingSignInResult.noAccount]。
+  Future<ExistingSignInResult> signInExisting({required bool apple}) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final previousUid = _authService.currentUser?.uid;
+      final user = apple
+          ? await _authService.signInExistingWithApple()
+          : await _authService.signInExistingWithGoogle();
+      if (user == null) return ExistingSignInResult.cancelled;
+      await syncLocalDataOwner(previousUid: previousUid);
+      return ExistingSignInResult.signedIn;
+    } on NoExistingAccountException {
+      return ExistingSignInResult.noAccount;
+    } catch (e) {
+      debugPrint('auth failed: $e');
+      return ExistingSignInResult.failed;
+    } finally {
+      state = AuthState.fromService(_authService);
     }
   }
 
@@ -225,16 +250,6 @@ class AuthController extends StateNotifier<AuthState> {
     }
     await _writeDataOwner(uid);
     if (switched) _onAccountSwitched();
-  }
-
-  /// サインイン直後に作られたばかりのアカウントを取り消す（初回画面の
-  /// 「アカウントをお持ちの方」で、利用記録のない新規だったとき）。
-  Future<void> discardFreshAccount() async {
-    try {
-      await _authService.discardFreshAccount();
-    } finally {
-      state = AuthState.fromService(_authService);
-    }
   }
 
   Future<String?> deleteAccount() async {

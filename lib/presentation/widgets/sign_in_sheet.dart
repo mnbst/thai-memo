@@ -16,10 +16,14 @@ import '../providers/subscription_provider.dart';
 /// 匿名ユーザーの場合は `linkWith*`（uid・データ保持の昇格）を、
 /// それ以外は通常の `signInWith*` を呼ぶ。
 /// サインイン（昇格）に成功すると `true` を返す。キャンセル時は `false`。
+///
+/// [existingOnly] は既存アカウント専用（初回画面の「アカウントをお持ちの方」）。
+/// 未登録のアカウントは作らず、シートを閉じて利用記録が無い旨を出す。
 Future<bool> showSignInSheet(
   BuildContext context, {
   String? title,
   String? message,
+  bool existingOnly = false,
 }) async {
   final l10n = L10n.of(context);
   final result = await showModalBottomSheet<bool>(
@@ -29,16 +33,22 @@ Future<bool> showSignInSheet(
     builder: (_) => _SignInSheet(
       title: title ?? l10n.signIn,
       message: message ?? l10n.signInSheetMessage,
+      existingOnly: existingOnly,
     ),
   );
   return result ?? false;
 }
 
 class _SignInSheet extends ConsumerWidget {
-  const _SignInSheet({required this.title, required this.message});
+  const _SignInSheet({
+    required this.title,
+    required this.message,
+    required this.existingOnly,
+  });
 
   final String title;
   final String message;
+  final bool existingOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -125,6 +135,10 @@ class _SignInSheet extends ConsumerWidget {
     required bool apple,
   }) async {
     final notifier = ref.read(authControllerProvider.notifier);
+    if (existingOnly) {
+      await _authenticateExisting(context, notifier, apple: apple);
+      return;
+    }
     final isAnonymous =
         FirebaseAuthService.instance.currentUser?.isAnonymous ?? true;
 
@@ -141,6 +155,41 @@ class _SignInSheet extends ConsumerWidget {
 
     if (!context.mounted) return;
     _finish(context, ref, error);
+  }
+
+  Future<void> _authenticateExisting(
+    BuildContext context,
+    AuthController notifier, {
+    required bool apple,
+  }) async {
+    final l10n = L10n.of(context);
+    final result = await notifier.signInExisting(apple: apple);
+    if (!context.mounted) return;
+    switch (result) {
+      case ExistingSignInResult.signedIn:
+        Navigator.pop(context, true);
+      case ExistingSignInResult.noAccount:
+        // シートを閉じ、下の画面（初回の導入画面）の上で知らせる。
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.pop(context, false);
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(l10n.interviewNoExistingAccount),
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      case ExistingSignInResult.cancelled:
+        break;
+      case ExistingSignInResult.failed:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              apple ? l10n.errAppleSignInFailed : l10n.errGoogleSignInFailed,
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+    }
   }
 
   void _finish(BuildContext context, WidgetRef ref, String? error) {
