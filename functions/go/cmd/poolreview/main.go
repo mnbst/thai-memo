@@ -160,6 +160,7 @@ func runApply(ctx context.Context, project string, args []string) error {
 	byPool := map[string][]sentence.Sentence{}
 	var okSnaps, ngSnaps []*firestore.DocumentSnapshot
 	fixed := map[string]map[string]any{}
+	normalized := 0
 	for _, id := range dec.OK {
 		snap, err := pending(id)
 		if err != nil {
@@ -180,6 +181,12 @@ func runApply(ctx context.Context, project string, args []string) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", id, err)
 		}
+		// 直しに混じったタガーに無い品詞（文末詞・受益標識 等）はタガーの品詞に揃える。
+		n, err := sentence.NormalizePOS(&s, poolreview.PoolLabels(it.Tier, l))
+		if err != nil {
+			return fmt.Errorf("%s: %w", id, err)
+		}
+		normalized += n
 		if dec.Fix[id] != nil {
 			// Sentence は json タグしか持たないので、Firestore へは JSON の形の map で書く。
 			b, _ := json.Marshal(s)
@@ -206,6 +213,7 @@ func runApply(ctx context.Context, project string, args []string) error {
 		log.Printf("ok: %s +%d", name, len(ss))
 	}
 	log.Printf("fixed: %d", len(fixed))
+	log.Printf("pos normalized: %d 語", normalized)
 	log.Printf("ng: %d", len(ngSnaps))
 	if !*write {
 		log.Print("dry run（-write で書く）")

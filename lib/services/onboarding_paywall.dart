@@ -33,17 +33,22 @@ Future<void> markOnboardingPaywallPending() async {
 
 /// まとめクイズの「次のセットへ」で呼ぶ。保留があれば一度だけ出す。
 /// プレミアム（体験中・テスター含む）には出さず、保留だけ消す。
-Future<void> maybeShowOnboardingPaywall(
+///
+/// 保留を消費したとき（＝初回のまとめクイズのあと）は true を返す。
+/// プレミアムでペイウォールを飛ばした場合も true。呼び出し側はこの場面で
+/// 通知の案内を出す。
+Future<bool> maybeShowOnboardingPaywall(
   BuildContext context,
   WidgetRef ref,
 ) async {
   final prefs = await SharedPreferences.getInstance();
-  if (!(prefs.getBool(_pendingKey) ?? false)) return;
+  if (!(prefs.getBool(_pendingKey) ?? false)) return false;
   await prefs.remove(_pendingKey);
-  if (!context.mounted || ref.read(effectivePremiumProvider)) return;
+  if (!context.mounted) return false;
+  if (ref.read(effectivePremiumProvider)) return true;
 
   final gain = await summaryQuizVocabGain(ref);
-  if (!context.mounted) return;
+  if (!context.mounted) return true;
   final l10n = L10n.of(context);
   const progress = OnboardingProgressReporter();
   unawaited(progress.mark('paywall_open'));
@@ -53,4 +58,5 @@ Future<void> maybeShowOnboardingPaywall(
     lead: gain > 0 ? l10n.paywallLeadScoreUp(gain) : l10n.paywallLeadFirstSet,
   );
   unawaited(progress.mark('paywall_done'));
+  return true;
 }

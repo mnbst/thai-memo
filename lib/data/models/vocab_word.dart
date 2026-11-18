@@ -74,10 +74,14 @@ class VocabProgressPage {
   final String? nextCursor;
   final bool done;
 
+  /// まとめクイズのスコア枠（low〜high）。旧サーバーは返さないので null。
+  final (int, int)? quizBand;
+
   const VocabProgressPage({
     required this.words,
     required this.nextCursor,
     required this.done,
+    this.quizBand,
   });
 
   factory VocabProgressPage.fromMap(Map<String, dynamic> map) =>
@@ -88,7 +92,15 @@ class VocabProgressPage {
             .toList(),
         nextCursor: map['next_cursor'] as String?,
         done: map['done'] != false,
+        quizBand: _parseBand(map['quiz_band']),
       );
+
+  static (int, int)? _parseBand(Object? raw) {
+    if (raw is! Map) return null;
+    final low = raw['low'], high = raw['high'];
+    if (low is! num || high is! num) return null;
+    return (low.toInt(), high.toInt());
+  }
 }
 
 /// 一覧の1行。習熟度に、端末の例文から引いた発音・意味・例文を足したもの。

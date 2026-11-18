@@ -35,7 +35,6 @@ import '../widgets/premium_trial_ended_dialog.dart';
 import '../widgets/premium_trial_started_dialog.dart';
 import 'vocab_history_screen.dart';
 import 'interview_screen.dart';
-import '../widgets/notification_coach_dialog.dart';
 import 'quick_guide_screen.dart';
 import 'vocab_test_screen.dart';
 import 'paywall_screen.dart';
@@ -808,22 +807,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // IndexedStack は他タブを破棄しないため、再生中の例文が
     // 鳴り続けてしまう。タブを離れたら明示的に止める。
     unawaited(ref.read(ttsServiceProvider).stopAll());
-    final openingSettings = index == 2 && _currentIndex != 2;
     setState(() {
       _currentIndex = index;
     });
     _logCurrentTabScreen(index: index);
-    // 通知の案内は設定タブを開いたときに出す（端末につき1度。断った人への
-    // 再案内はリリースごと）。まとめクイズのあとは初回のペイウォールを出すので、
-    // お願いを続けて重ねない。
-    if (openingSettings) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _currentIndex != 2) return;
-        unawaited(
-          maybeShowNotificationCoach(context, ref, trigger: 'settings_tab'),
-        );
-      });
-    }
   }
 
   void _logCurrentTabScreen({int? index}) {

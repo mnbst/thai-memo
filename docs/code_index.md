@@ -222,6 +222,9 @@ test/screenshots/tips_quiz_mock_app.dart
 test/screenshots/notif_coach_mock_app.dart
 通知の初回ダイアログ（NotificationCoachDialog）を Firebase なしでシミュレーターに出す文言確認用モック（flutter run -t、ja/en 切替）。
 
+test/screenshots/first_set_notif_mock_app.dart
+初回まとめクイズ後の「次のセットへ」→ペイウォール→閉じて読み込み中に通知の案内、の流れを確かめるモック（flutter run -t、プレミアム切替あり）。
+
 test/screenshots/review_notify_mock_app.dart
 通知を1日に複数回設定するUI案（アラーム風の3枠固定・トグルで出し入れと届く通知）をシミュレーターで触るモック（flutter run -t）。
 
@@ -726,7 +729,13 @@ functions/go/internal/sentence/reuse.go
 未出語だけで例文を作る版（UsesUnseenOnly）で、最低2本に足りないぶんを本人の既出例文（帯の既出語を P の小さい順）で埋める。LLM を呼ばない。出し直しは新しい doc を作り、同じ本文の元 doc に削除印を付けて置き換える（配信は読まれてから）。
 
 functions/go/internal/sentence/corpusbank.go
-静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す premium 用の例文バンク。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）（free は従来どおり FreeBank）。
+静的コーパス（GCS: corpus_sentences_<lang>.json）と運用中に貯めた例文プール（corpus_pool_<lang>.json）を key_word で索いて返す例文バンク（free・premium 共通）。premium は Pick、free は PickUnseen（用途テーマの未出から抽選）で引く。当たらない語と、ユーザー指定テーマの在庫が無い語が LLM 生成へ落ちる（おまかせは別テーマの在庫で埋める）。
+
+functions/go/internal/sentence/normalize_pos.go
+word_breakdown のタガーに無い品詞ラベル（文末詞・受益標識 等）をタガーの品詞に置き換える（poolreview apply・poolretag が使う）。
+
+functions/go/internal/sentence/normalize_pos_test.go
+NormalizePOS のテスト（標準外だけ置き換え、標準ラベルは残す、en ラベル）。
 
 functions/go/internal/sentence/corpusbank_test.go
 premium がコーパス・free が従来バンクという分岐、テーマ優先と指定時だけの諦め、キャッシュ汚染防止のテスト。
@@ -1173,7 +1182,7 @@ functions/go/internal/uvm/graded_test.go
 IsGradedResult（採点区分）・ResultEvidence・UpdateP の向き（正解で上がり不正解で下がる）と、evidence を持たない既存 doc の移行のテスト。
 
 functions/go/internal/sentence/freebank.go
-free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、ヒアリングの用途に合うテーマを先に）で引き、出し切った語だけ LLM へ落とす。
+（2026-11-17 から本番では未使用。free も CorpusBank から引く）free例文バンク（GCS）と free プール（free_pool_<lang>.json）の読み込みとキャッシュ、target_word一致の抽選。free の生成は PickUnseen（語に紐づく文を並び順で未出から、ヒアリングの用途に合うテーマを先に）で引き、出し切った語だけ LLM へ落とす。
 
 functions/go/internal/sentence/freebank_test.go
 free例文バンクの抽選（テーマ一致の優先・在庫の無いテーマの扱い）のテスト。

@@ -62,6 +62,23 @@ func LocalizePOS(label string, l lang.Lang) string {
 	return label
 }
 
+// IsPOSLabel はタガーが出すラベル（日本語か、その en / ko 訳）か。
+// プール確認で LLM が直した分解には「文末詞」「受益標識」等のタガーに無いラベルが混じる。
+// LocalizePOS はそれを訳せないので、en / ko のユーザーに日本語のまま出てしまう。
+func IsPOSLabel(label string) bool {
+	if _, ok := posLabelEN[label]; ok {
+		return true
+	}
+	for _, m := range posLabels {
+		for _, v := range m {
+			if v == label {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // EnrichWord は 1 語ぶんの NLP 結果。
 type EnrichWord struct {
 	Syllables       []string

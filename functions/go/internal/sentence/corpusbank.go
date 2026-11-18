@@ -132,6 +132,46 @@ func (b *CorpusBank) Pick(
 	return &picked, nil
 }
 
+// PickUnseen は target_word の未出（seen に無い）の文を1件返す。free はこちらで引く。
+// preferred（ヒアリングの用途から広げたテーマ）に当たる未出の文から一様に選び、
+// 無ければ別テーマの未出から選ぶ。全部既出か、語の文が無ければ nil
+// （呼び出し側が LLM で作るか、毎日配信なら語を引き直す）。
+//
+// FreeBank.PickUnseen は並び順の先頭から出していたので、同じ語を引いた人の
+// 1本目がみな同じ文になっていた。プールは語あたりの本数が多いので抽選にする。
+// コーパスのテーマは言語によらず日本語ラベルなので、preferred をそのまま当てる。
+func (b *CorpusBank) PickUnseen(
+	ctx context.Context, targetWord string, l lang.Lang, seen map[string]bool,
+	preferred map[string]bool,
+) (*Sentence, string, error) {
+	index, err := b.Load(ctx, l)
+	if err != nil {
+		return nil, "", err
+	}
+	var want, other []Sentence
+	for _, s := range index[targetWord] {
+		if seen[s.ThaiText] {
+			continue
+		}
+		if t, _ := s.Context["topic"].(string); preferred[t] {
+			want = append(want, s)
+		} else {
+			other = append(other, s)
+		}
+	}
+	candidates := want
+	if len(candidates) == 0 {
+		candidates = other
+	}
+	if len(candidates) == 0 {
+		return nil, "", nil
+	}
+	picked := candidates[b.intn(len(candidates))]
+	topic, _ := picked.Context["topic"].(string)
+	localizeBanked(&picked, l)
+	return &picked, topic, nil
+}
+
 // localizeBanked はバンクから引いた文をコピーし、軸ラベルと品詞を訳文の言語に合わせる。
 //
 // バンクの文は言語によらず日本語のラベル（topic・style・grammatical_role）で

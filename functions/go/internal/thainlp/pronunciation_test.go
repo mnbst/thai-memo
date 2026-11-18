@@ -101,6 +101,34 @@ func TestPronunciationOverrides(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"เพล", "pheen"},
 		{"คลิป", "khlíp"},
+		{"สมาธิ", "sà-maa-thí"},
+		{"สเปรย์", "sà-pree"},
+		// 語頭の ส を sà と読む綴り（reSaCluster）
+		{"สตรีม", "sà-triim"},
+		{"สตรี", "sà-trii"},
+		{"สตอรี่", "sà-tɔɔ-rîi"},
+		{"สกอร์", "sà-kɔɔ"},
+		{"สปอนเซอร์", "sà-pɔɔn-sə̂ə"},
+		{"พีช", "phíit"},
+		{"ทริป", "thríp"},
+		{"ลิขสิทธิ์", "lík-khà-sìt"},
+		// 語の一部（pronunciationParts）
+		{"ไลฟ์สตรีม", "lái-sà-triim"},
+		{"เทศกาลสงกรานต์", "thêet-sà-kaan-sǒng-kraan"},
+		{"คลิปนี้", "khlíp-níi"},
+		// 他の語の中で読みが変わる綴りは変えない
+		{"เขมร", "khà-měen"},
+		// 数字
+		{"2", "sɔ̌ɔng"},
+		{"21", "yîi-sìp-èt"},
+		{"5,000", "hâa-phan"},
+		{"๒๕", "yîi-sìp-hâa"},
+		{"1.5", "nʉ̀ng-jùt-hâa"},
+		{"ชั้น2", "chán-sɔ̌ɔng"},
+		{"สัก 1 จาน", "sàk nʉ̀ng jaan"},
+		// 閉じた音節の ส は変えない
+		{"สบอารมณ์", "sòp-aa-rom"},
+		{"สด", "sòt"},
 	}
 	for _, c := range cases {
 		got, err := ThaiToPronunciation(c.in)

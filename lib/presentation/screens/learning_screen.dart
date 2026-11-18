@@ -11,6 +11,7 @@ import '../providers/quiz_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../services/learning_progress_store.dart';
 import '../../services/onboarding_paywall.dart';
+import '../widgets/notification_coach_dialog.dart';
 import '../providers/review_prompt_provider.dart';
 import 'quiz_screen.dart';
 import 'today_screen.dart';
@@ -180,6 +181,9 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
   /// 配信セットに残りがあれば、そこから出すだけで生成しない（クォータもLLMも
   /// 消費しない）。使い切ったら従来どおり生成へ落ちる。テーマの適用可否・
   /// トライアル消費は controller 側で判定する。
+  /// まとめクイズの「次のセットへ」を処理中か。
+  bool _advancingToNextSet = false;
+
   Future<void> _proceedToNextSentence() async {
     final set = ref.read(dailySetProvider);
     final current = set.current;
@@ -314,10 +318,34 @@ class LearningScreenState extends ConsumerState<LearningScreen> {
             // 「次の例文へ」だと1本だけ足すように読めるので名前を分ける。
             nextButtonLabel: l10n.learnNextSet,
             onNextSentence: () async {
-              // 初回だけ、次のセットへ進む前にペイウォールを挟む。
-              await maybeShowOnboardingPaywall(context, ref);
-              if (!mounted) return;
-              await _proceedToNextSentence();
+              // 処理中はボタンが押せたままなので、二度押しで次のセットへ
+              // 二回進んだり、ペイウォールの裏でセットが変わったりしないようにする。
+              if (_advancingToNextSet) return;
+              _advancingToNextSet = true;
+              try {
+                // 初回だけ、次のセットへ進む前にペイウォールを挟む。
+                final firstSet =
+                    await maybeShowOnboardingPaywall(context, ref);
+                if (!mounted) return;
+                if (!firstSet) {
+                  await _proceedToNextSentence();
+                  return;
+                }
+                // 初回は、次のセットの読み込みを待たずに通知の案内を出す。
+                // 1セットやりきった直後のほうが承諾されやすい（設定タブ12%、
+                // まとめクイズ完了直後45%）。プレミアムはペイウォールを飛ばして同じ場面で出す。
+                // Future.wait で両方に即座にエラーの受け手を付け、片方の例外を取りこぼさない。
+                await Future.wait([
+                  _proceedToNextSentence(),
+                  maybeShowNotificationCoach(
+                    this.context,
+                    ref,
+                    trigger: 'after_first_set',
+                  ),
+                ]);
+              } finally {
+                _advancingToNextSet = false;
+              }
             },
           ),
         ),
