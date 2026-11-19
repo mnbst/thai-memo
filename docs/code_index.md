@@ -1448,6 +1448,14 @@ test/presentation/screens/vocab_test_screen_test.dart
 test/presentation/widgets/premium_trial_ended_dialog_test.dart
 体験終了ダイアログが語彙スコアの落差を出す条件（測定値が free 上限超のときだけ）のテスト。
 
+## note 記事
+
+tools/note/make_header.py
+note 記事の見出し画像（1280×670、アプリの青に代表のタイ語・読み・タイトル）を作る。
+
+tools/note/articles/
+公開した note 記事の原稿（1本1ファイル、1行目がタイトル）。
+
 ## X 自動投稿
 
 tools/x_post/README.md
