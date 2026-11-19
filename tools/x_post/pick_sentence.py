@@ -469,6 +469,10 @@ def refresh_metrics(
     ][-FETCH_LIMIT:]
     if platform == "threads":
         return fetch_threads_metrics(stale)
+    if platform == "youtube":
+        from post_to_youtube import fetch_youtube_metrics
+
+        return fetch_youtube_metrics(stale)
     return fetch_metrics(stale)
 
 

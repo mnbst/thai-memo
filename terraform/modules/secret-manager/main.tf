@@ -140,7 +140,7 @@ locals {
     "ci-store-password",
   ]
 
-  # SNS 投稿（X / Threads）の鍵。投稿ワークフローだけが読む。
+  # SNS 投稿（X / Threads / YouTube）の鍵。投稿ワークフローだけが読む。
   sns_post_secrets = [
     # X（Twitter）自動投稿の OAuth 1.0a 認証情報
     "x-api-key",
@@ -154,6 +154,8 @@ locals {
     "threads-access-token",
     # TikTok 用の素材を置く Google Drive の OAuth（tools/x_post/issue_drive_token.py が版を足す）
     "google-drive-upload",
+    # YouTube Shorts 投稿の OAuth（tools/x_post/issue_youtube_token.py が版を足す）
+    "youtube-upload",
   ]
 
   deploy_ci_secrets = var.deploy_ci_secrets == null ? local.all_deploy_ci_secrets : var.deploy_ci_secrets
