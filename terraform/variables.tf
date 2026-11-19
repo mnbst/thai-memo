@@ -176,3 +176,12 @@ variable "threads_post_enabled" {
   type        = bool
   default     = false
 }
+
+variable "youtube_post_slots" {
+  description = "YouTube Shorts（日本語の例文動画）の投稿枠。キーは枠（JST の HHMM、ジョブ名の接尾辞にもなる）、schedule は JST の cron、themes は x_post_themes と同じ書式。鍵（youtube-upload）を入れてから足す。"
+  type = map(object({
+    schedule = string
+    themes   = optional(string, "")
+  }))
+  default = {}
+}

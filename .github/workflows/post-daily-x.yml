@@ -10,6 +10,7 @@ name: Post Daily Sentence to X
 # 例文の X 投稿だけ（Tips・ガイド・機能紹介と Threads は日本語だけ）。枠は Terraform の x_post_en_slots。
 # platform=tiktok は投稿せず、英語の例文の縦動画（9:16）を1本作って Google Drive に置く（tiktok ジョブ。
 # 枠は Terraform の tiktok_daily）。WIF がこのファイルに限られるので、ワークフローは分けずにジョブで分ける。
+# platform=youtube は日本語の例文の縦動画を YouTube Shorts に出す（X と別の文。枠は Terraform の youtube_post_slots）。
 
 on:
   # 毎朝 07:00 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
@@ -34,10 +35,10 @@ on:
         options: [sentence, tip, guide, feature]
         default: sentence
       platform:
-        description: '投稿先（x / tiktok: Drive に英語の例文動画を置くだけ）'
+        description: '投稿先（x / youtube: Shorts / tiktok: Drive に英語の例文動画を置くだけ）'
         type: choice
         # threads は止めている。
-        options: [x, tiktok]
+        options: [x, youtube, tiktok]
         default: x
       lang:
         description: 'アカウントの言語（ja / en）'
@@ -79,6 +80,11 @@ jobs:
         run: |
           echo "lang=$LANG_CODE は例文の X 投稿だけ（kind=$KIND platform=$PLATFORM）"
           exit 1
+      - name: Check inputs (YouTube)
+        if: env.PLATFORM == 'youtube' && env.KIND != 'sentence'
+        run: |
+          echo "YouTube は例文の動画だけ（kind=$KIND）"
+          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
@@ -106,6 +112,15 @@ jobs:
             X_API_SECRET:${{ env.GCP_PROJECT }}/x-api-secret
             X_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/x-access-token${{ env.TOKEN_SUFFIX }}
             X_ACCESS_TOKEN_SECRET:${{ env.GCP_PROJECT }}/x-access-token-secret${{ env.TOKEN_SUFFIX }}
+
+      # 鍵は投稿と、直近の動画の再生回数を引くのに使う。
+      - name: Fetch YouTube credentials from Secret Manager
+        if: env.PLATFORM == 'youtube'
+        uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
+        id: youtube_secrets
+        with:
+          secrets: |-
+            YOUTUBE_UPLOAD:${{ env.GCP_PROJECT }}/youtube-upload
 
       # Threads は止めている（再開するときはコメントを外し、platform の options に threads を戻す）。
       # - name: Fetch Threads credentials from Secret Manager
@@ -137,6 +152,7 @@ jobs:
           X_ACCESS_TOKEN: ${{ steps.secrets.outputs.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ steps.secrets.outputs.X_ACCESS_TOKEN_SECRET }}
           # THREADS_ACCESS_TOKEN: ${{ steps.threads_secrets.outputs.THREADS_ACCESS_TOKEN }}
+          YOUTUBE_UPLOAD: ${{ steps.youtube_secrets.outputs.YOUTUBE_UPLOAD }}
           THEMES: ${{ inputs.themes }}
           SLOT: ${{ inputs.slot }}
         # 種は枠ごとに変える。同じ日の枠で同じ抽選にならないように。
@@ -217,6 +233,15 @@ jobs:
         run: |
           python tools/x_post/post_to_x.py \
             --project "$GCP_PROJECT" --out "$OUT_DIR" --lang "$LANG_CODE" \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Post to YouTube
+        if: env.PLATFORM == 'youtube'
+        env:
+          YOUTUBE_UPLOAD: ${{ steps.youtube_secrets.outputs.YOUTUBE_UPLOAD }}
+        run: |
+          python tools/x_post/post_to_youtube.py \
+            --project "$GCP_PROJECT" --out "$OUT_DIR" \
             ${{ inputs.dry_run && '--dry-run' || '' }}
 
       # Threads は止めている。

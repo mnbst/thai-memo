@@ -1495,8 +1495,14 @@ Xへ投稿し、投稿済みをGCSへ記録する。動画1本＋画像3枚。�
 tools/x_post/post_to_threads.py
 Threadsへ投稿し、投稿済みを x_post/threads/posted.json へ記録する。メディアはGCSの署名付きURLで渡し、動画＋画像はカルーセル。長期トークンを古ければ延長する。
 
+tools/x_post/post_to_youtube.py
+例文の縦動画を YouTube Shorts に出し、投稿済みを x_post/youtube/posted.json へ記録する。再生回数の取り直しもここ。
+
+tools/x_post/issue_youtube_token.py
+YouTube 投稿用の OAuth の鍵を作り、secret youtube-upload に入れる。
+
 tools/x_post/platforms.py
-投稿先（X / Threads / TikTok〈Drive に置いた分〉）と言語（ja / en）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
+投稿先（X / Threads / TikTok〈Drive に置いた分〉/ YouTube）と言語（ja / en）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
 
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
@@ -1511,7 +1517,7 @@ test/screenshots/tiktok_video_screenshot.dart
 例文の縦動画（9:16）。例文詳細でお手本を聞く→各欄をスクロール→学習単語の詳細→確認クイズに迷って正解、までの連番フレームを書き出す。
 
 .github/workflows/post-daily-x.yml
-X / Threads 投稿と TikTok 素材（platform=tiktok は英語の例文動画を Drive に置く別ジョブ）のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
+X / Threads / YouTube Shorts 投稿と TikTok 素材（platform=tiktok は英語の例文動画を Drive に置く別ジョブ）のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
 
 ## TikTok 動画（試作）
 

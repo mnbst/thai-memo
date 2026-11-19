@@ -43,6 +43,13 @@ tiktok_daily_schedule = "0 12 * * *"
 # トークンを入れてから true にする（tools/x_post/README.md の「Threads」）。
 threads_post_enabled = false
 
+# YouTube Shorts（日本語の例文動画、X と別の文）。youtube-upload に鍵を入れてから足す
+# （tools/x_post/README.md の「YouTube Shorts」）。始めるならこれ:
+# youtube_post_slots = {
+#   "1900" = { schedule = "0 19 * * *" }
+# }
+youtube_post_slots = {}
+
 # 配信の鍵は GitHub の prod 環境（Environment secrets）にある。
 # ci-google-play-service-account は scripts/play_release.py が読むので残す。
 deploy_ci_secrets = ["ci-google-play-service-account"]

@@ -280,3 +280,31 @@ X と同じワークフローを `platform=threads` で動かし、同じ枠の�
 ダウンロードページ（`public/app.html`）は端末の言語（日本語・韓国語）、それ以外は時間帯
 （Asia/Tokyo・Asia/Seoul）で ja / ko を選び、残りは en で出す。App Store は国を付けない
 URL で、開いた人の国のストアへ飛ぶ。英語アカウントの BIO からは `?c=x_en_bio` で計測する。
+
+## YouTube Shorts
+
+日本語の例文の縦動画（X と同じ作り）を YouTube Shorts に出す。ワークフローの `platform=youtube`。
+
+- 例文は X と別の文にする（`pick_sentence.py --platform youtube` がほかの投稿先の投稿済みを外す）。
+- タイトルは「書き出し｜タイ語 #タイ語 #Shorts」（100字を超えたらタイ語を落とす）。説明欄は X と同じ本文に、
+  アプリの案内と `app?c=youtube_shorts` のリンクを足す。カテゴリは教育。
+- 記録は `x_post/youtube/posted.json`。テーマの点数は YouTube の再生回数で付ける（`videos.list`、1回 1 ユニット）。
+- 投稿は `post_to_youtube.py`。`videos.insert` は1本 1600 ユニットで、既定の 1日 10,000 ユニットなら6本まで。
+- Scheduler のジョブは `terraform/prod.tfvars` の `youtube_post_slots` に枠を足すと `post-daily-youtube-<枠>` が作られる。
+
+### 始めるまで（本人の作業）
+
+1. 投稿する YouTube チャンネルを作る。
+2. `terraform apply`（YouTube Data API の有効化と secret `youtube-upload` の枠）。
+3. GCP コンソールで OAuth 同意画面を「本番」にし、OAuth クライアント ID（デスクトップ アプリ）を用意する
+   （Drive 用のものを使い回してよい）。「テスト」のままだとリフレッシュトークンが7日で切れる。
+4. チャンネルのアカウントで許可して鍵を入れる。
+
+   ```bash
+   uv run --with google-auth-oauthlib --with google-cloud-secret-manager --with requests \
+     python tools/x_post/issue_youtube_token.py --project thai-memo-prod \
+     --client-secret ~/Downloads/client_secret_xxx.json
+   ```
+5. [YouTube API Services の監査](https://support.google.com/youtube/contact/yt_api_form)を申請する。
+   監査を通す前のプロジェクトから上げた動画は**非公開に固定**されるので、通るまでは YouTube Studio で手で公開にする。
+6. `workflow_dispatch` で `platform=youtube` を1回手で流して確かめ、`youtube_post_slots` に枠を足して `terraform apply`。
