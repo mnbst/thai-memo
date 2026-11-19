@@ -1478,7 +1478,7 @@ tools/x_post/synth_tts.py
 Google Cloud TTS（Chirp3-HD）で例文の読み上げ音声を作る。声は本番（ttsaudio/voice.go）と同じ男女判定で選ぶ。通常速度で1回だけ。
 
 tools/x_post/build_video.py
-例文の縦動画の連番フレームに frames.json の音声を重ね、mp4 にする（1080x1920）。
+例文の縦動画の連番フレームに frames.json の音声（と --bgm の BGM）を重ね、mp4 にする（1080x1920）。
 
 tools/x_post/build_quiz.py
 動画の確認クイズ（単語→意味の4択）を例文の単語分解から作る。ダミーは同じ例文のほかの語の意味。
@@ -1488,6 +1488,9 @@ TikTok 用の素材（英語の例文の動画、Tips かガイドの英語の�
 
 tools/x_post/issue_drive_token.py
 Drive に置くための OAuth（drive.file）を本人のアカウントで許可し、フォルダを作って secret google-drive-upload に入れる。
+
+tools/x_post/fetch_bgm.py
+動画に敷く BGM を GCS（x_post/bgm/）から日付と枠で1曲選んで取る。取れなければ BGM なし。
 
 tools/x_post/post_to_x.py
 Xへ投稿し、投稿済みをGCSへ記録する。動画1本＋画像3枚。拒まれたら動画のみ→画像のみ→テキストのみへ退避する。
