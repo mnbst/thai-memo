@@ -43,6 +43,7 @@ type simUser struct {
 	binaryGraded   bool        // evidence 導入前の挙動（graded の二値ゲート）
 	evidenceK      float64     // >0 なら旧 ShrinkP を K=この値で掛ける
 	summaryHint    int         // まとめクイズで常用するヒント段階
+	hintMix        []float64   // 非 nil ならまとめクイズの 1 問ごとにヒント段をこの割合で引く（hintsim_test.go）
 	learningInPool bool        // 確認クイズだけで答えた語も推定の母数に入れる（2026-10 までの挙動）
 	bandSummary    bool        // prodSummary の補充枠を、推定の走査帯（est±50）の語から先に選ぶ（案）
 	prodSummary    bool        // まとめクイズの出題を本番の選び方（SRS 2問 + P の低い順の補充）にする
@@ -54,6 +55,7 @@ type simUser struct {
 	bayesGuess     float64 // >0 でベイズ更新。ヒント無しの想定推測率 g
 	bayesSlip      float64 // ベイズ更新のうっかり率 s
 	alphaRule      bool    // 旧 α 則（UpdatePAlpha）で回す
+	legacyHintG    bool    // ヒント段の g を 2026-11 以前の値にする（hintsim_test.go）
 	alphaUntilDay  int     // この日まで旧 α 則、翌日から新実装（移行の再現）
 	totalDays      int     // 0 なら 90
 	newP           float64 // >0 なら新語の初期 P をこの値にする（既定 NewWordP）
@@ -71,6 +73,7 @@ type simUser struct {
 	// --- 世界側（ユーザーの実際の振る舞い）のつまみ ---
 	worldSlip  float64 // 知っている語を落とす確率（誤タップ・読み違い）
 	worldGuess float64 // >0 ならヒント無しの実際の推測率をこの値にする
+	worldHintG []float64 // 非 nil ならヒント段ごとの実際の推測率（worldGuess より優先）
 	learnRate  float64 // >0 なら語に触れるたびこの確率で覚える（真値が固定でなくなる）
 	learned    map[int]bool
 	lastAnswer bool // 直前の回答の正誤
@@ -94,7 +97,7 @@ type simUser struct {
 // answers は正誤を引く。guess は知らないときに当たる確率で、ヒントを出すほど
 // 上がる（4択の素の当てずっぽうが 0.25、訳を表示すればほぼ当たる）。
 func (u *simUser) answers(rank int, guess float64) bool {
-	if u.worldGuess > 0 { // 素の 0.25 を worldGuess に置き換え、ヒントの比は保つ
+	if u.worldGuess > 0 && u.worldHintG == nil { // 素の 0.25 を worldGuess に置き換え、ヒントの比は保つ
 		guess *= u.worldGuess / guessRate(0)
 	}
 	if u.learned[rank] || u.rnd.Float64() < pKnow(rank, u.truth) {
@@ -282,6 +285,9 @@ func (u *simUser) answer(rank int, learning bool) {
 	w := u.words[rank]
 	quizType := ""
 	hint := u.summaryHint // 確認クイズにヒントは無い
+	if u.hintMix != nil {
+		hint = pickHint(u.rnd, u.hintMix)
+	}
 	if learning {
 		quizType = "learning"
 		hint = 0
@@ -292,7 +298,11 @@ func (u *simUser) answer(rank int, learning bool) {
 		u.answerWordOrder(w, rank, hint)
 		return
 	}
-	correct := u.answers(rank, guessRate(hint))
+	g := guessRate(hint)
+	if u.worldHintG != nil {
+		g = u.worldHintG[hint]
+	}
+	correct := u.answers(rank, g)
 	res.IsCorrect = correct
 	u.lastAnswer = correct
 
@@ -322,6 +332,9 @@ func (u *simUser) updateP(p float64, correct bool, attempts, rank, hint int, mul
 	if u.bayesGuess > 0 { // g / s を振る比較用
 		g := math.Min(MaxGuessRate, u.bayesGuess*guessRate(hint)/guessRate(0))
 		return bayesUpdate(p, correct, g, u.bayesSlip, w)
+	}
+	if u.legacyHintG && hint > 0 {
+		return legacyUpdateP(p, correct, hint, w)
 	}
 	return UpdateP(p, correct, hint, w) // 本番の実装
 }
