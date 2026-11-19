@@ -1172,6 +1172,9 @@ functions/go/internal/uvm/matrixsim_test.go
 functions/go/internal/uvm/dropsim_test.go
 例文生成のたびに estimated_vocab が落ちる現象の再現と、前方帯の変更・回答済みのみを母数にする案の比較。
 
+functions/go/internal/uvm/hintsim_test.go
+ヒント段の推測率 g を旧値（0.63/0.80）と新値（0.55/0.63）で比べるシミュレーションと、PFloor から何問で P>0.5 に戻るかの固定テスト。
+
 functions/go/internal/uvm/alphasim_test.go
 P 更新則の比較シミュレーション（尤度比 vs 旧 α 則 vs 不正解α強化）。世界側の推測率・slip を振って、推定誤差と「実際は知らないのに P>0.5 の語」の割合を測る。
 

@@ -102,22 +102,39 @@ const (
 	// 正解しやすい」という状態になり、尤度比が反転して**正解で P が下がる**。
 	// 上限 0.95 で入れたところ、ヒント2段を常用するユーザーの estimated_vocab が
 	// 90 日で 4 まで落ちた。1-s=0.85 に対して余裕を取り 0.80 で止める。
-	// このとき正解の尤度比は 0.85/0.80=1.06（ほぼ情報なし）、不正解は
-	// 0.15/0.20=0.75（訳を見てなお落とすのは弱い「知らない」証拠）。
 	MaxGuessRate = 0.80
+
+	// HintPronGuess / HintTransGuess はヒント 1 段（発音）/ 2 段（日本語）の g。
+	//
+	// 「P が PFloor まで落ちた語が、そのヒントで何問連続正解すれば 0.5 を
+	// 越えるか」から決めた（2026-11）。PFloor の odds 0.176 → 1 に 5.67 倍要る。
+	//
+	//	発音   0.55: 正解 LR 1.545、4 問で 5.70 倍   （旧 0.63: 6 問）
+	//	日本語 0.63: 正解 LR 1.349、6 問で 6.03 倍   （旧 0.80: 29 問）
+	//
+	// 旧値（BayesGuessTop×1.8 / ×3.0 を MaxGuessRate で頭打ち）では、日本語
+	// ヒントを常用する人は正答率 7 割でも P が下がり続けた（正解 ×1.06・
+	// 不正解 ×0.75）。prod の実測（2026-11-12〜19、まとめクイズ 1,679 問）は
+	// 正答率 ヒント無し 81% / 発音 77% / 日本語 56%。正答率は g を下回れない
+	// （知っている語が混ざれば g より上がる）ので、日本語の g は 0.56 以下が
+	// 実データの上限で、0.63 はまだ厳しい側に置いてある。
+	//
+	// 代わりに不正解も強くなる（発音 ×0.41→×0.33、日本語 ×0.75→×0.41）。
+	// 訳を見てなお外すのは「知らない」のはっきりした証拠なので受け入れる。
+	HintPronGuess  = 0.55
+	HintTransGuess = 0.63
 )
 
 // GuessRate は hint_level ごとの想定推測率 g。ヒントを出すほど選択肢が絞れる
-// ので、知らなくても当たる確率が上がる。ヒント 2 段（訳を表示）は
-// MaxGuessRate で頭打ちになり、正解してもほとんど証拠にならない。
+// ので、知らなくても当たる確率が上がる。値の根拠は HintPronGuess のコメント。
 func GuessRate(hintLevel int) float64 {
 	switch hintLevel {
 	case 0:
 		return BayesGuessTop
 	case 1:
-		return math.Min(MaxGuessRate, BayesGuessTop*1.8)
+		return math.Min(MaxGuessRate, HintPronGuess)
 	default:
-		return math.Min(MaxGuessRate, BayesGuessTop*3.0)
+		return math.Min(MaxGuessRate, HintTransGuess)
 	}
 }
 
