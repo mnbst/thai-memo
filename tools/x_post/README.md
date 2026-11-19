@@ -296,14 +296,13 @@ URL で、開いた人の国のストアへ飛ぶ。英語アカウントの BIO
 
 1. 投稿する YouTube チャンネルを作る。
 2. `terraform apply`（YouTube Data API の有効化と secret `youtube-upload` の枠）。
-3. GCP コンソールで OAuth 同意画面を「本番」にし、OAuth クライアント ID（デスクトップ アプリ）を用意する
-   （Drive 用のものを使い回してよい）。「テスト」のままだとリフレッシュトークンが7日で切れる。
+3. GCP コンソールで OAuth 同意画面を「本番」にする（「テスト」のままだとリフレッシュトークンが7日で切れる）。
+   OAuth クライアントは Drive 用（secret `google-drive-upload`）のものを使い回す。
 4. チャンネルのアカウントで許可して鍵を入れる。
 
    ```bash
    uv run --with google-auth-oauthlib --with google-cloud-secret-manager --with requests \
-     python tools/x_post/issue_youtube_token.py --project thai-memo-prod \
-     --client-secret ~/Downloads/client_secret_xxx.json
+     python tools/x_post/issue_youtube_token.py --project thai-memo-prod
    ```
 5. [YouTube API Services の監査](https://support.google.com/youtube/contact/yt_api_form)を申請する。
    監査を通す前のプロジェクトから上げた動画は**非公開に固定**されるので、通るまでは YouTube Studio で手で公開にする。

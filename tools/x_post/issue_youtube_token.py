@@ -3,13 +3,13 @@
 YouTube のチャンネルを持つアカウントで1回だけ許可し、リフレッシュトークンを CI に持たせる。
 権限は動画の投稿（youtube.upload）と、再生回数の読み取り（youtube.readonly）だけ。
 
-  uv run --with google-auth-oauthlib --with google-cloud-secret-manager \\
-    python tools/x_post/issue_youtube_token.py --project thai-memo-prod \\
-    --client-secret ~/Downloads/client_secret_xxx.json
+  uv run --with google-auth-oauthlib --with google-cloud-secret-manager --with requests \\
+    python tools/x_post/issue_youtube_token.py --project thai-memo-prod
 
-1. GCP コンソール（--project）で YouTube Data API v3 を有効にし（Terraform がする）、
-   OAuth クライアント ID（種類: デスクトップ アプリ）を作って JSON をダウンロードする。
-   Drive 用に作ったクライアントを使い回してもよい。
+1. OAuth クライアントは、既定で Drive 用の secret `google-drive-upload` に入っている
+   デスクトップ アプリのクライアント（client_id・client_secret）を使い回す。
+   別のクライアントを使うときは --client-secret に JSON を渡す（作成済みのクライアントの
+   シークレットは後から落とせないので、作った時の画面で落とす）。
 2. OAuth 同意画面を「本番」にしておく。「テスト」のままだとリフレッシュトークンが7日で切れる。
 3. 上のコマンドを実行するとブラウザが開く。投稿するチャンネルのアカウント（ブランド
    アカウントならそのチャンネル）を選んで「許可」を押す。
@@ -37,12 +37,33 @@ SECRET = "youtube-upload"
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", required=True)
-    parser.add_argument("--client-secret", required=True, type=Path)
+    parser.add_argument("--client-secret", type=Path,
+                        help="OAuth クライアントの JSON。無ければ google-drive-upload のものを使う")
     args = parser.parse_args()
 
-    flow = InstalledAppFlow.from_client_secrets_file(
-        str(args.client_secret.expanduser()), SCOPES
-    )
+    client = secretmanager.SecretManagerServiceClient()
+    if args.client_secret:
+        flow = InstalledAppFlow.from_client_secrets_file(
+            str(args.client_secret.expanduser()), SCOPES
+        )
+    else:
+        drive = json.loads(
+            client.access_secret_version(
+                name=f"projects/{args.project}/secrets/google-drive-upload/versions/latest"
+            ).payload.data
+        )
+        flow = InstalledAppFlow.from_client_config(
+            {
+                "installed": {
+                    "client_id": drive["client_id"],
+                    "client_secret": drive["client_secret"],
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": ["http://localhost"],
+                }
+            },
+            SCOPES,
+        )
     creds = flow.run_local_server(port=0, prompt="consent", access_type="offline")
     if not creds.refresh_token:
         print("リフレッシュトークンが返らなかった。許可を取り消してからやり直す")
@@ -69,7 +90,6 @@ def main() -> int:
             "refresh_token": creds.refresh_token,
         }
     ).encode()
-    client = secretmanager.SecretManagerServiceClient()
     client.add_secret_version(
         request={
             "parent": f"projects/{args.project}/secrets/{SECRET}",
