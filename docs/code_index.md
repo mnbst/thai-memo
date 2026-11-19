@@ -1307,6 +1307,9 @@ git履歴に露出したシークレット（Gemini/OpenAIキー、OAuth secret�
 docs/public_repo_checklist.md
 リポジトリpublic化の前提作業（履歴パージ、stateバケット堅牢化、WIF制約、GitHub設定）。
 
+docs/scene_gap_words.json
+天気・家族の大きい場面を10ショットまで間引いて場面合致が付かなくなった語（頻度順）。場面を足すときの元。
+
 docs/pool_fix_log.md
 prod 例文プールを手で直した（削除・訳・空白）・見送った履歴。
 
