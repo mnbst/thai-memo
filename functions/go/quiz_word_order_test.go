@@ -54,18 +54,22 @@ func TestApplyWordOrderConvertsOneClozeOnly(t *testing.T) {
 
 func TestWordOrderLimit(t *testing.T) {
 	cases := []struct {
-		advanced  bool
+		name      string
+		userData  map[string]any
 		questions int
 		expected  int
 	}{
-		{false, 5, 1},
-		{true, 5, 2},
-		{true, 3, 1},
-		{true, 1, 1},
+		{"スコア無し", map[string]any{}, 5, 0},
+		{"199は0問", map[string]any{"estimated_vocab": int64(199)}, 5, 0},
+		{"200は1問", map[string]any{"estimated_vocab": int64(200)}, 5, 1},
+		{"299は1問", map[string]any{"estimated_vocab": int64(299)}, 5, 1},
+		{"300は半分", map[string]any{"estimated_vocab": int64(300)}, 5, 2},
+		{"測定値でも数える", map[string]any{"vocab_test_vocab": int64(350), "estimated_vocab": int64(120)}, 5, 2},
+		{"300以上で3問なら1問", map[string]any{"estimated_vocab": int64(400)}, 3, 1},
 	}
 	for _, c := range cases {
-		if got := wordOrderLimit(c.advanced, c.questions); got != c.expected {
-			t.Errorf("advanced=%v questions=%d: %d", c.advanced, c.questions, got)
+		if got := wordOrderLimit(c.userData, c.questions); got != c.expected {
+			t.Errorf("%s: %d, want %d", c.name, got, c.expected)
 		}
 	}
 }

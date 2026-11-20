@@ -227,7 +227,7 @@ func generateQuiz(ctx context.Context, req *callable.Request) (any, error) {
 	}
 	if supportsQuizFormat(in.SupportedQuizFormats, quizgen.FormatWordOrder) {
 		rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-		applied := applyWordOrder(sources, wordOrderLimit(advanced, len(sources)), l, !advanced, rnd)
+		applied := applyWordOrder(sources, wordOrderLimit(userData, len(sources)), l, !advanced, rnd)
 		log.Printf("word_order_applied uid=%s applied=%d of=%d", uid, applied, len(sources))
 	}
 

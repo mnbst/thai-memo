@@ -16,14 +16,32 @@ import (
 // ローマ字で出る）。入門用の形式（綴り4択）に変わった問題には触らない。
 
 // wordOrderLimit はまとめクイズ1回に混ぜる並び替えの上限。
-// 入門用を卒業した人（quizAdvanced）は問題数の半分（5問なら2）、
-// それ以外は1問。
-func wordOrderLimit(advanced bool, questions int) int {
-	if !advanced {
+//
+// 語彙スコア（語彙テストの測定値と estimated_vocab の大きいほう）で決める。
+//   - 200 未満: 0 問
+//   - 200〜299: 1 問
+//   - 300 以上: 問題数の半分（5問なら2）
+//
+// 並び替えは穴埋めよりどの層でも 20 ポイント以上正答率が低い
+// （2026-11 prod GA4: 穴埋め 88% / 並び替え 64%）。語彙が少ないうちは出さず、
+// 段階的に増やす。
+func wordOrderLimit(userData map[string]any, questions int) int {
+	score := max(intOf(userData["vocab_test_vocab"]), intOf(userData["estimated_vocab"]))
+	switch {
+	case score < wordOrderOneMinVocab:
+		return 0
+	case score < wordOrderHalfMinVocab:
 		return 1
 	}
 	return max(1, questions/2)
 }
+
+const (
+	// wordOrderOneMinVocab は並び替えを1問出し始める語彙スコア。
+	wordOrderOneMinVocab = 200
+	// wordOrderHalfMinVocab は並び替えを問題数の半分にする語彙スコア。
+	wordOrderHalfMinVocab = 300
+)
 
 // applyWordOrder は従来の穴埋めのままの問題から limit 問まで並び替えに
 // 変える。showPronunciation はタイルの読みを最初から見せるか（入門用の対象者）。
