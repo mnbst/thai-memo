@@ -195,8 +195,9 @@ jobs:
             --sentence "$OUT_DIR/sentence.json" --out "$OUT_DIR"
 
       # BGM（GCS の x_post/bgm/ から1曲）。取れなければ BGM なしで作る。
+      # X は BGM を付けない（取らなければ build_video.py が BGM なしで作る）。
       - name: Fetch BGM
-        if: env.KIND == 'sentence'
+        if: env.KIND == 'sentence' && env.PLATFORM != 'x'
         env:
           SLOT: ${{ inputs.slot }}
         run: |
