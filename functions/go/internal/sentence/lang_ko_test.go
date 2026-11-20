@@ -26,17 +26,17 @@ func TestKoreanPromptsDoNotFallBackToJA(t *testing.T) {
 			t.Errorf("premium=%v: ko のシステムプロンプトが無い", premium)
 		}
 	}
-	if !strings.Contains(stepsFor(lang.KO), "韓国語") {
+	if !strings.Contains(stepsFor(lang.KO), "한국어") {
 		t.Error("ko の訳文の手順が無い")
 	}
 	schema := BuildResponseSchema([]string{"style", "emotion"}, lang.KO)
 	props := schema["properties"].(map[string]any)
 	desc := props["japanese_translation"].(map[string]any)["description"].(string)
-	if !strings.Contains(desc, "韓国語") {
+	if !strings.Contains(desc, "한국어") {
 		t.Errorf("japanese_translation の description が韓国語指定でない: %s", desc)
 	}
 	style := props["context"].(map[string]any)["properties"].(map[string]any)["style"].(map[string]any)
-	if !strings.Contains(style["description"].(string), "韓国語") {
+	if !strings.Contains(style["description"].(string), "한국어") {
 		t.Errorf("style の description が韓国語指定でない: %v", style["description"])
 	}
 }
