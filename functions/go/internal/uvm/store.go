@@ -90,6 +90,35 @@ func evidenceField(data map[string]any) float64 {
 	return 0
 }
 
+// correctMultiplier は正解を弱める係数（不正解は 1）。data は回答前の uvm doc
+// （未登録なら nil）、now は Unix 秒。
+//
+//   - 確認クイズ: LearningCorrectMultiplier
+//   - 例文を見直しての正解: SentenceReviewCorrectMultiplier
+//   - 例文に出てから FreshExposureWindow 以内: FreshCorrectMultiplier
+//
+// 判定は last_exposed_at（例文に出た時刻）で見る。last_seen はクイズの回答でも
+// 進むので、昨日正解した語を今日また正解しても「間もない」になってしまう。
+// last_exposed_at を持たない旧 doc は満額（変更前に出た語で、ほぼ 24 時間を過ぎている）。
+func correctMultiplier(quizType string, r Result, data map[string]any, now float64) float64 {
+	if !r.IsCorrect {
+		return 1
+	}
+	m := 1.0
+	if quizType == "learning" {
+		m *= LearningCorrectMultiplier
+	}
+	if r.SentenceReviewed {
+		return m * SentenceReviewCorrectMultiplier
+	}
+	if quizType != "learning" {
+		if at := floatField(data, "last_exposed_at", -1); at >= 0 && now-at < FreshExposureWindow {
+			m *= FreshCorrectMultiplier
+		}
+	}
+	return m
+}
+
 // now は time.time() 相当（Unix 秒の float）。Firestore には数値で入る。
 func nowSeconds() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
@@ -145,13 +174,7 @@ func BatchUpdate(
 
 		// weight は証拠の重み（UpdateP の尤度比の指数）。ヒントは weight では
 		// なく GuessRate 側で入るので、ここでは掛けない。
-		weight := r.scale()
-		if quizType == "learning" && r.IsCorrect {
-			weight *= LearningCorrectMultiplier
-		}
-		if r.SentenceReviewed && r.IsCorrect {
-			weight *= SentenceReviewCorrectMultiplier
-		}
+		weight := r.scale() * correctMultiplier(quizType, r, existing[r.Word], now)
 
 		graded := IsGradedResult(quizType, r)
 		ev := ResultEvidence(quizType, r)

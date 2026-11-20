@@ -136,3 +136,34 @@ func TestEstimateVocabOriginKnownMax(t *testing.T) {
 		}
 	}
 }
+
+func TestCorrectMultiplier(t *testing.T) {
+	now := 1_000_000.0
+	fresh := map[string]any{"last_exposed_at": now - 3600}
+	stale := map[string]any{"last_exposed_at": now - FreshExposureWindow}
+	// 昨日の回答で last_seen だけ新しい語（例文に出たのは前日より前）。
+	answeredYesterday := map[string]any{"last_seen": now - 3600, "last_exposed_at": now - 3*FreshExposureWindow}
+	cases := []struct {
+		name     string
+		quizType string
+		r        Result
+		data     map[string]any
+		want     float64
+	}{
+		{"まとめ・24時間以内の正解は半減", "", Result{IsCorrect: true}, fresh, FreshCorrectMultiplier},
+		{"まとめ・24時間ちょうどは満額", "", Result{IsCorrect: true}, stale, 1},
+		{"last_seen だけ新しい語は満額", "", Result{IsCorrect: true}, answeredYesterday, 1},
+		{"last_exposed_at の無い旧 doc は満額", "", Result{IsCorrect: true}, map[string]any{"last_seen": now}, 1},
+		{"未登録語は満額", "", Result{IsCorrect: true}, nil, 1},
+		{"不正解は弱めない", "", Result{IsCorrect: false}, fresh, 1},
+		{"例文を見直した正解は重ねない", "", Result{IsCorrect: true, SentenceReviewed: true}, fresh, SentenceReviewCorrectMultiplier},
+		{"確認クイズの正解は従来どおり", "learning", Result{IsCorrect: true}, fresh, LearningCorrectMultiplier},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := correctMultiplier(tc.quizType, tc.r, tc.data, now); got != tc.want {
+				t.Fatalf("correctMultiplier = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

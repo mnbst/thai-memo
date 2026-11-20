@@ -74,6 +74,17 @@ const (
 	LearningEvidenceScale = 0.1
 	// SentenceReviewCorrectMultiplier は例文レビュー由来の正解を弱める係数。
 	SentenceReviewCorrectMultiplier = 0.1
+	// FreshCorrectMultiplier は、例文に出てから FreshExposureWindow 以内の語を
+	// まとめクイズで正解したときの係数。読んで間もない正解は短期の記憶でも
+	// 当たり、定着の証拠としては弱い。半減すると P が低めに残り、翌日以降の
+	// 復習枠に戻りやすくなる（recallsim_test.go: 未受験で 60 日出ない語が
+	// 35〜64% → 22〜37%、受験者は 7 日以内の再出題が 6 割 → 8〜9 割）。
+	// 例文レビュー由来の正解（SentenceReviewCorrectMultiplier）とは重ねない。
+	FreshCorrectMultiplier = 0.5
+	// FreshExposureWindow は「読んで間もない」とみなす時間（秒）。
+	// 忘却の大半は最初の 9 時間ほどで起き、記憶は睡眠をはさんで固定されるので、
+	// 一晩をまたぐ 24 時間を取る。
+	FreshExposureWindow = 24 * 60 * 60.0
 
 	// SpellingChoiceScale は綴り4択（入門用）の証拠を弱める係数。正誤とも同じ。
 	//

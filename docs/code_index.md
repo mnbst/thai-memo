@@ -1169,6 +1169,9 @@ functions/go/internal/uvm/hybridsim_test.go
 functions/go/internal/uvm/matrixsim_test.go
 受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。母数の絞り方とヒント常用時の比較も含む。更新則・新語 prior・世界側の推測率/slip を差し替えるつまみを持つ。
 
+functions/go/internal/uvm/recallsim_test.go
+その日に例文で見た語をまとめクイズで正解したあと、何日後に再出題されるか（本番の選び方の写し）。FreshCorrectMultiplier の根拠。
+
 functions/go/internal/uvm/dropsim_test.go
 例文生成のたびに estimated_vocab が落ちる現象の再現と、前方帯の変更・回答済みのみを母数にする案の比較。
 
