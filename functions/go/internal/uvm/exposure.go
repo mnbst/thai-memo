@@ -133,7 +133,11 @@ func RegisterExposure(
 			// 例文に出たことは「見た」証拠であって「知っている」証拠ではない。
 			// 旧則（ExposureP）は同じ語が 6 回出るだけで P>0.5 になり、クイズを
 			// 1 問も解かずに語彙スコアを押し上げていた。足すのは並び順のぶんだけ。
-			updates := []firestore.Update{{Path: "last_seen", Value: now}}
+			updates := []firestore.Update{
+				{Path: "last_seen", Value: now},
+				// まとめクイズの正解を弱めるかの判定用（correctMultiplier）。
+				{Path: "last_exposed_at", Value: now},
+			}
 			// P=0 の doc は未出の扱い（reusableOrder）なので動かさない。
 			if p := numField(snaps[i].Data()["p"]); p > 0 {
 				updates = append(updates, firestore.Update{Path: "p", Value: KeyWordExposureP(p)})
@@ -144,11 +148,12 @@ func RegisterExposure(
 		} else {
 			// key_word として選出された未登録語は新規作成
 			if _, err := batch.Set(docRef, map[string]any{
-				"word":          word,
-				"p":             NewWordP,
-				"quiz_attempts": 0,
-				"last_seen":     now,
-				"last_result":   nil,
+				"word":            word,
+				"p":               NewWordP,
+				"quiz_attempts":   0,
+				"last_seen":       now,
+				"last_exposed_at": now,
+				"last_result":     nil,
 				// 露出は「見た」証拠であって採点ではない。クイズに答えて
 				// evidence が付くまで境界推定の母数に入れない。
 				"evidence": 0.0,
