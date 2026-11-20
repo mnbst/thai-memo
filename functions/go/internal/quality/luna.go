@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 )
@@ -189,10 +190,13 @@ func parseLuna(raw []byte, aspects []Aspect) (map[string]float64, error) {
 // hybridScore は Luna を主に、jevAlso の観点だけ Jev にも聞いて1文を判定する。
 // 返す観点のリストは verdictFrom 用（Jev の観点は ID に jevPrefix を付け、閾値を差し替える）。
 func (j *Judge) hybridScore(ctx context.Context, c Candidate, aspects []Aspect) ([]Aspect, map[string]float64, error) {
-	var lunaAsp, jevAsp, judged []Aspect
+	var lunaAsp, jevAsp, jevOnly, judged []Aspect
 	for _, a := range aspects {
 		switch {
 		case a.Check != nil:
+			judged = append(judged, a)
+		case a.JevOnly:
+			jevOnly = append(jevOnly, a)
 			judged = append(judged, a)
 		case lunaSkip[a.ID]:
 		case a.ID == "keyword" && c.KeyWord == "":
@@ -219,13 +223,21 @@ func (j *Judge) hybridScore(ctx context.Context, c Candidate, aspects []Aspect) 
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(jevAsp) > 0 {
-		js, err := j.score(ctx, c, jevAsp)
+	if len(jevAsp) > 0 || len(jevOnly) > 0 {
+		js, err := j.score(ctx, c, slices.Concat(jevAsp, jevOnly))
 		if err != nil {
 			return nil, nil, err
 		}
-		for id, p := range js {
-			scores[jevPrefix+id] = p
+		for _, a := range jevAsp {
+			if p, ok := js[a.ID]; ok {
+				scores[jevPrefix+a.ID] = p
+			}
+		}
+		// Jev だけで聞く観点は Luna と重ならないので接頭辞を付けない。
+		for _, a := range jevOnly {
+			if p, ok := js[a.ID]; ok {
+				scores[a.ID] = p
+			}
 		}
 	}
 	for _, a := range aspects {

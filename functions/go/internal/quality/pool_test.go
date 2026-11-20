@@ -26,8 +26,11 @@ func TestReviewPoolAsksOnlyPoolAspects(t *testing.T) {
 		Questions map[string]any `json:"questions"`
 	}
 	_ = json.Unmarshal(s.last.Load().([]byte), &body)
-	if len(body.Questions) != len(PoolAspects) {
-		t.Fatalf("プールの観点だけを聞くはず: %v", body.Questions)
+	if want := aspectsIn(PoolAspects, batch[0]); len(body.Questions) != len(want) {
+		t.Fatalf("日本語訳の文に聞くプールの観点だけを聞くはず: %v", body.Questions)
+	}
+	if _, ok := body.Questions["en_mean"]; ok {
+		t.Error("日本語訳の文に en_mean を聞いている")
 	}
 }
 

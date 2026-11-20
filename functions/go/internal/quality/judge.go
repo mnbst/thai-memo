@@ -40,6 +40,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -119,8 +120,12 @@ type Aspect struct {
 	Question string
 	// Threshold を超えたら不合格。
 	Threshold float64
-	// JAOnly は日本語訳の文にだけ聞く観点。
-	JAOnly bool
+	// Langs は聞く訳文の言語。空なら全言語に聞く（訳の観点は言語ごとに測った
+	// 問いが違うので、測った言語だけを書く）。
+	Langs []lang.Lang
+	// JevOnly は Luna に聞かず Jev だけで判定する観点（hybridScore）。
+	// Luna より Jev のほうが分けられた観点に付ける（en_mean: Jev AUC 0.95・Luna 0.88）。
+	JevOnly bool
 	// Note は差し戻しプロンプトへ渡す指摘。空なら Question を使う。
 	// Question にタイ語の語を並べた観点は必ず持たせる。プロンプト中のタイ語は
 	// ×の文脈でも生成側に写される（prompt-effect-ledger §3）。
@@ -130,6 +135,14 @@ type Aspect struct {
 	Check func(Candidate) bool
 	// Trigger があれば、真の文にだけ聞く（語ごとの用法の観点。rules.go）。
 	Trigger func(Candidate) bool
+}
+
+// jaOnly は日本語訳の文にだけ聞く観点の Langs。
+var jaOnly = []lang.Lang{lang.JA}
+
+// appliesTo は訳文の言語が l の文にこの観点を聞くか。l が空（言語不明）なら全部聞く。
+func (a Aspect) appliesTo(l lang.Lang) bool {
+	return len(a.Langs) == 0 || l == "" || slices.Contains(a.Langs, l)
 }
 
 // aspectPreamble は全観点の先頭に付ける state の説明。
@@ -172,20 +185,20 @@ var Aspects = append([]Aspect{
 	{ID: "register_mix", Label: "語の高さの混在", Threshold: Threshold,
 		Question: "`thai_text` で、くだけた人称（มึง、กู、แก 等）を使う文の中に、改まった語・書き言葉（ยอดเยี่ยม、ดำเนินการ、สามารถ、ต้องการ、เนื่องจาก、อย่างไร、รับประทาน、ขอบพระคุณ 等）を混ぜているか",
 		Note:     "くだけた人称を使う文に、改まった語・書き言葉を混ぜていた。くだけた文には口語の語を使う"},
-	{ID: "trans_add", Label: "訳の加筆", Threshold: transAddThreshold, JAOnly: true,
+	{ID: "trans_add", Label: "訳の加筆", Threshold: transAddThreshold, Langs: jaOnly,
 		Question: "`japanese_translation` に `thai_text` に無い情報（時制、場所、理由）が足されているか。括弧の補足は含まない"},
-	{ID: "trans_drop", Label: "訳の欠落", Threshold: transDropThreshold, JAOnly: true,
+	{ID: "trans_drop", Label: "訳の欠落", Threshold: transDropThreshold, Langs: jaOnly,
 		Question: "`japanese_translation` から、`thai_text` にある目的・条件・否定・可能性・義務・譲歩を表す語（เพื่อ、เพื่อให้、ถ้า、ไม่、อาจจะ、ต้อง、ทั้งที่ など）の意味が抜けているか。「〜ために」を「〜し、」と並べただけの訳も抜けに含む",
 		Note:     "japanese_translation から、thai_text にある目的・条件・否定・可能性・義務・譲歩の意味が抜けていた。「〜ために」を「〜し、」と並べただけの訳も抜けに含む"},
-	{ID: "trans_conj", Label: "訳の接続", Threshold: Threshold, JAOnly: true,
+	{ID: "trans_conj", Label: "訳の接続", Threshold: Threshold, Langs: jaOnly,
 		Question: "`japanese_translation` が、`thai_text` の接続語（เพราะ=理由、แต่・แม้ว่า=逆接、ถ้า=条件 等）と違う関係で前後をつないでいるか（理由の เพราะ を「〜が」「〜のに」と逆接で訳す等）",
 		Note:     "japanese_translation が、thai_text の接続語と違う関係（理由を逆接で訳す等）で前後をつないでいた",
 		Trigger:  func(c Candidate) bool { return thaiConnectorRe.MatchString(c.ThaiText) }},
-	{ID: "trans_vocative", Label: "呼称の音写", Threshold: vocativeThreshold, JAOnly: true,
+	{ID: "trans_vocative", Label: "呼称の音写", Threshold: vocativeThreshold, Langs: jaOnly,
 		Question: "`japanese_translation` に、`thai_text` の呼称（เฮีย、เจ๊、พี่、น้อง 等）をカタカナで音を写した語（ヘイ、ヒア、ヘイア、ジェー、ピー 等）が入っているか。人名・あだ名（カン、ホーム 等）をカタカナで書いたものは含まない",
 		Note:     "japanese_translation で、thai_text の呼称をカタカナで音写していた。呼称は音写せず、日本語の呼び方にするか省く",
 		Trigger:  func(c Candidate) bool { return katakanaRe.MatchString(c.JapaneseTranslation) }},
-	{ID: "trans_thai", Label: "訳にタイ文字", JAOnly: false,
+	{ID: "trans_thai", Label: "訳にタイ文字",
 		Note:  "japanese_translation にタイ文字が残っていた。訳にはタイ文字を書かない",
 		Check: func(c Candidate) bool { return containsThai(c.JapaneseTranslation) }},
 	// 以下8つは rules.go（測定値もそちら）。
@@ -216,7 +229,7 @@ var Aspects = append([]Aspect{
 	// 呼称の音写は trans_vocative が見る。ここに例として残すと、あだ名の正しい
 	// カタカナ表記（カン先輩、マウィンさん）まで誤訳にされる（2026-09-26 評価セットで
 	// 正常の誤検出 14→8〜11/70、欠陥の検出 45/55 のまま）。
-	{ID: "trans_wrong", Label: "誤訳", Threshold: Threshold, JAOnly: true,
+	{ID: "trans_wrong", Label: "誤訳", Threshold: Threshold, Langs: jaOnly,
 		Question: "`japanese_translation` が `thai_text` の語を誤訳している（別の意味の語で訳す、動作の主体を取り違える）か"},
 	{ID: "keyword", Label: "key_word の用法", Threshold: Threshold,
 		Question: "`key_word` が `thai_text` の中で不自然に、または本来と違う意味で使われているか"},
@@ -304,7 +317,7 @@ func aspectsFor(c Candidate) []Aspect {
 func aspectsIn(list []Aspect, c Candidate) []Aspect {
 	out := make([]Aspect, 0, len(list))
 	for _, a := range list {
-		if a.JAOnly && c.Lang != "" && c.Lang != lang.JA {
+		if !a.appliesTo(c.Lang) {
 			continue
 		}
 		if a.Trigger != nil && !a.Trigger(c) {
