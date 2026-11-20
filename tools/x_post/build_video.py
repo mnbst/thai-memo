@@ -49,9 +49,11 @@ def _bgm_graph(index: int, total_ms: int, voice: str | None) -> str:
         return f"{bgm};[bg]anull[a]"
     return ";".join([
         bgm,
-        f"[{voice}]asplit=2[voice][key]",
+        # sidechaincompress は短い方の入力で止まるので、読み上げを尺まで無音で伸ばしてから分ける。
+        # 伸ばさないと最後の読み上げ以降の BGM が消える。
+        f"[{voice}]apad=whole_dur={total_ms}ms,asplit=2[voice][key]",
         "[bg][key]sidechaincompress=threshold=0.02:ratio=6:attack=20:release=500[duck]",
-        f"[voice][duck]amix=inputs=2:normalize=0,apad=whole_dur={total_ms}ms[a]",
+        "[voice][duck]amix=inputs=2:normalize=0[a]",
     ])
 
 
