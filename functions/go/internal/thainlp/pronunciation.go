@@ -150,6 +150,9 @@ var pronunciationOverrides = map[string]string{
 	"ชิป":            "chíp",
 	"กริป":           "kríp",
 	"ทริป":           "thríp",
+	"พิกเซล":         "phík-seen",
+	"สปิลเบอร์ก":     "sà-pin-bə̂ək",
+	"แมชีนเนอรี่":    "mɛɛ-chiin-nə̂ə-rîi",
 	"อัป":            "àp",
 	"ซีรีส์":         "sii-rîi",
 	"เลานจ์":         "laan",
@@ -181,6 +184,7 @@ var pronunciationParts = map[string]string{
 	"คอร์ต":    "khɔ̀ɔt",
 	"สตรีม":    "sà-triim",
 	"สงกรานต์": "sǒng-kraan",
+	"มีตติ้ง":  "mîit-tîng",
 }
 
 // partKeys は pronunciationParts のキーを長い順に並べたもの（同じ位置で長い綴りを先に当てる）。
