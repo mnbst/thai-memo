@@ -514,6 +514,9 @@ func sylParse(input string) (*SylParseResult, error) {
 		schartx := deepCopyChart(schart)
 		if s1, ok := getS(0)[j]; ok {
 			for k, s2 := range getS(j) {
+				if len(s1) > 0 && len(s2) > 0 && strandedConsonant(s1[len(s1)-1], s2[0]) {
+					continue
+				}
 				merged := mergeKaran1(append(append([]string{}, s1...), s2...), pronun)
 				if _, exists := getS(0)[k]; !exists {
 					if schartx[0] == nil {
@@ -541,6 +544,43 @@ func sylParse(input string) (*SylParseResult, error) {
 	}
 	return &SylParseResult{Failed: true, Pronun: pronun, Input: input}, nil
 }
+
+// strandedConsonant は、母音記号で終わる開音節の直後に「子音＋前置母音」で始まる
+// 音節が来る区切りか（วิ|นเทจ → wí-ná-thêet）。その子音は前の音節の末子音になる
+// （วิน|เทจ）。TLTK にはない、この移植だけの規則。
+//
+// 長母音（ี ื ู）の後は ส・อ で始まるときに当てない。ฟรีสไตล์（frii-sà-tai）・
+// ซีทีสแกน のように sà- と読む外来語の子音結合が多いため。
+// パーリ・サンスクリット由来で挿入母音が正しい綴りは strandedExempt で外す。
+func strandedConsonant(prev, next string) bool {
+	p, n := []rune(prev), []rune(next)
+	if len(p) < 2 || len(n) < 2 || !isThaiConsonant(n[0]) || n[1] < 'เ' || n[1] > 'ไ' {
+		return false
+	}
+	switch p[len(p)-1] {
+	case 'ิ', 'ึ', 'ุ':
+	case 'ี', 'ื', 'ู':
+		if n[0] == 'ส' || n[0] == 'อ' {
+			return false
+		}
+	default:
+		return false
+	}
+	for _, e := range strandedExempt {
+		if strings.HasPrefix(next, e) {
+			return false
+		}
+	}
+	return true
+}
+
+// strandedExempt は strandedConsonant を当てない音節の書き出し（挿入母音が正しい）。
+// 辞書 6.2 万語で規則の有無を比べ、読みが崩れた綴りを入れている（2026-11-20）。
+// มโน（มีมโนธรรม）・ปโภค（สาธารณูปโภค）・ตโล（สีตโลทก）・ศโล（กุศโลบาย）・
+// ธเร（ภูธเรศ）・ขเร（สิขเรศ）・ชเช（อุชเชนี）・ฆเน（วิฆเนศ）。
+var strandedExempt = []string{"มโน", "ปโภค", "ตโล", "ศโล", "ธเร", "ขเร", "ชเช", "ฆเน"}
+
+func isThaiConsonant(r rune) bool { return r >= 'ก' && r <= 'ฮ' && r != 'ฤ' && r != 'ฦ' }
 
 func deepCopyChart(src map[int]map[int][]string) map[int]map[int][]string {
 	dst := make(map[int]map[int][]string, len(src))
