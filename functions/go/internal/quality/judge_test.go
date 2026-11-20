@@ -122,7 +122,7 @@ func TestTransAddUsesHigherThreshold(t *testing.T) {
 	}
 }
 
-// 英訳の文には訳の観点を聞かない（judge.go 先頭のコメント参照）。
+// 英訳の文には日本語訳の観点を聞かない（Aspect.Langs）。
 func TestEnglishSkipsTranslationAspects(t *testing.T) {
 	batch := sample(1)
 	batch[0].Lang = lang.EN
@@ -143,7 +143,7 @@ func TestEnglishSkipsTranslationAspects(t *testing.T) {
 	_ = json.Unmarshal(s.last.Load().([]byte), &body)
 	want := 0
 	for _, a := range Aspects {
-		if a.JAOnly || a.Check != nil || a.Trigger != nil {
+		if !a.appliesTo(lang.EN) || a.Check != nil || a.Trigger != nil {
 			if _, ok := body.Questions[a.ID]; ok {
 				t.Errorf("英訳の文に %s を送っている", a.ID)
 			}

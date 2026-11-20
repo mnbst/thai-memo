@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 )
 
 // lunaServer は thai_text ごとに決めた確率を返す Decisions API のスタブ。指定の無い観点は 0.1。
@@ -108,6 +110,37 @@ func TestHybridFlagsOnJevAlsoAspect(t *testing.T) {
 	}
 	if n := len(res.Verdicts[0].RetryNotes()); n != 1 {
 		t.Errorf("差し戻しの指摘は観点ごとに1つ: %d", n)
+	}
+}
+
+// 英訳の意味のずれ（en_mean）は英訳の文にだけ、Jev だけに聞く。日本語訳の文には聞かない。
+func TestHybridEnglishMeaningIsJevOnly(t *testing.T) {
+	en := sample(1)
+	en[0].Lang = lang.EN
+	en[0].JapaneseTranslation = "I ate rice."
+	js := &jevServer{scores: map[string]map[string]float64{"ผมกินข้าว": {"en_mean": 0.6}}}
+	ls := &lunaServer{}
+	res, err := newHybrid(t, js, ls).ReviewAll(t.Context(), en)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Verdicts) != 1 || res.Verdicts[0].Reason != "英訳の意味のずれ 0.60" {
+		t.Fatalf("Jev の en_mean で落ちるはず: %+v", res.Verdicts)
+	}
+	if strings.Contains(string(ls.last.Load().([]byte)), "en_mean") {
+		t.Error("en_mean を Luna に送っている")
+	}
+
+	js = &jevServer{scores: map[string]map[string]float64{"ผมกินข้าว": {"en_mean": 0.9}}}
+	res, err = newHybrid(t, js, &lunaServer{}).ReviewAll(t.Context(), sample(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Flagged) != 0 {
+		t.Fatalf("日本語訳の文に en_mean を聞いている: %+v", res.Verdicts)
+	}
+	if raw, ok := js.last.Load().([]byte); ok && strings.Contains(string(raw), "en_mean") {
+		t.Error("日本語訳の文の Jev に en_mean を送っている")
 	}
 }
 

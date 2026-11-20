@@ -2,6 +2,7 @@ package sentence
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
@@ -258,11 +259,15 @@ func GenerateSingle(ctx context.Context, gen Generator, req Request) (*Sentence,
 	var missing []string
 
 	for attempt := 0; attempt <= MaxRetry; attempt++ {
-		raw, err := gen.GenerateSentence(ctx, req.SystemPrompt, currentPrompt,
-			req.IsPremium, req.TierLabel, SchemaFor(req.ResolvedContext, req.Lang))
+		sys, prompt, schema := req.SystemPrompt, currentPrompt, SchemaFor(req.ResolvedContext, req.Lang)
+		if req.Lang != lang.JA {
+			sys, prompt, schema = neutralTranslationField(sys), neutralTranslationField(prompt), neutralSchema(schema)
+		}
+		raw, err := gen.GenerateSentence(ctx, sys, prompt, req.IsPremium, req.TierLabel, schema)
 		if err != nil {
 			return nil, err
 		}
+		restoreTranslationField(raw)
 		s, err := FromMap(raw)
 		if err != nil {
 			return nil, fmt.Errorf("LLM_API_ERROR: unexpected structured output: %w", err)
@@ -523,4 +528,35 @@ func replaceNames(ctx map[string]any, names map[string]string) {
 		}
 		ctx[field] = text
 	}
+}
+
+// neutralTranslationField は LLM に見せる訳の欄の名前を translation にする（ja 以外）。
+// 英訳・韓国語訳に japanese という名前の欄を書かせない（以前は「フィールド名は japanese
+// だが英語で書く」と断り書きを付けていた）。保存・アプリの名前（japanese_translation）は
+// 変えず、応答を受けたら restoreTranslationField で戻す。
+// 2026-11-20 に英訳の手順を英語にしたのと合わせて測り、英訳の意味のずれ 11→7/50（Codex の
+// 判定の揺れ ±3 の内側）。悪化した指標は無い。
+func neutralTranslationField(s string) string {
+	return strings.ReplaceAll(s, "japanese_translation", "translation")
+}
+
+// restoreTranslationField は応答の translation を保存用の japanese_translation へ戻す。
+func restoreTranslationField(raw map[string]any) {
+	if v, ok := raw["translation"]; ok {
+		raw["japanese_translation"] = v
+		delete(raw, "translation")
+	}
+}
+
+// neutralSchema は応答の形式の japanese_translation を translation にした写しを返す。
+func neutralSchema(schema map[string]any) map[string]any {
+	b, err := json.Marshal(schema)
+	if err != nil {
+		return schema
+	}
+	var out map[string]any
+	if err := json.Unmarshal([]byte(neutralTranslationField(string(b))), &out); err != nil {
+		return schema
+	}
+	return out
 }

@@ -3,6 +3,8 @@ package quality
 import (
 	"context"
 	"slices"
+
+	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 )
 
 // Aspects に足す観点。生成直後の判定（ReviewAll）で Aspects と一緒に聞く。
@@ -39,13 +41,20 @@ var PoolAspects = []Aspect{
 	{ID: "situation", Label: "場面として言わない文", Threshold: situationThreshold,
 		Question: "`thai_text` は、タイ語の母語話者が実際の場面で口にすることがほとんど無い文か（聞き手が今していることを聞き手本人に説明する、言う必要のない当たり前のことを述べる、場面に合わない時を表す語を足している 等）"},
 	// 英訳では測っていないので日本語訳にだけ聞く。
-	{ID: "tmean", Label: "訳の意味のずれ", Threshold: tmeanThreshold, JAOnly: true,
+	{ID: "tmean", Label: "訳の意味のずれ", Threshold: tmeanThreshold, Langs: jaOnly,
 		Question: "`japanese_translation` を読んだ日本語話者が受け取る意味が、`thai_text` の意味と食い違うか（推量を意図として訳す、指す物や範囲を取り違える、原文に無い評価を足す、日本語として不自然で意味が変わる 等）"},
+	// tmean の英訳版。2026-11-20 に prod プール en の評価セット（欠陥54：Codex に1か所ずらさせた50＋
+	// 確認で見つけた4、正常98）で測った。Jev 0.5 で欠陥 42/54・正常の誤検出 2/98（AUC 0.95）、
+	// Luna は 0.7 で 36/54・4/98（AUC 0.88）なので Jev だけで聞く。今の en プール 524本で 0.5 超は 13本。
+	// 機能語の意味の抜け（เดี๋ยว・แล้ว・กัน 等）は 1/6 しか拾わない。
+	{ID: "en_mean", Label: "英訳の意味のずれ", Threshold: enMeanThreshold, Langs: []lang.Lang{lang.EN}, JevOnly: true,
+		Question: "`japanese_translation`（英訳）を読んだ英語話者が受け取る意味が、`thai_text` の意味と食い違うか（時制、推量・義務の強さ、否定、依頼・勧誘・質問の区別、動作の主体、指す人や物を取り違える、原文に無い語や評価を足す 等）"},
 }
 
 const (
 	situationThreshold = 0.35
 	tmeanThreshold     = 0.4
+	enMeanThreshold    = 0.5
 )
 
 // ReviewAll は batch を Aspects と PoolAspects の両方で判定する。
