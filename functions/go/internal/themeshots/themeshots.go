@@ -313,15 +313,22 @@ func (b *Builder) shotSection(topic, id string) sentence.DramaSection {
 			roles = "- 話し手: " + r[0] + "／聞き手: " + r[1] + "\n"
 		}
 	}
+	noRelation := useShotListener && shotNoListener[id]
+	// 関係のブロックを出さない回は、丁寧さを合わせる先が無いのでこの行も出さない。
+	politeness := "- 人称・文末詞の丁寧さは参考例に合わせず、話し手と聞き手の関係に合わせる\n"
+	if noRelation {
+		politeness = ""
+	}
 	return sentence.DramaSection{
-		Medium:   sentence.Media[0].Name,
-		NoTime:   useShotTime && shotNoTime[id],
-		Relation: rel,
+		Medium:     sentence.Media[0].Name,
+		NoTime:     useShotTime && shotNoTime[id],
+		NoRelation: noRelation,
+		Relation:   rel,
 		Context: "- 場面: " + situation + "\n" + roles +
 			"- 参考タイ語例（話し言葉の言い回しの参考。この1文のみ）: " + shots[id] + "\n",
 		Required: "- 参考タイ語例をそのまま使わず、同じ場面のオリジナルの1文を作る。" +
 			"参考例の語を部分的に差し替えて別の意味の語を作らない\n" +
-			"- 人称・文末詞の丁寧さは参考例に合わせず、話し手と聞き手の関係に合わせる\n" +
+			politeness +
 			"- 場面がターゲット単語と合わなければ場面は落とし、ターゲット単語が字義どおり出てくる" + topicShots[topic].fallback + "にする\n",
 	}
 }
@@ -388,6 +395,10 @@ var useShotRelation = os.Getenv("SHOT_RELATION") != "0"
 // useShotTime は時点の要らないショット（shotNoTime）の回で時点の行を外すか。
 // SHOT_TIME=0 で止める（比較の測定用）。
 var useShotTime = os.Getenv("SHOT_TIME") != "0"
+
+// useShotListener は特定の相手に向けていないショット（shotNoListener）の回で関係のブロックを外すか。
+// SHOT_LISTENER=0 で止める（比較の測定用）。
+var useShotListener = os.Getenv("SHOT_LISTENER") != "0"
 
 // useShotRoles は場面の行の下に話し手と聞き手（shotRoles）を出すか。
 // SHOT_ROLES=0 で止める（比較の測定用）。

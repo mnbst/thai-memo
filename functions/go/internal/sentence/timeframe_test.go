@@ -61,3 +61,21 @@ func TestBuildPromptNoTimeShot(t *testing.T) {
 		}
 	}
 }
+
+// 相手に向けていないショットの回（DramaSection.NoRelation）は、関係のブロックも context の relation も出さない。
+func TestBuildPromptNoRelationShot(t *testing.T) {
+	for _, resolved := range []ResolvedParams{
+		{Topic: Topics[1], Relation: "自分と対等／家族や恋人のように近い"},
+		{Topic: Topics[1], RelationStatus: "自分より目上", RelationSpeaker: "女性"},
+	} {
+		for _, noRel := range []bool{false, true} {
+			prompt, rc := BuildPrompt(resolved, []string{"กิน"}, 800, true, lang.JA,
+				DramaSection{Context: "- 場面: 昔話\n", NoRelation: noRel})
+			_, hasCtx := rc["relation"]
+			hasBlock := strings.Contains(prompt, "【話し手と聞き手】")
+			if hasCtx == noRel || hasBlock == noRel {
+				t.Errorf("%+v NoRelation=%v: context=%v block=%v", resolved, noRel, hasCtx, hasBlock)
+			}
+		}
+	}
+}
