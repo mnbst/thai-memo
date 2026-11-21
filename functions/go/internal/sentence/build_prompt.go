@@ -58,6 +58,9 @@ type DramaSection struct {
 	// 時点の行を外す。付けると参考例文の種類を捨てて出来事を語る文に寄る
 	// （時点の要らないショット184文で、依頼・質問の形が 時点あり 30 → 外す 77。合格率は同じ。2026-11-21）。
 	NoTime bool
+	// NoRelation は付けたショットが特定の相手に向けていない文（昔話の教訓・歴史の説明等）である印。
+	// 関係のブロックを出さない。
+	NoRelation bool
 	// Relation は付けたショットの話し手から見た聞き手の地位・親しさ・話し手の性別。
 	// 地位と親しさが決まるショットだけ。抽選した関係の代わりに使う（場面の行が
 	// 人物の関係を決めていて、抽選とぶつかるため）。性別が空なら抽選のまま。
@@ -144,6 +147,9 @@ func BuildPrompt(
 	if drama.NoTime {
 		timeFrame = ""
 	}
+	if drama.NoRelation {
+		relation = ""
+	}
 
 	// 過去の時点（さっき・昨日や以前）だけ、相手の行動を求める文（依頼・指示・禁止）と
 	// 両立しない。【可能な限り反映】の逃げ道は「上位の指示と衝突する場合」に
@@ -197,7 +203,7 @@ func BuildPrompt(
 	// 関係を指定しなかった回は、抽選した地位を既定に LLM に地位を選ばせ、
 	// 「地位／性別」を context.relation に書かせる。RelationAsk は「LLM に生成させる」
 	// の印で、SchemaFor が選択肢を enum にしてスキーマに足し、ApplyResponseCompat は上書きしない。
-	pickRelation := promptIsPremium && medium.Addressed && !isDrama &&
+	pickRelation := promptIsPremium && medium.Addressed && !isDrama && !drama.NoRelation &&
 		relation == "" && resolved.RelationStatus != ""
 
 	// プロンプトで指定した値のみ確定値として記録する。
