@@ -126,6 +126,8 @@ func TestPronunciationOverrides(t *testing.T) {
 		{"มีตติ้ง", "mîit-tîng"},
 		{"งานมีตติ้ง", "ngaan-mîit-tîng"},
 		{"งานแฟนมีตติ้ง", "ngaan-fɛɛn-mîit-tîng"},
+		{"พลาสติก", "phlâat-sà-tìk"},
+		{"ถุงพลาสติก", "thǔng-phlâat-sà-tìk"},
 		// 他の語の中で読みが変わる綴りは変えない
 		{"เขมร", "khà-měen"},
 		// 数字
