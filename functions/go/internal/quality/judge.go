@@ -89,13 +89,12 @@ type Verdict struct {
 
 // RetryNotes は差し戻しプロンプト（sentence.BuildRetryConstraint）へ渡す指摘。
 //
-// Jev は箇所を名指ししないので、引っかかった観点の問い（Note があればそちら）を渡す。
+// 判定器は箇所を名指ししないので、引っかかった観点の問い（Note があればそちら）を渡す。
 // 前回の文は載せない（BuildRetryConstraint のコメント参照）。
 func (v Verdict) RetryNotes() []string {
 	notes := make([]string, 0, len(v.Hits))
 	seen := map[string]bool{}
 	for _, id := range v.Hits {
-		id = strings.TrimPrefix(id, jevPrefix)
 		if seen[id] {
 			continue
 		}
@@ -123,9 +122,6 @@ type Aspect struct {
 	// Langs は聞く訳文の言語。空なら全言語に聞く（訳の観点は言語ごとに測った
 	// 問いが違うので、測った言語だけを書く）。
 	Langs []lang.Lang
-	// JevOnly は Luna に聞かず Jev だけで判定する観点（hybridScore）。
-	// Luna より Jev のほうが分けられた観点に付ける（en_mean: Jev AUC 0.95・Luna 0.88）。
-	JevOnly bool
 	// Note は差し戻しプロンプトへ渡す指摘。空なら Question を使う。
 	// Question にタイ語の語を並べた観点は必ず持たせる。プロンプト中のタイ語は
 	// ×の文脈でも生成側に写される（prompt-effect-ledger §3）。
@@ -231,8 +227,10 @@ var Aspects = append([]Aspect{
 	// 正常の誤検出 14→8〜11/70、欠陥の検出 45/55 のまま）。
 	{ID: "trans_wrong", Label: "誤訳", Threshold: Threshold, Langs: jaOnly,
 		Question: "`japanese_translation` が `thai_text` の語を誤訳している（別の意味の語で訳す、動作の主体を取り違える）か"},
+	// 2026-11-21 に Gemini で言い換えた。「不自然に」だけだと、くだけた綴り（ชั้น）や王室用語の正しい文にも
+	// 0.53〜0.85 を付けていた（ja 評価セット 誤検出 2→0/80・en 4→3/145、検出は ja 46 のまま・prod 22→23/39）。
 	{ID: "keyword", Label: "key_word の用法", Threshold: Threshold,
-		Question: "`key_word` が `thai_text` の中で不自然に、または本来と違う意味で使われているか"},
+		Question: "`key_word` が `thai_text` の中で、タイ語の母語話者が使わない形で使われている（本来と違う意味で使う、その語が合わない相手・物・場面に使う 等）。くだけた言い方や話し言葉の綴りであること自体は当てはまらない"},
 	// その場で作ったたとえ（×หัวใจผมวิ่งอยู่ในเลนเดียวกับคุณ）だけを落とし、定着した言い回しは
 	// 通す（2026-10-01）。BL罠と prod プールの目視ラベルで、不自然 16/18 検出・定着／字義どおり
 	// 2/20 誤検出・prod プール 3/233。定着側の語を名指ししないと検出が 14/18 に落ちる。
@@ -333,28 +331,23 @@ const (
 	DefaultModel    = "jev-latest"
 )
 
-// NewJudge は Secret Manager の typesafe-api-key と openai-api-key で Judge を組み立てる
-// （判定は Luna が主、Jev は jevAlso の観点だけ。luna.go）。
-// ローカルでは環境変数 TYPESAFE_API_KEY・OPENAI_API_KEY が優先される（secrets.Get）。
+// NewJudge は Secret Manager の gemini-api-key で Judge を組み立てる（判定は Gemini だけ。gemini.go）。
+// ローカルでは環境変数 GEMINI_API_KEY が優先される（secrets.Get）。
 func NewJudge(ctx context.Context) (*Judge, error) {
-	key, err := secrets.Get(ctx, "typesafe-api-key")
+	key, err := secrets.Get(ctx, "gemini-api-key")
 	if err != nil {
 		return nil, err
 	}
-	okey, err := secrets.Get(ctx, "openai-api-key")
-	if err != nil {
-		return nil, err
-	}
-	return &Judge{APIKey: key, Model: DefaultModel, Luna: &Luna{APIKey: okey}}, nil
+	return &Judge{Gemini: &Gemini{APIKey: key}}, nil
 }
 
-// Judge は例文を判定する。Luna が nil なら Jev だけで全観点を判定する（テスト・旧来の形）。
+// Judge は例文を判定する。Gemini が nil なら Jev だけで全観点を判定する（テスト・旧来の形）。
 type Judge struct {
 	APIKey string
 	// Model は Jev のモデル名。空なら jev-latest。
 	Model string
-	// Luna があれば Luna を主に判定する（luna.go）。
-	Luna *Luna
+	// Gemini があれば Gemini で判定する（gemini.go）。本番はこちら。
+	Gemini *Gemini
 	// Endpoint と HTTP はテストで差し替える。空なら既定値。
 	Endpoint string
 	HTTP     *http.Client
@@ -391,8 +384,8 @@ func (j *Judge) review(ctx context.Context, batch []Candidate, list []Aspect) (R
 		aspects := aspectsIn(list, c)
 		var scores map[string]float64
 		var err error
-		if j.Luna != nil {
-			aspects, scores, err = j.hybridScore(ctx, c, aspects)
+		if j.Gemini != nil {
+			aspects, scores, err = j.geminiScore(ctx, c, aspects)
 		} else {
 			scores, err = j.score(ctx, c, aspects)
 		}
@@ -589,8 +582,8 @@ func ParseScores(raw []byte, aspects []Aspect) (map[string]float64, error) {
 
 // Name は判定に使ったモデル名（sentence_flags・例文 doc の judge_model に書く）。
 func (j *Judge) Name() string {
-	if j.Luna != nil {
-		return j.Luna.model() + "+" + j.model()
+	if j.Gemini != nil {
+		return j.Gemini.model()
 	}
 	return j.model()
 }
