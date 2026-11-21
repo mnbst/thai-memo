@@ -1486,7 +1486,7 @@ tools/x_post/README.md
 X（@everydaythai775）へ毎日の例文を自動投稿する仕組みの全体像と、必要なシークレットの手順。
 
 tools/x_post/pick_sentence.py
-枠ごとにテーマを表示回数から決め、候補を20件に絞り、同じ枠の過去10件の理由と表示回数を添えてGeminiに1件選ばせる。投稿済みと履歴は x_post/posted.json で管理。
+枠ごとにテーマを表示回数から決め、テーマと語数で絞った候補から1件を均等に抽選する。投稿済みと履歴は x_post/posted.json で管理。
 
 tools/x_post/pick_study_post.py
 Tips・ガイドの枠で study_posts.json から投稿文を1件抽選する（一巡するまで重複なし）。ガイドは貼る欄を guide_shot.env に書く。
@@ -1496,12 +1496,6 @@ Tips・ガイドの X 投稿文（アプリの Tips とガイドから書き起�
 
 tools/x_post/feature_captions.json
 機能紹介（20時枠）に貼る画像の並びと見出し。ストア用スクショの合成（store_screenshots.dart の CAPTIONS / OUT）に渡して feature_images/ を作る。
-
-tools/x_post/select_prompt.txt
-例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
-
-tools/x_post/select_prompt_en.txt
-英語アカウント（@daily_thai11）の例文選定プロンプト。
 
 tools/x_post/issue_x_token.py
 別の X アカウントの Access Token を PIN 方式で発行し、Secret Manager の x-access-token-<lang> へ直接入れる。
