@@ -747,10 +747,13 @@ functions/go/internal/corpustrans/validate_en_test.go
 英訳の機械チェック（品詞名の混入・スラッシュ併記の三人称・タイ文字残留・句点）の単体テスト。
 
 functions/go/internal/quality/judge.go
-例文品質judge。観点の定義と Jev 呼び出し。NewJudge は Luna を主にした判定（luna.go）で組む。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
+例文品質judge。観点の定義と Jev 呼び出し。NewJudge は Gemini だけの判定（gemini.go）で組む（Jev の呼び出しはテスト・旧来の形として残す）。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
 
-functions/go/internal/quality/luna.go
-OpenAI Decisions API（gpt-6-luna）で観点を判定する。Luna が全観点（訳の加筆を除く、閾値0.6）、Jev は訳の欠落・その場で作ったたとえの2観点だけ並べて聞く（hybridScore）。
+functions/go/internal/quality/gemini.go
+Gemini Decisions API（gemini-decision-1）で観点を判定する（本番の判定器）。訳の加筆を除く全観点を1回で聞き、閾値0.52（呼称の音写だけ0.7）。
+
+functions/go/internal/quality/gemini_eval_live_test.go
+評価セットを本番と同じ経路で Gemini にかけ、観点ごとの確率を書き出す。問いの文面の案（QUESTION_VARIANTS）を並べて比べられる（JUDGE_EVAL_LIVE=1）。
 
 functions/go/internal/quality/pool.go
 Aspects に足す Jev の観点（場面として言わない文・訳の意味のずれ）。ReviewAll（生成直後に Aspects と合わせて判定）と ReviewPool。
