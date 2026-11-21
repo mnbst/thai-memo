@@ -20,10 +20,10 @@ import (
 //
 // 生成直後に Jev で1回だけ判定した結果が例文 doc の quality フィールドに入っている
 // （sentence.Producer.check）。ここでは Jev を呼び直さず、quality.passed が真の文だけを
-// 確認待ち（pool_review.go）へ回す。人が OK した文だけが本番プールに入る。
-// 外した文はログに残す。
+// 確認待ち（pool_review.go）へ回す。確認で OK した文だけが本番プールに入る。
 //
 // 不合格の文はセットから外れて例文 doc にならず、中身は sentence_flags に残っている。
+// そちらも直近ぶんを確認待ちへ回す（queueFlaggedReview）。
 const (
 	// auditWindow は対象の生成時刻の範囲（直近この時間ぶん）。
 	// dailyBatch は JST 0:00 に回るので、実質「前日ぶん」になる。
@@ -43,13 +43,18 @@ const (
 	poolUnjudged
 )
 
-// runSentenceAudit は直近の LLM 生成の例文のうち、判定に合格したものを例文プールへ回す。
+// runSentenceAudit は直近の LLM 生成の例文を確認待ちへ回す（合格の文と、sentence_flags の不合格の文）。
 //
 // users は runDailyBatch が既に読んだものを使い回す（3度目の全走査を避ける）。
 func runSentenceAudit(
 	ctx context.Context, db *firestore.Client, users []*firestore.DocumentSnapshot,
 	now time.Time,
 ) error {
+	// 不合格の文は例文 doc が無いので、候補の有無によらず回す。
+	if err := queueFlaggedReview(ctx, db, now.Add(-auditWindow), now); err != nil {
+		log.Printf("poolReview: flagged write failed: %v", err)
+	}
+
 	candidates, docs := auditCandidates(ctx, db, users, now.Add(-auditWindow))
 	if len(candidates) == 0 {
 		log.Print("sentencePool: no LLM sentences in window")
