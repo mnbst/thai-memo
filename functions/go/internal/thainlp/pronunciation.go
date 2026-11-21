@@ -185,6 +185,7 @@ var pronunciationParts = map[string]string{
 	"สตรีม":    "sà-triim",
 	"สงกรานต์": "sǒng-kraan",
 	"มีตติ้ง":  "mîit-tîng",
+	"ภรรยา":    "phan-rá-yaa",
 	"พลาสติก":  "phlâat-sà-tìk",
 }
 
