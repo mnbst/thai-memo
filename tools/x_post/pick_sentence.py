@@ -561,6 +561,143 @@ def choose_theme(
     return 0
 
 
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--project", required=True)
+    parser.add_argument("--out", default="build/x_post")
+    parser.add_argument(
+        "--seed",
+        default="",
+        help="抽選の種。再現用。",
+    )
+    parser.add_argument(
+        "--themes",
+        default="",
+        help=f"抽選するテーマをカンマ区切りで。空なら全部。候補: {','.join(THEMES)}",
+    )
+    parser.add_argument(
+        "--slot",
+        default="",
+        help="投稿の枠（0700 など）。空なら今の --tz の時から決める。",
+    )
+    # 枠・曜日を数える時間帯。英語アカウントは米国西部に合わせる。
+    parser.add_argument("--tz", default="Asia/Tokyo")
+    parser.add_argument("--platform", choices=PLATFORMS, default="x")
+    parser.add_argument("--lang", choices=LANGS, default="ja")
+    args = parser.parse_args()
+    lang = args.lang
+
+    themes = [t.strip() for t in args.themes.split(",") if t.strip()] or list(
+        THEMES
+    )
+    unknown = [t for t in themes if t not in THEMES]
+    if unknown:
+        print(f"知らないテーマ: {','.join(unknown)}", file=sys.stderr)
+        return 1
+
+    bucket = storage.Client(project=args.project).bucket(
+        f"{args.project}-uvm-data"
+    )
+    state = load_json(bucket, posted_object(args.platform, lang), {})
+    # 例文は投稿先ごとに別の文にする。同じ言語のほかの投稿先で出した文も外す。
+    posted = set(state.get("posted", [])).union(
+        *(
+            load_json(bucket, posted_object(p, lang), {}).get("posted", [])
+            for p in PLATFORMS
+            if p != args.platform
+        )
+    )
+    now = datetime.now(ZoneInfo(args.tz))
+    slot = args.slot or f"{now.hour:02d}00"
+    weekday = now.weekday()
+
+    # 同じ本文が両方にあれば先に読んだほうを残す。
+    corpus = list(
+        {
+            sentence_key(s): s
+            for name in reversed(corpus_objects(lang))
+            for s in load_json(bucket, name, [])
+        }.values()
+    )
+    if not corpus:
+        print(
+            f"コーパスが無い: gs://{bucket.name}/{corpus_objects(lang)}",
+            file=sys.stderr,
+        )
+        return 1
+    sound = sound_only(corpus)
+
+    # 取り直した数字を先に履歴へ重ねる。テーマの点数も過去の投稿の並びも新しい値で見る。
+    fetched = refresh_metrics(state.get("history", []), slot, now, args.platform)
+    history = [{**h, **fetched.get(post_id(h), {})} for h in state.get("history", [])]
+
+    rng = random.Random(args.seed or None)
+    order, theme_reason = choose_theme(history, slot, weekday, themes, rng)
+
+    # 順位の高いテーマから、候補が残るものを使う。どれも残らなければ投稿を止める。
+    theme, candidates = "", []
+    for theme in order:
+        pool = theme_only(sound, theme)
+        candidates = [s for s in pool if sentence_key(s) not in posted]
+        if not candidates:
+            # 一巡したら投稿済みを無視して最初から回す。止まるよりは繰り返す。
+            candidates = pool
+        if theme == "BLドラマ":
+            candidates = bl_drama_only(candidates, rng)
+        if candidates:
+            break
+        print(f"{theme}は候補が無いので次のテーマへ", file=sys.stderr)
+    if not candidates:
+        print("条件に合う候補が無い", file=sys.stderr)
+        return 1
+    print(f"テーマ: {theme}（{theme_reason}）", file=sys.stderr)
+
+    picked = rng.choice(candidates)
+    reason, hook, chooser = "", "", "抽選"
+
+    # 詳細画面は作成日を出す。Firestore の Timestamp はそのままでは JSON に
+    # できないので、投稿日に置き換えて「不明」を出さない。
+    picked = dict(picked)
+    picked["created_at"] = now.isoformat()
+    # UVM 由来の内部フィールドは投稿画面に出ないので落とす。
+    picked = {k: v for k, v in picked.items() if _serializable(v)}
+    picked = localize_pos(picked, lang)
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "sentence.json").write_text(
+        json.dumps(picked, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    text = build_text(picked, hook, theme, lang)
+    # 実際に使った書き出し（決まり文句に替わった場合も含む）を履歴に残す。
+    first = text.splitlines()[0]
+    hook = first if first.endswith("👇") else ""
+    (out / "text.txt").write_text(text, encoding="utf-8")
+    (out / "key.txt").write_text(sentence_key(picked), encoding="utf-8")
+    (out / "theme.txt").write_text(theme, encoding="utf-8")
+    # 取り直した数字は post_to_x.py / post_to_threads.py が posted.json の履歴へ書き戻す。
+    (out / "metrics.json").write_text(json.dumps(fetched), encoding="utf-8")
+    # 選んだ文脈。post_to_x.py が履歴に残し、次の回の判断材料にする。
+    (out / "selection.json").write_text(
+        json.dumps(
+            {
+                "slot": slot,
+                "weekday": weekday,
+                "theme_reason": theme_reason,
+                "reason": reason,
+                "hook": hook,
+                "chooser": chooser,
+                **features(picked),
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    print(picked["thai_text"])
+    return 0
+
+
 def _serializable(value) -> bool:
     try:
         json.dumps(value)
