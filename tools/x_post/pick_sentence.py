@@ -514,51 +514,29 @@ def choose_theme(
     試し終えたら EXPLORE_RATE の割合で抽選し、残りは点数の高い順にする。
     点数 ＝ 枠×テーマの表示回数の中央値 × 曜日の補正。
     """
-    # 絞り込んだ候補から均等に抽選する。書き出しはテーマの決まり文句を使う。
-    picked, reason, hook, chooser = rng.choice(candidates), "", "", "抽選"
-    print(f"候補 {len(candidates)} 件から抽選", file=sys.stderr)
+    mine = slot_history(history, slot)
+    counts = {t: sum(1 for h in mine if h["theme"] == t) for t in themes}
+    shuffled = rng.sample(themes, len(themes))
 
-    # 詳細画面は作成日を出す。Firestore の Timestamp はそのままでは JSON に
-    # できないので、投稿日に置き換えて「不明」を出さない。
-    picked = dict(picked)
-    picked["created_at"] = now.isoformat()
-    # UVM 由来の内部フィールドは投稿画面に出ないので落とす。
-    picked = {k: v for k, v in picked.items() if _serializable(v)}
-    picked = localize_pos(picked, lang)
+    unexplored = [t for t in shuffled if counts[t] < EXPLORE_POSTS]
+    if unexplored:
+        rest = [t for t in shuffled if t not in unexplored]
+        first = unexplored[0]
+        return unexplored + rest, f"探索（{slot}で{first}は{counts[first]}件）"
+    if rng.random() < EXPLORE_RATE:
+        return shuffled, "抽選（偏り防止）"
 
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "sentence.json").write_text(
-        json.dumps(picked, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    text = build_text(picked, hook, theme, lang)
-    # 実際に使った書き出し（決まり文句に替わった場合も含む）を履歴に残す。
-    first = text.splitlines()[0]
-    hook = first if first.endswith("👇") else ""
-    (out / "text.txt").write_text(text, encoding="utf-8")
-    (out / "key.txt").write_text(sentence_key(picked), encoding="utf-8")
-    (out / "theme.txt").write_text(theme, encoding="utf-8")
-    # 取り直した数字は post_to_x.py / post_to_threads.py が posted.json の履歴へ書き戻す。
-    (out / "metrics.json").write_text(json.dumps(fetched), encoding="utf-8")
-    # 選んだ文脈。post_to_x.py が履歴に残し、次の回の判断材料にする。
-    (out / "selection.json").write_text(
-        json.dumps(
-            {
-                "slot": slot,
-                "weekday": weekday,
-                "theme_reason": theme_reason,
-                "reason": reason,
-                "hook": hook,
-                "chooser": chooser,
-                **features(picked),
-            },
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
-
-    print(picked["thai_text"])
-    return 0
+    scores: dict[str, tuple[float, str]] = {}
+    for theme in themes:
+        base = _median_impressions([h for h in mine if h["theme"] == theme]) or 0
+        factor, label = weekday_factor(history, theme, weekday)
+        n = sum(1 for h in mine if h["theme"] == theme and "impressions" in h)
+        note = f"{slot}の中央値{base:.0f}（{n}件）"
+        if label:
+            note += f"×{label}補正{factor:.2f}"
+        scores[theme] = (base * factor, note)
+    ranked = sorted(themes, key=lambda t: -scores[t][0])
+    return ranked, f"点数最大: {scores[ranked[0]][1]}"
 
 
 def main() -> int:
