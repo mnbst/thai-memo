@@ -185,6 +185,7 @@ var pronunciationParts = map[string]string{
 	"สตรีม":    "sà-triim",
 	"สงกรานต์": "sǒng-kraan",
 	"มีตติ้ง":  "mîit-tîng",
+	"พลาสติก":  "phlâat-sà-tìk",
 }
 
 // partKeys は pronunciationParts のキーを長い順に並べたもの（同じ位置で長い綴りを先に当てる）。
