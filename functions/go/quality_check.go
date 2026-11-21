@@ -15,10 +15,10 @@ import (
 // qualityChecker は quality.Judge（Jev）を sentence.Checker として使う包み。
 //
 // 生成直後に1文ずつ、1回だけ判定する（Aspects と PoolAspects の両方）。
-// Jev は1文 0.5 秒前後（p95 0.6 秒）。不合格の文は作り直さずセットから外れ、
-// プールにも入らない。
+// Jev は1文 0.5 秒前後（p95 0.6 秒）。不合格の文は作り直さずセットから外れる。
 //
-// 不合格の判定はそのつど sentence_flags へ1件書く。
+// 不合格の判定はそのつど sentence_flags へ1件書く。文の全体（sentence_doc）も残し、
+// dailyBatch が確認待ちへ回す（判定の誤検出を確認で拾うため。pool_review.go）。
 type qualityChecker struct {
 	judge *quality.Judge
 	// db が nil なら sentence_flags へは書かない（判定だけ行う）。
@@ -68,7 +68,7 @@ func (c *qualityChecker) Check(ctx context.Context, in sentence.CheckInput) (sen
 	v := res.Verdicts[0]
 	log.Printf("qualityCheck: flagged key_word=%s reason=%s thai=%q",
 		in.KeyWord, v.Reason, cand.ThaiText)
-	c.writeFlag(ctx, cand, v)
+	c.writeFlag(ctx, cand, v, in)
 	return sentence.CheckResult{
 		Notes:  v.RetryNotes(),
 		Reason: v.Reason,
@@ -81,14 +81,27 @@ func (c *qualityChecker) Check(ctx context.Context, in sentence.CheckInput) (sen
 //
 // doc ID は自動採番。生成時は同じ文を二度判定しない（バッチの流し直しが無い）ので、
 // 固定 ID で重複を防ぐ必要がない。例文 doc はこの時点ではまだ書かれていない。
+//
+// sentence_doc は例文 doc と同じ形（BuildSentenceDoc）。確認待ちへ回すときに
+// buildPoolEntry へそのまま渡す。時刻はサーバー時刻の置き換えが要るので外す。
 func (c *qualityChecker) writeFlag(
-	ctx context.Context, cand quality.Candidate, v quality.Verdict,
+	ctx context.Context, cand quality.Candidate, v quality.Verdict, in sentence.CheckInput,
 ) {
 	if c.db == nil {
 		return
 	}
 	doc := quality.FlagDoc(cand, v, c.judge.Name(), time.Now())
 	doc["lang"] = string(cand.Lang)
+	if in.Sentence != nil {
+		sd := in.Sentence.BuildSentenceDoc(sentence.DocMeta{
+			KeyWord:        in.KeyWord,
+			UsePremiumSpec: in.Tier == sentence.GenerationTier(true),
+			Lang:           in.Lang,
+		})
+		delete(sd, "created_at")
+		delete(sd, "updated_at")
+		doc["sentence_doc"] = sd
+	}
 	if _, _, err := c.db.Collection("sentence_flags").Add(ctx, doc); err != nil {
 		log.Printf("qualityCheck: write flag failed: %v", err)
 	}

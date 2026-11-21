@@ -690,10 +690,13 @@ functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch のステップ6。直近24時間の LLM 生成例文（premium / free）のうち、生成時の判定で quality.passed=true の文だけを Jev を呼び直さず確認待ち（pool_review）へ回す。外した文はログに出す。
+dailyBatch のステップ6。直近24時間の LLM 生成例文（premium / free）のうち生成時の判定で quality.passed=true の文と、sentence_flags の不合格の文を、判定を呼び直さず確認待ち（pool_review）へ回す。
 
 functions/go/pool_review.go
-確認待ち（Firestore pool_review、1文1 doc・ID はティア・言語・thai_text のハッシュ）への書き込み。本番プールと同じ形の例文・tier・lang・judge 結果・元 doc を持つ。既にある文（確認済み含む）は飛ばす。
+確認待ち（Firestore pool_review、1文1 doc・ID はティア・言語・thai_text のハッシュ）への書き込み。本番プールと同じ形の例文・tier・lang・judge 結果・元 doc を持つ。既にある文（確認済み含む）は飛ばす。judge 不合格の文は sentence_flags の sentence_doc から作る。
+
+functions/go/pool_review_test.go
+不合格の flag（sentence_flags）を確認待ちの形へ変えるテスト。
 
 functions/go/sentence_audio.go
 getSentenceAudio callable。例文の全文のお手本音声（Cloud TTS Chirp3-HD の MP3）を返す。GCS に無ければ作って置く（新しく作るのは1人1日100文まで、tts_usage で数える）。
