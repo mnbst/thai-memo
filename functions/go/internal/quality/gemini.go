@@ -129,7 +129,6 @@ func geminiRequest(model string, c Candidate, aspects []Aspect) (map[string]any,
 }
 
 // score は aspects（Gemini に送る観点）を聞き、観点 ID → はいの確率 を返す。
-// 429 / 5xx は指数バックオフで数回だけ再試行する。答えが欠けたら1回だけ聞き直す。
 func (g *Gemini) score(ctx context.Context, c Candidate, aspects []Aspect) (map[string]float64, error) {
 	if len(aspects) == 0 {
 		return map[string]float64{}, nil
@@ -138,6 +137,35 @@ func (g *Gemini) score(ctx context.Context, c Candidate, aspects []Aspect) (map[
 	if err != nil {
 		return nil, err
 	}
+	ids := make([]string, len(aspects))
+	for i, a := range aspects {
+		ids[i] = a.ID
+	}
+	return g.post(ctx, req, ids)
+}
+
+// Ask は input（テキスト）について questions（ID → 問い）を noul で聞き、ID → はいの確率 を返す。
+// 例文の判定以外（生成パラメータの選択など）に使う。
+func (g *Gemini) Ask(ctx context.Context, input string, questions map[string]string) (map[string]float64, error) {
+	if len(questions) == 0 {
+		return map[string]float64{}, nil
+	}
+	qs := make(map[string]any, len(questions))
+	ids := make([]string, 0, len(questions))
+	for id, q := range questions {
+		qs[id] = map[string]any{"type": "noul", "instructions": q}
+		ids = append(ids, id)
+	}
+	return g.post(ctx, map[string]any{
+		"model":     g.model(),
+		"input":     []any{map[string]any{"type": "text", "text": input}},
+		"questions": qs,
+	}, ids)
+}
+
+// post は Decisions API へ req を送り、ids の答えを返す。
+// 429 / 5xx は指数バックオフで数回だけ再試行する。答えが欠けたら1回だけ聞き直す。
+func (g *Gemini) post(ctx context.Context, req map[string]any, ids []string) (map[string]float64, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -179,7 +207,7 @@ func (g *Gemini) score(ctx context.Context, c Candidate, aspects []Aspect) (map[
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("gemini: status %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
 		}
-		scores, err := parseGemini(raw, aspects)
+		scores, err := parseGemini(raw, ids)
 		if errors.Is(err, errGeminiMissing) && attempt == 0 {
 			continue
 		}
@@ -189,7 +217,7 @@ func (g *Gemini) score(ctx context.Context, c Candidate, aspects []Aspect) (map[
 
 var errGeminiMissing = errors.New("gemini: answer missing")
 
-func parseGemini(raw []byte, aspects []Aspect) (map[string]float64, error) {
+func parseGemini(raw []byte, ids []string) (map[string]float64, error) {
 	var resp struct {
 		Answers map[string]struct {
 			Noul *float64 `json:"noul"`
@@ -198,13 +226,13 @@ func parseGemini(raw []byte, aspects []Aspect) (map[string]float64, error) {
 	if err := json.Unmarshal(raw, &resp); err != nil {
 		return nil, fmt.Errorf("gemini: parse: %w", err)
 	}
-	out := make(map[string]float64, len(aspects))
-	for _, a := range aspects {
-		ans, ok := resp.Answers[a.ID]
+	out := make(map[string]float64, len(ids))
+	for _, id := range ids {
+		ans, ok := resp.Answers[id]
 		if !ok || ans.Noul == nil {
-			return nil, fmt.Errorf("%w: %q", errGeminiMissing, a.ID)
+			return nil, fmt.Errorf("%w: %q", errGeminiMissing, id)
 		}
-		out[a.ID] = *ans.Noul
+		out[id] = *ans.Noul
 	}
 	return out, nil
 }

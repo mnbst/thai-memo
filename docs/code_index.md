@@ -750,7 +750,7 @@ functions/go/internal/quality/judge.go
 例文品質judge。観点の定義と Jev 呼び出し。NewJudge は Gemini だけの判定（gemini.go）で組む（Jev の呼び出しはテスト・旧来の形として残す）。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
 
 functions/go/internal/quality/gemini.go
-Gemini Decisions API（gemini-decision-1）で観点を判定する（本番の判定器）。訳の加筆を除く全観点を1回で聞き、閾値0.52（呼称の音写だけ0.7）。
+Gemini Decisions API（gemini-decision-1）で観点を判定する（本番の判定器）。訳の加筆を除く全観点を1回で聞き、閾値0.52（呼称の音写だけ0.7）。任意の問いを noul で聞く Ask も持つ。
 
 functions/go/internal/quality/gemini_eval_live_test.go
 評価セットを本番と同じ経路で Gemini にかけ、観点ごとの確率を書き出す。問いの文面の案（QUESTION_VARIANTS）を並べて比べられる（JUDGE_EVAL_LIVE=1）。
@@ -1124,6 +1124,9 @@ BL以外15テーマの参考例文22699件（正本。タイ暮らし・タイ�
 functions/go/internal/themeshots/relation_data.go
 場面の行が付くショット13462件の話し手から見た関係（地位・親しさ・性別）と話し手・聞き手の役（生成コード）。抽選の関係の代わりに使う。
 
+functions/go/internal/themeshots/time_data.go
+時点の要らないショット（依頼・質問・感想・あいさつ等）の一覧（生成コード）。この回と雰囲気の数文の回は時点の行を外す。
+
 functions/go/internal/themeshots/written.go
 媒体「解説・紹介文」の参考例文（BL・あいさつ以外14テーマ、Thai PBS ナレーター行と th.wikipedia の原文）。
 
@@ -1370,6 +1373,12 @@ word_denylist.json の _strip_freq_rank 分類（断片・誤記・固有名詞�
 functions/go/cmd/sample/main.go
 プロンプト改訂の効果を見るサンプル生成CLI。ランク帯から語を散らしテーマを割り当てて生成し、JSONと1行要約を出す。-seed で語を固定でき改訂前後を対照できる。 -fix で judge をかけ、不合格を指摘つきで差し戻して作り直す。
 
+functions/go/cmd/tfcompare/main.go
+時点の決め方の実験。今の抽選と、語＋ショットを Gemini Decisions に渡して確率で選ぶ形を、同じ語・ショットで生成して比べる。
+
+functions/go/cmd/tfshot/main.go
+時点の要らないショットで、時点の行を付ける・外すを同じ語・抽選で生成して比べる実験。
+
 scripts/harvest_sentences.py
 Firestoreの既存例文（users/{uid}/sentences）をsentence_flags除外・thai_text重複排除してbank_out/harvest_{ja,en}.jsonへ吸い出す。静的コーパスの種。
 
@@ -1384,6 +1393,9 @@ scripts/build_pos_dict.py
 
 scripts/build_time_frames.py
 頻度上位語ごとに各時点への適合をJevで判定し time_frames.json を生成。
+
+scripts/label_shot_needs.py
+ショットに「時点が要るか」「関係が要るか」を Gemini Decisions で付け（scripts/corpus/shot_needs.jsonl）、--gen で time_data.go を作る。
 
 scripts/build_shot_embeddings.py
 参考セリフ（bldrama/data.go・themeshots/data.go）のembeddingを差分生成しshot_embeddings.jsonへ。

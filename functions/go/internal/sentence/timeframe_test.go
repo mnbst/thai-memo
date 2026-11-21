@@ -2,7 +2,10 @@ package sentence
 
 import (
 	"slices"
+	"strings"
 	"testing"
+
+	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 )
 
 func TestTimeFrameCandidates(t *testing.T) {
@@ -41,6 +44,20 @@ func TestTimeFrameTableMatchesTimeFrames(t *testing.T) {
 	for w, probs := range loadTimeFrameFit() {
 		if len(probs) != len(TimeFrames) {
 			t.Fatalf("%s: 値 %d 個、TimeFrames は %d 個", w, len(probs), len(TimeFrames))
+		}
+	}
+}
+
+// 時点の要らないショットの回（DramaSection.NoTime）は、時点の行も context の timeFrame も出さない。
+func TestBuildPromptNoTimeShot(t *testing.T) {
+	resolved := ResolvedParams{Topic: Topics[1], TimeFrame: TimeFrames[1], Relation: "自分と対等／家族や恋人のように近い"}
+	for _, noTime := range []bool{false, true} {
+		prompt, rc := BuildPrompt(resolved, []string{"กิน"}, 800, true, lang.JA,
+			DramaSection{Context: "- 場面: 注文する\n", NoTime: noTime})
+		_, hasCtx := rc["timeFrame"]
+		hasLine := strings.Contains(prompt, "話している時点")
+		if hasCtx == noTime || hasLine == noTime {
+			t.Errorf("NoTime=%v: context=%v line=%v", noTime, hasCtx, hasLine)
 		}
 	}
 }
