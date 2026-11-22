@@ -49,7 +49,7 @@ const (
 	female
 )
 
-// 文末の丁寧語（女性）。男性の ครับ・คับ は endingGender に直書き。
+// 文末の丁寧語（女性）。男性の ครับ・คับ は politeGender に直書き。
 var femaleEnds = []string{"ค่ะ", "คะ", "คร่ะ"}
 
 // 一人称。ผม（髪）・หนู（ネズミ）と紛れるので、単語分解で代名詞の語に限る。
@@ -109,21 +109,38 @@ func genderOf(text string, in Input) gender {
 }
 
 // endingGender は文末の丁寧語を見る。単語分解があれば最後の語（記号は飛ばす）、
-// 無ければ文字列の末尾で見る。คับ は語そのものが คับ のときだけ数える。
+// 無ければ文字列の末尾で見る。
+// 最後の語で決まらなければ、単語分解を後ろから見て丁寧語の語を探す
+// （ครับอาจารย์・นะครับพี่・ค่ะคุณตั้ม・ครับตอนนี้ のように丁寧語の後ろに呼びかけ等が続く文）。
+// コーパス（ja・en）に男女の丁寧語が両方ある文は無かった（2026-11-22）。
 func endingGender(text string, words []Word) gender {
-	tail, isWord := strings.TrimRightFunc(text, func(r rune) bool { return !isThai(r) }), false
-	for i := len(words) - 1; i >= 0; i-- {
-		if w := strings.TrimSpace(words[i].Word); hasThai(w) {
-			tail, isWord = w, true
-			break
+	var thaiWords []string
+	for _, w := range words {
+		if w := strings.TrimSpace(w.Word); hasThai(w) {
+			thaiWords = append(thaiWords, w)
 		}
 	}
+	if len(thaiWords) == 0 {
+		return politeGender(strings.TrimRightFunc(text, func(r rune) bool { return !isThai(r) }), false)
+	}
+	for i := len(thaiWords) - 1; i >= 0; i-- {
+		if g := politeGender(thaiWords[i], true); g != unknown {
+			return g
+		}
+	}
+	return unknown
+}
+
+// politeGender は s が丁寧語で終わるか（単語なら ครับผม のように ครับ で始まるものも）を見る。
+// คับ は บังคับ と紛れるので、語そのものが คับ のときだけ数える。
+// คะ で始まる คะแนน は末尾の一致で見るので当たらない。
+func politeGender(s string, isWord bool) gender {
 	for _, e := range femaleEnds {
-		if strings.HasSuffix(tail, e) {
+		if strings.HasSuffix(s, e) {
 			return female
 		}
 	}
-	if strings.HasSuffix(tail, "ครับ") || (isWord && tail == "คับ") {
+	if strings.HasSuffix(s, "ครับ") || (isWord && (s == "คับ" || strings.HasPrefix(s, "ครับ"))) {
 		return male
 	}
 	return unknown
