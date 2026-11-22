@@ -1,6 +1,7 @@
 package uvm
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -152,7 +153,7 @@ func TestRecallAfterFreshCorrect(t *testing.T) {
 		t.Logf("%-5s %-6s %-6s %6s %6s %6s %6s %6s %6s", "真値", "受験", "案", "件数", "1日内", "7日内", "30日内", "60日無", "d90")
 		for _, truth := range []int{150, 350, 700} {
 			for _, tested := range []bool{false, true} {
-				for _, scale := range []float64{0, 0.5} {
+				for _, scale := range []float64{0, 0.5, 0.4} {
 					var agg recallStats
 					agg.within = map[int]int{}
 					for s := range trials {
@@ -170,7 +171,7 @@ func TestRecallAfterFreshCorrect(t *testing.T) {
 						label = "受験"
 					}
 					if scale > 0 {
-						name = "半減"
+						name = fmt.Sprintf("×%.1f", scale)
 					}
 					t.Logf("%-5d %-6s %-6s %6d %5.0f%% %5.0f%% %5.0f%% %5.0f%% %6d", truth, label, name,
 						agg.events/trials, pct(agg.within[1]), pct(agg.within[7]), pct(agg.within[30]),
