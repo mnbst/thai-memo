@@ -172,3 +172,11 @@ func TestAnswerMultiplier(t *testing.T) {
 		})
 	}
 }
+
+func TestWritesUVM(t *testing.T) {
+	for qt, want := range map[string]bool{"": true, "review": true, "learning": false} {
+		if got := WritesUVM(qt); got != want {
+			t.Errorf("WritesUVM(%q) = %v, want %v", qt, got, want)
+		}
+	}
+}
