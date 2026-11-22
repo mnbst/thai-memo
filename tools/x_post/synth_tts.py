@@ -6,7 +6,7 @@ Google Cloud Text-to-Speech の th-TH を使う。1日1文なら無料枠に収�
 読み上げは通常速度の1回だけ。動画では「お手本を聞く」を押す操作と重ねるので、
 アプリで1回再生したのと同じ長さに揃える。出力は <out>/audio.mp3。
 
-声はアプリのお手本と同じく例文の中身で決める（文末 → 一人称 → BL → ハッシュ）。
+声はアプリのお手本と同じく例文の中身で決める（文末 → 一人称 → BL → ฉัน → ハッシュ）。
 functions/go/internal/ttsaudio/voice.go の写し。あちらを変えたらこちらも合わせる。
 """
 
@@ -89,6 +89,18 @@ def _pronoun_gender(words: list[dict]) -> str | None:
     return None
 
 
+def _chan_speaker(words: list[dict]) -> bool:
+    """一人称 ฉัน（ของฉัน も）があるか。ฉัน は男女とも使うので BL より後に見る。"""
+    for w in words:
+        role = (w.get("grammatical_role") or "").lower()
+        if not ("代名詞" in role or "pronoun" in role or "私" in (w.get("meaning") or "")):
+            continue
+        word = (w.get("word") or "").strip()
+        if word.removeprefix("ของ") == "ฉัน":
+            return True
+    return False
+
+
 def choose_voice(sentence: dict) -> str:
     text = normalize(sentence["thai_text"])
     words = [w or {} for w in sentence.get("word_breakdown") or []]
@@ -98,6 +110,7 @@ def choose_voice(sentence: dict) -> str:
         _ending_gender(text, words)
         or _pronoun_gender(words)
         or (MALE if "BL" in topic else None)
+        or (FEMALE if _chan_speaker(words) else None)
         or (MALE if digest[0] % 2 == 0 else FEMALE)
     )
     voices = MALE_VOICES if gender == MALE else FEMALE_VOICES
