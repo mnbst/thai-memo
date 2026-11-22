@@ -17,7 +17,7 @@ import (
 
 // 例文プールの確認待ち（docs/design_listening_playback.md「プールへの追加」）。
 //
-// dailyBatch は judge を通った文を本番プールへ直接足さず、Firestore の
+// 生成した文は本番プールへ直接足さず、生成直後に Firestore の
 // pool_review へ入れる。pool-review スキルで OK / NG を付け、OK の文だけを
 // cmd/poolreview が本番プールへ移して、そのときお手本の音声を作る。
 //
@@ -45,20 +45,21 @@ func poolReviewDoc(e poolEntry, source string, data map[string]any, now time.Tim
 		"status":     poolreview.StatusPending,
 		"queued_at":  now,
 		"quality":    data["quality"],
+		"judge":      judgeLabel(data),
 		"created_at": data["created_at"],
 	}
 	return doc, nil
 }
 
-// queuePoolReview は判定を通った文を確認待ちへ入れる。既にある文（確認済みを含む）は飛ばす。
-// 1件書けなくても残りは続ける（対象は直近24時間なので、ここで止めると翌日には拾い直されない）。
+// queuePoolReview は例文 doc の文を確認待ちへ入れる（判定の結果は judge に付ける）。
+// 既にある文（確認済みを含む）は飛ばす。1件書けなくても残りは続ける。
 func queuePoolReview(
-	ctx context.Context, db *firestore.Client, accepted []quality.Candidate,
+	ctx context.Context, db *firestore.Client, cands []quality.Candidate,
 	docs map[string]map[string]any, now time.Time,
 ) error {
 	added, skipped, failed := 0, 0, 0
 	var firstErr error
-	for _, c := range accepted {
+	for _, c := range cands {
 		data, ok := docs[quality.FlagID(c)]
 		if !ok {
 			continue
@@ -169,4 +170,53 @@ func queueFlaggedReview(ctx context.Context, db *firestore.Client, cutoff, now t
 	}
 	log.Printf("poolReview: flagged queued=%d already=%d failed=%d unusable=%d", added, skipped, failed, unusable)
 	return firstErr
+}
+
+// queueSavedSentences は保存したばかりの例文を確認待ちへ入れる（生成直後）。
+// 対象は LLM 生成（from_cache でない）の文。判定の結果は judge に付ける（未判定も入れる）。
+// 失敗しても例文の保存は済んでいるのでログだけ残す。取りこぼしは cmd/poolreview list が拾う。
+func queueSavedSentences(
+	ctx context.Context, db *firestore.Client, refs []*firestore.DocumentRef, docs []map[string]any,
+) {
+	if db == nil {
+		return
+	}
+	now := time.Now()
+	for i, ref := range refs {
+		if cached, _ := docs[i]["from_cache"].(bool); cached {
+			continue
+		}
+		// created_at は ServerTimestamp の置き換え前なので、写しに今の時刻を入れる。
+		data := make(map[string]any, len(docs[i]))
+		for k, v := range docs[i] {
+			data[k] = v
+		}
+		data["created_at"] = now
+		e, ok := buildPoolEntry(data)
+		if !ok {
+			continue
+		}
+		err := createPoolReview(ctx, db, e, "users/"+ref.Parent.Parent.ID+"/sentences/"+ref.ID, data, now)
+		if err != nil && status.Code(err) != codes.AlreadyExists {
+			log.Printf("poolReview: queue on save failed source=%s: %v", ref.Path, err)
+		}
+	}
+}
+
+// judge の値。確認待ちの1件に、生成時の判定の結果として付ける。
+const (
+	judgeOK   = "ok"   // 判定に合格
+	judgeNG   = "ng"   // 判定で不合格（sentence_flags の文）
+	judgeNone = "none" // 判定していない（判定の失敗・判定器が無い）
+)
+
+// judgeLabel は例文 doc の quality から judge の値を決める。
+func judgeLabel(data map[string]any) string {
+	switch v, _ := poolVerdictOf(data); v {
+	case poolPassed:
+		return judgeOK
+	case poolRejected:
+		return judgeNG
+	}
+	return judgeNone
 }

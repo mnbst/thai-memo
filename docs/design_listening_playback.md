@@ -111,7 +111,9 @@ audio/{sha256(voice_config_version | voice_name | speaking_rate | text)}.mp3
 （`corpus_pool_<lang>.json` / `free_pool_<lang>.json`）へ足している。これを、人が見て OK した文だけ足す形に変える
 （2026-10-21 決定）。
 
-1. dailyBatch は judge を通った文を、本番プールではなく Firestore の**確認待ち**に入れる
+1. dailyBatch は judge を通った文を、本番プールではなく Firestore の**確認待ち**に入れる。
+   2026-11-22 から、生成した直後に判定の合否によらず全部入れる（`judge`: ok / ng / none）。dailyBatch では回さず、
+   取りこぼしは `cmd/poolreview list`（直近48時間、`-window` で広げる）が拾う
 2. 確認待ちの文を、Claude が Artifact ページに並べる（タイ語・発音・訳・単語分解・テーマ・judge の所見）。
    人が文ごとに OK / NG を付ける
 3. Claude がページの結果を読み、OK の文だけを本番プールへ足す（`cmd/poolreview apply`）。NG は `rejected` にする（消さない）

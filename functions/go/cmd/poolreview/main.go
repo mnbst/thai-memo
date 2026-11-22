@@ -1,7 +1,8 @@
 // Command poolreview は例文プールの確認待ち（Firestore の pool_review）を扱う。
 // pool-review スキルから使う。設計は docs/design_listening_playback.md「プールへの追加」。
 //
-//	list   確認待ち（pending）を JSON で書き出す。Artifact ページの元データ
+//	list   直近の生成例文を確認待ちへ回してから（生成直後に入れ損ねた文を拾う）、
+//	       確認待ち（pending）を JSON で書き出す。Artifact ページの元データ
 //	apply  OK / NG の結果を反映する。OK は本番プールへ足し、NG は rejected
 //
 // apply は既定で dry run。-write で書く。
@@ -29,6 +30,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/storage"
 
+	function "github.com/mnbst/thai-memo/functions/go"
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/poolreview"
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
@@ -65,6 +67,7 @@ type item struct {
 	Lang     string         `json:"lang" firestore:"lang"`
 	Source   string         `json:"source" firestore:"source"`
 	QueuedAt time.Time      `json:"queued_at" firestore:"queued_at"`
+	Judge    string         `json:"judge" firestore:"judge"` // 生成時の判定: ok / ng / none
 	Quality  map[string]any `json:"quality,omitempty" firestore:"quality"`
 	Sentence map[string]any `json:"sentence" firestore:"sentence"`
 }
@@ -72,6 +75,7 @@ type item struct {
 func runList(ctx context.Context, project string, args []string) error {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 	out := fs.String("out", "", "書き出す JSON のパス")
+	window := fs.Duration("window", 48*time.Hour, "先に確認待ちへ回す生成例文の範囲（0 で回さない）")
 	fs.Parse(args)
 	if *out == "" {
 		return errors.New("-out が必要")
@@ -81,6 +85,11 @@ func runList(ctx context.Context, project string, args []string) error {
 		return err
 	}
 	defer db.Close()
+	if *window > 0 {
+		if err := function.QueueRecentForReview(ctx, db, *window); err != nil {
+			return fmt.Errorf("確認待ちへ回せない: %w", err)
+		}
+	}
 	docs, err := db.Collection(poolreview.Collection).
 		Where("status", "==", poolreview.StatusPending).Documents(ctx).GetAll()
 	if err != nil {

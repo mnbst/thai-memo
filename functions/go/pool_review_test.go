@@ -44,3 +44,19 @@ func TestFlaggedReviewDataOld(t *testing.T) {
 		t.Error("sentence_doc の無い flag を回している")
 	}
 }
+
+func TestJudgeLabel(t *testing.T) {
+	cases := []struct {
+		data map[string]any
+		want string
+	}{
+		{map[string]any{"quality": map[string]any{"passed": true}}, judgeOK},
+		{map[string]any{"quality": map[string]any{"passed": false}}, judgeNG},
+		{map[string]any{}, judgeNone},
+	}
+	for _, c := range cases {
+		if got := judgeLabel(c.data); got != c.want {
+			t.Errorf("judgeLabel(%v) = %q, want %q", c.data, got, c.want)
+		}
+	}
+}
