@@ -95,7 +95,7 @@ func evidenceField(data map[string]any) float64 {
 //
 //   - 確認クイズの正解: LearningCorrectMultiplier（不正解は等倍）
 //   - 例文を見直しての正解: SentenceReviewCorrectMultiplier（不正解は等倍）
-//   - まとめクイズで、例文に出てから FreshExposureWindow 以内: 正誤とも FreshMultiplier
+//   - まとめクイズで、例文に出てから FreshExposureWindow 以内: 正誤とも FreshMultiplierFor(hint)
 //
 // 判定は last_exposed_at（例文に出た時刻）で見る。last_seen はクイズの回答でも
 // 進むので、昨日正解した語を今日また正解しても「間もない」になってしまう。
@@ -110,7 +110,7 @@ func answerMultiplier(quizType string, r Result, data map[string]any, now float6
 	}
 	if !r.IsCorrect {
 		if fresh {
-			return FreshMultiplier
+			return FreshMultiplierFor(r.HintLevel)
 		}
 		return 1
 	}
@@ -122,7 +122,7 @@ func answerMultiplier(quizType string, r Result, data map[string]any, now float6
 		return m * SentenceReviewCorrectMultiplier
 	}
 	if fresh {
-		m *= FreshMultiplier
+		m *= FreshMultiplierFor(r.HintLevel)
 	}
 	return m
 }

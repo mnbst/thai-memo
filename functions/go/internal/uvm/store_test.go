@@ -156,6 +156,8 @@ func TestAnswerMultiplier(t *testing.T) {
 		{"last_exposed_at の無い旧 doc は満額", "", Result{IsCorrect: true}, map[string]any{"last_seen": now}, 1},
 		{"未登録語は満額", "", Result{IsCorrect: true}, nil, 1},
 		{"まとめ・24時間以内の不正解も弱める", "", Result{IsCorrect: false}, fresh, FreshMultiplier},
+		{"日本語ヒントの24時間以内の正解", "", Result{IsCorrect: true, HintLevel: 2}, fresh, FreshTransMultiplier},
+		{"日本語ヒントの24時間以内の不正解", "", Result{IsCorrect: false, HintLevel: 2}, fresh, FreshTransMultiplier},
 		{"まとめ・24時間過ぎの不正解は満額", "", Result{IsCorrect: false}, stale, 1},
 		{"例文を見直した不正解は満額", "", Result{IsCorrect: false, SentenceReviewed: true}, fresh, 1},
 		{"確認クイズの不正解は満額", "learning", Result{IsCorrect: false}, fresh, 1},

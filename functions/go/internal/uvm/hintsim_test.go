@@ -47,7 +47,7 @@ func pickHint(rnd *rand.Rand, mix []float64) int {
 // TestHintRecovery は PFloor から何問連続正解で P>0.5 に戻るかを固定する。
 // ヒント段の g を決めた根拠（HintPronGuess のコメント）そのもの。
 func TestHintRecovery(t *testing.T) {
-	for _, c := range []struct{ hint, want int }{{0, 2}, {1, 4}, {2, 6}} {
+	for _, c := range []struct{ hint, want int }{{0, 2}, {1, 5}, {2, 9}} {
 		p, n := PFloor, 0
 		for p <= 0.5 {
 			p = UpdateP(p, true, c.hint, 1)
@@ -116,6 +116,27 @@ func TestHintGuessSweep(t *testing.T) {
 					row = append(row, res[0][0], res[0][1], res[1][0], res[1][1])
 				}
 				t.Logf("%-10s %4.0f/%3.0f%%→%4.0f/%3.0f%%  %4.0f/%3.0f%%→%4.0f/%3.0f%%  %4.0f/%3.0f%%→%4.0f/%3.0f%%", row...)
+			}
+		}
+	}
+}
+
+// TestHintSteps は新語（NewWordP）が何問の正解で LearnedP を越えるかを固定する。
+// ヒント段の g と FreshMultiplierFor を決めた根拠（HintPronGuess のコメント）。
+func TestHintSteps(t *testing.T) {
+	for _, c := range []struct{ hint, full, fresh int }{{0, 1, 2}, {1, 2, 3}, {2, 3, 4}} {
+		for _, k := range []struct {
+			name   string
+			weight float64
+			want   int
+		}{{"満額", 1, c.full}, {"当日", FreshMultiplierFor(c.hint), c.fresh}} {
+			p, n := NewWordP, 0
+			for p <= LearnedP {
+				p = UpdateP(p, true, c.hint, k.weight)
+				n++
+			}
+			if n != k.want {
+				t.Errorf("hint=%d %s: %d 問で LearnedP 超え（期待 %d）", c.hint, k.name, n, k.want)
 			}
 		}
 	}

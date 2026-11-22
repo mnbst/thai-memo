@@ -90,7 +90,15 @@ const (
 	// 弱め方で、Result.FormatScale と同じく正誤の両側を揃える。新語（0.4）の
 	// 1 問の不正解は 0.15 → 0.27、そこからの正解 3 問で 0.52。
 	// 例文レビュー由来の正解（SentenceReviewCorrectMultiplier）とは重ねない。
+	//
+	// ヒント 2 段だけは FreshTransMultiplier を使う（FreshMultiplierFor）。
 	FreshMultiplier = 0.4
+	// FreshTransMultiplier はヒント 2 段（日本語）で答えたときの FreshMultiplier。
+	//
+	// 正解 1 問の LR が小さいほど、同じ ×0.4 で削られる問題数が増える。日本語
+	// ヒント（LR 1.214）に ×0.4 を掛けると新語が 0.5 を越えるのに 6 問かかり、
+	// 「当日は +1 問」から外れる。4 問に収まるのは 0.56〜0.74 で、0.6 を取る。
+	FreshTransMultiplier = 0.6
 	// FreshExposureWindow は「読んで間もない」とみなす時間（秒）。
 	// 忘却の大半は最初の 9 時間ほどで起き、記憶は睡眠をはさんで固定されるので、
 	// 一晩をまたぐ 24 時間を取る。
@@ -127,24 +135,33 @@ const (
 
 	// HintPronGuess / HintTransGuess はヒント 1 段（発音）/ 2 段（日本語）の g。
 	//
-	// 「P が PFloor まで落ちた語が、そのヒントで何問連続正解すれば 0.5 を
-	// 越えるか」から決めた（2026-11）。PFloor の odds 0.176 → 1 に 5.67 倍要る。
+	// 「新語（P=NewWordP 0.4）が何問の正解で LearnedP(0.5) を越えるか」で
+	// 決める（2026-11-22）。odds 0.667 → 1 に 1.5 倍要る。
 	//
-	//	発音   0.55: 正解 LR 1.545、4 問で 5.70 倍   （旧 0.63: 6 問）
-	//	日本語 0.63: 正解 LR 1.349、6 問で 6.03 倍   （旧 0.80: 29 問）
+	//	         g     正解 LR   満額   読んだ当日（FreshMultiplierFor）
+	//	ヒント無し 0.35  2.429    1 問   2 問（×0.4）
+	//	発音      0.58  1.466    2 問   3 問（×0.4）
+	//	日本語    0.70  1.214    3 問   4 問（×0.6）
 	//
-	// 旧値（BayesGuessTop×1.8 / ×3.0 を MaxGuessRate で頭打ち）では、日本語
-	// ヒントを常用する人は正答率 7 割でも P が下がり続けた（正解 ×1.06・
-	// 不正解 ×0.75）。prod の実測（2026-11-12〜19、まとめクイズ 1,679 問）は
-	// 正答率 ヒント無し 81% / 発音 77% / 日本語 56%。正答率は g を下回れない
-	// （知っている語が混ざれば g より上がる）ので、日本語の g は 0.56 以下が
-	// 実データの上限で、0.63 はまだ厳しい側に置いてある。
+	// ヒントを出すごとに 1 問ずつ増え、当日はそれぞれ +1 問。旧値（0.55・0.63）
+	// では発音ヒントでも 1 問で越え、ヒント無しと区別がつかなかった。
+	// PFloor（0.15）からは 2 / 5 / 9 問（旧 2 / 4 / 6）。TestHintSteps が固定する。
 	//
-	// 代わりに不正解も強くなる（発音 ×0.41→×0.33、日本語 ×0.75→×0.41）。
-	// 訳を見てなお外すのは「知らない」のはっきりした証拠なので受け入れる。
-	HintPronGuess  = 0.55
-	HintTransGuess = 0.63
+	// prod の実測（2026-11-12〜19、まとめクイズ 1,679 問）は正答率
+	// ヒント無し 81% / 発音 77% / 日本語 56%。正答率は g を下回れないので、
+	// 日本語 0.70 は実データより厳しい側（ヒントの正解を弱く見る側）に置いている。
+	// 不正解は正解 1 問を打ち消す幅（UpdateP）。
+	HintPronGuess  = 0.58
+	HintTransGuess = 0.70
 )
+
+// FreshMultiplierFor は hint_level ごとの FreshMultiplier。
+func FreshMultiplierFor(hintLevel int) float64 {
+	if hintLevel >= 2 {
+		return FreshTransMultiplier
+	}
+	return FreshMultiplier
+}
 
 // GuessRate は hint_level ごとの想定推測率 g。ヒントを出すほど選択肢が絞れる
 // ので、知らなくても当たる確率が上がる。値の根拠は HintPronGuess のコメント。
@@ -161,11 +178,17 @@ func GuessRate(hintLevel int) float64 {
 
 // UpdateP は P(know) を尤度比で更新する。
 //
-//	正解:   LR = (1-s)/g        不正解: LR = s/(1-g)
+//	正解:   LR = (1-s)/g        不正解: LR = g/(1-s)（正解の逆数）
 //	odds' = odds * LR^weight,   P' = odds'/(1+odds')
 //
 // g は GuessRate（知らなくても当たる確率）、s は BayesSlip（知っていて落とす
 // 確率）。weight は証拠の重みで、確認クイズの正解など弱い経路で 1 未満になる。
+//
+// 不正解は同じヒント段・同じ weight の正解 1 問をちょうど打ち消す（2026-11-22）。
+// 素の尤度比 s/(1-g) では、新語（0.4）の 1 問の不正解がヒント無しで PFloor、
+// 発音 0.19・日本語 0.25 まで落ち、正解 2〜3 問ぶんを 1 問で失っていた。
+// 正解の上がり方を「ヒント段ごとに何問で LearnedP」で決めた（HintPronGuess）ので、
+// 不正解も同じ問題数の物差しで数える。新語の 1 問の不正解は 0.22 / 0.31 / 0.35。
 //
 // 旧 α 則（UpdatePAlpha）との違いは不正解側。rank 300 の新語は 1 問正解で
 // P=0.55 まで上がるのに 1 問不正解では 0.079 にしか下がらず、まぐれ当たりで
@@ -177,10 +200,9 @@ func GuessRate(hintLevel int) float64 {
 // 動かなくなるし、rank ごとの難度は g（と prior）が受け持つ。
 func UpdateP(p float64, correct bool, hintLevel int, weight float64) float64 {
 	p = math.Max(1e-6, math.Min(1-1e-6, p))
-	g := GuessRate(hintLevel)
-	lr := BayesSlip / (1 - g)
-	if correct {
-		lr = (1 - BayesSlip) / g
+	lr := (1 - BayesSlip) / GuessRate(hintLevel)
+	if !correct {
+		lr = 1 / lr
 	}
 	odds := p / (1 - p) * math.Pow(lr, weight)
 	// 下限は PFloor。ただし移行前の doc など既に PFloor を下回っている P を
