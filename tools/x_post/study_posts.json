@@ -37,7 +37,7 @@
       "screen": "pron",
       "from": "語末の k・t・p は音を出さない"
     },
-    "text_en": "Are you pronouncing นก (bird) like \"knock\"?🐦\n\nFor final k, t, and p, move your mouth into position and stop—don't release the sound.\nนก nók／รถ rót car／กับ kàp with\n\nAt the end of a word, ด・ส・ช become t sounds, while บ・พ become p sounds."
+    "text_en": "Are you pronouncing นก nók (bird) like \"knock\"?🐦\n\nFor final k, t, and p, move your mouth into position and stop—don't release the sound.\nนก nók／รถ rót car／กับ kàp with\n\nAt the end of a word, ด・ส・ช become t sounds, while บ・พ become p sounds."
   },
   {
     "id": "guide_pron_casual",
@@ -67,7 +67,7 @@
       "screen": "tone",
       "from": "声調記号"
     },
-    "text_en": "The same mark ่, but a different tone😵\n\nไก่ kài chicken → low tone\nไม่ mâi not → falling tone\n\nก is a mid-class consonant; ม is low-class. The consonant class changes the tone even when the mark is the same."
+    "text_en": "The same mark ่, but a different tone😵\n\nไก่ kài chicken → low tone\nไม่ mâi not → falling tone\n\nก (k) is a mid-class consonant; ม (m) is low-class. The consonant class changes the tone even when the mark is the same."
   },
   {
     "id": "guide_tone_classes",
@@ -127,7 +127,7 @@
       "screen": "word_order",
       "from": "を文の最初に置く"
     },
-    "text_en": "In Thai, the topic comes first and the comment follows🗣\n\nทัวร์นี้ คนเยอะ\nthis tour｜people many\n＝This tour is crowded\n\nThink of it as \"As for this tour...\" Places and phrases with \"this\" often become the topic."
+    "text_en": "In Thai, the topic comes first and the comment follows🗣\n\nทัวร์นี้ คนเยอะ\nthua níi khon yə́\nthis tour｜people many\n＝This tour is crowded\n\nThink of it as \"As for this tour...\" Places and phrases with \"this\" often become the topic."
   },
   {
     "id": "guide_wo_modifier",
@@ -137,7 +137,7 @@
       "screen": "word_order",
       "from": "名詞を説明する語は後ろ"
     },
-    "text_en": "Thai modifiers usually come after the word they describe🔄\n\nบ้านใหญ่\nhouse big → a big house\n\nบ้านของฉัน\nhouse of me → my house\n\nDescriptive words follow the noun. บ้านใหญ่ can also form the sentence \"The house is big.\""
+    "text_en": "Thai modifiers usually come after the word they describe🔄\n\nบ้านใหญ่ bâan yài\nhouse big → a big house\n\nบ้านของฉัน bâan khɔ̌ɔng chǎn\nhouse of me → my house\n\nDescriptive words follow the noun. บ้านใหญ่ can also form the sentence \"The house is big.\""
   },
   {
     "id": "guide_wo_count",
@@ -147,7 +147,7 @@
       "screen": "word_order",
       "from": "数える・指すときは"
     },
-    "text_en": "In Thai, every part of \"these two cats\" follows the noun🐈🐈\n\nแมว สอง ตัว นี้\ncat → two → classifier → this\n\nแมวตัวหนึ่ง (cat classifier one) often means \"a certain cat\" rather than simply \"one cat.\""
+    "text_en": "In Thai, every part of \"these two cats\" follows the noun🐈🐈\n\nแมว สอง ตัว นี้\nmɛɛw sɔ̌ɔng tua níi\ncat → two → classifier → this\n\nแมวตัวหนึ่ง mɛɛw tua nʉ̀ng (cat classifier one) often means \"a certain cat\" rather than simply \"one cat.\""
   },
   {
     "id": "guide_wo_negation",
@@ -157,7 +157,7 @@
       "screen": "word_order",
       "from": "打ち消したい語句の前"
     },
-    "text_en": "The position of ไม่ได้ changes the meaning⚠️\n\nไม่ได้ไป＝didn't go\nไปไม่ได้＝can't go\n\nBefore a verb, it means the action didn't happen. After a verb, it means the action isn't possible."
+    "text_en": "The position of ไม่ได้ (mâi dâai) changes the meaning⚠️\n\nไม่ได้ไป mâi dâai pai＝didn't go\nไปไม่ได้ pai mâi dâai＝can't go\n\nBefore a verb, it means the action didn't happen. After a verb, it means the action isn't possible."
   },
   {
     "id": "guide_wo_question",
@@ -167,7 +167,7 @@
       "screen": "word_order",
       "from": "疑問詞は答えが入る場所に"
     },
-    "text_en": "In Thai questions, put the question word where the answer would go❓\n\nคุณกินอะไร\nyou eat what＝What do you eat?\n\nไปไหน\ngo where＝Where are you going?\n\nFor yes-or-no questions, add ไหม at the end."
+    "text_en": "In Thai questions, put the question word where the answer would go❓\n\nคุณกินอะไร khun kin à-rai\nyou eat what＝What do you eat?\n\nไปไหน pai nǎi\ngo where＝Where are you going?\n\nFor yes-or-no questions, add ไหม (mǎi) at the end."
   },
   {
     "id": "guide_wo_tense",
@@ -177,7 +177,7 @@
       "screen": "word_order",
       "from": "いつのことかを表す語"
     },
-    "text_en": "Thai verbs never change form. Other words show the time⏰\n\nจะ＋verb＝will／going to\nกำลัง＋verb＝be doing\nเคย＋verb＝have ever done\nverb＋แล้ว＝already did\n\nกินข้าวแล้ว＝already ate"
+    "text_en": "Thai verbs never change form. Other words show the time⏰\n\nจะ jà＋verb＝will／going to\nกำลัง kam-lang＋verb＝be doing\nเคย khəəi＋verb＝have ever done\nverb＋แล้ว lɛ́ɛw＝already did\n\nกินข้าวแล้ว kin khâaw lɛ́ɛw＝already ate"
   },
   {
     "id": "guide_wo_polite",
@@ -187,7 +187,7 @@
       "screen": "word_order",
       "from": "丁寧の語尾は一番最後"
     },
-    "text_en": "ครับ・ค่ะ go at the very end of a sentence🙏\n\nกินไหมคะ＝Would you like to eat?\nอร่อยนะคะ＝It's delicious, isn't it?\n\nThey come even after ไหม・แล้ว・นะ. After a question or นะ, women use คะ (high tone)."
+    "text_en": "ครับ khráp・ค่ะ khâ go at the very end of a sentence🙏\n\nกินไหมคะ kin mǎi khá＝Would you like to eat?\nอร่อยนะคะ à-ròi ná khá＝It's delicious, isn't it?\n\nThey come even after ไหม mǎi・แล้ว lɛ́ɛw・นะ ná. After a question or นะ, women use คะ khá (high tone)."
   },
   {
     "id": "guide_wo_relative",
@@ -197,7 +197,7 @@
       "screen": "word_order",
       "from": "文で説明するときは"
     },
-    "text_en": "\"The restaurant I like\" becomes \"restaurant ที่ I like\" in Thai🏪\n\nร้านที่ฉันชอบ\n\nWhen a clause describes a noun, the description still comes after it. Just put ที่ after the noun and continue with the clause."
+    "text_en": "\"The restaurant I like\" becomes \"restaurant ที่ (thîi) I like\" in Thai🏪\n\nร้านที่ฉันชอบ\nráan thîi chǎn chɔ̂ɔp\n\nWhen a clause describes a noun, the description still comes after it. Just put ที่ after the noun and continue with the clause."
   },
   {
     "id": "guide_wo_preposition",
@@ -207,7 +207,7 @@
       "screen": "word_order",
       "from": "などは名詞の前"
     },
-    "text_en": "In Thai, prepositions come before nouns—just like in English👫\n\nไปกับเพื่อน＝go with friend\nแมวอยู่บนโต๊ะ＝cat is on table\n\nกับ (with), ใน (in), and บน (on) all come before the noun."
+    "text_en": "In Thai, prepositions come before nouns—just like in English👫\n\nไปกับเพื่อน pai kàp phʉ̂an＝go with friend\nแมวอยู่บนโต๊ะ mɛɛw yùu bon tó＝cat is on table\n\nกับ kàp (with), ใน nai (in), and บน bon (on) all come before the noun."
   },
   {
     "id": "guide_wo_very",
@@ -217,7 +217,7 @@
       "screen": "word_order",
       "from": "「少し」は後ろ"
     },
-    "text_en": "In Thai, \"very\" comes last😋\n\nอาหารนี้อร่อยมาก\nfood this delicious very\n＝This food is very delicious\n\nมาก (very), จริงๆ (really), and นิดหน่อย (a little) follow the adjective or verb."
+    "text_en": "In Thai, \"very\" comes last😋\n\nอาหารนี้อร่อยมาก\naa-hǎan níi à-ròi mâak\nfood this delicious very\n＝This food is very delicious\n\nมาก mâak (very), จริงๆ jing-jing (really), and นิดหน่อย nít-nɔ̀i (a little) follow the adjective or verb."
   },
   {
     "id": "guide_wo_compare",
@@ -227,7 +227,7 @@
       "screen": "word_order",
       "from": "比べるときは"
     },
-    "text_en": "To compare, use \"adjective＋กว่า＋the other thing\"🌡\n\nวันนี้ร้อนกว่าเมื่อวาน\ntoday hot more-than yesterday\n＝Today is hotter than yesterday\n\nFor \"the most,\" add ที่สุด after the adjective.\nอันนี้ดีที่สุด＝This one is the best"
+    "text_en": "To compare, use \"adjective＋กว่า (kwàa)＋the other thing\"🌡\n\nวันนี้ร้อนกว่าเมื่อวาน\nwan-níi rɔ́ɔn kwàa mʉ̂a-waan\ntoday hot more-than yesterday\n＝Today is hotter than yesterday\n\nFor \"the most,\" add ที่สุด (thîi-sùt) after the adjective.\nอันนี้ดีที่สุด an-níi dii thîi-sùt＝This one is the best"
   },
   {
     "id": "guide_wo_want_can",
@@ -237,7 +237,7 @@
       "screen": "word_order",
       "from": "「できる」は後ろ"
     },
-    "text_en": "\"Want to\" goes before the verb; \"can\" goes after🇹🇭\n\nฉันอยากกินส้มตำ\nI want eat som tam\n\nฉันพูดภาษาไทยได้\nI speak Thai can\n\nอยาก・ต้อง・ควร come before the verb, while ได้ goes at the end."
+    "text_en": "\"Want to\" goes before the verb; \"can\" goes after🇹🇭\n\nฉันอยากกินส้มตำ\nchǎn yàak kin sôm-tam\nI want eat som tam\n\nฉันพูดภาษาไทยได้\nchǎn phûut phaa-sǎa thai dâai\nI speak Thai can\n\nอยาก yàak・ต้อง tɔ̂ng・ควร khuan come before the verb, while ได้ dâai goes at the end."
   },
   {
     "id": "guide_wo_serial",
@@ -247,7 +247,7 @@
       "screen": "word_order",
       "from": "動詞はそのまま続けて並べる"
     },
-    "text_en": "Thai simply lines up verbs in the order things happen🛒\n\nไปซื้อของ\ngo buy things＝go shopping\n\nเอาน้ำมา\ntake water come＝bring water\n\nNo extra words like \"to\" or \"and\" are needed."
+    "text_en": "Thai simply lines up verbs in the order things happen🛒\n\nไปซื้อของ pai sʉ́ʉ khɔ̌ɔng\ngo buy things＝go shopping\n\nเอาน้ำมา aw náam maa\ntake water come＝bring water\n\nNo extra words like \"to\" or \"and\" are needed."
   },
   {
     "id": "tip_tone_suay",
@@ -259,7 +259,7 @@
     "id": "tip_mai_pen_rai",
     "kind": "tip",
     "text": "タイで一番聞く言葉、ไม่เป็นไร（マイペンライ）🙏\n\n「大丈夫」「気にしないで」「どういたしまして」まで、これ1つ。\n\nぶつかっても、遅れても、お礼を言われても、マイペンライ。",
-    "text_en": "The phrase you'll hear everywhere in Thailand: ไม่เป็นไร🙏\n\nIt can mean \"It's okay,\" \"Don't worry,\" or even \"You're welcome.\"\n\nA bump, a delay, or a thank-you—the same phrase works for them all."
+    "text_en": "The phrase you'll hear everywhere in Thailand: ไม่เป็นไร (mâi pen rai)🙏\n\nIt can mean \"It's okay,\" \"Don't worry,\" or even \"You're welcome.\"\n\nA bump, a delay, or a thank-you—the same phrase works for them all."
   },
   {
     "id": "tip_silent_mark",
@@ -277,13 +277,13 @@
     "id": "tip_classifier",
     "kind": "tip",
     "text": "タイ語にも「〜本」「〜枚」がある📏\n\nคน khon 人\nตัว tua 動物・服\nอัน an 小物\n\nหมาสองตัว＝犬 2 匹\n\n仕組みは日本語と同じで、置く場所が後ろなだけ。",
-    "text_en": "Thai uses classifier words for counting too📏\n\nคน khon people\nตัว tua animals／clothes\nอัน an small objects\n\nหมาสองตัว＝dog two classifier\n\nThe classifier comes after the number: noun＋number＋classifier."
+    "text_en": "Thai uses classifier words for counting too📏\n\nคน khon people\nตัว tua animals／clothes\nอัน an small objects\n\nหมาสองตัว mǎa sɔ̌ɔng tua＝dog two classifier\n\nThe classifier comes after the number: noun＋number＋classifier."
   },
   {
     "id": "tip_price",
     "kind": "tip",
     "text": "市場で一番使うひとこと🛍\n\nอันนี้เท่าไร\nan-níi thâw rài\n＝これいくら？\n\n最後に ครับ／คะ を付ければ丁寧に。\n聞き取れなかったら電卓を差し出すのも定番です。",
-    "text_en": "The most useful phrase at a market🛍\n\nอันนี้เท่าไร\nan-níi thâw rài\n＝How much is this?\n\nAdd ครับ／คะ at the end to be polite. If you miss the answer, handing over a calculator is completely normal."
+    "text_en": "The most useful phrase at a market🛍\n\nอันนี้เท่าไร\nan-níi thâw rài\n＝How much is this?\n\nAdd ครับ khráp／คะ khá at the end to be polite. If you miss the answer, handing over a calculator is completely normal."
   },
   {
     "id": "tip_wai",
@@ -307,7 +307,7 @@
     "id": "tip_polite_ending",
     "kind": "tip",
     "text": "女性の丁寧な語尾 ค่ะ、質問のときだけ形が変わる⚠️\n\n答える：ค่ะ khâ（下がる）\n聞く：คะ khá（高い）\n\nกินไหมคะ＝食べますか？\nกินแล้วค่ะ＝もう食べました\n\n男性は ครับ のままでOK。",
-    "text_en": "The polite ending ค่ะ changes form when a woman asks a question⚠️\n\nAnswering: ค่ะ khâ (falling)\nAsking: คะ khá (high)\n\nกินไหมคะ＝Would you like to eat?\nกินแล้วค่ะ＝I've already eaten\n\nFor men, ครับ stays the same."
+    "text_en": "The polite ending ค่ะ (khâ) changes form when a woman asks a question⚠️\n\nAnswering: ค่ะ khâ (falling)\nAsking: คะ khá (high)\n\nกินไหมคะ kin mǎi khá＝Would you like to eat?\nกินแล้วค่ะ kin lɛ́ɛw khâ＝I've already eaten\n\nFor men, ครับ (khráp) stays the same."
   },
   {
     "id": "tip_ai_two_letters",
@@ -325,13 +325,13 @@
     "id": "tip_kin_khaaw",
     "kind": "tip",
     "text": "タイの「こんにちは」代わりのひとこと🍚\n\nกินข้าวหรือยัง\nkin khâaw rʉ̌ʉ yang\n＝ご飯食べた？\n\n本当に食事の誘いとは限りません。「食べたよ」なら กินแล้ว で返せばOK。",
-    "text_en": "A Thai alternative to saying \"How are you?\"🍚\n\nกินข้าวหรือยัง\nkin khâaw rʉ̌ʉ yang\n＝Have you eaten yet?\n\nIt isn't always a literal meal invitation. If you have eaten, simply answer กินแล้ว."
+    "text_en": "A Thai alternative to saying \"How are you?\"🍚\n\nกินข้าวหรือยัง\nkin khâaw rʉ̌ʉ yang\n＝Have you eaten yet?\n\nIt isn't always a literal meal invitation. If you have eaten, simply answer กินแล้ว (kin lɛ́ɛw)."
   },
   {
     "id": "tip_aroi",
     "kind": "tip",
     "text": "タイ料理を食べたら、まずこれ😋\n\nอร่อย à-ròi＝おいしい\nอร่อยมาก＝とてもおいしい\n\nマー（mâak）を後ろに付けるだけ。お店の人がかなり喜んでくれます。",
-    "text_en": "Eating Thai food? Say this first😋\n\nอร่อย à-ròi＝delicious\nอร่อยมาก＝very delicious\n\nJust add \"mahk\" (mâak) at the end. The people at the restaurant will love hearing it."
+    "text_en": "Eating Thai food? Say this first😋\n\nอร่อย à-ròi＝delicious\nอร่อยมาก à-ròi mâak＝very delicious\n\nJust add \"mahk\" (mâak) at the end. The people at the restaurant will love hearing it."
   },
   {
     "id": "tip_khothot",
@@ -343,7 +343,7 @@
     "id": "tip_chai_mai",
     "kind": "tip",
     "text": "タイ語の「はい」は、質問の動詞で答える🙆\n\nใช่ไหม châi mǎi＝そうですか？\n→ ใช่ châi＝そうです\n\nไปไหม＝行く？\n→ ไป＝行く\n→ ไม่ไป＝行かない\n\n「はい」の一語より、動詞をくり返すのが自然です。",
-    "text_en": "In Thai, answer a yes-or-no question with its verb🙆\n\nใช่ไหม châi mǎi＝Is that right?\n→ ใช่ châi＝That's right\n\nไปไหม＝Are you going?\n→ ไป＝I'm going\n→ ไม่ไป＝I'm not going\n\nRepeating the verb sounds more natural than using one universal word for \"yes.\""
+    "text_en": "In Thai, answer a yes-or-no question with its verb🙆\n\nใช่ไหม châi mǎi＝Is that right?\n→ ใช่ châi＝That's right\n\nไปไหม pai mǎi＝Are you going?\n→ ไป pai＝I'm going\n→ ไม่ไป mâi pai＝I'm not going\n\nRepeating the verb sounds more natural than using one universal word for \"yes.\""
   },
   {
     "id": "tip_mai_ek_tho",
@@ -367,7 +367,7 @@
     "id": "tip_songkran",
     "kind": "tip",
     "text": "タイのお正月は4月🎉\n\nสงกรานต์ sǒngkraan（ソンクラーン）\n毎年4月13〜15日\n\n水をかけ合って新年を祝うお祭り。\n街中で水をかけられても、笑って สุขสันต์วันสงกรานต์（ソンクラーンおめでとう）。",
-    "text_en": "Thai New Year is in April🎉\n\nสงกรานต์ sǒngkraan (Songkran)\nEvery year, April 13–15\n\nIt's a festival where people splash water to celebrate the new year. If you get soaked in the street, smile and say สุขสันต์วันสงกรานต์ (Happy Songkran!)."
+    "text_en": "Thai New Year is in April🎉\n\nสงกรานต์ sǒngkraan (Songkran)\nEvery year, April 13–15\n\nIt's a festival where people splash water to celebrate the new year. If you get soaked in the street, smile and say สุขสันต์วันสงกรานต์ sùk-sǎn wan sǒngkraan (Happy Songkran!)."
   },
   {
     "id": "tip_loy_krathong",
