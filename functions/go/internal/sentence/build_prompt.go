@@ -18,7 +18,10 @@ type ResolvedParams struct {
 	TopicOptions []string
 	SubTheme     string
 	TimeFrame    string
-	Relation     string
+	// TimeKind は TimeFrame の種類（TimeKinds）から引いた言い方。プロンプトの時点の行には
+	// こちらを出す。空なら TimeFrame をそのまま出す。context.timeFrame は TimeFrame のまま。
+	TimeKind string
+	Relation string
 	// RelationGiven は Relation を呼び出し側が指定した（抽選していない）回。
 	// 指定があればショットの関係で上書きしない。
 	RelationGiven bool
@@ -162,7 +165,7 @@ func BuildPrompt(
 	}
 	timeFrameLine := ""
 	if timeFrame != "" {
-		timeFrameLine = fmt.Sprintf("- 話している時点: %s%s\n", timeFrame, timeFrameNote)
+		timeFrameLine = fmt.Sprintf("- 話している時点: %s%s\n", timeFrameShown(timeFrame, resolved.TimeKind), timeFrameNote)
 	}
 	subThemeLine := ""
 	if subTheme != "" {

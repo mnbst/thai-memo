@@ -710,6 +710,12 @@ functions/go/internal/poolreview/
 functions/go/cmd/poolreview/main.go
 pool-review スキルの道具。list（直近48時間の生成例文をその場で確認待ちへ回してから、確認待ちを JSON に）・apply（OK を本番プールへ足す・fix があれば直した文を入れる・NG を rejected）。
 
+functions/go/cmd/poolreview/native.go
+ネイティブ確認の道具。sample（プールの未確認の文から無作為に選び、記入用の CSV（判定とコメントだけ書く）を書き出して確認待ちへ status=native で入れる）・sheet（記入待ちの表を書き出し直す）・native（記入済みの CSV と Claude がコメントから作った直しで、OK は残す・FIX はその場で置き換える・NG はプールから外す。バックアップを取ってから書く）。
+
+functions/go/internal/poolreview/native.go
+ネイティブ確認の表（CSV）の書き出しと読み込み、FIX の文の組み立て、プール1本への置き換え・削除（EditPool）。
+
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文1回きりの判定（ReviewAll）で、不合格なら sentence_flags へ1件書く。キーが無ければ nil（判定なしで動く）。
 
@@ -1081,6 +1087,12 @@ functions/go/internal/sentence/resolve.go
 
 functions/go/internal/sentence/timeframe.go
 語が自然に置ける時点（time_frames.json、Jevで事前判定）から時制の候補を絞る。
+
+scripts/build_time_kinds.py
+語ごとに時点の種類（今＝最中/状態、未来＝予定/意志/見通し/願望、習慣＝習慣/最近、過去＝出来事/経験/昔）へ置けるかを Gemini Decisions で判定し、time_kinds.json を作る。
+
+functions/go/internal/sentence/time_kinds.json
+語 → 時点の位置 → 種類ごとの確率（go:embed）。Resolver が時点の種類（TimeKind）を引き、プロンプトの時点の行に出す。
 
 functions/go/internal/sentence/resolve_golden_test.go
 resolve_generation_params の確定部分をPython実装と突き合わせる。
