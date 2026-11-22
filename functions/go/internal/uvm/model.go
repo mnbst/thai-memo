@@ -62,6 +62,10 @@ const (
 	// （constants.py の FREE_TIER_MAX_VOCAB）。
 	FreeTierMaxVocab = 100
 
+	// LearningCorrectMultiplier / LearningEvidenceScale は確認クイズの係数。
+	// 2026-11-22 から確認クイズは UVM に書かない（WritesUVM）ので本番では効かない。
+	// シミュレーション（adaptivesim / matrixsim）が旧挙動を再現するために残す。
+	//
 	// LearningCorrectMultiplier は quiz_type=="learning" の正解を弱める係数。
 	// 0 ＝正解では P を動かさない。読んだ直後で答えが目の前にあるので、正解は
 	// 知っている証拠にならない。0.1 だった頃は prior 0.4 → 0.4215 と cutoff(0.42)

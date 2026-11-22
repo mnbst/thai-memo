@@ -142,12 +142,28 @@ func IsNewlyLearned(oldP, newP float64, quizType string) bool {
 	return quizType != "learning" && oldP <= LearnedP && newP > LearnedP
 }
 
+// WritesUVM はその種類のクイズの回答を UVM に書くか。
+//
+// 確認クイズ（quiz_type=="learning"）は書かない（2026-11-22）。例文を読んだ直後に
+// 答えが見える形で解くので、ユーザーに見せて確かめてもらうだけにする。
+// 正解は以前から P を動かさず（LearningCorrectMultiplier=0）、不正解だけが満額で
+// 効いていた。読んだ直後の 1 問の誤答で新語が PFloor まで落ち、その日の
+// まとめクイズの正解（FreshMultiplier）では 5 問かかっても戻れなかった
+// （prod: ยิ่ง が確認クイズの誤答で 0.4→0.15、まとめ 4 問正解で 0.44）。
+// P だけでなく quiz_attempts・evidence・last_seen も触らない（確認クイズしか
+// 解いていない語は「答えたことのない語」のまま扱う）。
+func WritesUVM(quizType string) bool {
+	return quizType != "learning"
+}
+
 // BatchUpdate はクイズ/例文の正誤結果をもとに UVM を一括更新する
 // （uvm.py:batch_update_uvm）。
 //
 // 既存の UVM ドキュメントがあれば P を更新、なければ新規作成する。
 // freqRank が非 nil のときは続けて estimated_vocab を同期する。
 // 戻り値は、この更新で「覚えた」に入った語。
+//
+// 確認クイズ（WritesUVM が偽）は何も書かずに返す。
 func BatchUpdate(
 	ctx context.Context,
 	db *firestore.Client,
@@ -156,6 +172,9 @@ func BatchUpdate(
 	freqRank map[string]int,
 	quizType string,
 ) ([]string, error) {
+	if !WritesUVM(quizType) {
+		return nil, nil
+	}
 	var learned []string
 	now := nowSeconds()
 	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
