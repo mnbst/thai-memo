@@ -1,7 +1,7 @@
 // Package ttsaudio はお手本音声（例文の全文を Cloud TTS で読んだ MP3）を作って GCS に置く。
 //
 // 設計は docs/design_listening_playback.md。要点:
-//   - 声は例文の中身だけで決める（文末 → 一人称 → BL → ハッシュ）。ランダムにしない
+//   - 声は例文の中身だけで決める（文末 → 一人称 → BL → ฉัน → ハッシュ）。ランダムにしない
 //   - ファイル名は audio/sha256(版|声|速さ|文).mp3。同じ文は誰が要求しても同じファイル
 //   - 無いときだけ作る。GCS へは「無いときだけ書く」条件付きで置く
 package ttsaudio
@@ -105,7 +105,22 @@ func genderOf(text string, in Input) gender {
 	if strings.Contains(in.Topic, "BL") {
 		return male
 	}
+	if chanSpeaker(in.Words) {
+		return female
+	}
 	return unknown
+}
+
+// chanSpeaker は一人称 ฉัน（ของฉัน も）があるか。ฉัน は男女とも使うので BL より後に見る。
+// コーパス（ja）で ฉัน と丁寧語が両方ある文は女性 716・男性 4（2026-11-22）。
+// เรา は女性 115・男性 168 で割れたので見ない。
+func chanSpeaker(words []Word) bool {
+	for _, w := range words {
+		if isPronoun(w) && strings.TrimPrefix(strings.TrimSpace(w.Word), "ของ") == "ฉัน" {
+			return true
+		}
+	}
+	return false
 }
 
 // endingGender は文末の丁寧語を見る。単語分解があれば最後の語（記号は飛ばす）、
