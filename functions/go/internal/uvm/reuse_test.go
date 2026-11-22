@@ -42,3 +42,23 @@ func TestKeyWordExposureSteps(t *testing.T) {
 		t.Errorf("未回答の語が %d 回の露出で LearnedP を超える（10 回以上にする）", n)
 	}
 }
+
+// TestKeepsExposedAt は出し直しで last_exposed_at を残す条件を固定する。
+func TestKeepsExposedAt(t *testing.T) {
+	cases := []struct {
+		name   string
+		data   map[string]any
+		reused bool
+		want   bool
+	}{
+		{"出し直し・回答あり", map[string]any{"quiz_attempts": int64(3)}, true, true},
+		{"出し直し・未回答", map[string]any{"quiz_attempts": int64(0)}, true, false},
+		{"出し直し・フィールド無し", map[string]any{}, true, false},
+		{"新しい例文・回答あり", map[string]any{"quiz_attempts": int64(3)}, false, false},
+	}
+	for _, c := range cases {
+		if got := keepsExposedAt(c.data, c.reused); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+	}
+}

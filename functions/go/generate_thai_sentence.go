@@ -336,7 +336,7 @@ func registerSentenceExposure(
 	if len(exposed) == 0 {
 		return
 	}
-	if err := uvm.RegisterExposure(ctx, db, uid, exposed, produced.TargetWords); err != nil {
+	if err := uvm.RegisterExposure(ctx, db, uid, exposed, produced.TargetWords, produced.Reuse != nil); err != nil {
 		log.Printf("register_sentence_exposure failed: %v", err)
 	}
 }
