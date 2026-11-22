@@ -164,7 +164,12 @@ void main() {
     var detailDone = !words.any((w) => w.wordText == keyWordText);
     for (var i = 0; i < words.length; i++) {
       final word = words[i];
-      final row = _wordRow(word.wordText);
+      // 同じ語が2回出る文（จะ など）は、何回目かで行を選ぶ。
+      final row = _wordRow(
+        word.wordText,
+        nth: words.take(i).where((w) => w.wordText == word.wordText).length,
+        count: words.where((w) => w.wordText == word.wordText).length,
+      );
       if (row.evaluate().isEmpty) continue;
       await rec.scrollTo(
         position,
@@ -288,9 +293,17 @@ Future<void> _openWordDetail(
 
 /// 単語の欄の1行（押すと詳細が開く InkWell）。本文中の同じ語とは別に、
 /// 単語の欄は画面の下の方にあるので最後の一致を使う。
-Finder _wordRow(String wordText) => find
-    .ancestor(of: find.text(wordText).last, matching: find.byType(InkWell))
-    .first;
+/// 単語の欄で [wordText] の [nth] 番目（0始まり）の行。欄の [count] 行は
+/// 画面の末尾側にあるので、一致したテキストを後ろから数えて選ぶ。
+Finder _wordRow(String wordText, {int nth = 0, int count = 1}) {
+  final texts = find.text(wordText);
+  final total = texts.evaluate().length;
+  if (total == 0) return texts;
+  final index = (total - count + nth).clamp(0, total - 1);
+  return find
+      .ancestor(of: texts.at(index), matching: find.byType(InkWell))
+      .first;
+}
 
 /// 使い方の欄の範囲（見出しから単語の見出しの手前まで）。
 Rect _usageRect(WidgetTester tester) {
