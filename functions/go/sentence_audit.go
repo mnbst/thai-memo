@@ -2,7 +2,6 @@ package function
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -13,22 +12,17 @@ import (
 
 	"github.com/mnbst/thai-memo/functions/go/internal/lang"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
-	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
 
-// 例文プールへの振り分け（dailyBatch のステップ6）。
+// 生成例文の確認待ち（pool_review.go）への振り分けの部品。
+//
+// 確認待ちへは生成直後に入れる（queueSavedSentences・qualityChecker.writeFlag）。
+// 書き損じの取りこぼしは cmd/poolreview list が QueueRecentForReview で拾う
+// （dailyBatch では回さない。2026-11-22）。
 //
 // 生成直後に Jev で1回だけ判定した結果が例文 doc の quality フィールドに入っている
-// （sentence.Producer.check）。ここでは Jev を呼び直さず、quality.passed が真の文だけを
-// 確認待ち（pool_review.go）へ回す。確認で OK した文だけが本番プールに入る。
-//
-// 不合格の文はセットから外れて例文 doc にならず、中身は sentence_flags に残っている。
-// そちらも直近ぶんを確認待ちへ回す（queueFlaggedReview）。
-const (
-	// auditWindow は対象の生成時刻の範囲（直近この時間ぶん）。
-	// dailyBatch は JST 0:00 に回るので、実質「前日ぶん」になる。
-	auditWindow = 24 * time.Hour
-)
+// （sentence.Producer.check）。不合格の文はセットから外れて例文 doc にならず、
+// 中身は sentence_flags に残っている。どちらも判定の結果（judge）を付けて確認待ちへ入れる。
 
 // poolVerdict は例文 doc の quality からプールへの振り分けを決めた結果。
 type poolVerdict int
@@ -43,56 +37,20 @@ const (
 	poolUnjudged
 )
 
-// runSentenceAudit は直近の LLM 生成の例文を確認待ちへ回す（合格の文と、sentence_flags の不合格の文）。
-//
-// users は runDailyBatch が既に読んだものを使い回す（3度目の全走査を避ける）。
-func runSentenceAudit(
-	ctx context.Context, db *firestore.Client, users []*firestore.DocumentSnapshot,
-	now time.Time,
-) error {
-	// 不合格の文は例文 doc が無いので、候補の有無によらず回す。
-	if err := queueFlaggedReview(ctx, db, now.Add(-auditWindow), now); err != nil {
+// QueueRecentForReview は直近 window ぶんの生成例文を
+// 確認待ちへ回す（cmd/poolreview list が確認の前に呼ぶ）。生成直後に入れ損ねた文を拾う。
+// 判定の結果によらず全部入れる。既にある文は飛ばすので二重にならない。
+func QueueRecentForReview(ctx context.Context, db *firestore.Client, window time.Duration) error {
+	users, err := allUserDocs(ctx, db)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	if err := queueFlaggedReview(ctx, db, now.Add(-window), now); err != nil {
 		log.Printf("poolReview: flagged write failed: %v", err)
 	}
-
-	candidates, docs := auditCandidates(ctx, db, users, now.Add(-auditWindow))
-	if len(candidates) == 0 {
-		log.Print("sentencePool: no LLM sentences in window")
-		return nil
-	}
-
-	var accepted []quality.Candidate
-	counts := map[poolVerdict]int{}
-	for _, c := range candidates {
-		v, reason := poolVerdictOf(docs[quality.FlagID(c)])
-		counts[v]++
-		switch v {
-		case poolPassed:
-			accepted = append(accepted, c)
-		case poolRejected:
-			log.Printf("sentencePool: rejected tier=%s key_word=%s reason=%s thai=%q translation=%q",
-				c.GenerationTier, c.KeyWord, reason, c.ThaiText, c.JapaneseTranslation)
-		}
-	}
-	log.Printf("sentencePool: candidates=%d (%s) passed=%d rejected=%d unjudged=%d",
-		len(candidates), tierCounts(candidates), counts[poolPassed], counts[poolRejected], counts[poolUnjudged])
-
-	// 本番プールへは直接足さず、確認待ちへ入れる（pool_review.go）。
-	// 失敗しても生成済みの例文には影響しないので、エラーは返さず記録だけ残す。
-	if err := queuePoolReview(ctx, db, accepted, docs, now); err != nil {
-		log.Printf("poolReview: write failed: %v", err)
-	}
-	return nil
-}
-
-// tierCounts はティアごとの本数をログ用に並べる（premium=3 free=1）。
-func tierCounts(cs []quality.Candidate) string {
-	n := map[string]int{}
-	for _, c := range cs {
-		n[c.GenerationTier]++
-	}
-	return fmt.Sprintf("premium=%d free=%d",
-		n[sentence.GenerationTier(true)], n[sentence.GenerationTier(false)])
+	candidates, docs := auditCandidates(ctx, db, users, now.Add(-window))
+	return queuePoolReview(ctx, db, candidates, docs, now)
 }
 
 // poolVerdictOf は例文 doc の quality フィールドから振り分けを決める。

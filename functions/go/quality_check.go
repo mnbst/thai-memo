@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/fbapp"
 	"github.com/mnbst/thai-memo/functions/go/internal/quality"
@@ -18,7 +20,7 @@ import (
 // Jev は1文 0.5 秒前後（p95 0.6 秒）。不合格の文は作り直さずセットから外れる。
 //
 // 不合格の判定はそのつど sentence_flags へ1件書く。文の全体（sentence_doc）も残し、
-// dailyBatch が確認待ちへ回す（判定の誤検出を確認で拾うため。pool_review.go）。
+// その場で確認待ちへも入れる（判定の誤検出を確認で拾うため。pool_review.go）。
 type qualityChecker struct {
 	judge *quality.Judge
 	// db が nil なら sentence_flags へは書かない（判定だけ行う）。
@@ -102,8 +104,19 @@ func (c *qualityChecker) writeFlag(
 		delete(sd, "updated_at")
 		doc["sentence_doc"] = sd
 	}
-	if _, _, err := c.db.Collection("sentence_flags").Add(ctx, doc); err != nil {
+	ref, _, err := c.db.Collection("sentence_flags").Add(ctx, doc)
+	if err != nil {
 		log.Printf("qualityCheck: write flag failed: %v", err)
+		return
+	}
+	// 不合格の文もその場で確認待ちへ（判定の誤検出を確認で拾う。pool_review.go）。
+	if data, ok := flaggedReviewData(doc); ok {
+		if e, ok := buildPoolEntry(data); ok {
+			err := createPoolReview(ctx, c.db, e, "sentence_flags/"+ref.ID, data, time.Now())
+			if err != nil && status.Code(err) != codes.AlreadyExists {
+				log.Printf("qualityCheck: queue review failed: %v", err)
+			}
+		}
 	}
 }
 

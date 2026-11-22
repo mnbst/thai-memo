@@ -684,16 +684,16 @@ functions/go/subscription_status_live_test.go
 落とす/残すの判定表を実Firestoreで1件ずつ確認する。全体スキャンは走らせない。
 
 functions/go/daily_batch.go
-dailyBatch の Go 版。日次クォータのリセット、匿名ユーザー・重複fcm_tokenの掃除、生成例文の品質監査。常にHTTPトリガー。
+dailyBatch の Go 版。日次クォータのリセット、匿名ユーザー・重複fcm_tokenの掃除。常にHTTPトリガー。
 
 functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch のステップ6。直近24時間の LLM 生成例文（premium / free）のうち生成時の判定で quality.passed=true の文と、sentence_flags の不合格の文を、判定を呼び直さず確認待ち（pool_review）へ回す。
+確認待ちへの取りこぼしを拾う QueueRecentForReview（cmd/poolreview list が呼ぶ）。直近の LLM 生成例文と sentence_flags の不合格の文を、判定を呼び直さず確認待ち（pool_review）へ回す。
 
 functions/go/pool_review.go
-確認待ち（Firestore pool_review、1文1 doc・ID はティア・言語・thai_text のハッシュ）への書き込み。本番プールと同じ形の例文・tier・lang・judge 結果・元 doc を持つ。既にある文（確認済み含む）は飛ばす。judge 不合格の文は sentence_flags の sentence_doc から作る。
+確認待ち（Firestore pool_review、1文1 doc・ID はティア・言語・thai_text のハッシュ）への書き込み。本番プールと同じ形の例文・tier・lang・judge 結果・元 doc を持つ。既にある文（確認済み含む）は飛ばす。judge 不合格の文は sentence_flags の sentence_doc から作る。生成直後（例文を保存した後と flag を書いた後）に入れ、判定の結果を judge（ok / ng / none）に付ける。
 
 functions/go/pool_review_test.go
 不合格の flag（sentence_flags）を確認待ちの形へ変えるテスト。
@@ -708,7 +708,7 @@ functions/go/internal/poolreview/
 確認待ちのコレクション名・状態・doc ID と、OK の文を本番プールへ足す処理（重複排除・2万本上限）。
 
 functions/go/cmd/poolreview/main.go
-pool-review スキルの道具。list（確認待ちを JSON に）・apply（OK を本番プールへ足す・fix があれば直した文を入れる・NG を rejected）。
+pool-review スキルの道具。list（直近48時間の生成例文をその場で確認待ちへ回してから、確認待ちを JSON に）・apply（OK を本番プールへ足す・fix があれば直した文を入れる・NG を rejected）。
 
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文1回きりの判定（ReviewAll）で、不合格なら sentence_flags へ1件書く。キーが無ければ nil（判定なしで動く）。

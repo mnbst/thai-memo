@@ -392,6 +392,7 @@ func commitSentences(
 	for i, p := range produced {
 		p.Sentence.ID = refs[i].ID
 	}
+	queueSavedSentences(ctx, db, refs, docs)
 
 	// 出し直した既出例文は、元の doc を新しい doc で置き換える。
 	for _, p := range produced {
