@@ -82,7 +82,9 @@ import 'package:thai_memo/services/tts_service.dart';
 import '../helpers/f0_synthesizer.dart';
 import 'store_mock_data.dart';
 
-const String _rawDir = 'build/store_shots/raw';
+// SET（store_mock_data.dart）を付けたときは組ごとに別の置き場へ書く。
+const String _rawDir =
+    storeSet == '' ? 'build/store_shots/raw' : 'build/store_shots/raw_$storeSet';
 const List<String> _fallbacks = [
   'NotoSans_regular',
   'NotoSansJP',
@@ -141,7 +143,9 @@ final _shots = [
   _Shot(
     '01_today',
     (s, lang) => const _TabShell(child: TodayScreen()),
-    topic: GenerationConstants.travelTopic,
+    topic: storeSet == 'work'
+        ? GenerationConstants.topics[2]
+        : GenerationConstants.travelTopic,
   ),
   _Shot(
     '02_detail',
@@ -159,8 +163,13 @@ final _shots = [
   _Shot(
     '05_topics',
     (s, lang) => const _TopicPickerHost(),
-    topic: GenerationConstants.topics[16], // 推し活
-    topicByLang: {'en': GenerationConstants.lifeTopic},
+    // 既定は推し活（英語はタイ暮らし）。旅行・仕事のページはそのテーマを選んだ状態。
+    topic: switch (storeSet) {
+      'travel' => GenerationConstants.travelTopic,
+      'work' => GenerationConstants.topics[2],
+      _ => GenerationConstants.topics[16],
+    },
+    topicByLang: storeSet == '' ? {'en': GenerationConstants.lifeTopic} : null,
   ),
   _Shot('06_ranking', (s, lang) => const RankingScreen()),
   _Shot(
@@ -316,7 +325,7 @@ Future<void> _practice(WidgetTester tester, L10n l10n) async {
       .read(pronunciationControllerProvider(
               (sentenceId: 'store-sentence', scope: 'detail'))
           .notifier)
-      .toggleWord(2);
+      .toggleWord(storeMissedWord);
   await tester.pumpAndSettle();
   await _scrollTo(tester, find.text(l10n.pronunciationTitle));
 }
@@ -327,8 +336,8 @@ Future<void> _listen(WidgetTester tester, L10n l10n) async {
   await tester.pump(const Duration(milliseconds: 600));
 }
 
-/// 文字の解説を開く語。1音節で、頭子音・母音・末子音・声調記号がそろっている。
-const String _explainedWord = 'ร้าน';
+/// 文字の解説を開く語。
+String get _explainedWord => storeExplainedWord;
 
 /// 単語の一覧の先頭まで送る。
 Future<void> _showWords(WidgetTester tester, L10n l10n) async {
