@@ -1,13 +1,10 @@
 // Package spellunit は綴り4択（spelling_choice）のための音節部品（unit）を扱う。
 //
-// 単語ごとの P（uvm）とは別に、母音・頭子音・末子音・声調という
-// **部品ごと** の正誤を貯める。部品は全部で 80 種ほどの閉じた集合なので、
-// 9,300 語ある単語より 100 倍速く埋まり、未知語にも外挿が効く。
+// 綴りを頭子音・母音・末子音・声調の部品に分け、1部品だけ変えた非語のダミーと、
+// 答え合わせで見せる正解の分解を作る。
 //
-// このパッケージのデータは uvm とは別の users/{uid}/units に置き、
-// estimated_vocab には**絶対に混ぜない**（測る軸と出題を切り替える軸を
-// 分けておかないと、generate_quiz.go の quizKeyWordFilter と同じ
-// 自己参照ループになる）。
+// 部品ごとの正誤（users/{uid}/units）は 2026-11-23 に記録をやめた。出題の判断に
+// 使っていなかったため。ユーザー削除・学習データのリセットでは既存分を消す。
 package spellunit
 
 import (
@@ -81,15 +78,6 @@ func (c Code) With(d Dim, value string) Code {
 		c.Tone = value
 	}
 	return c
-}
-
-// UnitID は Firestore の users/{uid}/units のドキュメントID。
-// 例: "vowel:OO"。末子音なしは "coda:-"。
-func UnitID(d Dim, value string) string {
-	if value == "" {
-		value = "-"
-	}
-	return d.String() + ":" + value
 }
 
 // vowels は sylform_var のコードに現れる母音（22種）。長い順に当てるので

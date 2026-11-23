@@ -95,9 +95,8 @@ func updateUvm(ctx context.Context, req *callable.Request) (any, error) {
 		log.Printf("updateUvm metrics update failed: uid=%s, error=%v", uid, err)
 	}
 
-	// 綴り4択の回答は部品データ（users/{uid}/units）にも入れる。
-	// 失敗しても UVM 更新は成功として返す。
-	applySpellingObservations(ctx, db, uid, in.Results)
+	// 綴り4択に正解した語は通過にする。失敗しても UVM 更新は成功として返す。
+	markSpellingPassed(ctx, db, uid, in.Results)
 
 	log.Printf("updateUvm completed: uid=%s, updated=%d", uid, len(results))
 	resp := map[string]any{"success": true, "updated": len(results)}

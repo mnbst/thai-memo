@@ -630,7 +630,7 @@ functions/go/internal/spellunit/code.go
 音節形コード（sylform_var.json のキー）を頭子音・母音・末子音・声調に分ける。綴り→コードの逆引きも持つ。単音節だけが対象。
 
 functions/go/internal/spellunit/question.go
-綴り4択のダミー生成（1次元だけ変えた非語・表示長一致・毎回変える）と、回答から部品ごとの証拠を取り出す処理。
+綴り4択のダミー生成（1次元だけ変えた非語・表示長一致・毎回変える）。
 
 functions/go/internal/spellunit/parts.go
 綴りを頭子音・母音・末子音・声調に分けて読みと文字を付ける（答え合わせの表示用）。書く順に切った Glyphs も返す。
@@ -644,20 +644,11 @@ functions/go/internal/spellunit/display_manual_test.go
 functions/go/internal/spellunit/tonerule.go
 声調が決まる3要素（頭子音の階級・生音/死音・声調記号）を綴りから出す。
 
-functions/go/internal/spellunit/model.go
-部品ごとの P の更新。ダミーが全部非語なので推測率は素の 0.25（uvm の 0.35 とは別に持つ）。
-
-functions/go/internal/spellunit/store.go
-部品データのFirestore層（users/{uid}/units）。取り違え先も数える。estimated_vocab には流さない。
-
 functions/go/internal/spellunit/spellunit_test.go
-コード分解・ダミーが実在語でないこと・証拠の取り出し・Pの回復のテスト。
+コード分解・ダミーが実在語でないことのテスト。
 
 functions/go/internal/spellunit/coverage_manual_test.go
 頻度帯ごとの出題可能率の調査（SPELLUNIT_COVERAGE=1 で実行）。上位100語で52%、上位2000語で21%。
-
-functions/go/internal/spellunit/unitcoverage_manual_test.go
-部品の網羅に必要な頻度ランクの調査（SPELLUNIT_UNITCOV=1 で実行）。rank100 で 42/72 種、全72種は rank5363 まで必要。
 
 functions/go/internal/spellunit/eligible_manual_test.go
 綴り4択にできる語の一覧を書き出す（SPELLUNIT_ELIGIBLE_OUT=... で実行）。本番データとの突き合わせ用。
@@ -936,7 +927,7 @@ functions/go/quiz_beginner.go
 入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値・語彙スコアがともに100未満のユーザーには出題できる問題を全部入門用にし（どちらかが越えたらユーザー doc の quiz_advanced を立てて卒業、片方向）、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
 
 functions/go/quiz_spelling.go
-入門用の形式のひとつ、綴り4択への差し替え。回答から部品データ（users/{uid}/units）を更新するのもここ。
+入門用の形式のひとつ、綴り4択への差し替え。正解した語に通過フラグを立てるのもここ。
 
 functions/go/quiz_word_order.go
 並び替え（word_order）をまとめクイズに差し込む層。語彙スコア200未満は0問、200〜299は1問、300以上は問題数の半分（5問なら2）。穴埋めのままの問題から選ぶ。モデルは呼ばない。

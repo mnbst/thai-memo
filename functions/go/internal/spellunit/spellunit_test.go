@@ -78,67 +78,6 @@ func TestDistractorsAreNonWords(t *testing.T) {
 	}
 }
 
-func TestObservations(t *testing.T) {
-	ix, err := LoadIndex()
-	if err != nil {
-		t.Fatal(err)
-	}
-	const word = "ออก" // ?OOk1
-	code, ok := ix.Lookup(word)
-	if !ok {
-		t.Skip("辞書が引けない")
-	}
-	rnd := rand.New(rand.NewSource(7))
-	dummies, ok := ix.Distractors(word, rnd)
-	if !ok {
-		t.Skip("ダミーを作れない")
-	}
-	choices := []string{word}
-	for _, d := range dummies {
-		choices = append(choices, d.Text)
-	}
-
-	// 正解: 測った次元ぶんの正の証拠。
-	got := ix.Observations(word, choices, word, true)
-	if len(got) == 0 {
-		t.Fatal("正解なのに証拠が無い")
-	}
-	for _, o := range got {
-		if !o.Correct || o.Value != code.At(o.Dim) {
-			t.Errorf("正解の証拠が壊れている: %+v", o)
-		}
-	}
-
-	// 不正解: 選んだ選択肢の次元だけに負の証拠。
-	picked := dummies[0]
-	got = ix.Observations(word, choices, picked.Text, false)
-	if len(got) != 1 {
-		t.Fatalf("不正解の証拠が %d 件", len(got))
-	}
-	o := got[0]
-	if o.Correct || o.Dim != picked.Dim ||
-		o.Value != code.At(picked.Dim) || o.ConfusedWith != picked.Value {
-		t.Errorf("不正解の証拠が壊れている: %+v (選んだのは %+v)", o, picked)
-	}
-}
-
-// TestUpdatePRecovery は間違え続けた部品でも2回の正解で 0.5 を越えられること。
-func TestUpdatePRecovery(t *testing.T) {
-	p := PFloor
-	for i := 0; i < 2; i++ {
-		p = UpdateP(p, true)
-	}
-	if p <= 0.5 {
-		t.Errorf("2回正解しても P=%.3f", p)
-	}
-	low := PFloor
-	for i := 0; i < 10; i++ {
-		low = UpdateP(low, false)
-	}
-	if low < PFloor {
-		t.Errorf("P が下限を割った: %.3f", low)
-	}
-}
 
 func TestParts(t *testing.T) {
 	ix, err := LoadIndex()
