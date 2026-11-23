@@ -711,10 +711,16 @@ functions/go/cmd/poolreview/main.go
 pool-review スキルの道具。list（直近48時間の生成例文をその場で確認待ちへ回してから、確認待ちを JSON に）・apply（OK を本番プールへ足す・fix があれば直した文を入れる・NG を rejected）。
 
 functions/go/cmd/poolreview/native.go
-ネイティブ確認の道具。sample（プールの未確認の文から無作為に選び、記入用の CSV（判定とコメントだけ書く）を書き出して確認待ちへ status=native で入れる）・sheet（記入待ちの表を書き出し直す）・native（記入済みの CSV と Claude がコメントから作った直しで、OK は残す・FIX はその場で置き換える・NG はプールから外す。バックアップを取ってから書く）。
+ネイティブ確認の道具。sample（-cands で未確認の文から候補を書き出す → -judged で Codex の判定を付け、指摘の文7割・Codex OK の文3割の表をスプレッドシートのタブか CSV に書き、載せた文を status=native、残りを status=screened で確認待ちへ）・sheet（記入待ちの表を書き出し直す）・native（記入済みの表で、OK は残す・案でOK は Codex の直し・FIX は Claude の直しで置き換える・NG はプールから外す。枠ごとの判定数を出す。バックアップを取ってから書く）。
 
 functions/go/internal/poolreview/native.go
-ネイティブ確認の表（CSV）の書き出しと読み込み、FIX の文の組み立て、プール1本への置き換え・削除（EditPool）。
+ネイティブ確認の表（列・判定・直し案の欄）の書き出しと読み込み、FIX の文の組み立て、プール1本への置き換え・削除（EditPool）。
+
+functions/go/internal/poolreview/screen.go
+ネイティブ確認の前の Codex の判定（judged.json）の読み込みと、表に載せる文の選び方（指摘の枠と OK の枠）。
+
+functions/go/internal/poolreview/gsheet.go
+ネイティブ確認の表を Google スプレッドシートで受け渡す（回ごとにタブを足す・判定をプルダウンに・タブを読む）。認証は ADC から tester の native-sheet サービスアカウントへ成り代わる。
 
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文1回きりの判定（ReviewAll）で、不合格なら sentence_flags へ1件書く。キーが無ければ nil（判定なしで動く）。
