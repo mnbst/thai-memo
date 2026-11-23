@@ -3,6 +3,7 @@ package poolreview
 import (
 	"bytes"
 	"encoding/csv"
+	"math/rand/v2"
 	"strings"
 	"testing"
 
@@ -24,7 +25,7 @@ func nativeSample() sentence.Sentence {
 func filledSheet(t *testing.T, fill func(row []string)) *bytes.Buffer {
 	t.Helper()
 	var buf bytes.Buffer
-	if err := WriteNativeSheet(&buf, []string{"id1"}, []sentence.Sentence{nativeSample()}); err != nil {
+	if err := WriteNativeSheet(&buf, []NativeItem{{ID: "id1", Sentence: nativeSample()}}); err != nil {
 		t.Fatal(err)
 	}
 	recs, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(buf.String(), "\ufeff"))).ReadAll()
@@ -54,6 +55,25 @@ func TestReadNativeSheet(t *testing.T) {
 		t.Fatalf("rows = %+v", rows)
 	}
 
+	// 案でOK・直したタイ語だけの FIX。
+	rows, err = ReadNativeSheet(filledSheet(t, func(r []string) { r[colVerdict] = "案でok" }))
+	if err != nil || len(rows) != 1 || rows[0].Verdict != VerdictProposal {
+		t.Fatalf("案でOK: rows=%+v err=%v", rows, err)
+	}
+	rows, err = ReadNativeSheet(filledSheet(t, func(r []string) { r[colVerdict] = "FIX"; r[colFixedThai] = "ผมกินข้าวแล้ว" }))
+	if err != nil || rows[0].FixedThai != "ผมกินข้าวแล้ว" {
+		t.Fatalf("直したタイ語: rows=%+v err=%v", rows, err)
+	}
+	// 直し案の列が無い前の形の表も読める。
+	old := [][]string{
+		{"id", "学習語 คำศัพท์", "タイ語 ภาษาไทย", "訳 คำแปล", "場面 สถานการณ์", "判定 ผลตรวจ (OK/NG/FIX)", "コメント・直し方 หมายเหตุ/วิธีแก้"},
+		{"id1", "", "", "", "", "FIX", "ชิ้น→อัน"},
+	}
+	rows, err = ParseNativeTable(old)
+	if err != nil || len(rows) != 1 || rows[0].Comment != "ชิ้น→อัน" {
+		t.Fatalf("前の形: rows=%+v err=%v", rows, err)
+	}
+
 	// 何も書いていない行は飛ばす（次の回へ残す）。
 	rows, err = ReadNativeSheet(filledSheet(t, func(r []string) {}))
 	if err != nil || len(rows) != 0 {
@@ -65,6 +85,7 @@ func TestReadNativeSheet(t *testing.T) {
 	}
 	for name, fill := range map[string]func([]string){
 		"FIX に直し方無し": func(r []string) { r[colVerdict] = "FIX" },
+		"判定無しの直し":    func(r []string) { r[colFixedThai] = "ผมกินข้าวแล้ว" },
 		"判定無しのコメント":  func(r []string) { r[colComment] = "x" },
 		"不明な判定":      func(r []string) { r[colVerdict] = "maybe" },
 	} {
@@ -113,5 +134,49 @@ func TestApplyPoolEdit(t *testing.T) {
 	// a は外す、b は置き換える、c の直しは既にある d と重なるので c を外すだけ、z は無い。
 	if strings.Join(got, ",") != "b2,d" || rep != 1 || rem != 2 || miss != 1 {
 		t.Fatalf("out=%v replaced=%d removed=%d missing=%d", got, rep, rem, miss)
+	}
+}
+
+func TestPickNative(t *testing.T) {
+	r := rand.New(rand.NewPCG(1, 1))
+	fl := []string{"f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8"}
+	ok := []string{"o1", "o2", "o3", "o4", "o5"}
+	count := func(slot map[string]string) (f, o int) {
+		for _, s := range slot {
+			if s == SlotFlagged {
+				f++
+			} else {
+				o++
+			}
+		}
+		return
+	}
+	p, slot := PickNative(fl, ok, 10, 0.7, r)
+	if f, o := count(slot); len(p) != 10 || f != 7 || o != 3 {
+		t.Fatalf("7:3 にならない: %v %d %d", p, f, o)
+	}
+	// ok が足りなければ flagged で埋める。
+	p, slot = PickNative(fl, ok[:1], 6, 0.5, r)
+	if f, o := count(slot); len(p) != 6 || f != 5 || o != 1 {
+		t.Fatalf("埋まらない: %d %d", f, o)
+	}
+	// flagged が足りなければ ok で埋める。
+	p, slot = PickNative(fl[:2], ok, 6, 0.7, r)
+	if f, o := count(slot); len(p) != 6 || f != 2 || o != 4 {
+		t.Fatalf("埋まらない: %d %d", f, o)
+	}
+}
+
+func TestProposalText(t *testing.T) {
+	s := nativeSample()
+	if got := ProposalText(s, VerdictFix, "分解", map[string]any{"word_breakdown": []any{}}); got != "" {
+		t.Errorf("分解だけの直しが出る: %q", got)
+	}
+	got := ProposalText(s, VerdictFix, "主語", map[string]any{"japanese_translation": "私はご飯を食べる"})
+	if !strings.Contains(got, "訳: 私はご飯を食べる") || strings.Contains(got, "ผม") {
+		t.Errorf("訳だけの直し: %q", got)
+	}
+	if got := ProposalText(s, VerdictNG, "合わない", nil); !strings.HasPrefix(got, "NG") {
+		t.Errorf("NG: %q", got)
 	}
 }

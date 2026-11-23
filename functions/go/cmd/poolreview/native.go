@@ -1,10 +1,13 @@
 package main
 
 // ネイティブ確認（プールに前からある文を表で見てもらう）。流れは internal/poolreview/native.go。
+// 表はスプレッドシート（-sheet <ID>、回ごとにタブ）か CSV（-out / -in）で受け渡す。
 //
-//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolreview sample -n 100 -out $S/native.csv -write
-//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolreview native -in $S/filled.csv -needs $S/needs.json
-//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolreview native -in $S/filled.csv -fix $S/fix.json -write
+//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolreview sample -cands 300 -out $S/cands.json
+//	（Codex が cands.json を判定 → $S/judged.json）
+//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolreview sample -in $S/cands.json -judged $S/judged.json -n 100 -sheet <ID> -write
+//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolreview native -sheet <ID> -tab native_<日付> -needs $S/needs.json
+//	GCLOUD_PROJECT=thai-memo-prod go run ./cmd/poolreview native -sheet <ID> -tab native_<日付> -fix $S/fix.json -write
 
 import (
 	"context"
@@ -15,6 +18,7 @@ import (
 	"log"
 	"math/rand/v2"
 	"os"
+	"sort"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -27,26 +31,226 @@ import (
 	"github.com/mnbst/thai-memo/functions/go/internal/sentence"
 )
 
-// runSample は未確認のプールの文から無作為に n 本選び、表を書き出す。
-// -write で選んだ文を確認待ちへ StatusNative で入れる（次の回に同じ文を選ばない）。
+// candFile は sample -cands の出力（Codex に判定させる候補）。
+type candFile struct {
+	Tier  string `json:"tier"`
+	Lang  string `json:"lang"`
+	Items []struct {
+		ID       string            `json:"id"`
+		Sentence sentence.Sentence `json:"sentence"`
+	} `json:"items"`
+}
+
+// runSample は表を作る。2段:
+//
+//	-cands N -out cands.json: 未確認の文から無作為に N 本を候補として書き出す（Firestore には書かない）
+//	-in cands.json -judged judged.json: Codex の判定を付け、前の回に載せなかった候補（screened）と合わせて表を書く。
+//	  -write で載せた文を StatusNative、載せなかった今回の候補を StatusScreened で確認待ちへ入れる
 func runSample(ctx context.Context, project string, args []string) error {
 	fs := flag.NewFlagSet("sample", flag.ExitOnError)
-	tier := fs.String("tier", "premium", "premium / free")
-	langFlag := fs.String("lang", "ja", "ja / en")
-	n := fs.Int("n", 100, "選ぶ本数")
+	tier := fs.String("tier", "premium", "premium / free（-cands のとき）")
+	langFlag := fs.String("lang", "ja", "ja / en（-cands のとき）")
+	cands := fs.Int("cands", 0, "候補の本数（候補を書き出す段）")
+	in := fs.String("in", "", "候補の JSON（-cands の出力）")
+	judgedPath := fs.String("judged", "", `Codex の判定 {"results":[{id,verdict,reason,fix}]}`)
+	n := fs.Int("n", 100, "表に載せる本数")
+	share := fs.Float64("share", 0.7, "Codex が直したほうがよいとした文の割合（残りは Codex が OK とした文）")
 	seed := fs.Uint64("seed", 0, "乱数の種（0 なら時刻）")
-	out := fs.String("out", "", "書き出す CSV のパス")
-	write := fs.Bool("write", false, "選んだ文を確認待ちへ入れる（既定は表だけ書く）")
+	out := fs.String("out", "", "書き出す JSON（-cands）か CSV のパス")
+	sheetID := fs.String("sheet", "", "表を書き込むスプレッドシートの ID（CSV の -out の代わり）")
+	tab := fs.String("tab", "native_"+time.Now().Format("20060102"), "-sheet に足すタブ名")
+	write := fs.Bool("write", false, "確認待ちへ入れる（既定は表だけ書く）")
 	fs.Parse(args)
-	if *out == "" {
-		return errors.New("-out が必要")
-	}
-	l, ok := lang.Parse(*langFlag)
-	if !ok {
-		return fmt.Errorf("lang %q", *langFlag)
-	}
-	name := sentence.PoolObjectFor(*tier, l)
 
+	s := *seed
+	if s == 0 {
+		s = uint64(time.Now().UnixNano())
+	}
+	r := rand.New(rand.NewPCG(s, s))
+	db, err := firestore.NewClient(ctx, project)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	col := db.Collection(poolreview.Collection)
+
+	if *cands > 0 {
+		if *out == "" {
+			return errors.New("-cands には -out が必要")
+		}
+		return writeCands(ctx, project, col, *tier, *langFlag, *cands, *out, r, s)
+	}
+	if *in == "" || *judgedPath == "" {
+		return errors.New("-cands N -out か、-in と -judged が必要")
+	}
+	if (*out == "") == (*sheetID == "") {
+		return errors.New("-out か -sheet のどちらか1つが必要")
+	}
+
+	var cf candFile
+	raw, err := os.ReadFile(*in)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(raw, &cf); err != nil {
+		return err
+	}
+	l, ok := lang.Parse(cf.Lang)
+	if !ok {
+		return fmt.Errorf("lang %q", cf.Lang)
+	}
+	name := sentence.PoolObjectFor(cf.Tier, l)
+	judged, err := poolreview.ReadJudged(*judgedPath)
+	if err != nil {
+		return err
+	}
+
+	// 表の候補: 前の回に載せなかった文（古い順）→ 今回の候補。
+	type entry struct {
+		s      sentence.Sentence
+		j      poolreview.Judged
+		screen *firestore.DocumentSnapshot // 前の回からの候補なら doc
+	}
+	entries := map[string]*entry{}
+	var order []string
+	screened, err := col.Where("status", "==", poolreview.StatusScreened).Documents(ctx).GetAll()
+	if err != nil {
+		return err
+	}
+	sort.Slice(screened, func(i, j int) bool { return screened[i].CreateTime.Before(screened[j].CreateTime) })
+	for _, d := range screened {
+		var it item
+		if err := d.DataTo(&it); err != nil {
+			return fmt.Errorf("%s: %w", d.Ref.ID, err)
+		}
+		if it.Tier != cf.Tier || it.Lang != cf.Lang {
+			continue
+		}
+		var ss sentence.Sentence
+		b, _ := json.Marshal(it.Sentence)
+		if err := json.Unmarshal(b, &ss); err != nil {
+			return fmt.Errorf("%s: %w", d.Ref.ID, err)
+		}
+		j := codexOf(d)
+		j.ID = d.Ref.ID
+		entries[d.Ref.ID] = &entry{s: ss, j: j, screen: d}
+		order = append(order, d.Ref.ID)
+	}
+	missing := 0
+	for _, c := range cf.Items {
+		j, ok := judged[c.ID]
+		if !ok {
+			missing++
+			continue
+		}
+		if entries[c.ID] != nil {
+			continue
+		}
+		entries[c.ID] = &entry{s: c.Sentence, j: j}
+		order = append(order, c.ID)
+	}
+	if missing > 0 {
+		log.Printf("判定の無い候補 %d 本は飛ばす（次の回の候補に戻る）", missing)
+	}
+
+	var flagged, okIDs []string
+	for _, id := range order {
+		e := entries[id]
+		if isFlagged(e.s, e.j) {
+			flagged = append(flagged, id)
+		} else {
+			okIDs = append(okIDs, id)
+		}
+	}
+	picked, slot := poolreview.PickNative(flagged, okIDs, *n, *share, r)
+	items := make([]poolreview.NativeItem, len(picked))
+	for k, id := range picked {
+		e := entries[id]
+		items[k] = poolreview.NativeItem{ID: id, Sentence: e.s,
+			Proposal: poolreview.ProposalText(e.s, e.j.Verdict, e.j.Reason, e.j.Fix)}
+	}
+	dest, err := writeTable(ctx, *out, *sheetID, *tab, items)
+	if err != nil {
+		return err
+	}
+	nf := 0
+	for _, v := range slot {
+		if v == poolreview.SlotFlagged {
+			nf++
+		}
+	}
+	log.Printf("%s: 候補 %d 本（Codex の指摘 %d・OK %d）から %d 本（指摘 %d・OK %d）→ %s (seed=%d)",
+		name, len(order), len(flagged), len(okIDs), len(picked), nf, len(picked)-nf, dest, s)
+	if !*write {
+		log.Print("確認待ちへは入れていない（-write で入れる）")
+		return nil
+	}
+
+	now := time.Now()
+	nNative, nScreened := 0, 0
+	for _, id := range order {
+		e := entries[id]
+		st := poolreview.StatusScreened
+		if slot[id] != "" {
+			st = poolreview.StatusNative
+		}
+		if e.screen != nil {
+			if st == poolreview.StatusScreened {
+				continue // 前の回からの候補のまま
+			}
+			if _, err := e.screen.Ref.Update(ctx, []firestore.Update{
+				{Path: "status", Value: st}, {Path: "native_slot", Value: slot[id]}, {Path: "queued_at", Value: now},
+			}, firestore.LastUpdateTime(e.screen.UpdateTime)); err != nil {
+				return fmt.Errorf("%s: %w", id, err)
+			}
+			nNative++
+			continue
+		}
+		m, err := sentenceMap(e.s)
+		if err != nil {
+			return err
+		}
+		doc := map[string]any{
+			"thai_text":     e.s.ThaiText,
+			"sentence":      m,
+			"tier":          cf.Tier,
+			"lang":          cf.Lang,
+			"source":        poolreview.NativeSource(name),
+			"status":        st,
+			"queued_at":     now,
+			"codex_verdict": e.j.Verdict,
+			"codex_reason":  e.j.Reason,
+		}
+		if len(e.j.Fix) > 0 {
+			doc["codex_fix"] = e.j.Fix
+		}
+		if slot[id] != "" {
+			doc["native_slot"] = slot[id]
+		}
+		if _, err := col.Doc(id).Create(ctx, doc); err != nil {
+			if status.Code(err) == codes.AlreadyExists {
+				continue
+			}
+			return fmt.Errorf("%s: %w", id, err)
+		}
+		if st == poolreview.StatusNative {
+			nNative++
+		} else {
+			nScreened++
+		}
+	}
+	log.Printf("確認待ちへ 表 %d 本（status=%s）・次の回の候補 %d 本（status=%s）",
+		nNative, poolreview.StatusNative, nScreened, poolreview.StatusScreened)
+	return nil
+}
+
+// writeCands は未確認の文から無作為に n 本を候補として書き出す。
+func writeCands(ctx context.Context, project string, col *firestore.CollectionRef, tier, langFlag string, n int, out string, r *rand.Rand, seed uint64) error {
+	l, ok := lang.Parse(langFlag)
+	if !ok {
+		return fmt.Errorf("lang %q", langFlag)
+	}
+	name := sentence.PoolObjectFor(tier, l)
 	gcs, err := storage.NewClient(ctx)
 	if err != nil {
 		return err
@@ -56,96 +260,68 @@ func runSample(ctx context.Context, project string, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	db, err := firestore.NewClient(ctx, project)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	col := db.Collection(poolreview.Collection)
 	docs, err := col.Documents(ctx).GetAll()
 	if err != nil {
 		return err
 	}
-	// 確認待ちに記録のある文（どの状態でも）と、確認で直した後の本文は選ばない。
+	// 確認待ちに記録のある文（どの状態でも。screened も）と、確認で直した後の本文は選ばない。
 	seen := make(map[string]bool, len(docs))
 	for _, d := range docs {
 		seen[d.Ref.ID] = true
 		if fx, ok := d.Data()["sentence_fixed"].(map[string]any); ok {
 			if t, _ := fx["thai_text"].(string); t != "" {
-				seen[poolreview.ID(*tier, l, t)] = true
+				seen[poolreview.ID(tier, l, t)] = true
 			}
 		}
 	}
-	var cands []int
+	var idx []int
 	for i, s := range pool {
-		if !seen[poolreview.ID(*tier, l, s.ThaiText)] {
-			cands = append(cands, i)
+		if !seen[poolreview.ID(tier, l, s.ThaiText)] {
+			idx = append(idx, i)
 		}
 	}
-	s := *seed
-	if s == 0 {
-		s = uint64(time.Now().UnixNano())
+	unseen := len(idx)
+	r.Shuffle(len(idx), func(i, j int) { idx[i], idx[j] = idx[j], idx[i] })
+	if len(idx) > n {
+		idx = idx[:n]
 	}
-	r := rand.New(rand.NewPCG(s, s))
-	r.Shuffle(len(cands), func(i, j int) { cands[i], cands[j] = cands[j], cands[i] })
-	if len(cands) > *n {
-		cands = cands[:*n]
+	cf := candFile{Tier: tier, Lang: string(l)}
+	for _, i := range idx {
+		cf.Items = append(cf.Items, struct {
+			ID       string            `json:"id"`
+			Sentence sentence.Sentence `json:"sentence"`
+		}{poolreview.ID(tier, l, pool[i].ThaiText), pool[i]})
 	}
-	ids := make([]string, len(cands))
-	picked := make([]sentence.Sentence, len(cands))
-	for k, i := range cands {
-		picked[k] = pool[i]
-		ids[k] = poolreview.ID(*tier, l, pool[i].ThaiText)
-	}
-
-	f, err := os.Create(*out)
+	b, err := json.MarshalIndent(cf, "", " ")
 	if err != nil {
 		return err
 	}
-	if err := poolreview.WriteNativeSheet(f, ids, picked); err != nil {
-		f.Close()
+	if err := os.WriteFile(out, b, 0o644); err != nil {
 		return err
 	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	log.Printf("%s: 未確認 %d 本から %d 本 → %s (seed=%d)", name, countUnseen(pool, seen, *tier, l), len(picked), *out, s)
-	if !*write {
-		log.Print("確認待ちへは入れていない（-write で入れる）")
-		return nil
-	}
-	now := time.Now()
-	for k, ps := range picked {
-		m, err := sentenceMap(ps)
-		if err != nil {
-			return err
-		}
-		_, err = col.Doc(ids[k]).Create(ctx, map[string]any{
-			"thai_text": ps.ThaiText,
-			"sentence":  m,
-			"tier":      *tier,
-			"lang":      string(l),
-			"source":    poolreview.NativeSource(name),
-			"status":    poolreview.StatusNative,
-			"queued_at": now,
-		})
-		if err != nil && status.Code(err) != codes.AlreadyExists {
-			return fmt.Errorf("%s: %w", ids[k], err)
-		}
-	}
-	log.Printf("確認待ちへ %d 本（status=%s）", len(picked), poolreview.StatusNative)
+	log.Printf("%s: 未確認 %d 本から候補 %d 本 → %s (seed=%d)", name, unseen, len(cf.Items), out, seed)
 	return nil
 }
 
-func countUnseen(pool []sentence.Sentence, seen map[string]bool, tier string, l lang.Lang) int {
-	n := 0
-	for _, s := range pool {
-		if !seen[poolreview.ID(tier, l, s.ThaiText)] {
-			n++
-		}
+// isFlagged は Codex が直したほうがよいとした文か（NG か、タイ語・訳を変える FIX）。
+func isFlagged(s sentence.Sentence, j poolreview.Judged) bool {
+	switch j.Verdict {
+	case poolreview.VerdictNG:
+		return true
+	case poolreview.VerdictFix:
+		return poolreview.SurfaceChanged(s, j.Fix)
 	}
-	return n
+	return false
+}
+
+// codexOf は確認待ちの doc に残した Codex の判定を読む。
+func codexOf(d *firestore.DocumentSnapshot) poolreview.Judged {
+	m := d.Data()
+	j := poolreview.Judged{}
+	j.Verdict, _ = m["codex_verdict"].(string)
+	j.Reason, _ = m["codex_reason"].(string)
+	j.Fix, _ = m["codex_fix"].(map[string]any)
+	return j
 }
 
 func sentenceMap(s sentence.Sentence) (map[string]any, error) {
@@ -157,28 +333,26 @@ func sentenceMap(s sentence.Sentence) (map[string]any, error) {
 	return m, json.Unmarshal(b, &m)
 }
 
-// need は FIX の行で、直しがまだ無いもの（-needs の出力）。Claude がコメントから直しを作る。
+// need は FIX の行で、直しがまだ無いもの（-needs の出力）。Claude が直したタイ語かコメントから直しを作る。
 type need struct {
-	ID       string         `json:"id"`
-	Sentence map[string]any `json:"sentence"`
-	Comment  string         `json:"comment"`
+	ID        string         `json:"id"`
+	Sentence  map[string]any `json:"sentence"`
+	FixedThai string         `json:"fixed_thai,omitempty"`
+	Comment   string         `json:"comment"`
 }
 
 // runNative は記入済みの表をプールへ反映する。既定は dry run。
 func runNative(ctx context.Context, project string, args []string) error {
 	fs := flag.NewFlagSet("native", flag.ExitOnError)
 	in := fs.String("in", "", "記入済みの CSV")
+	sheetID := fs.String("sheet", "", "記入済みのスプレッドシートの ID（-in の代わり）")
+	tab := fs.String("tab", "", "-sheet で読むタブ名")
 	fixPath := fs.String("fix", "", `FIX の行の直し {id: {"japanese_translation":…} 等。タイ語を変えたら pronunciation・word_breakdown も}`)
 	needsPath := fs.String("needs", "", "直しがまだ無い FIX の行を書き出す JSON のパス")
 	write := fs.Bool("write", false, "書く（既定は dry run）")
 	fs.Parse(args)
 
-	f, err := os.Open(*in)
-	if err != nil {
-		return err
-	}
-	rows, err := poolreview.ReadNativeSheet(f)
-	f.Close()
+	rows, err := readTable(ctx, *in, *sheetID, *tab)
 	if err != nil {
 		return err
 	}
@@ -203,6 +377,7 @@ func runNative(ctx context.Context, project string, args []string) error {
 	type mark struct {
 		snap    *firestore.DocumentSnapshot
 		status  string
+		verdict string
 		fixed   map[string]any
 		comment string
 	}
@@ -218,6 +393,8 @@ func runNative(ctx context.Context, project string, args []string) error {
 		return edits[name]
 	}
 	counts := map[string]int{}
+	bySlot := map[string]map[string]int{} // 枠 → ネイティブの判定 → 本数（Codex との一致を見る）
+	autoFixed := 0
 	for _, row := range rows {
 		snap, err := col.Doc(row.ID).Get(ctx)
 		if err != nil {
@@ -241,20 +418,20 @@ func runNative(ctx context.Context, project string, args []string) error {
 			return fmt.Errorf("%s: %w", row.ID, err)
 		}
 		name := sentence.PoolObjectFor(it.Tier, l)
+		cx := codexOf(snap)
 		counts[row.Verdict]++
-		switch row.Verdict {
-		case poolreview.VerdictOK:
-			marks = append(marks, mark{snap: snap, status: poolreview.StatusApproved, comment: row.Comment})
-		case poolreview.VerdictNG:
-			edit(name).Remove[orig.ThaiText] = true
-			marks = append(marks, mark{snap: snap, status: poolreview.StatusRejected, comment: row.Comment})
-		case poolreview.VerdictFix:
-			extra := extras[row.ID]
-			if extra == nil {
-				needs = append(needs, need{ID: row.ID, Sentence: it.Sentence, Comment: row.Comment})
-				continue
-			}
-			fixed, err := poolreview.FixedSentence(orig, extra)
+		slotName, _ := snap.Data()["native_slot"].(string)
+		if slotName == "" {
+			slotName = "（無作為）"
+		}
+		if bySlot[slotName] == nil {
+			bySlot[slotName] = map[string]int{}
+		}
+		bySlot[slotName][row.Verdict]++
+
+		// replace は直した文でプールを置き換え、確認済みにする。
+		replace := func(fix map[string]any) error {
+			fixed, err := poolreview.FixedSentence(orig, fix)
 			if err != nil {
 				return fmt.Errorf("%s: %w", row.ID, err)
 			}
@@ -266,11 +443,58 @@ func runNative(ctx context.Context, project string, args []string) error {
 				return err
 			}
 			edit(name).Replace[orig.ThaiText] = fixed
-			marks = append(marks, mark{snap: snap, status: poolreview.StatusApproved, fixed: m, comment: row.Comment})
+			marks = append(marks, mark{snap: snap, status: poolreview.StatusApproved, verdict: row.Verdict, fixed: m, comment: row.Comment})
+			return nil
+		}
+		reject := func() {
+			edit(name).Remove[orig.ThaiText] = true
+			marks = append(marks, mark{snap: snap, status: poolreview.StatusRejected, verdict: row.Verdict, comment: row.Comment})
+		}
+
+		switch row.Verdict {
+		case poolreview.VerdictOK:
+			// ネイティブに見せていない単語分解だけの直しは、Codex の直しを当てる。
+			if cx.Verdict == poolreview.VerdictFix && len(cx.Fix) > 0 && !poolreview.SurfaceChanged(orig, cx.Fix) {
+				if err := replace(cx.Fix); err != nil {
+					return err
+				}
+				autoFixed++
+				continue
+			}
+			marks = append(marks, mark{snap: snap, status: poolreview.StatusApproved, verdict: row.Verdict, comment: row.Comment})
+		case poolreview.VerdictNG:
+			reject()
+		case poolreview.VerdictProposal:
+			switch {
+			case cx.Verdict == poolreview.VerdictNG:
+				reject()
+			case cx.Verdict == poolreview.VerdictFix && poolreview.SurfaceChanged(orig, cx.Fix):
+				if err := replace(cx.Fix); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("%s: 案でOK なのに直し案が無い（Codex: %q）", row.ID, cx.Verdict)
+			}
+		case poolreview.VerdictFix:
+			extra := extras[row.ID]
+			if extra == nil {
+				needs = append(needs, need{ID: row.ID, Sentence: it.Sentence, FixedThai: row.FixedThai, Comment: row.Comment})
+				continue
+			}
+			if err := replace(extra); err != nil {
+				return err
+			}
 		}
 	}
-	log.Printf("OK=%d FIX=%d NG=%d（うち直し待ち %d）",
-		counts[poolreview.VerdictOK], counts[poolreview.VerdictFix], counts[poolreview.VerdictNG], len(needs))
+	log.Printf("OK=%d 案でOK=%d FIX=%d NG=%d（うち直し待ち %d・OK で分解だけ直す %d）",
+		counts[poolreview.VerdictOK], counts[poolreview.VerdictProposal], counts[poolreview.VerdictFix],
+		counts[poolreview.VerdictNG], len(needs), autoFixed)
+	for _, s := range []string{poolreview.SlotFlagged, poolreview.SlotOK, "（無作為）"} {
+		if c := bySlot[s]; c != nil {
+			log.Printf("  枠 %s: OK=%d 案でOK=%d FIX=%d NG=%d", s,
+				c[poolreview.VerdictOK], c[poolreview.VerdictProposal], c[poolreview.VerdictFix], c[poolreview.VerdictNG])
+		}
+	}
 	if len(needs) > 0 {
 		if *needsPath != "" {
 			b, _ := json.MarshalIndent(needs, "", " ")
@@ -309,6 +533,7 @@ func runNative(ctx context.Context, project string, args []string) error {
 			{Path: "status", Value: m.status},
 			{Path: "reviewed_at", Value: now},
 			{Path: "reviewer", Value: "native"},
+			{Path: "native_verdict", Value: m.verdict},
 		}
 		if m.fixed != nil {
 			ups = append(ups, firestore.Update{Path: "sentence_fixed", Value: m.fixed})
@@ -328,9 +553,11 @@ func runNative(ctx context.Context, project string, args []string) error {
 func runSheet(ctx context.Context, project string, args []string) error {
 	fs := flag.NewFlagSet("sheet", flag.ExitOnError)
 	out := fs.String("out", "", "書き出す CSV のパス")
+	sheetID := fs.String("sheet", "", "書き込むスプレッドシートの ID（-out の代わり）")
+	tab := fs.String("tab", "native_"+time.Now().Format("20060102_1504"), "-sheet に足すタブ名")
 	fs.Parse(args)
-	if *out == "" {
-		return errors.New("-out が必要")
+	if (*out == "") == (*sheetID == "") {
+		return errors.New("-out か -sheet のどちらか1つが必要")
 	}
 	db, err := firestore.NewClient(ctx, project)
 	if err != nil {
@@ -342,27 +569,75 @@ func runSheet(ctx context.Context, project string, args []string) error {
 	if err != nil {
 		return err
 	}
-	ids := make([]string, len(docs))
-	ss := make([]sentence.Sentence, len(docs))
+	items := make([]poolreview.NativeItem, len(docs))
 	for i, d := range docs {
 		var it item
 		if err := d.DataTo(&it); err != nil {
 			return fmt.Errorf("%s: %w", d.Ref.ID, err)
 		}
+		var ss sentence.Sentence
 		raw, _ := json.Marshal(it.Sentence)
-		if err := json.Unmarshal(raw, &ss[i]); err != nil {
+		if err := json.Unmarshal(raw, &ss); err != nil {
 			return fmt.Errorf("%s: %w", d.Ref.ID, err)
 		}
-		ids[i] = d.Ref.ID
+		cx := codexOf(d)
+		items[i] = poolreview.NativeItem{ID: d.Ref.ID, Sentence: ss,
+			Proposal: poolreview.ProposalText(ss, cx.Verdict, cx.Reason, cx.Fix)}
 	}
-	f, err := os.Create(*out)
+	dest, err := writeTable(ctx, *out, *sheetID, *tab, items)
 	if err != nil {
 		return err
 	}
-	if err := poolreview.WriteNativeSheet(f, ids, ss); err != nil {
-		f.Close()
-		return err
+	log.Printf("記入待ち %d 本 → %s", len(items), dest)
+	return nil
+}
+
+// writeTable は表を CSV（out）かスプレッドシートの新しいタブ（sheetID・tab）へ書き、書いた先を返す。
+func writeTable(ctx context.Context, out, sheetID, tab string, items []poolreview.NativeItem) (string, error) {
+	if sheetID != "" {
+		g, err := poolreview.NewGSheet(ctx, sheetID)
+		if err != nil {
+			return "", err
+		}
+		if err := g.AddTab(ctx, tab, poolreview.NativeTable(items)); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%s（タブ %s）", g.URL(), tab), nil
 	}
-	log.Printf("記入待ち %d 本 → %s", len(ids), *out)
-	return f.Close()
+	f, err := os.Create(out)
+	if err != nil {
+		return "", err
+	}
+	if err := poolreview.WriteNativeSheet(f, items); err != nil {
+		f.Close()
+		return "", err
+	}
+	return out, f.Close()
+}
+
+// readTable は記入済みの表を CSV（in）かスプレッドシートのタブ（sheetID・tab）から読む。
+func readTable(ctx context.Context, in, sheetID, tab string) ([]poolreview.NativeRow, error) {
+	if sheetID != "" {
+		if tab == "" {
+			return nil, errors.New("-sheet には -tab が必要")
+		}
+		g, err := poolreview.NewGSheet(ctx, sheetID)
+		if err != nil {
+			return nil, err
+		}
+		t, err := g.ReadTab(ctx, tab)
+		if err != nil {
+			return nil, err
+		}
+		return poolreview.ParseNativeTable(t)
+	}
+	if in == "" {
+		return nil, errors.New("-in か -sheet が必要")
+	}
+	f, err := os.Open(in)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return poolreview.ReadNativeSheet(f)
 }
