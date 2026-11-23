@@ -1588,6 +1588,9 @@ tools/tiktok/shots/
 tools/store_screenshots/captions.json
 ストア用スクショの並び順・撮る画面・見出し（ja/en/ko、`**` で強調）。
 
+tools/store_screenshots/captions_travel.json / captions_work.json
+カスタムプロダクトページ（旅行・仕事、ja/en）用の見出し。素材は store_mock_screens.dart を SET=travel / SET=work で描く。
+
 tools/store_screenshots/capture.sh
 シミュレータ（iPhone 6.9／iPad 13）をステータスバー固定で起動し、captions.json の順に素材を build/store_shots/raw へ撮る。
 
@@ -1601,7 +1604,7 @@ test/screenshots/store_mock_screens.dart
 ストア用スクショと X の機能紹介の素材12画面（ja/en/ko × iPhone/iPad/Android）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。09以降（お手本再生・通知時刻・連続日数）は X 用。
 
 test/screenshots/store_mock_data.dart
-上記に描く例文・クイズ・復習タブの語の見本データ（ja/en/ko）。
+上記に描く例文・クイズ・復習タブの語の見本データ（ja/en/ko）。`--dart-define=SET=travel|work` でカスタムプロダクトページ用の例文に替える。
 
 test/screenshots/store_screenshots.dart
 素材に見出し・端末の枠を合成し build/store_shots/out へ書き出す。切り抜きは別の素材からも取れ、押した位置に波紋を描ける。`_test.dart` ではないので通常の `flutter test` では走らない。
