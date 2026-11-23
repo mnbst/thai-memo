@@ -212,8 +212,11 @@ const (
 
 // EstimateVocab は語彙スコアを求める。
 //
-// center（今のスコア）±50 の中で、前後 VocabWindowRadius 語の平均 P が
-// VocabCutoffP 以上の最大の rank を返す。無ければ走査の下端を返す。
+// 原点（floor の直上、未受験は rank 1）から上へ見ていき、前後
+// VocabWindowRadius 語の平均 P が初めて VocabCutoffP を下回る rank の、
+// 1 つ手前を返す（2026-11-23）。下の方に基準を割る谷があれば、その上に
+// 平均の高い山があってもそこで止まる。原点から割っていれば floor。
+// center は使わない（呼び出し側の互換のために残す）。
 //
 // floor は語彙テストの測定値（未受験は 0）。floor 以下の rank は存在しない
 // ものとして窓に入れないので、返り値は floor を下回らない。
@@ -254,20 +257,17 @@ func originKnownMax(entries []RankedP, floor int) int {
 
 // estimateWindowed は窓の平均 P だけで決めたスコア（EstimateVocab の本体）。
 func estimateWindowed(entries []RankedP, center, floor int, cutoff float64) int {
-	center = max(center, floor)
-
 	wordsByRank := make(map[int]float64, len(entries))
+	top := floor
 	for _, e := range entries {
-		if e.Rank >= floor {
+		if e.Rank > floor {
 			wordsByRank[e.Rank] = e.P
+			top = max(top, e.Rank)
 		}
 	}
-	if len(wordsByRank) == 0 {
-		return floor
-	}
-
-	low := max(center-50, floor)
-	for r := center + 50; r >= low; r-- {
+	// top+VocabWindowRadius より先の窓は未回答（UnknownWordP < cutoff）だけになるので、
+	// そこまでに必ず止まる。cutoff が UnknownWordP 以下のときの打ち切りも兼ねる。
+	for r := floor + 1; r <= top+VocabWindowRadius; r++ {
 		total := 0.0
 		start := max(r-VocabWindowRadius, floor+1)
 		for q := start; q <= r+VocabWindowRadius; q++ {
@@ -277,11 +277,11 @@ func estimateWindowed(entries []RankedP, center, floor int, cutoff float64) int 
 				total += UnknownWordP
 			}
 		}
-		if total/float64(r+VocabWindowRadius-start+1) >= cutoff {
-			return r
+		if total/float64(r+VocabWindowRadius-start+1) < cutoff {
+			return r - 1
 		}
 	}
-	return low
+	return top
 }
 
 // estimateVocab は 2026-11 までの推定式（golden と比較シミュレーション用に残す）。
