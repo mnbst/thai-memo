@@ -91,38 +91,22 @@ func evidenceField(data map[string]any) float64 {
 }
 
 // answerMultiplier は回答 1 件の重み（UpdateP の weight）に掛ける係数。
-// data は回答前の uvm doc（未登録なら nil）、now は Unix 秒。
 //
 //   - 確認クイズの正解: LearningCorrectMultiplier（不正解は等倍）
 //   - 例文を見直しての正解: SentenceReviewCorrectMultiplier（不正解は等倍）
-//   - まとめクイズで、例文に出てから FreshExposureWindow 以内: 正誤とも FreshMultiplierFor(hint)
 //
-// 判定は last_exposed_at（例文に出た時刻）で見る。last_seen はクイズの回答でも
-// 進むので、昨日正解した語を今日また正解しても「間もない」になってしまう。
-// last_exposed_at を持たない旧 doc は満額（変更前に出た語で、ほぼ 24 時間を過ぎている）。
-func answerMultiplier(quizType string, r Result, data map[string]any, now float64) float64 {
-	learning := quizType == "learning"
-	fresh := false
-	if !learning && !r.SentenceReviewed {
-		if at := floatField(data, "last_exposed_at", -1); at >= 0 && now-at < FreshExposureWindow {
-			fresh = true
-		}
-	}
+// 例文に出て 24 時間以内の語をまとめクイズで弱めていた（FreshMultiplier）が、
+// 2026-11-23 にやめ、読んだ当日も翌日以降と同じ満額にした。
+func answerMultiplier(quizType string, r Result) float64 {
 	if !r.IsCorrect {
-		if fresh {
-			return FreshMultiplierFor(r.HintLevel)
-		}
 		return 1
 	}
 	m := 1.0
-	if learning {
+	if quizType == "learning" {
 		m *= LearningCorrectMultiplier
 	}
 	if r.SentenceReviewed {
 		return m * SentenceReviewCorrectMultiplier
-	}
-	if fresh {
-		m *= FreshMultiplierFor(r.HintLevel)
 	}
 	return m
 }
@@ -148,7 +132,7 @@ func IsNewlyLearned(oldP, newP float64, quizType string) bool {
 // 答えが見える形で解くので、ユーザーに見せて確かめてもらうだけにする。
 // 正解は以前から P を動かさず（LearningCorrectMultiplier=0）、不正解だけが満額で
 // 効いていた。読んだ直後の 1 問の誤答で新語が PFloor まで落ち、その日の
-// まとめクイズの正解（FreshMultiplier）では 5 問かかっても戻れなかった
+// まとめクイズの正解（当時は FreshMultiplier で弱めていた）では 5 問かかっても戻れなかった
 // （prod: ยิ่ง が確認クイズの誤答で 0.4→0.15、まとめ 4 問正解で 0.44）。
 // P だけでなく quiz_attempts・evidence・last_seen も触らない（確認クイズしか
 // 解いていない語は「答えたことのない語」のまま扱う）。
@@ -201,7 +185,7 @@ func BatchUpdate(
 
 		// weight は証拠の重み（UpdateP の尤度比の指数）。ヒントは weight では
 		// なく GuessRate 側で入るので、ここでは掛けない。
-		weight := r.scale() * answerMultiplier(quizType, r, existing[r.Word], now)
+		weight := r.scale() * answerMultiplier(quizType, r)
 
 		graded := IsGradedResult(quizType, r)
 		ev := ResultEvidence(quizType, r)

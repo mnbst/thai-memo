@@ -78,36 +78,6 @@ const (
 	LearningEvidenceScale = 0.1
 	// SentenceReviewCorrectMultiplier は例文レビュー由来の正解を弱める係数。
 	SentenceReviewCorrectMultiplier = 0.1
-	// FreshMultiplier は、例文に出てから FreshExposureWindow 以内の語を
-	// まとめクイズで答えたときの係数。正誤とも掛ける。
-	// 読んで間もない正解は短期の記憶でも当たり、定着の証拠としては弱い。
-	// 弱めると P が低めに残り、翌日以降の復習枠に戻りやすくなる
-	// （recallsim_test.go: 未受験で 60 日出ない語が 35〜64% → 12〜35%、
-	// 受験者は 7 日以内の再出題が 6 割 → 8〜9 割）。
-	// 0.5→0.4（2026-11-22）: 0.5 では新語（P=0.4）が 1 問の正解で 0.522 になり
-	// LearnedP を越えて「習得済み」が出ていた。0.4 なら 0.487 で止まり、
-	// 2 問目の正解で越える。d90 の差は 0.5 と ±10 以内。
-	//
-	// 不正解にも掛ける（2026-11-22）。正解だけ弱めると、読んだ当日に 1 問
-	// 間違えた語は満額で PFloor まで落ち、その日のうちは正解 5 問でようやく
-	// 0.5 に戻る（×0.4 なら 1 問 ×1.43）。下げは満額・上げは弱い、の片側だけの
-	// 弱め方で、Result.FormatScale と同じく正誤の両側を揃える。新語（0.4）の
-	// 1 問の不正解は 0.15 → 0.27、そこからの正解 3 問で 0.52。
-	// 例文レビュー由来の正解（SentenceReviewCorrectMultiplier）とは重ねない。
-	//
-	// ヒント 2 段だけは FreshTransMultiplier を使う（FreshMultiplierFor）。
-	FreshMultiplier = 0.4
-	// FreshTransMultiplier はヒント 2 段（日本語）で答えたときの FreshMultiplier。
-	//
-	// 正解 1 問の LR が小さいほど、同じ ×0.4 で削られる問題数が増える。日本語
-	// ヒント（LR 1.214）に ×0.4 を掛けると新語が 0.5 を越えるのに 6 問かかり、
-	// 「当日は +1 問」から外れる。4 問に収まるのは 0.56〜0.74 で、0.6 を取る。
-	FreshTransMultiplier = 0.6
-	// FreshExposureWindow は「読んで間もない」とみなす時間（秒）。
-	// 忘却の大半は最初の 9 時間ほどで起き、記憶は睡眠をはさんで固定されるので、
-	// 一晩をまたぐ 24 時間を取る。
-	FreshExposureWindow = 24 * 60 * 60.0
-
 	// SpellingChoiceScale は綴り4択（入門用）の証拠を弱める係数。正誤とも同じ。
 	//
 	// この形式は出題文が読みと意味を渡してしまうので、正解は「綴りを
@@ -142,12 +112,12 @@ const (
 	// 「新語（P=NewWordP 0.4）が何問の正解で LearnedP(0.5) を越えるか」で
 	// 決める（2026-11-22）。odds 0.667 → 1 に 1.5 倍要る。
 	//
-	//	         g     正解 LR   満額   読んだ当日（FreshMultiplierFor）
-	//	ヒント無し 0.35  2.429    1 問   2 問（×0.4）
-	//	発音      0.58  1.466    2 問   3 問（×0.4）
-	//	日本語    0.70  1.214    3 問   4 問（×0.6）
+	//	         g     正解 LR   問題数
+	//	ヒント無し 0.35  2.429    1 問
+	//	発音      0.58  1.466    2 問
+	//	日本語    0.70  1.214    3 問
 	//
-	// ヒントを出すごとに 1 問ずつ増え、当日はそれぞれ +1 問。旧値（0.55・0.63）
+	// ヒントを出すごとに 1 問ずつ増える。旧値（0.55・0.63）
 	// では発音ヒントでも 1 問で越え、ヒント無しと区別がつかなかった。
 	// PFloor（0.15）からは 2 / 5 / 9 問（旧 2 / 4 / 6）。TestHintSteps が固定する。
 	//
@@ -158,14 +128,6 @@ const (
 	HintPronGuess  = 0.58
 	HintTransGuess = 0.70
 )
-
-// FreshMultiplierFor は hint_level ごとの FreshMultiplier。
-func FreshMultiplierFor(hintLevel int) float64 {
-	if hintLevel >= 2 {
-		return FreshTransMultiplier
-	}
-	return FreshMultiplier
-}
 
 // GuessRate は hint_level ごとの想定推測率 g。ヒントを出すほど選択肢が絞れる
 // ので、知らなくても当たる確率が上がる。値の根拠は HintPronGuess のコメント。
