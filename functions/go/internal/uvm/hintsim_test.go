@@ -122,22 +122,16 @@ func TestHintGuessSweep(t *testing.T) {
 }
 
 // TestHintSteps は新語（NewWordP）が何問の正解で LearnedP を越えるかを固定する。
-// ヒント段の g と FreshMultiplierFor を決めた根拠（HintPronGuess のコメント）。
+// ヒント段の g を決めた根拠（HintPronGuess のコメント）。
 func TestHintSteps(t *testing.T) {
-	for _, c := range []struct{ hint, full, fresh int }{{0, 1, 2}, {1, 2, 3}, {2, 3, 4}} {
-		for _, k := range []struct {
-			name   string
-			weight float64
-			want   int
-		}{{"満額", 1, c.full}, {"当日", FreshMultiplierFor(c.hint), c.fresh}} {
-			p, n := NewWordP, 0
-			for p <= LearnedP {
-				p = UpdateP(p, true, c.hint, k.weight)
-				n++
-			}
-			if n != k.want {
-				t.Errorf("hint=%d %s: %d 問で LearnedP 超え（期待 %d）", c.hint, k.name, n, k.want)
-			}
+	for _, c := range []struct{ hint, want int }{{0, 1}, {1, 2}, {2, 3}} {
+		p, n := NewWordP, 0
+		for p <= LearnedP {
+			p = UpdateP(p, true, c.hint, 1)
+			n++
+		}
+		if n != c.want {
+			t.Errorf("hint=%d: %d 問で LearnedP 超え（期待 %d）", c.hint, n, c.want)
 		}
 	}
 }

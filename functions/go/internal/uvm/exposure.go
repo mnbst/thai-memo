@@ -93,12 +93,9 @@ func ExposureP(oldP float64, count int) float64 {
 // （selectUnknown）が使う。
 //
 // words は重複を含んでよい（1 語 1 回として扱う）。
-//
-// reused は既出例文の出し直し（ReusableWords）か。出し直しでは、クイズに
-// 答えたことのある語の last_exposed_at を進めない（keepsExposedAt）。
 func RegisterExposure(
 	ctx context.Context, db *firestore.Client, uid string,
-	words []string, targetWords []string, reused bool,
+	words []string, targetWords []string,
 ) error {
 	now := nowSeconds()
 	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
@@ -139,10 +136,6 @@ func RegisterExposure(
 			updates := []firestore.Update{
 				{Path: "last_seen", Value: now},
 			}
-			if !keepsExposedAt(snaps[i].Data(), reused) {
-				// まとめクイズの回答を弱めるかの判定用（answerMultiplier）。
-				updates = append(updates, firestore.Update{Path: "last_exposed_at", Value: now})
-			}
 			// P=0 の doc は未出の扱い（reusableOrder）なので動かさない。
 			if p := numField(snaps[i].Data()["p"]); p > 0 {
 				updates = append(updates, firestore.Update{Path: "p", Value: KeyWordExposureP(p)})
@@ -153,12 +146,11 @@ func RegisterExposure(
 		} else {
 			// key_word として選出された未登録語は新規作成
 			if _, err := batch.Set(docRef, map[string]any{
-				"word":            word,
-				"p":               NewWordP,
-				"quiz_attempts":   0,
-				"last_seen":       now,
-				"last_exposed_at": now,
-				"last_result":     nil,
+				"word":          word,
+				"p":             NewWordP,
+				"quiz_attempts": 0,
+				"last_seen":     now,
+				"last_result":   nil,
 				// 露出は「見た」証拠であって採点ではない。クイズに答えて
 				// evidence が付くまで境界推定の母数に入れない。
 				"evidence": 0.0,
@@ -172,20 +164,6 @@ func RegisterExposure(
 	// 書き込みが無くても End は呼ぶ（BulkWriter を放置しない）。
 	batch.End()
 	return nil
-}
-
-// keepsExposedAt は露出で last_exposed_at を進めずに残すか。
-//
-// 既出例文の出し直しで、クイズに答えたことのある語（quiz_attempts>0）だけ残す。
-// 出し直しは帯の未出語が尽きたとき P の低い語から選ぶので、進めるとその語は
-// 毎回「読んで間もない」になり、まとめクイズの正解がずっと
-// FreshMultiplier で弱められる。正解しても P が低いまま残り、また
-// 出し直しに選ばれる、が続いていた（prod 2026-11-22: แก่ が 10 分で 4 回、
-// 正解 4 回で P 0.15→0.34、確認クイズの誤答 1 回で 0.15 へ戻る）。
-// 答えたことのある語は最初に読んだときに弱めた正解をもう受けているので、
-// 出し直しのあとは満額で数える。
-func keepsExposedAt(data map[string]any, reused bool) bool {
-	return reused && numField(data["quiz_attempts"]) > 0
 }
 
 // KeyWordExposureP は登録済みの語を key_word として 1 回出したあとの P。

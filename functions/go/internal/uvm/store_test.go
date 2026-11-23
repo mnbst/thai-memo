@@ -138,35 +138,23 @@ func TestEstimateVocabOriginKnownMax(t *testing.T) {
 }
 
 func TestAnswerMultiplier(t *testing.T) {
-	now := 1_000_000.0
-	fresh := map[string]any{"last_exposed_at": now - 3600}
-	stale := map[string]any{"last_exposed_at": now - FreshExposureWindow}
-	// 昨日の回答で last_seen だけ新しい語（例文に出たのは前日より前）。
-	answeredYesterday := map[string]any{"last_seen": now - 3600, "last_exposed_at": now - 3*FreshExposureWindow}
 	cases := []struct {
 		name     string
 		quizType string
 		r        Result
-		data     map[string]any
 		want     float64
 	}{
-		{"まとめ・24時間以内の正解は半減", "", Result{IsCorrect: true}, fresh, FreshMultiplier},
-		{"まとめ・24時間ちょうどは満額", "", Result{IsCorrect: true}, stale, 1},
-		{"last_seen だけ新しい語は満額", "", Result{IsCorrect: true}, answeredYesterday, 1},
-		{"last_exposed_at の無い旧 doc は満額", "", Result{IsCorrect: true}, map[string]any{"last_seen": now}, 1},
-		{"未登録語は満額", "", Result{IsCorrect: true}, nil, 1},
-		{"まとめ・24時間以内の不正解も弱める", "", Result{IsCorrect: false}, fresh, FreshMultiplier},
-		{"日本語ヒントの24時間以内の正解", "", Result{IsCorrect: true, HintLevel: 2}, fresh, FreshTransMultiplier},
-		{"日本語ヒントの24時間以内の不正解", "", Result{IsCorrect: false, HintLevel: 2}, fresh, FreshTransMultiplier},
-		{"まとめ・24時間過ぎの不正解は満額", "", Result{IsCorrect: false}, stale, 1},
-		{"例文を見直した不正解は満額", "", Result{IsCorrect: false, SentenceReviewed: true}, fresh, 1},
-		{"確認クイズの不正解は満額", "learning", Result{IsCorrect: false}, fresh, 1},
-		{"例文を見直した正解は重ねない", "", Result{IsCorrect: true, SentenceReviewed: true}, fresh, SentenceReviewCorrectMultiplier},
-		{"確認クイズの正解は従来どおり", "learning", Result{IsCorrect: true}, fresh, LearningCorrectMultiplier},
+		{"まとめの正解は満額", "", Result{IsCorrect: true}, 1},
+		{"まとめの不正解は満額", "", Result{IsCorrect: false}, 1},
+		{"日本語ヒントの正解も満額", "", Result{IsCorrect: true, HintLevel: 2}, 1},
+		{"例文を見直した不正解は満額", "", Result{IsCorrect: false, SentenceReviewed: true}, 1},
+		{"確認クイズの不正解は満額", "learning", Result{IsCorrect: false}, 1},
+		{"例文を見直した正解", "", Result{IsCorrect: true, SentenceReviewed: true}, SentenceReviewCorrectMultiplier},
+		{"確認クイズの正解は従来どおり", "learning", Result{IsCorrect: true}, LearningCorrectMultiplier},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := answerMultiplier(tc.quizType, tc.r, tc.data, now); got != tc.want {
+			if got := answerMultiplier(tc.quizType, tc.r); got != tc.want {
 				t.Fatalf("answerMultiplier = %v, want %v", got, tc.want)
 			}
 		})
