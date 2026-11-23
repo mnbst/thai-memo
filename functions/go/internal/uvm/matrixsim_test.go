@@ -1,3 +1,5 @@
+//go:build sim
+
 package uvm
 
 import (
@@ -121,7 +123,7 @@ func guessRate(hintLevel int) float64 {
 
 // sync は SyncEstimatedVocab の計算部分を再現する（premium・上限なし）。
 func (u *simUser) sync() {
-	low := max(u.floor, u.est-50-VocabWindowRadius)
+	low := u.floor // EstimateRange と同じく原点から
 	high := u.est + 51 + VocabWindowRadius
 	var entries []RankedP
 	for r, w := range u.words {

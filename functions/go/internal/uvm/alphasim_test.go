@@ -1,3 +1,5 @@
+//go:build sim
+
 package uvm
 
 import "testing"
