@@ -332,6 +332,35 @@ class L10nJa extends L10n {
   String get vocabCapSheetLater => 'あとで';
 
   @override
+  String vocabCapTestedTitle(int count) {
+    return '語彙テストでは$count語でした';
+  }
+
+  @override
+  String vocabCapTestedBody(int count, int limit) {
+    return '無料プランでは、語彙スコアは$limit語までの表示です。プレミアムなら$count語から、レベルに合った単語で続けられます。';
+  }
+
+  @override
+  String get vocabCapTestedNow => 'いまの表示';
+
+  @override
+  String get vocabCapTestedResult => 'テストの結果';
+
+  @override
+  String vocabCapTestedFeatureGrow(int count) {
+    return '語彙スコアが$count語から伸びる';
+  }
+
+  @override
+  String get vocabCapTestedFeatureLevel => 'あなたのレベルの単語で例文が作られる';
+
+  @override
+  String vocabCapTestedCta(int count) {
+    return 'プレミアムで$count語から続ける';
+  }
+
+  @override
   String vocabWords(int count) {
     return '$count語';
   }
@@ -1107,6 +1136,9 @@ class L10nJa extends L10n {
   String get paywallManageSubscriptions => 'サブスクリプションを解約する';
 
   @override
+  String get paywallFairUseNote => '※ご利用が非常に多い日は、新しい例文の作成を翌日までお待ちいただくことがあります。';
+
+  @override
   String get paywallRestore => '購入を復元';
 
   @override
@@ -1651,6 +1683,10 @@ class L10nJa extends L10n {
 
   @override
   String get quotaQuizReached => '今日の新しいクイズはここまでです。';
+
+  @override
+  String get quotaSentencePremiumDailyReached =>
+      '今日はたくさん学びましたね。新しい例文の作成は今日はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。';
 
   @override
   String get quotaSentenceReached =>

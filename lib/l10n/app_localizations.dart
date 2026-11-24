@@ -699,6 +699,48 @@ abstract class L10n {
   /// **'あとで'**
   String get vocabCapSheetLater;
 
+  /// No description provided for @vocabCapTestedTitle.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙テストでは{count}語でした'**
+  String vocabCapTestedTitle(int count);
+
+  /// No description provided for @vocabCapTestedBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'無料プランでは、語彙スコアは{limit}語までの表示です。プレミアムなら{count}語から、レベルに合った単語で続けられます。'**
+  String vocabCapTestedBody(int count, int limit);
+
+  /// No description provided for @vocabCapTestedNow.
+  ///
+  /// In ja, this message translates to:
+  /// **'いまの表示'**
+  String get vocabCapTestedNow;
+
+  /// No description provided for @vocabCapTestedResult.
+  ///
+  /// In ja, this message translates to:
+  /// **'テストの結果'**
+  String get vocabCapTestedResult;
+
+  /// No description provided for @vocabCapTestedFeatureGrow.
+  ///
+  /// In ja, this message translates to:
+  /// **'語彙スコアが{count}語から伸びる'**
+  String vocabCapTestedFeatureGrow(int count);
+
+  /// No description provided for @vocabCapTestedFeatureLevel.
+  ///
+  /// In ja, this message translates to:
+  /// **'あなたのレベルの単語で例文が作られる'**
+  String get vocabCapTestedFeatureLevel;
+
+  /// No description provided for @vocabCapTestedCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'プレミアムで{count}語から続ける'**
+  String vocabCapTestedCta(int count);
+
   /// 語彙スコアの語数表示
   ///
   /// In ja, this message translates to:
@@ -2025,6 +2067,12 @@ abstract class L10n {
   /// **'サブスクリプションを解約する'**
   String get paywallManageSubscriptions;
 
+  /// No description provided for @paywallFairUseNote.
+  ///
+  /// In ja, this message translates to:
+  /// **'※ご利用が非常に多い日は、新しい例文の作成を翌日までお待ちいただくことがあります。'**
+  String get paywallFairUseNote;
+
   /// No description provided for @paywallRestore.
   ///
   /// In ja, this message translates to:
@@ -2931,6 +2979,12 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'今日の新しいクイズはここまでです。'**
   String get quotaQuizReached;
+
+  /// No description provided for @quotaSentencePremiumDailyReached.
+  ///
+  /// In ja, this message translates to:
+  /// **'今日はたくさん学びましたね。新しい例文の作成は今日はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。'**
+  String get quotaSentencePremiumDailyReached;
 
   /// 上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない
   ///

@@ -72,6 +72,8 @@ class GenerateSentenceUseCase {
   GenerateSentenceErrorType _mapBackendApiException(BackendApiException e) {
     if (e is BackendApiUnauthenticatedException) {
       return GenerateSentenceErrorType.authenticationError;
+    } else if (e is BackendApiPremiumDailyLimitException) {
+      return GenerateSentenceErrorType.premiumDailyLimit;
     } else if (e is BackendApiQuotaExceededException) {
       return GenerateSentenceErrorType.quotaExceeded;
     } else if (e is BackendApiRateLimitException) {
@@ -100,6 +102,9 @@ enum GenerateSentenceErrorType {
   /// Quota exceeded (subscription required)
   quotaExceeded,
 
+  /// premium が1日に新しく作れる例文の上限に達した（翌日のリセットで戻る）
+  premiumDailyLimit,
+
   /// Request timeout
   timeout,
 
@@ -115,10 +120,7 @@ class GenerateSentenceException implements Exception {
   final String message;
   final GenerateSentenceErrorType type;
 
-  GenerateSentenceException(
-    this.message, {
-    required this.type,
-  });
+  GenerateSentenceException(this.message, {required this.type});
 
   /// Get user-friendly error message
   String getUserMessage(L10n l10n) {
@@ -131,6 +133,8 @@ class GenerateSentenceException implements Exception {
         return l10n.quotaSentenceReached;
       case GenerateSentenceErrorType.quotaExceeded:
         return l10n.quotaSentenceReached;
+      case GenerateSentenceErrorType.premiumDailyLimit:
+        return l10n.quotaSentencePremiumDailyReached;
       case GenerateSentenceErrorType.timeout:
         return l10n.errTimeout;
       case GenerateSentenceErrorType.serverError:

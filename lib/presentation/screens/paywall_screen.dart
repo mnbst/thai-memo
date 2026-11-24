@@ -51,11 +51,7 @@ const legacyPremiumTrialDays = 2;
 class PaywallScreen extends ConsumerStatefulWidget {
   static const routeName = 'paywall';
 
-  const PaywallScreen({
-    super.key,
-    required this.source,
-    this.lead,
-  });
+  const PaywallScreen({super.key, required this.source, this.lead});
 
   final String source;
 
@@ -77,26 +73,25 @@ class PaywallScreen extends ConsumerStatefulWidget {
           .read(subscriptionControllerProvider.notifier)
           .ensureStoreReady()
           .catchError((Object error, StackTrace stackTrace) {
-        debugPrint('Failed to warm up store: $error');
-      }).whenComplete(() {
-        unawaited(
-          analytics.logPaywallView(
-            source: source,
-            productLoaded:
-                container.read(subscriptionControllerProvider).product != null,
-          ),
-        );
-      }),
+            debugPrint('Failed to warm up store: $error');
+          })
+          .whenComplete(() {
+            unawaited(
+              analytics.logPaywallView(
+                source: source,
+                productLoaded:
+                    container.read(subscriptionControllerProvider).product !=
+                    null,
+              ),
+            );
+          }),
     );
     // 呼び出し元の source を失わないよう、表示前にイベントを確定させる。
     unawaited(analytics.logTapPaywall(source: source));
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (context) => PaywallScreen(
-          source: source,
-          lead: lead,
-        ),
+        builder: (context) => PaywallScreen(source: source, lead: lead),
       ),
     );
   }
@@ -221,13 +216,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final userData = ref.watch(userDocProvider).valueOrNull;
     final subscription = userData?['subscription'];
     // 月額・年額のどちらでも、ストアの自動更新サブスクを持っている。
-    final hasStoreSubscription = subscription is Map &&
+    final hasStoreSubscription =
+        subscription is Map &&
         (subscription['platform'] == 'ios' ||
             subscription['platform'] == 'android') &&
         subscription['lifetime'] != true;
     // 無償移行の対象者に買い切りを購入させない。名簿外のサブスク加入者だけ、
     // 有効期限を待たず買い切りへ変更できる。
-    final canChangeMonthlyToLifetime = subState.isPremium &&
+    final canChangeMonthlyToLifetime =
+        subState.isPremium &&
         hasStoreSubscription &&
         !ref.watch(lifetimeMigrationEligibleProvider) &&
         subState.lifetimeProduct != null;
@@ -235,7 +232,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     // 加入中の自動更新プラン。もう一方を買うと切り替えになる（iOS は同じ購読
     // グループ、Android は PurchaseService が今の購読を引き継ぐ）。別のストアで
     // 買った購読は、この端末のストアからは切り替えられないので出さない。
-    final currentPlan = subState.isPremium &&
+    final currentPlan =
+        subState.isPremium &&
             hasStoreSubscription &&
             subscription['platform'] == StorePlatform.current.id
         ? switch (subscription['product_id']) {
@@ -261,8 +259,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final plan = changing
         ? (changeTargets.contains(_plan) ? _plan : changeTargets.first)
         : hasChoice && subState.productFor(_plan) != null
-            ? _plan
-            : PremiumPlan.monthly;
+        ? _plan
+        : PremiumPlan.monthly;
 
     // 加入中の人（プラン変更）にトライアルは無い。
     final trialForSale = !subState.isPremium;
@@ -348,10 +346,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       ),
       child: Text(
         L10n.of(context).paywallTrialBadge,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppColors.indigo,
-            ),
+        style: Theme.of(context).textTheme.labelMedium
+            ?.copyWith(fontWeight: FontWeight.w700, color: AppColors.indigo),
       ),
     );
   }
@@ -371,9 +367,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       if (!signedIn || !context.mounted) return;
     }
     unawaited(
-      ref.read(analyticsServiceProvider).logSubscribe(
-            source:
-                plan == PremiumPlan.monthly ? source : '${source}_${plan.name}',
+      ref
+          .read(analyticsServiceProvider)
+          .logSubscribe(
+            source: plan == PremiumPlan.monthly
+                ? source
+                : '${source}_${plan.name}',
           ),
     );
     await ref
@@ -428,16 +427,19 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.workspace_premium_outlined,
-              size: 20, color: AppColors.goldInk),
+          const Icon(
+            Icons.workspace_premium_outlined,
+            size: 20,
+            color: AppColors.goldInk,
+          ),
           const SizedBox(width: 10),
           Flexible(
             child: Text(
               L10n.of(context).paywallActive,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF7A5E22),
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: const Color(0xFF7A5E22),
+                fontWeight: FontWeight.w700,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -451,8 +453,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// 買い切りはサブスクとは別の商品なので、買ってもサブスクは自動で
   /// 解約されない。放っておくと両方に課金され続ける。
   bool _lifetimeWithRenewingSubscription(WidgetRef ref) {
-    final subscription =
-        ref.watch(userDocProvider).valueOrNull?['subscription'];
+    final subscription = ref
+        .watch(userDocProvider)
+        .valueOrNull?['subscription'];
     return subscription is Map &&
         subscription['lifetime'] == true &&
         StorePlatform.fromId(subscription['platform']) != null &&
@@ -519,9 +522,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ),
         child: Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                decoration: TextDecoration.underline,
-              ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(decoration: TextDecoration.underline),
         ),
       );
     }
@@ -529,16 +531,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     Widget separator() {
       return Text(
         '|',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.4),
-            ),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.4)),
       );
     }
 
     final noteStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: colorScheme.onSurface.withValues(alpha: 0.6),
-          height: 1.25,
-        );
+      color: colorScheme.onSurface.withValues(alpha: 0.6),
+      height: 1.25,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -562,9 +563,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             plan: PremiumPlan.monthly,
             title: L10n.of(context).paywallPlanMonthlyTitle,
             note: L10n.of(context).paywallPlanMonthlyNote,
-            price: L10n.of(context).paywallPlanMonthlyPrice(
-              subState.product!.price,
-            ),
+            price: L10n.of(context)
+                .paywallPlanMonthlyPrice(subState.product!.price),
           ),
         if (_showsCard(offer, PremiumPlan.yearly) &&
             subState.yearlyProduct != null)
@@ -574,13 +574,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             plan: PremiumPlan.yearly,
             title: L10n.of(context).paywallPlanYearlyTitle,
             note: L10n.of(context).paywallPlanYearlyNote,
-            price: L10n.of(context).paywallPlanYearlyPrice(
-              subState.yearlyProduct!.price,
-            ),
+            price: L10n.of(context)
+                .paywallPlanYearlyPrice(subState.yearlyProduct!.price),
             badge: _yearlySavingPercent(subState) == null
                 ? null
                 : L10n.of(context)
-                    .paywallPlanYearlySave(_yearlySavingPercent(subState)!),
+                      .paywallPlanYearlySave(_yearlySavingPercent(subState)!),
           ),
         if (_showsCard(offer, PremiumPlan.lifetime) &&
             subState.lifetimeProduct != null)
@@ -598,7 +597,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           Text(
             offer.changing
                 ? L10n.of(context)
-                    .paywallMonthlyToLifetimeNote(StorePlatform.current.id)
+                      .paywallMonthlyToLifetimeNote(StorePlatform.current.id)
                 : L10n.of(context).paywallLifetimeNote,
             style: noteStyle,
           ),
@@ -609,17 +608,23 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           Text(
             offer.plan == PremiumPlan.yearly
                 ? L10n.of(context)
-                    .paywallChangeToYearlyNote(StorePlatform.current.id)
+                      .paywallChangeToYearlyNote(StorePlatform.current.id)
                 : L10n.of(context)
-                    .paywallChangeToMonthlyNote(StorePlatform.current.id),
+                      .paywallChangeToMonthlyNote(StorePlatform.current.id),
             style: noteStyle,
           ),
         ],
+        // 例文の作成はサーバーで1日の上限を設けている（quota.PremiumDailyLLMSentences）。
+        // ふつうの使い方では当たらないので数字は出さず、注記だけ置く。
+        const SizedBox(height: 6),
+        Text(L10n.of(context).paywallFairUseNote, style: noteStyle),
         // 自動更新サブスクリプションの開示文（App Store 3.1.2 / Play の定期購入ポリシー）
         if (!offer.lifetimeChosen) ...[
           const SizedBox(height: 6),
-          Text(L10n.of(context).paywallLegal(StorePlatform.current.id),
-              style: noteStyle),
+          Text(
+            L10n.of(context).paywallLegal(StorePlatform.current.id),
+            style: noteStyle,
+          ),
         ],
         const SizedBox(height: 8),
         Wrap(
@@ -629,8 +634,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           children: [
             legalLink(
               label: L10n.of(context).paywallRestore,
-              onPressed:
-                  subState.isLoading ? null : () => _startRestore(context, ref),
+              onPressed: subState.isLoading
+                  ? null
+                  : () => _startRestore(context, ref),
             ),
             separator(),
             legalLink(
@@ -664,13 +670,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(AppConfig.screenPadding, 12,
-          AppConfig.screenPadding, 12 + bottomSafeArea),
+      padding: EdgeInsets.fromLTRB(
+        AppConfig.screenPadding,
+        12,
+        AppConfig.screenPadding,
+        12 + bottomSafeArea,
+      ),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: colorScheme.outlineVariant),
-        ),
+        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -692,8 +700,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               padding: const EdgeInsets.symmetric(vertical: 15),
               minimumSize: const Size(double.infinity, 0),
               shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(AppConfig.buttonBorderRadius),
+                borderRadius: BorderRadius.circular(
+                  AppConfig.buttonBorderRadius,
+                ),
               ),
             ),
             child: subState.isLoading
@@ -707,23 +716,26 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     // （情緒的なコピーは上部のタイトル・比較表で担う）。
                     offer.changing
                         ? switch (offer.plan) {
-                            PremiumPlan.lifetime =>
-                              L10n.of(context).paywallChangeToLifetimeCta,
-                            PremiumPlan.yearly =>
-                              L10n.of(context).paywallChangeToYearlyCta,
-                            PremiumPlan.monthly =>
-                              L10n.of(context).paywallChangeToMonthlyCta,
+                            PremiumPlan.lifetime => L10n.of(
+                              context,
+                            ).paywallChangeToLifetimeCta,
+                            PremiumPlan.yearly => L10n.of(
+                              context,
+                            ).paywallChangeToYearlyCta,
+                            PremiumPlan.monthly => L10n.of(
+                              context,
+                            ).paywallChangeToMonthlyCta,
                           }
                         : offer.trial
-                            ? L10n.of(context)
-                                .paywallTrialCta(offer.selectedTrial!.days)
-                            : offer.hasChoice
-                                ? L10n.of(context).paywallPurchaseCta
-                                : L10n.of(context).paywallSubscribe,
+                        ? L10n.of(context)
+                              .paywallTrialCta(offer.selectedTrial!.days)
+                        : offer.hasChoice
+                        ? L10n.of(context).paywallPurchaseCta
+                        : L10n.of(context).paywallSubscribe,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.onPrimary,
-                        ),
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onPrimary,
+                    ),
                   ),
           ),
           // 無料期間のあと何円かかるかをボタンのすぐ下に書く
@@ -734,8 +746,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               child: Text(
                 _trialTerms(context, subState, offer),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -835,13 +847,16 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       children: [
                         Text(
                           title,
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         if (badge != null)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 2),
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.gold.withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(4),
@@ -869,8 +884,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               const SizedBox(width: 10),
               Text(
                 price,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),

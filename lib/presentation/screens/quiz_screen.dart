@@ -931,13 +931,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final diff = after - displayBefore;
         // free がこのクイズで上限に届いた回だけ、全画面のシートで先が premium だと
         // 見せる（端末につき1度）。下の小さな1行はそのまま残す。
-        if (!isPremium &&
-            !_vocabCapSheetChecked &&
-            displayBefore < freeVocabScoreLimit &&
-            after >= freeVocabScoreLimit) {
+        // 語彙テストで上限を超えていた人は、体験終了で上から100へ切り下がり
+        // 「届く」回が来ないので、上限に張り付いていればテスト版を出す。
+        final testedOverCap = VocabCapSheet.isTestedOverCap(vocab.testedVocab);
+        final reachedCap = testedOverCap
+            ? after >= freeVocabScoreLimit
+            : displayBefore < freeVocabScoreLimit &&
+                after >= freeVocabScoreLimit;
+        if (!isPremium && !_vocabCapSheetChecked && reachedCap) {
           _vocabCapSheetChecked = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) unawaited(VocabCapSheet.showOnce(context));
+            if (mounted) {
+              unawaited(VocabCapSheet.showOnce(context,
+                  testedVocab: testedOverCap ? vocab.testedVocab : 0));
+            }
           });
         }
         return Card(

@@ -198,6 +198,44 @@
   "vocabCapSheetFeatureUnlimited": "例文は無制限、発音採点も何度でも",
   "vocabCapSheetCta": "プレミアムで続ける",
   "vocabCapSheetLater": "あとで",
+  "vocabCapTestedTitle": "語彙テストでは{count}語でした",
+  "@vocabCapTestedTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapTestedBody": "無料プランでは、語彙スコアは{limit}語までの表示です。プレミアムなら{count}語から、レベルに合った単語で続けられます。",
+  "@vocabCapTestedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapTestedNow": "いまの表示",
+  "vocabCapTestedResult": "テストの結果",
+  "vocabCapTestedFeatureGrow": "語彙スコアが{count}語から伸びる",
+  "@vocabCapTestedFeatureGrow": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapTestedFeatureLevel": "あなたのレベルの単語で例文が作られる",
+  "vocabCapTestedCta": "プレミアムで{count}語から続ける",
+  "@vocabCapTestedCta": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "vocabWords": "{count}語",
   "@vocabWords": {
     "description": "語彙スコアの語数表示",
@@ -655,6 +693,7 @@
   "@paywallChangeToMonthlyNote": { "placeholders": { "store": { "type": "String" } } },
   "paywallCancelSubscriptionNote": "買い切りプランをご購入済みです。サブスクリプションの自動更新が続いているため、解約しないと料金がかかり続けます。",
   "paywallManageSubscriptions": "サブスクリプションを解約する",
+  "paywallFairUseNote": "※ご利用が非常に多い日は、新しい例文の作成を翌日までお待ちいただくことがあります。",
   "paywallRestore": "購入を復元",
   "paywallPriceYen": "¥{amount} / 月",
   "@paywallPriceYen": {
@@ -1051,6 +1090,7 @@
 
   "errQuizGenerationFailed": "クイズの生成に失敗しました。もう一度お試しください。",
   "quotaQuizReached": "今日の新しいクイズはここまでです。",
+  "quotaSentencePremiumDailyReached": "今日はたくさん学びましたね。新しい例文の作成は今日はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。",
   "quotaSentenceReached": "今日の新しい例文はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。",
   "@quotaSentenceReached": {
     "description": "上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない"
