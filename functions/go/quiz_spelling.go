@@ -83,68 +83,21 @@ func spellingBreakdownOf(
 	return parts, glyphs, rule
 }
 
-// applySpellingObservations は綴り4択の回答を部品データに反映し、
-// 正解した語には通過フラグを立てる。
-//
-// 記録するのは綴り4択に答えたときだけ。出題そのものが
-// spellingQuizEnabled で囲ってあるので、記録と出題は同じ条件で開閉する
-// （別々に条件を置くと、記録が止まった部品が弱いままになって出題を
-// 呼び続ける）。
-//
-// どの部品を測ったかは、正解と選択肢の差から毎回計算する。出題時の
-// ダミーを保存しておく必要は無い。
-func applySpellingObservations(
+// markSpellingPassed は綴り4択に正解した語に通過フラグを立てる。
+// 通過した語は次から従来の穴埋めへ回す。初見で当たるなら綴りは
+// 見えているので、同じ語をもう一度出す意味が無い。
+func markSpellingPassed(
 	ctx context.Context, db *firestore.Client, uid string, results []map[string]any,
 ) {
-	var obs []spellunit.Observation
-	var ix *spellunit.Index
 	passed := map[string][]string{}
 	for _, raw := range results {
 		if format, _ := raw["quiz_format"].(string); format != quizgen.FormatSpellingChoice {
 			continue
 		}
 		word, _ := raw["word"].(string)
-		selected, _ := raw["selected_answer"].(string)
-		isCorrect, _ := raw["is_correct"].(bool)
-		choices := textsOf(raw["choices"])
-		if word == "" || selected == "" || len(choices) == 0 {
-			continue
-		}
-		if ix == nil {
-			loaded, err := spellunit.LoadIndex()
-			if err != nil {
-				log.Printf("spelling_units_index_unavailable error=%v", err)
-				return
-			}
-			ix = loaded
-		}
-		obs = append(obs, ix.Observations(word, choices, selected, isCorrect)...)
-		if isCorrect {
-			// 正解した語は次から従来の穴埋めへ回す。初見で当たるなら
-			// 綴りは見えているので、同じ語をもう一度出す意味が無い。
+		if isCorrect, _ := raw["is_correct"].(bool); word != "" && isCorrect {
 			passed[word] = append(passed[word], quizgen.FormatSpellingChoice)
 		}
 	}
 	markBeginnerPassed(ctx, db, uid, passed)
-	if len(obs) == 0 {
-		return
-	}
-	if err := spellunit.Apply(ctx, db, uid, obs); err != nil {
-		log.Printf("spelling_units_update_failed uid=%s error=%v", uid, err)
-	}
-}
-
-// textsOf は callable の配列を文字列の並びにする。
-func textsOf(value any) []string {
-	items, ok := value.([]any)
-	if !ok {
-		return nil
-	}
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		if s, ok := item.(string); ok && s != "" {
-			out = append(out, s)
-		}
-	}
-	return out
 }

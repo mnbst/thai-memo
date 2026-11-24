@@ -117,11 +117,6 @@ func runDailyBatch(ctx context.Context) error {
 	close(jobs)
 	wg.Wait()
 
-	if err := runSentenceAudit(ctx, db, users, now); err != nil {
-		// 監査は学習用の記録であって本体処理ではない。落ちてもバッチは通す。
-		log.Printf("runSentenceAudit failed: %v", err)
-	}
-
 	log.Print("dailyBatch completed")
 	return nil
 }
@@ -409,6 +404,8 @@ func quotaResetPayload(uid string, userData map[string]any, now time.Time) map[s
 		"remaining_sentences":      sentenceResetValue,
 		"remaining_quizzes":        quizResetValue,
 		"daily_sentence_generated": false,
+		// premium の LLM 生成本数（quota.PremiumDailyLLMSentences）も毎日数え直す。
+		"premium_llm_sentences_today": 0,
 	}
 
 	// 配信バッチが時刻でクエリできるよう、毎日ここで作り直す。全ユーザーを

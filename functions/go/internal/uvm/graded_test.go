@@ -203,8 +203,14 @@ func TestFormatScale(t *testing.T) {
 	if !(scaled > plain) {
 		t.Errorf("不正解の落ち幅が鈍っていない: %.3f vs %.3f", scaled, plain)
 	}
-	if math.Abs(plain-PFloor) > 1e-9 {
-		t.Errorf("等倍の不正解は下限に張り付くはず: %.3f", plain)
+	// 不正解は同じ段・同じ weight の正解 1 問をちょうど打ち消す（UpdateP）。
+	for _, hint := range []int{0, 1, 2} {
+		for _, w := range []float64{1.0, SpellingChoiceScale} {
+			back := UpdateP(UpdateP(NewWordP, true, hint, w), false, hint, w)
+			if math.Abs(back-NewWordP) > 1e-9 {
+				t.Errorf("hint=%d w=%v: 正解→不正解で %.4f（元 %.4f）", hint, w, back, NewWordP)
+			}
+		}
 	}
 	up := UpdateP(NewWordP, true, 0, SpellingChoiceScale)
 	if !(up > NewWordP && up < UpdateP(NewWordP, true, 0, 1.0)) {

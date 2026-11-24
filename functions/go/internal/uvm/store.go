@@ -90,6 +90,27 @@ func evidenceField(data map[string]any) float64 {
 	return 0
 }
 
+// answerMultiplier は回答 1 件の重み（UpdateP の weight）に掛ける係数。
+//
+//   - 確認クイズの正解: LearningCorrectMultiplier（不正解は等倍）
+//   - 例文を見直しての正解: SentenceReviewCorrectMultiplier（不正解は等倍）
+//
+// 例文に出て 24 時間以内の語をまとめクイズで弱めていた（FreshMultiplier）が、
+// 2026-11-23 にやめ、読んだ当日も翌日以降と同じ満額にした。
+func answerMultiplier(quizType string, r Result) float64 {
+	if !r.IsCorrect {
+		return 1
+	}
+	m := 1.0
+	if quizType == "learning" {
+		m *= LearningCorrectMultiplier
+	}
+	if r.SentenceReviewed {
+		return m * SentenceReviewCorrectMultiplier
+	}
+	return m
+}
+
 // now は time.time() 相当（Unix 秒の float）。Firestore には数値で入る。
 func nowSeconds() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
@@ -105,12 +126,28 @@ func IsNewlyLearned(oldP, newP float64, quizType string) bool {
 	return quizType != "learning" && oldP <= LearnedP && newP > LearnedP
 }
 
+// WritesUVM はその種類のクイズの回答を UVM に書くか。
+//
+// 確認クイズ（quiz_type=="learning"）は書かない（2026-11-22）。例文を読んだ直後に
+// 答えが見える形で解くので、ユーザーに見せて確かめてもらうだけにする。
+// 正解は以前から P を動かさず（LearningCorrectMultiplier=0）、不正解だけが満額で
+// 効いていた。読んだ直後の 1 問の誤答で新語が PFloor まで落ち、その日の
+// まとめクイズの正解（当時は FreshMultiplier で弱めていた）では 5 問かかっても戻れなかった
+// （prod: ยิ่ง が確認クイズの誤答で 0.4→0.15、まとめ 4 問正解で 0.44）。
+// P だけでなく quiz_attempts・evidence・last_seen も触らない（確認クイズしか
+// 解いていない語は「答えたことのない語」のまま扱う）。
+func WritesUVM(quizType string) bool {
+	return quizType != "learning"
+}
+
 // BatchUpdate はクイズ/例文の正誤結果をもとに UVM を一括更新する
 // （uvm.py:batch_update_uvm）。
 //
 // 既存の UVM ドキュメントがあれば P を更新、なければ新規作成する。
 // freqRank が非 nil のときは続けて estimated_vocab を同期する。
 // 戻り値は、この更新で「覚えた」に入った語。
+//
+// 確認クイズ（WritesUVM が偽）は何も書かずに返す。
 func BatchUpdate(
 	ctx context.Context,
 	db *firestore.Client,
@@ -119,6 +156,9 @@ func BatchUpdate(
 	freqRank map[string]int,
 	quizType string,
 ) ([]string, error) {
+	if !WritesUVM(quizType) {
+		return nil, nil
+	}
 	var learned []string
 	now := nowSeconds()
 	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
@@ -145,13 +185,7 @@ func BatchUpdate(
 
 		// weight は証拠の重み（UpdateP の尤度比の指数）。ヒントは weight では
 		// なく GuessRate 側で入るので、ここでは掛けない。
-		weight := r.scale()
-		if quizType == "learning" && r.IsCorrect {
-			weight *= LearningCorrectMultiplier
-		}
-		if r.SentenceReviewed && r.IsCorrect {
-			weight *= SentenceReviewCorrectMultiplier
-		}
+		weight := r.scale() * answerMultiplier(quizType, r)
 
 		graded := IsGradedResult(quizType, r)
 		ev := ResultEvidence(quizType, r)
@@ -396,7 +430,8 @@ func EstimateRange(userData map[string]any, now time.Time) (tested, low, high in
 		tested = min(tested, limit)
 	}
 	current := max(intField(userData, "estimated_vocab", 0), tested)
-	return tested, max(tested, current-50-VocabWindowRadius), current + 51 + VocabWindowRadius
+	// 推定は原点から上へ見ていく（estimateWindowed）ので、下端は原点。
+	return tested, tested, current + 51 + VocabWindowRadius
 }
 
 const (

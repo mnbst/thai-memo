@@ -10,6 +10,7 @@ name: Post Daily Sentence to X
 # 例文の X 投稿だけ（Tips・ガイド・機能紹介と Threads は日本語だけ）。枠は Terraform の x_post_en_slots。
 # platform=tiktok は投稿せず、英語の例文の縦動画（9:16）を1本作って Google Drive に置く（tiktok ジョブ。
 # 枠は Terraform の tiktok_daily）。WIF がこのファイルに限られるので、ワークフローは分けずにジョブで分ける。
+# platform=youtube は日本語の例文の縦動画を YouTube Shorts に出す（X と別の文。枠は Terraform の youtube_post_slots）。
 
 on:
   # 毎朝 07:00 JST に Cloud Scheduler（terraform/main.tf の post_daily_x）が
@@ -34,10 +35,10 @@ on:
         options: [sentence, tip, guide, feature]
         default: sentence
       platform:
-        description: '投稿先（x / tiktok: Drive に英語の例文動画を置くだけ）'
+        description: '投稿先（x / youtube: Shorts / tiktok: Drive に英語の例文動画を置くだけ）'
         type: choice
         # threads は止めている。
-        options: [x, tiktok]
+        options: [x, youtube, tiktok]
         default: x
       lang:
         description: 'アカウントの言語（ja / en）'
@@ -79,6 +80,11 @@ jobs:
         run: |
           echo "lang=$LANG_CODE は例文の X 投稿だけ（kind=$KIND platform=$PLATFORM）"
           exit 1
+      - name: Check inputs (YouTube)
+        if: env.PLATFORM == 'youtube' && env.KIND != 'sentence'
+        run: |
+          echo "YouTube は例文の動画だけ（kind=$KIND）"
+          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
@@ -106,6 +112,15 @@ jobs:
             X_API_SECRET:${{ env.GCP_PROJECT }}/x-api-secret
             X_ACCESS_TOKEN:${{ env.GCP_PROJECT }}/x-access-token${{ env.TOKEN_SUFFIX }}
             X_ACCESS_TOKEN_SECRET:${{ env.GCP_PROJECT }}/x-access-token-secret${{ env.TOKEN_SUFFIX }}
+
+      # 鍵は投稿と、直近の動画の再生回数を引くのに使う。
+      - name: Fetch YouTube credentials from Secret Manager
+        if: env.PLATFORM == 'youtube'
+        uses: google-github-actions/get-secretmanager-secrets@bc9c54b29fdffb8a47776820a7d26e77b379d262 # v3.0.0
+        id: youtube_secrets
+        with:
+          secrets: |-
+            YOUTUBE_UPLOAD:${{ env.GCP_PROJECT }}/youtube-upload
 
       # Threads は止めている（再開するときはコメントを外し、platform の options に threads を戻す）。
       # - name: Fetch Threads credentials from Secret Manager
@@ -137,6 +152,7 @@ jobs:
           X_ACCESS_TOKEN: ${{ steps.secrets.outputs.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ steps.secrets.outputs.X_ACCESS_TOKEN_SECRET }}
           # THREADS_ACCESS_TOKEN: ${{ steps.threads_secrets.outputs.THREADS_ACCESS_TOKEN }}
+          YOUTUBE_UPLOAD: ${{ steps.youtube_secrets.outputs.YOUTUBE_UPLOAD }}
           THEMES: ${{ inputs.themes }}
           SLOT: ${{ inputs.slot }}
         # 種は枠ごとに変える。同じ日の枠で同じ抽選にならないように。
@@ -178,6 +194,16 @@ jobs:
           python tools/x_post/synth_tts.py \
             --sentence "$OUT_DIR/sentence.json" --out "$OUT_DIR"
 
+      # BGM（GCS の x_post/bgm/ から1曲）。取れなければ BGM なしで作る。
+      # X は BGM を付けない（取らなければ build_video.py が BGM なしで作る）。
+      - name: Fetch BGM
+        if: env.KIND == 'sentence' && env.PLATFORM != 'x'
+        env:
+          SLOT: ${{ inputs.slot }}
+        run: |
+          python tools/x_post/fetch_bgm.py --project "$GCP_PROJECT" \
+            --seed "$(date -u +%F)-$SLOT-$PLATFORM-$LANG_CODE" --out "$OUT_DIR/bgm.mp3"
+
       # 画面の録画は読み上げの尺に合わせるので、音声を先に作る。
       # 例文→各欄→学習単語の詳細→確認クイズの縦動画1本。
       # X・Threads とも 9:16。
@@ -195,7 +221,7 @@ jobs:
             --dart-define=X_POST_AUDIO_MS=$AUDIO_MS \
             --dart-define=X_POST_LANG=$LANG_CODE
           python tools/x_post/build_video.py --out "$OUT_DIR" \
-            --frames "$OUT_DIR/video_$FORMAT" --format "$FORMAT"
+            --frames "$OUT_DIR/video_$FORMAT" --format "$FORMAT" --bgm "$OUT_DIR/bgm.mp3"
 
       - name: Upload media as artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -217,6 +243,15 @@ jobs:
         run: |
           python tools/x_post/post_to_x.py \
             --project "$GCP_PROJECT" --out "$OUT_DIR" --lang "$LANG_CODE" \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Post to YouTube
+        if: env.PLATFORM == 'youtube'
+        env:
+          YOUTUBE_UPLOAD: ${{ steps.youtube_secrets.outputs.YOUTUBE_UPLOAD }}
+        run: |
+          python tools/x_post/post_to_youtube.py \
+            --project "$GCP_PROJECT" --out "$OUT_DIR" \
             ${{ inputs.dry_run && '--dry-run' || '' }}
 
       # Threads は止めている。
@@ -297,6 +332,13 @@ jobs:
           python tools/x_post/synth_tts.py \
             --sentence "$OUT_DIR/sentence.json" --out "$OUT_DIR"
 
+      - name: Fetch BGM
+        env:
+          SLOT: ${{ inputs.slot }}
+        run: |
+          python tools/x_post/fetch_bgm.py --project "$GCP_PROJECT" \
+            --seed "$(date -u +%F)-$SLOT-tiktok-en" --out "$OUT_DIR/bgm.mp3"
+
       - name: Render video
         run: |
           AUDIO_MS=$(ffprobe -v error -show_entries format=duration \
@@ -309,7 +351,7 @@ jobs:
             --dart-define=X_POST_AUDIO_MS=$AUDIO_MS \
             --dart-define=X_POST_LANG=en
           python tools/x_post/build_video.py --out "$OUT_DIR" \
-            --frames "$OUT_DIR/video_tiktok" --format tiktok
+            --frames "$OUT_DIR/video_tiktok" --format tiktok --bgm "$OUT_DIR/bgm.mp3"
 
       # Tips かガイドを1日おきに交互に。作れなくても例文の動画は置く。
       - name: Pick and render tip or guide

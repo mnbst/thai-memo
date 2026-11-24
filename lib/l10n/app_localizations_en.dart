@@ -343,6 +343,36 @@ class L10nEn extends L10n {
   String get vocabCapSheetLater => 'Later';
 
   @override
+  String vocabCapTestedTitle(int count) {
+    return 'Your vocabulary test said $count words';
+  }
+
+  @override
+  String vocabCapTestedBody(int count, int limit) {
+    return 'On the free plan, your vocabulary score shows up to $limit words. With Premium, pick up from $count words with words at your level.';
+  }
+
+  @override
+  String get vocabCapTestedNow => 'Shown now';
+
+  @override
+  String get vocabCapTestedResult => 'Test result';
+
+  @override
+  String vocabCapTestedFeatureGrow(int count) {
+    return 'Grow your vocabulary score from $count words';
+  }
+
+  @override
+  String get vocabCapTestedFeatureLevel =>
+      'Sentences built from words at your level';
+
+  @override
+  String vocabCapTestedCta(int count) {
+    return 'Continue from $count words with Premium';
+  }
+
+  @override
   String vocabWords(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1171,6 +1201,10 @@ class L10nEn extends L10n {
   String get paywallManageSubscriptions => 'Cancel subscription';
 
   @override
+  String get paywallFairUseNote =>
+      '*On days with very heavy use, creating new sentences may pause until the next day.';
+
+  @override
   String get paywallRestore => 'Restore purchase';
 
   @override
@@ -1743,6 +1777,10 @@ class L10nEn extends L10n {
 
   @override
   String get quotaQuizReached => 'No more new quizzes today.';
+
+  @override
+  String get quotaSentencePremiumDailyReached =>
+      'You studied a lot today! That was the last new sentence for today.\nReread past sentences from the top right of the Words tab.';
 
   @override
   String get quotaSentenceReached =>

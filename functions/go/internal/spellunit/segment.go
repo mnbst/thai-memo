@@ -17,8 +17,8 @@ const (
 	thaiSaraAm      = 0x0E33 // ำ（母音 a + 末子音 m）
 )
 
-// dimSilent は表示だけで使う「読まない字」の枠。部品データ（units）には
-// 出さない（測るのは頭子音・母音・末子音・声調の4つだけ）。
+// dimSilent は表示だけで使う「読まない字」の枠。ダミーの部品には
+// しない（変えるのは頭子音・母音・末子音・声調の4つだけ）。
 const dimSilent = 4
 
 // silentRole は dimSilent の役割名。Dim には入れない。

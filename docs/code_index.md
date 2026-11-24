@@ -630,7 +630,7 @@ functions/go/internal/spellunit/code.go
 音節形コード（sylform_var.json のキー）を頭子音・母音・末子音・声調に分ける。綴り→コードの逆引きも持つ。単音節だけが対象。
 
 functions/go/internal/spellunit/question.go
-綴り4択のダミー生成（1次元だけ変えた非語・表示長一致・毎回変える）と、回答から部品ごとの証拠を取り出す処理。
+綴り4択のダミー生成（1次元だけ変えた非語・表示長一致・毎回変える）。
 
 functions/go/internal/spellunit/parts.go
 綴りを頭子音・母音・末子音・声調に分けて読みと文字を付ける（答え合わせの表示用）。書く順に切った Glyphs も返す。
@@ -644,20 +644,11 @@ functions/go/internal/spellunit/display_manual_test.go
 functions/go/internal/spellunit/tonerule.go
 声調が決まる3要素（頭子音の階級・生音/死音・声調記号）を綴りから出す。
 
-functions/go/internal/spellunit/model.go
-部品ごとの P の更新。ダミーが全部非語なので推測率は素の 0.25（uvm の 0.35 とは別に持つ）。
-
-functions/go/internal/spellunit/store.go
-部品データのFirestore層（users/{uid}/units）。取り違え先も数える。estimated_vocab には流さない。
-
 functions/go/internal/spellunit/spellunit_test.go
-コード分解・ダミーが実在語でないこと・証拠の取り出し・Pの回復のテスト。
+コード分解・ダミーが実在語でないことのテスト。
 
 functions/go/internal/spellunit/coverage_manual_test.go
 頻度帯ごとの出題可能率の調査（SPELLUNIT_COVERAGE=1 で実行）。上位100語で52%、上位2000語で21%。
-
-functions/go/internal/spellunit/unitcoverage_manual_test.go
-部品の網羅に必要な頻度ランクの調査（SPELLUNIT_UNITCOV=1 で実行）。rank100 で 42/72 種、全72種は rank5363 まで必要。
 
 functions/go/internal/spellunit/eligible_manual_test.go
 綴り4択にできる語の一覧を書き出す（SPELLUNIT_ELIGIBLE_OUT=... で実行）。本番データとの突き合わせ用。
@@ -684,16 +675,19 @@ functions/go/subscription_status_live_test.go
 落とす/残すの判定表を実Firestoreで1件ずつ確認する。全体スキャンは走らせない。
 
 functions/go/daily_batch.go
-dailyBatch の Go 版。日次クォータのリセット、匿名ユーザー・重複fcm_tokenの掃除、生成例文の品質監査。常にHTTPトリガー。
+dailyBatch の Go 版。日次クォータのリセット、匿名ユーザー・重複fcm_tokenの掃除。常にHTTPトリガー。
 
 functions/go/daily_batch_quota_test.go
 日次リセットの降格判定のテスト。買い切り（expires_atなし）を落とさず、印の無いストア購入は落とすこと。
 
 functions/go/sentence_audit.go
-dailyBatch のステップ6。直近24時間の LLM 生成例文（premium / free）のうち、生成時の判定で quality.passed=true の文だけを Jev を呼び直さず確認待ち（pool_review）へ回す。外した文はログに出す。
+確認待ちへの取りこぼしを拾う QueueRecentForReview（cmd/poolreview list が呼ぶ）。直近の LLM 生成例文と sentence_flags の不合格の文を、判定を呼び直さず確認待ち（pool_review）へ回す。
 
 functions/go/pool_review.go
-確認待ち（Firestore pool_review、1文1 doc・ID はティア・言語・thai_text のハッシュ）への書き込み。本番プールと同じ形の例文・tier・lang・judge 結果・元 doc を持つ。既にある文（確認済み含む）は飛ばす。
+確認待ち（Firestore pool_review、1文1 doc・ID はティア・言語・thai_text のハッシュ）への書き込み。本番プールと同じ形の例文・tier・lang・judge 結果・元 doc を持つ。既にある文（確認済み含む）は飛ばす。judge 不合格の文は sentence_flags の sentence_doc から作る。生成直後（例文を保存した後と flag を書いた後）に入れ、判定の結果を judge（ok / ng / none）に付ける。
+
+functions/go/pool_review_test.go
+不合格の flag（sentence_flags）を確認待ちの形へ変えるテスト。
 
 functions/go/sentence_audio.go
 getSentenceAudio callable。例文の全文のお手本音声（Cloud TTS Chirp3-HD の MP3）を返す。GCS に無ければ作って置く（新しく作るのは1人1日100文まで、tts_usage で数える）。
@@ -702,10 +696,22 @@ functions/go/internal/ttsaudio/
 お手本音声の声の選択（文末→一人称→BL→ハッシュ）・ファイル名（中身のハッシュ）・生成と GCS 保存（無いときだけ書く）。
 
 functions/go/internal/poolreview/
-確認待ちのコレクション名・状態・doc ID と、OK の文を本番プールへ足す処理（重複排除・2万本上限）。
+確認待ちのコレクション名・状態・doc ID と、OK の文を本番プールへ足す処理（重複排除・上限なし）。
 
 functions/go/cmd/poolreview/main.go
-pool-review スキルの道具。list（確認待ちを JSON に）・apply（OK を本番プールへ足す・fix があれば直した文を入れる・NG を rejected）。
+pool-review スキルの道具。list（直近48時間の生成例文をその場で確認待ちへ回してから、確認待ちを JSON に）・apply（OK を本番プールへ足す・fix があれば直した文を入れる・NG を rejected）。
+
+functions/go/cmd/poolreview/native.go
+ネイティブ確認の道具。sample（-cands で未確認の文から候補を書き出す → -judged で Codex の判定を付け、指摘の文7割・Codex OK の文3割の表をスプレッドシートのタブか CSV に書き、載せた文を status=native、残りを status=screened で確認待ちへ）・sheet（記入待ちの表を書き出し直す）・native（記入済みの表で、OK は残す・案でOK は Codex の直し・FIX は Claude の直しで置き換える・NG はプールから外す。枠ごとの判定数を出す。バックアップを取ってから書く）。
+
+functions/go/internal/poolreview/native.go
+ネイティブ確認の表（列・判定・直し案の欄）の書き出しと読み込み、FIX の文の組み立て、プール1本への置き換え・削除（EditPool）。
+
+functions/go/internal/poolreview/screen.go
+ネイティブ確認の前の Codex の判定（judged.json）の読み込みと、表に載せる文の選び方（指摘の枠と OK の枠）。
+
+functions/go/internal/poolreview/gsheet.go
+ネイティブ確認の表を Google スプレッドシートで受け渡す（回ごとにタブを足す・判定をプルダウンに・タブを読む）。認証は ADC から tester の native-sheet サービスアカウントへ成り代わる。
 
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文1回きりの判定（ReviewAll）で、不合格なら sentence_flags へ1件書く。キーが無ければ nil（判定なしで動く）。
@@ -747,10 +753,13 @@ functions/go/internal/corpustrans/validate_en_test.go
 英訳の機械チェック（品詞名の混入・スラッシュ併記の三人称・タイ文字残留・句点）の単体テスト。
 
 functions/go/internal/quality/judge.go
-例文品質judge。観点の定義と Jev 呼び出し。NewJudge は Luna を主にした判定（luna.go）で組む。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
+例文品質judge。観点の定義と Jev 呼び出し。NewJudge は Gemini だけの判定（gemini.go）で組む（Jev の呼び出しはテスト・旧来の形として残す）。TypeSafe Jev に10観点（共起・文法・意味接続・王室僧侶用語・語の高さの混在・訳の加筆・訳の欠落・呼称の音写・誤訳・key_word用法）をNoulで並列に聞き、訳のタイ文字・文法用語・既知の誤訳等はコードで判定し（rules.go）、閾値超えの観点を理由として sentence_flags へ書く。差し戻し用の指摘（RetryNotes）も返す。
 
-functions/go/internal/quality/luna.go
-OpenAI Decisions API（gpt-6-luna）で観点を判定する。Luna が全観点（訳の加筆を除く、閾値0.6）、Jev は訳の欠落・その場で作ったたとえの2観点だけ並べて聞く（hybridScore）。
+functions/go/internal/quality/gemini.go
+Gemini Decisions API（gemini-decision-1）で観点を判定する（本番の判定器）。訳の加筆を除く全観点を1回で聞き、閾値0.52（呼称の音写だけ0.7）。任意の問いを noul で聞く Ask も持つ。
+
+functions/go/internal/quality/gemini_eval_live_test.go
+評価セットを本番と同じ経路で Gemini にかけ、観点ごとの確率を書き出す。問いの文面の案（QUESTION_VARIANTS）を並べて比べられる（JUDGE_EVAL_LIVE=1）。
 
 functions/go/internal/quality/pool.go
 Aspects に足す Jev の観点（場面として言わない文・訳の意味のずれ）。ReviewAll（生成直後に Aspects と合わせて判定）と ReviewPool。
@@ -918,10 +927,10 @@ functions/go/quiz_beginner.go
 入門用の出題形式をまとめクイズに差し込む層。語彙テスト測定値・語彙スコアがともに100未満のユーザーには出題できる問題を全部入門用にし（どちらかが越えたらユーザー doc の quiz_advanced を立てて卒業、片方向）、正解した語は uvm doc の beginner_passed で従来の穴埋めへ抜ける（片方向）。形式を増やすときは beginnerFormats に足す。
 
 functions/go/quiz_spelling.go
-入門用の形式のひとつ、綴り4択への差し替え。回答から部品データ（users/{uid}/units）を更新するのもここ。
+入門用の形式のひとつ、綴り4択への差し替え。正解した語に通過フラグを立てるのもここ。
 
 functions/go/quiz_word_order.go
-並び替え（word_order）をまとめクイズに差し込む層。入門用の卒業者は問題数の半分（5問なら2）、それ以外は1問。穴埋めのままの問題から選び、入門用の対象者にはタイルの読みを最初から見せる。モデルは呼ばない。
+並び替え（word_order）をまとめクイズに差し込む層。語彙スコア200未満は0問、200〜299は1問、300以上は問題数の半分（5問なら2）。穴埋めのままの問題から選ぶ。モデルは呼ばない。
 
 functions/go/quiz_word_order_test.go
 並び替えへの差し替えが穴埋め1問だけに効くこと、モデルを呼ばずに問題を作れることのテスト。
@@ -1076,6 +1085,12 @@ functions/go/internal/sentence/resolve.go
 functions/go/internal/sentence/timeframe.go
 語が自然に置ける時点（time_frames.json、Jevで事前判定）から時制の候補を絞る。
 
+scripts/build_time_kinds.py
+語ごとに時点の種類（今＝最中/状態、未来＝予定/意志/見通し/願望、習慣＝習慣/最近、過去＝出来事/経験/昔）へ置けるかを Gemini Decisions で判定し、time_kinds.json を作る。
+
+functions/go/internal/sentence/time_kinds.json
+語 → 時点の位置 → 種類ごとの確率（go:embed）。Resolver が時点の種類（TimeKind）を引き、プロンプトの時点の行に出す。
+
 functions/go/internal/sentence/resolve_golden_test.go
 resolve_generation_params の確定部分をPython実装と突き合わせる。
 
@@ -1120,6 +1135,9 @@ BL以外15テーマの参考例文22699件（正本。タイ暮らし・タイ�
 
 functions/go/internal/themeshots/relation_data.go
 場面の行が付くショット13462件の話し手から見た関係（地位・親しさ・性別）と話し手・聞き手の役（生成コード）。抽選の関係の代わりに使う。
+
+functions/go/internal/themeshots/time_data.go
+時点の要らないショット（依頼・質問・感想・あいさつ等）の一覧（生成コード）。この回と雰囲気の数文の回は時点の行を外す。
 
 functions/go/internal/themeshots/written.go
 媒体「解説・紹介文」の参考例文（BL・あいさつ以外14テーマ、Thai PBS ナレーター行と th.wikipedia の原文）。
@@ -1169,8 +1187,14 @@ functions/go/internal/uvm/hybridsim_test.go
 functions/go/internal/uvm/matrixsim_test.go
 受験有無 × まとめクイズ着手・放置の4セルで estimated_vocab の90日推移を比べるシミュレーション。母数の絞り方とヒント常用時の比較も含む。更新則・新語 prior・世界側の推測率/slip を差し替えるつまみを持つ。
 
+functions/go/internal/uvm/recallsim_test.go
+その日に例文で見た語をまとめクイズで正解したあと、何日後に再出題されるか（本番の選び方の写し）。FreshCorrectMultiplier の根拠。
+
 functions/go/internal/uvm/dropsim_test.go
 例文生成のたびに estimated_vocab が落ちる現象の再現と、前方帯の変更・回答済みのみを母数にする案の比較。
+
+functions/go/internal/uvm/hintsim_test.go
+ヒント段の推測率 g を旧値（0.63/0.80）と新値（0.55/0.63）で比べるシミュレーションと、PFloor から何問で P>0.5 に戻るかの固定テスト。
 
 functions/go/internal/uvm/alphasim_test.go
 P 更新則の比較シミュレーション（尤度比 vs 旧 α 則 vs 不正解α強化）。世界側の推測率・slip を振って、推定誤差と「実際は知らないのに P>0.5 の語」の割合を測る。
@@ -1307,6 +1331,9 @@ git履歴に露出したシークレット（Gemini/OpenAIキー、OAuth secret�
 docs/public_repo_checklist.md
 リポジトリpublic化の前提作業（履歴パージ、stateバケット堅牢化、WIF制約、GitHub設定）。
 
+docs/scene_gap_words.json
+天気・家族の大きい場面を10ショットまで間引いて場面合致が付かなくなった語（頻度順）。場面を足すときの元。
+
 docs/pool_fix_log.md
 prod 例文プールを手で直した（削除・訳・空白）・見送った履歴。
 
@@ -1358,6 +1385,12 @@ word_denylist.json の _strip_freq_rank 分類（断片・誤記・固有名詞�
 functions/go/cmd/sample/main.go
 プロンプト改訂の効果を見るサンプル生成CLI。ランク帯から語を散らしテーマを割り当てて生成し、JSONと1行要約を出す。-seed で語を固定でき改訂前後を対照できる。 -fix で judge をかけ、不合格を指摘つきで差し戻して作り直す。
 
+functions/go/cmd/tfcompare/main.go
+時点の決め方の実験。今の抽選と、語＋ショットを Gemini Decisions に渡して確率で選ぶ形を、同じ語・ショットで生成して比べる。
+
+functions/go/cmd/tfshot/main.go
+時点の要らないショットで、時点の行を付ける・外すを同じ語・抽選で生成して比べる実験。
+
 scripts/harvest_sentences.py
 Firestoreの既存例文（users/{uid}/sentences）をsentence_flags除外・thai_text重複排除してbank_out/harvest_{ja,en}.jsonへ吸い出す。静的コーパスの種。
 
@@ -1372,6 +1405,9 @@ scripts/build_pos_dict.py
 
 scripts/build_time_frames.py
 頻度上位語ごとに各時点への適合をJevで判定し time_frames.json を生成。
+
+scripts/label_shot_needs.py
+ショットに「時点が要るか」「関係が要るか」を Gemini Decisions で付け（scripts/corpus/shot_needs.jsonl）、--gen で time_data.go を作る。
 
 scripts/build_shot_embeddings.py
 参考セリフ（bldrama/data.go・themeshots/data.go）のembeddingを差分生成しshot_embeddings.jsonへ。
@@ -1445,13 +1481,21 @@ test/presentation/screens/vocab_test_screen_test.dart
 test/presentation/widgets/premium_trial_ended_dialog_test.dart
 体験終了ダイアログが語彙スコアの落差を出す条件（測定値が free 上限超のときだけ）のテスト。
 
+## note 記事
+
+tools/note/make_header.py
+note 記事の見出し画像（1280×670、アプリの青に代表のタイ語・読み・タイトル）を作る。
+
+tools/note/articles/
+公開した note 記事の原稿（1本1ファイル、1行目がタイトル）。
+
 ## X 自動投稿
 
 tools/x_post/README.md
 X（@everydaythai775）へ毎日の例文を自動投稿する仕組みの全体像と、必要なシークレットの手順。
 
 tools/x_post/pick_sentence.py
-枠ごとにテーマを表示回数から決め、候補を20件に絞り、同じ枠の過去10件の理由と表示回数を添えてGeminiに1件選ばせる。投稿済みと履歴は x_post/posted.json で管理。
+枠ごとにテーマを表示回数から決め、テーマと語数で絞った候補から1件を均等に抽選する。投稿済みと履歴は x_post/posted.json で管理。
 
 tools/x_post/pick_study_post.py
 Tips・ガイドの枠で study_posts.json から投稿文を1件抽選する（一巡するまで重複なし）。ガイドは貼る欄を guide_shot.env に書く。
@@ -1462,12 +1506,6 @@ Tips・ガイドの X 投稿文（アプリの Tips とガイドから書き起�
 tools/x_post/feature_captions.json
 機能紹介（20時枠）に貼る画像の並びと見出し。ストア用スクショの合成（store_screenshots.dart の CAPTIONS / OUT）に渡して feature_images/ を作る。
 
-tools/x_post/select_prompt.txt
-例文選定のプロンプト（コードの外。書き換えて選び方を変える）。
-
-tools/x_post/select_prompt_en.txt
-英語アカウント（@daily_thai11）の例文選定プロンプト。
-
 tools/x_post/issue_x_token.py
 別の X アカウントの Access Token を PIN 方式で発行し、Secret Manager の x-access-token-<lang> へ直接入れる。
 
@@ -1475,7 +1513,7 @@ tools/x_post/synth_tts.py
 Google Cloud TTS（Chirp3-HD）で例文の読み上げ音声を作る。声は本番（ttsaudio/voice.go）と同じ男女判定で選ぶ。通常速度で1回だけ。
 
 tools/x_post/build_video.py
-例文の縦動画の連番フレームに frames.json の音声を重ね、mp4 にする（1080x1920）。
+例文の縦動画の連番フレームに frames.json の音声（と --bgm の BGM）を重ね、mp4 にする（1080x1920）。
 
 tools/x_post/build_quiz.py
 動画の確認クイズ（単語→意味の4択）を例文の単語分解から作る。ダミーは同じ例文のほかの語の意味。
@@ -1486,14 +1524,23 @@ TikTok 用の素材（英語の例文の動画、Tips かガイドの英語の�
 tools/x_post/issue_drive_token.py
 Drive に置くための OAuth（drive.file）を本人のアカウントで許可し、フォルダを作って secret google-drive-upload に入れる。
 
+tools/x_post/fetch_bgm.py
+動画に敷く BGM を GCS（x_post/bgm/）から日付と枠で1曲選んで取る。取れなければ BGM なし。
+
 tools/x_post/post_to_x.py
 Xへ投稿し、投稿済みをGCSへ記録する。動画1本＋画像3枚。拒まれたら動画のみ→画像のみ→テキストのみへ退避する。
 
 tools/x_post/post_to_threads.py
 Threadsへ投稿し、投稿済みを x_post/threads/posted.json へ記録する。メディアはGCSの署名付きURLで渡し、動画＋画像はカルーセル。長期トークンを古ければ延長する。
 
+tools/x_post/post_to_youtube.py
+例文の縦動画を YouTube Shorts に出し、投稿済みを x_post/youtube/posted.json へ記録する。再生回数の取り直しもここ。
+
+tools/x_post/issue_youtube_token.py
+YouTube 投稿用の OAuth の鍵を作り、secret youtube-upload に入れる。
+
 tools/x_post/platforms.py
-投稿先（X / Threads / TikTok〈Drive に置いた分〉）と言語（ja / en）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
+投稿先（X / Threads / TikTok〈Drive に置いた分〉/ YouTube）と言語（ja / en）ごとの投稿済み記録の置き場所と、履歴の投稿IDの取り出し。
 
 tools/x_post/fetch_fonts.sh
 スクリーンショット描画に使う日本語フォントを取得する（リポジトリには置かない）。
@@ -1508,7 +1555,7 @@ test/screenshots/tiktok_video_screenshot.dart
 例文の縦動画（9:16）。例文詳細でお手本を聞く→各欄をスクロール→学習単語の詳細→確認クイズに迷って正解、までの連番フレームを書き出す。
 
 .github/workflows/post-daily-x.yml
-X / Threads 投稿と TikTok 素材（platform=tiktok は英語の例文動画を Drive に置く別ジョブ）のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
+X / Threads / YouTube Shorts 投稿と TikTok 素材（platform=tiktok は英語の例文動画を Drive に置く別ジョブ）のワークフロー。platform で投稿先、lang でアカウントの言語、kind で例文 / Tips / ガイドを切り替え、Cloud Scheduler が枠ごとに起動する。dry_run で投稿せず確認できる。
 
 ## TikTok 動画（試作）
 
@@ -1538,6 +1585,12 @@ tools/tiktok/shots/
 tools/store_screenshots/captions.json
 ストア用スクショの並び順・撮る画面・見出し（ja/en/ko、`**` で強調）。
 
+tools/store_screenshots/captions_travel.json / captions_work.json
+カスタムプロダクトページ（旅行・仕事、ja/en）用の見出し。素材は store_mock_screens.dart を SET=travel / SET=work で描く。
+
+tools/store_screenshots/captions_ab_notify.json
+プロダクトページの A/B テスト用1枚目（今日の例文に通知 00_notif を重ねる）の見出し。CAPTIONS・OUT を指定して store_screenshots.dart で書き出す。
+
 tools/store_screenshots/capture.sh
 シミュレータ（iPhone 6.9／iPad 13）をステータスバー固定で起動し、captions.json の順に素材を build/store_shots/raw へ撮る。
 
@@ -1548,10 +1601,10 @@ tools/store_screenshots/header.py
 商品ページヘッダー（3840x1646）を言語ごとに描く。背景のタイ語は pango-view で描く。
 
 test/screenshots/store_mock_screens.dart
-ストア用スクショと X の機能紹介の素材12画面（ja/en/ko × iPhone/iPad/Android）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。09以降（お手本再生・通知時刻・連続日数）は X 用。
+ストア用スクショと X の機能紹介の素材13画面（ja/en/ko × iPhone/iPad/Android）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。09以降（お手本再生・通知時刻・連続日数）は X 用。00_notif（ロック画面の通知）は A/B テスト用1枚目の切り抜き。
 
 test/screenshots/store_mock_data.dart
-上記に描く例文・クイズ・復習タブの語の見本データ（ja/en/ko）。
+上記に描く例文・クイズ・復習タブの語の見本データ（ja/en/ko）。`--dart-define=SET=travel|work` でカスタムプロダクトページ用の例文に替える。
 
 test/screenshots/store_screenshots.dart
 素材に見出し・端末の枠を合成し build/store_shots/out へ書き出す。切り抜きは別の素材からも取れ、押した位置に波紋を描ける。`_test.dart` ではないので通常の `flutter test` では走らない。

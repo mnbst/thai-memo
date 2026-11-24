@@ -66,9 +66,13 @@ func main() {
 	medium := flag.String("medium", "", "文が載る媒体を固定する（例: 対面の会話）")
 	withShots := flag.Bool("shots", false, "テーマ回の参考例文（internal/themeshots）を付ける（本番と同じ。場面は絞らずランダム）")
 	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
+	coarseTime := flag.Bool("coarse-time", false, "時点を 過去／現在／未来／習慣 の言い方でプロンプトに出す")
 	matched := flag.Bool("matched", false, "場面合致で外れた回（premium、ショット無し）として生成する")
 	blMood := flag.Bool("blmood", true, "-matched の BL 回に同じ作品の3文と設定を付ける（false で従来どおり付けない）")
 	flag.Parse()
+	if *coarseTime {
+		sentence.TimeFrameDisplay = sentence.CoarseTimeFrames
+	}
 
 	var words []wordRank
 	if *wordList != "" {

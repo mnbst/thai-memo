@@ -18,6 +18,7 @@
 // =============================================================================
 
 import 'dart:async';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -47,12 +48,13 @@ class BackendApiService {
     FirebaseFunctions? functions,
     FirebaseAuth? auth,
     String Function()? lang,
-  })  : _functions = functions ??
-            FirebaseFunctions.instanceFor(
-              region: FirebaseConfig.functionsRegion,
-            ),
-        _auth = auth ?? FirebaseAuth.instance,
-        _lang = lang ?? _defaultLang;
+  }) : _functions =
+           functions ??
+           FirebaseFunctions.instanceFor(
+             region: FirebaseConfig.functionsRegion,
+           ),
+       _auth = auth ?? FirebaseAuth.instance,
+       _lang = lang ?? _defaultLang;
 
   static String _defaultLang() => 'ja';
 
@@ -78,9 +80,7 @@ class BackendApiService {
       // Call Cloud Function
       final callable = _functions.httpsCallable(
         FirebaseConfig.generateSentenceFunctionName,
-        options: HttpsCallableOptions(
-          timeout: FirebaseConfig.functionTimeout,
-        ),
+        options: HttpsCallableOptions(timeout: FirebaseConfig.functionTimeout),
       );
 
       final params = <String, dynamic>{'lang': _lang(), 'count': count};
@@ -107,6 +107,10 @@ class BackendApiService {
         final errorCode = error?['code'] as String? ?? 'UNKNOWN';
         final errorMessage = error?['message'] as String? ?? 'Unknown error';
 
+        if (errorCode == 'QUOTA_EXCEEDED' &&
+            error?['reason'] == 'PREMIUM_DAILY_LIMIT') {
+          throw BackendApiPremiumDailyLimitException(errorMessage);
+        }
         throw _mapBackendError(errorCode, errorMessage);
       }
 
@@ -136,12 +140,14 @@ class BackendApiService {
 
       if (wordBreakdownsJson != null) {
         for (var i = 0; i < wordBreakdownsJson.length; i++) {
-          final wordJson =
-              Map<String, dynamic>.from(wordBreakdownsJson[i] as Map);
+          final wordJson = Map<String, dynamic>.from(
+            wordBreakdownsJson[i] as Map,
+          );
 
           // Parse syllables if present (string array from API)
-          final syllables =
-              parseSyllables(wordJson['syllables'] as List<dynamic>?);
+          final syllables = parseSyllables(
+            wordJson['syllables'] as List<dynamic>?,
+          );
 
           wordBreakdowns.add(
             WordBreakdown(
@@ -194,20 +200,24 @@ class BackendApiService {
       return sentence;
     } catch (e) {
       throw BackendApiInvalidResponseException(
-          'Failed to create ThaiSentence: $e');
+        'Failed to create ThaiSentence: $e',
+      );
     }
   }
 
   /// Map Firebase Functions exceptions to custom exceptions
   BackendApiException _mapFirebaseFunctionsException(
-      FirebaseFunctionsException e) {
+    FirebaseFunctionsException e,
+  ) {
     switch (e.code) {
       case 'unauthenticated':
         return BackendApiUnauthenticatedException(
-            'Authentication required. Please restart the app.');
+          'Authentication required. Please restart the app.',
+        );
       case 'permission-denied':
         return BackendApiPermissionDeniedException(
-            'Permission denied. Please check your account.');
+          'Permission denied. Please check your account.',
+        );
       case 'deadline-exceeded':
         return BackendApiTimeoutException('Request timeout. Please try again.');
       case 'unavailable':
@@ -247,9 +257,7 @@ class BackendApiService {
 
       final callable = _functions.httpsCallable(
         FirebaseConfig.generateQuizFunctionName,
-        options: HttpsCallableOptions(
-          timeout: const Duration(seconds: 60),
-        ),
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
       );
 
       final result = await callable.call({
@@ -296,17 +304,15 @@ class BackendApiService {
       final keyWord = targetWords.isNotEmpty
           ? targetWords.first
           : sentence.wordBreakdowns.isNotEmpty
-              ? sentence.wordBreakdowns.first.wordText
-              : null;
+          ? sentence.wordBreakdowns.first.wordText
+          : null;
       if (sentenceId == null || sentenceId.isEmpty || keyWord == null) {
         throw BackendApiException('クイズに使える例文データがありません。');
       }
 
       final callable = _functions.httpsCallable(
         FirebaseConfig.generateLearningQuizFunctionName,
-        options: HttpsCallableOptions(
-          timeout: const Duration(seconds: 60),
-        ),
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
       );
 
       final result = await callable.call({
@@ -326,13 +332,15 @@ class BackendApiService {
           'key_word_pronunciation': _findWordPronunciation(sentence, keyWord),
           'key_word_meaning': _findWordMeaning(sentence, keyWord),
           'word_breakdown': sentence.wordBreakdowns
-              .map((word) => {
-                    'word': word.wordText,
-                    'pronunciation': word.pronunciation,
-                    'meaning': word.meaning,
-                    if (word.grammaticalRole != null)
-                      'grammatical_role': word.grammaticalRole,
-                  })
+              .map(
+                (word) => {
+                  'word': word.wordText,
+                  'pronunciation': word.pronunciation,
+                  'meaning': word.meaning,
+                  if (word.grammaticalRole != null)
+                    'grammatical_role': word.grammaticalRole,
+                },
+              )
               .toList(),
           if (sentence.generationTier != null)
             'generation_tier': sentence.generationTier,
@@ -396,9 +404,7 @@ class BackendApiService {
   Future<void> sendUvmPayload(Map<String, dynamic> payload) async {
     final callable = _functions.httpsCallable(
       FirebaseConfig.updateUvmFunctionName,
-      options: HttpsCallableOptions(
-        timeout: const Duration(seconds: 30),
-      ),
+      options: HttpsCallableOptions(timeout: const Duration(seconds: 30)),
     );
     final response = await callable.call(payload);
     final data = response.data;
@@ -419,9 +425,7 @@ class BackendApiService {
   Future<VocabProgressPage> getVocabProgress(String? cursor) async {
     final callable = _functions.httpsCallable(
       FirebaseConfig.getVocabProgressFunctionName,
-      options: HttpsCallableOptions(
-        timeout: const Duration(seconds: 30),
-      ),
+      options: HttpsCallableOptions(timeout: const Duration(seconds: 30)),
     );
     final response = await callable.call(<String, dynamic>{
       if (cursor != null) 'cursor': cursor,
@@ -440,9 +444,7 @@ class BackendApiService {
 
       final callable = _functions.httpsCallable(
         FirebaseConfig.resetLearningDataFunctionName,
-        options: HttpsCallableOptions(
-          timeout: const Duration(seconds: 60),
-        ),
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
       );
 
       await callable.call();
@@ -474,10 +476,10 @@ class BackendApiService {
   /// [level] はヒアリングの level 回答。開始段が決まるだけで結果には効かない。
   /// プレミアム限定・1日の回数上限があるので、断られたときは
   /// [VocabTestUnavailableException] にサーバーの文言が入る。
-  Future<VocabTestStep> startVocabTest() =>
-      _vocabTestCall(FirebaseConfig.startVocabTestFunctionName, {
-        'lang': _lang(),
-      });
+  Future<VocabTestStep> startVocabTest() => _vocabTestCall(
+    FirebaseConfig.startVocabTestFunctionName,
+    {'lang': _lang()},
+  );
 
   /// 1段ぶんの回答を送り、次の段か最終結果を受け取る。
   /// [answers] は出題順の選択肢 index。未回答は -1。
@@ -491,7 +493,9 @@ class BackendApiService {
       });
 
   Future<VocabTestStep> _vocabTestCall(
-      String name, Map<String, dynamic> params) async {
+    String name,
+    Map<String, dynamic> params,
+  ) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -504,7 +508,8 @@ class BackendApiService {
       );
       final result = await callable.call(params);
       return VocabTestStep.fromJson(
-          _deepCast(result.data) as Map<String, dynamic>);
+        _deepCast(result.data) as Map<String, dynamic>,
+      );
     } on FirebaseFunctionsException catch (e) {
       // プレミアム限定・回数上限・セッション切れは、理由をそのまま出したい
       // ので分ける。
@@ -595,6 +600,17 @@ class BackendApiQuotaExceededException extends BackendApiException {
 
   @override
   String toString() => 'BackendApiQuotaExceededException: $message';
+}
+
+/// premium（体験中を含む）が1日に新しく作れる例文の上限に達した。
+/// サーバーは旧クライアント向けに code を QUOTA_EXCEEDED のまま返し、
+/// reason=PREMIUM_DAILY_LIMIT で見分けさせる。
+class BackendApiPremiumDailyLimitException
+    extends BackendApiQuotaExceededException {
+  BackendApiPremiumDailyLimitException(super.message);
+
+  @override
+  String toString() => 'BackendApiPremiumDailyLimitException: $message';
 }
 
 class BackendApiNoUserSentencesException extends BackendApiException {

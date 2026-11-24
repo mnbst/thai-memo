@@ -111,11 +111,25 @@ func TestPronunciationOverrides(t *testing.T) {
 		{"สปอนเซอร์", "sà-pɔɔn-sə̂ə"},
 		{"พีช", "phíit"},
 		{"ทริป", "thríp"},
+		// 短母音の開音節＋「子音＋前置母音」は子音を末子音にする（strandedConsonant）
+		{"วินเทจ", "win-thêet"},
+		{"วินโดวส์", "win-doow"},
+		{"วิดเจ็ต", "wít-jèt"},
+		{"ทีมเวิร์ก", "thiim-wə̂ək"},
+		{"ฟรีสไตล์", "frii-sà-tai"},      // 長母音＋ส は当てない
+		{"มีมโนธรรม", "mii-má-noo-tham"}, // strandedExempt
 		{"ลิขสิทธิ์", "lík-khà-sìt"},
 		// 語の一部（pronunciationParts）
 		{"ไลฟ์สตรีม", "lái-sà-triim"},
 		{"เทศกาลสงกรานต์", "thêet-sà-kaan-sǒng-kraan"},
 		{"คลิปนี้", "khlíp-níi"},
+		{"มีตติ้ง", "mîit-tîng"},
+		{"งานมีตติ้ง", "ngaan-mîit-tîng"},
+		{"งานแฟนมีตติ้ง", "ngaan-fɛɛn-mîit-tîng"},
+		{"ภรรยา", "phan-rá-yaa"},
+		{"ภรรยาของเขา", "phan-rá-yaa-khɔ̌ɔng-khǎw"},
+		{"พลาสติก", "phlâat-sà-tìk"},
+		{"ถุงพลาสติก", "thǔng-phlâat-sà-tìk"},
 		// 他の語の中で読みが変わる綴りは変えない
 		{"เขมร", "khà-měen"},
 		// 数字

@@ -1,3 +1,5 @@
+//go:build sim
+
 package uvm
 
 import (
@@ -33,27 +35,30 @@ type simUser struct {
 	srsIdx int
 
 	// --- 実験用のつまみ（0/false は現行実装どおり） ---
-	aheadOverride  int         // >0 なら前方幅をこの値に固定する
-	aheadScale     float64     // >0 なら前方幅を max(現行, est×この値) に広げる
-	startEst       int         // >0 なら受験後の est をこの値から始める（床は測定値のまま）
-	ceilingOnly    bool        // aheadScale を語彙テストの上限に届いた人だけに効かせる
-	noCeilingScale bool        // 本番の上限到達者の拡幅（CeilingAheadScale）を外す（旧現行の再現）
-	answeredOnly   bool        // 推定の母数を回答済み（quiz_attempts>0）の語だけにする
-	legacyUngraded bool        // graded 導入前の挙動（採点区分を見ずに全部を母数に入れる）
-	binaryGraded   bool        // evidence 導入前の挙動（graded の二値ゲート）
-	evidenceK      float64     // >0 なら旧 ShrinkP を K=この値で掛ける
-	summaryHint    int         // まとめクイズで常用するヒント段階
-	learningInPool bool        // 確認クイズだけで答えた語も推定の母数に入れる（2026-10 までの挙動）
-	bandSummary    bool        // prodSummary の補充枠を、推定の走査帯（est±50）の語から先に選ぶ（案）
-	prodSummary    bool        // まとめクイズの出題を本番の選び方（SRS 2問 + P の低い順の補充）にする
-	day            int         // 今日（prodSummary の SRS 用）
-	bornDay        map[int]int // key_word として初めて出た日（prodSummary の SRS 用）
+	aheadOverride      int         // >0 なら前方幅をこの値に固定する
+	aheadScale         float64     // >0 なら前方幅を max(現行, est×この値) に広げる
+	startEst           int         // >0 なら受験後の est をこの値から始める（床は測定値のまま）
+	ceilingOnly        bool        // aheadScale を語彙テストの上限に届いた人だけに効かせる
+	noCeilingScale     bool        // 本番の上限到達者の拡幅（CeilingAheadScale）を外す（旧現行の再現）
+	answeredOnly       bool        // 推定の母数を回答済み（quiz_attempts>0）の語だけにする
+	legacyUngraded     bool        // graded 導入前の挙動（採点区分を見ずに全部を母数に入れる）
+	binaryGraded       bool        // evidence 導入前の挙動（graded の二値ゲート）
+	evidenceK          float64     // >0 なら旧 ShrinkP を K=この値で掛ける
+	summaryHint        int         // まとめクイズで常用するヒント段階
+	hintMix            []float64   // 非 nil ならまとめクイズの 1 問ごとにヒント段をこの割合で引く（hintsim_test.go）
+	learningInPool     bool        // 確認クイズだけで答えた語も推定の母数に入れる（2026-10 までの挙動）
+	bandSummary        bool        // prodSummary の補充枠を、推定の走査帯（est±50）の語から先に選ぶ（案）
+	prodSummary        bool        // まとめクイズの出題を本番の選び方（SRS 2問 + P の低い順の補充）にする
+	day                int         // 今日（prodSummary の SRS 用）
+	bornDay            map[int]int // key_word として初めて出た日（prodSummary の SRS 用）
+	recentCorrectScale float64     // >0 ならその日に見た語のまとめクイズ正解の重みをこの倍率にする（recallsim_test.go）
 
 	// P 更新則の差し替え（どちらも 0 なら本番の UpdateP）。
 	incorrectScale float64 // 不正解 α の上限に掛ける倍率
 	bayesGuess     float64 // >0 でベイズ更新。ヒント無しの想定推測率 g
 	bayesSlip      float64 // ベイズ更新のうっかり率 s
 	alphaRule      bool    // 旧 α 則（UpdatePAlpha）で回す
+	legacyHintG    bool    // ヒント段の g を 2026-11 以前の値にする（hintsim_test.go）
 	alphaUntilDay  int     // この日まで旧 α 則、翌日から新実装（移行の再現）
 	totalDays      int     // 0 なら 90
 	newP           float64 // >0 なら新語の初期 P をこの値にする（既定 NewWordP）
@@ -69,9 +74,10 @@ type simUser struct {
 	themeGen      int
 
 	// --- 世界側（ユーザーの実際の振る舞い）のつまみ ---
-	worldSlip  float64 // 知っている語を落とす確率（誤タップ・読み違い）
-	worldGuess float64 // >0 ならヒント無しの実際の推測率をこの値にする
-	learnRate  float64 // >0 なら語に触れるたびこの確率で覚える（真値が固定でなくなる）
+	worldSlip  float64   // 知っている語を落とす確率（誤タップ・読み違い）
+	worldGuess float64   // >0 ならヒント無しの実際の推測率をこの値にする
+	worldHintG []float64 // 非 nil ならヒント段ごとの実際の推測率（worldGuess より優先）
+	learnRate  float64   // >0 なら語に触れるたびこの確率で覚える（真値が固定でなくなる）
 	learned    map[int]bool
 	lastAnswer bool // 直前の回答の正誤
 
@@ -94,7 +100,7 @@ type simUser struct {
 // answers は正誤を引く。guess は知らないときに当たる確率で、ヒントを出すほど
 // 上がる（4択の素の当てずっぽうが 0.25、訳を表示すればほぼ当たる）。
 func (u *simUser) answers(rank int, guess float64) bool {
-	if u.worldGuess > 0 { // 素の 0.25 を worldGuess に置き換え、ヒントの比は保つ
+	if u.worldGuess > 0 && u.worldHintG == nil { // 素の 0.25 を worldGuess に置き換え、ヒントの比は保つ
 		guess *= u.worldGuess / guessRate(0)
 	}
 	if u.learned[rank] || u.rnd.Float64() < pKnow(rank, u.truth) {
@@ -117,7 +123,7 @@ func guessRate(hintLevel int) float64 {
 
 // sync は SyncEstimatedVocab の計算部分を再現する（premium・上限なし）。
 func (u *simUser) sync() {
-	low := max(u.floor, u.est-50-VocabWindowRadius)
+	low := u.floor // EstimateRange と同じく原点から
 	high := u.est + 51 + VocabWindowRadius
 	var entries []RankedP
 	for r, w := range u.words {
@@ -278,10 +284,17 @@ func (u *simUser) touch(rank int) {
 
 // answer は 1 問ぶんの P 更新。learning は正解時 α ×0.1。
 func (u *simUser) answer(rank int, learning bool) {
+	seenToday := false
+	if last, ok := u.lastSeen[rank]; ok && last == float64(u.day) {
+		seenToday = true
+	}
 	u.touch(rank)
 	w := u.words[rank]
 	quizType := ""
 	hint := u.summaryHint // 確認クイズにヒントは無い
+	if u.hintMix != nil {
+		hint = pickHint(u.rnd, u.hintMix)
+	}
 	if learning {
 		quizType = "learning"
 		hint = 0
@@ -292,13 +305,20 @@ func (u *simUser) answer(rank int, learning bool) {
 		u.answerWordOrder(w, rank, hint)
 		return
 	}
-	correct := u.answers(rank, guessRate(hint))
+	g := guessRate(hint)
+	if u.worldHintG != nil {
+		g = u.worldHintG[hint]
+	}
+	correct := u.answers(rank, g)
 	res.IsCorrect = correct
 	u.lastAnswer = correct
 
 	mult := HintMultiplier(hint)
 	if learning && correct {
 		mult *= LearningCorrectMultiplier
+	}
+	if !learning && correct && seenToday && u.recentCorrectScale > 0 {
+		mult *= u.recentCorrectScale
 	}
 	w.p = u.updateP(w.p, correct, w.attempts, rank, hint, mult)
 	w.attempts++
@@ -322,6 +342,9 @@ func (u *simUser) updateP(p float64, correct bool, attempts, rank, hint int, mul
 	if u.bayesGuess > 0 { // g / s を振る比較用
 		g := math.Min(MaxGuessRate, u.bayesGuess*guessRate(hint)/guessRate(0))
 		return bayesUpdate(p, correct, g, u.bayesSlip, w)
+	}
+	if u.legacyHintG && hint > 0 {
+		return legacyUpdateP(p, correct, hint, w)
 	}
 	return UpdateP(p, correct, hint, w) // 本番の実装
 }

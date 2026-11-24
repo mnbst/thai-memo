@@ -6,7 +6,7 @@ Google Cloud Text-to-Speech の th-TH を使う。1日1文なら無料枠に収�
 読み上げは通常速度の1回だけ。動画では「お手本を聞く」を押す操作と重ねるので、
 アプリで1回再生したのと同じ長さに揃える。出力は <out>/audio.mp3。
 
-声はアプリのお手本と同じく例文の中身で決める（文末 → 一人称 → BL → ハッシュ）。
+声はアプリのお手本と同じく例文の中身で決める（文末 → 一人称 → BL → ฉัน → ハッシュ）。
 functions/go/internal/ttsaudio/voice.go の写し。あちらを変えたらこちらも合わせる。
 """
 
@@ -23,7 +23,7 @@ from google.cloud import texttospeech
 MALE_VOICES = ("th-TH-Chirp3-HD-Charon", "th-TH-Chirp3-HD-Puck", "th-TH-Chirp3-HD-Orus")
 FEMALE_VOICES = ("th-TH-Chirp3-HD-Kore", "th-TH-Chirp3-HD-Aoede", "th-TH-Chirp3-HD-Leda")
 
-# 文末の丁寧語（女性）。男性の ครับ・คับ は _ending_gender に直書き。
+# 文末の丁寧語（女性）。男性の ครับ・คับ は _polite_gender に直書き。
 FEMALE_ENDS = ("ค่ะ", "คะ", "คร่ะ")
 # 一人称。ผม（髪）・หนู（ネズミ）と紛れるので、単語分解で代名詞の語に限る。
 MALE_PRONOUNS = ("ผม", "กระผม")
@@ -53,18 +53,25 @@ def _has_thai(s: str) -> bool:
 
 
 def _ending_gender(text: str, words: list[dict]) -> str | None:
-    """単語分解があれば最後の語（記号は飛ばす）、無ければ文字列の末尾で見る。"""
-    tail, is_word = text, False
-    while tail and not _is_thai(tail[-1]):
-        tail = tail[:-1]
-    for w in reversed(words):
-        word = (w.get("word") or "").strip()
-        if _has_thai(word):
-            tail, is_word = word, True
-            break
-    if tail.endswith(FEMALE_ENDS):
+    """単語分解があれば後ろの語から丁寧語の語を探す（丁寧語の後ろに呼びかけ等が続く文のため）。
+    無ければ文字列の末尾で見る。"""
+    thai_words = [w for w in ((x.get("word") or "").strip() for x in words) if _has_thai(w)]
+    if not thai_words:
+        tail = text
+        while tail and not _is_thai(tail[-1]):
+            tail = tail[:-1]
+        return _polite_gender(tail, False)
+    for w in reversed(thai_words):
+        if g := _polite_gender(w, True):
+            return g
+    return None
+
+
+def _polite_gender(s: str, is_word: bool) -> str | None:
+    """คับ は語そのもののときだけ。単語なら ครับผม のように ครับ で始まるものも数える。"""
+    if s.endswith(FEMALE_ENDS):
         return FEMALE
-    if tail.endswith("ครับ") or (is_word and tail == "คับ"):
+    if s.endswith("ครับ") or (is_word and (s == "คับ" or s.startswith("ครับ"))):
         return MALE
     return None
 
@@ -82,6 +89,18 @@ def _pronoun_gender(words: list[dict]) -> str | None:
     return None
 
 
+def _chan_speaker(words: list[dict]) -> bool:
+    """一人称 ฉัน（ของฉัน も）があるか。ฉัน は男女とも使うので BL より後に見る。"""
+    for w in words:
+        role = (w.get("grammatical_role") or "").lower()
+        if not ("代名詞" in role or "pronoun" in role or "私" in (w.get("meaning") or "")):
+            continue
+        word = (w.get("word") or "").strip()
+        if word.removeprefix("ของ") == "ฉัน":
+            return True
+    return False
+
+
 def choose_voice(sentence: dict) -> str:
     text = normalize(sentence["thai_text"])
     words = [w or {} for w in sentence.get("word_breakdown") or []]
@@ -91,6 +110,7 @@ def choose_voice(sentence: dict) -> str:
         _ending_gender(text, words)
         or _pronoun_gender(words)
         or (MALE if "BL" in topic else None)
+        or (FEMALE if _chan_speaker(words) else None)
         or (MALE if digest[0] % 2 == 0 else FEMALE)
     )
     voices = MALE_VOICES if gender == MALE else FEMALE_VOICES

@@ -54,7 +54,10 @@ const int _plays = 3;
 /// 使い方の欄を見せる秒数と、単語の欄全体に使う秒数。全体で約1分にする。
 /// 英語は訳が長くなりがちなので使い方を長めに取る。
 const double _usageSeconds = _lang == 'en' ? 6.0 : 5.0;
-const double _wordsTotalSeconds = 21;
+const double _wordsTotalSeconds = 18;
+
+/// 確認クイズで正解を押すまでの考える間。見ている人が自分で答えを考えられる長さにする。
+const double _quizThinkSeconds = 5.0;
 
 /// 動画全体の上限。単語の欄の1語の時間をここから逆算して詰める。
 const int _maxTotalMs = 60000;
@@ -62,7 +65,7 @@ const int _maxTotalMs = 60000;
 /// 単語の欄のあとに残す時間の見込み（多めに取る）。学習単語の詳細は
 /// 開く・下まで送る・閉じるまで、クイズは考える間・正解後の間まで。
 const int _detailReserveMs = 10200;
-const int _quizReserveMs = 9200;
+const int _quizReserveMs = 12200;
 const int _scrollReserveMs = 900;
 
 const _contentKey = ValueKey('tiktok-content');
@@ -155,13 +158,18 @@ void main() {
         sentence.targetWords?.firstOrNull ?? quiz?.correctAnswer;
     final words = sentence.wordBreakdowns;
     // 1語の時間は、残りの語と後ろの場面（詳細・クイズ）を 60 秒から引いて
-    // 均等に割る。長くても 3 秒（かつ単語の欄全体で約 21 秒）、短くても 1.5 秒。
+    // 均等に割る。長くても 3 秒（かつ単語の欄全体で約 18 秒）、短くても 1.5 秒。
     final maxWordMs =
         (_wordsTotalSeconds * 1000 / words.length).clamp(1500.0, 3000.0);
     var detailDone = !words.any((w) => w.wordText == keyWordText);
     for (var i = 0; i < words.length; i++) {
       final word = words[i];
-      final row = _wordRow(word.wordText);
+      // 同じ語が2回出る文（จะ など）は、何回目かで行を選ぶ。
+      final row = _wordRow(
+        word.wordText,
+        nth: words.take(i).where((w) => w.wordText == word.wordText).length,
+        count: words.where((w) => w.wordText == word.wordText).length,
+      );
       if (row.evaluate().isEmpty) continue;
       await rec.scrollTo(
         position,
@@ -248,7 +256,7 @@ Future<void> _answerQuiz(
 
   // 考える間を置いてから正解を押す。指マークを選択肢の上に止めると
   // 押したように見えるので、押す直前まで出さない。
-  await rec.hold(_f(2.0));
+  await rec.hold(_f(_quizThinkSeconds));
   final correct = find.text(quiz.correctChoice).first;
   finger.value = tester.getCenter(correct);
   await rec.hold(_f(0.5));
@@ -285,9 +293,17 @@ Future<void> _openWordDetail(
 
 /// 単語の欄の1行（押すと詳細が開く InkWell）。本文中の同じ語とは別に、
 /// 単語の欄は画面の下の方にあるので最後の一致を使う。
-Finder _wordRow(String wordText) => find
-    .ancestor(of: find.text(wordText).last, matching: find.byType(InkWell))
-    .first;
+/// 単語の欄で [wordText] の [nth] 番目（0始まり）の行。欄の [count] 行は
+/// 画面の末尾側にあるので、一致したテキストを後ろから数えて選ぶ。
+Finder _wordRow(String wordText, {int nth = 0, int count = 1}) {
+  final texts = find.text(wordText);
+  final total = texts.evaluate().length;
+  if (total == 0) return texts;
+  final index = (total - count + nth).clamp(0, total - 1);
+  return find
+      .ancestor(of: texts.at(index), matching: find.byType(InkWell))
+      .first;
+}
 
 /// 使い方の欄の範囲（見出しから単語の見出しの手前まで）。
 Rect _usageRect(WidgetTester tester) {

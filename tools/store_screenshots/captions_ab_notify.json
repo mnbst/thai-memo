@@ -1,0 +1,19 @@
+{
+  "_comment": "プロダクトページの A/B テスト用の1枚目（通知で届く例文）。今日の例文（01_today）の上に、ロック画面に届いた通知（00_notif）を切り抜いて重ねる。2枚目以降は captions.json の既定の並び（out/ の 02 以降）をそのまま使う。書き出し: flutter test test/screenshots/store_screenshots.dart --dart-define=CAPTIONS=tools/store_screenshots/captions_ab_notify.json --dart-define=OUT=build/store_shots/ab_notify",
+  "shots": [
+    {
+      "id": "01_today",
+      "screen": "学習タブ（今日の例文）＋ロック画面の通知（00_notif）の切り抜き",
+      "ja": "今のレベルにぴったり\n**毎日お届け**",
+      "en": "Thai matched to your level\n**Fresh every day**",
+      "ko": "내 수준에 딱 맞게\n**매일 새 예문**",
+      "zoom_src": "00_notif",
+      "zoom": {
+        "iphone": [0.0, 0.09, 1.0, 0.159],
+        "ipad": [0.2733, 0.0625, 0.4535, 0.1105],
+        "android": [0.0, 0.0964, 1.0, 0.1704]
+      },
+      "zoom_top": {"iphone": 0.06, "ipad": 0.05, "android": 0.06}
+    }
+  ]
+}

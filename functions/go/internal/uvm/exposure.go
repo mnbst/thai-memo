@@ -133,7 +133,9 @@ func RegisterExposure(
 			// 例文に出たことは「見た」証拠であって「知っている」証拠ではない。
 			// 旧則（ExposureP）は同じ語が 6 回出るだけで P>0.5 になり、クイズを
 			// 1 問も解かずに語彙スコアを押し上げていた。足すのは並び順のぶんだけ。
-			updates := []firestore.Update{{Path: "last_seen", Value: now}}
+			updates := []firestore.Update{
+				{Path: "last_seen", Value: now},
+			}
 			// P=0 の doc は未出の扱い（reusableOrder）なので動かさない。
 			if p := numField(snaps[i].Data()["p"]); p > 0 {
 				updates = append(updates, firestore.Update{Path: "p", Value: KeyWordExposureP(p)})

@@ -20,7 +20,8 @@
       // 国を付けない URL にして、App Store が開いた人の国のストアへ振り分ける。
       var IOS = 'https://apps.apple.com/app/id6759669680?pt=' + PT + '&ct=' + c + '&mt=8';
       var ANDROID = 'https://play.google.com/store/apps/details?id=com.thaimemo.thai_memo&referrer=' +
-        encodeURIComponent('utm_source=x&utm_medium=social&utm_campaign=' + c);
+        // 流入元は名前の頭（x_bio → x、youtube_shorts → youtube）。
+        encodeURIComponent('utm_source=' + c.split('_')[0] + '&utm_medium=social&utm_campaign=' + c);
       // 振り分けない端末（PC など）のボタンにも同じ目印を付ける
       // 表示の言語。端末の言語が日本語・韓国語ならそれに、それ以外は時間帯で
       // 日本・韓国を見分け、残りは英語にする（タイ在住の日本人は日本語のまま）。

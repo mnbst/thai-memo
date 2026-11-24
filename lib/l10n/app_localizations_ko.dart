@@ -334,6 +334,35 @@ class L10nKo extends L10n {
   String get vocabCapSheetLater => '나중에';
 
   @override
+  String vocabCapTestedTitle(int count) {
+    return '어휘 테스트에서는 $count단어였어요';
+  }
+
+  @override
+  String vocabCapTestedBody(int count, int limit) {
+    return '무료 플랜에서는 어휘 점수가 $limit단어까지만 표시돼요. 프리미엄이라면 $count단어부터 내 수준에 맞는 단어로 계속할 수 있어요.';
+  }
+
+  @override
+  String get vocabCapTestedNow => '현재 표시';
+
+  @override
+  String get vocabCapTestedResult => '테스트 결과';
+
+  @override
+  String vocabCapTestedFeatureGrow(int count) {
+    return '어휘 점수가 $count단어부터 늘어나요';
+  }
+
+  @override
+  String get vocabCapTestedFeatureLevel => '내 수준의 단어로 예문이 만들어져요';
+
+  @override
+  String vocabCapTestedCta(int count) {
+    return '프리미엄으로 $count단어부터 계속하기';
+  }
+
+  @override
   String vocabWords(int count) {
     return '$count단어';
   }
@@ -1111,6 +1140,10 @@ class L10nKo extends L10n {
   String get paywallManageSubscriptions => '구독 해지';
 
   @override
+  String get paywallFairUseNote =>
+      '※이용량이 매우 많은 날에는 새 예문 만들기를 다음 날까지 기다려야 할 수 있어요.';
+
+  @override
   String get paywallRestore => '구매 복원';
 
   @override
@@ -1658,6 +1691,10 @@ class L10nKo extends L10n {
 
   @override
   String get quotaQuizReached => '오늘의 새 퀴즈는 여기까지예요.';
+
+  @override
+  String get quotaSentencePremiumDailyReached =>
+      '오늘 정말 많이 공부했어요. 새 예문 만들기는 오늘은 여기까지예요.\n복습 탭 오른쪽 위에서 지금까지의 예문을 다시 읽을 수 있어요.';
 
   @override
   String get quotaSentenceReached =>

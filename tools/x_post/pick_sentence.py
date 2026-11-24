@@ -1,15 +1,13 @@
 """X 投稿に使う例文を1件選ぶ。
 
 候補は GCS の静的コーパスとプール。枠（--slot）ごとに、過去の表示回数からテーマを
-コードで決め、長さ・場面がばらけるように20件に絞る。最後の1件は、同じ枠の直近10件の
-「選んだ理由・表示回数」と比べさせて Gemini に選ばせ、理由も書かせる。Gemini が使えない
-ときは同じ候補から抽選して投稿を止めない。
+コードで決め、テーマと語数で絞った候補から1件を均等に抽選する。
 
 投稿済みと履歴は gs://<project>-uvm-data/x_post/posted.json（X）と
 x_post/threads/posted.json（Threads）で管理する（--platform で切り替える）。
 例文は X と Threads で別の文にするので、両方の投稿済みを外して選ぶ。
 --lang で投稿するアカウントの言語（訳の言語）を切り替える。ja 以外は記録を
-x_post/<lang>/ に分け、候補はその言語のコーパス、プロンプトは select_prompt_<lang>.txt。
+x_post/<lang>/ に分け、候補はその言語のコーパス。
 選んだ例文は <out>/sentence.json、投稿本文は <out>/text.txt、選んだ文脈は
 <out>/selection.json に書く。実際に投稿できたかは post_to_x.py が確かめてから
 posted.json を更新する。
@@ -23,18 +21,14 @@ import json
 import os
 import random
 import re
-import ssl
 import statistics
 import sys
-import urllib.error
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import certifi
 import requests
-from google.cloud import secretmanager, storage
+from google.cloud import storage
 from requests_oauthlib import OAuth1Session
 
 from pick_study_post import TWEET_LIMIT, weighted_length
@@ -49,14 +43,6 @@ def corpus_objects(lang: str) -> tuple[str, str]:
 # 投稿は日本時間の朝に出る。「前日」も日本時間で切る。
 JST = timezone(timedelta(hours=9))
 
-# Gemini に渡す候補の数。プロンプトの長さ（＝コスト）を抑えるため、長さ・場面が
-# ばらけるように選んでからこの数に絞る。
-MAX_CANDIDATES = 20
-# 同じ場面の候補は何件まで渡すか。
-SCENE_CAP = 2
-
-# 選定の文脈として渡す、同じ枠の直近の投稿数。判断理由もこの数だけ残す。
-RECENT_POSTS = 10
 # 表示回数は2〜3日で頭打ちになる。それより新しい投稿の数字は暫定として扱い、
 # X から取り直す。古い投稿は posted.json に残した値を使い、読み取りの課金を抑える。
 SETTLE_DAYS = 3
@@ -158,38 +144,6 @@ def localize_pos(sentence: dict, lang: str) -> dict:
     return {**sentence, "word_breakdown": words}
 
 
-GEMINI_SECRET = "gemini-api-key"
-GEMINI_MODEL = "gemini-3.1-flash-lite"
-GEMINI_ENDPOINT = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    "{model}:generateContent"
-)
-
-# 選定プロンプトは外に置く。書き換えて選び方を変えられるようにするため。
-PROMPT_FILE = Path(__file__).with_name("select_prompt.txt")
-
-RECENT_SECTION = """
-この時間帯の過去の投稿です（古い順、最大{count}件）。「理由」はそのとき選んだ根拠です。
-理由ごとに、表示回数がこの時間帯の中央値（{median}）より伸びたか外れたかを見て、
-当たった理由・長さ・文法に近い候補を優先し、外れた理由と同じ狙いは避けてください。
-「書き出し」（投稿の1行目）も同じように、伸びた書き方に寄せてください。
-「暫定」は投稿から{settle}日以内でまだ伸びる数字なので軽く見てください。
-
-{lines}
-"""
-
-TOP_HOOKS = 5
-TOP_HOOKS_SECTION = """
-これまでで表示回数が多かった投稿の書き出し（全時間帯・全テーマ、多い順）。
-語の選び方・長さ・場面の切り取り方を参考にしてください。文言をそのまま使い回さないこと。
-{lines}
-"""
-
-TREND_SECTION = """
-この時間帯の長い期間の傾向（表示回数の中央値との比較）:
-{lines}
-"""
-
 # 文法の特徴。単語分解の語と完全に一致したときだけ付ける（部分一致だと
 # คะแนน の คะ のような誤判定が増える）。分解が語をまとめていると取りこぼすが、
 # 傾向を見るには足りる。
@@ -208,16 +162,6 @@ GRAMMAR_MARKERS = {
 }
 
 
-def load_prompt(path: Path) -> str:
-    """プロンプトを読む。`#` で始まる行は覚え書きとして落とす。"""
-    lines = [
-        line
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if not line.startswith("#")
-    ]
-    return "\n".join(lines).strip()
-
-
 def sentence_key(sentence: dict) -> str:
     """例文の同一性はタイ語本文で見る。出どころが変わってもぶれない。"""
     return hashlib.sha1(sentence["thai_text"].encode("utf-8")).hexdigest()
@@ -228,36 +172,6 @@ def load_json(bucket: storage.Bucket, name: str, fallback):
     if not blob.exists():
         return fallback
     return json.loads(blob.download_as_bytes())
-
-
-# 1行目の書き出し（場面のフック）の上限。スマホのタイムラインで1行に収まる長さ。
-# 英語は1字が細いので長めに取る。
-HOOK_MAX = {"ja": 20, "en": 45}
-_THAI = re.compile("[\u0e00-\u0e7f]")
-
-
-def clean_hook(hook: str, theme: str, lang: str = "ja") -> str:
-    """Gemini の書き出しを確かめる。使えなければ空を返し、訳から始める。
-
-    BLドラマ回は作品名・登場人物名を出さない。プロンプトでも禁じているが、
-    作品の手がかり（カタカナ名・英題）が混ざったら落とす。登場人物を「推し」と
-    言い換えると推し活の話に読めるので、それも落とす（2026-11-03 に出た）。
-    """
-    hook = hook.strip().splitlines()[0].strip() if hook.strip() else ""
-    if not hook or len(hook) > HOOK_MAX[lang] or "#" in hook or _THAI.search(hook):
-        return ""
-    if theme == "BLドラマ":
-        clues = [t for t in BL_DRAMA_MARKERS] + [
-            m for ms in BL_DRAMA_MARKERS.values() for m in ms if not _THAI.search(m)
-        ]
-        clues += BL_OFF_THEME_WORDS
-        if any(c.lower() in hook.lower() for c in clues):
-            return ""
-    return hook
-
-
-# BLドラマ回の書き出しに入れない語（作品の手がかりのほか）。
-BL_OFF_THEME_WORDS = ["推し"]
 
 
 # 書き出しが使えなかったときの代わり。1行目がタイ語だと読み飛ばされるので必ず入れる。
@@ -315,7 +229,7 @@ _DIGITS = re.compile(r"[0-9\u0e50-\u0e59]")
 
 
 def looks_broken(sentence: dict) -> bool:
-    """機械的に分かる破綻だけ弾く。中身の自然さの判断は Gemini に任せる。"""
+    """機械的に分かる破綻だけ弾く。中身の自然さはプールの確認で見ている。"""
     thai = sentence.get("thai_text") or ""
     pronunciation = sentence.get("pronunciation") or ""
     japanese = sentence.get("japanese_translation") or ""
@@ -391,14 +305,6 @@ def word_count(sentence: dict) -> int:
     return len(sentence.get("word_breakdown") or [])
 
 
-def length_band(n: int) -> str:
-    if n <= 8:
-        return "7–8語"
-    if n <= 10:
-        return "9–10語"
-    return "11語"
-
-
 def scene_of(sentence: dict) -> str:
     context = sentence.get("context") or {}
     return context.get("subTheme") or context.get("topic") or ""
@@ -469,6 +375,10 @@ def refresh_metrics(
     ][-FETCH_LIMIT:]
     if platform == "threads":
         return fetch_threads_metrics(stale)
+    if platform == "youtube":
+        from post_to_youtube import fetch_youtube_metrics
+
+        return fetch_youtube_metrics(stale)
     return fetch_metrics(stale)
 
 
@@ -629,231 +539,6 @@ def choose_theme(
     return ranked, f"点数最大: {scores[ranked[0]][1]}"
 
 
-def diverse_sample(
-    candidates: list[dict], recent_scenes: set[str], rng: random.Random
-) -> list[dict]:
-    """長さの帯から同じ数ずつ、同じ場面は SCENE_CAP 件までで MAX_CANDIDATES 件に絞る。
-
-    直近の投稿と同じ場面は後回しにする。足りなければ外したもので埋める。
-    """
-    bands: dict[str, list[dict]] = {}
-    for sentence in rng.sample(candidates, len(candidates)):
-        bands.setdefault(length_band(word_count(sentence)), []).append(sentence)
-    queues = [
-        sorted(bands[b], key=lambda s: scene_of(s) in recent_scenes)
-        for b in sorted(bands)
-    ]
-
-    picked: list[dict] = []
-    skipped: list[dict] = []
-    per_scene: dict[str, int] = {}
-    while len(picked) < MAX_CANDIDATES and any(queues):
-        for queue in queues:
-            while queue and len(picked) < MAX_CANDIDATES:
-                sentence = queue.pop(0)
-                scene = scene_of(sentence)
-                if per_scene.get(scene, 0) >= SCENE_CAP:
-                    skipped.append(sentence)
-                    continue
-                per_scene[scene] = per_scene.get(scene, 0) + 1
-                picked.append(sentence)
-                break
-    return picked + skipped[: MAX_CANDIDATES - len(picked)]
-
-
-def when_label(slot: str, weekday: int) -> str:
-    """プロンプトに渡す「いつ読まれるか」。"""
-    hour = int(slot[:2]) if slot[:2].isdigit() else 12
-    if 5 <= hour < 10:
-        scene = "朝・通勤や始業前"
-    elif hour < 14:
-        scene = "昼休み前後"
-    elif hour < 19:
-        scene = "夕方・帰り道"
-    else:
-        scene = "夜・くつろぎ"
-    day = {4: "週末前", 5: "週末", 6: "週末・休み明け前"}.get(weekday, "平日")
-    return f"{WEEKDAYS[weekday]}曜 {slot[:2]}:{slot[2:]}（{scene}・{day}）"
-
-
-def recent_section(mine: list[dict], now: datetime) -> str:
-    """同じ枠の直近の投稿を、選んだ理由と表示回数を並べて組む。"""
-    recent = mine[-RECENT_POSTS:]
-    if not recent:
-        return ""
-    lines = []
-    for h in recent:
-        at = posted_at(h)
-        weekday = post_weekday(h)
-        day = f"{at:%m/%d}({WEEKDAYS[weekday]})" if at and weekday is not None else "?"
-        length = f"{h['word_count']}語" if "word_count" in h else "-"
-        grammar = ",".join(h.get("grammar") or []) or "-"
-        if "impressions" in h:
-            numbers = f"表示 {h['impressions']} 反応 {h.get('score', 0)}"
-            if not settled(h, now):
-                numbers += "（暫定）"
-        else:
-            numbers = "表示 未取得"
-        reason = h.get("reason") or "記録なし"
-        hook = f" / 書き出し: {h['hook']}" if h.get("hook") else ""
-        lines.append(
-            f"- {day} {h['theme']} {length} {grammar} {numbers} / "
-            f"{h.get('japanese_translation', '')}{hook} / 理由: {reason}"
-        )
-    median = _median_impressions(mine)
-    return RECENT_SECTION.format(
-        count=RECENT_POSTS,
-        median=f"{median:.0f}" if median is not None else "不明",
-        settle=SETTLE_DAYS,
-        lines="\n".join(lines),
-    )
-
-
-def top_hooks_section(history: list[dict], now: datetime) -> str:
-    """表示回数が確定した例文の投稿から、伸びた書き出しを上から並べる。"""
-    done = [
-        h
-        for h in history
-        if h.get("hook") and "impressions" in h and h.get("theme") in THEMES
-        and settled(h, now)
-    ]
-    top = sorted(done, key=lambda h: h["impressions"], reverse=True)[:TOP_HOOKS]
-    if not top:
-        return ""
-    lines = [f"- {h['hook']}（{h['theme']}・表示 {h['impressions']}）" for h in top]
-    return TOP_HOOKS_SECTION.format(lines="\n".join(lines))
-
-
-def trend_section(mine: list[dict]) -> str:
-    """枠全体で、長さ・文法ごとに中央値より伸びたもの・伸びなかったものを数行で。"""
-    overall = _median_impressions(mine)
-    if not overall:
-        return ""
-    groups: dict[str, list[dict]] = {}
-    for h in mine:
-        if "impressions" not in h or "word_count" not in h:
-            continue
-        groups.setdefault(length_band(h["word_count"]), []).append(h)
-        for tag in h.get("grammar") or []:
-            groups.setdefault(tag, []).append(h)
-    ratios = {
-        name: _median_impressions(entries) / overall
-        for name, entries in groups.items()
-        if len(entries) >= 2
-    }
-    if not ratios:
-        return ""
-    ranked = sorted(ratios, key=lambda k: -ratios[k])
-    up = [f"{k}（×{ratios[k]:.2f}）" for k in ranked if ratios[k] > 1][:3]
-    down = [f"{k}（×{ratios[k]:.2f}）" for k in reversed(ranked) if ratios[k] < 1][:3]
-    lines = []
-    if up:
-        lines.append("- 伸びやすい: " + " / ".join(up))
-    if down:
-        lines.append("- 伸びにくい: " + " / ".join(down))
-    return TREND_SECTION.format(lines="\n".join(lines))
-
-
-def gemini_key(project: str) -> str:
-    client = secretmanager.SecretManagerServiceClient()
-    name = f"projects/{project}/secrets/{GEMINI_SECRET}/versions/latest"
-    return client.access_secret_version(
-        request={"name": name}
-    ).payload.data.decode("utf-8")
-
-
-def choose_with_gemini(
-    project: str, candidates: list[dict], prompt: str
-) -> tuple[dict, str, str] | None:
-    """Gemini に1件選ばせ、選んだ例文・理由・1行目の書き出しを返す。失敗したら
-    None を返して呼び出し側で抽選に落とす。"""
-    body = json.dumps(
-        {
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "temperature": 0.4,
-                # 理由は60字・書き出しは20字まで。思考は使わず、出力の上限で費用を抑える。
-                "maxOutputTokens": 384,
-                "thinkingConfig": {"thinkingLevel": "minimal"},
-                "responseMimeType": "application/json",
-                "responseSchema": {
-                    "type": "object",
-                    "properties": {
-                        "index": {"type": "integer"},
-                        "reason": {"type": "string"},
-                        "hook": {"type": "string"},
-                    },
-                    "required": ["index", "reason", "hook"],
-                },
-            },
-        }
-    ).encode("utf-8")
-
-    request = urllib.request.Request(
-        GEMINI_ENDPOINT.format(model=GEMINI_MODEL),
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "x-goog-api-key": gemini_key(project),
-        },
-    )
-    # macOS の Python は OS の証明書ストアを見ないので certifi を明示する。
-    context = ssl.create_default_context(cafile=certifi.where())
-    try:
-        with urllib.request.urlopen(
-            request, timeout=60, context=context
-        ) as response:
-            payload = json.loads(response.read())
-        text = payload["candidates"][0]["content"]["parts"][0]["text"]
-        answer = json.loads(text)
-        index = int(answer["index"])
-        if not 0 <= index < len(candidates):
-            raise IndexError(index)
-        return (
-            candidates[index],
-            str(answer["reason"]).strip(),
-            str(answer.get("hook") or ""),
-        )
-    except (
-        urllib.error.URLError,
-        KeyError,
-        IndexError,
-        TypeError,
-        ValueError,
-    ) as error:
-        print(f"Gemini での選定に失敗、抽選に落とす: {error}", file=sys.stderr)
-        return None
-
-
-def build_prompt(
-    template: str,
-    candidates: list[dict],
-    theme: str,
-    when: str,
-    recent: str,
-    trend: str,
-    top_hooks: str,
-) -> str:
-    listed = "\n".join(
-        f"{i}. {c['thai_text']} / {c['japanese_translation']} / "
-        f"{word_count(c)}語 / {scene_of(c) or '-'} / "
-        f"{','.join(grammar_tags(c)) or '-'} / "
-        f"{(c.get('context') or {}).get('usage_scenarios') or '-'}"
-        for i, c in enumerate(candidates)
-    )
-    # プロンプトには JSON の例を書くので format は使わず、差し込み口だけ置き換える。
-    for name, value in (
-        ("{theme}", theme),
-        ("{when}", when),
-        ("{recent}", recent),
-        ("{trend}", trend),
-        ("{top_hooks}", top_hooks),
-        ("{candidates}", listed),
-    ):
-        template = template.replace(name, value)
-    return template
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", required=True)
@@ -861,12 +546,7 @@ def main() -> int:
     parser.add_argument(
         "--seed",
         default="",
-        help="抽選の種。Gemini を使わないときの再現用。",
-    )
-    parser.add_argument(
-        "--prompt",
-        default="",
-        help="選定プロンプトのファイル。空なら言語の既定（select_prompt[_<lang>].txt）。",
+        help="抽選の種。再現用。",
     )
     parser.add_argument(
         "--themes",
@@ -884,11 +564,6 @@ def main() -> int:
     parser.add_argument("--lang", choices=LANGS, default="ja")
     args = parser.parse_args()
     lang = args.lang
-    prompt_file = Path(args.prompt) if args.prompt else (
-        PROMPT_FILE
-        if lang == "ja"
-        else PROMPT_FILE.with_name(f"select_prompt_{lang}.txt")
-    )
 
     themes = [t.strip() for t in args.themes.split(",") if t.strip()] or list(
         THEMES
@@ -955,28 +630,8 @@ def main() -> int:
         return 1
     print(f"テーマ: {theme}（{theme_reason}）", file=sys.stderr)
 
-    mine = slot_history(history, slot)
-    recent_scenes = {h.get("scene") for h in mine[-RECENT_POSTS:] if h.get("scene")}
-    candidates = diverse_sample(candidates, recent_scenes, rng)
-
-    prompt = build_prompt(
-        load_prompt(prompt_file),
-        candidates,
-        theme,
-        when_label(slot, weekday),
-        recent_section(mine, now),
-        trend_section(mine),
-        top_hooks_section(history, now),
-    )
-    chosen = choose_with_gemini(args.project, candidates, prompt)
-    if chosen:
-        picked, reason, hook = chosen
-        chooser = "gemini"
-    else:
-        picked, reason, hook, chooser = rng.choice(candidates), "", "", "抽選"
-    hook = clean_hook(hook, theme, lang)
-    print(f"理由: {reason or '-'}（{chooser}）", file=sys.stderr)
-    print(f"書き出し: {hook or '-（テーマの決まり文句を使う）'}", file=sys.stderr)
+    picked = rng.choice(candidates)
+    reason, hook, chooser = "", "", "抽選"
 
     # 詳細画面は作成日を出す。Firestore の Timestamp はそのままでは JSON に
     # できないので、投稿日に置き換えて「不明」を出さない。

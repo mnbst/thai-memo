@@ -1,4 +1,4 @@
-"""投稿先（X / Threads / TikTok）と言語（アカウント）ごとの記録の置き場所。
+"""投稿先（X / Threads / TikTok / YouTube）と言語（アカウント）ごとの記録の置き場所。
 
 同じ枠の時刻に両方へ出すが、例文は別の文にする。記録は投稿先ごとに分け、
 例文を選ぶときだけ同じ言語の両方の投稿済みを外す（pick_sentence.py）。
@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 # tiktok は投稿せず、Drive に素材を置いた分を記録する（同じ文を重ねないため）。
-PLATFORMS = ("x", "threads", "tiktok")
+PLATFORMS = ("x", "threads", "tiktok", "youtube")
 # 投稿する言語（訳と画面の言語）。ko はアカウントができたら足す。
 LANGS = ("ja", "en")
 
@@ -18,6 +18,7 @@ POSTED_OBJECTS = {
     "x": "x_post/posted.json",
     "threads": "x_post/threads/posted.json",
     "tiktok": "x_post/tiktok/posted.json",
+    "youtube": "x_post/youtube/posted.json",
 }
 
 
@@ -29,5 +30,5 @@ def posted_object(platform: str, lang: str = "ja") -> str:
 
 
 def post_id(entry: dict) -> str | None:
-    """履歴1件の投稿 ID。X は tweet_id、Threads は post_id に持つ。"""
+    """履歴1件の投稿 ID。X は tweet_id、Threads・YouTube は post_id に持つ。"""
     return entry.get("tweet_id") or entry.get("post_id")

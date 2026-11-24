@@ -136,3 +136,35 @@ func TestEstimateVocabOriginKnownMax(t *testing.T) {
 		}
 	}
 }
+
+func TestAnswerMultiplier(t *testing.T) {
+	cases := []struct {
+		name     string
+		quizType string
+		r        Result
+		want     float64
+	}{
+		{"まとめの正解は満額", "", Result{IsCorrect: true}, 1},
+		{"まとめの不正解は満額", "", Result{IsCorrect: false}, 1},
+		{"日本語ヒントの正解も満額", "", Result{IsCorrect: true, HintLevel: 2}, 1},
+		{"例文を見直した不正解は満額", "", Result{IsCorrect: false, SentenceReviewed: true}, 1},
+		{"確認クイズの不正解は満額", "learning", Result{IsCorrect: false}, 1},
+		{"例文を見直した正解", "", Result{IsCorrect: true, SentenceReviewed: true}, SentenceReviewCorrectMultiplier},
+		{"確認クイズの正解は従来どおり", "learning", Result{IsCorrect: true}, LearningCorrectMultiplier},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := answerMultiplier(tc.quizType, tc.r); got != tc.want {
+				t.Fatalf("answerMultiplier = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestWritesUVM(t *testing.T) {
+	for qt, want := range map[string]bool{"": true, "review": true, "learning": false} {
+		if got := WritesUVM(qt); got != want {
+			t.Errorf("WritesUVM(%q) = %v, want %v", qt, got, want)
+		}
+	}
+}

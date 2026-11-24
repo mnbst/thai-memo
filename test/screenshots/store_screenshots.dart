@@ -23,7 +23,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String _rawDir = 'build/store_shots/raw';
+// カスタムプロダクトページ用は --dart-define=RAW=build/store_shots/raw_travel のように替える。
+const String _rawDir =
+    String.fromEnvironment('RAW', defaultValue: 'build/store_shots/raw');
 // X の機能紹介用は --dart-define=CAPTIONS=tools/x_post/feature_captions.json
 // --dart-define=OUT=build/x_post_feature のように見出しの一覧と出力先を替える。
 const String _outDir =
@@ -138,6 +140,8 @@ void main() {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = device.size;
       for (final lang in _langs) {
+        // 見出しの無い言語（カスタムプロダクトページの ko など）は飛ばす。
+        if (shots.any((s) => s[lang] == null)) continue;
         // 見出しの大きさは端末・言語ごとに1つにそろえる。1枚ずつ枠に
         // 収めると、長い見出しだけ小さくなって並べたときにばらつく。
         final fontSize =

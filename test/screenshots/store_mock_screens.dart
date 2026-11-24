@@ -21,6 +21,9 @@
 //
 // 09 以降はストアには出さず、X の機能紹介（tools/x_post/feature_captions.json）で使う。
 //
+// - 00_notif:         ロック画面に届いた例文の通知（A/B テスト用の1枚目で 01_today に重ねる切り抜き。
+//                     tools/store_screenshots/captions_ab_notify.json）
+//
 // 例文・クイズの中身は store_mock_data.dart。出力は
 // build/store_shots/raw/<device>/<lang>/<id>.png で、その後
 // store_screenshots.dart で見出しと端末の枠を合成する。
@@ -82,7 +85,10 @@ import 'package:thai_memo/services/tts_service.dart';
 import '../helpers/f0_synthesizer.dart';
 import 'store_mock_data.dart';
 
-const String _rawDir = 'build/store_shots/raw';
+// SET（store_mock_data.dart）を付けたときは組ごとに別の置き場へ書く。
+const String _rawDir = storeSet == ''
+    ? 'build/store_shots/raw'
+    : 'build/store_shots/raw_$storeSet';
 const List<String> _fallbacks = [
   'NotoSans_regular',
   'NotoSansJP',
@@ -141,7 +147,9 @@ final _shots = [
   _Shot(
     '01_today',
     (s, lang) => const _TabShell(child: TodayScreen()),
-    topic: GenerationConstants.travelTopic,
+    topic: storeSet == 'work'
+        ? GenerationConstants.topics[2]
+        : GenerationConstants.travelTopic,
   ),
   _Shot(
     '02_detail',
@@ -154,13 +162,19 @@ final _shots = [
   ),
   _Shot(
     '04_quiz',
-    (s, lang) => _TabShell(child: QuizScreen(title: lookupL10n(Locale(lang)).navLearn)),
+    (s, lang) =>
+        _TabShell(child: QuizScreen(title: lookupL10n(Locale(lang)).navLearn)),
   ),
   _Shot(
     '05_topics',
     (s, lang) => const _TopicPickerHost(),
-    topic: GenerationConstants.topics[16], // 推し活
-    topicByLang: {'en': GenerationConstants.lifeTopic},
+    // 既定は推し活（英語はタイ暮らし）。旅行・仕事のページはそのテーマを選んだ状態。
+    topic: switch (storeSet) {
+      'travel' => GenerationConstants.travelTopic,
+      'work' => GenerationConstants.topics[2],
+      _ => GenerationConstants.topics[16],
+    },
+    topicByLang: storeSet == '' ? {'en': GenerationConstants.lifeTopic} : null,
   ),
   _Shot('06_ranking', (s, lang) => const RankingScreen()),
   _Shot(
@@ -193,6 +207,18 @@ final _shots = [
     (s, lang) => const _TabShell(tab: 2, child: SettingsScreen()),
     overrides: _settingsOverrides,
   ),
+  _Shot(
+    '00_notif',
+    (s, lang) => _NotifLockScreen(lang: lang),
+    act: (tester, l10n) async {
+      // アイコンの画像は描く前に読み込んでおかないと空白になる。
+      await tester.runAsync(() => precacheImage(
+            const AssetImage(_NotifLockScreen.icon),
+            tester.element(find.byType(_NotifLockScreen)),
+          ));
+      await tester.pump();
+    },
+  ),
 ];
 
 /// 設定まわりの画面に要る差し替え。通知は3枠、連続日数は12日。
@@ -215,7 +241,10 @@ List<Override> _settingsOverrides() {
         StreakSummary.compute(
           [
             for (var i = 0; i < 12; i++)
-              now.subtract(Duration(days: i)).toIso8601String().substring(0, 10),
+              now
+                  .subtract(Duration(days: i))
+                  .toIso8601String()
+                  .substring(0, 10),
           ],
           now,
         ),
@@ -306,7 +335,8 @@ Future<void> _practice(WidgetTester tester, L10n l10n) async {
   final gesture = await tester.startGesture(tester.getCenter(hold));
   await tester.pump(const Duration(milliseconds: 600));
   await gesture.up();
-  await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+  await tester
+      .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
   await tester.pumpAndSettle();
 
   final container = ProviderScope.containerOf(
@@ -314,9 +344,8 @@ Future<void> _practice(WidgetTester tester, L10n l10n) async {
   );
   container
       .read(pronunciationControllerProvider(
-              (sentenceId: 'store-sentence', scope: 'detail'))
-          .notifier)
-      .toggleWord(2);
+          (sentenceId: 'store-sentence', scope: 'detail')).notifier)
+      .toggleWord(storeMissedWord);
   await tester.pumpAndSettle();
   await _scrollTo(tester, find.text(l10n.pronunciationTitle));
 }
@@ -327,8 +356,8 @@ Future<void> _listen(WidgetTester tester, L10n l10n) async {
   await tester.pump(const Duration(milliseconds: 600));
 }
 
-/// 文字の解説を開く語。1音節で、頭子音・母音・末子音・声調記号がそろっている。
-const String _explainedWord = 'ร้าน';
+/// 文字の解説を開く語。
+String get _explainedWord => storeExplainedWord;
 
 /// 単語の一覧の先頭まで送る。
 Future<void> _showWords(WidgetTester tester, L10n l10n) async {
@@ -379,8 +408,8 @@ Widget _host(String lang, _Device device, _Shot shot, ThaiSentence sentence) {
       effectivePremiumProvider.overrideWithValue(true),
       planStatusProvider
           .overrideWithValue(const AsyncValue.data(PlanStatus.premium)),
-      generationParamsProvider.overrideWithValue(
-          {'topic': shot.topicByLang?[lang] ?? shot.topic}),
+      generationParamsProvider
+          .overrideWithValue({'topic': shot.topicByLang?[lang] ?? shot.topic}),
       vocabStatsProvider.overrideWith(
         (ref) => Stream.value(const VocabStats(estimatedVocab: _myVocab)),
       ),
@@ -648,7 +677,11 @@ const _rows = [
   LeaderboardEntry(
       uid: 'd', nickname: 'Arthit Boonmee', vocab: 655, rank: 85, isMe: false),
   LeaderboardEntry(
-      uid: 'me', nickname: 'Fah Rattana', vocab: _myVocab, rank: _myRank, isMe: true),
+      uid: 'me',
+      nickname: 'Fah Rattana',
+      vocab: _myVocab,
+      rank: _myRank,
+      isMe: true),
   LeaderboardEntry(
       uid: 'e', nickname: 'Kanya Somsri', vocab: 631, rank: 87, isMe: false),
 ];
@@ -945,4 +978,164 @@ List<String> _materialIconsCandidates() {
     dir = dir.parent;
   }
   return paths;
+}
+
+/// ロック画面に届いた例文の通知（A/B テスト用の1枚目の切り抜き素材）。
+///
+/// 文言はサーバーの通知（functions/go/internal/dailysentence/notification.go の
+/// BuildNotificationText）と同じ形：タイトルは「🇹🇭 語（意味） ほかN本」、本文は
+/// タイ文／（発音）／→ 訳。国旗の絵文字は試験の環境に絵文字の字形が無いので図形で描く。
+/// 切り抜く範囲（captions_ab_notify.json の zoom）が端末で変わらないよう、
+/// 通知は上から [top] の位置に高さ [height] の固定の大きさで置く。
+class _NotifLockScreen extends StatelessWidget {
+  const _NotifLockScreen({required this.lang});
+
+  final String lang;
+
+  static const icon = 'assets/appicon.png';
+  static const double top = 100;
+  static const double height = 124;
+  static const double maxWidth = 440;
+
+  String _t(String ja, String en, String ko) =>
+      switch (lang) { 'en' => en, 'ko' => ko, _ => ja };
+
+  @override
+  Widget build(BuildContext context) {
+    final json = storeSentenceJson(lang);
+    final title = _t(
+      'อร่อย（おいしい） ほか4本',
+      'อร่อย (delicious) +4 more',
+      'อร่อย (맛있다) 외 4문장',
+    );
+    final body = [
+      json['thai_text'] as String,
+      '（${json['pronunciation']}）',
+      '→ ${json['japanese_translation']}',
+    ].join('\n');
+    const ink = Color(0xFF111111);
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF2B3A63), Color(0xFF4A3D66)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: top,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: maxWidth),
+                  height: height,
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.fromLTRB(14, 14, 16, 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4F6).withValues(alpha: 0.94),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(9),
+                        child: Image.asset(icon, width: 40, height: 40),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const _ThaiFlag(),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: ink,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _t('今', 'now', '지금'),
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B6B70),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              body,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: ink,
+                                fontSize: 15,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// タイの国旗（赤・白・青・白・赤の横縞、1:1:2:1:1）。
+class _ThaiFlag extends StatelessWidget {
+  const _ThaiFlag();
+
+  @override
+  Widget build(BuildContext context) {
+    const red = Color(0xFFA51931);
+    const blue = Color(0xFF2D2A4A);
+    const white = Color(0xFFFFFFFF);
+    return CustomPaint(
+        size: const Size(21, 14), painter: _ThaiFlagPainter(red, white, blue));
+  }
+}
+
+class _ThaiFlagPainter extends CustomPainter {
+  const _ThaiFlagPainter(this.red, this.white, this.blue);
+
+  final Color red;
+  final Color white;
+  final Color blue;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final unit = size.height / 6;
+    final bands = [red, white, blue, blue, white, red];
+    for (var i = 0; i < bands.length; i++) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, unit * i, size.width, unit + 0.5),
+        Paint()..color = bands[i],
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ThaiFlagPainter oldDelegate) => false;
 }

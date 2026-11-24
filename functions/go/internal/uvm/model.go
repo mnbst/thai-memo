@@ -62,6 +62,10 @@ const (
 	// （constants.py の FREE_TIER_MAX_VOCAB）。
 	FreeTierMaxVocab = 100
 
+	// LearningCorrectMultiplier / LearningEvidenceScale は確認クイズの係数。
+	// 2026-11-22 から確認クイズは UVM に書かない（WritesUVM）ので本番では効かない。
+	// シミュレーション（adaptivesim / matrixsim）が旧挙動を再現するために残す。
+	//
 	// LearningCorrectMultiplier は quiz_type=="learning" の正解を弱める係数。
 	// 0 ＝正解では P を動かさない。読んだ直後で答えが目の前にあるので、正解は
 	// 知っている証拠にならない。0.1 だった頃は prior 0.4 → 0.4215 と cutoff(0.42)
@@ -74,7 +78,6 @@ const (
 	LearningEvidenceScale = 0.1
 	// SentenceReviewCorrectMultiplier は例文レビュー由来の正解を弱める係数。
 	SentenceReviewCorrectMultiplier = 0.1
-
 	// SpellingChoiceScale は綴り4択（入門用）の証拠を弱める係数。正誤とも同じ。
 	//
 	// この形式は出題文が読みと意味を渡してしまうので、正解は「綴りを
@@ -102,32 +105,56 @@ const (
 	// 正解しやすい」という状態になり、尤度比が反転して**正解で P が下がる**。
 	// 上限 0.95 で入れたところ、ヒント2段を常用するユーザーの estimated_vocab が
 	// 90 日で 4 まで落ちた。1-s=0.85 に対して余裕を取り 0.80 で止める。
-	// このとき正解の尤度比は 0.85/0.80=1.06（ほぼ情報なし）、不正解は
-	// 0.15/0.20=0.75（訳を見てなお落とすのは弱い「知らない」証拠）。
 	MaxGuessRate = 0.80
+
+	// HintPronGuess / HintTransGuess はヒント 1 段（発音）/ 2 段（日本語）の g。
+	//
+	// 「新語（P=NewWordP 0.4）が何問の正解で LearnedP(0.5) を越えるか」で
+	// 決める（2026-11-22）。odds 0.667 → 1 に 1.5 倍要る。
+	//
+	//	         g     正解 LR   問題数
+	//	ヒント無し 0.35  2.429    1 問
+	//	発音      0.58  1.466    2 問
+	//	日本語    0.70  1.214    3 問
+	//
+	// ヒントを出すごとに 1 問ずつ増える。旧値（0.55・0.63）
+	// では発音ヒントでも 1 問で越え、ヒント無しと区別がつかなかった。
+	// PFloor（0.15）からは 2 / 5 / 9 問（旧 2 / 4 / 6）。TestHintSteps が固定する。
+	//
+	// prod の実測（2026-11-12〜19、まとめクイズ 1,679 問）は正答率
+	// ヒント無し 81% / 発音 77% / 日本語 56%。正答率は g を下回れないので、
+	// 日本語 0.70 は実データより厳しい側（ヒントの正解を弱く見る側）に置いている。
+	// 不正解は正解 1 問を打ち消す幅（UpdateP）。
+	HintPronGuess  = 0.58
+	HintTransGuess = 0.70
 )
 
 // GuessRate は hint_level ごとの想定推測率 g。ヒントを出すほど選択肢が絞れる
-// ので、知らなくても当たる確率が上がる。ヒント 2 段（訳を表示）は
-// MaxGuessRate で頭打ちになり、正解してもほとんど証拠にならない。
+// ので、知らなくても当たる確率が上がる。値の根拠は HintPronGuess のコメント。
 func GuessRate(hintLevel int) float64 {
 	switch hintLevel {
 	case 0:
 		return BayesGuessTop
 	case 1:
-		return math.Min(MaxGuessRate, BayesGuessTop*1.8)
+		return math.Min(MaxGuessRate, HintPronGuess)
 	default:
-		return math.Min(MaxGuessRate, BayesGuessTop*3.0)
+		return math.Min(MaxGuessRate, HintTransGuess)
 	}
 }
 
 // UpdateP は P(know) を尤度比で更新する。
 //
-//	正解:   LR = (1-s)/g        不正解: LR = s/(1-g)
+//	正解:   LR = (1-s)/g        不正解: LR = g/(1-s)（正解の逆数）
 //	odds' = odds * LR^weight,   P' = odds'/(1+odds')
 //
 // g は GuessRate（知らなくても当たる確率）、s は BayesSlip（知っていて落とす
 // 確率）。weight は証拠の重みで、確認クイズの正解など弱い経路で 1 未満になる。
+//
+// 不正解は同じヒント段・同じ weight の正解 1 問をちょうど打ち消す（2026-11-22）。
+// 素の尤度比 s/(1-g) では、新語（0.4）の 1 問の不正解がヒント無しで PFloor、
+// 発音 0.19・日本語 0.25 まで落ち、正解 2〜3 問ぶんを 1 問で失っていた。
+// 正解の上がり方を「ヒント段ごとに何問で LearnedP」で決めた（HintPronGuess）ので、
+// 不正解も同じ問題数の物差しで数える。新語の 1 問の不正解は 0.22 / 0.31 / 0.35。
 //
 // 旧 α 則（UpdatePAlpha）との違いは不正解側。rank 300 の新語は 1 問正解で
 // P=0.55 まで上がるのに 1 問不正解では 0.079 にしか下がらず、まぐれ当たりで
@@ -139,10 +166,9 @@ func GuessRate(hintLevel int) float64 {
 // 動かなくなるし、rank ごとの難度は g（と prior）が受け持つ。
 func UpdateP(p float64, correct bool, hintLevel int, weight float64) float64 {
 	p = math.Max(1e-6, math.Min(1-1e-6, p))
-	g := GuessRate(hintLevel)
-	lr := BayesSlip / (1 - g)
-	if correct {
-		lr = (1 - BayesSlip) / g
+	lr := (1 - BayesSlip) / GuessRate(hintLevel)
+	if !correct {
+		lr = 1 / lr
 	}
 	odds := p / (1 - p) * math.Pow(lr, weight)
 	// 下限は PFloor。ただし移行前の doc など既に PFloor を下回っている P を
@@ -186,8 +212,11 @@ const (
 
 // EstimateVocab は語彙スコアを求める。
 //
-// center（今のスコア）±50 の中で、前後 VocabWindowRadius 語の平均 P が
-// VocabCutoffP 以上の最大の rank を返す。無ければ走査の下端を返す。
+// 原点（floor の直上、未受験は rank 1）から上へ見ていき、前後
+// VocabWindowRadius 語の平均 P が初めて VocabCutoffP を下回る rank の、
+// 1 つ手前を返す（2026-11-23）。下の方に基準を割る谷があれば、その上に
+// 平均の高い山があってもそこで止まる。原点から割っていれば floor。
+// center は使わない（呼び出し側の互換のために残す）。
 //
 // floor は語彙テストの測定値（未受験は 0）。floor 以下の rank は存在しない
 // ものとして窓に入れないので、返り値は floor を下回らない。
@@ -228,20 +257,17 @@ func originKnownMax(entries []RankedP, floor int) int {
 
 // estimateWindowed は窓の平均 P だけで決めたスコア（EstimateVocab の本体）。
 func estimateWindowed(entries []RankedP, center, floor int, cutoff float64) int {
-	center = max(center, floor)
-
 	wordsByRank := make(map[int]float64, len(entries))
+	top := floor
 	for _, e := range entries {
-		if e.Rank >= floor {
+		if e.Rank > floor {
 			wordsByRank[e.Rank] = e.P
+			top = max(top, e.Rank)
 		}
 	}
-	if len(wordsByRank) == 0 {
-		return floor
-	}
-
-	low := max(center-50, floor)
-	for r := center + 50; r >= low; r-- {
+	// top+VocabWindowRadius より先の窓は未回答（UnknownWordP < cutoff）だけになるので、
+	// そこまでに必ず止まる。cutoff が UnknownWordP 以下のときの打ち切りも兼ねる。
+	for r := floor + 1; r <= top+VocabWindowRadius; r++ {
 		total := 0.0
 		start := max(r-VocabWindowRadius, floor+1)
 		for q := start; q <= r+VocabWindowRadius; q++ {
@@ -251,11 +277,11 @@ func estimateWindowed(entries []RankedP, center, floor int, cutoff float64) int 
 				total += UnknownWordP
 			}
 		}
-		if total/float64(r+VocabWindowRadius-start+1) >= cutoff {
-			return r
+		if total/float64(r+VocabWindowRadius-start+1) < cutoff {
+			return r - 1
 		}
 	}
-	return low
+	return top
 }
 
 // estimateVocab は 2026-11 までの推定式（golden と比較シミュレーション用に残す）。

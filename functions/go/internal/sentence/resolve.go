@@ -117,6 +117,8 @@ func (r *Resolver) Resolve(
 	if resolved.TimeFrame == "" {
 		resolved.TimeFrame = r.choice(TimeFrameCandidates(targetWords))
 	}
+	// 時点の種類（未来なら予定・意志・見通し・願望）を、語が自然に置けるものから引く。
+	resolved.TimeKind = r.choice(TimeKindCandidates(resolved.TimeFrame, targetWords))
 
 	// 話し手と聞き手の関係。key_word ともテーマとも衝突しない直交軸
 	// （2026-08-22 追加）。

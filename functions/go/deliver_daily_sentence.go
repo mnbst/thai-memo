@@ -648,6 +648,8 @@ func (d *deliverer) deliverOne(
 		rollbackDelivery(ctx, userRef, sentenceRefs, restore, false, consumeQuota)
 		return "send_failed"
 	}
+	// 届いた例文を確認待ちへ（取り消した配信の文は入れない。pool_review.go）。
+	queueSavedSentences(ctx, d.DB, sentenceRefs, sentenceData)
 
 	// 露出登録は通知が届いた後にだけ行う。配信をロールバックしても
 	// UVM の P 微増は巻き戻せないため、送信成功を確認してから登録する。

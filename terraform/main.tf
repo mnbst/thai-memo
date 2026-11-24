@@ -35,6 +35,8 @@ resource "google_project_service" "required_apis" {
     "texttospeech.googleapis.com",
     # TikTok 用の素材を Google Drive に置く（tools/x_post/upload_to_drive.py）
     "drive.googleapis.com",
+    # YouTube Shorts への自動投稿（tools/x_post/post_to_youtube.py）
+    "youtube.googleapis.com",
   ])
 
   project = var.project_id
@@ -785,6 +787,44 @@ resource "google_cloud_scheduler_job" "post_daily_threads" {
     body = base64encode(jsonencode({
       ref    = "main"
       inputs = { themes = each.value.themes, kind = each.value.kind, slot = each.key, platform = "threads" }
+    }))
+
+    headers = {
+      "Authorization"        = "Bearer ${var.github_dispatch_token}"
+      "Accept"               = "application/vnd.github+json"
+      "Content-Type"         = "application/json"
+      "X-GitHub-Api-Version" = "2022-11-28"
+    }
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# YouTube Shorts への投稿枠（日本語の例文の縦動画。X と別の文を選ぶ）。
+# 鍵（youtube-upload）を入れてから var.youtube_post_slots に足す。
+resource "google_cloud_scheduler_job" "post_daily_youtube" {
+  for_each = nonsensitive(var.github_dispatch_token != "") ? var.youtube_post_slots : {}
+
+  name        = "post-daily-youtube-${each.key}"
+  project     = var.project_id
+  region      = var.region
+  description = "YouTube Shorts への投稿ワークフローを起動する（${each.value.themes != "" ? each.value.themes : "全テーマ"}）"
+
+  schedule  = each.value.schedule
+  time_zone = "Asia/Tokyo"
+
+  attempt_deadline = "30s"
+
+  retry_config {
+    retry_count = 3
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://api.github.com/repos/${var.github_repo}/actions/workflows/post-daily-x.yml/dispatches"
+    body = base64encode(jsonencode({
+      ref    = "main"
+      inputs = { themes = each.value.themes, kind = "sentence", slot = each.key, platform = "youtube" }
     }))
 
     headers = {

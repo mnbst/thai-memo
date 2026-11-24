@@ -1,7 +1,7 @@
 // Package ttsaudio はお手本音声（例文の全文を Cloud TTS で読んだ MP3）を作って GCS に置く。
 //
 // 設計は docs/design_listening_playback.md。要点:
-//   - 声は例文の中身だけで決める（文末 → 一人称 → BL → ハッシュ）。ランダムにしない
+//   - 声は例文の中身だけで決める（文末 → 一人称 → BL → ฉัน → ハッシュ）。ランダムにしない
 //   - ファイル名は audio/sha256(版|声|速さ|文).mp3。同じ文は誰が要求しても同じファイル
 //   - 無いときだけ作る。GCS へは「無いときだけ書く」条件付きで置く
 package ttsaudio
@@ -49,7 +49,7 @@ const (
 	female
 )
 
-// 文末の丁寧語（女性）。男性の ครับ・คับ は endingGender に直書き。
+// 文末の丁寧語（女性）。男性の ครับ・คับ は politeGender に直書き。
 var femaleEnds = []string{"ค่ะ", "คะ", "คร่ะ"}
 
 // 一人称。ผม（髪）・หนู（ネズミ）と紛れるので、単語分解で代名詞の語に限る。
@@ -105,25 +105,57 @@ func genderOf(text string, in Input) gender {
 	if strings.Contains(in.Topic, "BL") {
 		return male
 	}
+	if chanSpeaker(in.Words) {
+		return female
+	}
 	return unknown
 }
 
-// endingGender は文末の丁寧語を見る。単語分解があれば最後の語（記号は飛ばす）、
-// 無ければ文字列の末尾で見る。คับ は語そのものが คับ のときだけ数える。
-func endingGender(text string, words []Word) gender {
-	tail, isWord := strings.TrimRightFunc(text, func(r rune) bool { return !isThai(r) }), false
-	for i := len(words) - 1; i >= 0; i-- {
-		if w := strings.TrimSpace(words[i].Word); hasThai(w) {
-			tail, isWord = w, true
-			break
+// chanSpeaker は一人称 ฉัน（ของฉัน も）があるか。ฉัน は男女とも使うので BL より後に見る。
+// コーパス（ja）で ฉัน と丁寧語が両方ある文は女性 716・男性 4（2026-11-22）。
+// เรา は女性 115・男性 168 で割れたので見ない。
+func chanSpeaker(words []Word) bool {
+	for _, w := range words {
+		if isPronoun(w) && strings.TrimPrefix(strings.TrimSpace(w.Word), "ของ") == "ฉัน" {
+			return true
 		}
 	}
+	return false
+}
+
+// endingGender は文末の丁寧語を見る。単語分解があれば最後の語（記号は飛ばす）、
+// 無ければ文字列の末尾で見る。
+// 最後の語で決まらなければ、単語分解を後ろから見て丁寧語の語を探す
+// （ครับอาจารย์・นะครับพี่・ค่ะคุณตั้ม・ครับตอนนี้ のように丁寧語の後ろに呼びかけ等が続く文）。
+// コーパス（ja・en）に男女の丁寧語が両方ある文は無かった（2026-11-22）。
+func endingGender(text string, words []Word) gender {
+	var thaiWords []string
+	for _, w := range words {
+		if w := strings.TrimSpace(w.Word); hasThai(w) {
+			thaiWords = append(thaiWords, w)
+		}
+	}
+	if len(thaiWords) == 0 {
+		return politeGender(strings.TrimRightFunc(text, func(r rune) bool { return !isThai(r) }), false)
+	}
+	for i := len(thaiWords) - 1; i >= 0; i-- {
+		if g := politeGender(thaiWords[i], true); g != unknown {
+			return g
+		}
+	}
+	return unknown
+}
+
+// politeGender は s が丁寧語で終わるか（単語なら ครับผม のように ครับ で始まるものも）を見る。
+// คับ は บังคับ と紛れるので、語そのものが คับ のときだけ数える。
+// คะ で始まる คะแนน は末尾の一致で見るので当たらない。
+func politeGender(s string, isWord bool) gender {
 	for _, e := range femaleEnds {
-		if strings.HasSuffix(tail, e) {
+		if strings.HasSuffix(s, e) {
 			return female
 		}
 	}
-	if strings.HasSuffix(tail, "ครับ") || (isWord && tail == "คับ") {
+	if strings.HasSuffix(s, "ครับ") || (isWord && (s == "คับ" || strings.HasPrefix(s, "ครับ"))) {
 		return male
 	}
 	return unknown

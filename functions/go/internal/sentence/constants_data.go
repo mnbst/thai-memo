@@ -284,31 +284,31 @@ const contextGeneratableFieldsJSON = `{"topic": {"type": "string", "description"
 // ja はスキーマ本体（responseJSONSchemaJSON）の description をそのまま使う。
 var schemaDescriptions = map[lang.Lang]map[string]string{
 	lang.EN: {
-		"japanese_translation": "例文の英訳。フィールド名は japanese だが必ず英語で書くこと（日本語不可）",
-		"word_breakdown":       "例文を構成する各単語と英語の意味。最大20件。",
-		"meaning":              "単語の意味を必ず英語で記述すること（日本語不可）",
-		"note":                 "用法・ニュアンス・類語との違い（英語、50語以内）",
-		"usage_scenarios":      "使用場面の説明。英語で、25語以内（タイ語・日本語不可）。",
-		"cultural_notes":       "文化的な補足情報。英語で、25語以内（タイ語・日本語不可）。",
+		"japanese_translation": "English translation of the sentence. Always write it in English (no Japanese).",
+		"word_breakdown":       "Each word in the sentence with its English meaning. Up to 20 items.",
+		"meaning":              "Meaning of the word. Always write it in English (no Japanese).",
+		"note":                 "Usage, nuance, and difference from similar words (in English, up to 50 words).",
+		"usage_scenarios":      "When to use it. In English, up to 25 words (no Thai or Japanese).",
+		"cultural_notes":       "Cultural background. In English, up to 25 words (no Thai or Japanese).",
 	},
 	lang.KO: {
-		"japanese_translation": "例文の韓国語訳。フィールド名は japanese だが必ず韓国語（ハングル）で書くこと（日本語・英語不可）",
-		"word_breakdown":       "例文を構成する各単語と韓国語の意味。最大20件。",
-		"meaning":              "単語の意味を必ず韓国語（ハングル）で記述すること（日本語・英語・漢字不可）",
-		"note":                 "用法・ニュアンス・類語との違い（韓国語、50字以内）",
-		"usage_scenarios":      "使用場面の説明。韓国語で、50字以内（タイ語・日本語・英語不可）。",
-		"cultural_notes":       "文化的な補足情報。韓国語で、50字以内（タイ語・日本語・英語不可）。",
+		"japanese_translation": "예문의 한국어 번역. 반드시 한국어(한글)로 쓴다(일본어·영어 불가).",
+		"word_breakdown":       "예문을 이루는 각 단어와 한국어 뜻. 최대 20개.",
+		"meaning":              "단어의 뜻. 반드시 한국어(한글)로 쓴다(일본어·영어·한자 불가).",
+		"note":                 "용법·뉘앙스·유의어와의 차이(한국어, 50자 이내).",
+		"usage_scenarios":      "사용 장면 설명. 한국어로, 50자 이내(태국어·일본어·영어 불가).",
+		"cultural_notes":       "문화적 보충 정보. 한국어로, 50자 이내(태국어·일본어·영어 불가).",
 	},
 }
 
 // contextDescriptions は ja 以外の言語の context フィールドの description（constants._CONTEXT_DESCRIPTIONS_EN）。
 var contextDescriptions = map[lang.Lang]map[string]string{
 	lang.EN: {
-		"style":   "文体（英語で。実際に書いた thai_text の文体を短く）",
-		"emotion": "感情・トーン（英語で）",
+		"style":   "Style (in English; briefly describe the style of the thai_text you actually wrote).",
+		"emotion": "Emotion and tone (in English).",
 	},
 	lang.KO: {
-		"style":   "文体（韓国語で。実際に書いた thai_text の文体を短く）",
-		"emotion": "感情・トーン（韓国語で）",
+		"style":   "문체(한국어로. 실제로 쓴 thai_text의 문체를 짧게).",
+		"emotion": "감정·톤(한국어로).",
 	},
 }

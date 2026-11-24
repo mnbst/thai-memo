@@ -1,3 +1,5 @@
+//go:build sim
+
 package uvm
 
 import "testing"
@@ -36,7 +38,7 @@ func runLoop(t *testing.T, tested int, floorMode string, rounds int) []int {
 		for s := 0; s < 6; s++ {
 			var entries []RankedP
 			for r, p := range pByRank {
-				if r >= max(tested, est-50-VocabWindowRadius) && r < est+51+VocabWindowRadius {
+				if r >= tested && r < est+51+VocabWindowRadius {
 					entries = append(entries, RankedP{Rank: r, P: p})
 				}
 			}

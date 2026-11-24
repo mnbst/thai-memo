@@ -1,0 +1,113 @@
+{
+  "_comment": "カスタムプロダクトページ（travel）用。素材は store_mock_screens.dart を --dart-define=SET=travel で描く。それ以外は captions.json と同じ。",
+  "shots": [
+    {
+      "id": "01_today",
+      "screen": "学習タブ（今日の例文）。例文カードと学習単語が見える状態",
+      "ja": "旅先でそのまま使える\n**タイ語の例文**",
+      "en": "Thai you can use\n**on your trip**",
+      "zoom": {
+        "iphone": [
+          0.03,
+          0.235,
+          0.94,
+          0.28
+        ],
+        "ipad": [
+          0.185,
+          0.135,
+          0.63,
+          0.195
+        ]
+      }
+    },
+    {
+      "id": "03_pronunciation",
+      "screen": "発音練習の結果（スコアと音の高さのグラフ）",
+      "ja": "タイ人に通じるように\n**声調を直せる**",
+      "en": "Be understood\n**Fix your tones**",
+      "zoom": {
+        "iphone": [
+          0.03,
+          0.395,
+          0.94,
+          0.17
+        ],
+        "ipad": [
+          0.185,
+          0.245,
+          0.63,
+          0.12
+        ]
+      },
+      "tap": {
+        "iphone": [
+          0.9,
+          0.325
+        ],
+        "android": [
+          0.9,
+          0.32
+        ]
+      }
+    },
+    {
+      "id": "08_word",
+      "screen": "例文の詳細を単語の一覧まで送ったところ。切り抜きは語を押して開く文字の解説（08_word_dialog）から取る",
+      "ja": "単語の意味も文字も\n**しくみでわかる**",
+      "en": "Meaning, sound & spelling\n**Tap any word**",
+      "zoom_src": "08_word_dialog",
+      "zoom": {
+        "iphone": [
+          0.045,
+          0.415,
+          0.91,
+          0.265
+        ],
+        "ipad": [
+          0.195,
+          0.428,
+          0.61,
+          0.188
+        ],
+        "android": [
+          0.045,
+          0.395,
+          0.91,
+          0.285
+        ]
+      },
+      "zoom_top": {
+        "iphone": 0.305,
+        "ipad": 0.545,
+        "android": 0.27
+      },
+      "tap": {
+        "iphone": [
+          0.5,
+          0.245
+        ],
+        "ipad": [
+          0.5,
+          0.503
+        ],
+        "android": [
+          0.5,
+          0.215
+        ]
+      }
+    },
+    {
+      "id": "04_quiz",
+      "screen": "クイズで正解した直後（解説が出ている状態）",
+      "ja": "覚えたつもりを\n**クイズで確認**",
+      "en": "Think you know it?\n**Quiz yourself**"
+    },
+    {
+      "id": "05_topics",
+      "screen": "設定 → テーマ選択の一覧",
+      "ja": "旅行も暮らしも恋愛も\n**11のテーマで学べる**",
+      "en": "Travel, daily life, dating\n**11 topics to choose**"
+    }
+  ]
+}
