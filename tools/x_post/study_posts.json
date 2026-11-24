@@ -460,6 +460,96 @@
     "text_en": "Thai changes how it tells time depending on the part of the day🕰️\n\n2 a.m. ตีสอง tii sɔ̌ɔng\n7 a.m. เจ็ดโมงเช้า jèt moong cháao\n2 p.m. บ่ายสองโมง bàai sɔ̌ɔng moong\n8 p.m. สองทุ่ม sɔ̌ɔng thûm\n\n8 p.m. is \"two\" because the count starts over at 7 p.m."
   },
   {
+    "id": "tip_rue",
+    "kind": "tip",
+    "text": "44の子音に入らない特別な字🤔\n\nฤ rʉ／ri\n\nฤดู rʉ́duu 季節\nอังกฤษ angkrìt イギリス・英語\n\n子音の数には入らず、母音の仲間として扱われる字。サンスクリット由来の語に出てきます。",
+    "text_en": "A special Thai letter outside the 44 consonants🤔\n\nฤ rʉ／ri\n\nฤดู rʉ́duu season\nอังกฤษ angkrìt England／English\n\nIt isn't one of the 44 consonants—it's treated as a kind of vowel—and appears in words from Sanskrit."
+  },
+  {
+    "id": "tip_o_ang",
+    "kind": "tip",
+    "text": "อ は母音の「土台」になる子音🫙\n\nอ่าน àan 読む\nอิ่ม ìm お腹いっぱい\nอ้วน ûan 太っている\n\n母音記号の多くは単独で書けないので、母音から始まる語は อ を土台にして書きます。\nพ่อ phɔ̂ɔ（父）のように、母音 ɔɔ にもなります。",
+    "text_en": "อ is the consonant vowels sit on🫙\n\nอ่าน àan read\nอิ่ม ìm full (after eating)\nอ้วน ûan fat\n\nMost Thai vowel signs can't stand alone, so words that start with a vowel are written on อ.\nIt can also be the vowel ɔɔ, as in พ่อ phɔ̂ɔ (father)."
+  },
+  {
+    "id": "tip_similar_letters",
+    "kind": "tip",
+    "text": "タイ文字はちょっとの違いで別の字👀\n\nด d／ต t\nดี dii 良い・ตา taa 目\n\nบ b／ป p\nบิน bin 飛ぶ・ปิด pìt 閉める\n\nป は縦線が上に飛び出し、ต は頭がギザギザ。ここを見れば区別できます。",
+    "text_en": "In Thai, a tiny stroke turns one letter into another👀\n\nด d／ต t\nดี dii good・ตา taa eye\n\nบ b／ป p\nบิน bin fly・ปิด pìt close\n\nป has a line sticking up, and ต has a notched top. That's how you tell them apart."
+  },
+  {
+    "id": "tip_ho_nam",
+    "kind": "tip",
+    "text": "読まない ห で声調が変わる🐶\n\nมา maa 来る\nหมา mǎa 犬\n\nหนู nǔu ネズミ\nหวาน wǎan 甘い\n\nง ญ น ม ย ร ล ว の前の ห は読まず、後ろの字を高子音として声調を決めます。",
+    "text_en": "A silent ห changes the tone🐶\n\nมา maa come\nหมา mǎa dog\n\nหนู nǔu mouse\nหวาน wǎan sweet\n\nBefore ง ญ น ม ย ร ล ว, ห is silent and makes the next letter follow high-consonant tone rules."
+  },
+  {
+    "id": "tip_o_nam",
+    "kind": "tip",
+    "text": "読まない อ で声調が変わる単語は4つだけ4️⃣\n\nอยู่ yùu いる\nอย่า yàa 〜するな\nอย่าง yàang 〜のように\nอยาก yàak 〜したい\n\n覚え方は อย่าอยู่อย่างอยาก（ない物ねだりで暮らすな）。",
+    "text_en": "Only four words use a silent อ to change the tone4️⃣\n\nอยู่ yùu be／stay\nอย่า yàa don't\nอย่าง yàang like／kind\nอยาก yàak want to\n\nA handy memory phrase: อย่าอยู่อย่างอยาก (Don't live in want)."
+  },
+  {
+    "id": "tip_sabaai",
+    "kind": "tip",
+    "text": "สบาย sabaai は「元気」も「楽」も「気持ちいい」も😌\n\nสบายดีไหม sabaai dii mǎi 元気？\nสบายๆ sabaai sabaai 気楽に\nไม่สบาย mâi sabaai 体調が悪い\n\nไม่สบาย はふつう「具合が悪い」の意味になるので注意。",
+    "text_en": "สบาย sabaai covers \"well,\" \"relaxed,\" and \"comfortable\"😌\n\nสบายดีไหม sabaai dii mǎi How are you?\nสบายๆ sabaai sabaai Take it easy\nไม่สบาย mâi sabaai I'm not feeling well\n\nNote: ไม่สบาย usually means \"sick,\" not just \"uncomfortable.\""
+  },
+  {
+    "id": "tip_jai_words",
+    "kind": "tip",
+    "text": "ใจ jai（心）でできた言葉が多い❤️\n\nใจดี jai dii 優しい\nใจร้อน jai rɔ́ɔn 短気（心が熱い）\nใจเย็น jai yen 落ち着いた（心が涼しい）\nเสียใจ sǐa jai 残念・悲しい\n\n「ใจเย็นๆ」は「落ち着いて」の定番。",
+    "text_en": "Lots of Thai words are built from ใจ jai (heart)❤️\n\nใจดี jai dii kind\nใจร้อน jai rɔ́ɔn short-tempered (hot heart)\nใจเย็น jai yen calm (cool heart)\nเสียใจ sǐa jai sorry／sad\n\nใจเย็นๆ is the go-to phrase for \"Calm down.\""
+  },
+  {
+    "id": "tip_na",
+    "kind": "tip",
+    "text": "文末の นะ ná で柔らかく・親しげになる🌸\n\nไปนะ pai ná 行くね\nขอบคุณนะ khɔ̀ɔp khun ná ありがとうね\nอย่าลืมนะ yàa lʉʉm ná 忘れないでね\n\n柔らかくしたり、親しみを込めて念押ししたり。日本語の「ね」「よ」に近い感覚です。",
+    "text_en": "Adding นะ ná at the end makes Thai sound softer🌸\n\nไปนะ pai ná I'm going now\nขอบคุณนะ khɔ̀ɔp khun ná Thanks\nอย่าลืมนะ yàa lʉʉm ná Don't forget, OK?\n\nIt softens what you say or adds a friendly nudge."
+  },
+  {
+    "id": "tip_khrap_reply",
+    "kind": "tip",
+    "text": "ครับ khráp・ค่ะ khâ だけで「はい」になる🙋\n\n名前を呼ばれたら ครับ／ค่ะ\n話を聞きながらの相づちも ครับ／ค่ะ\n\n文末に付ける語尾だけど、単独でも返事として使えます。",
+    "text_en": "ครับ khráp and ค่ะ khâ alone can mean \"yes\"🙋\n\nWhen someone calls your name: ครับ／ค่ะ\nWhen you're listening and nodding along: ครับ／ค่ะ\n\nThey're usually sentence endings, but they also work as replies on their own."
+  },
+  {
+    "id": "tip_jaa",
+    "kind": "tip",
+    "text": "จ้า jâa は柔らかい「はーい」💬\n\nจ้า jâa はーい\nขอบคุณจ้า khɔ̀ɔp khun jâa ありがとね\n\n友だちや家族とのくだけた会話や、親しげな返事・語尾として使われます。チャットでもよく見かけます。",
+    "text_en": "จ้า jâa is a soft, friendly \"OK!\"💬\n\nจ้า jâa OK!\nขอบคุณจ้า khɔ̀ɔp khun jâa Thanks!\n\nIt's used as a reply or ending in informal, friendly contexts, and you'll see it often in chats."
+  },
+  {
+    "id": "tip_phi_nong",
+    "kind": "tip",
+    "text": "タイでは他人も「兄・姉」「弟・妹」と呼ぶ👫\n\nพี่ phîi 年上（兄・姉）\nน้อง nɔ́ɔng 年下（弟・妹）\n\n血縁がなくても、店員さんを น้อง と呼ぶなど、親しみを込めて使うことがあります。\nพี่ต้น phîi tôn（トンさん）のように名前の前にも付けます。",
+    "text_en": "In Thailand, even strangers are called \"older\" or \"younger sibling\"👫\n\nพี่ phîi older (brother／sister)\nน้อง nɔ́ɔng younger (brother／sister)\n\nPeople often call non-relatives พี่ or น้อง too—like calling a server น้อง.\nIt also goes before names: พี่ต้น phîi tôn (Ton)."
+  },
+  {
+    "id": "tip_baht",
+    "kind": "tip",
+    "text": "タイのお金はバーツとサタン💰\n\nบาท bàat バーツ\nสตางค์ sataang サタン\n100สตางค์＝1บาท\n\nยี่สิบบาท yîi sìp bàat 20バーツ\n\nお札は20・50・100・500・1000バーツ。サタンの硬貨は今ではあまり見かけません。",
+    "text_en": "Thai money: baht and satang💰\n\nบาท bàat baht\nสตางค์ sataang satang\n100 satang＝1 baht\n\nยี่สิบบาท yîi sìp bàat 20 baht\n\nBanknotes come in 20, 50, 100, 500, and 1000 baht. Satang coins are rarely seen these days."
+  },
+  {
+    "id": "tip_order",
+    "kind": "tip",
+    "text": "屋台で「大盛り」は พิเศษ phísèet（特別）🍜\n\nพิเศษ phísèet 大盛り\nไม่เผ็ด mâi phèt 辛くしないで\nใส่ไข่ดาว sài khài daao 目玉焼きのせて\nเอากลับบ้าน ao klàp bâan 持ち帰り\n\nพิเศษ は店によって具や麺が増え、追加料金になることが多いです。",
+    "text_en": "At Thai food stalls, \"large\" is พิเศษ phísèet (special)🍜\n\nพิเศษ phísèet large／extra\nไม่เผ็ด mâi phèt not spicy\nใส่ไข่ดาว sài khài daao add a fried egg\nเอากลับบ้าน ao klàp bâan to go (lit. take home)\n\nWith พิเศษ, many shops add more meat or noodles for a small extra charge."
+  },
+  {
+    "id": "tip_day_colors",
+    "kind": "tip",
+    "text": "タイでは曜日ごとに色がある🌈\n\n日 赤／月 黄／火 ピンク／水 緑\n木 オレンジ／金 水色／土 紫\n\nสีเหลือง sǐi lʉ̌ang 黄色\n\n生まれた曜日の色を大事にする人も多く、服やお守りの色選びにも使われます。",
+    "text_en": "In Thailand, each day of the week has a color🌈\n\nSun red／Mon yellow／Tue pink／Wed green\nThu orange／Fri light blue／Sat purple\n\nสีเหลือง sǐi lʉ̌ang yellow\n\nMany people value the color of the day they were born, and use it when choosing clothes or amulets."
+  },
+  {
+    "id": "tip_tuktuk",
+    "kind": "tip",
+    "text": "トゥクトゥクやバイタクは乗る前に値段を確認🛺\n\nตุ๊กตุ๊ก túk túk トゥクトゥク\nไป…เท่าไหร่ pai … thâorài 〜までいくら？\n\nトゥクトゥクは基本的にメーターなし。バイタクは料金表があることも多いですが、どちらも乗る前に値段を確かめると安心です。",
+    "text_en": "Check the price before you ride a tuk-tuk or motorbike taxi🛺\n\nตุ๊กตุ๊ก túk túk tuk-tuk\nไป…เท่าไหร่ pai … thâorài How much to ...?\n\nTuk-tuks usually have no meter, and motorbike taxis often have a fare chart—either way, confirm the price before getting on."
+  },
+  {
     "id": "feature_daily",
     "kind": "feature",
     "text": "タイ語の例文、難しすぎて続かない問題📱\n\n「まいにちタイ語」は、今の語彙に合わせた例文が毎日届くアプリ。\n\n知っている単語が多めの文なので、新しい単語だけに集中できる。届く時間も自分で決められる。\n\n📲 アプリ「まいにちタイ語」はプロフのリンクから",
