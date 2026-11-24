@@ -26,6 +26,7 @@ import 'vocab_test_screen.dart';
 import '../widgets/sign_in_sheet.dart';
 import '../widgets/streak_widgets.dart';
 import '../widgets/topic_picker.dart';
+import '../widgets/vocab_cap_sheet.dart';
 import '../widgets/vocab_level.dart';
 import 'contact_form_screen.dart';
 import 'notification_schedule_screen.dart';
@@ -499,6 +500,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             if (!open || !mounted) return;
             await PaywallScreen.show(context, source: 'trial_ended_preview');
           },
+        ),
+      // 語彙上限シートは端末につき1度しか出ないので、見た目の確認用に
+      // dev だけ両方の版を開けるようにしておく。
+      if (AppConfig.isDev)
+        ListTile(
+          leading: const Icon(Icons.menu_book_outlined),
+          title: const Text('語彙上限シート（dev）'),
+          subtitle: const Text('タップ: 初心者版 / 長押し: テスト3000語版'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => VocabCapSheet.show(context),
+          onLongPress: () => VocabCapSheet.show(context, testedVocab: 3000),
         ),
       // 買い切り移行の案内は、月額の課金者にしか出ない。見た目の確認用に
       // dev だけ手動で開けるようにしておく（移行処理そのものは未実装）。

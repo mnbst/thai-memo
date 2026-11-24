@@ -32,11 +32,6 @@ const (
 	StatusRejected = "rejected"
 )
 
-// MaxPoolEntries は本番プール1本の保持上限。超えたぶんは古い側から落とす。
-// 1本 1〜2KB なので、2万本でも数十MB。CorpusBank はこれを
-// 静的コーパス（15,864本）と一緒にインスタンスへ載せる。
-const MaxPoolEntries = 20000
-
 // ID は確認待ちの doc ID。同じプールへ同じ文を二重に入れない。
 // プールはティア×言語ごとに別なので、同じタイ語でも振り分け先が違えば別の文として扱う
 // （訳が違うので、それぞれ確認する）。
@@ -48,9 +43,12 @@ func ID(tier string, l lang.Lang, thaiText string) string {
 // MergePool は既存プールへ新しい例文を足す。
 //
 // thai_text が既にあるものは飛ばす（同じ文を2本持っても抽選が偏るだけ）。
-// 上限を超えたら古い側（先頭）から落とす。古い文ほど、そのとき直した
-// プロンプトより前の出来なので、落とす向きはこちらでよい。
-func MergePool(existing, incoming []sentence.Sentence, maxEntries int) ([]sentence.Sentence, int) {
+//
+// 本数の上限は持たない。同じ人には既出の文を出さないので、在庫が多いほど
+// よく使う人が LLM 生成に落ちるまでが延びる（以前は2万本で古い側から
+// 落としていた）。1本 1〜2KB で、CorpusBank がインスタンスへ全部載せるので、
+// 増えたら関数のメモリ（generateThaiSentence 等は 2Gi）と起動時間を見る。
+func MergePool(existing, incoming []sentence.Sentence) ([]sentence.Sentence, int) {
 	seen := make(map[string]bool, len(existing))
 	for _, s := range existing {
 		seen[s.ThaiText] = true
@@ -64,9 +62,6 @@ func MergePool(existing, incoming []sentence.Sentence, maxEntries int) ([]senten
 		seen[s.ThaiText] = true
 		merged = append(merged, s)
 		added++
-	}
-	if len(merged) > maxEntries {
-		merged = merged[len(merged)-maxEntries:]
 	}
 	return merged, added
 }
@@ -150,7 +145,7 @@ func AppendPool(
 		}
 		cond = storage.Conditions{GenerationMatch: attrs.Generation}
 	}
-	merged, added := MergePool(existing, incoming, MaxPoolEntries)
+	merged, added := MergePool(existing, incoming)
 	if added == 0 {
 		return 0, nil
 	}

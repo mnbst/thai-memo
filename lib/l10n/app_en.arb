@@ -179,6 +179,44 @@
   "vocabCapSheetFeatureUnlimited": "Unlimited sentences and pronunciation checks",
   "vocabCapSheetCta": "Continue with Premium",
   "vocabCapSheetLater": "Later",
+  "vocabCapTestedTitle": "Your vocabulary test said {count} words",
+  "@vocabCapTestedTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapTestedBody": "On the free plan, your vocabulary score shows up to {limit} words. With Premium, pick up from {count} words with words at your level.",
+  "@vocabCapTestedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapTestedNow": "Shown now",
+  "vocabCapTestedResult": "Test result",
+  "vocabCapTestedFeatureGrow": "Grow your vocabulary score from {count} words",
+  "@vocabCapTestedFeatureGrow": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapTestedFeatureLevel": "Sentences built from words at your level",
+  "vocabCapTestedCta": "Continue from {count} words with Premium",
+  "@vocabCapTestedCta": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "vocabWords": "{count, plural, =1{1 word} other{{count} words}}",
   "@vocabWords": {
     "placeholders": {
@@ -519,6 +557,7 @@
   "paywallChangeToMonthlyNote": "{store, select, android{You'll switch to the monthly plan right away. You won't be charged until your paid yearly period ends, then it renews monthly.} other{You'll switch to the monthly plan when your current yearly plan ends. Until then, you keep the yearly plan.}}",
   "paywallCancelSubscriptionNote": "You own the lifetime plan, but your subscription is still set to renew. Cancel it to stop being charged.",
   "paywallManageSubscriptions": "Cancel subscription",
+  "paywallFairUseNote": "*On days with very heavy use, creating new sentences may pause until the next day.",
   "paywallRestore": "Restore purchase",
   "paywallPriceYen": "¥{amount} / month",
   "@paywallPriceYen": {
@@ -893,6 +932,7 @@
 
   "errQuizGenerationFailed": "Couldn't create quiz. Try again.",
   "quotaQuizReached": "No more new quizzes today.",
+  "quotaSentencePremiumDailyReached": "You studied a lot today! That was the last new sentence for today.\nReread past sentences from the top right of the Words tab.",
   "quotaSentenceReached": "That's all the new sentences for today.\nReread past sentences from the top right of the Words tab.",
   "quotaSentenceUpgradeCta": "Unlock unlimited sentences",
   "errAuth": "Authentication failed. Restart the app.",

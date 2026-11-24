@@ -199,6 +199,44 @@
   "vocabCapSheetFeatureUnlimited": "예문 무제한, 발음 채점도 몇 번이든",
   "vocabCapSheetCta": "프리미엄으로 계속하기",
   "vocabCapSheetLater": "나중에",
+  "vocabCapTestedTitle": "어휘 테스트에서는 {count}단어였어요",
+  "@vocabCapTestedTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapTestedBody": "무료 플랜에서는 어휘 점수가 {limit}단어까지만 표시돼요. 프리미엄이라면 {count}단어부터 내 수준에 맞는 단어로 계속할 수 있어요.",
+  "@vocabCapTestedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapTestedNow": "현재 표시",
+  "vocabCapTestedResult": "테스트 결과",
+  "vocabCapTestedFeatureGrow": "어휘 점수가 {count}단어부터 늘어나요",
+  "@vocabCapTestedFeatureGrow": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vocabCapTestedFeatureLevel": "내 수준의 단어로 예문이 만들어져요",
+  "vocabCapTestedCta": "프리미엄으로 {count}단어부터 계속하기",
+  "@vocabCapTestedCta": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "vocabWords": "{count}단어",
   "@vocabWords": {
     "description": "語彙スコアの語数表示",
@@ -638,6 +676,7 @@
   },
   "paywallCancelSubscriptionNote": "평생 이용 요금제를 구매했어요. 구독 자동 갱신이 계속되고 있으므로 해지하지 않으면 요금이 계속 청구돼요.",
   "paywallManageSubscriptions": "구독 해지",
+  "paywallFairUseNote": "※이용량이 매우 많은 날에는 새 예문 만들기를 다음 날까지 기다려야 할 수 있어요.",
   "paywallRestore": "구매 복원",
   "paywallPriceYen": "¥{amount} / 월",
   "@paywallPriceYen": {
@@ -1003,6 +1042,7 @@
   },
   "errQuizGenerationFailed": "퀴즈를 만들지 못했어요. 다시 시도해 주세요.",
   "quotaQuizReached": "오늘의 새 퀴즈는 여기까지예요.",
+  "quotaSentencePremiumDailyReached": "오늘 정말 많이 공부했어요. 새 예문 만들기는 오늘은 여기까지예요.\n복습 탭 오른쪽 위에서 지금까지의 예문을 다시 읽을 수 있어요.",
   "quotaSentenceReached": "오늘의 새 예문은 여기까지예요.\n복습 탭 오른쪽 위에서 지금까지의 예문을 다시 읽을 수 있어요.",
   "@quotaSentenceReached": {
     "description": "上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない"
