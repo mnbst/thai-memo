@@ -19,13 +19,15 @@ ios_app_id                    = "1:219961294368:ios:88e70ed652a72f10b70645"
 x_post_themes = ""
 
 # 朝以外の X 投稿枠。Actions の実行に数分かかるので、投稿は指定時刻の数分後になる。
-# 10:00 と 15:00 は例文ではなく Tips・ガイド、20:00 は機能紹介（tools/x_post/study_posts.json）を出す。
+# 10:00 と 15:00 は例文ではなく Tips・ガイド（tools/x_post/study_posts.json）を出す。
+# 2026-11-24 に 17:00（例文）と 20:00（機能紹介）を止めた。11/17 から 15 時以降の投稿だけ
+# 表示が 3 割ほど落ちたため、投稿数を減らして午後の表示が戻るかを見る。戻すときはこの 2 行を足す:
+#   "1700" = { schedule = "0 17 * * *" }
+#   "2000" = { schedule = "0 20 * * *", kind = "feature" }
 x_post_extra_slots = {
   "1000" = { schedule = "0 10 * * *", kind = "tip" }
   "1200" = { schedule = "0 12 * * *" }
   "1500" = { schedule = "0 15 * * *", kind = "guide" }
-  "1700" = { schedule = "0 17 * * *" }
-  "2000" = { schedule = "0 20 * * *", kind = "feature" }
 }
 
 # 英語アカウント（@daily_thai11）の例文枠（米国西部の時刻）。2026-11-04 に投稿を停止。
