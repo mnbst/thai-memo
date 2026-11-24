@@ -25,6 +25,17 @@ const (
 	// 毎日入れ直すだけで、上限としては機能しない。free だけが実際に消費する。
 	PremiumDailySentences = 9999
 
+	// PremiumDailyLLMSentences は premium（体験中を含む）が1日に LLM で新しく
+	// 作れる例文の本数。キャッシュ（コーパス・プール）から出した文と出し直しは
+	// 数えない。費用がかかるのは LLM 生成だけなので、そこだけで止める。
+	//
+	// 2026-11 の実測で premium の1日の生成は中央値5本・上位5%で39本・最大153本
+	// （1人だけ）。50本ならふつうの使い方には当たらず、1人1日の LLM 費用を
+	// 約 ¥20 で止められる。全クライアント一律にかける（旧アプリは既存の
+	// 上限画面を出す）。数えた値は users.premium_llm_sentences_today に置き、
+	// dailyBatch の resetQuota が毎日 0 に戻す。
+	PremiumDailyLLMSentences = 50
+
 	// PremiumDailyQuizzes は上限としては機能しない。FreeDailyQuizzes 参照。
 	PremiumDailyQuizzes = 5
 

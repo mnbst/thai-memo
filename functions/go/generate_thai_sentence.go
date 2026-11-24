@@ -102,6 +102,14 @@ func generateThaiSentence(ctx context.Context, req *callable.Request) (any, erro
 func generationErrorPayload(err error) map[string]any {
 	msg := err.Error()
 	switch {
+	case strings.Contains(msg, premiumDailyLimitReason):
+		// code は旧クライアントが上限画面を出せるよう QUOTA_EXCEEDED のまま。
+		// 新クライアントは reason を見て premium 向けの文言に切り替える。
+		return map[string]any{
+			"code":    "QUOTA_EXCEEDED",
+			"reason":  premiumDailyLimitReason,
+			"message": "本日の新しい例文の作成上限に達しました",
+		}
 	case strings.Contains(msg, "QUOTA_EXCEEDED"):
 		return map[string]any{
 			"code":    "QUOTA_EXCEEDED",
@@ -131,6 +139,16 @@ func generationErrorPayload(err error) map[string]any {
 }
 
 var errQuotaExceeded = errors.New("QUOTA_EXCEEDED")
+
+// premiumDailyLimitReason は premium が1日の LLM 生成本数
+// （quota.PremiumDailyLLMSentences）に達したときの理由コード。
+const premiumDailyLimitReason = "PREMIUM_DAILY_LIMIT"
+
+var errPremiumDailyLimit = errors.New("QUOTA_EXCEEDED: " + premiumDailyLimitReason)
+
+// premiumLLMSentencesTodayField は premium が今日 LLM で作った例文の本数。
+const premiumLLMSentencesTodayField = "premium_llm_sentences_today"
+
 var errGenerationInProgress = errors.New("GENERATION_IN_PROGRESS")
 
 // generationLeaseDuration は例文生成 lease の有効期限。
@@ -226,6 +244,15 @@ func runGenerateThaiSentence(
 		logData["remainingSentences"] = remaining
 		log.Printf("Quota exceeded: %s", logJSON(logData))
 		return nil, errQuotaExceeded
+	}
+	// premium は LLM で作った本数だけを数え、1日の上限で止める。セット1回で
+	// 数本ぶん越えることはあるが、費用の上限としてはそれで足りる。
+	if llmToday := intValue(userData[premiumLLMSentencesTodayField]); usePremiumSpec &&
+		llmToday >= quota.PremiumDailyLLMSentences {
+		logData["error"] = premiumDailyLimitReason
+		logData["llmSentencesToday"] = llmToday
+		log.Printf("Premium daily limit: %s", logJSON(logData))
+		return nil, errPremiumDailyLimit
 	}
 
 	// クォータ消費前の LLM 呼び出しを同一ユーザーが並行実行できないよう、
@@ -382,7 +409,12 @@ func commitSentences(
 				return err
 			}
 		}
-		return tx.Update(userRef, sentenceCommitUpdate(userData, len(refs), !usePremiumSpec))
+		updates := sentenceCommitUpdate(userData, len(refs), !usePremiumSpec)
+		if n := llmProducedCount(produced); usePremiumSpec && n > 0 {
+			updates = append(updates, firestore.Update{
+				Path: premiumLLMSentencesTodayField, Value: firestore.Increment(n)})
+		}
+		return tx.Update(userRef, updates)
 	}); err != nil {
 		return err
 	}
@@ -433,6 +465,18 @@ func retireSentences(
 	}
 	bw.End()
 	log.Printf("retire_sentences: uid=%s marked=%d removed=%d", userRef.ID, len(replaces), len(expired))
+}
+
+// llmProducedCount はセットのうち LLM で新しく作った本数。キャッシュから出した文と
+// 既出例文の出し直しは費用がかからないので数えない。
+func llmProducedCount(produced []*sentence.Produced) int {
+	n := 0
+	for _, p := range produced {
+		if !p.FromCache && p.Reuse == nil {
+			n++
+		}
+	}
+	return n
 }
 
 // sentenceCommitUpdate は例文コミット時の users ドキュメント更新内容

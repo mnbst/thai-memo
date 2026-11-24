@@ -52,6 +52,8 @@ func TestQuotaResetPayloadGolden(t *testing.T) {
 		data, _ := decodeGolden(c.Data).(map[string]any)
 		want, _ := decodeGolden(c.Expected).(map[string]any)
 		want = retargetLegacyPremiumQuota(want)
+		// premium の LLM 生成本数のリセットは JS 版に無かった Go だけの項目。
+		want["premium_llm_sentences_today"] = float64(0)
 		got := normalizeGoPayload(quotaResetPayload(c.UID, data, now))
 
 		for k := range want {
