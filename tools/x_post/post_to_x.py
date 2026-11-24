@@ -16,7 +16,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import tweepy
@@ -190,6 +190,39 @@ def record_post(
     )
 
 
+def record_followers(client: tweepy.Client, project: str, lang: str) -> None:
+    """アカウントのフォロワー数などを日ごとに残す（x_post/followers.json）。
+
+    X の API で取れるのは今の値だけなので、推移は投稿のたびに記録して作る。
+    日付は JST で、同じ日は最後の投稿のときの値で上書きする。
+    記録は流入の分析用なので、失敗しても投稿は止めない。
+    """
+    try:
+        me = client.get_me(user_fields=["public_metrics"], user_auth=True)
+        metrics = me.data.public_metrics or {}
+        bucket = storage.Client(project=project).bucket(f"{project}-uvm-data")
+        blob = bucket.blob(
+            posted_object("x", lang).replace("posted.json", "followers.json")
+        )
+        log = json.loads(blob.download_as_bytes()) if blob.exists() else {}
+        now = datetime.now(timezone.utc)
+        day = (now + timedelta(hours=9)).date().isoformat()
+        log[day] = {
+            "followers": metrics.get("followers_count"),
+            "following": metrics.get("following_count"),
+            "tweets": metrics.get("tweet_count"),
+            "listed": metrics.get("listed_count"),
+            "at": now.isoformat(),
+        }
+        blob.upload_from_string(
+            json.dumps(log, ensure_ascii=False, sort_keys=True),
+            content_type="application/json",
+        )
+        print(f"フォロワー数: {log[day]['followers']}")
+    except Exception as error:  # noqa: BLE001 記録の失敗で投稿を落とさない
+        print(f"フォロワー数を記録できず: {error}", file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", required=True)
@@ -252,6 +285,7 @@ def main() -> int:
     record_post(
         args.project, out, key, text, {"tweet_id": str(tweet_id)}, lang=args.lang
     )
+    record_followers(client, args.project, args.lang)
     return 0
 
 
