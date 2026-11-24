@@ -696,7 +696,7 @@ functions/go/internal/ttsaudio/
 お手本音声の声の選択（文末→一人称→BL→ハッシュ）・ファイル名（中身のハッシュ）・生成と GCS 保存（無いときだけ書く）。
 
 functions/go/internal/poolreview/
-確認待ちのコレクション名・状態・doc ID と、OK の文を本番プールへ足す処理（重複排除・2万本上限）。
+確認待ちのコレクション名・状態・doc ID と、OK の文を本番プールへ足す処理（重複排除・上限なし）。
 
 functions/go/cmd/poolreview/main.go
 pool-review スキルの道具。list（直近48時間の生成例文をその場で確認待ちへ回してから、確認待ちを JSON に）・apply（OK を本番プールへ足す・fix があれば直した文を入れる・NG を rejected）。
