@@ -1588,6 +1588,9 @@ tools/store_screenshots/captions.json
 tools/store_screenshots/captions_travel.json / captions_work.json
 カスタムプロダクトページ（旅行・仕事、ja/en）用の見出し。素材は store_mock_screens.dart を SET=travel / SET=work で描く。
 
+tools/store_screenshots/captions_ab_notify.json
+プロダクトページの A/B テスト用1枚目（今日の例文に通知 00_notif を重ねる）の見出し。CAPTIONS・OUT を指定して store_screenshots.dart で書き出す。
+
 tools/store_screenshots/capture.sh
 シミュレータ（iPhone 6.9／iPad 13）をステータスバー固定で起動し、captions.json の順に素材を build/store_shots/raw へ撮る。
 
@@ -1598,7 +1601,7 @@ tools/store_screenshots/header.py
 商品ページヘッダー（3840x1646）を言語ごとに描く。背景のタイ語は pango-view で描く。
 
 test/screenshots/store_mock_screens.dart
-ストア用スクショと X の機能紹介の素材12画面（ja/en/ko × iPhone/iPad/Android）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。09以降（お手本再生・通知時刻・連続日数）は X 用。
+ストア用スクショと X の機能紹介の素材13画面（ja/en/ko × iPhone/iPad/Android）を差し込んだデータで描き、build/store_shots/raw へ書き出す。発音練習は合成ピッチを本物の採点に通す。09以降（お手本再生・通知時刻・連続日数）は X 用。00_notif（ロック画面の通知）は A/B テスト用1枚目の切り抜き。
 
 test/screenshots/store_mock_data.dart
 上記に描く例文・クイズ・復習タブの語の見本データ（ja/en/ko）。`--dart-define=SET=travel|work` でカスタムプロダクトページ用の例文に替える。
