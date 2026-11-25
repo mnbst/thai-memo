@@ -202,6 +202,38 @@ func (b *Builder) PickScene(word string, topics []string, minSceneZ float64) (se
 	}, true
 }
 
+// PickSceneExcept は PickScene と同じ選び方で、used の場面を除いて選ぶ。
+//
+// unknown は場面の記録が無い既存の例文の数。それぞれ合致する場面のどれかを
+// 使っているものとして、除いたあとに残る場面が unknown より多いときだけ選ぶ
+// （記録の無い1文と、合致する場面1つだけなら選ばない）。
+func (b *Builder) PickSceneExcept(
+	word string, topics []string, minSceneZ float64, used map[string]bool, unknown int,
+) (sentence.ScenePick, bool) {
+	var rest [][]matched
+	n := 0
+	for _, hits := range b.matchScenes(word, topics, minSceneZ) {
+		var keep []matched
+		for _, h := range hits {
+			if !used[h.scene] {
+				keep = append(keep, h)
+			}
+		}
+		if len(keep) > 0 {
+			rest = append(rest, keep)
+			n += len(keep)
+		}
+	}
+	if n <= unknown {
+		return sentence.ScenePick{}, false
+	}
+	hits := rest[b.intn(len(rest))]
+	hit := hits[b.intn(len(hits))]
+	return sentence.ScenePick{
+		Topic: hit.topic, Scene: hit.scene, ShotID: hit.ids[b.intn(len(hit.ids))],
+	}, true
+}
+
 // HasScene は場面合致を通る場面があるか（テーマ寄せの判定用。抽選しない）。
 func (b *Builder) HasScene(word string, topics []string, minSceneZ float64) bool {
 	return len(b.matchScenes(word, topics, minSceneZ)) > 0

@@ -248,6 +248,40 @@ type SceneMatcher interface {
 	HasScene(word string, topics []string, minSceneZ float64) bool
 }
 
+// SceneExcluder は使った場面を除いて選べる SceneMatcher（themeshots.Builder）。
+type SceneExcluder interface {
+	// PickSceneExcept は used の場面を除いて PickScene と同じく選ぶ。unknown は
+	// 場面の記録が無い既存の文の数で、残る場面がそれより多いときだけ選ぶ。
+	PickSceneExcept(
+		word string, topics []string, minSceneZ float64, used map[string]bool, unknown int,
+	) (ScenePick, bool)
+}
+
+// freshSceneSelector は作り直し（RegenerateAppearances）の語と場面を決められる選定。
+type freshSceneSelector interface {
+	FreshSceneTarget(word, topic string, used map[string]bool, unknown int) (TargetWord, bool)
+}
+
+// FreshSceneTarget は指定テーマで、その語の例文がまだ使っていない場面の
+// TargetWord を返す。場面合致が無い・使っていない場面が無いなら false。
+func (s *TargetWordSelector) FreshSceneTarget(
+	word, topic string, used map[string]bool, unknown int,
+) (TargetWord, bool) {
+	ex, ok := s.Scenes.(SceneExcluder)
+	if !ok || topic == "" {
+		return TargetWord{}, false
+	}
+	pick, ok := ex.PickSceneExcept(word, pinnedTopics(topic), SceneZPinned, used, unknown)
+	if !ok {
+		return TargetWord{}, false
+	}
+	tw := TargetWord{Word: word, Topic: pick.Topic, Matched: true, ShotID: pick.ShotID}
+	if len(TopicGroups[topic]) > 0 {
+		tw.Group = topic
+	}
+	return tw, true
+}
+
 // ErrNoTargetWords は UVM から 1 語も選べなかったとき
 // （sentence_service.py:require_target_words:346 の RuntimeError）。
 var ErrNoTargetWords = errors.New("No target words selected from UVM")

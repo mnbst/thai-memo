@@ -125,3 +125,31 @@ func TestBLNoShotWords(t *testing.T) {
 		t.Error("ふつうの語に BL のセリフが付かない")
 	}
 }
+
+// 使った場面は選ばない。記録の無い文があれば、その数より多く残るときだけ選ぶ。
+func TestPickSceneExcept(t *testing.T) {
+	food := sentence.Topics[1]
+	a := firstShot(t, food, "値段を聞く")
+	c := firstShot(t, food, "売り切れ")
+	b := &Builder{Rand: rand.New(rand.NewSource(1)), Scenes: zScenes{
+		"値段を聞く": 4, "売り切れ": 4, "shot:" + a: 4, "shot:" + c: 4,
+	}}
+	topics := []string{food}
+	for range 100 {
+		pick, ok := b.PickSceneExcept("x", topics, sentence.SceneZPinned, map[string]bool{"値段を聞く": true}, 0)
+		if !ok || pick.Scene != "売り切れ" {
+			t.Fatalf("使った場面を除いていない: %+v %v", pick, ok)
+		}
+	}
+	if _, ok := b.PickSceneExcept("x", topics, sentence.SceneZPinned,
+		map[string]bool{"値段を聞く": true, "売り切れ": true}, 0); ok {
+		t.Error("合致する場面を使い切っても選んだ")
+	}
+	// 記録の無い文1つ: 合致2場面なら選ぶ、使った1場面を除いた残り1場面なら選ばない。
+	if _, ok := b.PickSceneExcept("x", topics, sentence.SceneZPinned, nil, 1); !ok {
+		t.Error("記録の無い1文で合致2場面なのに選ばない")
+	}
+	if _, ok := b.PickSceneExcept("x", topics, sentence.SceneZPinned, map[string]bool{"値段を聞く": true}, 1); ok {
+		t.Error("記録の無い1文が残り1場面を使っているはずなのに選んだ")
+	}
+}

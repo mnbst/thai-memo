@@ -148,6 +148,13 @@ type ProduceRequest struct {
 	// UnseenOnly が真なら例文は帯の未出語だけで作り、最低本数（MinSetSize）に
 	// 足りないぶんを既出例文で埋める（UsesUnseenOnly）。
 	UnseenOnly bool
+	// LLMBudget はこの呼び出しで LLM に作らせてよい残りの本数（premium の1日上限の
+	// 残り）。nil なら数えない。今は作り直し（RegenerateAppearances）だけが見る。
+	LLMBudget *int
+	// RegenerateRepeated が真なら、同じ文が RegenerateAppearances 回出たあとを
+	// LLM で別の場面の文に作り直す。ユーザーがテーマを指定した premium だけ真にする
+	// （配信がヒアリングから補ったテーマは指定に数えない）。
+	RegenerateRepeated bool
 }
 
 // ErrQualityRejected は品質判定に通らず、文をセットから外したこと。
@@ -223,6 +230,7 @@ func (p *Producer) ProduceBatch(
 		if err != nil {
 			log.Printf("produce: 既出例文の取得に失敗 uid=%s: %v", req.UID, err)
 		}
+		reused = p.regenerateRepeated(ctx, req, reused, llmCount(results))
 		results = append(results, reused...)
 	}
 	if len(results) > 0 {
@@ -234,6 +242,74 @@ func (p *Producer) ProduceBatch(
 	log.Printf("produce: 未出語も既出例文も無い uid=%s。従来の選び方に戻す", req.UID)
 	req.UnseenOnly = false
 	return p.produceBatch(ctx, db, freqRank, req, n)
+}
+
+// RegenerateAppearances は、テーマ指定の premium で同じ文がこの回数出たあと、
+// 次に出し直す代わりに LLM で別の場面の文を作るしきい値（4回目を作り直す）。
+//
+// テーマ指定の人は、コーパスの別の文で埋めると同じ語・同じテーマで場面も
+// 言い回しも似た文が続く。毎回 LLM で作ると費用がかさむので、同じ文が
+// 続いたときだけ作る。
+const RegenerateAppearances = 3
+
+// regenerateRepeated は出し直す文のうち、登場回数が RegenerateAppearances 以上の
+// ものを、まだ使っていない場面で LLM に作り直させる。
+//
+// 対象はテーマ指定の premium だけ。場面が無い・LLM の残りが無い・生成に
+// 失敗したときは元の出し直しのまま返す（セットを欠かさない）。作り直した文は
+// 置き換えではないので Reuse を付けず、元の doc に削除印も付かない。
+// usedLLM はこの呼び出しで既に LLM が作った本数。
+func (p *Producer) regenerateRepeated(
+	ctx context.Context, req ProduceRequest, reused []*Produced, usedLLM int,
+) []*Produced {
+	topic := strParam(req.Params, "topic")
+	if !req.RegenerateRepeated || !req.UsePremiumSpec || req.CacheOnly || topic == "" || len(reused) == 0 {
+		return reused
+	}
+	fresh, ok := p.Selector.(freshSceneSelector)
+	if !ok {
+		return reused
+	}
+	remaining := -1
+	if req.LLMBudget != nil {
+		remaining = max(*req.LLMBudget-usedLLM, 0)
+	}
+	for i, r := range reused {
+		if r.Reuse == nil || r.Reuse.Appearances < RegenerateAppearances {
+			continue
+		}
+		if remaining == 0 {
+			break
+		}
+		word := r.TargetWords[0]
+		tw, ok := fresh.FreshSceneTarget(word, topic, r.Reuse.UsedScenes, r.Reuse.UnknownScenes)
+		if !ok {
+			continue
+		}
+		generated, err := p.generate(ctx, req, []TargetWord{tw})
+		if len(generated) == 0 {
+			log.Printf("produce: 作り直しに失敗、出し直しのまま uid=%s key_word=%s: %v", req.UID, word, err)
+			continue
+		}
+		log.Printf("produce: regenerated_repeated uid=%s key_word=%s appearances=%d shot=%s",
+			req.UID, word, r.Reuse.Appearances, tw.ShotID)
+		reused[i] = generated[0]
+		if remaining > 0 {
+			remaining--
+		}
+	}
+	return reused
+}
+
+// llmCount は LLM で新しく作った本数（キャッシュ・出し直しは数えない）。
+func llmCount(produced []*Produced) int {
+	n := 0
+	for _, p := range produced {
+		if !p.FromCache && p.Reuse == nil {
+			n++
+		}
+	}
+	return n
 }
 
 func (p *Producer) produceBatch(

@@ -239,6 +239,7 @@ func (d *deliverer) buildSentences(
 		params := map[string]any{}
 		// 本人が選んだテーマ > ヒアリングの用途 > key_word 起点の自動選出。
 		preferred, _ := userData["preferred_topic"].(string)
+		userPinnedTopic := preferred != ""
 		if sentence.GreetingGenerationStopped(userData, preferred) {
 			preferred = ""
 		}
@@ -260,6 +261,10 @@ func (d *deliverer) buildSentences(
 			// LLM 生成分を1回判定し、不合格の文はセットから外す。
 			QualityCheck: deliveryQualityCheck(),
 			UnseenOnly:   sentence.UsesUnseenOnly(userData),
+			// 本人が選んだテーマ（preferred_topic）のときだけ、同じ文が続いたら
+			// 別の場面で作り直す。ヒアリングから補ったテーマは対象にしない。
+			RegenerateRepeated: userPinnedTopic,
+			LLMBudget:          premiumLLMBudget(userData, true),
 		}, n)
 		if err != nil {
 			log.Printf("daily_sentence: premium generation failed for %s: %v", uid, err)
@@ -595,6 +600,8 @@ func (d *deliverer) deliverOne(
 			FromCache:      produced.FromCache,
 			TrackViewed:    sentence.SupportsViewTracking(userData),
 			Quality:        produced.Quality,
+			// 出し直しは元の登場回数 +1、それ以外は 1。
+			AppearanceCount: produced.AppearanceCount(),
 		})
 		data["daily"] = true
 		data["daily_date"] = localDate

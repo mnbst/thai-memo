@@ -43,6 +43,66 @@ type Reuse struct {
 	Expired []string
 	// Favorite は Replaces のどれかがお気に入りか。新しい doc へ引き継ぐ。
 	Favorite bool
+	// Appearances は出し直す文がこれまでに出た回数（同じ本文の doc の
+	// appearance_count の最大。削除印つきも含む）。新しい doc は +1 して書く。
+	Appearances int
+	// UsedScenes はその語の例文が使った場面（削除印つきも含む）。
+	// 作り直し（RegenerateAppearances）で同じ場面を避けるのに使う。
+	UsedScenes map[string]bool
+	// UnknownScenes はその語の例文のうち、場面の記録が無い文の数（本文で数える）。
+	UnknownScenes int
+}
+
+// AppearanceCountField は例文 doc の登場回数。出し直すたびに同じ本文の最大値 +1、
+// それ以外で作った doc は 1。項目の無い既存の doc は 1 として扱う。
+const AppearanceCountField = "appearance_count"
+
+// AppearanceCount は新しい doc に書く登場回数。
+func (p *Produced) AppearanceCount() int {
+	if p.Reuse != nil {
+		return max(p.Reuse.Appearances, 1) + 1
+	}
+	return 1
+}
+
+// appearanceOf は doc の登場回数。項目が無ければ 1。
+func appearanceOf(data map[string]any) int {
+	switch n := data[AppearanceCountField].(type) {
+	case int64:
+		return max(int(n), 1)
+	case int:
+		return max(n, 1)
+	case float64:
+		return max(int(n), 1)
+	}
+	return 1
+}
+
+// usedScenes はその語の例文が使った場面と、場面の記録が無い文の数を返す。
+// 同じ本文の doc（出し直しの新旧）は1文として数える。
+func usedScenes(docs []sentenceDoc) (map[string]bool, int) {
+	used := map[string]bool{}
+	sceneOf := map[string]string{}
+	for _, doc := range docs {
+		text, _ := doc.Data["thai_text"].(string)
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+		scene, _ := doc.Data["scene"].(string)
+		if _, seen := sceneOf[text]; !seen || scene != "" {
+			sceneOf[text] = scene
+		}
+	}
+	unknown := 0
+	for _, scene := range sceneOf {
+		if scene == "" {
+			unknown++
+			continue
+		}
+		used[scene] = true
+	}
+	return used, unknown
 }
 
 // sentenceDoc は例文 doc と、その ID。
@@ -172,12 +232,17 @@ func pickReusableDoc(
 		intn = rand.Intn
 	}
 	picked := ok[intn(len(ok))]
+	reuse.Appearances = 1
+	reuse.UsedScenes, reuse.UnknownScenes = usedScenes(docs)
 	for _, doc := range docs {
 		data := doc.Data
-		if deleted, _ := data["deleted"].(bool); deleted {
+		if text, _ := data["thai_text"].(string); strings.TrimSpace(text) != strings.TrimSpace(picked.ThaiText) {
 			continue
 		}
-		if text, _ := data["thai_text"].(string); strings.TrimSpace(text) != strings.TrimSpace(picked.ThaiText) {
+		// 回数は削除印つきの旧 doc も見る（出し直した直後の新 doc が未読のまま
+		// 残っていても、最大値は落ちない）。
+		reuse.Appearances = max(reuse.Appearances, appearanceOf(data))
+		if deleted, _ := data["deleted"].(bool); deleted {
 			continue
 		}
 		if isUnreadDelivery(data) {
