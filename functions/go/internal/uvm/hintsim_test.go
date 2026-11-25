@@ -124,16 +124,19 @@ func TestHintGuessSweep(t *testing.T) {
 }
 
 // TestHintSteps は新語（NewWordP）が何問の正解で LearnedP を越えるかを固定する。
-// ヒント段の g を決めた根拠（HintPronGuess のコメント）。
+// ヒント段の g を決めた根拠（HintPronGuess のコメント）。読んだ当日
+// （SameDayMultiplier）も問題数は満額と同じ。
 func TestHintSteps(t *testing.T) {
 	for _, c := range []struct{ hint, want int }{{0, 1}, {1, 2}, {2, 3}} {
-		p, n := NewWordP, 0
-		for p <= LearnedP {
-			p = UpdateP(p, true, c.hint, 1)
-			n++
-		}
-		if n != c.want {
-			t.Errorf("hint=%d: %d 問で LearnedP 超え（期待 %d）", c.hint, n, c.want)
+		for _, w := range []float64{1, SameDayMultiplier} {
+			p, n := NewWordP, 0
+			for p <= LearnedP {
+				p = UpdateP(p, true, c.hint, w)
+				n++
+			}
+			if n != c.want {
+				t.Errorf("hint=%d w=%v: %d 問で LearnedP 超え（期待 %d）", c.hint, w, n, c.want)
+			}
 		}
 	}
 }

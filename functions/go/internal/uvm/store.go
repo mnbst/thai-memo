@@ -91,22 +91,38 @@ func evidenceField(data map[string]any) float64 {
 }
 
 // answerMultiplier は回答 1 件の重み（UpdateP の weight）に掛ける係数。
+// data は回答前の uvm doc（未登録なら nil）、now は Unix 秒。
 //
 //   - 確認クイズの正解: LearningCorrectMultiplier（不正解は等倍）
 //   - 例文を見直しての正解: SentenceReviewCorrectMultiplier（不正解は等倍）
+//   - まとめクイズで、確認クイズから SameDayWindow 以内: 正誤とも SameDayMultiplier
 //
-// 例文に出て 24 時間以内の語をまとめクイズで弱めていた（FreshMultiplier）が、
-// 2026-11-23 にやめ、読んだ当日も翌日以降と同じ満額にした。
-func answerMultiplier(quizType string, r Result) float64 {
+// 判定は confirmed_at（確認クイズに答えた時刻＝例文を読んだ時刻。RecordConfirmed）
+// で見る。confirmed_at を持たない doc（確認クイズを解いていない語・まとめクイズで
+// 答えたあとにしか確認クイズに出ていない語）は満額。
+func answerMultiplier(quizType string, r Result, data map[string]any, now float64) float64 {
+	learning := quizType == "learning"
+	sameDay := false
+	if !learning && !r.SentenceReviewed {
+		if at := floatField(data, ConfirmedAtField, -1); at >= 0 && now-at < SameDayWindow {
+			sameDay = true
+		}
+	}
 	if !r.IsCorrect {
+		if sameDay {
+			return SameDayMultiplier
+		}
 		return 1
 	}
 	m := 1.0
-	if quizType == "learning" {
+	if learning {
 		m *= LearningCorrectMultiplier
 	}
 	if r.SentenceReviewed {
 		return m * SentenceReviewCorrectMultiplier
+	}
+	if sameDay {
+		m *= SameDayMultiplier
 	}
 	return m
 }
@@ -126,6 +142,50 @@ func IsNewlyLearned(oldP, newP float64, quizType string) bool {
 	return quizType != "learning" && oldP <= LearnedP && newP > LearnedP
 }
 
+// ConfirmedAtField は確認クイズに答えた時刻（Unix 秒）を持つ uvm doc の項目。
+// まとめクイズの SameDayMultiplier の判定に使う。
+const ConfirmedAtField = "confirmed_at"
+
+// writesConfirmedAt は確認クイズの回答で confirmed_at を書くか。
+// まとめクイズで一度も答えていない語（quiz_attempts==0）だけ。答えた語は
+// 出し直しで読み直しても「読んだ当日」に戻さない（出し直しは P の低い語を
+// 選ぶので、戻すと弱めがかかり続けて P が上がりきらない）。
+func writesConfirmedAt(data map[string]any) bool {
+	return intField(data, "quiz_attempts", 0) == 0
+}
+
+// RecordConfirmed は確認クイズに答えた語の confirmed_at を書く。
+// uvm doc の無い語は作らない（例文の key_word なら露出で作られている）。
+// P・quiz_attempts・evidence・last_seen は触らない（WritesUVM）。
+func RecordConfirmed(ctx context.Context, db *firestore.Client, uid string, results []Result) error {
+	uvmRef := db.Collection("users").Doc(uid).Collection("uvm")
+	refs := make([]*firestore.DocumentRef, 0, len(results))
+	for _, r := range results {
+		if r.Word != "" {
+			refs = append(refs, uvmRef.Doc(r.Word))
+		}
+	}
+	if len(refs) == 0 {
+		return nil
+	}
+	snaps, err := db.GetAll(ctx, refs)
+	if err != nil {
+		return fmt.Errorf("uvm の一括取得に失敗: %w", err)
+	}
+	now := nowSeconds()
+	batch := db.BulkWriter(ctx)
+	for _, snap := range snaps {
+		if !snap.Exists() || !writesConfirmedAt(snap.Data()) {
+			continue
+		}
+		if _, err := batch.Update(snap.Ref, []firestore.Update{{Path: ConfirmedAtField, Value: now}}); err != nil {
+			return fmt.Errorf("confirmed_at の更新に失敗 (%s): %w", snap.Ref.ID, err)
+		}
+	}
+	batch.End()
+	return nil
+}
+
 // WritesUVM はその種類のクイズの回答を UVM に書くか。
 //
 // 確認クイズ（quiz_type=="learning"）は書かない（2026-11-22）。例文を読んだ直後に
@@ -135,7 +195,8 @@ func IsNewlyLearned(oldP, newP float64, quizType string) bool {
 // まとめクイズの正解（当時は FreshMultiplier で弱めていた）では 5 問かかっても戻れなかった
 // （prod: ยิ่ง が確認クイズの誤答で 0.4→0.15、まとめ 4 問正解で 0.44）。
 // P だけでなく quiz_attempts・evidence・last_seen も触らない（確認クイズしか
-// 解いていない語は「答えたことのない語」のまま扱う）。
+// 解いていない語は「答えたことのない語」のまま扱う）。書くのは confirmed_at だけ
+// （RecordConfirmed）。
 func WritesUVM(quizType string) bool {
 	return quizType != "learning"
 }
@@ -147,7 +208,7 @@ func WritesUVM(quizType string) bool {
 // freqRank が非 nil のときは続けて estimated_vocab を同期する。
 // 戻り値は、この更新で「覚えた」に入った語。
 //
-// 確認クイズ（WritesUVM が偽）は何も書かずに返す。
+// 確認クイズ（WritesUVM が偽）は confirmed_at だけ書いて返す。
 func BatchUpdate(
 	ctx context.Context,
 	db *firestore.Client,
@@ -157,7 +218,7 @@ func BatchUpdate(
 	quizType string,
 ) ([]string, error) {
 	if !WritesUVM(quizType) {
-		return nil, nil
+		return nil, RecordConfirmed(ctx, db, uid, results)
 	}
 	var learned []string
 	now := nowSeconds()
@@ -185,7 +246,7 @@ func BatchUpdate(
 
 		// weight は証拠の重み（UpdateP の尤度比の指数）。ヒントは weight では
 		// なく GuessRate 側で入るので、ここでは掛けない。
-		weight := r.scale() * answerMultiplier(quizType, r)
+		weight := r.scale() * answerMultiplier(quizType, r, existing[r.Word], now)
 
 		graded := IsGradedResult(quizType, r)
 		ev := ResultEvidence(quizType, r)
