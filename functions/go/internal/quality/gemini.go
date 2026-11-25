@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -58,6 +59,11 @@ const (
 // 呼称の音写は正しいあだ名表記（マウィンさん、prod の「先輩」）が 0.6 を超えていた（Luna で測った値を引き継ぐ）。
 var geminiThresholds = map[string]float64{"trans_vocative": vocativeThreshold}
 
+// geminiKeywordSceneQuestion は usage_scenarios がある文の key_word の用法の問い。
+// 場面を渡して問いでも見させると、語を合わない物・相手に使う文を拾う
+// （2026-11-25: ×เมนูนี้ใช้ไม่ได้ 0.27→0.56、prod プール100件で不合格 3→13・増えた10件は目視・Codex で7〜8件が怪しい文）。
+const geminiKeywordSceneQuestion = "`key_word` が `thai_text` の中で、タイ語の母語話者が使わない形で使われている（本来と違う意味で使う、その語が合わない相手・物・場面に使う 等）。`usage_scenarios` の場面で言う文として、`key_word` の意味が合わないものも含む。くだけた言い方や話し言葉の綴りであること自体は当てはまらない"
+
 // geminiSkip は Gemini に聞かない観点。訳の加筆は Luna で正常 5/48・欠陥 5/51 と見分けがつかず、
 // Gemini でも聞かずに測った。
 var geminiSkip = map[string]bool{"trans_add": true}
@@ -102,24 +108,27 @@ func geminiAspects(c Candidate, aspects []Aspect) (send, judged []Aspect) {
 
 // geminiRequest は Decisions API の本文を組む。state は Jev と同じもの（thai_text が先頭）を
 // JSON 文字列にしてテキストとして渡す。問いの文面は Jev と同じ（前置き＋問い）。
+// 前置きを入力へ1回だけ置くと 2,111 → 1,631 トークンに減るが、確率が動いて評価セットの
+// 誤検出が 0→4/80 に増えた（2026-11-25）。閾値はこの形で測ったものなので問いごとに付ける。
 func geminiRequest(model string, c Candidate, aspects []Aspect) (map[string]any, error) {
-	jb := requestBody("", c, aspects)
-	state, err := json.Marshal(jb["state"])
+	st, preamble := stateAndPreamble(c)
+	state, err := json.Marshal(st)
 	if err != nil {
 		return nil, err
 	}
-	jq := jb["questions"].(map[string]any)
 	qs := make(map[string]any, len(aspects))
 	for _, a := range aspects {
-		q, ok := jq[a.ID].(map[string]any)
-		if !ok {
+		if a.Check != nil {
 			continue
 		}
-		instr := q["instructions"].(string)
+		instr := a.Question
 		if alt, ok := geminiQuestions[a.ID]; ok {
-			instr = strings.TrimSuffix(instr, a.Question) + alt
+			instr = alt
 		}
-		qs[a.ID] = map[string]any{"type": "noul", "instructions": instr}
+		if a.ID == "keyword" && c.UsageScenarios != "" {
+			instr = geminiKeywordSceneQuestion
+		}
+		qs[a.ID] = map[string]any{"type": "noul", "instructions": preamble + instr}
 	}
 	return map[string]any{
 		"model":     model,
@@ -130,6 +139,42 @@ func geminiRequest(model string, c Candidate, aspects []Aspect) (map[string]any,
 
 // score は aspects（Gemini に送る観点）を聞き、観点 ID → はいの確率 を返す。
 func (g *Gemini) score(ctx context.Context, c Candidate, aspects []Aspect) (map[string]float64, error) {
+	if len(aspects) == 0 {
+		return map[string]float64{}, nil
+	}
+	// usage_scenarios は key_word の用法の問いにだけ見せる。入力は全問で共有されるので、
+	// 同じリクエストに載せると他の観点も場面に引っ張られる（訳の意味のずれの誤検出が
+	// prod プール300件で 0→10。「見ずに判定する」と問いに書いても 6 残った）。
+	if c.UsageScenarios != "" {
+		var kw, rest []Aspect
+		for _, a := range aspects {
+			if a.ID == "keyword" {
+				kw = append(kw, a)
+			} else {
+				rest = append(rest, a)
+			}
+		}
+		if len(kw) > 0 {
+			plain := c
+			plain.UsageScenarios = ""
+			out, err := g.score(ctx, plain, rest)
+			if err != nil {
+				return nil, err
+			}
+			ks, err := g.scoreOnce(ctx, c, kw)
+			if err != nil {
+				return nil, err
+			}
+			maps.Copy(out, ks)
+			return out, nil
+		}
+		c.UsageScenarios = ""
+	}
+	return g.scoreOnce(ctx, c, aspects)
+}
+
+// scoreOnce は aspects を1回のリクエストで聞く。
+func (g *Gemini) scoreOnce(ctx context.Context, c Candidate, aspects []Aspect) (map[string]float64, error) {
 	if len(aspects) == 0 {
 		return map[string]float64{}, nil
 	}

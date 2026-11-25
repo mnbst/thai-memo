@@ -107,7 +107,7 @@ func main() {
 			c := []quality.Candidate{{
 				ThaiText: s.ThaiText, JapaneseTranslation: s.JapaneseTranslation,
 				KeyWord: s.KeyWord, Lang: l, GenerationTier: *tier,
-				Topic: topicOf(s.Context),
+				Topic: topicOf(s.Context), UsageScenarios: usageOf(s.Context),
 			}}
 			reason, err := recheck(ctx, judge, c)
 			mu.Lock()
@@ -155,16 +155,10 @@ func main() {
 	fmt.Printf("書き戻した（バックアップ: %s）\n", backup)
 }
 
-// recheck は生成時の観点とプール用の観点で判定し、落とすなら理由を返す。
+// recheck は生成時の観点とプール用の観点を1回で判定し（ReviewAll。別々に聞くと
+// 共通の入力を2回送る）、落とすなら理由を返す。
 func recheck(ctx context.Context, judge *quality.Judge, c []quality.Candidate) (string, error) {
-	res, err := judge.Review(ctx, c)
-	if err != nil {
-		return "", err
-	}
-	if len(res.Flagged) > 0 {
-		return res.Verdicts[0].Reason, nil
-	}
-	res, err = judge.ReviewPool(ctx, c)
+	res, err := judge.ReviewAll(ctx, c)
 	if err != nil {
 		return "", err
 	}
@@ -175,6 +169,11 @@ func recheck(ctx context.Context, judge *quality.Judge, c []quality.Candidate) (
 }
 
 // topicOf は context.topic を返す。BLドラマ回の判定に登場人物の名前を渡すのに使う。
+func usageOf(ctx map[string]any) string {
+	u, _ := ctx["usage_scenarios"].(string)
+	return u
+}
+
 func topicOf(ctx map[string]any) string {
 	t, _ := ctx["topic"].(string)
 	return t

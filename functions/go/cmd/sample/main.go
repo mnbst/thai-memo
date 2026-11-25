@@ -203,6 +203,7 @@ func retry(
 			JapaneseTranslation: r.JapaneseTranslation,
 			KeyWord:             r.Word,
 			Topic:               contextTopic(r.Sentence.Context),
+			UsageScenarios:      contextUsage(r.Sentence.Context),
 			Lang:                l,
 			Words:               qualityWords(r.Sentence.WordBreakdown),
 		})
@@ -268,6 +269,7 @@ func recheck(ctx context.Context, j *quality.Judge, recs []record, l lang.Lang) 
 			JapaneseTranslation: r.Retried.JapaneseTranslation,
 			KeyWord:             r.Word,
 			Topic:               contextTopic(r.Retried.Context),
+			UsageScenarios:      contextUsage(r.Retried.Context),
 			Lang:                l,
 			Words:               qualityWords(r.Retried.WordBreakdown),
 		})
@@ -454,6 +456,11 @@ func (f fixedShot) FindBestDramaShot(
 }
 
 // contextTopic は context.topic を返す。BLドラマ回の判定に登場人物の名前を渡すのに使う。
+func contextUsage(ctx map[string]any) string {
+	u, _ := ctx["usage_scenarios"].(string)
+	return u
+}
+
 func contextTopic(ctx map[string]any) string {
 	t, _ := ctx["topic"].(string)
 	return t

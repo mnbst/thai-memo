@@ -60,9 +60,12 @@ type Candidate struct {
 	Pronunciation       string
 	JapaneseTranslation string
 	KeyWord             string
-	Topic               string
-	Emotion             string
-	GenerationTier      string
+	// UsageScenarios は例文を使う場面（context.usage_scenarios）。判定の state に載せ、
+	// 場面に合わない語の使い方を見させる（×料理に ใช้ไม่ได้）。
+	UsageScenarios string
+	Topic          string
+	Emotion        string
+	GenerationTier string
 	// Lang は訳文の言語。英語なら訳の観点を聞かない。
 	Lang      lang.Lang
 	CreatedAt time.Time
@@ -174,13 +177,16 @@ var Aspects = append([]Aspect{
 		Question: "`thai_text` をタイ語の母語話者が読んだとき、何を言いたい文なのかが分からない、または前半と後半が別々の話になっているか（あいさつ・前置きと無関係な用件をつなげる、比喩や理由が成り立たない、時を表す語と述語が噛み合わない等）"},
 	{ID: "conjunction", Label: "接続語の論理", Threshold: conjunctionThreshold,
 		Question: "`thai_text` の接続語（เพราะ、เลย、ก็เลย、ดังนั้น、แต่、แม้ว่า、ถึง 等）が、前後の内容の関係と合っていないか。理由・結果の接続語でつないだのに後ろが前の理由・結果として成り立たない（本来は逆接でつなぐべき）もの、逆接の接続語でつないだのに前後が対立していないものを含む",
-		Note:     "thai_text の接続語が前後の関係と合っていなかった（理由の接続語でつないだが、中身は逆接の関係だった等）。前後の関係に合う接続語を使う"},
+		Note:     "thai_text の接続語が前後の関係と合っていなかった（理由の接続語でつないだが、中身は逆接の関係だった等）。前後の関係に合う接続語を使う",
+		Trigger:  func(c Candidate) bool { return thaiConnectorRe.MatchString(c.ThaiText) }},
 	{ID: "register", Label: "王室・僧侶用語", Threshold: Threshold,
 		Question: "`thai_text` で王族（พระองค์、พระราชา、พระราชินี 等）や僧侶（พระ、หลวงพ่อ 等）の動作・所有・発言を、一般の人向けの語（กิน、นอน、มา、พูด、ให้、ทราบ 等）で表しているか。王族には王室用語（เสด็จ、เสวย、ตรัส、ทรงทราบ 等）、僧侶には僧侶用語（ฉัน、จำวัด、ถวาย 等）を使うのが正しい",
-		Note:     "王族や僧侶の動作・所有・発言を一般の人向けの語で書いていた。王族には王室用語、僧侶には僧侶用語を使う"},
+		Note:     "王族や僧侶の動作・所有・発言を一般の人向けの語で書いていた。王族には王室用語、僧侶には僧侶用語を使う",
+		Trigger:  func(c Candidate) bool { return royalMonkRe.MatchString(c.ThaiText) }},
 	{ID: "register_mix", Label: "語の高さの混在", Threshold: Threshold,
 		Question: "`thai_text` で、くだけた人称（มึง、กู、แก 等）を使う文の中に、改まった語・書き言葉（ยอดเยี่ยม、ดำเนินการ、สามารถ、ต้องการ、เนื่องจาก、อย่างไร、รับประทาน、ขอบพระคุณ 等）を混ぜているか",
-		Note:     "くだけた人称を使う文に、改まった語・書き言葉を混ぜていた。くだけた文には口語の語を使う"},
+		Note:     "くだけた人称を使う文に、改まった語・書き言葉を混ぜていた。くだけた文には口語の語を使う",
+		Trigger:  func(c Candidate) bool { return casualPronounRe.MatchString(c.ThaiText) }},
 	{ID: "trans_add", Label: "訳の加筆", Threshold: transAddThreshold, Langs: jaOnly,
 		Question: "`japanese_translation` に `thai_text` に無い情報（時制、場所、理由）が足されているか。括弧の補足は含まない"},
 	{ID: "trans_drop", Label: "訳の欠落", Threshold: transDropThreshold, Langs: jaOnly,
@@ -280,6 +286,16 @@ const vocativeThreshold = 0.7
 // Luna は 0.67〜0.98 を付けていた（prod 11/13〜15 の訳の接続 5件中4件。
 // ×คดีนี้ร้ายแรงกว่าที่เราคิดไว้มาก 0.96）。
 var thaiConnectorRe = regexp.MustCompile(`เพราะ|เลย|ดังนั้น|แต่|แม้|ถึง|ถ้า|หาก|จึง|เนื่องจาก|ทั้งที่|ทำให้|ก็|งั้น|เมื่อ|พอ|จน|หรือ|และ|แล้ว`)
+
+// royalMonkRe・casualPronounRe は register・register_mix を聞く文の語。語の無い文には
+// 当てはまらない問いなので聞かない（トークンを減らす。問いを減らしても残りの確率は変わらない）。
+// 2026-11-25 の評価セットと prod プール約340件で、この2観点と conjunction が閾値を超えた21件は
+// すべて語を含む文だった。広めに拾う（แก は แกง にも当たる）のは聞き漏らさないため。
+// ข้า・อี は ข้าว・อีก に当たりほぼ全文で聞くことになるので入れない。
+var (
+	royalMonkRe     = regexp.MustCompile(`พระ|หลวง|ทรง|เสด็จ|ราช|กษัตริย์|เจ้าชาย|เจ้าหญิง|เณร|ภิกษุ|สงฆ์|สมเด็จ|องค์|วัด|โยม`)
+	casualPronounRe = regexp.MustCompile(`มึง|กู|แก|เอ็ง|ไอ้`)
+)
 
 // katakanaRe は trans_vocative を聞く訳のカタカナ。音写はカタカナでしか起きないのに、
 // Luna は「先輩」としか書いていない訳にも 0.65〜0.99 を付けていた（prod 11/13〜15）。
@@ -429,9 +445,13 @@ type jevState struct {
 	ThaiText            string `json:"thai_text"`
 	JapaneseTranslation string `json:"japanese_translation"`
 	KeyWord             string `json:"key_word,omitempty"`
+	UsageScenarios      string `json:"usage_scenarios,omitempty"`
 	// CharacterNames は BLドラマ回の文に出てくる登場人物の名前。
 	CharacterNames []string `json:"character_names,omitempty"`
 }
+
+// usagePreamble は usage_scenarios があるときだけ aspectPreamble に足す。
+const usagePreamble = "`usage_scenarios` はその文を使う場面。"
 
 // namesPreamble は character_names があるときだけ aspectPreamble に足す。
 // แกง（カレー）・ขอบฟ้า（地平線）のように普通の語と同じ綴りの名前を、Jev が語として
@@ -471,16 +491,7 @@ func RequestBody(model string, c Candidate) map[string]any {
 
 // requestBody は aspects（その文に聞く観点）で本文を組む。
 func requestBody(model string, c Candidate, aspects []Aspect) map[string]any {
-	state := jevState{
-		ThaiText:            c.ThaiText,
-		JapaneseTranslation: c.JapaneseTranslation,
-		KeyWord:             c.KeyWord,
-		CharacterNames:      characterNames(c),
-	}
-	preamble := aspectPreamble
-	if len(state.CharacterNames) > 0 {
-		preamble += namesPreamble
-	}
+	state, preamble := stateAndPreamble(c)
 	questions := make(map[string]any, len(aspects))
 	for _, a := range jevAspects(aspects) {
 		questions[a.ID] = map[string]any{
@@ -493,6 +504,25 @@ func requestBody(model string, c Candidate, aspects []Aspect) map[string]any {
 		}
 	}
 	return map[string]any{"model": model, "state": state, "questions": questions}
+}
+
+// stateAndPreamble は判定に渡す state と、項目を説明する前置きを組む。
+func stateAndPreamble(c Candidate) (jevState, string) {
+	state := jevState{
+		ThaiText:            c.ThaiText,
+		JapaneseTranslation: c.JapaneseTranslation,
+		KeyWord:             c.KeyWord,
+		UsageScenarios:      c.UsageScenarios,
+		CharacterNames:      characterNames(c),
+	}
+	preamble := aspectPreamble
+	if state.UsageScenarios != "" {
+		preamble += usagePreamble
+	}
+	if len(state.CharacterNames) > 0 {
+		preamble += namesPreamble
+	}
+	return state, preamble
 }
 
 // score は 1 文を aspects（その文に聞く観点）で判定し、観点 ID → はいの確率 を返す。

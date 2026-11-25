@@ -1259,6 +1259,9 @@ Firestore の quiz_questions を走査し、解説・ダミー理由が指定と
 functions/go/cmd/poolrecheck/main.go
 GCS の例文プールを今の判定（Aspects＋PoolAspects）でティア別（-tier premium / free）に洗い直すコマンド。既定は dry run、-write でバックアップを取ってから書き戻す。-in でローカルの JSON（上げる前のキャッシュ例文）を判定する。
 
+functions/go/cmd/poolpatch/main.go
+GCS の例文プールから指定の文（thai_text）を外し、直した文を足すコマンド。足す文は CheckFixed を通し品詞を揃える。既定は dry run、-write でバックアップを取ってから読んだ版のまま書き戻す。
+
 functions/go/cmd/poolretag/main.go
 GCS の例文プールの品詞を今のタガーで付け直すコマンド。確度の高い語だけを変え、手で直した文は -skip で外す。既定は dry run、-write でバックアップを取ってから書き戻す。
 
