@@ -508,6 +508,7 @@ func sylParse(input string) (*SylParseResult, error) {
 			}
 		}
 	}
+	addSaraOeKaran(runes, pronun, getS, probEnd, stats)
 
 	// チャートのマージ（th2ipa.py:199-219）
 	for j := range end {
@@ -518,6 +519,9 @@ func sylParse(input string) (*SylParseResult, error) {
 					continue
 				}
 				merged := mergeKaran1(append(append([]string{}, s1...), s2...), pronun)
+				if hasSplitSaraOe(merged) {
+					continue
+				}
 				if _, exists := getS(0)[k]; !exists {
 					if schartx[0] == nil {
 						schartx[0] = map[int][]string{}
@@ -579,6 +583,53 @@ func strandedConsonant(prev, next string) bool {
 // มโน（มีมโนธรรม）・ปโภค（สาธารณูปโภค）・ตโล（สีตโลทก）・ศโล（กุศโลบาย）・
 // ธเร（ภูธเรศ）・ขเร（สิขเรศ）・ชเช（อุชเชนี）・ฆเน（วิฆเนศ）。
 var strandedExempt = []string{"มโน", "ปโภค", "ตโล", "ศโล", "ธเร", "ขเร", "ชเช", "ฆเน"}
+
+// hasSplitSaraOe は、เ＋子音1つの音節の直後に อร์ で始まる音節が来る区切りを含むか。
+// เCอร์ は母音 เ-อ（ə）の1音節なので切らない。統計では เก|อร์ が勝ち、
+// ล็อกเกอร์ → lɔ́k-kee-ɔɔ になっていた（辞書で เกอร์・เมอร์ の23語。2026-11-25）。
+// อ|ร์ と切ってから mergeKaran1 で อร์ に戻す経路もあるので、結合後の列で見る。
+// TLTK にはない、この移植だけの規則。
+//
+// 規則表（PRON）には เCอร์ を1音節で読む規則が子音によって無い（เตอร์・เมอร์ は
+// あり、เกอร์ は無い）。addSaraOeKaran が เCอ の読みからその候補を足す。
+func hasSplitSaraOe(syls []string) bool {
+	for i := 1; i < len(syls); i++ {
+		p := []rune(syls[i-1])
+		if len(p) == 2 && p[0] == 'เ' && isThaiConsonant(p[1]) && strings.HasPrefix(syls[i], "อร์") {
+			return true
+		}
+	}
+	return false
+}
+
+// addSaraOeKaran は、規則表に無い เCอร์ の1音節の候補を足す（hasSplitSaraOe 参照）。
+// 音素は เCอ の候補のうち1音節のもの（k@@0 等。声調は เดอร์・เมอร์ と同じ平声）。
+func addSaraOeKaran(runes []rune, pronun map[string][]string, getS func(int) map[int][]string, probEnd map[[2]int]float64, stats *Stats) {
+	for i := 0; i+5 <= len(runes); i++ {
+		if runes[i] != 'เ' || !isThaiConsonant(runes[i+1]) || string(runes[i+2:i+5]) != "อร์" {
+			continue
+		}
+		k := i + 5
+		if _, ok := getS(i)[k]; ok {
+			continue
+		}
+		syl := string(runes[i:k])
+		if len(pronun[syl]) > 0 {
+			continue
+		}
+		for _, ph := range pronun[string(runes[i:i+3])] {
+			if strings.Contains(ph, "'") {
+				continue
+			}
+			pronun[syl] = append(pronun[syl], ph)
+		}
+		if len(pronun[syl]) == 0 {
+			continue
+		}
+		getS(i)[k] = []string{syl}
+		probEnd[[2]int{i, k}] = probTrisyl(stats, getS(i)[k])
+	}
+}
 
 func isThaiConsonant(r rune) bool { return r >= 'ก' && r <= 'ฮ' && r != 'ฤ' && r != 'ฦ' }
 

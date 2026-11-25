@@ -118,6 +118,13 @@ func TestPronunciationOverrides(t *testing.T) {
 		{"ทีมเวิร์ก", "thiim-wə̂ək"},
 		{"ฟรีสไตล์", "frii-sà-tai"},      // 長母音＋ส は当てない
 		{"มีมโนธรรม", "mii-má-noo-tham"}, // strandedExempt
+		// เCอร์ は1音節（hasSplitSaraOe・addSaraOeKaran）。เก|อร์ と切らない
+		{"ล็อกเกอร์", "lɔ́k-kəə"},
+		{"ตู้ล็อกเกอร์", "tûu-lɔ́k-kəə"},
+		{"เบอร์เกอร์", "bəə-kəə"},
+		{"เกอร์คิน", "kəə-khin"},
+		{"แอนอเมอร์", "ɛɛn-à-məə"},
+		{"เดอร์", "dəə"}, // 規則表にある綴りは変えない
 		{"ลิขสิทธิ์", "lík-khà-sìt"},
 		// 語の一部（pronunciationParts）
 		{"ไลฟ์สตรีม", "lái-sà-triim"},
