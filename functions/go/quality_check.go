@@ -51,6 +51,7 @@ func (c *qualityChecker) Check(ctx context.Context, in sentence.CheckInput) (sen
 		Pronunciation:       in.Sentence.Pronunciation,
 		JapaneseTranslation: in.Sentence.JapaneseTranslation,
 		KeyWord:             in.KeyWord,
+		UsageScenarios:      usageScenarios(in.Sentence.Context),
 		Topic:               in.Topic,
 		GenerationTier:      in.Tier,
 		Lang:                in.Lang,
@@ -127,4 +128,10 @@ func qualityWords(ws []sentence.Word) []quality.Word {
 		out[i] = quality.Word{Word: w.Word, Meaning: w.Meaning}
 	}
 	return out
+}
+
+// usageScenarios は例文の context から使う場面の説明を取り出す（judge の state に載せる）。
+func usageScenarios(ctx map[string]any) string {
+	u, _ := ctx["usage_scenarios"].(string)
+	return u
 }

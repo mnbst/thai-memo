@@ -161,6 +161,7 @@ func candidateFrom(uid, docID string, data map[string]any) (quality.Candidate, b
 		Pronunciation:       stringField(data["pronunciation"]),
 		JapaneseTranslation: stringField(data["japanese_translation"]),
 		KeyWord:             stringField(data["key_word"]),
+		UsageScenarios:      stringField(ctxMap["usage_scenarios"]),
 		Topic:               stringField(ctxMap["topic"]),
 		Emotion:             stringField(ctxMap["emotion"]),
 		GenerationTier:      tier,

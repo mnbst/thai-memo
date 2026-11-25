@@ -94,9 +94,9 @@ func TestReviewSplitsFlaggedAndAccepted(t *testing.T) {
 	if v.Index != 1 || v.Reason != "共起 0.62・文法 0.55" {
 		t.Errorf("verdict = %+v", v)
 	}
-	// 閾値未満の観点も scores に残す（語の用法・訳の接続・呼称の音写は、
-	// 語・接続語・カタカナが無い文には聞かない）。
-	if len(v.Scores) != len(Aspects)-len(wordUsages)-2 {
+	// 閾値未満の観点も scores に残す（語の用法・訳の接続・呼称の音写・接続語の論理・
+	// 王室僧侶用語・語の高さの混在は、語・接続語・カタカナが無い文には聞かない）。
+	if len(v.Scores) != len(Aspects)-len(wordUsages)-5 {
 		t.Errorf("scores は全観点を持つ: %v", v.Scores)
 	}
 	if s.calls.Load() != 3 {

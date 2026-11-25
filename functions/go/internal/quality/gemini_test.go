@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -20,6 +21,8 @@ type geminiServer struct {
 	drop   bool
 	calls  atomic.Int32
 	last   atomic.Value
+	mu     sync.Mutex
+	bodies [][]byte
 }
 
 func (s *geminiServer) handler(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +33,9 @@ func (s *geminiServer) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	raw, _ := io.ReadAll(r.Body)
 	s.last.Store(raw)
+	s.mu.Lock()
+	s.bodies = append(s.bodies, raw)
+	s.mu.Unlock()
 	var body struct {
 		Input []struct {
 			Text string `json:"text"`
@@ -169,5 +175,50 @@ func TestGeminiErrorIsNotAccepted(t *testing.T) {
 	res, err := newGeminiJudge(t, &geminiServer{status: http.StatusBadRequest}).ReviewAll(t.Context(), sample(1))
 	if err == nil || len(res.Accepted) != 0 || len(res.Flagged) != 0 {
 		t.Fatalf("Gemini の失敗は合格にしない: %+v %v", res, err)
+	}
+}
+
+func TestGeminiKeywordAsksSceneWhenUsageGiven(t *testing.T) {
+	type sent struct {
+		Input []struct {
+			Text string `json:"text"`
+		} `json:"input"`
+		Questions map[string]map[string]string `json:"questions"`
+	}
+	for _, usage := range []string{"", "飲食店で注文できないと分かった場面。"} {
+		s := &geminiServer{}
+		c := sample(1)
+		c[0].UsageScenarios = usage
+		if _, err := newGeminiJudge(t, s).ReviewAll(t.Context(), c); err != nil {
+			t.Fatal(err)
+		}
+		wantReq := 1
+		if usage != "" {
+			wantReq = 2
+		}
+		if len(s.bodies) != wantReq {
+			t.Fatalf("usage=%q: リクエスト %d 回（%d 回のはず）", usage, len(s.bodies), wantReq)
+		}
+		for _, raw := range s.bodies {
+			var b sent
+			_ = json.Unmarshal(raw, &b)
+			text := b.Input[0].Text
+			_, hasKw := b.Questions["keyword"]
+			hasUsage := strings.Contains(text, `"usage_scenarios"`)
+			if usage == "" {
+				if hasUsage || !hasKw || strings.HasSuffix(b.Questions["keyword"]["instructions"], geminiKeywordSceneQuestion) {
+					t.Errorf("usage なし: 1回で今までの keyword の問いを聞くはず")
+				}
+				continue
+			}
+			if hasKw {
+				q := b.Questions["keyword"]["instructions"]
+				if len(b.Questions) != 1 || !hasUsage || !strings.HasSuffix(q, geminiKeywordSceneQuestion) || !strings.Contains(q, usagePreamble) {
+					t.Errorf("keyword は場面付きの入力で単独に、場面の問いで聞くはず: %d 問・場面 %v", len(b.Questions), hasUsage)
+				}
+			} else if strings.Contains(text, "usage_scenarios") {
+				t.Error("keyword 以外の観点には場面を見せないはず")
+			}
+		}
 	}
 }
