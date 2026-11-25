@@ -27,7 +27,7 @@ var ErrTooLong = errors.New("ttsaudio: text too long")
 // BucketName は音声を置くバケット（Terraform の tts_audio）。
 func BucketName(projectID string) string { return projectID + "-tts-audio" }
 
-// ObjectName は音声ファイルの名前。text は Normalize 済み。
+// ObjectName は音声ファイルの名前。text は SpokenText 済み。
 func ObjectName(voice, text string) string {
 	sum := sha256.Sum256([]byte(strings.Join(
 		[]string{VoiceConfigVersion, voice, SpeakingRate, text}, "|")))
@@ -68,7 +68,8 @@ func Ensure(ctx context.Context, store Store, synth Synthesizer, in Input) (Resu
 		return Result{}, ErrTooLong
 	}
 	voice := ChooseVoice(text, in)
-	name := ObjectName(voice, text)
+	spoken := SpokenText(text, in.Words)
+	name := ObjectName(voice, spoken)
 	res := Result{Object: name, Voice: voice}
 
 	data, ok, err := store.Get(ctx, name)
@@ -79,7 +80,7 @@ func Ensure(ctx context.Context, store Store, synth Synthesizer, in Input) (Resu
 		res.Audio = data
 		return res, nil
 	}
-	data, err = synth.Synthesize(ctx, voice, text)
+	data, err = synth.Synthesize(ctx, voice, spoken)
 	if err != nil {
 		return res, fmt.Errorf("synthesize: %w", err)
 	}

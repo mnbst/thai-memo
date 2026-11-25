@@ -124,8 +124,12 @@ class SentenceAudioCache {
   }
 
   /// 端末のファイル名。サーバーと同じく絵文字・空白の違いは同じ文として扱う。
-  static String _key(String text) =>
-      sha256.convert(utf8.encode(normalize(text))).toString();
+  /// ๆ・ฯ を含む文はサーバーで読み方を直したので、古い保存分を使わないよう名前を変える。
+  static String _key(String text) {
+    final n = normalize(text);
+    final hash = sha256.convert(utf8.encode(n)).toString();
+    return n.contains(RegExp('[ๆฯ]')) ? '$hash-v2' : hash;
+  }
 
   static final RegExp _emoji = RegExp(
     r'[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{200D}]',
