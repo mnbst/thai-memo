@@ -779,6 +779,9 @@ Jevスタブでの合否振り分け・観点別閾値・英訳で訳の観点�
 functions/go/deliver_daily_sentence.go
 daily_sentence_handlers.py の Go 版。毎時起動し、notify_utc_hour と notify_utc_hours（複数時刻）で引いた配信対象へ例文をセット（1.4.8以降は5本・旧版は1本）作ってFirestoreに書きFCM通知する。free はキャッシュのみ、実効プレミアム（premium.IsEffectivePremium）はLLM生成。通知成功後に、1本も読まれなかった過去の配信セットを消す（洗い替え）。
 
+functions/go/deliver_daily_sentence_unexpose.go
+洗い替えた未読配信の key_word のうち、一度も答えておらず生きた例文も無い語の UVM doc を消して未出に戻す。
+
 functions/go/deliver_daily_sentence_golden_test.go
 配信の生成分岐・コミット時の更新内容・ロールバックの更新内容をPython実装の出力と突き合わせる。
 

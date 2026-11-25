@@ -843,6 +843,7 @@ func (d *deliverer) purgeUnreadDeliveredSets(
 
 	bw := d.DB.BulkWriter(ctx)
 	marked := 0
+	purged := map[string]bool{}
 	for _, doc := range docs {
 		if isSentenceDeleted(doc.Data) || !stale[deliveredSetID(doc.ID, doc.Data)] {
 			continue
@@ -856,6 +857,7 @@ func (d *deliverer) purgeUnreadDeliveredSets(
 			log.Printf("daily_sentence: 未読セットの削除印に失敗 %s: %v", userRef.ID, err)
 			continue
 		}
+		purged[doc.ID] = true
 		marked++
 	}
 	removed := 0
@@ -867,8 +869,9 @@ func (d *deliverer) purgeUnreadDeliveredSets(
 		removed++
 	}
 	bw.End()
-	log.Printf("daily_sentence: purged unread sets uid=%s sets=%d marked=%d removed=%d",
-		userRef.ID, len(stale), marked, removed)
+	unexposed := unexposePurgedKeyWords(ctx, d.DB, userRef, purgedKeyWords(docs, purged), purged)
+	log.Printf("daily_sentence: purged unread sets uid=%s sets=%d marked=%d removed=%d unexposed=%d",
+		userRef.ID, len(stale), marked, removed, unexposed)
 }
 
 // expiredPurgedDocIDs は洗い替えで削除印を付けてから猶予を過ぎた doc。
