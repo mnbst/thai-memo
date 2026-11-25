@@ -321,15 +321,14 @@ func runGenerateThaiSentence(
 	logData["success"] = true
 	logData["processingTimeMs"] = int(time.Since(start).Milliseconds())
 
-	// UVM の更新はレスポンスを待たせない。ただし返す前に必ず合流する
-	// （Python 版のスレッドと同じ）。
+	// 語彙スコアの同期はレスポンスを待たせない。ただし返す前に必ず合流する
+	// （Python 版のスレッドと同じ）。露出の P 微増（KeyWordExposureStep）が
+	// この同期に入らず次の同期へずれることはあるが、答えた証拠（evidence）は
+	// 露出では動かないので、スコアへの影響はその幅に収まる。
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for _, p := range produced {
-			registerSentenceExposure(ctx, db, uid, p)
-		}
 		// 最新の実効権利を読み、真のfreeだけを従来どおり100語上限にする。
 		uvm.SyncEstimatedVocab(ctx, db, uid, freqRank)
 	}()
@@ -339,6 +338,11 @@ func runGenerateThaiSentence(
 		log.Printf("Failed to save sentence to Firestore: %v", err)
 		wg.Wait()
 		return nil, err
+	}
+	// 露出は保存できてから記録する。保存に失敗した語まで既出にすると、例文が
+	// 無いのに新しい例文の対象から外れる（出し直しにもまとめクイズにも出ない）。
+	for _, p := range produced {
+		registerSentenceExposure(ctx, db, uid, p)
 	}
 
 	sentences := make([]*sentence.Sentence, len(produced))
