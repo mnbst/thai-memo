@@ -54,6 +54,8 @@ type DocMeta struct {
 	// TrackViewed が真なら viewed=false を付けて「まだ読まれていない」状態で
 	// 保存する。既読はクライアントが true へ書き換える（SupportsViewTracking）。
 	TrackViewed bool
+	// AppearanceCount はこの文が出た回数（Produced.AppearanceCount）。0 は 1 として書く。
+	AppearanceCount int
 	// FromCache はバンク（FreeBank / CorpusBank）から出した文かどうか。
 	// 真なら品質監査もプール追加も対象外にする（既にバンクにある文なので
 	// 判定し直す意味が無く、プールへ入れ直すと同じ文が二重に増える）。
@@ -98,6 +100,7 @@ func (s *Sentence) BuildSentenceDoc(m DocMeta) map[string]any {
 		"generation_tier":        GenerationTier(m.UsePremiumSpec),
 		"lang":                   string(m.Lang),
 		"from_cache":             m.FromCache,
+		AppearanceCountField:     max(m.AppearanceCount, 1),
 	}
 	if m.TrackViewed {
 		doc["viewed"] = false

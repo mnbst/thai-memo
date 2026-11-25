@@ -149,6 +149,22 @@ var errPremiumDailyLimit = errors.New("QUOTA_EXCEEDED: " + premiumDailyLimitReas
 // premiumLLMSentencesTodayField は premium が今日 LLM で作った例文の本数。
 const premiumLLMSentencesTodayField = "premium_llm_sentences_today"
 
+// topicParam は生成パラメータで指定されたテーマ（空白は除く）。
+func topicParam(params map[string]any) string {
+	topic, _ := params["topic"].(string)
+	return strings.TrimSpace(topic)
+}
+
+// premiumLLMBudget は premium が今日あと LLM で作れる本数。free は nil（LLM の
+// 作り直しをしないので数えない）。
+func premiumLLMBudget(userData map[string]any, usePremiumSpec bool) *int {
+	if !usePremiumSpec {
+		return nil
+	}
+	left := max(quota.PremiumDailyLLMSentences-intValue(userData[premiumLLMSentencesTodayField]), 0)
+	return &left
+}
+
 var errGenerationInProgress = errors.New("GENERATION_IN_PROGRESS")
 
 // generationLeaseDuration は例文生成 lease の有効期限。
@@ -303,6 +319,9 @@ func runGenerateThaiSentence(
 		// LLM 生成分を1回判定し、不合格の文はセットから外す（待ち時間 +0.5 秒前後）。
 		QualityCheck: generationQualityCheck(),
 		UnseenOnly:   sentence.UsesUnseenOnly(userData),
+		LLMBudget:    premiumLLMBudget(userData, usePremiumSpec),
+		// テーマを指定した premium だけ、同じ文が続いたら別の場面で作り直す。
+		RegenerateRepeated: usePremiumSpec && topicParam(generationParams) != "",
 	}, count)
 	if err != nil {
 		return nil, err
@@ -393,6 +412,8 @@ func commitSentences(
 			FromCache:      p.FromCache,
 			TrackViewed:    trackViewed,
 			Quality:        p.Quality,
+			// 出し直しは元の登場回数 +1、それ以外は 1。
+			AppearanceCount: p.AppearanceCount(),
 		})
 		if p.Reuse != nil && p.Reuse.Favorite {
 			docs[i]["favorite"] = true
