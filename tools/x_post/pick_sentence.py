@@ -1,7 +1,8 @@
 """X 投稿に使う例文を1件選ぶ。
 
 候補は GCS の静的コーパスとプール。枠（--slot）ごとに、過去の表示回数からテーマを
-コードで決め、テーマと語数で絞った候補から1件を均等に抽選する。
+コードで決め、テーマと語数で絞った候補から1件を均等に抽選する。1行目の書き出し（👇まで）は
+Gemini に考えさせ、1行に収まる長さ（280字の残りが少なければそちら）を上限として渡す。
 
 投稿済みと履歴は gs://<project>-uvm-data/x_post/posted.json（X）と
 x_post/threads/posted.json（Threads）で管理する（--platform で切り替える）。
@@ -28,7 +29,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import requests
-from google.cloud import storage
+from google.cloud import secretmanager, storage
 from requests_oauthlib import OAuth1Session
 
 from pick_study_post import TWEET_LIMIT, weighted_length
@@ -199,6 +200,19 @@ DEFAULT_HOOK = {
 }
 
 
+def body_lines(sentence: dict) -> list[str]:
+    """書き出しのあとに並ぶ本文（タイ語・読み・訳）。"""
+    body = [sentence["thai_text"]]
+    if sentence.get("pronunciation"):
+        body.append(sentence["pronunciation"])
+    return body + ["", sentence["japanese_translation"]]
+
+
+def hook_point(lang: str) -> str:
+    # 英語は語と絵文字の間を空ける。
+    return " 👇" if lang == "en" else "👇"
+
+
 def build_text(
     sentence: dict, hook: str = "", theme: str = "", lang: str = "ja"
 ) -> str:
@@ -207,13 +221,8 @@ def build_text(
     書き出しが空か、入れると280字を超えるときはテーマの決まり文句に替える。
     ハッシュタグは付けない（2026-11 から。表示はおすすめ欄が中心で効きが薄い）。
     """
-    body = [sentence["thai_text"]]
-    if sentence.get("pronunciation"):
-        body.append(sentence["pronunciation"])
-    body += ["", sentence["japanese_translation"]]
-    text = ""
-    # 英語は語と絵文字の間を空ける。
-    point = " 👇" if lang == "en" else "👇"
+    body = body_lines(sentence)
+    point = hook_point(lang)
     for h in (hook, FALLBACK_HOOKS[lang].get(theme, DEFAULT_HOOK[lang])):
         if not h:
             continue
@@ -221,6 +230,185 @@ def build_text(
         if weighted_length(text) <= TWEET_LIMIT:
             return text
     return "\n".join(body)
+
+
+GEMINI_SECRET = "gemini-api-key"
+GEMINI_MODEL = "gemini-3.1-flash-lite"
+GEMINI_ENDPOINT = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    "{model}:generateContent"
+)
+# 書き出しが決まりに合わなかったとき、理由を添えて考え直させる回数（初回を含む）。
+HOOK_ATTEMPTS = 3
+# 伸びた書き出しの参考に渡す数。
+TOP_HOOKS = 5
+_THAI = re.compile("[\u0e00-\u0e7f]")
+# 書き出しの上限。スマホのタイムラインで1行に収まる長さ。英語は1字が細いので長めに取る。
+HOOK_MAX = {"ja": 20, "en": 45}
+# BLドラマ回の書き出しに入れない語（作品の手がかりのほか）。登場人物を「推し」と
+# 言い換えると推し活の話に読める（2026-11-03 に出た）。
+BL_OFF_THEME_WORDS = ["推し"]
+
+HOOK_PROMPT = {
+    "ja": """あなたは日本語話者向けのタイ語学習アカウントの中の人です。
+X に次の例文を投稿します。投稿は「書き出し👇 → タイ語 → 発音 → 日本語訳」の順に並びます。
+タイ語が読めない人もタイムラインで手を止める「書き出し」（1行目）を1つ書いてください。
+型は決めません。この例文に一番合う書き方を自分で考えてください。
+
+テーマ: {theme}
+タイ語: {thai}
+日本語訳: {translation}
+使い方: {usage}
+
+決まり:
+- 日本語で{limit}字以内の1行（{target}字前後が目安）。末尾の👇はこちらで付けるので書かない
+- タイ文字・ハッシュタグ・絵文字は使わない
+- 読んだ人が「この一言をいつ・誰に言うのか」が分かるように、使う場面を書く
+- 例文の中身を説明・実況しない（「〜がこちら」「〜です」のような紹介文にしない）
+- 例文の内容と食い違うことを書かない
+- 訳は最後に出るので、訳をそのまま繰り返さない
+- BLドラマのときは作品名・登場人物名・「推し」を出さない
+{top_hooks}
+出力は JSON で {{"hook": "書き出し"}}。""",
+    "en": """You run a Thai-learning account for English speakers.
+You are posting this sentence on X. The post is laid out as: hook 👇 -> Thai -> pronunciation -> English translation.
+Write one hook (the first line) that makes people who cannot read Thai stop scrolling.
+There is no fixed template. Choose the wording that fits this sentence best.
+
+Theme: {theme}
+Thai: {thai}
+Translation: {translation}
+Usage: {usage}
+
+Rules:
+- One line in English, at most {limit} characters (aim for about {target}). Do not add the 👇; it is appended for you
+- No Thai script, no hashtags, no emoji
+- Make it clear when and to whom you would say this line: describe the moment you would use it
+- Do not narrate or introduce the sentence's content (no "Here is..." style captions)
+- Do not contradict what the sentence actually says
+- The translation comes last, so do not repeat it
+- For BL drama posts, never name the drama, its characters, or say "oshi"/"fave"
+{top_hooks}
+Output JSON: {{"hook": "the hook"}}.""",
+}
+
+TOP_HOOKS_SECTION = {
+    "ja": "\n参考: これまで表示回数が多かった書き出し（多い順）。文言は使い回さないこと。\n{lines}\n",
+    "en": "\nReference: hooks that got the most views so far. Do not reuse their wording.\n{lines}\n",
+}
+RETRY_NOTE = {
+    "ja": "\n前回の書き出し「{hook}」は使えなかった（{problem}）。直して書き直してください。",
+    "en": "\nYour last hook \"{hook}\" was rejected ({problem}). Write a new one.",
+}
+
+
+def hook_limit(sentence: dict, lang: str) -> int:
+    """書き出しに使える字数。1行に収まる長さか、280字（日本語は2字分）から本文と👇を
+    引いた残りの短いほう。"""
+    rest = "\n".join([hook_point(lang), ""] + body_lines(sentence))
+    budget = TWEET_LIMIT - weighted_length(rest)
+    return min(HOOK_MAX[lang], budget // 2 if lang == "ja" else budget)
+
+
+def hook_problem(hook: str, theme: str, limit: int) -> str:
+    """書き出しが決まりに合わない理由。合えば空。"""
+    if not hook:
+        return "空"
+    if len(hook) > limit:
+        return f"{len(hook)}字で{limit}字を超えた。{len(hook) - limit}字以上削る"
+    if "#" in hook or _THAI.search(hook):
+        return "ハッシュタグかタイ文字が入った"
+    if theme == "BLドラマ":
+        clues = list(BL_DRAMA_MARKERS) + [
+            m for ms in BL_DRAMA_MARKERS.values() for m in ms if not _THAI.search(m)
+        ] + BL_OFF_THEME_WORDS
+        hit = next((c for c in clues if c.lower() in hook.lower()), "")
+        if hit:
+            return f"作品の手がかり「{hit}」が入った"
+    return ""
+
+
+def top_hooks_section(history: list[dict], now: datetime, lang: str) -> str:
+    """表示回数が確定した投稿から、伸びた書き出しを上から並べる。"""
+    done = [
+        h
+        for h in history
+        if h.get("hook") and "impressions" in h and settled(h, now)
+    ]
+    top = sorted(done, key=lambda h: h["impressions"], reverse=True)[:TOP_HOOKS]
+    if not top:
+        return ""
+    lines = "\n".join(f"- {h['hook']}（{h['impressions']}）" for h in top)
+    return TOP_HOOKS_SECTION[lang].format(lines=lines)
+
+
+def ask_gemini(key: str, prompt: str) -> str:
+    response = requests.post(
+        GEMINI_ENDPOINT.format(model=GEMINI_MODEL),
+        headers={"x-goog-api-key": key},
+        json={
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.7,
+                # 思考は使わず、出力の上限で費用を抑える。
+                "maxOutputTokens": 256,
+                "thinkingConfig": {"thinkingLevel": "minimal"},
+                "responseMimeType": "application/json",
+                "responseSchema": {
+                    "type": "object",
+                    "properties": {"hook": {"type": "string"}},
+                    "required": ["hook"],
+                },
+            },
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+    text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+    hook = str(json.loads(text).get("hook") or "").strip()
+    # 1行目だけ使い、付けてしまった👇は外す（こちらで付ける）。
+    return hook.splitlines()[0].rstrip("👇").strip() if hook else ""
+
+
+def generate_hook(
+    project: str, sentence: dict, theme: str, lang: str, top_hooks: str
+) -> str:
+    """Gemini に書き出しを考えさせる。決まりに合わなければ理由を添えて考え直させ、
+    最後まで合わなければ空を返す（呼び出し側でテーマの決まり文句に替わる）。"""
+    limit = hook_limit(sentence, lang)
+    if limit <= 0:
+        return ""
+    try:
+        key = secretmanager.SecretManagerServiceClient().access_secret_version(
+            request={
+                "name": f"projects/{project}/secrets/{GEMINI_SECRET}/versions/latest"
+            }
+        ).payload.data.decode("utf-8")
+    except Exception as error:  # noqa: BLE001 鍵が取れなくても投稿は止めない
+        print(f"Gemini の鍵が取れない: {error}", file=sys.stderr)
+        return ""
+    prompt = HOOK_PROMPT[lang].format(
+        theme=theme,
+        thai=sentence["thai_text"],
+        translation=sentence["japanese_translation"],
+        usage=(sentence.get("context") or {}).get("usage_scenarios") or "-",
+        limit=limit,
+        target=limit * 3 // 4,
+        top_hooks=top_hooks,
+    )
+    note = ""
+    for _ in range(HOOK_ATTEMPTS):
+        try:
+            hook = ask_gemini(key, prompt + note)
+        except (requests.RequestException, KeyError, IndexError, ValueError) as error:
+            print(f"Gemini の書き出しに失敗: {error}", file=sys.stderr)
+            continue
+        problem = hook_problem(hook, theme, limit)
+        if not problem:
+            return hook
+        print(f"書き出しを考え直させる: {hook}（{problem}）", file=sys.stderr)
+        note = RETRY_NOTE[lang].format(hook=hook, problem=problem)
+    return ""
 
 
 # 発音表記に算用数字が残っていたら、数字が読みに変換されていない
@@ -631,7 +819,7 @@ def main() -> int:
     print(f"テーマ: {theme}（{theme_reason}）", file=sys.stderr)
 
     picked = rng.choice(candidates)
-    reason, hook, chooser = "", "", "抽選"
+    reason, chooser = "", "抽選"
 
     # 詳細画面は作成日を出す。Firestore の Timestamp はそのままでは JSON に
     # できないので、投稿日に置き換えて「不明」を出さない。
@@ -646,10 +834,14 @@ def main() -> int:
     (out / "sentence.json").write_text(
         json.dumps(picked, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    text = build_text(picked, hook, theme, lang)
+    generated = generate_hook(
+        args.project, picked, theme, lang, top_hooks_section(history, now, lang)
+    )
+    text = build_text(picked, generated, theme, lang)
     # 実際に使った書き出し（決まり文句に替わった場合も含む）を履歴に残す。
     first = text.splitlines()[0]
     hook = first if first.endswith("👇") else ""
+    print(f"書き出し: {first}（{'Gemini' if generated else '決まり文句'}）", file=sys.stderr)
     (out / "text.txt").write_text(text, encoding="utf-8")
     (out / "key.txt").write_text(sentence_key(picked), encoding="utf-8")
     (out / "theme.txt").write_text(theme, encoding="utf-8")
@@ -665,6 +857,7 @@ def main() -> int:
                 "reason": reason,
                 "hook": hook,
                 "chooser": chooser,
+                "hook_by": "gemini" if generated else "fallback",
                 **features(picked),
             },
             ensure_ascii=False,

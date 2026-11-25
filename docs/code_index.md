@@ -1498,7 +1498,7 @@ tools/x_post/README.md
 X（@everydaythai775）へ毎日の例文を自動投稿する仕組みの全体像と、必要なシークレットの手順。
 
 tools/x_post/pick_sentence.py
-枠ごとにテーマを表示回数から決め、テーマと語数で絞った候補から1件を均等に抽選する。投稿済みと履歴は x_post/posted.json で管理。
+枠ごとにテーマを表示回数から決め、テーマと語数で絞った候補から1件を均等に抽選する。1行目の書き出しは Gemini が1行に収まる長さで考える。投稿済みと履歴は x_post/posted.json で管理。
 
 tools/x_post/pick_study_post.py
 Tips・ガイドの枠で study_posts.json から投稿文を1件抽選する（一巡するまで重複なし）。ガイドは貼る欄を guide_shot.env に書く。
