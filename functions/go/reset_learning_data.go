@@ -68,7 +68,7 @@ func resetLearningData(ctx context.Context, req *callable.Request) (any, error) 
 	}
 
 	_, err = userRef.Set(ctx, map[string]any{
-		// 日次残数と受験間隔は保持する。リセットで利用制限を回避させない。
+		// 日次残数は保持する。リセットで利用制限を回避させない。
 		"daily_sentence_generated": false,
 		"sentence_generated_count": 0,
 		"estimated_vocab":          0,
@@ -80,8 +80,11 @@ func resetLearningData(ctx context.Context, req *callable.Request) (any, error) 
 		// 「前回」表示が、消したはずの記録を指したままにならないように）。
 		"vocab_test_at":    firestore.Delete,
 		"vocab_test_vocab": firestore.Delete,
-		// 受験間隔（vocab_test_window_at / vocab_test_count）は残す。
-		// ここで消せるとリセットするだけで月1回の制限を抜けられる。
+		// 受験間隔（vocab_test_window_at / vocab_test_count）も消し、すぐ測り直せる
+		// ようにする。リセットと受験の繰り返しで月1回は抜けられるが、出題は
+		// 静的な語なのでコストは無く、4択の上振れも段を重ねるほど釣れない。
+		"vocab_test_window_at": firestore.Delete,
+		"vocab_test_count":     firestore.Delete,
 	}, firestore.MergeAll)
 	if err != nil {
 		return nil, callable.Errorf(callable.Internal, "学習データの初期化に失敗しました")
