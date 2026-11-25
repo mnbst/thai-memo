@@ -693,7 +693,7 @@ functions/go/sentence_audio.go
 getSentenceAudio callable。例文の全文のお手本音声（Cloud TTS Chirp3-HD の MP3）を返す。GCS に無ければ作って置く（新しく作るのは1人1日100文まで、tts_usage で数える）。
 
 functions/go/internal/ttsaudio/
-お手本音声の声の選択（文末→一人称→BL→ハッシュ）・ファイル名（中身のハッシュ）・生成と GCS 保存（無いときだけ書く）。
+お手本音声の声の選択（文末→一人称→BL→ハッシュ）・読ませる文（ๆ を直前の語の繰り返しに、略記の ฯ を落とす）・ファイル名（中身のハッシュ）・生成と GCS 保存（無いときだけ書く）。
 
 functions/go/internal/poolreview/
 確認待ちのコレクション名・状態・doc ID と、OK の文を本番プールへ足す処理（重複排除・上限なし）。

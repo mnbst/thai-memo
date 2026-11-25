@@ -131,3 +131,31 @@ func TestEnsure(t *testing.T) {
 		t.Fatalf("want ErrEmpty, got %v", err)
 	}
 }
+
+func TestSpokenText(t *testing.T) {
+	ws := func(xs ...string) []Word {
+		out := make([]Word, len(xs))
+		for i, x := range xs {
+			out[i] = Word{Word: x}
+		}
+		return out
+	}
+	cases := []struct {
+		name, text string
+		words      []Word
+		want       string
+	}{
+		{"ๆ付きの語", "ร้านอยู่ตรงข้างๆ", ws("ร้าน", "อยู่", "ตรง", "ข้างๆ"), "ร้านอยู่ตรงข้างข้าง"},
+		{"ๆが別の語", "เด็กๆ ชอบ", ws("เด็ก", "ๆ", "ชอบ"), "เด็กเด็ก ชอบ"},
+		{"空白の後のๆ", "ช้า ๆ หน่อย", ws("ช้า", "ๆ", "หน่อย"), "ช้า ช้า หน่อย"},
+		{"分解なし", "ตรงข้างๆ", nil, "ตรงข้างๆ"},
+		{"ฯを落とす", "ไปกรุงเทพฯ", ws("ไป", "กรุงเทพฯ"), "ไปกรุงเทพ"},
+		{"ฯลฯは残す", "ผัก ผลไม้ ฯลฯ", ws("ผัก", "ผลไม้", "ฯลฯ"), "ผัก ผลไม้ ฯลฯ"},
+		{"記号なし", "ฝนตก", ws("ฝน", "ตก"), "ฝนตก"},
+	}
+	for _, c := range cases {
+		if got := SpokenText(c.text, c.words); got != c.want {
+			t.Errorf("%s: got %q want %q", c.name, got, c.want)
+		}
+	}
+}
