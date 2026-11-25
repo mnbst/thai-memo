@@ -114,8 +114,6 @@ func TestResetLearningDataLive(t *testing.T) {
 	for k, w := range map[string]any{
 		"remaining_sentences":      int64(0),
 		"remaining_quizzes":        int64(2),
-		"vocab_test_count":         int64(1),
-		"vocab_test_window_at":     int64(123),
 		"sentence_generated_count": int64(0),
 		"estimated_vocab":          int64(0),
 		"daily_sentence_generated": false,
@@ -123,6 +121,12 @@ func TestResetLearningDataLive(t *testing.T) {
 	} {
 		if v := snap.Data()[k]; v != w {
 			t.Errorf("users/%s.%s = %#v, want %#v", uid, k, v, w)
+		}
+	}
+	// 受験間隔も消える（すぐ語彙テストを受け直せる）。
+	for _, k := range []string{"vocab_test_count", "vocab_test_window_at"} {
+		if _, ok := snap.Data()[k]; ok {
+			t.Errorf("users/%s.%s が残っている", uid, k)
 		}
 	}
 }
