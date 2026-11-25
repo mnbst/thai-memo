@@ -78,6 +78,23 @@ const (
 	LearningEvidenceScale = 0.1
 	// SentenceReviewCorrectMultiplier は例文レビュー由来の正解を弱める係数。
 	SentenceReviewCorrectMultiplier = 0.1
+	// SameDayMultiplier は、確認クイズに答えて（＝例文を読んで）から
+	// SameDayWindow 以内にまとめクイズで答えたときの係数。正誤とも掛ける（片側だけ弱めると Result.FormatScale と同じ
+	// 偏りが出る）。読んだ当日の正解は短期の記憶でも当たるので少しだけ弱め、
+	// P を低めに残して翌日以降の SRS 復習に選ばれやすくする。
+	//
+	// 新語（NewWordP）が LearnedP を越える問題数（1 / 2 / 3 問）は満額と同じに
+	// 保つ（TestHintSteps）。保てる下限はヒント無し 0.46・発音 0.53・日本語 0.70。
+	// PFloor からの問題数（満額 2 / 5 / 9）は 0.98 未満で必ず増え、0.8 では
+	// 3 / 6 / 12 問。
+	//
+	// 2026-11-23 にやめた FreshMultiplier（24 時間・×0.4）の弱い版（2026-11-25）。
+	SameDayMultiplier = 0.8
+	// SameDayWindow は「読んだ当日」とみなす時間（秒）。確認クイズの時刻
+	// （confirmed_at）から数える。例文を作った時刻だと、翌日に読んだ文が満額に、
+	// 読んでいない配信の語が弱められてしまう。
+	SameDayWindow = 24 * 60 * 60.0
+
 	// SpellingChoiceScale は綴り4択（入門用）の証拠を弱める係数。正誤とも同じ。
 	//
 	// この形式は出題文が読みと意味を渡してしまうので、正解は「綴りを

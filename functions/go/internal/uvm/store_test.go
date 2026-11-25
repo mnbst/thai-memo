@@ -138,26 +138,50 @@ func TestEstimateVocabOriginKnownMax(t *testing.T) {
 }
 
 func TestAnswerMultiplier(t *testing.T) {
+	now := 1_000_000.0
+	today := map[string]any{ConfirmedAtField: now - 3600}
+	yesterday := map[string]any{ConfirmedAtField: now - SameDayWindow}
 	cases := []struct {
 		name     string
 		quizType string
 		r        Result
+		data     map[string]any
 		want     float64
 	}{
-		{"まとめの正解は満額", "", Result{IsCorrect: true}, 1},
-		{"まとめの不正解は満額", "", Result{IsCorrect: false}, 1},
-		{"日本語ヒントの正解も満額", "", Result{IsCorrect: true, HintLevel: 2}, 1},
-		{"例文を見直した不正解は満額", "", Result{IsCorrect: false, SentenceReviewed: true}, 1},
-		{"確認クイズの不正解は満額", "learning", Result{IsCorrect: false}, 1},
-		{"例文を見直した正解", "", Result{IsCorrect: true, SentenceReviewed: true}, SentenceReviewCorrectMultiplier},
-		{"確認クイズの正解は従来どおり", "learning", Result{IsCorrect: true}, LearningCorrectMultiplier},
+		{"当日の正解は弱める", "", Result{IsCorrect: true}, today, SameDayMultiplier},
+		{"当日の不正解も弱める", "", Result{IsCorrect: false}, today, SameDayMultiplier},
+		{"日本語ヒントの当日の正解", "", Result{IsCorrect: true, HintLevel: 2}, today, SameDayMultiplier},
+		{"24時間ちょうどは満額", "", Result{IsCorrect: true}, yesterday, 1},
+		{"confirmed_at の無い doc は満額", "", Result{IsCorrect: true}, map[string]any{"last_seen": now}, 1},
+		{"未登録語は満額", "", Result{IsCorrect: true}, nil, 1},
+		{"例文を見直した不正解は満額", "", Result{IsCorrect: false, SentenceReviewed: true}, today, 1},
+		{"例文を見直した正解は重ねない", "", Result{IsCorrect: true, SentenceReviewed: true}, today, SentenceReviewCorrectMultiplier},
+		{"確認クイズの不正解は満額", "learning", Result{IsCorrect: false}, today, 1},
+		{"確認クイズの正解は従来どおり", "learning", Result{IsCorrect: true}, today, LearningCorrectMultiplier},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := answerMultiplier(tc.quizType, tc.r); got != tc.want {
+			if got := answerMultiplier(tc.quizType, tc.r, tc.data, now); got != tc.want {
 				t.Fatalf("answerMultiplier = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestWritesConfirmedAt(t *testing.T) {
+	cases := []struct {
+		name string
+		data map[string]any
+		want bool
+	}{
+		{"まとめ未回答", map[string]any{"quiz_attempts": int64(0)}, true},
+		{"フィールド無し", map[string]any{}, true},
+		{"まとめ回答済み", map[string]any{"quiz_attempts": int64(2)}, false},
+	}
+	for _, c := range cases {
+		if got := writesConfirmedAt(c.data); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
 	}
 }
 

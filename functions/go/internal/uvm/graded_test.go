@@ -205,7 +205,7 @@ func TestFormatScale(t *testing.T) {
 	}
 	// 不正解は同じ段・同じ weight の正解 1 問をちょうど打ち消す（UpdateP）。
 	for _, hint := range []int{0, 1, 2} {
-		for _, w := range []float64{1.0, SpellingChoiceScale} {
+		for _, w := range []float64{1.0, SpellingChoiceScale, SameDayMultiplier} {
 			back := UpdateP(UpdateP(NewWordP, true, hint, w), false, hint, w)
 			if math.Abs(back-NewWordP) > 1e-9 {
 				t.Errorf("hint=%d w=%v: 正解→不正解で %.4f（元 %.4f）", hint, w, back, NewWordP)
