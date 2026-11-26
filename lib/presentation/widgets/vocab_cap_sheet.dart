@@ -7,16 +7,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
+import '../providers/remaining_quota_provider.dart';
 import '../screens/paywall_screen.dart';
 import 'vocab_level.dart';
 
-const _shownKey = 'vocab_cap_sheet_shown';
-const _testedShownKey = 'vocab_cap_sheet_tested_shown';
+// 最後に出した時刻（ms）。版ごとに持つ（初心者版を見た人にもテスト版は出す）。
+// 旧版の「出した」印（vocab_cap_sheet_shown 等）は時刻が無いので見ない。
+const _lastShownKey = 'vocab_cap_sheet_last_shown_at';
+const _testedLastShownKey = 'vocab_cap_sheet_tested_last_shown_at';
 
-/// free が語彙スコア100に届いたとき、まとめクイズの結果の上に1度だけ出すシート。
+/// free の語彙スコアが上限（100）に張り付いているとき、まとめクイズの結果の
+/// 上に出すシート。前回から [reshowInterval] 空けて出し直す。
 ///
 /// 結果カードの小さな1行（quiz_vocab_cap_banner）は30日でタップ4人と気づかれて
 /// いなかった。到達を祝ってから、この先が premium だと段で見せる。
+/// 以前は「100へ届いた回」に端末で1度だけ出していたが、スコアは例文の生成でも
+/// 動くので結果画面では既に100のことが多く、張り付いた人のほとんどに出ていなかった。
 ///
 /// 語彙テストで100語を超えていた人（[testedVocab]）は、体験が終わると上から
 /// 100へ切り下がるので「届いた」瞬間が無く、段の図も祝いも合わない。この人には
@@ -35,23 +41,42 @@ class VocabCapSheet extends StatelessWidget {
   static bool isTestedOverCap(int testedVocab) =>
       testedVocab > freeVocabScoreLimit;
 
-  /// まだ出していなければ出す。出したら端末に記録し、2度目からは出さない。
-  /// 版ごとに別に記録する（初心者版を見た人にもテスト版は1度出す）。
-  static Future<void> showOnce(BuildContext context,
+  /// 出し直すまでの間隔。張り付いた人はまとめクイズを毎日のように解くので、
+  /// 毎回出すと一番続けている free に毎日全画面の勧誘が出る。
+  static const reshowInterval = Duration(days: 3);
+
+  /// 前回から [reshowInterval] 経っていれば出す（未表示なら出す）。
+  static Future<void> showIfDue(BuildContext context,
       {int testedVocab = 0}) async {
     final tested = isTestedOverCap(testedVocab);
-    final key = tested ? _testedShownKey : _shownKey;
+    final key = tested ? _testedLastShownKey : _lastShownKey;
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(key) ?? false) return;
-    await prefs.setBool(key, true);
+    final now = DateTime.now();
+    if (!isDue(prefs.getInt(key), now)) return;
     if (!context.mounted) return;
+    final container = ProviderScope.containerOf(context, listen: false);
+    // 呼び出し側の判定は表示の予約時点のもの。待つ間に体験・購入が確定して
+    // いれば出さない。
+    if (container.read(effectivePremiumProvider)) return;
+    // 出せると決まってから記録する。先に書くと、画面が閉じて出せなかった回でも
+    // 3日間出なくなる。ここから表示までは await を挟まない（端末の値は
+    // setInt の呼び出し時点で更新される）。
+    unawaited(prefs.setInt(key, now.millisecondsSinceEpoch));
     // 表示数。押した数は paywall_view（source=vocab_cap_sheet[_tested]）で数える。
     unawaited(
-      ProviderScope.containerOf(context, listen: false)
+      container
           .read(analyticsServiceProvider)
           .logPaywallBanner(action: 'shown', source: _source(tested)),
     );
     await show(context, testedVocab: testedVocab);
+  }
+
+  /// [lastShownMs] は前回出した時刻（未表示は null）。時計が戻った場合も出す。
+  @visibleForTesting
+  static bool isDue(int? lastShownMs, DateTime now) {
+    if (lastShownMs == null) return true;
+    final last = DateTime.fromMillisecondsSinceEpoch(lastShownMs);
+    return last.isAfter(now) || now.difference(last) >= reshowInterval;
   }
 
   static String _source(bool tested) =>

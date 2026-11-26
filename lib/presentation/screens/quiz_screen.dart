@@ -929,20 +929,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ? after
                 : savedBefore;
         final diff = after - displayBefore;
-        // free がこのクイズで上限に届いた回だけ、全画面のシートで先が premium だと
-        // 見せる（端末につき1度）。下の小さな1行はそのまま残す。
-        // 語彙テストで上限を超えていた人は、体験終了で上から100へ切り下がり
-        // 「届く」回が来ないので、上限に張り付いていればテスト版を出す。
+        // free が上限に張り付いていれば、全画面のシートで先が premium だと見せる
+        // （間隔は VocabCapSheet.reshowInterval）。下の小さな1行はそのまま残す。
+        // 「このクイズで届いた回」に限らないのは、スコアが例文の生成でも動き、
+        // 結果画面では既に100のことが多いため。語彙テストで上限を超えていた人は
+        // テスト版を出す。
         final testedOverCap = VocabCapSheet.isTestedOverCap(vocab.testedVocab);
-        final reachedCap = testedOverCap
-            ? after >= freeVocabScoreLimit
-            : displayBefore < freeVocabScoreLimit &&
-                after >= freeVocabScoreLimit;
-        if (!isPremium && !_vocabCapSheetChecked && reachedCap) {
+        final atCap = after >= freeVocabScoreLimit;
+        if (!isPremium && !_vocabCapSheetChecked && atCap) {
           _vocabCapSheetChecked = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
-              unawaited(VocabCapSheet.showOnce(context,
+              unawaited(VocabCapSheet.showIfDue(context,
                   testedVocab: testedOverCap ? vocab.testedVocab : 0));
             }
           });
