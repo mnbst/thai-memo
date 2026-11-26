@@ -110,6 +110,12 @@ var demonstratives = map[string]bool{"นี้": true, "นั้น": true, "�
 //   - ก่อน: 節の終わりなら「先に」（副詞）、名詞の前なら「〜より前に」（前置詞）。動詞の前は接続詞のまま
 //   - รอบ: 指示語の前は「回」（名詞）。unigram は前置詞にする
 //   - ได้: 動詞の後でなく名詞の前なら「得る」（動詞）
+//
+// 2026-11-25 プール確認:
+//   - ยัง: 後ろに語が続けば「まだ」（副詞）。ไปยัง・มายัง＋名詞は「〜へ」（前置詞）。หรือยัง・文末は助詞のまま。unigram は助詞にする
+//   - อย่าง: 形容詞・副詞・動詞の前は「〜に」（副詞、อย่างยุติธรรม）。unigram は助詞にする
+//   - รายงาน: ทำ・เขียน 等の後、指示語の前は「レポート」（名詞）。unigram は動詞にする
+//   - นาย: 名詞が続かなければ二人称「君」（代名詞）。名詞の前（นายสมชาย）は名詞のまま
 func tagByNeighbors(words []string, result map[int]string) {
 	n := len(words)
 	tagAt := func(i int) string {
@@ -157,8 +163,34 @@ func tagByNeighbors(words []string, result map[int]string) {
 			if prev != "動詞" && prev != "助動詞" && isNominal(next) {
 				result[i] = "動詞"
 			}
+		case "ยัง":
+			if i+1 >= n || (i > 0 && words[i-1] == "หรือ") {
+				break
+			}
+			if i > 0 && (words[i-1] == "ไป" || words[i-1] == "มา") && isNominal(next) {
+				result[i] = "前置詞"
+			} else {
+				result[i] = "副詞"
+			}
+		case "อย่าง":
+			if next == "形容詞" || next == "副詞" || next == "動詞" {
+				result[i] = "副詞"
+			}
+		case "รายงาน":
+			if (i > 0 && reportMakers[words[i-1]]) || (i+1 < n && classifierFollowers[words[i+1]]) {
+				result[i] = "名詞"
+			}
+		case "นาย":
+			if !isNominal(next) {
+				result[i] = "代名詞"
+			}
 		}
 	}
+}
+
+// reportMakers は直後の รายงาน が「レポート」（名詞）になる語。
+var reportMakers = map[string]bool{
+	"ทำ": true, "เขียน": true, "ส่ง": true, "อ่าน": true, "เตรียม": true, "แก้": true, "สรุป": true,
 }
 
 // numberUnits は数詞の後ろに来る単位・類別詞（หกโมง・หกคน）。
@@ -227,15 +259,18 @@ func tagHomographs(words []string, result map[int]string) {
 // （ถังใบนี้ の ใบ、นักร้องคนนี้ の คน）。
 var classifierWords = map[string]bool{
 	"ใบ": true, "ตัว": true, "คน": true, "อัน": true, "ชิ้น": true, "เล่ม": true, "คัน": true,
-	"หลัง": true, "ดอก": true, "ขวด": true, "แก้ว": true, "เครื่อง": true,
+	"หลัง": true, "ดอก": true, "ขวด": true, "แก้ว": true, "เครื่อง": true, "เส้น": true, "ต้น": true,
 }
+
+// quantifiers は直後の classifierWords の語が類別詞になる語（หลายต้น・ทุกคน）。
+var quantifiers = map[string]bool{"หลาย": true, "กี่": true, "บาง": true, "ทุก": true}
 
 // classifierFollowers は類別詞の後ろに来る指示語。
 var classifierFollowers = map[string]bool{
 	"นี้": true, "นั้น": true, "โน้น": true, "ไหน": true, "เดียว": true,
 }
 
-// tagClassifiers は classifierWords の語を、数詞の後ろ（สองตัว）か、
+// tagClassifiers は classifierWords の語を、数詞・หลาย 等の後ろ（สองตัว・หลายต้น）か、
 // 名詞の後ろで指示語が続くとき（ถังใบนี้）に類別詞にする。
 func tagClassifiers(words []string, result map[int]string) {
 	for i, w := range words {
@@ -244,7 +279,7 @@ func tagClassifiers(words []string, result map[int]string) {
 		}
 		prev := result[i-1]
 		// หลัง は数詞の後ろでも「〜の後で」になる（ชั้นสามหลังเลิกเรียน）ので、指示語が続くときだけ。
-		afterNum := prev == "数詞" && w != "หลัง"
+		afterNum := (prev == "数詞" || quantifiers[words[i-1]]) && w != "หลัง"
 		nounThenDemo := isNominal(prev) && i+1 < len(words) && classifierFollowers[words[i+1]]
 		if afterNum || nounThenDemo {
 			result[i] = "類別詞"
