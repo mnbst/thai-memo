@@ -1693,9 +1693,6 @@ class L10nJa extends L10n {
       '今日の新しい例文はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。';
 
   @override
-  String get quotaSentenceUpgradeCta => 'Premiumなら例文は無制限';
-
-  @override
   String get errAuth => '認証エラーが発生しました。アプリを再起動してください。';
 
   @override
@@ -1763,6 +1760,30 @@ class L10nJa extends L10n {
   @override
   String quotaResetInHours(int hours, int minutes) {
     return '次のリセットまで $hours時間$minutes分';
+  }
+
+  @override
+  String quotaUpsellTitle(int sets) {
+    return '今日の$setsセット完了！';
+  }
+
+  @override
+  String get quotaUpsellTitleMidSet => '今日の無料枠を使い切りました';
+
+  @override
+  String get quotaUpsellBody => 'この調子で、もう少し続けませんか？';
+
+  @override
+  String get quotaUpsellCta => 'Premiumで無制限に学ぶ';
+
+  @override
+  String quotaUpsellResetHours(int hours, int minutes) {
+    return 'あと$hours時間$minutes分でリセット';
+  }
+
+  @override
+  String quotaUpsellResetMinutes(int minutes) {
+    return 'あと$minutes分でリセット';
   }
 
   @override

@@ -2992,12 +2992,6 @@ abstract class L10n {
   /// **'今日の新しい例文はここまでです。\n復習タブの右上から、これまでの例文を読み返せます。'**
   String get quotaSentenceReached;
 
-  /// 上限に当たった free ユーザーだけに出すペイウォール導線。premium の例文は無制限なので数字を含めない
-  ///
-  /// In ja, this message translates to:
-  /// **'Premiumなら例文は無制限'**
-  String get quotaSentenceUpgradeCta;
-
   /// No description provided for @errAuth.
   ///
   /// In ja, this message translates to:
@@ -3111,6 +3105,42 @@ abstract class L10n {
   /// In ja, this message translates to:
   /// **'次のリセットまで {hours}時間{minutes}分'**
   String quotaResetInHours(int hours, int minutes);
+
+  /// 上限に当たった free 向け。{sets} は free の1日のセット数
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の{sets}セット完了！'**
+  String quotaUpsellTitle(int sets);
+
+  /// セットの途中で上限に当たったとき。「完了」と言うと上の進捗と食い違う
+  ///
+  /// In ja, this message translates to:
+  /// **'今日の無料枠を使い切りました'**
+  String get quotaUpsellTitleMidSet;
+
+  /// No description provided for @quotaUpsellBody.
+  ///
+  /// In ja, this message translates to:
+  /// **'この調子で、もう少し続けませんか？'**
+  String get quotaUpsellBody;
+
+  /// No description provided for @quotaUpsellCta.
+  ///
+  /// In ja, this message translates to:
+  /// **'Premiumで無制限に学ぶ'**
+  String get quotaUpsellCta;
+
+  /// No description provided for @quotaUpsellResetHours.
+  ///
+  /// In ja, this message translates to:
+  /// **'あと{hours}時間{minutes}分でリセット'**
+  String quotaUpsellResetHours(int hours, int minutes);
+
+  /// No description provided for @quotaUpsellResetMinutes.
+  ///
+  /// In ja, this message translates to:
+  /// **'あと{minutes}分でリセット'**
+  String quotaUpsellResetMinutes(int minutes);
 
   /// No description provided for @quotaResetInMinutes.
   ///

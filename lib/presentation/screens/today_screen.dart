@@ -1048,6 +1048,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       );
     }
 
+    // 上限に当たった瞬間は「なぜ premium が要るのか」が最も伝わる場面なので、
+    // 待たせる案内ではなく続ける導線を主役にする。premium で使い切った人には
+    // 勧める先が無いので従来の案内のまま。
+    if (showUpgrade) return _buildQuotaUpsell(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
@@ -1080,23 +1085,6 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 textAlign: TextAlign.center,
               ),
             ],
-            // 上限に当たった瞬間は「なぜ premium が要るのか」が最も伝わる場面
-            // なので、ここでだけ割り込みなしに訴求する。free は1日2セット、
-            // premium は無制限なので差が伝わりやすい。
-            // premium で使い切った人には勧める先が無いので出さない。
-            if (showUpgrade) ...[
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: () => PaywallScreen.show(
-                  context,
-                  source: _quotaPaywallSource,
-                ),
-                icon: const Icon(Icons.lock_open),
-                label: Text(
-                  L10n.of(context).quotaSentenceUpgradeCta,
-                ),
-              ),
-            ],
             if (!isQuotaError) ...[
               const SizedBox(height: 24),
               FilledButton.icon(
@@ -1113,6 +1101,79 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 label: Text(L10n.of(context).commonRetry),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 上限に当たった free 向けの訴求。
+  Widget _buildQuotaUpsell(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final muted = cs.onSurface.withValues(alpha: 0.6);
+    final l10n = L10n.of(context);
+    // リセットは JST 0:00。
+    final nowJst = DateTime.now().toUtc().add(const Duration(hours: 9));
+    final untilReset = DateTime.utc(nowJst.year, nowJst.month, nowJst.day + 1)
+        .difference(nowJst);
+    final resetText = untilReset.inHours > 0
+        ? l10n.quotaUpsellResetHours(
+            untilReset.inHours,
+            untilReset.inMinutes % 60,
+          )
+        : l10n.quotaUpsellResetMinutes(untilReset.inMinutes.clamp(1, 59));
+    // 普段はセットを終えてから当たるので進捗は出ていない。セットの途中で
+    // 当たったときは上に進捗が残るので、「完了」と言わない。
+    final midSet = ref.watch(dailySetProvider).isActive;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppConfig.defaultPadding * 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.emoji_events_outlined,
+                size: 64, color: AppColors.gold),
+            const SizedBox(height: 20),
+            Text(
+              midSet
+                  ? l10n.quotaUpsellTitleMidSet
+                  : l10n.quotaUpsellTitle(freeDailySets),
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.quotaUpsellBody,
+              style: theme.textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                onPressed: () => PaywallScreen.show(
+                  context,
+                  source: _quotaPaywallSource,
+                ),
+                child: Text(
+                  l10n.quotaUpsellCta,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              resetText,
+              style: theme.textTheme.bodySmall?.copyWith(color: muted),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

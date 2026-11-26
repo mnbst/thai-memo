@@ -1701,9 +1701,6 @@ class L10nKo extends L10n {
       '오늘의 새 예문은 여기까지예요.\n복습 탭 오른쪽 위에서 지금까지의 예문을 다시 읽을 수 있어요.';
 
   @override
-  String get quotaSentenceUpgradeCta => 'Premium은 예문 무제한';
-
-  @override
   String get errAuth => '인증 오류가 발생했어요. 앱을 다시 시작해 주세요.';
 
   @override
@@ -1771,6 +1768,30 @@ class L10nKo extends L10n {
   @override
   String quotaResetInHours(int hours, int minutes) {
     return '다음 초기화까지 $hours시간 $minutes분';
+  }
+
+  @override
+  String quotaUpsellTitle(int sets) {
+    return '오늘의 $sets세트 완료!';
+  }
+
+  @override
+  String get quotaUpsellTitleMidSet => '오늘의 무료 예문을 다 사용했어요';
+
+  @override
+  String get quotaUpsellBody => '이 기세로 조금 더 해볼까요?';
+
+  @override
+  String get quotaUpsellCta => 'Premium으로 무제한 학습하기';
+
+  @override
+  String quotaUpsellResetHours(int hours, int minutes) {
+    return '$hours시간 $minutes분 후 초기화';
+  }
+
+  @override
+  String quotaUpsellResetMinutes(int minutes) {
+    return '$minutes분 후 초기화';
   }
 
   @override

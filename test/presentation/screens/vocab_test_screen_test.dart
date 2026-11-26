@@ -240,7 +240,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('AppBar の戻るで抜けられる', (tester) async {
+  testWidgets('AppBar の ✕ で抜けられる', (tester) async {
     final api = _FakeApi([_stage(0)]);
     await tester.pumpWidget(
       ProviderScope(
@@ -256,7 +256,7 @@ void main() {
           ],
           supportedLocales: L10n.supportedLocales,
           locale: const Locale('ja'),
-          // 押した先があること（＝戻る矢印が出ること）を作る。
+          // 押した先があること（＝閉じて戻る先があること）を作る。
           home: Builder(
             builder: (context) => Scaffold(
               body: ElevatedButton(
@@ -277,7 +277,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('はじめる'), findsOneWidget);
 
-    await tester.tap(find.byType(BackButton));
+    expect(find.byType(BackButton), findsNothing);
+    await tester.tap(find.byIcon(Icons.close));
     await tester.pumpAndSettle();
 
     expect(find.text('はじめる'), findsNothing);

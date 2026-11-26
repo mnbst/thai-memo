@@ -934,7 +934,6 @@
   "quotaQuizReached": "No more new quizzes today.",
   "quotaSentencePremiumDailyReached": "You studied a lot today! That was the last new sentence for today.\nReread past sentences from the top right of the Words tab.",
   "quotaSentenceReached": "That's all the new sentences for today.\nReread past sentences from the top right of the Words tab.",
-  "quotaSentenceUpgradeCta": "Unlock unlimited sentences",
   "errAuth": "Authentication failed. Restart the app.",
   "errNetwork": "Couldn't connect. Check your internet.",
   "errTimeout": "Request timed out. Try again.",
@@ -973,6 +972,12 @@
       }
     }
   },
+  "quotaUpsellTitle": "You finished today's {sets} sets!",
+  "quotaUpsellTitleMidSet": "You've used today's free sentences",
+  "quotaUpsellBody": "You're on a roll. Keep going?",
+  "quotaUpsellCta": "Learn unlimited with Premium",
+  "quotaUpsellResetHours": "Resets in {hours}h {minutes}m",
+  "quotaUpsellResetMinutes": "Resets in {minutes} min",
   "quotaResetInMinutes": "Resets in {minutes}m",
   "@quotaResetInMinutes": {
     "placeholders": {

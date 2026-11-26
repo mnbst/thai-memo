@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/remaining_quota_provider.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/vocab_cap_sheet.dart';
 
 /// 語彙テスト。4択でいまの語彙量を測り、estimated_vocab の出発点を決める。
 ///
@@ -50,6 +51,9 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
 
   _Phase _phase = _Phase.intro;
   VocabTestStep? _step;
+
+  /// 上限シートを結果画面で一度だけ出す。
+  bool _capSheetScheduled = false;
 
   /// いま出している設問の位置（段の中）。
   int _index = 0;
@@ -170,7 +174,20 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
         if (didPop) _logLeave();
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(l10n.vocabTestTitle)),
+        appBar: AppBar(
+          title: Text(l10n.vocabTestTitle),
+          // 前の画面へ戻るのではなくテストをやめて閉じるので ✕ にする。
+          // 結果では「閉じる」ボタンと重なり、結果や上限シートを見ずに
+          // 抜けられてしまうので出さない。
+          automaticallyImplyLeading: false,
+          leading: _phase == _Phase.result
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+        ),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -315,6 +332,20 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
     final step = _step;
     final vocab = step?.vocab ?? 0;
 
+    // free_capped はサーバーが測定値だけで立てるので、プレミアムには出さない。
+    // free は直後の同期でスコアが100へ下がるため、まとめクイズ後と同じ
+    // 上限シート（テスト版）を結果の上に重ねて、見落とされない形で伝える。
+    if (!_capSheetScheduled &&
+        (step?.freeCapped ?? false) &&
+        !ref.watch(effectivePremiumProvider)) {
+      _capSheetScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(VocabCapSheet.showIfDue(context, testedVocab: vocab));
+        }
+      });
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -334,8 +365,7 @@ class _VocabTestScreenState extends ConsumerState<VocabTestScreen> {
         ),
         const SizedBox(height: 24),
         Text(l10n.vocabTestResultBody, style: theme.textTheme.bodyMedium),
-        // free_capped はサーバーが測定値だけで立てるので、プレミアムには出さない。
-        // free は直後の同期でスコアが100へ下がるため、見落とされない形で伝える。
+        // 上のシートを閉じたあとも、スコアが100に下がることを結果に残す。
         if ((step?.freeCapped ?? false) &&
             !ref.watch(effectivePremiumProvider)) ...[
           const SizedBox(height: 16),
