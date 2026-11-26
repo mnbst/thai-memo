@@ -306,7 +306,7 @@ lib/presentation/widgets/level_up_dialog.dart
 語彙レベルアップ時のお祝いアニメーションダイアログ。
 
 lib/presentation/widgets/vocab_cap_sheet.dart
-free がまとめクイズで語彙スコア100に届いたとき1度だけ出す課金シート（到達の祝い・段・特典・ペイウォール導線）。
+free の語彙スコアが100に張り付いているとき、まとめクイズの結果に3日おきに出す課金シート（到達の祝い・段／テスト結果との比較・特典・ペイウォール導線）。
 
 lib/presentation/widgets/vocab_level.dart
 語彙レベルの区切り（入門〜上級）とラベル・アイコン、free の語彙スコア上限。
@@ -1486,6 +1486,9 @@ test/presentation/screens/vocab_test_screen_test.dart
 
 test/presentation/widgets/premium_trial_ended_dialog_test.dart
 体験終了ダイアログが語彙スコアの落差を出す条件（測定値が free 上限超のときだけ）のテスト。
+
+test/presentation/widgets/vocab_cap_sheet_test.dart
+語彙上限シートを出し直す間隔（VocabCapSheet.isDue）のテスト。
 
 ## note 記事
 
