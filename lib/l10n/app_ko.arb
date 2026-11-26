@@ -1047,10 +1047,6 @@
   "@quotaSentenceReached": {
     "description": "上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない"
   },
-  "quotaSentenceUpgradeCta": "Premium은 예문 무제한",
-  "@quotaSentenceUpgradeCta": {
-    "description": "上限に当たった free ユーザーだけに出すペイウォール導線。premium の例文は無制限なので数字を含めない"
-  },
   "errAuth": "인증 오류가 발생했어요. 앱을 다시 시작해 주세요.",
   "errNetwork": "네트워크 연결 오류가 발생했어요. 인터넷 연결을 확인해 주세요.",
   "errTimeout": "요청 시간이 초과됐어요. 다시 시도해 주세요.",
@@ -1094,6 +1090,12 @@
       }
     }
   },
+  "quotaUpsellTitle": "오늘의 {sets}세트 완료!",
+  "quotaUpsellTitleMidSet": "오늘의 무료 예문을 다 사용했어요",
+  "quotaUpsellBody": "이 기세로 조금 더 해볼까요?",
+  "quotaUpsellCta": "Premium으로 무제한 학습하기",
+  "quotaUpsellResetHours": "{hours}시간 {minutes}분 후 초기화",
+  "quotaUpsellResetMinutes": "{minutes}분 후 초기화",
   "quotaResetInMinutes": "다음 초기화까지 {minutes}분",
   "@quotaResetInMinutes": {
     "placeholders": {

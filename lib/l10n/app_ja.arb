@@ -1095,10 +1095,6 @@
   "@quotaSentenceReached": {
     "description": "上限は tier で異なる（free 2セット / premium 無制限）ため文言に数字を含めない"
   },
-  "quotaSentenceUpgradeCta": "Premiumなら例文は無制限",
-  "@quotaSentenceUpgradeCta": {
-    "description": "上限に当たった free ユーザーだけに出すペイウォール導線。premium の例文は無制限なので数字を含めない"
-  },
   "errAuth": "認証エラーが発生しました。アプリを再起動してください。",
   "errNetwork": "ネットワーク接続エラーが発生しました。インターネット接続を確認してください。",
   "errTimeout": "リクエストがタイムアウトしました。もう一度お試しください。",
@@ -1133,6 +1129,40 @@
       "hours": {
         "type": "int"
       },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "quotaUpsellTitle": "今日の{sets}セット完了！",
+  "@quotaUpsellTitle": {
+    "description": "上限に当たった free 向け。{sets} は free の1日のセット数",
+    "placeholders": {
+      "sets": {
+        "type": "int"
+      }
+    }
+  },
+  "quotaUpsellTitleMidSet": "今日の無料枠を使い切りました",
+  "@quotaUpsellTitleMidSet": {
+    "description": "セットの途中で上限に当たったとき。「完了」と言うと上の進捗と食い違う"
+  },
+  "quotaUpsellBody": "この調子で、もう少し続けませんか？",
+  "quotaUpsellCta": "Premiumで無制限に学ぶ",
+  "quotaUpsellResetHours": "あと{hours}時間{minutes}分でリセット",
+  "@quotaUpsellResetHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "quotaUpsellResetMinutes": "あと{minutes}分でリセット",
+  "@quotaUpsellResetMinutes": {
+    "placeholders": {
       "minutes": {
         "type": "int"
       }

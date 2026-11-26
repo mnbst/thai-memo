@@ -1787,9 +1787,6 @@ class L10nEn extends L10n {
       'That\'s all the new sentences for today.\nReread past sentences from the top right of the Words tab.';
 
   @override
-  String get quotaSentenceUpgradeCta => 'Unlock unlimited sentences';
-
-  @override
   String get errAuth => 'Authentication failed. Restart the app.';
 
   @override
@@ -1858,6 +1855,30 @@ class L10nEn extends L10n {
   @override
   String quotaResetInHours(int hours, int minutes) {
     return 'Resets in ${hours}h ${minutes}m';
+  }
+
+  @override
+  String quotaUpsellTitle(int sets) {
+    return 'You finished today\'s $sets sets!';
+  }
+
+  @override
+  String get quotaUpsellTitleMidSet => 'You\'ve used today\'s free sentences';
+
+  @override
+  String get quotaUpsellBody => 'You\'re on a roll. Keep going?';
+
+  @override
+  String get quotaUpsellCta => 'Learn unlimited with Premium';
+
+  @override
+  String quotaUpsellResetHours(int hours, int minutes) {
+    return 'Resets in ${hours}h ${minutes}m';
+  }
+
+  @override
+  String quotaUpsellResetMinutes(int minutes) {
+    return 'Resets in $minutes min';
   }
 
   @override
