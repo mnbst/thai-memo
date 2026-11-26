@@ -3,9 +3,10 @@
 投稿文は study_posts.json に確認済みの完成文として置く（その場で書かせると
 タイ語の誤りが混ざるため）。--kind で tip / guide / feature を選び、その中から抽選する。
 
-一巡するまで同じ文は出さない。投稿済みのキーを「study:<id>:<回数>」にして
-posted.json に積み、出した回数が一番少ない文から抽選する。全部出し終えたら
-回数がそろうので、自然に最初から繰り返しになる。
+一巡するまで同じ文は出さない。投稿済みのキーを「study:<id>:<巡目>」にして
+posted.json に積み、巡目が一番若い文から抽選する。全部出し終えたら
+巡目がそろうので、自然に最初から繰り返しになる。新しく足した文は今の巡に
+入れ、その巡の残りを出し終えてから最後に出す（足した直後に割り込ませない）。
 
 ガイドの文には、アプリのガイド画面の該当する欄を画像で付ける。描画は
 test/screenshots/guide_screenshot.dart に任せ、ここでは <out>/guide_shot.env に
@@ -93,9 +94,14 @@ def load_posts(kind: str | None = None) -> list[dict]:
     return [p for p in posts if kind is None or p["kind"] == kind]
 
 
-def times_posted(posted: list[str], pid: str) -> int:
+def rounds_done(posted: list[str], pid: str) -> int:
+    """出し終えた巡の数（記録の巡目の最大＋1）。途中から足した文は巡目が飛ぶので数では数えない。"""
     prefix = f"study:{pid}:"
-    return sum(1 for key in posted if key.startswith(prefix))
+    rounds = [
+        int(key[len(prefix):]) for key in posted
+        if key.startswith(prefix) and key[len(prefix):].isdigit()
+    ]
+    return max(rounds) + 1 if rounds else 0
 
 
 def main() -> int:
@@ -137,9 +143,17 @@ def main() -> int:
     state = json.loads(blob.download_as_bytes()) if blob.exists() else {}
     posted = state.get("posted", [])
 
-    counts = {p["id"]: times_posted(posted, p["id"]) for p in posts}
-    fewest = min(counts.values())
-    candidates = [p for p in posts if counts[p["id"]] == fewest]
+    done = {p["id"]: rounds_done(posted, p["id"]) for p in posts}
+    # 今の巡は、一番進んだ文が出し終えた巡。全部そろっていれば次の巡を始める。
+    most = max(done.values())
+    behind = [p for p in posts if done[p["id"]] < most]
+    if behind:
+        fewest = most - 1
+        # 今の巡の残りを先に出し、途中から足した文（それより遅れている文）は最後に出す。
+        candidates = [p for p in behind if done[p["id"]] == fewest] or behind
+    else:
+        fewest = most
+        candidates = posts
     picked = random.Random(args.seed or None).choice(candidates)
     print(
         f"{args.kind}: {picked['id']}（{fewest + 1}巡目、残り{len(candidates)}件）",
