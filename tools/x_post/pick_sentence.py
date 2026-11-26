@@ -266,6 +266,7 @@ X に次の例文を投稿します。投稿は「書き出し👇 → タイ語
 - 読んだ人が「この一言をいつ・誰に言うのか」が分かるように、使う場面を書く
 - 例文の中身を説明・実況しない（「〜がこちら」「〜です」のような紹介文にしない）
 - 例文の内容と食い違うことを書かない
+- 使い方に書かれた「誰が・誰に言うか」を変えない（仲間に話す場面を、相手本人に言う場面にしない 等）
 - 訳は最後に出るので、訳をそのまま繰り返さない
 - BLドラマのときは作品名・登場人物名・「推し」を出さない
 {top_hooks}
@@ -286,6 +287,7 @@ Rules:
 - Make it clear when and to whom you would say this line: describe the moment you would use it
 - Do not narrate or introduce the sentence's content (no "Here is..." style captions)
 - Do not contradict what the sentence actually says
+- Keep who is speaking and who is being addressed exactly as the Usage says (do not turn a line said to an ally into one said to the target, etc.)
 - The translation comes last, so do not repeat it
 - For BL drama posts, never name the drama, its characters, or say "oshi"/"fave"
 {top_hooks}
