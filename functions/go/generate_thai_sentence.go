@@ -811,6 +811,8 @@ func newProducer(ctx context.Context) (*sentence.Producer, error) {
 			Session: &uvm.SessionSelector{Emb: store},
 			Groups:  shots,
 			Scenes:  shots,
+			// 場面合致の候補に、学習語がその場面で自然に使えるかの点を付けて選ぶ。
+			Fit: newSceneFitter(ctx),
 		},
 		// free・premium とも静的コーパス＋プールから出す。無い語だけ Service（LLM）へ落ちる。
 		// free 例文バンク（FreeBank）は 2026-11-17 に使うのをやめた。

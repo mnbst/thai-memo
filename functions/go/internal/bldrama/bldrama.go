@@ -107,6 +107,11 @@ func SceneShots() []SceneShot {
 	return out
 }
 
+// ShotLine はショットの本文と、プロンプトに出す場面名を返す。知らない ID なら空。
+func ShotLine(id string) (text, scene string) {
+	return shots[id], sceneLabel(shotContext[id].Scene)
+}
+
 // sceneSplitRe は本編の字幕から採った場面の末尾の番号（「契約書の不明点を確認する（2）」）。
 var sceneSplitRe = regexp.MustCompile(`（\d+）$`)
 

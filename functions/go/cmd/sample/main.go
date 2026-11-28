@@ -15,6 +15,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -68,6 +69,8 @@ func main() {
 	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
 	coarseTime := flag.Bool("coarse-time", false, "時点を 過去／現在／未来／習慣 の言い方でプロンプトに出す")
 	matched := flag.Bool("matched", false, "場面合致で外れた回（premium、ショット無し）として生成する")
+	pairsFile := flag.String("pairs", "", "語とテーマの組を固定する JSON（[{\"word\",\"topic\"}]）。指定時は -words・-topic より優先")
+	sceneMatch := flag.String("scenematch", "", "本番の場面合致で場面を選ぶ（uniform: 一様に選ぶ従来の形 / fit: 候補3つを Decisions で採点）。テーマの指定が要る")
 	blMood := flag.Bool("blmood", true, "-matched の BL 回に同じ作品の3文と設定を付ける（false で従来どおり付けない）")
 	flag.Parse()
 	if *coarseTime {
@@ -93,6 +96,21 @@ func main() {
 		}
 	}
 	topics := pickTopics(*topic)
+	if *pairsFile != "" {
+		raw, err := os.ReadFile(*pairsFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		var pairs []struct{ Word, Topic string }
+		if err := json.Unmarshal(raw, &pairs); err != nil {
+			log.Fatal(err)
+		}
+		words, topics = nil, nil
+		for _, p := range pairs {
+			words = append(words, wordRank{Word: p.Word})
+			topics = append(topics, p.Topic)
+		}
+	}
 
 	ctx := context.Background()
 	key, err := secrets.Get(ctx, "gemini-api-key")
@@ -123,6 +141,21 @@ func main() {
 		svc.Shots = &themeshots.Builder{}
 	}
 
+	// 本番と同じ場面合致（選定時に場面とショットを決め、sceneMatched で渡す）。
+	var picker *sentence.TargetWordSelector
+	if *sceneMatch != "" {
+		store, err := embeddings.LoadLocalShots(filepath.Dir(*rankFile))
+		if err != nil {
+			log.Fatalf("embedding を読めない: %v", err)
+		}
+		b := &themeshots.Builder{Ctx: ctx, Scenes: store, Tables: store}
+		svc.Shots = b
+		picker = &sentence.TargetWordSelector{Scenes: b}
+		if *sceneMatch == "fit" {
+			picker.Fit = &themeshots.FitScorer{Asker: &quality.Gemini{APIKey: key}}
+		}
+	}
+
 	recs := make([]record, len(words))
 	sem := make(chan struct{}, *conc)
 	var wg sync.WaitGroup
@@ -149,6 +182,13 @@ func main() {
 			}
 			if *matched {
 				params["sceneMatched"] = true
+			}
+			if picker != nil && topic != "" {
+				// 合う場面が無ければショットなし（本番は雰囲気の数文で作る）。
+				params["sceneMatched"] = true
+				if tw, ok := picker.FreshSceneTarget(w.Word, topic, nil, 0); ok {
+					params["topic"], params["shotID"] = tw.Topic, tw.ShotID
+				}
 			}
 			s, err := svc.GenerateSentence(ctx, params, !*free,
 				[]string{w.Word}, *vocab, lang.Lang(*langCode))

@@ -716,6 +716,9 @@ functions/go/internal/poolreview/gsheet.go
 functions/go/quality_check.go
 quality.Judge（Jev）を sentence.Checker として包む。生成直後の1文1回きりの判定（ReviewAll）で、不合格なら sentence_flags へ1件書く。キーが無ければ nil（判定なしで動く）。
 
+functions/go/scene_fit.go
+場面の候補の採点器（themeshots.FitScorer）を組み立てる。SCENE_FIT_CHECK=0 かキーが無ければ nil（従来の一様な選び方）。
+
 functions/go/sentence_pool.go
 プールの1件（poolEntry）の組み立て。ティア別プール（premium: corpus_pool_<lang>.json / free: free_pool_<lang>.json）の振り分け先を持つ。
 
@@ -1110,7 +1113,10 @@ functions/go/internal/themeshots/themeshots.go
 BL以外の全テーマの参考例文ブロック。語との近さ（場面ごとに標準化した z）の重みつきランダムで場面を選んだ1文の選出と、テーマ別の代わりのやり取りを含む断片の組み立て。
 
 functions/go/internal/themeshots/match.go
-premium の場面合致（SceneMatch）。BLを含む全テーマの場面を、場面 z とショット単体 z の両方で足切りし、テーマ→場面→ショットの順に一様に選ぶ。
+premium の場面合致（SceneMatch）。BLを含む全テーマの場面を、場面 z とショット単体 z の両方で足切りし、テーマ→場面→ショットの順に一様に選ぶ。採点用に別々の場面の候補を複数引く PickScenes も。
+
+functions/go/internal/themeshots/fit.go
+場面の候補ごとに、学習語がその場面で自然に使えるかを Gemini Decisions で採点する（FitScorer、並列）。
 
 functions/go/internal/themeshots/table.go
 場面合致の表（語ごとの場面 z・ショット z を事前計算した scene_match_table.json）の作成・読み込み。版が合わなければその場の計算に戻す。

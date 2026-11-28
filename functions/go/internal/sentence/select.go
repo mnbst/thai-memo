@@ -3,9 +3,13 @@ package sentence
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"math"
 	"math/rand"
 	"slices"
+	"sync"
+	"time"
 
 	"cloud.google.com/go/firestore"
 
@@ -170,6 +174,9 @@ type TargetWordSelector struct {
 	// Scenes は premium の場面合致（SceneMatch）。nil なら premium も free と同じ
 	// 従来の選び方（FindBestTopic・ResolveGroup）になる。
 	Scenes SceneMatcher
+	// Fit は場面の候補に点を付ける。nil か Scenes が SceneCandidates でなければ
+	// 点を付けず、PickScene で一様に選ぶ。
+	Fit SceneFitter
 }
 
 // 場面合致の閾値。z は、語と場面（またはショット）の類似度を、語彙全体との
@@ -248,6 +255,38 @@ type SceneMatcher interface {
 	HasScene(word string, topics []string, minSceneZ float64) bool
 }
 
+// SceneCandidates は場面合致を通った候補を複数返せる SceneMatcher（themeshots.Builder）。
+// 候補は PickScene と同じ選び方で、場面を戻さずに引いた順。
+type SceneCandidates interface {
+	PickScenes(word string, topics []string, minSceneZ float64, n int) []ScenePick
+	PickScenesExcept(
+		word string, topics []string, minSceneZ float64, used map[string]bool, unknown, n int,
+	) []ScenePick
+}
+
+// SceneFitter は場面の候補ごとに、語がその場面で自然に使えるかの点（0〜1）を返す。
+// 実装は themeshots.FitScorer（Gemini Decisions）。
+type SceneFitter interface {
+	SceneFit(ctx context.Context, word string, picks []ScenePick) ([]float64, error)
+}
+
+// 場面の候補の採点（Fit）の決まり。
+//
+// 埋め込みの足切りを通っても、学習語がその場面に合わない回がショット付きの 11% あり、
+// 生成はその 7割で場面に残ったまま語を押し込んだ（確認待ち731件、2026-11-28）。
+// 候補を数個引いて点を付け、いちばん高い場面を使う。閾値で切るだけだと合う組も
+// 巻き込む（0.2 未満で合う組の 16%）が、別の合う場面が選ばれるだけなので害が小さい。
+const (
+	// SceneFitCandidates は点を付ける候補の数（並列に聞く）。
+	SceneFitCandidates = 3
+	// SceneFitMin はこれ未満の場面を使わない点。全候補が下回ればショットを付けない
+	// （雰囲気の数文で作る）。891組で、合わない組の 74%・合う組の 16% が下回る。
+	SceneFitMin = 0.2
+	// SceneFitTimeout は採点を待つ上限。1回 0.35〜0.52秒（並列3つで 0.34秒）。
+	// 超えたら従来どおり1つ目の候補（PickScene と同じ分布）を使う。
+	SceneFitTimeout = 1500 * time.Millisecond
+)
+
 // SceneExcluder は使った場面を除いて選べる SceneMatcher（themeshots.Builder）。
 type SceneExcluder interface {
 	// PickSceneExcept は used の場面を除いて PickScene と同じく選ぶ。unknown は
@@ -271,9 +310,20 @@ func (s *TargetWordSelector) FreshSceneTarget(
 	if !ok || topic == "" {
 		return TargetWord{}, false
 	}
-	pick, ok := ex.PickSceneExcept(word, pinnedTopics(topic), SceneZPinned, used, unknown)
-	if !ok {
-		return TargetWord{}, false
+	var pick ScenePick
+	if c, ok := s.fitter(); ok {
+		cands := c.PickScenesExcept(word, pinnedTopics(topic), SceneZPinned, used, unknown, SceneFitCandidates)
+		// 合う場面が残らなければ作り直さない（使っていない場面の無い語と同じ扱い）。
+		pick = s.chooseScenes(context.Background(), [][]ScenePick{cands}, []string{word})[0]
+		if pick.ShotID == "" {
+			return TargetWord{}, false
+		}
+	} else {
+		var ok bool
+		pick, ok = ex.PickSceneExcept(word, pinnedTopics(topic), SceneZPinned, used, unknown)
+		if !ok {
+			return TargetWord{}, false
+		}
 	}
 	tw := TargetWord{Word: word, Topic: pick.Topic, Matched: true, ShotID: pick.ShotID}
 	if len(TopicGroups[topic]) > 0 {
@@ -388,7 +438,7 @@ func (s *TargetWordSelector) selectTargetWords(
 		return nil, ErrNoTargetWords
 	}
 	if matched {
-		return s.assignScenes(words, choice), nil
+		return s.assignScenes(ctx, words, choice), nil
 	}
 
 	out, err := assignTopics(ctx, words, topic, choice, s.Session.Emb)
@@ -434,8 +484,16 @@ func pinnedTopics(topic string) []string {
 //	おまかせ   : 枠ごとのテーマ（choice.Slots）をテーマ指定と同じ扱いにする。
 //	             枠の無い語（Slots が足りない）は Pool の場面から選び、合わなければ
 //	             テーマも空にして LLM に候補から選ばせる
-func (s *TargetWordSelector) assignScenes(words []string, choice TopicChoice) []TargetWord {
+//
+// Fit があれば語ごとに候補を SceneFitCandidates 個引き、点のいちばん高い場面にする
+// （chooseScenes）。抽選は語の順に先に済ませ、採点だけを全語まとめて並列に聞く。
+func (s *TargetWordSelector) assignScenes(ctx context.Context, words []string, choice TopicChoice) []TargetWord {
 	out := make([]TargetWord, len(words))
+	cands, fit := s.fitter()
+	var all [][]ScenePick
+	if fit {
+		all = make([][]ScenePick, len(words))
+	}
 	for i, w := range words {
 		tw := TargetWord{Word: w, Topic: choice.Topic, Matched: true}
 		topics, minZ := choice.Pool, SceneZOmakase
@@ -449,10 +507,77 @@ func (s *TargetWordSelector) assignScenes(words []string, choice TopicChoice) []
 				tw.Topic = members[s.intn(len(members))]
 			}
 		}
-		if pick, ok := s.Scenes.PickScene(w, topics, minZ); ok {
+		if fit {
+			all[i] = cands.PickScenes(w, topics, minZ, SceneFitCandidates)
+		} else if pick, ok := s.Scenes.PickScene(w, topics, minZ); ok {
 			tw.Topic, tw.ShotID = pick.Topic, pick.ShotID
 		}
 		out[i] = tw
+	}
+	if fit {
+		for i, pick := range s.chooseScenes(ctx, all, words) {
+			if pick.ShotID != "" {
+				out[i].Topic, out[i].ShotID = pick.Topic, pick.ShotID
+			}
+		}
+	}
+	return out
+}
+
+// fitter は場面の候補に点を付けられるときの候補の出し手を返す。
+func (s *TargetWordSelector) fitter() (SceneCandidates, bool) {
+	if s.Fit == nil {
+		return nil, false
+	}
+	c, ok := s.Scenes.(SceneCandidates)
+	return c, ok
+}
+
+// chooseScenes は語ごとの候補（cands[i] は words[i] の候補）に点を付け、語ごとに
+// 使う場面を返す。点は全語まとめて並列に聞き、SceneFitTimeout で打ち切る。
+//
+//	採点できた   : 点のいちばん高い候補。SceneFitMin 未満しか無ければゼロ値（ショットなし）
+//	採点に失敗   : 1つ目の候補（PickScene と同じ分布の従来の選び方）
+//	候補が無い   : ゼロ値
+func (s *TargetWordSelector) chooseScenes(ctx context.Context, cands [][]ScenePick, words []string) []ScenePick {
+	ctx, cancel := context.WithTimeout(ctx, SceneFitTimeout)
+	defer cancel()
+	out := make([]ScenePick, len(cands))
+	var wg sync.WaitGroup
+	for i, cs := range cands {
+		if len(cs) == 0 {
+			continue
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			scores, err := s.Fit.SceneFit(ctx, words[i], cs)
+			if err != nil || len(scores) != len(cs) {
+				log.Printf("場面の採点に失敗。1つ目の候補を使う word=%s: %v", words[i], err)
+				out[i] = cs[0]
+				return
+			}
+			best := -1
+			for j, v := range scores {
+				if v >= SceneFitMin && (best < 0 || v > scores[best]) {
+					best = j
+				}
+			}
+			if best >= 0 {
+				out[i] = cs[best]
+			}
+			log.Printf("場面の採点 word=%s scores=%v chose=%q", words[i], fmtScores(cs, scores), out[i].ShotID)
+		}()
+	}
+	wg.Wait()
+	return out
+}
+
+// fmtScores はログ用に「ショットID=点」を並べる。
+func fmtScores(cs []ScenePick, scores []float64) []string {
+	out := make([]string, len(cs))
+	for i, c := range cs {
+		out[i] = fmt.Sprintf("%s=%.2f", c.ShotID, scores[i])
 	}
 	return out
 }
