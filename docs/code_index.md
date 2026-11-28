@@ -728,9 +728,6 @@ functions/go/sentence_pool_test.go
 functions/go/sentence_audit_test.go
 プール候補の抽出条件（premium限定・バンク除外・本文必須）、quality による振り分け、束分けのテスト。
 
-functions/go/sentence_audit_live_test.go
-Jev judgeを実際に叩くdry run。実Firestoreの直近の例文、または cmd/sample の出力JSONを判定して結果を出力する（sentence_flagsには書かない）。
-
 functions/go/internal/sentence/produce_check_test.go
 生成直後の品質判定（QualityCheck）のテスト。1文1回だけ判定・不合格は作り直さずセットから外す・判定失敗時は元の文・バンク由来は判定しない。
 
@@ -761,17 +758,11 @@ functions/go/internal/quality/judge.go
 functions/go/internal/quality/gemini.go
 Gemini Decisions API（gemini-decision-1）で観点を判定する（本番の判定器）。訳の加筆を除く全観点を1回で聞き、閾値0.52（呼称の音写だけ0.7）。任意の問いを noul で聞く Ask も持つ。
 
-functions/go/internal/quality/gemini_eval_live_test.go
-評価セットを本番と同じ経路で Gemini にかけ、観点ごとの確率を書き出す。問いの文面の案（QUESTION_VARIANTS）を並べて比べられる（JUDGE_EVAL_LIVE=1）。
-
 functions/go/internal/quality/pool.go
 Aspects に足す Jev の観点（場面として言わない文・訳の意味のずれ）。ReviewAll（生成直後に Aspects と合わせて判定）と ReviewPool。
 
 functions/go/internal/quality/rules.go
 コードで判定する観点（訳の文法用語・英訳の助動詞なし not・既知の誤訳・語の誤用の正規表現・頭なしの ก็ตาม）と、語が文にあるときだけ Jev に用法を聞く語ごとの観点（wordUsages）。
-
-functions/go/internal/quality/judge_eval_live_test.go
-評価セット（testdata/judge_eval.json、欠陥55・正常70）を実際の Jev にかけ、欠陥の検出数・正常の誤検出数と中身を出す。観点・閾値を変えたら前後で回す（JUDGE_EVAL_LIVE=1）。
 
 functions/go/internal/quality/testdata/judge_eval.json
 judge の評価セット。prod 監査・罠・過去の誤検出から作った欠陥/正常のラベル付き例文。
@@ -794,17 +785,11 @@ functions/go/deliver_daily_sentence_batch_test.go
 functions/go/deliver_daily_sentence_purge_test.go
 未読セットの洗い替え判定（全未読のみ削除・既読混在は残す・viewed無しは残す・旧形式）のテスト。
 
-functions/go/deliver_daily_sentence_live_test.go
-dev の実Firestore・実Geminiに対して5本セット配信を通しで確かめる（通知だけ差し替え）。
-
 functions/go/daily_batch_golden_test.go
 resetQuota と duplicateTokenUids をJS実装の出力（golden JSON）と突き合わせる。
 
 functions/go/daily_batch_live_test.go
 dailyBatch のFirestore書き込み部分を実Firestoreで検証。全体実行は行わない（Auth実削除を含むため）。
-
-functions/go/quiz_language_live_test.go
-韓国語の解説が出た例文を実Geminiで作り直し、解説とダミー理由が日本語で出るか確かめる。QUIZ_LANGUAGE_LIVE=1 で実行。
 
 functions/go/internal/notify/notify.go
 notifyUtcHour の Go 版。現地の配信希望時刻がUTCの何時に当たるかを求める。tzdataを埋め込む。
