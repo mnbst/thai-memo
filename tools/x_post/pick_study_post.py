@@ -79,7 +79,7 @@ def load_posts(kind: str | None = None) -> list[dict]:
             image.get("screen") not in GUIDE_SCREENS or not image.get("from")
         ):
             errors.append(f"{pid}: 画像の指定が不正")
-        elif image and "," in image["from"]:
+        elif image and "," in image["from"] + image.get("expand", ""):
             # flutter の --dart-define はカンマで値を区切ってしまう。
             errors.append(f"{pid}: 画像の見出しにカンマは使えない")
         if post.get("kind") in ("tip", "guide") and not post.get("text_en"):
@@ -176,7 +176,8 @@ def main() -> int:
     image = picked.get("image")
     if image:
         (out / "guide_shot.env").write_text(
-            f"SCREEN={image['screen']}\nFROM={shlex.quote(image['from'])}\n",
+            f"SCREEN={image['screen']}\nFROM={shlex.quote(image['from'])}\n"
+            f"EXPAND={shlex.quote(image.get('expand', ''))}\n",
             encoding="utf-8",
         )
     return 0
