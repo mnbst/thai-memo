@@ -177,6 +177,8 @@ type TargetWordSelector struct {
 	// Fit は場面の候補に点を付ける。nil か Scenes が SceneCandidates でなければ
 	// 点を付けず、PickScene で一様に選ぶ。
 	Fit SceneFitter
+	// FitMin は場面を使う点の下限。0 なら SceneFitMin（cmd/sample で比べる用）。
+	FitMin float64
 }
 
 // 場面合致の閾値。z は、語と場面（またはショット）の類似度を、語彙全体との
@@ -262,6 +264,9 @@ type SceneCandidates interface {
 	PickScenesExcept(
 		word string, topics []string, minSceneZ float64, used map[string]bool, unknown, n int,
 	) []ScenePick
+	// UsesScene は topic の回を medium で作るとき、場面のショットを使うか。
+	// 媒体の例文がある媒体では場面を使わない（ShotSection が先に媒体の例文を返す）。
+	UsesScene(topic, medium string) bool
 }
 
 // SceneFitter は場面の候補ごとに、語がその場面で自然に使えるかの点（0〜1）を返す。
@@ -311,10 +316,14 @@ func (s *TargetWordSelector) FreshSceneTarget(
 		return TargetWord{}, false
 	}
 	var pick ScenePick
+	medium := ""
 	if c, ok := s.fitter(); ok {
 		cands := c.PickScenesExcept(word, pinnedTopics(topic), SceneZPinned, used, unknown, SceneFitCandidates)
+		var keep []ScenePick
+		keep, medium = s.sceneMedium(c, cands, "")
 		// 合う場面が残らなければ作り直さない（使っていない場面の無い語と同じ扱い）。
-		pick = s.chooseScenes(context.Background(), [][]ScenePick{cands}, []string{word})[0]
+		// 媒体の例文で作る回も、場面を変えて作り直す意味が無いので作り直さない。
+		pick = s.chooseScenes(context.Background(), [][]ScenePick{keep}, []string{word})[0]
 		if pick.ShotID == "" {
 			return TargetWord{}, false
 		}
@@ -325,7 +334,7 @@ func (s *TargetWordSelector) FreshSceneTarget(
 			return TargetWord{}, false
 		}
 	}
-	tw := TargetWord{Word: word, Topic: pick.Topic, Matched: true, ShotID: pick.ShotID}
+	tw := TargetWord{Word: word, Topic: pick.Topic, Matched: true, ShotID: pick.ShotID, Medium: medium}
 	if len(TopicGroups[topic]) > 0 {
 		tw.Group = topic
 	}
@@ -349,6 +358,9 @@ type TargetWord struct {
 	// Matched は場面合致で選んだ語（premium）。ShotID が空ならショットを付けない。
 	Matched bool
 	ShotID  string
+	// Medium は選定時に決めた媒体。空なら生成時に引く。場面の候補を採点する回は、
+	// 場面を使う媒体かを先に見るため選定時に決め、生成でも同じ媒体を使う。
+	Medium string
 }
 
 // SelectTargetWords はテーマを決めたうえで UVM からターゲット語を選ぶ
@@ -438,7 +450,7 @@ func (s *TargetWordSelector) selectTargetWords(
 		return nil, ErrNoTargetWords
 	}
 	if matched {
-		return s.assignScenes(ctx, words, choice), nil
+		return s.assignScenes(ctx, words, choice, strParam(params, "medium")), nil
 	}
 
 	out, err := assignTopics(ctx, words, topic, choice, s.Session.Emb)
@@ -487,7 +499,10 @@ func pinnedTopics(topic string) []string {
 //
 // Fit があれば語ごとに候補を SceneFitCandidates 個引き、点のいちばん高い場面にする
 // （chooseScenes）。抽選は語の順に先に済ませ、採点だけを全語まとめて並列に聞く。
-func (s *TargetWordSelector) assignScenes(ctx context.Context, words []string, choice TopicChoice) []TargetWord {
+// 媒体もここで決め（medium が空なら抽選）、場面を使わない媒体の回は採点しない。
+func (s *TargetWordSelector) assignScenes(
+	ctx context.Context, words []string, choice TopicChoice, medium string,
+) []TargetWord {
 	out := make([]TargetWord, len(words))
 	cands, fit := s.fitter()
 	var all [][]ScenePick
@@ -508,7 +523,12 @@ func (s *TargetWordSelector) assignScenes(ctx context.Context, words []string, c
 			}
 		}
 		if fit {
-			all[i] = cands.PickScenes(w, topics, minZ, SceneFitCandidates)
+			cs := cands.PickScenes(w, topics, minZ, SceneFitCandidates)
+			all[i], tw.Medium = s.sceneMedium(cands, cs, medium)
+			if len(cs) > 0 && len(all[i]) == 0 {
+				// 媒体の例文で作る。場面は使わないので採点せず、テーマだけ従来の1つ目に揃える。
+				tw.Topic = cs[0].Topic
+			}
 		} else if pick, ok := s.Scenes.PickScene(w, topics, minZ); ok {
 			tw.Topic, tw.ShotID = pick.Topic, pick.ShotID
 		}
@@ -522,6 +542,24 @@ func (s *TargetWordSelector) assignScenes(ctx context.Context, words []string, c
 		}
 	}
 	return out
+}
+
+// sceneMedium は候補の回の媒体を決め（medium が空なら1つ目の候補のテーマで抽選）、
+// その媒体で場面を使う候補だけを返す。候補が無ければ媒体も決めない（生成時に引く）。
+func (s *TargetWordSelector) sceneMedium(c SceneCandidates, cs []ScenePick, medium string) ([]ScenePick, string) {
+	if len(cs) == 0 {
+		return nil, medium
+	}
+	if medium == "" {
+		medium = drawMedium(cs[0].Topic, s.intn)
+	}
+	var keep []ScenePick
+	for _, p := range cs {
+		if c.UsesScene(p.Topic, medium) {
+			keep = append(keep, p)
+		}
+	}
+	return keep, medium
 }
 
 // fitter は場面の候補に点を付けられるときの候補の出し手を返す。
@@ -559,7 +597,7 @@ func (s *TargetWordSelector) chooseScenes(ctx context.Context, cands [][]ScenePi
 			}
 			best := -1
 			for j, v := range scores {
-				if v >= SceneFitMin && (best < 0 || v > scores[best]) {
+				if v >= s.fitMin() && (best < 0 || v > scores[best]) {
 					best = j
 				}
 			}
@@ -571,6 +609,13 @@ func (s *TargetWordSelector) chooseScenes(ctx context.Context, cands [][]ScenePi
 	}
 	wg.Wait()
 	return out
+}
+
+func (s *TargetWordSelector) fitMin() float64 {
+	if s.FitMin > 0 {
+		return s.FitMin
+	}
+	return SceneFitMin
 }
 
 // fmtScores はログ用に「ショットID=点」を並べる。

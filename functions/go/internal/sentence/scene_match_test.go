@@ -28,7 +28,7 @@ func TestAssignScenes(t *testing.T) {
 		"กิน": {Topic: Topics[1], Scene: "注文する", ShotID: "food_001"},
 	}}
 
-	got := s.assignScenes(context.Background(), []string{"กิน", "แต่"}, TopicChoice{Topic: Topics[7]})
+	got := s.assignScenes(context.Background(), []string{"กิน", "แต่"}, TopicChoice{Topic: Topics[7]}, "")
 	if got[0].Topic != Topics[1] || got[0].ShotID != "food_001" || !got[0].Matched {
 		t.Errorf("合う語: %+v", got[0])
 	}
@@ -36,18 +36,18 @@ func TestAssignScenes(t *testing.T) {
 		t.Errorf("テーマ指定で合わない語は指定テーマのままショット無し: %+v", got[1])
 	}
 
-	got = s.assignScenes(context.Background(), []string{"แต่"}, TopicChoice{Topic: LifeTopic})
+	got = s.assignScenes(context.Background(), []string{"แต่"}, TopicChoice{Topic: LifeTopic}, "")
 	if got[0].Group != LifeTopic || !slices.Contains(TopicGroups[LifeTopic], got[0].Topic) {
 		t.Errorf("まとめたテーマは中身に解決する: %+v", got[0])
 	}
 
-	got = s.assignScenes(context.Background(), []string{"แต่"}, TopicChoice{Pool: Topics})
+	got = s.assignScenes(context.Background(), []string{"แต่"}, TopicChoice{Pool: Topics}, "")
 	if got[0].Topic != "" || got[0].ShotID != "" {
 		t.Errorf("おまかせで合わない語はテーマも空: %+v", got[0])
 	}
 
 	// おまかせの枠のテーマはテーマ指定と同じ扱い（合わなくても枠のテーマのまま）。
-	got = s.assignScenes(context.Background(), []string{"กิน", "แต่"}, TopicChoice{Pool: Topics, Slots: []string{Topics[1], Topics[12]}})
+	got = s.assignScenes(context.Background(), []string{"กิน", "แต่"}, TopicChoice{Pool: Topics, Slots: []string{Topics[1], Topics[12]}}, "")
 	if got[0].Topic != Topics[1] || got[0].ShotID != "food_001" {
 		t.Errorf("おまかせの枠で合う語: %+v", got[0])
 	}
@@ -56,7 +56,7 @@ func TestAssignScenes(t *testing.T) {
 	}
 
 	// 推し活も合わない語は推し活のまま（テーマ以外の例文を混ぜない）。
-	got = s.assignScenes(context.Background(), []string{"แต่"}, TopicChoice{Topic: OshiTopic, Pool: Topics})
+	got = s.assignScenes(context.Background(), []string{"แต่"}, TopicChoice{Topic: OshiTopic, Pool: Topics}, "")
 	if got[0].Topic != OshiTopic || got[0].ShotID != "" {
 		t.Errorf("推し活で合わない語も推し活のまま: %+v", got[0])
 	}
