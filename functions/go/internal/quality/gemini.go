@@ -16,7 +16,7 @@ import (
 // Gemini は Gemini Decisions API（gemini-decision-1）で観点を判定する。
 //
 // 2026-11-21 に「Luna（gpt-6-luna）が主、Jev は2観点」から Gemini 一本へ切り替えた。
-// 同じ問いで、各文の欠陥の検出・正常の誤検出は（gemini_eval_live_test.go）:
+// 同じ問いで、各文の欠陥の検出・正常の誤検出は:
 //
 //	                       ja 評価セット  prod 不合格82本  en 評価セット
 //	                       （欠陥60・正常80）（本物39・誤検出43）（欠陥55・正常145）
