@@ -111,7 +111,82 @@ var excludedTargetWords = map[string]bool{
 	"เจีย": true,
 }
 
+// noSceneWords は、どのテーマの場面にも付かない語のうち、語ではない断片と
+// 固有名詞（人名・外国の都市や州）。字幕由来の頻度表に入っていた語で、例文の
+// 学習語にしても場面が無く、名前の一部は単独で意味を持たない（2026-11-28、
+// prod の場面合致の表で場面が付かない 1,099語から手で選んだ）。国名・大陸名と、
+// 機能語・書き言葉・内容語は残している。
+var noSceneWords = map[string]bool{
+	// 語の断片・音節（字幕の分かち書きの切れ端、外国人名の一部）。
+	"ซา": true, "ยอง": true, "เร": true, "นิ": true, "โร": true, "วิ": true, "รี": true, "โน": true,
+	"สัน": true, "รี่": true, "ยอน": true, "โกะ": true, "อึน": true, "ดง": true, "บา": true,
+	"เก": true, "จุน": true, "รุ": true, "ร่า": true, "ระ": true, "วจะ": true, "เพ": true, "แห": true,
+	"วอ": true, "ซาน": true, "สุ": true, "ซึง": true, "โร่": true, "เอ": true, "บี": true, "เส": true,
+	"ดอน": true, "บุ": true, "วี": true, "เดอะ": true, "กระ": true, "สา": true, "สะ": true,
+	"โว": true, "ประ": true, "บอน": true, "ไค": true, "แลนด์": true, "ร้า": true, "ม่อน": true,
+	"นพ": true, "ริก": true, "รน": true, "นค": true, "รงค์": true, "ยง": true, "ทุ": true,
+	"อุค": true, "ฟุ": true, "สัง": true, "ลัน": true, "แอล": true, "นิว": true, "บอง": true,
+	"เวล": true, "อิส": true, "อัส": true, "กค": true, "งิ": true, "เกตุ": true, "โอว": true,
+	"เวิร์ด": true, "เมียง": true, "สำ": true, "ซิก": true, "ไคล": true, "ฟอ": true, "สิวะ": true,
+	"ราน": true, "ลก": true, "แส": true, "กล": true, "นบี": true, "อุป": true, "สตัน": true,
+	"ทร": true, "บร": true, "รอม": true, "รท": true, "พาร์": true, "สมา": true, "ทะ": true,
+	"สอ": true, "สตี": true, "เกน": true, "สก": true, "กร": true, "ทรู": true, "ทาร์": true,
+	"รัช": true, "เชอ": true, "ทธิ": true, "ดิส": true, "สตอ": true, "โลว์": true, "ดาล": true,
+	"ดิง": true, "ฮาร์ด": true, "คาส": true, "มมาก": true, "ดอม": true, "นว": true, "งะ": true,
+	"เบิร์น": true, "กห": true, "สนะ": true, "ภา": true, "หานะ": true, "นข": true, "โนวา": true,
+	"ครอส": true, "โว่": true, "อุระ": true, "คอร์น": true, "กิระ": true, "ทิช": true, "ราโท": true,
+	"โดร": true, "วกะ": true, "เซ็ก": true, "มสิ": true, "เคา": true, "ฮอด": true, "วาม": true,
+	"กวา": true, "วหา": true, "กุล": true, "ทึก": true, "สห": true, "หยุ": true, "ทท": true,
+	"มาส": true, "สกา": true, "ปริ": true, "สเปอร์": true, "หนุ": true, "ทรอ": true, "รัย": true,
+	"เมค": true, "คล้า": true, "ทาวเวอร์": true, "เลก": true, "โฟร์": true, "ตรอน": true, "วนา": true,
+	"อธิ": true, "เล็น": true, "ภาย": true, "ฉาง": true, "ไอรอน": true, "ง่า": true, "ไรท์": true,
+	"ธร": true, "ซีล": true, "ไต้": true, "ขง": true, "มาคุ": true, "อป": true, "มาตี": true,
+	"กามา": true, "พาท": true, "ดอลล์": true, "อสิ": true, "บดี": true, "รงค": true, "สตีล": true,
+	"นิช": true, "เบียน": true, "ตง": true, "เห่": true, "อณุ": true, "เบิร์ด": true, "นร": true,
+	"สมี": true, "กริม": true, "แข": true, "อริน": true, "อาลิ": true, "รีฟ": true, "อุรา": true,
+	"เปา": true, "ดอส": true, "มท": true, "อัก": true, "วร": true, "สดี": true, "เลียว": true,
+	"ก่า": true, "นรา": true, "กุระ": true, "เว้": true, "กาแล": true, "ถีง": true,
+	"เอ็นเตอร์ไพรส์": true, "ทยา": true, "รุย": true, "รง": true, "แระ": true, "อิท": true,
+	"แดร็ก": true, "เซาท์": true, "นีโอ": true, "เลต": true, "เพ็ก": true, "เวก้า": true,
+	"ดุลย์": true, "เผ": true, "เซียร์": true, "นยะ": true, "กอซ": true, "นาว": true, "ชีว": true,
+	"ส่า": true, "คล": true, "อันเดอร์": true, "แคปปิตอล": true, "รวิ": true, "นาด": true,
+	// 人名。
+	"แอน": true, "แซม": true, "ชัค": true, "ไมเคิล": true, "เบล": true, "เบน": true, "นิค": true,
+	"ดีน": true, "เรย์": true, "ชาร์ลี": true, "ยามา": true, "จูมง": true, "พอล": true, "แมค": true,
+	"หยาง": true, "ริว": true, "มาร์ค": true, "จิม": true, "มาริ": true, "ฮั่น": true, "จอร์จ": true,
+	"แม็กซ์": true, "ฟอร์ด": true, "เกรย์": true, "จิมมี่": true, "แอนดี้": true, "แม็ก": true,
+	"ซูซาน": true, "แฮร์รี่": true, "ลิลลี่": true, "โรเบิร์ต": true, "ยามะ": true, "ฟูจิ": true,
+	"มาร์ติน": true, "สตีฟ": true, "ทรอย": true, "สก็อต": true, "ริชาร์ด": true, "ไบรอัน": true,
+	"วิคเตอร์": true, "โจนส์": true, "ลีโอ": true, "รีด": true, "ราเชล": true, "โทมัส": true,
+	"ลุค": true, "แพท": true, "หลุยส์": true, "โซเฟีย": true, "คิริ": true, "พีท": true,
+	"เอ็ดเวิร์ด": true, "วินเซนต์": true, "วิคตอเรีย": true, "พอตเตอร์": true, "สก๊อต": true,
+	"บอร์น": true, "เชสเตอร์": true, "แอรอน": true, "โรเจอร์": true, "คอนราด": true, "หลิน": true,
+	"เฮเลน": true, "ฌอน": true, "ฟิลลิป": true, "ชาร์ลส์": true, "ลินคอล์น": true, "แซค": true,
+	"แอนดรูว์": true, "บรู๊ค": true, "มอนโร": true, "วิลเลียม": true, "จัสติน": true, "นิโคลัส": true,
+	"โธมัส": true, "ออสการ์": true, "เบนจามิน": true, "ดิ๊ก": true, "ซุส": true, "บอนด์": true,
+	"อาลี": true, "สตีเว่น": true, "ลูเซีย": true, "อลิซาเบธ": true, "สตีเฟ่น": true, "ไอแซค": true,
+	"วัตสัน": true, "คาเมรอน": true, "ซีอุส": true, "มัวร์": true, "จู๊ด": true, "ฟรานซิส": true,
+	"แอนเดอร์สัน": true, "โฮป": true, "อเล็กซานเดอร์": true, "อัลเบิร์ต": true, "บุช": true,
+	"ไดแอน": true, "แซนดี้": true, "อัลเฟรด": true, "แอชลีย์": true, "มาร์กาเร็ต": true,
+	"สตีเฟน": true, "กลอเรีย": true, "สไปเดอร์แมน": true, "นิวตัน": true, "ไวโอเล็ต": true,
+	"ฟิลิป": true, "คริสโตเฟอร์": true, "สมิท": true, "ฮาร์วาร์ด": true, "มาร์ก": true,
+	"ราฟาเอล": true, "ฮิตเลอร์": true, "โดนัลด์": true, "ลอว์เรนซ์": true, "สแตนฟอร์ด": true,
+	"โมเสส": true, "ทิฟฟานี่": true, "ซีซาร์": true, "เอดิสัน": true, "คาวาซากิ": true,
+	"ฟอสเตอร์": true, "อันนา": true, "เกตส์": true, "คาร์สัน": true, "สตีเวน": true, "แซ็ก": true,
+	"เจฟเฟอร์สัน": true, "เพรสตัน": true, "โคลัมบัส": true, "คานธี": true, "ซันนี่": true,
+	"เอลวิส": true,
+	// 外国の都市・州・地名。
+	"โซล": true, "นิวยอร์ค": true, "โตเกียว": true, "นิวยอร์ก": true, "ลอนดอน": true, "ปารีส": true,
+	"โรม": true, "วอชิงตัน": true, "แอลเอ": true, "บอสตัน": true, "ฮาวาย": true, "แมนฮัตตัน": true,
+	"เท็กซัส": true, "นารา": true, "ลิสบอน": true, "ชิคาโก": true, "เชจู": true, "เบอร์ลิน": true,
+	"เซี่ยงไฮ้": true, "ลาสเวกัส": true, "บรอดเวย์": true, "สปาร์ตา": true, "ปักกิ่ง": true,
+	"เกียวโต": true, "ซานฟรานซิสโก": true, "อินชอน": true, "ฮุสตัน": true, "แคนซัส": true,
+	"ซิดนีย์": true, "ฮอกไกโด": true, "วอลสตรีท": true, "เยรูซาเล็ม": true, "ฟรานซิสโก": true,
+	"โอไฮโอ": true, "ลอสแองเจลิส": true, "เชลซี": true, "ดัลลัส": true, "บัลติมอร์": true,
+	"เวียนนา": true, "มิชิแกน": true, "ดูไบ": true,
+}
+
 // IsExcludedTargetWord は key_word にしてはいけない語かを返す。
 func IsExcludedTargetWord(word string) bool {
-	return excludedTargetWords[word]
+	return excludedTargetWords[word] || noSceneWords[word]
 }
