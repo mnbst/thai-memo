@@ -185,6 +185,7 @@ jobs:
           flutter test test/screenshots/guide_screenshot.dart \
             --dart-define=SCREEN="$SCREEN" \
             --dart-define=FROM="$FROM" \
+            --dart-define=EXPAND="${EXPAND:-}" \
             --dart-define=H=12000 \
             --dart-define=OUT="$OUT_DIR/image_1.png"
 

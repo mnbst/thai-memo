@@ -250,6 +250,107 @@
     "text_en": "Thai simply lines up verbs in the order things happen🛒\n\nไปซื้อของ pai sʉ́ʉ khɔ̌ɔng\ngo buy things＝go shopping\n\nเอาน้ำมา aw náam maa\ntake water come＝bring water\n\nNo extra words like \"to\" or \"and\" are needed."
   },
   {
+    "id": "guide_script_consonants",
+    "kind": "guide",
+    "text": "タイ文字の子音には、全部「名前」がある🐔🥚🐍\n\nก กอ ไก่（ก の 鶏）\nข ขอ ไข่（ข の 卵）\nง งอ งู（ง の 蛇）\n\n似た音の字を言い分けるための名前。まず ก・ข・ค・ง あたりから覚えると、ほかの字も覚えやすい。",
+    "image": {
+      "screen": "script",
+      "from": "2. よく使う子音"
+    },
+    "text_en": "Every Thai consonant has its own name🐔🥚🐍\n\nก kɔɔ kài (ก as in chicken)\nข khɔ̌ɔ khài (ข as in egg)\nง ngɔɔ nguu (ง as in snake)\n\nThe names tell apart letters that sound alike. Start with ก・ข・ค・ง and the rest come easier."
+  },
+  {
+    "id": "guide_pron_symbols",
+    "kind": "guide",
+    "text": "タイ語の読みで、ローマ字どおりに読むと外れる記号🔤\n\nɛ 口を大きく開けた「エ」\nɔ 口を丸く開けた「オ」\nʉ 口を横に引いた「ウ」\nə 力の抜けた「ウ」と「ア」の間\naa 同じ母音が2つなら長くのばす\n\nこれだけ押さえれば、読みの表記はほぼ読めます。",
+    "image": {
+      "screen": "pron",
+      "from": "読みの記号"
+    },
+    "text_en": "Romanized Thai has a few symbols English readers often misread🔤\n\nɛ an open \"e\" as in \"bed\"\nɔ an open \"o\" as in \"law\"\nʉ \"oo\" with your lips spread\nə a relaxed sound between \"uh\" and \"oo\"\naa a doubled vowel is held longer\n\nLearn these and you can read almost any transcription."
+  },
+  {
+    "id": "guide_tone_syllables",
+    "kind": "guide",
+    "text": "声調記号が無いのに、กิน と กัด は声調が違う🤔\n\nกิน kin 食べる（平ら）\nกัด kàt 噛む（低い）\n\n-p・-t・-k で終わる音節や、末子音なしの短母音は「死音節」。中子音なら記号なしでも低く読みます。",
+    "image": {
+      "screen": "tone",
+      "from": "音節タイプ"
+    },
+    "text_en": "No tone marks, yet กิน and กัด have different tones🤔\n\nกิน kin eat (mid)\nกัด kàt bite (low)\n\nSyllables ending in -p, -t, -k, or a short vowel with no final are \"dead.\" With a mid-class consonant they're read low, even without a mark."
+  },
+  {
+    "id": "guide_tone_shift",
+    "kind": "guide",
+    "text": "中子音の声調は、記号でこう変わる🎵\n\n記号なし กิน kin 平ら\n่ ไก่ kài 低い\n้ ต้ม tôm 下がる\n๊ โต๊ะ tó 高い\n๋ จ๋า jǎa 上がる\n\n高子音・低子音は同じ記号でも声調が変わるので、表で確かめるのが早い。",
+    "image": {
+      "screen": "tone",
+      "from": "声調変化表",
+      "expand": "中子音の声調変化"
+    },
+    "text_en": "How tone marks change the tone of mid-class consonants🎵\n\nno mark กิน kin mid\n่ ไก่ kài low\n้ ต้ม tôm falling\n๊ โต๊ะ tó high\n๋ จ๋า jǎa rising\n\nHigh- and low-class letters give different tones with the same marks, so the table is the quickest check."
+  },
+  {
+    "id": "guide_wo_fronted",
+    "kind": "guide",
+    "text": "「この報告書、明日使える？」は、タイ語でも報告書から言う📄\n\nรายงาน นี้ พรุ่งนี้ ใช้ ได้ ไหม\n報告書 → この → 明日 → 使う → できる → ？\n\nนี้・นั้น で特定した、話に出ている物は文頭に出して「それについて」言えます。",
+    "image": {
+      "screen": "word_order",
+      "from": "特定した物を話題にして"
+    },
+    "text_en": "\"This report—can we use it tomorrow?\" Thai puts the report first too📄\n\nรายงาน นี้ พรุ่งนี้ ใช้ ได้ ไหม\nraai-ngaan níi phrûng-níi chái dâai mǎi\nreport → this → tomorrow → use → can → ?\n\nSomething already pinned down with นี้ or นั้น can go first as the topic."
+  },
+  {
+    "id": "guide_wo_svo",
+    "kind": "guide",
+    "text": "「ご飯を食べる」は、タイ語だと「食べる ご飯」🍚\n\nผม กิน ข้าว\n私 → 食べる → ご飯\n\n動詞は「何を」より前。日本語と逆です。分かりきった「私」「ご飯」はよく省かれ、กิน だけでも通じます。",
+    "image": {
+      "screen": "word_order",
+      "from": "話題の後は"
+    },
+    "text_en": "In Thai, the verb comes before the object, just like English🍚\n\nผม กิน ข้าว\nphǒm kin khâaw\nI → eat → rice\n\nWhat's obvious from context is often dropped, so กิน kin alone can work as \"(I'm) eating.\""
+  },
+  {
+    "id": "guide_wo_time_place",
+    "kind": "guide",
+    "text": "「明日」は文頭か文末、「バンコクで」は動詞の後ろ🗓️\n\nพรุ่งนี้ ผม จะ ไป เชียงใหม่\n明日 → 私 → 予定 → 行く → チェンマイ\n\nผม ทำงาน ที่ กรุงเทพฯ\n私 → 働く → で → バンコク",
+    "image": {
+      "screen": "word_order",
+      "from": "時を表す語は文頭か文末"
+    },
+    "text_en": "Time words go at the start or end; places come after the verb🗓️\n\nพรุ่งนี้ ผม จะ ไป เชียงใหม่\nphrûng-níi phǒm jà pai chiang-mài\ntomorrow → I → will → go → Chiang Mai\n\nผม ทำงาน ที่ กรุงเทพฯ\nphǒm tham-ngaan thîi krung-thêep\nI → work → at → Bangkok"
+  },
+  {
+    "id": "guide_wo_result_verb",
+    "kind": "guide",
+    "text": "「全部食べる」「食べ終わる」は、กิน の後ろに1語足すだけ🍽️\n\nกิน หมด 全部食べる\nกิน เสร็จ 食べ終わる\nกิน ต่อ 食べ続ける\n\n後ろの動詞が、動作の結果や続きを表します。",
+    "image": {
+      "screen": "word_order",
+      "from": "後ろの動詞で結果"
+    },
+    "text_en": "\"Eat it all,\" \"finish eating,\" \"keep eating\": just add one word after กิน🍽️\n\nกิน หมด kin mòt eat it all\nกิน เสร็จ kin sèt finish eating\nกิน ต่อ kin tɔ̀ɔ keep eating\n\nThe second verb shows the result or continuation."
+  },
+  {
+    "id": "guide_wo_repeat",
+    "kind": "guide",
+    "text": "タイ語の「ๆ」は、前の語をもう一度読む記号🔁\n\nลองๆ ดู ちょっと試してみる\nเดินๆ หยุดๆ 歩いたり止まったり\nดูๆ ไป ก่อน とりあえず様子を見る\n\nเด็กๆ（子どもたち）のように名詞も重ねます。",
+    "image": {
+      "screen": "word_order",
+      "from": "同じ動詞を重ねる"
+    },
+    "text_en": "The Thai mark ๆ means \"say the previous word again\"🔁\n\nลองๆ ดู lɔɔng-lɔɔng duu give it a try\nเดินๆ หยุดๆ dəən-dəən yùt-yùt walk and stop, on and off\nดูๆ ไป ก่อน duu-duu pai kɔ̀ɔn wait and see for now\n\nNouns repeat too: เด็กๆ dèk-dèk means \"the kids.\""
+  },
+  {
+    "id": "guide_wo_tips",
+    "kind": "guide",
+    "text": "タイ語の並び替え、迷ったらこの順で考える🧩\n\n1. 動作・状態の語を探す\n2.「だれが」はその前、「何を」「どこへ」は後ろ\n3. 説明する語・数・นี้・มาก は説明される語の後ろ\n4. ไหม・นะ・ครับ/ค่ะ は最後",
+    "image": {
+      "screen": "word_order",
+      "from": "並び替えのコツ"
+    },
+    "text_en": "Stuck putting a Thai sentence in order? Try these steps🧩\n\n1. Find the action or state word\n2. Who does it goes before; what or where goes after\n3. Describers, numbers, นี้ and มาก follow what they describe\n4. ไหม, นะ, ครับ/ค่ะ go last"
+  },
+  {
     "id": "tip_tone_suay",
     "kind": "tip",
     "text": "タイ人に「キレイ」と言ったつもりが「ついてないね」になる話😇\n\nสวย sǔai（上がる）＝美しい\nซวย suai（平ら）＝ついてない\n\n違いは声調だけ。褒めるときは語尾をくいっと上げて。",

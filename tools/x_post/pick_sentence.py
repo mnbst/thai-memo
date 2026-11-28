@@ -1,7 +1,8 @@
 """X 投稿に使う例文を1件選ぶ。
 
 候補は GCS の静的コーパスとプール。枠（--slot）ごとに、過去の表示回数からテーマを
-コードで決め、テーマと語数で絞った候補から1件を均等に抽選する。1行目の書き出し（👇まで）は
+コードで決め、テーマと語数で絞った候補から SELECT_CANDIDATES 件を抽選し、その中から
+品質がよく目を引く1件を Gemini に選ばせる（答えられなければ抽選）。1行目の書き出し（👇まで）は
 Gemini に考えさせ、1行に収まる長さ（280字の残りが少なければそちら）を上限として渡す。
 
 投稿済みと履歴は gs://<project>-uvm-data/x_post/posted.json（X）と
@@ -238,6 +239,8 @@ GEMINI_ENDPOINT = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     "{model}:generateContent"
 )
+# Gemini に見せる候補の数。全候補は多すぎるので、抽選で絞ってから選ばせる。
+SELECT_CANDIDATES = 8
 # 書き出しが決まりに合わなかったとき、理由を添えて考え直させる回数（初回を含む）。
 HOOK_ATTEMPTS = 3
 # 伸びた書き出しの参考に渡す数。
@@ -294,6 +297,47 @@ Rules:
 Output JSON: {{"hook": "the hook"}}.""",
 }
 
+SELECT_PROMPT = {
+    "ja": """あなたは日本語話者向けのタイ語学習アカウントの中の人です。
+X に例文を1つ投稿します。次の候補から、投稿するのに一番よい1件を選んでください。
+
+テーマ: {theme}
+
+選ぶ基準（上ほど大事）:
+1. タイ人が実際にその場面で言う自然なタイ語で、日本語訳が正確で自然
+2. 場面が具体的で、読んだ人が「自分も言いそう」「言ってみたい」と思える
+3. タイムラインで目を引く（意外・ちょっと笑える・感情がある）。教科書的で平凡な文は避ける
+
+候補:
+{candidates}
+
+出力は JSON で {{"index": 候補の番号, "reason": "選んだ理由を40字以内で"}}。""",
+    "en": """You run a Thai-learning account for English speakers.
+You are posting one sentence on X. Pick the best one to post from the candidates below.
+
+Theme: {theme}
+
+Criteria (most important first):
+1. Natural Thai that a Thai person would actually say in that moment, with an accurate, natural translation
+2. A concrete situation that makes readers think "I'd say that" or "I want to try saying that"
+3. Stands out in the timeline (surprising, a little funny, or emotional). Avoid bland textbook sentences
+
+Candidates:
+{candidates}
+
+Output JSON: {{"index": candidate number, "reason": "why you picked it, under 80 characters"}}.""",
+}
+SELECT_SCHEMA = {
+    "type": "object",
+    "properties": {"index": {"type": "integer"}, "reason": {"type": "string"}},
+    "required": ["index", "reason"],
+}
+HOOK_SCHEMA = {
+    "type": "object",
+    "properties": {"hook": {"type": "string"}},
+    "required": ["hook"],
+}
+
 TOP_HOOKS_SECTION = {
     "ja": "\n参考: これまで表示回数が多かった書き出し（多い順）。文言は使い回さないこと。\n{lines}\n",
     "en": "\nReference: hooks that got the most views so far. Do not reuse their wording.\n{lines}\n",
@@ -344,7 +388,20 @@ def top_hooks_section(history: list[dict], now: datetime, lang: str) -> str:
     return TOP_HOOKS_SECTION[lang].format(lines=lines)
 
 
-def ask_gemini(key: str, prompt: str) -> str:
+def gemini_key(project: str) -> str:
+    """Gemini の鍵。取れなければ空（投稿は止めない）。"""
+    try:
+        return secretmanager.SecretManagerServiceClient().access_secret_version(
+            request={
+                "name": f"projects/{project}/secrets/{GEMINI_SECRET}/versions/latest"
+            }
+        ).payload.data.decode("utf-8")
+    except Exception as error:  # noqa: BLE001 鍵が取れなくても投稿は止めない
+        print(f"Gemini の鍵が取れない: {error}", file=sys.stderr)
+        return ""
+
+
+def ask_gemini(key: str, prompt: str, schema: dict) -> dict:
     response = requests.post(
         GEMINI_ENDPOINT.format(model=GEMINI_MODEL),
         headers={"x-goog-api-key": key},
@@ -356,38 +413,51 @@ def ask_gemini(key: str, prompt: str) -> str:
                 "maxOutputTokens": 256,
                 "thinkingConfig": {"thinkingLevel": "minimal"},
                 "responseMimeType": "application/json",
-                "responseSchema": {
-                    "type": "object",
-                    "properties": {"hook": {"type": "string"}},
-                    "required": ["hook"],
-                },
+                "responseSchema": schema,
             },
         },
         timeout=60,
     )
     response.raise_for_status()
     text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-    hook = str(json.loads(text).get("hook") or "").strip()
+    return json.loads(text)
+
+
+def ask_hook(key: str, prompt: str) -> str:
+    hook = str(ask_gemini(key, prompt, HOOK_SCHEMA).get("hook") or "").strip()
     # 1行目だけ使い、付けてしまった👇は外す（こちらで付ける）。
     return hook.splitlines()[0].rstrip("👇").strip() if hook else ""
 
 
+def choose_with_gemini(
+    key: str, candidates: list[dict], theme: str, lang: str
+) -> tuple[int, str] | None:
+    """候補から品質がよく目を引く1件を Gemini に選ばせる。答えられなければ None。"""
+    lines = "\n".join(
+        f"[{i}] {s['thai_text']} / {s['japanese_translation']}"
+        f" / {(s.get('context') or {}).get('usage_scenarios') or '-'}"
+        for i, s in enumerate(candidates)
+    )
+    prompt = SELECT_PROMPT[lang].format(theme=theme, candidates=lines)
+    try:
+        answer = ask_gemini(key, prompt, SELECT_SCHEMA)
+        index = int(answer["index"])
+    except (requests.RequestException, KeyError, IndexError, ValueError, TypeError) as error:
+        print(f"Gemini の例文選びに失敗: {error}", file=sys.stderr)
+        return None
+    if not 0 <= index < len(candidates):
+        print(f"Gemini が候補に無い番号を返した: {index}", file=sys.stderr)
+        return None
+    return index, str(answer.get("reason") or "").strip()
+
+
 def generate_hook(
-    project: str, sentence: dict, theme: str, lang: str, top_hooks: str
+    key: str, sentence: dict, theme: str, lang: str, top_hooks: str
 ) -> str:
     """Gemini に書き出しを考えさせる。決まりに合わなければ理由を添えて考え直させ、
     最後まで合わなければ空を返す（呼び出し側でテーマの決まり文句に替わる）。"""
     limit = hook_limit(sentence, lang)
-    if limit <= 0:
-        return ""
-    try:
-        key = secretmanager.SecretManagerServiceClient().access_secret_version(
-            request={
-                "name": f"projects/{project}/secrets/{GEMINI_SECRET}/versions/latest"
-            }
-        ).payload.data.decode("utf-8")
-    except Exception as error:  # noqa: BLE001 鍵が取れなくても投稿は止めない
-        print(f"Gemini の鍵が取れない: {error}", file=sys.stderr)
+    if limit <= 0 or not key:
         return ""
     prompt = HOOK_PROMPT[lang].format(
         theme=theme,
@@ -401,7 +471,7 @@ def generate_hook(
     note = ""
     for _ in range(HOOK_ATTEMPTS):
         try:
-            hook = ask_gemini(key, prompt + note)
+            hook = ask_hook(key, prompt + note)
         except (requests.RequestException, KeyError, IndexError, ValueError) as error:
             print(f"Gemini の書き出しに失敗: {error}", file=sys.stderr)
             continue
@@ -820,8 +890,15 @@ def main() -> int:
         return 1
     print(f"テーマ: {theme}（{theme_reason}）", file=sys.stderr)
 
-    picked = rng.choice(candidates)
-    reason, chooser = "", "抽選"
+    # 抽選で絞った候補から、品質がよく目を引く1件を Gemini に選ばせる。
+    key = gemini_key(args.project)
+    shortlist = rng.sample(candidates, min(SELECT_CANDIDATES, len(candidates)))
+    chosen = choose_with_gemini(key, shortlist, theme, lang) if key else None
+    if chosen:
+        picked, reason, chooser = shortlist[chosen[0]], chosen[1], "gemini"
+    else:
+        picked, reason, chooser = rng.choice(shortlist), "", "抽選"
+    print(f"選定: {chooser}（{len(shortlist)}件から）{reason}", file=sys.stderr)
 
     # 詳細画面は作成日を出す。Firestore の Timestamp はそのままでは JSON に
     # できないので、投稿日に置き換えて「不明」を出さない。
@@ -837,7 +914,7 @@ def main() -> int:
         json.dumps(picked, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     generated = generate_hook(
-        args.project, picked, theme, lang, top_hooks_section(history, now, lang)
+        key, picked, theme, lang, top_hooks_section(history, now, lang)
     )
     text = build_text(picked, generated, theme, lang)
     # 実際に使った書き出し（決まり文句に替わった場合も含む）を履歴に残す。

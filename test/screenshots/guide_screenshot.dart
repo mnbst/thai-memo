@@ -10,6 +10,7 @@
 //     --dart-define=H=4000       # 論理高さ。大きくすると全体を1枚に収める
 //     --dart-define=FROM=5つの声調  # 指定すると、この見出しを含む欄（Card）だけを切り出す
 //     --dart-define=TO=子音クラス    # 指定すると、FROM の見出しからこの見出しの手前まで
+//     --dart-define=EXPAND=中子音の声調変化  # 指定すると、この見出しの折りたたみを開いてから撮る
 //
 // FROM/TO は X 投稿（tools/x_post/pick_study_post.py）がガイドの1欄を貼るのに使う。
 //
@@ -40,6 +41,7 @@ const _out = String.fromEnvironment('OUT', defaultValue: 'build/guide.png');
 const _lang = String.fromEnvironment('LANG', defaultValue: 'ja');
 const _from = String.fromEnvironment('FROM');
 const _to = String.fromEnvironment('TO');
+const _expand = String.fromEnvironment('EXPAND');
 // 切り出す欄の上下に残す余白（論理px）。
 const _margin = 6.0;
 
@@ -75,6 +77,10 @@ void main() {
     final navigator = tester.state<NavigatorState>(find.byType(Navigator));
     navigator.push(MaterialPageRoute<void>(builder: (_) => _screens[_screen]!));
     await tester.pumpAndSettle();
+    if (_expand.isNotEmpty) {
+      await tester.tap(find.textContaining(_expand, findRichText: true).first);
+      await tester.pumpAndSettle();
+    }
     await tester.pump(const Duration(seconds: 1));
 
     final boundary = tester.renderObject<RenderRepaintBoundary>(
