@@ -153,3 +153,26 @@ func TestPickSceneExcept(t *testing.T) {
 		t.Error("記録の無い1文が残り1場面を使っているはずなのに選んだ")
 	}
 }
+
+// PickScenes は場面を戻さずに引く（同じ場面が2度出ない）。
+func TestPickScenesDistinct(t *testing.T) {
+	b := &Builder{Rand: rand.New(rand.NewSource(1))}
+	byTopic := [][]matched{
+		{{topic: "a", scene: "s1", ids: []string{"x1"}}, {topic: "a", scene: "s2", ids: []string{"x2"}}},
+		{{topic: "b", scene: "s3", ids: []string{"y1", "y2"}}},
+	}
+	got := b.drawScenes(byTopic, 5)
+	if len(got) != 3 {
+		t.Fatalf("場面は3つだけ: %+v", got)
+	}
+	seen := map[string]bool{}
+	for _, p := range got {
+		if seen[p.Scene] {
+			t.Errorf("同じ場面が2度: %+v", got)
+		}
+		seen[p.Scene] = true
+	}
+	if len(byTopic[0]) != 2 {
+		t.Error("元の候補を書き換えない")
+	}
+}

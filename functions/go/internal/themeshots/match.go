@@ -2,6 +2,7 @@ package themeshots
 
 import (
 	"log"
+	"slices"
 	"sync"
 
 	"github.com/mnbst/thai-memo/functions/go/internal/bldrama"
@@ -232,6 +233,58 @@ func (b *Builder) PickSceneExcept(
 	return sentence.ScenePick{
 		Topic: hit.topic, Scene: hit.scene, ShotID: hit.ids[b.intn(len(hit.ids))],
 	}, true
+}
+
+// PickScenes は PickScene と同じ選び方を、場面を戻さずに最大 n 回繰り返す（sentence.SceneCandidates）。
+// 1つ目は PickScene と同じ分布になる。場面ごとに点を付けて選ぶための候補。
+func (b *Builder) PickScenes(word string, topics []string, minSceneZ float64, n int) []sentence.ScenePick {
+	return b.drawScenes(b.matchScenes(word, topics, minSceneZ), n)
+}
+
+// PickScenesExcept は PickSceneExcept と同じ除き方で、候補を最大 n 個返す。
+func (b *Builder) PickScenesExcept(
+	word string, topics []string, minSceneZ float64, used map[string]bool, unknown, n int,
+) []sentence.ScenePick {
+	var rest [][]matched
+	total := 0
+	for _, hits := range b.matchScenes(word, topics, minSceneZ) {
+		var keep []matched
+		for _, h := range hits {
+			if !used[h.scene] {
+				keep = append(keep, h)
+			}
+		}
+		if len(keep) > 0 {
+			rest = append(rest, keep)
+			total += len(keep)
+		}
+	}
+	if total <= unknown {
+		return nil
+	}
+	return b.drawScenes(rest, n)
+}
+
+// drawScenes はテーマ → 場面 → ショットの順に一様に選び、選んだ場面を外して n 回まで繰り返す。
+func (b *Builder) drawScenes(byTopic [][]matched, n int) []sentence.ScenePick {
+	pool := make([][]matched, len(byTopic))
+	for i, hits := range byTopic {
+		pool[i] = slices.Clone(hits)
+	}
+	var out []sentence.ScenePick
+	for len(out) < n && len(pool) > 0 {
+		ti := b.intn(len(pool))
+		si := b.intn(len(pool[ti]))
+		hit := pool[ti][si]
+		out = append(out, sentence.ScenePick{
+			Topic: hit.topic, Scene: hit.scene, ShotID: hit.ids[b.intn(len(hit.ids))],
+		})
+		pool[ti] = slices.Delete(pool[ti], si, si+1)
+		if len(pool[ti]) == 0 {
+			pool = slices.Delete(pool, ti, ti+1)
+		}
+	}
+	return out
 }
 
 // HasScene は場面合致を通る場面があるか（テーマ寄せの判定用。抽選しない）。
