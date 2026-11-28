@@ -170,18 +170,13 @@ func candidateFrom(uid, docID string, data map[string]any) (quality.Candidate, b
 	}, true
 }
 
-// chunkCandidates は size 件ずつに分ける（sentence_audit_live_test の束分けで使う）。
+// chunkCandidates は size 件ずつに分ける。
 func chunkCandidates(candidates []quality.Candidate, size int) [][]quality.Candidate {
 	var out [][]quality.Candidate
 	for i := 0; i < len(candidates); i += size {
 		out = append(out, candidates[i:min(i+size, len(candidates))])
 	}
 	return out
-}
-
-// newJudge は手元で判定を試すための判定器（sentence_audit_live_test）。
-func newJudge(ctx context.Context) (*quality.Judge, error) {
-	return quality.NewJudge(ctx)
 }
 
 // intEnvOr は整数の環境変数を読む。空・不正なら fallback。
