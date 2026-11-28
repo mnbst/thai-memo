@@ -553,6 +553,10 @@ func (p *Producer) generate(
 				// 選定時に場面合致で決めたショットをそのまま使う（L4 で引き直さない）。
 				callParams[sceneMatchedParam] = true
 				callParams[shotIDParam] = pk.ShotID
+				if pk.Medium != "" {
+					// 選定時に決めた媒体（場面を使うかを見て採点したので、引き直さない）。
+					callParams["medium"] = pk.Medium
+				}
 			}
 
 			s, err := p.Service.GenerateSentence(

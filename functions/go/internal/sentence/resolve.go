@@ -71,16 +71,19 @@ func mediumWeight(m Medium, topic string) int {
 
 // DrawMedium は Media を重み付きで1つ引く。
 func (r *Resolver) DrawMedium(topic string) string {
+	if r.Rand != nil {
+		return drawMedium(topic, r.Rand.Intn)
+	}
+	return drawMedium(topic, rand.Intn)
+}
+
+// drawMedium は topic の重みで Media を1つ引く（選定時にも使う。TargetWord.Medium）。
+func drawMedium(topic string, intn func(int) int) string {
 	total := 0
 	for _, m := range Media {
 		total += mediumWeight(m, topic)
 	}
-	var n int
-	if r.Rand != nil {
-		n = r.Rand.Intn(total)
-	} else {
-		n = rand.Intn(total)
-	}
+	n := intn(total)
 	for _, m := range Media {
 		w := mediumWeight(m, topic)
 		if n < w {

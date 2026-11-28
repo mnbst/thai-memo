@@ -287,6 +287,12 @@ func (b *Builder) drawScenes(byTopic [][]matched, n int) []sentence.ScenePick {
 	return out
 }
 
+// UsesScene は topic の回を medium で作るとき場面のショットを使うか（sentence.SceneCandidates）。
+// 媒体の例文がある媒体では ShotSection が先にそれを返す。BL は会話に固定なので常に使う。
+func (b *Builder) UsesScene(topic, medium string) bool {
+	return topic == sentence.Topics[15] || len(writtenShots[topic][medium]) == 0
+}
+
 // HasScene は場面合致を通る場面があるか（テーマ寄せの判定用。抽選しない）。
 func (b *Builder) HasScene(word string, topics []string, minSceneZ float64) bool {
 	return len(b.matchScenes(word, topics, minSceneZ)) > 0

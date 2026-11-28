@@ -69,6 +69,7 @@ func main() {
 	timeFrame := flag.String("timeframe", "", "話している時点を固定する（例: これからの予定）")
 	coarseTime := flag.Bool("coarse-time", false, "時点を 過去／現在／未来／習慣 の言い方でプロンプトに出す")
 	matched := flag.Bool("matched", false, "場面合致で外れた回（premium、ショット無し）として生成する")
+	fitMin := flag.Float64("fitmin", 0, "-scenematch fit で場面を使う点の下限。0 なら本番の値（sentence.SceneFitMin）")
 	pairsFile := flag.String("pairs", "", "語とテーマの組を固定する JSON（[{\"word\",\"topic\"}]）。指定時は -words・-topic より優先")
 	sceneMatch := flag.String("scenematch", "", "本番の場面合致で場面を選ぶ（uniform: 一様に選ぶ従来の形 / fit: 候補3つを Decisions で採点）。テーマの指定が要る")
 	blMood := flag.Bool("blmood", true, "-matched の BL 回に同じ作品の3文と設定を付ける（false で従来どおり付けない）")
@@ -153,6 +154,7 @@ func main() {
 		picker = &sentence.TargetWordSelector{Scenes: b}
 		if *sceneMatch == "fit" {
 			picker.Fit = &themeshots.FitScorer{Asker: &quality.Gemini{APIKey: key}}
+			picker.FitMin = *fitMin
 		}
 	}
 
@@ -188,6 +190,9 @@ func main() {
 				params["sceneMatched"] = true
 				if tw, ok := picker.FreshSceneTarget(w.Word, topic, nil, 0); ok {
 					params["topic"], params["shotID"] = tw.Topic, tw.ShotID
+					if tw.Medium != "" {
+						params["medium"] = tw.Medium
+					}
 				}
 			}
 			s, err := svc.GenerateSentence(ctx, params, !*free,

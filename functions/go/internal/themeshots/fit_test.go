@@ -37,3 +37,18 @@ func TestSceneFit(t *testing.T) {
 		t.Fatalf("got=%v err=%v inputs=%d", got, err, len(a.inputs))
 	}
 }
+
+// 媒体の例文があるテーマ・媒体では場面を使わない。会話と BL は使う。
+func TestUsesScene(t *testing.T) {
+	b := &Builder{}
+	conv, written := sentence.Media[0].Name, sentence.Media[1].Name
+	if !b.UsesScene(sentence.Topics[1], conv) {
+		t.Error("会話は場面を使う")
+	}
+	if b.UsesScene(sentence.Topics[1], written) {
+		t.Error("食べ物の解説・紹介文は媒体の例文を使う")
+	}
+	if !b.UsesScene(sentence.Topics[15], written) {
+		t.Error("BL は常に場面を使う")
+	}
+}
